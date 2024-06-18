@@ -15,8 +15,19 @@
 
 static DEFINE_SPINLOCK(gmac_lock);
 
+
+#define SUN7I_A20_GMAC_GPIT	2
+#define SUN7I_A20_GMAC_MASK	0x3
+#define SUN7I_A20_GMAC_PARENTS	2
+
+static u32 sun7i_a20_gmac_mux_table[SUN7I_A20_GMAC_PARENTS] = {
+	0x00, /* Select mii_phy_tx_clk */
+	0x02, /* Select gmac_int_tx_clk */
+};
+
 /**
  * sun7i_a20_gmac_clk_setup - Setup function for A20/A31 GMAC clock module
+ * @node: &struct device_node for the clock
  *
  * This clock looks something like this
  *                               ________________________
@@ -39,16 +50,6 @@ static DEFINE_SPINLOCK(gmac_lock);
  * enable/disable this clock to configure the required state. The clock
  * driver then responds by auto-reparenting the clock.
  */
-
-#define SUN7I_A20_GMAC_GPIT	2
-#define SUN7I_A20_GMAC_MASK	0x3
-#define SUN7I_A20_GMAC_PARENTS	2
-
-static u32 sun7i_a20_gmac_mux_table[SUN7I_A20_GMAC_PARENTS] = {
-	0x00, /* Select mii_phy_tx_clk */
-	0x02, /* Select gmac_int_tx_clk */
-};
-
 static void __init sun7i_a20_gmac_clk_setup(struct device_node *node)
 {
 	struct clk *clk;

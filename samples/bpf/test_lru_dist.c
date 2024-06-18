@@ -13,7 +13,6 @@
 #include <sched.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
-#include <sys/resource.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <time.h>
@@ -41,11 +40,6 @@ static inline void INIT_LIST_HEAD(struct list_head *list)
 {
 	list->next = list;
 	list->prev = list;
-}
-
-static inline int list_empty(const struct list_head *head)
-{
-	return head->next == head;
 }
 
 static inline void __list_add(struct list_head *new,
@@ -105,10 +99,10 @@ struct pfect_lru {
 static void pfect_lru_init(struct pfect_lru *lru, unsigned int lru_size,
 			   unsigned int nr_possible_elems)
 {
-	lru->map_fd = bpf_create_map(BPF_MAP_TYPE_HASH,
+	lru->map_fd = bpf_map_create(BPF_MAP_TYPE_HASH, NULL,
 				     sizeof(unsigned long long),
 				     sizeof(struct pfect_lru_node *),
-				     nr_possible_elems, 0);
+				     nr_possible_elems, NULL);
 	assert(lru->map_fd != -1);
 
 	lru->free_nodes = malloc(lru_size * sizeof(struct pfect_lru_node));
@@ -207,10 +201,13 @@ static unsigned int read_keys(const char *dist_file,
 
 static int create_map(int map_type, int map_flags, unsigned int size)
 {
+	LIBBPF_OPTS(bpf_map_create_opts, opts,
+		.map_flags = map_flags,
+	);
 	int map_fd;
 
-	map_fd = bpf_create_map(map_type, sizeof(unsigned long long),
-				sizeof(unsigned long long), size, map_flags);
+	map_fd = bpf_map_create(map_type, NULL, sizeof(unsigned long long),
+				sizeof(unsigned long long), size, &opts);
 
 	if (map_fd == -1)
 		perror("bpf_create_map");
@@ -489,7 +486,6 @@ static void test_parallel_lru_loss(int map_type, int map_flags, int nr_tasks)
 
 int main(int argc, char **argv)
 {
-	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	int map_flags[] = {0, BPF_F_NO_COMMON_LRU};
 	const char *dist_file;
 	int nr_tasks = 1;
@@ -508,8 +504,6 @@ int main(int argc, char **argv)
 
 	setbuf(stdout, NULL);
 
-	assert(!setrlimit(RLIMIT_MEMLOCK, &r));
-
 	srand(time(NULL));
 
 	nr_cpus = bpf_num_possible_cpus();
@@ -524,7 +518,7 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	for (f = 0; f < sizeof(map_flags) / sizeof(*map_flags); f++) {
+	for (f = 0; f < ARRAY_SIZE(map_flags); f++) {
 		test_lru_loss0(BPF_MAP_TYPE_LRU_HASH, map_flags[f]);
 		test_lru_loss1(BPF_MAP_TYPE_LRU_HASH, map_flags[f]);
 		test_parallel_lru_loss(BPF_MAP_TYPE_LRU_HASH, map_flags[f],

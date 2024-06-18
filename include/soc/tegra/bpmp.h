@@ -6,6 +6,7 @@
 #ifndef __SOC_TEGRA_BPMP_H
 #define __SOC_TEGRA_BPMP_H
 
+#include <linux/iosys-map.h>
 #include <linux/mailbox_client.h>
 #include <linux/pm_domain.h>
 #include <linux/reset-controller.h>
@@ -36,10 +37,22 @@ struct tegra_bpmp_mb_data {
 	u8 data[MSG_DATA_MIN_SZ];
 } __packed;
 
+#define tegra_bpmp_mb_read(dst, mb, size) \
+	iosys_map_memcpy_from(dst, mb, offsetof(struct tegra_bpmp_mb_data, data), size)
+
+#define tegra_bpmp_mb_write(mb, src, size) \
+	iosys_map_memcpy_to(mb, offsetof(struct tegra_bpmp_mb_data, data), src, size)
+
+#define tegra_bpmp_mb_read_field(mb, field) \
+	iosys_map_rd_field(mb, 0, struct tegra_bpmp_mb_data, field)
+
+#define tegra_bpmp_mb_write_field(mb, field, value) \
+	iosys_map_wr_field(mb, 0, struct tegra_bpmp_mb_data, field, value)
+
 struct tegra_bpmp_channel {
 	struct tegra_bpmp *bpmp;
-	struct tegra_bpmp_mb_data *ib;
-	struct tegra_bpmp_mb_data *ob;
+	struct iosys_map ib;
+	struct iosys_map ob;
 	struct completion completion;
 	struct tegra_ivc *ivc;
 	unsigned int index;
@@ -89,7 +102,11 @@ struct tegra_bpmp {
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_mirror;
 #endif
+
+	bool suspended;
 };
+
+#define TEGRA_BPMP_MESSAGE_RESET BIT(0)
 
 struct tegra_bpmp_message {
 	unsigned int mrq;
@@ -104,6 +121,8 @@ struct tegra_bpmp_message {
 		size_t size;
 		int ret;
 	} rx;
+
+	unsigned long flags;
 };
 
 #if IS_ENABLED(CONFIG_TEGRA_BPMP)

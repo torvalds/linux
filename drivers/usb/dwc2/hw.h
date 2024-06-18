@@ -1,38 +1,8 @@
-// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/* SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause) */
 /*
  * hw.h - DesignWare HS OTG Controller hardware definitions
  *
  * Copyright 2004-2013 Synopsys, Inc.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. The names of the above-listed copyright holders may not be used
- *    to endorse or promote products derived from this software without
- *    specific prior written permission.
- *
- * ALTERNATIVELY, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") as published by the Free Software
- * Foundation; either version 2 of the License, or (at your option) any
- * later version.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
- * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef __DWC2_HW_H__
@@ -41,9 +11,11 @@
 #define HSOTG_REG(x)	(x)
 
 #define GOTGCTL				HSOTG_REG(0x000)
+#define GOTGCTL_EUSB2_DISC_SUPP	BIT(28)
 #define GOTGCTL_CHIRPEN			BIT(27)
 #define GOTGCTL_MULT_VALID_BC_MASK	(0x1f << 22)
 #define GOTGCTL_MULT_VALID_BC_SHIFT	22
+#define GOTGCTL_CURMODE_HOST		BIT(21)
 #define GOTGCTL_OTGVER			BIT(20)
 #define GOTGCTL_BSESVLD			BIT(19)
 #define GOTGCTL_ASESVLD			BIT(18)
@@ -54,6 +26,12 @@
 #define GOTGCTL_HSTSETHNPEN		BIT(10)
 #define GOTGCTL_HNPREQ			BIT(9)
 #define GOTGCTL_HSTNEGSCS		BIT(8)
+#define GOTGCTL_BVALOVAL		BIT(7)
+#define GOTGCTL_BVALOEN			BIT(6)
+#define GOTGCTL_AVALOVAL		BIT(5)
+#define GOTGCTL_AVALOEN			BIT(4)
+#define GOTGCTL_VBVALOVAL		BIT(3)
+#define GOTGCTL_VBVALOEN		BIT(2)
 #define GOTGCTL_SESREQ			BIT(1)
 #define GOTGCTL_SESREQSCS		BIT(0)
 
@@ -120,6 +98,18 @@
 #define GRSTCTL				HSOTG_REG(0x010)
 #define GRSTCTL_AHBIDLE			BIT(31)
 #define GRSTCTL_DMAREQ			BIT(30)
+#define GRSTCTL_CSFTRST_DONE		BIT(29)
+#define GRSTCTL_CLOCK_SWITH_TIMER_MASK		(0x7 << 11)
+#define GRSTCTL_CLOCK_SWITH_TIMER_SHIFT		11
+#define GRSTCTL_CLOCK_SWITH_TIMER_VALUE_19		0x0
+#define GRSTCTL_CLOCK_SWITH_TIMER_VALUE_15		0x1
+#define GRSTCTL_CLOCK_SWITH_TIMER_VALUE_147		0x2
+#define GRSTCTL_CLOCK_SWITH_TIMER_VALUE_50		0x3
+#define GRSTCTL_CLOCK_SWITH_TIMER_VALUE_100		0x4
+#define GRSTCTL_CLOCK_SWITH_TIMER_VALUE_125		0x5
+#define GRSTCTL_CLOCK_SWITH_TIMER_VALUE_200		0x6
+#define GRSTCTL_CLOCK_SWITH_TIMER_VALUE_DIS		0x7
+#define GRSTCTL_CLOCK_SWITH_TIMER(_x)		((_x) << 11)
 #define GRSTCTL_TXFNUM_MASK		(0x1f << 6)
 #define GRSTCTL_TXFNUM_SHIFT		6
 #define GRSTCTL_TXFNUM_LIMIT		0x1f
@@ -227,6 +217,8 @@
 #define GPVNDCTL			HSOTG_REG(0x0034)
 #define GGPIO				HSOTG_REG(0x0038)
 #define GGPIO_STM32_OTG_GCCFG_PWRDWN	BIT(16)
+#define GGPIO_STM32_OTG_GCCFG_VBDEN	BIT(21)
+#define GGPIO_STM32_OTG_GCCFG_IDEN	BIT(22)
 
 #define GUID				HSOTG_REG(0x003c)
 #define GSNPSID				HSOTG_REG(0x0040)
@@ -352,6 +344,8 @@
 #define GLPMCFG_LPMCAP			BIT(0)
 
 #define GPWRDN				HSOTG_REG(0x0058)
+
+#define GPWRDN_ULPI_LATCH_EN_DURING_HIB_ENTRY	BIT(29)
 #define GPWRDN_MULT_VAL_ID_BC_MASK	(0x1f << 24)
 #define GPWRDN_MULT_VAL_ID_BC_SHIFT	24
 #define GPWRDN_ADP_INT			BIT(23)
@@ -718,7 +712,7 @@
 #define TXSTS_QTOP_TOKEN_MASK		(0x3 << 25)
 #define TXSTS_QTOP_TOKEN_SHIFT		25
 #define TXSTS_QTOP_TERMINATE		BIT(24)
-#define TXSTS_QSPCAVAIL_MASK		(0xff << 16)
+#define TXSTS_QSPCAVAIL_MASK		(0x7f << 16)
 #define TXSTS_QSPCAVAIL_SHIFT		16
 #define TXSTS_FSPCAVAIL_MASK		(0xffff << 0)
 #define TXSTS_FSPCAVAIL_SHIFT		0

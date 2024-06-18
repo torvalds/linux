@@ -831,6 +831,7 @@ struct __packed atto_hba_trace {
 	u32 total_length;
 	u32 trace_mask;
 	u8 reserved2[48];
+	u8 contents[];
 };
 
 #define ATTO_FUNC_SCSI_PASS_THRU     0x04
@@ -1141,7 +1142,7 @@ struct __packed atto_ioctl_vda_gsv_cmd {
 
 	u8 rsp_len;
 	u8 reserved[7];
-	u8 version_info[1];
+	u8 version_info[];
 	#define ATTO_VDA_VER_UNSUPPORTED 0xFF
 
 };

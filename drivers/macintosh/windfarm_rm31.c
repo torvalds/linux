@@ -11,7 +11,7 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
-#include <asm/prom.h>
+
 #include <asm/smu.h>
 
 #include "windfarm.h"
@@ -281,8 +281,8 @@ static void cpu_fans_tick(void)
 		for (i = 0; i < 3; i++) {
 			err = wf_control_set(cpu_fans[cpu][i], speed);
 			if (err) {
-				pr_warning("wf_rm31: Fan %s reports error %d\n",
-					   cpu_fans[cpu][i]->name, err);
+				pr_warn("wf_rm31: Fan %s reports error %d\n",
+					cpu_fans[cpu][i]->name, err);
 				failure_state |= FAILURE_FAN;
 			}
 		}
@@ -465,7 +465,7 @@ static void slots_fan_tick(void)
 
 	err = wf_sensor_get(slots_temp, &temp);
 	if (err) {
-		pr_warning("wf_rm31: slots temp sensor error %d\n", err);
+		pr_warn("wf_rm31: slots temp sensor error %d\n", err);
 		failure_state |= FAILURE_SENSOR;
 		wf_control_set_max(slots_fan);
 		return;
@@ -668,17 +668,14 @@ static int wf_rm31_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int wf_rm31_remove(struct platform_device *dev)
+static void wf_rm31_remove(struct platform_device *dev)
 {
 	wf_unregister_client(&rm31_events);
-
-	/* should release all sensors and controls */
-	return 0;
 }
 
 static struct platform_driver wf_rm31_driver = {
 	.probe	= wf_rm31_probe,
-	.remove	= wf_rm31_remove,
+	.remove_new = wf_rm31_remove,
 	.driver	= {
 		.name = "windfarm",
 	},

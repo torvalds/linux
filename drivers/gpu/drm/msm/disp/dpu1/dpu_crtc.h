@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2015-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2015-2021 The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  */
@@ -12,7 +13,6 @@
 #include <drm/drm_crtc.h>
 #include "dpu_kms.h"
 #include "dpu_core_perf.h"
-#include "dpu_hw_blk.h"
 
 #define DPU_CRTC_NAME_SIZE	12
 
@@ -70,17 +70,33 @@ struct dpu_crtc_smmu_state_data {
 };
 
 /**
+ * enum dpu_crtc_crc_source: CRC source
+ * @DPU_CRTC_CRC_SOURCE_NONE: no source set
+ * @DPU_CRTC_CRC_SOURCE_LAYER_MIXER: CRC in layer mixer
+ * @DPU_CRTC_CRC_SOURCE_ENCODER: CRC in encoder
+ * @DPU_CRTC_CRC_SOURCE_INVALID: Invalid source
+ */
+enum dpu_crtc_crc_source {
+	DPU_CRTC_CRC_SOURCE_NONE = 0,
+	DPU_CRTC_CRC_SOURCE_LAYER_MIXER,
+	DPU_CRTC_CRC_SOURCE_ENCODER,
+	DPU_CRTC_CRC_SOURCE_MAX,
+	DPU_CRTC_CRC_SOURCE_INVALID = -1
+};
+
+/**
  * struct dpu_crtc_mixer: stores the map for each virtual pipeline in the CRTC
  * @hw_lm:	LM HW Driver context
  * @lm_ctl:	CTL Path HW driver context
+ * @lm_dspp:	DSPP HW driver context
  * @mixer_op_mode:	mixer blending operation mode
  * @flush_mask:	mixer flush mask for ctl, mixer and pipe
  */
 struct dpu_crtc_mixer {
 	struct dpu_hw_mixer *hw_lm;
 	struct dpu_hw_ctl *lm_ctl;
+	struct dpu_hw_dspp *hw_dspp;
 	u32 mixer_op_mode;
-	u32 flush_mask;
 };
 
 /**
@@ -114,8 +130,6 @@ struct dpu_crtc_frame_event {
  * @drm_requested_vblank : Whether vblanks have been enabled in the encoder
  * @property_info : Opaque structure for generic property support
  * @property_defaults : Array of default values for generic property support
- * @stage_cfg     : H/w mixer stage configuration
- * @debugfs_root  : Parent of debugfs node
  * @vblank_cb_count : count of vblank callback since last reset
  * @play_count    : frame count between crtc enable and disable
  * @vblank_cb_time  : ktime at vblank count reset
@@ -137,6 +151,7 @@ struct dpu_crtc_frame_event {
  * @event_lock    : Spinlock around event handling code
  * @phandle: Pointer to power handler
  * @cur_perf      : current performance committed to clock/bandwidth driver
+ * @crc_source    : CRC source
  */
 struct dpu_crtc {
 	struct drm_crtc base;
@@ -144,9 +159,6 @@ struct dpu_crtc {
 
 	struct drm_pending_vblank_event *event;
 	u32 vsync_count;
-
-	struct dpu_hw_stage_cfg stage_cfg;
-	struct dentry *debugfs_root;
 
 	u32 vblank_cb_count;
 	u64 play_count;
@@ -190,6 +202,8 @@ struct dpu_crtc {
  * @mixers        : List of active mixers
  * @num_ctls      : Number of ctl paths in use
  * @hw_ctls       : List of active ctl paths
+ * @crc_source    : CRC source
+ * @crc_frame_skip_count: Number of frames skipped before getting CRC
  */
 struct dpu_crtc_state {
 	struct drm_crtc_state base;
@@ -208,6 +222,9 @@ struct dpu_crtc_state {
 
 	u32 num_ctls;
 	struct dpu_hw_ctl *hw_ctls[CRTC_DUAL_MIXERS];
+
+	enum dpu_crtc_crc_source crc_source;
+	int crc_frame_skip_count;
 };
 
 #define to_dpu_crtc_state(x) \

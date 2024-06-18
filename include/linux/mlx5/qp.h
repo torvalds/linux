@@ -36,7 +36,7 @@
 #include <linux/mlx5/device.h>
 #include <linux/mlx5/driver.h>
 
-#define MLX5_INVALID_LKEY	0x100
+#define MLX5_TERMINATE_SCATTER_LIST_LKEY cpu_to_be32(0x100)
 /* UMR (3 WQE_BB's) + SIG (3 WQE_BB's) + PSV (mem) + PSV (wire) */
 #define MLX5_SIG_WQE_SIZE	(MLX5_SEND_WQE_BB * 8)
 #define MLX5_DIF_SIZE		8
@@ -66,6 +66,7 @@ enum mlx5_qp_optpar {
 	MLX5_QP_OPTPAR_RETRY_COUNT		= 1 << 12,
 	MLX5_QP_OPTPAR_RNR_RETRY		= 1 << 13,
 	MLX5_QP_OPTPAR_ACK_TIMEOUT		= 1 << 14,
+	MLX5_QP_OPTPAR_LAG_TX_AFF		= 1 << 15,
 	MLX5_QP_OPTPAR_PRI_PORT			= 1 << 16,
 	MLX5_QP_OPTPAR_SRQN			= 1 << 18,
 	MLX5_QP_OPTPAR_CQN_RCV			= 1 << 19,
@@ -161,6 +162,8 @@ enum {
 	MLX5_SEND_WQE_MAX_WQEBBS	= 16,
 };
 
+#define MLX5_SEND_WQE_MAX_SIZE (MLX5_SEND_WQE_MAX_WQEBBS * MLX5_SEND_WQE_BB)
+
 enum {
 	MLX5_WQE_FMR_PERM_LOCAL_READ	= 1 << 27,
 	MLX5_WQE_FMR_PERM_LOCAL_WRITE	= 1 << 28,
@@ -201,6 +204,9 @@ struct mlx5_wqe_fmr_seg {
 struct mlx5_wqe_ctrl_seg {
 	__be32			opmod_idx_opcode;
 	__be32			qpn_ds;
+
+	struct_group(trailer,
+
 	u8			signature;
 	u8			rsvd[2];
 	u8			fm_ce_se;
@@ -208,8 +214,10 @@ struct mlx5_wqe_ctrl_seg {
 		__be32		general_id;
 		__be32		imm;
 		__be32		umr_mkey;
-		__be32		tisn;
+		__be32		tis_tir_num;
 	};
+
+	); /* end of trailer group */
 };
 
 #define MLX5_WQE_CTRL_DS_MASK 0x3f
@@ -229,6 +237,11 @@ enum {
 
 enum {
 	MLX5_ETH_WQE_SVLAN              = 1 << 0,
+	MLX5_ETH_WQE_TRAILER_HDR_OUTER_IP_ASSOC = 1 << 26,
+	MLX5_ETH_WQE_TRAILER_HDR_OUTER_L4_ASSOC = 1 << 27,
+	MLX5_ETH_WQE_TRAILER_HDR_INNER_IP_ASSOC = 3 << 26,
+	MLX5_ETH_WQE_TRAILER_HDR_INNER_L4_ASSOC = 1 << 28,
+	MLX5_ETH_WQE_INSERT_TRAILER     = 1 << 30,
 	MLX5_ETH_WQE_INSERT_VLAN        = 1 << 15,
 };
 
@@ -239,6 +252,11 @@ enum {
 	MLX5_ETH_WQE_SWP_OUTER_L4_UDP   = 1 << 5,
 };
 
+enum {
+	MLX5_ETH_WQE_FT_META_IPSEC = BIT(0),
+	MLX5_ETH_WQE_FT_META_MACSEC = BIT(1),
+};
+
 struct mlx5_wqe_eth_seg {
 	u8              swp_outer_l4_offset;
 	u8              swp_outer_l3_offset;
@@ -247,16 +265,20 @@ struct mlx5_wqe_eth_seg {
 	u8              cs_flags;
 	u8              swp_flags;
 	__be16          mss;
-	__be32          rsvd2;
+	__be32          flow_table_metadata;
 	union {
 		struct {
 			__be16 sz;
-			u8     start[2];
+			union {
+				u8     start[2];
+				DECLARE_FLEX_ARRAY(u8, data);
+			};
 		} inline_hdr;
 		struct {
 			__be16 type;
 			__be16 vlan_tci;
 		} insert;
+		__be32 trailer;
 	};
 };
 
@@ -315,6 +337,7 @@ struct mlx5_av {
 struct mlx5_ib_ah {
 	struct ib_ah		ibah;
 	struct mlx5_av		av;
+	u8			xmit_port;
 };
 
 static inline struct mlx5_ib_ah *to_mah(struct ib_ah *ibah)
@@ -402,7 +425,7 @@ struct mlx5_wqe_signature_seg {
 
 struct mlx5_wqe_inline_seg {
 	__be32	byte_count;
-	__be32	data[0];
+	__be32	data[];
 };
 
 enum mlx5_sig_type {
@@ -458,6 +481,12 @@ struct mlx5_klm {
 	__be64		va;
 };
 
+struct mlx5_ksm {
+	__be32		reserved;
+	__be32		key;
+	__be64		va;
+};
+
 struct mlx5_stride_block_entry {
 	__be16		stride;
 	__be16		bcount;
@@ -471,6 +500,16 @@ struct mlx5_stride_block_ctrl_seg {
 	__be32		repeat_count;
 	u16		rsvd;
 	__be16		num_entries;
+};
+
+struct mlx5_wqe_flow_update_ctrl_seg {
+	__be32		flow_idx_update;
+	__be32		dest_handle;
+	u8		reserved0[40];
+};
+
+struct mlx5_wqe_header_modify_argument_update_seg {
+	u8		argument_list[64];
 };
 
 struct mlx5_core_qp {
@@ -487,123 +526,8 @@ struct mlx5_core_dct {
 	struct completion	drained;
 };
 
-struct mlx5_qp_path {
-	u8			fl_free_ar;
-	u8			rsvd3;
-	__be16			pkey_index;
-	u8			rsvd0;
-	u8			grh_mlid;
-	__be16			rlid;
-	u8			ackto_lt;
-	u8			mgid_index;
-	u8			static_rate;
-	u8			hop_limit;
-	__be32			tclass_flowlabel;
-	union {
-		u8		rgid[16];
-		u8		rip[16];
-	};
-	u8			f_dscp_ecn_prio;
-	u8			ecn_dscp;
-	__be16			udp_sport;
-	u8			dci_cfi_prio_sl;
-	u8			port;
-	u8			rmac[6];
-};
-
-/* FIXME: use mlx5_ifc.h qpc */
-struct mlx5_qp_context {
-	__be32			flags;
-	__be32			flags_pd;
-	u8			mtu_msgmax;
-	u8			rq_size_stride;
-	__be16			sq_crq_size;
-	__be32			qp_counter_set_usr_page;
-	__be32			wire_qpn;
-	__be32			log_pg_sz_remote_qpn;
-	struct			mlx5_qp_path pri_path;
-	struct			mlx5_qp_path alt_path;
-	__be32			params1;
-	u8			reserved2[4];
-	__be32			next_send_psn;
-	__be32			cqn_send;
-	__be32			deth_sqpn;
-	u8			reserved3[4];
-	__be32			last_acked_psn;
-	__be32			ssn;
-	__be32			params2;
-	__be32			rnr_nextrecvpsn;
-	__be32			xrcd;
-	__be32			cqn_recv;
-	__be64			db_rec_addr;
-	__be32			qkey;
-	__be32			rq_type_srqn;
-	__be32			rmsn;
-	__be16			hw_sq_wqe_counter;
-	__be16			sw_sq_wqe_counter;
-	__be16			hw_rcyclic_byte_counter;
-	__be16			hw_rq_counter;
-	__be16			sw_rcyclic_byte_counter;
-	__be16			sw_rq_counter;
-	u8			rsvd0[5];
-	u8			cgs;
-	u8			cs_req;
-	u8			cs_res;
-	__be64			dc_access_key;
-	u8			rsvd1[24];
-};
-
-static inline struct mlx5_core_qp *__mlx5_qp_lookup(struct mlx5_core_dev *dev, u32 qpn)
-{
-	return radix_tree_lookup(&dev->priv.qp_table.tree, qpn);
-}
-
-int mlx5_core_create_dct(struct mlx5_core_dev *dev,
-			 struct mlx5_core_dct *qp,
-			 u32 *in, int inlen,
-			 u32 *out, int outlen);
-int mlx5_core_create_qp(struct mlx5_core_dev *dev,
-			struct mlx5_core_qp *qp,
-			u32 *in,
-			int inlen);
-int mlx5_core_qp_modify(struct mlx5_core_dev *dev, u16 opcode,
-			u32 opt_param_mask, void *qpc,
-			struct mlx5_core_qp *qp);
-int mlx5_core_destroy_qp(struct mlx5_core_dev *dev,
-			 struct mlx5_core_qp *qp);
-int mlx5_core_destroy_dct(struct mlx5_core_dev *dev,
-			  struct mlx5_core_dct *dct);
-int mlx5_core_qp_query(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp,
-		       u32 *out, int outlen);
-int mlx5_core_dct_query(struct mlx5_core_dev *dev, struct mlx5_core_dct *dct,
-			u32 *out, int outlen);
-
-int mlx5_core_set_delay_drop(struct mlx5_core_dev *dev,
-			     u32 timeout_usec);
-
-int mlx5_core_xrcd_alloc(struct mlx5_core_dev *dev, u32 *xrcdn);
-int mlx5_core_xrcd_dealloc(struct mlx5_core_dev *dev, u32 xrcdn);
-void mlx5_init_qp_table(struct mlx5_core_dev *dev);
-void mlx5_cleanup_qp_table(struct mlx5_core_dev *dev);
 int mlx5_debug_qp_add(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp);
 void mlx5_debug_qp_remove(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp);
-int mlx5_core_create_rq_tracked(struct mlx5_core_dev *dev, u32 *in, int inlen,
-				struct mlx5_core_qp *rq);
-void mlx5_core_destroy_rq_tracked(struct mlx5_core_dev *dev,
-				  struct mlx5_core_qp *rq);
-int mlx5_core_create_sq_tracked(struct mlx5_core_dev *dev, u32 *in, int inlen,
-				struct mlx5_core_qp *sq);
-void mlx5_core_destroy_sq_tracked(struct mlx5_core_dev *dev,
-				  struct mlx5_core_qp *sq);
-int mlx5_core_alloc_q_counter(struct mlx5_core_dev *dev, u16 *counter_id);
-int mlx5_core_dealloc_q_counter(struct mlx5_core_dev *dev, u16 counter_id);
-int mlx5_core_query_q_counter(struct mlx5_core_dev *dev, u16 counter_id,
-			      int reset, void *out, int out_size);
-
-struct mlx5_core_rsc_common *mlx5_core_res_hold(struct mlx5_core_dev *dev,
-						int res_num,
-						enum mlx5_res_type res_type);
-void mlx5_core_res_put(struct mlx5_core_rsc_common *res);
 
 static inline const char *mlx5_qp_type_str(int type)
 {
@@ -648,6 +572,13 @@ static inline const char *mlx5_qp_state_str(int state)
 	return "SUSPENDED";
 	default: return "Invalid QP state";
 	}
+}
+
+static inline int mlx5_get_qp_default_ts(struct mlx5_core_dev *dev)
+{
+	return !MLX5_CAP_ROCE(dev, qp_ts_format) ?
+		       MLX5_TIMESTAMP_FORMAT_FREE_RUNNING :
+		       MLX5_TIMESTAMP_FORMAT_DEFAULT;
 }
 
 #endif /* MLX5_QP_H */

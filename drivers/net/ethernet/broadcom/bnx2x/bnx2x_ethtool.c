@@ -839,8 +839,9 @@ static bool bnx2x_is_wreg_in_chip(struct bnx2x *bp,
 /**
  * bnx2x_read_pages_regs - read "paged" registers
  *
- * @bp		device handle
- * @p		output buffer
+ * @bp:		device handle
+ * @p:		output buffer
+ * @preset:	the preset value
  *
  * Reads "paged" memories: memories that may only be read by first writing to a
  * specific address ("write address") and then reading from a specific address
@@ -1111,14 +1112,7 @@ static void bnx2x_get_drvinfo(struct net_device *dev,
 	int ext_dev_info_offset;
 	u32 mbi;
 
-	strlcpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
-
-	memset(version, 0, sizeof(version));
-	snprintf(version, ETHTOOL_FWVERS_LEN, " storm %d.%d.%d.%d",
-		 BCM_5710_FW_MAJOR_VERSION, BCM_5710_FW_MINOR_VERSION,
-		 BCM_5710_FW_REVISION_VERSION, BCM_5710_FW_ENGINEERING_VERSION);
-	strlcat(info->version, version, sizeof(info->version));
+	strscpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
 
 	if (SHMEM2_HAS(bp, extended_dev_info_shared_addr)) {
 		ext_dev_info_offset = SHMEM2_RD(bp,
@@ -1132,16 +1126,16 @@ static void bnx2x_get_drvinfo(struct net_device *dev,
 				 (mbi & 0xff000000) >> 24,
 				 (mbi & 0x00ff0000) >> 16,
 				 (mbi & 0x0000ff00) >> 8);
-			strlcpy(info->fw_version, version,
+			strscpy(info->fw_version, version,
 				sizeof(info->fw_version));
 		}
 	}
 
 	memset(version, 0, sizeof(version));
-	bnx2x_fill_fw_str(bp, version, ETHTOOL_FWVERS_LEN);
+	bnx2x_fill_fw_str(bp, version, sizeof(version));
 	strlcat(info->fw_version, version, sizeof(info->fw_version));
 
-	strlcpy(info->bus_info, pci_name(bp->pdev), sizeof(info->bus_info));
+	strscpy(info->bus_info, pci_name(bp->pdev), sizeof(info->bus_info));
 }
 
 static void bnx2x_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
@@ -1884,7 +1878,9 @@ static int bnx2x_set_eeprom(struct net_device *dev,
 }
 
 static int bnx2x_get_coalesce(struct net_device *dev,
-			      struct ethtool_coalesce *coal)
+			      struct ethtool_coalesce *coal,
+			      struct kernel_ethtool_coalesce *kernel_coal,
+			      struct netlink_ext_ack *extack)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
@@ -1897,7 +1893,9 @@ static int bnx2x_get_coalesce(struct net_device *dev,
 }
 
 static int bnx2x_set_coalesce(struct net_device *dev,
-			      struct ethtool_coalesce *coal)
+			      struct ethtool_coalesce *coal,
+			      struct kernel_ethtool_coalesce *kernel_coal,
+			      struct netlink_ext_ack *extack)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
@@ -1916,7 +1914,9 @@ static int bnx2x_set_coalesce(struct net_device *dev,
 }
 
 static void bnx2x_get_ringparam(struct net_device *dev,
-				struct ethtool_ringparam *ering)
+				struct ethtool_ringparam *ering,
+				struct kernel_ethtool_ringparam *kernel_ering,
+				struct netlink_ext_ack *extack)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
@@ -1940,7 +1940,9 @@ static void bnx2x_get_ringparam(struct net_device *dev,
 }
 
 static int bnx2x_set_ringparam(struct net_device *dev,
-			       struct ethtool_ringparam *ering)
+			       struct ethtool_ringparam *ering,
+			       struct kernel_ethtool_ringparam *kernel_ering,
+			       struct netlink_ext_ack *extack)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
@@ -2079,34 +2081,31 @@ static const char bnx2x_private_arr[BNX2X_PRI_FLAG_LEN][ETH_GSTRING_LEN] = {
 	"Storage only interface"
 };
 
-static u32 bnx2x_eee_to_adv(u32 eee_adv)
+static void bnx2x_eee_to_linkmode(unsigned long *mode, u32 eee_adv)
 {
-	u32 modes = 0;
-
 	if (eee_adv & SHMEM_EEE_100M_ADV)
-		modes |= ADVERTISED_100baseT_Full;
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT, mode);
 	if (eee_adv & SHMEM_EEE_1G_ADV)
-		modes |= ADVERTISED_1000baseT_Full;
+		linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT, mode);
 	if (eee_adv & SHMEM_EEE_10G_ADV)
-		modes |= ADVERTISED_10000baseT_Full;
-
-	return modes;
+		linkmode_set_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT, mode);
 }
 
-static u32 bnx2x_adv_to_eee(u32 modes, u32 shift)
+static u32 bnx2x_linkmode_to_eee(const unsigned long *mode, u32 shift)
 {
 	u32 eee_adv = 0;
-	if (modes & ADVERTISED_100baseT_Full)
+
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT, mode))
 		eee_adv |= SHMEM_EEE_100M_ADV;
-	if (modes & ADVERTISED_1000baseT_Full)
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT, mode))
 		eee_adv |= SHMEM_EEE_1G_ADV;
-	if (modes & ADVERTISED_10000baseT_Full)
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT, mode))
 		eee_adv |= SHMEM_EEE_10G_ADV;
 
 	return eee_adv << shift;
 }
 
-static int bnx2x_get_eee(struct net_device *dev, struct ethtool_eee *edata)
+static int bnx2x_get_eee(struct net_device *dev, struct ethtool_keee *edata)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	u32 eee_cfg;
@@ -2118,16 +2117,17 @@ static int bnx2x_get_eee(struct net_device *dev, struct ethtool_eee *edata)
 
 	eee_cfg = bp->link_vars.eee_status;
 
-	edata->supported =
-		bnx2x_eee_to_adv((eee_cfg & SHMEM_EEE_SUPPORTED_MASK) >>
-				 SHMEM_EEE_SUPPORTED_SHIFT);
+	bnx2x_eee_to_linkmode(edata->supported,
+			      (eee_cfg & SHMEM_EEE_SUPPORTED_MASK) >>
+			      SHMEM_EEE_SUPPORTED_SHIFT);
 
-	edata->advertised =
-		bnx2x_eee_to_adv((eee_cfg & SHMEM_EEE_ADV_STATUS_MASK) >>
-				 SHMEM_EEE_ADV_STATUS_SHIFT);
-	edata->lp_advertised =
-		bnx2x_eee_to_adv((eee_cfg & SHMEM_EEE_LP_ADV_STATUS_MASK) >>
-				 SHMEM_EEE_LP_ADV_STATUS_SHIFT);
+	bnx2x_eee_to_linkmode(edata->advertised,
+			      (eee_cfg & SHMEM_EEE_ADV_STATUS_MASK) >>
+			      SHMEM_EEE_ADV_STATUS_SHIFT);
+
+	bnx2x_eee_to_linkmode(edata->lp_advertised,
+			      (eee_cfg & SHMEM_EEE_LP_ADV_STATUS_MASK) >>
+			      SHMEM_EEE_LP_ADV_STATUS_SHIFT);
 
 	/* SHMEM value is in 16u units --> Convert to 1u units. */
 	edata->tx_lpi_timer = (eee_cfg & SHMEM_EEE_TIMER_MASK) << 4;
@@ -2139,7 +2139,7 @@ static int bnx2x_get_eee(struct net_device *dev, struct ethtool_eee *edata)
 	return 0;
 }
 
-static int bnx2x_set_eee(struct net_device *dev, struct ethtool_eee *edata)
+static int bnx2x_set_eee(struct net_device *dev, struct ethtool_keee *edata)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	u32 eee_cfg;
@@ -2160,8 +2160,8 @@ static int bnx2x_set_eee(struct net_device *dev, struct ethtool_eee *edata)
 		return -EOPNOTSUPP;
 	}
 
-	advertised = bnx2x_adv_to_eee(edata->advertised,
-				      SHMEM_EEE_ADV_STATUS_SHIFT);
+	advertised = bnx2x_linkmode_to_eee(edata->advertised,
+					   SHMEM_EEE_ADV_STATUS_SHIFT);
 	if ((advertised != (eee_cfg & SHMEM_EEE_ADV_STATUS_MASK))) {
 		DP(BNX2X_MSG_ETHTOOL,
 		   "Direct manipulation of EEE advertisement is not supported\n");
@@ -3484,16 +3484,15 @@ static u32 bnx2x_get_rxfh_indir_size(struct net_device *dev)
 	return T_ETH_INDIRECTION_TABLE_SIZE;
 }
 
-static int bnx2x_get_rxfh(struct net_device *dev, u32 *indir, u8 *key,
-			  u8 *hfunc)
+static int bnx2x_get_rxfh(struct net_device *dev,
+			  struct ethtool_rxfh_param *rxfh)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	u8 ind_table[T_ETH_INDIRECTION_TABLE_SIZE] = {0};
 	size_t i;
 
-	if (hfunc)
-		*hfunc = ETH_RSS_HASH_TOP;
-	if (!indir)
+	rxfh->hfunc = ETH_RSS_HASH_TOP;
+	if (!rxfh->indir)
 		return 0;
 
 	/* Get the current configuration of the RSS indirection table */
@@ -3509,13 +3508,14 @@ static int bnx2x_get_rxfh(struct net_device *dev, u32 *indir, u8 *key,
 	 * queue.
 	 */
 	for (i = 0; i < T_ETH_INDIRECTION_TABLE_SIZE; i++)
-		indir[i] = ind_table[i] - bp->fp->cl_id;
+		rxfh->indir[i] = ind_table[i] - bp->fp->cl_id;
 
 	return 0;
 }
 
-static int bnx2x_set_rxfh(struct net_device *dev, const u32 *indir,
-			  const u8 *key, const u8 hfunc)
+static int bnx2x_set_rxfh(struct net_device *dev,
+			  struct ethtool_rxfh_param *rxfh,
+			  struct netlink_ext_ack *extack)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	size_t i;
@@ -3523,11 +3523,12 @@ static int bnx2x_set_rxfh(struct net_device *dev, const u32 *indir,
 	/* We require at least one supported parameter to be changed and no
 	 * change in any of the unsupported parameters
 	 */
-	if (key ||
-	    (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP))
+	if (rxfh->key ||
+	    (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	     rxfh->hfunc != ETH_RSS_HASH_TOP))
 		return -EOPNOTSUPP;
 
-	if (!indir)
+	if (!rxfh->indir)
 		return 0;
 
 	for (i = 0; i < T_ETH_INDIRECTION_TABLE_SIZE; i++) {
@@ -3540,7 +3541,7 @@ static int bnx2x_set_rxfh(struct net_device *dev, const u32 *indir,
 		 * align the received table to the Client ID of the leading RSS
 		 * queue
 		 */
-		bp->rss_conf_obj.ind_table[i] = indir[i] + bp->fp->cl_id;
+		bp->rss_conf_obj.ind_table[i] = rxfh->indir[i] + bp->fp->cl_id;
 	}
 
 	if (bp->state == BNX2X_STATE_OPEN)
@@ -3568,6 +3569,7 @@ static void bnx2x_get_channels(struct net_device *dev,
  * bnx2x_change_num_queues - change the number of RSS queues.
  *
  * @bp:			bnx2x private structure
+ * @num_rss:		rss count
  *
  * Re-configure interrupt mode to get the new number of MSI-X
  * vectors and re-add NAPI objects.
@@ -3663,6 +3665,7 @@ static int bnx2x_get_ts_info(struct net_device *dev,
 }
 
 static const struct ethtool_ops bnx2x_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS,
 	.get_drvinfo		= bnx2x_get_drvinfo,
 	.get_regs_len		= bnx2x_get_regs_len,
 	.get_regs		= bnx2x_get_regs,

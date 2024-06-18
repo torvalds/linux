@@ -3,7 +3,7 @@
  * Microchip / Atmel ECC (I2C) driver.
  *
  * Copyright (c) 2017, Microchip Technology Inc.
- * Author: Tudor Ambarus <tudor.ambarus@microchip.com>
+ * Author: Tudor Ambarus
  */
 
 #include <linux/bitrev.h>
@@ -51,7 +51,7 @@ static void atmel_i2c_checksum(struct atmel_i2c_cmd *cmd)
 	*__crc16 = cpu_to_le16(bitrev16(crc16(0, data, len)));
 }
 
-void atmel_i2c_init_read_cmd(struct atmel_i2c_cmd *cmd)
+void atmel_i2c_init_read_config_cmd(struct atmel_i2c_cmd *cmd)
 {
 	cmd->word_addr = COMMAND;
 	cmd->opcode = OPCODE_READ;
@@ -59,7 +59,7 @@ void atmel_i2c_init_read_cmd(struct atmel_i2c_cmd *cmd)
 	 * Read the word from Configuration zone that contains the lock bytes
 	 * (UserExtra, Selector, LockValue, LockConfig).
 	 */
-	cmd->param1 = CONFIG_ZONE;
+	cmd->param1 = CONFIGURATION_ZONE;
 	cmd->param2 = cpu_to_le16(DEVICE_LOCK_ADDR);
 	cmd->count = READ_COUNT;
 
@@ -68,7 +68,31 @@ void atmel_i2c_init_read_cmd(struct atmel_i2c_cmd *cmd)
 	cmd->msecs = MAX_EXEC_TIME_READ;
 	cmd->rxsize = READ_RSP_SIZE;
 }
-EXPORT_SYMBOL(atmel_i2c_init_read_cmd);
+EXPORT_SYMBOL(atmel_i2c_init_read_config_cmd);
+
+int atmel_i2c_init_read_otp_cmd(struct atmel_i2c_cmd *cmd, u16 addr)
+{
+	if (addr < 0 || addr > OTP_ZONE_SIZE)
+		return -1;
+
+	cmd->word_addr = COMMAND;
+	cmd->opcode = OPCODE_READ;
+	/*
+	 * Read the word from OTP zone that may contain e.g. serial
+	 * numbers or similar if persistently pre-initialized and locked
+	 */
+	cmd->param1 = OTP_ZONE;
+	cmd->param2 = cpu_to_le16(addr);
+	cmd->count = READ_COUNT;
+
+	atmel_i2c_checksum(cmd);
+
+	cmd->msecs = MAX_EXEC_TIME_READ;
+	cmd->rxsize = READ_RSP_SIZE;
+
+	return 0;
+}
+EXPORT_SYMBOL(atmel_i2c_init_read_otp_cmd);
 
 void atmel_i2c_init_random_cmd(struct atmel_i2c_cmd *cmd)
 {
@@ -176,7 +200,8 @@ static int atmel_i2c_wakeup(struct i2c_client *client)
 	 * device is idle, asleep or during waking up. Don't check for error
 	 * when waking up the device.
 	 */
-	i2c_master_send(client, i2c_priv->wake_token, i2c_priv->wake_token_sz);
+	i2c_transfer_buffer_flags(client, i2c_priv->wake_token,
+				i2c_priv->wake_token_sz, I2C_M_IGNORE_NAK);
 
 	/*
 	 * Wait to wake the device. Typical execution times for ecdh and genkey
@@ -262,6 +287,8 @@ static void atmel_i2c_work_handler(struct work_struct *work)
 	work_data->cbk(work_data, work_data->areq, status);
 }
 
+static struct workqueue_struct *atmel_wq;
+
 void atmel_i2c_enqueue(struct atmel_i2c_work_data *work_data,
 		       void (*cbk)(struct atmel_i2c_work_data *work_data,
 				   void *areq, int status),
@@ -271,9 +298,15 @@ void atmel_i2c_enqueue(struct atmel_i2c_work_data *work_data,
 	work_data->areq = areq;
 
 	INIT_WORK(&work_data->work, atmel_i2c_work_handler);
-	schedule_work(&work_data->work);
+	queue_work(atmel_wq, &work_data->work);
 }
 EXPORT_SYMBOL(atmel_i2c_enqueue);
+
+void atmel_i2c_flush_queue(void)
+{
+	flush_workqueue(atmel_wq);
+}
+EXPORT_SYMBOL(atmel_i2c_flush_queue);
 
 static inline size_t atmel_i2c_wake_token_sz(u32 bus_clk_rate)
 {
@@ -292,7 +325,7 @@ static int device_sanity_check(struct i2c_client *client)
 	if (!cmd)
 		return -ENOMEM;
 
-	atmel_i2c_init_read_cmd(cmd);
+	atmel_i2c_init_read_config_cmd(cmd);
 
 	ret = atmel_i2c_send_receive(client, cmd);
 	if (ret)
@@ -315,7 +348,7 @@ free_cmd:
 	return ret;
 }
 
-int atmel_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
+int atmel_i2c_probe(struct i2c_client *client)
 {
 	struct atmel_i2c_client_priv *i2c_priv;
 	struct device *dev = &client->dev;
@@ -338,7 +371,7 @@ int atmel_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	}
 
 	if (bus_clk_rate > 1000000L) {
-		dev_err(dev, "%d exceeds maximum supported clock frequency (1MHz)\n",
+		dev_err(dev, "%u exceeds maximum supported clock frequency (1MHz)\n",
 			bus_clk_rate);
 		return -EINVAL;
 	}
@@ -363,14 +396,24 @@ int atmel_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	i2c_set_clientdata(client, i2c_priv);
 
-	ret = device_sanity_check(client);
-	if (ret)
-		return ret;
-
-	return 0;
+	return device_sanity_check(client);
 }
 EXPORT_SYMBOL(atmel_i2c_probe);
 
-MODULE_AUTHOR("Tudor Ambarus <tudor.ambarus@microchip.com>");
+static int __init atmel_i2c_init(void)
+{
+	atmel_wq = alloc_workqueue("atmel_wq", 0, 0);
+	return atmel_wq ? 0 : -ENOMEM;
+}
+
+static void __exit atmel_i2c_exit(void)
+{
+	destroy_workqueue(atmel_wq);
+}
+
+module_init(atmel_i2c_init);
+module_exit(atmel_i2c_exit);
+
+MODULE_AUTHOR("Tudor Ambarus");
 MODULE_DESCRIPTION("Microchip / Atmel ECC (I2C) driver");
 MODULE_LICENSE("GPL v2");

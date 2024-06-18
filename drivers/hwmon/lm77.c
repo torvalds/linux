@@ -55,7 +55,7 @@ static const u8 temp_regs[t_num_temp] = {
 struct lm77_data {
 	struct i2c_client	*client;
 	struct mutex		update_lock;
-	char			valid;
+	bool			valid;
 	unsigned long		last_updated;	/* In jiffies */
 	int			temp[t_num_temp]; /* index using temp_index */
 	u8			alarms;
@@ -118,7 +118,7 @@ static struct lm77_data *lm77_update_device(struct device *dev)
 		data->alarms =
 			lm77_read_value(client, LM77_REG_TEMP) & 0x0007;
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->update_lock);
@@ -302,7 +302,7 @@ static int lm77_detect(struct i2c_client *client, struct i2c_board_info *info)
 	 || i2c_smbus_read_word_data(client, 7) != min)
 		return -ENODEV;
 
-	strlcpy(info->type, "lm77", I2C_NAME_SIZE);
+	strscpy(info->type, "lm77", I2C_NAME_SIZE);
 
 	return 0;
 }
@@ -315,7 +315,7 @@ static void lm77_init_client(struct i2c_client *client)
 		lm77_write_value(client, LM77_REG_CONF, conf & 0xfe);
 }
 
-static int lm77_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int lm77_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device *hwmon_dev;
@@ -337,7 +337,7 @@ static int lm77_probe(struct i2c_client *client, const struct i2c_device_id *id)
 }
 
 static const struct i2c_device_id lm77_id[] = {
-	{ "lm77", 0 },
+	{ "lm77" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm77_id);

@@ -1,33 +1,7 @@
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause) */
 /* QLogic qed NIC Driver
  * Copyright (c) 2015-2017  QLogic Corporation
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and /or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Copyright (c) 2019-2020 Marvell International Ltd.
  */
 
 #ifndef _QED_CHAIN_H
@@ -37,6 +11,7 @@
 #include <asm/byteorder.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/sizes.h>
 #include <linux/slab.h>
 #include <linux/qed/common_hsi.h>
 
@@ -44,7 +19,7 @@ enum qed_chain_mode {
 	/* Each Page contains a next pointer at its end */
 	QED_CHAIN_MODE_NEXT_PTR,
 
-	/* Chain is a single page (next ptr) is unrequired */
+	/* Chain is a single page (next ptr) is not required */
 	QED_CHAIN_MODE_SINGLE,
 
 	/* Page pointers are located in a side list */
@@ -52,9 +27,9 @@ enum qed_chain_mode {
 };
 
 enum qed_chain_use_mode {
-	QED_CHAIN_USE_TO_PRODUCE,		/* Chain starts empty */
-	QED_CHAIN_USE_TO_CONSUME,		/* Chain starts full */
-	QED_CHAIN_USE_TO_CONSUME_PRODUCE,	/* Chain starts empty */
+	QED_CHAIN_USE_TO_PRODUCE,			/* Chain starts empty */
+	QED_CHAIN_USE_TO_CONSUME,			/* Chain starts full */
+	QED_CHAIN_USE_TO_CONSUME_PRODUCE,		/* Chain starts empty */
 };
 
 enum qed_chain_cnt_type {
@@ -66,196 +41,242 @@ enum qed_chain_cnt_type {
 };
 
 struct qed_chain_next {
-	struct regpair	next_phys;
-	void		*next_virt;
+	struct regpair					next_phys;
+	void						*next_virt;
 };
 
 struct qed_chain_pbl_u16 {
-	u16 prod_page_idx;
-	u16 cons_page_idx;
+	u16						prod_page_idx;
+	u16						cons_page_idx;
 };
 
 struct qed_chain_pbl_u32 {
-	u32 prod_page_idx;
-	u32 cons_page_idx;
-};
-
-struct qed_chain_ext_pbl {
-	dma_addr_t p_pbl_phys;
-	void *p_pbl_virt;
+	u32						prod_page_idx;
+	u32						cons_page_idx;
 };
 
 struct qed_chain_u16 {
-	/* Cyclic index of next element to produce/consme */
-	u16 prod_idx;
-	u16 cons_idx;
+	/* Cyclic index of next element to produce/consume */
+	u16						prod_idx;
+	u16						cons_idx;
 };
 
 struct qed_chain_u32 {
-	/* Cyclic index of next element to produce/consme */
-	u32 prod_idx;
-	u32 cons_idx;
+	/* Cyclic index of next element to produce/consume */
+	u32						prod_idx;
+	u32						cons_idx;
+};
+
+struct addr_tbl_entry {
+	void						*virt_addr;
+	dma_addr_t					dma_map;
 };
 
 struct qed_chain {
-	/* fastpath portion of the chain - required for commands such
+	/* Fastpath portion of the chain - required for commands such
 	 * as produce / consume.
 	 */
+
 	/* Point to next element to produce/consume */
-	void *p_prod_elem;
-	void *p_cons_elem;
+	void						*p_prod_elem;
+	void						*p_cons_elem;
 
 	/* Fastpath portions of the PBL [if exists] */
+
 	struct {
-		/* Table for keeping the virtual addresses of the chain pages,
-		 * respectively to the physical addresses in the pbl table.
+		/* Table for keeping the virtual and physical addresses of the
+		 * chain pages, respectively to the physical addresses
+		 * in the pbl table.
 		 */
-		void **pp_virt_addr_tbl;
+		struct addr_tbl_entry			*pp_addr_tbl;
 
 		union {
-			struct qed_chain_pbl_u16 u16;
-			struct qed_chain_pbl_u32 u32;
-		} c;
-	} pbl;
+			struct qed_chain_pbl_u16	u16;
+			struct qed_chain_pbl_u32	u32;
+		}					c;
+	}						pbl;
 
 	union {
-		struct qed_chain_u16 chain16;
-		struct qed_chain_u32 chain32;
-	} u;
+		struct qed_chain_u16			chain16;
+		struct qed_chain_u32			chain32;
+	}						u;
 
 	/* Capacity counts only usable elements */
-	u32 capacity;
-	u32 page_cnt;
+	u32						capacity;
+	u32						page_cnt;
 
-	enum qed_chain_mode mode;
+	enum qed_chain_mode				mode;
 
 	/* Elements information for fast calculations */
-	u16 elem_per_page;
-	u16 elem_per_page_mask;
-	u16 elem_size;
-	u16 next_page_mask;
-	u16 usable_per_page;
-	u8 elem_unusable;
+	u16						elem_per_page;
+	u16						elem_per_page_mask;
+	u16						elem_size;
+	u16						next_page_mask;
+	u16						usable_per_page;
+	u8						elem_unusable;
 
-	u8 cnt_type;
+	enum qed_chain_cnt_type				cnt_type;
 
 	/* Slowpath of the chain - required for initialization and destruction,
 	 * but isn't involved in regular functionality.
 	 */
 
+	u32						page_size;
+
 	/* Base address of a pre-allocated buffer for pbl */
 	struct {
-		dma_addr_t p_phys_table;
-		void *p_virt_table;
-	} pbl_sp;
+		__le64					*table_virt;
+		dma_addr_t				table_phys;
+		size_t					table_size;
+	}						pbl_sp;
 
 	/* Address of first page of the chain - the address is required
-	 * for fastpath operation [consume/produce] but only for the the SINGLE
+	 * for fastpath operation [consume/produce] but only for the SINGLE
 	 * flavour which isn't considered fastpath [== SPQ].
 	 */
-	void *p_virt_addr;
-	dma_addr_t p_phys_addr;
+	void						*p_virt_addr;
+	dma_addr_t					p_phys_addr;
 
 	/* Total number of elements [for entire chain] */
-	u32 size;
+	u32						size;
 
-	u8 intended_use;
+	enum qed_chain_use_mode				intended_use;
 
-	bool b_external_pbl;
+	bool						b_external_pbl;
 };
 
-#define QED_CHAIN_PBL_ENTRY_SIZE        (8)
-#define QED_CHAIN_PAGE_SIZE             (0x1000)
-#define ELEMS_PER_PAGE(elem_size)       (QED_CHAIN_PAGE_SIZE / (elem_size))
+struct qed_chain_init_params {
+	enum qed_chain_mode				mode;
+	enum qed_chain_use_mode				intended_use;
+	enum qed_chain_cnt_type				cnt_type;
 
-#define UNUSABLE_ELEMS_PER_PAGE(elem_size, mode)	 \
-	(((mode) == QED_CHAIN_MODE_NEXT_PTR) ?		 \
-	 (u8)(1 + ((sizeof(struct qed_chain_next) - 1) / \
-		   (elem_size))) : 0)
+	u32						page_size;
+	u32						num_elems;
+	size_t						elem_size;
 
-#define USABLE_ELEMS_PER_PAGE(elem_size, mode) \
-	((u32)(ELEMS_PER_PAGE(elem_size) -     \
-	       UNUSABLE_ELEMS_PER_PAGE(elem_size, mode)))
+	void						*ext_pbl_virt;
+	dma_addr_t					ext_pbl_phys;
+};
 
-#define QED_CHAIN_PAGE_CNT(elem_cnt, elem_size, mode) \
-	DIV_ROUND_UP(elem_cnt, USABLE_ELEMS_PER_PAGE(elem_size, mode))
+#define QED_CHAIN_PAGE_SIZE				SZ_4K
 
-#define is_chain_u16(p) ((p)->cnt_type == QED_CHAIN_CNT_TYPE_U16)
-#define is_chain_u32(p) ((p)->cnt_type == QED_CHAIN_CNT_TYPE_U32)
+#define ELEMS_PER_PAGE(elem_size, page_size)				     \
+	((page_size) / (elem_size))
+
+#define UNUSABLE_ELEMS_PER_PAGE(elem_size, mode)			     \
+	(((mode) == QED_CHAIN_MODE_NEXT_PTR) ?				     \
+	 (u8)(1 + ((sizeof(struct qed_chain_next) - 1) / (elem_size))) :     \
+	 0)
+
+#define USABLE_ELEMS_PER_PAGE(elem_size, page_size, mode)		     \
+	((u32)(ELEMS_PER_PAGE((elem_size), (page_size)) -		     \
+	       UNUSABLE_ELEMS_PER_PAGE((elem_size), (mode))))
+
+#define QED_CHAIN_PAGE_CNT(elem_cnt, elem_size, page_size, mode)	     \
+	DIV_ROUND_UP((elem_cnt),					     \
+		     USABLE_ELEMS_PER_PAGE((elem_size), (page_size), (mode)))
+
+#define is_chain_u16(p)							     \
+	((p)->cnt_type == QED_CHAIN_CNT_TYPE_U16)
+#define is_chain_u32(p)							     \
+	((p)->cnt_type == QED_CHAIN_CNT_TYPE_U32)
 
 /* Accessors */
-static inline u16 qed_chain_get_prod_idx(struct qed_chain *p_chain)
+
+static inline u16 qed_chain_get_prod_idx(const struct qed_chain *chain)
 {
-	return p_chain->u.chain16.prod_idx;
+	return chain->u.chain16.prod_idx;
 }
 
-static inline u16 qed_chain_get_cons_idx(struct qed_chain *p_chain)
+static inline u16 qed_chain_get_cons_idx(const struct qed_chain *chain)
 {
-	return p_chain->u.chain16.cons_idx;
+	return chain->u.chain16.cons_idx;
 }
 
-static inline u32 qed_chain_get_cons_idx_u32(struct qed_chain *p_chain)
+static inline u32 qed_chain_get_prod_idx_u32(const struct qed_chain *chain)
 {
-	return p_chain->u.chain32.cons_idx;
+	return chain->u.chain32.prod_idx;
 }
 
-static inline u16 qed_chain_get_elem_left(struct qed_chain *p_chain)
+static inline u32 qed_chain_get_cons_idx_u32(const struct qed_chain *chain)
 {
+	return chain->u.chain32.cons_idx;
+}
+
+static inline u16 qed_chain_get_elem_used(const struct qed_chain *chain)
+{
+	u32 prod = qed_chain_get_prod_idx(chain);
+	u32 cons = qed_chain_get_cons_idx(chain);
+	u16 elem_per_page = chain->elem_per_page;
 	u16 used;
 
-	used = (u16) (((u32)0x10000 +
-		       (u32)p_chain->u.chain16.prod_idx) -
-		      (u32)p_chain->u.chain16.cons_idx);
-	if (p_chain->mode == QED_CHAIN_MODE_NEXT_PTR)
-		used -= p_chain->u.chain16.prod_idx / p_chain->elem_per_page -
-		    p_chain->u.chain16.cons_idx / p_chain->elem_per_page;
+	if (prod < cons)
+		prod += (u32)U16_MAX + 1;
 
-	return (u16)(p_chain->capacity - used);
+	used = (u16)(prod - cons);
+	if (chain->mode == QED_CHAIN_MODE_NEXT_PTR)
+		used -= (u16)(prod / elem_per_page - cons / elem_per_page);
+
+	return used;
 }
 
-static inline u32 qed_chain_get_elem_left_u32(struct qed_chain *p_chain)
+static inline u16 qed_chain_get_elem_left(const struct qed_chain *chain)
 {
+	return (u16)(chain->capacity - qed_chain_get_elem_used(chain));
+}
+
+static inline u32 qed_chain_get_elem_used_u32(const struct qed_chain *chain)
+{
+	u64 prod = qed_chain_get_prod_idx_u32(chain);
+	u64 cons = qed_chain_get_cons_idx_u32(chain);
+	u16 elem_per_page = chain->elem_per_page;
 	u32 used;
 
-	used = (u32) (((u64)0x100000000ULL +
-		       (u64)p_chain->u.chain32.prod_idx) -
-		      (u64)p_chain->u.chain32.cons_idx);
-	if (p_chain->mode == QED_CHAIN_MODE_NEXT_PTR)
-		used -= p_chain->u.chain32.prod_idx / p_chain->elem_per_page -
-		    p_chain->u.chain32.cons_idx / p_chain->elem_per_page;
+	if (prod < cons)
+		prod += (u64)U32_MAX + 1;
 
-	return p_chain->capacity - used;
+	used = (u32)(prod - cons);
+	if (chain->mode == QED_CHAIN_MODE_NEXT_PTR)
+		used -= (u32)(prod / elem_per_page - cons / elem_per_page);
+
+	return used;
 }
 
-static inline u16 qed_chain_get_usable_per_page(struct qed_chain *p_chain)
+static inline u32 qed_chain_get_elem_left_u32(const struct qed_chain *chain)
 {
-	return p_chain->usable_per_page;
+	return chain->capacity - qed_chain_get_elem_used_u32(chain);
 }
 
-static inline u8 qed_chain_get_unusable_per_page(struct qed_chain *p_chain)
+static inline u16 qed_chain_get_usable_per_page(const struct qed_chain *chain)
 {
-	return p_chain->elem_unusable;
+	return chain->usable_per_page;
 }
 
-static inline u32 qed_chain_get_page_cnt(struct qed_chain *p_chain)
+static inline u8 qed_chain_get_unusable_per_page(const struct qed_chain *chain)
 {
-	return p_chain->page_cnt;
+	return chain->elem_unusable;
 }
 
-static inline dma_addr_t qed_chain_get_pbl_phys(struct qed_chain *p_chain)
+static inline u32 qed_chain_get_page_cnt(const struct qed_chain *chain)
 {
-	return p_chain->pbl_sp.p_phys_table;
+	return chain->page_cnt;
+}
+
+static inline dma_addr_t qed_chain_get_pbl_phys(const struct qed_chain *chain)
+{
+	return chain->pbl_sp.table_phys;
 }
 
 /**
- * @brief qed_chain_advance_page -
+ * qed_chain_advance_page(): Advance the next element across pages for a
+ *                           linked chain.
  *
- * Advance the next element accros pages for a linked chain
+ * @p_chain: P_chain.
+ * @p_next_elem: P_next_elem.
+ * @idx_to_inc: Idx_to_inc.
+ * @page_to_inc: page_to_inc.
  *
- * @param p_chain
- * @param p_next_elem
- * @param idx_to_inc
- * @param page_to_inc
+ * Return: Void.
  */
 static inline void
 qed_chain_advance_page(struct qed_chain *p_chain,
@@ -287,7 +308,7 @@ qed_chain_advance_page(struct qed_chain *p_chain,
 				*(u32 *)page_to_inc = 0;
 			page_index = *(u32 *)page_to_inc;
 		}
-		*p_next_elem = p_chain->pbl.pp_virt_addr_tbl[page_index];
+		*p_next_elem = p_chain->pbl.pp_addr_tbl[page_index].virt_addr;
 	}
 }
 
@@ -316,12 +337,14 @@ qed_chain_advance_page(struct qed_chain *p_chain,
 	} while (0)
 
 /**
- * @brief qed_chain_return_produced -
+ * qed_chain_return_produced(): A chain in which the driver "Produces"
+ *                              elements should use this API
+ *                              to indicate previous produced elements
+ *                              are now consumed.
  *
- * A chain in which the driver "Produces" elements should use this API
- * to indicate previous produced elements are now consumed.
+ * @p_chain: Chain.
  *
- * @param p_chain
+ * Return: Void.
  */
 static inline void qed_chain_return_produced(struct qed_chain *p_chain)
 {
@@ -333,15 +356,15 @@ static inline void qed_chain_return_produced(struct qed_chain *p_chain)
 }
 
 /**
- * @brief qed_chain_produce -
+ * qed_chain_produce(): A chain in which the driver "Produces"
+ *                      elements should use this to get a pointer to
+ *                      the next element which can be "Produced". It's driver
+ *                      responsibility to validate that the chain has room for
+ *                      new element.
  *
- * A chain in which the driver "Produces" elements should use this to get
- * a pointer to the next element which can be "Produced". It's driver
- * responsibility to validate that the chain has room for new element.
+ * @p_chain: Chain.
  *
- * @param p_chain
- *
- * @return void*, a pointer to next element
+ * Return: void*, a pointer to next element.
  */
 static inline void *qed_chain_produce(struct qed_chain *p_chain)
 {
@@ -375,14 +398,11 @@ static inline void *qed_chain_produce(struct qed_chain *p_chain)
 }
 
 /**
- * @brief qed_chain_get_capacity -
+ * qed_chain_get_capacity(): Get the maximum number of BDs in chain
  *
- * Get the maximum number of BDs in chain
+ * @p_chain: Chain.
  *
- * @param p_chain
- * @param num
- *
- * @return number of unusable BDs
+ * Return: number of unusable BDs.
  */
 static inline u32 qed_chain_get_capacity(struct qed_chain *p_chain)
 {
@@ -390,12 +410,14 @@ static inline u32 qed_chain_get_capacity(struct qed_chain *p_chain)
 }
 
 /**
- * @brief qed_chain_recycle_consumed -
+ * qed_chain_recycle_consumed(): Returns an element which was
+ *                               previously consumed;
+ *                               Increments producers so they could
+ *                               be written to FW.
  *
- * Returns an element which was previously consumed;
- * Increments producers so they could be written to FW.
+ * @p_chain: Chain.
  *
- * @param p_chain
+ * Return: Void.
  */
 static inline void qed_chain_recycle_consumed(struct qed_chain *p_chain)
 {
@@ -407,14 +429,13 @@ static inline void qed_chain_recycle_consumed(struct qed_chain *p_chain)
 }
 
 /**
- * @brief qed_chain_consume -
+ * qed_chain_consume(): A Chain in which the driver utilizes data written
+ *                      by a different source (i.e., FW) should use this to
+ *                      access passed buffers.
  *
- * A Chain in which the driver utilizes data written by a different source
- * (i.e., FW) should use this to access passed buffers.
+ * @p_chain: Chain.
  *
- * @param p_chain
- *
- * @return void*, a pointer to the next buffer written
+ * Return: void*, a pointer to the next buffer written.
  */
 static inline void *qed_chain_consume(struct qed_chain *p_chain)
 {
@@ -448,9 +469,11 @@ static inline void *qed_chain_consume(struct qed_chain *p_chain)
 }
 
 /**
- * @brief qed_chain_reset - Resets the chain to its start state
+ * qed_chain_reset(): Resets the chain to its start state.
  *
- * @param p_chain pointer to a previously allocted chain
+ * @p_chain: pointer to a previously allocated chain.
+ *
+ * Return Void.
  */
 static inline void qed_chain_reset(struct qed_chain *p_chain)
 {
@@ -499,125 +522,12 @@ static inline void qed_chain_reset(struct qed_chain *p_chain)
 }
 
 /**
- * @brief qed_chain_init - Initalizes a basic chain struct
+ * qed_chain_get_last_elem(): Returns a pointer to the last element of the
+ *                            chain.
  *
- * @param p_chain
- * @param p_virt_addr
- * @param p_phys_addr	physical address of allocated buffer's beginning
- * @param page_cnt	number of pages in the allocated buffer
- * @param elem_size	size of each element in the chain
- * @param intended_use
- * @param mode
- */
-static inline void qed_chain_init_params(struct qed_chain *p_chain,
-					 u32 page_cnt,
-					 u8 elem_size,
-					 enum qed_chain_use_mode intended_use,
-					 enum qed_chain_mode mode,
-					 enum qed_chain_cnt_type cnt_type)
-{
-	/* chain fixed parameters */
-	p_chain->p_virt_addr = NULL;
-	p_chain->p_phys_addr = 0;
-	p_chain->elem_size	= elem_size;
-	p_chain->intended_use = (u8)intended_use;
-	p_chain->mode		= mode;
-	p_chain->cnt_type = (u8)cnt_type;
-
-	p_chain->elem_per_page = ELEMS_PER_PAGE(elem_size);
-	p_chain->usable_per_page = USABLE_ELEMS_PER_PAGE(elem_size, mode);
-	p_chain->elem_per_page_mask = p_chain->elem_per_page - 1;
-	p_chain->elem_unusable = UNUSABLE_ELEMS_PER_PAGE(elem_size, mode);
-	p_chain->next_page_mask = (p_chain->usable_per_page &
-				   p_chain->elem_per_page_mask);
-
-	p_chain->page_cnt = page_cnt;
-	p_chain->capacity = p_chain->usable_per_page * page_cnt;
-	p_chain->size = p_chain->elem_per_page * page_cnt;
-
-	p_chain->pbl_sp.p_phys_table = 0;
-	p_chain->pbl_sp.p_virt_table = NULL;
-	p_chain->pbl.pp_virt_addr_tbl = NULL;
-}
-
-/**
- * @brief qed_chain_init_mem -
+ * @p_chain: Chain.
  *
- * Initalizes a basic chain struct with its chain buffers
- *
- * @param p_chain
- * @param p_virt_addr	virtual address of allocated buffer's beginning
- * @param p_phys_addr	physical address of allocated buffer's beginning
- *
- */
-static inline void qed_chain_init_mem(struct qed_chain *p_chain,
-				      void *p_virt_addr, dma_addr_t p_phys_addr)
-{
-	p_chain->p_virt_addr = p_virt_addr;
-	p_chain->p_phys_addr = p_phys_addr;
-}
-
-/**
- * @brief qed_chain_init_pbl_mem -
- *
- * Initalizes a basic chain struct with its pbl buffers
- *
- * @param p_chain
- * @param p_virt_pbl	pointer to a pre allocated side table which will hold
- *                      virtual page addresses.
- * @param p_phys_pbl	pointer to a pre-allocated side table which will hold
- *                      physical page addresses.
- * @param pp_virt_addr_tbl
- *                      pointer to a pre-allocated side table which will hold
- *                      the virtual addresses of the chain pages.
- *
- */
-static inline void qed_chain_init_pbl_mem(struct qed_chain *p_chain,
-					  void *p_virt_pbl,
-					  dma_addr_t p_phys_pbl,
-					  void **pp_virt_addr_tbl)
-{
-	p_chain->pbl_sp.p_phys_table = p_phys_pbl;
-	p_chain->pbl_sp.p_virt_table = p_virt_pbl;
-	p_chain->pbl.pp_virt_addr_tbl = pp_virt_addr_tbl;
-}
-
-/**
- * @brief qed_chain_init_next_ptr_elem -
- *
- * Initalizes a next pointer element
- *
- * @param p_chain
- * @param p_virt_curr	virtual address of a chain page of which the next
- *                      pointer element is initialized
- * @param p_virt_next	virtual address of the next chain page
- * @param p_phys_next	physical address of the next chain page
- *
- */
-static inline void
-qed_chain_init_next_ptr_elem(struct qed_chain *p_chain,
-			     void *p_virt_curr,
-			     void *p_virt_next, dma_addr_t p_phys_next)
-{
-	struct qed_chain_next *p_next;
-	u32 size;
-
-	size = p_chain->elem_size * p_chain->usable_per_page;
-	p_next = (struct qed_chain_next *)((u8 *)p_virt_curr + size);
-
-	DMA_REGPAIR_LE(p_next->next_phys, p_phys_next);
-
-	p_next->next_virt = p_virt_next;
-}
-
-/**
- * @brief qed_chain_get_last_elem -
- *
- * Returns a pointer to the last element of the chain
- *
- * @param p_chain
- *
- * @return void*
+ * Return: void*.
  */
 static inline void *qed_chain_get_last_elem(struct qed_chain *p_chain)
 {
@@ -644,7 +554,7 @@ static inline void *qed_chain_get_last_elem(struct qed_chain *p_chain)
 		break;
 	case QED_CHAIN_MODE_PBL:
 		last_page_idx = p_chain->page_cnt - 1;
-		p_virt_addr = p_chain->pbl.pp_virt_addr_tbl[last_page_idx];
+		p_virt_addr = p_chain->pbl.pp_addr_tbl[last_page_idx].virt_addr;
 		break;
 	}
 	/* p_virt_addr points at this stage to the last page of the chain */
@@ -655,10 +565,13 @@ out:
 }
 
 /**
- * @brief qed_chain_set_prod - sets the prod to the given value
+ * qed_chain_set_prod(): sets the prod to the given value.
  *
- * @param prod_idx
- * @param p_prod_elem
+ * @p_chain: Chain.
+ * @prod_idx: Prod Idx.
+ * @p_prod_elem: Prod elem.
+ *
+ * Return Void.
  */
 static inline void qed_chain_set_prod(struct qed_chain *p_chain,
 				      u32 prod_idx, void *p_prod_elem)
@@ -702,9 +615,11 @@ static inline void qed_chain_set_prod(struct qed_chain *p_chain,
 }
 
 /**
- * @brief qed_chain_pbl_zero_mem - set chain memory to 0
+ * qed_chain_pbl_zero_mem(): set chain memory to 0.
  *
- * @param p_chain
+ * @p_chain: Chain.
+ *
+ * Return: Void.
  */
 static inline void qed_chain_pbl_zero_mem(struct qed_chain *p_chain)
 {
@@ -716,8 +631,8 @@ static inline void qed_chain_pbl_zero_mem(struct qed_chain *p_chain)
 	page_cnt = qed_chain_get_page_cnt(p_chain);
 
 	for (i = 0; i < page_cnt; i++)
-		memset(p_chain->pbl.pp_virt_addr_tbl[i], 0,
-		       QED_CHAIN_PAGE_SIZE);
+		memset(p_chain->pbl.pp_addr_tbl[i].virt_addr, 0,
+		       p_chain->page_size);
 }
 
 #endif

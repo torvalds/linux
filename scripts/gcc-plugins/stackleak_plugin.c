@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2011-2017 by the PaX Team <pageexec@freemail.hu>
  * Modified by Alexander Popov <alex.popov@linux.com>
- * Licensed under the GPL v2
  *
  * Note: the choice of the license means that the compilation process is
  * NOT 'eligible' as defined by gcc's library exception to the GPL v3,
@@ -20,7 +20,7 @@
  *
  * Debugging:
  *  - use fprintf() to stderr, debug_generic_expr(), debug_gimple_stmt(),
- *     print_rtl() and print_simple_rtl();
+ *     print_rtl_single() and debug_rtx();
  *  - add "-fdump-tree-all -fdump-rtl-all" to the plugin CFLAGS in
  *     Makefile.gcc-plugins to see the verbose dumps of the gcc passes;
  *  - use gcc -E to understand the preprocessing shenanigans;
@@ -32,7 +32,10 @@
 __visible int plugin_is_GPL_compatible;
 
 static int track_frame_size = -1;
+static bool build_for_x86 = false;
 static const char track_function[] = "stackleak_track_stack";
+static bool disable = false;
+static bool verbose = false;
 
 /*
  * Mark these global variables (roots) for gcc garbage collector since
@@ -41,36 +44,35 @@ static const char track_function[] = "stackleak_track_stack";
 static GTY(()) tree track_function_decl;
 
 static struct plugin_info stackleak_plugin_info = {
-	.version = "201707101337",
+	.version = PLUGIN_VERSION,
 	.help = "track-min-size=nn\ttrack stack for functions with a stack frame size >= nn bytes\n"
+		"arch=target_arch\tspecify target build arch\n"
 		"disable\t\tdo not activate the plugin\n"
+		"verbose\t\tprint info about the instrumentation\n"
 };
 
-static void stackleak_add_track_stack(gimple_stmt_iterator *gsi, bool after)
+static void add_stack_tracking_gcall(gimple_stmt_iterator *gsi, bool after)
 {
 	gimple stmt;
-	gcall *stackleak_track_stack;
+	gcall *gimple_call;
 	cgraph_node_ptr node;
-	int frequency;
 	basic_block bb;
 
-	/* Insert call to void stackleak_track_stack(void) */
+	/* Insert calling stackleak_track_stack() */
 	stmt = gimple_build_call(track_function_decl, 0);
-	stackleak_track_stack = as_a_gcall(stmt);
-	if (after) {
-		gsi_insert_after(gsi, stackleak_track_stack,
-						GSI_CONTINUE_LINKING);
-	} else {
-		gsi_insert_before(gsi, stackleak_track_stack, GSI_SAME_STMT);
-	}
+	gimple_call = as_a_gcall(stmt);
+	if (after)
+		gsi_insert_after(gsi, gimple_call, GSI_CONTINUE_LINKING);
+	else
+		gsi_insert_before(gsi, gimple_call, GSI_SAME_STMT);
 
 	/* Update the cgraph */
-	bb = gimple_bb(stackleak_track_stack);
+	bb = gimple_bb(gimple_call);
 	node = cgraph_get_create_node(track_function_decl);
 	gcc_assert(node);
-	frequency = compute_call_stmt_bb_frequency(current_function_decl, bb);
 	cgraph_create_edge(cgraph_get_node(current_function_decl), node,
-			stackleak_track_stack, bb->count, frequency);
+			gimple_call, bb->count,
+			compute_call_stmt_bb_frequency(current_function_decl, bb));
 }
 
 static bool is_alloca(gimple stmt)
@@ -78,12 +80,87 @@ static bool is_alloca(gimple stmt)
 	if (gimple_call_builtin_p(stmt, BUILT_IN_ALLOCA))
 		return true;
 
-#if BUILDING_GCC_VERSION >= 4007
 	if (gimple_call_builtin_p(stmt, BUILT_IN_ALLOCA_WITH_ALIGN))
 		return true;
-#endif
 
 	return false;
+}
+
+static tree get_current_stack_pointer_decl(void)
+{
+	varpool_node_ptr node;
+
+	FOR_EACH_VARIABLE(node) {
+		tree var = NODE_DECL(node);
+		tree name = DECL_NAME(var);
+
+		if (DECL_NAME_LENGTH(var) != sizeof("current_stack_pointer") - 1)
+			continue;
+
+		if (strcmp(IDENTIFIER_POINTER(name), "current_stack_pointer"))
+			continue;
+
+		return var;
+	}
+
+	if (verbose) {
+		fprintf(stderr, "stackleak: missing current_stack_pointer in %s()\n",
+			DECL_NAME_POINTER(current_function_decl));
+	}
+	return NULL_TREE;
+}
+
+static void add_stack_tracking_gasm(gimple_stmt_iterator *gsi, bool after)
+{
+	gasm *asm_call = NULL;
+	tree sp_decl, input;
+	vec<tree, va_gc> *inputs = NULL;
+
+	/* 'no_caller_saved_registers' is currently supported only for x86 */
+	gcc_assert(build_for_x86);
+
+	/*
+	 * Insert calling stackleak_track_stack() in asm:
+	 *   asm volatile("call stackleak_track_stack"
+	 *		  :: "r" (current_stack_pointer))
+	 * Use ASM_CALL_CONSTRAINT trick from arch/x86/include/asm/asm.h.
+	 * This constraint is taken into account during gcc shrink-wrapping
+	 * optimization. It is needed to be sure that stackleak_track_stack()
+	 * call is inserted after the prologue of the containing function,
+	 * when the stack frame is prepared.
+	 */
+	sp_decl = get_current_stack_pointer_decl();
+	if (sp_decl == NULL_TREE) {
+		add_stack_tracking_gcall(gsi, after);
+		return;
+	}
+	input = build_tree_list(NULL_TREE, build_const_char_string(2, "r"));
+	input = chainon(NULL_TREE, build_tree_list(input, sp_decl));
+	vec_safe_push(inputs, input);
+	asm_call = gimple_build_asm_vec("call stackleak_track_stack",
+					inputs, NULL, NULL, NULL);
+	gimple_asm_set_volatile(asm_call, true);
+	if (after)
+		gsi_insert_after(gsi, asm_call, GSI_CONTINUE_LINKING);
+	else
+		gsi_insert_before(gsi, asm_call, GSI_SAME_STMT);
+	update_stmt(asm_call);
+}
+
+static void add_stack_tracking(gimple_stmt_iterator *gsi, bool after)
+{
+	/*
+	 * The 'no_caller_saved_registers' attribute is used for
+	 * stackleak_track_stack(). If the compiler supports this attribute for
+	 * the target arch, we can add calling stackleak_track_stack() in asm.
+	 * That improves performance: we avoid useless operations with the
+	 * caller-saved registers in the functions from which we will remove
+	 * stackleak_track_stack() call during the stackleak_cleanup pass.
+	 */
+	if (lookup_attribute_spec(get_identifier("no_caller_saved_registers")))
+		add_stack_tracking_gasm(gsi, after);
+	else
+		add_stack_tracking_gcall(gsi, after);
 }
 
 /*
@@ -95,7 +172,7 @@ static unsigned int stackleak_instrument_execute(void)
 {
 	basic_block bb, entry_bb;
 	bool prologue_instrumented = false, is_leaf = true;
-	gimple_stmt_iterator gsi;
+	gimple_stmt_iterator gsi = { 0 };
 
 	/*
 	 * ENTRY_BLOCK_PTR is a basic block which represents possible entry
@@ -123,8 +200,13 @@ static unsigned int stackleak_instrument_execute(void)
 			if (!is_alloca(stmt))
 				continue;
 
+			if (verbose) {
+				fprintf(stderr, "stackleak: be careful, alloca() in %s()\n",
+					DECL_NAME_POINTER(current_function_decl));
+			}
+
 			/* Insert stackleak_track_stack() call after alloca() */
-			stackleak_add_track_stack(&gsi, true);
+			add_stack_tracking(&gsi, true);
 			if (bb == entry_bb)
 				prologue_instrumented = true;
 		}
@@ -169,7 +251,7 @@ static unsigned int stackleak_instrument_execute(void)
 		bb = single_succ(ENTRY_BLOCK_PTR_FOR_FN(cfun));
 	}
 	gsi = gsi_after_labels(bb);
-	stackleak_add_track_stack(&gsi, false);
+	add_stack_tracking(&gsi, false);
 
 	return 0;
 }
@@ -183,20 +265,9 @@ static bool large_stack_frame(void)
 #endif
 }
 
-/*
- * Work with the RTL representation of the code.
- * Remove the unneeded stackleak_track_stack() calls from the functions
- * which don't call alloca() and don't have a large enough stack frame size.
- */
-static unsigned int stackleak_cleanup_execute(void)
+static void remove_stack_tracking_gcall(void)
 {
 	rtx_insn *insn, *next;
-
-	if (cfun->calls_alloca)
-		return 0;
-
-	if (large_stack_frame())
-		return 0;
 
 	/*
 	 * Find stackleak_track_stack() calls. Loop through the chain of insns,
@@ -249,7 +320,7 @@ static unsigned int stackleak_cleanup_execute(void)
 
 		/* Delete the stackleak_track_stack() call */
 		delete_insn_and_edges(insn);
-#if BUILDING_GCC_VERSION >= 4007 && BUILDING_GCC_VERSION < 8000
+#if BUILDING_GCC_VERSION < 8000
 		if (GET_CODE(next) == NOTE &&
 		    NOTE_KIND(next) == NOTE_INSN_CALL_ARG_LOCATION) {
 			insn = next;
@@ -258,9 +329,122 @@ static unsigned int stackleak_cleanup_execute(void)
 		}
 #endif
 	}
+}
+
+static bool remove_stack_tracking_gasm(void)
+{
+	bool removed = false;
+	rtx_insn *insn, *next;
+
+	/* 'no_caller_saved_registers' is currently supported only for x86 */
+	gcc_assert(build_for_x86);
+
+	/*
+	 * Find stackleak_track_stack() asm calls. Loop through the chain of
+	 * insns, which is an RTL representation of the code for a function.
+	 *
+	 * The example of a matching insn:
+	 *  (insn 11 5 12 2 (parallel [ (asm_operands/v
+	 *  ("call stackleak_track_stack") ("") 0
+	 *  [ (reg/v:DI 7 sp [ current_stack_pointer ]) ]
+	 *  [ (asm_input:DI ("r")) ] [])
+	 *  (clobber (reg:CC 17 flags)) ]) -1 (nil))
+	 */
+	for (insn = get_insns(); insn; insn = next) {
+		rtx body;
+
+		next = NEXT_INSN(insn);
+
+		/* Check the expression code of the insn */
+		if (!NONJUMP_INSN_P(insn))
+			continue;
+
+		/*
+		 * Check the expression code of the insn body, which is an RTL
+		 * Expression (RTX) describing the side effect performed by
+		 * that insn.
+		 */
+		body = PATTERN(insn);
+
+		if (GET_CODE(body) != PARALLEL)
+			continue;
+
+		body = XVECEXP(body, 0, 0);
+
+		if (GET_CODE(body) != ASM_OPERANDS)
+			continue;
+
+		if (strcmp(ASM_OPERANDS_TEMPLATE(body),
+						"call stackleak_track_stack")) {
+			continue;
+		}
+
+		delete_insn_and_edges(insn);
+		gcc_assert(!removed);
+		removed = true;
+	}
+
+	return removed;
+}
+
+/*
+ * Work with the RTL representation of the code.
+ * Remove the unneeded stackleak_track_stack() calls from the functions
+ * which don't call alloca() and don't have a large enough stack frame size.
+ */
+static unsigned int stackleak_cleanup_execute(void)
+{
+	const char *fn = DECL_NAME_POINTER(current_function_decl);
+	bool removed = false;
+
+	/*
+	 * Leave stack tracking in functions that call alloca().
+	 * Additional case:
+	 *   gcc before version 7 called allocate_dynamic_stack_space() from
+	 *   expand_stack_vars() for runtime alignment of constant-sized stack
+	 *   variables. That caused cfun->calls_alloca to be set for functions
+	 *   that in fact don't use alloca().
+	 *   For more info see gcc commit 7072df0aae0c59ae437e.
+	 *   Let's leave such functions instrumented as well.
+	 */
+	if (cfun->calls_alloca) {
+		if (verbose)
+			fprintf(stderr, "stackleak: instrument %s(): calls_alloca\n", fn);
+		return 0;
+	}
+
+	/* Leave stack tracking in functions with large stack frame */
+	if (large_stack_frame()) {
+		if (verbose)
+			fprintf(stderr, "stackleak: instrument %s()\n", fn);
+		return 0;
+	}
+
+	if (lookup_attribute_spec(get_identifier("no_caller_saved_registers")))
+		removed = remove_stack_tracking_gasm();
+
+	if (!removed)
+		remove_stack_tracking_gcall();
 
 	return 0;
 }
+
+/*
+ * STRING_CST may or may not be NUL terminated:
+ * https://gcc.gnu.org/onlinedocs/gccint/Constant-expressions.html
+ */
+static inline bool string_equal(tree node, const char *string, int length)
+{
+	if (TREE_STRING_LENGTH(node) < length)
+		return false;
+	if (TREE_STRING_LENGTH(node) > length + 1)
+		return false;
+	if (TREE_STRING_LENGTH(node) == length + 1 &&
+	    TREE_STRING_POINTER(node)[length] != '\0')
+		return false;
+	return !memcmp(TREE_STRING_POINTER(node), string, length);
+}
+#define STRING_EQUAL(node, str)	string_equal(node, str, strlen(str))
 
 static bool stackleak_gate(void)
 {
@@ -271,13 +455,19 @@ static bool stackleak_gate(void)
 	if (section && TREE_VALUE(section)) {
 		section = TREE_VALUE(TREE_VALUE(section));
 
-		if (!strncmp(TREE_STRING_POINTER(section), ".init.text", 10))
+		if (STRING_EQUAL(section, ".init.text"))
 			return false;
-		if (!strncmp(TREE_STRING_POINTER(section), ".devinit.text", 13))
+		if (STRING_EQUAL(section, ".devinit.text"))
 			return false;
-		if (!strncmp(TREE_STRING_POINTER(section), ".cpuinit.text", 13))
+		if (STRING_EQUAL(section, ".cpuinit.text"))
 			return false;
-		if (!strncmp(TREE_STRING_POINTER(section), ".meminit.text", 13))
+		if (STRING_EQUAL(section, ".meminit.text"))
+			return false;
+		if (STRING_EQUAL(section, ".noinstr.text"))
+			return false;
+		if (STRING_EQUAL(section, ".entry.text"))
+			return false;
+		if (STRING_EQUAL(section, ".head.text"))
 			return false;
 	}
 
@@ -377,9 +567,6 @@ __visible int plugin_init(struct plugin_name_args *plugin_info,
 
 	/* Parse the plugin arguments */
 	for (i = 0; i < argc; i++) {
-		if (!strcmp(argv[i].key, "disable"))
-			return 0;
-
 		if (!strcmp(argv[i].key, "track-min-size")) {
 			if (!argv[i].value) {
 				error(G_("no value supplied for option '-fplugin-arg-%s-%s'"),
@@ -393,11 +580,30 @@ __visible int plugin_init(struct plugin_name_args *plugin_info,
 					plugin_name, argv[i].key, argv[i].value);
 				return 1;
 			}
+		} else if (!strcmp(argv[i].key, "arch")) {
+			if (!argv[i].value) {
+				error(G_("no value supplied for option '-fplugin-arg-%s-%s'"),
+					plugin_name, argv[i].key);
+				return 1;
+			}
+
+			if (!strcmp(argv[i].value, "x86"))
+				build_for_x86 = true;
+		} else if (!strcmp(argv[i].key, "disable")) {
+			disable = true;
+		} else if (!strcmp(argv[i].key, "verbose")) {
+			verbose = true;
 		} else {
 			error(G_("unknown option '-fplugin-arg-%s-%s'"),
 					plugin_name, argv[i].key);
 			return 1;
 		}
+	}
+
+	if (disable) {
+		if (verbose)
+			fprintf(stderr, "stackleak: disabled for this translation unit\n");
+		return 0;
 	}
 
 	/* Give the information about the plugin */

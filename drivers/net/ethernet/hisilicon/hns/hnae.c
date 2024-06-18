@@ -12,7 +12,9 @@
 
 #define cls_to_ae_dev(dev) container_of(dev, struct hnae_ae_dev, cls_dev)
 
-static struct class *hnae_class;
+static const struct class hnae_class = {
+	.name = "hnae",
+};
 
 static void
 hnae_list_add(spinlock_t *lock, struct list_head *node, struct list_head *head)
@@ -111,7 +113,7 @@ static struct hnae_ae_dev *find_ae(const struct fwnode_handle *fwnode)
 
 	WARN_ON(!fwnode);
 
-	dev = class_find_device(hnae_class, NULL, fwnode, __ae_match);
+	dev = class_find_device(&hnae_class, NULL, fwnode, __ae_match);
 
 	return dev ? cls_to_ae_dev(dev) : NULL;
 }
@@ -199,7 +201,6 @@ hnae_init_ring(struct hnae_queue *q, struct hnae_ring *ring, int flags)
 
 	ring->q = q;
 	ring->flags = flags;
-	spin_lock_init(&ring->lock);
 	ring->coal_param = q->handle->coal_param;
 	assert(!ring->desc && !ring->desc_cb && !ring->desc_dma_addr);
 
@@ -271,7 +272,7 @@ static void hnae_fini_queue(struct hnae_queue *q)
 	hnae_fini_ring(&q->rx_ring);
 }
 
-/**
+/*
  * ae_chain - define ae chain head
  */
 static RAW_NOTIFIER_HEAD(ae_chain);
@@ -416,14 +417,14 @@ int hnae_ae_register(struct hnae_ae_dev *hdev, struct module *owner)
 	hdev->owner = owner;
 	hdev->id = (int)atomic_inc_return(&id);
 	hdev->cls_dev.parent = hdev->dev;
-	hdev->cls_dev.class = hnae_class;
+	hdev->cls_dev.class = &hnae_class;
 	hdev->cls_dev.release = hnae_release;
 	(void)dev_set_name(&hdev->cls_dev, "hnae%d", hdev->id);
 	ret = device_register(&hdev->cls_dev);
-	if (ret)
+	if (ret) {
+		put_device(&hdev->cls_dev);
 		return ret;
-
-	__module_get(THIS_MODULE);
+	}
 
 	INIT_LIST_HEAD(&hdev->handle_list);
 	spin_lock_init(&hdev->lock);
@@ -439,24 +440,22 @@ EXPORT_SYMBOL(hnae_ae_register);
 
 /**
  * hnae_ae_unregister - unregisters a HNAE AE engine
- * @cdev: the device to unregister
+ * @hdev: the device to unregister
  */
 void hnae_ae_unregister(struct hnae_ae_dev *hdev)
 {
 	device_unregister(&hdev->cls_dev);
-	module_put(THIS_MODULE);
 }
 EXPORT_SYMBOL(hnae_ae_unregister);
 
 static int __init hnae_init(void)
 {
-	hnae_class = class_create(THIS_MODULE, "hnae");
-	return PTR_ERR_OR_ZERO(hnae_class);
+	return class_register(&hnae_class);
 }
 
 static void __exit hnae_exit(void)
 {
-	class_destroy(hnae_class);
+	class_unregister(&hnae_class);
 }
 
 subsys_initcall(hnae_init);

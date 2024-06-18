@@ -28,18 +28,21 @@ static inline void trace_ ## name(proto) {}
 
 #define MAX_MSG_LEN		100
 
+#pragma GCC diagnostic push
+#ifndef __clang__
+#pragma GCC diagnostic ignored "-Wsuggest-attribute=format"
+#endif
+
 TRACE_EVENT(brcmf_err,
 	TP_PROTO(const char *func, struct va_format *vaf),
 	TP_ARGS(func, vaf),
 	TP_STRUCT__entry(
 		__string(func, func)
-		__dynamic_array(char, msg, MAX_MSG_LEN)
+		__vstring(msg, vaf->fmt, vaf->va)
 	),
 	TP_fast_assign(
-		__assign_str(func, func);
-		WARN_ON_ONCE(vsnprintf(__get_dynamic_array(msg),
-				       MAX_MSG_LEN, vaf->fmt,
-				       *vaf->va) >= MAX_MSG_LEN);
+		__assign_str(func);
+		__assign_vstr(msg, vaf->fmt, vaf->va);
 	),
 	TP_printk("%s: %s", __get_str(func), __get_str(msg))
 );
@@ -50,14 +53,12 @@ TRACE_EVENT(brcmf_dbg,
 	TP_STRUCT__entry(
 		__field(u32, level)
 		__string(func, func)
-		__dynamic_array(char, msg, MAX_MSG_LEN)
+		__vstring(msg, vaf->fmt, vaf->va)
 	),
 	TP_fast_assign(
 		__entry->level = level;
-		__assign_str(func, func);
-		WARN_ON_ONCE(vsnprintf(__get_dynamic_array(msg),
-				       MAX_MSG_LEN, vaf->fmt,
-				       *vaf->va) >= MAX_MSG_LEN);
+		__assign_str(func);
+		__assign_vstr(msg, vaf->fmt, vaf->va);
 	),
 	TP_printk("%s: %s", __get_str(func), __get_str(msg))
 );
@@ -126,6 +127,8 @@ TRACE_EVENT(brcmf_sdpcm_hdr,
 		  __entry->dir == SDPCM_RX ? "RX" : "TX",
 		  __entry->len, ((u8 *)__get_dynamic_array(hdr))[4])
 );
+
+#pragma GCC diagnostic pop
 
 #ifdef CONFIG_BRCM_TRACING
 

@@ -12,6 +12,7 @@
 #include "xfs_trans.h"
 #include "xfs_bmap.h"
 #include "xfs_iomap.h"
+#include "xfs_pnfs.h"
 
 /*
  * Ensure that we do not have any outstanding pNFS layouts that can be used by
@@ -57,9 +58,8 @@ xfs_fs_get_uuid(
 {
 	struct xfs_mount	*mp = XFS_M(sb);
 
-	printk_once(KERN_NOTICE
-"XFS (%s): using experimental pNFS feature, use at your own risk!\n",
-		mp->m_fsname);
+	xfs_notice_once(mp,
+"Using experimental pNFS feature, use at your own risk!");
 
 	if (*len < sizeof(uuid_t))
 		return -EINVAL;
@@ -68,6 +68,40 @@ xfs_fs_get_uuid(
 	*len = sizeof(uuid_t);
 	*offset = offsetof(struct xfs_dsb, sb_uuid);
 	return 0;
+}
+
+/*
+ * We cannot use file based VFS helpers such as file_modified() to update
+ * inode state as we modify the data/metadata in the inode here. Hence we have
+ * to open code the timestamp updates and SUID/SGID stripping. We also need
+ * to set the inode prealloc flag to ensure that the extents we allocate are not
+ * removed if the inode is reclaimed from memory before xfs_fs_block_commit()
+ * is from the client to indicate that data has been written and the file size
+ * can be extended.
+ */
+static int
+xfs_fs_map_update_inode(
+	struct xfs_inode	*ip)
+{
+	struct xfs_trans	*tp;
+	int			error;
+
+	error = xfs_trans_alloc(ip->i_mount, &M_RES(ip->i_mount)->tr_writeid,
+			0, 0, 0, &tp);
+	if (error)
+		return error;
+
+	xfs_ilock(ip, XFS_ILOCK_EXCL);
+	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
+
+	VFS_I(ip)->i_mode &= ~S_ISUID;
+	if (VFS_I(ip)->i_mode & S_IXGRP)
+		VFS_I(ip)->i_mode &= ~S_ISGID;
+	xfs_trans_ichgtime(tp, ip, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
+	ip->i_diflags |= XFS_DIFLAG_PREALLOC;
+
+	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+	return xfs_trans_commit(tp);
 }
 
 /*
@@ -91,8 +125,9 @@ xfs_fs_map_blocks(
 	int			nimaps = 1;
 	uint			lock_flags;
 	int			error = 0;
+	u64			seq;
 
-	if (XFS_FORCED_SHUTDOWN(mp))
+	if (xfs_is_shutdown(mp))
 		return -EIO;
 
 	/*
@@ -134,7 +169,7 @@ xfs_fs_map_blocks(
 		goto out_unlock;
 	error = invalidate_inode_pages2(inode->i_mapping);
 	if (WARN_ON_ONCE(error))
-		return error;
+		goto out_unlock;
 
 	end_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)offset + length);
 	offset_fsb = XFS_B_TO_FSBT(mp, offset);
@@ -142,43 +177,41 @@ xfs_fs_map_blocks(
 	lock_flags = xfs_ilock_data_map_shared(ip);
 	error = xfs_bmapi_read(ip, offset_fsb, end_fsb - offset_fsb,
 				&imap, &nimaps, bmapi_flags);
-	xfs_iunlock(ip, lock_flags);
+	seq = xfs_iomap_inode_sequence(ip, 0);
 
-	if (error)
-		goto out_unlock;
+	ASSERT(!nimaps || imap.br_startblock != DELAYSTARTBLOCK);
 
-	if (write) {
-		enum xfs_prealloc_flags	flags = 0;
+	if (!error && write &&
+	    (!nimaps || imap.br_startblock == HOLESTARTBLOCK)) {
+		if (offset + length > XFS_ISIZE(ip))
+			end_fsb = xfs_iomap_eof_align_last_fsb(ip, end_fsb);
+		else if (nimaps && imap.br_startblock == HOLESTARTBLOCK)
+			end_fsb = min(end_fsb, imap.br_startoff +
+					       imap.br_blockcount);
+		xfs_iunlock(ip, lock_flags);
 
-		ASSERT(imap.br_startblock != DELAYSTARTBLOCK);
-
-		if (!nimaps || imap.br_startblock == HOLESTARTBLOCK) {
-			/*
-			 * xfs_iomap_write_direct() expects to take ownership of
-			 * the shared ilock.
-			 */
-			xfs_ilock(ip, XFS_ILOCK_SHARED);
-			error = xfs_iomap_write_direct(ip, offset, length,
-						       &imap, nimaps);
-			if (error)
-				goto out_unlock;
-
-			/*
-			 * Ensure the next transaction is committed
-			 * synchronously so that the blocks allocated and
-			 * handed out to the client are guaranteed to be
-			 * present even after a server crash.
-			 */
-			flags |= XFS_PREALLOC_SET | XFS_PREALLOC_SYNC;
-		}
-
-		error = xfs_update_prealloc_flags(ip, flags);
+		error = xfs_iomap_write_direct(ip, offset_fsb,
+				end_fsb - offset_fsb, 0, &imap, &seq);
 		if (error)
 			goto out_unlock;
+
+		/*
+		 * Ensure the next transaction is committed synchronously so
+		 * that the blocks allocated and handed out to the client are
+		 * guaranteed to be present even after a server crash.
+		 */
+		error = xfs_fs_map_update_inode(ip);
+		if (!error)
+			error = xfs_log_force_inode(ip);
+		if (error)
+			goto out_unlock;
+
+	} else {
+		xfs_iunlock(ip, lock_flags);
 	}
 	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
 
-	error = xfs_bmbt_to_iomap(ip, iomap, &imap, false);
+	error = xfs_bmbt_to_iomap(ip, iomap, &imap, 0, 0, seq);
 	*device_generation = mp->m_generation;
 	return error;
 out_unlock:
@@ -260,7 +293,7 @@ xfs_fs_commit_blocks(
 		length = end - start;
 		if (!length)
 			continue;
-	
+
 		/*
 		 * Make sure reads through the pagecache see the new data.
 		 */
@@ -288,10 +321,11 @@ xfs_fs_commit_blocks(
 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
-	xfs_setattr_time(ip, iattr);
+	ASSERT(!(iattr->ia_valid & (ATTR_UID | ATTR_GID)));
+	setattr_copy(&nop_mnt_idmap, inode, iattr);
 	if (update_isize) {
 		i_size_write(inode, iattr->ia_size);
-		ip->i_d.di_size = iattr->ia_size;
+		ip->i_disk_size = iattr->ia_size;
 	}
 
 	xfs_trans_set_sync(tp);

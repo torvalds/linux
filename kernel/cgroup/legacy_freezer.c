@@ -22,6 +22,7 @@
 #include <linux/freezer.h>
 #include <linux/seq_file.h>
 #include <linux/mutex.h>
+#include <linux/cpu.h>
 
 /*
  * A cgroup is freezing if any FREEZING flags are set.  FREEZING_SELF is
@@ -65,9 +66,15 @@ static struct freezer *parent_freezer(struct freezer *freezer)
 bool cgroup_freezing(struct task_struct *task)
 {
 	bool ret;
+	unsigned int state;
 
 	rcu_read_lock();
-	ret = task_freezer(task)->state & CGROUP_FREEZING;
+	/* Check if the cgroup is still FREEZING, but not FROZEN. The extra
+	 * !FROZEN check is required, because the FREEZING bit is not cleared
+	 * when the state FROZEN is reached.
+	 */
+	state = task_freezer(task)->state;
+	ret = (state & CGROUP_FREEZING) && !(state & CGROUP_FROZEN);
 	rcu_read_unlock();
 
 	return ret;
@@ -99,24 +106,25 @@ freezer_css_alloc(struct cgroup_subsys_state *parent_css)
  * @css: css being created
  *
  * We're committing to creation of @css.  Mark it online and inherit
- * parent's freezing state while holding both parent's and our
- * freezer->lock.
+ * parent's freezing state while holding cpus read lock and freezer_mutex.
  */
 static int freezer_css_online(struct cgroup_subsys_state *css)
 {
 	struct freezer *freezer = css_freezer(css);
 	struct freezer *parent = parent_freezer(freezer);
 
+	cpus_read_lock();
 	mutex_lock(&freezer_mutex);
 
 	freezer->state |= CGROUP_FREEZER_ONLINE;
 
 	if (parent && (parent->state & CGROUP_FREEZING)) {
 		freezer->state |= CGROUP_FREEZING_PARENT | CGROUP_FROZEN;
-		atomic_inc(&system_freezing_cnt);
+		static_branch_inc_cpuslocked(&freezer_active);
 	}
 
 	mutex_unlock(&freezer_mutex);
+	cpus_read_unlock();
 	return 0;
 }
 
@@ -124,21 +132,23 @@ static int freezer_css_online(struct cgroup_subsys_state *css)
  * freezer_css_offline - initiate destruction of a freezer css
  * @css: css being destroyed
  *
- * @css is going away.  Mark it dead and decrement system_freezing_count if
+ * @css is going away.  Mark it dead and decrement freezer_active if
  * it was holding one.
  */
 static void freezer_css_offline(struct cgroup_subsys_state *css)
 {
 	struct freezer *freezer = css_freezer(css);
 
+	cpus_read_lock();
 	mutex_lock(&freezer_mutex);
 
 	if (freezer->state & CGROUP_FREEZING)
-		atomic_dec(&system_freezing_cnt);
+		static_branch_dec_cpuslocked(&freezer_active);
 
 	freezer->state = 0;
 
 	mutex_unlock(&freezer_mutex);
+	cpus_read_unlock();
 }
 
 static void freezer_css_free(struct cgroup_subsys_state *css)
@@ -179,6 +189,7 @@ static void freezer_attach(struct cgroup_taskset *tset)
 			__thaw_task(task);
 		} else {
 			freeze_task(task);
+
 			/* clear FROZEN and propagate upwards */
 			while (freezer && (freezer->state & CGROUP_FROZEN)) {
 				freezer->state &= ~CGROUP_FROZEN;
@@ -271,16 +282,8 @@ static void update_if_frozen(struct cgroup_subsys_state *css)
 	css_task_iter_start(css, 0, &it);
 
 	while ((task = css_task_iter_next(&it))) {
-		if (freezing(task)) {
-			/*
-			 * freezer_should_skip() indicates that the task
-			 * should be skipped when determining freezing
-			 * completion.  Consider it frozen in addition to
-			 * the usual frozen condition.
-			 */
-			if (!frozen(task) && !freezer_should_skip(task))
-				goto out_iter_end;
-		}
+		if (freezing(task) && !frozen(task))
+			goto out_iter_end;
 	}
 
 	freezer->state |= CGROUP_FROZEN;
@@ -357,7 +360,7 @@ static void freezer_apply_state(struct freezer *freezer, bool freeze,
 
 	if (freeze) {
 		if (!(freezer->state & CGROUP_FREEZING))
-			atomic_inc(&system_freezing_cnt);
+			static_branch_inc_cpuslocked(&freezer_active);
 		freezer->state |= state;
 		freeze_cgroup(freezer);
 	} else {
@@ -366,9 +369,9 @@ static void freezer_apply_state(struct freezer *freezer, bool freeze,
 		freezer->state &= ~state;
 
 		if (!(freezer->state & CGROUP_FREEZING)) {
-			if (was_freezing)
-				atomic_dec(&system_freezing_cnt);
 			freezer->state &= ~CGROUP_FROZEN;
+			if (was_freezing)
+				static_branch_dec_cpuslocked(&freezer_active);
 			unfreeze_cgroup(freezer);
 		}
 	}
@@ -386,6 +389,7 @@ static void freezer_change_state(struct freezer *freezer, bool freeze)
 {
 	struct cgroup_subsys_state *pos;
 
+	cpus_read_lock();
 	/*
 	 * Update all its descendants in pre-order traversal.  Each
 	 * descendant will try to inherit its parent's FREEZING state as
@@ -414,6 +418,7 @@ static void freezer_change_state(struct freezer *freezer, bool freeze)
 	}
 	rcu_read_unlock();
 	mutex_unlock(&freezer_mutex);
+	cpus_read_unlock();
 }
 
 static ssize_t freezer_write(struct kernfs_open_file *of,

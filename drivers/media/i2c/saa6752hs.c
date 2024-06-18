@@ -543,7 +543,7 @@ static int saa6752hs_init(struct v4l2_subdev *sd, u32 leading_null_bytes)
 }
 
 static int saa6752hs_get_fmt(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *f = &format->format;
@@ -563,7 +563,7 @@ static int saa6752hs_get_fmt(struct v4l2_subdev *sd,
 }
 
 static int saa6752hs_set_fmt(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *f = &format->format;
@@ -594,10 +594,8 @@ static int saa6752hs_set_fmt(struct v4l2_subdev *sd,
 	f->field = V4L2_FIELD_INTERLACED;
 	f->colorspace = V4L2_COLORSPACE_SMPTE170M;
 
-	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		cfg->try_fmt = *f;
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
 		return 0;
-	}
 
 	/*
 	  FIXME: translate and round width/height into EMPRESS
@@ -659,8 +657,7 @@ static const struct v4l2_subdev_ops saa6752hs_ops = {
 	.pad = &saa6752hs_pad_ops,
 };
 
-static int saa6752hs_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int saa6752hs_probe(struct i2c_client *client)
 {
 	struct saa6752hs_state *h;
 	struct v4l2_subdev *sd;
@@ -764,13 +761,12 @@ static int saa6752hs_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int saa6752hs_remove(struct i2c_client *client)
+static void saa6752hs_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&to_state(sd)->hdl);
-	return 0;
 }
 
 static const struct i2c_device_id saa6752hs_id[] = {

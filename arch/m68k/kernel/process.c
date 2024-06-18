@@ -30,13 +30,15 @@
 #include <linux/init_task.h>
 #include <linux/mqueue.h>
 #include <linux/rcupdate.h>
-
+#include <linux/syscalls.h>
 #include <linux/uaccess.h>
+#include <linux/elfcore.h>
+
 #include <asm/traps.h>
 #include <asm/machdep.h>
 #include <asm/setup.h>
-#include <asm/pgtable.h>
 
+#include "process.h"
 
 asmlinkage void ret_from_fork(void);
 asmlinkage void ret_from_kernel_thread(void);
@@ -67,12 +69,11 @@ void machine_halt(void)
 
 void machine_power_off(void)
 {
-	if (mach_power_off)
-		mach_power_off();
+	do_kernel_power_off();
 	for (;;);
 }
 
-void (*pm_power_off)(void) = machine_power_off;
+void (*pm_power_off)(void);
 EXPORT_SYMBOL(pm_power_off);
 
 void show_regs(struct pt_regs * regs)
@@ -92,7 +93,7 @@ void show_regs(struct pt_regs * regs)
 
 void flush_thread(void)
 {
-	current->thread.fs = __USER_DS;
+	current->thread.fc = USER_DATA;
 #ifdef CONFIG_FPU
 	if (!FPU_IS_EMU) {
 		unsigned long zero = 0;
@@ -107,21 +108,42 @@ void flush_thread(void)
  * on top of pt_regs, which means that sys_clone() arguments would be
  * buried.  We could, of course, copy them, but it's too costly for no
  * good reason - generic clone() would have to copy them *again* for
- * do_fork() anyway.  So in this case it's actually better to pass pt_regs *
- * and extract arguments for do_fork() from there.  Eventually we might
- * go for calling do_fork() directly from the wrapper, but only after we
- * are finished with do_fork() prototype conversion.
+ * kernel_clone() anyway.  So in this case it's actually better to pass pt_regs *
+ * and extract arguments for kernel_clone() from there.  Eventually we might
+ * go for calling kernel_clone() directly from the wrapper, but only after we
+ * are finished with kernel_clone() prototype conversion.
  */
 asmlinkage int m68k_clone(struct pt_regs *regs)
 {
 	/* regs will be equal to current_pt_regs() */
-	return do_fork(regs->d1, regs->d2, 0,
-		       (int __user *)regs->d3, (int __user *)regs->d4);
+	struct kernel_clone_args args = {
+		.flags		= regs->d1 & ~CSIGNAL,
+		.pidfd		= (int __user *)regs->d3,
+		.child_tid	= (int __user *)regs->d4,
+		.parent_tid	= (int __user *)regs->d3,
+		.exit_signal	= regs->d1 & CSIGNAL,
+		.stack		= regs->d2,
+		.tls		= regs->d5,
+	};
+
+	return kernel_clone(&args);
 }
 
-int copy_thread(unsigned long clone_flags, unsigned long usp,
-		 unsigned long arg, struct task_struct *p)
+/*
+ * Because extra registers are saved on the stack after the sys_clone3()
+ * arguments, this C wrapper extracts them from pt_regs * and then calls the
+ * generic sys_clone3() implementation.
+ */
+asmlinkage int m68k_clone3(struct pt_regs *regs)
 {
+	return sys_clone3((struct clone_args __user *)regs->d1, regs->d2);
+}
+
+int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
+{
+	unsigned long clone_flags = args->flags;
+	unsigned long usp = args->stack;
+	unsigned long tls = args->tls;
 	struct fork_frame {
 		struct switch_stack sw;
 		struct pt_regs regs;
@@ -136,14 +158,14 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	 * Must save the current SFC/DFC value, NOT the value when
 	 * the parent was last descheduled - RGH  10-08-96
 	 */
-	p->thread.fs = get_fs().seg;
+	p->thread.fc = USER_DATA;
 
-	if (unlikely(p->flags & PF_KTHREAD)) {
+	if (unlikely(args->fn)) {
 		/* kernel thread */
 		memset(frame, 0, sizeof(struct fork_frame));
 		frame->regs.sr = PS_S;
-		frame->sw.a3 = usp; /* function */
-		frame->sw.d7 = arg;
+		frame->sw.a3 = (unsigned long)args->fn;
+		frame->sw.d7 = (unsigned long)args->fn_arg;
 		frame->sw.retpc = (unsigned long)ret_from_kernel_thread;
 		p->thread.usp = 0;
 		return 0;
@@ -155,7 +177,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	p->thread.usp = usp ?: rdusp();
 
 	if (clone_flags & CLONE_SETTLS)
-		task_thread_info(p)->tp_value = frame->regs.d5;
+		task_thread_info(p)->tp_value = tls;
 
 #ifdef CONFIG_FPU
 	if (!FPU_IS_EMU) {
@@ -193,7 +215,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 }
 
 /* Fill in the fpu structure for a core dump.  */
-int dump_fpu (struct pt_regs *regs, struct user_m68kfp_struct *fpu)
+int elf_core_copy_task_fpregs(struct task_struct *t, elf_fpregset_t *fpu)
 {
 	if (FPU_IS_EMU) {
 		int i;
@@ -242,15 +264,12 @@ int dump_fpu (struct pt_regs *regs, struct user_m68kfp_struct *fpu)
 
 	return 1;
 }
-EXPORT_SYMBOL(dump_fpu);
 
-unsigned long get_wchan(struct task_struct *p)
+unsigned long __get_wchan(struct task_struct *p)
 {
 	unsigned long fp, pc;
 	unsigned long stack_page;
 	int count = 0;
-	if (!p || p == current || p->state == TASK_RUNNING)
-		return 0;
 
 	stack_page = (unsigned long)task_stack_page(p);
 	fp = ((struct switch_stack *)p->thread.ksp)->a6;

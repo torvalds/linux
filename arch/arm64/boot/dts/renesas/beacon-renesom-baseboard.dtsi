@@ -1,0 +1,816 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright 2020, Compass Electronics Group, LLC
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/clock/versaclock.h>
+
+/ {
+	backlight_lvds: backlight-lvds {
+		compatible = "pwm-backlight";
+		power-supply = <&reg_lcd>;
+		enable-gpios = <&gpio_exp1 3 GPIO_ACTIVE_HIGH>;
+		pwms = <&pwm2 0 25000>;
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <6>;
+	};
+
+	backlight_dpi: backlight-dpi {
+		compatible = "pwm-backlight";
+		power-supply = <&reg_lcd>;
+		enable-gpios = <&gpio_exp1 7 GPIO_ACTIVE_LOW>;
+		pwms = <&pwm0 0 25000>;
+		brightness-levels = <0 25 33 50 63 75 88 100>;
+		default-brightness-level = <6>;
+	};
+
+	hdmi0-out {
+		compatible = "hdmi-connector";
+		type = "a";
+
+		port {
+			hdmi0_con: endpoint {
+				remote-endpoint = <&rcar_dw_hdmi0_out>;
+			};
+		};
+	};
+
+	keys {
+		compatible = "gpio-keys";
+
+		key-1 { /* S19 */
+			gpios = <&gpio4 6 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_UP>;
+			label = "Up";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+		key-2 { /*S20 */
+			gpios = <&gpio3 13 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_LEFT>;
+			label = "Left";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+		key-3 { /* S21 */
+			gpios = <&gpio5 17 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_DOWN>;
+			label = "Down";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+		key-4 { /* S22 */
+			gpios = <&gpio5 20 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_RIGHT>;
+			label = "Right";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+		key-5 { /* S23 */
+			gpios = <&gpio5 22 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_ENTER>;
+			label = "Center";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-0 = <&led_pins>;
+		pinctrl-names = "default";
+
+		led0 {
+			gpios = <&gpio0 4 GPIO_ACTIVE_HIGH>;
+			label = "LED0";
+			linux,default-trigger = "heartbeat";
+		};
+		led1 {
+			gpios = <&gpio7 0 GPIO_ACTIVE_HIGH>;
+			label = "LED1";
+		};
+		led2 {
+			gpios = <&gpio7 1 GPIO_ACTIVE_HIGH>;
+			label = "LED2";
+		};
+		led3 {
+			gpios = <&gpio7 3 GPIO_ACTIVE_HIGH>;
+			label = "LED3";
+		};
+	};
+
+	lvds {
+		compatible = "panel-lvds";
+		power-supply = <&reg_lcd_reset>;
+		width-mm = <223>;
+		height-mm = <125>;
+		backlight = <&backlight_lvds>;
+		data-mapping = "vesa-24";
+
+		panel-timing {
+			/* 800x480@60Hz */
+			clock-frequency = <30000000>;
+			hactive = <800>;
+			vactive = <480>;
+			hsync-len = <48>;
+			hfront-porch = <40>;
+			hback-porch = <40>;
+			vfront-porch = <13>;
+			vback-porch = <29>;
+			vsync-len = <1>;
+			hsync-active = <1>;
+			vsync-active = <3>;
+			de-active = <1>;
+			pixelclk-active = <0>;
+		};
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&lvds0_out>;
+			};
+		};
+	};
+
+	rgb {
+		/* Different LCD with compatible timings */
+		compatible = "rocktech,rk070er9427";
+		backlight = <&backlight_dpi>;
+		enable-gpios = <&gpio1 21 GPIO_ACTIVE_HIGH>;
+		power-supply = <&reg_lcd>;
+		port {
+			rgb_panel: endpoint {
+				remote-endpoint = <&du_out_rgb>;
+			};
+		};
+	};
+
+	reg_audio: regulator-audio {
+		compatible = "regulator-fixed";
+		regulator-name = "audio-1.8V";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&gpio_exp4 1 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	reg_lcd: regulator-lcd {
+		compatible = "regulator-fixed";
+		regulator-name = "lcd_panel_pwr";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio_exp1 1 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	reg_lcd_reset: regulator-lcd-reset {
+		compatible = "regulator-fixed";
+		regulator-name = "nLCD_RESET";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio5 3 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		vin-supply = <&reg_lcd>;
+	};
+
+	reg_cam0: regulator-cam0 {
+		compatible = "regulator-fixed";
+		regulator-name = "reg_cam0";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&gpio_exp2 2 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	reg_cam1: regulator-cam1 {
+		compatible = "regulator-fixed";
+		regulator-name = "reg_cam1";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&gpio_exp2 5 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		startup-delay-us = <100000>;
+	};
+
+	sound_card {
+		compatible = "audio-graph-card";
+		label = "rcar-sound";
+		dais = <&rsnd_port0>, <&rsnd_port1>;
+		widgets = "Microphone", "Mic Jack",
+			  "Line", "Line In Jack",
+			  "Headphone", "Headphone Jack";
+		mic-det-gpio = <&gpio0 2 GPIO_ACTIVE_LOW>;
+		routing = "Headphone Jack", "HPOUTL",
+			 "Headphone Jack", "HPOUTR",
+			 "IN3R", "MICBIAS",
+			 "Mic Jack", "IN3R";
+	};
+
+	vccq_sdhi0: regulator-vccq-sdhi0 {
+		compatible = "regulator-gpio";
+		regulator-name = "SDHI0 VccQ";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+		gpios = <&gpio6 30 GPIO_ACTIVE_HIGH>;
+		gpios-states = <1>;
+		states = <3300000 1>, <1800000 0>;
+	};
+
+	/* External DU dot clocks */
+	x302_clk: x302-clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <33000000>;
+	};
+
+	x304_clk: x304-clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <25000000>;
+	};
+
+	connector {
+		compatible = "usb-c-connector";
+		label = "USB-C";
+		data-role = "dual";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			port@0 {
+				reg = <0>;
+				hs_ep: endpoint {
+					remote-endpoint = <&usb3_hs_ep>;
+				};
+			};
+			port@1 {
+				reg = <1>;
+				ss_ep: endpoint {
+					remote-endpoint = <&hd3ss3220_in_ep>;
+				};
+			};
+		};
+	};
+};
+
+&audio_clk_b {
+	clock-frequency = <22579200>;
+};
+
+&can0 {
+	pinctrl-0 = <&can0_pins>;
+	pinctrl-names = "default";
+	renesas,can-clock-select = <0x0>;
+	status = "okay";
+};
+
+&can1 {
+	pinctrl-0 = <&can1_pins>;
+	pinctrl-names = "default";
+	renesas,can-clock-select = <0x0>;
+	status = "okay";
+};
+
+&du {
+	ports {
+		port@0 {
+			du_out_rgb: endpoint {
+				remote-endpoint = <&rgb_panel>;
+			};
+		};
+	};
+};
+
+&ehci0 {
+	dr_mode = "otg";
+	status = "okay";
+	clocks = <&cpg CPG_MOD 703>, <&cpg CPG_MOD 704>, <&usb2_clksel>, <&versaclock5 3>;
+};
+
+&ehci1 {
+	status = "okay";
+	clocks = <&cpg CPG_MOD 703>, <&cpg CPG_MOD 704>, <&usb2_clksel>, <&versaclock5 3>;
+};
+
+&hdmi0 {
+	status = "okay";
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			dw_hdmi0_in: endpoint {
+				remote-endpoint = <&du_out_hdmi0>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			rcar_dw_hdmi0_out: endpoint {
+				remote-endpoint = <&hdmi0_con>;
+			};
+		};
+		port@2 {
+			reg = <2>;
+			dw_hdmi0_snd_in: endpoint {
+				remote-endpoint = <&rsnd_endpoint1>;
+			};
+		};
+	};
+};
+
+&hscif1 {
+	pinctrl-0 = <&hscif1_pins>;
+	pinctrl-names = "default";
+	uart-has-rtscts;
+	status = "okay";
+};
+
+&hsusb {
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&i2c2 {
+	status = "okay";
+	clock-frequency = <400000>;
+	pinctrl-0 = <&i2c2_pins>;
+	pinctrl-names = "default";
+
+	gpio_exp2: gpio@21 {
+		compatible = "onnn,pca9654";
+		reg = <0x21>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+
+	gpio_exp3: gpio@22 {
+		compatible = "onnn,pca9654";
+		reg = <0x22>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+
+	gpio_exp4: gpio@23 {
+		compatible = "onnn,pca9654";
+		reg = <0x23>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+
+	versaclock6_bb: clock-controller@6a {
+		compatible = "idt,5p49v6965";
+		reg = <0x6a>;
+		#clock-cells = <1>;
+		clocks = <&x304_clk>;
+		clock-names = "xin";
+
+		assigned-clocks = <&versaclock6_bb 1>, <&versaclock6_bb 2>,
+				  <&versaclock6_bb 3>, <&versaclock6_bb 4>;
+		assigned-clock-rates = <24000000>, <24000000>, <24576000>,
+				       <24576000>;
+
+		OUT1 {
+			idt,mode = <VC5_CMOS>;
+			idt,voltage-microvolt = <1800000>;
+			idt,slew-percent = <100>;
+		};
+
+		OUT2 {
+			idt,mode = <VC5_CMOS>;
+			idt,voltage-microvolt = <1800000>;
+			idt,slew-percent = <100>;
+		};
+
+		OUT3 {
+			idt,mode = <VC5_CMOS>;
+			idt,voltage-microvolt = <3300000>;
+			idt,slew-percent = <100>;
+		};
+
+		OUT4 {
+			idt,mode = <VC5_CMOS>;
+			idt,voltage-microvolt = <3300000>;
+			idt,slew-percent = <100>;
+		};
+	};
+};
+
+&i2c0 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	pinctrl-0 = <&i2c0_pins>;
+	pinctrl-names = "default";
+};
+
+&i2c5 {
+	status = "okay";
+	clock-frequency = <400000>;
+	pinctrl-0 = <&i2c5_pins>;
+	pinctrl-names = "default";
+
+	codec: wm8962@1a {
+		compatible = "wlf,wm8962";
+		reg = <0x1a>;
+		clocks = <&versaclock6_bb 3>;
+		DCVDD-supply = <&reg_audio>;
+		DBVDD-supply = <&reg_audio>;
+		AVDD-supply = <&reg_audio>;
+		CPVDD-supply = <&reg_audio>;
+		MICVDD-supply = <&reg_audio>;
+		PLLVDD-supply = <&reg_audio>;
+		SPKVDD1-supply = <&reg_audio>;
+		SPKVDD2-supply = <&reg_audio>;
+		gpio-cfg = <
+			0x0000 /* 0:Default */
+			0x0000 /* 1:Default */
+			0x0000 /* 2:Default */
+			0x0000 /* 3:Default */
+			0x0000 /* 4:Default */
+			0x0000 /* 5:Default */
+		>;
+		port {
+			wm8962_endpoint: endpoint {
+				remote-endpoint = <&rsnd_endpoint0>;
+			};
+		};
+	};
+
+	touchscreen@26 {
+		compatible = "ilitek,ili2117";
+		reg = <0x26>;
+		interrupt-parent = <&gpio5>;
+		interrupts = <9 IRQ_TYPE_EDGE_RISING>;
+		wakeup-source;
+	};
+
+	hd3ss3220@47 {
+		compatible = "ti,hd3ss3220";
+		reg = <0x47>;
+		interrupt-parent = <&gpio6>;
+		interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			port@0 {
+				reg = <0>;
+				hd3ss3220_in_ep: endpoint {
+					remote-endpoint = <&ss_ep>;
+				};
+			};
+			port@1 {
+				reg = <1>;
+				hd3ss3220_out_ep: endpoint {
+					remote-endpoint = <&usb3_role_switch>;
+				};
+			};
+		};
+	};
+
+	gpio_exp1: gpio@70 {
+		compatible = "nxp,pca9538";
+		reg = <0x70>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-line-names = "lcd_reset", "lcd_pwr", "lcd_select",
+				  "backlight-enable", "Touch_shdwn",
+				  "LCD_H_pol", "lcd_V_pol";
+	};
+};
+
+&lvds0 {
+	status = "okay";
+
+	ports {
+		port@1 {
+			lvds0_out: endpoint {
+				remote-endpoint = <&panel_in>;
+			};
+		};
+	};
+};
+
+&msiof1 {
+	pinctrl-0 = <&msiof1_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+	cs-gpios = <&gpio3 10 GPIO_ACTIVE_LOW>;
+};
+
+&ohci0 {
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&ohci1 {
+	status = "okay";
+};
+
+&pciec0 {
+	status = "okay";
+};
+
+&pciec1 {
+	status = "okay";
+};
+
+&pcie_bus_clk {
+	clock-frequency = <100000000>;
+};
+
+&pfc {
+	can0_pins: can0 {
+		groups = "can0_data_a";
+		function = "can0";
+	};
+
+	can1_pins: can1 {
+		groups = "can1_data";
+		function = "can1";
+	};
+
+	du_pins: du {
+		groups = "du_rgb888", "du_sync", "du_clk_out_1", "du_disp";
+		function = "du";
+	};
+
+	i2c2_pins: i2c2 {
+		groups = "i2c2_a";
+		function = "i2c2";
+	};
+
+	i2c5_pins: i2c5 {
+		groups = "i2c5";
+		function = "i2c5";
+	};
+
+	led_pins: leds {
+		/* GP_0_4 , AVS1, AVS2, GP_7_3 */
+		pins = "GP_0_4", "GP_7_0", "GP_7_1", "GP_7_3";
+		bias-pull-down;
+	};
+
+	msiof1_pins: msiof1 {
+		groups = "msiof1_clk_g", "msiof1_rxd_g", "msiof1_txd_g";
+		function = "msiof1";
+	};
+
+	pwm0_pins: pwm0 {
+		groups = "pwm0";
+		function = "pwm0";
+	};
+
+	pwm2_pins: pwm2 {
+		groups = "pwm2_a";
+		function = "pwm2";
+	};
+
+	sdhi0_pins: sd0 {
+		groups = "sdhi0_data4", "sdhi0_ctrl";
+		function = "sdhi0";
+		power-source = <3300>;
+	};
+
+	sdhi0_pins_uhs: sd0_uhs {
+		groups = "sdhi0_data4", "sdhi0_ctrl";
+		function = "sdhi0";
+		power-source = <1800>;
+	};
+
+	sound_pins: sound {
+		groups = "ssi01239_ctrl", "ssi0_data", "ssi1_data_a";
+		function = "ssi";
+	};
+
+	sound_clk_pins: sound_clk {
+		groups = "audio_clk_a_a", "audio_clk_b_a";
+		function = "audio_clk";
+	};
+
+	usb0_pins: usb0 {
+		mux {
+			groups = "usb0";
+			function = "usb0";
+		};
+	};
+
+	usb1_pins: usb1 {
+		mux {
+			groups = "usb1";
+			function = "usb1";
+		};
+	};
+
+	usb30_pins: usb30 {
+		mux {
+			groups = "usb30";
+			function = "usb30";
+		};
+	};
+};
+
+&pwm0 {
+	pinctrl-0 = <&pwm0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&pwm2 {
+	pinctrl-0 = <&pwm2_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&rcar_sound {
+	pinctrl-0 = <&sound_pins>, <&sound_clk_pins>;
+	pinctrl-names = "default";
+
+	/* Single DAI */
+	#sound-dai-cells = <0>;
+
+	/* audio_clkout0/1/2/3 */
+	#clock-cells = <1>;
+	clock-frequency = <11289600>;
+
+	/* Reference versaclock instead of audio_clk_a */
+	clocks = <&cpg CPG_MOD 1005>,
+		 <&cpg CPG_MOD 1006>, <&cpg CPG_MOD 1007>,
+		 <&cpg CPG_MOD 1008>, <&cpg CPG_MOD 1009>,
+		 <&cpg CPG_MOD 1010>, <&cpg CPG_MOD 1011>,
+		 <&cpg CPG_MOD 1012>, <&cpg CPG_MOD 1013>,
+		 <&cpg CPG_MOD 1014>, <&cpg CPG_MOD 1015>,
+		 <&cpg CPG_MOD 1022>, <&cpg CPG_MOD 1023>,
+		 <&cpg CPG_MOD 1024>, <&cpg CPG_MOD 1025>,
+		 <&cpg CPG_MOD 1026>, <&cpg CPG_MOD 1027>,
+		 <&cpg CPG_MOD 1028>, <&cpg CPG_MOD 1029>,
+		 <&cpg CPG_MOD 1030>, <&cpg CPG_MOD 1031>,
+		 <&cpg CPG_MOD 1020>, <&cpg CPG_MOD 1021>,
+		 <&cpg CPG_MOD 1020>, <&cpg CPG_MOD 1021>,
+		 <&cpg CPG_MOD 1019>, <&cpg CPG_MOD 1018>,
+		 <&versaclock6_bb 4>, <&audio_clk_b>,
+		 <&audio_clk_c>,
+		 <&cpg CPG_MOD 922>;
+
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		rsnd_port0: port@0 {
+			reg = <0>;
+			rsnd_endpoint0: endpoint {
+				remote-endpoint = <&wm8962_endpoint>;
+
+				dai-format = "i2s";
+				bitclock-master = <&rsnd_endpoint0>;
+				frame-master = <&rsnd_endpoint0>;
+
+				playback = <&ssi1>, <&dvc1>, <&src1>;
+				capture = <&ssi0>;
+			};
+		};
+		rsnd_port1: port@1 {
+		    reg = <0x01>;
+			rsnd_endpoint1: endpoint {
+				remote-endpoint = <&dw_hdmi0_snd_in>;
+
+				dai-format = "i2s";
+				bitclock-master = <&rsnd_endpoint1>;
+				frame-master = <&rsnd_endpoint1>;
+
+				playback = <&ssi2>;
+			};
+		};
+	};
+};
+
+&rwdt {
+	status = "okay";
+	timeout-sec = <60>;
+};
+
+&scif0 {
+	pinctrl-0 = <&scif0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&scif5 {
+	pinctrl-0 = <&scif5_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&scif_clk {
+	clock-frequency = <14745600>;
+};
+
+&sdhi0 {
+	pinctrl-0 = <&sdhi0_pins>;
+	pinctrl-1 = <&sdhi0_pins_uhs>;
+	pinctrl-names = "default", "state_uhs";
+	vmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&vccq_sdhi0>;
+	cd-gpios = <&gpio3 12 GPIO_ACTIVE_LOW>;
+	bus-width = <4>;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
+	status = "okay";
+};
+
+&ssi1 {
+	shared-pin;
+};
+
+&tmu0 {
+	status = "okay";
+};
+
+&tmu1 {
+	status = "okay";
+};
+
+&tmu2 {
+	status = "okay";
+};
+
+&tmu3 {
+	status = "okay";
+};
+
+&tmu4 {
+	status = "okay";
+};
+
+&usb2_phy0 {
+	pinctrl-0 = <&usb0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&usb2_phy1 {
+	pinctrl-0 = <&usb1_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&usb3_peri0 {
+	companion = <&xhci0>;
+	status = "okay";
+	usb-role-switch;
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			usb3_hs_ep: endpoint {
+				remote-endpoint = <&hs_ep>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			usb3_role_switch: endpoint {
+				remote-endpoint = <&hd3ss3220_out_ep>;
+			};
+		};
+	};
+};
+
+&usb3_phy0 {
+	status = "okay";
+};
+
+&vin0 {
+	status = "okay";
+};
+&vin1 {
+	status = "okay";
+};
+&vin2 {
+	status = "okay";
+};
+&vin3 {
+	status = "okay";
+};
+&vin4 {
+	status = "okay";
+};
+&vin5 {
+	status = "okay";
+};
+&vin6 {
+	status = "okay";
+};
+&vin7 {
+	status = "okay";
+};
+
+&xhci0
+{
+	pinctrl-0 = <&usb30_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};

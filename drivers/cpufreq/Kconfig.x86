@@ -4,17 +4,19 @@
 #
 
 config X86_INTEL_PSTATE
-       bool "Intel P state control"
-       depends on X86
-       select ACPI_PROCESSOR if ACPI
-       select ACPI_CPPC_LIB if X86_64 && ACPI && SCHED_MC_PRIO
-       help
-          This driver provides a P state for Intel core processors.
+	bool "Intel P state control"
+	depends on X86
+	select ACPI_PROCESSOR if ACPI
+	select ACPI_CPPC_LIB if X86_64 && ACPI && SCHED_MC_PRIO
+	select CPU_FREQ_GOV_PERFORMANCE
+	select CPU_FREQ_GOV_SCHEDUTIL if SMP
+	help
+	  This driver provides a P state for Intel core processors.
 	  The driver implements an internal governor and will become
-          the scaling driver and governor for Sandy bridge processors.
+	  the scaling driver and governor for Sandy bridge processors.
 
 	  When this driver is enabled it will become the preferred
-          scaling driver for Sandy bridge processors.
+	  scaling driver for Sandy bridge processors.
 
 	  If in doubt, say N.
 
@@ -25,12 +27,61 @@ config X86_PCC_CPUFREQ
 	  This driver adds support for the PCC interface.
 
 	  For details, take a look at:
-	  <file:Documentation/cpu-freq/pcc-cpufreq.txt>.
+	  <file:Documentation/admin-guide/pm/cpufreq_drivers.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called pcc-cpufreq.
 
 	  If in doubt, say N.
+
+config X86_AMD_PSTATE
+	bool "AMD Processor P-State driver"
+	depends on X86 && ACPI
+	select ACPI_PROCESSOR
+	select ACPI_CPPC_LIB if X86_64
+	select CPU_FREQ_GOV_SCHEDUTIL if SMP
+	help
+	  This driver adds a CPUFreq driver which utilizes a fine grain
+	  processor performance frequency control range instead of legacy
+	  performance levels. _CPC needs to be present in the ACPI tables
+	  of the system.
+
+	  For details, take a look at:
+	  <file:Documentation/admin-guide/pm/amd-pstate.rst>.
+
+	  If in doubt, say N.
+
+config X86_AMD_PSTATE_DEFAULT_MODE
+	int "AMD Processor P-State default mode"
+	depends on X86_AMD_PSTATE
+	default 3 if X86_AMD_PSTATE
+	range 1 4
+	help
+	  Select the default mode the amd-pstate driver will use on
+	  supported hardware.
+	  The value set has the following meanings:
+		1 -> Disabled
+		2 -> Passive
+		3 -> Active (EPP)
+		4 -> Guided
+
+	  For details, take a look at:
+	  <file:Documentation/admin-guide/pm/amd-pstate.rst>.
+
+config X86_AMD_PSTATE_UT
+	tristate "selftest for AMD Processor P-State driver"
+	depends on X86 && ACPI_PROCESSOR
+	default n
+	help
+	  This kernel module is used for testing. It's safe to say M here.
+
+	  It can also be built-in without X86_AMD_PSTATE enabled.
+	  Currently, only tests for amd-pstate are supported. If X86_AMD_PSTATE
+	  is set disabled, it can tell the users test can only run on amd-pstate
+	  driver, please set X86_AMD_PSTATE enabled.
+	  In the future, comparison tests will be added. It can set amd-pstate
+	  disabled and set acpi-cpufreq enabled to run test cases, then compare
+	  the test results.
 
 config X86_ACPI_CPUFREQ
 	tristate "ACPI Processor P-States driver"
@@ -60,20 +111,10 @@ config X86_ACPI_CPUFREQ_CPB
 	  By enabling this option the acpi_cpufreq driver provides the old
 	  entry in addition to the new boost ones, for compatibility reasons.
 
-config X86_SFI_CPUFREQ
-	tristate "SFI Performance-States driver"
-	depends on X86_INTEL_MID && SFI
-	help
-	  This adds a CPUFreq driver for some Silvermont based Intel Atom
-	  architectures like Z34xx and Z35xx which enumerate processor
-	  performance states through SFI.
-
-	  If in doubt, say N.
-
 config ELAN_CPUFREQ
 	tristate "AMD Elan SC400 and SC410"
 	depends on MELAN
-	---help---
+	help
 	  This adds the CPUFreq driver for AMD Elan SC400 and SC410
 	  processors.
 
@@ -88,7 +129,7 @@ config ELAN_CPUFREQ
 config SC520_CPUFREQ
 	tristate "AMD Elan SC520"
 	depends on MELAN
-	---help---
+	help
 	  This adds the CPUFreq driver for AMD Elan SC520 processor.
 
 	  For details, take a look at <file:Documentation/cpu-freq/>.

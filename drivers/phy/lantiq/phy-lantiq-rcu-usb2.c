@@ -12,7 +12,6 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
@@ -124,8 +123,16 @@ static int ltq_rcu_usb2_phy_power_on(struct phy *phy)
 	reset_control_deassert(priv->phy_reset);
 
 	ret = clk_prepare_enable(priv->phy_gate_clk);
-	if (ret)
+	if (ret) {
 		dev_err(dev, "failed to enable PHY gate\n");
+		return ret;
+	}
+
+	/*
+	 * at least the xrx200 usb2 phy requires some extra time to be
+	 * operational after enabling the clock
+	 */
+	usleep_range(100, 200);
 
 	return ret;
 }
@@ -141,7 +148,7 @@ static int ltq_rcu_usb2_phy_power_off(struct phy *phy)
 	return 0;
 }
 
-static struct phy_ops ltq_rcu_usb2_phy_ops = {
+static const struct phy_ops ltq_rcu_usb2_phy_ops = {
 	.init		= ltq_rcu_usb2_phy_init,
 	.power_on	= ltq_rcu_usb2_phy_power_on,
 	.power_off	= ltq_rcu_usb2_phy_power_off,

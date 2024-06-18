@@ -67,7 +67,7 @@ What:		/sys/bus/i3c/devices/i3c-<bus-id>/pid
 KernelVersion:  5.0
 Contact:	linux-i3c@vger.kernel.org
 Description:
-		PID stands for Provisional ID and is used to uniquely identify
+		PID stands for Provisioned ID and is used to uniquely identify
 		a device on a bus. This PID contains information about the
 		vendor, the part and an instance ID so that several devices of
 		the same type can be connected on the same bus.
@@ -84,8 +84,24 @@ Description:
 		by space. Modes can be "hdr-ddr", "hdr-tsp" and "hdr-tsl".
 		See the I3C specification for more details about these HDR
 		modes.
+
 		This entry describes the HDRCAP of the master controller
 		driving the bus.
+
+What:		/sys/bus/i3c/devices/i3c-<bus-id>/hotjoin
+KernelVersion:  6.8
+Contact:	linux-i3c@vger.kernel.org
+Description:
+		I3C’s Hot-Join mechanism allows an I3C Device to inform the
+		Active Controller that a newly-joined Target is present on the
+		I3C Bus and is ready to receive a Dynamic Address, in order to
+		become fully functional on the Bus. Hot-Join is used when the
+		Target is mounted on the same I3C bus and remains depowered
+		until needed or until the Target is physically inserted into the
+		I3C bus
+
+		This entry allows to enable or disable Hot-join of the Current
+		Controller driving the bus.
 
 What:		/sys/bus/i3c/devices/i3c-<bus-id>/<bus-id>-<device-pid>
 KernelVersion:  5.0
@@ -122,7 +138,7 @@ What:		/sys/bus/i3c/devices/i3c-<bus-id>/<bus-id>-<device-pid>/pid
 KernelVersion:  5.0
 Contact:	linux-i3c@vger.kernel.org
 Description:
-		PID stands for Provisional ID and is used to uniquely identify
+		PID stands for Provisioned ID and is used to uniquely identify
 		a device on a bus. This PID contains information about the
 		vendor, the part and an instance ID so that several devices of
 		the same type can be connected on the same bus.
@@ -135,6 +151,7 @@ Description:
 		Expose the HDR (High Data Rate) capabilities of a device.
 		Returns a list of supported HDR mode, each element is separated
 		by space. Modes can be "hdr-ddr", "hdr-tsp" and "hdr-tsl".
+
 		See the I3C specification for more details about these HDR
 		modes.
 

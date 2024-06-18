@@ -9,7 +9,7 @@ config MESON_CANVAS
 	  Say yes to support the canvas IP for Amlogic SoCs.
 
 config MESON_CLK_MEASURE
-	bool "Amlogic Meson SoC Clock Measure driver"
+	tristate "Amlogic Meson SoC Clock Measure driver"
 	depends on ARCH_MESON || COMPILE_TEST
 	default ARCH_MESON
 	select REGMAP_MMIO
@@ -19,38 +19,16 @@ config MESON_CLK_MEASURE
 
 config MESON_GX_SOCINFO
 	bool "Amlogic Meson GX SoC Information driver"
-	depends on ARCH_MESON || COMPILE_TEST
+	depends on (ARM64 && ARCH_MESON) || COMPILE_TEST
 	default ARCH_MESON
 	select SOC_BUS
 	help
 	  Say yes to support decoding of Amlogic Meson GX SoC family
 	  information about the type, package and version.
 
-config MESON_GX_PM_DOMAINS
-	bool "Amlogic Meson GX Power Domains driver"
-	depends on ARCH_MESON || COMPILE_TEST
-	depends on PM && OF
-	default ARCH_MESON
-	select PM_GENERIC_DOMAINS
-	select PM_GENERIC_DOMAINS_OF
-	help
-	  Say yes to expose Amlogic Meson GX Power Domains as
-	  Generic Power Domains.
-
-config MESON_EE_PM_DOMAINS
-	bool "Amlogic Meson Everything-Else Power Domains driver"
-	depends on ARCH_MESON || COMPILE_TEST
-	depends on PM && OF
-	default ARCH_MESON
-	select PM_GENERIC_DOMAINS
-	select PM_GENERIC_DOMAINS_OF
-	help
-	  Say yes to expose Amlogic Meson Everything-Else Power Domains as
-	  Generic Power Domains.
-
 config MESON_MX_SOCINFO
 	bool "Amlogic Meson MX SoC Information driver"
-	depends on ARCH_MESON || COMPILE_TEST
+	depends on (ARM && ARCH_MESON) || COMPILE_TEST
 	default ARCH_MESON
 	select SOC_BUS
 	help

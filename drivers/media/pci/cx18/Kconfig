@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_CX18
 	tristate "Conexant cx23418 MPEG encoder support"
-	depends on VIDEO_V4L2 && DVB_CORE && PCI && I2C
+	depends on VIDEO_DEV && DVB_CORE && PCI && I2C
 	select I2C_ALGOBIT
-	select VIDEOBUF_VMALLOC
+	select VIDEOBUF2_VMALLOC
 	depends on RC_CORE
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM

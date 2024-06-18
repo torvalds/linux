@@ -66,7 +66,7 @@ static bool tscs42xx_volatile(struct device *dev, unsigned int reg)
 		return true;
 	default:
 		return false;
-	};
+	}
 }
 
 static bool tscs42xx_precious(struct device *dev, unsigned int reg)
@@ -81,7 +81,7 @@ static bool tscs42xx_precious(struct device *dev, unsigned int reg)
 		return true;
 	default:
 		return false;
-	};
+	}
 }
 
 static const struct regmap_config tscs42xx_regmap = {
@@ -103,7 +103,7 @@ static bool plls_locked(struct snd_soc_component *component)
 	int count = MAX_PLL_LOCK_20MS_WAITS;
 
 	do {
-		ret = snd_soc_component_read32(component, R_PLLCTL0);
+		ret = snd_soc_component_read(component, R_PLLCTL0);
 		if (ret < 0) {
 			dev_err(component->dev,
 				"Failed to read PLL lock status (%d)\n", ret);
@@ -148,7 +148,7 @@ static int write_coeff_ram(struct snd_soc_component *component, u8 *coeff_ram,
 	for (cnt = 0; cnt < coeff_cnt; cnt++, addr++) {
 
 		for (trys = 0; trys < DACCRSTAT_MAX_TRYS; trys++) {
-			ret = snd_soc_component_read32(component, R_DACCRSTAT);
+			ret = snd_soc_component_read(component, R_DACCRSTAT);
 			if (ret < 0) {
 				dev_err(component->dev,
 					"Failed to read stat (%d)\n", ret);
@@ -1197,9 +1197,9 @@ static int tscs42xx_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	struct snd_soc_component *component = codec_dai->component;
 	int ret;
 
-	/* Slave mode not supported since it needs always-on frame clock */
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	/* Consumer mode not supported since it needs always-on frame clock */
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
 		ret = snd_soc_component_update_bits(component,
 				R_AIC1, RM_AIC1_MS, RV_AIC1_MS_MASTER);
 		if (ret < 0) {
@@ -1294,7 +1294,7 @@ static int part_is_valid(struct tscs42xx *tscs42xx)
 		return true;
 	default:
 		return false;
-	};
+	}
 }
 
 static int set_sysclk(struct snd_soc_component *component)
@@ -1358,7 +1358,6 @@ static const struct snd_soc_component_driver soc_codec_dev_tscs42xx = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static inline void init_coeff_ram_cache(struct tscs42xx *tscs42xx)
@@ -1397,9 +1396,9 @@ static struct snd_soc_dai_driver tscs42xx_dai = {
 		.rates = TSCS42XX_RATES,
 		.formats = TSCS42XX_FORMATS,},
 	.ops = &tscs42xx_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 	.symmetric_channels = 1,
-	.symmetric_samplebits = 1,
+	.symmetric_sample_bits = 1,
 };
 
 static const struct reg_sequence tscs42xx_patch[] = {
@@ -1409,8 +1408,7 @@ static const struct reg_sequence tscs42xx_patch[] = {
 static char const * const src_names[TSCS42XX_PLL_SRC_CNT] = {
 	"xtal", "mclk1", "mclk2"};
 
-static int tscs42xx_i2c_probe(struct i2c_client *i2c,
-		const struct i2c_device_id *id)
+static int tscs42xx_i2c_probe(struct i2c_client *i2c)
 {
 	struct tscs42xx *tscs42xx;
 	int src;
@@ -1487,8 +1485,8 @@ static int tscs42xx_i2c_probe(struct i2c_client *i2c,
 }
 
 static const struct i2c_device_id tscs42xx_i2c_id[] = {
-	{ "tscs42A1", 0 },
-	{ "tscs42A2", 0 },
+	{ "tscs42A1" },
+	{ "tscs42A2" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tscs42xx_i2c_id);
@@ -1505,7 +1503,7 @@ static struct i2c_driver tscs42xx_i2c_driver = {
 		.name = "tscs42xx",
 		.of_match_table = tscs42xx_of_match,
 	},
-	.probe =    tscs42xx_i2c_probe,
+	.probe = tscs42xx_i2c_probe,
 	.id_table = tscs42xx_i2c_id,
 };
 

@@ -12,10 +12,10 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/mutex.h>
-#include <linux/acpi.h>
 #include <linux/regmap.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -308,8 +308,7 @@ static const struct regmap_config jsa1212_regmap_config = {
 	.volatile_reg = jsa1212_is_volatile_reg,
 };
 
-static int jsa1212_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int jsa1212_probe(struct i2c_client *client)
 {
 	struct jsa1212_data *data;
 	struct iio_dev *indio_dev;
@@ -338,7 +337,6 @@ static int jsa1212_probe(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->channels = jsa1212_channels;
 	indio_dev->num_channels = ARRAY_SIZE(jsa1212_channels);
 	indio_dev->name = JSA1212_DRIVER_NAME;
@@ -374,17 +372,16 @@ static int jsa1212_power_off(struct jsa1212_data *data)
 	return ret;
 }
 
-static int jsa1212_remove(struct i2c_client *client)
+static void jsa1212_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct jsa1212_data *data = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
 
-	return jsa1212_power_off(data);
+	jsa1212_power_off(data);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int jsa1212_suspend(struct device *dev)
 {
 	struct jsa1212_data *data;
@@ -422,12 +419,8 @@ unlock_and_ret:
 	return ret;
 }
 
-static SIMPLE_DEV_PM_OPS(jsa1212_pm_ops, jsa1212_suspend, jsa1212_resume);
-
-#define JSA1212_PM_OPS (&jsa1212_pm_ops)
-#else
-#define JSA1212_PM_OPS NULL
-#endif
+static DEFINE_SIMPLE_DEV_PM_OPS(jsa1212_pm_ops, jsa1212_suspend,
+				jsa1212_resume);
 
 static const struct acpi_device_id jsa1212_acpi_match[] = {
 	{"JSA1212", 0},
@@ -444,8 +437,8 @@ MODULE_DEVICE_TABLE(i2c, jsa1212_id);
 static struct i2c_driver jsa1212_driver = {
 	.driver = {
 		.name	= JSA1212_DRIVER_NAME,
-		.pm	= JSA1212_PM_OPS,
-		.acpi_match_table = ACPI_PTR(jsa1212_acpi_match),
+		.pm	= pm_sleep_ptr(&jsa1212_pm_ops),
+		.acpi_match_table = jsa1212_acpi_match,
 	},
 	.probe		= jsa1212_probe,
 	.remove		= jsa1212_remove,

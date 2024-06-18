@@ -10,7 +10,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <linux/irqchip/arm-gic.h>
+
 #include "common.h"
 #include "hardware.h"
 
@@ -111,7 +111,6 @@ void imx_gpc_mask_all(void)
 		gpc_saved_imrs[i] = readl_relaxed(reg_imr1 + i * 4);
 		writel_relaxed(~0, reg_imr1 + i * 4);
 	}
-
 }
 
 void imx_gpc_restore_all(void)
@@ -276,10 +275,11 @@ void __init imx_gpc_check_dt(void)
 	if (WARN_ON(!np))
 		return;
 
-	if (WARN_ON(!of_find_property(np, "interrupt-controller", NULL))) {
+	if (WARN_ON(!of_property_read_bool(np, "interrupt-controller"))) {
 		pr_warn("Outdated DT detected, suspend/resume will NOT work\n");
 
 		/* map GPC, so that at least CPUidle and WARs keep working */
 		gpc_base = of_iomap(np, 0);
 	}
+	of_node_put(np);
 }

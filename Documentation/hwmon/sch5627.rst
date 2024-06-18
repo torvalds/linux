@@ -20,6 +20,10 @@ Description
 SMSC SCH5627 Super I/O chips include complete hardware monitoring
 capabilities. They can monitor up to 5 voltages, 4 fans and 8 temperatures.
 
+In addition, the SCH5627 exports data describing which temperature sensors
+affect the speed of each fan. Setting pwmX_auto_channels_temp to 0 forces
+the corresponding fan to full speed until another value is written.
+
 The SMSC SCH5627 hardware monitoring part also contains an integrated
 watchdog. In order for this watchdog to function some motherboard specific
 initialization most be done by the BIOS, so if the watchdog is not enabled
@@ -29,3 +33,13 @@ The hardware monitoring part of the SMSC SCH5627 is accessed by talking
 through an embedded microcontroller. An application note describing the
 protocol for communicating with the microcontroller is available upon
 request. Please mail me if you want a copy.
+
+
+Controlling fan speed
+---------------------
+
+The SCH5627 allows for partially controlling the fan speed. If a temperature
+channel excedes tempX_max, all fans are forced to maximum speed. The same is not
+true for tempX_crit, presumably some other measures to cool down the system are
+take in this case.
+In which way the value of fanX_min affects the fan speed is currently unknown.

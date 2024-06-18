@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * Copyright (C) 2008, Creative Technology Ltd. All Rights Reserved.
  *
  * @File	ctsrc.c
@@ -540,7 +540,7 @@ static int src_mgr_commit_write(struct src_mgr *mgr)
 	return 0;
 }
 
-int src_mgr_create(struct hw *hw, struct src_mgr **rsrc_mgr)
+int src_mgr_create(struct hw *hw, void **rsrc_mgr)
 {
 	int err, i;
 	struct src_mgr *src_mgr;
@@ -580,8 +580,9 @@ error1:
 	return err;
 }
 
-int src_mgr_destroy(struct src_mgr *src_mgr)
+int src_mgr_destroy(void *ptr)
 {
+	struct src_mgr *src_mgr = ptr;
 	rsc_mgr_uninit(&src_mgr->mgr);
 	kfree(src_mgr);
 
@@ -590,16 +591,15 @@ int src_mgr_destroy(struct src_mgr *src_mgr)
 
 /* SRCIMP resource manager operations */
 
-static int srcimp_master(struct rsc *rsc)
+static void srcimp_master(struct rsc *rsc)
 {
 	rsc->conj = 0;
-	return rsc->idx = container_of(rsc, struct srcimp, rsc)->idx[0];
+	rsc->idx = container_of(rsc, struct srcimp, rsc)->idx[0];
 }
 
-static int srcimp_next_conj(struct rsc *rsc)
+static void srcimp_next_conj(struct rsc *rsc)
 {
 	rsc->conj++;
-	return container_of(rsc, struct srcimp, rsc)->idx[rsc->conj];
 }
 
 static int srcimp_index(const struct rsc *rsc)
@@ -822,7 +822,7 @@ static int srcimp_imap_delete(struct srcimp_mgr *mgr, struct imapper *entry)
 	return err;
 }
 
-int srcimp_mgr_create(struct hw *hw, struct srcimp_mgr **rsrcimp_mgr)
+int srcimp_mgr_create(struct hw *hw, void **rsrcimp_mgr)
 {
 	int err;
 	struct srcimp_mgr *srcimp_mgr;
@@ -867,8 +867,9 @@ error1:
 	return err;
 }
 
-int srcimp_mgr_destroy(struct srcimp_mgr *srcimp_mgr)
+int srcimp_mgr_destroy(void *ptr)
 {
+	struct srcimp_mgr *srcimp_mgr = ptr;
 	unsigned long flags;
 
 	/* free src input mapper list */

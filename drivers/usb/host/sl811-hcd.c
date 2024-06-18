@@ -585,6 +585,7 @@ done(struct sl811 *sl811, struct sl811h_ep *ep, u8 bank)
 		finish_request(sl811, ep, urb, urbstat);
 }
 
+#ifdef QUIRK2
 static inline u8 checkdone(struct sl811 *sl811)
 {
 	u8	ctl;
@@ -616,6 +617,7 @@ static inline u8 checkdone(struct sl811 *sl811)
 #endif
 	return irqstat;
 }
+#endif
 
 static irqreturn_t sl811h_irq(struct usb_hcd *hcd)
 {
@@ -842,7 +844,7 @@ static int sl811h_urb_enqueue(
 		INIT_LIST_HEAD(&ep->schedule);
 		ep->udev = udev;
 		ep->epnum = epnum;
-		ep->maxpacket = usb_maxpacket(udev, urb->pipe, is_out);
+		ep->maxpacket = usb_maxpacket(udev, urb->pipe);
 		ep->defctrl = SL11H_HCTLMASK_ARM | SL11H_HCTLMASK_ENABLE;
 		usb_settoggle(udev, epnum, is_out, 0);
 
@@ -878,8 +880,8 @@ static int sl811h_urb_enqueue(
 			if (type == PIPE_ISOCHRONOUS)
 				ep->defctrl |= SL11H_HCTLMASK_ISOCH;
 			ep->load = usb_calc_bus_time(udev->speed, !is_out,
-				(type == PIPE_ISOCHRONOUS),
-				usb_maxpacket(udev, pipe, is_out))
+						     type == PIPE_ISOCHRONOUS,
+						     usb_maxpacket(udev, pipe))
 					/ 1000;
 			break;
 		}
@@ -1287,11 +1289,10 @@ sl811h_hub_control(
 			goto error;
 		put_unaligned_le32(sl811->port1, buf);
 
-#ifndef	VERBOSE
-	if (*(u16*)(buf+2))	/* only if wPortChange is interesting */
-#endif
-		dev_dbg(hcd->self.controller, "GetPortStatus %08x\n",
-			sl811->port1);
+		if (__is_defined(VERBOSE) ||
+		    *(u16*)(buf+2)) /* only if wPortChange is interesting */
+			dev_dbg(hcd->self.controller, "GetPortStatus %08x\n",
+				sl811->port1);
 		break;
 	case SetPortFeature:
 		if (wIndex != 1 || wLength != 0)
@@ -1496,14 +1497,13 @@ DEFINE_SHOW_ATTRIBUTE(sl811h_debug);
 /* expect just one sl811 per system */
 static void create_debug_file(struct sl811 *sl811)
 {
-	sl811->debug_file = debugfs_create_file("sl811h", S_IRUGO,
-						usb_debug_root, sl811,
-						&sl811h_debug_fops);
+	debugfs_create_file("sl811h", S_IRUGO, usb_debug_root, sl811,
+			    &sl811h_debug_fops);
 }
 
 static void remove_debug_file(struct sl811 *sl811)
 {
-	debugfs_remove(sl811->debug_file);
+	debugfs_lookup_and_remove("sl811h", usb_debug_root);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -1581,7 +1581,7 @@ static const struct hc_driver sl811h_hc_driver = {
 
 /*-------------------------------------------------------------------------*/
 
-static int
+static void
 sl811h_remove(struct platform_device *dev)
 {
 	struct usb_hcd		*hcd = platform_get_drvdata(dev);
@@ -1601,7 +1601,6 @@ sl811h_remove(struct platform_device *dev)
 		iounmap(sl811->addr_reg);
 
 	usb_put_hcd(hcd);
-	return 0;
 }
 
 static int
@@ -1614,10 +1613,16 @@ sl811h_probe(struct platform_device *dev)
 	void __iomem		*addr_reg;
 	void __iomem		*data_reg;
 	int			retval;
-	u8			tmp, ioaddr = 0;
+	u8			tmp, ioaddr;
 	unsigned long		irqflags;
 
 	if (usb_disabled())
+		return -ENODEV;
+
+	/* the chip may be wired for either kind of addressing */
+	addr = platform_get_mem_or_io(dev, 0);
+	data = platform_get_mem_or_io(dev, 1);
+	if (!addr || !data || resource_type(addr) != resource_type(data))
 		return -ENODEV;
 
 	/* basic sanity checks first.  board-specific init logic should
@@ -1632,16 +1637,8 @@ sl811h_probe(struct platform_device *dev)
 	irq = ires->start;
 	irqflags = ires->flags & IRQF_TRIGGER_MASK;
 
-	/* the chip may be wired for either kind of addressing */
-	addr = platform_get_resource(dev, IORESOURCE_MEM, 0);
-	data = platform_get_resource(dev, IORESOURCE_MEM, 1);
-	retval = -EBUSY;
-	if (!addr || !data) {
-		addr = platform_get_resource(dev, IORESOURCE_IO, 0);
-		data = platform_get_resource(dev, IORESOURCE_IO, 1);
-		if (!addr || !data)
-			return -ENODEV;
-		ioaddr = 1;
+	ioaddr = resource_type(addr) == IORESOURCE_IO;
+	if (ioaddr) {
 		/*
 		 * NOTE: 64-bit resource->start is getting truncated
 		 * to avoid compiler warning, assuming that ->start
@@ -1787,12 +1784,12 @@ sl811h_resume(struct platform_device *dev)
 /* this driver is exported so sl811_cs can depend on it */
 struct platform_driver sl811h_driver = {
 	.probe =	sl811h_probe,
-	.remove =	sl811h_remove,
+	.remove_new =	sl811h_remove,
 
 	.suspend =	sl811h_suspend,
 	.resume =	sl811h_resume,
 	.driver = {
-		.name =	(char *) hcd_name,
+		.name =	hcd_name,
 	},
 };
 EXPORT_SYMBOL(sl811h_driver);

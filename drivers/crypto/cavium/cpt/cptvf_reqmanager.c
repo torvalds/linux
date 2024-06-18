@@ -4,12 +4,13 @@
  */
 
 #include "cptvf.h"
+#include "cptvf_algs.h"
 #include "request_manager.h"
 
 /**
  * get_free_pending_entry - get free entry from pending queue
- * @param pqinfo: pending_qinfo structure
- * @param qno: queue number
+ * @q: pending queue
+ * @qlen: queue length
  */
 static struct pending_entry *get_free_pending_entry(struct pending_queue *q,
 						    int qlen)
@@ -89,11 +90,11 @@ static int setup_sgio_components(struct cpt_vf *cptvf, struct buf_ptr *list,
 	case 3:
 		sg_ptr->u.s.len2 = cpu_to_be16(list[i * 4 + 2].size);
 		sg_ptr->ptr2 = cpu_to_be64(list[i * 4 + 2].dma_addr);
-		/* Fall through */
+		fallthrough;
 	case 2:
 		sg_ptr->u.s.len1 = cpu_to_be16(list[i * 4 + 1].size);
 		sg_ptr->ptr1 = cpu_to_be64(list[i * 4 + 1].dma_addr);
-		/* Fall through */
+		fallthrough;
 	case 1:
 		sg_ptr->u.s.len0 = cpu_to_be16(list[i * 4 + 0].size);
 		sg_ptr->ptr0 = cpu_to_be64(list[i * 4 + 0].dma_addr);
@@ -133,7 +134,7 @@ static inline int setup_sgio_list(struct cpt_vf *cptvf,
 
 	/* Setup gather (input) components */
 	g_sz_bytes = ((req->incnt + 3) / 4) * sizeof(struct sglist_component);
-	info->gather_components = kzalloc(g_sz_bytes, GFP_KERNEL);
+	info->gather_components = kzalloc(g_sz_bytes, req->may_sleep ? GFP_KERNEL : GFP_ATOMIC);
 	if (!info->gather_components) {
 		ret = -ENOMEM;
 		goto  scatter_gather_clean;
@@ -150,7 +151,7 @@ static inline int setup_sgio_list(struct cpt_vf *cptvf,
 
 	/* Setup scatter (output) components */
 	s_sz_bytes = ((req->outcnt + 3) / 4) * sizeof(struct sglist_component);
-	info->scatter_components = kzalloc(s_sz_bytes, GFP_KERNEL);
+	info->scatter_components = kzalloc(s_sz_bytes, req->may_sleep ? GFP_KERNEL : GFP_ATOMIC);
 	if (!info->scatter_components) {
 		ret = -ENOMEM;
 		goto  scatter_gather_clean;
@@ -167,17 +168,16 @@ static inline int setup_sgio_list(struct cpt_vf *cptvf,
 
 	/* Create and initialize DPTR */
 	info->dlen = g_sz_bytes + s_sz_bytes + SG_LIST_HDR_SIZE;
-	info->in_buffer = kzalloc(info->dlen, GFP_KERNEL);
+	info->in_buffer = kzalloc(info->dlen, req->may_sleep ? GFP_KERNEL : GFP_ATOMIC);
 	if (!info->in_buffer) {
 		ret = -ENOMEM;
 		goto  scatter_gather_clean;
 	}
 
-	((u16 *)info->in_buffer)[0] = req->outcnt;
-	((u16 *)info->in_buffer)[1] = req->incnt;
-	((u16 *)info->in_buffer)[2] = 0;
-	((u16 *)info->in_buffer)[3] = 0;
-	*(u64 *)info->in_buffer = cpu_to_be64p((u64 *)info->in_buffer);
+	((__be16 *)info->in_buffer)[0] = cpu_to_be16(req->outcnt);
+	((__be16 *)info->in_buffer)[1] = cpu_to_be16(req->incnt);
+	((__be16 *)info->in_buffer)[2] = 0;
+	((__be16 *)info->in_buffer)[3] = 0;
 
 	memcpy(&info->in_buffer[8], info->gather_components,
 	       g_sz_bytes);
@@ -195,7 +195,7 @@ static inline int setup_sgio_list(struct cpt_vf *cptvf,
 	}
 
 	/* Create and initialize RPTR */
-	info->out_buffer = kzalloc(COMPLETION_CODE_SIZE, GFP_KERNEL);
+	info->out_buffer = kzalloc(COMPLETION_CODE_SIZE, req->may_sleep ? GFP_KERNEL : GFP_ATOMIC);
 	if (!info->out_buffer) {
 		ret = -ENOMEM;
 		goto scatter_gather_clean;
@@ -244,11 +244,7 @@ static int send_cpt_command(struct cpt_vf *cptvf, union cpt_inst_s *cmd,
 	memcpy(ent, (void *)cmd, qinfo->cmd_size);
 
 	if (++queue->idx >= queue->qhead->size / 64) {
-		struct hlist_node *node;
-
-		hlist_for_each(node, &queue->chead) {
-			chunk = hlist_entry(node, struct command_chunk,
-					    nextchunk);
+		hlist_for_each_entry(chunk, &queue->chead, nextchunk) {
 			if (chunk == queue->qhead) {
 				continue;
 			} else {
@@ -305,12 +301,12 @@ static void do_request_cleanup(struct cpt_vf *cptvf,
 		}
 	}
 
-	kzfree(info->scatter_components);
-	kzfree(info->gather_components);
-	kzfree(info->out_buffer);
-	kzfree(info->in_buffer);
-	kzfree((void *)info->completion_addr);
-	kzfree(info);
+	kfree_sensitive(info->scatter_components);
+	kfree_sensitive(info->gather_components);
+	kfree_sensitive(info->out_buffer);
+	kfree_sensitive(info->in_buffer);
+	kfree_sensitive((void *)info->completion_addr);
+	kfree_sensitive(info);
 }
 
 static void do_post_process(struct cpt_vf *cptvf, struct cpt_info_buffer *info)
@@ -421,7 +417,7 @@ int process_request(struct cpt_vf *cptvf, struct cpt_request_info *req)
 	struct cpt_vq_command vq_cmd;
 	union cpt_inst_s cptinst;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc(sizeof(*info), req->may_sleep ? GFP_KERNEL : GFP_ATOMIC);
 	if (unlikely(!info)) {
 		dev_err(&pdev->dev, "Unable to allocate memory for info_buffer\n");
 		return -ENOMEM;
@@ -443,7 +439,7 @@ int process_request(struct cpt_vf *cptvf, struct cpt_request_info *req)
 	 * Get buffer for union cpt_res_s response
 	 * structure and its physical address
 	 */
-	info->completion_addr = kzalloc(sizeof(union cpt_res_s), GFP_KERNEL);
+	info->completion_addr = kzalloc(sizeof(union cpt_res_s), req->may_sleep ? GFP_KERNEL : GFP_ATOMIC);
 	if (unlikely(!info->completion_addr)) {
 		dev_err(&pdev->dev, "Unable to allocate memory for completion_addr\n");
 		ret = -ENOMEM;
@@ -470,8 +466,6 @@ int process_request(struct cpt_vf *cptvf, struct cpt_request_info *req)
 	vq_cmd.cmd.s.param2 = cpu_to_be16(cpt_req->param2);
 	vq_cmd.cmd.s.dlen   = cpu_to_be16(cpt_req->dlen);
 
-	/* 64-bit swap for microcode data reads, not needed for addresses*/
-	vq_cmd.cmd.u64 = cpu_to_be64(vq_cmd.cmd.u64);
 	vq_cmd.dptr = info->dptr_baddr;
 	vq_cmd.rptr = info->rptr_baddr;
 	vq_cmd.cptr.u64 = 0;

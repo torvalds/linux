@@ -1,8 +1,12 @@
+/* SPDX-License-Identifier: GPL-1.0+ */
+
 /* Generic NS8390 register definitions. */
+
 /* This file is part of Donald Becker's 8390 drivers, and is distributed
-   under the same license. Auto-loading of 8390.o only in v2.2 - Paul G.
-   Some of these names and comments originated from the Crynwr
-   packet drivers, which are distributed under the GPL. */
+ * under the same license. Auto-loading of 8390.o only in v2.2 - Paul G.
+ * Some of these names and comments originated from the Crynwr
+ * packet drivers, which are distributed under the GPL.
+ */
 
 #ifndef _8390_h
 #define _8390_h
@@ -16,9 +20,9 @@
 
 /* The 8390 specific per-packet-header format. */
 struct e8390_pkt_hdr {
-  unsigned char status; /* status */
-  unsigned char next;   /* pointer to next packet. */
-  unsigned short count; /* header + packet length in bytes */
+	unsigned char status; /* status */
+	unsigned char next;   /* pointer to next packet. */
+	unsigned short count; /* header + packet length in bytes */
 };
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -32,7 +36,7 @@ void NS8390_init(struct net_device *dev, int startp);
 int ei_open(struct net_device *dev);
 int ei_close(struct net_device *dev);
 irqreturn_t ei_interrupt(int irq, void *dev_id);
-void ei_tx_timeout(struct net_device *dev);
+void ei_tx_timeout(struct net_device *dev, unsigned int txqueue);
 netdev_tx_t ei_start_xmit(struct sk_buff *skb, struct net_device *dev);
 void ei_set_multicast_list(struct net_device *dev);
 struct net_device_stats *ei_get_stats(struct net_device *dev);
@@ -50,7 +54,7 @@ void NS8390p_init(struct net_device *dev, int startp);
 int eip_open(struct net_device *dev);
 int eip_close(struct net_device *dev);
 irqreturn_t eip_interrupt(int irq, void *dev_id);
-void eip_tx_timeout(struct net_device *dev);
+void eip_tx_timeout(struct net_device *dev, unsigned int txqueue);
 netdev_tx_t eip_start_xmit(struct sk_buff *skb, struct net_device *dev);
 void eip_set_multicast_list(struct net_device *dev);
 struct net_device_stats *eip_get_stats(struct net_device *dev);
@@ -66,18 +70,24 @@ static inline struct net_device *alloc_eip_netdev(void)
 /* You have one of these per-board */
 struct ei_device {
 	const char *name;
-	void (*reset_8390)(struct net_device *);
-	void (*get_8390_hdr)(struct net_device *, struct e8390_pkt_hdr *, int);
-	void (*block_output)(struct net_device *, int, const unsigned char *, int);
-	void (*block_input)(struct net_device *, int, struct sk_buff *, int);
+	void (*reset_8390)(struct net_device *dev);
+	void (*get_8390_hdr)(struct net_device *dev,
+			     struct e8390_pkt_hdr *hdr, int ring_page);
+	void (*block_output)(struct net_device *dev, int count,
+			     const unsigned char *buf, int start_page);
+	void (*block_input)(struct net_device *dev, int count,
+			    struct sk_buff *skb, int ring_offset);
 	unsigned long rmem_start;
 	unsigned long rmem_end;
 	void __iomem *mem;
 	unsigned char mcfilter[8];
 	unsigned open:1;
-	unsigned word16:1;  		/* We have the 16-bit (vs 8-bit) version of the card. */
-	unsigned bigendian:1;		/* 16-bit big endian mode. Do NOT */
-					/* set this on random 8390 clones! */
+	unsigned word16:1;		/* We have the 16-bit (vs 8-bit)
+					 * version of the card.
+					 */
+	unsigned bigendian:1;		/* 16-bit big endian mode. Do NOT
+					 * set this on random 8390 clones!
+					 */
 	unsigned txing:1;		/* Transmit Active */
 	unsigned irqlock:1;		/* 8390's intrs disabled when '1'. */
 	unsigned dmaing:1;		/* Remote DMA Active */
@@ -115,12 +125,16 @@ struct ei_device {
 #define E8390_RXCONFIG		(ei_status.rxcr_base | 0x04)
 #define E8390_RXOFF		(ei_status.rxcr_base | 0x20)
 #else
-#define E8390_RXCONFIG		0x4	/* EN0_RXCR: broadcasts, no multicast,errors */
-#define E8390_RXOFF		0x20	/* EN0_RXCR: Accept no packets */
+/* EN0_RXCR: broadcasts, no multicast,errors */
+#define E8390_RXCONFIG		0x4
+/* EN0_RXCR: Accept no packets */
+#define E8390_RXOFF		0x20
 #endif
 
-#define E8390_TXCONFIG		0x00	/* EN0_TXCR: Normal transmit mode */
-#define E8390_TXOFF		0x02	/* EN0_TXCR: Transmitter off */
+/* EN0_TXCR: Normal transmit mode */
+#define E8390_TXCONFIG		0x00
+/* EN0_TXCR: Transmitter off */
+#define E8390_TXOFF		0x02
 
 
 /*  Register accessed at EN_CMD, the 8390 base addr.  */
@@ -134,17 +148,16 @@ struct ei_device {
 #define E8390_PAGE1	0x40	/* using the two high-order bits */
 #define E8390_PAGE2	0x80	/* Page 3 is invalid. */
 
-/*
- *	Only generate indirect loads given a machine that needs them.
- *      - removed AMIGA_PCMCIA from this list, handled as ISA io now
- *	- the _p for generates no delay by default 8390p.c overrides this.
+/* Only generate indirect loads given a machine that needs them.
+ * - removed AMIGA_PCMCIA from this list, handled as ISA io now
+ * - the _p for generates no delay by default 8390p.c overrides this.
  */
 
 #ifndef ei_inb
 #define ei_inb(_p)	inb(_p)
-#define ei_outb(_v,_p)	outb(_v,_p)
+#define ei_outb(_v, _p)	outb(_v, _p)
 #define ei_inb_p(_p)	inb(_p)
-#define ei_outb_p(_v,_p) outb(_v,_p)
+#define ei_outb_p(_v, _p) outb(_v, _p)
 #endif
 
 #ifndef EI_SHIFT
@@ -153,9 +166,9 @@ struct ei_device {
 
 #define E8390_CMD	EI_SHIFT(0x00)  /* The command register (for all pages) */
 /* Page 0 register offsets. */
-#define EN0_CLDALO	EI_SHIFT(0x01)	/* Low byte of current local dma addr  RD */
+#define EN0_CLDALO	EI_SHIFT(0x01)	/* Low byte of current local dma addr RD */
 #define EN0_STARTPG	EI_SHIFT(0x01)	/* Starting page of ring bfr WR */
-#define EN0_CLDAHI	EI_SHIFT(0x02)	/* High byte of current local dma addr  RD */
+#define EN0_CLDAHI	EI_SHIFT(0x02)	/* High byte of current local dma addr RD */
 #define EN0_STOPPG	EI_SHIFT(0x02)	/* Ending page +1 of ring bfr WR */
 #define EN0_BOUNDARY	EI_SHIFT(0x03)	/* Boundary page of ring bfr RD WR */
 #define EN0_TSR		EI_SHIFT(0x04)	/* Transmit status reg RD */

@@ -18,6 +18,8 @@
  */
 #define SKL_CONTROL_TYPE_BYTE_TLV	0x100
 #define SKL_CONTROL_TYPE_MIC_SELECT	0x102
+#define SKL_CONTROL_TYPE_MULTI_IO_SELECT	0x103
+#define SKL_CONTROL_TYPE_MULTI_IO_SELECT_DMIC	0x104
 
 #define HDA_SST_CFG_MAX	900 /* size of copier cfg*/
 #define MAX_IN_QUEUE 8
@@ -64,7 +66,8 @@ enum skl_ch_cfg {
 	SKL_CH_CFG_DUAL_MONO = 9,
 	SKL_CH_CFG_I2S_DUAL_STEREO_0 = 10,
 	SKL_CH_CFG_I2S_DUAL_STEREO_1 = 11,
-	SKL_CH_CFG_4_CHANNEL = 12,
+	SKL_CH_CFG_7_1 = 12,
+	SKL_CH_CFG_4_CHANNEL = SKL_CH_CFG_7_1,
 	SKL_CH_CFG_INVALID
 };
 
@@ -149,7 +152,7 @@ struct skl_dfw_algo_data {
 	__u32 rsvd:30;
 	__u32 param_id;
 	__u32 max;
-	char params[0];
+	char params[];
 } __packed;
 
 enum skl_tkn_dir {
@@ -161,79 +164,5 @@ enum skl_tuple_type {
 	SKL_TYPE_TUPLE,
 	SKL_TYPE_DATA
 };
-
-/* v4 configuration data */
-
-struct skl_dfw_v4_module_pin {
-	__u16 module_id;
-	__u16 instance_id;
-} __packed;
-
-struct skl_dfw_v4_module_fmt {
-	__u32 channels;
-	__u32 freq;
-	__u32 bit_depth;
-	__u32 valid_bit_depth;
-	__u32 ch_cfg;
-	__u32 interleaving_style;
-	__u32 sample_type;
-	__u32 ch_map;
-} __packed;
-
-struct skl_dfw_v4_module_caps {
-	__u32 set_params:2;
-	__u32 rsvd:30;
-	__u32 param_id;
-	__u32 caps_size;
-	__u32 caps[HDA_SST_CFG_MAX];
-} __packed;
-
-struct skl_dfw_v4_pipe {
-	__u8 pipe_id;
-	__u8 pipe_priority;
-	__u16 conn_type:4;
-	__u16 rsvd:4;
-	__u16 memory_pages:8;
-} __packed;
-
-struct skl_dfw_v4_module {
-	char uuid[SKL_UUID_STR_SZ];
-
-	__u16 module_id;
-	__u16 instance_id;
-	__u32 max_mcps;
-	__u32 mem_pages;
-	__u32 obs;
-	__u32 ibs;
-	__u32 vbus_id;
-
-	__u32 max_in_queue:8;
-	__u32 max_out_queue:8;
-	__u32 time_slot:8;
-	__u32 core_id:4;
-	__u32 rsvd1:4;
-
-	__u32 module_type:8;
-	__u32 conn_type:4;
-	__u32 dev_type:4;
-	__u32 hw_conn_type:4;
-	__u32 rsvd2:12;
-
-	__u32 params_fixup:8;
-	__u32 converter:8;
-	__u32 input_pin_type:1;
-	__u32 output_pin_type:1;
-	__u32 is_dynamic_in_pin:1;
-	__u32 is_dynamic_out_pin:1;
-	__u32 is_loadable:1;
-	__u32 rsvd3:11;
-
-	struct skl_dfw_v4_pipe pipe;
-	struct skl_dfw_v4_module_fmt in_fmt[MAX_IN_QUEUE];
-	struct skl_dfw_v4_module_fmt out_fmt[MAX_OUT_QUEUE];
-	struct skl_dfw_v4_module_pin in_pin[MAX_IN_QUEUE];
-	struct skl_dfw_v4_module_pin out_pin[MAX_OUT_QUEUE];
-	struct skl_dfw_v4_module_caps caps;
-} __packed;
 
 #endif

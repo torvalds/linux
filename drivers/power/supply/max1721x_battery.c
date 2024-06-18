@@ -1,6 +1,6 @@
 /*
  * 1-Wire implementation for Maxim Semiconductor
- * MAX7211/MAX17215 stanalone fuel gauge chip
+ * MAX7211/MAX17215 standalone fuel gauge chip
  *
  * Copyright (C) 2017 Radioavionica Corporation
  * Author: Alex A. Mihaylov <minimumlaw@rambler.ru>
@@ -28,7 +28,7 @@
 /* Number of valid register addresses in W1 mode */
 #define MAX1721X_MAX_REG_NR	0x1EF
 
-/* Factory settings (nonvilatile registers) (W1 specific) */
+/* Factory settings (nonvolatile registers) (W1 specific) */
 #define MAX1721X_REG_NRSENSE	0x1CF	/* RSense in 10^-5 Ohm */
 /* Strings */
 #define MAX1721X_REG_MFG_STR	0x1CC
@@ -105,7 +105,7 @@ static inline int max172xx_temperature_to_ps(unsigned int reg)
 /*
  * Calculating current registers resolution:
  *
- * RSense stored in 10^-5 Ohm, so mesaurment voltage must be
+ * RSense stored in 10^-5 Ohm, so measurement voltage must be
  * in 10^-11 Volts for get current in uA.
  * 16 bit current reg fullscale +/-51.2mV is 102400 uV.
  * So: 102400 / 65535 * 10^5 = 156252
@@ -137,7 +137,7 @@ static int max1721x_battery_get_property(struct power_supply *psy,
 		/*
 		 * POWER_SUPPLY_PROP_PRESENT will always readable via
 		 * sysfs interface. Value return 0 if battery not
-		 * present or unaccesable via W1.
+		 * present or unaccessible via W1.
 		 */
 		val->intval =
 			regmap_read(info->regmap, MAX172XX_REG_STATUS,
@@ -334,9 +334,9 @@ static int devm_w1_max1721x_add_device(struct w1_slave *sl)
 
 	/*
 	 * power_supply class battery name translated from W1 slave device
-	 * unical ID (look like 26-0123456789AB) to "max1721x-0123456789AB\0"
-	 * so, 26 (device family) correcpondent to max1721x devices.
-	 * Device name still unical for any numbers connected devices.
+	 * unique ID (look like 26-0123456789AB) to "max1721x-0123456789AB\0"
+	 * so, 26 (device family) correspond to max1721x devices.
+	 * Device name still unique for any number of connected devices.
 	 */
 	snprintf(info->name, sizeof(info->name),
 		"max1721x-%012X", (unsigned int)sl->reg_num.id);
@@ -384,7 +384,7 @@ static int devm_w1_max1721x_add_device(struct w1_slave *sl)
 	}
 
 	if (!info->ManufacturerName[0])
-		strncpy(info->ManufacturerName, DEF_MFG_NAME,
+		strscpy(info->ManufacturerName, DEF_MFG_NAME,
 			2 * MAX1721X_REG_MFG_NUMB);
 
 	if (get_string(info, MAX1721X_REG_DEV_STR,
@@ -403,15 +403,15 @@ static int devm_w1_max1721x_add_device(struct w1_slave *sl)
 
 		switch (dev_name & MAX172XX_DEV_MASK) {
 		case MAX172X1_DEV:
-			strncpy(info->DeviceName, DEF_DEV_NAME_MAX17211,
+			strscpy(info->DeviceName, DEF_DEV_NAME_MAX17211,
 				2 * MAX1721X_REG_DEV_NUMB);
 			break;
 		case MAX172X5_DEV:
-			strncpy(info->DeviceName, DEF_DEV_NAME_MAX17215,
+			strscpy(info->DeviceName, DEF_DEV_NAME_MAX17215,
 				2 * MAX1721X_REG_DEV_NUMB);
 			break;
 		default:
-			strncpy(info->DeviceName, DEF_DEV_NAME_UNKNOWN,
+			strscpy(info->DeviceName, DEF_DEV_NAME_UNKNOWN,
 				2 * MAX1721X_REG_DEV_NUMB);
 		}
 	}
@@ -431,7 +431,7 @@ static int devm_w1_max1721x_add_device(struct w1_slave *sl)
 	return 0;
 }
 
-static struct w1_family_ops w1_max1721x_fops = {
+static const struct w1_family_ops w1_max1721x_fops = {
 	.add_slave = devm_w1_max1721x_add_device,
 };
 
@@ -444,5 +444,5 @@ module_w1_family(w1_max1721x_family);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alex A. Mihaylov <minimumlaw@rambler.ru>");
-MODULE_DESCRIPTION("Maxim MAX17211/MAX17215 Fuel Gauage IC driver");
+MODULE_DESCRIPTION("Maxim MAX17211/MAX17215 Fuel Gauge IC driver");
 MODULE_ALIAS("w1-family-" __stringify(W1_MAX1721X_FAMILY_ID));

@@ -51,7 +51,7 @@ the Technical Advisory Board (TAB) or other maintainers if you're
 uncertain how to handle situations that come up.  It will not be
 considered a violation report unless you want it to be.  If you are
 uncertain about approaching the TAB or any other maintainers, please
-reach out to our conflict mediator, Mishi Choudhary <mishi@linux.com>.
+reach out to our conflict mediator, Joanna Lee <jlee@linuxfoundation.org>.
 
 In the end, "be kind to each other" is really what the end goal is for
 everybody.  We know everyone is human and we all fail at times, but the
@@ -127,10 +127,12 @@ are listed at https://kernel.org/code-of-conduct.html.  Members can not
 access reports made before they joined or after they have left the
 committee.
 
-The initial Code of Conduct Committee consists of volunteer members of
-the TAB, as well as a professional mediator acting as a neutral third
-party.  The first task of the committee is to establish documented
-processes, which will be made public.
+The Code of Conduct Committee consists of volunteer community members
+appointed by the TAB, as well as a professional mediator acting as a
+neutral third party.  The processes the Code of Conduct committee will
+use to address reports is varied and will depend on the individual
+circumstance, however, this file serves as documentation for the
+general process used.
 
 Any member of the committee, including the mediator, can be contacted
 directly if a reporter does not wish to include the full committee in a
@@ -141,16 +143,16 @@ processes (see above) and consults with the TAB as needed and
 appropriate, for instance to request and receive information about the
 kernel community.
 
-Any decisions by the committee will be brought to the TAB, for
-implementation of enforcement with the relevant maintainers if needed.
-A decision by the Code of Conduct Committee can be overturned by the TAB
-by a two-thirds vote.
+Any decisions regarding enforcement recommendations will be brought to
+the TAB for implementation of enforcement with the relevant maintainers
+if needed.  A decision by the Code of Conduct Committee can be overturned
+by the TAB by a two-thirds vote.
 
 At quarterly intervals, the Code of Conduct Committee and TAB will
 provide a report summarizing the anonymised reports that the Code of
 Conduct committee has received and their status, as well details of any
 overridden decisions including complete and identifiable voting details.
 
-We expect to establish a different process for Code of Conduct Committee
-staffing beyond the bootstrap period.  This document will be updated
-with that information when this occurs.
+Because how we interpret and enforce the Code of Conduct will evolve over
+time, this document will be updated when necessary to reflect any
+changes.

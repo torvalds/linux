@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2014 Redpine Signals Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -28,8 +28,7 @@ static int rsi_sdio_stats_read(struct seq_file *seq, void *data)
 {
 	struct rsi_common *common = seq->private;
 	struct rsi_hw *adapter = common->priv;
-	struct rsi_91x_sdiodev *dev =
-		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
+	struct rsi_91x_sdiodev *dev = adapter->rsi_dev;
 
 	seq_printf(seq, "total_sdio_interrupts: %d\n",
 		   dev->rx_info.sdio_int_counter);
@@ -117,7 +116,7 @@ static int rsi_stats_read(struct seq_file *seq, void *data)
 {
 	struct rsi_common *common = seq->private;
 
-	unsigned char fsm_state[][32] = {
+	static const unsigned char fsm_state[][32] = {
 		"FSM_FW_NOT_LOADED",
 		"FSM_CARD_NOT_READY",
 		"FSM_COMMON_DEV_PARAMS_SENT",

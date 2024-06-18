@@ -1106,8 +1106,7 @@ struct qib_devdata *qib_alloc_devdata(struct pci_dev *pdev, size_t extra)
 	if (!qib_cpulist_count) {
 		u32 count = num_online_cpus();
 
-		qib_cpulist = kcalloc(BITS_TO_LONGS(count), sizeof(long),
-				      GFP_KERNEL);
+		qib_cpulist = bitmap_zalloc(count, GFP_KERNEL);
 		if (qib_cpulist)
 			qib_cpulist_count = count;
 	}
@@ -1279,7 +1278,7 @@ static void __exit qib_ib_cleanup(void)
 #endif
 
 	qib_cpulist_count = 0;
-	kfree(qib_cpulist);
+	bitmap_free(qib_cpulist);
 
 	WARN_ON(!xa_empty(&qib_dev_table));
 	qib_dev_cleanup();
@@ -1335,8 +1334,8 @@ static void cleanup_device_data(struct qib_devdata *dd)
 			for (i = ctxt_tidbase; i < maxtid; i++) {
 				if (!tmpp[i])
 					continue;
-				pci_unmap_page(dd->pcidev, tmpd[i],
-					       PAGE_SIZE, PCI_DMA_FROMDEVICE);
+				dma_unmap_page(&dd->pcidev->dev, tmpd[i],
+					       PAGE_SIZE, DMA_FROM_DEVICE);
 				qib_release_user_pages(&tmpp[i], 1);
 				tmpp[i] = NULL;
 			}
@@ -1547,18 +1546,14 @@ int qib_create_rcvhdrq(struct qib_devdata *dd, struct qib_ctxtdata *rcd)
 
 	if (!rcd->rcvhdrq) {
 		dma_addr_t phys_hdrqtail;
-		gfp_t gfp_flags;
 
 		amt = ALIGN(dd->rcvhdrcnt * dd->rcvhdrentsize *
 			    sizeof(u32), PAGE_SIZE);
-		gfp_flags = (rcd->ctxt >= dd->first_user_ctxt) ?
-			GFP_USER : GFP_KERNEL;
 
 		old_node_id = dev_to_node(&dd->pcidev->dev);
 		set_dev_node(&dd->pcidev->dev, rcd->node_id);
-		rcd->rcvhdrq = dma_alloc_coherent(
-			&dd->pcidev->dev, amt, &rcd->rcvhdrq_phys,
-			gfp_flags | __GFP_COMP);
+		rcd->rcvhdrq = dma_alloc_coherent(&dd->pcidev->dev, amt,
+				&rcd->rcvhdrq_phys, GFP_KERNEL);
 		set_dev_node(&dd->pcidev->dev, old_node_id);
 
 		if (!rcd->rcvhdrq) {
@@ -1578,7 +1573,7 @@ int qib_create_rcvhdrq(struct qib_devdata *dd, struct qib_ctxtdata *rcd)
 			set_dev_node(&dd->pcidev->dev, rcd->node_id);
 			rcd->rcvhdrtail_kvaddr = dma_alloc_coherent(
 				&dd->pcidev->dev, PAGE_SIZE, &phys_hdrqtail,
-				gfp_flags);
+				GFP_KERNEL);
 			set_dev_node(&dd->pcidev->dev, old_node_id);
 			if (!rcd->rcvhdrtail_kvaddr)
 				goto bail_free;
@@ -1609,7 +1604,7 @@ bail:
 }
 
 /**
- * allocate eager buffers, both kernel and user contexts.
+ * qib_setup_eagerbufs - allocate eager buffers, both kernel and user contexts.
  * @rcd: the context we are setting up.
  *
  * Allocate the eager TID buffers and program them into hip.
@@ -1622,16 +1617,7 @@ int qib_setup_eagerbufs(struct qib_ctxtdata *rcd)
 	struct qib_devdata *dd = rcd->dd;
 	unsigned e, egrcnt, egrperchunk, chunk, egrsize, egroff;
 	size_t size;
-	gfp_t gfp_flags;
 	int old_node_id;
-
-	/*
-	 * GFP_USER, but without GFP_FS, so buffer cache can be
-	 * coalesced (we hope); otherwise, even at order 4,
-	 * heavy filesystem activity makes these fail, and we can
-	 * use compound pages.
-	 */
-	gfp_flags = __GFP_RECLAIM | __GFP_IO | __GFP_COMP;
 
 	egrcnt = rcd->rcvegrcnt;
 	egroff = rcd->rcvegr_tid_base;
@@ -1664,7 +1650,7 @@ int qib_setup_eagerbufs(struct qib_ctxtdata *rcd)
 		rcd->rcvegrbuf[e] =
 			dma_alloc_coherent(&dd->pcidev->dev, size,
 					   &rcd->rcvegrbuf_phys[e],
-					   gfp_flags);
+					   GFP_KERNEL);
 		set_dev_node(&dd->pcidev->dev, old_node_id);
 		if (!rcd->rcvegrbuf[e])
 			goto bail_rcvegrbuf_phys;
@@ -1759,7 +1745,7 @@ int init_chip_wc_pat(struct qib_devdata *dd, u32 vl15buflen)
 		qib_userlen = dd->ureg_align * dd->cfgctxts;
 
 	/* Sanity checks passed, now create the new mappings */
-	qib_kregbase = ioremap_nocache(qib_physaddr, qib_kreglen);
+	qib_kregbase = ioremap(qib_physaddr, qib_kreglen);
 	if (!qib_kregbase)
 		goto bail;
 
@@ -1768,7 +1754,7 @@ int init_chip_wc_pat(struct qib_devdata *dd, u32 vl15buflen)
 		goto bail_kregbase;
 
 	if (qib_userlen) {
-		qib_userbase = ioremap_nocache(qib_physaddr + dd->uregbase,
+		qib_userbase = ioremap(qib_physaddr + dd->uregbase,
 					       qib_userlen);
 		if (!qib_userbase)
 			goto bail_piobase;

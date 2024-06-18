@@ -41,7 +41,7 @@ static int em_cmp_match(struct sk_buff *skb, struct tcf_ematch *em,
 		break;
 
 	case TCF_EM_ALIGN_U32:
-		/* Worth checking boundries? The branching seems
+		/* Worth checking boundaries? The branching seems
 		 * to get worse. Visit again.
 		 */
 		val = get_unaligned_be32(ptr);
@@ -87,6 +87,7 @@ static void __exit exit_em_cmp(void)
 	tcf_em_unregister(&em_cmp_ops);
 }
 
+MODULE_DESCRIPTION("ematch classifier for basic data types(8/16/32 bit) against skb data");
 MODULE_LICENSE("GPL");
 
 module_init(init_em_cmp);

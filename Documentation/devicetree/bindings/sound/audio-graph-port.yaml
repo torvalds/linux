@@ -1,0 +1,122 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/audio-graph-port.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Audio Graph Card 'port'
+
+maintainers:
+  - Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+
+select: false
+
+definitions:
+  port-base:
+    allOf:
+      - $ref: /schemas/graph.yaml#/$defs/port-base
+      - $ref: /schemas/sound/dai-params.yaml#
+    properties:
+      mclk-fs:
+        $ref: simple-card.yaml#/definitions/mclk-fs
+      playback-only:
+        description: port connection used only for playback
+        $ref: /schemas/types.yaml#/definitions/flag
+      capture-only:
+        description: port connection used only for capture
+        $ref: /schemas/types.yaml#/definitions/flag
+
+  endpoint-base:
+    allOf:
+      - $ref: /schemas/graph.yaml#/$defs/endpoint-base
+      - $ref: /schemas/sound/dai-params.yaml#
+    properties:
+      mclk-fs:
+        $ref: simple-card.yaml#/definitions/mclk-fs
+      frame-inversion:
+        description: dai-link uses frame clock inversion
+        $ref: /schemas/types.yaml#/definitions/flag
+      bitclock-inversion:
+        description: dai-link uses bit clock inversion
+        $ref: /schemas/types.yaml#/definitions/flag
+      frame-master:
+        description: Indicates dai-link frame master.
+        oneOf:
+          - $ref: /schemas/types.yaml#/definitions/flag
+          - $ref: /schemas/types.yaml#/definitions/phandle
+      bitclock-master:
+        description: Indicates dai-link bit clock master
+        oneOf:
+          - $ref: /schemas/types.yaml#/definitions/flag
+          - $ref: /schemas/types.yaml#/definitions/phandle
+      clocks:
+        description: Indicates system clock
+        maxItems: 1
+      system-clock-frequency:
+        $ref: simple-card.yaml#/definitions/system-clock-frequency
+      system-clock-direction-out:
+        $ref: simple-card.yaml#/definitions/system-clock-direction-out
+      system-clock-fixed:
+        $ref: simple-card.yaml#/definitions/system-clock-fixed
+
+      dai-format:
+        description: audio format.
+        items:
+          enum:
+            - i2s
+            - right_j
+            - left_j
+            - dsp_a
+            - dsp_b
+            - ac97
+            - pdm
+            - msb
+            - lsb
+
+      dai-tdm-slot-num:
+        description: Number of slots in use.
+        $ref: /schemas/types.yaml#/definitions/uint32
+      dai-tdm-slot-width:
+        description: Width in bits for each slot.
+        $ref: /schemas/types.yaml#/definitions/uint32
+      dai-tdm-slot-width-map:
+        description: Mapping of sample widths to slot widths. For hardware
+          that cannot support a fixed slot width or a slot width always
+          equal to sample width. A matrix of one or more 3-tuples.
+        $ref: /schemas/types.yaml#/definitions/uint32-matrix
+        items:
+          items:
+            -
+              description: Sample width in bits
+              minimum: 8
+              maximum: 64
+            -
+              description: Slot width in bits
+              minimum: 8
+              maximum: 256
+            -
+              description: Slot count
+              minimum: 1
+              maximum: 64
+
+  ports:
+    $ref: "#/definitions/port-base"
+    unevaluatedProperties: false
+    patternProperties:
+      "^port(@[0-9a-f]+)?$":
+        $ref: "#/definitions/port-base"
+        unevaluatedProperties: false
+        patternProperties:
+          "^endpoint(@[0-9a-f]+)?":
+            $ref: "#/definitions/endpoint-base"
+            unevaluatedProperties: false
+
+allOf:
+  - $ref: "#/definitions/port-base"
+
+patternProperties:
+  "^endpoint(@[0-9a-f]+)?":
+    $ref: "#/definitions/endpoint-base"
+    unevaluatedProperties: false
+
+additionalProperties: true

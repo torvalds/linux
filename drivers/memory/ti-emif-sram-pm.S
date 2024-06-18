@@ -1,22 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Low level PM code for TI EMIF
  *
  * Copyright (C) 2016-2017 Texas Instruments Incorporated - http://www.ti.com/
  *	Dave Gerlach
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <asm/memory.h>
+#include <asm/page.h>
 
 #include "emif.h"
 #include "ti-emif-asm-offsets.h"
@@ -36,6 +28,7 @@
 
 	.arm
 	.align 3
+	.arch armv7-a
 
 ENTRY(ti_emif_sram)
 

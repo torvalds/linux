@@ -169,16 +169,20 @@ static int unmap_memblk(struct snd_emu10k1 *emu, struct snd_emu10k1_memblk *blk)
 	struct snd_emu10k1_memblk *q;
 
 	/* calculate the expected size of empty region */
-	if ((p = blk->mapped_link.prev) != &emu->mapped_link_head) {
+	p = blk->mapped_link.prev;
+	if (p != &emu->mapped_link_head) {
 		q = get_emu10k1_memblk(p, mapped_link);
 		start_page = q->mapped_page + q->pages;
-	} else
+	} else {
 		start_page = 1;
-	if ((p = blk->mapped_link.next) != &emu->mapped_link_head) {
+	}
+	p = blk->mapped_link.next;
+	if (p != &emu->mapped_link_head) {
 		q = get_emu10k1_memblk(p, mapped_link);
 		end_page = q->mapped_page;
-	} else
+	} else {
 		end_page = (emu->address_mode ? MAX_ALIGN_PAGES1 : MAX_ALIGN_PAGES0);
+	}
 
 	/* remove links */
 	list_del(&blk->mapped_link);
@@ -267,7 +271,8 @@ int snd_emu10k1_memblk_map(struct snd_emu10k1 *emu, struct snd_emu10k1_memblk *b
 		spin_unlock_irqrestore(&emu->memblk_lock, flags);
 		return 0;
 	}
-	if ((err = map_memblk(emu, blk)) < 0) {
+	err = map_memblk(emu, blk);
+	if (err < 0) {
 		/* no enough page - try to unmap some blocks */
 		/* starting from the oldest block */
 		p = emu->mapped_order_link_head.next;
@@ -310,16 +315,14 @@ snd_emu10k1_alloc_pages(struct snd_emu10k1 *emu, struct snd_pcm_substream *subst
 	if (snd_BUG_ON(!hdr))
 		return NULL;
 
-	idx = runtime->period_size >= runtime->buffer_size ?
-					(emu->delay_pcm_irq * 2) : 0;
 	mutex_lock(&hdr->block_mutex);
-	blk = search_empty(emu, runtime->dma_bytes + idx);
+	blk = search_empty(emu, runtime->dma_bytes);
 	if (blk == NULL) {
 		mutex_unlock(&hdr->block_mutex);
 		return NULL;
 	}
 	/* fill buffer addresses but pointers are not stored so that
-	 * snd_free_pci_page() is not called in in synth_free()
+	 * snd_free_pci_page() is not called in synth_free()
 	 */
 	idx = 0;
 	for (page = blk->first_page; page <= blk->last_page; page++, idx++) {
@@ -375,7 +378,7 @@ int snd_emu10k1_alloc_pages_maybe_wider(struct snd_emu10k1 *emu, size_t size,
 					struct snd_dma_buffer *dmab)
 {
 	if (emu->iommu_workaround) {
-		size_t npages = (size + PAGE_SIZE - 1) / PAGE_SIZE;
+		size_t npages = DIV_ROUND_UP(size, PAGE_SIZE);
 		size_t size_real = npages * PAGE_SIZE;
 
 		/*
@@ -387,7 +390,7 @@ int snd_emu10k1_alloc_pages_maybe_wider(struct snd_emu10k1 *emu, size_t size,
 	}
 
 	return snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV,
-				   snd_dma_pci_data(emu->pci), size, dmab);
+				   &emu->pci->dev, size, dmab);
 }
 
 /*
@@ -454,13 +457,15 @@ static void get_single_page_range(struct snd_util_memhdr *hdr,
 	struct snd_emu10k1_memblk *q;
 	int first_page, last_page;
 	first_page = blk->first_page;
-	if ((p = blk->mem.list.prev) != &hdr->block) {
+	p = blk->mem.list.prev;
+	if (p != &hdr->block) {
 		q = get_emu10k1_memblk(p, mem.list);
 		if (q->last_page == first_page)
 			first_page++;  /* first page was already allocated */
 	}
 	last_page = blk->last_page;
-	if ((p = blk->mem.list.next) != &hdr->block) {
+	p = blk->mem.list.next;
+	if (p != &hdr->block) {
 		q = get_emu10k1_memblk(p, mem.list);
 		if (q->first_page == last_page)
 			last_page--; /* last page was already allocated */
@@ -477,7 +482,7 @@ static void __synth_free_pages(struct snd_emu10k1 *emu, int first_page,
 	int page;
 
 	dmab.dev.type = SNDRV_DMA_TYPE_DEV;
-	dmab.dev.dev = snd_dma_pci_data(emu->pci);
+	dmab.dev.dev = &emu->pci->dev;
 
 	for (page = first_page; page <= last_page; page++) {
 		if (emu->page_ptr_table[page] == NULL)
@@ -560,14 +565,17 @@ static inline void *offset_ptr(struct snd_emu10k1 *emu, int page, int offset)
 }
 
 /*
- * bzero(blk + offset, size)
+ * memset(blk + offset, value, size)
  */
-int snd_emu10k1_synth_bzero(struct snd_emu10k1 *emu, struct snd_util_memblk *blk,
-			    int offset, int size)
+int snd_emu10k1_synth_memset(struct snd_emu10k1 *emu, struct snd_util_memblk *blk,
+			     int offset, int size, u8 value)
 {
 	int page, nextofs, end_offset, temp, temp1;
 	void *ptr;
 	struct snd_emu10k1_memblk *p = (struct snd_emu10k1_memblk *)blk;
+
+	if (snd_BUG_ON(offset + size > p->mem.size))
+		return -EFAULT;
 
 	offset += blk->offset & (PAGE_SIZE - 1);
 	end_offset = offset + size;
@@ -580,24 +588,54 @@ int snd_emu10k1_synth_bzero(struct snd_emu10k1 *emu, struct snd_util_memblk *blk
 			temp = temp1;
 		ptr = offset_ptr(emu, page + p->first_page, offset);
 		if (ptr)
-			memset(ptr, 0, temp);
+			memset(ptr, value, temp);
 		offset = nextofs;
 		page++;
 	} while (offset < end_offset);
 	return 0;
 }
 
-EXPORT_SYMBOL(snd_emu10k1_synth_bzero);
+EXPORT_SYMBOL(snd_emu10k1_synth_memset);
+
+// Note that the value is assumed to be suitably repetitive.
+static void xor_range(void *ptr, int size, u32 value)
+{
+	if ((long)ptr & 1) {
+		*(u8 *)ptr ^= (u8)value;
+		ptr++;
+		size--;
+	}
+	if (size > 1 && ((long)ptr & 2)) {
+		*(u16 *)ptr ^= (u16)value;
+		ptr += 2;
+		size -= 2;
+	}
+	while (size > 3) {
+		*(u32 *)ptr ^= value;
+		ptr += 4;
+		size -= 4;
+	}
+	if (size > 1) {
+		*(u16 *)ptr ^= (u16)value;
+		ptr += 2;
+		size -= 2;
+	}
+	if (size > 0)
+		*(u8 *)ptr ^= (u8)value;
+}
 
 /*
- * copy_from_user(blk + offset, data, size)
+ * copy_from_user(blk + offset, data, size) ^ xor
  */
 int snd_emu10k1_synth_copy_from_user(struct snd_emu10k1 *emu, struct snd_util_memblk *blk,
-				     int offset, const char __user *data, int size)
+				     int offset, const char __user *data, int size, u32 xor)
 {
 	int page, nextofs, end_offset, temp, temp1;
 	void *ptr;
 	struct snd_emu10k1_memblk *p = (struct snd_emu10k1_memblk *)blk;
+
+	if (snd_BUG_ON(offset + size > p->mem.size))
+		return -EFAULT;
 
 	offset += blk->offset & (PAGE_SIZE - 1);
 	end_offset = offset + size;
@@ -609,8 +647,12 @@ int snd_emu10k1_synth_copy_from_user(struct snd_emu10k1 *emu, struct snd_util_me
 		if (temp1 < temp)
 			temp = temp1;
 		ptr = offset_ptr(emu, page + p->first_page, offset);
-		if (ptr && copy_from_user(ptr, data, temp))
-			return -EFAULT;
+		if (ptr) {
+			if (copy_from_user(ptr, data, temp))
+				return -EFAULT;
+			if (xor)
+				xor_range(ptr, temp, xor);
+		}
 		offset = nextofs;
 		data += temp;
 		page++;

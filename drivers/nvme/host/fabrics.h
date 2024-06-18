@@ -15,6 +15,8 @@
 #define NVMF_DEF_RECONNECT_DELAY	10
 /* default to 600 seconds of reconnect attempts before giving up */
 #define NVMF_DEF_CTRL_LOSS_TMO		600
+/* default is -1: the fail fast mechanism is disabled  */
+#define NVMF_DEF_FAIL_FAST_TMO		-1
 
 /*
  * Define a host as seen by the target.  We allocate one at boot, but also
@@ -56,6 +58,14 @@ enum {
 	NVMF_OPT_NR_WRITE_QUEUES = 1 << 17,
 	NVMF_OPT_NR_POLL_QUEUES = 1 << 18,
 	NVMF_OPT_TOS		= 1 << 19,
+	NVMF_OPT_FAIL_FAST_TMO	= 1 << 20,
+	NVMF_OPT_HOST_IFACE	= 1 << 21,
+	NVMF_OPT_DISCOVERY	= 1 << 22,
+	NVMF_OPT_DHCHAP_SECRET	= 1 << 23,
+	NVMF_OPT_DHCHAP_CTRL_SECRET = 1 << 24,
+	NVMF_OPT_TLS		= 1 << 25,
+	NVMF_OPT_KEYRING	= 1 << 26,
+	NVMF_OPT_TLS_KEY	= 1 << 27,
 };
 
 /**
@@ -63,6 +73,9 @@ enum {
  *			      with the parsing opts enum.
  * @mask:	Used by the fabrics library to parse through sysfs options
  *		on adding a NVMe controller.
+ * @max_reconnects: maximum number of allowed reconnect attempts before removing
+ *		the controller, (-1) means reconnect forever, zero means remove
+ *		immediately;
  * @transport:	Holds the fabric transport "technology name" (for a lack of
  *		better description) that will be used by an NVMe controller
  *		being added.
@@ -73,30 +86,38 @@ enum {
  * @trsvcid:	The transport-specific TRSVCID field for a port on the
  *              subsystem which is adding a controller.
  * @host_traddr: A transport-specific field identifying the NVME host port
- *              to use for the connection to the controller.
+ *     to use for the connection to the controller.
+ * @host_iface: A transport-specific field identifying the NVME host
+ *     interface to use for the connection to the controller.
  * @queue_size: Number of IO queue elements.
  * @nr_io_queues: Number of controller IO queues that will be established.
  * @reconnect_delay: Time between two consecutive reconnect attempts.
  * @discovery_nqn: indicates if the subsysnqn is the well-known discovery NQN.
  * @kato:	Keep-alive timeout.
  * @host:	Virtual NVMe host, contains the NQN and Host ID.
- * @max_reconnects: maximum number of allowed reconnect attempts before removing
- *              the controller, (-1) means reconnect forever, zero means remove
- *              immediately;
+ * @dhchap_secret: DH-HMAC-CHAP secret
+ * @dhchap_ctrl_secret: DH-HMAC-CHAP controller secret for bi-directional
+ *              authentication
+ * @keyring:    Keyring to use for key lookups
+ * @tls_key:    TLS key for encrypted connections (TCP)
+ * @tls:        Start TLS encrypted connections (TCP)
  * @disable_sqflow: disable controller sq flow control
  * @hdr_digest: generate/verify header digest (TCP)
  * @data_digest: generate/verify data digest (TCP)
  * @nr_write_queues: number of queues for write I/O
  * @nr_poll_queues: number of queues for polling I/O
  * @tos: type of service
+ * @fast_io_fail_tmo: Fast I/O fail timeout in seconds
  */
 struct nvmf_ctrl_options {
 	unsigned		mask;
+	int			max_reconnects;
 	char			*transport;
 	char			*subsysnqn;
 	char			*traddr;
 	char			*trsvcid;
 	char			*host_traddr;
+	char			*host_iface;
 	size_t			queue_size;
 	unsigned int		nr_io_queues;
 	unsigned int		reconnect_delay;
@@ -104,13 +125,18 @@ struct nvmf_ctrl_options {
 	bool			duplicate_connect;
 	unsigned int		kato;
 	struct nvmf_host	*host;
-	int			max_reconnects;
+	char			*dhchap_secret;
+	char			*dhchap_ctrl_secret;
+	struct key		*keyring;
+	struct key		*tls_key;
+	bool			tls;
 	bool			disable_sqflow;
 	bool			hdr_digest;
 	bool			data_digest;
 	unsigned int		nr_write_queues;
 	unsigned int		nr_poll_queues;
 	int			tos;
+	int			fast_io_fail_tmo;
 };
 
 /*
@@ -152,40 +178,57 @@ static inline bool
 nvmf_ctlr_matches_baseopts(struct nvme_ctrl *ctrl,
 			struct nvmf_ctrl_options *opts)
 {
-	if (ctrl->state == NVME_CTRL_DELETING ||
-	    ctrl->state == NVME_CTRL_DEAD ||
+	enum nvme_ctrl_state state = nvme_ctrl_state(ctrl);
+
+	if (state == NVME_CTRL_DELETING ||
+	    state == NVME_CTRL_DELETING_NOIO ||
+	    state == NVME_CTRL_DEAD ||
 	    strcmp(opts->subsysnqn, ctrl->opts->subsysnqn) ||
 	    strcmp(opts->host->nqn, ctrl->opts->host->nqn) ||
-	    memcmp(&opts->host->id, &ctrl->opts->host->id, sizeof(uuid_t)))
+	    !uuid_equal(&opts->host->id, &ctrl->opts->host->id))
 		return false;
 
 	return true;
+}
+
+static inline char *nvmf_ctrl_subsysnqn(struct nvme_ctrl *ctrl)
+{
+	if (!ctrl->subsys ||
+	    !strcmp(ctrl->opts->subsysnqn, NVME_DISC_SUBSYS_NAME))
+		return ctrl->opts->subsysnqn;
+	return ctrl->subsys->subnqn;
+}
+
+static inline void nvmf_complete_timed_out_request(struct request *rq)
+{
+	if (blk_mq_request_started(rq) && !blk_mq_request_completed(rq)) {
+		nvme_req(rq)->status = NVME_SC_HOST_ABORTED_CMD;
+		blk_mq_complete_request(rq);
+	}
+}
+
+static inline unsigned int nvmf_nr_io_queues(struct nvmf_ctrl_options *opts)
+{
+	return min(opts->nr_io_queues, num_online_cpus()) +
+		min(opts->nr_write_queues, num_online_cpus()) +
+		min(opts->nr_poll_queues, num_online_cpus());
 }
 
 int nvmf_reg_read32(struct nvme_ctrl *ctrl, u32 off, u32 *val);
 int nvmf_reg_read64(struct nvme_ctrl *ctrl, u32 off, u64 *val);
 int nvmf_reg_write32(struct nvme_ctrl *ctrl, u32 off, u32 val);
 int nvmf_connect_admin_queue(struct nvme_ctrl *ctrl);
-int nvmf_connect_io_queue(struct nvme_ctrl *ctrl, u16 qid, bool poll);
+int nvmf_connect_io_queue(struct nvme_ctrl *ctrl, u16 qid);
 int nvmf_register_transport(struct nvmf_transport_ops *ops);
 void nvmf_unregister_transport(struct nvmf_transport_ops *ops);
 void nvmf_free_options(struct nvmf_ctrl_options *opts);
 int nvmf_get_address(struct nvme_ctrl *ctrl, char *buf, int size);
-bool nvmf_should_reconnect(struct nvme_ctrl *ctrl);
-blk_status_t nvmf_fail_nonready_command(struct nvme_ctrl *ctrl,
-		struct request *rq);
-bool __nvmf_check_ready(struct nvme_ctrl *ctrl, struct request *rq,
-		bool queue_live);
+bool nvmf_should_reconnect(struct nvme_ctrl *ctrl, int status);
 bool nvmf_ip_options_match(struct nvme_ctrl *ctrl,
 		struct nvmf_ctrl_options *opts);
-
-static inline bool nvmf_check_ready(struct nvme_ctrl *ctrl, struct request *rq,
-		bool queue_live)
-{
-	if (likely(ctrl->state == NVME_CTRL_LIVE ||
-		   ctrl->state == NVME_CTRL_ADMIN_ONLY))
-		return true;
-	return __nvmf_check_ready(ctrl, rq, queue_live);
-}
+void nvmf_set_io_queues(struct nvmf_ctrl_options *opts, u32 nr_io_queues,
+			u32 io_queues[HCTX_MAX_TYPES]);
+void nvmf_map_queues(struct blk_mq_tag_set *set, struct nvme_ctrl *ctrl,
+		     u32 io_queues[HCTX_MAX_TYPES]);
 
 #endif /* _NVME_FABRICS_H */

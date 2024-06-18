@@ -11,6 +11,7 @@
 #ifndef _UAPI_LINUX_SERIAL_H
 #define _UAPI_LINUX_SERIAL_H
 
+#include <linux/const.h>
 #include <linux/types.h>
 
 #include <linux/tty_flags.h>
@@ -52,11 +53,11 @@ struct serial_struct {
 #define PORT_16450	2
 #define PORT_16550	3
 #define PORT_16550A	4
-#define PORT_CIRRUS     5	/* usurped by cyclades.c */
+#define PORT_CIRRUS     5
 #define PORT_16650	6
 #define PORT_16650V2	7
 #define PORT_16750	8
-#define PORT_STARTECH	9	/* usurped by cyclades.c */
+#define PORT_STARTECH	9
 #define PORT_16C950	10	/* Oxford Semiconductor */
 #define PORT_16654	11
 #define PORT_16850	12
@@ -107,29 +108,65 @@ struct serial_icounter_struct {
 	int reserved[9];
 };
 
-/*
+/**
+ * struct serial_rs485 - serial interface for controlling RS485 settings.
+ * @flags:			RS485 feature flags.
+ * @delay_rts_before_send:	Delay before send (milliseconds).
+ * @delay_rts_after_send:	Delay after send (milliseconds).
+ * @addr_recv:			Receive filter for RS485 addressing mode
+ *				(used only when %SER_RS485_ADDR_RECV is set).
+ * @addr_dest:			Destination address for RS485 addressing mode
+ *				(used only when %SER_RS485_ADDR_DEST is set).
+ * @padding0:			Padding (set to zero).
+ * @padding1:			Padding (set to zero).
+ * @padding:			Deprecated, use @padding0 and @padding1 instead.
+ *				Do not use with @addr_recv and @addr_dest (due to
+ *				overlap).
+ *
  * Serial interface for controlling RS485 settings on chips with suitable
  * support. Set with TIOCSRS485 and get with TIOCGRS485 if supported by your
  * platform. The set function returns the new state, with any unsupported bits
  * reverted appropriately.
+ *
+ * The flag bits are:
+ *
+ * * %SER_RS485_ENABLED		- RS485 enabled.
+ * * %SER_RS485_RTS_ON_SEND	- Logical level for RTS pin when sending.
+ * * %SER_RS485_RTS_AFTER_SEND	- Logical level for RTS pin after sent.
+ * * %SER_RS485_RX_DURING_TX	- Full-duplex RS485 line.
+ * * %SER_RS485_TERMINATE_BUS	- Enable bus termination (if supported).
+ * * %SER_RS485_ADDRB		- Enable RS485 addressing mode.
+ * * %SER_RS485_ADDR_RECV - Receive address filter (enables @addr_recv). Requires %SER_RS485_ADDRB.
+ * * %SER_RS485_ADDR_DEST - Destination address (enables @addr_dest). Requires %SER_RS485_ADDRB.
+ * * %SER_RS485_MODE_RS422	- Enable RS422. Requires %SER_RS485_ENABLED.
  */
-
 struct serial_rs485 {
-	__u32	flags;			/* RS485 feature flags */
-#define SER_RS485_ENABLED		(1 << 0)	/* If enabled */
-#define SER_RS485_RTS_ON_SEND		(1 << 1)	/* Logical level for
-							   RTS pin when
-							   sending */
-#define SER_RS485_RTS_AFTER_SEND	(1 << 2)	/* Logical level for
-							   RTS pin after sent*/
-#define SER_RS485_RX_DURING_TX		(1 << 4)
-#define SER_RS485_TERMINATE_BUS		(1 << 5)	/* Enable bus
-							   termination
-							   (if supported) */
-	__u32	delay_rts_before_send;	/* Delay before send (milliseconds) */
-	__u32	delay_rts_after_send;	/* Delay after send (milliseconds) */
-	__u32	padding[5];		/* Memory is cheap, new structs
-					   are a royal PITA .. */
+	__u32	flags;
+#define SER_RS485_ENABLED		_BITUL(0)
+#define SER_RS485_RTS_ON_SEND		_BITUL(1)
+#define SER_RS485_RTS_AFTER_SEND	_BITUL(2)
+/* Placeholder for bit 3: SER_RS485_RTS_BEFORE_SEND, which isn't used anymore */
+#define SER_RS485_RX_DURING_TX		_BITUL(4)
+#define SER_RS485_TERMINATE_BUS		_BITUL(5)
+#define SER_RS485_ADDRB			_BITUL(6)
+#define SER_RS485_ADDR_RECV		_BITUL(7)
+#define SER_RS485_ADDR_DEST		_BITUL(8)
+#define SER_RS485_MODE_RS422		_BITUL(9)
+
+	__u32	delay_rts_before_send;
+	__u32	delay_rts_after_send;
+
+	/* The fields below are defined by flags */
+	union {
+		__u32	padding[5];		/* Memory is cheap, new structs are a pain */
+
+		struct {
+			__u8	addr_recv;
+			__u8	addr_dest;
+			__u8	padding0[2];
+			__u32	padding1[4];
+		};
+	};
 };
 
 /*

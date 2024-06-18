@@ -1,48 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright(c) 2015 - 2018 Intel Corporation.
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * BSD LICENSE
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
+ * Copyright(c) 2015 - 2020 Intel Corporation.
  */
 
 #ifndef _COMMON_H
@@ -71,13 +29,6 @@
  * _HFI1_TRACING define as 0 if you want to remove all tracing in a
  * compilation unit
  */
-
-/*
- * If a packet's QP[23:16] bits match this value, then it is
- * a PSM packet and the hardware will expect a KDETH header
- * following the BTH.
- */
-#define DEFAULT_KDETH_QP 0x80
 
 /* driver/hw feature set bitmask */
 #define HFI1_CAP_USER_SHIFT      24
@@ -149,7 +100,8 @@
 				   HFI1_CAP_NO_INTEGRITY |		\
 				   HFI1_CAP_PKEY_CHECK |		\
 				   HFI1_CAP_TID_RDMA |			\
-				   HFI1_CAP_OPFN) <<			\
+				   HFI1_CAP_OPFN |			\
+				   HFI1_CAP_AIP) <<			\
 				  HFI1_CAP_USER_SHIFT)
 /*
  * Set of capabilities that need to be enabled for kernel context in
@@ -166,6 +118,7 @@
 				 HFI1_CAP_PKEY_CHECK |			\
 				 HFI1_CAP_MULTI_PKT_EGR |		\
 				 HFI1_CAP_EXTENDED_PSN |		\
+				 HFI1_CAP_AIP |				\
 				 ((HFI1_CAP_HDRSUPP |			\
 				   HFI1_CAP_MULTI_PKT_EGR |		\
 				   HFI1_CAP_STATIC_RATE_CTRL |		\
@@ -183,61 +136,6 @@
 
 #define HFI1_USER_SWVERSION ((HFI1_USER_SWMAJOR << HFI1_SWMAJOR_SHIFT) | \
 			     HFI1_USER_SWMINOR)
-
-#ifndef HFI1_KERN_TYPE
-#define HFI1_KERN_TYPE 0
-#endif
-
-/*
- * Similarly, this is the kernel version going back to the user.  It's
- * slightly different, in that we want to tell if the driver was built as
- * part of a Intel release, or from the driver from openfabrics.org,
- * kernel.org, or a standard distribution, for support reasons.
- * The high bit is 0 for non-Intel and 1 for Intel-built/supplied.
- *
- * It's returned by the driver to the user code during initialization in the
- * spi_sw_version field of hfi1_base_info, so the user code can in turn
- * check for compatibility with the kernel.
-*/
-#define HFI1_KERN_SWVERSION ((HFI1_KERN_TYPE << 31) | HFI1_USER_SWVERSION)
-
-/*
- * Define the driver version number.  This is something that refers only
- * to the driver itself, not the software interfaces it supports.
- */
-#ifndef HFI1_DRIVER_VERSION_BASE
-#define HFI1_DRIVER_VERSION_BASE "0.9-294"
-#endif
-
-/* create the final driver version string */
-#ifdef HFI1_IDSTR
-#define HFI1_DRIVER_VERSION HFI1_DRIVER_VERSION_BASE " " HFI1_IDSTR
-#else
-#define HFI1_DRIVER_VERSION HFI1_DRIVER_VERSION_BASE
-#endif
-
-/*
- * Diagnostics can send a packet by writing the following
- * struct to the diag packet special file.
- *
- * This allows a custom PBC qword, so that special modes and deliberate
- * changes to CRCs can be used.
- */
-#define _DIAG_PKT_VERS 1
-struct diag_pkt {
-	__u16 version;		/* structure version */
-	__u16 unit;		/* which device */
-	__u16 sw_index;		/* send sw index to use */
-	__u16 len;		/* data length, in bytes */
-	__u16 port;		/* port number */
-	__u16 unused;
-	__u32 flags;		/* call flags */
-	__u64 data;		/* user data pointer */
-	__u64 pbc;		/* PBC for the packet */
-};
-
-/* diag_pkt flags */
-#define F_DIAGPKT_WAIT 0x1	/* wait until packet is sent */
 
 /*
  * The next set of defines are for packet headers, and chip register
@@ -322,6 +220,9 @@ struct diag_pkt {
 
 /* RHF receive type error - bypass packet errors */
 #define RHF_RTE_BYPASS_NO_ERR		0x0
+
+/* MAX RcvSEQ */
+#define RHF_MAX_SEQ 13
 
 /* IB - LRH header constants */
 #define HFI1_LRH_GRH 0x0003      /* 1. word of IB LRH - next header: GRH */

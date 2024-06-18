@@ -341,7 +341,7 @@ struct brcms_cm_info *brcms_c_channel_mgr_attach(struct brcms_c_info *wlc)
 	/* store the country code for passing up as a regulatory hint */
 	wlc_cm->world_regd = brcms_world_regd(ccode, ccode_len);
 	if (brcms_c_country_valid(ccode))
-		strncpy(wlc->pub->srom_ccode, ccode, ccode_len);
+		memcpy(wlc->pub->srom_ccode, ccode, ccode_len);
 
 	/*
 	 * If no custom world domain is found in the SROM, use the
@@ -354,10 +354,10 @@ struct brcms_cm_info *brcms_c_channel_mgr_attach(struct brcms_c_info *wlc)
 	}
 
 	/* save default country for exiting 11d regulatory mode */
-	strncpy(wlc->country_default, ccode, ccode_len);
+	memcpy(wlc->country_default, ccode, ccode_len);
 
 	/* initialize autocountry_default to driver default */
-	strncpy(wlc->autocountry_default, ccode, ccode_len);
+	memcpy(wlc->autocountry_default, ccode, ccode_len);
 
 	brcms_c_set_country(wlc_cm, wlc_cm->world_regd);
 
@@ -496,13 +496,11 @@ brcms_c_channel_reg_limits(struct brcms_cm_info *wlc_cm, u16 chanspec,
 	 * table and override CDD later
 	 */
 	if (li_mimo == &locale_bn) {
-		if (li_mimo == &locale_bn) {
-			maxpwr20 = QDB(16);
-			maxpwr40 = 0;
+		maxpwr20 = QDB(16);
+		maxpwr40 = 0;
 
-			if (chan >= 3 && chan <= 11)
-				maxpwr40 = QDB(16);
-		}
+		if (chan >= 3 && chan <= 11)
+			maxpwr40 = QDB(16);
 
 		for (i = 0; i < BRCMS_NUM_RATES_MCS_1_STREAM; i++) {
 			txpwr->mcs_20_siso[i] = (u8) maxpwr20;

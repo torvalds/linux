@@ -8,24 +8,15 @@
  */
 #include <linux/io.h>
 
+#include <asm/apic.h>
 #include <asm/cpu.h>
 #include <asm/smp.h>
+#include <asm/numa.h>
 #include <asm/cacheinfo.h>
 #include <asm/spec-ctrl.h>
 #include <asm/delay.h>
-#ifdef CONFIG_X86_64
-# include <asm/set_memory.h>
-#endif
 
 #include "cpu.h"
-
-#define APICID_SOCKET_ID_BIT 6
-
-/*
- * nodes_per_socket: Stores the number of nodes per socket.
- * Refer to CPUID Fn8000_001E_ECX Node Identifiers[10:8]
- */
-static u32 nodes_per_socket = 1;
 
 #ifdef CONFIG_NUMA
 /*
@@ -50,91 +41,16 @@ static int nearby_node(int apicid)
 }
 #endif
 
-static void hygon_get_topology_early(struct cpuinfo_x86 *c)
-{
-	if (cpu_has(c, X86_FEATURE_TOPOEXT))
-		smp_num_siblings = ((cpuid_ebx(0x8000001e) >> 8) & 0xff) + 1;
-}
-
-/*
- * Fixup core topology information for
- * (1) Hygon multi-node processors
- *     Assumption: Number of cores in each internal node is the same.
- * (2) Hygon processors supporting compute units
- */
-static void hygon_get_topology(struct cpuinfo_x86 *c)
-{
-	u8 node_id;
-	int cpu = smp_processor_id();
-
-	/* get information required for multi-node processors */
-	if (boot_cpu_has(X86_FEATURE_TOPOEXT)) {
-		int err;
-		u32 eax, ebx, ecx, edx;
-
-		cpuid(0x8000001e, &eax, &ebx, &ecx, &edx);
-
-		node_id  = ecx & 0xff;
-
-		c->cpu_core_id = ebx & 0xff;
-
-		if (smp_num_siblings > 1)
-			c->x86_max_cores /= smp_num_siblings;
-
-		/*
-		 * In case leaf B is available, use it to derive
-		 * topology information.
-		 */
-		err = detect_extended_topology(c);
-		if (!err)
-			c->x86_coreid_bits = get_count_order(c->x86_max_cores);
-
-		/* Socket ID is ApicId[6] for these processors. */
-		c->phys_proc_id = c->apicid >> APICID_SOCKET_ID_BIT;
-
-		cacheinfo_hygon_init_llc_id(c, cpu, node_id);
-	} else if (cpu_has(c, X86_FEATURE_NODEID_MSR)) {
-		u64 value;
-
-		rdmsrl(MSR_FAM10H_NODE_ID, value);
-		node_id = value & 7;
-
-		per_cpu(cpu_llc_id, cpu) = node_id;
-	} else
-		return;
-
-	if (nodes_per_socket > 1)
-		set_cpu_cap(c, X86_FEATURE_AMD_DCM);
-}
-
-/*
- * On Hygon setup the lower bits of the APIC id distinguish the cores.
- * Assumes number of cores is a power of two.
- */
-static void hygon_detect_cmp(struct cpuinfo_x86 *c)
-{
-	unsigned int bits;
-	int cpu = smp_processor_id();
-
-	bits = c->x86_coreid_bits;
-	/* Low order bits define the core id (index of core in socket) */
-	c->cpu_core_id = c->initial_apicid & ((1 << bits)-1);
-	/* Convert the initial APIC ID into the socket ID */
-	c->phys_proc_id = c->initial_apicid >> bits;
-	/* use socket ID also for last level cache */
-	per_cpu(cpu_llc_id, cpu) = c->phys_proc_id;
-}
-
 static void srat_detect_node(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_NUMA
 	int cpu = smp_processor_id();
 	int node;
-	unsigned int apicid = c->apicid;
+	unsigned int apicid = c->topo.apicid;
 
 	node = numa_cpu_node(cpu);
 	if (node == NUMA_NO_NODE)
-		node = per_cpu(cpu_llc_id, cpu);
+		node = c->topo.llc_id;
 
 	/*
 	 * On multi-fabric platform (e.g. Numascale NumaChip) a
@@ -163,7 +79,7 @@ static void srat_detect_node(struct cpuinfo_x86 *c)
 		 * through CPU mapping may alter the outcome, directly
 		 * access __apicid_to_node[].
 		 */
-		int ht_nodeid = c->initial_apicid;
+		int ht_nodeid = c->topo.initial_apicid;
 
 		if (__apicid_to_node[ht_nodeid] != NUMA_NO_NODE)
 			node = __apicid_to_node[ht_nodeid];
@@ -175,51 +91,8 @@ static void srat_detect_node(struct cpuinfo_x86 *c)
 #endif
 }
 
-static void early_init_hygon_mc(struct cpuinfo_x86 *c)
-{
-#ifdef CONFIG_SMP
-	unsigned int bits, ecx;
-
-	/* Multi core CPU? */
-	if (c->extended_cpuid_level < 0x80000008)
-		return;
-
-	ecx = cpuid_ecx(0x80000008);
-
-	c->x86_max_cores = (ecx & 0xff) + 1;
-
-	/* CPU telling us the core id bits shift? */
-	bits = (ecx >> 12) & 0xF;
-
-	/* Otherwise recompute */
-	if (bits == 0) {
-		while ((1 << bits) < c->x86_max_cores)
-			bits++;
-	}
-
-	c->x86_coreid_bits = bits;
-#endif
-}
-
 static void bsp_init_hygon(struct cpuinfo_x86 *c)
 {
-#ifdef CONFIG_X86_64
-	unsigned long long tseg;
-
-	/*
-	 * Split up direct mapping around the TSEG SMM area.
-	 * Don't do it for gbpages because there seems very little
-	 * benefit in doing so.
-	 */
-	if (!rdmsrl_safe(MSR_K8_TSEG_ADDR, &tseg)) {
-		unsigned long pfn = tseg >> PAGE_SHIFT;
-
-		pr_debug("tseg: %010llx\n", tseg);
-		if (pfn_range_is_mapped(pfn, pfn + 1))
-			set_memory_4k((unsigned long)__va(tseg), 1);
-	}
-#endif
-
 	if (cpu_has(c, X86_FEATURE_CONSTANT_TSC)) {
 		u64 val;
 
@@ -230,18 +103,6 @@ static void bsp_init_hygon(struct cpuinfo_x86 *c)
 
 	if (cpu_has(c, X86_FEATURE_MWAITX))
 		use_mwaitx_delay();
-
-	if (boot_cpu_has(X86_FEATURE_TOPOEXT)) {
-		u32 ecx;
-
-		ecx = cpuid_ecx(0x8000001e);
-		nodes_per_socket = ((ecx >> 8) & 7) + 1;
-	} else if (boot_cpu_has(X86_FEATURE_NODEID_MSR)) {
-		u64 value;
-
-		rdmsrl(MSR_FAM10H_NODE_ID, value);
-		nodes_per_socket = ((value >> 3) & 7) + 1;
-	}
 
 	if (!boot_cpu_has(X86_FEATURE_AMD_SSBD) &&
 	    !boot_cpu_has(X86_FEATURE_VIRT_SSBD)) {
@@ -261,8 +122,6 @@ static void early_init_hygon(struct cpuinfo_x86 *c)
 {
 	u32 dummy;
 
-	early_init_hygon_mc(c);
-
 	set_cpu_cap(c, X86_FEATURE_K8);
 
 	rdmsr_safe(MSR_AMD64_PATCH_LEVEL, &c->microcode, &dummy);
@@ -279,6 +138,10 @@ static void early_init_hygon(struct cpuinfo_x86 *c)
 	/* Bit 12 of 8000_0007 edx is accumulated power mechanism. */
 	if (c->x86_power & BIT(12))
 		set_cpu_cap(c, X86_FEATURE_ACC_POWER);
+
+	/* Bit 14 indicates the Runtime Average Power Limit interface. */
+	if (c->x86_power & BIT(14))
+		set_cpu_cap(c, X86_FEATURE_RAPL);
 
 #ifdef CONFIG_X86_64
 	set_cpu_cap(c, X86_FEATURE_SYSCALL32);
@@ -299,12 +162,12 @@ static void early_init_hygon(struct cpuinfo_x86 *c)
 	 * we can set it unconditionally.
 	 */
 	set_cpu_cap(c, X86_FEATURE_VMMCALL);
-
-	hygon_get_topology_early(c);
 }
 
 static void init_hygon(struct cpuinfo_x86 *c)
 {
+	u64 vm_cr;
+
 	early_init_hygon(c);
 
 	/*
@@ -315,19 +178,28 @@ static void init_hygon(struct cpuinfo_x86 *c)
 
 	set_cpu_cap(c, X86_FEATURE_REP_GOOD);
 
-	/* get apicid instead of initial apic id from cpuid */
-	c->apicid = hard_smp_processor_id();
+	/*
+	 * XXX someone from Hygon needs to confirm this DTRT
+	 *
+	init_spectral_chicken(c);
+	 */
 
 	set_cpu_cap(c, X86_FEATURE_ZEN);
 	set_cpu_cap(c, X86_FEATURE_CPB);
 
 	cpu_detect_cache_sizes(c);
 
-	hygon_detect_cmp(c);
-	hygon_get_topology(c);
 	srat_detect_node(c);
 
 	init_hygon_cacheinfo(c);
+
+	if (cpu_has(c, X86_FEATURE_SVM)) {
+		rdmsrl(MSR_VM_CR, vm_cr);
+		if (vm_cr & SVM_VM_CR_SVM_DIS_MASK) {
+			pr_notice_once("SVM disabled (by BIOS) in MSR_VM_CR\n");
+			clear_cpu_cap(c, X86_FEATURE_SVM);
+		}
+	}
 
 	if (cpu_has(c, X86_FEATURE_XMM2)) {
 		/*
@@ -336,8 +208,8 @@ static void init_hygon(struct cpuinfo_x86 *c)
 		 * msr_set_bit() uses the safe accessors, too, even if the MSR
 		 * is not present.
 		 */
-		msr_set_bit(MSR_F10H_DECFG,
-			    MSR_F10H_DECFG_LFENCE_SERIALIZE_BIT);
+		msr_set_bit(MSR_AMD64_DE_CFG,
+			    MSR_AMD64_DE_CFG_LFENCE_SERIALIZE_BIT);
 
 		/* A serializing LFENCE stops RDTSC speculation */
 		set_cpu_cap(c, X86_FEATURE_LFENCE_RDTSC);
@@ -349,8 +221,13 @@ static void init_hygon(struct cpuinfo_x86 *c)
 	set_cpu_cap(c, X86_FEATURE_ARAT);
 
 	/* Hygon CPUs don't reset SS attributes on SYSRET, Xen does. */
-	if (!cpu_has(c, X86_FEATURE_XENPV))
+	if (!cpu_feature_enabled(X86_FEATURE_XENPV))
 		set_cpu_bug(c, X86_BUG_SYSRET_SS_ATTRS);
+
+	check_null_seg_clears_base(c);
+
+	/* Hygon CPUs don't need fencing after x2APIC/TSC_DEADLINE MSR writes. */
+	clear_cpu_cap(c, X86_FEATURE_APIC_MSRS_FENCE);
 }
 
 static void cpu_detect_tlb_hygon(struct cpuinfo_x86 *c)

@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/reset/renesas,rst.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Renesas R-Car and RZ/G Reset Controller
+
+maintainers:
+  - Geert Uytterhoeven <geert+renesas@glider.be>
+  - Magnus Damm <magnus.damm@gmail.com>
+
+description: |
+  The R-Car and RZ/G Reset Controllers provide reset control, and implement the
+  following functions:
+    - Latching of the levels on mode pins when PRESET# is negated,
+    - Mode monitoring register,
+    - Reset control of peripheral devices (on R-Car Gen1),
+    - Watchdog timer (on R-Car Gen1),
+    - Register-based reset control and boot address registers for the various
+      CPU cores (on R-Car Gen2 and Gen3, and on RZ/G).
+
+properties:
+  compatible:
+    enum:
+      - renesas,r8a7742-rst       # RZ/G1H
+      - renesas,r8a7743-rst       # RZ/G1M
+      - renesas,r8a7744-rst       # RZ/G1N
+      - renesas,r8a7745-rst       # RZ/G1E
+      - renesas,r8a77470-rst      # RZ/G1C
+      - renesas,r8a774a1-rst      # RZ/G2M
+      - renesas,r8a774b1-rst      # RZ/G2N
+      - renesas,r8a774c0-rst      # RZ/G2E
+      - renesas,r8a774e1-rst      # RZ/G2H
+      - renesas,r8a7778-reset-wdt # R-Car M1A
+      - renesas,r8a7779-reset-wdt # R-Car H1
+      - renesas,r8a7790-rst       # R-Car H2
+      - renesas,r8a7791-rst       # R-Car M2-W
+      - renesas,r8a7792-rst       # R-Car V2H
+      - renesas,r8a7793-rst       # R-Car M2-N
+      - renesas,r8a7794-rst       # R-Car E2
+      - renesas,r8a7795-rst       # R-Car H3
+      - renesas,r8a7796-rst       # R-Car M3-W
+      - renesas,r8a77961-rst      # R-Car M3-W+
+      - renesas,r8a77965-rst      # R-Car M3-N
+      - renesas,r8a77970-rst      # R-Car V3M
+      - renesas,r8a77980-rst      # R-Car V3H
+      - renesas,r8a77990-rst      # R-Car E3
+      - renesas,r8a77995-rst      # R-Car D3
+      - renesas,r8a779a0-rst      # R-Car V3U
+      - renesas,r8a779f0-rst      # R-Car S4-8
+      - renesas,r8a779g0-rst      # R-Car V4H
+      - renesas,r8a779h0-rst      # R-Car V4M
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    rst: reset-controller@e6160000 {
+            compatible = "renesas,r8a7795-rst";
+            reg = <0xe6160000 0x0200>;
+    };

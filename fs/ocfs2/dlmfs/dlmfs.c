@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
- *
+/*
  * dlmfs.c
  *
  * Code which implements the kernel side of a minimal userspace
@@ -33,11 +31,11 @@
 
 #include <linux/uaccess.h>
 
-#include "stackglue.h"
+#include "../stackglue.h"
 #include "userdlm.h"
 
 #define MLOG_MASK_PREFIX ML_DLMFS
-#include "cluster/masklog.h"
+#include "../cluster/masklog.h"
 
 
 static const struct super_operations dlmfs_ops;
@@ -82,8 +80,7 @@ static int param_set_dlmfs_capabilities(const char *val,
 static int param_get_dlmfs_capabilities(char *buffer,
 					const struct kernel_param *kp)
 {
-	return strlcpy(buffer, DLMFS_CAPABILITIES,
-		       strlen(DLMFS_CAPABILITIES) + 1);
+	return sysfs_emit(buffer, DLMFS_CAPABILITIES);
 }
 module_param_call(capabilities, param_set_dlmfs_capabilities,
 		  param_get_dlmfs_capabilities, NULL, 0444);
@@ -190,17 +187,18 @@ static int dlmfs_file_release(struct inode *inode,
  * We do ->setattr() just to override size changes.  Our size is the size
  * of the LVB and nothing else.
  */
-static int dlmfs_file_setattr(struct dentry *dentry, struct iattr *attr)
+static int dlmfs_file_setattr(struct mnt_idmap *idmap,
+			      struct dentry *dentry, struct iattr *attr)
 {
 	int error;
 	struct inode *inode = d_inode(dentry);
 
 	attr->ia_valid &= ~ATTR_SIZE;
-	error = setattr_prepare(dentry, attr);
+	error = setattr_prepare(&nop_mnt_idmap, dentry, attr);
 	if (error)
 		return error;
 
-	setattr_copy(inode, attr);
+	setattr_copy(&nop_mnt_idmap, inode, attr);
 	mark_inode_dirty(inode);
 	return 0;
 }
@@ -221,52 +219,17 @@ static __poll_t dlmfs_file_poll(struct file *file, poll_table *wait)
 	return event;
 }
 
-static ssize_t dlmfs_file_read(struct file *filp,
+static ssize_t dlmfs_file_read(struct file *file,
 			       char __user *buf,
 			       size_t count,
 			       loff_t *ppos)
 {
-	int bytes_left;
-	ssize_t readlen, got;
-	char *lvb_buf;
-	struct inode *inode = file_inode(filp);
+	char lvb[DLM_LVB_LEN];
 
-	mlog(0, "inode %lu, count = %zu, *ppos = %llu\n",
-		inode->i_ino, count, *ppos);
-
-	if (*ppos >= i_size_read(inode))
+	if (!user_dlm_read_lvb(file_inode(file), lvb))
 		return 0;
 
-	if (!count)
-		return 0;
-
-	if (!access_ok(buf, count))
-		return -EFAULT;
-
-	/* don't read past the lvb */
-	if ((count + *ppos) > i_size_read(inode))
-		readlen = i_size_read(inode) - *ppos;
-	else
-		readlen = count;
-
-	lvb_buf = kmalloc(readlen, GFP_NOFS);
-	if (!lvb_buf)
-		return -ENOMEM;
-
-	got = user_dlm_read_lvb(inode, lvb_buf, readlen);
-	if (got) {
-		BUG_ON(got != readlen);
-		bytes_left = __copy_to_user(buf, lvb_buf, readlen);
-		readlen -= bytes_left;
-	} else
-		readlen = 0;
-
-	kfree(lvb_buf);
-
-	*ppos = *ppos + readlen;
-
-	mlog(0, "read %zd bytes\n", readlen);
-	return readlen;
+	return simple_read_from_buffer(buf, count, ppos, lvb, sizeof(lvb));
 }
 
 static ssize_t dlmfs_file_write(struct file *filp,
@@ -274,43 +237,31 @@ static ssize_t dlmfs_file_write(struct file *filp,
 				size_t count,
 				loff_t *ppos)
 {
+	char lvb_buf[DLM_LVB_LEN];
 	int bytes_left;
-	ssize_t writelen;
-	char *lvb_buf;
 	struct inode *inode = file_inode(filp);
 
 	mlog(0, "inode %lu, count = %zu, *ppos = %llu\n",
 		inode->i_ino, count, *ppos);
 
-	if (*ppos >= i_size_read(inode))
+	if (*ppos >= DLM_LVB_LEN)
 		return -ENOSPC;
+
+	/* don't write past the lvb */
+	if (count > DLM_LVB_LEN - *ppos)
+		count = DLM_LVB_LEN - *ppos;
 
 	if (!count)
 		return 0;
 
-	if (!access_ok(buf, count))
-		return -EFAULT;
+	bytes_left = copy_from_user(lvb_buf, buf, count);
+	count -= bytes_left;
+	if (count)
+		user_dlm_write_lvb(inode, lvb_buf, count);
 
-	/* don't write past the lvb */
-	if ((count + *ppos) > i_size_read(inode))
-		writelen = i_size_read(inode) - *ppos;
-	else
-		writelen = count - *ppos;
-
-	lvb_buf = kmalloc(writelen, GFP_NOFS);
-	if (!lvb_buf)
-		return -ENOMEM;
-
-	bytes_left = copy_from_user(lvb_buf, buf, writelen);
-	writelen -= bytes_left;
-	if (writelen)
-		user_dlm_write_lvb(inode, lvb_buf, writelen);
-
-	kfree(lvb_buf);
-
-	*ppos = *ppos + writelen;
-	mlog(0, "wrote %zd bytes\n", writelen);
-	return writelen;
+	*ppos = *ppos + count;
+	mlog(0, "wrote %zu bytes\n", count);
+	return count;
 }
 
 static void dlmfs_init_once(void *foo)
@@ -328,7 +279,7 @@ static struct inode *dlmfs_alloc_inode(struct super_block *sb)
 {
 	struct dlmfs_inode_private *ip;
 
-	ip = kmem_cache_alloc(dlmfs_inode_cache, GFP_NOFS);
+	ip = alloc_inode_sb(sb, dlmfs_inode_cache, GFP_NOFS);
 	if (!ip)
 		return NULL;
 
@@ -344,17 +295,25 @@ static void dlmfs_evict_inode(struct inode *inode)
 {
 	int status;
 	struct dlmfs_inode_private *ip;
+	struct user_lock_res *lockres;
+	int teardown;
 
 	clear_inode(inode);
 
 	mlog(0, "inode %lu\n", inode->i_ino);
 
 	ip = DLMFS_I(inode);
+	lockres = &ip->ip_lockres;
 
 	if (S_ISREG(inode->i_mode)) {
-		status = user_dlm_destroy_lock(&ip->ip_lockres);
-		if (status < 0)
-			mlog_errno(status);
+		spin_lock(&lockres->l_lock);
+		teardown = !!(lockres->l_flags & USER_LOCK_IN_TEARDOWN);
+		spin_unlock(&lockres->l_lock);
+		if (!teardown) {
+			status = user_dlm_destroy_lock(lockres);
+			if (status < 0)
+				mlog_errno(status);
+		}
 		iput(ip->ip_parent);
 		goto clear_fields;
 	}
@@ -376,8 +335,8 @@ static struct inode *dlmfs_get_root_inode(struct super_block *sb)
 
 	if (inode) {
 		inode->i_ino = get_next_ino();
-		inode_init_owner(inode, NULL, mode);
-		inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
+		inode_init_owner(&nop_mnt_idmap, inode, NULL, mode);
+		simple_inode_init_ts(inode);
 		inc_nlink(inode);
 
 		inode->i_fop = &simple_dir_operations;
@@ -399,8 +358,8 @@ static struct inode *dlmfs_get_inode(struct inode *parent,
 		return NULL;
 
 	inode->i_ino = get_next_ino();
-	inode_init_owner(inode, parent, mode);
-	inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
+	inode_init_owner(&nop_mnt_idmap, inode, parent, mode);
+	simple_inode_init_ts(inode);
 
 	ip = DLMFS_I(inode);
 	ip->ip_conn = DLMFS_I(parent)->ip_conn;
@@ -442,7 +401,8 @@ static struct inode *dlmfs_get_inode(struct inode *parent,
  * File creation. Allocate an inode, and we're done..
  */
 /* SMP-safe */
-static int dlmfs_mkdir(struct inode * dir,
+static int dlmfs_mkdir(struct mnt_idmap * idmap,
+		       struct inode * dir,
 		       struct dentry * dentry,
 		       umode_t mode)
 {
@@ -490,7 +450,8 @@ bail:
 	return status;
 }
 
-static int dlmfs_create(struct inode *dir,
+static int dlmfs_create(struct mnt_idmap *idmap,
+			struct inode *dir,
 			struct dentry *dentry,
 			umode_t mode,
 			bool excl)
@@ -617,7 +578,7 @@ static int __init init_dlmfs_fs(void)
 	dlmfs_inode_cache = kmem_cache_create("dlmfs_inode_cache",
 				sizeof(struct dlmfs_inode_private),
 				0, (SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|
-					SLAB_MEM_SPREAD|SLAB_ACCOUNT),
+					SLAB_ACCOUNT),
 				dlmfs_init_once);
 	if (!dlmfs_inode_cache) {
 		status = -ENOMEM;

@@ -24,6 +24,7 @@
  */
 
 #include "dm_services.h"
+#include "basics/conversion.h"
 
 #define DIVIDER 10000
 
@@ -72,12 +73,9 @@ uint16_t fixed_point_to_int_frac(
 
 	return result;
 }
-/**
-* convert_float_matrix
-* This converts a double into HW register spec defined format S2D13.
-* @param :
-* @return None
-*/
+/*
+ * convert_float_matrix - This converts a double into HW register spec defined format S2D13.
+ */
 void convert_float_matrix(
 	uint16_t *matrix,
 	struct fixed31_32 *flt,
@@ -101,4 +99,60 @@ void convert_float_matrix(
 
 		matrix[i] = (uint16_t)reg_value;
 	}
+}
+
+static struct fixed31_32 int_frac_to_fixed_point(uint16_t arg,
+						 uint8_t integer_bits,
+						 uint8_t fractional_bits)
+{
+	struct fixed31_32 result;
+	uint16_t sign_mask = 1 << (fractional_bits + integer_bits);
+	uint16_t value_mask = sign_mask - 1;
+
+	result.value = (long long)(arg & value_mask) <<
+		       (FIXED31_32_BITS_PER_FRACTIONAL_PART - fractional_bits);
+
+	if (arg & sign_mask)
+		result = dc_fixpt_neg(result);
+
+	return result;
+}
+
+/**
+ * convert_hw_matrix - converts HW values into fixed31_32 matrix.
+ * @matrix: fixed point 31.32 matrix
+ * @reg: array of register values
+ * @buffer_size: size of the array of register values
+ *
+ * Converts HW register spec defined format S2D13 into a fixed-point 31.32
+ * matrix.
+ */
+void convert_hw_matrix(struct fixed31_32 *matrix,
+		       uint16_t *reg,
+		       uint32_t buffer_size)
+{
+	for (int i = 0; i < buffer_size; ++i)
+		matrix[i] = int_frac_to_fixed_point(reg[i], 2, 13);
+}
+
+static uint32_t find_gcd(uint32_t a, uint32_t b)
+{
+	uint32_t remainder;
+
+	while (b != 0) {
+		remainder = a % b;
+		a = b;
+		b = remainder;
+	}
+	return a;
+}
+
+void reduce_fraction(uint32_t num, uint32_t den,
+		uint32_t *out_num, uint32_t *out_den)
+{
+	uint32_t gcd = 0;
+
+	gcd = find_gcd(num, den);
+	*out_num = num / gcd;
+	*out_den = den / gcd;
 }

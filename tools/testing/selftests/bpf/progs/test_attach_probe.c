@@ -1,52 +1,125 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2017 Facebook
 
-#include <linux/ptrace.h>
-#include <linux/bpf.h>
-#include "bpf_helpers.h"
+#include "vmlinux.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_tracing.h>
+#include <bpf/bpf_core_read.h>
+#include "bpf_misc.h"
 
-struct {
-	__uint(type, BPF_MAP_TYPE_ARRAY);
-	__uint(max_entries, 4);
-	__type(key, int);
-	__type(value, int);
-} results_map SEC(".maps");
+int kprobe2_res = 0;
+int kretprobe2_res = 0;
+int uprobe_byname_res = 0;
+int uretprobe_byname_res = 0;
+int uprobe_byname2_res = 0;
+int uretprobe_byname2_res = 0;
+int uprobe_byname3_sleepable_res = 0;
+int uprobe_byname3_res = 0;
+int uretprobe_byname3_sleepable_res = 0;
+int uretprobe_byname3_res = 0;
+void *user_ptr = 0;
 
-SEC("kprobe/sys_nanosleep")
-int handle_sys_nanosleep_entry(struct pt_regs *ctx)
+SEC("ksyscall/nanosleep")
+int BPF_KSYSCALL(handle_kprobe_auto, struct __kernel_timespec *req, struct __kernel_timespec *rem)
 {
-	const int key = 0, value = 1;
-
-	bpf_map_update_elem(&results_map, &key, &value, 0);
+	kprobe2_res = 11;
 	return 0;
 }
 
-SEC("kretprobe/sys_nanosleep")
-int handle_sys_getpid_return(struct pt_regs *ctx)
+SEC("kretsyscall/nanosleep")
+int BPF_KRETPROBE(handle_kretprobe_auto, int ret)
 {
-	const int key = 1, value = 2;
+	kretprobe2_res = 22;
+	return ret;
+}
 
-	bpf_map_update_elem(&results_map, &key, &value, 0);
+SEC("uprobe")
+int handle_uprobe_ref_ctr(struct pt_regs *ctx)
+{
 	return 0;
 }
 
-SEC("uprobe/trigger_func")
-int handle_uprobe_entry(struct pt_regs *ctx)
+SEC("uretprobe")
+int handle_uretprobe_ref_ctr(struct pt_regs *ctx)
 {
-	const int key = 2, value = 3;
-
-	bpf_map_update_elem(&results_map, &key, &value, 0);
 	return 0;
 }
 
-SEC("uretprobe/trigger_func")
-int handle_uprobe_return(struct pt_regs *ctx)
+SEC("uprobe")
+int handle_uprobe_byname(struct pt_regs *ctx)
 {
-	const int key = 3, value = 4;
-
-	bpf_map_update_elem(&results_map, &key, &value, 0);
+	uprobe_byname_res = 5;
 	return 0;
 }
+
+/* use auto-attach format for section definition. */
+SEC("uretprobe//proc/self/exe:trigger_func2")
+int handle_uretprobe_byname(struct pt_regs *ctx)
+{
+	uretprobe_byname_res = 6;
+	return 0;
+}
+
+SEC("uprobe")
+int BPF_UPROBE(handle_uprobe_byname2, const char *pathname, const char *mode)
+{
+	char mode_buf[2] = {};
+
+	/* verify fopen mode */
+	bpf_probe_read_user(mode_buf, sizeof(mode_buf), mode);
+	if (mode_buf[0] == 'r' && mode_buf[1] == 0)
+		uprobe_byname2_res = 7;
+	return 0;
+}
+
+SEC("uretprobe")
+int BPF_URETPROBE(handle_uretprobe_byname2, void *ret)
+{
+	uretprobe_byname2_res = 8;
+	return 0;
+}
+
+static __always_inline bool verify_sleepable_user_copy(void)
+{
+	char data[9];
+
+	bpf_copy_from_user(data, sizeof(data), user_ptr);
+	return bpf_strncmp(data, sizeof(data), "test_data") == 0;
+}
+
+SEC("uprobe.s//proc/self/exe:trigger_func3")
+int handle_uprobe_byname3_sleepable(struct pt_regs *ctx)
+{
+	if (verify_sleepable_user_copy())
+		uprobe_byname3_sleepable_res = 9;
+	return 0;
+}
+
+/**
+ * same target as the uprobe.s above to force sleepable and non-sleepable
+ * programs in the same bpf_prog_array
+ */
+SEC("uprobe//proc/self/exe:trigger_func3")
+int handle_uprobe_byname3(struct pt_regs *ctx)
+{
+	uprobe_byname3_res = 10;
+	return 0;
+}
+
+SEC("uretprobe.s//proc/self/exe:trigger_func3")
+int handle_uretprobe_byname3_sleepable(struct pt_regs *ctx)
+{
+	if (verify_sleepable_user_copy())
+		uretprobe_byname3_sleepable_res = 11;
+	return 0;
+}
+
+SEC("uretprobe//proc/self/exe:trigger_func3")
+int handle_uretprobe_byname3(struct pt_regs *ctx)
+{
+	uretprobe_byname3_res = 12;
+	return 0;
+}
+
 
 char _license[] SEC("license") = "GPL";
-__u32 _version SEC("version") = 1;

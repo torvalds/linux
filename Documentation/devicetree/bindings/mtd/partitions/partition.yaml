@@ -1,0 +1,141 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mtd/partitions/partition.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Partition
+
+description: |
+  This binding describes a single flash partition. Each partition must have its
+  relative offset and size specified. Depending on partition function extra
+  properties can be used.
+
+  A partition may be dynamically allocated by a specific parser at runtime.
+  In this specific case, a specific suffix is required to the node name.
+  Everything after 'partition-' will be used as the partition name to compare
+  with the one dynamically allocated by the specific parser.
+  If the partition contains invalid char a label can be provided that will
+  be used instead of the node name to make the comparison.
+  This is used to assign an OF node to the dynamiccally allocated partition
+  so that subsystem like NVMEM can provide an OF node and declare NVMEM cells.
+  The OF node will be assigned only if the partition label declared match the
+  one assigned by the parser at runtime.
+
+maintainers:
+  - Rafał Miłecki <rafal@milecki.pl>
+
+properties:
+  reg:
+    description: partition's offset and size within the flash
+    maxItems: 1
+
+  label:
+    description: The label / name for this partition. If omitted, the label
+      is taken from the node name (excluding the unit address).
+
+  read-only:
+    description: This parameter, if present, is a hint that this partition
+      should only be mounted read-only. This is usually used for flash
+      partitions containing early-boot firmware images or data which should
+      not be clobbered.
+    type: boolean
+
+  lock:
+    description: Do not unlock the partition at initialization time (not
+      supported on all devices)
+    type: boolean
+
+  slc-mode:
+    description: This parameter, if present, allows one to emulate SLC mode
+      on a partition attached to an MLC NAND thus making this partition
+      immune to paired-pages corruptions
+    type: boolean
+
+  linux,rootfs:
+    description: Marks partition that contains root filesystem to mount and boot
+      user space from
+    type: boolean
+
+  align:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 2
+    maximum: 0x80000000
+    multipleOf: 2
+    description:
+      This sets the alignment of the entry in bytes.
+
+      The entry offset is adjusted so that the entry starts on an aligned
+      boundary within the containing section or image. For example ‘align =
+      <16>’ means that the entry will start on a 16-byte boundary. This may
+      mean that padding is added before the entry. The padding is part of
+      the containing section but is not included in the entry, meaning that
+      an empty space may be created before the entry starts. Alignment
+      must be a power of 2. If ‘align’ is not provided, no alignment is
+      performed.
+
+  align-size:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 2
+    maximum: 0x80000000
+    multipleOf: 2
+    description:
+      This sets the alignment of the entry size in bytes. It must be a power
+      of 2.
+
+      For example, to ensure that the size of an entry is a multiple of 64
+      bytes, set this to 64. While this does not affect the content of the
+      entry itself (the padding is performed only when its parent section is
+      assembled), the end result is that the entry ends with the padding
+      bytes, so may grow. If ‘align-size’ is not provided, no alignment is
+      performed.
+
+  align-end:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 2
+    maximum: 0x80000000
+    multipleOf: 2
+    description:
+      This sets the alignment (in bytes) of the end of an entry with respect
+      to the containing section. It must be a power of 2.
+
+      Some entries require that they end on an alignment boundary,
+      regardless of where they start. This does not move the start of the
+      entry, so the content of the entry will still start at the beginning.
+      But there may be padding at the end. While this does not affect the
+      content of the entry itself (the padding is performed only when its
+      parent section is assembled), the end result is that the entry ends
+      with the padding bytes, so may grow. If ‘align-end’ is not provided,
+      no alignment is performed.
+
+if:
+  not:
+    required: [ reg ]
+then:
+  properties:
+    $nodename:
+      pattern: '^partition-.*$'
+
+# This is a generic file other binding inherit from and extend
+additionalProperties: true
+
+examples:
+  - |
+    partitions {
+        compatible = "fixed-partitions";
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        partition@100000 {
+            compatible = "u-boot";
+            reg = <0x100000 0xf00000>;
+            align-size = <0x1000>;
+            align-end = <0x10000>;
+        };
+
+        partition@200000 {
+            compatible = "tfa-bl31";
+            reg = <0x200000 0x100000>;
+            align = <0x4000>;
+        };
+    };

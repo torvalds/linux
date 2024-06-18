@@ -4,6 +4,7 @@
  * Author: James.Qian.Wang <james.qian.wang@arm.com>
  *
  */
+#include <drm/drm_framebuffer.h>
 #include "komeda_dev.h"
 #include "komeda_kms.h"
 
@@ -141,6 +142,7 @@ static int komeda_wb_connector_add(struct komeda_kms_dev *kms,
 	struct komeda_dev *mdev = kms->base.dev_private;
 	struct komeda_wb_connector *kwb_conn;
 	struct drm_writeback_connector *wb_conn;
+	struct drm_display_info *info;
 	u32 *formats, n_formats = 0;
 	int err;
 
@@ -154,7 +156,6 @@ static int komeda_wb_connector_add(struct komeda_kms_dev *kms,
 	kwb_conn->wb_layer = kcrtc->master->wb_layer;
 
 	wb_conn = &kwb_conn->base;
-	wb_conn->encoder.possible_crtcs = BIT(drm_crtc_index(&kcrtc->base));
 
 	formats = komeda_get_layer_fourcc_list(&mdev->fmt_tbl,
 					       kwb_conn->wb_layer->layer_type,
@@ -163,7 +164,8 @@ static int komeda_wb_connector_add(struct komeda_kms_dev *kms,
 	err = drm_writeback_connector_init(&kms->base, wb_conn,
 					   &komeda_wb_connector_funcs,
 					   &komeda_wb_encoder_helper_funcs,
-					   formats, n_formats);
+					   formats, n_formats,
+					   BIT(drm_crtc_index(&kcrtc->base)));
 	komeda_put_fourcc_list(formats);
 	if (err) {
 		kfree(kwb_conn);
@@ -171,6 +173,10 @@ static int komeda_wb_connector_add(struct komeda_kms_dev *kms,
 	}
 
 	drm_connector_helper_add(&wb_conn->base, &komeda_wb_conn_helper_funcs);
+
+	info = &kwb_conn->base.base.display_info;
+	info->bpc = __fls(kcrtc->master->improc->supported_color_depths);
+	info->color_formats = kcrtc->master->improc->supported_color_formats;
 
 	kcrtc->wb_conn = kwb_conn;
 

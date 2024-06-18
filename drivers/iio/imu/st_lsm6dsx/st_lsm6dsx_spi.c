@@ -12,7 +12,6 @@
 #include <linux/module.h>
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
-#include <linux/of.h>
 #include <linux/regmap.h>
 
 #include "st_lsm6dsx.h"
@@ -30,8 +29,7 @@ static int st_lsm6dsx_spi_probe(struct spi_device *spi)
 
 	regmap = devm_regmap_init_spi(spi, &st_lsm6dsx_spi_regmap_config);
 	if (IS_ERR(regmap)) {
-		dev_err(&spi->dev, "Failed to register spi regmap %d\n",
-			(int)PTR_ERR(regmap));
+		dev_err(&spi->dev, "Failed to register spi regmap %ld\n", PTR_ERR(regmap));
 		return PTR_ERR(regmap);
 	}
 
@@ -87,6 +85,54 @@ static const struct of_device_id st_lsm6dsx_spi_of_match[] = {
 		.compatible = "st,lsm9ds1-imu",
 		.data = (void *)ST_LSM9DS1_ID,
 	},
+	{
+		.compatible = "st,lsm6ds0",
+		.data = (void *)ST_LSM6DS0_ID,
+	},
+	{
+		.compatible = "st,lsm6dsrx",
+		.data = (void *)ST_LSM6DSRX_ID,
+	},
+	{
+		.compatible = "st,lsm6dst",
+		.data = (void *)ST_LSM6DST_ID,
+	},
+	{
+		.compatible = "st,lsm6dsop",
+		.data = (void *)ST_LSM6DSOP_ID,
+	},
+	{
+		.compatible = "st,asm330lhhx",
+		.data = (void *)ST_ASM330LHHX_ID,
+	},
+	{
+		.compatible = "st,lsm6dstx",
+		.data = (void *)ST_LSM6DSTX_ID,
+	},
+	{
+		.compatible = "st,lsm6dsv",
+		.data = (void *)ST_LSM6DSV_ID,
+	},
+	{
+		.compatible = "st,lsm6dsv16x",
+		.data = (void *)ST_LSM6DSV16X_ID,
+	},
+	{
+		.compatible = "st,lsm6dso16is",
+		.data = (void *)ST_LSM6DSO16IS_ID,
+	},
+	{
+		.compatible = "st,ism330is",
+		.data = (void *)ST_ISM330IS_ID,
+	},
+	{
+		.compatible = "st,asm330lhb",
+		.data = (void *)ST_ASM330LHB_ID,
+	},
+	{
+		.compatible = "st,asm330lhhxg1",
+		.data = (void *)ST_ASM330LHHXG1_ID,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, st_lsm6dsx_spi_of_match);
@@ -104,6 +150,18 @@ static const struct spi_device_id st_lsm6dsx_spi_id_table[] = {
 	{ ST_LSM6DS3TRC_DEV_NAME, ST_LSM6DS3TRC_ID },
 	{ ST_ISM330DHCX_DEV_NAME, ST_ISM330DHCX_ID },
 	{ ST_LSM9DS1_DEV_NAME, ST_LSM9DS1_ID },
+	{ ST_LSM6DS0_DEV_NAME, ST_LSM6DS0_ID },
+	{ ST_LSM6DSRX_DEV_NAME, ST_LSM6DSRX_ID },
+	{ ST_LSM6DST_DEV_NAME, ST_LSM6DST_ID },
+	{ ST_LSM6DSOP_DEV_NAME, ST_LSM6DSOP_ID },
+	{ ST_ASM330LHHX_DEV_NAME, ST_ASM330LHHX_ID },
+	{ ST_LSM6DSTX_DEV_NAME, ST_LSM6DSTX_ID },
+	{ ST_LSM6DSV_DEV_NAME, ST_LSM6DSV_ID },
+	{ ST_LSM6DSV16X_DEV_NAME, ST_LSM6DSV16X_ID },
+	{ ST_LSM6DSO16IS_DEV_NAME, ST_LSM6DSO16IS_ID },
+	{ ST_ISM330IS_DEV_NAME, ST_ISM330IS_ID },
+	{ ST_ASM330LHB_DEV_NAME, ST_ASM330LHB_ID },
+	{ ST_ASM330LHHXG1_DEV_NAME, ST_ASM330LHHXG1_ID },
 	{},
 };
 MODULE_DEVICE_TABLE(spi, st_lsm6dsx_spi_id_table);
@@ -111,8 +169,8 @@ MODULE_DEVICE_TABLE(spi, st_lsm6dsx_spi_id_table);
 static struct spi_driver st_lsm6dsx_driver = {
 	.driver = {
 		.name = "st_lsm6dsx_spi",
-		.pm = &st_lsm6dsx_pm_ops,
-		.of_match_table = of_match_ptr(st_lsm6dsx_spi_of_match),
+		.pm = pm_sleep_ptr(&st_lsm6dsx_pm_ops),
+		.of_match_table = st_lsm6dsx_spi_of_match,
 	},
 	.probe = st_lsm6dsx_spi_probe,
 	.id_table = st_lsm6dsx_spi_id_table,
@@ -123,3 +181,4 @@ MODULE_AUTHOR("Lorenzo Bianconi <lorenzo.bianconi@st.com>");
 MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");
 MODULE_DESCRIPTION("STMicroelectronics st_lsm6dsx spi driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_LSM6DSX);

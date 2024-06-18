@@ -251,7 +251,7 @@ static int sta529_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int sta529_mute(struct snd_soc_dai *dai, int mute)
+static int sta529_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	u8 val = 0;
 
@@ -291,7 +291,8 @@ static int sta529_set_dai_fmt(struct snd_soc_dai *codec_dai, u32 fmt)
 static const struct snd_soc_dai_ops sta529_dai_ops = {
 	.hw_params	=	sta529_hw_params,
 	.set_fmt	=	sta529_set_dai_fmt,
-	.digital_mute	=	sta529_mute,
+	.mute_stream	=	sta529_mute,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver sta529_dai = {
@@ -321,7 +322,6 @@ static const struct snd_soc_component_driver sta529_component_driver = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config sta529_regmap = {
@@ -331,13 +331,12 @@ static const struct regmap_config sta529_regmap = {
 	.max_register = STA529_MAX_REGISTER,
 	.readable_reg = sta529_readable,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = sta529_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(sta529_reg_defaults),
 };
 
-static int sta529_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int sta529_i2c_probe(struct i2c_client *i2c)
 {
 	struct sta529 *sta529;
 	int ret;
@@ -364,7 +363,7 @@ static int sta529_i2c_probe(struct i2c_client *i2c,
 }
 
 static const struct i2c_device_id sta529_i2c_id[] = {
-	{ "sta529", 0 },
+	{ "sta529" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, sta529_i2c_id);

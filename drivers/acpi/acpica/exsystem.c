@@ -3,7 +3,7 @@
  *
  * Module Name: exsystem - Interface to OS services
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2023, Intel Corp.
  *
  *****************************************************************************/
 
@@ -107,7 +107,7 @@ acpi_status acpi_ex_system_wait_mutex(acpi_mutex mutex, u16 timeout)
  *
  * FUNCTION:    acpi_ex_system_do_stall
  *
- * PARAMETERS:  how_long        - The amount of time to stall,
+ * PARAMETERS:  how_long_us     - The amount of time to stall,
  *                                in microseconds
  *
  * RETURN:      Status
@@ -120,24 +120,29 @@ acpi_status acpi_ex_system_wait_mutex(acpi_mutex mutex, u16 timeout)
  *
  ******************************************************************************/
 
-acpi_status acpi_ex_system_do_stall(u32 how_long)
+acpi_status acpi_ex_system_do_stall(u32 how_long_us)
 {
 	acpi_status status = AE_OK;
 
 	ACPI_FUNCTION_ENTRY();
 
-	if (how_long > 255) {	/* 255 microseconds */
+	if (how_long_us > 255) {
 		/*
-		 * Longer than 255 usec, this is an error
+		 * Longer than 255 microseconds, this is an error
 		 *
 		 * (ACPI specifies 100 usec as max, but this gives some slack in
 		 * order to support existing BIOSs)
 		 */
 		ACPI_ERROR((AE_INFO,
-			    "Time parameter is too large (%u)", how_long));
+			    "Time parameter is too large (%u)", how_long_us));
 		status = AE_AML_OPERAND_VALUE;
 	} else {
-		acpi_os_stall(how_long);
+		if (how_long_us > 100) {
+			ACPI_WARNING((AE_INFO,
+				      "Time parameter %u us > 100 us violating ACPI spec, please fix the firmware.",
+				      how_long_us));
+		}
+		acpi_os_stall(how_long_us);
 	}
 
 	return (status);
@@ -147,7 +152,7 @@ acpi_status acpi_ex_system_do_stall(u32 how_long)
  *
  * FUNCTION:    acpi_ex_system_do_sleep
  *
- * PARAMETERS:  how_long        - The amount of time to sleep,
+ * PARAMETERS:  how_long_ms     - The amount of time to sleep,
  *                                in milliseconds
  *
  * RETURN:      None
@@ -156,7 +161,7 @@ acpi_status acpi_ex_system_do_stall(u32 how_long)
  *
  ******************************************************************************/
 
-acpi_status acpi_ex_system_do_sleep(u64 how_long)
+acpi_status acpi_ex_system_do_sleep(u64 how_long_ms)
 {
 	ACPI_FUNCTION_ENTRY();
 
@@ -168,11 +173,11 @@ acpi_status acpi_ex_system_do_sleep(u64 how_long)
 	 * For compatibility with other ACPI implementations and to prevent
 	 * accidental deep sleeps, limit the sleep time to something reasonable.
 	 */
-	if (how_long > ACPI_MAX_SLEEP) {
-		how_long = ACPI_MAX_SLEEP;
+	if (how_long_ms > ACPI_MAX_SLEEP) {
+		how_long_ms = ACPI_MAX_SLEEP;
 	}
 
-	acpi_os_sleep(how_long);
+	acpi_os_sleep(how_long_ms);
 
 	/* And now we must get the interpreter again */
 

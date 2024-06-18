@@ -396,6 +396,8 @@ static int vhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		default:
 			usbip_dbg_vhci_rh(" ClearPortFeature: default %x\n",
 					  wValue);
+			if (wValue >= 32)
+				goto error;
 			vhci_hcd->port_status[rhport] &= ~(1 << wValue);
 			break;
 		}
@@ -453,8 +455,14 @@ static int vhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			vhci_hcd->port_status[rhport] &= ~(1 << USB_PORT_FEAT_RESET);
 			vhci_hcd->re_timeout = 0;
 
+			/*
+			 * A few drivers do usb reset during probe when
+			 * the device could be in VDEV_ST_USED state
+			 */
 			if (vhci_hcd->vdev[rhport].ud.status ==
-			    VDEV_ST_NOTASSIGNED) {
+				VDEV_ST_NOTASSIGNED ||
+			    vhci_hcd->vdev[rhport].ud.status ==
+				VDEV_ST_USED) {
 				usbip_dbg_vhci_rh(
 					" enable rhport %d (status %u)\n",
 					rhport,
@@ -508,7 +516,7 @@ static int vhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		case USB_PORT_FEAT_U1_TIMEOUT:
 			usbip_dbg_vhci_rh(
 				" SetPortFeature: USB_PORT_FEAT_U1_TIMEOUT\n");
-			/* Fall through */
+			fallthrough;
 		case USB_PORT_FEAT_U2_TIMEOUT:
 			usbip_dbg_vhci_rh(
 				" SetPortFeature: USB_PORT_FEAT_U2_TIMEOUT\n");
@@ -561,7 +569,7 @@ static int vhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 				       "supported for USB 2.0 roothub\n");
 				goto error;
 			}
-			/* FALLS THROUGH */
+			fallthrough;
 		case USB_PORT_FEAT_RESET:
 			usbip_dbg_vhci_rh(
 				" SetPortFeature: USB_PORT_FEAT_RESET\n");
@@ -584,8 +592,7 @@ static int vhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 
 			/* 50msec reset signaling */
 			vhci_hcd->re_timeout = jiffies + msecs_to_jiffies(50);
-
-			/* FALLS THROUGH */
+			fallthrough;
 		default:
 			usbip_dbg_vhci_rh(" SetPortFeature: default %d\n",
 					  wValue);
@@ -593,6 +600,8 @@ static int vhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 				pr_err("invalid port number %d\n", wIndex);
 				goto error;
 			}
+			if (wValue >= 32)
+				goto error;
 			if (hcd->speed == HCD_USB3) {
 				if ((vhci_hcd->port_status[rhport] &
 				     USB_SS_PORT_STAT_POWER) != 0) {
@@ -798,8 +807,14 @@ no_need_xmit:
 	usb_hcd_unlink_urb_from_ep(hcd, urb);
 no_need_unlink:
 	spin_unlock_irqrestore(&vhci->lock, flags);
-	if (!ret)
+	if (!ret) {
+		/* usb_hcd_giveback_urb() should be called with
+		 * irqs disabled
+		 */
+		local_irq_disable();
 		usb_hcd_giveback_urb(hcd, urb, urb->status);
+		local_irq_enable();
+	}
 	return ret;
 }
 
@@ -936,7 +951,8 @@ static int vhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	return 0;
 }
 
-static void vhci_device_unlink_cleanup(struct vhci_device *vdev)
+static void vhci_cleanup_unlink_list(struct vhci_device *vdev,
+		struct list_head *unlink_list)
 {
 	struct vhci_hcd *vhci_hcd = vdev_to_vhci_hcd(vdev);
 	struct usb_hcd *hcd = vhci_hcd_to_hcd(vhci_hcd);
@@ -947,25 +963,11 @@ static void vhci_device_unlink_cleanup(struct vhci_device *vdev)
 	spin_lock_irqsave(&vhci->lock, flags);
 	spin_lock(&vdev->priv_lock);
 
-	list_for_each_entry_safe(unlink, tmp, &vdev->unlink_tx, list) {
-		pr_info("unlink cleanup tx %lu\n", unlink->unlink_seqnum);
-		list_del(&unlink->list);
-		kfree(unlink);
-	}
-
-	while (!list_empty(&vdev->unlink_rx)) {
+	list_for_each_entry_safe(unlink, tmp, unlink_list, list) {
 		struct urb *urb;
-
-		unlink = list_first_entry(&vdev->unlink_rx, struct vhci_unlink,
-			list);
-
-		/* give back URB of unanswered unlink request */
-		pr_info("unlink cleanup rx %lu\n", unlink->unlink_seqnum);
 
 		urb = pickup_urb_and_free_priv(vdev, unlink->unlink_seqnum);
 		if (!urb) {
-			pr_info("the urb (seqnum %lu) was already given back\n",
-				unlink->unlink_seqnum);
 			list_del(&unlink->list);
 			kfree(unlink);
 			continue;
@@ -990,6 +992,15 @@ static void vhci_device_unlink_cleanup(struct vhci_device *vdev)
 
 	spin_unlock(&vdev->priv_lock);
 	spin_unlock_irqrestore(&vhci->lock, flags);
+}
+
+static void vhci_device_unlink_cleanup(struct vhci_device *vdev)
+{
+	/* give back URB of unsent unlink request */
+	vhci_cleanup_unlink_list(vdev, &vdev->unlink_tx);
+
+	/* give back URB of unanswered unlink request */
+	vhci_cleanup_unlink_list(vdev, &vdev->unlink_rx);
 }
 
 /*
@@ -1092,6 +1103,7 @@ static void vhci_device_init(struct vhci_device *vdev)
 	vdev->ud.side   = USBIP_VHCI;
 	vdev->ud.status = VDEV_ST_NULL;
 	spin_lock_init(&vdev->ud.lock);
+	mutex_init(&vdev->ud.sysfs_lock);
 
 	INIT_LIST_HEAD(&vdev->priv_rx);
 	INIT_LIST_HEAD(&vdev->priv_tx);
@@ -1128,6 +1140,7 @@ static int hcd_name_to_id(const char *name)
 static int vhci_setup(struct usb_hcd *hcd)
 {
 	struct vhci *vhci = *((void **)dev_get_platdata(hcd->self.controller));
+
 	if (usb_hcd_is_primary_hcd(hcd)) {
 		vhci->vhci_hcd_hs = hcd_to_vhci_hcd(hcd);
 		vhci->vhci_hcd_hs->vhci = vhci;
@@ -1195,12 +1208,12 @@ static int vhci_start(struct usb_hcd *hcd)
 	if (id == 0 && usb_hcd_is_primary_hcd(hcd)) {
 		err = vhci_init_attr_group();
 		if (err) {
-			pr_err("init attr group\n");
+			dev_err(hcd_dev(hcd), "init attr group failed, err = %d\n", err);
 			return err;
 		}
 		err = sysfs_create_group(&hcd_dev(hcd)->kobj, &vhci_attr_group);
 		if (err) {
-			pr_err("create sysfs files\n");
+			dev_err(hcd_dev(hcd), "create sysfs files failed, err = %d\n", err);
 			vhci_finish_attr_group();
 			return err;
 		}
@@ -1381,7 +1394,7 @@ put_usb2_hcd:
 	return ret;
 }
 
-static int vhci_hcd_remove(struct platform_device *pdev)
+static void vhci_hcd_remove(struct platform_device *pdev)
 {
 	struct vhci *vhci = *((void **)dev_get_platdata(&pdev->dev));
 
@@ -1398,8 +1411,6 @@ static int vhci_hcd_remove(struct platform_device *pdev)
 
 	vhci->vhci_hcd_hs = NULL;
 	vhci->vhci_hcd_ss = NULL;
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -1473,7 +1484,7 @@ static int vhci_hcd_resume(struct platform_device *pdev)
 
 static struct platform_driver vhci_driver = {
 	.probe	= vhci_hcd_probe,
-	.remove	= vhci_hcd_remove,
+	.remove_new = vhci_hcd_remove,
 	.suspend = vhci_hcd_suspend,
 	.resume	= vhci_hcd_resume,
 	.driver	= {
@@ -1483,13 +1494,10 @@ static struct platform_driver vhci_driver = {
 
 static void del_platform_devices(void)
 {
-	struct platform_device *pdev;
 	int i;
 
 	for (i = 0; i < vhci_num_controllers; i++) {
-		pdev = vhcis[i].pdev;
-		if (pdev != NULL)
-			platform_device_unregister(pdev);
+		platform_device_unregister(vhcis[i].pdev);
 		vhcis[i].pdev = NULL;
 	}
 	sysfs_remove_link(&platform_bus.kobj, driver_name);
@@ -1509,45 +1517,33 @@ static int __init vhci_hcd_init(void)
 	if (vhcis == NULL)
 		return -ENOMEM;
 
-	for (i = 0; i < vhci_num_controllers; i++) {
-		vhcis[i].pdev = platform_device_alloc(driver_name, i);
-		if (!vhcis[i].pdev) {
-			i--;
-			while (i >= 0)
-				platform_device_put(vhcis[i--].pdev);
-			ret = -ENOMEM;
-			goto err_device_alloc;
-		}
-	}
-	for (i = 0; i < vhci_num_controllers; i++) {
-		void *vhci = &vhcis[i];
-		ret = platform_device_add_data(vhcis[i].pdev, &vhci, sizeof(void *));
-		if (ret)
-			goto err_driver_register;
-	}
-
 	ret = platform_driver_register(&vhci_driver);
 	if (ret)
 		goto err_driver_register;
 
 	for (i = 0; i < vhci_num_controllers; i++) {
-		ret = platform_device_add(vhcis[i].pdev);
+		void *vhci = &vhcis[i];
+		struct platform_device_info pdevinfo = {
+			.name = driver_name,
+			.id = i,
+			.data = &vhci,
+			.size_data = sizeof(void *),
+		};
+
+		vhcis[i].pdev = platform_device_register_full(&pdevinfo);
+		ret = PTR_ERR_OR_ZERO(vhcis[i].pdev);
 		if (ret < 0) {
-			i--;
-			while (i >= 0)
-				platform_device_del(vhcis[i--].pdev);
+			while (i--)
+				platform_device_unregister(vhcis[i].pdev);
 			goto err_add_hcd;
 		}
 	}
 
-	return ret;
+	return 0;
 
 err_add_hcd:
 	platform_driver_unregister(&vhci_driver);
 err_driver_register:
-	for (i = 0; i < vhci_num_controllers; i++)
-		platform_device_put(vhcis[i].pdev);
-err_device_alloc:
 	kfree(vhcis);
 	return ret;
 }

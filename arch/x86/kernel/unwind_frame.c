@@ -74,13 +74,7 @@ static bool in_entry_code(unsigned long ip)
 {
 	char *addr = (char *)ip;
 
-	if (addr >= __entry_text_start && addr < __entry_text_end)
-		return true;
-
-	if (addr >= __irqentry_text_start && addr < __irqentry_text_end)
-		return true;
-
-	return false;
+	return addr >= __entry_text_start && addr < __entry_text_end;
 }
 
 static inline unsigned long *last_frame(struct unwind_state *state)
@@ -189,6 +183,16 @@ static struct pt_regs *decode_frame_pointer(unsigned long *bp)
 }
 #endif
 
+/*
+ * While walking the stack, KMSAN may stomp on stale locals from other
+ * functions that were marked as uninitialized upon function exit, and
+ * now hold the call frame information for the current function (e.g. the frame
+ * pointer). Because KMSAN does not specifically mark call frames as
+ * initialized, false positive reports are possible. To prevent such reports,
+ * we mark the functions scanning the stack (here and below) with
+ * __no_kmsan_checks.
+ */
+__no_kmsan_checks
 static bool update_stack_state(struct unwind_state *state,
 			       unsigned long *next_bp)
 {
@@ -246,8 +250,7 @@ static bool update_stack_state(struct unwind_state *state,
 	else {
 		addr_p = unwind_get_return_address_ptr(state);
 		addr = READ_ONCE_TASK_STACK(state->task, *addr_p);
-		state->ip = ftrace_graph_ret_addr(state->task, &state->graph_idx,
-						  addr, addr_p);
+		state->ip = unwind_recover_ret_addr(state, addr, addr_p);
 	}
 
 	/* Save the original stack pointer for unwind_dump(): */
@@ -257,6 +260,7 @@ static bool update_stack_state(struct unwind_state *state,
 	return true;
 }
 
+__no_kmsan_checks
 bool unwind_next_frame(struct unwind_state *state)
 {
 	struct pt_regs *regs;
@@ -275,13 +279,13 @@ bool unwind_next_frame(struct unwind_state *state)
 		/*
 		 * kthreads (other than the boot CPU's idle thread) have some
 		 * partial regs at the end of their stack which were placed
-		 * there by copy_thread_tls().  But the regs don't have any
+		 * there by copy_thread().  But the regs don't have any
 		 * useful information, so we can skip them.
 		 *
 		 * This user_mode() check is slightly broader than a PF_KTHREAD
 		 * check because it also catches the awkward situation where a
 		 * newly forked kthread transitions into a user task by calling
-		 * do_execve(), which eventually clears PF_KTHREAD.
+		 * kernel_execve(), which eventually clears PF_KTHREAD.
 		 */
 		if (!user_mode(regs))
 			goto the_end;
@@ -342,6 +346,9 @@ bad_address:
 	 * unwinder warnings on 32-bit until it gets objtool support.
 	 */
 	if (IS_ENABLED(CONFIG_X86_32))
+		goto the_end;
+
+	if (state->task != current)
 		goto the_end;
 
 	if (state->regs) {

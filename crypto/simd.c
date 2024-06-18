@@ -52,15 +52,11 @@ static int simd_skcipher_setkey(struct crypto_skcipher *tfm, const u8 *key,
 {
 	struct simd_skcipher_ctx *ctx = crypto_skcipher_ctx(tfm);
 	struct crypto_skcipher *child = &ctx->cryptd_tfm->base;
-	int err;
 
 	crypto_skcipher_clear_flags(child, CRYPTO_TFM_REQ_MASK);
 	crypto_skcipher_set_flags(child, crypto_skcipher_get_flags(tfm) &
 					 CRYPTO_TFM_REQ_MASK);
-	err = crypto_skcipher_setkey(child, key, key_len);
-	crypto_skcipher_set_flags(tfm, crypto_skcipher_get_flags(child) &
-				       CRYPTO_TFM_RES_MASK);
-	return err;
+	return crypto_skcipher_setkey(child, key, key_len);
 }
 
 static int simd_skcipher_encrypt(struct skcipher_request *req)
@@ -175,7 +171,8 @@ struct simd_skcipher_alg *simd_skcipher_create_compat(const char *algname,
 		     drvname) >= CRYPTO_MAX_ALG_NAME)
 		goto out_free_salg;
 
-	alg->base.cra_flags = CRYPTO_ALG_ASYNC;
+	alg->base.cra_flags = CRYPTO_ALG_ASYNC |
+		(ialg->base.cra_flags & CRYPTO_ALG_INHERITED_FLAGS);
 	alg->base.cra_priority = ialg->base.cra_priority;
 	alg->base.cra_blocksize = ialg->base.cra_blocksize;
 	alg->base.cra_alignmask = ialg->base.cra_alignmask;
@@ -295,15 +292,11 @@ static int simd_aead_setkey(struct crypto_aead *tfm, const u8 *key,
 {
 	struct simd_aead_ctx *ctx = crypto_aead_ctx(tfm);
 	struct crypto_aead *child = &ctx->cryptd_tfm->base;
-	int err;
 
 	crypto_aead_clear_flags(child, CRYPTO_TFM_REQ_MASK);
 	crypto_aead_set_flags(child, crypto_aead_get_flags(tfm) &
 				     CRYPTO_TFM_REQ_MASK);
-	err = crypto_aead_setkey(child, key, key_len);
-	crypto_aead_set_flags(tfm, crypto_aead_get_flags(child) &
-				   CRYPTO_TFM_RES_MASK);
-	return err;
+	return crypto_aead_setkey(child, key, key_len);
 }
 
 static int simd_aead_setauthsize(struct crypto_aead *tfm, unsigned int authsize)
@@ -425,7 +418,8 @@ struct simd_aead_alg *simd_aead_create_compat(const char *algname,
 		     drvname) >= CRYPTO_MAX_ALG_NAME)
 		goto out_free_salg;
 
-	alg->base.cra_flags = CRYPTO_ALG_ASYNC;
+	alg->base.cra_flags = CRYPTO_ALG_ASYNC |
+		(ialg->base.cra_flags & CRYPTO_ALG_INHERITED_FLAGS);
 	alg->base.cra_priority = ialg->base.cra_priority;
 	alg->base.cra_blocksize = ialg->base.cra_blocksize;
 	alg->base.cra_alignmask = ialg->base.cra_alignmask;

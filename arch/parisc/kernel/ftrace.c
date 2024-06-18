@@ -15,15 +15,18 @@
 #include <linux/uaccess.h>
 #include <linux/kprobes.h>
 #include <linux/ptrace.h>
+#include <linux/jump_label.h>
 
 #include <asm/assembly.h>
 #include <asm/sections.h>
 #include <asm/ftrace.h>
 #include <asm/patch.h>
 
-#define __hot __attribute__ ((__section__ (".text.hot")))
+#define __hot __section(".text.hot")
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
+static DEFINE_STATIC_KEY_FALSE(ftrace_graph_enable);
+
 /*
  * Hook the return address and push it in the stack of return addrs
  * in current thread info.
@@ -48,24 +51,19 @@ static void __hot prepare_ftrace_return(unsigned long *parent,
 }
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
-void notrace __hot ftrace_function_trampoline(unsigned long parent,
+static ftrace_func_t ftrace_func;
+
+asmlinkage void notrace __hot ftrace_function_trampoline(unsigned long parent,
 				unsigned long self_addr,
 				unsigned long org_sp_gr3,
-				struct pt_regs *regs)
+				struct ftrace_regs *fregs)
 {
-#ifndef CONFIG_DYNAMIC_FTRACE
-	extern ftrace_func_t ftrace_trace_function;
-#endif
 	extern struct ftrace_ops *function_trace_op;
 
-	if (function_trace_op->flags & FTRACE_OPS_FL_ENABLED &&
-	    ftrace_trace_function != ftrace_stub)
-		ftrace_trace_function(self_addr, parent,
-				function_trace_op, regs);
+	ftrace_func(self_addr, parent, function_trace_op, fregs);
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	if (ftrace_graph_return != (trace_func_graph_ret_t) ftrace_stub ||
-	    ftrace_graph_entry != ftrace_graph_entry_stub) {
+	if (static_branch_unlikely(&ftrace_graph_enable)) {
 		unsigned long *parent_rp;
 
 		/* calculate pointer to %rp in stack */
@@ -80,26 +78,24 @@ void notrace __hot ftrace_function_trampoline(unsigned long parent,
 #endif
 }
 
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+#if defined(CONFIG_DYNAMIC_FTRACE) && defined(CONFIG_FUNCTION_GRAPH_TRACER)
 int ftrace_enable_ftrace_graph_caller(void)
 {
+	static_key_enable(&ftrace_graph_enable.key);
 	return 0;
 }
 
 int ftrace_disable_ftrace_graph_caller(void)
 {
+	static_key_enable(&ftrace_graph_enable.key);
 	return 0;
 }
 #endif
 
 #ifdef CONFIG_DYNAMIC_FTRACE
-
-int __init ftrace_dyn_arch_init(void)
-{
-	return 0;
-}
 int ftrace_update_ftrace_func(ftrace_func_t func)
 {
+	ftrace_func = func;
 	return 0;
 }
 
@@ -172,7 +168,7 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 
 	ip = (void *)(rec->ip + 4 - size);
 
-	ret = probe_kernel_read(insn, ip, size);
+	ret = copy_from_kernel_nofault(insn, ip, size);
 	if (ret)
 		return ret;
 
@@ -203,17 +199,28 @@ int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
 
 #ifdef CONFIG_KPROBES_ON_FTRACE
 void kprobe_ftrace_handler(unsigned long ip, unsigned long parent_ip,
-			   struct ftrace_ops *ops, struct pt_regs *regs)
+			   struct ftrace_ops *ops, struct ftrace_regs *fregs)
 {
 	struct kprobe_ctlblk *kcb;
-	struct kprobe *p = get_kprobe((kprobe_opcode_t *)ip);
+	struct pt_regs *regs;
+	struct kprobe *p;
+	int bit;
 
-	if (unlikely(!p) || kprobe_disabled(p))
+	if (unlikely(kprobe_ftrace_disabled))
 		return;
+
+	bit = ftrace_test_recursion_trylock(ip, parent_ip);
+	if (bit < 0)
+		return;
+
+	regs = ftrace_get_regs(fregs);
+	p = get_kprobe((kprobe_opcode_t *)ip);
+	if (unlikely(!p) || kprobe_disabled(p))
+		goto out;
 
 	if (kprobe_running()) {
 		kprobes_inc_nmissed_count(p);
-		return;
+		goto out;
 	}
 
 	__this_cpu_write(current_kprobe, p);
@@ -234,6 +241,8 @@ void kprobe_ftrace_handler(unsigned long ip, unsigned long parent_ip,
 		}
 	}
 	__this_cpu_write(current_kprobe, NULL);
+out:
+	ftrace_test_recursion_unlock(bit);
 }
 NOKPROBE_SYMBOL(kprobe_ftrace_handler);
 

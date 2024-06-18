@@ -83,14 +83,14 @@ static int srm_env_proc_show(struct seq_file *m, void *v)
 
 static int srm_env_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, srm_env_proc_show, PDE_DATA(inode));
+	return single_open(file, srm_env_proc_show, pde_data(inode));
 }
 
 static ssize_t srm_env_proc_write(struct file *file, const char __user *buffer,
 				  size_t count, loff_t *pos)
 {
 	int res;
-	unsigned long	id = (unsigned long)PDE_DATA(file_inode(file));
+	unsigned long	id = (unsigned long)pde_data(file_inode(file));
 	char		*buf = (char *) __get_free_page(GFP_USER);
 	unsigned long	ret1, ret2;
 
@@ -119,13 +119,12 @@ static ssize_t srm_env_proc_write(struct file *file, const char __user *buffer,
 	return res;
 }
 
-static const struct file_operations srm_env_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= srm_env_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= srm_env_proc_write,
+static const struct proc_ops srm_env_proc_ops = {
+	.proc_open	= srm_env_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= srm_env_proc_write,
 };
 
 static int __init
@@ -182,7 +181,7 @@ srm_env_init(void)
 	entry = srm_named_entries;
 	while (entry->name && entry->id) {
 		if (!proc_create_data(entry->name, 0644, named_dir,
-			     &srm_env_proc_fops, (void *)entry->id))
+			     &srm_env_proc_ops, (void *)entry->id))
 			goto cleanup;
 		entry++;
 	}
@@ -194,7 +193,7 @@ srm_env_init(void)
 		char name[4];
 		sprintf(name, "%ld", var_num);
 		if (!proc_create_data(name, 0644, numbered_dir,
-			     &srm_env_proc_fops, (void *)var_num))
+			     &srm_env_proc_ops, (void *)var_num))
 			goto cleanup;
 	}
 

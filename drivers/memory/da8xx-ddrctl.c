@@ -10,7 +10,6 @@
 
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 
@@ -102,14 +101,12 @@ static int da8xx_ddrctl_probe(struct platform_device *pdev)
 {
 	const struct da8xx_ddrctl_config_knob *knob;
 	const struct da8xx_ddrctl_setting *setting;
-	struct device_node *node;
 	struct resource *res;
 	void __iomem *ddrctl;
 	struct device *dev;
 	u32 reg;
 
 	dev = &pdev->dev;
-	node = dev->of_node;
 
 	setting = da8xx_ddrctl_get_board_settings();
 	if (!setting) {
@@ -117,8 +114,7 @@ static int da8xx_ddrctl_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ddrctl = devm_ioremap_resource(dev, res);
+	ddrctl = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(ddrctl)) {
 		dev_err(dev, "unable to map memory controller registers\n");
 		return PTR_ERR(ddrctl);
@@ -167,4 +163,3 @@ module_platform_driver(da8xx_ddrctl_driver);
 
 MODULE_AUTHOR("Bartosz Golaszewski <bgolaszewski@baylibre.com>");
 MODULE_DESCRIPTION("TI da8xx DDR2/mDDR controller driver");
-MODULE_LICENSE("GPL v2");

@@ -19,10 +19,6 @@
 #include <linux/regmap.h>
 #include <linux/interrupt.h>
 
-#include "thermal_core.h"
-
-#define TO_MCELSIUS(c)			((c) * 1000)
-
 /* Thermal Manager Control and Status Register */
 #define PMU_TDC0_SW_RST_MASK		(0x1 << 1)
 #define PMU_TM_DISABLE_OFFS		0
@@ -155,6 +151,9 @@ static void armadaxp_init(struct platform_device *pdev,
 
 	regmap_write(priv->syscon, data->syscon_control1_off, reg);
 
+	reg &= ~PMU_TDC0_SW_RST_MASK;
+	regmap_write(priv->syscon, data->syscon_control1_off, reg);
+
 	/* Enable the sensor */
 	regmap_read(priv->syscon, data->syscon_status_off, &reg);
 	reg &= ~PMU_TM_DISABLE_MASK;
@@ -232,7 +231,7 @@ static void armada380_init(struct platform_device *pdev,
 	regmap_write(priv->syscon, data->syscon_control0_off, reg);
 }
 
-static void armada_ap806_init(struct platform_device *pdev,
+static void armada_ap80x_init(struct platform_device *pdev,
 			      struct armada_thermal_priv *priv)
 {
 	struct armada_thermal_data *data = priv->data;
@@ -361,11 +360,8 @@ static int armada_select_channel(struct armada_thermal_priv *priv, int channel)
 	 * we must absolutely wait for the sensor validity bit to ensure we read
 	 * actual data.
 	 */
-	if (armada_wait_sensor_validity(priv)) {
-		dev_err(priv->dev,
-			"Temperature sensor reading not valid\n");
+	if (armada_wait_sensor_validity(priv))
 		return -EIO;
-	}
 
 	return 0;
 }
@@ -399,15 +395,12 @@ static int armada_read_sensor(struct armada_thermal_priv *priv, int *temp)
 static int armada_get_temp_legacy(struct thermal_zone_device *thermal,
 				  int *temp)
 {
-	struct armada_thermal_priv *priv = thermal->devdata;
+	struct armada_thermal_priv *priv = thermal_zone_device_priv(thermal);
 	int ret;
 
 	/* Valid check */
-	if (!armada_is_valid(priv)) {
-		dev_err(priv->dev,
-			"Temperature sensor reading not valid\n");
+	if (!armada_is_valid(priv))
 		return -EIO;
-	}
 
 	/* Do the actual reading */
 	ret = armada_read_sensor(priv, temp);
@@ -419,9 +412,9 @@ static struct thermal_zone_device_ops legacy_ops = {
 	.get_temp = armada_get_temp_legacy,
 };
 
-static int armada_get_temp(void *_sensor, int *temp)
+static int armada_get_temp(struct thermal_zone_device *tz, int *temp)
 {
-	struct armada_thermal_sensor *sensor = _sensor;
+	struct armada_thermal_sensor *sensor = thermal_zone_device_priv(tz);
 	struct armada_thermal_priv *priv = sensor->priv;
 	int ret;
 
@@ -449,7 +442,7 @@ unlock_mutex:
 	return ret;
 }
 
-static const struct thermal_zone_of_device_ops of_ops = {
+static const struct thermal_zone_device_ops of_ops = {
 	.get_temp = armada_get_temp,
 };
 
@@ -578,7 +571,7 @@ static const struct armada_thermal_data armadaxp_data = {
 	.coef_m = 10000000ULL,
 	.coef_div = 13825,
 	.syscon_status_off = 0xb0,
-	.syscon_control1_off = 0xd0,
+	.syscon_control1_off = 0x2d0,
 };
 
 static const struct armada_thermal_data armada370_data = {
@@ -621,7 +614,7 @@ static const struct armada_thermal_data armada380_data = {
 };
 
 static const struct armada_thermal_data armada_ap806_data = {
-	.init = armada_ap806_init,
+	.init = armada_ap80x_init,
 	.is_valid_bit = BIT(16),
 	.temp_shift = 0,
 	.temp_mask = 0x3ff,
@@ -630,6 +623,30 @@ static const struct armada_thermal_data armada_ap806_data = {
 	.hyst_mask = 0x3,
 	.coef_b = -150000LL,
 	.coef_m = 423ULL,
+	.coef_div = 1,
+	.inverted = true,
+	.signed_sample = true,
+	.syscon_control0_off = 0x84,
+	.syscon_control1_off = 0x88,
+	.syscon_status_off = 0x8C,
+	.dfx_irq_cause_off = 0x108,
+	.dfx_irq_mask_off = 0x10C,
+	.dfx_overheat_irq = BIT(22),
+	.dfx_server_irq_mask_off = 0x104,
+	.dfx_server_irq_en = BIT(1),
+	.cpu_nr = 4,
+};
+
+static const struct armada_thermal_data armada_ap807_data = {
+	.init = armada_ap80x_init,
+	.is_valid_bit = BIT(16),
+	.temp_shift = 0,
+	.temp_mask = 0x3ff,
+	.thresh_shift = 3,
+	.hyst_shift = 19,
+	.hyst_mask = 0x3,
+	.coef_b = -128900LL,
+	.coef_m = 394ULL,
 	.coef_div = 1,
 	.inverted = true,
 	.signed_sample = true,
@@ -688,6 +705,10 @@ static const struct of_device_id armada_thermal_id_table[] = {
 		.data       = &armada_ap806_data,
 	},
 	{
+		.compatible = "marvell,armada-ap807-thermal",
+		.data       = &armada_ap807_data,
+	},
+	{
 		.compatible = "marvell,armada-cp110-thermal",
 		.data       = &armada_cp110_data,
 	},
@@ -708,12 +729,10 @@ static int armada_thermal_probe_legacy(struct platform_device *pdev,
 				       struct armada_thermal_priv *priv)
 {
 	struct armada_thermal_data *data = priv->data;
-	struct resource *res;
 	void __iomem *base;
 
 	/* First memory region points towards the status register */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
@@ -744,7 +763,6 @@ static void armada_set_sane_name(struct platform_device *pdev,
 				 struct armada_thermal_priv *priv)
 {
 	const char *name = dev_name(&pdev->dev);
-	char *insane_char;
 
 	if (strlen(name) > THERMAL_NAME_LENGTH) {
 		/*
@@ -760,15 +778,10 @@ static void armada_set_sane_name(struct platform_device *pdev,
 	}
 
 	/* Save the name locally */
-	strncpy(priv->zone_name, name, THERMAL_NAME_LENGTH - 1);
-	priv->zone_name[THERMAL_NAME_LENGTH - 1] = '\0';
+	strscpy(priv->zone_name, name, THERMAL_NAME_LENGTH);
 
-	/* Then check there are no '-' or hwmon core will complain */
-	do {
-		insane_char = strpbrk(priv->zone_name, "-");
-		if (insane_char)
-			*insane_char = '_';
-	} while (insane_char);
+	/* Then ensure there are no '-' or hwmon core will complain */
+	strreplace(priv->zone_name, '-', '_');
 }
 
 /*
@@ -784,30 +797,23 @@ static int armada_configure_overheat_int(struct armada_thermal_priv *priv,
 					 int sensor_id)
 {
 	/* Retrieve the critical trip point to enable the overheat interrupt */
-	const struct thermal_trip *trips = of_thermal_get_trip_points(tz);
+	int temperature;
 	int ret;
-	int i;
 
-	if (!trips)
-		return -EINVAL;
-
-	for (i = 0; i < of_thermal_get_ntrips(tz); i++)
-		if (trips[i].type == THERMAL_TRIP_CRITICAL)
-			break;
-
-	if (i == of_thermal_get_ntrips(tz))
-		return -EINVAL;
+	ret = thermal_zone_get_crit_temp(tz, &temperature);
+	if (ret)
+		return ret;
 
 	ret = armada_select_channel(priv, sensor_id);
 	if (ret)
 		return ret;
 
-	armada_set_overheat_thresholds(priv,
-				       trips[i].temperature,
-				       trips[i].hysteresis);
+	/*
+	 * A critical temperature does not have a hysteresis
+	 */
+	armada_set_overheat_thresholds(priv, temperature, 0);
 	priv->overheat_sensor = tz;
 	priv->interrupt_source = sensor_id;
-
 	armada_enable_overheat_interrupt(priv);
 
 	return 0;
@@ -865,12 +871,19 @@ static int armada_thermal_probe(struct platform_device *pdev)
 		/* Wait the sensors to be valid */
 		armada_wait_sensor_validity(priv);
 
-		tz = thermal_zone_device_register(priv->zone_name, 0, 0, priv,
-						  &legacy_ops, NULL, 0, 0);
+		tz = thermal_tripless_zone_device_register(priv->zone_name,
+							   priv, &legacy_ops,
+							   NULL);
 		if (IS_ERR(tz)) {
 			dev_err(&pdev->dev,
 				"Failed to register thermal zone device\n");
 			return PTR_ERR(tz);
+		}
+
+		ret = thermal_zone_device_enable(tz);
+		if (ret) {
+			thermal_zone_device_unregister(tz);
+			return ret;
 		}
 
 		drvdata->type = LEGACY;
@@ -921,9 +934,9 @@ static int armada_thermal_probe(struct platform_device *pdev)
 		/* Register the sensor */
 		sensor->priv = priv;
 		sensor->id = sensor_id;
-		tz = devm_thermal_zone_of_sensor_register(&pdev->dev,
-							  sensor->id, sensor,
-							  &of_ops);
+		tz = devm_thermal_of_zone_register(&pdev->dev,
+						   sensor->id, sensor,
+						   &of_ops);
 		if (IS_ERR(tz)) {
 			dev_info(&pdev->dev, "Thermal sensor %d unavailable\n",
 				 sensor_id);
@@ -947,19 +960,17 @@ static int armada_thermal_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int armada_thermal_exit(struct platform_device *pdev)
+static void armada_thermal_exit(struct platform_device *pdev)
 {
 	struct armada_drvdata *drvdata = platform_get_drvdata(pdev);
 
 	if (drvdata->type == LEGACY)
 		thermal_zone_device_unregister(drvdata->data.tz);
-
-	return 0;
 }
 
 static struct platform_driver armada_thermal_driver = {
 	.probe = armada_thermal_probe,
-	.remove = armada_thermal_exit,
+	.remove_new = armada_thermal_exit,
 	.driver = {
 		.name = "armada_thermal",
 		.of_match_table = armada_thermal_id_table,

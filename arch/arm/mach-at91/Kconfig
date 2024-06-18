@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menuconfig ARCH_AT91
 	bool "AT91/Microchip SoCs"
-	depends on ARCH_MULTI_V4T || ARCH_MULTI_V5 || ARCH_MULTI_V7 || ARM_SINGLE_ARMV7M
+	depends on (CPU_LITTLE_ENDIAN && (ARCH_MULTI_V4T || ARCH_MULTI_V5)) || \
+		ARCH_MULTI_V7 || ARM_SINGLE_ARMV7M
 	select ARM_CPU_SUSPEND if PM && ARCH_MULTI_V7
 	select COMMON_CLK_AT91
 	select GPIOLIB
@@ -57,6 +58,26 @@ config SOC_SAMA5D4
 	help
 	  Select this if you are using one of Microchip's SAMA5D4 family SoC.
 
+config SOC_SAMA7G5
+	bool "SAMA7G5 family"
+	depends on ARCH_MULTI_V7
+	select HAVE_AT91_GENERATED_CLK
+	select HAVE_AT91_SAM9X60_PLL
+	select HAVE_AT91_UTMI
+	select PM_OPP
+	select SOC_SAMA7
+	help
+	  Select this if you are using one of Microchip's SAMA7G5 family SoC.
+
+config SOC_LAN966
+	bool "ARMv7 based Microchip LAN966 SoC family"
+	depends on ARCH_MULTI_V7
+	select DW_APB_TIMER_OF
+	select ARM_GIC
+	select MEMORY
+	help
+	  This enables support for ARMv7 based Microchip LAN966 SoC family.
+
 config SOC_AT91RM9200
 	bool "AT91RM9200"
 	depends on ARCH_MULTI_V4T
@@ -76,7 +97,6 @@ config SOC_AT91SAM9
 	depends on ARCH_MULTI_V5
 	select ATMEL_AIC_IRQ
 	select ATMEL_PM if PM
-	select ATMEL_SDRAMC
 	select CPU_ARM926T
 	select HAVE_AT91_SMD
 	select HAVE_AT91_USB_CLK
@@ -105,11 +125,27 @@ config SOC_AT91SAM9
 	    AT91SAM9X35
 	    AT91SAM9XE
 
+config SOC_SAM9X60
+	bool "SAM9X60"
+	depends on ARCH_MULTI_V5
+	select ATMEL_AIC5_IRQ
+	select ATMEL_PM if PM
+	select CPU_ARM926T
+	select HAVE_AT91_USB_CLK
+	select HAVE_AT91_GENERATED_CLK
+	select HAVE_AT91_SAM9X60_PLL
+	select MEMORY
+	select PINCTRL_AT91
+	select SOC_SAM_V4_V5
+	select SRAM if PM
+	help
+	  Select this if you are using Microchip's SAM9X60 SoC
+
 comment "Clocksource driver selection"
 
 config ATMEL_CLOCKSOURCE_PIT
 	bool "Periodic Interval Timer (PIT) support"
-	depends on SOC_AT91SAM9 || SOC_SAMA5
+	depends on SOC_AT91SAM9 || SOC_SAM9X60 || SOC_SAMA5
 	default SOC_AT91SAM9 || SOC_SAMA5
 	select ATMEL_PIT
 	help
@@ -119,7 +155,7 @@ config ATMEL_CLOCKSOURCE_PIT
 
 config ATMEL_CLOCKSOURCE_TCB
 	bool "Timer Counter Blocks (TCB) support"
-	default SOC_AT91RM9200 || SOC_AT91SAM9 || SOC_SAMA5
+	default SOC_AT91RM9200 || SOC_AT91SAM9 || SOC_SAM9X60 || SOC_SAMA5
 	select ATMEL_TCB_CLKSRC
 	help
 	  Select this to get a high precision clocksource based on a
@@ -127,6 +163,15 @@ config ATMEL_CLOCKSOURCE_TCB
 	  On platforms with 16-bit counters, two timer channels are combined
 	  to make a single 32-bit timer.
 	  It can also be used as a clock event device supporting oneshot mode.
+
+config MICROCHIP_CLOCKSOURCE_PIT64B
+	bool "64-bit Periodic Interval Timer (PIT64B) support"
+	default SOC_SAM9X60 || SOC_SAMA7
+	select MICROCHIP_PIT64B
+	help
+	  Select this to get a high resolution clockevent (SAM9X60) or
+	  clocksource and clockevent (SAMA7G5) based on Microchip 64-bit
+	  Periodic Interval Timer.
 
 config HAVE_AT91_UTMI
 	bool
@@ -136,7 +181,6 @@ config HAVE_AT91_USB_CLK
 
 config COMMON_CLK_AT91
 	bool
-	select COMMON_CLK
 	select MFD_SYSCON
 
 config HAVE_AT91_SMD
@@ -154,6 +198,9 @@ config HAVE_AT91_AUDIO_PLL
 config HAVE_AT91_I2S_MUX_CLK
 	bool
 
+config HAVE_AT91_SAM9X60_PLL
+	bool
+
 config SOC_SAM_V4_V5
 	bool
 
@@ -164,7 +211,6 @@ config SOC_SAMA5
 	bool
 	select ATMEL_AIC5_IRQ
 	select ATMEL_PM if PM
-	select ATMEL_SDRAMC
 	select MEMORY
 	select SOC_SAM_V7
 	select SRAM if PM
@@ -172,4 +218,20 @@ config SOC_SAMA5
 config ATMEL_PM
 	bool
 
+config ATMEL_SECURE_PM
+	bool "Atmel Secure PM support"
+	depends on SOC_SAMA5D2 && ATMEL_PM
+	select ARM_PSCI
+	help
+	  When running under a TEE, the suspend mode must be requested to be set
+	  at TEE level. When enable, this option will use secure monitor calls
+	  to set the suspend level. PSCI is then used to enter suspend.
+
+config SOC_SAMA7
+	bool
+	select ARM_GIC
+	select ATMEL_PM if PM
+	select MEMORY
+	select SOC_SAM_V7
+	select SRAM if PM
 endif

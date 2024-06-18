@@ -16,6 +16,7 @@
 #include <linux/debugfs.h>
 #include <linux/err.h>
 #include <linux/cache.h>
+#include <linux/slab.h>
 #include <asm/barrier.h>
 #include "internal.h"
 
@@ -25,8 +26,9 @@ static u64 pstore_ftrace_stamp;
 static void notrace pstore_ftrace_call(unsigned long ip,
 				       unsigned long parent_ip,
 				       struct ftrace_ops *op,
-				       struct pt_regs *regs)
+				       struct ftrace_regs *fregs)
 {
+	int bit;
 	unsigned long flags;
 	struct pstore_ftrace_record rec = {};
 	struct pstore_record record = {
@@ -39,6 +41,10 @@ static void notrace pstore_ftrace_call(unsigned long ip,
 	if (unlikely(oops_in_progress))
 		return;
 
+	bit = ftrace_test_recursion_trylock(ip, parent_ip);
+	if (bit < 0)
+		return;
+
 	local_irq_save(flags);
 
 	rec.ip = ip;
@@ -48,6 +54,7 @@ static void notrace pstore_ftrace_call(unsigned long ip,
 	psinfo->write(&record);
 
 	local_irq_restore(flags);
+	ftrace_test_recursion_unlock(bit);
 }
 
 static struct ftrace_ops pstore_ftrace_ops __read_mostly = {
@@ -56,6 +63,30 @@ static struct ftrace_ops pstore_ftrace_ops __read_mostly = {
 
 static DEFINE_MUTEX(pstore_ftrace_lock);
 static bool pstore_ftrace_enabled;
+
+static int pstore_set_ftrace_enabled(bool on)
+{
+	ssize_t ret;
+
+	if (on == pstore_ftrace_enabled)
+		return 0;
+
+	if (on) {
+		ftrace_ops_set_global_filter(&pstore_ftrace_ops);
+		ret = register_ftrace_function(&pstore_ftrace_ops);
+	} else {
+		ret = unregister_ftrace_function(&pstore_ftrace_ops);
+	}
+
+	if (ret) {
+		pr_err("%s: unable to %sregister ftrace ops: %zd\n",
+		       __func__, on ? "" : "un", ret);
+	} else {
+		pstore_ftrace_enabled = on;
+	}
+
+	return ret;
+}
 
 static ssize_t pstore_ftrace_knob_write(struct file *f, const char __user *buf,
 					size_t count, loff_t *ppos)
@@ -68,28 +99,11 @@ static ssize_t pstore_ftrace_knob_write(struct file *f, const char __user *buf,
 		return ret;
 
 	mutex_lock(&pstore_ftrace_lock);
-
-	if (!on ^ pstore_ftrace_enabled)
-		goto out;
-
-	if (on) {
-		ftrace_ops_set_global_filter(&pstore_ftrace_ops);
-		ret = register_ftrace_function(&pstore_ftrace_ops);
-	} else {
-		ret = unregister_ftrace_function(&pstore_ftrace_ops);
-	}
-
-	if (ret) {
-		pr_err("%s: unable to %sregister ftrace ops: %zd\n",
-		       __func__, on ? "" : "un", ret);
-		goto err;
-	}
-
-	pstore_ftrace_enabled = on;
-out:
-	ret = count;
-err:
+	ret = pstore_set_ftrace_enabled(on);
 	mutex_unlock(&pstore_ftrace_lock);
+
+	if (ret == 0)
+		ret = count;
 
 	return ret;
 }
@@ -110,12 +124,19 @@ static const struct file_operations pstore_knob_fops = {
 
 static struct dentry *pstore_ftrace_dir;
 
+static bool record_ftrace;
+module_param(record_ftrace, bool, 0400);
+MODULE_PARM_DESC(record_ftrace,
+		 "enable ftrace recording immediately (default: off)");
+
 void pstore_register_ftrace(void)
 {
 	if (!psinfo->write)
 		return;
 
 	pstore_ftrace_dir = debugfs_create_dir("pstore", NULL);
+
+	pstore_set_ftrace_enabled(record_ftrace);
 
 	debugfs_create_file("record_ftrace", 0600, pstore_ftrace_dir, NULL,
 			    &pstore_knob_fops);
@@ -132,3 +153,56 @@ void pstore_unregister_ftrace(void)
 
 	debugfs_remove_recursive(pstore_ftrace_dir);
 }
+
+ssize_t pstore_ftrace_combine_log(char **dest_log, size_t *dest_log_size,
+				  const char *src_log, size_t src_log_size)
+{
+	size_t dest_size, src_size, total, dest_off, src_off;
+	size_t dest_idx = 0, src_idx = 0, merged_idx = 0;
+	void *merged_buf;
+	struct pstore_ftrace_record *drec, *srec, *mrec;
+	size_t record_size = sizeof(struct pstore_ftrace_record);
+
+	dest_off = *dest_log_size % record_size;
+	dest_size = *dest_log_size - dest_off;
+
+	src_off = src_log_size % record_size;
+	src_size = src_log_size - src_off;
+
+	total = dest_size + src_size;
+	merged_buf = kmalloc(total, GFP_KERNEL);
+	if (!merged_buf)
+		return -ENOMEM;
+
+	drec = (struct pstore_ftrace_record *)(*dest_log + dest_off);
+	srec = (struct pstore_ftrace_record *)(src_log + src_off);
+	mrec = (struct pstore_ftrace_record *)(merged_buf);
+
+	while (dest_size > 0 && src_size > 0) {
+		if (pstore_ftrace_read_timestamp(&drec[dest_idx]) <
+		    pstore_ftrace_read_timestamp(&srec[src_idx])) {
+			mrec[merged_idx++] = drec[dest_idx++];
+			dest_size -= record_size;
+		} else {
+			mrec[merged_idx++] = srec[src_idx++];
+			src_size -= record_size;
+		}
+	}
+
+	while (dest_size > 0) {
+		mrec[merged_idx++] = drec[dest_idx++];
+		dest_size -= record_size;
+	}
+
+	while (src_size > 0) {
+		mrec[merged_idx++] = srec[src_idx++];
+		src_size -= record_size;
+	}
+
+	kfree(*dest_log);
+	*dest_log = merged_buf;
+	*dest_log_size = total;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pstore_ftrace_combine_log);

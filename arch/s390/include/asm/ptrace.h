@@ -9,24 +9,51 @@
 
 #include <linux/bits.h>
 #include <uapi/asm/ptrace.h>
+#include <asm/tpi.h>
 
-#define PIF_SYSCALL		0	/* inside a system call */
-#define PIF_PER_TRAP		1	/* deliver sigtrap on return to user */
-#define PIF_SYSCALL_RESTART	2	/* restart the current system call */
-#define PIF_GUEST_FAULT		3	/* indicates program check in sie64a */
+#define PIF_SYSCALL			0	/* inside a system call */
+#define PIF_EXECVE_PGSTE_RESTART	1	/* restart execve for PGSTE binaries */
+#define PIF_SYSCALL_RET_SET		2	/* return value was set via ptrace */
+#define PIF_FTRACE_FULL_REGS		4	/* all register contents valid (ftrace) */
 
-#define _PIF_SYSCALL		BIT(PIF_SYSCALL)
-#define _PIF_PER_TRAP		BIT(PIF_PER_TRAP)
-#define _PIF_SYSCALL_RESTART	BIT(PIF_SYSCALL_RESTART)
-#define _PIF_GUEST_FAULT	BIT(PIF_GUEST_FAULT)
+#define _PIF_SYSCALL			BIT(PIF_SYSCALL)
+#define _PIF_EXECVE_PGSTE_RESTART	BIT(PIF_EXECVE_PGSTE_RESTART)
+#define _PIF_SYSCALL_RET_SET		BIT(PIF_SYSCALL_RET_SET)
+#define _PIF_FTRACE_FULL_REGS		BIT(PIF_FTRACE_FULL_REGS)
 
-#ifndef __ASSEMBLY__
+#define PSW32_MASK_PER		_AC(0x40000000, UL)
+#define PSW32_MASK_DAT		_AC(0x04000000, UL)
+#define PSW32_MASK_IO		_AC(0x02000000, UL)
+#define PSW32_MASK_EXT		_AC(0x01000000, UL)
+#define PSW32_MASK_KEY		_AC(0x00F00000, UL)
+#define PSW32_MASK_BASE		_AC(0x00080000, UL)	/* Always one */
+#define PSW32_MASK_MCHECK	_AC(0x00040000, UL)
+#define PSW32_MASK_WAIT		_AC(0x00020000, UL)
+#define PSW32_MASK_PSTATE	_AC(0x00010000, UL)
+#define PSW32_MASK_ASC		_AC(0x0000C000, UL)
+#define PSW32_MASK_CC		_AC(0x00003000, UL)
+#define PSW32_MASK_PM		_AC(0x00000f00, UL)
+#define PSW32_MASK_RI		_AC(0x00000080, UL)
+
+#define PSW32_ADDR_AMODE	_AC(0x80000000, UL)
+#define PSW32_ADDR_INSN		_AC(0x7FFFFFFF, UL)
+
+#define PSW32_DEFAULT_KEY	((PAGE_DEFAULT_ACC) << 20)
+
+#define PSW32_ASC_PRIMARY	_AC(0x00000000, UL)
+#define PSW32_ASC_ACCREG	_AC(0x00004000, UL)
+#define PSW32_ASC_SECONDARY	_AC(0x00008000, UL)
+#define PSW32_ASC_HOME		_AC(0x0000C000, UL)
+
+#define PSW_DEFAULT_KEY			((PAGE_DEFAULT_ACC) << 52)
 
 #define PSW_KERNEL_BITS	(PSW_DEFAULT_KEY | PSW_MASK_BASE | PSW_ASC_HOME | \
-			 PSW_MASK_EA | PSW_MASK_BA)
+			 PSW_MASK_EA | PSW_MASK_BA | PSW_MASK_DAT)
 #define PSW_USER_BITS	(PSW_MASK_DAT | PSW_MASK_IO | PSW_MASK_EXT | \
 			 PSW_DEFAULT_KEY | PSW_MASK_BASE | PSW_MASK_MCHECK | \
 			 PSW_MASK_PSTATE | PSW_ASC_PRIMARY)
+
+#ifndef __ASSEMBLY__
 
 struct psw_bits {
 	unsigned long	     :	1;
@@ -68,12 +95,19 @@ enum {
 	&(*(struct psw_bits *)(&(__psw)));	\
 }))
 
+typedef struct {
+	unsigned int mask;
+	unsigned int addr;
+} psw_t32 __aligned(8);
+
+#define PGM_INT_CODE_MASK	0x7f
+#define PGM_INT_CODE_PER	0x80
+
 /*
  * The pt_regs struct defines the way the registers are stored on
  * the stack during a system call.
  */
-struct pt_regs 
-{
+struct pt_regs {
 	union {
 		user_pt_regs user_regs;
 		struct {
@@ -83,10 +117,17 @@ struct pt_regs
 		};
 	};
 	unsigned long orig_gpr2;
-	unsigned int int_code;
-	unsigned int int_parm;
-	unsigned long int_parm_long;
+	union {
+		struct {
+			unsigned int int_code;
+			unsigned int int_parm;
+			unsigned long int_parm_long;
+		};
+		struct tpi_info tpi_info;
+	};
 	unsigned long flags;
+	unsigned long cr1;
+	unsigned long last_break;
 };
 
 /*
@@ -152,6 +193,18 @@ static inline int test_pt_regs_flag(struct pt_regs *regs, int flag)
 	return !!(regs->flags & (1UL << flag));
 }
 
+static inline int test_and_clear_pt_regs_flag(struct pt_regs *regs, int flag)
+{
+	int ret = test_pt_regs_flag(regs, flag);
+
+	clear_pt_regs_flag(regs, flag);
+	return ret;
+}
+
+struct task_struct;
+
+void update_cr_regs(struct task_struct *task);
+
 /*
  * These are defined as per linux/ptrace.h, which see.
  */
@@ -179,9 +232,33 @@ const char *regs_query_register_name(unsigned int offset);
 unsigned long regs_get_register(struct pt_regs *regs, unsigned int offset);
 unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs, unsigned int n);
 
+/**
+ * regs_get_kernel_argument() - get Nth function argument in kernel
+ * @regs:	pt_regs of that context
+ * @n:		function argument number (start from 0)
+ *
+ * regs_get_kernel_argument() returns @n th argument of the function call.
+ */
+static inline unsigned long regs_get_kernel_argument(struct pt_regs *regs,
+						     unsigned int n)
+{
+	unsigned int argoffset = STACK_FRAME_OVERHEAD / sizeof(long);
+
+#define NR_REG_ARGUMENTS 5
+	if (n < NR_REG_ARGUMENTS)
+		return regs_get_register(regs, 2 + n);
+	n -= NR_REG_ARGUMENTS;
+	return regs_get_kernel_stack_nth(regs, argoffset + n);
+}
+
 static inline unsigned long kernel_stack_pointer(struct pt_regs *regs)
 {
 	return regs->gprs[15];
+}
+
+static inline void regs_set_return_value(struct pt_regs *regs, unsigned long rc)
+{
+	regs->gprs[2] = rc;
 }
 
 #endif /* __ASSEMBLY__ */

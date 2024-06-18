@@ -11,7 +11,6 @@
 #define _LEDS_BD2802_H_
 
 struct bd2802_led_platform_data{
-	int	reset_gpio;
 	u8	rgb_time;
 };
 

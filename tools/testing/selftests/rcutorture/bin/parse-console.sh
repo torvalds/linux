@@ -11,7 +11,7 @@
 #
 # Authors: Paul E. McKenney <paulmck@linux.ibm.com>
 
-T=${TMPDIR-/tmp}/parse-console.sh.$$
+T="`mktemp -d ${TMPDIR-/tmp}/parse-console.sh.XXXXXX`"
 file="$1"
 title="$2"
 
@@ -33,8 +33,8 @@ then
 fi
 cat /dev/null > $file.diags
 
-# Check for proper termination, except that rcuperf runs don't indicate this.
-if test "$TORTURE_SUITE" != rcuperf
+# Check for proper termination, except for rcuscale and refscale.
+if test "$TORTURE_SUITE" != rcuscale && test "$TORTURE_SUITE" != refscale
 then
 	# check for abject failure
 
@@ -44,17 +44,30 @@ then
 		tail -1 |
 		awk '
 		{
-			for (i=NF-8;i<=NF;i++)
+			normalexit = 1;
+			for (i=NF-8;i<=NF;i++) {
+				if (i <= 0 || i !~ /^[0-9]*$/) {
+					bangstring = $0;
+					gsub(/^\[[^]]*] /, "", bangstring);
+					print bangstring;
+					normalexit = 0;
+					exit 0;
+				}
 				sum+=$i;
+			}
 		}
-		END { print sum }'`
-		print_bug $title FAILURE, $nerrs instances
+		END {
+			if (normalexit)
+				print sum " instances"
+		}'`
+		print_bug $title FAILURE, $nerrs
 		exit
 	fi
 
 	grep --binary-files=text 'torture:.*ver:' $file |
-	egrep --binary-files=text -v '\(null\)|rtc: 000000000* ' |
+	grep -E --binary-files=text -v '\(null\)|rtc: 000000000* ' |
 	sed -e 's/^(initramfs)[^]]*] //' -e 's/^\[[^]]*] //' |
+	sed -e 's/^.*ver: //' |
 	awk '
 	BEGIN	{
 		ver = 0;
@@ -62,13 +75,13 @@ then
 		}
 
 		{
-		if (!badseq && ($5 + 0 != $5 || $5 <= ver)) {
+		if (!badseq && ($1 + 0 != $1 || $1 <= ver)) {
 			badseqno1 = ver;
-			badseqno2 = $5;
+			badseqno2 = $1;
 			badseqnr = NR;
 			badseq = 1;
 		}
-		ver = $5
+		ver = $1
 		}
 
 	END	{
@@ -104,10 +117,7 @@ then
 	fi
 fi | tee -a $file.diags
 
-egrep 'Badness|WARNING:|Warn|BUG|===========|Call Trace:|Oops:|detected stalls on CPUs/tasks:|self-detected stall on CPU|Stall ended before state dump start|\?\?\? Writer stall state|rcu_.*kthread starved for' < $file |
-grep -v 'ODEBUG: ' |
-grep -v 'This means that this is a DEBUG kernel and it is' |
-grep -v 'Warning: unable to open an initial console' > $T.diags
+console-badness.sh < $file > $T.diags
 if test -s $T.diags
 then
 	print_warning "Assertion failure in $file $title"
@@ -118,15 +128,25 @@ then
 	then
 		summary="$summary  Badness: $n_badness"
 	fi
-	n_warn=`grep -v 'Warning: unable to open an initial console' $file | egrep -c 'WARNING:|Warn'`
+	n_warn=`grep -v 'Warning: unable to open an initial console' $file | grep -v 'Warning: Failed to add ttynull console. No stdin, stdout, and stderr for the init process' | grep -E -c 'WARNING:|Warn'`
 	if test "$n_warn" -ne 0
 	then
 		summary="$summary  Warnings: $n_warn"
 	fi
-	n_bugs=`egrep -c 'BUG|Oops:' $file`
+	n_bugs=`grep -E -c '\bBUG|Oops:' $file`
 	if test "$n_bugs" -ne 0
 	then
 		summary="$summary  Bugs: $n_bugs"
+	fi
+	n_kcsan=`grep -E -c 'BUG: KCSAN: ' $file`
+	if test "$n_kcsan" -ne 0
+	then
+		if test "$n_bugs" = "$n_kcsan"
+		then
+			summary="$summary (all bugs kcsan)"
+		else
+			summary="$summary  KCSAN: $n_kcsan"
+		fi
 	fi
 	n_calltrace=`grep -c 'Call Trace:' $file`
 	if test "$n_calltrace" -ne 0
@@ -138,7 +158,7 @@ then
 	then
 		summary="$summary  lockdep: $n_badness"
 	fi
-	n_stalls=`egrep -c 'detected stalls on CPUs/tasks:|self-detected stall on CPU|Stall ended before state dump start|\?\?\? Writer stall state' $file`
+	n_stalls=`grep -E -c 'detected stalls on CPUs/tasks:|self-detected stall on CPU|Stall ended before state dump start|\?\?\? Writer stall state' $file`
 	if test "$n_stalls" -ne 0
 	then
 		summary="$summary  Stalls: $n_stalls"
@@ -161,4 +181,11 @@ done
 if ! test -s $file.diags
 then
 	rm -f $file.diags
+fi
+
+# Call extract_ftrace_from_console function, if the output is empty,
+# don't create $file.ftrace. Otherwise output the results to $file.ftrace
+extract_ftrace_from_console $file > $file.ftrace
+if [ ! -s $file.ftrace ]; then
+	rm -f $file.ftrace
 fi

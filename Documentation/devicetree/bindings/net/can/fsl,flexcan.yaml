@@ -1,0 +1,174 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/can/fsl,flexcan.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title:
+  Flexcan CAN controller on Freescale's ARM and PowerPC system-on-a-chip (SOC).
+
+maintainers:
+  - Marc Kleine-Budde <mkl@pengutronix.de>
+
+allOf:
+  - $ref: can-controller.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - fsl,imx93-flexcan
+          - fsl,imx8qm-flexcan
+          - fsl,imx8mp-flexcan
+          - fsl,imx6q-flexcan
+          - fsl,imx28-flexcan
+          - fsl,imx25-flexcan
+          - fsl,p1010-flexcan
+          - fsl,vf610-flexcan
+          - fsl,ls1021ar2-flexcan
+          - fsl,lx2160ar1-flexcan
+      - items:
+          - enum:
+              - fsl,imx53-flexcan
+              - fsl,imx35-flexcan
+          - const: fsl,imx25-flexcan
+      - items:
+          - enum:
+              - fsl,imx7d-flexcan
+              - fsl,imx6ul-flexcan
+              - fsl,imx6sx-flexcan
+          - const: fsl,imx6q-flexcan
+      - items:
+          - const: fsl,imx95-flexcan
+          - const: fsl,imx93-flexcan
+      - items:
+          - enum:
+              - fsl,ls1028ar1-flexcan
+          - const: fsl,lx2160ar1-flexcan
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 2
+
+  clock-names:
+    items:
+      - const: ipg
+      - const: per
+
+  clock-frequency:
+    description: |
+      The oscillator frequency driving the flexcan device, filled in by the
+      boot loader. This property should only be used the used operating system
+      doesn't support the clocks and clock-names property.
+
+  power-domains:
+    maxItems: 1
+
+  xceiver-supply:
+    description: Regulator that powers the CAN transceiver.
+
+  big-endian:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: |
+      This means the registers of FlexCAN controller are big endian. This is
+      optional property.i.e. if this property is not present in device tree
+      node then controller is assumed to be little endian. If this property is
+      present then controller is assumed to be big endian.
+
+  fsl,stop-mode:
+    description: |
+      Register bits of stop mode control.
+
+      The format should be as follows:
+      <gpr req_gpr req_bit>
+      gpr is the phandle to general purpose register node.
+      req_gpr is the gpr register offset of CAN stop request.
+      req_bit is the bit offset of CAN stop request.
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: The 'gpr' is the phandle to general purpose register node.
+          - description: The 'req_gpr' is the gpr register offset of CAN stop request.
+            maximum: 0xff
+          - description: The 'req_bit' is the bit offset of CAN stop request.
+            maximum: 0x1f
+
+  fsl,clk-source:
+    description: |
+      Select the clock source to the CAN Protocol Engine (PE). It's SoC
+      implementation dependent. Refer to RM for detailed definition. If this
+      property is not set in device tree node then driver selects clock source 1
+      by default.
+      0: clock source 0 (oscillator clock)
+      1: clock source 1 (peripheral clock)
+    $ref: /schemas/types.yaml#/definitions/uint8
+    default: 1
+    minimum: 0
+    maximum: 1
+
+  wakeup-source:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      Enable CAN remote wakeup.
+
+  fsl,scu-index:
+    description: |
+      The scu index of CAN instance.
+      For SoCs with SCU support, need setup stop mode via SCU firmware, so this
+      property can help indicate a resource. It supports up to 3 CAN instances
+      now.
+    $ref: /schemas/types.yaml#/definitions/uint8
+    minimum: 0
+    maximum: 2
+
+  termination-gpios: true
+  termination-ohms: true
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    can@1c000 {
+        compatible = "fsl,p1010-flexcan";
+        reg = <0x1c000 0x1000>;
+        interrupts = <48 0x2>;
+        interrupt-parent = <&mpic>;
+        clock-frequency = <200000000>;
+        fsl,clk-source = /bits/ 8 <0>;
+    };
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    can@2090000 {
+        compatible = "fsl,imx6q-flexcan";
+        reg = <0x02090000 0x4000>;
+        interrupts = <0 110 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&clks 1>, <&clks 2>;
+        clock-names = "ipg", "per";
+        fsl,stop-mode = <&gpr 0x34 28>;
+        fsl,scu-index = /bits/ 8 <1>;
+    };
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/gpio/gpio.h>
+
+    can@2090000 {
+        compatible = "fsl,imx6q-flexcan";
+        reg = <0x02090000 0x4000>;
+        interrupts = <0 110 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&clks 1>, <&clks 2>;
+        clock-names = "ipg", "per";
+        fsl,stop-mode = <&gpr 0x34 28>;
+        termination-gpios = <&gpio1 0 GPIO_ACTIVE_LOW>;
+        termination-ohms = <120>;
+    };

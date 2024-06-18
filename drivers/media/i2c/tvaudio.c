@@ -1934,8 +1934,9 @@ static const struct v4l2_subdev_ops tvaudio_ops = {
 
 /* i2c registration                                                       */
 
-static int tvaudio_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int tvaudio_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct CHIPSTATE *chip;
 	struct CHIPDESC  *desc;
 	struct v4l2_subdev *sd;
@@ -2065,7 +2066,7 @@ static int tvaudio_probe(struct i2c_client *client, const struct i2c_device_id *
 	return 0;
 }
 
-static int tvaudio_remove(struct i2c_client *client)
+static void tvaudio_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct CHIPSTATE *chip = to_state(sd);
@@ -2079,7 +2080,6 @@ static int tvaudio_remove(struct i2c_client *client)
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&chip->hdl);
-	return 0;
 }
 
 /* This driver supports many devices and the idea is to let the driver

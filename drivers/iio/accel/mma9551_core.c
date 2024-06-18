@@ -219,7 +219,7 @@ int mma9551_read_config_byte(struct i2c_client *client, u8 app_id,
 	return mma9551_transfer(client, app_id, MMA9551_CMD_READ_CONFIG,
 				reg, NULL, 0, val, 1);
 }
-EXPORT_SYMBOL(mma9551_read_config_byte);
+EXPORT_SYMBOL_NS(mma9551_read_config_byte, IIO_MMA9551);
 
 /**
  * mma9551_write_config_byte() - write 1 configuration byte
@@ -244,7 +244,7 @@ int mma9551_write_config_byte(struct i2c_client *client, u8 app_id,
 	return mma9551_transfer(client, app_id, MMA9551_CMD_WRITE_CONFIG, reg,
 				&val, 1, NULL, 0);
 }
-EXPORT_SYMBOL(mma9551_write_config_byte);
+EXPORT_SYMBOL_NS(mma9551_write_config_byte, IIO_MMA9551);
 
 /**
  * mma9551_read_status_byte() - read 1 status byte
@@ -269,7 +269,7 @@ int mma9551_read_status_byte(struct i2c_client *client, u8 app_id,
 	return mma9551_transfer(client, app_id, MMA9551_CMD_READ_STATUS,
 				reg, NULL, 0, val, 1);
 }
-EXPORT_SYMBOL(mma9551_read_status_byte);
+EXPORT_SYMBOL_NS(mma9551_read_status_byte, IIO_MMA9551);
 
 /**
  * mma9551_read_config_word() - read 1 config word
@@ -296,11 +296,14 @@ int mma9551_read_config_word(struct i2c_client *client, u8 app_id,
 
 	ret = mma9551_transfer(client, app_id, MMA9551_CMD_READ_CONFIG,
 			       reg, NULL, 0, (u8 *)&v, 2);
+	if (ret < 0)
+		return ret;
+
 	*val = be16_to_cpu(v);
 
-	return ret;
+	return 0;
 }
-EXPORT_SYMBOL(mma9551_read_config_word);
+EXPORT_SYMBOL_NS(mma9551_read_config_word, IIO_MMA9551);
 
 /**
  * mma9551_write_config_word() - write 1 config word
@@ -327,7 +330,7 @@ int mma9551_write_config_word(struct i2c_client *client, u8 app_id,
 	return mma9551_transfer(client, app_id, MMA9551_CMD_WRITE_CONFIG, reg,
 				(u8 *)&v, 2, NULL, 0);
 }
-EXPORT_SYMBOL(mma9551_write_config_word);
+EXPORT_SYMBOL_NS(mma9551_write_config_word, IIO_MMA9551);
 
 /**
  * mma9551_read_status_word() - read 1 status word
@@ -354,11 +357,14 @@ int mma9551_read_status_word(struct i2c_client *client, u8 app_id,
 
 	ret = mma9551_transfer(client, app_id, MMA9551_CMD_READ_STATUS,
 			       reg, NULL, 0, (u8 *)&v, 2);
+	if (ret < 0)
+		return ret;
+
 	*val = be16_to_cpu(v);
 
-	return ret;
+	return 0;
 }
-EXPORT_SYMBOL(mma9551_read_status_word);
+EXPORT_SYMBOL_NS(mma9551_read_status_word, IIO_MMA9551);
 
 /**
  * mma9551_read_config_words() - read multiple config words
@@ -397,7 +403,7 @@ int mma9551_read_config_words(struct i2c_client *client, u8 app_id,
 
 	return 0;
 }
-EXPORT_SYMBOL(mma9551_read_config_words);
+EXPORT_SYMBOL_NS(mma9551_read_config_words, IIO_MMA9551);
 
 /**
  * mma9551_read_status_words() - read multiple status words
@@ -436,7 +442,7 @@ int mma9551_read_status_words(struct i2c_client *client, u8 app_id,
 
 	return 0;
 }
-EXPORT_SYMBOL(mma9551_read_status_words);
+EXPORT_SYMBOL_NS(mma9551_read_status_words, IIO_MMA9551);
 
 /**
  * mma9551_write_config_words() - write multiple config words
@@ -471,7 +477,7 @@ int mma9551_write_config_words(struct i2c_client *client, u8 app_id,
 	return mma9551_transfer(client, app_id, MMA9551_CMD_WRITE_CONFIG,
 				reg, (u8 *)be_buf, len * sizeof(u16), NULL, 0);
 }
-EXPORT_SYMBOL(mma9551_write_config_words);
+EXPORT_SYMBOL_NS(mma9551_write_config_words, IIO_MMA9551);
 
 /**
  * mma9551_update_config_bits() - update bits in register
@@ -507,7 +513,7 @@ int mma9551_update_config_bits(struct i2c_client *client, u8 app_id,
 
 	return mma9551_write_config_byte(client, app_id, reg, tmp);
 }
-EXPORT_SYMBOL(mma9551_update_config_bits);
+EXPORT_SYMBOL_NS(mma9551_update_config_bits, IIO_MMA9551);
 
 /**
  * mma9551_gpio_config() - configure gpio
@@ -586,7 +592,7 @@ int mma9551_gpio_config(struct i2c_client *client, enum mma9551_gpio_pin pin,
 
 	return ret;
 }
-EXPORT_SYMBOL(mma9551_gpio_config);
+EXPORT_SYMBOL_NS(mma9551_gpio_config, IIO_MMA9551);
 
 /**
  * mma9551_read_version() - read device version information
@@ -616,7 +622,7 @@ int mma9551_read_version(struct i2c_client *client)
 
 	return 0;
 }
-EXPORT_SYMBOL(mma9551_read_version);
+EXPORT_SYMBOL_NS(mma9551_read_version, IIO_MMA9551);
 
 /**
  * mma9551_set_device_state() - sets HW power mode
@@ -646,7 +652,7 @@ int mma9551_set_device_state(struct i2c_client *client, bool enable)
 					  MMA9551_SLEEP_CFG_FLEEN :
 					  MMA9551_SLEEP_CFG_SNCEN);
 }
-EXPORT_SYMBOL(mma9551_set_device_state);
+EXPORT_SYMBOL_NS(mma9551_set_device_state, IIO_MMA9551);
 
 /**
  * mma9551_set_power_state() - sets runtime PM state
@@ -664,7 +670,7 @@ int mma9551_set_power_state(struct i2c_client *client, bool on)
 	int ret;
 
 	if (on)
-		ret = pm_runtime_get_sync(&client->dev);
+		ret = pm_runtime_resume_and_get(&client->dev);
 	else {
 		pm_runtime_mark_last_busy(&client->dev);
 		ret = pm_runtime_put_autosuspend(&client->dev);
@@ -673,8 +679,6 @@ int mma9551_set_power_state(struct i2c_client *client, bool on)
 	if (ret < 0) {
 		dev_err(&client->dev,
 			"failed to change power state to %d\n", on);
-		if (on)
-			pm_runtime_put_noidle(&client->dev);
 
 		return ret;
 	}
@@ -682,7 +686,7 @@ int mma9551_set_power_state(struct i2c_client *client, bool on)
 
 	return 0;
 }
-EXPORT_SYMBOL(mma9551_set_power_state);
+EXPORT_SYMBOL_NS(mma9551_set_power_state, IIO_MMA9551);
 
 /**
  * mma9551_sleep() - sleep
@@ -701,7 +705,7 @@ void mma9551_sleep(int freq)
 	else
 		msleep_interruptible(sleep_val);
 }
-EXPORT_SYMBOL(mma9551_sleep);
+EXPORT_SYMBOL_NS(mma9551_sleep, IIO_MMA9551);
 
 /**
  * mma9551_read_accel_chan() - read accelerometer channel
@@ -757,7 +761,7 @@ out_poweroff:
 	mma9551_set_power_state(client, false);
 	return ret;
 }
-EXPORT_SYMBOL(mma9551_read_accel_chan);
+EXPORT_SYMBOL_NS(mma9551_read_accel_chan, IIO_MMA9551);
 
 /**
  * mma9551_read_accel_scale() - read accelerometer scale
@@ -775,7 +779,7 @@ int mma9551_read_accel_scale(int *val, int *val2)
 
 	return IIO_VAL_INT_PLUS_MICRO;
 }
-EXPORT_SYMBOL(mma9551_read_accel_scale);
+EXPORT_SYMBOL_NS(mma9551_read_accel_scale, IIO_MMA9551);
 
 /**
  * mma9551_app_reset() - reset application
@@ -794,7 +798,7 @@ int mma9551_app_reset(struct i2c_client *client, u32 app_mask)
 					 MMA9551_RSC_OFFSET(app_mask),
 					 MMA9551_RSC_VAL(app_mask));
 }
-EXPORT_SYMBOL(mma9551_app_reset);
+EXPORT_SYMBOL_NS(mma9551_app_reset, IIO_MMA9551);
 
 MODULE_AUTHOR("Irina Tirdea <irina.tirdea@intel.com>");
 MODULE_AUTHOR("Vlad Dogaru <vlad.dogaru@intel.com>");

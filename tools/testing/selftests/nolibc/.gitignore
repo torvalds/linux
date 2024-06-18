@@ -1,0 +1,7 @@
+/initramfs/
+/initramfs.cpio
+/libc-test
+/nolibc-test
+/run.out
+/run.out.*
+/sysroot/

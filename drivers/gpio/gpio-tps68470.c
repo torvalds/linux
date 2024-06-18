@@ -47,7 +47,6 @@ static int tps68470_gpio_get(struct gpio_chip *gc, unsigned int offset)
 	return !!(val & BIT(offset));
 }
 
-/* Return 0 if output, 1 if input */
 static int tps68470_gpio_get_direction(struct gpio_chip *gc,
 				       unsigned int offset)
 {
@@ -57,7 +56,7 @@ static int tps68470_gpio_get_direction(struct gpio_chip *gc,
 
 	/* rest are always outputs */
 	if (offset >= TPS68470_N_REGULAR_GPIO)
-		return 0;
+		return GPIO_LINE_DIRECTION_OUT;
 
 	ret = regmap_read(regmap, TPS68470_GPIO_CTL_REG_A(offset), &val);
 	if (ret) {
@@ -67,7 +66,8 @@ static int tps68470_gpio_get_direction(struct gpio_chip *gc,
 	}
 
 	val &= TPS68470_GPIO_MODE_MASK;
-	return val >= TPS68470_GPIO_MODE_OUT_CMOS ? 0 : 1;
+	return val >= TPS68470_GPIO_MODE_OUT_CMOS ? GPIO_LINE_DIRECTION_OUT :
+						    GPIO_LINE_DIRECTION_IN;
 }
 
 static void tps68470_gpio_set(struct gpio_chip *gc, unsigned int offset,
@@ -91,12 +91,12 @@ static int tps68470_gpio_output(struct gpio_chip *gc, unsigned int offset,
 	struct tps68470_gpio_data *tps68470_gpio = gpiochip_get_data(gc);
 	struct regmap *regmap = tps68470_gpio->tps68470_regmap;
 
+	/* Set the initial value */
+	tps68470_gpio_set(gc, offset, value);
+
 	/* rest are always outputs */
 	if (offset >= TPS68470_N_REGULAR_GPIO)
 		return 0;
-
-	/* Set the initial value */
-	tps68470_gpio_set(gc, offset, value);
 
 	return regmap_update_bits(regmap, TPS68470_GPIO_CTL_REG_A(offset),
 				 TPS68470_GPIO_MODE_MASK,
@@ -125,7 +125,6 @@ static const char *tps68470_names[TPS68470_N_GPIO] = {
 static int tps68470_gpio_probe(struct platform_device *pdev)
 {
 	struct tps68470_gpio_data *tps68470_gpio;
-	int ret;
 
 	tps68470_gpio = devm_kzalloc(&pdev->dev, sizeof(*tps68470_gpio),
 				     GFP_KERNEL);
@@ -146,16 +145,7 @@ static int tps68470_gpio_probe(struct platform_device *pdev)
 	tps68470_gpio->gc.base = -1;
 	tps68470_gpio->gc.parent = &pdev->dev;
 
-	ret = devm_gpiochip_add_data(&pdev->dev, &tps68470_gpio->gc,
-				     tps68470_gpio);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to register gpio_chip: %d\n", ret);
-		return ret;
-	}
-
-	platform_set_drvdata(pdev, tps68470_gpio);
-
-	return ret;
+	return devm_gpiochip_add_data(&pdev->dev, &tps68470_gpio->gc, tps68470_gpio);
 }
 
 static struct platform_driver tps68470_gpio_driver = {
@@ -164,5 +154,8 @@ static struct platform_driver tps68470_gpio_driver = {
 	},
 	.probe = tps68470_gpio_probe,
 };
+module_platform_driver(tps68470_gpio_driver);
 
-builtin_platform_driver(tps68470_gpio_driver)
+MODULE_ALIAS("platform:tps68470-gpio");
+MODULE_DESCRIPTION("GPIO driver for TPS68470 PMIC");
+MODULE_LICENSE("GPL v2");

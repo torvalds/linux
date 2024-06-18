@@ -2,7 +2,6 @@
 // Copyright 2017 IBM Corp.
 #include <asm/pnv-ocxl.h>
 #include <asm/opal.h>
-#include <asm/xive.h>
 #include <misc/ocxl-config.h>
 #include "pci.h"
 
@@ -108,7 +107,8 @@ static int get_max_afu_index(struct pci_dev *dev, int *afu_idx)
 	int pos;
 	u32 val;
 
-	pos = find_dvsec_from_pos(dev, OCXL_DVSEC_FUNC_ID, 0);
+	pos = pci_find_dvsec_capability(dev, PCI_VENDOR_ID_IBM,
+					OCXL_DVSEC_FUNC_ID);
 	if (!pos)
 		return -ESRCH;
 
@@ -289,7 +289,7 @@ int pnv_ocxl_get_pasid_count(struct pci_dev *dev, int *count)
 	 * be used by a function depends on how many functions exist
 	 * on the device. The NPU needs to be configured to know how
 	 * many bits are available to PASIDs and how many are to be
-	 * used by the function BDF indentifier.
+	 * used by the function BDF identifier.
 	 *
 	 * We only support one AFU-carrying function for now.
 	 */
@@ -449,7 +449,7 @@ int pnv_ocxl_spa_setup(struct pci_dev *dev, void *spa_mem, int PE_mask,
 	if (!data)
 		return -ENOMEM;
 
-	bdfn = (dev->bus->number << 8) | dev->devfn;
+	bdfn = pci_dev_id(dev);
 	rc = opal_npu_spa_setup(phb->opal_id, bdfn, virt_to_phys(spa_mem),
 				PE_mask);
 	if (rc) {
@@ -478,38 +478,121 @@ EXPORT_SYMBOL_GPL(pnv_ocxl_spa_release);
 int pnv_ocxl_spa_remove_pe_from_cache(void *platform_data, int pe_handle)
 {
 	struct spa_data *data = (struct spa_data *) platform_data;
-	int rc;
 
-	rc = opal_npu_spa_clear_cache(data->phb_opal_id, data->bdfn, pe_handle);
-	return rc;
+	return opal_npu_spa_clear_cache(data->phb_opal_id, data->bdfn, pe_handle);
 }
 EXPORT_SYMBOL_GPL(pnv_ocxl_spa_remove_pe_from_cache);
 
-int pnv_ocxl_alloc_xive_irq(u32 *irq, u64 *trigger_addr)
+int pnv_ocxl_map_lpar(struct pci_dev *dev, uint64_t lparid,
+		      uint64_t lpcr, void __iomem **arva)
 {
-	__be64 flags, trigger_page;
-	s64 rc;
-	u32 hwirq;
+	struct pci_controller *hose = pci_bus_to_host(dev->bus);
+	struct pnv_phb *phb = hose->private_data;
+	u64 mmio_atsd;
+	int rc;
 
-	hwirq = xive_native_alloc_irq();
-	if (!hwirq)
-		return -ENOENT;
-
-	rc = opal_xive_get_irq_info(hwirq, &flags, NULL, &trigger_page, NULL,
-				NULL);
-	if (rc || !trigger_page) {
-		xive_native_free_irq(hwirq);
-		return -ENOENT;
+	/* ATSD physical address.
+	 * ATSD LAUNCH register: write access initiates a shoot down to
+	 * initiate the TLB Invalidate command.
+	 */
+	rc = of_property_read_u64_index(hose->dn, "ibm,mmio-atsd",
+					0, &mmio_atsd);
+	if (rc) {
+		dev_info(&dev->dev, "No available ATSD found\n");
+		return rc;
 	}
-	*irq = hwirq;
-	*trigger_addr = be64_to_cpu(trigger_page);
-	return 0;
 
+	/* Assign a register set to a Logical Partition and MMIO ATSD
+	 * LPARID register to the required value.
+	 */
+	rc = opal_npu_map_lpar(phb->opal_id, pci_dev_id(dev),
+			       lparid, lpcr);
+	if (rc) {
+		dev_err(&dev->dev, "Error mapping device to LPAR: %d\n", rc);
+		return rc;
+	}
+
+	*arva = ioremap(mmio_atsd, 24);
+	if (!(*arva)) {
+		dev_warn(&dev->dev, "ioremap failed - mmio_atsd: %#llx\n", mmio_atsd);
+		rc = -ENOMEM;
+	}
+
+	return rc;
 }
-EXPORT_SYMBOL_GPL(pnv_ocxl_alloc_xive_irq);
+EXPORT_SYMBOL_GPL(pnv_ocxl_map_lpar);
 
-void pnv_ocxl_free_xive_irq(u32 irq)
+void pnv_ocxl_unmap_lpar(void __iomem *arva)
 {
-	xive_native_free_irq(irq);
+	iounmap(arva);
 }
-EXPORT_SYMBOL_GPL(pnv_ocxl_free_xive_irq);
+EXPORT_SYMBOL_GPL(pnv_ocxl_unmap_lpar);
+
+void pnv_ocxl_tlb_invalidate(void __iomem *arva,
+			     unsigned long pid,
+			     unsigned long addr,
+			     unsigned long page_size)
+{
+	unsigned long timeout = jiffies + (HZ * PNV_OCXL_ATSD_TIMEOUT);
+	u64 val = 0ull;
+	int pend;
+	u8 size;
+
+	if (!(arva))
+		return;
+
+	if (addr) {
+		/* load Abbreviated Virtual Address register with
+		 * the necessary value
+		 */
+		val |= FIELD_PREP(PNV_OCXL_ATSD_AVA_AVA, addr >> (63-51));
+		out_be64(arva + PNV_OCXL_ATSD_AVA, val);
+	}
+
+	/* Write access initiates a shoot down to initiate the
+	 * TLB Invalidate command
+	 */
+	val = PNV_OCXL_ATSD_LNCH_R;
+	val |= FIELD_PREP(PNV_OCXL_ATSD_LNCH_RIC, 0b10);
+	if (addr)
+		val |= FIELD_PREP(PNV_OCXL_ATSD_LNCH_IS, 0b00);
+	else {
+		val |= FIELD_PREP(PNV_OCXL_ATSD_LNCH_IS, 0b01);
+		val |= PNV_OCXL_ATSD_LNCH_OCAPI_SINGLETON;
+	}
+	val |= PNV_OCXL_ATSD_LNCH_PRS;
+	/* Actual Page Size to be invalidated
+	 * 000 4KB
+	 * 101 64KB
+	 * 001 2MB
+	 * 010 1GB
+	 */
+	size = 0b101;
+	if (page_size == 0x1000)
+		size = 0b000;
+	if (page_size == 0x200000)
+		size = 0b001;
+	if (page_size == 0x40000000)
+		size = 0b010;
+	val |= FIELD_PREP(PNV_OCXL_ATSD_LNCH_AP, size);
+	val |= FIELD_PREP(PNV_OCXL_ATSD_LNCH_PID, pid);
+	out_be64(arva + PNV_OCXL_ATSD_LNCH, val);
+
+	/* Poll the ATSD status register to determine when the
+	 * TLB Invalidate has been completed.
+	 */
+	val = in_be64(arva + PNV_OCXL_ATSD_STAT);
+	pend = val >> 63;
+
+	while (pend) {
+		if (time_after_eq(jiffies, timeout)) {
+			pr_err("%s - Timeout while reading XTS MMIO ATSD status register (val=%#llx, pidr=0x%lx)\n",
+			       __func__, val, pid);
+			return;
+		}
+		cpu_relax();
+		val = in_be64(arva + PNV_OCXL_ATSD_STAT);
+		pend = val >> 63;
+	}
+}
+EXPORT_SYMBOL_GPL(pnv_ocxl_tlb_invalidate);

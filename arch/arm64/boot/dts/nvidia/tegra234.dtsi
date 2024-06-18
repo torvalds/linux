@@ -1,0 +1,6219 @@
+// SPDX-License-Identifier: GPL-2.0
+
+#include <dt-bindings/clock/tegra234-clock.h>
+#include <dt-bindings/gpio/tegra234-gpio.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/mailbox/tegra186-hsp.h>
+#include <dt-bindings/memory/tegra234-mc.h>
+#include <dt-bindings/pinctrl/pinctrl-tegra-io-pad.h>
+#include <dt-bindings/power/tegra234-powergate.h>
+#include <dt-bindings/reset/tegra234-reset.h>
+#include <dt-bindings/thermal/tegra234-bpmp-thermal.h>
+
+/ {
+	compatible = "nvidia,tegra234";
+	interrupt-parent = <&gic>;
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	bus@0 {
+		compatible = "simple-bus";
+
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges = <0x0 0x0 0x0 0x0 0x100 0x0>;
+
+		misc@100000 {
+			compatible = "nvidia,tegra234-misc";
+			reg = <0x0 0x00100000 0x0 0xf000>,
+			      <0x0 0x0010f000 0x0 0x1000>;
+			status = "okay";
+		};
+
+		timer@2080000 {
+			compatible = "nvidia,tegra234-timer";
+			reg = <0x0 0x02080000 0x0 0x00121000>;
+			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 256 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 257 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 258 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 259 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 260 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 261 IRQ_TYPE_LEVEL_HIGH>;
+			status = "okay";
+		};
+
+		gpio: gpio@2200000 {
+			compatible = "nvidia,tegra234-gpio";
+			reg-names = "security", "gpio";
+			reg = <0x0 0x02200000 0x0 0x10000>,
+			      <0x0 0x02210000 0x0 0x10000>;
+			interrupts = <GIC_SPI 288 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 289 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 290 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 291 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 292 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 293 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 294 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 295 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 296 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 297 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 298 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 299 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 300 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 301 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 302 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 303 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 304 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 305 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 306 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 307 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 308 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 309 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 310 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 311 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 312 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 313 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 314 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 315 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 316 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 317 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 318 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 319 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 320 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 321 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 322 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 323 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 324 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 325 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 326 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 327 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 328 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 329 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 330 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 331 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 332 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 333 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 334 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 335 IRQ_TYPE_LEVEL_HIGH>;
+			#interrupt-cells = <2>;
+			interrupt-controller;
+			#gpio-cells = <2>;
+			gpio-controller;
+			gpio-ranges = <&pinmux 0 0 164>;
+		};
+
+		pinmux: pinmux@2430000 {
+			compatible = "nvidia,tegra234-pinmux";
+			reg = <0x0 0x2430000 0x0 0x19100>;
+		};
+
+		gpcdma: dma-controller@2600000 {
+			compatible = "nvidia,tegra234-gpcdma",
+				     "nvidia,tegra186-gpcdma";
+			reg = <0x0 0x2600000 0x0 0x210000>;
+			resets = <&bpmp TEGRA234_RESET_GPCDMA>;
+			reset-names = "gpcdma";
+			interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
+			#dma-cells = <1>;
+			iommus = <&smmu_niso0 TEGRA234_SID_GPCDMA>;
+			dma-channel-mask = <0xfffffffe>;
+			dma-coherent;
+		};
+
+		aconnect@2900000 {
+			compatible = "nvidia,tegra234-aconnect",
+				     "nvidia,tegra210-aconnect";
+			clocks = <&bpmp TEGRA234_CLK_APE>,
+				 <&bpmp TEGRA234_CLK_APB2APE>;
+			clock-names = "ape", "apb2ape";
+			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_AUD>;
+			status = "disabled";
+
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges = <0x0 0x02900000 0x0 0x02900000 0x0 0x200000>;
+
+			tegra_ahub: ahub@2900800 {
+				compatible = "nvidia,tegra234-ahub";
+				reg = <0x0 0x02900800 0x0 0x800>;
+				clocks = <&bpmp TEGRA234_CLK_AHUB>;
+				clock-names = "ahub";
+				assigned-clocks = <&bpmp TEGRA234_CLK_AHUB>;
+				assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLP_OUT0>;
+				assigned-clock-rates = <81600000>;
+				status = "disabled";
+
+				#address-cells = <2>;
+				#size-cells = <2>;
+				ranges = <0x0 0x02900800 0x0 0x02900800 0x0 0x11800>;
+
+				tegra_i2s1: i2s@2901000 {
+					compatible = "nvidia,tegra234-i2s",
+						     "nvidia,tegra210-i2s";
+					reg = <0x0 0x2901000 0x0 0x100>;
+					clocks = <&bpmp TEGRA234_CLK_I2S1>,
+						 <&bpmp TEGRA234_CLK_I2S1_SYNC_INPUT>;
+					clock-names = "i2s", "sync_input";
+					assigned-clocks = <&bpmp TEGRA234_CLK_I2S1>;
+					assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLA_OUT0>;
+					assigned-clock-rates = <1536000>;
+					sound-name-prefix = "I2S1";
+					status = "disabled";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							i2s1_cif: endpoint {
+								remote-endpoint = <&xbar_i2s1>;
+							};
+						};
+
+						i2s1_port: port@1 {
+							reg = <1>;
+
+							i2s1_dap: endpoint {
+								dai-format = "i2s";
+								/* placeholder for external codec */
+							};
+						};
+					};
+				};
+
+				tegra_i2s2: i2s@2901100 {
+					compatible = "nvidia,tegra234-i2s",
+						     "nvidia,tegra210-i2s";
+					reg = <0x0 0x2901100 0x0 0x100>;
+					clocks = <&bpmp TEGRA234_CLK_I2S2>,
+						 <&bpmp TEGRA234_CLK_I2S2_SYNC_INPUT>;
+					clock-names = "i2s", "sync_input";
+					assigned-clocks = <&bpmp TEGRA234_CLK_I2S2>;
+					assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLA_OUT0>;
+					assigned-clock-rates = <1536000>;
+					sound-name-prefix = "I2S2";
+					status = "disabled";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							i2s2_cif: endpoint {
+								remote-endpoint = <&xbar_i2s2>;
+							};
+						};
+
+						i2s2_port: port@1 {
+							reg = <1>;
+
+							i2s2_dap: endpoint {
+								dai-format = "i2s";
+								/* placeholder for external codec */
+							};
+						};
+					};
+				};
+
+				tegra_i2s3: i2s@2901200 {
+					compatible = "nvidia,tegra234-i2s",
+						     "nvidia,tegra210-i2s";
+					reg = <0x0 0x2901200 0x0 0x100>;
+					clocks = <&bpmp TEGRA234_CLK_I2S3>,
+						 <&bpmp TEGRA234_CLK_I2S3_SYNC_INPUT>;
+					clock-names = "i2s", "sync_input";
+					assigned-clocks = <&bpmp TEGRA234_CLK_I2S3>;
+					assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLA_OUT0>;
+					assigned-clock-rates = <1536000>;
+					sound-name-prefix = "I2S3";
+					status = "disabled";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							i2s3_cif: endpoint {
+								remote-endpoint = <&xbar_i2s3>;
+							};
+						};
+
+						i2s3_port: port@1 {
+							reg = <1>;
+
+							i2s3_dap: endpoint {
+								dai-format = "i2s";
+								/* placeholder for external codec */
+							};
+						};
+					};
+				};
+
+				tegra_i2s4: i2s@2901300 {
+					compatible = "nvidia,tegra234-i2s",
+						     "nvidia,tegra210-i2s";
+					reg = <0x0 0x2901300 0x0 0x100>;
+					clocks = <&bpmp TEGRA234_CLK_I2S4>,
+						 <&bpmp TEGRA234_CLK_I2S4_SYNC_INPUT>;
+					clock-names = "i2s", "sync_input";
+					assigned-clocks = <&bpmp TEGRA234_CLK_I2S4>;
+					assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLA_OUT0>;
+					assigned-clock-rates = <1536000>;
+					sound-name-prefix = "I2S4";
+					status = "disabled";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							i2s4_cif: endpoint {
+								remote-endpoint = <&xbar_i2s4>;
+							};
+						};
+
+						i2s4_port: port@1 {
+							reg = <1>;
+
+							i2s4_dap: endpoint {
+								dai-format = "i2s";
+								/* placeholder for external codec */
+							};
+						};
+					};
+				};
+
+				tegra_i2s5: i2s@2901400 {
+					compatible = "nvidia,tegra234-i2s",
+						     "nvidia,tegra210-i2s";
+					reg = <0x0 0x2901400 0x0 0x100>;
+					clocks = <&bpmp TEGRA234_CLK_I2S5>,
+						 <&bpmp TEGRA234_CLK_I2S5_SYNC_INPUT>;
+					clock-names = "i2s", "sync_input";
+					assigned-clocks = <&bpmp TEGRA234_CLK_I2S5>;
+					assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLA_OUT0>;
+					assigned-clock-rates = <1536000>;
+					sound-name-prefix = "I2S5";
+					status = "disabled";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							i2s5_cif: endpoint {
+								remote-endpoint = <&xbar_i2s5>;
+							};
+						};
+
+						i2s5_port: port@1 {
+							reg = <1>;
+
+							i2s5_dap: endpoint {
+								dai-format = "i2s";
+								/* placeholder for external codec */
+							};
+						};
+					};
+				};
+
+				tegra_i2s6: i2s@2901500 {
+					compatible = "nvidia,tegra234-i2s",
+						     "nvidia,tegra210-i2s";
+					reg = <0x0 0x2901500 0x0 0x100>;
+					clocks = <&bpmp TEGRA234_CLK_I2S6>,
+						 <&bpmp TEGRA234_CLK_I2S6_SYNC_INPUT>;
+					clock-names = "i2s", "sync_input";
+					assigned-clocks = <&bpmp TEGRA234_CLK_I2S6>;
+					assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLA_OUT0>;
+					assigned-clock-rates = <1536000>;
+					sound-name-prefix = "I2S6";
+					status = "disabled";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							i2s6_cif: endpoint {
+								remote-endpoint = <&xbar_i2s6>;
+							};
+						};
+
+						i2s6_port: port@1 {
+							reg = <1>;
+
+							i2s6_dap: endpoint {
+								dai-format = "i2s";
+								/* placeholder for external codec */
+							};
+						};
+					};
+				};
+
+				tegra_sfc1: sfc@2902000 {
+					compatible = "nvidia,tegra234-sfc",
+						     "nvidia,tegra210-sfc";
+					reg = <0x0 0x2902000 0x0 0x200>;
+					sound-name-prefix = "SFC1";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							sfc1_cif_in: endpoint {
+								remote-endpoint = <&xbar_sfc1_in>;
+							};
+						};
+
+						sfc1_out_port: port@1 {
+							reg = <1>;
+
+							sfc1_cif_out: endpoint {
+								remote-endpoint = <&xbar_sfc1_out>;
+							};
+						};
+					};
+				};
+
+				tegra_sfc2: sfc@2902200 {
+					compatible = "nvidia,tegra234-sfc",
+						     "nvidia,tegra210-sfc";
+					reg = <0x0 0x2902200 0x0 0x200>;
+					sound-name-prefix = "SFC2";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							sfc2_cif_in: endpoint {
+								remote-endpoint = <&xbar_sfc2_in>;
+							};
+						};
+
+						sfc2_out_port: port@1 {
+							reg = <1>;
+
+							sfc2_cif_out: endpoint {
+								remote-endpoint = <&xbar_sfc2_out>;
+							};
+						};
+					};
+				};
+
+				tegra_sfc3: sfc@2902400 {
+					compatible = "nvidia,tegra234-sfc",
+						     "nvidia,tegra210-sfc";
+					reg = <0x0 0x2902400 0x0 0x200>;
+					sound-name-prefix = "SFC3";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							sfc3_cif_in: endpoint {
+								remote-endpoint = <&xbar_sfc3_in>;
+							};
+						};
+
+						sfc3_out_port: port@1 {
+							reg = <1>;
+
+							sfc3_cif_out: endpoint {
+								remote-endpoint = <&xbar_sfc3_out>;
+							};
+						};
+					};
+				};
+
+				tegra_sfc4: sfc@2902600 {
+					compatible = "nvidia,tegra234-sfc",
+						     "nvidia,tegra210-sfc";
+					reg = <0x0 0x2902600 0x0 0x200>;
+					sound-name-prefix = "SFC4";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							sfc4_cif_in: endpoint {
+								remote-endpoint = <&xbar_sfc4_in>;
+							};
+						};
+
+						sfc4_out_port: port@1 {
+							reg = <1>;
+
+							sfc4_cif_out: endpoint {
+								remote-endpoint = <&xbar_sfc4_out>;
+							};
+						};
+					};
+				};
+
+				tegra_amx1: amx@2903000 {
+					compatible = "nvidia,tegra234-amx",
+						     "nvidia,tegra194-amx";
+					reg = <0x0 0x2903000 0x0 0x100>;
+					sound-name-prefix = "AMX1";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							amx1_in1: endpoint {
+								remote-endpoint = <&xbar_amx1_in1>;
+							};
+						};
+
+						port@1 {
+							reg = <1>;
+
+							amx1_in2: endpoint {
+								remote-endpoint = <&xbar_amx1_in2>;
+							};
+						};
+
+						port@2 {
+							reg = <2>;
+
+							amx1_in3: endpoint {
+								remote-endpoint = <&xbar_amx1_in3>;
+							};
+						};
+
+						port@3 {
+							reg = <3>;
+
+							amx1_in4: endpoint {
+								remote-endpoint = <&xbar_amx1_in4>;
+							};
+						};
+
+						amx1_out_port: port@4 {
+							reg = <4>;
+
+							amx1_out: endpoint {
+								remote-endpoint = <&xbar_amx1_out>;
+							};
+						};
+					};
+				};
+
+				tegra_amx2: amx@2903100 {
+					compatible = "nvidia,tegra234-amx",
+						     "nvidia,tegra194-amx";
+					reg = <0x0 0x2903100 0x0 0x100>;
+					sound-name-prefix = "AMX2";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							amx2_in1: endpoint {
+								remote-endpoint = <&xbar_amx2_in1>;
+							};
+						};
+
+						port@1 {
+							reg = <1>;
+
+							amx2_in2: endpoint {
+								remote-endpoint = <&xbar_amx2_in2>;
+							};
+						};
+
+						port@2 {
+							reg = <2>;
+
+							amx2_in3: endpoint {
+								remote-endpoint = <&xbar_amx2_in3>;
+							};
+						};
+
+						port@3 {
+							reg = <3>;
+
+							amx2_in4: endpoint {
+								remote-endpoint = <&xbar_amx2_in4>;
+							};
+						};
+
+						amx2_out_port: port@4 {
+							reg = <4>;
+
+							amx2_out: endpoint {
+								remote-endpoint = <&xbar_amx2_out>;
+							};
+						};
+					};
+				};
+
+				tegra_amx3: amx@2903200 {
+					compatible = "nvidia,tegra234-amx",
+						     "nvidia,tegra194-amx";
+					reg = <0x0 0x2903200 0x0 0x100>;
+					sound-name-prefix = "AMX3";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							amx3_in1: endpoint {
+								remote-endpoint = <&xbar_amx3_in1>;
+							};
+						};
+
+						port@1 {
+							reg = <1>;
+
+							amx3_in2: endpoint {
+								remote-endpoint = <&xbar_amx3_in2>;
+							};
+						};
+
+						port@2 {
+							reg = <2>;
+
+							amx3_in3: endpoint {
+								remote-endpoint = <&xbar_amx3_in3>;
+							};
+						};
+
+						port@3 {
+							reg = <3>;
+
+							amx3_in4: endpoint {
+								remote-endpoint = <&xbar_amx3_in4>;
+							};
+						};
+
+						amx3_out_port: port@4 {
+							reg = <4>;
+
+							amx3_out: endpoint {
+								remote-endpoint = <&xbar_amx3_out>;
+							};
+						};
+					};
+				};
+
+				tegra_amx4: amx@2903300 {
+					compatible = "nvidia,tegra234-amx",
+						     "nvidia,tegra194-amx";
+					reg = <0x0 0x2903300 0x0 0x100>;
+					sound-name-prefix = "AMX4";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							amx4_in1: endpoint {
+								remote-endpoint = <&xbar_amx4_in1>;
+							};
+						};
+
+						port@1 {
+							reg = <1>;
+
+							amx4_in2: endpoint {
+								remote-endpoint = <&xbar_amx4_in2>;
+							};
+						};
+
+						port@2 {
+							reg = <2>;
+
+							amx4_in3: endpoint {
+								remote-endpoint = <&xbar_amx4_in3>;
+							};
+						};
+
+						port@3 {
+							reg = <3>;
+
+							amx4_in4: endpoint {
+								remote-endpoint = <&xbar_amx4_in4>;
+							};
+						};
+
+						amx4_out_port: port@4 {
+							reg = <4>;
+
+							amx4_out: endpoint {
+								remote-endpoint = <&xbar_amx4_out>;
+							};
+						};
+					};
+				};
+
+				tegra_adx1: adx@2903800 {
+					compatible = "nvidia,tegra234-adx",
+						     "nvidia,tegra210-adx";
+					reg = <0x0 0x2903800 0x0 0x100>;
+					sound-name-prefix = "ADX1";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							adx1_in: endpoint {
+								remote-endpoint = <&xbar_adx1_in>;
+							};
+						};
+
+						adx1_out1_port: port@1 {
+							reg = <1>;
+
+							adx1_out1: endpoint {
+								remote-endpoint = <&xbar_adx1_out1>;
+							};
+						};
+
+						adx1_out2_port: port@2 {
+							reg = <2>;
+
+							adx1_out2: endpoint {
+								remote-endpoint = <&xbar_adx1_out2>;
+							};
+						};
+
+						adx1_out3_port: port@3 {
+							reg = <3>;
+
+							adx1_out3: endpoint {
+								remote-endpoint = <&xbar_adx1_out3>;
+							};
+						};
+
+						adx1_out4_port: port@4 {
+							reg = <4>;
+
+							adx1_out4: endpoint {
+								remote-endpoint = <&xbar_adx1_out4>;
+							};
+						};
+					};
+				};
+
+				tegra_adx2: adx@2903900 {
+					compatible = "nvidia,tegra234-adx",
+						     "nvidia,tegra210-adx";
+					reg = <0x0 0x2903900 0x0 0x100>;
+					sound-name-prefix = "ADX2";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							adx2_in: endpoint {
+								remote-endpoint = <&xbar_adx2_in>;
+							};
+						};
+
+						adx2_out1_port: port@1 {
+							reg = <1>;
+
+							adx2_out1: endpoint {
+								remote-endpoint = <&xbar_adx2_out1>;
+							};
+						};
+
+						adx2_out2_port: port@2 {
+							reg = <2>;
+
+							adx2_out2: endpoint {
+								remote-endpoint = <&xbar_adx2_out2>;
+							};
+						};
+
+						adx2_out3_port: port@3 {
+							reg = <3>;
+
+							adx2_out3: endpoint {
+								remote-endpoint = <&xbar_adx2_out3>;
+							};
+						};
+
+						adx2_out4_port: port@4 {
+							reg = <4>;
+
+							adx2_out4: endpoint {
+								remote-endpoint = <&xbar_adx2_out4>;
+							};
+						};
+					};
+				};
+
+				tegra_adx3: adx@2903a00 {
+					compatible = "nvidia,tegra234-adx",
+						     "nvidia,tegra210-adx";
+					reg = <0x0 0x2903a00 0x0 0x100>;
+					sound-name-prefix = "ADX3";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							adx3_in: endpoint {
+								remote-endpoint = <&xbar_adx3_in>;
+							};
+						};
+
+						adx3_out1_port: port@1 {
+							reg = <1>;
+
+							adx3_out1: endpoint {
+								remote-endpoint = <&xbar_adx3_out1>;
+							};
+						};
+
+						adx3_out2_port: port@2 {
+							reg = <2>;
+
+							adx3_out2: endpoint {
+								remote-endpoint = <&xbar_adx3_out2>;
+							};
+						};
+
+						adx3_out3_port: port@3 {
+							reg = <3>;
+
+							adx3_out3: endpoint {
+								remote-endpoint = <&xbar_adx3_out3>;
+							};
+						};
+
+						adx3_out4_port: port@4 {
+							reg = <4>;
+
+							adx3_out4: endpoint {
+								remote-endpoint = <&xbar_adx3_out4>;
+							};
+						};
+					};
+				};
+
+				tegra_adx4: adx@2903b00 {
+					compatible = "nvidia,tegra234-adx",
+						     "nvidia,tegra210-adx";
+					reg = <0x0 0x2903b00 0x0 0x100>;
+					sound-name-prefix = "ADX4";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							adx4_in: endpoint {
+								remote-endpoint = <&xbar_adx4_in>;
+							};
+						};
+
+						adx4_out1_port: port@1 {
+							reg = <1>;
+
+							adx4_out1: endpoint {
+								remote-endpoint = <&xbar_adx4_out1>;
+							};
+						};
+
+						adx4_out2_port: port@2 {
+							reg = <2>;
+
+							adx4_out2: endpoint {
+								remote-endpoint = <&xbar_adx4_out2>;
+							};
+						};
+
+						adx4_out3_port: port@3 {
+							reg = <3>;
+
+							adx4_out3: endpoint {
+								remote-endpoint = <&xbar_adx4_out3>;
+							};
+						};
+
+						adx4_out4_port: port@4 {
+							reg = <4>;
+
+							adx4_out4: endpoint {
+								remote-endpoint = <&xbar_adx4_out4>;
+							};
+						};
+					};
+				};
+
+
+				tegra_dmic1: dmic@2904000 {
+					compatible = "nvidia,tegra234-dmic",
+						     "nvidia,tegra210-dmic";
+					reg = <0x0 0x2904000 0x0 0x100>;
+					clocks = <&bpmp TEGRA234_CLK_DMIC1>;
+					clock-names = "dmic";
+					assigned-clocks = <&bpmp TEGRA234_CLK_DMIC1>;
+					assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLA_OUT0>;
+					assigned-clock-rates = <3072000>;
+					sound-name-prefix = "DMIC1";
+					status = "disabled";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							dmic1_cif: endpoint {
+								remote-endpoint = <&xbar_dmic1>;
+							};
+						};
+
+						dmic1_port: port@1 {
+							reg = <1>;
+
+							dmic1_dap: endpoint {
+								/* placeholder for external codec */
+							};
+						};
+					};
+				};
+
+				tegra_dmic2: dmic@2904100 {
+					compatible = "nvidia,tegra234-dmic",
+						     "nvidia,tegra210-dmic";
+					reg = <0x0 0x2904100 0x0 0x100>;
+					clocks = <&bpmp TEGRA234_CLK_DMIC2>;
+					clock-names = "dmic";
+					assigned-clocks = <&bpmp TEGRA234_CLK_DMIC2>;
+					assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLA_OUT0>;
+					assigned-clock-rates = <3072000>;
+					sound-name-prefix = "DMIC2";
+					status = "disabled";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							dmic2_cif: endpoint {
+								remote-endpoint = <&xbar_dmic2>;
+							};
+						};
+
+						dmic2_port: port@1 {
+							reg = <1>;
+
+							dmic2_dap: endpoint {
+								/* placeholder for external codec */
+							};
+						};
+					};
+				};
+
+				tegra_dmic3: dmic@2904200 {
+					compatible = "nvidia,tegra234-dmic",
+						     "nvidia,tegra210-dmic";
+					reg = <0x0 0x2904200 0x0 0x100>;
+					clocks = <&bpmp TEGRA234_CLK_DMIC3>;
+					clock-names = "dmic";
+					assigned-clocks = <&bpmp TEGRA234_CLK_DMIC3>;
+					assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLA_OUT0>;
+					assigned-clock-rates = <3072000>;
+					sound-name-prefix = "DMIC3";
+					status = "disabled";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							dmic3_cif: endpoint {
+								remote-endpoint = <&xbar_dmic3>;
+							};
+						};
+
+						dmic3_port: port@1 {
+							reg = <1>;
+
+							dmic3_dap: endpoint {
+								/* placeholder for external codec */
+							};
+						};
+					};
+				};
+
+				tegra_dmic4: dmic@2904300 {
+					compatible = "nvidia,tegra234-dmic",
+						     "nvidia,tegra210-dmic";
+					reg = <0x0 0x2904300 0x0 0x100>;
+					clocks = <&bpmp TEGRA234_CLK_DMIC4>;
+					clock-names = "dmic";
+					assigned-clocks = <&bpmp TEGRA234_CLK_DMIC4>;
+					assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLA_OUT0>;
+					assigned-clock-rates = <3072000>;
+					sound-name-prefix = "DMIC4";
+					status = "disabled";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							dmic4_cif: endpoint {
+								remote-endpoint = <&xbar_dmic4>;
+							};
+						};
+
+						dmic4_port: port@1 {
+							reg = <1>;
+
+							dmic4_dap: endpoint {
+								/* placeholder for external codec */
+							};
+						};
+					};
+				};
+
+				tegra_dspk1: dspk@2905000 {
+					compatible = "nvidia,tegra234-dspk",
+						     "nvidia,tegra186-dspk";
+					reg = <0x0 0x2905000 0x0 0x100>;
+					clocks = <&bpmp TEGRA234_CLK_DSPK1>;
+					clock-names = "dspk";
+					assigned-clocks = <&bpmp TEGRA234_CLK_DSPK1>;
+					assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLA_OUT0>;
+					assigned-clock-rates = <12288000>;
+					sound-name-prefix = "DSPK1";
+					status = "disabled";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							dspk1_cif: endpoint {
+								remote-endpoint = <&xbar_dspk1>;
+							};
+						};
+
+						dspk1_port: port@1 {
+							reg = <1>;
+
+							dspk1_dap: endpoint {
+								/* placeholder for external codec */
+							};
+						};
+					};
+				};
+
+				tegra_dspk2: dspk@2905100 {
+					compatible = "nvidia,tegra234-dspk",
+						     "nvidia,tegra186-dspk";
+					reg = <0x0 0x2905100 0x0 0x100>;
+					clocks = <&bpmp TEGRA234_CLK_DSPK2>;
+					clock-names = "dspk";
+					assigned-clocks = <&bpmp TEGRA234_CLK_DSPK2>;
+					assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLA_OUT0>;
+					assigned-clock-rates = <12288000>;
+					sound-name-prefix = "DSPK2";
+					status = "disabled";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							dspk2_cif: endpoint {
+								remote-endpoint = <&xbar_dspk2>;
+							};
+						};
+
+						dspk2_port: port@1 {
+							reg = <1>;
+
+							dspk2_dap: endpoint {
+								/* placeholder for external codec */
+							};
+						};
+					};
+				};
+
+				tegra_ope1: processing-engine@2908000 {
+					compatible = "nvidia,tegra234-ope",
+						     "nvidia,tegra210-ope";
+					reg = <0x0 0x2908000 0x0 0x100>;
+					sound-name-prefix = "OPE1";
+
+					#address-cells = <2>;
+					#size-cells = <2>;
+					ranges;
+
+					equalizer@2908100 {
+						compatible = "nvidia,tegra234-peq",
+							     "nvidia,tegra210-peq";
+						reg = <0x0 0x2908100 0x0 0x100>;
+					};
+
+					dynamic-range-compressor@2908200 {
+						compatible = "nvidia,tegra234-mbdrc",
+							     "nvidia,tegra210-mbdrc";
+						reg = <0x0 0x2908200 0x0 0x200>;
+					};
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0x0>;
+
+							ope1_cif_in_ep: endpoint {
+								remote-endpoint =
+									<&xbar_ope1_in_ep>;
+							};
+						};
+
+						ope1_out_port: port@1 {
+							reg = <0x1>;
+
+							ope1_cif_out_ep: endpoint {
+								remote-endpoint =
+									<&xbar_ope1_out_ep>;
+							};
+						};
+					};
+				};
+
+				tegra_mvc1: mvc@290a000 {
+					compatible = "nvidia,tegra234-mvc",
+						     "nvidia,tegra210-mvc";
+					reg = <0x0 0x290a000 0x0 0x200>;
+					sound-name-prefix = "MVC1";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							mvc1_cif_in: endpoint {
+								remote-endpoint = <&xbar_mvc1_in>;
+							};
+						};
+
+						mvc1_out_port: port@1 {
+							reg = <1>;
+
+							mvc1_cif_out: endpoint {
+								remote-endpoint = <&xbar_mvc1_out>;
+							};
+						};
+					};
+				};
+
+				tegra_mvc2: mvc@290a200 {
+					compatible = "nvidia,tegra234-mvc",
+						     "nvidia,tegra210-mvc";
+					reg = <0x0 0x290a200 0x0 0x200>;
+					sound-name-prefix = "MVC2";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							mvc2_cif_in: endpoint {
+								remote-endpoint = <&xbar_mvc2_in>;
+							};
+						};
+
+						mvc2_out_port: port@1 {
+							reg = <1>;
+
+							mvc2_cif_out: endpoint {
+								remote-endpoint = <&xbar_mvc2_out>;
+							};
+						};
+					};
+				};
+
+				tegra_amixer: amixer@290bb00 {
+					compatible = "nvidia,tegra234-amixer",
+						     "nvidia,tegra210-amixer";
+					reg = <0x0 0x290bb00 0x0 0x800>;
+					sound-name-prefix = "MIXER1";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0x0>;
+
+							mix_in1: endpoint {
+								remote-endpoint = <&xbar_mix_in1>;
+							};
+						};
+
+						port@1 {
+							reg = <0x1>;
+
+							mix_in2: endpoint {
+								remote-endpoint = <&xbar_mix_in2>;
+							};
+						};
+
+						port@2 {
+							reg = <0x2>;
+
+							mix_in3: endpoint {
+								remote-endpoint = <&xbar_mix_in3>;
+							};
+						};
+
+						port@3 {
+							reg = <0x3>;
+
+							mix_in4: endpoint {
+								remote-endpoint = <&xbar_mix_in4>;
+							};
+						};
+
+						port@4 {
+							reg = <0x4>;
+
+							mix_in5: endpoint {
+								remote-endpoint = <&xbar_mix_in5>;
+							};
+						};
+
+						port@5 {
+							reg = <0x5>;
+
+							mix_in6: endpoint {
+								remote-endpoint = <&xbar_mix_in6>;
+							};
+						};
+
+						port@6 {
+							reg = <0x6>;
+
+							mix_in7: endpoint {
+								remote-endpoint = <&xbar_mix_in7>;
+							};
+						};
+
+						port@7 {
+							reg = <0x7>;
+
+							mix_in8: endpoint {
+								remote-endpoint = <&xbar_mix_in8>;
+							};
+						};
+
+						port@8 {
+							reg = <0x8>;
+
+							mix_in9: endpoint {
+								remote-endpoint = <&xbar_mix_in9>;
+							};
+						};
+
+						port@9 {
+							reg = <0x9>;
+
+							mix_in10: endpoint {
+								remote-endpoint = <&xbar_mix_in10>;
+							};
+						};
+
+						mix_out1_port: port@a {
+							reg = <0xa>;
+
+							mix_out1: endpoint {
+								remote-endpoint = <&xbar_mix_out1>;
+							};
+						};
+
+						mix_out2_port: port@b {
+							reg = <0xb>;
+
+							mix_out2: endpoint {
+								remote-endpoint = <&xbar_mix_out2>;
+							};
+						};
+
+						mix_out3_port: port@c {
+							reg = <0xc>;
+
+							mix_out3: endpoint {
+								remote-endpoint = <&xbar_mix_out3>;
+							};
+						};
+
+						mix_out4_port: port@d {
+							reg = <0xd>;
+
+							mix_out4: endpoint {
+								remote-endpoint = <&xbar_mix_out4>;
+							};
+						};
+
+						mix_out5_port: port@e {
+							reg = <0xe>;
+
+							mix_out5: endpoint {
+								remote-endpoint = <&xbar_mix_out5>;
+							};
+						};
+					};
+				};
+
+				tegra_admaif: admaif@290f000 {
+					compatible = "nvidia,tegra234-admaif",
+						     "nvidia,tegra186-admaif";
+					reg = <0x0 0x0290f000 0x0 0x1000>;
+					dmas = <&adma 1>, <&adma 1>,
+					       <&adma 2>, <&adma 2>,
+					       <&adma 3>, <&adma 3>,
+					       <&adma 4>, <&adma 4>,
+					       <&adma 5>, <&adma 5>,
+					       <&adma 6>, <&adma 6>,
+					       <&adma 7>, <&adma 7>,
+					       <&adma 8>, <&adma 8>,
+					       <&adma 9>, <&adma 9>,
+					       <&adma 10>, <&adma 10>,
+					       <&adma 11>, <&adma 11>,
+					       <&adma 12>, <&adma 12>,
+					       <&adma 13>, <&adma 13>,
+					       <&adma 14>, <&adma 14>,
+					       <&adma 15>, <&adma 15>,
+					       <&adma 16>, <&adma 16>,
+					       <&adma 17>, <&adma 17>,
+					       <&adma 18>, <&adma 18>,
+					       <&adma 19>, <&adma 19>,
+					       <&adma 20>, <&adma 20>;
+					dma-names = "rx1", "tx1",
+						    "rx2", "tx2",
+						    "rx3", "tx3",
+						    "rx4", "tx4",
+						    "rx5", "tx5",
+						    "rx6", "tx6",
+						    "rx7", "tx7",
+						    "rx8", "tx8",
+						    "rx9", "tx9",
+						    "rx10", "tx10",
+						    "rx11", "tx11",
+						    "rx12", "tx12",
+						    "rx13", "tx13",
+						    "rx14", "tx14",
+						    "rx15", "tx15",
+						    "rx16", "tx16",
+						    "rx17", "tx17",
+						    "rx18", "tx18",
+						    "rx19", "tx19",
+						    "rx20", "tx20";
+					interconnects = <&mc TEGRA234_MEMORY_CLIENT_APEDMAR &emc>,
+							<&mc TEGRA234_MEMORY_CLIENT_APEDMAW &emc>;
+					interconnect-names = "dma-mem", "write";
+					iommus = <&smmu_niso0 TEGRA234_SID_APE>;
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						admaif0_port: port@0 {
+							reg = <0x0>;
+
+							admaif0: endpoint {
+								remote-endpoint = <&xbar_admaif0>;
+							};
+						};
+
+						admaif1_port: port@1 {
+							reg = <0x1>;
+
+							admaif1: endpoint {
+								remote-endpoint = <&xbar_admaif1>;
+							};
+						};
+
+						admaif2_port: port@2 {
+							reg = <0x2>;
+
+							admaif2: endpoint {
+								remote-endpoint = <&xbar_admaif2>;
+							};
+						};
+
+						admaif3_port: port@3 {
+							reg = <0x3>;
+
+							admaif3: endpoint {
+								remote-endpoint = <&xbar_admaif3>;
+							};
+						};
+
+						admaif4_port: port@4 {
+							reg = <0x4>;
+
+							admaif4: endpoint {
+								remote-endpoint = <&xbar_admaif4>;
+							};
+						};
+
+						admaif5_port: port@5 {
+							reg = <0x5>;
+
+							admaif5: endpoint {
+								remote-endpoint = <&xbar_admaif5>;
+							};
+						};
+
+						admaif6_port: port@6 {
+							reg = <0x6>;
+
+							admaif6: endpoint {
+								remote-endpoint = <&xbar_admaif6>;
+							};
+						};
+
+						admaif7_port: port@7 {
+							reg = <0x7>;
+
+							admaif7: endpoint {
+								remote-endpoint = <&xbar_admaif7>;
+							};
+						};
+
+						admaif8_port: port@8 {
+							reg = <0x8>;
+
+							admaif8: endpoint {
+								remote-endpoint = <&xbar_admaif8>;
+							};
+						};
+
+						admaif9_port: port@9 {
+							reg = <0x9>;
+
+							admaif9: endpoint {
+								remote-endpoint = <&xbar_admaif9>;
+							};
+						};
+
+						admaif10_port: port@a {
+							reg = <0xa>;
+
+							admaif10: endpoint {
+								remote-endpoint = <&xbar_admaif10>;
+							};
+						};
+
+						admaif11_port: port@b {
+							reg = <0xb>;
+
+							admaif11: endpoint {
+								remote-endpoint = <&xbar_admaif11>;
+							};
+						};
+
+						admaif12_port: port@c {
+							reg = <0xc>;
+
+							admaif12: endpoint {
+								remote-endpoint = <&xbar_admaif12>;
+							};
+						};
+
+						admaif13_port: port@d {
+							reg = <0xd>;
+
+							admaif13: endpoint {
+								remote-endpoint = <&xbar_admaif13>;
+							};
+						};
+
+						admaif14_port: port@e {
+							reg = <0xe>;
+
+							admaif14: endpoint {
+								remote-endpoint = <&xbar_admaif14>;
+							};
+						};
+
+						admaif15_port: port@f {
+							reg = <0xf>;
+
+							admaif15: endpoint {
+								remote-endpoint = <&xbar_admaif15>;
+							};
+						};
+
+						admaif16_port: port@10 {
+							reg = <0x10>;
+
+							admaif16: endpoint {
+								remote-endpoint = <&xbar_admaif16>;
+							};
+						};
+
+						admaif17_port: port@11 {
+							reg = <0x11>;
+
+							admaif17: endpoint {
+								remote-endpoint = <&xbar_admaif17>;
+							};
+						};
+
+						admaif18_port: port@12 {
+							reg = <0x12>;
+
+							admaif18: endpoint {
+								remote-endpoint = <&xbar_admaif18>;
+							};
+						};
+
+						admaif19_port: port@13 {
+							reg = <0x13>;
+
+							admaif19: endpoint {
+								remote-endpoint = <&xbar_admaif19>;
+							};
+						};
+					};
+				};
+
+				tegra_asrc: asrc@2910000 {
+					compatible = "nvidia,tegra234-asrc",
+						     "nvidia,tegra186-asrc";
+					reg = <0x0 0x2910000 0x0 0x2000>;
+					sound-name-prefix = "ASRC1";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0x0>;
+
+							asrc_in1_ep: endpoint {
+								remote-endpoint =
+									<&xbar_asrc_in1_ep>;
+							};
+						};
+
+						port@1 {
+							reg = <0x1>;
+
+							asrc_in2_ep: endpoint {
+								remote-endpoint =
+									<&xbar_asrc_in2_ep>;
+							};
+						};
+
+						port@2 {
+							reg = <0x2>;
+
+							asrc_in3_ep: endpoint {
+								remote-endpoint =
+									<&xbar_asrc_in3_ep>;
+							};
+						};
+
+						port@3 {
+							reg = <0x3>;
+
+							asrc_in4_ep: endpoint {
+								remote-endpoint =
+									<&xbar_asrc_in4_ep>;
+							};
+						};
+
+						port@4 {
+							reg = <0x4>;
+
+							asrc_in5_ep: endpoint {
+								remote-endpoint =
+									<&xbar_asrc_in5_ep>;
+							};
+						};
+
+						port@5 {
+							reg = <0x5>;
+
+							asrc_in6_ep: endpoint {
+								remote-endpoint =
+									<&xbar_asrc_in6_ep>;
+							};
+						};
+
+						port@6 {
+							reg = <0x6>;
+
+							asrc_in7_ep: endpoint {
+								remote-endpoint =
+									<&xbar_asrc_in7_ep>;
+							};
+						};
+
+						asrc_out1_port: port@7 {
+							reg = <0x7>;
+
+							asrc_out1_ep: endpoint {
+								remote-endpoint =
+									<&xbar_asrc_out1_ep>;
+							};
+						};
+
+						asrc_out2_port: port@8 {
+							reg = <0x8>;
+
+							asrc_out2_ep: endpoint {
+								remote-endpoint =
+									<&xbar_asrc_out2_ep>;
+							};
+						};
+
+						asrc_out3_port: port@9 {
+							reg = <0x9>;
+
+							asrc_out3_ep: endpoint {
+								remote-endpoint =
+									<&xbar_asrc_out3_ep>;
+							};
+						};
+
+						asrc_out4_port: port@a {
+							reg = <0xa>;
+
+							asrc_out4_ep: endpoint {
+								remote-endpoint =
+									<&xbar_asrc_out4_ep>;
+							};
+						};
+
+						asrc_out5_port: port@b {
+							reg = <0xb>;
+
+							asrc_out5_ep: endpoint {
+								remote-endpoint =
+									<&xbar_asrc_out5_ep>;
+							};
+						};
+
+						asrc_out6_port:	port@c {
+							reg = <0xc>;
+
+							asrc_out6_ep: endpoint {
+								remote-endpoint =
+									<&xbar_asrc_out6_ep>;
+							};
+						};
+					};
+				};
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0x0>;
+
+						xbar_admaif0: endpoint {
+							remote-endpoint = <&admaif0>;
+						};
+					};
+
+					port@1 {
+						reg = <0x1>;
+
+						xbar_admaif1: endpoint {
+							remote-endpoint = <&admaif1>;
+						};
+					};
+
+					port@2 {
+						reg = <0x2>;
+
+						xbar_admaif2: endpoint {
+							remote-endpoint = <&admaif2>;
+						};
+					};
+
+					port@3 {
+						reg = <0x3>;
+
+						xbar_admaif3: endpoint {
+							remote-endpoint = <&admaif3>;
+						};
+					};
+
+					port@4 {
+						reg = <0x4>;
+
+						xbar_admaif4: endpoint {
+							remote-endpoint = <&admaif4>;
+						};
+					};
+
+					port@5 {
+						reg = <0x5>;
+
+						xbar_admaif5: endpoint {
+							remote-endpoint = <&admaif5>;
+						};
+					};
+
+					port@6 {
+						reg = <0x6>;
+
+						xbar_admaif6: endpoint {
+							remote-endpoint = <&admaif6>;
+						};
+					};
+
+					port@7 {
+						reg = <0x7>;
+
+						xbar_admaif7: endpoint {
+							remote-endpoint = <&admaif7>;
+						};
+					};
+
+					port@8 {
+						reg = <0x8>;
+
+						xbar_admaif8: endpoint {
+							remote-endpoint = <&admaif8>;
+						};
+					};
+
+					port@9 {
+						reg = <0x9>;
+
+						xbar_admaif9: endpoint {
+							remote-endpoint = <&admaif9>;
+						};
+					};
+
+					port@a {
+						reg = <0xa>;
+
+						xbar_admaif10: endpoint {
+							remote-endpoint = <&admaif10>;
+						};
+					};
+
+					port@b {
+						reg = <0xb>;
+
+						xbar_admaif11: endpoint {
+							remote-endpoint = <&admaif11>;
+						};
+					};
+
+					port@c {
+						reg = <0xc>;
+
+						xbar_admaif12: endpoint {
+							remote-endpoint = <&admaif12>;
+						};
+					};
+
+					port@d {
+						reg = <0xd>;
+
+						xbar_admaif13: endpoint {
+							remote-endpoint = <&admaif13>;
+						};
+					};
+
+					port@e {
+						reg = <0xe>;
+
+						xbar_admaif14: endpoint {
+							remote-endpoint = <&admaif14>;
+						};
+					};
+
+					port@f {
+						reg = <0xf>;
+
+						xbar_admaif15: endpoint {
+							remote-endpoint = <&admaif15>;
+						};
+					};
+
+					port@10 {
+						reg = <0x10>;
+
+						xbar_admaif16: endpoint {
+							remote-endpoint = <&admaif16>;
+						};
+					};
+
+					port@11 {
+						reg = <0x11>;
+
+						xbar_admaif17: endpoint {
+							remote-endpoint = <&admaif17>;
+						};
+					};
+
+					port@12 {
+						reg = <0x12>;
+
+						xbar_admaif18: endpoint {
+							remote-endpoint = <&admaif18>;
+						};
+					};
+
+					port@13 {
+						reg = <0x13>;
+
+						xbar_admaif19: endpoint {
+							remote-endpoint = <&admaif19>;
+						};
+					};
+
+					xbar_i2s1_port: port@14 {
+						reg = <0x14>;
+
+						xbar_i2s1: endpoint {
+							remote-endpoint = <&i2s1_cif>;
+						};
+					};
+
+					xbar_i2s2_port: port@15 {
+						reg = <0x15>;
+
+						xbar_i2s2: endpoint {
+							remote-endpoint = <&i2s2_cif>;
+						};
+					};
+
+					xbar_i2s3_port: port@16 {
+						reg = <0x16>;
+
+						xbar_i2s3: endpoint {
+							remote-endpoint = <&i2s3_cif>;
+						};
+					};
+
+					xbar_i2s4_port: port@17 {
+						reg = <0x17>;
+
+						xbar_i2s4: endpoint {
+							remote-endpoint = <&i2s4_cif>;
+						};
+					};
+
+					xbar_i2s5_port: port@18 {
+						reg = <0x18>;
+
+						xbar_i2s5: endpoint {
+							remote-endpoint = <&i2s5_cif>;
+						};
+					};
+
+					xbar_i2s6_port: port@19 {
+						reg = <0x19>;
+
+						xbar_i2s6: endpoint {
+							remote-endpoint = <&i2s6_cif>;
+						};
+					};
+
+					xbar_dmic1_port: port@1a {
+						reg = <0x1a>;
+
+						xbar_dmic1: endpoint {
+							remote-endpoint = <&dmic1_cif>;
+						};
+					};
+
+					xbar_dmic2_port: port@1b {
+						reg = <0x1b>;
+
+						xbar_dmic2: endpoint {
+							remote-endpoint = <&dmic2_cif>;
+						};
+					};
+
+					xbar_dmic3_port: port@1c {
+						reg = <0x1c>;
+
+						xbar_dmic3: endpoint {
+							remote-endpoint = <&dmic3_cif>;
+						};
+					};
+
+					xbar_dmic4_port: port@1d {
+						reg = <0x1d>;
+
+						xbar_dmic4: endpoint {
+							remote-endpoint = <&dmic4_cif>;
+						};
+					};
+
+					xbar_dspk1_port: port@1e {
+						reg = <0x1e>;
+
+						xbar_dspk1: endpoint {
+							remote-endpoint = <&dspk1_cif>;
+						};
+					};
+
+					xbar_dspk2_port: port@1f {
+						reg = <0x1f>;
+
+						xbar_dspk2: endpoint {
+							remote-endpoint = <&dspk2_cif>;
+						};
+					};
+
+					xbar_sfc1_in_port: port@20 {
+						reg = <0x20>;
+
+						xbar_sfc1_in: endpoint {
+							remote-endpoint = <&sfc1_cif_in>;
+						};
+					};
+
+					port@21 {
+						reg = <0x21>;
+
+						xbar_sfc1_out: endpoint {
+							remote-endpoint = <&sfc1_cif_out>;
+						};
+					};
+
+					xbar_sfc2_in_port: port@22 {
+						reg = <0x22>;
+
+						xbar_sfc2_in: endpoint {
+							remote-endpoint = <&sfc2_cif_in>;
+						};
+					};
+
+					port@23 {
+						reg = <0x23>;
+
+						xbar_sfc2_out: endpoint {
+							remote-endpoint = <&sfc2_cif_out>;
+						};
+					};
+
+					xbar_sfc3_in_port: port@24 {
+						reg = <0x24>;
+
+						xbar_sfc3_in: endpoint {
+							remote-endpoint = <&sfc3_cif_in>;
+						};
+					};
+
+					port@25 {
+						reg = <0x25>;
+
+						xbar_sfc3_out: endpoint {
+							remote-endpoint = <&sfc3_cif_out>;
+						};
+					};
+
+					xbar_sfc4_in_port: port@26 {
+						reg = <0x26>;
+
+						xbar_sfc4_in: endpoint {
+							remote-endpoint = <&sfc4_cif_in>;
+						};
+					};
+
+					port@27 {
+						reg = <0x27>;
+
+						xbar_sfc4_out: endpoint {
+							remote-endpoint = <&sfc4_cif_out>;
+						};
+					};
+
+					xbar_mvc1_in_port: port@28 {
+						reg = <0x28>;
+
+						xbar_mvc1_in: endpoint {
+							remote-endpoint = <&mvc1_cif_in>;
+						};
+					};
+
+					port@29 {
+						reg = <0x29>;
+
+						xbar_mvc1_out: endpoint {
+							remote-endpoint = <&mvc1_cif_out>;
+						};
+					};
+
+					xbar_mvc2_in_port: port@2a {
+						reg = <0x2a>;
+
+						xbar_mvc2_in: endpoint {
+							remote-endpoint = <&mvc2_cif_in>;
+						};
+					};
+
+					port@2b {
+						reg = <0x2b>;
+
+						xbar_mvc2_out: endpoint {
+							remote-endpoint = <&mvc2_cif_out>;
+						};
+					};
+
+					xbar_amx1_in1_port: port@2c {
+						reg = <0x2c>;
+
+						xbar_amx1_in1: endpoint {
+							remote-endpoint = <&amx1_in1>;
+						};
+					};
+
+					xbar_amx1_in2_port: port@2d {
+						reg = <0x2d>;
+
+						xbar_amx1_in2: endpoint {
+							remote-endpoint = <&amx1_in2>;
+						};
+					};
+
+					xbar_amx1_in3_port: port@2e {
+						reg = <0x2e>;
+
+						xbar_amx1_in3: endpoint {
+							remote-endpoint = <&amx1_in3>;
+						};
+					};
+
+					xbar_amx1_in4_port: port@2f {
+						reg = <0x2f>;
+
+						xbar_amx1_in4: endpoint {
+							remote-endpoint = <&amx1_in4>;
+						};
+					};
+
+					port@30 {
+						reg = <0x30>;
+
+						xbar_amx1_out: endpoint {
+							remote-endpoint = <&amx1_out>;
+						};
+					};
+
+					xbar_amx2_in1_port: port@31 {
+						reg = <0x31>;
+
+						xbar_amx2_in1: endpoint {
+							remote-endpoint = <&amx2_in1>;
+						};
+					};
+
+					xbar_amx2_in2_port: port@32 {
+						reg = <0x32>;
+
+						xbar_amx2_in2: endpoint {
+							remote-endpoint = <&amx2_in2>;
+						};
+					};
+
+					xbar_amx2_in3_port: port@33 {
+						reg = <0x33>;
+
+						xbar_amx2_in3: endpoint {
+							remote-endpoint = <&amx2_in3>;
+						};
+					};
+
+					xbar_amx2_in4_port: port@34 {
+						reg = <0x34>;
+
+						xbar_amx2_in4: endpoint {
+							remote-endpoint = <&amx2_in4>;
+						};
+					};
+
+					port@35 {
+						reg = <0x35>;
+
+						xbar_amx2_out: endpoint {
+							remote-endpoint = <&amx2_out>;
+						};
+					};
+
+					xbar_amx3_in1_port: port@36 {
+						reg = <0x36>;
+
+						xbar_amx3_in1: endpoint {
+							remote-endpoint = <&amx3_in1>;
+						};
+					};
+
+					xbar_amx3_in2_port: port@37 {
+						reg = <0x37>;
+
+						xbar_amx3_in2: endpoint {
+							remote-endpoint = <&amx3_in2>;
+						};
+					};
+
+					xbar_amx3_in3_port: port@38 {
+						reg = <0x38>;
+
+						xbar_amx3_in3: endpoint {
+							remote-endpoint = <&amx3_in3>;
+						};
+					};
+
+					xbar_amx3_in4_port: port@39 {
+						reg = <0x39>;
+
+						xbar_amx3_in4: endpoint {
+							remote-endpoint = <&amx3_in4>;
+						};
+					};
+
+					port@3a {
+						reg = <0x3a>;
+
+						xbar_amx3_out: endpoint {
+							remote-endpoint = <&amx3_out>;
+						};
+					};
+
+					xbar_amx4_in1_port: port@3b {
+						reg = <0x3b>;
+
+						xbar_amx4_in1: endpoint {
+							remote-endpoint = <&amx4_in1>;
+						};
+					};
+
+					xbar_amx4_in2_port: port@3c {
+						reg = <0x3c>;
+
+						xbar_amx4_in2: endpoint {
+							remote-endpoint = <&amx4_in2>;
+						};
+					};
+
+					xbar_amx4_in3_port: port@3d {
+						reg = <0x3d>;
+
+						xbar_amx4_in3: endpoint {
+							remote-endpoint = <&amx4_in3>;
+						};
+					};
+
+					xbar_amx4_in4_port: port@3e {
+						reg = <0x3e>;
+
+						xbar_amx4_in4: endpoint {
+							remote-endpoint = <&amx4_in4>;
+						};
+					};
+
+					port@3f {
+						reg = <0x3f>;
+
+						xbar_amx4_out: endpoint {
+							remote-endpoint = <&amx4_out>;
+						};
+					};
+
+					xbar_adx1_in_port: port@40 {
+						reg = <0x40>;
+
+						xbar_adx1_in: endpoint {
+							remote-endpoint = <&adx1_in>;
+						};
+					};
+
+					port@41 {
+						reg = <0x41>;
+
+						xbar_adx1_out1: endpoint {
+							remote-endpoint = <&adx1_out1>;
+						};
+					};
+
+					port@42 {
+						reg = <0x42>;
+
+						xbar_adx1_out2: endpoint {
+							remote-endpoint = <&adx1_out2>;
+						};
+					};
+
+					port@43 {
+						reg = <0x43>;
+
+						xbar_adx1_out3: endpoint {
+							remote-endpoint = <&adx1_out3>;
+						};
+					};
+
+					port@44 {
+						reg = <0x44>;
+
+						xbar_adx1_out4: endpoint {
+							remote-endpoint = <&adx1_out4>;
+						};
+					};
+
+					xbar_adx2_in_port: port@45 {
+						reg = <0x45>;
+
+						xbar_adx2_in: endpoint {
+							remote-endpoint = <&adx2_in>;
+						};
+					};
+
+					port@46 {
+						reg = <0x46>;
+
+						xbar_adx2_out1: endpoint {
+							remote-endpoint = <&adx2_out1>;
+						};
+					};
+
+					port@47 {
+						reg = <0x47>;
+
+						xbar_adx2_out2: endpoint {
+							remote-endpoint = <&adx2_out2>;
+						};
+					};
+
+					port@48 {
+						reg = <0x48>;
+
+						xbar_adx2_out3: endpoint {
+							remote-endpoint = <&adx2_out3>;
+						};
+					};
+
+					port@49 {
+						reg = <0x49>;
+
+						xbar_adx2_out4: endpoint {
+							remote-endpoint = <&adx2_out4>;
+						};
+					};
+
+					xbar_adx3_in_port: port@4a {
+						reg = <0x4a>;
+
+						xbar_adx3_in: endpoint {
+							remote-endpoint = <&adx3_in>;
+						};
+					};
+
+					port@4b {
+						reg = <0x4b>;
+
+						xbar_adx3_out1: endpoint {
+							remote-endpoint = <&adx3_out1>;
+						};
+					};
+
+					port@4c {
+						reg = <0x4c>;
+
+						xbar_adx3_out2: endpoint {
+							remote-endpoint = <&adx3_out2>;
+						};
+					};
+
+					port@4d {
+						reg = <0x4d>;
+
+						xbar_adx3_out3: endpoint {
+							remote-endpoint = <&adx3_out3>;
+						};
+					};
+
+					port@4e {
+						reg = <0x4e>;
+
+						xbar_adx3_out4: endpoint {
+							remote-endpoint = <&adx3_out4>;
+						};
+					};
+
+					xbar_adx4_in_port: port@4f {
+						reg = <0x4f>;
+
+						xbar_adx4_in: endpoint {
+							remote-endpoint = <&adx4_in>;
+						};
+					};
+
+					port@50 {
+						reg = <0x50>;
+
+						xbar_adx4_out1: endpoint {
+							remote-endpoint = <&adx4_out1>;
+						};
+					};
+
+					port@51 {
+						reg = <0x51>;
+
+						xbar_adx4_out2: endpoint {
+							remote-endpoint = <&adx4_out2>;
+						};
+					};
+
+					port@52 {
+						reg = <0x52>;
+
+						xbar_adx4_out3: endpoint {
+							remote-endpoint = <&adx4_out3>;
+						};
+					};
+
+					port@53 {
+						reg = <0x53>;
+
+						xbar_adx4_out4: endpoint {
+							remote-endpoint = <&adx4_out4>;
+						};
+					};
+
+					xbar_mix_in1_port: port@54 {
+						reg = <0x54>;
+
+						xbar_mix_in1: endpoint {
+							remote-endpoint = <&mix_in1>;
+						};
+					};
+
+					xbar_mix_in2_port: port@55 {
+						reg = <0x55>;
+
+						xbar_mix_in2: endpoint {
+							remote-endpoint = <&mix_in2>;
+						};
+					};
+
+					xbar_mix_in3_port: port@56 {
+						reg = <0x56>;
+
+						xbar_mix_in3: endpoint {
+							remote-endpoint = <&mix_in3>;
+						};
+					};
+
+					xbar_mix_in4_port: port@57 {
+						reg = <0x57>;
+
+						xbar_mix_in4: endpoint {
+							remote-endpoint = <&mix_in4>;
+						};
+					};
+
+					xbar_mix_in5_port: port@58 {
+						reg = <0x58>;
+
+						xbar_mix_in5: endpoint {
+							remote-endpoint = <&mix_in5>;
+						};
+					};
+
+					xbar_mix_in6_port: port@59 {
+						reg = <0x59>;
+
+						xbar_mix_in6: endpoint {
+							remote-endpoint = <&mix_in6>;
+						};
+					};
+
+					xbar_mix_in7_port: port@5a {
+						reg = <0x5a>;
+
+						xbar_mix_in7: endpoint {
+							remote-endpoint = <&mix_in7>;
+						};
+					};
+
+					xbar_mix_in8_port: port@5b {
+						reg = <0x5b>;
+
+						xbar_mix_in8: endpoint {
+							remote-endpoint = <&mix_in8>;
+						};
+					};
+
+					xbar_mix_in9_port: port@5c {
+						reg = <0x5c>;
+
+						xbar_mix_in9: endpoint {
+							remote-endpoint = <&mix_in9>;
+						};
+					};
+
+					xbar_mix_in10_port: port@5d {
+						reg = <0x5d>;
+
+						xbar_mix_in10: endpoint {
+							remote-endpoint = <&mix_in10>;
+						};
+					};
+
+					port@5e {
+						reg = <0x5e>;
+
+						xbar_mix_out1: endpoint {
+							remote-endpoint = <&mix_out1>;
+						};
+					};
+
+					port@5f {
+						reg = <0x5f>;
+
+						xbar_mix_out2: endpoint {
+							remote-endpoint = <&mix_out2>;
+						};
+					};
+
+					port@60 {
+						reg = <0x60>;
+
+						xbar_mix_out3: endpoint {
+							remote-endpoint = <&mix_out3>;
+						};
+					};
+
+					port@61 {
+						reg = <0x61>;
+
+						xbar_mix_out4: endpoint {
+							remote-endpoint = <&mix_out4>;
+						};
+					};
+
+					port@62 {
+						reg = <0x62>;
+
+						xbar_mix_out5: endpoint {
+							remote-endpoint = <&mix_out5>;
+						};
+					};
+
+					xbar_asrc_in1_port: port@63 {
+						reg = <0x63>;
+
+						xbar_asrc_in1_ep: endpoint {
+							remote-endpoint = <&asrc_in1_ep>;
+						};
+					};
+
+					port@64 {
+						reg = <0x64>;
+
+						xbar_asrc_out1_ep: endpoint {
+							remote-endpoint = <&asrc_out1_ep>;
+						};
+					};
+
+					xbar_asrc_in2_port: port@65 {
+						reg = <0x65>;
+
+						xbar_asrc_in2_ep: endpoint {
+							remote-endpoint = <&asrc_in2_ep>;
+						};
+					};
+
+					port@66 {
+						reg = <0x66>;
+
+						xbar_asrc_out2_ep: endpoint {
+							remote-endpoint = <&asrc_out2_ep>;
+						};
+					};
+
+					xbar_asrc_in3_port: port@67 {
+						reg = <0x67>;
+
+						xbar_asrc_in3_ep: endpoint {
+							remote-endpoint = <&asrc_in3_ep>;
+						};
+					};
+
+					port@68 {
+						reg = <0x68>;
+
+						xbar_asrc_out3_ep: endpoint {
+							remote-endpoint = <&asrc_out3_ep>;
+						};
+					};
+
+					xbar_asrc_in4_port: port@69 {
+						reg = <0x69>;
+
+						xbar_asrc_in4_ep: endpoint {
+							remote-endpoint = <&asrc_in4_ep>;
+						};
+					};
+
+					port@6a {
+						reg = <0x6a>;
+
+						xbar_asrc_out4_ep: endpoint {
+							remote-endpoint = <&asrc_out4_ep>;
+						};
+					};
+
+					xbar_asrc_in5_port: port@6b {
+						reg = <0x6b>;
+
+						xbar_asrc_in5_ep: endpoint {
+							remote-endpoint = <&asrc_in5_ep>;
+						};
+					};
+
+					port@6c {
+						reg = <0x6c>;
+
+						xbar_asrc_out5_ep: endpoint {
+							remote-endpoint = <&asrc_out5_ep>;
+						};
+					};
+
+					xbar_asrc_in6_port: port@6d {
+						reg = <0x6d>;
+
+						xbar_asrc_in6_ep: endpoint {
+							remote-endpoint = <&asrc_in6_ep>;
+						};
+					};
+
+					port@6e {
+						reg = <0x6e>;
+
+						xbar_asrc_out6_ep: endpoint {
+							remote-endpoint = <&asrc_out6_ep>;
+						};
+					};
+
+					xbar_asrc_in7_port: port@6f {
+						reg = <0x6f>;
+
+						xbar_asrc_in7_ep: endpoint {
+							remote-endpoint = <&asrc_in7_ep>;
+						};
+					};
+
+					xbar_ope1_in_port: port@70 {
+						reg = <0x70>;
+
+						xbar_ope1_in_ep: endpoint {
+							remote-endpoint = <&ope1_cif_in_ep>;
+						};
+					};
+
+					port@71 {
+						reg = <0x71>;
+
+						xbar_ope1_out_ep: endpoint {
+							remote-endpoint = <&ope1_cif_out_ep>;
+						};
+					};
+				};
+			};
+
+			adma: dma-controller@2930000 {
+				compatible = "nvidia,tegra234-adma",
+					     "nvidia,tegra186-adma";
+				reg = <0x0 0x02930000 0x0 0x20000>;
+				interrupt-parent = <&agic>;
+				interrupts =  <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
+				#dma-cells = <1>;
+				clocks = <&bpmp TEGRA234_CLK_AHUB>;
+				clock-names = "d_audio";
+				status = "disabled";
+			};
+
+			agic: interrupt-controller@2a40000 {
+				compatible = "nvidia,tegra234-agic",
+					     "nvidia,tegra210-agic";
+				#interrupt-cells = <3>;
+				interrupt-controller;
+				reg = <0x0 0x02a41000 0x0 0x1000>,
+				      <0x0 0x02a42000 0x0 0x2000>;
+				interrupts = <GIC_SPI 145
+					      (GIC_CPU_MASK_SIMPLE(4) |
+					       IRQ_TYPE_LEVEL_HIGH)>;
+				clocks = <&bpmp TEGRA234_CLK_APE>;
+				clock-names = "clk";
+				status = "disabled";
+			};
+		};
+
+		mc: memory-controller@2c00000 {
+			compatible = "nvidia,tegra234-mc";
+			reg = <0x0 0x02c00000 0x0 0x10000>,   /* MC-SID */
+			      <0x0 0x02c10000 0x0 0x10000>,   /* MC Broadcast*/
+			      <0x0 0x02c20000 0x0 0x10000>,   /* MC0 */
+			      <0x0 0x02c30000 0x0 0x10000>,   /* MC1 */
+			      <0x0 0x02c40000 0x0 0x10000>,   /* MC2 */
+			      <0x0 0x02c50000 0x0 0x10000>,   /* MC3 */
+			      <0x0 0x02b80000 0x0 0x10000>,   /* MC4 */
+			      <0x0 0x02b90000 0x0 0x10000>,   /* MC5 */
+			      <0x0 0x02ba0000 0x0 0x10000>,   /* MC6 */
+			      <0x0 0x02bb0000 0x0 0x10000>,   /* MC7 */
+			      <0x0 0x01700000 0x0 0x10000>,   /* MC8 */
+			      <0x0 0x01710000 0x0 0x10000>,   /* MC9 */
+			      <0x0 0x01720000 0x0 0x10000>,   /* MC10 */
+			      <0x0 0x01730000 0x0 0x10000>,   /* MC11 */
+			      <0x0 0x01740000 0x0 0x10000>,   /* MC12 */
+			      <0x0 0x01750000 0x0 0x10000>,   /* MC13 */
+			      <0x0 0x01760000 0x0 0x10000>,   /* MC14 */
+			      <0x0 0x01770000 0x0 0x10000>;   /* MC15 */
+			reg-names = "sid", "broadcast", "ch0", "ch1", "ch2", "ch3",
+				    "ch4", "ch5", "ch6", "ch7", "ch8", "ch9", "ch10",
+				    "ch11", "ch12", "ch13", "ch14", "ch15";
+			interrupts = <GIC_SPI 223 IRQ_TYPE_LEVEL_HIGH>;
+			#interconnect-cells = <1>;
+			status = "okay";
+
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges = <0x0 0x01700000 0x0 0x01700000 0x0 0x100000>,
+				 <0x0 0x02b80000 0x0 0x02b80000 0x0 0x040000>,
+				 <0x0 0x02c00000 0x0 0x02c00000 0x0 0x100000>;
+
+			/*
+			 * Bit 39 of addresses passing through the memory
+			 * controller selects the XBAR format used when memory
+			 * is accessed. This is used to transparently access
+			 * memory in the XBAR format used by the discrete GPU
+			 * (bit 39 set) or Tegra (bit 39 clear).
+			 *
+			 * As a consequence, the operating system must ensure
+			 * that bit 39 is never used implicitly, for example
+			 * via an I/O virtual address mapping of an IOMMU. If
+			 * devices require access to the XBAR switch, their
+			 * drivers must set this bit explicitly.
+			 *
+			 * Limit the DMA range for memory clients to [38:0].
+			 */
+			dma-ranges = <0x0 0x0 0x0 0x0 0x80 0x0>;
+
+			emc: external-memory-controller@2c60000 {
+				compatible = "nvidia,tegra234-emc";
+				reg = <0x0 0x02c60000 0x0 0x90000>,
+				      <0x0 0x01780000 0x0 0x80000>;
+				interrupts = <GIC_SPI 224 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&bpmp TEGRA234_CLK_EMC>;
+				clock-names = "emc";
+				status = "okay";
+
+				#interconnect-cells = <0>;
+
+				nvidia,bpmp = <&bpmp>;
+			};
+		};
+
+		uarta: serial@3100000 {
+			compatible = "nvidia,tegra234-uart", "nvidia,tegra20-uart";
+			reg = <0x0 0x03100000 0x0 0x10000>;
+			interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bpmp TEGRA234_CLK_UARTA>;
+			resets = <&bpmp TEGRA234_RESET_UARTA>;
+			status = "disabled";
+		};
+
+		uarte: serial@3140000 {
+			compatible = "nvidia,tegra234-uart", "nvidia,tegra20-uart";
+			reg = <0x0 0x03140000 0x0 0x10000>;
+			interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bpmp TEGRA234_CLK_UARTE>;
+			resets = <&bpmp TEGRA234_RESET_UARTE>;
+			dmas = <&gpcdma 20>, <&gpcdma 20>;
+			dma-names = "rx", "tx";
+			status = "disabled";
+		};
+
+		gen1_i2c: i2c@3160000 {
+			compatible = "nvidia,tegra194-i2c";
+			reg = <0x0 0x3160000 0x0 0x100>;
+			status = "disabled";
+			interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clock-frequency = <400000>;
+			clocks = <&bpmp TEGRA234_CLK_I2C1>,
+				 <&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			assigned-clocks = <&bpmp TEGRA234_CLK_I2C1>;
+			assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			clock-names = "div-clk", "parent";
+			resets = <&bpmp TEGRA234_RESET_I2C1>;
+			reset-names = "i2c";
+			dmas = <&gpcdma 21>, <&gpcdma 21>;
+			dma-names = "rx", "tx";
+		};
+
+		cam_i2c: i2c@3180000 {
+			compatible = "nvidia,tegra194-i2c";
+			reg = <0x0 0x3180000 0x0 0x100>;
+			interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+			clock-frequency = <400000>;
+			clocks = <&bpmp TEGRA234_CLK_I2C3>,
+				 <&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			assigned-clocks = <&bpmp TEGRA234_CLK_I2C3>;
+			assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			clock-names = "div-clk", "parent";
+			resets = <&bpmp TEGRA234_RESET_I2C3>;
+			reset-names = "i2c";
+			dmas = <&gpcdma 23>, <&gpcdma 23>;
+			dma-names = "rx", "tx";
+		};
+
+		dp_aux_ch1_i2c: i2c@3190000 {
+			compatible = "nvidia,tegra194-i2c";
+			reg = <0x0 0x3190000 0x0 0x100>;
+			interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+			clock-frequency = <100000>;
+			clocks = <&bpmp TEGRA234_CLK_I2C4>,
+				 <&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			assigned-clocks = <&bpmp TEGRA234_CLK_I2C4>;
+			assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			clock-names = "div-clk", "parent";
+			resets = <&bpmp TEGRA234_RESET_I2C4>;
+			reset-names = "i2c";
+			dmas = <&gpcdma 26>, <&gpcdma 26>;
+			dma-names = "rx", "tx";
+		};
+
+		dp_aux_ch0_i2c: i2c@31b0000 {
+			compatible = "nvidia,tegra194-i2c";
+			reg = <0x0 0x31b0000 0x0 0x100>;
+			interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+			clock-frequency = <100000>;
+			clocks = <&bpmp TEGRA234_CLK_I2C6>,
+				 <&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			assigned-clocks = <&bpmp TEGRA234_CLK_I2C6>;
+			assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			clock-names = "div-clk", "parent";
+			resets = <&bpmp TEGRA234_RESET_I2C6>;
+			reset-names = "i2c";
+			dmas = <&gpcdma 30>, <&gpcdma 30>;
+			dma-names = "rx", "tx";
+		};
+
+		dp_aux_ch2_i2c: i2c@31c0000 {
+			compatible = "nvidia,tegra194-i2c";
+			reg = <0x0 0x31c0000 0x0 0x100>;
+			interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+			clock-frequency = <100000>;
+			clocks = <&bpmp TEGRA234_CLK_I2C7>,
+				 <&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			assigned-clocks = <&bpmp TEGRA234_CLK_I2C7>;
+			assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			clock-names = "div-clk", "parent";
+			resets = <&bpmp TEGRA234_RESET_I2C7>;
+			reset-names = "i2c";
+			dmas = <&gpcdma 27>, <&gpcdma 27>;
+			dma-names = "rx", "tx";
+		};
+
+		uarti: serial@31d0000 {
+			compatible = "arm,sbsa-uart";
+			reg = <0x0 0x31d0000 0x0 0x10000>;
+			interrupts = <GIC_SPI 285 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
+		dp_aux_ch3_i2c: i2c@31e0000 {
+			compatible = "nvidia,tegra194-i2c";
+			reg = <0x0 0x31e0000 0x0 0x100>;
+			interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+			clock-frequency = <100000>;
+			clocks = <&bpmp TEGRA234_CLK_I2C9>,
+				 <&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			assigned-clocks = <&bpmp TEGRA234_CLK_I2C9>;
+			assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			clock-names = "div-clk", "parent";
+			resets = <&bpmp TEGRA234_RESET_I2C9>;
+			reset-names = "i2c";
+			dmas = <&gpcdma 31>, <&gpcdma 31>;
+			dma-names = "rx", "tx";
+		};
+
+		spi@3210000 {
+			compatible = "nvidia,tegra210-spi", "nvidia,tegra114-spi";
+			reg = <0x0 0x03210000 0x0 0x1000>;
+			interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&bpmp TEGRA234_CLK_SPI1>;
+			assigned-clocks = <&bpmp TEGRA234_CLK_SPI1>;
+			assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			clock-names = "spi";
+			iommus = <&smmu_niso0 TEGRA234_SID_GPCDMA>;
+			resets = <&bpmp TEGRA234_RESET_SPI1>;
+			reset-names = "spi";
+			dmas = <&gpcdma 15>, <&gpcdma 15>;
+			dma-names = "rx", "tx";
+			dma-coherent;
+			status = "disabled";
+		};
+
+		spi@3230000 {
+			compatible = "nvidia,tegra210-spi", "nvidia,tegra114-spi";
+			reg = <0x0 0x03230000 0x0 0x1000>;
+			interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&bpmp TEGRA234_CLK_SPI3>;
+			clock-names = "spi";
+			iommus = <&smmu_niso0 TEGRA234_SID_GPCDMA>;
+			assigned-clocks = <&bpmp TEGRA234_CLK_SPI3>;
+			assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			resets = <&bpmp TEGRA234_RESET_SPI3>;
+			reset-names = "spi";
+			dmas = <&gpcdma 17>, <&gpcdma 17>;
+			dma-names = "rx", "tx";
+			dma-coherent;
+			status = "disabled";
+		};
+
+		spi@3270000 {
+			compatible = "nvidia,tegra234-qspi";
+			reg = <0x0 0x3270000 0x0 0x1000>;
+			interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&bpmp TEGRA234_CLK_QSPI0_2X_PM>,
+				 <&bpmp TEGRA234_CLK_QSPI0_PM>;
+			clock-names = "qspi", "qspi_out";
+			resets = <&bpmp TEGRA234_RESET_QSPI0>;
+			status = "disabled";
+		};
+
+		pwm1: pwm@3280000 {
+			compatible = "nvidia,tegra234-pwm", "nvidia,tegra194-pwm";
+			reg = <0x0 0x3280000 0x0 0x10000>;
+			clocks = <&bpmp TEGRA234_CLK_PWM1>;
+			resets = <&bpmp TEGRA234_RESET_PWM1>;
+			reset-names = "pwm";
+			status = "disabled";
+			#pwm-cells = <2>;
+		};
+
+		pwm2: pwm@3290000 {
+			compatible = "nvidia,tegra234-pwm", "nvidia,tegra194-pwm";
+			reg = <0x0 0x3290000 0x0 0x10000>;
+			clocks = <&bpmp TEGRA234_CLK_PWM2>;
+			resets = <&bpmp TEGRA234_RESET_PWM2>;
+			reset-names = "pwm";
+			status = "disabled";
+			#pwm-cells = <2>;
+		};
+
+		pwm3: pwm@32a0000 {
+			compatible = "nvidia,tegra234-pwm", "nvidia,tegra194-pwm";
+			reg = <0x0 0x32a0000 0x0 0x10000>;
+			clocks = <&bpmp TEGRA234_CLK_PWM3>;
+			resets = <&bpmp TEGRA234_RESET_PWM3>;
+			reset-names = "pwm";
+			status = "disabled";
+			#pwm-cells = <2>;
+		};
+
+		pwm5: pwm@32c0000 {
+			compatible = "nvidia,tegra234-pwm", "nvidia,tegra194-pwm";
+			reg = <0x0 0x32c0000 0x0 0x10000>;
+			clocks = <&bpmp TEGRA234_CLK_PWM5>;
+			resets = <&bpmp TEGRA234_RESET_PWM5>;
+			reset-names = "pwm";
+			status = "disabled";
+			#pwm-cells = <2>;
+		};
+
+		pwm6: pwm@32d0000 {
+			compatible = "nvidia,tegra234-pwm", "nvidia,tegra194-pwm";
+			reg = <0x0 0x32d0000 0x0 0x10000>;
+			clocks = <&bpmp TEGRA234_CLK_PWM6>;
+			resets = <&bpmp TEGRA234_RESET_PWM6>;
+			reset-names = "pwm";
+			status = "disabled";
+			#pwm-cells = <2>;
+		};
+
+		pwm7: pwm@32e0000 {
+			compatible = "nvidia,tegra234-pwm", "nvidia,tegra194-pwm";
+			reg = <0x0 0x32e0000 0x0 0x10000>;
+			clocks = <&bpmp TEGRA234_CLK_PWM7>;
+			resets = <&bpmp TEGRA234_RESET_PWM7>;
+			reset-names = "pwm";
+			status = "disabled";
+			#pwm-cells = <2>;
+		};
+
+		pwm8: pwm@32f0000 {
+			compatible = "nvidia,tegra234-pwm", "nvidia,tegra194-pwm";
+			reg = <0x0 0x32f0000 0x0 0x10000>;
+			clocks = <&bpmp TEGRA234_CLK_PWM8>;
+			resets = <&bpmp TEGRA234_RESET_PWM8>;
+			reset-names = "pwm";
+			status = "disabled";
+			#pwm-cells = <2>;
+		};
+
+		spi@3300000 {
+			compatible = "nvidia,tegra234-qspi";
+			reg = <0x0 0x3300000 0x0 0x1000>;
+			interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&bpmp TEGRA234_CLK_QSPI1_2X_PM>,
+				 <&bpmp TEGRA234_CLK_QSPI1_PM>;
+			clock-names = "qspi", "qspi_out";
+			resets = <&bpmp TEGRA234_RESET_QSPI1>;
+			status = "disabled";
+		};
+
+		mmc@3400000 {
+			compatible = "nvidia,tegra234-sdhci", "nvidia,tegra186-sdhci";
+			reg = <0x0 0x03400000 0x0 0x20000>;
+			interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bpmp TEGRA234_CLK_SDMMC1>,
+				 <&bpmp TEGRA234_CLK_SDMMC_LEGACY_TM>;
+			clock-names = "sdhci", "tmclk";
+			assigned-clocks = <&bpmp TEGRA234_CLK_SDMMC1>,
+					  <&bpmp TEGRA234_CLK_PLLC4_MUXED>;
+			assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLC4_MUXED>,
+						 <&bpmp TEGRA234_CLK_PLLC4_VCO_DIV2>;
+			resets = <&bpmp TEGRA234_RESET_SDMMC1>;
+			reset-names = "sdhci";
+			interconnects = <&mc TEGRA234_MEMORY_CLIENT_SDMMCRA &emc>,
+					<&mc TEGRA234_MEMORY_CLIENT_SDMMCWA &emc>;
+			interconnect-names = "dma-mem", "write";
+			iommus = <&smmu_niso1 TEGRA234_SID_SDMMC1A>;
+			pinctrl-names = "sdmmc-3v3", "sdmmc-1v8";
+			pinctrl-0 = <&sdmmc1_3v3>;
+			pinctrl-1 = <&sdmmc1_1v8>;
+			nvidia,pad-autocal-pull-up-offset-3v3-timeout = <0x07>;
+			nvidia,pad-autocal-pull-down-offset-3v3-timeout = <0x07>;
+			nvidia,pad-autocal-pull-up-offset-1v8-timeout = <0x06>;
+			nvidia,pad-autocal-pull-down-offset-1v8-timeout = <0x07>;
+			nvidia,pad-autocal-pull-up-offset-sdr104 = <0x00>;
+			nvidia,pad-autocal-pull-down-offset-sdr104 = <0x00>;
+			nvidia,default-tap = <14>;
+			nvidia,default-trim = <0x8>;
+			sd-uhs-sdr25;
+			sd-uhs-sdr50;
+			sd-uhs-ddr50;
+			sd-uhs-sdr104;
+			status = "disabled";
+		};
+
+		mmc@3460000 {
+			compatible = "nvidia,tegra234-sdhci", "nvidia,tegra186-sdhci";
+			reg = <0x0 0x03460000 0x0 0x20000>;
+			interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bpmp TEGRA234_CLK_SDMMC4>,
+				 <&bpmp TEGRA234_CLK_SDMMC_LEGACY_TM>;
+			clock-names = "sdhci", "tmclk";
+			assigned-clocks = <&bpmp TEGRA234_CLK_SDMMC4>,
+					  <&bpmp TEGRA234_CLK_PLLC4>;
+			assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLC4>;
+			resets = <&bpmp TEGRA234_RESET_SDMMC4>;
+			reset-names = "sdhci";
+			interconnects = <&mc TEGRA234_MEMORY_CLIENT_SDMMCRAB &emc>,
+					<&mc TEGRA234_MEMORY_CLIENT_SDMMCWAB &emc>;
+			interconnect-names = "dma-mem", "write";
+			iommus = <&smmu_niso1 TEGRA234_SID_SDMMC4>;
+			nvidia,pad-autocal-pull-up-offset-hs400 = <0x00>;
+			nvidia,pad-autocal-pull-down-offset-hs400 = <0x00>;
+			nvidia,pad-autocal-pull-up-offset-1v8-timeout = <0x0a>;
+			nvidia,pad-autocal-pull-down-offset-1v8-timeout = <0x0a>;
+			nvidia,pad-autocal-pull-up-offset-3v3-timeout = <0x0a>;
+			nvidia,pad-autocal-pull-down-offset-3v3-timeout = <0x0a>;
+			nvidia,default-tap = <0x8>;
+			nvidia,default-trim = <0x14>;
+			nvidia,dqs-trim = <40>;
+			supports-cqe;
+			status = "disabled";
+		};
+
+		hda@3510000 {
+			compatible = "nvidia,tegra234-hda";
+			reg = <0x0 0x3510000 0x0 0x10000>;
+			interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bpmp TEGRA234_CLK_AZA_BIT>,
+				 <&bpmp TEGRA234_CLK_AZA_2XBIT>;
+			clock-names = "hda", "hda2codec_2x";
+			resets = <&bpmp TEGRA234_RESET_HDA>,
+				 <&bpmp TEGRA234_RESET_HDACODEC>;
+			reset-names = "hda", "hda2codec_2x";
+			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_DISP>;
+			interconnects = <&mc TEGRA234_MEMORY_CLIENT_HDAR &emc>,
+					<&mc TEGRA234_MEMORY_CLIENT_HDAW &emc>;
+			interconnect-names = "dma-mem", "write";
+			iommus = <&smmu_niso0 TEGRA234_SID_HDA>;
+			status = "disabled";
+		};
+
+		xusb_padctl: padctl@3520000 {
+			compatible = "nvidia,tegra234-xusb-padctl";
+			reg = <0x0 0x03520000 0x0 0x20000>,
+			      <0x0 0x03540000 0x0 0x10000>;
+			reg-names = "padctl", "ao";
+			interrupts = <GIC_SPI 167 IRQ_TYPE_LEVEL_HIGH>;
+
+			resets = <&bpmp TEGRA234_RESET_XUSB_PADCTL>;
+			reset-names = "padctl";
+
+			status = "disabled";
+
+			pads {
+				usb2 {
+					clocks = <&bpmp TEGRA234_CLK_USB2_TRK>;
+					clock-names = "trk";
+
+					lanes {
+						usb2-0 {
+							nvidia,function = "xusb";
+							status = "disabled";
+							#phy-cells = <0>;
+						};
+
+						usb2-1 {
+							nvidia,function = "xusb";
+							status = "disabled";
+							#phy-cells = <0>;
+						};
+
+						usb2-2 {
+							nvidia,function = "xusb";
+							status = "disabled";
+							#phy-cells = <0>;
+						};
+
+						usb2-3 {
+							nvidia,function = "xusb";
+							status = "disabled";
+							#phy-cells = <0>;
+						};
+					};
+				};
+
+				usb3 {
+					lanes {
+						usb3-0 {
+							nvidia,function = "xusb";
+							status = "disabled";
+							#phy-cells = <0>;
+						};
+
+						usb3-1 {
+							nvidia,function = "xusb";
+							status = "disabled";
+							#phy-cells = <0>;
+						};
+
+						usb3-2 {
+							nvidia,function = "xusb";
+							status = "disabled";
+							#phy-cells = <0>;
+						};
+
+						usb3-3 {
+							nvidia,function = "xusb";
+							status = "disabled";
+							#phy-cells = <0>;
+						};
+					};
+				};
+			};
+
+			ports {
+				usb2-0 {
+					status = "disabled";
+				};
+
+				usb2-1 {
+					status = "disabled";
+				};
+
+				usb2-2 {
+					status = "disabled";
+				};
+
+				usb2-3 {
+					status = "disabled";
+				};
+
+				usb3-0 {
+					status = "disabled";
+				};
+
+				usb3-1 {
+					status = "disabled";
+				};
+
+				usb3-2 {
+					status = "disabled";
+				};
+
+				usb3-3 {
+					status = "disabled";
+				};
+			};
+		};
+
+		usb@3550000 {
+			compatible = "nvidia,tegra234-xudc";
+			reg = <0x0 0x03550000 0x0 0x8000>,
+			      <0x0 0x03558000 0x0 0x8000>;
+			reg-names = "base", "fpci";
+			interrupts = <GIC_SPI 166 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bpmp TEGRA234_CLK_XUSB_CORE_DEV>,
+				 <&bpmp TEGRA234_CLK_XUSB_CORE_SS>,
+				 <&bpmp TEGRA234_CLK_XUSB_SS>,
+				 <&bpmp TEGRA234_CLK_XUSB_FS>;
+			clock-names = "dev", "ss", "ss_src", "fs_src";
+			interconnects = <&mc TEGRA234_MEMORY_CLIENT_XUSB_DEVR &emc>,
+					<&mc TEGRA234_MEMORY_CLIENT_XUSB_DEVW &emc>;
+			interconnect-names = "dma-mem", "write";
+			iommus = <&smmu_niso1 TEGRA234_SID_XUSB_DEV>;
+			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_XUSBB>,
+					<&bpmp TEGRA234_POWER_DOMAIN_XUSBA>;
+			power-domain-names = "dev", "ss";
+			nvidia,xusb-padctl = <&xusb_padctl>;
+			dma-coherent;
+			status = "disabled";
+		};
+
+		usb@3610000 {
+			compatible = "nvidia,tegra234-xusb";
+			reg = <0x0 0x03610000 0x0 0x40000>,
+			      <0x0 0x03600000 0x0 0x10000>,
+			      <0x0 0x03650000 0x0 0x10000>;
+			reg-names = "hcd", "fpci", "bar2";
+
+			interrupts = <GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 164 IRQ_TYPE_LEVEL_HIGH>;
+
+			clocks = <&bpmp TEGRA234_CLK_XUSB_CORE_HOST>,
+				 <&bpmp TEGRA234_CLK_XUSB_FALCON>,
+				 <&bpmp TEGRA234_CLK_XUSB_CORE_SS>,
+				 <&bpmp TEGRA234_CLK_XUSB_SS>,
+				 <&bpmp TEGRA234_CLK_CLK_M>,
+				 <&bpmp TEGRA234_CLK_XUSB_FS>,
+				 <&bpmp TEGRA234_CLK_UTMIP_PLL>,
+				 <&bpmp TEGRA234_CLK_CLK_M>,
+				 <&bpmp TEGRA234_CLK_PLLE>;
+			clock-names = "xusb_host", "xusb_falcon_src",
+				      "xusb_ss", "xusb_ss_src", "xusb_hs_src",
+				      "xusb_fs_src", "pll_u_480m", "clk_m",
+				      "pll_e";
+			interconnects = <&mc TEGRA234_MEMORY_CLIENT_XUSB_HOSTR &emc>,
+					<&mc TEGRA234_MEMORY_CLIENT_XUSB_HOSTW &emc>;
+			interconnect-names = "dma-mem", "write";
+			iommus = <&smmu_niso1 TEGRA234_SID_XUSB_HOST>;
+
+			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_XUSBC>,
+					<&bpmp TEGRA234_POWER_DOMAIN_XUSBA>;
+			power-domain-names = "xusb_host", "xusb_ss";
+
+			nvidia,xusb-padctl = <&xusb_padctl>;
+			dma-coherent;
+			status = "disabled";
+		};
+
+		fuse@3810000 {
+			compatible = "nvidia,tegra234-efuse";
+			reg = <0x0 0x03810000 0x0 0x10000>;
+			clocks = <&bpmp TEGRA234_CLK_FUSE>;
+			clock-names = "fuse";
+		};
+
+		hte_lic: hardware-timestamp@3aa0000 {
+			compatible = "nvidia,tegra234-gte-lic";
+			reg = <0x0 0x3aa0000 0x0 0x10000>;
+			interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
+			nvidia,int-threshold = <1>;
+			#timestamp-cells = <1>;
+		};
+
+		hsp_top0: hsp@3c00000 {
+			compatible = "nvidia,tegra234-hsp", "nvidia,tegra194-hsp";
+			reg = <0x0 0x03c00000 0x0 0xa0000>;
+			interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 124 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 126 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "doorbell", "shared0", "shared1", "shared2",
+					  "shared3", "shared4", "shared5", "shared6",
+					  "shared7";
+			#mbox-cells = <2>;
+		};
+
+		p2u_hsio_0: phy@3e00000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x0 0x03e00000 0x0 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_hsio_1: phy@3e10000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x0 0x03e10000 0x0 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_hsio_2: phy@3e20000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x0 0x03e20000 0x0 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_hsio_3: phy@3e30000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x0 0x03e30000 0x0 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_hsio_4: phy@3e40000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x0 0x03e40000 0x0 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_hsio_5: phy@3e50000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x0 0x03e50000 0x0 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_hsio_6: phy@3e60000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x0 0x03e60000 0x0 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_hsio_7: phy@3e70000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x0 0x03e70000 0x0 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_nvhs_0: phy@3e90000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x0 0x03e90000 0x0 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_nvhs_1: phy@3ea0000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x0 0x03ea0000 0x0 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_nvhs_2: phy@3eb0000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x0 0x03eb0000 0x0 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_nvhs_3: phy@3ec0000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x0 0x03ec0000 0x0 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_nvhs_4: phy@3ed0000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x0 0x03ed0000 0x0 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_nvhs_5: phy@3ee0000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x0 0x03ee0000 0x0 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_nvhs_6: phy@3ef0000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x0 0x03ef0000 0x0 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_nvhs_7: phy@3f00000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x0 0x03f00000 0x0 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_gbe_0: phy@3f20000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x0 0x03f20000 0x0 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_gbe_1: phy@3f30000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x0 0x03f30000 0x0 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_gbe_2: phy@3f40000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x0 0x03f40000 0x0 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_gbe_3: phy@3f50000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x0 0x03f50000 0x0 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_gbe_4: phy@3f60000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x0 0x03f60000 0x0 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_gbe_5: phy@3f70000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x0 0x03f70000 0x0 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_gbe_6: phy@3f80000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x0 0x03f80000 0x0 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_gbe_7: phy@3f90000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x0 0x03f90000 0x0 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		ethernet@6800000 {
+			compatible = "nvidia,tegra234-mgbe";
+			reg = <0x0 0x06800000 0x0 0x10000>,
+			      <0x0 0x06810000 0x0 0x10000>,
+			      <0x0 0x068a0000 0x0 0x10000>;
+			reg-names = "hypervisor", "mac", "xpcs";
+			interrupts = <GIC_SPI 384 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "common";
+			clocks = <&bpmp TEGRA234_CLK_MGBE0_APP>,
+				 <&bpmp TEGRA234_CLK_MGBE0_MAC>,
+				 <&bpmp TEGRA234_CLK_MGBE0_MAC_DIVIDER>,
+				 <&bpmp TEGRA234_CLK_MGBE0_PTP_REF>,
+				 <&bpmp TEGRA234_CLK_MGBE0_RX_INPUT_M>,
+				 <&bpmp TEGRA234_CLK_MGBE0_RX_INPUT>,
+				 <&bpmp TEGRA234_CLK_MGBE0_TX>,
+				 <&bpmp TEGRA234_CLK_MGBE0_EEE_PCS>,
+				 <&bpmp TEGRA234_CLK_MGBE0_RX_PCS_INPUT>,
+				 <&bpmp TEGRA234_CLK_MGBE0_RX_PCS_M>,
+				 <&bpmp TEGRA234_CLK_MGBE0_RX_PCS>,
+				 <&bpmp TEGRA234_CLK_MGBE0_TX_PCS>;
+			clock-names = "mgbe", "mac", "mac-divider", "ptp-ref", "rx-input-m",
+				      "rx-input", "tx", "eee-pcs", "rx-pcs-input", "rx-pcs-m",
+				      "rx-pcs", "tx-pcs";
+			resets = <&bpmp TEGRA234_RESET_MGBE0_MAC>,
+				 <&bpmp TEGRA234_RESET_MGBE0_PCS>;
+			reset-names = "mac", "pcs";
+			interconnects = <&mc TEGRA234_MEMORY_CLIENT_MGBEARD &emc>,
+					<&mc TEGRA234_MEMORY_CLIENT_MGBEAWR &emc>;
+			interconnect-names = "dma-mem", "write";
+			iommus = <&smmu_niso0 TEGRA234_SID_MGBE>;
+			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_MGBEB>;
+			status = "disabled";
+
+			snps,axi-config = <&mgbe0_axi_setup>;
+
+			mgbe0_axi_setup: stmmac-axi-config {
+				snps,blen = <256 128 64 32>;
+				snps,rd_osr_lmt = <63>;
+				snps,wr_osr_lmt = <63>;
+			};
+		};
+
+		ethernet@6900000 {
+			compatible = "nvidia,tegra234-mgbe";
+			reg = <0x0 0x06900000 0x0 0x10000>,
+			      <0x0 0x06910000 0x0 0x10000>,
+			      <0x0 0x069a0000 0x0 0x10000>;
+			reg-names = "hypervisor", "mac", "xpcs";
+			interrupts = <GIC_SPI 392 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "common";
+			clocks = <&bpmp TEGRA234_CLK_MGBE1_APP>,
+				 <&bpmp TEGRA234_CLK_MGBE1_MAC>,
+				 <&bpmp TEGRA234_CLK_MGBE1_MAC_DIVIDER>,
+				 <&bpmp TEGRA234_CLK_MGBE1_PTP_REF>,
+				 <&bpmp TEGRA234_CLK_MGBE1_RX_INPUT_M>,
+				 <&bpmp TEGRA234_CLK_MGBE1_RX_INPUT>,
+				 <&bpmp TEGRA234_CLK_MGBE1_TX>,
+				 <&bpmp TEGRA234_CLK_MGBE1_EEE_PCS>,
+				 <&bpmp TEGRA234_CLK_MGBE1_RX_PCS_INPUT>,
+				 <&bpmp TEGRA234_CLK_MGBE1_RX_PCS_M>,
+				 <&bpmp TEGRA234_CLK_MGBE1_RX_PCS>,
+				 <&bpmp TEGRA234_CLK_MGBE1_TX_PCS>;
+			clock-names = "mgbe", "mac", "mac-divider", "ptp-ref", "rx-input-m",
+				      "rx-input", "tx", "eee-pcs", "rx-pcs-input", "rx-pcs-m",
+				      "rx-pcs", "tx-pcs";
+			resets = <&bpmp TEGRA234_RESET_MGBE1_MAC>,
+				 <&bpmp TEGRA234_RESET_MGBE1_PCS>;
+			reset-names = "mac", "pcs";
+			interconnects = <&mc TEGRA234_MEMORY_CLIENT_MGBEBRD &emc>,
+					<&mc TEGRA234_MEMORY_CLIENT_MGBEBWR &emc>;
+			interconnect-names = "dma-mem", "write";
+			iommus = <&smmu_niso0 TEGRA234_SID_MGBE_VF1>;
+			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_MGBEC>;
+			status = "disabled";
+
+			snps,axi-config = <&mgbe1_axi_setup>;
+
+			mgbe1_axi_setup: stmmac-axi-config {
+				snps,blen = <256 128 64 32>;
+				snps,rd_osr_lmt = <63>;
+				snps,wr_osr_lmt = <63>;
+			};
+		};
+
+		ethernet@6a00000 {
+			compatible = "nvidia,tegra234-mgbe";
+			reg = <0x0 0x06a00000 0x0 0x10000>,
+			      <0x0 0x06a10000 0x0 0x10000>,
+			      <0x0 0x06aa0000 0x0 0x10000>;
+			reg-names = "hypervisor", "mac", "xpcs";
+			interrupts = <GIC_SPI 400 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "common";
+			clocks = <&bpmp TEGRA234_CLK_MGBE2_APP>,
+				 <&bpmp TEGRA234_CLK_MGBE2_MAC>,
+				 <&bpmp TEGRA234_CLK_MGBE2_MAC_DIVIDER>,
+				 <&bpmp TEGRA234_CLK_MGBE2_PTP_REF>,
+				 <&bpmp TEGRA234_CLK_MGBE2_RX_INPUT_M>,
+				 <&bpmp TEGRA234_CLK_MGBE2_RX_INPUT>,
+				 <&bpmp TEGRA234_CLK_MGBE2_TX>,
+				 <&bpmp TEGRA234_CLK_MGBE2_EEE_PCS>,
+				 <&bpmp TEGRA234_CLK_MGBE2_RX_PCS_INPUT>,
+				 <&bpmp TEGRA234_CLK_MGBE2_RX_PCS_M>,
+				 <&bpmp TEGRA234_CLK_MGBE2_RX_PCS>,
+				 <&bpmp TEGRA234_CLK_MGBE2_TX_PCS>;
+			clock-names = "mgbe", "mac", "mac-divider", "ptp-ref", "rx-input-m",
+				      "rx-input", "tx", "eee-pcs", "rx-pcs-input", "rx-pcs-m",
+				      "rx-pcs", "tx-pcs";
+			resets = <&bpmp TEGRA234_RESET_MGBE2_MAC>,
+				 <&bpmp TEGRA234_RESET_MGBE2_PCS>;
+			reset-names = "mac", "pcs";
+			interconnects = <&mc TEGRA234_MEMORY_CLIENT_MGBECRD &emc>,
+					<&mc TEGRA234_MEMORY_CLIENT_MGBECWR &emc>;
+			interconnect-names = "dma-mem", "write";
+			iommus = <&smmu_niso0 TEGRA234_SID_MGBE_VF2>;
+			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_MGBED>;
+			status = "disabled";
+
+			snps,axi-config = <&mgbe2_axi_setup>;
+
+			mgbe2_axi_setup: stmmac-axi-config {
+				snps,blen = <256 128 64 32>;
+				snps,rd_osr_lmt = <63>;
+				snps,wr_osr_lmt = <63>;
+			};
+		};
+
+		ethernet@6b00000 {
+			compatible = "nvidia,tegra234-mgbe";
+			reg = <0x0 0x06b00000 0x0 0x10000>,
+			      <0x0 0x06b10000 0x0 0x10000>,
+			      <0x0 0x06ba0000 0x0 0x10000>;
+			reg-names = "hypervisor", "mac", "xpcs";
+			interrupts = <GIC_SPI 408 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "common";
+			clocks = <&bpmp TEGRA234_CLK_MGBE3_APP>,
+				 <&bpmp TEGRA234_CLK_MGBE3_MAC>,
+				 <&bpmp TEGRA234_CLK_MGBE3_MAC_DIVIDER>,
+				 <&bpmp TEGRA234_CLK_MGBE3_PTP_REF>,
+				 <&bpmp TEGRA234_CLK_MGBE3_RX_INPUT_M>,
+				 <&bpmp TEGRA234_CLK_MGBE3_RX_INPUT>,
+				 <&bpmp TEGRA234_CLK_MGBE3_TX>,
+				 <&bpmp TEGRA234_CLK_MGBE3_EEE_PCS>,
+				 <&bpmp TEGRA234_CLK_MGBE3_RX_PCS_INPUT>,
+				 <&bpmp TEGRA234_CLK_MGBE3_RX_PCS_M>,
+				 <&bpmp TEGRA234_CLK_MGBE3_RX_PCS>,
+				 <&bpmp TEGRA234_CLK_MGBE3_TX_PCS>;
+			clock-names = "mgbe", "mac", "mac-divider", "ptp-ref", "rx-input-m",
+				      "rx-input", "tx", "eee-pcs", "rx-pcs-input", "rx-pcs-m",
+				      "rx-pcs", "tx-pcs";
+			resets = <&bpmp TEGRA234_RESET_MGBE3_MAC>,
+				 <&bpmp TEGRA234_RESET_MGBE3_PCS>;
+			reset-names = "mac", "pcs";
+			interconnects = <&mc TEGRA234_MEMORY_CLIENT_MGBEDRD &emc>,
+					<&mc TEGRA234_MEMORY_CLIENT_MGBEDWR &emc>;
+			interconnect-names = "dma-mem", "write";
+			iommus = <&smmu_niso0 TEGRA234_SID_MGBE_VF3>;
+			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_MGBED>;
+			status = "disabled";
+		};
+
+		smmu_niso1: iommu@8000000 {
+			compatible = "nvidia,tegra234-smmu", "nvidia,smmu-500";
+			reg = <0x0 0x8000000 0x0 0x1000000>,
+			      <0x0 0x7000000 0x0 0x1000000>;
+			interrupts = <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 242 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 242 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>;
+			stream-match-mask = <0x7f80>;
+			#global-interrupts = <2>;
+			#iommu-cells = <1>;
+
+			nvidia,memory-controller = <&mc>;
+			status = "okay";
+		};
+
+		sce-fabric@b600000 {
+			compatible = "nvidia,tegra234-sce-fabric";
+			reg = <0x0 0xb600000 0x0 0x40000>;
+			interrupts = <GIC_SPI 173 IRQ_TYPE_LEVEL_HIGH>;
+			status = "okay";
+		};
+
+		rce-fabric@be00000 {
+			compatible = "nvidia,tegra234-rce-fabric";
+			reg = <0x0 0xbe00000 0x0 0x40000>;
+			interrupts = <GIC_SPI 175 IRQ_TYPE_LEVEL_HIGH>;
+			status = "okay";
+		};
+
+		hsp_aon: hsp@c150000 {
+			compatible = "nvidia,tegra234-hsp", "nvidia,tegra194-hsp";
+			reg = <0x0 0x0c150000 0x0 0x90000>;
+			interrupts = <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>;
+			/*
+			 * Shared interrupt 0 is routed only to AON/SPE, so
+			 * we only have 4 shared interrupts for the CCPLEX.
+			 */
+			interrupt-names = "shared1", "shared2", "shared3", "shared4";
+			#mbox-cells = <2>;
+		};
+
+		hte_aon: hardware-timestamp@c1e0000 {
+			compatible = "nvidia,tegra234-gte-aon";
+			reg = <0x0 0xc1e0000 0x0 0x10000>;
+			interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
+			nvidia,int-threshold = <1>;
+			nvidia,gpio-controller = <&gpio_aon>;
+			#timestamp-cells = <1>;
+		};
+
+		gen2_i2c: i2c@c240000 {
+			compatible = "nvidia,tegra194-i2c";
+			reg = <0x0 0xc240000 0x0 0x100>;
+			interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+			clock-frequency = <100000>;
+			clocks = <&bpmp TEGRA234_CLK_I2C2>,
+				 <&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			clock-names = "div-clk", "parent";
+			assigned-clocks = <&bpmp TEGRA234_CLK_I2C2>;
+			assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			resets = <&bpmp TEGRA234_RESET_I2C2>;
+			reset-names = "i2c";
+			dmas = <&gpcdma 22>, <&gpcdma 22>;
+			dma-names = "rx", "tx";
+		};
+
+		gen8_i2c: i2c@c250000 {
+			compatible = "nvidia,tegra194-i2c";
+			reg = <0x0 0xc250000 0x0 0x100>;
+			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+			clock-frequency = <400000>;
+			clocks = <&bpmp TEGRA234_CLK_I2C8>,
+				 <&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			clock-names = "div-clk", "parent";
+			assigned-clocks = <&bpmp TEGRA234_CLK_I2C8>;
+			assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			resets = <&bpmp TEGRA234_RESET_I2C8>;
+			reset-names = "i2c";
+			dmas = <&gpcdma 0>, <&gpcdma 0>;
+			dma-names = "rx", "tx";
+		};
+
+		spi@c260000 {
+			compatible = "nvidia,tegra210-spi", "nvidia,tegra114-spi";
+			reg = <0x0 0x0c260000 0x0 0x1000>;
+			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&bpmp TEGRA234_CLK_SPI2>;
+			clock-names = "spi";
+			iommus = <&smmu_niso0 TEGRA234_SID_GPCDMA>;
+			assigned-clocks = <&bpmp TEGRA234_CLK_SPI2>;
+			assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			resets = <&bpmp TEGRA234_RESET_SPI2>;
+			reset-names = "spi";
+			dmas = <&gpcdma 19>, <&gpcdma 19>;
+			dma-names = "rx", "tx";
+			dma-coherent;
+			status = "disabled";
+		};
+
+		rtc@c2a0000 {
+			compatible = "nvidia,tegra234-rtc", "nvidia,tegra20-rtc";
+			reg = <0x0 0x0c2a0000 0x0 0x10000>;
+			interrupt-parent = <&pmc>;
+			interrupts = <73 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bpmp TEGRA234_CLK_CLK_32K>;
+			clock-names = "rtc";
+			status = "disabled";
+		};
+
+		gpio_aon: gpio@c2f0000 {
+			compatible = "nvidia,tegra234-gpio-aon";
+			reg-names = "security", "gpio";
+			reg = <0x0 0x0c2f0000 0x0 0x1000>,
+			      <0x0 0x0c2f1000 0x0 0x1000>;
+			interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
+			#interrupt-cells = <2>;
+			interrupt-controller;
+			#gpio-cells = <2>;
+			gpio-controller;
+			gpio-ranges = <&pinmux_aon 0 0 32>;
+		};
+
+		pinmux_aon: pinmux@c300000 {
+			compatible = "nvidia,tegra234-pinmux-aon";
+			reg = <0x0 0xc300000 0x0 0x4000>;
+		};
+
+		pwm4: pwm@c340000 {
+			compatible = "nvidia,tegra234-pwm", "nvidia,tegra194-pwm";
+			reg = <0x0 0xc340000 0x0 0x10000>;
+			clocks = <&bpmp TEGRA234_CLK_PWM4>;
+			resets = <&bpmp TEGRA234_RESET_PWM4>;
+			reset-names = "pwm";
+			status = "disabled";
+			#pwm-cells = <2>;
+		};
+
+		pmc: pmc@c360000 {
+			compatible = "nvidia,tegra234-pmc";
+			reg = <0x0 0x0c360000 0x0 0x10000>,
+			      <0x0 0x0c370000 0x0 0x10000>,
+			      <0x0 0x0c380000 0x0 0x10000>,
+			      <0x0 0x0c390000 0x0 0x10000>,
+			      <0x0 0x0c3a0000 0x0 0x10000>;
+			reg-names = "pmc", "wake", "aotag", "scratch", "misc";
+
+			#interrupt-cells = <2>;
+			interrupt-controller;
+
+			sdmmc1_1v8: sdmmc1-1v8 {
+				pins = "sdmmc1-hv";
+				power-source = <TEGRA_IO_PAD_VOLTAGE_1V8>;
+			};
+
+			sdmmc1_3v3: sdmmc1-3v3 {
+				pins = "sdmmc1-hv";
+				power-source = <TEGRA_IO_PAD_VOLTAGE_3V3>;
+			};
+
+			sdmmc3_1v8: sdmmc3-1v8 {
+				pins = "sdmmc3-hv";
+				power-source = <TEGRA_IO_PAD_VOLTAGE_1V8>;
+			};
+
+			sdmmc3_3v3: sdmmc3-3v3 {
+				pins = "sdmmc3-hv";
+				power-source = <TEGRA_IO_PAD_VOLTAGE_3V3>;
+			};
+		};
+
+		aon-fabric@c600000 {
+			compatible = "nvidia,tegra234-aon-fabric";
+			reg = <0x0 0xc600000 0x0 0x40000>;
+			interrupts = <GIC_SPI 172 IRQ_TYPE_LEVEL_HIGH>;
+			status = "okay";
+		};
+
+		bpmp-fabric@d600000 {
+			compatible = "nvidia,tegra234-bpmp-fabric";
+			reg = <0x0 0xd600000 0x0 0x40000>;
+			interrupts = <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>;
+			status = "okay";
+		};
+
+		dce-fabric@de00000 {
+			compatible = "nvidia,tegra234-sce-fabric";
+			reg = <0x0 0xde00000 0x0 0x40000>;
+			interrupts = <GIC_SPI 381 IRQ_TYPE_LEVEL_HIGH>;
+			status = "okay";
+		};
+
+		ccplex@e000000 {
+			compatible = "nvidia,tegra234-ccplex-cluster";
+			reg = <0x0 0x0e000000 0x0 0x5ffff>;
+			nvidia,bpmp = <&bpmp>;
+			status = "okay";
+		};
+
+		gic: interrupt-controller@f400000 {
+			compatible = "arm,gic-v3";
+			reg = <0x0 0x0f400000 0x0 0x010000>, /* GICD */
+			      <0x0 0x0f440000 0x0 0x200000>; /* GICR */
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
+
+			#redistributor-regions = <1>;
+			#interrupt-cells = <3>;
+			interrupt-controller;
+		};
+
+		smmu_iso: iommu@10000000 {
+			compatible = "nvidia,tegra234-smmu", "nvidia,smmu-500";
+			reg = <0x0 0x10000000 0x0 0x1000000>;
+			interrupts = <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>;
+			stream-match-mask = <0x7f80>;
+			#global-interrupts = <1>;
+			#iommu-cells = <1>;
+
+			nvidia,memory-controller = <&mc>;
+			status = "okay";
+		};
+
+		smmu_niso0: iommu@12000000 {
+			compatible = "nvidia,tegra234-smmu", "nvidia,smmu-500";
+			reg = <0x0 0x12000000 0x0 0x1000000>,
+			      <0x0 0x11000000 0x0 0x1000000>;
+			interrupts = <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 232 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 232 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>;
+			stream-match-mask = <0x7f80>;
+			#global-interrupts = <2>;
+			#iommu-cells = <1>;
+
+			nvidia,memory-controller = <&mc>;
+			status = "okay";
+		};
+
+		cbb-fabric@13a00000 {
+			compatible = "nvidia,tegra234-cbb-fabric";
+			reg = <0x0 0x13a00000 0x0 0x400000>;
+			interrupts = <GIC_SPI 231 IRQ_TYPE_LEVEL_HIGH>;
+			status = "okay";
+		};
+
+		host1x@13e00000 {
+			compatible = "nvidia,tegra234-host1x";
+			reg = <0x0 0x13e00000 0x0 0x10000>,
+			      <0x0 0x13e10000 0x0 0x10000>,
+			      <0x0 0x13e40000 0x0 0x10000>;
+			reg-names = "common", "hypervisor", "vm";
+			interrupts = <GIC_SPI 448 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 449 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 450 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 451 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 452 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 453 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 454 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 455 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 263 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "syncpt0", "syncpt1", "syncpt2", "syncpt3", "syncpt4",
+					  "syncpt5", "syncpt6", "syncpt7", "host1x";
+			clocks = <&bpmp TEGRA234_CLK_HOST1X>;
+			clock-names = "host1x";
+
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges = <0x0 0x14800000 0x0 0x14800000 0x0 0x02000000>;
+
+			interconnects = <&mc TEGRA234_MEMORY_CLIENT_HOST1XDMAR &emc>;
+			interconnect-names = "dma-mem";
+			iommus = <&smmu_niso1 TEGRA234_SID_HOST1X>;
+			dma-coherent;
+
+			/* Context isolation domains */
+			iommu-map = <0 &smmu_niso0 TEGRA234_SID_HOST1X_CTX0 1>,
+				    <1 &smmu_niso0 TEGRA234_SID_HOST1X_CTX1 1>,
+				    <2 &smmu_niso0 TEGRA234_SID_HOST1X_CTX2 1>,
+				    <3 &smmu_niso0 TEGRA234_SID_HOST1X_CTX3 1>,
+				    <4 &smmu_niso0 TEGRA234_SID_HOST1X_CTX4 1>,
+				    <5 &smmu_niso0 TEGRA234_SID_HOST1X_CTX5 1>,
+				    <6 &smmu_niso0 TEGRA234_SID_HOST1X_CTX6 1>,
+				    <7 &smmu_niso0 TEGRA234_SID_HOST1X_CTX7 1>,
+				    <8 &smmu_niso1 TEGRA234_SID_HOST1X_CTX0 1>,
+				    <9 &smmu_niso1 TEGRA234_SID_HOST1X_CTX1 1>,
+				    <10 &smmu_niso1 TEGRA234_SID_HOST1X_CTX2 1>,
+				    <11 &smmu_niso1 TEGRA234_SID_HOST1X_CTX3 1>,
+				    <12 &smmu_niso1 TEGRA234_SID_HOST1X_CTX4 1>,
+				    <13 &smmu_niso1 TEGRA234_SID_HOST1X_CTX5 1>,
+				    <14 &smmu_niso1 TEGRA234_SID_HOST1X_CTX6 1>,
+				    <15 &smmu_niso1 TEGRA234_SID_HOST1X_CTX7 1>;
+
+			vic@15340000 {
+				compatible = "nvidia,tegra234-vic";
+				reg = <0x0 0x15340000 0x0 0x00040000>;
+				interrupts = <GIC_SPI 206 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&bpmp TEGRA234_CLK_VIC>;
+				clock-names = "vic";
+				resets = <&bpmp TEGRA234_RESET_VIC>;
+				reset-names = "vic";
+
+				power-domains = <&bpmp TEGRA234_POWER_DOMAIN_VIC>;
+				interconnects = <&mc TEGRA234_MEMORY_CLIENT_VICSRD &emc>,
+						<&mc TEGRA234_MEMORY_CLIENT_VICSWR &emc>;
+				interconnect-names = "dma-mem", "write";
+				iommus = <&smmu_niso1 TEGRA234_SID_VIC>;
+				dma-coherent;
+			};
+
+			nvdec@15480000 {
+				compatible = "nvidia,tegra234-nvdec";
+				reg = <0x0 0x15480000 0x0 0x00040000>;
+				clocks = <&bpmp TEGRA234_CLK_NVDEC>,
+					 <&bpmp TEGRA234_CLK_FUSE>,
+					 <&bpmp TEGRA234_CLK_TSEC_PKA>;
+				clock-names = "nvdec", "fuse", "tsec_pka";
+				resets = <&bpmp TEGRA234_RESET_NVDEC>;
+				reset-names = "nvdec";
+				power-domains = <&bpmp TEGRA234_POWER_DOMAIN_NVDEC>;
+				interconnects = <&mc TEGRA234_MEMORY_CLIENT_NVDECSRD &emc>,
+						<&mc TEGRA234_MEMORY_CLIENT_NVDECSWR &emc>;
+				interconnect-names = "dma-mem", "write";
+				iommus = <&smmu_niso1 TEGRA234_SID_NVDEC>;
+				dma-coherent;
+
+				nvidia,memory-controller = <&mc>;
+
+				/*
+				 * Placeholder values that firmware needs to update with the real
+				 * offsets parsed from the microcode headers.
+				 */
+				nvidia,bl-manifest-offset = <0>;
+				nvidia,bl-data-offset = <0>;
+				nvidia,bl-code-offset = <0>;
+				nvidia,os-manifest-offset = <0>;
+				nvidia,os-data-offset = <0>;
+				nvidia,os-code-offset = <0>;
+
+				/*
+				 * Firmware needs to set this to "okay" once the above values have
+				 * been updated.
+				 */
+				status = "disabled";
+			};
+
+			crypto@15820000 {
+				compatible = "nvidia,tegra234-se-aes";
+				reg = <0x00 0x15820000 0x00 0x10000>;
+				clocks = <&bpmp TEGRA234_CLK_SE>;
+				iommus = <&smmu_niso1 TEGRA234_SID_SES_SE1>;
+				dma-coherent;
+			};
+
+			crypto@15840000 {
+				compatible = "nvidia,tegra234-se-hash";
+				reg = <0x00 0x15840000 0x00 0x10000>;
+				clocks = <&bpmp TEGRA234_CLK_SE>;
+				iommus = <&smmu_niso1 TEGRA234_SID_SES_SE2>;
+				dma-coherent;
+			};
+		};
+
+		pcie@140a0000 {
+			compatible = "nvidia,tegra234-pcie";
+			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_PCIEX4CA>;
+			reg = <0x00 0x140a0000 0x0 0x00020000>, /* appl registers (128K)      */
+			      <0x00 0x2a000000 0x0 0x00040000>, /* configuration space (256K) */
+			      <0x00 0x2a040000 0x0 0x00040000>, /* iATU_DMA reg space (256K)  */
+			      <0x00 0x2a080000 0x0 0x00040000>, /* DBI reg space (256K)       */
+			      <0x35 0x30000000 0x0 0x10000000>; /* ECAM (256MB)               */
+			reg-names = "appl", "config", "atu_dma", "dbi", "ecam";
+
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			num-lanes = <4>;
+			num-viewport = <8>;
+			linux,pci-domain = <8>;
+
+			clocks = <&bpmp TEGRA234_CLK_PEX2_C8_CORE>;
+			clock-names = "core";
+
+			resets = <&bpmp TEGRA234_RESET_PEX2_CORE_8_APB>,
+				 <&bpmp TEGRA234_RESET_PEX2_CORE_8>;
+			reset-names = "apb", "core";
+
+			interrupts = <GIC_SPI 356 IRQ_TYPE_LEVEL_HIGH>, /* controller interrupt */
+				     <GIC_SPI 357 IRQ_TYPE_LEVEL_HIGH>; /* MSI interrupt */
+			interrupt-names = "intr", "msi";
+
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 0>;
+			interrupt-map = <0 0 0 0 &gic GIC_SPI 356 IRQ_TYPE_LEVEL_HIGH>;
+
+			nvidia,bpmp = <&bpmp 8>;
+
+			nvidia,aspm-cmrt-us = <60>;
+			nvidia,aspm-pwr-on-t-us = <20>;
+			nvidia,aspm-l0s-entrance-latency-us = <3>;
+
+			bus-range = <0x0 0xff>;
+
+			ranges = <0x43000000 0x32 0x40000000 0x32 0x40000000 0x2 0xe8000000>, /* prefetchable memory (11904 MB) */
+				 <0x02000000 0x0  0x40000000 0x35 0x28000000 0x0 0x08000000>, /* non-prefetchable memory (128 MB) */
+				 <0x01000000 0x0  0x2a100000 0x00 0x2a100000 0x0 0x00100000>; /* downstream I/O (1 MB) */
+
+			interconnects = <&mc TEGRA234_MEMORY_CLIENT_PCIE8AR &emc>,
+					<&mc TEGRA234_MEMORY_CLIENT_PCIE8AW &emc>;
+			interconnect-names = "dma-mem", "write";
+			iommu-map = <0x0 &smmu_niso1 TEGRA234_SID_PCIE8 0x1000>;
+			iommu-map-mask = <0x0>;
+			dma-coherent;
+
+			status = "disabled";
+		};
+
+		pcie@140c0000 {
+			compatible = "nvidia,tegra234-pcie";
+			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_PCIEX4CB>;
+			reg = <0x00 0x140c0000 0x0 0x00020000>, /* appl registers (128K)      */
+			      <0x00 0x2c000000 0x0 0x00040000>, /* configuration space (256K) */
+			      <0x00 0x2c040000 0x0 0x00040000>, /* iATU_DMA reg space (256K)  */
+			      <0x00 0x2c080000 0x0 0x00040000>, /* DBI reg space (256K)       */
+			      <0x38 0x30000000 0x0 0x10000000>; /* ECAM (256MB)               */
+			reg-names = "appl", "config", "atu_dma", "dbi", "ecam";
+
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			num-lanes = <4>;
+			num-viewport = <8>;
+			linux,pci-domain = <9>;
+
+			clocks = <&bpmp TEGRA234_CLK_PEX2_C9_CORE>;
+			clock-names = "core";
+
+			resets = <&bpmp TEGRA234_RESET_PEX2_CORE_9_APB>,
+				 <&bpmp TEGRA234_RESET_PEX2_CORE_9>;
+			reset-names = "apb", "core";
+
+			interrupts = <GIC_SPI 358 IRQ_TYPE_LEVEL_HIGH>, /* controller interrupt */
+				     <GIC_SPI 359 IRQ_TYPE_LEVEL_HIGH>; /* MSI interrupt */
+			interrupt-names = "intr", "msi";
+
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 0>;
+			interrupt-map = <0 0 0 0 &gic GIC_SPI 358 IRQ_TYPE_LEVEL_HIGH>;
+
+			nvidia,bpmp = <&bpmp 9>;
+
+			nvidia,aspm-cmrt-us = <60>;
+			nvidia,aspm-pwr-on-t-us = <20>;
+			nvidia,aspm-l0s-entrance-latency-us = <3>;
+
+			bus-range = <0x0 0xff>;
+
+			ranges = <0x43000000 0x35 0x40000000 0x35 0x40000000 0x2 0xc0000000>, /* prefetchable memory (11264 MB) */
+				 <0x02000000 0x0  0x40000000 0x38 0x28000000 0x0 0x08000000>, /* non-prefetchable memory (128 MB) */
+				 <0x01000000 0x0  0x2c100000 0x00 0x2c100000 0x0 0x00100000>; /* downstream I/O (1 MB) */
+
+			interconnects = <&mc TEGRA234_MEMORY_CLIENT_PCIE9AR &emc>,
+					<&mc TEGRA234_MEMORY_CLIENT_PCIE9AW &emc>;
+			interconnect-names = "dma-mem", "write";
+			iommu-map = <0x0 &smmu_niso0 TEGRA234_SID_PCIE9 0x1000>;
+			iommu-map-mask = <0x0>;
+			dma-coherent;
+
+			status = "disabled";
+		};
+
+		pcie@140e0000 {
+			compatible = "nvidia,tegra234-pcie";
+			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_PCIEX4CC>;
+			reg = <0x00 0x140e0000 0x0 0x00020000>, /* appl registers (128K)      */
+			      <0x00 0x2e000000 0x0 0x00040000>, /* configuration space (256K) */
+			      <0x00 0x2e040000 0x0 0x00040000>, /* iATU_DMA reg space (256K)  */
+			      <0x00 0x2e080000 0x0 0x00040000>, /* DBI reg space (256K)       */
+			      <0x3b 0x30000000 0x0 0x10000000>; /* ECAM (256MB)               */
+			reg-names = "appl", "config", "atu_dma", "dbi", "ecam";
+
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			num-lanes = <4>;
+			num-viewport = <8>;
+			linux,pci-domain = <10>;
+
+			clocks = <&bpmp TEGRA234_CLK_PEX2_C10_CORE>;
+			clock-names = "core";
+
+			resets = <&bpmp TEGRA234_RESET_PEX2_CORE_10_APB>,
+				 <&bpmp TEGRA234_RESET_PEX2_CORE_10>;
+			reset-names = "apb", "core";
+
+			interrupts = <GIC_SPI 360 IRQ_TYPE_LEVEL_HIGH>, /* controller interrupt */
+				     <GIC_SPI 361 IRQ_TYPE_LEVEL_HIGH>; /* MSI interrupt */
+			interrupt-names = "intr", "msi";
+
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 0>;
+			interrupt-map = <0 0 0 0 &gic GIC_SPI 360 IRQ_TYPE_LEVEL_HIGH>;
+
+			nvidia,bpmp = <&bpmp 10>;
+
+			nvidia,aspm-cmrt-us = <60>;
+			nvidia,aspm-pwr-on-t-us = <20>;
+			nvidia,aspm-l0s-entrance-latency-us = <3>;
+
+			bus-range = <0x0 0xff>;
+
+			ranges = <0x43000000 0x38 0x40000000 0x38 0x40000000 0x2 0xe8000000>, /* prefetchable memory (11904 MB) */
+				 <0x02000000 0x0  0x40000000 0x3b 0x28000000 0x0 0x08000000>, /* non-prefetchable memory (128 MB) */
+				 <0x01000000 0x0  0x2e100000 0x00 0x2e100000 0x0 0x00100000>; /* downstream I/O (1 MB) */
+
+			interconnects = <&mc TEGRA234_MEMORY_CLIENT_PCIE10AR &emc>,
+					<&mc TEGRA234_MEMORY_CLIENT_PCIE10AW &emc>;
+			interconnect-names = "dma-mem", "write";
+			iommu-map = <0x0 &smmu_niso1 TEGRA234_SID_PCIE10 0x1000>;
+			iommu-map-mask = <0x0>;
+			dma-coherent;
+
+			status = "disabled";
+		};
+
+		pcie-ep@140e0000 {
+			compatible = "nvidia,tegra234-pcie-ep";
+			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_PCIEX4CC>;
+			reg = <0x00 0x140e0000 0x0 0x00020000>, /* appl registers (128K)      */
+			      <0x00 0x2e040000 0x0 0x00040000>, /* iATU_DMA reg space (256K)  */
+			      <0x00 0x2e080000 0x0 0x00040000>, /* DBI space (256K)           */
+			      <0x38 0x40000000 0x3 0x00000000>; /* Address Space (12G)        */
+			reg-names = "appl", "atu_dma", "dbi", "addr_space";
+
+			num-lanes = <4>;
+
+			clocks = <&bpmp TEGRA234_CLK_PEX2_C10_CORE>;
+			clock-names = "core";
+
+			resets = <&bpmp TEGRA234_RESET_PEX2_CORE_10_APB>,
+				 <&bpmp TEGRA234_RESET_PEX2_CORE_10>;
+			reset-names = "apb", "core";
+
+			interrupts = <GIC_SPI 360 IRQ_TYPE_LEVEL_HIGH>;	/* controller interrupt */
+			interrupt-names = "intr";
+
+			nvidia,bpmp = <&bpmp 10>;
+
+			nvidia,enable-ext-refclk;
+			nvidia,aspm-cmrt-us = <60>;
+			nvidia,aspm-pwr-on-t-us = <20>;
+			nvidia,aspm-l0s-entrance-latency-us = <3>;
+
+			interconnects = <&mc TEGRA234_MEMORY_CLIENT_PCIE10AR &emc>,
+					<&mc TEGRA234_MEMORY_CLIENT_PCIE10AW &emc>;
+			interconnect-names = "dma-mem", "write";
+			iommu-map = <0x0 &smmu_niso1 TEGRA234_SID_PCIE10 0x1000>;
+			iommu-map-mask = <0x0>;
+			dma-coherent;
+
+			status = "disabled";
+		};
+
+		pcie@14100000 {
+			compatible = "nvidia,tegra234-pcie";
+			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_PCIEX1A>;
+			reg = <0x00 0x14100000 0x0 0x00020000>, /* appl registers (128K)      */
+			      <0x00 0x30000000 0x0 0x00040000>, /* configuration space (256K) */
+			      <0x00 0x30040000 0x0 0x00040000>, /* iATU_DMA reg space (256K)  */
+			      <0x00 0x30080000 0x0 0x00040000>, /* DBI reg space (256K)       */
+			      <0x20 0xb0000000 0x0 0x10000000>; /* ECAM (256MB)               */
+			reg-names = "appl", "config", "atu_dma", "dbi", "ecam";
+
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			num-lanes = <1>;
+			num-viewport = <8>;
+			linux,pci-domain = <1>;
+
+			clocks = <&bpmp TEGRA234_CLK_PEX0_C1_CORE>;
+			clock-names = "core";
+
+			resets = <&bpmp TEGRA234_RESET_PEX0_CORE_1_APB>,
+				 <&bpmp TEGRA234_RESET_PEX0_CORE_1>;
+			reset-names = "apb", "core";
+
+			interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>, /* controller interrupt */
+				     <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>; /* MSI interrupt */
+			interrupt-names = "intr", "msi";
+
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 0>;
+			interrupt-map = <0 0 0 0 &gic GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
+
+			nvidia,bpmp = <&bpmp 1>;
+
+			nvidia,aspm-cmrt-us = <60>;
+			nvidia,aspm-pwr-on-t-us = <20>;
+			nvidia,aspm-l0s-entrance-latency-us = <3>;
+
+			bus-range = <0x0 0xff>;
+
+			ranges = <0x43000000 0x20 0x80000000 0x20 0x80000000 0x0 0x28000000>, /* prefetchable memory (640 MB) */
+				 <0x02000000 0x0  0x40000000 0x20 0xa8000000 0x0 0x08000000>, /* non-prefetchable memory (128 MB) */
+				 <0x01000000 0x0  0x30100000 0x00 0x30100000 0x0 0x00100000>; /* downstream I/O (1 MB) */
+
+			interconnects = <&mc TEGRA234_MEMORY_CLIENT_PCIE1R &emc>,
+					<&mc TEGRA234_MEMORY_CLIENT_PCIE1W &emc>;
+			interconnect-names = "dma-mem", "write";
+			iommu-map = <0x0 &smmu_niso1 TEGRA234_SID_PCIE1 0x1000>;
+			iommu-map-mask = <0x0>;
+			dma-coherent;
+
+			status = "disabled";
+		};
+
+		pcie@14120000 {
+			compatible = "nvidia,tegra234-pcie";
+			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_PCIEX1A>;
+			reg = <0x00 0x14120000 0x0 0x00020000>, /* appl registers (128K)      */
+			      <0x00 0x32000000 0x0 0x00040000>, /* configuration space (256K) */
+			      <0x00 0x32040000 0x0 0x00040000>, /* iATU_DMA reg space (256K)  */
+			      <0x00 0x32080000 0x0 0x00040000>, /* DBI reg space (256K)       */
+			      <0x20 0xf0000000 0x0 0x10000000>; /* ECAM (256MB)               */
+			reg-names = "appl", "config", "atu_dma", "dbi", "ecam";
+
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			num-lanes = <1>;
+			num-viewport = <8>;
+			linux,pci-domain = <2>;
+
+			clocks = <&bpmp TEGRA234_CLK_PEX0_C2_CORE>;
+			clock-names = "core";
+
+			resets = <&bpmp TEGRA234_RESET_PEX0_CORE_2_APB>,
+				 <&bpmp TEGRA234_RESET_PEX0_CORE_2>;
+			reset-names = "apb", "core";
+
+			interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>, /* controller interrupt */
+				     <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>; /* MSI interrupt */
+			interrupt-names = "intr", "msi";
+
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 0>;
+			interrupt-map = <0 0 0 0 &gic GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
+
+			nvidia,bpmp = <&bpmp 2>;
+
+			nvidia,aspm-cmrt-us = <60>;
+			nvidia,aspm-pwr-on-t-us = <20>;
+			nvidia,aspm-l0s-entrance-latency-us = <3>;
+
+			bus-range = <0x0 0xff>;
+
+			ranges = <0x43000000 0x20 0xc0000000 0x20 0xc0000000 0x0 0x28000000>, /* prefetchable memory (640 MB) */
+				 <0x02000000 0x0  0x40000000 0x20 0xe8000000 0x0 0x08000000>, /* non-prefetchable memory (128 MB) */
+				 <0x01000000 0x0  0x32100000 0x00 0x32100000 0x0 0x00100000>; /* downstream I/O (1 MB) */
+
+			interconnects = <&mc TEGRA234_MEMORY_CLIENT_PCIE2AR &emc>,
+					<&mc TEGRA234_MEMORY_CLIENT_PCIE2AW &emc>;
+			interconnect-names = "dma-mem", "write";
+			iommu-map = <0x0 &smmu_niso1 TEGRA234_SID_PCIE2 0x1000>;
+			iommu-map-mask = <0x0>;
+			dma-coherent;
+
+			status = "disabled";
+		};
+
+		pcie@14140000 {
+			compatible = "nvidia,tegra234-pcie";
+			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_PCIEX1A>;
+			reg = <0x00 0x14140000 0x0 0x00020000>, /* appl registers (128K)      */
+			      <0x00 0x34000000 0x0 0x00040000>, /* configuration space (256K) */
+			      <0x00 0x34040000 0x0 0x00040000>, /* iATU_DMA reg space (256K)  */
+			      <0x00 0x34080000 0x0 0x00040000>, /* DBI reg space (256K)       */
+			      <0x21 0x30000000 0x0 0x10000000>; /* ECAM (256MB)               */
+			reg-names = "appl", "config", "atu_dma", "dbi", "ecam";
+
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			num-lanes = <1>;
+			num-viewport = <8>;
+			linux,pci-domain = <3>;
+
+			clocks = <&bpmp TEGRA234_CLK_PEX0_C3_CORE>;
+			clock-names = "core";
+
+			resets = <&bpmp TEGRA234_RESET_PEX0_CORE_3_APB>,
+				 <&bpmp TEGRA234_RESET_PEX0_CORE_3>;
+			reset-names = "apb", "core";
+
+			interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>, /* controller interrupt */
+				     <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>; /* MSI interrupt */
+			interrupt-names = "intr", "msi";
+
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 0>;
+			interrupt-map = <0 0 0 0 &gic GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
+
+			nvidia,bpmp = <&bpmp 3>;
+
+			nvidia,aspm-cmrt-us = <60>;
+			nvidia,aspm-pwr-on-t-us = <20>;
+			nvidia,aspm-l0s-entrance-latency-us = <3>;
+
+			bus-range = <0x0 0xff>;
+
+			ranges = <0x43000000 0x21 0x00000000 0x21 0x00000000 0x0 0x28000000>, /* prefetchable memory (640 MB) */
+				 <0x02000000 0x0  0x40000000 0x21 0x28000000 0x0 0x08000000>, /* non-prefetchable memory (128 MB) */
+				 <0x01000000 0x0  0x34100000 0x00 0x34100000 0x0 0x00100000>; /* downstream I/O (1 MB) */
+
+			interconnects = <&mc TEGRA234_MEMORY_CLIENT_PCIE3R &emc>,
+					<&mc TEGRA234_MEMORY_CLIENT_PCIE3W &emc>;
+			interconnect-names = "dma-mem", "write";
+			iommu-map = <0x0 &smmu_niso1 TEGRA234_SID_PCIE3 0x1000>;
+			iommu-map-mask = <0x0>;
+			dma-coherent;
+
+			status = "disabled";
+		};
+
+		pcie@14160000 {
+			compatible = "nvidia,tegra234-pcie";
+			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_PCIEX4BB>;
+			reg = <0x00 0x14160000 0x0 0x00020000>, /* appl registers (128K)      */
+			      <0x00 0x36000000 0x0 0x00040000>, /* configuration space (256K) */
+			      <0x00 0x36040000 0x0 0x00040000>, /* iATU_DMA reg space (256K)  */
+			      <0x00 0x36080000 0x0 0x00040000>, /* DBI reg space (256K)       */
+			      <0x24 0x30000000 0x0 0x10000000>; /* ECAM (256MB)               */
+			reg-names = "appl", "config", "atu_dma", "dbi", "ecam";
+
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			num-lanes = <4>;
+			num-viewport = <8>;
+			linux,pci-domain = <4>;
+
+			clocks = <&bpmp TEGRA234_CLK_PEX0_C4_CORE>;
+			clock-names = "core";
+
+			resets = <&bpmp TEGRA234_RESET_PEX0_CORE_4_APB>,
+				 <&bpmp TEGRA234_RESET_PEX0_CORE_4>;
+			reset-names = "apb", "core";
+
+			interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>, /* controller interrupt */
+				     <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>; /* MSI interrupt */
+			interrupt-names = "intr", "msi";
+
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 0>;
+			interrupt-map = <0 0 0 0 &gic GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
+
+			nvidia,bpmp = <&bpmp 4>;
+
+			nvidia,aspm-cmrt-us = <60>;
+			nvidia,aspm-pwr-on-t-us = <20>;
+			nvidia,aspm-l0s-entrance-latency-us = <3>;
+
+			bus-range = <0x0 0xff>;
+
+			ranges = <0x43000000 0x21 0x40000000 0x21 0x40000000 0x2 0xe8000000>, /* prefetchable memory (11904 MB) */
+				 <0x02000000 0x0  0x40000000 0x24 0x28000000 0x0 0x08000000>, /* non-prefetchable memory (128 MB) */
+				 <0x01000000 0x0  0x36100000 0x00 0x36100000 0x0 0x00100000>; /* downstream I/O (1 MB) */
+
+			interconnects = <&mc TEGRA234_MEMORY_CLIENT_PCIE4R &emc>,
+					<&mc TEGRA234_MEMORY_CLIENT_PCIE4W &emc>;
+			interconnect-names = "dma-mem", "write";
+			iommu-map = <0x0 &smmu_niso0 TEGRA234_SID_PCIE4 0x1000>;
+			iommu-map-mask = <0x0>;
+			dma-coherent;
+
+			status = "disabled";
+		};
+
+		pcie@14180000 {
+			compatible = "nvidia,tegra234-pcie";
+			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_PCIEX4BA>;
+			reg = <0x00 0x14180000 0x0 0x00020000>, /* appl registers (128K)      */
+			      <0x00 0x38000000 0x0 0x00040000>, /* configuration space (256K) */
+			      <0x00 0x38040000 0x0 0x00040000>, /* iATU_DMA reg space (256K)  */
+			      <0x00 0x38080000 0x0 0x00040000>, /* DBI reg space (256K)       */
+			      <0x27 0x30000000 0x0 0x10000000>; /* ECAM (256MB)               */
+			reg-names = "appl", "config", "atu_dma", "dbi", "ecam";
+
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			num-lanes = <4>;
+			num-viewport = <8>;
+			linux,pci-domain = <0>;
+
+			clocks = <&bpmp TEGRA234_CLK_PEX0_C0_CORE>;
+			clock-names = "core";
+
+			resets = <&bpmp TEGRA234_RESET_PEX0_CORE_0_APB>,
+				 <&bpmp TEGRA234_RESET_PEX0_CORE_0>;
+			reset-names = "apb", "core";
+
+			interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>, /* controller interrupt */
+				     <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>; /* MSI interrupt */
+			interrupt-names = "intr", "msi";
+
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 0>;
+			interrupt-map = <0 0 0 0 &gic GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+
+			nvidia,bpmp = <&bpmp 0>;
+
+			nvidia,aspm-cmrt-us = <60>;
+			nvidia,aspm-pwr-on-t-us = <20>;
+			nvidia,aspm-l0s-entrance-latency-us = <3>;
+
+			bus-range = <0x0 0xff>;
+
+			ranges = <0x43000000 0x24 0x40000000 0x24 0x40000000 0x2 0xe8000000>, /* prefetchable memory (11904 MB) */
+				 <0x02000000 0x0  0x40000000 0x27 0x28000000 0x0 0x08000000>, /* non-prefetchable memory (128 MB) */
+				 <0x01000000 0x0  0x38100000 0x00 0x38100000 0x0 0x00100000>; /* downstream I/O (1 MB) */
+
+			interconnects = <&mc TEGRA234_MEMORY_CLIENT_PCIE0R &emc>,
+					<&mc TEGRA234_MEMORY_CLIENT_PCIE0W &emc>;
+			interconnect-names = "dma-mem", "write";
+			iommu-map = <0x0 &smmu_niso0 TEGRA234_SID_PCIE0 0x1000>;
+			iommu-map-mask = <0x0>;
+			dma-coherent;
+
+			status = "disabled";
+		};
+
+		pcie@141a0000 {
+			compatible = "nvidia,tegra234-pcie";
+			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_PCIEX8A>;
+			reg = <0x00 0x141a0000 0x0 0x00020000>, /* appl registers (128K)      */
+			      <0x00 0x3a000000 0x0 0x00040000>, /* configuration space (256K) */
+			      <0x00 0x3a040000 0x0 0x00040000>, /* iATU_DMA reg space (256K)  */
+			      <0x00 0x3a080000 0x0 0x00040000>, /* DBI reg space (256K)       */
+			      <0x2b 0x30000000 0x0 0x10000000>; /* ECAM (256MB)               */
+			reg-names = "appl", "config", "atu_dma", "dbi", "ecam";
+
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			num-lanes = <8>;
+			num-viewport = <8>;
+			linux,pci-domain = <5>;
+
+			clocks = <&bpmp TEGRA234_CLK_PEX1_C5_CORE>;
+			clock-names = "core";
+
+			resets = <&bpmp TEGRA234_RESET_PEX1_CORE_5_APB>,
+				 <&bpmp TEGRA234_RESET_PEX1_CORE_5>;
+			reset-names = "apb", "core";
+
+			interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>, /* controller interrupt */
+				     <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>; /* MSI interrupt */
+			interrupt-names = "intr", "msi";
+
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 0>;
+			interrupt-map = <0 0 0 0 &gic GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
+
+			nvidia,bpmp = <&bpmp 5>;
+
+			nvidia,aspm-cmrt-us = <60>;
+			nvidia,aspm-pwr-on-t-us = <20>;
+			nvidia,aspm-l0s-entrance-latency-us = <3>;
+
+			bus-range = <0x0 0xff>;
+
+			ranges = <0x43000000 0x28 0x00000000 0x28 0x00000000 0x3 0x28000000>, /* prefetchable memory (12928 MB) */
+				 <0x02000000 0x0  0x40000000 0x2b 0x28000000 0x0 0x08000000>, /* non-prefetchable memory (128 MB) */
+				 <0x01000000 0x0  0x3a100000 0x00 0x3a100000 0x0 0x00100000>; /* downstream I/O (1 MB) */
+
+			interconnects = <&mc TEGRA234_MEMORY_CLIENT_PCIE5R &emc>,
+					<&mc TEGRA234_MEMORY_CLIENT_PCIE5W &emc>;
+			interconnect-names = "dma-mem", "write";
+			iommu-map = <0x0 &smmu_niso0 TEGRA234_SID_PCIE5 0x1000>;
+			iommu-map-mask = <0x0>;
+			dma-coherent;
+
+			status = "disabled";
+		};
+
+		pcie-ep@141a0000 {
+			compatible = "nvidia,tegra234-pcie-ep";
+			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_PCIEX8A>;
+			reg = <0x00 0x141a0000 0x0 0x00020000>, /* appl registers (128K)      */
+			      <0x00 0x3a040000 0x0 0x00040000>, /* iATU_DMA reg space (256K)  */
+			      <0x00 0x3a080000 0x0 0x00040000>, /* DBI reg space (256K)       */
+			      <0x27 0x40000000 0x4 0x00000000>; /* Address Space (16G)        */
+			reg-names = "appl", "atu_dma", "dbi", "addr_space";
+
+			num-lanes = <8>;
+
+			clocks = <&bpmp TEGRA234_CLK_PEX1_C5_CORE>;
+			clock-names = "core";
+
+			resets = <&bpmp TEGRA234_RESET_PEX1_CORE_5_APB>,
+				 <&bpmp TEGRA234_RESET_PEX1_CORE_5>;
+			reset-names = "apb", "core";
+
+			interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;	/* controller interrupt */
+			interrupt-names = "intr";
+
+			nvidia,bpmp = <&bpmp 5>;
+
+			nvidia,enable-ext-refclk;
+			nvidia,aspm-cmrt-us = <60>;
+			nvidia,aspm-pwr-on-t-us = <20>;
+			nvidia,aspm-l0s-entrance-latency-us = <3>;
+
+			interconnects = <&mc TEGRA234_MEMORY_CLIENT_PCIE5R &emc>,
+					<&mc TEGRA234_MEMORY_CLIENT_PCIE5W &emc>;
+			interconnect-names = "dma-mem", "write";
+			iommu-map = <0x0 &smmu_niso0 TEGRA234_SID_PCIE5 0x1000>;
+			iommu-map-mask = <0x0>;
+			dma-coherent;
+
+			status = "disabled";
+		};
+
+		pcie@141c0000 {
+			compatible = "nvidia,tegra234-pcie";
+			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_PCIEX4A>;
+			reg = <0x00 0x141c0000 0x0 0x00020000>, /* appl registers (128K)      */
+			      <0x00 0x3c000000 0x0 0x00040000>, /* configuration space (256K) */
+			      <0x00 0x3c040000 0x0 0x00040000>, /* iATU_DMA reg space (256K)  */
+			      <0x00 0x3c080000 0x0 0x00040000>, /* DBI reg space (256K)       */
+			      <0x2e 0x30000000 0x0 0x10000000>; /* ECAM (256MB)               */
+			reg-names = "appl", "config", "atu_dma", "dbi", "ecam";
+
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			num-lanes = <4>;
+			num-viewport = <8>;
+			linux,pci-domain = <6>;
+
+			clocks = <&bpmp TEGRA234_CLK_PEX1_C6_CORE>;
+			clock-names = "core";
+
+			resets = <&bpmp TEGRA234_RESET_PEX1_CORE_6_APB>,
+				 <&bpmp TEGRA234_RESET_PEX1_CORE_6>;
+			reset-names = "apb", "core";
+
+			interrupts = <GIC_SPI 352 IRQ_TYPE_LEVEL_HIGH>, /* controller interrupt */
+				     <GIC_SPI 353 IRQ_TYPE_LEVEL_HIGH>; /* MSI interrupt */
+			interrupt-names = "intr", "msi";
+
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 0>;
+			interrupt-map = <0 0 0 0 &gic GIC_SPI 352 IRQ_TYPE_LEVEL_HIGH>;
+
+			nvidia,bpmp = <&bpmp 6>;
+
+			nvidia,aspm-cmrt-us = <60>;
+			nvidia,aspm-pwr-on-t-us = <20>;
+			nvidia,aspm-l0s-entrance-latency-us = <3>;
+
+			bus-range = <0x0 0xff>;
+
+			ranges = <0x43000000 0x2b 0x40000000 0x2b 0x40000000 0x2 0xe8000000>, /* prefetchable memory (11904 MB) */
+				 <0x02000000 0x0  0x40000000 0x2e 0x28000000 0x0 0x08000000>, /* non-prefetchable memory (128 MB) */
+				 <0x01000000 0x0  0x3c100000 0x00 0x3c100000 0x0 0x00100000>; /* downstream I/O (1 MB) */
+
+			interconnects = <&mc TEGRA234_MEMORY_CLIENT_PCIE6AR &emc>,
+					<&mc TEGRA234_MEMORY_CLIENT_PCIE6AW &emc>;
+			interconnect-names = "dma-mem", "write";
+			iommu-map = <0x0 &smmu_niso0 TEGRA234_SID_PCIE6 0x1000>;
+			iommu-map-mask = <0x0>;
+			dma-coherent;
+
+			status = "disabled";
+		};
+
+		pcie-ep@141c0000 {
+			compatible = "nvidia,tegra234-pcie-ep";
+			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_PCIEX4A>;
+			reg = <0x00 0x141c0000 0x0 0x00020000>, /* appl registers (128K)      */
+			      <0x00 0x3c040000 0x0 0x00040000>, /* iATU_DMA reg space (256K)  */
+			      <0x00 0x3c080000 0x0 0x00040000>, /* DBI space (256K)           */
+			      <0x2b 0x40000000 0x3 0x00000000>; /* Address Space (12G)        */
+			reg-names = "appl", "atu_dma", "dbi", "addr_space";
+
+			num-lanes = <4>;
+
+			clocks = <&bpmp TEGRA234_CLK_PEX1_C6_CORE>;
+			clock-names = "core";
+
+			resets = <&bpmp TEGRA234_RESET_PEX1_CORE_6_APB>,
+				 <&bpmp TEGRA234_RESET_PEX1_CORE_6>;
+			reset-names = "apb", "core";
+
+			interrupts = <GIC_SPI 352 IRQ_TYPE_LEVEL_HIGH>;	/* controller interrupt */
+			interrupt-names = "intr";
+
+			nvidia,bpmp = <&bpmp 6>;
+
+			nvidia,enable-ext-refclk;
+			nvidia,aspm-cmrt-us = <60>;
+			nvidia,aspm-pwr-on-t-us = <20>;
+			nvidia,aspm-l0s-entrance-latency-us = <3>;
+
+			interconnects = <&mc TEGRA234_MEMORY_CLIENT_PCIE6AR &emc>,
+					<&mc TEGRA234_MEMORY_CLIENT_PCIE6AW &emc>;
+			interconnect-names = "dma-mem", "write";
+			iommu-map = <0x0 &smmu_niso0 TEGRA234_SID_PCIE6 0x1000>;
+			iommu-map-mask = <0x0>;
+			dma-coherent;
+
+			status = "disabled";
+		};
+
+		pcie@141e0000 {
+			compatible = "nvidia,tegra234-pcie";
+			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_PCIEX8B>;
+			reg = <0x00 0x141e0000 0x0 0x00020000>, /* appl registers (128K)      */
+			      <0x00 0x3e000000 0x0 0x00040000>, /* configuration space (256K) */
+			      <0x00 0x3e040000 0x0 0x00040000>, /* iATU_DMA reg space (256K)  */
+			      <0x00 0x3e080000 0x0 0x00040000>, /* DBI reg space (256K)       */
+			      <0x32 0x30000000 0x0 0x10000000>; /* ECAM (256MB)               */
+			reg-names = "appl", "config", "atu_dma", "dbi", "ecam";
+
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			num-lanes = <8>;
+			num-viewport = <8>;
+			linux,pci-domain = <7>;
+
+			clocks = <&bpmp TEGRA234_CLK_PEX2_C7_CORE>;
+			clock-names = "core";
+
+			resets = <&bpmp TEGRA234_RESET_PEX2_CORE_7_APB>,
+				 <&bpmp TEGRA234_RESET_PEX2_CORE_7>;
+			reset-names = "apb", "core";
+
+			interrupts = <GIC_SPI 354 IRQ_TYPE_LEVEL_HIGH>, /* controller interrupt */
+				     <GIC_SPI 355 IRQ_TYPE_LEVEL_HIGH>; /* MSI interrupt */
+			interrupt-names = "intr", "msi";
+
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 0>;
+			interrupt-map = <0 0 0 0 &gic GIC_SPI 354 IRQ_TYPE_LEVEL_HIGH>;
+
+			nvidia,bpmp = <&bpmp 7>;
+
+			nvidia,aspm-cmrt-us = <60>;
+			nvidia,aspm-pwr-on-t-us = <20>;
+			nvidia,aspm-l0s-entrance-latency-us = <3>;
+
+			bus-range = <0x0 0xff>;
+
+			ranges = <0x43000000 0x30 0x00000000 0x30 0x00000000 0x2 0x28000000>, /* prefetchable memory (8832 MB) */
+				 <0x02000000 0x0  0x40000000 0x32 0x28000000 0x0 0x08000000>, /* non-prefetchable memory (128 MB) */
+				 <0x01000000 0x0  0x3e100000 0x00 0x3e100000 0x0 0x00100000>; /* downstream I/O (1 MB) */
+
+			interconnects = <&mc TEGRA234_MEMORY_CLIENT_PCIE7AR &emc>,
+					<&mc TEGRA234_MEMORY_CLIENT_PCIE7AW &emc>;
+			interconnect-names = "dma-mem", "write";
+			iommu-map = <0x0 &smmu_niso1 TEGRA234_SID_PCIE7 0x1000>;
+			iommu-map-mask = <0x0>;
+			dma-coherent;
+
+			status = "disabled";
+		};
+
+		pcie-ep@141e0000 {
+			compatible = "nvidia,tegra234-pcie-ep";
+			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_PCIEX8B>;
+			reg = <0x00 0x141e0000 0x0 0x00020000>, /* appl registers (128K)      */
+			      <0x00 0x3e040000 0x0 0x00040000>, /* iATU_DMA reg space (256K)  */
+			      <0x00 0x3e080000 0x0 0x00040000>, /* DBI space (256K)           */
+			      <0x2e 0x40000000 0x4 0x00000000>; /* Address Space (16G)        */
+			reg-names = "appl", "atu_dma", "dbi", "addr_space";
+
+			num-lanes = <8>;
+
+			clocks = <&bpmp TEGRA234_CLK_PEX2_C7_CORE>;
+			clock-names = "core";
+
+			resets = <&bpmp TEGRA234_RESET_PEX2_CORE_7_APB>,
+				 <&bpmp TEGRA234_RESET_PEX2_CORE_7>;
+			reset-names = "apb", "core";
+
+			interrupts = <GIC_SPI 354 IRQ_TYPE_LEVEL_HIGH>;	/* controller interrupt */
+			interrupt-names = "intr";
+
+			nvidia,bpmp = <&bpmp 7>;
+
+			nvidia,enable-ext-refclk;
+			nvidia,aspm-cmrt-us = <60>;
+			nvidia,aspm-pwr-on-t-us = <20>;
+			nvidia,aspm-l0s-entrance-latency-us = <3>;
+
+			interconnects = <&mc TEGRA234_MEMORY_CLIENT_PCIE7AR &emc>,
+					<&mc TEGRA234_MEMORY_CLIENT_PCIE7AW &emc>;
+			interconnect-names = "dma-mem", "write";
+			iommu-map = <0x0 &smmu_niso1 TEGRA234_SID_PCIE7 0x1000>;
+			iommu-map-mask = <0x0>;
+			dma-coherent;
+
+			status = "disabled";
+		};
+	};
+
+	sram@40000000 {
+		compatible = "nvidia,tegra234-sysram", "mmio-sram";
+		reg = <0x0 0x40000000 0x0 0x80000>;
+
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0x0 0x40000000 0x80000>;
+
+		no-memory-wc;
+
+		cpu_bpmp_tx: sram@70000 {
+			reg = <0x70000 0x1000>;
+			label = "cpu-bpmp-tx";
+			pool;
+		};
+
+		cpu_bpmp_rx: sram@71000 {
+			reg = <0x71000 0x1000>;
+			label = "cpu-bpmp-rx";
+			pool;
+		};
+	};
+
+	bpmp: bpmp {
+		compatible = "nvidia,tegra234-bpmp", "nvidia,tegra186-bpmp";
+		mboxes = <&hsp_top0 TEGRA_HSP_MBOX_TYPE_DB
+				    TEGRA_HSP_DB_MASTER_BPMP>;
+		shmem = <&cpu_bpmp_tx>, <&cpu_bpmp_rx>;
+		#clock-cells = <1>;
+		#reset-cells = <1>;
+		#power-domain-cells = <1>;
+		interconnects = <&mc TEGRA234_MEMORY_CLIENT_BPMPR &emc>,
+				<&mc TEGRA234_MEMORY_CLIENT_BPMPW &emc>,
+				<&mc TEGRA234_MEMORY_CLIENT_BPMPDMAR &emc>,
+				<&mc TEGRA234_MEMORY_CLIENT_BPMPDMAW &emc>;
+		interconnect-names = "read", "write", "dma-mem", "dma-write";
+		iommus = <&smmu_niso1 TEGRA234_SID_BPMP>;
+
+		bpmp_i2c: i2c {
+			compatible = "nvidia,tegra186-bpmp-i2c";
+			nvidia,bpmp-bus-id = <5>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		bpmp_thermal: thermal {
+			compatible = "nvidia,tegra186-bpmp-thermal";
+			#thermal-sensor-cells = <1>;
+		};
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu0_0: cpu@0 {
+			compatible = "arm,cortex-a78";
+			device_type = "cpu";
+			reg = <0x00000>;
+
+			enable-method = "psci";
+
+			operating-points-v2 = <&cl0_opp_tbl>;
+			interconnects = <&mc TEGRA_ICC_MC_CPU_CLUSTER0 &emc>;
+
+			i-cache-size = <65536>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <65536>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&l2c0_0>;
+		};
+
+		cpu0_1: cpu@100 {
+			compatible = "arm,cortex-a78";
+			device_type = "cpu";
+			reg = <0x00100>;
+
+			enable-method = "psci";
+
+			operating-points-v2 = <&cl0_opp_tbl>;
+			interconnects = <&mc TEGRA_ICC_MC_CPU_CLUSTER0 &emc>;
+
+			i-cache-size = <65536>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <65536>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&l2c0_1>;
+		};
+
+		cpu0_2: cpu@200 {
+			compatible = "arm,cortex-a78";
+			device_type = "cpu";
+			reg = <0x00200>;
+
+			enable-method = "psci";
+
+			operating-points-v2 = <&cl0_opp_tbl>;
+			interconnects = <&mc TEGRA_ICC_MC_CPU_CLUSTER0 &emc>;
+
+			i-cache-size = <65536>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <65536>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&l2c0_2>;
+		};
+
+		cpu0_3: cpu@300 {
+			compatible = "arm,cortex-a78";
+			device_type = "cpu";
+			reg = <0x00300>;
+
+			enable-method = "psci";
+
+			operating-points-v2 = <&cl0_opp_tbl>;
+			interconnects = <&mc TEGRA_ICC_MC_CPU_CLUSTER0 &emc>;
+
+			i-cache-size = <65536>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <65536>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&l2c0_3>;
+		};
+
+		cpu1_0: cpu@10000 {
+			compatible = "arm,cortex-a78";
+			device_type = "cpu";
+			reg = <0x10000>;
+
+			enable-method = "psci";
+
+			operating-points-v2 = <&cl1_opp_tbl>;
+			interconnects = <&mc TEGRA_ICC_MC_CPU_CLUSTER1 &emc>;
+
+			i-cache-size = <65536>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <65536>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&l2c1_0>;
+		};
+
+		cpu1_1: cpu@10100 {
+			compatible = "arm,cortex-a78";
+			device_type = "cpu";
+			reg = <0x10100>;
+
+			enable-method = "psci";
+
+			operating-points-v2 = <&cl1_opp_tbl>;
+			interconnects = <&mc TEGRA_ICC_MC_CPU_CLUSTER1 &emc>;
+
+			i-cache-size = <65536>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <65536>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&l2c1_1>;
+		};
+
+		cpu1_2: cpu@10200 {
+			compatible = "arm,cortex-a78";
+			device_type = "cpu";
+			reg = <0x10200>;
+
+			enable-method = "psci";
+
+			operating-points-v2 = <&cl1_opp_tbl>;
+			interconnects = <&mc TEGRA_ICC_MC_CPU_CLUSTER1 &emc>;
+
+			i-cache-size = <65536>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <65536>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&l2c1_2>;
+		};
+
+		cpu1_3: cpu@10300 {
+			compatible = "arm,cortex-a78";
+			device_type = "cpu";
+			reg = <0x10300>;
+
+			enable-method = "psci";
+
+			operating-points-v2 = <&cl1_opp_tbl>;
+			interconnects = <&mc TEGRA_ICC_MC_CPU_CLUSTER1 &emc>;
+
+			i-cache-size = <65536>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <65536>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&l2c1_3>;
+		};
+
+		cpu2_0: cpu@20000 {
+			compatible = "arm,cortex-a78";
+			device_type = "cpu";
+			reg = <0x20000>;
+
+			enable-method = "psci";
+
+			operating-points-v2 = <&cl2_opp_tbl>;
+			interconnects = <&mc TEGRA_ICC_MC_CPU_CLUSTER2 &emc>;
+
+			i-cache-size = <65536>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <65536>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&l2c2_0>;
+		};
+
+		cpu2_1: cpu@20100 {
+			compatible = "arm,cortex-a78";
+			device_type = "cpu";
+			reg = <0x20100>;
+
+			enable-method = "psci";
+
+			operating-points-v2 = <&cl2_opp_tbl>;
+			interconnects = <&mc TEGRA_ICC_MC_CPU_CLUSTER2 &emc>;
+
+			i-cache-size = <65536>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <65536>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&l2c2_1>;
+		};
+
+		cpu2_2: cpu@20200 {
+			compatible = "arm,cortex-a78";
+			device_type = "cpu";
+			reg = <0x20200>;
+
+			enable-method = "psci";
+
+			operating-points-v2 = <&cl2_opp_tbl>;
+			interconnects = <&mc TEGRA_ICC_MC_CPU_CLUSTER2 &emc>;
+
+			i-cache-size = <65536>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <65536>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&l2c2_2>;
+		};
+
+		cpu2_3: cpu@20300 {
+			compatible = "arm,cortex-a78";
+			device_type = "cpu";
+			reg = <0x20300>;
+
+			enable-method = "psci";
+
+			operating-points-v2 = <&cl2_opp_tbl>;
+			interconnects = <&mc TEGRA_ICC_MC_CPU_CLUSTER2 &emc>;
+
+			i-cache-size = <65536>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <65536>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&l2c2_3>;
+		};
+
+		cpu-map {
+			cluster0 {
+				core0 {
+					cpu = <&cpu0_0>;
+				};
+
+				core1 {
+					cpu = <&cpu0_1>;
+				};
+
+				core2 {
+					cpu = <&cpu0_2>;
+				};
+
+				core3 {
+					cpu = <&cpu0_3>;
+				};
+			};
+
+			cluster1 {
+				core0 {
+					cpu = <&cpu1_0>;
+				};
+
+				core1 {
+					cpu = <&cpu1_1>;
+				};
+
+				core2 {
+					cpu = <&cpu1_2>;
+				};
+
+				core3 {
+					cpu = <&cpu1_3>;
+				};
+			};
+
+			cluster2 {
+				core0 {
+					cpu = <&cpu2_0>;
+				};
+
+				core1 {
+					cpu = <&cpu2_1>;
+				};
+
+				core2 {
+					cpu = <&cpu2_2>;
+				};
+
+				core3 {
+					cpu = <&cpu2_3>;
+				};
+			};
+		};
+
+		l2c0_0: l2-cache00 {
+			compatible = "cache";
+			cache-size = <262144>;
+			cache-line-size = <64>;
+			cache-sets = <512>;
+			cache-unified;
+			cache-level = <2>;
+			next-level-cache = <&l3c0>;
+		};
+
+		l2c0_1: l2-cache01 {
+			compatible = "cache";
+			cache-size = <262144>;
+			cache-line-size = <64>;
+			cache-sets = <512>;
+			cache-unified;
+			cache-level = <2>;
+			next-level-cache = <&l3c0>;
+		};
+
+		l2c0_2: l2-cache02 {
+			compatible = "cache";
+			cache-size = <262144>;
+			cache-line-size = <64>;
+			cache-sets = <512>;
+			cache-unified;
+			cache-level = <2>;
+			next-level-cache = <&l3c0>;
+		};
+
+		l2c0_3: l2-cache03 {
+			compatible = "cache";
+			cache-size = <262144>;
+			cache-line-size = <64>;
+			cache-sets = <512>;
+			cache-unified;
+			cache-level = <2>;
+			next-level-cache = <&l3c0>;
+		};
+
+		l2c1_0: l2-cache10 {
+			compatible = "cache";
+			cache-size = <262144>;
+			cache-line-size = <64>;
+			cache-sets = <512>;
+			cache-unified;
+			cache-level = <2>;
+			next-level-cache = <&l3c1>;
+		};
+
+		l2c1_1: l2-cache11 {
+			compatible = "cache";
+			cache-size = <262144>;
+			cache-line-size = <64>;
+			cache-sets = <512>;
+			cache-unified;
+			cache-level = <2>;
+			next-level-cache = <&l3c1>;
+		};
+
+		l2c1_2: l2-cache12 {
+			compatible = "cache";
+			cache-size = <262144>;
+			cache-line-size = <64>;
+			cache-sets = <512>;
+			cache-unified;
+			cache-level = <2>;
+			next-level-cache = <&l3c1>;
+		};
+
+		l2c1_3: l2-cache13 {
+			compatible = "cache";
+			cache-size = <262144>;
+			cache-line-size = <64>;
+			cache-sets = <512>;
+			cache-unified;
+			cache-level = <2>;
+			next-level-cache = <&l3c1>;
+		};
+
+		l2c2_0: l2-cache20 {
+			compatible = "cache";
+			cache-size = <262144>;
+			cache-line-size = <64>;
+			cache-sets = <512>;
+			cache-unified;
+			cache-level = <2>;
+			next-level-cache = <&l3c2>;
+		};
+
+		l2c2_1: l2-cache21 {
+			compatible = "cache";
+			cache-size = <262144>;
+			cache-line-size = <64>;
+			cache-sets = <512>;
+			cache-unified;
+			cache-level = <2>;
+			next-level-cache = <&l3c2>;
+		};
+
+		l2c2_2: l2-cache22 {
+			compatible = "cache";
+			cache-size = <262144>;
+			cache-line-size = <64>;
+			cache-sets = <512>;
+			cache-unified;
+			cache-level = <2>;
+			next-level-cache = <&l3c2>;
+		};
+
+		l2c2_3: l2-cache23 {
+			compatible = "cache";
+			cache-size = <262144>;
+			cache-line-size = <64>;
+			cache-sets = <512>;
+			cache-unified;
+			cache-level = <2>;
+			next-level-cache = <&l3c2>;
+		};
+
+		l3c0: l3-cache0 {
+			compatible = "cache";
+			cache-unified;
+			cache-size = <2097152>;
+			cache-line-size = <64>;
+			cache-sets = <2048>;
+			cache-level = <3>;
+		};
+
+		l3c1: l3-cache1 {
+			compatible = "cache";
+			cache-unified;
+			cache-size = <2097152>;
+			cache-line-size = <64>;
+			cache-sets = <2048>;
+			cache-level = <3>;
+		};
+
+		l3c2: l3-cache2 {
+			compatible = "cache";
+			cache-unified;
+			cache-size = <2097152>;
+			cache-line-size = <64>;
+			cache-sets = <2048>;
+			cache-level = <3>;
+		};
+	};
+
+	dsu-pmu0 {
+		compatible = "arm,dsu-pmu";
+		interrupts = <GIC_SPI 547 IRQ_TYPE_LEVEL_HIGH>;
+		cpus = <&cpu0_0>, <&cpu0_1>, <&cpu0_2>, <&cpu0_3>;
+	};
+
+	dsu-pmu1 {
+		compatible = "arm,dsu-pmu";
+		interrupts = <GIC_SPI 548 IRQ_TYPE_LEVEL_HIGH>;
+		cpus = <&cpu1_0>, <&cpu1_1>, <&cpu1_2>, <&cpu1_3>;
+	};
+
+	dsu-pmu2 {
+		compatible = "arm,dsu-pmu";
+		interrupts = <GIC_SPI 549 IRQ_TYPE_LEVEL_HIGH>;
+		cpus = <&cpu2_0>, <&cpu2_1>, <&cpu2_2>, <&cpu2_3>;
+	};
+
+	pmu {
+		compatible = "arm,cortex-a78-pmu";
+		interrupts = <GIC_PPI 7 IRQ_TYPE_LEVEL_HIGH>;
+		status = "okay";
+	};
+
+	psci {
+		compatible = "arm,psci-1.0";
+		status = "okay";
+		method = "smc";
+	};
+
+	tcu: serial {
+		compatible = "nvidia,tegra234-tcu", "nvidia,tegra194-tcu";
+		mboxes = <&hsp_top0 TEGRA_HSP_MBOX_TYPE_SM TEGRA_HSP_SM_RX(0)>,
+			 <&hsp_aon TEGRA_HSP_MBOX_TYPE_SM TEGRA_HSP_SM_TX(1)>;
+		mbox-names = "rx", "tx";
+		status = "disabled";
+	};
+
+	sound {
+		status = "disabled";
+
+		clocks = <&bpmp TEGRA234_CLK_PLLA>,
+			 <&bpmp TEGRA234_CLK_PLLA_OUT0>;
+		clock-names = "pll_a", "plla_out0";
+		assigned-clocks = <&bpmp TEGRA234_CLK_PLLA>,
+				  <&bpmp TEGRA234_CLK_PLLA_OUT0>,
+				  <&bpmp TEGRA234_CLK_AUD_MCLK>;
+		assigned-clock-parents = <0>,
+					 <&bpmp TEGRA234_CLK_PLLA>,
+					 <&bpmp TEGRA234_CLK_PLLA_OUT0>;
+	};
+
+	thermal-zones {
+		cpu-thermal {
+			thermal-sensors = <&{/bpmp/thermal} TEGRA234_BPMP_THERMAL_ZONE_CPU>;
+			status = "disabled";
+		};
+
+		gpu-thermal {
+			thermal-sensors = <&{/bpmp/thermal} TEGRA234_BPMP_THERMAL_ZONE_GPU>;
+			status = "disabled";
+		};
+
+		cv0-thermal {
+			thermal-sensors = <&{/bpmp/thermal} TEGRA234_BPMP_THERMAL_ZONE_CV0>;
+			status = "disabled";
+		};
+
+		cv1-thermal {
+			thermal-sensors = <&{/bpmp/thermal} TEGRA234_BPMP_THERMAL_ZONE_CV1>;
+			status = "disabled";
+		};
+
+		cv2-thermal {
+			thermal-sensors = <&{/bpmp/thermal} TEGRA234_BPMP_THERMAL_ZONE_CV2>;
+			status = "disabled";
+		};
+
+		soc0-thermal {
+			thermal-sensors = <&{/bpmp/thermal} TEGRA234_BPMP_THERMAL_ZONE_SOC0>;
+			status = "disabled";
+		};
+
+		soc1-thermal {
+			thermal-sensors = <&{/bpmp/thermal} TEGRA234_BPMP_THERMAL_ZONE_SOC1>;
+			status = "disabled";
+		};
+
+		soc2-thermal {
+			thermal-sensors = <&{/bpmp/thermal} TEGRA234_BPMP_THERMAL_ZONE_SOC2>;
+			status = "disabled";
+		};
+
+		tj-thermal {
+			thermal-sensors = <&{/bpmp/thermal} TEGRA234_BPMP_THERMAL_ZONE_TJ_MAX>;
+			status = "disabled";
+		};
+	};
+
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
+		interrupt-parent = <&gic>;
+		always-on;
+	};
+
+	cl0_opp_tbl: opp-table-cluster0 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		cl0_ch1_opp1: opp-115200000 {
+			  opp-hz = /bits/ 64 <115200000>;
+			  opp-peak-kBps = <816000>;
+		};
+
+		cl0_ch1_opp2: opp-192000000 {
+			opp-hz = /bits/ 64 <192000000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl0_ch1_opp3: opp-268800000 {
+			opp-hz = /bits/ 64 <268800000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl0_ch1_opp4: opp-345600000 {
+			opp-hz = /bits/ 64 <345600000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl0_ch1_opp5: opp-422400000 {
+			opp-hz = /bits/ 64 <422400000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl0_ch1_opp6: opp-499200000 {
+			opp-hz = /bits/ 64 <499200000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl0_ch1_opp7: opp-576000000 {
+			opp-hz = /bits/ 64 <576000000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl0_ch1_opp8: opp-652800000 {
+			opp-hz = /bits/ 64 <652800000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl0_ch1_opp9: opp-729600000 {
+			opp-hz = /bits/ 64 <729600000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl0_ch1_opp10: opp-806400000 {
+			opp-hz = /bits/ 64 <806400000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl0_ch1_opp11: opp-883200000 {
+			opp-hz = /bits/ 64 <883200000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl0_ch1_opp12: opp-960000000 {
+			opp-hz = /bits/ 64 <960000000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl0_ch1_opp13: opp-1036800000 {
+			opp-hz = /bits/ 64 <1036800000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl0_ch1_opp14: opp-1113600000 {
+			opp-hz = /bits/ 64 <1113600000>;
+			opp-peak-kBps = <1632000>;
+		};
+
+		cl0_ch1_opp15: opp-1190400000 {
+			opp-hz = /bits/ 64 <1190400000>;
+			opp-peak-kBps = <1632000>;
+		};
+
+		cl0_ch1_opp16: opp-1267200000 {
+			opp-hz = /bits/ 64 <1267200000>;
+			opp-peak-kBps = <1632000>;
+		};
+
+		cl0_ch1_opp17: opp-1344000000 {
+			opp-hz = /bits/ 64 <1344000000>;
+			opp-peak-kBps = <1632000>;
+		};
+
+		cl0_ch1_opp18: opp-1420800000 {
+			opp-hz = /bits/ 64 <1420800000>;
+			opp-peak-kBps = <1632000>;
+		};
+
+		cl0_ch1_opp19: opp-1497600000 {
+			opp-hz = /bits/ 64 <1497600000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl0_ch1_opp20: opp-1574400000 {
+			opp-hz = /bits/ 64 <1574400000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl0_ch1_opp21: opp-1651200000 {
+			opp-hz = /bits/ 64 <1651200000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl0_ch1_opp22: opp-1728000000 {
+			opp-hz = /bits/ 64 <1728000000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl0_ch1_opp23: opp-1804800000 {
+			opp-hz = /bits/ 64 <1804800000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl0_ch1_opp24: opp-1881600000 {
+			opp-hz = /bits/ 64 <1881600000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl0_ch1_opp25: opp-1958400000 {
+			opp-hz = /bits/ 64 <1958400000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl0_ch1_opp26: opp-2035200000 {
+			opp-hz = /bits/ 64 <2035200000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl0_ch1_opp27: opp-2112000000 {
+			opp-hz = /bits/ 64 <2112000000>;
+			opp-peak-kBps = <6400000>;
+		};
+
+		cl0_ch1_opp28: opp-2188800000 {
+			opp-hz = /bits/ 64 <2188800000>;
+			opp-peak-kBps = <6400000>;
+		};
+
+		cl0_ch1_opp29: opp-2201600000 {
+			opp-hz = /bits/ 64 <2201600000>;
+			opp-peak-kBps = <6400000>;
+		};
+	};
+
+	cl1_opp_tbl: opp-table-cluster1 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		cl1_ch1_opp1: opp-115200000 {
+			  opp-hz = /bits/ 64 <115200000>;
+			  opp-peak-kBps = <816000>;
+		};
+
+		cl1_ch1_opp2: opp-192000000 {
+			opp-hz = /bits/ 64 <192000000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl1_ch1_opp3: opp-268800000 {
+			opp-hz = /bits/ 64 <268800000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl1_ch1_opp4: opp-345600000 {
+			opp-hz = /bits/ 64 <345600000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl1_ch1_opp5: opp-422400000 {
+			opp-hz = /bits/ 64 <422400000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl1_ch1_opp6: opp-499200000 {
+			opp-hz = /bits/ 64 <499200000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl1_ch1_opp7: opp-576000000 {
+			opp-hz = /bits/ 64 <576000000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl1_ch1_opp8: opp-652800000 {
+			opp-hz = /bits/ 64 <652800000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl1_ch1_opp9: opp-729600000 {
+			opp-hz = /bits/ 64 <729600000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl1_ch1_opp10: opp-806400000 {
+			opp-hz = /bits/ 64 <806400000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl1_ch1_opp11: opp-883200000 {
+			opp-hz = /bits/ 64 <883200000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl1_ch1_opp12: opp-960000000 {
+			opp-hz = /bits/ 64 <960000000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl1_ch1_opp13: opp-1036800000 {
+			opp-hz = /bits/ 64 <1036800000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl1_ch1_opp14: opp-1113600000 {
+			opp-hz = /bits/ 64 <1113600000>;
+			opp-peak-kBps = <1632000>;
+		};
+
+		cl1_ch1_opp15: opp-1190400000 {
+			opp-hz = /bits/ 64 <1190400000>;
+			opp-peak-kBps = <1632000>;
+		};
+
+		cl1_ch1_opp16: opp-1267200000 {
+			opp-hz = /bits/ 64 <1267200000>;
+			opp-peak-kBps = <1632000>;
+		};
+
+		cl1_ch1_opp17: opp-1344000000 {
+			opp-hz = /bits/ 64 <1344000000>;
+			opp-peak-kBps = <1632000>;
+		};
+
+		cl1_ch1_opp18: opp-1420800000 {
+			opp-hz = /bits/ 64 <1420800000>;
+			opp-peak-kBps = <1632000>;
+		};
+
+		cl1_ch1_opp19: opp-1497600000 {
+			opp-hz = /bits/ 64 <1497600000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl1_ch1_opp20: opp-1574400000 {
+			opp-hz = /bits/ 64 <1574400000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl1_ch1_opp21: opp-1651200000 {
+			opp-hz = /bits/ 64 <1651200000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl1_ch1_opp22: opp-1728000000 {
+			opp-hz = /bits/ 64 <1728000000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl1_ch1_opp23: opp-1804800000 {
+			opp-hz = /bits/ 64 <1804800000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl1_ch1_opp24: opp-1881600000 {
+			opp-hz = /bits/ 64 <1881600000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl1_ch1_opp25: opp-1958400000 {
+			opp-hz = /bits/ 64 <1958400000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl1_ch1_opp26: opp-2035200000 {
+			opp-hz = /bits/ 64 <2035200000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl1_ch1_opp27: opp-2112000000 {
+			opp-hz = /bits/ 64 <2112000000>;
+			opp-peak-kBps = <6400000>;
+		};
+
+		cl1_ch1_opp28: opp-2188800000 {
+			opp-hz = /bits/ 64 <2188800000>;
+			opp-peak-kBps = <6400000>;
+		};
+
+		cl1_ch1_opp29: opp-2201600000 {
+			opp-hz = /bits/ 64 <2201600000>;
+			opp-peak-kBps = <6400000>;
+		};
+	};
+
+	cl2_opp_tbl: opp-table-cluster2 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		cl2_ch1_opp1: opp-115200000 {
+			  opp-hz = /bits/ 64 <115200000>;
+			  opp-peak-kBps = <816000>;
+		};
+
+		cl2_ch1_opp2: opp-192000000 {
+			opp-hz = /bits/ 64 <192000000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl2_ch1_opp3: opp-268800000 {
+			opp-hz = /bits/ 64 <268800000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl2_ch1_opp4: opp-345600000 {
+			opp-hz = /bits/ 64 <345600000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl2_ch1_opp5: opp-422400000 {
+			opp-hz = /bits/ 64 <422400000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl2_ch1_opp6: opp-499200000 {
+			opp-hz = /bits/ 64 <499200000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl2_ch1_opp7: opp-576000000 {
+			opp-hz = /bits/ 64 <576000000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl2_ch1_opp8: opp-652800000 {
+			opp-hz = /bits/ 64 <652800000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl2_ch1_opp9: opp-729600000 {
+			opp-hz = /bits/ 64 <729600000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl2_ch1_opp10: opp-806400000 {
+			opp-hz = /bits/ 64 <806400000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl2_ch1_opp11: opp-883200000 {
+			opp-hz = /bits/ 64 <883200000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl2_ch1_opp12: opp-960000000 {
+			opp-hz = /bits/ 64 <960000000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl2_ch1_opp13: opp-1036800000 {
+			opp-hz = /bits/ 64 <1036800000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl2_ch1_opp14: opp-1113600000 {
+			opp-hz = /bits/ 64 <1113600000>;
+			opp-peak-kBps = <1632000>;
+		};
+
+		cl2_ch1_opp15: opp-1190400000 {
+			opp-hz = /bits/ 64 <1190400000>;
+			opp-peak-kBps = <1632000>;
+		};
+
+		cl2_ch1_opp16: opp-1267200000 {
+			opp-hz = /bits/ 64 <1267200000>;
+			opp-peak-kBps = <1632000>;
+		};
+
+		cl2_ch1_opp17: opp-1344000000 {
+			opp-hz = /bits/ 64 <1344000000>;
+			opp-peak-kBps = <1632000>;
+		};
+
+		cl2_ch1_opp18: opp-1420800000 {
+			opp-hz = /bits/ 64 <1420800000>;
+			opp-peak-kBps = <1632000>;
+		};
+
+		cl2_ch1_opp19: opp-1497600000 {
+			opp-hz = /bits/ 64 <1497600000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl2_ch1_opp20: opp-1574400000 {
+			opp-hz = /bits/ 64 <1574400000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl2_ch1_opp21: opp-1651200000 {
+			opp-hz = /bits/ 64 <1651200000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl2_ch1_opp22: opp-1728000000 {
+			opp-hz = /bits/ 64 <1728000000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl2_ch1_opp23: opp-1804800000 {
+			opp-hz = /bits/ 64 <1804800000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl2_ch1_opp24: opp-1881600000 {
+			opp-hz = /bits/ 64 <1881600000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl2_ch1_opp25: opp-1958400000 {
+			opp-hz = /bits/ 64 <1958400000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl2_ch1_opp26: opp-2035200000 {
+			opp-hz = /bits/ 64 <2035200000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl2_ch1_opp27: opp-2112000000 {
+			opp-hz = /bits/ 64 <2112000000>;
+			opp-peak-kBps = <6400000>;
+		};
+
+		cl2_ch1_opp28: opp-2188800000 {
+			opp-hz = /bits/ 64 <2188800000>;
+			opp-peak-kBps = <6400000>;
+		};
+
+		cl2_ch1_opp29: opp-2201600000 {
+			opp-hz = /bits/ 64 <2201600000>;
+			opp-peak-kBps = <6400000>;
+		};
+	};
+};

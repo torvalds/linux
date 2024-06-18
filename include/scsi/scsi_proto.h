@@ -10,6 +10,7 @@
 #ifndef _SCSI_PROTO_H_
 #define _SCSI_PROTO_H_
 
+#include <linux/build_bug.h>
 #include <linux/types.h>
 
 /*
@@ -126,6 +127,7 @@
 #define	SAI_READ_CAPACITY_16  0x10
 #define SAI_GET_LBA_STATUS    0x12
 #define SAI_REPORT_REFERRALS  0x13
+#define SAI_GET_STREAM_STATUS 0x16
 /* values for maintenance in */
 #define MI_REPORT_IDENTIFYING_INFORMATION 0x05
 #define MI_REPORT_TARGET_PGS  0x0a
@@ -151,6 +153,11 @@
 #define ZO_FINISH_ZONE	      0x02
 #define ZO_OPEN_ZONE	      0x03
 #define ZO_RESET_WRITE_POINTER 0x04
+/* values for PR in service action */
+#define READ_KEYS             0x00
+#define READ_RESERVATION      0x01
+#define REPORT_CAPABILITES    0x02
+#define READ_FULL_STATUS      0x03
 /* values for variable length command */
 #define XDREAD_32	      0x03
 #define XDWRITE_32	      0x04
@@ -190,43 +197,25 @@ struct scsi_varlen_cdb_hdr {
  *  SCSI Architecture Model (SAM) Status codes. Taken from SAM-3 draft
  *  T10/1561-D Revision 4 Draft dated 7th November 2002.
  */
-#define SAM_STAT_GOOD            0x00
-#define SAM_STAT_CHECK_CONDITION 0x02
-#define SAM_STAT_CONDITION_MET   0x04
-#define SAM_STAT_BUSY            0x08
-#define SAM_STAT_INTERMEDIATE    0x10
-#define SAM_STAT_INTERMEDIATE_CONDITION_MET 0x14
-#define SAM_STAT_RESERVATION_CONFLICT 0x18
-#define SAM_STAT_COMMAND_TERMINATED 0x22	/* obsolete in SAM-3 */
-#define SAM_STAT_TASK_SET_FULL   0x28
-#define SAM_STAT_ACA_ACTIVE      0x30
-#define SAM_STAT_TASK_ABORTED    0x40
+enum sam_status {
+	SAM_STAT_GOOD				= 0x00,
+	SAM_STAT_CHECK_CONDITION		= 0x02,
+	SAM_STAT_CONDITION_MET			= 0x04,
+	SAM_STAT_BUSY				= 0x08,
+	SAM_STAT_INTERMEDIATE			= 0x10,
+	SAM_STAT_INTERMEDIATE_CONDITION_MET	= 0x14,
+	SAM_STAT_RESERVATION_CONFLICT		= 0x18,
+	SAM_STAT_COMMAND_TERMINATED		= 0x22,	/* obsolete in SAM-3 */
+	SAM_STAT_TASK_SET_FULL			= 0x28,
+	SAM_STAT_ACA_ACTIVE			= 0x30,
+	SAM_STAT_TASK_ABORTED			= 0x40,
+};
 
-/*
- *  Status codes. These are deprecated as they are shifted 1 bit right
- *  from those found in the SCSI standards. This causes confusion for
- *  applications that are ported to several OSes. Prefer SAM Status codes
- *  above.
- */
-
-#define GOOD                 0x00
-#define CHECK_CONDITION      0x01
-#define CONDITION_GOOD       0x02
-#define BUSY                 0x04
-#define INTERMEDIATE_GOOD    0x08
-#define INTERMEDIATE_C_GOOD  0x0a
-#define RESERVATION_CONFLICT 0x0c
-#define COMMAND_TERMINATED   0x11
-#define QUEUE_FULL           0x14
-#define ACA_ACTIVE           0x18
-#define TASK_ABORTED         0x20
-
-#define STATUS_MASK          0xfe
+#define STATUS_MASK         0xfe
 
 /*
  *  SENSE KEYS
  */
-
 #define NO_SENSE            0x00
 #define RECOVERED_ERROR     0x01
 #define NOT_READY           0x02
@@ -241,7 +230,7 @@ struct scsi_varlen_cdb_hdr {
 #define ABORTED_COMMAND     0x0b
 #define VOLUME_OVERFLOW     0x0d
 #define MISCOMPARE          0x0e
-
+#define COMPLETED	    0x0f
 
 /*
  *  DEVICE TYPES
@@ -288,6 +277,82 @@ struct scsi_lun {
 	__u8 scsi_lun[8];
 };
 
+/* SBC-5 IO advice hints group descriptor */
+struct scsi_io_group_descriptor {
+#if defined(__BIG_ENDIAN)
+	u8 io_advice_hints_mode: 2;
+	u8 reserved1: 3;
+	u8 st_enble: 1;
+	u8 cs_enble: 1;
+	u8 ic_enable: 1;
+#elif defined(__LITTLE_ENDIAN)
+	u8 ic_enable: 1;
+	u8 cs_enble: 1;
+	u8 st_enble: 1;
+	u8 reserved1: 3;
+	u8 io_advice_hints_mode: 2;
+#else
+#error
+#endif
+	u8 reserved2[3];
+	/* Logical block markup descriptor */
+#if defined(__BIG_ENDIAN)
+	u8 acdlu: 1;
+	u8 reserved3: 1;
+	u8 rlbsr: 2;
+	u8 lbm_descriptor_type: 4;
+#elif defined(__LITTLE_ENDIAN)
+	u8 lbm_descriptor_type: 4;
+	u8 rlbsr: 2;
+	u8 reserved3: 1;
+	u8 acdlu: 1;
+#else
+#error
+#endif
+	u8 params[2];
+	u8 reserved4;
+	u8 reserved5[8];
+};
+
+static_assert(sizeof(struct scsi_io_group_descriptor) == 16);
+
+/* SCSI stream status descriptor */
+struct scsi_stream_status {
+#if defined(__BIG_ENDIAN)
+	u8 perm: 1;
+	u8 reserved1: 7;
+#elif defined(__LITTLE_ENDIAN)
+	u8 reserved1: 7;
+	u8 perm: 1;
+#else
+#error
+#endif
+	u8 reserved2;
+	__be16 stream_identifier;
+#if defined(__BIG_ENDIAN)
+	u8 reserved3: 2;
+	u8 rel_lifetime: 6;
+#elif defined(__LITTLE_ENDIAN)
+	u8 rel_lifetime: 6;
+	u8 reserved3: 2;
+#else
+#error
+#endif
+	u8 reserved4[3];
+};
+
+static_assert(sizeof(struct scsi_stream_status) == 8);
+
+/* GET STREAM STATUS parameter data */
+struct scsi_stream_status_header {
+	__be32 len;	/* length in bytes of stream_status[] array. */
+	u16 reserved;
+	__be16 number_of_open_streams;
+	DECLARE_FLEX_ARRAY(struct scsi_stream_status, stream_status);
+};
+
+static_assert(sizeof(struct scsi_stream_status_header) == 8);
+
 /* SPC asymmetric access states */
 #define SCSI_ACCESS_STATE_OPTIMAL     0x00
 #define SCSI_ACCESS_STATE_ACTIVE      0x01
@@ -325,7 +390,9 @@ enum zbc_zone_type {
 	ZBC_ZONE_TYPE_CONV		= 0x1,
 	ZBC_ZONE_TYPE_SEQWRITE_REQ	= 0x2,
 	ZBC_ZONE_TYPE_SEQWRITE_PREF	= 0x3,
-	/* 0x4 to 0xf are reserved */
+	ZBC_ZONE_TYPE_SEQ_OR_BEFORE_REQ	= 0x4,
+	ZBC_ZONE_TYPE_GAP		= 0x5,
+	/* 0x6 to 0xf are reserved */
 };
 
 /* Zone conditions of REPORT ZONES zone descriptors */
@@ -340,5 +407,32 @@ enum zbc_zone_cond {
 	ZBC_ZONE_COND_FULL		= 0xe,
 	ZBC_ZONE_COND_OFFLINE		= 0xf,
 };
+
+enum zbc_zone_alignment_method {
+	ZBC_CONSTANT_ZONE_LENGTH	= 0x1,
+	ZBC_CONSTANT_ZONE_START_OFFSET	= 0x8,
+};
+
+/* Version descriptor values for INQUIRY */
+enum scsi_version_descriptor {
+	SCSI_VERSION_DESCRIPTOR_FCP4	= 0x0a40,
+	SCSI_VERSION_DESCRIPTOR_ISCSI	= 0x0960,
+	SCSI_VERSION_DESCRIPTOR_SAM5	= 0x00a0,
+	SCSI_VERSION_DESCRIPTOR_SAS3	= 0x0c60,
+	SCSI_VERSION_DESCRIPTOR_SBC3	= 0x04c0,
+	SCSI_VERSION_DESCRIPTOR_SBP3	= 0x0980,
+	SCSI_VERSION_DESCRIPTOR_SPC4	= 0x0460,
+	SCSI_VERSION_DESCRIPTOR_SRP	= 0x0940
+};
+
+enum scsi_support_opcode {
+	SCSI_SUPPORT_NO_INFO		= 0,
+	SCSI_SUPPORT_NOT_SUPPORTED	= 1,
+	SCSI_SUPPORT_FULL		= 3,
+	SCSI_SUPPORT_VENDOR		= 5,
+};
+
+#define SCSI_CONTROL_MASK 0
+#define SCSI_GROUP_NUMBER_MASK 0
 
 #endif /* _SCSI_PROTO_H_ */

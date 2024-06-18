@@ -9,6 +9,7 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/irq.h>
 #include <linux/mfd/core.h>
@@ -20,6 +21,9 @@
 #define	DA9062_REG_EVENT_A_OFFSET	0
 #define	DA9062_REG_EVENT_B_OFFSET	1
 #define	DA9062_REG_EVENT_C_OFFSET	2
+
+#define	DA9062_IRQ_LOW	0
+#define	DA9062_IRQ_HIGH	1
 
 static struct regmap_irq da9061_irqs[] = {
 	/* EVENT A */
@@ -157,117 +161,105 @@ static struct regmap_irq_chip da9062_irq_chip = {
 	.ack_base = DA9062AA_EVENT_A,
 };
 
-static struct resource da9061_core_resources[] = {
+static const struct resource da9061_core_resources[] = {
 	DEFINE_RES_IRQ_NAMED(DA9061_IRQ_VDD_WARN, "VDD_WARN"),
 };
 
-static struct resource da9061_regulators_resources[] = {
+static const struct resource da9061_regulators_resources[] = {
 	DEFINE_RES_IRQ_NAMED(DA9061_IRQ_LDO_LIM, "LDO_LIM"),
 };
 
-static struct resource da9061_thermal_resources[] = {
+static const struct resource da9061_thermal_resources[] = {
 	DEFINE_RES_IRQ_NAMED(DA9061_IRQ_TEMP, "THERMAL"),
 };
 
-static struct resource da9061_wdt_resources[] = {
+static const struct resource da9061_wdt_resources[] = {
 	DEFINE_RES_IRQ_NAMED(DA9061_IRQ_WDG_WARN, "WD_WARN"),
 };
 
-static struct resource da9061_onkey_resources[] = {
+static const struct resource da9061_onkey_resources[] = {
 	DEFINE_RES_IRQ_NAMED(DA9061_IRQ_ONKEY, "ONKEY"),
 };
 
-static const struct mfd_cell da9061_devs[] = {
-	{
-		.name		= "da9061-core",
-		.num_resources	= ARRAY_SIZE(da9061_core_resources),
-		.resources	= da9061_core_resources,
-	},
-	{
-		.name		= "da9062-regulators",
-		.num_resources	= ARRAY_SIZE(da9061_regulators_resources),
-		.resources	= da9061_regulators_resources,
-	},
-	{
-		.name		= "da9061-watchdog",
-		.num_resources	= ARRAY_SIZE(da9061_wdt_resources),
-		.resources	= da9061_wdt_resources,
-		.of_compatible  = "dlg,da9061-watchdog",
-	},
-	{
-		.name		= "da9061-thermal",
-		.num_resources	= ARRAY_SIZE(da9061_thermal_resources),
-		.resources	= da9061_thermal_resources,
-		.of_compatible  = "dlg,da9061-thermal",
-	},
-	{
-		.name		= "da9061-onkey",
-		.num_resources	= ARRAY_SIZE(da9061_onkey_resources),
-		.resources	= da9061_onkey_resources,
-		.of_compatible = "dlg,da9061-onkey",
-	},
+static const struct mfd_cell da9061_devs_irq[] = {
+	MFD_CELL_OF("da9061-core", da9061_core_resources, NULL, 0, 0,
+		    NULL),
+	MFD_CELL_OF("da9062-regulators", da9061_regulators_resources, NULL, 0, 0,
+		    NULL),
+	MFD_CELL_OF("da9061-watchdog", da9061_wdt_resources, NULL, 0, 0,
+		    "dlg,da9061-watchdog"),
+	MFD_CELL_OF("da9061-thermal", da9061_thermal_resources, NULL, 0, 0,
+		    "dlg,da9061-thermal"),
+	MFD_CELL_OF("da9061-onkey", da9061_onkey_resources, NULL, 0, 0,
+		    "dlg,da9061-onkey"),
 };
 
-static struct resource da9062_core_resources[] = {
+static const struct mfd_cell da9061_devs_noirq[] = {
+	MFD_CELL_OF("da9061-core", NULL, NULL, 0, 0, NULL),
+	MFD_CELL_OF("da9062-regulators", NULL, NULL, 0, 0, NULL),
+	MFD_CELL_OF("da9061-watchdog", NULL, NULL, 0, 0, "dlg,da9061-watchdog"),
+	MFD_CELL_OF("da9061-thermal", NULL, NULL, 0, 0, "dlg,da9061-thermal"),
+	MFD_CELL_OF("da9061-onkey", NULL, NULL, 0, 0, "dlg,da9061-onkey"),
+};
+
+static const struct resource da9062_core_resources[] = {
 	DEFINE_RES_NAMED(DA9062_IRQ_VDD_WARN, 1, "VDD_WARN", IORESOURCE_IRQ),
 };
 
-static struct resource da9062_regulators_resources[] = {
+static const struct resource da9062_regulators_resources[] = {
 	DEFINE_RES_NAMED(DA9062_IRQ_LDO_LIM, 1, "LDO_LIM", IORESOURCE_IRQ),
 };
 
-static struct resource da9062_thermal_resources[] = {
+static const struct resource da9062_thermal_resources[] = {
 	DEFINE_RES_NAMED(DA9062_IRQ_TEMP, 1, "THERMAL", IORESOURCE_IRQ),
 };
 
-static struct resource da9062_wdt_resources[] = {
+static const struct resource da9062_wdt_resources[] = {
 	DEFINE_RES_NAMED(DA9062_IRQ_WDG_WARN, 1, "WD_WARN", IORESOURCE_IRQ),
 };
 
-static struct resource da9062_rtc_resources[] = {
+static const struct resource da9062_rtc_resources[] = {
 	DEFINE_RES_NAMED(DA9062_IRQ_ALARM, 1, "ALARM", IORESOURCE_IRQ),
 	DEFINE_RES_NAMED(DA9062_IRQ_TICK, 1, "TICK", IORESOURCE_IRQ),
 };
 
-static struct resource da9062_onkey_resources[] = {
+static const struct resource da9062_onkey_resources[] = {
 	DEFINE_RES_NAMED(DA9062_IRQ_ONKEY, 1, "ONKEY", IORESOURCE_IRQ),
 };
 
-static const struct mfd_cell da9062_devs[] = {
-	{
-		.name		= "da9062-core",
-		.num_resources	= ARRAY_SIZE(da9062_core_resources),
-		.resources	= da9062_core_resources,
-	},
-	{
-		.name		= "da9062-regulators",
-		.num_resources	= ARRAY_SIZE(da9062_regulators_resources),
-		.resources	= da9062_regulators_resources,
-	},
-	{
-		.name		= "da9062-watchdog",
-		.num_resources	= ARRAY_SIZE(da9062_wdt_resources),
-		.resources	= da9062_wdt_resources,
-		.of_compatible  = "dlg,da9062-wdt",
-	},
-	{
-		.name		= "da9062-thermal",
-		.num_resources	= ARRAY_SIZE(da9062_thermal_resources),
-		.resources	= da9062_thermal_resources,
-		.of_compatible  = "dlg,da9062-thermal",
-	},
-	{
-		.name		= "da9062-rtc",
-		.num_resources	= ARRAY_SIZE(da9062_rtc_resources),
-		.resources	= da9062_rtc_resources,
-		.of_compatible  = "dlg,da9062-rtc",
-	},
-	{
-		.name		= "da9062-onkey",
-		.num_resources	= ARRAY_SIZE(da9062_onkey_resources),
-		.resources	= da9062_onkey_resources,
-		.of_compatible = "dlg,da9062-onkey",
-	},
+static const struct resource da9062_gpio_resources[] = {
+	DEFINE_RES_NAMED(DA9062_IRQ_GPI0, 1, "GPI0", IORESOURCE_IRQ),
+	DEFINE_RES_NAMED(DA9062_IRQ_GPI1, 1, "GPI1", IORESOURCE_IRQ),
+	DEFINE_RES_NAMED(DA9062_IRQ_GPI2, 1, "GPI2", IORESOURCE_IRQ),
+	DEFINE_RES_NAMED(DA9062_IRQ_GPI3, 1, "GPI3", IORESOURCE_IRQ),
+	DEFINE_RES_NAMED(DA9062_IRQ_GPI4, 1, "GPI4", IORESOURCE_IRQ),
+};
+
+static const struct mfd_cell da9062_devs_irq[] = {
+	MFD_CELL_OF("da9062-core", da9062_core_resources, NULL, 0, 0,
+		    NULL),
+	MFD_CELL_OF("da9062-regulators", da9062_regulators_resources, NULL, 0, 0,
+		    NULL),
+	MFD_CELL_OF("da9062-watchdog", da9062_wdt_resources, NULL, 0, 0,
+		    "dlg,da9062-watchdog"),
+	MFD_CELL_OF("da9062-thermal", da9062_thermal_resources, NULL, 0, 0,
+		    "dlg,da9062-thermal"),
+	MFD_CELL_OF("da9062-rtc", da9062_rtc_resources, NULL, 0, 0,
+		    "dlg,da9062-rtc"),
+	MFD_CELL_OF("da9062-onkey", da9062_onkey_resources, NULL, 0, 0,
+		    "dlg,da9062-onkey"),
+	MFD_CELL_OF("da9062-gpio", da9062_gpio_resources, NULL, 0, 0,
+		    "dlg,da9062-gpio"),
+};
+
+static const struct mfd_cell da9062_devs_noirq[] = {
+	MFD_CELL_OF("da9062-core", NULL, NULL, 0, 0, NULL),
+	MFD_CELL_OF("da9062-regulators", NULL, NULL, 0, 0, NULL),
+	MFD_CELL_OF("da9062-watchdog", NULL, NULL, 0, 0, "dlg,da9062-watchdog"),
+	MFD_CELL_OF("da9062-thermal", NULL, NULL, 0, 0, "dlg,da9062-thermal"),
+	MFD_CELL_OF("da9062-rtc", NULL, NULL, 0, 0, "dlg,da9062-rtc"),
+	MFD_CELL_OF("da9062-onkey", NULL, NULL, 0, 0, "dlg,da9062-onkey"),
+	MFD_CELL_OF("da9062-gpio", NULL, NULL, 0, 0, "dlg,da9062-gpio"),
 };
 
 static int da9062_clear_fault_log(struct da9062 *chip)
@@ -355,6 +347,33 @@ static int da9062_get_device_type(struct da9062 *chip)
 	return ret;
 }
 
+static u32 da9062_configure_irq_type(struct da9062 *chip, int irq, u32 *trigger)
+{
+	u32 irq_type = 0;
+	struct irq_data *irq_data = irq_get_irq_data(irq);
+
+	if (!irq_data) {
+		dev_err(chip->dev, "Invalid IRQ: %d\n", irq);
+		return -EINVAL;
+	}
+	*trigger = irqd_get_trigger_type(irq_data);
+
+	switch (*trigger) {
+	case IRQ_TYPE_LEVEL_HIGH:
+		irq_type = DA9062_IRQ_HIGH;
+		break;
+	case IRQ_TYPE_LEVEL_LOW:
+		irq_type = DA9062_IRQ_LOW;
+		break;
+	default:
+		dev_warn(chip->dev, "Unsupported IRQ type: %d\n", *trigger);
+		return -EINVAL;
+	}
+	return regmap_update_bits(chip->regmap, DA9062AA_CONFIG_A,
+			DA9062AA_IRQ_TYPE_MASK,
+			irq_type << DA9062AA_IRQ_TYPE_SHIFT);
+}
+
 static const struct regmap_range da9061_aa_readable_ranges[] = {
 	regmap_reg_range(DA9062AA_PAGE_CON, DA9062AA_STATUS_B),
 	regmap_reg_range(DA9062AA_STATUS_D, DA9062AA_EVENT_C),
@@ -374,6 +393,7 @@ static const struct regmap_range da9061_aa_readable_ranges[] = {
 	regmap_reg_range(DA9062AA_VBUCK1_A, DA9062AA_VBUCK4_A),
 	regmap_reg_range(DA9062AA_VBUCK3_A, DA9062AA_VBUCK3_A),
 	regmap_reg_range(DA9062AA_VLDO1_A, DA9062AA_VLDO4_A),
+	regmap_reg_range(DA9062AA_CONFIG_A, DA9062AA_CONFIG_A),
 	regmap_reg_range(DA9062AA_VBUCK1_B, DA9062AA_VBUCK4_B),
 	regmap_reg_range(DA9062AA_VBUCK3_B, DA9062AA_VBUCK3_B),
 	regmap_reg_range(DA9062AA_VLDO1_B, DA9062AA_VLDO4_B),
@@ -403,9 +423,11 @@ static const struct regmap_range da9061_aa_writeable_ranges[] = {
 	regmap_reg_range(DA9062AA_VBUCK1_A, DA9062AA_VBUCK4_A),
 	regmap_reg_range(DA9062AA_VBUCK3_A, DA9062AA_VBUCK3_A),
 	regmap_reg_range(DA9062AA_VLDO1_A, DA9062AA_VLDO4_A),
+	regmap_reg_range(DA9062AA_CONFIG_A, DA9062AA_CONFIG_A),
 	regmap_reg_range(DA9062AA_VBUCK1_B, DA9062AA_VBUCK4_B),
 	regmap_reg_range(DA9062AA_VBUCK3_B, DA9062AA_VBUCK3_B),
 	regmap_reg_range(DA9062AA_VLDO1_B, DA9062AA_VLDO4_B),
+	regmap_reg_range(DA9062AA_CONFIG_J, DA9062AA_CONFIG_J),
 	regmap_reg_range(DA9062AA_GP_ID_0, DA9062AA_GP_ID_19),
 };
 
@@ -454,7 +476,7 @@ static struct regmap_config da9061_regmap_config = {
 	.ranges = da9061_range_cfg,
 	.num_ranges = ARRAY_SIZE(da9061_range_cfg),
 	.max_register = DA9062AA_CONFIG_ID,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.rd_table = &da9061_aa_readable_table,
 	.wr_table = &da9061_aa_writeable_table,
 	.volatile_table = &da9061_aa_volatile_table,
@@ -509,6 +531,7 @@ static const struct regmap_range da9062_aa_writeable_ranges[] = {
 	regmap_reg_range(DA9062AA_VBUCK3_B, DA9062AA_VBUCK3_B),
 	regmap_reg_range(DA9062AA_VLDO1_B, DA9062AA_VLDO4_B),
 	regmap_reg_range(DA9062AA_BBAT_CONT, DA9062AA_BBAT_CONT),
+	regmap_reg_range(DA9062AA_CONFIG_J, DA9062AA_CONFIG_J),
 	regmap_reg_range(DA9062AA_GP_ID_0, DA9062AA_GP_ID_19),
 };
 
@@ -559,64 +582,42 @@ static struct regmap_config da9062_regmap_config = {
 	.ranges = da9062_range_cfg,
 	.num_ranges = ARRAY_SIZE(da9062_range_cfg),
 	.max_register = DA9062AA_CONFIG_ID,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.rd_table = &da9062_aa_readable_table,
 	.wr_table = &da9062_aa_writeable_table,
 	.volatile_table = &da9062_aa_volatile_table,
 };
 
-static const struct of_device_id da9062_dt_ids[] = {
-	{ .compatible = "dlg,da9061", .data = (void *)COMPAT_TYPE_DA9061, },
-	{ .compatible = "dlg,da9062", .data = (void *)COMPAT_TYPE_DA9062, },
-	{ }
-};
-MODULE_DEVICE_TABLE(of, da9062_dt_ids);
-
-static int da9062_i2c_probe(struct i2c_client *i2c,
-	const struct i2c_device_id *id)
+static int da9062_i2c_probe(struct i2c_client *i2c)
 {
 	struct da9062 *chip;
-	const struct of_device_id *match;
-	unsigned int irq_base;
+	unsigned int irq_base = 0;
 	const struct mfd_cell *cell;
 	const struct regmap_irq_chip *irq_chip;
 	const struct regmap_config *config;
 	int cell_num;
+	u32 trigger_type = 0;
 	int ret;
 
 	chip = devm_kzalloc(&i2c->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
 
-	if (i2c->dev.of_node) {
-		match = of_match_node(da9062_dt_ids, i2c->dev.of_node);
-		if (!match)
-			return -EINVAL;
-
-		chip->chip_type = (uintptr_t)match->data;
-	} else {
-		chip->chip_type = id->driver_data;
-	}
+	chip->chip_type = (uintptr_t)i2c_get_match_data(i2c);
 
 	i2c_set_clientdata(i2c, chip);
 	chip->dev = &i2c->dev;
 
-	if (!i2c->irq) {
-		dev_err(chip->dev, "No IRQ configured\n");
-		return -EINVAL;
-	}
-
+	/* Start with a base configuration without IRQ */
 	switch (chip->chip_type) {
 	case COMPAT_TYPE_DA9061:
-		cell = da9061_devs;
-		cell_num = ARRAY_SIZE(da9061_devs);
-		irq_chip = &da9061_irq_chip;
+		cell = da9061_devs_noirq;
+		cell_num = ARRAY_SIZE(da9061_devs_noirq);
 		config = &da9061_regmap_config;
 		break;
 	case COMPAT_TYPE_DA9062:
-		cell = da9062_devs;
-		cell_num = ARRAY_SIZE(da9062_devs);
-		irq_chip = &da9062_irq_chip;
+		cell = da9062_devs_noirq;
+		cell_num = ARRAY_SIZE(da9062_devs_noirq);
 		config = &da9062_regmap_config;
 		break;
 	default:
@@ -632,6 +633,17 @@ static int da9062_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
+	/* If SMBus is not available and only I2C is possible, enter I2C mode */
+	if (i2c_check_functionality(i2c->adapter, I2C_FUNC_I2C)) {
+		dev_info(chip->dev, "Entering I2C mode!\n");
+		ret = regmap_clear_bits(chip->regmap, DA9062AA_CONFIG_J,
+					DA9062AA_TWOWIRE_TO_MASK);
+		if (ret < 0) {
+			dev_err(chip->dev, "Failed to set Two-Wire Bus Mode.\n");
+			return ret;
+		}
+	}
+
 	ret = da9062_clear_fault_log(chip);
 	if (ret < 0)
 		dev_warn(chip->dev, "Cannot clear fault log\n");
@@ -640,53 +652,77 @@ static int da9062_i2c_probe(struct i2c_client *i2c,
 	if (ret)
 		return ret;
 
-	ret = regmap_add_irq_chip(chip->regmap, i2c->irq,
-			IRQF_TRIGGER_LOW | IRQF_ONESHOT | IRQF_SHARED,
-			-1, irq_chip,
-			&chip->regmap_irq);
-	if (ret) {
-		dev_err(chip->dev, "Failed to request IRQ %d: %d\n",
-			i2c->irq, ret);
-		return ret;
-	}
+	/* If IRQ is available, reconfigure it accordingly */
+	if (i2c->irq) {
+		if (chip->chip_type == COMPAT_TYPE_DA9061) {
+			cell = da9061_devs_irq;
+			cell_num = ARRAY_SIZE(da9061_devs_irq);
+			irq_chip = &da9061_irq_chip;
+		} else {
+			cell = da9062_devs_irq;
+			cell_num = ARRAY_SIZE(da9062_devs_irq);
+			irq_chip = &da9062_irq_chip;
+		}
 
-	irq_base = regmap_irq_chip_get_base(chip->regmap_irq);
+		ret = da9062_configure_irq_type(chip, i2c->irq, &trigger_type);
+		if (ret < 0) {
+			dev_err(chip->dev, "Failed to configure IRQ type\n");
+			return ret;
+		}
+
+		ret = regmap_add_irq_chip(chip->regmap, i2c->irq,
+					  trigger_type | IRQF_SHARED | IRQF_ONESHOT,
+					  -1, irq_chip, &chip->regmap_irq);
+		if (ret) {
+			dev_err(chip->dev, "Failed to request IRQ %d: %d\n",
+				i2c->irq, ret);
+			return ret;
+		}
+
+		irq_base = regmap_irq_chip_get_base(chip->regmap_irq);
+	}
 
 	ret = mfd_add_devices(chip->dev, PLATFORM_DEVID_NONE, cell,
 			      cell_num, NULL, irq_base,
 			      NULL);
 	if (ret) {
 		dev_err(chip->dev, "Cannot register child devices\n");
-		regmap_del_irq_chip(i2c->irq, chip->regmap_irq);
+		if (i2c->irq)
+			regmap_del_irq_chip(i2c->irq, chip->regmap_irq);
 		return ret;
 	}
 
 	return ret;
 }
 
-static int da9062_i2c_remove(struct i2c_client *i2c)
+static void da9062_i2c_remove(struct i2c_client *i2c)
 {
 	struct da9062 *chip = i2c_get_clientdata(i2c);
 
 	mfd_remove_devices(chip->dev);
 	regmap_del_irq_chip(i2c->irq, chip->regmap_irq);
-
-	return 0;
 }
+
+static const struct of_device_id da9062_dt_ids[] = {
+	{ .compatible = "dlg,da9061", .data = (void *)COMPAT_TYPE_DA9061 },
+	{ .compatible = "dlg,da9062", .data = (void *)COMPAT_TYPE_DA9062 },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, da9062_dt_ids);
 
 static const struct i2c_device_id da9062_i2c_id[] = {
 	{ "da9061", COMPAT_TYPE_DA9061 },
 	{ "da9062", COMPAT_TYPE_DA9062 },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, da9062_i2c_id);
 
 static struct i2c_driver da9062_i2c_driver = {
 	.driver = {
 		.name = "da9062",
-		.of_match_table = of_match_ptr(da9062_dt_ids),
+		.of_match_table = da9062_dt_ids,
 	},
-	.probe    = da9062_i2c_probe,
+	.probe = da9062_i2c_probe,
 	.remove   = da9062_i2c_remove,
 	.id_table = da9062_i2c_id,
 };

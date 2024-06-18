@@ -10,7 +10,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/of_regulator.h>
@@ -54,11 +53,10 @@
 #define LTC3589_VCCR_SW3_GO		BIT(4)
 #define LTC3589_VCCR_LDO2_GO		BIT(6)
 
-enum ltc3589_variant {
-	LTC3589,
-	LTC3589_1,
-	LTC3589_2,
-};
+#define LTC3589_VRRCR_SW1_RAMP_MASK	GENMASK(1, 0)
+#define LTC3589_VRRCR_SW2_RAMP_MASK	GENMASK(3, 2)
+#define LTC3589_VRRCR_SW3_RAMP_MASK	GENMASK(5, 4)
+#define LTC3589_VRRCR_LDO2_RAMP_MASK	GENMASK(7, 6)
 
 enum ltc3589_reg {
 	LTC3589_SW1,
@@ -72,10 +70,14 @@ enum ltc3589_reg {
 	LTC3589_NUM_REGULATORS,
 };
 
+struct ltc3589_info {
+	const unsigned int *volt_table;
+	int fixed_uV;
+};
+
 struct ltc3589 {
 	struct regmap *regmap;
 	struct device *dev;
-	enum ltc3589_variant variant;
 	struct regulator_desc regulator_descs[LTC3589_NUM_REGULATORS];
 	struct regulator_dev *regulators[LTC3589_NUM_REGULATORS];
 };
@@ -88,27 +90,9 @@ static const int ltc3589_12_ldo4[] = {
 	1200000, 1800000, 2500000, 3200000,
 };
 
-static int ltc3589_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
-{
-	struct ltc3589 *ltc3589 = rdev_get_drvdata(rdev);
-	int sel, shift;
-
-	if (unlikely(ramp_delay <= 0))
-		return -EINVAL;
-
-	/* VRRCR slew rate offsets are the same as VCCR go bit offsets */
-	shift = ffs(rdev->desc->apply_bit) - 1;
-
-	/* The slew rate can be set to 0.88, 1.75, 3.5, or 7 mV/uS */
-	for (sel = 0; sel < 4; sel++) {
-		if ((880 << sel) >= ramp_delay) {
-			return regmap_update_bits(ltc3589->regmap,
-						  LTC3589_VRRCR,
-						  0x3 << shift, sel << shift);
-		}
-	}
-	return -EINVAL;
-}
+static const unsigned int ltc3589_ramp_table[] = {
+	880, 1750, 3500, 7000
+};
 
 static int ltc3589_set_suspend_voltage(struct regulator_dev *rdev, int uV)
 {
@@ -149,7 +133,7 @@ static const struct regulator_ops ltc3589_linear_regulator_ops = {
 	.list_voltage = regulator_list_voltage_linear,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
-	.set_ramp_delay = ltc3589_set_ramp_delay,
+	.set_ramp_delay = regulator_set_ramp_delay_regmap,
 	.set_voltage_time_sel = regulator_set_voltage_time_sel,
 	.set_suspend_voltage = ltc3589_set_suspend_voltage,
 	.set_suspend_mode = ltc3589_set_suspend_mode,
@@ -218,16 +202,13 @@ static int ltc3589_of_parse_cb(struct device_node *np,
 	return 0;
 }
 
-#define LTC3589_REG(_name, _of_name, _ops, en_bit, dtv1_reg, dtv_mask, go_bit)\
+#define LTC3589_REG(_name, _of_name, _ops, en_bit, dtv1_reg, dtv_mask)	\
 	[LTC3589_ ## _name] = {						\
 		.name = #_name,						\
 		.of_match = of_match_ptr(#_of_name),			\
 		.regulators_node = of_match_ptr("regulators"),		\
 		.of_parse_cb = ltc3589_of_parse_cb,			\
 		.n_voltages = (dtv_mask) + 1,				\
-		.min_uV = (go_bit) ? 362500 : 0,			\
-		.uV_step = (go_bit) ? 12500 : 0,			\
-		.ramp_delay = (go_bit) ? 1750 : 0,			\
 		.fixed_uV = (dtv_mask) ? 0 : 800000,			\
 		.ops = &ltc3589_ ## _ops ## _regulator_ops,		\
 		.type = REGULATOR_VOLTAGE,				\
@@ -235,30 +216,49 @@ static int ltc3589_of_parse_cb(struct device_node *np,
 		.owner = THIS_MODULE,					\
 		.vsel_reg = (dtv1_reg),					\
 		.vsel_mask = (dtv_mask),				\
-		.apply_reg = (go_bit) ? LTC3589_VCCR : 0,		\
-		.apply_bit = (go_bit),					\
 		.enable_reg = (en_bit) ? LTC3589_OVEN : 0,		\
 		.enable_mask = (en_bit),				\
 	}
 
 #define LTC3589_LINEAR_REG(_name, _of_name, _dtv1)			\
-	LTC3589_REG(_name, _of_name, linear, LTC3589_OVEN_ ## _name,	\
-		    LTC3589_ ## _dtv1, 0x1f,				\
-		    LTC3589_VCCR_ ## _name ## _GO)
+	[LTC3589_ ## _name] = {						\
+		.name = #_name,						\
+		.of_match = of_match_ptr(#_of_name),			\
+		.regulators_node = of_match_ptr("regulators"),		\
+		.of_parse_cb = ltc3589_of_parse_cb,			\
+		.n_voltages = 32,					\
+		.min_uV = 362500,					\
+		.uV_step = 12500,					\
+		.ramp_delay = 1750,					\
+		.ops = &ltc3589_linear_regulator_ops,			\
+		.type = REGULATOR_VOLTAGE,				\
+		.id = LTC3589_ ## _name,				\
+		.owner = THIS_MODULE,					\
+		.vsel_reg = LTC3589_ ## _dtv1,				\
+		.vsel_mask = 0x1f,					\
+		.apply_reg = LTC3589_VCCR,				\
+		.apply_bit = LTC3589_VCCR_ ## _name ## _GO,		\
+		.enable_reg = LTC3589_OVEN,				\
+		.enable_mask = (LTC3589_OVEN_ ## _name),		\
+		.ramp_reg = LTC3589_VRRCR,				\
+		.ramp_mask = LTC3589_VRRCR_ ## _name ## _RAMP_MASK,	\
+		.ramp_delay_table = ltc3589_ramp_table,			\
+		.n_ramp_values = ARRAY_SIZE(ltc3589_ramp_table),	\
+	}
+
 
 #define LTC3589_FIXED_REG(_name, _of_name)				\
-	LTC3589_REG(_name, _of_name, fixed, LTC3589_OVEN_ ## _name, 0, 0, 0)
+	LTC3589_REG(_name, _of_name, fixed, LTC3589_OVEN_ ## _name, 0, 0)
 
 static const struct regulator_desc ltc3589_regulators[] = {
 	LTC3589_LINEAR_REG(SW1, sw1, B1DTV1),
 	LTC3589_LINEAR_REG(SW2, sw2, B2DTV1),
 	LTC3589_LINEAR_REG(SW3, sw3, B3DTV1),
 	LTC3589_FIXED_REG(BB_OUT, bb-out),
-	LTC3589_REG(LDO1, ldo1, fixed_standby, 0, 0, 0, 0),
+	LTC3589_REG(LDO1, ldo1, fixed_standby, 0, 0, 0),
 	LTC3589_LINEAR_REG(LDO2, ldo2, L2DTV1),
 	LTC3589_FIXED_REG(LDO3, ldo3),
-	LTC3589_REG(LDO4, ldo4, table, LTC3589_OVEN_LDO4, LTC3589_L2DTV2,
-		    0x60, 0),
+	LTC3589_REG(LDO4, ldo4, table, LTC3589_OVEN_LDO4, LTC3589_L2DTV2, 0x60),
 };
 
 static bool ltc3589_writeable_reg(struct device *dev, unsigned int reg)
@@ -345,7 +345,7 @@ static const struct regmap_config ltc3589_regmap_config = {
 	.num_reg_defaults = ARRAY_SIZE(ltc3589_reg_defaults),
 	.use_single_read = true,
 	.use_single_write = true,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static irqreturn_t ltc3589_isr(int irq, void *dev_id)
@@ -357,22 +357,16 @@ static irqreturn_t ltc3589_isr(int irq, void *dev_id)
 
 	if (irqstat & LTC3589_IRQSTAT_THERMAL_WARN) {
 		event = REGULATOR_EVENT_OVER_TEMP;
-		for (i = 0; i < LTC3589_NUM_REGULATORS; i++) {
-		        regulator_lock(ltc3589->regulators[i]);
+		for (i = 0; i < LTC3589_NUM_REGULATORS; i++)
 			regulator_notifier_call_chain(ltc3589->regulators[i],
 						      event, NULL);
-		        regulator_unlock(ltc3589->regulators[i]);
-		}
 	}
 
 	if (irqstat & LTC3589_IRQSTAT_UNDERVOLT_WARN) {
 		event = REGULATOR_EVENT_UNDER_VOLTAGE;
-		for (i = 0; i < LTC3589_NUM_REGULATORS; i++) {
-		        regulator_lock(ltc3589->regulators[i]);
+		for (i = 0; i < LTC3589_NUM_REGULATORS; i++)
 			regulator_notifier_call_chain(ltc3589->regulators[i],
 						      event, NULL);
-		        regulator_unlock(ltc3589->regulators[i]);
-		}
 	}
 
 	/* Clear warning condition */
@@ -381,10 +375,10 @@ static irqreturn_t ltc3589_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int ltc3589_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int ltc3589_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
+	const struct ltc3589_info *info;
 	struct regulator_desc *descs;
 	struct ltc3589 *ltc3589;
 	int i, ret;
@@ -394,22 +388,13 @@ static int ltc3589_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	i2c_set_clientdata(client, ltc3589);
-	if (client->dev.of_node)
-		ltc3589->variant = (enum ltc3589_variant)
-			of_device_get_match_data(&client->dev);
-	else
-		ltc3589->variant = id->driver_data;
+	info = i2c_get_match_data(client);
 	ltc3589->dev = dev;
 
 	descs = ltc3589->regulator_descs;
 	memcpy(descs, ltc3589_regulators, sizeof(ltc3589_regulators));
-	if (ltc3589->variant == LTC3589) {
-		descs[LTC3589_LDO3].fixed_uV = 1800000;
-		descs[LTC3589_LDO4].volt_table = ltc3589_ldo4;
-	} else {
-		descs[LTC3589_LDO3].fixed_uV = 2800000;
-		descs[LTC3589_LDO4].volt_table = ltc3589_12_ldo4;
-	}
+	descs[LTC3589_LDO3].fixed_uV = info->fixed_uV;
+	descs[LTC3589_LDO4].volt_table = info->volt_table;
 
 	ltc3589->regmap = devm_regmap_init_i2c(client, &ltc3589_regmap_config);
 	if (IS_ERR(ltc3589->regmap)) {
@@ -449,34 +434,36 @@ static int ltc3589_probe(struct i2c_client *client,
 	return 0;
 }
 
+static const struct ltc3589_info ltc3589_info = {
+	.fixed_uV = 1800000,
+	.volt_table = ltc3589_ldo4,
+};
+
+static const struct ltc3589_info ltc3589_12_info = {
+	.fixed_uV = 2800000,
+	.volt_table = ltc3589_12_ldo4,
+};
+
 static const struct i2c_device_id ltc3589_i2c_id[] = {
-	{ "ltc3589",   LTC3589   },
-	{ "ltc3589-1", LTC3589_1 },
-	{ "ltc3589-2", LTC3589_2 },
+	{ "ltc3589",   (kernel_ulong_t)&ltc3589_info },
+	{ "ltc3589-1", (kernel_ulong_t)&ltc3589_12_info },
+	{ "ltc3589-2", (kernel_ulong_t)&ltc3589_12_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ltc3589_i2c_id);
 
-static const struct of_device_id ltc3589_of_match[] = {
-	{
-		.compatible = "lltc,ltc3589",
-		.data = (void *)LTC3589,
-	},
-	{
-		.compatible = "lltc,ltc3589-1",
-		.data = (void *)LTC3589_1,
-	},
-	{
-		.compatible = "lltc,ltc3589-2",
-		.data = (void *)LTC3589_2,
-	},
-	{ },
+static const struct of_device_id __maybe_unused ltc3589_of_match[] = {
+	{ .compatible = "lltc,ltc3589",   .data = &ltc3589_info },
+	{ .compatible = "lltc,ltc3589-1", .data = &ltc3589_12_info },
+	{ .compatible = "lltc,ltc3589-2", .data = &ltc3589_12_info },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ltc3589_of_match);
 
 static struct i2c_driver ltc3589_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(ltc3589_of_match),
 	},
 	.probe = ltc3589_probe,

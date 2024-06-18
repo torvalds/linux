@@ -2,6 +2,7 @@
 config OMFS_FS
 	tristate "SonicBlue Optimized MPEG File System support"
 	depends on BLOCK
+	select BUFFER_HEAD
 	select CRC_ITU_T
 	help
 	  This is the proprietary file system used by the Rio Karma music

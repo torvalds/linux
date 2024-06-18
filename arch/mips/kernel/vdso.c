@@ -24,7 +24,7 @@
 #include <vdso/vsyscall.h>
 
 /* Kernel-provided data used by the VDSO. */
-static union mips_vdso_data mips_vdso_data __page_aligned_data;
+static union vdso_data_store mips_vdso_data __page_aligned_data;
 struct vdso_data *vdso_data = mips_vdso_data.data;
 
 /*
@@ -71,13 +71,15 @@ subsys_initcall(init_vdso);
 
 static unsigned long vdso_base(void)
 {
-	unsigned long base;
+	unsigned long base = STACK_TOP;
 
-	/* Skip the delay slot emulation page */
-	base = STACK_TOP + PAGE_SIZE;
+	if (IS_ENABLED(CONFIG_MIPS_FP_SUPPORT)) {
+		/* Skip the delay slot emulation page */
+		base += PAGE_SIZE;
+	}
 
 	if (current->flags & PF_RANDOMIZE) {
-		base += get_random_int() & (VDSO_RANDOMIZE_SIZE - 1);
+		base += get_random_u32_below(VDSO_RANDOMIZE_SIZE);
 		base = PAGE_ALIGN(base);
 	}
 
@@ -88,21 +90,23 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 {
 	struct mips_vdso_image *image = current->thread.abi->vdso;
 	struct mm_struct *mm = current->mm;
-	unsigned long gic_size, vvar_size, size, base, data_addr, vdso_addr, gic_pfn;
+	unsigned long gic_size, vvar_size, size, base, data_addr, vdso_addr, gic_pfn, gic_base;
 	struct vm_area_struct *vma;
 	int ret;
 
-	if (down_write_killable(&mm->mmap_sem))
+	if (mmap_write_lock_killable(mm))
 		return -EINTR;
 
-	/* Map delay slot emulation page */
-	base = mmap_region(NULL, STACK_TOP, PAGE_SIZE,
-			   VM_READ | VM_EXEC |
-			   VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC,
-			   0, NULL);
-	if (IS_ERR_VALUE(base)) {
-		ret = base;
-		goto out;
+	if (IS_ENABLED(CONFIG_MIPS_FP_SUPPORT)) {
+		/* Map delay slot emulation page */
+		base = mmap_region(NULL, STACK_TOP, PAGE_SIZE,
+				VM_READ | VM_EXEC |
+				VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC,
+				0, NULL);
+		if (IS_ERR_VALUE(base)) {
+			ret = base;
+			goto out;
+		}
 	}
 
 	/*
@@ -154,10 +158,11 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 
 	/* Map GIC user page. */
 	if (gic_size) {
-		gic_pfn = virt_to_phys(mips_gic_base + MIPS_GIC_USER_OFS) >> PAGE_SHIFT;
+		gic_base = (unsigned long)mips_gic_base + MIPS_GIC_USER_OFS;
+		gic_pfn = PFN_DOWN(__pa(gic_base));
 
 		ret = io_remap_pfn_range(vma, base, gic_pfn, gic_size,
-					 pgprot_noncached(PAGE_READONLY));
+					 pgprot_noncached(vma->vm_page_prot));
 		if (ret)
 			goto out;
 	}
@@ -165,7 +170,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	/* Map data page. */
 	ret = remap_pfn_range(vma, data_addr,
 			      virt_to_phys(vdso_data) >> PAGE_SHIFT,
-			      PAGE_SIZE, PAGE_READONLY);
+			      PAGE_SIZE, vma->vm_page_prot);
 	if (ret)
 		goto out;
 
@@ -183,6 +188,6 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	ret = 0;
 
 out:
-	up_write(&mm->mmap_sem);
+	mmap_write_unlock(mm);
 	return ret;
 }

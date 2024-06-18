@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/fs_struct.h>
 #include <linux/swap.h>
+#include <linux/siphash.h>
 
 #include <linux/sunrpc/stats.h>
 #include <linux/sunrpc/svcsock.h>
@@ -29,8 +30,11 @@
 #include "netns.h"
 #include "filecache.h"
 
+#include "trace.h"
+
 #define NFSDDBG_FACILITY	NFSDDBG_SVC
 
+atomic_t			nfsd_th_cnt = ATOMIC_INIT(0);
 extern struct svc_program	nfsd_program;
 static int			nfsd(void *vrqstp);
 #if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
@@ -53,18 +57,8 @@ static __be32			nfsd_init_request(struct svc_rqst *,
 						struct svc_process_info *);
 
 /*
- * nfsd_mutex protects nn->nfsd_serv -- both the pointer itself and the members
- * of the svc_serv struct. In particular, ->sv_nrthreads but also to some
- * extent ->sv_temp_socks and ->sv_permsocks. It also protects nfsdstats.th_cnt
- *
- * If (out side the lock) nn->nfsd_serv is non-NULL, then it must point to a
- * properly initialised 'struct svc_serv' with ->sv_nrthreads > 0. That number
- * of nfsd threads must exist and each must listed in ->sp_all_threads in each
- * entry of ->sv_pools[].
- *
- * Transitions of the thread count between zero and non-zero are of particular
- * interest since the svc_serv needs to be created and initialized at that
- * point, or freed.
+ * nfsd_mutex protects nn->nfsd_serv -- both the pointer itself and some members
+ * of the svc_serv struct such as ->sv_temp_socks and ->sv_permsocks.
  *
  * Finally, the nfsd_mutex also protects some of the global variables that are
  * accessed when nfsd starts and that are settable via the write_* routines in
@@ -82,43 +76,41 @@ DEFINE_MUTEX(nfsd_mutex);
  * version 4.1 DRC caches.
  * nfsd_drc_pages_used tracks the current version 4.1 DRC memory usage.
  */
-spinlock_t	nfsd_drc_lock;
+DEFINE_SPINLOCK(nfsd_drc_lock);
 unsigned long	nfsd_drc_max_mem;
 unsigned long	nfsd_drc_mem_used;
 
 #if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
-static struct svc_stat	nfsd_acl_svcstats;
 static const struct svc_version *nfsd_acl_version[] = {
+# if defined(CONFIG_NFSD_V2_ACL)
 	[2] = &nfsd_acl_version2,
+# endif
+# if defined(CONFIG_NFSD_V3_ACL)
 	[3] = &nfsd_acl_version3,
+# endif
 };
 
 #define NFSD_ACL_MINVERS            2
 #define NFSD_ACL_NRVERS		ARRAY_SIZE(nfsd_acl_version)
-static const struct svc_version *nfsd_acl_versions[NFSD_ACL_NRVERS];
 
 static struct svc_program	nfsd_acl_program = {
 	.pg_prog		= NFS_ACL_PROGRAM,
 	.pg_nvers		= NFSD_ACL_NRVERS,
-	.pg_vers		= nfsd_acl_versions,
+	.pg_vers		= nfsd_acl_version,
 	.pg_name		= "nfsacl",
 	.pg_class		= "nfsd",
-	.pg_stats		= &nfsd_acl_svcstats,
 	.pg_authenticate	= &svc_set_client,
 	.pg_init_request	= nfsd_acl_init_request,
 	.pg_rpcbind_set		= nfsd_acl_rpcbind_set,
 };
 
-static struct svc_stat	nfsd_acl_svcstats = {
-	.program	= &nfsd_acl_program,
-};
 #endif /* defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL) */
 
 static const struct svc_version *nfsd_version[] = {
+#if defined(CONFIG_NFSD_V2)
 	[2] = &nfsd_version2,
-#if defined(CONFIG_NFSD_V3)
-	[3] = &nfsd_version3,
 #endif
+	[3] = &nfsd_version3,
 #if defined(CONFIG_NFSD_V4)
 	[4] = &nfsd_version4,
 #endif
@@ -136,14 +128,12 @@ struct svc_program		nfsd_program = {
 	.pg_vers		= nfsd_version,		/* version table */
 	.pg_name		= "nfsd",		/* program name */
 	.pg_class		= "nfsd",		/* authentication class */
-	.pg_stats		= &nfsd_svcstats,	/* version table */
 	.pg_authenticate	= &svc_set_client,	/* export authentication */
 	.pg_init_request	= nfsd_init_request,
 	.pg_rpcbind_set		= nfsd_rpcbind_set,
 };
 
-static bool
-nfsd_support_version(int vers)
+bool nfsd_support_version(int vers)
 {
 	if (vers >= NFSD_MINVERS && vers < NFSD_NRVERS)
 		return nfsd_version[vers] != NULL;
@@ -216,7 +206,7 @@ int nfsd_vers(struct nfsd_net *nn, int vers, enum vers_op change)
 	case NFSD_TEST:
 		if (nn->nfsd_versions)
 			return nn->nfsd_versions[vers];
-		/* Fallthrough */
+		fallthrough;
 	case NFSD_AVAIL:
 		return nfsd_support_version(vers);
 	}
@@ -292,13 +282,13 @@ static int nfsd_init_socks(struct net *net, const struct cred *cred)
 	if (!list_empty(&nn->nfsd_serv->sv_permsocks))
 		return 0;
 
-	error = svc_create_xprt(nn->nfsd_serv, "udp", net, PF_INET, NFS_PORT,
-					SVC_SOCK_DEFAULTS, cred);
+	error = svc_xprt_create(nn->nfsd_serv, "udp", net, PF_INET, NFS_PORT,
+				SVC_SOCK_DEFAULTS, cred);
 	if (error < 0)
 		return error;
 
-	error = svc_create_xprt(nn->nfsd_serv, "tcp", net, PF_INET, NFS_PORT,
-					SVC_SOCK_DEFAULTS, cred);
+	error = svc_xprt_create(nn->nfsd_serv, "tcp", net, PF_INET, NFS_PORT,
+				SVC_SOCK_DEFAULTS, cred);
 	if (error < 0)
 		return error;
 
@@ -307,7 +297,7 @@ static int nfsd_init_socks(struct net *net, const struct cred *cred)
 
 static int nfsd_users = 0;
 
-static int nfsd_startup_generic(int nrservs)
+static int nfsd_startup_generic(void)
 {
 	int ret;
 
@@ -344,36 +334,64 @@ static bool nfsd_needs_lockd(struct nfsd_net *nn)
 	return nfsd_vers(nn, 2, NFSD_TEST) || nfsd_vers(nn, 3, NFSD_TEST);
 }
 
-void nfsd_copy_boot_verifier(__be32 verf[2], struct nfsd_net *nn)
+/**
+ * nfsd_copy_write_verifier - Atomically copy a write verifier
+ * @verf: buffer in which to receive the verifier cookie
+ * @nn: NFS net namespace
+ *
+ * This function provides a wait-free mechanism for copying the
+ * namespace's write verifier without tearing it.
+ */
+void nfsd_copy_write_verifier(__be32 verf[2], struct nfsd_net *nn)
 {
-	int seq = 0;
+	unsigned int seq;
 
 	do {
-		read_seqbegin_or_lock(&nn->boot_lock, &seq);
-		/*
-		 * This is opaque to client, so no need to byte-swap. Use
-		 * __force to keep sparse happy. y2038 time_t overflow is
-		 * irrelevant in this usage
-		 */
-		verf[0] = (__force __be32)nn->nfssvc_boot.tv_sec;
-		verf[1] = (__force __be32)nn->nfssvc_boot.tv_nsec;
-	} while (need_seqretry(&nn->boot_lock, seq));
-	done_seqretry(&nn->boot_lock, seq);
+		seq = read_seqbegin(&nn->writeverf_lock);
+		memcpy(verf, nn->writeverf, sizeof(nn->writeverf));
+	} while (read_seqretry(&nn->writeverf_lock, seq));
 }
 
-static void nfsd_reset_boot_verifier_locked(struct nfsd_net *nn)
+static void nfsd_reset_write_verifier_locked(struct nfsd_net *nn)
 {
-	ktime_get_real_ts64(&nn->nfssvc_boot);
+	struct timespec64 now;
+	u64 verf;
+
+	/*
+	 * Because the time value is hashed, y2038 time_t overflow
+	 * is irrelevant in this usage.
+	 */
+	ktime_get_raw_ts64(&now);
+	verf = siphash_2u64(now.tv_sec, now.tv_nsec, &nn->siphash_key);
+	memcpy(nn->writeverf, &verf, sizeof(nn->writeverf));
 }
 
-void nfsd_reset_boot_verifier(struct nfsd_net *nn)
+/**
+ * nfsd_reset_write_verifier - Generate a new write verifier
+ * @nn: NFS net namespace
+ *
+ * This function updates the ->writeverf field of @nn. This field
+ * contains an opaque cookie that, according to Section 18.32.3 of
+ * RFC 8881, "the client can use to determine whether a server has
+ * changed instance state (e.g., server restart) between a call to
+ * WRITE and a subsequent call to either WRITE or COMMIT.  This
+ * cookie MUST be unchanged during a single instance of the NFSv4.1
+ * server and MUST be unique between instances of the NFSv4.1
+ * server."
+ */
+void nfsd_reset_write_verifier(struct nfsd_net *nn)
 {
-	write_seqlock(&nn->boot_lock);
-	nfsd_reset_boot_verifier_locked(nn);
-	write_sequnlock(&nn->boot_lock);
+	write_seqlock(&nn->writeverf_lock);
+	nfsd_reset_write_verifier_locked(nn);
+	write_sequnlock(&nn->writeverf_lock);
 }
 
-static int nfsd_startup_net(int nrservs, struct net *net, const struct cred *cred)
+/*
+ * Crank up a set of per-namespace resources for a new NFSD instance,
+ * including lockd, a duplicate reply cache, an open file cache
+ * instance, and a cache of NFSv4 state objects.
+ */
+static int nfsd_startup_net(struct net *net, const struct cred *cred)
 {
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 	int ret;
@@ -381,7 +399,7 @@ static int nfsd_startup_net(int nrservs, struct net *net, const struct cred *cre
 	if (nn->nfsd_net_up)
 		return 0;
 
-	ret = nfsd_startup_generic(nrservs);
+	ret = nfsd_startup_generic();
 	if (ret)
 		return ret;
 	ret = nfsd_init_socks(net, cred);
@@ -392,20 +410,35 @@ static int nfsd_startup_net(int nrservs, struct net *net, const struct cred *cre
 		ret = lockd_up(net, cred);
 		if (ret)
 			goto out_socks;
-		nn->lockd_up = 1;
+		nn->lockd_up = true;
 	}
 
-	ret = nfs4_state_start_net(net);
+	ret = nfsd_file_cache_start_net(net);
 	if (ret)
 		goto out_lockd;
 
+	ret = nfsd_reply_cache_init(nn);
+	if (ret)
+		goto out_filecache;
+
+	ret = nfs4_state_start_net(net);
+	if (ret)
+		goto out_reply_cache;
+
+#ifdef CONFIG_NFSD_V4_2_INTER_SSC
+	nfsd4_ssc_init_umount_work(nn);
+#endif
 	nn->nfsd_net_up = true;
 	return 0;
 
+out_reply_cache:
+	nfsd_reply_cache_shutdown(nn);
+out_filecache:
+	nfsd_file_cache_shutdown_net(net);
 out_lockd:
 	if (nn->lockd_up) {
 		lockd_down(net);
-		nn->lockd_up = 0;
+		nn->lockd_up = false;
 	}
 out_socks:
 	nfsd_shutdown_generic();
@@ -416,16 +449,18 @@ static void nfsd_shutdown_net(struct net *net)
 {
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
-	nfsd_file_cache_purge(net);
 	nfs4_state_shutdown_net(net);
+	nfsd_reply_cache_shutdown(nn);
+	nfsd_file_cache_shutdown_net(net);
 	if (nn->lockd_up) {
 		lockd_down(net);
-		nn->lockd_up = 0;
+		nn->lockd_up = false;
 	}
 	nn->nfsd_net_up = false;
 	nfsd_shutdown_generic();
 }
 
+static DEFINE_SPINLOCK(nfsd_notifier_lock);
 static int nfsd_inetaddr_event(struct notifier_block *this, unsigned long event,
 	void *ptr)
 {
@@ -435,18 +470,17 @@ static int nfsd_inetaddr_event(struct notifier_block *this, unsigned long event,
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 	struct sockaddr_in sin;
 
-	if ((event != NETDEV_DOWN) ||
-	    !atomic_inc_not_zero(&nn->ntf_refcnt))
+	if (event != NETDEV_DOWN || !nn->nfsd_serv)
 		goto out;
 
+	spin_lock(&nfsd_notifier_lock);
 	if (nn->nfsd_serv) {
 		dprintk("nfsd_inetaddr_event: removed %pI4\n", &ifa->ifa_local);
 		sin.sin_family = AF_INET;
 		sin.sin_addr.s_addr = ifa->ifa_local;
 		svc_age_temp_xprts_now(nn->nfsd_serv, (struct sockaddr *)&sin);
 	}
-	atomic_dec(&nn->ntf_refcnt);
-	wake_up(&nn->ntf_wq);
+	spin_unlock(&nfsd_notifier_lock);
 
 out:
 	return NOTIFY_DONE;
@@ -466,10 +500,10 @@ static int nfsd_inet6addr_event(struct notifier_block *this,
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 	struct sockaddr_in6 sin6;
 
-	if ((event != NETDEV_DOWN) ||
-	    !atomic_inc_not_zero(&nn->ntf_refcnt))
+	if (event != NETDEV_DOWN || !nn->nfsd_serv)
 		goto out;
 
+	spin_lock(&nfsd_notifier_lock);
 	if (nn->nfsd_serv) {
 		dprintk("nfsd_inet6addr_event: removed %pI6\n", &ifa->addr);
 		sin6.sin6_family = AF_INET6;
@@ -478,8 +512,8 @@ static int nfsd_inet6addr_event(struct notifier_block *this,
 			sin6.sin6_scope_id = ifa->idev->dev->ifindex;
 		svc_age_temp_xprts_now(nn->nfsd_serv, (struct sockaddr *)&sin6);
 	}
-	atomic_dec(&nn->ntf_refcnt);
-	wake_up(&nn->ntf_wq);
+	spin_unlock(&nfsd_notifier_lock);
+
 out:
 	return NOTIFY_DONE;
 }
@@ -492,11 +526,19 @@ static struct notifier_block nfsd_inet6addr_notifier = {
 /* Only used under nfsd_mutex, so this atomic may be overkill: */
 static atomic_t nfsd_notifier_refcount = ATOMIC_INIT(0);
 
-static void nfsd_last_thread(struct svc_serv *serv, struct net *net)
+/**
+ * nfsd_destroy_serv - tear down NFSD's svc_serv for a namespace
+ * @net: network namespace the NFS service is associated with
+ */
+void nfsd_destroy_serv(struct net *net)
 {
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	struct svc_serv *serv = nn->nfsd_serv;
 
-	atomic_dec(&nn->ntf_refcnt);
+	spin_lock(&nfsd_notifier_lock);
+	nn->nfsd_serv = NULL;
+	spin_unlock(&nfsd_notifier_lock);
+
 	/* check if the notifier still has clients */
 	if (atomic_dec_return(&nfsd_notifier_refcount) == 0) {
 		unregister_inetaddr_notifier(&nfsd_inetaddr_notifier);
@@ -504,12 +546,13 @@ static void nfsd_last_thread(struct svc_serv *serv, struct net *net)
 		unregister_inet6addr_notifier(&nfsd_inet6addr_notifier);
 #endif
 	}
-	wait_event(nn->ntf_wq, atomic_read(&nn->ntf_refcnt) == 0);
+
+	svc_xprt_destroy_all(serv, net);
 
 	/*
 	 * write_ports can create the server without actually starting
 	 * any threads--if we get shut down before any threads are
-	 * started, then nfsd_last_thread will be run before any of this
+	 * started, then nfsd_destroy_serv will be run before any of this
 	 * other initialization has been done except the rpcb information.
 	 */
 	svc_rpcb_cleanup(serv, net);
@@ -517,9 +560,8 @@ static void nfsd_last_thread(struct svc_serv *serv, struct net *net)
 		return;
 
 	nfsd_shutdown_net(net);
-	printk(KERN_WARNING "nfsd: last server has exited, flushing export "
-			    "cache\n");
 	nfsd_export_flush(net);
+	svc_destroy(&serv);
 }
 
 void nfsd_reset_versions(struct nfsd_net *nn)
@@ -558,7 +600,6 @@ static void set_max_drc(void)
 	nfsd_drc_max_mem = (nr_free_buffer_pages()
 					>> NFSD_DRC_SIZE_SHIFT) * PAGE_SIZE;
 	nfsd_drc_mem_used = 0;
-	spin_lock_init(&nfsd_drc_lock);
 	dprintk("%s nfsd_drc_max_mem %lu \n", __func__, nfsd_drc_max_mem);
 }
 
@@ -583,38 +624,57 @@ static int nfsd_get_default_max_blksize(void)
 	return ret;
 }
 
-static const struct svc_serv_ops nfsd_thread_sv_ops = {
-	.svo_shutdown		= nfsd_last_thread,
-	.svo_function		= nfsd,
-	.svo_enqueue_xprt	= svc_xprt_do_enqueue,
-	.svo_setup		= svc_set_num_threads,
-	.svo_module		= THIS_MODULE,
-};
+void nfsd_shutdown_threads(struct net *net)
+{
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	struct svc_serv *serv;
+
+	mutex_lock(&nfsd_mutex);
+	serv = nn->nfsd_serv;
+	if (serv == NULL) {
+		mutex_unlock(&nfsd_mutex);
+		return;
+	}
+
+	/* Kill outstanding nfsd threads */
+	svc_set_num_threads(serv, NULL, 0);
+	nfsd_destroy_serv(net);
+	mutex_unlock(&nfsd_mutex);
+}
+
+bool i_am_nfsd(void)
+{
+	return kthread_func(current) == nfsd;
+}
 
 int nfsd_create_serv(struct net *net)
 {
 	int error;
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	struct svc_serv *serv;
 
 	WARN_ON(!mutex_is_locked(&nfsd_mutex));
-	if (nn->nfsd_serv) {
-		svc_get(nn->nfsd_serv);
+	if (nn->nfsd_serv)
 		return 0;
-	}
+
 	if (nfsd_max_blksize == 0)
 		nfsd_max_blksize = nfsd_get_default_max_blksize();
 	nfsd_reset_versions(nn);
-	nn->nfsd_serv = svc_create_pooled(&nfsd_program, nfsd_max_blksize,
-						&nfsd_thread_sv_ops);
-	if (nn->nfsd_serv == NULL)
+	serv = svc_create_pooled(&nfsd_program, &nn->nfsd_svcstats,
+				 nfsd_max_blksize, nfsd);
+	if (serv == NULL)
 		return -ENOMEM;
 
-	nn->nfsd_serv->sv_maxconn = nn->max_connections;
-	error = svc_bind(nn->nfsd_serv, net);
+	serv->sv_maxconn = nn->max_connections;
+	error = svc_bind(serv, net);
 	if (error < 0) {
-		svc_destroy(nn->nfsd_serv);
+		svc_destroy(&serv);
 		return error;
 	}
+	spin_lock(&nfsd_notifier_lock);
+	nn->nfsd_info.mutex = &nfsd_mutex;
+	nn->nfsd_serv = serv;
+	spin_unlock(&nfsd_notifier_lock);
 
 	set_max_drc();
 	/* check if the notifier is already set */
@@ -624,8 +684,7 @@ int nfsd_create_serv(struct net *net)
 		register_inet6addr_notifier(&nfsd_inet6addr_notifier);
 #endif
 	}
-	atomic_inc(&nn->ntf_refcnt);
-	nfsd_reset_boot_verifier(nn);
+	nfsd_reset_write_verifier(nn);
 	return 0;
 }
 
@@ -641,27 +700,14 @@ int nfsd_nrpools(struct net *net)
 
 int nfsd_get_nrthreads(int n, int *nthreads, struct net *net)
 {
-	int i = 0;
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	struct svc_serv *serv = nn->nfsd_serv;
+	int i;
 
-	if (nn->nfsd_serv != NULL) {
-		for (i = 0; i < nn->nfsd_serv->sv_nrpools && i < n; i++)
-			nthreads[i] = nn->nfsd_serv->sv_pools[i].sp_nrthreads;
-	}
-
+	if (serv)
+		for (i = 0; i < serv->sv_nrpools && i < n; i++)
+			nthreads[i] = atomic_read(&serv->sv_pools[i].sp_nrthreads);
 	return 0;
-}
-
-void nfsd_destroy(struct net *net)
-{
-	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
-	int destroy = (nn->nfsd_serv->sv_nrthreads == 1);
-
-	if (destroy)
-		svc_shutdown_net(nn->nfsd_serv, net);
-	svc_destroy(nn->nfsd_serv);
-	if (destroy)
-		nn->nfsd_serv = NULL;
 }
 
 int nfsd_set_nrthreads(int n, int *nthreads, struct net *net)
@@ -688,7 +734,7 @@ int nfsd_set_nrthreads(int n, int *nthreads, struct net *net)
 	if (tot > NFSD_MAXSERVS) {
 		/* total too large: scale down requested numbers */
 		for (i = 0; i < n && tot > 0; i++) {
-		    	int new = nthreads[i] * NFSD_MAXSERVS / tot;
+			int new = nthreads[i] * NFSD_MAXSERVS / tot;
 			tot -= (nthreads[i] - new);
 			nthreads[i] = new;
 		}
@@ -706,14 +752,13 @@ int nfsd_set_nrthreads(int n, int *nthreads, struct net *net)
 		nthreads[0] = 1;
 
 	/* apply the new numbers */
-	svc_get(nn->nfsd_serv);
 	for (i = 0; i < n; i++) {
-		err = nn->nfsd_serv->sv_ops->svo_setup(nn->nfsd_serv,
-				&nn->nfsd_serv->sv_pools[i], nthreads[i]);
+		err = svc_set_num_threads(nn->nfsd_serv,
+					  &nn->nfsd_serv->sv_pools[i],
+					  nthreads[i]);
 		if (err)
 			break;
 	}
-	nfsd_destroy(net);
 	return err;
 }
 
@@ -723,13 +768,14 @@ int nfsd_set_nrthreads(int n, int *nthreads, struct net *net)
  * this is the first time nrservs is nonzero.
  */
 int
-nfsd_svc(int nrservs, struct net *net, const struct cred *cred)
+nfsd_svc(int nrservs, struct net *net, const struct cred *cred, const char *scope)
 {
 	int	error;
-	bool	nfsd_up_before;
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	struct svc_serv *serv;
 
-	mutex_lock(&nfsd_mutex);
+	lockdep_assert_held(&nfsd_mutex);
+
 	dprintk("nfsd: creating service\n");
 
 	nrservs = max(nrservs, 0);
@@ -739,31 +785,25 @@ nfsd_svc(int nrservs, struct net *net, const struct cred *cred)
 	if (nrservs == 0 && nn->nfsd_serv == NULL)
 		goto out;
 
+	strscpy(nn->nfsd_name, scope ? scope : utsname()->nodename,
+		sizeof(nn->nfsd_name));
+
 	error = nfsd_create_serv(net);
 	if (error)
 		goto out;
+	serv = nn->nfsd_serv;
 
-	nfsd_up_before = nn->nfsd_net_up;
-
-	error = nfsd_startup_net(nrservs, net, cred);
+	error = nfsd_startup_net(net, cred);
 	if (error)
-		goto out_destroy;
-	error = nn->nfsd_serv->sv_ops->svo_setup(nn->nfsd_serv,
-			NULL, nrservs);
+		goto out_put;
+	error = svc_set_num_threads(serv, NULL, nrservs);
 	if (error)
-		goto out_shutdown;
-	/* We are holding a reference to nn->nfsd_serv which
-	 * we don't want to count in the return value,
-	 * so subtract 1
-	 */
-	error = nn->nfsd_serv->sv_nrthreads - 1;
-out_shutdown:
-	if (error < 0 && !nfsd_up_before)
-		nfsd_shutdown_net(net);
-out_destroy:
-	nfsd_destroy(net);		/* Release server */
+		goto out_put;
+	error = serv->sv_nrthreads;
+out_put:
+	if (serv->sv_nrthreads == 0)
+		nfsd_destroy_serv(net);
 out:
-	mutex_unlock(&nfsd_mutex);
 	return error;
 }
 
@@ -873,10 +913,6 @@ nfsd(void *vrqstp)
 	struct svc_xprt *perm_sock = list_entry(rqstp->rq_server->sv_permsocks.next, typeof(struct svc_xprt), xpt_list);
 	struct net *net = perm_sock->xpt_net;
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
-	int err;
-
-	/* Lock module and set up kernel thread */
-	mutex_lock(&nfsd_mutex);
 
 	/* At this point, the thread shares current->fs
 	 * with the init process. We need to create files with the
@@ -888,201 +924,149 @@ nfsd(void *vrqstp)
 
 	current->fs->umask = 0;
 
-	/*
-	 * thread is spawned with all signals set to SIG_IGN, re-enable
-	 * the ones that will bring down the thread
-	 */
-	allow_signal(SIGKILL);
-	allow_signal(SIGHUP);
-	allow_signal(SIGINT);
-	allow_signal(SIGQUIT);
-
-	nfsdstats.th_cnt++;
-	mutex_unlock(&nfsd_mutex);
+	atomic_inc(&nfsd_th_cnt);
 
 	set_freezable();
 
 	/*
 	 * The main request loop
 	 */
-	for (;;) {
+	while (!svc_thread_should_stop(rqstp)) {
 		/* Update sv_maxconn if it has changed */
 		rqstp->rq_server->sv_maxconn = nn->max_connections;
 
-		/*
-		 * Find a socket with data available and call its
-		 * recvfrom routine.
-		 */
-		while ((err = svc_recv(rqstp, 60*60*HZ)) == -EAGAIN)
-			;
-		if (err == -EINTR)
-			break;
-		validate_process_creds();
-		svc_process(rqstp);
-		validate_process_creds();
+		svc_recv(rqstp);
+
+		nfsd_file_net_dispose(nn);
 	}
 
-	/* Clear signals before calling svc_exit_thread() */
-	flush_signals(current);
-
-	mutex_lock(&nfsd_mutex);
-	nfsdstats.th_cnt --;
+	atomic_dec(&nfsd_th_cnt);
 
 out:
-	rqstp->rq_server = NULL;
-
 	/* Release the thread */
 	svc_exit_thread(rqstp);
-
-	nfsd_destroy(net);
-
-	/* Release module */
-	mutex_unlock(&nfsd_mutex);
-	module_put_and_exit(0);
 	return 0;
 }
 
-static __be32 map_new_errors(u32 vers, __be32 nfserr)
-{
-	if (nfserr == nfserr_jukebox && vers == 2)
-		return nfserr_dropit;
-	if (nfserr == nfserr_wrongsec && vers < 4)
-		return nfserr_acces;
-	return nfserr;
-}
-
-/*
- * A write procedure can have a large argument, and a read procedure can
- * have a large reply, but no NFSv2 or NFSv3 procedure has argument and
- * reply that can both be larger than a page.  The xdr code has taken
- * advantage of this assumption to be a sloppy about bounds checking in
- * some cases.  Pending a rewrite of the NFSv2/v3 xdr code to fix that
- * problem, we enforce these assumptions here:
+/**
+ * nfsd_dispatch - Process an NFS or NFSACL Request
+ * @rqstp: incoming request
+ *
+ * This RPC dispatcher integrates the NFS server's duplicate reply cache.
+ *
+ * Return values:
+ *  %0: Processing complete; do not send a Reply
+ *  %1: Processing complete; send Reply in rqstp->rq_res
  */
-static bool nfs_request_too_big(struct svc_rqst *rqstp,
-				const struct svc_procedure *proc)
+int nfsd_dispatch(struct svc_rqst *rqstp)
 {
-	/*
-	 * The ACL code has more careful bounds-checking and is not
-	 * susceptible to this problem:
-	 */
-	if (rqstp->rq_prog != NFS_PROGRAM)
-		return false;
-	/*
-	 * Ditto NFSv4 (which can in theory have argument and reply both
-	 * more than a page):
-	 */
-	if (rqstp->rq_vers >= 4)
-		return false;
-	/* The reply will be small, we're OK: */
-	if (proc->pc_xdrressize > 0 &&
-	    proc->pc_xdrressize < XDR_QUADLEN(PAGE_SIZE))
-		return false;
+	const struct svc_procedure *proc = rqstp->rq_procinfo;
+	__be32 *statp = rqstp->rq_accept_statp;
+	struct nfsd_cacherep *rp;
+	unsigned int start, len;
+	__be32 *nfs_reply;
 
-	return rqstp->rq_arg.len > PAGE_SIZE;
-}
-
-int
-nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
-{
-	const struct svc_procedure *proc;
-	__be32			nfserr;
-	__be32			*nfserrp;
-
-	dprintk("nfsd_dispatch: vers %d proc %d\n",
-				rqstp->rq_vers, rqstp->rq_proc);
-	proc = rqstp->rq_procinfo;
-
-	if (nfs_request_too_big(rqstp, proc)) {
-		dprintk("nfsd: NFSv%d argument too large\n", rqstp->rq_vers);
-		*statp = rpc_garbage_args;
-		return 1;
-	}
 	/*
 	 * Give the xdr decoder a chance to change this if it wants
 	 * (necessary in the NFSv4.0 compound case)
 	 */
 	rqstp->rq_cachetype = proc->pc_cachetype;
-	/* Decode arguments */
-	if (proc->pc_decode &&
-	    !proc->pc_decode(rqstp, (__be32*)rqstp->rq_arg.head[0].iov_base)) {
-		dprintk("nfsd: failed to decode arguments!\n");
-		*statp = rpc_garbage_args;
-		return 1;
-	}
 
-	/* Check whether we have this call in the cache. */
-	switch (nfsd_cache_lookup(rqstp)) {
-	case RC_DROPIT:
-		return 0;
+	/*
+	 * ->pc_decode advances the argument stream past the NFS
+	 * Call header, so grab the header's starting location and
+	 * size now for the call to nfsd_cache_lookup().
+	 */
+	start = xdr_stream_pos(&rqstp->rq_arg_stream);
+	len = xdr_stream_remaining(&rqstp->rq_arg_stream);
+	if (!proc->pc_decode(rqstp, &rqstp->rq_arg_stream))
+		goto out_decode_err;
+
+	/*
+	 * Release rq_status_counter setting it to an odd value after the rpc
+	 * request has been properly parsed. rq_status_counter is used to
+	 * notify the consumers if the rqstp fields are stable
+	 * (rq_status_counter is odd) or not meaningful (rq_status_counter
+	 * is even).
+	 */
+	smp_store_release(&rqstp->rq_status_counter, rqstp->rq_status_counter | 1);
+
+	rp = NULL;
+	switch (nfsd_cache_lookup(rqstp, start, len, &rp)) {
+	case RC_DOIT:
+		break;
 	case RC_REPLY:
-		return 1;
-	case RC_DOIT:;
-		/* do it */
+		goto out_cached_reply;
+	case RC_DROPIT:
+		goto out_dropit;
 	}
 
-	/* need to grab the location to store the status, as
-	 * nfsv4 does some encoding while processing 
+	nfs_reply = xdr_inline_decode(&rqstp->rq_res_stream, 0);
+	*statp = proc->pc_func(rqstp);
+	if (test_bit(RQ_DROPME, &rqstp->rq_flags))
+		goto out_update_drop;
+
+	if (!proc->pc_encode(rqstp, &rqstp->rq_res_stream))
+		goto out_encode_err;
+
+	/*
+	 * Release rq_status_counter setting it to an even value after the rpc
+	 * request has been properly processed.
 	 */
-	nfserrp = rqstp->rq_res.head[0].iov_base
-		+ rqstp->rq_res.head[0].iov_len;
-	rqstp->rq_res.head[0].iov_len += sizeof(__be32);
+	smp_store_release(&rqstp->rq_status_counter, rqstp->rq_status_counter + 1);
 
-	/* Now call the procedure handler, and encode NFS status. */
-	nfserr = proc->pc_func(rqstp);
-	nfserr = map_new_errors(rqstp->rq_vers, nfserr);
-	if (nfserr == nfserr_dropit || test_bit(RQ_DROPME, &rqstp->rq_flags)) {
-		dprintk("nfsd: Dropping request; may be revisited later\n");
-		nfsd_cache_update(rqstp, RC_NOCACHE, NULL);
-		return 0;
-	}
-
-	if (rqstp->rq_proc != 0)
-		*nfserrp++ = nfserr;
-
-	/* Encode result.
-	 * For NFSv2, additional info is never returned in case of an error.
-	 */
-	if (!(nfserr && rqstp->rq_vers == 2)) {
-		if (proc->pc_encode && !proc->pc_encode(rqstp, nfserrp)) {
-			/* Failed to encode result. Release cache entry */
-			dprintk("nfsd: failed to encode result!\n");
-			nfsd_cache_update(rqstp, RC_NOCACHE, NULL);
-			*statp = rpc_system_err;
-			return 1;
-		}
-	}
-
-	/* Store reply in cache. */
-	nfsd_cache_update(rqstp, rqstp->rq_cachetype, statp + 1);
+	nfsd_cache_update(rqstp, rp, rqstp->rq_cachetype, nfs_reply);
+out_cached_reply:
 	return 1;
+
+out_decode_err:
+	trace_nfsd_garbage_args_err(rqstp);
+	*statp = rpc_garbage_args;
+	return 1;
+
+out_update_drop:
+	nfsd_cache_update(rqstp, rp, RC_NOCACHE, NULL);
+out_dropit:
+	return 0;
+
+out_encode_err:
+	trace_nfsd_cant_encode_err(rqstp);
+	nfsd_cache_update(rqstp, rp, RC_NOCACHE, NULL);
+	*statp = rpc_system_err;
+	return 1;
+}
+
+/**
+ * nfssvc_decode_voidarg - Decode void arguments
+ * @rqstp: Server RPC transaction context
+ * @xdr: XDR stream positioned at arguments to decode
+ *
+ * Return values:
+ *   %false: Arguments were not valid
+ *   %true: Decoding was successful
+ */
+bool nfssvc_decode_voidarg(struct svc_rqst *rqstp, struct xdr_stream *xdr)
+{
+	return true;
+}
+
+/**
+ * nfssvc_encode_voidres - Encode void results
+ * @rqstp: Server RPC transaction context
+ * @xdr: XDR stream into which to encode results
+ *
+ * Return values:
+ *   %false: Local error while encoding
+ *   %true: Encoding was successful
+ */
+bool nfssvc_encode_voidres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
+{
+	return true;
 }
 
 int nfsd_pool_stats_open(struct inode *inode, struct file *file)
 {
-	int ret;
 	struct nfsd_net *nn = net_generic(inode->i_sb->s_fs_info, nfsd_net_id);
 
-	mutex_lock(&nfsd_mutex);
-	if (nn->nfsd_serv == NULL) {
-		mutex_unlock(&nfsd_mutex);
-		return -ENODEV;
-	}
-	/* bump up the psudo refcount while traversing */
-	svc_get(nn->nfsd_serv);
-	ret = svc_pool_stats_open(nn->nfsd_serv, file);
-	mutex_unlock(&nfsd_mutex);
-	return ret;
-}
-
-int nfsd_pool_stats_release(struct inode *inode, struct file *file)
-{
-	int ret = seq_release(inode, file);
-	struct net *net = inode->i_sb->s_fs_info;
-
-	mutex_lock(&nfsd_mutex);
-	/* this function really, really should have been called svc_put() */
-	nfsd_destroy(net);
-	mutex_unlock(&nfsd_mutex);
-	return ret;
+	return svc_pool_stats_open(&nn->nfsd_info, file);
 }

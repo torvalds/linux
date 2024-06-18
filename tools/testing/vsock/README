@@ -5,12 +5,13 @@ Hyper-V.
 
 The following tests are available:
 
+  * vsock_test - core AF_VSOCK socket functionality
   * vsock_diag_test - vsock_diag.ko module for listing open sockets
 
 The following prerequisite steps are not automated and must be performed prior
 to running tests:
 
-1. Build the kernel and these tests.
+1. Build the kernel, make headers_install, and build these tests.
 2. Install the kernel and tests on the host.
 3. Install the kernel and tests inside the guest.
 4. Boot the guest and ensure that the AF_VSOCK transport is enabled.
@@ -34,3 +35,37 @@ Invoke test binaries in both directions as follows:
                        --control-port=$GUEST_IP \
                        --control-port=1234 \
                        --peer-cid=3
+
+vsock_perf utility
+-------------------
+'vsock_perf' is a simple tool to measure vsock performance. It works in
+sender/receiver modes: sender connect to peer at the specified port and
+starts data transmission to the receiver. After data processing is done,
+it prints several metrics(see below).
+
+Usage:
+# run as sender
+# connect to CID 2, port 1234, send 1G of data, tx buf size is 1M
+./vsock_perf --sender 2 --port 1234 --bytes 1G --buf-size 1M
+
+Output:
+tx performance: A Gbits/s
+
+Output explanation:
+A is calculated as "number of bits to send" / "time in tx loop"
+
+# run as receiver
+# listen port 1234, rx buf size is 1M, socket buf size is 1G, SO_RCVLOWAT is 64K
+./vsock_perf --port 1234 --buf-size 1M --vsk-size 1G --rcvlowat 64K
+
+Output:
+rx performance: A Gbits/s
+total in 'read()': B sec
+POLLIN wakeups: C
+average in 'read()': D ns
+
+Output explanation:
+A is calculated as "number of received bits" / "time in rx loop".
+B is time, spent in 'read()' system call(excluding 'poll()')
+C is number of 'poll()' wake ups with POLLIN bit set.
+D is B / C, e.g. average amount of time, spent in single 'read()'.

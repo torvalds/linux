@@ -201,7 +201,6 @@ static int create_i2c_bus(struct i2c_adapter *adapter,
 	sprintf(adapter->name, "viafb i2c io_port idx 0x%02x",
 		adap_cfg->ioport_index);
 	adapter->owner = THIS_MODULE;
-	adapter->class = I2C_CLASS_DDC;
 	adapter->algo_data = algo;
 	if (pdev)
 		adapter->dev.parent = &pdev->dev;
@@ -246,7 +245,7 @@ static int viafb_i2c_probe(struct platform_device *platdev)
 	return 0;
 }
 
-static int viafb_i2c_remove(struct platform_device *platdev)
+static void viafb_i2c_remove(struct platform_device *platdev)
 {
 	int i;
 
@@ -259,7 +258,6 @@ static int viafb_i2c_remove(struct platform_device *platdev)
 		if (i2c_stuff->is_active)
 			i2c_del_adapter(&i2c_stuff->adapter);
 	}
-	return 0;
 }
 
 static struct platform_driver via_i2c_driver = {
@@ -267,7 +265,7 @@ static struct platform_driver via_i2c_driver = {
 		.name = "viafb-i2c",
 	},
 	.probe = viafb_i2c_probe,
-	.remove = viafb_i2c_remove,
+	.remove_new = viafb_i2c_remove,
 };
 
 int viafb_i2c_init(void)

@@ -120,34 +120,54 @@ static inline long local_sub_return(long i, local_t *l)
 #define local_inc_return(l)  (local_add_return(1, l))
 #define local_dec_return(l)  (local_sub_return(1, l))
 
-#define local_cmpxchg(l, o, n) \
-	(cmpxchg_local(&((l)->a.counter), (o), (n)))
-/* Always has a lock prefix */
-#define local_xchg(l, n) (xchg(&((l)->a.counter), (n)))
+static inline long local_cmpxchg(local_t *l, long old, long new)
+{
+	return cmpxchg_local(&l->a.counter, old, new);
+}
+
+static inline bool local_try_cmpxchg(local_t *l, long *old, long new)
+{
+	return try_cmpxchg_local(&l->a.counter,
+				 (typeof(l->a.counter) *) old, new);
+}
+
+/*
+ * Implement local_xchg using CMPXCHG instruction without the LOCK prefix.
+ * XCHG is expensive due to the implied LOCK prefix.  The processor
+ * cannot prefetch cachelines if XCHG is used.
+ */
+static __always_inline long
+local_xchg(local_t *l, long n)
+{
+	long c = local_read(l);
+
+	do { } while (!local_try_cmpxchg(l, &c, n));
+
+	return c;
+}
 
 /**
- * local_add_unless - add unless the number is a given value
+ * local_add_unless - add unless the number is already a given value
  * @l: pointer of type local_t
  * @a: the amount to add to l...
  * @u: ...unless l is equal to u.
  *
- * Atomically adds @a to @l, so long as it was not @u.
- * Returns non-zero if @l was not @u, and zero otherwise.
+ * Atomically adds @a to @l, if @v was not already @u.
+ * Returns true if the addition was done.
  */
-#define local_add_unless(l, a, u)				\
-({								\
-	long c, old;						\
-	c = local_read((l));					\
-	for (;;) {						\
-		if (unlikely(c == (u)))				\
-			break;					\
-		old = local_cmpxchg((l), c, c + (a));		\
-		if (likely(old == c))				\
-			break;					\
-		c = old;					\
-	}							\
-	c != (u);						\
-})
+static __always_inline bool
+local_add_unless(local_t *l, long a, long u)
+{
+	long c = local_read(l);
+
+	do {
+		if (unlikely(c == u))
+			return false;
+	} while (!local_try_cmpxchg(l, &c, c + a));
+
+	return true;
+}
+
 #define local_inc_not_zero(l) local_add_unless((l), 1, 0)
 
 /* On x86_32, these are no better than the atomic variants.

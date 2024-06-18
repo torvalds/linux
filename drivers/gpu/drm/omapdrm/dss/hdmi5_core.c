@@ -2,7 +2,7 @@
 /*
  * OMAP5 HDMI CORE IP driver library
  *
- * Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2014 Texas Instruments Incorporated - https://www.ti.com/
  * Authors:
  *	Yong Zhi
  *	Mythri pk
@@ -23,24 +23,12 @@
 
 #include "hdmi5_core.h"
 
-/* only 24 bit color depth used for now */
-static const struct csc_table csc_table_deepcolor[] = {
-	/* HDMI_DEEP_COLOR_24BIT */
-	[0] = { 7036, 0, 0, 32, 0, 7036, 0, 32, 0, 0, 7036, 32, },
-	/* HDMI_DEEP_COLOR_30BIT */
-	[1] = { 7015, 0, 0, 128, 0, 7015, 0, 128, 0, 0, 7015, 128, },
-	/* HDMI_DEEP_COLOR_36BIT */
-	[2] = { 7010, 0, 0, 512, 0, 7010, 0, 512, 0, 0, 7010, 512, },
-	/* FULL RANGE */
-	[3] = { 8192, 0, 0, 0, 0, 8192, 0, 0, 0, 0, 8192, 0, },
-};
-
-static void hdmi_core_ddc_init(struct hdmi_core_data *core)
+void hdmi5_core_ddc_init(struct hdmi_core_data *core)
 {
 	void __iomem *base = core->base;
 	const unsigned long long iclk = 266000000;	/* DSS L3 ICLK */
-	const unsigned int ss_scl_high = 4600;		/* ns */
-	const unsigned int ss_scl_low = 5400;		/* ns */
+	const unsigned int ss_scl_high = 4700;		/* ns */
+	const unsigned int ss_scl_low = 5500;		/* ns */
 	const unsigned int fs_scl_high = 600;		/* ns */
 	const unsigned int fs_scl_low = 1300;		/* ns */
 	const unsigned int sda_hold = 1000;		/* ns */
@@ -114,7 +102,7 @@ static void hdmi_core_ddc_init(struct hdmi_core_data *core)
 	REG_FLD_MOD(base, HDMI_CORE_I2CM_INT, 0x0, 2, 2);
 }
 
-static void hdmi_core_ddc_uninit(struct hdmi_core_data *core)
+void hdmi5_core_ddc_uninit(struct hdmi_core_data *core)
 {
 	void __iomem *base = core->base;
 
@@ -124,14 +112,14 @@ static void hdmi_core_ddc_uninit(struct hdmi_core_data *core)
 	REG_FLD_MOD(base, HDMI_CORE_I2CM_INT, 0x1, 2, 2);
 }
 
-static int hdmi_core_ddc_edid(struct hdmi_core_data *core, u8 *pedid, u8 ext)
+int hdmi5_core_ddc_read(void *data, u8 *buf, unsigned int block, size_t len)
 {
+	struct hdmi_core_data *core = data;
 	void __iomem *base = core->base;
 	u8 cur_addr;
-	char checksum = 0;
 	const int retries = 1000;
-	u8 seg_ptr = ext / 2;
-	u8 edidbase = ((ext % 2) * 0x80);
+	u8 seg_ptr = block / 2;
+	u8 edidbase = ((block % 2) * EDID_LENGTH);
 
 	REG_FLD_MOD(base, HDMI_CORE_I2CM_SEGPTR, seg_ptr, 7, 0);
 
@@ -139,7 +127,7 @@ static int hdmi_core_ddc_edid(struct hdmi_core_data *core, u8 *pedid, u8 ext)
 	 * TODO: We use polling here, although we probably should use proper
 	 * interrupts.
 	 */
-	for (cur_addr = 0; cur_addr < 128; ++cur_addr) {
+	for (cur_addr = 0; cur_addr < len; ++cur_addr) {
 		int i;
 
 		/* clear ERROR and DONE */
@@ -176,43 +164,11 @@ static int hdmi_core_ddc_edid(struct hdmi_core_data *core, u8 *pedid, u8 ext)
 			return -EIO;
 		}
 
-		pedid[cur_addr] = REG_GET(base, HDMI_CORE_I2CM_DATAI, 7, 0);
-		checksum += pedid[cur_addr];
+		buf[cur_addr] = REG_GET(base, HDMI_CORE_I2CM_DATAI, 7, 0);
 	}
 
 	return 0;
 
-}
-
-int hdmi5_read_edid(struct hdmi_core_data *core, u8 *edid, int len)
-{
-	int r, n, i;
-	int max_ext_blocks = (len / 128) - 1;
-
-	if (len < 128)
-		return -EINVAL;
-
-	hdmi_core_ddc_init(core);
-
-	r = hdmi_core_ddc_edid(core, edid, 0);
-	if (r)
-		goto out;
-
-	n = edid[0x7e];
-
-	if (n > max_ext_blocks)
-		n = max_ext_blocks;
-
-	for (i = 1; i <= n; i++) {
-		r = hdmi_core_ddc_edid(core, edid + i * EDID_LENGTH, i);
-		if (r)
-			goto out;
-	}
-
-out:
-	hdmi_core_ddc_uninit(core);
-
-	return r ? r : len;
 }
 
 void hdmi5_core_dump(struct hdmi_core_data *core, struct seq_file *s)
@@ -397,14 +353,6 @@ static void hdmi_core_config_video_packetizer(struct hdmi_core_data *core)
 	REG_FLD_MOD(base, HDMI_CORE_VP_CONF, clr_depth ? 0 : 2, 1, 0);
 }
 
-static void hdmi_core_config_csc(struct hdmi_core_data *core)
-{
-	int clr_depth = 0;	/* 24 bit color depth */
-
-	/* CSC_COLORDEPTH */
-	REG_FLD_MOD(core->base, HDMI_CORE_CSC_SCALE, clr_depth, 7, 4);
-}
-
 static void hdmi_core_config_video_sampler(struct hdmi_core_data *core)
 {
 	int video_mapping = 1;	/* for 24 bit color depth */
@@ -469,47 +417,67 @@ static void hdmi_core_write_avi_infoframe(struct hdmi_core_data *core,
 	REG_FLD_MOD(base, HDMI_CORE_FC_PRCONF, pr, 3, 0);
 }
 
-static void hdmi_core_csc_config(struct hdmi_core_data *core,
-		struct csc_table csc_coeff)
+static void hdmi_core_write_csc(struct hdmi_core_data *core,
+		const struct csc_table *csc_coeff)
 {
 	void __iomem *base = core->base;
 
-	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_A1_MSB, csc_coeff.a1 >> 8 , 6, 0);
-	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_A1_LSB, csc_coeff.a1, 7, 0);
-	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_A2_MSB, csc_coeff.a2 >> 8, 6, 0);
-	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_A2_LSB, csc_coeff.a2, 7, 0);
-	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_A3_MSB, csc_coeff.a3 >> 8, 6, 0);
-	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_A3_LSB, csc_coeff.a3, 7, 0);
-	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_A4_MSB, csc_coeff.a4 >> 8, 6, 0);
-	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_A4_LSB, csc_coeff.a4, 7, 0);
-	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_B1_MSB, csc_coeff.b1 >> 8, 6, 0);
-	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_B1_LSB, csc_coeff.b1, 7, 0);
-	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_B2_MSB, csc_coeff.b2 >> 8, 6, 0);
-	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_B2_LSB, csc_coeff.b2, 7, 0);
-	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_B3_MSB, csc_coeff.b3 >> 8, 6, 0);
-	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_B3_LSB, csc_coeff.b3, 7, 0);
-	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_B4_MSB, csc_coeff.b4 >> 8, 6, 0);
-	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_B4_LSB, csc_coeff.b4, 7, 0);
-	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_C1_MSB, csc_coeff.c1 >> 8, 6, 0);
-	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_C1_LSB, csc_coeff.c1, 7, 0);
-	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_C2_MSB, csc_coeff.c2 >> 8, 6, 0);
-	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_C2_LSB, csc_coeff.c2, 7, 0);
-	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_C3_MSB, csc_coeff.c3 >> 8, 6, 0);
-	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_C3_LSB, csc_coeff.c3, 7, 0);
-	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_C4_MSB, csc_coeff.c4 >> 8, 6, 0);
-	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_C4_LSB, csc_coeff.c4, 7, 0);
+	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_A1_MSB, csc_coeff->a1 >> 8, 6, 0);
+	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_A1_LSB, csc_coeff->a1, 7, 0);
+	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_A2_MSB, csc_coeff->a2 >> 8, 6, 0);
+	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_A2_LSB, csc_coeff->a2, 7, 0);
+	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_A3_MSB, csc_coeff->a3 >> 8, 6, 0);
+	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_A3_LSB, csc_coeff->a3, 7, 0);
+	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_A4_MSB, csc_coeff->a4 >> 8, 6, 0);
+	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_A4_LSB, csc_coeff->a4, 7, 0);
+	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_B1_MSB, csc_coeff->b1 >> 8, 6, 0);
+	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_B1_LSB, csc_coeff->b1, 7, 0);
+	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_B2_MSB, csc_coeff->b2 >> 8, 6, 0);
+	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_B2_LSB, csc_coeff->b2, 7, 0);
+	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_B3_MSB, csc_coeff->b3 >> 8, 6, 0);
+	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_B3_LSB, csc_coeff->b3, 7, 0);
+	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_B4_MSB, csc_coeff->b4 >> 8, 6, 0);
+	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_B4_LSB, csc_coeff->b4, 7, 0);
+	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_C1_MSB, csc_coeff->c1 >> 8, 6, 0);
+	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_C1_LSB, csc_coeff->c1, 7, 0);
+	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_C2_MSB, csc_coeff->c2 >> 8, 6, 0);
+	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_C2_LSB, csc_coeff->c2, 7, 0);
+	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_C3_MSB, csc_coeff->c3 >> 8, 6, 0);
+	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_C3_LSB, csc_coeff->c3, 7, 0);
+	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_C4_MSB, csc_coeff->c4 >> 8, 6, 0);
+	REG_FLD_MOD(base, HDMI_CORE_CSC_COEF_C4_LSB, csc_coeff->c4, 7, 0);
 
+	/* enable CSC */
 	REG_FLD_MOD(base, HDMI_CORE_MC_FLOWCTRL, 0x1, 0, 0);
 }
 
-static void hdmi_core_configure_range(struct hdmi_core_data *core)
+static void hdmi_core_configure_range(struct hdmi_core_data *core,
+				      enum hdmi_quantization_range range)
 {
-	struct csc_table csc_coeff = { 0 };
+	static const struct csc_table csc_limited_range = {
+		7036, 0, 0, 32, 0, 7036, 0, 32, 0, 0, 7036, 32
+	};
+	static const struct csc_table csc_full_range = {
+		8192, 0, 0, 0, 0, 8192, 0, 0, 0, 0, 8192, 0
+	};
+	const struct csc_table *csc_coeff;
 
-	/* support limited range with 24 bit color depth for now */
-	csc_coeff = csc_table_deepcolor[0];
+	/* CSC_COLORDEPTH  = 24 bits*/
+	REG_FLD_MOD(core->base, HDMI_CORE_CSC_SCALE, 0, 7, 4);
 
-	hdmi_core_csc_config(core, csc_coeff);
+	switch (range) {
+	case HDMI_QUANTIZATION_RANGE_FULL:
+		csc_coeff = &csc_full_range;
+		break;
+
+	case HDMI_QUANTIZATION_RANGE_DEFAULT:
+	case HDMI_QUANTIZATION_RANGE_LIMITED:
+	default:
+		csc_coeff = &csc_limited_range;
+		break;
+	}
+
+	hdmi_core_write_csc(core, csc_coeff);
 }
 
 static void hdmi_core_enable_video_path(struct hdmi_core_data *core)
@@ -600,8 +568,19 @@ void hdmi5_configure(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
 	struct videomode vm;
 	struct hdmi_video_format video_format;
 	struct hdmi_core_vid_config v_core_cfg;
+	enum hdmi_quantization_range range;
 
 	hdmi_core_mask_interrupts(core);
+
+	if (cfg->hdmi_dvi_mode == HDMI_HDMI) {
+		char vic = cfg->infoframe.video_code;
+
+		/* All CEA modes other than VIC 1 use limited quantization range. */
+		range = vic > 1 ? HDMI_QUANTIZATION_RANGE_LIMITED :
+			HDMI_QUANTIZATION_RANGE_FULL;
+	} else {
+		range = HDMI_QUANTIZATION_RANGE_FULL;
+	}
 
 	hdmi_core_init(&v_core_cfg, cfg);
 
@@ -616,9 +595,8 @@ void hdmi5_configure(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
 
 	hdmi_wp_video_config_interface(wp, &vm);
 
-	/* support limited range with 24 bit color depth for now */
-	hdmi_core_configure_range(core);
-	cfg->infoframe.quantization_range = HDMI_QUANTIZATION_RANGE_LIMITED;
+	hdmi_core_configure_range(core, range);
+	cfg->infoframe.quantization_range = range;
 
 	/*
 	 * configure core video part, set software reset in the core
@@ -628,7 +606,6 @@ void hdmi5_configure(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
 	hdmi_core_video_config(core, &v_core_cfg);
 
 	hdmi_core_config_video_packetizer(core);
-	hdmi_core_config_csc(core);
 	hdmi_core_config_video_sampler(core);
 
 	if (cfg->hdmi_dvi_mode == HDMI_HDMI)
@@ -798,7 +775,7 @@ int hdmi5_audio_config(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
 	struct hdmi_audio_format audio_format;
 	struct hdmi_audio_dma audio_dma;
 	struct hdmi_core_audio_config core_cfg;
-	int err, n, cts, channel_count;
+	int n, cts, channel_count;
 	unsigned int fs_nr;
 	bool word_length_16b = false;
 
@@ -841,7 +818,7 @@ int hdmi5_audio_config(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
 		return -EINVAL;
 	}
 
-	err = hdmi_compute_acr(pclk, fs_nr, &n, &cts);
+	hdmi_compute_acr(pclk, fs_nr, &n, &cts);
 	core_cfg.n = n;
 	core_cfg.cts = cts;
 
@@ -895,10 +872,7 @@ int hdmi5_audio_config(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
 
 int hdmi5_core_init(struct platform_device *pdev, struct hdmi_core_data *core)
 {
-	struct resource *res;
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "core");
-	core->base = devm_ioremap_resource(&pdev->dev, res);
+	core->base = devm_platform_ioremap_resource_byname(pdev, "core");
 	if (IS_ERR(core->base))
 		return PTR_ERR(core->base);
 

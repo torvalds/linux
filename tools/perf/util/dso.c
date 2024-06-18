@@ -11,8 +11,11 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
+#ifdef HAVE_LIBBPF_SUPPORT
 #include <bpf/libbpf.h>
 #include "bpf-event.h"
+#include "bpf-utils.h"
+#endif
 #include "compress.h"
 #include "env.h"
 #include "namespaces.h"
@@ -28,6 +31,7 @@
 #include "debug.h"
 #include "string2.h"
 #include "vdso.h"
+#include "annotate-data.h"
 
 static const char * const debuglink_paths[] = {
 	"%.0s%s",
@@ -35,6 +39,12 @@ static const char * const debuglink_paths[] = {
 	"%s/.debug/%s",
 	"/usr/lib/debug%s/%s"
 };
+
+void dso__set_nsinfo(struct dso *dso, struct nsinfo *nsi)
+{
+	nsinfo__put(RC_CHK_ACCESS(dso)->nsinfo);
+	RC_CHK_ACCESS(dso)->nsinfo = nsi;
+}
 
 char dso__symtab_origin(const struct dso *dso)
 {
@@ -47,6 +57,7 @@ char dso__symtab_origin(const struct dso *dso)
 		[DSO_BINARY_TYPE__BUILD_ID_CACHE_DEBUGINFO]	= 'D',
 		[DSO_BINARY_TYPE__FEDORA_DEBUGINFO]		= 'f',
 		[DSO_BINARY_TYPE__UBUNTU_DEBUGINFO]		= 'u',
+		[DSO_BINARY_TYPE__MIXEDUP_UBUNTU_DEBUGINFO]	= 'x',
 		[DSO_BINARY_TYPE__OPENEMBEDDED_DEBUGINFO]	= 'o',
 		[DSO_BINARY_TYPE__BUILDID_DEBUGINFO]		= 'b',
 		[DSO_BINARY_TYPE__SYSTEM_PATH_DSO]		= 'd',
@@ -58,9 +69,42 @@ char dso__symtab_origin(const struct dso *dso)
 		[DSO_BINARY_TYPE__GUEST_VMLINUX]		= 'V',
 	};
 
-	if (dso == NULL || dso->symtab_type == DSO_BINARY_TYPE__NOT_FOUND)
+	if (dso == NULL || dso__symtab_type(dso) == DSO_BINARY_TYPE__NOT_FOUND)
 		return '!';
-	return origin[dso->symtab_type];
+	return origin[dso__symtab_type(dso)];
+}
+
+bool dso__is_object_file(const struct dso *dso)
+{
+	switch (dso__binary_type(dso)) {
+	case DSO_BINARY_TYPE__KALLSYMS:
+	case DSO_BINARY_TYPE__GUEST_KALLSYMS:
+	case DSO_BINARY_TYPE__JAVA_JIT:
+	case DSO_BINARY_TYPE__BPF_PROG_INFO:
+	case DSO_BINARY_TYPE__BPF_IMAGE:
+	case DSO_BINARY_TYPE__OOL:
+		return false;
+	case DSO_BINARY_TYPE__VMLINUX:
+	case DSO_BINARY_TYPE__GUEST_VMLINUX:
+	case DSO_BINARY_TYPE__DEBUGLINK:
+	case DSO_BINARY_TYPE__BUILD_ID_CACHE:
+	case DSO_BINARY_TYPE__BUILD_ID_CACHE_DEBUGINFO:
+	case DSO_BINARY_TYPE__FEDORA_DEBUGINFO:
+	case DSO_BINARY_TYPE__UBUNTU_DEBUGINFO:
+	case DSO_BINARY_TYPE__MIXEDUP_UBUNTU_DEBUGINFO:
+	case DSO_BINARY_TYPE__BUILDID_DEBUGINFO:
+	case DSO_BINARY_TYPE__SYSTEM_PATH_DSO:
+	case DSO_BINARY_TYPE__GUEST_KMODULE:
+	case DSO_BINARY_TYPE__GUEST_KMODULE_COMP:
+	case DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE:
+	case DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE_COMP:
+	case DSO_BINARY_TYPE__KCORE:
+	case DSO_BINARY_TYPE__GUEST_KCORE:
+	case DSO_BINARY_TYPE__OPENEMBEDDED_DEBUGINFO:
+	case DSO_BINARY_TYPE__NOT_FOUND:
+	default:
+		return true;
+	}
 }
 
 int dso__read_binary_type_filename(const struct dso *dso,
@@ -79,7 +123,7 @@ int dso__read_binary_type_filename(const struct dso *dso,
 		char symfile[PATH_MAX];
 		unsigned int i;
 
-		len = __symbol__join_symfs(filename, size, dso->long_name);
+		len = __symbol__join_symfs(filename, size, dso__long_name(dso));
 		last_slash = filename + len;
 		while (last_slash != filename && *last_slash != '/')
 			last_slash--;
@@ -121,12 +165,27 @@ int dso__read_binary_type_filename(const struct dso *dso,
 
 	case DSO_BINARY_TYPE__FEDORA_DEBUGINFO:
 		len = __symbol__join_symfs(filename, size, "/usr/lib/debug");
-		snprintf(filename + len, size - len, "%s.debug", dso->long_name);
+		snprintf(filename + len, size - len, "%s.debug", dso__long_name(dso));
 		break;
 
 	case DSO_BINARY_TYPE__UBUNTU_DEBUGINFO:
 		len = __symbol__join_symfs(filename, size, "/usr/lib/debug");
-		snprintf(filename + len, size - len, "%s", dso->long_name);
+		snprintf(filename + len, size - len, "%s", dso__long_name(dso));
+		break;
+
+	case DSO_BINARY_TYPE__MIXEDUP_UBUNTU_DEBUGINFO:
+		/*
+		 * Ubuntu can mixup /usr/lib with /lib, putting debuginfo in
+		 * /usr/lib/debug/lib when it is expected to be in
+		 * /usr/lib/debug/usr/lib
+		 */
+		if (strlen(dso__long_name(dso)) < 9 ||
+		    strncmp(dso__long_name(dso), "/usr/lib/", 9)) {
+			ret = -1;
+			break;
+		}
+		len = __symbol__join_symfs(filename, size, "/usr/lib/debug");
+		snprintf(filename + len, size - len, "%s", dso__long_name(dso) + 4);
 		break;
 
 	case DSO_BINARY_TYPE__OPENEMBEDDED_DEBUGINFO:
@@ -134,31 +193,29 @@ int dso__read_binary_type_filename(const struct dso *dso,
 		const char *last_slash;
 		size_t dir_size;
 
-		last_slash = dso->long_name + dso->long_name_len;
-		while (last_slash != dso->long_name && *last_slash != '/')
+		last_slash = dso__long_name(dso) + dso__long_name_len(dso);
+		while (last_slash != dso__long_name(dso) && *last_slash != '/')
 			last_slash--;
 
 		len = __symbol__join_symfs(filename, size, "");
-		dir_size = last_slash - dso->long_name + 2;
+		dir_size = last_slash - dso__long_name(dso) + 2;
 		if (dir_size > (size - len)) {
 			ret = -1;
 			break;
 		}
-		len += scnprintf(filename + len, dir_size, "%s",  dso->long_name);
+		len += scnprintf(filename + len, dir_size, "%s",  dso__long_name(dso));
 		len += scnprintf(filename + len , size - len, ".debug%s",
 								last_slash);
 		break;
 	}
 
 	case DSO_BINARY_TYPE__BUILDID_DEBUGINFO:
-		if (!dso->has_build_id) {
+		if (!dso__has_build_id(dso)) {
 			ret = -1;
 			break;
 		}
 
-		build_id__sprintf(dso->build_id,
-				  sizeof(dso->build_id),
-				  build_id_hex);
+		build_id__sprintf(dso__bid_const(dso), build_id_hex);
 		len = __symbol__join_symfs(filename, size, "/usr/lib/debug/.build-id/");
 		snprintf(filename + len, size - len, "%.2s/%s.debug",
 			 build_id_hex, build_id_hex + 2);
@@ -167,23 +224,23 @@ int dso__read_binary_type_filename(const struct dso *dso,
 	case DSO_BINARY_TYPE__VMLINUX:
 	case DSO_BINARY_TYPE__GUEST_VMLINUX:
 	case DSO_BINARY_TYPE__SYSTEM_PATH_DSO:
-		__symbol__join_symfs(filename, size, dso->long_name);
+		__symbol__join_symfs(filename, size, dso__long_name(dso));
 		break;
 
 	case DSO_BINARY_TYPE__GUEST_KMODULE:
 	case DSO_BINARY_TYPE__GUEST_KMODULE_COMP:
 		path__join3(filename, size, symbol_conf.symfs,
-			    root_dir, dso->long_name);
+			    root_dir, dso__long_name(dso));
 		break;
 
 	case DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE:
 	case DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE_COMP:
-		__symbol__join_symfs(filename, size, dso->long_name);
+		__symbol__join_symfs(filename, size, dso__long_name(dso));
 		break;
 
 	case DSO_BINARY_TYPE__KCORE:
 	case DSO_BINARY_TYPE__GUEST_KCORE:
-		snprintf(filename, size, "%s", dso->long_name);
+		snprintf(filename, size, "%s", dso__long_name(dso));
 		break;
 
 	default:
@@ -191,6 +248,8 @@ int dso__read_binary_type_filename(const struct dso *dso,
 	case DSO_BINARY_TYPE__GUEST_KALLSYMS:
 	case DSO_BINARY_TYPE__JAVA_JIT:
 	case DSO_BINARY_TYPE__BPF_PROG_INFO:
+	case DSO_BINARY_TYPE__BPF_IMAGE:
+	case DSO_BINARY_TYPE__OOL:
 	case DSO_BINARY_TYPE__NOT_FOUND:
 		ret = -1;
 		break;
@@ -257,21 +316,15 @@ bool is_kernel_module(const char *pathname, int cpumode)
 
 bool dso__needs_decompress(struct dso *dso)
 {
-	return dso->symtab_type == DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE_COMP ||
-		dso->symtab_type == DSO_BINARY_TYPE__GUEST_KMODULE_COMP;
+	return dso__symtab_type(dso) == DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE_COMP ||
+		dso__symtab_type(dso) == DSO_BINARY_TYPE__GUEST_KMODULE_COMP;
 }
 
-static int decompress_kmodule(struct dso *dso, const char *name,
-			      char *pathname, size_t len)
+int filename__decompress(const char *name, char *pathname,
+			 size_t len, int comp, int *err)
 {
 	char tmpbuf[] = KMOD_DECOMP_NAME;
 	int fd = -1;
-
-	if (!dso__needs_decompress(dso))
-		return -1;
-
-	if (dso->comp == COMP_ID__NONE)
-		return -1;
 
 	/*
 	 * We have proper compression id for DSO and yet the file
@@ -286,17 +339,17 @@ static int decompress_kmodule(struct dso *dso, const char *name,
 	 * To keep this transparent, we detect this and return the file
 	 * descriptor to the uncompressed file.
 	 */
-	if (!compressions[dso->comp].is_compressed(name))
+	if (!compressions[comp].is_compressed(name))
 		return open(name, O_RDONLY);
 
 	fd = mkstemp(tmpbuf);
 	if (fd < 0) {
-		dso->load_errno = errno;
+		*err = errno;
 		return -1;
 	}
 
-	if (compressions[dso->comp].decompress(name, fd)) {
-		dso->load_errno = DSO_LOAD_ERRNO__DECOMPRESSION_FAILURE;
+	if (compressions[comp].decompress(name, fd)) {
+		*err = DSO_LOAD_ERRNO__DECOMPRESSION_FAILURE;
 		close(fd);
 		fd = -1;
 	}
@@ -308,6 +361,18 @@ static int decompress_kmodule(struct dso *dso, const char *name,
 		strlcpy(pathname, tmpbuf, len);
 
 	return fd;
+}
+
+static int decompress_kmodule(struct dso *dso, const char *name,
+			      char *pathname, size_t len)
+{
+	if (!dso__needs_decompress(dso))
+		return -1;
+
+	if (dso__comp(dso) == COMP_ID__NONE)
+		return -1;
+
+	return filename__decompress(name, pathname, len, dso__comp(dso), dso__load_errno(dso));
 }
 
 int dso__decompress_kmodule_fd(struct dso *dso, const char *name)
@@ -408,16 +473,17 @@ void dso__set_module_info(struct dso *dso, struct kmod_path *m,
 			  struct machine *machine)
 {
 	if (machine__is_host(machine))
-		dso->symtab_type = DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE;
+		dso__set_symtab_type(dso, DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE);
 	else
-		dso->symtab_type = DSO_BINARY_TYPE__GUEST_KMODULE;
+		dso__set_symtab_type(dso, DSO_BINARY_TYPE__GUEST_KMODULE);
 
 	/* _KMODULE_COMP should be next to _KMODULE */
 	if (m->kmod && m->comp) {
-		dso->symtab_type++;
-		dso->comp = m->comp;
+		dso__set_symtab_type(dso, dso__symtab_type(dso) + 1);
+		dso__set_comp(dso, m->comp);
 	}
 
+	dso__set_is_kmod(dso);
 	dso__set_short_name(dso, strdup(m->name), true);
 }
 
@@ -430,13 +496,21 @@ static pthread_mutex_t dso__data_open_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static void dso__list_add(struct dso *dso)
 {
-	list_add_tail(&dso->data.open_entry, &dso__data_open);
+	list_add_tail(&dso__data(dso)->open_entry, &dso__data_open);
+#ifdef REFCNT_CHECKING
+	dso__data(dso)->dso = dso__get(dso);
+#endif
+	/* Assume the dso is part of dsos, hence the optional reference count above. */
+	assert(dso__dsos(dso));
 	dso__data_open_cnt++;
 }
 
 static void dso__list_del(struct dso *dso)
 {
-	list_del_init(&dso->data.open_entry);
+	list_del_init(&dso__data(dso)->open_entry);
+#ifdef REFCNT_CHECKING
+	dso__put(dso__data(dso)->dso);
+#endif
 	WARN_ONCE(dso__data_open_cnt <= 0,
 		  "DSO data fd counter out of bounds.");
 	dso__data_open_cnt--;
@@ -465,6 +539,11 @@ static int do_open(char *name)
 	return -1;
 }
 
+char *dso__filename_with_chroot(const struct dso *dso, const char *filename)
+{
+	return filename_with_chroot(nsinfo__pid(dso__nsinfo_const(dso)), filename);
+}
+
 static int __open_dso(struct dso *dso, struct machine *machine)
 {
 	int fd = -EINVAL;
@@ -475,22 +554,34 @@ static int __open_dso(struct dso *dso, struct machine *machine)
 	if (!name)
 		return -ENOMEM;
 
+	mutex_lock(dso__lock(dso));
 	if (machine)
 		root_dir = machine->root_dir;
 
-	if (dso__read_binary_type_filename(dso, dso->binary_type,
+	if (dso__read_binary_type_filename(dso, dso__binary_type(dso),
 					    root_dir, name, PATH_MAX))
 		goto out;
 
-	if (!is_regular_file(name))
-		goto out;
+	if (!is_regular_file(name)) {
+		char *new_name;
+
+		if (errno != ENOENT || dso__nsinfo(dso) == NULL)
+			goto out;
+
+		new_name = dso__filename_with_chroot(dso, name);
+		if (!new_name)
+			goto out;
+
+		free(name);
+		name = new_name;
+	}
 
 	if (dso__needs_decompress(dso)) {
 		char newpath[KMOD_DECOMP_LEN];
 		size_t len = sizeof(newpath);
 
 		if (dso__decompress_kmodule_path(dso, name, newpath, len) < 0) {
-			fd = -dso->load_errno;
+			fd = -(*dso__load_errno(dso));
 			goto out;
 		}
 
@@ -504,6 +595,7 @@ static int __open_dso(struct dso *dso, struct machine *machine)
 		unlink(name);
 
 out:
+	mutex_unlock(dso__lock(dso));
 	free(name);
 	return fd;
 }
@@ -522,10 +614,13 @@ static int open_dso(struct dso *dso, struct machine *machine)
 	int fd;
 	struct nscookie nsc;
 
-	if (dso->binary_type != DSO_BINARY_TYPE__BUILD_ID_CACHE)
-		nsinfo__mountns_enter(dso->nsinfo, &nsc);
+	if (dso__binary_type(dso) != DSO_BINARY_TYPE__BUILD_ID_CACHE) {
+		mutex_lock(dso__lock(dso));
+		nsinfo__mountns_enter(dso__nsinfo(dso), &nsc);
+		mutex_unlock(dso__lock(dso));
+	}
 	fd = __open_dso(dso, machine);
-	if (dso->binary_type != DSO_BINARY_TYPE__BUILD_ID_CACHE)
+	if (dso__binary_type(dso) != DSO_BINARY_TYPE__BUILD_ID_CACHE)
 		nsinfo__mountns_exit(&nsc);
 
 	if (fd >= 0) {
@@ -542,10 +637,10 @@ static int open_dso(struct dso *dso, struct machine *machine)
 
 static void close_data_fd(struct dso *dso)
 {
-	if (dso->data.fd >= 0) {
-		close(dso->data.fd);
-		dso->data.fd = -1;
-		dso->data.file_size = 0;
+	if (dso__data(dso)->fd >= 0) {
+		close(dso__data(dso)->fd);
+		dso__data(dso)->fd = -1;
+		dso__data(dso)->file_size = 0;
 		dso__list_del(dso);
 	}
 }
@@ -564,9 +659,15 @@ static void close_dso(struct dso *dso)
 
 static void close_first_dso(void)
 {
+	struct dso_data *dso_data;
 	struct dso *dso;
 
-	dso = list_first_entry(&dso__data_open, struct dso, data.open_entry);
+	dso_data = list_first_entry(&dso__data_open, struct dso_data, open_entry);
+#ifdef REFCNT_CHECKING
+	dso = dso_data->dso;
+#else
+	dso = container_of(dso_data, struct dso, data);
+#endif
 	close_dso(dso);
 }
 
@@ -646,28 +747,29 @@ static void try_to_open_dso(struct dso *dso, struct machine *machine)
 		DSO_BINARY_TYPE__NOT_FOUND,
 	};
 	int i = 0;
+	struct dso_data *dso_data = dso__data(dso);
 
-	if (dso->data.fd >= 0)
+	if (dso_data->fd >= 0)
 		return;
 
-	if (dso->binary_type != DSO_BINARY_TYPE__NOT_FOUND) {
-		dso->data.fd = open_dso(dso, machine);
+	if (dso__binary_type(dso) != DSO_BINARY_TYPE__NOT_FOUND) {
+		dso_data->fd = open_dso(dso, machine);
 		goto out;
 	}
 
 	do {
-		dso->binary_type = binary_type_data[i++];
+		dso__set_binary_type(dso, binary_type_data[i++]);
 
-		dso->data.fd = open_dso(dso, machine);
-		if (dso->data.fd >= 0)
+		dso_data->fd = open_dso(dso, machine);
+		if (dso_data->fd >= 0)
 			goto out;
 
-	} while (dso->binary_type != DSO_BINARY_TYPE__NOT_FOUND);
+	} while (dso__binary_type(dso) != DSO_BINARY_TYPE__NOT_FOUND);
 out:
-	if (dso->data.fd >= 0)
-		dso->data.status = DSO_DATA_STATUS_OK;
+	if (dso_data->fd >= 0)
+		dso_data->status = DSO_DATA_STATUS_OK;
 	else
-		dso->data.status = DSO_DATA_STATUS_ERROR;
+		dso_data->status = DSO_DATA_STATUS_ERROR;
 }
 
 /**
@@ -681,7 +783,7 @@ out:
  */
 int dso__data_get_fd(struct dso *dso, struct machine *machine)
 {
-	if (dso->data.status == DSO_DATA_STATUS_ERROR)
+	if (dso__data(dso)->status == DSO_DATA_STATUS_ERROR)
 		return -1;
 
 	if (pthread_mutex_lock(&dso__data_open_lock) < 0)
@@ -689,10 +791,10 @@ int dso__data_get_fd(struct dso *dso, struct machine *machine)
 
 	try_to_open_dso(dso, machine);
 
-	if (dso->data.fd < 0)
+	if (dso__data(dso)->fd < 0)
 		pthread_mutex_unlock(&dso__data_open_lock);
 
-	return dso->data.fd;
+	return dso__data(dso)->fd;
 }
 
 void dso__data_put_fd(struct dso *dso __maybe_unused)
@@ -704,24 +806,26 @@ bool dso__data_status_seen(struct dso *dso, enum dso_data_status_seen by)
 {
 	u32 flag = 1 << by;
 
-	if (dso->data.status_seen & flag)
+	if (dso__data(dso)->status_seen & flag)
 		return true;
 
-	dso->data.status_seen |= flag;
+	dso__data(dso)->status_seen |= flag;
 
 	return false;
 }
 
+#ifdef HAVE_LIBBPF_SUPPORT
 static ssize_t bpf_read(struct dso *dso, u64 offset, char *data)
 {
 	struct bpf_prog_info_node *node;
 	ssize_t size = DSO__DATA_CACHE_SIZE;
+	struct dso_bpf_prog *dso_bpf_prog = dso__bpf_prog(dso);
 	u64 len;
 	u8 *buf;
 
-	node = perf_env__find_bpf_prog_info(dso->bpf_prog.env, dso->bpf_prog.id);
+	node = perf_env__find_bpf_prog_info(dso_bpf_prog->env, dso_bpf_prog->id);
 	if (!node || !node->info_linear) {
-		dso->data.status = DSO_DATA_STATUS_ERROR;
+		dso__data(dso)->status = DSO_DATA_STATUS_ERROR;
 		return -1;
 	}
 
@@ -739,24 +843,26 @@ static ssize_t bpf_read(struct dso *dso, u64 offset, char *data)
 static int bpf_size(struct dso *dso)
 {
 	struct bpf_prog_info_node *node;
+	struct dso_bpf_prog *dso_bpf_prog = dso__bpf_prog(dso);
 
-	node = perf_env__find_bpf_prog_info(dso->bpf_prog.env, dso->bpf_prog.id);
+	node = perf_env__find_bpf_prog_info(dso_bpf_prog->env, dso_bpf_prog->id);
 	if (!node || !node->info_linear) {
-		dso->data.status = DSO_DATA_STATUS_ERROR;
+		dso__data(dso)->status = DSO_DATA_STATUS_ERROR;
 		return -1;
 	}
 
-	dso->data.file_size = node->info_linear->info.jited_prog_len;
+	dso__data(dso)->file_size = node->info_linear->info.jited_prog_len;
 	return 0;
 }
+#endif // HAVE_LIBBPF_SUPPORT
 
 static void
 dso_cache__free(struct dso *dso)
 {
-	struct rb_root *root = &dso->data.cache;
+	struct rb_root *root = &dso__data(dso)->cache;
 	struct rb_node *next = rb_first(root);
 
-	pthread_mutex_lock(&dso->lock);
+	mutex_lock(dso__lock(dso));
 	while (next) {
 		struct dso_cache *cache;
 
@@ -765,12 +871,12 @@ dso_cache__free(struct dso *dso)
 		rb_erase(&cache->rb_node, root);
 		free(cache);
 	}
-	pthread_mutex_unlock(&dso->lock);
+	mutex_unlock(dso__lock(dso));
 }
 
-static struct dso_cache *dso_cache__find(struct dso *dso, u64 offset)
+static struct dso_cache *__dso_cache__find(struct dso *dso, u64 offset)
 {
-	const struct rb_root *root = &dso->data.cache;
+	const struct rb_root *root = &dso__data(dso)->cache;
 	struct rb_node * const *p = &root->rb_node;
 	const struct rb_node *parent = NULL;
 	struct dso_cache *cache;
@@ -796,13 +902,13 @@ static struct dso_cache *dso_cache__find(struct dso *dso, u64 offset)
 static struct dso_cache *
 dso_cache__insert(struct dso *dso, struct dso_cache *new)
 {
-	struct rb_root *root = &dso->data.cache;
+	struct rb_root *root = &dso__data(dso)->cache;
 	struct rb_node **p = &root->rb_node;
 	struct rb_node *parent = NULL;
 	struct dso_cache *cache;
 	u64 offset = new->offset;
 
-	pthread_mutex_lock(&dso->lock);
+	mutex_lock(dso__lock(dso));
 	while (*p != NULL) {
 		u64 end;
 
@@ -823,18 +929,20 @@ dso_cache__insert(struct dso *dso, struct dso_cache *new)
 
 	cache = NULL;
 out:
-	pthread_mutex_unlock(&dso->lock);
+	mutex_unlock(dso__lock(dso));
 	return cache;
 }
 
-static ssize_t
-dso_cache__memcpy(struct dso_cache *cache, u64 offset,
-		  u8 *data, u64 size)
+static ssize_t dso_cache__memcpy(struct dso_cache *cache, u64 offset, u8 *data,
+				 u64 size, bool out)
 {
 	u64 cache_offset = offset - cache->offset;
 	u64 cache_size   = min(cache->size - cache_offset, size);
 
-	memcpy(data, cache->data + cache_offset, cache_size);
+	if (out)
+		memcpy(data, cache->data + cache_offset, cache_size);
+	else
+		memcpy(cache->data + cache_offset, data, cache_size);
 	return cache_size;
 }
 
@@ -846,80 +954,94 @@ static ssize_t file_read(struct dso *dso, struct machine *machine,
 	pthread_mutex_lock(&dso__data_open_lock);
 
 	/*
-	 * dso->data.fd might be closed if other thread opened another
+	 * dso__data(dso)->fd might be closed if other thread opened another
 	 * file (dso) due to open file limit (RLIMIT_NOFILE).
 	 */
 	try_to_open_dso(dso, machine);
 
-	if (dso->data.fd < 0) {
-		dso->data.status = DSO_DATA_STATUS_ERROR;
+	if (dso__data(dso)->fd < 0) {
+		dso__data(dso)->status = DSO_DATA_STATUS_ERROR;
 		ret = -errno;
 		goto out;
 	}
 
-	ret = pread(dso->data.fd, data, DSO__DATA_CACHE_SIZE, offset);
+	ret = pread(dso__data(dso)->fd, data, DSO__DATA_CACHE_SIZE, offset);
 out:
 	pthread_mutex_unlock(&dso__data_open_lock);
 	return ret;
 }
 
-static ssize_t
-dso_cache__read(struct dso *dso, struct machine *machine,
-		u64 offset, u8 *data, ssize_t size)
+static struct dso_cache *dso_cache__populate(struct dso *dso,
+					     struct machine *machine,
+					     u64 offset, ssize_t *ret)
 {
 	u64 cache_offset = offset & DSO__DATA_CACHE_MASK;
 	struct dso_cache *cache;
 	struct dso_cache *old;
-	ssize_t ret;
 
 	cache = zalloc(sizeof(*cache) + DSO__DATA_CACHE_SIZE);
-	if (!cache)
-		return -ENOMEM;
-
-	if (dso->binary_type == DSO_BINARY_TYPE__BPF_PROG_INFO)
-		ret = bpf_read(dso, cache_offset, cache->data);
+	if (!cache) {
+		*ret = -ENOMEM;
+		return NULL;
+	}
+#ifdef HAVE_LIBBPF_SUPPORT
+	if (dso__binary_type(dso) == DSO_BINARY_TYPE__BPF_PROG_INFO)
+		*ret = bpf_read(dso, cache_offset, cache->data);
 	else
-		ret = file_read(dso, machine, cache_offset, cache->data);
+#endif
+	if (dso__binary_type(dso) == DSO_BINARY_TYPE__OOL)
+		*ret = DSO__DATA_CACHE_SIZE;
+	else
+		*ret = file_read(dso, machine, cache_offset, cache->data);
 
-	if (ret > 0) {
-		cache->offset = cache_offset;
-		cache->size   = ret;
-
-		old = dso_cache__insert(dso, cache);
-		if (old) {
-			/* we lose the race */
-			free(cache);
-			cache = old;
-		}
-
-		ret = dso_cache__memcpy(cache, offset, data, size);
+	if (*ret <= 0) {
+		free(cache);
+		return NULL;
 	}
 
-	if (ret <= 0)
-		free(cache);
+	cache->offset = cache_offset;
+	cache->size   = *ret;
 
-	return ret;
+	old = dso_cache__insert(dso, cache);
+	if (old) {
+		/* we lose the race */
+		free(cache);
+		cache = old;
+	}
+
+	return cache;
 }
 
-static ssize_t dso_cache_read(struct dso *dso, struct machine *machine,
-			      u64 offset, u8 *data, ssize_t size)
+static struct dso_cache *dso_cache__find(struct dso *dso,
+					 struct machine *machine,
+					 u64 offset,
+					 ssize_t *ret)
+{
+	struct dso_cache *cache = __dso_cache__find(dso, offset);
+
+	return cache ? cache : dso_cache__populate(dso, machine, offset, ret);
+}
+
+static ssize_t dso_cache_io(struct dso *dso, struct machine *machine,
+			    u64 offset, u8 *data, ssize_t size, bool out)
 {
 	struct dso_cache *cache;
+	ssize_t ret = 0;
 
-	cache = dso_cache__find(dso, offset);
-	if (cache)
-		return dso_cache__memcpy(cache, offset, data, size);
-	else
-		return dso_cache__read(dso, machine, offset, data, size);
+	cache = dso_cache__find(dso, machine, offset, &ret);
+	if (!cache)
+		return ret;
+
+	return dso_cache__memcpy(cache, offset, data, size, out);
 }
 
 /*
  * Reads and caches dso data DSO__DATA_CACHE_SIZE size chunks
  * in the rb_tree. Any read to already cached data is served
- * by cached data.
+ * by cached data. Writes update the cache only, not the backing file.
  */
-static ssize_t cached_read(struct dso *dso, struct machine *machine,
-			   u64 offset, u8 *data, ssize_t size)
+static ssize_t cached_io(struct dso *dso, struct machine *machine,
+			 u64 offset, u8 *data, ssize_t size, bool out)
 {
 	ssize_t r = 0;
 	u8 *p = data;
@@ -927,7 +1049,7 @@ static ssize_t cached_read(struct dso *dso, struct machine *machine,
 	do {
 		ssize_t ret;
 
-		ret = dso_cache_read(dso, machine, offset, p, size);
+		ret = dso_cache_io(dso, machine, offset, p, size, out);
 		if (ret < 0)
 			return ret;
 
@@ -956,25 +1078,25 @@ static int file_size(struct dso *dso, struct machine *machine)
 	pthread_mutex_lock(&dso__data_open_lock);
 
 	/*
-	 * dso->data.fd might be closed if other thread opened another
+	 * dso__data(dso)->fd might be closed if other thread opened another
 	 * file (dso) due to open file limit (RLIMIT_NOFILE).
 	 */
 	try_to_open_dso(dso, machine);
 
-	if (dso->data.fd < 0) {
+	if (dso__data(dso)->fd < 0) {
 		ret = -errno;
-		dso->data.status = DSO_DATA_STATUS_ERROR;
+		dso__data(dso)->status = DSO_DATA_STATUS_ERROR;
 		goto out;
 	}
 
-	if (fstat(dso->data.fd, &st) < 0) {
+	if (fstat(dso__data(dso)->fd, &st) < 0) {
 		ret = -errno;
 		pr_err("dso cache fstat failed: %s\n",
 		       str_error_r(errno, sbuf, sizeof(sbuf)));
-		dso->data.status = DSO_DATA_STATUS_ERROR;
+		dso__data(dso)->status = DSO_DATA_STATUS_ERROR;
 		goto out;
 	}
-	dso->data.file_size = st.st_size;
+	dso__data(dso)->file_size = st.st_size;
 
 out:
 	pthread_mutex_unlock(&dso__data_open_lock);
@@ -983,15 +1105,15 @@ out:
 
 int dso__data_file_size(struct dso *dso, struct machine *machine)
 {
-	if (dso->data.file_size)
+	if (dso__data(dso)->file_size)
 		return 0;
 
-	if (dso->data.status == DSO_DATA_STATUS_ERROR)
+	if (dso__data(dso)->status == DSO_DATA_STATUS_ERROR)
 		return -1;
-
-	if (dso->binary_type == DSO_BINARY_TYPE__BPF_PROG_INFO)
+#ifdef HAVE_LIBBPF_SUPPORT
+	if (dso__binary_type(dso) == DSO_BINARY_TYPE__BPF_PROG_INFO)
 		return bpf_size(dso);
-
+#endif
 	return file_size(dso, machine);
 }
 
@@ -1008,23 +1130,24 @@ off_t dso__data_size(struct dso *dso, struct machine *machine)
 		return -1;
 
 	/* For now just estimate dso data size is close to file size */
-	return dso->data.file_size;
+	return dso__data(dso)->file_size;
 }
 
-static ssize_t data_read_offset(struct dso *dso, struct machine *machine,
-				u64 offset, u8 *data, ssize_t size)
+static ssize_t data_read_write_offset(struct dso *dso, struct machine *machine,
+				      u64 offset, u8 *data, ssize_t size,
+				      bool out)
 {
 	if (dso__data_file_size(dso, machine))
 		return -1;
 
 	/* Check the offset sanity. */
-	if (offset > dso->data.file_size)
+	if (offset > dso__data(dso)->file_size)
 		return -1;
 
 	if (offset + size < offset)
 		return -1;
 
-	return cached_read(dso, machine, offset, data, size);
+	return cached_io(dso, machine, offset, data, size, out);
 }
 
 /**
@@ -1041,10 +1164,10 @@ static ssize_t data_read_offset(struct dso *dso, struct machine *machine,
 ssize_t dso__data_read_offset(struct dso *dso, struct machine *machine,
 			      u64 offset, u8 *data, ssize_t size)
 {
-	if (dso->data.status == DSO_DATA_STATUS_ERROR)
+	if (dso__data(dso)->status == DSO_DATA_STATUS_ERROR)
 		return -1;
 
-	return data_read_offset(dso, machine, offset, data, size);
+	return data_read_write_offset(dso, machine, offset, data, size, true);
 }
 
 /**
@@ -1061,8 +1184,50 @@ ssize_t dso__data_read_addr(struct dso *dso, struct map *map,
 			    struct machine *machine, u64 addr,
 			    u8 *data, ssize_t size)
 {
-	u64 offset = map->map_ip(map, addr);
+	u64 offset = map__map_ip(map, addr);
+
 	return dso__data_read_offset(dso, machine, offset, data, size);
+}
+
+/**
+ * dso__data_write_cache_offs - Write data to dso data cache at file offset
+ * @dso: dso object
+ * @machine: machine object
+ * @offset: file offset
+ * @data: buffer to write
+ * @size: size of the @data buffer
+ *
+ * Write into the dso file data cache, but do not change the file itself.
+ */
+ssize_t dso__data_write_cache_offs(struct dso *dso, struct machine *machine,
+				   u64 offset, const u8 *data_in, ssize_t size)
+{
+	u8 *data = (u8 *)data_in; /* cast away const to use same fns for r/w */
+
+	if (dso__data(dso)->status == DSO_DATA_STATUS_ERROR)
+		return -1;
+
+	return data_read_write_offset(dso, machine, offset, data, size, false);
+}
+
+/**
+ * dso__data_write_cache_addr - Write data to dso data cache at dso address
+ * @dso: dso object
+ * @machine: machine object
+ * @add: virtual memory address
+ * @data: buffer to write
+ * @size: size of the @data buffer
+ *
+ * External interface to write into the dso file data cache, but do not change
+ * the file itself.
+ */
+ssize_t dso__data_write_cache_addr(struct dso *dso, struct map *map,
+				   struct machine *machine, u64 addr,
+				   const u8 *data, ssize_t size)
+{
+	u64 offset = map__map_ip(map, addr);
+
+	return dso__data_write_cache_offs(dso, machine, offset, data, size);
 }
 
 struct map *dso__new_map(const char *name)
@@ -1070,8 +1235,10 @@ struct map *dso__new_map(const char *name)
 	struct map *map = NULL;
 	struct dso *dso = dso__new(name);
 
-	if (dso)
+	if (dso) {
 		map = map__new2(0, dso);
+		dso__put(dso);
+	}
 
 	return map;
 }
@@ -1090,51 +1257,139 @@ struct dso *machine__findnew_kernel(struct machine *machine, const char *name,
 	 */
 	if (dso != NULL) {
 		dso__set_short_name(dso, short_name, false);
-		dso->kernel = dso_type;
+		dso__set_kernel(dso, dso_type);
 	}
 
 	return dso;
 }
 
-void dso__set_long_name(struct dso *dso, const char *name, bool name_allocated)
+static void dso__set_long_name_id(struct dso *dso, const char *name, bool name_allocated)
 {
-	struct rb_root *root = dso->root;
+	struct dsos *dsos = dso__dsos(dso);
 
 	if (name == NULL)
 		return;
 
-	if (dso->long_name_allocated)
-		free((char *)dso->long_name);
-
-	if (root) {
-		rb_erase(&dso->rb_node, root);
+	if (dsos) {
 		/*
-		 * __dsos__findnew_link_by_longname() isn't guaranteed to add it
-		 * back, so a clean removal is required here.
+		 * Need to avoid re-sorting the dsos breaking by non-atomically
+		 * renaming the dso.
 		 */
-		RB_CLEAR_NODE(&dso->rb_node);
-		dso->root = NULL;
+		down_write(&dsos->lock);
 	}
 
-	dso->long_name		 = name;
-	dso->long_name_len	 = strlen(name);
-	dso->long_name_allocated = name_allocated;
+	if (dso__long_name_allocated(dso))
+		free((char *)dso__long_name(dso));
 
-	if (root)
-		__dsos__findnew_link_by_longname(root, dso, NULL);
+	RC_CHK_ACCESS(dso)->long_name = name;
+	RC_CHK_ACCESS(dso)->long_name_len = strlen(name);
+	dso__set_long_name_allocated(dso, name_allocated);
+
+	if (dsos) {
+		dsos->sorted = false;
+		up_write(&dsos->lock);
+	}
+}
+
+static int __dso_id__cmp(const struct dso_id *a, const struct dso_id *b)
+{
+	if (a->maj > b->maj) return -1;
+	if (a->maj < b->maj) return 1;
+
+	if (a->min > b->min) return -1;
+	if (a->min < b->min) return 1;
+
+	if (a->ino > b->ino) return -1;
+	if (a->ino < b->ino) return 1;
+
+	/*
+	 * Synthesized MMAP events have zero ino_generation, avoid comparing
+	 * them with MMAP events with actual ino_generation.
+	 *
+	 * I found it harmful because the mismatch resulted in a new
+	 * dso that did not have a build ID whereas the original dso did have a
+	 * build ID. The build ID was essential because the object was not found
+	 * otherwise. - Adrian
+	 */
+	if (a->ino_generation && b->ino_generation) {
+		if (a->ino_generation > b->ino_generation) return -1;
+		if (a->ino_generation < b->ino_generation) return 1;
+	}
+
+	return 0;
+}
+
+bool dso_id__empty(const struct dso_id *id)
+{
+	if (!id)
+		return true;
+
+	return !id->maj && !id->min && !id->ino && !id->ino_generation;
+}
+
+void __dso__inject_id(struct dso *dso, struct dso_id *id)
+{
+	struct dsos *dsos = dso__dsos(dso);
+	struct dso_id *dso_id = dso__id(dso);
+
+	/* dsos write lock held by caller. */
+
+	dso_id->maj = id->maj;
+	dso_id->min = id->min;
+	dso_id->ino = id->ino;
+	dso_id->ino_generation = id->ino_generation;
+
+	if (dsos)
+		dsos->sorted = false;
+}
+
+int dso_id__cmp(const struct dso_id *a, const struct dso_id *b)
+{
+	/*
+	 * The second is always dso->id, so zeroes if not set, assume passing
+	 * NULL for a means a zeroed id
+	 */
+	if (dso_id__empty(a) || dso_id__empty(b))
+		return 0;
+
+	return __dso_id__cmp(a, b);
+}
+
+int dso__cmp_id(struct dso *a, struct dso *b)
+{
+	return __dso_id__cmp(dso__id(a), dso__id(b));
+}
+
+void dso__set_long_name(struct dso *dso, const char *name, bool name_allocated)
+{
+	dso__set_long_name_id(dso, name, name_allocated);
 }
 
 void dso__set_short_name(struct dso *dso, const char *name, bool name_allocated)
 {
+	struct dsos *dsos = dso__dsos(dso);
+
 	if (name == NULL)
 		return;
 
-	if (dso->short_name_allocated)
-		free((char *)dso->short_name);
+	if (dsos) {
+		/*
+		 * Need to avoid re-sorting the dsos breaking by non-atomically
+		 * renaming the dso.
+		 */
+		down_write(&dsos->lock);
+	}
+	if (dso__short_name_allocated(dso))
+		free((char *)dso__short_name(dso));
 
-	dso->short_name		  = name;
-	dso->short_name_len	  = strlen(name);
-	dso->short_name_allocated = name_allocated;
+	RC_CHK_ACCESS(dso)->short_name		  = name;
+	RC_CHK_ACCESS(dso)->short_name_len	  = strlen(name);
+	dso__set_short_name_allocated(dso, name_allocated);
+
+	if (dsos) {
+		dsos->sorted = false;
+		up_write(&dsos->lock);
+	}
 }
 
 int dso__name_len(const struct dso *dso)
@@ -1142,38 +1397,48 @@ int dso__name_len(const struct dso *dso)
 	if (!dso)
 		return strlen("[unknown]");
 	if (verbose > 0)
-		return dso->long_name_len;
+		return dso__long_name_len(dso);
 
-	return dso->short_name_len;
+	return dso__short_name_len(dso);
 }
 
 bool dso__loaded(const struct dso *dso)
 {
-	return dso->loaded;
+	return RC_CHK_ACCESS(dso)->loaded;
 }
 
 bool dso__sorted_by_name(const struct dso *dso)
 {
-	return dso->sorted_by_name;
+	return RC_CHK_ACCESS(dso)->sorted_by_name;
 }
 
 void dso__set_sorted_by_name(struct dso *dso)
 {
-	dso->sorted_by_name = true;
+	RC_CHK_ACCESS(dso)->sorted_by_name = true;
 }
 
-struct dso *dso__new(const char *name)
+struct dso *dso__new_id(const char *name, struct dso_id *id)
 {
-	struct dso *dso = calloc(1, sizeof(*dso) + strlen(name) + 1);
+	RC_STRUCT(dso) *dso = zalloc(sizeof(*dso) + strlen(name) + 1);
+	struct dso *res;
+	struct dso_data *data;
 
-	if (dso != NULL) {
+	if (!dso)
+		return NULL;
+
+	if (ADD_RC_CHK(res, dso)) {
 		strcpy(dso->name, name);
-		dso__set_long_name(dso, dso->name, false);
-		dso__set_short_name(dso, dso->name, false);
-		dso->symbols = dso->symbol_names = RB_ROOT_CACHED;
-		dso->data.cache = RB_ROOT;
+		if (id)
+			dso->id = *id;
+		dso__set_long_name_id(res, dso->name, false);
+		dso__set_short_name(res, dso->name, false);
+		dso->symbols = RB_ROOT_CACHED;
+		dso->symbol_names = NULL;
+		dso->symbol_names_len = 0;
 		dso->inlined_nodes = RB_ROOT_CACHED;
 		dso->srclines = RB_ROOT_CACHED;
+		dso->data_types = RB_ROOT;
+		dso->global_vars = RB_ROOT;
 		dso->data.fd = -1;
 		dso->data.status = DSO_DATA_STATUS_UNKNOWN;
 		dso->symtab_type = DSO_BINARY_TYPE__NOT_FOUND;
@@ -1185,73 +1450,103 @@ struct dso *dso__new(const char *name)
 		dso->has_build_id = 0;
 		dso->has_srcline = 1;
 		dso->a2l_fails = 1;
-		dso->kernel = DSO_TYPE_USER;
+		dso->kernel = DSO_SPACE__USER;
+		dso->is_kmod = 0;
 		dso->needs_swap = DSO_SWAP__UNSET;
 		dso->comp = COMP_ID__NONE;
-		RB_CLEAR_NODE(&dso->rb_node);
-		dso->root = NULL;
-		INIT_LIST_HEAD(&dso->node);
-		INIT_LIST_HEAD(&dso->data.open_entry);
-		pthread_mutex_init(&dso->lock, NULL);
+		mutex_init(&dso->lock);
 		refcount_set(&dso->refcnt, 1);
+		data = &dso->data;
+		data->cache = RB_ROOT;
+		data->fd = -1;
+		data->status = DSO_DATA_STATUS_UNKNOWN;
+		INIT_LIST_HEAD(&data->open_entry);
+#ifdef REFCNT_CHECKING
+		data->dso = NULL; /* Set when on the open_entry list. */
+#endif
 	}
+	return res;
+}
 
-	return dso;
+struct dso *dso__new(const char *name)
+{
+	return dso__new_id(name, NULL);
 }
 
 void dso__delete(struct dso *dso)
 {
-	if (!RB_EMPTY_NODE(&dso->rb_node))
-		pr_err("DSO %s is still in rbtree when being deleted!\n",
-		       dso->long_name);
+	if (dso__dsos(dso))
+		pr_err("DSO %s is still in rbtree when being deleted!\n", dso__long_name(dso));
 
 	/* free inlines first, as they reference symbols */
-	inlines__tree_delete(&dso->inlined_nodes);
-	srcline__tree_delete(&dso->srclines);
-	symbols__delete(&dso->symbols);
+	inlines__tree_delete(&RC_CHK_ACCESS(dso)->inlined_nodes);
+	srcline__tree_delete(&RC_CHK_ACCESS(dso)->srclines);
+	symbols__delete(&RC_CHK_ACCESS(dso)->symbols);
+	RC_CHK_ACCESS(dso)->symbol_names_len = 0;
+	zfree(&RC_CHK_ACCESS(dso)->symbol_names);
+	annotated_data_type__tree_delete(dso__data_types(dso));
+	global_var_type__tree_delete(dso__global_vars(dso));
 
-	if (dso->short_name_allocated) {
-		zfree((char **)&dso->short_name);
-		dso->short_name_allocated = false;
+	if (RC_CHK_ACCESS(dso)->short_name_allocated) {
+		zfree((char **)&RC_CHK_ACCESS(dso)->short_name);
+		RC_CHK_ACCESS(dso)->short_name_allocated = false;
 	}
 
-	if (dso->long_name_allocated) {
-		zfree((char **)&dso->long_name);
-		dso->long_name_allocated = false;
+	if (RC_CHK_ACCESS(dso)->long_name_allocated) {
+		zfree((char **)&RC_CHK_ACCESS(dso)->long_name);
+		RC_CHK_ACCESS(dso)->long_name_allocated = false;
 	}
 
 	dso__data_close(dso);
-	auxtrace_cache__free(dso->auxtrace_cache);
+	auxtrace_cache__free(RC_CHK_ACCESS(dso)->auxtrace_cache);
 	dso_cache__free(dso);
 	dso__free_a2l(dso);
-	zfree(&dso->symsrc_filename);
-	nsinfo__zput(dso->nsinfo);
-	pthread_mutex_destroy(&dso->lock);
-	free(dso);
+	zfree(&RC_CHK_ACCESS(dso)->symsrc_filename);
+	nsinfo__zput(RC_CHK_ACCESS(dso)->nsinfo);
+	mutex_destroy(dso__lock(dso));
+	RC_CHK_FREE(dso);
 }
 
 struct dso *dso__get(struct dso *dso)
 {
-	if (dso)
-		refcount_inc(&dso->refcnt);
-	return dso;
+	struct dso *result;
+
+	if (RC_CHK_GET(result, dso))
+		refcount_inc(&RC_CHK_ACCESS(dso)->refcnt);
+
+	return result;
 }
 
 void dso__put(struct dso *dso)
 {
-	if (dso && refcount_dec_and_test(&dso->refcnt))
+	if (dso && refcount_dec_and_test(&RC_CHK_ACCESS(dso)->refcnt))
 		dso__delete(dso);
+	else
+		RC_CHK_PUT(dso);
 }
 
-void dso__set_build_id(struct dso *dso, void *build_id)
+void dso__set_build_id(struct dso *dso, struct build_id *bid)
 {
-	memcpy(dso->build_id, build_id, sizeof(dso->build_id));
-	dso->has_build_id = 1;
+	RC_CHK_ACCESS(dso)->bid = *bid;
+	RC_CHK_ACCESS(dso)->has_build_id = 1;
 }
 
-bool dso__build_id_equal(const struct dso *dso, u8 *build_id)
+bool dso__build_id_equal(const struct dso *dso, struct build_id *bid)
 {
-	return memcmp(dso->build_id, build_id, sizeof(dso->build_id)) == 0;
+	const struct build_id *dso_bid = dso__bid_const(dso);
+
+	if (dso_bid->size > bid->size && dso_bid->size == BUILD_ID_SIZE) {
+		/*
+		 * For the backward compatibility, it allows a build-id has
+		 * trailing zeros.
+		 */
+		return !memcmp(dso_bid->data, bid->data, bid->size) &&
+			!memchr_inv(&dso_bid->data[bid->size], 0,
+				    dso_bid->size - bid->size);
+	}
+
+	return dso_bid->size == bid->size &&
+	       memcmp(dso_bid->data, bid->data, dso_bid->size) == 0;
 }
 
 void dso__read_running_kernel_build_id(struct dso *dso, struct machine *machine)
@@ -1261,9 +1556,8 @@ void dso__read_running_kernel_build_id(struct dso *dso, struct machine *machine)
 	if (machine__is_default_guest(machine))
 		return;
 	sprintf(path, "%s/sys/kernel/notes", machine->root_dir);
-	if (sysfs__read_build_id(path, dso->build_id,
-				 sizeof(dso->build_id)) == 0)
-		dso->has_build_id = true;
+	if (sysfs__read_build_id(path, dso__bid(dso)) == 0)
+		dso__set_has_build_id(dso);
 }
 
 int dso__kernel_module_get_build_id(struct dso *dso,
@@ -1274,38 +1568,37 @@ int dso__kernel_module_get_build_id(struct dso *dso,
 	 * kernel module short names are of the form "[module]" and
 	 * we need just "module" here.
 	 */
-	const char *name = dso->short_name + 1;
+	const char *name = dso__short_name(dso) + 1;
 
 	snprintf(filename, sizeof(filename),
 		 "%s/sys/module/%.*s/notes/.note.gnu.build-id",
 		 root_dir, (int)strlen(name) - 1, name);
 
-	if (sysfs__read_build_id(filename, dso->build_id,
-				 sizeof(dso->build_id)) == 0)
-		dso->has_build_id = true;
+	if (sysfs__read_build_id(filename, dso__bid(dso)) == 0)
+		dso__set_has_build_id(dso);
 
 	return 0;
 }
 
-size_t dso__fprintf_buildid(struct dso *dso, FILE *fp)
+static size_t dso__fprintf_buildid(struct dso *dso, FILE *fp)
 {
 	char sbuild_id[SBUILD_ID_SIZE];
 
-	build_id__sprintf(dso->build_id, sizeof(dso->build_id), sbuild_id);
+	build_id__sprintf(dso__bid(dso), sbuild_id);
 	return fprintf(fp, "%s", sbuild_id);
 }
 
 size_t dso__fprintf(struct dso *dso, FILE *fp)
 {
 	struct rb_node *nd;
-	size_t ret = fprintf(fp, "dso: %s (", dso->short_name);
+	size_t ret = fprintf(fp, "dso: %s (", dso__short_name(dso));
 
-	if (dso->short_name != dso->long_name)
-		ret += fprintf(fp, "%s, ", dso->long_name);
+	if (dso__short_name(dso) != dso__long_name(dso))
+		ret += fprintf(fp, "%s, ", dso__long_name(dso));
 	ret += fprintf(fp, "%sloaded, ", dso__loaded(dso) ? "" : "NOT ");
 	ret += dso__fprintf_buildid(dso, fp);
 	ret += fprintf(fp, ")\n");
-	for (nd = rb_first_cached(&dso->symbols); nd; nd = rb_next(nd)) {
+	for (nd = rb_first_cached(dso__symbols(dso)); nd; nd = rb_next(nd)) {
 		struct symbol *pos = rb_entry(nd, struct symbol, rb_node);
 		ret += symbol__fprintf(pos, fp);
 	}
@@ -1329,7 +1622,7 @@ enum dso_type dso__type(struct dso *dso, struct machine *machine)
 
 int dso__strerror_load(struct dso *dso, char *buf, size_t buflen)
 {
-	int idx, errnum = dso->load_errno;
+	int idx, errnum = *dso__load_errno(dso);
 	/*
 	 * This must have a same ordering as the enum dso_load_errno.
 	 */

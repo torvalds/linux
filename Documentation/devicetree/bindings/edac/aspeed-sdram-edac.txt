@@ -1,6 +1,6 @@
-Aspeed AST2500 SoC EDAC node
+Aspeed BMC SoC EDAC node
 
-The Aspeed AST2500 SoC supports DDR3 and DDR4 memory with and without ECC (error
+The Aspeed BMC SoC supports DDR3 and DDR4 memory with and without ECC (error
 correction check).
 
 The memory controller supports SECDED (single bit error correction, double bit
@@ -11,7 +11,10 @@ Note, the bootloader must configure ECC mode in the memory controller.
 
 
 Required properties:
-- compatible: should be "aspeed,ast2500-sdram-edac"
+- compatible: should be one of
+	- "aspeed,ast2400-sdram-edac"
+	- "aspeed,ast2500-sdram-edac"
+	- "aspeed,ast2600-sdram-edac"
 - reg:        sdram controller register set should be <0x1e6e0000 0x174>
 - interrupts: should be AVIC interrupt #0
 

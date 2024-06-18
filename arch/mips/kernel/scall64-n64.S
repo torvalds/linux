@@ -18,9 +18,8 @@
 #include <asm/sysmips.h>
 #include <asm/thread_info.h>
 #include <asm/unistd.h>
-#include <asm/war.h>
 
-#ifndef CONFIG_BINFMT_ELF32
+#ifndef CONFIG_MIPS32_COMPAT
 /* Neither O32 nor N32, so define handle_sys here */
 #define handle_sys64 handle_sys
 #endif
@@ -46,6 +45,8 @@ NESTED(handle_sys64, PT_SIZE, sp)
 #endif
 
 	sd	a3, PT_R26(sp)		# save a3 for syscall restarting
+
+	LONG_S	v0, TI_SYSCALL($28)     # Store syscall number
 
 	li	t1, _TIF_WORK_SYSCALL_ENTRY
 	LONG_L	t0, TI_FLAGS($28)	# syscall tracing enabled?
@@ -83,7 +84,6 @@ n64_syscall_exit:
 syscall_trace_entry:
 	SAVE_STATIC
 	move	a0, sp
-	move	a1, v0
 	jal	syscall_trace_enter
 
 	bltz	v0, 1f			# seccomp failed? Skip syscall
@@ -109,9 +109,8 @@ illegal_syscall:
 	j	n64_syscall_exit
 	END(handle_sys64)
 
-#define __SYSCALL(nr, entry)	PTR entry
+#define __SYSCALL(nr, entry)	PTR_WD entry
 	.align	3
 	.type	sys_call_table, @object
 EXPORT(sys_call_table)
-#include <asm/syscall_table_64_n64.h>
-#undef __SYSCALL
+#include <asm/syscall_table_n64.h>

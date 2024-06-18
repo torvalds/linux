@@ -53,18 +53,37 @@
 #define MDIO_AN_EEE_LPABLE	61	/* EEE link partner ability */
 #define MDIO_AN_EEE_ADV2	62	/* EEE advertisement 2 */
 #define MDIO_AN_EEE_LPABLE2	63	/* EEE link partner ability 2 */
+#define MDIO_AN_CTRL2		64	/* AN THP bypass request control */
 
 /* Media-dependent registers. */
 #define MDIO_PMA_10GBT_SWAPPOL	130	/* 10GBASE-T pair swap & polarity */
 #define MDIO_PMA_10GBT_TXPWR	131	/* 10GBASE-T TX power control */
 #define MDIO_PMA_10GBT_SNR	133	/* 10GBASE-T SNR margin, lane A.
 					 * Lanes B-D are numbered 134-136. */
+#define MDIO_PMA_10GBR_FSRT_CSR	147	/* 10GBASE-R fast retrain status and control */
 #define MDIO_PMA_10GBR_FECABLE	170	/* 10GBASE-R FEC ability */
 #define MDIO_PCS_10GBX_STAT1	24	/* 10GBASE-X PCS status 1 */
 #define MDIO_PCS_10GBRT_STAT1	32	/* 10GBASE-R/-T PCS status 1 */
 #define MDIO_PCS_10GBRT_STAT2	33	/* 10GBASE-R/-T PCS status 2 */
 #define MDIO_AN_10GBT_CTRL	32	/* 10GBASE-T auto-negotiation control */
 #define MDIO_AN_10GBT_STAT	33	/* 10GBASE-T auto-negotiation status */
+#define MDIO_B10L_PMA_CTRL	2294	/* 10BASE-T1L PMA control */
+#define MDIO_PMA_10T1L_STAT	2295	/* 10BASE-T1L PMA status */
+#define MDIO_PCS_10T1L_CTRL	2278	/* 10BASE-T1L PCS control */
+#define MDIO_PMA_PMD_BT1	18	/* BASE-T1 PMA/PMD extended ability */
+#define MDIO_AN_T1_CTRL		512	/* BASE-T1 AN control */
+#define MDIO_AN_T1_STAT		513	/* BASE-T1 AN status */
+#define MDIO_AN_T1_ADV_L	514	/* BASE-T1 AN advertisement register [15:0] */
+#define MDIO_AN_T1_ADV_M	515	/* BASE-T1 AN advertisement register [31:16] */
+#define MDIO_AN_T1_ADV_H	516	/* BASE-T1 AN advertisement register [47:32] */
+#define MDIO_AN_T1_LP_L		517	/* BASE-T1 AN LP Base Page ability register [15:0] */
+#define MDIO_AN_T1_LP_M		518	/* BASE-T1 AN LP Base Page ability register [31:16] */
+#define MDIO_AN_T1_LP_H		519	/* BASE-T1 AN LP Base Page ability register [47:32] */
+#define MDIO_AN_10BT1_AN_CTRL	526	/* 10BASE-T1 AN control register */
+#define MDIO_AN_10BT1_AN_STAT	527	/* 10BASE-T1 AN status register */
+#define MDIO_PMA_PMD_BT1_CTRL	2100	/* BASE-T1 PMA/PMD control register */
+#define MDIO_PCS_1000BT1_CTRL	2304	/* 1000BASE-T1 PCS control register */
+#define MDIO_PCS_1000BT1_STAT	2305	/* 1000BASE-T1 PCS status register */
 
 /* LASI (Link Alarm Status Interrupt) registers, defined by XENPAK MSA. */
 #define MDIO_PMA_LASI_RXCTRL	0x9000	/* RX_ALARM control */
@@ -119,7 +138,11 @@
 #define MDIO_PMA_SPEED_1000		0x0010	/* 1000M capable */
 #define MDIO_PMA_SPEED_100		0x0020	/* 100M capable */
 #define MDIO_PMA_SPEED_10		0x0040	/* 10M capable */
+#define MDIO_PMA_SPEED_2_5G		0x2000	/* 2.5G capable */
+#define MDIO_PMA_SPEED_5G		0x4000	/* 5G capable */
 #define MDIO_PCS_SPEED_10P2B		0x0002	/* 10PASS-TS/2BASE-TL capable */
+#define MDIO_PCS_SPEED_2_5G		0x0040	/* 2.5G capable */
+#define MDIO_PCS_SPEED_5G		0x0080	/* 5G capable */
 
 /* Device present registers. */
 #define MDIO_DEVS_PRESENT(devad)	(1 << (devad))
@@ -155,6 +178,7 @@
 #define MDIO_PMA_CTRL2_10BT		0x000f	/* 10BASE-T type */
 #define MDIO_PMA_CTRL2_2_5GBT		0x0030  /* 2.5GBaseT type */
 #define MDIO_PMA_CTRL2_5GBT		0x0031  /* 5GBaseT type */
+#define MDIO_PMA_CTRL2_BASET1		0x003D  /* BASE-T1 type */
 #define MDIO_PCS_CTRL2_TYPE		0x0003	/* PCS type selection */
 #define MDIO_PCS_CTRL2_10GBR		0x0000	/* 10GBASE-R type */
 #define MDIO_PCS_CTRL2_10GBX		0x0001	/* 10GBASE-X type */
@@ -208,7 +232,32 @@
 #define MDIO_PMA_EXTABLE_1000BKX	0x0040	/* 1000BASE-KX ability */
 #define MDIO_PMA_EXTABLE_100BTX		0x0080	/* 100BASE-TX ability */
 #define MDIO_PMA_EXTABLE_10BT		0x0100	/* 10BASE-T ability */
+#define MDIO_PMA_EXTABLE_BT1		0x0800	/* BASE-T1 ability */
 #define MDIO_PMA_EXTABLE_NBT		0x4000  /* 2.5/5GBASE-T ability */
+
+/* AN Clause 73 linkword */
+#define MDIO_AN_C73_0_S_MASK		GENMASK(4, 0)
+#define MDIO_AN_C73_0_E_MASK		GENMASK(9, 5)
+#define MDIO_AN_C73_0_PAUSE		BIT(10)
+#define MDIO_AN_C73_0_ASM_DIR		BIT(11)
+#define MDIO_AN_C73_0_C2		BIT(12)
+#define MDIO_AN_C73_0_RF		BIT(13)
+#define MDIO_AN_C73_0_ACK		BIT(14)
+#define MDIO_AN_C73_0_NP		BIT(15)
+#define MDIO_AN_C73_1_T_MASK		GENMASK(4, 0)
+#define MDIO_AN_C73_1_1000BASE_KX	BIT(5)
+#define MDIO_AN_C73_1_10GBASE_KX4	BIT(6)
+#define MDIO_AN_C73_1_10GBASE_KR	BIT(7)
+#define MDIO_AN_C73_1_40GBASE_KR4	BIT(8)
+#define MDIO_AN_C73_1_40GBASE_CR4	BIT(9)
+#define MDIO_AN_C73_1_100GBASE_CR10	BIT(10)
+#define MDIO_AN_C73_1_100GBASE_KP4	BIT(11)
+#define MDIO_AN_C73_1_100GBASE_KR4	BIT(12)
+#define MDIO_AN_C73_1_100GBASE_CR4	BIT(13)
+#define MDIO_AN_C73_1_25GBASE_R_S	BIT(14)
+#define MDIO_AN_C73_1_25GBASE_R		BIT(15)
+#define MDIO_AN_C73_2_2500BASE_KX	BIT(0)
+#define MDIO_AN_C73_2_5GBASE_KR		BIT(1)
 
 /* PHY XGXS lane state register. */
 #define MDIO_PHYXS_LNSTAT_SYNC0		0x0001
@@ -237,6 +286,9 @@
 #define MDIO_PMA_10GBR_FECABLE_ABLE	0x0001	/* FEC ability */
 #define MDIO_PMA_10GBR_FECABLE_ERRABLE	0x0002	/* FEC error indic. ability */
 
+/* PMA 10GBASE-R Fast Retrain status and control register. */
+#define MDIO_PMA_10GBR_FSRT_ENABLE	0x0001	/* Fast retrain enable */
+
 /* PCS 10GBASE-R/-T status register 1. */
 #define MDIO_PCS_10GBRT_STAT1_BLKLK	0x0001	/* Block lock attained */
 
@@ -245,6 +297,7 @@
 #define MDIO_PCS_10GBRT_STAT2_BER	0x3f00
 
 /* AN 10GBASE-T control register. */
+#define MDIO_AN_10GBT_CTRL_ADVFSRT2_5G	0x0020	/* Advertise 2.5GBASE-T fast retrain */
 #define MDIO_AN_10GBT_CTRL_ADV2_5G	0x0080	/* Advertise 2.5GBASE-T */
 #define MDIO_AN_10GBT_CTRL_ADV5G	0x0100	/* Advertise 5GBASE-T */
 #define MDIO_AN_10GBT_CTRL_ADV10G	0x1000	/* Advertise 10GBASE-T */
@@ -259,6 +312,88 @@
 #define MDIO_AN_10GBT_STAT_LOCOK	0x2000	/* Local OK */
 #define MDIO_AN_10GBT_STAT_MS		0x4000	/* Master/slave config */
 #define MDIO_AN_10GBT_STAT_MSFLT	0x8000	/* Master/slave config fault */
+
+/* 10BASE-T1L PMA control */
+#define MDIO_PMA_10T1L_CTRL_LB_EN	0x0001	/* Enable loopback mode */
+#define MDIO_PMA_10T1L_CTRL_EEE_EN	0x0400	/* Enable EEE mode */
+#define MDIO_PMA_10T1L_CTRL_LOW_POWER	0x0800	/* Low-power mode */
+#define MDIO_PMA_10T1L_CTRL_2V4_EN	0x1000	/* Enable 2.4 Vpp operating mode */
+#define MDIO_PMA_10T1L_CTRL_TX_DIS	0x4000	/* Transmit disable */
+#define MDIO_PMA_10T1L_CTRL_PMA_RST	0x8000	/* MA reset */
+
+/* 10BASE-T1L PMA status register. */
+#define MDIO_PMA_10T1L_STAT_LINK	0x0001	/* PMA receive link up */
+#define MDIO_PMA_10T1L_STAT_FAULT	0x0002	/* Fault condition detected */
+#define MDIO_PMA_10T1L_STAT_POLARITY	0x0004	/* Receive polarity is reversed */
+#define MDIO_PMA_10T1L_STAT_RECV_FAULT	0x0200	/* Able to detect fault on receive path */
+#define MDIO_PMA_10T1L_STAT_EEE		0x0400	/* PHY has EEE ability */
+#define MDIO_PMA_10T1L_STAT_LOW_POWER	0x0800	/* PMA has low-power ability */
+#define MDIO_PMA_10T1L_STAT_2V4_ABLE	0x1000	/* PHY has 2.4 Vpp operating mode ability */
+#define MDIO_PMA_10T1L_STAT_LB_ABLE	0x2000	/* PHY has loopback ability */
+
+/* 10BASE-T1L PCS control register. */
+#define MDIO_PCS_10T1L_CTRL_LB		0x4000	/* Enable PCS level loopback mode */
+#define MDIO_PCS_10T1L_CTRL_RESET	0x8000	/* PCS reset */
+
+/* BASE-T1 PMA/PMD extended ability register. */
+#define MDIO_PMA_PMD_BT1_B100_ABLE	0x0001	/* 100BASE-T1 Ability */
+#define MDIO_PMA_PMD_BT1_B1000_ABLE	0x0002	/* 1000BASE-T1 Ability */
+#define MDIO_PMA_PMD_BT1_B10L_ABLE	0x0004	/* 10BASE-T1L Ability */
+
+/* BASE-T1 auto-negotiation advertisement register [15:0] */
+#define MDIO_AN_T1_ADV_L_PAUSE_CAP	ADVERTISE_PAUSE_CAP
+#define MDIO_AN_T1_ADV_L_PAUSE_ASYM	ADVERTISE_PAUSE_ASYM
+#define MDIO_AN_T1_ADV_L_FORCE_MS	0x1000	/* Force Master/slave Configuration */
+#define MDIO_AN_T1_ADV_L_REMOTE_FAULT	ADVERTISE_RFAULT
+#define MDIO_AN_T1_ADV_L_ACK		ADVERTISE_LPACK
+#define MDIO_AN_T1_ADV_L_NEXT_PAGE_REQ	ADVERTISE_NPAGE
+
+/* BASE-T1 auto-negotiation advertisement register [31:16] */
+#define MDIO_AN_T1_ADV_M_B10L		0x4000	/* device is compatible with 10BASE-T1L */
+#define MDIO_AN_T1_ADV_M_1000BT1	0x0080	/* advertise 1000BASE-T1 */
+#define MDIO_AN_T1_ADV_M_100BT1		0x0020	/* advertise 100BASE-T1 */
+#define MDIO_AN_T1_ADV_M_MST		0x0010	/* advertise master preference */
+
+/* BASE-T1 auto-negotiation advertisement register [47:32] */
+#define MDIO_AN_T1_ADV_H_10L_TX_HI_REQ	0x1000	/* 10BASE-T1L High Level Transmit Request */
+#define MDIO_AN_T1_ADV_H_10L_TX_HI	0x2000	/* 10BASE-T1L High Level Transmit Ability */
+
+/* BASE-T1 AN LP Base Page ability register [15:0] */
+#define MDIO_AN_T1_LP_L_PAUSE_CAP	LPA_PAUSE_CAP
+#define MDIO_AN_T1_LP_L_PAUSE_ASYM	LPA_PAUSE_ASYM
+#define MDIO_AN_T1_LP_L_FORCE_MS	0x1000	/* LP Force Master/slave Configuration */
+#define MDIO_AN_T1_LP_L_REMOTE_FAULT	LPA_RFAULT
+#define MDIO_AN_T1_LP_L_ACK		LPA_LPACK
+#define MDIO_AN_T1_LP_L_NEXT_PAGE_REQ	LPA_NPAGE
+
+/* BASE-T1 AN LP Base Page ability register [31:16] */
+#define MDIO_AN_T1_LP_M_MST		0x0010	/* LP master preference */
+#define MDIO_AN_T1_LP_M_B10L		0x4000	/* LP is compatible with 10BASE-T1L */
+
+/* BASE-T1 AN LP Base Page ability register [47:32] */
+#define MDIO_AN_T1_LP_H_10L_TX_HI_REQ	0x1000	/* 10BASE-T1L High Level LP Transmit Request */
+#define MDIO_AN_T1_LP_H_10L_TX_HI	0x2000	/* 10BASE-T1L High Level LP Transmit Ability */
+
+/* 10BASE-T1 AN control register */
+#define MDIO_AN_10BT1_AN_CTRL_ADV_EEE_T1L	0x4000 /* 10BASE-T1L EEE ability advertisement */
+
+/* 10BASE-T1 AN status register */
+#define MDIO_AN_10BT1_AN_STAT_LPA_EEE_T1L	0x4000 /* 10BASE-T1L LP EEE ability advertisement */
+
+/* BASE-T1 PMA/PMD control register */
+#define MDIO_PMA_PMD_BT1_CTRL_STRAP		0x000F /* Type selection (Strap) */
+#define MDIO_PMA_PMD_BT1_CTRL_STRAP_B1000	0x0001 /* Select 1000BASE-T1 */
+#define MDIO_PMA_PMD_BT1_CTRL_CFG_MST		0x4000 /* MASTER-SLAVE config value */
+
+/* 1000BASE-T1 PCS control register */
+#define MDIO_PCS_1000BT1_CTRL_LOW_POWER		0x0800 /* Low power mode */
+#define MDIO_PCS_1000BT1_CTRL_DISABLE_TX	0x4000 /* Global PMA transmit disable */
+#define MDIO_PCS_1000BT1_CTRL_RESET		0x8000 /* Software reset value */
+
+/* 1000BASE-T1 PCS status register */
+#define MDIO_PCS_1000BT1_STAT_LINK	0x0004 /* PCS Link is up */
+#define MDIO_PCS_1000BT1_STAT_FAULT	0x0080 /* There is a fault condition */
+
 
 /* EEE Supported/Advertisement/LP Advertisement registers.
  *
@@ -286,6 +421,9 @@
 
 #define MDIO_EEE_2_5GT		0x0001	/* 2.5GT EEE cap */
 #define MDIO_EEE_5GT		0x0002	/* 5GT EEE cap */
+
+/* AN MultiGBASE-T AN control 2 */
+#define MDIO_AN_THP_BP2_5GT	0x0008	/* 2.5GT THP bypass request */
 
 /* 2.5G/5G Extended abilities register. */
 #define MDIO_PMA_NG_EXTABLE_2_5GBT	0x0001	/* 2.5GBASET ability */
@@ -323,5 +461,31 @@ static inline __u16 mdio_phy_id_c45(int prtad, int devad)
 {
 	return MDIO_PHY_ID_C45 | (prtad << 5) | devad;
 }
+
+/* UsxgmiiChannelInfo[15:0] for USXGMII in-band auto-negotiation.*/
+#define MDIO_USXGMII_EEE_CLK_STP	0x0080	/* EEE clock stop supported */
+#define MDIO_USXGMII_EEE		0x0100	/* EEE supported */
+#define MDIO_USXGMII_SPD_MASK		0x0e00	/* USXGMII speed mask */
+#define MDIO_USXGMII_FULL_DUPLEX	0x1000	/* USXGMII full duplex */
+#define MDIO_USXGMII_DPX_SPD_MASK	0x1e00	/* USXGMII duplex and speed bits */
+#define MDIO_USXGMII_10			0x0000	/* 10Mbps */
+#define MDIO_USXGMII_10HALF		0x0000	/* 10Mbps half-duplex */
+#define MDIO_USXGMII_10FULL		0x1000	/* 10Mbps full-duplex */
+#define MDIO_USXGMII_100		0x0200	/* 100Mbps */
+#define MDIO_USXGMII_100HALF		0x0200	/* 100Mbps half-duplex */
+#define MDIO_USXGMII_100FULL		0x1200	/* 100Mbps full-duplex */
+#define MDIO_USXGMII_1000		0x0400	/* 1000Mbps */
+#define MDIO_USXGMII_1000HALF		0x0400	/* 1000Mbps half-duplex */
+#define MDIO_USXGMII_1000FULL		0x1400	/* 1000Mbps full-duplex */
+#define MDIO_USXGMII_10G		0x0600	/* 10Gbps */
+#define MDIO_USXGMII_10GHALF		0x0600	/* 10Gbps half-duplex */
+#define MDIO_USXGMII_10GFULL		0x1600	/* 10Gbps full-duplex */
+#define MDIO_USXGMII_2500		0x0800	/* 2500Mbps */
+#define MDIO_USXGMII_2500HALF		0x0800	/* 2500Mbps half-duplex */
+#define MDIO_USXGMII_2500FULL		0x1800	/* 2500Mbps full-duplex */
+#define MDIO_USXGMII_5000		0x0a00	/* 5000Mbps */
+#define MDIO_USXGMII_5000HALF		0x0a00	/* 5000Mbps half-duplex */
+#define MDIO_USXGMII_5000FULL		0x1a00	/* 5000Mbps full-duplex */
+#define MDIO_USXGMII_LINK		0x8000	/* PHY link with copper-side partner */
 
 #endif /* _UAPI__LINUX_MDIO_H__ */

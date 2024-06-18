@@ -37,6 +37,10 @@
 #define PTRACE_SETXTREGS	19
 #define PTRACE_GETHBPREGS	20
 #define PTRACE_SETHBPREGS	21
+#define PTRACE_GETFDPIC		22
+
+#define PTRACE_GETFDPIC_EXEC	0
+#define PTRACE_GETFDPIC_INTERP	1
 
 #ifndef __ASSEMBLY__
 
@@ -50,7 +54,8 @@ struct user_pt_regs {
 	__u32 windowstart;
 	__u32 windowbase;
 	__u32 threadptr;
-	__u32 reserved[7 + 48];
+	__u32 syscall;
+	__u32 reserved[6 + 48];
 	__u32 a[64];
 };
 

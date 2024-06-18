@@ -307,9 +307,11 @@ static int __init mc13xxx_rtc_probe(struct platform_device *pdev)
 
 	mc13xxx_unlock(mc13xxx);
 
-	ret = rtc_register_device(priv->rtc);
-	if (ret)
+	ret = devm_rtc_register_device(priv->rtc);
+	if (ret) {
+		mc13xxx_lock(mc13xxx);
 		goto err_irq_request;
+	}
 
 	return 0;
 
@@ -322,7 +324,7 @@ err_irq_request:
 	return ret;
 }
 
-static int mc13xxx_rtc_remove(struct platform_device *pdev)
+static void mc13xxx_rtc_remove(struct platform_device *pdev)
 {
 	struct mc13xxx_rtc *priv = platform_get_drvdata(pdev);
 
@@ -332,8 +334,6 @@ static int mc13xxx_rtc_remove(struct platform_device *pdev)
 	mc13xxx_irq_free(priv->mc13xxx, MC13XXX_IRQ_RTCRST, priv);
 
 	mc13xxx_unlock(priv->mc13xxx);
-
-	return 0;
 }
 
 static const struct platform_device_id mc13xxx_rtc_idtable[] = {
@@ -350,7 +350,7 @@ MODULE_DEVICE_TABLE(platform, mc13xxx_rtc_idtable);
 
 static struct platform_driver mc13xxx_rtc_driver = {
 	.id_table = mc13xxx_rtc_idtable,
-	.remove = mc13xxx_rtc_remove,
+	.remove_new = mc13xxx_rtc_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 	},

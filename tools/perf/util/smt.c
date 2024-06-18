@@ -1,48 +1,36 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <linux/bitops.h>
+// SPDX-License-Identifier: GPL-2.0-only
+#include <string.h>
 #include "api/fs/fs.h"
+#include "cputopo.h"
 #include "smt.h"
 
-int smt_on(void)
+bool smt_on(void)
 {
 	static bool cached;
-	static int cached_result;
-	int cpu;
-	int ncpu;
+	static bool cached_result;
+	int fs_value;
 
 	if (cached)
 		return cached_result;
 
-	ncpu = sysconf(_SC_NPROCESSORS_CONF);
-	for (cpu = 0; cpu < ncpu; cpu++) {
-		unsigned long long siblings;
-		char *str;
-		size_t strlen;
-		char fn[256];
+	if (sysfs__read_int("devices/system/cpu/smt/active", &fs_value) >= 0)
+		cached_result = (fs_value == 1);
+	else
+		cached_result = cpu_topology__smt_on(online_topology());
 
-		snprintf(fn, sizeof fn,
-			"devices/system/cpu/cpu%d/topology/core_cpus", cpu);
-		if (access(fn, F_OK) == -1) {
-			snprintf(fn, sizeof fn,
-				"devices/system/cpu/cpu%d/topology/thread_siblings",
-				cpu);
-		}
-		if (sysfs__read_str(fn, &str, &strlen) < 0)
-			continue;
-		/* Entry is hex, but does not have 0x, so need custom parser */
-		siblings = strtoull(str, NULL, 16);
-		free(str);
-		if (hweight64(siblings) > 1) {
-			cached_result = 1;
-			cached = true;
-			break;
-		}
-	}
-	if (!cached) {
-		cached_result = 0;
-		cached = true;
-	}
+	cached = true;
 	return cached_result;
+}
+
+bool core_wide(bool system_wide, const char *user_requested_cpu_list)
+{
+	/* If not everything running on a core is being recorded then we can't use core_wide. */
+	if (!system_wide)
+		return false;
+
+	/* Cheap case that SMT is disabled and therefore we're inherently core_wide. */
+	if (!smt_on())
+		return true;
+
+	return cpu_topology__core_wide(online_topology(), user_requested_cpu_list);
 }

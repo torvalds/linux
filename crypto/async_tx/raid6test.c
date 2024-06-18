@@ -18,6 +18,7 @@
 #define NDISKS 64 /* Including P and Q */
 
 static struct page *dataptrs[NDISKS];
+unsigned int dataoffs[NDISKS];
 static addr_conv_t addr_conv[NDISKS];
 static struct page *data[NDISKS+3];
 static struct page *spare;
@@ -36,8 +37,9 @@ static void makedata(int disks)
 	int i;
 
 	for (i = 0; i < disks; i++) {
-		prandom_bytes(page_address(data[i]), PAGE_SIZE);
+		get_random_bytes(page_address(data[i]), PAGE_SIZE);
 		dataptrs[i] = data[i];
+		dataoffs[i] = 0;
 	}
 }
 
@@ -52,7 +54,8 @@ static char disk_type(int d, int disks)
 }
 
 /* Recover two failed blocks. */
-static void raid6_dual_recov(int disks, size_t bytes, int faila, int failb, struct page **ptrs)
+static void raid6_dual_recov(int disks, size_t bytes, int faila, int failb,
+		struct page **ptrs, unsigned int *offs)
 {
 	struct async_submit_ctl submit;
 	struct completion cmp;
@@ -66,7 +69,8 @@ static void raid6_dual_recov(int disks, size_t bytes, int faila, int failb, stru
 		if (faila == disks-2) {
 			/* P+Q failure.  Just rebuild the syndrome. */
 			init_async_submit(&submit, 0, NULL, NULL, NULL, addr_conv);
-			tx = async_gen_syndrome(ptrs, 0, disks, bytes, &submit);
+			tx = async_gen_syndrome(ptrs, offs,
+					disks, bytes, &submit);
 		} else {
 			struct page *blocks[NDISKS];
 			struct page *dest;
@@ -89,22 +93,26 @@ static void raid6_dual_recov(int disks, size_t bytes, int faila, int failb, stru
 			tx = async_xor(dest, blocks, 0, count, bytes, &submit);
 
 			init_async_submit(&submit, 0, tx, NULL, NULL, addr_conv);
-			tx = async_gen_syndrome(ptrs, 0, disks, bytes, &submit);
+			tx = async_gen_syndrome(ptrs, offs,
+					disks, bytes, &submit);
 		}
 	} else {
 		if (failb == disks-2) {
 			/* data+P failure. */
 			init_async_submit(&submit, 0, NULL, NULL, NULL, addr_conv);
-			tx = async_raid6_datap_recov(disks, bytes, faila, ptrs, &submit);
+			tx = async_raid6_datap_recov(disks, bytes,
+					faila, ptrs, offs, &submit);
 		} else {
 			/* data+data failure. */
 			init_async_submit(&submit, 0, NULL, NULL, NULL, addr_conv);
-			tx = async_raid6_2data_recov(disks, bytes, faila, failb, ptrs, &submit);
+			tx = async_raid6_2data_recov(disks, bytes,
+					faila, failb, ptrs, offs, &submit);
 		}
 	}
 	init_completion(&cmp);
 	init_async_submit(&submit, ASYNC_TX_ACK, tx, callback, &cmp, addr_conv);
-	tx = async_syndrome_val(ptrs, 0, disks, bytes, &result, spare, &submit);
+	tx = async_syndrome_val(ptrs, offs,
+			disks, bytes, &result, spare, 0, &submit);
 	async_tx_issue_pending(tx);
 
 	if (wait_for_completion_timeout(&cmp, msecs_to_jiffies(3000)) == 0)
@@ -126,7 +134,7 @@ static int test_disks(int i, int j, int disks)
 	dataptrs[i] = recovi;
 	dataptrs[j] = recovj;
 
-	raid6_dual_recov(disks, PAGE_SIZE, i, j, dataptrs);
+	raid6_dual_recov(disks, PAGE_SIZE, i, j, dataptrs, dataoffs);
 
 	erra = memcmp(page_address(data[i]), page_address(recovi), PAGE_SIZE);
 	errb = memcmp(page_address(data[j]), page_address(recovj), PAGE_SIZE);
@@ -162,7 +170,7 @@ static int test(int disks, int *tests)
 	/* Generate assumed good syndrome */
 	init_completion(&cmp);
 	init_async_submit(&submit, ASYNC_TX_ACK, NULL, callback, &cmp, addr_conv);
-	tx = async_gen_syndrome(dataptrs, 0, disks, PAGE_SIZE, &submit);
+	tx = async_gen_syndrome(dataptrs, dataoffs, disks, PAGE_SIZE, &submit);
 	async_tx_issue_pending(tx);
 
 	if (wait_for_completion_timeout(&cmp, msecs_to_jiffies(3000)) == 0) {
@@ -181,7 +189,7 @@ static int test(int disks, int *tests)
 }
 
 
-static int raid6_test(void)
+static int __init raid6_test(void)
 {
 	int err = 0;
 	int tests = 0;
@@ -209,7 +217,7 @@ static int raid6_test(void)
 		err += test(12, &tests);
 	}
 
-	/* the 24 disk case is special for ioatdma as it is the boudary point
+	/* the 24 disk case is special for ioatdma as it is the boundary point
 	 * at which it needs to switch from 8-source ops to 16-source
 	 * ops for continuation (assumes DMA_HAS_PQ_CONTINUE is not set)
 	 */
@@ -228,12 +236,12 @@ static int raid6_test(void)
 	return 0;
 }
 
-static void raid6_test_exit(void)
+static void __exit raid6_test_exit(void)
 {
 }
 
 /* when compiled-in wait for drivers to load first (assumes dma drivers
- * are also compliled-in)
+ * are also compiled-in)
  */
 late_initcall(raid6_test);
 module_exit(raid6_test_exit);

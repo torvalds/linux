@@ -9,9 +9,9 @@
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_platform.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/usb/chipidea.h>
 #include <linux/usb/hcd.h>
 #include <linux/usb/ulpi.h>
@@ -28,13 +28,20 @@ static const struct ci_hdrc_platform_data ci_default_pdata = {
 	.flags		= CI_HDRC_DISABLE_STREAMING,
 };
 
-static struct ci_hdrc_platform_data ci_zynq_pdata = {
+static const struct ci_hdrc_platform_data ci_zynq_pdata = {
 	.capoffset	= DEF_CAPOFFSET,
+	.flags          = CI_HDRC_PHY_VBUS_CONTROL,
+};
+
+static const struct ci_hdrc_platform_data ci_zevio_pdata = {
+	.capoffset	= DEF_CAPOFFSET,
+	.flags		= CI_HDRC_REGS_SHARED | CI_HDRC_FORCE_FULLSPEED,
 };
 
 static const struct of_device_id ci_hdrc_usb2_of_match[] = {
-	{ .compatible = "chipidea,usb2"},
-	{ .compatible = "xlnx,zynq-usb-2.20a", .data = &ci_zynq_pdata},
+	{ .compatible = "chipidea,usb2" },
+	{ .compatible = "xlnx,zynq-usb-2.20a", .data = &ci_zynq_pdata },
+	{ .compatible = "lsi,zevio-usb", .data = &ci_zevio_pdata },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ci_hdrc_usb2_of_match);
@@ -44,8 +51,8 @@ static int ci_hdrc_usb2_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct ci_hdrc_usb2_priv *priv;
 	struct ci_hdrc_platform_data *ci_pdata = dev_get_platdata(dev);
+	const struct ci_hdrc_platform_data *data;
 	int ret;
-	const struct of_device_id *match;
 
 	if (!ci_pdata) {
 		ci_pdata = devm_kmalloc(dev, sizeof(*ci_pdata), GFP_KERNEL);
@@ -54,23 +61,23 @@ static int ci_hdrc_usb2_probe(struct platform_device *pdev)
 		*ci_pdata = ci_default_pdata;	/* struct copy */
 	}
 
-	match = of_match_device(ci_hdrc_usb2_of_match, &pdev->dev);
-	if (match && match->data) {
+	data = device_get_match_data(&pdev->dev);
+	if (data)
 		/* struct copy */
-		*ci_pdata = *(struct ci_hdrc_platform_data *)match->data;
-	}
+		*ci_pdata = *data;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	priv->clk = devm_clk_get(dev, NULL);
-	if (!IS_ERR(priv->clk)) {
-		ret = clk_prepare_enable(priv->clk);
-		if (ret) {
-			dev_err(dev, "failed to enable the clock: %d\n", ret);
-			return ret;
-		}
+	priv->clk = devm_clk_get_optional(dev, NULL);
+	if (IS_ERR(priv->clk))
+		return PTR_ERR(priv->clk);
+
+	ret = clk_prepare_enable(priv->clk);
+	if (ret) {
+		dev_err(dev, "failed to enable the clock: %d\n", ret);
+		return ret;
 	}
 
 	ci_pdata->name = dev_name(dev);
@@ -94,28 +101,25 @@ static int ci_hdrc_usb2_probe(struct platform_device *pdev)
 	return 0;
 
 clk_err:
-	if (!IS_ERR(priv->clk))
-		clk_disable_unprepare(priv->clk);
+	clk_disable_unprepare(priv->clk);
 	return ret;
 }
 
-static int ci_hdrc_usb2_remove(struct platform_device *pdev)
+static void ci_hdrc_usb2_remove(struct platform_device *pdev)
 {
 	struct ci_hdrc_usb2_priv *priv = platform_get_drvdata(pdev);
 
 	pm_runtime_disable(&pdev->dev);
 	ci_hdrc_remove_device(priv->ci_pdev);
 	clk_disable_unprepare(priv->clk);
-
-	return 0;
 }
 
 static struct platform_driver ci_hdrc_usb2_driver = {
 	.probe	= ci_hdrc_usb2_probe,
-	.remove	= ci_hdrc_usb2_remove,
+	.remove_new = ci_hdrc_usb2_remove,
 	.driver	= {
 		.name		= "chipidea-usb2",
-		.of_match_table	= of_match_ptr(ci_hdrc_usb2_of_match),
+		.of_match_table	= ci_hdrc_usb2_of_match,
 	},
 };
 module_platform_driver(ci_hdrc_usb2_driver);

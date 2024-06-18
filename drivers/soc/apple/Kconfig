@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+if ARCH_APPLE || COMPILE_TEST
+
+menu "Apple SoC drivers"
+
+config APPLE_MAILBOX
+	tristate "Apple SoC mailboxes"
+	depends on PM
+	depends on ARCH_APPLE || (64BIT && COMPILE_TEST)
+	default ARCH_APPLE
+	help
+	  Apple SoCs have various co-processors required for certain
+	  peripherals to work (NVMe, display controller, etc.). This
+	  driver adds support for the mailbox controller used to
+	  communicate with those.
+
+	  Say Y here if you have an Apple SoC.
+
+config APPLE_RTKIT
+	tristate "Apple RTKit co-processor IPC protocol"
+	depends on APPLE_MAILBOX
+	depends on ARCH_APPLE || COMPILE_TEST
+	default ARCH_APPLE
+	help
+	  Apple SoCs such as the M1 come with various co-processors running
+	  their proprietary RTKit operating system. This option enables support
+	  for the protocol library used to communicate with those. It is used
+	  by various client drivers.
+
+	  Say 'y' here if you have an Apple SoC.
+
+config APPLE_SART
+	tristate "Apple SART DMA address filter"
+	depends on ARCH_APPLE || COMPILE_TEST
+	default ARCH_APPLE
+	help
+	  Apple SART is a simple DMA address filter used on Apple SoCs such
+	  as the M1. It is usually required for the NVMe coprocessor which does
+	  not use a proper IOMMU.
+
+	  Say 'y' here if you have an Apple SoC.
+
+endmenu
+
+endif

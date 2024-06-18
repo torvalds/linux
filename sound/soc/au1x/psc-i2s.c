@@ -90,12 +90,12 @@ static int au1xpsc_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 		goto out;
 	}
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:	/* CODEC master */
-		ct |= PSC_I2SCFG_MS;	/* PSC I2S slave mode */
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_BC_FC:	/* CODEC provider */
+		ct |= PSC_I2SCFG_MS;	/* PSC I2S consumer mode */
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:	/* CODEC slave */
-		ct &= ~PSC_I2SCFG_MS;	/* PSC I2S Master mode */
+	case SND_SOC_DAIFMT_BP_FP:	/* CODEC consumer */
+		ct &= ~PSC_I2SCFG_MS;	/* PSC I2S provider mode */
 		break;
 	default:
 		goto out;
@@ -286,7 +286,8 @@ static const struct snd_soc_dai_driver au1xpsc_i2s_dai_template = {
 };
 
 static const struct snd_soc_component_driver au1xpsc_i2s_component = {
-	.name		= "au1xpsc-i2s",
+	.name			= "au1xpsc-i2s",
+	.legacy_dai_naming	= 1,
 };
 
 static int au1xpsc_i2s_drvprobe(struct platform_device *pdev)
@@ -343,7 +344,7 @@ static int au1xpsc_i2s_drvprobe(struct platform_device *pdev)
 				&au1xpsc_i2s_component, &wd->dai_drv, 1);
 }
 
-static int au1xpsc_i2s_drvremove(struct platform_device *pdev)
+static void au1xpsc_i2s_drvremove(struct platform_device *pdev)
 {
 	struct au1xpsc_audio_data *wd = platform_get_drvdata(pdev);
 
@@ -351,8 +352,6 @@ static int au1xpsc_i2s_drvremove(struct platform_device *pdev)
 	wmb(); /* drain writebuffer */
 	__raw_writel(PSC_CTRL_DISABLE, PSC_CTRL(wd));
 	wmb(); /* drain writebuffer */
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -405,7 +404,7 @@ static struct platform_driver au1xpsc_i2s_driver = {
 		.pm	= AU1XPSCI2S_PMOPS,
 	},
 	.probe		= au1xpsc_i2s_drvprobe,
-	.remove		= au1xpsc_i2s_drvremove,
+	.remove_new	= au1xpsc_i2s_drvremove,
 };
 
 module_platform_driver(au1xpsc_i2s_driver);

@@ -135,7 +135,7 @@ nfsd4_get_nfs4_acl(struct svc_rqst *rqstp, struct dentry *dentry,
 	unsigned int flags = 0;
 	int size = 0;
 
-	pacl = get_acl(inode, ACL_TYPE_ACCESS);
+	pacl = get_inode_acl(inode, ACL_TYPE_ACCESS);
 	if (!pacl)
 		pacl = posix_acl_from_mode(inode->i_mode, GFP_KERNEL);
 
@@ -147,7 +147,7 @@ nfsd4_get_nfs4_acl(struct svc_rqst *rqstp, struct dentry *dentry,
 
 	if (S_ISDIR(inode->i_mode)) {
 		flags = NFS4_ACL_DIR;
-		dpacl = get_acl(inode, ACL_TYPE_DEFAULT);
+		dpacl = get_inode_acl(inode, ACL_TYPE_DEFAULT);
 		if (IS_ERR(dpacl)) {
 			error = PTR_ERR(dpacl);
 			goto rel_pacl;
@@ -441,7 +441,7 @@ struct posix_ace_state_array {
  * calculated so far: */
 
 struct posix_acl_state {
-	int empty;
+	unsigned char valid;
 	struct posix_ace_state owner;
 	struct posix_ace_state group;
 	struct posix_ace_state other;
@@ -457,7 +457,6 @@ init_state(struct posix_acl_state *state, int cnt)
 	int alloc;
 
 	memset(state, 0, sizeof(struct posix_acl_state));
-	state->empty = 1;
 	/*
 	 * In the worst case, each individual acl could be for a distinct
 	 * named user or group, but we don't know which, so we allocate
@@ -500,7 +499,7 @@ posix_state_to_acl(struct posix_acl_state *state, unsigned int flags)
 	 * and effective cases: when there are no inheritable ACEs,
 	 * calls ->set_acl with a NULL ACL structure.
 	 */
-	if (state->empty && (flags & NFS4_ACL_TYPE_DEFAULT))
+	if (!state->valid && (flags & NFS4_ACL_TYPE_DEFAULT))
 		return NULL;
 
 	/*
@@ -622,11 +621,12 @@ static void process_one_v4_ace(struct posix_acl_state *state,
 				struct nfs4_ace *ace)
 {
 	u32 mask = ace->access_mask;
+	short type = ace2type(ace);
 	int i;
 
-	state->empty = 0;
+	state->valid |= type;
 
-	switch (ace2type(ace)) {
+	switch (type) {
 	case ACL_USER_OBJ:
 		if (ace->type == NFS4_ACE_ACCESS_ALLOWED_ACE_TYPE) {
 			allow_bits(&state->owner, mask);
@@ -726,6 +726,30 @@ static int nfs4_acl_nfsv4_to_posix(struct nfs4_acl *acl,
 		if (!(ace->flag & NFS4_ACE_INHERIT_ONLY_ACE))
 			process_one_v4_ace(&effective_acl_state, ace);
 	}
+
+	/*
+	 * At this point, the default ACL may have zeroed-out entries for owner,
+	 * group and other. That usually results in a non-sensical resulting ACL
+	 * that denies all access except to any ACE that was explicitly added.
+	 *
+	 * The setfacl command solves a similar problem with this logic:
+	 *
+	 * "If  a  Default  ACL  entry is created, and the Default ACL contains
+	 *  no owner, owning group, or others entry,  a  copy of  the  ACL
+	 *  owner, owning group, or others entry is added to the Default ACL."
+	 *
+	 * Copy any missing ACEs from the effective set, if any ACEs were
+	 * explicitly set.
+	 */
+	if (default_acl_state.valid) {
+		if (!(default_acl_state.valid & ACL_USER_OBJ))
+			default_acl_state.owner = effective_acl_state.owner;
+		if (!(default_acl_state.valid & ACL_GROUP_OBJ))
+			default_acl_state.group = effective_acl_state.group;
+		if (!(default_acl_state.valid & ACL_OTHER))
+			default_acl_state.other = effective_acl_state.other;
+	}
+
 	*pacl = posix_state_to_acl(&effective_acl_state, flags);
 	if (IS_ERR(*pacl)) {
 		ret = PTR_ERR(*pacl);
@@ -751,56 +775,25 @@ out_estate:
 	return ret;
 }
 
-__be32
-nfsd4_set_nfs4_acl(struct svc_rqst *rqstp, struct svc_fh *fhp,
-		struct nfs4_acl *acl)
+__be32 nfsd4_acl_to_attr(enum nfs_ftype4 type, struct nfs4_acl *acl,
+			 struct nfsd_attrs *attr)
 {
-	__be32 error;
 	int host_error;
-	struct dentry *dentry;
-	struct inode *inode;
-	struct posix_acl *pacl = NULL, *dpacl = NULL;
 	unsigned int flags = 0;
 
-	/* Get inode */
-	error = fh_verify(rqstp, fhp, 0, NFSD_MAY_SATTR);
-	if (error)
-		return error;
+	if (!acl)
+		return nfs_ok;
 
-	dentry = fhp->fh_dentry;
-	inode = d_inode(dentry);
-
-	if (S_ISDIR(inode->i_mode))
+	if (type == NF4DIR)
 		flags = NFS4_ACL_DIR;
 
-	host_error = nfs4_acl_nfsv4_to_posix(acl, &pacl, &dpacl, flags);
+	host_error = nfs4_acl_nfsv4_to_posix(acl, &attr->na_pacl,
+					     &attr->na_dpacl, flags);
 	if (host_error == -EINVAL)
-		return nfserr_attrnotsupp;
-	if (host_error < 0)
-		goto out_nfserr;
-
-	fh_lock(fhp);
-
-	host_error = set_posix_acl(inode, ACL_TYPE_ACCESS, pacl);
-	if (host_error < 0)
-		goto out_drop_lock;
-
-	if (S_ISDIR(inode->i_mode)) {
-		host_error = set_posix_acl(inode, ACL_TYPE_DEFAULT, dpacl);
-	}
-
-out_drop_lock:
-	fh_unlock(fhp);
-
-	posix_acl_release(pacl);
-	posix_acl_release(dpacl);
-out_nfserr:
-	if (host_error == -EOPNOTSUPP)
 		return nfserr_attrnotsupp;
 	else
 		return nfserrno(host_error);
 }
-
 
 static short
 ace2type(struct nfs4_ace *ace)

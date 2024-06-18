@@ -10,17 +10,19 @@
 
 #include <linux/component.h>
 #include <linux/dma-mapping.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
+#include <drm/drm_aperture.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fb_cma_helper.h>
-#include <drm/drm_fb_helper.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_fbdev_dma.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_module.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
 
@@ -35,7 +37,7 @@ static const struct drm_mode_config_funcs drv_mode_config_funcs = {
 	.atomic_commit = drm_atomic_helper_commit,
 };
 
-static int stm_gem_cma_dumb_create(struct drm_file *file,
+static int stm_gem_dma_dumb_create(struct drm_file *file,
 				   struct drm_device *dev,
 				   struct drm_mode_create_dumb *args)
 {
@@ -48,12 +50,12 @@ static int stm_gem_cma_dumb_create(struct drm_file *file,
 	args->pitch = roundup(min_pitch, 128);
 	args->height = roundup(args->height, 4);
 
-	return drm_gem_cma_dumb_create_internal(file, dev, args);
+	return drm_gem_dma_dumb_create_internal(file, dev, args);
 }
 
-DEFINE_DRM_GEM_CMA_FOPS(drv_driver_fops);
+DEFINE_DRM_GEM_DMA_FOPS(drv_driver_fops);
 
-static struct drm_driver drv_driver = {
+static const struct drm_driver drv_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 	.name = "stm",
 	.desc = "STMicroelectronics SoC DRM",
@@ -62,18 +64,7 @@ static struct drm_driver drv_driver = {
 	.minor = 0,
 	.patchlevel = 0,
 	.fops = &drv_driver_fops,
-	.dumb_create = stm_gem_cma_dumb_create,
-	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
-	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
-	.gem_free_object_unlocked = drm_gem_cma_free_object,
-	.gem_vm_ops = &drm_gem_cma_vm_ops,
-	.gem_prime_get_sg_table = drm_gem_cma_prime_get_sg_table,
-	.gem_prime_import_sg_table = drm_gem_cma_prime_import_sg_table,
-	.gem_prime_vmap = drm_gem_cma_prime_vmap,
-	.gem_prime_vunmap = drm_gem_cma_prime_vunmap,
-	.gem_prime_mmap = drm_gem_cma_prime_mmap,
-	.get_scanout_position = ltdc_crtc_scanoutpos,
-	.get_vblank_timestamp = drm_calc_vbltimestamp_from_scanoutpos,
+	DRM_GEM_DMA_DRIVER_OPS_WITH_DUMB_CREATE(stm_gem_dma_dumb_create),
 };
 
 static int drv_load(struct drm_device *ddev)
@@ -90,7 +81,9 @@ static int drv_load(struct drm_device *ddev)
 
 	ddev->dev_private = (void *)ldev;
 
-	drm_mode_config_init(ddev);
+	ret = drmm_mode_config_init(ddev);
+	if (ret)
+		return ret;
 
 	/*
 	 * set max width and height as default value.
@@ -102,10 +95,11 @@ static int drv_load(struct drm_device *ddev)
 	ddev->mode_config.max_width = STM_MAX_FB_WIDTH;
 	ddev->mode_config.max_height = STM_MAX_FB_HEIGHT;
 	ddev->mode_config.funcs = &drv_mode_config_funcs;
+	ddev->mode_config.normalize_zpos = true;
 
 	ret = ltdc_load(ddev);
 	if (ret)
-		goto err;
+		return ret;
 
 	drm_mode_config_reset(ddev);
 	drm_kms_helper_poll_init(ddev);
@@ -113,9 +107,6 @@ static int drv_load(struct drm_device *ddev)
 	platform_set_drvdata(pdev, ddev);
 
 	return 0;
-err:
-	drm_mode_config_cleanup(ddev);
-	return ret;
 }
 
 static void drv_unload(struct drm_device *ddev)
@@ -123,8 +114,8 @@ static void drv_unload(struct drm_device *ddev)
 	DRM_DEBUG("%s\n", __func__);
 
 	drm_kms_helper_poll_fini(ddev);
+	drm_atomic_helper_shutdown(ddev);
 	ltdc_unload(ddev);
-	drm_mode_config_cleanup(ddev);
 }
 
 static __maybe_unused int drv_suspend(struct device *dev)
@@ -196,6 +187,10 @@ static int stm_drm_platform_probe(struct platform_device *pdev)
 
 	DRM_DEBUG("%s\n", __func__);
 
+	ret = drm_aperture_remove_framebuffers(&drv_driver);
+	if (ret)
+		return ret;
+
 	dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
 
 	ddev = drm_dev_alloc(&drv_driver, dev);
@@ -210,7 +205,7 @@ static int stm_drm_platform_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_put;
 
-	drm_fbdev_generic_setup(ddev, 16);
+	drm_fbdev_dma_setup(ddev, 16);
 
 	return 0;
 
@@ -220,7 +215,7 @@ err_put:
 	return ret;
 }
 
-static int stm_drm_platform_remove(struct platform_device *pdev)
+static void stm_drm_platform_remove(struct platform_device *pdev)
 {
 	struct drm_device *ddev = platform_get_drvdata(pdev);
 
@@ -229,8 +224,11 @@ static int stm_drm_platform_remove(struct platform_device *pdev)
 	drm_dev_unregister(ddev);
 	drv_unload(ddev);
 	drm_dev_put(ddev);
+}
 
-	return 0;
+static void stm_drm_platform_shutdown(struct platform_device *pdev)
+{
+	drm_atomic_helper_shutdown(platform_get_drvdata(pdev));
 }
 
 static const struct of_device_id drv_dt_ids[] = {
@@ -241,7 +239,8 @@ MODULE_DEVICE_TABLE(of, drv_dt_ids);
 
 static struct platform_driver stm_drm_platform_driver = {
 	.probe = stm_drm_platform_probe,
-	.remove = stm_drm_platform_remove,
+	.remove_new = stm_drm_platform_remove,
+	.shutdown = stm_drm_platform_shutdown,
 	.driver = {
 		.name = "stm32-display",
 		.of_match_table = drv_dt_ids,
@@ -249,7 +248,7 @@ static struct platform_driver stm_drm_platform_driver = {
 	},
 };
 
-module_platform_driver(stm_drm_platform_driver);
+drm_module_platform_driver(stm_drm_platform_driver);
 
 MODULE_AUTHOR("Philippe Cornu <philippe.cornu@st.com>");
 MODULE_AUTHOR("Yannick Fertre <yannick.fertre@st.com>");

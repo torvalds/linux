@@ -20,7 +20,6 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/tps6507x.h>
 
@@ -84,8 +83,7 @@ static int tps6507x_i2c_write_device(struct tps6507x_dev *tps6507x, char reg,
 	return 0;
 }
 
-static int tps6507x_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int tps6507x_i2c_probe(struct i2c_client *i2c)
 {
 	struct tps6507x_dev *tps6507x;
 

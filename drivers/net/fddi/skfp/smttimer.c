@@ -18,10 +18,6 @@
 #include "h/fddi.h"
 #include "h/smc.h"
 
-#ifndef	lint
-static const char ID_sccs[] = "@(#)smttimer.c	2.4 97/08/04 (C) SK " ;
-#endif
-
 static void timer_done(struct s_smc *smc, int restart);
 
 void smt_timer_init(struct s_smc *smc)

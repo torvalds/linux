@@ -45,7 +45,7 @@ Linux内核大部分是由C语言写成的，一些体系结构相关的代码�
  - "C:  A Reference Manual" by Harbison and Steele [Prentice Hall]
    《C语言参考手册（原书第5版）》（邱仲潘 等译）[机械工业出版社]
 
-Linux内核使用GNU C和GNU工具链开发。虽然它遵循ISO C89标准，但也用到了一些
+Linux内核使用GNU C和GNU工具链开发。虽然它遵循ISO C11标准，但也用到了一些
 标准中没有定义的扩展。内核是自给自足的C环境，不依赖于标准C库的支持，所以
 并不支持C标准中的部分定义。比如long long类型的大数除法和浮点运算就不允许
 使用。有时候确实很难弄清楚内核对工具链的要求和它所使用的扩展，不幸的是目
@@ -69,7 +69,7 @@ Linux内核源代码都是在GPL（通用公共许可证）的保护下发布的
 邮件组里的人并不是律师，不要期望他们的话有法律效力。
 
 对于GPL的常见问题和解答，请访问以下链接：
-	http://www.gnu.org/licenses/gpl-faq.html
+	https://www.gnu.org/licenses/gpl-faq.html
 
 
 文档
@@ -96,7 +96,6 @@ Linux内核代码中包含有大量的文档。这些文档对于学习如何与
     的代码。
 
   :ref:`Documentation/translations/zh_CN/process/submitting-patches.rst <cn_submittingpatches>`
-  :ref:`Documentation/process/submitting-drivers.rst <submittingdrivers>`
 
     这两份文档明确描述如何创建和发送补丁，其中包括（但不仅限于)：
        - 邮件内容
@@ -109,7 +108,7 @@ Linux内核代码中包含有大量的文档。这些文档对于学习如何与
     其他关于如何正确地生成补丁的优秀文档包括：
     "The Perfect Patch"
 
-        http://www.ozlabs.org/~akpm/stuff/tpp.txt
+        https://www.ozlabs.org/~akpm/stuff/tpp.txt
 
     "Linux kernel patch submission format"
 
@@ -126,7 +125,7 @@ Linux内核代码中包含有大量的文档。这些文档对于学习如何与
     这篇文档对于理解Linux的开发哲学至关重要。对于将开发平台从其他操作系
     统转移到Linux的人来说也很重要。
 
-  :ref:`Documentation/admin-guide/security-bugs.rst <securitybugs>`
+  :ref:`Documentation/process/security-bugs.rst <securitybugs>`
     如果你认为自己发现了Linux内核的安全性问题，请根据这篇文档中的步骤来
     提醒其他内核开发者并帮助解决这个问题。
 
@@ -163,7 +162,7 @@ ReST格式的文档会生成在 Documentation/output. 目录中。
 ------------------
 如果你对Linux内核开发一无所知，你应该访问“Linux内核新手”计划：
 
-	http://kernelnewbies.org
+	https://kernelnewbies.org
 
 它拥有一个可以问各种最基本的内核开发问题的邮件列表（在提问之前一定要记得
 查找已往的邮件，确认是否有人已经回答过相同的问题）。它还拥有一个可以获得
@@ -176,7 +175,7 @@ ReST格式的文档会生成在 Documentation/output. 目录中。
 如果你想加入内核开发社区并协助完成一些任务，却找不到从哪里开始，可以访问
 “Linux内核房管员”计划：
 
-	http://kernelnewbies.org/KernelJanitors
+	https://kernelnewbies.org/KernelJanitors
 
 这是极佳的起点。它提供一个相对简单的任务列表，列出内核代码中需要被重新
 整理或者改正的地方。通过和负责这个计划的开发者们一同工作，你会学到将补丁
@@ -212,7 +211,7 @@ ReST格式的文档会生成在 Documentation/output. 目录中。
   - 每当一个新版本的内核被发布，为期两周的集成窗口将被打开。在这段时间里
     维护者可以向Linus提交大段的修改，通常这些修改已经被放到-mm内核中几个
     星期了。提交大量修改的首选方式是使用git工具（内核的代码版本管理工具
-    ，更多的信息可以在 http://git-scm.com/ 获取），不过使用普通补丁也是
+    ，更多的信息可以在 https://git-scm.com/ 获取），不过使用普通补丁也是
     可以的。
   - 两个星期以后-rc1版本内核发布。之后只有不包含可能影响整个内核稳定性的
     新功能的补丁才可能被接受。请注意一个全新的驱动程序（或者文件系统）有
@@ -252,10 +251,10 @@ Linux-next 集成测试树
 在将子系统树的更新合并到主线树之前，需要对它们进行集成测试。为此，存在一个
 特殊的测试存储库，其中几乎每天都会提取所有子系统树：
 
-        https://git.kernel.org/？p=linux/kernel/git/next/linux-next.git
+        https://git.kernel.org/?p=linux/kernel/git/next/linux-next.git
 
 通过这种方式，Linux-next 对下一个合并阶段将进入主线内核的内容给出了一个概要
-展望。非常欢冒险的测试者运行测试Linux-next。
+展望。非常欢迎冒险的测试者运行测试Linux-next。
 
 多个主要版本的稳定版内核树
 -----------------------------------
@@ -307,7 +306,7 @@ bugzilla.kernel.org是Linux内核开发者们用来跟踪内核Bug的网站。�
 网上很多地方都有这个邮件列表的存档(archive)。可以使用搜索引擎来找到这些
 存档。比如：
 
-	http://dir.gmane.org/gmane.linux.kernel
+	https://lore.kernel.org/lkml/
 
 在发信之前，我们强烈建议你先在存档中搜索你想要讨论的问题。很多已经被详细
 讨论过的问题只在邮件列表的存档中可以找到。
@@ -381,7 +380,7 @@ MAINTAINERS文件中可以找到不同话题对应的邮件列表。
 
 内核社区的工作模式同大多数传统公司开发队伍的工作模式并不相同。下面这些例
 子，可以帮助你避免某些可能发生问题：
-用这些话介绍你的修改提案会有好处：
+用这些话介绍你的修改提案会有好处：（在任何时候你都不应该用中文写提案）
 
     - 它同时解决了多个问题
     - 它删除了2000行代码
@@ -448,8 +447,8 @@ Linux内核社区并不喜欢一下接收大段的代码。修改需要被恰当
 保证修改分成很多小块，这样在整个项目都准备好被包含进内核之前，其中的一部
 分可能会先被接收。
 
-必须了解这样做是不可接受的：试图将未完成的工作提交进内核，然后再找时间修
-复。
+你必须明白这么做是无法令人接受的：试图将不完整的代码提交进内核，然后再找
+时间修复。
 
 
 证明修改的必要性
@@ -472,11 +471,11 @@ Linux内核社区并不喜欢一下接收大段的代码。修改需要被恰当
 
 想了解它具体应该看起来像什么，请查阅以下文档中的“ChangeLog”章节：
   “The Perfect Patch”
-  	 http://www.ozlabs.org/~akpm/stuff/tpp.txt
+  	 https://www.ozlabs.org/~akpm/stuff/tpp.txt
 
 
-这些事情有时候做起来很难。要在任何方面都做到完美可能需要好几年时间。这是
-一个持续提高的过程，它需要大量的耐心和决心。只要不放弃，你一定可以做到。
+这些事情有时候做起来很难。想要在任何方面都做到完美可能需要好几年时间。这
+是一个持续提高的过程，它需要大量的耐心和决心。只要不放弃，你一定可以做到。
 很多人已经做到了，而他们都曾经和现在的你站在同样的起点上。
 
 

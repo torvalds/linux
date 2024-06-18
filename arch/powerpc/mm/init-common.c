@@ -17,15 +17,26 @@
 #undef DEBUG
 
 #include <linux/string.h>
+#include <linux/pgtable.h>
 #include <asm/pgalloc.h>
-#include <asm/pgtable.h>
 #include <asm/kup.h>
+#include <asm/smp.h>
 
-static bool disable_kuep = !IS_ENABLED(CONFIG_PPC_KUEP);
-static bool disable_kuap = !IS_ENABLED(CONFIG_PPC_KUAP);
+phys_addr_t memstart_addr __ro_after_init = (phys_addr_t)~0ull;
+EXPORT_SYMBOL_GPL(memstart_addr);
+phys_addr_t kernstart_addr __ro_after_init;
+EXPORT_SYMBOL_GPL(kernstart_addr);
+unsigned long kernstart_virt_addr __ro_after_init = KERNELBASE;
+EXPORT_SYMBOL_GPL(kernstart_virt_addr);
+
+bool disable_kuep = !IS_ENABLED(CONFIG_PPC_KUEP);
+bool disable_kuap = !IS_ENABLED(CONFIG_PPC_KUAP);
 
 static int __init parse_nosmep(char *p)
 {
+	if (!IS_ENABLED(CONFIG_PPC_BOOK3S_64))
+		return 0;
+
 	disable_kuep = true;
 	pr_warn("Disabling Kernel Userspace Execution Prevention\n");
 	return 0;
@@ -40,10 +51,21 @@ static int __init parse_nosmap(char *p)
 }
 early_param("nosmap", parse_nosmap);
 
-void __ref setup_kup(void)
+void __weak setup_kuep(bool disabled)
 {
-	setup_kuep(disable_kuep);
+	if (!IS_ENABLED(CONFIG_PPC_KUEP) || disabled)
+		return;
+
+	if (smp_processor_id() != boot_cpuid)
+		return;
+
+	pr_info("Activating Kernel Userspace Execution Prevention\n");
+}
+
+void setup_kup(void)
+{
 	setup_kuap(disable_kuap);
+	setup_kuep(disable_kuep);
 }
 
 #define CTOR(shift) static void ctor_##shift(void *addr) \
@@ -104,7 +126,7 @@ void pgtable_cache_add(unsigned int shift)
 	 * as to leave enough 0 bits in the address to contain it. */
 	unsigned long minalign = max(MAX_PGTABLE_INDEX_SIZE + 1,
 				     HUGEPD_SHIFT_MASK + 1);
-	struct kmem_cache *new;
+	struct kmem_cache *new = NULL;
 
 	/* It would be nice if this was a BUILD_BUG_ON(), but at the
 	 * moment, gcc doesn't seem to recognize is_power_of_2 as a
@@ -117,7 +139,8 @@ void pgtable_cache_add(unsigned int shift)
 
 	align = max_t(unsigned long, align, minalign);
 	name = kasprintf(GFP_KERNEL, "pgtable-2^%d", shift);
-	new = kmem_cache_create(name, table_size, align, 0, ctor(shift));
+	if (name)
+		new = kmem_cache_create(name, table_size, align, 0, ctor(shift));
 	if (!new)
 		panic("Could not allocate pgtable cache for order %d", shift);
 

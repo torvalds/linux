@@ -57,10 +57,10 @@ static int memstick_bus_match(struct device *dev, struct device_driver *drv)
 	return 0;
 }
 
-static int memstick_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int memstick_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct memstick_dev *card = container_of(dev, struct memstick_dev,
-						  dev);
+	const struct memstick_dev *card = container_of_const(dev, struct memstick_dev,
+							     dev);
 
 	if (add_uevent_var(env, "MEMSTICK_TYPE=%02X", card->id.type))
 		return -ENOMEM;
@@ -91,7 +91,7 @@ static int memstick_device_probe(struct device *dev)
 	return rc;
 }
 
-static int memstick_device_remove(struct device *dev)
+static void memstick_device_remove(struct device *dev)
 {
 	struct memstick_dev *card = container_of(dev, struct memstick_dev,
 						  dev);
@@ -105,7 +105,6 @@ static int memstick_device_remove(struct device *dev)
 	}
 
 	put_device(dev);
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -165,7 +164,7 @@ static struct attribute *memstick_dev_attrs[] = {
 };
 ATTRIBUTE_GROUPS(memstick_dev);
 
-static struct bus_type memstick_bus_type = {
+static const struct bus_type memstick_bus_type = {
 	.name           = "memstick",
 	.dev_groups	= memstick_dev_groups,
 	.match          = memstick_bus_match,
@@ -331,18 +330,17 @@ static int h_memstick_read_dev_id(struct memstick_dev *card,
 				  sizeof(struct ms_id_register));
 		*mrq = &card->current_mrq;
 		return 0;
-	} else {
-		if (!(*mrq)->error) {
-			memcpy(&id_reg, (*mrq)->data, sizeof(id_reg));
-			card->id.match_flags = MEMSTICK_MATCH_ALL;
-			card->id.type = id_reg.type;
-			card->id.category = id_reg.category;
-			card->id.class = id_reg.class;
-			dev_dbg(&card->dev, "if_mode = %02x\n", id_reg.if_mode);
-		}
-		complete(&card->mrq_complete);
-		return -EAGAIN;
 	}
+	if (!(*mrq)->error) {
+		memcpy(&id_reg, (*mrq)->data, sizeof(id_reg));
+		card->id.match_flags = MEMSTICK_MATCH_ALL;
+		card->id.type = id_reg.type;
+		card->id.category = id_reg.category;
+		card->id.class = id_reg.class;
+		dev_dbg(&card->dev, "if_mode = %02x\n", id_reg.if_mode);
+	}
+	complete(&card->mrq_complete);
+	return -EAGAIN;
 }
 
 static int h_memstick_set_rw_addr(struct memstick_dev *card,
@@ -412,6 +410,7 @@ static struct memstick_dev *memstick_alloc_card(struct memstick_host *host)
 	return card;
 err_out:
 	host->card = old_card;
+	kfree_const(card->dev.kobj.name);
 	kfree(card);
 	return NULL;
 }
@@ -441,6 +440,9 @@ static void memstick_check(struct work_struct *work)
 	} else if (host->card->stop)
 		host->card->stop(host->card);
 
+	if (host->removing)
+		goto out_power_off;
+
 	card = memstick_alloc_card(host);
 
 	if (!card) {
@@ -465,11 +467,12 @@ static void memstick_check(struct work_struct *work)
 			host->card = card;
 			if (device_register(&card->dev)) {
 				put_device(&card->dev);
-				kfree(host->card);
 				host->card = NULL;
 			}
-		} else
+		} else {
+			kfree_const(card->dev.kobj.name);
 			kfree(card);
+		}
 	}
 
 out_power_off:
@@ -545,6 +548,7 @@ EXPORT_SYMBOL(memstick_add_host);
  */
 void memstick_remove_host(struct memstick_host *host)
 {
+	host->removing = 1;
 	flush_workqueue(workqueue);
 	mutex_lock(&host->lock);
 	if (host->card)

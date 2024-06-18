@@ -22,7 +22,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/device.h>
-#include <linux/input/cyttsp.h>
+#include <linux/regulator/consumer.h>
 
 #define CY_NUM_RETRY		16 /* max number of retries for read ops */
 
@@ -114,7 +114,6 @@ struct cyttsp {
 	struct device *dev;
 	int irq;
 	struct input_dev *input;
-	char phys[32];
 	const struct cyttsp_bus_ops *bus_ops;
 	struct cyttsp_bootloader_data bl_data;
 	struct cyttsp_sysinfo_data sysinfo_data;
@@ -123,6 +122,7 @@ struct cyttsp {
 	enum cyttsp_state state;
 	bool suspended;
 
+	struct regulator_bulk_data regulators[2];
 	struct gpio_desc *reset_gpio;
 	bool use_hndshk;
 	u8 act_dist;

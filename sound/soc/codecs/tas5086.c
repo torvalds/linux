@@ -318,7 +318,7 @@ static int tas5086_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	struct tas5086_private *priv = snd_soc_component_get_drvdata(component);
 
 	/* The TAS5086 can only be slave to all clocks */
-	if ((format & SND_SOC_DAIFMT_MASTER_MASK) != SND_SOC_DAIFMT_CBS_CFS) {
+	if ((format & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) != SND_SOC_DAIFMT_CBC_CFC) {
 		dev_err(component->dev, "Invalid clocking mode\n");
 		return -EINVAL;
 	}
@@ -487,7 +487,7 @@ static int tas5086_init(struct device *dev, struct tas5086_private *priv)
 	/*
 	 * If any of the channels is configured to start in Mid-Z mode,
 	 * configure 'part 1' of the PWM starts to use Mid-Z, and tell
-	 * all configured mid-z channels to start start under 'part 1'.
+	 * all configured mid-z channels to start under 'part 1'.
 	 */
 	if (priv->pwm_start_mid_z)
 		regmap_write(priv->regmap, TAS5086_PWM_START,
@@ -840,7 +840,7 @@ static int tas5086_probe(struct snd_soc_component *component)
 			snprintf(name, sizeof(name),
 				 "ti,mid-z-channel-%d", i + 1);
 
-			if (of_get_property(of_node, name, NULL) != NULL)
+			if (of_property_read_bool(of_node, name))
 				priv->pwm_start_mid_z |= 1 << i;
 		}
 	}
@@ -888,11 +888,10 @@ static const struct snd_soc_component_driver soc_component_dev_tas5086 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct i2c_device_id tas5086_i2c_id[] = {
-	{ "tas5086", 0 },
+	{ "tas5086" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tas5086_i2c_id);
@@ -911,8 +910,7 @@ static const struct regmap_config tas5086_regmap = {
 	.reg_write		= tas5086_reg_write,
 };
 
-static int tas5086_i2c_probe(struct i2c_client *i2c,
-			     const struct i2c_device_id *id)
+static int tas5086_i2c_probe(struct i2c_client *i2c)
 {
 	struct tas5086_private *priv;
 	struct device *dev = &i2c->dev;
@@ -942,11 +940,7 @@ static int tas5086_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, priv);
 
-	if (of_match_device(of_match_ptr(tas5086_dt_ids), dev)) {
-		struct device_node *of_node = dev->of_node;
-		gpio_nreset = of_get_named_gpio(of_node, "reset-gpio", 0);
-	}
-
+	gpio_nreset = of_get_named_gpio(dev->of_node, "reset-gpio", 0);
 	if (gpio_is_valid(gpio_nreset))
 		if (devm_gpio_request(dev, gpio_nreset, "TAS5086 Reset"))
 			gpio_nreset = -EINVAL;
@@ -983,10 +977,8 @@ static int tas5086_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static int tas5086_i2c_remove(struct i2c_client *i2c)
-{
-	return 0;
-}
+static void tas5086_i2c_remove(struct i2c_client *i2c)
+{}
 
 static struct i2c_driver tas5086_i2c_driver = {
 	.driver = {

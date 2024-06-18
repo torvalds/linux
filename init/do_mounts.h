@@ -8,26 +8,18 @@
 #include <linux/mount.h>
 #include <linux/major.h>
 #include <linux/root_dev.h>
+#include <linux/init_syscalls.h>
+#include <linux/task_work.h>
+#include <linux/file.h>
 
-void  change_floppy(char *fmt, ...);
-void  mount_block_root(char *name, int flags);
-void  mount_root(void);
+void  mount_root_generic(char *name, char *pretty_name, int flags);
+void  mount_root(char *root_device_name);
 extern int root_mountflags;
 
-static inline int create_dev(char *name, dev_t dev)
+static inline __init int create_dev(char *name, dev_t dev)
 {
-	ksys_unlink(name);
-	return ksys_mknod(name, S_IFBLK|0600, new_encode_dev(dev));
-}
-
-static inline u32 bstat(char *name)
-{
-	struct kstat stat;
-	if (vfs_stat(name, &stat) != 0)
-		return 0;
-	if (!S_ISBLK(stat.mode))
-		return 0;
-	return stat.rdev;
+	init_unlink(name);
+	return init_mknod(name, S_IFBLK | 0600, new_encode_dev(dev));
 }
 
 #ifdef CONFIG_BLK_DEV_RAM
@@ -43,21 +35,18 @@ static inline int rd_load_image(char *from) { return 0; }
 #endif
 
 #ifdef CONFIG_BLK_DEV_INITRD
-
-bool __init initrd_load(void);
-
+bool __init initrd_load(char *root_device_name);
 #else
-
-static inline bool initrd_load(void) { return false; }
+static inline bool initrd_load(char *root_device_name)
+{
+	return false;
+	}
 
 #endif
 
-#ifdef CONFIG_BLK_DEV_MD
-
-void md_run_setup(void);
-
-#else
-
-static inline void md_run_setup(void) {}
-
-#endif
+/* Ensure that async file closing finished to prevent spurious errors. */
+static inline void init_flush_fput(void)
+{
+	flush_delayed_fput();
+	task_work_run();
+}

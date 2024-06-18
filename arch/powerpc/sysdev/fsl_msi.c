@@ -11,11 +11,15 @@
 #include <linux/msi.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
+#include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/interrupt.h>
+#include <linux/irqdomain.h>
 #include <linux/seq_file.h>
 #include <sysdev/fsl_soc.h>
-#include <asm/prom.h>
 #include <asm/hw_irq.h>
 #include <asm/ppc-pci.h>
 #include <asm/mpic.h>
@@ -125,17 +129,14 @@ static void fsl_teardown_msi_irqs(struct pci_dev *pdev)
 	struct fsl_msi *msi_data;
 	irq_hw_number_t hwirq;
 
-	for_each_pci_msi_entry(entry, pdev) {
-		if (!entry->irq)
-			continue;
+	msi_for_each_desc(entry, &pdev->dev, MSI_DESC_ASSOCIATED) {
 		hwirq = virq_to_hw(entry->irq);
 		msi_data = irq_get_chip_data(entry->irq);
 		irq_set_msi_desc(entry->irq, NULL);
 		irq_dispose_mapping(entry->irq);
+		entry->irq = 0;
 		msi_bitmap_free_hwirqs(&msi_data->bitmap, hwirq, 1);
 	}
-
-	return;
 }
 
 static void fsl_compose_msi_msg(struct pci_dev *pdev, int hwirq,
@@ -211,11 +212,13 @@ static int fsl_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 			dev_err(&pdev->dev,
 				"node %pOF has an invalid fsl,msi phandle %u\n",
 				hose->dn, np->phandle);
+			of_node_put(np);
 			return -EINVAL;
 		}
+		of_node_put(np);
 	}
 
-	for_each_pci_msi_entry(entry, pdev) {
+	msi_for_each_desc(entry, &pdev->dev, MSI_DESC_NOTASSOCIATED) {
 		/*
 		 * Loop over all the MSI devices until we find one that has an
 		 * available interrupt.
@@ -266,7 +269,6 @@ out_free:
 
 static irqreturn_t fsl_msi_cascade(int irq, void *data)
 {
-	unsigned int cascade_irq;
 	struct fsl_msi *msi_data;
 	int msir_index = -1;
 	u32 msir_value = 0;
@@ -278,9 +280,6 @@ static irqreturn_t fsl_msi_cascade(int irq, void *data)
 	msi_data = cascade_data->msi_data;
 
 	msir_index = cascade_data->index;
-
-	if (msir_index >= NR_MSI_REG_MAX)
-		cascade_irq = 0;
 
 	switch (msi_data->feature & FSL_PIC_IP_MASK) {
 	case FSL_PIC_IP_MPIC:
@@ -305,15 +304,15 @@ static irqreturn_t fsl_msi_cascade(int irq, void *data)
 	}
 
 	while (msir_value) {
+		int err;
 		intr_index = ffs(msir_value) - 1;
 
-		cascade_irq = irq_linear_revmap(msi_data->irqhost,
+		err = generic_handle_domain_irq(msi_data->irqhost,
 				msi_hwirq(msi_data, msir_index,
 					  intr_index + have_shift));
-		if (cascade_irq) {
-			generic_handle_irq(cascade_irq);
+		if (!err)
 			ret = IRQ_HANDLED;
-		}
+
 		have_shift += intr_index + 1;
 		msir_value = msir_value >> (intr_index + 1);
 	}
@@ -321,7 +320,7 @@ static irqreturn_t fsl_msi_cascade(int irq, void *data)
 	return ret;
 }
 
-static int fsl_of_msi_remove(struct platform_device *ofdev)
+static void fsl_of_msi_remove(struct platform_device *ofdev)
 {
 	struct fsl_msi *msi = platform_get_drvdata(ofdev);
 	int virq, i;
@@ -344,8 +343,6 @@ static int fsl_of_msi_remove(struct platform_device *ofdev)
 	if ((msi->feature & FSL_PIC_IP_MASK) != FSL_PIC_IP_VMPIC)
 		iounmap(msi->msi_regs);
 	kfree(msi);
-
-	return 0;
 }
 
 static struct lock_class_key fsl_msi_irq_class;
@@ -395,7 +392,6 @@ static int fsl_msi_setup_hwirq(struct fsl_msi *msi, struct platform_device *dev,
 static const struct of_device_id fsl_of_msi_ids[];
 static int fsl_of_msi_probe(struct platform_device *dev)
 {
-	const struct of_device_id *match;
 	struct fsl_msi *msi;
 	struct resource res, msiir;
 	int err, i, j, irq_index, count;
@@ -405,10 +401,7 @@ static int fsl_of_msi_probe(struct platform_device *dev)
 	u32 offset;
 	struct pci_controller *phb;
 
-	match = of_match_device(fsl_of_msi_ids, &dev->dev);
-	if (!match)
-		return -EINVAL;
-	features = match->data;
+	features = device_get_match_data(&dev->dev);
 
 	printk(KERN_DEBUG "Setting up Freescale MSI support\n");
 
@@ -571,10 +564,12 @@ static const struct fsl_msi_feature ipic_msi_feature = {
 	.msiir_offset = 0x38,
 };
 
+#ifdef CONFIG_EPAPR_PARAVIRT
 static const struct fsl_msi_feature vmpic_msi_feature = {
 	.fsl_pic_ip = FSL_PIC_IP_VMPIC,
 	.msiir_offset = 0,
 };
+#endif
 
 static const struct of_device_id fsl_of_msi_ids[] = {
 	{
@@ -608,7 +603,7 @@ static struct platform_driver fsl_of_msi_driver = {
 		.of_match_table = fsl_of_msi_ids,
 	},
 	.probe = fsl_of_msi_probe,
-	.remove = fsl_of_msi_remove,
+	.remove_new = fsl_of_msi_remove,
 };
 
 static __init int fsl_of_msi_init(void)

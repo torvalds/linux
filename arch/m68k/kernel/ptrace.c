@@ -19,12 +19,14 @@
 #include <linux/ptrace.h>
 #include <linux/user.h>
 #include <linux/signal.h>
-#include <linux/tracehook.h>
-
+#include <linux/regset.h>
+#include <linux/elf.h>
+#include <linux/seccomp.h>
 #include <linux/uaccess.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/processor.h>
+
+#include "ptrace.h"
 
 /*
  * does not yet catch signals sent when the child dies.
@@ -272,34 +274,77 @@ out_eio:
 	return -EIO;
 }
 
-asmlinkage void syscall_trace(void)
-{
-	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD)
-				 ? 0x80 : 0));
-	/*
-	 * this isn't the same as continuing with a signal, but it will do
-	 * for normal use.  strace only continues with a signal if the
-	 * stopping signal is not SIGTRAP.  -brl
-	 */
-	if (current->exit_code) {
-		send_sig(current->exit_code, current, 1);
-		current->exit_code = 0;
-	}
-}
-
-#if defined(CONFIG_COLDFIRE) || !defined(CONFIG_MMU)
 asmlinkage int syscall_trace_enter(void)
 {
 	int ret = 0;
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
-		ret = tracehook_report_syscall_entry(task_pt_regs(current));
+		ret = ptrace_report_syscall_entry(task_pt_regs(current));
+
+	if (secure_computing() == -1)
+		return -1;
+
 	return ret;
 }
 
 asmlinkage void syscall_trace_leave(void)
 {
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
-		tracehook_report_syscall_exit(task_pt_regs(current), 0);
+		ptrace_report_syscall_exit(task_pt_regs(current), 0);
 }
-#endif /* CONFIG_COLDFIRE */
+
+#if defined(CONFIG_BINFMT_ELF_FDPIC) && defined(CONFIG_ELF_CORE)
+/*
+ * Currently the only thing that needs to use regsets for m68k is the
+ * coredump support of the elf_fdpic loader. Implement the minimum
+ * definitions required for that.
+ */
+static int m68k_regset_get(struct task_struct *target,
+			   const struct user_regset *regset,
+			   struct membuf to)
+{
+	struct pt_regs *ptregs = task_pt_regs(target);
+	u32 uregs[ELF_NGREG];
+
+	ELF_CORE_COPY_REGS(uregs, ptregs);
+	return membuf_write(&to, uregs, sizeof(uregs));
+}
+
+enum m68k_regset {
+	REGSET_GPR,
+#ifdef CONFIG_FPU
+	REGSET_FPU,
+#endif
+};
+
+static const struct user_regset m68k_user_regsets[] = {
+	[REGSET_GPR] = {
+		.core_note_type = NT_PRSTATUS,
+		.n = ELF_NGREG,
+		.size = sizeof(u32),
+		.align = sizeof(u16),
+		.regset_get = m68k_regset_get,
+	},
+#ifdef CONFIG_FPU
+	[REGSET_FPU] = {
+		.core_note_type = NT_PRFPREG,
+		.n = sizeof(struct user_m68kfp_struct) / sizeof(u32),
+		.size = sizeof(u32),
+		.align = sizeof(u32),
+	}
+#endif /* CONFIG_FPU */
+};
+
+static const struct user_regset_view user_m68k_view = {
+	.name = "m68k",
+	.e_machine = EM_68K,
+	.ei_osabi = ELF_OSABI,
+	.regsets = m68k_user_regsets,
+	.n = ARRAY_SIZE(m68k_user_regsets)
+};
+
+const struct user_regset_view *task_user_regset_view(struct task_struct *task)
+{
+	return &user_m68k_view;
+}
+#endif /* CONFIG_BINFMT_ELF_FDPIC && CONFIG_ELF_CORE */

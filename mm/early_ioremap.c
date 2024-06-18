@@ -17,6 +17,7 @@
 #include <linux/vmalloc.h>
 #include <asm/fixmap.h>
 #include <asm/early_ioremap.h>
+#include "internal.h"
 
 #ifdef CONFIG_MMU
 static int early_ioremap_debug __initdata;
@@ -38,13 +39,8 @@ pgprot_t __init __weak early_memremap_pgprot_adjust(resource_size_t phys_addr,
 	return prot;
 }
 
-void __init __weak early_ioremap_shutdown(void)
-{
-}
-
 void __init early_ioremap_reset(void)
 {
-	early_ioremap_shutdown();
 	after_paging_init = 1;
 }
 
@@ -76,12 +72,10 @@ void __init early_ioremap_setup(void)
 {
 	int i;
 
-	for (i = 0; i < FIX_BTMAPS_SLOTS; i++)
-		if (WARN_ON(prev_map[i]))
-			break;
-
-	for (i = 0; i < FIX_BTMAPS_SLOTS; i++)
+	for (i = 0; i < FIX_BTMAPS_SLOTS; i++) {
+		WARN_ON_ONCE(prev_map[i]);
 		slot_virt[i] = __fix_to_virt(FIX_BTMAP_BEGIN - NR_FIX_BTMAPS*i);
+	}
 }
 
 static int __init check_early_ioremap_leak(void)
@@ -121,8 +115,8 @@ __early_ioremap(resource_size_t phys_addr, unsigned long size, pgprot_t prot)
 		}
 	}
 
-	if (WARN(slot < 0, "%s(%08llx, %08lx) not found slot\n",
-		 __func__, (u64)phys_addr, size))
+	if (WARN(slot < 0, "%s(%pa, %08lx) not found slot\n",
+		 __func__, &phys_addr, size))
 		return NULL;
 
 	/* Don't allow wraparound or zero size */
@@ -158,8 +152,8 @@ __early_ioremap(resource_size_t phys_addr, unsigned long size, pgprot_t prot)
 		--idx;
 		--nrpages;
 	}
-	WARN(early_ioremap_debug, "%s(%08llx, %08lx) [%d] => %08lx + %08lx\n",
-	     __func__, (u64)phys_addr, size, slot, offset, slot_virt[slot]);
+	WARN(early_ioremap_debug, "%s(%pa, %08lx) [%d] => %08lx + %08lx\n",
+	     __func__, &phys_addr, size, slot, offset, slot_virt[slot]);
 
 	prev_map[slot] = (void __iomem *)(offset + slot_virt[slot]);
 	return prev_map[slot];
@@ -181,17 +175,17 @@ void __init early_iounmap(void __iomem *addr, unsigned long size)
 		}
 	}
 
-	if (WARN(slot < 0, "early_iounmap(%p, %08lx) not found slot\n",
-		 addr, size))
+	if (WARN(slot < 0, "%s(%p, %08lx) not found slot\n",
+		  __func__, addr, size))
 		return;
 
 	if (WARN(prev_size[slot] != size,
-		 "early_iounmap(%p, %08lx) [%d] size not consistent %08lx\n",
-		 addr, size, slot, prev_size[slot]))
+		 "%s(%p, %08lx) [%d] size not consistent %08lx\n",
+		  __func__, addr, size, slot, prev_size[slot]))
 		return;
 
-	WARN(early_ioremap_debug, "early_iounmap(%p, %08lx) [%d]\n",
-	     addr, size, slot);
+	WARN(early_ioremap_debug, "%s(%p, %08lx) [%d]\n",
+	      __func__, addr, size, slot);
 
 	virt_addr = (unsigned long)addr;
 	if (WARN_ON(virt_addr < fix_to_virt(FIX_BTMAP_BEGIN)))

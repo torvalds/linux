@@ -6,21 +6,22 @@
 
 #include <linux/list.h>
 #include <linux/parman.h>
+#include <linux/idr.h>
 
 #include "reg.h"
 #include "spectrum.h"
 #include "core_acl_flex_keys.h"
 
 struct mlxsw_sp_acl_tcam {
-	unsigned long *used_regions; /* bit array */
+	struct ida used_regions;
 	unsigned int max_regions;
-	unsigned long *used_groups;  /* bit array */
+	struct ida used_groups;
 	unsigned int max_groups;
 	unsigned int max_group_size;
 	struct mutex lock; /* guards vregion list */
 	struct list_head vregion_list;
 	u32 vregion_rehash_intrvl;   /* ms */
-	unsigned long priv[0];
+	unsigned long priv[];
 	/* priv has to be always the last item */
 };
 
@@ -29,11 +30,6 @@ int mlxsw_sp_acl_tcam_init(struct mlxsw_sp *mlxsw_sp,
 			   struct mlxsw_sp_acl_tcam *tcam);
 void mlxsw_sp_acl_tcam_fini(struct mlxsw_sp *mlxsw_sp,
 			    struct mlxsw_sp_acl_tcam *tcam);
-u32 mlxsw_sp_acl_tcam_vregion_rehash_intrvl_get(struct mlxsw_sp *mlxsw_sp,
-						struct mlxsw_sp_acl_tcam *tcam);
-int mlxsw_sp_acl_tcam_vregion_rehash_intrvl_set(struct mlxsw_sp *mlxsw_sp,
-						struct mlxsw_sp_acl_tcam *tcam,
-						u32 val);
 int mlxsw_sp_acl_tcam_priority_get(struct mlxsw_sp *mlxsw_sp,
 				   struct mlxsw_sp_acl_rule_info *rulei,
 				   u32 *priority, bool fillup_priority);
@@ -42,7 +38,8 @@ struct mlxsw_sp_acl_profile_ops {
 	size_t ruleset_priv_size;
 	int (*ruleset_add)(struct mlxsw_sp *mlxsw_sp,
 			   struct mlxsw_sp_acl_tcam *tcam, void *ruleset_priv,
-			   struct mlxsw_afk_element_usage *tmplt_elusage);
+			   struct mlxsw_afk_element_usage *tmplt_elusage,
+			   unsigned int *p_min_prio, unsigned int *p_max_prio);
 	void (*ruleset_del)(struct mlxsw_sp *mlxsw_sp, void *ruleset_priv);
 	int (*ruleset_bind)(struct mlxsw_sp *mlxsw_sp, void *ruleset_priv,
 			    struct mlxsw_sp_port *mlxsw_sp_port,
@@ -86,7 +83,7 @@ struct mlxsw_sp_acl_tcam_region {
 	char tcam_region_info[MLXSW_REG_PXXX_TCAM_REGION_INFO_LEN];
 	struct mlxsw_afk_key_info *key_info;
 	struct mlxsw_sp *mlxsw_sp;
-	unsigned long priv[0];
+	unsigned long priv[];
 	/* priv has to be always the last item */
 };
 
@@ -285,6 +282,12 @@ void mlxsw_sp_acl_erps_fini(struct mlxsw_sp *mlxsw_sp,
 			    struct mlxsw_sp_acl_atcam *atcam);
 
 struct mlxsw_sp_acl_bf;
+
+struct mlxsw_sp_acl_bf_ops {
+	unsigned int (*index_get)(struct mlxsw_sp_acl_bf *bf,
+				  struct mlxsw_sp_acl_atcam_region *aregion,
+				  struct mlxsw_sp_acl_atcam_entry *aentry);
+};
 
 int
 mlxsw_sp_acl_bf_entry_add(struct mlxsw_sp *mlxsw_sp,

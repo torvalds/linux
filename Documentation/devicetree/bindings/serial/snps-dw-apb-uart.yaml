@@ -10,7 +10,8 @@ maintainers:
   - Rob Herring <robh@kernel.org>
 
 allOf:
-  - $ref: /schemas/serial.yaml#
+  - $ref: serial.yaml#
+  - $ref: rs485.yaml#
 
 properties:
   compatible:
@@ -23,19 +24,30 @@ properties:
       - items:
           - enum:
               - rockchip,px30-uart
+              - rockchip,rk1808-uart
               - rockchip,rk3036-uart
               - rockchip,rk3066-uart
+              - rockchip,rk3128-uart
               - rockchip,rk3188-uart
               - rockchip,rk3288-uart
+              - rockchip,rk3308-uart
               - rockchip,rk3328-uart
               - rockchip,rk3368-uart
               - rockchip,rk3399-uart
+              - rockchip,rk3568-uart
+              - rockchip,rk3588-uart
               - rockchip,rv1108-uart
+              - rockchip,rv1126-uart
           - const: snps,dw-apb-uart
       - items:
           - enum:
               - brcm,bcm11351-dw-apb-uart
               - brcm,bcm21664-dw-apb-uart
+          - const: snps,dw-apb-uart
+      - items:
+          - enum:
+              - starfive,jh7100-hsuart
+              - starfive,jh7100-uart
           - const: snps,dw-apb-uart
       - const: snps,dw-apb-uart
 
@@ -55,6 +67,14 @@ properties:
     items:
       - const: baudclk
       - const: apb_pclk
+
+  dmas:
+    maxItems: 2
+
+  dma-names:
+    items:
+      - const: tx
+      - const: rx
 
   snps,uart-16550-compatible:
     description: reflects the value of UART_16550_COMPATIBLE configuration
@@ -98,7 +118,8 @@ properties:
 required:
   - compatible
   - reg
-  - interrupts
+
+unevaluatedProperties: false
 
 examples:
   - |

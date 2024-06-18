@@ -8,7 +8,6 @@
 
 #ifndef __ASM_SH_PROCESSOR_32_H
 #define __ASM_SH_PROCESSOR_32_H
-#ifdef __KERNEL__
 
 #include <linux/compiler.h>
 #include <linux/linkage.h>
@@ -51,6 +50,7 @@
 #define SR_FD		0x00008000
 #define SR_MD		0x40000000
 
+#define SR_USER_MASK	0x00000303	// M, Q, S, T bits
 /*
  * DSP structure and data
  */
@@ -128,9 +128,6 @@ struct task_struct;
 
 extern void start_thread(struct pt_regs *regs, unsigned long new_pc, unsigned long new_sp);
 
-/* Free all resources held by a thread. */
-extern void release_thread(struct task_struct *);
-
 /*
  * FPU lazy state save handling.
  */
@@ -171,7 +168,7 @@ static __inline__ void enable_fpu(void)
 #define thread_saved_pc(tsk)	(tsk->thread.pc)
 
 void show_trace(struct task_struct *tsk, unsigned long *sp,
-		struct pt_regs *regs);
+		struct pt_regs *regs, const char *loglvl);
 
 #ifdef CONFIG_DUMP_CODE
 void show_code(struct pt_regs *regs);
@@ -181,7 +178,7 @@ static inline void show_code(struct pt_regs *regs)
 }
 #endif
 
-extern unsigned long get_wchan(struct task_struct *p);
+extern unsigned long __get_wchan(struct task_struct *p);
 
 #define KSTK_EIP(tsk)  (task_pt_regs(tsk)->pc)
 #define KSTK_ESP(tsk)  (task_pt_regs(tsk)->regs[15])
@@ -203,5 +200,4 @@ static inline void prefetchw(const void *x)
 }
 #endif
 
-#endif /* __KERNEL__ */
 #endif /* __ASM_SH_PROCESSOR_32_H */

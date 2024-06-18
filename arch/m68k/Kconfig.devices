@@ -19,6 +19,7 @@ config HEARTBEAT
 # We have a dedicated heartbeat LED. :-)
 config PROC_HARDWARE
 	bool "/proc/hardware support"
+	depends on PROC_FS
 	help
 	  Say Y here to support the /proc/hardware file, which gives you
 	  access to information about the machine you're running on,
@@ -59,7 +60,7 @@ config NFETH
 config ATARI_ETHERNAT
 	bool "Atari EtherNAT Ethernet support"
 	depends on ATARI
-	---help---
+	help
 	  Say Y to include support for the EtherNAT network adapter for the
 	  CT/60 extension port.
 
@@ -69,7 +70,7 @@ config ATARI_ETHERNAT
 config ATARI_ETHERNEC
 	bool "Atari EtherNEC Ethernet support"
 	depends on ATARI_ROM_ISA
-	---help---
+	help
 	  Say Y to include support for the EtherNEC network adapter for the
 	  ROM port. The driver works by polling instead of interrupts, so it
 	  is quite slow.
@@ -120,7 +121,7 @@ config HPAPCI
 config SERIAL_CONSOLE
 	bool "Support for serial port console"
 	depends on AMIGA_BUILTIN_SERIAL=y
-	---help---
+	help
 	  If you say Y here, it will be possible to use a serial port as the
 	  system console (the system console is the device which receives all
 	  kernel messages and warnings and which allows logins in single user

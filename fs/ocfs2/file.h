@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
-/* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
- *
+/*
  * file.h
  *
  * Function prototypes
@@ -51,10 +49,13 @@ int ocfs2_extend_no_holes(struct inode *inode, struct buffer_head *di_bh,
 			  u64 new_i_size, u64 zero_to);
 int ocfs2_zero_extend(struct inode *inode, struct buffer_head *di_bh,
 		      loff_t zero_to);
-int ocfs2_setattr(struct dentry *dentry, struct iattr *attr);
-int ocfs2_getattr(const struct path *path, struct kstat *stat,
-		  u32 request_mask, unsigned int flags);
-int ocfs2_permission(struct inode *inode, int mask);
+int ocfs2_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+		  struct iattr *attr);
+int ocfs2_getattr(struct mnt_idmap *idmap, const struct path *path,
+		  struct kstat *stat, u32 request_mask, unsigned int flags);
+int ocfs2_permission(struct mnt_idmap *idmap,
+		     struct inode *inode,
+		     int mask);
 
 int ocfs2_should_update_atime(struct inode *inode,
 			      struct vfsmount *vfsmnt);

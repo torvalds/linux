@@ -56,19 +56,20 @@ struct ispif_device {
 	int nclocks;
 	struct camss_clock  *clock_for_reset;
 	int nclocks_for_reset;
-	struct completion reset_complete;
+	struct completion reset_complete[MSM_ISPIF_VFE_NUM];
 	int power_count;
 	struct mutex power_lock;
 	struct ispif_intf_cmd_reg intf_cmd[MSM_ISPIF_VFE_NUM];
 	struct mutex config_lock;
 	unsigned int line_num;
 	struct ispif_line *line;
+	struct camss *camss;
 };
 
-struct resources_ispif;
+struct camss_subdev_resources;
 
-int msm_ispif_subdev_init(struct ispif_device *ispif,
-			  const struct resources_ispif *res);
+int msm_ispif_subdev_init(struct camss *camss,
+			  const struct camss_subdev_resources *res);
 
 int msm_ispif_register_entities(struct ispif_device *ispif,
 				struct v4l2_device *v4l2_dev);

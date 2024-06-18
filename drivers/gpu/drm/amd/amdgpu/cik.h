@@ -31,4 +31,5 @@ void cik_srbm_select(struct amdgpu_device *adev,
 int cik_set_ip_blocks(struct amdgpu_device *adev);
 
 void legacy_doorbell_index_init(struct amdgpu_device *adev);
+
 #endif

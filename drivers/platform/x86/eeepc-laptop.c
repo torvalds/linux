@@ -444,7 +444,7 @@ static int eeepc_platform_init(struct eeepc_laptop *eeepc)
 {
 	int result;
 
-	eeepc->platform_device = platform_device_alloc(EEEPC_LAPTOP_FILE, -1);
+	eeepc->platform_device = platform_device_alloc(EEEPC_LAPTOP_FILE, PLATFORM_DEVID_NONE);
 	if (!eeepc->platform_device)
 		return -ENOMEM;
 	platform_set_drvdata(eeepc->platform_device, eeepc);
@@ -541,12 +541,10 @@ static int eeepc_led_init(struct eeepc_laptop *eeepc)
 
 static void eeepc_led_exit(struct eeepc_laptop *eeepc)
 {
-	if (!IS_ERR_OR_NULL(eeepc->tpd_led.dev))
-		led_classdev_unregister(&eeepc->tpd_led);
+	led_classdev_unregister(&eeepc->tpd_led);
 	if (eeepc->led_workqueue)
 		destroy_workqueue(eeepc->led_workqueue);
 }
-
 
 /*
  * PCI hotplug (for wlan rfkill)
@@ -578,7 +576,7 @@ static void eeepc_rfkill_hotplug(struct eeepc_laptop *eeepc, acpi_handle handle)
 
 	port = acpi_get_pci_dev(handle);
 	if (!port) {
-		pr_warning("Unable to find port\n");
+		pr_warn("Unable to find port\n");
 		goto out_unlock;
 	}
 
@@ -1396,7 +1394,7 @@ static int eeepc_acpi_add(struct acpi_device *device)
 	 * and machine-specific scripts find the fixed name convenient.  But
 	 * It's also good for us to exclude multiple instances because both
 	 * our hwmon and our wlan rfkill subdevice use global ACPI objects
-	 * (the EC and the wlan PCI slot respectively).
+	 * (the EC and the PCI wlan slot respectively).
 	 */
 	result = eeepc_platform_init(eeepc);
 	if (result)
@@ -1442,7 +1440,7 @@ fail_platform:
 	return result;
 }
 
-static int eeepc_acpi_remove(struct acpi_device *device)
+static void eeepc_acpi_remove(struct acpi_device *device)
 {
 	struct eeepc_laptop *eeepc = acpi_driver_data(device);
 
@@ -1453,7 +1451,6 @@ static int eeepc_acpi_remove(struct acpi_device *device)
 	eeepc_platform_exit(eeepc);
 
 	kfree(eeepc);
-	return 0;
 }
 
 
@@ -1466,7 +1463,6 @@ MODULE_DEVICE_TABLE(acpi, eeepc_device_ids);
 static struct acpi_driver eeepc_acpi_driver = {
 	.name = EEEPC_LAPTOP_NAME,
 	.class = EEEPC_ACPI_CLASS,
-	.owner = THIS_MODULE,
 	.ids = eeepc_device_ids,
 	.flags = ACPI_DRIVER_ALL_NOTIFY_EVENTS,
 	.ops = {

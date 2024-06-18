@@ -1,0 +1,316 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Device Tree Source for OMAP34XX/OMAP36XX clock data
+ *
+ * Copyright (C) 2013 Texas Instruments, Inc.
+ */
+&cm_clocks {
+	security_l4_ick2: security_l4_ick2 {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&l4_ick>;
+		clock-mult = <1>;
+		clock-div = <1>;
+	};
+
+	clock@a14 {
+		compatible = "ti,clksel";
+		reg = <0xa14>;
+		#clock-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		aes1_ick: clock-aes1-ick@3 {
+			reg = <3>;
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "aes1_ick";
+			clocks = <&security_l4_ick2>;
+		};
+
+		rng_ick: clock-rng-ick@2 {
+			reg = <2>;
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "rng_ick";
+			clocks = <&security_l4_ick2>;
+		};
+
+		sha11_ick: clock-sha11-ick@1 {
+			reg = <1>;
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "sha11_ick";
+			clocks = <&security_l4_ick2>;
+		};
+
+		des1_ick: clock-des1-ick@0 {
+			reg = <0>;
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "des1_ick";
+			clocks = <&security_l4_ick2>;
+		};
+
+		pka_ick: clock-pka-ick@4 {
+			reg = <4>;
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "pka_ick";
+			clocks = <&security_l3_ick>;
+		};
+	};
+
+	/* CM_FCLKEN_CAM */
+	clock@f00 {
+		compatible = "ti,clksel";
+		reg = <0xf00>;
+		#clock-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cam_mclk: clock-cam-mclk@0 {
+			reg = <0>;
+			#clock-cells = <0>;
+			compatible = "ti,gate-clock";
+			clock-output-names = "cam_mclk";
+			clocks = <&dpll4_m5x2_ck>;
+			ti,set-rate-parent;
+		};
+
+		csi2_96m_fck: clock-csi2-96m-fck@1 {
+			reg = <1>;
+			#clock-cells = <0>;
+			compatible = "ti,gate-clock";
+			clock-output-names = "csi2_96m_fck";
+			clocks = <&core_96m_fck>;
+		};
+	};
+
+	cam_ick: cam_ick@f10 {
+		#clock-cells = <0>;
+		compatible = "ti,omap3-no-wait-interface-clock";
+		clocks = <&l4_ick>;
+		reg = <0x0f10>;
+		ti,bit-shift = <0>;
+	};
+
+	security_l3_ick: security_l3_ick {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&l3_ick>;
+		clock-mult = <1>;
+		clock-div = <1>;
+	};
+
+	clock@a10 {
+		compatible = "ti,clksel";
+		reg = <0xa10>;
+		#clock-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		icr_ick: clock-icr-ick@29 {
+			reg = <29>;
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "icr_ick";
+			clocks = <&core_l4_ick>;
+		};
+
+		des2_ick: clock-des2-ick@26 {
+			reg = <26>;
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "des2_ick";
+			clocks = <&core_l4_ick>;
+		};
+
+		mspro_ick: clock-mspro-ick@23 {
+			reg = <23>;
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "mspro_ick";
+			clocks = <&core_l4_ick>;
+		};
+
+		mailboxes_ick: clock-mailboxes-ick@7 {
+			reg = <7>;
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "mailboxes_ick";
+			clocks = <&core_l4_ick>;
+		};
+
+		sad2d_ick: clock-sad2d-ick@3 {
+			reg = <3>;
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "sad2d_ick";
+			clocks = <&l3_ick>;
+		};
+	};
+
+	ssi_l4_ick: ssi_l4_ick {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&l4_ick>;
+		clock-mult = <1>;
+		clock-div = <1>;
+	};
+
+	clock@c00 {
+		compatible = "ti,clksel";
+		reg = <0xc00>;
+		#clock-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		sr1_fck: clock-sr1-fck@6 {
+			reg = <6>;
+			#clock-cells = <0>;
+			compatible = "ti,wait-gate-clock";
+			clock-output-names = "sr1_fck";
+			clocks = <&sys_ck>;
+		};
+
+		sr2_fck: clock-sr2-fck@7 {
+			reg = <7>;
+			#clock-cells = <0>;
+			compatible = "ti,wait-gate-clock";
+			clock-output-names = "sr2_fck";
+			clocks = <&sys_ck>;
+		};
+	};
+
+	sr_l4_ick: sr_l4_ick {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&l4_ick>;
+		clock-mult = <1>;
+		clock-div = <1>;
+	};
+
+	dpll2_fck: dpll2_fck@40 {
+		#clock-cells = <0>;
+		compatible = "ti,divider-clock";
+		clocks = <&core_ck>;
+		ti,bit-shift = <19>;
+		ti,max-div = <7>;
+		reg = <0x0040>;
+		ti,index-starts-at-one;
+	};
+
+	dpll2_ck: dpll2_ck@4 {
+		#clock-cells = <0>;
+		compatible = "ti,omap3-dpll-clock";
+		clocks = <&sys_ck>, <&dpll2_fck>;
+		reg = <0x0004>, <0x0024>, <0x0040>, <0x0034>;
+		ti,low-power-stop;
+		ti,lock;
+		ti,low-power-bypass;
+	};
+
+	dpll2_m2_ck: dpll2_m2_ck@44 {
+		#clock-cells = <0>;
+		compatible = "ti,divider-clock";
+		clocks = <&dpll2_ck>;
+		ti,max-div = <31>;
+		reg = <0x0044>;
+		ti,index-starts-at-one;
+	};
+
+	iva2_ck: iva2_ck@0 {
+		#clock-cells = <0>;
+		compatible = "ti,wait-gate-clock";
+		clocks = <&dpll2_m2_ck>;
+		reg = <0x0000>;
+		ti,bit-shift = <0>;
+	};
+
+	clock@a00 {
+		compatible = "ti,clksel";
+		reg = <0xa00>;
+		#clock-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		modem_fck: clock-modem-fck@31 {
+			reg = <31>;
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "modem_fck";
+			clocks = <&sys_ck>;
+		};
+
+		mspro_fck: clock-mspro-fck@23 {
+			reg = <23>;
+			#clock-cells = <0>;
+			compatible = "ti,wait-gate-clock";
+			clock-output-names = "mspro_fck";
+			clocks = <&core_96m_fck>;
+		};
+	};
+
+	/* CM_ICLKEN3_CORE */
+	clock@a18 {
+		compatible = "ti,clksel";
+		reg = <0xa18>;
+		#clock-cells = <2>;
+		#address-cells = <1>;
+		#ssize-cells = <0>;
+
+		mad2d_ick: clock-mad2d-ick@3 {
+			reg = <3>;
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "mad2d_ick";
+			clocks = <&l3_ick>;
+		};
+	};
+
+};
+
+&cm_clockdomains {
+	cam_clkdm: cam_clkdm {
+		compatible = "ti,clockdomain";
+		clocks = <&cam_ick>, <&csi2_96m_fck>;
+	};
+
+	iva2_clkdm: iva2_clkdm {
+		compatible = "ti,clockdomain";
+		clocks = <&iva2_ck>;
+	};
+
+	dpll2_clkdm: dpll2_clkdm {
+		compatible = "ti,clockdomain";
+		clocks = <&dpll2_ck>;
+	};
+
+	wkup_clkdm: wkup_clkdm {
+		compatible = "ti,clockdomain";
+		clocks = <&gpio1_dbck>, <&wdt2_fck>, <&wdt2_ick>, <&wdt1_ick>,
+			 <&gpio1_ick>, <&omap_32ksync_ick>, <&gpt12_ick>,
+			 <&gpt1_ick>, <&sr1_fck>, <&sr2_fck>;
+	};
+
+	d2d_clkdm: d2d_clkdm {
+		compatible = "ti,clockdomain";
+		clocks = <&modem_fck>, <&sad2d_ick>, <&mad2d_ick>;
+	};
+
+	core_l4_clkdm: core_l4_clkdm {
+		compatible = "ti,clockdomain";
+		clocks = <&mmchs2_fck>, <&mmchs1_fck>, <&i2c3_fck>, <&i2c2_fck>,
+			 <&i2c1_fck>, <&mcspi4_fck>, <&mcspi3_fck>,
+			 <&mcspi2_fck>, <&mcspi1_fck>, <&uart2_fck>,
+			 <&uart1_fck>, <&hdq_fck>, <&mmchs2_ick>, <&mmchs1_ick>,
+			 <&hdq_ick>, <&mcspi4_ick>, <&mcspi3_ick>,
+			 <&mcspi2_ick>, <&mcspi1_ick>, <&i2c3_ick>, <&i2c2_ick>,
+			 <&i2c1_ick>, <&uart2_ick>, <&uart1_ick>, <&gpt11_ick>,
+			 <&gpt10_ick>, <&mcbsp5_ick>, <&mcbsp1_ick>,
+			 <&omapctrl_ick>, <&aes2_ick>, <&sha12_ick>, <&icr_ick>,
+			 <&des2_ick>, <&mspro_ick>, <&mailboxes_ick>,
+			 <&rng_ick>, <&mspro_fck>;
+	};
+};

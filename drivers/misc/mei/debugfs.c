@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2012-2016, Intel Corporation. All rights reserved
+ * Copyright (c) 2012-2022, Intel Corporation. All rights reserved
  * Intel Management Engine Interface (Intel MEI) Linux driver
  */
 
@@ -27,7 +27,7 @@ static int mei_dbgfs_meclients_show(struct seq_file *m, void *unused)
 
 	down_read(&dev->me_clients_rwsem);
 
-	seq_puts(m, "  |id|fix|         UUID                       |con|msg len|sb|refc|\n");
+	seq_puts(m, "  |id|fix|         UUID                       |con|msg len|sb|refc|vt|\n");
 
 	/*  if the driver is not enabled the list won't be consistent */
 	if (dev->dev_state != MEI_DEV_ENABLED)
@@ -37,14 +37,15 @@ static int mei_dbgfs_meclients_show(struct seq_file *m, void *unused)
 		if (!mei_me_cl_get(me_cl))
 			continue;
 
-		seq_printf(m, "%2d|%2d|%3d|%pUl|%3d|%7d|%2d|%4d|\n",
+		seq_printf(m, "%2d|%2d|%3d|%pUl|%3d|%7d|%2d|%4d|%2d|\n",
 			   i++, me_cl->client_id,
 			   me_cl->props.fixed_address,
 			   &me_cl->props.protocol_name,
 			   me_cl->props.max_number_of_connections,
 			   me_cl->props.max_msg_length,
 			   me_cl->props.single_recv_buf,
-			   kref_read(&me_cl->refcnt));
+			   kref_read(&me_cl->refcnt),
+			   me_cl->props.vt_supported);
 		mei_me_cl_put(me_cl);
 	}
 
@@ -85,6 +86,20 @@ out:
 }
 DEFINE_SHOW_ATTRIBUTE(mei_dbgfs_active);
 
+static const char *mei_dev_pxp_mode_str(enum mei_dev_pxp_mode state)
+{
+#define MEI_PXP_MODE(state) case MEI_DEV_PXP_##state: return #state
+	switch (state) {
+	MEI_PXP_MODE(DEFAULT);
+	MEI_PXP_MODE(INIT);
+	MEI_PXP_MODE(SETUP);
+	MEI_PXP_MODE(READY);
+	default:
+		return "unknown";
+	}
+#undef MEI_PXP_MODE
+}
+
 static int mei_dbgfs_devstate_show(struct seq_file *m, void *unused)
 {
 	struct mei_device *dev = m->private;
@@ -103,11 +118,17 @@ static int mei_dbgfs_devstate_show(struct seq_file *m, void *unused)
 		seq_printf(m, "\tFA: %01d\n", dev->hbm_f_fa_supported);
 		seq_printf(m, "\tOS: %01d\n", dev->hbm_f_os_supported);
 		seq_printf(m, "\tDR: %01d\n", dev->hbm_f_dr_supported);
+		seq_printf(m, "\tVT: %01d\n", dev->hbm_f_vt_supported);
+		seq_printf(m, "\tCAP: %01d\n", dev->hbm_f_cap_supported);
+		seq_printf(m, "\tCD: %01d\n", dev->hbm_f_cd_supported);
 	}
 
 	seq_printf(m, "pg:  %s, %s\n",
 		   mei_pg_is_enabled(dev) ? "ENABLED" : "DISABLED",
 		   mei_pg_state_str(mei_pg_state(dev)));
+
+	seq_printf(m, "pxp: %s\n", mei_dev_pxp_mode_str(dev->pxp_mode));
+
 	return 0;
 }
 DEFINE_SHOW_ATTRIBUTE(mei_dbgfs_devstate);

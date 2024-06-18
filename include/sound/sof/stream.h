@@ -1,9 +1,9 @@
-/* SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause) */
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause) */
 /*
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
- * Copyright(c) 2018 Intel Corporation. All rights reserved.
+ * Copyright(c) 2018 Intel Corporation
  */
 
 #ifndef __INCLUDE_SOUND_SOF_STREAM_H__
@@ -83,11 +83,14 @@ struct sof_ipc_stream_params {
 	uint16_t sample_valid_bytes;
 	uint16_t sample_container_bytes;
 
-	/* for notifying host period has completed - 0 means no period IRQ */
 	uint32_t host_period_bytes;
-
-	uint32_t reserved[2];
+	uint16_t no_stream_position; /**< 1 means don't send stream position */
+	uint8_t cont_update_posn; /**< 1 means continuous update stream position */
+	uint8_t reserved0;
+	int16_t ext_data_length; /**< 0, means no extended data */
+	uint8_t reserved[2];
 	uint16_t chmap[SOF_IPC_MAX_CHANNELS];	/**< channel map - SOF_CHMAP_ */
+	uint8_t ext_data[]; /**< extended data */
 } __packed;
 
 /* PCM params info - SOF_IPC_STREAM_PCM_PARAMS */

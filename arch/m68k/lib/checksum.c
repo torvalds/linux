@@ -129,8 +129,7 @@ EXPORT_SYMBOL(csum_partial);
  */
 
 __wsum
-csum_partial_copy_from_user(const void __user *src, void *dst,
-			    int len, __wsum sum, int *csum_err)
+csum_and_copy_from_user(const void __user *src, void *dst, int len)
 {
 	/*
 	 * GCC doesn't like more than 10 operands for the asm
@@ -138,6 +137,7 @@ csum_partial_copy_from_user(const void __user *src, void *dst,
 	 * code.
 	 */
 	unsigned long tmp1, tmp2;
+	__wsum sum = ~0U;
 
 	__asm__("movel %2,%4\n\t"
 		"btst #1,%4\n\t"	/* Check alignment */
@@ -236,87 +236,34 @@ csum_partial_copy_from_user(const void __user *src, void *dst,
 		"clrl %5\n\t"
 		"addxl %5,%0\n\t"	/* add X bit */
 	     "7:\t"
-		"clrl %5\n"		/* no error - clear return value */
-	     "8:\n"
 		".section .fixup,\"ax\"\n"
 		".even\n"
-		/* If any exception occurs zero out the rest.
-		   Similarities with the code above are intentional :-) */
+		/* If any exception occurs, return 0 */
 	     "90:\t"
-		"clrw %3@+\n\t"
-		"movel %1,%4\n\t"
-		"lsrl #5,%1\n\t"
-		"jeq 1f\n\t"
-		"subql #1,%1\n"
-	     "91:\t"
-		"clrl %3@+\n"
-	     "92:\t"
-		"clrl %3@+\n"
-	     "93:\t"
-		"clrl %3@+\n"
-	     "94:\t"
-		"clrl %3@+\n"
-	     "95:\t"
-		"clrl %3@+\n"
-	     "96:\t"
-		"clrl %3@+\n"
-	     "97:\t"
-		"clrl %3@+\n"
-	     "98:\t"
-		"clrl %3@+\n\t"
-		"dbra %1,91b\n\t"
-		"clrw %1\n\t"
-		"subql #1,%1\n\t"
-		"jcc 91b\n"
-	     "1:\t"
-		"movel %4,%1\n\t"
-		"andw #0x1c,%4\n\t"
-		"jeq 1f\n\t"
-		"lsrw #2,%4\n\t"
-		"subqw #1,%4\n"
-	     "99:\t"
-		"clrl %3@+\n\t"
-		"dbra %4,99b\n\t"
-	     "1:\t"
-		"andw #3,%1\n\t"
-		"jeq 9f\n"
-	     "100:\t"
-		"clrw %3@+\n\t"
-		"tstw %1\n\t"
-		"jeq 9f\n"
-	     "101:\t"
-		"clrb %3@+\n"
-	     "9:\t"
-#define STR(X) STR1(X)
-#define STR1(X) #X
-		"moveq #-" STR(EFAULT) ",%5\n\t"
-		"jra 8b\n"
+		"clrl %0\n"
+		"jra 7b\n"
 		".previous\n"
 		".section __ex_table,\"a\"\n"
 		".long 10b,90b\n"
-		".long 11b,91b\n"
-		".long 12b,92b\n"
-		".long 13b,93b\n"
-		".long 14b,94b\n"
-		".long 15b,95b\n"
-		".long 16b,96b\n"
-		".long 17b,97b\n"
-		".long 18b,98b\n"
-		".long 19b,99b\n"
-		".long 20b,100b\n"
-		".long 21b,101b\n"
+		".long 11b,90b\n"
+		".long 12b,90b\n"
+		".long 13b,90b\n"
+		".long 14b,90b\n"
+		".long 15b,90b\n"
+		".long 16b,90b\n"
+		".long 17b,90b\n"
+		".long 18b,90b\n"
+		".long 19b,90b\n"
+		".long 20b,90b\n"
+		".long 21b,90b\n"
 		".previous"
 		: "=d" (sum), "=d" (len), "=a" (src), "=a" (dst),
 		  "=&d" (tmp1), "=d" (tmp2)
 		: "0" (sum), "1" (len), "2" (src), "3" (dst)
 	    );
 
-	*csum_err = tmp2;
-
-	return(sum);
+	return sum;
 }
-
-EXPORT_SYMBOL(csum_partial_copy_from_user);
 
 
 /*
@@ -324,9 +271,10 @@ EXPORT_SYMBOL(csum_partial_copy_from_user);
  */
 
 __wsum
-csum_partial_copy_nocheck(const void *src, void *dst, int len, __wsum sum)
+csum_partial_copy_nocheck(const void *src, void *dst, int len)
 {
 	unsigned long tmp1, tmp2;
+	__wsum sum = 0;
 	__asm__("movel %2,%4\n\t"
 		"btst #1,%4\n\t"	/* Check alignment */
 		"jeq 2f\n\t"

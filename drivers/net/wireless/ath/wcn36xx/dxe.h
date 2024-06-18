@@ -135,8 +135,8 @@ H2H_TEST_RX_TX = DMA2
 	WCN36xx_DXE_CTRL_ENDIANNESS)
 
 /* TODO This must calculated properly but not hardcoded */
-#define WCN36XX_DXE_WQ_TX_L			0x17
-#define WCN36XX_DXE_WQ_TX_H			0x17
+#define WCN36XX_DXE_WQ_TX_L(wcn)    ((wcn)->is_pronto_v3 ? 0x6 : 0x17)
+#define WCN36XX_DXE_WQ_TX_H(wcn)    ((wcn)->is_pronto_v3 ? 0x6 : 0x17)
 #define WCN36XX_DXE_WQ_RX_L			0xB
 #define WCN36XX_DXE_WQ_RX_H			0x4
 
@@ -466,5 +466,6 @@ int wcn36xx_dxe_tx_frame(struct wcn36xx *wcn,
 			 struct wcn36xx_tx_bd *bd,
 			 struct sk_buff *skb,
 			 bool is_low);
+int wcn36xx_dxe_tx_flush(struct wcn36xx *wcn);
 void wcn36xx_dxe_tx_ack_ind(struct wcn36xx *wcn, u32 status);
 #endif	/* _DXE_H_ */

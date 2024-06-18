@@ -1,15 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
+ * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
  */
 
 /* File aq_cfg.h: Definition of configuration parameters and constants. */
 
 #ifndef AQ_CFG_H
 #define AQ_CFG_H
-
-#include <generated/utsrelease.h>
 
 #define AQ_CFG_VECS_DEF   8U
 #define AQ_CFG_TCS_DEF    1U
@@ -19,7 +17,7 @@
 
 #define AQ_CFG_IS_POLLING_DEF 0U
 
-#define AQ_CFG_FORCE_LEGACY_INT 0U
+#define AQ_CFG_FORCE_INTX	0U
 
 #define AQ_CFG_INTERRUPT_MODERATION_OFF		0
 #define AQ_CFG_INTERRUPT_MODERATION_ON		1
@@ -27,7 +25,7 @@
 
 #define AQ_CFG_INTERRUPT_MODERATION_USEC_MAX (0x1FF * 2)
 
-#define AQ_CFG_IRQ_MASK                      0x1FFU
+#define AQ_CFG_IRQ_MASK                      0x3FFU
 
 #define AQ_CFG_VECS_MAX   8U
 #define AQ_CFG_TCS_MAX    8U
@@ -42,6 +40,7 @@
 #define AQ_CFG_RX_HDR_SIZE 256U
 
 #define AQ_CFG_RX_PAGEORDER 0U
+#define AQ_CFG_XDP_PAGEORDER 2U
 
 /* LRO */
 #define AQ_CFG_IS_LRO_DEF           1U
@@ -66,17 +65,12 @@
  */
 #define AQ_CFG_RESTART_DESC_THRES   (AQ_CFG_SKB_FRAGS_MAX * 2)
 
-#define AQ_CFG_NAPI_WEIGHT     64U
-
 /*#define AQ_CFG_MAC_ADDR_PERMANENT {0x30, 0x0E, 0xE3, 0x12, 0x34, 0x56}*/
 
-#define AQ_NIC_FC_OFF    0U
-#define AQ_NIC_FC_TX     1U
-#define AQ_NIC_FC_RX     2U
-#define AQ_NIC_FC_FULL   3U
-#define AQ_NIC_FC_AUTO   4U
-
 #define AQ_CFG_FC_MODE AQ_NIC_FC_FULL
+
+/* Default WOL modes used on initialization */
+#define AQ_CFG_WOL_MODES WAKE_MAGIC
 
 #define AQ_CFG_SPEED_MSK  0xFFFFU	/* 0xFFFFU==auto_neg */
 
@@ -85,10 +79,8 @@
 
 #define AQ_CFG_LOCK_TRYS   100U
 
-#define AQ_CFG_DRV_AUTHOR      "aQuantia"
-#define AQ_CFG_DRV_DESC        "aQuantia Corporation(R) Network Driver"
+#define AQ_CFG_DRV_AUTHOR      "Marvell"
+#define AQ_CFG_DRV_DESC        "Marvell (Aquantia) Corporation(R) Network Driver"
 #define AQ_CFG_DRV_NAME        "atlantic"
-#define AQ_CFG_DRV_VERSION	UTS_RELEASE \
-				AQ_CFG_DRV_VERSION_SUFFIX
 
 #endif /* AQ_CFG_H */

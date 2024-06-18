@@ -157,7 +157,7 @@ static int bt819_init(struct v4l2_subdev *sd)
 		0x12, 0x04,	/* 0x12 Output Format */
 		0x13, 0x20,	/* 0x13 Vertical Scaling msb 0x00
 					   chroma comb OFF, line drop scaling, interlace scaling
-					   BUG? Why does turning the chroma comb on fuck up color?
+					   BUG? Why does turning the chroma comb on screw up color?
 					   Bug in the bt819 stepping on my board?
 					*/
 		0x14, 0x00,	/* 0x14 Vertical Scaling lsb */
@@ -380,8 +380,7 @@ static const struct v4l2_subdev_ops bt819_ops = {
 
 /* ----------------------------------------------------------------------- */
 
-static int bt819_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int bt819_probe(struct i2c_client *client)
 {
 	int i, ver;
 	struct bt819 *decoder;
@@ -446,14 +445,13 @@ static int bt819_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int bt819_remove(struct i2c_client *client)
+static void bt819_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct bt819 *decoder = to_bt819(sd);
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&decoder->hdl);
-	return 0;
 }
 
 /* ----------------------------------------------------------------------- */

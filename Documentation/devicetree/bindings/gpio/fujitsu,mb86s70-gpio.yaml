@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/gpio/fujitsu,mb86s70-gpio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Fujitsu MB86S7x GPIO Controller
+
+maintainers:
+  - Jassi Brar <jaswinder.singh@linaro.org>
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - const: socionext,synquacer-gpio
+          - const: fujitsu,mb86s70-gpio
+      - const: fujitsu,mb86s70-gpio
+
+  reg:
+    maxItems: 1
+
+  '#gpio-cells':
+    const: 2
+
+  gpio-controller: true
+  gpio-line-names: true
+
+  clocks:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - '#gpio-cells'
+  - gpio-controller
+  - clocks
+
+additionalProperties: false
+
+examples:
+  - |
+    gpio@31000000 {
+        compatible = "fujitsu,mb86s70-gpio";
+        reg = <0x31000000 0x10000>;
+        gpio-controller;
+        #gpio-cells = <2>;
+        clocks = <&clk 0 2 1>;
+    };
+...

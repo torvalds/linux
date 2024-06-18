@@ -70,7 +70,7 @@ struct vio_dring_register {
 #define VIO_RX_DRING_DATA	0x0004
 	u16			resv;
 	u32			num_cookies;
-	struct ldc_trans_cookie	cookies[0];
+	struct ldc_trans_cookie	cookies[];
 };
 
 struct vio_dring_unregister {
@@ -161,7 +161,7 @@ struct vio_disk_desc {
 	u64			size;
 	u32			ncookies;
 	u32			resv2;
-	struct ldc_trans_cookie	cookies[0];
+	struct ldc_trans_cookie	cookies[];
 };
 
 #define VIO_DISK_VNAME_LEN	8
@@ -200,13 +200,13 @@ struct vio_disk_devid {
 	u16			resv;
 	u16			type;
 	u32			len;
-	char			id[0];
+	char			id[];
 };
 
 struct vio_disk_efi {
 	u64			lba;
 	u64			len;
-	char			data[0];
+	char			data[];
 };
 
 /* VIO net specific structures and defines */
@@ -246,7 +246,7 @@ struct vio_net_desc {
 	struct vio_dring_hdr	hdr;
 	u32			size;
 	u32			ncookies;
-	struct ldc_trans_cookie	cookies[0];
+	struct ldc_trans_cookie	cookies[];
 };
 
 struct vio_net_dext {
@@ -284,7 +284,7 @@ struct vio_dring_state {
 	struct ldc_trans_cookie	cookies[VIO_MAX_RING_COOKIES];
 };
 
-#define VIO_TAG_SIZE		((int)sizeof(struct vio_msg_tag))
+#define VIO_TAG_SIZE		(sizeof(struct vio_msg_tag))
 #define VIO_VCC_MTU_SIZE	(LDC_PACKET_SIZE - VIO_TAG_SIZE)
 
 struct vio_vcc {
@@ -362,7 +362,7 @@ struct vio_driver {
 	struct list_head		node;
 	const struct vio_device_id	*id_table;
 	int (*probe)(struct vio_dev *dev, const struct vio_device_id *id);
-	int (*remove)(struct vio_dev *dev);
+	void (*remove)(struct vio_dev *dev);
 	void (*shutdown)(struct vio_dev *dev);
 	unsigned long			driver_data;
 	struct device_driver		driver;
@@ -488,10 +488,7 @@ static inline struct vio_driver *to_vio_driver(struct device_driver *drv)
 	return container_of(drv, struct vio_driver, driver);
 }
 
-static inline struct vio_dev *to_vio_dev(struct device *dev)
-{
-	return container_of(dev, struct vio_dev, dev);
-}
+#define to_vio_dev(__dev)	container_of_const(__dev, struct vio_dev, dev)
 
 int vio_ldc_send(struct vio_driver_state *vio, void *data, int len);
 void vio_link_state_change(struct vio_driver_state *vio, int event);

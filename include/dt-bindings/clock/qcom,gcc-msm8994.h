@@ -126,5 +126,54 @@
 #define GCC_USB3_PHY_AUX_CLK			116
 #define GCC_USB_HS_SYSTEM_CLK			117
 #define GCC_SDCC1_AHB_CLK			118
+#define GCC_LPASS_Q6_AXI_CLK		119
+#define GCC_MSS_Q6_BIMC_AXI_CLK		120
+#define GCC_PCIE_0_CFG_AHB_CLK		121
+#define GCC_PCIE_0_MSTR_AXI_CLK		122
+#define GCC_PCIE_0_SLV_AXI_CLK		123
+#define GCC_PCIE_1_CFG_AHB_CLK		124
+#define GCC_PCIE_1_MSTR_AXI_CLK		125
+#define GCC_PCIE_1_SLV_AXI_CLK		126
+#define GCC_PDM_AHB_CLK				127
+#define GCC_SDCC2_AHB_CLK			128
+#define GCC_SDCC3_AHB_CLK			129
+#define GCC_SDCC4_AHB_CLK			130
+#define GCC_TSIF_AHB_CLK			131
+#define GCC_UFS_AHB_CLK				132
+#define GCC_UFS_RX_SYMBOL_0_CLK		133
+#define GCC_UFS_RX_SYMBOL_1_CLK		134
+#define GCC_UFS_TX_SYMBOL_0_CLK		135
+#define GCC_UFS_TX_SYMBOL_1_CLK		136
+#define GCC_USB2_HS_PHY_SLEEP_CLK	137
+#define GCC_USB30_SLEEP_CLK			138
+#define GCC_USB_HS_AHB_CLK			139
+#define GCC_USB_PHY_CFG_AHB2PHY_CLK	140
+#define CONFIG_NOC_CLK_SRC			141
+#define PERIPH_NOC_CLK_SRC			142
+#define SYSTEM_NOC_CLK_SRC			143
+#define GPLL0_OUT_MMSSCC			144
+#define GPLL0_OUT_MSSCC				145
+#define PCIE_0_PHY_LDO				146
+#define PCIE_1_PHY_LDO				147
+#define UFS_PHY_LDO					148
+#define USB_SS_PHY_LDO				149
+#define GCC_BOOT_ROM_AHB_CLK		150
+#define GCC_PRNG_AHB_CLK			151
+#define GCC_USB3_PHY_PIPE_CLK		152
+
+/* GDSCs */
+#define PCIE_GDSC			0
+#define PCIE_0_GDSC			1
+#define PCIE_1_GDSC			2
+#define USB30_GDSC			3
+#define UFS_GDSC			4
+
+/* Resets */
+#define USB3_PHY_RESET			0
+#define USB3PHY_PHY_RESET		1
+#define PCIE_PHY_0_RESET		2
+#define PCIE_PHY_1_RESET		3
+#define QUSB2_PHY_RESET			4
+#define MSS_RESET				5
 
 #endif

@@ -25,7 +25,7 @@
  *		  check this.)
  * 990605 (jmt) - Rearranged things a bit wrt IOP detection; iop_present is
  *		  gone, IOP base addresses are now in an array and the
- *		  globally-visible functions take an IOP number instead of an
+ *		  globally-visible functions take an IOP number instead of
  *		  an actual base address.
  * 990610 (jmt) - Finished the message passing framework and it seems to work.
  *		  Sending _definitely_ works; my adb-bus.c mods can send
@@ -47,6 +47,10 @@
  *
  * TODO:
  *
+ * o The SCC IOP has to be placed in bypass mode before the serial console
+ *   gets initialized. iop_init() would be one place to do that. Or the
+ *   bootloader could do that. For now, the Serial Switch control panel
+ *   is needed for that -- contrary to the changelog above.
  * o Something should be periodically checking iop_alive() to make sure the
  *   IOP hasn't died.
  * o Some of the IOP manager routines need better error checking and
@@ -62,7 +66,7 @@
  * a shared memory area in the IOP RAM. Each IOP has seven "channels"; each
  * channel is connected to a specific software driver on the IOP. For example
  * on the SCC IOP there is one channel for each serial port. Each channel has
- * an incoming and and outgoing message queue with a depth of one.
+ * an incoming and an outgoing message queue with a depth of one.
  *
  * A message is 32 bytes plus a state byte for the channel (MSG_IDLE, MSG_NEW,
  * MSG_RCVD, MSG_COMPLETE). To send a message you copy the message into the
@@ -114,6 +118,8 @@
 #include <asm/macintosh.h>
 #include <asm/macints.h>
 #include <asm/mac_iop.h>
+
+#include "mac.h"
 
 #ifdef DEBUG
 #define iop_pr_debug(fmt, ...) \
@@ -183,7 +189,7 @@ static __inline__ void iop_writeb(volatile struct mac_iop *iop, __u16 addr, __u8
 
 static __inline__ void iop_stop(volatile struct mac_iop *iop)
 {
-	iop->status_ctrl &= ~IOP_RUN;
+	iop->status_ctrl = IOP_AUTOINC;
 }
 
 static __inline__ void iop_start(volatile struct mac_iop *iop)
@@ -191,14 +197,9 @@ static __inline__ void iop_start(volatile struct mac_iop *iop)
 	iop->status_ctrl = IOP_RUN | IOP_AUTOINC;
 }
 
-static __inline__ void iop_bypass(volatile struct mac_iop *iop)
-{
-	iop->status_ctrl |= IOP_BYPASS;
-}
-
 static __inline__ void iop_interrupt(volatile struct mac_iop *iop)
 {
-	iop->status_ctrl |= IOP_IRQ;
+	iop->status_ctrl = IOP_IRQ | IOP_RUN | IOP_AUTOINC;
 }
 
 static int iop_alive(volatile struct mac_iop *iop)
@@ -230,41 +231,6 @@ static struct iop_msg *iop_get_unused_msg(void)
 }
 
 /*
- * This is called by the startup code before anything else. Its purpose
- * is to find and initialize the IOPs early in the boot sequence, so that
- * the serial IOP can be placed into bypass mode _before_ we try to
- * initialize the serial console.
- */
-
-void __init iop_preinit(void)
-{
-	if (macintosh_config->scc_type == MAC_SCC_IOP) {
-		if (macintosh_config->ident == MAC_MODEL_IIFX) {
-			iop_base[IOP_NUM_SCC] = (struct mac_iop *) SCC_IOP_BASE_IIFX;
-		} else {
-			iop_base[IOP_NUM_SCC] = (struct mac_iop *) SCC_IOP_BASE_QUADRA;
-		}
-		iop_base[IOP_NUM_SCC]->status_ctrl = 0x87;
-		iop_scc_present = 1;
-	} else {
-		iop_base[IOP_NUM_SCC] = NULL;
-		iop_scc_present = 0;
-	}
-	if (macintosh_config->adb_type == MAC_ADB_IOP) {
-		if (macintosh_config->ident == MAC_MODEL_IIFX) {
-			iop_base[IOP_NUM_ISM] = (struct mac_iop *) ISM_IOP_BASE_IIFX;
-		} else {
-			iop_base[IOP_NUM_ISM] = (struct mac_iop *) ISM_IOP_BASE_QUADRA;
-		}
-		iop_base[IOP_NUM_ISM]->status_ctrl = 0;
-		iop_ism_present = 1;
-	} else {
-		iop_base[IOP_NUM_ISM] = NULL;
-		iop_ism_present = 0;
-	}
-}
-
-/*
  * Initialize the IOPs, if present.
  */
 
@@ -272,11 +238,23 @@ void __init iop_init(void)
 {
 	int i;
 
-	if (iop_scc_present) {
+	if (macintosh_config->scc_type == MAC_SCC_IOP) {
+		if (macintosh_config->ident == MAC_MODEL_IIFX)
+			iop_base[IOP_NUM_SCC] = (struct mac_iop *)SCC_IOP_BASE_IIFX;
+		else
+			iop_base[IOP_NUM_SCC] = (struct mac_iop *)SCC_IOP_BASE_QUADRA;
+		iop_scc_present = 1;
 		pr_debug("SCC IOP detected at %p\n", iop_base[IOP_NUM_SCC]);
 	}
-	if (iop_ism_present) {
+	if (macintosh_config->adb_type == MAC_ADB_IOP) {
+		if (macintosh_config->ident == MAC_MODEL_IIFX)
+			iop_base[IOP_NUM_ISM] = (struct mac_iop *)ISM_IOP_BASE_IIFX;
+		else
+			iop_base[IOP_NUM_ISM] = (struct mac_iop *)ISM_IOP_BASE_QUADRA;
+		iop_ism_present = 1;
 		pr_debug("ISM IOP detected at %p\n", iop_base[IOP_NUM_ISM]);
+
+		iop_stop(iop_base[IOP_NUM_ISM]);
 		iop_start(iop_base[IOP_NUM_ISM]);
 		iop_alive(iop_base[IOP_NUM_ISM]); /* clears the alive flag */
 	}
@@ -299,7 +277,6 @@ void __init iop_init(void)
 
 /*
  * Register the interrupt handler for the IOPs.
- * TODO: might be wrong for non-OSS machines. Anyone?
  */
 
 void __init iop_register_interrupts(void)
@@ -354,8 +331,8 @@ void iop_complete_message(struct iop_msg *msg)
 	int chan = msg->channel;
 	int i,offset;
 
-	iop_pr_debug("msg %p iop_num %d channel %d\n", msg, msg->iop_num,
-	             msg->channel);
+	iop_pr_debug("iop_num %d chan %d reply %*ph\n",
+		     msg->iop_num, msg->channel, IOP_MSG_LEN, msg->reply);
 
 	offset = IOP_ADDR_RECV_MSG + (msg->channel * IOP_MSG_LEN);
 
@@ -379,6 +356,9 @@ static void iop_do_send(struct iop_msg *msg)
 	volatile struct mac_iop *iop = iop_base[msg->iop_num];
 	int i,offset;
 
+	iop_pr_debug("iop_num %d chan %d message %*ph\n",
+		     msg->iop_num, msg->channel, IOP_MSG_LEN, msg->message);
+
 	offset = IOP_ADDR_SEND_MSG + (msg->channel * IOP_MSG_LEN);
 
 	for (i = 0 ; i < IOP_MSG_LEN ; i++, offset++) {
@@ -401,8 +381,6 @@ static void iop_handle_send(uint iop_num, uint chan)
 	struct iop_msg *msg;
 	int i,offset;
 
-	iop_pr_debug("iop_num %d chan %d\n", iop_num, chan);
-
 	iop_writeb(iop, IOP_ADDR_SEND_STATE + chan, IOP_MSG_IDLE);
 
 	if (!(msg = iop_send_queue[iop_num][chan])) return;
@@ -412,11 +390,15 @@ static void iop_handle_send(uint iop_num, uint chan)
 	for (i = 0 ; i < IOP_MSG_LEN ; i++, offset++) {
 		msg->reply[i] = iop_readb(iop, offset);
 	}
+	iop_pr_debug("iop_num %d chan %d reply %*ph\n",
+		     iop_num, chan, IOP_MSG_LEN, msg->reply);
+
 	if (msg->handler) (*msg->handler)(msg);
 	msg->status = IOP_MSGSTATUS_UNUSED;
 	msg = msg->next;
 	iop_send_queue[iop_num][chan] = msg;
-	if (msg) iop_do_send(msg);
+	if (msg && iop_readb(iop, IOP_ADDR_SEND_STATE + chan) == IOP_MSG_IDLE)
+		iop_do_send(msg);
 }
 
 /*
@@ -430,8 +412,6 @@ static void iop_handle_recv(uint iop_num, uint chan)
 	int i,offset;
 	struct iop_msg *msg;
 
-	iop_pr_debug("iop_num %d chan %d\n", iop_num, chan);
-
 	msg = iop_get_unused_msg();
 	msg->iop_num = iop_num;
 	msg->channel = chan;
@@ -443,6 +423,8 @@ static void iop_handle_recv(uint iop_num, uint chan)
 	for (i = 0 ; i < IOP_MSG_LEN ; i++, offset++) {
 		msg->message[i] = iop_readb(iop, offset);
 	}
+	iop_pr_debug("iop_num %d chan %d message %*ph\n",
+		     iop_num, chan, IOP_MSG_LEN, msg->message);
 
 	iop_writeb(iop, IOP_ADDR_RECV_STATE + chan, IOP_MSG_RCVD);
 
@@ -452,9 +434,7 @@ static void iop_handle_recv(uint iop_num, uint chan)
 	if (msg->handler) {
 		(*msg->handler)(msg);
 	} else {
-		iop_pr_debug("unclaimed message on iop_num %d chan %d\n",
-		             iop_num, chan);
-		iop_pr_debug("%*ph\n", IOP_MSG_LEN, msg->message);
+		memset(msg->reply, 0, IOP_MSG_LEN);
 		iop_complete_message(msg);
 	}
 }
@@ -490,14 +470,10 @@ int iop_send_message(uint iop_num, uint chan, void *privdata,
 
 	if (!(q = iop_send_queue[iop_num][chan])) {
 		iop_send_queue[iop_num][chan] = msg;
+		iop_do_send(msg);
 	} else {
 		while (q->next) q = q->next;
 		q->next = msg;
-	}
-
-	if (iop_readb(iop_base[iop_num],
-	    IOP_ADDR_SEND_STATE + chan) == IOP_MSG_IDLE) {
-		iop_do_send(msg);
 	}
 
 	return 0;
@@ -566,36 +542,41 @@ irqreturn_t iop_ism_irq(int irq, void *dev_id)
 	uint iop_num = (uint) dev_id;
 	volatile struct mac_iop *iop = iop_base[iop_num];
 	int i,state;
+	u8 events = iop->status_ctrl & (IOP_INT0 | IOP_INT1);
 
-	iop_pr_debug("status %02X\n", iop->status_ctrl);
+	do {
+		iop_pr_debug("iop_num %d status %02X\n", iop_num,
+			     iop->status_ctrl);
 
-	/* INT0 indicates a state change on an outgoing message channel */
-
-	if (iop->status_ctrl & IOP_INT0) {
-		iop->status_ctrl = IOP_INT0 | IOP_RUN | IOP_AUTOINC;
-		iop_pr_debug("new status %02X, send states", iop->status_ctrl);
-		for (i = 0 ; i < NUM_IOP_CHAN  ; i++) {
-			state = iop_readb(iop, IOP_ADDR_SEND_STATE + i);
-			iop_pr_cont(" %02X", state);
-			if (state == IOP_MSG_COMPLETE) {
-				iop_handle_send(iop_num, i);
+		/* INT0 indicates state change on an outgoing message channel */
+		if (events & IOP_INT0) {
+			iop->status_ctrl = IOP_INT0 | IOP_RUN | IOP_AUTOINC;
+			for (i = 0; i < NUM_IOP_CHAN; i++) {
+				state = iop_readb(iop, IOP_ADDR_SEND_STATE + i);
+				if (state == IOP_MSG_COMPLETE)
+					iop_handle_send(iop_num, i);
+				else if (state != IOP_MSG_IDLE)
+					iop_pr_debug("chan %d send state %02X\n",
+						     i, state);
 			}
 		}
-		iop_pr_cont("\n");
-	}
 
-	if (iop->status_ctrl & IOP_INT1) {	/* INT1 for incoming msgs */
-		iop->status_ctrl = IOP_INT1 | IOP_RUN | IOP_AUTOINC;
-		iop_pr_debug("new status %02X, recv states", iop->status_ctrl);
-		for (i = 0 ; i < NUM_IOP_CHAN ; i++) {
-			state = iop_readb(iop, IOP_ADDR_RECV_STATE + i);
-			iop_pr_cont(" %02X", state);
-			if (state == IOP_MSG_NEW) {
-				iop_handle_recv(iop_num, i);
+		/* INT1 for incoming messages */
+		if (events & IOP_INT1) {
+			iop->status_ctrl = IOP_INT1 | IOP_RUN | IOP_AUTOINC;
+			for (i = 0; i < NUM_IOP_CHAN; i++) {
+				state = iop_readb(iop, IOP_ADDR_RECV_STATE + i);
+				if (state == IOP_MSG_NEW)
+					iop_handle_recv(iop_num, i);
+				else if (state != IOP_MSG_IDLE)
+					iop_pr_debug("chan %d recv state %02X\n",
+						     i, state);
 			}
 		}
-		iop_pr_cont("\n");
-	}
+
+		events = iop->status_ctrl & (IOP_INT0 | IOP_INT1);
+	} while (events);
+
 	return IRQ_HANDLED;
 }
 

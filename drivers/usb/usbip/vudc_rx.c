@@ -104,18 +104,18 @@ static int v_recv_cmd_submit(struct vudc *udc,
 	if (pdu->base.direction == USBIP_DIR_IN)
 		address |= USB_DIR_IN;
 
-	spin_lock_irq(&udc->lock);
+	spin_lock_irqsave(&udc->lock, flags);
 	urb_p->ep = vudc_find_endpoint(udc, address);
 	if (!urb_p->ep) {
 		/* we don't know the type, there may be isoc data! */
 		dev_err(&udc->pdev->dev, "request to nonexistent endpoint");
-		spin_unlock_irq(&udc->lock);
+		spin_unlock_irqrestore(&udc->lock, flags);
 		usbip_event_add(&udc->ud, VUDC_EVENT_ERROR_TCP);
 		ret = -EPIPE;
 		goto free_urbp;
 	}
 	urb_p->type = urb_p->ep->type;
-	spin_unlock_irq(&udc->lock);
+	spin_unlock_irqrestore(&udc->lock, flags);
 
 	urb_p->new = 1;
 	urb_p->seqnum = pdu->base.seqnum;
@@ -149,7 +149,9 @@ static int v_recv_cmd_submit(struct vudc *udc,
 	urb_p->urb->status = -EINPROGRESS;
 
 	/* FIXME: more pipe setup to please usbip_common */
-	urb_p->urb->pipe &= ~(3 << 30);
+	BUILD_BUG_ON_MSG(PIPE_BULK != 3, "PIPE_* doesn't range from 0 to 3");
+
+	urb_p->urb->pipe &= ~(PIPE_BULK << 30);
 	switch (urb_p->ep->type) {
 	case USB_ENDPOINT_XFER_BULK:
 		urb_p->urb->pipe |= (PIPE_BULK << 30);

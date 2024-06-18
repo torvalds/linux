@@ -4,7 +4,7 @@
  *
  *	(c) Copyright 2000 The Puffin Group Inc.
  *
- *	by Helge Deller <deller@gmx.de>
+ *	(c) 2000-2023 by Helge Deller <deller@gmx.de>
  */
 
 #include <linux/errno.h>
@@ -118,9 +118,16 @@ static const struct parisc_device_id asp_tbl[] __initconst = {
 	{ HPHW_BA, HVERSION_REV_ANY_ID, HVERSION_ANY_ID, 0x00070 },
 	{ 0, }
 };
+MODULE_DEVICE_TABLE(parisc, asp_tbl);
 
-struct parisc_driver asp_driver __refdata = {
+static struct parisc_driver asp_driver __refdata = {
 	.name =		"asp",
 	.id_table =	asp_tbl,
 	.probe =	asp_init_chip,
 };
+
+static int __init asp_init(void)
+{
+	return register_parisc_driver(&asp_driver);
+}
+arch_initcall(asp_init);

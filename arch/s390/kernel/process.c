@@ -29,22 +29,41 @@
 #include <linux/random.h>
 #include <linux/export.h>
 #include <linux/init_task.h>
+#include <linux/entry-common.h>
+#include <linux/io.h>
+#include <asm/guarded_storage.h>
+#include <asm/access-regs.h>
+#include <asm/switch_to.h>
 #include <asm/cpu_mf.h>
-#include <asm/io.h>
 #include <asm/processor.h>
+#include <asm/ptrace.h>
 #include <asm/vtimer.h>
 #include <asm/exec.h>
+#include <asm/fpu.h>
 #include <asm/irq.h>
 #include <asm/nmi.h>
 #include <asm/smp.h>
 #include <asm/stacktrace.h>
-#include <asm/switch_to.h>
 #include <asm/runtime_instr.h>
+#include <asm/unwind.h>
 #include "entry.h"
 
-asmlinkage void ret_from_fork(void) asm ("ret_from_fork");
+void ret_from_fork(void) asm("ret_from_fork");
 
-extern void kernel_thread_starter(void);
+void __ret_from_fork(struct task_struct *prev, struct pt_regs *regs)
+{
+	void (*func)(void *arg);
+
+	schedule_tail(prev);
+
+	if (!user_mode(regs)) {
+		/* Kernel thread */
+		func = (void *)regs->gprs[9];
+		func((void *)regs->gprs[10]);
+	}
+	clear_pt_regs_flag(regs, PIF_SYSCALL);
+	syscall_exit_to_user_mode(regs);
+}
 
 void flush_thread(void)
 {
@@ -67,21 +86,30 @@ void arch_release_task_struct(struct task_struct *tsk)
 
 int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 {
-	/*
-	 * Save the floating-point or vector register state of the current
-	 * task and set the CIF_FPU flag to lazy restore the FPU register
-	 * state when returning to user space.
-	 */
-	save_fpu_regs();
+	save_user_fpu_regs();
 
-	memcpy(dst, src, arch_task_struct_size);
-	dst->thread.fpu.regs = dst->thread.fpu.fprs;
+	*dst = *src;
+	dst->thread.kfpu_flags = 0;
+
+	/*
+	 * Don't transfer over the runtime instrumentation or the guarded
+	 * storage control block pointers. These fields are cleared here instead
+	 * of in copy_thread() to avoid premature freeing of associated memory
+	 * on fork() failure. Wait to clear the RI flag because ->stack still
+	 * refers to the source thread.
+	 */
+	dst->thread.ri_cb = NULL;
+	dst->thread.gs_cb = NULL;
+	dst->thread.gs_bc_cb = NULL;
+
 	return 0;
 }
 
-int copy_thread_tls(unsigned long clone_flags, unsigned long new_stackp,
-		    unsigned long arg, struct task_struct *p, unsigned long tls)
+int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 {
+	unsigned long clone_flags = args->flags;
+	unsigned long new_stackp = args->stack;
+	unsigned long tls = args->tls;
 	struct fake_frame
 	{
 		struct stack_frame sf;
@@ -93,7 +121,6 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long new_stackp,
 	/* Save access registers to new thread structure. */
 	save_access_regs(&p->thread.acrs[0]);
 	/* start new process with ar4 pointing to the correct address space */
-	p->thread.mm_segment = get_fs();
 	/* Don't copy debug registers */
 	memset(&p->thread.per_user, 0, sizeof(p->thread.per_user));
 	memset(&p->thread.per_event, 0, sizeof(p->thread.per_event));
@@ -105,26 +132,26 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long new_stackp,
 	p->thread.system_timer = 0;
 	p->thread.hardirq_timer = 0;
 	p->thread.softirq_timer = 0;
+	p->thread.last_break = 1;
 
 	frame->sf.back_chain = 0;
+	frame->sf.gprs[11 - 6] = (unsigned long)&frame->childregs;
+	frame->sf.gprs[12 - 6] = (unsigned long)p;
 	/* new return point is ret_from_fork */
-	frame->sf.gprs[8] = (unsigned long) ret_from_fork;
+	frame->sf.gprs[14 - 6] = (unsigned long)ret_from_fork;
 	/* fake return stack for resume(), don't go back to schedule */
-	frame->sf.gprs[9] = (unsigned long) frame;
+	frame->sf.gprs[15 - 6] = (unsigned long)frame;
 
 	/* Store access registers to kernel stack of new process. */
-	if (unlikely(p->flags & PF_KTHREAD)) {
+	if (unlikely(args->fn)) {
 		/* kernel thread */
 		memset(&frame->childregs, 0, sizeof(struct pt_regs));
-		frame->childregs.psw.mask = PSW_KERNEL_BITS | PSW_MASK_DAT |
-				PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
-		frame->childregs.psw.addr =
-				(unsigned long) kernel_thread_starter;
-		frame->childregs.gprs[9] = new_stackp; /* function */
-		frame->childregs.gprs[10] = arg;
-		frame->childregs.gprs[11] = (unsigned long) do_exit;
+		frame->childregs.psw.mask = PSW_KERNEL_BITS | PSW_MASK_IO |
+					    PSW_MASK_EXT | PSW_MASK_MCHECK;
+		frame->childregs.gprs[9] = (unsigned long)args->fn;
+		frame->childregs.gprs[10] = (unsigned long)args->fn_arg;
 		frame->childregs.orig_gpr2 = -1;
-
+		frame->childregs.last_break = 1;
 		return 0;
 	}
 	frame->childregs = *current_pt_regs();
@@ -132,13 +159,11 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long new_stackp,
 	frame->childregs.flags = 0;
 	if (new_stackp)
 		frame->childregs.gprs[15] = new_stackp;
-
-	/* Don't copy runtime instrumentation info */
-	p->thread.ri_cb = NULL;
+	/*
+	 * Clear the runtime instrumentation flag after the above childregs
+	 * copy. The CB pointer was already cleared in arch_dup_task_struct().
+	 */
 	frame->childregs.psw.mask &= ~PSW_MASK_RI;
-	/* Don't copy guarded storage control block */
-	p->thread.gs_cb = NULL;
-	p->thread.gs_bc_cb = NULL;
 
 	/* Set a new TLS ?  */
 	if (clone_flags & CLONE_SETTLS) {
@@ -149,77 +174,75 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long new_stackp,
 			p->thread.acrs[1] = (unsigned int)tls;
 		}
 	}
+	/*
+	 * s390 stores the svc return address in arch_data when calling
+	 * sigreturn()/restart_syscall() via vdso. 1 means no valid address
+	 * stored.
+	 */
+	p->restart_block.arch_data = 1;
 	return 0;
 }
 
-asmlinkage void execve_tail(void)
+void execve_tail(void)
 {
-	current->thread.fpu.fpc = 0;
-	asm volatile("sfpc %0" : : "d" (0));
+	current->thread.ufpu.fpc = 0;
+	fpu_sfpc(0);
 }
 
-/*
- * fill in the FPU structure for a core dump.
- */
-int dump_fpu (struct pt_regs * regs, s390_fp_regs *fpregs)
+struct task_struct *__switch_to(struct task_struct *prev, struct task_struct *next)
 {
-	save_fpu_regs();
-	fpregs->fpc = current->thread.fpu.fpc;
-	fpregs->pad = 0;
-	if (MACHINE_HAS_VX)
-		convert_vx_to_fp((freg_t *)&fpregs->fprs,
-				 current->thread.fpu.vxrs);
-	else
-		memcpy(&fpregs->fprs, current->thread.fpu.fprs,
-		       sizeof(fpregs->fprs));
-	return 1;
+	save_user_fpu_regs();
+	save_kernel_fpu_regs(&prev->thread);
+	save_access_regs(&prev->thread.acrs[0]);
+	save_ri_cb(prev->thread.ri_cb);
+	save_gs_cb(prev->thread.gs_cb);
+	update_cr_regs(next);
+	restore_kernel_fpu_regs(&next->thread);
+	restore_access_regs(&next->thread.acrs[0]);
+	restore_ri_cb(next->thread.ri_cb, prev->thread.ri_cb);
+	restore_gs_cb(next->thread.gs_cb);
+	return __switch_to_asm(prev, next);
 }
-EXPORT_SYMBOL(dump_fpu);
 
-unsigned long get_wchan(struct task_struct *p)
+unsigned long __get_wchan(struct task_struct *p)
 {
-	struct stack_frame *sf, *low, *high;
-	unsigned long return_address;
-	int count;
+	struct unwind_state state;
+	unsigned long ip = 0;
 
-	if (!p || p == current || p->state == TASK_RUNNING || !task_stack_page(p))
+	if (!task_stack_page(p))
 		return 0;
 
 	if (!try_get_task_stack(p))
 		return 0;
 
-	low = task_stack_page(p);
-	high = (struct stack_frame *) task_pt_regs(p);
-	sf = (struct stack_frame *) p->thread.ksp;
-	if (sf <= low || sf > high) {
-		return_address = 0;
-		goto out;
-	}
-	for (count = 0; count < 16; count++) {
-		sf = (struct stack_frame *)READ_ONCE_NOCHECK(sf->back_chain);
-		if (sf <= low || sf > high) {
-			return_address = 0;
-			goto out;
+	unwind_for_each_frame(&state, p, NULL, 0) {
+		if (state.stack_info.type != STACK_TYPE_TASK) {
+			ip = 0;
+			break;
 		}
-		return_address = READ_ONCE_NOCHECK(sf->gprs[8]);
-		if (!in_sched_functions(return_address))
-			goto out;
+
+		ip = unwind_get_return_address(&state);
+		if (!ip)
+			break;
+
+		if (!in_sched_functions(ip))
+			break;
 	}
-out:
+
 	put_task_stack(p);
-	return return_address;
+	return ip;
 }
 
 unsigned long arch_align_stack(unsigned long sp)
 {
 	if (!(current->personality & ADDR_NO_RANDOMIZE) && randomize_va_space)
-		sp -= get_random_int() & ~PAGE_MASK;
+		sp -= get_random_u32_below(PAGE_SIZE);
 	return sp & ~0xf;
 }
 
 static inline unsigned long brk_rnd(void)
 {
-	return (get_random_int() & BRK_RND_MASK) << PAGE_SHIFT;
+	return (get_random_u16() & BRK_RND_MASK) << PAGE_SHIFT;
 }
 
 unsigned long arch_randomize_brk(struct mm_struct *mm)
@@ -228,17 +251,4 @@ unsigned long arch_randomize_brk(struct mm_struct *mm)
 
 	ret = PAGE_ALIGN(mm->brk + brk_rnd());
 	return (ret > mm->brk) ? ret : mm->brk;
-}
-
-void set_fs_fixup(void)
-{
-	struct pt_regs *regs = current_pt_regs();
-	static bool warned;
-
-	set_fs(USER_DS);
-	if (warned)
-		return;
-	WARN(1, "Unbalanced set_fs - int code: 0x%x\n", regs->int_code);
-	show_registers(regs);
-	warned = true;
 }

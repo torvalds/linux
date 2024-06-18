@@ -4,6 +4,9 @@
 #ifndef _DRM_AUDIO_COMPONENT_H_
 #define _DRM_AUDIO_COMPONENT_H_
 
+#include <linux/completion.h>
+#include <linux/types.h>
+
 struct drm_audio_component;
 struct device;
 
@@ -117,6 +120,10 @@ struct drm_audio_component {
 	 * @audio_ops: Ops implemented by hda driver, called by DRM driver
 	 */
 	const struct drm_audio_component_audio_ops *audio_ops;
+	/**
+	 * @master_bind_complete: completion held during component master binding
+	 */
+	struct completion master_bind_complete;
 };
 
 #endif /* _DRM_AUDIO_COMPONENT_H_ */

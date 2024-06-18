@@ -7,24 +7,33 @@
 #include <linux/efi.h>
 #include <linux/fs.h>
 #include <linux/ctype.h>
+#include <linux/kmemleak.h>
 #include <linux/slab.h>
 #include <linux/uuid.h>
+#include <linux/fileattr.h>
 
 #include "internal.h"
+
+static const struct inode_operations efivarfs_file_inode_operations;
 
 struct inode *efivarfs_get_inode(struct super_block *sb,
 				const struct inode *dir, int mode,
 				dev_t dev, bool is_removable)
 {
 	struct inode *inode = new_inode(sb);
+	struct efivarfs_fs_info *fsi = sb->s_fs_info;
+	struct efivarfs_mount_opts *opts = &fsi->mount_opts;
 
 	if (inode) {
+		inode->i_uid = opts->uid;
+		inode->i_gid = opts->gid;
 		inode->i_ino = get_next_ino();
 		inode->i_mode = mode;
-		inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
+		simple_inode_init_ts(inode);
 		inode->i_flags = is_removable ? 0 : S_IMMUTABLE;
 		switch (mode & S_IFMT) {
 		case S_IFREG:
+			inode->i_op = &efivarfs_file_inode_operations;
 			inode->i_fop = &efivarfs_file_operations;
 			break;
 		case S_IFDIR:
@@ -65,9 +74,10 @@ bool efivarfs_valid_name(const char *str, int len)
 	return uuid_is_valid(s);
 }
 
-static int efivarfs_create(struct inode *dir, struct dentry *dentry,
-			  umode_t mode, bool excl)
+static int efivarfs_create(struct mnt_idmap *idmap, struct inode *dir,
+			   struct dentry *dentry, umode_t mode, bool excl)
 {
+	struct efivarfs_fs_info *info = dir->i_sb->s_fs_info;
 	struct inode *inode = NULL;
 	struct efivar_entry *var;
 	int namelen, i = 0, err = 0;
@@ -86,6 +96,10 @@ static int efivarfs_create(struct inode *dir, struct dentry *dentry,
 	err = guid_parse(dentry->d_name.name + namelen + 1, &var->var.VendorGuid);
 	if (err)
 		goto out;
+	if (guid_equal(&var->var.VendorGuid, &LINUX_EFI_RANDOM_SEED_TABLE_GUID)) {
+		err = -EPERM;
+		goto out;
+	}
 
 	if (efivar_variable_is_removable(var->var.VendorGuid,
 					 dentry->d_name.name, namelen))
@@ -103,8 +117,9 @@ static int efivarfs_create(struct inode *dir, struct dentry *dentry,
 	var->var.VariableName[i] = '\0';
 
 	inode->i_private = var;
+	kmemleak_ignore(var);
 
-	err = efivar_entry_add(var, &efivarfs_list);
+	err = efivar_entry_add(var, &info->efivarfs_list);
 	if (err)
 		goto out;
 
@@ -135,4 +150,44 @@ const struct inode_operations efivarfs_dir_inode_operations = {
 	.lookup = simple_lookup,
 	.unlink = efivarfs_unlink,
 	.create = efivarfs_create,
+};
+
+static int
+efivarfs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
+{
+	unsigned int i_flags;
+	unsigned int flags = 0;
+
+	i_flags = d_inode(dentry)->i_flags;
+	if (i_flags & S_IMMUTABLE)
+		flags |= FS_IMMUTABLE_FL;
+
+	fileattr_fill_flags(fa, flags);
+
+	return 0;
+}
+
+static int
+efivarfs_fileattr_set(struct mnt_idmap *idmap,
+		      struct dentry *dentry, struct fileattr *fa)
+{
+	unsigned int i_flags = 0;
+
+	if (fileattr_has_fsx(fa))
+		return -EOPNOTSUPP;
+
+	if (fa->flags & ~FS_IMMUTABLE_FL)
+		return -EOPNOTSUPP;
+
+	if (fa->flags & FS_IMMUTABLE_FL)
+		i_flags |= S_IMMUTABLE;
+
+	inode_set_flags(d_inode(dentry), i_flags, S_IMMUTABLE);
+
+	return 0;
+}
+
+static const struct inode_operations efivarfs_file_inode_operations = {
+	.fileattr_get = efivarfs_fileattr_get,
+	.fileattr_set = efivarfs_fileattr_set,
 };

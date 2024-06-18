@@ -33,7 +33,7 @@ struct ascot2e_config {
 
 #if IS_REACHABLE(CONFIG_DVB_ASCOT2E)
 /**
- * Attach an ascot2e tuner
+ * ascot2e_attach - Attach an ascot2e tuner
  *
  * @fe: frontend to be attached
  * @config: pointer to &struct ascot2e_config with tuner configuration.

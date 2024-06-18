@@ -22,7 +22,6 @@
 MODULE_AUTHOR("Stephane Grosjean <s.grosjean@peak-system.com>");
 MODULE_DESCRIPTION("CAN driver for PEAK-System PCAN-PC Cards");
 MODULE_LICENSE("GPL v2");
-MODULE_SUPPORTED_DEVICE("PEAK PCAN-PC Card");
 
 /* PEAK-System PCMCIA driver name */
 #define PCC_NAME		"peak_pcmcia"
@@ -479,7 +478,7 @@ static void pcan_free_channels(struct pcan_pccard *card)
 		if (!netdev)
 			continue;
 
-		strlcpy(name, netdev->name, IFNAMSIZ);
+		strscpy(name, netdev->name, IFNAMSIZ);
 
 		unregister_sja1000dev(netdev);
 
@@ -671,7 +670,7 @@ static int pcan_probe(struct pcmcia_device *pdev)
 	card->fw_major = pcan_read_reg(card, PCC_FW_MAJOR);
 	card->fw_minor = pcan_read_reg(card, PCC_FW_MINOR);
 
-	/* display board name and firware version */
+	/* display board name and firmware version */
 	dev_info(&pdev->dev, "PEAK-System pcmcia card %s fw %d.%d\n",
 		pdev->prod_id[1] ? pdev->prod_id[1] : "PCAN-PC Card",
 		card->fw_major, card->fw_minor);

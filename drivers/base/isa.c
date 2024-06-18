@@ -46,14 +46,12 @@ static int isa_bus_probe(struct device *dev)
 	return 0;
 }
 
-static int isa_bus_remove(struct device *dev)
+static void isa_bus_remove(struct device *dev)
 {
 	struct isa_driver *isa_driver = dev->platform_data;
 
 	if (isa_driver && isa_driver->remove)
-		return isa_driver->remove(dev, to_isa_dev(dev)->id);
-
-	return 0;
+		isa_driver->remove(dev, to_isa_dev(dev)->id);
 }
 
 static void isa_bus_shutdown(struct device *dev)
@@ -84,7 +82,7 @@ static int isa_bus_resume(struct device *dev)
 	return 0;
 }
 
-static struct bus_type isa_bus_type = {
+static const struct bus_type isa_bus_type = {
 	.name		= "isa",
 	.match		= isa_bus_match,
 	.probe		= isa_bus_probe,
@@ -151,11 +149,8 @@ int isa_register_driver(struct isa_driver *isa_driver, unsigned int ndev)
 			break;
 		}
 
-		if (isa_dev->dev.platform_data) {
-			isa_dev->next = isa_driver->devices;
-			isa_driver->devices = &isa_dev->dev;
-		} else
-			device_unregister(&isa_dev->dev);
+		isa_dev->next = isa_driver->devices;
+		isa_driver->devices = &isa_dev->dev;
 	}
 
 	if (!error && !isa_driver->devices)

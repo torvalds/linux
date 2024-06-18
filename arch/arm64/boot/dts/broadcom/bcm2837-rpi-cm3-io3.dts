@@ -1,2 +1,2 @@
 // SPDX-License-Identifier: GPL-2.0
-#include "arm/bcm2837-rpi-cm3-io3.dts"
+#include "arm/broadcom/bcm2837-rpi-cm3-io3.dts"

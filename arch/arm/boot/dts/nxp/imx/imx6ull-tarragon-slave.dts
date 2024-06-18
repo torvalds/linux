@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
+//
+// Copyright (C) 2023 chargebyte GmbH
+
+#include "imx6ull-tarragon-common.dtsi"
+
+/ {
+	model = "chargebyte Tarragon Slave";
+	compatible = "chargebyte,imx6ull-tarragon-slave", "fsl,imx6ull";
+};
+
+&ecspi2 {
+	status = "okay";
+
+	qca700x_cp: ethernet@0 {
+		reg = <0x0>;
+		compatible = "qca,qca7000";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_qca700x_cp_int
+			     &pinctrl_qca700x_cp_rst
+			     &pinctrl_qca700x_cp_btld>;
+		interrupt-parent = <&gpio2>;
+		interrupts = <19 IRQ_TYPE_EDGE_RISING>;
+		spi-cpha;
+		spi-cpol;
+		spi-max-frequency = <12000000>;
+	};
+};
+
+&fec1 {
+	status = "okay";
+};

@@ -17,11 +17,13 @@ static void snd_hdac_bus_process_unsol_events(struct work_struct *work);
 static const struct hdac_bus_ops default_ops = {
 	.command = snd_hdac_bus_send_cmd,
 	.get_response = snd_hdac_bus_get_response,
+	.link_power = snd_hdac_bus_link_power,
 };
 
 /**
  * snd_hdac_bus_init - initialize a HD-audio bas bus
  * @bus: the pointer to bus object
+ * @dev: device pointer
  * @ops: bus verb operators
  *
  * Returns 0 if successful, or a negative error code.
@@ -43,7 +45,20 @@ int snd_hdac_bus_init(struct hdac_bus *bus, struct device *dev,
 	mutex_init(&bus->cmd_mutex);
 	mutex_init(&bus->lock);
 	INIT_LIST_HEAD(&bus->hlink_list);
+	init_waitqueue_head(&bus->rirb_wq);
 	bus->irq = -1;
+
+	/*
+	 * Default value of '8' is as per the HD audio specification (Rev 1.0a).
+	 * Following relation is used to derive STRIPE control value.
+	 *  For sample rate <= 48K:
+	 *   { ((num_channels * bits_per_sample) / number of SDOs) >= 8 }
+	 *  For sample rate > 48K:
+	 *   { ((num_channels * bits_per_sample * rate/48000) /
+	 *	number of SDOs) >= 8 }
+	 */
+	bus->sdo_limit = 8;
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_bus_init);
@@ -63,6 +78,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_bus_exit);
 /**
  * snd_hdac_bus_exec_verb - execute a HD-audio verb on the given bus
  * @bus: bus object
+ * @addr: the HDAC device address
  * @cmd: HD-audio encoded verb
  * @res: pointer to store the response, NULL if performing asynchronously
  *
@@ -78,11 +94,11 @@ int snd_hdac_bus_exec_verb(struct hdac_bus *bus, unsigned int addr,
 	mutex_unlock(&bus->cmd_mutex);
 	return err;
 }
-EXPORT_SYMBOL_GPL(snd_hdac_bus_exec_verb);
 
 /**
  * snd_hdac_bus_exec_verb_unlocked - unlocked version
  * @bus: bus object
+ * @addr: the HDAC device address
  * @cmd: HD-audio encoded verb
  * @res: pointer to store the response, NULL if performing asynchronously
  *
@@ -146,7 +162,6 @@ void snd_hdac_bus_queue_event(struct hdac_bus *bus, u32 res, u32 res_ex)
 
 	schedule_work(&bus->unsol_work);
 }
-EXPORT_SYMBOL_GPL(snd_hdac_bus_queue_event);
 
 /*
  * process queued unsolicited events
@@ -158,6 +173,7 @@ static void snd_hdac_bus_process_unsol_events(struct work_struct *work)
 	struct hdac_driver *drv;
 	unsigned int rp, caddr, res;
 
+	spin_lock_irq(&bus->reg_lock);
 	while (bus->unsol_rp != bus->unsol_wp) {
 		rp = (bus->unsol_rp + 1) % HDA_UNSOL_QUEUE_SIZE;
 		bus->unsol_rp = rp;
@@ -167,12 +183,15 @@ static void snd_hdac_bus_process_unsol_events(struct work_struct *work)
 		if (!(caddr & (1 << 4))) /* no unsolicited event? */
 			continue;
 		codec = bus->caddr_tbl[caddr & 0x0f];
-		if (!codec || !codec->dev.driver)
+		if (!codec || !codec->registered)
 			continue;
+		spin_unlock_irq(&bus->reg_lock);
 		drv = drv_to_hdac_driver(codec->dev.driver);
 		if (drv->unsol_event)
 			drv->unsol_event(codec, res);
+		spin_lock_irq(&bus->reg_lock);
 	}
+	spin_unlock_irq(&bus->reg_lock);
 }
 
 /**
@@ -246,3 +265,25 @@ void snd_hdac_aligned_write(unsigned int val, void __iomem *addr,
 }
 EXPORT_SYMBOL_GPL(snd_hdac_aligned_write);
 #endif /* CONFIG_SND_HDA_ALIGNED_MMIO */
+
+void snd_hdac_codec_link_up(struct hdac_device *codec)
+{
+	struct hdac_bus *bus = codec->bus;
+
+	if (bus->ops->link_power)
+		bus->ops->link_power(codec, true);
+	else
+		snd_hdac_bus_link_power(codec, true);
+}
+EXPORT_SYMBOL_GPL(snd_hdac_codec_link_up);
+
+void snd_hdac_codec_link_down(struct hdac_device *codec)
+{
+	struct hdac_bus *bus = codec->bus;
+
+	if (bus->ops->link_power)
+		bus->ops->link_power(codec, false);
+	else
+		snd_hdac_bus_link_power(codec, false);
+}
+EXPORT_SYMBOL_GPL(snd_hdac_codec_link_down);

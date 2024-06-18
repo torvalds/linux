@@ -139,6 +139,17 @@
 #define RN5T618_INTPOL			0x9c
 #define RN5T618_INTEN			0x9d
 #define RN5T618_INTMON			0x9e
+
+#define RN5T618_RTC_SECONDS     0xA0
+#define RN5T618_RTC_MDAY        0xA4
+#define RN5T618_RTC_MONTH       0xA5
+#define RN5T618_RTC_YEAR        0xA6
+#define RN5T618_RTC_ADJUST      0xA7
+#define RN5T618_RTC_ALARM_Y_SEC 0xA8
+#define RN5T618_RTC_DAL_MONTH   0xAC
+#define RN5T618_RTC_CTRL1       0xAE
+#define RN5T618_RTC_CTRL2       0xAF
+
 #define RN5T618_PREVINDAC		0xb0
 #define RN5T618_BATDAC			0xb1
 #define RN5T618_CHGCTL1			0xb3
@@ -177,6 +188,7 @@
 #define RN5T618_CHGOSCSCORESET3		0xd7
 #define RN5T618_CHGOSCFREQSET1		0xd8
 #define RN5T618_CHGOSCFREQSET2		0xd9
+#define RN5T618_GCHGDET			0xda
 #define RN5T618_CONTROL			0xe0
 #define RN5T618_SOC			0xe1
 #define RN5T618_RE_CAP_H		0xe2
@@ -215,6 +227,15 @@
 #define RN5T618_WATCHDOG_WDOGTIM_S	0
 #define RN5T618_PWRIRQ_IR_WDOG		BIT(6)
 
+#define RN5T618_POFFHIS_PWRON		BIT(0)
+#define RN5T618_POFFHIS_TSHUT		BIT(1)
+#define RN5T618_POFFHIS_VINDET		BIT(2)
+#define RN5T618_POFFHIS_IODET		BIT(3)
+#define RN5T618_POFFHIS_CPU		BIT(4)
+#define RN5T618_POFFHIS_WDG		BIT(5)
+#define RN5T618_POFFHIS_DCLIM		BIT(6)
+#define RN5T618_POFFHIS_N_OE		BIT(7)
+
 enum {
 	RN5T618_DCDC1,
 	RN5T618_DCDC2,
@@ -242,9 +263,24 @@ enum {
 	RC5T619,
 };
 
+/* RN5T618 IRQ definitions */
+enum {
+	RN5T618_IRQ_SYS = 0,
+	RN5T618_IRQ_DCDC,
+	RN5T618_IRQ_RTC,
+	RN5T618_IRQ_ADC,
+	RN5T618_IRQ_GPIO,
+	RN5T618_IRQ_CHG,
+	RN5T618_NR_IRQS,
+};
+
 struct rn5t618 {
 	struct regmap *regmap;
+	struct device *dev;
 	long variant;
+
+	int irq;
+	struct regmap_irq_chip_data *irq_data;
 };
 
 #endif /* __LINUX_MFD_RN5T618_H */

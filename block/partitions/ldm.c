@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/**
+/*
  * ldm - Support for Windows Logical Disk Manager (Dynamic Disks)
  *
  * Copyright (C) 2001,2002 Richard Russon <ldm@flatcap.org>
@@ -14,10 +14,10 @@
 #include <linux/stringify.h>
 #include <linux/kernel.h>
 #include <linux/uuid.h>
+#include <linux/msdos_partition.h>
 
 #include "ldm.h"
 #include "check.h"
-#include "msdos.h"
 
 /*
  * ldm_debug/info/error/crit - Output an error message
@@ -131,8 +131,7 @@ static bool ldm_parse_tocblock (const u8 *data, struct tocblock *toc)
 		ldm_crit ("Cannot find TOCBLOCK, database may be corrupt.");
 		return false;
 	}
-	strncpy (toc->bitmap1_name, data + 0x24, sizeof (toc->bitmap1_name));
-	toc->bitmap1_name[sizeof (toc->bitmap1_name) - 1] = 0;
+	strscpy_pad(toc->bitmap1_name, data + 0x24, sizeof(toc->bitmap1_name));
 	toc->bitmap1_start = get_unaligned_be64(data + 0x2E);
 	toc->bitmap1_size  = get_unaligned_be64(data + 0x36);
 
@@ -142,8 +141,7 @@ static bool ldm_parse_tocblock (const u8 *data, struct tocblock *toc)
 				TOC_BITMAP1, toc->bitmap1_name);
 		return false;
 	}
-	strncpy (toc->bitmap2_name, data + 0x46, sizeof (toc->bitmap2_name));
-	toc->bitmap2_name[sizeof (toc->bitmap2_name) - 1] = 0;
+	strscpy_pad(toc->bitmap2_name, data + 0x46, sizeof(toc->bitmap2_name));
 	toc->bitmap2_start = get_unaligned_be64(data + 0x50);
 	toc->bitmap2_size  = get_unaligned_be64(data + 0x58);
 	if (strncmp (toc->bitmap2_name, TOC_BITMAP2,
@@ -304,7 +302,7 @@ static bool ldm_validate_privheads(struct parsed_partitions *state,
 		}
 	}
 
-	num_sects = state->bdev->bd_inode->i_size >> 9;
+	num_sects = get_capacity(state->disk);
 
 	if ((ph[0]->config_start > num_sects) ||
 	   ((ph[0]->config_start + ph[0]->config_size) > num_sects)) {
@@ -339,11 +337,11 @@ out:
 /**
  * ldm_validate_tocblocks - Validate the table of contents and its backups
  * @state: Partition check state including device holding the LDM Database
- * @base:  Offset, into @state->bdev, of the database
+ * @base:  Offset, into @state->disk, of the database
  * @ldb:   Cache of the database structures
  *
  * Find and compare the four tables of contents of the LDM Database stored on
- * @state->bdev and return the parsed information into @toc1.
+ * @state->disk and return the parsed information into @toc1.
  *
  * The offsets and sizes of the configs are range-checked against a privhead.
  *
@@ -486,14 +484,14 @@ out:
  *       only likely to happen if the underlying device is strange.  If that IS
  *       the case we should return zero to let someone else try.
  *
- * Return:  'true'   @state->bdev is a dynamic disk
- *          'false'  @state->bdev is not a dynamic disk, or an error occurred
+ * Return:  'true'   @state->disk is a dynamic disk
+ *          'false'  @state->disk is not a dynamic disk, or an error occurred
  */
 static bool ldm_validate_partition_table(struct parsed_partitions *state)
 {
 	Sector sect;
 	u8 *data;
-	struct partition *p;
+	struct msdos_partition *p;
 	int i;
 	bool result = false;
 
@@ -508,9 +506,9 @@ static bool ldm_validate_partition_table(struct parsed_partitions *state)
 	if (*(__le16*) (data + 0x01FE) != cpu_to_le16 (MSDOS_LABEL_MAGIC))
 		goto out;
 
-	p = (struct partition*)(data + 0x01BE);
+	p = (struct msdos_partition *)(data + 0x01BE);
 	for (i = 0; i < 4; i++, p++)
-		if (SYS_IND (p) == LDM_PARTITION) {
+		if (p->sys_ind == LDM_PARTITION) {
 			result = true;
 			break;
 		}
@@ -736,7 +734,6 @@ static bool ldm_parse_cmp3 (const u8 *buffer, int buflen, struct vblk *vb)
 		len = r_cols;
 	} else {
 		r_stripe = 0;
-		r_cols   = 0;
 		len = r_parent;
 	}
 	if (len < 0)
@@ -783,11 +780,8 @@ static int ldm_parse_dgr3 (const u8 *buffer, int buflen, struct vblk *vb)
 		r_id1 = ldm_relative (buffer, buflen, 0x24, r_diskid);
 		r_id2 = ldm_relative (buffer, buflen, 0x24, r_id1);
 		len = r_id2;
-	} else {
-		r_id1 = 0;
-		r_id2 = 0;
+	} else
 		len = r_diskid;
-	}
 	if (len < 0)
 		return false;
 
@@ -826,11 +820,8 @@ static bool ldm_parse_dgr4 (const u8 *buffer, int buflen, struct vblk *vb)
 		r_id1 = ldm_relative (buffer, buflen, 0x44, r_name);
 		r_id2 = ldm_relative (buffer, buflen, 0x44, r_id1);
 		len = r_id2;
-	} else {
-		r_id1 = 0;
-		r_id2 = 0;
+	} else
 		len = r_name;
-	}
 	if (len < 0)
 		return false;
 
@@ -910,7 +901,7 @@ static bool ldm_parse_dsk4 (const u8 *buffer, int buflen, struct vblk *vb)
 		return false;
 
 	disk = &vb->vblk.disk;
-	uuid_copy(&disk->disk_id, (uuid_t *)(buffer + 0x18 + r_name));
+	import_uuid(&disk->disk_id, buffer + 0x18 + r_name);
 	return true;
 }
 
@@ -963,10 +954,8 @@ static bool ldm_parse_prt3(const u8 *buffer, int buflen, struct vblk *vb)
 			return false;
 		}
 		len = r_index;
-	} else {
-		r_index = 0;
+	} else
 		len = r_diskid;
-	}
 	if (len < 0) {
 		ldm_error("len %d < 0", len);
 		return false;
@@ -1233,7 +1222,7 @@ static bool ldm_frag_add (const u8 *data, int size, struct list_head *frags)
 	BUG_ON (!data || !frags);
 
 	if (size < 2 * VBLK_SIZE_HEAD) {
-		ldm_error("Value of size is to small.");
+		ldm_error("Value of size is too small.");
 		return false;
 	}
 
@@ -1340,7 +1329,7 @@ static bool ldm_frag_commit (struct list_head *frags, struct ldmdb *ldb)
 /**
  * ldm_get_vblks - Read the on-disk database of VBLKs into memory
  * @state: Partition check state including device holding the LDM Database
- * @base:  Offset, into @state->bdev, of the database
+ * @base:  Offset, into @state->disk, of the database
  * @ldb:   Cache of the database structures
  *
  * To use the information from the VBLKs, they need to be read from the disk,
@@ -1432,10 +1421,10 @@ static void ldm_free_vblks (struct list_head *lh)
  * example, if the device is hda, we would have: hda1: LDM database, hda2, hda3,
  * and so on: the actual data containing partitions.
  *
- * Return:  1 Success, @state->bdev is a dynamic disk and we handled it
- *          0 Success, @state->bdev is not a dynamic disk
+ * Return:  1 Success, @state->disk is a dynamic disk and we handled it
+ *          0 Success, @state->disk is not a dynamic disk
  *         -1 An error occurred before enough information had been read
- *            Or @state->bdev is a dynamic disk, but it may be corrupted
+ *            Or @state->disk is a dynamic disk, but it may be corrupted
  */
 int ldm_partition(struct parsed_partitions *state)
 {

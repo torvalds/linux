@@ -75,23 +75,6 @@ int nfp_port_set_features(struct net_device *netdev, netdev_features_t features)
 	return 0;
 }
 
-struct nfp_port *
-nfp_port_from_id(struct nfp_pf *pf, enum nfp_port_type type, unsigned int id)
-{
-	struct nfp_port *port;
-
-	lockdep_assert_held(&pf->lock);
-
-	if (type != NFP_PORT_PHYS_PORT)
-		return NULL;
-
-	list_for_each_entry(port, &pf->ports, port_list)
-		if (port->eth_id == id)
-			return port;
-
-	return NULL;
-}
-
 struct nfp_eth_table_port *__nfp_port_get_eth_port(struct nfp_port *port)
 {
 	if (!port)
@@ -206,6 +189,7 @@ int nfp_port_init_phy_port(struct nfp_pf *pf, struct nfp_app *app,
 
 	port->eth_port = &pf->eth_tbl->ports[id];
 	port->eth_id = pf->eth_tbl->ports[id].index;
+	port->netdev->dev_port = id;
 	if (pf->mac_stats_mem)
 		port->eth_stats =
 			pf->mac_stats_mem + port->eth_id * NFP_MAC_STATS_SIZE;

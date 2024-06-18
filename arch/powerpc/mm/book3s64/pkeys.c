@@ -9,60 +9,108 @@
 #include <asm/mmu_context.h>
 #include <asm/mmu.h>
 #include <asm/setup.h>
-#include <linux/pkeys.h>
-#include <linux/of_device.h>
+#include <asm/smp.h>
+#include <asm/firmware.h>
 
-DEFINE_STATIC_KEY_TRUE(pkey_disabled);
-int  pkeys_total;		/* Total pkeys as per device tree */
-u32  initial_allocation_mask;   /* Bits set for the initially allocated keys */
-u32  reserved_allocation_mask;  /* Bits set for reserved keys */
-static bool pkey_execute_disable_supported;
-static bool pkeys_devtree_defined;	/* property exported by device tree */
-static u64 pkey_amr_mask;		/* Bits in AMR not to be touched */
-static u64 pkey_iamr_mask;		/* Bits in AMR not to be touched */
-static u64 pkey_uamor_mask;		/* Bits in UMOR not to be touched */
+#include <linux/pkeys.h>
+#include <linux/of_fdt.h>
+
+
+int  num_pkey;		/* Max number of pkeys supported */
+/*
+ *  Keys marked in the reservation list cannot be allocated by  userspace
+ */
+u32 reserved_allocation_mask __ro_after_init;
+
+/* Bits set for the initially allocated keys */
+static u32 initial_allocation_mask __ro_after_init;
+
+/*
+ * Even if we allocate keys with sys_pkey_alloc(), we need to make sure
+ * other thread still find the access denied using the same keys.
+ */
+u64 default_amr __ro_after_init  = ~0x0UL;
+u64 default_iamr __ro_after_init = 0x5555555555555555UL;
+u64 default_uamor __ro_after_init;
+EXPORT_SYMBOL(default_amr);
+/*
+ * Key used to implement PROT_EXEC mmap. Denies READ/WRITE
+ * We pick key 2 because 0 is special key and 1 is reserved as per ISA.
+ */
 static int execute_only_key = 2;
+static bool pkey_execute_disable_supported;
+
 
 #define AMR_BITS_PER_PKEY 2
 #define AMR_RD_BIT 0x1UL
 #define AMR_WR_BIT 0x2UL
 #define IAMR_EX_BIT 0x1UL
-#define PKEY_REG_BITS (sizeof(u64)*8)
+#define PKEY_REG_BITS (sizeof(u64) * 8)
 #define pkeyshift(pkey) (PKEY_REG_BITS - ((pkey+1) * AMR_BITS_PER_PKEY))
 
-static void scan_pkey_feature(void)
+static int __init dt_scan_storage_keys(unsigned long node,
+				       const char *uname, int depth,
+				       void *data)
 {
-	u32 vals[2];
-	struct device_node *cpu;
+	const char *type = of_get_flat_dt_prop(node, "device_type", NULL);
+	const __be32 *prop;
+	int *pkeys_total = (int *) data;
 
-	cpu = of_find_node_by_type(NULL, "cpu");
-	if (!cpu)
-		return;
+	/* We are scanning "cpu" nodes only */
+	if (type == NULL || strcmp(type, "cpu") != 0)
+		return 0;
 
-	if (of_property_read_u32_array(cpu,
-			"ibm,processor-storage-keys", vals, 2))
-		return;
+	prop = of_get_flat_dt_prop(node, "ibm,processor-storage-keys", NULL);
+	if (!prop)
+		return 0;
+	*pkeys_total = be32_to_cpu(prop[0]);
+	return 1;
+}
+
+static int __init scan_pkey_feature(void)
+{
+	int ret;
+	int pkeys_total = 0;
 
 	/*
-	 * Since any pkey can be used for data or execute, we will just treat
-	 * all keys as equal and track them as one entity.
+	 * Pkey is not supported with Radix translation.
 	 */
-	pkeys_total = vals[0];
-	pkeys_devtree_defined = true;
+	if (early_radix_enabled())
+		return 0;
+
+	ret = of_scan_flat_dt(dt_scan_storage_keys, &pkeys_total);
+	if (ret == 0) {
+		/*
+		 * Let's assume 32 pkeys on P8/P9 bare metal, if its not defined by device
+		 * tree. We make this exception since some version of skiboot forgot to
+		 * expose this property on power8/9.
+		 */
+		if (!firmware_has_feature(FW_FEATURE_LPAR)) {
+			unsigned long pvr = mfspr(SPRN_PVR);
+
+			if (PVR_VER(pvr) == PVR_POWER8 || PVR_VER(pvr) == PVR_POWER8E ||
+			    PVR_VER(pvr) == PVR_POWER8NVL || PVR_VER(pvr) == PVR_POWER9 ||
+			    PVR_VER(pvr) == PVR_HX_C2000)
+				pkeys_total = 32;
+		}
+	}
+
+#ifdef CONFIG_PPC_MEM_KEYS
+	/*
+	 * Adjust the upper limit, based on the number of bits supported by
+	 * arch-neutral code.
+	 */
+	pkeys_total = min_t(int, pkeys_total,
+			    ((ARCH_VM_PKEY_FLAGS >> VM_PKEY_SHIFT) + 1));
+#endif
+	return pkeys_total;
 }
 
-static inline bool pkey_mmu_enabled(void)
+void __init pkey_early_init_devtree(void)
 {
-	if (firmware_has_feature(FW_FEATURE_LPAR))
-		return pkeys_total;
-	else
-		return cpu_has_feature(CPU_FTR_PKEY);
-}
+	int pkeys_total, i;
 
-static int pkey_initialize(void)
-{
-	int os_reserved, i;
-
+#ifdef CONFIG_PPC_MEM_KEYS
 	/*
 	 * We define PKEY_DISABLE_EXECUTE in addition to the arch-neutral
 	 * generic defines for PKEY_DISABLE_ACCESS and PKEY_DISABLE_WRITE.
@@ -78,33 +126,22 @@ static int pkey_initialize(void)
 	BUILD_BUG_ON(__builtin_clzl(ARCH_VM_PKEY_FLAGS >> VM_PKEY_SHIFT) +
 		     __builtin_popcountl(ARCH_VM_PKEY_FLAGS >> VM_PKEY_SHIFT)
 				!= (sizeof(u64) * BITS_PER_BYTE));
+#endif
+	/*
+	 * Only P7 and above supports SPRN_AMR update with MSR[PR] = 1
+	 */
+	if (!early_cpu_has_feature(CPU_FTR_ARCH_206))
+		return;
 
 	/* scan the device tree for pkey feature */
-	scan_pkey_feature();
+	pkeys_total = scan_pkey_feature();
+	if (!pkeys_total)
+		goto out;
 
-	/*
-	 * Let's assume 32 pkeys on P8 bare metal, if its not defined by device
-	 * tree. We make this exception since skiboot forgot to expose this
-	 * property on power8.
-	 */
-	if (!pkeys_devtree_defined && !firmware_has_feature(FW_FEATURE_LPAR) &&
-			cpu_has_feature(CPU_FTRS_POWER8))
-		pkeys_total = 32;
+	/* Allow all keys to be modified by default */
+	default_uamor = ~0x0UL;
 
-	/*
-	 * Adjust the upper limit, based on the number of bits supported by
-	 * arch-neutral code.
-	 */
-	pkeys_total = min_t(int, pkeys_total,
-			((ARCH_VM_PKEY_FLAGS >> VM_PKEY_SHIFT)+1));
-
-	if (!pkey_mmu_enabled() || radix_enabled() || !pkeys_total)
-		static_branch_enable(&pkey_disabled);
-	else
-		static_branch_disable(&pkey_disabled);
-
-	if (static_branch_likely(&pkey_disabled))
-		return 0;
+	cur_cpu_spec->mmu_features |= MMU_FTR_PKEY;
 
 	/*
 	 * The device tree cannot be relied to indicate support for
@@ -118,122 +155,180 @@ static int pkey_initialize(void)
 #ifdef CONFIG_PPC_4K_PAGES
 	/*
 	 * The OS can manage only 8 pkeys due to its inability to represent them
-	 * in the Linux 4K PTE.
+	 * in the Linux 4K PTE. Mark all other keys reserved.
 	 */
-	os_reserved = pkeys_total - 8;
+	num_pkey = min(8, pkeys_total);
 #else
-	os_reserved = 0;
+	num_pkey = pkeys_total;
 #endif
-	/* Bits are in LE format. */
-	reserved_allocation_mask = (0x1 << 1) | (0x1 << execute_only_key);
 
-	/* register mask is in BE format */
-	pkey_amr_mask = ~0x0ul;
-	pkey_amr_mask &= ~(0x3ul << pkeyshift(0));
-
-	pkey_iamr_mask = ~0x0ul;
-	pkey_iamr_mask &= ~(0x3ul << pkeyshift(0));
-	pkey_iamr_mask &= ~(0x3ul << pkeyshift(execute_only_key));
-
-	pkey_uamor_mask = ~0x0ul;
-	pkey_uamor_mask &= ~(0x3ul << pkeyshift(0));
-	pkey_uamor_mask &= ~(0x3ul << pkeyshift(execute_only_key));
-
-	/* mark the rest of the keys as reserved and hence unavailable */
-	for (i = (pkeys_total - os_reserved); i < pkeys_total; i++) {
-		reserved_allocation_mask |= (0x1 << i);
-		pkey_uamor_mask &= ~(0x3ul << pkeyshift(i));
-	}
-	initial_allocation_mask = reserved_allocation_mask | (0x1 << 0);
-
-	if (unlikely((pkeys_total - os_reserved) <= execute_only_key)) {
+	if (unlikely(num_pkey <= execute_only_key) || !pkey_execute_disable_supported) {
 		/*
 		 * Insufficient number of keys to support
 		 * execute only key. Mark it unavailable.
-		 * Any AMR, UAMOR, IAMR bit set for
-		 * this key is irrelevant since this key
-		 * can never be allocated.
 		 */
 		execute_only_key = -1;
+	} else {
+		/*
+		 * Mark the execute_only_pkey as not available for
+		 * user allocation via pkey_alloc.
+		 */
+		reserved_allocation_mask |= (0x1 << execute_only_key);
+
+		/*
+		 * Deny READ/WRITE for execute_only_key.
+		 * Allow execute in IAMR.
+		 */
+		default_amr  |= (0x3ul << pkeyshift(execute_only_key));
+		default_iamr &= ~(0x1ul << pkeyshift(execute_only_key));
+
+		/*
+		 * Clear the uamor bits for this key.
+		 */
+		default_uamor &= ~(0x3ul << pkeyshift(execute_only_key));
 	}
 
-	return 0;
+	if (unlikely(num_pkey <= 3)) {
+		/*
+		 * Insufficient number of keys to support
+		 * KUAP/KUEP feature.
+		 */
+		disable_kuep = true;
+		disable_kuap = true;
+		WARN(1, "Disabling kernel user protection due to low (%d) max supported keys\n", num_pkey);
+	} else {
+		/*  handle key which is used by kernel for KAUP */
+		reserved_allocation_mask |= (0x1 << 3);
+		/*
+		 * Mark access for kup_key in default amr so that
+		 * we continue to operate with that AMR in
+		 * copy_to/from_user().
+		 */
+		default_amr   &= ~(0x3ul << pkeyshift(3));
+		default_iamr  &= ~(0x1ul << pkeyshift(3));
+		default_uamor &= ~(0x3ul << pkeyshift(3));
+	}
+
+	/*
+	 * Allow access for only key 0. And prevent any other modification.
+	 */
+	default_amr   &= ~(0x3ul << pkeyshift(0));
+	default_iamr  &= ~(0x1ul << pkeyshift(0));
+	default_uamor &= ~(0x3ul << pkeyshift(0));
+	/*
+	 * key 0 is special in that we want to consider it an allocated
+	 * key which is preallocated. We don't allow changing AMR bits
+	 * w.r.t key 0. But one can pkey_free(key0)
+	 */
+	initial_allocation_mask |= (0x1 << 0);
+
+	/*
+	 * key 1 is recommended not to be used. PowerISA(3.0) page 1015,
+	 * programming note.
+	 */
+	reserved_allocation_mask |= (0x1 << 1);
+	default_uamor &= ~(0x3ul << pkeyshift(1));
+
+	/*
+	 * Prevent the usage of OS reserved keys. Update UAMOR
+	 * for those keys. Also mark the rest of the bits in the
+	 * 32 bit mask as reserved.
+	 */
+	for (i = num_pkey; i < 32 ; i++) {
+		reserved_allocation_mask |= (0x1 << i);
+		default_uamor &= ~(0x3ul << pkeyshift(i));
+	}
+	/*
+	 * Prevent the allocation of reserved keys too.
+	 */
+	initial_allocation_mask |= reserved_allocation_mask;
+
+	pr_info("Enabling pkeys with max key count %d\n", num_pkey);
+out:
+	/*
+	 * Setup uamor on boot cpu
+	 */
+	mtspr(SPRN_UAMOR, default_uamor);
+
+	return;
 }
 
-arch_initcall(pkey_initialize);
+#ifdef CONFIG_PPC_KUEP
+void setup_kuep(bool disabled)
+{
+	if (disabled)
+		return;
+	/*
+	 * On hash if PKEY feature is not enabled, disable KUAP too.
+	 */
+	if (!early_radix_enabled() && !early_mmu_has_feature(MMU_FTR_PKEY))
+		return;
 
+	if (smp_processor_id() == boot_cpuid) {
+		pr_info("Activating Kernel Userspace Execution Prevention\n");
+		cur_cpu_spec->mmu_features |= MMU_FTR_BOOK3S_KUEP;
+	}
+
+	/*
+	 * Radix always uses key0 of the IAMR to determine if an access is
+	 * allowed. We set bit 0 (IBM bit 1) of key0, to prevent instruction
+	 * fetch.
+	 */
+	mtspr(SPRN_IAMR, AMR_KUEP_BLOCKED);
+	isync();
+}
+#endif
+
+#ifdef CONFIG_PPC_KUAP
+void setup_kuap(bool disabled)
+{
+	if (disabled)
+		return;
+	/*
+	 * On hash if PKEY feature is not enabled, disable KUAP too.
+	 */
+	if (!early_radix_enabled() && !early_mmu_has_feature(MMU_FTR_PKEY))
+		return;
+
+	if (smp_processor_id() == boot_cpuid) {
+		pr_info("Activating Kernel Userspace Access Prevention\n");
+		cur_cpu_spec->mmu_features |= MMU_FTR_KUAP;
+	}
+
+	/*
+	 * Set the default kernel AMR values on all cpus.
+	 */
+	mtspr(SPRN_AMR, AMR_KUAP_BLOCKED);
+	isync();
+}
+#endif
+
+#ifdef CONFIG_PPC_MEM_KEYS
 void pkey_mm_init(struct mm_struct *mm)
 {
-	if (static_branch_likely(&pkey_disabled))
+	if (!mmu_has_feature(MMU_FTR_PKEY))
 		return;
 	mm_pkey_allocation_map(mm) = initial_allocation_mask;
 	mm->context.execute_only_pkey = execute_only_key;
 }
 
-static inline u64 read_amr(void)
-{
-	return mfspr(SPRN_AMR);
-}
-
-static inline void write_amr(u64 value)
-{
-	mtspr(SPRN_AMR, value);
-}
-
-static inline u64 read_iamr(void)
-{
-	if (!likely(pkey_execute_disable_supported))
-		return 0x0UL;
-
-	return mfspr(SPRN_IAMR);
-}
-
-static inline void write_iamr(u64 value)
-{
-	if (!likely(pkey_execute_disable_supported))
-		return;
-
-	mtspr(SPRN_IAMR, value);
-}
-
-static inline u64 read_uamor(void)
-{
-	return mfspr(SPRN_UAMOR);
-}
-
-static inline void write_uamor(u64 value)
-{
-	mtspr(SPRN_UAMOR, value);
-}
-
-static bool is_pkey_enabled(int pkey)
-{
-	u64 uamor = read_uamor();
-	u64 pkey_bits = 0x3ul << pkeyshift(pkey);
-	u64 uamor_pkey_bits = (uamor & pkey_bits);
-
-	/*
-	 * Both the bits in UAMOR corresponding to the key should be set or
-	 * reset.
-	 */
-	WARN_ON(uamor_pkey_bits && (uamor_pkey_bits != pkey_bits));
-	return !!(uamor_pkey_bits);
-}
-
 static inline void init_amr(int pkey, u8 init_bits)
 {
 	u64 new_amr_bits = (((u64)init_bits & 0x3UL) << pkeyshift(pkey));
-	u64 old_amr = read_amr() & ~((u64)(0x3ul) << pkeyshift(pkey));
+	u64 old_amr = current_thread_amr() & ~((u64)(0x3ul) << pkeyshift(pkey));
 
-	write_amr(old_amr | new_amr_bits);
+	current->thread.regs->amr = old_amr | new_amr_bits;
 }
 
 static inline void init_iamr(int pkey, u8 init_bits)
 {
 	u64 new_iamr_bits = (((u64)init_bits & 0x1UL) << pkeyshift(pkey));
-	u64 old_iamr = read_iamr() & ~((u64)(0x1ul) << pkeyshift(pkey));
+	u64 old_iamr = current_thread_iamr() & ~((u64)(0x1ul) << pkeyshift(pkey));
 
-	write_iamr(old_iamr | new_iamr_bits);
+	if (!likely(pkey_execute_disable_supported))
+		return;
+
+	current->thread.regs->iamr = old_iamr | new_iamr_bits;
 }
 
 /*
@@ -245,8 +340,18 @@ int __arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
 {
 	u64 new_amr_bits = 0x0ul;
 	u64 new_iamr_bits = 0x0ul;
+	u64 pkey_bits, uamor_pkey_bits;
 
-	if (!is_pkey_enabled(pkey))
+	/*
+	 * Check whether the key is disabled by UAMOR.
+	 */
+	pkey_bits = 0x3ul << pkeyshift(pkey);
+	uamor_pkey_bits = (default_uamor & pkey_bits);
+
+	/*
+	 * Both the bits in UAMOR corresponding to the key should be set
+	 */
+	if (uamor_pkey_bits != pkey_bits)
 		return -EINVAL;
 
 	if (init_val & PKEY_DISABLE_EXECUTE) {
@@ -266,58 +371,7 @@ int __arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
 	return 0;
 }
 
-void thread_pkey_regs_save(struct thread_struct *thread)
-{
-	if (static_branch_likely(&pkey_disabled))
-		return;
-
-	/*
-	 * TODO: Skip saving registers if @thread hasn't used any keys yet.
-	 */
-	thread->amr = read_amr();
-	thread->iamr = read_iamr();
-	thread->uamor = read_uamor();
-}
-
-void thread_pkey_regs_restore(struct thread_struct *new_thread,
-			      struct thread_struct *old_thread)
-{
-	if (static_branch_likely(&pkey_disabled))
-		return;
-
-	if (old_thread->amr != new_thread->amr)
-		write_amr(new_thread->amr);
-	if (old_thread->iamr != new_thread->iamr)
-		write_iamr(new_thread->iamr);
-	if (old_thread->uamor != new_thread->uamor)
-		write_uamor(new_thread->uamor);
-}
-
-void thread_pkey_regs_init(struct thread_struct *thread)
-{
-	if (static_branch_likely(&pkey_disabled))
-		return;
-
-	thread->amr = pkey_amr_mask;
-	thread->iamr = pkey_iamr_mask;
-	thread->uamor = pkey_uamor_mask;
-
-	write_uamor(pkey_uamor_mask);
-	write_amr(pkey_amr_mask);
-	write_iamr(pkey_iamr_mask);
-}
-
-static inline bool pkey_allows_readwrite(int pkey)
-{
-	int pkey_shift = pkeyshift(pkey);
-
-	if (!is_pkey_enabled(pkey))
-		return true;
-
-	return !(read_amr() & ((AMR_RD_BIT|AMR_WR_BIT) << pkey_shift));
-}
-
-int __execute_only_pkey(struct mm_struct *mm)
+int execute_only_pkey(struct mm_struct *mm)
 {
 	return mm->context.execute_only_pkey;
 }
@@ -325,7 +379,7 @@ int __execute_only_pkey(struct mm_struct *mm)
 static inline bool vma_is_pkey_exec_only(struct vm_area_struct *vma)
 {
 	/* Do this check first since the vm_flags should be hot */
-	if ((vma->vm_flags & (VM_READ | VM_WRITE | VM_EXEC)) != VM_EXEC)
+	if ((vma->vm_flags & VM_ACCESS_FLAGS) != VM_EXEC)
 		return false;
 
 	return (vma_pkey(vma) == vma->vm_mm->context.execute_only_pkey);
@@ -363,21 +417,20 @@ static bool pkey_access_permitted(int pkey, bool write, bool execute)
 	int pkey_shift;
 	u64 amr;
 
-	if (!is_pkey_enabled(pkey))
-		return true;
-
 	pkey_shift = pkeyshift(pkey);
-	if (execute && !(read_iamr() & (IAMR_EX_BIT << pkey_shift)))
-		return true;
+	if (execute)
+		return !(current_thread_iamr() & (IAMR_EX_BIT << pkey_shift));
 
-	amr = read_amr(); /* Delay reading amr until absolutely needed */
-	return ((!write && !(amr & (AMR_RD_BIT << pkey_shift))) ||
-		(write &&  !(amr & (AMR_WR_BIT << pkey_shift))));
+	amr = current_thread_amr();
+	if (write)
+		return !(amr & (AMR_WR_BIT << pkey_shift));
+
+	return !(amr & (AMR_RD_BIT << pkey_shift));
 }
 
 bool arch_pte_access_permitted(u64 pte, bool write, bool execute)
 {
-	if (static_branch_likely(&pkey_disabled))
+	if (!mmu_has_feature(MMU_FTR_PKEY))
 		return true;
 
 	return pkey_access_permitted(pte_to_pkey_bits(pte), write, execute);
@@ -391,22 +444,10 @@ bool arch_pte_access_permitted(u64 pte, bool write, bool execute)
  * So do not enforce things if the VMA is not from the current mm, or if we are
  * in a kernel thread.
  */
-static inline bool vma_is_foreign(struct vm_area_struct *vma)
-{
-	if (!current->mm)
-		return true;
-
-	/* if it is not our ->mm, it has to be foreign */
-	if (current->mm != vma->vm_mm)
-		return true;
-
-	return false;
-}
-
 bool arch_vma_access_permitted(struct vm_area_struct *vma, bool write,
 			       bool execute, bool foreign)
 {
-	if (static_branch_likely(&pkey_disabled))
+	if (!mmu_has_feature(MMU_FTR_PKEY))
 		return true;
 	/*
 	 * Do not enforce our key-permissions on a foreign vma.
@@ -419,10 +460,12 @@ bool arch_vma_access_permitted(struct vm_area_struct *vma, bool write,
 
 void arch_dup_pkeys(struct mm_struct *oldmm, struct mm_struct *mm)
 {
-	if (static_branch_likely(&pkey_disabled))
+	if (!mmu_has_feature(MMU_FTR_PKEY))
 		return;
 
 	/* Duplicate the oldmm pkey state in mm: */
 	mm_pkey_allocation_map(mm) = mm_pkey_allocation_map(oldmm);
 	mm->context.execute_only_pkey = oldmm->context.execute_only_pkey;
 }
+
+#endif /* CONFIG_PPC_MEM_KEYS */

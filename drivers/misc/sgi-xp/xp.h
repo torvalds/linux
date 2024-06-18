@@ -3,6 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
+ * (C) Copyright 2020 Hewlett Packard Enterprise Development LP
  * Copyright (C) 2004-2008 Silicon Graphics, Inc. All rights reserved.
  */
 
@@ -15,13 +16,8 @@
 
 #include <linux/mutex.h>
 
-#if defined CONFIG_X86_UV || defined CONFIG_IA64_SGI_UV
+#if defined CONFIG_X86_UV
 #include <asm/uv/uv.h>
-#define is_uv()		is_uv_system()
-#endif
-
-#ifndef is_uv
-#define is_uv()		0
 #endif
 
 #ifdef USE_DBUG_ON
@@ -79,7 +75,7 @@
 
 #define XPC_MSG_SIZE(_payload_size) \
 				ALIGN(XPC_MSG_HDR_MAX_SIZE + (_payload_size), \
-				      is_uv() ? 64 : 128)
+				      is_uv_system() ? 64 : 128)
 
 
 /*
@@ -337,10 +333,6 @@ extern enum xp_retval (*xp_remote_memcpy) (unsigned long, const unsigned long,
 extern int (*xp_cpu_to_nasid) (int);
 extern enum xp_retval (*xp_expand_memprotect) (unsigned long, unsigned long);
 extern enum xp_retval (*xp_restrict_memprotect) (unsigned long, unsigned long);
-
-extern u64 xp_nofault_PIOR_target;
-extern int xp_nofault_PIOR(void *);
-extern int xp_error_PIOR(void);
 
 extern struct device *xp;
 extern enum xp_retval xp_init_uv(void);

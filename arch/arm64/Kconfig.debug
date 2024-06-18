@@ -1,22 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
-config ARM64_PTDUMP_CORE
-	def_bool n
-
-config ARM64_PTDUMP_DEBUGFS
-	bool "Export kernel pagetable layout to userspace via debugfs"
-	depends on DEBUG_KERNEL
-	select ARM64_PTDUMP_CORE
-	select DEBUG_FS
-        help
-	  Say Y here if you want to show the kernel pagetable layout in a
-	  debugfs file. This information is only useful for kernel developers
-	  who are working in architecture specific areas of the kernel.
-	  It is probably not a good idea to enable this feature in a production
-	  kernel.
-
-	  If in doubt, say N.
-
 config PID_IN_CONTEXTIDR
 	bool "Write the current PID to the CONTEXTIDR register"
 	help
@@ -24,63 +7,6 @@ config PID_IN_CONTEXTIDR
 	  the CONTEXTIDR register, at the expense of some additional
 	  instructions during context switch. Say Y here only if you are
 	  planning to use hardware trace tools with this kernel.
-
-config ARM64_RANDOMIZE_TEXT_OFFSET
-	bool "Randomize TEXT_OFFSET at build time"
-	help
-	  Say Y here if you want the image load offset (AKA TEXT_OFFSET)
-	  of the kernel to be randomized at build-time. When selected,
-	  this option will cause TEXT_OFFSET to be randomized upon any
-	  build of the kernel, and the offset will be reflected in the
-	  text_offset field of the resulting Image. This can be used to
-	  fuzz-test bootloaders which respect text_offset.
-
-	  This option is intended for bootloader and/or kernel testing
-	  only. Bootloaders must make no assumptions regarding the value
-	  of TEXT_OFFSET and platforms must not require a specific
-	  value.
-
-config DEBUG_WX
-	bool "Warn on W+X mappings at boot"
-	select ARM64_PTDUMP_CORE
-	---help---
-	  Generate a warning if any W+X mappings are found at boot.
-
-	  This is useful for discovering cases where the kernel is leaving
-	  W+X mappings after applying NX, as such mappings are a security risk.
-	  This check also includes UXN, which should be set on all kernel
-	  mappings.
-
-	  Look for a message in dmesg output like this:
-
-	    arm64/mm: Checked W+X mappings: passed, no W+X pages found.
-
-	  or like this, if the check failed:
-
-	    arm64/mm: Checked W+X mappings: FAILED, <N> W+X pages found.
-
-	  Note that even if the check fails, your kernel is possibly
-	  still fine, as W+X mappings are not a security hole in
-	  themselves, what they do is that they make the exploitation
-	  of other unfixed kernel bugs easier.
-
-	  There is no runtime or memory usage effect of this option
-	  once the kernel has booted up - it's a one time check.
-
-	  If in doubt, say "Y".
-
-config DEBUG_ALIGN_RODATA
-	depends on STRICT_KERNEL_RWX
-	bool "Align linker sections up to SECTION_SIZE"
-	help
-	  If this option is enabled, sections that may potentially be marked as
-	  read only or non-executable will be aligned up to the section size of
-	  the kernel. This prevents sections from being split into pages and
-	  avoids a potential TLB penalty. The downside is an increase in
-	  alignment and potentially wasted space. Turn on this option if
-	  performance is more important than memory pressure.
-
-	  If in doubt, say N.
 
 config DEBUG_EFI
 	depends on EFI && DEBUG_INFO

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2006-2019  B.A.T.M.A.N. contributors:
+/* Copyright (C) B.A.T.M.A.N. contributors:
  *
  * Simon Wunderlich, Marek Lindner
  */
@@ -18,7 +18,7 @@
 #include <linux/stddef.h>
 #include <linux/types.h>
 
-/* callback to a compare function.  should compare 2 element datas for their
+/* callback to a compare function.  should compare 2 element data for their
  * keys
  *
  * Return: true if same and false if not same

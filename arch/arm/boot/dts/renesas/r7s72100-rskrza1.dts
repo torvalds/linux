@@ -1,0 +1,285 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree Source for the RZ/A1H RSK board
+ *
+ * Copyright (C) 2016 Renesas Electronics
+ */
+
+/dts-v1/;
+#include "r7s72100.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/pinctrl/r7s72100-pinctrl.h>
+
+/ {
+	model = "RSKRZA1";
+	compatible = "renesas,rskrza1", "renesas,r7s72100";
+
+	aliases {
+		serial0 = &scif2;
+	};
+
+	chosen {
+		bootargs = "ignore_loglevel";
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@8000000 {
+		device_type = "memory";
+		reg = <0x08000000 0x02000000>;
+	};
+
+	flash@18000000 {
+		compatible = "mtd-rom";
+		reg = <0x18000000 0x08000000>;
+		clocks = <&mstp9_clks R7S72100_CLK_SPIBSC0>;
+		power-domains = <&cpg_clocks>;
+		bank-width = <4>;
+		device-width = <1>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "uboot";
+				reg = <0x00000000 0x00080000>;
+			};
+
+			partition@80000 {
+				label = "uboot-env";
+				reg = <0x00080000 0x00040000>;
+			};
+
+			partition@c0000 {
+				label = "dt";
+				reg = <0x000c0000 0x00040000>;
+			};
+
+			partition@100000 {
+				label = "kernel";
+				reg = <0x00100000 0x00280000>;
+			};
+
+			partition@400000 {
+				label = "rootfs";
+				reg = <0x00400000 0x01c00000>;
+			};
+		};
+	};
+
+	keyboard {
+		compatible = "gpio-keys";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&keyboard_pins>;
+
+		key-1 {
+			interrupt-parent = <&irqc>;
+			interrupts = <3 IRQ_TYPE_EDGE_BOTH>;
+			linux,code = <KEY_1>;
+			label = "SW1";
+			wakeup-source;
+		};
+
+		key-2 {
+			interrupt-parent = <&irqc>;
+			interrupts = <2 IRQ_TYPE_EDGE_BOTH>;
+			linux,code = <KEY_2>;
+			label = "SW2";
+			wakeup-source;
+		};
+
+		key-3 {
+			interrupt-parent = <&irqc>;
+			interrupts = <5 IRQ_TYPE_EDGE_BOTH>;
+			linux,code = <KEY_3>;
+			label = "SW3";
+			wakeup-source;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		led0 {
+			gpios = <&port7 1 GPIO_ACTIVE_LOW>;
+		};
+
+		led1 {
+			gpios = <&io_expander1 0 GPIO_ACTIVE_LOW>;
+		};
+
+		led2 {
+			gpios = <&io_expander1 1 GPIO_ACTIVE_LOW>;
+		};
+
+		led3 {
+			gpios = <&io_expander1 2 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&extal_clk {
+	clock-frequency = <13330000>;
+};
+
+&i2c3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c3_pins>;
+	status = "okay";
+
+	clock-frequency = <400000>;
+
+	io_expander1: gpio@20 {
+		compatible = "onnn,cat9554";
+		reg = <0x20>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+
+	io_expander2: gpio@21 {
+		compatible = "onnn,cat9554";
+		reg = <0x21>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+
+	eeprom@50 {
+		compatible = "renesas,r1ex24016", "atmel,24c16";
+		reg = <0x50>;
+		pagesize = <16>;
+	};
+};
+
+&bsc {
+	flash@0 {
+		compatible = "cfi-flash";
+		reg = <0x00000000 0x4000000>;
+		bank-width = <2>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "apps";
+				reg = <0x00000000 0x01000000>;
+			};
+
+			partition@1000000 {
+				label = "data";
+				reg = <0x01000000 0x03000000>;
+			};
+		};
+	};
+};
+
+&usb_x1_clk {
+	clock-frequency = <48000000>;
+};
+
+&rtc_x1_clk {
+	clock-frequency = <32768>;
+};
+
+&pinctrl {
+	/* RIIC ch3 (Port Expander, EEPROM (MAC Addr), Audio Codec) */
+	i2c3_pins: i2c3 {
+		pinmux = <RZA1_PINMUX(1, 6, 1)>,	/* RIIC3SCL */
+			 <RZA1_PINMUX(1, 7, 1)>;	/* RIIC3SDA */
+	};
+
+	keyboard_pins: keyboard {
+		pinmux = <RZA1_PINMUX(1, 9, 3)>,	/* IRQ3 */
+			 <RZA1_PINMUX(1, 8, 3)>,	/* IRQ2 */
+			 <RZA1_PINMUX(1, 11, 3)>;	/* IRQ5 */
+	};
+
+	/* Serial Console */
+	scif2_pins: serial2 {
+		pinmux = <RZA1_PINMUX(3, 0, 6)>,	/* TxD2 */
+			 <RZA1_PINMUX(3, 2, 4)>;	/* RxD2 */
+	};
+
+	/* Ethernet */
+	ether_pins: ether {
+		/* Ethernet on Ports 1,2,3,5 */
+		pinmux = <RZA1_PINMUX(1, 14, 4)>,	/* ET_COL   */
+			 <RZA1_PINMUX(5, 9, 2)>,	/* ET_MDC   */
+			 <RZA1_PINMUX(3, 3, 2)>,	/* ET_MDIO  */
+			 <RZA1_PINMUX(3, 4, 2)>,	/* ET_RXCLK */
+			 <RZA1_PINMUX(3, 5, 2)>,	/* ET_RXER  */
+			 <RZA1_PINMUX(3, 6, 2)>,	/* ET_RXDV  */
+			 <RZA1_PINMUX(2, 0, 2)>,	/* ET_TXCLK */
+			 <RZA1_PINMUX(2, 1, 2)>,	/* ET_TXER  */
+			 <RZA1_PINMUX(2, 2, 2)>,	/* ET_TXEN  */
+			 <RZA1_PINMUX(2, 3, 2)>,	/* ET_CRS   */
+			 <RZA1_PINMUX(2, 4, 2)>,	/* ET_TXD0  */
+			 <RZA1_PINMUX(2, 5, 2)>,	/* ET_TXD1  */
+			 <RZA1_PINMUX(2, 6, 2)>,	/* ET_TXD2  */
+			 <RZA1_PINMUX(2, 7, 2)>,	/* ET_TXD3  */
+			 <RZA1_PINMUX(2, 8, 2)>,	/* ET_RXD0  */
+			 <RZA1_PINMUX(2, 9, 2)>,	/* ET_RXD1  */
+			 <RZA1_PINMUX(2, 10, 2)>,	/* ET_RXD2  */
+			 <RZA1_PINMUX(2, 11, 2)>;	/* ET_RXD3  */
+	};
+
+	/* SDHI ch1 on CN1 */
+	sdhi1_pins: sdhi1 {
+		pinmux = <RZA1_PINMUX(3, 8, 7)>,	/* SD_CD_1 */
+			 <RZA1_PINMUX(3, 9, 7)>,	/* SD_WP_1 */
+			 <RZA1_PINMUX(3, 10, 7)>,	/* SD_D1_1 */
+			 <RZA1_PINMUX(3, 11, 7)>,	/* SD_D0_1 */
+			 <RZA1_PINMUX(3, 12, 7)>,	/* SD_CLK_1 */
+			 <RZA1_PINMUX(3, 13, 7)>,	/* SD_CMD_1 */
+			 <RZA1_PINMUX(3, 14, 7)>,	/* SD_D3_1 */
+			 <RZA1_PINMUX(3, 15, 7)>;	/* SD_D2_1 */
+	};
+};
+
+&mtu2 {
+	status = "okay";
+};
+
+&ether {
+	pinctrl-names = "default";
+	pinctrl-0 = <&ether_pins>;
+	status = "okay";
+	renesas,no-ether-link;
+	phy-handle = <&phy0>;
+	phy0: ethernet-phy@0 {
+		compatible = "ethernet-phy-idb824.2814",
+			     "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+	};
+};
+
+&sdhi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdhi1_pins>;
+	bus-width = <4>;
+	status = "okay";
+};
+
+&ostm0 {
+	status = "okay";
+};
+
+&ostm1 {
+	status = "okay";
+};
+
+&rtc {
+	status = "okay";
+};
+
+&scif2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&scif2_pins>;
+	status = "okay";
+};

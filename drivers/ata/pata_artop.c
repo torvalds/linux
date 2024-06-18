@@ -28,7 +28,7 @@
 #include <linux/ata.h>
 
 #define DRV_NAME	"pata_artop"
-#define DRV_VERSION	"0.4.6"
+#define DRV_VERSION	"0.4.8"
 
 /*
  *	The ARTOP has 33 Mhz and "over clocked" timing tables. Until we
@@ -100,7 +100,7 @@ static void artop6210_load_piomode(struct ata_port *ap, struct ata_device *adev,
 {
 	struct pci_dev *pdev	= to_pci_dev(ap->host->dev);
 	int dn = adev->devno + 2 * ap->port_no;
-	const u16 timing[2][5] = {
+	static const u16 timing[2][5] = {
 		{ 0x0000, 0x000A, 0x0008, 0x0303, 0x0301 },
 		{ 0x0700, 0x070A, 0x0708, 0x0403, 0x0401 }
 
@@ -154,7 +154,7 @@ static void artop6260_load_piomode (struct ata_port *ap, struct ata_device *adev
 {
 	struct pci_dev *pdev	= to_pci_dev(ap->host->dev);
 	int dn = adev->devno + 2 * ap->port_no;
-	const u8 timing[2][5] = {
+	static const u8 timing[2][5] = {
 		{ 0x00, 0x0A, 0x08, 0x33, 0x31 },
 		{ 0x70, 0x7A, 0x78, 0x43, 0x41 }
 
@@ -268,7 +268,7 @@ static void artop6260_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 }
 
 /**
- *	artop_6210_qc_defer	-	implement serialization
+ *	artop6210_qc_defer	-	implement serialization
  *	@qc: command
  *
  *	Issue commands per host on this chip.
@@ -292,7 +292,7 @@ static int artop6210_qc_defer(struct ata_queued_cmd *qc)
 	return 0;
 }
 
-static struct scsi_host_template artop_sht = {
+static const struct scsi_host_template artop_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 
@@ -315,12 +315,15 @@ static struct ata_port_operations artop6260_ops = {
 
 static void atp8xx_fixup(struct pci_dev *pdev)
 {
-	if (pdev->device == 0x0005)
+	u8 reg;
+
+	switch (pdev->device) {
+	case 0x0005:
 		/* BIOS may have left us in UDMA, clear it before libata probe */
 		pci_write_config_byte(pdev, 0x54, 0);
-	else if (pdev->device == 0x0008 || pdev->device == 0x0009) {
-		u8 reg;
-
+		break;
+	case 0x0008:
+	case 0x0009:
 		/* Mac systems come up with some registers not set as we
 		   will need them */
 
@@ -338,13 +341,14 @@ static void atp8xx_fixup(struct pci_dev *pdev)
 		/* Enable IRQ output and burst mode */
 		pci_read_config_byte(pdev, 0x4a, &reg);
 		pci_write_config_byte(pdev, 0x4a, (reg & ~0x01) | 0x80);
+		break;
 	}
 }
 
 /**
  *	artop_init_one - Register ARTOP ATA PCI device with kernel services
  *	@pdev: PCI device to register
- *	@ent: Entry in artop_pci_tbl matching with @pdev
+ *	@id: PCI device ID
  *
  *	Called from kernel PCI layer.
  *
@@ -394,16 +398,19 @@ static int artop_init_one (struct pci_dev *pdev, const struct pci_device_id *id)
 	if (rc)
 		return rc;
 
-	if (id->driver_data == 0)	/* 6210 variant */
+	switch (id->driver_data) {
+	case 0:		/* 6210 variant */
 		ppi[0] = &info_6210;
-	else if (id->driver_data == 1)	/* 6260 */
+		break;
+	case 1:		/* 6260 */
 		ppi[0] = &info_626x;
-	else if (id->driver_data == 2)	{ /* 6280 or 6280 + fast */
-		unsigned long io = pci_resource_start(pdev, 4);
-
-		ppi[0] = &info_628x;
-		if (inb(io) & 0x10)
+		break;
+	case 2:		/* 6280 or 6280 + fast */
+		if (inb(pci_resource_start(pdev, 4)) & 0x10)
 			ppi[0] = &info_628x_fast;
+		else
+			ppi[0] = &info_628x;
+		break;
 	}
 
 	BUG_ON(ppi[0] == NULL);

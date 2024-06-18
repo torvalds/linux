@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * SAMSUNG EXYNOS USB HOST EHCI Controller
+ * Samsung Exynos USB HOST EHCI Controller
  *
  * Copyright (C) 2011 Samsung Electronics Co.Ltd
  * Author: Jingoo Han <jg1.han@samsung.com>
@@ -13,7 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/usb.h>
@@ -21,7 +21,7 @@
 
 #include "ehci.h"
 
-#define DRIVER_DESC "EHCI EXYNOS driver"
+#define DRIVER_DESC "EHCI Exynos driver"
 
 #define EHCI_INSNREG00(base)			(base + 0x90)
 #define EHCI_INSNREG00_ENA_INCR16		(0x1 << 25)
@@ -32,7 +32,6 @@
 	(EHCI_INSNREG00_ENA_INCR16 | EHCI_INSNREG00_ENA_INCR8 |	\
 	 EHCI_INSNREG00_ENA_INCR4 | EHCI_INSNREG00_ENA_INCRX_ALIGN)
 
-static const char hcd_name[] = "ehci-exynos";
 static struct hc_driver __read_mostly exynos_ehci_hc_driver;
 
 #define PHY_NUMBER 3
@@ -81,19 +80,11 @@ static int exynos_ehci_get_phy(struct device *dev,
 			return -EINVAL;
 		}
 
-		phy = devm_of_phy_get(dev, child, NULL);
+		phy = devm_of_phy_optional_get(dev, child, NULL);
 		exynos_ehci->phy[phy_number] = phy;
 		if (IS_ERR(phy)) {
-			ret = PTR_ERR(phy);
-			if (ret == -EPROBE_DEFER) {
-				of_node_put(child);
-				return ret;
-			} else if (ret != -ENOSYS && ret != -ENODEV) {
-				dev_err(dev,
-					"Error retrieving usb2 phy: %d\n", ret);
-				of_node_put(child);
-				return ret;
-			}
+			of_node_put(child);
+			return PTR_ERR(phy);
 		}
 	}
 
@@ -109,12 +100,10 @@ static int exynos_ehci_phy_enable(struct device *dev)
 	int ret = 0;
 
 	for (i = 0; ret == 0 && i < PHY_NUMBER; i++)
-		if (!IS_ERR(exynos_ehci->phy[i]))
-			ret = phy_power_on(exynos_ehci->phy[i]);
+		ret = phy_power_on(exynos_ehci->phy[i]);
 	if (ret)
 		for (i--; i >= 0; i--)
-			if (!IS_ERR(exynos_ehci->phy[i]))
-				phy_power_off(exynos_ehci->phy[i]);
+			phy_power_off(exynos_ehci->phy[i]);
 
 	return ret;
 }
@@ -126,26 +115,18 @@ static void exynos_ehci_phy_disable(struct device *dev)
 	int i;
 
 	for (i = 0; i < PHY_NUMBER; i++)
-		if (!IS_ERR(exynos_ehci->phy[i]))
-			phy_power_off(exynos_ehci->phy[i]);
+		phy_power_off(exynos_ehci->phy[i]);
 }
 
 static void exynos_setup_vbus_gpio(struct device *dev)
 {
+	struct gpio_desc *gpio;
 	int err;
-	int gpio;
 
-	if (!dev->of_node)
-		return;
-
-	gpio = of_get_named_gpio(dev->of_node, "samsung,vbus-gpio", 0);
-	if (!gpio_is_valid(gpio))
-		return;
-
-	err = devm_gpio_request_one(dev, gpio, GPIOF_OUT_INIT_HIGH,
-				    "ehci_vbus_gpio");
+	gpio = devm_gpiod_get_optional(dev, "samsung,vbus", GPIOD_OUT_HIGH);
+	err = PTR_ERR_OR_ZERO(gpio);
 	if (err)
-		dev_err(dev, "can't request ehci vbus gpio %d", gpio);
+		dev_err(dev, "can't request ehci vbus gpio: %d\n", err);
 }
 
 static int exynos_ehci_probe(struct platform_device *pdev)
@@ -178,22 +159,17 @@ static int exynos_ehci_probe(struct platform_device *pdev)
 
 	err = exynos_ehci_get_phy(&pdev->dev, exynos_ehci);
 	if (err)
-		goto fail_clk;
+		goto fail_io;
 
-	exynos_ehci->clk = devm_clk_get(&pdev->dev, "usbhost");
+	exynos_ehci->clk = devm_clk_get_enabled(&pdev->dev, "usbhost");
 
 	if (IS_ERR(exynos_ehci->clk)) {
 		dev_err(&pdev->dev, "Failed to get usbhost clock\n");
 		err = PTR_ERR(exynos_ehci->clk);
-		goto fail_clk;
+		goto fail_io;
 	}
 
-	err = clk_prepare_enable(exynos_ehci->clk);
-	if (err)
-		goto fail_clk;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	hcd->regs = devm_ioremap_resource(&pdev->dev, res);
+	hcd->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(hcd->regs)) {
 		err = PTR_ERR(hcd->regs);
 		goto fail_io;
@@ -203,9 +179,8 @@ static int exynos_ehci_probe(struct platform_device *pdev)
 	hcd->rsrc_len = resource_size(res);
 
 	irq = platform_get_irq(pdev, 0);
-	if (!irq) {
-		dev_err(&pdev->dev, "Failed to get IRQ\n");
-		err = -ENODEV;
+	if (irq < 0) {
+		err = irq;
 		goto fail_io;
 	}
 
@@ -244,13 +219,11 @@ fail_add_hcd:
 	exynos_ehci_phy_disable(&pdev->dev);
 	pdev->dev.of_node = exynos_ehci->of_node;
 fail_io:
-	clk_disable_unprepare(exynos_ehci->clk);
-fail_clk:
 	usb_put_hcd(hcd);
 	return err;
 }
 
-static int exynos_ehci_remove(struct platform_device *pdev)
+static void exynos_ehci_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 	struct exynos_ehci_hcd *exynos_ehci = to_exynos_ehci(hcd);
@@ -261,14 +234,9 @@ static int exynos_ehci_remove(struct platform_device *pdev)
 
 	exynos_ehci_phy_disable(&pdev->dev);
 
-	clk_disable_unprepare(exynos_ehci->clk);
-
 	usb_put_hcd(hcd);
-
-	return 0;
 }
 
-#ifdef CONFIG_PM
 static int exynos_ehci_suspend(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
@@ -311,15 +279,9 @@ static int exynos_ehci_resume(struct device *dev)
 	ehci_resume(hcd, false);
 	return 0;
 }
-#else
-#define exynos_ehci_suspend	NULL
-#define exynos_ehci_resume	NULL
-#endif
 
-static const struct dev_pm_ops exynos_ehci_pm_ops = {
-	.suspend	= exynos_ehci_suspend,
-	.resume		= exynos_ehci_resume,
-};
+static DEFINE_SIMPLE_DEV_PM_OPS(exynos_ehci_pm_ops,
+				exynos_ehci_suspend, exynos_ehci_resume);
 
 #ifdef CONFIG_OF
 static const struct of_device_id exynos_ehci_match[] = {
@@ -331,11 +293,11 @@ MODULE_DEVICE_TABLE(of, exynos_ehci_match);
 
 static struct platform_driver exynos_ehci_driver = {
 	.probe		= exynos_ehci_probe,
-	.remove		= exynos_ehci_remove,
+	.remove_new	= exynos_ehci_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
 	.driver = {
 		.name	= "exynos-ehci",
-		.pm	= &exynos_ehci_pm_ops,
+		.pm	= pm_ptr(&exynos_ehci_pm_ops),
 		.of_match_table = of_match_ptr(exynos_ehci_match),
 	}
 };
@@ -348,7 +310,6 @@ static int __init ehci_exynos_init(void)
 	if (usb_disabled())
 		return -ENODEV;
 
-	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
 	ehci_init_driver(&exynos_ehci_hc_driver, &exynos_overrides);
 	return platform_driver_register(&exynos_ehci_driver);
 }

@@ -9,7 +9,7 @@ Configfs is a filesystem-based manager of kernel objects. IIO uses some
 objects that could be easily configured using configfs (e.g.: devices,
 triggers).
 
-See Documentation/filesystems/configfs/configfs.txt for more information
+See Documentation/filesystems/configfs.rst for more information
 about how configfs works.
 
 2. Usage
@@ -53,7 +53,7 @@ kernel module following the interface in include/linux/iio/sw_trigger.h::
 	 */
   }
 
-  static int iio_trig_hrtimer_remove(struct iio_sw_trigger *swt)
+  static int iio_trig_sample_remove(struct iio_sw_trigger *swt)
   {
 	/*
 	 * This undoes the actions in iio_trig_sample_probe
@@ -71,7 +71,7 @@ kernel module following the interface in include/linux/iio/sw_trigger.h::
 	.ops = &iio_trig_sample_ops,
   };
 
-module_iio_sw_trigger_driver(iio_trig_sample);
+  module_iio_sw_trigger_driver(iio_trig_sample);
 
 Each trigger type has its own directory under /config/iio/triggers. Loading
 iio-trig-sample module will create 'trig-sample' trigger type directory
@@ -99,3 +99,4 @@ Each trigger can have one or more attributes specific to the trigger type.
 
 "hrtimer" trigger type doesn't have any configurable attribute from /config dir.
 It does introduce the sampling_frequency attribute to trigger directory.
+That attribute sets the polling frequency in Hz, with mHz precision.

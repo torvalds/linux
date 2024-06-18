@@ -15,7 +15,7 @@
 /*
  * Array of DSP commands
  */
-static struct vx_cmd_info vx_dsp_cmds[] = {
+static const struct vx_cmd_info vx_dsp_cmds[] = {
 [CMD_VERSION] =			{ 0x010000, 2, RMH_SSIZE_FIXED, 1 },
 [CMD_SUPPORTED] =		{ 0x020000, 1, RMH_SSIZE_FIXED, 2 },
 [CMD_TEST_IT] =			{ 0x040000, 1, RMH_SSIZE_FIXED, 1 },

@@ -268,15 +268,6 @@ static void init_8259A(int auto_eoi)
 	raw_spin_unlock_irqrestore(&i8259A_lock, flags);
 }
 
-/*
- * IRQ2 is cascade interrupt to second interrupt controller
- */
-static struct irqaction irq2 = {
-	.handler = no_action,
-	.name = "cascade",
-	.flags = IRQF_NO_THREAD,
-};
-
 static struct resource pic1_io_resource = {
 	.name = "pic1",
 	.start = PIC_MASTER_CMD,
@@ -311,6 +302,10 @@ static const struct irq_domain_ops i8259A_ops = {
  */
 struct irq_domain * __init __init_i8259_irqs(struct device_node *node)
 {
+	/*
+	 * PIC_CASCADE_IR is cascade interrupt to second interrupt controller
+	 */
+	int irq = I8259A_IRQ_BASE + PIC_CASCADE_IR;
 	struct irq_domain *domain;
 
 	insert_resource(&ioport_resource, &pic1_io_resource);
@@ -323,7 +318,8 @@ struct irq_domain * __init __init_i8259_irqs(struct device_node *node)
 	if (!domain)
 		panic("Failed to add i8259 IRQ domain");
 
-	setup_irq(I8259A_IRQ_BASE + PIC_CASCADE_IR, &irq2);
+	if (request_irq(irq, no_action, IRQF_NO_THREAD, "cascade", NULL))
+		pr_err("Failed to register cascade interrupt\n");
 	register_syscore_ops(&i8259_syscore_ops);
 	return domain;
 }
@@ -337,16 +333,14 @@ static void i8259_irq_dispatch(struct irq_desc *desc)
 {
 	struct irq_domain *domain = irq_desc_get_handler_data(desc);
 	int hwirq = i8259_poll();
-	unsigned int irq;
 
 	if (hwirq < 0)
 		return;
 
-	irq = irq_linear_revmap(domain, hwirq);
-	generic_handle_irq(irq);
+	generic_handle_domain_irq(domain, hwirq);
 }
 
-int __init i8259_of_init(struct device_node *node, struct device_node *parent)
+static int __init i8259_of_init(struct device_node *node, struct device_node *parent)
 {
 	struct irq_domain *domain;
 	unsigned int parent_irq;

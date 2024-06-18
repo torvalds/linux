@@ -2,10 +2,13 @@
 TEST_GEN_PROGS := gettimeofday context_switch fork mmap_bench futex_bench null_syscall
 TEST_GEN_FILES := exec_target
 
-CFLAGS += -O2
+TEST_FILES := settings
 
 top_srcdir = ../../../../..
 include ../../lib.mk
+include ../flags.mk
+
+CFLAGS += -O2
 
 $(TEST_GEN_PROGS): ../harness.c
 

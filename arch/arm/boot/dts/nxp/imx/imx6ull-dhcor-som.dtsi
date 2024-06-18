@@ -1,0 +1,270 @@
+// SPDX-License-Identifier: GPL-2.0+ OR BSD-3-Clause
+/*
+ * Copyright (C) 2023 DH electronics GmbH
+ */
+
+#include <dt-bindings/clock/imx6ul-clock.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
+#include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/regulator/dlg,da9063-regulator.h>
+#include "imx6ull.dtsi"
+
+/ {
+	aliases {
+		/delete-property/ mmc0;
+		/delete-property/ mmc1;
+	};
+
+	memory@80000000 {
+		/* Appropriate memory size will be filled by U-Boot */
+		reg = <0x80000000 0>;
+		device_type = "memory";
+	};
+};
+
+&cpu0 {
+	/*
+	 * Due to the design as a solderable SOM, there are no capacitors
+	 * below the SoC, therefore higher voltages are required.
+	 * Due to CPU lifetime consideration of the SoC manufacturer and
+	 * the preferred area of operation in the industrial related
+	 * environment, set the maximum frequency for each DHCOM i.MX6ULL
+	 * to 792MHz, as with the industrial type.
+	 */
+	clock-frequency = <792000000>;
+	operating-points = <
+		/* kHz	uV */
+		792000	1250000 /* Voltage increased */
+		528000	1175000
+		396000	1025000
+		198000	950000
+	>;
+	fsl,soc-operating-points = <
+		/* KHz	uV */
+		792000	1250000 /* Voltage increased */
+		528000	1175000
+		396000	1175000
+		198000	1175000
+	>;
+};
+
+&gpio1 {
+	pinctrl-0 = <&pinctrl_spi1_switch>;
+	pinctrl-names = "default";
+	/*
+	 * Pin SPI_BOOT_FLASH_EN (GPIO 1.9) is a switch for either using the
+	 * DHCOM SPI1 interface or accessing the SPI bootflash. Both using
+	 * ecspi1, but muxed to different pins. The DHCOM SPI1 interface uses
+	 * the pins PAD_LCD_DATA21..23 and the SPI bootflash uses the pins
+	 * PAD_CSI_DATA04..07. If the SPI bootflash is enabled the pins for
+	 * DHCOM GPIOs N/O/P/Q/R/S/T/U aren't usable anymore, because they
+	 * are used for the bus interface to the SPI bootflash. The GPIOs are
+	 * disconnected by a buffer which is also controlled via the pin
+	 * SPI_BOOT_FLASH_EN. Therefore the access to the bootflash is a
+	 * special case and is disabled by setting GPIO 1.9 to high.
+	 */
+	spi1-switch-hog {
+		gpio-hog;
+		gpios = <9 0>;
+		output-high;
+		line-name = "spi1-switch";
+	};
+};
+
+&i2c1 {
+	clock-frequency = <100000>;
+	pinctrl-0 = <&pinctrl_i2c1>;
+	pinctrl-1 = <&pinctrl_i2c1_gpio>;
+	pinctrl-names = "default", "gpio";
+	scl-gpios = <&gpio1 28 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio1 29 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	status = "okay";
+
+	pmic@58 {
+		compatible = "dlg,da9061";
+		reg = <0x58>;
+
+		onkey {
+			compatible = "dlg,da9061-onkey", "dlg,da9062-onkey";
+			status = "disabled";
+		};
+
+		regulators {
+			vdd_soc_in_1v4: buck1 {
+				regulator-allowed-modes = <DA9063_BUCK_MODE_SLEEP>; /* PFM */
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-initial-mode = <DA9063_BUCK_MODE_SLEEP>;
+				regulator-max-microvolt = <1400000>;
+				regulator-min-microvolt = <1400000>;
+				regulator-name = "vdd_soc_in_1v4";
+			};
+
+			vcc_3v3: buck2 {
+				regulator-allowed-modes = <DA9063_BUCK_MODE_SYNC>; /* PWM */
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
+				regulator-max-microvolt = <3300000>;
+				regulator-min-microvolt = <3300000>;
+				regulator-name = "vcc_3v3";
+			};
+
+			/*
+			 * The current DRR3 memory can be supplied with a
+			 * voltage of either 1.35V or 1.5V. For reasons of
+			 * backward compatibility to only 1.5V DDR3 memory,
+			 * the voltage is set to 1.5V.
+			 */
+			vcc_ddr_1v35: buck3 {
+				regulator-allowed-modes = <DA9063_BUCK_MODE_SYNC>; /* PWM */
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
+				regulator-max-microvolt = <1500000>;
+				regulator-min-microvolt = <1500000>;
+				regulator-name = "vcc_ddr_1v35";
+			};
+
+			vcc_2v5: ldo1 {
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-max-microvolt = <2500000>;
+				regulator-min-microvolt = <2500000>;
+				regulator-name = "vcc_2v5";
+			};
+
+			vdd_snvs_in_3v3: ldo2 {
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-max-microvolt = <3300000>;
+				regulator-min-microvolt = <3300000>;
+				regulator-name = "vdd_snvs_in_3v3";
+			};
+
+			vcc_1v8: ldo3 {
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-max-microvolt = <1800000>;
+				regulator-min-microvolt = <1800000>;
+				regulator-name = "vcc_1v8";
+			};
+
+			vcc_1v2: ldo4 {
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-max-microvolt = <1200000>;
+				regulator-min-microvolt = <1200000>;
+				regulator-name = "vcc_1v2";
+			};
+		};
+
+		thermal {
+			compatible = "dlg,da9061-thermal", "dlg,da9062-thermal";
+			status = "disabled";
+		};
+
+		watchdog {
+			compatible = "dlg,da9061-watchdog", "dlg,da9062-watchdog";
+			status = "disabled";
+		};
+	};
+};
+
+&ocotp {
+	/* Don't get write access by default */
+	read-only;
+};
+
+&reg_arm {
+	vin-supply = <&vdd_soc_in_1v4>;
+};
+
+&reg_soc {
+	vin-supply = <&vdd_soc_in_1v4>;
+};
+
+/* BT on LGA (BT_REG_ON is connected to LGA pin E1) */
+&uart2 {
+	pinctrl-0 = <&pinctrl_uart2>;
+	pinctrl-names = "default";
+	uart-has-rtscts;
+	status = "okay";
+
+	/*
+	 * Actually, the maximum speed of the chip is 4MBdps, but there are
+	 * limitations that prevent this speed. It hasn't yet been figured out
+	 * what the reason for this is. Currently, the maximum speed of 3MBdps
+	 * can be used without any problems. If the limitation can be overcome,
+	 * the speed can be increased accordingly.
+	 */
+	bluetooth: bluetooth {
+		compatible = "brcm,bcm43430a1-bt"; /* muRata 1DX */
+		max-speed = <3000000>;
+		vbat-supply = <&vcc_3v3>;
+		vddio-supply = <&vcc_3v3>;
+	};
+};
+
+/* WiFi on LGA (WL_REG_ON is connected to LGA pin E3) */
+&usdhc1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	bus-width = <4>;
+	no-1-8-v;
+	non-removable;
+	keep-power-in-suspend;
+	pinctrl-0 = <&pinctrl_usdhc1_wifi>;
+	pinctrl-names = "default";
+	wakeup-source;
+	status = "okay";
+
+	brcmf: wifi@1 {
+		compatible = "brcm,bcm43430a1-fmac", "brcm,bcm4329-fmac"; /* muRata 1DX */
+		reg = <1>;
+	};
+};
+
+&iomuxc {
+	pinctrl_i2c1: i2c1-grp {
+		fsl,pins = <
+			MX6UL_PAD_UART4_TX_DATA__I2C1_SCL	0x4001b8b0
+			MX6UL_PAD_UART4_RX_DATA__I2C1_SDA	0x4001b8b0
+		>;
+	};
+
+	pinctrl_i2c1_gpio: i2c1-gpio-grp {
+		fsl,pins = <
+			MX6UL_PAD_UART4_TX_DATA__GPIO1_IO28	0x4001b8b0
+			MX6UL_PAD_UART4_RX_DATA__GPIO1_IO29	0x4001b8b0
+		>;
+	};
+
+	pinctrl_spi1_switch: spi1-switch-grp {
+		fsl,pins = <
+			MX6UL_PAD_GPIO1_IO09__GPIO1_IO09	0x120b0 /* SPI_BOOT_FLASH_EN */
+		>;
+	};
+
+	pinctrl_uart2: uart2-grp {
+		fsl,pins = <
+			MX6UL_PAD_UART2_TX_DATA__UART2_DCE_TX	0x1b0b1
+			MX6UL_PAD_UART2_RX_DATA__UART2_DCE_RX	0x1b0b1
+			MX6UL_PAD_UART3_RX_DATA__UART2_DCE_RTS	0x1b0b1
+			MX6UL_PAD_UART3_TX_DATA__UART2_DCE_CTS	0x1b0b1
+		>;
+	};
+
+	pinctrl_usdhc1_wifi: usdhc1-wifi-grp {
+		fsl,pins = <
+			MX6UL_PAD_SD1_CMD__USDHC1_CMD		0x1b0b0
+			MX6UL_PAD_SD1_CLK__USDHC1_CLK		0x10010
+			MX6UL_PAD_SD1_DATA0__USDHC1_DATA0	0x1b0b0
+			MX6UL_PAD_SD1_DATA1__USDHC1_DATA1	0x1b0b0
+			MX6UL_PAD_SD1_DATA2__USDHC1_DATA2	0x1b0b0
+			MX6UL_PAD_SD1_DATA3__USDHC1_DATA3	0x1b0b0
+		>;
+	};
+};

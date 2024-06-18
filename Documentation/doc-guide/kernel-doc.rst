@@ -1,3 +1,6 @@
+.. title:: Kernel-doc comments
+
+===========================
 Writing kernel-doc comments
 ===========================
 
@@ -10,6 +13,9 @@ when it is embedded in source files.
    gtk-doc or Doxygen, yet distinctively different, for historical
    reasons. The kernel source contains tens of thousands of kernel-doc
    comments. Please stick to the style described here.
+
+.. note:: kernel-doc does not cover Rust code: please see
+   Documentation/rust/general-information.rst instead.
 
 The kernel-doc structure is extracted from the comments, and proper
 `Sphinx C Domain`_ function and type descriptions with anchors are
@@ -145,9 +151,9 @@ named ``Return``.
      line breaks, so if you try to format some text nicely, as in::
 
 	* Return:
-	* 0 - OK
-	* -EINVAL - invalid argument
-	* -ENOMEM - out of memory
+	* %0 - OK
+	* %-EINVAL - invalid argument
+	* %-ENOMEM - out of memory
 
      this will all run together and produce::
 
@@ -157,8 +163,8 @@ named ``Return``.
      ReST list, e. g.::
 
       * Return:
-      * * 0		- OK to runtime suspend the device
-      * * -EBUSY	- Device should not be runtime suspended
+      * * %0		- OK to runtime suspend the device
+      * * %-EBUSY	- Device should not be runtime suspended
 
   #) If the descriptive text you provide has lines that begin with
      some phrase followed by a colon, each of those phrases will be taken
@@ -247,12 +253,12 @@ It is possible to document nested structs and unions, like::
           struct {
             int memb1;
             int memb2;
-        }
+          };
           struct {
             void *memb3;
             int memb4;
-          }
-        }
+          };
+        };
         union {
           struct {
             int memb1;
@@ -335,6 +341,51 @@ Typedefs with function prototypes can also be documented::
    */
    typedef void (*type_name)(struct v4l2_ctrl *arg1, void *arg2);
 
+Object-like macro documentation
+-------------------------------
+
+Object-like macros are distinct from function-like macros. They are
+differentiated by whether the macro name is immediately followed by a
+left parenthesis ('(') for function-like macros or not followed by one
+for object-like macros.
+
+Function-like macros are handled like functions by ``scripts/kernel-doc``.
+They may have a parameter list. Object-like macros have do not have a
+parameter list.
+
+The general format of an object-like macro kernel-doc comment is::
+
+  /**
+   * define object_name - Brief description.
+   *
+   * Description of the object.
+   */
+
+Example::
+
+  /**
+   * define MAX_ERRNO - maximum errno value that is supported
+   *
+   * Kernel pointers have redundant information, so we can use a
+   * scheme where we can return either an error code or a normal
+   * pointer with the same return value.
+   */
+  #define MAX_ERRNO	4095
+
+Example::
+
+  /**
+   * define DRM_GEM_VRAM_PLANE_HELPER_FUNCS - \
+   *	Initializes struct drm_plane_helper_funcs for VRAM handling
+   *
+   * This macro initializes struct drm_plane_helper_funcs to use the
+   * respective helper functions.
+   */
+  #define DRM_GEM_VRAM_PLANE_HELPER_FUNCS \
+	.prepare_fb = drm_gem_vram_plane_helper_prepare_fb, \
+	.cleanup_fb = drm_gem_vram_plane_helper_cleanup_fb
+
+
 Highlights and cross-references
 -------------------------------
 
@@ -387,22 +438,23 @@ Domain`_ references.
 Cross-referencing from reStructuredText
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-To cross-reference the functions and types defined in the kernel-doc comments
-from reStructuredText documents, please use the `Sphinx C Domain`_
-references. For example::
+No additional syntax is needed to cross-reference the functions and types
+defined in the kernel-doc comments from reStructuredText documents.
+Just end function names with ``()`` and write ``struct``, ``union``, ``enum``
+or ``typedef`` before types.
+For example::
 
-  See function :c:func:`foo` and struct/union/enum/typedef :c:type:`bar`.
+  See foo().
+  See struct foo.
+  See union bar.
+  See enum baz.
+  See typedef meh.
 
-While the type reference works with just the type name, without the
-struct/union/enum/typedef part in front, you may want to use::
+However, if you want custom text in the cross-reference link, that can be done
+through the following syntax::
 
-  See :c:type:`struct foo <foo>`.
-  See :c:type:`union bar <bar>`.
-  See :c:type:`enum baz <baz>`.
-  See :c:type:`typedef meh <meh>`.
-
-This will produce prettier links, and is in line with how kernel-doc does the
-cross-references.
+  See :c:func:`my custom link text for function foo <foo>`.
+  See :c:type:`my custom link text for struct bar <bar>`.
 
 For further details, please refer to the `Sphinx C Domain`_ documentation.
 
@@ -435,6 +487,7 @@ The title following ``DOC:`` acts as a heading within the source file, but also
 as an identifier for extracting the documentation comment. Thus, the title must
 be unique within the file.
 
+=============================
 Including kernel-doc comments
 =============================
 
@@ -476,6 +529,30 @@ internal: *[source-pattern ...]*
     .. kernel-doc:: drivers/gpu/drm/i915/intel_audio.c
        :internal:
 
+identifiers: *[ function/type ...]*
+  Include documentation for each *function* and *type* in *source*.
+  If no *function* is specified, the documentation for all functions
+  and types in the *source* will be included.
+
+  Examples::
+
+    .. kernel-doc:: lib/bitmap.c
+       :identifiers: bitmap_parselist bitmap_parselist_user
+
+    .. kernel-doc:: lib/idr.c
+       :identifiers:
+
+no-identifiers: *[ function/type ...]*
+  Exclude documentation for each *function* and *type* in *source*.
+
+  Example::
+
+    .. kernel-doc:: lib/bitmap.c
+       :no-identifiers: bitmap_parselist
+
+functions: *[ function/type ...]*
+  This is an alias of the 'identifiers' directive and deprecated.
+
 doc: *title*
   Include documentation for the ``DOC:`` paragraph identified by *title* in
   *source*. Spaces are allowed in *title*; do not quote the *title*. The *title*
@@ -487,19 +564,6 @@ doc: *title*
 
     .. kernel-doc:: drivers/gpu/drm/i915/intel_audio.c
        :doc: High Definition Audio over HDMI and Display Port
-
-functions: *[ function ...]*
-  Include documentation for each *function* in *source*.
-  If no *function* is specified, the documentation for all functions
-  and types in the *source* will be included.
-
-  Examples::
-
-    .. kernel-doc:: lib/bitmap.c
-       :functions: bitmap_parselist bitmap_parselist_user
-
-    .. kernel-doc:: lib/idr.c
-       :functions:
 
 Without options, the kernel-doc directive includes all documentation comments
 from the source file.

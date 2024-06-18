@@ -36,7 +36,6 @@ struct vm86 {
 	unsigned long saved_sp0;
 
 	unsigned long flags;
-	unsigned long screen_bitmap;
 	unsigned long cpu_type;
 	struct revectored_struct int_revectored;
 	struct revectored_struct int21_revectored;
@@ -85,7 +84,7 @@ static inline int handle_vm86_trap(struct kernel_vm86_regs *a, long b, int c)
 
 static inline void save_v86_state(struct kernel_vm86_regs *a, int b) { }
 
-#define free_vm86(t) do { } while(0)
+#define free_vm86(task) do { (void)(task); } while(0)
 
 #endif /* CONFIG_VM86 */
 

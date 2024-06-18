@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Core functions for TI TPS65912x PMICs
  *
- * Copyright (C) 2015 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2015 Texas Instruments Incorporated - https://www.ti.com/
  *	Andrew F. Davis <afd@ti.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether expressed or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License version 2 for more details.
  *
  * Based on the TPS65218 driver and the previous TPS65912 driver by
  * Margarita Olaya Cabrera <magi@slimlogic.co.uk>
@@ -89,7 +81,7 @@ static const struct regmap_access_table tps65912_volatile_table = {
 const struct regmap_config tps65912_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.volatile_table = &tps65912_volatile_table,
 };
 EXPORT_SYMBOL_GPL(tps65912_regmap_config);
@@ -115,11 +107,9 @@ int tps65912_device_init(struct tps65912 *tps)
 }
 EXPORT_SYMBOL_GPL(tps65912_device_init);
 
-int tps65912_device_exit(struct tps65912 *tps)
+void tps65912_device_exit(struct tps65912 *tps)
 {
 	regmap_del_irq_chip(tps->irq, tps->irq_data);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(tps65912_device_exit);
 

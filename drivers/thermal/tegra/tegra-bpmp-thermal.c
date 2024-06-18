@@ -30,9 +30,9 @@ struct tegra_bpmp_thermal {
 	struct tegra_bpmp_thermal_zone **zones;
 };
 
-static int tegra_bpmp_thermal_get_temp(void *data, int *out_temp)
+static int __tegra_bpmp_thermal_get_temp(struct tegra_bpmp_thermal_zone *zone,
+					 int *out_temp)
 {
-	struct tegra_bpmp_thermal_zone *zone = data;
 	struct mrq_thermal_host_to_bpmp_request req;
 	union mrq_thermal_bpmp_to_host_response reply;
 	struct tegra_bpmp_message msg;
@@ -52,17 +52,29 @@ static int tegra_bpmp_thermal_get_temp(void *data, int *out_temp)
 	err = tegra_bpmp_transfer(zone->tegra->bpmp, &msg);
 	if (err)
 		return err;
+	if (msg.rx.ret == -BPMP_EFAULT)
+		return -EAGAIN;
+	if (msg.rx.ret)
+		return -EINVAL;
 
 	*out_temp = reply.get_temp.temp;
 
 	return 0;
 }
 
-static int tegra_bpmp_thermal_set_trips(void *data, int low, int high)
+static int tegra_bpmp_thermal_get_temp(struct thermal_zone_device *tz, int *out_temp)
 {
-	struct tegra_bpmp_thermal_zone *zone = data;
+	struct tegra_bpmp_thermal_zone *zone = thermal_zone_device_priv(tz);
+
+	return __tegra_bpmp_thermal_get_temp(zone, out_temp);
+}
+
+static int tegra_bpmp_thermal_set_trips(struct thermal_zone_device *tz, int low, int high)
+{
+	struct tegra_bpmp_thermal_zone *zone = thermal_zone_device_priv(tz);
 	struct mrq_thermal_host_to_bpmp_request req;
 	struct tegra_bpmp_message msg;
+	int err;
 
 	memset(&req, 0, sizeof(req));
 	req.type = CMD_THERMAL_SET_TRIP;
@@ -76,7 +88,13 @@ static int tegra_bpmp_thermal_set_trips(void *data, int low, int high)
 	msg.tx.data = &req;
 	msg.tx.size = sizeof(req);
 
-	return tegra_bpmp_transfer(zone->tegra->bpmp, &msg);
+	err = tegra_bpmp_transfer(zone->tegra->bpmp, &msg);
+	if (err)
+		return err;
+	if (msg.rx.ret)
+		return -EINVAL;
+
+	return 0;
 }
 
 static void tz_device_update_work_fn(struct work_struct *work)
@@ -92,21 +110,22 @@ static void tz_device_update_work_fn(struct work_struct *work)
 static void bpmp_mrq_thermal(unsigned int mrq, struct tegra_bpmp_channel *ch,
 			     void *data)
 {
-	struct mrq_thermal_bpmp_to_host_request *req;
+	struct mrq_thermal_bpmp_to_host_request req;
 	struct tegra_bpmp_thermal *tegra = data;
+	size_t offset;
 	int i;
 
-	req = (struct mrq_thermal_bpmp_to_host_request *)ch->ib->data;
+	offset = offsetof(struct tegra_bpmp_mb_data, data);
+	iosys_map_memcpy_from(&req, &ch->ib, offset, sizeof(req));
 
-	if (req->type != CMD_THERMAL_HOST_TRIP_REACHED) {
-		dev_err(tegra->dev, "%s: invalid request type: %d\n",
-			__func__, req->type);
+	if (req.type != CMD_THERMAL_HOST_TRIP_REACHED) {
+		dev_err(tegra->dev, "%s: invalid request type: %d\n", __func__, req.type);
 		tegra_bpmp_mrq_return(ch, -EINVAL, NULL, 0);
 		return;
 	}
 
 	for (i = 0; i < tegra->num_zones; ++i) {
-		if (tegra->zones[i]->idx != req->host_trip_reached.zone)
+		if (tegra->zones[i]->idx != req.host_trip_reached.zone)
 			continue;
 
 		schedule_work(&tegra->zones[i]->tz_device_update_work);
@@ -115,7 +134,7 @@ static void bpmp_mrq_thermal(unsigned int mrq, struct tegra_bpmp_channel *ch,
 	}
 
 	dev_err(tegra->dev, "%s: invalid thermal zone: %d\n", __func__,
-		req->host_trip_reached.zone);
+		req.host_trip_reached.zone);
 	tegra_bpmp_mrq_return(ch, -EINVAL, NULL, 0);
 }
 
@@ -140,24 +159,76 @@ static int tegra_bpmp_thermal_get_num_zones(struct tegra_bpmp *bpmp,
 	err = tegra_bpmp_transfer(bpmp, &msg);
 	if (err)
 		return err;
+	if (msg.rx.ret)
+		return -EINVAL;
 
 	*num_zones = reply.get_num_zones.num;
 
 	return 0;
 }
 
-static const struct thermal_zone_of_device_ops tegra_bpmp_of_thermal_ops = {
+static int tegra_bpmp_thermal_trips_supported(struct tegra_bpmp *bpmp, bool *supported)
+{
+	struct mrq_thermal_host_to_bpmp_request req;
+	union mrq_thermal_bpmp_to_host_response reply;
+	struct tegra_bpmp_message msg;
+	int err;
+
+	memset(&req, 0, sizeof(req));
+	req.type = CMD_THERMAL_QUERY_ABI;
+	req.query_abi.type = CMD_THERMAL_SET_TRIP;
+
+	memset(&msg, 0, sizeof(msg));
+	msg.mrq = MRQ_THERMAL;
+	msg.tx.data = &req;
+	msg.tx.size = sizeof(req);
+	msg.rx.data = &reply;
+	msg.rx.size = sizeof(reply);
+
+	err = tegra_bpmp_transfer(bpmp, &msg);
+	if (err)
+		return err;
+
+	if (msg.rx.ret == 0) {
+		*supported = true;
+		return 0;
+	} else if (msg.rx.ret == -BPMP_ENODEV) {
+		*supported = false;
+		return 0;
+	} else {
+		return -EINVAL;
+	}
+}
+
+static const struct thermal_zone_device_ops tegra_bpmp_of_thermal_ops = {
 	.get_temp = tegra_bpmp_thermal_get_temp,
 	.set_trips = tegra_bpmp_thermal_set_trips,
+};
+
+static const struct thermal_zone_device_ops tegra_bpmp_of_thermal_ops_notrips = {
+	.get_temp = tegra_bpmp_thermal_get_temp,
 };
 
 static int tegra_bpmp_thermal_probe(struct platform_device *pdev)
 {
 	struct tegra_bpmp *bpmp = dev_get_drvdata(pdev->dev.parent);
+	const struct thermal_zone_device_ops *thermal_ops;
 	struct tegra_bpmp_thermal *tegra;
 	struct thermal_zone_device *tzd;
 	unsigned int i, max_num_zones;
+	bool supported;
 	int err;
+
+	err = tegra_bpmp_thermal_trips_supported(bpmp, &supported);
+	if (err) {
+		dev_err(&pdev->dev, "failed to determine if trip points are supported\n");
+		return err;
+	}
+
+	if (supported)
+		thermal_ops = &tegra_bpmp_of_thermal_ops;
+	else
+		thermal_ops = &tegra_bpmp_of_thermal_ops_notrips;
 
 	tegra = devm_kzalloc(&pdev->dev, sizeof(*tegra), GFP_KERNEL);
 	if (!tegra)
@@ -189,14 +260,19 @@ static int tegra_bpmp_thermal_probe(struct platform_device *pdev)
 		zone->idx = i;
 		zone->tegra = tegra;
 
-		err = tegra_bpmp_thermal_get_temp(zone, &temp);
-		if (err < 0) {
+		err = __tegra_bpmp_thermal_get_temp(zone, &temp);
+
+		/*
+		 * Sensors in powergated domains may temporarily fail to be read
+		 * (-EAGAIN), but will become accessible when the domain is powered on.
+		 */
+		if (err < 0 && err != -EAGAIN) {
 			devm_kfree(&pdev->dev, zone);
 			continue;
 		}
 
-		tzd = devm_thermal_zone_of_sensor_register(
-			&pdev->dev, i, zone, &tegra_bpmp_of_thermal_ops);
+		tzd = devm_thermal_of_zone_register(
+			&pdev->dev, i, zone, thermal_ops);
 		if (IS_ERR(tzd)) {
 			if (PTR_ERR(tzd) == -EPROBE_DEFER)
 				return -EPROBE_DEFER;
@@ -224,13 +300,11 @@ static int tegra_bpmp_thermal_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int tegra_bpmp_thermal_remove(struct platform_device *pdev)
+static void tegra_bpmp_thermal_remove(struct platform_device *pdev)
 {
 	struct tegra_bpmp_thermal *tegra = platform_get_drvdata(pdev);
 
 	tegra_bpmp_free_mrq(tegra->bpmp, MRQ_THERMAL, tegra);
-
-	return 0;
 }
 
 static const struct of_device_id tegra_bpmp_thermal_of_match[] = {
@@ -241,7 +315,7 @@ MODULE_DEVICE_TABLE(of, tegra_bpmp_thermal_of_match);
 
 static struct platform_driver tegra_bpmp_thermal_driver = {
 	.probe = tegra_bpmp_thermal_probe,
-	.remove = tegra_bpmp_thermal_remove,
+	.remove_new = tegra_bpmp_thermal_remove,
 	.driver = {
 		.name = "tegra-bpmp-thermal",
 		.of_match_table = tegra_bpmp_thermal_of_match,

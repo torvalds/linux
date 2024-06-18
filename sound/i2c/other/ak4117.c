@@ -47,7 +47,7 @@ static void reg_dump(struct ak4117 *ak4117)
 
 static void snd_ak4117_free(struct ak4117 *chip)
 {
-	del_timer_sync(&chip->timer);
+	timer_shutdown_sync(&chip->timer);
 	kfree(chip);
 }
 
@@ -64,7 +64,7 @@ int snd_ak4117_create(struct snd_card *card, ak4117_read_t *read, ak4117_write_t
 	struct ak4117 *chip;
 	int err = 0;
 	unsigned char reg;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =     snd_ak4117_dev_free,
 	};
 
@@ -86,7 +86,8 @@ int snd_ak4117_create(struct snd_card *card, ak4117_read_t *read, ak4117_write_t
 	chip->rcs1 = reg_read(chip, AK4117_REG_RCS1);
 	chip->rcs2 = reg_read(chip, AK4117_REG_RCS2);
 
-	if ((err = snd_device_new(card, SNDRV_DEV_CODEC, chip, &ops)) < 0)
+	err = snd_device_new(card, SNDRV_DEV_CODEC, chip, &ops);
+	if (err < 0)
 		goto __fail;
 
 	if (r_ak4117)
@@ -305,7 +306,7 @@ static int snd_ak4117_spdif_qget(struct snd_kcontrol *kcontrol,
 }
 
 /* Don't forget to change AK4117_CONTROLS define!!! */
-static struct snd_kcontrol_new snd_ak4117_iec958_controls[] = {
+static const struct snd_kcontrol_new snd_ak4117_iec958_controls[] = {
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =		"IEC958 Parity Errors",

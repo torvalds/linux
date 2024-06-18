@@ -1,0 +1,95 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright 2019,2020 Lubomir Rintel <lkundrak@v3.sk>
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/marvell,mmp2-ccic.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell MMP2 camera host interface
+
+maintainers:
+  - Lubomir Rintel <lkundrak@v3.sk>
+
+properties:
+  $nodename:
+    pattern: '^camera@[a-f0-9]+$'
+
+  compatible:
+    const: marvell,mmp2-ccic
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  power-domains:
+    maxItems: 1
+
+  port:
+    $ref: /schemas/graph.yaml#/$defs/port-base
+    additionalProperties: false
+
+    properties:
+      endpoint:
+        $ref: video-interfaces.yaml#
+        unevaluatedProperties: false
+
+        properties:
+          hsync-active: true
+          vsync-active: true
+          pclk-sample: true
+          bus-type: true
+
+  clocks:
+    minItems: 1
+    items:
+      - description: AXI bus interface clock
+      - description: Peripheral clock
+      - description: Parallel video bus interface clock
+
+  clock-names:
+    const: axi
+
+  '#clock-cells':
+    const: 0
+
+  clock-output-names:
+    const: mclk
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - port
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/marvell,mmp2.h>
+    #include <dt-bindings/media/video-interfaces.h>
+    #include <dt-bindings/power/marvell,mmp2.h>
+
+    camera@d420a000 {
+      compatible = "marvell,mmp2-ccic";
+      reg = <0xd420a000 0x800>;
+      interrupts = <42>;
+      clocks = <&soc_clocks MMP2_CLK_CCIC0>;
+      clock-names = "axi";
+      #clock-cells = <0>;
+      clock-output-names = "mclk";
+      power-domains = <&soc_clocks MMP3_POWER_DOMAIN_CAMERA>;
+
+      port {
+        camera0_0: endpoint {
+          remote-endpoint = <&ov7670_0>;
+          bus-type = <MEDIA_BUS_TYPE_PARALLEL>;
+          hsync-active = <1>;  /* Active high */
+          vsync-active = <1>;  /* Active high */
+          pclk-sample = <0>;   /* Falling */
+        };
+      };
+    };
+
+...

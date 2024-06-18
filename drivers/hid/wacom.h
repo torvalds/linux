@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * drivers/input/tablet/wacom.h
- *
  *  USB Wacom tablet support
  *
  *  Copyright (c) 2000-2004 Vojtech Pavlik	<vojtech@ucw.cz>
@@ -78,10 +76,9 @@
  *                 - integration of the Bluetooth devices
  */
 
-/*
- */
 #ifndef WACOM_H
 #define WACOM_H
+
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -91,6 +88,7 @@
 #include <linux/leds.h>
 #include <linux/usb/input.h>
 #include <linux/power_supply.h>
+#include <linux/timer.h>
 #include <asm/unaligned.h>
 
 /*
@@ -152,6 +150,7 @@ struct wacom_remote {
 		struct input_dev *input;
 		bool registered;
 		struct wacom_battery battery;
+		ktime_t active_time;
 	} remotes[WACOM_MAX_REMOTES];
 };
 
@@ -165,8 +164,10 @@ struct wacom {
 	struct work_struct battery_work;
 	struct work_struct remote_work;
 	struct delayed_work init_work;
+	struct delayed_work aes_battery_work;
 	struct wacom_remote *remote;
 	struct work_struct mode_change_work;
+	struct timer_list idleprox_timer;
 	bool generic_has_leds;
 	struct wacom_leds {
 		struct wacom_group_leds *groups;
@@ -202,6 +203,21 @@ static inline void wacom_schedule_work(struct wacom_wac *wacom_wac,
 	}
 }
 
+/*
+ * Convert a signed 32-bit integer to an unsigned n-bit integer. Undoes
+ * the normally-helpful work of 'hid_snto32' for fields that use signed
+ * ranges for questionable reasons.
+ */
+static inline __u32 wacom_s32tou(s32 value, __u8 n)
+{
+	switch (n) {
+	case 8:  return ((__u8)value);
+	case 16: return ((__u16)value);
+	case 32: return ((__u32)value);
+	}
+	return value & (1 << (n - 1)) ? value & (~(~0U << n)) : value;
+}
+
 extern const struct hid_device_id wacom_ids[];
 
 void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len);
@@ -224,4 +240,5 @@ struct wacom_led *wacom_led_find(struct wacom *wacom, unsigned int group,
 struct wacom_led *wacom_led_next(struct wacom *wacom, struct wacom_led *cur);
 int wacom_equivalent_usage(int usage);
 int wacom_initialize_leds(struct wacom *wacom);
+void wacom_idleprox_timeout(struct timer_list *list);
 #endif

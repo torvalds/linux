@@ -186,7 +186,11 @@ static int rsnd_dvc_init(struct rsnd_mod *mod,
 			 struct rsnd_dai_stream *io,
 			 struct rsnd_priv *priv)
 {
-	rsnd_mod_power_on(mod);
+	int ret;
+
+	ret = rsnd_mod_power_on(mod);
+	if (ret < 0)
+		return ret;
 
 	rsnd_dvc_activation(mod);
 
@@ -282,8 +286,21 @@ static struct dma_chan *rsnd_dvc_dma_req(struct rsnd_dai_stream *io,
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 
 	return rsnd_dma_request_channel(rsnd_dvc_of_node(priv),
-					mod, "tx");
+					DVC_NAME, mod, "tx");
 }
+
+#ifdef CONFIG_DEBUG_FS
+static void rsnd_dvc_debug_info(struct seq_file *m,
+				struct rsnd_dai_stream *io,
+				struct rsnd_mod *mod)
+{
+	rsnd_debugfs_mod_reg_show(m, mod, RSND_BASE_SCU,
+				  0xe00 + rsnd_mod_id(mod) * 0x100, 0x60);
+}
+#define DEBUG_INFO .debug_info = rsnd_dvc_debug_info
+#else
+#define DEBUG_INFO
+#endif
 
 static struct rsnd_mod_ops rsnd_dvc_ops = {
 	.name		= DVC_NAME,
@@ -293,6 +310,7 @@ static struct rsnd_mod_ops rsnd_dvc_ops = {
 	.quit		= rsnd_dvc_quit,
 	.pcm_new	= rsnd_dvc_pcm_new,
 	.get_status	= rsnd_mod_get_status,
+	DEBUG_INFO
 };
 
 struct rsnd_mod *rsnd_dvc_mod_get(struct rsnd_priv *priv, int id)
@@ -312,10 +330,6 @@ int rsnd_dvc_probe(struct rsnd_priv *priv)
 	struct clk *clk;
 	char name[RSND_DVC_NAME_SIZE];
 	int i, nr, ret;
-
-	/* This driver doesn't support Gen1 at this point */
-	if (rsnd_is_gen1(priv))
-		return 0;
 
 	node = rsnd_dvc_of_node(priv);
 	if (!node)

@@ -5,13 +5,13 @@
  * Copyright (C) 2016 BayLibre, Inc
  */
 #include <linux/kernel.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 
 #include <media/i2c/tvp514x.h>
 #include <media/i2c/adv7343.h>
 
-#include <mach/common.h>
-#include <mach/da8xx.h>
+#include "common.h"
+#include "da8xx.h"
 
 struct pdata_init {
 	const char *compatible;

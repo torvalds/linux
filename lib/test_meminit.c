@@ -67,16 +67,23 @@ static int __init do_alloc_pages_order(int order, int *total_failures)
 	size_t size = PAGE_SIZE << order;
 
 	page = alloc_pages(GFP_KERNEL, order);
+	if (!page)
+		goto err;
 	buf = page_address(page);
 	fill_with_garbage(buf, size);
 	__free_pages(page, order);
 
 	page = alloc_pages(GFP_KERNEL, order);
+	if (!page)
+		goto err;
 	buf = page_address(page);
 	if (count_nonzero_bytes(buf, size))
 		(*total_failures)++;
 	fill_with_garbage(buf, size);
 	__free_pages(page, order);
+	return 1;
+err:
+	(*total_failures)++;
 	return 1;
 }
 
@@ -86,7 +93,7 @@ static int __init test_pages(int *total_failures)
 	int failures = 0, num_tests = 0;
 	int i;
 
-	for (i = 0; i < 10; i++)
+	for (i = 0; i < NR_PAGE_ORDERS; i++)
 		num_tests += do_alloc_pages_order(i, &failures);
 
 	REPORT_FAILURES_IN_FN();
@@ -100,14 +107,21 @@ static int __init do_kmalloc_size(size_t size, int *total_failures)
 	void *buf;
 
 	buf = kmalloc(size, GFP_KERNEL);
+	if (!buf)
+		goto err;
 	fill_with_garbage(buf, size);
 	kfree(buf);
 
 	buf = kmalloc(size, GFP_KERNEL);
+	if (!buf)
+		goto err;
 	if (count_nonzero_bytes(buf, size))
 		(*total_failures)++;
 	fill_with_garbage(buf, size);
 	kfree(buf);
+	return 1;
+err:
+	(*total_failures)++;
 	return 1;
 }
 
@@ -117,14 +131,21 @@ static int __init do_vmalloc_size(size_t size, int *total_failures)
 	void *buf;
 
 	buf = vmalloc(size);
+	if (!buf)
+		goto err;
 	fill_with_garbage(buf, size);
 	vfree(buf);
 
 	buf = vmalloc(size);
+	if (!buf)
+		goto err;
 	if (count_nonzero_bytes(buf, size))
 		(*total_failures)++;
 	fill_with_garbage(buf, size);
 	vfree(buf);
+	return 1;
+err:
+	(*total_failures)++;
 	return 1;
 }
 
@@ -183,6 +204,9 @@ static bool __init check_buf(void *buf, int size, bool want_ctor,
 	return fail;
 }
 
+#define BULK_SIZE 100
+static void *bulk_array[BULK_SIZE];
+
 /*
  * Test kmem_cache with given parameters:
  *  want_ctor - use a constructor;
@@ -203,9 +227,24 @@ static int __init do_kmem_cache_size(size_t size, bool want_ctor,
 			      want_rcu ? SLAB_TYPESAFE_BY_RCU : 0,
 			      want_ctor ? test_ctor : NULL);
 	for (iter = 0; iter < 10; iter++) {
+		/* Do a test of bulk allocations */
+		if (!want_rcu && !want_ctor) {
+			int ret;
+
+			ret = kmem_cache_alloc_bulk(c, alloc_mask, BULK_SIZE, bulk_array);
+			if (!ret) {
+				fail = true;
+			} else {
+				int i;
+				for (i = 0; i < ret; i++)
+					fail |= check_buf(bulk_array[i], size, want_ctor, want_rcu, want_zero);
+				kmem_cache_free_bulk(c, ret, bulk_array);
+			}
+		}
+
 		buf = kmem_cache_alloc(c, alloc_mask);
 		/* Check that buf is zeroed, if it must be. */
-		fail = check_buf(buf, size, want_ctor, want_rcu, want_zero);
+		fail |= check_buf(buf, size, want_ctor, want_rcu, want_zero);
 		fill_with_garbage_skip(buf, size, want_ctor ? CTOR_BYTES : 0);
 
 		if (!want_rcu) {
@@ -261,13 +300,18 @@ static int __init do_kmem_cache_rcu_persistent(int size, int *total_failures)
 	c = kmem_cache_create("test_cache", size, size, SLAB_TYPESAFE_BY_RCU,
 			      NULL);
 	buf = kmem_cache_alloc(c, GFP_KERNEL);
+	if (!buf)
+		goto out;
 	saved_ptr = buf;
 	fill_with_garbage(buf, size);
 	buf_contents = kmalloc(size, GFP_KERNEL);
-	if (!buf_contents)
+	if (!buf_contents) {
+		kmem_cache_free(c, buf);
 		goto out;
+	}
 	used_objects = kmalloc_array(maxiter, sizeof(void *), GFP_KERNEL);
 	if (!used_objects) {
+		kmem_cache_free(c, buf);
 		kfree(buf_contents);
 		goto out;
 	}
@@ -288,11 +332,41 @@ static int __init do_kmem_cache_rcu_persistent(int size, int *total_failures)
 		}
 	}
 
+	for (iter = 0; iter < maxiter; iter++)
+		kmem_cache_free(c, used_objects[iter]);
+
 free_out:
-	kmem_cache_destroy(c);
 	kfree(buf_contents);
 	kfree(used_objects);
 out:
+	kmem_cache_destroy(c);
+	*total_failures += fail;
+	return 1;
+}
+
+static int __init do_kmem_cache_size_bulk(int size, int *total_failures)
+{
+	struct kmem_cache *c;
+	int i, iter, maxiter = 1024;
+	int num, bytes;
+	bool fail = false;
+	void *objects[10];
+
+	c = kmem_cache_create("test_cache", size, size, 0, NULL);
+	for (iter = 0; (iter < maxiter) && !fail; iter++) {
+		num = kmem_cache_alloc_bulk(c, GFP_KERNEL, ARRAY_SIZE(objects),
+					    objects);
+		for (i = 0; i < num; i++) {
+			bytes = count_nonzero_bytes(objects[i], size);
+			if (bytes)
+				fail = true;
+			fill_with_garbage(objects[i], size);
+		}
+
+		if (num)
+			kmem_cache_free_bulk(c, num, objects);
+	}
+	kmem_cache_destroy(c);
 	*total_failures += fail;
 	return 1;
 }
@@ -318,6 +392,7 @@ static int __init test_kmemcache(int *total_failures)
 			num_tests += do_kmem_cache_size(size, ctor, rcu, zero,
 							&failures);
 		}
+		num_tests += do_kmem_cache_size_bulk(size, &failures);
 	}
 	REPORT_FAILURES_IN_FN();
 	*total_failures += failures;

@@ -650,7 +650,7 @@ cw1200_tx_h_rate_policy(struct cw1200_common *priv,
 	wsm->flags |= t->txpriv.rate_id << 4;
 
 	t->rate = cw1200_get_tx_rate(priv,
-		&t->tx_info->control.rates[0]),
+		&t->tx_info->control.rates[0]);
 	wsm->max_tx_rate = t->rate->hw_value;
 	if (t->rate->flags & IEEE80211_TX_RC_MCS) {
 		if (cw1200_ht_greenfield(&priv->ht_info))
@@ -715,7 +715,7 @@ void cw1200_tx(struct ieee80211_hw *dev,
 	};
 	struct ieee80211_sta *sta;
 	struct wsm_tx *wsm;
-	bool tid_update = 0;
+	bool tid_update = false;
 	u8 flags = 0;
 	int ret;
 
@@ -762,8 +762,7 @@ void cw1200_tx(struct ieee80211_hw *dev,
 	if (ret)
 		goto drop;
 
-	rcu_read_lock();
-	sta = rcu_dereference(t.sta);
+	sta = t.sta;
 
 	spin_lock_bh(&priv->ps_state_lock);
 	{
@@ -775,8 +774,6 @@ void cw1200_tx(struct ieee80211_hw *dev,
 
 	if (tid_update && sta)
 		ieee80211_sta_set_buffered(sta, t.txpriv.tid, true);
-
-	rcu_read_unlock();
 
 	cw1200_bh_wakeup(priv);
 
@@ -997,7 +994,7 @@ void cw1200_skb_dtor(struct cw1200_common *priv,
 					  txpriv->raw_link_id, txpriv->tid);
 		tx_policy_put(priv, txpriv->rate_id);
 	}
-	ieee80211_tx_status(priv->hw, skb);
+	ieee80211_tx_status_skb(priv->hw, skb);
 }
 
 void cw1200_rx_cb(struct cw1200_common *priv,
@@ -1145,8 +1142,7 @@ void cw1200_rx_cb(struct cw1200_common *priv,
 
 	/* Remove TSF from the end of frame */
 	if (arg->flags & WSM_RX_STATUS_TSF_INCLUDED) {
-		memcpy(&hdr->mactime, skb->data + skb->len - 8, 8);
-		hdr->mactime = le64_to_cpu(hdr->mactime);
+		hdr->mactime = get_unaligned_le64(skb->data + skb->len - 8);
 		if (skb->len >= 8)
 			skb_trim(skb, skb->len - 8);
 	} else {
@@ -1170,7 +1166,7 @@ void cw1200_rx_cb(struct cw1200_common *priv,
 		size_t ies_len = skb->len - (ies - (u8 *)(skb->data));
 
 		tim_ie = cfg80211_find_ie(WLAN_EID_TIM, ies, ies_len);
-		if (tim_ie) {
+		if (tim_ie && tim_ie[1] >= sizeof(struct ieee80211_tim_ie)) {
 			struct ieee80211_tim_ie *tim =
 				(struct ieee80211_tim_ie *)&tim_ie[2];
 
@@ -1183,8 +1179,8 @@ void cw1200_rx_cb(struct cw1200_common *priv,
 
 		/* Disable beacon filter once we're associated... */
 		if (priv->disable_beacon_filter &&
-		    (priv->vif->bss_conf.assoc ||
-		     priv->vif->bss_conf.ibss_joined)) {
+		    (priv->vif->cfg.assoc ||
+		     priv->vif->cfg.ibss_joined)) {
 			priv->disable_beacon_filter = false;
 			queue_work(priv->workqueue,
 				   &priv->update_filtering_work);

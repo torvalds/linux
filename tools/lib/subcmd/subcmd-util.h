@@ -5,8 +5,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
-
-#define NORETURN __attribute__((__noreturn__))
+#include <linux/compiler.h>
 
 static inline void report(const char *prefix, const char *err, va_list params)
 {
@@ -15,7 +14,7 @@ static inline void report(const char *prefix, const char *err, va_list params)
 	fprintf(stderr, " %s%s\n", prefix, msg);
 }
 
-static NORETURN inline void die(const char *err, ...)
+static __noreturn inline void die(const char *err, ...)
 {
 	va_list params;
 
@@ -50,15 +49,8 @@ static NORETURN inline void die(const char *err, ...)
 static inline void *xrealloc(void *ptr, size_t size)
 {
 	void *ret = realloc(ptr, size);
-	if (!ret && !size)
-		ret = realloc(ptr, 1);
-	if (!ret) {
-		ret = realloc(ptr, size);
-		if (!ret && !size)
-			ret = realloc(ptr, 1);
-		if (!ret)
-			die("Out of memory, realloc failed");
-	}
+	if (!ret)
+		die("Out of memory, realloc failed");
 	return ret;
 }
 

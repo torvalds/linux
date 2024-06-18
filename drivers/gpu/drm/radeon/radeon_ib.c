@@ -27,7 +27,8 @@
  *          Christian König
  */
 
-#include <drm/drm_debugfs.h>
+#include <linux/debugfs.h>
+
 #include <drm/drm_file.h>
 
 #include "radeon.h"
@@ -41,13 +42,14 @@
  * produce command buffers which are send to the kernel and
  * put in IBs for execution by the requested ring.
  */
-static int radeon_debugfs_sa_init(struct radeon_device *rdev);
+static void radeon_debugfs_sa_init(struct radeon_device *rdev);
 
 /**
  * radeon_ib_get - request an IB (Indirect Buffer)
  *
  * @rdev: radeon_device pointer
  * @ring: ring index the IB is associated with
+ * @vm: requested vm
  * @ib: IB object returned
  * @size: requested IB size
  *
@@ -61,7 +63,7 @@ int radeon_ib_get(struct radeon_device *rdev, int ring,
 {
 	int r;
 
-	r = radeon_sa_bo_new(rdev, &rdev->ring_tmp_bo, &ib->sa_bo, size, 256);
+	r = radeon_sa_bo_new(&rdev->ring_tmp_bo, &ib->sa_bo, size, 256);
 	if (r) {
 		dev_err(rdev->dev, "failed to get a new IB (%d)\n", r);
 		return r;
@@ -77,7 +79,7 @@ int radeon_ib_get(struct radeon_device *rdev, int ring,
 		/* ib pool is bound at RADEON_VA_IB_OFFSET in virtual address
 		 * space and soffset is the offset inside the pool bo
 		 */
-		ib->gpu_addr = ib->sa_bo->soffset + RADEON_VA_IB_OFFSET;
+		ib->gpu_addr = drm_suballoc_soffset(ib->sa_bo) + RADEON_VA_IB_OFFSET;
 	} else {
 		ib->gpu_addr = radeon_sa_bo_gpu_addr(ib->sa_bo);
 	}
@@ -97,7 +99,7 @@ int radeon_ib_get(struct radeon_device *rdev, int ring,
 void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib *ib)
 {
 	radeon_sync_free(rdev, &ib->sync, ib->fence);
-	radeon_sa_bo_free(rdev, &ib->sa_bo, ib->fence);
+	radeon_sa_bo_free(&ib->sa_bo, ib->fence);
 	radeon_fence_unref(&ib->fence);
 }
 
@@ -201,8 +203,7 @@ int radeon_ib_pool_init(struct radeon_device *rdev)
 
 	if (rdev->family >= CHIP_BONAIRE) {
 		r = radeon_sa_bo_manager_init(rdev, &rdev->ring_tmp_bo,
-					      RADEON_IB_POOL_SIZE*64*1024,
-					      RADEON_GPU_PAGE_SIZE,
+					      RADEON_IB_POOL_SIZE*64*1024, 256,
 					      RADEON_GEM_DOMAIN_GTT,
 					      RADEON_GEM_GTT_WC);
 	} else {
@@ -210,8 +211,7 @@ int radeon_ib_pool_init(struct radeon_device *rdev)
 		 * to the command stream checking
 		 */
 		r = radeon_sa_bo_manager_init(rdev, &rdev->ring_tmp_bo,
-					      RADEON_IB_POOL_SIZE*64*1024,
-					      RADEON_GPU_PAGE_SIZE,
+					      RADEON_IB_POOL_SIZE*64*1024, 256,
 					      RADEON_GEM_DOMAIN_GTT, 0);
 	}
 	if (r) {
@@ -224,9 +224,7 @@ int radeon_ib_pool_init(struct radeon_device *rdev)
 	}
 
 	rdev->ib_pool_ready = true;
-	if (radeon_debugfs_sa_init(rdev)) {
-		dev_err(rdev->dev, "failed to register debugfs file for SA\n");
-	}
+	radeon_debugfs_sa_init(rdev);
 	return 0;
 }
 
@@ -294,11 +292,9 @@ int radeon_ib_ring_tests(struct radeon_device *rdev)
  */
 #if defined(CONFIG_DEBUG_FS)
 
-static int radeon_debugfs_sa_info(struct seq_file *m, void *data)
+static int radeon_debugfs_sa_info_show(struct seq_file *m, void *unused)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_device *rdev = m->private;
 
 	radeon_sa_bo_dump_debug_info(&rdev->ring_tmp_bo, m);
 
@@ -306,17 +302,16 @@ static int radeon_debugfs_sa_info(struct seq_file *m, void *data)
 
 }
 
-static struct drm_info_list radeon_debugfs_sa_list[] = {
-	{"radeon_sa_info", &radeon_debugfs_sa_info, 0, NULL},
-};
+DEFINE_SHOW_ATTRIBUTE(radeon_debugfs_sa_info);
 
 #endif
 
-static int radeon_debugfs_sa_init(struct radeon_device *rdev)
+static void radeon_debugfs_sa_init(struct radeon_device *rdev)
 {
 #if defined(CONFIG_DEBUG_FS)
-	return radeon_debugfs_add_files(rdev, radeon_debugfs_sa_list, 1);
-#else
-	return 0;
+	struct dentry *root = rdev->ddev->primary->debugfs_root;
+
+	debugfs_create_file("radeon_sa_info", 0444, root, rdev,
+			    &radeon_debugfs_sa_info_fops);
 #endif
 }

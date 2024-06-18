@@ -23,86 +23,23 @@ MODULE_DESCRIPTION("USB basic driver for rtlwifi");
 
 #define MAX_USBCTRL_VENDORREQ_TIMES		10
 
-static void usbctrl_async_callback(struct urb *urb)
-{
-	if (urb) {
-		/* free dr */
-		kfree(urb->setup_packet);
-		/* free databuf */
-		kfree(urb->transfer_buffer);
-	}
-}
-
-static int _usbctrl_vendorreq_async_write(struct usb_device *udev, u8 request,
-					  u16 value, u16 index, void *pdata,
-					  u16 len)
-{
-	int rc;
-	unsigned int pipe;
-	u8 reqtype;
-	struct usb_ctrlrequest *dr;
-	struct urb *urb;
-	const u16 databuf_maxlen = REALTEK_USB_VENQT_MAX_BUF_SIZE;
-	u8 *databuf;
-
-	if (WARN_ON_ONCE(len > databuf_maxlen))
-		len = databuf_maxlen;
-
-	pipe = usb_sndctrlpipe(udev, 0); /* write_out */
-	reqtype =  REALTEK_USB_VENQT_WRITE;
-
-	dr = kzalloc(sizeof(*dr), GFP_ATOMIC);
-	if (!dr)
-		return -ENOMEM;
-
-	databuf = kzalloc(databuf_maxlen, GFP_ATOMIC);
-	if (!databuf) {
-		kfree(dr);
-		return -ENOMEM;
-	}
-
-	urb = usb_alloc_urb(0, GFP_ATOMIC);
-	if (!urb) {
-		kfree(databuf);
-		kfree(dr);
-		return -ENOMEM;
-	}
-
-	dr->bRequestType = reqtype;
-	dr->bRequest = request;
-	dr->wValue = cpu_to_le16(value);
-	dr->wIndex = cpu_to_le16(index);
-	dr->wLength = cpu_to_le16(len);
-	/* data are already in little-endian order */
-	memcpy(databuf, pdata, len);
-	usb_fill_control_urb(urb, udev, pipe,
-			     (unsigned char *)dr, databuf, len,
-			     usbctrl_async_callback, NULL);
-	rc = usb_submit_urb(urb, GFP_ATOMIC);
-	if (rc < 0) {
-		kfree(databuf);
-		kfree(dr);
-	}
-	usb_free_urb(urb);
-	return rc;
-}
-
-static int _usbctrl_vendorreq_sync_read(struct usb_device *udev, u8 request,
-					u16 value, u16 index, void *pdata,
-					u16 len)
+static void _usbctrl_vendorreq_sync(struct usb_device *udev, u8 reqtype,
+				   u16 value, void *pdata, u16 len)
 {
 	unsigned int pipe;
 	int status;
-	u8 reqtype;
 	int vendorreq_times = 0;
 	static int count;
 
-	pipe = usb_rcvctrlpipe(udev, 0); /* read_in */
-	reqtype =  REALTEK_USB_VENQT_READ;
+	if (reqtype == REALTEK_USB_VENQT_READ)
+		pipe = usb_rcvctrlpipe(udev, 0); /* read_in */
+	else
+		pipe = usb_sndctrlpipe(udev, 0); /* write_out */
 
 	do {
-		status = usb_control_msg(udev, pipe, request, reqtype, value,
-					 index, pdata, len, 1000);
+		status = usb_control_msg(udev, pipe, REALTEK_USB_VENQT_CMD_REQ,
+					 reqtype, value, REALTEK_USB_VENQT_CMD_IDX,
+					 pdata, len, 1000);
 		if (status < 0) {
 			/* firmware download is checksumed, don't retry */
 			if ((value >= FW_8192C_START_ADDRESS &&
@@ -114,18 +51,15 @@ static int _usbctrl_vendorreq_sync_read(struct usb_device *udev, u8 request,
 	} while (++vendorreq_times < MAX_USBCTRL_VENDORREQ_TIMES);
 
 	if (status < 0 && count++ < 4)
-		pr_err("reg 0x%x, usbctrl_vendorreq TimeOut! status:0x%x value=0x%x\n",
-		       value, status, *(u32 *)pdata);
-	return status;
+		dev_err(&udev->dev, "reg 0x%x, usbctrl_vendorreq TimeOut! status:0x%x value=0x%x reqtype=0x%x\n",
+		       value, status, *(u32 *)pdata, reqtype);
 }
 
 static u32 _usb_read_sync(struct rtl_priv *rtlpriv, u32 addr, u16 len)
 {
 	struct device *dev = rtlpriv->io.dev;
 	struct usb_device *udev = to_usb_device(dev);
-	u8 request;
 	u16 wvalue;
-	u16 index;
 	__le32 *data;
 	unsigned long flags;
 
@@ -134,12 +68,31 @@ static u32 _usb_read_sync(struct rtl_priv *rtlpriv, u32 addr, u16 len)
 		rtlpriv->usb_data_index = 0;
 	data = &rtlpriv->usb_data[rtlpriv->usb_data_index];
 	spin_unlock_irqrestore(&rtlpriv->locks.usb_lock, flags);
-	request = REALTEK_USB_VENQT_CMD_REQ;
-	index = REALTEK_USB_VENQT_CMD_IDX; /* n/a */
 
 	wvalue = (u16)addr;
-	_usbctrl_vendorreq_sync_read(udev, request, wvalue, index, data, len);
+	_usbctrl_vendorreq_sync(udev, REALTEK_USB_VENQT_READ, wvalue, data, len);
 	return le32_to_cpu(*data);
+}
+
+
+static void _usb_write_sync(struct rtl_priv *rtlpriv, u32 addr, u32 val, u16 len)
+{
+	struct device *dev = rtlpriv->io.dev;
+	struct usb_device *udev = to_usb_device(dev);
+	unsigned long flags;
+	__le32 *data;
+	u16 wvalue;
+
+	spin_lock_irqsave(&rtlpriv->locks.usb_lock, flags);
+	if (++rtlpriv->usb_data_index >= RTL_USB_MAX_RX_COUNT)
+		rtlpriv->usb_data_index = 0;
+	data = &rtlpriv->usb_data[rtlpriv->usb_data_index];
+	spin_unlock_irqrestore(&rtlpriv->locks.usb_lock, flags);
+
+	wvalue = (u16)(addr & 0x0000ffff);
+	*data = cpu_to_le32(val);
+
+	_usbctrl_vendorreq_sync(udev, REALTEK_USB_VENQT_WRITE, wvalue, data, len);
 }
 
 static u8 _usb_read8_sync(struct rtl_priv *rtlpriv, u32 addr)
@@ -157,63 +110,27 @@ static u32 _usb_read32_sync(struct rtl_priv *rtlpriv, u32 addr)
 	return _usb_read_sync(rtlpriv, addr, 4);
 }
 
-static void _usb_write_async(struct usb_device *udev, u32 addr, u32 val,
-			     u16 len)
+static void _usb_write8_sync(struct rtl_priv *rtlpriv, u32 addr, u8 val)
 {
-	u8 request;
-	u16 wvalue;
-	u16 index;
-	__le32 data;
-
-	request = REALTEK_USB_VENQT_CMD_REQ;
-	index = REALTEK_USB_VENQT_CMD_IDX; /* n/a */
-	wvalue = (u16)(addr&0x0000ffff);
-	data = cpu_to_le32(val);
-	_usbctrl_vendorreq_async_write(udev, request, wvalue, index, &data,
-				       len);
+	_usb_write_sync(rtlpriv, addr, val, 1);
 }
 
-static void _usb_write8_async(struct rtl_priv *rtlpriv, u32 addr, u8 val)
+static void _usb_write16_sync(struct rtl_priv *rtlpriv, u32 addr, u16 val)
 {
-	struct device *dev = rtlpriv->io.dev;
-
-	_usb_write_async(to_usb_device(dev), addr, val, 1);
+	_usb_write_sync(rtlpriv, addr, val, 2);
 }
 
-static void _usb_write16_async(struct rtl_priv *rtlpriv, u32 addr, u16 val)
+static void _usb_write32_sync(struct rtl_priv *rtlpriv, u32 addr, u32 val)
 {
-	struct device *dev = rtlpriv->io.dev;
-
-	_usb_write_async(to_usb_device(dev), addr, val, 2);
+	_usb_write_sync(rtlpriv, addr, val, 4);
 }
 
-static void _usb_write32_async(struct rtl_priv *rtlpriv, u32 addr, u32 val)
+static void _usb_write_chunk_sync(struct rtl_priv *rtlpriv, u32 addr,
+				  u32 length, u8 *data)
 {
-	struct device *dev = rtlpriv->io.dev;
+	struct usb_device *udev = to_usb_device(rtlpriv->io.dev);
 
-	_usb_write_async(to_usb_device(dev), addr, val, 4);
-}
-
-static void _usb_writen_sync(struct rtl_priv *rtlpriv, u32 addr, void *data,
-			     u16 len)
-{
-	struct device *dev = rtlpriv->io.dev;
-	struct usb_device *udev = to_usb_device(dev);
-	u8 request = REALTEK_USB_VENQT_CMD_REQ;
-	u8 reqtype =  REALTEK_USB_VENQT_WRITE;
-	u16 wvalue;
-	u16 index = REALTEK_USB_VENQT_CMD_IDX;
-	int pipe = usb_sndctrlpipe(udev, 0); /* write_out */
-	u8 *buffer;
-
-	wvalue = (u16)(addr & 0x0000ffff);
-	buffer = kmemdup(data, len, GFP_ATOMIC);
-	if (!buffer)
-		return;
-	usb_control_msg(udev, pipe, request, reqtype, wvalue,
-			index, buffer, len, 50);
-
-	kfree(buffer);
+	_usbctrl_vendorreq_sync(udev, REALTEK_USB_VENQT_WRITE, addr, data, length);
 }
 
 static void _rtl_usb_io_handler_init(struct device *dev,
@@ -223,13 +140,13 @@ static void _rtl_usb_io_handler_init(struct device *dev,
 
 	rtlpriv->io.dev = dev;
 	mutex_init(&rtlpriv->io.bb_mutex);
-	rtlpriv->io.write8_async	= _usb_write8_async;
-	rtlpriv->io.write16_async	= _usb_write16_async;
-	rtlpriv->io.write32_async	= _usb_write32_async;
-	rtlpriv->io.read8_sync		= _usb_read8_sync;
-	rtlpriv->io.read16_sync		= _usb_read16_sync;
-	rtlpriv->io.read32_sync		= _usb_read32_sync;
-	rtlpriv->io.writen_sync		= _usb_writen_sync;
+	rtlpriv->io.write8	= _usb_write8_sync;
+	rtlpriv->io.write16	= _usb_write16_sync;
+	rtlpriv->io.write32	= _usb_write32_sync;
+	rtlpriv->io.write_chunk	= _usb_write_chunk_sync;
+	rtlpriv->io.read8	= _usb_read8_sync;
+	rtlpriv->io.read16	= _usb_read16_sync;
+	rtlpriv->io.read32	= _usb_read32_sync;
 }
 
 static void _rtl_usb_io_handler_release(struct ieee80211_hw *hw)
@@ -259,15 +176,15 @@ static int _rtl_usb_init_tx(struct ieee80211_hw *hw)
 						    ? USB_HIGH_SPEED_BULK_SIZE
 						    : USB_FULL_SPEED_BULK_SIZE;
 
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "USB Max Bulk-out Size=%d\n",
-		 rtlusb->max_bulk_out_size);
+	rtl_dbg(rtlpriv, COMP_INIT, DBG_DMESG, "USB Max Bulk-out Size=%d\n",
+		rtlusb->max_bulk_out_size);
 
 	for (i = 0; i < __RTL_TXQ_NUM; i++) {
 		u32 ep_num = rtlusb->ep_map.ep_mapping[i];
 
 		if (!ep_num) {
-			RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-				 "Invalid endpoint map setting!\n");
+			rtl_dbg(rtlpriv, COMP_INIT, DBG_DMESG,
+				"Invalid endpoint map setting!\n");
 			return -EINVAL;
 		}
 	}
@@ -289,7 +206,7 @@ static int _rtl_usb_init_tx(struct ieee80211_hw *hw)
 	return 0;
 }
 
-static void _rtl_rx_work(unsigned long param);
+static void _rtl_rx_work(struct tasklet_struct *t);
 
 static int _rtl_usb_init_rx(struct ieee80211_hw *hw)
 {
@@ -299,7 +216,6 @@ static int _rtl_usb_init_rx(struct ieee80211_hw *hw)
 
 	rtlusb->rx_max_size = rtlpriv->cfg->usb_interface_cfg->rx_max_size;
 	rtlusb->rx_urb_num = rtlpriv->cfg->usb_interface_cfg->rx_urb_num;
-	rtlusb->in_ep = rtlpriv->cfg->usb_interface_cfg->in_ep_num;
 	rtlusb->usb_rx_hdl = rtlpriv->cfg->usb_interface_cfg->usb_rx_hdl;
 	rtlusb->usb_rx_segregate_hdl =
 		rtlpriv->cfg->usb_interface_cfg->usb_rx_segregate_hdl;
@@ -310,8 +226,7 @@ static int _rtl_usb_init_rx(struct ieee80211_hw *hw)
 	init_usb_anchor(&rtlusb->rx_cleanup_urbs);
 
 	skb_queue_head_init(&rtlusb->rx_queue);
-	rtlusb->rx_work_tasklet.func = _rtl_rx_work;
-	rtlusb->rx_work_tasklet.data = (unsigned long)rtlusb;
+	tasklet_setup(&rtlusb->rx_work_tasklet, _rtl_rx_work);
 
 	return 0;
 }
@@ -332,20 +247,38 @@ static int _rtl_usb_init(struct ieee80211_hw *hw)
 
 		pep_desc = &usb_intf->cur_altsetting->endpoint[epidx].desc;
 
-		if (usb_endpoint_dir_in(pep_desc))
-			rtlusb->in_ep_nums++;
-		else if (usb_endpoint_dir_out(pep_desc))
-			rtlusb->out_ep_nums++;
+		if (usb_endpoint_dir_in(pep_desc)) {
+			if (usb_endpoint_xfer_bulk(pep_desc)) {
+				/* The vendor drivers assume there is only one
+				 * bulk in ep and that it's the first in ep.
+				 */
+				if (rtlusb->in_ep_nums == 0)
+					rtlusb->in_ep = usb_endpoint_num(pep_desc);
+				else
+					pr_warn("%s: bulk in endpoint is not the first in endpoint\n",
+						__func__);
+			}
 
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-			 "USB EP(0x%02x), MaxPacketSize=%d, Interval=%d\n",
-			 pep_desc->bEndpointAddress, pep_desc->wMaxPacketSize,
-			 pep_desc->bInterval);
+			rtlusb->in_ep_nums++;
+		} else if (usb_endpoint_dir_out(pep_desc)) {
+			if (rtlusb->out_ep_nums < RTL_USB_MAX_BULKOUT_NUM) {
+				if (usb_endpoint_xfer_bulk(pep_desc))
+					rtlusb->out_eps[rtlusb->out_ep_nums] =
+							usb_endpoint_num(pep_desc);
+			} else {
+				pr_warn("%s: found more bulk out endpoints than the expected %d\n",
+					__func__, RTL_USB_MAX_BULKOUT_NUM);
+			}
+
+			rtlusb->out_ep_nums++;
+		}
+
+		rtl_dbg(rtlpriv, COMP_INIT, DBG_DMESG,
+			"USB EP(0x%02x), MaxPacketSize=%d, Interval=%d\n",
+			pep_desc->bEndpointAddress, pep_desc->wMaxPacketSize,
+			pep_desc->bInterval);
 	}
-	if (rtlusb->in_ep_nums <  rtlpriv->cfg->usb_interface_cfg->in_ep_num) {
-		pr_err("Too few input end points found\n");
-		return -EINVAL;
-	}
+
 	if (rtlusb->out_ep_nums == 0) {
 		pr_err("No output end points found\n");
 		return -EINVAL;
@@ -434,7 +367,7 @@ static void _rtl_usb_rx_process_agg(struct ieee80211_hw *hw,
 	skb_pull(skb, RTL_RX_DESC_SIZE);
 	rtlpriv->cfg->ops->query_rx_desc(hw, &stats, &rx_status, rxdesc, skb);
 	skb_pull(skb, (stats.rx_drvinfo_size + stats.rx_bufshift));
-	hdr = (struct ieee80211_hdr *)(skb->data);
+	hdr = rtl_get_hdr(skb);
 	fc = hdr->frame_control;
 	if (!stats.crc) {
 		memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
@@ -476,7 +409,7 @@ static void _rtl_usb_rx_process_noagg(struct ieee80211_hw *hw,
 	skb_pull(skb, RTL_RX_DESC_SIZE);
 	rtlpriv->cfg->ops->query_rx_desc(hw, &stats, &rx_status, rxdesc, skb);
 	skb_pull(skb, (stats.rx_drvinfo_size + stats.rx_bufshift));
-	hdr = (struct ieee80211_hdr *)(skb->data);
+	hdr = rtl_get_hdr(skb);
 	fc = hdr->frame_control;
 	if (!stats.crc) {
 		memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
@@ -528,9 +461,9 @@ static void _rtl_rx_pre_process(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 #define __RX_SKB_MAX_QUEUED	64
 
-static void _rtl_rx_work(unsigned long param)
+static void _rtl_rx_work(struct tasklet_struct *t)
 {
-	struct rtl_usb *rtlusb = (struct rtl_usb *)param;
+	struct rtl_usb *rtlusb = from_tasklet(rtlusb, t, rx_work_tasklet);
 	struct ieee80211_hw *hw = usb_get_intfdata(rtlusb->intf);
 	struct sk_buff *skb;
 
@@ -680,8 +613,10 @@ static void _rtl_usb_cleanup_rx(struct ieee80211_hw *hw)
 	tasklet_kill(&rtlusb->rx_work_tasklet);
 	cancel_work_sync(&rtlpriv->works.lps_change_work);
 
-	flush_workqueue(rtlpriv->works.rtl_wq);
-	destroy_workqueue(rtlpriv->works.rtl_wq);
+	if (rtlpriv->works.rtl_wq) {
+		destroy_workqueue(rtlpriv->works.rtl_wq);
+		rtlpriv->works.rtl_wq = NULL;
+	}
 
 	skb_queue_purge(&rtlusb->rx_queue);
 
@@ -718,15 +653,17 @@ static int _rtl_usb_receive(struct ieee80211_hw *hw)
 
 		usb_anchor_urb(urb, &rtlusb->rx_submitted);
 		err = usb_submit_urb(urb, GFP_KERNEL);
-		if (err)
+		if (err) {
+			usb_unanchor_urb(urb);
+			usb_free_urb(urb);
 			goto err_out;
+		}
 		usb_free_urb(urb);
 	}
 	return 0;
 
 err_out:
 	usb_kill_anchored_urbs(&rtlusb->rx_submitted);
-	_rtl_usb_cleanup_rx(hw);
 	return err;
 }
 
@@ -802,6 +739,7 @@ static void rtl_usb_stop(struct ieee80211_hw *hw)
 
 	tasklet_kill(&rtlusb->rx_work_tasklet);
 	cancel_work_sync(&rtlpriv->works.lps_change_work);
+	cancel_work_sync(&rtlpriv->works.update_beacon_work);
 
 	flush_workqueue(rtlpriv->works.rtl_wq);
 
@@ -881,10 +819,8 @@ static struct urb *_rtl_usb_tx_urb_setup(struct ieee80211_hw *hw,
 
 	WARN_ON(NULL == skb);
 	_urb = usb_alloc_urb(0, GFP_ATOMIC);
-	if (!_urb) {
-		kfree_skb(skb);
+	if (!_urb)
 		return NULL;
-	}
 	_rtl_install_trx_info(rtlusb, skb, ep_num);
 	usb_fill_bulk_urb(_urb, rtlusb->udev, usb_sndbulkpipe(rtlusb->udev,
 			  ep_num), skb->data, skb->len, _rtl_tx_complete, skb);
@@ -898,7 +834,6 @@ static void _rtl_usb_transmit(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct rtl_usb *rtlusb = rtl_usbdev(rtl_usbpriv(hw));
 	u32 ep_num;
 	struct urb *_urb = NULL;
-	struct sk_buff *_skb = NULL;
 
 	WARN_ON(NULL == rtlusb->usb_tx_aggregate_hdl);
 	if (unlikely(IS_USB_STOP(rtlusb))) {
@@ -907,8 +842,7 @@ static void _rtl_usb_transmit(struct ieee80211_hw *hw, struct sk_buff *skb,
 		return;
 	}
 	ep_num = rtlusb->ep_map.ep_mapping[qnum];
-	_skb = skb;
-	_urb = _rtl_usb_tx_urb_setup(hw, _skb, ep_num);
+	_urb = _rtl_usb_tx_urb_setup(hw, skb, ep_num);
 	if (unlikely(!_urb)) {
 		pr_err("Can't allocate urb. Drop skb!\n");
 		kfree_skb(skb);
@@ -926,13 +860,13 @@ static void _rtl_usb_tx_preprocess(struct ieee80211_hw *hw,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct rtl_tx_desc *pdesc = NULL;
 	struct rtl_tcb_desc tcb_desc;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)(skb->data);
+	struct ieee80211_hdr *hdr = rtl_get_hdr(skb);
 	__le16 fc = hdr->frame_control;
 	u8 *pda_addr = hdr->addr1;
 
 	memset(&tcb_desc, 0, sizeof(struct rtl_tcb_desc));
 	if (ieee80211_is_auth(fc)) {
-		RT_TRACE(rtlpriv, COMP_SEND, DBG_DMESG, "MAC80211_LINKING\n");
+		rtl_dbg(rtlpriv, COMP_SEND, DBG_DMESG, "MAC80211_LINKING\n");
 	}
 
 	if (rtlpriv->psc.sw_ps_enabled) {
@@ -961,7 +895,7 @@ static int rtl_usb_tx(struct ieee80211_hw *hw,
 {
 	struct rtl_usb *rtlusb = rtl_usbdev(rtl_usbpriv(hw));
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)(skb->data);
+	struct ieee80211_hdr *hdr = rtl_get_hdr(skb);
 	__le16 fc = hdr->frame_control;
 	u16 hw_queue;
 
@@ -1014,15 +948,17 @@ int rtl_usb_probe(struct usb_interface *intf,
 	hw = ieee80211_alloc_hw(sizeof(struct rtl_priv) +
 				sizeof(struct rtl_usb_priv), &rtl_ops);
 	if (!hw) {
-		WARN_ONCE(true, "rtl_usb: ieee80211 alloc failed\n");
+		pr_warn("rtl_usb: ieee80211 alloc failed\n");
 		return -ENOMEM;
 	}
 	rtlpriv = hw->priv;
 	rtlpriv->hw = hw;
 	rtlpriv->usb_data = kcalloc(RTL_USB_MAX_RX_COUNT, sizeof(u32),
 				    GFP_KERNEL);
-	if (!rtlpriv->usb_data)
+	if (!rtlpriv->usb_data) {
+		ieee80211_free_hw(hw);
 		return -ENOMEM;
+	}
 
 	/* this spin lock must be initialized early */
 	spin_lock_init(&rtlpriv->locks.usb_lock);
@@ -1030,6 +966,8 @@ int rtl_usb_probe(struct usb_interface *intf,
 		  rtl_fill_h2c_cmd_work_callback);
 	INIT_WORK(&rtlpriv->works.lps_change_work,
 		  rtl_lps_change_work_callback);
+	INIT_WORK(&rtlpriv->works.update_beacon_work,
+		  rtl_update_beacon_work_callback);
 
 	rtlpriv->usb_data_index = 0;
 	init_completion(&rtlpriv->firmware_loading_complete);
@@ -1041,6 +979,9 @@ int rtl_usb_probe(struct usb_interface *intf,
 	usb_priv->dev.intf = intf;
 	usb_priv->dev.udev = udev;
 	usb_set_intfdata(intf, hw);
+	/* For dual MAC RTL8192DU, which has two interfaces. */
+	rtlpriv->rtlhal.interfaceindex =
+		intf->altsetting[0].desc.bInterfaceNumber;
 	/* init cfg & intf_ops */
 	rtlpriv->rtlhal.interface = INTF_USB;
 	rtlpriv->cfg = rtl_hal_cfg;
@@ -1064,12 +1005,11 @@ int rtl_usb_probe(struct usb_interface *intf,
 		pr_err("Can't init_sw_vars\n");
 		goto error_out;
 	}
-	rtlpriv->cfg->ops->init_sw_leds(hw);
+	rtl_init_sw_leds(hw);
 
 	err = ieee80211_register_hw(hw);
 	if (err) {
 		pr_err("Can't register mac80211 hw.\n");
-		err = -ENODEV;
 		goto error_out;
 	}
 	rtlpriv->mac80211.mac80211_registered = 1;
@@ -1083,6 +1023,8 @@ error_out2:
 	_rtl_usb_io_handler_release(hw);
 	usb_put_dev(udev);
 	complete(&rtlpriv->firmware_loading_complete);
+	kfree(rtlpriv->usb_data);
+	ieee80211_free_hw(hw);
 	return -ENODEV;
 }
 EXPORT_SYMBOL(rtl_usb_probe);
@@ -1112,7 +1054,6 @@ void rtl_usb_disconnect(struct usb_interface *intf)
 	rtl_usb_deinit(hw);
 	rtl_deinit_core(hw);
 	kfree(rtlpriv->usb_data);
-	rtlpriv->cfg->ops->deinit_sw_leds(hw);
 	rtlpriv->cfg->ops->deinit_sw_vars(hw);
 	_rtl_usb_io_handler_release(hw);
 	usb_put_dev(rtlusb->udev);

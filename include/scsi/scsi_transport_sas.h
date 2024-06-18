@@ -41,6 +41,7 @@ enum sas_linkrate {
 	SAS_LINK_RATE_G2 = SAS_LINK_RATE_3_0_GBPS,
 	SAS_LINK_RATE_6_0_GBPS = 10,
 	SAS_LINK_RATE_12_0_GBPS = 11,
+	SAS_LINK_RATE_22_5_GBPS = 12,
 	/* These are virtual to the transport class and may never
 	 * be signalled normally since the standard defined field
 	 * is only 4 bits */
@@ -198,6 +199,8 @@ unsigned int sas_tlr_supported(struct scsi_device *);
 unsigned int sas_is_tlr_enabled(struct scsi_device *);
 void sas_disable_tlr(struct scsi_device *);
 void sas_enable_tlr(struct scsi_device *);
+
+bool sas_ata_ncq_prio_supported(struct scsi_device *sdev);
 
 extern struct sas_rphy *sas_end_device_alloc(struct sas_port *);
 extern struct sas_rphy *sas_expander_alloc(struct sas_port *, enum sas_device_type);

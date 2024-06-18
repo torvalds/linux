@@ -472,15 +472,10 @@ static void qcom_slim_rxwq(struct work_struct *work)
 static void qcom_slim_prg_slew(struct platform_device *pdev,
 				struct qcom_slim_ctrl *ctrl)
 {
-	struct resource	*slew_mem;
-
 	if (!ctrl->slew_reg) {
 		/* SLEW RATE register for this SLIMbus */
-		slew_mem = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-				"slew");
-		ctrl->slew_reg = devm_ioremap(&pdev->dev, slew_mem->start,
-				resource_size(slew_mem));
-		if (!ctrl->slew_reg)
+		ctrl->slew_reg = devm_platform_ioremap_resource_byname(pdev, "slew");
+		if (IS_ERR(ctrl->slew_reg))
 			return;
 	}
 
@@ -493,7 +488,6 @@ static int qcom_slim_probe(struct platform_device *pdev)
 {
 	struct qcom_slim_ctrl *ctrl;
 	struct slim_controller *sctrl;
-	struct resource *slim_mem;
 	int ret, ver;
 
 	ctrl = devm_kzalloc(&pdev->dev, sizeof(*ctrl), GFP_KERNEL);
@@ -515,10 +509,8 @@ static int qcom_slim_probe(struct platform_device *pdev)
 	}
 
 	ctrl->irq = platform_get_irq(pdev, 0);
-	if (!ctrl->irq) {
-		dev_err(&pdev->dev, "no slimbus IRQ\n");
-		return -ENODEV;
-	}
+	if (ctrl->irq < 0)
+		return ctrl->irq;
 
 	sctrl = &ctrl->ctrl;
 	sctrl->dev = &pdev->dev;
@@ -526,8 +518,7 @@ static int qcom_slim_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ctrl);
 	dev_set_drvdata(ctrl->dev, ctrl);
 
-	slim_mem = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ctrl");
-	ctrl->base = devm_ioremap_resource(ctrl->dev, slim_mem);
+	ctrl->base = devm_platform_ioremap_resource_byname(pdev, "ctrl");
 	if (IS_ERR(ctrl->base))
 		return PTR_ERR(ctrl->base);
 
@@ -635,14 +626,15 @@ err_request_irq_failed:
 	return ret;
 }
 
-static int qcom_slim_remove(struct platform_device *pdev)
+static void qcom_slim_remove(struct platform_device *pdev)
 {
 	struct qcom_slim_ctrl *ctrl = platform_get_drvdata(pdev);
 
 	pm_runtime_disable(&pdev->dev);
 	slim_unregister_controller(&ctrl->ctrl);
+	clk_disable_unprepare(ctrl->rclk);
+	clk_disable_unprepare(ctrl->hclk);
 	destroy_workqueue(ctrl->rxwq);
-	return 0;
 }
 
 /*
@@ -723,13 +715,13 @@ static const struct dev_pm_ops qcom_slim_dev_pm_ops = {
 
 static const struct of_device_id qcom_slim_dt_match[] = {
 	{ .compatible = "qcom,slim", },
-	{ .compatible = "qcom,apq8064-slim", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, qcom_slim_dt_match);
 
 static struct platform_driver qcom_slim_driver = {
 	.probe = qcom_slim_probe,
-	.remove = qcom_slim_remove,
+	.remove_new = qcom_slim_remove,
 	.driver	= {
 		.name = "qcom_slim_ctrl",
 		.of_match_table = qcom_slim_dt_match,

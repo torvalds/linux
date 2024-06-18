@@ -10,7 +10,7 @@ such as network interfaces, crypto accelerator instances, L2 switches,
 etc.
 
 For an overview of the DPAA2 architecture and fsl-mc bus see:
-Documentation/networking/device_drivers/freescale/dpaa2/overview.rst
+Documentation/networking/device_drivers/ethernet/freescale/dpaa2/overview.rst
 
 As described in the above overview, all DPAA2 objects in a DPRC share the
 same hardware "isolation context" and a 10-bit value called an ICID
@@ -26,7 +26,17 @@ For generic IOMMU bindings, see
 Documentation/devicetree/bindings/iommu/iommu.txt.
 
 For arm-smmu binding, see:
-Documentation/devicetree/bindings/iommu/arm,smmu.txt.
+Documentation/devicetree/bindings/iommu/arm,smmu.yaml.
+
+The MSI writes are accompanied by sideband data which is derived from the ICID.
+The msi-map property is used to associate the devices with both the ITS
+controller and the sideband data which accompanies the writes.
+
+For generic MSI bindings, see
+Documentation/devicetree/bindings/interrupt-controller/msi.txt.
+
+For GICv3 and GIC ITS bindings, see:
+Documentation/devicetree/bindings/interrupt-controller/arm,gic-v3.yaml.
 
 Required properties:
 
@@ -48,11 +58,6 @@ Required properties:
                        -the second region is the MC control registers. This
                         region may not be present in some scenarios, such
                         as in the device tree presented to a virtual machine.
-
-    - msi-parent
-        Value type: <phandle>
-        Definition: Must be present and point to the MSI controller node
-                    handling message interrupts for the MC.
 
     - ranges
         Value type: <prop-encoded-array>
@@ -119,6 +124,28 @@ Optional properties:
   associated with the listed IOMMU, with the iommu-specifier
   (i - icid-base + iommu-base).
 
+- msi-map: Maps an ICID to a GIC ITS and associated msi-specifier
+  data.
+
+  The property is an arbitrary number of tuples of
+  (icid-base,gic-its,msi-base,length).
+
+  Any ICID in the interval [icid-base, icid-base + length) is
+  associated with the listed GIC ITS, with the msi-specifier
+  (i - icid-base + msi-base).
+
+Deprecated properties:
+
+    - msi-parent
+        Value type: <phandle>
+        Definition: Describes the MSI controller node handling message
+                    interrupts for the MC. When there is no translation
+                    between the ICID and deviceID this property can be used
+                    to describe the MSI controller used by the devices on the
+                    mc-bus.
+                    The use of this property for mc-bus is deprecated. Please
+                    use msi-map.
+
 Example:
 
         smmu: iommu@5000000 {
@@ -128,13 +155,24 @@ Example:
                ...
         };
 
+        gic: interrupt-controller@6000000 {
+               compatible = "arm,gic-v3";
+               ...
+        }
+        its: gic-its@6020000 {
+               compatible = "arm,gic-v3-its";
+               msi-controller;
+               ...
+        };
+
         fsl_mc: fsl-mc@80c000000 {
                 compatible = "fsl,qoriq-mc";
                 reg = <0x00000008 0x0c000000 0 0x40>,    /* MC portal base */
                       <0x00000000 0x08340000 0 0x40000>; /* MC control reg */
-                msi-parent = <&its>;
                 /* define map for ICIDs 23-64 */
                 iommu-map = <23 &smmu 23 41>;
+                /* define msi map for ICIDs 23-64 */
+                msi-map = <23 &its 23 41>;
                 #address-cells = <3>;
                 #size-cells = <1>;
 

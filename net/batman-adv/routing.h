@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2007-2019  B.A.T.M.A.N. contributors:
+/* Copyright (C) B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  */
@@ -27,10 +27,17 @@ int batadv_recv_frag_packet(struct sk_buff *skb,
 			    struct batadv_hard_iface *iface);
 int batadv_recv_bcast_packet(struct sk_buff *skb,
 			     struct batadv_hard_iface *recv_if);
-int batadv_recv_tt_query(struct sk_buff *skb,
-			 struct batadv_hard_iface *recv_if);
-int batadv_recv_roam_adv(struct sk_buff *skb,
-			 struct batadv_hard_iface *recv_if);
+#ifdef CONFIG_BATMAN_ADV_MCAST
+int batadv_recv_mcast_packet(struct sk_buff *skb,
+			     struct batadv_hard_iface *recv_if);
+#else
+static inline int batadv_recv_mcast_packet(struct sk_buff *skb,
+					   struct batadv_hard_iface *recv_if)
+{
+	kfree_skb(skb);
+	return NET_RX_DROP;
+}
+#endif
 int batadv_recv_unicast_tvlv(struct sk_buff *skb,
 			     struct batadv_hard_iface *recv_if);
 int batadv_recv_unhandled_unicast_packet(struct sk_buff *skb,

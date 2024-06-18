@@ -24,7 +24,9 @@
 struct at91sam9x5_clk_usb {
 	struct clk_hw hw;
 	struct regmap *regmap;
+	struct at91_clk_pms pms;
 	u32 usbs_mask;
+	u8 num_parents;
 };
 
 #define to_at91sam9x5_clk_usb(hw) \
@@ -75,6 +77,9 @@ static int at91sam9x5_clk_usb_determine_rate(struct clk_hw *hw,
 			tmp_parent_rate = req->rate * div;
 			tmp_parent_rate = clk_hw_round_rate(parent,
 							   tmp_parent_rate);
+			if (!tmp_parent_rate)
+				continue;
+
 			tmp_rate = DIV_ROUND_CLOSEST(tmp_parent_rate, div);
 			if (tmp_rate < req->rate)
 				tmp_diff = req->rate - tmp_rate;
@@ -107,7 +112,7 @@ static int at91sam9x5_clk_usb_set_parent(struct clk_hw *hw, u8 index)
 {
 	struct at91sam9x5_clk_usb *usb = to_at91sam9x5_clk_usb(hw);
 
-	if (index > 1)
+	if (index >= usb->num_parents)
 		return -EINVAL;
 
 	regmap_update_bits(usb->regmap, AT91_PMC_USB, usb->usbs_mask, index);
@@ -144,12 +149,38 @@ static int at91sam9x5_clk_usb_set_rate(struct clk_hw *hw, unsigned long rate,
 	return 0;
 }
 
+static int at91sam9x5_usb_save_context(struct clk_hw *hw)
+{
+	struct at91sam9x5_clk_usb *usb = to_at91sam9x5_clk_usb(hw);
+	struct clk_hw *parent_hw = clk_hw_get_parent(hw);
+
+	usb->pms.parent = at91sam9x5_clk_usb_get_parent(hw);
+	usb->pms.parent_rate = clk_hw_get_rate(parent_hw);
+	usb->pms.rate = at91sam9x5_clk_usb_recalc_rate(hw, usb->pms.parent_rate);
+
+	return 0;
+}
+
+static void at91sam9x5_usb_restore_context(struct clk_hw *hw)
+{
+	struct at91sam9x5_clk_usb *usb = to_at91sam9x5_clk_usb(hw);
+	int ret;
+
+	ret = at91sam9x5_clk_usb_set_parent(hw, usb->pms.parent);
+	if (ret)
+		return;
+
+	at91sam9x5_clk_usb_set_rate(hw, usb->pms.rate, usb->pms.parent_rate);
+}
+
 static const struct clk_ops at91sam9x5_usb_ops = {
 	.recalc_rate = at91sam9x5_clk_usb_recalc_rate,
 	.determine_rate = at91sam9x5_clk_usb_determine_rate,
 	.get_parent = at91sam9x5_clk_usb_get_parent,
 	.set_parent = at91sam9x5_clk_usb_set_parent,
 	.set_rate = at91sam9x5_clk_usb_set_rate,
+	.save_context = at91sam9x5_usb_save_context,
+	.restore_context = at91sam9x5_usb_restore_context,
 };
 
 static int at91sam9n12_clk_usb_enable(struct clk_hw *hw)
@@ -211,7 +242,8 @@ _at91sam9x5_clk_register_usb(struct regmap *regmap, const char *name,
 
 	usb->hw.init = &init;
 	usb->regmap = regmap;
-	usb->usbs_mask = SAM9X5_USBS_MASK;
+	usb->usbs_mask = usbs_mask;
+	usb->num_parents = num_parents;
 
 	hw = &usb->hw;
 	ret = clk_hw_register(NULL, &usb->hw);

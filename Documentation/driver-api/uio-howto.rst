@@ -274,7 +274,7 @@ fields of ``struct uio_mem``:
    region, it will show up in the corresponding sysfs node.
 
 -  ``int memtype``: Required if the mapping is used. Set this to
-   ``UIO_MEM_PHYS`` if you you have physical memory on your card to be
+   ``UIO_MEM_PHYS`` if you have physical memory on your card to be
    mapped. Use ``UIO_MEM_LOGICAL`` for logical memory (e.g. allocated
    with :c:func:`__get_free_pages()` but not kmalloc()). There's also
    ``UIO_MEM_VIRTUAL`` for virtual memory.

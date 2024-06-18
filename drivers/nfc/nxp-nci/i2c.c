@@ -97,8 +97,8 @@ static int nxp_nci_i2c_fw_read(struct nxp_nci_i2c_phy *phy,
 			       struct sk_buff **skb)
 {
 	struct i2c_client *client = phy->i2c_dev;
-	u16 header;
 	size_t frame_len;
+	__be16 header;
 	int r;
 
 	r = i2c_master_recv(client, (u8 *) &header, NXP_NCI_FW_HDR_LEN);
@@ -122,7 +122,9 @@ static int nxp_nci_i2c_fw_read(struct nxp_nci_i2c_phy *phy,
 	skb_put_data(*skb, &header, NXP_NCI_FW_HDR_LEN);
 
 	r = i2c_master_recv(client, skb_put(*skb, frame_len), frame_len);
-	if (r != frame_len) {
+	if (r < 0) {
+		goto fw_read_exit_free_skb;
+	} else if (r != frame_len) {
 		nfc_err(&client->dev,
 			"Invalid frame length: %u (expected %zu)\n",
 			r, frame_len);
@@ -162,8 +164,13 @@ static int nxp_nci_i2c_nci_read(struct nxp_nci_i2c_phy *phy,
 
 	skb_put_data(*skb, (void *)&header, NCI_CTRL_HDR_SIZE);
 
+	if (!header.plen)
+		return 0;
+
 	r = i2c_master_recv(client, skb_put(*skb, header.plen), header.plen);
-	if (r != header.plen) {
+	if (r < 0) {
+		goto nci_read_exit_free_skb;
+	} else if (r != header.plen) {
 		nfc_err(&client->dev,
 			"Invalid frame payload length: %u (expected %u)\n",
 			r, header.plen);
@@ -220,8 +227,10 @@ static irqreturn_t nxp_nci_i2c_irq_thread_fn(int irq, void *phy_id)
 
 	if (r == -EREMOTEIO) {
 		phy->hard_fault = r;
-		skb = NULL;
-	} else if (r < 0) {
+		if (info->mode == NXP_NCI_MODE_FW)
+			nxp_nci_fw_recv_frame(phy->ndev, NULL);
+	}
+	if (r < 0) {
 		nfc_err(&client->dev, "Read failed with error %d\n", r);
 		goto exit_irq_handled;
 	}
@@ -254,8 +263,7 @@ static const struct acpi_gpio_mapping acpi_nxp_nci_gpios[] = {
 	{ }
 };
 
-static int nxp_nci_i2c_probe(struct i2c_client *client,
-			    const struct i2c_device_id *id)
+static int nxp_nci_i2c_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct nxp_nci_i2c_phy *phy;
@@ -276,7 +284,7 @@ static int nxp_nci_i2c_probe(struct i2c_client *client,
 
 	r = devm_acpi_dev_add_driver_gpios(dev, acpi_nxp_nci_gpios);
 	if (r)
-		return r;
+		dev_dbg(dev, "Unable to add GPIO mapping table\n");
 
 	phy->gpiod_en = devm_gpiod_get(dev, "enable", GPIOD_OUT_LOW);
 	if (IS_ERR(phy->gpiod_en)) {
@@ -284,7 +292,7 @@ static int nxp_nci_i2c_probe(struct i2c_client *client,
 		return PTR_ERR(phy->gpiod_en);
 	}
 
-	phy->gpiod_fw = devm_gpiod_get(dev, "firmware", GPIOD_OUT_LOW);
+	phy->gpiod_fw = devm_gpiod_get_optional(dev, "firmware", GPIOD_OUT_LOW);
 	if (IS_ERR(phy->gpiod_fw)) {
 		nfc_err(dev, "Failed to get FW gpio\n");
 		return PTR_ERR(phy->gpiod_fw);
@@ -305,14 +313,12 @@ static int nxp_nci_i2c_probe(struct i2c_client *client,
 	return r;
 }
 
-static int nxp_nci_i2c_remove(struct i2c_client *client)
+static void nxp_nci_i2c_remove(struct i2c_client *client)
 {
 	struct nxp_nci_i2c_phy *phy = i2c_get_clientdata(client);
 
 	nxp_nci_remove(phy->ndev);
 	free_irq(client->irq, phy);
-
-	return 0;
 }
 
 static const struct i2c_device_id nxp_nci_i2c_id_table[] = {
@@ -330,6 +336,7 @@ MODULE_DEVICE_TABLE(of, of_nxp_nci_i2c_match);
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id acpi_id[] = {
 	{ "NXP1001" },
+	{ "NXP1002" },
 	{ "NXP7471" },
 	{ }
 };

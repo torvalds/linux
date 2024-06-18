@@ -26,6 +26,7 @@
 #define EXYNOS5420_USE_L2_COMMON_UP_STATE	BIT(30)
 
 static void __iomem *ns_sram_base_addr __ro_after_init;
+static bool secure_firmware __ro_after_init;
 
 /*
  * The common v7_exit_coherency_flush API could not be used because of the
@@ -34,7 +35,6 @@ static void __iomem *ns_sram_base_addr __ro_after_init;
  */
 #define exynos_v7_exit_coherency_flush(level) \
 	asm volatile( \
-	"stmfd	sp!, {fp, ip}\n\t"\
 	"mrc	p15, 0, r0, c1, c0, 0	@ get SCTLR\n\t" \
 	"bic	r0, r0, #"__stringify(CR_C)"\n\t" \
 	"mcr	p15, 0, r0, c1, c0, 0	@ set SCTLR\n\t" \
@@ -49,24 +49,24 @@ static void __iomem *ns_sram_base_addr __ro_after_init;
 	"mcr	p15, 0, r0, c1, c0, 1	@ set ACTLR\n\t" \
 	"isb\n\t" \
 	"dsb\n\t" \
-	"ldmfd	sp!, {fp, ip}" \
 	: \
 	: "Ir" (pmu_base_addr + S5P_INFORM0) \
-	: "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", \
-	  "r9", "r10", "lr", "memory")
+	: "r0", "r1", "r2", "r3", "r4", "r5", "r6", \
+	  "r9", "r10", "ip", "lr", "memory")
 
 static int exynos_cpu_powerup(unsigned int cpu, unsigned int cluster)
 {
 	unsigned int cpunr = cpu + (cluster * EXYNOS5420_CPUS_PER_CLUSTER);
+	bool state;
 
 	pr_debug("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
 	if (cpu >= EXYNOS5420_CPUS_PER_CLUSTER ||
 		cluster >= EXYNOS5420_NR_CLUSTERS)
 		return -EINVAL;
 
-	if (!exynos_cpu_power_state(cpunr)) {
-		exynos_cpu_power_up(cpunr);
-
+	state = exynos_cpu_power_state(cpunr);
+	exynos_cpu_power_up(cpunr);
+	if (!state && secure_firmware) {
 		/*
 		 * This assumes the cluster number of the big cores(Cortex A15)
 		 * is 0 and the Little cores(Cortex A7) is 1.
@@ -257,6 +257,8 @@ static int __init exynos_mcpm_init(void)
 		pr_err("failed to map non-secure iRAM base address\n");
 		return -ENOMEM;
 	}
+
+	secure_firmware = exynos_secure_firmware_available();
 
 	/*
 	 * To increase the stability of KFC reset we need to program

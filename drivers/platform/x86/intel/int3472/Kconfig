@@ -1,0 +1,31 @@
+config INTEL_SKL_INT3472
+	tristate "Intel SkyLake ACPI INT3472 Driver"
+	depends on ACPI
+	depends on COMMON_CLK
+	depends on I2C
+	depends on GPIOLIB
+	depends on LEDS_CLASS
+	depends on REGULATOR
+	select MFD_CORE
+	select REGMAP_I2C
+	help
+	  This driver adds power controller support for the Intel SkyCam
+	  devices found on the Intel SkyLake platforms.
+
+	  The INT3472 is a camera power controller, a logical device found on
+	  Intel Skylake-based systems that can map to different hardware
+	  devices depending on the platform. On machines designed for Chrome OS
+	  it maps to a TPS68470 camera PMIC. On machines designed for Windows,
+	  it maps to either a TP68470 camera PMIC, a uP6641Q sensor PMIC, or a
+	  set of discrete GPIOs and power gates.
+
+	  If your device was designed for Chrome OS, this driver will provide
+	  an ACPI OpRegion, which must be available before any of the devices
+	  using it are probed. For this reason, you should select Y if your
+	  device was designed for ChromeOS. For the same reason the
+	  I2C_DESIGNWARE_PLATFORM option must be set to Y too.
+
+	  Say Y or M here if you have a SkyLake device designed for use
+	  with Windows or ChromeOS. Say N here if you are not sure.
+
+	  The module will be named "intel-skl-int3472".

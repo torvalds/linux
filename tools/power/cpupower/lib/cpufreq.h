@@ -20,10 +20,10 @@ struct cpufreq_available_governors {
 	struct cpufreq_available_governors *first;
 };
 
-struct cpufreq_frequencies {
+struct cpufreq_available_frequencies {
 	unsigned long frequency;
-	struct cpufreq_frequencies *next;
-	struct cpufreq_frequencies *first;
+	struct cpufreq_available_frequencies *next;
+	struct cpufreq_available_frequencies *first;
 };
 
 
@@ -124,11 +124,17 @@ void cpufreq_put_available_governors(
  * cpufreq_put_frequencies after use.
  */
 
-struct cpufreq_frequencies
-*cpufreq_get_frequencies(const char *type, unsigned int cpu);
+struct cpufreq_available_frequencies
+*cpufreq_get_available_frequencies(unsigned int cpu);
 
-void cpufreq_put_frequencies(
-		struct cpufreq_frequencies *first);
+void cpufreq_put_available_frequencies(
+		struct cpufreq_available_frequencies *first);
+
+struct cpufreq_available_frequencies
+*cpufreq_get_boost_frequencies(unsigned int cpu);
+
+void cpufreq_put_boost_frequencies(
+		struct cpufreq_available_frequencies *first);
 
 
 /* determine affected CPUs
@@ -196,6 +202,18 @@ int cpufreq_modify_policy_governor(unsigned int cpu, char *governor);
 
 int cpufreq_set_frequency(unsigned int cpu,
 				unsigned long target_frequency);
+
+/*
+ * get the sysfs value from specific table
+ *
+ * Read the value with the sysfs file name from specific table. Does
+ * only work if the cpufreq driver has the specific sysfs interfaces.
+ */
+
+unsigned long cpufreq_get_sysfs_value_from_table(unsigned int cpu,
+						 const char **table,
+						 unsigned int index,
+						 unsigned int size);
 
 #ifdef __cplusplus
 }

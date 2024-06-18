@@ -7,11 +7,10 @@
 #include <linux/etherdevice.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
-#include <linux/of_address.h>
+#include <linux/of.h>
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
-#include <linux/of_platform.h>
-#include <linux/of_irq.h>
+#include <linux/platform_device.h>
 #include <linux/skbuff.h>
 #include <linux/phy.h>
 #include <linux/mii.h>
@@ -249,25 +248,26 @@ static void nixge_hw_dma_bd_release(struct net_device *ndev)
 	struct sk_buff *skb;
 	int i;
 
-	for (i = 0; i < RX_BD_NUM; i++) {
-		phys_addr = nixge_hw_dma_bd_get_addr(&priv->rx_bd_v[i],
-						     phys);
+	if (priv->rx_bd_v) {
+		for (i = 0; i < RX_BD_NUM; i++) {
+			phys_addr = nixge_hw_dma_bd_get_addr(&priv->rx_bd_v[i],
+							     phys);
 
-		dma_unmap_single(ndev->dev.parent, phys_addr,
-				 NIXGE_MAX_JUMBO_FRAME_SIZE,
-				 DMA_FROM_DEVICE);
+			dma_unmap_single(ndev->dev.parent, phys_addr,
+					 NIXGE_MAX_JUMBO_FRAME_SIZE,
+					 DMA_FROM_DEVICE);
 
-		skb = (struct sk_buff *)(uintptr_t)
-			nixge_hw_dma_bd_get_addr(&priv->rx_bd_v[i],
-						 sw_id_offset);
-		dev_kfree_skb(skb);
-	}
+			skb = (struct sk_buff *)(uintptr_t)
+				nixge_hw_dma_bd_get_addr(&priv->rx_bd_v[i],
+							 sw_id_offset);
+			dev_kfree_skb(skb);
+		}
 
-	if (priv->rx_bd_v)
 		dma_free_coherent(ndev->dev.parent,
 				  sizeof(*priv->rx_bd_v) * RX_BD_NUM,
 				  priv->rx_bd_v,
 				  priv->rx_bd_p);
+	}
 
 	if (priv->tx_skb)
 		devm_kfree(ndev->dev.parent, priv->tx_skb);
@@ -324,8 +324,9 @@ static int nixge_hw_dma_bd_init(struct net_device *ndev)
 					 + sizeof(*priv->rx_bd_v) *
 					 ((i + 1) % RX_BD_NUM));
 
-		skb = netdev_alloc_skb_ip_align(ndev,
-						NIXGE_MAX_JUMBO_FRAME_SIZE);
+		skb = __netdev_alloc_skb_ip_align(ndev,
+						  NIXGE_MAX_JUMBO_FRAME_SIZE,
+						  GFP_KERNEL);
 		if (!skb)
 			goto out;
 
@@ -502,7 +503,8 @@ static int nixge_check_tx_bd_space(struct nixge_priv *priv,
 	return 0;
 }
 
-static int nixge_start_xmit(struct sk_buff *skb, struct net_device *ndev)
+static netdev_tx_t nixge_start_xmit(struct sk_buff *skb,
+				    struct net_device *ndev)
 {
 	struct nixge_priv *priv = netdev_priv(ndev);
 	struct nixge_hw_dma_bd *cur_p;
@@ -681,7 +683,7 @@ static int nixge_poll(struct napi_struct *napi, int budget)
 		if (status & (XAXIDMA_IRQ_IOC_MASK | XAXIDMA_IRQ_DELAY_MASK)) {
 			/* If there's more, reschedule, but clear */
 			nixge_dma_write_reg(priv, XAXIDMA_RX_SR_OFFSET, status);
-			napi_reschedule(napi);
+			napi_schedule(napi);
 		} else {
 			/* if not, turn on RX IRQs again ... */
 			cr = nixge_dma_read_reg(priv, XAXIDMA_RX_CR_OFFSET);
@@ -753,8 +755,7 @@ static irqreturn_t nixge_rx_irq(int irq, void *_ndev)
 		cr &= ~(XAXIDMA_IRQ_IOC_MASK | XAXIDMA_IRQ_DELAY_MASK);
 		nixge_dma_write_reg(priv, XAXIDMA_RX_CR_OFFSET, cr);
 
-		if (napi_schedule_prep(&priv->napi))
-			__napi_schedule(&priv->napi);
+		napi_schedule(&priv->napi);
 		goto out;
 	}
 	if (!(status & XAXIDMA_IRQ_ALL_MASK)) {
@@ -786,9 +787,9 @@ out:
 	return IRQ_HANDLED;
 }
 
-static void nixge_dma_err_handler(unsigned long data)
+static void nixge_dma_err_handler(struct tasklet_struct *t)
 {
-	struct nixge_priv *lp = (struct nixge_priv *)data;
+	struct nixge_priv *lp = from_tasklet(lp, t, dma_err_tasklet);
 	struct nixge_hw_dma_bd *cur_p;
 	struct nixge_tx_skb *tx_skb;
 	u32 cr, i;
@@ -878,8 +879,7 @@ static int nixge_open(struct net_device *ndev)
 	phy_start(phy);
 
 	/* Enable tasklets for Axi DMA error handling */
-	tasklet_init(&priv->dma_err_tasklet, nixge_dma_err_handler,
-		     (unsigned long)priv);
+	tasklet_setup(&priv->dma_err_tasklet, nixge_dma_err_handler);
 
 	napi_enable(&priv->napi);
 
@@ -899,6 +899,7 @@ static int nixge_open(struct net_device *ndev)
 err_rx_irq:
 	free_irq(priv->tx_irq, ndev);
 err_tx_irq:
+	napi_disable(&priv->napi);
 	phy_stop(phy);
 	phy_disconnect(phy);
 	tasklet_kill(&priv->dma_err_tasklet);
@@ -945,7 +946,7 @@ static int nixge_change_mtu(struct net_device *ndev, int new_mtu)
 	     NIXGE_MAX_JUMBO_FRAME_SIZE)
 		return -EINVAL;
 
-	ndev->mtu = new_mtu;
+	WRITE_ONCE(ndev->mtu, new_mtu);
 
 	return 0;
 }
@@ -989,12 +990,15 @@ static const struct net_device_ops nixge_netdev_ops = {
 static void nixge_ethtools_get_drvinfo(struct net_device *ndev,
 				       struct ethtool_drvinfo *ed)
 {
-	strlcpy(ed->driver, "nixge", sizeof(ed->driver));
-	strlcpy(ed->bus_info, "platform", sizeof(ed->bus_info));
+	strscpy(ed->driver, "nixge", sizeof(ed->driver));
+	strscpy(ed->bus_info, "platform", sizeof(ed->bus_info));
 }
 
-static int nixge_ethtools_get_coalesce(struct net_device *ndev,
-				       struct ethtool_coalesce *ecoalesce)
+static int
+nixge_ethtools_get_coalesce(struct net_device *ndev,
+			    struct ethtool_coalesce *ecoalesce,
+			    struct kernel_ethtool_coalesce *kernel_coal,
+			    struct netlink_ext_ack *extack)
 {
 	struct nixge_priv *priv = netdev_priv(ndev);
 	u32 regval = 0;
@@ -1008,8 +1012,11 @@ static int nixge_ethtools_get_coalesce(struct net_device *ndev,
 	return 0;
 }
 
-static int nixge_ethtools_set_coalesce(struct net_device *ndev,
-				       struct ethtool_coalesce *ecoalesce)
+static int
+nixge_ethtools_set_coalesce(struct net_device *ndev,
+			    struct ethtool_coalesce *ecoalesce,
+			    struct kernel_ethtool_coalesce *kernel_coal,
+			    struct netlink_ext_ack *extack)
 {
 	struct nixge_priv *priv = netdev_priv(ndev);
 
@@ -1019,27 +1026,6 @@ static int nixge_ethtools_set_coalesce(struct net_device *ndev,
 		return -EBUSY;
 	}
 
-	if (ecoalesce->rx_coalesce_usecs ||
-	    ecoalesce->rx_coalesce_usecs_irq ||
-	    ecoalesce->rx_max_coalesced_frames_irq ||
-	    ecoalesce->tx_coalesce_usecs ||
-	    ecoalesce->tx_coalesce_usecs_irq ||
-	    ecoalesce->tx_max_coalesced_frames_irq ||
-	    ecoalesce->stats_block_coalesce_usecs ||
-	    ecoalesce->use_adaptive_rx_coalesce ||
-	    ecoalesce->use_adaptive_tx_coalesce ||
-	    ecoalesce->pkt_rate_low ||
-	    ecoalesce->rx_coalesce_usecs_low ||
-	    ecoalesce->rx_max_coalesced_frames_low ||
-	    ecoalesce->tx_coalesce_usecs_low ||
-	    ecoalesce->tx_max_coalesced_frames_low ||
-	    ecoalesce->pkt_rate_high ||
-	    ecoalesce->rx_coalesce_usecs_high ||
-	    ecoalesce->rx_max_coalesced_frames_high ||
-	    ecoalesce->tx_coalesce_usecs_high ||
-	    ecoalesce->tx_max_coalesced_frames_high ||
-	    ecoalesce->rate_sample_interval)
-		return -EOPNOTSUPP;
 	if (ecoalesce->rx_max_coalesced_frames)
 		priv->coalesce_count_rx = ecoalesce->rx_max_coalesced_frames;
 	if (ecoalesce->tx_max_coalesced_frames)
@@ -1083,6 +1069,7 @@ static int nixge_ethtools_set_phys_id(struct net_device *ndev,
 }
 
 static const struct ethtool_ops nixge_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_MAX_FRAMES,
 	.get_drvinfo    = nixge_ethtools_get_drvinfo,
 	.get_coalesce   = nixge_ethtools_get_coalesce,
 	.set_coalesce   = nixge_ethtools_set_coalesce,
@@ -1092,39 +1079,17 @@ static const struct ethtool_ops nixge_ethtool_ops = {
 	.get_link		= ethtool_op_get_link,
 };
 
-static int nixge_mdio_read(struct mii_bus *bus, int phy_id, int reg)
+static int nixge_mdio_read_c22(struct mii_bus *bus, int phy_id, int reg)
 {
 	struct nixge_priv *priv = bus->priv;
 	u32 status, tmp;
 	int err;
 	u16 device;
 
-	if (reg & MII_ADDR_C45) {
-		device = (reg >> 16) & 0x1f;
+	device = reg & 0x1f;
 
-		nixge_ctrl_write_reg(priv, NIXGE_REG_MDIO_ADDR, reg & 0xffff);
-
-		tmp = NIXGE_MDIO_CLAUSE45 | NIXGE_MDIO_OP(NIXGE_MDIO_OP_ADDRESS)
-			| NIXGE_MDIO_ADDR(phy_id) | NIXGE_MDIO_MMD(device);
-
-		nixge_ctrl_write_reg(priv, NIXGE_REG_MDIO_OP, tmp);
-		nixge_ctrl_write_reg(priv, NIXGE_REG_MDIO_CTRL, 1);
-
-		err = nixge_ctrl_poll_timeout(priv, NIXGE_REG_MDIO_CTRL, status,
-					      !status, 10, 1000);
-		if (err) {
-			dev_err(priv->dev, "timeout setting address");
-			return err;
-		}
-
-		tmp = NIXGE_MDIO_CLAUSE45 | NIXGE_MDIO_OP(NIXGE_MDIO_C45_READ) |
-			NIXGE_MDIO_ADDR(phy_id) | NIXGE_MDIO_MMD(device);
-	} else {
-		device = reg & 0x1f;
-
-		tmp = NIXGE_MDIO_CLAUSE22 | NIXGE_MDIO_OP(NIXGE_MDIO_C22_READ) |
-			NIXGE_MDIO_ADDR(phy_id) | NIXGE_MDIO_MMD(device);
-	}
+	tmp = NIXGE_MDIO_CLAUSE22 | NIXGE_MDIO_OP(NIXGE_MDIO_C22_READ) |
+	      NIXGE_MDIO_ADDR(phy_id) | NIXGE_MDIO_MMD(device);
 
 	nixge_ctrl_write_reg(priv, NIXGE_REG_MDIO_OP, tmp);
 	nixge_ctrl_write_reg(priv, NIXGE_REG_MDIO_CTRL, 1);
@@ -1141,56 +1106,105 @@ static int nixge_mdio_read(struct mii_bus *bus, int phy_id, int reg)
 	return status;
 }
 
-static int nixge_mdio_write(struct mii_bus *bus, int phy_id, int reg, u16 val)
+static int nixge_mdio_read_c45(struct mii_bus *bus, int phy_id, int device,
+			       int reg)
+{
+	struct nixge_priv *priv = bus->priv;
+	u32 status, tmp;
+	int err;
+
+	nixge_ctrl_write_reg(priv, NIXGE_REG_MDIO_ADDR, reg & 0xffff);
+
+	tmp = NIXGE_MDIO_CLAUSE45 |
+	      NIXGE_MDIO_OP(NIXGE_MDIO_OP_ADDRESS) |
+	      NIXGE_MDIO_ADDR(phy_id) | NIXGE_MDIO_MMD(device);
+
+	nixge_ctrl_write_reg(priv, NIXGE_REG_MDIO_OP, tmp);
+	nixge_ctrl_write_reg(priv, NIXGE_REG_MDIO_CTRL, 1);
+
+	err = nixge_ctrl_poll_timeout(priv, NIXGE_REG_MDIO_CTRL, status,
+				      !status, 10, 1000);
+	if (err) {
+		dev_err(priv->dev, "timeout setting address");
+		return err;
+	}
+
+	tmp = NIXGE_MDIO_CLAUSE45 | NIXGE_MDIO_OP(NIXGE_MDIO_C45_READ) |
+	      NIXGE_MDIO_ADDR(phy_id) | NIXGE_MDIO_MMD(device);
+
+	nixge_ctrl_write_reg(priv, NIXGE_REG_MDIO_OP, tmp);
+	nixge_ctrl_write_reg(priv, NIXGE_REG_MDIO_CTRL, 1);
+
+	err = nixge_ctrl_poll_timeout(priv, NIXGE_REG_MDIO_CTRL, status,
+				      !status, 10, 1000);
+	if (err) {
+		dev_err(priv->dev, "timeout setting read command");
+		return err;
+	}
+
+	status = nixge_ctrl_read_reg(priv, NIXGE_REG_MDIO_DATA);
+
+	return status;
+}
+
+static int nixge_mdio_write_c22(struct mii_bus *bus, int phy_id, int reg,
+				u16 val)
 {
 	struct nixge_priv *priv = bus->priv;
 	u32 status, tmp;
 	u16 device;
 	int err;
 
-	if (reg & MII_ADDR_C45) {
-		device = (reg >> 16) & 0x1f;
+	device = reg & 0x1f;
 
-		nixge_ctrl_write_reg(priv, NIXGE_REG_MDIO_ADDR, reg & 0xffff);
+	tmp = NIXGE_MDIO_CLAUSE22 | NIXGE_MDIO_OP(NIXGE_MDIO_C22_WRITE) |
+	      NIXGE_MDIO_ADDR(phy_id) | NIXGE_MDIO_MMD(device);
 
-		tmp = NIXGE_MDIO_CLAUSE45 | NIXGE_MDIO_OP(NIXGE_MDIO_OP_ADDRESS)
-			| NIXGE_MDIO_ADDR(phy_id) | NIXGE_MDIO_MMD(device);
+	nixge_ctrl_write_reg(priv, NIXGE_REG_MDIO_DATA, val);
+	nixge_ctrl_write_reg(priv, NIXGE_REG_MDIO_OP, tmp);
+	nixge_ctrl_write_reg(priv, NIXGE_REG_MDIO_CTRL, 1);
 
-		nixge_ctrl_write_reg(priv, NIXGE_REG_MDIO_OP, tmp);
-		nixge_ctrl_write_reg(priv, NIXGE_REG_MDIO_CTRL, 1);
+	err = nixge_ctrl_poll_timeout(priv, NIXGE_REG_MDIO_CTRL, status,
+				      !status, 10, 1000);
+	if (err)
+		dev_err(priv->dev, "timeout setting write command");
 
-		err = nixge_ctrl_poll_timeout(priv, NIXGE_REG_MDIO_CTRL, status,
-					      !status, 10, 1000);
-		if (err) {
-			dev_err(priv->dev, "timeout setting address");
-			return err;
-		}
+	return err;
+}
 
-		tmp = NIXGE_MDIO_CLAUSE45 | NIXGE_MDIO_OP(NIXGE_MDIO_C45_WRITE)
-			| NIXGE_MDIO_ADDR(phy_id) | NIXGE_MDIO_MMD(device);
+static int nixge_mdio_write_c45(struct mii_bus *bus, int phy_id,
+				int device, int reg, u16 val)
+{
+	struct nixge_priv *priv = bus->priv;
+	u32 status, tmp;
+	int err;
 
-		nixge_ctrl_write_reg(priv, NIXGE_REG_MDIO_DATA, val);
-		nixge_ctrl_write_reg(priv, NIXGE_REG_MDIO_OP, tmp);
-		err = nixge_ctrl_poll_timeout(priv, NIXGE_REG_MDIO_CTRL, status,
-					      !status, 10, 1000);
-		if (err)
-			dev_err(priv->dev, "timeout setting write command");
-	} else {
-		device = reg & 0x1f;
+	nixge_ctrl_write_reg(priv, NIXGE_REG_MDIO_ADDR, reg & 0xffff);
 
-		tmp = NIXGE_MDIO_CLAUSE22 |
-			NIXGE_MDIO_OP(NIXGE_MDIO_C22_WRITE) |
-			NIXGE_MDIO_ADDR(phy_id) | NIXGE_MDIO_MMD(device);
+	tmp = NIXGE_MDIO_CLAUSE45 |
+	      NIXGE_MDIO_OP(NIXGE_MDIO_OP_ADDRESS) |
+	      NIXGE_MDIO_ADDR(phy_id) | NIXGE_MDIO_MMD(device);
 
-		nixge_ctrl_write_reg(priv, NIXGE_REG_MDIO_DATA, val);
-		nixge_ctrl_write_reg(priv, NIXGE_REG_MDIO_OP, tmp);
-		nixge_ctrl_write_reg(priv, NIXGE_REG_MDIO_CTRL, 1);
+	nixge_ctrl_write_reg(priv, NIXGE_REG_MDIO_OP, tmp);
+	nixge_ctrl_write_reg(priv, NIXGE_REG_MDIO_CTRL, 1);
 
-		err = nixge_ctrl_poll_timeout(priv, NIXGE_REG_MDIO_CTRL, status,
-					      !status, 10, 1000);
-		if (err)
-			dev_err(priv->dev, "timeout setting write command");
+	err = nixge_ctrl_poll_timeout(priv, NIXGE_REG_MDIO_CTRL, status,
+				      !status, 10, 1000);
+	if (err) {
+		dev_err(priv->dev, "timeout setting address");
+		return err;
 	}
+
+	tmp = NIXGE_MDIO_CLAUSE45 | NIXGE_MDIO_OP(NIXGE_MDIO_C45_WRITE) |
+	      NIXGE_MDIO_ADDR(phy_id) | NIXGE_MDIO_MMD(device);
+
+	nixge_ctrl_write_reg(priv, NIXGE_REG_MDIO_DATA, val);
+	nixge_ctrl_write_reg(priv, NIXGE_REG_MDIO_OP, tmp);
+
+	err = nixge_ctrl_poll_timeout(priv, NIXGE_REG_MDIO_CTRL, status,
+				      !status, 10, 1000);
+	if (err)
+		dev_err(priv->dev, "timeout setting write command");
 
 	return err;
 }
@@ -1206,8 +1220,10 @@ static int nixge_mdio_setup(struct nixge_priv *priv, struct device_node *np)
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%s-mii", dev_name(priv->dev));
 	bus->priv = priv;
 	bus->name = "nixge_mii_bus";
-	bus->read = nixge_mdio_read;
-	bus->write = nixge_mdio_write;
+	bus->read = nixge_mdio_read_c22;
+	bus->write = nixge_mdio_write_c22;
+	bus->read_c45 = nixge_mdio_read_c45;
+	bus->write_c45 = nixge_mdio_write_c45;
 	bus->parent = priv->dev;
 
 	priv->mii_bus = bus;
@@ -1223,7 +1239,7 @@ static void *nixge_get_nvmem_address(struct device *dev)
 
 	cell = nvmem_cell_get(dev, "address");
 	if (IS_ERR(cell))
-		return NULL;
+		return cell;
 
 	mac = nvmem_cell_read(cell, &cell_size);
 	nvmem_cell_put(cell);
@@ -1243,8 +1259,6 @@ static int nixge_of_get_resources(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id;
 	enum nixge_version version;
-	struct resource *ctrlres;
-	struct resource *dmares;
 	struct net_device *ndev;
 	struct nixge_priv *priv;
 
@@ -1256,23 +1270,17 @@ static int nixge_of_get_resources(struct platform_device *pdev)
 
 	version = (enum nixge_version)of_id->data;
 	if (version <= NIXGE_V2)
-		dmares = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		priv->dma_regs = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	else
-		dmares = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						      "dma");
-
-	priv->dma_regs = devm_ioremap_resource(&pdev->dev, dmares);
+		priv->dma_regs = devm_platform_ioremap_resource_byname(pdev, "dma");
 	if (IS_ERR(priv->dma_regs)) {
 		netdev_err(ndev, "failed to map dma regs\n");
 		return PTR_ERR(priv->dma_regs);
 	}
-	if (version <= NIXGE_V2) {
+	if (version <= NIXGE_V2)
 		priv->ctrl_regs = priv->dma_regs + NIXGE_REG_CTRL_OFFSET;
-	} else {
-		ctrlres = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						       "ctrl");
-		priv->ctrl_regs = devm_ioremap_resource(&pdev->dev, ctrlres);
-	}
+	else
+		priv->ctrl_regs = devm_platform_ioremap_resource_byname(pdev, "ctrl");
 	if (IS_ERR(priv->ctrl_regs)) {
 		netdev_err(ndev, "failed to map ctrl regs\n");
 		return PTR_ERR(priv->ctrl_regs);
@@ -1304,8 +1312,8 @@ static int nixge_probe(struct platform_device *pdev)
 	ndev->max_mtu = NIXGE_JUMBO_MTU;
 
 	mac_addr = nixge_get_nvmem_address(&pdev->dev);
-	if (mac_addr && is_valid_ether_addr(mac_addr)) {
-		ether_addr_copy(ndev->dev_addr, mac_addr);
+	if (!IS_ERR(mac_addr) && is_valid_ether_addr(mac_addr)) {
+		eth_hw_addr_set(ndev, mac_addr);
 		kfree(mac_addr);
 	} else {
 		eth_hw_addr_random(ndev);
@@ -1315,22 +1323,24 @@ static int nixge_probe(struct platform_device *pdev)
 	priv->ndev = ndev;
 	priv->dev = &pdev->dev;
 
-	netif_napi_add(ndev, &priv->napi, nixge_poll, NAPI_POLL_WEIGHT);
+	netif_napi_add(ndev, &priv->napi, nixge_poll);
 	err = nixge_of_get_resources(pdev);
 	if (err)
-		return err;
+		goto free_netdev;
 	__nixge_hw_set_mac_address(ndev);
 
 	priv->tx_irq = platform_get_irq_byname(pdev, "tx");
 	if (priv->tx_irq < 0) {
 		netdev_err(ndev, "could not find 'tx' irq");
-		return priv->tx_irq;
+		err = priv->tx_irq;
+		goto free_netdev;
 	}
 
 	priv->rx_irq = platform_get_irq_byname(pdev, "rx");
 	if (priv->rx_irq < 0) {
 		netdev_err(ndev, "could not find 'rx' irq");
-		return priv->rx_irq;
+		err = priv->rx_irq;
+		goto free_netdev;
 	}
 
 	priv->coalesce_count_rx = XAXIDMA_DFT_RX_THRESHOLD;
@@ -1346,10 +1356,9 @@ static int nixge_probe(struct platform_device *pdev)
 		}
 	}
 
-	priv->phy_mode = of_get_phy_mode(pdev->dev.of_node);
-	if ((int)priv->phy_mode < 0) {
+	err = of_get_phy_mode(pdev->dev.of_node, &priv->phy_mode);
+	if (err) {
 		netdev_err(ndev, "not find \"phy-mode\" property\n");
-		err = -EINVAL;
 		goto unregister_mdio;
 	}
 
@@ -1387,7 +1396,7 @@ free_netdev:
 	return err;
 }
 
-static int nixge_remove(struct platform_device *pdev)
+static void nixge_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct nixge_priv *priv = netdev_priv(ndev);
@@ -1402,16 +1411,14 @@ static int nixge_remove(struct platform_device *pdev)
 		mdiobus_unregister(priv->mii_bus);
 
 	free_netdev(ndev);
-
-	return 0;
 }
 
 static struct platform_driver nixge_driver = {
 	.probe		= nixge_probe,
-	.remove		= nixge_remove,
+	.remove_new	= nixge_remove,
 	.driver		= {
 		.name		= "nixge",
-		.of_match_table	= of_match_ptr(nixge_dt_ids),
+		.of_match_table	= nixge_dt_ids,
 	},
 };
 module_platform_driver(nixge_driver);

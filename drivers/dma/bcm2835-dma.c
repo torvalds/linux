@@ -41,14 +41,12 @@
  * struct bcm2835_dmadev - BCM2835 DMA controller
  * @ddev: DMA device
  * @base: base address of register map
- * @dma_parms: DMA parameters (to convey 1 GByte max segment size to clients)
  * @zero_page: bus address of zero page (to detect transactions copying from
  *	zero page and avoid accessing memory if so)
  */
 struct bcm2835_dmadev {
 	struct dma_device ddev;
 	void __iomem *base;
-	struct device_dma_parameters dma_parms;
 	dma_addr_t zero_page;
 };
 
@@ -797,10 +795,7 @@ static int bcm2835_dma_terminate_all(struct dma_chan *chan)
 
 	/* stop DMA activity */
 	if (c->desc) {
-		if (c->desc->vd.tx.flags & DMA_PREP_INTERRUPT)
-			vchan_terminate_vdesc(&c->desc->vd);
-		else
-			vchan_vdesc_fini(&c->desc->vd);
+		vchan_terminate_vdesc(&c->desc->vd);
 		c->desc = NULL;
 		bcm2835_dma_abort(c);
 	}
@@ -883,7 +878,6 @@ static struct dma_chan *bcm2835_dma_xlate(struct of_phandle_args *spec,
 static int bcm2835_dma_probe(struct platform_device *pdev)
 {
 	struct bcm2835_dmadev *od;
-	struct resource *res;
 	void __iomem *base;
 	int rc;
 	int i, j;
@@ -905,11 +899,9 @@ static int bcm2835_dma_probe(struct platform_device *pdev)
 	if (!od)
 		return -ENOMEM;
 
-	pdev->dev.dma_parms = &od->dma_parms;
 	dma_set_max_seg_size(&pdev->dev, 0x3FFFFFFF);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
@@ -1027,19 +1019,17 @@ err_no_dma:
 	return rc;
 }
 
-static int bcm2835_dma_remove(struct platform_device *pdev)
+static void bcm2835_dma_remove(struct platform_device *pdev)
 {
 	struct bcm2835_dmadev *od = platform_get_drvdata(pdev);
 
 	dma_async_device_unregister(&od->ddev);
 	bcm2835_dma_free(od);
-
-	return 0;
 }
 
 static struct platform_driver bcm2835_dma_driver = {
 	.probe	= bcm2835_dma_probe,
-	.remove	= bcm2835_dma_remove,
+	.remove_new = bcm2835_dma_remove,
 	.driver = {
 		.name = "bcm2835-dma",
 		.of_match_table = of_match_ptr(bcm2835_dma_of_match),

@@ -25,7 +25,7 @@ static ssize_t fscontext_read(struct file *file,
 			      char __user *_buf, size_t len, loff_t *pos)
 {
 	struct fs_context *fc = file->private_data;
-	struct fc_log *log = fc->log;
+	struct fc_log *log = fc->log.log;
 	unsigned int logsize = ARRAY_SIZE(log->buffer);
 	ssize_t ret;
 	char *p;
@@ -97,11 +97,11 @@ static int fscontext_create_fd(struct fs_context *fc, unsigned int o_flags)
 
 static int fscontext_alloc_log(struct fs_context *fc)
 {
-	fc->log = kzalloc(sizeof(*fc->log), GFP_KERNEL);
-	if (!fc->log)
+	fc->log.log = kzalloc(sizeof(*fc->log.log), GFP_KERNEL);
+	if (!fc->log.log)
 		return -ENOMEM;
-	refcount_set(&fc->log->usage, 1);
-	fc->log->owner = fc->fs_type->owner;
+	refcount_set(&fc->log.log->usage, 1);
+	fc->log.log->owner = fc->fs_type->owner;
 	return 0;
 }
 
@@ -119,7 +119,7 @@ SYSCALL_DEFINE2(fsopen, const char __user *, _fs_name, unsigned int, flags)
 	const char *fs_name;
 	int ret;
 
-	if (!ns_capable(current->nsproxy->mnt_ns->user_ns, CAP_SYS_ADMIN))
+	if (!may_mount())
 		return -EPERM;
 
 	if (flags & ~FSOPEN_CLOEXEC)
@@ -162,7 +162,7 @@ SYSCALL_DEFINE3(fspick, int, dfd, const char __user *, path, unsigned int, flags
 	unsigned int lookup_flags;
 	int ret;
 
-	if (!ns_capable(current->nsproxy->mnt_ns->user_ns, CAP_SYS_ADMIN))
+	if (!may_mount())
 		return -EPERM;
 
 	if ((flags & ~(FSPICK_CLOEXEC |
@@ -209,6 +209,72 @@ err:
 	return ret;
 }
 
+static int vfs_cmd_create(struct fs_context *fc, bool exclusive)
+{
+	struct super_block *sb;
+	int ret;
+
+	if (fc->phase != FS_CONTEXT_CREATE_PARAMS)
+		return -EBUSY;
+
+	if (!mount_capable(fc))
+		return -EPERM;
+
+	/* require the new mount api */
+	if (exclusive && fc->ops == &legacy_fs_context_ops)
+		return -EOPNOTSUPP;
+
+	fc->phase = FS_CONTEXT_CREATING;
+	fc->exclusive = exclusive;
+
+	ret = vfs_get_tree(fc);
+	if (ret) {
+		fc->phase = FS_CONTEXT_FAILED;
+		return ret;
+	}
+
+	sb = fc->root->d_sb;
+	ret = security_sb_kern_mount(sb);
+	if (unlikely(ret)) {
+		fc_drop_locked(fc);
+		fc->phase = FS_CONTEXT_FAILED;
+		return ret;
+	}
+
+	/* vfs_get_tree() callchains will have grabbed @s_umount */
+	up_write(&sb->s_umount);
+	fc->phase = FS_CONTEXT_AWAITING_MOUNT;
+	return 0;
+}
+
+static int vfs_cmd_reconfigure(struct fs_context *fc)
+{
+	struct super_block *sb;
+	int ret;
+
+	if (fc->phase != FS_CONTEXT_RECONF_PARAMS)
+		return -EBUSY;
+
+	fc->phase = FS_CONTEXT_RECONFIGURING;
+
+	sb = fc->root->d_sb;
+	if (!ns_capable(sb->s_user_ns, CAP_SYS_ADMIN)) {
+		fc->phase = FS_CONTEXT_FAILED;
+		return -EPERM;
+	}
+
+	down_write(&sb->s_umount);
+	ret = reconfigure_super(fc);
+	up_write(&sb->s_umount);
+	if (ret) {
+		fc->phase = FS_CONTEXT_FAILED;
+		return ret;
+	}
+
+	vfs_clean_context(fc);
+	return 0;
+}
+
 /*
  * Check the state and apply the configuration.  Note that this function is
  * allowed to 'steal' the value by setting param->xxx to NULL before returning.
@@ -216,7 +282,6 @@ err:
 static int vfs_fsconfig_locked(struct fs_context *fc, int cmd,
 			       struct fs_parameter *param)
 {
-	struct super_block *sb;
 	int ret;
 
 	ret = finish_clean_context(fc);
@@ -224,39 +289,11 @@ static int vfs_fsconfig_locked(struct fs_context *fc, int cmd,
 		return ret;
 	switch (cmd) {
 	case FSCONFIG_CMD_CREATE:
-		if (fc->phase != FS_CONTEXT_CREATE_PARAMS)
-			return -EBUSY;
-		if (!mount_capable(fc))
-			return -EPERM;
-		fc->phase = FS_CONTEXT_CREATING;
-		ret = vfs_get_tree(fc);
-		if (ret)
-			break;
-		sb = fc->root->d_sb;
-		ret = security_sb_kern_mount(sb);
-		if (unlikely(ret)) {
-			fc_drop_locked(fc);
-			break;
-		}
-		up_write(&sb->s_umount);
-		fc->phase = FS_CONTEXT_AWAITING_MOUNT;
-		return 0;
+		return vfs_cmd_create(fc, false);
+	case FSCONFIG_CMD_CREATE_EXCL:
+		return vfs_cmd_create(fc, true);
 	case FSCONFIG_CMD_RECONFIGURE:
-		if (fc->phase != FS_CONTEXT_RECONF_PARAMS)
-			return -EBUSY;
-		fc->phase = FS_CONTEXT_RECONFIGURING;
-		sb = fc->root->d_sb;
-		if (!ns_capable(sb->s_user_ns, CAP_SYS_ADMIN)) {
-			ret = -EPERM;
-			break;
-		}
-		down_write(&sb->s_umount);
-		ret = reconfigure_super(fc);
-		up_write(&sb->s_umount);
-		if (ret)
-			break;
-		vfs_clean_context(fc);
-		return 0;
+		return vfs_cmd_reconfigure(fc);
 	default:
 		if (fc->phase != FS_CONTEXT_CREATE_PARAMS &&
 		    fc->phase != FS_CONTEXT_RECONF_PARAMS)
@@ -264,8 +301,6 @@ static int vfs_fsconfig_locked(struct fs_context *fc, int cmd,
 
 		return vfs_parse_fs_param(fc, param);
 	}
-	fc->phase = FS_CONTEXT_FAILED;
-	return ret;
 }
 
 /**
@@ -321,6 +356,7 @@ SYSCALL_DEFINE5(fsconfig,
 	struct fs_context *fc;
 	struct fd f;
 	int ret;
+	int lookup_flags = 0;
 
 	struct fs_parameter param = {
 		.type	= fs_value_is_undefined,
@@ -352,6 +388,7 @@ SYSCALL_DEFINE5(fsconfig,
 			return -EINVAL;
 		break;
 	case FSCONFIG_CMD_CREATE:
+	case FSCONFIG_CMD_CREATE_EXCL:
 	case FSCONFIG_CMD_RECONFIGURE:
 		if (_key || _value || aux)
 			return -EINVAL;
@@ -409,19 +446,12 @@ SYSCALL_DEFINE5(fsconfig,
 			goto out_key;
 		}
 		break;
+	case FSCONFIG_SET_PATH_EMPTY:
+		lookup_flags = LOOKUP_EMPTY;
+		fallthrough;
 	case FSCONFIG_SET_PATH:
 		param.type = fs_value_is_filename;
-		param.name = getname_flags(_value, 0, NULL);
-		if (IS_ERR(param.name)) {
-			ret = PTR_ERR(param.name);
-			goto out_key;
-		}
-		param.dirfd = aux;
-		param.size = strlen(param.name->name);
-		break;
-	case FSCONFIG_SET_PATH_EMPTY:
-		param.type = fs_value_is_filename_empty;
-		param.name = getname_flags(_value, LOOKUP_EMPTY, NULL);
+		param.name = getname_flags(_value, lookup_flags, NULL);
 		if (IS_ERR(param.name)) {
 			ret = PTR_ERR(param.name);
 			goto out_key;
@@ -435,6 +465,7 @@ SYSCALL_DEFINE5(fsconfig,
 		param.file = fget(aux);
 		if (!param.file)
 			goto out_key;
+		param.dirfd = aux;
 		break;
 	default:
 		break;

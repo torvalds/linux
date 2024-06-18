@@ -37,7 +37,9 @@
 #include "wm8940.h"
 
 struct wm8940_priv {
-	unsigned int sysclk;
+	unsigned int mclk;
+	unsigned int fs;
+
 	struct regmap *regmap;
 };
 
@@ -337,8 +339,8 @@ static int wm8940_set_dai_fmt(struct snd_soc_dai *codec_dai,
 			      unsigned int fmt)
 {
 	struct snd_soc_component *component = codec_dai->component;
-	u16 iface = snd_soc_component_read32(component, WM8940_IFACE) & 0xFE67;
-	u16 clk = snd_soc_component_read32(component, WM8940_CLOCK) & 0x1fe;
+	u16 iface = snd_soc_component_read(component, WM8940_IFACE) & 0xFE67;
+	u16 clk = snd_soc_component_read(component, WM8940_CLOCK) & 0x1fe;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
@@ -387,16 +389,23 @@ static int wm8940_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	return 0;
 }
 
+static int wm8940_update_clocks(struct snd_soc_dai *dai);
 static int wm8940_i2s_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params,
 				struct snd_soc_dai *dai)
 {
 	struct snd_soc_component *component = dai->component;
-	u16 iface = snd_soc_component_read32(component, WM8940_IFACE) & 0xFD9F;
-	u16 addcntrl = snd_soc_component_read32(component, WM8940_ADDCNTRL) & 0xFFF1;
-	u16 companding =  snd_soc_component_read32(component,
+	struct wm8940_priv *priv = snd_soc_component_get_drvdata(component);
+	u16 iface = snd_soc_component_read(component, WM8940_IFACE) & 0xFD9F;
+	u16 addcntrl = snd_soc_component_read(component, WM8940_ADDCNTRL) & 0xFFF1;
+	u16 companding =  snd_soc_component_read(component,
 						WM8940_COMPANDINGCTL) & 0xFFDF;
 	int ret;
+
+	priv->fs = params_rate(params);
+	ret = wm8940_update_clocks(dai);
+	if (ret)
+		return ret;
 
 	/* LoutR control */
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE
@@ -452,10 +461,10 @@ error_ret:
 	return ret;
 }
 
-static int wm8940_mute(struct snd_soc_dai *dai, int mute)
+static int wm8940_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
-	u16 mute_reg = snd_soc_component_read32(component, WM8940_DAC) & 0xffbf;
+	u16 mute_reg = snd_soc_component_read(component, WM8940_DAC) & 0xffbf;
 
 	if (mute)
 		mute_reg |= 0x40;
@@ -468,7 +477,7 @@ static int wm8940_set_bias_level(struct snd_soc_component *component,
 {
 	struct wm8940_priv *wm8940 = snd_soc_component_get_drvdata(component);
 	u16 val;
-	u16 pwr_reg = snd_soc_component_read32(component, WM8940_POWER1) & 0x1F0;
+	u16 pwr_reg = snd_soc_component_read(component, WM8940_POWER1) & 0x1F0;
 	int ret = 0;
 
 	switch (level) {
@@ -476,7 +485,7 @@ static int wm8940_set_bias_level(struct snd_soc_component *component,
 		/* ensure bufioen and biasen */
 		pwr_reg |= (1 << 2) | (1 << 3);
 		/* Enable thermal shutdown */
-		val = snd_soc_component_read32(component, WM8940_OUTPUTCTL);
+		val = snd_soc_component_read(component, WM8940_OUTPUTCTL);
 		ret = snd_soc_component_write(component, WM8940_OUTPUTCTL, val | 0x2);
 		if (ret)
 			break;
@@ -577,12 +586,12 @@ static int wm8940_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 	u16 reg;
 
 	/* Turn off PLL */
-	reg = snd_soc_component_read32(component, WM8940_POWER1);
+	reg = snd_soc_component_read(component, WM8940_POWER1);
 	snd_soc_component_write(component, WM8940_POWER1, reg & 0x1df);
 
 	if (freq_in == 0 || freq_out == 0) {
 		/* Clock CODEC directly from MCLK */
-		reg = snd_soc_component_read32(component, WM8940_CLOCK);
+		reg = snd_soc_component_read(component, WM8940_CLOCK);
 		snd_soc_component_write(component, WM8940_CLOCK, reg & 0x0ff);
 		/* Pll power down */
 		snd_soc_component_write(component, WM8940_PLLN, (1 << 7));
@@ -601,32 +610,14 @@ static int wm8940_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 	snd_soc_component_write(component, WM8940_PLLK2, (pll_div.k >> 9) & 0x1ff);
 	snd_soc_component_write(component, WM8940_PLLK3, pll_div.k & 0x1ff);
 	/* Enable the PLL */
-	reg = snd_soc_component_read32(component, WM8940_POWER1);
+	reg = snd_soc_component_read(component, WM8940_POWER1);
 	snd_soc_component_write(component, WM8940_POWER1, reg | 0x020);
 
 	/* Run CODEC from PLL instead of MCLK */
-	reg = snd_soc_component_read32(component, WM8940_CLOCK);
+	reg = snd_soc_component_read(component, WM8940_CLOCK);
 	snd_soc_component_write(component, WM8940_CLOCK, reg | 0x100);
 
 	return 0;
-}
-
-static int wm8940_set_dai_sysclk(struct snd_soc_dai *codec_dai,
-				 int clk_id, unsigned int freq, int dir)
-{
-	struct snd_soc_component *component = codec_dai->component;
-	struct wm8940_priv *wm8940 = snd_soc_component_get_drvdata(component);
-
-	switch (freq) {
-	case 11289600:
-	case 12000000:
-	case 12288000:
-	case 16934400:
-	case 18432000:
-		wm8940->sysclk = freq;
-		return 0;
-	}
-	return -EINVAL;
 }
 
 static int wm8940_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
@@ -638,19 +629,91 @@ static int wm8940_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
 
 	switch (div_id) {
 	case WM8940_BCLKDIV:
-		reg = snd_soc_component_read32(component, WM8940_CLOCK) & 0xFFE3;
+		reg = snd_soc_component_read(component, WM8940_CLOCK) & 0xFFE3;
 		ret = snd_soc_component_write(component, WM8940_CLOCK, reg | (div << 2));
 		break;
 	case WM8940_MCLKDIV:
-		reg = snd_soc_component_read32(component, WM8940_CLOCK) & 0xFF1F;
+		reg = snd_soc_component_read(component, WM8940_CLOCK) & 0xFF1F;
 		ret = snd_soc_component_write(component, WM8940_CLOCK, reg | (div << 5));
 		break;
 	case WM8940_OPCLKDIV:
-		reg = snd_soc_component_read32(component, WM8940_GPIO) & 0xFFCF;
+		reg = snd_soc_component_read(component, WM8940_GPIO) & 0xFFCF;
 		ret = snd_soc_component_write(component, WM8940_GPIO, reg | (div << 4));
 		break;
 	}
 	return ret;
+}
+
+static unsigned int wm8940_get_mclkdiv(unsigned int f_in, unsigned int f_out,
+				       int *mclkdiv)
+{
+	unsigned int ratio = 2 * f_in / f_out;
+
+	if (ratio <= 2) {
+		*mclkdiv = WM8940_MCLKDIV_1;
+		ratio = 2;
+	} else if (ratio == 3) {
+		*mclkdiv = WM8940_MCLKDIV_1_5;
+	} else if (ratio == 4) {
+		*mclkdiv = WM8940_MCLKDIV_2;
+	} else if (ratio <= 6) {
+		*mclkdiv = WM8940_MCLKDIV_3;
+		ratio = 6;
+	} else if (ratio <= 8) {
+		*mclkdiv = WM8940_MCLKDIV_4;
+		ratio = 8;
+	} else if (ratio <= 12) {
+		*mclkdiv = WM8940_MCLKDIV_6;
+		ratio = 12;
+	} else if (ratio <= 16) {
+		*mclkdiv = WM8940_MCLKDIV_8;
+		ratio = 16;
+	} else {
+		*mclkdiv = WM8940_MCLKDIV_12;
+		ratio = 24;
+	}
+
+	return f_out * ratio / 2;
+}
+
+static int wm8940_update_clocks(struct snd_soc_dai *dai)
+{
+	struct snd_soc_component *codec = dai->component;
+	struct wm8940_priv *priv = snd_soc_component_get_drvdata(codec);
+	unsigned int fs256;
+	unsigned int fpll = 0;
+	unsigned int f;
+	int mclkdiv;
+
+	if (!priv->mclk || !priv->fs)
+		return 0;
+
+	fs256 = 256 * priv->fs;
+
+	f = wm8940_get_mclkdiv(priv->mclk, fs256, &mclkdiv);
+	if (f != priv->mclk) {
+		/* The PLL performs best around 90MHz */
+		fpll = wm8940_get_mclkdiv(22500000, fs256, &mclkdiv);
+	}
+
+	wm8940_set_dai_pll(dai, 0, 0, priv->mclk, fpll);
+	wm8940_set_dai_clkdiv(dai, WM8940_MCLKDIV, mclkdiv);
+
+	return 0;
+}
+
+static int wm8940_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
+				 unsigned int freq, int dir)
+{
+	struct snd_soc_component *codec = dai->component;
+	struct wm8940_priv *priv = snd_soc_component_get_drvdata(codec);
+
+	if (dir != SND_SOC_CLOCK_IN)
+		return -EINVAL;
+
+	priv->mclk = freq;
+
+	return wm8940_update_clocks(dai);
 }
 
 #define WM8940_RATES SNDRV_PCM_RATE_8000_48000
@@ -664,10 +727,11 @@ static int wm8940_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
 static const struct snd_soc_dai_ops wm8940_dai_ops = {
 	.hw_params = wm8940_i2s_hw_params,
 	.set_sysclk = wm8940_set_dai_sysclk,
-	.digital_mute = wm8940_mute,
+	.mute_stream = wm8940_mute,
 	.set_fmt = wm8940_set_dai_fmt,
 	.set_clkdiv = wm8940_set_dai_clkdiv,
 	.set_pll = wm8940_set_dai_pll,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8940_dai = {
@@ -687,7 +751,7 @@ static struct snd_soc_dai_driver wm8940_dai = {
 		.formats = WM8940_FORMATS,
 	},
 	.ops = &wm8940_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 };
 
 static int wm8940_probe(struct snd_soc_component *component)
@@ -695,6 +759,17 @@ static int wm8940_probe(struct snd_soc_component *component)
 	struct wm8940_setup_data *pdata = component->dev->platform_data;
 	int ret;
 	u16 reg;
+
+	/*
+	 * Check chip ID for wm8940 - value of 0x00 offset
+	 * SOFTWARE_RESET on write
+	 * CHIP_ID on read
+	 */
+	reg = snd_soc_component_read(component, WM8940_SOFTRESET);
+	if (reg != WM8940_CHIP_ID) {
+		dev_err(component->dev, "Wrong wm8940 chip ID: 0x%x\n", reg);
+		return -ENODEV;
+	}
 
 	ret = wm8940_reset(component);
 	if (ret < 0) {
@@ -708,10 +783,8 @@ static int wm8940_probe(struct snd_soc_component *component)
 	if (ret < 0)
 		return ret;
 
-	if (!pdata)
-		dev_warn(component->dev, "No platform data supplied\n");
-	else {
-		reg = snd_soc_component_read32(component, WM8940_OUTPUTCTL);
+	if (pdata) {
+		reg = snd_soc_component_read(component, WM8940_OUTPUTCTL);
 		ret = snd_soc_component_write(component, WM8940_OUTPUTCTL, reg | pdata->vroi);
 		if (ret < 0)
 			return ret;
@@ -733,7 +806,6 @@ static const struct snd_soc_component_driver soc_component_dev_wm8940 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config wm8940_regmap = {
@@ -743,14 +815,13 @@ static const struct regmap_config wm8940_regmap = {
 	.max_register = WM8940_MONOMIX,
 	.reg_defaults = wm8940_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8940_reg_defaults),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 
 	.readable_reg = wm8940_readable_register,
 	.volatile_reg = wm8940_volatile_register,
 };
 
-static int wm8940_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int wm8940_i2c_probe(struct i2c_client *i2c)
 {
 	struct wm8940_priv *wm8940;
 	int ret;
@@ -773,16 +844,23 @@ static int wm8940_i2c_probe(struct i2c_client *i2c,
 }
 
 static const struct i2c_device_id wm8940_i2c_id[] = {
-	{ "wm8940", 0 },
+	{ "wm8940" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm8940_i2c_id);
 
+static const struct of_device_id wm8940_of_match[] = {
+	{ .compatible = "wlf,wm8940", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, wm8940_of_match);
+
 static struct i2c_driver wm8940_i2c_driver = {
 	.driver = {
 		.name = "wm8940",
+		.of_match_table = wm8940_of_match,
 	},
-	.probe =    wm8940_i2c_probe,
+	.probe = wm8940_i2c_probe,
 	.id_table = wm8940_i2c_id,
 };
 

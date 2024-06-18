@@ -16,7 +16,6 @@
 #include <linux/spinlock.h>
 
 #include <kvm/iodev.h>
-#include "ioapic.h"
 #include "lapic.h"
 
 #define PIC_NUM_PINS 16
@@ -56,8 +55,7 @@ struct kvm_pic {
 	int output;		/* intr from master PIC */
 	struct kvm_io_device dev_master;
 	struct kvm_io_device dev_slave;
-	struct kvm_io_device dev_eclr;
-	void (*ack_notifier)(void *opaque, int irq);
+	struct kvm_io_device dev_elcr;
 	unsigned long irq_states[PIC_NUM_PINS];
 };
 
@@ -65,15 +63,6 @@ int kvm_pic_init(struct kvm *kvm);
 void kvm_pic_destroy(struct kvm *kvm);
 int kvm_pic_read_irq(struct kvm *kvm);
 void kvm_pic_update_irq(struct kvm_pic *s);
-
-static inline int pic_in_kernel(struct kvm *kvm)
-{
-	int mode = kvm->arch.irqchip_mode;
-
-	/* Matches smp_wmb() when setting irqchip_mode */
-	smp_rmb();
-	return mode == KVM_IRQCHIP_KERNEL;
-}
 
 static inline int irqchip_split(struct kvm *kvm)
 {
@@ -91,6 +80,11 @@ static inline int irqchip_kernel(struct kvm *kvm)
 	/* Matches smp_wmb() when setting irqchip_mode */
 	smp_rmb();
 	return mode == KVM_IRQCHIP_KERNEL;
+}
+
+static inline int pic_in_kernel(struct kvm *kvm)
+{
+	return irqchip_kernel(kvm);
 }
 
 static inline int irqchip_in_kernel(struct kvm *kvm)
@@ -113,5 +107,8 @@ int apic_has_pending_timer(struct kvm_vcpu *vcpu);
 
 int kvm_setup_default_irq_routing(struct kvm *kvm);
 int kvm_setup_empty_irq_routing(struct kvm *kvm);
+int kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
+			     struct kvm_lapic_irq *irq,
+			     struct dest_map *dest_map);
 
 #endif

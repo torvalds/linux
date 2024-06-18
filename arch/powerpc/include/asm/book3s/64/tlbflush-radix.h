@@ -2,9 +2,28 @@
 #ifndef _ASM_POWERPC_TLBFLUSH_RADIX_H
 #define _ASM_POWERPC_TLBFLUSH_RADIX_H
 
+#include <asm/hvcall.h>
+
+#define RIC_FLUSH_TLB 0
+#define RIC_FLUSH_PWC 1
+#define RIC_FLUSH_ALL 2
+
 struct vm_area_struct;
 struct mm_struct;
 struct mmu_gather;
+
+static inline u64 psize_to_rpti_pgsize(unsigned long psize)
+{
+	if (psize == MMU_PAGE_4K)
+		return H_RPTI_PAGE_4K;
+	if (psize == MMU_PAGE_64K)
+		return H_RPTI_PAGE_64K;
+	if (psize == MMU_PAGE_2M)
+		return H_RPTI_PAGE_2M;
+	if (psize == MMU_PAGE_1G)
+		return H_RPTI_PAGE_1G;
+	return H_RPTI_PAGE_ALL;
+}
 
 static inline int mmu_get_ap(int psize)
 {
@@ -20,7 +39,7 @@ extern void radix__flush_pwc_lpid(unsigned int lpid);
 extern void radix__flush_all_lpid(unsigned int lpid);
 extern void radix__flush_all_lpid_guest(unsigned int lpid);
 #else
-static inline void radix__tlbiel_all(unsigned int action) { WARN_ON(1); };
+static inline void radix__tlbiel_all(unsigned int action) { WARN_ON(1); }
 static inline void radix__flush_tlb_lpid_page(unsigned int lpid,
 					unsigned long addr,
 					unsigned long page_size)
@@ -35,13 +54,21 @@ static inline void radix__flush_all_lpid(unsigned int lpid)
 {
 	WARN_ON(1);
 }
+static inline void radix__flush_all_lpid_guest(unsigned int lpid)
+{
+	WARN_ON(1);
+}
 #endif
 
 extern void radix__flush_hugetlb_tlb_range(struct vm_area_struct *vma,
 					   unsigned long start, unsigned long end);
 extern void radix__flush_tlb_range_psize(struct mm_struct *mm, unsigned long start,
 					 unsigned long end, int psize);
+void radix__flush_tlb_pwc_range_psize(struct mm_struct *mm, unsigned long start,
+				      unsigned long end, int psize);
 extern void radix__flush_pmd_tlb_range(struct vm_area_struct *vma,
+				       unsigned long start, unsigned long end);
+extern void radix__flush_pud_tlb_range(struct vm_area_struct *vma,
 				       unsigned long start, unsigned long end);
 extern void radix__flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 			    unsigned long end);

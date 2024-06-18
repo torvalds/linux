@@ -6,14 +6,12 @@
  * Copyright (C) 2019, Paul Cercueil <paul@crapouillou.net>
  */
 
-#include <linux/backlight.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/gpio/consumer.h>
 #include <linux/media-bus-format.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
@@ -49,21 +47,19 @@ enum nt39016_regs {
 #define NT39016_SYSTEM_STANDBY	BIT(1)
 
 struct nt39016_panel_info {
-	struct drm_display_mode display_mode;
+	const struct drm_display_mode *display_modes;
+	unsigned int num_modes;
 	u16 width_mm, height_mm;
 	u32 bus_format, bus_flags;
 };
 
 struct nt39016 {
 	struct drm_panel drm_panel;
-	struct device *dev;
 	struct regmap *map;
 	struct regulator *supply;
 	const struct nt39016_panel_info *panel_info;
 
 	struct gpio_desc *reset_gpio;
-
-	struct backlight_device *backlight;
 };
 
 static inline struct nt39016 *to_nt39016(struct drm_panel *panel)
@@ -126,7 +122,7 @@ static int nt39016_prepare(struct drm_panel *drm_panel)
 
 	err = regulator_enable(panel->supply);
 	if (err) {
-		dev_err(panel->dev, "Failed to enable power supply: %d", err);
+		dev_err(drm_panel->dev, "Failed to enable power supply: %d\n", err);
 		return err;
 	}
 
@@ -145,7 +141,7 @@ static int nt39016_prepare(struct drm_panel *drm_panel)
 	err = regmap_multi_reg_write(panel->map, nt39016_panel_regs,
 				     ARRAY_SIZE(nt39016_panel_regs));
 	if (err) {
-		dev_err(panel->dev, "Failed to init registers: %d", err);
+		dev_err(drm_panel->dev, "Failed to init registers: %d\n", err);
 		goto err_disable_regulator;
 	}
 
@@ -175,18 +171,16 @@ static int nt39016_enable(struct drm_panel *drm_panel)
 	ret = regmap_write(panel->map, NT39016_REG_SYSTEM,
 			   NT39016_SYSTEM_RESET_N | NT39016_SYSTEM_STANDBY);
 	if (ret) {
-		dev_err(panel->dev, "Unable to enable panel: %d", ret);
+		dev_err(drm_panel->dev, "Unable to enable panel: %d\n", ret);
 		return ret;
 	}
 
-	if (panel->backlight) {
+	if (drm_panel->backlight) {
 		/* Wait for the picture to be ready before enabling backlight */
 		msleep(150);
-
-		ret = backlight_enable(panel->backlight);
 	}
 
-	return ret;
+	return 0;
 }
 
 static int nt39016_disable(struct drm_panel *drm_panel)
@@ -194,33 +188,38 @@ static int nt39016_disable(struct drm_panel *drm_panel)
 	struct nt39016 *panel = to_nt39016(drm_panel);
 	int err;
 
-	backlight_disable(panel->backlight);
-
 	err = regmap_write(panel->map, NT39016_REG_SYSTEM,
 			   NT39016_SYSTEM_RESET_N);
 	if (err) {
-		dev_err(panel->dev, "Unable to disable panel: %d", err);
+		dev_err(drm_panel->dev, "Unable to disable panel: %d\n", err);
 		return err;
 	}
 
 	return 0;
 }
 
-static int nt39016_get_modes(struct drm_panel *drm_panel)
+static int nt39016_get_modes(struct drm_panel *drm_panel,
+			     struct drm_connector *connector)
 {
 	struct nt39016 *panel = to_nt39016(drm_panel);
 	const struct nt39016_panel_info *panel_info = panel->panel_info;
-	struct drm_connector *connector = drm_panel->connector;
 	struct drm_display_mode *mode;
+	unsigned int i;
 
-	mode = drm_mode_duplicate(drm_panel->drm, &panel_info->display_mode);
-	if (!mode)
-		return -ENOMEM;
+	for (i = 0; i < panel_info->num_modes; i++) {
+		mode = drm_mode_duplicate(connector->dev,
+					  &panel_info->display_modes[i]);
+		if (!mode)
+			return -ENOMEM;
 
-	drm_mode_set_name(mode);
+		drm_mode_set_name(mode);
 
-	mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
-	drm_mode_probed_add(connector, mode);
+		mode->type = DRM_MODE_TYPE_DRIVER;
+		if (panel_info->num_modes == 1)
+			mode->type |= DRM_MODE_TYPE_PREFERRED;
+
+		drm_mode_probed_add(connector, mode);
+	}
 
 	connector->display_info.bpc = 8;
 	connector->display_info.width_mm = panel_info->width_mm;
@@ -230,7 +229,7 @@ static int nt39016_get_modes(struct drm_panel *drm_panel)
 					 &panel_info->bus_format, 1);
 	connector->display_info.bus_flags = panel_info->bus_flags;
 
-	return 1;
+	return panel_info->num_modes;
 }
 
 static const struct drm_panel_funcs nt39016_funcs = {
@@ -251,7 +250,6 @@ static int nt39016_probe(struct spi_device *spi)
 	if (!panel)
 		return -ENOMEM;
 
-	panel->dev = dev;
 	spi_set_drvdata(spi, panel);
 
 	panel->panel_info = of_device_get_match_data(dev);
@@ -259,53 +257,41 @@ static int nt39016_probe(struct spi_device *spi)
 		return -EINVAL;
 
 	panel->supply = devm_regulator_get(dev, "power");
-	if (IS_ERR(panel->supply)) {
-		dev_err(dev, "Failed to get power supply");
-		return PTR_ERR(panel->supply);
-	}
+	if (IS_ERR(panel->supply))
+		return dev_err_probe(dev, PTR_ERR(panel->supply),
+				     "Failed to get power supply\n");
 
 	panel->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
-	if (IS_ERR(panel->reset_gpio)) {
-		dev_err(dev, "Failed to get reset GPIO");
-		return PTR_ERR(panel->reset_gpio);
-	}
+	if (IS_ERR(panel->reset_gpio))
+		return dev_err_probe(dev, PTR_ERR(panel->reset_gpio), "Failed to get reset GPIO\n");
 
 	spi->bits_per_word = 8;
 	spi->mode = SPI_MODE_3 | SPI_3WIRE;
 	err = spi_setup(spi);
 	if (err) {
-		dev_err(dev, "Failed to setup SPI");
+		dev_err(dev, "Failed to setup SPI\n");
 		return err;
 	}
 
 	panel->map = devm_regmap_init_spi(spi, &nt39016_regmap_config);
 	if (IS_ERR(panel->map)) {
-		dev_err(dev, "Failed to init regmap");
+		dev_err(dev, "Failed to init regmap\n");
 		return PTR_ERR(panel->map);
 	}
 
-	panel->backlight = devm_of_find_backlight(dev);
-	if (IS_ERR(panel->backlight)) {
-		err = PTR_ERR(panel->backlight);
-		if (err != -EPROBE_DEFER)
-			dev_err(dev, "Failed to get backlight handle");
-		return err;
-	}
+	drm_panel_init(&panel->drm_panel, dev, &nt39016_funcs,
+		       DRM_MODE_CONNECTOR_DPI);
 
-	drm_panel_init(&panel->drm_panel);
-	panel->drm_panel.dev = dev;
-	panel->drm_panel.funcs = &nt39016_funcs;
+	err = drm_panel_of_backlight(&panel->drm_panel);
+	if (err)
+		return dev_err_probe(dev, err, "Failed to get backlight handle\n");
 
-	err = drm_panel_add(&panel->drm_panel);
-	if (err < 0) {
-		dev_err(dev, "Failed to register panel");
-		return err;
-	}
+	drm_panel_add(&panel->drm_panel);
 
 	return 0;
 }
 
-static int nt39016_remove(struct spi_device *spi)
+static void nt39016_remove(struct spi_device *spi)
 {
 	struct nt39016 *panel = spi_get_drvdata(spi);
 
@@ -313,12 +299,10 @@ static int nt39016_remove(struct spi_device *spi)
 
 	nt39016_disable(&panel->drm_panel);
 	nt39016_unprepare(&panel->drm_panel);
-
-	return 0;
 }
 
-static const struct nt39016_panel_info kd035g6_info = {
-	.display_mode = {
+static const struct drm_display_mode kd035g6_display_modes[] = {
+	{	/* 60 Hz */
 		.clock = 6000,
 		.hdisplay = 320,
 		.hsync_start = 320 + 10,
@@ -328,13 +312,29 @@ static const struct nt39016_panel_info kd035g6_info = {
 		.vsync_start = 240 + 5,
 		.vsync_end = 240 + 5 + 1,
 		.vtotal = 240 + 5 + 1 + 4,
-		.vrefresh = 60,
 		.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 	},
+	{	/* 50 Hz */
+		.clock = 5400,
+		.hdisplay = 320,
+		.hsync_start = 320 + 42,
+		.hsync_end = 320 + 42 + 50,
+		.htotal = 320 + 42 + 50 + 20,
+		.vdisplay = 240,
+		.vsync_start = 240 + 5,
+		.vsync_end = 240 + 5 + 1,
+		.vtotal = 240 + 5 + 1 + 4,
+		.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
+	},
+};
+
+static const struct nt39016_panel_info kd035g6_info = {
+	.display_modes = kd035g6_display_modes,
+	.num_modes = ARRAY_SIZE(kd035g6_display_modes),
 	.width_mm = 71,
 	.height_mm = 53,
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
-	.bus_flags = DRM_BUS_FLAG_PIXDATA_NEGEDGE,
+	.bus_flags = DRM_BUS_FLAG_PIXDATA_SAMPLE_POSEDGE,
 };
 
 static const struct of_device_id nt39016_of_match[] = {

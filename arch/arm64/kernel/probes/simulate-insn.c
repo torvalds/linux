@@ -10,6 +10,7 @@
 #include <linux/kprobes.h>
 
 #include <asm/ptrace.h>
+#include <asm/traps.h>
 
 #include "simulate-insn.h"
 

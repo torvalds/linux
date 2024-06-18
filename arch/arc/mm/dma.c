@@ -3,7 +3,7 @@
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
  */
 
-#include <linux/dma-noncoherent.h>
+#include <linux/dma-map-ops.h>
 #include <asm/cache.h>
 #include <asm/cacheflush.h>
 
@@ -32,7 +32,7 @@ void arch_dma_prep_coherent(struct page *page, size_t size)
 
 /*
  * Cache operations depending on function and direction argument, inspired by
- * https://lkml.org/lkml/2018/5/18/979
+ * https://lore.kernel.org/lkml/20180518175004.GF17671@n2100.armlinux.org.uk
  * "dma_sync_*_for_cpu and direction=TO_DEVICE (was Re: [PATCH 02/20]
  * dma-mapping: provide a generic dma-noncoherent implementation)"
  *
@@ -48,8 +48,8 @@ void arch_dma_prep_coherent(struct page *page, size_t size)
  * upper layer functions (in include/linux/dma-mapping.h)
  */
 
-void arch_sync_dma_for_device(struct device *dev, phys_addr_t paddr,
-		size_t size, enum dma_data_direction dir)
+void arch_sync_dma_for_device(phys_addr_t paddr, size_t size,
+		enum dma_data_direction dir)
 {
 	switch (dir) {
 	case DMA_TO_DEVICE:
@@ -69,8 +69,8 @@ void arch_sync_dma_for_device(struct device *dev, phys_addr_t paddr,
 	}
 }
 
-void arch_sync_dma_for_cpu(struct device *dev, phys_addr_t paddr,
-		size_t size, enum dma_data_direction dir)
+void arch_sync_dma_for_cpu(phys_addr_t paddr, size_t size,
+		enum dma_data_direction dir)
 {
 	switch (dir) {
 	case DMA_TO_DEVICE:
@@ -90,8 +90,7 @@ void arch_sync_dma_for_cpu(struct device *dev, phys_addr_t paddr,
 /*
  * Plug in direct dma map ops.
  */
-void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
-			const struct iommu_ops *iommu, bool coherent)
+void arch_setup_dma_ops(struct device *dev, bool coherent)
 {
 	/*
 	 * IOC hardware snoops all DMA traffic keeping the caches consistent

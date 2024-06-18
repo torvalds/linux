@@ -1,4 +1,4 @@
-﻿======================================
+======================================
 NO_HZ: Reducing Scheduling-Clock Ticks
 ======================================
 
@@ -70,6 +70,10 @@ interrupt.  After all, the primary purpose of a scheduling-clock interrupt
 is to force a busy CPU to shift its attention among multiple duties,
 and an idle CPU has no duties to shift its attention among.
 
+An idle CPU that is not receiving scheduling-clock interrupts is said to
+be "dyntick-idle", "in dyntick-idle mode", "in nohz mode", or "running
+tickless".  The remainder of this document will use "dyntick-idle mode".
+
 The CONFIG_NO_HZ_IDLE=y Kconfig option causes the kernel to avoid sending
 scheduling-clock interrupts to idle CPUs, which is critically important
 both to battery-powered devices and to highly virtualized mainframes.
@@ -90,10 +94,6 @@ idle CPUs.  That said, dyntick-idle mode is not free:
 Therefore, systems with aggressive real-time response constraints often
 run CONFIG_HZ_PERIODIC=y kernels (or CONFIG_NO_HZ=n for older kernels)
 in order to avoid degrading from-idle transition latencies.
-
-An idle CPU that is not receiving scheduling-clock interrupts is said to
-be "dyntick-idle", "in dyntick-idle mode", "in nohz mode", or "running
-tickless".  The remainder of this document will use "dyntick-idle mode".
 
 There is also a boot parameter "nohz=" that can be used to disable
 dyntick-idle mode in CONFIG_NO_HZ_IDLE=y kernels by specifying "nohz=off".
@@ -129,11 +129,8 @@ adaptive-tick CPUs:  At least one non-adaptive-tick CPU must remain
 online to handle timekeeping tasks in order to ensure that system
 calls like gettimeofday() returns accurate values on adaptive-tick CPUs.
 (This is not an issue for CONFIG_NO_HZ_IDLE=y because there are no running
-user processes to observe slight drifts in clock rate.)  Therefore, the
-boot CPU is prohibited from entering adaptive-ticks mode.  Specifying a
-"nohz_full=" mask that includes the boot CPU will result in a boot-time
-error message, and the boot CPU will be removed from the mask.  Note that
-this means that your system must have at least two CPUs in order for
+user processes to observe slight drifts in clock rate.) Note that this
+means that your system must have at least two CPUs in order for
 CONFIG_NO_HZ_FULL=y to do anything for you.
 
 Finally, adaptive-ticks CPUs must have their RCU callbacks offloaded.
@@ -171,8 +168,6 @@ not come for free:
 	slightly differently than those for non-adaptive-tick CPUs.
 	This might in turn perturb load-balancing of real-time tasks.
 
-6.	The LB_BIAS scheduler feature is disabled by adaptive ticks.
-
 Although improvements are expected over time, adaptive ticks is quite
 useful for many types of real-time and compute-intensive applications.
 However, the drawbacks listed above mean that adaptive ticks should not
@@ -186,16 +181,12 @@ There are situations in which idle CPUs cannot be permitted to
 enter either dyntick-idle mode or adaptive-tick mode, the most
 common being when that CPU has RCU callbacks pending.
 
-The CONFIG_RCU_FAST_NO_HZ=y Kconfig option may be used to cause such CPUs
-to enter dyntick-idle mode or adaptive-tick mode anyway.  In this case,
-a timer will awaken these CPUs every four jiffies in order to ensure
-that the RCU callbacks are processed in a timely fashion.
-
-Another approach is to offload RCU callback processing to "rcuo" kthreads
+Avoid this by offloading RCU callback processing to "rcuo" kthreads
 using the CONFIG_RCU_NOCB_CPU=y Kconfig option.  The specific CPUs to
 offload may be selected using The "rcu_nocbs=" kernel boot parameter,
 which takes a comma-separated list of CPUs and CPU ranges, for example,
-"1,3-5" selects CPUs 1, 3, 4, and 5.
+"1,3-5" selects CPUs 1, 3, 4, and 5.  Note that CPUs specified by
+the "nohz_full" kernel boot parameter are also offloaded.
 
 The offloaded CPUs will never queue RCU callbacks, and therefore RCU
 never prevents offloaded CPUs from entering either dyntick-idle mode

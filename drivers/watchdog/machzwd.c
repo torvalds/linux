@@ -171,9 +171,10 @@ static inline void zf_set_timer(unsigned short new, unsigned char n)
 	switch (n) {
 	case WD1:
 		zf_writew(COUNTER_1, new);
-		/* fall through */
+		fallthrough;
 	case WD2:
 		zf_writeb(COUNTER_2, new > 0xff ? 0xff : new);
+		fallthrough;
 	default:
 		return;
 	}
@@ -361,6 +362,7 @@ static const struct file_operations zf_fops = {
 	.llseek		= no_llseek,
 	.write		= zf_write,
 	.unlocked_ioctl = zf_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= zf_open,
 	.release	= zf_close,
 };

@@ -30,7 +30,6 @@
 
 #include <linux/types.h>
 #include <linux/kdev_t.h>
-#include <linux/genhd.h>
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -62,6 +61,7 @@ static irqreturn_t stdma_int (int irq, void *dummy);
 /**
  * stdma_try_lock - attempt to acquire ST DMA interrupt "lock"
  * @handler: interrupt handler to use after acquisition
+ * @data: cookie passed to the interrupt handler function
  *
  * Returns !0 if lock was acquired; otherwise 0.
  */

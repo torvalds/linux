@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * mtu3_hw_regs.h - MediaTek USB3 DRD register and field definitions
  *
@@ -128,13 +128,14 @@
 #define TX_FIFOEMPTY		BIT(24)
 #define TX_SENTSTALL		BIT(22)
 #define TX_SENDSTALL		BIT(21)
+#define TX_FLUSHFIFO		BIT(20)
 #define TX_TXPKTRDY		BIT(16)
 #define TX_TXMAXPKTSZ_MSK	GENMASK(10, 0)
 #define TX_TXMAXPKTSZ(x)	((x) & TX_TXMAXPKTSZ_MSK)
 #define TX_W1C_BITS		(~(TX_SENTSTALL))
 
 /* U3D_TX1CSR1 */
-#define TX_MAX_PKT_G2(x)	(((x) & 0x7f) << 24)
+#define TX_MAX_PKT_G2(x)	(((x) & 0xff) << 24)
 #define TX_MULT_G2(x)		(((x) & 0x7) << 21)
 #define TX_MULT_OG(x)		(((x) & 0x3) << 22)
 #define TX_MAX_PKT_OG(x)	(((x) & 0x3f) << 16)
@@ -173,7 +174,7 @@
 #define RX_W1C_BITS		(~(RX_SENTSTALL | RX_RXPKTRDY))
 
 /* U3D_RX1CSR1 */
-#define RX_MAX_PKT_G2(x)	(((x) & 0x7f) << 24)
+#define RX_MAX_PKT_G2(x)	(((x) & 0xff) << 24)
 #define RX_MULT_G2(x)		(((x) & 0x7) << 21)
 #define RX_MULT_OG(x)		(((x) & 0x3) << 22)
 #define RX_MAX_PKT_OG(x)	(((x) & 0x3f) << 16)
@@ -341,6 +342,8 @@
 #define U3D_LINK_UX_INACT_TIMER	(SSUSB_USB3_SYS_CSR_BASE + 0x020C)
 #define U3D_LINK_POWER_CONTROL	(SSUSB_USB3_SYS_CSR_BASE + 0x0210)
 #define U3D_LINK_ERR_COUNT	(SSUSB_USB3_SYS_CSR_BASE + 0x0214)
+#define U3D_DEV_NOTIF_0		(SSUSB_USB3_SYS_CSR_BASE + 0x0290)
+#define U3D_DEV_NOTIF_1		(SSUSB_USB3_SYS_CSR_BASE + 0x0294)
 
 /*---------------- SSUSB_USB3_SYS_CSR FIELD DEFINITION ----------------*/
 
@@ -364,6 +367,20 @@
 /* U3D_LINK_ERR_COUNT */
 #define CLR_LINK_ERR_CNT	BIT(16)
 #define LINK_ERROR_COUNT	GENMASK(15, 0)
+
+/* U3D_DEV_NOTIF_0 */
+#define DEV_NOTIF_TYPE_SPECIFIC_LOW_MSK		GENMASK(31, 8)
+#define DEV_NOTIF_VAL_FW(x)		(((x) & 0xff) << 8)
+#define DEV_NOTIF_VAL_LTM(x)	(((x) & 0xfff) << 8)
+#define DEV_NOTIF_VAL_IAM(x)	(((x) & 0xffff) << 8)
+#define DEV_NOTIF_TYPE_MSK		GENMASK(7, 4)
+/* Notification Type */
+#define TYPE_FUNCTION_WAKE			(0x1 << 4)
+#define TYPE_LATENCY_TOLERANCE_MESSAGE		(0x2 << 4)
+#define TYPE_BUS_INTERVAL_ADJUST_MESSAGE	(0x3 << 4)
+#define TYPE_HOST_ROLE_REQUEST			(0x4 << 4)
+#define TYPE_SUBLINK_SPEED			(0x5 << 4)
+#define SEND_DEV_NOTIF			BIT(0)
 
 /*---------------- SSUSB_USB2_CSR REGISTER DEFINITION ----------------*/
 

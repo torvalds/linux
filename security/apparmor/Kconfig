@@ -15,29 +15,6 @@ config SECURITY_APPARMOR
 
 	  If you are unsure how to answer this question, answer N.
 
-config SECURITY_APPARMOR_HASH
-	bool "Enable introspection of sha1 hashes for loaded profiles"
-	depends on SECURITY_APPARMOR
-	select CRYPTO
-	select CRYPTO_SHA1
-	default y
-	help
-	  This option selects whether introspection of loaded policy
-	  is available to userspace via the apparmor filesystem.
-
-config SECURITY_APPARMOR_HASH_DEFAULT
-       bool "Enable policy hash introspection by default"
-       depends on SECURITY_APPARMOR_HASH
-       default y
-       help
-         This option selects whether sha1 hashing of loaded policy
-	 is enabled by default. The generation of sha1 hashes for
-	 loaded policy provide system administrators a quick way
-	 to verify that policy in the kernel matches what is expected,
-	 however it can slow down policy load on some devices. In
-	 these cases policy hashing can be disabled by default and
-	 enabled only if needed.
-
 config SECURITY_APPARMOR_DEBUG
 	bool "Build AppArmor with debug code"
 	depends on SECURITY_APPARMOR
@@ -66,3 +43,81 @@ config SECURITY_APPARMOR_DEBUG_MESSAGES
 	  Set the default value of the apparmor.debug kernel parameter.
 	  When enabled, various debug messages will be logged to
 	  the kernel message buffer.
+
+config SECURITY_APPARMOR_INTROSPECT_POLICY
+	bool "Allow loaded policy to be introspected"
+	depends on SECURITY_APPARMOR
+	default y
+	help
+	  This option selects whether introspection of loaded policy
+	  is available to userspace via the apparmor filesystem. This
+	  adds to kernel memory usage. It is required for introspection
+	  of loaded policy, and check point and restore support. It
+	  can be disabled for embedded systems where reducing memory and
+	  cpu is paramount.
+
+config SECURITY_APPARMOR_HASH
+	bool "Enable introspection of sha256 hashes for loaded profiles"
+	depends on SECURITY_APPARMOR_INTROSPECT_POLICY
+	select CRYPTO
+	select CRYPTO_SHA256
+	default y
+	help
+	  This option selects whether introspection of loaded policy
+	  hashes is available to userspace via the apparmor
+	  filesystem. This option provides a light weight means of
+	  checking loaded policy.  This option adds to policy load
+	  time and can be disabled for small embedded systems.
+
+config SECURITY_APPARMOR_HASH_DEFAULT
+       bool "Enable policy hash introspection by default"
+       depends on SECURITY_APPARMOR_HASH
+       default y
+       help
+	 This option selects whether sha256 hashing of loaded policy
+	 is enabled by default. The generation of sha256 hashes for
+	 loaded policy provide system administrators a quick way to
+	 verify that policy in the kernel matches what is expected,
+	 however it can slow down policy load on some devices. In
+	 these cases policy hashing can be disabled by default and
+	 enabled only if needed.
+
+config SECURITY_APPARMOR_EXPORT_BINARY
+	bool "Allow exporting the raw binary policy"
+	depends on SECURITY_APPARMOR_INTROSPECT_POLICY
+	select ZSTD_COMPRESS
+	select ZSTD_DECOMPRESS
+	default y
+	help
+	  This option allows reading back binary policy as it was loaded.
+	  It increases the amount of kernel memory needed by policy and
+	  also increases policy load time. This option is required for
+	  checkpoint and restore support, and debugging of loaded policy.
+
+config SECURITY_APPARMOR_PARANOID_LOAD
+	bool "Perform full verification of loaded policy"
+	depends on SECURITY_APPARMOR
+	default y
+	help
+	  This options allows controlling whether apparmor does a full
+	  verification of loaded policy. This should not be disabled
+	  except for embedded systems where the image is read only,
+	  includes policy, and has some form of integrity check.
+	  Disabling the check will speed up policy loads.
+
+config SECURITY_APPARMOR_KUNIT_TEST
+	tristate "Build KUnit tests for policy_unpack.c" if !KUNIT_ALL_TESTS
+	depends on KUNIT && SECURITY_APPARMOR
+	default KUNIT_ALL_TESTS
+	help
+	  This builds the AppArmor KUnit tests.
+
+	  KUnit tests run during boot and output the results to the debug log
+	  in TAP format (https://testanything.org/). Only useful for kernel devs
+	  running KUnit test harness and are not for inclusion into a
+	  production build.
+
+	  For more information on KUnit and unit tests in general please refer
+	  to the KUnit documentation in Documentation/dev-tools/kunit/.
+
+	  If unsure, say N.

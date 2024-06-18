@@ -43,10 +43,6 @@
 #define RDS_MR_8K_SCALE			(256 / (RDS_MR_8K_MSG_SIZE + 1))
 #define RDS_MR_8K_POOL_SIZE		(RDS_MR_8K_SCALE * (8192 / 2))
 
-struct rds_ib_fmr {
-	struct ib_fmr		*fmr;
-};
-
 enum rds_ib_fr_state {
 	FRMR_IS_FREE,	/* mr invalidated & ready for use */
 	FRMR_IS_INUSE,	/* mr is in use or used & can be invalidated */
@@ -67,6 +63,7 @@ struct rds_ib_frmr {
 
 /* This is stored as mr->r_trans_private. */
 struct rds_ib_mr {
+	struct delayed_work		work;
 	struct rds_ib_device		*device;
 	struct rds_ib_mr_pool		*pool;
 	struct rds_ib_connection	*ic;
@@ -81,9 +78,10 @@ struct rds_ib_mr {
 	unsigned int			sg_len;
 	int				sg_dma_len;
 
+	u8				odp:1;
 	union {
-		struct rds_ib_fmr	fmr;
 		struct rds_ib_frmr	frmr;
+		struct ib_mr		*mr;
 	} u;
 };
 
@@ -106,8 +104,7 @@ struct rds_ib_mr_pool {
 	unsigned long		max_items;
 	unsigned long		max_items_soft;
 	unsigned long		max_free_pinned;
-	struct ib_fmr_attr	fmr_attr;
-	bool			use_fastreg;
+	unsigned int		max_pages;
 };
 
 extern struct workqueue_struct *rds_ib_mr_wq;
@@ -122,24 +119,20 @@ void rds6_ib_get_mr_info(struct rds_ib_device *rds_ibdev,
 void rds_ib_destroy_mr_pool(struct rds_ib_mr_pool *);
 void *rds_ib_get_mr(struct scatterlist *sg, unsigned long nents,
 		    struct rds_sock *rs, u32 *key_ret,
-		    struct rds_connection *conn);
+		    struct rds_connection *conn, u64 start, u64 length,
+		    int need_odp);
 void rds_ib_sync_mr(void *trans_private, int dir);
 void rds_ib_free_mr(void *trans_private, int invalidate);
 void rds_ib_flush_mrs(void);
 int rds_ib_mr_init(void);
 void rds_ib_mr_exit(void);
+u32 rds_ib_get_lkey(void *trans_private);
 
 void __rds_ib_teardown_mr(struct rds_ib_mr *);
 void rds_ib_teardown_mr(struct rds_ib_mr *);
-struct rds_ib_mr *rds_ib_alloc_fmr(struct rds_ib_device *, int);
 struct rds_ib_mr *rds_ib_reuse_mr(struct rds_ib_mr_pool *);
 int rds_ib_flush_mr_pool(struct rds_ib_mr_pool *, int, struct rds_ib_mr **);
-struct rds_ib_mr *rds_ib_reg_fmr(struct rds_ib_device *, struct scatterlist *,
-				 unsigned long, u32 *);
 struct rds_ib_mr *rds_ib_try_reuse_ibmr(struct rds_ib_mr_pool *);
-void rds_ib_unreg_fmr(struct list_head *, unsigned int *,
-		      unsigned long *, unsigned int);
-void rds_ib_free_fmr_list(struct rds_ib_mr *);
 struct rds_ib_mr *rds_ib_reg_frmr(struct rds_ib_device *rds_ibdev,
 				  struct rds_ib_connection *ic,
 				  struct scatterlist *sg,

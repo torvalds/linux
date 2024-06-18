@@ -11,6 +11,7 @@
 
 #include <linux/delay.h>
 #include <linux/mutex.h>
+#include <linux/moduleparam.h>
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
 #include <linux/platform_data/x86/apple.h>
@@ -40,8 +41,25 @@
 #define PHY_PORT_CS1_LINK_STATE_SHIFT	26
 
 #define ICM_TIMEOUT			5000	/* ms */
+#define ICM_RETRIES			3
 #define ICM_APPROVE_TIMEOUT		10000	/* ms */
 #define ICM_MAX_LINK			4
+
+static bool start_icm;
+module_param(start_icm, bool, 0444);
+MODULE_PARM_DESC(start_icm, "start ICM firmware if it is not running (default: false)");
+
+/**
+ * struct usb4_switch_nvm_auth - Holds USB4 NVM_AUTH status
+ * @reply: Reply from ICM firmware is placed here
+ * @request: Request that is sent to ICM firmware
+ * @icm: Pointer to ICM private data
+ */
+struct usb4_switch_nvm_auth {
+	struct icm_usb4_switch_op_response reply;
+	struct icm_usb4_switch_op request;
+	struct icm *icm;
+};
 
 /**
  * struct icm - Internal connection manager private data
@@ -56,6 +74,8 @@
  * @max_boot_acl: Maximum number of preboot ACL entries (%0 if not supported)
  * @rpm: Does the controller support runtime PM (RTD3)
  * @can_upgrade_nvm: Can the NVM firmware be upgrade on this controller
+ * @proto_version: Firmware protocol version
+ * @last_nvm_auth: Last USB4 router NVM_AUTH result (or %NULL if not set)
  * @veto: Is RTD3 veto in effect
  * @is_supported: Checks if we can support ICM on this controller
  * @cio_reset: Trigger CIO reset
@@ -66,19 +86,21 @@
  * @set_uuid: Set UUID for the root switch (optional)
  * @device_connected: Handle device connected ICM message
  * @device_disconnected: Handle device disconnected ICM message
- * @xdomain_connected - Handle XDomain connected ICM message
- * @xdomain_disconnected - Handle XDomain disconnected ICM message
+ * @xdomain_connected: Handle XDomain connected ICM message
+ * @xdomain_disconnected: Handle XDomain disconnected ICM message
  * @rtd3_veto: Handle RTD3 veto notification ICM message
  */
 struct icm {
 	struct mutex request_lock;
 	struct delayed_work rescan_work;
 	struct pci_dev *upstream_port;
-	size_t max_boot_acl;
 	int vnd_cap;
 	bool safe_mode;
+	size_t max_boot_acl;
 	bool rpm;
 	bool can_upgrade_nvm;
+	u8 proto_version;
+	struct usb4_switch_nvm_auth *last_nvm_auth;
 	bool veto;
 	bool (*is_supported)(struct tb *tb);
 	int (*cio_reset)(struct tb *tb);
@@ -87,7 +109,7 @@ struct icm {
 	void (*save_devices)(struct tb *tb);
 	int (*driver_ready)(struct tb *tb,
 			    enum tb_security_level *security_level,
-			    size_t *nboot_acl, bool *rpm);
+			    u8 *proto_version, size_t *nboot_acl, bool *rpm);
 	void (*set_uuid)(struct tb *tb);
 	void (*device_connected)(struct tb *tb,
 				 const struct icm_pkg_header *hdr);
@@ -109,7 +131,7 @@ struct icm_notification {
 struct ep_name_entry {
 	u8 len;
 	u8 type;
-	u8 data[0];
+	u8 data[];
 };
 
 #define EP_NAME_INTEL_VSS	0x10
@@ -145,6 +167,17 @@ static const struct intel_vss *parse_intel_vss(const void *ep_name, size_t size)
 	}
 
 	return NULL;
+}
+
+static bool intel_vss_is_rtd3(const void *ep_name, size_t size)
+{
+	const struct intel_vss *vss;
+
+	vss = parse_intel_vss(ep_name, size);
+	if (vss)
+		return !!(vss->flags & INTEL_VSS_FLAGS_RTD3);
+
+	return false;
 }
 
 static inline struct tb *icm_to_tb(struct icm *icm)
@@ -264,10 +297,9 @@ static bool icm_copy(struct tb_cfg_request *req, const struct ctl_pkg *pkg)
 
 static int icm_request(struct tb *tb, const void *request, size_t request_size,
 		       void *response, size_t response_size, size_t npackets,
-		       unsigned int timeout_msec)
+		       int retries, unsigned int timeout_msec)
 {
 	struct icm *icm = tb_priv(tb);
-	int retries = 3;
 
 	do {
 		struct tb_cfg_request *req;
@@ -339,6 +371,14 @@ static void icm_veto_end(struct tb *tb)
 	}
 }
 
+static bool icm_firmware_running(const struct tb_nhi *nhi)
+{
+	u32 val;
+
+	val = ioread32(nhi->iobase + REG_FW_STS);
+	return !!(val & REG_FW_STS_ICM_EN);
+}
+
 static bool icm_fr_is_supported(struct tb *tb)
 {
 	return !x86_apple_machine;
@@ -370,7 +410,7 @@ static int icm_fr_get_route(struct tb *tb, u8 link, u8 depth, u64 *route)
 		return -ENOMEM;
 
 	ret = icm_request(tb, &request, sizeof(request), switches,
-			  sizeof(*switches), npackets, ICM_TIMEOUT);
+			  sizeof(*switches), npackets, ICM_RETRIES, ICM_TIMEOUT);
 	if (ret)
 		goto err_free;
 
@@ -413,7 +453,7 @@ static void icm_fr_save_devices(struct tb *tb)
 
 static int
 icm_fr_driver_ready(struct tb *tb, enum tb_security_level *security_level,
-		    size_t *nboot_acl, bool *rpm)
+		    u8 *proto_version, size_t *nboot_acl, bool *rpm)
 {
 	struct icm_fr_pkg_driver_ready_response reply;
 	struct icm_pkg_driver_ready request = {
@@ -423,7 +463,7 @@ icm_fr_driver_ready(struct tb *tb, enum tb_security_level *security_level,
 
 	memset(&reply, 0, sizeof(reply));
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, ICM_TIMEOUT);
+			  1, ICM_RETRIES, ICM_TIMEOUT);
 	if (ret)
 		return ret;
 
@@ -448,7 +488,7 @@ static int icm_fr_approve_switch(struct tb *tb, struct tb_switch *sw)
 	memset(&reply, 0, sizeof(reply));
 	/* Use larger timeout as establishing tunnels can take some time */
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, ICM_APPROVE_TIMEOUT);
+			  1, ICM_RETRIES, ICM_APPROVE_TIMEOUT);
 	if (ret)
 		return ret;
 
@@ -475,7 +515,7 @@ static int icm_fr_add_switch_key(struct tb *tb, struct tb_switch *sw)
 
 	memset(&reply, 0, sizeof(reply));
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, ICM_TIMEOUT);
+			  1, ICM_RETRIES, ICM_TIMEOUT);
 	if (ret)
 		return ret;
 
@@ -503,7 +543,7 @@ static int icm_fr_challenge_switch_key(struct tb *tb, struct tb_switch *sw,
 
 	memset(&reply, 0, sizeof(reply));
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, ICM_TIMEOUT);
+			  1, ICM_RETRIES, ICM_TIMEOUT);
 	if (ret)
 		return ret;
 
@@ -517,7 +557,9 @@ static int icm_fr_challenge_switch_key(struct tb *tb, struct tb_switch *sw,
 	return 0;
 }
 
-static int icm_fr_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
+static int icm_fr_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd,
+					int transmit_path, int transmit_ring,
+					int receive_path, int receive_ring)
 {
 	struct icm_fr_pkg_approve_xdomain_response reply;
 	struct icm_fr_pkg_approve_xdomain request;
@@ -528,14 +570,14 @@ static int icm_fr_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
 	request.link_info = xd->depth << ICM_LINK_INFO_DEPTH_SHIFT | xd->link;
 	memcpy(&request.remote_uuid, xd->remote_uuid, sizeof(*xd->remote_uuid));
 
-	request.transmit_path = xd->transmit_path;
-	request.transmit_ring = xd->transmit_ring;
-	request.receive_path = xd->receive_path;
-	request.receive_ring = xd->receive_ring;
+	request.transmit_path = transmit_path;
+	request.transmit_ring = transmit_ring;
+	request.receive_path = receive_path;
+	request.receive_ring = receive_ring;
 
 	memset(&reply, 0, sizeof(reply));
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, ICM_TIMEOUT);
+			  1, ICM_RETRIES, ICM_TIMEOUT);
 	if (ret)
 		return ret;
 
@@ -545,7 +587,9 @@ static int icm_fr_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
 	return 0;
 }
 
-static int icm_fr_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
+static int icm_fr_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd,
+					   int transmit_path, int transmit_ring,
+					   int receive_path, int receive_ring)
 {
 	u8 phy_port;
 	u8 cmd;
@@ -562,67 +606,52 @@ static int icm_fr_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
 	return 0;
 }
 
-static struct tb_switch *add_switch(struct tb_switch *parent_sw, u64 route,
-				    const uuid_t *uuid, const u8 *ep_name,
-				    size_t ep_name_size, u8 connection_id,
-				    u8 connection_key, u8 link, u8 depth,
-				    enum tb_security_level security_level,
-				    bool authorized, bool boot)
+static struct tb_switch *alloc_switch(struct tb_switch *parent_sw, u64 route,
+				      const uuid_t *uuid)
 {
-	const struct intel_vss *vss;
+	struct tb *tb = parent_sw->tb;
 	struct tb_switch *sw;
-	int ret;
 
-	pm_runtime_get_sync(&parent_sw->dev);
-
-	sw = tb_switch_alloc(parent_sw->tb, &parent_sw->dev, route);
-	if (IS_ERR(sw))
-		goto out;
+	sw = tb_switch_alloc(tb, &parent_sw->dev, route);
+	if (IS_ERR(sw)) {
+		tb_warn(tb, "failed to allocate switch at %llx\n", route);
+		return sw;
+	}
 
 	sw->uuid = kmemdup(uuid, sizeof(*uuid), GFP_KERNEL);
 	if (!sw->uuid) {
-		tb_sw_warn(sw, "cannot allocate memory for switch\n");
 		tb_switch_put(sw);
-		goto out;
+		return ERR_PTR(-ENOMEM);
 	}
-	sw->connection_id = connection_id;
-	sw->connection_key = connection_key;
-	sw->link = link;
-	sw->depth = depth;
-	sw->authorized = authorized;
-	sw->security_level = security_level;
-	sw->boot = boot;
-	init_completion(&sw->rpm_complete);
 
-	vss = parse_intel_vss(ep_name, ep_name_size);
-	if (vss)
-		sw->rpm = !!(vss->flags & INTEL_VSS_FLAGS_RTD3);
+	init_completion(&sw->rpm_complete);
+	return sw;
+}
+
+static int add_switch(struct tb_switch *parent_sw, struct tb_switch *sw)
+{
+	u64 route = tb_route(sw);
+	int ret;
 
 	/* Link the two switches now */
 	tb_port_at(route, parent_sw)->remote = tb_upstream_port(sw);
 	tb_upstream_port(sw)->remote = tb_port_at(route, parent_sw);
 
 	ret = tb_switch_add(sw);
-	if (ret) {
+	if (ret)
 		tb_port_at(tb_route(sw), parent_sw)->remote = NULL;
-		tb_switch_put(sw);
-		sw = ERR_PTR(ret);
-	}
 
-out:
-	pm_runtime_mark_last_busy(&parent_sw->dev);
-	pm_runtime_put_autosuspend(&parent_sw->dev);
-
-	return sw;
+	return ret;
 }
 
-static void update_switch(struct tb_switch *parent_sw, struct tb_switch *sw,
-			  u64 route, u8 connection_id, u8 connection_key,
-			  u8 link, u8 depth, bool boot)
+static void update_switch(struct tb_switch *sw, u64 route, u8 connection_id,
+			  u8 connection_key, u8 link, u8 depth, bool boot)
 {
+	struct tb_switch *parent_sw = tb_switch_parent(sw);
+
 	/* Disconnect from parent */
-	tb_port_at(tb_route(sw), parent_sw)->remote = NULL;
-	/* Re-connect via updated port*/
+	tb_switch_downstream_port(sw)->remote = NULL;
+	/* Re-connect via updated port */
 	tb_port_at(route, parent_sw)->remote = tb_upstream_port(sw);
 
 	/* Update with the new addressing information */
@@ -643,10 +672,7 @@ static void update_switch(struct tb_switch *parent_sw, struct tb_switch *sw,
 
 static void remove_switch(struct tb_switch *sw)
 {
-	struct tb_switch *parent_sw;
-
-	parent_sw = tb_to_switch(sw->dev.parent);
-	tb_port_at(tb_route(sw), parent_sw)->remote = NULL;
+	tb_switch_downstream_port(sw)->remote = NULL;
 	tb_switch_remove(sw);
 }
 
@@ -697,11 +723,11 @@ icm_fr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 		(const struct icm_fr_event_device_connected *)hdr;
 	enum tb_security_level security_level;
 	struct tb_switch *sw, *parent_sw;
+	bool boot, dual_lane, speed_gen3;
 	struct icm *icm = tb_priv(tb);
 	bool authorized = false;
 	struct tb_xdomain *xd;
 	u8 link, depth;
-	bool boot;
 	u64 route;
 	int ret;
 
@@ -714,6 +740,8 @@ icm_fr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 	security_level = (pkg->hdr.flags & ICM_FLAGS_SLEVEL_MASK) >>
 			 ICM_FLAGS_SLEVEL_SHIFT;
 	boot = pkg->link_info & ICM_LINK_INFO_BOOT;
+	dual_lane = pkg->hdr.flags & ICM_FLAGS_DUAL_LANE;
+	speed_gen3 = pkg->hdr.flags & ICM_FLAGS_SPEED_GEN3;
 
 	if (pkg->link_info & ICM_LINK_INFO_REJECTED) {
 		tb_info(tb, "switch at %u.%u was rejected by ICM firmware because topology limit exceeded\n",
@@ -725,7 +753,6 @@ icm_fr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 	if (sw) {
 		u8 phy_port, sw_phy_port;
 
-		parent_sw = tb_to_switch(sw->dev.parent);
 		sw_phy_port = tb_phy_port_from_link(sw->link);
 		phy_port = tb_phy_port_from_link(link);
 
@@ -755,7 +782,7 @@ icm_fr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 				route = tb_route(sw);
 			}
 
-			update_switch(parent_sw, sw, route, pkg->connection_id,
+			update_switch(sw, route, pkg->connection_id,
 				      pkg->connection_key, link, depth, boot);
 			tb_switch_put(sw);
 			return;
@@ -811,10 +838,28 @@ icm_fr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 		return;
 	}
 
-	add_switch(parent_sw, route, &pkg->ep_uuid, (const u8 *)pkg->ep_name,
-		   sizeof(pkg->ep_name), pkg->connection_id,
-		   pkg->connection_key, link, depth, security_level,
-		   authorized, boot);
+	pm_runtime_get_sync(&parent_sw->dev);
+
+	sw = alloc_switch(parent_sw, route, &pkg->ep_uuid);
+	if (!IS_ERR(sw)) {
+		sw->connection_id = pkg->connection_id;
+		sw->connection_key = pkg->connection_key;
+		sw->link = link;
+		sw->depth = depth;
+		sw->authorized = authorized;
+		sw->security_level = security_level;
+		sw->boot = boot;
+		sw->link_speed = speed_gen3 ? 20 : 10;
+		sw->link_width = dual_lane ? TB_LINK_WIDTH_DUAL :
+					     TB_LINK_WIDTH_SINGLE;
+		sw->rpm = intel_vss_is_rtd3(pkg->ep_name, sizeof(pkg->ep_name));
+
+		if (add_switch(parent_sw, sw))
+			tb_switch_put(sw);
+	}
+
+	pm_runtime_mark_last_busy(&parent_sw->dev);
+	pm_runtime_put_autosuspend(&parent_sw->dev);
 
 	tb_switch_put(parent_sw);
 }
@@ -843,7 +888,13 @@ icm_fr_device_disconnected(struct tb *tb, const struct icm_pkg_header *hdr)
 		return;
 	}
 
+	pm_runtime_get_sync(sw->dev.parent);
+
 	remove_switch(sw);
+
+	pm_runtime_mark_last_busy(sw->dev.parent);
+	pm_runtime_put_autosuspend(sw->dev.parent);
+
 	tb_switch_put(sw);
 }
 
@@ -959,7 +1010,7 @@ static int icm_tr_cio_reset(struct tb *tb)
 
 static int
 icm_tr_driver_ready(struct tb *tb, enum tb_security_level *security_level,
-		    size_t *nboot_acl, bool *rpm)
+		    u8 *proto_version, size_t *nboot_acl, bool *rpm)
 {
 	struct icm_tr_pkg_driver_ready_response reply;
 	struct icm_pkg_driver_ready request = {
@@ -969,12 +1020,15 @@ icm_tr_driver_ready(struct tb *tb, enum tb_security_level *security_level,
 
 	memset(&reply, 0, sizeof(reply));
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, 20000);
+			  1, 10, 250);
 	if (ret)
 		return ret;
 
 	if (security_level)
 		*security_level = reply.info & ICM_TR_INFO_SLEVEL_MASK;
+	if (proto_version)
+		*proto_version = (reply.info & ICM_TR_INFO_PROTO_VERSION_MASK) >>
+				ICM_TR_INFO_PROTO_VERSION_SHIFT;
 	if (nboot_acl)
 		*nboot_acl = (reply.info & ICM_TR_INFO_BOOT_ACL_MASK) >>
 				ICM_TR_INFO_BOOT_ACL_SHIFT;
@@ -999,7 +1053,7 @@ static int icm_tr_approve_switch(struct tb *tb, struct tb_switch *sw)
 
 	memset(&reply, 0, sizeof(reply));
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, ICM_APPROVE_TIMEOUT);
+			  1, ICM_RETRIES, ICM_APPROVE_TIMEOUT);
 	if (ret)
 		return ret;
 
@@ -1027,7 +1081,7 @@ static int icm_tr_add_switch_key(struct tb *tb, struct tb_switch *sw)
 
 	memset(&reply, 0, sizeof(reply));
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, ICM_TIMEOUT);
+			  1, ICM_RETRIES, ICM_TIMEOUT);
 	if (ret)
 		return ret;
 
@@ -1056,7 +1110,7 @@ static int icm_tr_challenge_switch_key(struct tb *tb, struct tb_switch *sw,
 
 	memset(&reply, 0, sizeof(reply));
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, ICM_TIMEOUT);
+			  1, ICM_RETRIES, ICM_TIMEOUT);
 	if (ret)
 		return ret;
 
@@ -1070,7 +1124,9 @@ static int icm_tr_challenge_switch_key(struct tb *tb, struct tb_switch *sw,
 	return 0;
 }
 
-static int icm_tr_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
+static int icm_tr_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd,
+					int transmit_path, int transmit_ring,
+					int receive_path, int receive_ring)
 {
 	struct icm_tr_pkg_approve_xdomain_response reply;
 	struct icm_tr_pkg_approve_xdomain request;
@@ -1080,15 +1136,15 @@ static int icm_tr_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
 	request.hdr.code = ICM_APPROVE_XDOMAIN;
 	request.route_hi = upper_32_bits(xd->route);
 	request.route_lo = lower_32_bits(xd->route);
-	request.transmit_path = xd->transmit_path;
-	request.transmit_ring = xd->transmit_ring;
-	request.receive_path = xd->receive_path;
-	request.receive_ring = xd->receive_ring;
+	request.transmit_path = transmit_path;
+	request.transmit_ring = transmit_ring;
+	request.receive_path = receive_path;
+	request.receive_ring = receive_ring;
 	memcpy(&request.remote_uuid, xd->remote_uuid, sizeof(*xd->remote_uuid));
 
 	memset(&reply, 0, sizeof(reply));
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, ICM_TIMEOUT);
+			  1, ICM_RETRIES, ICM_TIMEOUT);
 	if (ret)
 		return ret;
 
@@ -1114,7 +1170,7 @@ static int icm_tr_xdomain_tear_down(struct tb *tb, struct tb_xdomain *xd,
 
 	memset(&reply, 0, sizeof(reply));
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, ICM_TIMEOUT);
+			  1, ICM_RETRIES, ICM_TIMEOUT);
 	if (ret)
 		return ret;
 
@@ -1124,7 +1180,9 @@ static int icm_tr_xdomain_tear_down(struct tb *tb, struct tb_xdomain *xd,
 	return 0;
 }
 
-static int icm_tr_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
+static int icm_tr_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd,
+					   int transmit_path, int transmit_ring,
+					   int receive_path, int receive_ring)
 {
 	int ret;
 
@@ -1142,10 +1200,10 @@ __icm_tr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr,
 {
 	const struct icm_tr_event_device_connected *pkg =
 		(const struct icm_tr_event_device_connected *)hdr;
+	bool authorized, boot, dual_lane, speed_gen3;
 	enum tb_security_level security_level;
 	struct tb_switch *sw, *parent_sw;
 	struct tb_xdomain *xd;
-	bool authorized, boot;
 	u64 route;
 
 	icm_postpone_rescan(tb);
@@ -1163,6 +1221,8 @@ __icm_tr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr,
 	security_level = (pkg->hdr.flags & ICM_FLAGS_SLEVEL_MASK) >>
 			 ICM_FLAGS_SLEVEL_SHIFT;
 	boot = pkg->link_info & ICM_LINK_INFO_BOOT;
+	dual_lane = pkg->hdr.flags & ICM_FLAGS_DUAL_LANE;
+	speed_gen3 = pkg->hdr.flags & ICM_FLAGS_SPEED_GEN3;
 
 	if (pkg->link_info & ICM_LINK_INFO_REJECTED) {
 		tb_info(tb, "switch at %llx was rejected by ICM firmware because topology limit exceeded\n",
@@ -1174,9 +1234,8 @@ __icm_tr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr,
 	if (sw) {
 		/* Update the switch if it is still in the same place */
 		if (tb_route(sw) == route && !!sw->authorized == authorized) {
-			parent_sw = tb_to_switch(sw->dev.parent);
-			update_switch(parent_sw, sw, route, pkg->connection_id,
-				      0, 0, 0, boot);
+			update_switch(sw, route, pkg->connection_id, 0, 0, 0,
+				      boot);
 			tb_switch_put(sw);
 			return;
 		}
@@ -1205,11 +1264,28 @@ __icm_tr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr,
 		return;
 	}
 
-	sw = add_switch(parent_sw, route, &pkg->ep_uuid, (const u8 *)pkg->ep_name,
-			sizeof(pkg->ep_name), pkg->connection_id, 0, 0, 0,
-			security_level, authorized, boot);
-	if (!IS_ERR(sw) && force_rtd3)
-		sw->rpm = true;
+	pm_runtime_get_sync(&parent_sw->dev);
+
+	sw = alloc_switch(parent_sw, route, &pkg->ep_uuid);
+	if (!IS_ERR(sw)) {
+		sw->connection_id = pkg->connection_id;
+		sw->authorized = authorized;
+		sw->security_level = security_level;
+		sw->boot = boot;
+		sw->link_speed = speed_gen3 ? 20 : 10;
+		sw->link_width = dual_lane ? TB_LINK_WIDTH_DUAL :
+					     TB_LINK_WIDTH_SINGLE;
+		sw->rpm = force_rtd3;
+		if (!sw->rpm)
+			sw->rpm = intel_vss_is_rtd3(pkg->ep_name,
+						    sizeof(pkg->ep_name));
+
+		if (add_switch(parent_sw, sw))
+			tb_switch_put(sw);
+	}
+
+	pm_runtime_mark_last_busy(&parent_sw->dev);
+	pm_runtime_put_autosuspend(&parent_sw->dev);
 
 	tb_switch_put(parent_sw);
 }
@@ -1235,8 +1311,13 @@ icm_tr_device_disconnected(struct tb *tb, const struct icm_pkg_header *hdr)
 		tb_warn(tb, "no switch exists at %llx, ignoring\n", route);
 		return;
 	}
+	pm_runtime_get_sync(sw->dev.parent);
 
 	remove_switch(sw);
+
+	pm_runtime_mark_last_busy(sw->dev.parent);
+	pm_runtime_put_autosuspend(sw->dev.parent);
+
 	tb_switch_put(sw);
 }
 
@@ -1349,9 +1430,12 @@ static bool icm_ar_is_supported(struct tb *tb)
 	/*
 	 * Starting from Alpine Ridge we can use ICM on Apple machines
 	 * as well. We just need to reset and re-enable it first.
+	 * However, only start it if explicitly asked by the user.
 	 */
-	if (!x86_apple_machine)
+	if (icm_firmware_running(tb->nhi))
 		return true;
+	if (!start_icm)
+		return false;
 
 	/*
 	 * Find the upstream PCIe port in case we need to do reset
@@ -1402,7 +1486,7 @@ static int icm_ar_get_mode(struct tb *tb)
 
 static int
 icm_ar_driver_ready(struct tb *tb, enum tb_security_level *security_level,
-		    size_t *nboot_acl, bool *rpm)
+		    u8 *proto_version, size_t *nboot_acl, bool *rpm)
 {
 	struct icm_ar_pkg_driver_ready_response reply;
 	struct icm_pkg_driver_ready request = {
@@ -1412,7 +1496,7 @@ icm_ar_driver_ready(struct tb *tb, enum tb_security_level *security_level,
 
 	memset(&reply, 0, sizeof(reply));
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, ICM_TIMEOUT);
+			  1, ICM_RETRIES, ICM_TIMEOUT);
 	if (ret)
 		return ret;
 
@@ -1438,7 +1522,7 @@ static int icm_ar_get_route(struct tb *tb, u8 link, u8 depth, u64 *route)
 
 	memset(&reply, 0, sizeof(reply));
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, ICM_TIMEOUT);
+			  1, ICM_RETRIES, ICM_TIMEOUT);
 	if (ret)
 		return ret;
 
@@ -1459,7 +1543,7 @@ static int icm_ar_get_boot_acl(struct tb *tb, uuid_t *uuids, size_t nuuids)
 
 	memset(&reply, 0, sizeof(reply));
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, ICM_TIMEOUT);
+			  1, ICM_RETRIES, ICM_TIMEOUT);
 	if (ret)
 		return ret;
 
@@ -1520,7 +1604,7 @@ static int icm_ar_set_boot_acl(struct tb *tb, const uuid_t *uuids,
 
 	memset(&reply, 0, sizeof(reply));
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, ICM_TIMEOUT);
+			  1, ICM_RETRIES, ICM_TIMEOUT);
 	if (ret)
 		return ret;
 
@@ -1532,7 +1616,7 @@ static int icm_ar_set_boot_acl(struct tb *tb, const uuid_t *uuids,
 
 static int
 icm_icl_driver_ready(struct tb *tb, enum tb_security_level *security_level,
-		    size_t *nboot_acl, bool *rpm)
+		     u8 *proto_version, size_t *nboot_acl, bool *rpm)
 {
 	struct icm_tr_pkg_driver_ready_response reply;
 	struct icm_pkg_driver_ready request = {
@@ -1542,9 +1626,13 @@ icm_icl_driver_ready(struct tb *tb, enum tb_security_level *security_level,
 
 	memset(&reply, 0, sizeof(reply));
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, 20000);
+			  1, ICM_RETRIES, 20000);
 	if (ret)
 		return ret;
+
+	if (proto_version)
+		*proto_version = (reply.info & ICM_TR_INFO_PROTO_VERSION_MASK) >>
+				ICM_TR_INFO_PROTO_VERSION_SHIFT;
 
 	/* Ice Lake always supports RTD3 */
 	if (rpm)
@@ -1585,6 +1673,22 @@ static void icm_icl_rtd3_veto(struct tb *tb, const struct icm_pkg_header *hdr)
 		icm_veto_end(tb);
 }
 
+static bool icm_tgl_is_supported(struct tb *tb)
+{
+	unsigned long end = jiffies + msecs_to_jiffies(10);
+
+	do {
+		u32 val;
+
+		val = ioread32(tb->nhi->iobase + REG_FW_STS);
+		if (val & REG_FW_STS_NVM_AUTH_DONE)
+			return true;
+		usleep_range(100, 500);
+	} while (time_before(jiffies, end));
+
+	return false;
+}
+
 static void icm_handle_notification(struct work_struct *work)
 {
 	struct icm_notification *n = container_of(work, typeof(*n), work);
@@ -1607,10 +1711,12 @@ static void icm_handle_notification(struct work_struct *work)
 			icm->device_disconnected(tb, n->pkg);
 			break;
 		case ICM_EVENT_XDOMAIN_CONNECTED:
-			icm->xdomain_connected(tb, n->pkg);
+			if (tb_is_xdomain_enabled())
+				icm->xdomain_connected(tb, n->pkg);
 			break;
 		case ICM_EVENT_XDOMAIN_DISCONNECTED:
-			icm->xdomain_disconnected(tb, n->pkg);
+			if (tb_is_xdomain_enabled())
+				icm->xdomain_disconnected(tb, n->pkg);
 			break;
 		case ICM_EVENT_RTD3_VETO:
 			icm->rtd3_veto(tb, n->pkg);
@@ -1633,8 +1739,13 @@ static void icm_handle_event(struct tb *tb, enum tb_cfg_pkg_type type,
 	if (!n)
 		return;
 
-	INIT_WORK(&n->work, icm_handle_notification);
 	n->pkg = kmemdup(buf, size, GFP_KERNEL);
+	if (!n->pkg) {
+		kfree(n);
+		return;
+	}
+
+	INIT_WORK(&n->work, icm_handle_notification);
 	n->tb = tb;
 
 	queue_work(tb->wq, &n->work);
@@ -1642,13 +1753,14 @@ static void icm_handle_event(struct tb *tb, enum tb_cfg_pkg_type type,
 
 static int
 __icm_driver_ready(struct tb *tb, enum tb_security_level *security_level,
-		   size_t *nboot_acl, bool *rpm)
+		   u8 *proto_version, size_t *nboot_acl, bool *rpm)
 {
 	struct icm *icm = tb_priv(tb);
 	unsigned int retries = 50;
 	int ret;
 
-	ret = icm->driver_ready(tb, security_level, nboot_acl, rpm);
+	ret = icm->driver_ready(tb, security_level, proto_version, nboot_acl,
+				rpm);
 	if (ret) {
 		tb_err(tb, "failed to send driver ready to ICM\n");
 		return ret;
@@ -1704,8 +1816,7 @@ static int icm_firmware_start(struct tb *tb, struct tb_nhi *nhi)
 	u32 val;
 
 	/* Check if the ICM firmware is already running */
-	val = ioread32(nhi->iobase + REG_FW_STS);
-	if (val & REG_FW_STS_ICM_EN)
+	if (icm_firmware_running(nhi))
 		return 0;
 
 	dev_dbg(&nhi->pdev->dev, "starting ICM firmware\n");
@@ -1859,8 +1970,8 @@ static int icm_driver_ready(struct tb *tb)
 		return 0;
 	}
 
-	ret = __icm_driver_ready(tb, &tb->security_level, &tb->nboot_acl,
-				 &icm->rpm);
+	ret = __icm_driver_ready(tb, &tb->security_level, &icm->proto_version,
+				 &tb->nboot_acl, &icm->rpm);
 	if (ret)
 		return ret;
 
@@ -1870,6 +1981,9 @@ static int icm_driver_ready(struct tb *tb)
 	 */
 	if (tb->nboot_acl > icm->max_boot_acl)
 		tb->nboot_acl = 0;
+
+	if (icm->proto_version >= 3)
+		tb_dbg(tb, "USB4 proxy operations supported\n");
 
 	return 0;
 }
@@ -1893,14 +2007,12 @@ static int icm_suspend(struct tb *tb)
  */
 static void icm_unplug_children(struct tb_switch *sw)
 {
-	unsigned int i;
+	struct tb_port *port;
 
 	if (tb_route(sw))
 		sw->is_unplugged = true;
 
-	for (i = 1; i <= sw->config.max_port_number; i++) {
-		struct tb_port *port = &sw->ports[i];
-
+	tb_switch_for_each_port(sw, port) {
 		if (port->xdomain)
 			port->xdomain->is_unplugged = true;
 		else if (tb_port_has_remote(port))
@@ -1919,7 +2031,9 @@ static int complete_rpm(struct device *dev, void *data)
 
 static void remove_unplugged_switch(struct tb_switch *sw)
 {
-	pm_runtime_get_sync(sw->dev.parent);
+	struct device *parent = get_device(sw->dev.parent);
+
+	pm_runtime_get_sync(parent);
 
 	/*
 	 * Signal this and switches below for rpm_complete because
@@ -1930,17 +2044,17 @@ static void remove_unplugged_switch(struct tb_switch *sw)
 	bus_for_each_dev(&tb_bus_type, &sw->dev, NULL, complete_rpm);
 	tb_switch_remove(sw);
 
-	pm_runtime_mark_last_busy(sw->dev.parent);
-	pm_runtime_put_autosuspend(sw->dev.parent);
+	pm_runtime_mark_last_busy(parent);
+	pm_runtime_put_autosuspend(parent);
+
+	put_device(parent);
 }
 
 static void icm_free_unplugged_children(struct tb_switch *sw)
 {
-	unsigned int i;
+	struct tb_port *port;
 
-	for (i = 1; i <= sw->config.max_port_number; i++) {
-		struct tb_port *port = &sw->ports[i];
-
+	tb_switch_for_each_port(sw, port) {
 		if (port->xdomain && port->xdomain->is_unplugged) {
 			tb_xdomain_remove(port->xdomain);
 			port->xdomain = NULL;
@@ -1986,7 +2100,7 @@ static void icm_complete(struct tb *tb)
 	 * Now all existing children should be resumed, start events
 	 * from ICM to get updated status.
 	 */
-	__icm_driver_ready(tb, NULL, NULL, NULL);
+	__icm_driver_ready(tb, NULL, NULL, NULL, NULL);
 
 	/*
 	 * We do not get notifications of devices that have been
@@ -2030,7 +2144,7 @@ static int icm_runtime_resume(struct tb *tb)
 	return 0;
 }
 
-static int icm_start(struct tb *tb)
+static int icm_start(struct tb *tb, bool not_used)
 {
 	struct icm *icm = tb_priv(tb);
 	int ret;
@@ -2065,11 +2179,172 @@ static void icm_stop(struct tb *tb)
 	tb_switch_remove(tb->root_switch);
 	tb->root_switch = NULL;
 	nhi_mailbox_cmd(tb->nhi, NHI_MAILBOX_DRV_UNLOADS, 0);
+	kfree(icm->last_nvm_auth);
+	icm->last_nvm_auth = NULL;
 }
 
 static int icm_disconnect_pcie_paths(struct tb *tb)
 {
 	return nhi_mailbox_cmd(tb->nhi, NHI_MAILBOX_DISCONNECT_PCIE_PATHS, 0);
+}
+
+static void icm_usb4_switch_nvm_auth_complete(void *data)
+{
+	struct usb4_switch_nvm_auth *auth = data;
+	struct icm *icm = auth->icm;
+	struct tb *tb = icm_to_tb(icm);
+
+	tb_dbg(tb, "NVM_AUTH response for %llx flags %#x status %#x\n",
+	       get_route(auth->reply.route_hi, auth->reply.route_lo),
+	       auth->reply.hdr.flags, auth->reply.status);
+
+	mutex_lock(&tb->lock);
+	if (WARN_ON(icm->last_nvm_auth))
+		kfree(icm->last_nvm_auth);
+	icm->last_nvm_auth = auth;
+	mutex_unlock(&tb->lock);
+}
+
+static int icm_usb4_switch_nvm_authenticate(struct tb *tb, u64 route)
+{
+	struct usb4_switch_nvm_auth *auth;
+	struct icm *icm = tb_priv(tb);
+	struct tb_cfg_request *req;
+	int ret;
+
+	auth = kzalloc(sizeof(*auth), GFP_KERNEL);
+	if (!auth)
+		return -ENOMEM;
+
+	auth->icm = icm;
+	auth->request.hdr.code = ICM_USB4_SWITCH_OP;
+	auth->request.route_hi = upper_32_bits(route);
+	auth->request.route_lo = lower_32_bits(route);
+	auth->request.opcode = USB4_SWITCH_OP_NVM_AUTH;
+
+	req = tb_cfg_request_alloc();
+	if (!req) {
+		ret = -ENOMEM;
+		goto err_free_auth;
+	}
+
+	req->match = icm_match;
+	req->copy = icm_copy;
+	req->request = &auth->request;
+	req->request_size = sizeof(auth->request);
+	req->request_type = TB_CFG_PKG_ICM_CMD;
+	req->response = &auth->reply;
+	req->npackets = 1;
+	req->response_size = sizeof(auth->reply);
+	req->response_type = TB_CFG_PKG_ICM_RESP;
+
+	tb_dbg(tb, "NVM_AUTH request for %llx\n", route);
+
+	mutex_lock(&icm->request_lock);
+	ret = tb_cfg_request(tb->ctl, req, icm_usb4_switch_nvm_auth_complete,
+			     auth);
+	mutex_unlock(&icm->request_lock);
+
+	tb_cfg_request_put(req);
+	if (ret)
+		goto err_free_auth;
+	return 0;
+
+err_free_auth:
+	kfree(auth);
+	return ret;
+}
+
+static int icm_usb4_switch_op(struct tb_switch *sw, u16 opcode, u32 *metadata,
+			      u8 *status, const void *tx_data, size_t tx_data_len,
+			      void *rx_data, size_t rx_data_len)
+{
+	struct icm_usb4_switch_op_response reply;
+	struct icm_usb4_switch_op request;
+	struct tb *tb = sw->tb;
+	struct icm *icm = tb_priv(tb);
+	u64 route = tb_route(sw);
+	int ret;
+
+	/*
+	 * USB4 router operation proxy is supported in firmware if the
+	 * protocol version is 3 or higher.
+	 */
+	if (icm->proto_version < 3)
+		return -EOPNOTSUPP;
+
+	/*
+	 * NVM_AUTH is a special USB4 proxy operation that does not
+	 * return immediately so handle it separately.
+	 */
+	if (opcode == USB4_SWITCH_OP_NVM_AUTH)
+		return icm_usb4_switch_nvm_authenticate(tb, route);
+
+	memset(&request, 0, sizeof(request));
+	request.hdr.code = ICM_USB4_SWITCH_OP;
+	request.route_hi = upper_32_bits(route);
+	request.route_lo = lower_32_bits(route);
+	request.opcode = opcode;
+	if (metadata)
+		request.metadata = *metadata;
+
+	if (tx_data_len) {
+		request.data_len_valid |= ICM_USB4_SWITCH_DATA_VALID;
+		if (tx_data_len < ARRAY_SIZE(request.data))
+			request.data_len_valid =
+				tx_data_len & ICM_USB4_SWITCH_DATA_LEN_MASK;
+		memcpy(request.data, tx_data, tx_data_len * sizeof(u32));
+	}
+
+	memset(&reply, 0, sizeof(reply));
+	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
+			  1, ICM_RETRIES, ICM_TIMEOUT);
+	if (ret)
+		return ret;
+
+	if (reply.hdr.flags & ICM_FLAGS_ERROR)
+		return -EIO;
+
+	if (status)
+		*status = reply.status;
+
+	if (metadata)
+		*metadata = reply.metadata;
+
+	if (rx_data_len)
+		memcpy(rx_data, reply.data, rx_data_len * sizeof(u32));
+
+	return 0;
+}
+
+static int icm_usb4_switch_nvm_authenticate_status(struct tb_switch *sw,
+						   u32 *status)
+{
+	struct usb4_switch_nvm_auth *auth;
+	struct tb *tb = sw->tb;
+	struct icm *icm = tb_priv(tb);
+	int ret = 0;
+
+	if (icm->proto_version < 3)
+		return -EOPNOTSUPP;
+
+	auth = icm->last_nvm_auth;
+	icm->last_nvm_auth = NULL;
+
+	if (auth && auth->reply.route_hi == sw->config.route_hi &&
+	    auth->reply.route_lo == sw->config.route_lo) {
+		tb_dbg(tb, "NVM_AUTH found for %llx flags %#x status %#x\n",
+		       tb_route(sw), auth->reply.hdr.flags, auth->reply.status);
+		if (auth->reply.hdr.flags & ICM_FLAGS_ERROR)
+			ret = -EIO;
+		else
+			*status = auth->reply.status;
+	} else {
+		*status = 0;
+	}
+
+	kfree(auth);
+	return ret;
 }
 
 /* Falcon Ridge */
@@ -2130,6 +2405,9 @@ static const struct tb_cm_ops icm_tr_ops = {
 	.disconnect_pcie_paths = icm_disconnect_pcie_paths,
 	.approve_xdomain_paths = icm_tr_approve_xdomain_paths,
 	.disconnect_xdomain_paths = icm_tr_disconnect_xdomain_paths,
+	.usb4_switch_op = icm_usb4_switch_op,
+	.usb4_switch_nvm_authenticate_status =
+		icm_usb4_switch_nvm_authenticate_status,
 };
 
 /* Ice Lake */
@@ -2143,6 +2421,9 @@ static const struct tb_cm_ops icm_icl_ops = {
 	.handle_event = icm_handle_event,
 	.approve_xdomain_paths = icm_tr_approve_xdomain_paths,
 	.disconnect_xdomain_paths = icm_tr_disconnect_xdomain_paths,
+	.usb4_switch_op = icm_usb4_switch_op,
+	.usb4_switch_nvm_authenticate_status =
+		icm_usb4_switch_nvm_authenticate_status,
 };
 
 struct tb *icm_probe(struct tb_nhi *nhi)
@@ -2150,7 +2431,7 @@ struct tb *icm_probe(struct tb_nhi *nhi)
 	struct icm *icm;
 	struct tb *tb;
 
-	tb = tb_domain_alloc(nhi, sizeof(struct icm));
+	tb = tb_domain_alloc(nhi, ICM_TIMEOUT, sizeof(struct icm));
 	if (!tb)
 		return NULL;
 
@@ -2216,7 +2497,7 @@ struct tb *icm_probe(struct tb_nhi *nhi)
 
 	case PCI_DEVICE_ID_INTEL_ICL_NHI0:
 	case PCI_DEVICE_ID_INTEL_ICL_NHI1:
-		icm->is_supported = icm_ar_is_supported;
+		icm->is_supported = icm_fr_is_supported;
 		icm->driver_ready = icm_icl_driver_ready;
 		icm->set_uuid = icm_icl_set_uuid;
 		icm->device_connected = icm_icl_device_connected;
@@ -2226,6 +2507,41 @@ struct tb *icm_probe(struct tb_nhi *nhi)
 		icm->rtd3_veto = icm_icl_rtd3_veto;
 		tb->cm_ops = &icm_icl_ops;
 		break;
+
+	case PCI_DEVICE_ID_INTEL_TGL_NHI0:
+	case PCI_DEVICE_ID_INTEL_TGL_NHI1:
+	case PCI_DEVICE_ID_INTEL_TGL_H_NHI0:
+	case PCI_DEVICE_ID_INTEL_TGL_H_NHI1:
+	case PCI_DEVICE_ID_INTEL_ADL_NHI0:
+	case PCI_DEVICE_ID_INTEL_ADL_NHI1:
+	case PCI_DEVICE_ID_INTEL_RPL_NHI0:
+	case PCI_DEVICE_ID_INTEL_RPL_NHI1:
+	case PCI_DEVICE_ID_INTEL_MTL_M_NHI0:
+	case PCI_DEVICE_ID_INTEL_MTL_P_NHI0:
+	case PCI_DEVICE_ID_INTEL_MTL_P_NHI1:
+		icm->is_supported = icm_tgl_is_supported;
+		icm->driver_ready = icm_icl_driver_ready;
+		icm->set_uuid = icm_icl_set_uuid;
+		icm->device_connected = icm_icl_device_connected;
+		icm->device_disconnected = icm_tr_device_disconnected;
+		icm->xdomain_connected = icm_tr_xdomain_connected;
+		icm->xdomain_disconnected = icm_tr_xdomain_disconnected;
+		icm->rtd3_veto = icm_icl_rtd3_veto;
+		tb->cm_ops = &icm_icl_ops;
+		break;
+
+	case PCI_DEVICE_ID_INTEL_MAPLE_RIDGE_2C_NHI:
+	case PCI_DEVICE_ID_INTEL_MAPLE_RIDGE_4C_NHI:
+		icm->can_upgrade_nvm = true;
+		icm->is_supported = icm_tgl_is_supported;
+		icm->get_mode = icm_ar_get_mode;
+		icm->driver_ready = icm_tr_driver_ready;
+		icm->device_connected = icm_tr_device_connected;
+		icm->device_disconnected = icm_tr_device_disconnected;
+		icm->xdomain_connected = icm_tr_xdomain_connected;
+		icm->xdomain_disconnected = icm_tr_xdomain_disconnected;
+		tb->cm_ops = &icm_tr_ops;
+		break;
 	}
 
 	if (!icm->is_supported || !icm->is_supported(tb)) {
@@ -2233,6 +2549,8 @@ struct tb *icm_probe(struct tb_nhi *nhi)
 		tb_domain_put(tb);
 		return NULL;
 	}
+
+	tb_dbg(tb, "using firmware connection manager\n");
 
 	return tb;
 }

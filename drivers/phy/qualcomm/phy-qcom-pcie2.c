@@ -243,14 +243,17 @@ static int phy_pipe_clksrc_register(struct qcom_phy *qphy)
 	fixed->fixed_rate = 250000000;
 	fixed->hw.init = &init;
 
-	return devm_clk_hw_register(qphy->dev, &fixed->hw);
+	ret = devm_clk_hw_register(qphy->dev, &fixed->hw);
+	if (ret < 0)
+		return ret;
+
+	return devm_of_clk_add_hw_provider(qphy->dev, of_clk_hw_simple_get, &fixed->hw);
 }
 
 static int qcom_pcie2_phy_probe(struct platform_device *pdev)
 {
 	struct phy_provider *phy_provider;
 	struct qcom_phy *qphy;
-	struct resource *res;
 	struct device *dev = &pdev->dev;
 	struct phy *phy;
 	int ret;
@@ -260,9 +263,7 @@ static int qcom_pcie2_phy_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	qphy->dev = dev;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	qphy->base = devm_ioremap_resource(dev, res);
+	qphy->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(qphy->base))
 		return PTR_ERR(qphy->base);
 

@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/serial_reg.h>
 #include <linux/types.h>
@@ -269,7 +270,7 @@ static void frbwrite(unsigned int l, bool is_pulse)
 
 	if (ptr > 0 && is_pulse) {
 		pulse += l;
-		if (pulse > 250000) {
+		if (pulse > 250) {
 			ev.duration = space;
 			ev.pulse = false;
 			ir_raw_event_store_with_filter(serial_ir.rcdev, &ev);
@@ -283,13 +284,13 @@ static void frbwrite(unsigned int l, bool is_pulse)
 	}
 	if (!is_pulse) {
 		if (ptr == 0) {
-			if (l > 20000000) {
+			if (l > 20000) {
 				space = l;
 				ptr++;
 				return;
 			}
 		} else {
-			if (l > 20000000) {
+			if (l > 20000) {
 				space += pulse;
 				if (space > IR_MAX_DURATION)
 					space = IR_MAX_DURATION;
@@ -353,7 +354,7 @@ static irqreturn_t serial_ir_irq_handler(int i, void *blah)
 			dcd = (status & hardware[type].signal_pin) ? 1 : 0;
 
 			if (dcd == last_dcd) {
-				dev_err(&serial_ir.pdev->dev,
+				dev_dbg(&serial_ir.pdev->dev,
 					"ignoring spike: %d %d %lldns %lldns\n",
 					dcd, sense, ktime_to_ns(kt),
 					ktime_to_ns(serial_ir.lastkt));
@@ -376,7 +377,7 @@ static irqreturn_t serial_ir_irq_handler(int i, void *blah)
 					sense = sense ? 0 : 1;
 				}
 			} else {
-				data = ktime_to_ns(delkt);
+				data = ktime_to_us(delkt);
 			}
 			frbwrite(data, !(dcd ^ sense));
 			serial_ir.lastkt = kt;
@@ -385,7 +386,7 @@ static irqreturn_t serial_ir_irq_handler(int i, void *blah)
 	} while (!(sinp(UART_IIR) & UART_IIR_NO_INT)); /* still pending ? */
 
 	mod_timer(&serial_ir.timeout_timer,
-		  jiffies + nsecs_to_jiffies(serial_ir.rcdev->timeout));
+		  jiffies + usecs_to_jiffies(serial_ir.rcdev->timeout));
 
 	ir_raw_event_handle(serial_ir.rcdev);
 
@@ -528,7 +529,7 @@ static int serial_ir_probe(struct platform_device *dev)
 	rcdev->min_timeout = 1;
 	rcdev->timeout = IR_DEFAULT_TIMEOUT;
 	rcdev->max_timeout = 10 * IR_DEFAULT_TIMEOUT;
-	rcdev->rx_resolution = 250000;
+	rcdev->rx_resolution = 250;
 
 	serial_ir.rcdev = rcdev;
 
@@ -547,7 +548,7 @@ static int serial_ir_probe(struct platform_device *dev)
 
 	/* Reserve io region. */
 	if ((iommap &&
-	     (devm_request_mem_region(&dev->dev, iommap, 8 << ioshift,
+	     (devm_request_mem_region(&dev->dev, iommap, 8UL << ioshift,
 				      KBUILD_MODNAME) == NULL)) ||
 	     (!iommap && (devm_request_region(&dev->dev, io, 8,
 			  KBUILD_MODNAME) == NULL))) {

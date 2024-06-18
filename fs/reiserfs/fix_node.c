@@ -611,9 +611,9 @@ static int get_num_ver(int mode, struct tree_balance *tb, int h,
  *	blk_num	number of blocks that S[h] will be splitted into;
  *	s012	number of items that fall into splitted nodes.
  *	lbytes	number of bytes which flow to the left neighbor from the
- *              item that is not not shifted entirely
+ *              item that is not shifted entirely
  *	rbytes	number of bytes which flow to the right neighbor from the
- *              item that is not not shifted entirely
+ *              item that is not shifted entirely
  *	s1bytes	number of bytes which flow to the first  new node when
  *              S[0] splits (this number is contained in s012 array)
  */
@@ -2252,8 +2252,9 @@ static int get_virtual_node_size(struct super_block *sb, struct buffer_head *bh)
 
 	return sizeof(struct virtual_node) +
 	    max(max_num_of_items * sizeof(struct virtual_item),
-		sizeof(struct virtual_item) + sizeof(struct direntry_uarea) +
-		(max_num_of_entries - 1) * sizeof(__u16));
+		sizeof(struct virtual_item) +
+		struct_size_t(struct direntry_uarea, entry_sizes,
+			      max_num_of_entries));
 }
 
 /*

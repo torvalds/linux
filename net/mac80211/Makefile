@@ -13,8 +13,10 @@ mac80211-y := \
 	ht.o agg-tx.o agg-rx.o \
 	vht.o \
 	he.o \
+	s1g.o \
 	ibss.o \
 	iface.o \
+	link.o \
 	rate.o \
 	michael.o \
 	tkip.o \
@@ -27,12 +29,14 @@ mac80211-y := \
 	spectmgmt.o \
 	tx.o \
 	key.o \
-	util.o \
+	util.o parse.o \
 	wme.o \
 	chan.o \
 	trace.o mlme.o \
 	tdls.o \
-	ocb.o
+	ocb.o \
+	airtime.o \
+	eht.o
 
 mac80211-$(CONFIG_MAC80211_LEDS) += led.o
 mac80211-$(CONFIG_MAC80211_DEBUGFS) += \
@@ -54,13 +58,15 @@ mac80211-$(CONFIG_PM) += pm.o
 CFLAGS_trace.o := -I$(src)
 
 rc80211_minstrel-y := \
-	rc80211_minstrel.o \
 	rc80211_minstrel_ht.o
 
 rc80211_minstrel-$(CONFIG_MAC80211_DEBUGFS) += \
-	rc80211_minstrel_debugfs.o \
 	rc80211_minstrel_ht_debugfs.o
 
 mac80211-$(CONFIG_MAC80211_RC_MINSTREL) += $(rc80211_minstrel-y)
+
+obj-y += tests/
+
+mac80211-y += wbrf.o
 
 ccflags-y += -DDEBUG

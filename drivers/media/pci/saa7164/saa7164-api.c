@@ -801,7 +801,7 @@ int saa7164_api_read_eeprom(struct saa7164_dev *dev, u8 *buf, int buflen)
 	if (buflen < 128)
 		return -ENOMEM;
 
-	/* Assumption: Hauppauge eeprom is at 0xa0 on on bus 0 */
+	/* Assumption: Hauppauge eeprom is at 0xa0 on bus 0 */
 	/* TODO: Pull the details from the boards struct */
 	return saa7164_api_i2c_read(&dev->i2c_bus[0], 0xa0 >> 1, sizeof(reg),
 		&reg[0], 128, buf);
@@ -1057,8 +1057,6 @@ static int saa7164_api_dump_subdevs(struct saa7164_dev *dev, u8 *buf, int len)
 			dprintk(DBGLVL_API, "  numformats   = 0x%x\n",
 				vcoutputtermhdr->numformats);
 
-			t = (struct tmComResDescrHeader *)
-				((struct tmComResDMATermDescrHeader *)(buf + idx));
 			next_offset = idx + (vcoutputtermhdr->len);
 			for (i = 0; i < vcoutputtermhdr->numformats; i++) {
 				t = (struct tmComResDescrHeader *)

@@ -45,7 +45,7 @@ static int hvcs_convert(long to_convert)
 		case H_LONG_BUSY_ORDER_10_SEC:
 		case H_LONG_BUSY_ORDER_100_SEC:
 			return -EBUSY;
-		case H_FUNCTION: /* fall through */
+		case H_FUNCTION:
 		default:
 			return -EPERM;
 	}
@@ -176,7 +176,7 @@ int hvcs_get_partner_info(uint32_t unit_address, struct list_head *head,
 			= (unsigned int)last_p_partition_ID;
 
 		/* copy the Null-term char too */
-		strlcpy(&next_partner_info->location_code[0],
+		strscpy(&next_partner_info->location_code[0],
 			(char *)&pi_buff[2],
 			sizeof(next_partner_info->location_code));
 

@@ -6,47 +6,30 @@
 
 #ifndef __ASSEMBLY__
 
+/*
+ * supports 3 memory models.
+ */
 #if defined(CONFIG_FLATMEM)
 
 #ifndef ARCH_PFN_OFFSET
 #define ARCH_PFN_OFFSET		(0UL)
 #endif
 
-#elif defined(CONFIG_DISCONTIGMEM)
-
-#ifndef arch_pfn_to_nid
-#define arch_pfn_to_nid(pfn)	pfn_to_nid(pfn)
-#endif
-
-#ifndef arch_local_page_offset
-#define arch_local_page_offset(pfn, nid)	\
-	((pfn) - NODE_DATA(nid)->node_start_pfn)
-#endif
-
-#endif /* CONFIG_DISCONTIGMEM */
-
-/*
- * supports 3 memory models.
- */
-#if defined(CONFIG_FLATMEM)
-
 #define __pfn_to_page(pfn)	(mem_map + ((pfn) - ARCH_PFN_OFFSET))
 #define __page_to_pfn(page)	((unsigned long)((page) - mem_map) + \
 				 ARCH_PFN_OFFSET)
-#elif defined(CONFIG_DISCONTIGMEM)
 
-#define __pfn_to_page(pfn)			\
-({	unsigned long __pfn = (pfn);		\
-	unsigned long __nid = arch_pfn_to_nid(__pfn);  \
-	NODE_DATA(__nid)->node_mem_map + arch_local_page_offset(__pfn, __nid);\
-})
+#ifndef pfn_valid
+static inline int pfn_valid(unsigned long pfn)
+{
+	/* avoid <linux/mm.h> include hell */
+	extern unsigned long max_mapnr;
+	unsigned long pfn_offset = ARCH_PFN_OFFSET;
 
-#define __page_to_pfn(pg)						\
-({	const struct page *__pg = (pg);					\
-	struct pglist_data *__pgdat = NODE_DATA(page_to_nid(__pg));	\
-	(unsigned long)(__pg - __pgdat->node_mem_map) +			\
-	 __pgdat->node_start_pfn;					\
-})
+	return pfn >= pfn_offset && (pfn - pfn_offset) < max_mapnr;
+}
+#define pfn_valid pfn_valid
+#endif
 
 #elif defined(CONFIG_SPARSEMEM_VMEMMAP)
 
@@ -70,7 +53,7 @@
 	struct mem_section *__sec = __pfn_to_section(__pfn);	\
 	__section_mem_map_addr(__sec) + __pfn;		\
 })
-#endif /* CONFIG_FLATMEM/DISCONTIGMEM/SPARSEMEM */
+#endif /* CONFIG_FLATMEM/SPARSEMEM */
 
 /*
  * Convert a physical address to a Page Frame Number and back

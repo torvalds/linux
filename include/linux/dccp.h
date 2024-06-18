@@ -198,7 +198,7 @@ enum dccp_role {
 
 struct dccp_service_list {
 	__u32	dccpsl_nr;
-	__be32	dccpsl_list[0];
+	__be32	dccpsl_list[];
 };
 
 #define DCCP_SERVICE_INVALID_VALUE htonl((__u32)-1)
@@ -305,10 +305,8 @@ struct dccp_sock {
 	struct timer_list		dccps_xmit_timer;
 };
 
-static inline struct dccp_sock *dccp_sk(const struct sock *sk)
-{
-	return (struct dccp_sock *)sk;
-}
+#define dccp_sk(ptr)	container_of_const(ptr, struct dccp_sock, \
+					   dccps_inet_connection.icsk_inet.sk)
 
 static inline const char *dccp_role(const struct sock *sk)
 {

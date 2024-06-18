@@ -433,13 +433,13 @@ static void fxtract(FPU_REG *st0_ptr, u_char st0_tag)
 #endif /* PARANOID */
 }
 
-static void fdecstp(void)
+static void fdecstp(FPU_REG *st0_ptr, u_char st0_tag)
 {
 	clear_C1();
 	top--;
 }
 
-static void fincstp(void)
+static void fincstp(FPU_REG *st0_ptr, u_char st0_tag)
 {
 	clear_C1();
 	top++;
@@ -547,7 +547,7 @@ static void frndint_(FPU_REG *st0_ptr, u_char st0_tag)
 		single_arg_error(st0_ptr, st0_tag);
 }
 
-static int fsin(FPU_REG *st0_ptr, u_char tag)
+static int f_sin(FPU_REG *st0_ptr, u_char tag)
 {
 	u_char arg_sign = getsign(st0_ptr);
 
@@ -606,6 +606,11 @@ static int fsin(FPU_REG *st0_ptr, u_char tag)
 		single_arg_error(st0_ptr, tag);
 		return 1;
 	}
+}
+
+static void fsin(FPU_REG *st0_ptr, u_char tag)
+{
+	f_sin(st0_ptr, tag);
 }
 
 static int f_cos(FPU_REG *st0_ptr, u_char tag)
@@ -724,7 +729,7 @@ static void fsincos(FPU_REG *st0_ptr, u_char st0_tag)
 	}
 
 	reg_copy(st0_ptr, &arg);
-	if (!fsin(st0_ptr, st0_tag)) {
+	if (!f_sin(st0_ptr, st0_tag)) {
 		push();
 		FPU_copy_to_reg0(&arg, st0_tag);
 		f_cos(&st(0), st0_tag);
@@ -1352,7 +1357,7 @@ static void fyl2xp1(FPU_REG *st0_ptr, u_char st0_tag)
 		case TW_Denormal:
 			if (denormal_operand() < 0)
 				return;
-			/* fall through */
+			fallthrough;
 		case TAG_Zero:
 		case TAG_Valid:
 			setsign(st0_ptr, getsign(st0_ptr) ^ getsign(st1_ptr));
@@ -1626,7 +1631,7 @@ static void fscale(FPU_REG *st0_ptr, u_char st0_tag)
 
 static FUNC_ST0 const trig_table_a[] = {
 	f2xm1, fyl2x, fptan, fpatan,
-	fxtract, fprem1, (FUNC_ST0) fdecstp, (FUNC_ST0) fincstp
+	fxtract, fprem1, fdecstp, fincstp,
 };
 
 void FPU_triga(void)
@@ -1635,7 +1640,7 @@ void FPU_triga(void)
 }
 
 static FUNC_ST0 const trig_table_b[] = {
-	fprem, fyl2xp1, fsqrt_, fsincos, frndint_, fscale, (FUNC_ST0) fsin, fcos
+	fprem, fyl2xp1, fsqrt_, fsincos, frndint_, fscale, fsin, fcos
 };
 
 void FPU_trigb(void)

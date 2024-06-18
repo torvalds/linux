@@ -93,7 +93,7 @@ acpi_status acpi_db_load_tables(struct acpi_new_table_desc *list_head)
 	while (table_list_head) {
 		table = table_list_head->table;
 
-		status = acpi_load_table(table);
+		status = acpi_load_table(table, NULL);
 		if (ACPI_FAILURE(status)) {
 			if (status == AE_ALREADY_EXISTS) {
 				acpi_os_printf

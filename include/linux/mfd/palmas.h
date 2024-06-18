@@ -16,7 +16,6 @@
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
 #include <linux/extcon-provider.h>
-#include <linux/of_gpio.h>
 #include <linux/usb/phy_companion.h>
 
 #define PALMAS_NUM_CLIENTS		3
@@ -129,12 +128,6 @@ struct palmas_pmic_driver_data {
 			    struct regulator_config config);
 };
 
-struct palmas_adc_wakeup_property {
-	int adc_channel_number;
-	int adc_high_threshold;
-	int adc_low_threshold;
-};
-
 struct palmas_gpadc_platform_data {
 	/* Channel 3 current source is only enabled during conversion */
 	int ch3_current;	/* 0: off; 1: 10uA; 2: 400uA; 3: 800 uA */
@@ -153,8 +146,6 @@ struct palmas_gpadc_platform_data {
 	int start_polarity;
 
 	int auto_conversion_period_ms;
-	struct palmas_adc_wakeup_property *adc_wakeup1_data;
-	struct palmas_adc_wakeup_property *adc_wakeup2_data;
 };
 
 struct palmas_reg_init {

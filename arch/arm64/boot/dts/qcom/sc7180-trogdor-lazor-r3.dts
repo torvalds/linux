@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Google Lazor board device tree source
+ *
+ * Copyright 2020 Google LLC.
+ */
+
+/dts-v1/;
+
+#include "sc7180-trogdor.dtsi"
+#include "sc7180-trogdor-ti-sn65dsi86.dtsi"
+#include "sc7180-trogdor-lazor.dtsi"
+#include "sc7180-trogdor-rt5682i-sku.dtsi"
+#include "sc7180-lite.dtsi"
+
+/ {
+	model = "Google Lazor (rev3 - 8)";
+	compatible = "google,lazor-rev3", "google,lazor-rev4",
+		"google,lazor-rev5", "google,lazor-rev6", "google,lazor-rev7",
+		"google,lazor-rev8", "qcom,sc7180";
+};

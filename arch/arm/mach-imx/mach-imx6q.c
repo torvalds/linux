@@ -5,29 +5,16 @@
  */
 
 #include <linux/clk.h>
-#include <linux/clkdev.h>
-#include <linux/cpu.h>
-#include <linux/delay.h>
-#include <linux/export.h>
-#include <linux/init.h>
-#include <linux/io.h>
-#include <linux/irq.h>
 #include <linux/irqchip.h>
-#include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_irq.h>
 #include <linux/of_platform.h>
-#include <linux/pm_opp.h>
 #include <linux/pci.h>
 #include <linux/phy.h>
-#include <linux/reboot.h>
 #include <linux/regmap.h>
 #include <linux/micrel_phy.h>
 #include <linux/mfd/syscon.h>
 #include <linux/mfd/syscon/imx6q-iomuxc-gpr.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <asm/system_misc.h>
 
 #include "common.h"
 #include "cpuidle.h"
@@ -49,27 +36,6 @@ static int ksz9021rn_phy_fixup(struct phy_device *phydev)
 		phy_write(phydev, MICREL_KSZ9021_EXTREG_CTRL,
 			MICREL_KSZ9021_RGMII_CLK_CTRL_PAD_SCEW);
 	}
-
-	return 0;
-}
-
-static void mmd_write_reg(struct phy_device *dev, int device, int reg, int val)
-{
-	phy_write(dev, 0x0d, device);
-	phy_write(dev, 0x0e, reg);
-	phy_write(dev, 0x0d, (1 << 14) | device);
-	phy_write(dev, 0x0e, val);
-}
-
-static int ksz9031rn_phy_fixup(struct phy_device *dev)
-{
-	/*
-	 * min rx data delay, max rx/tx clock delay,
-	 * min rx/tx control delay
-	 */
-	mmd_write_reg(dev, 2, 4, 0);
-	mmd_write_reg(dev, 2, 5, 0);
-	mmd_write_reg(dev, 2, 8, 0x003ff);
 
 	return 0;
 }
@@ -102,82 +68,18 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_PLX, 0x8609, ventana_pciesw_early_fixup);
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_PLX, 0x8606, ventana_pciesw_early_fixup);
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_PLX, 0x8604, ventana_pciesw_early_fixup);
 
-static int ar8031_phy_fixup(struct phy_device *dev)
-{
-	u16 val;
-
-	/* To enable AR8031 output a 125MHz clk from CLK_25M */
-	phy_write(dev, 0xd, 0x7);
-	phy_write(dev, 0xe, 0x8016);
-	phy_write(dev, 0xd, 0x4007);
-
-	val = phy_read(dev, 0xe);
-	val &= 0xffe3;
-	val |= 0x18;
-	phy_write(dev, 0xe, val);
-
-	/* introduce tx clock delay */
-	phy_write(dev, 0x1d, 0x5);
-	val = phy_read(dev, 0x1e);
-	val |= 0x0100;
-	phy_write(dev, 0x1e, val);
-
-	return 0;
-}
-
-#define PHY_ID_AR8031	0x004dd074
-
-static int ar8035_phy_fixup(struct phy_device *dev)
-{
-	u16 val;
-
-	/* Ar803x phy SmartEEE feature cause link status generates glitch,
-	 * which cause ethernet link down/up issue, so disable SmartEEE
-	 */
-	phy_write(dev, 0xd, 0x3);
-	phy_write(dev, 0xe, 0x805d);
-	phy_write(dev, 0xd, 0x4003);
-
-	val = phy_read(dev, 0xe);
-	phy_write(dev, 0xe, val & ~(1 << 8));
-
-	/*
-	 * Enable 125MHz clock from CLK_25M on the AR8031.  This
-	 * is fed in to the IMX6 on the ENET_REF_CLK (V22) pad.
-	 * Also, introduce a tx clock delay.
-	 *
-	 * This is the same as is the AR8031 fixup.
-	 */
-	ar8031_phy_fixup(dev);
-
-	/*check phy power*/
-	val = phy_read(dev, 0x0);
-	if (val & BMCR_PDOWN)
-		phy_write(dev, 0x0, val & ~BMCR_PDOWN);
-
-	return 0;
-}
-
-#define PHY_ID_AR8035 0x004dd072
-
 static void __init imx6q_enet_phy_init(void)
 {
 	if (IS_BUILTIN(CONFIG_PHYLIB)) {
 		phy_register_fixup_for_uid(PHY_ID_KSZ9021, MICREL_PHY_ID_MASK,
 				ksz9021rn_phy_fixup);
-		phy_register_fixup_for_uid(PHY_ID_KSZ9031, MICREL_PHY_ID_MASK,
-				ksz9031rn_phy_fixup);
-		phy_register_fixup_for_uid(PHY_ID_AR8031, 0xffffffef,
-				ar8031_phy_fixup);
-		phy_register_fixup_for_uid(PHY_ID_AR8035, 0xffffffef,
-				ar8035_phy_fixup);
 	}
 }
 
 static void __init imx6q_1588_init(void)
 {
 	struct device_node *np;
-	struct clk *ptp_clk;
+	struct clk *ptp_clk, *fec_enet_ref;
 	struct clk *enet_ref;
 	struct regmap *gpr;
 	u32 clksel;
@@ -187,6 +89,14 @@ static void __init imx6q_1588_init(void)
 		pr_warn("%s: failed to find fec node\n", __func__);
 		return;
 	}
+
+	/*
+	 * If enet_clk_ref configured, we assume DT did it properly and .
+	 * clk-imx6q.c will do needed configuration.
+	 */
+	fec_enet_ref = of_clk_get_by_name(np, "enet_clk_ref");
+	if (!IS_ERR(fec_enet_ref))
+		goto put_node;
 
 	ptp_clk = of_clk_get(np, 2);
 	if (IS_ERR(ptp_clk)) {
@@ -258,21 +168,20 @@ static void __init imx6q_axi_init(void)
 
 static void __init imx6q_init_machine(void)
 {
-	struct device *parent;
-
-	if (cpu_is_imx6q() && imx_get_soc_revision() == IMX_CHIP_REVISION_2_0)
-		imx_print_silicon_rev("i.MX6QP", IMX_CHIP_REVISION_1_0);
+	if (cpu_is_imx6q() && imx_get_soc_revision() >= IMX_CHIP_REVISION_2_0)
+		/*
+		 * SoCs that identify as i.MX6Q >= rev 2.0 are really i.MX6QP.
+		 * Quirk: i.MX6QP revision = i.MX6Q revision - (1, 0),
+		 * e.g. i.MX6QP rev 1.1 identifies as i.MX6Q rev 2.1.
+		 */
+		imx_print_silicon_rev("i.MX6QP", imx_get_soc_revision() - 0x10);
 	else
 		imx_print_silicon_rev(cpu_is_imx6dl() ? "i.MX6DL" : "i.MX6Q",
 				imx_get_soc_revision());
 
-	parent = imx_soc_device_init();
-	if (parent == NULL)
-		pr_warn("failed to initialize soc device\n");
-
 	imx6q_enet_phy_init();
 
-	of_platform_default_populate(NULL, NULL, parent);
+	of_platform_default_populate(NULL, NULL, NULL);
 
 	imx_anatop_init();
 	cpu_is_imx6q() ?  imx6q_pm_init() : imx6dl_pm_init();

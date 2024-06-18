@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/thermal/imx8mm-thermal.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP i.MX8M Mini Thermal
+
+maintainers:
+  - Anson Huang <Anson.Huang@nxp.com>
+
+description: |
+  i.MX8MM has TMU IP to allow temperature measurement, there are
+  currently two distinct major versions of the IP that is supported
+  by a single driver. The IP versions are named v1 and v2, v1 is
+  for i.MX8MM which has ONLY 1 sensor, v2 is for i.MX8MP which has
+  2 sensors.
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - fsl,imx8mm-tmu
+          - fsl,imx8mp-tmu
+      - items:
+          - const: fsl,imx8mn-tmu
+          - const: fsl,imx8mm-tmu
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  nvmem-cells:
+    maxItems: 1
+    description: Phandle to the calibration data provided by ocotp
+
+  nvmem-cell-names:
+    const: calib
+
+  "#thermal-sensor-cells":
+    description: |
+      Number of cells required to uniquely identify the thermal
+      sensors, 0 for ONLY one sensor and 1 for multiple sensors.
+    enum:
+      - 0
+      - 1
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - '#thermal-sensor-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/imx8mm-clock.h>
+
+    thermal-sensor@30260000 {
+         compatible = "fsl,imx8mm-tmu";
+         reg = <0x30260000 0x10000>;
+         clocks = <&clk IMX8MM_CLK_TMU_ROOT>;
+         #thermal-sensor-cells = <0>;
+    };
+
+...

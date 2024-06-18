@@ -8,33 +8,36 @@
 #   $INSTALL_PATH/dtbs/$KERNELRELEASE
 # ==========================================================================
 
-src := $(obj)
-
 PHONY := __dtbs_install
 __dtbs_install:
 
-export dtbinst_root ?= $(obj)
-
 include include/config/auto.conf
-include scripts/Kbuild.include
-include $(src)/Makefile
+include $(srctree)/scripts/Kbuild.include
 
-dtbinst-files	:= $(sort $(dtb-y) $(if $(CONFIG_OF_ALL_DTBS), $(dtb-)))
-dtbinst-dirs	:= $(subdir-y) $(subdir-m)
+dst := $(INSTALL_DTBS_PATH)
 
-# Helper targets for Installing DTBs into the boot directory
-quiet_cmd_dtb_install =	INSTALL $<
-      cmd_dtb_install =	mkdir -p $(2); cp $< $(2)
+quiet_cmd_dtb_install = INSTALL $@
+      cmd_dtb_install = install -D $< $@
 
-install-dir = $(patsubst $(dtbinst_root)%,$(INSTALL_DTBS_PATH)%,$(obj))
+$(dst)/%: $(obj)/%
+	$(call cmd,dtb_install)
 
-$(dtbinst-files): %.dtb: $(obj)/%.dtb
-	$(call cmd,dtb_install,$(install-dir))
+dtbs := $(patsubst $(obj)/%,%,$(call read-file, $(obj)/dtbs-list))
 
-$(dtbinst-dirs):
-	$(Q)$(MAKE) $(dtbinst)=$(obj)/$@
+ifdef CONFIG_ARCH_WANT_FLAT_DTB_INSTALL
 
-PHONY += $(dtbinst-files) $(dtbinst-dirs)
-__dtbs_install: $(dtbinst-files) $(dtbinst-dirs)
+define gen_install_rules
+$(dst)/%: $(obj)/$(1)%
+	$$(call cmd,dtb_install)
+endef
+
+$(foreach d, $(sort $(dir $(dtbs))), $(eval $(call gen_install_rules,$(d))))
+
+dtbs := $(notdir $(dtbs))
+
+endif # CONFIG_ARCH_WANT_FLAT_DTB_INSTALL
+
+__dtbs_install: $(addprefix $(dst)/, $(dtbs))
+	@:
 
 .PHONY: $(PHONY)

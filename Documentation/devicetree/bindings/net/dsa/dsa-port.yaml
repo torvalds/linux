@@ -1,0 +1,81 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/dsa/dsa-port.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Generic DSA Switch Port
+
+maintainers:
+  - Andrew Lunn <andrew@lunn.ch>
+  - Florian Fainelli <f.fainelli@gmail.com>
+  - Vladimir Oltean <olteanv@gmail.com>
+
+description:
+  A DSA switch port is a component of a switch that manages one MAC, and can
+  pass Ethernet frames. It can act as a stanadard Ethernet switch port, or have
+  DSA-specific functionality.
+
+$ref: /schemas/net/ethernet-switch-port.yaml#
+
+properties:
+  reg:
+    items:
+      - description: Port number
+
+  label:
+    description:
+      Describes the label associated with this port, which will become
+      the netdev name
+    $ref: /schemas/types.yaml#/definitions/string
+
+  link:
+    description:
+      Should be a list of phandles to other switch's DSA port. This
+      port is used as the outgoing port towards the phandle ports. The
+      full routing information must be given, not just the one hop
+      routes to neighbouring switches
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      maxItems: 1
+
+  ethernet:
+    description:
+      Should be a phandle to a valid Ethernet device node.  This host
+      device is what the switch port is connected to
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  dsa-tag-protocol:
+    description:
+      Instead of the default, the switch will use this tag protocol if
+      possible. Useful when a device supports multiple protocols and
+      the default is incompatible with the Ethernet device.
+    enum:
+      - dsa
+      - edsa
+      - ocelot
+      - ocelot-8021q
+      - rtl8_4
+      - rtl8_4t
+      - seville
+
+# CPU and DSA ports must have phylink-compatible link descriptions
+if:
+  oneOf:
+    - required: [ ethernet ]
+    - required: [ link ]
+then:
+  allOf:
+    - required:
+        - phy-mode
+    - oneOf:
+        - required:
+            - fixed-link
+        - required:
+            - phy-handle
+        - required:
+            - managed
+
+additionalProperties: true
+
+...

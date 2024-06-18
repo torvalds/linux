@@ -32,7 +32,6 @@
 #include <linux/io.h>
 #include <linux/math64.h>
 #include <linux/module.h>
-#include <linux/rational.h>
 
 #include "clk-regmap.h"
 #include "clk-pll.h"
@@ -77,6 +76,15 @@ static unsigned long meson_clk_pll_recalc_rate(struct clk_hw *hw,
 	unsigned int m, n, frac;
 
 	n = meson_parm_read(clk->map, &pll->n);
+
+	/*
+	 * On some HW, N is set to zero on init. This value is invalid as
+	 * it would result in a division by zero. The rate can't be
+	 * calculated in this case
+	 */
+	if (n == 0)
+		return 0;
+
 	m = meson_parm_read(clk->map, &pll->m);
 
 	frac = MESON_PARM_APPLICABLE(&pll->frac) ?
@@ -233,8 +241,8 @@ static int meson_clk_get_pll_settings(unsigned long rate,
 	return best ? 0 : -EINVAL;
 }
 
-static long meson_clk_pll_round_rate(struct clk_hw *hw, unsigned long rate,
-				     unsigned long *parent_rate)
+static int meson_clk_pll_determine_rate(struct clk_hw *hw,
+					struct clk_rate_request *req)
 {
 	struct clk_regmap *clk = to_clk_regmap(hw);
 	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
@@ -242,52 +250,62 @@ static long meson_clk_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned long round;
 	int ret;
 
-	ret = meson_clk_get_pll_settings(rate, *parent_rate, &m, &n, pll);
+	ret = meson_clk_get_pll_settings(req->rate, req->best_parent_rate,
+					 &m, &n, pll);
 	if (ret)
-		return meson_clk_pll_recalc_rate(hw, *parent_rate);
+		return ret;
 
-	round = __pll_params_to_rate(*parent_rate, m, n, 0, pll);
+	round = __pll_params_to_rate(req->best_parent_rate, m, n, 0, pll);
 
-	if (!MESON_PARM_APPLICABLE(&pll->frac) || rate == round)
-		return round;
+	if (!MESON_PARM_APPLICABLE(&pll->frac) || req->rate == round) {
+		req->rate = round;
+		return 0;
+	}
 
 	/*
 	 * The rate provided by the setting is not an exact match, let's
 	 * try to improve the result using the fractional parameter
 	 */
-	frac = __pll_params_with_frac(rate, *parent_rate, m, n, pll);
+	frac = __pll_params_with_frac(req->rate, req->best_parent_rate, m, n, pll);
+	req->rate = __pll_params_to_rate(req->best_parent_rate, m, n, frac, pll);
 
-	return __pll_params_to_rate(*parent_rate, m, n, frac, pll);
+	return 0;
 }
 
 static int meson_clk_pll_wait_lock(struct clk_hw *hw)
 {
 	struct clk_regmap *clk = to_clk_regmap(hw);
 	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
-	int delay = 24000000;
+	int delay = 5000;
 
 	do {
-		/* Is the clock locked now ? */
+		/* Is the clock locked now ? Time out after 100ms. */
 		if (meson_parm_read(clk->map, &pll->l))
 			return 0;
 
-		delay--;
-	} while (delay > 0);
+		udelay(20);
+	} while (--delay);
 
 	return -ETIMEDOUT;
 }
 
-static void meson_clk_pll_init(struct clk_hw *hw)
+static int meson_clk_pll_init(struct clk_hw *hw)
 {
 	struct clk_regmap *clk = to_clk_regmap(hw);
 	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
 
 	if (pll->init_count) {
-		meson_parm_write(clk->map, &pll->rst, 1);
+		if (MESON_PARM_APPLICABLE(&pll->rst))
+			meson_parm_write(clk->map, &pll->rst, 1);
+
 		regmap_multi_reg_write(clk->map, pll->init_regs,
 				       pll->init_count);
-		meson_parm_write(clk->map, &pll->rst, 0);
+
+		if (MESON_PARM_APPLICABLE(&pll->rst))
+			meson_parm_write(clk->map, &pll->rst, 0);
 	}
+
+	return 0;
 }
 
 static int meson_clk_pll_is_enabled(struct clk_hw *hw)
@@ -295,8 +313,11 @@ static int meson_clk_pll_is_enabled(struct clk_hw *hw)
 	struct clk_regmap *clk = to_clk_regmap(hw);
 	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
 
-	if (meson_parm_read(clk->map, &pll->rst) ||
-	    !meson_parm_read(clk->map, &pll->en) ||
+	if (MESON_PARM_APPLICABLE(&pll->rst) &&
+	    meson_parm_read(clk->map, &pll->rst))
+		return 0;
+
+	if (!meson_parm_read(clk->map, &pll->en) ||
 	    !meson_parm_read(clk->map, &pll->l))
 		return 0;
 
@@ -305,12 +326,16 @@ static int meson_clk_pll_is_enabled(struct clk_hw *hw)
 
 static int meson_clk_pcie_pll_enable(struct clk_hw *hw)
 {
-	meson_clk_pll_init(hw);
+	int retries = 10;
 
-	if (meson_clk_pll_wait_lock(hw))
-		return -EIO;
+	do {
+		meson_clk_pll_init(hw);
+		if (!meson_clk_pll_wait_lock(hw))
+			return 0;
+		pr_info("Retry enabling PCIe PLL clock\n");
+	} while (--retries);
 
-	return 0;
+	return -EIO;
 }
 
 static int meson_clk_pll_enable(struct clk_hw *hw)
@@ -323,13 +348,34 @@ static int meson_clk_pll_enable(struct clk_hw *hw)
 		return 0;
 
 	/* Make sure the pll is in reset */
-	meson_parm_write(clk->map, &pll->rst, 1);
+	if (MESON_PARM_APPLICABLE(&pll->rst))
+		meson_parm_write(clk->map, &pll->rst, 1);
 
 	/* Enable the pll */
 	meson_parm_write(clk->map, &pll->en, 1);
 
 	/* Take the pll out reset */
-	meson_parm_write(clk->map, &pll->rst, 0);
+	if (MESON_PARM_APPLICABLE(&pll->rst))
+		meson_parm_write(clk->map, &pll->rst, 0);
+
+	/*
+	 * Compared with the previous SoCs, self-adaption current module
+	 * is newly added for A1, keep the new power-on sequence to enable the
+	 * PLL. The sequence is:
+	 * 1. enable the pll, delay for 10us
+	 * 2. enable the pll self-adaption current module, delay for 40us
+	 * 3. enable the lock detect module
+	 */
+	if (MESON_PARM_APPLICABLE(&pll->current_en)) {
+		udelay(10);
+		meson_parm_write(clk->map, &pll->current_en, 1);
+		udelay(40);
+	}
+
+	if (MESON_PARM_APPLICABLE(&pll->l_detect)) {
+		meson_parm_write(clk->map, &pll->l_detect, 1);
+		meson_parm_write(clk->map, &pll->l_detect, 0);
+	}
 
 	if (meson_clk_pll_wait_lock(hw))
 		return -EIO;
@@ -343,10 +389,15 @@ static void meson_clk_pll_disable(struct clk_hw *hw)
 	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
 
 	/* Put the pll is in reset */
-	meson_parm_write(clk->map, &pll->rst, 1);
+	if (MESON_PARM_APPLICABLE(&pll->rst))
+		meson_parm_write(clk->map, &pll->rst, 1);
 
 	/* Disable the pll */
 	meson_parm_write(clk->map, &pll->en, 0);
+
+	/* Disable PLL internal self-adaption current module */
+	if (MESON_PARM_APPLICABLE(&pll->current_en))
+		meson_parm_write(clk->map, &pll->current_en, 0);
 }
 
 static int meson_clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -354,13 +405,14 @@ static int meson_clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct clk_regmap *clk = to_clk_regmap(hw);
 	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
-	unsigned int enabled, m, n, frac = 0, ret;
+	unsigned int enabled, m, n, frac = 0;
 	unsigned long old_rate;
+	int ret;
 
 	if (parent_rate == 0 || rate == 0)
 		return -EINVAL;
 
-	old_rate = rate;
+	old_rate = clk_hw_get_rate(hw);
 
 	ret = meson_clk_get_pll_settings(rate, parent_rate, &m, &n, pll);
 	if (ret)
@@ -382,9 +434,10 @@ static int meson_clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (!enabled)
 		return 0;
 
-	if (meson_clk_pll_enable(hw)) {
-		pr_warn("%s: pll did not lock, trying to restore old rate %lu\n",
-			__func__, old_rate);
+	ret = meson_clk_pll_enable(hw);
+	if (ret) {
+		pr_warn("%s: pll %s didn't lock, trying to set old rate %lu\n",
+			__func__, clk_hw_get_name(hw), old_rate);
 		/*
 		 * FIXME: Do we really need/want this HACK ?
 		 * It looks unsafe. what happens if the clock gets into a
@@ -394,7 +447,7 @@ static int meson_clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 		meson_clk_pll_set_rate(hw, old_rate, parent_rate);
 	}
 
-	return 0;
+	return ret;
 }
 
 /*
@@ -406,7 +459,7 @@ static int meson_clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
  */
 const struct clk_ops meson_clk_pcie_pll_ops = {
 	.recalc_rate	= meson_clk_pll_recalc_rate,
-	.round_rate	= meson_clk_pll_round_rate,
+	.determine_rate	= meson_clk_pll_determine_rate,
 	.is_enabled	= meson_clk_pll_is_enabled,
 	.enable		= meson_clk_pcie_pll_enable,
 	.disable	= meson_clk_pll_disable
@@ -416,7 +469,7 @@ EXPORT_SYMBOL_GPL(meson_clk_pcie_pll_ops);
 const struct clk_ops meson_clk_pll_ops = {
 	.init		= meson_clk_pll_init,
 	.recalc_rate	= meson_clk_pll_recalc_rate,
-	.round_rate	= meson_clk_pll_round_rate,
+	.determine_rate	= meson_clk_pll_determine_rate,
 	.set_rate	= meson_clk_pll_set_rate,
 	.is_enabled	= meson_clk_pll_is_enabled,
 	.enable		= meson_clk_pll_enable,
@@ -433,4 +486,4 @@ EXPORT_SYMBOL_GPL(meson_clk_pll_ro_ops);
 MODULE_DESCRIPTION("Amlogic PLL driver");
 MODULE_AUTHOR("Carlo Caione <carlo@endlessm.com>");
 MODULE_AUTHOR("Jerome Brunet <jbrunet@baylibre.com>");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");

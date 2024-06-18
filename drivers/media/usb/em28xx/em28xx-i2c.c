@@ -7,16 +7,6 @@
 //		      Mauro Carvalho Chehab <mchehab@kernel.org>
 //		      Sascha Sommer <saschasommer@freenet.de>
 // Copyright (C) 2013 Frank Schäfer <fschaefer.oss@googlemail.com>
-//
-// This program is free software; you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation; either version 2 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
 
 #include "em28xx.h"
 
@@ -26,7 +16,7 @@
 #include <linux/i2c.h>
 #include <linux/jiffies.h>
 
-#include "tuner-xc2028.h"
+#include "xc2028.h"
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
 
@@ -294,6 +284,10 @@ static int em28xx_i2c_recv_bytes(struct em28xx *dev, u16 addr, u8 *buf, u16 len)
 			 "reading from i2c device at 0x%x failed (error=%i)\n",
 			 addr, ret);
 		return ret;
+	} else if (ret != len) {
+		dev_dbg(&dev->intf->dev,
+			"%i bytes read from i2c device at 0x%x requested, but %i bytes written\n",
+				ret, addr, len);
 	}
 	/*
 	 * NOTE: some devices with two i2c buses have the bad habit to return 0
@@ -329,7 +323,7 @@ static int em28xx_i2c_recv_bytes(struct em28xx *dev, u16 addr, u8 *buf, u16 len)
 	}
 
 	dev_warn(&dev->intf->dev,
-		 "write to i2c device at 0x%x failed with unknown error (status=%i)\n",
+		 "read from i2c device at 0x%x failed with unknown error (status=%i)\n",
 		 addr, ret);
 	return -EIO;
 }
@@ -949,7 +943,7 @@ void em28xx_do_i2c_scan(struct em28xx *dev, unsigned int bus)
 	unsigned char buf;
 	int i, rc;
 
-	memset(i2c_devicelist, 0, ARRAY_SIZE(i2c_devicelist));
+	memset(i2c_devicelist, 0, sizeof(i2c_devicelist));
 
 	for (i = 0; i < ARRAY_SIZE(i2c_devs); i++) {
 		dev->i2c_client[bus].addr = i;
@@ -964,7 +958,7 @@ void em28xx_do_i2c_scan(struct em28xx *dev, unsigned int bus)
 
 	if (bus == dev->def_i2c_bus)
 		dev->i2c_hash = em28xx_hash_mem(i2c_devicelist,
-						ARRAY_SIZE(i2c_devicelist), 32);
+						sizeof(i2c_devicelist), 32);
 }
 
 /*

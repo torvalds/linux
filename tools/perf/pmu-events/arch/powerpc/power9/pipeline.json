@@ -1,530 +1,530 @@
 [
-  {,
+  {
     "EventCode": "0x4D04C",
     "EventName": "PM_DFU_BUSY",
     "BriefDescription": "Cycles in which all 4 Decimal Floating Point units are busy. The DFU is running at capacity"
   },
-  {,
+  {
     "EventCode": "0x100F6",
     "EventName": "PM_IERAT_RELOAD",
     "BriefDescription": "Number of I-ERAT reloads"
   },
-  {,
+  {
     "EventCode": "0x201E2",
     "EventName": "PM_MRK_LD_MISS_L1",
     "BriefDescription": "Marked DL1 Demand Miss counted at exec time. Note that this count is per slice, so if a load spans multiple slices this event will increment multiple times for a single load."
   },
-  {,
+  {
     "EventCode": "0x40010",
     "EventName": "PM_PMC3_OVERFLOW",
     "BriefDescription": "Overflow from counter 3"
   },
-  {,
+  {
     "EventCode": "0x1005A",
     "EventName": "PM_CMPLU_STALL_DFLONG",
     "BriefDescription": "Finish stall because the NTF instruction was a multi-cycle instruction issued to the Decimal Floating Point execution pipe and waiting to finish. Includes decimal floating point instructions + 128 bit binary floating point instructions. Qualified by multicycle"
   },
-  {,
+  {
     "EventCode": "0x4D140",
     "EventName": "PM_MRK_DATA_FROM_ON_CHIP_CACHE",
     "BriefDescription": "The processor's data cache was reloaded either shared or modified data from another core's L2/L3 on the same chip due to a marked load"
   },
-  {,
+  {
     "EventCode": "0x3F14C",
     "EventName": "PM_MRK_DPTEG_FROM_DL4",
     "BriefDescription": "A Page Table Entry was loaded into the TLB from another chip's L4 on a different Node or Group (Distant) due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
-  {,
+  {
     "EventCode": "0x1E040",
     "EventName": "PM_DPTEG_FROM_L2_NO_CONFLICT",
     "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L2 without conflict due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
-  {,
+  {
     "EventCode": "0x24052",
     "EventName": "PM_FXU_IDLE",
     "BriefDescription": "Cycles in which FXU0, FXU1, FXU2, and FXU3 are all idle"
   },
-  {,
+  {
     "EventCode": "0x1E054",
     "EventName": "PM_CMPLU_STALL",
     "BriefDescription": "Nothing completed and ICT not empty"
   },
-  {,
+  {
     "EventCode": "0x2",
     "EventName": "PM_INST_CMPL",
     "BriefDescription": "Number of PowerPC Instructions that completed."
   },
-  {,
+  {
     "EventCode": "0x3D058",
     "EventName": "PM_VSU_DP_FSQRT_FDIV",
     "BriefDescription": "vector versions of fdiv,fsqrt"
   },
-  {,
+  {
     "EventCode": "0x10006",
     "EventName": "PM_DISP_HELD",
     "BriefDescription": "Dispatch Held"
   },
-  {,
+  {
     "EventCode": "0x200F8",
     "EventName": "PM_EXT_INT",
     "BriefDescription": "external interrupt"
   },
-  {,
+  {
     "EventCode": "0x20008",
     "EventName": "PM_ICT_EMPTY_CYC",
     "BriefDescription": "Cycles in which the ICT is completely empty. No itags are assigned to any thread"
   },
-  {,
+  {
     "EventCode": "0x4F146",
     "EventName": "PM_MRK_DPTEG_FROM_L21_MOD",
     "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from another core's L2 on the same chip due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
-  {,
+  {
     "EventCode": "0x10056",
     "EventName": "PM_MEM_READ",
     "BriefDescription": "Reads from Memory from this thread (includes data/inst/xlate/l1prefetch/inst prefetch). Includes L4"
   },
-  {,
+  {
     "EventCode": "0x3C04C",
     "EventName": "PM_DATA_FROM_DL4",
     "BriefDescription": "The processor's data cache was reloaded from another chip's L4 on a different Node or Group (Distant) due to a demand load"
   },
-  {,
+  {
     "EventCode": "0x4E046",
     "EventName": "PM_DPTEG_FROM_L21_MOD",
     "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from another core's L2 on the same chip due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
-  {,
+  {
     "EventCode": "0x2E016",
     "EventName": "PM_NTC_ISSUE_HELD_ARB",
     "BriefDescription": "The NTC instruction is being held at dispatch because it lost arbitration onto the issue pipe to another instruction (from the same thread or a different thread)"
   },
-  {,
+  {
     "EventCode": "0x15156",
     "EventName": "PM_SYNC_MRK_FX_DIVIDE",
     "BriefDescription": "Marked fixed point divide that can cause a synchronous interrupt"
   },
-  {,
+  {
     "EventCode": "0x1C056",
     "EventName": "PM_DERAT_MISS_4K",
     "BriefDescription": "Data ERAT Miss (Data TLB Access) page size 4K"
   },
-  {,
+  {
     "EventCode": "0x2F142",
     "EventName": "PM_MRK_DPTEG_FROM_L3_MEPF",
     "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L3 without dispatch conflicts hit on Mepf state. due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
-  {,
+  {
     "EventCode": "0x4C15C",
     "EventName": "PM_MRK_DERAT_MISS_16G_1G",
     "BriefDescription": "Marked Data ERAT Miss (Data TLB Access) page size 16G (hpt mode) and 1G (radix mode)"
   },
-  {,
+  {
     "EventCode": "0x10024",
     "EventName": "PM_PMC5_OVERFLOW",
     "BriefDescription": "Overflow from counter 5"
   },
-  {,
+  {
     "EventCode": "0x4505E",
     "EventName": "PM_FLOP_CMPL",
     "BriefDescription": "Floating Point Operation Finished"
   },
-  {,
+  {
     "EventCode": "0x2C018",
     "EventName": "PM_CMPLU_STALL_DMISS_L21_L31",
     "BriefDescription": "Completion stall by Dcache miss which resolved on chip ( excluding local L2/L3)"
   },
-  {,
+  {
     "EventCode": "0x4006A",
     "EventName": "PM_IERAT_RELOAD_16M",
     "BriefDescription": "IERAT Reloaded (Miss) for a 16M page"
   },
-  {,
+  {
     "EventCode": "0x4E010",
     "EventName": "PM_ICT_NOSLOT_IC_L3MISS",
     "BriefDescription": "Ict empty for this thread due to icache misses that were sourced from beyond the local L3. The source could be local/remote/distant memory or another core's cache"
   },
-  {,
+  {
     "EventCode": "0x4D01C",
     "EventName": "PM_ICT_NOSLOT_DISP_HELD_SYNC",
     "BriefDescription": "Dispatch held due to a synchronizing instruction at dispatch"
   },
-  {,
+  {
     "EventCode": "0x2D01A",
     "EventName": "PM_ICT_NOSLOT_IC_MISS",
     "BriefDescription": "Ict empty for this thread due to Icache Miss"
   },
-  {,
+  {
     "EventCode": "0x4F14A",
     "EventName": "PM_MRK_DPTEG_FROM_OFF_CHIP_CACHE",
     "BriefDescription": "A Page Table Entry was loaded into the TLB either shared or modified data from another core's L2/L3 on a different chip (remote or distant) due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
-  {,
+  {
     "EventCode": "0x30058",
     "EventName": "PM_TLBIE_FIN",
     "BriefDescription": "tlbie finished"
   },
-  {,
+  {
     "EventCode": "0x100F8",
     "EventName": "PM_ICT_NOSLOT_CYC",
     "BriefDescription": "Number of cycles the ICT has no itags assigned to this thread"
   },
-  {,
+  {
     "EventCode": "0x3E042",
     "EventName": "PM_DPTEG_FROM_L3_DISP_CONFLICT",
     "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L3 with dispatch conflict due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
-  {,
+  {
     "EventCode": "0x1F140",
     "EventName": "PM_MRK_DPTEG_FROM_L2_NO_CONFLICT",
     "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L2 without conflict due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
-  {,
+  {
     "EventCode": "0x1F058",
     "EventName": "PM_RADIX_PWC_L2_PTE_FROM_L2",
     "BriefDescription": "A Page Table Entry was reloaded to a level 2 page walk cache from the core's L2 data cache. This implies that level 3 and level 4 PWC accesses were not necessary for this translation"
   },
-  {,
+  {
     "EventCode": "0x1D14A",
     "EventName": "PM_MRK_DATA_FROM_RL2L3_MOD",
     "BriefDescription": "The processor's data cache was reloaded with Modified (M) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a marked load"
   },
-  {,
+  {
     "EventCode": "0x10050",
     "EventName": "PM_CHIP_PUMP_CPRED",
     "BriefDescription": "Initial and Final Pump Scope was chip pump (prediction=correct) for all data types excluding data prefetch (demand load,inst prefetch,inst fetch,xlate)"
   },
-  {,
+  {
     "EventCode": "0x45058",
     "EventName": "PM_IC_MISS_CMPL",
     "BriefDescription": "Non-speculative icache miss, counted at completion"
   },
-  {,
+  {
     "EventCode": "0x2D150",
     "EventName": "PM_MRK_DERAT_MISS_4K",
     "BriefDescription": "Marked Data ERAT Miss (Data TLB Access) page size 4K"
   },
-  {,
+  {
     "EventCode": "0x34058",
     "EventName": "PM_ICT_NOSLOT_BR_MPRED_ICMISS",
     "BriefDescription": "Ict empty for this thread due to Icache Miss and branch mispred"
   },
-  {,
+  {
     "EventCode": "0x10022",
     "EventName": "PM_PMC2_SAVED",
     "BriefDescription": "PMC2 Rewind Value saved"
   },
-  {,
+  {
     "EventCode": "0x2000A",
     "EventName": "PM_HV_CYC",
     "BriefDescription": "Cycles in which msr_hv is high. Note that this event does not take msr_pr into consideration"
   },
-  {,
+  {
     "EventCode": "0x1F144",
     "EventName": "PM_MRK_DPTEG_FROM_L3_NO_CONFLICT",
     "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L3 without conflict due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
-  {,
+  {
     "EventCode": "0x300FC",
     "EventName": "PM_DTLB_MISS",
     "BriefDescription": "Data PTEG reload"
   },
-  {,
+  {
     "EventCode": "0x2C046",
     "EventName": "PM_DATA_FROM_RL2L3_MOD",
     "BriefDescription": "The processor's data cache was reloaded with Modified (M) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a demand load"
   },
-  {,
+  {
     "EventCode": "0x20052",
     "EventName": "PM_GRP_PUMP_MPRED",
     "BriefDescription": "Final Pump Scope (Group) ended up either larger or smaller than Initial Pump Scope for all data types excluding data prefetch (demand load,inst prefetch,inst fetch,xlate)"
   },
-  {,
+  {
     "EventCode": "0x3F05A",
     "EventName": "PM_RADIX_PWC_L2_PDE_FROM_L3",
     "BriefDescription": "A Page Directory Entry was reloaded to a level 2 page walk cache from the core's L3 data cache"
   },
-  {,
+  {
     "EventCode": "0x1E04A",
     "EventName": "PM_DPTEG_FROM_RL2L3_SHR",
     "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
-  {,
+  {
     "EventCode": "0x10064",
     "EventName": "PM_ICT_NOSLOT_DISP_HELD_TBEGIN",
     "BriefDescription": "the NTC instruction is being held at dispatch because it is a tbegin instruction and there is an older tbegin in the pipeline that must complete before the younger tbegin can dispatch"
   },
-  {,
+  {
     "EventCode": "0x2E046",
     "EventName": "PM_DPTEG_FROM_RL2L3_MOD",
     "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
-  {,
+  {
     "EventCode": "0x4F14C",
     "EventName": "PM_MRK_DPTEG_FROM_DMEM",
     "BriefDescription": "A Page Table Entry was loaded into the TLB from another chip's memory on the same Node or Group (Distant) due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
-  {,
+  {
     "EventCode": "0x2E042",
     "EventName": "PM_DPTEG_FROM_L3_MEPF",
     "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L3 without dispatch conflicts hit on Mepf state. due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
-  {,
+  {
     "EventCode": "0x2D012",
     "EventName": "PM_CMPLU_STALL_DFU",
     "BriefDescription": "Finish stall because the NTF instruction was issued to the Decimal Floating Point execution pipe and waiting to finish. Includes decimal floating point instructions + 128 bit binary floating point instructions. Not qualified by multicycle"
   },
-  {,
+  {
     "EventCode": "0x3C054",
     "EventName": "PM_DERAT_MISS_16M_2M",
     "BriefDescription": "Data ERAT Miss (Data TLB Access) page size 16M (HPT mode) or 2M (Radix mode)"
   },
-  {,
+  {
     "EventCode": "0x4C04C",
     "EventName": "PM_DATA_FROM_DMEM",
     "BriefDescription": "The processor's data cache was reloaded from another chip's memory on the same Node or Group (Distant) due to a demand load"
   },
-  {,
+  {
     "EventCode": "0x30022",
     "EventName": "PM_PMC4_SAVED",
     "BriefDescription": "PMC4 Rewind Value saved (matched condition)"
   },
-  {,
+  {
     "EventCode": "0x200F4",
     "EventName": "PM_RUN_CYC",
     "BriefDescription": "Run_cycles"
   },
-  {,
+  {
     "EventCode": "0x400F2",
     "EventName": "PM_1PLUS_PPC_DISP",
     "BriefDescription": "Cycles at least one Instr Dispatched"
   },
-  {,
+  {
     "EventCode": "0x3D148",
     "EventName": "PM_MRK_DATA_FROM_L21_MOD_CYC",
     "BriefDescription": "Duration in cycles to reload with Modified (M) data from another core's L2 on the same chip due to a marked load"
   },
-  {,
+  {
     "EventCode": "0x2F146",
     "EventName": "PM_MRK_DPTEG_FROM_RL2L3_MOD",
     "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
-  {,
+  {
     "EventCode": "0x4E01A",
     "EventName": "PM_ICT_NOSLOT_DISP_HELD",
     "BriefDescription": "Cycles in which the NTC instruction is held at dispatch for any reason"
   },
-  {,
+  {
     "EventCode": "0x401EC",
     "EventName": "PM_THRESH_EXC_2048",
     "BriefDescription": "Threshold counter exceeded a value of 2048"
   },
-  {,
+  {
     "EventCode": "0x35150",
     "EventName": "PM_MRK_DATA_FROM_RL2L3_SHR",
     "BriefDescription": "The processor's data cache was reloaded with Shared (S) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a marked load"
   },
-  {,
+  {
     "EventCode": "0x3E052",
     "EventName": "PM_ICT_NOSLOT_IC_L3",
     "BriefDescription": "Ict empty for this thread due to icache misses that were sourced from the local L3"
   },
-  {,
+  {
     "EventCode": "0x2405A",
     "EventName": "PM_NTC_FIN",
     "BriefDescription": "Cycles in which the oldest instruction in the pipeline (NTC) finishes. This event is used to account for cycles in which work is being completed in the CPI stack"
   },
-  {,
+  {
     "EventCode": "0x40052",
     "EventName": "PM_PUMP_MPRED",
     "BriefDescription": "Pump misprediction. Counts across all types of pumps for all data types excluding data prefetch (demand load,inst prefetch,inst fetch,xlate)"
   },
-  {,
+  {
     "EventCode": "0x30056",
     "EventName": "PM_TM_ABORTS",
     "BriefDescription": "Number of TM transactions aborted"
   },
-  {,
+  {
     "EventCode": "0x2404C",
     "EventName": "PM_INST_FROM_MEMORY",
     "BriefDescription": "The processor's Instruction cache was reloaded from a memory location including L4 from local remote or distant due to an instruction fetch (not prefetch)"
   },
-  {,
+  {
     "EventCode": "0x30024",
     "EventName": "PM_PMC6_OVERFLOW",
     "BriefDescription": "Overflow from counter 6"
   },
-  {,
+  {
     "EventCode": "0x10068",
     "EventName": "PM_BRU_FIN",
     "BriefDescription": "Branch Instruction Finished"
   },
-  {,
+  {
     "EventCode": "0x3D154",
     "EventName": "PM_MRK_DERAT_MISS_16M_2M",
     "BriefDescription": "Marked Data ERAT Miss (Data TLB Access) page size 16M (hpt mode) or 2M (radix mode)"
   },
-  {,
+  {
     "EventCode": "0x30020",
     "EventName": "PM_PMC2_REWIND",
     "BriefDescription": "PMC2 Rewind Event (did not match condition)"
   },
-  {,
+  {
     "EventCode": "0x40064",
     "EventName": "PM_DUMMY2_REMOVE_ME",
     "BriefDescription": "Space holder for LS_PC_RELOAD_RA"
   },
-  {,
+  {
     "EventCode": "0x3F148",
     "EventName": "PM_MRK_DPTEG_FROM_DL2L3_SHR",
     "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
-  {,
+  {
     "EventCode": "0x4D01E",
     "EventName": "PM_ICT_NOSLOT_BR_MPRED",
     "BriefDescription": "Ict empty for this thread due to branch mispred"
   },
-  {,
+  {
     "EventCode": "0x1F148",
     "EventName": "PM_MRK_DPTEG_FROM_ON_CHIP_CACHE",
     "BriefDescription": "A Page Table Entry was loaded into the TLB either shared or modified data from another core's L2/L3 on the same chip due to a marked data side request.. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
-  {,
+  {
     "EventCode": "0x3E046",
     "EventName": "PM_DPTEG_FROM_L21_SHR",
     "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from another core's L2 on the same chip due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
-  {,
+  {
     "EventCode": "0x2F144",
     "EventName": "PM_MRK_DPTEG_FROM_L31_MOD",
     "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from another core's L3 on the same chip due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
-  {,
+  {
     "EventCode": "0x14052",
     "EventName": "PM_INST_GRP_PUMP_MPRED_RTY",
     "BriefDescription": "Final Pump Scope (Group) ended up larger than Initial Pump Scope (Chip) for an instruction fetch"
   },
-  {,
+  {
     "EventCode": "0xD0A8",
     "EventName": "PM_DSLB_MISS",
     "BriefDescription": "gate_and(sd_pc_c0_comp_valid AND sd_pc_c0_comp_thread(0:1)=tid,sd_pc_c0_comp_ppc_count(0:3)) + gate_and(sd_pc_c1_comp_valid AND sd_pc_c1_comp_thread(0:1)=tid,sd_pc_c1_comp_ppc_count(0:3))"
   },
-  {,
+  {
     "EventCode": "0x4C058",
     "EventName": "PM_MEM_CO",
     "BriefDescription": "Memory castouts from this thread"
   },
-  {,
+  {
     "EventCode": "0x40004",
     "EventName": "PM_FXU_FIN",
     "BriefDescription": "The fixed point unit Unit finished an instruction. Instructions that finish may not necessary complete."
   },
-  {,
+  {
     "EventCode": "0x2C054",
     "EventName": "PM_DERAT_MISS_64K",
     "BriefDescription": "Data ERAT Miss (Data TLB Access) page size 64K"
   },
-  {,
+  {
     "EventCode": "0x10018",
     "EventName": "PM_IC_DEMAND_CYC",
     "BriefDescription": "Icache miss demand cycles"
   },
-  {,
+  {
     "EventCode": "0x2D14E",
     "EventName": "PM_MRK_DATA_FROM_L21_SHR",
     "BriefDescription": "The processor's data cache was reloaded with Shared (S) data from another core's L2 on the same chip due to a marked load"
   },
-  {,
+  {
     "EventCode": "0x3405C",
     "EventName": "PM_CMPLU_STALL_DPLONG",
     "BriefDescription": "Finish stall because the NTF instruction was a scalar multi-cycle instruction issued to the Double Precision execution pipe and waiting to finish. Includes binary floating point instructions in 32 and 64 bit binary floating point format. Qualified by NOT vector AND multicycle"
   },
-  {,
+  {
     "EventCode": "0x4D052",
     "EventName": "PM_2FLOP_CMPL",
-    "BriefDescription": "DP vector version of fmul, fsub, fcmp, fsel, fabs, fnabs, fres ,fsqrte, fneg "
+    "BriefDescription": "DP vector version of fmul, fsub, fcmp, fsel, fabs, fnabs, fres ,fsqrte, fneg"
   },
-  {,
+  {
     "EventCode": "0x1F142",
     "EventName": "PM_MRK_DPTEG_FROM_L2",
     "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L2 due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
-  {,
+  {
     "EventCode": "0x40062",
     "EventName": "PM_DUMMY1_REMOVE_ME",
     "BriefDescription": "Space holder for L2_PC_PM_MK_LDST_SCOPE_PRED_STATUS"
   },
-  {,
+  {
     "EventCode": "0x4C012",
     "EventName": "PM_CMPLU_STALL_ERAT_MISS",
     "BriefDescription": "Finish stall because the NTF instruction was a load or store that suffered a translation miss"
   },
-  {,
+  {
     "EventCode": "0x4D050",
     "EventName": "PM_VSU_NON_FLOP_CMPL",
     "BriefDescription": "Non FLOP operation completed"
   },
-  {,
+  {
     "EventCode": "0x2E012",
     "EventName": "PM_TM_TX_PASS_RUN_CYC",
     "BriefDescription": "cycles spent in successful transactions"
   },
-  {,
+  {
     "EventCode": "0x4D04E",
     "EventName": "PM_VSU_FSQRT_FDIV",
     "BriefDescription": "four flops operation (fdiv,fsqrt) Scalar Instructions only"
   },
-  {,
+  {
     "EventCode": "0x4C120",
     "EventName": "PM_MRK_DATA_FROM_L2_MEPF",
     "BriefDescription": "The processor's data cache was reloaded from local core's L2 hit without dispatch conflicts on Mepf state. due to a marked load"
   },
-  {,
+  {
     "EventCode": "0x10062",
     "EventName": "PM_LD_L3MISS_PEND_CYC",
     "BriefDescription": "Cycles L3 miss was pending for this thread"
   },
-  {,
+  {
     "EventCode": "0x2F14C",
     "EventName": "PM_MRK_DPTEG_FROM_MEMORY",
     "BriefDescription": "A Page Table Entry was loaded into the TLB from a memory location including L4 from local remote or distant due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
-  {,
+  {
     "EventCode": "0x14050",
     "EventName": "PM_INST_CHIP_PUMP_CPRED",
     "BriefDescription": "Initial and Final Pump Scope was chip pump (prediction=correct) for an instruction fetch"
   },
-  {,
+  {
     "EventCode": "0x2000E",
     "EventName": "PM_FXU_BUSY",
     "BriefDescription": "Cycles in which all 4 FXUs are busy. The FXU is running at capacity"
   },
-  {,
+  {
     "EventCode": "0x20066",
     "EventName": "PM_TLB_MISS",
     "BriefDescription": "TLB Miss (I + D)"
   },
-  {,
+  {
     "EventCode": "0x10054",
     "EventName": "PM_PUMP_CPRED",
     "BriefDescription": "Pump prediction correct. Counts across all types of pumps for all data types excluding data prefetch (demand load,inst prefetch,inst fetch,xlate)"
   },
-  {,
+  {
     "EventCode": "0x4D124",
     "EventName": "PM_MRK_DATA_FROM_L31_SHR",
     "BriefDescription": "The processor's data cache was reloaded with Shared (S) data from another core's L3 on the same chip due to a marked load"
   },
-  {,
+  {
     "EventCode": "0x400F8",
     "EventName": "PM_FLUSH",
     "BriefDescription": "Flush (any type)"
   },
-  {,
+  {
     "EventCode": "0x30004",
     "EventName": "PM_CMPLU_STALL_EMQ_FULL",
     "BriefDescription": "Finish stall because the next to finish instruction suffered an ERAT miss and the EMQ was full"
   },
-  {,
+  {
     "EventCode": "0x1D154",
     "EventName": "PM_MRK_DATA_FROM_L21_SHR_CYC",
     "BriefDescription": "Duration in cycles to reload with Shared (S) data from another core's L2 on the same chip due to a marked load"

@@ -19,17 +19,16 @@
 #include <linux/regmap.h>
 #include <linux/mfd/palmas.h>
 #include <linux/of.h>
-#include <linux/of_platform.h>
 #include <linux/regulator/of_regulator.h>
 
-static const struct regulator_linear_range smps_low_ranges[] = {
+static const struct linear_range smps_low_ranges[] = {
 	REGULATOR_LINEAR_RANGE(0, 0x0, 0x0, 0),
 	REGULATOR_LINEAR_RANGE(500000, 0x1, 0x6, 0),
 	REGULATOR_LINEAR_RANGE(510000, 0x7, 0x79, 10000),
 	REGULATOR_LINEAR_RANGE(1650000, 0x7A, 0x7f, 0),
 };
 
-static const struct regulator_linear_range smps_high_ranges[] = {
+static const struct linear_range smps_high_ranges[] = {
 	REGULATOR_LINEAR_RANGE(0, 0x0, 0x0, 0),
 	REGULATOR_LINEAR_RANGE(1000000, 0x1, 0x6, 0),
 	REGULATOR_LINEAR_RANGE(1020000, 0x7, 0x79, 20000),
@@ -1595,22 +1594,19 @@ static const struct of_device_id of_palmas_match_tbl[] = {
 static int palmas_regulators_probe(struct platform_device *pdev)
 {
 	struct palmas *palmas = dev_get_drvdata(pdev->dev.parent);
-	struct palmas_pmic_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct palmas_pmic_platform_data *pdata;
 	struct device_node *node = pdev->dev.of_node;
 	struct palmas_pmic_driver_data *driver_data;
 	struct regulator_config config = { };
 	struct palmas_pmic *pmic;
 	const char *pdev_name;
-	const struct of_device_id *match;
 	int ret = 0;
 	unsigned int reg;
 
-	match = of_match_device(of_match_ptr(of_palmas_match_tbl), &pdev->dev);
-
-	if (!match)
+	driver_data = (struct palmas_pmic_driver_data *)device_get_match_data(&pdev->dev);
+	if (!driver_data)
 		return -ENODATA;
 
-	driver_data = (struct palmas_pmic_driver_data *)match->data;
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
@@ -1666,6 +1662,7 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 static struct platform_driver palmas_driver = {
 	.driver = {
 		.name = "palmas-pmic",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_palmas_match_tbl,
 	},
 	.probe = palmas_regulators_probe,

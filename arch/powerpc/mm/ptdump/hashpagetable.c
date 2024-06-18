@@ -15,13 +15,12 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/seq_file.h>
-#include <asm/pgtable.h>
 #include <linux/const.h>
 #include <asm/page.h>
-#include <asm/pgalloc.h>
 #include <asm/plpar_wrappers.h>
 #include <linux/memblock.h>
 #include <asm/firmware.h>
+#include <asm/pgalloc.h>
 
 struct pg_state {
 	struct seq_file *seq;
@@ -239,7 +238,10 @@ static int native_find(unsigned long ea, int psize, bool primary, u64 *v, u64
 
 static int pseries_find(unsigned long ea, int psize, bool primary, u64 *v, u64 *r)
 {
-	struct hash_pte ptes[4];
+	struct {
+		unsigned long v;
+		unsigned long r;
+	} ptes[4];
 	unsigned long vsid, vpn, hash, hpte_group, want_v;
 	int i, j, ssize = mmu_kernel_ssize;
 	long lpar_rc = 0;
@@ -259,7 +261,7 @@ static int pseries_find(unsigned long ea, int psize, bool primary, u64 *v, u64 *
 	for (i = 0; i < HPTES_PER_GROUP; i += 4, hpte_group += 4) {
 		lpar_rc = plpar_pte_read_4(0, hpte_group, (void *)ptes);
 
-		if (lpar_rc != H_SUCCESS)
+		if (lpar_rc)
 			continue;
 		for (j = 0; j < 4; j++) {
 			if (HPTE_V_COMPARE(ptes[j].v, want_v) &&
@@ -417,9 +419,9 @@ static void walk_pmd(struct pg_state *st, pud_t *pud, unsigned long start)
 	}
 }
 
-static void walk_pud(struct pg_state *st, pgd_t *pgd, unsigned long start)
+static void walk_pud(struct pg_state *st, p4d_t *p4d, unsigned long start)
 {
-	pud_t *pud = pud_offset(pgd, 0);
+	pud_t *pud = pud_offset(p4d, 0);
 	unsigned long addr;
 	unsigned int i;
 
@@ -428,6 +430,20 @@ static void walk_pud(struct pg_state *st, pgd_t *pgd, unsigned long start)
 		if (!pud_none(*pud))
 			/* pud exists */
 			walk_pmd(st, pud, addr);
+	}
+}
+
+static void walk_p4d(struct pg_state *st, pgd_t *pgd, unsigned long start)
+{
+	p4d_t *p4d = p4d_offset(pgd, 0);
+	unsigned long addr;
+	unsigned int i;
+
+	for (i = 0; i < PTRS_PER_P4D; i++, p4d++) {
+		addr = start + i * P4D_SIZE;
+		if (!p4d_none(*p4d))
+			/* p4d exists */
+			walk_pud(st, p4d, addr);
 	}
 }
 
@@ -445,7 +461,7 @@ static void walk_pagetables(struct pg_state *st)
 		addr = KERN_VIRT_START + i * PGDIR_SIZE;
 		if (!pgd_none(*pgd))
 			/* pgd exists */
-			walk_pud(st, pgd, addr);
+			walk_p4d(st, pgd, addr);
 	}
 }
 
@@ -475,7 +491,7 @@ static void walk_vmemmap(struct pg_state *st)
 	 * Traverse the vmemmaped memory and dump pages that are in the hash
 	 * pagetable.
 	 */
-	while (ptr->list) {
+	while (ptr) {
 		hpte_find(st, ptr->virt_addr, mmu_vmemmap_psize);
 		ptr = ptr->list;
 	}
@@ -513,27 +529,14 @@ static int ptdump_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int ptdump_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, ptdump_show, NULL);
-}
-
-static const struct file_operations ptdump_fops = {
-	.open		= ptdump_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(ptdump);
 
 static int ptdump_init(void)
 {
-	struct dentry *debugfs_file;
-
 	if (!radix_enabled()) {
 		populate_markers();
-		debugfs_file = debugfs_create_file("kernel_hash_pagetable",
-				0400, NULL, NULL, &ptdump_fops);
-		return debugfs_file ? 0 : -ENOMEM;
+		debugfs_create_file("kernel_hash_pagetable", 0400, NULL, NULL,
+				    &ptdump_fops);
 	}
 	return 0;
 }

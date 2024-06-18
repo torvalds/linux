@@ -9,6 +9,8 @@
 #include <asm/reg.h>
 #include <asm/cputable.h>
 
+#include "internal.h"
+
 /*
  * Bits in event code for PPC970
  */
@@ -188,7 +190,7 @@ static unsigned long unit_cons[PM_LASTUNIT+1][2] = {
 };
 
 static int p970_get_constraint(u64 event, unsigned long *maskp,
-			       unsigned long *valp)
+			       unsigned long *valp, u64 event_config1 __maybe_unused)
 {
 	int pmc, byte, unit, sh, spcsel;
 	unsigned long mask = 0, value = 0;
@@ -253,7 +255,9 @@ static int p970_get_alternatives(u64 event, unsigned int flags, u64 alt[])
 }
 
 static int p970_compute_mmcr(u64 event[], int n_ev,
-			     unsigned int hwc[], unsigned long mmcr[], struct perf_event *pevents[])
+			     unsigned int hwc[], struct mmcr_regs *mmcr,
+			     struct perf_event *pevents[],
+			     u32 flags __maybe_unused)
 {
 	unsigned long mmcr0 = 0, mmcr1 = 0, mmcra = 0;
 	unsigned int pmc, unit, byte, psel;
@@ -393,27 +397,26 @@ static int p970_compute_mmcr(u64 event[], int n_ev,
 	mmcra |= 0x2000;	/* mark only one IOP per PPC instruction */
 
 	/* Return MMCRx values */
-	mmcr[0] = mmcr0;
-	mmcr[1] = mmcr1;
-	mmcr[2] = mmcra;
+	mmcr->mmcr0 = mmcr0;
+	mmcr->mmcr1 = mmcr1;
+	mmcr->mmcra = mmcra;
 	return 0;
 }
 
-static void p970_disable_pmc(unsigned int pmc, unsigned long mmcr[])
+static void p970_disable_pmc(unsigned int pmc, struct mmcr_regs *mmcr)
 {
-	int shift, i;
+	int shift;
 
-	if (pmc <= 1) {
-		shift = MMCR0_PMC1SEL_SH - 7 * pmc;
-		i = 0;
-	} else {
-		shift = MMCR1_PMC3SEL_SH - 5 * (pmc - 2);
-		i = 1;
-	}
 	/*
 	 * Setting the PMCxSEL field to 0x08 disables PMC x.
 	 */
-	mmcr[i] = (mmcr[i] & ~(0x1fUL << shift)) | (0x08UL << shift);
+	if (pmc <= 1) {
+		shift = MMCR0_PMC1SEL_SH - 7 * pmc;
+		mmcr->mmcr0 = (mmcr->mmcr0 & ~(0x1fUL << shift)) | (0x08UL << shift);
+	} else {
+		shift = MMCR1_PMC3SEL_SH - 5 * (pmc - 2);
+		mmcr->mmcr1 = (mmcr->mmcr1 & ~(0x1fUL << shift)) | (0x08UL << shift);
+	}
 }
 
 static int ppc970_generic_events[] = {
@@ -432,7 +435,7 @@ static int ppc970_generic_events[] = {
  * 0 means not supported, -1 means nonsensical, other values
  * are event codes.
  */
-static int ppc970_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
+static u64 ppc970_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 	[C(L1D)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
 		[C(OP_READ)] = {	0x8810,		0x3810	},
 		[C(OP_WRITE)] = {	0x7810,		0x813	},
@@ -486,11 +489,12 @@ static struct power_pmu ppc970_pmu = {
 	.flags			= PPMU_NO_SIPR | PPMU_NO_CONT_SAMPLING,
 };
 
-int init_ppc970_pmu(void)
+int __init init_ppc970_pmu(void)
 {
-	if (!cur_cpu_spec->oprofile_cpu_type ||
-	    (strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/970")
-	     && strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/970MP")))
+	unsigned int pvr = mfspr(SPRN_PVR);
+
+	if (PVR_VER(pvr) != PVR_970 && PVR_VER(pvr) != PVR_970MP &&
+	    PVR_VER(pvr) != PVR_970FX && PVR_VER(pvr) != PVR_970GX)
 		return -ENODEV;
 
 	return register_power_pmu(&ppc970_pmu);

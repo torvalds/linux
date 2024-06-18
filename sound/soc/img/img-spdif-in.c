@@ -682,11 +682,6 @@ static int img_spdif_in_hw_params(struct snd_pcm_substream *substream,
 	return img_spdif_in_do_clkgen_single(spdif, rate);
 }
 
-static const struct snd_soc_dai_ops img_spdif_in_dai_ops = {
-	.trigger = img_spdif_in_trigger,
-	.hw_params = img_spdif_in_hw_params
-};
-
 static int img_spdif_in_dai_probe(struct snd_soc_dai *dai)
 {
 	struct img_spdif_in *spdif = snd_soc_dai_get_drvdata(dai);
@@ -699,8 +694,13 @@ static int img_spdif_in_dai_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
+static const struct snd_soc_dai_ops img_spdif_in_dai_ops = {
+	.probe		= img_spdif_in_dai_probe,
+	.trigger	= img_spdif_in_trigger,
+	.hw_params	= img_spdif_in_hw_params
+};
+
 static struct snd_soc_dai_driver img_spdif_in_dai = {
-	.probe = img_spdif_in_dai_probe,
 	.capture = {
 		.channels_min = 2,
 		.channels_max = 2,
@@ -711,7 +711,8 @@ static struct snd_soc_dai_driver img_spdif_in_dai = {
 };
 
 static const struct snd_soc_component_driver img_spdif_in_component = {
-	.name = "img-spdif-in"
+	.name = "img-spdif-in",
+	.legacy_dai_naming = 1,
 };
 
 static int img_spdif_in_probe(struct platform_device *pdev)
@@ -732,19 +733,16 @@ static int img_spdif_in_probe(struct platform_device *pdev)
 
 	spdif->dev = &pdev->dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
 	spdif->base = base;
 
 	spdif->clk_sys = devm_clk_get(dev, "sys");
-	if (IS_ERR(spdif->clk_sys)) {
-		if (PTR_ERR(spdif->clk_sys) != -EPROBE_DEFER)
-			dev_err(dev, "Failed to acquire clock 'sys'\n");
-		return PTR_ERR(spdif->clk_sys);
-	}
+	if (IS_ERR(spdif->clk_sys))
+		return dev_err_probe(dev, PTR_ERR(spdif->clk_sys),
+				     "Failed to acquire clock 'sys'\n");
 
 	pm_runtime_enable(&pdev->dev);
 	if (!pm_runtime_enabled(&pdev->dev)) {
@@ -752,7 +750,7 @@ static int img_spdif_in_probe(struct platform_device *pdev)
 		if (ret)
 			goto err_pm_disable;
 	}
-	ret = pm_runtime_get_sync(&pdev->dev);
+	ret = pm_runtime_resume_and_get(&pdev->dev);
 	if (ret < 0)
 		goto err_suspend;
 
@@ -812,13 +810,11 @@ err_pm_disable:
 	return ret;
 }
 
-static int img_spdif_in_dev_remove(struct platform_device *pdev)
+static void img_spdif_in_dev_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		img_spdif_in_runtime_suspend(&pdev->dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -882,7 +878,7 @@ static struct platform_driver img_spdif_in_driver = {
 		.pm = &img_spdif_in_pm_ops
 	},
 	.probe = img_spdif_in_probe,
-	.remove = img_spdif_in_dev_remove
+	.remove_new = img_spdif_in_dev_remove
 };
 module_platform_driver(img_spdif_in_driver);
 

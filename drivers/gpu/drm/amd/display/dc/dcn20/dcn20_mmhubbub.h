@@ -29,33 +29,6 @@
 #define TO_DCN20_MMHUBBUB(mcif_wb_base) \
 	container_of(mcif_wb_base, struct dcn20_mmhubbub, base)
 
-/* DCN */
-#define BASE_INNER(seg) \
-	DCE_BASE__INST0_SEG ## seg
-
-#define BASE(seg) \
-	BASE_INNER(seg)
-
-#define SR(reg_name)\
-		.reg_name = BASE(mm ## reg_name ## _BASE_IDX) +  \
-					mm ## reg_name
-
-#define SRI(reg_name, block, id)\
-	.reg_name = BASE(mm ## block ## id ## _ ## reg_name ## _BASE_IDX) + \
-					mm ## block ## id ## _ ## reg_name
-
-#define SRI2(reg_name, block, id)\
-	.reg_name = BASE(mm ## reg_name ## _BASE_IDX) + \
-					mm ## reg_name
-
-#define SRII(reg_name, block, id)\
-	.reg_name[id] = BASE(mm ## block ## id ## _ ## reg_name ## _BASE_IDX) + \
-					mm ## block ## id ## _ ## reg_name
-
-#define SF(reg_name, field_name, post_fix)\
-	.field_name = reg_name ## __ ## field_name ## post_fix
-
-
 #define MCIF_WB_COMMON_REG_LIST_DCN2_0(inst) \
 	SRI(MCIF_WB_BUFMGR_SW_CONTROL, MCIF_WB, inst),\
 	SRI(MCIF_WB_BUFMGR_CUR_LINE_R, MCIF_WB, inst),\

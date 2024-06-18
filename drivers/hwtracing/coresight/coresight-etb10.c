@@ -76,7 +76,6 @@ DEFINE_CORESIGHT_DEVLIST(etb_devs, "etb");
  * @pid:	Process ID of the process being monitored by the session
  *		that is using this component.
  * @buf:	area of memory where ETB buffer content gets sent.
- * @mode:	this ETB is being used.
  * @buffer_depth: size of @buf.
  * @trigger_cntr: amount of words to store after a trigger.
  */
@@ -89,7 +88,6 @@ struct etb_drvdata {
 	local_t			reading;
 	pid_t			pid;
 	u8			*buf;
-	u32			mode;
 	u32			buffer_depth;
 	u32			trigger_cntr;
 };
@@ -132,7 +130,7 @@ static void __etb_enable_hw(struct etb_drvdata *drvdata)
 
 static int etb_enable_hw(struct etb_drvdata *drvdata)
 {
-	int rc = coresight_claim_device(drvdata->base);
+	int rc = coresight_claim_device(drvdata->csdev);
 
 	if (rc)
 		return rc;
@@ -150,20 +148,20 @@ static int etb_enable_sysfs(struct coresight_device *csdev)
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 
 	/* Don't messup with perf sessions. */
-	if (drvdata->mode == CS_MODE_PERF) {
+	if (coresight_get_mode(csdev) == CS_MODE_PERF) {
 		ret = -EBUSY;
 		goto out;
 	}
 
-	if (drvdata->mode == CS_MODE_DISABLED) {
+	if (coresight_get_mode(csdev) == CS_MODE_DISABLED) {
 		ret = etb_enable_hw(drvdata);
 		if (ret)
 			goto out;
 
-		drvdata->mode = CS_MODE_SYSFS;
+		coresight_set_mode(csdev, CS_MODE_SYSFS);
 	}
 
-	atomic_inc(csdev->refcnt);
+	csdev->refcnt++;
 out:
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 	return ret;
@@ -176,17 +174,18 @@ static int etb_enable_perf(struct coresight_device *csdev, void *data)
 	unsigned long flags;
 	struct etb_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 	struct perf_output_handle *handle = data;
+	struct cs_buffers *buf = etm_perf_sink_config(handle);
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 
 	/* No need to continue if the component is already in used by sysFS. */
-	if (drvdata->mode == CS_MODE_SYSFS) {
+	if (coresight_get_mode(drvdata->csdev) == CS_MODE_SYSFS) {
 		ret = -EBUSY;
 		goto out;
 	}
 
 	/* Get a handle on the pid of the process to monitor */
-	pid = task_pid_nr(handle->event->owner);
+	pid = buf->pid;
 
 	if (drvdata->pid != -1 && drvdata->pid != pid) {
 		ret = -EBUSY;
@@ -198,7 +197,7 @@ static int etb_enable_perf(struct coresight_device *csdev, void *data)
 	 * use for this session.
 	 */
 	if (drvdata->pid == pid) {
-		atomic_inc(csdev->refcnt);
+		csdev->refcnt++;
 		goto out;
 	}
 
@@ -215,8 +214,8 @@ static int etb_enable_perf(struct coresight_device *csdev, void *data)
 	if (!ret) {
 		/* Associate with monitored process. */
 		drvdata->pid = pid;
-		drvdata->mode = CS_MODE_PERF;
-		atomic_inc(csdev->refcnt);
+		coresight_set_mode(drvdata->csdev, CS_MODE_PERF);
+		csdev->refcnt++;
 	}
 
 out:
@@ -224,7 +223,8 @@ out:
 	return ret;
 }
 
-static int etb_enable(struct coresight_device *csdev, u32 mode, void *data)
+static int etb_enable(struct coresight_device *csdev, enum cs_mode mode,
+		      void *data)
 {
 	int ret;
 
@@ -251,6 +251,7 @@ static void __etb_disable_hw(struct etb_drvdata *drvdata)
 {
 	u32 ffcr;
 	struct device *dev = &drvdata->csdev->dev;
+	struct csdev_access *csa = &drvdata->csdev->access;
 
 	CS_UNLOCK(drvdata->base);
 
@@ -262,7 +263,7 @@ static void __etb_disable_hw(struct etb_drvdata *drvdata)
 	ffcr |= ETB_FFCR_FON_MAN;
 	writel_relaxed(ffcr, drvdata->base + ETB_FFCR);
 
-	if (coresight_timeout(drvdata->base, ETB_FFCR, ETB_FFCR_BIT, 0)) {
+	if (coresight_timeout(csa, ETB_FFCR, ETB_FFCR_BIT, 0)) {
 		dev_err(dev,
 		"timeout while waiting for completion of Manual Flush\n");
 	}
@@ -270,7 +271,7 @@ static void __etb_disable_hw(struct etb_drvdata *drvdata)
 	/* disable trace capture */
 	writel_relaxed(0x0, drvdata->base + ETB_CTL_REG);
 
-	if (coresight_timeout(drvdata->base, ETB_FFSR, ETB_FFSR_BIT, 1)) {
+	if (coresight_timeout(csa, ETB_FFSR, ETB_FFSR_BIT, 1)) {
 		dev_err(dev,
 			"timeout while waiting for Formatter to Stop\n");
 	}
@@ -343,7 +344,7 @@ static void etb_disable_hw(struct etb_drvdata *drvdata)
 {
 	__etb_disable_hw(drvdata);
 	etb_dump_hw(drvdata);
-	coresight_disclaim_device(drvdata->base);
+	coresight_disclaim_device(drvdata->csdev);
 }
 
 static int etb_disable(struct coresight_device *csdev)
@@ -353,17 +354,18 @@ static int etb_disable(struct coresight_device *csdev)
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 
-	if (atomic_dec_return(csdev->refcnt)) {
+	csdev->refcnt--;
+	if (csdev->refcnt) {
 		spin_unlock_irqrestore(&drvdata->spinlock, flags);
 		return -EBUSY;
 	}
 
 	/* Complain if we (somehow) got out of sync */
-	WARN_ON_ONCE(drvdata->mode == CS_MODE_DISABLED);
+	WARN_ON_ONCE(coresight_get_mode(csdev) == CS_MODE_DISABLED);
 	etb_disable_hw(drvdata);
 	/* Dissociate from monitored process. */
 	drvdata->pid = -1;
-	drvdata->mode = CS_MODE_DISABLED;
+	coresight_set_mode(csdev, CS_MODE_DISABLED);
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
 	dev_dbg(&csdev->dev, "ETB disabled\n");
@@ -383,6 +385,7 @@ static void *etb_alloc_buffer(struct coresight_device *csdev,
 	if (!buf)
 		return NULL;
 
+	buf->pid = task_pid_nr(event->owner);
 	buf->snapshot = overwrite;
 	buf->nr_pages = nr_pages;
 	buf->data_pages = pages;
@@ -443,7 +446,7 @@ static unsigned long etb_update_buffer(struct coresight_device *csdev,
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 
 	/* Don't do anything if another tracer is using this sink */
-	if (atomic_read(csdev->refcnt) != 1)
+	if (csdev->refcnt != 1)
 		goto out;
 
 	__etb_disable_hw(drvdata);
@@ -525,7 +528,7 @@ static unsigned long etb_update_buffer(struct coresight_device *csdev,
 
 	cur = buf->cur;
 	offset = buf->offset;
-	barrier = barrier_pkt;
+	barrier = coresight_barrier_pkt;
 
 	for (i = 0; i < to_read; i += 4) {
 		buf_ptr = buf->data_pages[cur] + offset;
@@ -554,9 +557,8 @@ static unsigned long etb_update_buffer(struct coresight_device *csdev,
 
 	/*
 	 * In snapshot mode we simply increment the head by the number of byte
-	 * that were written.  User space function  cs_etm_find_snapshot() will
-	 * figure out how many bytes to get from the AUX buffer based on the
-	 * position of the head.
+	 * that were written.  User space will figure out how many bytes to get
+	 * from the AUX buffer based on the position of the head.
 	 */
 	if (buf->snapshot)
 		handle->head += to_read;
@@ -586,7 +588,7 @@ static void etb_dump(struct etb_drvdata *drvdata)
 	unsigned long flags;
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
-	if (drvdata->mode == CS_MODE_SYSFS) {
+	if (coresight_get_mode(drvdata->csdev) == CS_MODE_SYSFS) {
 		__etb_disable_hw(drvdata);
 		etb_dump_hw(drvdata);
 		__etb_enable_hw(drvdata);
@@ -653,27 +655,15 @@ static const struct file_operations etb_fops = {
 	.llseek		= no_llseek,
 };
 
-#define coresight_etb10_reg(name, offset)		\
-	coresight_simple_reg32(struct etb_drvdata, name, offset)
-
-coresight_etb10_reg(rdp, ETB_RAM_DEPTH_REG);
-coresight_etb10_reg(sts, ETB_STATUS_REG);
-coresight_etb10_reg(rrp, ETB_RAM_READ_POINTER);
-coresight_etb10_reg(rwp, ETB_RAM_WRITE_POINTER);
-coresight_etb10_reg(trg, ETB_TRG);
-coresight_etb10_reg(ctl, ETB_CTL_REG);
-coresight_etb10_reg(ffsr, ETB_FFSR);
-coresight_etb10_reg(ffcr, ETB_FFCR);
-
 static struct attribute *coresight_etb_mgmt_attrs[] = {
-	&dev_attr_rdp.attr,
-	&dev_attr_sts.attr,
-	&dev_attr_rrp.attr,
-	&dev_attr_rwp.attr,
-	&dev_attr_trg.attr,
-	&dev_attr_ctl.attr,
-	&dev_attr_ffsr.attr,
-	&dev_attr_ffcr.attr,
+	coresight_simple_reg32(rdp, ETB_RAM_DEPTH_REG),
+	coresight_simple_reg32(sts, ETB_STATUS_REG),
+	coresight_simple_reg32(rrp, ETB_RAM_READ_POINTER),
+	coresight_simple_reg32(rwp, ETB_RAM_WRITE_POINTER),
+	coresight_simple_reg32(trg, ETB_TRG),
+	coresight_simple_reg32(ctl, ETB_CTL_REG),
+	coresight_simple_reg32(ffsr, ETB_FFSR),
+	coresight_simple_reg32(ffcr, ETB_FFCR),
 	NULL,
 };
 
@@ -717,7 +707,7 @@ static const struct attribute_group coresight_etb_mgmt_group = {
 	.name = "mgmt",
 };
 
-const struct attribute_group *coresight_etb_groups[] = {
+static const struct attribute_group *coresight_etb_groups[] = {
 	&coresight_etb_group,
 	&coresight_etb_mgmt_group,
 	NULL,
@@ -755,6 +745,7 @@ static int etb_probe(struct amba_device *adev, const struct amba_id *id)
 		return PTR_ERR(base);
 
 	drvdata->base = base;
+	desc.access = CSDEV_ACCESS_IOMEM(base);
 
 	spin_lock_init(&drvdata->spinlock);
 
@@ -801,6 +792,19 @@ err_misc_register:
 	return ret;
 }
 
+static void etb_remove(struct amba_device *adev)
+{
+	struct etb_drvdata *drvdata = dev_get_drvdata(&adev->dev);
+
+	/*
+	 * Since misc_open() holds a refcount on the f_ops, which is
+	 * etb fops in this case, device is there until last file
+	 * handler to this device is closed.
+	 */
+	misc_deregister(&drvdata->miscdev);
+	coresight_unregister(drvdata->csdev);
+}
+
 #ifdef CONFIG_PM
 static int etb_runtime_suspend(struct device *dev)
 {
@@ -832,18 +836,26 @@ static const struct amba_id etb_ids[] = {
 		.id	= 0x000bb907,
 		.mask	= 0x000fffff,
 	},
-	{ 0, 0},
+	{ 0, 0, NULL },
 };
+
+MODULE_DEVICE_TABLE(amba, etb_ids);
 
 static struct amba_driver etb_driver = {
 	.drv = {
 		.name	= "coresight-etb10",
-		.owner	= THIS_MODULE,
 		.pm	= &etb_dev_pm_ops,
 		.suppress_bind_attrs = true,
 
 	},
 	.probe		= etb_probe,
+	.remove		= etb_remove,
 	.id_table	= etb_ids,
 };
-builtin_amba_driver(etb_driver);
+
+module_amba_driver(etb_driver);
+
+MODULE_AUTHOR("Pratik Patel <pratikp@codeaurora.org>");
+MODULE_AUTHOR("Mathieu Poirier <mathieu.poirier@linaro.org>");
+MODULE_DESCRIPTION("Arm CoreSight Embedded Trace Buffer driver");
+MODULE_LICENSE("GPL v2");

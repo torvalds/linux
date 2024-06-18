@@ -60,7 +60,7 @@ static void __init eisa_name_device(struct eisa_device *edev)
 	int i;
 	for (i = 0; i < EISA_INFOS; i++) {
 		if (!strcmp(edev->id.sig, eisa_table[i].id.sig)) {
-			strlcpy(edev->pretty_name,
+			strscpy(edev->pretty_name,
 				eisa_table[i].name,
 				sizeof(edev->pretty_name));
 			return;
@@ -127,9 +127,9 @@ static int eisa_bus_match(struct device *dev, struct device_driver *drv)
 	return 0;
 }
 
-static int eisa_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int eisa_bus_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct eisa_device *edev = to_eisa_device(dev);
+	const struct eisa_device *edev = to_eisa_device(dev);
 
 	add_uevent_var(env, "MODALIAS=" EISA_DEVICE_MODALIAS_FMT, edev->id.sig);
 	return 0;
@@ -155,34 +155,29 @@ void eisa_driver_unregister(struct eisa_driver *edrv)
 }
 EXPORT_SYMBOL(eisa_driver_unregister);
 
-static ssize_t eisa_show_sig(struct device *dev, struct device_attribute *attr,
-			     char *buf)
+static ssize_t signature_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
 {
 	struct eisa_device *edev = to_eisa_device(dev);
 	return sprintf(buf, "%s\n", edev->id.sig);
 }
+static DEVICE_ATTR_RO(signature);
 
-static DEVICE_ATTR(signature, S_IRUGO, eisa_show_sig, NULL);
-
-static ssize_t eisa_show_state(struct device *dev,
-			       struct device_attribute *attr,
-			       char *buf)
+static ssize_t enabled_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
 {
 	struct eisa_device *edev = to_eisa_device(dev);
 	return sprintf(buf, "%d\n", edev->state & EISA_CONFIG_ENABLED);
 }
+static DEVICE_ATTR_RO(enabled);
 
-static DEVICE_ATTR(enabled, S_IRUGO, eisa_show_state, NULL);
-
-static ssize_t eisa_show_modalias(struct device *dev,
-				  struct device_attribute *attr,
-				  char *buf)
+static ssize_t modalias_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	struct eisa_device *edev = to_eisa_device(dev);
 	return sprintf(buf, EISA_DEVICE_MODALIAS_FMT "\n", edev->id.sig);
 }
-
-static DEVICE_ATTR(modalias, S_IRUGO, eisa_show_modalias, NULL);
+static DEVICE_ATTR_RO(modalias);
 
 static int __init eisa_init_device(struct eisa_root_device *root,
 				   struct eisa_device *edev,

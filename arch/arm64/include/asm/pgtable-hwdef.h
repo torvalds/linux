@@ -26,10 +26,10 @@
 #define ARM64_HW_PGTABLE_LEVELS(va_bits) (((va_bits) - 4) / (PAGE_SHIFT - 3))
 
 /*
- * Size mapped by an entry at level n ( 0 <= n <= 3)
+ * Size mapped by an entry at level n ( -1 <= n <= 3)
  * We map (PAGE_SHIFT - 3) at all translation levels and PAGE_SHIFT bits
  * in the final page. The maximum number of translation levels supported by
- * the architecture is 4. Hence, starting at at level n, we have further
+ * the architecture is 5. Hence, starting at level n, we have further
  * ((4 - n) - 1) levels of translation excluding the offset within the page.
  * So, the total number of bits mapped by an entry at level n is :
  *
@@ -49,7 +49,7 @@
 #define PMD_SHIFT		ARM64_HW_PGTABLE_LEVEL_SHIFT(2)
 #define PMD_SIZE		(_AC(1, UL) << PMD_SHIFT)
 #define PMD_MASK		(~(PMD_SIZE-1))
-#define PTRS_PER_PMD		PTRS_PER_PTE
+#define PTRS_PER_PMD		(1 << (PAGE_SHIFT - 3))
 #endif
 
 /*
@@ -59,57 +59,70 @@
 #define PUD_SHIFT		ARM64_HW_PGTABLE_LEVEL_SHIFT(1)
 #define PUD_SIZE		(_AC(1, UL) << PUD_SHIFT)
 #define PUD_MASK		(~(PUD_SIZE-1))
-#define PTRS_PER_PUD		PTRS_PER_PTE
+#define PTRS_PER_PUD		(1 << (PAGE_SHIFT - 3))
+#endif
+
+#if CONFIG_PGTABLE_LEVELS > 4
+#define P4D_SHIFT		ARM64_HW_PGTABLE_LEVEL_SHIFT(0)
+#define P4D_SIZE		(_AC(1, UL) << P4D_SHIFT)
+#define P4D_MASK		(~(P4D_SIZE-1))
+#define PTRS_PER_P4D		(1 << (PAGE_SHIFT - 3))
 #endif
 
 /*
  * PGDIR_SHIFT determines the size a top-level page table entry can map
- * (depending on the configuration, this level can be 0, 1 or 2).
+ * (depending on the configuration, this level can be -1, 0, 1 or 2).
  */
 #define PGDIR_SHIFT		ARM64_HW_PGTABLE_LEVEL_SHIFT(4 - CONFIG_PGTABLE_LEVELS)
 #define PGDIR_SIZE		(_AC(1, UL) << PGDIR_SHIFT)
 #define PGDIR_MASK		(~(PGDIR_SIZE-1))
-#define PTRS_PER_PGD		(1 << (MAX_USER_VA_BITS - PGDIR_SHIFT))
-
-/*
- * Section address mask and size definitions.
- */
-#define SECTION_SHIFT		PMD_SHIFT
-#define SECTION_SIZE		(_AC(1, UL) << SECTION_SHIFT)
-#define SECTION_MASK		(~(SECTION_SIZE-1))
+#define PTRS_PER_PGD		(1 << (VA_BITS - PGDIR_SHIFT))
 
 /*
  * Contiguous page definitions.
  */
-#ifdef CONFIG_ARM64_64K_PAGES
-#define CONT_PTE_SHIFT		5
-#define CONT_PMD_SHIFT		5
-#elif defined(CONFIG_ARM64_16K_PAGES)
-#define CONT_PTE_SHIFT		7
-#define CONT_PMD_SHIFT		5
-#else
-#define CONT_PTE_SHIFT		4
-#define CONT_PMD_SHIFT		4
-#endif
-
-#define CONT_PTES		(1 << CONT_PTE_SHIFT)
+#define CONT_PTE_SHIFT		(CONFIG_ARM64_CONT_PTE_SHIFT + PAGE_SHIFT)
+#define CONT_PTES		(1 << (CONT_PTE_SHIFT - PAGE_SHIFT))
 #define CONT_PTE_SIZE		(CONT_PTES * PAGE_SIZE)
 #define CONT_PTE_MASK		(~(CONT_PTE_SIZE - 1))
-#define CONT_PMDS		(1 << CONT_PMD_SHIFT)
+
+#define CONT_PMD_SHIFT		(CONFIG_ARM64_CONT_PMD_SHIFT + PMD_SHIFT)
+#define CONT_PMDS		(1 << (CONT_PMD_SHIFT - PMD_SHIFT))
 #define CONT_PMD_SIZE		(CONT_PMDS * PMD_SIZE)
 #define CONT_PMD_MASK		(~(CONT_PMD_SIZE - 1))
-/* the the numerical offset of the PTE within a range of CONT_PTES */
-#define CONT_RANGE_OFFSET(addr) (((addr)>>PAGE_SHIFT)&(CONT_PTES-1))
 
 /*
  * Hardware page table definitions.
  *
+ * Level -1 descriptor (PGD).
+ */
+#define PGD_TYPE_TABLE		(_AT(pgdval_t, 3) << 0)
+#define PGD_TABLE_BIT		(_AT(pgdval_t, 1) << 1)
+#define PGD_TYPE_MASK		(_AT(pgdval_t, 3) << 0)
+#define PGD_TABLE_PXN		(_AT(pgdval_t, 1) << 59)
+#define PGD_TABLE_UXN		(_AT(pgdval_t, 1) << 60)
+
+/*
+ * Level 0 descriptor (P4D).
+ */
+#define P4D_TYPE_TABLE		(_AT(p4dval_t, 3) << 0)
+#define P4D_TABLE_BIT		(_AT(p4dval_t, 1) << 1)
+#define P4D_TYPE_MASK		(_AT(p4dval_t, 3) << 0)
+#define P4D_TYPE_SECT		(_AT(p4dval_t, 1) << 0)
+#define P4D_SECT_RDONLY		(_AT(p4dval_t, 1) << 7)		/* AP[2] */
+#define P4D_TABLE_PXN		(_AT(p4dval_t, 1) << 59)
+#define P4D_TABLE_UXN		(_AT(p4dval_t, 1) << 60)
+
+/*
  * Level 1 descriptor (PUD).
  */
 #define PUD_TYPE_TABLE		(_AT(pudval_t, 3) << 0)
 #define PUD_TABLE_BIT		(_AT(pudval_t, 1) << 1)
 #define PUD_TYPE_MASK		(_AT(pudval_t, 3) << 0)
 #define PUD_TYPE_SECT		(_AT(pudval_t, 1) << 0)
+#define PUD_SECT_RDONLY		(_AT(pudval_t, 1) << 7)		/* AP[2] */
+#define PUD_TABLE_PXN		(_AT(pudval_t, 1) << 59)
+#define PUD_TABLE_UXN		(_AT(pudval_t, 1) << 60)
 
 /*
  * Level 2 descriptor (PMD).
@@ -131,6 +144,8 @@
 #define PMD_SECT_CONT		(_AT(pmdval_t, 1) << 52)
 #define PMD_SECT_PXN		(_AT(pmdval_t, 1) << 53)
 #define PMD_SECT_UXN		(_AT(pmdval_t, 1) << 54)
+#define PMD_TABLE_PXN		(_AT(pmdval_t, 1) << 59)
+#define PMD_TABLE_UXN		(_AT(pmdval_t, 1) << 60)
 
 /*
  * AttrIndx[2:0] encoding (mapping attributes defined in the MAIR* registers).
@@ -150,18 +165,23 @@
 #define PTE_SHARED		(_AT(pteval_t, 3) << 8)		/* SH[1:0], inner shareable */
 #define PTE_AF			(_AT(pteval_t, 1) << 10)	/* Access Flag */
 #define PTE_NG			(_AT(pteval_t, 1) << 11)	/* nG */
+#define PTE_GP			(_AT(pteval_t, 1) << 50)	/* BTI guarded */
 #define PTE_DBM			(_AT(pteval_t, 1) << 51)	/* Dirty Bit Management */
 #define PTE_CONT		(_AT(pteval_t, 1) << 52)	/* Contiguous range */
 #define PTE_PXN			(_AT(pteval_t, 1) << 53)	/* Privileged XN */
 #define PTE_UXN			(_AT(pteval_t, 1) << 54)	/* User XN */
-#define PTE_HYP_XN		(_AT(pteval_t, 1) << 54)	/* HYP XN */
 
-#define PTE_ADDR_LOW		(((_AT(pteval_t, 1) << (48 - PAGE_SHIFT)) - 1) << PAGE_SHIFT)
+#define PTE_ADDR_LOW		(((_AT(pteval_t, 1) << (50 - PAGE_SHIFT)) - 1) << PAGE_SHIFT)
 #ifdef CONFIG_ARM64_PA_BITS_52
+#ifdef CONFIG_ARM64_64K_PAGES
 #define PTE_ADDR_HIGH		(_AT(pteval_t, 0xf) << 12)
-#define PTE_ADDR_MASK		(PTE_ADDR_LOW | PTE_ADDR_HIGH)
+#define PTE_ADDR_HIGH_SHIFT	36
+#define PHYS_TO_PTE_ADDR_MASK	(PTE_ADDR_LOW | PTE_ADDR_HIGH)
 #else
-#define PTE_ADDR_MASK		PTE_ADDR_LOW
+#define PTE_ADDR_HIGH		(_AT(pteval_t, 0x3) << 8)
+#define PTE_ADDR_HIGH_SHIFT	42
+#define PHYS_TO_PTE_ADDR_MASK	GENMASK_ULL(49, 8)
+#endif
 #endif
 
 /*
@@ -171,31 +191,17 @@
 #define PTE_ATTRINDX_MASK	(_AT(pteval_t, 7) << 2)
 
 /*
- * 2nd stage PTE definitions
+ * PIIndex[3:0] encoding (Permission Indirection Extension)
  */
-#define PTE_S2_RDONLY		(_AT(pteval_t, 1) << 6)   /* HAP[2:1] */
-#define PTE_S2_RDWR		(_AT(pteval_t, 3) << 6)   /* HAP[2:1] */
-#define PTE_S2_XN		(_AT(pteval_t, 2) << 53)  /* XN[1:0] */
-
-#define PMD_S2_RDONLY		(_AT(pmdval_t, 1) << 6)   /* HAP[2:1] */
-#define PMD_S2_RDWR		(_AT(pmdval_t, 3) << 6)   /* HAP[2:1] */
-#define PMD_S2_XN		(_AT(pmdval_t, 2) << 53)  /* XN[1:0] */
-
-#define PUD_S2_RDONLY		(_AT(pudval_t, 1) << 6)   /* HAP[2:1] */
-#define PUD_S2_RDWR		(_AT(pudval_t, 3) << 6)   /* HAP[2:1] */
-#define PUD_S2_XN		(_AT(pudval_t, 2) << 53)  /* XN[1:0] */
+#define PTE_PI_IDX_0	6	/* AP[1], USER */
+#define PTE_PI_IDX_1	51	/* DBM */
+#define PTE_PI_IDX_2	53	/* PXN */
+#define PTE_PI_IDX_3	54	/* UXN */
 
 /*
  * Memory Attribute override for Stage-2 (MemAttr[3:0])
  */
 #define PTE_S2_MEMATTR(t)	(_AT(pteval_t, (t)) << 2)
-#define PTE_S2_MEMATTR_MASK	(_AT(pteval_t, 0xf) << 2)
-
-/*
- * EL2/HYP PTE/PMD definitions
- */
-#define PMD_HYP			PMD_SECT_USER
-#define PTE_HYP			PTE_USER
 
 /*
  * Highest possible physical address supported.
@@ -215,6 +221,7 @@
 #define TCR_TxSZ(x)		(TCR_T0SZ(x) | TCR_T1SZ(x))
 #define TCR_TxSZ_WIDTH		6
 #define TCR_T0SZ_MASK		(((UL(1) << TCR_TxSZ_WIDTH) - 1) << TCR_T0SZ_OFFSET)
+#define TCR_T1SZ_MASK		(((UL(1) << TCR_TxSZ_WIDTH) - 1) << TCR_T1SZ_OFFSET)
 
 #define TCR_EPD0_SHIFT		7
 #define TCR_EPD0_MASK		(UL(1) << TCR_EPD0_SHIFT)
@@ -290,18 +297,24 @@
 #define TCR_TBI1		(UL(1) << 38)
 #define TCR_HA			(UL(1) << 39)
 #define TCR_HD			(UL(1) << 40)
+#define TCR_TBID0		(UL(1) << 51)
+#define TCR_TBID1		(UL(1) << 52)
 #define TCR_NFD0		(UL(1) << 53)
 #define TCR_NFD1		(UL(1) << 54)
+#define TCR_E0PD0		(UL(1) << 55)
+#define TCR_E0PD1		(UL(1) << 56)
+#define TCR_TCMA0		(UL(1) << 57)
+#define TCR_TCMA1		(UL(1) << 58)
+#define TCR_DS			(UL(1) << 59)
 
 /*
  * TTBR.
  */
 #ifdef CONFIG_ARM64_PA_BITS_52
 /*
- * This should be GENMASK_ULL(47, 2).
  * TTBR_ELx[1] is RES0 in this configuration.
  */
-#define TTBR_BADDR_MASK_52	(((UL(1) << 46) - 1) << 2)
+#define TTBR_BADDR_MASK_52	GENMASK_ULL(47, 2)
 #endif
 
 #ifdef CONFIG_ARM64_VA_BITS_52

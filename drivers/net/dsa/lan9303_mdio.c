@@ -32,7 +32,7 @@ static int lan9303_mdio_write(void *ctx, uint32_t reg, uint32_t val)
 	struct lan9303_mdio *sw_dev = (struct lan9303_mdio *)ctx;
 
 	reg <<= 2; /* reg num to offset */
-	mutex_lock(&sw_dev->device->bus->mdio_lock);
+	mutex_lock_nested(&sw_dev->device->bus->mdio_lock, MDIO_MUTEX_NESTED);
 	lan9303_mdio_real_write(sw_dev->device, reg, val & 0xffff);
 	lan9303_mdio_real_write(sw_dev->device, reg + 2, (val >> 16) & 0xffff);
 	mutex_unlock(&sw_dev->device->bus->mdio_lock);
@@ -50,7 +50,7 @@ static int lan9303_mdio_read(void *ctx, uint32_t reg, uint32_t *val)
 	struct lan9303_mdio *sw_dev = (struct lan9303_mdio *)ctx;
 
 	reg <<= 2; /* reg num to offset */
-	mutex_lock(&sw_dev->device->bus->mdio_lock);
+	mutex_lock_nested(&sw_dev->device->bus->mdio_lock, MDIO_MUTEX_NESTED);
 	*val = lan9303_mdio_real_read(sw_dev->device, reg);
 	*val |= (lan9303_mdio_real_read(sw_dev->device, reg + 2) << 16);
 	mutex_unlock(&sw_dev->device->bus->mdio_lock);
@@ -140,10 +140,23 @@ static void lan9303_mdio_remove(struct mdio_device *mdiodev)
 	lan9303_remove(&sw_dev->chip);
 }
 
+static void lan9303_mdio_shutdown(struct mdio_device *mdiodev)
+{
+	struct lan9303_mdio *sw_dev = dev_get_drvdata(&mdiodev->dev);
+
+	if (!sw_dev)
+		return;
+
+	lan9303_shutdown(&sw_dev->chip);
+
+	dev_set_drvdata(&mdiodev->dev, NULL);
+}
+
 /*-------------------------------------------------------------------------*/
 
 static const struct of_device_id lan9303_mdio_of_match[] = {
 	{ .compatible = "smsc,lan9303-mdio" },
+	{ .compatible = "microchip,lan9354-mdio" },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, lan9303_mdio_of_match);
@@ -151,10 +164,11 @@ MODULE_DEVICE_TABLE(of, lan9303_mdio_of_match);
 static struct mdio_driver lan9303_mdio_driver = {
 	.mdiodrv.driver = {
 		.name = "LAN9303_MDIO",
-		.of_match_table = of_match_ptr(lan9303_mdio_of_match),
+		.of_match_table = lan9303_mdio_of_match,
 	},
 	.probe  = lan9303_mdio_probe,
 	.remove = lan9303_mdio_remove,
+	.shutdown = lan9303_mdio_shutdown,
 };
 mdio_module_driver(lan9303_mdio_driver);
 

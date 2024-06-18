@@ -23,18 +23,18 @@ ogni due o tre mesi viene effettuata un rilascio importante del kernel.
 I rilasci più recenti sono stati:
 
 	======  =================
-	4.11	Aprile 30, 2017
-	4.12	Luglio 2, 2017
-	4.13	Settembre 3, 2017
-	4.14	Novembre 12, 2017
-	4.15	Gennaio 28, 2018
-	4.16	Aprile 1, 2018
+	5.0     3 marzo, 2019
+	5.1     5 maggio, 2019
+	5.2     7 luglio, 2019
+	5.3     15 settembre, 2019
+	5.4     24 novembre, 2019
+	5.5     6 gennaio, 2020
 	======  =================
 
-Ciascun rilascio 4.x è un importante rilascio del kernel con nuove
+Ciascun rilascio 5.x è un importante rilascio del kernel con nuove
 funzionalità, modifiche interne dell'API, e molto altro.  Un tipico
-rilascio 4.x contiene quasi 13,000 gruppi di modifiche con ulteriori
-modifiche a parecchie migliaia di linee di codice.  La 4.x. è pertanto la
+rilascio contiene quasi 13,000 gruppi di modifiche con ulteriori
+modifiche a parecchie migliaia di linee di codice.  La 5.x. è pertanto la
 linea di confine nello sviluppo del kernel Linux; il kernel utilizza un sistema
 di sviluppo continuo che integra costantemente nuove importanti modifiche.
 
@@ -55,8 +55,8 @@ verrà descritto dettagliatamente più avanti).
 La finestra di inclusione resta attiva approssimativamente per due settimane.
 Al termine di questo periodo, Linus Torvald dichiarerà che la finestra è
 chiusa e rilascerà il primo degli "rc" del kernel.
-Per il kernel che è destinato ad essere 2.6.40, per esempio, il rilascio
-che emerge al termine della finestra d'inclusione si chiamerà 2.6.40-rc1.
+Per il kernel che è destinato ad essere 5.6, per esempio, il rilascio
+che emerge al termine della finestra d'inclusione si chiamerà 5.6-rc1.
 Questo rilascio indica che il momento di aggiungere nuovi componenti è
 passato, e che è iniziato il periodo di stabilizzazione del prossimo kernel.
 
@@ -76,22 +76,23 @@ Mentre le correzioni si aprono la loro strada all'interno del ramo principale,
 il ritmo delle modifiche rallenta col tempo.  Linus rilascia un nuovo
 kernel -rc circa una volta alla settimana; e ne usciranno circa 6 o 9 prima
 che il kernel venga considerato sufficientemente stabile e che il rilascio
-finale 2.6.x venga fatto.  A quel punto tutto il processo ricomincerà.
+finale venga fatto.  A quel punto tutto il processo ricomincerà.
 
-Esempio: ecco com'è andato il ciclo di sviluppo della versione 4.16
+Esempio: ecco com'è andato il ciclo di sviluppo della versione 5.4
 (tutte le date si collocano nel 2018)
 
 
 	==============  =======================================
-	Gennaio 28	4.15 rilascio stabile
-	Febbraio 11	4.16-rc1, finestra di inclusione chiusa
-	Febbraio 18	4.16-rc2
-	Febbraio 25	4.16-rc3
-	Marzo 4		4.16-rc4
-	Marzo 11	4.16-rc5
-	Marzo 18	4.16-rc6
-	Marzo 25	4.16-rc7
-	Aprile 1		4.17 rilascio stabile
+	15 settembre	5.3 rilascio stabile
+	30 settembre	5.4-rc1, finestra di inclusione chiusa
+	6 ottobre	5.4-rc2
+	13 ottobre	5.4-rc3
+	20 ottobre	5.4-rc4
+	27 ottobre	5.4-rc5
+	3 novembre	5.4-rc6
+	10 novembre	5.4-rc7
+	17 novembre	5.4-rc8
+	24 novembre	5.4 rilascio stabile
 	==============  =======================================
 
 In che modo gli sviluppatori decidono quando chiudere il ciclo di sviluppo e
@@ -108,44 +109,38 @@ tipo di perfezione difficilmente viene raggiunta; esistono troppe variabili
 in un progetto di questa portata.  Arriva un punto dove ritardare il rilascio
 finale peggiora la situazione; la quantità di modifiche in attesa della
 prossima finestra di inclusione crescerà enormemente, creando ancor più
-regressioni al giro successivo.  Quindi molti kernel 4.x escono con una
+regressioni al giro successivo.  Quindi molti kernel 5.x escono con una
 manciata di regressioni delle quali, si spera, nessuna è grave.
 
 Una volta che un rilascio stabile è fatto, il suo costante mantenimento è
 affidato al "squadra stabilità", attualmente composta da Greg Kroah-Hartman.
 Questa squadra rilascia occasionalmente degli aggiornamenti relativi al
-rilascio stabile usando la numerazione 4.x.y.  Per essere presa in
+rilascio stabile usando la numerazione 5.x.y.  Per essere presa in
 considerazione per un rilascio d'aggiornamento, una modifica deve:
 (1) correggere un baco importante (2) essere già inserita nel ramo principale
 per il prossimo sviluppo del kernel.  Solitamente, passato il loro rilascio
 iniziale, i kernel ricevono aggiornamenti per più di un ciclo di sviluppo.
-Quindi, per esempio, la storia del kernel 4.13 appare così:
+Quindi, per esempio, la storia del kernel 5.2 appare così (anno 2019):
 
 	==============  ===============================
-	Settembre 3 	4.13 rilascio stabile
-	Settembre 13	4.13.1
-	Settembre 20	4.13.2
-	Settembre 27	4.13.3
-	Ottobre 5	4.13.4
-	Ottobre 12	4.13.5
+	 7 luglio	5.2 rilascio stabile
+	14 luglio	5.2.1
+	21 luglio	5.2.2
+	26 luglio	5.2.3
+	28 luglio	5.2.4
+	31 luglio	5.2.5
 	...		...
-	Novembre 24	4.13.16
+	11 ottobre	5.2.21
 	==============  ===============================
 
-La 4.13.16 fu l'aggiornamento finale per la versione 4.13.
+La 5.2.21 fu l'aggiornamento finale per la versione 5.2.
 
 Alcuni kernel sono destinati ad essere kernel a "lungo termine"; questi
-riceveranno assistenza per un lungo periodo di tempo.  Al momento in cui
-scriviamo, i manutentori dei kernel stabili a lungo termine sono:
+riceveranno assistenza per un lungo periodo di tempo. Consultate il seguente
+collegamento per avere la lista delle versioni attualmente supportate e i
+relativi manutentori:
 
-	======  ======================  ==========================================
-	3.16	Ben Hutchings		(kernel stabile molto più a lungo termine)
-	4.1	Sasha Levin
-	4.4	Greg Kroah-Hartman	(kernel stabile molto più a lungo termine)
-	4.9	Greg Kroah-Hartman
-	4.14	Greg Kroah-Hartman
-	======  ======================  ==========================================
-
+       https://www.kernel.org/category/releases.html
 
 Questa selezione di kernel di lungo periodo sono puramente dovuti ai loro
 manutentori, alla loro necessità e al tempo per tenere aggiornate proprio
@@ -229,12 +224,13 @@ Come le modifiche finiscono nel Kernel
 --------------------------------------
 
 Esiste una sola persona che può inserire le patch nel repositorio principale
-del kernel: Linus Torvalds.  Ma, di tutte le 9500 patch che entrarono nella
-versione 2.6.38 del kernel, solo 112 (circa l'1,3%) furono scelte direttamente
-da Linus in persona.  Il progetto del kernel è cresciuto fino a raggiungere
-una dimensione tale per cui un singolo sviluppatore non può controllare e
-selezionare indipendentemente ogni modifica senza essere supportato.
-La via scelta dagli sviluppatori per indirizzare tale crescita è stata quella
+del kernel: Linus Torvalds.  Ma, per esempio, di tutte le 9500 patch
+che entrarono nella versione 2.6.38 del kernel, solo 112 (circa
+l'1,3%) furono scelte direttamente da Linus in persona.  Il progetto
+del kernel è cresciuto fino a raggiungere una dimensione tale per cui
+un singolo sviluppatore non può controllare e selezionare
+indipendentemente ogni modifica senza essere supportato.  La via
+scelta dagli sviluppatori per indirizzare tale crescita è stata quella
 di utilizzare un sistema di "sottotenenti" basato sulla fiducia.
 
 Il codice base del kernel è spezzato in una serie si sottosistemi: rete,
@@ -431,7 +427,7 @@ l'elenco principale lo si trova sul sito:
 	http://vger.kernel.org/vger-lists.html
 
 Esistono liste gestite altrove; un certo numero di queste sono in
-lists.redhat.com.
+redhat.com/mailman/listinfo.
 
 La lista di discussione principale per lo sviluppo del kernel è, ovviamente,
 linux-kernel.  Questa lista è un luogo ostile dove trovarsi; i volumi possono
@@ -466,9 +462,12 @@ linux-kernel:
   di far domande.  Molti sviluppatori possono divenire impazienti con le
   persone che chiaramente non hanno svolto i propri compiti a casa.
 
-- Evitate il *top-posting* (cioè la pratica di mettere la vostra risposta sopra
-  alla frase alla quale state rispondendo).  Ciò renderebbe la vostra risposta
-  difficile da leggere e genera scarsa impressione.
+- Rispondete sotto alla porzione di righe citate, così da dare un contesto alle
+  vostre risposte, e quindi renderle più leggibili (in altre parole, evitate di
+  rispondere in cima, ovvero prima del testo citato). Per maggiori dettagli
+  leggete :ref:`Documentation/translations/it_IT/process/submitting-patches.rst
+  <it_interleaved_replies>`.
+
 
 - Chiedete nella lista di discussione corretta.  Linux-kernel può essere un
   punto di incontro generale, ma non è il miglior posto dove trovare

@@ -33,13 +33,37 @@
 #include <linux/mlx5/fs.h>
 #include "en.h"
 #include "en/params.h"
-#include "en/xsk/umem.h"
+#include "en/xsk/pool.h"
+#include "en/fs_ethtool.h"
+
+struct mlx5e_ethtool_table {
+	struct mlx5_flow_table *ft;
+	int                    num_rules;
+};
+
+#define ETHTOOL_NUM_L3_L4_FTS 7
+#define ETHTOOL_NUM_L2_FTS 4
+
+struct mlx5e_ethtool_steering {
+	struct mlx5e_ethtool_table      l3_l4_ft[ETHTOOL_NUM_L3_L4_FTS];
+	struct mlx5e_ethtool_table      l2_ft[ETHTOOL_NUM_L2_FTS];
+	struct list_head                rules;
+	int                             tot_num_rules;
+};
+
+static int flow_type_to_traffic_type(u32 flow_type);
+
+static u32 flow_type_mask(u32 flow_type)
+{
+	return flow_type & ~(FLOW_EXT | FLOW_MAC_EXT | FLOW_RSS);
+}
 
 struct mlx5e_ethtool_rule {
 	struct list_head             list;
 	struct ethtool_rx_flow_spec  flow_spec;
 	struct mlx5_flow_handle	     *rule;
 	struct mlx5e_ethtool_table   *eth_ft;
+	struct mlx5e_rss             *rss;
 };
 
 static void put_flow_table(struct mlx5e_ethtool_table *eth_ft)
@@ -58,6 +82,8 @@ static struct mlx5e_ethtool_table *get_flow_table(struct mlx5e_priv *priv,
 						  struct ethtool_rx_flow_spec *fs,
 						  int num_tuples)
 {
+	struct mlx5e_ethtool_steering *ethtool = mlx5e_fs_get_ethtool(priv->fs);
+	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5e_ethtool_table *eth_ft;
 	struct mlx5_flow_namespace *ns;
 	struct mlx5_flow_table *ft;
@@ -65,25 +91,21 @@ static struct mlx5e_ethtool_table *get_flow_table(struct mlx5e_priv *priv,
 	int table_size;
 	int prio;
 
-	switch (fs->flow_type & ~(FLOW_EXT | FLOW_MAC_EXT)) {
+	switch (flow_type_mask(fs->flow_type)) {
 	case TCP_V4_FLOW:
 	case UDP_V4_FLOW:
 	case TCP_V6_FLOW:
 	case UDP_V6_FLOW:
-		max_tuples = ETHTOOL_NUM_L3_L4_FTS;
-		prio = MLX5E_ETHTOOL_L3_L4_PRIO + (max_tuples - num_tuples);
-		eth_ft = &priv->fs.ethtool.l3_l4_ft[prio];
-		break;
 	case IP_USER_FLOW:
 	case IPV6_USER_FLOW:
 		max_tuples = ETHTOOL_NUM_L3_L4_FTS;
 		prio = MLX5E_ETHTOOL_L3_L4_PRIO + (max_tuples - num_tuples);
-		eth_ft = &priv->fs.ethtool.l3_l4_ft[prio];
+		eth_ft = &ethtool->l3_l4_ft[prio];
 		break;
 	case ETHER_FLOW:
 		max_tuples = ETHTOOL_NUM_L2_FTS;
 		prio = max_tuples - num_tuples;
-		eth_ft = &priv->fs.ethtool.l2_ft[prio];
+		eth_ft = &ethtool->l2_ft[prio];
 		prio += MLX5E_ETHTOOL_L2_PRIO;
 		break;
 	default:
@@ -102,9 +124,11 @@ static struct mlx5e_ethtool_table *get_flow_table(struct mlx5e_priv *priv,
 	table_size = min_t(u32, BIT(MLX5_CAP_FLOWTABLE(priv->mdev,
 						       flow_table_properties_nic_receive.log_max_ft_size)),
 			   MLX5E_ETHTOOL_NUM_ENTRIES);
-	ft = mlx5_create_auto_grouped_flow_table(ns, prio,
-						 table_size,
-						 MLX5E_ETHTOOL_NUM_GROUPS, 0, 0);
+
+	ft_attr.prio = prio;
+	ft_attr.max_fte = table_size;
+	ft_attr.autogroup.max_num_groups = MLX5E_ETHTOOL_NUM_GROUPS;
+	ft = mlx5_create_auto_grouped_flow_table(ns, &ft_attr);
 	if (IS_ERR(ft))
 		return (void *)ft;
 
@@ -326,7 +350,7 @@ static int set_flow_attrs(u32 *match_c, u32 *match_v,
 					     outer_headers);
 	void *outer_headers_v = MLX5_ADDR_OF(fte_match_param, match_v,
 					     outer_headers);
-	u32 flow_type = fs->flow_type & ~(FLOW_EXT | FLOW_MAC_EXT);
+	u32 flow_type = flow_type_mask(fs->flow_type);
 
 	switch (flow_type) {
 	case TCP_V4_FLOW:
@@ -371,15 +395,16 @@ static int set_flow_attrs(u32 *match_c, u32 *match_v,
 static void add_rule_to_list(struct mlx5e_priv *priv,
 			     struct mlx5e_ethtool_rule *rule)
 {
+	struct mlx5e_ethtool_steering *ethtool = mlx5e_fs_get_ethtool(priv->fs);
+	struct list_head *head = &ethtool->rules;
 	struct mlx5e_ethtool_rule *iter;
-	struct list_head *head = &priv->fs.ethtool.rules;
 
-	list_for_each_entry(iter, &priv->fs.ethtool.rules, list) {
+	list_for_each_entry(iter, &ethtool->rules, list) {
 		if (iter->flow_spec.location > rule->flow_spec.location)
 			break;
 		head = &iter->list;
 	}
-	priv->fs.ethtool.tot_num_rules++;
+	ethtool->tot_num_rules++;
 	list_add(&rule->list, head);
 }
 
@@ -394,10 +419,45 @@ static bool outer_header_zero(u32 *match_criteria)
 						  size - 1);
 }
 
+static int flow_get_tirn(struct mlx5e_priv *priv,
+			 struct mlx5e_ethtool_rule *eth_rule,
+			 struct ethtool_rx_flow_spec *fs,
+			 u32 rss_context, u32 *tirn)
+{
+	if (fs->flow_type & FLOW_RSS) {
+		struct mlx5e_packet_merge_param pkt_merge_param;
+		struct mlx5e_rss *rss;
+		u32 flow_type;
+		int err;
+		int tt;
+
+		rss = mlx5e_rx_res_rss_get(priv->rx_res, rss_context);
+		if (!rss)
+			return -ENOENT;
+
+		flow_type = flow_type_mask(fs->flow_type);
+		tt = flow_type_to_traffic_type(flow_type);
+		if (tt < 0)
+			return -EINVAL;
+
+		pkt_merge_param = priv->channels.params.packet_merge;
+		err = mlx5e_rss_obtain_tirn(rss, tt, &pkt_merge_param, false, tirn);
+		if (err)
+			return err;
+		eth_rule->rss = rss;
+		mlx5e_rss_refcnt_inc(eth_rule->rss);
+	} else {
+		*tirn = mlx5e_rx_res_get_tirn_direct(priv->rx_res, fs->ring_cookie);
+	}
+
+	return 0;
+}
+
 static struct mlx5_flow_handle *
 add_ethtool_flow_rule(struct mlx5e_priv *priv,
+		      struct mlx5e_ethtool_rule *eth_rule,
 		      struct mlx5_flow_table *ft,
-		      struct ethtool_rx_flow_spec *fs)
+		      struct ethtool_rx_flow_spec *fs, u32 rss_context)
 {
 	struct mlx5_flow_act flow_act = { .flags = FLOW_ACT_NO_APPEND };
 	struct mlx5_flow_destination *dst = NULL;
@@ -416,22 +476,17 @@ add_ethtool_flow_rule(struct mlx5e_priv *priv,
 	if (fs->ring_cookie == RX_CLS_FLOW_DISC) {
 		flow_act.action = MLX5_FLOW_CONTEXT_ACTION_DROP;
 	} else {
-		struct mlx5e_params *params = &priv->channels.params;
-		enum mlx5e_rq_group group;
-		struct mlx5e_tir *tir;
-		u16 ix;
-
-		mlx5e_qid_get_ch_and_group(params, fs->ring_cookie, &ix, &group);
-		tir = group == MLX5E_RQ_GROUP_XSK ? priv->xsk_tir : priv->direct_tir;
-
 		dst = kzalloc(sizeof(*dst), GFP_KERNEL);
 		if (!dst) {
 			err = -ENOMEM;
 			goto free;
 		}
 
+		err = flow_get_tirn(priv, eth_rule, fs, rss_context, &dst->tir_num);
+		if (err)
+			goto free;
+
 		dst->type = MLX5_FLOW_DESTINATION_TYPE_TIR;
-		dst->tir_num = tir[ix].tirn;
 		flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	}
 
@@ -450,13 +505,16 @@ free:
 	return err ? ERR_PTR(err) : rule;
 }
 
-static void del_ethtool_rule(struct mlx5e_priv *priv,
+static void del_ethtool_rule(struct mlx5e_flow_steering *fs,
 			     struct mlx5e_ethtool_rule *eth_rule)
 {
+	struct mlx5e_ethtool_steering *ethtool = mlx5e_fs_get_ethtool(fs);
 	if (eth_rule->rule)
 		mlx5_del_flow_rules(eth_rule->rule);
+	if (eth_rule->rss)
+		mlx5e_rss_refcnt_dec(eth_rule->rss);
 	list_del(&eth_rule->list);
-	priv->fs.ethtool.tot_num_rules--;
+	ethtool->tot_num_rules--;
 	put_flow_table(eth_rule->eth_ft);
 	kfree(eth_rule);
 }
@@ -464,9 +522,10 @@ static void del_ethtool_rule(struct mlx5e_priv *priv,
 static struct mlx5e_ethtool_rule *find_ethtool_rule(struct mlx5e_priv *priv,
 						    int location)
 {
+	struct mlx5e_ethtool_steering *ethtool = mlx5e_fs_get_ethtool(priv->fs);
 	struct mlx5e_ethtool_rule *iter;
 
-	list_for_each_entry(iter, &priv->fs.ethtool.rules, list) {
+	list_for_each_entry(iter, &ethtool->rules, list) {
 		if (iter->flow_spec.location == location)
 			return iter;
 	}
@@ -480,7 +539,7 @@ static struct mlx5e_ethtool_rule *get_ethtool_rule(struct mlx5e_priv *priv,
 
 	eth_rule = find_ethtool_rule(priv, location);
 	if (eth_rule)
-		del_ethtool_rule(priv, eth_rule);
+		del_ethtool_rule(priv->fs, eth_rule);
 
 	eth_rule = kzalloc(sizeof(*eth_rule), GFP_KERNEL);
 	if (!eth_rule)
@@ -611,11 +670,10 @@ static int validate_flow(struct mlx5e_priv *priv,
 		return -ENOSPC;
 
 	if (fs->ring_cookie != RX_CLS_FLOW_DISC)
-		if (!mlx5e_qid_validate(priv->profile, &priv->channels.params,
-					fs->ring_cookie))
+		if (fs->ring_cookie >= priv->channels.params.num_channels)
 			return -EINVAL;
 
-	switch (fs->flow_type & ~(FLOW_EXT | FLOW_MAC_EXT)) {
+	switch (flow_type_mask(fs->flow_type)) {
 	case ETHER_FLOW:
 		num_tuples += validate_ethter(fs);
 		break;
@@ -664,7 +722,7 @@ static int validate_flow(struct mlx5e_priv *priv,
 
 static int
 mlx5e_ethtool_flow_replace(struct mlx5e_priv *priv,
-			   struct ethtool_rx_flow_spec *fs)
+			   struct ethtool_rx_flow_spec *fs, u32 rss_context)
 {
 	struct mlx5e_ethtool_table *eth_ft;
 	struct mlx5e_ethtool_rule *eth_rule;
@@ -691,11 +749,8 @@ mlx5e_ethtool_flow_replace(struct mlx5e_priv *priv,
 
 	eth_rule->flow_spec = *fs;
 	eth_rule->eth_ft = eth_ft;
-	if (!eth_ft->ft) {
-		err = -EINVAL;
-		goto del_ethtool_rule;
-	}
-	rule = add_ethtool_flow_rule(priv, eth_ft->ft, fs);
+
+	rule = add_ethtool_flow_rule(priv, eth_rule, eth_ft->ft, fs, rss_context);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
 		goto del_ethtool_rule;
@@ -706,7 +761,7 @@ mlx5e_ethtool_flow_replace(struct mlx5e_priv *priv,
 	return 0;
 
 del_ethtool_rule:
-	del_ethtool_rule(priv, eth_rule);
+	del_ethtool_rule(priv->fs, eth_rule);
 
 	return err;
 }
@@ -726,7 +781,7 @@ mlx5e_ethtool_flow_remove(struct mlx5e_priv *priv, int location)
 		goto out;
 	}
 
-	del_ethtool_rule(priv, eth_rule);
+	del_ethtool_rule(priv->fs, eth_rule);
 out:
 	return err;
 }
@@ -735,16 +790,27 @@ static int
 mlx5e_ethtool_get_flow(struct mlx5e_priv *priv,
 		       struct ethtool_rxnfc *info, int location)
 {
+	struct mlx5e_ethtool_steering *ethtool = mlx5e_fs_get_ethtool(priv->fs);
 	struct mlx5e_ethtool_rule *eth_rule;
 
 	if (location < 0 || location >= MAX_NUM_OF_ETHTOOL_RULES)
 		return -EINVAL;
 
-	list_for_each_entry(eth_rule, &priv->fs.ethtool.rules, list) {
-		if (eth_rule->flow_spec.location == location) {
-			info->fs = eth_rule->flow_spec;
+	list_for_each_entry(eth_rule, &ethtool->rules, list) {
+		int index;
+
+		if (eth_rule->flow_spec.location != location)
+			continue;
+		if (!info)
 			return 0;
-		}
+		info->fs = eth_rule->flow_spec;
+		if (!eth_rule->rss)
+			return 0;
+		index = mlx5e_rx_res_rss_index(priv->rx_res, eth_rule->rss);
+		if (index < 0)
+			return index;
+		info->rss_context = index;
+		return 0;
 	}
 
 	return -ENOENT;
@@ -760,7 +826,7 @@ mlx5e_ethtool_get_all_flows(struct mlx5e_priv *priv,
 
 	info->data = MAX_NUM_OF_ETHTOOL_RULES;
 	while ((!err || err == -ENOENT) && idx < info->rule_cnt) {
-		err = mlx5e_ethtool_get_flow(priv, info, location);
+		err = mlx5e_ethtool_get_flow(priv, NULL, location);
 		if (!err)
 			rule_locs[idx++] = location;
 		location++;
@@ -768,68 +834,89 @@ mlx5e_ethtool_get_all_flows(struct mlx5e_priv *priv,
 	return err;
 }
 
-void mlx5e_ethtool_cleanup_steering(struct mlx5e_priv *priv)
+int mlx5e_ethtool_alloc(struct mlx5e_ethtool_steering **ethtool)
 {
+	*ethtool =  kvzalloc(sizeof(**ethtool), GFP_KERNEL);
+	if (!*ethtool)
+		return -ENOMEM;
+	return 0;
+}
+
+void mlx5e_ethtool_free(struct mlx5e_ethtool_steering *ethtool)
+{
+	kvfree(ethtool);
+}
+
+void mlx5e_ethtool_cleanup_steering(struct mlx5e_flow_steering *fs)
+{
+	struct mlx5e_ethtool_steering *ethtool = mlx5e_fs_get_ethtool(fs);
 	struct mlx5e_ethtool_rule *iter;
 	struct mlx5e_ethtool_rule *temp;
 
-	list_for_each_entry_safe(iter, temp, &priv->fs.ethtool.rules, list)
-		del_ethtool_rule(priv, iter);
+	list_for_each_entry_safe(iter, temp, &ethtool->rules, list)
+		del_ethtool_rule(fs, iter);
 }
 
-void mlx5e_ethtool_init_steering(struct mlx5e_priv *priv)
+void mlx5e_ethtool_init_steering(struct mlx5e_flow_steering *fs)
 {
-	INIT_LIST_HEAD(&priv->fs.ethtool.rules);
+	struct mlx5e_ethtool_steering *ethtool = mlx5e_fs_get_ethtool(fs);
+
+	INIT_LIST_HEAD(&ethtool->rules);
 }
 
-static enum mlx5e_traffic_types flow_type_to_traffic_type(u32 flow_type)
+static int flow_type_to_traffic_type(u32 flow_type)
 {
 	switch (flow_type) {
 	case TCP_V4_FLOW:
-		return  MLX5E_TT_IPV4_TCP;
+		return MLX5_TT_IPV4_TCP;
 	case TCP_V6_FLOW:
-		return MLX5E_TT_IPV6_TCP;
+		return MLX5_TT_IPV6_TCP;
 	case UDP_V4_FLOW:
-		return MLX5E_TT_IPV4_UDP;
+		return MLX5_TT_IPV4_UDP;
 	case UDP_V6_FLOW:
-		return MLX5E_TT_IPV6_UDP;
+		return MLX5_TT_IPV6_UDP;
 	case AH_V4_FLOW:
-		return MLX5E_TT_IPV4_IPSEC_AH;
+		return MLX5_TT_IPV4_IPSEC_AH;
 	case AH_V6_FLOW:
-		return MLX5E_TT_IPV6_IPSEC_AH;
+		return MLX5_TT_IPV6_IPSEC_AH;
 	case ESP_V4_FLOW:
-		return MLX5E_TT_IPV4_IPSEC_ESP;
+		return MLX5_TT_IPV4_IPSEC_ESP;
 	case ESP_V6_FLOW:
-		return MLX5E_TT_IPV6_IPSEC_ESP;
+		return MLX5_TT_IPV6_IPSEC_ESP;
 	case IPV4_FLOW:
-		return MLX5E_TT_IPV4;
+		return MLX5_TT_IPV4;
 	case IPV6_FLOW:
-		return MLX5E_TT_IPV6;
+		return MLX5_TT_IPV6;
 	default:
-		return MLX5E_NUM_INDIR_TIRS;
+		return -EINVAL;
 	}
 }
 
 static int mlx5e_set_rss_hash_opt(struct mlx5e_priv *priv,
 				  struct ethtool_rxnfc *nfc)
 {
-	int inlen = MLX5_ST_SZ_BYTES(modify_tir_in);
-	enum mlx5e_traffic_types tt;
 	u8 rx_hash_field = 0;
-	void *in;
+	u32 flow_type = 0;
+	u32 rss_idx = 0;
+	int err;
+	int tt;
 
-	tt = flow_type_to_traffic_type(nfc->flow_type);
-	if (tt == MLX5E_NUM_INDIR_TIRS)
-		return -EINVAL;
+	if (nfc->flow_type & FLOW_RSS)
+		rss_idx = nfc->rss_context;
+
+	flow_type = flow_type_mask(nfc->flow_type);
+	tt = flow_type_to_traffic_type(flow_type);
+	if (tt < 0)
+		return tt;
 
 	/*  RSS does not support anything other than hashing to queues
 	 *  on src IP, dest IP, TCP/UDP src port and TCP/UDP dest
 	 *  port.
 	 */
-	if (nfc->flow_type != TCP_V4_FLOW &&
-	    nfc->flow_type != TCP_V6_FLOW &&
-	    nfc->flow_type != UDP_V4_FLOW &&
-	    nfc->flow_type != UDP_V6_FLOW)
+	if (flow_type != TCP_V4_FLOW &&
+	    flow_type != TCP_V6_FLOW &&
+	    flow_type != UDP_V4_FLOW &&
+	    flow_type != UDP_V6_FLOW)
 		return -EOPNOTSUPP;
 
 	if (nfc->data & ~(RXH_IP_SRC | RXH_IP_DST |
@@ -845,35 +932,33 @@ static int mlx5e_set_rss_hash_opt(struct mlx5e_priv *priv,
 	if (nfc->data & RXH_L4_B_2_3)
 		rx_hash_field |= MLX5_HASH_FIELD_SEL_L4_DPORT;
 
-	in = kvzalloc(inlen, GFP_KERNEL);
-	if (!in)
-		return -ENOMEM;
-
 	mutex_lock(&priv->state_lock);
-
-	if (rx_hash_field == priv->rss_params.rx_hash_fields[tt])
-		goto out;
-
-	priv->rss_params.rx_hash_fields[tt] = rx_hash_field;
-	mlx5e_modify_tirs_hash(priv, in, inlen);
-
-out:
+	err = mlx5e_rx_res_rss_set_hash_fields(priv->rx_res, rss_idx, tt, rx_hash_field);
 	mutex_unlock(&priv->state_lock);
-	kvfree(in);
-	return 0;
+
+	return err;
 }
 
 static int mlx5e_get_rss_hash_opt(struct mlx5e_priv *priv,
 				  struct ethtool_rxnfc *nfc)
 {
-	enum mlx5e_traffic_types tt;
-	u32 hash_field = 0;
+	int hash_field = 0;
+	u32 flow_type = 0;
+	u32 rss_idx = 0;
+	int tt;
 
-	tt = flow_type_to_traffic_type(nfc->flow_type);
-	if (tt == MLX5E_NUM_INDIR_TIRS)
-		return -EINVAL;
+	if (nfc->flow_type & FLOW_RSS)
+		rss_idx = nfc->rss_context;
 
-	hash_field = priv->rss_params.rx_hash_fields[tt];
+	flow_type = flow_type_mask(nfc->flow_type);
+	tt = flow_type_to_traffic_type(flow_type);
+	if (tt < 0)
+		return tt;
+
+	hash_field = mlx5e_rx_res_rss_get_hash_fields(priv->rx_res, rss_idx, tt);
+	if (hash_field < 0)
+		return hash_field;
+
 	nfc->data = 0;
 
 	if (hash_field & MLX5_HASH_FIELD_SEL_SRC_IP)
@@ -888,14 +973,13 @@ static int mlx5e_get_rss_hash_opt(struct mlx5e_priv *priv,
 	return 0;
 }
 
-int mlx5e_ethtool_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
+int mlx5e_ethtool_set_rxnfc(struct mlx5e_priv *priv, struct ethtool_rxnfc *cmd)
 {
-	struct mlx5e_priv *priv = netdev_priv(dev);
 	int err = 0;
 
 	switch (cmd->cmd) {
 	case ETHTOOL_SRXCLSRLINS:
-		err = mlx5e_ethtool_flow_replace(priv, &cmd->fs);
+		err = mlx5e_ethtool_flow_replace(priv, &cmd->fs, cmd->rss_context);
 		break;
 	case ETHTOOL_SRXCLSRLDEL:
 		err = mlx5e_ethtool_flow_remove(priv, cmd->fs.location);
@@ -911,15 +995,15 @@ int mlx5e_ethtool_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 	return err;
 }
 
-int mlx5e_ethtool_get_rxnfc(struct net_device *dev,
+int mlx5e_ethtool_get_rxnfc(struct mlx5e_priv *priv,
 			    struct ethtool_rxnfc *info, u32 *rule_locs)
 {
-	struct mlx5e_priv *priv = netdev_priv(dev);
+	struct mlx5e_ethtool_steering *ethtool = mlx5e_fs_get_ethtool(priv->fs);
 	int err = 0;
 
 	switch (info->cmd) {
 	case ETHTOOL_GRXCLSRLCNT:
-		info->rule_cnt = priv->fs.ethtool.tot_num_rules;
+		info->rule_cnt = ethtool->tot_num_rules;
 		break;
 	case ETHTOOL_GRXCLSRULE:
 		err = mlx5e_ethtool_get_flow(priv, info, info->fs.location);

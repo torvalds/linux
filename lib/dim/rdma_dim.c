@@ -59,7 +59,7 @@ static bool rdma_dim_decision(struct dim_stats *curr_stats, struct dim *dim)
 			break;
 		case DIM_STATS_WORSE:
 			dim_turn(dim);
-			/* fall through */
+			fallthrough;
 		case DIM_STATS_BETTER:
 			step_res = rdma_dim_step(dim);
 			if (step_res == DIM_ON_EDGE)
@@ -88,13 +88,14 @@ void rdma_dim(struct dim *dim, u64 completions)
 		nevents = curr_sample->event_ctr - dim->start_sample.event_ctr;
 		if (nevents < DIM_NEVENTS)
 			break;
-		dim_calc_stats(&dim->start_sample, curr_sample, &curr_stats);
+		if (!dim_calc_stats(&dim->start_sample, curr_sample, &curr_stats))
+			break;
 		if (rdma_dim_decision(&curr_stats, dim)) {
 			dim->state = DIM_APPLY_NEW_PROFILE;
 			schedule_work(&dim->work);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	case DIM_START_MEASURE:
 		dim->state = DIM_MEASURE_IN_PROGRESS;
 		dim_update_sample_with_comps(curr_sample->event_ctr, 0, 0,

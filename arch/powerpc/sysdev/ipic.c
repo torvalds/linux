@@ -18,9 +18,10 @@
 #include <linux/device.h>
 #include <linux/spinlock.h>
 #include <linux/fsl_devices.h>
+#include <linux/irqdomain.h>
+#include <linux/of_address.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/ipic.h>
 
 #include "ipic.h"
@@ -767,7 +768,7 @@ struct ipic * __init ipic_init(struct device_node *node, unsigned int flags)
 	return ipic;
 }
 
-void ipic_set_default_priority(void)
+void __init ipic_set_default_priority(void)
 {
 	ipic_write(primary_ipic->regs, IPIC_SIPRR_A, IPIC_PRIORITY_DEFAULT);
 	ipic_write(primary_ipic->regs, IPIC_SIPRR_B, IPIC_PRIORITY_DEFAULT);

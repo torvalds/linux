@@ -15,6 +15,7 @@
 
 /* FIC Registers */
 #define AL_FIC_CAUSE		0x00
+#define AL_FIC_SET_CAUSE	0x08
 #define AL_FIC_MASK		0x10
 #define AL_FIC_CONTROL		0x28
 
@@ -25,7 +26,6 @@
 
 MODULE_AUTHOR("Talel Shenhar");
 MODULE_DESCRIPTION("Amazon's Annapurna Labs Interrupt Controller Driver");
-MODULE_LICENSE("GPL v2");
 
 enum al_fic_state {
 	AL_FIC_UNCONFIGURED = 0,
@@ -110,7 +110,6 @@ static void al_fic_irq_handler(struct irq_desc *desc)
 	struct irq_chip *irqchip = irq_desc_get_chip(desc);
 	struct irq_chip_generic *gc = irq_get_domain_generic_chip(domain, 0);
 	unsigned long pending;
-	unsigned int irq;
 	u32 hwirq;
 
 	chained_irq_enter(irqchip, desc);
@@ -118,12 +117,20 @@ static void al_fic_irq_handler(struct irq_desc *desc)
 	pending = readl_relaxed(fic->base + AL_FIC_CAUSE);
 	pending &= ~gc->mask_cache;
 
-	for_each_set_bit(hwirq, &pending, NR_FIC_IRQS) {
-		irq = irq_find_mapping(domain, hwirq);
-		generic_handle_irq(irq);
-	}
+	for_each_set_bit(hwirq, &pending, NR_FIC_IRQS)
+		generic_handle_domain_irq(domain, hwirq);
 
 	chained_irq_exit(irqchip, desc);
+}
+
+static int al_fic_irq_retrigger(struct irq_data *data)
+{
+	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(data);
+	struct al_fic *fic = gc->private;
+
+	writel_relaxed(BIT(data->hwirq), fic->base + AL_FIC_SET_CAUSE);
+
+	return 1;
 }
 
 static int al_fic_register(struct device_node *node,
@@ -159,6 +166,7 @@ static int al_fic_register(struct device_node *node,
 	gc->chip_types->chip.irq_unmask = irq_gc_mask_clr_bit;
 	gc->chip_types->chip.irq_ack = irq_gc_ack_clr_bit;
 	gc->chip_types->chip.irq_set_type = al_fic_irq_set_type;
+	gc->chip_types->chip.irq_retrigger = al_fic_irq_retrigger;
 	gc->chip_types->chip.flags = IRQCHIP_SKIP_SET_WAKE;
 	gc->private = fic;
 

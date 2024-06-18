@@ -483,7 +483,9 @@ static void *record_one_cpu(struct device_node *dp, int cpuid, int arg)
 	ncpus_probed++;
 #ifdef CONFIG_SMP
 	set_cpu_present(cpuid, true);
-	set_cpu_possible(cpuid, true);
+
+	if (num_possible_cpus() < nr_cpu_ids)
+		set_cpu_possible(cpuid, true);
 #endif
 	return NULL;
 }
@@ -502,7 +504,7 @@ static void *fill_in_one_cpu(struct device_node *dp, int cpuid, int arg)
 	struct device_node *portid_parent = NULL;
 	int portid = -1;
 
-	if (of_find_property(dp, "cpuid", NULL)) {
+	if (of_property_present(dp, "cpuid")) {
 		int limit = 2;
 
 		portid_parent = dp;

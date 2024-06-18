@@ -4,10 +4,10 @@
  *              (C) Copyright 2013, 2015 Linaro Limited
  *              Licensed under the GPL
  *
- * This test demonstrates leapsecond deadlock that is possibe
+ * This test demonstrates leapsecond deadlock that is possible
  * on kernels from 2.6.26 to 3.3.
  *
- * WARNING: THIS WILL LIKELY HARDHANG SYSTEMS AND MAY LOSE DATA
+ * WARNING: THIS WILL LIKELY HARD HANG SYSTEMS AND MAY LOSE DATA
  * RUN AT YOUR OWN RISK!
  *  To build:
  *	$ gcc leapcrash.c -o leapcrash -lrt
@@ -87,7 +87,7 @@ int main(void)
 		tv.tv_usec = 0;
 		if (settimeofday(&tv, NULL)) {
 			printf("Error: You're likely not running with proper (ie: root) permissions\n");
-			return ksft_exit_fail();
+			ksft_exit_fail();
 		}
 		tx.modes = 0;
 		adjtimex(&tx);
@@ -104,5 +104,5 @@ int main(void)
 		fflush(stdout);
 	}
 	printf("[OK]\n");
-	return ksft_exit_pass();
+	ksft_exit_pass();
 }

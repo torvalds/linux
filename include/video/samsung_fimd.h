@@ -10,7 +10,7 @@
  *
  * This is the register set for the fimd and new style framebuffer interface
  * found from the S3C2443 onwards into the S3C2416, S3C2450, the
- * S3C64XX series such as the S3C6400 and S3C6410, and EXYNOS series.
+ * S3C64XX series such as the S3C6400 and S3C6410, and Exynos series.
 */
 
 /* VIDCON0 */
@@ -475,6 +475,10 @@
  * 1110		-none-	 -none-	  -none-   -none-    -none-
  * 1111		-none-	 -none-   -none-   -none-    -none-
 */
+
+#define WIN_RGB_ORDER(_win)			(0x2020 + ((_win) * 4))
+#define WIN_RGB_ORDER_FORWARD			(0 << 11)
+#define WIN_RGB_ORDER_REVERSE			(1 << 11)
 
 /* FIMD Version 8 register offset definitions */
 #define FIMD_V8_VIDTCON0	0x20010

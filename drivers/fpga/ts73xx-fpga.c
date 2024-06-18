@@ -32,11 +32,6 @@ struct ts73xx_fpga_priv {
 	struct device	*dev;
 };
 
-static enum fpga_mgr_states ts73xx_fpga_state(struct fpga_manager *mgr)
-{
-	return FPGA_MGR_STATE_UNKNOWN;
-}
-
 static int ts73xx_fpga_write_init(struct fpga_manager *mgr,
 				  struct fpga_image_info *info,
 				  const char *buf, size_t count)
@@ -98,7 +93,6 @@ static int ts73xx_fpga_write_complete(struct fpga_manager *mgr,
 }
 
 static const struct fpga_manager_ops ts73xx_fpga_ops = {
-	.state		= ts73xx_fpga_state,
 	.write_init	= ts73xx_fpga_write_init,
 	.write		= ts73xx_fpga_write,
 	.write_complete	= ts73xx_fpga_write_complete,
@@ -109,7 +103,6 @@ static int ts73xx_fpga_probe(struct platform_device *pdev)
 	struct device *kdev = &pdev->dev;
 	struct ts73xx_fpga_priv *priv;
 	struct fpga_manager *mgr;
-	struct resource *res;
 
 	priv = devm_kzalloc(kdev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -117,30 +110,13 @@ static int ts73xx_fpga_probe(struct platform_device *pdev)
 
 	priv->dev = kdev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->io_base = devm_ioremap_resource(kdev, res);
-	if (IS_ERR(priv->io_base)) {
-		dev_err(kdev, "unable to remap registers\n");
+	priv->io_base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(priv->io_base))
 		return PTR_ERR(priv->io_base);
-	}
 
-	mgr = devm_fpga_mgr_create(kdev, "TS-73xx FPGA Manager",
-				   &ts73xx_fpga_ops, priv);
-	if (!mgr)
-		return -ENOMEM;
-
-	platform_set_drvdata(pdev, mgr);
-
-	return fpga_mgr_register(mgr);
-}
-
-static int ts73xx_fpga_remove(struct platform_device *pdev)
-{
-	struct fpga_manager *mgr = platform_get_drvdata(pdev);
-
-	fpga_mgr_unregister(mgr);
-
-	return 0;
+	mgr = devm_fpga_mgr_register(kdev, "TS-73xx FPGA Manager",
+				     &ts73xx_fpga_ops, priv);
+	return PTR_ERR_OR_ZERO(mgr);
 }
 
 static struct platform_driver ts73xx_fpga_driver = {
@@ -148,7 +124,6 @@ static struct platform_driver ts73xx_fpga_driver = {
 		.name	= "ts73xx-fpga-mgr",
 	},
 	.probe	= ts73xx_fpga_probe,
-	.remove	= ts73xx_fpga_remove,
 };
 module_platform_driver(ts73xx_fpga_driver);
 

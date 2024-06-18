@@ -120,7 +120,7 @@ ar9003_set_txdesc(struct ath_hw *ah, void *ds, struct ath_tx_info *i)
 	switch (i->aggr) {
 	case AGGR_BUF_FIRST:
 		ctl17 |= SM(i->aggr_len, AR_AggrLen);
-		/* fall through */
+		fallthrough;
 	case AGGR_BUF_MIDDLE:
 		ctl12 |= AR_IsAggr | AR_MoreAggr;
 		ctl17 |= SM(i->ndelim, AR_PadDelim);
@@ -144,10 +144,11 @@ ar9003_set_txdesc(struct ath_hw *ah, void *ds, struct ath_tx_info *i)
 	WRITE_ONCE(ads->ctl16, set11nPktDurRTSCTS(i->rates, 2)
 		| set11nPktDurRTSCTS(i->rates, 3));
 
-	WRITE_ONCE(ads->ctl18, set11nRateFlags(i->rates, 0)
-		| set11nRateFlags(i->rates, 1)
-		| set11nRateFlags(i->rates, 2)
-		| set11nRateFlags(i->rates, 3)
+	WRITE_ONCE(ads->ctl18,
+		  set11nRateFlags(i->rates, 0) | set11nChainSel(i->rates, 0)
+		| set11nRateFlags(i->rates, 1) | set11nChainSel(i->rates, 1)
+		| set11nRateFlags(i->rates, 2) | set11nChainSel(i->rates, 2)
+		| set11nRateFlags(i->rates, 3) | set11nChainSel(i->rates, 3)
 		| SM(i->rtscts_rate, AR_RTSCTSRate));
 
 	WRITE_ONCE(ads->ctl19, AR_Not_Sounding);
@@ -192,16 +193,16 @@ static bool ar9003_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked,
 	if (ath9k_hw_mci_is_enabled(ah))
 		async_mask |= AR_INTR_ASYNC_MASK_MCI;
 
-	async_cause = REG_READ(ah, AR_INTR_ASYNC_CAUSE);
+	async_cause = REG_READ(ah, AR_INTR_ASYNC_CAUSE(ah));
 
 	if (async_cause & async_mask) {
-		if ((REG_READ(ah, AR_RTC_STATUS) & AR_RTC_STATUS_M)
+		if ((REG_READ(ah, AR_RTC_STATUS(ah)) & AR_RTC_STATUS_M(ah))
 				== AR_RTC_STATUS_ON)
 			isr = REG_READ(ah, AR_ISR);
 	}
 
 
-	sync_cause = REG_READ(ah, AR_INTR_SYNC_CAUSE) & AR_INTR_SYNC_DEFAULT;
+	sync_cause = REG_READ(ah, AR_INTR_SYNC_CAUSE(ah)) & AR_INTR_SYNC_DEFAULT;
 
 	*masked = 0;
 
@@ -279,7 +280,7 @@ static bool ar9003_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked,
 			u32 s5;
 
 			if (pCap->hw_caps & ATH9K_HW_CAP_RAC_SUPPORTED)
-				s5 = REG_READ(ah, AR_ISR_S5_S);
+				s5 = REG_READ(ah, AR_ISR_S5_S(ah));
 			else
 				s5 = REG_READ(ah, AR_ISR_S5);
 
@@ -344,8 +345,8 @@ static bool ar9003_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked,
 			ath_dbg(common, INTERRUPT,
 				"AR_INTR_SYNC_LOCAL_TIMEOUT\n");
 
-		REG_WRITE(ah, AR_INTR_SYNC_CAUSE_CLR, sync_cause);
-		(void) REG_READ(ah, AR_INTR_SYNC_CAUSE_CLR);
+		REG_WRITE(ah, AR_INTR_SYNC_CAUSE_CLR(ah), sync_cause);
+		(void) REG_READ(ah, AR_INTR_SYNC_CAUSE_CLR(ah));
 
 	}
 	return true;
@@ -522,6 +523,8 @@ int ath9k_hw_process_rxdesc_edma(struct ath_hw *ah, struct ath_rx_status *rxs,
 	rxs->rs_moreaggr = (rxsp->status11 & AR_RxMoreAggr) ? 1 : 0;
 	rxs->rs_antenna = (MS(rxsp->status4, AR_RxAntenna) & 0x7);
 	rxs->enc_flags |= (rxsp->status4 & AR_GI) ? RX_ENC_FLAG_SHORT_GI : 0;
+	rxs->enc_flags |=
+		(rxsp->status4 & AR_STBC) ? (1 << RX_ENC_FLAG_STBC_SHIFT) : 0;
 	rxs->bw = (rxsp->status4 & AR_2040) ? RATE_INFO_BW_40 : RATE_INFO_BW_20;
 
 	rxs->evm0 = rxsp->status6;

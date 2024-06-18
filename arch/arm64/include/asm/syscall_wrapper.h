@@ -8,7 +8,7 @@
 #ifndef __ASM_SYSCALL_WRAPPER_H
 #define __ASM_SYSCALL_WRAPPER_H
 
-struct pt_regs;
+#include <asm/ptrace.h>
 
 #define SC_ARM64_REGS_TO_ARGS(x, ...)				\
 	__MAP(x,__SC_ARGS					\
@@ -38,13 +38,11 @@ struct pt_regs;
 	asmlinkage long __arm64_compat_sys_##sname(const struct pt_regs *__unused)
 
 #define COND_SYSCALL_COMPAT(name) 							\
+	asmlinkage long __arm64_compat_sys_##name(const struct pt_regs *regs);		\
 	asmlinkage long __weak __arm64_compat_sys_##name(const struct pt_regs *regs)	\
 	{										\
 		return sys_ni_syscall();						\
 	}
-
-#define COMPAT_SYS_NI(name) \
-	SYSCALL_ALIAS(__arm64_compat_sys_##name, sys_ni_posix_timers);
 
 #endif /* CONFIG_COMPAT */
 
@@ -66,24 +64,19 @@ struct pt_regs;
 	}									\
 	static inline long __do_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__))
 
-#ifndef SYSCALL_DEFINE0
 #define SYSCALL_DEFINE0(sname)							\
 	SYSCALL_METADATA(_##sname, 0);						\
 	asmlinkage long __arm64_sys_##sname(const struct pt_regs *__unused);	\
 	ALLOW_ERROR_INJECTION(__arm64_sys_##sname, ERRNO);			\
 	asmlinkage long __arm64_sys_##sname(const struct pt_regs *__unused)
-#endif
 
-#ifndef COND_SYSCALL
 #define COND_SYSCALL(name)							\
+	asmlinkage long __arm64_sys_##name(const struct pt_regs *regs);		\
 	asmlinkage long __weak __arm64_sys_##name(const struct pt_regs *regs)	\
 	{									\
 		return sys_ni_syscall();					\
 	}
-#endif
 
-#ifndef SYS_NI
-#define SYS_NI(name) SYSCALL_ALIAS(__arm64_sys_##name, sys_ni_posix_timers);
-#endif
+asmlinkage long __arm64_sys_ni_syscall(const struct pt_regs *__unused);
 
 #endif /* __ASM_SYSCALL_WRAPPER_H */

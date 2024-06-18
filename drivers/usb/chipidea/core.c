@@ -3,42 +3,16 @@
  * core.c - ChipIdea USB IP core family device controller
  *
  * Copyright (C) 2008 Chipidea - MIPS Technologies, Inc. All rights reserved.
+ * Copyright (C) 2020 NXP
  *
  * Author: David Lopo
- */
-
-/*
- * Description: ChipIdea USB IP core family device controller
+ *	   Peter Chen <peter.chen@nxp.com>
  *
- * This driver is composed of several blocks:
- * - HW:     hardware interface
- * - DBG:    debug facilities (optional)
- * - UTIL:   utilities
- * - ISR:    interrupts handling
- * - ENDPT:  endpoint operations (Gadget API)
- * - GADGET: gadget operations (Gadget API)
- * - BUS:    bus glue code, bus abstraction layer
- *
- * Compile Options
- * - STALL_IN:  non-empty bulk-in pipes cannot be halted
- *              if defined mass storage compliance succeeds but with warnings
- *              => case 4: Hi >  Dn
- *              => case 5: Hi >  Di
- *              => case 8: Hi <> Do
- *              if undefined usbtest 13 fails
- * - TRACE:     enable function tracing (depends on DEBUG)
- *
- * Main Features
- * - Chapter 9 & Mass Storage Compliance with Gadget File Storage
- * - Chapter 9 Compliance with Gadget Zero (STALL_IN undefined)
- * - Normal & LPM support
- *
- * USBTEST Report
- * - OK: 0-12, 13 (STALL_IN defined) & 14
- * - Not Supported: 15 & 16 (ISO)
- *
- * TODO List
- * - Suspend & Remote Wakeup
+ * Main Features:
+ * - Four transfers are supported, usbtest is passed
+ * - USB Certification for gadget: CH9 and Mass Storage are passed
+ * - Low power mode
+ * - USB wakeup
  */
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -79,6 +53,7 @@ static const u8 ci_regs_nolpm[] = {
 	[OP_USBCMD]		= 0x00U,
 	[OP_USBSTS]		= 0x04U,
 	[OP_USBINTR]		= 0x08U,
+	[OP_FRINDEX]		= 0x0CU,
 	[OP_DEVICEADDR]		= 0x14U,
 	[OP_ENDPTLISTADDR]	= 0x18U,
 	[OP_TTCTRL]		= 0x1CU,
@@ -104,6 +79,7 @@ static const u8 ci_regs_lpm[] = {
 	[OP_USBCMD]		= 0x00U,
 	[OP_USBSTS]		= 0x04U,
 	[OP_USBINTR]		= 0x08U,
+	[OP_FRINDEX]		= 0x0CU,
 	[OP_DEVICEADDR]		= 0x14U,
 	[OP_ENDPTLISTADDR]	= 0x18U,
 	[OP_TTCTRL]		= 0x1CU,
@@ -181,6 +157,7 @@ u32 hw_read_intr_status(struct ci_hdrc *ci)
 
 /**
  * hw_port_test_set: writes port test mode (execute without interruption)
+ * @ci: the controller
  * @mode: new value
  *
  * This function returns an error code
@@ -220,7 +197,7 @@ static void hw_wait_phy_stable(void)
 }
 
 /* The PHY enters/leaves low power mode */
-static void ci_hdrc_enter_lpm(struct ci_hdrc *ci, bool enable)
+static void ci_hdrc_enter_lpm_common(struct ci_hdrc *ci, bool enable)
 {
 	enum ci_hw_regs reg = ci->hw_bank.lpm ? OP_DEVLC : OP_PORTSC;
 	bool lpm = !!(hw_read(ci, reg, PORTSC_PHCD(ci->hw_bank.lpm)));
@@ -231,6 +208,11 @@ static void ci_hdrc_enter_lpm(struct ci_hdrc *ci, bool enable)
 	else if (!enable && lpm)
 		hw_write(ci, reg, PORTSC_PHCD(ci->hw_bank.lpm),
 				0);
+}
+
+static void ci_hdrc_enter_lpm(struct ci_hdrc *ci, bool enable)
+{
+	return ci->platdata->enter_lpm(ci, enable);
 }
 
 static int hw_device_init(struct ci_hdrc *ci, void __iomem *base)
@@ -272,7 +254,7 @@ static int hw_device_init(struct ci_hdrc *ci, void __iomem *base)
 	ci->rev = ci_get_revision(ci);
 
 	dev_dbg(ci->dev,
-		"ChipIdea HDRC found, revision: %d, lpm: %d; cap: %p op: %p\n",
+		"revision: %d, lpm: %d; cap: %px op: %px\n",
 		ci->rev, ci->hw_bank.lpm, ci->hw_bank.cap, ci->hw_bank.op);
 
 	/* setup lock mode ? */
@@ -355,7 +337,7 @@ static int _ci_usb_phy_init(struct ci_hdrc *ci)
 }
 
 /**
- * _ci_usb_phy_exit: deinitialize phy taking in account both phy and usb_phy
+ * ci_usb_phy_exit: deinitialize phy taking in account both phy and usb_phy
  * interfaces
  * @ci: the controller
  */
@@ -534,13 +516,20 @@ int hw_device_reset(struct ci_hdrc *ci)
 	return 0;
 }
 
-static irqreturn_t ci_irq(int irq, void *data)
+static irqreturn_t ci_irq_handler(int irq, void *data)
 {
 	struct ci_hdrc *ci = data;
 	irqreturn_t ret = IRQ_NONE;
 	u32 otgsc = 0;
 
 	if (ci->in_lpm) {
+		/*
+		 * If we already have a wakeup irq pending there,
+		 * let's just return to wait resume finished firstly.
+		 */
+		if (ci->wakeup_int)
+			return IRQ_HANDLED;
+
 		disable_irq_nosync(irq);
 		ci->wakeup_int = true;
 		pm_runtime_get(ci->dev);
@@ -587,6 +576,15 @@ static irqreturn_t ci_irq(int irq, void *data)
 	return ret;
 }
 
+static void ci_irq(struct ci_hdrc *ci)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	ci_irq_handler(ci->irq, ci);
+	local_irq_restore(flags);
+}
+
 static int ci_cable_notifier(struct notifier_block *nb, unsigned long event,
 			     void *ptr)
 {
@@ -596,13 +594,13 @@ static int ci_cable_notifier(struct notifier_block *nb, unsigned long event,
 	cbl->connected = event;
 	cbl->changed = true;
 
-	ci_irq(ci->irq, ci);
+	ci_irq(ci);
 	return NOTIFY_DONE;
 }
 
-static enum usb_role ci_usb_role_switch_get(struct device *dev)
+static enum usb_role ci_usb_role_switch_get(struct usb_role_switch *sw)
 {
-	struct ci_hdrc *ci = dev_get_drvdata(dev);
+	struct ci_hdrc *ci = usb_role_switch_get_drvdata(sw);
 	enum usb_role role;
 	unsigned long flags;
 
@@ -613,56 +611,67 @@ static enum usb_role ci_usb_role_switch_get(struct device *dev)
 	return role;
 }
 
-static int ci_usb_role_switch_set(struct device *dev, enum usb_role role)
+static int ci_usb_role_switch_set(struct usb_role_switch *sw,
+				  enum usb_role role)
 {
-	struct ci_hdrc *ci = dev_get_drvdata(dev);
-	struct ci_hdrc_cable *cable = NULL;
-	enum usb_role current_role = ci_role_to_usb_role(ci);
-	unsigned long flags;
+	struct ci_hdrc *ci = usb_role_switch_get_drvdata(sw);
+	struct ci_hdrc_cable *cable;
 
-	if (current_role == role)
-		return 0;
-
-	pm_runtime_get_sync(ci->dev);
-	/* Stop current role */
-	spin_lock_irqsave(&ci->lock, flags);
-	if (current_role == USB_ROLE_DEVICE)
-		cable = &ci->platdata->vbus_extcon;
-	else if (current_role == USB_ROLE_HOST)
+	if (role == USB_ROLE_HOST) {
 		cable = &ci->platdata->id_extcon;
-
-	if (cable) {
-		cable->changed = true;
-		cable->connected = false;
-		ci_irq(ci->irq, ci);
-		spin_unlock_irqrestore(&ci->lock, flags);
-		if (ci->wq && role != USB_ROLE_NONE)
-			flush_workqueue(ci->wq);
-		spin_lock_irqsave(&ci->lock, flags);
-	}
-
-	cable = NULL;
-
-	/* Start target role */
-	if (role == USB_ROLE_DEVICE)
-		cable = &ci->platdata->vbus_extcon;
-	else if (role == USB_ROLE_HOST)
-		cable = &ci->platdata->id_extcon;
-
-	if (cable) {
 		cable->changed = true;
 		cable->connected = true;
-		ci_irq(ci->irq, ci);
+		cable = &ci->platdata->vbus_extcon;
+		cable->changed = true;
+		cable->connected = false;
+	} else if (role == USB_ROLE_DEVICE) {
+		cable = &ci->platdata->id_extcon;
+		cable->changed = true;
+		cable->connected = false;
+		cable = &ci->platdata->vbus_extcon;
+		cable->changed = true;
+		cable->connected = true;
+	} else {
+		cable = &ci->platdata->id_extcon;
+		cable->changed = true;
+		cable->connected = false;
+		cable = &ci->platdata->vbus_extcon;
+		cable->changed = true;
+		cable->connected = false;
 	}
-	spin_unlock_irqrestore(&ci->lock, flags);
-	pm_runtime_put_sync(ci->dev);
 
+	ci_irq(ci);
 	return 0;
+}
+
+static enum ci_role ci_get_role(struct ci_hdrc *ci)
+{
+	enum ci_role role;
+
+	if (ci->roles[CI_ROLE_HOST] && ci->roles[CI_ROLE_GADGET]) {
+		if (ci->is_otg) {
+			role = ci_otg_role(ci);
+			hw_write_otgsc(ci, OTGSC_IDIE, OTGSC_IDIE);
+		} else {
+			/*
+			 * If the controller is not OTG capable, but support
+			 * role switch, the defalt role is gadget, and the
+			 * user can switch it through debugfs.
+			 */
+			role = CI_ROLE_GADGET;
+		}
+	} else {
+		role = ci->roles[CI_ROLE_HOST] ? CI_ROLE_HOST
+					: CI_ROLE_GADGET;
+	}
+
+	return role;
 }
 
 static struct usb_role_switch_desc ci_role_switch = {
 	.set = ci_usb_role_switch_set,
 	.get = ci_usb_role_switch_get,
+	.allow_userspace_control = true,
 };
 
 static int ci_get_platdata(struct device *dev,
@@ -683,7 +692,7 @@ static int ci_get_platdata(struct device *dev,
 
 	if (platdata->dr_mode != USB_DR_MODE_PERIPHERAL) {
 		/* Get the vbus regulator */
-		platdata->reg_vbus = devm_regulator_get(dev, "vbus");
+		platdata->reg_vbus = devm_regulator_get_optional(dev, "vbus");
 		if (PTR_ERR(platdata->reg_vbus) == -EPROBE_DEFER) {
 			return -EPROBE_DEFER;
 		} else if (PTR_ERR(platdata->reg_vbus) == -ENODEV) {
@@ -751,7 +760,7 @@ static int ci_get_platdata(struct device *dev,
 		return ret;
 	}
 
-	if (of_find_property(dev->of_node, "non-zero-ttctrl-ttha", NULL))
+	if (of_property_read_bool(dev->of_node, "non-zero-ttctrl-ttha"))
 		platdata->flags |= CI_HDRC_SET_NON_ZERO_TTHA;
 
 	ext_id = ERR_PTR(-ENODEV);
@@ -811,6 +820,9 @@ static int ci_get_platdata(struct device *dev,
 			platdata->pins_device = p;
 	}
 
+	if (!platdata->enter_lpm)
+		platdata->enter_lpm = ci_hdrc_enter_lpm_common;
+
 	return 0;
 }
 
@@ -844,6 +856,27 @@ static int ci_extcon_register(struct ci_hdrc *ci)
 	return 0;
 }
 
+static void ci_power_lost_work(struct work_struct *work)
+{
+	struct ci_hdrc *ci = container_of(work, struct ci_hdrc, power_lost_work);
+	enum ci_role role;
+
+	disable_irq_nosync(ci->irq);
+	pm_runtime_get_sync(ci->dev);
+	if (!ci_otg_is_fsm_mode(ci)) {
+		role = ci_get_role(ci);
+
+		if (ci->role != role) {
+			ci_handle_id_switch(ci);
+		} else if (role == CI_ROLE_GADGET) {
+			if (ci->is_otg && hw_read_otgsc(ci, OTGSC_BSV))
+				usb_gadget_vbus_connect(&ci->gadget);
+		}
+	}
+	pm_runtime_put_sync(ci->dev);
+	enable_irq(ci->irq);
+}
+
 static DEFINE_IDA(ci_ida);
 
 struct platform_device *ci_hdrc_add_device(struct device *dev,
@@ -857,7 +890,7 @@ struct platform_device *ci_hdrc_add_device(struct device *dev,
 	if (ret)
 		return ERR_PTR(ret);
 
-	id = ida_simple_get(&ci_ida, 0, 0, GFP_KERNEL);
+	id = ida_alloc(&ci_ida, GFP_KERNEL);
 	if (id < 0)
 		return ERR_PTR(id);
 
@@ -868,6 +901,7 @@ struct platform_device *ci_hdrc_add_device(struct device *dev,
 	}
 
 	pdev->dev.parent = dev;
+	device_set_of_node_from_dev(&pdev->dev, dev);
 
 	ret = platform_device_add_resources(pdev, res, nres);
 	if (ret)
@@ -886,7 +920,7 @@ struct platform_device *ci_hdrc_add_device(struct device *dev,
 err:
 	platform_device_put(pdev);
 put_id:
-	ida_simple_remove(&ci_ida, id);
+	ida_free(&ci_ida, id);
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(ci_hdrc_add_device);
@@ -895,9 +929,36 @@ void ci_hdrc_remove_device(struct platform_device *pdev)
 {
 	int id = pdev->id;
 	platform_device_unregister(pdev);
-	ida_simple_remove(&ci_ida, id);
+	ida_free(&ci_ida, id);
 }
 EXPORT_SYMBOL_GPL(ci_hdrc_remove_device);
+
+/**
+ * ci_hdrc_query_available_role: get runtime available operation mode
+ *
+ * The glue layer can get current operation mode (host/peripheral/otg)
+ * This function should be called after ci core device has created.
+ *
+ * @pdev: the platform device of ci core.
+ *
+ * Return runtime usb_dr_mode.
+ */
+enum usb_dr_mode ci_hdrc_query_available_role(struct platform_device *pdev)
+{
+	struct ci_hdrc *ci = platform_get_drvdata(pdev);
+
+	if (!ci)
+		return USB_DR_MODE_UNKNOWN;
+	if (ci->roles[CI_ROLE_HOST] && ci->roles[CI_ROLE_GADGET])
+		return USB_DR_MODE_OTG;
+	else if (ci->roles[CI_ROLE_HOST])
+		return USB_DR_MODE_HOST;
+	else if (ci->roles[CI_ROLE_GADGET])
+		return USB_DR_MODE_PERIPHERAL;
+	else
+		return USB_DR_MODE_UNKNOWN;
+}
+EXPORT_SYMBOL_GPL(ci_hdrc_query_available_role);
 
 static inline void ci_role_destroy(struct ci_hdrc *ci)
 {
@@ -951,8 +1012,15 @@ static ssize_t role_store(struct device *dev,
 			     strlen(ci->roles[role]->name)))
 			break;
 
-	if (role == CI_ROLE_END || role == ci->role)
+	if (role == CI_ROLE_END)
 		return -EINVAL;
+
+	mutex_lock(&ci->mutex);
+
+	if (role == ci->role) {
+		mutex_unlock(&ci->mutex);
+		return n;
+	}
 
 	pm_runtime_get_sync(dev);
 	disable_irq(ci->irq);
@@ -962,6 +1030,7 @@ static ssize_t role_store(struct device *dev,
 		ci_handle_vbus_change(ci);
 	enable_irq(ci->irq);
 	pm_runtime_put_sync(dev);
+	mutex_unlock(&ci->mutex);
 
 	return (ret == 0) ? n : ret;
 }
@@ -987,8 +1056,7 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(dev, res);
+	base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
@@ -997,12 +1065,17 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	spin_lock_init(&ci->lock);
+	mutex_init(&ci->mutex);
+	INIT_WORK(&ci->power_lost_work, ci_power_lost_work);
+
 	ci->dev = dev;
 	ci->platdata = dev_get_platdata(dev);
 	ci->imx28_write_fix = !!(ci->platdata->flags &
 		CI_HDRC_IMX28_WRITE_FIX);
 	ci->supports_runtime_pm = !!(ci->platdata->flags &
 		CI_HDRC_SUPPORTS_RUNTIME_PM);
+	ci->has_portsc_pec_bug = !!(ci->platdata->flags &
+		CI_HDRC_HAS_PORTSC_PEC_MISSED);
 	platform_set_drvdata(pdev, ci);
 
 	ret = hw_device_init(ci, base);
@@ -1066,7 +1139,7 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	ret = ci_usb_phy_init(ci);
 	if (ret) {
 		dev_err(dev, "unable to init phy: %d\n", ret);
-		return ret;
+		goto ulpi_exit;
 	}
 
 	ci->hw_bank.phys = res->start;
@@ -1116,6 +1189,7 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	}
 
 	if (ci_role_switch.fwnode) {
+		ci_role_switch.driver_data = ci;
 		ci->role_switch = usb_role_switch_register(dev,
 					&ci_role_switch);
 		if (IS_ERR(ci->role_switch)) {
@@ -1124,29 +1198,14 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (ci->roles[CI_ROLE_HOST] && ci->roles[CI_ROLE_GADGET]) {
-		if (ci->is_otg) {
-			ci->role = ci_otg_role(ci);
-			/* Enable ID change irq */
-			hw_write_otgsc(ci, OTGSC_IDIE, OTGSC_IDIE);
-		} else {
-			/*
-			 * If the controller is not OTG capable, but support
-			 * role switch, the defalt role is gadget, and the
-			 * user can switch it through debugfs.
-			 */
-			ci->role = CI_ROLE_GADGET;
-		}
-	} else {
-		ci->role = ci->roles[CI_ROLE_HOST]
-			? CI_ROLE_HOST
-			: CI_ROLE_GADGET;
-	}
-
+	ci->role = ci_get_role(ci);
 	if (!ci_otg_is_fsm_mode(ci)) {
 		/* only update vbus status for peripheral */
-		if (ci->role == CI_ROLE_GADGET)
+		if (ci->role == CI_ROLE_GADGET) {
+			/* Pull down DP for possible charger detection */
+			hw_write(ci, OP_USBCMD, USBCMD_RS, 0);
 			ci_handle_vbus_change(ci);
+		}
 
 		ret = ci_role_start(ci, ci->role);
 		if (ret) {
@@ -1156,7 +1215,7 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = devm_request_irq(dev, ci->irq, ci_irq, IRQF_SHARED,
+	ret = devm_request_irq(dev, ci->irq, ci_irq_handler, IRQF_SHARED,
 			ci->platdata->name, ci);
 	if (ret)
 		goto stop;
@@ -1199,7 +1258,7 @@ ulpi_exit:
 	return ret;
 }
 
-static int ci_hdrc_remove(struct platform_device *pdev)
+static void ci_hdrc_remove(struct platform_device *pdev)
 {
 	struct ci_hdrc *ci = platform_get_drvdata(pdev);
 
@@ -1217,8 +1276,6 @@ static int ci_hdrc_remove(struct platform_device *pdev)
 	ci_hdrc_enter_lpm(ci, true);
 	ci_usb_phy_exit(ci);
 	ci_ulpi_exit(ci);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -1261,6 +1318,31 @@ static void ci_controller_suspend(struct ci_hdrc *ci)
 	enable_irq(ci->irq);
 }
 
+/*
+ * Handle the wakeup interrupt triggered by extcon connector
+ * We need to call ci_irq again for extcon since the first
+ * interrupt (wakeup int) only let the controller be out of
+ * low power mode, but not handle any interrupts.
+ */
+static void ci_extcon_wakeup_int(struct ci_hdrc *ci)
+{
+	struct ci_hdrc_cable *cable_id, *cable_vbus;
+	u32 otgsc = hw_read_otgsc(ci, ~0);
+
+	cable_id = &ci->platdata->id_extcon;
+	cable_vbus = &ci->platdata->vbus_extcon;
+
+	if ((!IS_ERR(cable_id->edev) || ci->role_switch)
+		&& ci->is_otg &&
+		(otgsc & OTGSC_IDIE) && (otgsc & OTGSC_IDIS))
+		ci_irq(ci);
+
+	if ((!IS_ERR(cable_vbus->edev) || ci->role_switch)
+		&& ci->is_otg &&
+		(otgsc & OTGSC_BSVIE) && (otgsc & OTGSC_BSVIS))
+		ci_irq(ci);
+}
+
 static int ci_controller_resume(struct device *dev)
 {
 	struct ci_hdrc *ci = dev_get_drvdata(dev);
@@ -1293,6 +1375,7 @@ static int ci_controller_resume(struct device *dev)
 		enable_irq(ci->irq);
 		if (ci_otg_is_fsm_mode(ci))
 			ci_otg_fsm_wakeup_by_srp(ci);
+		ci_extcon_wakeup_int(ci);
 	}
 
 	return 0;
@@ -1319,6 +1402,10 @@ static int ci_suspend(struct device *dev)
 		return 0;
 	}
 
+	/* Extra routine per role before system suspend */
+	if (ci->role != CI_ROLE_END && ci_role(ci)->suspend)
+		ci_role(ci)->suspend(ci);
+
 	if (device_may_wakeup(dev)) {
 		if (ci_otg_is_fsm_mode(ci))
 			ci_otg_fsm_suspend_for_srp(ci);
@@ -1335,7 +1422,15 @@ static int ci_suspend(struct device *dev)
 static int ci_resume(struct device *dev)
 {
 	struct ci_hdrc *ci = dev_get_drvdata(dev);
+	bool power_lost;
 	int ret;
+
+	/* Since ASYNCLISTADDR (host mode) and ENDPTLISTADDR (device
+	 * mode) share the same register address. We can check if
+	 * controller resume from power lost based on this address
+	 * due to this register will be reset after power lost.
+	 */
+	power_lost = !hw_read(ci, OP_ENDPTLISTADDR, ~0);
 
 	if (device_may_wakeup(dev))
 		disable_irq_wake(ci->irq);
@@ -1343,6 +1438,19 @@ static int ci_resume(struct device *dev)
 	ret = ci_controller_resume(dev);
 	if (ret)
 		return ret;
+
+	if (power_lost) {
+		/* shutdown and re-init for phy */
+		ci_usb_phy_exit(ci);
+		ci_usb_phy_init(ci);
+	}
+
+	/* Extra routine per role after system resume */
+	if (ci->role != CI_ROLE_END && ci_role(ci)->resume)
+		ci_role(ci)->resume(ci, power_lost);
+
+	if (power_lost)
+		queue_work(system_freezable_wq, &ci->power_lost_work);
 
 	if (ci->supports_runtime_pm) {
 		pm_runtime_disable(dev);
@@ -1387,7 +1495,7 @@ static const struct dev_pm_ops ci_pm_ops = {
 
 static struct platform_driver ci_hdrc_driver = {
 	.probe	= ci_hdrc_probe,
-	.remove	= ci_hdrc_remove,
+	.remove_new = ci_hdrc_remove,
 	.driver	= {
 		.name	= "ci_hdrc",
 		.pm	= &ci_pm_ops,

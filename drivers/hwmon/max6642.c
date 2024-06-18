@@ -148,7 +148,7 @@ static int max6642_detect(struct i2c_client *client,
 	if ((reg_status & 0x2b) != 0x00)
 		return -ENODEV;
 
-	strlcpy(info->type, "max6642", I2C_NAME_SIZE);
+	strscpy(info->type, "max6642", I2C_NAME_SIZE);
 
 	return 0;
 }
@@ -181,7 +181,7 @@ static struct max6642_data *max6642_update_device(struct device *dev)
 					MAX6642_REG_R_STATUS);
 
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->update_lock);
@@ -264,8 +264,7 @@ static struct attribute *max6642_attrs[] = {
 };
 ATTRIBUTE_GROUPS(max6642);
 
-static int max6642_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int max6642_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct max6642_data *data;
@@ -292,7 +291,7 @@ static int max6642_probe(struct i2c_client *client,
  */
 
 static const struct i2c_device_id max6642_id[] = {
-	{ "max6642", 0 },
+	{ "max6642" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max6642_id);

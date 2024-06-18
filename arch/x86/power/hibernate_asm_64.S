@@ -21,86 +21,11 @@
 #include <asm/asm-offsets.h>
 #include <asm/processor-flags.h>
 #include <asm/frame.h>
-
-ENTRY(swsusp_arch_suspend)
-	movq	$saved_context, %rax
-	movq	%rsp, pt_regs_sp(%rax)
-	movq	%rbp, pt_regs_bp(%rax)
-	movq	%rsi, pt_regs_si(%rax)
-	movq	%rdi, pt_regs_di(%rax)
-	movq	%rbx, pt_regs_bx(%rax)
-	movq	%rcx, pt_regs_cx(%rax)
-	movq	%rdx, pt_regs_dx(%rax)
-	movq	%r8, pt_regs_r8(%rax)
-	movq	%r9, pt_regs_r9(%rax)
-	movq	%r10, pt_regs_r10(%rax)
-	movq	%r11, pt_regs_r11(%rax)
-	movq	%r12, pt_regs_r12(%rax)
-	movq	%r13, pt_regs_r13(%rax)
-	movq	%r14, pt_regs_r14(%rax)
-	movq	%r15, pt_regs_r15(%rax)
-	pushfq
-	popq	pt_regs_flags(%rax)
-
-	/* save cr3 */
-	movq	%cr3, %rax
-	movq	%rax, restore_cr3(%rip)
-
-	FRAME_BEGIN
-	call swsusp_save
-	FRAME_END
-	ret
-ENDPROC(swsusp_arch_suspend)
-
-ENTRY(restore_image)
-	/* prepare to jump to the image kernel */
-	movq	restore_jump_address(%rip), %r8
-	movq	restore_cr3(%rip), %r9
-
-	/* prepare to switch to temporary page tables */
-	movq	temp_pgt(%rip), %rax
-	movq	mmu_cr4_features(%rip), %rbx
-
-	/* prepare to copy image data to their original locations */
-	movq	restore_pblist(%rip), %rdx
-
-	/* jump to relocated restore code */
-	movq	relocated_restore_code(%rip), %rcx
-	jmpq	*%rcx
-
-	/* code below has been relocated to a safe page */
-ENTRY(core_restore_code)
-	/* switch to temporary page tables */
-	movq	%rax, %cr3
-	/* flush TLB */
-	movq	%rbx, %rcx
-	andq	$~(X86_CR4_PGE), %rcx
-	movq	%rcx, %cr4;  # turn off PGE
-	movq	%cr3, %rcx;  # flush TLB
-	movq	%rcx, %cr3;
-	movq	%rbx, %cr4;  # turn PGE back on
-.Lloop:
-	testq	%rdx, %rdx
-	jz	.Ldone
-
-	/* get addresses from the pbe and copy the page */
-	movq	pbe_address(%rdx), %rsi
-	movq	pbe_orig_address(%rdx), %rdi
-	movq	$(PAGE_SIZE >> 3), %rcx
-	rep
-	movsq
-
-	/* progress to the next pbe */
-	movq	pbe_next(%rdx), %rdx
-	jmp	.Lloop
-
-.Ldone:
-	/* jump to the restore_registers address from the image header */
-	jmpq	*%r8
+#include <asm/nospec-branch.h>
 
 	 /* code below belongs to the image kernel */
 	.align PAGE_SIZE
-ENTRY(restore_registers)
+SYM_FUNC_START(restore_registers)
 	/* go back to the original page tables */
 	movq    %r9, %cr3
 
@@ -141,5 +66,85 @@ ENTRY(restore_registers)
 	/* tell the hibernation core that we've just restored the memory */
 	movq	%rax, in_suspend(%rip)
 
-	ret
-ENDPROC(restore_registers)
+	RET
+SYM_FUNC_END(restore_registers)
+
+SYM_FUNC_START(swsusp_arch_suspend)
+	movq	$saved_context, %rax
+	movq	%rsp, pt_regs_sp(%rax)
+	movq	%rbp, pt_regs_bp(%rax)
+	movq	%rsi, pt_regs_si(%rax)
+	movq	%rdi, pt_regs_di(%rax)
+	movq	%rbx, pt_regs_bx(%rax)
+	movq	%rcx, pt_regs_cx(%rax)
+	movq	%rdx, pt_regs_dx(%rax)
+	movq	%r8, pt_regs_r8(%rax)
+	movq	%r9, pt_regs_r9(%rax)
+	movq	%r10, pt_regs_r10(%rax)
+	movq	%r11, pt_regs_r11(%rax)
+	movq	%r12, pt_regs_r12(%rax)
+	movq	%r13, pt_regs_r13(%rax)
+	movq	%r14, pt_regs_r14(%rax)
+	movq	%r15, pt_regs_r15(%rax)
+	pushfq
+	popq	pt_regs_flags(%rax)
+
+	/* save cr3 */
+	movq	%cr3, %rax
+	movq	%rax, restore_cr3(%rip)
+
+	FRAME_BEGIN
+	call swsusp_save
+	FRAME_END
+	RET
+SYM_FUNC_END(swsusp_arch_suspend)
+
+SYM_FUNC_START(restore_image)
+	/* prepare to jump to the image kernel */
+	movq	restore_jump_address(%rip), %r8
+	movq	restore_cr3(%rip), %r9
+
+	/* prepare to switch to temporary page tables */
+	movq	temp_pgt(%rip), %rax
+	movq	mmu_cr4_features(%rip), %rbx
+
+	/* prepare to copy image data to their original locations */
+	movq	restore_pblist(%rip), %rdx
+
+	/* jump to relocated restore code */
+	movq	relocated_restore_code(%rip), %rcx
+	ANNOTATE_RETPOLINE_SAFE
+	jmpq	*%rcx
+SYM_FUNC_END(restore_image)
+
+	/* code below has been relocated to a safe page */
+SYM_FUNC_START(core_restore_code)
+	/* switch to temporary page tables */
+	movq	%rax, %cr3
+	/* flush TLB */
+	movq	%rbx, %rcx
+	andq	$~(X86_CR4_PGE), %rcx
+	movq	%rcx, %cr4;  # turn off PGE
+	movq	%cr3, %rcx;  # flush TLB
+	movq	%rcx, %cr3;
+	movq	%rbx, %cr4;  # turn PGE back on
+.Lloop:
+	testq	%rdx, %rdx
+	jz	.Ldone
+
+	/* get addresses from the pbe and copy the page */
+	movq	pbe_address(%rdx), %rsi
+	movq	pbe_orig_address(%rdx), %rdi
+	movq	$(PAGE_SIZE >> 3), %rcx
+	rep
+	movsq
+
+	/* progress to the next pbe */
+	movq	pbe_next(%rdx), %rdx
+	jmp	.Lloop
+
+.Ldone:
+	/* jump to the restore_registers address from the image header */
+	ANNOTATE_RETPOLINE_SAFE
+	jmpq	*%r8
+SYM_FUNC_END(core_restore_code)

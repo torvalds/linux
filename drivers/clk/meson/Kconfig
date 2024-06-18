@@ -1,4 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
+menu "Clock support for Amlogic platforms"
+	depends on ARCH_MESON || COMPILE_TEST
+
 config COMMON_CLK_MESON_REGMAP
 	tristate
 	select REGMAP
@@ -27,23 +30,34 @@ config COMMON_CLK_MESON_VID_PLL_DIV
 	tristate
 	select COMMON_CLK_MESON_REGMAP
 
+config COMMON_CLK_MESON_VCLK
+	tristate
+	select COMMON_CLK_MESON_REGMAP
+
+config COMMON_CLK_MESON_CLKC_UTILS
+	tristate
+
 config COMMON_CLK_MESON_AO_CLKC
 	tristate
 	select COMMON_CLK_MESON_REGMAP
+	select COMMON_CLK_MESON_CLKC_UTILS
 	select RESET_CONTROLLER
 
 config COMMON_CLK_MESON_EE_CLKC
 	tristate
 	select COMMON_CLK_MESON_REGMAP
+	select COMMON_CLK_MESON_CLKC_UTILS
 
 config COMMON_CLK_MESON_CPU_DYNDIV
 	tristate
 	select COMMON_CLK_MESON_REGMAP
 
 config COMMON_CLK_MESON8B
-	bool
-	depends on ARCH_MESON
+	bool "Meson8 SoC Clock controller support"
+	depends on ARM
+	default y
 	select COMMON_CLK_MESON_REGMAP
+	select COMMON_CLK_MESON_CLKC_UTILS
 	select COMMON_CLK_MESON_MPLL
 	select COMMON_CLK_MESON_PLL
 	select MFD_SYSCON
@@ -54,8 +68,9 @@ config COMMON_CLK_MESON8B
 	  want peripherals and CPU frequency scaling to work.
 
 config COMMON_CLK_GXBB
-	bool
-	depends on ARCH_MESON
+	tristate "GXBB and GXL SoC clock controllers support"
+	depends on ARM64
+	default y
 	select COMMON_CLK_MESON_REGMAP
 	select COMMON_CLK_MESON_DUALDIV
 	select COMMON_CLK_MESON_VID_PLL_DIV
@@ -69,8 +84,9 @@ config COMMON_CLK_GXBB
 	  Say Y if you want peripherals and CPU frequency scaling to work.
 
 config COMMON_CLK_AXG
-	bool
-	depends on ARCH_MESON
+	tristate "AXG SoC clock controllers support"
+	depends on ARM64
+	default y
 	select COMMON_CLK_MESON_REGMAP
 	select COMMON_CLK_MESON_DUALDIV
 	select COMMON_CLK_MESON_MPLL
@@ -84,18 +100,42 @@ config COMMON_CLK_AXG
 
 config COMMON_CLK_AXG_AUDIO
 	tristate "Meson AXG Audio Clock Controller Driver"
-	depends on ARCH_MESON
+	depends on ARM64
 	select COMMON_CLK_MESON_REGMAP
 	select COMMON_CLK_MESON_PHASE
 	select COMMON_CLK_MESON_SCLK_DIV
+	select COMMON_CLK_MESON_CLKC_UTILS
 	select REGMAP_MMIO
 	help
 	  Support for the audio clock controller on AmLogic A113D devices,
 	  aka axg, Say Y if you want audio subsystem to work.
 
+config COMMON_CLK_A1_PLL
+	tristate "Amlogic A1 SoC PLL controller support"
+	depends on ARM64
+	select COMMON_CLK_MESON_REGMAP
+	select COMMON_CLK_MESON_CLKC_UTILS
+	select COMMON_CLK_MESON_PLL
+	help
+	  Support for the PLL clock controller on Amlogic A113L based
+	  device, A1 SoC Family. Say Y if you want A1 PLL clock controller
+	  to work.
+
+config COMMON_CLK_A1_PERIPHERALS
+	tristate "Amlogic A1 SoC Peripherals clock controller support"
+	depends on ARM64
+	select COMMON_CLK_MESON_DUALDIV
+	select COMMON_CLK_MESON_REGMAP
+	select COMMON_CLK_MESON_CLKC_UTILS
+	help
+	  Support for the Peripherals clock controller on Amlogic A113L based
+	  device, A1 SoC Family. Say Y if you want A1 Peripherals clock
+	  controller to work.
+
 config COMMON_CLK_G12A
-	bool
-	depends on ARCH_MESON
+	tristate "G12 and SM1 SoC clock controllers support"
+	depends on ARM64
+	default y
 	select COMMON_CLK_MESON_REGMAP
 	select COMMON_CLK_MESON_DUALDIV
 	select COMMON_CLK_MESON_MPLL
@@ -103,7 +143,35 @@ config COMMON_CLK_G12A
 	select COMMON_CLK_MESON_AO_CLKC
 	select COMMON_CLK_MESON_EE_CLKC
 	select COMMON_CLK_MESON_CPU_DYNDIV
+	select COMMON_CLK_MESON_VID_PLL_DIV
+	select COMMON_CLK_MESON_VCLK
 	select MFD_SYSCON
 	help
 	  Support for the clock controller on Amlogic S905D2, S905X2 and S905Y2
 	  devices, aka g12a. Say Y if you want peripherals to work.
+
+config COMMON_CLK_S4_PLL
+	tristate "S4 SoC PLL clock controllers support"
+	depends on ARM64
+	default y
+	select COMMON_CLK_MESON_CLKC_UTILS
+	select COMMON_CLK_MESON_MPLL
+	select COMMON_CLK_MESON_PLL
+	select COMMON_CLK_MESON_REGMAP
+	help
+	  Support for the PLL clock controller on Amlogic S805X2 and S905Y4 devices,
+	  AKA S4. Say Y if you want the board to work, because PLLs are the parent of
+	  most peripherals.
+
+config COMMON_CLK_S4_PERIPHERALS
+	tristate "S4 SoC peripherals clock controllers support"
+	depends on ARM64
+	default y
+	select COMMON_CLK_MESON_CLKC_UTILS
+	select COMMON_CLK_MESON_REGMAP
+	select COMMON_CLK_MESON_DUALDIV
+	select COMMON_CLK_MESON_VID_PLL_DIV
+	help
+	  Support for the peripherals clock controller on Amlogic S805X2 and S905Y4
+	  devices, AKA S4. Say Y if you want S4 peripherals clock controller to work.
+endmenu

@@ -144,7 +144,7 @@ void clkdev_add_table(struct clk_lookup *cl, size_t num)
 	mutex_unlock(&clocks_mutex);
 }
 
-#define MAX_DEV_ID	20
+#define MAX_DEV_ID	24
 #define MAX_CON_ID	16
 
 struct clk_lookup_alloc {
@@ -158,21 +158,59 @@ vclkdev_alloc(struct clk_hw *hw, const char *con_id, const char *dev_fmt,
 	va_list ap)
 {
 	struct clk_lookup_alloc *cla;
+	struct va_format vaf;
+	const char *failure;
+	va_list ap_copy;
+	size_t max_size;
+	ssize_t res;
 
 	cla = kzalloc(sizeof(*cla), GFP_KERNEL);
 	if (!cla)
 		return NULL;
 
+	va_copy(ap_copy, ap);
+
 	cla->cl.clk_hw = hw;
 	if (con_id) {
-		strlcpy(cla->con_id, con_id, sizeof(cla->con_id));
+		res = strscpy(cla->con_id, con_id, sizeof(cla->con_id));
+		if (res < 0) {
+			max_size = sizeof(cla->con_id);
+			failure = "connection";
+			goto fail;
+		}
 		cla->cl.con_id = cla->con_id;
 	}
 
 	if (dev_fmt) {
-		vscnprintf(cla->dev_id, sizeof(cla->dev_id), dev_fmt, ap);
+		res = vsnprintf(cla->dev_id, sizeof(cla->dev_id), dev_fmt, ap);
+		if (res >= sizeof(cla->dev_id)) {
+			max_size = sizeof(cla->dev_id);
+			failure = "device";
+			goto fail;
+		}
 		cla->cl.dev_id = cla->dev_id;
 	}
+
+	va_end(ap_copy);
+
+	return &cla->cl;
+
+fail:
+	if (dev_fmt)
+		vaf.fmt = dev_fmt;
+	else
+		vaf.fmt = "null-device";
+	vaf.va = &ap_copy;
+	pr_err("%pV:%s: %s ID is greater than %zu\n",
+	       &vaf, con_id, failure, max_size);
+	va_end(ap_copy);
+
+	/*
+	 * Don't fail in this case, but as the entry won't ever match just
+	 * fill it with something that also won't match.
+	 */
+	strscpy(cla->con_id, "bad", sizeof(cla->con_id));
+	strscpy(cla->dev_id, "bad", sizeof(cla->dev_id));
 
 	return &cla->cl;
 }
@@ -189,34 +227,6 @@ vclkdev_create(struct clk_hw *hw, const char *con_id, const char *dev_fmt,
 
 	return cl;
 }
-
-struct clk_lookup * __ref
-clkdev_alloc(struct clk *clk, const char *con_id, const char *dev_fmt, ...)
-{
-	struct clk_lookup *cl;
-	va_list ap;
-
-	va_start(ap, dev_fmt);
-	cl = vclkdev_alloc(__clk_get_hw(clk), con_id, dev_fmt, ap);
-	va_end(ap);
-
-	return cl;
-}
-EXPORT_SYMBOL(clkdev_alloc);
-
-struct clk_lookup *
-clkdev_hw_alloc(struct clk_hw *hw, const char *con_id, const char *dev_fmt, ...)
-{
-	struct clk_lookup *cl;
-	va_list ap;
-
-	va_start(ap, dev_fmt);
-	cl = vclkdev_alloc(hw, con_id, dev_fmt, ap);
-	va_end(ap);
-
-	return cl;
-}
-EXPORT_SYMBOL(clkdev_hw_alloc);
 
 /**
  * clkdev_create - allocate and add a clkdev lookup structure
@@ -374,44 +384,10 @@ int clk_hw_register_clkdev(struct clk_hw *hw, const char *con_id,
 }
 EXPORT_SYMBOL(clk_hw_register_clkdev);
 
-static void devm_clkdev_release(struct device *dev, void *res)
+static void devm_clkdev_release(void *res)
 {
-	clkdev_drop(*(struct clk_lookup **)res);
+	clkdev_drop(res);
 }
-
-static int devm_clk_match_clkdev(struct device *dev, void *res, void *data)
-{
-	struct clk_lookup **l = res;
-
-	return *l == data;
-}
-
-/**
- * devm_clk_release_clkdev - Resource managed clkdev lookup release
- * @dev: device this lookup is bound
- * @con_id: connection ID string on device
- * @dev_id: format string describing device name
- *
- * Drop the clkdev lookup created with devm_clk_hw_register_clkdev.
- * Normally this function will not need to be called and the resource
- * management code will ensure that the resource is freed.
- */
-void devm_clk_release_clkdev(struct device *dev, const char *con_id,
-			     const char *dev_id)
-{
-	struct clk_lookup *cl;
-	int rval;
-
-	mutex_lock(&clocks_mutex);
-	cl = clk_find(dev_id, con_id);
-	mutex_unlock(&clocks_mutex);
-
-	WARN_ON(!cl);
-	rval = devres_release(dev, devm_clkdev_release,
-			      devm_clk_match_clkdev, cl);
-	WARN_ON(rval);
-}
-EXPORT_SYMBOL(devm_clk_release_clkdev);
 
 /**
  * devm_clk_hw_register_clkdev - managed clk lookup registration for clk_hw
@@ -431,17 +407,13 @@ EXPORT_SYMBOL(devm_clk_release_clkdev);
 int devm_clk_hw_register_clkdev(struct device *dev, struct clk_hw *hw,
 				const char *con_id, const char *dev_id)
 {
-	int rval = -ENOMEM;
-	struct clk_lookup **cl;
+	struct clk_lookup *cl;
+	int rval;
 
-	cl = devres_alloc(devm_clkdev_release, sizeof(*cl), GFP_KERNEL);
-	if (cl) {
-		rval = do_clk_register_clkdev(hw, cl, con_id, dev_id);
-		if (!rval)
-			devres_add(dev, cl);
-		else
-			devres_free(cl);
-	}
-	return rval;
+	rval = do_clk_register_clkdev(hw, &cl, con_id, dev_id);
+	if (rval)
+		return rval;
+
+	return devm_add_action_or_reset(dev, devm_clkdev_release, cl);
 }
 EXPORT_SYMBOL(devm_clk_hw_register_clkdev);

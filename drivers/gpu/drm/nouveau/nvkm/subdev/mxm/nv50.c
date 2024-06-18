@@ -159,7 +159,7 @@ mxm_dcb_sanitise_entry(struct nvkm_bios *bios, void *data, int idx, u16 pdcb)
 		break;
 	case 0x0e: /* eDP, falls through to DPint */
 		ctx.outp[1] |= 0x00010000;
-		/* fall through */
+		fallthrough;
 	case 0x07: /* DP internal, wtf is this?? HP8670w */
 		ctx.outp[1] |= 0x00000004; /* use_power_scripts? */
 		type = DCB_CONNECTOR_eDP;
@@ -201,12 +201,13 @@ mxm_dcb_sanitise(struct nvkm_mxm *mxm)
 }
 
 int
-nv50_mxm_new(struct nvkm_device *device, int index, struct nvkm_subdev **pmxm)
+nv50_mxm_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	     struct nvkm_subdev **pmxm)
 {
 	struct nvkm_mxm *mxm;
 	int ret;
 
-	ret = nvkm_mxm_new_(device, index, &mxm);
+	ret = nvkm_mxm_new_(device, type, inst, &mxm);
 	if (mxm)
 		*pmxm = &mxm->subdev;
 	if (ret)

@@ -23,11 +23,6 @@ int snd_pcm_hw_param_value(const struct snd_pcm_hw_params *params,
 #define MASK_OFS(i)	((i) >> 5)
 #define MASK_BIT(i)	(1U << ((i) & 31))
 
-static inline size_t snd_mask_sizeof(void)
-{
-	return sizeof(struct snd_mask);
-}
-
 static inline void snd_mask_none(struct snd_mask *mask)
 {
 	memset(mask, 0, sizeof(*mask));
@@ -131,6 +126,13 @@ static inline void snd_mask_copy(struct snd_mask *mask,
 static inline int snd_mask_test(const struct snd_mask *mask, unsigned int val)
 {
 	return mask->bits[MASK_OFS(val)] & MASK_BIT(val);
+}
+
+/* Most of drivers need only this one */
+static inline int snd_mask_test_format(const struct snd_mask *mask,
+				       snd_pcm_format_t format)
+{
+	return snd_mask_test(mask, (__force unsigned int)format);
 }
 
 static inline int snd_mask_single(const struct snd_mask *mask)
@@ -359,6 +361,8 @@ static inline int params_physical_width(const struct snd_pcm_hw_params *p)
 {
 	return snd_pcm_format_physical_width(params_format(p));
 }
+
+int snd_pcm_hw_params_bits(const struct snd_pcm_hw_params *p);
 
 static inline void
 params_set_format(struct snd_pcm_hw_params *p, snd_pcm_format_t fmt)

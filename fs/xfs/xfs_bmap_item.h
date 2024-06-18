@@ -25,17 +25,12 @@
 /* kernel only BUI/BUD definitions */
 
 struct xfs_mount;
-struct kmem_zone;
+struct kmem_cache;
 
 /*
  * Max number of extents in fast allocation path.
  */
 #define	XFS_BUI_MAX_FAST_EXTENTS	1
-
-/*
- * Define BUI flag bits. Manipulated by set/clear/test_bit operators.
- */
-#define	XFS_BUI_RECOVERED		1
 
 /*
  * This is the "bmap update intent" log item.  It is used to log the fact that
@@ -49,7 +44,6 @@ struct xfs_bui_log_item {
 	struct xfs_log_item		bui_item;
 	atomic_t			bui_refcount;
 	atomic_t			bui_next_extent;
-	unsigned long			bui_flags;	/* misc flags */
 	struct xfs_bui_log_format	bui_format;
 };
 
@@ -71,12 +65,11 @@ struct xfs_bud_log_item {
 	struct xfs_bud_log_format	bud_format;
 };
 
-extern struct kmem_zone	*xfs_bui_zone;
-extern struct kmem_zone	*xfs_bud_zone;
+extern struct kmem_cache	*xfs_bui_cache;
+extern struct kmem_cache	*xfs_bud_cache;
 
-struct xfs_bui_log_item *xfs_bui_init(struct xfs_mount *);
-void xfs_bui_item_free(struct xfs_bui_log_item *);
-void xfs_bui_release(struct xfs_bui_log_item *);
-int xfs_bui_recover(struct xfs_trans *parent_tp, struct xfs_bui_log_item *buip);
+struct xfs_bmap_intent;
+
+void xfs_bmap_defer_add(struct xfs_trans *tp, struct xfs_bmap_intent *bi);
 
 #endif	/* __XFS_BMAP_ITEM_H__ */

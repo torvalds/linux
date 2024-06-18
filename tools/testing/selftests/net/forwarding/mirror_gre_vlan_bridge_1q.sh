@@ -141,7 +141,7 @@ test_gretap()
 
 test_ip6gretap()
 {
-	test_vlan_match gt6 'skip_hw vlan_id 555 vlan_ethtype ip' \
+	test_vlan_match gt6 'skip_hw vlan_id 555 vlan_ethtype ipv6' \
 			"mirror to ip6gretap"
 }
 
@@ -218,6 +218,7 @@ test_ip6gretap_forbidden_egress()
 test_span_gre_untagged_egress()
 {
 	local tundev=$1; shift
+	local ul_proto=$1; shift
 	local what=$1; shift
 
 	RET=0
@@ -225,7 +226,7 @@ test_span_gre_untagged_egress()
 	mirror_install $swp1 ingress $tundev "matchall $tcflags"
 
 	quick_test_span_gre_dir $tundev ingress
-	quick_test_span_vlan_dir $h3 555 ingress
+	quick_test_span_vlan_dir $h3 555 ingress "$ul_proto"
 
 	h3_addr_add_del del $h3.555
 	bridge vlan add dev $swp3 vid 555 pvid untagged
@@ -233,7 +234,7 @@ test_span_gre_untagged_egress()
 	sleep 5
 
 	quick_test_span_gre_dir $tundev ingress
-	fail_test_span_vlan_dir $h3 555 ingress
+	fail_test_span_vlan_dir $h3 555 ingress "$ul_proto"
 
 	h3_addr_add_del del $h3
 	bridge vlan add dev $swp3 vid 555
@@ -241,7 +242,7 @@ test_span_gre_untagged_egress()
 	sleep 5
 
 	quick_test_span_gre_dir $tundev ingress
-	quick_test_span_vlan_dir $h3 555 ingress
+	quick_test_span_vlan_dir $h3 555 ingress "$ul_proto"
 
 	mirror_uninstall $swp1 ingress
 
@@ -250,12 +251,12 @@ test_span_gre_untagged_egress()
 
 test_gretap_untagged_egress()
 {
-	test_span_gre_untagged_egress gt4 "mirror to gretap"
+	test_span_gre_untagged_egress gt4 ip "mirror to gretap"
 }
 
 test_ip6gretap_untagged_egress()
 {
-	test_span_gre_untagged_egress gt6 "mirror to ip6gretap"
+	test_span_gre_untagged_egress gt6 ipv6 "mirror to ip6gretap"
 }
 
 test_span_gre_fdb_roaming()
@@ -271,7 +272,7 @@ test_span_gre_fdb_roaming()
 
 	while ((RET == 0)); do
 		bridge fdb del dev $swp3 $h3mac vlan 555 master 2>/dev/null
-		bridge fdb add dev $swp2 $h3mac vlan 555 master
+		bridge fdb add dev $swp2 $h3mac vlan 555 master static
 		sleep 1
 		fail_test_span_gre_dir $tundev ingress
 

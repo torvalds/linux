@@ -96,12 +96,11 @@ struct dinode {
 #define di_gengen	u._file._u1._imap._gengen
 
 			union {
-				xtpage_t _xtroot;
+				xtroot_t _xtroot;
 				struct {
 					u8 unused[16];	/* 16: */
 					dxd_t _dxd;	/* 16: */
 					union {
-						__le32 _rdev;	/* 4: */
 						/*
 						 * The fast symlink area
 						 * is expected to overflow
@@ -109,9 +108,15 @@ struct dinode {
 						 * needed (which will clear
 						 * INLINEEA).
 						 */
-						u8 _fastsymlink[128];
-					} _u;
-					u8 _inlineea[128];
+						struct {
+							union {
+								__le32 _rdev;	/* 4: */
+								u8 _fastsymlink[128];
+							} _u;
+							u8 _inlineea[128];
+						};
+						u8 _inline_all[256];
+					};
 				} _special;
 			} _u2;
 		} _file;
@@ -122,6 +127,7 @@ struct dinode {
 #define di_rdev		u._file._u2._special._u._rdev
 #define di_fastsymlink	u._file._u2._special._u._fastsymlink
 #define di_inlineea	u._file._u2._special._inlineea
+#define di_inline_all	u._file._u2._special._inline_all
 	} u;
 };
 
@@ -159,12 +165,5 @@ struct dinode {
 #define JFS_FL_USER_VISIBLE	0x03F80000
 #define JFS_FL_USER_MODIFIABLE	0x03F80000
 #define JFS_FL_INHERIT		0x03C80000
-
-/* These are identical to EXT[23]_IOC_GETFLAGS/SETFLAGS */
-#define JFS_IOC_GETFLAGS	_IOR('f', 1, long)
-#define JFS_IOC_SETFLAGS	_IOW('f', 2, long)
-
-#define JFS_IOC_GETFLAGS32	_IOR('f', 1, int)
-#define JFS_IOC_SETFLAGS32	_IOW('f', 2, int)
 
 #endif /*_H_JFS_DINODE */

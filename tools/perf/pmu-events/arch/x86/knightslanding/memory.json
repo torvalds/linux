@@ -1,1110 +1,909 @@
 [
     {
+        "BriefDescription": "Counts the number of times the machine clears due to memory ordering hazards",
         "EventCode": "0xC3",
-        "Counter": "0,1",
-        "UMask": "0x2",
         "EventName": "MACHINE_CLEARS.MEMORY_ORDERING",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Counts the number of times the machine clears due to memory ordering hazards"
+        "UMask": "0x2"
     },
     {
+        "BriefDescription": "Counts Demand code reads and prefetch code read requests  that accounts for responses from DDR (local and far)",
         "EventCode": "0xB7",
-        "MSRValue": "0x0100400070",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.ANY_PF_L2.MCDRAM_FAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any Prefetch requests that accounts for data responses from MCDRAM Far or Other tile L2 hit far.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0080200070",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.ANY_PF_L2.MCDRAM_NEAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any Prefetch requests that accounts for data responses from MCDRAM Local.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0101000070",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.ANY_PF_L2.DDR_FAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any Prefetch requests that accounts for data responses from DRAM Far.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0080800070",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.ANY_PF_L2.DDR_NEAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any Prefetch requests that accounts for data responses from DRAM Local.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x01004032f7",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.ANY_READ.MCDRAM_FAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any Read request  that accounts for data responses from MCDRAM Far or Other tile L2 hit far.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x00802032f7",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.ANY_READ.MCDRAM_NEAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any Read request  that accounts for data responses from MCDRAM Local.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x01010032f7",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.ANY_READ.DDR_FAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any Read request  that accounts for data responses from DRAM Far.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x00808032f7",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.ANY_READ.DDR_NEAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any Read request  that accounts for data responses from DRAM Local.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0100400044",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.ANY_CODE_RD.MCDRAM_FAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand code reads and prefetch code read requests  that accounts for data responses from MCDRAM Far or Other tile L2 hit far.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0080200044",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.ANY_CODE_RD.MCDRAM_NEAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand code reads and prefetch code read requests  that accounts for data responses from MCDRAM Local.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0101000044",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.ANY_CODE_RD.DDR_FAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand code reads and prefetch code read requests  that accounts for data responses from DRAM Far.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0080800044",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.ANY_CODE_RD.DDR_NEAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand code reads and prefetch code read requests  that accounts for data responses from DRAM Local.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0100400022",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.ANY_RFO.MCDRAM_FAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data write requests  that accounts for data responses from MCDRAM Far or Other tile L2 hit far.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0080200022",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.ANY_RFO.MCDRAM_NEAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data write requests  that accounts for data responses from MCDRAM Local.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0101000022",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.ANY_RFO.DDR_FAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data write requests  that accounts for data responses from DRAM Far.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0080800022",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.ANY_RFO.DDR_NEAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data write requests  that accounts for data responses from DRAM Local.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0100403091",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.ANY_DATA_RD.MCDRAM_FAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data and L1 prefetch data read requests  that accounts for data responses from MCDRAM Far or Other tile L2 hit far.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0080203091",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.ANY_DATA_RD.MCDRAM_NEAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data and L1 prefetch data read requests  that accounts for data responses from MCDRAM Local.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0101003091",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.ANY_DATA_RD.DDR_FAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data and L1 prefetch data read requests  that accounts for data responses from DRAM Far.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0080803091",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.ANY_DATA_RD.DDR_NEAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data and L1 prefetch data read requests  that accounts for data responses from DRAM Local.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0100408000",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.ANY_REQUEST.MCDRAM_FAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any request that accounts for data responses from MCDRAM Far or Other tile L2 hit far.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0080208000",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.ANY_REQUEST.MCDRAM_NEAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any request that accounts for data responses from MCDRAM Local.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0101008000",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.ANY_REQUEST.DDR_FAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any request that accounts for data responses from DRAM Far.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0080808000",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.ANY_REQUEST.DDR_NEAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any request that accounts for data responses from DRAM Local.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0100402000",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.PF_L1_DATA_RD.MCDRAM_FAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts L1 data HW prefetches that accounts for data responses from MCDRAM Far or Other tile L2 hit far.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0080202000",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.PF_L1_DATA_RD.MCDRAM_NEAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts L1 data HW prefetches that accounts for data responses from MCDRAM Local.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0101002000",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.PF_L1_DATA_RD.DDR_FAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts L1 data HW prefetches that accounts for data responses from DRAM Far.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0080802000",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.PF_L1_DATA_RD.DDR_NEAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts L1 data HW prefetches that accounts for data responses from DRAM Local.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0100401000",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.PF_SOFTWARE.MCDRAM_FAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Software Prefetches that accounts for data responses from MCDRAM Far or Other tile L2 hit far.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0080201000",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.PF_SOFTWARE.MCDRAM_NEAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Software Prefetches that accounts for data responses from MCDRAM Local.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0101001000",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.PF_SOFTWARE.DDR_FAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Software Prefetches that accounts for data responses from DRAM Far.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0080801000",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.PF_SOFTWARE.DDR_NEAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Software Prefetches that accounts for data responses from DRAM Local.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0100400400",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.BUS_LOCKS.MCDRAM_FAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Bus locks and split lock requests that accounts for data responses from MCDRAM Far or Other tile L2 hit far.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0080200400",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.BUS_LOCKS.MCDRAM_NEAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Bus locks and split lock requests that accounts for data responses from MCDRAM Local.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0101000400",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.BUS_LOCKS.DDR_FAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Bus locks and split lock requests that accounts for data responses from DRAM Far.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0080800400",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.BUS_LOCKS.DDR_NEAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Bus locks and split lock requests that accounts for data responses from DRAM Local.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0100400200",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.UC_CODE_READS.MCDRAM_FAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts UC code reads (valid only for Outstanding response type)  that accounts for data responses from MCDRAM Far or Other tile L2 hit far.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0080200200",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.UC_CODE_READS.MCDRAM_NEAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts UC code reads (valid only for Outstanding response type)  that accounts for data responses from MCDRAM Local.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0101000200",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.UC_CODE_READS.DDR_FAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts UC code reads (valid only for Outstanding response type)  that accounts for data responses from DRAM Far.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0080800200",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.UC_CODE_READS.DDR_NEAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts UC code reads (valid only for Outstanding response type)  that accounts for data responses from DRAM Local.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0100400100",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.PARTIAL_WRITES.MCDRAM_FAR",
-        "MSRIndex": "0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Partial writes (UC or WT or WP and should be programmed on PMC1) that accounts for data responses from MCDRAM Far or Other tile L2 hit far.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0080200100",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.PARTIAL_WRITES.MCDRAM_NEAR",
-        "MSRIndex": "0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Partial writes (UC or WT or WP and should be programmed on PMC1) that accounts for data responses from MCDRAM Local.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0101000100",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.PARTIAL_WRITES.DDR_FAR",
-        "MSRIndex": "0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Partial writes (UC or WT or WP and should be programmed on PMC1) that accounts for data responses from DRAM Far.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0080800100",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.PARTIAL_WRITES.DDR_NEAR",
-        "MSRIndex": "0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Partial writes (UC or WT or WP and should be programmed on PMC1) that accounts for data responses from DRAM Local.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x2000020080",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.PARTIAL_READS.NON_DRAM",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Partial reads (UC or WC and is valid only for Outstanding response type).  that accounts for responses from any NON_DRAM system address. This includes MMIO transactions",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0100400080",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.PARTIAL_READS.MCDRAM_FAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Partial reads (UC or WC and is valid only for Outstanding response type).  that accounts for data responses from MCDRAM Far or Other tile L2 hit far.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0080200080",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.PARTIAL_READS.MCDRAM_NEAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Partial reads (UC or WC and is valid only for Outstanding response type).  that accounts for data responses from MCDRAM Local.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0101000080",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.PARTIAL_READS.DDR_FAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Partial reads (UC or WC and is valid only for Outstanding response type).  that accounts for data responses from DRAM Far.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0080800080",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.PARTIAL_READS.DDR_NEAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Partial reads (UC or WC and is valid only for Outstanding response type).  that accounts for data responses from DRAM Local.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0100400040",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.MCDRAM_FAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts L2 code HW prefetches that accounts for data responses from MCDRAM Far or Other tile L2 hit far.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0080200040",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.MCDRAM_NEAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts L2 code HW prefetches that accounts for data responses from MCDRAM Local.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0101000040",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.DDR_FAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts L2 code HW prefetches that accounts for data responses from DRAM Far.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0080800040",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.DDR_NEAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts L2 code HW prefetches that accounts for data responses from DRAM Local.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x2000020020",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.NON_DRAM",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts L2 data RFO prefetches (includes PREFETCHW instruction) that accounts for responses from any NON_DRAM system address. This includes MMIO transactions",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0100400020",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.MCDRAM_FAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts L2 data RFO prefetches (includes PREFETCHW instruction) that accounts for data responses from MCDRAM Far or Other tile L2 hit far.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0080200020",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.MCDRAM_NEAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts L2 data RFO prefetches (includes PREFETCHW instruction) that accounts for data responses from MCDRAM Local.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0101000020",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.DDR_FAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts L2 data RFO prefetches (includes PREFETCHW instruction) that accounts for data responses from DRAM Far.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0080800020",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.DDR_NEAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts L2 data RFO prefetches (includes PREFETCHW instruction) that accounts for data responses from DRAM Local.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0100400004",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.MCDRAM_FAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts demand code reads and prefetch code reads that accounts for data responses from MCDRAM Far or Other tile L2 hit far.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0080200004",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.MCDRAM_NEAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts demand code reads and prefetch code reads that accounts for data responses from MCDRAM Local.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0101000004",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.DDR_FAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts demand code reads and prefetch code reads that accounts for data responses from DRAM Far.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0080800004",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.DDR_NEAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts demand code reads and prefetch code reads that accounts for data responses from DRAM Local.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0100400002",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.MCDRAM_FAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data writes that accounts for data responses from MCDRAM Far or Other tile L2 hit far.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0080200002",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.MCDRAM_NEAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data writes that accounts for data responses from MCDRAM Local.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0101000002",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.DDR_FAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data writes that accounts for data responses from DRAM Far.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0080800002",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.DDR_NEAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data writes that accounts for data responses from DRAM Local.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0100400001",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.MCDRAM_FAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts demand cacheable data and L1 prefetch data reads that accounts for data responses from MCDRAM Far or Other tile L2 hit far.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0080200001",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.MCDRAM_NEAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts demand cacheable data and L1 prefetch data reads that accounts for data responses from MCDRAM Local.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0101000001",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.DDR_FAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts demand cacheable data and L1 prefetch data reads that accounts for data responses from DRAM Far.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0080800001",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.DDR_NEAR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts demand cacheable data and L1 prefetch data reads that accounts for data responses from DRAM Local.",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0180600001",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.MCDRAM",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts demand cacheable data and L1 prefetch data reads that accounts for responses from MCDRAM (local and far)",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0180600002",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.MCDRAM",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data writes that accounts for responses from MCDRAM (local and far)",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0180600004",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.MCDRAM",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts demand code reads and prefetch code reads that accounts for responses from MCDRAM (local and far)",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0180600020",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.MCDRAM",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts L2 data RFO prefetches (includes PREFETCHW instruction) that accounts for responses from MCDRAM (local and far)",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0180600080",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.PARTIAL_READS.MCDRAM",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Partial reads (UC or WC and is valid only for Outstanding response type).  that accounts for responses from MCDRAM (local and far)",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0180600100",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.PARTIAL_WRITES.MCDRAM",
-        "MSRIndex": "0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Partial writes (UC or WT or WP and should be programmed on PMC1) that accounts for responses from MCDRAM (local and far)",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0180600200",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.UC_CODE_READS.MCDRAM",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts UC code reads (valid only for Outstanding response type)  that accounts for responses from MCDRAM (local and far)",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0180600400",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.BUS_LOCKS.MCDRAM",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Bus locks and split lock requests that accounts for responses from MCDRAM (local and far)",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0180601000",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.PF_SOFTWARE.MCDRAM",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Software Prefetches that accounts for responses from MCDRAM (local and far)",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0180608000",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.ANY_REQUEST.MCDRAM",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any request that accounts for responses from MCDRAM (local and far)",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0180603091",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.ANY_DATA_RD.MCDRAM",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data and L1 prefetch data read requests  that accounts for responses from MCDRAM (local and far)",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0180600022",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.ANY_RFO.MCDRAM",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data write requests  that accounts for responses from MCDRAM (local and far)",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0180600044",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.ANY_CODE_RD.MCDRAM",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand code reads and prefetch code read requests  that accounts for responses from MCDRAM (local and far)",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x01806032f7",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.ANY_READ.MCDRAM",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any Read request  that accounts for responses from MCDRAM (local and far)",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0180600070",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.ANY_PF_L2.MCDRAM",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any Prefetch requests that accounts for responses from MCDRAM (local and far)",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0181800001",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.DDR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts demand cacheable data and L1 prefetch data reads that accounts for responses from DDR (local and far)",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0181800002",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.DDR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data writes that accounts for responses from DDR (local and far)",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0181800004",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.DDR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts demand code reads and prefetch code reads that accounts for responses from DDR (local and far)",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0181800020",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.DDR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts L2 data RFO prefetches (includes PREFETCHW instruction) that accounts for responses from DDR (local and far)",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0181800040",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.DDR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts L2 code HW prefetches that accounts for responses from DDR (local and far)",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0181800080",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.PARTIAL_READS.DDR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Partial reads (UC or WC and is valid only for Outstanding response type).  that accounts for responses from DDR (local and far)",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0181800200",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.UC_CODE_READS.DDR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts UC code reads (valid only for Outstanding response type)  that accounts for responses from DDR (local and far)",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0181800400",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.BUS_LOCKS.DDR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Bus locks and split lock requests that accounts for responses from DDR (local and far)",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0181801000",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.PF_SOFTWARE.DDR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Software Prefetches that accounts for responses from DDR (local and far)",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0181802000",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.PF_L1_DATA_RD.DDR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts L1 data HW prefetches that accounts for responses from DDR (local and far)",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0181808000",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.ANY_REQUEST.DDR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any request that accounts for responses from DDR (local and far)",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0181803091",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.ANY_DATA_RD.DDR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data and L1 prefetch data read requests  that accounts for responses from DDR (local and far)",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0181800022",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE.ANY_RFO.DDR",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data write requests  that accounts for responses from DDR (local and far)",
-        "Offcore": "1"
-    },
-    {
-        "EventCode": "0xB7",
-        "MSRValue": "0x0181800044",
-        "Counter": "0,1",
-        "UMask": "0x1",
         "EventName": "OFFCORE_RESPONSE.ANY_CODE_RD.DDR",
         "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0181800044",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand code reads and prefetch code read requests  that accounts for responses from DDR (local and far)",
-        "Offcore": "1"
+        "UMask": "0x1"
     },
     {
+        "BriefDescription": "Counts Demand code reads and prefetch code read requests  that accounts for data responses from DRAM Far.",
         "EventCode": "0xB7",
-        "MSRValue": "0x01818032f7",
-        "Counter": "0,1",
-        "UMask": "0x1",
+        "EventName": "OFFCORE_RESPONSE.ANY_CODE_RD.DDR_FAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0101000044",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Demand code reads and prefetch code read requests  that accounts for data responses from DRAM Local.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.ANY_CODE_RD.DDR_NEAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0080800044",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Demand code reads and prefetch code read requests  that accounts for responses from MCDRAM (local and far)",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.ANY_CODE_RD.MCDRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0180600044",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Demand code reads and prefetch code read requests  that accounts for data responses from MCDRAM Far or Other tile L2 hit far.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.ANY_CODE_RD.MCDRAM_FAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0100400044",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Demand code reads and prefetch code read requests  that accounts for data responses from MCDRAM Local.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.ANY_CODE_RD.MCDRAM_NEAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0080200044",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Demand cacheable data and L1 prefetch data read requests  that accounts for responses from DDR (local and far)",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.ANY_DATA_RD.DDR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0181803091",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Demand cacheable data and L1 prefetch data read requests  that accounts for data responses from DRAM Far.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.ANY_DATA_RD.DDR_FAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0101003091",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Demand cacheable data and L1 prefetch data read requests  that accounts for data responses from DRAM Local.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.ANY_DATA_RD.DDR_NEAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0080803091",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Demand cacheable data and L1 prefetch data read requests  that accounts for responses from MCDRAM (local and far)",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.ANY_DATA_RD.MCDRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0180603091",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Demand cacheable data and L1 prefetch data read requests  that accounts for data responses from MCDRAM Far or Other tile L2 hit far.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.ANY_DATA_RD.MCDRAM_FAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0100403091",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Demand cacheable data and L1 prefetch data read requests  that accounts for data responses from MCDRAM Local.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.ANY_DATA_RD.MCDRAM_NEAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0080203091",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts any Prefetch requests that accounts for data responses from DRAM Far.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.ANY_PF_L2.DDR_FAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0101000070",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts any Prefetch requests that accounts for data responses from DRAM Local.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.ANY_PF_L2.DDR_NEAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0080800070",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts any Prefetch requests that accounts for responses from MCDRAM (local and far)",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.ANY_PF_L2.MCDRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0180600070",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts any Prefetch requests that accounts for data responses from MCDRAM Far or Other tile L2 hit far.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.ANY_PF_L2.MCDRAM_FAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0100400070",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts any Prefetch requests that accounts for data responses from MCDRAM Local.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.ANY_PF_L2.MCDRAM_NEAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0080200070",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts any Read request  that accounts for responses from DDR (local and far)",
+        "EventCode": "0xB7",
         "EventName": "OFFCORE_RESPONSE.ANY_READ.DDR",
         "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x01818032f7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any Read request  that accounts for responses from DDR (local and far)",
-        "Offcore": "1"
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts any Read request  that accounts for data responses from DRAM Far.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.ANY_READ.DDR_FAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x01010032f7",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts any Read request  that accounts for data responses from DRAM Local.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.ANY_READ.DDR_NEAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x00808032f7",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts any Read request  that accounts for responses from MCDRAM (local and far)",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.ANY_READ.MCDRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x01806032f7",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts any Read request  that accounts for data responses from MCDRAM Far or Other tile L2 hit far.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.ANY_READ.MCDRAM_FAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x01004032f7",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts any Read request  that accounts for data responses from MCDRAM Local.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.ANY_READ.MCDRAM_NEAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x00802032f7",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts any request that accounts for responses from DDR (local and far)",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.ANY_REQUEST.DDR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0181808000",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts any request that accounts for data responses from DRAM Far.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.ANY_REQUEST.DDR_FAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0101008000",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts any request that accounts for data responses from DRAM Local.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.ANY_REQUEST.DDR_NEAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0080808000",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts any request that accounts for responses from MCDRAM (local and far)",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.ANY_REQUEST.MCDRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0180608000",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts any request that accounts for data responses from MCDRAM Far or Other tile L2 hit far.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.ANY_REQUEST.MCDRAM_FAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0100408000",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts any request that accounts for data responses from MCDRAM Local.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.ANY_REQUEST.MCDRAM_NEAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0080208000",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Demand cacheable data write requests  that accounts for responses from DDR (local and far)",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.ANY_RFO.DDR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0181800022",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Demand cacheable data write requests  that accounts for data responses from DRAM Far.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.ANY_RFO.DDR_FAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0101000022",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Demand cacheable data write requests  that accounts for data responses from DRAM Local.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.ANY_RFO.DDR_NEAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0080800022",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Demand cacheable data write requests  that accounts for responses from MCDRAM (local and far)",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.ANY_RFO.MCDRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0180600022",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Demand cacheable data write requests  that accounts for data responses from MCDRAM Far or Other tile L2 hit far.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.ANY_RFO.MCDRAM_FAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0100400022",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Demand cacheable data write requests  that accounts for data responses from MCDRAM Local.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.ANY_RFO.MCDRAM_NEAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0080200022",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Bus locks and split lock requests that accounts for responses from DDR (local and far)",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.BUS_LOCKS.DDR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0181800400",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Bus locks and split lock requests that accounts for data responses from DRAM Far.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.BUS_LOCKS.DDR_FAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0101000400",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Bus locks and split lock requests that accounts for data responses from DRAM Local.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.BUS_LOCKS.DDR_NEAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0080800400",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Bus locks and split lock requests that accounts for responses from MCDRAM (local and far)",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.BUS_LOCKS.MCDRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0180600400",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Bus locks and split lock requests that accounts for data responses from MCDRAM Far or Other tile L2 hit far.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.BUS_LOCKS.MCDRAM_FAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0100400400",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Bus locks and split lock requests that accounts for data responses from MCDRAM Local.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.BUS_LOCKS.MCDRAM_NEAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0080200400",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand code reads and prefetch code reads that accounts for responses from DDR (local and far)",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.DDR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0181800004",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand code reads and prefetch code reads that accounts for data responses from DRAM Far.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.DDR_FAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0101000004",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand code reads and prefetch code reads that accounts for data responses from DRAM Local.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.DDR_NEAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0080800004",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand code reads and prefetch code reads that accounts for responses from MCDRAM (local and far)",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.MCDRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0180600004",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand code reads and prefetch code reads that accounts for data responses from MCDRAM Far or Other tile L2 hit far.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.MCDRAM_FAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0100400004",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand code reads and prefetch code reads that accounts for data responses from MCDRAM Local.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.MCDRAM_NEAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0080200004",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand cacheable data and L1 prefetch data reads that accounts for responses from DDR (local and far)",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.DDR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0181800001",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand cacheable data and L1 prefetch data reads that accounts for data responses from DRAM Far.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.DDR_FAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0101000001",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand cacheable data and L1 prefetch data reads that accounts for data responses from DRAM Local.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.DDR_NEAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0080800001",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand cacheable data and L1 prefetch data reads that accounts for responses from MCDRAM (local and far)",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.MCDRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0180600001",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand cacheable data and L1 prefetch data reads that accounts for data responses from MCDRAM Far or Other tile L2 hit far.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.MCDRAM_FAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0100400001",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand cacheable data and L1 prefetch data reads that accounts for data responses from MCDRAM Local.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.MCDRAM_NEAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0080200001",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Demand cacheable data writes that accounts for responses from DDR (local and far)",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.DDR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0181800002",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Demand cacheable data writes that accounts for data responses from DRAM Far.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.DDR_FAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0101000002",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Demand cacheable data writes that accounts for data responses from DRAM Local.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.DDR_NEAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0080800002",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Demand cacheable data writes that accounts for responses from MCDRAM (local and far)",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.MCDRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0180600002",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Demand cacheable data writes that accounts for data responses from MCDRAM Far or Other tile L2 hit far.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.MCDRAM_FAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0100400002",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Demand cacheable data writes that accounts for data responses from MCDRAM Local.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.MCDRAM_NEAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0080200002",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Partial reads (UC or WC and is valid only for Outstanding response type).  that accounts for responses from DDR (local and far)",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.PARTIAL_READS.DDR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0181800080",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Partial reads (UC or WC and is valid only for Outstanding response type).  that accounts for data responses from DRAM Far.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.PARTIAL_READS.DDR_FAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0101000080",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Partial reads (UC or WC and is valid only for Outstanding response type).  that accounts for data responses from DRAM Local.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.PARTIAL_READS.DDR_NEAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0080800080",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Partial reads (UC or WC and is valid only for Outstanding response type).  that accounts for responses from MCDRAM (local and far)",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.PARTIAL_READS.MCDRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0180600080",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Partial reads (UC or WC and is valid only for Outstanding response type).  that accounts for data responses from MCDRAM Far or Other tile L2 hit far.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.PARTIAL_READS.MCDRAM_FAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0100400080",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Partial reads (UC or WC and is valid only for Outstanding response type).  that accounts for data responses from MCDRAM Local.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.PARTIAL_READS.MCDRAM_NEAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0080200080",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Partial reads (UC or WC and is valid only for Outstanding response type).  that accounts for responses from any NON_DRAM system address. This includes MMIO transactions",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.PARTIAL_READS.NON_DRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x2000020080",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Partial writes (UC or WT or WP and should be programmed on PMC1) that accounts for data responses from DRAM Far.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.PARTIAL_WRITES.DDR_FAR",
+        "MSRIndex": "0x1a7",
+        "MSRValue": "0x0101000100",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Partial writes (UC or WT or WP and should be programmed on PMC1) that accounts for data responses from DRAM Local.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.PARTIAL_WRITES.DDR_NEAR",
+        "MSRIndex": "0x1a7",
+        "MSRValue": "0x0080800100",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Partial writes (UC or WT or WP and should be programmed on PMC1) that accounts for responses from MCDRAM (local and far)",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.PARTIAL_WRITES.MCDRAM",
+        "MSRIndex": "0x1a7",
+        "MSRValue": "0x0180600100",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Partial writes (UC or WT or WP and should be programmed on PMC1) that accounts for data responses from MCDRAM Far or Other tile L2 hit far.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.PARTIAL_WRITES.MCDRAM_FAR",
+        "MSRIndex": "0x1a7",
+        "MSRValue": "0x0100400100",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Partial writes (UC or WT or WP and should be programmed on PMC1) that accounts for data responses from MCDRAM Local.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.PARTIAL_WRITES.MCDRAM_NEAR",
+        "MSRIndex": "0x1a7",
+        "MSRValue": "0x0080200100",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts L1 data HW prefetches that accounts for responses from DDR (local and far)",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.PF_L1_DATA_RD.DDR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0181802000",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts L1 data HW prefetches that accounts for data responses from DRAM Far.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.PF_L1_DATA_RD.DDR_FAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0101002000",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts L1 data HW prefetches that accounts for data responses from DRAM Local.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.PF_L1_DATA_RD.DDR_NEAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0080802000",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts L1 data HW prefetches that accounts for data responses from MCDRAM Far or Other tile L2 hit far.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.PF_L1_DATA_RD.MCDRAM_FAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0100402000",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts L1 data HW prefetches that accounts for data responses from MCDRAM Local.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.PF_L1_DATA_RD.MCDRAM_NEAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0080202000",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts L2 code HW prefetches that accounts for responses from DDR (local and far)",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.DDR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0181800040",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts L2 code HW prefetches that accounts for data responses from DRAM Far.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.DDR_FAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0101000040",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts L2 code HW prefetches that accounts for data responses from DRAM Local.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.DDR_NEAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0080800040",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts L2 code HW prefetches that accounts for data responses from MCDRAM Far or Other tile L2 hit far.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.MCDRAM_FAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0100400040",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts L2 code HW prefetches that accounts for data responses from MCDRAM Local.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.MCDRAM_NEAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0080200040",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts L2 data RFO prefetches (includes PREFETCHW instruction) that accounts for responses from DDR (local and far)",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.DDR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0181800020",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts L2 data RFO prefetches (includes PREFETCHW instruction) that accounts for data responses from DRAM Far.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.DDR_FAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0101000020",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts L2 data RFO prefetches (includes PREFETCHW instruction) that accounts for data responses from DRAM Local.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.DDR_NEAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0080800020",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts L2 data RFO prefetches (includes PREFETCHW instruction) that accounts for responses from MCDRAM (local and far)",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.MCDRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0180600020",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts L2 data RFO prefetches (includes PREFETCHW instruction) that accounts for data responses from MCDRAM Far or Other tile L2 hit far.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.MCDRAM_FAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0100400020",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts L2 data RFO prefetches (includes PREFETCHW instruction) that accounts for data responses from MCDRAM Local.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.MCDRAM_NEAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0080200020",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts L2 data RFO prefetches (includes PREFETCHW instruction) that accounts for responses from any NON_DRAM system address. This includes MMIO transactions",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.NON_DRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x2000020020",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Software Prefetches that accounts for responses from DDR (local and far)",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.PF_SOFTWARE.DDR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0181801000",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Software Prefetches that accounts for data responses from DRAM Far.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.PF_SOFTWARE.DDR_FAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0101001000",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Software Prefetches that accounts for data responses from DRAM Local.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.PF_SOFTWARE.DDR_NEAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0080801000",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Software Prefetches that accounts for responses from MCDRAM (local and far)",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.PF_SOFTWARE.MCDRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0180601000",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Software Prefetches that accounts for data responses from MCDRAM Far or Other tile L2 hit far.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.PF_SOFTWARE.MCDRAM_FAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0100401000",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Software Prefetches that accounts for data responses from MCDRAM Local.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.PF_SOFTWARE.MCDRAM_NEAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0080201000",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts UC code reads (valid only for Outstanding response type)  that accounts for responses from DDR (local and far)",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.UC_CODE_READS.DDR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0181800200",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts UC code reads (valid only for Outstanding response type)  that accounts for data responses from DRAM Far.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.UC_CODE_READS.DDR_FAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0101000200",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts UC code reads (valid only for Outstanding response type)  that accounts for data responses from DRAM Local.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.UC_CODE_READS.DDR_NEAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0080800200",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts UC code reads (valid only for Outstanding response type)  that accounts for responses from MCDRAM (local and far)",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.UC_CODE_READS.MCDRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0180600200",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts UC code reads (valid only for Outstanding response type)  that accounts for data responses from MCDRAM Far or Other tile L2 hit far.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.UC_CODE_READS.MCDRAM_FAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0100400200",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts UC code reads (valid only for Outstanding response type)  that accounts for data responses from MCDRAM Local.",
+        "EventCode": "0xB7",
+        "EventName": "OFFCORE_RESPONSE.UC_CODE_READS.MCDRAM_NEAR",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x0080200200",
+        "SampleAfterValue": "100007",
+        "UMask": "0x1"
     }
 ]

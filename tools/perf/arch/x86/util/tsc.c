@@ -1,45 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <stdbool.h>
-#include <errno.h>
-
-#include <linux/stddef.h>
-#include <linux/perf_event.h>
-
 #include <linux/types.h>
-#include <asm/barrier.h>
+#include <math.h>
+#include <string.h>
+#include <stdlib.h>
+
 #include "../../../util/debug.h"
-#include "../../../util/event.h"
-#include "../../../util/synthetic-events.h"
 #include "../../../util/tsc.h"
-
-int perf_read_tsc_conversion(const struct perf_event_mmap_page *pc,
-			     struct perf_tsc_conversion *tc)
-{
-	bool cap_user_time_zero;
-	u32 seq;
-	int i = 0;
-
-	while (1) {
-		seq = pc->lock;
-		rmb();
-		tc->time_mult = pc->time_mult;
-		tc->time_shift = pc->time_shift;
-		tc->time_zero = pc->time_zero;
-		cap_user_time_zero = pc->cap_user_time_zero;
-		rmb();
-		if (pc->lock == seq && !(seq & 1))
-			break;
-		if (++i > 10000) {
-			pr_debug("failed to get perf_event_mmap_page lock\n");
-			return -EINVAL;
-		}
-	}
-
-	if (!cap_user_time_zero)
-		return -EOPNOTSUPP;
-
-	return 0;
-}
+#include "cpuid.h"
 
 u64 rdtsc(void)
 {
@@ -50,35 +17,75 @@ u64 rdtsc(void)
 	return low | ((u64)high) << 32;
 }
 
-int perf_event__synth_time_conv(const struct perf_event_mmap_page *pc,
-				struct perf_tool *tool,
-				perf_event__handler_t process,
-				struct machine *machine)
+/*
+ * Derive the TSC frequency in Hz from the /proc/cpuinfo, for example:
+ * ...
+ * model name      : Intel(R) Xeon(R) Gold 6154 CPU @ 3.00GHz
+ * ...
+ * will return 3000000000.
+ */
+static double cpuinfo_tsc_freq(void)
 {
-	union perf_event event = {
-		.time_conv = {
-			.header = {
-				.type = PERF_RECORD_TIME_CONV,
-				.size = sizeof(struct perf_record_time_conv),
-			},
-		},
-	};
-	struct perf_tsc_conversion tc;
-	int err;
+	double result = 0;
+	FILE *cpuinfo;
+	char *line = NULL;
+	size_t len = 0;
 
-	if (!pc)
+	cpuinfo = fopen("/proc/cpuinfo", "r");
+	if (!cpuinfo) {
+		pr_err("Failed to read /proc/cpuinfo for TSC frequency\n");
+		return NAN;
+	}
+	while (getline(&line, &len, cpuinfo) > 0) {
+		if (!strncmp(line, "model name", 10)) {
+			char *pos = strstr(line + 11, " @ ");
+
+			if (pos && sscanf(pos, " @ %lfGHz", &result) == 1) {
+				result *= 1000000000;
+				goto out;
+			}
+		}
+	}
+out:
+	if (fpclassify(result) == FP_ZERO)
+		pr_err("Failed to find TSC frequency in /proc/cpuinfo\n");
+
+	free(line);
+	fclose(cpuinfo);
+	return result;
+}
+
+double arch_get_tsc_freq(void)
+{
+	unsigned int a, b, c, d, lvl;
+	static bool cached;
+	static double tsc;
+	char vendor[16];
+
+	if (cached)
+		return tsc;
+
+	cached = true;
+	get_cpuid_0(vendor, &lvl);
+	if (!strstr(vendor, "Intel"))
 		return 0;
-	err = perf_read_tsc_conversion(pc, &tc);
-	if (err == -EOPNOTSUPP)
-		return 0;
-	if (err)
-		return err;
 
-	pr_debug2("Synthesizing TSC conversion information\n");
+	/*
+	 * Don't support Time Stamp Counter and
+	 * Nominal Core Crystal Clock Information Leaf.
+	 */
+	if (lvl < 0x15) {
+		tsc = cpuinfo_tsc_freq();
+		return tsc;
+	}
 
-	event.time_conv.time_mult  = tc.time_mult;
-	event.time_conv.time_shift = tc.time_shift;
-	event.time_conv.time_zero  = tc.time_zero;
+	cpuid(0x15, 0, &a, &b, &c, &d);
+	/* TSC frequency is not enumerated */
+	if (!a || !b || !c) {
+		tsc = cpuinfo_tsc_freq();
+		return tsc;
+	}
 
-	return process(tool, &event, NULL, machine);
+	tsc = (double)c * (double)b / (double)a;
+	return tsc;
 }

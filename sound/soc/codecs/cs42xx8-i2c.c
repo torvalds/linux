@@ -12,16 +12,24 @@
 
 #include <linux/i2c.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/pm_runtime.h>
 #include <sound/soc.h>
 
 #include "cs42xx8.h"
 
-static int cs42xx8_i2c_probe(struct i2c_client *i2c,
-			     const struct i2c_device_id *id)
+static int cs42xx8_i2c_probe(struct i2c_client *i2c)
 {
-	int ret = cs42xx8_probe(&i2c->dev,
-			devm_regmap_init_i2c(i2c, &cs42xx8_regmap_config));
+	int ret;
+	struct cs42xx8_driver_data *drvdata;
+
+	drvdata = (struct cs42xx8_driver_data *)i2c_get_match_data(i2c);
+	if (!drvdata)
+		return dev_err_probe(&i2c->dev, -EINVAL,
+				     "failed to find driver data\n");
+
+	ret = cs42xx8_probe(&i2c->dev,
+		devm_regmap_init_i2c(i2c, &cs42xx8_regmap_config), drvdata);
 	if (ret)
 		return ret;
 
@@ -31,14 +39,19 @@ static int cs42xx8_i2c_probe(struct i2c_client *i2c,
 	return 0;
 }
 
-static int cs42xx8_i2c_remove(struct i2c_client *i2c)
+static void cs42xx8_i2c_remove(struct i2c_client *i2c)
 {
 	pm_runtime_disable(&i2c->dev);
-
-	return 0;
 }
 
-static struct i2c_device_id cs42xx8_i2c_id[] = {
+static const struct of_device_id cs42xx8_of_match[] = {
+	{ .compatible = "cirrus,cs42448", .data = &cs42448_data, },
+	{ .compatible = "cirrus,cs42888", .data = &cs42888_data, },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, cs42xx8_of_match);
+
+static const struct i2c_device_id cs42xx8_i2c_id[] = {
 	{"cs42448", (kernel_ulong_t)&cs42448_data},
 	{"cs42888", (kernel_ulong_t)&cs42888_data},
 	{}

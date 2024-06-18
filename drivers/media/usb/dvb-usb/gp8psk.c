@@ -9,7 +9,7 @@
  *
  * This module is based off the vp7045 and vp702x modules
  *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 #include "gp8psk.h"
 #include "gp8psk-fe.h"
@@ -182,7 +182,7 @@ out_rel_fw:
 
 static int gp8psk_power_ctrl(struct dvb_usb_device *d, int onoff)
 {
-	u8 status, buf;
+	u8 status = 0, buf;
 	int gp_product_id = le16_to_cpu(d->udev->descriptor.idProduct);
 
 	if (onoff) {
@@ -287,7 +287,7 @@ static int gp8psk_frontend_attach(struct dvb_usb_adapter *adap)
 	int id = le16_to_cpu(d->udev->descriptor.idProduct);
 	int is_rev1;
 
-	is_rev1 = (id == USB_PID_GENPIX_8PSK_REV_1_WARM) ? true : false;
+	is_rev1 = id == USB_PID_GENPIX_8PSK_REV_1_WARM;
 
 	adap->fe_adap[0].fe = dvb_attach(gp8psk_fe_attach,
 					 &gp8psk_fe_ops, d, is_rev1);
@@ -310,15 +310,25 @@ static int gp8psk_usb_probe(struct usb_interface *intf,
 	return ret;
 }
 
-static struct usb_device_id gp8psk_usb_table [] = {
-	    { USB_DEVICE(USB_VID_GENPIX, USB_PID_GENPIX_8PSK_REV_1_COLD) },
-	    { USB_DEVICE(USB_VID_GENPIX, USB_PID_GENPIX_8PSK_REV_1_WARM) },
-	    { USB_DEVICE(USB_VID_GENPIX, USB_PID_GENPIX_8PSK_REV_2) },
-	    { USB_DEVICE(USB_VID_GENPIX, USB_PID_GENPIX_SKYWALKER_1) },
-	    { USB_DEVICE(USB_VID_GENPIX, USB_PID_GENPIX_SKYWALKER_2) },
-/*	    { USB_DEVICE(USB_VID_GENPIX, USB_PID_GENPIX_SKYWALKER_CW3K) }, */
-	    { 0 },
+enum {
+	GENPIX_8PSK_REV_1_COLD,
+	GENPIX_8PSK_REV_1_WARM,
+	GENPIX_8PSK_REV_2,
+	GENPIX_SKYWALKER_1,
+	GENPIX_SKYWALKER_2,
+	GENPIX_SKYWALKER_CW3K,
 };
+
+static struct usb_device_id gp8psk_usb_table[] = {
+	DVB_USB_DEV(GENPIX, GENPIX_8PSK_REV_1_COLD),
+	DVB_USB_DEV(GENPIX, GENPIX_8PSK_REV_1_WARM),
+	DVB_USB_DEV(GENPIX, GENPIX_8PSK_REV_2),
+	DVB_USB_DEV(GENPIX, GENPIX_SKYWALKER_1),
+	DVB_USB_DEV(GENPIX, GENPIX_SKYWALKER_2),
+	DVB_USB_DEV(GENPIX, GENPIX_SKYWALKER_CW3K),
+	{ }
+};
+
 MODULE_DEVICE_TABLE(usb, gp8psk_usb_table);
 
 static struct dvb_usb_device_properties gp8psk_properties = {
@@ -355,20 +365,20 @@ static struct dvb_usb_device_properties gp8psk_properties = {
 	.num_device_descs = 4,
 	.devices = {
 		{ .name = "Genpix 8PSK-to-USB2 Rev.1 DVB-S receiver",
-		  .cold_ids = { &gp8psk_usb_table[0], NULL },
-		  .warm_ids = { &gp8psk_usb_table[1], NULL },
+		  .cold_ids = { &gp8psk_usb_table[GENPIX_8PSK_REV_1_COLD], NULL },
+		  .warm_ids = { &gp8psk_usb_table[GENPIX_8PSK_REV_1_WARM], NULL },
 		},
 		{ .name = "Genpix 8PSK-to-USB2 Rev.2 DVB-S receiver",
 		  .cold_ids = { NULL },
-		  .warm_ids = { &gp8psk_usb_table[2], NULL },
+		  .warm_ids = { &gp8psk_usb_table[GENPIX_8PSK_REV_2], NULL },
 		},
 		{ .name = "Genpix SkyWalker-1 DVB-S receiver",
 		  .cold_ids = { NULL },
-		  .warm_ids = { &gp8psk_usb_table[3], NULL },
+		  .warm_ids = { &gp8psk_usb_table[GENPIX_SKYWALKER_1], NULL },
 		},
 		{ .name = "Genpix SkyWalker-2 DVB-S receiver",
 		  .cold_ids = { NULL },
-		  .warm_ids = { &gp8psk_usb_table[4], NULL },
+		  .warm_ids = { &gp8psk_usb_table[GENPIX_SKYWALKER_2], NULL },
 		},
 		{ NULL },
 	}

@@ -19,9 +19,9 @@
 #define wmb() asm volatile(ALTERNATIVE("lock; addl $0,-4(%%esp)", "sfence", \
 				       X86_FEATURE_XMM2) ::: "memory", "cc")
 #else
-#define mb() 	asm volatile("mfence":::"memory")
-#define rmb()	asm volatile("lfence":::"memory")
-#define wmb()	asm volatile("sfence" ::: "memory")
+#define __mb()	asm volatile("mfence":::"memory")
+#define __rmb()	asm volatile("lfence":::"memory")
+#define __wmb()	asm volatile("sfence" ::: "memory")
 #endif
 
 /**
@@ -33,32 +33,25 @@
  * Returns:
  *     0 - (index < size)
  */
-static inline unsigned long array_index_mask_nospec(unsigned long index,
-		unsigned long size)
-{
-	unsigned long mask;
-
-	asm volatile ("cmp %1,%2; sbb %0,%0;"
-			:"=r" (mask)
-			:"g"(size),"r" (index)
-			:"cc");
-	return mask;
-}
-
-/* Override the default implementation from linux/nospec.h. */
-#define array_index_mask_nospec array_index_mask_nospec
+#define array_index_mask_nospec(idx,sz) ({	\
+	typeof((idx)+(sz)) __idx = (idx);	\
+	typeof(__idx) __sz = (sz);		\
+	unsigned long __mask;			\
+	asm volatile ("cmp %1,%2; sbb %0,%0"	\
+			:"=r" (__mask)		\
+			:ASM_INPUT_G (__sz),	\
+			 "r" (__idx)		\
+			:"cc");			\
+	__mask; })
 
 /* Prevent speculative execution past this barrier. */
 #define barrier_nospec() alternative("", "lfence", X86_FEATURE_LFENCE_RDTSC)
 
-#define dma_rmb()	barrier()
-#define dma_wmb()	barrier()
+#define __dma_rmb()	barrier()
+#define __dma_wmb()	barrier()
 
-#ifdef CONFIG_X86_32
-#define __smp_mb()	asm volatile("lock; addl $0,-4(%%esp)" ::: "memory", "cc")
-#else
-#define __smp_mb()	asm volatile("lock; addl $0,-4(%%rsp)" ::: "memory", "cc")
-#endif
+#define __smp_mb()	asm volatile("lock; addl $0,-4(%%" _ASM_SP ")" ::: "memory", "cc")
+
 #define __smp_rmb()	dma_rmb()
 #define __smp_wmb()	barrier()
 #define __smp_store_mb(var, value) do { (void)xchg(&var, value); } while (0)
@@ -81,6 +74,9 @@ do {									\
 /* Atomic operations are already serializing on x86 */
 #define __smp_mb__before_atomic()	do { } while (0)
 #define __smp_mb__after_atomic()	do { } while (0)
+
+/* Writing to CR3 provides a full memory barrier in switch_mm(). */
+#define smp_mb__after_switch_mm()	do { } while (0)
 
 #include <asm-generic/barrier.h>
 

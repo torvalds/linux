@@ -1,70 +1,14 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2014 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2019 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2014 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2019 Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *****************************************************************************/
-
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
+/*
+ * Copyright (C) 2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2014-2015 Intel Mobile Communications GmbH
+ * Copyright (C) 2016-2017 Intel Deutschland GmbH
+ */
 #ifndef __fw_error_dump_h__
 #define __fw_error_dump_h__
 
 #include <linux/types.h>
+#include "fw/api/cmdhdr.h"
 
 #define IWL_FW_ERROR_DUMP_BARKER	0x14789632
 #define IWL_FW_INI_ERROR_DUMP_BARKER	0x14789633
@@ -72,7 +16,7 @@
 /**
  * enum iwl_fw_error_dump_type - types of data in the dump file
  * @IWL_FW_ERROR_DUMP_CSR: Control Status Registers - from offset 0
- * @IWL_FW_ERROR_DUMP_RXF:
+ * @IWL_FW_ERROR_DUMP_RXF: RX FIFO contents
  * @IWL_FW_ERROR_DUMP_TXCMD: last TX command data, structured as
  *	&struct iwl_fw_error_dump_txcmd packets
  * @IWL_FW_ERROR_DUMP_DEV_FW_INFO:  struct %iwl_fw_error_dump_info
@@ -80,21 +24,24 @@
  * @IWL_FW_ERROR_DUMP_FW_MONITOR: firmware monitor
  * @IWL_FW_ERROR_DUMP_PRPH: range of periphery registers - there can be several
  *	sections like this in a single file.
+ * @IWL_FW_ERROR_DUMP_TXF: TX FIFO contents
  * @IWL_FW_ERROR_DUMP_FH_REGS: range of FH registers
  * @IWL_FW_ERROR_DUMP_MEM: chunk of memory
  * @IWL_FW_ERROR_DUMP_ERROR_INFO: description of what triggered this dump.
  *	Structured as &struct iwl_fw_error_dump_trigger_desc.
  * @IWL_FW_ERROR_DUMP_RB: the content of an RB structured as
  *	&struct iwl_fw_error_dump_rb
- * @IWL_FW_ERROR_PAGING: UMAC's image memory segments which were
+ * @IWL_FW_ERROR_DUMP_PAGING: UMAC's image memory segments which were
  *	paged to the DRAM.
  * @IWL_FW_ERROR_DUMP_RADIO_REG: Dump the radio registers.
+ * @IWL_FW_ERROR_DUMP_INTERNAL_TXF: internal TX FIFO data
  * @IWL_FW_ERROR_DUMP_EXTERNAL: used only by external code utilities, and
  *	for that reason is not in use in any other place in the Linux Wi-Fi
  *	stack.
  * @IWL_FW_ERROR_DUMP_MEM_CFG: the addresses and sizes of fifos in the smem,
  *	which we get from the fw after ALIVE. The content is structured as
  *	&struct iwl_fw_error_dump_smem_cfg.
+ * @IWL_FW_ERROR_DUMP_D3_DEBUG_DATA: D3 debug data
  */
 enum iwl_fw_error_dump_type {
 	/* 0 is deprecated */
@@ -115,8 +62,6 @@ enum iwl_fw_error_dump_type {
 	IWL_FW_ERROR_DUMP_EXTERNAL = 15, /* Do not move */
 	IWL_FW_ERROR_DUMP_MEM_CFG = 16,
 	IWL_FW_ERROR_DUMP_D3_DEBUG_DATA = 17,
-
-	IWL_FW_ERROR_DUMP_MAX,
 };
 
 /**
@@ -132,6 +77,18 @@ struct iwl_fw_error_dump_data {
 } __packed;
 
 /**
+ * struct iwl_dump_file_name_info - data for dump file name addition
+ * @type: region type with reserved bits
+ * @len: the length of file name string to be added to dump file
+ * @data: the string need to be added to dump file
+ */
+struct iwl_dump_file_name_info {
+	__le32 type;
+	__le32 len;
+	__u8 data[];
+} __packed;
+
+/**
  * struct iwl_fw_error_dump_file - the layout of the header of the file
  * @barker: must be %IWL_FW_ERROR_DUMP_BARKER
  * @file_len: the length of all the file starting from %barker
@@ -140,7 +97,7 @@ struct iwl_fw_error_dump_data {
 struct iwl_fw_error_dump_file {
 	__le32 barker;
 	__le32 file_len;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 /**
@@ -287,6 +244,27 @@ struct iwl_fw_error_dump_mem {
 /* Use bit 31 as dump info type to avoid colliding with region types */
 #define IWL_INI_DUMP_INFO_TYPE BIT(31)
 
+/* Use bit 31 and bit 24 as dump name type to avoid colliding with region types */
+#define IWL_INI_DUMP_NAME_TYPE (BIT(31) | BIT(24))
+
+/**
+ * struct iwl_fw_error_dump_data - data for one type
+ * @type: &enum iwl_fw_ini_region_type
+ * @sub_type: sub type id
+ * @sub_type_ver: sub type version
+ * @reserved: not in use
+ * @len: the length starting from %data
+ * @data: the data itself
+ */
+struct iwl_fw_ini_error_dump_data {
+	u8 type;
+	u8 sub_type;
+	u8 sub_type_ver;
+	u8 reserved;
+	__le32 len;
+	__u8 data[];
+} __packed;
+
 /**
  * struct iwl_fw_ini_dump_entry
  * @list: list of dump entries
@@ -327,15 +305,17 @@ struct iwl_fw_ini_fifo_hdr {
  * @dram_base_addr: base address of dram monitor range
  * @page_num: page number of memory range
  * @fifo_hdr: fifo header of memory range
+ * @fw_pkt: FW packet header of memory range
  * @data: the actual memory
  */
 struct iwl_fw_ini_error_dump_range {
 	__le32 range_data_size;
 	union {
-		__le32 internal_base_addr;
-		__le64 dram_base_addr;
-		__le32 page_num;
+		__le32 internal_base_addr __packed;
+		__le64 dram_base_addr __packed;
+		__le32 page_num __packed;
 		struct iwl_fw_ini_fifo_hdr fifo_hdr;
+		struct iwl_cmd_header fw_pkt_hdr;
 	};
 	__le32 data[];
 } __packed;
@@ -359,11 +339,12 @@ struct iwl_fw_ini_error_dump_header {
 /**
  * struct iwl_fw_ini_error_dump - ini region dump
  * @header: the header of this region
- * @ranges: the memory ranges of this region
+ * @data: data of memory ranges in this region,
+ *	see &struct iwl_fw_ini_error_dump_range
  */
 struct iwl_fw_ini_error_dump {
 	struct iwl_fw_ini_error_dump_header header;
-	struct iwl_fw_ini_error_dump_range ranges[];
+	u8 data[];
 } __packed;
 
 /* This bit is used to differentiate between lmac and umac rxf */
@@ -379,12 +360,28 @@ struct iwl_fw_ini_error_dump_register {
 	__le32 data;
 } __packed;
 
+/**
+ * struct iwl_fw_ini_dump_cfg_name - configuration name
+ * @image_type: image type the configuration is related to
+ * @cfg_name_len: length of the configuration name
+ * @cfg_name: name of the configuraiton
+ */
+struct iwl_fw_ini_dump_cfg_name {
+	__le32 image_type;
+	__le32 cfg_name_len;
+	u8 cfg_name[IWL_FW_INI_MAX_CFG_NAME];
+} __packed;
+
+/* AX210's HW type */
+#define IWL_AX210_HW_TYPE 0x42
+/* How many bits to roll when adding to the HW type of AX210 HW */
+#define IWL_AX210_HW_TYPE_ADDITION_SHIFT 12
+
 /* struct iwl_fw_ini_dump_info - ini dump information
  * @version: dump version
- * @trigger_id: trigger id that caused the dump collection
- * @trigger_reason: not supported yet
- * @is_external_cfg: 1 if an external debug configuration was loaded
- *	and 0 otherwise
+ * @time_point: time point that caused the dump collection
+ * @trigger_reason: reason of the trigger
+ * @external_cfg_state: &enum iwl_ini_cfg_state
  * @ver_type: FW version type
  * @ver_subtype: FW version subype
  * @hw_step: HW step
@@ -397,22 +394,18 @@ struct iwl_fw_ini_error_dump_register {
  * @lmac_minor: lmac minor version
  * @umac_major: umac major version
  * @umac_minor: umac minor version
+ * @fw_mon_mode: FW monitor mode &enum iwl_fw_ini_buffer_location
+ * @regions_mask: bitmap mask of regions ids in the dump
  * @build_tag_len: length of the build tag
  * @build_tag: build tag string
- * @img_name_len: length of the FW image name
- * @img_name: FW image name
- * @internal_dbg_cfg_name_len: length of the internal debug configuration name
- * @internal_dbg_cfg_name: internal debug configuration name
- * @external_dbg_cfg_name_len: length of the external debug configuration name
- * @external_dbg_cfg_name: external debug configuration name
- * @regions_num: number of region ids
- * @region_ids: region ids the trigger configured to collect
+ * @num_of_cfg_names: number of configuration name structs
+ * @cfg_names: configuration names
  */
 struct iwl_fw_ini_dump_info {
 	__le32 version;
-	__le32 trigger_id;
+	__le32 time_point;
 	__le32 trigger_reason;
-	__le32 is_external_cfg;
+	__le32 external_cfg_state;
 	__le32 ver_type;
 	__le32 ver_subtype;
 	__le32 hw_step;
@@ -425,24 +418,32 @@ struct iwl_fw_ini_dump_info {
 	__le32 lmac_minor;
 	__le32 umac_major;
 	__le32 umac_minor;
+	__le32 fw_mon_mode;
+	__le64 regions_mask;
 	__le32 build_tag_len;
 	u8 build_tag[FW_VER_HUMAN_READABLE_SZ];
-	__le32 img_name_len;
-	u8 img_name[IWL_FW_INI_MAX_IMG_NAME_LEN];
-	__le32 internal_dbg_cfg_name_len;
-	u8 internal_dbg_cfg_name[IWL_FW_INI_MAX_DBG_CFG_NAME_LEN];
-	__le32 external_dbg_cfg_name_len;
-	u8 external_dbg_cfg_name[IWL_FW_INI_MAX_DBG_CFG_NAME_LEN];
-	__le32 regions_num;
-	__le32 region_ids[];
+	__le32 num_of_cfg_names;
+	struct iwl_fw_ini_dump_cfg_name cfg_names[];
+} __packed;
 
+/**
+ * struct iwl_fw_ini_err_table_dump - ini error table dump
+ * @header: header of the region
+ * @version: error table version
+ * @data: data of memory ranges in this region,
+ *	see &struct iwl_fw_ini_error_dump_range
+ */
+struct iwl_fw_ini_err_table_dump {
+	struct iwl_fw_ini_error_dump_header header;
+	__le32 version;
+	u8 data[];
 } __packed;
 
 /**
  * struct iwl_fw_error_dump_rb - content of an Receive Buffer
  * @index: the index of the Receive Buffer in the Rx queue
  * @rxq: the RB's Rx queue
- * @reserved:
+ * @reserved: reserved
  * @data: the content of the Receive Buffer
  */
 struct iwl_fw_error_dump_rb {
@@ -457,20 +458,38 @@ struct iwl_fw_error_dump_rb {
  * @header: header of the region
  * @write_ptr: write pointer position in the buffer
  * @cycle_cnt: cycles count
- * @ranges: the memory ranges of this this region
+ * @cur_frag: current fragment in use
+ * @data: data of memory ranges in this region,
+ *	see &struct iwl_fw_ini_error_dump_range
  */
 struct iwl_fw_ini_monitor_dump {
 	struct iwl_fw_ini_error_dump_header header;
 	__le32 write_ptr;
 	__le32 cycle_cnt;
-	struct iwl_fw_ini_error_dump_range ranges[];
+	__le32 cur_frag;
+	u8 data[];
+} __packed;
+
+/**
+ * struct iwl_fw_ini_special_device_memory - special device memory
+ * @header: header of the region
+ * @type: type of special memory
+ * @version: struct special memory version
+ * @data: data of memory ranges in this region,
+ *	see &struct iwl_fw_ini_error_dump_range
+ */
+struct iwl_fw_ini_special_device_memory {
+	struct iwl_fw_ini_error_dump_header header;
+	__le16 type;
+	__le16 version;
+	u8 data[];
 } __packed;
 
 /**
  * struct iwl_fw_error_dump_paging - content of the UMAC's image page
  *	block on DRAM
  * @index: the index of the page block
- * @reserved:
+ * @reserved: reserved
  * @data: the content of the page block
  */
 struct iwl_fw_error_dump_paging {
@@ -493,6 +512,7 @@ iwl_fw_error_next_data(struct iwl_fw_error_dump_data *data)
 /**
  * enum iwl_fw_dbg_trigger - triggers available
  *
+ * @FW_DBG_TRIGGER_INVALID: invalid trigger value
  * @FW_DBG_TRIGGER_USER: trigger log collection by user
  *	This should not be defined as a trigger to the driver, but a value the
  *	driver should set to indicate that the trigger was initiated by the
@@ -512,14 +532,15 @@ iwl_fw_error_next_data(struct iwl_fw_error_dump_data *data)
  * @FW_DBG_TRIGGER_TIME_EVENT: trigger log collection upon time events related
  *	events.
  * @FW_DBG_TRIGGER_BA: trigger log collection upon BlockAck related events.
- * @FW_DBG_TX_LATENCY: trigger log collection when the tx latency goes above a
- *	threshold.
- * @FW_DBG_TDLS: trigger log collection upon TDLS related events.
+ * @FW_DBG_TRIGGER_TX_LATENCY: trigger log collection when the tx latency
+ *	goes above a threshold.
+ * @FW_DBG_TRIGGER_TDLS: trigger log collection upon TDLS related events.
  * @FW_DBG_TRIGGER_TX_STATUS: trigger log collection upon tx status when
  *  the firmware sends a tx reply.
  * @FW_DBG_TRIGGER_ALIVE_TIMEOUT: trigger log collection if alive flow timeouts
  * @FW_DBG_TRIGGER_DRIVER: trigger log collection upon a flow failure
  *	in the driver.
+ * @FW_DBG_TRIGGER_MAX: beyond triggers, number for sizing arrays etc.
  */
 enum iwl_fw_dbg_trigger {
 	FW_DBG_TRIGGER_INVALID = 0,

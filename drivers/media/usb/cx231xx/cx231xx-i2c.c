@@ -515,7 +515,8 @@ int cx231xx_i2c_register(struct cx231xx_i2c *bus)
 {
 	struct cx231xx *dev = bus->dev;
 
-	BUG_ON(!dev->cx231xx_send_usb_command);
+	if (!dev->cx231xx_send_usb_command)
+		return -EINVAL;
 
 	bus->i2c_adap = cx231xx_adap_template;
 	bus->i2c_adap.dev.parent = dev->dev;
@@ -566,10 +567,7 @@ int cx231xx_i2c_mux_create(struct cx231xx *dev)
 
 int cx231xx_i2c_mux_register(struct cx231xx *dev, int mux_no)
 {
-	return i2c_mux_add_adapter(dev->muxc,
-				   0,
-				   mux_no /* chan_id */,
-				   0 /* class */);
+	return i2c_mux_add_adapter(dev->muxc, 0, mux_no);
 }
 
 void cx231xx_i2c_mux_unregister(struct cx231xx *dev)

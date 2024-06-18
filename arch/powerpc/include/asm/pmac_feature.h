@@ -192,7 +192,7 @@ static inline long pmac_call_feature(int selector, struct device_node* node,
 
 /* PMAC_FTR_BMAC_ENABLE		(struct device_node* node, 0, int value)
  * enable/disable the bmac (ethernet) cell of a mac-io ASIC, also drive
- * it's reset line
+ * its reset line
  */
 #define PMAC_FTR_BMAC_ENABLE		PMAC_FTR_DEF(6)
 
@@ -400,6 +400,18 @@ extern u32 __iomem *uninorth_base;
  * 4 = U4
  */
 extern int pmac_get_uninorth_variant(void);
+
+/*
+ * Power macintoshes have either a CUDA, PMU or SMU controlling
+ * system reset, power, NVRAM, RTC.
+ */
+typedef enum sys_ctrler_kind {
+	SYS_CTRLER_UNKNOWN = 0,
+	SYS_CTRLER_CUDA = 1,
+	SYS_CTRLER_PMU = 2,
+	SYS_CTRLER_SMU = 3,
+} sys_ctrler_t;
+extern sys_ctrler_t sys_ctrler;
 
 #endif /* __ASM_POWERPC_PMAC_FEATURE_H */
 #endif /* __KERNEL__ */

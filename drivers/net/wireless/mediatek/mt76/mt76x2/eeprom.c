@@ -4,6 +4,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/of.h>
 #include <asm/unaligned.h>
 #include "mt76x2.h"
 #include "eeprom.h"
@@ -15,7 +16,7 @@ mt76x2_eeprom_get_macaddr(struct mt76x02_dev *dev)
 {
 	void *src = dev->mt76.eeprom.data + MT_EE_MAC_ADDR;
 
-	memcpy(dev->mt76.macaddr, src, ETH_ALEN);
+	memcpy(dev->mphy.macaddr, src, ETH_ALEN);
 	return 0;
 }
 
@@ -76,6 +77,7 @@ mt76x2_apply_cal_free_data(struct mt76x02_dev *dev, u8 *efuse)
 		MT_EE_RF_5G_GRP4_5_RX_HIGH_GAIN,
 		MT_EE_RF_5G_GRP4_5_RX_HIGH_GAIN + 1,
 	};
+	struct device_node *np = dev->mt76.dev->of_node;
 	u8 *eeprom = dev->mt76.eeprom.data;
 	u8 prev_grp0[4] = {
 		eeprom[MT_EE_TX_POWER_0_START_5G],
@@ -85,6 +87,9 @@ mt76x2_apply_cal_free_data(struct mt76x02_dev *dev, u8 *efuse)
 	};
 	u16 val;
 	int i;
+
+	if (!np || !of_property_read_bool(np, "mediatek,eeprom-merge-otp"))
+		return;
 
 	if (!mt76x2_has_cal_free_data(dev, efuse))
 		return;
@@ -248,10 +253,11 @@ mt76x2_get_5g_rx_gain(struct mt76x02_dev *dev, u8 channel)
 
 void mt76x2_read_rx_gain(struct mt76x02_dev *dev)
 {
-	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
+	struct ieee80211_channel *chan = dev->mphy.chandef.chan;
 	int channel = chan->hw_value;
 	s8 lna_5g[3], lna_2g;
-	u8 lna;
+	bool use_lna;
+	u8 lna = 0;
 	u16 val;
 
 	if (chan->band == NL80211_BAND_2GHZ)
@@ -270,12 +276,20 @@ void mt76x2_read_rx_gain(struct mt76x02_dev *dev)
 	dev->cal.rx.mcu_gain |= (lna_5g[1] & 0xff) << 16;
 	dev->cal.rx.mcu_gain |= (lna_5g[2] & 0xff) << 24;
 
-	lna = mt76x02_get_lna_gain(dev, &lna_2g, lna_5g, chan);
+	val = mt76x02_eeprom_get(dev, MT_EE_NIC_CONF_1);
+	if (chan->band == NL80211_BAND_2GHZ)
+		use_lna = !(val & MT_EE_NIC_CONF_1_LNA_EXT_2G);
+	else
+		use_lna = !(val & MT_EE_NIC_CONF_1_LNA_EXT_5G);
+
+	if (use_lna)
+		lna = mt76x02_get_lna_gain(dev, &lna_2g, lna_5g, chan);
+
 	dev->cal.rx.lna_gain = mt76x02_sign_extend(lna, 8);
 }
 EXPORT_SYMBOL_GPL(mt76x2_read_rx_gain);
 
-void mt76x2_get_rate_power(struct mt76x02_dev *dev, struct mt76_rate_power *t,
+void mt76x2_get_rate_power(struct mt76x02_dev *dev, struct mt76x02_rate_power *t,
 			   struct ieee80211_channel *chan)
 {
 	bool is_5ghz;
@@ -319,22 +333,10 @@ void mt76x2_get_rate_power(struct mt76x02_dev *dev, struct mt76_rate_power *t,
 	t->ht[12] = t->ht[13] = mt76x02_rate_power_val(val);
 	t->ht[14] = t->ht[15] = mt76x02_rate_power_val(val >> 8);
 
-	val = mt76x02_eeprom_get(dev, MT_EE_TX_POWER_VHT_MCS0);
-	t->vht[0] = t->vht[1] = mt76x02_rate_power_val(val);
-	t->vht[2] = t->vht[3] = mt76x02_rate_power_val(val >> 8);
-
-	val = mt76x02_eeprom_get(dev, MT_EE_TX_POWER_VHT_MCS4);
-	t->vht[4] = t->vht[5] = mt76x02_rate_power_val(val);
-	t->vht[6] = t->vht[7] = mt76x02_rate_power_val(val >> 8);
-
 	val = mt76x02_eeprom_get(dev, MT_EE_TX_POWER_VHT_MCS8);
 	if (!is_5ghz)
 		val >>= 8;
-	t->vht[8] = t->vht[9] = mt76x02_rate_power_val(val >> 8);
-
-	memcpy(t->stbc, t->ht, sizeof(t->stbc[0]) * 8);
-	t->stbc[8] = t->vht[8];
-	t->stbc[9] = t->vht[9];
+	t->vht[0] = t->vht[1] = mt76x02_rate_power_val(val >> 8);
 }
 EXPORT_SYMBOL_GPL(mt76x2_get_rate_power);
 
@@ -455,7 +457,7 @@ EXPORT_SYMBOL_GPL(mt76x2_get_power_info);
 
 int mt76x2_get_temp_comp(struct mt76x02_dev *dev, struct mt76x2_temp_comp *t)
 {
-	enum nl80211_band band = dev->mt76.chandef.chan->band;
+	enum nl80211_band band = dev->mphy.chandef.chan->band;
 	u16 val, slope;
 	u8 bounds;
 
@@ -497,11 +499,12 @@ int mt76x2_eeprom_init(struct mt76x02_dev *dev)
 
 	mt76x02_eeprom_parse_hw_cap(dev);
 	mt76x2_eeprom_get_macaddr(dev);
-	mt76_eeprom_override(&dev->mt76);
-	dev->mt76.macaddr[0] &= ~BIT(1);
+	mt76_eeprom_override(&dev->mphy);
+	dev->mphy.macaddr[0] &= ~BIT(1);
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mt76x2_eeprom_init);
 
+MODULE_DESCRIPTION("MediaTek MT76x2 EEPROM helpers");
 MODULE_LICENSE("Dual BSD/GPL");

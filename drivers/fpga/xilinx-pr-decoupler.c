@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017, National Instruments Corp.
- * Copyright (c) 2017, Xilix Inc
+ * Copyright (c) 2017, Xilinx Inc
  *
  * FPGA Bridge Driver for the Xilinx LogiCORE Partial Reconfiguration
  * Decoupler IP Core.
@@ -10,15 +10,22 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
-#include <linux/of_device.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/fpga/fpga-bridge.h>
 
 #define CTRL_CMD_DECOUPLE	BIT(0)
 #define CTRL_CMD_COUPLE		0
 #define CTRL_OFFSET		0
 
+struct xlnx_config_data {
+	const char *name;
+};
+
 struct xlnx_pr_decoupler_data {
+	const struct xlnx_config_data *ipconfig;
 	void __iomem *io_base;
 	struct clk *clk;
 };
@@ -64,7 +71,7 @@ static int xlnx_pr_decoupler_enable_show(struct fpga_bridge *bridge)
 	if (err)
 		return err;
 
-	status = readl(priv->io_base);
+	status = xlnx_pr_decouple_read(priv, CTRL_OFFSET);
 
 	clk_disable(priv->clk);
 
@@ -76,9 +83,21 @@ static const struct fpga_bridge_ops xlnx_pr_decoupler_br_ops = {
 	.enable_show = xlnx_pr_decoupler_enable_show,
 };
 
+static const struct xlnx_config_data decoupler_config = {
+	.name = "Xilinx PR Decoupler",
+};
+
+static const struct xlnx_config_data shutdown_config = {
+	.name = "Xilinx DFX AXI Shutdown Manager",
+};
+
 static const struct of_device_id xlnx_pr_decoupler_of_match[] = {
-	{ .compatible = "xlnx,pr-decoupler-1.00", },
-	{ .compatible = "xlnx,pr-decoupler", },
+	{ .compatible = "xlnx,pr-decoupler-1.00", .data = &decoupler_config },
+	{ .compatible = "xlnx,pr-decoupler", .data = &decoupler_config },
+	{ .compatible = "xlnx,dfx-axi-shutdown-manager-1.00",
+					.data = &shutdown_config },
+	{ .compatible = "xlnx,dfx-axi-shutdown-manager",
+					.data = &shutdown_config },
 	{},
 };
 MODULE_DEVICE_TABLE(of, xlnx_pr_decoupler_of_match);
@@ -88,22 +107,21 @@ static int xlnx_pr_decoupler_probe(struct platform_device *pdev)
 	struct xlnx_pr_decoupler_data *priv;
 	struct fpga_bridge *br;
 	int err;
-	struct resource *res;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->io_base = devm_ioremap_resource(&pdev->dev, res);
+	priv->ipconfig = device_get_match_data(&pdev->dev);
+
+	priv->io_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->io_base))
 		return PTR_ERR(priv->io_base);
 
 	priv->clk = devm_clk_get(&pdev->dev, "aclk");
-	if (IS_ERR(priv->clk)) {
-		dev_err(&pdev->dev, "input clock not found\n");
-		return PTR_ERR(priv->clk);
-	}
+	if (IS_ERR(priv->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(priv->clk),
+				     "input clock not found\n");
 
 	err = clk_prepare_enable(priv->clk);
 	if (err) {
@@ -113,20 +131,16 @@ static int xlnx_pr_decoupler_probe(struct platform_device *pdev)
 
 	clk_disable(priv->clk);
 
-	br = devm_fpga_bridge_create(&pdev->dev, "Xilinx PR Decoupler",
-				     &xlnx_pr_decoupler_br_ops, priv);
-	if (!br) {
-		err = -ENOMEM;
+	br = fpga_bridge_register(&pdev->dev, priv->ipconfig->name,
+				  &xlnx_pr_decoupler_br_ops, priv);
+	if (IS_ERR(br)) {
+		err = PTR_ERR(br);
+		dev_err(&pdev->dev, "unable to register %s",
+			priv->ipconfig->name);
 		goto err_clk;
 	}
 
 	platform_set_drvdata(pdev, br);
-
-	err = fpga_bridge_register(br);
-	if (err) {
-		dev_err(&pdev->dev, "unable to register Xilinx PR Decoupler");
-		goto err_clk;
-	}
 
 	return 0;
 
@@ -136,7 +150,7 @@ err_clk:
 	return err;
 }
 
-static int xlnx_pr_decoupler_remove(struct platform_device *pdev)
+static void xlnx_pr_decoupler_remove(struct platform_device *pdev)
 {
 	struct fpga_bridge *bridge = platform_get_drvdata(pdev);
 	struct xlnx_pr_decoupler_data *p = bridge->priv;
@@ -144,16 +158,14 @@ static int xlnx_pr_decoupler_remove(struct platform_device *pdev)
 	fpga_bridge_unregister(bridge);
 
 	clk_unprepare(p->clk);
-
-	return 0;
 }
 
 static struct platform_driver xlnx_pr_decoupler_driver = {
 	.probe = xlnx_pr_decoupler_probe,
-	.remove = xlnx_pr_decoupler_remove,
+	.remove_new = xlnx_pr_decoupler_remove,
 	.driver = {
 		.name = "xlnx_pr_decoupler",
-		.of_match_table = of_match_ptr(xlnx_pr_decoupler_of_match),
+		.of_match_table = xlnx_pr_decoupler_of_match,
 	},
 };
 

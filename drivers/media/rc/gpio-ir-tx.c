@@ -19,8 +19,6 @@ struct gpio_ir {
 	struct gpio_desc *gpio;
 	unsigned int carrier;
 	unsigned int duty_cycle;
-	/* we need a spinlock to hold the cpu while transmitting */
-	spinlock_t lock;
 };
 
 static const struct of_device_id gpio_ir_tx_of_match[] = {
@@ -42,7 +40,7 @@ static int gpio_ir_tx_set_carrier(struct rc_dev *dev, u32 carrier)
 {
 	struct gpio_ir *gpio_ir = dev->priv;
 
-	if (!carrier)
+	if (carrier > 500000)
 		return -EINVAL;
 
 	gpio_ir->carrier = carrier;
@@ -50,11 +48,53 @@ static int gpio_ir_tx_set_carrier(struct rc_dev *dev, u32 carrier)
 	return 0;
 }
 
-static int gpio_ir_tx(struct rc_dev *dev, unsigned int *txbuf,
-		      unsigned int count)
+static void delay_until(ktime_t until)
 {
-	struct gpio_ir *gpio_ir = dev->priv;
-	unsigned long flags;
+	/*
+	 * delta should never exceed 0.5 seconds (IR_MAX_DURATION) and on
+	 * m68k ndelay(s64) does not compile; so use s32 rather than s64.
+	 */
+	s32 delta;
+
+	while (true) {
+		delta = ktime_us_delta(until, ktime_get());
+		if (delta <= 0)
+			return;
+
+		/* udelay more than 1ms may not work */
+		if (delta >= 1000) {
+			mdelay(delta / 1000);
+			continue;
+		}
+
+		udelay(delta);
+		break;
+	}
+}
+
+static void gpio_ir_tx_unmodulated(struct gpio_ir *gpio_ir, uint *txbuf,
+				   uint count)
+{
+	ktime_t edge;
+	int i;
+
+	local_irq_disable();
+
+	edge = ktime_get();
+
+	for (i = 0; i < count; i++) {
+		gpiod_set_value(gpio_ir->gpio, !(i % 2));
+
+		edge = ktime_add_us(edge, txbuf[i]);
+		delay_until(edge);
+	}
+
+	gpiod_set_value(gpio_ir->gpio, 0);
+}
+
+static void gpio_ir_tx_modulated(struct gpio_ir *gpio_ir, uint *txbuf,
+				 uint count)
+{
 	ktime_t edge;
 	/*
 	 * delta should never exceed 0.5 seconds (IR_MAX_DURATION) and on
@@ -70,7 +110,7 @@ static int gpio_ir_tx(struct rc_dev *dev, unsigned int *txbuf,
 	space = DIV_ROUND_CLOSEST((100 - gpio_ir->duty_cycle) *
 				  (NSEC_PER_SEC / 100), gpio_ir->carrier);
 
-	spin_lock_irqsave(&gpio_ir->lock, flags);
+	local_irq_disable();
 
 	edge = ktime_get();
 
@@ -78,14 +118,7 @@ static int gpio_ir_tx(struct rc_dev *dev, unsigned int *txbuf,
 		if (i % 2) {
 			// space
 			edge = ktime_add_us(edge, txbuf[i]);
-			delta = ktime_us_delta(edge, ktime_get());
-			if (delta > 10) {
-				spin_unlock_irqrestore(&gpio_ir->lock, flags);
-				usleep_range(delta, delta + 10);
-				spin_lock_irqsave(&gpio_ir->lock, flags);
-			} else if (delta > 0) {
-				udelay(delta);
-			}
+			delay_until(edge);
 		} else {
 			// pulse
 			ktime_t last = ktime_add_us(edge, txbuf[i]);
@@ -108,8 +141,20 @@ static int gpio_ir_tx(struct rc_dev *dev, unsigned int *txbuf,
 			edge = last;
 		}
 	}
+}
 
-	spin_unlock_irqrestore(&gpio_ir->lock, flags);
+static int gpio_ir_tx(struct rc_dev *dev, unsigned int *txbuf,
+		      unsigned int count)
+{
+	struct gpio_ir *gpio_ir = dev->priv;
+	unsigned long flags;
+
+	local_irq_save(flags);
+	if (gpio_ir->carrier)
+		gpio_ir_tx_modulated(gpio_ir, txbuf, count);
+	else
+		gpio_ir_tx_unmodulated(gpio_ir, txbuf, count);
+	local_irq_restore(flags);
 
 	return count;
 }
@@ -129,12 +174,9 @@ static int gpio_ir_tx_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	gpio_ir->gpio = devm_gpiod_get(&pdev->dev, NULL, GPIOD_OUT_LOW);
-	if (IS_ERR(gpio_ir->gpio)) {
-		if (PTR_ERR(gpio_ir->gpio) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Failed to get gpio (%ld)\n",
-				PTR_ERR(gpio_ir->gpio));
-		return PTR_ERR(gpio_ir->gpio);
-	}
+	if (IS_ERR(gpio_ir->gpio))
+		return dev_err_probe(&pdev->dev, PTR_ERR(gpio_ir->gpio),
+				     "Failed to get gpio\n");
 
 	rcdev->priv = gpio_ir;
 	rcdev->driver_name = DRIVER_NAME;
@@ -145,7 +187,6 @@ static int gpio_ir_tx_probe(struct platform_device *pdev)
 
 	gpio_ir->carrier = 38000;
 	gpio_ir->duty_cycle = 50;
-	spin_lock_init(&gpio_ir->lock);
 
 	rc = devm_rc_register_device(&pdev->dev, rcdev);
 	if (rc < 0)
@@ -158,7 +199,7 @@ static struct platform_driver gpio_ir_tx_driver = {
 	.probe	= gpio_ir_tx_probe,
 	.driver = {
 		.name	= DRIVER_NAME,
-		.of_match_table = of_match_ptr(gpio_ir_tx_of_match),
+		.of_match_table = gpio_ir_tx_of_match,
 	},
 };
 module_platform_driver(gpio_ir_tx_driver);

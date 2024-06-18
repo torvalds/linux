@@ -5,8 +5,6 @@
  *
  * Licensed under the GNU/GPL. See COPYING for details.
  */
-#include <linux/of_platform.h>
-#include <asm/hardware/cache-l2x0.h>
 
 #include <asm/mach/arch.h>
 #include <asm/siginfo.h>

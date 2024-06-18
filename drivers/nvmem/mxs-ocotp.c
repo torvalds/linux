@@ -13,8 +13,9 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/nvmem-provider.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/stmp_device.h>
 
@@ -130,16 +131,20 @@ static const struct of_device_id mxs_ocotp_match[] = {
 };
 MODULE_DEVICE_TABLE(of, mxs_ocotp_match);
 
+static void mxs_ocotp_action(void *data)
+{
+	clk_unprepare(data);
+}
+
 static int mxs_ocotp_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	const struct mxs_data *data;
 	struct mxs_ocotp *otp;
-	const struct of_device_id *match;
 	int ret;
 
-	match = of_match_device(dev->driver->of_match_table, dev);
-	if (!match || !match->data)
+	data = device_get_match_data(dev);
+	if (!data)
 		return -EINVAL;
 
 	otp = devm_kzalloc(dev, sizeof(*otp), GFP_KERNEL);
@@ -160,39 +165,24 @@ static int mxs_ocotp_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	data = match->data;
+	ret = devm_add_action_or_reset(&pdev->dev, mxs_ocotp_action, otp->clk);
+	if (ret)
+		return ret;
 
 	ocotp_config.size = data->size;
 	ocotp_config.priv = otp;
 	ocotp_config.dev = dev;
 	otp->nvmem = devm_nvmem_register(dev, &ocotp_config);
-	if (IS_ERR(otp->nvmem)) {
-		ret = PTR_ERR(otp->nvmem);
-		goto err_clk;
-	}
+	if (IS_ERR(otp->nvmem))
+		return PTR_ERR(otp->nvmem);
 
 	platform_set_drvdata(pdev, otp);
-
-	return 0;
-
-err_clk:
-	clk_unprepare(otp->clk);
-
-	return ret;
-}
-
-static int mxs_ocotp_remove(struct platform_device *pdev)
-{
-	struct mxs_ocotp *otp = platform_get_drvdata(pdev);
-
-	clk_unprepare(otp->clk);
 
 	return 0;
 }
 
 static struct platform_driver mxs_ocotp_driver = {
 	.probe = mxs_ocotp_probe,
-	.remove = mxs_ocotp_remove,
 	.driver = {
 		.name = "mxs-ocotp",
 		.of_match_table = mxs_ocotp_match,

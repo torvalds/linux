@@ -6,6 +6,8 @@
  * Author: Catalin Marinas <catalin.marinas@arm.com>
  */
 
+#include <asm/assembler.h>
+
 .macro fpsimd_save state, tmpnr
 	stp	q0, q1, [\state, #16 * 0]
 	stp	q2, q3, [\state, #16 * 2]
@@ -91,7 +93,14 @@
 	.endif
 .endm
 
+.macro _sme_check_wv v
+	.if (\v) < 12 || (\v) > 15
+		.error "Bad vector select register \v."
+	.endif
+.endm
+
 /* SVE instruction encodings for non-SVE-capable assemblers */
+/* (pre binutils 2.28, all kernel capable clang versions support SVE) */
 
 /* STR (vector): STR Z\nz, [X\nxbase, #\offset, MUL VL] */
 .macro _sve_str_v nz, nxbase, offset=0
@@ -164,53 +173,185 @@
 		| ((\np) << 5)
 .endm
 
+/* PFALSE P\np.B */
+.macro _sve_pfalse np
+	_sve_check_preg \np
+	.inst	0x2518e400			\
+		| (\np)
+.endm
+
+/* SME instruction encodings for non-SME-capable assemblers */
+/* (pre binutils 2.38/LLVM 13) */
+
+/* RDSVL X\nx, #\imm */
+.macro _sme_rdsvl nx, imm
+	_check_general_reg \nx
+	_check_num (\imm), -0x20, 0x1f
+	.inst	0x04bf5800			\
+		| (\nx)				\
+		| (((\imm) & 0x3f) << 5)
+.endm
+
+/*
+ * STR (vector from ZA array):
+ *	STR ZA[\nw, #\offset], [X\nxbase, #\offset, MUL VL]
+ */
+.macro _sme_str_zav nw, nxbase, offset=0
+	_sme_check_wv \nw
+	_check_general_reg \nxbase
+	_check_num (\offset), -0x100, 0xff
+	.inst	0xe1200000			\
+		| (((\nw) & 3) << 13)		\
+		| ((\nxbase) << 5)		\
+		| ((\offset) & 7)
+.endm
+
+/*
+ * LDR (vector to ZA array):
+ *	LDR ZA[\nw, #\offset], [X\nxbase, #\offset, MUL VL]
+ */
+.macro _sme_ldr_zav nw, nxbase, offset=0
+	_sme_check_wv \nw
+	_check_general_reg \nxbase
+	_check_num (\offset), -0x100, 0xff
+	.inst	0xe1000000			\
+		| (((\nw) & 3) << 13)		\
+		| ((\nxbase) << 5)		\
+		| ((\offset) & 7)
+.endm
+
+/*
+ * LDR (ZT0)
+ *
+ *	LDR ZT0, nx
+ */
+.macro _ldr_zt nx
+	_check_general_reg \nx
+	.inst	0xe11f8000	\
+		 | (\nx << 5)
+.endm
+
+/*
+ * STR (ZT0)
+ *
+ *	STR ZT0, nx
+ */
+.macro _str_zt nx
+	_check_general_reg \nx
+	.inst	0xe13f8000		\
+		| (\nx << 5)
+.endm
+
 .macro __for from:req, to:req
 	.if (\from) == (\to)
-		_for__body \from
+		_for__body %\from
 	.else
-		__for \from, (\from) + ((\to) - (\from)) / 2
-		__for (\from) + ((\to) - (\from)) / 2 + 1, \to
+		__for %\from, %((\from) + ((\to) - (\from)) / 2)
+		__for %((\from) + ((\to) - (\from)) / 2 + 1), %\to
 	.endif
 .endm
 
 .macro _for var:req, from:req, to:req, insn:vararg
 	.macro _for__body \var:req
+		.noaltmacro
 		\insn
+		.altmacro
 	.endm
 
+	.altmacro
 	__for \from, \to
+	.noaltmacro
 
 	.purgem _for__body
 .endm
 
-.macro sve_save nxbase, xpfpsr, nxtmp
+/* Update ZCR_EL1.LEN with the new VQ */
+.macro sve_load_vq xvqminus1, xtmp, xtmp2
+		mrs_s		\xtmp, SYS_ZCR_EL1
+		bic		\xtmp2, \xtmp, ZCR_ELx_LEN_MASK
+		orr		\xtmp2, \xtmp2, \xvqminus1
+		cmp		\xtmp2, \xtmp
+		b.eq		921f
+		msr_s		SYS_ZCR_EL1, \xtmp2	//self-synchronising
+921:
+.endm
+
+/* Update SMCR_EL1.LEN with the new VQ */
+.macro sme_load_vq xvqminus1, xtmp, xtmp2
+		mrs_s		\xtmp, SYS_SMCR_EL1
+		bic		\xtmp2, \xtmp, SMCR_ELx_LEN_MASK
+		orr		\xtmp2, \xtmp2, \xvqminus1
+		cmp		\xtmp2, \xtmp
+		b.eq		921f
+		msr_s		SYS_SMCR_EL1, \xtmp2	//self-synchronising
+921:
+.endm
+
+/* Preserve the first 128-bits of Znz and zero the rest. */
+.macro _sve_flush_z nz
+	_sve_check_zreg \nz
+	mov	v\nz\().16b, v\nz\().16b
+.endm
+
+.macro sve_flush_z
+ _for n, 0, 31, _sve_flush_z	\n
+.endm
+.macro sve_flush_p
+ _for n, 0, 15, _sve_pfalse	\n
+.endm
+.macro sve_flush_ffr
+		_sve_wrffr	0
+.endm
+
+.macro sve_save nxbase, xpfpsr, save_ffr, nxtmp
  _for n, 0, 31,	_sve_str_v	\n, \nxbase, \n - 34
  _for n, 0, 15,	_sve_str_p	\n, \nxbase, \n - 16
+		cbz		\save_ffr, 921f
 		_sve_rdffr	0
+		b		922f
+921:
+		_sve_pfalse	0			// Zero out FFR
+922:
 		_sve_str_p	0, \nxbase
 		_sve_ldr_p	0, \nxbase, -16
-
 		mrs		x\nxtmp, fpsr
 		str		w\nxtmp, [\xpfpsr]
 		mrs		x\nxtmp, fpcr
 		str		w\nxtmp, [\xpfpsr, #4]
 .endm
 
-.macro sve_load nxbase, xpfpsr, xvqminus1, nxtmp, xtmp2
-		mrs_s		x\nxtmp, SYS_ZCR_EL1
-		bic		\xtmp2, x\nxtmp, ZCR_ELx_LEN_MASK
-		orr		\xtmp2, \xtmp2, \xvqminus1
-		cmp		\xtmp2, x\nxtmp
-		b.eq		921f
-		msr_s		SYS_ZCR_EL1, \xtmp2	// self-synchronising
-921:
+.macro sve_load nxbase, xpfpsr, restore_ffr, nxtmp
  _for n, 0, 31,	_sve_ldr_v	\n, \nxbase, \n - 34
+		cbz		\restore_ffr, 921f
 		_sve_ldr_p	0, \nxbase
 		_sve_wrffr	0
+921:
  _for n, 0, 15,	_sve_ldr_p	\n, \nxbase, \n - 16
 
 		ldr		w\nxtmp, [\xpfpsr]
 		msr		fpsr, x\nxtmp
 		ldr		w\nxtmp, [\xpfpsr, #4]
 		msr		fpcr, x\nxtmp
+.endm
+
+.macro sme_save_za nxbase, xvl, nw
+	mov	w\nw, #0
+
+423:
+	_sme_str_zav \nw, \nxbase
+	add	x\nxbase, x\nxbase, \xvl
+	add	x\nw, x\nw, #1
+	cmp	\xvl, x\nw
+	bne	423b
+.endm
+
+.macro sme_load_za nxbase, xvl, nw
+	mov	w\nw, #0
+
+423:
+	_sme_ldr_zav \nw, \nxbase
+	add	x\nxbase, x\nxbase, \xvl
+	add	x\nw, x\nw, #1
+	cmp	\xvl, x\nw
+	bne	423b
 .endm

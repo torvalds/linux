@@ -12,6 +12,7 @@
 #include <as-layout.h>
 #include <init.h>
 #include <kern.h>
+#include <kern_util.h>
 #include <mem_user.h>
 #include <os.h>
 
@@ -161,15 +162,13 @@ __uml_setup("mem=", uml_mem_setup,
 "	Example: mem=64M\n\n"
 );
 
-extern int __init parse_iomem(char *str, int *add);
-
 __uml_setup("iomem=", parse_iomem,
 "iomem=<name>,<file>\n"
 "    Configure <file> as an IO memory region named <name>.\n\n"
 );
 
 /*
- * This list is constructed in parse_iomem and addresses filled in in
+ * This list is constructed in parse_iomem and addresses filled in
  * setup_iomem, both of which run during early boot.  Afterwards, it's
  * unchanged.
  */

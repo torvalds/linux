@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/fsl,imx8m-anatop.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP i.MX8M Family Anatop Module
+
+maintainers:
+  - Peng Fan <peng.fan@nxp.com>
+
+description: |
+  NXP i.MX8M Family anatop PLL module which generates PLL to CCM root.
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - fsl,imx8mm-anatop
+          - fsl,imx8mq-anatop
+      - items:
+          - enum:
+              - fsl,imx8mn-anatop
+              - fsl,imx8mp-anatop
+          - const: fsl,imx8mm-anatop
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  '#clock-cells':
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - '#clock-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    anatop: clock-controller@30360000 {
+        compatible = "fsl,imx8mn-anatop", "fsl,imx8mm-anatop";
+        reg = <0x30360000 0x10000>;
+        #clock-cells = <1>;
+    };
+
+...

@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/panel/samsung,s6e88a0-ams452ef01.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung AMS452EF01 AMOLED panel with S6E88A0 video mode DSI controller
+
+maintainers:
+  - Michael Srba <Michael.Srba@seznam.cz>
+
+allOf:
+  - $ref: panel-common.yaml#
+
+properties:
+  compatible:
+    const: samsung,s6e88a0-ams452ef01
+
+  reg:
+    maxItems: 1
+
+  port: true
+  reset-gpios: true
+  vdd3-supply:
+    description: core voltage supply
+  vci-supply:
+    description: voltage supply for analog circuits
+
+required:
+  - compatible
+  - reg
+  - port
+  - vdd3-supply
+  - vci-supply
+  - reset-gpios
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    dsi {
+            #address-cells = <1>;
+            #size-cells = <0>;
+            panel@0 {
+                    reg = <0>;
+
+                    compatible = "samsung,s6e88a0-ams452ef01";
+
+                    vdd3-supply = <&pm8916_l17>;
+                    vci-supply = <&reg_vlcd_vci>;
+                    reset-gpios = <&msmgpio 25 GPIO_ACTIVE_HIGH>;
+
+                    port {
+                            panel_in: endpoint {
+                                    remote-endpoint = <&dsi0_out>;
+                            };
+                    };
+            };
+    };

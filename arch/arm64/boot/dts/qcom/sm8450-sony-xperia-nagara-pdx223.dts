@@ -1,0 +1,288 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2022, Konrad Dybcio <konrad.dybcio@somainline.org>
+ * Copyright (c) 2022, Linaro Limited
+ */
+
+/dts-v1/;
+
+#include "sm8450-sony-xperia-nagara.dtsi"
+
+/ {
+	model = "Sony Xperia 1 IV";
+	compatible = "sony,pdx223", "qcom,sm8450";
+
+	imx316_lvdd_regulator: imx316-lvdd-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "imx316_lvdd_regulator";
+		gpio = <&pm8350b_gpios 6 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_pwr_ld_en>;
+	};
+
+	tcs3490_vdd_regulator: rgbcir-vdd-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "tcs3490_vdd_regulator";
+		gpio = <&pm8350c_gpios 6 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&rgbc_ir_pwr_en>;
+	};
+};
+
+&pm8350b_gpios {
+	gpio-line-names = "CAM_PWR_A_CS", /* GPIO_1 */
+			  "NC",
+			  "NC",
+			  "NC",
+			  "SNAPSHOT_N",
+			  "CAM_PWR_LD_EN",
+			  "NC",
+			  "FOCUS_N";
+
+	cam_pwr_ld_en: cam-pwr-ld-en-state {
+		pins = "gpio6";
+		function = "normal";
+		qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
+		power-source = <0>;
+		drive-push-pull;
+		output-low;
+	};
+};
+
+&pm8350c_gpios {
+	gpio-line-names = "FL_STROBE_TRIG_WIDE", /* GPIO_1 */
+			  "FL_STROBE_TRIG_TELE",
+			  "WLC_ID",
+			  "WLC_TXPWR_EN",
+			  "NC",
+			  "RGBC_IR_PWR_EN",
+			  "NC",
+			  "NC",
+			  "WIDEC_PWR_EN";
+
+	rgbc_ir_pwr_en: rgbc-ir-pwr-en-state {
+		pins = "gpio6";
+		function = "normal";
+		qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
+		power-source = <1>;
+		drive-push-pull;
+		output-low;
+	};
+};
+
+&tlmm {
+	gpio-line-names = "NC", /* GPIO_0 */
+			  "NC",
+			  "NC",
+			  "NC",
+			  "WLC_I2C_SDA",
+			  "WLC_I2C_SCL",
+			  "NC",
+			  "PM8010_1_RESET_N",
+			  "WLC_INT_N",
+			  "NC",
+			  "NC", /* GPIO_10 */
+			  "PM8010_2_RESET_N",
+			  "DISP_ERR_FG",
+			  "HALL_INT_N",
+			  "ALS_PROX_INT_N",
+			  "IMU1_INT",
+			  "TS_I2C_SDA",
+			  "TS_I2C_SCL",
+			  "DISP_RESET_N",
+			  "DISP_VDDR_EN",
+			  "TS_RESET_N", /* GPIO_20 */
+			  "TS_INT_N",
+			  "NC",
+			  "TELEC_PWR_EN",
+			  "CAM1_RESET_N",
+			  "LEO_CAM0_RESET_N",
+			  "DEBUG_UART_TX",
+			  "DEBUG_UART_RX",
+			  "FP_SPI_MISO",
+			  "FP_SPI_MOSI",
+			  "FP_SPI_CLK", /* GPIO_30 */
+			  "FP_SPI_CS_N",
+			  "NFC_I2C_SDA",
+			  "NFC_I2C_SCL",
+			  "NFC_EN",
+			  "NFC_CLK_REQ",
+			  "NFC_ESE_SPI_MISO",
+			  "NFC_ESE_SPI_MOSI",
+			  "NFC_ESE_SPI_CLK",
+			  "NFC_ESE_SPI_CS",
+			  "FP_INT_N", /* GPIO_40 */
+			  "NC",
+			  "FP_RESET_N",
+			  "WCD_RST_N",
+			  "NC",
+			  "NFC_DWL_REQ",
+			  "NFC_IRQ",
+			  "FORCE_USB_BOOT",
+			  "APPS_I2C_1_SDA",
+			  "APPS_I2C_1_SCL",
+			  "SBU_SW_OE", /* GPIO_50 */
+			  "SBU_SW_SEL",
+			  "SPK_AMP_I2C_SDA",
+			  "SPK_AMP_I2C_SCL",
+			  "NC",
+			  "NC",
+			  "CAMSENSOR_I2C_SDA",
+			  "CAMSENSOR_I2C_SCL",
+			  "GNSS_ELNA_EN0",
+			  "NC",
+			  "NC", /* GPIO_60 */
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "RGBC_IR_INT",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC", /* GPIO_70 */
+			  "NC",
+			  "HAP_I2C_SDA",
+			  "HAP_I2C_SCL",
+			  "HAP_RST_N",
+			  "HAP_INT_N",
+			  "HST_BT_UART_CTS",
+			  "HST_BT_UART_RFR",
+			  "HST_BT_UART_TX",
+			  "HST_BT_UART_RX",
+			  "HST_WLAN_EN", /* GPIO_80 */
+			  "HST_BT_EN",
+			  "HST_SW_CTRL",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "DISP_VSYNC",
+			  "NC",
+			  "NC",
+			  "HW_ID_0",
+			  "HW_ID_1", /* GPIO_90 */
+			  "USB_CC_DIR",
+			  "TRAY_DET",
+			  "SW_SERVICE",
+			  "PCIE0_RESET_N",
+			  "PCIE0_CLK_REQ_N",
+			  "PCIE0_WAKE_N",
+			  "OIS_ENABLE_WIDE",
+			  "DEBUG_GPIO0",
+			  "NC",
+			  "CAM_MCLK0", /* GPIO_100 */
+			  "CAM_MCLK1",
+			  "CAM_MCLK2",
+			  "CAM_MCLK3",
+			  "NC",
+			  "NC",
+			  "TOF_RST_N",
+			  "CAM_SOF",
+			  "NC",
+			  "AFEXPTMG_TELE",
+			  "CCI_I2C0_SDA", /* GPIO_110 */
+			  "CCI_I2C0_SCL",
+			  "CCI_I2C1_SDA",
+			  "CCI_I2C1_SCL",
+			  "CCI_I2C2_SDA",
+			  "CCI_I2C2_SCL",
+			  "NC",
+			  "CAM2_RESET_N",
+			  "NC",
+			  "EXT_VD0_XVS",
+			  "CAM3_RESET_N", /* GPIO_120 */
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "RF_ID_EXTENSION_2",
+			  "HAP_I2S_CLK",
+			  "HAP_I2S_DOUT",
+			  "HAP_TRG1",
+			  "HAP_I2S_SYNC",
+			  "UIM1_DATA", /* GPIO_130 */
+			  "UIM1_CLK",
+			  "UIM1_RESET",
+			  "TRAY_DET",
+			  "UIM2_DATA",
+			  "UIM2_CLK",
+			  "UIM2_RESET",
+			  "UIM2_PRESENT",
+			  "SM_RFFE0_CLK",
+			  "SM_RFFE0_DATA",
+			  "SM_RFFE1_CLK", /* GPIO_140 */
+			  "SM_RFFE1_DATA",
+			  "SM_MSS_GRFC4",
+			  "HST_AS_EN",
+			  "LAA_RX_EN",
+			  "NC",
+			  "SM_RFFE4_CLK",
+			  "SM_RFFE4_DATA",
+			  "WLAN_COEX_UART1_RX",
+			  "WLAN_COEX_UART1_TX",
+			  "RF_LCD_ID_EN", /* GPIO_150 */
+			  "RF_ID_EXTENSION",
+			  "SM_MSS_GRFC12",
+			  "NFC_COLD_RST",
+			  "NC",
+			  "NC",
+			  "SDR1_QLINK0_REQ",
+			  "SDR1_QLINK0_EN",
+			  "SDR1_QLINK0_WMSS_RESET_N",
+			  "QLINK1_REQ",
+			  "QLINK1_EN", /* GPIO_160 */
+			  "QLINK1_WMSS_RESET_N",
+			  "SDR2_QLINK2_REQ",
+			  "SDR2_QLINK2_EN",
+			  "SDR2_QLINK2_WMSS_RESET_N",
+			  "WCD_SWR_TX_CLK",
+			  "WCD_SWR_TX_DATA0",
+			  "WCD_SWR_TX_DATA1",
+			  "WCD_SWR_RX_CLK",
+			  "WCD_SWR_RX_DATA0",
+			  "WCD_SWR_RX_DATA1", /* GPIO_170 */
+			  "SM_DMIC1_CLK",
+			  "SM_DMIC1_DATA",
+			  "SM_DMIC2_CLK",
+			  "SM_DMIC2_DATA",
+			  "SPK_AMP_I2S_CLK",
+			  "SPK_AMP_I2S_WS",
+			  "NC",
+			  "NC",
+			  "WCD_SWR_TX_DATA2",
+			  "SPK_AMP_I2S_ASP_DIN", /* GPIO_180 */
+			  "SPK_AMP_I2S_ASP_DOUT",
+			  "SPK_AMP_INT_N",
+			  "SPK_AMP_RESET_N",
+			  "HST_BT_WLAN_SLIMBUS_CLK",
+			  "HST_BT_WLAN_SLIMBUS_DAT0",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "MAG_I2C_SDA", /* GPIO_190 */
+			  "MAG_I2C_SCL",
+			  "IMU_SPI_MISO",
+			  "IMU_SPI_MOSI",
+			  "IMU_SPI_CLK",
+			  "IMU_SPI_CS_N",
+			  "SENSOR_I2C_SDA",
+			  "SENSOR_I2C_SCL",
+			  "OIS_TELE_I2C_SDA",
+			  "OIS_TELE_I2C_SCL",
+			  "NC", /* GPIO_200 */
+			  "OIS_ENABLE_TELE",
+			  "HST_BLE_UART_TX",
+			  "HST_BLE_UART_RX",
+			  "HSTP_CLK_CFG_SEL",
+			  "NC",
+			  "APPS_I2C_0_SDA",
+			  "APPS_I2C_0_SCL",
+			  "CCI_I2C3_SDA",
+			  "CCI_I2C3_SCL";
+};

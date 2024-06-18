@@ -23,8 +23,6 @@
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *  Notes :
- *	This file must ONLY be built when CONFIG_GPIOLIB=y and
- *	 CONFIG_ALCHEMY_GPIO_INDIRECT=n, otherwise compilation will fail!
  *	au1000 SoC have only one GPIO block : GPIO1
  *	Au1100, Au15x0, Au12x0 have a second one : GPIO2
  *	Au1300 is totally different: 1 block with up to 128 GPIOs
@@ -33,7 +31,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <asm/mach-au1x00/gpio-au1000.h>
 #include <asm/mach-au1x00/gpio-au1300.h>
 

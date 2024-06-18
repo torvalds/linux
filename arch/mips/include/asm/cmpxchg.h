@@ -10,19 +10,9 @@
 
 #include <linux/bug.h>
 #include <linux/irqflags.h>
+#include <asm/asm.h>
 #include <asm/compiler.h>
-#include <asm/war.h>
-
-/*
- * Using a branch-likely instruction to check the result of an sc instruction
- * works around a bug present in R10000 CPUs prior to revision 3.0 that could
- * cause ll-sc sequences to execute non-atomically.
- */
-#if R10000_LLSC_WAR
-# define __scbeqz "beqzl"
-#else
-# define __scbeqz "beqz"
-#endif
+#include <asm/sync.h>
 
 /*
  * These functions doesn't exist, so if they are called you'll either:
@@ -46,18 +36,18 @@ extern unsigned long __xchg_called_with_bad_pointer(void)
 	__typeof(*(m)) __ret;						\
 									\
 	if (kernel_uses_llsc) {						\
-		loongson_llsc_mb();					\
 		__asm__ __volatile__(					\
 		"	.set	push				\n"	\
 		"	.set	noat				\n"	\
 		"	.set	push				\n"	\
 		"	.set	" MIPS_ISA_ARCH_LEVEL "		\n"	\
+		"	" __SYNC(full, loongson3_war) "		\n"	\
 		"1:	" ld "	%0, %2		# __xchg_asm	\n"	\
 		"	.set	pop				\n"	\
 		"	move	$1, %z3				\n"	\
 		"	.set	" MIPS_ISA_ARCH_LEVEL "		\n"	\
 		"	" st "	$1, %1				\n"	\
-		"\t" __scbeqz "	$1, 1b				\n"	\
+		"\t" __stringify(SC_BEQZ)	"	$1, 1b	\n"	\
 		"	.set	pop				\n"	\
 		: "=&r" (__ret), "=" GCC_OFF_SMALL_ASM() (*m)		\
 		: GCC_OFF_SMALL_ASM() (*m), "Jr" (val)			\
@@ -77,8 +67,8 @@ extern unsigned long __xchg_called_with_bad_pointer(void)
 extern unsigned long __xchg_small(volatile void *ptr, unsigned long val,
 				  unsigned int size);
 
-static inline unsigned long __xchg(volatile void *ptr, unsigned long x,
-				   int size)
+static __always_inline
+unsigned long __arch_xchg(volatile void *ptr, unsigned long x, int size)
 {
 	switch (size) {
 	case 1:
@@ -99,14 +89,20 @@ static inline unsigned long __xchg(volatile void *ptr, unsigned long x,
 	}
 }
 
-#define xchg(ptr, x)							\
+#define arch_xchg(ptr, x)						\
 ({									\
 	__typeof__(*(ptr)) __res;					\
 									\
-	smp_mb__before_llsc();						\
+	/*								\
+	 * In the Loongson3 workaround case __xchg_asm() already	\
+	 * contains a completion barrier prior to the LL, so we don't	\
+	 * need to emit an extra one here.				\
+	 */								\
+	if (__SYNC_loongson3_war == 0)					\
+		smp_mb__before_llsc();					\
 									\
 	__res = (__typeof__(*(ptr)))					\
-		__xchg((ptr), (unsigned long)(x), sizeof(*(ptr)));	\
+		__arch_xchg((ptr), (unsigned long)(x), sizeof(*(ptr)));	\
 									\
 	smp_llsc_mb();							\
 									\
@@ -118,25 +114,24 @@ static inline unsigned long __xchg(volatile void *ptr, unsigned long x,
 	__typeof(*(m)) __ret;						\
 									\
 	if (kernel_uses_llsc) {						\
-		loongson_llsc_mb();					\
 		__asm__ __volatile__(					\
 		"	.set	push				\n"	\
 		"	.set	noat				\n"	\
 		"	.set	push				\n"	\
 		"	.set	"MIPS_ISA_ARCH_LEVEL"		\n"	\
+		"	" __SYNC(full, loongson3_war) "		\n"	\
 		"1:	" ld "	%0, %2		# __cmpxchg_asm \n"	\
 		"	bne	%0, %z3, 2f			\n"	\
 		"	.set	pop				\n"	\
 		"	move	$1, %z4				\n"	\
 		"	.set	"MIPS_ISA_ARCH_LEVEL"		\n"	\
 		"	" st "	$1, %1				\n"	\
-		"\t" __scbeqz "	$1, 1b				\n"	\
+		"\t" __stringify(SC_BEQZ)	"	$1, 1b	\n"	\
 		"	.set	pop				\n"	\
-		"2:						\n"	\
+		"2:	" __SYNC(full, loongson3_war) "		\n"	\
 		: "=&r" (__ret), "=" GCC_OFF_SMALL_ASM() (*m)		\
 		: GCC_OFF_SMALL_ASM() (*m), "Jr" (old), "Jr" (new)	\
 		: __LLSC_CLOBBER);					\
-		loongson_llsc_mb();					\
 	} else {							\
 		unsigned long __flags;					\
 									\
@@ -153,8 +148,9 @@ static inline unsigned long __xchg(volatile void *ptr, unsigned long x,
 extern unsigned long __cmpxchg_small(volatile void *ptr, unsigned long old,
 				     unsigned long new, unsigned int size);
 
-static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
-				      unsigned long new, unsigned int size)
+static __always_inline
+unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
+			unsigned long new, unsigned int size)
 {
 	switch (size) {
 	case 1:
@@ -178,40 +174,54 @@ static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 	}
 }
 
-#define cmpxchg_local(ptr, old, new)					\
+#define arch_cmpxchg_local(ptr, old, new)				\
 	((__typeof__(*(ptr)))						\
 		__cmpxchg((ptr),					\
 			  (unsigned long)(__typeof__(*(ptr)))(old),	\
 			  (unsigned long)(__typeof__(*(ptr)))(new),	\
 			  sizeof(*(ptr))))
 
-#define cmpxchg(ptr, old, new)						\
+#define arch_cmpxchg(ptr, old, new)					\
 ({									\
 	__typeof__(*(ptr)) __res;					\
 									\
-	smp_mb__before_llsc();						\
-	__res = cmpxchg_local((ptr), (old), (new));			\
-	smp_llsc_mb();							\
+	/*								\
+	 * In the Loongson3 workaround case __cmpxchg_asm() already	\
+	 * contains a completion barrier prior to the LL, so we don't	\
+	 * need to emit an extra one here.				\
+	 */								\
+	if (__SYNC_loongson3_war == 0)					\
+		smp_mb__before_llsc();					\
+									\
+	__res = arch_cmpxchg_local((ptr), (old), (new));		\
+									\
+	/*								\
+	 * In the Loongson3 workaround case __cmpxchg_asm() already	\
+	 * contains a completion barrier after the SC, so we don't	\
+	 * need to emit an extra one here.				\
+	 */								\
+	if (__SYNC_loongson3_war == 0)					\
+		smp_llsc_mb();						\
 									\
 	__res;								\
 })
 
 #ifdef CONFIG_64BIT
-#define cmpxchg64_local(ptr, o, n)					\
+#define arch_cmpxchg64_local(ptr, o, n)					\
   ({									\
 	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
-	cmpxchg_local((ptr), (o), (n));					\
+	arch_cmpxchg_local((ptr), (o), (n));				\
   })
 
-#define cmpxchg64(ptr, o, n)						\
+#define arch_cmpxchg64(ptr, o, n)					\
   ({									\
 	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
-	cmpxchg((ptr), (o), (n));					\
+	arch_cmpxchg((ptr), (o), (n));					\
   })
 #else
 
 # include <asm-generic/cmpxchg-local.h>
-# define cmpxchg64_local(ptr, o, n) __cmpxchg64_local_generic((ptr), (o), (n))
+# define arch_cmpxchg64_local(ptr, o, n) __generic_cmpxchg64_local((ptr), (o), (n))
 
 # ifdef CONFIG_SMP
 
@@ -232,12 +242,13 @@ static inline unsigned long __cmpxchg64(volatile void *ptr,
 	 */
 	local_irq_save(flags);
 
-	loongson_llsc_mb();
 	asm volatile(
 	"	.set	push				\n"
 	"	.set	" MIPS_ISA_ARCH_LEVEL "		\n"
 	/* Load 64 bits from ptr */
+	"	" __SYNC(full, loongson3_war) "		\n"
 	"1:	lld	%L0, %3		# __cmpxchg64	\n"
+	"	.set	pop				\n"
 	/*
 	 * Split the 64 bit value we loaded into the 2 registers that hold the
 	 * ret variable.
@@ -265,12 +276,14 @@ static inline unsigned long __cmpxchg64(volatile void *ptr,
 	"	or	%L1, %L1, $at			\n"
 	"	.set	at				\n"
 #  endif
+	"	.set	push				\n"
+	"	.set	" MIPS_ISA_ARCH_LEVEL "		\n"
 	/* Attempt to store new at ptr */
 	"	scd	%L1, %2				\n"
 	/* If we failed, loop! */
-	"\t" __scbeqz "	%L1, 1b				\n"
+	"\t" __stringify(SC_BEQZ) "	%L1, 1b		\n"
+	"2:	" __SYNC(full, loongson3_war) "		\n"
 	"	.set	pop				\n"
-	"2:						\n"
 	: "=&r"(ret),
 	  "=&r"(tmp),
 	  "=" GCC_OFF_SMALL_ASM() (*(unsigned long long *)ptr)
@@ -278,13 +291,12 @@ static inline unsigned long __cmpxchg64(volatile void *ptr,
 	  "r" (old),
 	  "r" (new)
 	: "memory");
-	loongson_llsc_mb();
 
 	local_irq_restore(flags);
 	return ret;
 }
 
-#  define cmpxchg64(ptr, o, n) ({					\
+#  define arch_cmpxchg64(ptr, o, n) ({					\
 	unsigned long long __old = (__typeof__(*(ptr)))(o);		\
 	unsigned long long __new = (__typeof__(*(ptr)))(n);		\
 	__typeof__(*(ptr)) __res;					\
@@ -307,10 +319,8 @@ static inline unsigned long __cmpxchg64(volatile void *ptr,
 })
 
 # else /* !CONFIG_SMP */
-#  define cmpxchg64(ptr, o, n) cmpxchg64_local((ptr), (o), (n))
+#  define arch_cmpxchg64(ptr, o, n) arch_cmpxchg64_local((ptr), (o), (n))
 # endif /* !CONFIG_SMP */
 #endif /* !CONFIG_64BIT */
-
-#undef __scbeqz
 
 #endif /* __ASM_CMPXCHG_H */

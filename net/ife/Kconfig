@@ -4,7 +4,6 @@
 #
 
 menuconfig NET_IFE
-	depends on NET
 	tristate "Inter-FE based on IETF ForCES InterFE LFB"
 	default n
 	help

@@ -16,6 +16,7 @@
 #include <linux/types.h>
 
 /*
+ * UNUSED:
  * 1 for normal debug messages, 2 is very verbose. 0 to turn it off.
  */
 #define PACKET_DEBUG		1
@@ -28,17 +29,6 @@
  * How long we should hold a non-full packet before starting data gathering.
  */
 #define PACKET_WAIT_TIME	(HZ * 5 / 1000)
-
-/*
- * use drive write caching -- we need deferred error handling to be
- * able to successfully recover with this option (drive will return good
- * status as soon as the cdb is validated).
- */
-#if defined(CONFIG_CDROM_PKTCDVD_WCACHE)
-#define USE_WCACHING		1
-#else
-#define USE_WCACHING		0
-#endif
 
 /*
  * No user-servicable parts beyond this point ->

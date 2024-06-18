@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // Copyright(c) 2015-18 Intel Corporation.
 
 /*
@@ -72,9 +72,12 @@ skl_hda_add_dai_link(struct snd_soc_card *card, struct snd_soc_dai_link *link)
 	struct skl_hda_private *ctx = snd_soc_card_get_drvdata(card);
 	int ret = 0;
 
-	dev_dbg(card->dev, "%s: dai link name - %s\n", __func__, link->name);
+	dev_dbg(card->dev, "dai link name - %s\n", link->name);
 	link->platforms->name = ctx->platform_name;
 	link->nonatomic = 1;
+
+	if (!ctx->idisp_codec)
+		return 0;
 
 	if (strstr(link->name, "HDMI")) {
 		ret = skl_hda_hdmi_add_pcm(card, ctx->pcm_count);
@@ -89,17 +92,6 @@ skl_hda_add_dai_link(struct snd_soc_card *card, struct snd_soc_dai_link *link)
 	return ret;
 }
 
-static struct snd_soc_card hda_soc_card = {
-	.name = "skl_hda_card",
-	.owner = THIS_MODULE,
-	.dai_link = skl_hda_be_dai_links,
-	.dapm_widgets = skl_hda_widgets,
-	.dapm_routes = skl_hda_map,
-	.add_dai_link = skl_hda_add_dai_link,
-	.fully_routed = true,
-	.late_probe = skl_hda_card_late_probe,
-};
-
 #define IDISP_DAI_COUNT		3
 #define HDAC_DAI_COUNT		2
 #define DMIC_DAI_COUNT		2
@@ -108,17 +100,26 @@ static struct snd_soc_card hda_soc_card = {
 #define IDISP_ROUTE_COUNT	(IDISP_DAI_COUNT * 2)
 #define IDISP_CODEC_MASK	0x4
 
-static int skl_hda_fill_card_info(struct snd_soc_acpi_mach_params *mach_params)
+#define HDA_CODEC_AUTOSUSPEND_DELAY_MS 1000
+
+static int skl_hda_fill_card_info(struct snd_soc_card *card,
+				  struct snd_soc_acpi_mach_params *mach_params)
 {
-	struct snd_soc_card *card = &hda_soc_card;
+	struct skl_hda_private *ctx = snd_soc_card_get_drvdata(card);
 	struct snd_soc_dai_link *dai_link;
 	u32 codec_count, codec_mask;
 	int i, num_links, num_route;
 
 	codec_mask = mach_params->codec_mask;
 	codec_count = hweight_long(codec_mask);
+	ctx->idisp_codec = !!(codec_mask & IDISP_CODEC_MASK);
 
-	if (codec_count == 1 && codec_mask & IDISP_CODEC_MASK) {
+	if (!codec_count || codec_count > 2 ||
+	    (codec_count == 2 && !ctx->idisp_codec))
+		return -EINVAL;
+
+	if (codec_mask == IDISP_CODEC_MASK) {
+		/* topology with iDisp as the only HDA codec */
 		num_links = IDISP_DAI_COUNT + DMIC_DAI_COUNT;
 		num_route = IDISP_ROUTE_COUNT;
 
@@ -133,13 +134,20 @@ static int skl_hda_fill_card_info(struct snd_soc_acpi_mach_params *mach_params)
 				skl_hda_be_dai_links[IDISP_DAI_COUNT +
 					HDAC_DAI_COUNT + i];
 		}
-	} else if (codec_count == 2 && codec_mask & IDISP_CODEC_MASK) {
+	} else {
+		/* topology with external and iDisp HDA codecs */
 		num_links = ARRAY_SIZE(skl_hda_be_dai_links);
 		num_route = ARRAY_SIZE(skl_hda_map);
 		card->dapm_widgets = skl_hda_widgets;
 		card->num_dapm_widgets = ARRAY_SIZE(skl_hda_widgets);
-	} else {
-		return -EINVAL;
+		if (!ctx->idisp_codec) {
+			card->dapm_routes = &skl_hda_map[IDISP_ROUTE_COUNT];
+			num_route -= IDISP_ROUTE_COUNT;
+			for (i = 0; i < IDISP_DAI_COUNT; i++) {
+				skl_hda_be_dai_links[i].codecs = &snd_soc_dummy_dlc;
+				skl_hda_be_dai_links[i].num_codecs = 1;
+			}
+		}
 	}
 
 	card->num_links = num_links;
@@ -151,13 +159,37 @@ static int skl_hda_fill_card_info(struct snd_soc_acpi_mach_params *mach_params)
 	return 0;
 }
 
+static void skl_set_hda_codec_autosuspend_delay(struct snd_soc_card *card)
+{
+	struct snd_soc_pcm_runtime *rtd;
+	struct hdac_hda_priv *hda_pvt;
+	struct snd_soc_dai *dai;
+
+	for_each_card_rtds(card, rtd) {
+		if (!strstr(rtd->dai_link->codecs->name, "ehdaudio0D0"))
+			continue;
+		dai = snd_soc_rtd_to_codec(rtd, 0);
+		hda_pvt = snd_soc_component_get_drvdata(dai->component);
+		if (hda_pvt) {
+			/*
+			 * all codecs are on the same bus, so it's sufficient
+			 * to look up only the first one
+			 */
+			snd_hda_set_power_save(hda_pvt->codec->bus,
+					       HDA_CODEC_AUTOSUSPEND_DELAY_MS);
+			break;
+		}
+	}
+}
+
 static int skl_hda_audio_probe(struct platform_device *pdev)
 {
 	struct snd_soc_acpi_mach *mach;
 	struct skl_hda_private *ctx;
+	struct snd_soc_card *card;
 	int ret;
 
-	dev_dbg(&pdev->dev, "%s: entry\n", __func__);
+	dev_dbg(&pdev->dev, "entry\n");
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
@@ -165,24 +197,50 @@ static int skl_hda_audio_probe(struct platform_device *pdev)
 
 	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
 
-	mach = (&pdev->dev)->platform_data;
+	mach = pdev->dev.platform_data;
 	if (!mach)
 		return -EINVAL;
 
-	ret = skl_hda_fill_card_info(&mach->mach_params);
+	card = &ctx->card;
+	card->name = "hda-dsp",
+	card->owner = THIS_MODULE,
+	card->dai_link = skl_hda_be_dai_links,
+	card->dapm_widgets = skl_hda_widgets,
+	card->dapm_routes = skl_hda_map,
+	card->add_dai_link = skl_hda_add_dai_link,
+	card->fully_routed = true,
+	card->late_probe = skl_hda_card_late_probe,
+
+	snd_soc_card_set_drvdata(card, ctx);
+
+	ret = skl_hda_fill_card_info(card, &mach->mach_params);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Unsupported HDAudio/iDisp configuration found\n");
 		return ret;
 	}
 
-	ctx->pcm_count = hda_soc_card.num_links;
+	ctx->pcm_count = card->num_links;
 	ctx->dai_index = 1; /* hdmi codec dai name starts from index 1 */
 	ctx->platform_name = mach->mach_params.platform;
+	ctx->common_hdmi_codec_drv = mach->mach_params.common_hdmi_codec_drv;
 
-	hda_soc_card.dev = &pdev->dev;
-	snd_soc_card_set_drvdata(&hda_soc_card, ctx);
+	card->dev = &pdev->dev;
+	if (!snd_soc_acpi_sof_parent(&pdev->dev))
+		card->disable_route_checks = true;
 
-	return devm_snd_soc_register_card(&pdev->dev, &hda_soc_card);
+	if (mach->mach_params.dmic_num > 0) {
+		card->components = devm_kasprintf(card->dev, GFP_KERNEL,
+						  "cfg-dmics:%d",
+						  mach->mach_params.dmic_num);
+		if (!card->components)
+			return -ENOMEM;
+	}
+
+	ret = devm_snd_soc_register_card(&pdev->dev, card);
+	if (!ret)
+		skl_set_hda_codec_autosuspend_delay(card);
+
+	return ret;
 }
 
 static struct platform_driver skl_hda_audio = {
@@ -200,3 +258,4 @@ MODULE_DESCRIPTION("SKL/KBL/BXT/APL HDA Generic Machine driver");
 MODULE_AUTHOR("Rakesh Ughreja <rakesh.a.ughreja@intel.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:skl_hda_dsp_generic");
+MODULE_IMPORT_NS(SND_SOC_INTEL_HDA_DSP_COMMON);

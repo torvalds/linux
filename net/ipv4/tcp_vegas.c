@@ -159,7 +159,7 @@ EXPORT_SYMBOL_GPL(tcp_vegas_cwnd_event);
 
 static inline u32 tcp_vegas_ssthresh(struct tcp_sock *tp)
 {
-	return  min(tp->snd_ssthresh, tp->snd_cwnd);
+	return  min(tp->snd_ssthresh, tcp_snd_cwnd(tp));
 }
 
 static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack, u32 acked)
@@ -217,14 +217,14 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 			 * This is:
 			 *     (actual rate in segments) * baseRTT
 			 */
-			target_cwnd = (u64)tp->snd_cwnd * vegas->baseRTT;
+			target_cwnd = (u64)tcp_snd_cwnd(tp) * vegas->baseRTT;
 			do_div(target_cwnd, rtt);
 
 			/* Calculate the difference between the window we had,
 			 * and the window we would like to have. This quantity
 			 * is the "Diff" from the Arizona Vegas papers.
 			 */
-			diff = tp->snd_cwnd * (rtt-vegas->baseRTT) / vegas->baseRTT;
+			diff = tcp_snd_cwnd(tp) * (rtt-vegas->baseRTT) / vegas->baseRTT;
 
 			if (diff > gamma && tcp_in_slow_start(tp)) {
 				/* Going too fast. Time to slow down
@@ -238,7 +238,8 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 				 * truncation robs us of full link
 				 * utilization.
 				 */
-				tp->snd_cwnd = min(tp->snd_cwnd, (u32)target_cwnd+1);
+				tcp_snd_cwnd_set(tp, min(tcp_snd_cwnd(tp),
+							 (u32)target_cwnd + 1));
 				tp->snd_ssthresh = tcp_vegas_ssthresh(tp);
 
 			} else if (tcp_in_slow_start(tp)) {
@@ -254,14 +255,14 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 					/* The old window was too fast, so
 					 * we slow down.
 					 */
-					tp->snd_cwnd--;
+					tcp_snd_cwnd_set(tp, tcp_snd_cwnd(tp) - 1);
 					tp->snd_ssthresh
 						= tcp_vegas_ssthresh(tp);
 				} else if (diff < alpha) {
 					/* We don't have enough extra packets
 					 * in the network, so speed up.
 					 */
-					tp->snd_cwnd++;
+					tcp_snd_cwnd_set(tp, tcp_snd_cwnd(tp) + 1);
 				} else {
 					/* Sending just as fast as we
 					 * should be.
@@ -269,10 +270,10 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 				}
 			}
 
-			if (tp->snd_cwnd < 2)
-				tp->snd_cwnd = 2;
-			else if (tp->snd_cwnd > tp->snd_cwnd_clamp)
-				tp->snd_cwnd = tp->snd_cwnd_clamp;
+			if (tcp_snd_cwnd(tp) < 2)
+				tcp_snd_cwnd_set(tp, 2);
+			else if (tcp_snd_cwnd(tp) > tp->snd_cwnd_clamp)
+				tcp_snd_cwnd_set(tp, tp->snd_cwnd_clamp);
 
 			tp->snd_ssthresh = tcp_current_ssthresh(sk);
 		}
@@ -293,10 +294,10 @@ size_t tcp_vegas_get_info(struct sock *sk, u32 ext, int *attr,
 	const struct vegas *ca = inet_csk_ca(sk);
 
 	if (ext & (1 << (INET_DIAG_VEGASINFO - 1))) {
-		info->vegas.tcpv_enabled = ca->doing_vegas_now,
-		info->vegas.tcpv_rttcnt = ca->cntRTT,
-		info->vegas.tcpv_rtt = ca->baseRTT,
-		info->vegas.tcpv_minrtt = ca->minRTT,
+		info->vegas.tcpv_enabled = ca->doing_vegas_now;
+		info->vegas.tcpv_rttcnt = ca->cntRTT;
+		info->vegas.tcpv_rtt = ca->baseRTT;
+		info->vegas.tcpv_minrtt = ca->minRTT;
 
 		*attr = INET_DIAG_VEGASINFO;
 		return sizeof(struct tcpvegas_info);

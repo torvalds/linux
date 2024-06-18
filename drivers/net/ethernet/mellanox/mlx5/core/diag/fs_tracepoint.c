@@ -76,58 +76,59 @@ static void print_lyr_2_4_hdrs(struct trace_seq *p,
 		.v = MLX5_GET(fte_match_set_lyr_2_4, value, dmac_47_16) << 16 |
 		     MLX5_GET(fte_match_set_lyr_2_4, value, dmac_15_0)};
 	MASK_VAL_L2(u16, ethertype, ethertype);
+	MASK_VAL_L2(u8, ip_version, ip_version);
 
 	PRINT_MASKED_VALP(smac, u8 *, p, "%pM");
 	PRINT_MASKED_VALP(dmac, u8 *, p, "%pM");
 	PRINT_MASKED_VAL(ethertype, p, "%04x");
 
-	if (ethertype.m == 0xffff) {
-		if (ethertype.v == ETH_P_IP) {
+	if ((ethertype.m == 0xffff && ethertype.v == ETH_P_IP) ||
+	    (ip_version.m == 0xf && ip_version.v == 4)) {
 #define MASK_VAL_L2_BE(type, name, fld) \
 	MASK_VAL_BE(type, fte_match_set_lyr_2_4, name, mask, value, fld)
-			MASK_VAL_L2_BE(u32, src_ipv4,
-				       src_ipv4_src_ipv6.ipv4_layout.ipv4);
-			MASK_VAL_L2_BE(u32, dst_ipv4,
-				       dst_ipv4_dst_ipv6.ipv4_layout.ipv4);
+		MASK_VAL_L2_BE(u32, src_ipv4,
+			       src_ipv4_src_ipv6.ipv4_layout.ipv4);
+		MASK_VAL_L2_BE(u32, dst_ipv4,
+			       dst_ipv4_dst_ipv6.ipv4_layout.ipv4);
 
-			PRINT_MASKED_VALP(src_ipv4, typeof(&src_ipv4.v), p,
-					  "%pI4");
-			PRINT_MASKED_VALP(dst_ipv4, typeof(&dst_ipv4.v), p,
-					  "%pI4");
-		} else if (ethertype.v == ETH_P_IPV6) {
-			static const struct in6_addr full_ones = {
-				.in6_u.u6_addr32 = {__constant_htonl(0xffffffff),
-						    __constant_htonl(0xffffffff),
-						    __constant_htonl(0xffffffff),
-						    __constant_htonl(0xffffffff)},
-			};
-			DECLARE_MASK_VAL(struct in6_addr, src_ipv6);
-			DECLARE_MASK_VAL(struct in6_addr, dst_ipv6);
+		PRINT_MASKED_VALP(src_ipv4, typeof(&src_ipv4.v), p,
+				  "%pI4");
+		PRINT_MASKED_VALP(dst_ipv4, typeof(&dst_ipv4.v), p,
+				  "%pI4");
+	} else if ((ethertype.m == 0xffff && ethertype.v == ETH_P_IPV6) ||
+		   (ip_version.m == 0xf && ip_version.v == 6)) {
+		static const struct in6_addr full_ones = {
+			.in6_u.u6_addr32 = {__constant_htonl(0xffffffff),
+					    __constant_htonl(0xffffffff),
+					    __constant_htonl(0xffffffff),
+					    __constant_htonl(0xffffffff)},
+		};
+		DECLARE_MASK_VAL(struct in6_addr, src_ipv6);
+		DECLARE_MASK_VAL(struct in6_addr, dst_ipv6);
 
-			memcpy(src_ipv6.m.in6_u.u6_addr8,
-			       MLX5_ADDR_OF(fte_match_set_lyr_2_4, mask,
-					    src_ipv4_src_ipv6.ipv6_layout.ipv6),
-			       sizeof(src_ipv6.m));
-			memcpy(dst_ipv6.m.in6_u.u6_addr8,
-			       MLX5_ADDR_OF(fte_match_set_lyr_2_4, mask,
-					    dst_ipv4_dst_ipv6.ipv6_layout.ipv6),
-			       sizeof(dst_ipv6.m));
-			memcpy(src_ipv6.v.in6_u.u6_addr8,
-			       MLX5_ADDR_OF(fte_match_set_lyr_2_4, value,
-					    src_ipv4_src_ipv6.ipv6_layout.ipv6),
-			       sizeof(src_ipv6.v));
-			memcpy(dst_ipv6.v.in6_u.u6_addr8,
-			       MLX5_ADDR_OF(fte_match_set_lyr_2_4, value,
-					    dst_ipv4_dst_ipv6.ipv6_layout.ipv6),
-			       sizeof(dst_ipv6.v));
+		memcpy(src_ipv6.m.in6_u.u6_addr8,
+		       MLX5_ADDR_OF(fte_match_set_lyr_2_4, mask,
+				    src_ipv4_src_ipv6.ipv6_layout.ipv6),
+		       sizeof(src_ipv6.m));
+		memcpy(dst_ipv6.m.in6_u.u6_addr8,
+		       MLX5_ADDR_OF(fte_match_set_lyr_2_4, mask,
+				    dst_ipv4_dst_ipv6.ipv6_layout.ipv6),
+		       sizeof(dst_ipv6.m));
+		memcpy(src_ipv6.v.in6_u.u6_addr8,
+		       MLX5_ADDR_OF(fte_match_set_lyr_2_4, value,
+				    src_ipv4_src_ipv6.ipv6_layout.ipv6),
+		       sizeof(src_ipv6.v));
+		memcpy(dst_ipv6.v.in6_u.u6_addr8,
+		       MLX5_ADDR_OF(fte_match_set_lyr_2_4, value,
+				    dst_ipv4_dst_ipv6.ipv6_layout.ipv6),
+		       sizeof(dst_ipv6.v));
 
-			if (!memcmp(&src_ipv6.m, &full_ones, sizeof(full_ones)))
-				trace_seq_printf(p, "src_ipv6=%pI6 ",
-						 &src_ipv6.v);
-			if (!memcmp(&dst_ipv6.m, &full_ones, sizeof(full_ones)))
-				trace_seq_printf(p, "dst_ipv6=%pI6 ",
-						 &dst_ipv6.v);
-		}
+		if (!memcmp(&src_ipv6.m, &full_ones, sizeof(full_ones)))
+			trace_seq_printf(p, "src_ipv6=%pI6 ",
+					 &src_ipv6.v);
+		if (!memcmp(&dst_ipv6.m, &full_ones, sizeof(full_ones)))
+			trace_seq_printf(p, "dst_ipv6=%pI6 ",
+					 &dst_ipv6.v);
 	}
 
 #define PRINT_MASKED_VAL_L2(type, name, fld, p, format) {\
@@ -227,6 +228,17 @@ const char *parse_fs_hdrs(struct trace_seq *p,
 	return ret;
 }
 
+static const char
+*fs_dest_range_field_to_str(enum mlx5_flow_dest_range_field field)
+{
+	switch (field) {
+	case MLX5_FLOW_DEST_RANGE_FIELD_PKT_LEN:
+		return "packet len";
+	default:
+		return "unknown dest range field";
+	}
+}
+
 const char *parse_fs_dst(struct trace_seq *p,
 			 const struct mlx5_flow_destination *dst,
 			 u32 counter_id)
@@ -234,6 +246,9 @@ const char *parse_fs_dst(struct trace_seq *p,
 	const char *ret = trace_seq_buffer_ptr(p);
 
 	switch (dst->type) {
+	case MLX5_FLOW_DESTINATION_TYPE_UPLINK:
+		trace_seq_printf(p, "uplink\n");
+		break;
 	case MLX5_FLOW_DESTINATION_TYPE_VPORT:
 		trace_seq_printf(p, "vport=%u\n", dst->vport.num);
 		break;
@@ -246,11 +261,26 @@ const char *parse_fs_dst(struct trace_seq *p,
 	case MLX5_FLOW_DESTINATION_TYPE_TIR:
 		trace_seq_printf(p, "tir=%u\n", dst->tir_num);
 		break;
+	case MLX5_FLOW_DESTINATION_TYPE_FLOW_SAMPLER:
+		trace_seq_printf(p, "sampler_id=%u\n", dst->sampler_id);
+		break;
 	case MLX5_FLOW_DESTINATION_TYPE_COUNTER:
 		trace_seq_printf(p, "counter_id=%u\n", counter_id);
 		break;
 	case MLX5_FLOW_DESTINATION_TYPE_PORT:
 		trace_seq_printf(p, "port\n");
+		break;
+	case MLX5_FLOW_DESTINATION_TYPE_RANGE:
+		trace_seq_printf(p, "field=%s min=%d max=%d\n",
+				 fs_dest_range_field_to_str(dst->range.field),
+				 dst->range.min, dst->range.max);
+		break;
+	case MLX5_FLOW_DESTINATION_TYPE_TABLE_TYPE:
+		trace_seq_printf(p, "flow_table_type=%u id:%u\n", dst->ft->type,
+				 dst->ft->id);
+		break;
+	case MLX5_FLOW_DESTINATION_TYPE_NONE:
+		trace_seq_printf(p, "none\n");
 		break;
 	}
 

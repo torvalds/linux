@@ -1,0 +1,292 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Device Tree file for Synology DS116 NAS
+ *
+ * Copyright (C) 2017 Willy Tarreau <w@1wt.eu>
+ */
+
+/dts-v1/;
+#include "armada-385.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	model = "Synology DS116";
+	compatible = "marvell,a385-gp", "marvell,armada385", "marvell,armada380";
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x40000000>; /* 1 GB */
+	};
+
+	soc {
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000
+			  MBUS_ID(0x01, 0x1d) 0 0xfff00000 0x100000
+			  MBUS_ID(0x09, 0x19) 0 0xf1100000 0x10000
+			  MBUS_ID(0x09, 0x15) 0 0xf1110000 0x10000
+			  MBUS_ID(0x0c, 0x04) 0 0xf1200000 0x100000>;
+
+		internal-regs {
+			i2c@11000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&i2c0_pins>;
+				status = "okay";
+				clock-frequency = <100000>;
+
+				eeprom@57 {
+					compatible = "atmel,24c64";
+					reg = <0x57>;
+				};
+			};
+
+			serial@12000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&uart0_pins>;
+				status = "okay";
+			};
+
+			serial@12100 {
+				/* A PIC16F1829 is connected to uart1 at 9600 bps,
+				 * and takes single-character orders :
+				 *   "1" : power off // already handled by the poweroff node
+				 *   "2" : short beep
+				 *   "3" : long beep
+				 *   "4" : turn the power LED ON
+				 *   "5" : flash the power LED
+				 *   "6" : turn the power LED OFF
+				 *   "7" : turn the status LED OFF
+				 *   "8" : turn the status LED ON
+				 *   "9" : flash the status LED
+				 *   "A" : flash the motherboard LED (D8)
+				 *   "B" : turn the motherboard LED OFF
+				 *   "C" : hard reset
+				 */
+				pinctrl-names = "default";
+				pinctrl-0 = <&uart1_pins>;
+				status = "okay";
+			};
+
+			poweroff@12100 {
+				compatible = "synology,power-off";
+				reg = <0x12100 0x100>;
+				clocks = <&coreclk 0>;
+			};
+
+			ethernet@70000 {
+				pinctrl-names = "default";
+				phy = <&phy0>;
+				phy-mode = "sgmii";
+				buffer-manager = <&bm>;
+				bm,pool-long = <0>;
+				status = "okay";
+			};
+
+
+			mdio@72004 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&mdio_pins>;
+
+				phy0: ethernet-phy@1 {
+					reg = <1>;
+				};
+			};
+
+			sata@a8000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&sata0_pins>;
+				status = "okay";
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				sata0: sata-port@0 {
+					reg = <0>;
+					target-supply = <&reg_5v_sata0>;
+				};
+			};
+
+			bm@c8000 {
+				status = "okay";
+			};
+
+			usb3@f0000 {
+				usb-phy = <&usb3_0_phy>;
+				status = "okay";
+			};
+
+			usb3@f8000 {
+				usb-phy = <&usb3_1_phy>;
+				status = "okay";
+			};
+		};
+
+		bm-bppi {
+			status = "okay";
+		};
+
+		gpio-fan {
+			compatible = "gpio-fan";
+			gpios = <&gpio1 18 GPIO_ACTIVE_HIGH>,
+				<&gpio1 17 GPIO_ACTIVE_HIGH>,
+				<&gpio1 16 GPIO_ACTIVE_HIGH>;
+			gpio-fan,speed-map = <   0 0>,
+					     <1500 1>,
+					     <2500 2>,
+					     <3000 3>,
+					     <3400 4>,
+					     <3700 5>,
+					     <3900 6>,
+					     <4000 7>;
+			#cooling-cells = <2>;
+		};
+
+		gpio-leds {
+			compatible = "gpio-leds";
+
+			/* The green part is on gpio0.20 which is also used by
+			 * sata0, and accesses to SATA disk 0 make it blink so it
+			 * doesn't need to be declared here.
+			 */
+			led-orange {
+				gpios = <&gpio0 13 GPIO_ACTIVE_HIGH>;
+				label = "ds116:orange:disk";
+				default-state = "off";
+			};
+		};
+	};
+
+	usb3_0_phy: usb3_0_phy {
+		compatible = "usb-nop-xceiv";
+		vcc-supply = <&reg_usb3_0_vbus>;
+		#phy-cells = <0>;
+	};
+
+	usb3_1_phy: usb3_1_phy {
+		compatible = "usb-nop-xceiv";
+		vcc-supply = <&reg_usb3_1_vbus>;
+		#phy-cells = <0>;
+	};
+
+	reg_usb3_0_vbus: usb3-vbus0 {
+		compatible = "regulator-fixed";
+		regulator-name = "usb3-vbus0";
+		pinctrl-names = "default";
+		pinctrl-0 = <&xhci0_vbus_pins>;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&gpio1 26 GPIO_ACTIVE_HIGH>;
+	};
+
+	reg_usb3_1_vbus: usb3-vbus1 {
+		compatible = "regulator-fixed";
+		regulator-name = "usb3-vbus1";
+		pinctrl-names = "default";
+		pinctrl-0 = <&xhci1_vbus_pins>;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&gpio1 27 GPIO_ACTIVE_HIGH>;
+	};
+
+	reg_sata0: pwr-sata0 {
+		compatible = "regulator-fixed";
+		regulator-name = "pwr_en_sata0";
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		enable-active-high;
+		regulator-boot-on;
+		gpio = <&gpio0 15 GPIO_ACTIVE_HIGH>;
+	};
+
+	reg_5v_sata0: v5-sata0 {
+		compatible = "regulator-fixed";
+		regulator-name = "v5.0-sata0";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&reg_sata0>;
+	};
+
+	reg_12v_sata0: v12-sata0 {
+		compatible = "regulator-fixed";
+		regulator-name = "v12.0-sata0";
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		vin-supply = <&reg_sata0>;
+	};
+};
+
+&spi0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi0_pins>;
+	status = "okay";
+
+	flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "macronix,mx25l6405d", "jedec,spi-nor";
+		reg = <0>; /* Chip select 0 */
+		spi-max-frequency = <50000000>;
+		m25p,fast-read;
+
+		/* Note: there is a redboot partition table despite u-boot
+		 * being used. The names presented here are the same as those
+		 * found in the FIS directory. There is also a small device
+		 * tree in the last 64kB of the RedBoot partition which is not
+		 * enumerated. The MAC address and the serial number are listed
+		 * in the "vendor" partition.
+		 */
+		partition@0 {
+			label = "RedBoot";
+			reg = <0x00000000 0x000f0000>;
+			read-only;
+		};
+
+		partition@c0000 {
+			label = "zImage";
+			reg = <0x000f0000 0x002d0000>;
+		};
+
+		partition@390000 {
+			label = "rd.gz";
+			reg = <0x003c0000 0x00410000>;
+		};
+
+		partition@7d0000 {
+			label = "vendor";
+			reg = <0x007d0000 0x00010000>;
+			read-only;
+		};
+
+		partition@7e0000 {
+			label = "RedBoot config";
+			reg = <0x007e0000 0x00010000>;
+			read-only;
+		};
+
+		partition@7f0000 {
+			label = "FIS directory";
+			reg = <0x007f0000 0x00010000>;
+			read-only;
+		};
+	};
+};
+
+&pinctrl {
+	/* use only one pin for UART1, as mpp20 is used by sata0 */
+	uart1_pins: uart-pins-1 {
+		marvell,pins = "mpp19";
+		marvell,function = "ua1";
+	};
+
+	xhci0_vbus_pins: xhci0_vbus_pins {
+		marvell,pins = "mpp58";
+		marvell,function = "gpio";
+	};
+	xhci1_vbus_pins: xhci1_vbus_pins {
+		marvell,pins = "mpp59";
+		marvell,function = "gpio";
+	};
+};

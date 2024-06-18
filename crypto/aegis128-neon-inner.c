@@ -16,11 +16,11 @@
 #define AEGIS_BLOCK_SIZE	16
 
 #include <stddef.h>
+#include "aegis-neon.h"
 
 extern int aegis128_have_aes_insn;
 
 void *memcpy(void *dest, const void *src, size_t n);
-void *memset(void *s, int c, size_t n);
 
 struct aegis128_state {
 	uint8x16_t v[5];
@@ -132,6 +132,36 @@ void preload_sbox(void)
 	    :: "r"(crypto_aes_sbox));
 }
 
+void crypto_aegis128_init_neon(void *state, const void *key, const void *iv)
+{
+	static const uint8_t const0[] = {
+		0x00, 0x01, 0x01, 0x02, 0x03, 0x05, 0x08, 0x0d,
+		0x15, 0x22, 0x37, 0x59, 0x90, 0xe9, 0x79, 0x62,
+	};
+	static const uint8_t const1[] = {
+		0xdb, 0x3d, 0x18, 0x55, 0x6d, 0xc2, 0x2f, 0xf1,
+		0x20, 0x11, 0x31, 0x42, 0x73, 0xb5, 0x28, 0xdd,
+	};
+	uint8x16_t k = vld1q_u8(key);
+	uint8x16_t kiv = k ^ vld1q_u8(iv);
+	struct aegis128_state st = {{
+		kiv,
+		vld1q_u8(const1),
+		vld1q_u8(const0),
+		k ^ vld1q_u8(const0),
+		k ^ vld1q_u8(const1),
+	}};
+	int i;
+
+	preload_sbox();
+
+	for (i = 0; i < 5; i++) {
+		st = aegis128_update_neon(st, k);
+		st = aegis128_update_neon(st, kiv);
+	}
+	aegis128_save_state_neon(st, state);
+}
+
 void crypto_aegis128_update_neon(void *state, const void *msg)
 {
 	struct aegis128_state st = aegis128_load_state_neon(state);
@@ -143,10 +173,57 @@ void crypto_aegis128_update_neon(void *state, const void *msg)
 	aegis128_save_state_neon(st, state);
 }
 
+#ifdef CONFIG_ARM
+/*
+ * AArch32 does not provide these intrinsics natively because it does not
+ * implement the underlying instructions. AArch32 only provides 64-bit
+ * wide vtbl.8/vtbx.8 instruction, so use those instead.
+ */
+static uint8x16_t vqtbl1q_u8(uint8x16_t a, uint8x16_t b)
+{
+	union {
+		uint8x16_t	val;
+		uint8x8x2_t	pair;
+	} __a = { a };
+
+	return vcombine_u8(vtbl2_u8(__a.pair, vget_low_u8(b)),
+			   vtbl2_u8(__a.pair, vget_high_u8(b)));
+}
+
+static uint8x16_t vqtbx1q_u8(uint8x16_t v, uint8x16_t a, uint8x16_t b)
+{
+	union {
+		uint8x16_t	val;
+		uint8x8x2_t	pair;
+	} __a = { a };
+
+	return vcombine_u8(vtbx2_u8(vget_low_u8(v), __a.pair, vget_low_u8(b)),
+			   vtbx2_u8(vget_high_u8(v), __a.pair, vget_high_u8(b)));
+}
+
+static int8_t vminvq_s8(int8x16_t v)
+{
+	int8x8_t s = vpmin_s8(vget_low_s8(v), vget_high_s8(v));
+
+	s = vpmin_s8(s, s);
+	s = vpmin_s8(s, s);
+	s = vpmin_s8(s, s);
+
+	return vget_lane_s8(s, 0);
+}
+#endif
+
+static const uint8_t permute[] __aligned(64) = {
+	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+	 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
+	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+};
+
 void crypto_aegis128_encrypt_chunk_neon(void *state, void *dst, const void *src,
 					unsigned int size)
 {
 	struct aegis128_state st = aegis128_load_state_neon(state);
+	const int short_input = size < AEGIS_BLOCK_SIZE;
 	uint8x16_t msg;
 
 	preload_sbox();
@@ -156,7 +233,8 @@ void crypto_aegis128_encrypt_chunk_neon(void *state, void *dst, const void *src,
 
 		msg = vld1q_u8(src);
 		st = aegis128_update_neon(st, msg);
-		vst1q_u8(dst, msg ^ s);
+		msg ^= s;
+		vst1q_u8(dst, msg);
 
 		size -= AEGIS_BLOCK_SIZE;
 		src += AEGIS_BLOCK_SIZE;
@@ -165,13 +243,26 @@ void crypto_aegis128_encrypt_chunk_neon(void *state, void *dst, const void *src,
 
 	if (size > 0) {
 		uint8x16_t s = st.v[1] ^ (st.v[2] & st.v[3]) ^ st.v[4];
-		uint8_t buf[AEGIS_BLOCK_SIZE] = {};
+		uint8_t buf[AEGIS_BLOCK_SIZE];
+		const void *in = src;
+		void *out = dst;
+		uint8x16_t m;
 
-		memcpy(buf, src, size);
-		msg = vld1q_u8(buf);
-		st = aegis128_update_neon(st, msg);
-		vst1q_u8(buf, msg ^ s);
-		memcpy(dst, buf, size);
+		if (__builtin_expect(short_input, 0))
+			in = out = memcpy(buf + AEGIS_BLOCK_SIZE - size, src, size);
+
+		m = vqtbl1q_u8(vld1q_u8(in + size - AEGIS_BLOCK_SIZE),
+			       vld1q_u8(permute + 32 - size));
+
+		st = aegis128_update_neon(st, m);
+
+		vst1q_u8(out + size - AEGIS_BLOCK_SIZE,
+			 vqtbl1q_u8(m ^ s, vld1q_u8(permute + size)));
+
+		if (__builtin_expect(short_input, 0))
+			memcpy(dst, out, size);
+		else
+			vst1q_u8(out - AEGIS_BLOCK_SIZE, msg);
 	}
 
 	aegis128_save_state_neon(st, state);
@@ -181,6 +272,7 @@ void crypto_aegis128_decrypt_chunk_neon(void *state, void *dst, const void *src,
 					unsigned int size)
 {
 	struct aegis128_state st = aegis128_load_state_neon(state);
+	const int short_input = size < AEGIS_BLOCK_SIZE;
 	uint8x16_t msg;
 
 	preload_sbox();
@@ -198,15 +290,56 @@ void crypto_aegis128_decrypt_chunk_neon(void *state, void *dst, const void *src,
 	if (size > 0) {
 		uint8x16_t s = st.v[1] ^ (st.v[2] & st.v[3]) ^ st.v[4];
 		uint8_t buf[AEGIS_BLOCK_SIZE];
+		const void *in = src;
+		void *out = dst;
+		uint8x16_t m;
 
-		vst1q_u8(buf, s);
-		memcpy(buf, src, size);
-		msg = vld1q_u8(buf) ^ s;
-		vst1q_u8(buf, msg);
-		memcpy(dst, buf, size);
+		if (__builtin_expect(short_input, 0))
+			in = out = memcpy(buf + AEGIS_BLOCK_SIZE - size, src, size);
 
-		st = aegis128_update_neon(st, msg);
+		m = s ^ vqtbx1q_u8(s, vld1q_u8(in + size - AEGIS_BLOCK_SIZE),
+				   vld1q_u8(permute + 32 - size));
+
+		st = aegis128_update_neon(st, m);
+
+		vst1q_u8(out + size - AEGIS_BLOCK_SIZE,
+			 vqtbl1q_u8(m, vld1q_u8(permute + size)));
+
+		if (__builtin_expect(short_input, 0))
+			memcpy(dst, out, size);
+		else
+			vst1q_u8(out - AEGIS_BLOCK_SIZE, msg);
 	}
 
 	aegis128_save_state_neon(st, state);
+}
+
+int crypto_aegis128_final_neon(void *state, void *tag_xor,
+			       unsigned int assoclen,
+			       unsigned int cryptlen,
+			       unsigned int authsize)
+{
+	struct aegis128_state st = aegis128_load_state_neon(state);
+	uint8x16_t v;
+	int i;
+
+	preload_sbox();
+
+	v = st.v[3] ^ (uint8x16_t)vcombine_u64(vmov_n_u64(8ULL * assoclen),
+					       vmov_n_u64(8ULL * cryptlen));
+
+	for (i = 0; i < 7; i++)
+		st = aegis128_update_neon(st, v);
+
+	v = st.v[0] ^ st.v[1] ^ st.v[2] ^ st.v[3] ^ st.v[4];
+
+	if (authsize > 0) {
+		v = vqtbl1q_u8(~vceqq_u8(v, vld1q_u8(tag_xor)),
+			       vld1q_u8(permute + authsize));
+
+		return vminvq_s8((int8x16_t)v);
+	}
+
+	vst1q_u8(tag_xor, v);
+	return 0;
 }

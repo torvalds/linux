@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/set_memory.h>
 
 #include <asm/fncpy.h>
 #include <asm/tlb.h>
@@ -44,11 +45,70 @@
 
 #define GP_DEVICE		0x300
 
-#define ROUND_DOWN(value,boundary)	((value) & (~((boundary)-1)))
+#define ROUND_DOWN(value, boundary)	((value) & (~((boundary) - 1)))
 
 static unsigned long omap_sram_start;
-static unsigned long omap_sram_skip;
 static unsigned long omap_sram_size;
+static void __iomem *omap_sram_base;
+static unsigned long omap_sram_skip;
+static void __iomem *omap_sram_ceil;
+
+/*
+ * Memory allocator for SRAM: calculates the new ceiling address
+ * for pushing a function using the fncpy API.
+ *
+ * Note that fncpy requires the returned address to be aligned
+ * to an 8-byte boundary.
+ */
+static void *omap_sram_push_address(unsigned long size)
+{
+	unsigned long available, new_ceil = (unsigned long)omap_sram_ceil;
+
+	available = omap_sram_ceil - (omap_sram_base + omap_sram_skip);
+
+	if (size > available) {
+		pr_err("Not enough space in SRAM\n");
+		return NULL;
+	}
+
+	new_ceil -= size;
+	new_ceil = ROUND_DOWN(new_ceil, FNCPY_ALIGN);
+	omap_sram_ceil = IOMEM(new_ceil);
+
+	return (void __force *)omap_sram_ceil;
+}
+
+void *omap_sram_push(void *funcp, unsigned long size)
+{
+	void *sram;
+	unsigned long base;
+	int pages;
+	void *dst = NULL;
+
+	sram = omap_sram_push_address(size);
+	if (!sram)
+		return NULL;
+
+	base = (unsigned long)sram & PAGE_MASK;
+	pages = PAGE_ALIGN(size) / PAGE_SIZE;
+
+	set_memory_rw(base, pages);
+
+	dst = fncpy(sram, funcp, size);
+
+	set_memory_rox(base, pages);
+
+	return dst;
+}
+
+/*
+ * The SRAM context is lost during off-idle and stack
+ * needs to be reset.
+ */
+static void omap_sram_reset(void)
+{
+	omap_sram_ceil = omap_sram_base + omap_sram_size;
+}
 
 /*
  * Depending on the target RAMFS firewall setup, the public usable amount of
@@ -58,7 +118,7 @@ static unsigned long omap_sram_size;
  */
 static int is_sram_locked(void)
 {
-	if (OMAP2_DEVICE_TYPE_GP == omap_type()) {
+	if (omap_type() == OMAP2_DEVICE_TYPE_GP) {
 		/* RAMFW: R/W access to all initiators for all qualifier sets */
 		if (cpu_is_omap242x()) {
 			writel_relaxed(0xFF, OMAP24XX_VA_REQINFOPERM0); /* all q-vects */
@@ -119,6 +179,8 @@ static void __init omap_detect_sram(void)
  */
 static void __init omap2_map_sram(void)
 {
+	unsigned long base;
+	int pages;
 	int cached = 1;
 
 	if (cpu_is_omap34xx()) {
@@ -132,8 +194,29 @@ static void __init omap2_map_sram(void)
 		cached = 0;
 	}
 
-	omap_map_sram(omap_sram_start, omap_sram_size,
-			omap_sram_skip, cached);
+	if (omap_sram_size == 0)
+		return;
+
+	omap_sram_start = ROUND_DOWN(omap_sram_start, PAGE_SIZE);
+	omap_sram_base = __arm_ioremap_exec(omap_sram_start, omap_sram_size, cached);
+	if (!omap_sram_base) {
+		pr_err("SRAM: Could not map\n");
+		return;
+	}
+
+	omap_sram_reset();
+
+	/*
+	 * Looks like we need to preserve some bootloader code at the
+	 * beginning of SRAM for jumping to flash for reboot to work...
+	 */
+	memset_io(omap_sram_base + omap_sram_skip, 0,
+		  omap_sram_size - omap_sram_skip);
+
+	base = (unsigned long)omap_sram_base;
+	pages = PAGE_ALIGN(omap_sram_size) / PAGE_SIZE;
+
+	set_memory_rox(base, pages);
 }
 
 static void (*_omap2_sram_ddr_init)(u32 *slow_dll_ctrl, u32 fast_dll_ctrl,

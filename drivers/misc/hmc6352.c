@@ -101,8 +101,7 @@ static const struct attribute_group m_compass_gr = {
 	.attrs = mid_att_compass
 };
 
-static int hmc6352_probe(struct i2c_client *client,
-					const struct i2c_device_id *id)
+static int hmc6352_probe(struct i2c_client *client)
 {
 	int res;
 
@@ -116,10 +115,9 @@ static int hmc6352_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int hmc6352_remove(struct i2c_client *client)
+static void hmc6352_remove(struct i2c_client *client)
 {
 	sysfs_remove_group(&client->dev.kobj, &m_compass_gr);
-	return 0;
 }
 
 static const struct i2c_device_id hmc6352_id[] = {

@@ -8,20 +8,31 @@
 
 /*
  * Trace sequences are used to allow a function to call several other functions
- * to create a string of data to use (up to a max of PAGE_SIZE).
+ * to create a string of data to use.
+ *
+ * Have the trace seq to be 8K which is typically PAGE_SIZE * 2 on
+ * most architectures. The TRACE_SEQ_BUFFER_SIZE (which is
+ * TRACE_SEQ_SIZE minus the other fields of trace_seq), is the
+ * max size the output of a trace event may be.
  */
 
+#define TRACE_SEQ_SIZE		8192
+#define TRACE_SEQ_BUFFER_SIZE	(TRACE_SEQ_SIZE - \
+	(sizeof(struct seq_buf) + sizeof(size_t) + sizeof(int)))
+
 struct trace_seq {
-	unsigned char		buffer[PAGE_SIZE];
+	char			buffer[TRACE_SEQ_BUFFER_SIZE];
 	struct seq_buf		seq;
+	size_t			readpos;
 	int			full;
 };
 
 static inline void
 trace_seq_init(struct trace_seq *s)
 {
-	seq_buf_init(&s->seq, s->buffer, PAGE_SIZE);
+	seq_buf_init(&s->seq, s->buffer, TRACE_SEQ_BUFFER_SIZE);
 	s->full = 0;
+	s->readpos = 0;
 }
 
 /**
@@ -51,7 +62,7 @@ static inline int trace_seq_used(struct trace_seq *s)
  * that is about to be written to and then return the result
  * of that write.
  */
-static inline unsigned char *
+static inline char *
 trace_seq_buffer_ptr(struct trace_seq *s)
 {
 	return s->buffer + seq_buf_used(&s->seq);
@@ -92,8 +103,14 @@ extern int trace_seq_path(struct trace_seq *s, const struct path *path);
 extern void trace_seq_bitmask(struct trace_seq *s, const unsigned long *maskp,
 			     int nmaskbits);
 
+extern int trace_seq_hex_dump(struct trace_seq *s, const char *prefix_str,
+			      int prefix_type, int rowsize, int groupsize,
+			      const void *buf, size_t len, bool ascii);
+char *trace_seq_acquire(struct trace_seq *s, unsigned int len);
+
 #else /* CONFIG_TRACING */
-static inline void trace_seq_printf(struct trace_seq *s, const char *fmt, ...)
+static inline __printf(2, 3)
+void trace_seq_printf(struct trace_seq *s, const char *fmt, ...)
 {
 }
 static inline void
@@ -133,6 +150,10 @@ static inline void trace_seq_putmem_hex(struct trace_seq *s, const void *mem,
 static inline int trace_seq_path(struct trace_seq *s, const struct path *path)
 {
 	return 0;
+}
+static inline char *trace_seq_acquire(struct trace_seq *s, unsigned int len)
+{
+	return NULL;
 }
 #endif /* CONFIG_TRACING */
 

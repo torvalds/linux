@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  *	f_uvc.h  --  USB Video Class Gadget driver
  *
@@ -11,7 +11,7 @@
 
 struct uvc_device;
 
-void uvc_function_setup_continue(struct uvc_device *uvc);
+void uvc_function_setup_continue(struct uvc_device *uvc, int disable_ep);
 
 void uvc_function_connect(struct uvc_device *uvc);
 

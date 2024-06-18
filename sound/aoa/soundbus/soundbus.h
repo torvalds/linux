@@ -7,7 +7,7 @@
 #ifndef __SOUNDBUS_H
 #define __SOUNDBUS_H
 
-#include <linux/of_device.h>
+#include <linux/platform_device.h>
 #include <sound/pcm.h>
 #include <linux/list.h>
 
@@ -185,7 +185,7 @@ struct soundbus_driver {
 	/* we don't implement any matching at all */
 
 	int	(*probe)(struct soundbus_dev* dev);
-	int	(*remove)(struct soundbus_dev* dev);
+	void	(*remove)(struct soundbus_dev *dev);
 
 	int	(*shutdown)(struct soundbus_dev* dev);
 

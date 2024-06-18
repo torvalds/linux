@@ -33,8 +33,8 @@ struct bma150_cfg {
 	unsigned char lg_hyst;		/* Low-G hysterisis */
 	unsigned char lg_dur;		/* Low-G duration */
 	unsigned char lg_thres;		/* Low-G threshold */
-	unsigned char range;		/* one of BMA0150_RANGE_xxx */
-	unsigned char bandwidth;	/* one of BMA0150_BW_xxx */
+	unsigned char range;		/* one of BMA150_RANGE_xxx */
+	unsigned char bandwidth;	/* one of BMA150_BW_xxx */
 };
 
 struct bma150_platform_data {

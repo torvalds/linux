@@ -7,10 +7,7 @@
 #include <linux/io.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
-#include <linux/of_irq.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/perf_event.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -37,7 +34,7 @@
 
 #define CCI_PMU_CNTR_SIZE(model)	((model)->cntr_size)
 #define CCI_PMU_CNTR_BASE(model, idx)	((idx) * CCI_PMU_CNTR_SIZE(model))
-#define CCI_PMU_CNTR_MASK		((1ULL << 32) -1)
+#define CCI_PMU_CNTR_MASK		((1ULL << 32) - 1)
 #define CCI_PMU_CNTR_LAST(cci_pmu)	(cci_pmu->num_cntrs - 1)
 
 #define CCI_PMU_MAX_HW_CNTRS(model) \
@@ -130,8 +127,6 @@ enum cci_models {
 
 static void pmu_write_counters(struct cci_pmu *cci_pmu,
 				 unsigned long *mask);
-static ssize_t __maybe_unused cci_pmu_format_show(struct device *dev,
-			struct device_attribute *attr, char *buf);
 static ssize_t __maybe_unused cci_pmu_event_show(struct device *dev,
 			struct device_attribute *attr, char *buf);
 
@@ -141,7 +136,7 @@ static ssize_t __maybe_unused cci_pmu_event_show(struct device *dev,
 	})[0].attr.attr
 
 #define CCI_FORMAT_EXT_ATTR_ENTRY(_name, _config) \
-	CCI_EXT_ATTR_ENTRY(_name, cci_pmu_format_show, (char *)_config)
+	CCI_EXT_ATTR_ENTRY(_name, device_show_string, _config)
 #define CCI_EVENT_EXT_ATTR_ENTRY(_name, _config) \
 	CCI_EXT_ATTR_ENTRY(_name, cci_pmu_event_show, (unsigned long)_config)
 
@@ -306,7 +301,7 @@ static ssize_t cci400_pmu_cycle_event_show(struct device *dev,
 {
 	struct dev_ext_attribute *eattr = container_of(attr,
 				struct dev_ext_attribute, attr);
-	return snprintf(buf, PAGE_SIZE, "config=0x%lx\n", (unsigned long)eattr->var);
+	return sysfs_emit(buf, "config=0x%lx\n", (unsigned long)eattr->var);
 }
 
 static int cci400_get_event_idx(struct cci_pmu *cci_pmu,
@@ -525,8 +520,8 @@ static ssize_t cci5xx_pmu_global_event_show(struct device *dev,
 	struct dev_ext_attribute *eattr = container_of(attr,
 					struct dev_ext_attribute, attr);
 	/* Global events have single fixed source code */
-	return snprintf(buf, PAGE_SIZE, "event=0x%lx,source=0x%x\n",
-				(unsigned long)eattr->var, CCI5xx_PORT_GLOBAL);
+	return sysfs_emit(buf, "event=0x%lx,source=0x%x\n",
+			  (unsigned long)eattr->var, CCI5xx_PORT_GLOBAL);
 }
 
 /*
@@ -645,7 +640,7 @@ static void cci_pmu_sync_counters(struct cci_pmu *cci_pmu)
 	struct cci_pmu_hw_events *cci_hw = &cci_pmu->hw_events;
 	DECLARE_BITMAP(mask, HW_CNTRS_MAX);
 
-	bitmap_zero(mask, cci_pmu->num_cntrs);
+	bitmap_zero(mask, HW_CNTRS_MAX);
 	for_each_set_bit(i, cci_pmu->hw_events.used_mask, cci_pmu->num_cntrs) {
 		struct perf_event *event = cci_hw->events[i];
 
@@ -656,7 +651,7 @@ static void cci_pmu_sync_counters(struct cci_pmu *cci_pmu)
 		if (event->hw.state & PERF_HES_STOPPED)
 			continue;
 		if (event->hw.state & PERF_HES_ARCH) {
-			set_bit(i, mask);
+			__set_bit(i, mask);
 			event->hw.state &= ~PERF_HES_ARCH;
 		}
 	}
@@ -691,22 +686,14 @@ static void __cci_pmu_disable(struct cci_pmu *cci_pmu)
 	writel(val, cci_pmu->ctrl_base + CCI_PMCR);
 }
 
-static ssize_t cci_pmu_format_show(struct device *dev,
-			struct device_attribute *attr, char *buf)
-{
-	struct dev_ext_attribute *eattr = container_of(attr,
-				struct dev_ext_attribute, attr);
-	return snprintf(buf, PAGE_SIZE, "%s\n", (char *)eattr->var);
-}
-
 static ssize_t cci_pmu_event_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
 	struct dev_ext_attribute *eattr = container_of(attr,
 				struct dev_ext_attribute, attr);
 	/* source parameter is mandatory for normal PMU events */
-	return snprintf(buf, PAGE_SIZE, "source=?,event=0x%lx\n",
-					 (unsigned long)eattr->var);
+	return sysfs_emit(buf, "source=?,event=0x%lx\n",
+			  (unsigned long)eattr->var);
 }
 
 static int pmu_is_valid_counter(struct cci_pmu *cci_pmu, int idx)
@@ -806,7 +793,7 @@ static int pmu_get_event_idx(struct cci_pmu_hw_events *hw, struct perf_event *ev
 		return cci_pmu->model->get_event_idx(cci_pmu, hw, cci_event);
 
 	/* Generic code to find an unused idx from the mask */
-	for(idx = 0; idx <= CCI_PMU_CNTR_LAST(cci_pmu); idx++)
+	for (idx = 0; idx <= CCI_PMU_CNTR_LAST(cci_pmu); idx++)
 		if (!test_and_set_bit(idx, hw->used_mask))
 			return idx;
 
@@ -1026,12 +1013,11 @@ static void pmu_event_set_period(struct perf_event *event)
 
 static irqreturn_t pmu_handle_irq(int irq_num, void *dev)
 {
-	unsigned long flags;
 	struct cci_pmu *cci_pmu = dev;
 	struct cci_pmu_hw_events *events = &cci_pmu->hw_events;
 	int idx, handled = IRQ_NONE;
 
-	raw_spin_lock_irqsave(&events->pmu_lock, flags);
+	raw_spin_lock(&events->pmu_lock);
 
 	/* Disable the PMU while we walk through the counters */
 	__cci_pmu_disable(cci_pmu);
@@ -1061,7 +1047,7 @@ static irqreturn_t pmu_handle_irq(int irq_num, void *dev)
 
 	/* Enable the PMU and sync possibly overflowed counters */
 	__cci_pmu_enable_sync(cci_pmu);
-	raw_spin_unlock_irqrestore(&events->pmu_lock, flags);
+	raw_spin_unlock(&events->pmu_lock);
 
 	return IRQ_RETVAL(handled);
 }
@@ -1097,7 +1083,7 @@ static void cci_pmu_enable(struct pmu *pmu)
 {
 	struct cci_pmu *cci_pmu = to_cci_pmu(pmu);
 	struct cci_pmu_hw_events *hw_events = &cci_pmu->hw_events;
-	int enabled = bitmap_weight(hw_events->used_mask, cci_pmu->num_cntrs);
+	bool enabled = !bitmap_empty(hw_events->used_mask, cci_pmu->num_cntrs);
 	unsigned long flags;
 
 	if (!enabled)
@@ -1140,7 +1126,7 @@ static void cci_pmu_start(struct perf_event *event, int pmu_flags)
 
 	/*
 	 * To handle interrupt latency, we always reprogram the period
-	 * regardlesss of PERF_EF_RELOAD.
+	 * regardless of PERF_EF_RELOAD.
 	 */
 	if (pmu_flags & PERF_EF_RELOAD)
 		WARN_ON_ONCE(!(hwc->state & PERF_HES_UPTODATE));
@@ -1262,7 +1248,7 @@ static int validate_group(struct perf_event *event)
 		 */
 		.used_mask = mask,
 	};
-	memset(mask, 0, BITS_TO_LONGS(cci_pmu->num_cntrs) * sizeof(unsigned long));
+	bitmap_zero(mask, cci_pmu->num_cntrs);
 
 	if (!validate_event(event->pmu, &fake_pmu, leader))
 		return -EINVAL;
@@ -1376,7 +1362,7 @@ static struct attribute *pmu_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group pmu_attr_group = {
+static const struct attribute_group pmu_attr_group = {
 	.attrs = pmu_attrs,
 };
 
@@ -1413,6 +1399,7 @@ static int cci_pmu_init(struct cci_pmu *cci_pmu, struct platform_device *pdev)
 
 	cci_pmu->pmu = (struct pmu) {
 		.module		= THIS_MODULE,
+		.parent		= &pdev->dev,
 		.name		= cci_pmu->model->name,
 		.task_ctx_nr	= perf_invalid_context,
 		.pmu_enable	= cci_pmu_enable,
@@ -1630,10 +1617,9 @@ static struct cci_pmu *cci_pmu_alloc(struct device *dev)
 					     GFP_KERNEL);
 	if (!cci_pmu->hw_events.events)
 		return ERR_PTR(-ENOMEM);
-	cci_pmu->hw_events.used_mask = devm_kcalloc(dev,
-						BITS_TO_LONGS(CCI_PMU_MAX_HW_CNTRS(model)),
-						sizeof(*cci_pmu->hw_events.used_mask),
-						GFP_KERNEL);
+	cci_pmu->hw_events.used_mask = devm_bitmap_zalloc(dev,
+							  CCI_PMU_MAX_HW_CNTRS(model),
+							  GFP_KERNEL);
 	if (!cci_pmu->hw_events.used_mask)
 		return ERR_PTR(-ENOMEM);
 
@@ -1642,7 +1628,6 @@ static struct cci_pmu *cci_pmu_alloc(struct device *dev)
 
 static int cci_pmu_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	struct cci_pmu *cci_pmu;
 	int i, ret, irq;
 
@@ -1650,8 +1635,7 @@ static int cci_pmu_probe(struct platform_device *pdev)
 	if (IS_ERR(cci_pmu))
 		return PTR_ERR(cci_pmu);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	cci_pmu->base = devm_ioremap_resource(&pdev->dev, res);
+	cci_pmu->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(cci_pmu->base))
 		return -ENOMEM;
 
@@ -1704,25 +1688,24 @@ error_pmu_init:
 	return ret;
 }
 
-static int cci_pmu_remove(struct platform_device *pdev)
+static void cci_pmu_remove(struct platform_device *pdev)
 {
 	if (!g_cci_pmu)
-		return 0;
+		return;
 
 	cpuhp_remove_state(CPUHP_AP_PERF_ARM_CCI_ONLINE);
 	perf_pmu_unregister(&g_cci_pmu->pmu);
 	g_cci_pmu = NULL;
-
-	return 0;
 }
 
 static struct platform_driver cci_pmu_driver = {
 	.driver = {
 		   .name = DRIVER_NAME,
 		   .of_match_table = arm_cci_pmu_matches,
+		   .suppress_bind_attrs = true,
 		  },
 	.probe = cci_pmu_probe,
-	.remove = cci_pmu_remove,
+	.remove_new = cci_pmu_remove,
 };
 
 module_platform_driver(cci_pmu_driver);

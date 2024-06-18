@@ -4,7 +4,6 @@
 // Author: Henry Chen <henryc.chen@mediatek.com>
 
 #include <linux/err.h>
-#include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -21,7 +20,7 @@ static const struct regmap_config mt6311_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = MT6311_FQMTR_CON4,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 /* Default limits measured in millivolts and milliamps */
@@ -85,8 +84,7 @@ static const struct regulator_desc mt6311_regulators[] = {
 /*
  * I2C driver interface functions
  */
-static int mt6311_i2c_probe(struct i2c_client *i2c,
-		const struct i2c_device_id *id)
+static int mt6311_i2c_probe(struct i2c_client *i2c)
 {
 	struct regulator_config config = { };
 	struct regulator_dev *rdev;
@@ -152,6 +150,7 @@ MODULE_DEVICE_TABLE(of, mt6311_dt_ids);
 static struct i2c_driver mt6311_regulator_driver = {
 	.driver = {
 		.name = "mt6311",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(mt6311_dt_ids),
 	},
 	.probe = mt6311_i2c_probe,

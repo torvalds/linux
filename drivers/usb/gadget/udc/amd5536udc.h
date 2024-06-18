@@ -2,7 +2,7 @@
 /*
  * amd5536.h -- header for AMD 5536 UDC high/full speed USB device controller
  *
- * Copyright (C) 2007 AMD (http://www.amd.com)
+ * Copyright (C) 2007 AMD (https://www.amd.com)
  * Author: Thomas Dahlmann
  */
 
@@ -440,7 +440,7 @@ struct udc_ep_regs {
 	/* endpoint data descriptor pointer */
 	u32 desptr;
 
-	/* reserverd */
+	/* reserved */
 	u32 reserved;
 
 	/* write/read confirmation */
@@ -572,7 +572,6 @@ struct udc {
 	struct extcon_specific_cable_nb	extcon_nb;
 	struct notifier_block		nb;
 	struct delayed_work		drd_work;
-	struct workqueue_struct		*drd_wq;
 	u32				conn_type;
 };
 

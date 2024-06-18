@@ -8,7 +8,6 @@
 
 #include <linux/delay.h>
 #include <linux/io.h>
-#include <linux/of_device.h>
 #include <linux/phy/phy.h>
 #include "common.h"
 #include "rza.h"
@@ -29,7 +28,7 @@ static int usbhs_rza2_hardware_exit(struct platform_device *pdev)
 {
 	struct usbhs_priv *priv = usbhs_pdev_to_priv(pdev);
 
-	phy_put(priv->phy);
+	phy_put(&pdev->dev, priv->phy);
 	priv->phy = NULL;
 
 	return 0;
@@ -70,5 +69,18 @@ const struct renesas_usbhs_platform_info usbhs_rza2_plat_info = {
 		.has_cnen = 1,
 		.cfifo_byte_addr = 1,
 		.has_new_pipe_configs = 1,
+	},
+};
+
+const struct renesas_usbhs_platform_info usbhs_rzg2l_plat_info = {
+	.platform_callback = {
+		.hardware_init = usbhs_rza2_hardware_init,
+		.hardware_exit = usbhs_rza2_hardware_exit,
+		.power_ctrl = usbhs_rza2_power_ctrl,
+		.get_id = usbhs_get_id_as_gadget,
+	},
+	.driver_param = {
+		.has_cnen = 1,
+		.cfifo_byte_addr = 1,
 	},
 };

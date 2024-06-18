@@ -102,7 +102,7 @@ static void apollo_send_command(struct hecubafb_par *par, unsigned char data)
 static void hecubafb_dpy_update(struct hecubafb_par *par)
 {
 	int i;
-	unsigned char *buf = (unsigned char __force *)par->info->screen_base;
+	unsigned char *buf = par->info->screen_buffer;
 
 	apollo_send_command(par, APOLLO_START_NEW_IMG);
 
@@ -115,95 +115,33 @@ static void hecubafb_dpy_update(struct hecubafb_par *par)
 }
 
 /* this is called back from the deferred io workqueue */
-static void hecubafb_dpy_deferred_io(struct fb_info *info,
-				struct list_head *pagelist)
+static void hecubafb_dpy_deferred_io(struct fb_info *info, struct list_head *pagereflist)
 {
 	hecubafb_dpy_update(info->par);
 }
 
-static void hecubafb_fillrect(struct fb_info *info,
-				   const struct fb_fillrect *rect)
+static void hecubafb_defio_damage_range(struct fb_info *info, off_t off, size_t len)
 {
 	struct hecubafb_par *par = info->par;
-
-	sys_fillrect(info, rect);
 
 	hecubafb_dpy_update(par);
 }
 
-static void hecubafb_copyarea(struct fb_info *info,
-				   const struct fb_copyarea *area)
+static void hecubafb_defio_damage_area(struct fb_info *info, u32 x, u32 y,
+				       u32 width, u32 height)
 {
 	struct hecubafb_par *par = info->par;
-
-	sys_copyarea(info, area);
 
 	hecubafb_dpy_update(par);
 }
 
-static void hecubafb_imageblit(struct fb_info *info,
-				const struct fb_image *image)
-{
-	struct hecubafb_par *par = info->par;
+FB_GEN_DEFAULT_DEFERRED_SYSMEM_OPS(hecubafb,
+				   hecubafb_defio_damage_range,
+				   hecubafb_defio_damage_area)
 
-	sys_imageblit(info, image);
-
-	hecubafb_dpy_update(par);
-}
-
-/*
- * this is the slow path from userspace. they can seek and write to
- * the fb. it's inefficient to do anything less than a full screen draw
- */
-static ssize_t hecubafb_write(struct fb_info *info, const char __user *buf,
-				size_t count, loff_t *ppos)
-{
-	struct hecubafb_par *par = info->par;
-	unsigned long p = *ppos;
-	void *dst;
-	int err = 0;
-	unsigned long total_size;
-
-	if (info->state != FBINFO_STATE_RUNNING)
-		return -EPERM;
-
-	total_size = info->fix.smem_len;
-
-	if (p > total_size)
-		return -EFBIG;
-
-	if (count > total_size) {
-		err = -EFBIG;
-		count = total_size;
-	}
-
-	if (count + p > total_size) {
-		if (!err)
-			err = -ENOSPC;
-
-		count = total_size - p;
-	}
-
-	dst = (void __force *) (info->screen_base + p);
-
-	if (copy_from_user(dst, buf, count))
-		err = -EFAULT;
-
-	if  (!err)
-		*ppos += count;
-
-	hecubafb_dpy_update(par);
-
-	return (err) ? err : count;
-}
-
-static struct fb_ops hecubafb_ops = {
-	.owner		= THIS_MODULE,
-	.fb_read        = fb_sys_read,
-	.fb_write	= hecubafb_write,
-	.fb_fillrect	= hecubafb_fillrect,
-	.fb_copyarea	= hecubafb_copyarea,
-	.fb_imageblit	= hecubafb_imageblit,
+static const struct fb_ops hecubafb_ops = {
+	.owner	= THIS_MODULE,
+	FB_DEFAULT_DEFERRED_OPS(hecubafb),
 };
 
 static struct fb_deferred_io hecubafb_defio = {
@@ -239,7 +177,7 @@ static int hecubafb_probe(struct platform_device *dev)
 	if (!info)
 		goto err_fballoc;
 
-	info->screen_base = (char __force __iomem *)videomemory;
+	info->screen_buffer = videomemory;
 	info->fbops = &hecubafb_ops;
 
 	info->var = hecubafb_var;
@@ -251,7 +189,7 @@ static int hecubafb_probe(struct platform_device *dev)
 	par->send_command = apollo_send_command;
 	par->send_data = apollo_send_data;
 
-	info->flags = FBINFO_FLAG_DEFAULT | FBINFO_VIRTFB;
+	info->flags = FBINFO_VIRTFB;
 
 	info->fbdefio = &hecubafb_defio;
 	fb_deferred_io_init(info);
@@ -279,7 +217,7 @@ err_videomem_alloc:
 	return retval;
 }
 
-static int hecubafb_remove(struct platform_device *dev)
+static void hecubafb_remove(struct platform_device *dev)
 {
 	struct fb_info *info = platform_get_drvdata(dev);
 
@@ -287,18 +225,17 @@ static int hecubafb_remove(struct platform_device *dev)
 		struct hecubafb_par *par = info->par;
 		fb_deferred_io_cleanup(info);
 		unregister_framebuffer(info);
-		vfree((void __force *)info->screen_base);
+		vfree(info->screen_buffer);
 		if (par->board->remove)
 			par->board->remove(par);
 		module_put(par->board->owner);
 		framebuffer_release(info);
 	}
-	return 0;
 }
 
 static struct platform_driver hecubafb_driver = {
 	.probe	= hecubafb_probe,
-	.remove = hecubafb_remove,
+	.remove_new = hecubafb_remove,
 	.driver	= {
 		.name	= "hecubafb",
 	},

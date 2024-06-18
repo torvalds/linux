@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 
 #ifndef _ASM_X86_CPU_ENTRY_AREA_H
 #define _ASM_X86_CPU_ENTRY_AREA_H
@@ -6,28 +6,35 @@
 #include <linux/percpu-defs.h>
 #include <asm/processor.h>
 #include <asm/intel_ds.h>
+#include <asm/pgtable_areas.h>
 
 #ifdef CONFIG_X86_64
 
+#ifdef CONFIG_AMD_MEM_ENCRYPT
+#define VC_EXCEPTION_STKSZ	EXCEPTION_STKSZ
+#else
+#define VC_EXCEPTION_STKSZ	0
+#endif
+
 /* Macro to enforce the same ordering and stack sizes */
-#define ESTACKS_MEMBERS(guardsize, db2_holesize)\
-	char	DF_stack_guard[guardsize];	\
-	char	DF_stack[EXCEPTION_STKSZ];	\
-	char	NMI_stack_guard[guardsize];	\
-	char	NMI_stack[EXCEPTION_STKSZ];	\
-	char	DB2_stack_guard[guardsize];	\
-	char	DB2_stack[db2_holesize];	\
-	char	DB1_stack_guard[guardsize];	\
-	char	DB1_stack[EXCEPTION_STKSZ];	\
-	char	DB_stack_guard[guardsize];	\
-	char	DB_stack[EXCEPTION_STKSZ];	\
-	char	MCE_stack_guard[guardsize];	\
-	char	MCE_stack[EXCEPTION_STKSZ];	\
-	char	IST_top_guard[guardsize];	\
+#define ESTACKS_MEMBERS(guardsize, optional_stack_size)		\
+	char	DF_stack_guard[guardsize];			\
+	char	DF_stack[EXCEPTION_STKSZ];			\
+	char	NMI_stack_guard[guardsize];			\
+	char	NMI_stack[EXCEPTION_STKSZ];			\
+	char	DB_stack_guard[guardsize];			\
+	char	DB_stack[EXCEPTION_STKSZ];			\
+	char	MCE_stack_guard[guardsize];			\
+	char	MCE_stack[EXCEPTION_STKSZ];			\
+	char	VC_stack_guard[guardsize];			\
+	char	VC_stack[optional_stack_size];			\
+	char	VC2_stack_guard[guardsize];			\
+	char	VC2_stack[optional_stack_size];			\
+	char	IST_top_guard[guardsize];			\
 
 /* The exception stacks' physical storage. No guard pages required */
 struct exception_stacks {
-	ESTACKS_MEMBERS(0, 0)
+	ESTACKS_MEMBERS(0, VC_EXCEPTION_STKSZ)
 };
 
 /* The effective cpu entry area mapping with guard pages. */
@@ -41,10 +48,10 @@ struct cea_exception_stacks {
 enum exception_stack_ordering {
 	ESTACK_DF,
 	ESTACK_NMI,
-	ESTACK_DB2,
-	ESTACK_DB1,
 	ESTACK_DB,
 	ESTACK_MCE,
+	ESTACK_VC,
+	ESTACK_VC2,
 	N_EXCEPTION_STACKS
 };
 
@@ -65,6 +72,13 @@ enum exception_stack_ordering {
 
 #endif
 
+#ifdef CONFIG_X86_32
+struct doublefault_stack {
+	unsigned long stack[(PAGE_SIZE - sizeof(struct x86_hw_tss)) / sizeof(unsigned long)];
+	struct x86_hw_tss tss;
+} __aligned(PAGE_SIZE);
+#endif
+
 /*
  * cpu_entry_area is a percpu region that contains things needed by the CPU
  * and early entry/exit code.  Real types aren't used for all fields here
@@ -78,9 +92,18 @@ struct cpu_entry_area {
 
 	/*
 	 * The GDT is just below entry_stack and thus serves (on x86_64) as
-	 * a a read-only guard page.
+	 * a read-only guard page. On 32-bit the GDT must be writeable, so
+	 * it needs an extra guard page.
 	 */
+#ifdef CONFIG_X86_32
+	char guard_entry_stack[PAGE_SIZE];
+#endif
 	struct entry_stack_page entry_stack_page;
+
+#ifdef CONFIG_X86_32
+	char guard_doublefault_stack[PAGE_SIZE];
+	struct doublefault_stack doublefault_stack;
+#endif
 
 	/*
 	 * On x86_64, the TSS is mapped RO.  On x86_32, it's mapped RW because
@@ -94,7 +117,6 @@ struct cpu_entry_area {
 	 */
 	struct cea_exception_stacks estacks;
 #endif
-#ifdef CONFIG_CPU_SUP_INTEL
 	/*
 	 * Per CPU debug store for Intel performance monitoring. Wastes a
 	 * full page at the moment.
@@ -105,11 +127,9 @@ struct cpu_entry_area {
 	 * Reserve enough fixmap PTEs.
 	 */
 	struct debug_store_buffers cpu_debug_buffers;
-#endif
 };
 
-#define CPU_ENTRY_AREA_SIZE	(sizeof(struct cpu_entry_area))
-#define CPU_ENTRY_AREA_TOT_SIZE	(CPU_ENTRY_AREA_SIZE * NR_CPUS)
+#define CPU_ENTRY_AREA_SIZE		(sizeof(struct cpu_entry_area))
 
 DECLARE_PER_CPU(struct cpu_entry_area *, cpu_entry_area);
 DECLARE_PER_CPU(struct cea_exception_stacks *, cea_exception_stacks);
@@ -117,22 +137,17 @@ DECLARE_PER_CPU(struct cea_exception_stacks *, cea_exception_stacks);
 extern void setup_cpu_entry_areas(void);
 extern void cea_set_pte(void *cea_vaddr, phys_addr_t pa, pgprot_t flags);
 
-#define	CPU_ENTRY_AREA_RO_IDT		CPU_ENTRY_AREA_BASE
-#define CPU_ENTRY_AREA_PER_CPU		(CPU_ENTRY_AREA_RO_IDT + PAGE_SIZE)
-
-#define CPU_ENTRY_AREA_RO_IDT_VADDR	((void *)CPU_ENTRY_AREA_RO_IDT)
-
-#define CPU_ENTRY_AREA_MAP_SIZE			\
-	(CPU_ENTRY_AREA_PER_CPU + CPU_ENTRY_AREA_TOT_SIZE - CPU_ENTRY_AREA_BASE)
-
 extern struct cpu_entry_area *get_cpu_entry_area(int cpu);
 
-static inline struct entry_stack *cpu_entry_stack(int cpu)
+static __always_inline struct entry_stack *cpu_entry_stack(int cpu)
 {
 	return &get_cpu_entry_area(cpu)->entry_stack_page.stack;
 }
 
 #define __this_cpu_ist_top_va(name)					\
 	CEA_ESTACK_TOP(__this_cpu_read(cea_exception_stacks), name)
+
+#define __this_cpu_ist_bottom_va(name)					\
+	CEA_ESTACK_BOT(__this_cpu_read(cea_exception_stacks), name)
 
 #endif

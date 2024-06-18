@@ -102,6 +102,8 @@ Description:
 		b[15:0]
 			inform firmware the current software execution
 			stage.
+
+			==	===========================================
 			0	the first stage bootloader didn't run or
 				didn't reach the point of launching second
 				stage bootloader.
@@ -111,18 +113,62 @@ Description:
 			2	both first and second stage bootloader ran
 				and the operating system launch was
 				attempted.
+			==	===========================================
 
 		b[16]
+			==	===========================================
 			1	firmware to reset current image retry
 				counter.
 			0	no action.
+			==	===========================================
 
 		b[17]
+			==	===========================================
 			1	firmware to clear RSU log
 			0	no action.
+			==	===========================================
 
 		b[18]
 			this is negative logic
+
+			==	===========================================
 			1	no action
 			0	firmware record the notify code defined
 				in b[15:0].
+			==	===========================================
+
+What:		/sys/devices/platform/stratix10-rsu.0/dcmf0
+Date:		June 2020
+KernelVersion:	5.8
+Contact:	Richard Gong <richard.gong@linux.intel.com>
+Description:
+		(RO) Decision firmware copy 0 version information.
+
+What:		/sys/devices/platform/stratix10-rsu.0/dcmf1
+Date:		June 2020
+KernelVersion:	5.8
+Contact:	Richard Gong <richard.gong@linux.intel.com>
+Description:
+		(RO) Decision firmware copy 1 version information.
+
+What:		/sys/devices/platform/stratix10-rsu.0/dcmf2
+Date:		June 2020
+KernelVersion:	5.8
+Contact:	Richard Gong <richard.gong@linux.intel.com>
+Description:
+		(RO) Decision firmware copy 2 version information.
+
+What:		/sys/devices/platform/stratix10-rsu.0/dcmf3
+Date:		June 2020
+KernelVersion:	5.8
+Contact:	Richard Gong <richard.gong@linux.intel.com>
+Description:
+		(RO) Decision firmware copy 3 version information.
+
+What:		/sys/devices/platform/stratix10-rsu.0/max_retry
+Date:		June 2020
+KernelVersion:	5.8
+Contact:	Richard Gong <richard.gong@linux.intel.com>
+Description:
+		(RO) max retry parameter is stored in the firmware
+		decision IO section, as a byte located at offset 0x18c.

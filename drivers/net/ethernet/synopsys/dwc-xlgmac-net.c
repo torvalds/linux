@@ -81,7 +81,7 @@ static int xlgmac_prep_tso(struct sk_buff *skb,
 	if (ret)
 		return ret;
 
-	pkt_info->header_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
+	pkt_info->header_len = skb_tcp_all_headers(skb);
 	pkt_info->tcp_header_len = tcp_hdrlen(skb);
 	pkt_info->tcp_payload_len = skb->len - pkt_info->header_len;
 	pkt_info->mss = skb_shinfo(skb)->gso_size;
@@ -419,15 +419,14 @@ static void xlgmac_napi_enable(struct xlgmac_pdata *pdata, unsigned int add)
 		for (i = 0; i < pdata->channel_count; i++, channel++) {
 			if (add)
 				netif_napi_add(pdata->netdev, &channel->napi,
-					       xlgmac_one_poll,
-					       NAPI_POLL_WEIGHT);
+					       xlgmac_one_poll);
 
 			napi_enable(&channel->napi);
 		}
 	} else {
 		if (add)
 			netif_napi_add(pdata->netdev, &pdata->napi,
-				       xlgmac_all_poll, NAPI_POLL_WEIGHT);
+				       xlgmac_all_poll);
 
 		napi_enable(&pdata->napi);
 	}
@@ -654,7 +653,7 @@ static int xlgmac_open(struct net_device *netdev)
 	pdata->rx_buf_size = ret;
 
 	/* Allocate the channels and rings */
-	ret = desc_ops->alloc_channles_and_rings(pdata);
+	ret = desc_ops->alloc_channels_and_rings(pdata);
 	if (ret)
 		return ret;
 
@@ -689,7 +688,7 @@ static int xlgmac_close(struct net_device *netdev)
 	return 0;
 }
 
-static void xlgmac_tx_timeout(struct net_device *netdev)
+static void xlgmac_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct xlgmac_pdata *pdata = netdev_priv(netdev);
 
@@ -697,7 +696,7 @@ static void xlgmac_tx_timeout(struct net_device *netdev)
 	schedule_work(&pdata->restart_work);
 }
 
-static int xlgmac_xmit(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t xlgmac_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct xlgmac_pdata *pdata = netdev_priv(netdev);
 	struct xlgmac_pkt_info *tx_pkt_info;
@@ -798,7 +797,7 @@ static int xlgmac_set_mac_address(struct net_device *netdev, void *addr)
 	if (!is_valid_ether_addr(saddr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(netdev->dev_addr, saddr->sa_data, netdev->addr_len);
+	eth_hw_addr_set(netdev, saddr->sa_data);
 
 	hw_ops->set_mac_address(pdata, netdev->dev_addr);
 
@@ -824,7 +823,7 @@ static int xlgmac_change_mtu(struct net_device *netdev, int mtu)
 		return ret;
 
 	pdata->rx_buf_size = ret;
-	netdev->mtu = mtu;
+	WRITE_ONCE(netdev->mtu, mtu);
 
 	xlgmac_restart_dev(pdata);
 
@@ -933,7 +932,7 @@ static const struct net_device_ops xlgmac_netdev_ops = {
 	.ndo_change_mtu		= xlgmac_change_mtu,
 	.ndo_set_mac_address	= xlgmac_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_do_ioctl		= xlgmac_ioctl,
+	.ndo_eth_ioctl		= xlgmac_ioctl,
 	.ndo_vlan_rx_add_vid	= xlgmac_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= xlgmac_vlan_rx_kill_vid,
 #ifdef CONFIG_NET_POLL_CONTROLLER

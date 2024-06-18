@@ -5,6 +5,7 @@
  * Copyright (C) 2013 Cogent Embedded, Inc.
  * Copyright (C) 2013 Renesas Solutions Corp.
  */
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/errno.h>
@@ -43,6 +44,7 @@
 #define ADV7180_INPUT_CONTROL_INSEL_MASK		0x0f
 
 #define ADV7182_REG_INPUT_VIDSEL			0x0002
+#define ADV7182_REG_INPUT_RESERVED			BIT(2)
 
 #define ADV7180_REG_OUTPUT_CONTROL			0x0003
 #define ADV7180_REG_EXTENDED_OUTPUT_CONTROL		0x0004
@@ -66,6 +68,9 @@
 #define ADV7180_HUE_DEF		0
 #define ADV7180_HUE_MAX		128
 
+#define ADV7180_REG_DEF_VALUE_Y	0x000c
+#define ADV7180_DEF_VAL_EN		0x1
+#define ADV7180_DEF_VAL_AUTO_EN	0x2
 #define ADV7180_REG_CTRL		0x000e
 #define ADV7180_CTRL_IRQ_SPACE		0x20
 
@@ -94,6 +99,7 @@
 #define ADV7180_REG_SHAP_FILTER_CTL_1	0x0017
 #define ADV7180_REG_CTRL_2		0x001d
 #define ADV7180_REG_VSYNC_FIELD_CTL_1	0x0031
+#define ADV7180_VSYNC_FIELD_CTL_1_NEWAV 0x12
 #define ADV7180_REG_MANUAL_WIN_CTL_1	0x003d
 #define ADV7180_REG_MANUAL_WIN_CTL_2	0x003e
 #define ADV7180_REG_MANUAL_WIN_CTL_3	0x003f
@@ -205,6 +211,7 @@ struct adv7180_state {
 	struct mutex		mutex; /* mutual excl. when accessing chip */
 	int			irq;
 	struct gpio_desc	*pwdn_gpio;
+	struct gpio_desc	*rst_gpio;
 	v4l2_std_id		curr_norm;
 	bool			powered;
 	bool			streaming;
@@ -216,6 +223,7 @@ struct adv7180_state {
 	struct i2c_client	*vpp_client;
 	const struct adv7180_chip_info *chip_info;
 	enum v4l2_field		field;
+	bool			force_bt656_4;
 };
 #define to_adv7180_sd(_ctrl) (&container_of(_ctrl->handler,		\
 					    struct adv7180_state,	\
@@ -455,10 +463,18 @@ static int adv7180_g_std(struct v4l2_subdev *sd, v4l2_std_id *norm)
 	return 0;
 }
 
-static int adv7180_g_frame_interval(struct v4l2_subdev *sd,
-				    struct v4l2_subdev_frame_interval *fi)
+static int adv7180_get_frame_interval(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_state *sd_state,
+				      struct v4l2_subdev_frame_interval *fi)
 {
 	struct adv7180_state *state = to_state(sd);
+
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	if (state->curr_norm & V4L2_STD_525_60) {
 		fi->interval.numerator = 1001;
@@ -481,6 +497,19 @@ static void adv7180_set_power_pin(struct adv7180_state *state, bool on)
 		usleep_range(5000, 10000);
 	} else {
 		gpiod_set_value_cansleep(state->pwdn_gpio, 1);
+	}
+}
+
+static void adv7180_set_reset_pin(struct adv7180_state *state, bool on)
+{
+	if (!state->rst_gpio)
+		return;
+
+	if (on) {
+		gpiod_set_value_cansleep(state->rst_gpio, 1);
+	} else {
+		gpiod_set_value_cansleep(state->rst_gpio, 0);
+		usleep_range(5000, 10000);
 	}
 }
 
@@ -533,6 +562,40 @@ static int adv7180_s_power(struct v4l2_subdev *sd, int on)
 	return ret;
 }
 
+static const char * const test_pattern_menu[] = {
+	"Single color",
+	"Color bars",
+	"Luma ramp",
+	"Boundary box",
+	"Disable",
+};
+
+static int adv7180_test_pattern(struct adv7180_state *state, int value)
+{
+	unsigned int reg = 0;
+
+	/* Map menu value into register value */
+	if (value < 3)
+		reg = value;
+	if (value == 3)
+		reg = 5;
+
+	adv7180_write(state, ADV7180_REG_ANALOG_CLAMP_CTL, reg);
+
+	if (value == ARRAY_SIZE(test_pattern_menu) - 1) {
+		reg = adv7180_read(state, ADV7180_REG_DEF_VALUE_Y);
+		reg &= ~ADV7180_DEF_VAL_EN;
+		adv7180_write(state, ADV7180_REG_DEF_VALUE_Y, reg);
+		return 0;
+	}
+
+	reg = adv7180_read(state, ADV7180_REG_DEF_VALUE_Y);
+	reg |= ADV7180_DEF_VAL_EN | ADV7180_DEF_VAL_AUTO_EN;
+	adv7180_write(state, ADV7180_REG_DEF_VALUE_Y, reg);
+
+	return 0;
+}
+
 static int adv7180_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct v4l2_subdev *sd = to_adv7180_sd(ctrl);
@@ -576,6 +639,9 @@ static int adv7180_s_ctrl(struct v4l2_ctrl *ctrl)
 			adv7180_write(state, ADV7180_REG_FLCONTROL, 0x00);
 		}
 		break;
+	case V4L2_CID_TEST_PATTERN:
+		ret = adv7180_test_pattern(state, val);
+		break;
 	default:
 		ret = -EINVAL;
 	}
@@ -616,6 +682,12 @@ static int adv7180_init_controls(struct adv7180_state *state)
 			  ADV7180_HUE_MAX, 1, ADV7180_HUE_DEF);
 	v4l2_ctrl_new_custom(&state->ctrl_hdl, &adv7180_ctrl_fast_switch, NULL);
 
+	v4l2_ctrl_new_std_menu_items(&state->ctrl_hdl, &adv7180_ctrl_ops,
+				      V4L2_CID_TEST_PATTERN,
+				      ARRAY_SIZE(test_pattern_menu) - 1,
+				      0, ARRAY_SIZE(test_pattern_menu) - 1,
+				      test_pattern_menu);
+
 	state->sd.ctrl_handler = &state->ctrl_hdl;
 	if (state->ctrl_hdl.error) {
 		int err = state->ctrl_hdl.error;
@@ -633,7 +705,7 @@ static void adv7180_exit_controls(struct adv7180_state *state)
 }
 
 static int adv7180_enum_mbus_code(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->index != 0)
@@ -699,13 +771,13 @@ static int adv7180_set_field_mode(struct adv7180_state *state)
 }
 
 static int adv7180_get_pad_format(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_format *format)
 {
 	struct adv7180_state *state = to_state(sd);
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		format->format = *v4l2_subdev_get_try_format(sd, cfg, 0);
+		format->format = *v4l2_subdev_state_get_format(sd_state, 0);
 	} else {
 		adv7180_mbus_fmt(sd, &format->format);
 		format->format.field = state->field;
@@ -715,7 +787,7 @@ static int adv7180_get_pad_format(struct v4l2_subdev *sd,
 }
 
 static int adv7180_set_pad_format(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_format *format)
 {
 	struct adv7180_state *state = to_state(sd);
@@ -726,7 +798,7 @@ static int adv7180_set_pad_format(struct v4l2_subdev *sd,
 	case V4L2_FIELD_NONE:
 		if (state->chip_info->flags & ADV7180_FLAG_I2P)
 			break;
-		/* fall through */
+		fallthrough;
 	default:
 		format->format.field = V4L2_FIELD_ALTERNATE;
 		break;
@@ -742,30 +814,42 @@ static int adv7180_set_pad_format(struct v4l2_subdev *sd,
 			adv7180_set_power(state, true);
 		}
 	} else {
-		framefmt = v4l2_subdev_get_try_format(sd, cfg, 0);
+		framefmt = v4l2_subdev_state_get_format(sd_state, 0);
 		*framefmt = format->format;
 	}
 
 	return ret;
 }
 
-static int adv7180_g_mbus_config(struct v4l2_subdev *sd,
-				 struct v4l2_mbus_config *cfg)
+static int adv7180_init_state(struct v4l2_subdev *sd,
+			      struct v4l2_subdev_state *sd_state)
+{
+	struct v4l2_subdev_format fmt = {
+		.which = sd_state ? V4L2_SUBDEV_FORMAT_TRY
+		: V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
+
+	return adv7180_set_pad_format(sd, sd_state, &fmt);
+}
+
+static int adv7180_get_mbus_config(struct v4l2_subdev *sd,
+				   unsigned int pad,
+				   struct v4l2_mbus_config *cfg)
 {
 	struct adv7180_state *state = to_state(sd);
 
 	if (state->chip_info->flags & ADV7180_FLAG_MIPI_CSI2) {
 		cfg->type = V4L2_MBUS_CSI2_DPHY;
-		cfg->flags = V4L2_MBUS_CSI2_1_LANE |
-				V4L2_MBUS_CSI2_CHANNEL_0 |
-				V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
+		cfg->bus.mipi_csi2.num_data_lanes = 1;
+		cfg->bus.mipi_csi2.flags = 0;
 	} else {
 		/*
 		 * The ADV7180 sensor supports BT.601/656 output modes.
 		 * The BT.656 is default and not yet configurable by s/w.
 		 */
-		cfg->flags = V4L2_MBUS_MASTER | V4L2_MBUS_PCLK_SAMPLE_RISING |
-				 V4L2_MBUS_DATA_ACTIVE_HIGH;
+		cfg->bus.parallel.flags = V4L2_MBUS_MASTER |
+					  V4L2_MBUS_PCLK_SAMPLE_RISING |
+					  V4L2_MBUS_DATA_ACTIVE_HIGH;
 		cfg->type = V4L2_MBUS_BT656;
 	}
 
@@ -837,11 +921,9 @@ static int adv7180_subscribe_event(struct v4l2_subdev *sd,
 static const struct v4l2_subdev_video_ops adv7180_video_ops = {
 	.s_std = adv7180_s_std,
 	.g_std = adv7180_g_std,
-	.g_frame_interval = adv7180_g_frame_interval,
 	.querystd = adv7180_querystd,
 	.g_input_status = adv7180_g_input_status,
 	.s_routing = adv7180_s_routing,
-	.g_mbus_config = adv7180_g_mbus_config,
 	.g_pixelaspect = adv7180_g_pixelaspect,
 	.g_tvnorms = adv7180_g_tvnorms,
 	.s_stream = adv7180_s_stream,
@@ -857,6 +939,8 @@ static const struct v4l2_subdev_pad_ops adv7180_pad_ops = {
 	.enum_mbus_code = adv7180_enum_mbus_code,
 	.set_fmt = adv7180_set_pad_format,
 	.get_fmt = adv7180_get_pad_format,
+	.get_frame_interval = adv7180_get_frame_interval,
+	.get_mbus_config = adv7180_get_mbus_config,
 };
 
 static const struct v4l2_subdev_sensor_ops adv7180_sensor_ops = {
@@ -868,6 +952,10 @@ static const struct v4l2_subdev_ops adv7180_ops = {
 	.video = &adv7180_video_ops,
 	.pad = &adv7180_pad_ops,
 	.sensor = &adv7180_sensor_ops,
+};
+
+static const struct v4l2_subdev_internal_ops adv7180_internal_ops = {
+	.init_state = adv7180_init_state,
 };
 
 static irqreturn_t adv7180_irq(int irq, void *devid)
@@ -950,14 +1038,30 @@ static int adv7182_init(struct adv7180_state *state)
 		adv7180_write(state, ADV7180_REG_EXTENDED_OUTPUT_CONTROL, 0x57);
 		adv7180_write(state, ADV7180_REG_CTRL_2, 0xc0);
 	} else {
-		if (state->chip_info->flags & ADV7180_FLAG_V2)
-			adv7180_write(state,
-				      ADV7180_REG_EXTENDED_OUTPUT_CONTROL,
-				      0x17);
-		else
+		if (state->chip_info->flags & ADV7180_FLAG_V2) {
+			if (state->force_bt656_4) {
+				/* ITU-R BT.656-4 compatible */
+				adv7180_write(state,
+					      ADV7180_REG_EXTENDED_OUTPUT_CONTROL,
+					      ADV7180_EXTENDED_OUTPUT_CONTROL_NTSCDIS);
+				/* Manually set NEWAVMODE */
+				adv7180_write(state,
+					      ADV7180_REG_VSYNC_FIELD_CTL_1,
+					      ADV7180_VSYNC_FIELD_CTL_1_NEWAV);
+				/* Manually set V bit end position in NTSC mode */
+				adv7180_write(state,
+					      ADV7180_REG_NTSC_V_BIT_END,
+					      ADV7180_NTSC_V_BIT_END_MANUAL_NVEND);
+			} else {
+				adv7180_write(state,
+					      ADV7180_REG_EXTENDED_OUTPUT_CONTROL,
+					      0x17);
+			}
+		} else {
 			adv7180_write(state,
 				      ADV7180_REG_EXTENDED_OUTPUT_CONTROL,
 				      0x07);
+		}
 		adv7180_write(state, ADV7180_REG_OUTPUT_CONTROL, 0x0c);
 		adv7180_write(state, ADV7180_REG_CTRL_2, 0x40);
 	}
@@ -969,7 +1073,9 @@ static int adv7182_init(struct adv7180_state *state)
 
 static int adv7182_set_std(struct adv7180_state *state, unsigned int std)
 {
-	return adv7180_write(state, ADV7182_REG_INPUT_VIDSEL, std << 4);
+	/* Failing to set the reserved bit can result in increased video noise */
+	return adv7180_write(state, ADV7182_REG_INPUT_VIDSEL,
+			     (std << 4) | ADV7182_REG_INPUT_RESERVED);
 }
 
 enum adv7182_input_type {
@@ -1250,6 +1356,7 @@ static int init_device(struct adv7180_state *state)
 	mutex_lock(&state->mutex);
 
 	adv7180_set_power_pin(state, true);
+	adv7180_set_reset_pin(state, false);
 
 	adv7180_write(state, ADV7180_REG_PWR_MAN, ADV7180_PWR_MAN_RES);
 	usleep_range(5000, 10000);
@@ -1298,9 +1405,9 @@ out_unlock:
 	return ret;
 }
 
-static int adv7180_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int adv7180_probe(struct i2c_client *client)
 {
+	struct device_node *np = client->dev.of_node;
 	struct adv7180_state *state;
 	struct v4l2_subdev *sd;
 	int ret;
@@ -1309,16 +1416,13 @@ static int adv7180_probe(struct i2c_client *client,
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 
-	v4l_info(client, "chip found @ 0x%02x (%s)\n",
-		 client->addr, client->adapter->name);
-
 	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
 	if (state == NULL)
 		return -ENOMEM;
 
 	state->client = client;
 	state->field = V4L2_FIELD_ALTERNATE;
-	state->chip_info = (struct adv7180_chip_info *)id->driver_data;
+	state->chip_info = i2c_get_match_data(client);
 
 	state->pwdn_gpio = devm_gpiod_get_optional(&client->dev, "powerdown",
 						   GPIOD_OUT_HIGH);
@@ -1327,6 +1431,17 @@ static int adv7180_probe(struct i2c_client *client,
 		v4l_err(client, "request for power pin failed: %d\n", ret);
 		return ret;
 	}
+
+	state->rst_gpio = devm_gpiod_get_optional(&client->dev, "reset",
+						  GPIOD_OUT_HIGH);
+	if (IS_ERR(state->rst_gpio)) {
+		ret = PTR_ERR(state->rst_gpio);
+		v4l_err(client, "request for reset pin failed: %d\n", ret);
+		return ret;
+	}
+
+	if (of_property_read_bool(np, "adv,force-bt656-4"))
+		state->force_bt656_4 = true;
 
 	if (state->chip_info->flags & ADV7180_FLAG_MIPI_CSI2) {
 		state->csi_client = i2c_new_dummy_device(client->adapter,
@@ -1354,6 +1469,7 @@ static int adv7180_probe(struct i2c_client *client,
 	state->input = 0;
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &adv7180_ops);
+	sd->internal_ops = &adv7180_internal_ops;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
 
 	ret = adv7180_init_controls(state);
@@ -1370,7 +1486,7 @@ static int adv7180_probe(struct i2c_client *client,
 	if (ret)
 		goto err_media_entity_cleanup;
 
-	if (state->irq) {
+	if (state->irq > 0) {
 		ret = request_threaded_irq(client->irq, NULL, adv7180_irq,
 					   IRQF_ONESHOT | IRQF_TRIGGER_FALLING,
 					   KBUILD_MODNAME, state);
@@ -1382,8 +1498,19 @@ static int adv7180_probe(struct i2c_client *client,
 	if (ret)
 		goto err_free_irq;
 
+	mutex_lock(&state->mutex);
+	ret = adv7180_read(state, ADV7180_REG_IDENT);
+	mutex_unlock(&state->mutex);
+	if (ret < 0)
+		goto err_v4l2_async_unregister;
+
+	v4l_info(client, "chip id 0x%x found @ 0x%02x (%s)\n",
+		 ret, client->addr, client->adapter->name);
+
 	return 0;
 
+err_v4l2_async_unregister:
+	v4l2_async_unregister_subdev(sd);
 err_free_irq:
 	if (state->irq > 0)
 		free_irq(client->irq, state);
@@ -1399,7 +1526,7 @@ err_unregister_csi_client:
 	return ret;
 }
 
-static int adv7180_remove(struct i2c_client *client)
+static void adv7180_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct adv7180_state *state = to_state(sd);
@@ -1415,34 +1542,16 @@ static int adv7180_remove(struct i2c_client *client)
 	i2c_unregister_device(state->vpp_client);
 	i2c_unregister_device(state->csi_client);
 
+	adv7180_set_reset_pin(state, true);
 	adv7180_set_power_pin(state, false);
 
 	mutex_destroy(&state->mutex);
-
-	return 0;
 }
-
-static const struct i2c_device_id adv7180_id[] = {
-	{ "adv7180", (kernel_ulong_t)&adv7180_info },
-	{ "adv7180cp", (kernel_ulong_t)&adv7180_info },
-	{ "adv7180st", (kernel_ulong_t)&adv7180_info },
-	{ "adv7182", (kernel_ulong_t)&adv7182_info },
-	{ "adv7280", (kernel_ulong_t)&adv7280_info },
-	{ "adv7280-m", (kernel_ulong_t)&adv7280_m_info },
-	{ "adv7281", (kernel_ulong_t)&adv7281_info },
-	{ "adv7281-m", (kernel_ulong_t)&adv7281_m_info },
-	{ "adv7281-ma", (kernel_ulong_t)&adv7281_ma_info },
-	{ "adv7282", (kernel_ulong_t)&adv7282_info },
-	{ "adv7282-m", (kernel_ulong_t)&adv7282_m_info },
-	{},
-};
-MODULE_DEVICE_TABLE(i2c, adv7180_id);
 
 #ifdef CONFIG_PM_SLEEP
 static int adv7180_suspend(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct adv7180_state *state = to_state(sd);
 
 	return adv7180_set_power(state, false);
@@ -1450,8 +1559,7 @@ static int adv7180_suspend(struct device *dev)
 
 static int adv7180_resume(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct adv7180_state *state = to_state(sd);
 	int ret;
 
@@ -1473,30 +1581,43 @@ static SIMPLE_DEV_PM_OPS(adv7180_pm_ops, adv7180_suspend, adv7180_resume);
 #define ADV7180_PM_OPS NULL
 #endif
 
-#ifdef CONFIG_OF
-static const struct of_device_id adv7180_of_id[] = {
-	{ .compatible = "adi,adv7180", },
-	{ .compatible = "adi,adv7180cp", },
-	{ .compatible = "adi,adv7180st", },
-	{ .compatible = "adi,adv7182", },
-	{ .compatible = "adi,adv7280", },
-	{ .compatible = "adi,adv7280-m", },
-	{ .compatible = "adi,adv7281", },
-	{ .compatible = "adi,adv7281-m", },
-	{ .compatible = "adi,adv7281-ma", },
-	{ .compatible = "adi,adv7282", },
-	{ .compatible = "adi,adv7282-m", },
-	{ },
+static const struct i2c_device_id adv7180_id[] = {
+	{ "adv7180", (kernel_ulong_t)&adv7180_info },
+	{ "adv7180cp", (kernel_ulong_t)&adv7180_info },
+	{ "adv7180st", (kernel_ulong_t)&adv7180_info },
+	{ "adv7182", (kernel_ulong_t)&adv7182_info },
+	{ "adv7280", (kernel_ulong_t)&adv7280_info },
+	{ "adv7280-m", (kernel_ulong_t)&adv7280_m_info },
+	{ "adv7281", (kernel_ulong_t)&adv7281_info },
+	{ "adv7281-m", (kernel_ulong_t)&adv7281_m_info },
+	{ "adv7281-ma", (kernel_ulong_t)&adv7281_ma_info },
+	{ "adv7282", (kernel_ulong_t)&adv7282_info },
+	{ "adv7282-m", (kernel_ulong_t)&adv7282_m_info },
+	{}
 };
+MODULE_DEVICE_TABLE(i2c, adv7180_id);
 
+static const struct of_device_id adv7180_of_id[] = {
+	{ .compatible = "adi,adv7180", &adv7180_info },
+	{ .compatible = "adi,adv7180cp", &adv7180_info },
+	{ .compatible = "adi,adv7180st", &adv7180_info },
+	{ .compatible = "adi,adv7182", &adv7182_info },
+	{ .compatible = "adi,adv7280", &adv7280_info },
+	{ .compatible = "adi,adv7280-m", &adv7280_m_info },
+	{ .compatible = "adi,adv7281", &adv7281_info },
+	{ .compatible = "adi,adv7281-m", &adv7281_m_info },
+	{ .compatible = "adi,adv7281-ma", &adv7281_ma_info },
+	{ .compatible = "adi,adv7282", &adv7282_info },
+	{ .compatible = "adi,adv7282-m", &adv7282_m_info },
+	{}
+};
 MODULE_DEVICE_TABLE(of, adv7180_of_id);
-#endif
 
 static struct i2c_driver adv7180_driver = {
 	.driver = {
 		   .name = KBUILD_MODNAME,
 		   .pm = ADV7180_PM_OPS,
-		   .of_match_table = of_match_ptr(adv7180_of_id),
+		   .of_match_table = adv7180_of_id,
 		   },
 	.probe = adv7180_probe,
 	.remove = adv7180_remove,

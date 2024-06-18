@@ -165,6 +165,8 @@ static const struct {
 
 /**
  * dccp_feat_index  -  Hash function to map feature number into array position
+ * @feat_num: feature to hash, one of %dccp_feature_numbers
+ *
  * Returns consecutive array index or -1 if the feature is not understood.
  */
 static int dccp_feat_index(u8 feat_num)
@@ -369,7 +371,7 @@ static int dccp_feat_clone_sp_val(dccp_feat_val *fval, u8 const *val, u8 len)
 		fval->sp.vec = kmemdup(val, len, gfp_any());
 		if (fval->sp.vec == NULL) {
 			fval->sp.len = 0;
-			return -ENOBUFS;
+			return -ENOMEM;
 		}
 	}
 	return 0;
@@ -567,6 +569,8 @@ cloning_failed:
 
 /**
  * dccp_feat_valid_nn_length  -  Enforce length constraints on NN options
+ * @feat_num: feature to return length of, one of %dccp_feature_numbers
+ *
  * Length is between 0 and %DCCP_OPTVAL_MAXLEN. Used for outgoing packets only,
  * incoming options are accepted as long as their values are valid.
  */
@@ -992,6 +996,8 @@ int dccp_feat_finalise_settings(struct dccp_sock *dp)
 
 /**
  * dccp_feat_server_ccid_dependencies  -  Resolve CCID-dependent features
+ * @dreq: server socket to resolve
+ *
  * It is the server which resolves the dependencies once the CCID has been
  * fully negotiated. If no CCID has been negotiated, it uses the default CCID.
  */
@@ -1029,6 +1035,10 @@ static int dccp_feat_preflist_match(u8 *servlist, u8 slen, u8 *clilist, u8 clen)
 
 /**
  * dccp_feat_prefer  -  Move preferred entry to the start of array
+ * @preferred_value: entry to move to start of array
+ * @array: array of preferred entries
+ * @array_len: size of the array
+ *
  * Reorder the @array_len elements in @array so that @preferred_value comes
  * first. Returns >0 to indicate that @preferred_value does occur in @array.
  */
@@ -1403,7 +1413,8 @@ int dccp_feat_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 	 *	Negotiation during connection setup
 	 */
 	case DCCP_LISTEN:
-		server = true;			/* fall through */
+		server = true;
+		fallthrough;
 	case DCCP_REQUESTING:
 		switch (opt) {
 		case DCCPO_CHANGE_L:
@@ -1429,6 +1440,8 @@ int dccp_feat_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 
 /**
  * dccp_feat_init  -  Seed feature negotiation with host-specific defaults
+ * @sk: Socket to initialize.
+ *
  * This initialises global defaults, depending on the value of the sysctls.
  * These can later be overridden by registering changes via setsockopt calls.
  * The last link in the chain is finalise_settings, to make sure that between

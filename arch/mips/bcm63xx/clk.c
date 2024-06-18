@@ -76,7 +76,7 @@ static struct clk clk_enet_misc = {
 };
 
 /*
- * Ethernet MAC clocks: only revelant on 6358, silently enable misc
+ * Ethernet MAC clocks: only relevant on 6358, silently enable misc
  * clocks
  */
 static void enetx_set(struct clk *clk, int enable)
@@ -174,7 +174,7 @@ static void enetsw_set(struct clk *clk, int enable)
 	}
 
 	if (enable) {
-		/* reset switch core afer clock change */
+		/* reset switch core after clock change */
 		bcm63xx_core_set_reset(BCM63XX_RESET_ENETSW, 1);
 		msleep(10);
 		bcm63xx_core_set_reset(BCM63XX_RESET_ENETSW, 0);
@@ -304,7 +304,7 @@ static void xtm_set(struct clk *clk, int enable)
 	bcm_hwclock_set(CKCTL_6368_SAR_EN, enable);
 
 	if (enable) {
-		/* reset sar core afer clock change */
+		/* reset sar core after clock change */
 		bcm63xx_core_set_reset(BCM63XX_RESET_SAR, 1);
 		mdelay(1);
 		bcm63xx_core_set_reset(BCM63XX_RESET_SAR, 0);
@@ -361,6 +361,8 @@ static struct clk clk_periph = {
  */
 int clk_enable(struct clk *clk)
 {
+	if (!clk)
+		return 0;
 	mutex_lock(&clocks_mutex);
 	clk_enable_unlocked(clk);
 	mutex_unlock(&clocks_mutex);
@@ -380,6 +382,18 @@ void clk_disable(struct clk *clk)
 }
 
 EXPORT_SYMBOL(clk_disable);
+
+struct clk *clk_get_parent(struct clk *clk)
+{
+	return NULL;
+}
+EXPORT_SYMBOL(clk_get_parent);
+
+int clk_set_parent(struct clk *clk, struct clk *parent)
+{
+	return 0;
+}
+EXPORT_SYMBOL(clk_set_parent);
 
 unsigned long clk_get_rate(struct clk *clk)
 {

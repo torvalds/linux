@@ -562,7 +562,7 @@ static int au8522_s_video_routing(struct v4l2_subdev *sd,
 {
 	struct au8522_state *state = to_state(sd);
 
-	switch(input) {
+	switch (input) {
 	case AU8522_COMPOSITE_CH1:
 	case AU8522_SVIDEO_CH13:
 	case AU8522_COMPOSITE_CH4_SIF:
@@ -669,8 +669,7 @@ static const struct v4l2_ctrl_ops au8522_ctrl_ops = {
 
 /* ----------------------------------------------------------------------- */
 
-static int au8522_probe(struct i2c_client *client,
-			const struct i2c_device_id *did)
+static int au8522_probe(struct i2c_client *client)
 {
 	struct au8522_state *state;
 	struct v4l2_ctrl_handler *hdl;
@@ -758,13 +757,12 @@ static int au8522_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int au8522_remove(struct i2c_client *client)
+static void au8522_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
 	au8522_release_state(to_state(sd));
-	return 0;
 }
 
 static const struct i2c_device_id au8522_id[] = {

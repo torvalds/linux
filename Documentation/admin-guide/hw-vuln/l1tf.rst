@@ -268,7 +268,7 @@ Guest mitigation mechanisms
    /proc/irq/$NR/smp_affinity[_list] files. Limited documentation is
    available at:
 
-   https://www.kernel.org/doc/Documentation/IRQ-affinity.txt
+   https://www.kernel.org/doc/Documentation/core-api/irq/irq-affinity.rst
 
 .. _smt_control:
 

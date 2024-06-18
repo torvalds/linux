@@ -16,8 +16,11 @@ extern int
 seq_print_ip_sym(struct trace_seq *s, unsigned long ip,
 		unsigned long sym_flags);
 
+extern void trace_seq_print_sym(struct trace_seq *s, unsigned long address, bool offset);
 extern int trace_print_context(struct trace_iterator *iter);
 extern int trace_print_lat_context(struct trace_iterator *iter);
+extern enum print_line_t print_event_fields(struct trace_iterator *iter,
+					    struct trace_event *event);
 
 extern void trace_event_read_lock(void);
 extern void trace_event_read_unlock(void);

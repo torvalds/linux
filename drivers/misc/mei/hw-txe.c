@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2013-2014, Intel Corporation. All rights reserved.
+ * Copyright (c) 2013-2022, Intel Corporation. All rights reserved.
  * Intel Management Engine Interface (Intel MEI) Linux driver
  */
 
@@ -176,7 +176,7 @@ static bool mei_txe_aliveness_set(struct mei_device *dev, u32 req)
  * @dev: the device structure
  *
  * Extract HICR_HOST_ALIVENESS_RESP_ACK bit from
- * from HICR_HOST_ALIVENESS_REQ register value
+ * HICR_HOST_ALIVENESS_REQ register value
  *
  * Return: SICR_HOST_ALIVENESS_REQ_REQUESTED bit value
  */
@@ -660,14 +660,16 @@ static int mei_txe_fw_status(struct mei_device *dev,
 }
 
 /**
- *  mei_txe_hw_config - configure hardware at the start of the devices
+ * mei_txe_hw_config - configure hardware at the start of the devices
  *
  * @dev: the device structure
  *
  * Configure hardware at the start of the device should be done only
  *   once at the device probe time
+ *
+ * Return: always 0
  */
-static void mei_txe_hw_config(struct mei_device *dev)
+static int mei_txe_hw_config(struct mei_device *dev)
 {
 
 	struct mei_txe_hw *hw = to_txe_hw(dev);
@@ -677,6 +679,8 @@ static void mei_txe_hw_config(struct mei_device *dev)
 
 	dev_dbg(dev->dev, "aliveness_resp = 0x%08x, readiness = 0x%08x.\n",
 		hw->aliveness, hw->readiness);
+
+	return 0;
 }
 
 /**
@@ -990,11 +994,7 @@ static bool mei_txe_check_and_ack_intrs(struct mei_device *dev, bool do_ack)
 		hhisr &= ~IPC_HHIER_SEC;
 	}
 
-	generated = generated ||
-		(hisr & HISR_INT_STS_MSK) ||
-		(ipc_isr & SEC_IPC_HOST_INT_STATUS_PENDING);
-
-	if (generated && do_ack) {
+	if (do_ack) {
 		/* Save the interrupt causes */
 		hw->intr_cause |= hisr & HISR_INT_STS_MSK;
 		if (ipc_isr & SEC_IPC_HOST_INT_STATUS_IN_RDY)
@@ -1197,12 +1197,11 @@ struct mei_device *mei_txe_dev_init(struct pci_dev *pdev)
 	struct mei_device *dev;
 	struct mei_txe_hw *hw;
 
-	dev = devm_kzalloc(&pdev->dev, sizeof(struct mei_device) +
-			   sizeof(struct mei_txe_hw), GFP_KERNEL);
+	dev = devm_kzalloc(&pdev->dev, sizeof(*dev) + sizeof(*hw), GFP_KERNEL);
 	if (!dev)
 		return NULL;
 
-	mei_device_init(dev, &pdev->dev, &mei_txe_hw_ops);
+	mei_device_init(dev, &pdev->dev, false, &mei_txe_hw_ops);
 
 	hw = to_txe_hw(dev);
 

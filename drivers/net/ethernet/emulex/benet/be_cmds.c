@@ -135,7 +135,8 @@ static int be_mcc_notify(struct be_adapter *adapter)
 
 /* To check if valid bit is set, check the entire word as we don't know
  * the endianness of the data (old entry is host endian while a new entry is
- * little endian) */
+ * little endian)
+ */
 static inline bool be_mcc_compl_is_new(struct be_mcc_compl *compl)
 {
 	u32 flags;
@@ -248,7 +249,8 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 	u8 opcode = 0, subsystem = 0;
 
 	/* Just swap the status to host endian; mcc tag is opaquely copied
-	 * from mcc_wrb */
+	 * from mcc_wrb
+	 */
 	be_dws_le_to_cpu(compl, 4);
 
 	base_status = base_status(compl->status);
@@ -550,7 +552,7 @@ int be_process_mcc(struct be_adapter *adapter)
 	int num = 0, status = 0;
 	struct be_mcc_obj *mcc_obj = &adapter->mcc_obj;
 
-	spin_lock_bh(&adapter->mcc_cq_lock);
+	spin_lock(&adapter->mcc_cq_lock);
 
 	while ((compl = be_mcc_compl_get(adapter))) {
 		if (compl->flags & CQE_FLAGS_ASYNC_MASK) {
@@ -566,7 +568,7 @@ int be_process_mcc(struct be_adapter *adapter)
 	if (num)
 		be_cq_notify(adapter, mcc_obj->cq.id, mcc_obj->rearm_cq, num);
 
-	spin_unlock_bh(&adapter->mcc_cq_lock);
+	spin_unlock(&adapter->mcc_cq_lock);
 	return status;
 }
 
@@ -581,7 +583,9 @@ static int be_mcc_wait_compl(struct be_adapter *adapter)
 		if (be_check_error(adapter, BE_ERROR_ANY))
 			return -EIO;
 
+		local_bh_disable();
 		status = be_process_mcc(adapter);
+		local_bh_enable();
 
 		if (atomic_read(&mcc_obj->q.used) == 0)
 			break;
@@ -655,8 +659,7 @@ static int be_mbox_db_ready_wait(struct be_adapter *adapter, void __iomem *db)
 	return 0;
 }
 
-/*
- * Insert the mailbox address into the doorbell in two steps
+/* Insert the mailbox address into the doorbell in two steps
  * Polls on the mbox doorbell till a command completion (or a timeout) occurs
  */
 static int be_mbox_notify_wait(struct be_adapter *adapter)
@@ -800,7 +803,7 @@ static void be_wrb_cmd_hdr_prepare(struct be_cmd_req_hdr *req_hdr,
 	req_hdr->subsystem = subsystem;
 	req_hdr->request_length = cpu_to_le32(cmd_len - sizeof(*req_hdr));
 	req_hdr->version = 0;
-	fill_wrb_tags(wrb, (ulong) req_hdr);
+	fill_wrb_tags(wrb, (ulong)req_hdr);
 	wrb->payload_length = cmd_len;
 	if (mem) {
 		wrb->embedded |= (1 & MCC_WRB_SGE_CNT_MASK) <<
@@ -830,8 +833,8 @@ static void be_cmd_page_addrs_prepare(struct phys_addr *pages, u32 max_pages,
 static inline struct be_mcc_wrb *wrb_from_mbox(struct be_adapter *adapter)
 {
 	struct be_dma_mem *mbox_mem = &adapter->mbox_mem;
-	struct be_mcc_wrb *wrb
-		= &((struct be_mcc_mailbox *)(mbox_mem->va))->wrb;
+	struct be_mcc_wrb *wrb = &((struct be_mcc_mailbox *)(mbox_mem->va))->wrb;
+
 	memset(wrb, 0, sizeof(*wrb));
 	return wrb;
 }
@@ -894,7 +897,7 @@ static struct be_mcc_wrb *be_cmd_copy(struct be_adapter *adapter,
 
 	memcpy(dest_wrb, wrb, sizeof(*wrb));
 	if (wrb->embedded & cpu_to_le32(MCC_WRB_EMBEDDED_MASK))
-		fill_wrb_tags(dest_wrb, (ulong) embedded_payload(wrb));
+		fill_wrb_tags(dest_wrb, (ulong)embedded_payload(wrb));
 
 	return dest_wrb;
 }
@@ -1078,7 +1081,7 @@ err:
 }
 
 /* Uses synchronous MCCQ */
-int be_cmd_pmac_add(struct be_adapter *adapter, u8 *mac_addr,
+int be_cmd_pmac_add(struct be_adapter *adapter, const u8 *mac_addr,
 		    u32 if_id, u32 *pmac_id, u32 domain)
 {
 	struct be_mcc_wrb *wrb;
@@ -1112,7 +1115,7 @@ int be_cmd_pmac_add(struct be_adapter *adapter, u8 *mac_addr,
 err:
 	mutex_unlock(&adapter->mcc_lock);
 
-	 if (base_status(status) == MCC_STATUS_UNAUTHORIZED_REQUEST)
+	if (base_status(status) == MCC_STATUS_UNAUTHORIZED_REQUEST)
 		status = -EPERM;
 
 	return status;
@@ -1801,7 +1804,7 @@ int be_cmd_get_fat_dump(struct be_adapter *adapter, u32 buf_len, void *buf)
 
 	total_size = buf_len;
 
-	get_fat_cmd.size = sizeof(struct be_cmd_req_get_fat) + 60*1024;
+	get_fat_cmd.size = sizeof(struct be_cmd_req_get_fat) + 60 * 1024;
 	get_fat_cmd.va = dma_alloc_coherent(&adapter->pdev->dev,
 					    get_fat_cmd.size,
 					    &get_fat_cmd.dma, GFP_ATOMIC);
@@ -1811,7 +1814,7 @@ int be_cmd_get_fat_dump(struct be_adapter *adapter, u32 buf_len, void *buf)
 	mutex_lock(&adapter->mcc_lock);
 
 	while (total_size) {
-		buf_size = min(total_size, (u32)60*1024);
+		buf_size = min(total_size, (u32)60 * 1024);
 		total_size -= buf_size;
 
 		wrb = wrb_from_mccq(adapter);
@@ -1876,9 +1879,9 @@ int be_cmd_get_fw_ver(struct be_adapter *adapter)
 	if (!status) {
 		struct be_cmd_resp_get_fw_version *resp = embedded_payload(wrb);
 
-		strlcpy(adapter->fw_ver, resp->firmware_version_string,
+		strscpy(adapter->fw_ver, resp->firmware_version_string,
 			sizeof(adapter->fw_ver));
-		strlcpy(adapter->fw_on_flash, resp->fw_on_flash_version_string,
+		strscpy(adapter->fw_on_flash, resp->fw_on_flash_version_string,
 			sizeof(adapter->fw_on_flash));
 	}
 err:
@@ -2285,7 +2288,7 @@ err:
 
 /* Uses sync mcc */
 int be_cmd_read_port_transceiver_data(struct be_adapter *adapter,
-				      u8 page_num, u8 *data)
+				      u8 page_num, u32 off, u32 len, u8 *data)
 {
 	struct be_dma_mem cmd;
 	struct be_mcc_wrb *wrb;
@@ -2319,10 +2322,10 @@ int be_cmd_read_port_transceiver_data(struct be_adapter *adapter,
 	req->port = cpu_to_le32(adapter->hba_port_num);
 	req->page_num = cpu_to_le32(page_num);
 	status = be_mcc_notify_wait(adapter);
-	if (!status) {
+	if (!status && len > 0) {
 		struct be_cmd_resp_port_type *resp = cmd.va;
 
-		memcpy(data, resp->page_data, PAGE_DATA_LEN);
+		memcpy(data, resp->page_data + off, len);
 	}
 err:
 	mutex_unlock(&adapter->mcc_lock);
@@ -2371,7 +2374,7 @@ static int lancer_cmd_write_object(struct be_adapter *adapter,
 
 	be_dws_cpu_to_le(ctxt, sizeof(req->context));
 	req->write_offset = cpu_to_le32(data_offset);
-	strlcpy(req->object_name, obj_name, sizeof(req->object_name));
+	strscpy(req->object_name, obj_name, sizeof(req->object_name));
 	req->descriptor_count = cpu_to_le32(1);
 	req->buf_len = cpu_to_le32(data_size);
 	req->addr_low = cpu_to_le32((cmd->dma +
@@ -2413,7 +2416,7 @@ int be_cmd_query_cable_type(struct be_adapter *adapter)
 	int status;
 
 	status = be_cmd_read_port_transceiver_data(adapter, TR_PAGE_A0,
-						   page_data);
+						   0, PAGE_DATA_LEN, page_data);
 	if (!status) {
 		switch (adapter->phy.interface_type) {
 		case PHY_TYPE_QSFP:
@@ -2438,11 +2441,11 @@ int be_cmd_query_sfp_info(struct be_adapter *adapter)
 	int status;
 
 	status = be_cmd_read_port_transceiver_data(adapter, TR_PAGE_A0,
-						   page_data);
+						   0, PAGE_DATA_LEN, page_data);
 	if (!status) {
-		strlcpy(adapter->phy.vendor_name, page_data +
+		strscpy(adapter->phy.vendor_name, page_data +
 			SFP_VENDOR_NAME_OFFSET, SFP_VENDOR_NAME_LEN - 1);
-		strlcpy(adapter->phy.vendor_pn,
+		strscpy(adapter->phy.vendor_pn,
 			page_data + SFP_VENDOR_PN_OFFSET,
 			SFP_VENDOR_NAME_LEN - 1);
 	}
@@ -2471,7 +2474,7 @@ static int lancer_cmd_delete_object(struct be_adapter *adapter,
 			       OPCODE_COMMON_DELETE_OBJECT,
 			       sizeof(*req), wrb, NULL);
 
-	strlcpy(req->object_name, obj_name, sizeof(req->object_name));
+	strscpy(req->object_name, obj_name, sizeof(req->object_name));
 
 	status = be_mcc_notify_wait(adapter);
 err:
@@ -3360,7 +3363,7 @@ int be_cmd_ddr_dma_test(struct be_adapter *adapter, u64 pattern,
 	req->pattern = cpu_to_le64(pattern);
 	req->byte_count = cpu_to_le32(byte_cnt);
 	for (i = 0; i < byte_cnt; i++) {
-		req->snd_buff[i] = (u8)(pattern >> (j*8));
+		req->snd_buff[i] = (u8)(pattern >> (j * 8));
 		j++;
 		if (j > 7)
 			j = 0;
@@ -3844,7 +3847,7 @@ int be_cmd_set_mac_list(struct be_adapter *adapter, u8 *mac_array,
 	req->hdr.domain = domain;
 	req->mac_count = mac_count;
 	if (mac_count)
-		memcpy(req->mac, mac_array, ETH_ALEN*mac_count);
+		memcpy(req->mac, mac_array, ETH_ALEN * mac_count);
 
 	status = be_mcc_notify_wait(adapter);
 

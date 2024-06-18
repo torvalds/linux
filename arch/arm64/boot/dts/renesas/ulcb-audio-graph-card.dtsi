@@ -1,0 +1,90 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree for ULCB + Audio Graph Card
+ *
+ * Copyright (C) 2022 Renesas Electronics Corp.
+ */
+
+/*
+ *	(A) CPU0 <-----> ak4613
+ *	(B) CPU1  -----> HDMI
+ *
+ *	(A) aplay   -D plughw:0,0 xxx.wav
+ *	(B) aplay   -D plughw:0,1 xxx.wav
+ *
+ *	(A) arecord -D plughw:0,0 xxx.wav
+ */
+
+/ {
+	sound_card: sound {
+		compatible = "audio-graph-card";
+		label = "snd-ulcb";
+
+		dais = <&snd_ulcb1 /* (A) CPU0 <-> ak4613 */
+			&snd_ulcb2 /* (B) CPU1  -> HDMI   */
+		>;
+	};
+};
+
+&ak4613 {
+	#sound-dai-cells = <0>;
+
+	port {
+		/*
+		 * (A) CPU0 <-> ak4613
+		 */
+		ak4613_endpoint: endpoint {
+			remote-endpoint = <&rsnd_for_ak4613>;
+		};
+	};
+};
+
+&hdmi0 {
+	ports {
+		port@2 {
+			/*
+			 * (B) CPU1 -> HDMI
+			 */
+			dw_hdmi0_snd_in: endpoint {
+				remote-endpoint = <&rsnd_for_hdmi>;
+			};
+		};
+	};
+};
+
+&rcar_sound {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	ports@0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0>;
+
+		snd_ulcb1: port@0 {
+			/*
+			 * (A) CPU0 <-> ak4613
+			 */
+			reg = <0>;
+			rsnd_for_ak4613: endpoint {
+				remote-endpoint = <&ak4613_endpoint>;
+				bitclock-master;
+				frame-master;
+				playback = <&ssi0>, <&src0>, <&dvc0>;
+				capture  = <&ssi1>, <&src1>, <&dvc1>;
+			};
+		};
+		snd_ulcb2: port@1 {
+			/*
+			 * (B) CPU1 -> HDMI
+			 */
+			reg = <1>;
+			rsnd_for_hdmi: endpoint {
+				remote-endpoint = <&dw_hdmi0_snd_in>;
+				bitclock-master;
+				frame-master;
+				playback = <&ssi2>;
+			};
+		};
+	};
+};

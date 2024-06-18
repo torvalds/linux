@@ -50,26 +50,23 @@
 #include <linux/debugfs.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
+#include <linux/vmalloc.h>
+#include <linux/pgtable.h>
+#include <linux/static_call.h>
 
 #include <linux/uaccess.h>
+#include <asm/interrupt.h>
 #include <asm/io.h>
-#include <asm/pgtable.h>
 #include <asm/irq.h>
 #include <asm/cache.h>
-#include <asm/prom.h>
 #include <asm/ptrace.h>
 #include <asm/machdep.h>
 #include <asm/udbg.h>
 #include <asm/smp.h>
-#include <asm/livepatch.h>
-#include <asm/asm-prototypes.h>
 #include <asm/hw_irq.h>
+#include <asm/softirq_stack.h>
+#include <asm/ppc_asm.h>
 
-#ifdef CONFIG_PPC64
-#include <asm/paca.h>
-#include <asm/firmware.h>
-#include <asm/lv1call.h>
-#endif
 #define CREATE_TRACE_POINTS
 #include <asm/trace.h>
 #include <asm/cpu_has_feature.h>
@@ -85,417 +82,6 @@ extern int tau_initialized;
 u32 tau_interrupts(unsigned long cpu);
 #endif
 #endif /* CONFIG_PPC32 */
-
-#ifdef CONFIG_PPC64
-
-int distribute_irqs = 1;
-
-static inline notrace unsigned long get_irq_happened(void)
-{
-	unsigned long happened;
-
-	__asm__ __volatile__("lbz %0,%1(13)"
-	: "=r" (happened) : "i" (offsetof(struct paca_struct, irq_happened)));
-
-	return happened;
-}
-
-static inline notrace int decrementer_check_overflow(void)
-{
- 	u64 now = get_tb_or_rtc();
-	u64 *next_tb = this_cpu_ptr(&decrementers_next_tb);
- 
-	return now >= *next_tb;
-}
-
-/* This is called whenever we are re-enabling interrupts
- * and returns either 0 (nothing to do) or 500/900/280/a00/e80 if
- * there's an EE, DEC or DBELL to generate.
- *
- * This is called in two contexts: From arch_local_irq_restore()
- * before soft-enabling interrupts, and from the exception exit
- * path when returning from an interrupt from a soft-disabled to
- * a soft enabled context. In both case we have interrupts hard
- * disabled.
- *
- * We take care of only clearing the bits we handled in the
- * PACA irq_happened field since we can only re-emit one at a
- * time and we don't want to "lose" one.
- */
-notrace unsigned int __check_irq_replay(void)
-{
-	/*
-	 * We use local_paca rather than get_paca() to avoid all
-	 * the debug_smp_processor_id() business in this low level
-	 * function
-	 */
-	unsigned char happened = local_paca->irq_happened;
-
-	/*
-	 * We are responding to the next interrupt, so interrupt-off
-	 * latencies should be reset here.
-	 */
-	trace_hardirqs_on();
-	trace_hardirqs_off();
-
-	/*
-	 * We are always hard disabled here, but PACA_IRQ_HARD_DIS may
-	 * not be set, which means interrupts have only just been hard
-	 * disabled as part of the local_irq_restore or interrupt return
-	 * code. In that case, skip the decrementr check becaus it's
-	 * expensive to read the TB.
-	 *
-	 * HARD_DIS then gets cleared here, but it's reconciled later.
-	 * Either local_irq_disable will replay the interrupt and that
-	 * will reconcile state like other hard interrupts. Or interrupt
-	 * retur will replay the interrupt and in that case it sets
-	 * PACA_IRQ_HARD_DIS by hand (see comments in entry_64.S).
-	 */
-	if (happened & PACA_IRQ_HARD_DIS) {
-		local_paca->irq_happened &= ~PACA_IRQ_HARD_DIS;
-
-		/*
-		 * We may have missed a decrementer interrupt if hard disabled.
-		 * Check the decrementer register in case we had a rollover
-		 * while hard disabled.
-		 */
-		if (!(happened & PACA_IRQ_DEC)) {
-			if (decrementer_check_overflow()) {
-				local_paca->irq_happened |= PACA_IRQ_DEC;
-				happened |= PACA_IRQ_DEC;
-			}
-		}
-	}
-
-	/*
-	 * Force the delivery of pending soft-disabled interrupts on PS3.
-	 * Any HV call will have this side effect.
-	 */
-	if (firmware_has_feature(FW_FEATURE_PS3_LV1)) {
-		u64 tmp, tmp2;
-		lv1_get_version_info(&tmp, &tmp2);
-	}
-
-	/*
-	 * Check if an hypervisor Maintenance interrupt happened.
-	 * This is a higher priority interrupt than the others, so
-	 * replay it first.
-	 */
-	if (happened & PACA_IRQ_HMI) {
-		local_paca->irq_happened &= ~PACA_IRQ_HMI;
-		return 0xe60;
-	}
-
-	if (happened & PACA_IRQ_DEC) {
-		local_paca->irq_happened &= ~PACA_IRQ_DEC;
-		return 0x900;
-	}
-
-	if (happened & PACA_IRQ_PMI) {
-		local_paca->irq_happened &= ~PACA_IRQ_PMI;
-		return 0xf00;
-	}
-
-	if (happened & PACA_IRQ_EE) {
-		local_paca->irq_happened &= ~PACA_IRQ_EE;
-		return 0x500;
-	}
-
-#ifdef CONFIG_PPC_BOOK3E
-	/*
-	 * Check if an EPR external interrupt happened this bit is typically
-	 * set if we need to handle another "edge" interrupt from within the
-	 * MPIC "EPR" handler.
-	 */
-	if (happened & PACA_IRQ_EE_EDGE) {
-		local_paca->irq_happened &= ~PACA_IRQ_EE_EDGE;
-		return 0x500;
-	}
-
-	if (happened & PACA_IRQ_DBELL) {
-		local_paca->irq_happened &= ~PACA_IRQ_DBELL;
-		return 0x280;
-	}
-#else
-	if (happened & PACA_IRQ_DBELL) {
-		local_paca->irq_happened &= ~PACA_IRQ_DBELL;
-		return 0xa00;
-	}
-#endif /* CONFIG_PPC_BOOK3E */
-
-	/* There should be nothing left ! */
-	BUG_ON(local_paca->irq_happened != 0);
-
-	return 0;
-}
-
-notrace void arch_local_irq_restore(unsigned long mask)
-{
-	unsigned char irq_happened;
-	unsigned int replay;
-
-	/* Write the new soft-enabled value */
-	irq_soft_mask_set(mask);
-	if (mask)
-		return;
-
-	/*
-	 * From this point onward, we can take interrupts, preempt,
-	 * etc... unless we got hard-disabled. We check if an event
-	 * happened. If none happened, we know we can just return.
-	 *
-	 * We may have preempted before the check below, in which case
-	 * we are checking the "new" CPU instead of the old one. This
-	 * is only a problem if an event happened on the "old" CPU.
-	 *
-	 * External interrupt events will have caused interrupts to
-	 * be hard-disabled, so there is no problem, we
-	 * cannot have preempted.
-	 */
-	irq_happened = get_irq_happened();
-	if (!irq_happened) {
-#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
-		WARN_ON_ONCE(!(mfmsr() & MSR_EE));
-#endif
-		return;
-	}
-
-	/*
-	 * We need to hard disable to get a trusted value from
-	 * __check_irq_replay(). We also need to soft-disable
-	 * again to avoid warnings in there due to the use of
-	 * per-cpu variables.
-	 */
-	if (!(irq_happened & PACA_IRQ_HARD_DIS)) {
-#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
-		WARN_ON_ONCE(!(mfmsr() & MSR_EE));
-#endif
-		__hard_irq_disable();
-#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
-	} else {
-		/*
-		 * We should already be hard disabled here. We had bugs
-		 * where that wasn't the case so let's dbl check it and
-		 * warn if we are wrong. Only do that when IRQ tracing
-		 * is enabled as mfmsr() can be costly.
-		 */
-		if (WARN_ON_ONCE(mfmsr() & MSR_EE))
-			__hard_irq_disable();
-#endif
-	}
-
-	irq_soft_mask_set(IRQS_ALL_DISABLED);
-	trace_hardirqs_off();
-
-	/*
-	 * Check if anything needs to be re-emitted. We haven't
-	 * soft-enabled yet to avoid warnings in decrementer_check_overflow
-	 * accessing per-cpu variables
-	 */
-	replay = __check_irq_replay();
-
-	/* We can soft-enable now */
-	trace_hardirqs_on();
-	irq_soft_mask_set(IRQS_ENABLED);
-
-	/*
-	 * And replay if we have to. This will return with interrupts
-	 * hard-enabled.
-	 */
-	if (replay) {
-		__replay_interrupt(replay);
-		return;
-	}
-
-	/* Finally, let's ensure we are hard enabled */
-	__hard_irq_enable();
-}
-EXPORT_SYMBOL(arch_local_irq_restore);
-
-/*
- * This is specifically called by assembly code to re-enable interrupts
- * if they are currently disabled. This is typically called before
- * schedule() or do_signal() when returning to userspace. We do it
- * in C to avoid the burden of dealing with lockdep etc...
- *
- * NOTE: This is called with interrupts hard disabled but not marked
- * as such in paca->irq_happened, so we need to resync this.
- */
-void notrace restore_interrupts(void)
-{
-	if (irqs_disabled()) {
-		local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
-		local_irq_enable();
-	} else
-		__hard_irq_enable();
-}
-
-/*
- * This is a helper to use when about to go into idle low-power
- * when the latter has the side effect of re-enabling interrupts
- * (such as calling H_CEDE under pHyp).
- *
- * You call this function with interrupts soft-disabled (this is
- * already the case when ppc_md.power_save is called). The function
- * will return whether to enter power save or just return.
- *
- * In the former case, it will have notified lockdep of interrupts
- * being re-enabled and generally sanitized the lazy irq state,
- * and in the latter case it will leave with interrupts hard
- * disabled and marked as such, so the local_irq_enable() call
- * in arch_cpu_idle() will properly re-enable everything.
- */
-bool prep_irq_for_idle(void)
-{
-	/*
-	 * First we need to hard disable to ensure no interrupt
-	 * occurs before we effectively enter the low power state
-	 */
-	__hard_irq_disable();
-	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
-
-	/*
-	 * If anything happened while we were soft-disabled,
-	 * we return now and do not enter the low power state.
-	 */
-	if (lazy_irq_pending())
-		return false;
-
-	/* Tell lockdep we are about to re-enable */
-	trace_hardirqs_on();
-
-	/*
-	 * Mark interrupts as soft-enabled and clear the
-	 * PACA_IRQ_HARD_DIS from the pending mask since we
-	 * are about to hard enable as well as a side effect
-	 * of entering the low power state.
-	 */
-	local_paca->irq_happened &= ~PACA_IRQ_HARD_DIS;
-	irq_soft_mask_set(IRQS_ENABLED);
-
-	/* Tell the caller to enter the low power state */
-	return true;
-}
-
-#ifdef CONFIG_PPC_BOOK3S
-/*
- * This is for idle sequences that return with IRQs off, but the
- * idle state itself wakes on interrupt. Tell the irq tracer that
- * IRQs are enabled for the duration of idle so it does not get long
- * off times. Must be paired with fini_irq_for_idle_irqsoff.
- */
-bool prep_irq_for_idle_irqsoff(void)
-{
-	WARN_ON(!irqs_disabled());
-
-	/*
-	 * First we need to hard disable to ensure no interrupt
-	 * occurs before we effectively enter the low power state
-	 */
-	__hard_irq_disable();
-	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
-
-	/*
-	 * If anything happened while we were soft-disabled,
-	 * we return now and do not enter the low power state.
-	 */
-	if (lazy_irq_pending())
-		return false;
-
-	/* Tell lockdep we are about to re-enable */
-	trace_hardirqs_on();
-
-	return true;
-}
-
-/*
- * Take the SRR1 wakeup reason, index into this table to find the
- * appropriate irq_happened bit.
- *
- * Sytem reset exceptions taken in idle state also come through here,
- * but they are NMI interrupts so do not need to wait for IRQs to be
- * restored, and should be taken as early as practical. These are marked
- * with 0xff in the table. The Power ISA specifies 0100b as the system
- * reset interrupt reason.
- */
-#define IRQ_SYSTEM_RESET	0xff
-
-static const u8 srr1_to_lazyirq[0x10] = {
-	0, 0, 0,
-	PACA_IRQ_DBELL,
-	IRQ_SYSTEM_RESET,
-	PACA_IRQ_DBELL,
-	PACA_IRQ_DEC,
-	0,
-	PACA_IRQ_EE,
-	PACA_IRQ_EE,
-	PACA_IRQ_HMI,
-	0, 0, 0, 0, 0 };
-
-void replay_system_reset(void)
-{
-	struct pt_regs regs;
-
-	ppc_save_regs(&regs);
-	regs.trap = 0x100;
-	get_paca()->in_nmi = 1;
-	system_reset_exception(&regs);
-	get_paca()->in_nmi = 0;
-}
-EXPORT_SYMBOL_GPL(replay_system_reset);
-
-void irq_set_pending_from_srr1(unsigned long srr1)
-{
-	unsigned int idx = (srr1 & SRR1_WAKEMASK_P8) >> 18;
-	u8 reason = srr1_to_lazyirq[idx];
-
-	/*
-	 * Take the system reset now, which is immediately after registers
-	 * are restored from idle. It's an NMI, so interrupts need not be
-	 * re-enabled before it is taken.
-	 */
-	if (unlikely(reason == IRQ_SYSTEM_RESET)) {
-		replay_system_reset();
-		return;
-	}
-
-	/*
-	 * The 0 index (SRR1[42:45]=b0000) must always evaluate to 0,
-	 * so this can be called unconditionally with the SRR1 wake
-	 * reason as returned by the idle code, which uses 0 to mean no
-	 * interrupt.
-	 *
-	 * If a future CPU was to designate this as an interrupt reason,
-	 * then a new index for no interrupt must be assigned.
-	 */
-	local_paca->irq_happened |= reason;
-}
-#endif /* CONFIG_PPC_BOOK3S */
-
-/*
- * Force a replay of the external interrupt handler on this CPU.
- */
-void force_external_irq_replay(void)
-{
-	/*
-	 * This must only be called with interrupts soft-disabled,
-	 * the replay will happen when re-enabling.
-	 */
-	WARN_ON(!arch_irqs_disabled());
-
-	/*
-	 * Interrupts must always be hard disabled before irq_happened is
-	 * modified (to prevent lost update in case of interrupt between
-	 * load and store).
-	 */
-	__hard_irq_disable();
-	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
-
-	/* Indicate in the PACA that we have an interrupt to replay */
-	local_paca->irq_happened |= PACA_IRQ_EE;
-}
-
-#endif /* CONFIG_PPC64 */
 
 int arch_show_interrupts(struct seq_file *p, int prec)
 {
@@ -540,13 +126,14 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 		seq_printf(p, "%10u ", per_cpu(irq_stat, j).mce_exceptions);
 	seq_printf(p, "  Machine check exceptions\n");
 
+#ifdef CONFIG_PPC_BOOK3S_64
 	if (cpu_has_feature(CPU_FTR_HVMODE)) {
 		seq_printf(p, "%*s: ", prec, "HMI");
 		for_each_online_cpu(j)
-			seq_printf(p, "%10u ",
-					per_cpu(irq_stat, j).hmi_exceptions);
+			seq_printf(p, "%10u ", paca_ptrs[j]->hmi_irqs);
 		seq_printf(p, "  Hypervisor Maintenance Interrupts\n");
 	}
+#endif
 
 	seq_printf(p, "%*s: ", prec, "NMI");
 	for_each_online_cpu(j)
@@ -584,7 +171,9 @@ u64 arch_irq_stat_cpu(unsigned int cpu)
 	sum += per_cpu(irq_stat, cpu).mce_exceptions;
 	sum += per_cpu(irq_stat, cpu).spurious_irqs;
 	sum += per_cpu(irq_stat, cpu).timer_irqs_others;
-	sum += per_cpu(irq_stat, cpu).hmi_exceptions;
+#ifdef CONFIG_PPC_BOOK3S_64
+	sum += paca_ptrs[cpu]->hmi_irqs;
+#endif
 	sum += per_cpu(irq_stat, cpu).sreset_irqs;
 #ifdef CONFIG_PPC_WATCHDOG
 	sum += per_cpu(irq_stat, cpu).soft_nmi_irqs;
@@ -596,40 +185,65 @@ u64 arch_irq_stat_cpu(unsigned int cpu)
 	return sum;
 }
 
-static inline void check_stack_overflow(void)
+static inline void check_stack_overflow(unsigned long sp)
 {
-#ifdef CONFIG_DEBUG_STACKOVERFLOW
-	long sp;
+	if (!IS_ENABLED(CONFIG_DEBUG_STACKOVERFLOW))
+		return;
 
-	sp = current_stack_pointer() & (THREAD_SIZE-1);
+	sp &= THREAD_SIZE - 1;
 
-	/* check for stack overflow: is there less than 2KB free? */
-	if (unlikely(sp < 2048)) {
+	/* check for stack overflow: is there less than 1/4th free? */
+	if (unlikely(sp < THREAD_SIZE / 4)) {
 		pr_err("do_IRQ: stack overflow: %ld\n", sp);
 		dump_stack();
 	}
-#endif
 }
 
-void __do_irq(struct pt_regs *regs)
+#ifdef CONFIG_SOFTIRQ_ON_OWN_STACK
+static __always_inline void call_do_softirq(const void *sp)
+{
+	/* Temporarily switch r1 to sp, call __do_softirq() then restore r1. */
+	asm volatile (
+		 PPC_STLU "	%%r1, %[offset](%[sp])	;"
+		"mr		%%r1, %[sp]		;"
+#ifdef CONFIG_PPC_KERNEL_PCREL
+		"bl		%[callee]@notoc		;"
+#else
+		"bl		%[callee]		;"
+#endif
+		 PPC_LL "	%%r1, 0(%%r1)		;"
+		 : // Outputs
+		 : // Inputs
+		   [sp] "b" (sp), [offset] "i" (THREAD_SIZE - STACK_FRAME_MIN_SIZE),
+		   [callee] "i" (__do_softirq)
+		 : // Clobbers
+		   "lr", "xer", "ctr", "memory", "cr0", "cr1", "cr5", "cr6",
+		   "cr7", "r0", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
+		   "r11", "r12"
+	);
+}
+#endif
+
+DEFINE_STATIC_CALL_RET0(ppc_get_irq, *ppc_md.get_irq);
+
+static void __do_irq(struct pt_regs *regs, unsigned long oldsp)
 {
 	unsigned int irq;
 
-	irq_enter();
-
 	trace_irq_entry(regs);
 
-	check_stack_overflow();
+	check_stack_overflow(oldsp);
 
 	/*
 	 * Query the platform PIC for the interrupt & ack it.
 	 *
 	 * This will typically lower the interrupt line to the CPU
 	 */
-	irq = ppc_md.get_irq();
+	irq = static_call(ppc_get_irq)();
 
 	/* We can hard enable interrupts now to allow perf interrupts */
-	may_hard_irq_enable();
+	if (should_hard_irq_enable(regs))
+		do_hard_irq_enable();
 
 	/* And finally process it */
 	if (unlikely(!irq))
@@ -638,39 +252,88 @@ void __do_irq(struct pt_regs *regs)
 		generic_handle_irq(irq);
 
 	trace_irq_exit(regs);
-
-	irq_exit();
 }
 
-void do_IRQ(struct pt_regs *regs)
+static __always_inline void call_do_irq(struct pt_regs *regs, void *sp)
+{
+	register unsigned long r3 asm("r3") = (unsigned long)regs;
+
+	/* Temporarily switch r1 to sp, call __do_irq() then restore r1. */
+	asm volatile (
+		 PPC_STLU "	%%r1, %[offset](%[sp])	;"
+		"mr		%%r4, %%r1		;"
+		"mr		%%r1, %[sp]		;"
+#ifdef CONFIG_PPC_KERNEL_PCREL
+		"bl		%[callee]@notoc		;"
+#else
+		"bl		%[callee]		;"
+#endif
+		 PPC_LL "	%%r1, 0(%%r1)		;"
+		 : // Outputs
+		   "+r" (r3)
+		 : // Inputs
+		   [sp] "b" (sp), [offset] "i" (THREAD_SIZE - STACK_FRAME_MIN_SIZE),
+		   [callee] "i" (__do_irq)
+		 : // Clobbers
+		   "lr", "xer", "ctr", "memory", "cr0", "cr1", "cr5", "cr6",
+		   "cr7", "r0", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
+		   "r11", "r12"
+	);
+}
+
+void __do_IRQ(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
-	void *cursp, *irqsp, *sirqsp;
+	void *cursp, *irqsp;
 
 	/* Switch to the irq stack to handle this */
-	cursp = (void *)(current_stack_pointer() & ~(THREAD_SIZE - 1));
+	cursp = (void *)(current_stack_pointer & ~(THREAD_SIZE - 1));
 	irqsp = hardirq_ctx[raw_smp_processor_id()];
-	sirqsp = softirq_ctx[raw_smp_processor_id()];
 
-	/* Already there ? */
-	if (unlikely(cursp == irqsp || cursp == sirqsp)) {
-		__do_irq(regs);
-		set_irq_regs(old_regs);
-		return;
-	}
-	/* Switch stack and call */
-	call_do_irq(regs, irqsp);
+	/* Already there ? If not switch stack and call */
+	if (unlikely(cursp == irqsp))
+		__do_irq(regs, current_stack_pointer);
+	else
+		call_do_irq(regs, irqsp);
 
 	set_irq_regs(old_regs);
 }
 
-void __init init_IRQ(void)
+DEFINE_INTERRUPT_HANDLER_ASYNC(do_IRQ)
 {
-	if (ppc_md.init_IRQ)
-		ppc_md.init_IRQ();
+	__do_IRQ(regs);
 }
 
-#if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
+static void *__init alloc_vm_stack(void)
+{
+	return __vmalloc_node(THREAD_SIZE, THREAD_ALIGN, THREADINFO_GFP,
+			      NUMA_NO_NODE, (void *)_RET_IP_);
+}
+
+static void __init vmap_irqstack_init(void)
+{
+	int i;
+
+	for_each_possible_cpu(i) {
+		softirq_ctx[i] = alloc_vm_stack();
+		hardirq_ctx[i] = alloc_vm_stack();
+	}
+}
+
+
+void __init init_IRQ(void)
+{
+	if (IS_ENABLED(CONFIG_VMAP_STACK))
+		vmap_irqstack_init();
+
+	if (ppc_md.init_IRQ)
+		ppc_md.init_IRQ();
+
+	if (!WARN_ON(!ppc_md.get_irq))
+		static_call_update(ppc_get_irq, ppc_md.get_irq);
+}
+
+#ifdef CONFIG_BOOKE_OR_40x
 void   *critirq_ctx[NR_CPUS] __read_mostly;
 void    *dbgirq_ctx[NR_CPUS] __read_mostly;
 void *mcheckirq_ctx[NR_CPUS] __read_mostly;
@@ -679,10 +342,12 @@ void *mcheckirq_ctx[NR_CPUS] __read_mostly;
 void *softirq_ctx[NR_CPUS] __read_mostly;
 void *hardirq_ctx[NR_CPUS] __read_mostly;
 
+#ifdef CONFIG_SOFTIRQ_ON_OWN_STACK
 void do_softirq_own_stack(void)
 {
 	call_do_softirq(softirq_ctx[smp_processor_id()]);
 }
+#endif
 
 irq_hw_number_t virq_to_hw(unsigned int virq)
 {
@@ -726,13 +391,3 @@ int irq_choose_cpu(const struct cpumask *mask)
 	return hard_smp_processor_id();
 }
 #endif
-
-#ifdef CONFIG_PPC64
-static int __init setup_noirqdistrib(char *str)
-{
-	distribute_irqs = 0;
-	return 1;
-}
-
-__setup("noirqdistrib", setup_noirqdistrib);
-#endif /* CONFIG_PPC64 */

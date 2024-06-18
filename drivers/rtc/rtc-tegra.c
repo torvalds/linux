@@ -103,7 +103,7 @@ static int tegra_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct tegra_rtc_info *info = dev_get_drvdata(dev);
 	unsigned long flags;
-	u32 sec, msec;
+	u32 sec;
 
 	/*
 	 * RTC hardware copies seconds to shadow seconds when a read of
@@ -111,7 +111,7 @@ static int tegra_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	 */
 	spin_lock_irqsave(&info->lock, flags);
 
-	msec = readl(info->base + TEGRA_RTC_REG_MILLI_SECONDS);
+	readl(info->base + TEGRA_RTC_REG_MILLI_SECONDS);
 	sec = readl(info->base + TEGRA_RTC_REG_SHADOW_SECONDS);
 
 	spin_unlock_irqrestore(&info->lock, flags);
@@ -232,7 +232,7 @@ static irqreturn_t tegra_rtc_irq_handler(int irq, void *data)
 {
 	struct device *dev = data;
 	struct tegra_rtc_info *info = dev_get_drvdata(dev);
-	unsigned long events = 0, flags;
+	unsigned long events = 0;
 	u32 status;
 
 	status = readl(info->base + TEGRA_RTC_REG_INTR_STATUS);
@@ -240,10 +240,10 @@ static irqreturn_t tegra_rtc_irq_handler(int irq, void *data)
 		/* clear the interrupt masks and status on any IRQ */
 		tegra_rtc_wait_while_busy(dev);
 
-		spin_lock_irqsave(&info->lock, flags);
+		spin_lock(&info->lock);
 		writel(0, info->base + TEGRA_RTC_REG_INTR_MASK);
 		writel(status, info->base + TEGRA_RTC_REG_INTR_STATUS);
-		spin_unlock_irqrestore(&info->lock, flags);
+		spin_unlock(&info->lock);
 	}
 
 	/* check if alarm */
@@ -277,15 +277,13 @@ MODULE_DEVICE_TABLE(of, tegra_rtc_dt_match);
 static int tegra_rtc_probe(struct platform_device *pdev)
 {
 	struct tegra_rtc_info *info;
-	struct resource *res;
 	int ret;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	info->base = devm_ioremap_resource(&pdev->dev, res);
+	info->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(info->base))
 		return PTR_ERR(info->base);
 
@@ -331,7 +329,7 @@ static int tegra_rtc_probe(struct platform_device *pdev)
 		goto disable_clk;
 	}
 
-	ret = rtc_register_device(info->rtc);
+	ret = devm_rtc_register_device(info->rtc);
 	if (ret)
 		goto disable_clk;
 
@@ -344,13 +342,11 @@ disable_clk:
 	return ret;
 }
 
-static int tegra_rtc_remove(struct platform_device *pdev)
+static void tegra_rtc_remove(struct platform_device *pdev)
 {
 	struct tegra_rtc_info *info = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(info->clk);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -403,7 +399,7 @@ static void tegra_rtc_shutdown(struct platform_device *pdev)
 
 static struct platform_driver tegra_rtc_driver = {
 	.probe = tegra_rtc_probe,
-	.remove = tegra_rtc_remove,
+	.remove_new = tegra_rtc_remove,
 	.shutdown = tegra_rtc_shutdown,
 	.driver = {
 		.name = "tegra_rtc",

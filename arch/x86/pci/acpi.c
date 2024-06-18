@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
+
+#define pr_fmt(fmt) "PCI: " fmt
+
 #include <linux/pci.h>
 #include <linux/acpi.h>
 #include <linux/init.h>
@@ -19,8 +22,9 @@ struct pci_root_info {
 #endif
 };
 
+bool pci_use_e820 = true;
 static bool pci_use_crs = true;
-static bool pci_ignore_seg = false;
+static bool pci_ignore_seg;
 
 static int __init set_use_crs(const struct dmi_system_id *id)
 {
@@ -36,8 +40,16 @@ static int __init set_nouse_crs(const struct dmi_system_id *id)
 
 static int __init set_ignore_seg(const struct dmi_system_id *id)
 {
-	printk(KERN_INFO "PCI: %s detected: ignoring ACPI _SEG\n", id->ident);
+	pr_info("%s detected: ignoring ACPI _SEG\n", id->ident);
 	pci_ignore_seg = true;
+	return 0;
+}
+
+static int __init set_no_e820(const struct dmi_system_id *id)
+{
+	pr_info("%s detected: not clipping E820 regions from _CRS\n",
+	        id->ident);
+	pci_use_e820 = false;
 	return 0;
 }
 
@@ -135,6 +147,51 @@ static const struct dmi_system_id pci_crs_quirks[] __initconst = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "HP xw9300 Workstation"),
 		},
 	},
+
+	/*
+	 * Many Lenovo models with "IIL" in their DMI_PRODUCT_VERSION have
+	 * an E820 reserved region that covers the entire 32-bit host
+	 * bridge memory window from _CRS.  Using the E820 region to clip
+	 * _CRS means no space is available for hot-added or uninitialized
+	 * PCI devices.  This typically breaks I2C controllers for touchpads
+	 * and hot-added Thunderbolt devices.  See the commit log for
+	 * models known to require this quirk and related bug reports.
+	 */
+	{
+		.callback = set_no_e820,
+		.ident = "Lenovo *IIL* product version",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "IIL"),
+		},
+	},
+
+	/*
+	 * The Acer Spin 5 (SP513-54N) has the same E820 reservation covering
+	 * the entire _CRS 32-bit window issue as the Lenovo *IIL* models.
+	 * See https://bugs.launchpad.net/bugs/1884232
+	 */
+	{
+		.callback = set_no_e820,
+		.ident = "Acer Spin 5 (SP513-54N)",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Spin SP513-54N"),
+		},
+	},
+
+	/*
+	 * Clevo X170KM-G barebones have the same E820 reservation covering
+	 * the entire _CRS 32-bit window issue as the Lenovo *IIL* models.
+	 * See https://bugzilla.kernel.org/show_bug.cgi?id=214259
+	 */
+	{
+		.callback = set_no_e820,
+		.ident = "Clevo X170KM-G Barebone",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "X170KM-G"),
+		},
+	},
 	{}
 };
 
@@ -144,6 +201,27 @@ void __init pci_acpi_crs_quirks(void)
 
 	if (year >= 0 && year < 2008 && iomem_resource.end <= 0xffffffff)
 		pci_use_crs = false;
+
+	/*
+	 * Some firmware includes unusable space (host bridge registers,
+	 * hidden PCI device BARs, etc) in PCI host bridge _CRS.  This is a
+	 * firmware defect, and 4dc2287c1805 ("x86: avoid E820 regions when
+	 * allocating address space") has clipped out the unusable space in
+	 * the past.
+	 *
+	 * But other firmware supplies E820 reserved regions that cover
+	 * entire _CRS windows, so clipping throws away the entire window,
+	 * leaving none for hot-added or uninitialized devices.  These E820
+	 * entries are probably *not* a firmware defect, so disable the
+	 * clipping by default for post-2022 machines.
+	 *
+	 * We already have quirks to disable clipping for pre-2023
+	 * machines, and we'll likely need quirks to *enable* clipping for
+	 * post-2022 machines that incorrectly include unusable space in
+	 * _CRS.
+	 */
+	if (year >= 2023)
+		pci_use_e820 = false;
 
 	dmi_check_system(pci_crs_quirks);
 
@@ -156,19 +234,27 @@ void __init pci_acpi_crs_quirks(void)
 	else if (pci_probe & PCI_USE__CRS)
 		pci_use_crs = true;
 
-	printk(KERN_INFO "PCI: %s host bridge windows from ACPI; "
-	       "if necessary, use \"pci=%s\" and report a bug\n",
-	       pci_use_crs ? "Using" : "Ignoring",
-	       pci_use_crs ? "nocrs" : "use_crs");
+	pr_info("%s host bridge windows from ACPI; if necessary, use \"pci=%s\" and report a bug\n",
+	        pci_use_crs ? "Using" : "Ignoring",
+	        pci_use_crs ? "nocrs" : "use_crs");
+
+	/* "pci=use_e820"/"pci=no_e820" on the kernel cmdline takes precedence */
+	if (pci_probe & PCI_NO_E820)
+		pci_use_e820 = false;
+	else if (pci_probe & PCI_USE_E820)
+		pci_use_e820 = true;
+
+	pr_info("%s E820 reservations for host bridge windows\n",
+	        pci_use_e820 ? "Using" : "Ignoring");
+	if (pci_probe & (PCI_NO_E820 | PCI_USE_E820))
+		pr_info("Please notify linux-pci@vger.kernel.org so future kernels can do this automatically\n");
 }
 
 #ifdef	CONFIG_PCI_MMCONFIG
 static int check_segment(u16 seg, struct device *dev, char *estr)
 {
 	if (seg) {
-		dev_err(dev,
-			"%s can't access PCI configuration "
-			"space under this host bridge.\n",
+		dev_err(dev, "%s can't access configuration space under this host bridge\n",
 			estr);
 		return -EIO;
 	}
@@ -178,9 +264,7 @@ static int check_segment(u16 seg, struct device *dev, char *estr)
 	 * just can't access extended configuration space of
 	 * devices under this host bridge.
 	 */
-	dev_warn(dev,
-		 "%s can't access extended PCI configuration "
-		 "space under this bridge.\n",
+	dev_warn(dev, "%s can't access extended configuration space under this bridge\n",
 		 estr);
 
 	return 0;
@@ -198,6 +282,9 @@ static int setup_mcfg_map(struct acpi_pci_root_info *ci)
 	info->end_bus = (u8)root->secondary.end;
 	info->mcfg_added = false;
 	seg = info->sd.domain;
+
+	dev_dbg(dev, "%s(%04x %pR ECAM %pa)\n", __func__, seg,
+		&root->secondary, &root->mcfg_addr);
 
 	/* return success if MMCFG is not in use */
 	if (raw_pci_ext_ops && raw_pci_ext_ops != &pci_mmcfg)
@@ -299,6 +386,7 @@ static int pci_acpi_root_prepare_resources(struct acpi_pci_root_info *ci)
 	int status;
 
 	status = acpi_pci_probe_root_resources(ci);
+
 	if (pci_use_crs) {
 		resource_list_for_each_entry_safe(entry, tmp, &ci->resources)
 			if (resource_is_pcicfg_ioport(entry->res))
@@ -334,9 +422,8 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 		root->segment = domain = 0;
 
 	if (domain && !pci_domains_supported) {
-		printk(KERN_WARNING "pci_bus %04x:%02x: "
-		       "ignored (multiple domains not supported)\n",
-		       domain, busnum);
+		pr_warn("pci_bus %04x:%02x: ignored (multiple domains not supported)\n",
+		        domain, busnum);
 		return NULL;
 	}
 
@@ -404,7 +491,7 @@ int __init pci_acpi_init(void)
 	if (acpi_noirq)
 		return -ENODEV;
 
-	printk(KERN_INFO "PCI: Using ACPI for IRQ routing\n");
+	pr_info("Using ACPI for IRQ routing\n");
 	acpi_irq_penalty_init();
 	pcibios_enable_irq = acpi_pci_irq_enable;
 	pcibios_disable_irq = acpi_pci_irq_disable;
@@ -416,7 +503,7 @@ int __init pci_acpi_init(void)
 		 * also do it here in case there are still broken drivers that
 		 * don't use pci_enable_device().
 		 */
-		printk(KERN_INFO "PCI: Routing PCI interrupts for all devices because \"pci=routeirq\" specified\n");
+		pr_info("Routing PCI interrupts for all devices because \"pci=routeirq\" specified\n");
 		for_each_pci_dev(dev)
 			acpi_pci_irq_enable(dev);
 	}

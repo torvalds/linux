@@ -15,6 +15,7 @@
 #include <linux/blkdev.h>
 #include <asm/current.h>
 #include <linux/uaccess.h>
+#include <linux/fileattr.h>
 
 #include "jfs_filsys.h"
 #include "jfs_debug.h"
@@ -56,80 +57,66 @@ static long jfs_map_ext2(unsigned long flags, int from)
 	return mapped;
 }
 
+int jfs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
+{
+	struct jfs_inode_info *jfs_inode = JFS_IP(d_inode(dentry));
+	unsigned int flags = jfs_inode->mode2 & JFS_FL_USER_VISIBLE;
+
+	if (d_is_special(dentry))
+		return -ENOTTY;
+
+	fileattr_fill_flags(fa, jfs_map_ext2(flags, 0));
+
+	return 0;
+}
+
+int jfs_fileattr_set(struct mnt_idmap *idmap,
+		     struct dentry *dentry, struct fileattr *fa)
+{
+	struct inode *inode = d_inode(dentry);
+	struct jfs_inode_info *jfs_inode = JFS_IP(inode);
+	unsigned int flags;
+
+	if (d_is_special(dentry))
+		return -ENOTTY;
+
+	if (fileattr_has_fsx(fa))
+		return -EOPNOTSUPP;
+
+	flags = jfs_map_ext2(fa->flags, 1);
+	if (!S_ISDIR(inode->i_mode))
+		flags &= ~JFS_DIRSYNC_FL;
+
+	/* Is it quota file? Do not allow user to mess with it */
+	if (IS_NOQUOTA(inode))
+		return -EPERM;
+
+	flags = flags & JFS_FL_USER_MODIFIABLE;
+	flags |= jfs_inode->mode2 & ~JFS_FL_USER_MODIFIABLE;
+	jfs_inode->mode2 = flags;
+
+	jfs_set_inode_flags(inode);
+	inode_set_ctime_current(inode);
+	mark_inode_dirty(inode);
+
+	return 0;
+}
 
 long jfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct inode *inode = file_inode(filp);
-	struct jfs_inode_info *jfs_inode = JFS_IP(inode);
-	unsigned int flags;
 
 	switch (cmd) {
-	case JFS_IOC_GETFLAGS:
-		flags = jfs_inode->mode2 & JFS_FL_USER_VISIBLE;
-		flags = jfs_map_ext2(flags, 0);
-		return put_user(flags, (int __user *) arg);
-	case JFS_IOC_SETFLAGS: {
-		unsigned int oldflags;
-		int err;
-
-		err = mnt_want_write_file(filp);
-		if (err)
-			return err;
-
-		if (!inode_owner_or_capable(inode)) {
-			err = -EACCES;
-			goto setflags_out;
-		}
-		if (get_user(flags, (int __user *) arg)) {
-			err = -EFAULT;
-			goto setflags_out;
-		}
-
-		flags = jfs_map_ext2(flags, 1);
-		if (!S_ISDIR(inode->i_mode))
-			flags &= ~JFS_DIRSYNC_FL;
-
-		/* Is it quota file? Do not allow user to mess with it */
-		if (IS_NOQUOTA(inode)) {
-			err = -EPERM;
-			goto setflags_out;
-		}
-
-		/* Lock against other parallel changes of flags */
-		inode_lock(inode);
-
-		oldflags = jfs_map_ext2(jfs_inode->mode2 & JFS_FL_USER_VISIBLE,
-					0);
-		err = vfs_ioc_setflags_prepare(inode, oldflags, flags);
-		if (err) {
-			inode_unlock(inode);
-			goto setflags_out;
-		}
-
-		flags = flags & JFS_FL_USER_MODIFIABLE;
-		flags |= jfs_inode->mode2 & ~JFS_FL_USER_MODIFIABLE;
-		jfs_inode->mode2 = flags;
-
-		jfs_set_inode_flags(inode);
-		inode_unlock(inode);
-		inode->i_ctime = current_time(inode);
-		mark_inode_dirty(inode);
-setflags_out:
-		mnt_drop_write_file(filp);
-		return err;
-	}
-
 	case FITRIM:
 	{
 		struct super_block *sb = inode->i_sb;
-		struct request_queue *q = bdev_get_queue(sb->s_bdev);
 		struct fstrim_range range;
 		s64 ret = 0;
 
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 
-		if (!blk_queue_discard(q)) {
+		if (!bdev_max_discard_sectors(sb->s_bdev)) {
 			jfs_warn("FITRIM not supported on device");
 			return -EOPNOTSUPP;
 		}
@@ -139,7 +126,7 @@ setflags_out:
 			return -EFAULT;
 
 		range.minlen = max_t(unsigned int, range.minlen,
-			q->limits.discard_granularity);
+				     bdev_discard_granularity(sb->s_bdev));
 
 		ret = jfs_ioc_trim(inode, &range);
 		if (ret < 0)
@@ -156,22 +143,3 @@ setflags_out:
 		return -ENOTTY;
 	}
 }
-
-#ifdef CONFIG_COMPAT
-long jfs_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
-{
-	/* While these ioctl numbers defined with 'long' and have different
-	 * numbers than the 64bit ABI,
-	 * the actual implementation only deals with ints and is compatible.
-	 */
-	switch (cmd) {
-	case JFS_IOC_GETFLAGS32:
-		cmd = JFS_IOC_GETFLAGS;
-		break;
-	case JFS_IOC_SETFLAGS32:
-		cmd = JFS_IOC_SETFLAGS;
-		break;
-	}
-	return jfs_ioctl(filp, cmd, arg);
-}
-#endif

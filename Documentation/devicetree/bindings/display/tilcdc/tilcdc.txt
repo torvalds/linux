@@ -37,7 +37,7 @@ Optional nodes:
    supports a single port with a single endpoint.
 
  - See also Documentation/devicetree/bindings/display/tilcdc/panel.txt and
-   Documentation/devicetree/bindings/display/tilcdc/tfp410.txt for connecting
+   Documentation/devicetree/bindings/display/bridge/ti,tfp410.yaml for connecting
    tfp410 DVI encoder or lcd panel to lcdc
 
 [1] There is an errata about AM335x color wiring. For 16-bit color mode
@@ -46,7 +46,7 @@ Optional nodes:
     crossed and LCD_DATA[0:4] is for Red[3:7] and LCD_DATA[11:15] is
     for Blue[3-7]. For more details see section 3.1.1 in AM335x
     Silicon Errata:
-    http://www.ti.com/general/docs/lit/getliterature.tsp?baseLiteratureNumber=sprz360
+    https://www.ti.com/general/docs/lit/getliterature.tsp?baseLiteratureNumber=sprz360
 
 Example:
 
@@ -60,7 +60,7 @@ Example:
 		blue-and-red-wiring = "crossed";
 
 		port {
-			lcdc_0: endpoint@0 {
+			lcdc_0: endpoint {
 				remote-endpoint = <&hdmi_0>;
 			};
 		};
@@ -75,7 +75,7 @@ Example:
 		pinctrl-1 = <&nxp_hdmi_bonelt_off_pins>;
 
 		port {
-			hdmi_0: endpoint@0 {
+			hdmi_0: endpoint {
 				remote-endpoint = <&lcdc_0>;
 			};
 		};

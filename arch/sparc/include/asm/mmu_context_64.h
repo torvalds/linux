@@ -16,17 +16,16 @@
 #include <asm-generic/mm_hooks.h>
 #include <asm/percpu.h>
 
-static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
-{
-}
-
 extern spinlock_t ctx_alloc_lock;
 extern unsigned long tlb_context_cache;
 extern unsigned long mmu_context_bmap[];
 
 DECLARE_PER_CPU(struct mm_struct *, per_cpu_secondary_mm);
 void get_new_mmu_context(struct mm_struct *mm);
+
+#define init_new_context init_new_context
 int init_new_context(struct task_struct *tsk, struct mm_struct *mm);
+#define destroy_context destroy_context
 void destroy_context(struct mm_struct *mm);
 
 void __tsb_context_switch(unsigned long pgd_pa,
@@ -94,7 +93,7 @@ static inline void switch_mm(struct mm_struct *old_mm, struct mm_struct *mm, str
 
 	/* We have to be extremely careful here or else we will miss
 	 * a TSB grow if we switch back and forth between a kernel
-	 * thread and an address space which has it's TSB size increased
+	 * thread and an address space which has its TSB size increased
 	 * on another processor.
 	 *
 	 * It is possible to play some games in order to optimize the
@@ -119,7 +118,7 @@ static inline void switch_mm(struct mm_struct *old_mm, struct mm_struct *mm, str
 	 *
 	 * At that point cpu0 continues to use a stale TSB, the one from
 	 * before the TSB grow performed on cpu1.  cpu1 did not cross-call
-	 * cpu0 to update it's TSB because at that point the cpu_vm_mask
+	 * cpu0 to update its TSB because at that point the cpu_vm_mask
 	 * only had cpu1 set in it.
 	 */
 	tsb_context_switch_ctx(mm, CTX_HWBITS(mm->context));
@@ -136,7 +135,6 @@ static inline void switch_mm(struct mm_struct *old_mm, struct mm_struct *mm, str
 	spin_unlock_irqrestore(&mm->context.lock, flags);
 }
 
-#define deactivate_mm(tsk,mm)	do { } while (0)
 #define activate_mm(active_mm, mm) switch_mm(active_mm, mm, NULL)
 
 #define  __HAVE_ARCH_START_CONTEXT_SWITCH
@@ -186,6 +184,14 @@ static inline void finish_arch_post_lock_switch(void)
 		}
 	}
 }
+
+#define mm_untag_mask mm_untag_mask
+static inline unsigned long mm_untag_mask(struct mm_struct *mm)
+{
+       return -1UL >> adi_nbits();
+}
+
+#include <asm-generic/mmu_context.h>
 
 #endif /* !(__ASSEMBLY__) */
 

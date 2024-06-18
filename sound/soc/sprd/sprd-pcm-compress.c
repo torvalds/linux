@@ -96,7 +96,8 @@ struct sprd_compr_stream {
 	int stage1_pointer;
 };
 
-static int sprd_platform_compr_trigger(struct snd_compr_stream *cstream,
+static int sprd_platform_compr_trigger(struct snd_soc_component *component,
+				       struct snd_compr_stream *cstream,
 				       int cmd);
 
 static void sprd_platform_compr_drain_notify(void *arg)
@@ -125,17 +126,16 @@ static void sprd_platform_compr_dma_complete(void *data)
 	snd_compr_fragment_elapsed(cstream);
 }
 
-static int sprd_platform_compr_dma_config(struct snd_compr_stream *cstream,
+static int sprd_platform_compr_dma_config(struct snd_soc_component *component,
+					  struct snd_compr_stream *cstream,
 					  struct snd_compr_params *params,
 					  int channel)
 {
 	struct snd_compr_runtime *runtime = cstream->runtime;
 	struct sprd_compr_stream *stream = runtime->private_data;
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
-	struct snd_soc_component *component =
-		snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct device *dev = component->dev;
-	struct sprd_compr_data *data = snd_soc_dai_get_drvdata(rtd->cpu_dai);
+	struct sprd_compr_data *data = snd_soc_dai_get_drvdata(snd_soc_rtd_to_cpu(rtd, 0));
 	struct sprd_pcm_dma_params *dma_params = data->dma_params;
 	struct sprd_compr_dma *dma = &stream->dma[channel];
 	struct dma_slave_config config = { };
@@ -160,7 +160,7 @@ static int sprd_platform_compr_dma_config(struct snd_compr_stream *cstream,
 		return -ENODEV;
 	}
 
-	sgt = sg = devm_kcalloc(dev, sg_num, sizeof(*sg), GFP_KERNEL);
+	sgt = sg = kcalloc(sg_num, sizeof(*sg), GFP_KERNEL);
 	if (!sg) {
 		ret = -ENOMEM;
 		goto sg_err;
@@ -250,25 +250,23 @@ static int sprd_platform_compr_dma_config(struct snd_compr_stream *cstream,
 		dma->desc->callback_param = cstream;
 	}
 
-	devm_kfree(dev, sg);
+	kfree(sg);
 
 	return 0;
 
 config_err:
-	devm_kfree(dev, sg);
+	kfree(sg);
 sg_err:
 	dma_release_channel(dma->chan);
 	return ret;
 }
 
-static int sprd_platform_compr_set_params(struct snd_compr_stream *cstream,
+static int sprd_platform_compr_set_params(struct snd_soc_component *component,
+					  struct snd_compr_stream *cstream,
 					  struct snd_compr_params *params)
 {
 	struct snd_compr_runtime *runtime = cstream->runtime;
 	struct sprd_compr_stream *stream = runtime->private_data;
-	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
-	struct snd_soc_component *component =
-		snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct device *dev = component->dev;
 	struct sprd_compr_params compr_params = { };
 	int ret;
@@ -279,13 +277,13 @@ static int sprd_platform_compr_set_params(struct snd_compr_stream *cstream,
 	 * means once the source channel's transaction is done, it will trigger
 	 * the destination channel's transaction automatically.
 	 */
-	ret = sprd_platform_compr_dma_config(cstream, params, 1);
+	ret = sprd_platform_compr_dma_config(component, cstream, params, 1);
 	if (ret) {
 		dev_err(dev, "failed to config stage 1 DMA: %d\n", ret);
 		return ret;
 	}
 
-	ret = sprd_platform_compr_dma_config(cstream, params, 0);
+	ret = sprd_platform_compr_dma_config(component, cstream, params, 0);
 	if (ret) {
 		dev_err(dev, "failed to config stage 0 DMA: %d\n", ret);
 		goto config_err;
@@ -314,14 +312,13 @@ config_err:
 	return ret;
 }
 
-static int sprd_platform_compr_open(struct snd_compr_stream *cstream)
+static int sprd_platform_compr_open(struct snd_soc_component *component,
+				    struct snd_compr_stream *cstream)
 {
 	struct snd_compr_runtime *runtime = cstream->runtime;
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
-	struct snd_soc_component *component =
-		snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct device *dev = component->dev;
-	struct sprd_compr_data *data = snd_soc_dai_get_drvdata(rtd->cpu_dai);
+	struct sprd_compr_data *data = snd_soc_dai_get_drvdata(snd_soc_rtd_to_cpu(rtd, 0));
 	struct sprd_compr_stream *stream;
 	struct sprd_compr_callback cb;
 	int stream_id = cstream->direction, ret;
@@ -392,13 +389,11 @@ err_iram:
 	return ret;
 }
 
-static int sprd_platform_compr_free(struct snd_compr_stream *cstream)
+static int sprd_platform_compr_free(struct snd_soc_component *component,
+				    struct snd_compr_stream *cstream)
 {
 	struct snd_compr_runtime *runtime = cstream->runtime;
 	struct sprd_compr_stream *stream = runtime->private_data;
-	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
-	struct snd_soc_component *component =
-		snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct device *dev = component->dev;
 	int stream_id = cstream->direction, i;
 
@@ -420,14 +415,12 @@ static int sprd_platform_compr_free(struct snd_compr_stream *cstream)
 	return 0;
 }
 
-static int sprd_platform_compr_trigger(struct snd_compr_stream *cstream,
+static int sprd_platform_compr_trigger(struct snd_soc_component *component,
+				       struct snd_compr_stream *cstream,
 				       int cmd)
 {
 	struct snd_compr_runtime *runtime = cstream->runtime;
 	struct sprd_compr_stream *stream = runtime->private_data;
-	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
-	struct snd_soc_component *component =
-		snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct device *dev = component->dev;
 	int channels = stream->num_channels, ret = 0, i;
 	int stream_id = cstream->direction;
@@ -518,7 +511,8 @@ static int sprd_platform_compr_trigger(struct snd_compr_stream *cstream,
 	return ret;
 }
 
-static int sprd_platform_compr_pointer(struct snd_compr_stream *cstream,
+static int sprd_platform_compr_pointer(struct snd_soc_component *component,
+				       struct snd_compr_stream *cstream,
 				       struct snd_compr_tstamp *tstamp)
 {
 	struct snd_compr_runtime *runtime = cstream->runtime;
@@ -532,7 +526,8 @@ static int sprd_platform_compr_pointer(struct snd_compr_stream *cstream,
 	return 0;
 }
 
-static int sprd_platform_compr_copy(struct snd_compr_stream *cstream,
+static int sprd_platform_compr_copy(struct snd_soc_component *component,
+				    struct snd_compr_stream *cstream,
 				    char __user *buf, size_t count)
 {
 	struct snd_compr_runtime *runtime = cstream->runtime;
@@ -564,7 +559,7 @@ static int sprd_platform_compr_copy(struct snd_compr_stream *cstream,
 		} else {
 			/*
 			 * If the data count is larger than the available spaces
-			 * of the the stage 0 IRAM buffer, we should copy one
+			 * of the stage 0 IRAM buffer, we should copy one
 			 * partial data to the stage 0 IRAM buffer, and copy
 			 * the left to the stage 1 DDR buffer.
 			 */
@@ -609,7 +604,8 @@ copy_done:
 	return count;
 }
 
-static int sprd_platform_compr_get_caps(struct snd_compr_stream *cstream,
+static int sprd_platform_compr_get_caps(struct snd_soc_component *component,
+					struct snd_compr_stream *cstream,
 					struct snd_compr_caps *caps)
 {
 	caps->direction = cstream->direction;
@@ -625,7 +621,8 @@ static int sprd_platform_compr_get_caps(struct snd_compr_stream *cstream,
 }
 
 static int
-sprd_platform_compr_get_codec_caps(struct snd_compr_stream *cstream,
+sprd_platform_compr_get_codec_caps(struct snd_soc_component *component,
+				   struct snd_compr_stream *cstream,
 				   struct snd_compr_codec_caps *codec)
 {
 	switch (codec->codec) {
@@ -658,7 +655,7 @@ sprd_platform_compr_get_codec_caps(struct snd_compr_stream *cstream,
 	return 0;
 }
 
-const struct snd_compr_ops sprd_platform_compr_ops = {
+const struct snd_compress_ops sprd_platform_compress_ops = {
 	.open = sprd_platform_compr_open,
 	.free = sprd_platform_compr_free,
 	.set_params = sprd_platform_compr_set_params,

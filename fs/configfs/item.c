@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
- *
+/*
  * item.c - library routines for handling generic config items
  *
  * Based on kobject:
@@ -9,7 +7,7 @@
  *
  * configfs Copyright (C) 2005 Oracle.  All rights reserved.
  *
- * Please see the file Documentation/filesystems/configfs/configfs.txt for
+ * Please see the file Documentation/filesystems/configfs.rst for
  * critical information about using the config_item interface.
  */
 

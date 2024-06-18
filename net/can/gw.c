@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+// SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
 /* gw.c - CAN frame Gateway/Router/Bridge with netlink interface
  *
  * Copyright (c) 2019 Volkswagen Group Electronic Research
@@ -59,7 +59,6 @@
 #include <net/net_namespace.h>
 #include <net/sock.h>
 
-#define CAN_GW_VERSION "20190810"
 #define CAN_GW_NAME "can-gw"
 
 MODULE_DESCRIPTION("PF_CAN netlink gateway");
@@ -200,6 +199,68 @@ static void mod_set_fddata(struct canfd_frame *cf, struct cf_mod *mod)
 	memcpy(cf->data, mod->modframe.set.data, CANFD_MAX_DLEN);
 }
 
+/* retrieve valid CC DLC value and store it into 'len' */
+static void mod_retrieve_ccdlc(struct canfd_frame *cf)
+{
+	struct can_frame *ccf = (struct can_frame *)cf;
+
+	/* len8_dlc is only valid if len == CAN_MAX_DLEN */
+	if (ccf->len != CAN_MAX_DLEN)
+		return;
+
+	/* do we have a valid len8_dlc value from 9 .. 15 ? */
+	if (ccf->len8_dlc > CAN_MAX_DLEN && ccf->len8_dlc <= CAN_MAX_RAW_DLC)
+		ccf->len = ccf->len8_dlc;
+}
+
+/* convert valid CC DLC value in 'len' into struct can_frame elements */
+static void mod_store_ccdlc(struct canfd_frame *cf)
+{
+	struct can_frame *ccf = (struct can_frame *)cf;
+
+	/* clear potential leftovers */
+	ccf->len8_dlc = 0;
+
+	/* plain data length 0 .. 8 - that was easy */
+	if (ccf->len <= CAN_MAX_DLEN)
+		return;
+
+	/* potentially broken values are caught in can_can_gw_rcv() */
+	if (ccf->len > CAN_MAX_RAW_DLC)
+		return;
+
+	/* we have a valid dlc value from 9 .. 15 in ccf->len */
+	ccf->len8_dlc = ccf->len;
+	ccf->len = CAN_MAX_DLEN;
+}
+
+static void mod_and_ccdlc(struct canfd_frame *cf, struct cf_mod *mod)
+{
+	mod_retrieve_ccdlc(cf);
+	mod_and_len(cf, mod);
+	mod_store_ccdlc(cf);
+}
+
+static void mod_or_ccdlc(struct canfd_frame *cf, struct cf_mod *mod)
+{
+	mod_retrieve_ccdlc(cf);
+	mod_or_len(cf, mod);
+	mod_store_ccdlc(cf);
+}
+
+static void mod_xor_ccdlc(struct canfd_frame *cf, struct cf_mod *mod)
+{
+	mod_retrieve_ccdlc(cf);
+	mod_xor_len(cf, mod);
+	mod_store_ccdlc(cf);
+}
+
+static void mod_set_ccdlc(struct canfd_frame *cf, struct cf_mod *mod)
+{
+	mod_set_len(cf, mod);
+	mod_store_ccdlc(cf);
+}
+
 static void canframecpy(struct canfd_frame *dst, struct can_frame *src)
 {
 	/* Copy the struct members separately to ensure that no uninitialized
@@ -208,7 +269,7 @@ static void canframecpy(struct canfd_frame *dst, struct can_frame *src)
 	 */
 
 	dst->can_id = src->can_id;
-	dst->len = src->can_dlc;
+	dst->len = src->len;
 	*(u64 *)dst->data = *(u64 *)src->data;
 }
 
@@ -402,10 +463,10 @@ static void can_can_gw_rcv(struct sk_buff *skb, void *data)
 
 	/* process strictly Classic CAN or CAN FD frames */
 	if (gwj->flags & CGW_FLAGS_CAN_FD) {
-		if (skb->len != CANFD_MTU)
+		if (!can_is_canfd_skb(skb))
 			return;
 	} else {
-		if (skb->len != CAN_MTU)
+		if (!can_is_can_skb(skb))
 			return;
 	}
 
@@ -516,6 +577,13 @@ static inline void cgw_unregister_filter(struct net *net, struct cgw_job *gwj)
 			  gwj->ccgw.filter.can_mask, can_can_gw_rcv, gwj);
 }
 
+static void cgw_job_free_rcu(struct rcu_head *rcu_head)
+{
+	struct cgw_job *gwj = container_of(rcu_head, struct cgw_job, rcu);
+
+	kmem_cache_free(cgw_cache, gwj);
+}
+
 static int cgw_notifier(struct notifier_block *nb,
 			unsigned long msg, void *ptr)
 {
@@ -535,7 +603,7 @@ static int cgw_notifier(struct notifier_block *nb,
 			if (gwj->src.dev == dev || gwj->dst.dev == dev) {
 				hlist_del(&gwj->list);
 				cgw_unregister_filter(net, gwj);
-				kmem_cache_free(cgw_cache, gwj);
+				call_rcu(&gwj->rcu, cgw_job_free_rcu);
 			}
 		}
 	}
@@ -843,8 +911,8 @@ static int cgw_parse_attr(struct nlmsghdr *nlh, struct cf_mod *mod,
 			if (mb.modtype & CGW_MOD_ID)
 				mod->modfunc[modidx++] = mod_and_id;
 
-			if (mb.modtype & CGW_MOD_LEN)
-				mod->modfunc[modidx++] = mod_and_len;
+			if (mb.modtype & CGW_MOD_DLC)
+				mod->modfunc[modidx++] = mod_and_ccdlc;
 
 			if (mb.modtype & CGW_MOD_DATA)
 				mod->modfunc[modidx++] = mod_and_data;
@@ -859,8 +927,8 @@ static int cgw_parse_attr(struct nlmsghdr *nlh, struct cf_mod *mod,
 			if (mb.modtype & CGW_MOD_ID)
 				mod->modfunc[modidx++] = mod_or_id;
 
-			if (mb.modtype & CGW_MOD_LEN)
-				mod->modfunc[modidx++] = mod_or_len;
+			if (mb.modtype & CGW_MOD_DLC)
+				mod->modfunc[modidx++] = mod_or_ccdlc;
 
 			if (mb.modtype & CGW_MOD_DATA)
 				mod->modfunc[modidx++] = mod_or_data;
@@ -875,8 +943,8 @@ static int cgw_parse_attr(struct nlmsghdr *nlh, struct cf_mod *mod,
 			if (mb.modtype & CGW_MOD_ID)
 				mod->modfunc[modidx++] = mod_xor_id;
 
-			if (mb.modtype & CGW_MOD_LEN)
-				mod->modfunc[modidx++] = mod_xor_len;
+			if (mb.modtype & CGW_MOD_DLC)
+				mod->modfunc[modidx++] = mod_xor_ccdlc;
 
 			if (mb.modtype & CGW_MOD_DATA)
 				mod->modfunc[modidx++] = mod_xor_data;
@@ -891,8 +959,8 @@ static int cgw_parse_attr(struct nlmsghdr *nlh, struct cf_mod *mod,
 			if (mb.modtype & CGW_MOD_ID)
 				mod->modfunc[modidx++] = mod_set_id;
 
-			if (mb.modtype & CGW_MOD_LEN)
-				mod->modfunc[modidx++] = mod_set_len;
+			if (mb.modtype & CGW_MOD_DLC)
+				mod->modfunc[modidx++] = mod_set_ccdlc;
 
 			if (mb.modtype & CGW_MOD_DATA)
 				mod->modfunc[modidx++] = mod_set_data;
@@ -1071,6 +1139,13 @@ static int cgw_create_job(struct sk_buff *skb,  struct nlmsghdr *nlh,
 	if (gwj->dst.dev->type != ARPHRD_CAN)
 		goto out;
 
+	/* is sending the skb back to the incoming interface intended? */
+	if (gwj->src.dev == gwj->dst.dev &&
+	    !(gwj->flags & CGW_FLAGS_CAN_IIF_TX_OK)) {
+		err = -EINVAL;
+		goto out;
+	}
+
 	ASSERT_RTNL();
 
 	err = cgw_register_filter(net, gwj);
@@ -1093,7 +1168,7 @@ static void cgw_remove_all_jobs(struct net *net)
 	hlist_for_each_entry_safe(gwj, nx, &net->can.cgw_list, list) {
 		hlist_del(&gwj->list);
 		cgw_unregister_filter(net, gwj);
-		kmem_cache_free(cgw_cache, gwj);
+		call_rcu(&gwj->rcu, cgw_job_free_rcu);
 	}
 }
 
@@ -1161,7 +1236,7 @@ static int cgw_remove_job(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 		hlist_del(&gwj->list);
 		cgw_unregister_filter(net, gwj);
-		kmem_cache_free(cgw_cache, gwj);
+		call_rcu(&gwj->rcu, cgw_job_free_rcu);
 		err = 0;
 		break;
 	}
@@ -1175,16 +1250,19 @@ static int __net_init cangw_pernet_init(struct net *net)
 	return 0;
 }
 
-static void __net_exit cangw_pernet_exit(struct net *net)
+static void __net_exit cangw_pernet_exit_batch(struct list_head *net_list)
 {
+	struct net *net;
+
 	rtnl_lock();
-	cgw_remove_all_jobs(net);
+	list_for_each_entry(net, net_list, exit_list)
+		cgw_remove_all_jobs(net);
 	rtnl_unlock();
 }
 
 static struct pernet_operations cangw_pernet_ops = {
 	.init = cangw_pernet_init,
-	.exit = cangw_pernet_exit,
+	.exit_batch = cangw_pernet_exit_batch,
 };
 
 static __init int cgw_module_init(void)
@@ -1194,8 +1272,7 @@ static __init int cgw_module_init(void)
 	/* sanitize given module parameter */
 	max_hops = clamp_t(unsigned int, max_hops, CGW_MIN_HOPS, CGW_MAX_HOPS);
 
-	pr_info("can: netlink gateway (rev " CAN_GW_VERSION ") max_hops=%d\n",
-		max_hops);
+	pr_info("can: netlink gateway - max_hops=%d\n",	max_hops);
 
 	ret = register_pernet_subsys(&cangw_pernet_ops);
 	if (ret)

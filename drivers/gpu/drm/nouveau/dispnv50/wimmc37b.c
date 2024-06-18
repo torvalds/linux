@@ -23,31 +23,39 @@
 #include "atom.h"
 #include "wndw.h"
 
-#include <nvif/clc37b.h>
+#include <nvif/if0014.h>
+#include <nvif/pushc37b.h>
 
-static void
+#include <nvhw/class/clc37b.h>
+
+static int
 wimmc37b_update(struct nv50_wndw *wndw, u32 *interlock)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wimm, 2))) {
-		evo_mthd(push, 0x0200, 1);
-		if (interlock[NV50_DISP_INTERLOCK_WNDW] & wndw->interlock.data)
-			evo_data(push, 0x00000003);
-		else
-			evo_data(push, 0x00000001);
-		evo_kick(push, &wndw->wimm);
-	}
+	struct nvif_push *push = wndw->wimm.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
+
+	PUSH_MTHD(push, NVC37B, UPDATE, 0x00000001 |
+		  NVVAL(NVC37B, UPDATE, INTERLOCK_WITH_WINDOW,
+			!!(interlock[NV50_DISP_INTERLOCK_WNDW] & wndw->interlock.data)));
+	return PUSH_KICK(push);
 }
 
-static void
+static int
 wimmc37b_point(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wimm, 2))) {
-		evo_mthd(push, 0x0208, 1);
-		evo_data(push, asyw->point.y << 16 | asyw->point.x);
-		evo_kick(push, &wndw->wimm);
-	}
+	struct nvif_push *push = wndw->wimm.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
+
+	PUSH_MTHD(push, NVC37B, SET_POINT_OUT(0),
+		  NVVAL(NVC37B, SET_POINT_OUT, X, asyw->point.x) |
+		  NVVAL(NVC37B, SET_POINT_OUT, Y, asyw->point.y));
+	return 0;
 }
 
 static const struct nv50_wimm_func
@@ -60,15 +68,14 @@ static int
 wimmc37b_init_(const struct nv50_wimm_func *func, struct nouveau_drm *drm,
 	       s32 oclass, struct nv50_wndw *wndw)
 {
-	struct nvc37b_window_imm_channel_dma_v0 args = {
-		.pushbuf = 0xb0007b00 | wndw->id,
-		.index = wndw->id,
+	struct nvif_disp_chan_v0 args = {
+		.id = wndw->id,
 	};
 	struct nv50_disp *disp = nv50_disp(drm->dev);
 	int ret;
 
 	ret = nv50_dmac_create(&drm->client.device, &disp->disp->object,
-			       &oclass, 0, &args, sizeof(args), 0,
+			       &oclass, 0, &args, sizeof(args), -1,
 			       &wndw->wimm);
 	if (ret) {
 		NV_ERROR(drm, "wimm%04x allocation failed: %d\n", oclass, ret);

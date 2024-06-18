@@ -1,0 +1,351 @@
+[
+    {
+        "id": "5153",
+        "name": "Add gate action with priority and sched-entry",
+        "category": [
+            "actions",
+            "gate"
+        ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC action flush action gate",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC action add action gate priority 1 sched-entry close 100000000ns index 100",
+        "expExitCode": "0",
+        "verifyCmd": "$TC action get action gate index 100",
+        "matchPattern": "action order [0-9]*: .*priority 1.*index 100 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC action flush action gate"
+        ]
+    },
+    {
+        "id": "7189",
+        "name": "Add gate action with base-time",
+        "category": [
+            "actions",
+            "gate"
+        ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC actions flush action gate",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC action add action gate base-time 200000000000ns sched-entry close 100000000ns index 10",
+        "expExitCode": "0",
+        "verifyCmd": "$TC action ls action gate",
+        "matchPattern": "action order [0-9]*: .*base-time 200s.*index 10 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action gate"
+        ]
+    },
+    {
+        "id": "a721",
+        "name": "Add gate action with cycle-time",
+        "category": [
+            "actions",
+            "gate"
+        ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC action flush action gate",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC action add action gate cycle-time 200000000000ns sched-entry close 100000000ns index 1000",
+        "expExitCode": "0",
+        "verifyCmd": "$TC action ls action gate",
+        "matchPattern": "action order [0-9]*: .*cycle-time 200s.*index 1000 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC action flush action gate"
+        ]
+    },
+    {
+        "id": "c029",
+        "name": "Add gate action with cycle-time-ext",
+        "category": [
+            "actions",
+            "gate"
+        ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC action flush action gate",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC action add action gate cycle-time-ext 20000000000ns sched-entry close 100000000ns index 1000",
+        "expExitCode": "0",
+        "verifyCmd": "$TC action get action gate index 1000",
+        "matchPattern": "action order [0-9]*: .*cycle-time-ext 20s.*index 1000 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC action flush action gate"
+        ]
+    },
+    {
+        "id": "3719",
+        "name": "Replace gate base-time action",
+        "category": [
+            "actions",
+            "gate"
+        ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC actions flush action gate",
+                0,
+                1,
+                255
+            ],
+            [
+                "$TC action add action gate base-time 200000000000ns sched-entry open 200000000ns -1 8000000b index 20",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC action replace action gate base-time 400000000000ns index 20",
+        "expExitCode": "0",
+        "verifyCmd": "$TC action get action gate index 20",
+        "matchPattern": "action order [0-9]*: .*base-time 400s.*index 20 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC action flush action gate"
+        ]
+    },
+    {
+        "id": "d821",
+        "name": "Delete gate action with valid index",
+        "category": [
+            "actions",
+            "gate"
+        ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC actions flush action gate",
+                0,
+                1,
+                255
+            ],
+            [
+                "$TC action add action gate base-time 200000000000ns sched-entry open 200000000ns -1 8000000b index 302",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC action delete action gate index 302",
+        "expExitCode": "0",
+        "verifyCmd": "$TC action get action bpf index 302",
+        "matchPattern": "action order [0-9]*: .*base-time 200s.*index 302 ref",
+        "matchCount": "0",
+        "teardown": [
+            "$TC action flush action gate"
+        ]
+    },
+    {
+        "id": "3128",
+        "name": "Delete gate action with invalid index",
+        "category": [
+            "actions",
+            "gate"
+        ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC actions flush action gate",
+                0,
+                1,
+                255
+            ],
+            [
+                "$TC action add action gate base-time 600000000000ns sched-entry open 200000000ns -1 8000000b index 999",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC action delete action gate index 333",
+        "expExitCode": "255",
+        "verifyCmd": "$TC action get action gate index 999",
+        "matchPattern": "action order [0-9]*: .*base-time 600s.*index 999 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC action flush action gate"
+        ]
+    },
+    {
+        "id": "7837",
+        "name": "List gate actions",
+        "category": [
+            "actions",
+            "gate"
+        ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC action flush action gate",
+                0,
+                1,
+                255
+            ],
+            "$TC action add action gate base-time 600000000000ns sched-entry open 200000000ns -1 8000000b index 101",
+            "$TC action add action gate cycle-time 600000000000ns sched-entry open 600000000ns -1 8000000b index 102",
+            "$TC action add action gate cycle-time-ext 400000000000ns sched-entry close 100000000ns index 103"
+        ],
+        "cmdUnderTest": "$TC action list action gate",
+        "expExitCode": "0",
+        "verifyCmd": "$TC action list action gate",
+        "matchPattern": "action order [0-9]*:",
+        "matchCount": "3",
+        "teardown": [
+            "$TC actions flush action gate"
+        ]
+    },
+    {
+        "id": "9273",
+        "name": "Flush gate actions",
+        "category": [
+            "actions",
+            "gate"
+        ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC actions flush action gate",
+                0,
+                1,
+                255
+            ],
+            "$TC action add action gate base-time 600000000000ns sched-entry open 200000000ns -1 8000000b index 101",
+            "$TC action add action gate cycle-time 600000000000ns sched-entry open 600000000ns -1 8000000b index 102",
+            "$TC action add action gate cycle-time-ext 400000000000ns sched-entry close 100000000ns index 103"
+	],
+        "cmdUnderTest": "$TC action flush action gate",
+        "expExitCode": "0",
+        "verifyCmd": "$TC action list action gate",
+        "matchPattern": "action order [0-9]*: .*priority",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action gate"
+        ]
+    },
+    {
+        "id": "c829",
+        "name": "Add gate action with duplicate index",
+        "category": [
+            "actions",
+            "gate"
+        ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC actions flush action gate",
+                0,
+                1,
+                255
+            ],
+            "$TC action add action gate cycle-time 600000000000ns sched-entry open 600000000ns -1 8000000b index 4294967295"
+        ],
+        "cmdUnderTest": "$TC action add action gate cycle-time 600000000000ns sched-entry open 600000000ns -1 8000000b index 4294967295",
+        "expExitCode": "255",
+        "verifyCmd": "$TC action get action gate index 4294967295",
+        "matchPattern": "action order [0-9]*: .*index 4294967295",
+        "matchCount": "1",
+        "teardown": [
+            "$TC action flush action gate"
+        ]
+    },
+    {
+        "id": "3043",
+        "name": "Add gate action with invalid index",
+        "category": [
+            "actions",
+            "gate"
+        ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC actions flush action gate",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC action add action gate cycle-time-ext 400000000000ns sched-entry close 100000000ns index 4294967296",
+        "expExitCode": "255",
+        "verifyCmd": "$TC action ls action gate",
+        "matchPattern": "action order [0-9]*:",
+        "matchCount": "0",
+        "teardown": [
+            "$TC action flush action gate"
+        ]
+    },
+    {
+        "id": "2930",
+        "name": "Add gate action with cookie",
+        "category": [
+            "actions",
+            "gate"
+        ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC actions flush action gate",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC action add action gate cycle-time-ext 400000000000ns sched-entry close 100000000ns index 4294 cookie d0d0d0d0d0d0d0d0",
+        "expExitCode": "0",
+        "verifyCmd": "$TC action list action gate",
+        "matchPattern": "action order [0-9]*: .*cookie d0d0d0d0d0d0d0",
+        "matchCount": "1",
+        "teardown": [
+            "$TC action flush action gate"
+        ]
+    }
+]

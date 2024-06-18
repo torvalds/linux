@@ -171,6 +171,15 @@ struct dma_extended_desc {
 	__le32 des7;	/* Tx/Rx Timestamp High */
 };
 
+/* Enhanced descriptor for TBS */
+struct dma_edesc {
+	__le32 des4;
+	__le32 des5;
+	__le32 des6;
+	__le32 des7;
+	struct dma_desc basic;
+};
+
 /* Transmit checksum insertion control */
 #define	TX_CIC_FULL	3	/* Include IP header and pseudoheader */
 

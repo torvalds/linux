@@ -62,11 +62,11 @@
  *Visit http://software.intel.com/en-us/articles/
  *and refer to improving-the-performance-of-the-secure-hash-algorithm-1/
  *
- *Updates 20-byte SHA-1 record in 'hash' for even number of
- *'num_blocks' consecutive 64-byte blocks
+ *Updates 20-byte SHA-1 record at start of 'state', from 'input', for
+ *even number of 'blocks' consecutive 64-byte blocks.
  *
  *extern "C" void sha1_transform_avx2(
- *	int *hash, const char* input, size_t num_blocks );
+ *	struct sha1_state *state, const u8* input, int blocks );
  */
 
 #include <linux/linkage.h>
@@ -485,18 +485,18 @@
 	xchg	WK_BUF, PRECALC_BUF
 
 	.align 32
-_loop:
+.L_loop:
 	/*
 	 * code loops through more than one block
 	 * we use K_BASE value as a signal of a last block,
 	 * it is set below by: cmovae BUFFER_PTR, K_BASE
 	 */
 	test BLOCKS_CTR, BLOCKS_CTR
-	jnz _begin
+	jnz .L_begin
 	.align 32
-	jmp	_end
+	jmp	.L_end
 	.align 32
-_begin:
+.L_begin:
 
 	/*
 	 * Do first block
@@ -507,9 +507,6 @@ _begin:
 		RR	j
 		.set j, j+2
 	.endr
-
-	jmp _loop0
-_loop0:
 
 	/*
 	 * rounds:
@@ -545,7 +542,7 @@ _loop0:
 	UPDATE_HASH	16(HASH_PTR), E
 
 	test	BLOCKS_CTR, BLOCKS_CTR
-	jz	_loop
+	jz	.L_loop
 
 	mov	TB, B
 
@@ -562,8 +559,6 @@ _loop0:
 		.set j, j+2
 	.endr
 
-	jmp	_loop1
-_loop1:
 	/*
 	 * rounds
 	 * 20+80,22+80,24+80,26+80,28+80
@@ -573,9 +568,6 @@ _loop1:
 		RR	j+80
 		.set j, j+2
 	.endr
-
-	jmp	_loop2
-_loop2:
 
 	/*
 	 * rounds
@@ -591,9 +583,6 @@ _loop2:
 	sub     $1, BLOCKS_CTR
 	/* Move to the next block only if needed*/
 	ADD_IF_GE BUFFER_PTR2, BLOCKS_CTR, 4, 128
-
-	jmp	_loop3
-_loop3:
 
 	/*
 	 * rounds
@@ -623,10 +612,10 @@ _loop3:
 
 	xchg	WK_BUF, PRECALC_BUF
 
-	jmp	_loop
+	jmp	.L_loop
 
 	.align 32
-	_end:
+.L_end:
 
 .endm
 /*
@@ -634,7 +623,7 @@ _loop3:
  * param: function's name
  */
 .macro SHA1_VECTOR_ASM  name
-	ENTRY(\name)
+	SYM_FUNC_START(\name)
 
 	push	%rbx
 	push	%r12
@@ -645,9 +634,9 @@ _loop3:
 	RESERVE_STACK  = (W_SIZE*4 + 8+24)
 
 	/* Align stack */
-	mov	%rsp, %rbx
+	push	%rbp
+	mov	%rsp, %rbp
 	and	$~(0x20-1), %rsp
-	push	%rbx
 	sub	$RESERVE_STACK, %rsp
 
 	avx2_zeroupper
@@ -665,8 +654,8 @@ _loop3:
 
 	avx2_zeroupper
 
-	add	$RESERVE_STACK, %rsp
-	pop	%rsp
+	mov	%rbp, %rsp
+	pop	%rbp
 
 	pop	%r15
 	pop	%r14
@@ -674,9 +663,9 @@ _loop3:
 	pop	%r12
 	pop	%rbx
 
-	ret
+	RET
 
-	ENDPROC(\name)
+	SYM_FUNC_END(\name)
 .endm
 
 .section .rodata

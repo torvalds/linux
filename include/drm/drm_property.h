@@ -31,7 +31,6 @@
 
 /**
  * struct drm_property_enum - symbolic values for enumerations
- * @value: numeric property value for this enum entry
  * @head: list of enum values, linked to &drm_property.enum_list
  * @name: symbolic name for the enum
  *
@@ -39,6 +38,14 @@
  * decoding for each value. This is used for example for the rotation property.
  */
 struct drm_property_enum {
+	/**
+	 * @value: numeric property value for this enum entry
+	 *
+	 * If the property has the type &DRM_MODE_PROP_BITMASK, @value stores a
+	 * bitshift, not a bitmask. In other words, the enum entry is enabled
+	 * if the bit number @value is set in the property's value. This enum
+	 * entry has the bitmask ``1 << value``.
+	 */
 	uint64_t value;
 	struct list_head head;
 	char name[DRM_PROP_NAME_LEN];
@@ -114,7 +121,7 @@ struct drm_property {
 	 *     by the property. Bitmask properties are created using
 	 *     drm_property_create_bitmask().
 	 *
-	 * DRM_MODE_PROB_OBJECT
+	 * DRM_MODE_PROP_OBJECT
 	 *     Object properties are used to link modeset objects. This is used
 	 *     extensively in the atomic support to create the display pipeline,
 	 *     by linking &drm_framebuffer to &drm_plane, &drm_plane to
@@ -272,6 +279,12 @@ struct drm_property_blob *drm_property_create_blob(struct drm_device *dev,
 						   const void *data);
 struct drm_property_blob *drm_property_lookup_blob(struct drm_device *dev,
 						   uint32_t id);
+int drm_property_replace_blob_from_id(struct drm_device *dev,
+				      struct drm_property_blob **blob,
+				      uint64_t blob_id,
+				      ssize_t expected_size,
+				      ssize_t expected_elem_size,
+				      bool *replaced);
 int drm_property_replace_global_blob(struct drm_device *dev,
 				     struct drm_property_blob **replace,
 				     size_t length,

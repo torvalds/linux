@@ -10,25 +10,8 @@
 #include "eeprom.h"
 #include "mcu.h"
 #include "initvals.h"
+#include "initvals_init.h"
 #include "../mt76x02_phy.h"
-
-static void mt76x0_vht_cap_mask(struct ieee80211_supported_band *sband)
-{
-	struct ieee80211_sta_vht_cap *vht_cap = &sband->vht_cap;
-	u16 mcs_map = 0;
-	int i;
-
-	vht_cap->cap &= ~IEEE80211_VHT_CAP_RXLDPC;
-	for (i = 0; i < 8; i++) {
-		if (!i)
-			mcs_map |= (IEEE80211_VHT_MCS_SUPPORT_0_7 << (i * 2));
-		else
-			mcs_map |=
-				(IEEE80211_VHT_MCS_NOT_SUPPORTED << (i * 2));
-	}
-	vht_cap->vht_mcs.rx_mcs_map = cpu_to_le16(mcs_map);
-	vht_cap->vht_mcs.tx_mcs_map = cpu_to_le16(mcs_map);
-}
 
 static void
 mt76x0_set_wlan_state(struct mt76x02_dev *dev, u32 val, bool enable)
@@ -150,31 +133,6 @@ static void mt76x0_init_mac_registers(struct mt76x02_dev *dev)
 	mt76_rmw(dev, MT_WMM_CTRL, 0x3ff, 0x201);
 }
 
-static void mt76x0_reset_counters(struct mt76x02_dev *dev)
-{
-	mt76_rr(dev, MT_RX_STAT_0);
-	mt76_rr(dev, MT_RX_STAT_1);
-	mt76_rr(dev, MT_RX_STAT_2);
-	mt76_rr(dev, MT_TX_STA_0);
-	mt76_rr(dev, MT_TX_STA_1);
-	mt76_rr(dev, MT_TX_STA_2);
-}
-
-int mt76x0_mac_start(struct mt76x02_dev *dev)
-{
-	mt76_wr(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_ENABLE_TX);
-
-	if (!mt76x02_wait_for_wpdma(&dev->mt76, 200000))
-		return -ETIMEDOUT;
-
-	mt76_wr(dev, MT_RX_FILTR_CFG, dev->mt76.rxfilter);
-	mt76_wr(dev, MT_MAC_SYS_CTRL,
-		MT_MAC_SYS_CTRL_ENABLE_TX | MT_MAC_SYS_CTRL_ENABLE_RX);
-
-	return !mt76x02_wait_for_wpdma(&dev->mt76, 50) ? -ETIMEDOUT : 0;
-}
-EXPORT_SYMBOL_GPL(mt76x0_mac_start);
-
 void mt76x0_mac_stop(struct mt76x02_dev *dev)
 {
 	int i = 200, ok = 0;
@@ -244,8 +202,6 @@ int mt76x0_init_hardware(struct mt76x02_dev *dev)
 	for (i = 0; i < 256; i++)
 		mt76x02_mac_wcid_setup(dev, i, 0, NULL);
 
-	mt76x0_reset_counters(dev);
-
 	ret = mt76x0_eeprom_init(dev);
 	if (ret)
 		return ret;
@@ -261,7 +217,7 @@ mt76x0_init_txpower(struct mt76x02_dev *dev,
 		    struct ieee80211_supported_band *sband)
 {
 	struct ieee80211_channel *chan;
-	struct mt76_rate_power t;
+	struct mt76x02_rate_power t;
 	s8 tp;
 	int i;
 
@@ -281,7 +237,10 @@ int mt76x0_register_device(struct mt76x02_dev *dev)
 {
 	int ret;
 
-	mt76x02_init_device(dev);
+	ret = mt76x02_init_device(dev);
+	if (ret)
+		return ret;
+
 	mt76x02_config_mac_addr_list(dev);
 
 	ret = mt76_register_device(&dev->mt76, true, mt76x02_rates,
@@ -289,14 +248,16 @@ int mt76x0_register_device(struct mt76x02_dev *dev)
 	if (ret)
 		return ret;
 
-	if (dev->mt76.cap.has_5ghz) {
-		/* overwrite unsupported features */
-		mt76x0_vht_cap_mask(&dev->mt76.sband_5g.sband);
-		mt76x0_init_txpower(dev, &dev->mt76.sband_5g.sband);
+	if (dev->mphy.cap.has_5ghz) {
+		struct ieee80211_supported_band *sband;
+
+		sband = &dev->mphy.sband_5g.sband;
+		sband->vht_cap.cap &= ~IEEE80211_VHT_CAP_RXLDPC;
+		mt76x0_init_txpower(dev, sband);
 	}
 
-	if (dev->mt76.cap.has_2ghz)
-		mt76x0_init_txpower(dev, &dev->mt76.sband_2g.sband);
+	if (dev->mphy.cap.has_2ghz)
+		mt76x0_init_txpower(dev, &dev->mphy.sband_2g.sband);
 
 	mt76x02_init_debugfs(dev);
 

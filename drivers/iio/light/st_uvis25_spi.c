@@ -9,6 +9,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
 #include <linux/regmap.h>
@@ -31,8 +32,8 @@ static int st_uvis25_spi_probe(struct spi_device *spi)
 
 	regmap = devm_regmap_init_spi(spi, &st_uvis25_spi_regmap_config);
 	if (IS_ERR(regmap)) {
-		dev_err(&spi->dev, "Failed to register spi regmap %d\n",
-			(int)PTR_ERR(regmap));
+		dev_err(&spi->dev, "Failed to register spi regmap %ld\n",
+			PTR_ERR(regmap));
 		return PTR_ERR(regmap);
 	}
 
@@ -54,8 +55,8 @@ MODULE_DEVICE_TABLE(spi, st_uvis25_spi_id_table);
 static struct spi_driver st_uvis25_driver = {
 	.driver = {
 		.name = "st_uvis25_spi",
-		.pm = &st_uvis25_pm_ops,
-		.of_match_table = of_match_ptr(st_uvis25_spi_of_match),
+		.pm = pm_sleep_ptr(&st_uvis25_pm_ops),
+		.of_match_table = st_uvis25_spi_of_match,
 	},
 	.probe = st_uvis25_spi_probe,
 	.id_table = st_uvis25_spi_id_table,
@@ -65,3 +66,4 @@ module_spi_driver(st_uvis25_driver);
 MODULE_AUTHOR("Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>");
 MODULE_DESCRIPTION("STMicroelectronics uvis25 spi driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_UVIS25);

@@ -40,15 +40,6 @@ static void  __check_db_timeout(struct octeon_device *oct, u64 iq_no);
 
 static void (*reqtype_free_fn[MAX_OCTEON_DEVICES][REQTYPE_LAST + 1]) (void *);
 
-static inline int IQ_INSTR_MODE_64B(struct octeon_device *oct, int iq_no)
-{
-	struct octeon_instr_queue *iq =
-	    (struct octeon_instr_queue *)oct->instr_queue[iq_no];
-	return iq->iqcmd_64B;
-}
-
-#define IQ_INSTR_MODE_32B(oct, iq_no)  (!IQ_INSTR_MODE_64B(oct, iq_no))
-
 /* Define this to return the request status comaptible to old code */
 /*#define OCTEON_USE_OLD_REQ_STATUS*/
 
@@ -95,20 +86,16 @@ int octeon_init_instr_queue(struct octeon_device *oct,
 	/* Initialize a list to holds requests that have been posted to Octeon
 	 * but has yet to be fetched by octeon
 	 */
-	iq->request_list = vmalloc_node((sizeof(*iq->request_list) * num_descs),
-					       numa_node);
+	iq->request_list = vzalloc_node(array_size(num_descs, sizeof(*iq->request_list)),
+					numa_node);
 	if (!iq->request_list)
-		iq->request_list =
-			vmalloc(array_size(num_descs,
-					   sizeof(*iq->request_list)));
+		iq->request_list = vzalloc(array_size(num_descs, sizeof(*iq->request_list)));
 	if (!iq->request_list) {
 		lio_dma_free(oct, q_size, iq->base_addr, iq->base_addr_dma);
 		dev_err(&oct->pci_dev->dev, "Alloc failed for IQ[%d] nr free list\n",
 			iq_no);
 		return 1;
 	}
-
-	memset(iq->request_list, 0, sizeof(*iq->request_list) * num_descs);
 
 	dev_dbg(&oct->pci_dev->dev, "IQ[%d]: base: %p basedma: %pad count: %d\n",
 		iq_no, iq->base_addr, &iq->base_addr_dma, iq->max_count);
@@ -198,6 +185,7 @@ int octeon_delete_instr_queue(struct octeon_device *oct, u32 iq_no)
 	}
 	return 1;
 }
+EXPORT_SYMBOL_GPL(octeon_delete_instr_queue);
 
 /* Return 0 on success, 1 on failure */
 int octeon_setup_iq(struct octeon_device *oct,
@@ -271,6 +259,7 @@ int lio_wait_for_instr_fetch(struct octeon_device *oct)
 
 	return instr_cnt;
 }
+EXPORT_SYMBOL_GPL(lio_wait_for_instr_fetch);
 
 static inline void
 ring_doorbell(struct octeon_device *oct, struct octeon_instr_queue *iq)
@@ -295,6 +284,7 @@ octeon_ring_doorbell_locked(struct octeon_device *oct, u32 iq_no)
 		ring_doorbell(oct, iq);
 	spin_unlock(&iq->post_lock);
 }
+EXPORT_SYMBOL_GPL(octeon_ring_doorbell_locked);
 
 static inline void __copy_cmd_into_iq(struct octeon_instr_queue *iq,
 				      u8 *cmd)
@@ -358,6 +348,7 @@ octeon_register_reqtype_free_fn(struct octeon_device *oct, int reqtype,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(octeon_register_reqtype_free_fn);
 
 static inline void
 __add_to_request_list(struct octeon_instr_queue *iq,
@@ -443,6 +434,7 @@ lio_process_iq_request_list(struct octeon_device *oct,
 
 	return inst_count;
 }
+EXPORT_SYMBOL_GPL(lio_process_iq_request_list);
 
 /* Can only be called from process context */
 int
@@ -579,6 +571,7 @@ octeon_send_command(struct octeon_device *oct, u32 iq_no,
 
 	return st.status;
 }
+EXPORT_SYMBOL_GPL(octeon_send_command);
 
 void
 octeon_prepare_soft_command(struct octeon_device *oct,
@@ -686,6 +679,7 @@ octeon_prepare_soft_command(struct octeon_device *oct,
 		}
 	}
 }
+EXPORT_SYMBOL_GPL(octeon_prepare_soft_command);
 
 int octeon_send_soft_command(struct octeon_device *oct,
 			     struct octeon_soft_command *sc)
@@ -739,6 +733,7 @@ int octeon_send_soft_command(struct octeon_device *oct,
 	return (octeon_send_command(oct, sc->iq_no, 1, &sc->cmd, sc,
 				    len, REQTYPE_SOFT_COMMAND));
 }
+EXPORT_SYMBOL_GPL(octeon_send_soft_command);
 
 int octeon_setup_sc_buffer_pool(struct octeon_device *oct)
 {
@@ -768,6 +763,7 @@ int octeon_setup_sc_buffer_pool(struct octeon_device *oct)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(octeon_setup_sc_buffer_pool);
 
 int octeon_free_sc_done_list(struct octeon_device *oct)
 {
@@ -807,6 +803,7 @@ int octeon_free_sc_done_list(struct octeon_device *oct)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(octeon_free_sc_done_list);
 
 int octeon_free_sc_zombie_list(struct octeon_device *oct)
 {
@@ -831,6 +828,7 @@ int octeon_free_sc_zombie_list(struct octeon_device *oct)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(octeon_free_sc_zombie_list);
 
 int octeon_free_sc_buffer_pool(struct octeon_device *oct)
 {
@@ -855,6 +853,7 @@ int octeon_free_sc_buffer_pool(struct octeon_device *oct)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(octeon_free_sc_buffer_pool);
 
 struct octeon_soft_command *octeon_alloc_soft_command(struct octeon_device *oct,
 						      u32 datasize,
@@ -926,6 +925,7 @@ struct octeon_soft_command *octeon_alloc_soft_command(struct octeon_device *oct,
 
 	return sc;
 }
+EXPORT_SYMBOL_GPL(octeon_alloc_soft_command);
 
 void octeon_free_soft_command(struct octeon_device *oct,
 			      struct octeon_soft_command *sc)
@@ -938,3 +938,4 @@ void octeon_free_soft_command(struct octeon_device *oct,
 
 	spin_unlock_bh(&oct->sc_buf_pool.lock);
 }
+EXPORT_SYMBOL_GPL(octeon_free_soft_command);

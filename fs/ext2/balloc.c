@@ -36,8 +36,6 @@
  */
 
 
-#define in_range(b, first, len)	((b) >= (first) && (b) <= (first) + (len) - 1)
-
 struct ext2_group_desc * ext2_get_group_desc(struct super_block * sb,
 					     unsigned int block_group,
 					     struct buffer_head ** bh)
@@ -48,10 +46,9 @@ struct ext2_group_desc * ext2_get_group_desc(struct super_block * sb,
 	struct ext2_sb_info *sbi = EXT2_SB(sb);
 
 	if (block_group >= sbi->s_groups_count) {
-		ext2_error (sb, "ext2_get_group_desc",
-			    "block_group >= groups_count - "
-			    "block_group = %d, groups_count = %lu",
-			    block_group, sbi->s_groups_count);
+		WARN(1, "block_group >= groups_count - "
+		     "block_group = %d, groups_count = %lu",
+		     block_group, sbi->s_groups_count);
 
 		return NULL;
 	}
@@ -59,10 +56,9 @@ struct ext2_group_desc * ext2_get_group_desc(struct super_block * sb,
 	group_desc = block_group >> EXT2_DESC_PER_BLOCK_BITS(sb);
 	offset = block_group & (EXT2_DESC_PER_BLOCK(sb) - 1);
 	if (!sbi->s_group_desc[group_desc]) {
-		ext2_error (sb, "ext2_get_group_desc",
-			    "Group descriptor not loaded - "
-			    "block_group = %d, group_desc = %lu, desc = %lu",
-			     block_group, group_desc, offset);
+		WARN(1, "Group descriptor not loaded - "
+		     "block_group = %d, group_desc = %lu, desc = %lu",
+		      block_group, group_desc, offset);
 		return NULL;
 	}
 
@@ -128,6 +124,7 @@ read_block_bitmap(struct super_block *sb, unsigned int block_group)
 	struct ext2_group_desc * desc;
 	struct buffer_head * bh = NULL;
 	ext2_fsblk_t bitmap_blk;
+	int ret;
 
 	desc = ext2_get_group_desc(sb, block_group, NULL);
 	if (!desc)
@@ -141,10 +138,10 @@ read_block_bitmap(struct super_block *sb, unsigned int block_group)
 			    block_group, le32_to_cpu(desc->bg_block_bitmap));
 		return NULL;
 	}
-	if (likely(bh_uptodate_or_lock(bh)))
+	ret = bh_read(bh, 0);
+	if (ret > 0)
 		return bh;
-
-	if (bh_submit_read(bh) < 0) {
+	if (ret < 0) {
 		brelse(bh);
 		ext2_error(sb, __func__,
 			    "Cannot read block bitmap - "
@@ -189,7 +186,7 @@ static void group_adjust_blocks(struct super_block *sb, int group_no,
 
 /**
  * __rsv_window_dump() -- Dump the filesystem block allocation reservation map
- * @rb_root:		root of per-filesystem reservation rb tree
+ * @root:		root of per-filesystem reservation rb tree
  * @verbose:		verbose mode
  * @fn:			function which wishes to dump the reservation map
  *
@@ -269,7 +266,7 @@ goal_in_my_reservation(struct ext2_reserve_window *rsv, ext2_grpblk_t grp_goal,
 	ext2_fsblk_t group_first_block, group_last_block;
 
 	group_first_block = ext2_group_first_block_no(sb, group);
-	group_last_block = group_first_block + EXT2_BLOCKS_PER_GROUP(sb) - 1;
+	group_last_block = ext2_group_last_block_no(sb, group);
 
 	if ((rsv->_rsv_start > group_last_block) ||
 	    (rsv->_rsv_end < group_first_block))
@@ -282,7 +279,7 @@ goal_in_my_reservation(struct ext2_reserve_window *rsv, ext2_grpblk_t grp_goal,
 
 /**
  * search_reserve_window()
- * @rb_root:		root of reservation tree
+ * @root:		root of reservation tree
  * @goal:		target allocation block
  *
  * Find the reserved window which includes the goal, or the previous one
@@ -415,7 +412,7 @@ void ext2_init_block_alloc_info(struct inode *inode)
 	struct ext2_block_alloc_info *block_i;
 	struct super_block *sb = inode->i_sb;
 
-	block_i = kmalloc(sizeof(*block_i), GFP_NOFS);
+	block_i = kmalloc(sizeof(*block_i), GFP_KERNEL);
 	if (block_i) {
 		struct ext2_reserve_window_node *rsv = &block_i->rsv_window_node;
 
@@ -475,8 +472,8 @@ void ext2_discard_reservation(struct inode *inode)
  * @block:		start physical block to free
  * @count:		number of blocks to free
  */
-void ext2_free_blocks (struct inode * inode, unsigned long block,
-		       unsigned long count)
+void ext2_free_blocks(struct inode * inode, ext2_fsblk_t block,
+		      unsigned long count)
 {
 	struct buffer_head *bitmap_bh = NULL;
 	struct buffer_head * bh2;
@@ -666,37 +663,24 @@ ext2_try_to_allocate(struct super_block *sb, int group,
 			unsigned long *count,
 			struct ext2_reserve_window *my_rsv)
 {
-	ext2_fsblk_t group_first_block;
-       	ext2_grpblk_t start, end;
+	ext2_fsblk_t group_first_block = ext2_group_first_block_no(sb, group);
+	ext2_fsblk_t group_last_block = ext2_group_last_block_no(sb, group);
+	ext2_grpblk_t start, end;
 	unsigned long num = 0;
 
+	start = 0;
+	end = group_last_block - group_first_block + 1;
 	/* we do allocation within the reservation window if we have a window */
 	if (my_rsv) {
-		group_first_block = ext2_group_first_block_no(sb, group);
 		if (my_rsv->_rsv_start >= group_first_block)
 			start = my_rsv->_rsv_start - group_first_block;
-		else
-			/* reservation window cross group boundary */
-			start = 0;
-		end = my_rsv->_rsv_end - group_first_block + 1;
-		if (end > EXT2_BLOCKS_PER_GROUP(sb))
-			/* reservation window crosses group boundary */
-			end = EXT2_BLOCKS_PER_GROUP(sb);
-		if ((start <= grp_goal) && (grp_goal < end))
-			start = grp_goal;
-		else
+		if (my_rsv->_rsv_end < group_last_block)
+			end = my_rsv->_rsv_end - group_first_block + 1;
+		if (grp_goal < start || grp_goal >= end)
 			grp_goal = -1;
-	} else {
-		if (grp_goal > 0)
-			start = grp_goal;
-		else
-			start = 0;
-		end = EXT2_BLOCKS_PER_GROUP(sb);
 	}
-
 	BUG_ON(start > EXT2_BLOCKS_PER_GROUP(sb));
 
-repeat:
 	if (grp_goal < 0) {
 		grp_goal = find_next_usable_block(start, bitmap_bh, end);
 		if (grp_goal < 0)
@@ -711,67 +695,55 @@ repeat:
 				;
 		}
 	}
-	start = grp_goal;
 
-	if (ext2_set_bit_atomic(sb_bgl_lock(EXT2_SB(sb), group), grp_goal,
-			       				bitmap_bh->b_data)) {
-		/*
-		 * The block was allocated by another thread, or it was
-		 * allocated and then freed by another thread
-		 */
-		start++;
-		grp_goal++;
-		if (start >= end)
-			goto fail_access;
-		goto repeat;
-	}
-	num++;
-	grp_goal++;
-	while (num < *count && grp_goal < end
-		&& !ext2_set_bit_atomic(sb_bgl_lock(EXT2_SB(sb), group),
+	for (; num < *count && grp_goal < end; grp_goal++) {
+		if (ext2_set_bit_atomic(sb_bgl_lock(EXT2_SB(sb), group),
 					grp_goal, bitmap_bh->b_data)) {
+			if (num == 0)
+				continue;
+			break;
+		}
 		num++;
-		grp_goal++;
 	}
+
+	if (num == 0)
+		goto fail_access;
+
 	*count = num;
 	return grp_goal - num;
 fail_access:
-	*count = num;
 	return -1;
 }
 
 /**
- * 	find_next_reservable_window():
- *		find a reservable space within the given range.
- *		It does not allocate the reservation window for now:
- *		alloc_new_reservation() will do the work later.
+ * find_next_reservable_window - Find a reservable space within the given range.
+ * @search_head: The list to search.
+ * @my_rsv: The reservation we're currently using.
+ * @sb: The super block.
+ * @start_block: The first block we consider to start the real search from
+ * @last_block: The maximum block number that our goal reservable space
+ *	could start from.
  *
- * 	@search_head: the head of the searching list;
- *		This is not necessarily the list head of the whole filesystem
+ * It does not allocate the reservation window: alloc_new_reservation()
+ * will do the work later.
  *
- *		We have both head and start_block to assist the search
- *		for the reservable space. The list starts from head,
- *		but we will shift to the place where start_block is,
- *		then start from there, when looking for a reservable space.
+ * We search the given range, rather than the whole reservation double
+ * linked list, (start_block, last_block) to find a free region that is
+ * of my size and has not been reserved.
  *
- * 	@size: the target new reservation window size
+ * @search_head is not necessarily the list head of the whole filesystem.
+ * We have both head and @start_block to assist the search for the
+ * reservable space. The list starts from head, but we will shift to
+ * the place where start_block is, then start from there, when looking
+ * for a reservable space.
  *
- * 	@group_first_block: the first block we consider to start
- *			the real search from
+ * @last_block is normally the last block in this group. The search will end
+ * when we found the start of next possible reservable space is out
+ * of this boundary.  This could handle the cross boundary reservation
+ * window request.
  *
- * 	@last_block:
- *		the maximum block number that our goal reservable space
- *		could start from. This is normally the last block in this
- *		group. The search will end when we found the start of next
- *		possible reservable space is out of this boundary.
- *		This could handle the cross boundary reservation window
- *		request.
- *
- * 	basically we search from the given range, rather than the whole
- * 	reservation double linked list, (start_block, last_block)
- * 	to find a free region that is of my size and has not
- * 	been reserved.
- *
+ * Return: -1 if we could not find a range of sufficient size.  If we could,
+ * return 0 and fill in @my_rsv with the range information.
  */
 static int find_next_reservable_window(
 				struct ext2_reserve_window_node *search_head,
@@ -859,41 +831,34 @@ static int find_next_reservable_window(
 }
 
 /**
- * 	alloc_new_reservation()--allocate a new reservation window
+ * alloc_new_reservation - Allocate a new reservation window.
+ * @my_rsv: The reservation we're currently using.
+ * @grp_goal: The goal block relative to the start of the group.
+ * @sb: The super block.
+ * @group: The group we are trying to allocate in.
+ * @bitmap_bh: The block group block bitmap.
  *
- *		To make a new reservation, we search part of the filesystem
- *		reservation list (the list that inside the group). We try to
- *		allocate a new reservation window near the allocation goal,
- *		or the beginning of the group, if there is no goal.
+ * To make a new reservation, we search part of the filesystem reservation
+ * list (the list inside the group). We try to allocate a new
+ * reservation window near @grp_goal, or the beginning of the
+ * group, if @grp_goal is negative.
  *
- *		We first find a reservable space after the goal, then from
- *		there, we check the bitmap for the first free block after
- *		it. If there is no free block until the end of group, then the
- *		whole group is full, we failed. Otherwise, check if the free
- *		block is inside the expected reservable space, if so, we
- *		succeed.
- *		If the first free block is outside the reservable space, then
- *		start from the first free block, we search for next available
- *		space, and go on.
+ * We first find a reservable space after the goal, then from there,
+ * we check the bitmap for the first free block after it. If there is
+ * no free block until the end of group, then the whole group is full,
+ * we failed. Otherwise, check if the free block is inside the expected
+ * reservable space, if so, we succeed.
  *
- *	on succeed, a new reservation will be found and inserted into the list
- *	It contains at least one free block, and it does not overlap with other
- *	reservation windows.
+ * If the first free block is outside the reservable space, then start
+ * from the first free block, we search for next available space, and
+ * go on.
  *
- *	failed: we failed to find a reservation window in this group
+ * on succeed, a new reservation will be found and inserted into the
+ * list. It contains at least one free block, and it does not overlap
+ * with other reservation windows.
  *
- *	@rsv: the reservation
- *
- *	@grp_goal: The goal (group-relative).  It is where the search for a
- *		free reservable space should start from.
- *		if we have a goal(goal >0 ), then start from there,
- *		no goal(goal = -1), we start from the first block
- *		of the group.
- *
- *	@sb: the super block
- *	@group: the group we are trying to allocate in
- *	@bitmap_bh: the block group block bitmap
- *
+ * Return: 0 on success, -1 if we failed to find a reservation window
+ * in this group
  */
 static int alloc_new_reservation(struct ext2_reserve_window_node *my_rsv,
 		ext2_grpblk_t grp_goal, struct super_block *sb,
@@ -908,7 +873,7 @@ static int alloc_new_reservation(struct ext2_reserve_window_node *my_rsv,
 	spinlock_t *rsv_lock = &EXT2_SB(sb)->s_rsv_window_lock;
 
 	group_first_block = ext2_group_first_block_no(sb, group);
-	group_end_block = group_first_block + (EXT2_BLOCKS_PER_GROUP(sb) - 1);
+	group_end_block = ext2_group_last_block_no(sb, group);
 
 	if (grp_goal < 0)
 		start_block = group_first_block;
@@ -1115,7 +1080,7 @@ ext2_try_to_allocate_with_rsv(struct super_block *sb, unsigned int group,
 	 * first block is the block number of the first block in this group
 	 */
 	group_first_block = ext2_group_first_block_no(sb, group);
-	group_last_block = group_first_block + (EXT2_BLOCKS_PER_GROUP(sb) - 1);
+	group_last_block = ext2_group_last_block_no(sb, group);
 
 	/*
 	 * Basically we will allocate a new block from inode's reservation
@@ -1157,8 +1122,13 @@ ext2_try_to_allocate_with_rsv(struct super_block *sb, unsigned int group,
 
 		if ((my_rsv->rsv_start > group_last_block) ||
 				(my_rsv->rsv_end < group_first_block)) {
+			ext2_error(sb, __func__,
+				   "Reservation out of group %u range goal %d fsb[%lu,%lu] rsv[%lu, %lu]",
+				   group, grp_goal, group_first_block,
+				   group_last_block, my_rsv->rsv_start,
+				   my_rsv->rsv_end);
 			rsv_window_dump(&EXT2_SB(sb)->s_rsv_window_root, 1);
-			BUG();
+			return -1;
 		}
 		ret = ext2_try_to_allocate(sb, group, bitmap_bh, grp_goal,
 					   &num, &my_rsv->rsv_window);
@@ -1219,6 +1189,7 @@ int ext2_data_block_valid(struct ext2_sb_info *sbi, ext2_fsblk_t start_blk,
  * @goal:		given target block(filesystem wide)
  * @count:		target number of blocks to allocate
  * @errp:		error code
+ * @flags:		allocate flags
  *
  * ext2_new_blocks uses a goal block to assist allocation.  If the goal is
  * free, or there is a free block within 32 blocks of the goal, that block
@@ -1228,7 +1199,7 @@ int ext2_data_block_valid(struct ext2_sb_info *sbi, ext2_fsblk_t start_blk,
  * This function also updates quota and i_blocks field.
  */
 ext2_fsblk_t ext2_new_blocks(struct inode *inode, ext2_fsblk_t goal,
-		    unsigned long *count, int *errp)
+		    unsigned long *count, int *errp, unsigned int flags)
 {
 	struct buffer_head *bitmap_bh = NULL;
 	struct buffer_head *gdp_bh;
@@ -1267,15 +1238,15 @@ ext2_fsblk_t ext2_new_blocks(struct inode *inode, ext2_fsblk_t goal,
 	es = EXT2_SB(sb)->s_es;
 	ext2_debug("goal=%lu.\n", goal);
 	/*
-	 * Allocate a block from reservation only when
-	 * filesystem is mounted with reservation(default,-o reservation), and
-	 * it's a regular file, and
-	 * the desired window size is greater than 0 (One could use ioctl
-	 * command EXT2_IOC_SETRSVSZ to set the window size to 0 to turn off
-	 * reservation on that particular file)
+	 * Allocate a block from reservation only when the filesystem is
+	 * mounted with reservation(default,-o reservation), and it's a regular
+	 * file, and the desired window size is greater than 0 (One could use
+	 * ioctl command EXT2_IOC_SETRSVSZ to set the window size to 0 to turn
+	 * off reservation on that particular file). Also do not use the
+	 * reservation window if the caller asked us not to do it.
 	 */
 	block_i = EXT2_I(inode)->i_block_alloc_info;
-	if (block_i) {
+	if (!(flags & EXT2_ALLOC_NORESERVE) && block_i) {
 		windowsz = block_i->rsv_window_node.rsv_goal_size;
 		if (windowsz > 0)
 			my_rsv = &block_i->rsv_window_node;
@@ -1313,6 +1284,13 @@ retry_alloc:
 	if (free_blocks > 0) {
 		grp_target_blk = ((goal - le32_to_cpu(es->s_first_data_block)) %
 				EXT2_BLOCKS_PER_GROUP(sb));
+		/*
+		 * In case we retry allocation (due to fs reservation not
+		 * working out or fs corruption), the bitmap_bh is non-null
+		 * pointer and we have to release it before calling
+		 * read_block_bitmap().
+		 */
+		brelse(bitmap_bh);
 		bitmap_bh = read_block_bitmap(sb, group_no);
 		if (!bitmap_bh)
 			goto io_error;
@@ -1404,6 +1382,7 @@ allocated:
 		 * use.  So we may want to selectively mark some of the blocks
 		 * as free
 		 */
+		num = *count;
 		goto retry_alloc;
 	}
 
@@ -1445,13 +1424,6 @@ out:
 	}
 	brelse(bitmap_bh);
 	return 0;
-}
-
-ext2_fsblk_t ext2_new_block(struct inode *inode, unsigned long goal, int *errp)
-{
-	unsigned long count = 1;
-
-	return ext2_new_blocks(inode, goal, &count, errp);
 }
 
 #ifdef EXT2FS_DEBUG
@@ -1497,11 +1469,11 @@ unsigned long ext2_count_free_blocks (struct super_block * sb)
 		desc_count, bitmap_count);
 	return bitmap_count;
 #else
-        for (i = 0; i < EXT2_SB(sb)->s_groups_count; i++) {
-                desc = ext2_get_group_desc (sb, i, NULL);
-                if (!desc)
-                        continue;
-                desc_count += le16_to_cpu(desc->bg_free_blocks_count);
+	for (i = 0; i < EXT2_SB(sb)->s_groups_count; i++) {
+		desc = ext2_get_group_desc(sb, i, NULL);
+		if (!desc)
+			continue;
+		desc_count += le16_to_cpu(desc->bg_free_blocks_count);
 	}
 	return desc_count;
 #endif

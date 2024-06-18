@@ -88,13 +88,17 @@ changes occur:
 
 	This is used primarily during fault processing.
 
-5) ``void update_mmu_cache(struct vm_area_struct *vma,
-   unsigned long address, pte_t *ptep)``
+5) ``void update_mmu_cache_range(struct vm_fault *vmf,
+   struct vm_area_struct *vma, unsigned long address, pte_t *ptep,
+   unsigned int nr)``
 
-	At the end of every page fault, this routine is invoked to
-	tell the architecture specific code that a translation
-	now exists at virtual address "address" for address space
-	"vma->vm_mm", in the software page tables.
+	At the end of every page fault, this routine is invoked to tell
+	the architecture specific code that translations now exists
+	in the software page tables for address space "vma->vm_mm"
+	at virtual address "address" for "nr" consecutive pages.
+
+	This routine is also invoked in various other places which pass
+	a NULL "vmf".
 
 	A port may use this information in any way it so chooses.
 	For example, it could use this event to pre-load TLB
@@ -213,9 +217,9 @@ Here are the routines, one by one:
 	there will be no entries in the cache for the kernel address
 	space for virtual addresses in the range 'start' to 'end-1'.
 
-	The first of these two routines is invoked after map_vm_area()
+	The first of these two routines is invoked after vmap_range()
 	has installed the page table entries.  The second is invoked
-	before unmap_kernel_range() deletes the page table entries.
+	before vunmap_range() deletes the page table entries.
 
 There exists another whole class of cpu cache issues which currently
 require a whole different set of interfaces to handle properly.
@@ -269,12 +273,17 @@ maps this page at its virtual address.
 	If D-cache aliasing is not an issue, these two routines may
 	simply call memcpy/memset directly and do nothing more.
 
-  ``void flush_dcache_page(struct page *page)``
+  ``void flush_dcache_folio(struct folio *folio)``
 
-	Any time the kernel writes to a page cache page, _OR_
-	the kernel is about to read from a page cache page and
-	user space shared/writable mappings of this page potentially
-	exist, this routine is called.
+        This routines must be called when:
+
+	  a) the kernel did write to a page that is in the page cache page
+	     and / or in high memory
+	  b) the kernel is about to read from a page cache page and user space
+	     shared/writable mappings of this page potentially exist.  Note
+	     that {get,pin}_user_pages{_fast} already call flush_dcache_folio
+	     on any page found in the user address space and thus driver
+	     code rarely needs to take this into account.
 
 	.. note::
 
@@ -284,38 +293,35 @@ maps this page at its virtual address.
 	      handling vfs symlinks in the page cache need not call
 	      this interface at all.
 
-	The phrase "kernel writes to a page cache page" means,
-	specifically, that the kernel executes store instructions
-	that dirty data in that page at the page->virtual mapping
-	of that page.  It is important to flush here to handle
-	D-cache aliasing, to make sure these kernel stores are
-	visible to user space mappings of that page.
+	The phrase "kernel writes to a page cache page" means, specifically,
+	that the kernel executes store instructions that dirty data in that
+	page at the kernel virtual mapping of that page.  It is important to
+	flush here to handle D-cache aliasing, to make sure these kernel stores
+	are visible to user space mappings of that page.
 
-	The corollary case is just as important, if there are users
-	which have shared+writable mappings of this file, we must make
-	sure that kernel reads of these pages will see the most recent
-	stores done by the user.
+	The corollary case is just as important, if there are users which have
+	shared+writable mappings of this file, we must make sure that kernel
+	reads of these pages will see the most recent stores done by the user.
 
-	If D-cache aliasing is not an issue, this routine may
-	simply be defined as a nop on that architecture.
+	If D-cache aliasing is not an issue, this routine may simply be defined
+	as a nop on that architecture.
 
-        There is a bit set aside in page->flags (PG_arch_1) as
-	"architecture private".  The kernel guarantees that,
-	for pagecache pages, it will clear this bit when such
-	a page first enters the pagecache.
+        There is a bit set aside in folio->flags (PG_arch_1) as "architecture
+	private".  The kernel guarantees that, for pagecache pages, it will
+	clear this bit when such a page first enters the pagecache.
 
 	This allows these interfaces to be implemented much more
-	efficiently.  It allows one to "defer" (perhaps indefinitely)
-	the actual flush if there are currently no user processes
-	mapping this page.  See sparc64's flush_dcache_page and
-	update_mmu_cache implementations for an example of how to go
-	about doing this.
+	efficiently.  It allows one to "defer" (perhaps indefinitely) the
+	actual flush if there are currently no user processes mapping this
+	page.  See sparc64's flush_dcache_folio and update_mmu_cache_range
+	implementations for an example of how to go about doing this.
 
-	The idea is, first at flush_dcache_page() time, if
-	page->mapping->i_mmap is an empty tree, just mark the architecture
-	private page flag bit.  Later, in update_mmu_cache(), a check is
-	made of this flag bit, and if set the flush is done and the flag
-	bit is cleared.
+	The idea is, first at flush_dcache_folio() time, if
+	folio_flush_mapping() returns a mapping, and mapping_mapped() on that
+	mapping returns %false, just mark the architecture private page
+	flag bit.  Later, in update_mmu_cache_range(), a check is made
+	of this flag bit, and if set the flush is done and the flag bit
+	is cleared.
 
 	.. important::
 
@@ -345,24 +351,11 @@ maps this page at its virtual address.
 
   	When the kernel needs to access the contents of an anonymous
 	page, it calls this function (currently only
-	get_user_pages()).  Note: flush_dcache_page() deliberately
+	get_user_pages()).  Note: flush_dcache_folio() deliberately
 	doesn't work for an anonymous page.  The default
 	implementation is a nop (and should remain so for all coherent
 	architectures).  For incoherent architectures, it should flush
 	the cache of the page at vmaddr.
-
-  ``void flush_kernel_dcache_page(struct page *page)``
-
-	When the kernel needs to modify a user page is has obtained
-	with kmap, it calls this function after all modifications are
-	complete (but before kunmapping it) to bring the underlying
-	page up to date.  It is assumed here that the user has no
-	incoherent cached copies (i.e. the original page was obtained
-	from a mechanism like get_user_pages()).  The default
-	implementation is a nop and should remain so on all coherent
-	architectures.  On incoherent architectures, this should flush
-	the kernel cache for page (using page_address(page)).
-
 
   ``void flush_icache_range(unsigned long start, unsigned long end)``
 
@@ -375,7 +368,7 @@ maps this page at its virtual address.
   ``void flush_icache_page(struct vm_area_struct *vma, struct page *page)``
 
 	All the functionality of flush_icache_page can be implemented in
-	flush_dcache_page and update_mmu_cache. In the future, the hope
+	flush_dcache_folio and update_mmu_cache_range. In the future, the hope
 	is to remove this interface completely.
 
 The final category of APIs is for I/O to deliberately aliased address

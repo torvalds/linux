@@ -1,15 +1,5 @@
-/*
- * Copyright (C) 2017 Broadcom
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0-only
+// Copyright (C) 2017 Broadcom
 
 /*
  * Broadcom SBA RAID Driver
@@ -45,7 +35,9 @@
 #include <linux/mailbox_client.h>
 #include <linux/mailbox/brcm-message.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/raid/pq.h>
 
@@ -120,7 +112,7 @@ struct sba_request {
 	struct brcm_message msg;
 	struct dma_async_tx_descriptor tx;
 	/* SBA commands */
-	struct brcm_sba_command cmds[0];
+	struct brcm_sba_command cmds[];
 };
 
 enum sba_version {
@@ -1742,7 +1734,7 @@ fail_free_mchan:
 	return ret;
 }
 
-static int sba_remove(struct platform_device *pdev)
+static void sba_remove(struct platform_device *pdev)
 {
 	struct sba_device *sba = platform_get_drvdata(pdev);
 
@@ -1753,8 +1745,6 @@ static int sba_remove(struct platform_device *pdev)
 	sba_freeup_channel_resources(sba);
 
 	mbox_free_channel(sba->mchan);
-
-	return 0;
 }
 
 static const struct of_device_id sba_of_match[] = {
@@ -1766,7 +1756,7 @@ MODULE_DEVICE_TABLE(of, sba_of_match);
 
 static struct platform_driver sba_driver = {
 	.probe = sba_probe,
-	.remove = sba_remove,
+	.remove_new = sba_remove,
 	.driver = {
 		.name = "bcm-sba-raid",
 		.of_match_table = sba_of_match,

@@ -32,7 +32,7 @@
 #define USB_QUIRK_DELAY_INIT			BIT(6)
 
 /*
- * For high speed and super speed interupt endpoints, the USB 2.0 and
+ * For high speed and super speed interrupt endpoints, the USB 2.0 and
  * USB 3.0 spec require the interval in microframes
  * (1 microframe = 125 microseconds) to be calculated as
  * interval = 2 ^ (bInterval-1).
@@ -68,5 +68,11 @@
 
 /* Hub needs extra delay after resetting its port. */
 #define USB_QUIRK_HUB_SLOW_RESET		BIT(14)
+
+/* device has endpoints that should be ignored */
+#define USB_QUIRK_ENDPOINT_IGNORE		BIT(15)
+
+/* short SET_ADDRESS request timeout */
+#define USB_QUIRK_SHORT_SET_ADDRESS_REQ_TIMEOUT	BIT(16)
 
 #endif /* __LINUX_USB_QUIRKS_H */

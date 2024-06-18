@@ -68,8 +68,8 @@ struct dlm_lksb {
 
 /* dlm_new_lockspace() flags */
 
+/* DLM_LSFL_TIMEWARN is deprecated and reserved. DO NOT USE! */
 #define DLM_LSFL_TIMEWARN	0x00000002
-#define DLM_LSFL_FS     	0x00000004
 #define DLM_LSFL_NEWEXCL     	0x00000008
 
 

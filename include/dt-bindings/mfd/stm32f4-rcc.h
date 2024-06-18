@@ -34,7 +34,6 @@
 #define STM32F4_AHB1_RESET(bit) (STM32F4_RCC_AHB1_##bit + (0x10 * 8))
 #define STM32F4_AHB1_CLOCK(bit) (STM32F4_RCC_AHB1_##bit)
 
-
 /* AHB2 */
 #define STM32F4_RCC_AHB2_DCMI	0
 #define STM32F4_RCC_AHB2_CRYP	4

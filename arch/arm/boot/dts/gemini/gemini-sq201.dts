@@ -1,0 +1,286 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree file for ITian Square One SQ201 NAS
+ */
+
+/dts-v1/;
+
+#include "gemini.dtsi"
+#include <dt-bindings/input/input.h>
+
+/ {
+	model = "ITian Square One SQ201";
+	compatible = "itian,sq201", "cortina,gemini";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	memory@0 { /* 128 MB */
+		device_type = "memory";
+		reg = <0x00000000 0x8000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8 root=/dev/mtdblock2 rw rootfstype=squashfs,jffs2 rootwait";
+		stdout-path = &uart0;
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+
+		button-setup {
+			debounce-interval = <100>;
+			wakeup-source;
+			linux,code = <KEY_RESTART>;
+			label = "factory reset";
+			/* Conflict with NAND flash */
+			gpios = <&gpio0 18 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led-green-info {
+			label = "sq201:green:info";
+			gpios = <&gpio0 20 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+			linux,default-trigger = "heartbeat";
+		};
+		led-green-usb {
+			label = "sq201:green:usb";
+			gpios = <&gpio0 31 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+			linux,default-trigger = "usb-host";
+		};
+	};
+
+	mdio0: mdio {
+		compatible = "virtual,mdio-gpio";
+		/* Uses MDC and MDIO */
+		gpios = <&gpio0 22 GPIO_ACTIVE_HIGH>, /* MDC */
+			<&gpio0 21 GPIO_ACTIVE_HIGH>; /* MDIO */
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* This is a Marvell 88E1111 ethernet transciever */
+		phy0: ethernet-phy@1 {
+			reg = <1>;
+		};
+	};
+
+	spi {
+		compatible = "spi-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		/* Check pin collisions */
+		sck-gpios = <&gpio1 28 GPIO_ACTIVE_HIGH>;
+		miso-gpios = <&gpio1 30 GPIO_ACTIVE_HIGH>;
+		mosi-gpios = <&gpio1 29 GPIO_ACTIVE_HIGH>;
+		cs-gpios = <&gpio1 31 GPIO_ACTIVE_HIGH>;
+		num-chipselects = <1>;
+
+		ethernet-switch@0 {
+			compatible = "vitesse,vsc7395";
+			reg = <0>;
+			/* Specified for 2.5 MHz or below */
+			spi-max-frequency = <2500000>;
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			ethernet-ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				ethernet-port@0 {
+					reg = <0>;
+					label = "lan1";
+				};
+				ethernet-port@1 {
+					reg = <1>;
+					label = "lan2";
+				};
+				ethernet-port@2 {
+					reg = <2>;
+					label = "lan3";
+				};
+				ethernet-port@3 {
+					reg = <3>;
+					label = "lan4";
+				};
+				vsc: ethernet-port@6 {
+					reg = <6>;
+					label = "cpu";
+					ethernet = <&gmac1>;
+					phy-mode = "rgmii";
+					fixed-link {
+						speed = <1000>;
+						full-duplex;
+						pause;
+					};
+				};
+			};
+		};
+	};
+
+
+	soc {
+		flash@30000000 {
+			status = "okay";
+			pinctrl-names = "enabled", "disabled";
+			pinctrl-0 = <&pflash_default_pins>;
+			pinctrl-1 = <&pflash_disabled_pins>;
+			/* 16MB of flash */
+			reg = <0x30000000 0x01000000>;
+
+			partitions {
+				compatible = "redboot-fis";
+				/* Eraseblock at 0xfe0000 */
+				fis-index-block = <0x1fc>;
+			};
+		};
+
+		syscon: syscon@40000000 {
+			pinctrl {
+				/*
+				 * gpio0fgrp cover line 18 used by reset button
+				 * gpio0ggrp cover line 20 used by info LED
+				 * gpio0hgrp cover line 21, 22 used by MDIO for Marvell PHY
+				 * gpio0kgrp cover line 31 used by USB LED
+				 */
+				gpio0_default_pins: pinctrl-gpio0 {
+					mux {
+						function = "gpio0";
+						groups = "gpio0fgrp",
+						"gpio0hgrp";
+					};
+				};
+				/*
+				 * gpio0dgrp cover lines used by the SPI
+				 * to the Vitesse G5x chip.
+				 */
+				gpio1_default_pins: pinctrl-gpio1 {
+					mux {
+						function = "gpio1";
+						groups = "gpio1dgrp";
+					};
+				};
+				/*
+				 * These GPIO groups will be mapped in over some
+				 * of the flash pins when the flash is not in
+				 * active use.
+				 */
+				pflash_disabled_pins: pinctrl-pflash-disabled {
+					mux {
+						function = "gpio0";
+						groups = "gpio0ggrp", "gpio0igrp", "gpio0jgrp",
+							 "gpio0kgrp";
+					};
+				};
+				pinctrl-gmii {
+					mux {
+						function = "gmii";
+						groups = "gmii_gmac0_grp", "gmii_gmac1_grp";
+					};
+					/* Settings come from memory dump in PLATO */
+					conf0 {
+						pins = "V8 GMAC0 RXDV";
+						skew-delay = <0>;
+					};
+					conf1 {
+						pins = "Y7 GMAC0 RXC";
+						skew-delay = <15>;
+					};
+					conf2 {
+						pins = "T8 GMAC0 TXEN";
+						skew-delay = <7>;
+					};
+					conf3 {
+						pins = "U8 GMAC0 TXC";
+						skew-delay = <10>;
+					};
+					conf4 {
+						pins = "T10 GMAC1 RXDV";
+						skew-delay = <7>;
+					};
+					conf5 {
+						pins = "Y11 GMAC1 RXC";
+						skew-delay = <8>;
+					};
+					conf6 {
+						pins = "W11 GMAC1 TXEN";
+						skew-delay = <7>;
+					};
+					conf7 {
+						pins = "V11 GMAC1 TXC";
+						skew-delay = <5>;
+					};
+					conf8 {
+						/* The data lines all have default skew */
+						pins = "W8 GMAC0 RXD0", "V9 GMAC0 RXD1",
+						       "Y8 GMAC0 RXD2", "U9 GMAC0 RXD3",
+						       "T7 GMAC0 TXD0", "U6 GMAC0 TXD1",
+						       "V7 GMAC0 TXD2", "U7 GMAC0 TXD3",
+						       "Y12 GMAC1 RXD0", "V12 GMAC1 RXD1",
+						       "T11 GMAC1 RXD2", "W12 GMAC1 RXD3",
+						       "U10 GMAC1 TXD0", "Y10 GMAC1 TXD1",
+						       "W10 GMAC1 TXD2", "T9 GMAC1 TXD3";
+						skew-delay = <7>;
+					};
+					/* Set up drive strength on GMAC0 and GMAC1 to 16 mA */
+					conf9 {
+						groups = "gmii_gmac0_grp", "gmii_gmac1_grp";
+						drive-strength = <16>;
+					};
+				};
+			};
+		};
+
+		sata: sata@46000000 {
+			cortina,gemini-ata-muxmode = <0>;
+			cortina,gemini-enable-sata-bridge;
+			status = "okay";
+		};
+
+		gpio0: gpio@4d000000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&gpio0_default_pins>;
+		};
+
+		gpio1: gpio@4e000000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&gpio1_default_pins>;
+		};
+
+		pci@50000000 {
+			status = "okay";
+		};
+
+		ethernet@60000000 {
+			status = "okay";
+
+			ethernet-port@0 {
+				phy-mode = "rgmii";
+				phy-handle = <&phy0>;
+			};
+			ethernet-port@1 {
+				phy-mode = "rgmii";
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+					pause;
+				};
+			};
+		};
+
+		ide@63000000 {
+			status = "okay";
+		};
+
+		usb@68000000 {
+			status = "okay";
+		};
+
+		usb@69000000 {
+			status = "okay";
+		};
+	};
+};

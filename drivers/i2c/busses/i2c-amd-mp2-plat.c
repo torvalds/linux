@@ -88,8 +88,7 @@ static void i2c_amd_cmd_completion(struct amd_i2c_common *i2c_common)
 	union i2c_event *event = &i2c_common->eventval;
 
 	if (event->r.status == i2c_readcomplete_event)
-		dev_dbg(&i2c_dev->pdev->dev, "%s readdata:%*ph\n",
-			__func__, event->r.length,
+		dev_dbg(&i2c_dev->pdev->dev, "readdata:%*ph\n", event->r.length,
 			i2c_common->msg->buf);
 
 	complete(&i2c_dev->cmd_complete);
@@ -98,17 +97,17 @@ static void i2c_amd_cmd_completion(struct amd_i2c_common *i2c_common)
 static int i2c_amd_check_cmd_completion(struct amd_i2c_dev *i2c_dev)
 {
 	struct amd_i2c_common *i2c_common = &i2c_dev->common;
-	unsigned long timeout;
+	unsigned long time_left;
 
-	timeout = wait_for_completion_timeout(&i2c_dev->cmd_complete,
-					      i2c_dev->adap.timeout);
+	time_left = wait_for_completion_timeout(&i2c_dev->cmd_complete,
+						i2c_dev->adap.timeout);
 
 	if ((i2c_common->reqcmd == i2c_read ||
 	     i2c_common->reqcmd == i2c_write) &&
 	    i2c_common->msg->len > 32)
 		i2c_amd_dma_unmap(i2c_common);
 
-	if (timeout == 0) {
+	if (time_left == 0) {
 		amd_mp2_rw_timeout(i2c_common);
 		return -ETIMEDOUT;
 	}
@@ -155,7 +154,7 @@ static int i2c_amd_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	struct amd_i2c_dev *i2c_dev = i2c_get_adapdata(adap);
 	int i;
 	struct i2c_msg *pmsg;
-	int err;
+	int err = 0;
 
 	/* the adapter might have been deleted while waiting for the bus lock */
 	if (unlikely(!i2c_dev->common.mp2_dev))
@@ -201,32 +200,37 @@ static int i2c_amd_resume(struct amd_i2c_common *i2c_common)
 }
 #endif
 
+static const u32 supported_speeds[] = {
+	I2C_MAX_HIGH_SPEED_MODE_FREQ,
+	I2C_MAX_TURBO_MODE_FREQ,
+	I2C_MAX_FAST_MODE_PLUS_FREQ,
+	I2C_MAX_FAST_MODE_FREQ,
+	I2C_MAX_STANDARD_MODE_FREQ,
+};
+
 static enum speed_enum i2c_amd_get_bus_speed(struct platform_device *pdev)
 {
 	u32 acpi_speed;
 	int i;
-	static const u32 supported_speeds[] = {
-		0, 100000, 400000, 1000000, 1400000, 3400000
-	};
 
 	acpi_speed = i2c_acpi_find_bus_speed(&pdev->dev);
 	/* round down to the lowest standard speed */
-	for (i = 1; i < ARRAY_SIZE(supported_speeds); i++) {
-		if (acpi_speed < supported_speeds[i])
+	for (i = 0; i < ARRAY_SIZE(supported_speeds); i++) {
+		if (acpi_speed >= supported_speeds[i])
 			break;
 	}
-	acpi_speed = supported_speeds[i - 1];
+	acpi_speed = i < ARRAY_SIZE(supported_speeds) ? supported_speeds[i] : 0;
 
 	switch (acpi_speed) {
-	case 100000:
+	case I2C_MAX_STANDARD_MODE_FREQ:
 		return speed100k;
-	case 400000:
+	case I2C_MAX_FAST_MODE_FREQ:
 		return speed400k;
-	case 1000000:
+	case I2C_MAX_FAST_MODE_PLUS_FREQ:
 		return speed1000k;
-	case 1400000:
+	case I2C_MAX_TURBO_MODE_FREQ:
 		return speed1400k;
-	case 3400000:
+	case I2C_MAX_HIGH_SPEED_MODE_FREQ:
 		return speed3400k;
 	default:
 		return speed400k;
@@ -240,15 +244,18 @@ static const struct i2c_adapter_quirks amd_i2c_dev_quirks = {
 
 static int i2c_amd_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	int ret;
 	struct amd_i2c_dev *i2c_dev;
-	acpi_handle handle = ACPI_HANDLE(&pdev->dev);
-	struct acpi_device *adev;
 	struct amd_mp2_dev *mp2_dev;
-	const char *uid;
+	u64 uid;
 
-	if (acpi_bus_get_device(handle, &adev))
-		return -ENODEV;
+	ret = acpi_dev_uid_to_integer(ACPI_COMPANION(dev), &uid);
+	if (ret)
+		return dev_err_probe(dev, ret, "missing UID/bus id!\n");
+	if (uid >= 2)
+		return dev_err_probe(dev, -EINVAL, "incorrect UID/bus id \"%llu\"!\n", uid);
+	dev_dbg(dev, "bus id is %llu\n", uid);
 
 	/* The ACPI namespace doesn't contain information about which MP2 PCI
 	 * device an AMDI0011 ACPI device is related to, so assume that there's
@@ -263,6 +270,7 @@ static int i2c_amd_probe(struct platform_device *pdev)
 	if (!i2c_dev)
 		return -ENOMEM;
 
+	i2c_dev->common.bus_id = uid;
 	i2c_dev->common.mp2_dev = mp2_dev;
 	i2c_dev->pdev = pdev;
 	platform_set_drvdata(pdev, i2c_dev);
@@ -272,20 +280,6 @@ static int i2c_amd_probe(struct platform_device *pdev)
 	i2c_dev->common.suspend = &i2c_amd_suspend;
 	i2c_dev->common.resume = &i2c_amd_resume;
 #endif
-
-	uid = adev->pnp.unique_id;
-	if (!uid) {
-		dev_err(&pdev->dev, "missing UID/bus id!\n");
-		return -EINVAL;
-	} else if (strcmp(uid, "0") == 0) {
-		i2c_dev->common.bus_id = 0;
-	} else if (strcmp(uid, "1") == 0) {
-		i2c_dev->common.bus_id = 1;
-	} else {
-		dev_err(&pdev->dev, "incorrect UID/bus id \"%s\"!\n", uid);
-		return -EINVAL;
-	}
-	dev_dbg(&pdev->dev, "bus id is %u\n", i2c_dev->common.bus_id);
 
 	/* Register the adapter */
 	amd_mp2_pm_runtime_get(mp2_dev);
@@ -328,7 +322,7 @@ static int i2c_amd_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int i2c_amd_remove(struct platform_device *pdev)
+static void i2c_amd_remove(struct platform_device *pdev)
 {
 	struct amd_i2c_dev *i2c_dev = platform_get_drvdata(pdev);
 	struct amd_i2c_common *i2c_common = &i2c_dev->common;
@@ -342,7 +336,6 @@ static int i2c_amd_remove(struct platform_device *pdev)
 	i2c_unlock_bus(&i2c_dev->adap, I2C_LOCK_ROOT_ADAPTER);
 
 	i2c_del_adapter(&i2c_dev->adap);
-	return 0;
 }
 
 static const struct acpi_device_id i2c_amd_acpi_match[] = {
@@ -353,7 +346,7 @@ MODULE_DEVICE_TABLE(acpi, i2c_amd_acpi_match);
 
 static struct platform_driver i2c_amd_plat_driver = {
 	.probe = i2c_amd_probe,
-	.remove = i2c_amd_remove,
+	.remove_new = i2c_amd_remove,
 	.driver = {
 		.name = "i2c_amd_mp2",
 		.acpi_match_table = ACPI_PTR(i2c_amd_acpi_match),

@@ -343,7 +343,7 @@ static int juli_mute_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static struct snd_kcontrol_new juli_mute_controls[] = {
+static const struct snd_kcontrol_new juli_mute_controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",
@@ -397,7 +397,7 @@ static struct snd_kcontrol_new juli_mute_controls[] = {
 	},
 };
 
-static char *slave_vols[] = {
+static const char * const follower_vols[] = {
 	PCM_VOLUME,
 	MONITOR_AN_IN_VOLUME,
 	MONITOR_DIG_IN_VOLUME,
@@ -407,30 +407,6 @@ static char *slave_vols[] = {
 
 static
 DECLARE_TLV_DB_SCALE(juli_master_db_scale, -6350, 50, 1);
-
-static struct snd_kcontrol *ctl_find(struct snd_card *card,
-				     const char *name)
-{
-	struct snd_ctl_elem_id sid = {0};
-
-	strlcpy(sid.name, name, sizeof(sid.name));
-	sid.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
-	return snd_ctl_find_id(card, &sid);
-}
-
-static void add_slaves(struct snd_card *card,
-		       struct snd_kcontrol *master,
-		       char * const *list)
-{
-	for (; *list; list++) {
-		struct snd_kcontrol *slave = ctl_find(card, *list);
-		/* dev_dbg(card->dev, "add_slaves - %s\n", *list); */
-		if (slave) {
-			/* dev_dbg(card->dev, "slave %s found\n", *list); */
-			snd_ctl_add_slave(master, slave);
-		}
-	}
-}
 
 static int juli_add_controls(struct snd_ice1712 *ice)
 {
@@ -454,8 +430,10 @@ static int juli_add_controls(struct snd_ice1712 *ice)
 					      juli_master_db_scale);
 	if (!vmaster)
 		return -ENOMEM;
-	add_slaves(ice->card, vmaster, slave_vols);
 	err = snd_ctl_add(ice->card, vmaster);
+	if (err < 0)
+		return err;
+	err = snd_ctl_add_followers(ice->card, vmaster, follower_vols);
 	if (err < 0)
 		return err;
 
@@ -651,7 +629,7 @@ static int juli_init(struct snd_ice1712 *ice)
  * hence the driver needs to sets up it properly.
  */
 
-static unsigned char juli_eeprom[] = {
+static const unsigned char juli_eeprom[] = {
 	[ICE_EEP2_SYSCONF]     = 0x2b,	/* clock 512, mpu401, 1xADC, 1xDACs,
 					   SPDIF in */
 	[ICE_EEP2_ACLINK]      = 0x80,	/* I2S */

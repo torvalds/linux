@@ -46,80 +46,90 @@ each snapshot of your disk statistics.
 In 2.4, the statistics fields are those after the device name. In
 the above example, the first field of statistics would be 446216.
 By contrast, in 2.6+ if you look at ``/sys/block/hda/stat``, you'll
-find just the eleven fields, beginning with 446216.  If you look at
-``/proc/diskstats``, the eleven fields will be preceded by the major and
+find just the 15 fields, beginning with 446216.  If you look at
+``/proc/diskstats``, the 15 fields will be preceded by the major and
 minor device numbers, and device name.  Each of these formats provides
-eleven fields of statistics, each meaning exactly the same things.
+15 fields of statistics, each meaning exactly the same things.
 All fields except field 9 are cumulative since boot.  Field 9 should
 go to zero as I/Os complete; all others only increase (unless they
-overflow and wrap).  Yes, these are (32-bit or 64-bit) unsigned long
-(native word size) numbers, and on a very busy or long-lived system they
-may wrap. Applications should be prepared to deal with that; unless
-your observations are measured in large numbers of minutes or hours,
-they should not wrap twice before you notice them.
+overflow and wrap). Wrapping might eventually occur on a very busy
+or long-lived system; so applications should be prepared to deal with
+it. Regarding wrapping, the types of the fields are either unsigned
+int (32 bit) or unsigned long (32-bit or 64-bit, depending on your
+machine) as noted per-field below. Unless your observations are very
+spread in time, these fields should not wrap twice before you notice it.
 
 Each set of stats only applies to the indicated device; if you want
 system-wide stats you'll have to find all the devices and sum them all up.
 
-Field  1 -- # of reads completed
+Field  1 -- # of reads completed (unsigned long)
     This is the total number of reads completed successfully.
 
-Field  2 -- # of reads merged, field 6 -- # of writes merged
+Field  2 -- # of reads merged, field 6 -- # of writes merged (unsigned long)
     Reads and writes which are adjacent to each other may be merged for
     efficiency.  Thus two 4K reads may become one 8K read before it is
     ultimately handed to the disk, and so it will be counted (and queued)
     as only one I/O.  This field lets you know how often this was done.
 
-Field  3 -- # of sectors read
+Field  3 -- # of sectors read (unsigned long)
     This is the total number of sectors read successfully.
 
-Field  4 -- # of milliseconds spent reading
+Field  4 -- # of milliseconds spent reading (unsigned int)
     This is the total number of milliseconds spent by all reads (as
-    measured from __make_request() to end_that_request_last()).
+    measured from blk_mq_alloc_request() to __blk_mq_end_request()).
 
-Field  5 -- # of writes completed
+Field  5 -- # of writes completed (unsigned long)
     This is the total number of writes completed successfully.
 
-Field  6 -- # of writes merged
+Field  6 -- # of writes merged  (unsigned long)
     See the description of field 2.
 
-Field  7 -- # of sectors written
+Field  7 -- # of sectors written (unsigned long)
     This is the total number of sectors written successfully.
 
-Field  8 -- # of milliseconds spent writing
+Field  8 -- # of milliseconds spent writing (unsigned int)
     This is the total number of milliseconds spent by all writes (as
-    measured from __make_request() to end_that_request_last()).
+    measured from blk_mq_alloc_request() to __blk_mq_end_request()).
 
-Field  9 -- # of I/Os currently in progress
+Field  9 -- # of I/Os currently in progress (unsigned int)
     The only field that should go to zero. Incremented as requests are
     given to appropriate struct request_queue and decremented as they finish.
 
-Field 10 -- # of milliseconds spent doing I/Os
+Field 10 -- # of milliseconds spent doing I/Os (unsigned int)
     This field increases so long as field 9 is nonzero.
 
     Since 5.0 this field counts jiffies when at least one request was
     started or completed. If request runs more than 2 jiffies then some
-    I/O time will not be accounted unless there are other requests.
+    I/O time might be not accounted in case of concurrent requests.
 
-Field 11 -- weighted # of milliseconds spent doing I/Os
+Field 11 -- weighted # of milliseconds spent doing I/Os (unsigned int)
     This field is incremented at each I/O start, I/O completion, I/O
     merge, or read of these stats by the number of I/Os in progress
     (field 9) times the number of milliseconds spent doing I/O since the
     last update of this field.  This can provide an easy measure of both
     I/O completion time and the backlog that may be accumulating.
 
-Field 12 -- # of discards completed
+Field 12 -- # of discards completed (unsigned long)
     This is the total number of discards completed successfully.
 
-Field 13 -- # of discards merged
+Field 13 -- # of discards merged (unsigned long)
     See the description of field 2
 
-Field 14 -- # of sectors discarded
+Field 14 -- # of sectors discarded (unsigned long)
     This is the total number of sectors discarded successfully.
 
-Field 15 -- # of milliseconds spent discarding
+Field 15 -- # of milliseconds spent discarding (unsigned int)
     This is the total number of milliseconds spent by all discards (as
-    measured from __make_request() to end_that_request_last()).
+    measured from blk_mq_alloc_request() to __blk_mq_end_request()).
+
+Field 16 -- # of flush requests completed
+    This is the total number of flush requests completed successfully.
+
+    Block layer combines flush requests and executes at most one at a time.
+    This counts flush requests executed by disk. Not tracked for partitions.
+
+Field 17 -- # of milliseconds spent flushing
+    This is the total number of milliseconds spent by all flush requests.
 
 To avoid introducing performance bottlenecks, no locks are held while
 modifying these counters.  This implies that minor inaccuracies may be
@@ -132,6 +142,9 @@ almost a non-issue.  When the statistics are read, the per-CPU counters
 are summed (possibly overflowing the unsigned long variable they are
 summed to) and the result given to the user.  There is no convenient
 user interface for accessing the per-CPU counters themselves.
+
+Since 4.19 request times are measured with nanoseconds precision and
+truncated to milliseconds before showing in this interface.
 
 Disks vs Partitions
 -------------------

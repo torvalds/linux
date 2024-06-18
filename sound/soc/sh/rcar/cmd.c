@@ -43,8 +43,6 @@ static int rsnd_cmd_init(struct rsnd_mod *mod,
 
 	if (mix) {
 		struct rsnd_dai *rdai;
-		struct rsnd_mod *src;
-		struct rsnd_dai_stream *tio;
 		int i;
 
 		/*
@@ -54,8 +52,9 @@ static int rsnd_cmd_init(struct rsnd_mod *mod,
 		 */
 		data = 0;
 		for_each_rsnd_dai(rdai, priv, i) {
-			tio = &rdai->playback;
-			src = rsnd_io_to_mod_src(tio);
+			struct rsnd_dai_stream *tio = &rdai->playback;
+			struct rsnd_mod *src = rsnd_io_to_mod_src(tio);
+
 			if (mix == rsnd_io_to_mod_mix(tio))
 				data |= path[rsnd_mod_id(src)];
 
@@ -115,12 +114,26 @@ static int rsnd_cmd_stop(struct rsnd_mod *mod,
 	return 0;
 }
 
+#ifdef CONFIG_DEBUG_FS
+static void rsnd_cmd_debug_info(struct seq_file *m,
+				struct rsnd_dai_stream *io,
+				struct rsnd_mod *mod)
+{
+	rsnd_debugfs_mod_reg_show(m, mod, RSND_BASE_SCU,
+				  0x180 + rsnd_mod_id_raw(mod) * 0x20, 0x30);
+}
+#define DEBUG_INFO .debug_info = rsnd_cmd_debug_info
+#else
+#define DEBUG_INFO
+#endif
+
 static struct rsnd_mod_ops rsnd_cmd_ops = {
 	.name		= CMD_NAME,
 	.init		= rsnd_cmd_init,
 	.start		= rsnd_cmd_start,
 	.stop		= rsnd_cmd_stop,
 	.get_status	= rsnd_mod_get_status,
+	DEBUG_INFO
 };
 
 static struct rsnd_mod *rsnd_cmd_mod_get(struct rsnd_priv *priv, int id)
@@ -142,11 +155,7 @@ int rsnd_cmd_probe(struct rsnd_priv *priv)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_cmd *cmd;
-	int i, nr, ret;
-
-	/* This driver doesn't support Gen1 at this point */
-	if (rsnd_is_gen1(priv))
-		return 0;
+	int i, nr;
 
 	/* same number as DVC */
 	nr = priv->dvc_nr;
@@ -161,9 +170,9 @@ int rsnd_cmd_probe(struct rsnd_priv *priv)
 	priv->cmd	= cmd;
 
 	for_each_rsnd_cmd(cmd, priv, i) {
-		ret = rsnd_mod_init(priv, rsnd_mod_get(cmd),
-				    &rsnd_cmd_ops, NULL,
-				    RSND_MOD_CMD, i);
+		int ret = rsnd_mod_init(priv, rsnd_mod_get(cmd),
+					&rsnd_cmd_ops, NULL,
+					RSND_MOD_CMD, i);
 		if (ret)
 			return ret;
 	}

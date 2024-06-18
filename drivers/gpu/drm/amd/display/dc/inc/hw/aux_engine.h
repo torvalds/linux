@@ -27,7 +27,8 @@
 #define __DAL_AUX_ENGINE_H__
 
 #include "dc_ddc_types.h"
-#include "include/i2caux_interface.h"
+
+enum aux_return_code_type;
 
 enum i2caux_transaction_operation {
 	I2CAUX_TRANSACTION_READ,
@@ -79,7 +80,12 @@ enum i2c_default_speed {
 	I2CAUX_DEFAULT_I2C_SW_SPEED = 50
 };
 
-union aux_config;
+union aux_config {
+	struct {
+		uint32_t ALLOW_AUX_WHEN_HPD_LOW:1;
+	} bits;
+	uint32_t raw;
+};
 
 struct aux_engine {
 	uint32_t inst;
@@ -140,6 +146,9 @@ struct write_command_context {
 
 
 struct aux_engine_funcs {
+	bool (*configure_timeout)(
+		struct ddc_service *ddc,
+		uint32_t timeout);
 	void (*destroy)(
 		struct aux_engine **ptr);
 	bool (*acquire_engine)(
@@ -159,12 +168,10 @@ struct aux_engine_funcs {
 		uint8_t *buffer,
 		uint8_t *reply_result,
 		uint32_t *sw_status);
-	enum aux_channel_operation_result (*get_channel_status)(
+	enum aux_return_code_type (*get_channel_status)(
 		struct aux_engine *engine,
 		uint8_t *returned_bytes);
 	bool (*is_engine_available)(struct aux_engine *engine);
-	enum i2caux_engine_type (*get_engine_type)(
-		const struct aux_engine *engine);
 	bool (*acquire)(
 		struct aux_engine *engine,
 		struct ddc *ddc);

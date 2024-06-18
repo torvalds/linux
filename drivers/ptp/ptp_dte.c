@@ -1,15 +1,5 @@
-/*
- * Copyright 2017 Broadcom
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0-only
+// Copyright 2017 Broadcom
 
 #include <linux/err.h>
 #include <linux/io.h>
@@ -144,8 +134,9 @@ static s64 dte_read_nco_with_ovf(struct ptp_dte *ptp_dte)
 	return ns;
 }
 
-static int ptp_dte_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
+static int ptp_dte_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 {
+	s32 ppb = scaled_ppm_to_ppb(scaled_ppm);
 	u32 nco_incr;
 	unsigned long flags;
 	struct ptp_dte *ptp_dte = container_of(ptp, struct ptp_dte, caps);
@@ -229,7 +220,7 @@ static const struct ptp_clock_info ptp_dte_caps = {
 	.n_ext_ts	= 0,
 	.n_pins		= 0,
 	.pps		= 0,
-	.adjfreq	= ptp_dte_adjfreq,
+	.adjfine	= ptp_dte_adjfine,
 	.adjtime	= ptp_dte_adjtime,
 	.gettime64	= ptp_dte_gettime,
 	.settime64	= ptp_dte_settime,
@@ -240,14 +231,12 @@ static int ptp_dte_probe(struct platform_device *pdev)
 {
 	struct ptp_dte *ptp_dte;
 	struct device *dev = &pdev->dev;
-	struct resource *res;
 
 	ptp_dte = devm_kzalloc(dev, sizeof(struct ptp_dte), GFP_KERNEL);
 	if (!ptp_dte)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ptp_dte->regs = devm_ioremap_resource(dev, res);
+	ptp_dte->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ptp_dte->regs))
 		return PTR_ERR(ptp_dte->regs);
 
@@ -269,7 +258,7 @@ static int ptp_dte_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ptp_dte_remove(struct platform_device *pdev)
+static void ptp_dte_remove(struct platform_device *pdev)
 {
 	struct ptp_dte *ptp_dte = platform_get_drvdata(pdev);
 	u8 i;
@@ -278,8 +267,6 @@ static int ptp_dte_remove(struct platform_device *pdev)
 
 	for (i = 0; i < DTE_NUM_REGS_TO_RESTORE; i++)
 		writel(0, ptp_dte->regs + (i * sizeof(u32)));
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -340,7 +327,7 @@ static struct platform_driver ptp_dte_driver = {
 		.of_match_table = ptp_dte_of_match,
 	},
 	.probe    = ptp_dte_probe,
-	.remove   = ptp_dte_remove,
+	.remove_new = ptp_dte_remove,
 };
 module_platform_driver(ptp_dte_driver);
 

@@ -1,3 +1,10 @@
+-- SPDX-License-Identifier: BSD-3-Clause
+--
+-- Copyright (C) 2008 IETF Trust and the persons identified as authors
+-- of the code
+--
+-- https://www.rfc-editor.org/rfc/rfc5280#section-4
+
 Certificate ::= SEQUENCE {
 	tbsCertificate		TBSCertificate ({ x509_note_tbs_certificate }),
 	signatureAlgorithm	AlgorithmIdentifier,
@@ -7,7 +14,7 @@ Certificate ::= SEQUENCE {
 TBSCertificate ::= SEQUENCE {
 	version           [ 0 ]	Version DEFAULT,
 	serialNumber		CertificateSerialNumber ({ x509_note_serial }),
-	signature		AlgorithmIdentifier ({ x509_note_pkey_algo }),
+	signature		AlgorithmIdentifier ({ x509_note_sig_algo }),
 	issuer			Name ({ x509_note_issuer }),
 	validity		Validity,
 	subject			Name ({ x509_note_subject }),

@@ -2,23 +2,20 @@
 #ifndef ARCH_TESTS_H
 #define ARCH_TESTS_H
 
-#include <linux/compiler.h>
-struct test;
+struct test_suite;
 
 /* Tests */
-int test__rdpmc(struct test *test __maybe_unused, int subtest);
-int test__perf_time_to_tsc(struct test *test __maybe_unused, int subtest);
-int test__insn_x86(struct test *test __maybe_unused, int subtest);
-int test__intel_pt_pkt_decoder(struct test *test, int subtest);
-int test__bp_modify(struct test *test, int subtest);
-
-#ifdef HAVE_DWARF_UNWIND_SUPPORT
-struct thread;
-struct perf_sample;
-int test__arch_unwind_sample(struct perf_sample *sample,
-			     struct thread *thread);
+int test__rdpmc(struct test_suite *test, int subtest);
+#ifdef HAVE_EXTRA_TESTS
+int test__insn_x86(struct test_suite *test, int subtest);
 #endif
+int test__intel_pt_pkt_decoder(struct test_suite *test, int subtest);
+int test__intel_pt_hybrid_compat(struct test_suite *test, int subtest);
+int test__bp_modify(struct test_suite *test, int subtest);
+int test__x86_sample_parsing(struct test_suite *test, int subtest);
+int test__amd_ibs_via_core_pmu(struct test_suite *test, int subtest);
+int test__hybrid(struct test_suite *test, int subtest);
 
-extern struct test arch_tests[];
+extern struct test_suite *arch_tests[];
 
 #endif

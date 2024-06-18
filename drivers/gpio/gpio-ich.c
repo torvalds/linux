@@ -5,13 +5,11 @@
  * Copyright (C) 2010 Extreme Engineering Solutions.
  */
 
-
 #include <linux/bitops.h>
 #include <linux/gpio/driver.h>
 #include <linux/ioport.h>
 #include <linux/mfd/lpc_ich.h>
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/platform_device.h>
 
 #define DRV_NAME "gpio_ich"
@@ -74,8 +72,8 @@ struct ichx_desc {
 	u32 use_sel_ignore[3];
 
 	/* Some chipsets have quirks, let these use their own request/get */
-	int (*request)(struct gpio_chip *chip, unsigned offset);
-	int (*get)(struct gpio_chip *chip, unsigned offset);
+	int (*request)(struct gpio_chip *chip, unsigned int offset);
+	int (*get)(struct gpio_chip *chip, unsigned int offset);
 
 	/*
 	 * Some chipsets don't let reading output values on GPIO_LVL register
@@ -89,7 +87,7 @@ static struct {
 	struct device *dev;
 	struct gpio_chip chip;
 	struct resource *gpio_base;	/* GPIO IO base */
-	struct resource *pm_base;	/* Power Mangagment IO base */
+	struct resource *pm_base;	/* Power Management IO base */
 	struct ichx_desc *desc;	/* Pointer to chipset-specific description */
 	u32 orig_gpio_ctrl;	/* Orig CTRL value, used to restore on exit */
 	u8 use_gpio;		/* Which GPIO groups are usable */
@@ -100,7 +98,7 @@ static int modparam_gpiobase = -1;	/* dynamic */
 module_param_named(gpiobase, modparam_gpiobase, int, 0444);
 MODULE_PARM_DESC(gpiobase, "The GPIO number base. -1 means dynamic, which is the default.");
 
-static int ichx_write_bit(int reg, unsigned nr, int val, int verify)
+static int ichx_write_bit(int reg, unsigned int nr, int val, int verify)
 {
 	unsigned long flags;
 	u32 data, tmp;
@@ -132,7 +130,7 @@ static int ichx_write_bit(int reg, unsigned nr, int val, int verify)
 	return (verify && data != tmp) ? -EPERM : 0;
 }
 
-static int ichx_read_bit(int reg, unsigned nr)
+static int ichx_read_bit(int reg, unsigned int nr)
 {
 	unsigned long flags;
 	u32 data;
@@ -152,17 +150,20 @@ static int ichx_read_bit(int reg, unsigned nr)
 	return !!(data & BIT(bit));
 }
 
-static bool ichx_gpio_check_available(struct gpio_chip *gpio, unsigned nr)
+static bool ichx_gpio_check_available(struct gpio_chip *gpio, unsigned int nr)
 {
 	return !!(ichx_priv.use_gpio & BIT(nr / 32));
 }
 
-static int ichx_gpio_get_direction(struct gpio_chip *gpio, unsigned nr)
+static int ichx_gpio_get_direction(struct gpio_chip *gpio, unsigned int nr)
 {
-	return ichx_read_bit(GPIO_IO_SEL, nr);
+	if (ichx_read_bit(GPIO_IO_SEL, nr))
+		return GPIO_LINE_DIRECTION_IN;
+
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
-static int ichx_gpio_direction_input(struct gpio_chip *gpio, unsigned nr)
+static int ichx_gpio_direction_input(struct gpio_chip *gpio, unsigned int nr)
 {
 	/*
 	 * Try setting pin as an input and verify it worked since many pins
@@ -171,7 +172,7 @@ static int ichx_gpio_direction_input(struct gpio_chip *gpio, unsigned nr)
 	return ichx_write_bit(GPIO_IO_SEL, nr, 1, 1);
 }
 
-static int ichx_gpio_direction_output(struct gpio_chip *gpio, unsigned nr,
+static int ichx_gpio_direction_output(struct gpio_chip *gpio, unsigned int nr,
 					int val)
 {
 	/* Disable blink hardware which is available for GPIOs from 0 to 31. */
@@ -188,12 +189,12 @@ static int ichx_gpio_direction_output(struct gpio_chip *gpio, unsigned nr,
 	return ichx_write_bit(GPIO_IO_SEL, nr, 0, 1);
 }
 
-static int ichx_gpio_get(struct gpio_chip *chip, unsigned nr)
+static int ichx_gpio_get(struct gpio_chip *chip, unsigned int nr)
 {
 	return ichx_read_bit(GPIO_LVL, nr);
 }
 
-static int ich6_gpio_get(struct gpio_chip *chip, unsigned nr)
+static int ich6_gpio_get(struct gpio_chip *chip, unsigned int nr)
 {
 	unsigned long flags;
 	u32 data;
@@ -220,7 +221,7 @@ static int ich6_gpio_get(struct gpio_chip *chip, unsigned nr)
 	}
 }
 
-static int ichx_gpio_request(struct gpio_chip *chip, unsigned nr)
+static int ichx_gpio_request(struct gpio_chip *chip, unsigned int nr)
 {
 	if (!ichx_gpio_check_available(chip, nr))
 		return -ENXIO;
@@ -237,7 +238,7 @@ static int ichx_gpio_request(struct gpio_chip *chip, unsigned nr)
 	return ichx_read_bit(GPIO_USE_SEL, nr) ? 0 : -ENODEV;
 }
 
-static int ich6_gpio_request(struct gpio_chip *chip, unsigned nr)
+static int ich6_gpio_request(struct gpio_chip *chip, unsigned int nr)
 {
 	/*
 	 * Fixups for bits 16 and 17 are necessary on the Intel ICH6/3100
@@ -251,7 +252,7 @@ static int ich6_gpio_request(struct gpio_chip *chip, unsigned nr)
 	return ichx_gpio_request(chip, nr);
 }
 
-static void ichx_gpio_set(struct gpio_chip *chip, unsigned nr, int val)
+static void ichx_gpio_set(struct gpio_chip *chip, unsigned int nr, int val)
 {
 	ichx_write_bit(GPIO_LVL, nr, val, 0);
 }
@@ -456,7 +457,7 @@ static int ichx_gpio_probe(struct platform_device *pdev)
 
 init:
 	ichx_gpiolib_setup(&ichx_priv.chip);
-	err = gpiochip_add_data(&ichx_priv.chip, NULL);
+	err = devm_gpiochip_add_data(dev, &ichx_priv.chip, NULL);
 	if (err) {
 		dev_err(dev, "Failed to register GPIOs\n");
 		return err;
@@ -468,19 +469,11 @@ init:
 	return 0;
 }
 
-static int ichx_gpio_remove(struct platform_device *pdev)
-{
-	gpiochip_remove(&ichx_priv.chip);
-
-	return 0;
-}
-
 static struct platform_driver ichx_gpio_driver = {
 	.driver		= {
 		.name	= DRV_NAME,
 	},
 	.probe		= ichx_gpio_probe,
-	.remove		= ichx_gpio_remove,
 };
 
 module_platform_driver(ichx_gpio_driver);

@@ -1,0 +1,116 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mmc/brcm,sdhci-brcmstb.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom BRCMSTB/BMIPS SDHCI Controller
+
+maintainers:
+  - Al Cooper <alcooperx@gmail.com>
+  - Florian Fainelli <f.fainelli@gmail.com>
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - brcm,bcm7216-sdhci
+          - const: brcm,bcm7445-sdhci
+          - const: brcm,sdhci-brcmstb
+      - items:
+          - enum:
+              - brcm,bcm74165b0-sdhci
+              - brcm,bcm7445-sdhci
+              - brcm,bcm7425-sdhci
+          - const: brcm,sdhci-brcmstb
+
+  reg:
+    maxItems: 2
+
+  reg-names:
+    items:
+      - const: host
+      - const: cfg
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    minItems: 1
+    items:
+      - description: handle to core clock for the sdhci controller
+      - description: handle to improved 150Mhz clock for sdhci controller (Optional clock)
+
+  clock-names:
+    minItems: 1
+    items:
+      - const: sw_sdio
+      - const: sdio_freq # Optional clock
+
+  clock-frequency:
+    description:
+      Maximum operating frequency of sdio_freq sdhci controller clock
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 100000000
+    maximum: 150000000
+
+  sdhci,auto-cmd12:
+    type: boolean
+    description: Specifies that controller should use auto CMD12
+
+allOf:
+  - $ref: mmc-controller.yaml#
+  - if:
+      properties:
+        clock-names:
+          contains:
+            const: sdio_freq
+
+    then:
+      required:
+        - clock-frequency
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    mmc@84b0000 {
+      compatible = "brcm,bcm7216-sdhci",
+                   "brcm,bcm7445-sdhci",
+                   "brcm,sdhci-brcmstb";
+      reg = <0x84b0000 0x260>, <0x84b0300 0x200>;
+      reg-names = "host", "cfg";
+      sd-uhs-sdr50;
+      sd-uhs-ddr50;
+      sd-uhs-sdr104;
+      sdhci,auto-cmd12;
+      interrupts = <0x0 0x26 0x4>;
+      clocks = <&scmi_clk 245>;
+      clock-names = "sw_sdio";
+    };
+
+    mmc@84b1000 {
+      compatible = "brcm,bcm7216-sdhci",
+                   "brcm,bcm7445-sdhci",
+                   "brcm,sdhci-brcmstb";
+      reg = <0x84b1000 0x260>, <0x84b1300 0x200>;
+      reg-names = "host", "cfg";
+      mmc-ddr-1_8v;
+      mmc-hs200-1_8v;
+      mmc-hs400-1_8v;
+      mmc-hs400-enhanced-strobe;
+      supports-cqe;
+      non-removable;
+      bus-width = <0x8>;
+      interrupts = <0x0 0x27 0x4>;
+      clocks = <&scmi_clk 245>;
+      clock-names = "sw_sdio";
+    };

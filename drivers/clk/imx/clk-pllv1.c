@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <linux/bits.h>
 #include <linux/clk-provider.h>
 #include <linux/io.h>
 #include <linux/slab.h>
@@ -7,20 +8,19 @@
 
 #include "clk.h"
 
-/**
- * pll v1
- *
- * @clk_hw	clock source
- * @parent	the parent clock name
- * @base	base address of pll registers
- *
- * PLL clock version 1, found on i.MX1/21/25/27/31/35
- */
-
 #define MFN_BITS	(10)
 #define MFN_SIGN	(BIT(MFN_BITS - 1))
 #define MFN_MASK	(MFN_SIGN - 1)
 
+/**
+ * struct clk_pllv1 - IMX PLLv1 clock descriptor
+ *
+ * @hw:		clock source
+ * @base:	base address of pll registers
+ * @type:	type of IMX_PLLV1
+ *
+ * PLL clock version 1, found on i.MX1/21/25/27/31/35
+ */
 struct clk_pllv1 {
 	struct clk_hw	hw;
 	void __iomem	*base;
@@ -111,12 +111,13 @@ static const struct clk_ops clk_pllv1_ops = {
 	.recalc_rate = clk_pllv1_recalc_rate,
 };
 
-struct clk *imx_clk_pllv1(enum imx_pllv1_type type, const char *name,
+struct clk_hw *imx_clk_hw_pllv1(enum imx_pllv1_type type, const char *name,
 		const char *parent, void __iomem *base)
 {
 	struct clk_pllv1 *pll;
-	struct clk *clk;
+	struct clk_hw *hw;
 	struct clk_init_data init;
+	int ret;
 
 	pll = kmalloc(sizeof(*pll), GFP_KERNEL);
 	if (!pll)
@@ -132,10 +133,13 @@ struct clk *imx_clk_pllv1(enum imx_pllv1_type type, const char *name,
 	init.num_parents = 1;
 
 	pll->hw.init = &init;
+	hw = &pll->hw;
 
-	clk = clk_register(NULL, &pll->hw);
-	if (IS_ERR(clk))
+	ret = clk_hw_register(NULL, hw);
+	if (ret) {
 		kfree(pll);
+		return ERR_PTR(ret);
+	}
 
-	return clk;
+	return hw;
 }

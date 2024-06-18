@@ -56,6 +56,13 @@ static int sun6i_drc_bind(struct device *dev, struct device *master,
 		ret = PTR_ERR(drc->mod_clk);
 		goto err_disable_bus_clk;
 	}
+
+	ret = clk_set_rate_exclusive(drc->mod_clk, 300000000);
+	if (ret) {
+		dev_err(dev, "Couldn't set the module clock frequency\n");
+		goto err_disable_bus_clk;
+	}
+
 	clk_prepare_enable(drc->mod_clk);
 
 	return 0;
@@ -72,6 +79,7 @@ static void sun6i_drc_unbind(struct device *dev, struct device *master,
 {
 	struct sun6i_drc *drc = dev_get_drvdata(dev);
 
+	clk_rate_exclusive_put(drc->mod_clk);
 	clk_disable_unprepare(drc->mod_clk);
 	clk_disable_unprepare(drc->bus_clk);
 	reset_control_assert(drc->reset);
@@ -87,11 +95,9 @@ static int sun6i_drc_probe(struct platform_device *pdev)
 	return component_add(&pdev->dev, &sun6i_drc_ops);
 }
 
-static int sun6i_drc_remove(struct platform_device *pdev)
+static void sun6i_drc_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &sun6i_drc_ops);
-
-	return 0;
 }
 
 static const struct of_device_id sun6i_drc_of_table[] = {
@@ -106,7 +112,7 @@ MODULE_DEVICE_TABLE(of, sun6i_drc_of_table);
 
 static struct platform_driver sun6i_drc_platform_driver = {
 	.probe		= sun6i_drc_probe,
-	.remove		= sun6i_drc_remove,
+	.remove_new	= sun6i_drc_remove,
 	.driver		= {
 		.name		= "sun6i-drc",
 		.of_match_table	= sun6i_drc_of_table,

@@ -108,12 +108,14 @@
 static int dnfb_blank(int blank, struct fb_info *info);
 static void dnfb_copyarea(struct fb_info *info, const struct fb_copyarea *area);
 
-static struct fb_ops dn_fb_ops = {
+static const struct fb_ops dn_fb_ops = {
 	.owner		= THIS_MODULE,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_blank	= dnfb_blank,
 	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= dnfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 };
 
 static const struct fb_var_screeninfo dnfb_var = {
@@ -280,7 +282,7 @@ static struct platform_device dnfb_device = {
 	.name	= "dnfb",
 };
 
-int __init dnfb_init(void)
+static int __init dnfb_init(void)
 {
 	int ret;
 

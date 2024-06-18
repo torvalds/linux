@@ -7,6 +7,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/rtc.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
@@ -33,7 +34,7 @@ struct ep93xx_rtc {
 static int ep93xx_rtc_get_swcomp(struct device *dev, unsigned short *preload,
 				 unsigned short *delete)
 {
-	struct ep93xx_rtc *ep93xx_rtc = dev_get_platdata(dev);
+	struct ep93xx_rtc *ep93xx_rtc = dev_get_drvdata(dev);
 	unsigned long comp;
 
 	comp = readl(ep93xx_rtc->mmio_base + EP93XX_RTC_SWCOMP);
@@ -51,7 +52,7 @@ static int ep93xx_rtc_get_swcomp(struct device *dev, unsigned short *preload,
 
 static int ep93xx_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
-	struct ep93xx_rtc *ep93xx_rtc = dev_get_platdata(dev);
+	struct ep93xx_rtc *ep93xx_rtc = dev_get_drvdata(dev);
 	unsigned long time;
 
 	time = readl(ep93xx_rtc->mmio_base + EP93XX_RTC_DATA);
@@ -62,7 +63,7 @@ static int ep93xx_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 static int ep93xx_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
-	struct ep93xx_rtc *ep93xx_rtc = dev_get_platdata(dev);
+	struct ep93xx_rtc *ep93xx_rtc = dev_get_drvdata(dev);
 	unsigned long secs = rtc_tm_to_time64(tm);
 
 	writel(secs + 1, ep93xx_rtc->mmio_base + EP93XX_RTC_LOAD);
@@ -122,15 +123,13 @@ static const struct attribute_group ep93xx_rtc_sysfs_files = {
 static int ep93xx_rtc_probe(struct platform_device *pdev)
 {
 	struct ep93xx_rtc *ep93xx_rtc;
-	struct resource *res;
 	int err;
 
 	ep93xx_rtc = devm_kzalloc(&pdev->dev, sizeof(*ep93xx_rtc), GFP_KERNEL);
 	if (!ep93xx_rtc)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ep93xx_rtc->mmio_base = devm_ioremap_resource(&pdev->dev, res);
+	ep93xx_rtc->mmio_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ep93xx_rtc->mmio_base))
 		return PTR_ERR(ep93xx_rtc->mmio_base);
 
@@ -147,12 +146,19 @@ static int ep93xx_rtc_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	return rtc_register_device(ep93xx_rtc->rtc);
+	return devm_rtc_register_device(ep93xx_rtc->rtc);
 }
+
+static const struct of_device_id ep93xx_rtc_of_ids[] = {
+	{ .compatible = "cirrus,ep9301-rtc" },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, ep93xx_rtc_of_ids);
 
 static struct platform_driver ep93xx_rtc_driver = {
 	.driver		= {
 		.name	= "ep93xx-rtc",
+		.of_match_table = ep93xx_rtc_of_ids,
 	},
 	.probe		= ep93xx_rtc_probe,
 };

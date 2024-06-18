@@ -189,15 +189,15 @@ eisa_bus.enable_dev
 	initialize the device in such conditions.
 
 eisa_bus.disable_dev
-	A comma-separated list of slots to be enabled, even if the firmware
+	A comma-separated list of slots to be disabled, even if the firmware
 	set the card as enabled. The driver won't be called to handle this
 	device.
 
 virtual_root.force_probe
 	Force the probing code to probe EISA slots even when it cannot find an
 	EISA compliant mainboard (nothing appears on slot 0). Defaults to 0
-	(don't force), and set to 1 (force probing) when either
-	CONFIG_ALPHA_JENSEN or CONFIG_EISA_VLB_PRIMING are set.
+	(don't force), and set to 1 (force probing) when
+	CONFIG_EISA_VLB_PRIMING is set.
 
 Random notes
 ============

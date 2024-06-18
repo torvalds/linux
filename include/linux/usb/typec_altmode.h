@@ -20,6 +20,7 @@ struct typec_altmode_ops;
  * @active: Tells has the mode been entered or not
  * @desc: Optional human readable description of the mode
  * @ops: Operations vector from the driver
+ * @cable_ops: Cable operations vector from the driver.
  */
 struct typec_altmode {
 	struct device			dev;
@@ -30,6 +31,7 @@ struct typec_altmode {
 
 	char				*desc;
 	const struct typec_altmode_ops	*ops;
+	const struct typec_cable_ops	*cable_ops;
 };
 
 #define to_typec_altmode(d) container_of(d, struct typec_altmode, dev)
@@ -55,7 +57,7 @@ static inline void *typec_altmode_get_drvdata(struct typec_altmode *altmode)
  * @activate: User callback for Enter/Exit Mode
  */
 struct typec_altmode_ops {
-	int (*enter)(struct typec_altmode *altmode);
+	int (*enter)(struct typec_altmode *altmode, u32 *vdo);
 	int (*exit)(struct typec_altmode *altmode);
 	void (*attention)(struct typec_altmode *altmode, u32 vdo);
 	int (*vdm)(struct typec_altmode *altmode, const u32 hdr,
@@ -65,15 +67,43 @@ struct typec_altmode_ops {
 	int (*activate)(struct typec_altmode *altmode, int activate);
 };
 
-int typec_altmode_enter(struct typec_altmode *altmode);
+int typec_altmode_enter(struct typec_altmode *altmode, u32 *vdo);
 int typec_altmode_exit(struct typec_altmode *altmode);
-void typec_altmode_attention(struct typec_altmode *altmode, u32 vdo);
+int typec_altmode_attention(struct typec_altmode *altmode, u32 vdo);
 int typec_altmode_vdm(struct typec_altmode *altmode,
 		      const u32 header, const u32 *vdo, int count);
 int typec_altmode_notify(struct typec_altmode *altmode, unsigned long conf,
 			 void *data);
 const struct typec_altmode *
 typec_altmode_get_partner(struct typec_altmode *altmode);
+
+/**
+ * struct typec_cable_ops - Cable alternate mode operations vector
+ * @enter: Operations to be executed with Enter Mode Command
+ * @exit: Operations to be executed with Exit Mode Command
+ * @vdm: Callback for SVID specific commands
+ */
+struct typec_cable_ops {
+	int (*enter)(struct typec_altmode *altmode, enum typec_plug_index sop, u32 *vdo);
+	int (*exit)(struct typec_altmode *altmode, enum typec_plug_index sop);
+	int (*vdm)(struct typec_altmode *altmode, enum typec_plug_index sop,
+		   const u32 hdr, const u32 *vdo, int cnt);
+};
+
+int typec_cable_altmode_enter(struct typec_altmode *altmode, enum typec_plug_index sop, u32 *vdo);
+int typec_cable_altmode_exit(struct typec_altmode *altmode, enum typec_plug_index sop);
+int typec_cable_altmode_vdm(struct typec_altmode *altmode, enum typec_plug_index sop,
+			    const u32 header, const u32 *vdo, int count);
+
+/**
+ * typec_altmode_get_cable_svdm_version - Get negotiated SVDM version for cable plug
+ * @altmode: Handle to the alternate mode
+ */
+static inline int
+typec_altmode_get_cable_svdm_version(struct typec_altmode *altmode)
+{
+	return typec_get_cable_svdm_version(typec_altmode2port(altmode));
+}
 
 /*
  * These are the connector states (USB, Safe and Alt Mode) defined in USB Type-C
@@ -95,9 +125,21 @@ enum {
  *
  * Port drivers can use TYPEC_MODE_AUDIO and TYPEC_MODE_DEBUG as the mode
  * value for typec_set_mode() when accessory modes are supported.
+ *
+ * USB4 also requires that the pins on the connector are repurposed, just like
+ * Alternate Modes. USB4 mode is however not entered with the Enter Mode Command
+ * like the Alternate Modes are, but instead with a special Enter_USB Message.
+ * The Enter_USB Message can also be used for setting to connector to operate in
+ * USB 3.2 or in USB 2.0 mode instead of USB4.
+ *
+ * The Enter_USB specific "USB Modes" are also supplied here as special modal
+ * state values, just like the Accessory Modes.
  */
 enum {
-	TYPEC_MODE_AUDIO = TYPEC_STATE_MODAL,	/* Audio Accessory */
+	TYPEC_MODE_USB2 = TYPEC_STATE_MODAL,	/* USB 2.0 mode */
+	TYPEC_MODE_USB3,			/* USB 3.2 mode */
+	TYPEC_MODE_USB4,			/* USB4 mode */
+	TYPEC_MODE_AUDIO,			/* Audio Accessory */
 	TYPEC_MODE_DEBUG,			/* Debug Accessory */
 };
 
@@ -110,21 +152,24 @@ void typec_altmode_put_plug(struct typec_altmode *plug);
 struct typec_altmode *typec_match_altmode(struct typec_altmode **altmodes,
 					  size_t n, u16 svid, u8 mode);
 
-struct typec_altmode *
-typec_altmode_register_notifier(struct device *dev, u16 svid, u8 mode,
-				struct notifier_block *nb);
-
-void typec_altmode_unregister_notifier(struct typec_altmode *adev,
-				       struct notifier_block *nb);
-
 /**
  * typec_altmode_get_orientation - Get cable plug orientation
- * altmode: Handle to the alternate mode
+ * @altmode: Handle to the alternate mode
  */
 static inline enum typec_orientation
 typec_altmode_get_orientation(struct typec_altmode *altmode)
 {
 	return typec_get_orientation(typec_altmode2port(altmode));
+}
+
+/**
+ * typec_altmode_get_svdm_version - Get negotiated SVDM version
+ * @altmode: Handle to the alternate mode
+ */
+static inline int
+typec_altmode_get_svdm_version(struct typec_altmode *altmode)
+{
+	return typec_get_negotiated_svdm_version(typec_altmode2port(altmode));
 }
 
 /**
@@ -147,10 +192,26 @@ struct typec_altmode_driver {
 #define to_altmode_driver(d) container_of(d, struct typec_altmode_driver, \
 					  driver)
 
+/**
+ * typec_altmode_register_driver - registers a USB Type-C alternate mode
+ * 				   device driver
+ * @drv: pointer to struct typec_altmode_driver
+ *
+ * These drivers will be bind to the partner alternate mode devices. They will
+ * handle all SVID specific communication.
+ */
 #define typec_altmode_register_driver(drv) \
 		__typec_altmode_register_driver(drv, THIS_MODULE)
 int __typec_altmode_register_driver(struct typec_altmode_driver *drv,
 				    struct module *module);
+/**
+ * typec_altmode_unregister_driver - unregisters a USB Type-C alternate mode
+ * 				     device driver
+ * @drv: pointer to struct typec_altmode_driver
+ *
+ * These drivers will be bind to the partner alternate mode devices. They will
+ * handle all SVID specific communication.
+ */
 void typec_altmode_unregister_driver(struct typec_altmode_driver *drv);
 
 #define module_typec_altmode_driver(__typec_altmode_driver) \

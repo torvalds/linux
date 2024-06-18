@@ -127,7 +127,7 @@ static void sst_fill_alloc_params(struct snd_pcm_substream *substream,
 	snd_pcm_uframes_t period_size;
 	ssize_t periodbytes;
 	ssize_t buffer_bytes = snd_pcm_lib_buffer_bytes(substream);
-	u32 buffer_addr = virt_to_phys(substream->dma_buffer.area);
+	u32 buffer_addr = substream->runtime->dma_addr;
 
 	channels = substream->runtime->channels;
 	period_size = substream->runtime->period_size;
@@ -233,7 +233,6 @@ static int sst_platform_alloc_stream(struct snd_pcm_substream *substream,
 	/* set codec params and inform SST driver the same */
 	sst_fill_pcm_params(substream, &param);
 	sst_fill_alloc_params(substream, &alloc_params);
-	substream->runtime->dma_area = substream->dma_buffer.area;
 	str_params.sparams = param;
 	str_params.aparams = alloc_params;
 	str_params.codec = SST_CODEC_TYPE_PCM;
@@ -274,7 +273,7 @@ static int sst_platform_init_stream(struct snd_pcm_substream *substream)
 {
 	struct sst_runtime_stream *stream =
 			substream->runtime->private_data;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	int ret_val;
 
 	dev_dbg(rtd->dev, "setting buffer ptr param\n");
@@ -331,7 +330,18 @@ static int sst_media_open(struct snd_pcm_substream *substream,
 
 	ret_val = power_up_sst(stream);
 	if (ret_val < 0)
-		return ret_val;
+		goto out_power_up;
+
+	/*
+	 * Make sure the period to be multiple of 1ms to align the
+	 * design of firmware. Apply same rule to buffer size to make
+	 * sure alsa could always find a value for period size
+	 * regardless the buffer size given by user space.
+	 */
+	snd_pcm_hw_constraint_step(substream->runtime, 0,
+			   SNDRV_PCM_HW_PARAM_PERIOD_SIZE, 48);
+	snd_pcm_hw_constraint_step(substream->runtime, 0,
+			   SNDRV_PCM_HW_PARAM_BUFFER_SIZE, 48);
 
 	/* Make sure, that the period size is always even */
 	snd_pcm_hw_constraint_step(substream->runtime, 0,
@@ -340,8 +350,9 @@ static int sst_media_open(struct snd_pcm_substream *substream,
 	return snd_pcm_hw_constraint_integer(runtime,
 			 SNDRV_PCM_HW_PARAM_PERIODS);
 out_ops:
-	kfree(stream);
 	mutex_unlock(&sst_lock);
+out_power_up:
+	kfree(stream);
 	return ret_val;
 }
 
@@ -365,7 +376,7 @@ static int sst_media_prepare(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
 	struct sst_runtime_stream *stream;
-	int ret_val = 0, str_id;
+	int ret_val, str_id;
 
 	stream = substream->runtime->private_data;
 	str_id = stream->stream_info.str_id;
@@ -384,28 +395,7 @@ static int sst_media_prepare(struct snd_pcm_substream *substream,
 	if (ret_val)
 		return ret_val;
 	substream->runtime->hw.info = SNDRV_PCM_INFO_BLOCK_TRANSFER;
-	return ret_val;
-}
-
-static int sst_media_hw_params(struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *params,
-				struct snd_soc_dai *dai)
-{
-	int ret;
-
-	ret =
-		snd_pcm_lib_malloc_pages(substream,
-				params_buffer_bytes(params));
-	if (ret)
-		return ret;
-	memset(substream->runtime->dma_area, 0, params_buffer_bytes(params));
 	return 0;
-}
-
-static int sst_media_hw_free(struct snd_pcm_substream *substream,
-		struct snd_soc_dai *dai)
-{
-	return snd_pcm_lib_free_pages(substream);
 }
 
 static int sst_enable_ssp(struct snd_pcm_substream *substream,
@@ -413,7 +403,7 @@ static int sst_enable_ssp(struct snd_pcm_substream *substream,
 {
 	int ret = 0;
 
-	if (!dai->active) {
+	if (!snd_soc_dai_active(dai)) {
 		ret = sst_handle_vb_timer(dai, true);
 		sst_fill_ssp_defaults(dai);
 	}
@@ -426,7 +416,7 @@ static int sst_be_hw_params(struct snd_pcm_substream *substream,
 {
 	int ret = 0;
 
-	if (dai->active == 1)
+	if (snd_soc_dai_active(dai) == 1)
 		ret = send_ssp_cmd(dai, dai->name, 1);
 	return ret;
 }
@@ -435,7 +425,7 @@ static int sst_set_format(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	int ret = 0;
 
-	if (!dai->active)
+	if (!snd_soc_dai_active(dai))
 		return 0;
 
 	ret = sst_fill_ssp_config(dai, fmt);
@@ -450,7 +440,7 @@ static int sst_platform_set_ssp_slot(struct snd_soc_dai *dai,
 			int slots, int slot_width) {
 	int ret = 0;
 
-	if (!dai->active)
+	if (!snd_soc_dai_active(dai))
 		return ret;
 
 	ret = sst_fill_ssp_slot(dai, tx_mask, rx_mask, slots, slot_width);
@@ -463,7 +453,7 @@ static int sst_platform_set_ssp_slot(struct snd_soc_dai *dai,
 static void sst_disable_ssp(struct snd_pcm_substream *substream,
 			struct snd_soc_dai *dai)
 {
-	if (!dai->active) {
+	if (!snd_soc_dai_active(dai)) {
 		send_ssp_cmd(dai, dai->name, 0);
 		sst_handle_vb_timer(dai, false);
 	}
@@ -473,12 +463,11 @@ static const struct snd_soc_dai_ops sst_media_dai_ops = {
 	.startup = sst_media_open,
 	.shutdown = sst_media_close,
 	.prepare = sst_media_prepare,
-	.hw_params = sst_media_hw_params,
-	.hw_free = sst_media_hw_free,
 	.mute_stream = sst_media_digital_mute,
 };
 
 static const struct snd_soc_dai_ops sst_compr_dai_ops = {
+	.compress_new = snd_soc_new_compress,
 	.mute_stream = sst_media_digital_mute,
 };
 
@@ -498,15 +487,15 @@ static struct snd_soc_dai_driver sst_platform_dai[] = {
 		.stream_name = "Headset Playback",
 		.channels_min = SST_STEREO,
 		.channels_max = SST_STEREO,
-		.rates = SNDRV_PCM_RATE_44100|SNDRV_PCM_RATE_48000,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
+		.rates = SNDRV_PCM_RATE_48000,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	},
 	.capture = {
 		.stream_name = "Headset Capture",
 		.channels_min = 1,
 		.channels_max = 2,
-		.rates = SNDRV_PCM_RATE_44100|SNDRV_PCM_RATE_48000,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
+		.rates = SNDRV_PCM_RATE_48000,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	},
 },
 {
@@ -516,13 +505,12 @@ static struct snd_soc_dai_driver sst_platform_dai[] = {
 		.stream_name = "Deepbuffer Playback",
 		.channels_min = SST_STEREO,
 		.channels_max = SST_STEREO,
-		.rates = SNDRV_PCM_RATE_44100|SNDRV_PCM_RATE_48000,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
+		.rates = SNDRV_PCM_RATE_48000,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	},
 },
 {
 	.name = "compress-cpu-dai",
-	.compress_new = snd_soc_new_compress,
 	.ops = &sst_compr_dai_ops,
 	.playback = {
 		.stream_name = "Compress Playback",
@@ -586,7 +574,8 @@ static struct snd_soc_dai_driver sst_platform_dai[] = {
 },
 };
 
-static int sst_platform_open(struct snd_pcm_substream *substream)
+static int sst_soc_open(struct snd_soc_component *component,
+			struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime;
 
@@ -598,15 +587,15 @@ static int sst_platform_open(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int sst_platform_pcm_trigger(struct snd_pcm_substream *substream,
-					int cmd)
+static int sst_soc_trigger(struct snd_soc_component *component,
+			   struct snd_pcm_substream *substream, int cmd)
 {
 	int ret_val = 0, str_id;
 	struct sst_runtime_stream *stream;
 	int status;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 
-	dev_dbg(rtd->dev, "sst_platform_pcm_trigger called\n");
+	dev_dbg(rtd->dev, "%s called\n", __func__);
 	if (substream->pcm->internal)
 		return 0;
 	stream = substream->runtime->private_data;
@@ -646,13 +635,13 @@ static int sst_platform_pcm_trigger(struct snd_pcm_substream *substream,
 }
 
 
-static snd_pcm_uframes_t sst_platform_pcm_pointer
-			(struct snd_pcm_substream *substream)
+static snd_pcm_uframes_t sst_soc_pointer(struct snd_soc_component *component,
+					 struct snd_pcm_substream *substream)
 {
 	struct sst_runtime_stream *stream;
 	int ret_val, status;
 	struct pcm_stream_info *str_info;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 
 	stream = substream->runtime->private_data;
 	status = sst_get_stream_status(stream);
@@ -664,28 +653,32 @@ static snd_pcm_uframes_t sst_platform_pcm_pointer
 		dev_err(rtd->dev, "sst: error code = %d\n", ret_val);
 		return ret_val;
 	}
-	substream->runtime->delay = str_info->pcm_delay;
 	return str_info->buffer_ptr;
 }
 
-static const struct snd_pcm_ops sst_platform_ops = {
-	.open = sst_platform_open,
-	.ioctl = snd_pcm_lib_ioctl,
-	.trigger = sst_platform_pcm_trigger,
-	.pointer = sst_platform_pcm_pointer,
-};
-
-static int sst_pcm_new(struct snd_soc_pcm_runtime *rtd)
+static snd_pcm_sframes_t sst_soc_delay(struct snd_soc_component *component,
+				       struct snd_pcm_substream *substream)
 {
-	struct snd_soc_dai *dai = rtd->cpu_dai;
+	struct sst_runtime_stream *stream = substream->runtime->private_data;
+	struct pcm_stream_info *str_info = &stream->stream_info;
+
+	if (sst_get_stream_status(stream) == SST_PLATFORM_INIT)
+		return 0;
+
+	return str_info->pcm_delay;
+}
+
+static int sst_soc_pcm_new(struct snd_soc_component *component,
+			   struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_dai *dai = snd_soc_rtd_to_cpu(rtd, 0);
 	struct snd_pcm *pcm = rtd->pcm;
 
 	if (dai->driver->playback.channels_min ||
 			dai->driver->capture.channels_min) {
-		snd_pcm_lib_preallocate_pages_for_all(pcm,
-			SNDRV_DMA_TYPE_CONTINUOUS,
-			snd_dma_continuous_data(GFP_DMA),
-			SST_MIN_BUFFER, SST_MAX_BUFFER);
+		snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+					       pcm->card->dev,
+					       SST_MIN_BUFFER, SST_MAX_BUFFER);
 	}
 	return 0;
 }
@@ -709,9 +702,12 @@ static const struct snd_soc_component_driver sst_soc_platform_drv  = {
 	.name		= DRV_NAME,
 	.probe		= sst_soc_probe,
 	.remove		= sst_soc_remove,
-	.ops		= &sst_platform_ops,
-	.compr_ops	= &sst_platform_compr_ops,
-	.pcm_new	= sst_pcm_new,
+	.open		= sst_soc_open,
+	.trigger	= sst_soc_trigger,
+	.pointer	= sst_soc_pointer,
+	.delay		= sst_soc_delay,
+	.compress_ops	= &sst_platform_compress_ops,
+	.pcm_construct	= sst_soc_pcm_new,
 };
 
 static int sst_platform_probe(struct platform_device *pdev)
@@ -745,10 +741,9 @@ static int sst_platform_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int sst_platform_remove(struct platform_device *pdev)
+static void sst_platform_remove(struct platform_device *pdev)
 {
 	dev_dbg(&pdev->dev, "sst_platform_remove success\n");
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -767,9 +762,9 @@ static int sst_soc_prepare(struct device *dev)
 
 	/* set the SSPs to idle */
 	for_each_card_rtds(drv->soc_card, rtd) {
-		struct snd_soc_dai *dai = rtd->cpu_dai;
+		struct snd_soc_dai *dai = snd_soc_rtd_to_cpu(rtd, 0);
 
-		if (dai->active) {
+		if (snd_soc_dai_active(dai)) {
 			send_ssp_cmd(dai, dai->name, 0);
 			sst_handle_vb_timer(dai, false);
 		}
@@ -788,9 +783,9 @@ static void sst_soc_complete(struct device *dev)
 
 	/* restart SSPs */
 	for_each_card_rtds(drv->soc_card, rtd) {
-		struct snd_soc_dai *dai = rtd->cpu_dai;
+		struct snd_soc_dai *dai = snd_soc_rtd_to_cpu(rtd, 0);
 
-		if (dai->active) {
+		if (snd_soc_dai_active(dai)) {
 			sst_handle_vb_timer(dai, true);
 			send_ssp_cmd(dai, dai->name, 1);
 		}
@@ -817,7 +812,7 @@ static struct platform_driver sst_platform_driver = {
 		.pm             = &sst_platform_pm,
 	},
 	.probe		= sst_platform_probe,
-	.remove		= sst_platform_remove,
+	.remove_new	= sst_platform_remove,
 };
 
 module_platform_driver(sst_platform_driver);

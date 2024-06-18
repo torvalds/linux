@@ -73,14 +73,12 @@ int nfc_hci_hcp_message_tx(struct nfc_hci_dev *hdev, u8 pipe,
 		if (firstfrag) {
 			firstfrag = false;
 			packet->message.header = HCP_HEADER(type, instruction);
-			if (ptr) {
-				memcpy(packet->message.data, ptr,
-				       data_link_len - 1);
-				ptr += data_link_len - 1;
-			}
 		} else {
-			memcpy(&packet->message, ptr, data_link_len);
-			ptr += data_link_len;
+			packet->message.header = *ptr++;
+		}
+		if (ptr) {
+			memcpy(packet->message.data, ptr, data_link_len - 1);
+			ptr += data_link_len - 1;
 		}
 
 		/* This is the last fragment, set the cb bit */

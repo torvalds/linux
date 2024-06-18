@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: GPL-2.0
+dtb-$(CONFIG_ARCH_APPLE) += t8103-j274.dtb
+dtb-$(CONFIG_ARCH_APPLE) += t8103-j293.dtb
+dtb-$(CONFIG_ARCH_APPLE) += t8103-j313.dtb
+dtb-$(CONFIG_ARCH_APPLE) += t8103-j456.dtb
+dtb-$(CONFIG_ARCH_APPLE) += t8103-j457.dtb
+dtb-$(CONFIG_ARCH_APPLE) += t6000-j314s.dtb
+dtb-$(CONFIG_ARCH_APPLE) += t6001-j314c.dtb
+dtb-$(CONFIG_ARCH_APPLE) += t6000-j316s.dtb
+dtb-$(CONFIG_ARCH_APPLE) += t6001-j316c.dtb
+dtb-$(CONFIG_ARCH_APPLE) += t6001-j375c.dtb
+dtb-$(CONFIG_ARCH_APPLE) += t6002-j375d.dtb
+dtb-$(CONFIG_ARCH_APPLE) += t8112-j413.dtb
+dtb-$(CONFIG_ARCH_APPLE) += t8112-j473.dtb
+dtb-$(CONFIG_ARCH_APPLE) += t8112-j493.dtb

@@ -1,0 +1,88 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/dma/xilinx/xlnx,zynqmp-dma-1.0.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Xilinx ZynqMP DMA Engine
+
+description: |
+  The Xilinx ZynqMP DMA engine supports memory to memory transfers,
+  memory to device and device to memory transfers. It also has flow
+  control and rate control support for slave/peripheral dma access.
+
+maintainers:
+  - Michael Tretter <m.tretter@pengutronix.de>
+  - Harini Katakam <harini.katakam@amd.com>
+  - Radhey Shyam Pandey <radhey.shyam.pandey@amd.com>
+
+allOf:
+  - $ref: ../dma-controller.yaml#
+
+properties:
+  "#dma-cells":
+    const: 1
+
+  compatible:
+    const: xlnx,zynqmp-dma-1.0
+
+  reg:
+    description: memory map for gdma/adma module access
+    maxItems: 1
+
+  interrupts:
+    description: DMA channel interrupt
+    maxItems: 1
+
+  clocks:
+    description: input clocks
+    minItems: 2
+    maxItems: 2
+
+  clock-names:
+    items:
+      - const: clk_main
+      - const: clk_apb
+
+  xlnx,bus-width:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum:
+      - 64
+      - 128
+    description: AXI bus width in bits
+
+  iommus:
+    maxItems: 1
+
+  power-domains:
+    maxItems: 1
+
+  dma-coherent:
+    description: present if dma operations are coherent
+
+required:
+  - "#dma-cells"
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - xlnx,bus-width
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/xlnx-zynqmp-clk.h>
+
+    fpd_dma_chan1: dma-controller@fd500000 {
+      compatible = "xlnx,zynqmp-dma-1.0";
+      reg = <0xfd500000 0x1000>;
+      interrupt-parent = <&gic>;
+      interrupts = <0 117 0x4>;
+      #dma-cells = <1>;
+      clock-names = "clk_main", "clk_apb";
+      clocks = <&zynqmp_clk GDMA_REF>, <&zynqmp_clk LPD_LSBUS>;
+      xlnx,bus-width = <128>;
+      dma-coherent;
+    };

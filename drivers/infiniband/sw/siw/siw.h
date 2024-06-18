@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 or BSD-3-Clause */
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 
 /* Authors: Bernard Metzler <bmt@zurich.ibm.com> */
 /* Copyright (c) 2008-2019, IBM Corporation */
@@ -7,6 +7,7 @@
 #define _SIW_H
 
 #include <rdma/ib_verbs.h>
+#include <rdma/restrack.h>
 #include <linux/socket.h>
 #include <linux/skbuff.h>
 #include <crypto/hash.h>
@@ -29,7 +30,6 @@
 #define SIW_MAX_MR (SIW_MAX_QP * 10)
 #define SIW_MAX_PD SIW_MAX_QP
 #define SIW_MAX_MW 0 /* to be set if MW's are supported */
-#define SIW_MAX_FMR SIW_MAX_MR
 #define SIW_MAX_SRQ SIW_MAX_QP
 #define SIW_MAX_SRQ_WR (SIW_MAX_QP_WR * 10)
 #define SIW_MAX_CONTEXT SIW_MAX_PD
@@ -58,7 +58,6 @@ struct siw_dev_cap {
 	int max_mr;
 	int max_pd;
 	int max_mw;
-	int max_fmr;
 	int max_srq;
 	int max_srq_wr;
 	int max_srq_sge;
@@ -75,6 +74,7 @@ struct siw_device {
 
 	u32 vendor_part_id;
 	int numa_node;
+	char raw_gid[ETH_ALEN];
 
 	/* physical port state (only one port per device) */
 	enum ib_port_state state;
@@ -98,18 +98,9 @@ struct siw_device {
 	struct work_struct netdev_down;
 };
 
-struct siw_uobj {
-	void *addr;
-	u32 size;
-};
-
 struct siw_ucontext {
 	struct ib_ucontext base_ucontext;
 	struct siw_device *sdev;
-
-	/* xarray of user mappable objects */
-	struct xarray xa;
-	u32 uobj_nextkey;
 };
 
 /*
@@ -130,11 +121,10 @@ struct siw_page_chunk {
 };
 
 struct siw_umem {
+	struct ib_umem *base_mem;
 	struct siw_page_chunk *page_chunk;
 	int num_pages;
-	bool writable;
 	u64 fp_addr; /* First page base address */
-	struct mm_struct *owning_mm;
 };
 
 struct siw_pble {
@@ -146,10 +136,8 @@ struct siw_pble {
 struct siw_pbl {
 	unsigned int num_buf;
 	unsigned int max_buf;
-	struct siw_pble pbe[1];
+	struct siw_pble pbe[] __counted_by(max_buf);
 };
-
-struct siw_mr;
 
 /*
  * Generic memory representation for registered siw memory.
@@ -219,8 +207,7 @@ struct siw_cq {
 	u32 cq_put;
 	u32 cq_get;
 	u32 num_cqe;
-	bool kernel_verbs;
-	u32 xa_cq_index; /* mmap information for CQE array */
+	struct rdma_user_mmap_entry *cq_entry; /* mmap info for CQE array */
 	u32 id; /* For debugging only */
 };
 
@@ -263,9 +250,9 @@ struct siw_srq {
 	u32 rq_put;
 	u32 rq_get;
 	u32 num_rqe; /* max # of wqe's allowed */
-	u32 xa_srq_index; /* mmap information for SRQ array */
-	char armed; /* inform user if limit hit */
-	char kernel_verbs; /* '1' if kernel client */
+	struct rdma_user_mmap_entry *srq_entry; /* mmap info for SRQ array */
+	bool armed:1; /* inform user if limit hit */
+	bool is_kernel_res:1; /* true if kernel client */
 };
 
 struct siw_qp_attrs {
@@ -301,10 +288,11 @@ struct siw_rx_stream {
 	int skb_offset; /* offset in skb */
 	int skb_copied; /* processed bytes in skb */
 
+	enum siw_rx_state state;
+
 	union iwarp_hdr hdr;
 	struct mpa_trailer trailer;
-
-	enum siw_rx_state state;
+	struct shash_desc *mpa_crc_hd;
 
 	/*
 	 * For each FPDU, main RX loop runs through 3 stages:
@@ -326,7 +314,6 @@ struct siw_rx_stream {
 	u64 ddp_to;
 	u32 inval_stag; /* Stag to be invalidated */
 
-	struct shash_desc *mpa_crc_hd;
 	u8 rx_suspend : 1;
 	u8 pad : 2; /* # of pad bytes expected */
 	u8 rdmap_op : 4; /* opcode of current frame */
@@ -428,13 +415,12 @@ struct siw_iwarp_tx {
 };
 
 struct siw_qp {
+	struct ib_qp base_qp;
 	struct siw_device *sdev;
-	struct ib_qp *ib_qp;
-	struct kref ref;
-	u32 qp_num;
-	struct list_head devq;
 	int tx_cpu;
-	bool kernel_verbs;
+	struct kref ref;
+	struct completion qp_free;
+	struct list_head devq;
 	struct siw_qp_attrs attrs;
 
 	struct siw_cep *cep;
@@ -477,14 +463,8 @@ struct siw_qp {
 		u8 layer : 4, etype : 4;
 		u8 ecode;
 	} term_info;
-	u32 xa_sq_index; /* mmap information for SQE array */
-	u32 xa_rq_index; /* mmap information for RQE array */
-	struct rcu_head rcu;
-};
-
-struct siw_base_qp {
-	struct ib_qp base_qp;
-	struct siw_qp *qp;
+	struct rdma_user_mmap_entry *sq_entry; /* mmap info for SQE array */
+	struct rdma_user_mmap_entry *rq_entry; /* mmap info for RQE array */
 };
 
 /* helper macros */
@@ -501,6 +481,11 @@ struct iwarp_msg_info {
 	int hdr_len;
 	struct iwarp_ctrl ctrl;
 	int (*rx_data)(struct siw_qp *qp);
+};
+
+struct siw_user_mmap_entry {
+	struct rdma_user_mmap_entry rdma_entry;
+	void *address;
 };
 
 /* Global siw parameters. Currently set in siw_main.c */
@@ -544,11 +529,12 @@ void siw_qp_llp_data_ready(struct sock *sk);
 void siw_qp_llp_write_space(struct sock *sk);
 
 /* QP TX path functions */
+int siw_create_tx_threads(void);
+void siw_stop_tx_threads(void);
 int siw_run_sq(void *arg);
 int siw_qp_sq_process(struct siw_qp *qp);
 int siw_sq_start(struct siw_qp *qp);
 int siw_activate_tx(struct siw_qp *qp);
-void siw_stop_tx_thread(int nr_cpu);
 int siw_get_tx_cpu(struct siw_device *sdev);
 void siw_put_tx_cpu(int cpu);
 
@@ -577,14 +563,9 @@ static inline struct siw_ucontext *to_siw_ctx(struct ib_ucontext *base_ctx)
 	return container_of(base_ctx, struct siw_ucontext, base_ucontext);
 }
 
-static inline struct siw_base_qp *to_siw_base_qp(struct ib_qp *base_qp)
-{
-	return container_of(base_qp, struct siw_base_qp, base_qp);
-}
-
 static inline struct siw_qp *to_siw_qp(struct ib_qp *base_qp)
 {
-	return to_siw_base_qp(base_qp)->qp;
+	return container_of(base_qp, struct siw_qp, base_qp);
 }
 
 static inline struct siw_cq *to_siw_cq(struct ib_cq *base_cq)
@@ -607,6 +588,12 @@ static inline struct siw_mr *to_siw_mr(struct ib_mr *base_mr)
 	return container_of(base_mr, struct siw_mr, base_mr);
 }
 
+static inline struct siw_user_mmap_entry *
+to_siw_mmap_entry(struct rdma_user_mmap_entry *rdma_mmap)
+{
+	return container_of(rdma_mmap, struct siw_user_mmap_entry, rdma_entry);
+}
+
 static inline struct siw_qp *siw_qp_id2obj(struct siw_device *sdev, int id)
 {
 	struct siw_qp *qp;
@@ -623,7 +610,7 @@ static inline struct siw_qp *siw_qp_id2obj(struct siw_device *sdev, int id)
 
 static inline u32 qp_id(struct siw_qp *qp)
 {
-	return qp->qp_num;
+	return qp->base_qp.qp_num;
 }
 
 static inline void siw_qp_get(struct siw_qp *qp)
@@ -658,16 +645,11 @@ static inline struct siw_sqe *orq_get_current(struct siw_qp *qp)
 	return &qp->orq[qp->orq_get % qp->attrs.orq_size];
 }
 
-static inline struct siw_sqe *orq_get_tail(struct siw_qp *qp)
-{
-	return &qp->orq[qp->orq_put % qp->attrs.orq_size];
-}
-
 static inline struct siw_sqe *orq_get_free(struct siw_qp *qp)
 {
-	struct siw_sqe *orq_e = orq_get_tail(qp);
+	struct siw_sqe *orq_e = &qp->orq[qp->orq_put % qp->attrs.orq_size];
 
-	if (orq_e && READ_ONCE(orq_e->flags) == 0)
+	if (READ_ONCE(orq_e->flags) == 0)
 		return orq_e;
 
 	return NULL;
@@ -675,7 +657,7 @@ static inline struct siw_sqe *orq_get_free(struct siw_qp *qp)
 
 static inline int siw_orq_empty(struct siw_qp *qp)
 {
-	return qp->orq[qp->orq_get % qp->attrs.orq_size].flags == 0 ? 1 : 0;
+	return orq_get_current(qp)->flags == 0 ? 1 : 0;
 }
 
 static inline struct siw_sqe *irq_alloc_free(struct siw_qp *qp)
@@ -734,7 +716,7 @@ static inline void siw_crc_skb(struct siw_rx_stream *srx, unsigned int len)
 		  "MEM[0x%08x] %s: " fmt, mem->stag, __func__, ##__VA_ARGS__)
 
 #define siw_dbg_cep(cep, fmt, ...)                                             \
-	ibdev_dbg(&cep->sdev->base_dev, "CEP[0x%pK] %s: " fmt,                  \
+	ibdev_dbg(&cep->sdev->base_dev, "CEP[0x%pK] %s: " fmt,                 \
 		  cep, __func__, ##__VA_ARGS__)
 
 void siw_cq_flush(struct siw_cq *cq);

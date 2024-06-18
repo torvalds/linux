@@ -100,6 +100,11 @@
 #define PWR_CTRL1_USE_CORE1_WFI			(1 << 1)
 #define PWR_CTRL1_USE_CORE0_WFI			(1 << 0)
 
+/* NOTE: Must be equal to the last clock ID increased by one */
+#define CLKS_NR_MAIN				(CLK_SCLK_MMC2 + 1)
+#define CLKS_NR_DMC				(CLK_DIV_DMCD + 1)
+#define CLKS_NR_ISP				(CLK_SCLK_MPWM_ISP + 1)
+
 static const unsigned long exynos3250_cmu_clk_regs[] __initconst = {
 	SRC_LEFTBUS,
 	DIV_LEFTBUS,
@@ -748,6 +753,31 @@ static const struct samsung_pll_clock exynos3250_plls[] __initconst = {
 			UPLL_LOCK, UPLL_CON0, exynos3250_pll_rates),
 };
 
+#define E3250_CPU_DIV0(apll, pclk_dbg, atb, corem)			\
+		(((apll) << 24) | ((pclk_dbg) << 20) | ((atb) << 16) |	\
+		((corem) << 4))
+#define E3250_CPU_DIV1(hpm, copy)					\
+		(((hpm) << 4) | ((copy) << 0))
+
+static const struct exynos_cpuclk_cfg_data e3250_armclk_d[] __initconst = {
+	{ 1000000, E3250_CPU_DIV0(1, 7, 4, 1), E3250_CPU_DIV1(7, 7), },
+	{  900000, E3250_CPU_DIV0(1, 7, 3, 1), E3250_CPU_DIV1(7, 7), },
+	{  800000, E3250_CPU_DIV0(1, 7, 3, 1), E3250_CPU_DIV1(7, 7), },
+	{  700000, E3250_CPU_DIV0(1, 7, 3, 1), E3250_CPU_DIV1(7, 7), },
+	{  600000, E3250_CPU_DIV0(1, 7, 3, 1), E3250_CPU_DIV1(7, 7), },
+	{  500000, E3250_CPU_DIV0(1, 7, 3, 1), E3250_CPU_DIV1(7, 7), },
+	{  400000, E3250_CPU_DIV0(1, 7, 3, 1), E3250_CPU_DIV1(7, 7), },
+	{  300000, E3250_CPU_DIV0(1, 5, 3, 1), E3250_CPU_DIV1(7, 7), },
+	{  200000, E3250_CPU_DIV0(1, 3, 3, 1), E3250_CPU_DIV1(7, 7), },
+	{  100000, E3250_CPU_DIV0(1, 1, 1, 1), E3250_CPU_DIV1(7, 7), },
+	{  0 },
+};
+
+static const struct samsung_cpu_clock exynos3250_cpu_clks[] __initconst = {
+	CPU_CLK(CLK_ARM_CLK, "armclk", CLK_MOUT_APLL, CLK_MOUT_MPLL_USER_C,
+		CLK_CPU_HAS_DIV1, 0x14000, CPUCLK_LAYOUT_E4210, e3250_armclk_d),
+};
+
 static void __init exynos3_core_down_clock(void __iomem *reg_base)
 {
 	unsigned int tmp;
@@ -780,29 +810,11 @@ static const struct samsung_cmu_info cmu_info __initconst = {
 	.nr_gate_clks		= ARRAY_SIZE(gate_clks),
 	.fixed_factor_clks	= fixed_factor_clks,
 	.nr_fixed_factor_clks	= ARRAY_SIZE(fixed_factor_clks),
-	.nr_clk_ids		= CLK_NR_CLKS,
+	.cpu_clks		= exynos3250_cpu_clks,
+	.nr_cpu_clks		= ARRAY_SIZE(exynos3250_cpu_clks),
+	.nr_clk_ids		= CLKS_NR_MAIN,
 	.clk_regs		= exynos3250_cmu_clk_regs,
 	.nr_clk_regs		= ARRAY_SIZE(exynos3250_cmu_clk_regs),
-};
-
-#define E3250_CPU_DIV0(apll, pclk_dbg, atb, corem)			\
-		(((apll) << 24) | ((pclk_dbg) << 20) | ((atb) << 16) |	\
-		((corem) << 4))
-#define E3250_CPU_DIV1(hpm, copy)					\
-		(((hpm) << 4) | ((copy) << 0))
-
-static const struct exynos_cpuclk_cfg_data e3250_armclk_d[] __initconst = {
-	{ 1000000, E3250_CPU_DIV0(1, 7, 4, 1), E3250_CPU_DIV1(7, 7), },
-	{  900000, E3250_CPU_DIV0(1, 7, 3, 1), E3250_CPU_DIV1(7, 7), },
-	{  800000, E3250_CPU_DIV0(1, 7, 3, 1), E3250_CPU_DIV1(7, 7), },
-	{  700000, E3250_CPU_DIV0(1, 7, 3, 1), E3250_CPU_DIV1(7, 7), },
-	{  600000, E3250_CPU_DIV0(1, 7, 3, 1), E3250_CPU_DIV1(7, 7), },
-	{  500000, E3250_CPU_DIV0(1, 7, 3, 1), E3250_CPU_DIV1(7, 7), },
-	{  400000, E3250_CPU_DIV0(1, 7, 3, 1), E3250_CPU_DIV1(7, 7), },
-	{  300000, E3250_CPU_DIV0(1, 5, 3, 1), E3250_CPU_DIV1(7, 7), },
-	{  200000, E3250_CPU_DIV0(1, 3, 3, 1), E3250_CPU_DIV1(7, 7), },
-	{  100000, E3250_CPU_DIV0(1, 1, 1, 1), E3250_CPU_DIV1(7, 7), },
-	{  0 },
 };
 
 static void __init exynos3250_cmu_init(struct device_node *np)
@@ -812,11 +824,6 @@ static void __init exynos3250_cmu_init(struct device_node *np)
 	ctx = samsung_cmu_register_one(np, &cmu_info);
 	if (!ctx)
 		return;
-
-	exynos_register_cpu_clock(ctx, CLK_ARM_CLK, "armclk",
-			mout_core_p[0], mout_core_p[1], 0x14200,
-			e3250_armclk_d, ARRAY_SIZE(e3250_armclk_d),
-			CLK_CPU_HAS_DIV1);
 
 	exynos3_core_down_clock(ctx->reg_base);
 }
@@ -921,7 +928,7 @@ static const struct samsung_cmu_info dmc_cmu_info __initconst = {
 	.nr_mux_clks		= ARRAY_SIZE(dmc_mux_clks),
 	.div_clks		= dmc_div_clks,
 	.nr_div_clks		= ARRAY_SIZE(dmc_div_clks),
-	.nr_clk_ids		= NR_CLKS_DMC,
+	.nr_clk_ids		= CLKS_NR_DMC,
 	.clk_regs		= exynos3250_cmu_dmc_clk_regs,
 	.nr_clk_regs		= ARRAY_SIZE(exynos3250_cmu_dmc_clk_regs),
 };
@@ -1065,7 +1072,7 @@ static const struct samsung_cmu_info isp_cmu_info __initconst = {
 	.nr_div_clks	= ARRAY_SIZE(isp_div_clks),
 	.gate_clks	= isp_gate_clks,
 	.nr_gate_clks	= ARRAY_SIZE(isp_gate_clks),
-	.nr_clk_ids	= NR_CLKS_ISP,
+	.nr_clk_ids	= CLKS_NR_ISP,
 };
 
 static int __init exynos3250_cmu_isp_probe(struct platform_device *pdev)

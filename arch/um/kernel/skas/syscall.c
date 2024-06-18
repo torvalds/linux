@@ -10,7 +10,8 @@
 #include <sysdep/ptrace.h>
 #include <sysdep/ptrace_user.h>
 #include <sysdep/syscalls.h>
-#include <shared/timer-internal.h>
+#include <linux/time-internal.h>
+#include <asm/unistd.h>
 
 void handle_syscall(struct uml_pt_regs *r)
 {
@@ -24,7 +25,8 @@ void handle_syscall(struct uml_pt_regs *r)
 	 * went to sleep, even if said userspace interacts with the kernel in
 	 * various ways.
 	 */
-	if (time_travel_mode == TT_MODE_INFCPU)
+	if (time_travel_mode == TT_MODE_INFCPU ||
+	    time_travel_mode == TT_MODE_EXTERNAL)
 		schedule();
 
 	/* Initialize the syscall number and default return value. */
@@ -35,11 +37,11 @@ void handle_syscall(struct uml_pt_regs *r)
 		goto out;
 
 	/* Do the seccomp check after ptrace; failures should be fast. */
-	if (secure_computing(NULL) == -1)
+	if (secure_computing() == -1)
 		goto out;
 
 	syscall = UPT_SYSCALL_NR(r);
-	if (syscall >= 0 && syscall <= __NR_syscall_max)
+	if (syscall >= 0 && syscall < __NR_syscalls)
 		PT_REGS_SET_SYSCALL_RETURN(regs,
 				EXECUTE_SYSCALL(syscall, regs));
 

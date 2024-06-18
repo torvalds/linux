@@ -541,14 +541,12 @@ MODULE_DEVICE_TABLE(of, axmclk_match_table);
 static int axmclk_probe(struct platform_device *pdev)
 {
 	void __iomem *base;
-	struct resource *res;
 	int i, ret;
 	struct device *dev = &pdev->dev;
 	struct regmap *regmap;
 	size_t num_clks;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
@@ -569,18 +567,11 @@ static int axmclk_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	return of_clk_add_hw_provider(dev->of_node, of_clk_axmclk_get, NULL);
-}
-
-static int axmclk_remove(struct platform_device *pdev)
-{
-	of_clk_del_provider(pdev->dev.of_node);
-	return 0;
+	return devm_of_clk_add_hw_provider(dev, of_clk_axmclk_get, NULL);
 }
 
 static struct platform_driver axmclk_driver = {
 	.probe		= axmclk_probe,
-	.remove		= axmclk_remove,
 	.driver		= {
 		.name	= "clk-axm5516",
 		.of_match_table = axmclk_match_table,

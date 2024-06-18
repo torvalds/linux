@@ -153,131 +153,98 @@ static inline int cx231xx_isoc_vbi_copy(struct cx231xx *dev, struct urb *urb)
 	Vbi buf operations
    ------------------------------------------------------------------*/
 
-static int
-vbi_buffer_setup(struct videobuf_queue *vq, unsigned int *count,
-		 unsigned int *size)
+static int vbi_queue_setup(struct vb2_queue *vq,
+			   unsigned int *nbuffers, unsigned int *nplanes,
+			   unsigned int sizes[], struct device *alloc_devs[])
 {
-	struct cx231xx_fh *fh = vq->priv_data;
-	struct cx231xx *dev = fh->dev;
+	struct cx231xx *dev = vb2_get_drv_priv(vq);
 	u32 height = 0;
 
 	height = ((dev->norm & V4L2_STD_625_50) ?
 		  PAL_VBI_LINES : NTSC_VBI_LINES);
 
-	*size = (dev->width * height * 2 * 2);
-	if (0 == *count)
-		*count = CX231XX_DEF_VBI_BUF;
-
-	if (*count < CX231XX_MIN_BUF)
-		*count = CX231XX_MIN_BUF;
-
+	*nplanes = 1;
+	sizes[0] = (dev->width * height * 2 * 2);
 	return 0;
 }
 
 /* This is called *without* dev->slock held; please keep it that way */
-static void free_buffer(struct videobuf_queue *vq, struct cx231xx_buffer *buf)
+static int vbi_buf_prepare(struct vb2_buffer *vb)
 {
-	struct cx231xx_fh *fh = vq->priv_data;
-	struct cx231xx *dev = fh->dev;
-	unsigned long flags = 0;
-	BUG_ON(in_interrupt());
-
-	/* We used to wait for the buffer to finish here, but this didn't work
-	   because, as we were keeping the state as VIDEOBUF_QUEUED,
-	   videobuf_queue_cancel marked it as finished for us.
-	   (Also, it could wedge forever if the hardware was misconfigured.)
-
-	   This should be safe; by the time we get here, the buffer isn't
-	   queued anymore. If we ever start marking the buffers as
-	   VIDEOBUF_ACTIVE, it won't be, though.
-	 */
-	spin_lock_irqsave(&dev->vbi_mode.slock, flags);
-	if (dev->vbi_mode.bulk_ctl.buf == buf)
-		dev->vbi_mode.bulk_ctl.buf = NULL;
-	spin_unlock_irqrestore(&dev->vbi_mode.slock, flags);
-
-	videobuf_vmalloc_free(&buf->vb);
-	buf->vb.state = VIDEOBUF_NEEDS_INIT;
-}
-
-static int
-vbi_buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
-		   enum v4l2_field field)
-{
-	struct cx231xx_fh *fh = vq->priv_data;
-	struct cx231xx_buffer *buf =
-	    container_of(vb, struct cx231xx_buffer, vb);
-	struct cx231xx *dev = fh->dev;
-	int rc = 0, urb_init = 0;
+	struct cx231xx *dev = vb2_get_drv_priv(vb->vb2_queue);
 	u32 height = 0;
+	u32 size;
 
 	height = ((dev->norm & V4L2_STD_625_50) ?
 		  PAL_VBI_LINES : NTSC_VBI_LINES);
-	buf->vb.size = ((dev->width << 1) * height * 2);
+	size = ((dev->width << 1) * height * 2);
 
-	if (0 != buf->vb.baddr && buf->vb.bsize < buf->vb.size)
+	if (vb2_plane_size(vb, 0) < size)
 		return -EINVAL;
-
-	buf->vb.width = dev->width;
-	buf->vb.height = height;
-	buf->vb.field = field;
-	buf->vb.field = V4L2_FIELD_SEQ_TB;
-
-	if (VIDEOBUF_NEEDS_INIT == buf->vb.state) {
-		rc = videobuf_iolock(vq, &buf->vb, NULL);
-		if (rc < 0)
-			goto fail;
-	}
-
-	if (!dev->vbi_mode.bulk_ctl.num_bufs)
-		urb_init = 1;
-
-	if (urb_init) {
-		rc = cx231xx_init_vbi_isoc(dev, CX231XX_NUM_VBI_PACKETS,
-					   CX231XX_NUM_VBI_BUFS,
-					   dev->vbi_mode.alt_max_pkt_size[0],
-					   cx231xx_isoc_vbi_copy);
-		if (rc < 0)
-			goto fail;
-	}
-
-	buf->vb.state = VIDEOBUF_PREPARED;
+	vb2_set_plane_payload(vb, 0, size);
 	return 0;
-
-fail:
-	free_buffer(vq, buf);
-	return rc;
 }
 
-static void
-vbi_buffer_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
+static void vbi_buf_queue(struct vb2_buffer *vb)
 {
+	struct cx231xx *dev = vb2_get_drv_priv(vb->vb2_queue);
 	struct cx231xx_buffer *buf =
-	    container_of(vb, struct cx231xx_buffer, vb);
-	struct cx231xx_fh *fh = vq->priv_data;
-	struct cx231xx *dev = fh->dev;
+	    container_of(vb, struct cx231xx_buffer, vb.vb2_buf);
 	struct cx231xx_dmaqueue *vidq = &dev->vbi_mode.vidq;
+	unsigned long flags;
 
-	buf->vb.state = VIDEOBUF_QUEUED;
-	list_add_tail(&buf->vb.queue, &vidq->active);
-
+	spin_lock_irqsave(&dev->vbi_mode.slock, flags);
+	list_add_tail(&buf->list, &vidq->active);
+	spin_unlock_irqrestore(&dev->vbi_mode.slock, flags);
 }
 
-static void vbi_buffer_release(struct videobuf_queue *vq,
-			       struct videobuf_buffer *vb)
+static void return_all_buffers(struct cx231xx *dev,
+			       enum vb2_buffer_state state)
 {
-	struct cx231xx_buffer *buf =
-	    container_of(vb, struct cx231xx_buffer, vb);
+	struct cx231xx_dmaqueue *vidq = &dev->vbi_mode.vidq;
+	struct cx231xx_buffer *buf, *node;
+	unsigned long flags;
 
-
-	free_buffer(vq, buf);
+	spin_lock_irqsave(&dev->vbi_mode.slock, flags);
+	dev->vbi_mode.bulk_ctl.buf = NULL;
+	list_for_each_entry_safe(buf, node, &vidq->active, list) {
+		list_del(&buf->list);
+		vb2_buffer_done(&buf->vb.vb2_buf, state);
+	}
+	spin_unlock_irqrestore(&dev->vbi_mode.slock, flags);
 }
 
-const struct videobuf_queue_ops cx231xx_vbi_qops = {
-	.buf_setup   = vbi_buffer_setup,
-	.buf_prepare = vbi_buffer_prepare,
-	.buf_queue   = vbi_buffer_queue,
-	.buf_release = vbi_buffer_release,
+static int vbi_start_streaming(struct vb2_queue *vq, unsigned int count)
+{
+	struct cx231xx *dev = vb2_get_drv_priv(vq);
+	struct cx231xx_dmaqueue *vidq = &dev->vbi_mode.vidq;
+	int ret;
+
+	vidq->sequence = 0;
+	ret = cx231xx_init_vbi_isoc(dev, CX231XX_NUM_VBI_PACKETS,
+				    CX231XX_NUM_VBI_BUFS,
+				    dev->vbi_mode.alt_max_pkt_size[0],
+				    cx231xx_isoc_vbi_copy);
+	if (ret)
+		return_all_buffers(dev, VB2_BUF_STATE_QUEUED);
+	return ret;
+}
+
+static void vbi_stop_streaming(struct vb2_queue *vq)
+{
+	struct cx231xx *dev = vb2_get_drv_priv(vq);
+
+	return_all_buffers(dev, VB2_BUF_STATE_ERROR);
+}
+
+struct vb2_ops cx231xx_vbi_qops = {
+	.queue_setup = vbi_queue_setup,
+	.buf_prepare = vbi_buf_prepare,
+	.buf_queue = vbi_buf_queue,
+	.start_streaming = vbi_start_streaming,
+	.stop_streaming = vbi_stop_streaming,
+	.wait_prepare = vb2_ops_wait_prepare,
+	.wait_finish = vb2_ops_wait_finish,
 };
 
 /* ------------------------------------------------------------------
@@ -441,9 +408,8 @@ int cx231xx_init_vbi_isoc(struct cx231xx *dev, int max_packets,
 		    kzalloc(sb_size, GFP_KERNEL);
 		if (!dev->vbi_mode.bulk_ctl.transfer_buffer[i]) {
 			dev_err(dev->dev,
-				"unable to allocate %i bytes for transfer buffer %i%s\n",
-				sb_size, i,
-				in_interrupt() ? " while in int" : "");
+				"unable to allocate %i bytes for transfer buffer %i\n",
+				sb_size, i);
 			cx231xx_uninit_vbi_isoc(dev);
 			return -ENOMEM;
 		}
@@ -512,16 +478,15 @@ static inline void vbi_buffer_filled(struct cx231xx *dev,
 				     struct cx231xx_buffer *buf)
 {
 	/* Advice that buffer was filled */
-	/* dev_dbg(dev->dev, "[%p/%d] wakeup\n", buf, buf->vb.i); */
+	/* dev_dbg(dev->dev, "[%p/%d] wakeup\n", buf, buf->vb.index); */
 
-	buf->vb.state = VIDEOBUF_DONE;
-	buf->vb.field_count++;
-	buf->vb.ts = ktime_get_ns();
+	buf->vb.sequence = dma_q->sequence++;
+	buf->vb.vb2_buf.timestamp = ktime_get_ns();
 
 	dev->vbi_mode.bulk_ctl.buf = NULL;
 
-	list_del(&buf->vb.queue);
-	wake_up(&buf->vb.done);
+	list_del(&buf->list);
+	vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 }
 
 u32 cx231xx_copy_vbi_line(struct cx231xx *dev, struct cx231xx_dmaqueue *dma_q,
@@ -593,7 +558,7 @@ u32 cx231xx_copy_vbi_line(struct cx231xx *dev, struct cx231xx_dmaqueue *dma_q,
 }
 
 /*
- * video-buf generic routine to get the next available buffer
+ * generic routine to get the next available buffer
  */
 static inline void get_next_vbi_buf(struct cx231xx_dmaqueue *dma_q,
 				    struct cx231xx_buffer **buf)
@@ -611,11 +576,11 @@ static inline void get_next_vbi_buf(struct cx231xx_dmaqueue *dma_q,
 	}
 
 	/* Get the next buffer */
-	*buf = list_entry(dma_q->active.next, struct cx231xx_buffer, vb.queue);
+	*buf = list_entry(dma_q->active.next, struct cx231xx_buffer, list);
 
 	/* Cleans up buffer - Useful for testing for frame/URB loss */
-	outp = videobuf_to_vmalloc(&(*buf)->vb);
-	memset(outp, 0, (*buf)->vb.size);
+	outp = vb2_plane_vaddr(&(*buf)->vb.vb2_buf, 0);
+	memset(outp, 0, vb2_plane_size(&(*buf)->vb.vb2_buf, 0));
 
 	dev->vbi_mode.bulk_ctl.buf = *buf;
 
@@ -656,7 +621,7 @@ int cx231xx_do_vbi_copy(struct cx231xx *dev, struct cx231xx_dmaqueue *dma_q,
 	if (buf == NULL)
 		return -EINVAL;
 
-	p_out_buffer = videobuf_to_vmalloc(&buf->vb);
+	p_out_buffer = vb2_plane_vaddr(&buf->vb.vb2_buf, 0);
 
 	if (dma_q->bytes_left_in_line != _line_size) {
 		current_line_bytes_copied =

@@ -1,0 +1,135 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/leds/leds-lgm.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Intel Lightning Mountain (LGM) SoC LED Serial Shift Output (SSO) Controller driver
+
+maintainers:
+  - Zhu, Yi Xin <Yixin.zhu@intel.com>
+  - Amireddy Mallikarjuna reddy <mallikarjunax.reddy@intel.com>
+
+properties:
+  compatible:
+    const: intel,lgm-ssoled
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 2
+
+  clock-names:
+    items:
+      - const: sso
+      - const: fpid
+
+  gpio-controller: true
+
+  '#gpio-cells':
+    const: 2
+
+  ngpios:
+    minimum: 0
+    maximum: 32
+    description:
+      Number of GPIOs this controller provides.
+
+  intel,sso-update-rate-hz:
+    description:
+      Blink frequency for SOUTs in Hz.
+
+  led-controller:
+    type: object
+    description:
+      This sub-node must contain a sub-node for each leds.
+
+    additionalProperties: false
+
+    properties:
+      '#address-cells':
+        const: 1
+
+      '#size-cells':
+        const: 0
+
+    patternProperties:
+      "^led@[0-2]$":
+        $ref: common.yaml#
+        unevaluatedProperties: false
+
+        properties:
+          reg:
+            description: Index of the LED.
+            minimum: 0
+            maximum: 2
+
+          led-gpios:
+            maxItems: 1
+
+          intel,sso-hw-trigger:
+            type: boolean
+            description: This property indicates Hardware driven/control LED.
+
+          intel,sso-hw-blink:
+            type: boolean
+            description: This property indicates Enable LED blink by Hardware.
+
+          intel,sso-blink-rate-hz:
+            description: LED HW blink frequency.
+
+          retain-state-suspended:
+            type: boolean
+            description: The suspend state of LED can be retained.
+
+          retain-state-shutdown:
+            type: boolean
+            description: Retain the state of the LED on shutdown.
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - "#gpio-cells"
+  - gpio-controller
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/intel,lgm-clk.h>
+    #include <dt-bindings/leds/common.h>
+
+    ssogpio: ssogpio@e0d40000 {
+      compatible = "intel,lgm-ssoled";
+      reg = <0xE0D40000 0x2E4>;
+      gpio-controller;
+      #gpio-cells = <2>;
+      ngpios = <32>;
+      pinctrl-names = "default";
+      pinctrl-0 = <&pinctrl_ledc>;
+      clocks = <&cgu0 LGM_GCLK_LEDC0>, <&afeclk>;
+      clock-names = "sso", "fpid";
+      intel,sso-update-rate-hz = <250000>;
+
+      led-controller {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        led@0 {
+          reg = <0>;
+          function = "gphy";
+          color = <LED_COLOR_ID_GREEN>;
+          led-gpios = <&ssogpio 0 0>;
+        };
+
+        led@2 {
+          reg = <2>;
+          function = LED_FUNCTION_POWER;
+          color = <LED_COLOR_ID_GREEN>;
+          led-gpios = <&ssogpio 23 0>;
+        };
+      };
+    };

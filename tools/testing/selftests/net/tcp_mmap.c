@@ -66,12 +66,17 @@
 #include <poll.h>
 #include <linux/tcp.h>
 #include <assert.h>
+#include <openssl/pem.h>
 
 #ifndef MSG_ZEROCOPY
 #define MSG_ZEROCOPY    0x4000000
 #endif
 
-#define FILE_SZ (1UL << 35)
+#ifndef min
+#define min(a, b)  ((a) < (b) ? (a) : (b))
+#endif
+
+#define FILE_SZ (1ULL << 35)
 static int cfg_family = AF_INET6;
 static socklen_t cfg_alen = sizeof(struct sockaddr_in6);
 static int cfg_port = 8787;
@@ -81,10 +86,14 @@ static int sndbuf; /* Default: autotuning.  Can be set with -w <integer> option 
 static int zflg; /* zero copy option. (MSG_ZEROCOPY for sender, mmap() for receiver */
 static int xflg; /* hash received data (simple xor) (-h option) */
 static int keepflag; /* -k option: receiver shall keep all received file in memory (no munmap() calls) */
+static int integrity; /* -i option: sender and receiver compute sha256 over the data.*/
 
-static int chunk_size  = 512*1024;
+static size_t chunk_size  = 512*1024;
+
+static size_t map_align;
 
 unsigned long htotal;
+unsigned int digest_len;
 
 static inline void prefetch(const void *x)
 {
@@ -118,17 +127,60 @@ void hash_zone(void *zone, unsigned int length)
 	htotal = temp;
 }
 
+#define ALIGN_UP(x, align_to)	(((x) + ((align_to)-1)) & ~((align_to)-1))
+#define ALIGN_PTR_UP(p, ptr_align_to)	((typeof(p))ALIGN_UP((unsigned long)(p), ptr_align_to))
+
+
+static void *mmap_large_buffer(size_t need, size_t *allocated)
+{
+	void *buffer;
+	size_t sz;
+
+	/* Attempt to use huge pages if possible. */
+	sz = ALIGN_UP(need, map_align);
+	buffer = mmap(NULL, sz, PROT_READ | PROT_WRITE,
+		      MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);
+
+	if (buffer == (void *)-1) {
+		sz = need;
+		buffer = mmap(NULL, sz, PROT_READ | PROT_WRITE,
+			      MAP_PRIVATE | MAP_ANONYMOUS | MAP_POPULATE,
+			      -1, 0);
+		if (buffer != (void *)-1)
+			fprintf(stderr, "MAP_HUGETLB attempt failed, look at /sys/kernel/mm/hugepages for optimal performance\n");
+	}
+	*allocated = sz;
+	return buffer;
+}
+
+static uint32_t tcp_info_get_rcv_mss(int fd)
+{
+	socklen_t sz = sizeof(struct tcp_info);
+	struct tcp_info info;
+
+	if (getsockopt(fd, IPPROTO_TCP, TCP_INFO, &info, &sz)) {
+		fprintf(stderr, "Error fetching TCP_INFO\n");
+		return 0;
+	}
+
+	return info.tcpi_rcv_mss;
+}
+
 void *child_thread(void *arg)
 {
+	unsigned char digest[SHA256_DIGEST_LENGTH];
 	unsigned long total_mmap = 0, total = 0;
 	struct tcp_zerocopy_receive zc;
+	unsigned char *buffer = NULL;
 	unsigned long delta_usec;
+	EVP_MD_CTX *ctx = NULL;
 	int flags = MAP_SHARED;
 	struct timeval t0, t1;
-	char *buffer = NULL;
+	void *raddr = NULL;
 	void *addr = NULL;
 	double throughput;
 	struct rusage ru;
+	size_t buffer_sz;
 	int lu, fd;
 
 	fd = (int)(unsigned long)arg;
@@ -136,15 +188,27 @@ void *child_thread(void *arg)
 	gettimeofday(&t0, NULL);
 
 	fcntl(fd, F_SETFL, O_NDELAY);
-	buffer = malloc(chunk_size);
-	if (!buffer) {
-		perror("malloc");
+	buffer = mmap_large_buffer(chunk_size, &buffer_sz);
+	if (buffer == (void *)-1) {
+		perror("mmap");
 		goto error;
 	}
 	if (zflg) {
-		addr = mmap(NULL, chunk_size, PROT_READ, flags, fd, 0);
-		if (addr == (void *)-1)
+		raddr = mmap(NULL, chunk_size + map_align, PROT_READ, flags, fd, 0);
+		if (raddr == (void *)-1) {
+			perror("mmap");
 			zflg = 0;
+		} else {
+			addr = ALIGN_PTR_UP(raddr, map_align);
+		}
+	}
+	if (integrity) {
+		ctx = EVP_MD_CTX_new();
+		if (!ctx) {
+			perror("cannot enable SHA computing");
+			goto error;
+		}
+		EVP_DigestInit_ex(ctx, EVP_sha256(), NULL);
 	}
 	while (1) {
 		struct pollfd pfd = { .fd = fd, .events = POLLIN, };
@@ -155,9 +219,10 @@ void *child_thread(void *arg)
 			socklen_t zc_len = sizeof(zc);
 			int res;
 
-			zc.address = (__u64)addr;
-			zc.length = chunk_size;
-			zc.recv_skip_hint = 0;
+			memset(&zc, 0, sizeof(zc));
+			zc.address = (__u64)((unsigned long)addr);
+			zc.length = min(chunk_size, FILE_SZ - total);
+
 			res = getsockopt(fd, IPPROTO_TCP, TCP_ZEROCOPY_RECEIVE,
 					 &zc, &zc_len);
 			if (res == -1)
@@ -165,29 +230,43 @@ void *child_thread(void *arg)
 
 			if (zc.length) {
 				assert(zc.length <= chunk_size);
+				if (integrity)
+					EVP_DigestUpdate(ctx, addr, zc.length);
 				total_mmap += zc.length;
 				if (xflg)
 					hash_zone(addr, zc.length);
+				/* It is more efficient to unmap the pages right now,
+				 * instead of doing this in next TCP_ZEROCOPY_RECEIVE.
+				 */
+				madvise(addr, zc.length, MADV_DONTNEED);
 				total += zc.length;
 			}
 			if (zc.recv_skip_hint) {
 				assert(zc.recv_skip_hint <= chunk_size);
-				lu = read(fd, buffer, zc.recv_skip_hint);
+				lu = read(fd, buffer, min(zc.recv_skip_hint,
+							  FILE_SZ - total));
 				if (lu > 0) {
+					if (integrity)
+						EVP_DigestUpdate(ctx, buffer, lu);
 					if (xflg)
 						hash_zone(buffer, lu);
 					total += lu;
 				}
+				if (lu == 0)
+					goto end;
 			}
 			continue;
 		}
 		sub = 0;
 		while (sub < chunk_size) {
-			lu = read(fd, buffer + sub, chunk_size - sub);
+			lu = read(fd, buffer + sub, min(chunk_size - sub,
+							FILE_SZ - total));
 			if (lu == 0)
 				goto end;
 			if (lu < 0)
 				break;
+			if (integrity)
+				EVP_DigestUpdate(ctx, buffer + sub, lu);
 			if (xflg)
 				hash_zone(buffer + sub, lu);
 			total += lu;
@@ -197,6 +276,20 @@ void *child_thread(void *arg)
 end:
 	gettimeofday(&t1, NULL);
 	delta_usec = (t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec;
+
+	if (integrity) {
+		fcntl(fd, F_SETFL, 0);
+		EVP_DigestFinal_ex(ctx, digest, &digest_len);
+		lu = read(fd, buffer, SHA256_DIGEST_LENGTH);
+		if (lu != SHA256_DIGEST_LENGTH)
+			perror("Error: Cannot read SHA256\n");
+
+		if (memcmp(digest, buffer,
+			   SHA256_DIGEST_LENGTH))
+			fprintf(stderr, "Error: SHA256 of the data is not right\n");
+		else
+			printf("\nSHA256 is correct\n");
+	}
 
 	throughput = 0;
 	if (delta_usec)
@@ -208,7 +301,7 @@ end:
 		total_usec = 1000000*ru.ru_utime.tv_sec + ru.ru_utime.tv_usec +
 			     1000000*ru.ru_stime.tv_sec + ru.ru_stime.tv_usec;
 		printf("received %lg MB (%lg %% mmap'ed) in %lg s, %lg Gbit\n"
-		       "  cpu usage user:%lg sys:%lg, %lg usec per MB, %lu c-switches\n",
+		       "  cpu usage user:%lg sys:%lg, %lg usec per MB, %lu c-switches, rcv_mss %u\n",
 				total / (1024.0 * 1024.0),
 				100.0*total_mmap/total,
 				(double)delta_usec / 1000000.0,
@@ -216,13 +309,14 @@ end:
 				(double)ru.ru_utime.tv_sec + (double)ru.ru_utime.tv_usec / 1000000.0,
 				(double)ru.ru_stime.tv_sec + (double)ru.ru_stime.tv_usec / 1000000.0,
 				(double)total_usec/mb,
-				ru.ru_nvcsw);
+				ru.ru_nvcsw,
+				tcp_info_get_rcv_mss(fd));
 	}
 error:
-	free(buffer);
+	munmap(buffer, buffer_sz);
 	close(fd);
 	if (zflg)
-		munmap(addr, chunk_size);
+		munmap(raddr, chunk_size + map_align);
 	pthread_exit(0);
 }
 
@@ -270,8 +364,15 @@ static void setup_sockaddr(int domain, const char *str_addr,
 
 static void do_accept(int fdlisten)
 {
+	pthread_attr_t attr;
+	int rcvlowat;
+
+	pthread_attr_init(&attr);
+	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
+	rcvlowat = chunk_size;
 	if (setsockopt(fdlisten, SOL_SOCKET, SO_RCVLOWAT,
-		       &chunk_size, sizeof(chunk_size)) == -1) {
+		       &rcvlowat, sizeof(rcvlowat)) == -1) {
 		perror("setsockopt SO_RCVLOWAT");
 	}
 
@@ -288,7 +389,7 @@ static void do_accept(int fdlisten)
 			perror("accept");
 			continue;
 		}
-		res = pthread_create(&th, NULL, child_thread,
+		res = pthread_create(&th, &attr, child_thread,
 				     (void *)(unsigned long)fd);
 		if (res) {
 			errno = res;
@@ -298,18 +399,62 @@ static void do_accept(int fdlisten)
 	}
 }
 
+/* Each thread should reserve a big enough vma to avoid
+ * spinlock collisions in ptl locks.
+ * This size is 2MB on x86_64, and is exported in /proc/meminfo.
+ */
+static unsigned long default_huge_page_size(void)
+{
+	FILE *f = fopen("/proc/meminfo", "r");
+	unsigned long hps = 0;
+	size_t linelen = 0;
+	char *line = NULL;
+
+	if (!f)
+		return 0;
+	while (getline(&line, &linelen, f) > 0) {
+		if (sscanf(line, "Hugepagesize:       %lu kB", &hps) == 1) {
+			hps <<= 10;
+			break;
+		}
+	}
+	free(line);
+	fclose(f);
+	return hps;
+}
+
+static void randomize(void *target, size_t count)
+{
+	static int urandom = -1;
+	ssize_t got;
+
+	urandom = open("/dev/urandom", O_RDONLY);
+	if (urandom < 0) {
+		perror("open /dev/urandom");
+		exit(1);
+	}
+	got = read(urandom, target, count);
+	if (got != count) {
+		perror("read /dev/urandom");
+		exit(1);
+	}
+}
+
 int main(int argc, char *argv[])
 {
+	unsigned char digest[SHA256_DIGEST_LENGTH];
 	struct sockaddr_storage listenaddr, addr;
 	unsigned int max_pacing_rate = 0;
-	unsigned long total = 0;
+	EVP_MD_CTX *ctx = NULL;
+	unsigned char *buffer;
+	uint64_t total = 0;
 	char *host = NULL;
 	int fd, c, on = 1;
-	char *buffer;
+	size_t buffer_sz;
 	int sflg = 0;
 	int mss = 0;
 
-	while ((c = getopt(argc, argv, "46p:svr:w:H:zxkP:M:")) != -1) {
+	while ((c = getopt(argc, argv, "46p:svr:w:H:zxkP:M:C:a:i")) != -1) {
 		switch (c) {
 		case '4':
 			cfg_family = PF_INET;
@@ -349,9 +494,26 @@ int main(int argc, char *argv[])
 		case 'P':
 			max_pacing_rate = atoi(optarg) ;
 			break;
+		case 'C':
+			chunk_size = atol(optarg);
+			break;
+		case 'a':
+			map_align = atol(optarg);
+			break;
+		case 'i':
+			integrity = 1;
+			break;
 		default:
 			exit(1);
 		}
+	}
+	if (!map_align) {
+		map_align = default_huge_page_size();
+		/* if really /proc/meminfo is not helping,
+		 * we use the default x86_64 hugepagesize.
+		 */
+		if (!map_align)
+			map_align = 2*1024*1024;
 	}
 	if (sflg) {
 		int fdlisten = socket(cfg_family, SOCK_STREAM, 0);
@@ -381,9 +543,9 @@ int main(int argc, char *argv[])
 		}
 		do_accept(fdlisten);
 	}
-	buffer = mmap(NULL, chunk_size, PROT_READ | PROT_WRITE,
-			      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-	if (buffer == (char *)-1) {
+
+	buffer = mmap_large_buffer(chunk_size, &buffer_sz);
+	if (buffer == (unsigned char *)-1) {
 		perror("mmap");
 		exit(1);
 	}
@@ -416,18 +578,35 @@ int main(int argc, char *argv[])
 		perror("setsockopt SO_ZEROCOPY, (-z option disabled)");
 		zflg = 0;
 	}
+	if (integrity) {
+		randomize(buffer, buffer_sz);
+		ctx = EVP_MD_CTX_new();
+		if (!ctx) {
+			perror("cannot enable SHA computing");
+			exit(1);
+		}
+		EVP_DigestInit_ex(ctx, EVP_sha256(), NULL);
+	}
 	while (total < FILE_SZ) {
-		long wr = FILE_SZ - total;
+		size_t offset = total % chunk_size;
+		int64_t wr = FILE_SZ - total;
 
-		if (wr > chunk_size)
-			wr = chunk_size;
-		/* Note : we just want to fill the pipe with 0 bytes */
-		wr = send(fd, buffer, wr, zflg ? MSG_ZEROCOPY : 0);
+		if (wr > chunk_size - offset)
+			wr = chunk_size - offset;
+		/* Note : we just want to fill the pipe with random bytes */
+		wr = send(fd, buffer + offset,
+			  (size_t)wr, zflg ? MSG_ZEROCOPY : 0);
 		if (wr <= 0)
 			break;
+		if (integrity)
+			EVP_DigestUpdate(ctx, buffer + offset, wr);
 		total += wr;
 	}
+	if (integrity && total == FILE_SZ) {
+		EVP_DigestFinal_ex(ctx, digest, &digest_len);
+		send(fd, digest, (size_t)SHA256_DIGEST_LENGTH, 0);
+	}
 	close(fd);
-	munmap(buffer, chunk_size);
+	munmap(buffer, buffer_sz);
 	return 0;
 }

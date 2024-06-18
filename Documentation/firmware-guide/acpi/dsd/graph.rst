@@ -7,11 +7,11 @@ Graphs
 _DSD
 ====
 
-_DSD (Device Specific Data) [7] is a predefined ACPI device
+_DSD (Device Specific Data) [dsd-guide] is a predefined ACPI device
 configuration object that can be used to convey information on
 hardware features which are not specifically covered by the ACPI
-specification [1][6]. There are two _DSD extensions that are relevant
-for graphs: property [4] and hierarchical data extensions [5]. The
+specification [acpi]. There are two _DSD extensions that are relevant
+for graphs: property [dsd-guide] and hierarchical data extensions. The
 property extension provides generic key-value pairs whereas the
 hierarchical data extension supports nodes with references to other
 nodes, forming a tree. The nodes in the tree may contain properties as
@@ -36,8 +36,9 @@ Ports and endpoints
 ===================
 
 The port and endpoint concepts are very similar to those in Devicetree
-[3]. A port represents an interface in a device, and an endpoint
-represents a connection to that interface.
+[devicetree, graph-bindings]. A port represents an interface in a device, and
+an endpoint represents a connection to that interface. Also see [data-node-ref]
+for generic data node references.
 
 All port nodes are located under the device's "_DSD" node in the hierarchical
 data extension tree. The data extension related to each port node must begin
@@ -153,25 +154,20 @@ the "ISP" device and vice versa.
 References
 ==========
 
-[1] _DSD (Device Specific Data) Implementation Guide.
-    http://www.uefi.org/sites/default/files/resources/_DSD-implementation-guide-toplevel-1_1.htm,
-    referenced 2016-10-03.
+[acpi] Advanced Configuration and Power Interface Specification.
+    https://uefi.org/specifications/ACPI/6.4/, referenced 2021-11-30.
 
-[2] Devicetree. http://www.devicetree.org, referenced 2016-10-03.
+[data-node-ref] Documentation/firmware-guide/acpi/dsd/data-node-references.rst
 
-[3] Documentation/devicetree/bindings/graph.txt
+[devicetree] Devicetree. https://www.devicetree.org, referenced 2016-10-03.
 
-[4] Device Properties UUID For _DSD.
-    http://www.uefi.org/sites/default/files/resources/_DSD-device-properties-UUID.pdf,
-    referenced 2016-10-04.
+[dsd-guide] DSD Guide.
+    https://github.com/UEFI/DSD-Guide/blob/main/dsd-guide.adoc, referenced
+    2021-11-30.
 
-[5] Hierarchical Data Extension UUID For _DSD.
-    http://www.uefi.org/sites/default/files/resources/_DSD-hierarchical-data-extension-UUID-v1.1.pdf,
-    referenced 2016-10-04.
+[dsd-rules] _DSD Device Properties Usage Rules.
+    Documentation/firmware-guide/acpi/DSD-properties-rules.rst
 
-[6] Advanced Configuration and Power Interface Specification.
-    http://www.uefi.org/sites/default/files/resources/ACPI_6_1.pdf,
-    referenced 2016-10-04.
-
-[7] _DSD Device Properties Usage Rules.
-    :doc:`../DSD-properties-rules`
+[graph-bindings] Common bindings for device graphs (Devicetree).
+    https://github.com/devicetree-org/dt-schema/blob/main/schemas/graph.yaml,
+    referenced 2021-11-30.

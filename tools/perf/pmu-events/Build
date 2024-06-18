@@ -1,15 +1,43 @@
-hostprogs := jevents
-
-jevents-y	+= json.o jsmn.o jevents.o
-HOSTCFLAGS_jevents.o	= -I$(srctree)/tools/include
 pmu-events-y	+= pmu-events.o
 JDIR		=  pmu-events/arch/$(SRCARCH)
 JSON		=  $(shell [ -d $(JDIR) ] &&				\
 			find $(JDIR) -name '*.json' -o -name 'mapfile.csv')
+JDIR_TEST	=  pmu-events/arch/test
+JSON_TEST	=  $(shell [ -d $(JDIR_TEST) ] &&			\
+			find $(JDIR_TEST) -name '*.json')
+JEVENTS_PY	=  pmu-events/jevents.py
+METRIC_PY	=  pmu-events/metric.py
+METRIC_TEST_PY	=  pmu-events/metric_test.py
+EMPTY_PMU_EVENTS_C = pmu-events/empty-pmu-events.c
+PMU_EVENTS_C	=  $(OUTPUT)pmu-events/pmu-events.c
+METRIC_TEST_LOG	=  $(OUTPUT)pmu-events/metric_test.log
+
+ifeq ($(JEVENTS_ARCH),)
+JEVENTS_ARCH=$(SRCARCH)
+endif
+JEVENTS_MODEL ?= all
 
 #
 # Locate/process JSON files in pmu-events/arch/
 # directory and create tables in pmu-events.c.
 #
-$(OUTPUT)pmu-events/pmu-events.c: $(JSON) $(JEVENTS)
-	$(Q)$(call echo-cmd,gen)$(JEVENTS) $(SRCARCH) pmu-events/arch $(OUTPUT)pmu-events/pmu-events.c $(V)
+
+ifeq ($(NO_JEVENTS),1)
+$(PMU_EVENTS_C): $(EMPTY_PMU_EVENTS_C)
+	$(call rule_mkdir)
+	$(Q)$(call echo-cmd,gen)cp $< $@
+else
+$(METRIC_TEST_LOG): $(METRIC_TEST_PY) $(METRIC_PY)
+	$(call rule_mkdir)
+	$(Q)$(call echo-cmd,test)$(PYTHON) $< 2> $@ || (cat $@ && false)
+
+$(PMU_EVENTS_C): $(JSON) $(JSON_TEST) $(JEVENTS_PY) $(METRIC_PY) $(METRIC_TEST_LOG)
+	$(call rule_mkdir)
+	$(Q)$(call echo-cmd,gen)$(PYTHON) $(JEVENTS_PY) $(JEVENTS_ARCH) $(JEVENTS_MODEL) pmu-events/arch $@
+endif
+
+# pmu-events.c file is generated in the OUTPUT directory so it needs a
+# separate rule to depend on it properly
+$(OUTPUT)pmu-events/pmu-events.o: $(PMU_EVENTS_C)
+	$(call rule_mkdir)
+	$(call if_changed_dep,cc_o_c)

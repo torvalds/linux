@@ -73,7 +73,7 @@ trans:
 		[sprn_texasr]"i"(SPRN_TEXASR), [tar_1]"i"(TAR_1),
 		[dscr_1]"i"(DSCR_1), [tar_2]"i"(TAR_2), [dscr_2]"i"(DSCR_2),
 		[tar_3]"i"(TAR_3), [dscr_3]"i"(DSCR_3)
-		: "memory", "r0", "r1", "r3", "r4", "r5", "r6"
+		: "memory", "r0", "r3", "r4", "r5", "r6", "lr"
 		);
 
 	/* TM failed, analyse */
@@ -128,7 +128,8 @@ int ptrace_tm_spd_tar(void)
 	pid_t pid;
 	int ret, status;
 
-	SKIP_IF(!have_htm());
+	SKIP_IF_MSG(!have_htm(), "Don't have transactional memory");
+	SKIP_IF_MSG(htm_is_synthetic(), "Transactional memory is synthetic");
 	shm_id = shmget(IPC_PRIVATE, sizeof(int) * 3, 0777|IPC_CREAT);
 	pid = fork();
 	if (pid == 0)

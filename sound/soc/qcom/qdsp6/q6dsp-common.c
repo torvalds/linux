@@ -63,4 +63,41 @@ int q6dsp_map_channels(u8 ch_map[PCM_MAX_NUM_CHANNEL], int ch)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(q6dsp_map_channels);
+
+int q6dsp_get_channel_allocation(int channels)
+{
+	int channel_allocation;
+
+	/* HDMI spec CEA-861-E: Table 28 Audio InfoFrame Data Byte 4 */
+	switch (channels) {
+	case 2:
+		channel_allocation = 0;
+		break;
+	case 3:
+		channel_allocation = 0x02;
+		break;
+	case 4:
+		channel_allocation = 0x06;
+		break;
+	case 5:
+		channel_allocation = 0x0A;
+		break;
+	case 6:
+		channel_allocation = 0x0B;
+		break;
+	case 7:
+		channel_allocation = 0x12;
+		break;
+	case 8:
+		channel_allocation = 0x13;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return channel_allocation;
+}
+EXPORT_SYMBOL_GPL(q6dsp_get_channel_allocation);
+
+MODULE_DESCRIPTION("ASoC MSM QDSP6 helper functions");
 MODULE_LICENSE("GPL v2");

@@ -46,16 +46,17 @@ static DEFINE_SPINLOCK(msi_free_irq_bitmask_lock);
 static int msi_irq_size;
 
 /**
- * Called when a driver request MSI interrupts instead of the
+ * arch_setup_msi_irq() - setup MSI IRQs for a device
+ * @dev:    Device requesting MSI interrupts
+ * @desc:   MSI descriptor
+ *
+ * Called when a driver requests MSI interrupts instead of the
  * legacy INT A-D. This routine will allocate multiple interrupts
  * for MSI devices that support them. A device can override this by
  * programming the MSI control bits [6:4] before calling
  * pci_enable_msi().
  *
- * @dev:    Device requesting MSI interrupts
- * @desc:   MSI descriptor
- *
- * Returns 0 on success.
+ * Return: %0 on success, non-%0 on error.
  */
 int arch_setup_msi_irq(struct pci_dev *dev, struct msi_desc *desc)
 {
@@ -67,6 +68,9 @@ int arch_setup_msi_irq(struct pci_dev *dev, struct msi_desc *desc)
 	int irq_step;
 	u64 search_mask;
 	int index;
+
+	if (desc->pci.msi_attrib.is_msix)
+		return -EINVAL;
 
 	/*
 	 * Read the MSI config to figure out how many IRQs this device
@@ -182,40 +186,12 @@ msi_irq_allocated:
 	return 0;
 }
 
-int arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
-{
-	struct msi_desc *entry;
-	int ret;
-
-	/*
-	 * MSI-X is not supported.
-	 */
-	if (type == PCI_CAP_ID_MSIX)
-		return -EINVAL;
-
-	/*
-	 * If an architecture wants to support multiple MSI, it needs to
-	 * override arch_setup_msi_irqs()
-	 */
-	if (type == PCI_CAP_ID_MSI && nvec > 1)
-		return 1;
-
-	for_each_pci_msi_entry(entry, dev) {
-		ret = arch_setup_msi_irq(dev, entry);
-		if (ret < 0)
-			return ret;
-		if (ret > 0)
-			return -ENOSPC;
-	}
-
-	return 0;
-}
-
 /**
+ * arch_teardown_msi_irq() - release MSI IRQs for a device
+ * @irq:    The devices first irq number. There may be multiple in sequence.
+ *
  * Called when a device no longer needs its MSI interrupts. All
  * MSI interrupts for the device are freed.
- *
- * @irq:    The devices first irq number. There may be multple in sequence.
  */
 void arch_teardown_msi_irq(unsigned int irq)
 {

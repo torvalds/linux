@@ -2,6 +2,8 @@
 /*
  * Copyright 2012-2013, Marco Porsch <marco.porsch@s2005.tu-chemnitz.de>
  * Copyright 2012-2013, cozybit Inc.
+ * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2023 Intel Corporation
  */
 
 #include "mesh.h"
@@ -12,6 +14,9 @@
 
 /**
  * mps_qos_null_get - create pre-addressed QoS Null frame for mesh powersave
+ * @sta: the station to get the frame for
+ *
+ * Returns: A newly allocated SKB
  */
 static struct sk_buff *mps_qos_null_get(struct sta_info *sta)
 {
@@ -44,6 +49,7 @@ static struct sk_buff *mps_qos_null_get(struct sta_info *sta)
 
 /**
  * mps_qos_null_tx - send a QoS Null to indicate link-specific power mode
+ * @sta: the station to send to
  */
 static void mps_qos_null_tx(struct sta_info *sta)
 {
@@ -73,15 +79,17 @@ static void mps_qos_null_tx(struct sta_info *sta)
  *
  * sets the non-peer power mode and triggers the driver PS (re-)configuration
  * Return BSS_CHANGED_BEACON if a beacon update is necessary.
+ *
+ * Returns: BSS_CHANGED_BEACON if a beacon update is in order.
  */
-u32 ieee80211_mps_local_status_update(struct ieee80211_sub_if_data *sdata)
+u64 ieee80211_mps_local_status_update(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct sta_info *sta;
 	bool peering = false;
 	int light_sleep_cnt = 0;
 	int deep_sleep_cnt = 0;
-	u32 changed = 0;
+	u64 changed = 0;
 	enum nl80211_mesh_power_mode nonpeer_pm;
 
 	rcu_read_lock();
@@ -143,9 +151,9 @@ u32 ieee80211_mps_local_status_update(struct ieee80211_sub_if_data *sdata)
  *
  * @sta: mesh STA
  * @pm: the power mode to set
- * Return BSS_CHANGED_BEACON if a beacon update is in order.
+ * Returns: BSS_CHANGED_BEACON if a beacon update is in order.
  */
-u32 ieee80211_mps_set_sta_local_pm(struct sta_info *sta,
+u64 ieee80211_mps_set_sta_local_pm(struct sta_info *sta,
 				   enum nl80211_mesh_power_mode pm)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
@@ -400,6 +408,8 @@ static void mpsp_trigger_send(struct sta_info *sta, bool rspi, bool eosp)
 
 /**
  * mpsp_qos_null_append - append QoS Null frame to MPSP skb queue if needed
+ * @sta: the station to handle
+ * @frames: the frame list to append to
  *
  * To properly end a mesh MPSP the last transmitted frame has to set the EOSP
  * flag in the QoS Control field. In case the current tailing frame is not a
@@ -432,7 +442,7 @@ static void mpsp_qos_null_append(struct sta_info *sta,
 
 	info = IEEE80211_SKB_CB(new_skb);
 	info->control.vif = &sdata->vif;
-	info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
+	info->control.flags |= IEEE80211_TX_INTCFL_NEED_TXPROCESSING;
 
 	__skb_queue_tail(frames, new_skb);
 }
@@ -584,7 +594,7 @@ void ieee80211_mps_frame_release(struct sta_info *sta,
 
 	/* only transmit to PS STA with announced, non-zero awake window */
 	if (test_sta_flag(sta, WLAN_STA_PS_STA) &&
-	    (!elems->awake_window || !le16_to_cpu(*elems->awake_window)))
+	    (!elems->awake_window || !get_unaligned_le16(elems->awake_window)))
 		return;
 
 	if (!test_sta_flag(sta, WLAN_STA_MPSP_OWNER))

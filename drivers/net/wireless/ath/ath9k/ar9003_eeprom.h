@@ -82,16 +82,16 @@
 /* AR5416_EEPMISC_BIG_ENDIAN not set indicates little endian */
 #define AR9300_EEPMISC_LITTLE_ENDIAN 0
 
-#define AR9300_OTP_BASE \
-		((AR_SREV_9340(ah) || AR_SREV_9550(ah)) ? 0x30000 : 0x14000)
-#define AR9300_OTP_STATUS \
-		((AR_SREV_9340(ah) || AR_SREV_9550(ah)) ? 0x31018 : 0x15f18)
+#define AR9300_OTP_BASE(_ah) \
+		((AR_SREV_9340(_ah) || AR_SREV_9550(_ah)) ? 0x30000 : 0x14000)
+#define AR9300_OTP_STATUS(_ah) \
+		((AR_SREV_9340(_ah) || AR_SREV_9550(_ah)) ? 0x31018 : 0x15f18)
 #define AR9300_OTP_STATUS_TYPE		0x7
 #define AR9300_OTP_STATUS_VALID		0x4
 #define AR9300_OTP_STATUS_ACCESS_BUSY	0x2
 #define AR9300_OTP_STATUS_SM_BUSY	0x1
-#define AR9300_OTP_READ_DATA \
-		((AR_SREV_9340(ah) || AR_SREV_9550(ah)) ? 0x3101c : 0x15f1c)
+#define AR9300_OTP_READ_DATA(_ah) \
+		((AR_SREV_9340(_ah) || AR_SREV_9550(_ah)) ? 0x3101c : 0x15f1c)
 
 enum targetPowerHTRates {
 	HT_TARGET_RATE_0_8_16,
@@ -363,6 +363,8 @@ u32 ar9003_hw_ant_ctrl_common_2_get(struct ath_hw *ah, bool is2ghz);
 
 u8 *ar9003_get_spur_chan_ptr(struct ath_hw *ah, bool is_2ghz);
 
+u32 ar9003_get_paprd_rate_mask_ht20(struct ath_hw *ah, bool is2ghz);
+u32 ar9003_get_paprd_rate_mask_ht40(struct ath_hw *ah, bool is2ghz);
 unsigned int ar9003_get_paprd_scale_factor(struct ath_hw *ah,
 					   struct ath9k_channel *chan);
 

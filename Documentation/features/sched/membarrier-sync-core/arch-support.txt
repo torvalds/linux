@@ -5,10 +5,26 @@
 #
 # Architecture requirements
 #
-# * arm/arm64
+# * arm/arm64/powerpc/s390
 #
 # Rely on implicit context synchronization as a result of exception return
 # when returning from IPI handler, and when returning to user-space.
+#
+# * riscv
+#
+# riscv uses xRET as return from interrupt and to return to user-space.
+#
+# Given that xRET is not core serializing, we rely on FENCE.I for providing
+# core serialization:
+#
+#  - by calling sync_core_before_usermode() on return from interrupt (cf.
+#    ipi_sync_core()),
+#
+#  - via switch_mm() and sync_core_before_usermode() (respectively, for
+#    uthread->uthread and kthread->uthread transitions) before returning
+#    to user-space.
+#
+#  The serialization in switch_mm() is activated by prepare_sync_core_cmd().
 #
 # * x86
 #
@@ -33,25 +49,21 @@
     |         arc: | TODO |
     |         arm: |  ok  |
     |       arm64: |  ok  |
-    |         c6x: | TODO |
     |        csky: | TODO |
-    |       h8300: | TODO |
     |     hexagon: | TODO |
-    |        ia64: | TODO |
+    |   loongarch: | TODO |
     |        m68k: | TODO |
     |  microblaze: | TODO |
     |        mips: | TODO |
-    |       nds32: | TODO |
     |       nios2: | TODO |
     |    openrisc: | TODO |
     |      parisc: | TODO |
-    |     powerpc: | TODO |
-    |       riscv: | TODO |
-    |        s390: | TODO |
+    |     powerpc: |  ok  |
+    |       riscv: |  ok  |
+    |        s390: |  ok  |
     |          sh: | TODO |
     |       sparc: | TODO |
     |          um: | TODO |
-    |   unicore32: | TODO |
     |         x86: |  ok  |
     |      xtensa: | TODO |
     -----------------------

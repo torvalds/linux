@@ -9,9 +9,6 @@ ISDN
 
    interface_capi
 
-   avmb1
-   gigaset
-   hysdn
    m_isdn
 
    credits

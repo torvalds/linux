@@ -21,6 +21,9 @@
 #include <linux/export.h>
 
 #include <asm/atariints.h>
+#include <asm/machdep.h>
+
+#include "atari.h"
 
 DEFINE_SPINLOCK(rtc_lock);
 EXPORT_SYMBOL_GPL(rtc_lock);
@@ -40,7 +43,6 @@ static u8 last_timer_count;
 
 static irqreturn_t mfp_timer_c_handler(int irq, void *dev_id)
 {
-	irq_handler_t timer_routine = dev_id;
 	unsigned long flags;
 
 	local_irq_save(flags);
@@ -48,14 +50,15 @@ static irqreturn_t mfp_timer_c_handler(int irq, void *dev_id)
 		last_timer_count = st_mfp.tim_dt_c;
 	} while (last_timer_count == 1);
 	clk_total += INT_TICKS;
-	timer_routine(0, NULL);
+	legacy_timer_tick(1);
+	timer_heartbeat();
 	local_irq_restore(flags);
 
 	return IRQ_HANDLED;
 }
 
 void __init
-atari_sched_init(irq_handler_t timer_routine)
+atari_sched_init(void)
 {
     /* set Timer C data Register */
     st_mfp.tim_dt_c = INT_TICKS;
@@ -63,7 +66,7 @@ atari_sched_init(irq_handler_t timer_routine)
     st_mfp.tim_ct_cd = (st_mfp.tim_ct_cd & 15) | 0x60;
     /* install interrupt service routine for MFP Timer C */
     if (request_irq(IRQ_MFP_TIMC, mfp_timer_c_handler, IRQF_TIMER, "timer",
-                    timer_routine))
+                    NULL))
 	pr_err("Couldn't register timer interrupt\n");
 
     clocksource_register_hz(&atari_clk, INT_CLK);
@@ -316,10 +319,3 @@ int atari_tt_hwclk( int op, struct rtc_time *t )
 
     return( 0 );
 }
-
-/*
- * Local variables:
- *  c-indent-level: 4
- *  tab-width: 8
- * End:
- */

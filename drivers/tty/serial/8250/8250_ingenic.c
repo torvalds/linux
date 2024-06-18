@@ -13,7 +13,6 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
 #include <linux/serial_core.h>
@@ -52,9 +51,9 @@ static void early_out(struct uart_port *port, int offset, uint8_t value)
 	writel(value, port->membase + (offset << 2));
 }
 
-static void ingenic_early_console_putc(struct uart_port *port, int c)
+static void ingenic_early_console_putc(struct uart_port *port, unsigned char c)
 {
-	uint8_t lsr;
+	u16 lsr;
 
 	do {
 		lsr = early_in(port, UART_LSR);
@@ -87,7 +86,7 @@ static void __init ingenic_early_console_setup_clock(struct earlycon_device *dev
 	dev->port.uartclk = be32_to_cpup(prop);
 }
 
-static int __init ingenic_early_console_setup(struct earlycon_device *dev,
+static int __init ingenic_earlycon_setup_tail(struct earlycon_device *dev,
 					      const char *opt)
 {
 	struct uart_port *port = &dev->port;
@@ -102,8 +101,6 @@ static int __init ingenic_early_console_setup(struct earlycon_device *dev,
 
 		uart_parse_options(opt, &baud, &parity, &bits, &flow);
 	}
-
-	ingenic_early_console_setup_clock(dev);
 
 	if (dev->baud)
 		baud = dev->baud;
@@ -129,8 +126,35 @@ static int __init ingenic_early_console_setup(struct earlycon_device *dev,
 	return 0;
 }
 
+static int __init ingenic_early_console_setup(struct earlycon_device *dev,
+					      const char *opt)
+{
+	ingenic_early_console_setup_clock(dev);
+
+	return ingenic_earlycon_setup_tail(dev, opt);
+}
+
+static int __init jz4750_early_console_setup(struct earlycon_device *dev,
+					     const char *opt)
+{
+	/*
+	 * JZ4750/55/60 have an optional /2 divider between the EXT
+	 * oscillator and some peripherals including UART, which will
+	 * be enabled if using a 24 MHz oscillator, and disabled when
+	 * using a 12 MHz oscillator.
+	 */
+	ingenic_early_console_setup_clock(dev);
+	if (dev->port.uartclk >= 16000000)
+		dev->port.uartclk /= 2;
+
+	return ingenic_earlycon_setup_tail(dev, opt);
+}
+
 OF_EARLYCON_DECLARE(jz4740_uart, "ingenic,jz4740-uart",
 		    ingenic_early_console_setup);
+
+OF_EARLYCON_DECLARE(jz4750_uart, "ingenic,jz4750-uart",
+		    jz4750_early_console_setup);
 
 OF_EARLYCON_DECLARE(jz4770_uart, "ingenic,jz4770-uart",
 		    ingenic_early_console_setup);
@@ -207,22 +231,20 @@ static unsigned int ingenic_uart_serial_in(struct uart_port *p, int offset)
 static int ingenic_uart_probe(struct platform_device *pdev)
 {
 	struct uart_8250_port uart = {};
-	struct resource *regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	struct resource *irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	struct ingenic_uart_data *data;
 	const struct ingenic_uart_config *cdata;
-	const struct of_device_id *match;
-	int err, line;
+	struct resource *regs;
+	int err;
 
-	match = of_match_device(of_match, &pdev->dev);
-	if (!match) {
+	cdata = of_device_get_match_data(&pdev->dev);
+	if (!cdata) {
 		dev_err(&pdev->dev, "Error: No device match found\n");
 		return -ENODEV;
 	}
-	cdata = match->data;
 
-	if (!regs || !irq) {
-		dev_err(&pdev->dev, "no registers/irq defined\n");
+	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!regs) {
+		dev_err(&pdev->dev, "no registers defined\n");
 		return -EINVAL;
 	}
 
@@ -233,21 +255,19 @@ static int ingenic_uart_probe(struct platform_device *pdev)
 	spin_lock_init(&uart.port.lock);
 	uart.port.type = PORT_16550A;
 	uart.port.flags = UPF_SKIP_TEST | UPF_IOREMAP | UPF_FIXED_TYPE;
-	uart.port.iotype = UPIO_MEM;
 	uart.port.mapbase = regs->start;
-	uart.port.regshift = 2;
 	uart.port.serial_out = ingenic_uart_serial_out;
 	uart.port.serial_in = ingenic_uart_serial_in;
-	uart.port.irq = irq->start;
 	uart.port.dev = &pdev->dev;
-	uart.port.fifosize = cdata->fifosize;
 	uart.tx_loadsz = cdata->tx_loadsz;
 	uart.capabilities = UART_CAP_FIFO | UART_CAP_RTOIE;
 
-	/* Check for a fixed line number */
-	line = of_alias_get_id(pdev->dev.of_node, "serial");
-	if (line >= 0)
-		uart.port.line = line;
+	err = uart_read_port_properties(&uart.port);
+	if (err)
+		return err;
+
+	uart.port.regshift = 2;
+	uart.port.fifosize = cdata->fifosize;
 
 	uart.port.membase = devm_ioremap(&pdev->dev, regs->start,
 					 resource_size(regs));
@@ -255,22 +275,14 @@ static int ingenic_uart_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	data->clk_module = devm_clk_get(&pdev->dev, "module");
-	if (IS_ERR(data->clk_module)) {
-		err = PTR_ERR(data->clk_module);
-		if (err != -EPROBE_DEFER)
-			dev_err(&pdev->dev,
-				"unable to get module clock: %d\n", err);
-		return err;
-	}
+	if (IS_ERR(data->clk_module))
+		return dev_err_probe(&pdev->dev, PTR_ERR(data->clk_module),
+				     "unable to get module clock\n");
 
 	data->clk_baud = devm_clk_get(&pdev->dev, "baud");
-	if (IS_ERR(data->clk_baud)) {
-		err = PTR_ERR(data->clk_baud);
-		if (err != -EPROBE_DEFER)
-			dev_err(&pdev->dev,
-				"unable to get baud clock: %d\n", err);
-		return err;
-	}
+	if (IS_ERR(data->clk_baud))
+		return dev_err_probe(&pdev->dev, PTR_ERR(data->clk_baud),
+				     "unable to get baud clock\n");
 
 	err = clk_prepare_enable(data->clk_module);
 	if (err) {
@@ -302,14 +314,13 @@ out:
 	return err;
 }
 
-static int ingenic_uart_remove(struct platform_device *pdev)
+static void ingenic_uart_remove(struct platform_device *pdev)
 {
 	struct ingenic_uart_data *data = platform_get_drvdata(pdev);
 
 	serial8250_unregister_port(data->line);
 	clk_disable_unprepare(data->clk_module);
 	clk_disable_unprepare(data->clk_baud);
-	return 0;
 }
 
 static const struct ingenic_uart_config jz4740_uart_config = {
@@ -334,6 +345,7 @@ static const struct ingenic_uart_config x1000_uart_config = {
 
 static const struct of_device_id of_match[] = {
 	{ .compatible = "ingenic,jz4740-uart", .data = &jz4740_uart_config },
+	{ .compatible = "ingenic,jz4750-uart", .data = &jz4760_uart_config },
 	{ .compatible = "ingenic,jz4760-uart", .data = &jz4760_uart_config },
 	{ .compatible = "ingenic,jz4770-uart", .data = &jz4760_uart_config },
 	{ .compatible = "ingenic,jz4775-uart", .data = &jz4760_uart_config },
@@ -349,7 +361,7 @@ static struct platform_driver ingenic_uart_platform_driver = {
 		.of_match_table	= of_match,
 	},
 	.probe			= ingenic_uart_probe,
-	.remove			= ingenic_uart_remove,
+	.remove_new		= ingenic_uart_remove,
 };
 
 module_platform_driver(ingenic_uart_platform_driver);

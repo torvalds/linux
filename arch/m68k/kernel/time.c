@@ -35,18 +35,9 @@
 unsigned long (*mach_random_get_entropy)(void);
 EXPORT_SYMBOL_GPL(mach_random_get_entropy);
 
-
-/*
- * timer_interrupt() needs to keep up the real-time clock,
- * as well as call the "xtime_update()" routine every clocktick
- */
-static irqreturn_t timer_interrupt(int irq, void *dummy)
-{
-	xtime_update(1);
-	update_process_times(user_mode(get_irq_regs()));
-	profile_tick(CPU_PROFILING);
-
 #ifdef CONFIG_HEARTBEAT
+void timer_heartbeat(void)
+{
 	/* use power LED as a heartbeat instead -- much more useful
 	   for debugging -- based on the version for PReP by Cort */
 	/* acts like an actual heart beat -- ie thump-thump-pause... */
@@ -68,11 +59,19 @@ static irqreturn_t timer_interrupt(int irq, void *dummy)
 		dist = period / 4;
 	    }
 	}
-#endif /* CONFIG_HEARTBEAT */
-	return IRQ_HANDLED;
 }
+#endif /* CONFIG_HEARTBEAT */
 
 #ifdef CONFIG_M68KCLASSIC
+/* machine dependent timer functions */
+int (*mach_hwclk) (int, struct rtc_time*);
+EXPORT_SYMBOL(mach_hwclk);
+
+int (*mach_get_rtc_pll)(struct rtc_pll_info *);
+int (*mach_set_rtc_pll)(struct rtc_pll_info *);
+EXPORT_SYMBOL(mach_get_rtc_pll);
+EXPORT_SYMBOL(mach_set_rtc_pll);
+
 #if !IS_BUILTIN(CONFIG_RTC_DRV_GENERIC)
 void read_persistent_clock64(struct timespec64 *ts)
 {
@@ -154,5 +153,5 @@ module_init(rtc_init);
 
 void __init time_init(void)
 {
-	mach_sched_init(timer_interrupt);
+	mach_sched_init();
 }

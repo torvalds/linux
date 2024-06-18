@@ -1,0 +1,169 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/soc/imx/fsl,imx8mp-media-blk-ctrl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP i.MX8MP Media Block Control
+
+maintainers:
+  - Paul Elder <paul.elder@ideasonboard.com>
+
+description:
+  The i.MX8MP Media Block Control (MEDIA BLK_CTRL) is a top-level peripheral
+  providing access to the NoC and ensuring proper power sequencing of the
+  peripherals within the MEDIAMIX domain.
+
+properties:
+  compatible:
+    items:
+      - const: fsl,imx8mp-media-blk-ctrl
+      - const: syscon
+
+  reg:
+    maxItems: 1
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 1
+
+  '#power-domain-cells':
+    const: 1
+
+  power-domains:
+    maxItems: 10
+
+  power-domain-names:
+    items:
+      - const: bus
+      - const: mipi-dsi1
+      - const: mipi-csi1
+      - const: lcdif1
+      - const: isi
+      - const: mipi-csi2
+      - const: lcdif2
+      - const: isp
+      - const: dwe
+      - const: mipi-dsi2
+
+  clocks:
+    items:
+      - description: The APB clock
+      - description: The AXI clock
+      - description: The pixel clock for the first CSI2 receiver (aclk)
+      - description: The pixel clock for the second CSI2 receiver (aclk)
+      - description: The pixel clock for the first LCDIF (pix_clk)
+      - description: The pixel clock for the second LCDIF (pix_clk)
+      - description: The core clock for the ISP (clk)
+      - description: The MIPI-PHY reference clock used by DSI
+
+  clock-names:
+    items:
+      - const: apb
+      - const: axi
+      - const: cam1
+      - const: cam2
+      - const: disp1
+      - const: disp2
+      - const: isp
+      - const: phy
+
+  interconnects:
+    maxItems: 8
+
+  interconnect-names:
+    items:
+      - const: lcdif-rd
+      - const: lcdif-wr
+      - const: isi0
+      - const: isi1
+      - const: isi2
+      - const: isp0
+      - const: isp1
+      - const: dwe
+
+  bridge@5c:
+    type: object
+    $ref: /schemas/display/bridge/fsl,ldb.yaml#
+    unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+  - '#address-cells'
+  - '#size-cells'
+  - '#power-domain-cells'
+  - power-domains
+  - power-domain-names
+  - clocks
+  - clock-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/imx8mp-clock.h>
+    #include <dt-bindings/power/imx8mp-power.h>
+
+    blk-ctrl@32ec0000 {
+        compatible = "fsl,imx8mp-media-blk-ctrl", "syscon";
+        reg = <0x32ec0000 0x138>;
+        power-domains = <&mediamix_pd>, <&mipi_phy1_pd>, <&mipi_phy1_pd>,
+                        <&mediamix_pd>, <&mediamix_pd>, <&mipi_phy2_pd>,
+                        <&mediamix_pd>, <&ispdwp_pd>, <&ispdwp_pd>,
+                        <&mipi_phy2_pd>;
+        power-domain-names = "bus", "mipi-dsi1", "mipi-csi1", "lcdif1", "isi",
+                             "mipi-csi2", "lcdif2", "isp", "dwe", "mipi-dsi2";
+        clocks = <&clk IMX8MP_CLK_MEDIA_APB_ROOT>,
+                 <&clk IMX8MP_CLK_MEDIA_AXI_ROOT>,
+                 <&clk IMX8MP_CLK_MEDIA_CAM1_PIX_ROOT>,
+                 <&clk IMX8MP_CLK_MEDIA_CAM2_PIX_ROOT>,
+                 <&clk IMX8MP_CLK_MEDIA_DISP1_PIX_ROOT>,
+                 <&clk IMX8MP_CLK_MEDIA_DISP2_PIX_ROOT>,
+                 <&clk IMX8MP_CLK_MEDIA_ISP_ROOT>,
+                 <&clk IMX8MP_CLK_MEDIA_MIPI_PHY1_REF_ROOT>;
+        clock-names = "apb", "axi", "cam1", "cam2", "disp1", "disp2",
+                      "isp", "phy";
+        #power-domain-cells = <1>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        bridge@5c {
+            compatible = "fsl,imx8mp-ldb";
+            reg = <0x5c 0x4>, <0x128 0x4>;
+            reg-names = "ldb", "lvds";
+            clocks = <&clk IMX8MP_CLK_MEDIA_LDB>;
+            clock-names = "ldb";
+
+            ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                port@0 {
+                    reg = <0>;
+
+                    ldb_from_lcdif2: endpoint {
+                        remote-endpoint = <&lcdif2_to_ldb>;
+                    };
+                };
+
+                port@1 {
+                    reg = <1>;
+
+                    ldb_lvds_ch0: endpoint {
+                        remote-endpoint = <&ldb_to_lvdsx4panel>;
+                    };
+                };
+
+                port@2 {
+                    reg = <2>;
+
+                    ldb_lvds_ch1: endpoint {
+                    };
+                };
+            };
+        };
+    };
+...

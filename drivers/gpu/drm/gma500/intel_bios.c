@@ -5,8 +5,9 @@
  * Authors:
  *    Eric Anholt <eric@anholt.net>
  */
+
+#include <drm/display/drm_dp_helper.h>
 #include <drm/drm.h>
-#include <drm/drm_dp_helper.h>
 
 #include "intel_bios.h"
 #include "psb_drv.h"
@@ -50,7 +51,7 @@ parse_edp(struct drm_psb_private *dev_priv, struct bdb_header *bdb)
 	uint8_t	panel_type;
 
 	edp = find_section(bdb, BDB_EDP);
-	
+
 	dev_priv->edp.bpp = 18;
 	if (!edp) {
 		if (dev_priv->edp.support) {
@@ -80,7 +81,7 @@ parse_edp(struct drm_psb_private *dev_priv, struct bdb_header *bdb)
 	dev_priv->edp.pps = *edp_pps;
 
 	DRM_DEBUG_KMS("EDP timing in vbt t1_t3 %d t8 %d t9 %d t10 %d t11_t12 %d\n",
-				dev_priv->edp.pps.t1_t3, dev_priv->edp.pps.t8, 
+				dev_priv->edp.pps.t1_t3, dev_priv->edp.pps.t8,
 				dev_priv->edp.pps.t9, dev_priv->edp.pps.t10,
 				dev_priv->edp.pps.t11_t12);
 
@@ -207,7 +208,7 @@ static void parse_backlight_data(struct drm_psb_private *dev_priv,
 
 	lvds_bl = kmemdup(vbt_lvds_bl, sizeof(*vbt_lvds_bl), GFP_KERNEL);
 	if (!lvds_bl) {
-		dev_err(dev_priv->dev->dev, "out of memory for backlight data\n");
+		dev_err(dev_priv->dev.dev, "out of memory for backlight data\n");
 		return;
 	}
 	dev_priv->lvds_bl = lvds_bl;
@@ -248,7 +249,7 @@ static void parse_lfp_panel_data(struct drm_psb_private *dev_priv,
 	panel_fixed_mode = kzalloc(sizeof(*panel_fixed_mode),
 				      GFP_KERNEL);
 	if (panel_fixed_mode == NULL) {
-		dev_err(dev_priv->dev->dev, "out of memory for fixed panel mode\n");
+		dev_err(dev_priv->dev.dev, "out of memory for fixed panel mode\n");
 		return;
 	}
 
@@ -259,7 +260,7 @@ static void parse_lfp_panel_data(struct drm_psb_private *dev_priv,
 		dev_priv->lfp_lvds_vbt_mode = panel_fixed_mode;
 		drm_mode_debug_printmodeline(panel_fixed_mode);
 	} else {
-		dev_dbg(dev_priv->dev->dev, "ignoring invalid LVDS VBT\n");
+		dev_dbg(dev_priv->dev.dev, "ignoring invalid LVDS VBT\n");
 		dev_priv->lvds_vbt = 0;
 		kfree(panel_fixed_mode);
 	}
@@ -515,8 +516,8 @@ parse_device_mapping(struct drm_psb_private *dev_priv,
  */
 int psb_intel_init_bios(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct pci_dev *pdev = dev->pdev;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	struct vbt_header *vbt = NULL;
 	struct bdb_header *bdb = NULL;
 	u8 __iomem *bios = NULL;
@@ -574,12 +575,12 @@ int psb_intel_init_bios(struct drm_device *dev)
 	return 0;
 }
 
-/**
+/*
  * Destroy and free VBT data
  */
 void psb_intel_destroy_bios(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 
 	kfree(dev_priv->sdvo_lvds_vbt_mode);
 	kfree(dev_priv->lfp_lvds_vbt_mode);

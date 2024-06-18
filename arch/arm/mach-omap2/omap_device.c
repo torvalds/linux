@@ -39,6 +39,12 @@
 #include "omap_device.h"
 #include "omap_hwmod.h"
 
+static struct omap_device *omap_device_alloc(struct platform_device *pdev,
+				struct omap_hwmod **ohs, int oh_cnt);
+static void omap_device_delete(struct omap_device *od);
+static struct dev_pm_domain omap_device_fail_pm_domain;
+static struct dev_pm_domain omap_device_pm_domain;
+
 /* Private functions */
 
 static void _add_clkdev(struct omap_device *od, const char *clk_alias,
@@ -96,9 +102,6 @@ static void _add_clkdev(struct omap_device *od, const char *clk_alias,
  * omap_device, this function adds an entry in the clkdev table of the
  * form <dev-id=dev_name, con-id=role> if it does not exist already.
  *
- * The function is called from inside omap_device_build_ss(), after
- * omap_device_register.
- *
  * This allows drivers to get a pointer to its optional clocks based on its role
  * by calling clk_get(<dev*>, <role>).
  * In the case of the main clock, a "fck" alias is used.
@@ -119,11 +122,7 @@ static void _add_hwmod_clocks_clkdev(struct omap_device *od,
 
 /**
  * omap_device_build_from_dt - build an omap_device with multiple hwmods
- * @pdev_name: name of the platform_device driver to use
- * @pdev_id: this platform_device's connection ID
- * @oh: ptr to the single omap_hwmod that backs this omap_device
- * @pdata: platform_data ptr to associate with the platform_device
- * @pdata_len: amount of memory pointed to by @pdata
+ * @pdev: The platform device to update.
  *
  * Function for building an omap_device already registered from device-tree
  *
@@ -234,17 +233,18 @@ static int _omap_device_notifier_call(struct notifier_block *nb,
 		break;
 	case BUS_NOTIFY_BIND_DRIVER:
 		od = to_omap_device(pdev);
-		if (od && (od->_state == OMAP_DEVICE_STATE_ENABLED) &&
-		    pm_runtime_status_suspended(dev)) {
+		if (od) {
 			od->_driver_status = BUS_NOTIFY_BIND_DRIVER;
-			pm_runtime_set_active(dev);
+			if (od->_state == OMAP_DEVICE_STATE_ENABLED &&
+			    pm_runtime_status_suspended(dev)) {
+				pm_runtime_set_active(dev);
+			}
 		}
 		break;
 	case BUS_NOTIFY_ADD_DEVICE:
 		if (pdev->dev.of_node)
 			omap_device_build_from_dt(pdev);
-		omap_auxdata_legacy_init(dev);
-		/* fall through */
+		fallthrough;
 	default:
 		od = to_omap_device(pdev);
 		if (od)
@@ -291,46 +291,17 @@ static int _omap_device_idle_hwmods(struct omap_device *od)
 /* Public functions for use by core code */
 
 /**
- * omap_device_get_context_loss_count - get lost context count
- * @od: struct omap_device *
- *
- * Using the primary hwmod, query the context loss count for this
- * device.
- *
- * Callers should consider context for this device lost any time this
- * function returns a value different than the value the caller got
- * the last time it called this function.
- *
- * If any hwmods exist for the omap_device associated with @pdev,
- * return the context loss counter for that hwmod, otherwise return
- * zero.
- */
-int omap_device_get_context_loss_count(struct platform_device *pdev)
-{
-	struct omap_device *od;
-	u32 ret = 0;
-
-	od = to_omap_device(pdev);
-
-	if (od->hwmods_cnt)
-		ret = omap_hwmod_get_context_loss_count(od->hwmods[0]);
-
-	return ret;
-}
-
-/**
  * omap_device_alloc - allocate an omap_device
  * @pdev: platform_device that will be included in this omap_device
- * @oh: ptr to the single omap_hwmod that backs this omap_device
- * @pdata: platform_data ptr to associate with the platform_device
- * @pdata_len: amount of memory pointed to by @pdata
+ * @ohs: ptr to the omap_hwmod for this omap_device
+ * @oh_cnt: the size of the ohs list
  *
  * Convenience function for allocating an omap_device structure and filling
  * hwmods, and resources.
  *
  * Returns an struct omap_device pointer or ERR_PTR() on error;
  */
-struct omap_device *omap_device_alloc(struct platform_device *pdev,
+static struct omap_device *omap_device_alloc(struct platform_device *pdev,
 					struct omap_hwmod **ohs, int oh_cnt)
 {
 	int ret = -ENOMEM;
@@ -339,10 +310,9 @@ struct omap_device *omap_device_alloc(struct platform_device *pdev,
 	struct omap_hwmod **hwmods;
 
 	od = kzalloc(sizeof(struct omap_device), GFP_KERNEL);
-	if (!od) {
-		ret = -ENOMEM;
+	if (!od)
 		goto oda_exit1;
-	}
+
 	od->hwmods_cnt = oh_cnt;
 
 	hwmods = kmemdup(ohs, sizeof(struct omap_hwmod *) * oh_cnt, GFP_KERNEL);
@@ -368,7 +338,7 @@ oda_exit1:
 	return ERR_PTR(ret);
 }
 
-void omap_device_delete(struct omap_device *od)
+static void omap_device_delete(struct omap_device *od)
 {
 	if (!od)
 		return;
@@ -376,176 +346,6 @@ void omap_device_delete(struct omap_device *od)
 	od->pdev->archdata.od = NULL;
 	kfree(od->hwmods);
 	kfree(od);
-}
-
-/**
- * omap_device_copy_resources - Add legacy IO and IRQ resources
- * @oh: interconnect target module
- * @pdev: platform device to copy resources to
- *
- * We still have legacy DMA and smartreflex needing resources.
- * Let's populate what they need until we can eventually just
- * remove this function. Note that there should be no need to
- * call this from omap_device_build_from_dt(), nor should there
- * be any need to call it for other devices.
- */
-static int
-omap_device_copy_resources(struct omap_hwmod *oh,
-			   struct platform_device *pdev)
-{
-	struct device_node *np, *child;
-	struct property *prop;
-	struct resource *res;
-	const char *name;
-	int error, irq = 0;
-
-	if (!oh || !oh->od || !oh->od->pdev)
-		return -EINVAL;
-
-	np = oh->od->pdev->dev.of_node;
-	if (!np) {
-		error = -ENODEV;
-		goto error;
-	}
-
-	res = kcalloc(2, sizeof(*res), GFP_KERNEL);
-	if (!res)
-		return -ENOMEM;
-
-	/* Do we have a dts range for the interconnect target module? */
-	error = omap_hwmod_parse_module_range(oh, np, res);
-
-	/* No ranges, rely on device reg entry */
-	if (error)
-		error = of_address_to_resource(np, 0, res);
-	if (error)
-		goto free;
-
-	/* SmartReflex needs first IO resource name to be "mpu" */
-	res[0].name = "mpu";
-
-	/*
-	 * We may have a configured "ti,sysc" interconnect target with a
-	 * dts child with the interrupt. If so use the first child's
-	 * first interrupt for "ti-hwmods" legacy support.
-	 */
-	of_property_for_each_string(np, "compatible", prop, name)
-		if (!strncmp("ti,sysc-", name, 8))
-			break;
-
-	child = of_get_next_available_child(np, NULL);
-
-	if (name)
-		irq = irq_of_parse_and_map(child, 0);
-	if (!irq)
-		irq = irq_of_parse_and_map(np, 0);
-	if (!irq) {
-		error = -EINVAL;
-		goto free;
-	}
-
-	/* Legacy DMA code needs interrupt name to be "0" */
-	res[1].start = irq;
-	res[1].end = irq;
-	res[1].flags = IORESOURCE_IRQ;
-	res[1].name = "0";
-
-	error = platform_device_add_resources(pdev, res, 2);
-
-free:
-	kfree(res);
-
-error:
-	WARN(error, "%s: %s device %s failed: %i\n",
-	     __func__, oh->name, dev_name(&pdev->dev),
-	     error);
-
-	return error;
-}
-
-/**
- * omap_device_build - build and register an omap_device with one omap_hwmod
- * @pdev_name: name of the platform_device driver to use
- * @pdev_id: this platform_device's connection ID
- * @oh: ptr to the single omap_hwmod that backs this omap_device
- * @pdata: platform_data ptr to associate with the platform_device
- * @pdata_len: amount of memory pointed to by @pdata
- *
- * Convenience function for building and registering a single
- * omap_device record, which in turn builds and registers a
- * platform_device record.  See omap_device_build_ss() for more
- * information.  Returns ERR_PTR(-EINVAL) if @oh is NULL; otherwise,
- * passes along the return value of omap_device_build_ss().
- */
-struct platform_device __init *omap_device_build(const char *pdev_name,
-						 int pdev_id,
-						 struct omap_hwmod *oh,
-						 void *pdata, int pdata_len)
-{
-	int ret = -ENOMEM;
-	struct platform_device *pdev;
-	struct omap_device *od;
-
-	if (!oh || !pdev_name)
-		return ERR_PTR(-EINVAL);
-
-	if (!pdata && pdata_len > 0)
-		return ERR_PTR(-EINVAL);
-
-	if (strncmp(oh->name, "smartreflex", 11) &&
-	    strncmp(oh->name, "dma", 3)) {
-		pr_warn("%s need to update %s to probe with dt\na",
-			__func__, pdev_name);
-		ret = -ENODEV;
-		goto odbs_exit;
-	}
-
-	pdev = platform_device_alloc(pdev_name, pdev_id);
-	if (!pdev) {
-		ret = -ENOMEM;
-		goto odbs_exit;
-	}
-
-	/* Set the dev_name early to allow dev_xxx in omap_device_alloc */
-	if (pdev->id != -1)
-		dev_set_name(&pdev->dev, "%s.%d", pdev->name,  pdev->id);
-	else
-		dev_set_name(&pdev->dev, "%s", pdev->name);
-
-	/*
-	 * Must be called before omap_device_alloc() as oh->od
-	 * only contains the currently registered omap_device
-	 * and will get overwritten by omap_device_alloc().
-	 */
-	ret = omap_device_copy_resources(oh, pdev);
-	if (ret)
-		goto odbs_exit1;
-
-	od = omap_device_alloc(pdev, &oh, 1);
-	if (IS_ERR(od)) {
-		ret = PTR_ERR(od);
-		goto odbs_exit1;
-	}
-
-	ret = platform_device_add_data(pdev, pdata, pdata_len);
-	if (ret)
-		goto odbs_exit2;
-
-	ret = omap_device_register(pdev);
-	if (ret)
-		goto odbs_exit2;
-
-	return pdev;
-
-odbs_exit2:
-	omap_device_delete(od);
-odbs_exit1:
-	platform_device_put(pdev);
-odbs_exit:
-
-	pr_err("omap_device: %s: build failed (%d)\n", pdev_name, ret);
-
-	return ERR_PTR(ret);
 }
 
 #ifdef CONFIG_PM
@@ -630,14 +430,14 @@ static int _od_resume_noirq(struct device *dev)
 #define _od_resume_noirq NULL
 #endif
 
-struct dev_pm_domain omap_device_fail_pm_domain = {
+static struct dev_pm_domain omap_device_fail_pm_domain = {
 	.ops = {
 		SET_RUNTIME_PM_OPS(_od_fail_runtime_suspend,
 				   _od_fail_runtime_resume, NULL)
 	}
 };
 
-struct dev_pm_domain omap_device_pm_domain = {
+static struct dev_pm_domain omap_device_pm_domain = {
 	.ops = {
 		SET_RUNTIME_PM_OPS(_od_runtime_suspend, _od_runtime_resume,
 				   NULL)
@@ -647,28 +447,11 @@ struct dev_pm_domain omap_device_pm_domain = {
 	}
 };
 
-/**
- * omap_device_register - register an omap_device with one omap_hwmod
- * @od: struct omap_device * to register
- *
- * Register the omap_device structure.  This currently just calls
- * platform_device_register() on the underlying platform_device.
- * Returns the return value of platform_device_register().
- */
-int omap_device_register(struct platform_device *pdev)
-{
-	pr_debug("omap_device: %s: registering\n", pdev->name);
-
-	dev_pm_domain_set(&pdev->dev, &omap_device_pm_domain);
-	return platform_device_add(pdev);
-}
-
-
 /* Public functions for use by device drivers through struct platform_data */
 
 /**
  * omap_device_enable - fully activate an omap_device
- * @od: struct omap_device * to activate
+ * @pdev: the platform device to activate
  *
  * Do whatever is necessary for the hwmods underlying omap_device @od
  * to be accessible and ready to operate.  This generally involves
@@ -702,7 +485,7 @@ int omap_device_enable(struct platform_device *pdev)
 
 /**
  * omap_device_idle - idle an omap_device
- * @od: struct omap_device * to idle
+ * @pdev: The platform_device (omap_device) to idle
  *
  * Idle omap_device @od.  Device drivers call this function indirectly
  * via pm_runtime_put*().  Returns -EINVAL if the omap_device is not
@@ -784,38 +567,6 @@ int omap_device_deassert_hardreset(struct platform_device *pdev,
 	}
 
 	return ret;
-}
-
-/**
- * omap_device_get_by_hwmod_name() - convert a hwmod name to
- * device pointer.
- * @oh_name: name of the hwmod device
- *
- * Returns back a struct device * pointer associated with a hwmod
- * device represented by a hwmod_name
- */
-struct device *omap_device_get_by_hwmod_name(const char *oh_name)
-{
-	struct omap_hwmod *oh;
-
-	if (!oh_name) {
-		WARN(1, "%s: no hwmod name!\n", __func__);
-		return ERR_PTR(-EINVAL);
-	}
-
-	oh = omap_hwmod_lookup(oh_name);
-	if (!oh) {
-		WARN(1, "%s: no hwmod for %s\n", __func__,
-			oh_name);
-		return ERR_PTR(-ENODEV);
-	}
-	if (!oh->od) {
-		WARN(1, "%s: no omap_device for %s\n", __func__,
-			oh_name);
-		return ERR_PTR(-ENODEV);
-	}
-
-	return &oh->od->pdev->dev;
 }
 
 static struct notifier_block platform_nb = {

@@ -35,7 +35,7 @@
 &ifc {
 	#address-cells = <2>;
 	#size-cells = <1>;
-	compatible = "fsl,ifc", "simple-bus";
+	compatible = "fsl,ifc";
 	interrupts = <16 2 0 0 19 2 0 0>;
 };
 
@@ -122,7 +122,15 @@
 	};
 
 /include/ "pq3-i2c-0.dtsi"
+	i2c@3000 {
+		fsl,i2c-erratum-a004447;
+	};
+
 /include/ "pq3-i2c-1.dtsi"
+	i2c@3100 {
+		fsl,i2c-erratum-a004447;
+	};
+
 /include/ "pq3-duart-0.dtsi"
 /include/ "pq3-espi-0.dtsi"
 	spi0: spi@7000 {
@@ -172,28 +180,19 @@
 /include/ "pq3-mpic-timer-B.dtsi"
 
 /include/ "pq3-etsec2-0.dtsi"
-	enet0: ethernet@b0000 {
-		queue-group@b0000 {
-			fsl,rx-bit-map = <0xff>;
-			fsl,tx-bit-map = <0xff>;
-		};
-	};
-
 /include/ "pq3-etsec2-1.dtsi"
-	enet1: ethernet@b1000 {
-		queue-group@b1000 {
-			fsl,rx-bit-map = <0xff>;
-			fsl,tx-bit-map = <0xff>;
-		};
+/include/ "pq3-etsec2-2.dtsi"
+
+	enet0: ethernet@b0000 {
+		fsl,pmc-handle = <&etsec1_clk>;
 	};
 
-/include/ "pq3-etsec2-2.dtsi"
-	enet2: ethernet@b2000 {
-		queue-group@b2000 {
-			fsl,rx-bit-map = <0xff>;
-			fsl,tx-bit-map = <0xff>;
-		};
+	enet1: ethernet@b1000 {
+		fsl,pmc-handle = <&etsec2_clk>;
+	};
 
+	enet2: ethernet@b2000 {
+		fsl,pmc-handle = <&etsec3_clk>;
 	};
 
 	global-utilities@e0000 {
@@ -201,4 +200,6 @@
 		reg = <0xe0000 0x1000>;
 		fsl,has-rstcr;
 	};
+
+/include/ "pq3-power.dtsi"
 };

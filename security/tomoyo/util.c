@@ -83,8 +83,8 @@ const u8 tomoyo_index2category[TOMOYO_MAX_MAC_INDEX] = {
 /**
  * tomoyo_convert_time - Convert time_t to YYYY/MM/DD hh/mm/ss.
  *
- * @time:  Seconds since 1970/01/01 00:00:00.
- * @stamp: Pointer to "struct tomoyo_time".
+ * @time64: Seconds since 1970/01/01 00:00:00.
+ * @stamp:  Pointer to "struct tomoyo_time".
  *
  * Returns nothing.
  */
@@ -143,6 +143,8 @@ char *tomoyo_read_token(struct tomoyo_acl_param *param)
 	return pos;
 }
 
+static bool tomoyo_correct_path2(const char *filename, const size_t len);
+
 /**
  * tomoyo_get_domainname - Read a domainname from a line.
  *
@@ -157,10 +159,10 @@ const struct tomoyo_path_info *tomoyo_get_domainname
 	char *pos = start;
 
 	while (*pos) {
-		if (*pos++ != ' ' || *pos++ == '/')
+		if (*pos++ != ' ' ||
+		    tomoyo_correct_path2(pos, strchrnul(pos, ' ') - pos))
 			continue;
-		pos -= 2;
-		*pos++ = '\0';
+		*(pos - 1) = '\0';
 		break;
 	}
 	param->data = pos;
@@ -432,59 +434,64 @@ void tomoyo_normalize_line(unsigned char *buffer)
  */
 static bool tomoyo_correct_word2(const char *string, size_t len)
 {
+	u8 recursion = 20;
 	const char *const start = string;
 	bool in_repetition = false;
-	unsigned char c;
-	unsigned char d;
-	unsigned char e;
 
 	if (!len)
 		goto out;
 	while (len--) {
-		c = *string++;
+		unsigned char c = *string++;
+
 		if (c == '\\') {
 			if (!len--)
 				goto out;
 			c = *string++;
+			if (c >= '0' && c <= '3') {
+				unsigned char d;
+				unsigned char e;
+
+				if (!len-- || !len--)
+					goto out;
+				d = *string++;
+				e = *string++;
+				if (d < '0' || d > '7' || e < '0' || e > '7')
+					goto out;
+				c = tomoyo_make_byte(c, d, e);
+				if (c <= ' ' || c >= 127)
+					continue;
+				goto out;
+			}
 			switch (c) {
 			case '\\':  /* "\\" */
-				continue;
-			case '$':   /* "\$" */
 			case '+':   /* "\+" */
 			case '?':   /* "\?" */
+			case 'x':   /* "\x" */
+			case 'a':   /* "\a" */
+			case '-':   /* "\-" */
+				continue;
+			}
+			if (!recursion--)
+				goto out;
+			switch (c) {
 			case '*':   /* "\*" */
 			case '@':   /* "\@" */
-			case 'x':   /* "\x" */
+			case '$':   /* "\$" */
 			case 'X':   /* "\X" */
-			case 'a':   /* "\a" */
 			case 'A':   /* "\A" */
-			case '-':   /* "\-" */
 				continue;
 			case '{':   /* "/\{" */
 				if (string - 3 < start || *(string - 3) != '/')
-					break;
+					goto out;
 				in_repetition = true;
 				continue;
 			case '}':   /* "\}/" */
 				if (*string != '/')
-					break;
+					goto out;
 				if (!in_repetition)
-					break;
+					goto out;
 				in_repetition = false;
 				continue;
-			case '0':   /* "\ooo" */
-			case '1':
-			case '2':
-			case '3':
-				if (!len-- || !len--)
-					break;
-				d = *string++;
-				e = *string++;
-				if (d < '0' || d > '7' || e < '0' || e > '7')
-					break;
-				c = tomoyo_make_byte(c, d, e);
-				if (c <= ' ' || c >= 127)
-					continue;
 			}
 			goto out;
 		} else if (in_repetition && c == '/') {
@@ -514,6 +521,22 @@ bool tomoyo_correct_word(const char *string)
 }
 
 /**
+ * tomoyo_correct_path2 - Check whether the given pathname follows the naming rules.
+ *
+ * @filename: The pathname to check.
+ * @len:      Length of @filename.
+ *
+ * Returns true if @filename follows the naming rules, false otherwise.
+ */
+static bool tomoyo_correct_path2(const char *filename, const size_t len)
+{
+	const char *cp1 = memchr(filename, '/', len);
+	const char *cp2 = memchr(filename, '.', len);
+
+	return cp1 && (!cp2 || (cp1 < cp2)) && tomoyo_correct_word2(filename, len);
+}
+
+/**
  * tomoyo_correct_path - Validate a pathname.
  *
  * @filename: The pathname to check.
@@ -523,7 +546,7 @@ bool tomoyo_correct_word(const char *string)
  */
 bool tomoyo_correct_path(const char *filename)
 {
-	return *filename == '/' && tomoyo_correct_word(filename);
+	return tomoyo_correct_path2(filename, strlen(filename));
 }
 
 /**
@@ -545,8 +568,7 @@ bool tomoyo_correct_domain(const unsigned char *domainname)
 
 		if (!cp)
 			break;
-		if (*domainname != '/' ||
-		    !tomoyo_correct_word2(domainname, cp - domainname))
+		if (!tomoyo_correct_path2(domainname, cp - domainname))
 			return false;
 		domainname = cp + 1;
 	}
@@ -594,7 +616,8 @@ struct tomoyo_domain_info *tomoyo_find_domain(const char *domainname)
 
 	name.name = domainname;
 	tomoyo_fill_path_info(&name);
-	list_for_each_entry_rcu(domain, &tomoyo_domain_list, list) {
+	list_for_each_entry_rcu(domain, &tomoyo_domain_list, list,
+				srcu_read_lock_held(&tomoyo_ss)) {
 		if (!domain->is_deleted &&
 		    !tomoyo_pathcmp(&name, domain->domainname))
 			return domain;
@@ -1028,36 +1051,38 @@ bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r)
 		return false;
 	if (!domain)
 		return true;
-	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
+	if (READ_ONCE(domain->flags[TOMOYO_DIF_QUOTA_WARNED]))
+		return false;
+	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list,
+				srcu_read_lock_held(&tomoyo_ss)) {
 		u16 perm;
-		u8 i;
 
 		if (ptr->is_deleted)
 			continue;
+		/*
+		 * Reading perm bitmap might race with tomoyo_merge_*() because
+		 * caller does not hold tomoyo_policy_lock mutex. But exceeding
+		 * max_learning_entry parameter by a few entries does not harm.
+		 */
 		switch (ptr->type) {
 		case TOMOYO_TYPE_PATH_ACL:
-			perm = container_of(ptr, struct tomoyo_path_acl, head)
-				->perm;
+			perm = data_race(container_of(ptr, struct tomoyo_path_acl, head)->perm);
 			break;
 		case TOMOYO_TYPE_PATH2_ACL:
-			perm = container_of(ptr, struct tomoyo_path2_acl, head)
-				->perm;
+			perm = data_race(container_of(ptr, struct tomoyo_path2_acl, head)->perm);
 			break;
 		case TOMOYO_TYPE_PATH_NUMBER_ACL:
-			perm = container_of(ptr, struct tomoyo_path_number_acl,
-					    head)->perm;
+			perm = data_race(container_of(ptr, struct tomoyo_path_number_acl, head)
+				  ->perm);
 			break;
 		case TOMOYO_TYPE_MKDEV_ACL:
-			perm = container_of(ptr, struct tomoyo_mkdev_acl,
-					    head)->perm;
+			perm = data_race(container_of(ptr, struct tomoyo_mkdev_acl, head)->perm);
 			break;
 		case TOMOYO_TYPE_INET_ACL:
-			perm = container_of(ptr, struct tomoyo_inet_acl,
-					    head)->perm;
+			perm = data_race(container_of(ptr, struct tomoyo_inet_acl, head)->perm);
 			break;
 		case TOMOYO_TYPE_UNIX_ACL:
-			perm = container_of(ptr, struct tomoyo_unix_acl,
-					    head)->perm;
+			perm = data_race(container_of(ptr, struct tomoyo_unix_acl, head)->perm);
 			break;
 		case TOMOYO_TYPE_MANUAL_TASK_ACL:
 			perm = 0;
@@ -1065,21 +1090,17 @@ bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r)
 		default:
 			perm = 1;
 		}
-		for (i = 0; i < 16; i++)
-			if (perm & (1 << i))
-				count++;
+		count += hweight16(perm);
 	}
 	if (count < tomoyo_profile(domain->ns, domain->profile)->
 	    pref[TOMOYO_PREF_MAX_LEARNING_ENTRY])
 		return true;
-	if (!domain->flags[TOMOYO_DIF_QUOTA_WARNED]) {
-		domain->flags[TOMOYO_DIF_QUOTA_WARNED] = true;
-		/* r->granted = false; */
-		tomoyo_write_log(r, "%s", tomoyo_dif[TOMOYO_DIF_QUOTA_WARNED]);
+	WRITE_ONCE(domain->flags[TOMOYO_DIF_QUOTA_WARNED], true);
+	/* r->granted = false; */
+	tomoyo_write_log(r, "%s", tomoyo_dif[TOMOYO_DIF_QUOTA_WARNED]);
 #ifndef CONFIG_SECURITY_TOMOYO_INSECURE_BUILTIN_SETTING
-		pr_warn("WARNING: Domain '%s' has too many ACLs to hold. Stopped learning mode.\n",
-			domain->domainname->name);
+	pr_warn("WARNING: Domain '%s' has too many ACLs to hold. Stopped learning mode.\n",
+		domain->domainname->name);
 #endif
-	}
 	return false;
 }

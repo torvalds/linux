@@ -11,6 +11,11 @@
 	model = "Rockchip PX5 EVB";
 	compatible = "rockchip,px5-evb", "rockchip,px5", "rockchip,rk3368";
 
+	aliases {
+		mmc0 = &sdmmc;
+		mmc1 = &emmc;
+	};
+
 	chosen {
 		stdout-path = "serial4:115200n8";
 	};
@@ -25,7 +30,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwr_key>;
 
-		power {
+		key-power {
 			gpios = <&gpio0 RK_PA2 GPIO_ACTIVE_LOW>;
 			label = "GPIO Power";
 			linux,code = <KEY_POWER>;
@@ -239,7 +244,6 @@
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
 	card-detect-delay = <200>;
-	no-emmc;
 	no-sdio;
 	sd-uhs-sdr12;
 	sd-uhs-sdr25;

@@ -49,10 +49,10 @@ static struct i2c_client *taos_instantiate_device(struct i2c_adapter *adapter)
 	if (!strncmp(adapter->name, "TAOS TSL2550 EVM", 16)) {
 		dev_info(&adapter->dev, "Instantiating device %s at 0x%02x\n",
 			tsl2550_info.type, tsl2550_info.addr);
-		return i2c_new_device(adapter, &tsl2550_info);
+		return i2c_new_client_device(adapter, &tsl2550_info);
 	}
 
-	return NULL;
+	return ERR_PTR(-ENODEV);
 }
 
 static int taos_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
@@ -239,7 +239,7 @@ static int taos_connect(struct serio *serio, struct serio_driver *drv)
 		dev_err(&serio->dev, "TAOS EVM identification failed\n");
 		goto exit_close;
 	}
-	strlcpy(adapter->name, name, sizeof(adapter->name));
+	strscpy(adapter->name, name, sizeof(adapter->name));
 
 	/* Turn echo off for better performance */
 	taos->state = TAOS_STATE_EOFF;

@@ -10,18 +10,17 @@
  * Author: Linus Walleij <linus.walleij@linaro.org>
  */
 
+#include <linux/iio/adc/qcom-vadc-common.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/module.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/regulator/consumer.h>
-
-#include "qcom-vadc-common.h"
 
 /*
  * Definitions for the "user processor" registers lifted from the v3.4
@@ -120,7 +119,7 @@
 #define ADC_ARB_USRP_DATA0			0x19D
 #define ADC_ARB_USRP_DATA1			0x19C
 
-/**
+/*
  * Physical channels which MUST exist on all PM variants in order to provide
  * proper reference points for calibration.
  *
@@ -176,7 +175,7 @@ struct xoadc_channel {
 	const char *datasheet_name;
 	u8 pre_scale_mux:2;
 	u8 amux_channel:4;
-	const struct vadc_prescale_ratio prescale;
+	const struct u32_fract prescale;
 	enum iio_chan_type type;
 	enum vadc_scale_fn_type scale_fn_type;
 	u8 amux_ip_rsv:3;
@@ -219,7 +218,9 @@ struct xoadc_variant {
 		.datasheet_name = __stringify(_dname),			\
 		.pre_scale_mux = _presmux,				\
 		.amux_channel = _amux,					\
-		.prescale = { .num = _prenum, .den = _preden },		\
+		.prescale = {						\
+			.numerator = _prenum, .denominator = _preden,	\
+		},							\
 		.type = _type,						\
 		.scale_fn_type = _scale,				\
 		.amux_ip_rsv = _amip,					\
@@ -371,7 +372,6 @@ static const struct xoadc_channel pm8921_xoadc_channels[] = {
  * @name: name of this channel
  * @hwchan: pointer to hardware channel information (muxing & scaling settings)
  * @calibration: whether to use absolute or ratiometric calibration
- * @scale_fn_type: scaling function type
  * @decimation: 0,1,2,3
  * @amux_ip_rsv: ratiometric scale value if using ratiometric
  * calibration: 0, 1, 2, 4, 5.
@@ -388,6 +388,7 @@ struct pm8xxx_chan_info {
  * struct pm8xxx_xoadc - state container for the XOADC
  * @dev: pointer to device
  * @map: regmap to access registers
+ * @variant: XOADC variant characteristics
  * @vref: reference voltage regulator
  * characteristics of the channels, and sensible default settings
  * @nchans: number of channels, configured by the device tree
@@ -692,8 +693,8 @@ static int pm8xxx_read_raw(struct iio_dev *indio_dev,
 	}
 }
 
-static int pm8xxx_of_xlate(struct iio_dev *indio_dev,
-			   const struct of_phandle_args *iiospec)
+static int pm8xxx_fwnode_xlate(struct iio_dev *indio_dev,
+			       const struct fwnode_reference_args *iiospec)
 {
 	struct pm8xxx_xoadc *adc = iio_priv(indio_dev);
 	u8 pre_scale_mux;
@@ -704,10 +705,10 @@ static int pm8xxx_of_xlate(struct iio_dev *indio_dev,
 	 * First cell is prescaler or premux, second cell is analog
 	 * mux.
 	 */
-	if (iiospec->args_count != 2) {
-		dev_err(&indio_dev->dev, "wrong number of arguments for %pOFn need 2 got %d\n",
-			iiospec->np,
-			iiospec->args_count);
+	if (iiospec->nargs != 2) {
+		dev_err(&indio_dev->dev, "wrong number of arguments for %pfwP need 2 got %d\n",
+			iiospec->fwnode,
+			iiospec->nargs);
 		return -EINVAL;
 	}
 	pre_scale_mux = (u8)iiospec->args[0];
@@ -725,38 +726,38 @@ static int pm8xxx_of_xlate(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info pm8xxx_xoadc_info = {
-	.of_xlate = pm8xxx_of_xlate,
+	.fwnode_xlate = pm8xxx_fwnode_xlate,
 	.read_raw = pm8xxx_read_raw,
 };
 
 static int pm8xxx_xoadc_parse_channel(struct device *dev,
-				      struct device_node *np,
+				      struct fwnode_handle *fwnode,
 				      const struct xoadc_channel *hw_channels,
 				      struct iio_chan_spec *iio_chan,
 				      struct pm8xxx_chan_info *ch)
 {
-	const char *name = np->name;
+	const char *name = fwnode_get_name(fwnode);
 	const struct xoadc_channel *hwchan;
-	u32 pre_scale_mux, amux_channel;
+	u32 pre_scale_mux, amux_channel, reg[2];
 	u32 rsv, dec;
 	int ret;
 	int chid;
 
-	ret = of_property_read_u32_index(np, "reg", 0, &pre_scale_mux);
+	ret = fwnode_property_read_u32_array(fwnode, "reg", reg,
+					     ARRAY_SIZE(reg));
 	if (ret) {
-		dev_err(dev, "invalid pre scale/mux number %s\n", name);
+		dev_err(dev, "invalid pre scale/mux or amux channel number %s\n",
+			name);
 		return ret;
 	}
-	ret = of_property_read_u32_index(np, "reg", 1, &amux_channel);
-	if (ret) {
-		dev_err(dev, "invalid amux channel number %s\n", name);
-		return ret;
-	}
+
+	pre_scale_mux = reg[0];
+	amux_channel = reg[1];
 
 	/* Find the right channel setting */
 	chid = 0;
 	hwchan = &hw_channels[0];
-	while (hwchan && hwchan->datasheet_name) {
+	while (hwchan->datasheet_name) {
 		if (hwchan->pre_scale_mux == pre_scale_mux &&
 		    hwchan->amux_channel == amux_channel)
 			break;
@@ -776,7 +777,7 @@ static int pm8xxx_xoadc_parse_channel(struct device *dev,
 	/* Everyone seems to use default ("type 2") decimation */
 	ch->decimation = VADC_DEF_DECIMATION;
 
-	if (!of_property_read_u32(np, "qcom,ratiometric", &rsv)) {
+	if (!fwnode_property_read_u32(fwnode, "qcom,ratiometric", &rsv)) {
 		ch->calibration = VADC_CALIB_RATIOMETRIC;
 		if (rsv > XOADC_RSV_MAX) {
 			dev_err(dev, "%s too large RSV value %d\n", name, rsv);
@@ -789,7 +790,7 @@ static int pm8xxx_xoadc_parse_channel(struct device *dev,
 	}
 
 	/* Optional decimation, if omitted we use the default */
-	ret = of_property_read_u32(np, "qcom,decimation", &dec);
+	ret = fwnode_property_read_u32(fwnode, "qcom,decimation", &dec);
 	if (!ret) {
 		ret = qcom_vadc_decimation_from_dt(dec);
 		if (ret < 0) {
@@ -809,25 +810,23 @@ static int pm8xxx_xoadc_parse_channel(struct device *dev,
 		BIT(IIO_CHAN_INFO_PROCESSED);
 	iio_chan->indexed = 1;
 
-	dev_dbg(dev, "channel [PRESCALE/MUX: %02x AMUX: %02x] \"%s\" "
-		"ref voltage: %d, decimation %d "
-		"prescale %d/%d, scale function %d\n",
+	dev_dbg(dev,
+		"channel [PRESCALE/MUX: %02x AMUX: %02x] \"%s\" ref voltage: %d, decimation %d prescale %d/%d, scale function %d\n",
 		hwchan->pre_scale_mux, hwchan->amux_channel, ch->name,
-		ch->amux_ip_rsv, ch->decimation, hwchan->prescale.num,
-		hwchan->prescale.den, hwchan->scale_fn_type);
+		ch->amux_ip_rsv, ch->decimation, hwchan->prescale.numerator,
+		hwchan->prescale.denominator, hwchan->scale_fn_type);
 
 	return 0;
 }
 
-static int pm8xxx_xoadc_parse_channels(struct pm8xxx_xoadc *adc,
-				       struct device_node *np)
+static int pm8xxx_xoadc_parse_channels(struct pm8xxx_xoadc *adc)
 {
-	struct device_node *child;
+	struct fwnode_handle *child;
 	struct pm8xxx_chan_info *ch;
 	int ret;
 	int i;
 
-	adc->nchans = of_get_available_child_count(np);
+	adc->nchans = device_get_child_node_count(adc->dev);
 	if (!adc->nchans) {
 		dev_err(adc->dev, "no channel children\n");
 		return -ENODEV;
@@ -845,14 +844,14 @@ static int pm8xxx_xoadc_parse_channels(struct pm8xxx_xoadc *adc,
 		return -ENOMEM;
 
 	i = 0;
-	for_each_available_child_of_node(np, child) {
+	device_for_each_child_node(adc->dev, child) {
 		ch = &adc->chans[i];
 		ret = pm8xxx_xoadc_parse_channel(adc->dev, child,
 						 adc->variant->channels,
 						 &adc->iio_chans[i],
 						 ch);
 		if (ret) {
-			of_node_put(child);
+			fwnode_handle_put(child);
 			return ret;
 		}
 		i++;
@@ -883,12 +882,11 @@ static int pm8xxx_xoadc_probe(struct platform_device *pdev)
 	const struct xoadc_variant *variant;
 	struct pm8xxx_xoadc *adc;
 	struct iio_dev *indio_dev;
-	struct device_node *np = pdev->dev.of_node;
 	struct regmap *map;
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	variant = of_device_get_match_data(dev);
+	variant = device_get_match_data(dev);
 	if (!variant)
 		return -ENODEV;
 
@@ -903,23 +901,22 @@ static int pm8xxx_xoadc_probe(struct platform_device *pdev)
 	init_completion(&adc->complete);
 	mutex_init(&adc->lock);
 
-	ret = pm8xxx_xoadc_parse_channels(adc, np);
+	ret = pm8xxx_xoadc_parse_channels(adc);
 	if (ret)
 		return ret;
 
 	map = dev_get_regmap(dev->parent, NULL);
 	if (!map) {
 		dev_err(dev, "parent regmap unavailable.\n");
-		return -ENXIO;
+		return -ENODEV;
 	}
 	adc->map = map;
 
 	/* Bring up regulator */
 	adc->vref = devm_regulator_get(dev, "xoadc-ref");
-	if (IS_ERR(adc->vref)) {
-		dev_err(dev, "failed to get XOADC VREF regulator\n");
-		return PTR_ERR(adc->vref);
-	}
+	if (IS_ERR(adc->vref))
+		return dev_err_probe(dev, PTR_ERR(adc->vref),
+				     "failed to get XOADC VREF regulator\n");
 	ret = regulator_enable(adc->vref);
 	if (ret) {
 		dev_err(dev, "failed to enable XOADC VREF regulator\n");
@@ -933,8 +930,6 @@ static int pm8xxx_xoadc_probe(struct platform_device *pdev)
 		goto out_disable_vref;
 	}
 
-	indio_dev->dev.parent = dev;
-	indio_dev->dev.of_node = np;
 	indio_dev->name = variant->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &pm8xxx_xoadc_info;
@@ -961,7 +956,7 @@ out_disable_vref:
 	return ret;
 }
 
-static int pm8xxx_xoadc_remove(struct platform_device *pdev)
+static void pm8xxx_xoadc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 	struct pm8xxx_xoadc *adc = iio_priv(indio_dev);
@@ -969,8 +964,6 @@ static int pm8xxx_xoadc_remove(struct platform_device *pdev)
 	iio_device_unregister(indio_dev);
 
 	regulator_disable(adc->vref);
-
-	return 0;
 }
 
 static const struct xoadc_variant pm8018_variant = {
@@ -1023,7 +1016,7 @@ static struct platform_driver pm8xxx_xoadc_driver = {
 		.of_match_table = pm8xxx_xoadc_id_table,
 	},
 	.probe		= pm8xxx_xoadc_probe,
-	.remove		= pm8xxx_xoadc_remove,
+	.remove_new	= pm8xxx_xoadc_remove,
 };
 module_platform_driver(pm8xxx_xoadc_driver);
 

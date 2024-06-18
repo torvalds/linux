@@ -16,7 +16,7 @@ _GLOBAL(exec_instr)
 
 	/*
 	 * Stack frame layout (INT_FRAME_SIZE bytes)
-	 *   In-memory pt_regs	(SP + STACK_FRAME_OVERHEAD)
+	 *   In-memory pt_regs	(SP + STACK_INT_FRAME_REGS)
 	 *   Scratch space	(SP + 8)
 	 *   Back chain		(SP + 0)
 	 */
@@ -37,7 +37,7 @@ _GLOBAL(exec_instr)
 	 * The stack pointer (GPR1) and the thread pointer (GPR13) are not
 	 * saved as these should not be modified anyway.
 	 */
-	SAVE_2GPRS(2, r1)
+	SAVE_GPRS(2, 3, r1)
 	SAVE_NVGPRS(r1)
 
 	/*
@@ -75,12 +75,13 @@ _GLOBAL(exec_instr)
 
 	/* Load GPRs from pt_regs */
 	REST_GPR(0, r31)
-	REST_10GPRS(2, r31)
-	REST_GPR(12, r31)
+	REST_GPRS(2, 12, r31)
 	REST_NVGPRS(r31)
 
 	/* Placeholder for the test instruction */
+	.balign 64
 1:	nop
+	nop
 	patch_site 1b patch__exec_instr
 
 	/*
@@ -97,8 +98,7 @@ _GLOBAL(exec_instr)
 	subi	r3, r3, GPR0
 	SAVE_GPR(0, r3)
 	SAVE_GPR(2, r3)
-	SAVE_8GPRS(4, r3)
-	SAVE_GPR(12, r3)
+	SAVE_GPRS(4, 12, r3)
 	SAVE_NVGPRS(r3)
 
 	/* Save resulting LR to pt_regs */

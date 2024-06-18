@@ -1,45 +1,18 @@
+/* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
  * Copyright (c) 2004, 2005 Intel Corporation.  All rights reserved.
  * Copyright (c) 2004 Topspin Corporation.  All rights reserved.
  * Copyright (c) 2004 Voltaire Corporation.  All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Copyright (c) 2019, Mellanox Technologies inc.  All rights reserved.
  */
-#if !defined(IB_CM_H)
+
+#ifndef IB_CM_H
 #define IB_CM_H
 
 #include <rdma/ib_mad.h>
 #include <rdma/ib_sa.h>
-
-/* ib_cm and ib_user_cm modules share /sys/class/infiniband_cm */
-extern struct class cm_class;
+#include <rdma/rdma_cm.h>
 
 enum ib_cm_state {
 	IB_CM_IDLE,
@@ -141,6 +114,7 @@ struct ib_cm_req_event_param {
 	unsigned int		retry_count:3;
 	unsigned int		rnr_retry_count:3;
 	unsigned int		srq:1;
+	struct rdma_ucm_ece	ece;
 };
 
 struct ib_cm_rep_event_param {
@@ -155,6 +129,7 @@ struct ib_cm_rep_event_param {
 	unsigned int		flow_control:1;
 	unsigned int		rnr_retry_count:3;
 	unsigned int		srq:1;
+	struct rdma_ucm_ece	ece;
 };
 
 enum ib_cm_rej_reason {
@@ -190,7 +165,8 @@ enum ib_cm_rej_reason {
 	IB_CM_REJ_DUPLICATE_LOCAL_COMM_ID	= 30,
 	IB_CM_REJ_INVALID_CLASS_VERSION		= 31,
 	IB_CM_REJ_INVALID_FLOW_LABEL		= 32,
-	IB_CM_REJ_INVALID_ALT_FLOW_LABEL	= 33
+	IB_CM_REJ_INVALID_ALT_FLOW_LABEL	= 33,
+	IB_CM_REJ_VENDOR_OPTION_NOT_SUPPORTED	= 35,
 };
 
 struct ib_cm_rej_event_param {
@@ -318,7 +294,6 @@ struct ib_cm_id {
 	void			*context;
 	struct ib_device	*device;
 	__be64			service_id;
-	__be64			service_mask;
 	enum ib_cm_state	state;		/* internal CM/debug use */
 	enum ib_cm_lap_state	lap_state;	/* internal CM/debug use */
 	__be32			local_id;
@@ -364,13 +339,8 @@ void ib_destroy_cm_id(struct ib_cm_id *cm_id);
  *   and service ID resolution requests.  The service ID should be specified
  *   network-byte order.  If set to IB_CM_ASSIGN_SERVICE_ID, the CM will
  *   assign a service ID to the caller.
- * @service_mask: Mask applied to service ID used to listen across a
- *   range of service IDs.  If set to 0, the service ID is matched
- *   exactly.  This parameter is ignored if %service_id is set to
- *   IB_CM_ASSIGN_SERVICE_ID.
  */
-int ib_cm_listen(struct ib_cm_id *cm_id, __be64 service_id,
-		 __be64 service_mask);
+int ib_cm_listen(struct ib_cm_id *cm_id, __be64 service_id);
 
 struct ib_cm_id *ib_cm_insert_listen(struct ib_device *device,
 				     ib_cm_handler cm_handler,
@@ -378,6 +348,8 @@ struct ib_cm_id *ib_cm_insert_listen(struct ib_device *device,
 
 struct ib_cm_req_param {
 	struct sa_path_rec	*primary_path;
+	struct sa_path_rec	*primary_path_inbound;
+	struct sa_path_rec	*primary_path_outbound;
 	struct sa_path_rec	*alternate_path;
 	const struct ib_gid_attr *ppath_sgid_attr;
 	__be64			service_id;
@@ -386,7 +358,6 @@ struct ib_cm_req_param {
 	u32			starting_psn;
 	const void		*private_data;
 	u8			private_data_len;
-	u8			peer_to_peer;
 	u8			responder_resources;
 	u8			initiator_depth;
 	u8			remote_cm_response_timeout;
@@ -396,6 +367,7 @@ struct ib_cm_req_param {
 	u8			rnr_retry_count;
 	u8			max_cm_retries;
 	u8			srq;
+	struct rdma_ucm_ece	ece;
 };
 
 /**
@@ -419,6 +391,7 @@ struct ib_cm_rep_param {
 	u8		flow_control;
 	u8		rnr_retry_count;
 	u8		srq;
+	struct rdma_ucm_ece ece;
 };
 
 /**
@@ -526,21 +499,6 @@ int ib_send_cm_mra(struct ib_cm_id *cm_id,
 		   u8 private_data_len);
 
 /**
- * ib_send_cm_lap - Sends a load alternate path request.
- * @cm_id: Connection identifier associated with the load alternate path
- *   message.
- * @alternate_path: A path record that identifies the alternate path to
- *   load.
- * @private_data: Optional user-defined private data sent with the
- *   load alternate path message.
- * @private_data_len: Size of the private data buffer, in bytes.
- */
-int ib_send_cm_lap(struct ib_cm_id *cm_id,
-		   struct sa_path_rec *alternate_path,
-		   const void *private_data,
-		   u8 private_data_len);
-
-/**
  * ib_cm_init_qp_attr - Initializes the QP attributes for use in transitioning
  *   to a specified QP state.
  * @cm_id: Communication identifier associated with the QP attributes to
@@ -559,25 +517,6 @@ int ib_send_cm_lap(struct ib_cm_id *cm_id,
 int ib_cm_init_qp_attr(struct ib_cm_id *cm_id,
 		       struct ib_qp_attr *qp_attr,
 		       int *qp_attr_mask);
-
-/**
- * ib_send_cm_apr - Sends an alternate path response message in response to
- *   a load alternate path request.
- * @cm_id: Connection identifier associated with the alternate path response.
- * @status: Reply status sent with the alternate path response.
- * @info: Optional additional information sent with the alternate path
- *   response.
- * @info_length: Size of the additional information, in bytes.
- * @private_data: Optional user-defined private data sent with the
- *   alternate path response message.
- * @private_data_len: Size of the private data buffer, in bytes.
- */
-int ib_send_cm_apr(struct ib_cm_id *cm_id,
-		   enum ib_cm_apr_status status,
-		   void *info,
-		   u8 info_length,
-		   const void *private_data,
-		   u8 private_data_len);
 
 struct ib_cm_sidr_req_param {
 	struct sa_path_rec	*path;
@@ -607,6 +546,7 @@ struct ib_cm_sidr_rep_param {
 	u8			info_length;
 	const void		*private_data;
 	u8			private_data_len;
+	struct rdma_ucm_ece	ece;
 };
 
 /**

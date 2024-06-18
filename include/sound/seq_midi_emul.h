@@ -174,7 +174,8 @@ enum {
 };
 
 /* Prototypes for midi_process.c */
-void snd_midi_process_event(struct snd_midi_op *ops, struct snd_seq_event *ev,
+void snd_midi_process_event(const struct snd_midi_op *ops,
+			    struct snd_seq_event *ev,
 			    struct snd_midi_channel_set *chanset);
 void snd_midi_channel_set_clear(struct snd_midi_channel_set *chset);
 struct snd_midi_channel_set *snd_midi_channel_alloc_set(int n);

@@ -1283,7 +1283,7 @@ static inline cvmx_pow_tag_req_t cvmx_pow_get_current_tag(void)
  *
  * Returns WQE pointer
  */
-static inline cvmx_wqe_t *cvmx_pow_get_current_wqp(void)
+static inline struct cvmx_wqe *cvmx_pow_get_current_wqp(void)
 {
 	cvmx_pow_load_addr_t load_addr;
 	cvmx_pow_tag_load_resp_t load_resp;
@@ -1296,7 +1296,7 @@ static inline cvmx_wqe_t *cvmx_pow_get_current_wqp(void)
 	load_addr.sstatus.get_cur = 1;
 	load_addr.sstatus.get_wqp = 1;
 	load_resp.u64 = cvmx_read_csr(load_addr.u64);
-	return (cvmx_wqe_t *) cvmx_phys_to_ptr(load_resp.s_sstatus4.wqp);
+	return (struct cvmx_wqe *) cvmx_phys_to_ptr(load_resp.s_sstatus4.wqp);
 }
 
 #ifndef CVMX_MF_CHORD
@@ -1342,13 +1342,13 @@ static inline void cvmx_pow_tag_sw_wait(void)
  * This function does NOT wait for previous tag switches to complete,
  * so the caller must ensure that there is not a pending tag switch.
  *
- * @wait:   When set, call stalls until work becomes avaiable, or times out.
+ * @wait:   When set, call stalls until work becomes available, or times out.
  *		 If not set, returns immediately.
  *
- * Returns Returns the WQE pointer from POW. Returns NULL if no work
+ * Returns: the WQE pointer from POW. Returns NULL if no work
  * was available.
  */
-static inline cvmx_wqe_t *cvmx_pow_work_request_sync_nocheck(cvmx_pow_wait_t
+static inline struct cvmx_wqe *cvmx_pow_work_request_sync_nocheck(cvmx_pow_wait_t
 							     wait)
 {
 	cvmx_pow_load_addr_t ptr;
@@ -1368,7 +1368,7 @@ static inline cvmx_wqe_t *cvmx_pow_work_request_sync_nocheck(cvmx_pow_wait_t
 	if (result.s_work.no_work)
 		return NULL;
 	else
-		return (cvmx_wqe_t *) cvmx_phys_to_ptr(result.s_work.addr);
+		return (struct cvmx_wqe *) cvmx_phys_to_ptr(result.s_work.addr);
 }
 
 /**
@@ -1376,13 +1376,13 @@ static inline cvmx_wqe_t *cvmx_pow_work_request_sync_nocheck(cvmx_pow_wait_t
  * This function waits for any previous tag switch to complete before
  * requesting the new work.
  *
- * @wait:   When set, call stalls until work becomes avaiable, or times out.
+ * @wait:   When set, call stalls until work becomes available, or times out.
  *		 If not set, returns immediately.
  *
- * Returns Returns the WQE pointer from POW. Returns NULL if no work
+ * Returns: the WQE pointer from POW. Returns NULL if no work
  * was available.
  */
-static inline cvmx_wqe_t *cvmx_pow_work_request_sync(cvmx_pow_wait_t wait)
+static inline struct cvmx_wqe *cvmx_pow_work_request_sync(cvmx_pow_wait_t wait)
 {
 	if (CVMX_ENABLE_POW_CHECKS)
 		__cvmx_pow_warn_if_pending_switch(__func__);
@@ -1398,7 +1398,7 @@ static inline cvmx_wqe_t *cvmx_pow_work_request_sync(cvmx_pow_wait_t wait)
  * This function waits for any previous tag switch to complete before
  * requesting the null_rd.
  *
- * Returns Returns the POW state of type cvmx_pow_tag_type_t.
+ * Returns: the POW state of type cvmx_pow_tag_type_t.
  */
 static inline enum cvmx_pow_tag_type cvmx_pow_work_request_null_rd(void)
 {
@@ -1482,10 +1482,10 @@ static inline void cvmx_pow_work_request_async(int scr_addr,
  * @scr_addr: Scratch memory address to get result from Byte address,
  *	      must be 8 byte aligned.
  *
- * Returns Returns the WQE from the scratch register, or NULL if no
+ * Returns: the WQE from the scratch register, or NULL if no
  * work was available.
  */
-static inline cvmx_wqe_t *cvmx_pow_work_response_async(int scr_addr)
+static inline struct cvmx_wqe *cvmx_pow_work_response_async(int scr_addr)
 {
 	cvmx_pow_tag_load_resp_t result;
 
@@ -1495,7 +1495,7 @@ static inline cvmx_wqe_t *cvmx_pow_work_response_async(int scr_addr)
 	if (result.s_work.no_work)
 		return NULL;
 	else
-		return (cvmx_wqe_t *) cvmx_phys_to_ptr(result.s_work.addr);
+		return (struct cvmx_wqe *) cvmx_phys_to_ptr(result.s_work.addr);
 }
 
 /**
@@ -1508,7 +1508,7 @@ static inline cvmx_wqe_t *cvmx_pow_work_response_async(int scr_addr)
  * Returns 0 if pointer is valid
  *	   1 if invalid (no work was returned)
  */
-static inline uint64_t cvmx_pow_work_invalid(cvmx_wqe_t *wqe_ptr)
+static inline uint64_t cvmx_pow_work_invalid(struct cvmx_wqe *wqe_ptr)
 {
 	return wqe_ptr == NULL;
 }
@@ -1638,7 +1638,7 @@ static inline void cvmx_pow_tag_sw(uint32_t tag,
  * @tag_type: type of tag
  * @group:    group value for the work queue entry.
  */
-static inline void cvmx_pow_tag_sw_full_nocheck(cvmx_wqe_t *wqp, uint32_t tag,
+static inline void cvmx_pow_tag_sw_full_nocheck(struct cvmx_wqe *wqp, uint32_t tag,
 						enum cvmx_pow_tag_type tag_type,
 						uint64_t group)
 {
@@ -1712,7 +1712,7 @@ static inline void cvmx_pow_tag_sw_full_nocheck(cvmx_wqe_t *wqp, uint32_t tag,
  * @tag_type: type of tag
  * @group:	group value for the work queue entry.
  */
-static inline void cvmx_pow_tag_sw_full(cvmx_wqe_t *wqp, uint32_t tag,
+static inline void cvmx_pow_tag_sw_full(struct cvmx_wqe *wqp, uint32_t tag,
 					enum cvmx_pow_tag_type tag_type,
 					uint64_t group)
 {
@@ -1803,7 +1803,7 @@ static inline void cvmx_pow_tag_sw_null(void)
  * @qos:      Input queue to add to.
  * @grp:      group value for the work queue entry.
  */
-static inline void cvmx_pow_work_submit(cvmx_wqe_t *wqp, uint32_t tag,
+static inline void cvmx_pow_work_submit(struct cvmx_wqe *wqp, uint32_t tag,
 					enum cvmx_pow_tag_type tag_type,
 					uint64_t qos, uint64_t grp)
 {

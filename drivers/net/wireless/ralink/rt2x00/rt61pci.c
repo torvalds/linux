@@ -1709,7 +1709,7 @@ static int rt61pci_set_state(struct rt2x00_dev *rt2x00dev, enum dev_state state)
 {
 	u32 reg, reg2;
 	unsigned int i;
-	char put_to_sleep;
+	bool put_to_sleep;
 
 	put_to_sleep = (state != STATE_AWAKE);
 
@@ -2130,7 +2130,7 @@ static void rt61pci_txdone(struct rt2x00_dev *rt2x00dev)
 			break;
 		case 6: /* Failure, excessive retries */
 			__set_bit(TXDONE_EXCESSIVE_RETRY, &txdesc.flags);
-			/* Fall through - this is a failed frame! */
+			fallthrough;	/* this is a failed frame! */
 		default: /* Failure */
 			__set_bit(TXDONE_FAILURE, &txdesc.flags);
 		}
@@ -2190,34 +2190,38 @@ static void rt61pci_enable_mcu_interrupt(struct rt2x00_dev *rt2x00dev,
 	spin_unlock_irq(&rt2x00dev->irqmask_lock);
 }
 
-static void rt61pci_txstatus_tasklet(unsigned long data)
+static void rt61pci_txstatus_tasklet(struct tasklet_struct *t)
 {
-	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
+	struct rt2x00_dev *rt2x00dev = from_tasklet(rt2x00dev, t,
+						    txstatus_tasklet);
+
 	rt61pci_txdone(rt2x00dev);
 	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		rt61pci_enable_interrupt(rt2x00dev, INT_MASK_CSR_TXDONE);
 }
 
-static void rt61pci_tbtt_tasklet(unsigned long data)
+static void rt61pci_tbtt_tasklet(struct tasklet_struct *t)
 {
-	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
+	struct rt2x00_dev *rt2x00dev = from_tasklet(rt2x00dev, t, tbtt_tasklet);
 	rt2x00lib_beacondone(rt2x00dev);
 	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		rt61pci_enable_interrupt(rt2x00dev, INT_MASK_CSR_BEACON_DONE);
 }
 
-static void rt61pci_rxdone_tasklet(unsigned long data)
+static void rt61pci_rxdone_tasklet(struct tasklet_struct *t)
 {
-	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
+	struct rt2x00_dev *rt2x00dev = from_tasklet(rt2x00dev, t,
+						    rxdone_tasklet);
 	if (rt2x00mmio_rxdone(rt2x00dev))
 		tasklet_schedule(&rt2x00dev->rxdone_tasklet);
 	else if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		rt61pci_enable_interrupt(rt2x00dev, INT_MASK_CSR_RXDONE);
 }
 
-static void rt61pci_autowake_tasklet(unsigned long data)
+static void rt61pci_autowake_tasklet(struct tasklet_struct *t)
 {
-	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
+	struct rt2x00_dev *rt2x00dev = from_tasklet(rt2x00dev, t,
+						    autowake_tasklet);
 	rt61pci_wakeup(rt2x00dev);
 	rt2x00mmio_register_write(rt2x00dev,
 				  M2H_CMD_DONE_CSR, 0xffffffff);
@@ -2652,7 +2656,7 @@ static int rt61pci_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 {
 	struct hw_mode_spec *spec = &rt2x00dev->spec;
 	struct channel_info *info;
-	char *tx_power;
+	u8 *tx_power;
 	unsigned int i;
 
 	/*
@@ -2795,7 +2799,8 @@ static int rt61pci_probe_hw(struct rt2x00_dev *rt2x00dev)
  * IEEE80211 stack callback functions.
  */
 static int rt61pci_conf_tx(struct ieee80211_hw *hw,
-			   struct ieee80211_vif *vif, u16 queue_idx,
+			   struct ieee80211_vif *vif,
+			   unsigned int link_id, u16 queue_idx,
 			   const struct ieee80211_tx_queue_params *params)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
@@ -2811,7 +2816,7 @@ static int rt61pci_conf_tx(struct ieee80211_hw *hw,
 	 * we are free to update the registers based on the value
 	 * in the queue parameter.
 	 */
-	retval = rt2x00mac_conf_tx(hw, vif, queue_idx, params);
+	retval = rt2x00mac_conf_tx(hw, vif, link_id, queue_idx, params);
 	if (retval)
 		return retval;
 
@@ -2867,7 +2872,12 @@ static u64 rt61pci_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 }
 
 static const struct ieee80211_ops rt61pci_mac80211_ops = {
+	.add_chanctx = ieee80211_emulate_add_chanctx,
+	.remove_chanctx = ieee80211_emulate_remove_chanctx,
+	.change_chanctx = ieee80211_emulate_change_chanctx,
+	.switch_vif_chanctx = ieee80211_emulate_switch_vif_chanctx,
 	.tx			= rt2x00mac_tx,
+	.wake_tx_queue		= ieee80211_handle_wake_tx_queue,
 	.start			= rt2x00mac_start,
 	.stop			= rt2x00mac_stop,
 	.add_interface		= rt2x00mac_add_interface,
@@ -2953,7 +2963,6 @@ static void rt61pci_queue_init(struct data_queue *queue)
 		break;
 
 	case QID_ATIM:
-		/* fallthrough */
 	default:
 		BUG();
 		break;
@@ -2990,8 +2999,6 @@ static const struct pci_device_id rt61pci_device_table[] = {
 MODULE_AUTHOR(DRV_PROJECT);
 MODULE_VERSION(DRV_VERSION);
 MODULE_DESCRIPTION("Ralink RT61 PCI & PCMCIA Wireless LAN driver.");
-MODULE_SUPPORTED_DEVICE("Ralink RT2561, RT2561s & RT2661 "
-			"PCI & PCMCIA chipset based cards");
 MODULE_DEVICE_TABLE(pci, rt61pci_device_table);
 MODULE_FIRMWARE(FIRMWARE_RT2561);
 MODULE_FIRMWARE(FIRMWARE_RT2561s);
@@ -3009,8 +3016,7 @@ static struct pci_driver rt61pci_driver = {
 	.id_table	= rt61pci_device_table,
 	.probe		= rt61pci_probe,
 	.remove		= rt2x00pci_remove,
-	.suspend	= rt2x00pci_suspend,
-	.resume		= rt2x00pci_resume,
+	.driver.pm	= &rt2x00pci_pm_ops,
 };
 
 module_pci_driver(rt61pci_driver);

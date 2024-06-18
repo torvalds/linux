@@ -292,18 +292,17 @@ out:
 }
 
 static int pn_socket_accept(struct socket *sock, struct socket *newsock,
-			    int flags, bool kern)
+			    struct proto_accept_arg *arg)
 {
 	struct sock *sk = sock->sk;
 	struct sock *newsk;
-	int err;
 
 	if (unlikely(sk->sk_state != TCP_LISTEN))
 		return -EINVAL;
 
-	newsk = sk->sk_prot->accept(sk, flags, &err, kern);
+	newsk = sk->sk_prot->accept(sk, arg);
 	if (!newsk)
-		return err;
+		return arg->err;
 
 	lock_sock(newsk);
 	sock_graft(newsk, newsock);
@@ -338,9 +337,9 @@ static __poll_t pn_socket_poll(struct file *file, struct socket *sock,
 
 	if (sk->sk_state == TCP_CLOSE)
 		return EPOLLERR;
-	if (!skb_queue_empty(&sk->sk_receive_queue))
+	if (!skb_queue_empty_lockless(&sk->sk_receive_queue))
 		mask |= EPOLLIN | EPOLLRDNORM;
-	if (!skb_queue_empty(&pn->ctrlreq_queue))
+	if (!skb_queue_empty_lockless(&pn->ctrlreq_queue))
 		mask |= EPOLLPRI;
 	if (!mask && sk->sk_state == TCP_CLOSE_WAIT)
 		return EPOLLHUP;
@@ -379,8 +378,7 @@ static int pn_socket_ioctl(struct socket *sock, unsigned int cmd,
 			saddr = PN_NO_ADDR;
 		release_sock(sk);
 
-		if (dev)
-			dev_put(dev);
+		dev_put(dev);
 		if (saddr == PN_NO_ADDR)
 			return -EHOSTUNREACH;
 
@@ -388,7 +386,7 @@ static int pn_socket_ioctl(struct socket *sock, unsigned int cmd,
 		return put_user(handle, (__u16 __user *)arg);
 	}
 
-	return sk->sk_prot->ioctl(sk, cmd, arg);
+	return sk_ioctl(sk, cmd, (void __user *)arg);
 }
 
 static int pn_socket_listen(struct socket *sock, int backlog)
@@ -439,16 +437,9 @@ const struct proto_ops phonet_dgram_ops = {
 	.ioctl		= pn_socket_ioctl,
 	.listen		= sock_no_listen,
 	.shutdown	= sock_no_shutdown,
-	.setsockopt	= sock_no_setsockopt,
-	.getsockopt	= sock_no_getsockopt,
-#ifdef CONFIG_COMPAT
-	.compat_setsockopt = sock_no_setsockopt,
-	.compat_getsockopt = sock_no_getsockopt,
-#endif
 	.sendmsg	= pn_socket_sendmsg,
 	.recvmsg	= sock_common_recvmsg,
 	.mmap		= sock_no_mmap,
-	.sendpage	= sock_no_sendpage,
 };
 
 const struct proto_ops phonet_stream_ops = {
@@ -466,14 +457,9 @@ const struct proto_ops phonet_stream_ops = {
 	.shutdown	= sock_no_shutdown,
 	.setsockopt	= sock_common_setsockopt,
 	.getsockopt	= sock_common_getsockopt,
-#ifdef CONFIG_COMPAT
-	.compat_setsockopt = compat_sock_common_setsockopt,
-	.compat_getsockopt = compat_sock_common_getsockopt,
-#endif
 	.sendmsg	= pn_socket_sendmsg,
 	.recvmsg	= sock_common_recvmsg,
 	.mmap		= sock_no_mmap,
-	.sendpage	= sock_no_sendpage,
 };
 EXPORT_SYMBOL(phonet_stream_ops);
 

@@ -68,7 +68,7 @@ struct mthca_icm_table {
 	int               lowmem;
 	int               coherent;
 	struct mutex      mutex;
-	struct mthca_icm *icm[0];
+	struct mthca_icm *icm[] __counted_by(num_icm);
 };
 
 struct mthca_icm_iter {

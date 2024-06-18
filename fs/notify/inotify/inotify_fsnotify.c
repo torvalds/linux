@@ -39,65 +39,62 @@ static bool event_compare(struct fsnotify_event *old_fsn,
 	if (old->mask & FS_IN_IGNORED)
 		return false;
 	if ((old->mask == new->mask) &&
-	    (old_fsn->inode == new_fsn->inode) &&
+	    (old->wd == new->wd) &&
 	    (old->name_len == new->name_len) &&
 	    (!old->name_len || !strcmp(old->name, new->name)))
 		return true;
 	return false;
 }
 
-static int inotify_merge(struct list_head *list,
-			  struct fsnotify_event *event)
+static int inotify_merge(struct fsnotify_group *group,
+			 struct fsnotify_event *event)
 {
+	struct list_head *list = &group->notification_list;
 	struct fsnotify_event *last_event;
 
 	last_event = list_entry(list->prev, struct fsnotify_event, list);
 	return event_compare(last_event, event);
 }
 
-int inotify_handle_event(struct fsnotify_group *group,
-			 struct inode *inode,
-			 u32 mask, const void *data, int data_type,
-			 const struct qstr *file_name, u32 cookie,
-			 struct fsnotify_iter_info *iter_info)
+int inotify_handle_inode_event(struct fsnotify_mark *inode_mark, u32 mask,
+			       struct inode *inode, struct inode *dir,
+			       const struct qstr *name, u32 cookie)
 {
-	struct fsnotify_mark *inode_mark = fsnotify_iter_inode_mark(iter_info);
 	struct inotify_inode_mark *i_mark;
 	struct inotify_event_info *event;
 	struct fsnotify_event *fsn_event;
+	struct fsnotify_group *group = inode_mark->group;
 	int ret;
-	int len = 0;
+	int len = 0, wd;
 	int alloc_len = sizeof(struct inotify_event_info);
+	struct mem_cgroup *old_memcg;
 
-	if (WARN_ON(fsnotify_iter_vfsmount_mark(iter_info)))
-		return 0;
-
-	if ((inode_mark->mask & FS_EXCL_UNLINK) &&
-	    (data_type == FSNOTIFY_EVENT_PATH)) {
-		const struct path *path = data;
-
-		if (d_unlinked(path->dentry))
-			return 0;
-	}
-	if (file_name) {
-		len = file_name->len;
+	if (name) {
+		len = name->len;
 		alloc_len += len + 1;
 	}
 
-	pr_debug("%s: group=%p inode=%p mask=%x\n", __func__, group, inode,
+	pr_debug("%s: group=%p mark=%p mask=%x\n", __func__, group, inode_mark,
 		 mask);
 
 	i_mark = container_of(inode_mark, struct inotify_inode_mark,
 			      fsn_mark);
 
 	/*
+	 * We can be racing with mark being detached. Don't report event with
+	 * invalid wd.
+	 */
+	wd = READ_ONCE(i_mark->wd);
+	if (wd == -1)
+		return 0;
+	/*
 	 * Whoever is interested in the event, pays for the allocation. Do not
 	 * trigger OOM killer in the target monitoring memcg as it may have
 	 * security repercussion.
 	 */
-	memalloc_use_memcg(group->memcg);
+	old_memcg = set_active_memcg(group->memcg);
 	event = kmalloc(alloc_len, GFP_KERNEL_ACCOUNT | __GFP_RETRY_MAYFAIL);
-	memalloc_unuse_memcg();
+	set_active_memcg(old_memcg);
 
 	if (unlikely(!event)) {
 		/*
@@ -118,13 +115,13 @@ int inotify_handle_event(struct fsnotify_group *group,
 		mask &= ~IN_ISDIR;
 
 	fsn_event = &event->fse;
-	fsnotify_init_event(fsn_event, inode);
+	fsnotify_init_event(fsn_event);
 	event->mask = mask;
-	event->wd = i_mark->wd;
+	event->wd = wd;
 	event->sync_cookie = cookie;
 	event->name_len = len;
 	if (len)
-		strcpy(event->name, file_name->name);
+		strcpy(event->name, name->name);
 
 	ret = fsnotify_add_event(group, fsn_event, inotify_merge);
 	if (ret) {
@@ -132,7 +129,7 @@ int inotify_handle_event(struct fsnotify_group *group,
 		fsnotify_destroy_event(group, fsn_event);
 	}
 
-	if (inode_mark->mask & IN_ONESHOT)
+	if (inode_mark->flags & FSNOTIFY_MARK_FLAG_IN_ONESHOT)
 		fsnotify_destroy_mark(inode_mark, group);
 
 	return 0;
@@ -187,7 +184,8 @@ static void inotify_free_group_priv(struct fsnotify_group *group)
 		dec_inotify_instances(group->inotify_data.ucounts);
 }
 
-static void inotify_free_event(struct fsnotify_event *fsn_event)
+static void inotify_free_event(struct fsnotify_group *group,
+			       struct fsnotify_event *fsn_event)
 {
 	kfree(INOTIFY_E(fsn_event));
 }
@@ -203,7 +201,7 @@ static void inotify_free_mark(struct fsnotify_mark *fsn_mark)
 }
 
 const struct fsnotify_ops inotify_fsnotify_ops = {
-	.handle_event = inotify_handle_event,
+	.handle_inode_event = inotify_handle_inode_event,
 	.free_group_priv = inotify_free_group_priv,
 	.free_event = inotify_free_event,
 	.freeing_mark = inotify_freeing_mark,

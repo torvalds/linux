@@ -4,8 +4,8 @@
  *           of the aspire one netbook, turns on/off the fan
  *           as soon as the upper/lower threshold is reached.
  *
- * (C) 2009 - Peter Feuerer     peter (a) piie.net
- *                              http://piie.net
+ * (C) 2009 - Peter Kaestle     peter (a) piie.net
+ *                              https://piie.net
  *     2009 Borislav Petkov	bp (a) alien8.de
  *
  * Inspired by and many thanks to:
@@ -46,6 +46,8 @@
  * measured by the on-die thermal monitor are within 0 <= Tj <= 90. So,
  * assume 89°C is critical temperature.
  */
+#define ACERHDF_DEFAULT_TEMP_FANON 60000
+#define ACERHDF_DEFAULT_TEMP_FANOFF 53000
 #define ACERHDF_TEMP_CRIT 89000
 #define ACERHDF_FAN_OFF 0
 #define ACERHDF_FAN_AUTO 1
@@ -70,22 +72,19 @@ static int kernelmode;
 #endif
 
 static unsigned int interval = 10;
-static unsigned int fanon = 60000;
-static unsigned int fanoff = 53000;
+static unsigned int fanon = ACERHDF_DEFAULT_TEMP_FANON;
+static unsigned int fanoff = ACERHDF_DEFAULT_TEMP_FANOFF;
 static unsigned int verbose;
 static unsigned int list_supported;
 static unsigned int fanstate = ACERHDF_FAN_AUTO;
 static char force_bios[16];
 static char force_product[16];
-static unsigned int prev_interval;
 static struct thermal_zone_device *thz_dev;
 static struct thermal_cooling_device *cl_dev;
 static struct platform_device *acerhdf_dev;
 
 module_param(kernelmode, uint, 0);
 MODULE_PARM_DESC(kernelmode, "Kernel mode fan control on / off");
-module_param(interval, uint, 0600);
-MODULE_PARM_DESC(interval, "Polling interval of temperature check");
 module_param(fanon, uint, 0600);
 MODULE_PARM_DESC(fanon, "Turn the fan on above this temperature");
 module_param(fanoff, uint, 0600);
@@ -137,6 +136,15 @@ struct ctrl_settings {
 	u8 tempreg;
 	struct fancmd cmd;
 	int mcmd_enable;
+};
+
+static struct thermal_trip trips[] = {
+	[0] = { .temperature = ACERHDF_DEFAULT_TEMP_FANON,
+		.hysteresis = ACERHDF_DEFAULT_TEMP_FANON - ACERHDF_DEFAULT_TEMP_FANOFF,
+		.type = THERMAL_TRIP_ACTIVE },
+
+	[1] = { .temperature = ACERHDF_TEMP_CRIT,
+		.type = THERMAL_TRIP_CRITICAL }
 };
 
 static struct ctrl_settings ctrl_cfg __read_mostly;
@@ -224,6 +232,8 @@ static const struct bios_settings bios_tbl[] __initconst = {
 	{"Acer", "Aspire 5739G", "V1.3311", 0x55, 0x58, {0x20, 0x00}, 0},
 	/* Acer TravelMate 7730 */
 	{"Acer", "TravelMate 7730G", "v0.3509", 0x55, 0x58, {0xaf, 0x00}, 0},
+	/* Acer Aspire 7551 */
+	{"Acer", "Aspire 7551", "V1.18", 0x93, 0xa8, {0x14, 0x04}, 1},
 	/* Acer TravelMate TM8573T */
 	{"Acer", "TM8573T", "V1.13", 0x93, 0xa8, {0x14, 0x04}, 1},
 	/* Gateway */
@@ -326,16 +336,24 @@ static void acerhdf_check_param(struct thermal_zone_device *thermal)
 		fanon = ACERHDF_MAX_FANON;
 	}
 
-	if (kernelmode && prev_interval != interval) {
+	if (fanon < fanoff) {
+		pr_err("fanoff temperature (%d) is above fanon temperature (%d), clamping to %d\n",
+		       fanoff, fanon, fanon);
+		fanoff = fanon;
+	}
+
+	trips[0].temperature = fanon;
+	trips[0].hysteresis  = fanon - fanoff;
+
+	if (kernelmode) {
 		if (interval > ACERHDF_MAX_INTERVAL) {
 			pr_err("interval too high, set to %d\n",
 			       ACERHDF_MAX_INTERVAL);
 			interval = ACERHDF_MAX_INTERVAL;
 		}
+
 		if (verbose)
 			pr_notice("interval changed to: %d\n", interval);
-		thermal->polling_delay = interval*1000;
-		prev_interval = interval;
 	}
 }
 
@@ -348,8 +366,6 @@ static void acerhdf_check_param(struct thermal_zone_device *thermal)
 static int acerhdf_get_ec_temp(struct thermal_zone_device *thermal, int *t)
 {
 	int temp, err = 0;
-
-	acerhdf_check_param(thermal);
 
 	err = acerhdf_get_temp(&temp);
 	if (err)
@@ -395,29 +411,14 @@ static inline void acerhdf_revert_to_bios_mode(void)
 {
 	acerhdf_change_fanstate(ACERHDF_FAN_AUTO);
 	kernelmode = 0;
-	if (thz_dev)
-		thz_dev->polling_delay = 0;
+
 	pr_notice("kernel mode fan control OFF\n");
 }
 static inline void acerhdf_enable_kernelmode(void)
 {
 	kernelmode = 1;
 
-	thz_dev->polling_delay = interval*1000;
-	thermal_zone_device_update(thz_dev, THERMAL_EVENT_UNSPECIFIED);
 	pr_notice("kernel mode fan control ON\n");
-}
-
-static int acerhdf_get_mode(struct thermal_zone_device *thermal,
-			    enum thermal_device_mode *mode)
-{
-	if (verbose)
-		pr_notice("kernel mode fan control %d\n", kernelmode);
-
-	*mode = (kernelmode) ? THERMAL_DEVICE_ENABLED
-			     : THERMAL_DEVICE_DISABLED;
-
-	return 0;
 }
 
 /*
@@ -426,50 +427,13 @@ static int acerhdf_get_mode(struct thermal_zone_device *thermal,
  *          the temperature and the fan.
  * disabled: the BIOS takes control of the fan.
  */
-static int acerhdf_set_mode(struct thermal_zone_device *thermal,
-			    enum thermal_device_mode mode)
+static int acerhdf_change_mode(struct thermal_zone_device *thermal,
+			       enum thermal_device_mode mode)
 {
 	if (mode == THERMAL_DEVICE_DISABLED && kernelmode)
 		acerhdf_revert_to_bios_mode();
 	else if (mode == THERMAL_DEVICE_ENABLED && !kernelmode)
 		acerhdf_enable_kernelmode();
-
-	return 0;
-}
-
-static int acerhdf_get_trip_type(struct thermal_zone_device *thermal, int trip,
-				 enum thermal_trip_type *type)
-{
-	if (trip == 0)
-		*type = THERMAL_TRIP_ACTIVE;
-	else if (trip == 1)
-		*type = THERMAL_TRIP_CRITICAL;
-	else
-		return -EINVAL;
-
-	return 0;
-}
-
-static int acerhdf_get_trip_hyst(struct thermal_zone_device *thermal, int trip,
-				 int *temp)
-{
-	if (trip != 0)
-		return -EINVAL;
-
-	*temp = fanon - fanoff;
-
-	return 0;
-}
-
-static int acerhdf_get_trip_temp(struct thermal_zone_device *thermal, int trip,
-				 int *temp)
-{
-	if (trip == 0)
-		*temp = fanon;
-	else if (trip == 1)
-		*temp = ACERHDF_TEMP_CRIT;
-	else
-		return -EINVAL;
 
 	return 0;
 }
@@ -486,14 +450,9 @@ static struct thermal_zone_device_ops acerhdf_dev_ops = {
 	.bind = acerhdf_bind,
 	.unbind = acerhdf_unbind,
 	.get_temp = acerhdf_get_ec_temp,
-	.get_mode = acerhdf_get_mode,
-	.set_mode = acerhdf_set_mode,
-	.get_trip_type = acerhdf_get_trip_type,
-	.get_trip_hyst = acerhdf_get_trip_hyst,
-	.get_trip_temp = acerhdf_get_trip_temp,
+	.change_mode = acerhdf_change_mode,
 	.get_crit_temp = acerhdf_get_crit_temp,
 };
-
 
 /*
  * cooling device callback functions
@@ -579,11 +538,6 @@ static int acerhdf_probe(struct platform_device *device)
 	return 0;
 }
 
-static int acerhdf_remove(struct platform_device *device)
-{
-	return 0;
-}
-
 static const struct dev_pm_ops acerhdf_pm_ops = {
 	.suspend = acerhdf_suspend,
 	.freeze  = acerhdf_suspend,
@@ -595,23 +549,7 @@ static struct platform_driver acerhdf_driver = {
 		.pm    = &acerhdf_pm_ops,
 	},
 	.probe = acerhdf_probe,
-	.remove = acerhdf_remove,
 };
-
-/* checks if str begins with start */
-static int str_starts_with(const char *str, const char *start)
-{
-	unsigned long str_len = 0, start_len = 0;
-
-	str_len = strlen(str);
-	start_len = strlen(start);
-
-	if (str_len >= start_len &&
-			!strncmp(str, start, start_len))
-		return 1;
-
-	return 0;
-}
 
 /* check hardware */
 static int __init acerhdf_check_hardware(void)
@@ -665,9 +603,9 @@ static int __init acerhdf_check_hardware(void)
 		 * check if actual hardware BIOS vendor, product and version
 		 * IDs start with the strings of BIOS table entry
 		 */
-		if (str_starts_with(vendor, bt->vendor) &&
-				str_starts_with(product, bt->product) &&
-				str_starts_with(version, bt->version)) {
+		if (strstarts(vendor, bt->vendor) &&
+		    strstarts(product, bt->product) &&
+		    strstarts(version, bt->version)) {
 			found = 1;
 			break;
 		}
@@ -705,7 +643,7 @@ static int __init acerhdf_register_platform(void)
 	if (err)
 		return err;
 
-	acerhdf_dev = platform_device_alloc("acerhdf", -1);
+	acerhdf_dev = platform_device_alloc("acerhdf", PLATFORM_DEVID_NONE);
 	if (!acerhdf_dev) {
 		err = -ENOMEM;
 		goto err_device_alloc;
@@ -731,25 +669,27 @@ static void acerhdf_unregister_platform(void)
 
 static int __init acerhdf_register_thermal(void)
 {
+	int ret;
+
 	cl_dev = thermal_cooling_device_register("acerhdf-fan", NULL,
 						 &acerhdf_cooling_ops);
 
 	if (IS_ERR(cl_dev))
 		return -EINVAL;
 
-	thz_dev = thermal_zone_device_register("acerhdf", 2, 0, NULL,
-					      &acerhdf_dev_ops,
-					      &acerhdf_zone_params, 0,
-					      (kernelmode) ? interval*1000 : 0);
+	thz_dev = thermal_zone_device_register_with_trips("acerhdf", trips, ARRAY_SIZE(trips),
+							  NULL, &acerhdf_dev_ops,
+							  &acerhdf_zone_params, 0,
+							  (kernelmode) ? interval*1000 : 0);
 	if (IS_ERR(thz_dev))
 		return -EINVAL;
 
-	if (strcmp(thz_dev->governor->name,
-				acerhdf_zone_params.governor_name)) {
-		pr_err("Didn't get thermal governor %s, perhaps not compiled into thermal subsystem.\n",
-				acerhdf_zone_params.governor_name);
-		return -EINVAL;
-	}
+	if (kernelmode)
+		ret = thermal_zone_device_enable(thz_dev);
+	else
+		ret = thermal_zone_device_disable(thz_dev);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -801,7 +741,7 @@ static void __exit acerhdf_exit(void)
 }
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Peter Feuerer");
+MODULE_AUTHOR("Peter Kaestle");
 MODULE_DESCRIPTION("Aspire One temperature and fan driver");
 MODULE_ALIAS("dmi:*:*Acer*:pnAOA*:");
 MODULE_ALIAS("dmi:*:*Acer*:pnAO751h*:");
@@ -815,6 +755,7 @@ MODULE_ALIAS("dmi:*:*Acer*:pnAspire*5739G:");
 MODULE_ALIAS("dmi:*:*Acer*:pnAspire*One*753:");
 MODULE_ALIAS("dmi:*:*Acer*:pnAspire*5315:");
 MODULE_ALIAS("dmi:*:*Acer*:TravelMate*7730G:");
+MODULE_ALIAS("dmi:*:*Acer*:pnAspire*7551:");
 MODULE_ALIAS("dmi:*:*Acer*:TM8573T:");
 MODULE_ALIAS("dmi:*:*Gateway*:pnAOA*:");
 MODULE_ALIAS("dmi:*:*Gateway*:pnLT31*:");
@@ -824,7 +765,28 @@ MODULE_ALIAS("dmi:*:*Packard*Bell*:pnDOTMU*:");
 MODULE_ALIAS("dmi:*:*Packard*Bell*:pnENBFT*:");
 MODULE_ALIAS("dmi:*:*Packard*Bell*:pnDOTMA*:");
 MODULE_ALIAS("dmi:*:*Packard*Bell*:pnDOTVR46*:");
-MODULE_ALIAS("dmi:*:*Acer*:pnExtensa 5420*:");
+MODULE_ALIAS("dmi:*:*Acer*:pnExtensa*5420*:");
 
 module_init(acerhdf_init);
 module_exit(acerhdf_exit);
+
+static int interval_set_uint(const char *val, const struct kernel_param *kp)
+{
+	int ret;
+
+	ret = param_set_uint(val, kp);
+	if (ret)
+		return ret;
+
+	acerhdf_check_param(thz_dev);
+
+	return 0;
+}
+
+static const struct kernel_param_ops interval_ops = {
+	.set = interval_set_uint,
+	.get = param_get_uint,
+};
+
+module_param_cb(interval, &interval_ops, &interval, 0000);
+MODULE_PARM_DESC(interval, "Polling interval of temperature check");

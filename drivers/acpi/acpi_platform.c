@@ -9,6 +9,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/bits.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
@@ -19,16 +20,55 @@
 
 #include "internal.h"
 
-ACPI_MODULE_NAME("platform");
+/* Exclude devices that have no _CRS resources provided */
+#define ACPI_ALLOW_WO_RESOURCES		BIT(0)
 
 static const struct acpi_device_id forbidden_id_list[] = {
+	{"ACPI0009", 0},	/* IOxAPIC */
+	{"ACPI000A", 0},	/* IOAPIC */
 	{"PNP0000",  0},	/* PIC */
 	{"PNP0100",  0},	/* Timer */
 	{"PNP0200",  0},	/* AT DMA Controller */
-	{"ACPI0009", 0},	/* IOxAPIC */
-	{"ACPI000A", 0},	/* IOAPIC */
-	{"SMB0001",  0},	/* ACPI SMBUS virtual device */
-	{"", 0},
+	{ACPI_SMBUS_MS_HID,  ACPI_ALLOW_WO_RESOURCES},	/* ACPI SMBUS virtual device */
+	{ }
+};
+
+static struct platform_device *acpi_platform_device_find_by_companion(struct acpi_device *adev)
+{
+	struct device *dev;
+
+	dev = bus_find_device_by_acpi_dev(&platform_bus_type, adev);
+	return dev ? to_platform_device(dev) : NULL;
+}
+
+static int acpi_platform_device_remove_notify(struct notifier_block *nb,
+					      unsigned long value, void *arg)
+{
+	struct acpi_device *adev = arg;
+	struct platform_device *pdev;
+
+	switch (value) {
+	case ACPI_RECONFIG_DEVICE_ADD:
+		/* Nothing to do here */
+		break;
+	case ACPI_RECONFIG_DEVICE_REMOVE:
+		if (!acpi_device_enumerated(adev))
+			break;
+
+		pdev = acpi_platform_device_find_by_companion(adev);
+		if (!pdev)
+			break;
+
+		platform_device_unregister(pdev);
+		put_device(&pdev->dev);
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block acpi_platform_notifier = {
+	.notifier_call = acpi_platform_device_remove_notify,
 };
 
 static void acpi_platform_fill_resource(struct acpi_device *adev,
@@ -42,9 +82,18 @@ static void acpi_platform_fill_resource(struct acpi_device *adev,
 	 * If the device has parent we need to take its resources into
 	 * account as well because this device might consume part of those.
 	 */
-	parent = acpi_get_first_physical_node(adev->parent);
+	parent = acpi_get_first_physical_node(acpi_dev_parent(adev));
 	if (parent && dev_is_pci(parent))
 		dest->parent = pci_find_resource(to_pci_dev(parent), dest);
+}
+
+static unsigned int acpi_platform_resource_count(struct acpi_resource *ares, void *data)
+{
+	bool *has_resources = data;
+
+	*has_resources = true;
+
+	return AE_CTRL_TERMINATE;
 }
 
 /**
@@ -59,10 +108,12 @@ static void acpi_platform_fill_resource(struct acpi_device *adev,
  * Name of the platform device will be the same as @adev's.
  */
 struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
-					struct property_entry *properties)
+						    const struct property_entry *properties)
 {
+	struct acpi_device *parent = acpi_dev_parent(adev);
 	struct platform_device *pdev = NULL;
 	struct platform_device_info pdevinfo;
+	const struct acpi_device_id *match;
 	struct resource_entry *rentry;
 	struct list_head resource_list;
 	struct resource *resources = NULL;
@@ -72,18 +123,27 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
 	if (adev->physical_node_count)
 		return NULL;
 
-	if (!acpi_match_device_ids(adev, forbidden_id_list))
-		return ERR_PTR(-EINVAL);
+	match = acpi_match_acpi_device(forbidden_id_list, adev);
+	if (match) {
+		if (match->driver_data & ACPI_ALLOW_WO_RESOURCES) {
+			bool has_resources = false;
+
+			acpi_walk_resources(adev->handle, METHOD_NAME__CRS,
+					    acpi_platform_resource_count, &has_resources);
+			if (has_resources)
+				return ERR_PTR(-EINVAL);
+		} else {
+			return ERR_PTR(-EINVAL);
+		}
+	}
 
 	INIT_LIST_HEAD(&resource_list);
 	count = acpi_dev_get_resources(adev, &resource_list, NULL, NULL);
-	if (count < 0) {
+	if (count < 0)
 		return NULL;
-	} else if (count > 0) {
-		resources = kcalloc(count, sizeof(struct resource),
-				    GFP_KERNEL);
+	if (count > 0) {
+		resources = kcalloc(count, sizeof(*resources), GFP_KERNEL);
 		if (!resources) {
-			dev_err(&adev->dev, "No memory for resources\n");
 			acpi_dev_free_resource_list(&resource_list);
 			return ERR_PTR(-ENOMEM);
 		}
@@ -101,10 +161,9 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
 	 * attached to it, that physical device should be the parent of the
 	 * platform device we are about to create.
 	 */
-	pdevinfo.parent = adev->parent ?
-		acpi_get_first_physical_node(adev->parent) : NULL;
+	pdevinfo.parent = parent ? acpi_get_first_physical_node(parent) : NULL;
 	pdevinfo.name = dev_name(&adev->dev);
-	pdevinfo.id = -1;
+	pdevinfo.id = PLATFORM_DEVID_NONE;
 	pdevinfo.res = resources;
 	pdevinfo.num_res = count;
 	pdevinfo.fwnode = acpi_fwnode_handle(adev);
@@ -130,3 +189,8 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
 	return pdev;
 }
 EXPORT_SYMBOL_GPL(acpi_create_platform_device);
+
+void __init acpi_platform_init(void)
+{
+	acpi_reconfig_notifier_register(&acpi_platform_notifier);
+}

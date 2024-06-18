@@ -1,0 +1,93 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree for ULCB + Simple Audio Card
+ *
+ * Copyright (C) 2022 Renesas Electronics Corp.
+ */
+
+/*
+ *	(A) CPU0 <----> ak4613
+ *	(B) CPU1  ----> HDMI
+ *
+ *	(A) aplay   -D plughw:0,0 xxx.wav
+ *	(B) aplay   -D plughw:0,1 xxx.wav
+ *
+ *	(A) arecord -D plughw:0,0 xxx.wav
+ */
+
+/ {
+	sound_card: sound {
+		compatible = "simple-audio-card";
+		label = "snd-ulcb";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/*
+		 * (A) CPU0 <-> ak4613
+		 */
+		simple-audio-card,dai-link@0 {
+			reg = <0>;
+			cpu {
+				bitclock-master;
+				frame-master;
+				sound-dai = <&rcar_sound 0>;
+			};
+			codec {
+				sound-dai = <&ak4613>;
+			};
+		};
+		/*
+		 * (B) CPU1 -> HDMI
+		 */
+		simple-audio-card,dai-link@1 {
+			reg = <1>;
+			cpu {
+				bitclock-master;
+				frame-master;
+				sound-dai = <&rcar_sound 1>;
+			};
+			codec {
+				sound-dai = <&hdmi0>;
+			};
+		};
+	};
+};
+
+&ak4613 {
+	/*
+	 * (A) CPU0 <-> ak4613
+	 */
+	#sound-dai-cells = <0>;
+};
+
+&hdmi0 {
+	/*
+	 * (B) CPU1 -> HDMI
+	 */
+	#sound-dai-cells = <0>;
+};
+
+&rcar_sound {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	#sound-dai-cells = <1>;
+
+	rcar_sound,dai@0 {
+		reg = <0>;
+
+		/*
+		 * (A) CPU0 <-> ak4613
+		 */
+		dai0 {
+			playback = <&ssi0 &src0 &dvc0>;
+			capture  = <&ssi1 &src1 &dvc1>;
+		};
+		/*
+		 * (B) CPU1 -> HDMI
+		 */
+		dai1 {
+			playback = <&ssi2>;
+		};
+	};
+};

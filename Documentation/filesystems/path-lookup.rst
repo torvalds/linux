@@ -13,6 +13,7 @@ It has subsequently been updated to reflect changes in the kernel
 including:
 
 - per-directory parallel name lookup.
+- ``openat2()`` resolution restriction flags.
 
 Introduction to pathname lookup
 ===============================
@@ -42,15 +43,15 @@ characters, and "components" that are sequences of one or more
 non-"``/``" characters.  These form two kinds of paths.  Those that
 start with slashes are "absolute" and start from the filesystem root.
 The others are "relative" and start from the current directory, or
-from some other location specified by a file descriptor given to a
-"``XXXat``" system call such as `openat() <openat_>`_.
+from some other location specified by a file descriptor given to
+"``*at()``" system calls such as `openat() <openat_>`_.
 
 .. _execveat: http://man7.org/linux/man-pages/man2/execveat.2.html
 
 It is tempting to describe the second kind as starting with a
 component, but that isn't always accurate: a pathname can lack both
 slashes and components, it can be empty, in other words.  This is
-generally forbidden in POSIX, but some of those "xxx``at``" system calls
+generally forbidden in POSIX, but some of those "``*at()``" system calls
 in Linux permit it when the ``AT_EMPTY_PATH`` flag is given.  For
 example, if you have an open file descriptor on an executable file you
 can execute it by calling `execveat() <execveat_>`_ passing
@@ -68,17 +69,17 @@ pathname that is just slashes have a final component.  If it does
 exist, it could be "``.``" or "``..``" which are handled quite differently
 from other components.
 
-.. _POSIX: http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap04.html#tag_04_12
+.. _POSIX: https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap04.html#tag_04_12
 
 If a pathname ends with a slash, such as "``/tmp/foo/``" it might be
 tempting to consider that to have an empty final component.  In many
 ways that would lead to correct results, but not always.  In
 particular, ``mkdir()`` and ``rmdir()`` each create or remove a directory named
 by the final component, and they are required to work with pathnames
-ending in "``/``".  According to POSIX_
+ending in "``/``".  According to POSIX_:
 
-  A pathname that contains at least one non- &lt;slash> character and
-  that ends with one or more trailing &lt;slash> characters shall not
+  A pathname that contains at least one non-<slash> character and
+  that ends with one or more trailing <slash> characters shall not
   be resolved successfully unless the last pathname component before
   the trailing <slash> characters names an existing directory or a
   directory entry that is to be created for a directory immediately
@@ -228,12 +229,19 @@ happened to be looking at a dentry that was moved in this way,
 it might end up continuing the search down the wrong chain,
 and so miss out on part of the correct chain.
 
-The name-lookup process (``d_lookup()``) does _not_ try to prevent this
+The name-lookup process (``d_lookup()``) does *not* try to prevent this
 from happening, but only to detect when it happens.
 ``rename_lock`` is a seqlock that is updated whenever any dentry is
 renamed.  If ``d_lookup`` finds that a rename happened while it
 unsuccessfully scanned a chain in the hash table, it simply tries
 again.
+
+``rename_lock`` is also used to detect and defend against potential attacks
+against ``LOOKUP_BENEATH`` and ``LOOKUP_IN_ROOT`` when resolving ".." (where
+the parent directory is moved outside the root, bypassing the ``path_equal()``
+check). If ``rename_lock`` is updated during the lookup and the path encounters
+a "..", a potential attack occurred and ``handle_dots()`` will bail out with
+``-EAGAIN``.
 
 inode->i_rwsem
 ~~~~~~~~~~~~~~
@@ -348,6 +356,13 @@ any changes to any mount points while stepping up.  This locking is
 needed to stabilize the link to the mounted-on dentry, which the
 refcount on the mount itself doesn't ensure.
 
+``mount_lock`` is also used to detect and defend against potential attacks
+against ``LOOKUP_BENEATH`` and ``LOOKUP_IN_ROOT`` when resolving ".." (where
+the parent directory is moved outside the root, bypassing the ``path_equal()``
+check). If ``mount_lock`` is updated during the lookup and the path encounters
+a "..", a potential attack occurred and ``handle_dots()`` will bail out with
+``-EAGAIN``.
+
 RCU
 ~~~
 
@@ -361,7 +376,7 @@ table, and the mount point hash table.
 Bringing it together with ``struct nameidata``
 ----------------------------------------------
 
-.. _First edition Unix: http://minnie.tuhs.org/cgi-bin/utree.pl?file=V1/u2.s
+.. _First edition Unix: https://minnie.tuhs.org/cgi-bin/utree.pl?file=V1/u2.s
 
 Throughout the process of walking a path, the current status is stored
 in a ``struct nameidata``, "namei" being the traditional name - dating
@@ -383,17 +398,14 @@ held.
 ``struct qstr last``
 ~~~~~~~~~~~~~~~~~~~~
 
-This is a string together with a length (i.e. _not_ ``nul`` terminated)
+This is a string together with a length (i.e. *not* ``nul`` terminated)
 that is the "next" component in the pathname.
 
 ``int last_type``
 ~~~~~~~~~~~~~~~~~
 
-This is one of ``LAST_NORM``, ``LAST_ROOT``, ``LAST_DOT``, ``LAST_DOTDOT``, or
-``LAST_BIND``.  The ``last`` field is only valid if the type is
-``LAST_NORM``.  ``LAST_BIND`` is used when following a symlink and no
-components of the symlink have been processed yet.  Others should be
-fairly self-explanatory.
+This is one of ``LAST_NORM``, ``LAST_ROOT``, ``LAST_DOT`` or ``LAST_DOTDOT``.
+The ``last`` field is only valid if the type is ``LAST_NORM``.
 
 ``struct path root``
 ~~~~~~~~~~~~~~~~~~~~
@@ -404,6 +416,10 @@ only assigned the first time it is used, or when a non-standard root
 is requested.  Keeping a reference in the ``nameidata`` ensures that
 only one root is in effect for the entire path walk, even if it races
 with a ``chroot()`` system call.
+
+It should be noted that in the case of ``LOOKUP_IN_ROOT`` or
+``LOOKUP_BENEATH``, the effective root becomes the directory file descriptor
+passed to ``openat2()`` (which exposes these ``LOOKUP_`` flags).
 
 The root is needed when either of two conditions holds: (1) either the
 pathname or a symbolic link starts with a "'/'", or (2) a "``..``"
@@ -432,15 +448,17 @@ described.  If it finds a ``LAST_NORM`` component it first calls
 filesystem to revalidate the result if it is that sort of filesystem.
 If that doesn't get a good result, it calls "``lookup_slow()``" which
 takes ``i_rwsem``, rechecks the cache, and then asks the filesystem
-to find a definitive answer.  Each of these will call
-``follow_managed()`` (as described below) to handle any mount points.
+to find a definitive answer.
 
-In the absence of symbolic links, ``walk_component()`` creates a new
-``struct path`` containing a counted reference to the new dentry and a
-reference to the new ``vfsmount`` which is only counted if it is
-different from the previous ``vfsmount``.  It then calls
-``path_to_nameidata()`` to install the new ``struct path`` in the
-``struct nameidata`` and drop the unneeded references.
+As the last step of walk_component(), step_into() will be called either
+directly from walk_component() or from handle_dots().  It calls
+handle_mounts(), to check and handle mount points, in which a new
+``struct path`` is created containing a counted reference to the new dentry and
+a reference to the new ``vfsmount`` which is only counted if it is
+different from the previous ``vfsmount``. Then if there is
+a symbolic link, step_into() calls pick_link() to deal with it,
+otherwise it installs the new ``struct path`` in the ``struct nameidata``, and
+drops the unneeded references.
 
 This "hand-over-hand" sequencing of getting a reference to the new
 dentry before dropping the reference to the previous dentry may
@@ -454,8 +472,8 @@ Handling the final component
 ``nd->last_type`` to refer to the final component of the path.  It does
 not call ``walk_component()`` that last time.  Handling that final
 component remains for the caller to sort out. Those callers are
-``path_lookupat()``, ``path_parentat()``, ``path_mountpoint()`` and
-``path_openat()`` each of which handles the differing requirements of
+path_lookupat(), path_parentat() and
+path_openat() each of which handles the differing requirements of
 different system calls.
 
 ``path_parentat()`` is clearly the simplest - it just wraps a little bit
@@ -470,20 +488,18 @@ perform their operation.
 object is wanted such as by ``stat()`` or ``chmod()``.  It essentially just
 calls ``walk_component()`` on the final component through a call to
 ``lookup_last()``.  ``path_lookupat()`` returns just the final dentry.
-
-``path_mountpoint()`` handles the special case of unmounting which must
-not try to revalidate the mounted filesystem.  It effectively
-contains, through a call to ``mountpoint_last()``, an alternate
-implementation of ``lookup_slow()`` which skips that step.  This is
-important when unmounting a filesystem that is inaccessible, such as
+It is worth noting that when flag ``LOOKUP_MOUNTPOINT`` is set,
+path_lookupat() will unset LOOKUP_JUMPED in nameidata so that in the
+subsequent path traversal d_weak_revalidate() won't be called.
+This is important when unmounting a filesystem that is inaccessible, such as
 one provided by a dead NFS server.
 
 Finally ``path_openat()`` is used for the ``open()`` system call; it
-contains, in support functions starting with "``do_last()``", all the
+contains, in support functions starting with "open_last_lookups()", all the
 complexity needed to handle the different subtleties of O_CREAT (with
 or without O_EXCL), final "``/``" characters, and trailing symbolic
 links.  We will revisit this in the final part of this series, which
-focuses on those symbolic links.  "``do_last()``" will sometimes, but
+focuses on those symbolic links.  "open_last_lookups()" will sometimes, but
 not always, take ``i_rwsem``, depending on what it finds.
 
 Each of these, or the functions which call them, need to be alert to
@@ -519,8 +535,7 @@ covered in greater detail in autofs.txt in the Linux documentation
 tree, but a few notes specifically related to path lookup are in order
 here.
 
-The Linux VFS has a concept of "managed" dentries which is reflected
-in function names such as "``follow_managed()``".  There are three
+The Linux VFS has a concept of "managed" dentries.  There are three
 potentially interesting things about these dentries corresponding
 to three different flags that might be set in ``dentry->d_flags``:
 
@@ -636,11 +651,11 @@ RCU-walk finds it cannot stop gracefully, it simply gives up and
 restarts from the top with REF-walk.
 
 This pattern of "try RCU-walk, if that fails try REF-walk" can be
-clearly seen in functions like ``filename_lookup()``,
-``filename_parentat()``, ``filename_mountpoint()``,
-``do_filp_open()``, and ``do_file_open_root()``.  These five
-correspond roughly to the four ``path_``* functions we met earlier,
-each of which calls ``link_path_walk()``.  The ``path_*`` functions are
+clearly seen in functions like filename_lookup(),
+filename_parentat(),
+do_filp_open(), and do_file_open_root().  These four
+correspond roughly to the three ``path_*()`` functions we met earlier,
+each of which calls ``link_path_walk()``.  The ``path_*()`` functions are
 called using different mode flags until a mode is found which works.
 They are first called with ``LOOKUP_RCU`` set to request "RCU-walk".  If
 that fails with the error ``ECHILD`` they are called again with no
@@ -704,7 +719,7 @@ against a dentry.  The length and name pointer are copied into local
 variables, then ``read_seqcount_retry()`` is called to confirm the two
 are consistent, and only then is ``->d_compare()`` called.  When
 standard filename comparison is used, ``dentry_cmp()`` is called
-instead.  Notably it does _not_ use ``read_seqcount_retry()``, but
+instead.  Notably it does *not* use ``read_seqcount_retry()``, but
 instead has a large comment explaining why the consistency guarantee
 isn't necessary.  A subsequent ``read_seqcount_retry()`` will be
 sufficient to catch any problem that could occur at this point.
@@ -912,7 +927,7 @@ if anything goes wrong it is much safer to just abort and try a more
 sedate approach.
 
 The emphasis here is "try quickly and check".  It should probably be
-"try quickly _and carefully,_ then check".  The fact that checking is
+"try quickly *and carefully*, then check".  The fact that checking is
 needed is a reminder that the system is dynamic and only a limited
 number of things are safe at all.  The most likely cause of errors in
 this whole process is assuming something is safe when in reality it
@@ -977,8 +992,8 @@ is 4096.  There are a number of reasons for this limit; not letting the
 kernel spend too much time on just one path is one of them.  With
 symbolic links you can effectively generate much longer paths so some
 sort of limit is needed for the same reason.  Linux imposes a limit of
-at most 40 symlinks in any one path lookup.  It previously imposed a
-further limit of eight on the maximum depth of recursion, but that was
+at most 40 (MAXSYMLINKS) symlinks in any one path lookup.  It previously imposed
+a further limit of eight on the maximum depth of recursion, but that was
 raised to 40 when a separate stack was implemented, so there is now
 just the one limit.
 
@@ -1045,42 +1060,26 @@ filesystem cannot successfully get a reference in RCU-walk mode, it
 must return ``-ECHILD`` and ``unlazy_walk()`` will be called to return to
 REF-walk mode in which the filesystem is allowed to sleep.
 
-The place for all this to happen is the ``i_op->follow_link()`` inode
-method.  In the present mainline code this is never actually called in
-RCU-walk mode as the rewrite is not quite complete.  It is likely that
-in a future release this method will be passed an ``inode`` pointer when
-called in RCU-walk mode so it both (1) knows to be careful, and (2) has the
-validated pointer.  Much like the ``i_op->permission()`` method we
-looked at previously, ``->follow_link()`` would need to be careful that
+The place for all this to happen is the ``i_op->get_link()`` inode
+method. This is called both in RCU-walk and REF-walk. In RCU-walk the
+``dentry*`` argument is NULL, ``->get_link()`` can return -ECHILD to drop out of
+RCU-walk.  Much like the ``i_op->permission()`` method we
+looked at previously, ``->get_link()`` would need to be careful that
 all the data structures it references are safe to be accessed while
-holding no counted reference, only the RCU lock.  Though getting a
-reference with ``->follow_link()`` is not yet done in RCU-walk mode, the
-code is ready to release the reference when that does happen.
-
-This need to drop the reference to a symlink adds significant
-complexity.  It requires a reference to the inode so that the
-``i_op->put_link()`` inode operation can be called.  In REF-walk, that
-reference is kept implicitly through a reference to the dentry, so
-keeping the ``struct path`` of the symlink is easiest.  For RCU-walk,
-the pointer to the inode is kept separately.  To allow switching from
-RCU-walk back to REF-walk in the middle of processing nested symlinks
-we also need the seq number for the dentry so we can confirm that
-switching back was safe.
-
-Finally, when providing a reference to a symlink, the filesystem also
-provides an opaque "cookie" that must be passed to ``->put_link()`` so that it
-knows what to free.  This might be the allocated memory area, or a
-pointer to the ``struct page`` in the page cache, or something else
-completely.  Only the filesystem knows what it is.
+holding no counted reference, only the RCU lock. A callback
+``struct delayed_called`` will be passed to ``->get_link()``:
+file systems can set their own put_link function and argument through
+set_delayed_call(). Later on, when VFS wants to put link, it will call
+do_delayed_call() to invoke that callback function with the argument.
 
 In order for the reference to each symlink to be dropped when the walk completes,
 whether in RCU-walk or REF-walk, the symlink stack needs to contain,
 along with the path remnants:
 
-- the ``struct path`` to provide a reference to the inode in REF-walk
-- the ``struct inode *`` to provide a reference to the inode in RCU-walk
+- the ``struct path`` to provide a reference to the previous path
+- the ``const char *`` to provide a reference to the to previous name
 - the ``seq`` to allow the path to be safely switched from RCU-walk to REF-walk
-- the ``cookie`` that tells ``->put_path()`` what to put.
+- the ``struct delayed_call`` for later invocation.
 
 This means that each entry in the symlink stack needs to hold five
 pointers and an integer instead of just one pointer (the path
@@ -1104,12 +1103,10 @@ doesn't need to notice.  Getting this ``name`` variable on and off the
 stack is very straightforward; pushing and popping the references is
 a little more complex.
 
-When a symlink is found, ``walk_component()`` returns the value ``1``
-(``0`` is returned for any other sort of success, and a negative number
-is, as usual, an error indicator).  This causes ``get_link()`` to be
-called; it then gets the link from the filesystem.  Providing that
-operation is successful, the old path ``name`` is placed on the stack,
-and the new value is used as the ``name`` for a while.  When the end of
+When a symlink is found, walk_component() calls pick_link() via step_into()
+which returns the link from the filesystem.
+Providing that operation is successful, the old path ``name`` is placed on the
+stack, and the new value is used as the ``name`` for a while.  When the end of
 the path is found (i.e. ``*name`` is ``'\0'``) the old ``name`` is restored
 off the stack and path walking continues.
 
@@ -1126,30 +1123,30 @@ stack in ``walk_component()`` immediately when the symlink is found;
 old symlink as it walks that last component.  So it is quite
 convenient for ``walk_component()`` to release the old symlink and pop
 the references just before pushing the reference information for the
-new symlink.  It is guided in this by two flags; ``WALK_GET``, which
-gives it permission to follow a symlink if it finds one, and
-``WALK_PUT``, which tells it to release the current symlink after it has been
-followed.  ``WALK_PUT`` is tested first, leading to a call to
-``put_link()``.  ``WALK_GET`` is tested subsequently (by
-``should_follow_link()``) leading to a call to ``pick_link()`` which sets
-up the stack frame.
+new symlink.  It is guided in this by three flags: ``WALK_NOFOLLOW`` which
+forbids it from following a symlink if it finds one, ``WALK_MORE``
+which indicates that it is yet too early to release the
+current symlink, and ``WALK_TRAILING`` which indicates that it is on the final
+component of the lookup, so we will check userspace flag ``LOOKUP_FOLLOW`` to
+decide whether follow it when it is a symlink and call ``may_follow_link()`` to
+check if we have privilege to follow it.
 
 Symlinks with no final component
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A pair of special-case symlinks deserve a little further explanation.
 Both result in a new ``struct path`` (with mount and dentry) being set
-up in the ``nameidata``, and result in ``get_link()`` returning ``NULL``.
+up in the ``nameidata``, and result in pick_link() returning ``NULL``.
 
 The more obvious case is a symlink to "``/``".  All symlinks starting
-with "``/``" are detected in ``get_link()`` which resets the ``nameidata``
+with "``/``" are detected in pick_link() which resets the ``nameidata``
 to point to the effective filesystem root.  If the symlink only
 contains "``/``" then there is nothing more to do, no components at all,
 so ``NULL`` is returned to indicate that the symlink can be released and
 the stack frame discarded.
 
 The other case involves things in ``/proc`` that look like symlinks but
-aren't really::
+aren't really (and are therefore commonly referred to as "magic-links")::
 
      $ ls -l /proc/self/fd/1
      lrwx------ 1 neilb neilb 64 Jun 13 10:19 /proc/self/fd/1 -> /dev/pts/4
@@ -1159,12 +1156,11 @@ something that looks like a symlink.  It is really a reference to the
 target file, not just the name of it.  When you ``readlink`` these
 objects you get a name that might refer to the same file - unless it
 has been unlinked or mounted over.  When ``walk_component()`` follows
-one of these, the ``->follow_link()`` method in "procfs" doesn't return
-a string name, but instead calls ``nd_jump_link()`` which updates the
-``nameidata`` in place to point to that target.  ``->follow_link()`` then
-returns ``NULL``.  Again there is no final component and ``get_link()``
-reports this by leaving the ``last_type`` field of ``nameidata`` as
-``LAST_BIND``.
+one of these, the ``->get_link()`` method in "procfs" doesn't return
+a string name, but instead calls nd_jump_link() which updates the
+``nameidata`` in place to point to that target.  ``->get_link()`` then
+returns ``NULL``.  Again there is no final component and pick_link()
+returns ``NULL``.
 
 Following the symlink in the final component
 --------------------------------------------
@@ -1181,42 +1177,38 @@ potentially need to call ``link_path_walk()`` again and again on
 successive symlinks until one is found that doesn't point to another
 symlink.
 
-This case is handled by the relevant caller of ``link_path_walk()``, such as
-``path_lookupat()`` using a loop that calls ``link_path_walk()``, and then
-handles the final component.  If the final component is a symlink
-that needs to be followed, then ``trailing_symlink()`` is called to set
-things up properly and the loop repeats, calling ``link_path_walk()``
-again.  This could loop as many as 40 times if the last component of
-each symlink is another symlink.
+This case is handled by relevant callers of link_path_walk(), such as
+path_lookupat(), path_openat() using a loop that calls link_path_walk(),
+and then handles the final component by calling open_last_lookups() or
+lookup_last(). If it is a symlink that needs to be followed,
+open_last_lookups() or lookup_last() will set things up properly and
+return the path so that the loop repeats, calling
+link_path_walk() again.  This could loop as many as 40 times if the last
+component of each symlink is another symlink.
 
-The various functions that examine the final component and possibly
-report that it is a symlink are ``lookup_last()``, ``mountpoint_last()``
-and ``do_last()``, each of which use the same convention as
-``walk_component()`` of returning ``1`` if a symlink was found that needs
-to be followed.
+Of the various functions that examine the final component, 
+open_last_lookups() is the most interesting as it works in tandem
+with do_open() for opening a file.  Part of open_last_lookups() runs
+with ``i_rwsem`` held and this part is in a separate function: lookup_open().
 
-Of these, ``do_last()`` is the most interesting as it is used for
-opening a file.  Part of ``do_last()`` runs with ``i_rwsem`` held and this
-part is in a separate function: ``lookup_open()``.
+Explaining open_last_lookups() and do_open() completely is beyond the scope
+of this article, but a few highlights should help those interested in exploring
+the code.
 
-Explaining ``do_last()`` completely is beyond the scope of this article,
-but a few highlights should help those interested in exploring the
-code.
-
-1. Rather than just finding the target file, ``do_last()`` needs to open
+1. Rather than just finding the target file, do_open() is used after
+   open_last_lookup() to open
    it.  If the file was found in the dcache, then ``vfs_open()`` is used for
    this.  If not, then ``lookup_open()`` will either call ``atomic_open()`` (if
    the filesystem provides it) to combine the final lookup with the open, or
-   will perform the separate ``lookup_real()`` and ``vfs_create()`` steps
+   will perform the separate ``i_op->lookup()`` and ``i_op->create()`` steps
    directly.  In the later case the actual "open" of this newly found or
-   created file will be performed by ``vfs_open()``, just as if the name
+   created file will be performed by vfs_open(), just as if the name
    were found in the dcache.
 
-2. ``vfs_open()`` can fail with ``-EOPENSTALE`` if the cached information
-   wasn't quite current enough.  Rather than restarting the lookup from
-   the top with ``LOOKUP_REVAL`` set, ``lookup_open()`` is called instead,
-   giving the filesystem a chance to resolve small inconsistencies.
-   If that doesn't work, only then is the lookup restarted from the top.
+2. vfs_open() can fail with ``-EOPENSTALE`` if the cached information
+   wasn't quite current enough.  If it's in RCU-walk ``-ECHILD`` will be returned
+   otherwise ``-ESTALE`` is returned.  When ``-ESTALE`` is returned, the caller may
+   retry with ``LOOKUP_REVAL`` flag set.
 
 3. An open with O_CREAT **does** follow a symlink in the final component,
    unlike other creation system calls (like ``mkdir``).  So the sequence::
@@ -1226,8 +1218,8 @@ code.
 
    will create a file called ``/tmp/bar``.  This is not permitted if
    ``O_EXCL`` is set but otherwise is handled for an O_CREAT open much
-   like for a non-creating open: ``should_follow_link()`` returns ``1``, and
-   so does ``do_last()`` so that ``trailing_symlink()`` gets called and the
+   like for a non-creating open: lookup_last() or open_last_lookup()
+   returns a non ``NULL`` value, and link_path_walk() gets called and the
    open process continues on the symlink that was found.
 
 Updating the access time
@@ -1249,7 +1241,7 @@ Symlinks are different it seems.  Both reading a symlink (with ``readlink()``)
 and looking up a symlink on the way to some other destination can
 update the atime on that symlink.
 
-.. _clearest statement: http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap04.html#tag_04_08
+.. _clearest statement: https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap04.html#tag_04_08
 
 It is not clear why this is the case; POSIX has little to say on the
 subject.  The `clearest statement`_ is that, if a particular implementation
@@ -1286,7 +1278,9 @@ A few flags
 A suitable way to wrap up this tour of pathname walking is to list
 the various flags that can be stored in the ``nameidata`` to guide the
 lookup process.  Many of these are only meaningful on the final
-component, others reflect the current state of the pathname lookup.
+component, others reflect the current state of the pathname lookup, and some
+apply restrictions to all path components encountered in the path lookup.
+
 And then there is ``LOOKUP_EMPTY``, which doesn't fit conceptually with
 the others.  If this is not set, an empty pathname causes an error
 very early on.  If it is set, empty pathnames are not considered to be
@@ -1303,19 +1297,54 @@ to lookup: RCU-walk, REF-walk, and REF-walk with forced revalidation.
 yet.  This is primarily used to tell the audit subsystem the full
 context of a particular access being audited.
 
-``LOOKUP_ROOT`` indicates that the ``root`` field in the ``nameidata`` was
+``ND_ROOT_PRESET`` indicates that the ``root`` field in the ``nameidata`` was
 provided by the caller, so it shouldn't be released when it is no
 longer needed.
 
-``LOOKUP_JUMPED`` means that the current dentry was chosen not because
+``ND_JUMPED`` means that the current dentry was chosen not because
 it had the right name but for some other reason.  This happens when
 following "``..``", following a symlink to ``/``, crossing a mount point
-or accessing a "``/proc/$PID/fd/$FD``" symlink.  In this case the
-filesystem has not been asked to revalidate the name (with
-``d_revalidate()``).  In such cases the inode may still need to be
-revalidated, so ``d_op->d_weak_revalidate()`` is called if
-``LOOKUP_JUMPED`` is set when the look completes - which may be at the
+or accessing a "``/proc/$PID/fd/$FD``" symlink (also known as a "magic
+link"). In this case the filesystem has not been asked to revalidate the
+name (with ``d_revalidate()``).  In such cases the inode may still need
+to be revalidated, so ``d_op->d_weak_revalidate()`` is called if
+``ND_JUMPED`` is set when the look completes - which may be at the
 final component or, when creating, unlinking, or renaming, at the penultimate component.
+
+Resolution-restriction flags
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In order to allow userspace to protect itself against certain race conditions
+and attack scenarios involving changing path components, a series of flags are
+available which apply restrictions to all path components encountered during
+path lookup. These flags are exposed through ``openat2()``'s ``resolve`` field.
+
+``LOOKUP_NO_SYMLINKS`` blocks all symlink traversals (including magic-links).
+This is distinctly different from ``LOOKUP_FOLLOW``, because the latter only
+relates to restricting the following of trailing symlinks.
+
+``LOOKUP_NO_MAGICLINKS`` blocks all magic-link traversals. Filesystems must
+ensure that they return errors from ``nd_jump_link()``, because that is how
+``LOOKUP_NO_MAGICLINKS`` and other magic-link restrictions are implemented.
+
+``LOOKUP_NO_XDEV`` blocks all ``vfsmount`` traversals (this includes both
+bind-mounts and ordinary mounts). Note that the ``vfsmount`` which contains the
+lookup is determined by the first mountpoint the path lookup reaches --
+absolute paths start with the ``vfsmount`` of ``/``, and relative paths start
+with the ``dfd``'s ``vfsmount``. Magic-links are only permitted if the
+``vfsmount`` of the path is unchanged.
+
+``LOOKUP_BENEATH`` blocks any path components which resolve outside the
+starting point of the resolution. This is done by blocking ``nd_jump_root()``
+as well as blocking ".." if it would jump outside the starting point.
+``rename_lock`` and ``mount_lock`` are used to detect attacks against the
+resolution of "..". Magic-links are also blocked.
+
+``LOOKUP_IN_ROOT`` resolves all path components as though the starting point
+were the filesystem root. ``nd_jump_root()`` brings the resolution back to
+the starting point, and ".." at the starting point will act as a no-op. As with
+``LOOKUP_BENEATH``, ``rename_lock`` and ``mount_lock`` are used to detect
+attacks against ".." resolution. Magic-links are also blocked.
 
 Final-component flags
 ~~~~~~~~~~~~~~~~~~~~~

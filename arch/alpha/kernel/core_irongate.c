@@ -226,14 +226,13 @@ albacore_init_arch(void)
 	if (memtop > pci_mem) {
 #ifdef CONFIG_BLK_DEV_INITRD
 		extern unsigned long initrd_start, initrd_end;
-		extern void *move_initrd(unsigned long);
 
 		/* Move the initrd out of the way. */
 		if (initrd_end && __pa(initrd_end) > pci_mem) {
 			unsigned long size;
 
 			size = initrd_end - initrd_start;
-			memblock_free(__pa(initrd_start), PAGE_ALIGN(size));
+			memblock_free((void *)initrd_start, PAGE_ALIGN(size));
 			if (!move_initrd(pci_mem))
 				printk("irongate_init_arch: initrd too big "
 				       "(%ldK)\ndisabling initrd\n",
@@ -302,7 +301,6 @@ irongate_init_arch(void)
 #include <linux/agp_backend.h>
 #include <linux/agpgart.h>
 #include <linux/export.h>
-#include <asm/pgalloc.h>
 
 #define GET_PAGE_DIR_OFF(addr) (addr >> 22)
 #define GET_PAGE_DIR_IDX(addr) (GET_PAGE_DIR_OFF(addr))

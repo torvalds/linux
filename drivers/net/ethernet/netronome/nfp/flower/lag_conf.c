@@ -76,7 +76,7 @@ struct nfp_fl_lag_group {
 /* Use this ID with zero members to ack a batch config */
 #define NFP_FL_LAG_SYNC_ID		0
 #define NFP_FL_LAG_GROUP_MIN		1 /* ID 0 reserved */
-#define NFP_FL_LAG_GROUP_MAX		32 /* IDs 1 to 31 are valid */
+#define NFP_FL_LAG_GROUP_MAX		31 /* IDs 1 to 31 are valid */
 
 /* wait for more config */
 #define NFP_FL_LAG_DELAY		(msecs_to_jiffies(2))
@@ -111,8 +111,8 @@ nfp_fl_lag_group_create(struct nfp_fl_lag *lag, struct net_device *master)
 
 	priv = container_of(lag, struct nfp_flower_priv, nfp_lag);
 
-	id = ida_simple_get(&lag->ida_handle, NFP_FL_LAG_GROUP_MIN,
-			    NFP_FL_LAG_GROUP_MAX, GFP_KERNEL);
+	id = ida_alloc_range(&lag->ida_handle, NFP_FL_LAG_GROUP_MIN,
+			     NFP_FL_LAG_GROUP_MAX, GFP_KERNEL);
 	if (id < 0) {
 		nfp_flower_cmsg_warn(priv->app,
 				     "No more bonding groups available\n");
@@ -121,7 +121,7 @@ nfp_fl_lag_group_create(struct nfp_fl_lag *lag, struct net_device *master)
 
 	group = kmalloc(sizeof(*group), GFP_KERNEL);
 	if (!group) {
-		ida_simple_remove(&lag->ida_handle, id);
+		ida_free(&lag->ida_handle, id);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -154,10 +154,11 @@ nfp_fl_lag_find_group_for_master_with_lag(struct nfp_fl_lag *lag,
 	return NULL;
 }
 
-int nfp_flower_lag_populate_pre_action(struct nfp_app *app,
-				       struct net_device *master,
-				       struct nfp_fl_pre_lag *pre_act,
-				       struct netlink_ext_ack *extack)
+static int nfp_fl_lag_get_group_info(struct nfp_app *app,
+				     struct net_device *netdev,
+				     __be16 *group_id,
+				     u8 *batch_ver,
+				     u8 *group_inst)
 {
 	struct nfp_flower_priv *priv = app->priv;
 	struct nfp_fl_lag_group *group = NULL;
@@ -165,21 +166,50 @@ int nfp_flower_lag_populate_pre_action(struct nfp_app *app,
 
 	mutex_lock(&priv->nfp_lag.lock);
 	group = nfp_fl_lag_find_group_for_master_with_lag(&priv->nfp_lag,
-							  master);
+							  netdev);
 	if (!group) {
 		mutex_unlock(&priv->nfp_lag.lock);
+		return -ENOENT;
+	}
+
+	if (group_id)
+		*group_id = cpu_to_be16(group->group_id);
+
+	if (batch_ver) {
+		temp_vers = cpu_to_be32(priv->nfp_lag.batch_ver <<
+					NFP_FL_PRE_LAG_VER_OFF);
+		memcpy(batch_ver, &temp_vers, 3);
+	}
+
+	if (group_inst)
+		*group_inst = group->group_inst;
+
+	mutex_unlock(&priv->nfp_lag.lock);
+
+	return 0;
+}
+
+int nfp_flower_lag_populate_pre_action(struct nfp_app *app,
+				       struct net_device *master,
+				       struct nfp_fl_pre_lag *pre_act,
+				       struct netlink_ext_ack *extack)
+{
+	if (nfp_fl_lag_get_group_info(app, master, &pre_act->group_id,
+				      pre_act->lag_version,
+				      &pre_act->instance)) {
 		NL_SET_ERR_MSG_MOD(extack, "invalid entry: group does not exist for LAG action");
 		return -ENOENT;
 	}
 
-	pre_act->group_id = cpu_to_be16(group->group_id);
-	temp_vers = cpu_to_be32(priv->nfp_lag.batch_ver <<
-				NFP_FL_PRE_LAG_VER_OFF);
-	memcpy(pre_act->lag_version, &temp_vers, 3);
-	pre_act->instance = group->group_inst;
-	mutex_unlock(&priv->nfp_lag.lock);
-
 	return 0;
+}
+
+void nfp_flower_lag_get_info_from_netdev(struct nfp_app *app,
+					 struct net_device *netdev,
+					 struct nfp_tun_neigh_lag *lag)
+{
+	nfp_fl_lag_get_group_info(app, netdev, NULL,
+				  lag->lag_version, &lag->lag_instance);
 }
 
 int nfp_flower_lag_get_output_id(struct nfp_app *app, struct net_device *master)
@@ -234,7 +264,7 @@ nfp_fl_lag_config_group(struct nfp_fl_lag *lag, struct nfp_fl_lag_group *group,
 	}
 
 	/* To signal the end of a batch, both the switch and last flags are set
-	 * and the the reserved SYNC group ID is used.
+	 * and the reserved SYNC group ID is used.
 	 */
 	if (*batch == NFP_FL_LAG_BATCH_FINISHED) {
 		flags |= NFP_FL_LAG_SWITCH | NFP_FL_LAG_LAST;
@@ -298,8 +328,7 @@ static void nfp_fl_lag_do_work(struct work_struct *work)
 			}
 
 			if (entry->to_destroy) {
-				ida_simple_remove(&lag->ida_handle,
-						  entry->group_id);
+				ida_free(&lag->ida_handle, entry->group_id);
 				list_del(&entry->list);
 				kfree(entry);
 			}
@@ -308,6 +337,11 @@ static void nfp_fl_lag_do_work(struct work_struct *work)
 
 		acti_netdevs = kmalloc_array(entry->slave_cnt,
 					     sizeof(*acti_netdevs), GFP_KERNEL);
+		if (!acti_netdevs) {
+			schedule_delayed_work(&lag->work,
+					      NFP_FL_LAG_DELAY);
+			continue;
+		}
 
 		/* Include sanity check in the loop. It may be that a bond has
 		 * changed between processing the last notification and the
@@ -385,7 +419,7 @@ nfp_fl_lag_put_unprocessed(struct nfp_fl_lag *lag, struct sk_buff *skb)
 	struct nfp_flower_cmsg_lag_config *cmsg_payload;
 
 	cmsg_payload = nfp_flower_cmsg_get_data(skb);
-	if (be32_to_cpu(cmsg_payload->group_id) >= NFP_FL_LAG_GROUP_MAX)
+	if (be32_to_cpu(cmsg_payload->group_id) > NFP_FL_LAG_GROUP_MAX)
 		return -EINVAL;
 
 	/* Drop cmsg retrans if storage limit is exceeded to prevent
@@ -576,7 +610,7 @@ nfp_fl_lag_changeupper_event(struct nfp_fl_lag *lag,
 	group->dirty = true;
 	group->slave_cnt = slave_count;
 
-	/* Group may have been on queue for removal but is now offfloable. */
+	/* Group may have been on queue for removal but is now offloadable. */
 	group->to_remove = false;
 	mutex_unlock(&lag->lock);
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2018 Gateworks Corporation
  */
@@ -117,9 +117,12 @@
 #define REG_CURPAGE_00H		0xFF
 
 #define MASK_VPER		0x3fffff
+#define MASK_VPER_SYNC_POS	0x800000
 #define MASK_VHREF		0x3fff
 #define MASK_HPER		0x0fff
+#define MASK_HPER_SYNC_POS	0x8000
 #define MASK_HSWIDTH		0x03ff
+#define MASK_HSWIDTH_INTERLACED	0x8000
 
 /* HPD Detection */
 #define DETECT_UTIL		BIT(7)	/* utility of HDMI level */

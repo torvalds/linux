@@ -3,25 +3,25 @@
 
 void test_stacktrace_map_raw_tp(void)
 {
-	const char *prog_name = "tracepoint/sched/sched_switch";
+	const char *prog_name = "oncpu";
 	int control_map_fd, stackid_hmap_fd, stackmap_fd;
-	const char *file = "./test_stacktrace_map.o";
+	const char *file = "./test_stacktrace_map.bpf.o";
 	__u32 key, val, duration = 0;
 	int err, prog_fd;
 	struct bpf_program *prog;
 	struct bpf_object *obj;
 	struct bpf_link *link = NULL;
 
-	err = bpf_prog_load(file, BPF_PROG_TYPE_RAW_TRACEPOINT, &obj, &prog_fd);
+	err = bpf_prog_test_load(file, BPF_PROG_TYPE_RAW_TRACEPOINT, &obj, &prog_fd);
 	if (CHECK(err, "prog_load raw tp", "err %d errno %d\n", err, errno))
 		return;
 
-	prog = bpf_object__find_program_by_title(obj, prog_name);
+	prog = bpf_object__find_program_by_name(obj, prog_name);
 	if (CHECK(!prog, "find_prog", "prog '%s' not found\n", prog_name))
 		goto close_prog;
 
 	link = bpf_program__attach_raw_tracepoint(prog, "sched_switch");
-	if (CHECK(IS_ERR(link), "attach_raw_tp", "err %ld\n", PTR_ERR(link)))
+	if (!ASSERT_OK_PTR(link, "attach_raw_tp"))
 		goto close_prog;
 
 	/* find map fds */
@@ -59,7 +59,6 @@ void test_stacktrace_map_raw_tp(void)
 		goto close_prog;
 
 close_prog:
-	if (!IS_ERR_OR_NULL(link))
-		bpf_link__destroy(link);
+	bpf_link__destroy(link);
 	bpf_object__close(obj);
 }

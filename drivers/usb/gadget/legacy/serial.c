@@ -9,6 +9,7 @@
 
 #include <linux/kernel.h>
 #include <linux/device.h>
+#include <linux/kstrtox.h>
 #include <linux/module.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
@@ -96,6 +97,36 @@ MODULE_PARM_DESC(use_obex, "Use CDC OBEX, default=no");
 static unsigned n_ports = 1;
 module_param(n_ports, uint, 0);
 MODULE_PARM_DESC(n_ports, "number of ports to create, default=1");
+
+static bool enable = true;
+
+static int switch_gserial_enable(bool do_enable);
+
+static int enable_set(const char *s, const struct kernel_param *kp)
+{
+	bool do_enable;
+	int ret;
+
+	if (!s)	/* called for no-arg enable == default */
+		return 0;
+
+	ret = kstrtobool(s, &do_enable);
+	if (ret || enable == do_enable)
+		return ret;
+
+	ret = switch_gserial_enable(do_enable);
+	if (!ret)
+		enable = do_enable;
+
+	return ret;
+}
+
+static const struct kernel_param_ops enable_ops = {
+	.set = enable_set,
+	.get = param_get_bool,
+};
+
+module_param_cb(enable, &enable_ops, &enable, 0644);
 
 /*-------------------------------------------------------------------------*/
 
@@ -240,7 +271,20 @@ static struct usb_composite_driver gserial_driver = {
 	.unbind		= gs_unbind,
 };
 
-static int __init init(void)
+static int switch_gserial_enable(bool do_enable)
+{
+	if (!serial_config_driver.label)
+		/* gserial_init() was not called, yet */
+		return 0;
+
+	if (do_enable)
+		return usb_composite_probe(&gserial_driver);
+
+	usb_composite_unregister(&gserial_driver);
+	return 0;
+}
+
+static int __init gserial_init(void)
 {
 	/* We *could* export two configs; that'd be much cleaner...
 	 * but neither of these product IDs was defined that way.
@@ -266,12 +310,16 @@ static int __init init(void)
 	}
 	strings_dev[STRING_DESCRIPTION_IDX].s = serial_config_driver.label;
 
+	if (!enable)
+		return 0;
+
 	return usb_composite_probe(&gserial_driver);
 }
-module_init(init);
+module_init(gserial_init);
 
-static void __exit cleanup(void)
+static void __exit gserial_cleanup(void)
 {
-	usb_composite_unregister(&gserial_driver);
+	if (enable)
+		usb_composite_unregister(&gserial_driver);
 }
-module_exit(cleanup);
+module_exit(gserial_cleanup);

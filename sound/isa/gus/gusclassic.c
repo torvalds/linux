@@ -23,7 +23,6 @@
 MODULE_DESCRIPTION(CRD_NAME);
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Gravis,UltraSound Classic}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
@@ -67,9 +66,9 @@ static int snd_gusclassic_create(struct snd_card *card,
 				 struct device *dev, unsigned int n,
 				 struct snd_gus_card **rgus)
 {
-	static long possible_ports[] = {0x220, 0x230, 0x240, 0x250, 0x260};
-	static int possible_irqs[] = {5, 11, 12, 9, 7, 15, 3, 4, -1};
-	static int possible_dmas[] = {5, 6, 7, 1, 3, -1};
+	static const long possible_ports[] = {0x220, 0x230, 0x240, 0x250, 0x260};
+	static const int possible_irqs[] = {5, 11, 12, 9, 7, 15, 3, 4, -1};
+	static const int possible_dmas[] = {5, 6, 7, 1, 3, -1};
 
 	int i, error;
 
@@ -114,14 +113,16 @@ static int snd_gusclassic_detect(struct snd_gus_card *gus)
 	unsigned char d;
 
 	snd_gf1_i_write8(gus, SNDRV_GF1_GB_RESET, 0);	/* reset GF1 */
-	if (((d = snd_gf1_i_look8(gus, SNDRV_GF1_GB_RESET)) & 0x07) != 0) {
+	d = snd_gf1_i_look8(gus, SNDRV_GF1_GB_RESET);
+	if ((d & 0x07) != 0) {
 		snd_printdd("[0x%lx] check 1 failed - 0x%x\n", gus->gf1.port, d);
 		return -ENODEV;
 	}
 	udelay(160);
 	snd_gf1_i_write8(gus, SNDRV_GF1_GB_RESET, 1);	/* release reset */
 	udelay(160);
-	if (((d = snd_gf1_i_look8(gus, SNDRV_GF1_GB_RESET)) & 0x07) != 1) {
+	d = snd_gf1_i_look8(gus, SNDRV_GF1_GB_RESET);
+	if ((d & 0x07) != 1) {
 		snd_printdd("[0x%lx] check 2 failed - 0x%x\n", gus->gf1.port, d);
 		return -ENODEV;
 	}
@@ -134,7 +135,7 @@ static int snd_gusclassic_probe(struct device *dev, unsigned int n)
 	struct snd_gus_card *gus;
 	int error;
 
-	error = snd_card_new(dev, index[n], id[n], THIS_MODULE, 0, &card);
+	error = snd_devm_card_new(dev, index[n], id[n], THIS_MODULE, 0, &card);
 	if (error < 0)
 		return error;
 
@@ -143,37 +144,37 @@ static int snd_gusclassic_probe(struct device *dev, unsigned int n)
 
 	error = snd_gusclassic_create(card, dev, n, &gus);
 	if (error < 0)
-		goto out;
+		return error;
 
 	error = snd_gusclassic_detect(gus);
 	if (error < 0)
-		goto out;
+		return error;
 
 	gus->joystick_dac = joystick_dac[n];
 
 	error = snd_gus_initialize(gus);
 	if (error < 0)
-		goto out;
+		return error;
 
 	error = -ENODEV;
 	if (gus->max_flag || gus->ess_flag) {
 		dev_err(dev, "GUS Classic or ACE soundcard was "
 			"not detected at 0x%lx\n", gus->gf1.port);
-		goto out;
+		return error;
 	}
 
 	error = snd_gf1_new_mixer(gus);
 	if (error < 0)
-		goto out;
+		return error;
 
 	error = snd_gf1_pcm_new(gus, 0, 0);
 	if (error < 0)
-		goto out;
+		return error;
 
 	if (!gus->ace_flag) {
 		error = snd_gf1_rawmidi_new(gus, 0);
 		if (error < 0)
-			goto out;
+			return error;
 	}
 
 	sprintf(card->longname + strlen(card->longname),
@@ -186,28 +187,17 @@ static int snd_gusclassic_probe(struct device *dev, unsigned int n)
 
 	error = snd_card_register(card);
 	if (error < 0)
-		goto out;
+		return error;
 
 	dev_set_drvdata(dev, card);
-	return 0;
-
-out:	snd_card_free(card);
-	return error;
-}
-
-static int snd_gusclassic_remove(struct device *dev, unsigned int n)
-{
-	snd_card_free(dev_get_drvdata(dev));
 	return 0;
 }
 
 static struct isa_driver snd_gusclassic_driver = {
 	.match		= snd_gusclassic_match,
 	.probe		= snd_gusclassic_probe,
-	.remove		= snd_gusclassic_remove,
 #if 0	/* FIXME */
 	.suspend	= snd_gusclassic_suspend,
-	.remove		= snd_gusclassic_remove,
 #endif
 	.driver		= {
 		.name	= DEV_NAME

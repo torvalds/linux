@@ -15,27 +15,4 @@ config AD7816
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7816.
 
-config AD7192
-	tristate "Analog Devices AD7190 AD7192 AD7193 AD7195 ADC driver"
-	depends on SPI
-	select AD_SIGMA_DELTA
-	help
-	  Say yes here to build support for Analog Devices AD7190,
-	  AD7192, AD7193 or AD7195 SPI analog to digital converters (ADC).
-	  If unsure, say N (but it's safe to say "Y").
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ad7192.
-
-config AD7280
-	tristate "Analog Devices AD7280A Lithium Ion Battery Monitoring System"
-	depends on SPI
-	select CRC8
-	help
-	  Say yes here to build support for Analog Devices AD7280A
-	  Lithium Ion Battery Monitoring System.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ad7280a
-
 endmenu

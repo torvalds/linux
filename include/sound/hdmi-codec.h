@@ -2,7 +2,7 @@
 /*
  * hdmi-codec.h - HDMI Codec driver API
  *
- * Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2014 Texas Instruments Incorporated - https://www.ti.com
  *
  * Author: Jyri Sarha <jsarha@ti.com>
  */
@@ -12,7 +12,6 @@
 
 #include <linux/of_graph.h>
 #include <linux/hdmi.h>
-#include <drm/drm_edid.h>
 #include <sound/asoundef.h>
 #include <sound/soc.h>
 #include <uapi/sound/asound.h>
@@ -32,8 +31,13 @@ struct hdmi_codec_daifmt {
 	} fmt;
 	unsigned int bit_clk_inv:1;
 	unsigned int frame_clk_inv:1;
-	unsigned int bit_clk_master:1;
-	unsigned int frame_clk_master:1;
+	unsigned int bit_clk_provider:1;
+	unsigned int frame_clk_provider:1;
+	/* bit_fmt could be standard PCM format or
+	 * IEC958 encoded format. ALSA IEC958 plugin will pass
+	 * IEC958_SUBFRAME format to the underneath driver.
+	 */
+	snd_pcm_format_t bit_fmt;
 };
 
 /*
@@ -60,11 +64,21 @@ struct hdmi_codec_ops {
 
 	/*
 	 * Configures HDMI-encoder for audio stream.
-	 * Mandatory
+	 * Having either prepare or hw_params is mandatory.
 	 */
 	int (*hw_params)(struct device *dev, void *data,
 			 struct hdmi_codec_daifmt *fmt,
 			 struct hdmi_codec_params *hparms);
+
+	/*
+	 * Configures HDMI-encoder for audio stream. Can be called
+	 * multiple times for each setup.
+	 *
+	 * Having either prepare or hw_params is mandatory.
+	 */
+	int (*prepare)(struct device *dev, void *data,
+		       struct hdmi_codec_daifmt *fmt,
+		       struct hdmi_codec_params *hparms);
 
 	/*
 	 * Shuts down the audio stream.
@@ -76,7 +90,8 @@ struct hdmi_codec_ops {
 	 * Mute/unmute HDMI audio stream.
 	 * Optional
 	 */
-	int (*digital_mute)(struct device *dev, void *data, bool enable);
+	int (*mute_stream)(struct device *dev, void *data,
+			   bool enable, int direction);
 
 	/*
 	 * Provides EDID-Like-Data from connected HDMI device.
@@ -99,22 +114,26 @@ struct hdmi_codec_ops {
 	int (*hook_plugged_cb)(struct device *dev, void *data,
 			       hdmi_codec_plugged_cb fn,
 			       struct device *codec_dev);
+
+	/* bit field */
+	unsigned int no_capture_mute:1;
 };
 
 /* HDMI codec initalization data */
 struct hdmi_codec_pdata {
 	const struct hdmi_codec_ops *ops;
 	uint i2s:1;
+	uint no_i2s_playback:1;
+	uint no_i2s_capture:1;
 	uint spdif:1;
+	uint no_spdif_playback:1;
+	uint no_spdif_capture:1;
 	int max_i2s_channels;
 	void *data;
 };
 
 struct snd_soc_component;
 struct snd_soc_jack;
-
-int hdmi_codec_set_jack_detect(struct snd_soc_component *component,
-			       struct snd_soc_jack *jack);
 
 #define HDMI_CODEC_DRV_NAME "hdmi-audio-codec"
 

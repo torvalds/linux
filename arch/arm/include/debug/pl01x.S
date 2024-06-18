@@ -8,13 +8,6 @@
 */
 #include <linux/amba/serial.h>
 
-#ifdef CONFIG_DEBUG_ZTE_ZX
-#undef UART01x_DR
-#undef UART01x_FR
-#define UART01x_DR     0x04
-#define UART01x_FR     0x14
-#endif
-
 #ifdef CONFIG_DEBUG_UART_PHYS
 		.macro	addruart, rp, rv, tmp
 		ldr	\rp, =CONFIG_DEBUG_UART_PHYS
@@ -26,7 +19,10 @@
 		strb	\rd, [\rx, #UART01x_DR]
 		.endm
 
-		.macro	waituart,rd,rx
+		.macro	waituartcts,rd,rx
+		.endm
+
+		.macro	waituarttxrdy,rd,rx
 1001:		ldr	\rd, [\rx, #UART01x_FR]
  ARM_BE8(	rev	\rd, \rd )
 		tst	\rd, #UART01x_FR_TXFF

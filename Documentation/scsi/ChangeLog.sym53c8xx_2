@@ -40,7 +40,7 @@ Wed Feb 7 21:00 2001 Gerard Roudier
 	- Call pci_enable_device() as wished by kernel maintainers.
 	- Change the sym_queue_scsiio() interface.
 	  This is intended to simplify portability.
-	- Move the code intended to deal with the dowloading of SCRIPTS 
+	- Move the code intended to deal with the downloading of SCRIPTS
 	  from SCRIPTS :) in the patch method (was wrongly placed in 
 	  the SCRIPTS setup method).
 	- Add a missing cpu_to_scr()  (np->abort_tbl.addr)
@@ -53,9 +53,9 @@ Sat Mar 3 21:00 2001 Gerard Roudier
 	  Also move the code that sniffes INQUIRY to sym_misc.c.
 	  This allows to share the corresponding code with NetBSD 
 	  without polluating the core driver source (sym_hipd.c).
-	- Add optionnal code that handles IO timeouts from the driver.
+	- Add optional code that handles IO timeouts from the driver.
 	  (not used under Linux, but required for NetBSD)
-	- Donnot assume any longer that PAGE_SHIFT and PAGE_SIZE are 
+	- Do not assume any longer that PAGE_SHIFT and PAGE_SIZE are
 	  defined at compile time, as at least NetBSD uses variables 
 	  in memory for that.
 	- Refine a work-around for the C1010-33 that consists in 
@@ -104,7 +104,7 @@ Sun Sep 9 18:00 2001 Gerard Roudier
 	- Change my email address.
 	- Add infrastructure for the forthcoming 64 bit DMA addressing support.
 	  (Based on PCI 64 bit patch from David S. Miller)
-	- Donnot use anymore vm_offset_t type.
+	- Do not use anymore vm_offset_t type.
 
 Sat Sep 15 20:00 2001 Gerard Roudier 
 	* version sym-2.1.13-20010916
@@ -119,7 +119,7 @@ Sat Sep 22 12:00 2001 Gerard Roudier
 
 Sun Sep 30 17:00 2001 Gerard Roudier 
 	* version sym-2.1.15-20010930
-	- Include <linux/module.h> unconditionnaly as expected by latest
+	- Include <linux/module.h> unconditionally as expected by latest
 	  kernels.
 	- Use del_timer_sync() for recent kernels to kill the driver timer 
 	  on module release.

@@ -1,0 +1,299 @@
+# SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/i2c/qcom,i2c-cci.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Camera Control Interface (CCI) I2C controller
+
+maintainers:
+  - Loic Poulain <loic.poulain@linaro.org>
+  - Robert Foss <robert.foss@linaro.org>
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - qcom,msm8226-cci
+          - qcom,msm8974-cci
+          - qcom,msm8996-cci
+
+      - items:
+          - enum:
+              - qcom,msm8916-cci
+          - const: qcom,msm8226-cci # CCI v1
+
+      - items:
+          - enum:
+              - qcom,sc7280-cci
+              - qcom,sc8280xp-cci
+              - qcom,sdm845-cci
+              - qcom,sm6350-cci
+              - qcom,sm8250-cci
+              - qcom,sm8450-cci
+          - const: qcom,msm8996-cci # CCI v2
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 0
+
+  clocks:
+    minItems: 3
+    maxItems: 6
+
+  clock-names:
+    minItems: 3
+    maxItems: 6
+
+  interrupts:
+    maxItems: 1
+
+  power-domains:
+    maxItems: 1
+
+  reg:
+    maxItems: 1
+
+patternProperties:
+  "^i2c-bus@[01]$":
+    $ref: /schemas/i2c/i2c-controller.yaml#
+    unevaluatedProperties: false
+
+    properties:
+      reg:
+        maxItems: 1
+
+      clock-frequency:
+        default: 100000
+
+required:
+  - compatible
+  - clock-names
+  - clocks
+  - interrupts
+  - reg
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,msm8996-cci
+    then:
+      required:
+        - power-domains
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,msm8226-cci
+              - qcom,msm8916-cci
+    then:
+      properties:
+        i2c-bus@1: false
+
+  - if:
+      properties:
+        compatible:
+          oneOf:
+            - contains:
+                enum:
+                  - qcom,msm8974-cci
+
+            - const: qcom,msm8226-cci
+    then:
+      properties:
+        clocks:
+          maxItems: 3
+        clock-names:
+          items:
+            - const: camss_top_ahb
+            - const: cci_ahb
+            - const: cci
+
+  - if:
+      properties:
+        compatible:
+          oneOf:
+            - contains:
+                enum:
+                  - qcom,msm8916-cci
+
+            - const: qcom,msm8996-cci
+    then:
+      properties:
+        clocks:
+          maxItems: 4
+        clock-names:
+          items:
+            - const: camss_top_ahb
+            - const: cci_ahb
+            - const: cci
+            - const: camss_ahb
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,sdm845-cci
+              - qcom,sm6350-cci
+    then:
+      properties:
+        clocks:
+          minItems: 6
+        clock-names:
+          items:
+            - const: camnoc_axi
+            - const: soc_ahb
+            - const: slow_ahb_src
+            - const: cpas_ahb
+            - const: cci
+            - const: cci_src
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,sc7280-cci
+              - qcom,sm8250-cci
+              - qcom,sm8450-cci
+    then:
+      properties:
+        clocks:
+          minItems: 5
+          maxItems: 5
+        clock-names:
+          items:
+            - const: camnoc_axi
+            - const: slow_ahb_src
+            - const: cpas_ahb
+            - const: cci
+            - const: cci_src
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,sc8280xp-cci
+    then:
+      properties:
+        clocks:
+          minItems: 4
+          maxItems: 4
+        clock-names:
+          items:
+            - const: camnoc_axi
+            - const: slow_ahb_src
+            - const: cpas_ahb
+            - const: cci
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/qcom,camcc-sdm845.h>
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    cci@ac4a000 {
+        reg = <0x0ac4a000 0x4000>;
+        compatible = "qcom,sdm845-cci", "qcom,msm8996-cci";
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        interrupts = <GIC_SPI 460 IRQ_TYPE_EDGE_RISING>;
+        power-domains = <&clock_camcc TITAN_TOP_GDSC>;
+
+        clocks = <&clock_camcc CAM_CC_CAMNOC_AXI_CLK>,
+                 <&clock_camcc CAM_CC_SOC_AHB_CLK>,
+                 <&clock_camcc CAM_CC_SLOW_AHB_CLK_SRC>,
+                 <&clock_camcc CAM_CC_CPAS_AHB_CLK>,
+                 <&clock_camcc CAM_CC_CCI_CLK>,
+                 <&clock_camcc CAM_CC_CCI_CLK_SRC>;
+        clock-names = "camnoc_axi",
+                      "soc_ahb",
+                      "slow_ahb_src",
+                      "cpas_ahb",
+                      "cci",
+                      "cci_src";
+
+        assigned-clocks = <&clock_camcc CAM_CC_CAMNOC_AXI_CLK>,
+                          <&clock_camcc CAM_CC_CCI_CLK>;
+        assigned-clock-rates = <80000000>,
+                               <37500000>;
+
+        pinctrl-names = "default", "sleep";
+        pinctrl-0 = <&cci0_default &cci1_default>;
+        pinctrl-1 = <&cci0_sleep &cci1_sleep>;
+
+        i2c-bus@0 {
+            reg = <0>;
+            clock-frequency = <1000000>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            camera@10 {
+                compatible = "ovti,ov8856";
+                reg = <0x10>;
+
+                reset-gpios = <&tlmm 9 GPIO_ACTIVE_LOW>;
+                pinctrl-names = "default";
+                pinctrl-0 = <&cam0_default>;
+
+                clocks = <&clock_camcc CAM_CC_MCLK0_CLK>;
+                clock-names = "xvclk";
+                clock-frequency = <19200000>;
+
+                dovdd-supply = <&vreg_lvs1a_1p8>;
+                avdd-supply = <&cam0_avdd_2v8>;
+                dvdd-supply = <&cam0_dvdd_1v2>;
+
+                port {
+                    ov8856_ep: endpoint {
+                        link-frequencies = /bits/ 64 <360000000 180000000>;
+                        data-lanes = <1 2 3 4>;
+                        remote-endpoint = <&csiphy0_ep>;
+                    };
+                };
+            };
+        };
+
+        cci_i2c1: i2c-bus@1 {
+            reg = <1>;
+            clock-frequency = <1000000>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            camera@60 {
+                compatible = "ovti,ov7251";
+                reg = <0x60>;
+
+                enable-gpios = <&tlmm 21 GPIO_ACTIVE_HIGH>;
+                pinctrl-names = "default";
+                pinctrl-0 = <&cam3_default>;
+
+                clocks = <&clock_camcc CAM_CC_MCLK3_CLK>;
+                clock-names = "xclk";
+                clock-frequency = <24000000>;
+
+                vdddo-supply = <&vreg_lvs1a_1p8>;
+                vdda-supply = <&cam3_avdd_2v8>;
+
+                port {
+                    ov7251_ep: endpoint {
+                        data-lanes = <0>;
+                        link-frequencies = /bits/ 64 <240000000 319200000>;
+                        remote-endpoint = <&csiphy3_ep>;
+                    };
+                };
+            };
+        };
+    };

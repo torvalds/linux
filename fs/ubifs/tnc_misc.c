@@ -126,8 +126,8 @@ int ubifs_search_zbranch(const struct ubifs_info *c,
 			 const struct ubifs_znode *znode,
 			 const union ubifs_key *key, int *n)
 {
-	int beg = 0, end = znode->child_cnt, uninitialized_var(mid);
-	int uninitialized_var(cmp);
+	int beg = 0, end = znode->child_cnt, mid;
+	int cmp;
 	const struct ubifs_zbranch *zbr = &znode->zbranch[0];
 
 	ubifs_assert(c, end > beg);
@@ -248,6 +248,28 @@ long ubifs_destroy_tnc_subtree(const struct ubifs_info *c,
 
 		zn = ubifs_tnc_postorder_next(c, zn);
 	}
+}
+
+/**
+ * ubifs_destroy_tnc_tree - destroy all znodes connected to the TNC tree.
+ * @c: UBIFS file-system description object
+ *
+ * This function destroys the whole TNC tree and updates clean global znode
+ * count.
+ */
+void ubifs_destroy_tnc_tree(struct ubifs_info *c)
+{
+	long n, freed;
+
+	if (!c->zroot.znode)
+		return;
+
+	n = atomic_long_read(&c->clean_zn_cnt);
+	freed = ubifs_destroy_tnc_subtree(c, c->zroot.znode);
+	ubifs_assert(c, freed == n);
+	atomic_long_sub(n, &ubifs_clean_zn_cnt);
+
+	c->zroot.znode = NULL;
 }
 
 /**
@@ -390,7 +412,7 @@ static int read_znode(struct ubifs_info *c, struct ubifs_zbranch *zzbr,
 
 out_dump:
 	ubifs_err(c, "bad indexing node at LEB %d:%d, error %d", lnum, offs, err);
-	ubifs_dump_node(c, idx);
+	ubifs_dump_node(c, idx, c->max_idx_node_sz);
 	kfree(idx);
 	return -EINVAL;
 }
@@ -455,8 +477,7 @@ out:
  * @node: node is returned here
  *
  * This function reads a node defined by @zbr from the flash media. Returns
- * zero in case of success or a negative negative error code in case of
- * failure.
+ * zero in case of success or a negative error code in case of failure.
  */
 int ubifs_tnc_read_node(struct ubifs_info *c, struct ubifs_zbranch *zbr,
 			void *node)
@@ -489,7 +510,7 @@ int ubifs_tnc_read_node(struct ubifs_info *c, struct ubifs_zbranch *zbr,
 			  zbr->lnum, zbr->offs);
 		dbg_tnck(key, "looked for key ");
 		dbg_tnck(&key1, "but found node's key ");
-		ubifs_dump_node(c, node);
+		ubifs_dump_node(c, node, zbr->len);
 		return -EINVAL;
 	}
 

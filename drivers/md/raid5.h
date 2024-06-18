@@ -4,6 +4,7 @@
 
 #include <linux/raid/xor.h>
 #include <linux/dmaengine.h>
+#include <linux/local_lock.h>
 
 /*
  *
@@ -195,6 +196,7 @@ enum reconstruct_states {
 	reconstruct_state_result,
 };
 
+#define DEFAULT_STRIPE_SIZE	4096
 struct stripe_head {
 	struct hlist_node	hash;
 	struct list_head	lru;	      /* inactive_list or handle_list */
@@ -246,6 +248,13 @@ struct stripe_head {
 		int 		     target, target2;
 		enum sum_check_flags zero_sum_result;
 	} ops;
+
+#if PAGE_SIZE != DEFAULT_STRIPE_SIZE
+	/* These pages will be used by bios in dev[i] */
+	struct page	**pages;
+	int	nr_pages;	/* page array size */
+	int	stripes_per_page;
+#endif
 	struct r5dev {
 		/* rreq and rvec are used for the replacement device when
 		 * writing data to both devices.
@@ -253,12 +262,13 @@ struct stripe_head {
 		struct bio	req, rreq;
 		struct bio_vec	vec, rvec;
 		struct page	*page, *orig_page;
+		unsigned int    offset;     /* offset of the page */
 		struct bio	*toread, *read, *towrite, *written;
 		sector_t	sector;			/* sector of this page */
 		unsigned long	flags;
 		u32		log_checksum;
 		unsigned short	write_hint;
-	} dev[1]; /* allocated with extra space depending of RAID geometry */
+	} dev[]; /* allocated depending of RAID geometry ("disks" member) */
 };
 
 /* stripe_head_state - collects and tracks the dynamic state of a stripe_head
@@ -463,7 +473,8 @@ enum {
  */
 
 struct disk_info {
-	struct md_rdev	*rdev, *replacement;
+	struct md_rdev	*rdev;
+	struct md_rdev	*replacement;
 	struct page	*extra_page; /* extra page to use in prexor */
 };
 
@@ -472,31 +483,18 @@ struct disk_info {
  */
 
 #define NR_STRIPES		256
+
+#if PAGE_SIZE == DEFAULT_STRIPE_SIZE
 #define STRIPE_SIZE		PAGE_SIZE
 #define STRIPE_SHIFT		(PAGE_SHIFT - 9)
 #define STRIPE_SECTORS		(STRIPE_SIZE>>9)
+#endif
+
 #define	IO_THRESHOLD		1
 #define BYPASS_THRESHOLD	1
 #define NR_HASH			(PAGE_SIZE / sizeof(struct hlist_head))
 #define HASH_MASK		(NR_HASH - 1)
 #define MAX_STRIPE_BATCH	8
-
-/* bio's attached to a stripe+device for I/O are linked together in bi_sector
- * order without overlap.  There may be several bio's per stripe+device, and
- * a bio could span several devices.
- * When walking this list for a particular stripe+device, we must never proceed
- * beyond a bio that extends past this device, as the next bio might no longer
- * be valid.
- * This function is used to determine the 'next' bio in the list, given the
- * sector of the current stripe+device
- */
-static inline struct bio *r5_next_bio(struct bio *bio, sector_t sector)
-{
-	if (bio_end_sector(bio) < sector + STRIPE_SECTORS)
-		return bio->bi_next;
-	else
-		return NULL;
-}
 
 /* NOTE NR_STRIPE_HASH_LOCKS must remain below 64.
  * This is because we sometimes take all the spinlocks
@@ -563,6 +561,16 @@ struct r5pending_data {
 	struct bio_list bios;
 };
 
+struct raid5_percpu {
+	struct page	*spare_page; /* Used when checking P/Q in raid6 */
+	void		*scribble;  /* space for constructing buffer
+				     * lists and performing address
+				     * conversions
+				     */
+	int             scribble_obj_size;
+	local_lock_t    lock;
+};
+
 struct r5conf {
 	struct hlist_head	*stripe_hashtbl;
 	/* only protect corresponding hash list and inactive_list */
@@ -574,6 +582,11 @@ struct r5conf {
 	int			raid_disks;
 	int			max_nr_stripes;
 	int			min_nr_stripes;
+#if PAGE_SIZE != DEFAULT_STRIPE_SIZE
+	unsigned long	stripe_size;
+	unsigned int	stripe_shift;
+	unsigned long	stripe_sectors;
+#endif
 
 	/* reshape_progress is the leading edge of a 'reshape'
 	 * It has value MaxSector when no reshape is happening
@@ -589,7 +602,7 @@ struct r5conf {
 	int			prev_chunk_sectors;
 	int			prev_algo;
 	short			generation; /* increments with every reshape */
-	seqcount_t		gen_lock;	/* lock against generation changes */
+	seqcount_spinlock_t	gen_lock;	/* lock against generation changes */
 	unsigned long		reshape_checkpoint; /* Time we last updated
 						     * metadata */
 	long long		min_offset_diff; /* minimum difference between
@@ -633,14 +646,7 @@ struct r5conf {
 					    */
 	int			recovery_disabled;
 	/* per cpu variables */
-	struct raid5_percpu {
-		struct page	*spare_page; /* Used when checking P/Q in raid6 */
-		void		*scribble;  /* space for constructing buffer
-					     * lists and performing address
-					     * conversions
-					     */
-		int scribble_obj_size;
-	} __percpu *percpu;
+	struct raid5_percpu __percpu *percpu;
 	int scribble_disks;
 	int scribble_sectors;
 	struct hlist_node node;
@@ -664,7 +670,7 @@ struct r5conf {
 	wait_queue_head_t	wait_for_stripe;
 	wait_queue_head_t	wait_for_overlap;
 	unsigned long		cache_state;
-	struct shrinker		shrinker;
+	struct shrinker		*shrinker;
 	int			pool_size; /* number of disks in stripeheads in pool */
 	spinlock_t		device_lock;
 	struct disk_info	*disks;
@@ -673,7 +679,7 @@ struct r5conf {
 	/* When taking over an array from a different personality, we store
 	 * the new thread here until we fully activate the array.
 	 */
-	struct md_thread	*thread;
+	struct md_thread __rcu	*thread;
 	struct list_head	temp_inactive_list[NR_STRIPE_HASH_LOCKS];
 	struct r5worker_group	*worker_groups;
 	int			group_cnt;
@@ -690,6 +696,32 @@ struct r5conf {
 	struct r5pending_data	*next_pending_data;
 };
 
+#if PAGE_SIZE == DEFAULT_STRIPE_SIZE
+#define RAID5_STRIPE_SIZE(conf)	STRIPE_SIZE
+#define RAID5_STRIPE_SHIFT(conf)	STRIPE_SHIFT
+#define RAID5_STRIPE_SECTORS(conf)	STRIPE_SECTORS
+#else
+#define RAID5_STRIPE_SIZE(conf)	((conf)->stripe_size)
+#define RAID5_STRIPE_SHIFT(conf)	((conf)->stripe_shift)
+#define RAID5_STRIPE_SECTORS(conf)	((conf)->stripe_sectors)
+#endif
+
+/* bio's attached to a stripe+device for I/O are linked together in bi_sector
+ * order without overlap.  There may be several bio's per stripe+device, and
+ * a bio could span several devices.
+ * When walking this list for a particular stripe+device, we must never proceed
+ * beyond a bio that extends past this device, as the next bio might no longer
+ * be valid.
+ * This function is used to determine the 'next' bio in the list, given the
+ * sector of the current stripe+device
+ */
+static inline struct bio *r5_next_bio(struct r5conf *conf, struct bio *bio, sector_t sector)
+{
+	if (bio_end_sector(bio) < sector + RAID5_STRIPE_SECTORS(conf))
+		return bio->bi_next;
+	else
+		return NULL;
+}
 
 /*
  * Our supported algorithms
@@ -752,16 +784,43 @@ static inline int algorithm_is_DDF(int layout)
 	return layout >= 8 && layout <= 10;
 }
 
-extern void md_raid5_kick_device(struct r5conf *conf);
-extern int raid5_set_cache_size(struct mddev *mddev, int size);
-extern sector_t raid5_compute_blocknr(struct stripe_head *sh, int i, int previous);
-extern void raid5_release_stripe(struct stripe_head *sh);
-extern sector_t raid5_compute_sector(struct r5conf *conf, sector_t r_sector,
-				     int previous, int *dd_idx,
-				     struct stripe_head *sh);
-extern struct stripe_head *
-raid5_get_active_stripe(struct r5conf *conf, sector_t sector,
-			int previous, int noblock, int noquiesce);
-extern int raid5_calc_degraded(struct r5conf *conf);
-extern int r5c_journal_mode_set(struct mddev *mddev, int journal_mode);
+#if PAGE_SIZE != DEFAULT_STRIPE_SIZE
+/*
+ * Return offset of the corresponding page for r5dev.
+ */
+static inline int raid5_get_page_offset(struct stripe_head *sh, int disk_idx)
+{
+	return (disk_idx % sh->stripes_per_page) * RAID5_STRIPE_SIZE(sh->raid_conf);
+}
+
+/*
+ * Return corresponding page address for r5dev.
+ */
+static inline struct page *
+raid5_get_dev_page(struct stripe_head *sh, int disk_idx)
+{
+	return sh->pages[disk_idx / sh->stripes_per_page];
+}
+#endif
+
+void md_raid5_kick_device(struct r5conf *conf);
+int raid5_set_cache_size(struct mddev *mddev, int size);
+sector_t raid5_compute_blocknr(struct stripe_head *sh, int i, int previous);
+void raid5_release_stripe(struct stripe_head *sh);
+sector_t raid5_compute_sector(struct r5conf *conf, sector_t r_sector,
+		int previous, int *dd_idx, struct stripe_head *sh);
+
+struct stripe_request_ctx;
+/* get stripe from previous generation (when reshaping) */
+#define R5_GAS_PREVIOUS		(1 << 0)
+/* do not block waiting for a free stripe */
+#define R5_GAS_NOBLOCK		(1 << 1)
+/* do not block waiting for quiesce to be released */
+#define R5_GAS_NOQUIESCE	(1 << 2)
+struct stripe_head *raid5_get_active_stripe(struct r5conf *conf,
+		struct stripe_request_ctx *ctx, sector_t sector,
+		unsigned int flags);
+
+int raid5_calc_degraded(struct r5conf *conf);
+int r5c_journal_mode_set(struct mddev *mddev, int journal_mode);
 #endif

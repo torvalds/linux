@@ -40,10 +40,10 @@
 #include <linux/mutex.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
+#include <linux/of_irq.h>
 #include <asm/keylargo.h>
 #include <asm/uninorth.h>
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/smu.h>
 #include <asm/pmac_pfunc.h>
@@ -582,6 +582,7 @@ static void __init kw_i2c_add(struct pmac_i2c_host_kw *host,
 	bus->close = kw_i2c_close;
 	bus->xfer = kw_i2c_xfer;
 	mutex_init(&bus->mutex);
+	lockdep_register_key(&bus->lock_key);
 	lockdep_set_class(&bus->mutex, &bus->lock_key);
 	if (controller == busnode)
 		bus->flags = pmac_i2c_multibus;
@@ -626,11 +627,11 @@ static void __init kw_i2c_probe(void)
 			if (parent == NULL)
 				continue;
 			chans = parent->name[0] == 'u' ? 2 : 1;
+			of_node_put(parent);
 			for (i = 0; i < chans; i++)
 				kw_i2c_add(host, np, np, i);
 		} else {
-			for (child = NULL;
-			     (child = of_get_next_child(np, child)) != NULL;) {
+			for_each_child_of_node(np, child) {
 				const u32 *reg = of_get_property(child,
 						"reg", NULL);
 				if (reg == NULL)
@@ -811,6 +812,7 @@ static void __init pmu_i2c_probe(void)
 		bus->hostdata = bus + 1;
 		bus->xfer = pmu_i2c_xfer;
 		mutex_init(&bus->mutex);
+		lockdep_register_key(&bus->lock_key);
 		lockdep_set_class(&bus->mutex, &bus->lock_key);
 		bus->flags = pmac_i2c_multibus;
 		list_add(&bus->link, &pmac_i2c_busses);
@@ -923,8 +925,10 @@ static void __init smu_i2c_probe(void)
 
 		sz = sizeof(struct pmac_i2c_bus) + sizeof(struct smu_i2c_cmd);
 		bus = kzalloc(sz, GFP_KERNEL);
-		if (bus == NULL)
+		if (bus == NULL) {
+			of_node_put(busnode);
 			return;
+		}
 
 		bus->controller = controller;
 		bus->busnode = of_node_get(busnode);
@@ -934,6 +938,7 @@ static void __init smu_i2c_probe(void)
 		bus->hostdata = bus + 1;
 		bus->xfer = smu_i2c_xfer;
 		mutex_init(&bus->mutex);
+		lockdep_register_key(&bus->lock_key);
 		lockdep_set_class(&bus->mutex, &bus->lock_key);
 		bus->flags = 0;
 		list_add(&bus->link, &pmac_i2c_busses);
@@ -1193,8 +1198,7 @@ static void pmac_i2c_devscan(void (*callback)(struct device_node *dev,
 	 * platform function instance
 	 */
 	list_for_each_entry(bus, &pmac_i2c_busses, link) {
-		for (np = NULL;
-		     (np = of_get_next_child(bus->busnode, np)) != NULL;) {
+		for_each_child_of_node(bus->busnode, np) {
 			struct whitelist_ent *p;
 			/* If multibus, check if device is on that bus */
 			if (bus->flags & pmac_i2c_multibus)
@@ -1471,7 +1475,7 @@ int __init pmac_i2c_init(void)
 	smu_i2c_probe();
 #endif
 
-	/* Now add plaform functions for some known devices */
+	/* Now add platform functions for some known devices */
 	pmac_i2c_devscan(pmac_i2c_dev_create);
 
 	return 0;

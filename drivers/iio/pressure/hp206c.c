@@ -11,12 +11,14 @@
  */
 
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/i2c.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/delay.h>
 #include <linux/util_macros.h>
-#include <linux/acpi.h>
+
+#include <asm/unaligned.h>
 
 /* I2C commands: */
 #define HP206C_CMD_SOFT_RST	0x06
@@ -93,12 +95,12 @@ static int hp206c_read_20bit(struct i2c_client *client, u8 cmd)
 	int ret;
 	u8 values[3];
 
-	ret = i2c_smbus_read_i2c_block_data(client, cmd, 3, values);
+	ret = i2c_smbus_read_i2c_block_data(client, cmd, sizeof(values), values);
 	if (ret < 0)
 		return ret;
-	if (ret != 3)
+	if (ret != sizeof(values))
 		return -EIO;
-	return ((values[0] & 0xF) << 16) | (values[1] << 8) | (values[2]);
+	return get_unaligned_be24(&values[0]) & GENMASK(19, 0);
 }
 
 /* Spin for max 160ms until DEV_RDY is 1, or return error. */
@@ -350,9 +352,9 @@ static const struct iio_info hp206c_info = {
 	.write_raw = hp206c_write_raw,
 };
 
-static int hp206c_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int hp206c_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct iio_dev *indio_dev;
 	struct hp206c_data *data;
 	int ret;
@@ -376,7 +378,6 @@ static int hp206c_probe(struct i2c_client *client,
 
 	indio_dev->info = &hp206c_info;
 	indio_dev->name = id->name;
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = hp206c_channels;
 	indio_dev->num_channels = ARRAY_SIZE(hp206c_channels);
@@ -399,20 +400,18 @@ static const struct i2c_device_id hp206c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, hp206c_id);
 
-#ifdef CONFIG_ACPI
 static const struct acpi_device_id hp206c_acpi_match[] = {
 	{"HOP206C", 0},
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, hp206c_acpi_match);
-#endif
 
 static struct i2c_driver hp206c_driver = {
 	.probe = hp206c_probe,
 	.id_table = hp206c_id,
 	.driver = {
 		.name = "hp206c",
-		.acpi_match_table = ACPI_PTR(hp206c_acpi_match),
+		.acpi_match_table = hp206c_acpi_match,
 	},
 };
 

@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#include <linux/aer.h>
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/list.h>
@@ -35,7 +34,7 @@ static LIST_HEAD(ndevlist);
 static DEFINE_MUTEX(devlist_lock);
 static unsigned int num_devices;
 
-/**
+/*
  * nitrox_pci_tbl - PCI Device ID Table
  */
 static const struct pci_device_id nitrox_pci_tbl[] = {
@@ -48,15 +47,6 @@ MODULE_DEVICE_TABLE(pci, nitrox_pci_tbl);
 static unsigned int qlen = DEFAULT_CMD_QLEN;
 module_param(qlen, uint, 0644);
 MODULE_PARM_DESC(qlen, "Command queue length - default 2048");
-
-#ifdef CONFIG_PCI_IOV
-int nitrox_sriov_configure(struct pci_dev *pdev, int num_vfs);
-#else
-int nitrox_sriov_configure(struct pci_dev *pdev, int num_vfs)
-{
-	return 0;
-}
-#endif
 
 /**
  * struct ucode - Firmware Header
@@ -71,10 +61,10 @@ struct ucode {
 	char version[VERSION_LEN - 1];
 	__be32 code_size;
 	u8 raz[12];
-	u64 code[0];
+	u64 code[];
 };
 
-/**
+/*
  * write_to_ucd_unit - Write Firmware to NITROX UCD unit
  */
 static void write_to_ucd_unit(struct nitrox_device *ndev, u32 ucode_size,
@@ -103,8 +93,7 @@ static void write_to_ucd_unit(struct nitrox_device *ndev, u32 ucode_size,
 	offset = UCD_UCODE_LOAD_BLOCK_NUM;
 	nitrox_write_csr(ndev, offset, block_num);
 
-	code_size = ucode_size;
-	code_size = roundup(code_size, 8);
+	code_size = roundup(ucode_size, 16);
 	while (code_size) {
 		data = ucode_data[i];
 		/* write 8 bytes at a time */
@@ -220,11 +209,11 @@ static int nitrox_load_fw(struct nitrox_device *ndev)
 
 	/* write block number and firmware length
 	 * bit:<2:0> block number
-	 * bit:3 is set SE uses 32KB microcode
-	 * bit:3 is clear SE uses 64KB microcode
+	 * bit:3 is set AE uses 32KB microcode
+	 * bit:3 is clear AE uses 64KB microcode
 	 */
 	core_2_eid_val.value = 0ULL;
-	core_2_eid_val.ucode_blk = 0;
+	core_2_eid_val.ucode_blk = 2;
 	if (ucode_size <= CNN55XX_UCD_BLOCK_SIZE)
 		core_2_eid_val.ucode_len = 1;
 	else
@@ -279,12 +268,14 @@ static void nitrox_remove_from_devlist(struct nitrox_device *ndev)
 
 struct nitrox_device *nitrox_get_first_device(void)
 {
-	struct nitrox_device *ndev = NULL;
+	struct nitrox_device *ndev = NULL, *iter;
 
 	mutex_lock(&devlist_lock);
-	list_for_each_entry(ndev, &ndevlist, list) {
-		if (nitrox_ready(ndev))
+	list_for_each_entry(iter, &ndevlist, list) {
+		if (nitrox_ready(iter)) {
+			ndev = iter;
 			break;
+		}
 	}
 	mutex_unlock(&devlist_lock);
 	if (!ndev)
@@ -316,9 +307,7 @@ static int nitrox_device_flr(struct pci_dev *pdev)
 		return -ENOMEM;
 	}
 
-	/* check flr support */
-	if (pcie_has_flr(pdev))
-		pcie_flr(pdev);
+	pcie_reset_flr(pdev, PCI_RESET_DO_RESET);
 
 	pci_restore_state(pdev);
 
@@ -347,7 +336,7 @@ static void nitrox_pf_sw_cleanup(struct nitrox_device *ndev)
 }
 
 /**
- * nitrox_bist_check - Check NITORX BIST registers status
+ * nitrox_bist_check - Check NITROX BIST registers status
  * @ndev: NITROX device
  */
 static int nitrox_bist_check(struct nitrox_device *ndev)
@@ -434,8 +423,7 @@ static int nitrox_probe(struct pci_dev *pdev,
 	err = nitrox_device_flr(pdev);
 	if (err) {
 		dev_err(&pdev->dev, "FLR failed\n");
-		pci_disable_device(pdev);
-		return err;
+		goto flr_fail;
 	}
 
 	if (!dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64))) {
@@ -444,16 +432,13 @@ static int nitrox_probe(struct pci_dev *pdev,
 		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (err) {
 			dev_err(&pdev->dev, "DMA configuration failed\n");
-			pci_disable_device(pdev);
-			return err;
+			goto flr_fail;
 		}
 	}
 
 	err = pci_request_mem_regions(pdev, nitrox_driver_name);
-	if (err) {
-		pci_disable_device(pdev);
-		return err;
-	}
+	if (err)
+		goto flr_fail;
 	pci_set_master(pdev);
 
 	ndev = kzalloc(sizeof(*ndev), GFP_KERNEL);
@@ -489,7 +474,7 @@ static int nitrox_probe(struct pci_dev *pdev,
 
 	err = nitrox_pf_sw_init(ndev);
 	if (err)
-		goto ioremap_err;
+		goto pf_sw_fail;
 
 	err = nitrox_pf_hw_init(ndev);
 	if (err)
@@ -519,12 +504,15 @@ crypto_fail:
 	smp_mb__after_atomic();
 pf_hw_fail:
 	nitrox_pf_sw_cleanup(ndev);
+pf_sw_fail:
+	iounmap(ndev->bar_addr);
 ioremap_err:
 	nitrox_remove_from_devlist(ndev);
 	kfree(ndev);
 	pci_set_drvdata(pdev, NULL);
 ndev_fail:
 	pci_release_mem_regions(pdev);
+flr_fail:
 	pci_disable_device(pdev);
 	return err;
 }
@@ -555,10 +543,8 @@ static void nitrox_remove(struct pci_dev *pdev)
 
 	nitrox_remove_from_devlist(ndev);
 
-#ifdef CONFIG_PCI_IOV
 	/* disable SR-IOV */
 	nitrox_sriov_configure(pdev, 0);
-#endif
 	nitrox_crypto_unregister();
 	nitrox_debugfs_exit(ndev);
 	nitrox_pf_sw_cleanup(ndev);
@@ -584,9 +570,7 @@ static struct pci_driver nitrox_driver = {
 	.probe = nitrox_probe,
 	.remove	= nitrox_remove,
 	.shutdown = nitrox_shutdown,
-#ifdef CONFIG_PCI_IOV
 	.sriov_configure = nitrox_sriov_configure,
-#endif
 };
 
 module_pci_driver(nitrox_driver);

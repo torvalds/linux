@@ -13,7 +13,6 @@
 #include "omap_hwmod.h"
 #include "l3_2xxx.h"
 #include "l4_2xxx.h"
-#include "serial.h"
 
 #include "omap_hwmod_common_data.h"
 
@@ -92,14 +91,6 @@ struct omap_hwmod_ocp_if omap2xxx_l4_core__mcspi2 = {
 	.master		= &omap2xxx_l4_core_hwmod,
 	.slave		= &omap2xxx_mcspi2_hwmod,
 	.clk		= "mcspi2_ick",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_core -> timer2 */
-struct omap_hwmod_ocp_if omap2xxx_l4_core__timer2 = {
-	.master		= &omap2xxx_l4_core_hwmod,
-	.slave		= &omap2xxx_timer2_hwmod,
-	.clk		= "gpt2_ick",
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 

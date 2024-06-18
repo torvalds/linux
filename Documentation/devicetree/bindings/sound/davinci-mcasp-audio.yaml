@@ -1,0 +1,202 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/davinci-mcasp-audio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: McASP Controller for TI SoCs
+
+maintainers:
+  - Jayesh Choudhary <j-choudhary@ti.com>
+
+properties:
+  compatible:
+    enum:
+      - ti,dm646x-mcasp-audio
+      - ti,da830-mcasp-audio
+      - ti,am33xx-mcasp-audio
+      - ti,dra7-mcasp-audio
+      - ti,omap4-mcasp-audio
+
+  reg:
+    minItems: 1
+    items:
+      - description: CFG registers
+      - description: data registers
+
+  reg-names:
+    minItems: 1
+    items:
+      - const: mpu
+      - const: dat
+
+  op-mode:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: 0 - I2S or 1 - DIT operation mode
+    enum:
+      - 0
+      - 1
+
+  tdm-slots:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      number of channels over one serializer
+      the property is ignored in DIT mode
+    minimum: 2
+    maximum: 32
+
+  serial-dir:
+    description:
+      A list of serializer configuration
+      Entry is indication for serializer pin direction
+      0 - Inactive, 1 - TX, 2 - RX
+      All AXR pins should be present in the array even if inactive
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 25
+    items:
+      minimum: 0
+      maximum: 2
+
+  dmas:
+    minItems: 1
+    items:
+      - description: transmission DMA channel
+      - description: reception DMA channel
+
+  dma-names:
+    minItems: 1
+    items:
+      - const: tx
+      - const: rx
+
+  ti,hwmods:
+    $ref: /schemas/types.yaml#/definitions/string
+    description: Name of hwmod associated with McASP
+    maxItems: 1
+    deprecated: true
+
+  tx-num-evt:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      configures WFIFO threshold
+      0 disables the FIFO use
+      if property is missing, then also FIFO use is disabled
+
+  rx-num-evt:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      configures RFIFO threshold
+      0 disables the FIFO use
+      if property is missing, then also FIFO use is disabled
+
+  dismod:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      specify the drive on TX pin during inactive time slots
+      0 - 3-state, 2 - logic low, 3 - logic high
+    enum:
+      - 0
+      - 2
+      - 3
+    default: 2
+
+  interrupts:
+    anyOf:
+      - minItems: 1
+        items:
+          - description: TX interrupt
+          - description: RX interrupt
+      - items:
+          - description: common/combined interrupt
+
+  interrupt-names:
+    oneOf:
+      - minItems: 1
+        items:
+          - const: tx
+          - const: rx
+      - const: common
+
+  fck_parent:
+    $ref: /schemas/types.yaml#/definitions/string
+    description: parent clock name for McASP fck
+    maxItems: 1
+
+  auxclk-fs-ratio:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: ratio of AUCLK and FS rate if applicable
+
+  gpio-controller: true
+
+  "#gpio-cells":
+    const: 2
+
+  clocks:
+    minItems: 1
+    items:
+      - description: functional clock
+      - description: module specific optional ahclkx clock
+      - description: module specific optional ahclkr clock
+
+  clock-names:
+    minItems: 1
+    items:
+      - const: fck
+      - const: ahclkx
+      - const: ahclkr
+
+  power-domains:
+    description: phandle to the corresponding power-domain
+    maxItems: 1
+
+  "#sound-dai-cells":
+    const: 0
+
+  port:
+    description: connection for when McASP is used via graph card
+    type: object
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - dmas
+  - dma-names
+  - interrupts
+  - interrupt-names
+
+allOf:
+  - $ref: dai-common.yaml#
+  - if:
+      properties:
+        opmode:
+          enum:
+            - 0
+
+    then:
+      required:
+        - tdm-slots
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    mcasp0: mcasp0@1d00000 {
+      compatible = "ti,da830-mcasp-audio";
+      reg = <0x100000 0x3000>;
+      reg-names = "mpu";
+      interrupts = <82>, <83>;
+      interrupt-names = "tx", "rx";
+      op-mode = <0>;		/* MCASP_IIS_MODE */
+      tdm-slots = <2>;
+      dmas = <&main_udmap 0xc400>, <&main_udmap 0x4400>;
+      dma-names = "tx", "rx";
+      serial-dir = <
+          0 0 0 0	/* 0: INACTIVE, 1: TX, 2: RX */
+          0 0 0 0
+          0 0 0 1
+          2 0 0 0 >;
+      tx-num-evt = <1>;
+      rx-num-evt = <1>;
+    };

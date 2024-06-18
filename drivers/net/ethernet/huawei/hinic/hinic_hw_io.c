@@ -15,6 +15,7 @@
 #include <linux/io.h>
 #include <linux/err.h>
 
+#include "hinic_hw_dev.h"
 #include "hinic_hw_if.h"
 #include "hinic_hw_eqs.h"
 #include "hinic_hw_wqe.h"
@@ -33,6 +34,8 @@
 
 #define DB_IDX(db, db_base)             \
 	(((unsigned long)(db) - (unsigned long)(db_base)) / HINIC_DB_PAGE_SIZE)
+
+#define HINIC_PAGE_SIZE_HW(pg_size)	((u8)ilog2((u32)((pg_size) >> 12)))
 
 enum io_cmd {
 	IO_CMD_MODIFY_QUEUE_CTXT = 0,
@@ -134,7 +137,7 @@ static int write_sq_ctxts(struct hinic_func_to_io *func_to_io, u16 base_qpn,
 	err = hinic_cmdq_direct_resp(&func_to_io->cmdqs, HINIC_MOD_L2NIC,
 				     IO_CMD_MODIFY_QUEUE_CTXT, &cmdq_buf,
 				     &out_param);
-	if ((err) || (out_param != 0)) {
+	if (err || out_param != 0) {
 		dev_err(&pdev->dev, "Failed to set SQ ctxts\n");
 		err = -EFAULT;
 	}
@@ -178,7 +181,7 @@ static int write_rq_ctxts(struct hinic_func_to_io *func_to_io, u16 base_qpn,
 	err = hinic_cmdq_direct_resp(&func_to_io->cmdqs, HINIC_MOD_L2NIC,
 				     IO_CMD_MODIFY_QUEUE_CTXT, &cmdq_buf,
 				     &out_param);
-	if ((err) || (out_param != 0)) {
+	if (err || out_param != 0) {
 		dev_err(&pdev->dev, "Failed to set RQ ctxts\n");
 		err = -EFAULT;
 	}
@@ -279,7 +282,7 @@ static int init_qp(struct hinic_func_to_io *func_to_io,
 
 	err = hinic_wq_allocate(&func_to_io->wqs, &func_to_io->sq_wq[q_id],
 				HINIC_SQ_WQEBB_SIZE, HINIC_SQ_PAGE_SIZE,
-				HINIC_SQ_DEPTH, HINIC_SQ_WQE_MAX_SIZE);
+				func_to_io->sq_depth, HINIC_SQ_WQE_MAX_SIZE);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to allocate WQ for SQ\n");
 		return err;
@@ -287,7 +290,7 @@ static int init_qp(struct hinic_func_to_io *func_to_io,
 
 	err = hinic_wq_allocate(&func_to_io->wqs, &func_to_io->rq_wq[q_id],
 				HINIC_RQ_WQEBB_SIZE, HINIC_RQ_PAGE_SIZE,
-				HINIC_RQ_DEPTH, HINIC_RQ_WQE_SIZE);
+				func_to_io->rq_depth, HINIC_RQ_WQE_SIZE);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to allocate WQ for RQ\n");
 		goto err_rq_alloc;
@@ -302,6 +305,7 @@ static int init_qp(struct hinic_func_to_io *func_to_io,
 
 	func_to_io->sq_db[q_id] = db_base;
 
+	qp->sq.qid = q_id;
 	err = hinic_init_sq(&qp->sq, hwif, &func_to_io->sq_wq[q_id],
 			    sq_msix_entry,
 			    CI_ADDR(func_to_io->ci_addr_base, q_id),
@@ -311,6 +315,7 @@ static int init_qp(struct hinic_func_to_io *func_to_io,
 		goto err_sq_init;
 	}
 
+	qp->rq.qid = q_id;
 	err = hinic_init_rq(&qp->rq, hwif, &func_to_io->rq_wq[q_id],
 			    rq_msix_entry);
 	if (err) {
@@ -358,8 +363,8 @@ static void destroy_qp(struct hinic_func_to_io *func_to_io,
  * @func_to_io: func to io channel that holds the IO components
  * @base_qpn: base qp number
  * @num_qps: number queue pairs to create
- * @sq_msix_entry: msix entries for sq
- * @rq_msix_entry: msix entries for rq
+ * @sq_msix_entries: msix entries for sq
+ * @rq_msix_entries: msix entries for rq
  *
  * Return 0 - Success, negative - Failure
  **/
@@ -370,31 +375,30 @@ int hinic_io_create_qps(struct hinic_func_to_io *func_to_io,
 {
 	struct hinic_hwif *hwif = func_to_io->hwif;
 	struct pci_dev *pdev = hwif->pdev;
-	size_t qps_size, wq_size, db_size;
 	void *ci_addr_base;
 	int i, j, err;
 
-	qps_size = num_qps * sizeof(*func_to_io->qps);
-	func_to_io->qps = devm_kzalloc(&pdev->dev, qps_size, GFP_KERNEL);
+	func_to_io->qps = devm_kcalloc(&pdev->dev, num_qps,
+				       sizeof(*func_to_io->qps), GFP_KERNEL);
 	if (!func_to_io->qps)
 		return -ENOMEM;
 
-	wq_size = num_qps * sizeof(*func_to_io->sq_wq);
-	func_to_io->sq_wq = devm_kzalloc(&pdev->dev, wq_size, GFP_KERNEL);
+	func_to_io->sq_wq = devm_kcalloc(&pdev->dev, num_qps,
+					 sizeof(*func_to_io->sq_wq), GFP_KERNEL);
 	if (!func_to_io->sq_wq) {
 		err = -ENOMEM;
 		goto err_sq_wq;
 	}
 
-	wq_size = num_qps * sizeof(*func_to_io->rq_wq);
-	func_to_io->rq_wq = devm_kzalloc(&pdev->dev, wq_size, GFP_KERNEL);
+	func_to_io->rq_wq = devm_kcalloc(&pdev->dev, num_qps,
+					 sizeof(*func_to_io->rq_wq), GFP_KERNEL);
 	if (!func_to_io->rq_wq) {
 		err = -ENOMEM;
 		goto err_rq_wq;
 	}
 
-	db_size = num_qps * sizeof(*func_to_io->sq_db);
-	func_to_io->sq_db = devm_kzalloc(&pdev->dev, db_size, GFP_KERNEL);
+	func_to_io->sq_db = devm_kcalloc(&pdev->dev, num_qps,
+					 sizeof(*func_to_io->sq_db), GFP_KERNEL);
 	if (!func_to_io->sq_db) {
 		err = -ENOMEM;
 		goto err_sq_db;
@@ -484,6 +488,33 @@ void hinic_io_destroy_qps(struct hinic_func_to_io *func_to_io, int num_qps)
 	devm_kfree(&pdev->dev, func_to_io->qps);
 }
 
+int hinic_set_wq_page_size(struct hinic_hwdev *hwdev, u16 func_idx,
+			   u32 page_size)
+{
+	struct hinic_wq_page_size page_size_info = {0};
+	u16 out_size = sizeof(page_size_info);
+	struct hinic_pfhwdev *pfhwdev;
+	int err;
+
+	pfhwdev = container_of(hwdev, struct hinic_pfhwdev, hwdev);
+
+	page_size_info.func_idx = func_idx;
+	page_size_info.ppf_idx = HINIC_HWIF_PPF_IDX(hwdev->hwif);
+	page_size_info.page_size = HINIC_PAGE_SIZE_HW(page_size);
+
+	err = hinic_msg_to_mgmt(&pfhwdev->pf_to_mgmt, HINIC_MOD_COMM,
+				HINIC_COMM_CMD_PAGESIZE_SET, &page_size_info,
+				sizeof(page_size_info), &page_size_info,
+				&out_size, HINIC_MGMT_MSG_SYNC);
+	if (err || !out_size || page_size_info.status) {
+		dev_err(&hwdev->hwif->pdev->dev, "Failed to set wq page size, err: %d, status: 0x%x, out_size: 0x%0x\n",
+			err, page_size_info.status, out_size);
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
 /**
  * hinic_io_init - Initialize the IO components
  * @func_to_io: func to io channel that holds the IO components
@@ -506,6 +537,7 @@ int hinic_io_init(struct hinic_func_to_io *func_to_io,
 	func_to_io->hwif = hwif;
 	func_to_io->qps = NULL;
 	func_to_io->max_qps = max_qps;
+	func_to_io->ceqs.hwdev = func_to_io->hwdev;
 
 	err = hinic_ceqs_init(&func_to_io->ceqs, hwif, num_ceqs,
 			      HINIC_DEFAULT_CEQ_LEN, HINIC_EQ_PAGE_SIZE,
@@ -541,6 +573,14 @@ int hinic_io_init(struct hinic_func_to_io *func_to_io,
 		func_to_io->cmdq_db_area[cmdq] = db_area;
 	}
 
+	err = hinic_set_wq_page_size(func_to_io->hwdev,
+				     HINIC_HWIF_FUNC_IDX(hwif),
+				     HINIC_DEFAULT_WQ_PAGE_SIZE);
+	if (err) {
+		dev_err(&func_to_io->hwif->pdev->dev, "Failed to set wq page size\n");
+		goto init_wq_pg_size_err;
+	}
+
 	err = hinic_init_cmdqs(&func_to_io->cmdqs, hwif,
 			       func_to_io->cmdq_db_area);
 	if (err) {
@@ -551,6 +591,11 @@ int hinic_io_init(struct hinic_func_to_io *func_to_io,
 	return 0;
 
 err_init_cmdqs:
+	if (!HINIC_IS_VF(func_to_io->hwif))
+		hinic_set_wq_page_size(func_to_io->hwdev,
+				       HINIC_HWIF_FUNC_IDX(hwif),
+				       HINIC_HW_WQ_PAGE_SIZE);
+init_wq_pg_size_err:
 err_db_area:
 	for (type = HINIC_CMDQ_SYNC; type < cmdq; type++)
 		return_db_area(func_to_io, func_to_io->cmdq_db_area[type]);
@@ -574,6 +619,11 @@ void hinic_io_free(struct hinic_func_to_io *func_to_io)
 	enum hinic_cmdq_type cmdq;
 
 	hinic_free_cmdqs(&func_to_io->cmdqs);
+
+	if (!HINIC_IS_VF(func_to_io->hwif))
+		hinic_set_wq_page_size(func_to_io->hwdev,
+				       HINIC_HWIF_FUNC_IDX(func_to_io->hwif),
+				       HINIC_HW_WQ_PAGE_SIZE);
 
 	for (cmdq = HINIC_CMDQ_SYNC; cmdq < HINIC_MAX_CMDQ_TYPES; cmdq++)
 		return_db_area(func_to_io, func_to_io->cmdq_db_area[cmdq]);

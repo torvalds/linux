@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 //
-// SAMSUNG EXYNOS Flattened Device Tree enabled machine
+// Samsung Exynos Flattened Device Tree enabled machine
 //
 // Copyright (c) 2010-2014 Samsung Electronics Co., Ltd.
 //		http://www.samsung.com
@@ -19,10 +19,11 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/map.h>
-#include <plat/cpu.h>
-
 #include "common.h"
+
+#define S3C_ADDR_BASE	0xF6000000
+#define S3C_ADDR(x)	((void __iomem __force *)S3C_ADDR_BASE + (x))
+#define S5P_VA_CHIPID	S3C_ADDR(0x02000000)
 
 static struct platform_device exynos_cpuidle = {
 	.name              = "exynos_cpuidle",
@@ -36,16 +37,27 @@ void __iomem *sysram_base_addr __ro_after_init;
 phys_addr_t sysram_base_phys __ro_after_init;
 void __iomem *sysram_ns_base_addr __ro_after_init;
 
+unsigned long exynos_cpu_id;
+static unsigned int exynos_cpu_rev;
+
+unsigned int exynos_rev(void)
+{
+	return exynos_cpu_rev;
+}
+
 void __init exynos_sysram_init(void)
 {
 	struct device_node *node;
 
 	for_each_compatible_node(node, NULL, "samsung,exynos4210-sysram") {
+		struct resource res;
 		if (!of_device_is_available(node))
 			continue;
-		sysram_base_addr = of_iomap(node, 0);
-		sysram_base_phys = of_translate_address(node,
-					   of_get_address(node, 0, NULL, NULL));
+
+		of_address_to_resource(node, 0, &res);
+		sysram_base_addr = ioremap(res.start, resource_size(&res));
+		sysram_base_phys = res.start;
+		of_node_put(node);
 		break;
 	}
 
@@ -53,6 +65,7 @@ void __init exynos_sysram_init(void)
 		if (!of_device_is_available(node))
 			continue;
 		sysram_ns_base_addr = of_iomap(node, 0);
+		of_node_put(node);
 		break;
 	}
 }
@@ -86,7 +99,11 @@ static void __init exynos_init_io(void)
 	of_scan_flat_dt(exynos_fdt_map_chipid, NULL);
 
 	/* detect cpu id and rev. */
-	s5p_init_cpu(S5P_VA_CHIPID);
+	exynos_cpu_id = readl_relaxed(S5P_VA_CHIPID);
+	exynos_cpu_rev = exynos_cpu_id & 0xFF;
+
+	pr_info("Samsung CPU ID: 0x%08lx\n", exynos_cpu_id);
+
 }
 
 /*
@@ -134,6 +151,7 @@ static void exynos_map_pmu(void)
 	np = of_find_matching_node(NULL, exynos_dt_pmu_match);
 	if (np)
 		pmu_base_addr = of_iomap(np, 0);
+	of_node_put(np);
 }
 
 static void __init exynos_init_irq(void)
@@ -162,9 +180,11 @@ static void __init exynos_dt_machine_init(void)
 		exynos_cpuidle.dev.platform_data = &cpuidle_coupled_exynos_data;
 #endif
 	if (of_machine_is_compatible("samsung,exynos4210") ||
+	    of_machine_is_compatible("samsung,exynos4212") ||
 	    (of_machine_is_compatible("samsung,exynos4412") &&
 	     (of_machine_is_compatible("samsung,trats2") ||
-		  of_machine_is_compatible("samsung,midas"))) ||
+		  of_machine_is_compatible("samsung,midas") ||
+		  of_machine_is_compatible("samsung,p4note"))) ||
 	    of_machine_is_compatible("samsung,exynos3250") ||
 	    of_machine_is_compatible("samsung,exynos5250"))
 		platform_device_register(&exynos_cpuidle);
@@ -175,6 +195,7 @@ static char const *const exynos_dt_compat[] __initconst = {
 	"samsung,exynos3250",
 	"samsung,exynos4",
 	"samsung,exynos4210",
+	"samsung,exynos4212",
 	"samsung,exynos4412",
 	"samsung,exynos5",
 	"samsung,exynos5250",
@@ -192,9 +213,9 @@ static void __init exynos_dt_fixup(void)
 	of_fdt_limit_memory(8);
 }
 
-DT_MACHINE_START(EXYNOS_DT, "SAMSUNG EXYNOS (Flattened Device Tree)")
-	.l2c_aux_val	= 0x3c400001,
-	.l2c_aux_mask	= 0xc20fffff,
+DT_MACHINE_START(EXYNOS_DT, "Samsung Exynos (Flattened Device Tree)")
+	.l2c_aux_val	= 0x08400000,
+	.l2c_aux_mask	= 0xf60fffff,
 	.smp		= smp_ops(exynos_smp_ops),
 	.map_io		= exynos_init_io,
 	.init_early	= exynos_firmware_init,

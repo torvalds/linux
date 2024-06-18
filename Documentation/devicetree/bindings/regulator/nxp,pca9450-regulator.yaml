@@ -1,0 +1,196 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/nxp,pca9450-regulator.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP PCA9450A/B/C Power Management Integrated Circuit regulators
+
+maintainers:
+  - Robin Gong <yibin.gong@nxp.com>
+
+description: |
+  Regulator nodes should be named to BUCK_<number> and LDO_<number>. The
+  definition for each of these nodes is defined using the standard
+  binding for regulators at
+  Documentation/devicetree/bindings/regulator/regulator.txt.
+  Datasheet is available at
+  https://www.nxp.com/docs/en/data-sheet/PCA9450DS.pdf
+
+# The valid names for PCA9450 regulator nodes are:
+# BUCK1, BUCK2, BUCK3, BUCK4, BUCK5, BUCK6,
+# LDO1, LDO2, LDO3, LDO4, LDO5
+# Note: Buck3 removed on PCA9450B and connect with Buck1 on PCA9450C.
+
+properties:
+  compatible:
+    enum:
+      - nxp,pca9450a
+      - nxp,pca9450b
+      - nxp,pca9450c
+      - nxp,pca9451a
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  regulators:
+    type: object
+    description: |
+      list of regulators provided by this controller
+
+    patternProperties:
+      "^LDO[1-5]$":
+        type: object
+        $ref: regulator.yaml#
+        description:
+          Properties for single LDO regulator.
+
+        unevaluatedProperties: false
+
+      "^BUCK[1-6]$":
+        type: object
+        $ref: regulator.yaml#
+        description:
+          Properties for single BUCK regulator.
+
+        properties:
+          nxp,dvs-run-voltage:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            minimum: 600000
+            maximum: 2187500
+            description:
+              PMIC default "RUN" state voltage in uV. Only Buck1~3 have such
+              dvs(dynamic voltage scaling) property.
+
+          nxp,dvs-standby-voltage:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            minimum: 600000
+            maximum: 2187500
+            description:
+              PMIC default "STANDBY" state voltage in uV. Only Buck1~3 have such
+              dvs(dynamic voltage scaling) property.
+
+        unevaluatedProperties: false
+
+    additionalProperties: false
+
+  sd-vsel-gpios:
+    description: GPIO that is used to switch LDO5 between being configured by
+      LDO5CTRL_L or LDO5CTRL_H register. Use this if the SD_VSEL signal is
+      connected to a host GPIO.
+
+  nxp,i2c-lt-enable:
+    type: boolean
+    description:
+      Indicates that the I2C Level Translator is used.
+
+  nxp,wdog_b-warm-reset:
+    type: boolean
+    description:
+      When WDOG_B signal is asserted a warm reset will be done instead of cold
+      reset.
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - regulators
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        pmic: pmic@25 {
+            compatible = "nxp,pca9450b";
+            reg = <0x25>;
+            pinctrl-0 = <&pinctrl_pmic>;
+            interrupt-parent = <&gpio1>;
+            interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
+
+            regulators {
+                buck1: BUCK1 {
+                    regulator-name = "BUCK1";
+                    regulator-min-microvolt = <600000>;
+                    regulator-max-microvolt = <2187500>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                    regulator-ramp-delay = <3125>;
+                };
+                buck2: BUCK2 {
+                    regulator-name = "BUCK2";
+                    regulator-min-microvolt = <600000>;
+                    regulator-max-microvolt = <2187500>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                    regulator-ramp-delay = <3125>;
+                    nxp,dvs-run-voltage = <950000>;
+                    nxp,dvs-standby-voltage = <850000>;
+                };
+                buck4: BUCK4 {
+                    regulator-name = "BUCK4";
+                    regulator-min-microvolt = <600000>;
+                    regulator-max-microvolt = <3400000>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                };
+                buck5: BUCK5 {
+                    regulator-name = "BUCK5";
+                    regulator-min-microvolt = <600000>;
+                    regulator-max-microvolt = <3400000>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                };
+                buck6: BUCK6 {
+                    regulator-name = "BUCK6";
+                    regulator-min-microvolt = <600000>;
+                    regulator-max-microvolt = <3400000>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                };
+
+                ldo1: LDO1 {
+                    regulator-name = "LDO1";
+                    regulator-min-microvolt = <1600000>;
+                    regulator-max-microvolt = <3300000>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                };
+                ldo2: LDO2 {
+                    regulator-name = "LDO2";
+                    regulator-min-microvolt = <800000>;
+                    regulator-max-microvolt = <1150000>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                };
+                ldo3: LDO3 {
+                    regulator-name = "LDO3";
+                    regulator-min-microvolt = <800000>;
+                    regulator-max-microvolt = <3300000>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                };
+                ldo4: LDO4 {
+                    regulator-name = "LDO4";
+                    regulator-min-microvolt = <800000>;
+                    regulator-max-microvolt = <3300000>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                };
+                ldo5: LDO5 {
+                    regulator-name = "LDO5";
+                    regulator-min-microvolt = <1800000>;
+                    regulator-max-microvolt = <3300000>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                };
+            };
+        };
+    };

@@ -27,6 +27,7 @@ struct dst_cache_pcpu {
 static void dst_cache_per_cpu_dst_set(struct dst_cache_pcpu *dst_cache,
 				      struct dst_entry *dst, u32 cookie)
 {
+	DEBUG_NET_WARN_ON_ONCE(!in_softirq());
 	dst_release(dst_cache->dst);
 	if (dst)
 		dst_hold(dst);
@@ -40,6 +41,7 @@ static struct dst_entry *dst_cache_per_cpu_get(struct dst_cache *dst_cache,
 {
 	struct dst_entry *dst;
 
+	DEBUG_NET_WARN_ON_ONCE(!in_softirq());
 	dst = idst->dst;
 	if (!dst)
 		goto fail;
@@ -47,7 +49,8 @@ static struct dst_entry *dst_cache_per_cpu_get(struct dst_cache *dst_cache,
 	/* the cache already hold a dst reference; it can't go away */
 	dst_hold(dst);
 
-	if (unlikely(!time_after(idst->refresh_ts, dst_cache->reset_ts) ||
+	if (unlikely(!time_after(idst->refresh_ts,
+				 READ_ONCE(dst_cache->reset_ts)) ||
 		     (dst->obsolete && !dst->ops->check(dst, idst->cookie)))) {
 		dst_cache_per_cpu_dst_set(idst, NULL, 0);
 		dst_release(dst);
@@ -83,7 +86,7 @@ struct rtable *dst_cache_get_ip4(struct dst_cache *dst_cache, __be32 *saddr)
 		return NULL;
 
 	*saddr = idst->in_saddr.s_addr;
-	return container_of(dst, struct rtable, dst);
+	return dst_rtable(dst);
 }
 EXPORT_SYMBOL_GPL(dst_cache_get_ip4);
 
@@ -111,8 +114,8 @@ void dst_cache_set_ip6(struct dst_cache *dst_cache, struct dst_entry *dst,
 		return;
 
 	idst = this_cpu_ptr(dst_cache->cache);
-	dst_cache_per_cpu_dst_set(this_cpu_ptr(dst_cache->cache), dst,
-				  rt6_get_cookie((struct rt6_info *)dst));
+	dst_cache_per_cpu_dst_set(idst, dst,
+				  rt6_get_cookie(dst_rt6_info(dst)));
 	idst->in6_saddr = *saddr;
 }
 EXPORT_SYMBOL_GPL(dst_cache_set_ip6);
@@ -162,3 +165,22 @@ void dst_cache_destroy(struct dst_cache *dst_cache)
 	free_percpu(dst_cache->cache);
 }
 EXPORT_SYMBOL_GPL(dst_cache_destroy);
+
+void dst_cache_reset_now(struct dst_cache *dst_cache)
+{
+	int i;
+
+	if (!dst_cache->cache)
+		return;
+
+	dst_cache_reset(dst_cache);
+	for_each_possible_cpu(i) {
+		struct dst_cache_pcpu *idst = per_cpu_ptr(dst_cache->cache, i);
+		struct dst_entry *dst = idst->dst;
+
+		idst->cookie = 0;
+		idst->dst = NULL;
+		dst_release(dst);
+	}
+}
+EXPORT_SYMBOL_GPL(dst_cache_reset_now);

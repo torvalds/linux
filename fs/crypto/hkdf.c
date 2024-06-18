@@ -10,15 +10,20 @@
  */
 
 #include <crypto/hash.h>
-#include <crypto/sha.h>
+#include <crypto/sha2.h>
 
 #include "fscrypt_private.h"
 
 /*
  * HKDF supports any unkeyed cryptographic hash algorithm, but fscrypt uses
- * SHA-512 because it is reasonably secure and efficient; and since it produces
- * a 64-byte digest, deriving an AES-256-XTS key preserves all 64 bytes of
- * entropy from the master key and requires only one iteration of HKDF-Expand.
+ * SHA-512 because it is well-established, secure, and reasonably efficient.
+ *
+ * HKDF-SHA256 was also considered, as its 256-bit security strength would be
+ * sufficient here.  A 512-bit security strength is "nice to have", though.
+ * Also, on 64-bit CPUs, SHA-512 is usually just as fast as SHA-256.  In the
+ * common case of deriving an AES-256-XTS key (512 bits), that can result in
+ * HKDF-SHA512 being much faster than HKDF-SHA256, as the longer digest size of
+ * SHA-512 causes HKDF-Expand to only need to do one iteration rather than two.
  */
 #define HKDF_HMAC_ALG		"hmac(sha512)"
 #define HKDF_HASHLEN		SHA512_DIGEST_SIZE
@@ -44,17 +49,13 @@ static int hkdf_extract(struct crypto_shash *hmac_tfm, const u8 *ikm,
 			unsigned int ikmlen, u8 prk[HKDF_HASHLEN])
 {
 	static const u8 default_salt[HKDF_HASHLEN];
-	SHASH_DESC_ON_STACK(desc, hmac_tfm);
 	int err;
 
 	err = crypto_shash_setkey(hmac_tfm, default_salt, HKDF_HASHLEN);
 	if (err)
 		return err;
 
-	desc->tfm = hmac_tfm;
-	err = crypto_shash_digest(desc, ikm, ikmlen, prk);
-	shash_desc_zero(desc);
-	return err;
+	return crypto_shash_tfm_digest(hmac_tfm, ikm, ikmlen, prk);
 }
 
 /*
@@ -78,7 +79,7 @@ int fscrypt_init_hkdf(struct fscrypt_hkdf *hkdf, const u8 *master_key,
 		return PTR_ERR(hmac_tfm);
 	}
 
-	if (WARN_ON(crypto_shash_digestsize(hmac_tfm) != sizeof(prk))) {
+	if (WARN_ON_ONCE(crypto_shash_digestsize(hmac_tfm) != sizeof(prk))) {
 		err = -EINVAL;
 		goto err_free_tfm;
 	}
@@ -112,7 +113,7 @@ out:
  * adds to its application-specific info strings to guarantee that it doesn't
  * accidentally repeat an info string when using HKDF for different purposes.)
  */
-int fscrypt_hkdf_expand(struct fscrypt_hkdf *hkdf, u8 context,
+int fscrypt_hkdf_expand(const struct fscrypt_hkdf *hkdf, u8 context,
 			const u8 *info, unsigned int infolen,
 			u8 *okm, unsigned int okmlen)
 {
@@ -124,7 +125,7 @@ int fscrypt_hkdf_expand(struct fscrypt_hkdf *hkdf, u8 context,
 	u8 counter = 1;
 	u8 tmp[HKDF_HASHLEN];
 
-	if (WARN_ON(okmlen > 255 * HKDF_HASHLEN))
+	if (WARN_ON_ONCE(okmlen > 255 * HKDF_HASHLEN))
 		return -EINVAL;
 
 	desc->tfm = hkdf->hmac_tfm;

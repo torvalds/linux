@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TI DA830/OMAP L137 chip specific setup
  *
  * Author: Mark A. Greer <mgreer@mvista.com>
  *
- * 2009 (c) MontaVista Software, Inc. This file is licensed under
- * the terms of the GNU General Public License version 2. This program
- * is licensed "as is" without any warranty of any kind, whether express
- * or implied.
+ * 2009 (c) MontaVista Software, Inc.
  */
 #include <linux/clk-provider.h>
 #include <linux/clk/davinci.h>
@@ -14,16 +12,14 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/irqchip/irq-davinci-cp-intc.h>
-#include <linux/platform_data/gpio-davinci.h>
-
-#include <asm/mach/map.h>
-
-#include <mach/common.h>
-#include <mach/cputype.h>
-#include <mach/da8xx.h>
 
 #include <clocksource/timer-davinci.h>
 
+#include <asm/mach/map.h>
+
+#include "common.h"
+#include "cputype.h"
+#include "da8xx.h"
 #include "irqs.h"
 #include "mux.h"
 
@@ -451,181 +447,6 @@ static const struct mux_config da830_pins[] = {
 #endif
 };
 
-const short da830_emif25_pins[] __initconst = {
-	DA830_EMA_D_0, DA830_EMA_D_1, DA830_EMA_D_2, DA830_EMA_D_3,
-	DA830_EMA_D_4, DA830_EMA_D_5, DA830_EMA_D_6, DA830_EMA_D_7,
-	DA830_EMA_D_8, DA830_EMA_D_9, DA830_EMA_D_10, DA830_EMA_D_11,
-	DA830_EMA_D_12, DA830_EMA_D_13, DA830_EMA_D_14, DA830_EMA_D_15,
-	DA830_EMA_A_0, DA830_EMA_A_1, DA830_EMA_A_2, DA830_EMA_A_3,
-	DA830_EMA_A_4, DA830_EMA_A_5, DA830_EMA_A_6, DA830_EMA_A_7,
-	DA830_EMA_A_8, DA830_EMA_A_9, DA830_EMA_A_10, DA830_EMA_A_11,
-	DA830_EMA_A_12, DA830_EMA_BA_0, DA830_EMA_BA_1, DA830_EMA_CLK,
-	DA830_EMA_SDCKE, DA830_NEMA_CS_4, DA830_NEMA_CS_5, DA830_NEMA_WE,
-	DA830_NEMA_CS_0, DA830_NEMA_CS_2, DA830_NEMA_CS_3, DA830_NEMA_OE,
-	DA830_NEMA_WE_DQM_1, DA830_NEMA_WE_DQM_0, DA830_EMA_WAIT_0,
-	-1
-};
-
-const short da830_spi0_pins[] __initconst = {
-	DA830_SPI0_SOMI_0, DA830_SPI0_SIMO_0, DA830_SPI0_CLK, DA830_NSPI0_ENA,
-	DA830_NSPI0_SCS_0,
-	-1
-};
-
-const short da830_spi1_pins[] __initconst = {
-	DA830_SPI1_SOMI_0, DA830_SPI1_SIMO_0, DA830_SPI1_CLK, DA830_NSPI1_ENA,
-	DA830_NSPI1_SCS_0,
-	-1
-};
-
-const short da830_mmc_sd_pins[] __initconst = {
-	DA830_MMCSD_DAT_0, DA830_MMCSD_DAT_1, DA830_MMCSD_DAT_2,
-	DA830_MMCSD_DAT_3, DA830_MMCSD_DAT_4, DA830_MMCSD_DAT_5,
-	DA830_MMCSD_DAT_6, DA830_MMCSD_DAT_7, DA830_MMCSD_CLK,
-	DA830_MMCSD_CMD,
-	-1
-};
-
-const short da830_uart0_pins[] __initconst = {
-	DA830_NUART0_CTS, DA830_NUART0_RTS, DA830_UART0_RXD, DA830_UART0_TXD,
-	-1
-};
-
-const short da830_uart1_pins[] __initconst = {
-	DA830_UART1_RXD, DA830_UART1_TXD,
-	-1
-};
-
-const short da830_uart2_pins[] __initconst = {
-	DA830_UART2_RXD, DA830_UART2_TXD,
-	-1
-};
-
-const short da830_usb20_pins[] __initconst = {
-	DA830_USB0_DRVVBUS, DA830_USB_REFCLKIN,
-	-1
-};
-
-const short da830_usb11_pins[] __initconst = {
-	DA830_USB_REFCLKIN,
-	-1
-};
-
-const short da830_uhpi_pins[] __initconst = {
-	DA830_UHPI_HD_0, DA830_UHPI_HD_1, DA830_UHPI_HD_2, DA830_UHPI_HD_3,
-	DA830_UHPI_HD_4, DA830_UHPI_HD_5, DA830_UHPI_HD_6, DA830_UHPI_HD_7,
-	DA830_UHPI_HD_8, DA830_UHPI_HD_9, DA830_UHPI_HD_10, DA830_UHPI_HD_11,
-	DA830_UHPI_HD_12, DA830_UHPI_HD_13, DA830_UHPI_HD_14, DA830_UHPI_HD_15,
-	DA830_UHPI_HCNTL0, DA830_UHPI_HCNTL1, DA830_UHPI_HHWIL, DA830_UHPI_HRNW,
-	DA830_NUHPI_HAS, DA830_NUHPI_HCS, DA830_NUHPI_HDS1, DA830_NUHPI_HDS2,
-	DA830_NUHPI_HINT, DA830_NUHPI_HRDY,
-	-1
-};
-
-const short da830_cpgmac_pins[] __initconst = {
-	DA830_RMII_TXD_0, DA830_RMII_TXD_1, DA830_RMII_TXEN, DA830_RMII_CRS_DV,
-	DA830_RMII_RXD_0, DA830_RMII_RXD_1, DA830_RMII_RXER, DA830_MDIO_CLK,
-	DA830_MDIO_D,
-	-1
-};
-
-const short da830_emif3c_pins[] __initconst = {
-	DA830_EMB_SDCKE, DA830_EMB_CLK_GLUE, DA830_EMB_CLK, DA830_NEMB_CS_0,
-	DA830_NEMB_CAS, DA830_NEMB_RAS, DA830_NEMB_WE, DA830_EMB_BA_1,
-	DA830_EMB_BA_0, DA830_EMB_A_0, DA830_EMB_A_1, DA830_EMB_A_2,
-	DA830_EMB_A_3, DA830_EMB_A_4, DA830_EMB_A_5, DA830_EMB_A_6,
-	DA830_EMB_A_7, DA830_EMB_A_8, DA830_EMB_A_9, DA830_EMB_A_10,
-	DA830_EMB_A_11, DA830_EMB_A_12, DA830_NEMB_WE_DQM_3,
-	DA830_NEMB_WE_DQM_2, DA830_EMB_D_0, DA830_EMB_D_1, DA830_EMB_D_2,
-	DA830_EMB_D_3, DA830_EMB_D_4, DA830_EMB_D_5, DA830_EMB_D_6,
-	DA830_EMB_D_7, DA830_EMB_D_8, DA830_EMB_D_9, DA830_EMB_D_10,
-	DA830_EMB_D_11, DA830_EMB_D_12, DA830_EMB_D_13, DA830_EMB_D_14,
-	DA830_EMB_D_15, DA830_EMB_D_16, DA830_EMB_D_17, DA830_EMB_D_18,
-	DA830_EMB_D_19, DA830_EMB_D_20, DA830_EMB_D_21, DA830_EMB_D_22,
-	DA830_EMB_D_23, DA830_EMB_D_24, DA830_EMB_D_25, DA830_EMB_D_26,
-	DA830_EMB_D_27, DA830_EMB_D_28, DA830_EMB_D_29, DA830_EMB_D_30,
-	DA830_EMB_D_31, DA830_NEMB_WE_DQM_1, DA830_NEMB_WE_DQM_0,
-	-1
-};
-
-const short da830_mcasp0_pins[] __initconst = {
-	DA830_AHCLKX0, DA830_ACLKX0, DA830_AFSX0,
-	DA830_AHCLKR0, DA830_ACLKR0, DA830_AFSR0, DA830_AMUTE0,
-	DA830_AXR0_0, DA830_AXR0_1, DA830_AXR0_2, DA830_AXR0_3,
-	DA830_AXR0_4, DA830_AXR0_5, DA830_AXR0_6, DA830_AXR0_7,
-	DA830_AXR0_8, DA830_AXR0_9, DA830_AXR0_10, DA830_AXR0_11,
-	DA830_AXR0_12, DA830_AXR0_13, DA830_AXR0_14, DA830_AXR0_15,
-	-1
-};
-
-const short da830_mcasp1_pins[] __initconst = {
-	DA830_AHCLKX1, DA830_ACLKX1, DA830_AFSX1,
-	DA830_AHCLKR1, DA830_ACLKR1, DA830_AFSR1, DA830_AMUTE1,
-	DA830_AXR1_0, DA830_AXR1_1, DA830_AXR1_2, DA830_AXR1_3,
-	DA830_AXR1_4, DA830_AXR1_5, DA830_AXR1_6, DA830_AXR1_7,
-	DA830_AXR1_8, DA830_AXR1_9, DA830_AXR1_10, DA830_AXR1_11,
-	-1
-};
-
-const short da830_mcasp2_pins[] __initconst = {
-	DA830_AHCLKX2, DA830_ACLKX2, DA830_AFSX2,
-	DA830_AHCLKR2, DA830_ACLKR2, DA830_AFSR2, DA830_AMUTE2,
-	DA830_AXR2_0, DA830_AXR2_1, DA830_AXR2_2, DA830_AXR2_3,
-	-1
-};
-
-const short da830_i2c0_pins[] __initconst = {
-	DA830_I2C0_SDA, DA830_I2C0_SCL,
-	-1
-};
-
-const short da830_i2c1_pins[] __initconst = {
-	DA830_I2C1_SCL, DA830_I2C1_SDA,
-	-1
-};
-
-const short da830_lcdcntl_pins[] __initconst = {
-	DA830_LCD_D_0, DA830_LCD_D_1, DA830_LCD_D_2, DA830_LCD_D_3,
-	DA830_LCD_D_4, DA830_LCD_D_5, DA830_LCD_D_6, DA830_LCD_D_7,
-	DA830_LCD_D_8, DA830_LCD_D_9, DA830_LCD_D_10, DA830_LCD_D_11,
-	DA830_LCD_D_12, DA830_LCD_D_13, DA830_LCD_D_14, DA830_LCD_D_15,
-	DA830_LCD_PCLK, DA830_LCD_HSYNC, DA830_LCD_VSYNC, DA830_NLCD_AC_ENB_CS,
-	DA830_LCD_MCLK,
-	-1
-};
-
-const short da830_pwm_pins[] __initconst = {
-	DA830_ECAP0_APWM0, DA830_ECAP1_APWM1, DA830_EPWM0B, DA830_EPWM0A,
-	DA830_EPWMSYNCI, DA830_EPWMSYNC0, DA830_ECAP2_APWM2, DA830_EHRPWMGLUETZ,
-	DA830_EPWM2B, DA830_EPWM2A, DA830_EPWM1B, DA830_EPWM1A,
-	-1
-};
-
-const short da830_ecap0_pins[] __initconst = {
-	DA830_ECAP0_APWM0,
-	-1
-};
-
-const short da830_ecap1_pins[] __initconst = {
-	DA830_ECAP1_APWM1,
-	-1
-};
-
-const short da830_ecap2_pins[] __initconst = {
-	DA830_ECAP2_APWM2,
-	-1
-};
-
-const short da830_eqep0_pins[] __initconst = {
-	DA830_EQEP0I, DA830_EQEP0S, DA830_EQEP0A, DA830_EQEP0B,
-	-1
-};
-
-const short da830_eqep1_pins[] __initconst = {
-	DA830_EQEP1I, DA830_EQEP1S, DA830_EQEP1A, DA830_EQEP1B,
-	-1
-};
-
 static struct map_desc da830_io_desc[] = {
 	{
 		.virtual	= IO_VIRT,
@@ -666,30 +487,6 @@ static struct davinci_id da830_ids[] = {
 	},
 };
 
-static struct davinci_gpio_platform_data da830_gpio_platform_data = {
-	.no_auto_base	= true,
-	.base		= 0,
-	.ngpio		= 128,
-};
-
-int __init da830_register_gpio(void)
-{
-	return da8xx_register_gpio(&da830_gpio_platform_data);
-}
-
-/*
- * Bottom half of timer0 is used both for clock even and clocksource.
- * Top half is used by DSP.
- */
-static const struct davinci_timer_cfg da830_timer_cfg = {
-	.reg = DEFINE_RES_IO(DA8XX_TIMER64P0_BASE, SZ_4K),
-	.irq = {
-		DEFINE_RES_IRQ(DAVINCI_INTC_IRQ(IRQ_DA830_T12CMPINT0_0)),
-		DEFINE_RES_IRQ(DAVINCI_INTC_IRQ(IRQ_DA8XX_TINT12_0)),
-	},
-	.cmp_off = DA830_CMP12_0,
-};
-
 static const struct davinci_soc_info davinci_soc_info_da830 = {
 	.io_desc		= da830_io_desc,
 	.io_desc_num		= ARRAY_SIZE(da830_io_desc),
@@ -699,7 +496,6 @@ static const struct davinci_soc_info davinci_soc_info_da830 = {
 	.pinmux_base		= DA8XX_SYSCFG0_BASE + 0x120,
 	.pinmux_pins		= da830_pins,
 	.pinmux_pins_num	= ARRAY_SIZE(da830_pins),
-	.emac_pdata		= &da8xx_emac_pdata,
 };
 
 void __init da830_init(void)
@@ -708,77 +504,4 @@ void __init da830_init(void)
 
 	da8xx_syscfg0_base = ioremap(DA8XX_SYSCFG0_BASE, SZ_4K);
 	WARN(!da8xx_syscfg0_base, "Unable to map syscfg0 module");
-}
-
-static const struct davinci_cp_intc_config da830_cp_intc_config = {
-	.reg = {
-		.start		= DA8XX_CP_INTC_BASE,
-		.end		= DA8XX_CP_INTC_BASE + SZ_8K - 1,
-		.flags		= IORESOURCE_MEM,
-	},
-	.num_irqs		= DA830_N_CP_INTC_IRQ,
-};
-
-void __init da830_init_irq(void)
-{
-	davinci_cp_intc_init(&da830_cp_intc_config);
-}
-
-void __init da830_init_time(void)
-{
-	void __iomem *pll;
-	struct clk *clk;
-	int rv;
-
-	clk_register_fixed_rate(NULL, "ref_clk", NULL, 0, DA830_REF_FREQ);
-
-	pll = ioremap(DA8XX_PLL0_BASE, SZ_4K);
-
-	da830_pll_init(NULL, pll, NULL);
-
-	clk = clk_get(NULL, "timer0");
-	if (WARN_ON(IS_ERR(clk))) {
-		pr_err("Unable to get the timer clock\n");
-		return;
-	}
-
-	rv = davinci_timer_register(clk, &da830_timer_cfg);
-	WARN(rv, "Unable to register the timer: %d\n", rv);
-}
-
-static struct resource da830_psc0_resources[] = {
-	{
-		.start	= DA8XX_PSC0_BASE,
-		.end	= DA8XX_PSC0_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device da830_psc0_device = {
-	.name		= "da830-psc0",
-	.id		= -1,
-	.resource	= da830_psc0_resources,
-	.num_resources	= ARRAY_SIZE(da830_psc0_resources),
-};
-
-static struct resource da830_psc1_resources[] = {
-	{
-		.start	= DA8XX_PSC1_BASE,
-		.end	= DA8XX_PSC1_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device da830_psc1_device = {
-	.name		= "da830-psc1",
-	.id		= -1,
-	.resource	= da830_psc1_resources,
-	.num_resources	= ARRAY_SIZE(da830_psc1_resources),
-};
-
-void __init da830_register_clocks(void)
-{
-	/* PLL is registered in da830_init_time() */
-	platform_device_register(&da830_psc0_device);
-	platform_device_register(&da830_psc1_device);
 }

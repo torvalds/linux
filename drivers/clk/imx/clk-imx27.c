@@ -8,7 +8,6 @@
 #include <linux/of_address.h>
 #include <dt-bindings/clock/imx27-clock.h>
 #include <soc/imx/revision.h>
-#include <soc/imx/timer.h>
 #include <asm/irq.h>
 
 #include "clk.h"
@@ -48,17 +47,6 @@ static const char *ssi_sel_clks[] = { "spll_gate", "mpll", };
 
 static struct clk *clk[IMX27_CLK_MAX];
 static struct clk_onecell_data clk_data;
-
-static struct clk ** const uart_clks[] __initconst = {
-	&clk[IMX27_CLK_PER1_GATE],
-	&clk[IMX27_CLK_UART1_IPG_GATE],
-	&clk[IMX27_CLK_UART2_IPG_GATE],
-	&clk[IMX27_CLK_UART3_IPG_GATE],
-	&clk[IMX27_CLK_UART4_IPG_GATE],
-	&clk[IMX27_CLK_UART5_IPG_GATE],
-	&clk[IMX27_CLK_UART6_IPG_GATE],
-	NULL
-};
 
 static void __init _mx27_clocks_init(unsigned long fref)
 {
@@ -176,82 +164,9 @@ static void __init _mx27_clocks_init(unsigned long fref)
 
 	clk_prepare_enable(clk[IMX27_CLK_EMI_AHB_GATE]);
 
-	imx_register_uart_clocks(uart_clks);
+	imx_register_uart_clocks();
 
 	imx_print_silicon_rev("i.MX27", mx27_revision());
-}
-
-int __init mx27_clocks_init(unsigned long fref)
-{
-	ccm = ioremap(MX27_CCM_BASE_ADDR, SZ_4K);
-
-	_mx27_clocks_init(fref);
-
-	clk_register_clkdev(clk[IMX27_CLK_UART1_IPG_GATE], "ipg", "imx21-uart.0");
-	clk_register_clkdev(clk[IMX27_CLK_PER1_GATE], "per", "imx21-uart.0");
-	clk_register_clkdev(clk[IMX27_CLK_UART2_IPG_GATE], "ipg", "imx21-uart.1");
-	clk_register_clkdev(clk[IMX27_CLK_PER1_GATE], "per", "imx21-uart.1");
-	clk_register_clkdev(clk[IMX27_CLK_UART3_IPG_GATE], "ipg", "imx21-uart.2");
-	clk_register_clkdev(clk[IMX27_CLK_PER1_GATE], "per", "imx21-uart.2");
-	clk_register_clkdev(clk[IMX27_CLK_UART4_IPG_GATE], "ipg", "imx21-uart.3");
-	clk_register_clkdev(clk[IMX27_CLK_PER1_GATE], "per", "imx21-uart.3");
-	clk_register_clkdev(clk[IMX27_CLK_UART5_IPG_GATE], "ipg", "imx21-uart.4");
-	clk_register_clkdev(clk[IMX27_CLK_PER1_GATE], "per", "imx21-uart.4");
-	clk_register_clkdev(clk[IMX27_CLK_UART6_IPG_GATE], "ipg", "imx21-uart.5");
-	clk_register_clkdev(clk[IMX27_CLK_PER1_GATE], "per", "imx21-uart.5");
-	clk_register_clkdev(clk[IMX27_CLK_GPT1_IPG_GATE], "ipg", "imx-gpt.0");
-	clk_register_clkdev(clk[IMX27_CLK_PER1_GATE], "per", "imx-gpt.0");
-	clk_register_clkdev(clk[IMX27_CLK_PER2_GATE], "per", "imx21-mmc.0");
-	clk_register_clkdev(clk[IMX27_CLK_SDHC1_IPG_GATE], "ipg", "imx21-mmc.0");
-	clk_register_clkdev(clk[IMX27_CLK_PER2_GATE], "per", "imx21-mmc.1");
-	clk_register_clkdev(clk[IMX27_CLK_SDHC2_IPG_GATE], "ipg", "imx21-mmc.1");
-	clk_register_clkdev(clk[IMX27_CLK_PER2_GATE], "per", "imx21-mmc.2");
-	clk_register_clkdev(clk[IMX27_CLK_SDHC2_IPG_GATE], "ipg", "imx21-mmc.2");
-	clk_register_clkdev(clk[IMX27_CLK_PER2_GATE], "per", "imx27-cspi.0");
-	clk_register_clkdev(clk[IMX27_CLK_CSPI1_IPG_GATE], "ipg", "imx27-cspi.0");
-	clk_register_clkdev(clk[IMX27_CLK_PER2_GATE], "per", "imx27-cspi.1");
-	clk_register_clkdev(clk[IMX27_CLK_CSPI2_IPG_GATE], "ipg", "imx27-cspi.1");
-	clk_register_clkdev(clk[IMX27_CLK_PER2_GATE], "per", "imx27-cspi.2");
-	clk_register_clkdev(clk[IMX27_CLK_CSPI3_IPG_GATE], "ipg", "imx27-cspi.2");
-	clk_register_clkdev(clk[IMX27_CLK_PER3_GATE], "per", "imx21-fb.0");
-	clk_register_clkdev(clk[IMX27_CLK_LCDC_IPG_GATE], "ipg", "imx21-fb.0");
-	clk_register_clkdev(clk[IMX27_CLK_LCDC_AHB_GATE], "ahb", "imx21-fb.0");
-	clk_register_clkdev(clk[IMX27_CLK_CSI_AHB_GATE], "ahb", "imx27-camera.0");
-	clk_register_clkdev(clk[IMX27_CLK_PER4_GATE], "per", "imx27-camera.0");
-	clk_register_clkdev(clk[IMX27_CLK_USB_DIV], "per", "imx-udc-mx27");
-	clk_register_clkdev(clk[IMX27_CLK_USB_IPG_GATE], "ipg", "imx-udc-mx27");
-	clk_register_clkdev(clk[IMX27_CLK_USB_AHB_GATE], "ahb", "imx-udc-mx27");
-	clk_register_clkdev(clk[IMX27_CLK_USB_DIV], "per", "mxc-ehci.0");
-	clk_register_clkdev(clk[IMX27_CLK_USB_IPG_GATE], "ipg", "mxc-ehci.0");
-	clk_register_clkdev(clk[IMX27_CLK_USB_AHB_GATE], "ahb", "mxc-ehci.0");
-	clk_register_clkdev(clk[IMX27_CLK_USB_DIV], "per", "mxc-ehci.1");
-	clk_register_clkdev(clk[IMX27_CLK_USB_IPG_GATE], "ipg", "mxc-ehci.1");
-	clk_register_clkdev(clk[IMX27_CLK_USB_AHB_GATE], "ahb", "mxc-ehci.1");
-	clk_register_clkdev(clk[IMX27_CLK_USB_DIV], "per", "mxc-ehci.2");
-	clk_register_clkdev(clk[IMX27_CLK_USB_IPG_GATE], "ipg", "mxc-ehci.2");
-	clk_register_clkdev(clk[IMX27_CLK_USB_AHB_GATE], "ahb", "mxc-ehci.2");
-	clk_register_clkdev(clk[IMX27_CLK_SSI1_IPG_GATE], NULL, "imx-ssi.0");
-	clk_register_clkdev(clk[IMX27_CLK_SSI2_IPG_GATE], NULL, "imx-ssi.1");
-	clk_register_clkdev(clk[IMX27_CLK_NFC_BAUD_GATE], NULL, "imx27-nand.0");
-	clk_register_clkdev(clk[IMX27_CLK_VPU_BAUD_GATE], "per", "coda-imx27.0");
-	clk_register_clkdev(clk[IMX27_CLK_VPU_AHB_GATE], "ahb", "coda-imx27.0");
-	clk_register_clkdev(clk[IMX27_CLK_DMA_AHB_GATE], "ahb", "imx27-dma");
-	clk_register_clkdev(clk[IMX27_CLK_DMA_IPG_GATE], "ipg", "imx27-dma");
-	clk_register_clkdev(clk[IMX27_CLK_FEC_IPG_GATE], "ipg", "imx27-fec.0");
-	clk_register_clkdev(clk[IMX27_CLK_FEC_AHB_GATE], "ahb", "imx27-fec.0");
-	clk_register_clkdev(clk[IMX27_CLK_WDOG_IPG_GATE], NULL, "imx2-wdt.0");
-	clk_register_clkdev(clk[IMX27_CLK_I2C1_IPG_GATE], NULL, "imx21-i2c.0");
-	clk_register_clkdev(clk[IMX27_CLK_I2C2_IPG_GATE], NULL, "imx21-i2c.1");
-	clk_register_clkdev(clk[IMX27_CLK_OWIRE_IPG_GATE], NULL, "mxc_w1.0");
-	clk_register_clkdev(clk[IMX27_CLK_KPP_IPG_GATE], NULL, "imx-keypad");
-	clk_register_clkdev(clk[IMX27_CLK_EMMA_AHB_GATE], "emma-ahb", "imx27-camera.0");
-	clk_register_clkdev(clk[IMX27_CLK_EMMA_IPG_GATE], "emma-ipg", "imx27-camera.0");
-	clk_register_clkdev(clk[IMX27_CLK_EMMA_AHB_GATE], "ahb", "m2m-emmaprp.0");
-	clk_register_clkdev(clk[IMX27_CLK_EMMA_IPG_GATE], "ipg", "m2m-emmaprp.0");
-
-	mxc_timer_init(MX27_GPT1_BASE_ADDR, MX27_INT_GPT1, GPT_TYPE_IMX21);
-
-	return 0;
 }
 
 static void __init mx27_clocks_init_dt(struct device_node *np)

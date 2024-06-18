@@ -13,14 +13,14 @@
 #ifndef _IOHELPER_H
 #define _IOHELPER_H
 
-typedef	u8	(read_reg_func)(void *hwp, u8 offset);
-			       typedef	void	(write_reg_func)(void *hwp, u8 offset, u8 value);
-			       typedef	void	(fifo_func)(void *hwp, u8 offset, u8 *datap, int size);
+typedef u8 (read_reg_func)(void *hwp, u8 offset);
+typedef void (write_reg_func)(void *hwp, u8 offset, u8 value);
+typedef void (fifo_func)(void *hwp, u8 offset, u8 *datap, int size);
 
-			       struct _ioport {
-				       u32	port;
-				       u32	ale;
-			       };
+struct _ioport {
+	u32 port;
+	u32 ale;
+};
 
 #define IOFUNC_IO(name, hws, ap)					\
 	static u8 Read##name##_IO(void *p, u8 off) {			\

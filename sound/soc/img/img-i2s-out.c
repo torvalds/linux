@@ -302,10 +302,10 @@ static int img_i2s_out_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	if (force_clk_active)
 		control_set |= IMG_I2S_OUT_CTL_CLK_EN_MASK;
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_BC_FC:
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_BP_FP:
 		control_set |= IMG_I2S_OUT_CTL_MASTER_MASK;
 		break;
 	default:
@@ -346,7 +346,7 @@ static int img_i2s_out_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 	chan_control_mask = IMG_I2S_OUT_CHAN_CTL_CLKT_MASK;
 
-	ret = pm_runtime_get_sync(i2s->dev);
+	ret = pm_runtime_resume_and_get(i2s->dev);
 	if (ret < 0)
 		return ret;
 
@@ -376,12 +376,6 @@ static int img_i2s_out_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	return 0;
 }
 
-static const struct snd_soc_dai_ops img_i2s_out_dai_ops = {
-	.trigger = img_i2s_out_trigger,
-	.hw_params = img_i2s_out_hw_params,
-	.set_fmt = img_i2s_out_set_fmt
-};
-
 static int img_i2s_out_dai_probe(struct snd_soc_dai *dai)
 {
 	struct img_i2s_out *i2s = snd_soc_dai_get_drvdata(dai);
@@ -391,19 +385,27 @@ static int img_i2s_out_dai_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
+static const struct snd_soc_dai_ops img_i2s_out_dai_ops = {
+	.probe		= img_i2s_out_dai_probe,
+	.trigger	= img_i2s_out_trigger,
+	.hw_params	= img_i2s_out_hw_params,
+	.set_fmt	= img_i2s_out_set_fmt
+};
+
 static const struct snd_soc_component_driver img_i2s_out_component = {
-	.name = "img-i2s-out"
+	.name = "img-i2s-out",
+	.legacy_dai_naming = 1,
 };
 
 static int img_i2s_out_dma_prepare_slave_config(struct snd_pcm_substream *st,
 	struct snd_pcm_hw_params *params, struct dma_slave_config *sc)
 {
 	unsigned int i2s_channels = params_channels(params) / 2;
-	struct snd_soc_pcm_runtime *rtd = st->private_data;
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(st);
 	struct snd_dmaengine_dai_dma_data *dma_data;
 	int ret;
 
-	dma_data = snd_soc_dai_get_dma_data(rtd->cpu_dai, st);
+	dma_data = snd_soc_dai_get_dma_data(snd_soc_rtd_to_cpu(rtd, 0), st);
 
 	ret = snd_hwparams_to_dma_slave_config(st, params, sc);
 	if (ret)
@@ -438,8 +440,7 @@ static int img_i2s_out_probe(struct platform_device *pdev)
 
 	i2s->dev = &pdev->dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
@@ -456,25 +457,19 @@ static int img_i2s_out_probe(struct platform_device *pdev)
 	i2s->channel_base = base + (max_i2s_chan_pow_2 * 0x20);
 
 	i2s->rst = devm_reset_control_get_exclusive(&pdev->dev, "rst");
-	if (IS_ERR(i2s->rst)) {
-		if (PTR_ERR(i2s->rst) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "No top level reset found\n");
-		return PTR_ERR(i2s->rst);
-	}
+	if (IS_ERR(i2s->rst))
+		return dev_err_probe(&pdev->dev, PTR_ERR(i2s->rst),
+				     "No top level reset found\n");
 
 	i2s->clk_sys = devm_clk_get(&pdev->dev, "sys");
-	if (IS_ERR(i2s->clk_sys)) {
-		if (PTR_ERR(i2s->clk_sys) != -EPROBE_DEFER)
-			dev_err(dev, "Failed to acquire clock 'sys'\n");
-		return PTR_ERR(i2s->clk_sys);
-	}
+	if (IS_ERR(i2s->clk_sys))
+		return dev_err_probe(dev, PTR_ERR(i2s->clk_sys),
+				     "Failed to acquire clock 'sys'\n");
 
 	i2s->clk_ref = devm_clk_get(&pdev->dev, "ref");
-	if (IS_ERR(i2s->clk_ref)) {
-		if (PTR_ERR(i2s->clk_ref) != -EPROBE_DEFER)
-			dev_err(dev, "Failed to acquire clock 'ref'\n");
-		return PTR_ERR(i2s->clk_ref);
-	}
+	if (IS_ERR(i2s->clk_ref))
+		return dev_err_probe(dev, PTR_ERR(i2s->clk_ref),
+				     "Failed to acquire clock 'ref'\n");
 
 	i2s->suspend_ch_ctl = devm_kcalloc(dev,
 		i2s->max_i2s_chan, sizeof(*i2s->suspend_ch_ctl), GFP_KERNEL);
@@ -487,7 +482,7 @@ static int img_i2s_out_probe(struct platform_device *pdev)
 		if (ret)
 			goto err_pm_disable;
 	}
-	ret = pm_runtime_get_sync(&pdev->dev);
+	ret = pm_runtime_resume_and_get(&pdev->dev);
 	if (ret < 0)
 		goto err_suspend;
 
@@ -510,7 +505,6 @@ static int img_i2s_out_probe(struct platform_device *pdev)
 	i2s->dma_data.addr_width = 4;
 	i2s->dma_data.maxburst = 4;
 
-	i2s->dai_driver.probe = img_i2s_out_dai_probe;
 	i2s->dai_driver.playback.channels_min = 2;
 	i2s->dai_driver.playback.channels_max = i2s->max_i2s_chan * 2;
 	i2s->dai_driver.playback.rates = SNDRV_PCM_RATE_8000_192000;
@@ -538,13 +532,11 @@ err_pm_disable:
 	return ret;
 }
 
-static int img_i2s_out_dev_remove(struct platform_device *pdev)
+static void img_i2s_out_dev_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		img_i2s_out_runtime_suspend(&pdev->dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -615,7 +607,7 @@ static struct platform_driver img_i2s_out_driver = {
 		.pm = &img_i2s_out_pm_ops
 	},
 	.probe = img_i2s_out_probe,
-	.remove = img_i2s_out_dev_remove
+	.remove_new = img_i2s_out_dev_remove
 };
 module_platform_driver(img_i2s_out_driver);
 

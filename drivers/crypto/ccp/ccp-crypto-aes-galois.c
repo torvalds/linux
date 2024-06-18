@@ -29,7 +29,7 @@ static int ccp_aes_gcm_complete(struct crypto_async_request *async_req, int ret)
 static int ccp_aes_gcm_setkey(struct crypto_aead *tfm, const u8 *key,
 			      unsigned int key_len)
 {
-	struct ccp_ctx *ctx = crypto_aead_ctx(tfm);
+	struct ccp_ctx *ctx = crypto_aead_ctx_dma(tfm);
 
 	switch (key_len) {
 	case AES_KEYSIZE_128:
@@ -42,7 +42,6 @@ static int ccp_aes_gcm_setkey(struct crypto_aead *tfm, const u8 *key,
 		ctx->u.aes.type = CCP_AES_TYPE_256;
 		break;
 	default:
-		crypto_aead_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -EINVAL;
 	}
 
@@ -77,8 +76,8 @@ static int ccp_aes_gcm_setauthsize(struct crypto_aead *tfm,
 static int ccp_aes_gcm_crypt(struct aead_request *req, bool encrypt)
 {
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
-	struct ccp_ctx *ctx = crypto_aead_ctx(tfm);
-	struct ccp_aes_req_ctx *rctx = aead_request_ctx(req);
+	struct ccp_ctx *ctx = crypto_aead_ctx_dma(tfm);
+	struct ccp_aes_req_ctx *rctx = aead_request_ctx_dma(req);
 	struct scatterlist *iv_sg = NULL;
 	unsigned int iv_len = 0;
 	int i;
@@ -149,12 +148,12 @@ static int ccp_aes_gcm_decrypt(struct aead_request *req)
 
 static int ccp_aes_gcm_cra_init(struct crypto_aead *tfm)
 {
-	struct ccp_ctx *ctx = crypto_aead_ctx(tfm);
+	struct ccp_ctx *ctx = crypto_aead_ctx_dma(tfm);
 
 	ctx->complete = ccp_aes_gcm_complete;
 	ctx->u.aes.key_len = 0;
 
-	crypto_aead_set_reqsize(tfm, sizeof(struct ccp_aes_req_ctx));
+	crypto_aead_set_reqsize_dma(tfm, sizeof(struct ccp_aes_req_ctx));
 
 	return 0;
 }
@@ -172,14 +171,13 @@ static struct aead_alg ccp_aes_gcm_defaults = {
 	.ivsize = GCM_AES_IV_SIZE,
 	.maxauthsize = AES_BLOCK_SIZE,
 	.base = {
-		.cra_flags	= CRYPTO_ALG_TYPE_ABLKCIPHER |
-				  CRYPTO_ALG_ASYNC |
+		.cra_flags	= CRYPTO_ALG_ASYNC |
+				  CRYPTO_ALG_ALLOCATES_MEMORY |
 				  CRYPTO_ALG_KERN_DRIVER_ONLY |
 				  CRYPTO_ALG_NEED_FALLBACK,
 		.cra_blocksize	= AES_BLOCK_SIZE,
-		.cra_ctxsize	= sizeof(struct ccp_ctx),
+		.cra_ctxsize	= sizeof(struct ccp_ctx) + CRYPTO_DMA_PADDING,
 		.cra_priority	= CCP_CRA_PRIORITY,
-		.cra_type	= &crypto_ablkcipher_type,
 		.cra_exit	= ccp_aes_gcm_cra_exit,
 		.cra_module	= THIS_MODULE,
 	},
@@ -229,11 +227,10 @@ static int ccp_register_aes_aead(struct list_head *head,
 	snprintf(alg->base.cra_driver_name, CRYPTO_MAX_ALG_NAME, "%s",
 		 def->driver_name);
 	alg->base.cra_blocksize = def->blocksize;
-	alg->base.cra_ablkcipher.ivsize = def->ivsize;
 
 	ret = crypto_register_aead(alg);
 	if (ret) {
-		pr_err("%s ablkcipher algorithm registration error (%d)\n",
+		pr_err("%s aead algorithm registration error (%d)\n",
 		       alg->base.cra_name, ret);
 		kfree(ccp_aead);
 		return ret;

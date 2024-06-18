@@ -1,0 +1,112 @@
+[
+  {
+    "EventCode": "0x1002C",
+    "EventName": "PM_LD_PREFETCH_CACHE_LINE_MISS",
+    "BriefDescription": "The L1 cache was reloaded with a line that fulfills a prefetch request."
+  },
+  {
+    "EventCode": "0x1505E",
+    "EventName": "PM_LD_HIT_L1",
+    "BriefDescription": "Load finished without experiencing an L1 miss."
+  },
+  {
+    "EventCode": "0x1F056",
+    "EventName": "PM_DISP_SS0_2_INSTR_CYC",
+    "BriefDescription": "Cycles in which Superslice 0 dispatches either 1 or 2 instructions."
+  },
+  {
+    "EventCode": "0x1F05A",
+    "EventName": "PM_DISP_HELD_SYNC_CYC",
+    "BriefDescription": "Cycles dispatch is held because of a synchronizing instruction that requires the ICT to be empty before dispatch."
+  },
+  {
+    "EventCode": "0x10066",
+    "EventName": "PM_ADJUNCT_CYC",
+    "BriefDescription": "Cycles in which the thread is in Adjunct state. MSR[S HV PR] bits = 011."
+  },
+  {
+    "EventCode": "0x100FC",
+    "EventName": "PM_LD_REF_L1",
+    "BriefDescription": "All L1 D cache load references counted at finish, gated by reject. In P9 and earlier this event counted only cacheable loads but in P10 both cacheable and non-cacheable loads are included."
+  },
+  {
+    "EventCode": "0x2E010",
+    "EventName": "PM_ADJUNCT_INST_CMPL",
+    "BriefDescription": "PowerPC instruction completed while the thread was in Adjunct state."
+  },
+  {
+    "EventCode": "0x2E014",
+    "EventName": "PM_STCX_FIN",
+    "BriefDescription": "Conditional store instruction (STCX) finished. LARX and STCX are instructions used to acquire a lock."
+  },
+  {
+    "EventCode": "0x2F054",
+    "EventName": "PM_DISP_SS1_2_INSTR_CYC",
+    "BriefDescription": "Cycles in which Superslice 1 dispatches either 1 or 2 instructions."
+  },
+  {
+    "EventCode": "0x2F056",
+    "EventName": "PM_DISP_SS1_4_INSTR_CYC",
+    "BriefDescription": "Cycles in which Superslice 1 dispatches either 3 or 4 instructions."
+  },
+  {
+    "EventCode": "0x200F2",
+    "EventName": "PM_INST_DISP",
+    "BriefDescription": "PowerPC instruction dispatched."
+  },
+  {
+    "EventCode": "0x200FD",
+    "EventName": "PM_L1_ICACHE_MISS",
+    "BriefDescription": "Demand instruction cache miss."
+  },
+  {
+    "EventCode": "0x3F04A",
+    "EventName": "PM_LSU_ST5_FIN",
+    "BriefDescription": "LSU Finished an internal operation in ST2 port."
+  },
+  {
+    "EventCode": "0x3405A",
+    "EventName": "PM_PRIVILEGED_INST_CMPL",
+    "BriefDescription": "PowerPC instruction completed while the thread was in Privileged state."
+  },
+  {
+    "EventCode": "0x3F054",
+    "EventName": "PM_DISP_SS0_4_INSTR_CYC",
+    "BriefDescription": "Cycles in which Superslice 0 dispatches either 3 or 4 instructions."
+  },
+  {
+    "EventCode": "0x3F056",
+    "EventName": "PM_DISP_SS0_8_INSTR_CYC",
+    "BriefDescription": "Cycles in which Superslice 0 dispatches either 5, 6, 7 or 8 instructions."
+  },
+  {
+    "EventCode": "0x30068",
+    "EventName": "PM_L1_ICACHE_RELOADED_PREF",
+    "BriefDescription": "Counts all instruction cache prefetch reloads (includes demand turned into prefetch)."
+  },
+  {
+    "EventCode": "0x300F6",
+    "EventName": "PM_LD_DEMAND_MISS_L1",
+    "BriefDescription": "The L1 cache was reloaded with a line that fulfills a demand miss request. Counted at reload time, before finish."
+  },
+  {
+    "EventCode": "0x40012",
+    "EventName": "PM_L1_ICACHE_RELOADED_ALL",
+    "BriefDescription": "Counts all instruction cache reloads includes demand, prefetch, prefetch turned into demand and demand turned into prefetch."
+  },
+  {
+    "EventCode": "0x44054",
+    "EventName": "PM_VECTOR_LD_CMPL",
+    "BriefDescription": "Vector load instruction completed."
+  },
+  {
+    "EventCode": "0x4D05E",
+    "EventName": "PM_BR_CMPL",
+    "BriefDescription": "A branch completed. All branches are included."
+  },
+  {
+    "EventCode": "0x400F0",
+    "EventName": "PM_LD_DEMAND_MISS_L1_FIN",
+    "BriefDescription": "Load missed L1, counted at finish time."
+  }
+]

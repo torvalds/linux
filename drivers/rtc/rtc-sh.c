@@ -469,7 +469,7 @@ static int __init sh_rtc_probe(struct platform_device *pdev)
 {
 	struct sh_rtc *rtc;
 	struct resource *res;
-	char clk_name[6];
+	char clk_name[14];
 	int clk_id, ret;
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
@@ -504,8 +504,7 @@ static int __init sh_rtc_probe(struct platform_device *pdev)
 	if (unlikely(!rtc->res))
 		return -EBUSY;
 
-	rtc->regbase = devm_ioremap_nocache(&pdev->dev, rtc->res->start,
-					rtc->regsize);
+	rtc->regbase = devm_ioremap(&pdev->dev, rtc->res->start, rtc->regsize);
 	if (unlikely(!rtc->regbase))
 		return -EINVAL;
 
@@ -608,7 +607,7 @@ static int __init sh_rtc_probe(struct platform_device *pdev)
 		rtc->rtc_dev->range_max = mktime64(2098, 12, 31, 23, 59, 59);
 	}
 
-	ret = rtc_register_device(rtc->rtc_dev);
+	ret = devm_rtc_register_device(rtc->rtc_dev);
 	if (ret)
 		goto err_unmap;
 
@@ -621,7 +620,7 @@ err_unmap:
 	return ret;
 }
 
-static int __exit sh_rtc_remove(struct platform_device *pdev)
+static void __exit sh_rtc_remove(struct platform_device *pdev)
 {
 	struct sh_rtc *rtc = platform_get_drvdata(pdev);
 
@@ -629,8 +628,6 @@ static int __exit sh_rtc_remove(struct platform_device *pdev)
 	sh_rtc_setcie(&pdev->dev, 0);
 
 	clk_disable(rtc->clk);
-
-	return 0;
 }
 
 static void sh_rtc_set_irq_wake(struct device *dev, int enabled)
@@ -669,13 +666,19 @@ static const struct of_device_id sh_rtc_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, sh_rtc_of_match);
 
-static struct platform_driver sh_rtc_platform_driver = {
+/*
+ * sh_rtc_remove() lives in .exit.text. For drivers registered via
+ * module_platform_driver_probe() this is ok because they cannot get unbound at
+ * runtime. So mark the driver struct with __refdata to prevent modpost
+ * triggering a section mismatch warning.
+ */
+static struct platform_driver sh_rtc_platform_driver __refdata = {
 	.driver		= {
 		.name	= DRV_NAME,
 		.pm	= &sh_rtc_pm_ops,
 		.of_match_table = sh_rtc_of_match,
 	},
-	.remove		= __exit_p(sh_rtc_remove),
+	.remove_new	= __exit_p(sh_rtc_remove),
 };
 
 module_platform_driver_probe(sh_rtc_platform_driver, sh_rtc_probe);

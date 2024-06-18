@@ -1,5 +1,3 @@
-.. _pagemap:
-
 =============================
 Examining Process Page Tables
 =============================
@@ -19,9 +17,11 @@ There are four components to pagemap:
     * Bits 0-4   swap type if swapped
     * Bits 5-54  swap offset if swapped
     * Bit  55    pte is soft-dirty (see
-      :ref:`Documentation/admin-guide/mm/soft-dirty.rst <soft_dirty>`)
+      Documentation/admin-guide/mm/soft-dirty.rst)
     * Bit  56    page exclusively mapped (since 4.2)
-    * Bits 57-60 zero
+    * Bit  57    pte is uffd-wp write-protected (since 5.13) (see
+      Documentation/admin-guide/mm/userfaultfd.rst)
+    * Bits 58-60 zero
     * Bit  61    page is file-page or shared-anon (since 3.5)
     * Bit  62    page swapped
     * Bit  63    page present
@@ -44,7 +44,7 @@ There are four components to pagemap:
  * ``/proc/kpagecount``.  This file contains a 64-bit count of the number of
    times each page is mapped, indexed by PFN.
 
-The page-types tool in the tools/vm directory can be used to query the
+The page-types tool in the tools/mm directory can be used to query the
 number of times a page is mapped.
 
  * ``/proc/kpageflags``.  This file contains a 64-bit set of flags for each
@@ -88,13 +88,14 @@ Short descriptions to the page flags
 ====================================
 
 0 - LOCKED
-   page is being locked for exclusive access, e.g. by undergoing read/write IO
+   The page is being locked for exclusive access, e.g. by undergoing read/write
+   IO.
 7 - SLAB
-   page is managed by the SLAB/SLOB/SLUB/SLQB kernel memory allocator
-   When compound page is used, SLUB/SLQB will only set this flag on the head
-   page; SLOB will not flag it at all.
+   The page is managed by the SLAB/SLUB kernel memory allocator.
+   When compound page is used, either will only set this flag on the head
+   page.
 10 - BUDDY
-    a free memory block managed by the buddy system allocator
+    A free memory block managed by the buddy system allocator.
     The buddy system organizes free memory in blocks of various orders.
     An order N block has 2^N physically contiguous pages, with the BUDDY flag
     set for and _only_ for the first page.
@@ -102,75 +103,74 @@ Short descriptions to the page flags
     A compound page with order N consists of 2^N physically contiguous pages.
     A compound page with order 2 takes the form of "HTTT", where H donates its
     head page and T donates its tail page(s).  The major consumers of compound
-    pages are hugeTLB pages
-    (:ref:`Documentation/admin-guide/mm/hugetlbpage.rst <hugetlbpage>`),
+    pages are hugeTLB pages (Documentation/admin-guide/mm/hugetlbpage.rst),
     the SLUB etc.  memory allocators and various device drivers.
     However in this interface, only huge/giga pages are made visible
     to end users.
 16 - COMPOUND_TAIL
     A compound page tail (see description above).
 17 - HUGE
-    this is an integral part of a HugeTLB page
+    This is an integral part of a HugeTLB page.
 19 - HWPOISON
-    hardware detected memory corruption on this page: don't touch the data!
+    Hardware detected memory corruption on this page: don't touch the data!
 20 - NOPAGE
-    no page frame exists at the requested address
+    No page frame exists at the requested address.
 21 - KSM
-    identical memory pages dynamically shared between one or more processes
+    Identical memory pages dynamically shared between one or more processes.
 22 - THP
-    contiguous pages which construct transparent hugepages
+    Contiguous pages which construct transparent hugepages.
 23 - OFFLINE
-    page is logically offline
+    The page is logically offline.
 24 - ZERO_PAGE
-    zero page for pfn_zero or huge_zero page
+    Zero page for pfn_zero or huge_zero page.
 25 - IDLE
-    page has not been accessed since it was marked idle (see
-    :ref:`Documentation/admin-guide/mm/idle_page_tracking.rst <idle_page_tracking>`).
+    The page has not been accessed since it was marked idle (see
+    Documentation/admin-guide/mm/idle_page_tracking.rst).
     Note that this flag may be stale in case the page was accessed via
     a PTE. To make sure the flag is up-to-date one has to read
     ``/sys/kernel/mm/page_idle/bitmap`` first.
 26 - PGTABLE
-    page is in use as a page table
+    The page is in use as a page table.
 
 IO related page flags
 ---------------------
 
 1 - ERROR
-   IO error occurred
+   IO error occurred.
 3 - UPTODATE
-   page has up-to-date data
+   The page has up-to-date data.
    ie. for file backed page: (in-memory data revision >= on-disk one)
 4 - DIRTY
-   page has been written to, hence contains new data
+   The page has been written to, hence contains new data.
    i.e. for file backed page: (in-memory data revision >  on-disk one)
 8 - WRITEBACK
-   page is being synced to disk
+   The page is being synced to disk.
 
 LRU related page flags
 ----------------------
 
 5 - LRU
-   page is in one of the LRU lists
+   The page is in one of the LRU lists.
 6 - ACTIVE
-   page is in the active LRU list
+   The page is in the active LRU list.
 18 - UNEVICTABLE
-   page is in the unevictable (non-)LRU list It is somehow pinned and
+   The page is in the unevictable (non-)LRU list It is somehow pinned and
    not a candidate for LRU page reclaims, e.g. ramfs pages,
-   shmctl(SHM_LOCK) and mlock() memory segments
+   shmctl(SHM_LOCK) and mlock() memory segments.
 2 - REFERENCED
-   page has been referenced since last LRU list enqueue/requeue
+   The page has been referenced since last LRU list enqueue/requeue.
 9 - RECLAIM
-   page will be reclaimed soon after its pageout IO completed
+   The page will be reclaimed soon after its pageout IO completed.
 11 - MMAP
-   a memory mapped page
+   A memory mapped page.
 12 - ANON
-   a memory mapped page that is not part of a file
+   A memory mapped page that is not part of a file.
 13 - SWAPCACHE
-   page is mapped to swap space, i.e. has an associated swap entry
+   The page is mapped to swap space, i.e. has an associated swap entry.
 14 - SWAPBACKED
-   page is backed by swap/RAM
+   The page is backed by swap/RAM.
 
-The page-types tool in the tools/vm directory can be used to query the
+The page-types tool in the tools/mm directory can be used to query the
 above flags.
 
 Using pagemap to do something useful
@@ -194,6 +194,28 @@ you can go through every map in the process, find the PFNs, look those up
 in kpagecount, and tally up the number of pages that are only referenced
 once.
 
+Exceptions for Shared Memory
+============================
+
+Page table entries for shared pages are cleared when the pages are zapped or
+swapped out. This makes swapped out pages indistinguishable from never-allocated
+ones.
+
+In kernel space, the swap location can still be retrieved from the page cache.
+However, values stored only on the normal PTE get lost irretrievably when the
+page is swapped out (i.e. SOFT_DIRTY).
+
+In user space, whether the page is present, swapped or none can be deduced with
+the help of lseek and/or mincore system calls.
+
+lseek() can differentiate between accessed pages (present or swapped out) and
+holes (none/non-allocated) by specifying the SEEK_DATA flag on the file where
+the pages are backed. For anonymous shared pages, the file can be found in
+``/proc/pid/map_files/``.
+
+mincore() can differentiate between pages in memory (present, including swap
+cache) and out of memory (swapped out or none/non-allocated).
+
 Other notes
 ===========
 
@@ -205,3 +227,93 @@ Before Linux 3.11 pagemap bits 55-60 were used for "page-shift" (which is
 always 12 at most architectures). Since Linux 3.11 their meaning changes
 after first clear of soft-dirty bits. Since Linux 4.2 they are used for
 flags unconditionally.
+
+Pagemap Scan IOCTL
+==================
+
+The ``PAGEMAP_SCAN`` IOCTL on the pagemap file can be used to get or optionally
+clear the info about page table entries. The following operations are supported
+in this IOCTL:
+
+- Scan the address range and get the memory ranges matching the provided criteria.
+  This is performed when the output buffer is specified.
+- Write-protect the pages. The ``PM_SCAN_WP_MATCHING`` is used to write-protect
+  the pages of interest. The ``PM_SCAN_CHECK_WPASYNC`` aborts the operation if
+  non-Async Write Protected pages are found. The ``PM_SCAN_WP_MATCHING`` can be
+  used with or without ``PM_SCAN_CHECK_WPASYNC``.
+- Both of those operations can be combined into one atomic operation where we can
+  get and write protect the pages as well.
+
+Following flags about pages are currently supported:
+
+- ``PAGE_IS_WPALLOWED`` - Page has async-write-protection enabled
+- ``PAGE_IS_WRITTEN`` - Page has been written to from the time it was write protected
+- ``PAGE_IS_FILE`` - Page is file backed
+- ``PAGE_IS_PRESENT`` - Page is present in the memory
+- ``PAGE_IS_SWAPPED`` - Page is in swapped
+- ``PAGE_IS_PFNZERO`` - Page has zero PFN
+- ``PAGE_IS_HUGE`` - Page is THP or Hugetlb backed
+- ``PAGE_IS_SOFT_DIRTY`` - Page is soft-dirty
+
+The ``struct pm_scan_arg`` is used as the argument of the IOCTL.
+
+ 1. The size of the ``struct pm_scan_arg`` must be specified in the ``size``
+    field. This field will be helpful in recognizing the structure if extensions
+    are done later.
+ 2. The flags can be specified in the ``flags`` field. The ``PM_SCAN_WP_MATCHING``
+    and ``PM_SCAN_CHECK_WPASYNC`` are the only added flags at this time. The get
+    operation is optionally performed depending upon if the output buffer is
+    provided or not.
+ 3. The range is specified through ``start`` and ``end``.
+ 4. The walk can abort before visiting the complete range such as the user buffer
+    can get full etc. The walk ending address is specified in``end_walk``.
+ 5. The output buffer of ``struct page_region`` array and size is specified in
+    ``vec`` and ``vec_len``.
+ 6. The optional maximum requested pages are specified in the ``max_pages``.
+ 7. The masks are specified in ``category_mask``, ``category_anyof_mask``,
+    ``category_inverted`` and ``return_mask``.
+
+Find pages which have been written and WP them as well::
+
+   struct pm_scan_arg arg = {
+   .size = sizeof(arg),
+   .flags = PM_SCAN_CHECK_WPASYNC | PM_SCAN_CHECK_WPASYNC,
+   ..
+   .category_mask = PAGE_IS_WRITTEN,
+   .return_mask = PAGE_IS_WRITTEN,
+   };
+
+Find pages which have been written, are file backed, not swapped and either
+present or huge::
+
+   struct pm_scan_arg arg = {
+   .size = sizeof(arg),
+   .flags = 0,
+   ..
+   .category_mask = PAGE_IS_WRITTEN | PAGE_IS_SWAPPED,
+   .category_inverted = PAGE_IS_SWAPPED,
+   .category_anyof_mask = PAGE_IS_PRESENT | PAGE_IS_HUGE,
+   .return_mask = PAGE_IS_WRITTEN | PAGE_IS_SWAPPED |
+                  PAGE_IS_PRESENT | PAGE_IS_HUGE,
+   };
+
+The ``PAGE_IS_WRITTEN`` flag can be considered as a better-performing alternative
+of soft-dirty flag. It doesn't get affected by VMA merging of the kernel and hence
+the user can find the true soft-dirty pages in case of normal pages. (There may
+still be extra dirty pages reported for THP or Hugetlb pages.)
+
+"PAGE_IS_WRITTEN" category is used with uffd write protect-enabled ranges to
+implement memory dirty tracking in userspace:
+
+ 1. The userfaultfd file descriptor is created with ``userfaultfd`` syscall.
+ 2. The ``UFFD_FEATURE_WP_UNPOPULATED`` and ``UFFD_FEATURE_WP_ASYNC`` features
+    are set by ``UFFDIO_API`` IOCTL.
+ 3. The memory range is registered with ``UFFDIO_REGISTER_MODE_WP`` mode
+    through ``UFFDIO_REGISTER`` IOCTL.
+ 4. Then any part of the registered memory or the whole memory region must
+    be write protected using ``PAGEMAP_SCAN`` IOCTL with flag ``PM_SCAN_WP_MATCHING``
+    or the ``UFFDIO_WRITEPROTECT`` IOCTL can be used. Both of these perform the
+    same operation. The former is better in terms of performance.
+ 5. Now the ``PAGEMAP_SCAN`` IOCTL can be used to either just find pages which
+    have been written to since they were last marked and/or optionally write protect
+    the pages as well.

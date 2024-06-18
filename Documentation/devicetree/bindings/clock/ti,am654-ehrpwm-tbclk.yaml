@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/ti,am654-ehrpwm-tbclk.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI EHRPWM Time Base Clock
+
+maintainers:
+  - Vignesh Raghavendra <vigneshr@ti.com>
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - ti,am654-ehrpwm-tbclk
+          - ti,am64-epwm-tbclk
+          - ti,am62-epwm-tbclk
+
+  "#clock-cells":
+    const: 1
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - "#clock-cells"
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    ehrpwm_tbclk: clock@4140 {
+        compatible = "ti,am654-ehrpwm-tbclk";
+        reg = <0x4140 0x18>;
+        #clock-cells = <1>;
+    };

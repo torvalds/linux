@@ -231,16 +231,17 @@ static int sdw_slave_read_dpn(struct sdw_slave *slave,
 
 		nval = fwnode_property_count_u32(node, "mipi-sdw-channel-number-list");
 		if (nval > 0) {
-			dpn[i].num_ch = nval;
-			dpn[i].ch = devm_kcalloc(&slave->dev, dpn[i].num_ch,
-						 sizeof(*dpn[i].ch),
+			dpn[i].num_channels = nval;
+			dpn[i].channels = devm_kcalloc(&slave->dev,
+						       dpn[i].num_channels,
+						       sizeof(*dpn[i].channels),
 						 GFP_KERNEL);
-			if (!dpn[i].ch)
+			if (!dpn[i].channels)
 				return -ENOMEM;
 
 			fwnode_property_read_u32_array(node,
 					"mipi-sdw-channel-number-list",
-					dpn[i].ch, dpn[i].num_ch);
+					dpn[i].channels, dpn[i].num_channels);
 		}
 
 		nval = fwnode_property_count_u32(node, "mipi-sdw-channel-combination-list");
@@ -288,7 +289,7 @@ int sdw_slave_read_prop(struct sdw_slave *slave)
 	struct sdw_slave_prop *prop = &slave->prop;
 	struct device *dev = &slave->dev;
 	struct fwnode_handle *port;
-	int num_of_ports, nval, i, dp0 = 0;
+	int nval;
 
 	device_property_read_u32(dev, "mipi-sdw-sw-interface-revision",
 				 &prop->mipi_revision);
@@ -351,7 +352,6 @@ int sdw_slave_read_prop(struct sdw_slave *slave)
 			return -ENOMEM;
 
 		sdw_slave_read_dp0(slave, port, prop->dp0_prop);
-		dp0 = 1;
 	}
 
 	/*
@@ -381,21 +381,6 @@ int sdw_slave_read_prop(struct sdw_slave *slave)
 	/* Read dpn properties for sink port(s) */
 	sdw_slave_read_dpn(slave, prop->sink_dpn_prop, nval,
 			   prop->sink_ports, "sink");
-
-	/* some ports are bidirectional so check total ports by ORing */
-	nval = prop->source_ports | prop->sink_ports;
-	num_of_ports = hweight32(nval) + dp0; /* add DP0 */
-
-	/* Allocate port_ready based on num_of_ports */
-	slave->port_ready = devm_kcalloc(&slave->dev, num_of_ports,
-					 sizeof(*slave->port_ready),
-					 GFP_KERNEL);
-	if (!slave->port_ready)
-		return -ENOMEM;
-
-	/* Initialize completion */
-	for (i = 0; i < num_of_ports; i++)
-		init_completion(&slave->port_ready[i]);
 
 	return 0;
 }

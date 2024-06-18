@@ -1,0 +1,71 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (C) 2022 Microchip Technology, Inc. and its subsidiaries
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/rtc/atmel,at91sam9260-rtt.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Atmel AT91 RTT
+
+allOf:
+  - $ref: rtc.yaml#
+
+maintainers:
+  - Alexandre Belloni <alexandre.belloni@bootlin.com>
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - const: atmel,at91sam9260-rtt
+      - items:
+          - enum:
+              - microchip,sam9x60-rtt
+              - microchip,sam9x7-rtt
+          - const: atmel,at91sam9260-rtt
+      - items:
+          - const: microchip,sama7g5-rtt
+          - const: microchip,sam9x60-rtt
+          - const: atmel,at91sam9260-rtt
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  atmel,rtt-rtc-time-reg:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: Phandle to the GPBR node.
+          - description: Offset within the GPBR block.
+    description:
+      Should encode the GPBR register used to store the time base when the
+      RTT is used as an RTC. The first cell should point to the GPBR node
+      and the second one encodes the offset within the GPBR block (or in
+      other words, the GPBR register used to store the time base).
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - atmel,rtt-rtc-time-reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    rtc@fffffd20 {
+        compatible = "atmel,at91sam9260-rtt";
+        reg = <0xfffffd20 0x10>;
+        interrupts = <1 IRQ_TYPE_LEVEL_HIGH 7>;
+        clocks = <&clk32k>;
+        atmel,rtt-rtc-time-reg = <&gpbr 0x0>;
+    };

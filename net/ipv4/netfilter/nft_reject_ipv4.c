@@ -27,7 +27,8 @@ static void nft_reject_ipv4_eval(const struct nft_expr *expr,
 		nf_send_unreach(pkt->skb, priv->icmp_code, nft_hook(pkt));
 		break;
 	case NFT_REJECT_TCP_RST:
-		nf_send_reset(nft_net(pkt), pkt->skb, nft_hook(pkt));
+		nf_send_reset(nft_net(pkt), nft_sk(pkt), pkt->skb,
+			      nft_hook(pkt));
 		break;
 	default:
 		break;
@@ -44,6 +45,7 @@ static const struct nft_expr_ops nft_reject_ipv4_ops = {
 	.init		= nft_reject_init,
 	.dump		= nft_reject_dump,
 	.validate	= nft_reject_validate,
+	.reduce		= NFT_REDUCE_READONLY,
 };
 
 static struct nft_expr_type nft_reject_ipv4_type __read_mostly = {
@@ -71,3 +73,4 @@ module_exit(nft_reject_ipv4_module_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
 MODULE_ALIAS_NFT_AF_EXPR(AF_INET, "reject");
+MODULE_DESCRIPTION("IPv4 packet rejection for nftables");

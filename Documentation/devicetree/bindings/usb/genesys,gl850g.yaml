@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/usb/genesys,gl850g.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Genesys Logic USB hub controller
+
+maintainers:
+  - Icenowy Zheng <uwu@icenowy.me>
+
+allOf:
+  - $ref: usb-device.yaml#
+
+properties:
+  compatible:
+    enum:
+      - usb5e3,608
+      - usb5e3,610
+      - usb5e3,620
+      - usb5e3,626
+
+  reg: true
+
+  reset-gpios:
+    description: GPIO controlling the RESET# pin.
+
+  vdd-supply:
+    description:
+      the regulator that provides 3.3V core power to the hub.
+
+  peer-hub:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      phandle to the peer hub on the controller.
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    usb {
+        dr_mode = "host";
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        hub: hub@1 {
+            compatible = "usb5e3,608";
+            reg = <1>;
+            reset-gpios = <&pio 7 2 GPIO_ACTIVE_LOW>;
+        };
+    };

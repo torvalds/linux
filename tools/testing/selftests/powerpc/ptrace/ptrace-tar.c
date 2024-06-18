@@ -78,6 +78,9 @@ int ptrace_tar(void)
 	pid_t pid;
 	int ret, status;
 
+	// TAR was added in v2.07
+	SKIP_IF_MSG(!have_hwcap2(PPC_FEATURE2_ARCH_2_07), "TAR requires ISA 2.07 compatible hardware");
+
 	shm_id = shmget(IPC_PRIVATE, sizeof(int) * 3, 0777|IPC_CREAT);
 	pid = fork();
 	if (pid < 0) {

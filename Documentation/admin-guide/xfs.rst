@@ -133,7 +133,7 @@ When mounting an XFS filesystem, the following options are accepted.
 	logbsize must be an integer multiple of the log
 	stripe unit configured at **mkfs(8)** time.
 
-	The default value for for version 1 logs is 32768, while the
+	The default value for version 1 logs is 32768, while the
 	default value for version 2 logs is MAX(32768, log_sunit).
 
   logdev=device and rtdev=device
@@ -192,7 +192,7 @@ When mounting an XFS filesystem, the following options are accepted.
 	are any integer multiple of a valid ``sunit`` value.
 
 	Typically the only time these mount options are necessary if
-	after an underlying RAID device has had it's geometry
+	after an underlying RAID device has had its geometry
 	modified, such as adding a new disk to a RAID5 lun and
 	reshaping it.
 
@@ -210,14 +210,40 @@ When mounting an XFS filesystem, the following options are accepted.
 	inconsistent namespace presentation during or after a
 	failover event.
 
+Deprecation of V4 Format
+========================
+
+The V4 filesystem format lacks certain features that are supported by
+the V5 format, such as metadata checksumming, strengthened metadata
+verification, and the ability to store timestamps past the year 2038.
+Because of this, the V4 format is deprecated.  All users should upgrade
+by backing up their files, reformatting, and restoring from the backup.
+
+Administrators and users can detect a V4 filesystem by running xfs_info
+against a filesystem mountpoint and checking for a string containing
+"crc=".  If no such string is found, please upgrade xfsprogs to the
+latest version and try again.
+
+The deprecation will take place in two parts.  Support for mounting V4
+filesystems can now be disabled at kernel build time via Kconfig option.
+The option will default to yes until September 2025, at which time it
+will be changed to default to no.  In September 2030, support will be
+removed from the codebase entirely.
+
+Note: Distributors may choose to withdraw V4 format support earlier than
+the dates listed above.
 
 Deprecated Mount Options
 ========================
 
-===========================     ================
+============================    ================
   Name				Removal Schedule
-===========================     ================
-===========================     ================
+============================    ================
+Mounting with V4 filesystem     September 2030
+Mounting ascii-ci filesystem    September 2030
+ikeep/noikeep			September 2025
+attr2/noattr2			September 2025
+============================    ================
 
 
 Removed Mount Options
@@ -253,11 +279,14 @@ The following sysctls are available for the XFS filesystem:
 	pool.
 
   fs.xfs.speculative_prealloc_lifetime
-		(Units: seconds   Min: 1  Default: 300  Max: 86400)
+	(Units: seconds   Min: 1  Default: 300  Max: 86400)
 	The interval at which the background scanning for inodes
 	with unused speculative preallocation runs. The scan
 	removes unused preallocation from clean inodes and releases
 	the unused space back to the free pool.
+
+  fs.xfs.speculative_cow_prealloc_lifetime
+	This is an alias for speculative_prealloc_lifetime.
 
   fs.xfs.error_level		(Min: 0  Default: 3  Max: 11)
 	A volume knob for error reporting when internal errors occur.
@@ -268,7 +297,7 @@ The following sysctls are available for the XFS filesystem:
 		XFS_ERRLEVEL_LOW:       1
 		XFS_ERRLEVEL_HIGH:      5
 
-  fs.xfs.panic_mask		(Min: 0  Default: 0  Max: 256)
+  fs.xfs.panic_mask		(Min: 0  Default: 0  Max: 511)
 	Causes certain error conditions to call BUG(). Value is a bitmask;
 	OR together the tags which represent errors which should cause panics:
 
@@ -331,7 +360,13 @@ The following sysctls are available for the XFS filesystem:
 Deprecated Sysctls
 ==================
 
-None at present.
+===========================================     ================
+  Name                                          Removal Schedule
+===========================================     ================
+fs.xfs.irix_sgid_inherit                        September 2025
+fs.xfs.irix_symlink_mode                        September 2025
+fs.xfs.speculative_cow_prealloc_lifetime        September 2025
+===========================================     ================
 
 
 Removed Sysctls
@@ -465,3 +500,45 @@ the class and error context. For example, the default values for
 "metadata/ENODEV" are "0" rather than "-1" so that this error handler defaults
 to "fail immediately" behaviour. This is done because ENODEV is a fatal,
 unrecoverable error no matter how many times the metadata IO is retried.
+
+Workqueue Concurrency
+=====================
+
+XFS uses kernel workqueues to parallelize metadata update processes.  This
+enables it to take advantage of storage hardware that can service many IO
+operations simultaneously.  This interface exposes internal implementation
+details of XFS, and as such is explicitly not part of any userspace API/ABI
+guarantee the kernel may give userspace.  These are undocumented features of
+the generic workqueue implementation XFS uses for concurrency, and they are
+provided here purely for diagnostic and tuning purposes and may change at any
+time in the future.
+
+The control knobs for a filesystem's workqueues are organized by task at hand
+and the short name of the data device.  They all can be found in:
+
+  /sys/bus/workqueue/devices/${task}!${device}
+
+================  ===========
+  Task            Description
+================  ===========
+  xfs_iwalk-$pid  Inode scans of the entire filesystem. Currently limited to
+                  mount time quotacheck.
+  xfs-gc          Background garbage collection of disk space that have been
+                  speculatively allocated beyond EOF or for staging copy on
+                  write operations.
+================  ===========
+
+For example, the knobs for the quotacheck workqueue for /dev/nvme0n1 would be
+found in /sys/bus/workqueue/devices/xfs_iwalk-1111!nvme0n1/.
+
+The interesting knobs for XFS workqueues are as follows:
+
+============     ===========
+  Knob           Description
+============     ===========
+  max_active     Maximum number of background threads that can be started to
+                 run the work.
+  cpumask        CPUs upon which the threads are allowed to run.
+  nice           Relative priority of scheduling the threads.  These are the
+                 same nice levels that can be applied to userspace processes.
+============     ===========

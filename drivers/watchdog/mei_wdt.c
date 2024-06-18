@@ -105,7 +105,7 @@ struct mei_wdt {
 #endif /* CONFIG_DEBUG_FS */
 };
 
-/*
+/**
  * struct mei_mc_hdr - Management Control Command Header
  *
  * @command: Management Control (0x2)
@@ -121,7 +121,7 @@ struct mei_mc_hdr {
 };
 
 /**
- * struct mei_wdt_start_request watchdog start/ping
+ * struct mei_wdt_start_request - watchdog start/ping
  *
  * @hdr: Management Control Command Header
  * @timeout: timeout value
@@ -134,7 +134,7 @@ struct mei_wdt_start_request {
 } __packed;
 
 /**
- * struct mei_wdt_start_response watchdog start/ping response
+ * struct mei_wdt_start_response - watchdog start/ping response
  *
  * @hdr: Management Control Command Header
  * @status: operation status
@@ -382,6 +382,7 @@ static int mei_wdt_register(struct mei_wdt *wdt)
 
 	watchdog_set_drvdata(&wdt->wdd, wdt);
 	watchdog_stop_on_reboot(&wdt->wdd);
+	watchdog_stop_on_unregister(&wdt->wdd);
 
 	ret = watchdog_register_device(&wdt->wdd);
 	if (ret)
@@ -473,7 +474,7 @@ out:
 		complete(&wdt->response);
 }
 
-/*
+/**
  * mei_wdt_notif - callback for event notification
  *
  * @cldev: bus device
@@ -619,7 +620,7 @@ err_out:
 	return ret;
 }
 
-static int mei_wdt_remove(struct mei_cl_device *cldev)
+static void mei_wdt_remove(struct mei_cl_device *cldev)
 {
 	struct mei_wdt *wdt = mei_cldev_get_drvdata(cldev);
 
@@ -636,8 +637,6 @@ static int mei_wdt_remove(struct mei_cl_device *cldev)
 	dbgfs_unregister(wdt);
 
 	kfree(wdt);
-
-	return 0;
 }
 
 #define MEI_UUID_WD UUID_LE(0x05B79A6F, 0x4628, 0x4D7F, \

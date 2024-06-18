@@ -17,7 +17,7 @@ static int midi_open(struct snd_rawmidi_substream *substream)
 		return err;
 
 	mutex_lock(&dg00x->mutex);
-	err = snd_dg00x_stream_reserve_duplex(dg00x, 0);
+	err = snd_dg00x_stream_reserve_duplex(dg00x, 0, 0, 0);
 	if (err >= 0) {
 		++dg00x->substreams_counter;
 		err = snd_dg00x_stream_start_duplex(dg00x);
@@ -100,14 +100,14 @@ static void set_substream_names(struct snd_dg00x *dg00x,
 
 		list_for_each_entry(subs, &str->substreams, list) {
 			if (!is_console) {
-				snprintf(subs->name, sizeof(subs->name),
-					 "%s MIDI %d",
-					 dg00x->card->shortname,
-					 subs->number + 1);
+				scnprintf(subs->name, sizeof(subs->name),
+					  "%s MIDI %d",
+					  dg00x->card->shortname,
+					  subs->number + 1);
 			} else {
-				snprintf(subs->name, sizeof(subs->name),
-					 "%s control",
-					 dg00x->card->shortname);
+				scnprintf(subs->name, sizeof(subs->name),
+					  "%s control",
+					  dg00x->card->shortname);
 			}
 		}
 	}

@@ -7,12 +7,12 @@
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
 
@@ -413,27 +413,31 @@ static void armada_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 }
 
 static int armada_drm_crtc_atomic_check(struct drm_crtc *crtc,
-					struct drm_crtc_state *state)
+					struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
 	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
 
-	if (state->gamma_lut && drm_color_lut_size(state->gamma_lut) != 256)
+	if (crtc_state->gamma_lut && drm_color_lut_size(crtc_state->gamma_lut) != 256)
 		return -EINVAL;
 
-	if (state->color_mgmt_changed)
-		state->planes_changed = true;
+	if (crtc_state->color_mgmt_changed)
+		crtc_state->planes_changed = true;
 
 	return 0;
 }
 
 static void armada_drm_crtc_atomic_begin(struct drm_crtc *crtc,
-					 struct drm_crtc_state *old_crtc_state)
+					 struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 
 	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
 
-	if (crtc->state->color_mgmt_changed)
+	if (crtc_state->color_mgmt_changed)
 		armada_drm_update_gamma(crtc);
 
 	dcrtc->regs_idx = 0;
@@ -441,8 +445,10 @@ static void armada_drm_crtc_atomic_begin(struct drm_crtc *crtc,
 }
 
 static void armada_drm_crtc_atomic_flush(struct drm_crtc *crtc,
-					 struct drm_crtc_state *old_crtc_state)
+					 struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 
 	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
@@ -453,7 +459,7 @@ static void armada_drm_crtc_atomic_flush(struct drm_crtc *crtc,
 	 * If we aren't doing a full modeset, then we need to queue
 	 * the event here.
 	 */
-	if (!drm_atomic_crtc_needs_modeset(crtc->state)) {
+	if (!drm_atomic_crtc_needs_modeset(crtc_state)) {
 		dcrtc->update_pending = true;
 		armada_drm_crtc_queue_state_event(crtc);
 		spin_lock_irq(&dcrtc->irq_lock);
@@ -467,8 +473,10 @@ static void armada_drm_crtc_atomic_flush(struct drm_crtc *crtc,
 }
 
 static void armada_drm_crtc_atomic_disable(struct drm_crtc *crtc,
-					   struct drm_crtc_state *old_state)
+					   struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *old_state = drm_atomic_get_old_crtc_state(state,
+									 crtc);
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 	struct drm_pending_vblank_event *event;
 
@@ -503,8 +511,10 @@ static void armada_drm_crtc_atomic_disable(struct drm_crtc *crtc,
 }
 
 static void armada_drm_crtc_atomic_enable(struct drm_crtc *crtc,
-					  struct drm_crtc_state *old_state)
+					  struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *old_state = drm_atomic_get_old_crtc_state(state,
+									 crtc);
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 
 	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
@@ -710,13 +720,13 @@ static int armada_drm_crtc_cursor_set(struct drm_crtc *crtc,
 
 		/* Must be a kernel-mapped object */
 		if (!obj->addr) {
-			drm_gem_object_put_unlocked(&obj->obj);
+			drm_gem_object_put(&obj->obj);
 			return -EINVAL;
 		}
 
 		if (obj->obj.size < w * h * 4) {
 			DRM_ERROR("buffer is too small\n");
-			drm_gem_object_put_unlocked(&obj->obj);
+			drm_gem_object_put(&obj->obj);
 			return -ENOMEM;
 		}
 	}
@@ -724,7 +734,7 @@ static int armada_drm_crtc_cursor_set(struct drm_crtc *crtc,
 	if (dcrtc->cursor_obj) {
 		dcrtc->cursor_obj->update = NULL;
 		dcrtc->cursor_obj->update_data = NULL;
-		drm_gem_object_put_unlocked(&dcrtc->cursor_obj->obj);
+		drm_gem_object_put(&dcrtc->cursor_obj->obj);
 	}
 	dcrtc->cursor_obj = obj;
 	dcrtc->cursor_w = w;
@@ -757,10 +767,10 @@ static int armada_drm_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 static void armada_drm_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
-	struct armada_private *priv = crtc->dev->dev_private;
+	struct armada_private *priv = drm_to_armada_dev(crtc->dev);
 
 	if (dcrtc->cursor_obj)
-		drm_gem_object_put_unlocked(&dcrtc->cursor_obj->obj);
+		drm_gem_object_put(&dcrtc->cursor_obj->obj);
 
 	priv->dcrtc[dcrtc->num] = NULL;
 	drm_crtc_cleanup(&dcrtc->crtc);
@@ -810,7 +820,6 @@ static const struct drm_crtc_funcs armada_crtc_funcs = {
 	.cursor_set	= armada_drm_crtc_cursor_set,
 	.cursor_move	= armada_drm_crtc_cursor_move,
 	.destroy	= armada_drm_crtc_destroy,
-	.gamma_set	= drm_atomic_helper_legacy_gamma_set,
 	.set_config	= drm_atomic_helper_set_config,
 	.page_flip	= drm_atomic_helper_page_flip,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
@@ -901,7 +910,7 @@ static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 	struct resource *res, int irq, const struct armada_variant *variant,
 	struct device_node *port)
 {
-	struct armada_private *priv = drm->dev_private;
+	struct armada_private *priv = drm_to_armada_dev(drm);
 	struct armada_crtc *dcrtc;
 	struct drm_plane *primary;
 	void __iomem *base;
@@ -1004,26 +1013,17 @@ armada_lcd_bind(struct device *dev, struct device *master, void *data)
 	int irq = platform_get_irq(pdev, 0);
 	const struct armada_variant *variant;
 	struct device_node *port = NULL;
+	struct device_node *np, *parent = dev->of_node;
 
 	if (irq < 0)
 		return irq;
 
-	if (!dev->of_node) {
-		const struct platform_device_id *id;
 
-		id = platform_get_device_id(pdev);
-		if (!id)
-			return -ENXIO;
+	variant = device_get_match_data(dev);
+	if (!variant)
+		return -ENXIO;
 
-		variant = (const struct armada_variant *)id->driver_data;
-	} else {
-		const struct of_device_id *match;
-		struct device_node *np, *parent = dev->of_node;
-
-		match = of_match_device(dev->driver->of_match_table, dev);
-		if (!match)
-			return -ENXIO;
-
+	if (parent) {
 		np = of_get_child_by_name(parent, "ports");
 		if (np)
 			parent = np;
@@ -1033,8 +1033,6 @@ armada_lcd_bind(struct device *dev, struct device *master, void *data)
 			dev_err(dev, "no port node found in %pOF\n", parent);
 			return -ENXIO;
 		}
-
-		variant = match->data;
 	}
 
 	return armada_drm_crtc_create(drm, dev, res, irq, variant, port);
@@ -1058,10 +1056,9 @@ static int armada_lcd_probe(struct platform_device *pdev)
 	return component_add(&pdev->dev, &armada_lcd_ops);
 }
 
-static int armada_lcd_remove(struct platform_device *pdev)
+static void armada_lcd_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &armada_lcd_ops);
-	return 0;
 }
 
 static const struct of_device_id armada_lcd_of_match[] = {
@@ -1087,7 +1084,7 @@ MODULE_DEVICE_TABLE(platform, armada_lcd_platform_ids);
 
 struct platform_driver armada_lcd_platform_driver = {
 	.probe	= armada_lcd_probe,
-	.remove	= armada_lcd_remove,
+	.remove_new = armada_lcd_remove,
 	.driver = {
 		.name	= "armada-lcd",
 		.owner	=  THIS_MODULE,

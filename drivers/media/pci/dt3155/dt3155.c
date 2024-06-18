@@ -128,8 +128,6 @@ dt3155_queue_setup(struct vb2_queue *vq,
 	struct dt3155_priv *pd = vb2_get_drv_priv(vq);
 	unsigned size = pd->width * pd->height;
 
-	if (vq->num_buffers + *nbuffers < 2)
-		*nbuffers = 2 - vq->num_buffers;
 	if (*num_planes)
 		return sizes[0] < size ? -EINVAL : 0;
 	*num_planes = 1;
@@ -292,11 +290,8 @@ static const struct v4l2_file_operations dt3155_fops = {
 static int dt3155_querycap(struct file *filp, void *p,
 			   struct v4l2_capability *cap)
 {
-	struct dt3155_priv *pd = video_drvdata(filp);
-
 	strscpy(cap->driver, DT3155_NAME, sizeof(cap->driver));
 	strscpy(cap->card, DT3155_NAME " frame grabber", sizeof(cap->card));
-	sprintf(cap->bus_info, "PCI:%s", pci_name(pd->pdev));
 	return 0;
 }
 
@@ -426,7 +421,7 @@ static int dt3155_init_board(struct dt3155_priv *pd)
 	iowrite32(FIFO_EN | SRST, pd->regs + CSR1);
 	iowrite32(0xEEEEEE01, pd->regs + EVEN_PIXEL_FMT);
 	iowrite32(0xEEEEEE01, pd->regs + ODD_PIXEL_FMT);
-	iowrite32(0x00000020, pd->regs + FIFO_TRIGER);
+	iowrite32(0x00000020, pd->regs + FIFO_TRIGGER);
 	iowrite32(0x00000103, pd->regs + XFER_MODE);
 	iowrite32(0, pd->regs + RETRY_WAIT_CNT);
 	iowrite32(0, pd->regs + INT_CSR);
@@ -522,7 +517,7 @@ static int dt3155_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pd->vidq.ops = &q_ops;
 	pd->vidq.mem_ops = &vb2_dma_contig_memops;
 	pd->vidq.drv_priv = pd;
-	pd->vidq.min_buffers_needed = 2;
+	pd->vidq.min_queued_buffers = 2;
 	pd->vidq.gfp_flags = GFP_DMA32;
 	pd->vidq.lock = &pd->mux; /* for locking v4l2_file_operations */
 	pd->vidq.dev = &pdev->dev;
@@ -550,7 +545,7 @@ static int dt3155_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 					IRQF_SHARED, DT3155_NAME, pd);
 	if (err)
 		goto err_iounmap;
-	err = video_register_device(&pd->vdev, VFL_TYPE_GRABBER, -1);
+	err = video_register_device(&pd->vdev, VFL_TYPE_VIDEO, -1);
 	if (err)
 		goto err_free_irq;
 	dev_info(&pdev->dev, "/dev/video%i is ready\n", pd->vdev.minor);
@@ -575,9 +570,8 @@ static void dt3155_remove(struct pci_dev *pdev)
 	struct dt3155_priv *pd = container_of(v4l2_dev, struct dt3155_priv,
 					      v4l2_dev);
 
-	video_unregister_device(&pd->vdev);
+	vb2_video_unregister_device(&pd->vdev);
 	free_irq(pd->pdev->irq, pd);
-	vb2_queue_release(&pd->vidq);
 	v4l2_device_unregister(&pd->v4l2_dev);
 	pci_iounmap(pdev, pd->regs);
 	pci_release_region(pdev, 0);

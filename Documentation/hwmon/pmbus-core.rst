@@ -121,6 +121,15 @@ Specifically, it provides the following information.
   non-standard PMBus commands to standard commands, or to augment standard
   command return values with device specific information.
 
+PEC Support
+===========
+
+Many PMBus devices support SMBus PEC (Packet Error Checking). If supported
+by both the I2C adapter and by the PMBus chip, it is by default enabled.
+If PEC is supported, the PMBus core driver adds an attribute named 'pec' to
+the I2C device. This attribute can be used to control PEC support in the
+communication with the PMBus chip.
+
 API functions
 =============
 
@@ -162,9 +171,12 @@ Read byte from page <page>, register <reg>.
 
 ::
 
-  int (*read_word_data)(struct i2c_client *client, int page, int reg);
+  int (*read_word_data)(struct i2c_client *client, int page, int phase,
+                        int reg);
 
-Read word from page <page>, register <reg>.
+Read word from page <page>, phase <phase>, register <reg>. If the chip does not
+support multiple phases, the phase parameter can be ignored. If the chip
+supports multiple phases, a phase value of 0xff indicates all phases.
 
 ::
 
@@ -201,16 +213,21 @@ is mandatory.
 
 ::
 
-  int pmbus_set_page(struct i2c_client *client, u8 page);
+  int pmbus_set_page(struct i2c_client *client, u8 page, u8 phase);
 
-Set PMBus page register to <page> for subsequent commands.
+Set PMBus page register to <page> and <phase> for subsequent commands.
+If the chip does not support multiple phases, the phase parameter is
+ignored. Otherwise, a phase value of 0xff selects all phases.
 
 ::
 
-  int pmbus_read_word_data(struct i2c_client *client, u8 page, u8 reg);
+  int pmbus_read_word_data(struct i2c_client *client, u8 page, u8 phase,
+                           u8 reg);
 
-Read word data from <page>, <reg>. Similar to i2c_smbus_read_word_data(), but
-selects page first.
+Read word data from <page>, <phase>, <reg>. Similar to
+i2c_smbus_read_word_data(), but selects page and phase first. If the chip does
+not support multiple phases, the phase parameter is ignored. Otherwise, a phase
+value of 0xff selects all phases.
 
 ::
 
@@ -262,19 +279,12 @@ obtain the chip status. Therefore, it must _not_ be called from that function.
 
 ::
 
-  int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
-		     struct pmbus_driver_info *info);
+  int pmbus_do_probe(struct i2c_client *client, struct pmbus_driver_info *info);
 
 Execute probe function. Similar to standard probe function for other drivers,
 with the pointer to struct pmbus_driver_info as additional argument. Calls
 identify function if supported. Must only be called from device probe
 function.
-
-::
-
-  void pmbus_do_remove(struct i2c_client *client);
-
-Execute driver remove function. Similar to standard driver remove function.
 
 ::
 
@@ -288,12 +298,22 @@ PMBus driver platform data
 ==========================
 
 PMBus platform data is defined in include/linux/pmbus.h. Platform data
-currently only provides a flag field with a single bit used::
+currently provides a flags field with four bits used::
 
-	#define PMBUS_SKIP_STATUS_CHECK (1 << 0)
+	#define PMBUS_SKIP_STATUS_CHECK			BIT(0)
+
+	#define PMBUS_WRITE_PROTECTED			BIT(1)
+
+	#define PMBUS_NO_CAPABILITY			BIT(2)
+
+	#define PMBUS_READ_STATUS_AFTER_FAILED_CHECK	BIT(3)
 
 	struct pmbus_platform_data {
 		u32 flags;              /* Device specific flags */
+
+		/* regulator support */
+		int num_regulators;
+		struct regulator_init_data *reg_init_data;
 	};
 
 
@@ -301,8 +321,9 @@ Flags
 -----
 
 PMBUS_SKIP_STATUS_CHECK
-	During register detection, skip checking the status register for
-	communication or command errors.
+
+During register detection, skip checking the status register for
+communication or command errors.
 
 Some PMBus chips respond with valid data when trying to read an unsupported
 register. For such chips, checking the status register is mandatory when
@@ -314,3 +335,26 @@ status register must be disabled.
 Some i2c controllers do not support single-byte commands (write commands with
 no data, i2c_smbus_write_byte()). With such controllers, clearing the status
 register is impossible, and the PMBUS_SKIP_STATUS_CHECK flag must be set.
+
+PMBUS_WRITE_PROTECTED
+
+Set if the chip is write protected and write protection is not determined
+by the standard WRITE_PROTECT command.
+
+PMBUS_NO_CAPABILITY
+
+Some PMBus chips don't respond with valid data when reading the CAPABILITY
+register. For such chips, this flag should be set so that the PMBus core
+driver doesn't use CAPABILITY to determine its behavior.
+
+PMBUS_READ_STATUS_AFTER_FAILED_CHECK
+
+Read the STATUS register after each failed register check.
+
+Some PMBus chips end up in an undefined state when trying to read an
+unsupported register. For such chips, it is necessary to reset the
+chip pmbus controller to a known state after a failed register check.
+This can be done by reading a known register. By setting this flag the
+driver will try to read the STATUS register after each failed
+register check. This read may fail, but it will put the chip into a
+known state.

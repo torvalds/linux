@@ -15,9 +15,9 @@
 #include <linux/module.h>
 #include <linux/blkdev.h>
 #include <linux/blk-mq.h>
-#include <linux/genhd.h>
 #include <linux/slab.h>
 #include <linux/list.h>
+#include <linux/io.h>
 #include <asm/eadm.h>
 #include "scm_blk.h"
 
@@ -131,11 +131,11 @@ static void scm_request_done(struct scm_request *scmrq)
 
 	for (i = 0; i < nr_requests_per_io && scmrq->request[i]; i++) {
 		msb = &scmrq->aob->msb[i];
-		aidaw = msb->data_addr;
+		aidaw = (u64)dma64_to_virt(msb->data_addr);
 
 		if ((msb->flags & MSB_FLAG_IDA) && aidaw &&
 		    IS_ALIGNED(aidaw, PAGE_SIZE))
-			mempool_free(virt_to_page(aidaw), aidaw_pool);
+			mempool_free(virt_to_page((void *)aidaw), aidaw_pool);
 	}
 
 	spin_lock_irqsave(&list_lock, flags);
@@ -196,12 +196,12 @@ static int scm_request_prepare(struct scm_request *scmrq)
 	msb->scm_addr = scmdev->address + ((u64) blk_rq_pos(req) << 9);
 	msb->oc = (rq_data_dir(req) == READ) ? MSB_OC_READ : MSB_OC_WRITE;
 	msb->flags |= MSB_FLAG_IDA;
-	msb->data_addr = (u64) aidaw;
+	msb->data_addr = virt_to_dma64(aidaw);
 
 	rq_for_each_segment(bv, req, iter) {
 		WARN_ON(bv.bv_offset);
 		msb->blk_count += bv.bv_len >> 12;
-		aidaw->data_addr = (u64) page_address(bv.bv_page);
+		aidaw->data_addr = virt_to_dma64(page_address(bv.bv_page));
 		aidaw++;
 	}
 
@@ -256,7 +256,8 @@ static void scm_request_finish(struct scm_request *scmrq)
 	for (i = 0; i < nr_requests_per_io && scmrq->request[i]; i++) {
 		error = blk_mq_rq_to_pdu(scmrq->request[i]);
 		*error = scmrq->error;
-		blk_mq_complete_request(scmrq->request[i]);
+		if (likely(!blk_should_fake_timeout(scmrq->request[i]->q)))
+			blk_mq_complete_request(scmrq->request[i]);
 	}
 
 	atomic_dec(&bdev->queued_reqs);
@@ -434,9 +435,16 @@ static const struct blk_mq_ops scm_mq_ops = {
 
 int scm_blk_dev_setup(struct scm_blk_dev *bdev, struct scm_device *scmdev)
 {
-	unsigned int devindex, nr_max_blk;
+	struct queue_limits lim = {
+		.logical_block_size	= 1 << 12,
+	};
+	unsigned int devindex;
 	struct request_queue *rq;
 	int len, ret;
+
+	lim.max_segments = min(scmdev->nr_max_block,
+		(unsigned int) (PAGE_SIZE / sizeof(struct aidaw)));
+	lim.max_hw_sectors = lim.max_segments << 3; /* 8 * 512 = blk_size */
 
 	devindex = atomic_inc_return(&nr_devices) - 1;
 	/* scma..scmz + scmaa..scmzz */
@@ -461,32 +469,20 @@ int scm_blk_dev_setup(struct scm_blk_dev *bdev, struct scm_device *scmdev)
 	if (ret)
 		goto out;
 
-	rq = blk_mq_init_queue(&bdev->tag_set);
-	if (IS_ERR(rq)) {
-		ret = PTR_ERR(rq);
+	bdev->gendisk = blk_mq_alloc_disk(&bdev->tag_set, &lim, scmdev);
+	if (IS_ERR(bdev->gendisk)) {
+		ret = PTR_ERR(bdev->gendisk);
 		goto out_tag;
 	}
-	bdev->rq = rq;
-	nr_max_blk = min(scmdev->nr_max_block,
-			 (unsigned int) (PAGE_SIZE / sizeof(struct aidaw)));
-
-	blk_queue_logical_block_size(rq, 1 << 12);
-	blk_queue_max_hw_sectors(rq, nr_max_blk << 3); /* 8 * 512 = blk_size */
-	blk_queue_max_segments(rq, nr_max_blk);
+	rq = bdev->rq = bdev->gendisk->queue;
 	blk_queue_flag_set(QUEUE_FLAG_NONROT, rq);
 	blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, rq);
 
-	bdev->gendisk = alloc_disk(SCM_NR_PARTS);
-	if (!bdev->gendisk) {
-		ret = -ENOMEM;
-		goto out_queue;
-	}
-	rq->queuedata = scmdev;
 	bdev->gendisk->private_data = scmdev;
 	bdev->gendisk->fops = &scm_blk_devops;
-	bdev->gendisk->queue = rq;
 	bdev->gendisk->major = scm_major;
 	bdev->gendisk->first_minor = devindex * SCM_NR_PARTS;
+	bdev->gendisk->minors = SCM_NR_PARTS;
 
 	len = snprintf(bdev->gendisk->disk_name, DISK_NAME_LEN, "scm");
 	if (devindex > 25) {
@@ -500,11 +496,14 @@ int scm_blk_dev_setup(struct scm_blk_dev *bdev, struct scm_device *scmdev)
 
 	/* 512 byte sectors */
 	set_capacity(bdev->gendisk, scmdev->size >> 9);
-	device_add_disk(&scmdev->dev, bdev->gendisk, NULL);
+	ret = device_add_disk(&scmdev->dev, bdev->gendisk, NULL);
+	if (ret)
+		goto out_cleanup_disk;
+
 	return 0;
 
-out_queue:
-	blk_cleanup_queue(rq);
+out_cleanup_disk:
+	put_disk(bdev->gendisk);
 out_tag:
 	blk_mq_free_tag_set(&bdev->tag_set);
 out:
@@ -515,9 +514,8 @@ out:
 void scm_blk_dev_cleanup(struct scm_blk_dev *bdev)
 {
 	del_gendisk(bdev->gendisk);
-	blk_cleanup_queue(bdev->gendisk->queue);
-	blk_mq_free_tag_set(&bdev->tag_set);
 	put_disk(bdev->gendisk);
+	blk_mq_free_tag_set(&bdev->tag_set);
 }
 
 void scm_blk_set_available(struct scm_blk_dev *bdev)

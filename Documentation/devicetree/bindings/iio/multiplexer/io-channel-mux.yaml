@@ -1,0 +1,79 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/multiplexer/io-channel-mux.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: I/O channel multiplexer
+
+maintainers:
+  - Peter Rosin <peda@axentia.se>
+
+description: |
+  If a multiplexer is used to select which hardware signal is fed to
+  e.g. an ADC channel, these bindings describe that situation.
+
+  For each non-empty string in the channels property, an io-channel will be
+  created. The number of this io-channel is the same as the index into the list
+  of strings in the channels property, and also matches the mux controller
+  state. The mux controller state is described in
+  Documentation/devicetree/bindings/mux/mux-controller.yaml
+
+properties:
+
+  compatible:
+    const: io-channel-mux
+
+  io-channels:
+    maxItems: 1
+    description: Channel node of the parent channel that has multiplexed input.
+
+  io-channel-names:
+    const: parent
+
+  mux-controls: true
+  mux-control-names: true
+
+  channels:
+    $ref: /schemas/types.yaml#/definitions/non-unique-string-array
+    description:
+      List of strings, labeling the mux controller states. An empty
+      string for a state means that the channel is not available.
+
+  settle-time-us:
+    default: 0
+    description:
+      Time required for analog signals to settle after muxing.
+
+  "#io-channel-cells":
+    const: 1
+
+required:
+  - compatible
+  - io-channels
+  - io-channel-names
+  - mux-controls
+  - channels
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    mux: mux-controller {
+      compatible = "gpio-mux";
+      #mux-control-cells = <0>;
+
+      mux-gpios = <&pioA 0 GPIO_ACTIVE_HIGH>,
+                  <&pioA 1 GPIO_ACTIVE_HIGH>;
+    };
+
+    adc-mux {
+      compatible = "io-channel-mux";
+      io-channels = <&adc 0>;
+      io-channel-names = "parent";
+
+      mux-controls = <&mux>;
+      channels = "sync", "in", "system-regulator";
+    };
+...

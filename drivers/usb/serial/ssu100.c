@@ -214,8 +214,8 @@ out:	kfree(data);
 
 
 static void ssu100_set_termios(struct tty_struct *tty,
-			       struct usb_serial_port *port,
-			       struct ktermios *old_termios)
+		               struct usb_serial_port *port,
+		               const struct ktermios *old_termios)
 {
 	struct usb_device *dev = port->serial->dev;
 	struct ktermios *termios = &tty->termios;
@@ -231,21 +231,7 @@ static void ssu100_set_termios(struct tty_struct *tty,
 			urb_value |= SERIAL_EVEN_PARITY;
 	}
 
-	switch (cflag & CSIZE) {
-	case CS5:
-		urb_value |= UART_LCR_WLEN5;
-		break;
-	case CS6:
-		urb_value |= UART_LCR_WLEN6;
-		break;
-	case CS7:
-		urb_value |= UART_LCR_WLEN7;
-		break;
-	default:
-	case CS8:
-		urb_value |= UART_LCR_WLEN8;
-		break;
-	}
+	urb_value |= UART_LCR_WLEN(tty_get_char_size(cflag));
 
 	baud = tty_get_baud_rate(tty);
 	if (!baud)
@@ -331,21 +317,6 @@ static int ssu100_open(struct tty_struct *tty, struct usb_serial_port *port)
 	return usb_serial_generic_open(tty, port);
 }
 
-static int get_serial_info(struct tty_struct *tty,
-			   struct serial_struct *ss)
-{
-	struct usb_serial_port *port = tty->driver_data;
-
-	ss->line		= port->minor;
-	ss->port		= 0;
-	ss->irq			= 0;
-	ss->xmit_fifo_size	= port->bulk_out_size;
-	ss->baud_base		= 9600;
-	ss->close_delay		= 5*HZ;
-	ss->closing_wait	= 30*HZ;
-	return 0;
-}
-
 static int ssu100_attach(struct usb_serial *serial)
 {
 	return ssu100_initdevice(serial->dev);
@@ -366,14 +337,12 @@ static int ssu100_port_probe(struct usb_serial_port *port)
 	return 0;
 }
 
-static int ssu100_port_remove(struct usb_serial_port *port)
+static void ssu100_port_remove(struct usb_serial_port *port)
 {
 	struct ssu100_port_private *priv;
 
 	priv = usb_get_serial_port_data(port);
 	kfree(priv);
-
-	return 0;
 }
 
 static int ssu100_tiocmget(struct tty_struct *tty)
@@ -495,7 +464,7 @@ static void ssu100_update_lsr(struct usb_serial_port *port, u8 lsr,
 static void ssu100_process_read_urb(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
-	char *packet = (char *)urb->transfer_buffer;
+	char *packet = urb->transfer_buffer;
 	char flag = TTY_NORMAL;
 	u32 len = urb->actual_length;
 	int i;
@@ -517,13 +486,14 @@ static void ssu100_process_read_urb(struct urb *urb)
 	if (!len)
 		return;	/* status only */
 
-	if (port->port.console && port->sysrq) {
+	if (port->sysrq) {
 		for (i = 0; i < len; i++, ch++) {
 			if (!usb_serial_handle_sysrq_char(port, *ch))
 				tty_insert_flip_char(&port->port, *ch, flag);
 		}
-	} else
+	} else {
 		tty_insert_flip_string_fixed_flag(&port->port, ch, flag, len);
+	}
 
 	tty_flip_buffer_push(&port->port);
 }
@@ -546,7 +516,6 @@ static struct usb_serial_driver ssu100_device = {
 	.tiocmset            = ssu100_tiocmset,
 	.tiocmiwait          = usb_serial_generic_tiocmiwait,
 	.get_icount	     = usb_serial_generic_get_icount,
-	.get_serial          = get_serial_info,
 	.set_termios         = ssu100_set_termios,
 };
 

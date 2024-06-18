@@ -9,12 +9,14 @@
 #include <linux/pci.h>
 #include <linux/pci_hotplug.h>
 #include <linux/irq.h>
+#include <linux/of.h>
 #include <misc/cxl-base.h>
 #include <asm/opal-api.h>
 
 #define PCI_SLOT_ID_PREFIX	(1UL << 63)
 #define PCI_SLOT_ID(phb_id, bdfn)	\
 	(PCI_SLOT_ID_PREFIX | ((uint64_t)(bdfn) << 16) | (phb_id))
+#define PCI_PHB_SLOT_ID(phb_id)		(phb_id)
 
 extern int pnv_pci_get_slot_id(struct device_node *np, uint64_t *id);
 extern int pnv_pci_get_device_tree(uint32_t phandle, void *buf, uint64_t len);
@@ -32,7 +34,7 @@ int pnv_cxl_alloc_hwirqs(struct pci_dev *dev, int num);
 void pnv_cxl_release_hwirqs(struct pci_dev *dev, int hwirq, int num);
 int pnv_cxl_get_irq_count(struct pci_dev *dev);
 struct device_node *pnv_pci_get_phb_node(struct pci_dev *dev);
-int64_t pnv_opal_pci_msi_eoi(struct irq_chip *chip, unsigned int hw_irq);
+int64_t pnv_opal_pci_msi_eoi(struct irq_data *d);
 bool is_pnv_opal_msi(struct irq_chip *chip);
 
 #ifdef CONFIG_CXL_BASE

@@ -144,21 +144,15 @@ static inline void reset_encode(struct snd_midi_event *dev)
 
 void snd_midi_event_reset_encode(struct snd_midi_event *dev)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev->lock, flags);
+	guard(spinlock_irqsave)(&dev->lock);
 	reset_encode(dev);
-	spin_unlock_irqrestore(&dev->lock, flags);
 }
 EXPORT_SYMBOL(snd_midi_event_reset_encode);
 
 void snd_midi_event_reset_decode(struct snd_midi_event *dev)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev->lock, flags);
+	guard(spinlock_irqsave)(&dev->lock);
 	dev->lastcmd = 0xff;
-	spin_unlock_irqrestore(&dev->lock, flags);
 }
 EXPORT_SYMBOL(snd_midi_event_reset_decode);
 
@@ -177,7 +171,6 @@ bool snd_midi_event_encode_byte(struct snd_midi_event *dev, unsigned char c,
 				struct snd_seq_event *ev)
 {
 	bool rc = false;
-	unsigned long flags;
 
 	if (c >= MIDI_CMD_COMMON_CLOCK) {
 		/* real-time event */
@@ -187,7 +180,7 @@ bool snd_midi_event_encode_byte(struct snd_midi_event *dev, unsigned char c,
 		return ev->type != SNDRV_SEQ_EVENT_NONE;
 	}
 
-	spin_lock_irqsave(&dev->lock, flags);
+	guard(spinlock_irqsave)(&dev->lock);
 	if ((c & 0x80) &&
 	    (c != MIDI_CMD_COMMON_SYSEX_END || dev->type != ST_SYSEX)) {
 		/* new command */
@@ -236,7 +229,6 @@ bool snd_midi_event_encode_byte(struct snd_midi_event *dev, unsigned char c,
 		}
 	}
 
-	spin_unlock_irqrestore(&dev->lock, flags);
 	return rc;
 }
 EXPORT_SYMBOL(snd_midi_event_encode_byte);
@@ -422,12 +414,12 @@ static int extra_decode_xrpn(struct snd_midi_event *dev, unsigned char *buf,
 			     int count, struct snd_seq_event *ev)
 {
 	unsigned char cmd;
-	char *cbytes;
-	static char cbytes_nrpn[4] = { MIDI_CTL_NONREG_PARM_NUM_MSB,
+	const char *cbytes;
+	static const char cbytes_nrpn[4] = { MIDI_CTL_NONREG_PARM_NUM_MSB,
 				       MIDI_CTL_NONREG_PARM_NUM_LSB,
 				       MIDI_CTL_MSB_DATA_ENTRY,
 				       MIDI_CTL_LSB_DATA_ENTRY };
-	static char cbytes_rpn[4] =  { MIDI_CTL_REGIST_PARM_NUM_MSB,
+	static const char cbytes_rpn[4] =  { MIDI_CTL_REGIST_PARM_NUM_MSB,
 				       MIDI_CTL_REGIST_PARM_NUM_LSB,
 				       MIDI_CTL_MSB_DATA_ENTRY,
 				       MIDI_CTL_LSB_DATA_ENTRY };

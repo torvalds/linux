@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0 or BSD-3-Clause
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 
 /* Authors: Bernard Metzler <bmt@zurich.ibm.com> */
 /*          Fredy Neeser */
@@ -16,6 +16,7 @@
 #include <net/tcp.h>
 #include <linux/inet.h>
 #include <linux/tcp.h>
+#include <trace/events/sock.h>
 
 #include <rdma/iw_cm.h>
 #include <rdma/ib_verbs.h>
@@ -29,7 +30,7 @@
  * MPA_V2_RDMA_NO_RTR, MPA_V2_RDMA_READ_RTR, MPA_V2_RDMA_WRITE_RTR
  */
 static __be16 rtr_type = MPA_V2_RDMA_READ_RTR | MPA_V2_RDMA_WRITE_RTR;
-static const bool relaxed_ird_negotiation = 1;
+static const bool relaxed_ird_negotiation = true;
 
 static void siw_cm_llp_state_change(struct sock *s);
 static void siw_cm_llp_data_ready(struct sock *s);
@@ -40,16 +41,6 @@ static int siw_cm_upcall(struct siw_cep *cep, enum iw_cm_event_type reason,
 
 static void siw_sk_assign_cm_upcalls(struct sock *sk)
 {
-	write_lock_bh(&sk->sk_callback_lock);
-	sk->sk_state_change = siw_cm_llp_state_change;
-	sk->sk_data_ready = siw_cm_llp_data_ready;
-	sk->sk_write_space = siw_cm_llp_write_space;
-	sk->sk_error_report = siw_cm_llp_error_report;
-	write_unlock_bh(&sk->sk_callback_lock);
-}
-
-static void siw_sk_save_upcalls(struct sock *sk)
-{
 	struct siw_cep *cep = sk_to_cep(sk);
 
 	write_lock_bh(&sk->sk_callback_lock);
@@ -57,6 +48,11 @@ static void siw_sk_save_upcalls(struct sock *sk)
 	cep->sk_data_ready = sk->sk_data_ready;
 	cep->sk_write_space = sk->sk_write_space;
 	cep->sk_error_report = sk->sk_error_report;
+
+	sk->sk_state_change = siw_cm_llp_state_change;
+	sk->sk_data_ready = siw_cm_llp_data_ready;
+	sk->sk_write_space = siw_cm_llp_write_space;
+	sk->sk_error_report = siw_cm_llp_error_report;
 	write_unlock_bh(&sk->sk_callback_lock);
 }
 
@@ -109,6 +105,8 @@ static void siw_rtr_data_ready(struct sock *sk)
 	struct siw_qp *qp = NULL;
 	read_descriptor_t rd_desc;
 
+	trace_sk_data_ready(sk);
+
 	read_lock(&sk->sk_callback_lock);
 
 	cep = sk_to_cep(sk);
@@ -153,7 +151,6 @@ static void siw_cep_socket_assoc(struct siw_cep *cep, struct socket *s)
 	siw_cep_get(cep);
 	s->sk->sk_user_data = cep;
 
-	siw_sk_save_upcalls(s->sk);
 	siw_sk_assign_cm_upcalls(s->sk);
 }
 
@@ -361,6 +358,24 @@ static int siw_cm_upcall(struct siw_cep *cep, enum iw_cm_event_type reason,
 	return id->event_handler(id, &event);
 }
 
+static void siw_free_cm_id(struct siw_cep *cep)
+{
+	if (!cep->cm_id)
+		return;
+
+	cep->cm_id->rem_ref(cep->cm_id);
+	cep->cm_id = NULL;
+}
+
+static void siw_destroy_cep_sock(struct siw_cep *cep)
+{
+	if (cep->sock) {
+		siw_socket_disassoc(cep->sock);
+		sock_release(cep->sock);
+		cep->sock = NULL;
+	}
+}
+
 /*
  * siw_qp_cm_drop()
  *
@@ -390,8 +405,7 @@ void siw_qp_cm_drop(struct siw_qp *qp, int schedule)
 		}
 		siw_dbg_cep(cep, "immediate close, state %d\n", cep->state);
 
-		if (qp->term_info.valid)
-			siw_send_terminate(qp);
+		siw_send_terminate(qp);
 
 		if (cep->cm_id) {
 			switch (cep->state) {
@@ -413,20 +427,12 @@ void siw_qp_cm_drop(struct siw_qp *qp, int schedule)
 			default:
 				break;
 			}
-			cep->cm_id->rem_ref(cep->cm_id);
-			cep->cm_id = NULL;
+			siw_free_cm_id(cep);
 			siw_cep_put(cep);
 		}
 		cep->state = SIW_EPSTATE_CLOSED;
 
-		if (cep->sock) {
-			siw_socket_disassoc(cep->sock);
-			/*
-			 * Immediately close socket
-			 */
-			sock_release(cep->sock);
-			cep->sock = NULL;
-		}
+		siw_destroy_cep_sock(cep);
 		if (cep->qp) {
 			cep->qp = NULL;
 			siw_qp_put(qp);
@@ -440,6 +446,12 @@ void siw_cep_put(struct siw_cep *cep)
 {
 	WARN_ON(kref_read(&cep->ref) < 1);
 	kref_put(&cep->ref, __siw_cep_dealloc);
+}
+
+static void siw_cep_set_free_and_put(struct siw_cep *cep)
+{
+	siw_cep_set_free(cep);
+	siw_cep_put(cep);
 }
 
 void siw_cep_get(struct siw_cep *cep)
@@ -725,10 +737,10 @@ static int siw_proc_mpareply(struct siw_cep *cep)
 	enum mpa_v2_ctrl mpa_p2p_mode = MPA_V2_RDMA_NO_RTR;
 
 	rv = siw_recv_mpa_rr(cep);
-	if (rv != -EAGAIN)
-		siw_cancel_mpatimer(cep);
 	if (rv)
 		goto out_err;
+
+	siw_cancel_mpatimer(cep);
 
 	rep = &cep->mpa.hdr;
 
@@ -895,7 +907,8 @@ static int siw_proc_mpareply(struct siw_cep *cep)
 	}
 
 out_err:
-	siw_cm_upcall(cep, IW_CM_EVENT_CONNECT_REPLY, -EINVAL);
+	if (rv != -EAGAIN)
+		siw_cm_upcall(cep, IW_CM_EVENT_CONNECT_REPLY, -EINVAL);
 
 	return rv;
 }
@@ -947,16 +960,8 @@ static void siw_accept_newconn(struct siw_cep *cep)
 	siw_cep_get(new_cep);
 	new_s->sk->sk_user_data = new_cep;
 
-	if (siw_tcp_nagle == false) {
-		int val = 1;
-
-		rv = kernel_setsockopt(new_s, SOL_TCP, TCP_NODELAY,
-				       (char *)&val, sizeof(val));
-		if (rv) {
-			siw_dbg_cep(cep, "setsockopt NODELAY error: %d\n", rv);
-			goto error;
-		}
-	}
+	if (siw_tcp_nagle == false)
+		tcp_sock_set_nodelay(new_s->sk);
 	new_cep->state = SIW_EPSTATE_AWAIT_MPAREQ;
 
 	rv = siw_cm_queue_work(new_cep, SIW_CM_WORK_MPATIMEOUT);
@@ -976,14 +981,16 @@ static void siw_accept_newconn(struct siw_cep *cep)
 
 		siw_cep_set_inuse(new_cep);
 		rv = siw_proc_mpareq(new_cep);
-		siw_cep_set_free(new_cep);
-
 		if (rv != -EAGAIN) {
 			siw_cep_put(cep);
 			new_cep->listen_cep = NULL;
-			if (rv)
+			if (rv) {
+				siw_cancel_mpatimer(new_cep);
+				siw_cep_set_free(new_cep);
 				goto error;
+			}
 		}
+		siw_cep_set_free(new_cep);
 	}
 	return;
 
@@ -1055,7 +1062,7 @@ static void siw_cm_work_handler(struct work_struct *w)
 					    cep->state);
 			}
 		}
-		if (rv && rv != EAGAIN)
+		if (rv && rv != -EAGAIN)
 			release_cep = 1;
 		break;
 
@@ -1063,7 +1070,7 @@ static void siw_cm_work_handler(struct work_struct *w)
 		/*
 		 * QP scheduled LLP close
 		 */
-		if (cep->qp && cep->qp->term_info.valid)
+		if (cep->qp)
 			siw_send_terminate(cep->qp);
 
 		if (cep->cm_id)
@@ -1103,9 +1110,12 @@ static void siw_cm_work_handler(struct work_struct *w)
 				/*
 				 * Socket close before MPA request received.
 				 */
-				siw_dbg_cep(cep, "no mpareq: drop listener\n");
-				siw_cep_put(cep->listen_cep);
-				cep->listen_cep = NULL;
+				if (cep->listen_cep) {
+					siw_dbg_cep(cep,
+						"no mpareq: drop listener\n");
+					siw_cep_put(cep->listen_cep);
+					cep->listen_cep = NULL;
+				}
 			}
 		}
 		release_cep = 1;
@@ -1174,8 +1184,7 @@ static void siw_cm_work_handler(struct work_struct *w)
 			cep->sock = NULL;
 		}
 		if (cep->cm_id) {
-			cep->cm_id->rem_ref(cep->cm_id);
-			cep->cm_id = NULL;
+			siw_free_cm_id(cep);
 			siw_cep_put(cep);
 		}
 	}
@@ -1222,23 +1231,26 @@ static void siw_cm_llp_data_ready(struct sock *sk)
 {
 	struct siw_cep *cep;
 
+	trace_sk_data_ready(sk);
+
 	read_lock(&sk->sk_callback_lock);
 
 	cep = sk_to_cep(sk);
-	if (!cep) {
-		WARN_ON(1);
+	if (!cep)
 		goto out;
-	}
-	siw_dbg_cep(cep, "state: %d\n", cep->state);
+
+	siw_dbg_cep(cep, "cep state: %d, socket state %d\n",
+		    cep->state, sk->sk_state);
+
+	if (sk->sk_state != TCP_ESTABLISHED)
+		goto out;
 
 	switch (cep->state) {
 	case SIW_EPSTATE_RDMA_MODE:
-		/* fall through */
 	case SIW_EPSTATE_LISTENING:
 		break;
 
 	case SIW_EPSTATE_AWAIT_MPAREQ:
-		/* fall through */
 	case SIW_EPSTATE_AWAIT_MPAREP:
 		siw_cm_queue_work(cep, SIW_CM_WORK_READ_MPAHDR);
 		break;
@@ -1311,19 +1323,22 @@ static void siw_cm_llp_state_change(struct sock *sk)
 }
 
 static int kernel_bindconnect(struct socket *s, struct sockaddr *laddr,
-			      struct sockaddr *raddr)
+			      struct sockaddr *raddr, bool afonly)
 {
-	int rv, flags = 0, s_val = 1;
+	int rv, flags = 0;
 	size_t size = laddr->sa_family == AF_INET ?
 		sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6);
 
 	/*
 	 * Make address available again asap.
 	 */
-	rv = kernel_setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (char *)&s_val,
-			       sizeof(s_val));
-	if (rv < 0)
-		return rv;
+	sock_set_reuseaddr(s->sk);
+
+	if (afonly) {
+		rv = ip6_sock_set_v6only(s->sk);
+		if (rv)
+			return rv;
+	}
 
 	rv = s->ops->bind(s, laddr, size);
 	if (rv < 0)
@@ -1373,22 +1388,8 @@ int siw_connect(struct iw_cm_id *id, struct iw_cm_conn_param *params)
 		rv = -EINVAL;
 		goto error;
 	}
-	if (v4)
-		siw_dbg_qp(qp,
-			   "pd_len %d, laddr %pI4 %d, raddr %pI4 %d\n",
-			   pd_len,
-			   &((struct sockaddr_in *)(laddr))->sin_addr,
-			   ntohs(((struct sockaddr_in *)(laddr))->sin_port),
-			   &((struct sockaddr_in *)(raddr))->sin_addr,
-			   ntohs(((struct sockaddr_in *)(raddr))->sin_port));
-	else
-		siw_dbg_qp(qp,
-			   "pd_len %d, laddr %pI6 %d, raddr %pI6 %d\n",
-			   pd_len,
-			   &((struct sockaddr_in6 *)(laddr))->sin6_addr,
-			   ntohs(((struct sockaddr_in6 *)(laddr))->sin6_port),
-			   &((struct sockaddr_in6 *)(raddr))->sin6_addr,
-			   ntohs(((struct sockaddr_in6 *)(raddr))->sin6_port));
+	siw_dbg_qp(qp, "pd_len %d, laddr %pISp, raddr %pISp\n", pd_len, laddr,
+		   raddr);
 
 	rv = sock_create(v4 ? AF_INET : AF_INET6, SOCK_STREAM, IPPROTO_TCP, &s);
 	if (rv < 0)
@@ -1399,21 +1400,13 @@ int siw_connect(struct iw_cm_id *id, struct iw_cm_conn_param *params)
 	 * mode. Might be reconsidered for async connection setup at
 	 * TCP level.
 	 */
-	rv = kernel_bindconnect(s, laddr, raddr);
+	rv = kernel_bindconnect(s, laddr, raddr, id->afonly);
 	if (rv != 0) {
 		siw_dbg_qp(qp, "kernel_bindconnect: error %d\n", rv);
 		goto error;
 	}
-	if (siw_tcp_nagle == false) {
-		int val = 1;
-
-		rv = kernel_setsockopt(s, SOL_TCP, TCP_NODELAY, (char *)&val,
-				       sizeof(val));
-		if (rv) {
-			siw_dbg_qp(qp, "setsockopt NODELAY error: %d\n", rv);
-			goto error;
-		}
-	}
+	if (siw_tcp_nagle == false)
+		tcp_sock_set_nodelay(s->sk);
 	cep = siw_cep_alloc(sdev);
 	if (!cep) {
 		rv = -ENOMEM;
@@ -1524,16 +1517,13 @@ error:
 
 		cep->cm_id = NULL;
 		id->rem_ref(id);
-		siw_cep_put(cep);
 
 		qp->cep = NULL;
 		siw_cep_put(cep);
 
 		cep->state = SIW_EPSTATE_CLOSED;
 
-		siw_cep_set_free(cep);
-
-		siw_cep_put(cep);
+		siw_cep_set_free_and_put(cep);
 
 	} else if (s) {
 		sock_release(s);
@@ -1564,7 +1554,7 @@ int siw_accept(struct iw_cm_id *id, struct iw_cm_conn_param *params)
 	struct siw_cep *cep = (struct siw_cep *)id->provider_data;
 	struct siw_qp *qp;
 	struct siw_qp_attrs qp_attrs;
-	int rv, max_priv_data = MPA_MAX_PRIVDATA;
+	int rv = -EINVAL, max_priv_data = MPA_MAX_PRIVDATA;
 	bool wait_for_peer_rts = false;
 
 	siw_cep_set_inuse(cep);
@@ -1580,26 +1570,17 @@ int siw_accept(struct iw_cm_id *id, struct iw_cm_conn_param *params)
 
 	if (cep->state != SIW_EPSTATE_RECVD_MPAREQ) {
 		siw_dbg_cep(cep, "out of state\n");
-
-		siw_cep_set_free(cep);
-		siw_cep_put(cep);
-
-		return -ECONNRESET;
+		rv = -ECONNRESET;
+		goto free_cep;
 	}
 	qp = siw_qp_id2obj(sdev, params->qpn);
 	if (!qp) {
 		WARN(1, "[QP %d] does not exist\n", params->qpn);
-		siw_cep_set_free(cep);
-		siw_cep_put(cep);
-
-		return -EINVAL;
+		goto free_cep;
 	}
 	down_write(&qp->state_lock);
-	if (qp->attrs.state > SIW_QP_STATE_RTR) {
-		rv = -EINVAL;
-		up_write(&qp->state_lock);
-		goto error;
-	}
+	if (qp->attrs.state > SIW_QP_STATE_RTR)
+		goto error_unlock;
 	siw_dbg_cep(cep, "[QP %d]\n", params->qpn);
 
 	if (try_gso && cep->mpa.hdr.params.bits & MPA_RR_FLAG_GSO_EXP) {
@@ -1613,9 +1594,7 @@ int siw_accept(struct iw_cm_id *id, struct iw_cm_conn_param *params)
 			"[QP %u]: ord %d (max %d), ird %d (max %d)\n",
 			qp_id(qp), params->ord, sdev->attrs.max_ord,
 			params->ird, sdev->attrs.max_ird);
-		rv = -EINVAL;
-		up_write(&qp->state_lock);
-		goto error;
+		goto error_unlock;
 	}
 	if (cep->enhanced_rdma_conn_est)
 		max_priv_data -= sizeof(struct mpa_v2_data);
@@ -1625,9 +1604,7 @@ int siw_accept(struct iw_cm_id *id, struct iw_cm_conn_param *params)
 			cep,
 			"[QP %u]: private data length: %d (max %d)\n",
 			qp_id(qp), params->private_data_len, max_priv_data);
-		rv = -EINVAL;
-		up_write(&qp->state_lock);
-		goto error;
+		goto error_unlock;
 	}
 	if (cep->enhanced_rdma_conn_est) {
 		if (params->ord > cep->ord) {
@@ -1636,9 +1613,7 @@ int siw_accept(struct iw_cm_id *id, struct iw_cm_conn_param *params)
 			} else {
 				cep->ird = params->ird;
 				cep->ord = params->ord;
-				rv = -EINVAL;
-				up_write(&qp->state_lock);
-				goto error;
+				goto error_unlock;
 			}
 		}
 		if (params->ird < cep->ird) {
@@ -1647,8 +1622,7 @@ int siw_accept(struct iw_cm_id *id, struct iw_cm_conn_param *params)
 				params->ird = cep->ird;
 			else {
 				rv = -ENOMEM;
-				up_write(&qp->state_lock);
-				goto error;
+				goto error_unlock;
 			}
 		}
 		if (cep->mpa.v2_ctrl.ord &
@@ -1695,7 +1669,6 @@ int siw_accept(struct iw_cm_id *id, struct iw_cm_conn_param *params)
 				   SIW_QP_ATTR_ORD | SIW_QP_ATTR_IRD |
 				   SIW_QP_ATTR_MPA);
 	up_write(&qp->state_lock);
-
 	if (rv)
 		goto error;
 
@@ -1718,27 +1691,23 @@ int siw_accept(struct iw_cm_id *id, struct iw_cm_conn_param *params)
 	siw_cep_set_free(cep);
 
 	return 0;
+
+error_unlock:
+	up_write(&qp->state_lock);
 error:
-	siw_socket_disassoc(cep->sock);
-	sock_release(cep->sock);
-	cep->sock = NULL;
+	siw_destroy_cep_sock(cep);
 
 	cep->state = SIW_EPSTATE_CLOSED;
 
-	if (cep->cm_id) {
-		cep->cm_id->rem_ref(id);
-		cep->cm_id = NULL;
-	}
+	siw_free_cm_id(cep);
 	if (qp->cep) {
 		siw_cep_put(cep);
 		qp->cep = NULL;
 	}
 	cep->qp = NULL;
 	siw_qp_put(qp);
-
-	siw_cep_set_free(cep);
-	siw_cep_put(cep);
-
+free_cep:
+	siw_cep_set_free_and_put(cep);
 	return rv;
 }
 
@@ -1760,8 +1729,7 @@ int siw_reject(struct iw_cm_id *id, const void *pdata, u8 pd_len)
 	if (cep->state != SIW_EPSTATE_RECVD_MPAREQ) {
 		siw_dbg_cep(cep, "out of state\n");
 
-		siw_cep_set_free(cep);
-		siw_cep_put(cep); /* put last reference */
+		siw_cep_set_free_and_put(cep); /* put last reference */
 
 		return -ECONNRESET;
 	}
@@ -1772,25 +1740,31 @@ int siw_reject(struct iw_cm_id *id, const void *pdata, u8 pd_len)
 		cep->mpa.hdr.params.bits |= MPA_RR_FLAG_REJECT; /* reject */
 		siw_send_mpareqrep(cep, pdata, pd_len);
 	}
-	siw_socket_disassoc(cep->sock);
-	sock_release(cep->sock);
-	cep->sock = NULL;
+	siw_destroy_cep_sock(cep);
 
 	cep->state = SIW_EPSTATE_CLOSED;
 
-	siw_cep_set_free(cep);
-	siw_cep_put(cep);
+	siw_cep_set_free_and_put(cep);
 
 	return 0;
 }
 
-static int siw_listen_address(struct iw_cm_id *id, int backlog,
-			      struct sockaddr *laddr, int addr_family)
+/*
+ * siw_create_listen - Create resources for a listener's IWCM ID @id
+ *
+ * Starts listen on the socket address id->local_addr.
+ *
+ */
+int siw_create_listen(struct iw_cm_id *id, int backlog)
 {
 	struct socket *s;
 	struct siw_cep *cep = NULL;
 	struct siw_device *sdev = to_siw_dev(id->device);
-	int rv = 0, s_val;
+	int addr_family = id->local_addr.ss_family;
+	int rv = 0;
+
+	if (addr_family != AF_INET && addr_family != AF_INET6)
+		return -EAFNOSUPPORT;
 
 	rv = sock_create(addr_family, SOCK_STREAM, IPPROTO_TCP, &s);
 	if (rv < 0)
@@ -1799,16 +1773,36 @@ static int siw_listen_address(struct iw_cm_id *id, int backlog,
 	/*
 	 * Allow binding local port when still in TIME_WAIT from last close.
 	 */
-	s_val = 1;
-	rv = kernel_setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (char *)&s_val,
-			       sizeof(s_val));
-	if (rv) {
-		siw_dbg(id->device, "setsockopt error: %d\n", rv);
-		goto error;
+	sock_set_reuseaddr(s->sk);
+
+	if (addr_family == AF_INET) {
+		struct sockaddr_in *laddr = &to_sockaddr_in(id->local_addr);
+
+		/* For wildcard addr, limit binding to current device only */
+		if (ipv4_is_zeronet(laddr->sin_addr.s_addr))
+			s->sk->sk_bound_dev_if = sdev->netdev->ifindex;
+
+		rv = s->ops->bind(s, (struct sockaddr *)laddr,
+				  sizeof(struct sockaddr_in));
+	} else {
+		struct sockaddr_in6 *laddr = &to_sockaddr_in6(id->local_addr);
+
+		if (id->afonly) {
+			rv = ip6_sock_set_v6only(s->sk);
+			if (rv) {
+				siw_dbg(id->device,
+					"ip6_sock_set_v6only erro: %d\n", rv);
+				goto error;
+			}
+		}
+
+		/* For wildcard addr, limit binding to current device only */
+		if (ipv6_addr_any(&laddr->sin6_addr))
+			s->sk->sk_bound_dev_if = sdev->netdev->ifindex;
+
+		rv = s->ops->bind(s, (struct sockaddr *)laddr,
+				  sizeof(struct sockaddr_in6));
 	}
-	rv = s->ops->bind(s, laddr, addr_family == AF_INET ?
-				    sizeof(struct sockaddr_in) :
-				    sizeof(struct sockaddr_in6));
 	if (rv) {
 		siw_dbg(id->device, "socket bind error: %d\n", rv);
 		goto error;
@@ -1867,14 +1861,7 @@ static int siw_listen_address(struct iw_cm_id *id, int backlog,
 	list_add_tail(&cep->listenq, (struct list_head *)id->provider_data);
 	cep->state = SIW_EPSTATE_LISTENING;
 
-	if (addr_family == AF_INET)
-		siw_dbg(id->device, "Listen at laddr %pI4 %u\n",
-			&(((struct sockaddr_in *)laddr)->sin_addr),
-			((struct sockaddr_in *)laddr)->sin_port);
-	else
-		siw_dbg(id->device, "Listen at laddr %pI6 %u\n",
-			&(((struct sockaddr_in6 *)laddr)->sin6_addr),
-			((struct sockaddr_in6 *)laddr)->sin6_port);
+	siw_dbg(id->device, "Listen at laddr %pISp\n", &id->local_addr);
 
 	return 0;
 
@@ -1884,16 +1871,12 @@ error:
 	if (cep) {
 		siw_cep_set_inuse(cep);
 
-		if (cep->cm_id) {
-			cep->cm_id->rem_ref(cep->cm_id);
-			cep->cm_id = NULL;
-		}
+		siw_free_cm_id(cep);
 		cep->sock = NULL;
 		siw_socket_disassoc(s);
 		cep->state = SIW_EPSTATE_CLOSED;
 
-		siw_cep_set_free(cep);
-		siw_cep_put(cep);
+		siw_cep_set_free_and_put(cep);
 	}
 	sock_release(s);
 
@@ -1917,127 +1900,15 @@ static void siw_drop_listeners(struct iw_cm_id *id)
 
 		siw_cep_set_inuse(cep);
 
-		if (cep->cm_id) {
-			cep->cm_id->rem_ref(cep->cm_id);
-			cep->cm_id = NULL;
-		}
+		siw_free_cm_id(cep);
 		if (cep->sock) {
 			siw_socket_disassoc(cep->sock);
 			sock_release(cep->sock);
 			cep->sock = NULL;
 		}
 		cep->state = SIW_EPSTATE_CLOSED;
-		siw_cep_set_free(cep);
-		siw_cep_put(cep);
+		siw_cep_set_free_and_put(cep);
 	}
-}
-
-/*
- * siw_create_listen - Create resources for a listener's IWCM ID @id
- *
- * Listens on the socket addresses id->local_addr and id->remote_addr.
- *
- * If the listener's @id provides a specific local IP address, at most one
- * listening socket is created and associated with @id.
- *
- * If the listener's @id provides the wildcard (zero) local IP address,
- * a separate listen is performed for each local IP address of the device
- * by creating a listening socket and binding to that local IP address.
- *
- */
-int siw_create_listen(struct iw_cm_id *id, int backlog)
-{
-	struct net_device *dev = to_siw_dev(id->device)->netdev;
-	int rv = 0, listeners = 0;
-
-	siw_dbg(id->device, "backlog %d\n", backlog);
-
-	/*
-	 * For each attached address of the interface, create a
-	 * listening socket, if id->local_addr is the wildcard
-	 * IP address or matches the IP address.
-	 */
-	if (id->local_addr.ss_family == AF_INET) {
-		struct in_device *in_dev = in_dev_get(dev);
-		struct sockaddr_in s_laddr, *s_raddr;
-		const struct in_ifaddr *ifa;
-
-		if (!in_dev) {
-			rv = -ENODEV;
-			goto out;
-		}
-		memcpy(&s_laddr, &id->local_addr, sizeof(s_laddr));
-		s_raddr = (struct sockaddr_in *)&id->remote_addr;
-
-		siw_dbg(id->device,
-			"laddr %pI4:%d, raddr %pI4:%d\n",
-			&s_laddr.sin_addr, ntohs(s_laddr.sin_port),
-			&s_raddr->sin_addr, ntohs(s_raddr->sin_port));
-
-		rtnl_lock();
-		in_dev_for_each_ifa_rtnl(ifa, in_dev) {
-			if (ipv4_is_zeronet(s_laddr.sin_addr.s_addr) ||
-			    s_laddr.sin_addr.s_addr == ifa->ifa_address) {
-				s_laddr.sin_addr.s_addr = ifa->ifa_address;
-
-				rv = siw_listen_address(id, backlog,
-						(struct sockaddr *)&s_laddr,
-						AF_INET);
-				if (!rv)
-					listeners++;
-			}
-		}
-		rtnl_unlock();
-		in_dev_put(in_dev);
-	} else if (id->local_addr.ss_family == AF_INET6) {
-		struct inet6_dev *in6_dev = in6_dev_get(dev);
-		struct inet6_ifaddr *ifp;
-		struct sockaddr_in6 *s_laddr = &to_sockaddr_in6(id->local_addr),
-			*s_raddr = &to_sockaddr_in6(id->remote_addr);
-
-		if (!in6_dev) {
-			rv = -ENODEV;
-			goto out;
-		}
-		siw_dbg(id->device,
-			"laddr %pI6:%d, raddr %pI6:%d\n",
-			&s_laddr->sin6_addr, ntohs(s_laddr->sin6_port),
-			&s_raddr->sin6_addr, ntohs(s_raddr->sin6_port));
-
-		rtnl_lock();
-		list_for_each_entry(ifp, &in6_dev->addr_list, if_list) {
-			if (ifp->flags & (IFA_F_TENTATIVE | IFA_F_DEPRECATED))
-				continue;
-			if (ipv6_addr_any(&s_laddr->sin6_addr) ||
-			    ipv6_addr_equal(&s_laddr->sin6_addr, &ifp->addr)) {
-				struct sockaddr_in6 bind_addr  = {
-					.sin6_family = AF_INET6,
-					.sin6_port = s_laddr->sin6_port,
-					.sin6_flowinfo = 0,
-					.sin6_addr = ifp->addr,
-					.sin6_scope_id = dev->ifindex };
-
-				rv = siw_listen_address(id, backlog,
-						(struct sockaddr *)&bind_addr,
-						AF_INET6);
-				if (!rv)
-					listeners++;
-			}
-		}
-		rtnl_unlock();
-		in6_dev_put(in6_dev);
-	} else {
-		rv = -EAFNOSUPPORT;
-	}
-out:
-	if (listeners)
-		rv = 0;
-	else if (!rv)
-		rv = -EINVAL;
-
-	siw_dbg(id->device, "%s\n", rv ? "FAIL" : "OK");
-
-	return rv;
 }
 
 int siw_destroy_listen(struct iw_cm_id *id)
@@ -2067,8 +1938,6 @@ int siw_cm_init(void)
 
 void siw_cm_exit(void)
 {
-	if (siw_cm_wq) {
-		flush_workqueue(siw_cm_wq);
+	if (siw_cm_wq)
 		destroy_workqueue(siw_cm_wq);
-	}
 }

@@ -6,26 +6,26 @@
 #define _TRACE_XEN_H
 
 #include <linux/tracepoint.h>
-#include <asm/paravirt_types.h>
+#include <asm/xen/hypervisor.h>
 #include <asm/xen/trace_types.h>
 
 struct multicall_entry;
 
 /* Multicalls */
 DECLARE_EVENT_CLASS(xen_mc__batch,
-	    TP_PROTO(enum paravirt_lazy_mode mode),
+	    TP_PROTO(enum xen_lazy_mode mode),
 	    TP_ARGS(mode),
 	    TP_STRUCT__entry(
-		    __field(enum paravirt_lazy_mode, mode)
+		    __field(enum xen_lazy_mode, mode)
 		    ),
 	    TP_fast_assign(__entry->mode = mode),
 	    TP_printk("start batch LAZY_%s",
-		      (__entry->mode == PARAVIRT_LAZY_MMU) ? "MMU" :
-		      (__entry->mode == PARAVIRT_LAZY_CPU) ? "CPU" : "NONE")
+		      (__entry->mode == XEN_LAZY_MMU) ? "MMU" :
+		      (__entry->mode == XEN_LAZY_CPU) ? "CPU" : "NONE")
 	);
 #define DEFINE_XEN_MC_BATCH(name)			\
 	DEFINE_EVENT(xen_mc__batch, name,		\
-		TP_PROTO(enum paravirt_lazy_mode mode),	\
+		TP_PROTO(enum xen_lazy_mode mode),	\
 		     TP_ARGS(mode))
 
 DEFINE_XEN_MC_BATCH(xen_mc_batch);
@@ -66,7 +66,11 @@ TRACE_EVENT(xen_mc_callback,
 	    TP_PROTO(xen_mc_callback_fn_t fn, void *data),
 	    TP_ARGS(fn, data),
 	    TP_STRUCT__entry(
-		    __field(xen_mc_callback_fn_t, fn)
+		    /*
+		     * Use field_struct to avoid is_signed_type()
+		     * comparison of a function pointer.
+		     */
+		    __field_struct(xen_mc_callback_fn_t, fn)
 		    __field(void *, data)
 		    ),
 	    TP_fast_assign(
@@ -148,26 +152,6 @@ DECLARE_EVENT_CLASS(xen_mmu__set_pte,
 		     TP_ARGS(ptep, pteval))
 
 DEFINE_XEN_MMU_SET_PTE(xen_mmu_set_pte);
-
-TRACE_EVENT(xen_mmu_set_pte_at,
-	    TP_PROTO(struct mm_struct *mm, unsigned long addr,
-		     pte_t *ptep, pte_t pteval),
-	    TP_ARGS(mm, addr, ptep, pteval),
-	    TP_STRUCT__entry(
-		    __field(struct mm_struct *, mm)
-		    __field(unsigned long, addr)
-		    __field(pte_t *, ptep)
-		    __field(pteval_t, pteval)
-		    ),
-	    TP_fast_assign(__entry->mm = mm;
-			   __entry->addr = addr;
-			   __entry->ptep = ptep;
-			   __entry->pteval = pteval.pte),
-	    TP_printk("mm %p addr %lx ptep %p pteval %0*llx (raw %0*llx)",
-		      __entry->mm, __entry->addr, __entry->ptep,
-		      (int)sizeof(pteval_t) * 2, (unsigned long long)pte_val(native_make_pte(__entry->pteval)),
-		      (int)sizeof(pteval_t) * 2, (unsigned long long)__entry->pteval)
-	);
 
 TRACE_DEFINE_SIZEOF(pmdval_t);
 
@@ -362,7 +346,7 @@ TRACE_EVENT(xen_mmu_flush_tlb_one_user,
 	    TP_printk("addr %lx", __entry->addr)
 	);
 
-TRACE_EVENT(xen_mmu_flush_tlb_others,
+TRACE_EVENT(xen_mmu_flush_tlb_multi,
 	    TP_PROTO(const struct cpumask *cpus, struct mm_struct *mm,
 		     unsigned long addr, unsigned long end),
 	    TP_ARGS(cpus, mm, addr, end),

@@ -8,11 +8,11 @@
  * Copyright (C) 2007 Korea Information Security Agency (KISA).
  */
 
+#include <crypto/algapi.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/errno.h>
-#include <linux/crypto.h>
 #include <asm/byteorder.h>
 
 #define SEED_NUM_KCONSTANTS	16
@@ -322,7 +322,7 @@ static const u32 KC[SEED_NUM_KCONSTANTS] = {
 		SS2[byte(t1, 2)] ^ SS3[byte(t1, 3)];	\
 	t0 += t1;					\
 	X1 ^= t0;					\
-	X2 ^= t1;
+	X2 ^= t1
 
 static int seed_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 		        unsigned int key_len)

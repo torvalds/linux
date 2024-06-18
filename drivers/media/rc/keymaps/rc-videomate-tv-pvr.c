@@ -81,3 +81,4 @@ module_exit(exit_rc_map_videomate_tv_pvr)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
+MODULE_DESCRIPTION("videomate-tv-pvr remote controller keytable");

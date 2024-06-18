@@ -49,16 +49,16 @@
 			__VA_ARGS__, { } },				\
 	}
 
-#define PINCTRL_PIN_GROUP(name, id)			\
-	{						\
-		name,					\
-		id##_pins,				\
-		ARRAY_SIZE(id##_pins),			\
-		id##_funcs,				\
+#define PINCTRL_PIN_GROUP(_name_, id)							\
+	{										\
+		.grp = PINCTRL_PINGROUP(_name_,id##_pins, ARRAY_SIZE(id##_pins)),	\
+		.data = id##_funcs,							\
 	}
 
-int mtk_paris_pinctrl_probe(struct platform_device *pdev,
-			    const struct mtk_pin_soc *soc);
+int mtk_paris_pinctrl_probe(struct platform_device *pdev);
+
+ssize_t mtk_pctrl_show_one_pin(struct mtk_pinctrl *hw,
+	unsigned int gpio, char *buf, unsigned int bufLen);
 
 extern const struct dev_pm_ops mtk_paris_pinctrl_pm_ops;
 

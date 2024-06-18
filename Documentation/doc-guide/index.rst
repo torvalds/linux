@@ -10,6 +10,8 @@ How to write kernel documentation
    sphinx
    kernel-doc
    parse-headers
+   contributing
+   maintainer-profile
 
 .. only::  subproject and html
 

@@ -13,14 +13,13 @@
 #include <linux/of_mdio.h>
 #include <linux/slab.h>
 #include <linux/of_platform.h>
+#include <linux/platform_device.h>
 
 #include <asm/io.h>
 #include <asm/cpm2.h>
 #include <asm/udbg.h>
 #include <asm/machdep.h>
 #include <asm/time.h>
-#include <asm/mpc8260.h>
-#include <asm/prom.h>
 
 #include <sysdev/fsl_soc.h>
 #include <sysdev/cpm2_pic.h>
@@ -141,12 +140,6 @@ err_free_bus:
 	return ret;
 }
 
-static int ep8248e_mdio_remove(struct platform_device *ofdev)
-{
-	BUG();
-	return 0;
-}
-
 static const struct of_device_id ep8248e_mdio_match[] = {
 	{
 		.compatible = "fsl,ep8248e-mdio-bitbang",
@@ -158,9 +151,9 @@ static struct platform_driver ep8248e_mdio_driver = {
 	.driver = {
 		.name = "ep8248e-mdio-bitbang",
 		.of_match_table = ep8248e_mdio_match,
+		.suppress_bind_attrs = true,
 	},
 	.probe = ep8248e_mdio_probe,
-	.remove = ep8248e_mdio_remove,
 };
 
 struct cpm_pin {
@@ -302,22 +295,13 @@ static int __init declare_of_platform_devices(void)
 }
 machine_device_initcall(ep8248e, declare_of_platform_devices);
 
-/*
- * Called very early, device-tree isn't unflattened
- */
-static int __init ep8248e_probe(void)
-{
-	return of_machine_is_compatible("fsl,ep8248e");
-}
-
 define_machine(ep8248e)
 {
 	.name = "Embedded Planet EP8248E",
-	.probe = ep8248e_probe,
+	.compatible = "fsl,ep8248e",
 	.setup_arch = ep8248e_setup_arch,
 	.init_IRQ = ep8248e_pic_init,
 	.get_irq = cpm2_get_irq,
-	.calibrate_decr = generic_calibrate_decr,
 	.restart = pq2_restart,
 	.progress = udbg_progress,
 };

@@ -8,7 +8,7 @@
 #include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/kobject.h>
-#include <linux/mfd/cros_ec.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_data/cros_ec_commands.h>
 #include <linux/platform_data/cros_ec_proto.h>
@@ -28,10 +28,9 @@ static ssize_t reboot_show(struct device *dev,
 {
 	int count = 0;
 
-	count += scnprintf(buf + count, PAGE_SIZE - count,
-			   "ro|rw|cancel|cold|disable-jump|hibernate");
-	count += scnprintf(buf + count, PAGE_SIZE - count,
-			   " [at-shutdown]\n");
+	count += sysfs_emit_at(buf, count,
+			       "ro|rw|cancel|cold|disable-jump|hibernate|cold-ap-off");
+	count += sysfs_emit_at(buf, count, " [at-shutdown]\n");
 	return count;
 }
 
@@ -47,6 +46,7 @@ static ssize_t reboot_store(struct device *dev,
 		{"cancel",       EC_REBOOT_CANCEL, 0},
 		{"ro",           EC_REBOOT_JUMP_RO, 0},
 		{"rw",           EC_REBOOT_JUMP_RW, 0},
+		{"cold-ap-off",  EC_REBOOT_COLD_AP_OFF, 0},
 		{"cold",         EC_REBOOT_COLD, 0},
 		{"disable-jump", EC_REBOOT_DISABLE_JUMP, 0},
 		{"hibernate",    EC_REBOOT_HIBERNATE, 0},
@@ -138,69 +138,56 @@ static ssize_t version_show(struct device *dev,
 	/* Strings should be null-terminated, but let's be sure. */
 	r_ver->version_string_ro[sizeof(r_ver->version_string_ro) - 1] = '\0';
 	r_ver->version_string_rw[sizeof(r_ver->version_string_rw) - 1] = '\0';
-	count += scnprintf(buf + count, PAGE_SIZE - count,
-			   "RO version:    %s\n", r_ver->version_string_ro);
-	count += scnprintf(buf + count, PAGE_SIZE - count,
-			   "RW version:    %s\n", r_ver->version_string_rw);
-	count += scnprintf(buf + count, PAGE_SIZE - count,
-			   "Firmware copy: %s\n",
+	count += sysfs_emit_at(buf, count, "RO version:    %s\n", r_ver->version_string_ro);
+	count += sysfs_emit_at(buf, count, "RW version:    %s\n", r_ver->version_string_rw);
+	count += sysfs_emit_at(buf, count, "Firmware copy: %s\n",
 			   (r_ver->current_image < ARRAY_SIZE(image_names) ?
 			    image_names[r_ver->current_image] : "?"));
 
 	/* Get build info. */
 	msg->command = EC_CMD_GET_BUILD_INFO + ec->cmd_offset;
 	msg->insize = EC_HOST_PARAM_SIZE;
-	ret = cros_ec_cmd_xfer(ec->ec_dev, msg);
-	if (ret < 0)
-		count += scnprintf(buf + count, PAGE_SIZE - count,
-				   "Build info:    XFER ERROR %d\n", ret);
-	else if (msg->result != EC_RES_SUCCESS)
-		count += scnprintf(buf + count, PAGE_SIZE - count,
-				   "Build info:    EC error %d\n", msg->result);
-	else {
+	ret = cros_ec_cmd_xfer_status(ec->ec_dev, msg);
+	if (ret < 0) {
+		count += sysfs_emit_at(buf, count,
+				   "Build info:    XFER / EC ERROR %d / %d\n",
+				   ret, msg->result);
+	} else {
 		msg->data[EC_HOST_PARAM_SIZE - 1] = '\0';
-		count += scnprintf(buf + count, PAGE_SIZE - count,
-				   "Build info:    %s\n", msg->data);
+		count += sysfs_emit_at(buf, count, "Build info:    %s\n", msg->data);
 	}
 
 	/* Get chip info. */
 	msg->command = EC_CMD_GET_CHIP_INFO + ec->cmd_offset;
 	msg->insize = sizeof(*r_chip);
-	ret = cros_ec_cmd_xfer(ec->ec_dev, msg);
-	if (ret < 0)
-		count += scnprintf(buf + count, PAGE_SIZE - count,
-				   "Chip info:     XFER ERROR %d\n", ret);
-	else if (msg->result != EC_RES_SUCCESS)
-		count += scnprintf(buf + count, PAGE_SIZE - count,
-				   "Chip info:     EC error %d\n", msg->result);
-	else {
+	ret = cros_ec_cmd_xfer_status(ec->ec_dev, msg);
+	if (ret < 0) {
+		count += sysfs_emit_at(buf, count,
+				   "Chip info:     XFER / EC ERROR %d / %d\n",
+				   ret, msg->result);
+	} else {
 		r_chip = (struct ec_response_get_chip_info *)msg->data;
 
 		r_chip->vendor[sizeof(r_chip->vendor) - 1] = '\0';
 		r_chip->name[sizeof(r_chip->name) - 1] = '\0';
 		r_chip->revision[sizeof(r_chip->revision) - 1] = '\0';
-		count += scnprintf(buf + count, PAGE_SIZE - count,
-				   "Chip vendor:   %s\n", r_chip->vendor);
-		count += scnprintf(buf + count, PAGE_SIZE - count,
-				   "Chip name:     %s\n", r_chip->name);
-		count += scnprintf(buf + count, PAGE_SIZE - count,
-				   "Chip revision: %s\n", r_chip->revision);
+		count += sysfs_emit_at(buf, count, "Chip vendor:   %s\n", r_chip->vendor);
+		count += sysfs_emit_at(buf, count, "Chip name:     %s\n", r_chip->name);
+		count += sysfs_emit_at(buf, count, "Chip revision: %s\n", r_chip->revision);
 	}
 
 	/* Get board version */
 	msg->command = EC_CMD_GET_BOARD_VERSION + ec->cmd_offset;
 	msg->insize = sizeof(*r_board);
-	ret = cros_ec_cmd_xfer(ec->ec_dev, msg);
-	if (ret < 0)
-		count += scnprintf(buf + count, PAGE_SIZE - count,
-				   "Board version: XFER ERROR %d\n", ret);
-	else if (msg->result != EC_RES_SUCCESS)
-		count += scnprintf(buf + count, PAGE_SIZE - count,
-				   "Board version: EC error %d\n", msg->result);
-	else {
+	ret = cros_ec_cmd_xfer_status(ec->ec_dev, msg);
+	if (ret < 0) {
+		count += sysfs_emit_at(buf, count,
+				   "Board version: XFER / EC ERROR %d / %d\n",
+				   ret, msg->result);
+	} else {
 		r_board = (struct ec_response_board_version *)msg->data;
 
-		count += scnprintf(buf + count, PAGE_SIZE - count,
+		count += sysfs_emit_at(buf, count,
 				   "Board version: %d\n",
 				   r_board->board_version);
 	}
@@ -233,7 +220,7 @@ static ssize_t flashinfo_show(struct device *dev,
 
 	resp = (struct ec_response_flash_info *)msg->data;
 
-	ret = scnprintf(buf, PAGE_SIZE,
+	ret = sysfs_emit(buf,
 			"FlashSize %d\nWriteSize %d\n"
 			"EraseSize %d\nProtectSize %d\n",
 			resp->flash_size, resp->write_block_size,
@@ -270,7 +257,7 @@ static ssize_t kb_wake_angle_show(struct device *dev,
 		goto exit;
 
 	resp = (struct ec_response_motion_sense *)msg->data;
-	ret = scnprintf(buf, PAGE_SIZE, "%d\n", resp->kb_wake_angle.ret);
+	ret = sysfs_emit(buf, "%d\n", resp->kb_wake_angle.ret);
 exit:
 	kfree(msg);
 	return ret;
@@ -327,7 +314,7 @@ static struct attribute *__ec_attrs[] = {
 static umode_t cros_ec_ctrl_visible(struct kobject *kobj,
 				    struct attribute *a, int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct cros_ec_dev *ec = to_cros_ec_dev(dev);
 
 	if (a == &dev_attr_kb_wake_angle.attr && !ec->has_kb_wake_angle)
@@ -336,7 +323,7 @@ static umode_t cros_ec_ctrl_visible(struct kobject *kobj,
 	return a->mode;
 }
 
-static struct attribute_group cros_ec_attr_group = {
+static const struct attribute_group cros_ec_attr_group = {
 	.attrs = __ec_attrs,
 	.is_visible = cros_ec_ctrl_visible,
 };
@@ -354,25 +341,29 @@ static int cros_ec_sysfs_probe(struct platform_device *pd)
 	return ret;
 }
 
-static int cros_ec_sysfs_remove(struct platform_device *pd)
+static void cros_ec_sysfs_remove(struct platform_device *pd)
 {
 	struct cros_ec_dev *ec_dev = dev_get_drvdata(pd->dev.parent);
 
 	sysfs_remove_group(&ec_dev->class_dev.kobj, &cros_ec_attr_group);
-
-	return 0;
 }
+
+static const struct platform_device_id cros_ec_sysfs_id[] = {
+	{ DRV_NAME, 0 },
+	{}
+};
+MODULE_DEVICE_TABLE(platform, cros_ec_sysfs_id);
 
 static struct platform_driver cros_ec_sysfs_driver = {
 	.driver = {
 		.name = DRV_NAME,
 	},
 	.probe = cros_ec_sysfs_probe,
-	.remove = cros_ec_sysfs_remove,
+	.remove_new = cros_ec_sysfs_remove,
+	.id_table = cros_ec_sysfs_id,
 };
 
 module_platform_driver(cros_ec_sysfs_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Expose the ChromeOS EC through sysfs");
-MODULE_ALIAS("platform:" DRV_NAME);

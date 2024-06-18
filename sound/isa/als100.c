@@ -26,17 +26,6 @@
 #define PFX "als100: "
 
 MODULE_DESCRIPTION("Avance Logic ALS007/ALS1X0");
-MODULE_SUPPORTED_DEVICE("{{Diamond Technologies DT-019X},"
-		"{Avance Logic ALS-007}}"
-		"{{Avance Logic,ALS100 - PRO16PNP},"
-	        "{Avance Logic,ALS110},"
-	        "{Avance Logic,ALS120},"
-	        "{Avance Logic,ALS200},"
-	        "{3D Melody,MF1000},"
-	        "{Digimate,3D Sound},"
-	        "{Avance Logic,ALS120},"
-	        "{RTL,RTL3000}}");
-
 MODULE_AUTHOR("Massimo Piccioni <dafastidio@libero.it>");
 MODULE_LICENSE("GPL");
 
@@ -181,17 +170,16 @@ static int snd_card_als100_probe(int dev,
 	struct snd_card_als100 *acard;
 	struct snd_opl3 *opl3;
 
-	error = snd_card_new(&pcard->card->dev,
-			     index[dev], id[dev], THIS_MODULE,
-			     sizeof(struct snd_card_als100), &card);
+	error = snd_devm_card_new(&pcard->card->dev,
+				  index[dev], id[dev], THIS_MODULE,
+				  sizeof(struct snd_card_als100), &card);
 	if (error < 0)
 		return error;
 	acard = card->private_data;
 
-	if ((error = snd_card_als100_pnp(dev, acard, pcard, pid))) {
-		snd_card_free(card);
+	error = snd_card_als100_pnp(dev, acard, pcard, pid);
+	if (error)
 		return error;
-	}
 
 	if (pid->driver_data == SB_HW_DT019X)
 		dma16[dev] = -1;
@@ -201,10 +189,8 @@ static int snd_card_als100_probe(int dev,
 				  dma8[dev], dma16[dev],
 				  pid->driver_data,
 				  &chip);
-	if (error < 0) {
-		snd_card_free(card);
+	if (error < 0)
 		return error;
-	}
 	acard->chip = chip;
 
 	if (pid->driver_data == SB_HW_DT019X) {
@@ -222,15 +208,13 @@ static int snd_card_als100_probe(int dev,
 			 dma16[dev]);
 	}
 
-	if ((error = snd_sb16dsp_pcm(chip, 0)) < 0) {
-		snd_card_free(card);
+	error = snd_sb16dsp_pcm(chip, 0);
+	if (error < 0)
 		return error;
-	}
 
-	if ((error = snd_sbmixer_new(chip)) < 0) {
-		snd_card_free(card);
+	error = snd_sbmixer_new(chip);
+	if (error < 0)
 		return error;
-	}
 
 	if (mpu_port[dev] > 0 && mpu_port[dev] != SNDRV_AUTO_PORT) {
 		int mpu_type = MPU401_HW_ALS100;
@@ -256,21 +240,18 @@ static int snd_card_als100_probe(int dev,
 			snd_printk(KERN_ERR PFX "no OPL device at 0x%lx-0x%lx\n",
 				   fm_port[dev], fm_port[dev] + 2);
 		} else {
-			if ((error = snd_opl3_timer_new(opl3, 0, 1)) < 0) {
-				snd_card_free(card);
+			error = snd_opl3_timer_new(opl3, 0, 1);
+			if (error < 0)
 				return error;
-			}
-			if ((error = snd_opl3_hwdep_new(opl3, 0, 1, NULL)) < 0) {
-				snd_card_free(card);
+			error = snd_opl3_hwdep_new(opl3, 0, 1, NULL);
+			if (error < 0)
 				return error;
-			}
 		}
 	}
 
-	if ((error = snd_card_register(card)) < 0) {
-		snd_card_free(card);
+	error = snd_card_register(card);
+	if (error < 0)
 		return error;
-	}
 	pnp_set_card_drvdata(pcard, card);
 	return 0;
 }
@@ -294,12 +275,6 @@ static int snd_als100_pnp_detect(struct pnp_card_link *card,
 		return 0;
 	}
 	return -ENODEV;
-}
-
-static void snd_als100_pnp_remove(struct pnp_card_link *pcard)
-{
-	snd_card_free(pnp_get_card_drvdata(pcard));
-	pnp_set_card_drvdata(pcard, NULL);
 }
 
 #ifdef CONFIG_PM
@@ -332,7 +307,6 @@ static struct pnp_card_driver als100_pnpc_driver = {
 	.name		= "als100",
         .id_table       = snd_als100_pnpids,
         .probe          = snd_als100_pnp_detect,
-	.remove		= snd_als100_pnp_remove,
 #ifdef CONFIG_PM
 	.suspend	= snd_als100_pnp_suspend,
 	.resume		= snd_als100_pnp_resume,

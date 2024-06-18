@@ -19,7 +19,6 @@ static int bcm2835_aux_clk_probe(struct platform_device *pdev)
 	struct clk_hw_onecell_data *onecell;
 	const char *parent;
 	struct clk *parent_clk;
-	struct resource *res;
 	void __iomem *reg, *gate;
 
 	parent_clk = devm_clk_get(dev, NULL);
@@ -27,8 +26,7 @@ static int bcm2835_aux_clk_probe(struct platform_device *pdev)
 		return PTR_ERR(parent_clk);
 	parent = __clk_get_name(parent_clk);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	reg = devm_ioremap_resource(dev, res);
+	reg = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(reg))
 		return PTR_ERR(reg);
 
@@ -71,4 +69,3 @@ builtin_platform_driver(bcm2835_aux_clk_driver);
 
 MODULE_AUTHOR("Eric Anholt <eric@anholt.net>");
 MODULE_DESCRIPTION("BCM2835 auxiliary peripheral clock driver");
-MODULE_LICENSE("GPL");

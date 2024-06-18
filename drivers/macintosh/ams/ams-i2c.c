@@ -56,9 +56,8 @@ enum ams_i2c_cmd {
 	AMS_CMD_START,
 };
 
-static int ams_i2c_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id);
-static int ams_i2c_remove(struct i2c_client *client);
+static int ams_i2c_probe(struct i2c_client *client);
+static void ams_i2c_remove(struct i2c_client *client);
 
 static const struct i2c_device_id ams_id[] = {
 	{ "MAC,accelerometer_1", 0 },
@@ -155,8 +154,7 @@ static void ams_i2c_get_xyz(s8 *x, s8 *y, s8 *z)
 	*z = ams_i2c_read(AMS_DATAZ);
 }
 
-static int ams_i2c_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int ams_i2c_probe(struct i2c_client *client)
 {
 	int vmaj, vmin;
 	int result;
@@ -230,7 +228,7 @@ static int ams_i2c_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int ams_i2c_remove(struct i2c_client *client)
+static void ams_i2c_remove(struct i2c_client *client)
 {
 	if (ams_info.has_device) {
 		ams_sensor_detach();
@@ -245,8 +243,6 @@ static int ams_i2c_remove(struct i2c_client *client)
 
 		ams_info.has_device = 0;
 	}
-
-	return 0;
 }
 
 static void ams_i2c_exit(void)
@@ -256,8 +252,6 @@ static void ams_i2c_exit(void)
 
 int __init ams_i2c_init(struct device_node *np)
 {
-	int result;
-
 	/* Set implementation stuff */
 	ams_info.of_node = np;
 	ams_info.exit = ams_i2c_exit;
@@ -266,7 +260,5 @@ int __init ams_i2c_init(struct device_node *np)
 	ams_info.clear_irq = ams_i2c_clear_irq;
 	ams_info.bustype = BUS_I2C;
 
-	result = i2c_add_driver(&ams_i2c_driver);
-
-	return result;
+	return i2c_add_driver(&ams_i2c_driver);
 }

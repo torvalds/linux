@@ -33,7 +33,6 @@ EXPORT_SYMBOL(pm_power_off);
 
 void arch_cpu_idle(void)
 {
-	local_irq_enable();
 }
 
 /*
@@ -100,21 +99,23 @@ void flush_thread(void)
 {
 }
 
-int copy_thread(unsigned long clone_flags,
-		unsigned long usp, unsigned long arg, struct task_struct *p)
+int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 {
+	unsigned long clone_flags = args->flags;
+	unsigned long usp = args->stack;
+	unsigned long tls = args->tls;
 	struct pt_regs *childregs = task_pt_regs(p);
 	struct pt_regs *regs;
 	struct switch_stack *stack;
 	struct switch_stack *childstack =
 		((struct switch_stack *)childregs) - 1;
 
-	if (unlikely(p->flags & PF_KTHREAD)) {
+	if (unlikely(args->fn)) {
 		memset(childstack, 0,
 			sizeof(struct switch_stack) + sizeof(struct pt_regs));
 
-		childstack->r16 = usp;		/* fn */
-		childstack->r17 = arg;
+		childstack->r16 = (unsigned long) args->fn;
+		childstack->r17 = (unsigned long) args->fn_arg;
 		childstack->ra = (unsigned long) ret_from_kernel_thread;
 		childregs->estatus = STATUS_PIE;
 		childregs->sp = (unsigned long) childstack;
@@ -140,7 +141,7 @@ int copy_thread(unsigned long clone_flags,
 
 	/* Initialize tls register. */
 	if (clone_flags & CLONE_SETTLS)
-		childstack->r23 = regs->r8;
+		childstack->r23 = tls;
 
 	return 0;
 }
@@ -217,14 +218,11 @@ void dump(struct pt_regs *fp)
 	pr_emerg("\n\n");
 }
 
-unsigned long get_wchan(struct task_struct *p)
+unsigned long __get_wchan(struct task_struct *p)
 {
 	unsigned long fp, pc;
 	unsigned long stack_page;
 	int count = 0;
-
-	if (!p || p == current || p->state == TASK_RUNNING)
-		return 0;
 
 	stack_page = (unsigned long)p;
 	fp = ((struct switch_stack *)p->thread.ksp)->fp;	/* ;dgt2 */
@@ -252,10 +250,19 @@ void start_thread(struct pt_regs *regs, unsigned long pc, unsigned long sp)
 	regs->sp = sp;
 }
 
-#include <linux/elfcore.h>
-
-/* Fill in the FPU structure for a core dump. */
-int dump_fpu(struct pt_regs *regs, elf_fpregset_t *r)
+asmlinkage int nios2_clone(unsigned long clone_flags, unsigned long newsp,
+			   int __user *parent_tidptr, int __user *child_tidptr,
+			   unsigned long tls)
 {
-	return 0; /* Nios2 has no FPU and thus no FPU registers */
+	struct kernel_clone_args args = {
+		.flags		= (lower_32_bits(clone_flags) & ~CSIGNAL),
+		.pidfd		= parent_tidptr,
+		.child_tid	= child_tidptr,
+		.parent_tid	= parent_tidptr,
+		.exit_signal	= (lower_32_bits(clone_flags) & CSIGNAL),
+		.stack		= newsp,
+		.tls		= tls,
+	};
+
+	return kernel_clone(&args);
 }

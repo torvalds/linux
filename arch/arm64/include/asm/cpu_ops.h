@@ -21,7 +21,7 @@
  *		mechanism for doing so, tests whether it is possible to boot
  *		the given CPU.
  * @cpu_boot:	Boots a cpu into the kernel.
- * @cpu_postboot: Optionally, perform any post-boot cleanup or necesary
+ * @cpu_postboot: Optionally, perform any post-boot cleanup or necessary
  *		synchronisation. Called from the cpu being booted.
  * @cpu_can_disable: Determines whether a CPU can be disabled based on
  *		mechanism-specific information.
@@ -31,11 +31,6 @@
  * @cpu_die:	Makes a cpu leave the kernel. Must not fail. Called from the
  *		cpu being killed.
  * @cpu_kill:  Ensures a cpu has left the kernel. Called from another cpu.
- * @cpu_init_idle: Reads any data necessary to initialize CPU idle states for
- *		   a proposed logical id.
- * @cpu_suspend: Suspends a cpu and saves the required context. May fail owing
- *               to wrong parameters or error conditions. Called from the
- *               CPU being suspended. Must be called with IRQs disabled.
  */
 struct cpu_operations {
 	const char	*name;
@@ -49,18 +44,14 @@ struct cpu_operations {
 	void		(*cpu_die)(unsigned int cpu);
 	int		(*cpu_kill)(unsigned int cpu);
 #endif
-#ifdef CONFIG_CPU_IDLE
-	int		(*cpu_init_idle)(unsigned int);
-	int		(*cpu_suspend)(unsigned long);
-#endif
 };
 
-extern const struct cpu_operations *cpu_ops[NR_CPUS];
-int __init cpu_read_ops(int cpu);
+int __init init_cpu_ops(int cpu);
+extern const struct cpu_operations *get_cpu_ops(int cpu);
 
-static inline void __init cpu_read_bootcpu_ops(void)
+static inline void __init init_bootcpu_ops(void)
 {
-	cpu_read_ops(0);
+	init_cpu_ops(0);
 }
 
 #endif /* ifndef __ASM_CPU_OPS_H */

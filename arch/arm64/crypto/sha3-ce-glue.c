@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+// SPDX-License-Identifier: GPL-2.0
 /*
  * sha3-ce-glue.c - core SHA-3 transform using v8.2 Crypto Extensions
  *
@@ -23,9 +23,13 @@
 MODULE_DESCRIPTION("SHA3 secure hash using ARMv8 Crypto Extensions");
 MODULE_AUTHOR("Ard Biesheuvel <ard.biesheuvel@linaro.org>");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS_CRYPTO("sha3-224");
+MODULE_ALIAS_CRYPTO("sha3-256");
+MODULE_ALIAS_CRYPTO("sha3-384");
+MODULE_ALIAS_CRYPTO("sha3-512");
 
-asmlinkage void sha3_ce_transform(u64 *st, const u8 *data, int blocks,
-				  int md_len);
+asmlinkage int sha3_ce_transform(u64 *st, const u8 *data, int blocks,
+				 int md_len);
 
 static int sha3_update(struct shash_desc *desc, const u8 *data,
 		       unsigned int len)
@@ -55,11 +59,15 @@ static int sha3_update(struct shash_desc *desc, const u8 *data,
 		blocks = len / sctx->rsiz;
 		len %= sctx->rsiz;
 
-		if (blocks) {
+		while (blocks) {
+			int rem;
+
 			kernel_neon_begin();
-			sha3_ce_transform(sctx->st, data, blocks, digest_size);
+			rem = sha3_ce_transform(sctx->st, data, blocks,
+						digest_size);
 			kernel_neon_end();
-			data += blocks * sctx->rsiz;
+			data += (blocks - rem) * sctx->rsiz;
+			blocks = rem;
 		}
 	}
 
@@ -94,7 +102,7 @@ static int sha3_final(struct shash_desc *desc, u8 *out)
 	if (digest_size & 4)
 		put_unaligned_le32(sctx->st[i], (__le32 *)digest);
 
-	*sctx = (struct sha3_state){};
+	memzero_explicit(sctx, sizeof(*sctx));
 	return 0;
 }
 

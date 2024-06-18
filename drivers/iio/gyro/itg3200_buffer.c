@@ -46,17 +46,24 @@ static irqreturn_t itg3200_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct itg3200 *st = iio_priv(indio_dev);
-	__be16 buf[ITG3200_SCAN_ELEMENTS + sizeof(s64)/sizeof(u16)];
+	/*
+	 * Ensure correct alignment and padding including for the
+	 * timestamp that may be inserted.
+	 */
+	struct {
+		__be16 buf[ITG3200_SCAN_ELEMENTS];
+		s64 ts __aligned(8);
+	} scan;
 
-	int ret = itg3200_read_all_channels(st->i2c, buf);
+	int ret = itg3200_read_all_channels(st->i2c, scan.buf);
 	if (ret < 0)
 		goto error_ret;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, buf, pf->timestamp);
-
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_push_to_buffers_with_timestamp(indio_dev, &scan, pf->timestamp);
 
 error_ret:
+	iio_trigger_notify_done(indio_dev->trig);
+
 	return IRQ_HANDLED;
 }
 
@@ -106,8 +113,8 @@ int itg3200_probe_trigger(struct iio_dev *indio_dev)
 	int ret;
 	struct itg3200 *st = iio_priv(indio_dev);
 
-	st->trig = iio_trigger_alloc("%s-dev%d", indio_dev->name,
-				     indio_dev->id);
+	st->trig = iio_trigger_alloc(&st->i2c->dev, "%s-dev%d", indio_dev->name,
+				     iio_device_id(indio_dev));
 	if (!st->trig)
 		return -ENOMEM;
 
@@ -120,7 +127,6 @@ int itg3200_probe_trigger(struct iio_dev *indio_dev)
 		goto error_free_trig;
 
 
-	st->trig->dev.parent = &st->i2c->dev;
 	st->trig->ops = &itg3200_trigger_ops;
 	iio_trigger_set_drvdata(st->trig, indio_dev);
 	ret = iio_trigger_register(st->trig);

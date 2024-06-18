@@ -82,6 +82,13 @@ const char *acpi_gbl_mtp_decode[] = {
 	"AddressRangeNVS"
 };
 
+const char *acpi_gbl_phy_decode[] = {
+	"Type C",
+	"Type D",
+	"Unknown Type",
+	"Unknown Type"
+};
+
 const char *acpi_gbl_rng_decode[] = {
 	"InvalidRanges",
 	"NonISAOnlyRanges",
@@ -161,7 +168,8 @@ const char *acpi_gbl_sbt_decode[] = {
 	"/* UNKNOWN serial bus type */",
 	"I2C",
 	"SPI",
-	"UART"
+	"UART",
+	"CSI2"
 };
 
 /* I2C serial bus access mode */
@@ -274,6 +282,17 @@ const char *acpi_gbl_ptyp_decode[] = {
 	"Slew Rate",
 	"Input Debounce",
 	"Input Schmitt Trigger",
+};
+
+const char *acpi_gbl_clock_input_mode[] = {
+	"Fixed",
+	"Variable",
+};
+
+const char *acpi_gbl_clock_input_scale[] = {
+	"Hz",
+	"KHz",
+	"MHz",
 };
 
 #endif

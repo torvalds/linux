@@ -12,7 +12,6 @@
 #include <asm/mipsregs.h>
 #include <asm/mmu_context.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/tlbdebug.h>
 
 void dump_tlb_regs(void)
@@ -60,14 +59,6 @@ static inline const char *msk2str(unsigned int mask)
 	case PM_8M:	return "8Mb";
 	case PM_32M:	return "32Mb";
 #endif
-#ifndef CONFIG_CPU_VR41XX
-	case PM_1M:	return "1Mb";
-	case PM_4M:	return "4Mb";
-	case PM_16M:	return "16Mb";
-	case PM_64M:	return "64Mb";
-	case PM_256M:	return "256Mb";
-	case PM_1G:	return "1Gb";
-#endif
 	}
 	return "";
 }
@@ -80,7 +71,7 @@ static void dump_tlb(int first, int last)
 	unsigned int pagemask, guestctl1 = 0, c0, c1, i;
 	unsigned long asidmask = cpu_asid_mask(&current_cpu_data);
 	int asidwidth = DIV_ROUND_UP(ilog2(asidmask) + 1, 4);
-	unsigned long uninitialized_var(s_mmid);
+	unsigned long s_mmid;
 #ifdef CONFIG_32BIT
 	bool xpa = cpu_has_xpa && (read_c0_pagegrain() & PG_ELPA);
 	int pwidth = xpa ? 11 : 8;

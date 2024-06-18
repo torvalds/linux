@@ -9,8 +9,8 @@
 #include <linux/in6.h>
 #include <sys/socket.h>
 
-#include "bpf_helpers.h"
-#include "bpf_endian.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_endian.h>
 
 #define SRC_REWRITE_IP6_0	0
 #define SRC_REWRITE_IP6_1	0
@@ -23,8 +23,6 @@
 #define DST_REWRITE_IP6_3	1
 
 #define DST_REWRITE_PORT6	6666
-
-int _version SEC("version") = 1;
 
 SEC("cgroup/connect6")
 int connect_v6_prog(struct bpf_sock_addr *ctx)
@@ -90,6 +88,12 @@ int connect_v6_prog(struct bpf_sock_addr *ctx)
 		return 0;
 
 	return 1;
+}
+
+SEC("cgroup/connect6")
+int connect_v6_deny_prog(struct bpf_sock_addr *ctx)
+{
+	return 0;
 }
 
 char _license[] SEC("license") = "GPL";

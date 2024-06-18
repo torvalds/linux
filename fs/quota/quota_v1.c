@@ -160,9 +160,11 @@ static int v1_read_file_info(struct super_block *sb, int type)
 {
 	struct quota_info *dqopt = sb_dqopt(sb);
 	struct v1_disk_dqblk dqblk;
+	unsigned int memalloc;
 	int ret;
 
 	down_read(&dqopt->dqio_sem);
+	memalloc = memalloc_nofs_save();
 	ret = sb->s_op->quota_read(sb, type, (char *)&dqblk,
 				sizeof(struct v1_disk_dqblk), v1_dqoff(0));
 	if (ret != sizeof(struct v1_disk_dqblk)) {
@@ -179,6 +181,7 @@ static int v1_read_file_info(struct super_block *sb, int type)
 	dqopt->info[type].dqi_bgrace =
 			dqblk.dqb_btime ? dqblk.dqb_btime : MAX_DQ_TIME;
 out:
+	memalloc_nofs_restore(memalloc);
 	up_read(&dqopt->dqio_sem);
 	return ret;
 }
@@ -187,9 +190,11 @@ static int v1_write_file_info(struct super_block *sb, int type)
 {
 	struct quota_info *dqopt = sb_dqopt(sb);
 	struct v1_disk_dqblk dqblk;
+	unsigned int memalloc;
 	int ret;
 
 	down_write(&dqopt->dqio_sem);
+	memalloc = memalloc_nofs_save();
 	ret = sb->s_op->quota_read(sb, type, (char *)&dqblk,
 				sizeof(struct v1_disk_dqblk), v1_dqoff(0));
 	if (ret != sizeof(struct v1_disk_dqblk)) {
@@ -206,9 +211,10 @@ static int v1_write_file_info(struct super_block *sb, int type)
 	      sizeof(struct v1_disk_dqblk), v1_dqoff(0));
 	if (ret == sizeof(struct v1_disk_dqblk))
 		ret = 0;
-	else if (ret > 0)
+	else if (ret >= 0)
 		ret = -EIO;
 out:
+	memalloc_nofs_restore(memalloc);
 	up_write(&dqopt->dqio_sem);
 	return ret;
 }
@@ -217,7 +223,6 @@ static const struct quota_format_ops v1_format_ops = {
 	.check_quota_file	= v1_check_quota_file,
 	.read_file_info		= v1_read_file_info,
 	.write_file_info	= v1_write_file_info,
-	.free_file_info		= NULL,
 	.read_dqblk		= v1_read_dqblk,
 	.commit_dqblk		= v1_commit_dqblk,
 };

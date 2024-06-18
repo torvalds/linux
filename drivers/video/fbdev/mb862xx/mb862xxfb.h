@@ -89,7 +89,7 @@ struct mb862xxfb_par {
 	u32			pseudo_palette[16];
 };
 
-extern void mb862xxfb_init_accel(struct fb_info *info, int xres);
+extern void mb862xxfb_init_accel(struct fb_info *info, struct fb_ops *fbops, int xres);
 #ifdef CONFIG_FB_MB862XX_I2C
 extern int mb862xx_i2c_init(struct mb862xxfb_par *par);
 extern void mb862xx_i2c_exit(struct mb862xxfb_par *par);

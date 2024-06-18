@@ -253,7 +253,7 @@ extern struct cpu_tlb_fns cpu_tlb;
  *		space.
  *		- mm	- mm_struct describing address space
  *
- *	flush_tlb_range(mm,start,end)
+ *	flush_tlb_range(vma,start,end)
  *
  *		Invalidate a range of TLB entries in the specified
  *		address space.
@@ -261,18 +261,11 @@ extern struct cpu_tlb_fns cpu_tlb;
  *		- start - start address (may not be aligned)
  *		- end	- end address (exclusive, may not be aligned)
  *
- *	flush_tlb_page(vaddr,vma)
+ *	flush_tlb_page(vma, uaddr)
  *
  *		Invalidate the specified page in the specified address range.
+ *		- vma	- vm_area_struct describing address range
  *		- vaddr - virtual address (may not be aligned)
- *		- vma	- vma_struct describing address range
- *
- *	flush_kern_tlb_page(kaddr)
- *
- *		Invalidate the TLB entry for the specified page.  The address
- *		will be in the kernels virtual memory space.  Current uses
- *		only require the D-TLB to be invalidated.
- *		- kaddr - Kernel virtual memory address
  */
 
 /*
@@ -626,17 +619,21 @@ extern void flush_bp_all(void);
  * If PG_dcache_clean is not set for the page, we need to ensure that any
  * cache entries for the kernels virtual memory range are written
  * back to the page. On ARMv6 and later, the cache coherency is handled via
- * the set_pte_at() function.
+ * the set_ptes() function.
  */
 #if __LINUX_ARM_ARCH__ < 6
-extern void update_mmu_cache(struct vm_area_struct *vma, unsigned long addr,
-	pte_t *ptep);
+void update_mmu_cache_range(struct vm_fault *vmf, struct vm_area_struct *vma,
+		unsigned long addr, pte_t *ptep, unsigned int nr);
 #else
-static inline void update_mmu_cache(struct vm_area_struct *vma,
-				    unsigned long addr, pte_t *ptep)
+static inline void update_mmu_cache_range(struct vm_fault *vmf,
+		struct vm_area_struct *vma, unsigned long addr, pte_t *ptep,
+		unsigned int nr)
 {
 }
 #endif
+
+#define update_mmu_cache(vma, addr, ptep) \
+	update_mmu_cache_range(NULL, vma, addr, ptep, 1)
 
 #define update_mmu_cache_pmd(vma, address, pmd) do { } while (0)
 

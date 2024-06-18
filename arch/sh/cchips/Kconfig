@@ -11,7 +11,7 @@ choice
 
 config HD64461
 	bool "Hitachi HD64461 companion chip support"
-	---help---
+	help
 	  The Hitachi HD64461 provides an interface for
 	  the SH7709 CPU, supporting a LCD controller,
 	  CRT color controller, IrDA up to 4 Mbps, and a
@@ -29,9 +29,9 @@ endchoice
 config HD64461_IRQ
 	int "HD64461 IRQ"
 	depends on HD64461
-	default "36"
+	default "52"
 	help
-	  The default setting of the HD64461 IRQ is 36.
+	  The default setting of the HD64461 IRQ is 52.
 
 	  Do not change this unless you know what you are doing.
 

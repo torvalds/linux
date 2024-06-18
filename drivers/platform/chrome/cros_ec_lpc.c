@@ -16,13 +16,16 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/interrupt.h>
+#include <linux/kobject.h>
 #include <linux/module.h>
 #include <linux/platform_data/cros_ec_commands.h>
 #include <linux/platform_data/cros_ec_proto.h>
 #include <linux/platform_device.h>
 #include <linux/printk.h>
+#include <linux/reboot.h>
 #include <linux/suspend.h>
 
+#include "cros_ec.h"
 #include "cros_ec_lpc_mec.h"
 
 #define DRV_NAME "cros_ec_lpcs"
@@ -30,6 +33,32 @@
 
 /* True if ACPI device is present */
 static bool cros_ec_lpc_acpi_device_found;
+
+/*
+ * Indicates that lpc_driver_data.quirk_mmio_memory_base should
+ * be used as the base port for EC mapped memory.
+ */
+#define CROS_EC_LPC_QUIRK_REMAP_MEMORY              BIT(0)
+
+/**
+ * struct lpc_driver_data - driver data attached to a DMI device ID to indicate
+ *                          hardware quirks.
+ * @quirks: a bitfield composed of quirks from CROS_EC_LPC_QUIRK_*
+ * @quirk_mmio_memory_base: The first I/O port addressing EC mapped memory (used
+ *                          when quirk ...REMAP_MEMORY is set.)
+ */
+struct lpc_driver_data {
+	u32 quirks;
+	u16 quirk_mmio_memory_base;
+};
+
+/**
+ * struct cros_ec_lpc - LPC device-specific data
+ * @mmio_memory_base: The first I/O port addressing EC mapped memory.
+ */
+struct cros_ec_lpc {
+	u16 mmio_memory_base;
+};
 
 /**
  * struct lpc_driver_ops - LPC driver operations
@@ -146,6 +175,8 @@ static int cros_ec_pkt_xfer_lpc(struct cros_ec_device *ec,
 	u8 *dout;
 
 	ret = cros_ec_prepare_tx(ec, msg);
+	if (ret < 0)
+		goto done;
 
 	/* Write buffer */
 	cros_ec_lpc_ops.write(EC_LPC_ADDR_HOST_PACKET, ret, ec->dout);
@@ -155,7 +186,7 @@ static int cros_ec_pkt_xfer_lpc(struct cros_ec_device *ec,
 	cros_ec_lpc_ops.write(EC_LPC_ADDR_HOST_CMD, 1, &sum);
 
 	if (ec_response_timed_out()) {
-		dev_warn(ec->dev, "EC responsed timed out\n");
+		dev_warn(ec->dev, "EC response timed out\n");
 		ret = -EIO;
 		goto done;
 	}
@@ -237,7 +268,7 @@ static int cros_ec_cmd_xfer_lpc(struct cros_ec_device *ec,
 	cros_ec_lpc_ops.write(EC_LPC_ADDR_HOST_CMD, 1, &sum);
 
 	if (ec_response_timed_out()) {
-		dev_warn(ec->dev, "EC responsed timed out\n");
+		dev_warn(ec->dev, "EC response timed out\n");
 		ret = -EIO;
 		goto done;
 	}
@@ -285,6 +316,7 @@ done:
 static int cros_ec_lpc_readmem(struct cros_ec_device *ec, unsigned int offset,
 			       unsigned int bytes, void *dest)
 {
+	struct cros_ec_lpc *ec_lpc = ec->priv;
 	int i = offset;
 	char *s = dest;
 	int cnt = 0;
@@ -294,13 +326,13 @@ static int cros_ec_lpc_readmem(struct cros_ec_device *ec, unsigned int offset,
 
 	/* fixed length */
 	if (bytes) {
-		cros_ec_lpc_ops.read(EC_LPC_ADDR_MEMMAP + offset, bytes, s);
+		cros_ec_lpc_ops.read(ec_lpc->mmio_memory_base + offset, bytes, s);
 		return bytes;
 	}
 
 	/* string */
 	for (; i < EC_MEMMAP_SIZE; i++, s++) {
-		cros_ec_lpc_ops.read(EC_LPC_ADDR_MEMMAP + i, 1, s);
+		cros_ec_lpc_ops.read(ec_lpc->mmio_memory_base + i, 1, s);
 		cnt++;
 		if (!*s)
 			break;
@@ -311,12 +343,32 @@ static int cros_ec_lpc_readmem(struct cros_ec_device *ec, unsigned int offset,
 
 static void cros_ec_lpc_acpi_notify(acpi_handle device, u32 value, void *data)
 {
+	static const char *env[] = { "ERROR=PANIC", NULL };
 	struct cros_ec_device *ec_dev = data;
+	bool ec_has_more_events;
+	int ret;
 
-	if (ec_dev->mkbp_event_supported &&
-	    cros_ec_get_next_event(ec_dev, NULL) > 0)
-		blocking_notifier_call_chain(&ec_dev->event_notifier, 0,
-					     ec_dev);
+	ec_dev->last_event_time = cros_ec_get_time_ns();
+
+	if (value == ACPI_NOTIFY_CROS_EC_PANIC) {
+		dev_emerg(ec_dev->dev, "CrOS EC Panic Reported. Shutdown is imminent!");
+		blocking_notifier_call_chain(&ec_dev->panic_notifier, 0, ec_dev);
+		kobject_uevent_env(&ec_dev->dev->kobj, KOBJ_CHANGE, (char **)env);
+		/* Begin orderly shutdown. EC will force reset after a short period. */
+		hw_protection_shutdown("CrOS EC Panic", -1);
+		/* Do not query for other events after a panic is reported */
+		return;
+	}
+
+	if (ec_dev->mkbp_event_supported)
+		do {
+			ret = cros_ec_get_next_event(ec_dev, NULL,
+						     &ec_has_more_events);
+			if (ret > 0)
+				blocking_notifier_call_chain(
+						&ec_dev->event_notifier, 0,
+						ec_dev);
+		} while (ec_has_more_events);
 
 	if (value == ACPI_NOTIFY_DEVICE_WAKE)
 		pm_system_wakeup();
@@ -328,14 +380,42 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 	struct acpi_device *adev;
 	acpi_status status;
 	struct cros_ec_device *ec_dev;
-	u8 buf[2];
+	struct cros_ec_lpc *ec_lpc;
+	struct lpc_driver_data *driver_data;
+	u8 buf[2] = {};
 	int irq, ret;
+	u32 quirks;
 
-	if (!devm_request_region(dev, EC_LPC_ADDR_MEMMAP, EC_MEMMAP_SIZE,
-				 dev_name(dev))) {
-		dev_err(dev, "couldn't reserve memmap region\n");
+	ec_lpc = devm_kzalloc(dev, sizeof(*ec_lpc), GFP_KERNEL);
+	if (!ec_lpc)
+		return -ENOMEM;
+
+	ec_lpc->mmio_memory_base = EC_LPC_ADDR_MEMMAP;
+
+	driver_data = platform_get_drvdata(pdev);
+	if (driver_data) {
+		quirks = driver_data->quirks;
+
+		if (quirks)
+			dev_info(dev, "loaded with quirks %8.08x\n", quirks);
+
+		if (quirks & CROS_EC_LPC_QUIRK_REMAP_MEMORY)
+			ec_lpc->mmio_memory_base = driver_data->quirk_mmio_memory_base;
+	}
+
+	/*
+	 * The Framework Laptop (and possibly other non-ChromeOS devices)
+	 * only exposes the eight I/O ports that are required for the Microchip EC.
+	 * Requesting a larger reservation will fail.
+	 */
+	if (!devm_request_region(dev, EC_HOST_CMD_REGION0,
+				 EC_HOST_CMD_MEC_REGION_SIZE, dev_name(dev))) {
+		dev_err(dev, "couldn't reserve MEC region\n");
 		return -EBUSY;
 	}
+
+	cros_ec_lpc_mec_init(EC_HOST_CMD_REGION0,
+			     EC_LPC_ADDR_MEMMAP + EC_MEMMAP_SIZE);
 
 	/*
 	 * Read the mapped ID twice, the first one is assuming the
@@ -347,26 +427,34 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 	cros_ec_lpc_ops.write = cros_ec_lpc_mec_write_bytes;
 	cros_ec_lpc_ops.read(EC_LPC_ADDR_MEMMAP + EC_MEMMAP_ID, 2, buf);
 	if (buf[0] != 'E' || buf[1] != 'C') {
+		if (!devm_request_region(dev, ec_lpc->mmio_memory_base, EC_MEMMAP_SIZE,
+					 dev_name(dev))) {
+			dev_err(dev, "couldn't reserve memmap region\n");
+			return -EBUSY;
+		}
+
 		/* Re-assign read/write operations for the non MEC variant */
 		cros_ec_lpc_ops.read = cros_ec_lpc_read_bytes;
 		cros_ec_lpc_ops.write = cros_ec_lpc_write_bytes;
-		cros_ec_lpc_ops.read(EC_LPC_ADDR_MEMMAP + EC_MEMMAP_ID, 2,
+		cros_ec_lpc_ops.read(ec_lpc->mmio_memory_base + EC_MEMMAP_ID, 2,
 				     buf);
 		if (buf[0] != 'E' || buf[1] != 'C') {
 			dev_err(dev, "EC ID not detected\n");
 			return -ENODEV;
 		}
-	}
 
-	if (!devm_request_region(dev, EC_HOST_CMD_REGION0,
-				 EC_HOST_CMD_REGION_SIZE, dev_name(dev))) {
-		dev_err(dev, "couldn't reserve region0\n");
-		return -EBUSY;
-	}
-	if (!devm_request_region(dev, EC_HOST_CMD_REGION1,
-				 EC_HOST_CMD_REGION_SIZE, dev_name(dev))) {
-		dev_err(dev, "couldn't reserve region1\n");
-		return -EBUSY;
+		/* Reserve the remaining I/O ports required by the non-MEC protocol. */
+		if (!devm_request_region(dev, EC_HOST_CMD_REGION0 + EC_HOST_CMD_MEC_REGION_SIZE,
+					 EC_HOST_CMD_REGION_SIZE - EC_HOST_CMD_MEC_REGION_SIZE,
+					 dev_name(dev))) {
+			dev_err(dev, "couldn't reserve remainder of region0\n");
+			return -EBUSY;
+		}
+		if (!devm_request_region(dev, EC_HOST_CMD_REGION1,
+					 EC_HOST_CMD_REGION_SIZE, dev_name(dev))) {
+			dev_err(dev, "couldn't reserve region1\n");
+			return -EBUSY;
+		}
 	}
 
 	ec_dev = devm_kzalloc(dev, sizeof(*ec_dev), GFP_KERNEL);
@@ -382,12 +470,13 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 	ec_dev->din_size = sizeof(struct ec_host_response) +
 			   sizeof(struct ec_response_get_protocol_info);
 	ec_dev->dout_size = sizeof(struct ec_host_request);
+	ec_dev->priv = ec_lpc;
 
 	/*
 	 * Some boards do not have an IRQ allotted for cros_ec_lpc,
 	 * which makes ENXIO an expected (and safe) scenario.
 	 */
-	irq = platform_get_irq(pdev, 0);
+	irq = platform_get_irq_optional(pdev, 0);
 	if (irq > 0)
 		ec_dev->irq = irq;
 	else if (irq != -ENXIO) {
@@ -419,7 +508,7 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int cros_ec_lpc_remove(struct platform_device *pdev)
+static void cros_ec_lpc_remove(struct platform_device *pdev)
 {
 	struct cros_ec_device *ec_dev = platform_get_drvdata(pdev);
 	struct acpi_device *adev;
@@ -429,7 +518,7 @@ static int cros_ec_lpc_remove(struct platform_device *pdev)
 		acpi_remove_notify_handler(adev->handle, ACPI_ALL_NOTIFY,
 					   cros_ec_lpc_acpi_notify);
 
-	return cros_ec_unregister(ec_dev);
+	cros_ec_unregister(ec_dev);
 }
 
 static const struct acpi_device_id cros_ec_lpc_acpi_device_ids[] = {
@@ -437,6 +526,11 @@ static const struct acpi_device_id cros_ec_lpc_acpi_device_ids[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, cros_ec_lpc_acpi_device_ids);
+
+static const struct lpc_driver_data framework_laptop_amd_lpc_driver_data __initconst = {
+	.quirks = CROS_EC_LPC_QUIRK_REMAP_MEMORY,
+	.quirk_mmio_memory_base = 0xE00,
+};
 
 static const struct dmi_system_id cros_ec_lpc_dmi_table[] __initconst = {
 	{
@@ -490,28 +584,61 @@ static const struct dmi_system_id cros_ec_lpc_dmi_table[] __initconst = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Glimmer"),
 		},
 	},
+	/* A small number of non-Chromebook/box machines also use the ChromeOS EC */
+	{
+		/* the Framework Laptop 13 (AMD Ryzen) and 16 (AMD Ryzen) */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Framework"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "AMD Ryzen"),
+			DMI_MATCH(DMI_PRODUCT_FAMILY, "Laptop"),
+		},
+		.driver_data = (void *)&framework_laptop_amd_lpc_driver_data,
+	},
+	{
+		/* the Framework Laptop (Intel 11th, 12th, 13th Generation) */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Framework"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Laptop"),
+		},
+	},
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(dmi, cros_ec_lpc_dmi_table);
 
 #ifdef CONFIG_PM_SLEEP
-static int cros_ec_lpc_suspend(struct device *dev)
+static int cros_ec_lpc_prepare(struct device *dev)
 {
 	struct cros_ec_device *ec_dev = dev_get_drvdata(dev);
-
-	return cros_ec_suspend(ec_dev);
+	return cros_ec_suspend_prepare(ec_dev);
 }
 
-static int cros_ec_lpc_resume(struct device *dev)
+static void cros_ec_lpc_complete(struct device *dev)
+{
+	struct cros_ec_device *ec_dev = dev_get_drvdata(dev);
+	cros_ec_resume_complete(ec_dev);
+}
+
+static int cros_ec_lpc_suspend_late(struct device *dev)
 {
 	struct cros_ec_device *ec_dev = dev_get_drvdata(dev);
 
-	return cros_ec_resume(ec_dev);
+	return cros_ec_suspend_late(ec_dev);
+}
+
+static int cros_ec_lpc_resume_early(struct device *dev)
+{
+	struct cros_ec_device *ec_dev = dev_get_drvdata(dev);
+
+	return cros_ec_resume_early(ec_dev);
 }
 #endif
 
 static const struct dev_pm_ops cros_ec_lpc_pm_ops = {
-	SET_LATE_SYSTEM_SLEEP_PM_OPS(cros_ec_lpc_suspend, cros_ec_lpc_resume)
+#ifdef CONFIG_PM_SLEEP
+	.prepare = cros_ec_lpc_prepare,
+	.complete = cros_ec_lpc_complete,
+#endif
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(cros_ec_lpc_suspend_late, cros_ec_lpc_resume_early)
 };
 
 static struct platform_driver cros_ec_lpc_driver = {
@@ -519,9 +646,15 @@ static struct platform_driver cros_ec_lpc_driver = {
 		.name = DRV_NAME,
 		.acpi_match_table = cros_ec_lpc_acpi_device_ids,
 		.pm = &cros_ec_lpc_pm_ops,
+		/*
+		 * ACPI child devices may probe before us, and they racily
+		 * check our drvdata pointer. Force synchronous probe until
+		 * those races are resolved.
+		 */
+		.probe_type = PROBE_FORCE_SYNCHRONOUS,
 	},
 	.probe = cros_ec_lpc_probe,
-	.remove = cros_ec_lpc_remove,
+	.remove_new = cros_ec_lpc_remove,
 };
 
 static struct platform_device cros_ec_lpc_device = {
@@ -539,36 +672,36 @@ static int __init cros_ec_lpc_init(void)
 {
 	int ret;
 	acpi_status status;
+	const struct dmi_system_id *dmi_match;
 
 	status = acpi_get_devices(ACPI_DRV_NAME, cros_ec_lpc_parse_device,
 				  &cros_ec_lpc_acpi_device_found, NULL);
 	if (ACPI_FAILURE(status))
 		pr_warn(DRV_NAME ": Looking for %s failed\n", ACPI_DRV_NAME);
 
-	if (!cros_ec_lpc_acpi_device_found &&
-	    !dmi_check_system(cros_ec_lpc_dmi_table)) {
+	dmi_match = dmi_first_match(cros_ec_lpc_dmi_table);
+
+	if (!cros_ec_lpc_acpi_device_found && !dmi_match) {
 		pr_err(DRV_NAME ": unsupported system.\n");
 		return -ENODEV;
 	}
-
-	cros_ec_lpc_mec_init(EC_HOST_CMD_REGION0,
-			     EC_LPC_ADDR_MEMMAP + EC_MEMMAP_SIZE);
 
 	/* Register the driver */
 	ret = platform_driver_register(&cros_ec_lpc_driver);
 	if (ret) {
 		pr_err(DRV_NAME ": can't register driver: %d\n", ret);
-		cros_ec_lpc_mec_destroy();
 		return ret;
 	}
 
 	if (!cros_ec_lpc_acpi_device_found) {
+		/* Pass the DMI match's driver data down to the platform device */
+		platform_set_drvdata(&cros_ec_lpc_device, dmi_match->driver_data);
+
 		/* Register the device, and it'll get hooked up automatically */
 		ret = platform_device_register(&cros_ec_lpc_device);
 		if (ret) {
 			pr_err(DRV_NAME ": can't register device: %d\n", ret);
 			platform_driver_unregister(&cros_ec_lpc_driver);
-			cros_ec_lpc_mec_destroy();
 		}
 	}
 
@@ -580,7 +713,6 @@ static void __exit cros_ec_lpc_exit(void)
 	if (!cros_ec_lpc_acpi_device_found)
 		platform_device_unregister(&cros_ec_lpc_device);
 	platform_driver_unregister(&cros_ec_lpc_driver);
-	cros_ec_lpc_mec_destroy();
 }
 
 module_init(cros_ec_lpc_init);

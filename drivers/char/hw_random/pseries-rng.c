@@ -29,7 +29,7 @@ static int pseries_rng_read(struct hwrng *rng, void *data, size_t max, bool wait
 	return 8;
 }
 
-/**
+/*
  * pseries_rng_get_desired_dma - Return desired DMA allocate for CMO operations
  *
  * This is a required function for a driver to operate in a CMO environment
@@ -54,10 +54,9 @@ static int pseries_rng_probe(struct vio_dev *dev,
 	return hwrng_register(&pseries_rng);
 }
 
-static int pseries_rng_remove(struct vio_dev *dev)
+static void pseries_rng_remove(struct vio_dev *dev)
 {
 	hwrng_unregister(&pseries_rng);
-	return 0;
 }
 
 static const struct vio_device_id pseries_rng_driver_ids[] = {

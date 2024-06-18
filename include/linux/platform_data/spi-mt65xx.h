@@ -11,7 +11,7 @@
 
 /* Board specific platform_data */
 struct mtk_chip_config {
-	u32 cs_pol;
 	u32 sample_sel;
+	u32 tick_delay;
 };
 #endif

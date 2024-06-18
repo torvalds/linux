@@ -9,9 +9,8 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/rtc.h>
 
@@ -194,23 +193,19 @@ static const struct rtc_class_ops lpc24xx_rtc_ops = {
 static int lpc24xx_rtc_probe(struct platform_device *pdev)
 {
 	struct lpc24xx_rtc *rtc;
-	struct resource *res;
 	int irq, ret;
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
 	if (!rtc)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	rtc->rtc_base = devm_ioremap_resource(&pdev->dev, res);
+	rtc->rtc_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rtc->rtc_base))
 		return PTR_ERR(rtc->rtc_base);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_warn(&pdev->dev, "can't get interrupt resource\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	rtc->clk_rtc = devm_clk_get(&pdev->dev, "rtc");
 	if (IS_ERR(rtc->clk_rtc)) {
@@ -268,7 +263,7 @@ disable_rtc_clk:
 	return ret;
 }
 
-static int lpc24xx_rtc_remove(struct platform_device *pdev)
+static void lpc24xx_rtc_remove(struct platform_device *pdev)
 {
 	struct lpc24xx_rtc *rtc = platform_get_drvdata(pdev);
 
@@ -280,8 +275,6 @@ static int lpc24xx_rtc_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(rtc->clk_rtc);
 	clk_disable_unprepare(rtc->clk_reg);
-
-	return 0;
 }
 
 static const struct of_device_id lpc24xx_rtc_match[] = {
@@ -292,7 +285,7 @@ MODULE_DEVICE_TABLE(of, lpc24xx_rtc_match);
 
 static struct platform_driver lpc24xx_rtc_driver = {
 	.probe	= lpc24xx_rtc_probe,
-	.remove	= lpc24xx_rtc_remove,
+	.remove_new = lpc24xx_rtc_remove,
 	.driver	= {
 		.name = "lpc24xx-rtc",
 		.of_match_table	= lpc24xx_rtc_match,

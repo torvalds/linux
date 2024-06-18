@@ -211,7 +211,10 @@
 #define OPAL_MPIPL_UPDATE			173
 #define OPAL_MPIPL_REGISTER_TAG			174
 #define OPAL_MPIPL_QUERY_TAG			175
-#define OPAL_LAST				175
+#define OPAL_SECVAR_GET				176
+#define OPAL_SECVAR_GET_NEXT			177
+#define OPAL_SECVAR_ENQUEUE_UPDATE		178
+#define OPAL_LAST				178
 
 #define QUIESCE_HOLD			1 /* Spin all calls at entry */
 #define QUIESCE_REJECT			2 /* Fail all calls with OPAL_BUSY */
@@ -1024,10 +1027,10 @@ struct opal_i2c_request {
  * The host will pass on OPAL, a buffer of length OPAL_SYSEPOW_MAX
  * with individual elements being 16 bits wide to fetch the system
  * wide EPOW status. Each element in the buffer will contain the
- * EPOW status in it's bit representation for a particular EPOW sub
+ * EPOW status in its bit representation for a particular EPOW sub
  * class as defined here. So multiple detailed EPOW status bits
  * specific for any sub class can be represented in a single buffer
- * element as it's bit representation.
+ * element as its bit representation.
  */
 
 /* System EPOW type */
@@ -1064,6 +1067,7 @@ enum {
 	OPAL_REBOOT_PLATFORM_ERROR	= 1,
 	OPAL_REBOOT_FULL_IPL		= 2,
 	OPAL_REBOOT_MPIPL		= 3,
+	OPAL_REBOOT_FAST		= 4,
 };
 
 /* Argument to OPAL_PCI_TCE_KILL */
@@ -1087,9 +1091,10 @@ enum {
 	OPAL_XIVE_IRQ_TRIGGER_PAGE	= 0x00000001,
 	OPAL_XIVE_IRQ_STORE_EOI		= 0x00000002,
 	OPAL_XIVE_IRQ_LSI		= 0x00000004,
-	OPAL_XIVE_IRQ_SHIFT_BUG		= 0x00000008,
-	OPAL_XIVE_IRQ_MASK_VIA_FW	= 0x00000010,
-	OPAL_XIVE_IRQ_EOI_VIA_FW	= 0x00000020,
+	OPAL_XIVE_IRQ_SHIFT_BUG		= 0x00000008, /* P9 DD1.0 workaround */
+	OPAL_XIVE_IRQ_MASK_VIA_FW	= 0x00000010, /* P9 DD1.0 workaround */
+	OPAL_XIVE_IRQ_EOI_VIA_FW	= 0x00000020, /* P9 DD1.0 workaround */
+	OPAL_XIVE_IRQ_STORE_EOI2	= 0x00000040,
 };
 
 /* Flags for OPAL_XIVE_GET/SET_QUEUE_INFO */

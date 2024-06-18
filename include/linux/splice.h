@@ -38,6 +38,7 @@ struct splice_desc {
 		struct file *file;	/* file to read/write */
 		void *data;		/* cookie */
 	} u;
+	void (*splice_eof)(struct splice_desc *sd); /* Unexpected EOF handler */
 	loff_t pos;			/* file position */
 	loff_t *opos;			/* sendfile: output position */
 	size_t num_spliced;		/* number of bytes already spliced */
@@ -67,17 +68,37 @@ typedef int (splice_actor)(struct pipe_inode_info *, struct pipe_buffer *,
 typedef int (splice_direct_actor)(struct pipe_inode_info *,
 				  struct splice_desc *);
 
-extern ssize_t splice_from_pipe(struct pipe_inode_info *, struct file *,
-				loff_t *, size_t, unsigned int,
-				splice_actor *);
-extern ssize_t __splice_from_pipe(struct pipe_inode_info *,
-				  struct splice_desc *, splice_actor *);
-extern ssize_t splice_to_pipe(struct pipe_inode_info *,
-			      struct splice_pipe_desc *);
-extern ssize_t add_to_pipe(struct pipe_inode_info *,
-			      struct pipe_buffer *);
-extern ssize_t splice_direct_to_actor(struct file *, struct splice_desc *,
-				      splice_direct_actor *);
+ssize_t splice_from_pipe(struct pipe_inode_info *pipe, struct file *out,
+			 loff_t *ppos, size_t len, unsigned int flags,
+			 splice_actor *actor);
+ssize_t __splice_from_pipe(struct pipe_inode_info *pipe,
+			   struct splice_desc *sd, splice_actor *actor);
+ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
+			      struct splice_pipe_desc *spd);
+ssize_t add_to_pipe(struct pipe_inode_info *pipe, struct pipe_buffer *buf);
+ssize_t vfs_splice_read(struct file *in, loff_t *ppos,
+			struct pipe_inode_info *pipe, size_t len,
+			unsigned int flags);
+ssize_t splice_direct_to_actor(struct file *file, struct splice_desc *sd,
+			       splice_direct_actor *actor);
+ssize_t do_splice(struct file *in, loff_t *off_in, struct file *out,
+		  loff_t *off_out, size_t len, unsigned int flags);
+ssize_t do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
+			 loff_t *opos, size_t len, unsigned int flags);
+ssize_t splice_file_range(struct file *in, loff_t *ppos, struct file *out,
+			  loff_t *opos, size_t len);
+
+static inline long splice_copy_file_range(struct file *in, loff_t pos_in,
+					  struct file *out, loff_t pos_out,
+					  size_t len)
+{
+	return splice_file_range(in, &pos_in, out, &pos_out, len);
+}
+
+ssize_t do_tee(struct file *in, struct file *out, size_t len,
+	       unsigned int flags);
+ssize_t splice_to_socket(struct pipe_inode_info *pipe, struct file *out,
+			 loff_t *ppos, size_t len, unsigned int flags);
 
 /*
  * for dynamic pipe sizing

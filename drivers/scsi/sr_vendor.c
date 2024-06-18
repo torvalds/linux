@@ -61,14 +61,12 @@
 #define VENDOR_NEC             2
 #define VENDOR_TOSHIBA         3
 #define VENDOR_WRITER          4	/* pre-scsi3 writers */
+#define VENDOR_CYGNAL_85ED     5	/* CD-on-a-chip */
 
 #define VENDOR_TIMEOUT	30*HZ
 
 void sr_vendor_init(Scsi_CD *cd)
 {
-#ifndef CONFIG_BLK_DEV_SR_VENDOR
-	cd->vendor = VENDOR_SCSI3;
-#else
 	const char *vendor = cd->device->vendor;
 	const char *model = cd->device->model;
 	
@@ -99,8 +97,24 @@ void sr_vendor_init(Scsi_CD *cd)
 	} else if (!strncmp(vendor, "TOSHIBA", 7)) {
 		cd->vendor = VENDOR_TOSHIBA;
 
+	} else if (!strncmp(vendor, "Beurer", 6) &&
+		   !strncmp(model, "Gluco Memory", 12)) {
+		/* The Beurer GL50 evo uses a Cygnal-manufactured CD-on-a-chip
+		   that only accepts a subset of SCSI commands.  Most of the
+		   not-implemented commands are fine to fail, but a few,
+		   particularly around the MMC or Audio commands, will put the
+		   device into an unrecoverable state, so they need to be
+		   avoided at all costs.
+		*/
+		cd->vendor = VENDOR_CYGNAL_85ED;
+		cd->cdi.mask |= (
+			CDC_MULTI_SESSION |
+			CDC_CLOSE_TRAY | CDC_OPEN_TRAY |
+			CDC_LOCK |
+			CDC_GENERIC_PACKET |
+			CDC_PLAY_AUDIO
+			);
 	}
-#endif
 }
 
 
@@ -114,12 +128,10 @@ int sr_set_blocklength(Scsi_CD *cd, int blocklength)
 	struct ccs_modesel_head *modesel;
 	int rc, density = 0;
 
-#ifdef CONFIG_BLK_DEV_SR_VENDOR
 	if (cd->vendor == VENDOR_TOSHIBA)
 		density = (blocklength > 2048) ? 0x81 : 0x83;
-#endif
 
-	buffer = kmalloc(512, GFP_KERNEL | GFP_DMA);
+	buffer = kmalloc(512, GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -167,7 +179,7 @@ int sr_cd_check(struct cdrom_device_info *cdi)
 	if (cd->cdi.mask & CDC_MULTI_SESSION)
 		return 0;
 
-	buffer = kmalloc(512, GFP_KERNEL | GFP_DMA);
+	buffer = kmalloc(512, GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -205,7 +217,6 @@ int sr_cd_check(struct cdrom_device_info *cdi)
 		}
 		break;
 
-#ifdef CONFIG_BLK_DEV_SR_VENDOR
 	case VENDOR_NEC:{
 			unsigned long min, sec, frame;
 			cgc.cmd[0] = 0xde;
@@ -298,7 +309,6 @@ int sr_cd_check(struct cdrom_device_info *cdi)
 		sector = buffer[11] + (buffer[10] << 8) +
 		    (buffer[9] << 16) + (buffer[8] << 24);
 		break;
-#endif				/* CONFIG_BLK_DEV_SR_VENDOR */
 
 	default:
 		/* should not happen */

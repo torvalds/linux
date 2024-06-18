@@ -32,7 +32,6 @@ struct cgs_device;
  * enum cgs_ind_reg - Indirect register spaces
  */
 enum cgs_ind_reg {
-	CGS_IND_REG__MMIO,
 	CGS_IND_REG__PCIE,
 	CGS_IND_REG__SMC,
 	CGS_IND_REG__UVD_CTX,
@@ -150,27 +149,26 @@ struct cgs_ops {
 
 struct cgs_os_ops; /* To be define in OS-specific CGS header */
 
-struct cgs_device
-{
+struct cgs_device {
 	const struct cgs_ops *ops;
 	/* to be embedded at the start of driver private structure */
 };
 
 /* Convenience macros that make CGS indirect function calls look like
  * normal function calls */
-#define CGS_CALL(func,dev,...) \
+#define CGS_CALL(func, dev, ...) \
 	(((struct cgs_device *)dev)->ops->func(dev, ##__VA_ARGS__))
-#define CGS_OS_CALL(func,dev,...) \
+#define CGS_OS_CALL(func, dev, ...) \
 	(((struct cgs_device *)dev)->os_ops->func(dev, ##__VA_ARGS__))
 
-#define cgs_read_register(dev,offset)		\
-	CGS_CALL(read_register,dev,offset)
-#define cgs_write_register(dev,offset,value)		\
-	CGS_CALL(write_register,dev,offset,value)
-#define cgs_read_ind_register(dev,space,index)		\
-	CGS_CALL(read_ind_register,dev,space,index)
-#define cgs_write_ind_register(dev,space,index,value)		\
-	CGS_CALL(write_ind_register,dev,space,index,value)
+#define cgs_read_register(dev, offset)		\
+	CGS_CALL(read_register, dev, offset)
+#define cgs_write_register(dev, offset, value)		\
+	CGS_CALL(write_register, dev, offset, value)
+#define cgs_read_ind_register(dev, space, index)		\
+	CGS_CALL(read_ind_register, dev, space, index)
+#define cgs_write_ind_register(dev, space, index, value)		\
+	CGS_CALL(write_ind_register, dev, space, index, value)
 
 #define cgs_get_firmware_info(dev, type, info)	\
 	CGS_CALL(get_firmware_info, dev, type, info)

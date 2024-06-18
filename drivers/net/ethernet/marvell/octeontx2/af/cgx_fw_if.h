@@ -1,11 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0
- * Marvell OcteonTx2 CGX driver
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Marvell OcteonTx2 CGX driver
  *
- * Copyright (C) 2018 Marvell International Ltd.
+ * Copyright (C) 2018 Marvell.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __CGX_FW_INTF_H__
@@ -43,7 +40,13 @@ enum cgx_error_type {
 	CGX_ERR_TRAINING_FAIL,
 	CGX_ERR_RX_EQU_FAIL,
 	CGX_ERR_SPUX_BER_FAIL,
-	CGX_ERR_SPUX_RSFEC_ALGN_FAIL,   /* = 22 */
+	CGX_ERR_SPUX_RSFEC_ALGN_FAIL,
+	CGX_ERR_SPUX_MARKER_LOCK_FAIL,
+	CGX_ERR_SET_FEC_INVALID,
+	CGX_ERR_SET_FEC_FAIL,
+	CGX_ERR_MODULE_INVALID,
+	CGX_ERR_MODULE_NOT_PRESENT,
+	CGX_ERR_SPEED_CHANGE_INVALID,
 };
 
 /* LINK speed types */
@@ -59,10 +62,41 @@ enum cgx_link_speed {
 	CGX_LINK_25G,
 	CGX_LINK_40G,
 	CGX_LINK_50G,
+	CGX_LINK_80G,
 	CGX_LINK_100G,
 	CGX_LINK_SPEED_MAX,
 };
 
+enum CGX_MODE_ {
+	CGX_MODE_SGMII,
+	CGX_MODE_1000_BASEX,
+	CGX_MODE_QSGMII,
+	CGX_MODE_10G_C2C,
+	CGX_MODE_10G_C2M,
+	CGX_MODE_10G_KR,
+	CGX_MODE_20G_C2C,
+	CGX_MODE_25G_C2C,
+	CGX_MODE_25G_C2M,
+	CGX_MODE_25G_2_C2C,
+	CGX_MODE_25G_CR,
+	CGX_MODE_25G_KR,
+	CGX_MODE_40G_C2C,
+	CGX_MODE_40G_C2M,
+	CGX_MODE_40G_CR4,
+	CGX_MODE_40G_KR4,
+	CGX_MODE_40GAUI_C2C,
+	CGX_MODE_50G_C2C,
+	CGX_MODE_50G_C2M,
+	CGX_MODE_50G_4_C2C,
+	CGX_MODE_50G_CR,
+	CGX_MODE_50G_KR,
+	CGX_MODE_80GAUI_C2C,
+	CGX_MODE_100G_C2C,
+	CGX_MODE_100G_C2M,
+	CGX_MODE_100G_CR4,
+	CGX_MODE_100G_KR4,
+	CGX_MODE_MAX /* = 29 */
+};
 /* REQUEST ID types. Input to firmware */
 enum cgx_cmd_id {
 	CGX_CMD_NONE,
@@ -75,11 +109,25 @@ enum cgx_cmd_id {
 	CGX_CMD_INTERNAL_LBK,
 	CGX_CMD_EXTERNAL_LBK,
 	CGX_CMD_HIGIG,
-	CGX_CMD_LINK_STATE_CHANGE,
+	CGX_CMD_LINK_STAT_CHANGE,
 	CGX_CMD_MODE_CHANGE,		/* hot plug support */
 	CGX_CMD_INTF_SHUTDOWN,
 	CGX_CMD_GET_MKEX_PRFL_SIZE,
-	CGX_CMD_GET_MKEX_PRFL_ADDR
+	CGX_CMD_GET_MKEX_PRFL_ADDR,
+	CGX_CMD_GET_FWD_BASE,		/* get base address of shared FW data */
+	CGX_CMD_GET_LINK_MODES,		/* Supported Link Modes */
+	CGX_CMD_SET_LINK_MODE,
+	CGX_CMD_GET_SUPPORTED_FEC,
+	CGX_CMD_SET_FEC,
+	CGX_CMD_GET_AN,
+	CGX_CMD_SET_AN,
+	CGX_CMD_GET_ADV_LINK_MODES,
+	CGX_CMD_GET_ADV_FEC,
+	CGX_CMD_GET_PHY_MOD_TYPE, /* line-side modulation type: NRZ or PAM4 */
+	CGX_CMD_SET_PHY_MOD_TYPE,
+	CGX_CMD_PRBS,
+	CGX_CMD_DISPLAY_EYE,
+	CGX_CMD_GET_PHY_FEC_STATS,
 };
 
 /* async event ids */
@@ -149,6 +197,12 @@ enum cgx_cmd_own {
  */
 #define RESP_MKEX_PRFL_ADDR		GENMASK_ULL(63, 9)
 
+/* Response to cmd ID as CGX_CMD_GET_FWD_BASE with cmd status as
+ * CGX_STAT_SUCCESS
+ */
+#define RESP_FWD_BASE		GENMASK_ULL(56, 9)
+#define RESP_LINKSTAT_LMAC_TYPE                GENMASK_ULL(35, 28)
+
 /* Response to cmd ID - CGX_CMD_LINK_BRING_UP/DOWN, event ID CGX_EVT_LINK_CHANGE
  * status can be either CGX_STAT_FAIL or CGX_STAT_SUCCESS
  *
@@ -165,13 +219,19 @@ struct cgx_lnk_sts {
 	uint64_t full_duplex:1;
 	uint64_t speed:4;		/* cgx_link_speed */
 	uint64_t err_type:10;
-	uint64_t reserved2:39;
+	uint64_t an:1;			/* AN supported or not */
+	uint64_t fec:2;			/* FEC type if enabled, if not 0 */
+	uint64_t port:8;
+	uint64_t reserved2:28;
 };
 
 #define RESP_LINKSTAT_UP		GENMASK_ULL(9, 9)
 #define RESP_LINKSTAT_FDUPLEX		GENMASK_ULL(10, 10)
 #define RESP_LINKSTAT_SPEED		GENMASK_ULL(14, 11)
 #define RESP_LINKSTAT_ERRTYPE		GENMASK_ULL(24, 15)
+#define RESP_LINKSTAT_AN		GENMASK_ULL(25, 25)
+#define RESP_LINKSTAT_FEC		GENMASK_ULL(27, 26)
+#define RESP_LINKSTAT_PORT		GENMASK_ULL(35, 28)
 
 /* scratchx(1) CSR used for non-secure SW->ATF communication
  * This CSR acts as a command register
@@ -193,4 +253,14 @@ struct cgx_lnk_sts {
 #define CMDLINKCHANGE_FULLDPLX	BIT_ULL(9)
 #define CMDLINKCHANGE_SPEED	GENMASK_ULL(13, 10)
 
+#define CMDSETFEC			GENMASK_ULL(9, 8)
+/* command argument to be passed for cmd ID - CGX_CMD_MODE_CHANGE */
+#define CMDMODECHANGE_SPEED		GENMASK_ULL(11, 8)
+#define CMDMODECHANGE_DUPLEX		GENMASK_ULL(12, 12)
+#define CMDMODECHANGE_AN		GENMASK_ULL(13, 13)
+#define CMDMODECHANGE_PORT		GENMASK_ULL(21, 14)
+#define CMDMODECHANGE_FLAGS		GENMASK_ULL(63, 22)
+
+/* LINK_BRING_UP command timeout */
+#define LINKCFG_TIMEOUT		GENMASK_ULL(21, 8)
 #endif /* __CGX_FW_INTF_H__ */

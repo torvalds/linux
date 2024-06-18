@@ -26,10 +26,10 @@
 #include <linux/i2c.h>
 #include <linux/io.h>
 #include <linux/dma-mapping.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/of_irq.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <sysdev/fsl_soc.h>
 #include <asm/cpm.h>
 
@@ -65,6 +65,9 @@ struct i2c_ram {
 	char    res1[4];	/* Reserved */
 	ushort  rpbase;		/* Relocation pointer */
 	char    res2[2];	/* Reserved */
+	/* The following elements are only for CPM2 */
+	char    res3[4];	/* Reserved */
+	uint    sdmatmp;	/* Internal */
 };
 
 #define I2COM_START	0x80
@@ -655,7 +658,7 @@ static int cpm_i2c_probe(struct platform_device *ofdev)
 	/* register new adapter to i2c module... */
 
 	data = of_get_property(ofdev->dev.of_node, "linux,i2c-index", &len);
-	cpm->adap.nr = (data && len == 4) ? be32_to_cpup(data) : -1;
+	cpm->adap.nr = (data && len == 4) ? *data : -1;
 	result = i2c_add_numbered_adapter(&cpm->adap);
 
 	if (result < 0)
@@ -673,7 +676,7 @@ out_free:
 	return result;
 }
 
-static int cpm_i2c_remove(struct platform_device *ofdev)
+static void cpm_i2c_remove(struct platform_device *ofdev)
 {
 	struct cpm_i2c *cpm = platform_get_drvdata(ofdev);
 
@@ -682,8 +685,6 @@ static int cpm_i2c_remove(struct platform_device *ofdev)
 	cpm_i2c_shutdown(cpm);
 
 	kfree(cpm);
-
-	return 0;
 }
 
 static const struct of_device_id cpm_i2c_match[] = {
@@ -700,7 +701,7 @@ MODULE_DEVICE_TABLE(of, cpm_i2c_match);
 
 static struct platform_driver cpm_i2c_driver = {
 	.probe		= cpm_i2c_probe,
-	.remove		= cpm_i2c_remove,
+	.remove_new	= cpm_i2c_remove,
 	.driver = {
 		.name = "fsl-i2c-cpm",
 		.of_match_table = cpm_i2c_match,

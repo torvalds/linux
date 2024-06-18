@@ -41,7 +41,8 @@ int tomoyo_update_policy(struct tomoyo_acl_head *new_entry, const int size,
 
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		return -ENOMEM;
-	list_for_each_entry_rcu(entry, list, list) {
+	list_for_each_entry_rcu(entry, list, list,
+				srcu_read_lock_held(&tomoyo_ss)) {
 		if (entry->is_deleted == TOMOYO_GC_IN_PROGRESS)
 			continue;
 		if (!check_duplicate(entry, new_entry))
@@ -119,7 +120,8 @@ int tomoyo_update_domain(struct tomoyo_acl_info *new_entry, const int size,
 	}
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		goto out;
-	list_for_each_entry_rcu(entry, list, list) {
+	list_for_each_entry_rcu(entry, list, list,
+				srcu_read_lock_held(&tomoyo_ss)) {
 		if (entry->is_deleted == TOMOYO_GC_IN_PROGRESS)
 			continue;
 		if (!tomoyo_same_acl_head(entry, new_entry) ||
@@ -166,7 +168,8 @@ void tomoyo_check_acl(struct tomoyo_request_info *r,
 	u16 i = 0;
 
 retry:
-	list_for_each_entry_rcu(ptr, list, list) {
+	list_for_each_entry_rcu(ptr, list, list,
+				srcu_read_lock_held(&tomoyo_ss)) {
 		if (ptr->is_deleted || ptr->type != r->param_type)
 			continue;
 		if (!check_entry(r, ptr))
@@ -298,7 +301,8 @@ static inline bool tomoyo_scan_transition
 {
 	const struct tomoyo_transition_control *ptr;
 
-	list_for_each_entry_rcu(ptr, list, head.list) {
+	list_for_each_entry_rcu(ptr, list, head.list,
+				srcu_read_lock_held(&tomoyo_ss)) {
 		if (ptr->head.is_deleted || ptr->type != type)
 			continue;
 		if (ptr->domainname) {
@@ -469,9 +473,7 @@ struct tomoyo_policy_namespace *tomoyo_assign_namespace(const char *domainname)
 		return ptr;
 	if (len >= TOMOYO_EXEC_TMPSIZE - 10 || !tomoyo_domain_def(domainname))
 		return NULL;
-	entry = kzalloc(sizeof(*entry) + len + 1, GFP_NOFS);
-	if (!entry)
-		return NULL;
+	entry = kzalloc(sizeof(*entry) + len + 1, GFP_NOFS | __GFP_NOWARN);
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		goto out;
 	ptr = tomoyo_find_namespace(domainname, len);
@@ -735,7 +737,8 @@ retry:
 
 		/* Check 'aggregator' directive. */
 		candidate = &exename;
-		list_for_each_entry_rcu(ptr, list, head.list) {
+		list_for_each_entry_rcu(ptr, list, head.list,
+					srcu_read_lock_held(&tomoyo_ss)) {
 			if (ptr->head.is_deleted ||
 			    !tomoyo_path_matches_pattern(&exename,
 							 ptr->original_name))
@@ -762,7 +765,7 @@ retry:
 
 	/*
 	 * Check for domain transition preference if "file execute" matched.
-	 * If preference is given, make do_execve() fail if domain transition
+	 * If preference is given, make execve() fail if domain transition
 	 * has failed, for domain transition preference should be used with
 	 * destination domain defined.
 	 */
@@ -781,13 +784,12 @@ retry:
 		if (!strcmp(domainname, "parent")) {
 			char *cp;
 
-			strncpy(ee->tmp, old_domain->domainname->name,
-				TOMOYO_EXEC_TMPSIZE - 1);
+			strscpy(ee->tmp, old_domain->domainname->name, TOMOYO_EXEC_TMPSIZE);
 			cp = strrchr(ee->tmp, ' ');
 			if (cp)
 				*cp = '\0';
 		} else if (*domainname == '<')
-			strncpy(ee->tmp, domainname, TOMOYO_EXEC_TMPSIZE - 1);
+			strscpy(ee->tmp, domainname, TOMOYO_EXEC_TMPSIZE);
 		else
 			snprintf(ee->tmp, TOMOYO_EXEC_TMPSIZE - 1, "%s %s",
 				 old_domain->domainname->name, domainname);
@@ -805,7 +807,7 @@ force_reset_domain:
 		snprintf(ee->tmp, TOMOYO_EXEC_TMPSIZE - 1, "<%s>",
 			 candidate->name);
 		/*
-		 * Make do_execve() fail if domain transition across namespaces
+		 * Make execve() fail if domain transition across namespaces
 		 * has failed.
 		 */
 		reject_on_transition_failure = true;
@@ -886,7 +888,7 @@ force_jump_domain:
  *
  * @bprm: Pointer to "struct linux_binprm".
  * @pos:  Location to dump.
- * @dump: Poiner to "struct tomoyo_page_dump".
+ * @dump: Pointer to "struct tomoyo_page_dump".
  *
  * Returns true on success, false otherwise.
  */
@@ -894,6 +896,9 @@ bool tomoyo_dump_page(struct linux_binprm *bprm, unsigned long pos,
 		      struct tomoyo_page_dump *dump)
 {
 	struct page *page;
+#ifdef CONFIG_MMU
+	int ret;
+#endif
 
 	/* dump->data is released by tomoyo_find_next_domain(). */
 	if (!dump->data) {
@@ -906,11 +911,13 @@ bool tomoyo_dump_page(struct linux_binprm *bprm, unsigned long pos,
 	/*
 	 * This is called at execve() time in order to dig around
 	 * in the argv/environment of the new proceess
-	 * (represented by bprm).  'current' is the process doing
-	 * the execve().
+	 * (represented by bprm).
 	 */
-	if (get_user_pages_remote(current, bprm->mm, pos, 1,
-				FOLL_FORCE, &page, NULL, NULL) <= 0)
+	mmap_read_lock(bprm->mm);
+	ret = get_user_pages_remote(bprm->mm, pos, 1,
+				    FOLL_FORCE, &page, NULL);
+	mmap_read_unlock(bprm->mm);
+	if (ret <= 0)
 		return false;
 #else
 	page = bprm->page[pos / PAGE_SIZE];

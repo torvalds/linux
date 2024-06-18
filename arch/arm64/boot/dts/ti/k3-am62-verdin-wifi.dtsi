@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright 2023 Toradex
+ *
+ * Common dtsi for Verdin AM62 SoM WB variant
+ *
+ * https://www.toradex.com/computer-on-modules/verdin-arm-family/ti-am62
+ */
+
+/ {
+	wifi_pwrseq: wifi-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_wifi_en>;
+		reset-gpios = <&main_gpio0 22 GPIO_ACTIVE_LOW>;
+	};
+};
+
+/* On-module Wi-Fi */
+&sdhci2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sdhci2>;
+	bus-width = <4>;
+	cap-power-off-card;
+	keep-power-in-suspend;
+	mmc-pwrseq = <&wifi_pwrseq>;
+	non-removable;
+	ti,fails-without-test-cd;
+	vmmc-supply = <&reg_3v3>;
+	status = "okay";
+};
+
+/* On-module Bluetooth */
+&main_uart5 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart5>;
+	uart-has-rtscts;
+	status = "okay";
+
+	bluetooth {
+		compatible = "nxp,88w8987-bt";
+		fw-init-baudrate = <3000000>;
+	};
+};

@@ -64,12 +64,14 @@ BEGIN {
 
 	modrm_expr = "^([CDEGMNPQRSUVW/][a-z]+|NTA|T[012])"
 	force64_expr = "\\([df]64\\)"
-	rex_expr = "^REX(\\.[XRWB]+)*"
+	rex_expr = "^((REX(\\.[XRWB]+)+)|(REX$))"
+	rex2_expr = "\\(REX2\\)"
+	no_rex2_expr = "\\(!REX2\\)"
 	fpu_expr = "^ESC" # TODO
 
 	lprefix1_expr = "\\((66|!F3)\\)"
 	lprefix2_expr = "\\(F3\\)"
-	lprefix3_expr = "\\((F2|!F3|66\\&F2)\\)"
+	lprefix3_expr = "\\((F2|!F3|66&F2)\\)"
 	lprefix_expr = "\\((66|F2|F3)\\)"
 	max_lprefix = 4
 
@@ -81,6 +83,8 @@ BEGIN {
 	vexonly_expr = "\\(v\\)"
 	# All opcodes with (ev) superscript supports *only* EVEX prefix
 	evexonly_expr = "\\(ev\\)"
+	# (es) is the same as (ev) but also "SCALABLE" i.e. W and pp determine operand size
+	evex_scalable_expr = "\\(es\\)"
 
 	prefix_expr = "\\(Prefix\\)"
 	prefix_num["Operand-Size"] = "INAT_PFX_OPNDSZ"
@@ -99,6 +103,7 @@ BEGIN {
 	prefix_num["VEX+1byte"] = "INAT_PFX_VEX2"
 	prefix_num["VEX+2byte"] = "INAT_PFX_VEX3"
 	prefix_num["EVEX"] = "INAT_PFX_EVEX"
+	prefix_num["REX2"] = "INAT_PFX_REX2"
 
 	clear_vars()
 }
@@ -257,7 +262,7 @@ function convert_operands(count,opnd,       i,j,imm,mod)
 	return add_flags(imm, mod)
 }
 
-/^[0-9a-f]+\:/ {
+/^[0-9a-f]+:/ {
 	if (NR == 1)
 		next
 	# get index
@@ -314,6 +319,10 @@ function convert_operands(count,opnd,       i,j,imm,mod)
 		if (match(ext, force64_expr))
 			flags = add_flags(flags, "INAT_FORCE64")
 
+		# check REX2 not allowed
+		if (match(ext, no_rex2_expr))
+			flags = add_flags(flags, "INAT_NO_REX2")
+
 		# check REX prefix
 		if (match(opcode, rex_expr))
 			flags = add_flags(flags, "INAT_MAKE_PREFIX(INAT_PFX_REX)")
@@ -325,6 +334,8 @@ function convert_operands(count,opnd,       i,j,imm,mod)
 		# check VEX codes
 		if (match(ext, evexonly_expr))
 			flags = add_flags(flags, "INAT_VEXOK | INAT_EVEXONLY")
+		else if (match(ext, evex_scalable_expr))
+			flags = add_flags(flags, "INAT_VEXOK | INAT_EVEXONLY | INAT_EVEX_SCALABLE")
 		else if (match(ext, vexonly_expr))
 			flags = add_flags(flags, "INAT_VEXOK | INAT_VEXONLY")
 		else if (match(ext, vexok_expr) || match(opcode, vexok_opcode_expr))
@@ -351,6 +362,8 @@ function convert_operands(count,opnd,       i,j,imm,mod)
 			lptable3[idx] = add_flags(lptable3[idx],flags)
 			variant = "INAT_VARIANT"
 		}
+		if (match(ext, rex2_expr))
+			table[idx] = add_flags(table[idx], "INAT_REX2_VARIANT")
 		if (!match(ext, lprefix_expr)){
 			table[idx] = add_flags(table[idx],flags)
 		}
@@ -362,6 +375,9 @@ function convert_operands(count,opnd,       i,j,imm,mod)
 END {
 	if (awkchecked != "")
 		exit 1
+
+	print "#ifndef __BOOT_COMPRESSED\n"
+
 	# print escape opcode map's array
 	print "/* Escape opcode map array */"
 	print "const insn_attr_t * const inat_escape_tables[INAT_ESC_MAX + 1]" \
@@ -388,6 +404,51 @@ END {
 		for (j = 0; j < max_lprefix; j++)
 			if (atable[i,j])
 				print "	["i"]["j"] = "atable[i,j]","
-	print "};"
+	print "};\n"
+
+	print "#else /* !__BOOT_COMPRESSED */\n"
+
+	print "/* Escape opcode map array */"
+	print "static const insn_attr_t *inat_escape_tables[INAT_ESC_MAX + 1]" \
+	      "[INAT_LSTPFX_MAX + 1];"
+	print ""
+
+	print "/* Group opcode map array */"
+	print "static const insn_attr_t *inat_group_tables[INAT_GRP_MAX + 1]"\
+	      "[INAT_LSTPFX_MAX + 1];"
+	print ""
+
+	print "/* AVX opcode map array */"
+	print "static const insn_attr_t *inat_avx_tables[X86_VEX_M_MAX + 1]"\
+	      "[INAT_LSTPFX_MAX + 1];"
+	print ""
+
+	print "static void inat_init_tables(void)"
+	print "{"
+
+	# print escape opcode map's array
+	print "\t/* Print Escape opcode map array */"
+	for (i = 0; i < geid; i++)
+		for (j = 0; j < max_lprefix; j++)
+			if (etable[i,j])
+				print "\tinat_escape_tables["i"]["j"] = "etable[i,j]";"
+	print ""
+
+	# print group opcode map's array
+	print "\t/* Print Group opcode map array */"
+	for (i = 0; i < ggid; i++)
+		for (j = 0; j < max_lprefix; j++)
+			if (gtable[i,j])
+				print "\tinat_group_tables["i"]["j"] = "gtable[i,j]";"
+	print ""
+	# print AVX opcode map's array
+	print "\t/* Print AVX opcode map array */"
+	for (i = 0; i < gaid; i++)
+		for (j = 0; j < max_lprefix; j++)
+			if (atable[i,j])
+				print "\tinat_avx_tables["i"]["j"] = "atable[i,j]";"
+
+	print "}"
+	print "#endif"
 }
 

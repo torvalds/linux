@@ -26,8 +26,6 @@
 #define XO15_EBOOK_HID			"XO15EBK"
 #define XO15_EBOOK_DEVICE_NAME		"EBook Switch"
 
-ACPI_MODULE_NAME(MODULE_NAME);
-
 MODULE_DESCRIPTION("OLPC XO-1.5 ebook switch driver");
 MODULE_LICENSE("GPL");
 
@@ -66,8 +64,8 @@ static void ebook_switch_notify(struct acpi_device *device, u32 event)
 		ebook_send_state(device);
 		break;
 	default:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Unsupported event [0x%x]\n", event));
+		acpi_handle_debug(device->handle,
+				  "Unsupported event [0x%x]\n", event);
 		break;
 	}
 }
@@ -83,9 +81,9 @@ static SIMPLE_DEV_PM_OPS(ebook_switch_pm, NULL, ebook_switch_resume);
 
 static int ebook_switch_add(struct acpi_device *device)
 {
+	const struct acpi_device_id *id;
 	struct ebook_switch *button;
 	struct input_dev *input;
-	const char *hid = acpi_device_hid(device);
 	char *name, *class;
 	int error;
 
@@ -104,8 +102,9 @@ static int ebook_switch_add(struct acpi_device *device)
 	name = acpi_device_name(device);
 	class = acpi_device_class(device);
 
-	if (strcmp(hid, XO15_EBOOK_HID)) {
-		pr_err("Unsupported hid [%s]\n", hid);
+	id = acpi_match_acpi_device(ebook_device_ids, device);
+	if (!id) {
+		dev_err(&device->dev, "Unsupported hid\n");
 		error = -ENODEV;
 		goto err_free_input;
 	}
@@ -113,7 +112,7 @@ static int ebook_switch_add(struct acpi_device *device)
 	strcpy(name, XO15_EBOOK_DEVICE_NAME);
 	sprintf(class, "%s/%s", XO15_EBOOK_CLASS, XO15_EBOOK_SUBCLASS);
 
-	snprintf(button->phys, sizeof(button->phys), "%s/button/input0", hid);
+	snprintf(button->phys, sizeof(button->phys), "%s/button/input0", id->id);
 
 	input->name = name;
 	input->phys = button->phys;
@@ -145,13 +144,12 @@ static int ebook_switch_add(struct acpi_device *device)
 	return error;
 }
 
-static int ebook_switch_remove(struct acpi_device *device)
+static void ebook_switch_remove(struct acpi_device *device)
 {
 	struct ebook_switch *button = acpi_driver_data(device);
 
 	input_unregister_device(button->input);
 	kfree(button);
-	return 0;
 }
 
 static struct acpi_driver xo15_ebook_driver = {

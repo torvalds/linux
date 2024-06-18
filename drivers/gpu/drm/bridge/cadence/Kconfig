@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config DRM_CDNS_DSI
+	tristate "Cadence DPI/DSI bridge"
+	select DRM_KMS_HELPER
+	select DRM_MIPI_DSI
+	select DRM_PANEL_BRIDGE
+	select GENERIC_PHY
+	select GENERIC_PHY_MIPI_DPHY
+	depends on OF
+	help
+	  Support Cadence DPI to DSI bridge. This is an internal
+	  bridge and is meant to be directly embedded in a SoC.
+
+if DRM_CDNS_DSI
+
+config DRM_CDNS_DSI_J721E
+	bool "J721E Cadence DSI wrapper support"
+	default y
+	help
+	  Support J721E Cadence DSI wrapper. The wrapper manages
+	  the routing of the DSS DPI signal to the Cadence DSI.
+endif
+
+config DRM_CDNS_MHDP8546
+	tristate "Cadence DPI/DP bridge"
+	select DRM_DISPLAY_DP_HELPER
+	select DRM_DISPLAY_HDCP_HELPER
+	select DRM_DISPLAY_HELPER
+	select DRM_KMS_HELPER
+	select DRM_PANEL_BRIDGE
+	depends on OF
+	help
+	  Support Cadence DPI to DP bridge. This is an internal
+	  bridge and is meant to be directly embedded in a SoC.
+	  It takes a DPI stream as input and outputs it encoded
+	  in DP format.
+
+if DRM_CDNS_MHDP8546
+
+config DRM_CDNS_MHDP8546_J721E
+	depends on ARCH_K3 || COMPILE_TEST
+	bool "J721E Cadence DPI/DP wrapper support"
+	default y
+	help
+	  Support J721E Cadence DPI/DP wrapper. This is a wrapper
+	  which adds support for J721E related platform ops. It
+	  initializes the J721E Display Port and sets up the
+	  clock and data muxes.
+endif

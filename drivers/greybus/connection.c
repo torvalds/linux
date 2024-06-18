@@ -187,8 +187,8 @@ _gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 	spin_lock_init(&connection->lock);
 	INIT_LIST_HEAD(&connection->operations);
 
-	connection->wq = alloc_workqueue("%s:%d", WQ_UNBOUND, 1,
-					 dev_name(&hd->dev), hd_cport_id);
+	connection->wq = alloc_ordered_workqueue("%s:%d", 0, dev_name(&hd->dev),
+						 hd_cport_id);
 	if (!connection->wq) {
 		ret = -ENOMEM;
 		goto err_free_connection;
@@ -360,9 +360,6 @@ static int gb_connection_hd_cport_quiesce(struct gb_connection *connection)
 
 	if (connection->mode_switch)
 		peer_space += sizeof(struct gb_operation_msg_hdr);
-
-	if (!hd->driver->cport_quiesce)
-		return 0;
 
 	ret = hd->driver->cport_quiesce(hd, connection->hd_cport_id,
 					peer_space,

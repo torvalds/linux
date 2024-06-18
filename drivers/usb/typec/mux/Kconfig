@@ -2,11 +2,78 @@
 
 menu "USB Type-C Multiplexer/DeMultiplexer Switch support"
 
+config TYPEC_MUX_FSA4480
+	tristate "ON Semi FSA4480 Analog Audio Switch driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Driver for the ON Semiconductor FSA4480 Analog Audio Switch, which
+	  provides support for muxing analog audio and sideband signals on a
+	  common USB Type-C connector.
+	  If compiled as a module, the module will be named fsa4480.
+
+config TYPEC_MUX_GPIO_SBU
+	tristate "Generic GPIO based SBU mux for USB Type-C applications"
+	help
+	  Say Y or M if your system uses a GPIO based mux for managing the
+	  connected state and the swapping of the SBU lines in a Type-C port.
+
 config TYPEC_MUX_PI3USB30532
 	tristate "Pericom PI3USB30532 Type-C cross switch driver"
 	depends on I2C
 	help
 	  Say Y or M if your system has a Pericom PI3USB30532 Type-C cross
 	  switch / mux chip found on some devices with a Type-C port.
+
+config TYPEC_MUX_INTEL_PMC
+	tristate "Intel PMC mux control"
+	depends on ACPI
+	depends on INTEL_SCU_IPC
+	select USB_COMMON
+	select USB_ROLE_SWITCH
+	help
+	  Driver for USB muxes controlled by Intel PMC FW. Intel PMC FW can
+	  control the USB role switch and also the multiplexer/demultiplexer
+	  switches used with USB Type-C Alternate Modes.
+
+config TYPEC_MUX_IT5205
+	tristate "ITE IT5205 Type-C USB Alt Mode Passive MUX driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Driver for the ITE IT5205 Type-C USB Alternate Mode Passive MUX
+	  which provides support for muxing DisplayPort and sideband signals
+	  on a common USB Type-C connector.
+	  If compiled as a module, the module will be named it5205.
+
+config TYPEC_MUX_NB7VPQ904M
+	tristate "On Semiconductor NB7VPQ904M Type-C redriver driver"
+	depends on I2C
+	depends on DRM || DRM=n
+	select DRM_AUX_BRIDGE if DRM_BRIDGE && OF
+	select REGMAP_I2C
+	help
+	  Say Y or M if your system has a On Semiconductor NB7VPQ904M Type-C
+	  redriver chip found on some devices with a Type-C port.
+
+config TYPEC_MUX_PTN36502
+	tristate "NXP PTN36502 Type-C redriver driver"
+	depends on I2C
+	depends on DRM || DRM=n
+	select DRM_AUX_BRIDGE if DRM_BRIDGE && OF
+	select REGMAP_I2C
+	help
+	  Say Y or M if your system has a NXP PTN36502 Type-C redriver chip
+	  found on some devices with a Type-C port.
+
+config TYPEC_MUX_WCD939X_USBSS
+	tristate "Qualcomm WCD939x USBSS Analog Audio Switch driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Driver for the Qualcomm WCD939x Audio Codec USBSS domain which
+	  provides support for muxing analog audio and sideband signals on a
+	  common USB Type-C connector.
+	  If compiled as a module, the module will be named wcd939x-usbss.
 
 endmenu

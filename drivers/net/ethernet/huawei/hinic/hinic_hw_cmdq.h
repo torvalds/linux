@@ -31,6 +31,10 @@
 			(((u64)(val) & HINIC_CMDQ_CTXT_##member##_MASK) \
 			 << HINIC_CMDQ_CTXT_##member##_SHIFT)
 
+#define HINIC_CMDQ_CTXT_PAGE_INFO_GET(val, member)	\
+			(((u64)(val) >> HINIC_CMDQ_CTXT_##member##_SHIFT) \
+			 & HINIC_CMDQ_CTXT_##member##_MASK)
+
 #define HINIC_CMDQ_CTXT_PAGE_INFO_CLEAR(val, member)    \
 			((val) & (~((u64)HINIC_CMDQ_CTXT_##member##_MASK \
 			 << HINIC_CMDQ_CTXT_##member##_SHIFT)))
@@ -44,6 +48,10 @@
 #define HINIC_CMDQ_CTXT_BLOCK_INFO_SET(val, member)     \
 			(((u64)(val) & HINIC_CMDQ_CTXT_##member##_MASK) \
 			 << HINIC_CMDQ_CTXT_##member##_SHIFT)
+
+#define HINIC_CMDQ_CTXT_BLOCK_INFO_GET(val, member)	\
+			(((u64)(val) >> HINIC_CMDQ_CTXT_##member##_SHIFT) \
+			& HINIC_CMDQ_CTXT_##member##_MASK)
 
 #define HINIC_CMDQ_CTXT_BLOCK_INFO_CLEAR(val, member)   \
 			((val) & (~((u64)HINIC_CMDQ_CTXT_##member##_MASK \
@@ -122,7 +130,7 @@ struct hinic_cmdq_ctxt {
 
 	u16     func_idx;
 	u8      cmdq_type;
-	u8      rsvd1[1];
+	u8      ppf_idx;
 
 	u8      rsvd2[4];
 
@@ -130,6 +138,8 @@ struct hinic_cmdq_ctxt {
 };
 
 struct hinic_cmdq {
+	struct hinic_hwdev      *hwdev;
+
 	struct hinic_wq         *wq;
 
 	enum hinic_cmdq_type    cmdq_type;
@@ -166,9 +176,6 @@ void hinic_free_cmdq_buf(struct hinic_cmdqs *cmdqs,
 int hinic_cmdq_direct_resp(struct hinic_cmdqs *cmdqs,
 			   enum hinic_mod_type mod, u8 cmd,
 			   struct hinic_cmdq_buf *buf_in, u64 *out_param);
-
-int hinic_set_arm_bit(struct hinic_cmdqs *cmdqs,
-		      enum hinic_set_arm_qtype q_type, u32 q_id);
 
 int hinic_init_cmdqs(struct hinic_cmdqs *cmdqs, struct hinic_hwif *hwif,
 		     void __iomem **db_area);

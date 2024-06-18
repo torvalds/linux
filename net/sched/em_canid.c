@@ -40,6 +40,7 @@ struct canid_match {
 
 /**
  * em_canid_get_id() - Extracts Can ID out of the sk_buff structure.
+ * @skb: buffer to extract Can ID from
  */
 static canid_t em_canid_get_id(struct sk_buff *skb)
 {
@@ -221,6 +222,7 @@ static void __exit exit_em_canid(void)
 	tcf_em_unregister(&em_canid_ops);
 }
 
+MODULE_DESCRIPTION("ematch classifier to match CAN IDs embedded in skb CAN frames");
 MODULE_LICENSE("GPL");
 
 module_init(init_em_canid);

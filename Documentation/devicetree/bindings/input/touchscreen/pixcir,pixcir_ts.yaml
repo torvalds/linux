@@ -1,0 +1,68 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/input/touchscreen/pixcir,pixcir_ts.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Pixcir Touchscreen Controller
+
+maintainers:
+  - Dmitry Torokhov <dmitry.torokhov@gmail.com>
+
+allOf:
+  - $ref: touchscreen.yaml#
+
+properties:
+  compatible:
+    enum:
+      - pixcir,pixcir_ts
+      - pixcir,pixcir_tangoc
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  attb-gpio:
+    maxItems: 1
+
+  reset-gpios:
+    maxItems: 1
+
+  enable-gpios:
+    maxItems: 1
+
+  wake-gpios:
+    maxItems: 1
+
+unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - attb-gpio
+  - touchscreen-size-x
+  - touchscreen-size-y
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        touchscreen@5c {
+            compatible = "pixcir,pixcir_ts";
+            reg = <0x5c>;
+            interrupts = <2 0>;
+            attb-gpio = <&gpf 2 0 2>;
+            touchscreen-size-x = <800>;
+            touchscreen-size-y = <600>;
+        };
+    };
+
+...

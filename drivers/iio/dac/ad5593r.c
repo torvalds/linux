@@ -11,8 +11,9 @@
 #include <linux/bitops.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/of.h>
-#include <linux/acpi.h>
+#include <linux/mod_devicetable.h>
+
+#include <asm/unaligned.h>
 
 #define AD5593R_MODE_CONF		(0 << 4)
 #define AD5593R_MODE_DAC_WRITE		(1 << 4)
@@ -20,6 +21,24 @@
 #define AD5593R_MODE_DAC_READBACK	(5 << 4)
 #define AD5593R_MODE_GPIO_READBACK	(6 << 4)
 #define AD5593R_MODE_REG_READBACK	(7 << 4)
+
+static int ad5593r_read_word(struct i2c_client *i2c, u8 reg, u16 *value)
+{
+	int ret;
+	u8 buf[2];
+
+	ret = i2c_smbus_write_byte(i2c, reg);
+	if (ret < 0)
+		return ret;
+
+	ret = i2c_master_recv(i2c, buf, sizeof(buf));
+	if (ret < 0)
+		return ret;
+
+	*value = get_unaligned_be16(buf);
+
+	return 0;
+}
 
 static int ad5593r_write_dac(struct ad5592r_state *st, unsigned chan, u16 value)
 {
@@ -39,13 +58,7 @@ static int ad5593r_read_adc(struct ad5592r_state *st, unsigned chan, u16 *value)
 	if (val < 0)
 		return (int) val;
 
-	val = i2c_smbus_read_word_swapped(i2c, AD5593R_MODE_ADC_READBACK);
-	if (val < 0)
-		return (int) val;
-
-	*value = (u16) val;
-
-	return 0;
+	return ad5593r_read_word(i2c, AD5593R_MODE_ADC_READBACK, value);
 }
 
 static int ad5593r_reg_write(struct ad5592r_state *st, u8 reg, u16 value)
@@ -59,25 +72,19 @@ static int ad5593r_reg_write(struct ad5592r_state *st, u8 reg, u16 value)
 static int ad5593r_reg_read(struct ad5592r_state *st, u8 reg, u16 *value)
 {
 	struct i2c_client *i2c = to_i2c_client(st->dev);
-	s32 val;
 
-	val = i2c_smbus_read_word_swapped(i2c, AD5593R_MODE_REG_READBACK | reg);
-	if (val < 0)
-		return (int) val;
-
-	*value = (u16) val;
-
-	return 0;
+	return ad5593r_read_word(i2c, AD5593R_MODE_REG_READBACK | reg, value);
 }
 
 static int ad5593r_gpio_read(struct ad5592r_state *st, u8 *value)
 {
 	struct i2c_client *i2c = to_i2c_client(st->dev);
-	s32 val;
+	u16 val;
+	int ret;
 
-	val = i2c_smbus_read_word_swapped(i2c, AD5593R_MODE_GPIO_READBACK);
-	if (val < 0)
-		return (int) val;
+	ret = ad5593r_read_word(i2c, AD5593R_MODE_GPIO_READBACK, &val);
+	if (ret)
+		return ret;
 
 	*value = (u8) val;
 
@@ -92,15 +99,19 @@ static const struct ad5592r_rw_ops ad5593r_rw_ops = {
 	.gpio_read = ad5593r_gpio_read,
 };
 
-static int ad5593r_i2c_probe(struct i2c_client *i2c,
-		const struct i2c_device_id *id)
+static int ad5593r_i2c_probe(struct i2c_client *i2c)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(i2c);
+	if (!i2c_check_functionality(i2c->adapter,
+				     I2C_FUNC_SMBUS_BYTE | I2C_FUNC_I2C))
+		return -EOPNOTSUPP;
+
 	return ad5592r_probe(&i2c->dev, id->name, &ad5593r_rw_ops);
 }
 
-static int ad5593r_i2c_remove(struct i2c_client *i2c)
+static void ad5593r_i2c_remove(struct i2c_client *i2c)
 {
-	return ad5592r_remove(&i2c->dev);
+	ad5592r_remove(&i2c->dev);
 }
 
 static const struct i2c_device_id ad5593r_i2c_ids[] = {
@@ -124,8 +135,8 @@ MODULE_DEVICE_TABLE(acpi, ad5593r_acpi_match);
 static struct i2c_driver ad5593r_driver = {
 	.driver = {
 		.name = "ad5593r",
-		.of_match_table = of_match_ptr(ad5593r_of_match),
-		.acpi_match_table = ACPI_PTR(ad5593r_acpi_match),
+		.of_match_table = ad5593r_of_match,
+		.acpi_match_table = ad5593r_acpi_match,
 	},
 	.probe = ad5593r_i2c_probe,
 	.remove = ad5593r_i2c_remove,
@@ -134,5 +145,6 @@ static struct i2c_driver ad5593r_driver = {
 module_i2c_driver(ad5593r_driver);
 
 MODULE_AUTHOR("Paul Cercueil <paul.cercueil@analog.com>");
-MODULE_DESCRIPTION("Analog Devices AD5592R multi-channel converters");
+MODULE_DESCRIPTION("Analog Devices AD5593R multi-channel converters");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_AD5592R);

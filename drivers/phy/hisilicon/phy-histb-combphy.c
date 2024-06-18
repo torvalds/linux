@@ -13,8 +13,9 @@
 #include <linux/kernel.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/phy/phy.h>
+#include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <dt-bindings/phy/phy.h>
@@ -162,7 +163,7 @@ static const struct phy_ops histb_combphy_ops = {
 };
 
 static struct phy *histb_combphy_xlate(struct device *dev,
-				       struct of_phandle_args *args)
+				       const struct of_phandle_args *args)
 {
 	struct histb_combphy_priv *priv = dev_get_drvdata(dev);
 	struct histb_combphy_mode *mode = &priv->mode;
@@ -195,7 +196,6 @@ static int histb_combphy_probe(struct platform_device *pdev)
 	struct histb_combphy_priv *priv;
 	struct device_node *np = dev->of_node;
 	struct histb_combphy_mode *mode;
-	struct resource *res;
 	u32 vals[3];
 	int ret;
 
@@ -203,8 +203,7 @@ static int histb_combphy_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->mmio = devm_ioremap_resource(dev, res);
+	priv->mmio = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->mmio)) {
 		ret = PTR_ERR(priv->mmio);
 		return ret;

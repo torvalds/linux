@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/* -*- mode: c; c-basic-offset: 8 -*- */
 
 /* PARISC LASI driver for the 53c700 chip
  *
@@ -31,7 +30,6 @@
 #include <linux/slab.h>
 
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/irq.h>
 #include <asm/hardware.h>
 #include <asm/parisc-device.h>
@@ -98,7 +96,7 @@ lasi700_probe(struct parisc_device *dev)
 
 	hostdata->dev = &dev->dev;
 	dma_set_mask(&dev->dev, DMA_BIT_MASK(32));
-	hostdata->base = ioremap_nocache(base, 0x100);
+	hostdata->base = ioremap(base, 0x100);
 	hostdata->differential = 0;
 
 	if (dev->id.sversion == LASI_700_SVERSION) {
@@ -136,7 +134,7 @@ lasi700_probe(struct parisc_device *dev)
 	return -ENODEV;
 }
 
-static int __exit
+static void __exit
 lasi700_driver_remove(struct parisc_device *dev)
 {
 	struct Scsi_Host *host = dev_get_drvdata(&dev->dev);
@@ -148,8 +146,6 @@ lasi700_driver_remove(struct parisc_device *dev)
 	free_irq(host->irq, host);
 	iounmap(hostdata->base);
 	kfree(hostdata);
-
-	return 0;
 }
 
 static struct parisc_driver lasi700_driver __refdata = {

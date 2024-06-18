@@ -1,0 +1,90 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/power/supply/ti,lp8727.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI/National Semiconductor LP8727 Charger
+
+maintainers:
+  - Sebastian Reichel <sre@kernel.org>
+
+allOf:
+  - $ref: power-supply.yaml#
+
+properties:
+  compatible:
+    const: ti,lp8727
+
+  reg:
+    const: 0x27
+
+  interrupts:
+    maxItems: 1
+
+  debounce-ms:
+    description: interrupt debounce time in ms
+
+patternProperties:
+  '^(ac|usb)$':
+    type: object
+    additionalProperties: false
+    description: USB/AC charging parameters
+    properties:
+      charger-type:
+        enum:
+          - ac
+          - usb
+
+      eoc-level:
+        $ref: /schemas/types.yaml#/definitions/uint8
+        minimum: 0
+        maximum: 6
+        description: |
+          End of Charge Percentage with the following mapping:
+          0 = 5%, 1 = 10%, 2 = 16%, 3 = 20%, 4 = 25%, 5 = 33%, 6 = 50%
+
+      charging-current:
+        $ref: /schemas/types.yaml#/definitions/uint8
+        minimum: 0
+        maximum: 9
+        description: |
+          Charging current with the following mapping:
+          0 = 90mA, 1 = 100mA, 2 = 400mA, 3 = 450mA, 4 = 500mA, 5 = 600mA,
+          6 = 700mA, 7 = 800mA, 8 = 900mA, 9 = 1000mA
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      lp8727: charger@27 {
+        compatible = "ti,lp8727";
+        reg = <0x27>;
+        interrupt-parent = <&gpio5>;
+        interrupts = <6 IRQ_TYPE_EDGE_FALLING>;
+        debounce-ms = <300>;
+
+        /* AC charger: 5% EOC and 500mA charging current */
+        ac {
+          charger-type = "ac";
+          eoc-level = /bits/ 8 <0>;
+          charging-current = /bits/ 8 <4>;
+        };
+
+        /* USB charger: 10% EOC and 400mA charging current */
+        usb {
+          charger-type = "usb";
+          eoc-level = /bits/ 8 <1>;
+          charging-current = /bits/ 8 <2>;
+        };
+      };
+    };

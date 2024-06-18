@@ -184,7 +184,7 @@ static int at91_rtc_readalarm(struct device *dev, struct rtc_wkalrm *alrm)
 		return -EILSEQ;
 
 	memset(alrm, 0, sizeof(*alrm));
-	if (alarm != ALARM_DISABLED && offset != 0) {
+	if (alarm != ALARM_DISABLED) {
 		rtc_time64_to_tm(offset + alarm, tm);
 
 		dev_dbg(dev, "%s: %ptR\n", __func__, tm);
@@ -334,7 +334,6 @@ static const struct rtc_class_ops at91_rtc_ops = {
  */
 static int at91_rtc_probe(struct platform_device *pdev)
 {
-	struct resource	*r;
 	struct sam9_rtc	*rtc;
 	int		ret, irq;
 	u32		mr;
@@ -358,8 +357,7 @@ static int at91_rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rtc);
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	rtc->rtt = devm_ioremap_resource(&pdev->dev, r);
+	rtc->rtt = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rtc->rtt))
 		return PTR_ERR(rtc->rtt);
 
@@ -433,7 +431,7 @@ static int at91_rtc_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "%s: SET TIME!\n",
 			 dev_name(&rtc->rtcdev->dev));
 
-	return rtc_register_device(rtc->rtcdev);
+	return devm_rtc_register_device(rtc->rtcdev);
 
 err_clk:
 	clk_disable_unprepare(rtc->sclk);
@@ -444,7 +442,7 @@ err_clk:
 /*
  * Disable and remove the RTC driver
  */
-static int at91_rtc_remove(struct platform_device *pdev)
+static void at91_rtc_remove(struct platform_device *pdev)
 {
 	struct sam9_rtc	*rtc = platform_get_drvdata(pdev);
 	u32		mr = rtt_readl(rtc, MR);
@@ -453,8 +451,6 @@ static int at91_rtc_remove(struct platform_device *pdev)
 	rtt_writel(rtc, MR, mr & ~(AT91_RTT_ALMIEN | AT91_RTT_RTTINCIEN));
 
 	clk_disable_unprepare(rtc->sclk);
-
-	return 0;
 }
 
 static void at91_rtc_shutdown(struct platform_device *pdev)
@@ -533,12 +529,12 @@ MODULE_DEVICE_TABLE(of, at91_rtc_dt_ids);
 
 static struct platform_driver at91_rtc_driver = {
 	.probe		= at91_rtc_probe,
-	.remove		= at91_rtc_remove,
+	.remove_new	= at91_rtc_remove,
 	.shutdown	= at91_rtc_shutdown,
 	.driver		= {
 		.name	= "rtc-at91sam9",
 		.pm	= &at91_rtc_pm_ops,
-		.of_match_table = of_match_ptr(at91_rtc_dt_ids),
+		.of_match_table = at91_rtc_dt_ids,
 	},
 };
 

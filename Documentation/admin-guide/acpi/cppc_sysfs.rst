@@ -4,11 +4,13 @@
 Collaborative Processor Performance Control (CPPC)
 ==================================================
 
+.. _cppc_sysfs:
+
 CPPC
 ====
 
 CPPC defined in the ACPI spec describes a mechanism for the OS to manage the
-performance of a logical processor on a contigious and abstract performance
+performance of a logical processor on a contiguous and abstract performance
 scale. CPPC exposes a set of registers to describe abstract performance scale,
 to request performance levels and to measure per-cpu delivered performance.
 
@@ -45,7 +47,7 @@ for each cpu X::
 * lowest_freq : CPU frequency corresponding to lowest_perf (in MHz).
 * nominal_freq : CPU frequency corresponding to nominal_perf (in MHz).
   The above frequencies should only be used to report processor performance in
-  freqency instead of abstract scale. These values should not be used for any
+  frequency instead of abstract scale. These values should not be used for any
   functional decisions.
 
 * feedback_ctrs : Includes both Reference and delivered performance counter.
@@ -73,4 +75,4 @@ taking two different snapshots of feedback counters at time T1 and T2.
   delivered_counter_delta = fbc_t2[del] - fbc_t1[del]
   reference_counter_delta = fbc_t2[ref] - fbc_t1[ref]
 
-  delivered_perf = (refernce_perf x delivered_counter_delta) / reference_counter_delta
+  delivered_perf = (reference_perf x delivered_counter_delta) / reference_counter_delta

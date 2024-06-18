@@ -26,6 +26,36 @@ config SND_RAWMIDI
 	tristate
 	select SND_SEQ_DEVICE if SND_SEQUENCER != n
 
+config SND_UMP
+	tristate
+	select SND_RAWMIDI
+
+config SND_UMP_LEGACY_RAWMIDI
+	bool "Legacy raw MIDI support for UMP streams"
+	depends on SND_UMP
+	help
+	  This option enables the legacy raw MIDI support for UMP streams.
+	  When this option is set, an additional rawmidi device for the
+	  legacy MIDI 1.0 byte streams is created for each UMP Endpoint.
+	  The device contains 16 substreams corresponding to UMP groups.
+
+config SND_CORE_TEST
+	tristate "Sound core KUnit test"
+	depends on KUNIT
+	select SND_PCM
+	default KUNIT_ALL_TESTS
+	help
+	  This options enables the sound core functions KUnit test.
+
+	  KUnit tests run during boot and output the results to the debug
+	  log in TAP format (https://testanything.org/). Only useful for
+	  kernel devs running KUnit test harness and are not for inclusion
+	  into a production build.
+
+	  For more information on KUnit and unit tests in general, refer
+	  to the KUnit documentation in Documentation/dev-tools/kunit/.
+
+
 config SND_COMPRESS_OFFLOAD
 	tristate
 
@@ -72,11 +102,11 @@ config SND_PCM_OSS
 config SND_PCM_OSS_PLUGINS
 	bool "OSS PCM (digital audio) API - Include plugin system"
 	depends on SND_PCM_OSS
-        default y
+	default y
 	help
-          If you disable this option, the ALSA's OSS PCM API will not
-          support conversion of channels, formats and rates. It will
-          behave like most of new OSS/Free drivers in 2.4/2.6 kernels.
+	  If you disable this option, the ALSA's OSS PCM API will not
+	  support conversion of channels, formats and rates. It will
+	  behave like most of new OSS/Free drivers in 2.4/2.6 kernels.
 
 config SND_PCM_TIMER
 	bool "PCM timer interface" if EXPERT
@@ -84,7 +114,7 @@ config SND_PCM_TIMER
 	help
 	  If you disable this option, pcm timer will be unavailable, so
 	  those stubs that use pcm timer (e.g. dmix, dsnoop & co) may work
-	  incorrectlly.
+	  incorrectly.
 
 	  For some embedded devices, we may disable it to reduce memory
 	  footprint, about 20KB on x86_64 platform.
@@ -128,13 +158,13 @@ config SND_SUPPORT_OLD_API
 	  or older).
 
 config SND_PROC_FS
-        bool "Sound Proc FS Support" if EXPERT
-        depends on PROC_FS
-        default y
-        help
-          Say 'N' to disable Sound proc FS, which may reduce code size about
-          9KB on x86_64 platform.
-          If unsure say Y.
+	bool "Sound Proc FS Support" if EXPERT
+	depends on PROC_FS
+	default y
+	help
+	  Say 'N' to disable Sound proc FS, which may reduce code size about
+	  9KB on x86_64 platform.
+	  If unsure say Y.
 
 config SND_VERBOSE_PROCFS
 	bool "Verbose procfs contents"
@@ -142,8 +172,8 @@ config SND_VERBOSE_PROCFS
 	default y
 	help
 	  Say Y here to include code for verbose procfs contents (provides
-          useful information to developers when a problem occurs).  On the
-          other side, it makes the ALSA subsystem larger.
+	  useful information to developers when a problem occurs).  On the
+	  other side, it makes the ALSA subsystem larger.
 
 config SND_VERBOSE_PRINTK
 	bool "Verbose printk"
@@ -153,6 +183,16 @@ config SND_VERBOSE_PRINTK
 	  printed messages.
 
 	  You don't need this unless you're debugging ALSA.
+
+config SND_CTL_FAST_LOOKUP
+	bool "Fast lookup of control elements" if EXPERT
+	default y
+	select XARRAY_MULTI
+	help
+	  This option enables the faster lookup of control elements.
+	  It will consume more memory because of the additional Xarray.
+	  If you want to choose the memory footprint over the performance
+	  inevitably, turn this off.
 
 config SND_DEBUG
 	bool "Debug"
@@ -164,7 +204,7 @@ config SND_DEBUG_VERBOSE
 	depends on SND_DEBUG
 	help
 	  Say Y here to enable extra-verbose debugging messages.
-	  
+
 	  Let me repeat: it enables EXTRA-VERBOSE DEBUGGING messages.
 	  So, say Y only if you are ready to be annoyed.
 
@@ -178,11 +218,49 @@ config SND_PCM_XRUN_DEBUG
 	  sound clicking when system is loaded, it may help to determine
 	  the process or driver which causes the scheduling gaps.
 
+config SND_CTL_INPUT_VALIDATION
+	bool "Validate input data to control API"
+	help
+	  Say Y to enable the additional validation for the input data to
+	  each control element, including the value range checks.
+	  An error is returned from ALSA core for invalid inputs without
+	  passing to the driver.  This is a kind of hardening for drivers
+	  that have no proper error checks, at the cost of a slight
+	  performance overhead.
+
+config SND_CTL_DEBUG
+	bool "Enable debugging feature for control API"
+	depends on SND_DEBUG
+	help
+	  Say Y to enable the debugging feature for ALSA control API.
+	  It performs the additional sanity-checks for each control element
+	  read access, such as whether the values returned from the driver
+	  are in the proper ranges or the check of the invalid access at
+	  out-of-array areas.  The error is printed when the driver gives
+	  such unexpected values.
+	  When you develop a driver that deals with control elements, it's
+	  strongly recommended to try this one once and verify whether you see
+	  any relevant errors or not.
+
+config SND_JACK_INJECTION_DEBUG
+	bool "Sound jack injection interface via debugfs"
+	depends on SND_JACK && SND_DEBUG && DEBUG_FS
+	help
+	  This option can be used to enable or disable sound jack
+	  software injection.
+	  Say Y if you are debugging via jack injection interface.
+	  If unsure select "N".
+
 config SND_VMASTER
 	bool
 
 config SND_DMA_SGBUF
 	def_bool y
 	depends on X86
+
+config SND_CTL_LED
+	tristate
+	select NEW_LEDS if SND_CTL_LED
+	select LEDS_TRIGGERS if SND_CTL_LED
 
 source "sound/core/seq/Kconfig"

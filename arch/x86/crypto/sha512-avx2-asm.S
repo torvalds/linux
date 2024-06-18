@@ -49,8 +49,8 @@
 # This code schedules 1 blocks at a time, with 4 lanes per block
 ########################################################################
 
-#ifdef CONFIG_AS_AVX2
 #include <linux/linkage.h>
+#include <linux/cfi_types.h>
 
 .text
 
@@ -103,17 +103,13 @@ SRND_SIZE = 1*8
 INP_SIZE = 1*8
 INPEND_SIZE = 1*8
 CTX_SIZE = 1*8
-RSPSAVE_SIZE = 1*8
-GPRSAVE_SIZE = 5*8
 
 frame_XFER = 0
 frame_SRND = frame_XFER + XFER_SIZE
 frame_INP = frame_SRND + SRND_SIZE
 frame_INPEND = frame_INP + INP_SIZE
 frame_CTX = frame_INPEND + INPEND_SIZE
-frame_RSPSAVE = frame_CTX + CTX_SIZE
-frame_GPRSAVE = frame_RSPSAVE + RSPSAVE_SIZE
-frame_size = frame_GPRSAVE + GPRSAVE_SIZE
+frame_size = frame_CTX + CTX_SIZE
 
 ## assume buffers not aligned
 #define	VMOVDQ vmovdqu
@@ -563,28 +559,29 @@ frame_size = frame_GPRSAVE + GPRSAVE_SIZE
 .endm
 
 ########################################################################
-# void sha512_transform_rorx(void* D, const void* M, uint64_t L)#
-# Purpose: Updates the SHA512 digest stored at D with the message stored in M.
-# The size of the message pointed to by M must be an integer multiple of SHA512
-#   message blocks.
-# L is the message length in SHA512 blocks
+# void sha512_transform_rorx(sha512_state *state, const u8 *data, int blocks)
+# Purpose: Updates the SHA512 digest stored at "state" with the message
+# stored in "data".
+# The size of the message pointed to by "data" must be an integer multiple
+# of SHA512 message blocks.
+# "blocks" is the message length in SHA512 blocks
 ########################################################################
-ENTRY(sha512_transform_rorx)
+SYM_TYPED_FUNC_START(sha512_transform_rorx)
+	# Save GPRs
+	push	%rbx
+	push	%r12
+	push	%r13
+	push	%r14
+	push	%r15
+
 	# Allocate Stack Space
-	mov	%rsp, %rax
+	push	%rbp
+	mov	%rsp, %rbp
 	sub	$frame_size, %rsp
 	and	$~(0x20 - 1), %rsp
-	mov	%rax, frame_RSPSAVE(%rsp)
-
-	# Save GPRs
-	mov	%rbx, 8*0+frame_GPRSAVE(%rsp)
-	mov	%r12, 8*1+frame_GPRSAVE(%rsp)
-	mov	%r13, 8*2+frame_GPRSAVE(%rsp)
-	mov	%r14, 8*3+frame_GPRSAVE(%rsp)
-	mov	%r15, 8*4+frame_GPRSAVE(%rsp)
 
 	shl	$7, NUM_BLKS	# convert to bytes
-	jz	done_hash
+	jz	.Ldone_hash
 	add	INP, NUM_BLKS	# pointer to end of data
 	mov	NUM_BLKS, frame_INPEND(%rsp)
 
@@ -603,7 +600,7 @@ ENTRY(sha512_transform_rorx)
 
 	vmovdqa	PSHUFFLE_BYTE_FLIP_MASK(%rip), BYTE_FLIP_MASK
 
-loop0:
+.Lloop0:
 	lea	K512(%rip), TBL
 
 	## byte swap first 16 dwords
@@ -618,7 +615,7 @@ loop0:
 	movq	$4, frame_SRND(%rsp)
 
 .align 16
-loop1:
+.Lloop1:
 	vpaddq	(TBL), Y_0, XFER
 	vmovdqa XFER, frame_XFER(%rsp)
 	FOUR_ROUNDS_AND_SCHED
@@ -637,10 +634,10 @@ loop1:
 	FOUR_ROUNDS_AND_SCHED
 
 	subq	$1, frame_SRND(%rsp)
-	jne	loop1
+	jne	.Lloop1
 
 	movq	$2, frame_SRND(%rsp)
-loop2:
+.Lloop2:
 	vpaddq	(TBL), Y_0, XFER
 	vmovdqa XFER, frame_XFER(%rsp)
 	DO_4ROUNDS
@@ -653,7 +650,7 @@ loop2:
 	vmovdqa	Y_3, Y_1
 
 	subq	$1, frame_SRND(%rsp)
-	jne	loop2
+	jne	.Lloop2
 
 	mov	frame_CTX(%rsp), CTX2
 	addm	8*0(CTX2), a
@@ -668,21 +665,24 @@ loop2:
 	mov	frame_INP(%rsp), INP
 	add	$128, INP
 	cmp	frame_INPEND(%rsp), INP
-	jne	loop0
+	jne	.Lloop0
 
-done_hash:
-
-# Restore GPRs
-	mov	8*0+frame_GPRSAVE(%rsp), %rbx
-	mov	8*1+frame_GPRSAVE(%rsp), %r12
-	mov	8*2+frame_GPRSAVE(%rsp), %r13
-	mov	8*3+frame_GPRSAVE(%rsp), %r14
-	mov	8*4+frame_GPRSAVE(%rsp), %r15
+.Ldone_hash:
 
 	# Restore Stack Pointer
-	mov	frame_RSPSAVE(%rsp), %rsp
-	ret
-ENDPROC(sha512_transform_rorx)
+	mov	%rbp, %rsp
+	pop	%rbp
+
+	# Restore GPRs
+	pop	%r15
+	pop	%r14
+	pop	%r13
+	pop	%r12
+	pop	%rbx
+
+	vzeroupper
+	RET
+SYM_FUNC_END(sha512_transform_rorx)
 
 ########################################################################
 ### Binary Data
@@ -748,5 +748,3 @@ PSHUFFLE_BYTE_FLIP_MASK:
 MASK_YMM_LO:
 	.octa 0x00000000000000000000000000000000
 	.octa 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
-
-#endif

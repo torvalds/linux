@@ -42,6 +42,7 @@ enum clk_ids {
 	CLK_S2,
 	CLK_S3,
 	CLK_SDSRC,
+	CLK_RPCSRC,
 	CLK_RINT,
 	CLK_OCO,
 
@@ -70,11 +71,14 @@ static const struct cpg_core_clk r8a77995_core_clks[] __initconst = {
 	DEF_FIXED(".s3",       CLK_S3,             CLK_PLL1,       6, 1),
 	DEF_FIXED(".sdsrc",    CLK_SDSRC,          CLK_PLL1,       2, 1),
 
+	DEF_FIXED_RPCSRC_D3(".rpcsrc", CLK_RPCSRC, CLK_PLL0, CLK_PLL1),
+
 	DEF_DIV6_RO(".r",      CLK_RINT,           CLK_EXTAL, CPG_RCKCR, 32),
 
 	DEF_RATE(".oco",       CLK_OCO,            8 * 1000 * 1000),
 
 	/* Core Clock Outputs */
+	DEF_FIXED("za2",       R8A77995_CLK_ZA2,   CLK_PLL0D3,     2, 1),
 	DEF_FIXED("z2",        R8A77995_CLK_Z2,    CLK_PLL0D3,     1, 1),
 	DEF_FIXED("ztr",       R8A77995_CLK_ZTR,   CLK_PLL1,       6, 1),
 	DEF_FIXED("zt",        R8A77995_CLK_ZT,    CLK_PLL1,       4, 1),
@@ -91,6 +95,7 @@ static const struct cpg_core_clk r8a77995_core_clks[] __initconst = {
 	DEF_FIXED("s3d4",      R8A77995_CLK_S3D4,  CLK_S3,         4, 1),
 
 	DEF_FIXED("cl",        R8A77995_CLK_CL,    CLK_PLL1,      48, 1),
+	DEF_FIXED("cr",        R8A77995_CLK_CR,    CLK_PLL1D2,     2, 1),
 	DEF_FIXED("cp",        R8A77995_CLK_CP,    CLK_EXTAL,      2, 1),
 	DEF_FIXED("cpex",      R8A77995_CLK_CPEX,  CLK_EXTAL,      4, 1),
 
@@ -101,7 +106,11 @@ static const struct cpg_core_clk r8a77995_core_clks[] __initconst = {
 	DEF_GEN3_PE("s3d2c",   R8A77995_CLK_S3D2C, CLK_S3, 2, CLK_PE, 2),
 	DEF_GEN3_PE("s3d4c",   R8A77995_CLK_S3D4C, CLK_S3, 4, CLK_PE, 4),
 
-	DEF_GEN3_SD("sd0",     R8A77995_CLK_SD0,   CLK_SDSRC,     0x268),
+	DEF_GEN3_SDH("sd0h",   R8A77995_CLK_SD0H,  CLK_SDSRC,         0x268),
+	DEF_GEN3_SD("sd0",     R8A77995_CLK_SD0,   R8A77995_CLK_SD0H, 0x268),
+
+	DEF_BASE("rpc",        R8A77995_CLK_RPC,   CLK_TYPE_GEN3_RPC,   CLK_RPCSRC),
+	DEF_BASE("rpcd2",      R8A77995_CLK_RPCD2, CLK_TYPE_GEN3_RPCD2, R8A77995_CLK_RPC),
 
 	DEF_DIV6P1("canfd",    R8A77995_CLK_CANFD, CLK_PLL0D3,    0x244),
 	DEF_DIV6P1("mso",      R8A77995_CLK_MSO,   CLK_PLL1D2,    0x014),
@@ -110,6 +119,11 @@ static const struct cpg_core_clk r8a77995_core_clks[] __initconst = {
 };
 
 static const struct mssr_mod_clk r8a77995_mod_clks[] __initconst = {
+	DEF_MOD("tmu4",			 121,	R8A77995_CLK_S1D4C),
+	DEF_MOD("tmu3",			 122,	R8A77995_CLK_S3D2C),
+	DEF_MOD("tmu2",			 123,	R8A77995_CLK_S3D2C),
+	DEF_MOD("tmu1",			 124,	R8A77995_CLK_S3D2C),
+	DEF_MOD("tmu0",			 125,	R8A77995_CLK_CP),
 	DEF_MOD("scif5",		 202,	R8A77995_CLK_S3D4C),
 	DEF_MOD("scif4",		 203,	R8A77995_CLK_S3D4C),
 	DEF_MOD("scif3",		 204,	R8A77995_CLK_S3D4C),
@@ -122,6 +136,7 @@ static const struct mssr_mod_clk r8a77995_mod_clks[] __initconst = {
 	DEF_MOD("sys-dmac2",		 217,	R8A77995_CLK_S3D1),
 	DEF_MOD("sys-dmac1",		 218,	R8A77995_CLK_S3D1),
 	DEF_MOD("sys-dmac0",		 219,	R8A77995_CLK_S3D1),
+	DEF_MOD("sceg-pub",		 229,	R8A77995_CLK_CR),
 	DEF_MOD("cmt3",			 300,	R8A77995_CLK_R),
 	DEF_MOD("cmt2",			 301,	R8A77995_CLK_R),
 	DEF_MOD("cmt1",			 302,	R8A77995_CLK_R),
@@ -151,7 +166,8 @@ static const struct mssr_mod_clk r8a77995_mod_clks[] __initconst = {
 	DEF_MOD("du1",			 723,	R8A77995_CLK_S1D1),
 	DEF_MOD("du0",			 724,	R8A77995_CLK_S1D1),
 	DEF_MOD("lvds",			 727,	R8A77995_CLK_S2D1),
-	DEF_MOD("vin4",			 807,	R8A77995_CLK_S1D2),
+	DEF_MOD("mlp",			 802,	R8A77995_CLK_S2D1),
+	DEF_MOD("vin4",			 807,	R8A77995_CLK_S3D1),
 	DEF_MOD("etheravb",		 812,	R8A77995_CLK_S3D2),
 	DEF_MOD("imr0",			 823,	R8A77995_CLK_S1D2),
 	DEF_MOD("gpio6",		 906,	R8A77995_CLK_S3D4),
@@ -164,6 +180,8 @@ static const struct mssr_mod_clk r8a77995_mod_clks[] __initconst = {
 	DEF_MOD("can-fd",		 914,	R8A77995_CLK_S3D2),
 	DEF_MOD("can-if1",		 915,	R8A77995_CLK_S3D4),
 	DEF_MOD("can-if0",		 916,	R8A77995_CLK_S3D4),
+	DEF_MOD("rpc-if",		 917,	R8A77995_CLK_RPCD2),
+	DEF_MOD("adg",			 922,	R8A77995_CLK_ZA2),
 	DEF_MOD("i2c3",			 928,	R8A77995_CLK_S3D2),
 	DEF_MOD("i2c2",			 929,	R8A77995_CLK_S3D2),
 	DEF_MOD("i2c1",			 930,	R8A77995_CLK_S3D2),
@@ -181,9 +199,9 @@ static const struct mssr_mod_clk r8a77995_mod_clks[] __initconst = {
 };
 
 static const unsigned int r8a77995_crit_mod_clks[] __initconst = {
+	MOD_CLK_ID(402),	/* RWDT */
 	MOD_CLK_ID(408),	/* INTC-AP (GIC) */
 };
-
 
 /*
  * CPG Clock Data

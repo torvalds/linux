@@ -10,11 +10,11 @@
 #include "ccu_common.h"
 
 /**
- * sunxi_ccu_set_mmc_timing_mode: Configure the MMC clock timing mode
+ * sunxi_ccu_set_mmc_timing_mode - Configure the MMC clock timing mode
  * @clk: clock to be configured
  * @new_mode: true for new timing mode introduced in A83T and later
  *
- * Returns 0 on success, -ENOTSUPP if the clock does not support
+ * Return: %0 on success, %-ENOTSUPP if the clock does not support
  * switching modes.
  */
 int sunxi_ccu_set_mmc_timing_mode(struct clk *clk, bool new_mode)
@@ -43,11 +43,11 @@ int sunxi_ccu_set_mmc_timing_mode(struct clk *clk, bool new_mode)
 EXPORT_SYMBOL_GPL(sunxi_ccu_set_mmc_timing_mode);
 
 /**
- * sunxi_ccu_set_mmc_timing_mode: Get the current MMC clock timing mode
+ * sunxi_ccu_get_mmc_timing_mode: Get the current MMC clock timing mode
  * @clk: clock to query
  *
- * Returns 0 if the clock is in old timing mode, > 0 if it is in
- * new timing mode, and -ENOTSUPP if the clock does not support
+ * Return: %0 if the clock is in old timing mode, > %0 if it is in
+ * new timing mode, and %-ENOTSUPP if the clock does not support
  * this function.
  */
 int sunxi_ccu_get_mmc_timing_mode(struct clk *clk)

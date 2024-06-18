@@ -51,7 +51,7 @@ struct nfs4_file_layout_dsaddr {
 	u32				stripe_count;
 	u8				*stripe_indices;
 	u32				ds_num;
-	struct nfs4_pnfs_ds		*ds_list[1];
+	struct nfs4_pnfs_ds		*ds_list[] __counted_by(ds_num);
 };
 
 struct nfs4_filelayout_segment {

@@ -23,9 +23,10 @@ static u8 rts5229_get_ic_version(struct rtsx_pcr *pcr)
 
 static void rts5229_fetch_vendor_settings(struct rtsx_pcr *pcr)
 {
+	struct pci_dev *pdev = pcr->pci;
 	u32 reg;
 
-	rtsx_pci_read_config_dword(pcr, PCR_SETTING_REG1, &reg);
+	pci_read_config_dword(pdev, PCR_SETTING_REG1, &reg);
 	pcr_dbg(pcr, "Cfg 0x%x: 0x%x\n", PCR_SETTING_REG1, reg);
 
 	if (!rtsx_vendor_setting_valid(reg))
@@ -37,13 +38,13 @@ static void rts5229_fetch_vendor_settings(struct rtsx_pcr *pcr)
 	pcr->card_drive_sel &= 0x3F;
 	pcr->card_drive_sel |= rtsx_reg_to_card_drive_sel(reg);
 
-	rtsx_pci_read_config_dword(pcr, PCR_SETTING_REG2, &reg);
+	pci_read_config_dword(pdev, PCR_SETTING_REG2, &reg);
 	pcr_dbg(pcr, "Cfg 0x%x: 0x%x\n", PCR_SETTING_REG2, reg);
 	pcr->sd30_drive_sel_3v3 =
 		map_sd_drive(rtsx_reg_to_sd30_drive_sel_3v3(reg));
 }
 
-static void rts5229_force_power_down(struct rtsx_pcr *pcr, u8 pm_state)
+static void rts5229_force_power_down(struct rtsx_pcr *pcr, u8 pm_state, bool runtime)
 {
 	rtsx_pci_write_register(pcr, FPDCTL, 0x03, 0x03);
 }
@@ -245,6 +246,7 @@ void rts5229_init_params(struct rtsx_pcr *pcr)
 	pcr->sd30_drive_sel_1v8 = DRIVER_TYPE_B;
 	pcr->sd30_drive_sel_3v3 = DRIVER_TYPE_D;
 	pcr->aspm_en = ASPM_L1_EN;
+	pcr->aspm_mode = ASPM_MODE_CFG;
 	pcr->tx_initial_phase = SET_CLOCK_PHASE(27, 27, 15);
 	pcr->rx_initial_phase = SET_CLOCK_PHASE(30, 6, 6);
 

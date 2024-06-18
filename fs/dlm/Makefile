@@ -9,7 +9,6 @@ dlm-y :=			ast.o \
 				member.o \
 				memory.o \
 				midcomms.o \
-				netlink.o \
 				lowcomms.o \
 				plock.o \
 				rcom.o \

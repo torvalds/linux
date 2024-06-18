@@ -39,7 +39,10 @@ struct proc_dir_entry {
 	spinlock_t pde_unload_lock;
 	struct completion *pde_unload_completion;
 	const struct inode_operations *proc_iops;
-	const struct file_operations *proc_fops;
+	union {
+		const struct proc_ops *proc_ops;
+		const struct file_operations *proc_dir_ops;
+	};
 	const struct dentry_operations *proc_dops;
 	union {
 		const struct seq_operations *seq_ops;
@@ -58,6 +61,7 @@ struct proc_dir_entry {
 	struct rb_node subdir_node;
 	char *name;
 	umode_t mode;
+	u8 flags;
 	u8 namelen;
 	char inline_name[];
 } __randomize_layout;
@@ -70,6 +74,16 @@ struct proc_dir_entry {
 	0)
 #define SIZEOF_PDE_INLINE_NAME (SIZEOF_PDE - sizeof(struct proc_dir_entry))
 
+static inline bool pde_is_permanent(const struct proc_dir_entry *pde)
+{
+	return pde->flags & PROC_ENTRY_PERMANENT;
+}
+
+static inline void pde_make_permanent(struct proc_dir_entry *pde)
+{
+	pde->flags |= PROC_ENTRY_PERMANENT;
+}
+
 extern struct kmem_cache *proc_dir_entry_cache;
 void pde_free(struct proc_dir_entry *pde);
 
@@ -78,7 +92,7 @@ union proc_op {
 	int (*proc_show)(struct seq_file *m,
 		struct pid_namespace *ns, struct pid *pid,
 		struct task_struct *task);
-	const char *lsm;
+	int lsmid;
 };
 
 struct proc_inode {
@@ -88,7 +102,7 @@ struct proc_inode {
 	struct proc_dir_entry *pde;
 	struct ctl_table_header *sysctl;
 	struct ctl_table *sysctl_entry;
-	struct hlist_node sysctl_inodes;
+	struct hlist_node sibling_inodes;
 	const struct proc_ns_operations *ns_ops;
 	struct inode vfs_inode;
 } __randomize_layout;
@@ -104,11 +118,6 @@ static inline struct proc_inode *PROC_I(const struct inode *inode)
 static inline struct proc_dir_entry *PDE(const struct inode *inode)
 {
 	return PROC_I(inode)->pde;
-}
-
-static inline void *__PDE_DATA(const struct inode *inode)
-{
-	return PDE(inode)->data;
 }
 
 static inline struct pid *proc_pid(const struct inode *inode)
@@ -153,8 +162,11 @@ extern int proc_pid_statm(struct seq_file *, struct pid_namespace *,
  * base.c
  */
 extern const struct dentry_operations pid_dentry_operations;
-extern int pid_getattr(const struct path *, struct kstat *, u32, unsigned int);
-extern int proc_setattr(struct dentry *, struct iattr *);
+extern int pid_getattr(struct mnt_idmap *, const struct path *,
+		       struct kstat *, u32, unsigned int);
+extern int proc_setattr(struct mnt_idmap *, struct dentry *,
+			struct iattr *);
+extern void proc_pid_evict_inode(struct proc_inode *);
 extern struct inode *proc_pid_make_inode(struct super_block *, struct task_struct *, umode_t);
 extern void pid_update_inode(struct task_struct *, struct inode *);
 extern int pid_delete_dentry(const struct dentry *);
@@ -180,10 +192,9 @@ struct dentry *proc_lookup_de(struct inode *, struct dentry *, struct proc_dir_e
 extern int proc_readdir(struct file *, struct dir_context *);
 int proc_readdir_de(struct file *, struct dir_context *, struct proc_dir_entry *);
 
-static inline struct proc_dir_entry *pde_get(struct proc_dir_entry *pde)
+static inline void pde_get(struct proc_dir_entry *pde)
 {
 	refcount_inc(&pde->refcnt);
-	return pde;
 }
 extern void pde_put(struct proc_dir_entry *);
 
@@ -197,8 +208,8 @@ extern ssize_t proc_simple_write(struct file *, const char __user *, size_t, lof
  * inode.c
  */
 struct pde_opener {
-	struct file *file;
 	struct list_head lh;
+	struct file *file;
 	bool closing;
 	struct completion *c;
 } __randomize_layout;
@@ -207,6 +218,7 @@ extern const struct inode_operations proc_pid_link_inode_operations;
 extern const struct super_operations proc_sops;
 
 void proc_init_kmemcache(void);
+void proc_invalidate_siblings_dcache(struct hlist_head *inodes, spinlock_t *lock);
 void set_proc_pid_nlink(void);
 extern struct inode *proc_get_inode(struct super_block *, struct proc_dir_entry *);
 extern void proc_entry_rundown(struct proc_dir_entry *);
@@ -277,9 +289,7 @@ struct proc_maps_private {
 	struct inode *inode;
 	struct task_struct *task;
 	struct mm_struct *mm;
-#ifdef CONFIG_MMU
-	struct vm_area_struct *tail_vma;
-#endif
+	struct vma_iterator iter;
 #ifdef CONFIG_NUMA
 	struct mempolicy *task_mempolicy;
 #endif
@@ -299,3 +309,10 @@ extern unsigned long task_statm(struct mm_struct *,
 				unsigned long *, unsigned long *,
 				unsigned long *, unsigned long *);
 extern void task_mem(struct seq_file *, struct mm_struct *);
+
+extern const struct dentry_operations proc_net_dentry_ops;
+static inline void pde_force_lookup(struct proc_dir_entry *pde)
+{
+	/* /proc/net/ entries can be changed under us by setns(CLONE_NEWNET) */
+	pde->proc_dops = &proc_net_dentry_ops;
+}

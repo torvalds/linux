@@ -147,6 +147,7 @@ static int axi_i2s_dai_probe(struct snd_soc_dai *dai)
 }
 
 static const struct snd_soc_dai_ops axi_i2s_dai_ops = {
+	.probe = axi_i2s_dai_probe,
 	.startup = axi_i2s_startup,
 	.shutdown = axi_i2s_shutdown,
 	.trigger = axi_i2s_trigger,
@@ -154,13 +155,13 @@ static const struct snd_soc_dai_ops axi_i2s_dai_ops = {
 };
 
 static struct snd_soc_dai_driver axi_i2s_dai = {
-	.probe = axi_i2s_dai_probe,
 	.ops = &axi_i2s_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 };
 
 static const struct snd_soc_component_driver axi_i2s_component = {
 	.name = "axi-i2s",
+	.legacy_dai_naming = 1,
 };
 
 static const struct regmap_config axi_i2s_regmap_config = {
@@ -198,8 +199,7 @@ static int axi_i2s_probe(struct platform_device *pdev)
 
 	axi_i2s_parse_of(i2s, pdev->dev.of_node);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
@@ -274,13 +274,11 @@ err_clk_disable:
 	return ret;
 }
 
-static int axi_i2s_dev_remove(struct platform_device *pdev)
+static void axi_i2s_dev_remove(struct platform_device *pdev)
 {
 	struct axi_i2s *i2s = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(i2s->clk);
-
-	return 0;
 }
 
 static const struct of_device_id axi_i2s_of_match[] = {
@@ -295,7 +293,7 @@ static struct platform_driver axi_i2s_driver = {
 		.of_match_table = axi_i2s_of_match,
 	},
 	.probe = axi_i2s_probe,
-	.remove = axi_i2s_dev_remove,
+	.remove_new = axi_i2s_dev_remove,
 };
 module_platform_driver(axi_i2s_driver);
 

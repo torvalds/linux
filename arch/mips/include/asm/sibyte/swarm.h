@@ -24,11 +24,6 @@
 #define SIBYTE_HAVE_PCMCIA 0
 #define SIBYTE_HAVE_IDE	   0
 #endif
-#ifdef CONFIG_SIBYTE_CRHINE
-#define SIBYTE_BOARD_NAME "BCM91120C (CRhine)"
-#define SIBYTE_HAVE_PCMCIA 0
-#define SIBYTE_HAVE_IDE	   0
-#endif
 
 /* Generic bus chip selects */
 #define LEDS_CS		3

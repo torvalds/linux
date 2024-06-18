@@ -393,7 +393,7 @@ static int parse_slot_config(int slot,
 		}
 		
 		if (p0 + function_len < pos) {
-			printk(KERN_ERR "eisa_enumerator: function %d length mis-match "
+			printk(KERN_ERR "eisa_enumerator: function %d length mismatch "
 			       "got %d, expected %d\n",
 			       num_func, pos-p0, function_len);
 			res=-1;
@@ -407,13 +407,13 @@ static int parse_slot_config(int slot,
 	}
 	
 	if (pos != es->config_data_length) {
-		printk(KERN_ERR "eisa_enumerator: config data length mis-match got %d, expected %d\n",
+		printk(KERN_ERR "eisa_enumerator: config data length mismatch got %d, expected %d\n",
 			pos, es->config_data_length);
 		res=-1;
 	}
 	
 	if (num_func != es->num_functions) {
-		printk(KERN_ERR "eisa_enumerator: number of functions mis-match got %d, expected %d\n",
+		printk(KERN_ERR "eisa_enumerator: number of functions mismatch got %d, expected %d\n",
 			num_func, es->num_functions);
 		res=-2;
 	}
@@ -451,7 +451,7 @@ static int init_slot(int slot, struct eeprom_eisa_slot_info *es)
 		}
 		if (es->eisa_slot_id != id) {
 			print_eisa_id(id_string, id);
-			printk(KERN_ERR "EISA slot %d id mis-match: got %s", 
+			printk(KERN_ERR "EISA slot %d id mismatch: got %s",
 			       slot, id_string);
 			
 			print_eisa_id(id_string, es->eisa_slot_id);

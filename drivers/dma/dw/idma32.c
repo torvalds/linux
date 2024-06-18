@@ -1,15 +1,144 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (C) 2013,2018 Intel Corporation
+// Copyright (C) 2013,2018,2020-2021 Intel Corporation
 
 #include <linux/bitops.h>
 #include <linux/dmaengine.h>
 #include <linux/errno.h>
+#include <linux/io.h>
+#include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 
 #include "internal.h"
 
-static void idma32_initialize_chan(struct dw_dma_chan *dwc)
+#define DMA_CTL_CH(x)			(0x1000 + (x) * 4)
+#define DMA_SRC_ADDR_FILLIN(x)		(0x1100 + (x) * 4)
+#define DMA_DST_ADDR_FILLIN(x)		(0x1200 + (x) * 4)
+#define DMA_XBAR_SEL(x)			(0x1300 + (x) * 4)
+#define DMA_REGACCESS_CHID_CFG		(0x1400)
+
+#define CTL_CH_TRANSFER_MODE_MASK	GENMASK(1, 0)
+#define CTL_CH_TRANSFER_MODE_S2S	0
+#define CTL_CH_TRANSFER_MODE_S2D	1
+#define CTL_CH_TRANSFER_MODE_D2S	2
+#define CTL_CH_TRANSFER_MODE_D2D	3
+#define CTL_CH_RD_RS_MASK		GENMASK(4, 3)
+#define CTL_CH_WR_RS_MASK		GENMASK(6, 5)
+#define CTL_CH_RD_NON_SNOOP_BIT		BIT(8)
+#define CTL_CH_WR_NON_SNOOP_BIT		BIT(9)
+
+#define XBAR_SEL_DEVID_MASK		GENMASK(15, 0)
+#define XBAR_SEL_RX_TX_BIT		BIT(16)
+#define XBAR_SEL_RX_TX_SHIFT		16
+
+#define REGACCESS_CHID_MASK		GENMASK(2, 0)
+
+static unsigned int idma32_get_slave_devfn(struct dw_dma_chan *dwc)
+{
+	struct device *slave = dwc->chan.slave;
+
+	if (!slave || !dev_is_pci(slave))
+		return 0;
+
+	return to_pci_dev(slave)->devfn;
+}
+
+static void idma32_initialize_chan_xbar(struct dw_dma_chan *dwc)
+{
+	struct dw_dma *dw = to_dw_dma(dwc->chan.device);
+	void __iomem *misc = __dw_regs(dw);
+	u32 cfghi = 0, cfglo = 0;
+	u8 dst_id, src_id;
+	u32 value;
+
+	/* DMA Channel ID Configuration register must be programmed first */
+	value = readl(misc + DMA_REGACCESS_CHID_CFG);
+
+	value &= ~REGACCESS_CHID_MASK;
+	value |= dwc->chan.chan_id;
+
+	writel(value, misc + DMA_REGACCESS_CHID_CFG);
+
+	/* Configure channel attributes */
+	value = readl(misc + DMA_CTL_CH(dwc->chan.chan_id));
+
+	value &= ~(CTL_CH_RD_NON_SNOOP_BIT | CTL_CH_WR_NON_SNOOP_BIT);
+	value &= ~(CTL_CH_RD_RS_MASK | CTL_CH_WR_RS_MASK);
+	value &= ~CTL_CH_TRANSFER_MODE_MASK;
+
+	switch (dwc->direction) {
+	case DMA_MEM_TO_DEV:
+		value |= CTL_CH_TRANSFER_MODE_D2S;
+		value |= CTL_CH_WR_NON_SNOOP_BIT;
+		break;
+	case DMA_DEV_TO_MEM:
+		value |= CTL_CH_TRANSFER_MODE_S2D;
+		value |= CTL_CH_RD_NON_SNOOP_BIT;
+		break;
+	default:
+		/*
+		 * Memory-to-Memory and Device-to-Device are ignored for now.
+		 *
+		 * For Memory-to-Memory transfers we would need to set mode
+		 * and disable snooping on both sides.
+		 */
+		return;
+	}
+
+	writel(value, misc + DMA_CTL_CH(dwc->chan.chan_id));
+
+	/* Configure crossbar selection */
+	value = readl(misc + DMA_XBAR_SEL(dwc->chan.chan_id));
+
+	/* DEVFN selection */
+	value &= ~XBAR_SEL_DEVID_MASK;
+	value |= idma32_get_slave_devfn(dwc);
+
+	switch (dwc->direction) {
+	case DMA_MEM_TO_DEV:
+		value |= XBAR_SEL_RX_TX_BIT;
+		break;
+	case DMA_DEV_TO_MEM:
+		value &= ~XBAR_SEL_RX_TX_BIT;
+		break;
+	default:
+		/* Memory-to-Memory and Device-to-Device are ignored for now */
+		return;
+	}
+
+	writel(value, misc + DMA_XBAR_SEL(dwc->chan.chan_id));
+
+	/* Configure DMA channel low and high registers */
+	switch (dwc->direction) {
+	case DMA_MEM_TO_DEV:
+		dst_id = dwc->chan.chan_id;
+		src_id = dwc->dws.src_id;
+		break;
+	case DMA_DEV_TO_MEM:
+		dst_id = dwc->dws.dst_id;
+		src_id = dwc->chan.chan_id;
+		break;
+	default:
+		/* Memory-to-Memory and Device-to-Device are ignored for now */
+		return;
+	}
+
+	/* Set default burst alignment */
+	cfglo |= IDMA32C_CFGL_DST_BURST_ALIGN | IDMA32C_CFGL_SRC_BURST_ALIGN;
+
+	/* Low 4 bits of the request lines */
+	cfghi |= IDMA32C_CFGH_DST_PER(dst_id & 0xf);
+	cfghi |= IDMA32C_CFGH_SRC_PER(src_id & 0xf);
+
+	/* Request line extension (2 bits) */
+	cfghi |= IDMA32C_CFGH_DST_PER_EXT(dst_id >> 4 & 0x3);
+	cfghi |= IDMA32C_CFGH_SRC_PER_EXT(src_id >> 4 & 0x3);
+
+	channel_writel(dwc, CFG_LO, cfglo);
+	channel_writel(dwc, CFG_HI, cfghi);
+}
+
+static void idma32_initialize_chan_generic(struct dw_dma_chan *dwc)
 {
 	u32 cfghi = 0;
 	u32 cfglo = 0;
@@ -73,9 +202,8 @@ static size_t idma32_block2bytes(struct dw_dma_chan *dwc, u32 block, u32 width)
 static u32 idma32_prepare_ctllo(struct dw_dma_chan *dwc)
 {
 	struct dma_slave_config	*sconfig = &dwc->dma_sconfig;
-	bool is_slave = is_slave_direction(dwc->direction);
-	u8 smsize = is_slave ? sconfig->src_maxburst : IDMA32_MSIZE_8;
-	u8 dmsize = is_slave ? sconfig->dst_maxburst : IDMA32_MSIZE_8;
+	u8 smsize = (dwc->direction == DMA_DEV_TO_MEM) ? sconfig->src_maxburst : 0;
+	u8 dmsize = (dwc->direction == DMA_MEM_TO_DEV) ? sconfig->dst_maxburst : 0;
 
 	return DWC_CTLL_LLP_D_EN | DWC_CTLL_LLP_S_EN |
 	       DWC_CTLL_DST_MSIZE(dmsize) | DWC_CTLL_SRC_MSIZE(smsize);
@@ -135,7 +263,10 @@ int idma32_dma_probe(struct dw_dma_chip *chip)
 		return -ENOMEM;
 
 	/* Channel operations */
-	dw->initialize_chan = idma32_initialize_chan;
+	if (chip->pdata->quirks & DW_DMA_QUIRK_XBAR_PRESENT)
+		dw->initialize_chan = idma32_initialize_chan_xbar;
+	else
+		dw->initialize_chan = idma32_initialize_chan_generic;
 	dw->suspend_chan = idma32_suspend_chan;
 	dw->resume_chan = idma32_resume_chan;
 	dw->prepare_ctllo = idma32_prepare_ctllo;

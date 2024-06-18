@@ -150,8 +150,6 @@ static long geodewdt_ioctl(struct file *file, unsigned int cmd,
 	case WDIOC_GETSUPPORT:
 		return copy_to_user(argp, &ident,
 				    sizeof(ident)) ? -EFAULT : 0;
-		break;
-
 	case WDIOC_GETSTATUS:
 	case WDIOC_GETBOOTSTATUS:
 		return put_user(0, p);
@@ -185,7 +183,7 @@ static long geodewdt_ioctl(struct file *file, unsigned int cmd,
 
 		if (geodewdt_set_heartbeat(interval))
 			return -EINVAL;
-	/* Fall through */
+		fallthrough;
 	case WDIOC_GETTIMEOUT:
 		return put_user(timeout, p);
 
@@ -201,6 +199,7 @@ static const struct file_operations geodewdt_fops = {
 	.llseek         = no_llseek,
 	.write          = geodewdt_write,
 	.unlocked_ioctl = geodewdt_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open           = geodewdt_open,
 	.release        = geodewdt_release,
 };
@@ -239,10 +238,9 @@ static int __init geodewdt_probe(struct platform_device *dev)
 	return ret;
 }
 
-static int geodewdt_remove(struct platform_device *dev)
+static void geodewdt_remove(struct platform_device *dev)
 {
 	misc_deregister(&geodewdt_miscdev);
-	return 0;
 }
 
 static void geodewdt_shutdown(struct platform_device *dev)
@@ -251,7 +249,7 @@ static void geodewdt_shutdown(struct platform_device *dev)
 }
 
 static struct platform_driver geodewdt_driver = {
-	.remove		= geodewdt_remove,
+	.remove_new	= geodewdt_remove,
 	.shutdown	= geodewdt_shutdown,
 	.driver		= {
 		.name	= DRV_NAME,

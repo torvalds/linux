@@ -3,14 +3,15 @@
  *  Copyright (C) 2015 Texas Instruments Incorporated - http://www.ti.com
  *  Author: Peter Ujfalusi <peter.ujfalusi@ti.com>
  */
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/io.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/of_dma.h>
+#include <linux/of_platform.h>
 
 #define TI_XBAR_DRA7		0
 #define TI_XBAR_AM335X		1
@@ -122,7 +123,7 @@ static void *ti_am335x_xbar_route_allocate(struct of_phandle_args *dma_spec,
 	return map;
 }
 
-static const struct of_device_id ti_am335x_master_match[] = {
+static const struct of_device_id ti_am335x_master_match[] __maybe_unused = {
 	{ .compatible = "ti,edma3-tpcc", },
 	{},
 };
@@ -133,7 +134,6 @@ static int ti_am335x_xbar_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	struct device_node *dma_node;
 	struct ti_am335x_xbar_data *xbar;
-	struct resource *res;
 	void __iomem *iomem;
 	int i, ret;
 
@@ -173,8 +173,7 @@ static int ti_am335x_xbar_probe(struct platform_device *pdev)
 		xbar->xbar_events = TI_AM335X_XBAR_LINES;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	iomem = devm_ioremap_resource(&pdev->dev, res);
+	iomem = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(iomem))
 		return PTR_ERR(iomem);
 
@@ -247,6 +246,7 @@ static void *ti_dra7_xbar_route_allocate(struct of_phandle_args *dma_spec,
 	if (dma_spec->args[0] >= xbar->xbar_requests) {
 		dev_err(&pdev->dev, "Invalid XBAR request number: %d\n",
 			dma_spec->args[0]);
+		put_device(&pdev->dev);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -254,12 +254,14 @@ static void *ti_dra7_xbar_route_allocate(struct of_phandle_args *dma_spec,
 	dma_spec->np = of_parse_phandle(ofdma->of_node, "dma-masters", 0);
 	if (!dma_spec->np) {
 		dev_err(&pdev->dev, "Can't get DMA master\n");
+		put_device(&pdev->dev);
 		return ERR_PTR(-EINVAL);
 	}
 
 	map = kzalloc(sizeof(*map), GFP_KERNEL);
 	if (!map) {
 		of_node_put(dma_spec->np);
+		put_device(&pdev->dev);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -270,6 +272,8 @@ static void *ti_dra7_xbar_route_allocate(struct of_phandle_args *dma_spec,
 		mutex_unlock(&xbar->mutex);
 		dev_err(&pdev->dev, "Run out of free DMA requests\n");
 		kfree(map);
+		of_node_put(dma_spec->np);
+		put_device(&pdev->dev);
 		return ERR_PTR(-ENOMEM);
 	}
 	set_bit(map->xbar_out, xbar->dma_inuse);
@@ -294,7 +298,7 @@ static const u32 ti_dma_offset[] = {
 	[TI_XBAR_SDMA_OFFSET] = 1,
 };
 
-static const struct of_device_id ti_dra7_master_match[] = {
+static const struct of_device_id ti_dra7_master_match[] __maybe_unused = {
 	{
 		.compatible = "ti,omap4430-sdma",
 		.data = &ti_dma_offset[TI_XBAR_SDMA_OFFSET],
@@ -323,7 +327,6 @@ static int ti_dra7_xbar_probe(struct platform_device *pdev)
 	struct device_node *dma_node;
 	struct ti_dra7_xbar_data *xbar;
 	struct property *prop;
-	struct resource *res;
 	u32 safe_val;
 	int sz;
 	void __iomem *iomem;
@@ -403,8 +406,7 @@ static int ti_dra7_xbar_probe(struct platform_device *pdev)
 		kfree(rsv_events);
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	iomem = devm_ioremap_resource(&pdev->dev, res);
+	iomem = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(iomem))
 		return PTR_ERR(iomem);
 
@@ -464,7 +466,7 @@ static int ti_dma_xbar_probe(struct platform_device *pdev)
 static struct platform_driver ti_dma_xbar_driver = {
 	.driver = {
 		.name = "ti-dma-crossbar",
-		.of_match_table = of_match_ptr(ti_dma_xbar_match),
+		.of_match_table = ti_dma_xbar_match,
 	},
 	.probe	= ti_dma_xbar_probe,
 };

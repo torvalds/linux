@@ -13,7 +13,7 @@
  */
 
 #include <linux/clk.h>
-#include <linux/clk-provider.h>
+#include <linux/of_clk.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/time.h>
@@ -121,18 +121,8 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
 
 	set_linux_timer(get_linux_timer());
 	evt->event_handler(evt);
-
-	/* Allow platform to do something useful (Wdog). */
-	platform_heartbeat();
-
 	return IRQ_HANDLED;
 }
-
-static struct irqaction timer_irqaction = {
-	.handler =	timer_interrupt,
-	.flags =	IRQF_TIMER,
-	.name =		"timer",
-};
 
 void local_timer_setup(unsigned cpu)
 {
@@ -160,6 +150,7 @@ static void __init calibrate_ccount(void)
 	cpu = of_find_compatible_node(NULL, NULL, "cdns,xtensa-cpu");
 	if (cpu) {
 		clk = of_clk_get(cpu, 0);
+		of_node_put(cpu);
 		if (!IS_ERR(clk)) {
 			ccount_freq = clk_get_rate(clk);
 			return;
@@ -184,6 +175,8 @@ static inline void calibrate_ccount(void)
 
 void __init time_init(void)
 {
+	int irq;
+
 	of_clk_init(NULL);
 #ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT
 	pr_info("Calibrating CPU frequency ");
@@ -199,7 +192,9 @@ void __init time_init(void)
 	     __func__);
 	clocksource_register_hz(&ccount_clocksource, ccount_freq);
 	local_timer_setup(0);
-	setup_irq(this_cpu_ptr(&ccount_timer)->evt.irq, &timer_irqaction);
+	irq = this_cpu_ptr(&ccount_timer)->evt.irq;
+	if (request_irq(irq, timer_interrupt, IRQF_TIMER, "timer", NULL))
+		pr_err("Failed to request irq %d (timer)\n", irq);
 	sched_clock_register(ccount_sched_clock_read, 32, ccount_freq);
 	timer_probe();
 }

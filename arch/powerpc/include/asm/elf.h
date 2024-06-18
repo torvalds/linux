@@ -53,8 +53,6 @@ static inline void ppc_elf_core_copy_regs(elf_gregset_t elf_regs,
 }
 #define ELF_CORE_COPY_REGS(gregs, regs) ppc_elf_core_copy_regs(gregs, regs);
 
-typedef elf_vrregset_t elf_fpxregset_t;
-
 /* ELF_HWCAP yields a mask that user programs can use to figure out what
    instruction set this cpu supports.  This could be done in userspace,
    but it's not easy, and we've already done it here.  */
@@ -129,8 +127,6 @@ extern int arch_setup_additional_pages(struct linux_binprm *bprm,
 /* Notes used in ET_CORE. Note name is "SPU/<fd>/<filename>". */
 #define NT_SPU		1
 
-#define ARCH_HAVE_EXTRA_ELF_NOTES
-
 #endif /* CONFIG_SPU_BASE */
 
 #ifdef CONFIG_PPC64
@@ -162,7 +158,7 @@ extern int arch_setup_additional_pages(struct linux_binprm *bprm,
  *   even if DLINFO_ARCH_ITEMS goes to zero or is undefined.
  * update AT_VECTOR_SIZE_ARCH if the number of NEW_AUX_ENT entries changes
  */
-#define ARCH_DLINFO							\
+#define COMMON_ARCH_DLINFO						\
 do {									\
 	/* Handle glibc compatibility. */				\
 	NEW_AUX_ENT(AT_IGNOREPPC, AT_IGNOREPPC);			\
@@ -170,9 +166,30 @@ do {									\
 	/* Cache size items */						\
 	NEW_AUX_ENT(AT_DCACHEBSIZE, dcache_bsize);			\
 	NEW_AUX_ENT(AT_ICACHEBSIZE, icache_bsize);			\
-	NEW_AUX_ENT(AT_UCACHEBSIZE, ucache_bsize);			\
-	VDSO_AUX_ENT(AT_SYSINFO_EHDR, current->mm->context.vdso_base);	\
+	NEW_AUX_ENT(AT_UCACHEBSIZE, 0);					\
+	VDSO_AUX_ENT(AT_SYSINFO_EHDR, (unsigned long)current->mm->context.vdso);\
 	ARCH_DLINFO_CACHE_GEOMETRY;					\
 } while (0)
+
+#define ARCH_DLINFO							\
+do {									\
+	COMMON_ARCH_DLINFO;						\
+	NEW_AUX_ENT(AT_MINSIGSTKSZ, get_min_sigframe_size());		\
+} while (0)
+
+#define COMPAT_ARCH_DLINFO						\
+do {									\
+	COMMON_ARCH_DLINFO;						\
+	NEW_AUX_ENT(AT_MINSIGSTKSZ, get_min_sigframe_size_compat());	\
+} while (0)
+
+/* Relocate the kernel image to @final_address */
+void relocate(unsigned long final_address);
+
+struct func_desc {
+	unsigned long addr;
+	unsigned long toc;
+	unsigned long env;
+};
 
 #endif /* _ASM_POWERPC_ELF_H */

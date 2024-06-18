@@ -11,10 +11,6 @@
  *  Copyright (C) 2009 Kristoffer Glembo <kristoffer@gaisler.com>, Aeroflex Gaisler AB
  */
 
-#if defined(CONFIG_SERIAL_GRLIB_GAISLER_APBUART_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
-#define SUPPORT_SYSRQ
-#endif
-
 #include <linux/module.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
@@ -26,9 +22,6 @@
 #include <linux/kthread.h>
 #include <linux/device.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
-#include <linux/of_platform.h>
-#include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/serial_core.h>
@@ -74,8 +67,9 @@ static void apbuart_stop_rx(struct uart_port *port)
 
 static void apbuart_rx_chars(struct uart_port *port)
 {
-	unsigned int status, ch, rsr, flag;
+	unsigned int status, rsr;
 	unsigned int max_chars = port->fifosize;
+	u8 ch, flag;
 
 	status = UART_GET_STATUS(port);
 
@@ -121,43 +115,17 @@ static void apbuart_rx_chars(struct uart_port *port)
 		status = UART_GET_STATUS(port);
 	}
 
-	spin_unlock(&port->lock);
 	tty_flip_buffer_push(&port->state->port);
-	spin_lock(&port->lock);
 }
 
 static void apbuart_tx_chars(struct uart_port *port)
 {
-	struct circ_buf *xmit = &port->state->xmit;
-	int count;
+	u8 ch;
 
-	if (port->x_char) {
-		UART_PUT_CHAR(port, port->x_char);
-		port->icount.tx++;
-		port->x_char = 0;
-		return;
-	}
-
-	if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
-		apbuart_stop_tx(port);
-		return;
-	}
-
-	/* amba: fill FIFO */
-	count = port->fifosize >> 1;
-	do {
-		UART_PUT_CHAR(port, xmit->buf[xmit->tail]);
-		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
-		port->icount.tx++;
-		if (uart_circ_empty(xmit))
-			break;
-	} while (--count > 0);
-
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
-		uart_write_wakeup(port);
-
-	if (uart_circ_empty(xmit))
-		apbuart_stop_tx(port);
+	uart_port_tx_limited(port, ch, port->fifosize,
+		true,
+		UART_PUT_CHAR(port, ch),
+		({}));
 }
 
 static irqreturn_t apbuart_int(int irq, void *dev_id)
@@ -165,7 +133,7 @@ static irqreturn_t apbuart_int(int irq, void *dev_id)
 	struct uart_port *port = dev_id;
 	unsigned int status;
 
-	spin_lock(&port->lock);
+	uart_port_lock(port);
 
 	status = UART_GET_STATUS(port);
 	if (status & UART_STATUS_DR)
@@ -173,7 +141,7 @@ static irqreturn_t apbuart_int(int irq, void *dev_id)
 	if (status & UART_STATUS_THE)
 		apbuart_tx_chars(port);
 
-	spin_unlock(&port->lock);
+	uart_port_unlock(port);
 
 	return IRQ_HANDLED;
 }
@@ -234,7 +202,7 @@ static void apbuart_shutdown(struct uart_port *port)
 }
 
 static void apbuart_set_termios(struct uart_port *port,
-				struct ktermios *termios, struct ktermios *old)
+				struct ktermios *termios, const struct ktermios *old)
 {
 	unsigned int cr;
 	unsigned long flags;
@@ -260,7 +228,7 @@ static void apbuart_set_termios(struct uart_port *port,
 	if (termios->c_cflag & CRTSCTS)
 		cr |= UART_CTRL_FL;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	/* Update the per-port timeout. */
 	uart_update_timeout(port, termios->c_cflag, baud);
@@ -283,7 +251,7 @@ static void apbuart_set_termios(struct uart_port *port,
 	UART_PUT_SCAL(port, quot);
 	UART_PUT_CTRL(port, cr);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static const char *apbuart_type(struct uart_port *port)
@@ -419,7 +387,7 @@ static void apbuart_flush_fifo(struct uart_port *port)
 
 #ifdef CONFIG_SERIAL_GRLIB_GAISLER_APBUART_CONSOLE
 
-static void apbuart_console_putchar(struct uart_port *port, int ch)
+static void apbuart_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	unsigned int status;
 	do {
@@ -626,6 +594,7 @@ static int __init grlib_apbuart_configure(void)
 		port->irq = 0;
 		port->iotype = UPIO_MEM;
 		port->ops = &grlib_apbuart_ops;
+		port->has_sysrq = IS_ENABLED(CONFIG_SERIAL_GRLIB_GAISLER_APBUART_CONSOLE);
 		port->flags = UPF_BOOT_AUTOCONF;
 		port->line = line;
 		port->uartclk = *freq_hz;

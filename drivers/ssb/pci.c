@@ -914,7 +914,6 @@ static int ssb_pci_sprom_get(struct ssb_bus *bus,
 				err = 0;
 				goto out_free;
 			}
-			pr_warn("WARNING: Invalid SPROM CRC (corrupt SPROM)\n");
 		}
 	}
 	err = sprom_extract(bus, sprom, buf, bus->sprom_size);
@@ -1117,9 +1116,9 @@ const struct ssb_bus_ops ssb_pci_ops = {
 #endif
 };
 
-static ssize_t ssb_pci_attr_sprom_show(struct device *pcidev,
-				       struct device_attribute *attr,
-				       char *buf)
+static ssize_t ssb_sprom_show(struct device *pcidev,
+			      struct device_attribute *attr,
+			      char *buf)
 {
 	struct pci_dev *pdev = container_of(pcidev, struct pci_dev, dev);
 	struct ssb_bus *bus;
@@ -1131,9 +1130,9 @@ static ssize_t ssb_pci_attr_sprom_show(struct device *pcidev,
 	return ssb_attr_sprom_show(bus, buf, sprom_do_read);
 }
 
-static ssize_t ssb_pci_attr_sprom_store(struct device *pcidev,
-					struct device_attribute *attr,
-					const char *buf, size_t count)
+static ssize_t ssb_sprom_store(struct device *pcidev,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
 {
 	struct pci_dev *pdev = container_of(pcidev, struct pci_dev, dev);
 	struct ssb_bus *bus;
@@ -1146,9 +1145,7 @@ static ssize_t ssb_pci_attr_sprom_store(struct device *pcidev,
 				    sprom_check_crc, sprom_do_write);
 }
 
-static DEVICE_ATTR(ssb_sprom, 0600,
-		   ssb_pci_attr_sprom_show,
-		   ssb_pci_attr_sprom_store);
+static DEVICE_ATTR_ADMIN_RW(ssb_sprom);
 
 void ssb_pci_exit(struct ssb_bus *bus)
 {
@@ -1164,17 +1161,12 @@ void ssb_pci_exit(struct ssb_bus *bus)
 int ssb_pci_init(struct ssb_bus *bus)
 {
 	struct pci_dev *pdev;
-	int err;
 
 	if (bus->bustype != SSB_BUSTYPE_PCI)
 		return 0;
 
 	pdev = bus->host_pci;
 	mutex_init(&bus->sprom_mutex);
-	err = device_create_file(&pdev->dev, &dev_attr_ssb_sprom);
-	if (err)
-		goto out;
 
-out:
-	return err;
+	return device_create_file(&pdev->dev, &dev_attr_ssb_sprom);
 }

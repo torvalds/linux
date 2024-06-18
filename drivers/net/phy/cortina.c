@@ -17,8 +17,7 @@
 
 static int cortina_read_reg(struct phy_device *phydev, u16 regnum)
 {
-	return mdiobus_read(phydev->mdio.bus, phydev->mdio.addr,
-			    MII_ADDR_C45 | regnum);
+	return mdiobus_c45_read(phydev->mdio.bus, phydev->mdio.addr, 0, regnum);
 }
 
 static int cortina_read_status(struct phy_device *phydev)
@@ -82,7 +81,6 @@ static struct phy_driver cortina_driver[] = {
 	.features       = PHY_10GBIT_FEATURES,
 	.config_aneg	= gen10g_config_aneg,
 	.read_status	= cortina_read_status,
-	.soft_reset	= genphy_no_soft_reset,
 	.probe		= cortina_probe,
 },
 };

@@ -243,8 +243,6 @@ static void esp_set_all_config3(struct esp *esp, u8 val)
 /* Reset the ESP chip, _not_ the SCSI bus. */
 static void esp_reset_esp(struct esp *esp)
 {
-	u8 family_code, version;
-
 	/* Now reset the ESP chip */
 	scsi_esp_cmd(esp, ESP_CMD_RC);
 	scsi_esp_cmd(esp, ESP_CMD_NULL | ESP_CMD_DMA);
@@ -257,14 +255,19 @@ static void esp_reset_esp(struct esp *esp)
 	 */
 	esp->max_period = ((35 * esp->ccycle) / 1000);
 	if (esp->rev == FAST) {
-		version = esp_read8(ESP_UID);
-		family_code = (version & 0xf8) >> 3;
-		if (family_code == 0x02)
+		u8 family_code = ESP_FAMILY(esp_read8(ESP_UID));
+
+		if (family_code == ESP_UID_F236) {
 			esp->rev = FAS236;
-		else if (family_code == 0x0a)
+		} else if (family_code == ESP_UID_HME) {
 			esp->rev = FASHME; /* Version is usually '5'. */
-		else
+		} else if (family_code == ESP_UID_FSC) {
+			esp->rev = FSC;
+			/* Enable Active Negation */
+			esp_write8(ESP_CONFIG4_RADE, ESP_CFG4);
+		} else {
 			esp->rev = FAS100A;
+		}
 		esp->min_period = ((4 * esp->ccycle) / 1000);
 	} else {
 		esp->min_period = ((5 * esp->ccycle) / 1000);
@@ -304,11 +307,11 @@ static void esp_reset_esp(struct esp *esp)
 
 	case FASHME:
 		esp->config2 |= (ESP_CONFIG2_HME32 | ESP_CONFIG2_HMEFENAB);
-		/* fallthrough... */
+		fallthrough;
 
 	case FAS236:
 	case PCSCSI:
-		/* Fast 236, AM53c974 or HME */
+	case FSC:
 		esp_write8(esp->config2, ESP_CFG2);
 		if (esp->rev == FASHME) {
 			u8 cfg3 = esp->target[0].esp_config3;
@@ -644,7 +647,7 @@ static void esp_unmap_sense(struct esp *esp, struct esp_cmd_entry *ent)
 	ent->sense_ptr = NULL;
 }
 
-/* When a contingent allegiance conditon is created, we force feed a
+/* When a contingent allegiance condition is created, we force feed a
  * REQUEST_SENSE command to the device to fetch the sense data.  I
  * tried many other schemes, relying on the scsi error handling layer
  * to send out the REQUEST_SENSE automatically, but this was difficult
@@ -893,7 +896,7 @@ static void esp_put_ent(struct esp *esp, struct esp_cmd_entry *ent)
 }
 
 static void esp_cmd_is_done(struct esp *esp, struct esp_cmd_entry *ent,
-			    struct scsi_cmnd *cmd, unsigned int result)
+			    struct scsi_cmnd *cmd, unsigned char host_byte)
 {
 	struct scsi_device *dev = cmd->device;
 	int tgt = dev->id;
@@ -902,7 +905,10 @@ static void esp_cmd_is_done(struct esp *esp, struct esp_cmd_entry *ent,
 	esp->active_cmd = NULL;
 	esp_unmap_dma(esp, cmd);
 	esp_free_lun_tag(ent, dev->hostdata);
-	cmd->result = result;
+	cmd->result = 0;
+	set_host_byte(cmd, host_byte);
+	if (host_byte == DID_OK)
+		set_status_byte(cmd, ent->status);
 
 	if (ent->eh_done) {
 		complete(ent->eh_done);
@@ -916,10 +922,7 @@ static void esp_cmd_is_done(struct esp *esp, struct esp_cmd_entry *ent,
 		 * saw originally.  Also, report that we are providing
 		 * the sense data.
 		 */
-		cmd->result = ((DRIVER_SENSE << 24) |
-			       (DID_OK << 16) |
-			       (COMMAND_COMPLETE << 8) |
-			       (SAM_STAT_CHECK_CONDITION << 0));
+		cmd->result = SAM_STAT_CHECK_CONDITION;
 
 		ent->flags &= ~ESP_CMD_FLAG_AUTOSENSE;
 		if (esp_debug & ESP_DEBUG_AUTOSENSE) {
@@ -933,18 +936,12 @@ static void esp_cmd_is_done(struct esp *esp, struct esp_cmd_entry *ent,
 		}
 	}
 
-	cmd->scsi_done(cmd);
+	scsi_done(cmd);
 
 	list_del(&ent->list);
 	esp_put_ent(esp, ent);
 
 	esp_maybe_execute_command(esp);
-}
-
-static unsigned int compose_result(unsigned int status, unsigned int message,
-				   unsigned int driver_code)
-{
-	return (status | (message << 8) | (driver_code << 16));
 }
 
 static void esp_event_queue_full(struct esp *esp, struct esp_cmd_entry *ent)
@@ -955,7 +952,7 @@ static void esp_event_queue_full(struct esp *esp, struct esp_cmd_entry *ent)
 	scsi_track_queue_full(dev, lp->num_tagged - 1);
 }
 
-static int esp_queuecommand_lck(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
+static int esp_queuecommand_lck(struct scsi_cmnd *cmd)
 {
 	struct scsi_device *dev = cmd->device;
 	struct esp *esp = shost_priv(dev->host);
@@ -967,8 +964,6 @@ static int esp_queuecommand_lck(struct scsi_cmnd *cmd, void (*done)(struct scsi_
 		return SCSI_MLQUEUE_HOST_BUSY;
 
 	ent->cmd = cmd;
-
-	cmd->scsi_done = done;
 
 	spriv = ESP_CMD_PRIV(cmd);
 	spriv->num_sg = 0;
@@ -1241,7 +1236,7 @@ static int esp_finish_select(struct esp *esp)
 		 * all bets are off.
 		 */
 		esp_schedule_reset(esp);
-		esp_cmd_is_done(esp, ent, cmd, (DID_ERROR << 16));
+		esp_cmd_is_done(esp, ent, cmd, DID_ERROR);
 		return 0;
 	}
 
@@ -1286,7 +1281,7 @@ static int esp_finish_select(struct esp *esp)
 		esp->target[dev->id].flags |= ESP_TGT_CHECK_NEGO;
 
 		scsi_esp_cmd(esp, ESP_CMD_ESEL);
-		esp_cmd_is_done(esp, ent, cmd, (DID_BAD_TARGET << 16));
+		esp_cmd_is_done(esp, ent, cmd, DID_BAD_TARGET);
 		return 1;
 	}
 
@@ -1342,7 +1337,7 @@ static int esp_data_bytes_sent(struct esp *esp, struct esp_cmd_entry *ent,
 	bytes_sent -= esp->send_cmd_residual;
 
 	/*
-	 * The am53c974 has a DMA 'pecularity'. The doc states:
+	 * The am53c974 has a DMA 'peculiarity'. The doc states:
 	 * In some odd byte conditions, one residual byte will
 	 * be left in the SCSI FIFO, and the FIFO Flags will
 	 * never count to '0 '. When this happens, the residual
@@ -1738,7 +1733,7 @@ again:
 
 	case ESP_EVENT_DATA_IN:
 		write = 1;
-		/* fallthru */
+		fallthrough;
 
 	case ESP_EVENT_DATA_OUT: {
 		struct esp_cmd_entry *ent = esp->active_cmd;
@@ -1871,10 +1866,7 @@ again:
 				ent->flags |= ESP_CMD_FLAG_AUTOSENSE;
 				esp_autosense(esp, ent);
 			} else {
-				esp_cmd_is_done(esp, ent, cmd,
-						compose_result(ent->status,
-							       ent->message,
-							       DID_OK));
+				esp_cmd_is_done(esp, ent, cmd, DID_OK);
 			}
 		} else if (ent->message == DISCONNECT) {
 			esp_log_disconnect("Disconnecting tgt[%d] tag[%x:%x]\n",
@@ -2044,7 +2036,7 @@ static void esp_reset_cleanup_one(struct esp *esp, struct esp_cmd_entry *ent)
 	if (ent->flags & ESP_CMD_FLAG_AUTOSENSE)
 		esp_unmap_sense(esp, ent);
 
-	cmd->scsi_done(cmd);
+	scsi_done(cmd);
 	list_del(&ent->list);
 	esp_put_ent(esp, ent);
 }
@@ -2067,7 +2059,7 @@ static void esp_reset_cleanup(struct esp *esp)
 
 		list_del(&ent->list);
 		cmd->result = DID_RESET << 16;
-		cmd->scsi_done(cmd);
+		scsi_done(cmd);
 		esp_put_ent(esp, ent);
 	}
 
@@ -2373,10 +2365,11 @@ static const char *esp_chip_names[] = {
 	"ESP100A",
 	"ESP236",
 	"FAS236",
+	"AM53C974",
+	"53CF9x-2",
 	"FAS100A",
 	"FAST",
 	"FASHME",
-	"AM53C974",
 };
 
 static struct scsi_transport_template *esp_transport_template;
@@ -2540,7 +2533,7 @@ static int esp_eh_abort_handler(struct scsi_cmnd *cmd)
 		list_del(&ent->list);
 
 		cmd->result = DID_ABORT << 16;
-		cmd->scsi_done(cmd);
+		scsi_done(cmd);
 
 		esp_put_ent(esp, ent);
 
@@ -2667,7 +2660,7 @@ static const char *esp_info(struct Scsi_Host *host)
 	return "esp";
 }
 
-struct scsi_host_template scsi_esp_template = {
+const struct scsi_host_template scsi_esp_template = {
 	.module			= THIS_MODULE,
 	.name			= "esp",
 	.info			= esp_info,
@@ -2685,6 +2678,7 @@ struct scsi_host_template scsi_esp_template = {
 	.sg_tablesize		= SG_ALL,
 	.max_sectors		= 0xffff,
 	.skip_settle_delay	= 1,
+	.cmd_size		= sizeof(struct esp_cmd_priv),
 };
 EXPORT_SYMBOL(scsi_esp_template);
 
@@ -2746,9 +2740,6 @@ static struct spi_function_template esp_transport_ops = {
 
 static int __init esp_init(void)
 {
-	BUILD_BUG_ON(sizeof(struct scsi_pointer) <
-		     sizeof(struct esp_cmd_priv));
-
 	esp_transport_template = spi_attach_transport(&esp_transport_ops);
 	if (!esp_transport_template)
 		return -ENODEV;
@@ -2762,7 +2753,7 @@ static void __exit esp_exit(void)
 }
 
 MODULE_DESCRIPTION("ESP SCSI driver core");
-MODULE_AUTHOR("David S. Miller (davem@davemloft.net)");
+MODULE_AUTHOR("David S. Miller <davem@davemloft.net>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 

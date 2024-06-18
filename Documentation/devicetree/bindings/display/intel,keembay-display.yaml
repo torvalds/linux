@@ -1,0 +1,72 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/intel,keembay-display.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Intel Keem Bay display controller
+
+maintainers:
+  - Anitha Chrisanthus <anitha.chrisanthus@intel.com>
+  - Edmond J Dea <edmund.j.dea@intel.com>
+
+properties:
+  compatible:
+    const: intel,keembay-display
+
+  reg:
+    items:
+      - description: LCD registers range
+
+  reg-names:
+    items:
+      - const: lcd
+
+  clocks:
+    items:
+      - description: LCD controller clock
+      - description: pll0 clock
+
+  clock-names:
+    items:
+      - const: clk_lcd
+      - const: clk_pll0
+
+  interrupts:
+    maxItems: 1
+
+  port:
+    $ref: /schemas/graph.yaml#/properties/port
+    description: Display output node to DSI.
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - clocks
+  - clock-names
+  - interrupts
+  - port
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    display@20930000 {
+        compatible = "intel,keembay-display";
+        reg = <0x20930000 0x3000>;
+        reg-names = "lcd";
+        interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&scmi_clk 0x83>,
+                 <&scmi_clk 0x0>;
+        clock-names = "clk_lcd", "clk_pll0";
+
+        port {
+            disp_out: endpoint {
+                remote-endpoint = <&dsi_in>;
+            };
+        };
+    };

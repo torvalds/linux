@@ -28,11 +28,6 @@ Copyright (C) 2006-2008, Uri Shkolnik, Anatoly Greenblat
 
 #include "smsir.h"
 
-#define kmutex_init(_p_) mutex_init(_p_)
-#define kmutex_lock(_p_) mutex_lock(_p_)
-#define kmutex_trylock(_p_) mutex_trylock(_p_)
-#define kmutex_unlock(_p_) mutex_unlock(_p_)
-
 /*
  * Define the firmware names used by the driver.
  * Those should match what's used at smscoreapi.c and sms-cards.c
@@ -434,8 +429,8 @@ enum msg_types {
 	MSG_SMS_FLASH_DL_REQ = 732,
 	MSG_SMS_EXEC_TEST_1_REQ = 734,
 	MSG_SMS_EXEC_TEST_1_RES = 735,
-	MSG_SMS_ENBALE_TS_INTERFACE_REQ = 736,
-	MSG_SMS_ENBALE_TS_INTERFACE_RES = 737,
+	MSG_SMS_ENABLE_TS_INTERFACE_REQ = 736,
+	MSG_SMS_ENABLE_TS_INTERFACE_RES = 737,
 	MSG_SMS_SPI_SET_BUS_WIDTH_REQ = 738,
 	MSG_SMS_SPI_SET_BUS_WIDTH_RES = 739,
 	MSG_SMS_SEND_EMM_REQ = 740,
@@ -629,9 +624,9 @@ struct sms_msg_data2 {
 	u32 msg_data[2];
 };
 
-struct sms_msg_data4 {
+struct sms_msg_data5 {
 	struct sms_msg_hdr x_msg_header;
-	u32 msg_data[4];
+	u32 msg_data[5];
 };
 
 struct sms_data_download {

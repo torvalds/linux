@@ -71,7 +71,7 @@ int snd_ak4114_create(struct snd_card *card,
 	struct ak4114 *chip;
 	int err = 0;
 	unsigned char reg;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =     snd_ak4114_dev_free,
 	};
 
@@ -97,7 +97,8 @@ int snd_ak4114_create(struct snd_card *card,
 	chip->rcs0 = reg_read(chip, AK4114_REG_RCS0) & ~(AK4114_QINT | AK4114_CINT);
 	chip->rcs1 = reg_read(chip, AK4114_REG_RCS1);
 
-	if ((err = snd_device_new(card, SNDRV_DEV_CODEC, chip, &ops)) < 0)
+	err = snd_device_new(card, SNDRV_DEV_CODEC, chip, &ops);
+	if (err < 0)
 		goto __fail;
 
 	if (r_ak4114)
@@ -318,7 +319,7 @@ static int snd_ak4114_spdif_qget(struct snd_kcontrol *kcontrol,
 }
 
 /* Don't forget to change AK4114_CONTROLS define!!! */
-static struct snd_kcontrol_new snd_ak4114_iec958_controls[] = {
+static const struct snd_kcontrol_new snd_ak4114_iec958_controls[] = {
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =		"IEC958 Parity Errors",

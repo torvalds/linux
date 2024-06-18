@@ -54,7 +54,7 @@ struct b43legacy_dfs_file * fops_to_dfs_file(struct b43legacy_wldev *dev,
 #define fappend(fmt, x...)	\
 	do {							\
 		if (bufsize - count)				\
-			count += snprintf(buf + count,		\
+			count += scnprintf(buf + count,		\
 					  bufsize - count,	\
 					  fmt , ##x);		\
 		else						\
@@ -190,7 +190,7 @@ static ssize_t b43legacy_debugfs_read(struct file *file, char __user *userbuf,
 	struct b43legacy_wldev *dev;
 	struct b43legacy_debugfs_fops *dfops;
 	struct b43legacy_dfs_file *dfile;
-	ssize_t uninitialized_var(ret);
+	ssize_t ret;
 	char *buf;
 	const size_t bufsize = 1024 * 16; /* 16 KiB buffer */
 	const size_t buforder = get_order(bufsize);
@@ -336,24 +336,14 @@ int b43legacy_debug(struct b43legacy_wldev *dev, enum b43legacy_dyndbg feature)
 	return !!(dev->dfsentry && dev->dfsentry->dyn_debug[feature]);
 }
 
-static void b43legacy_remove_dynamic_debug(struct b43legacy_wldev *dev)
-{
-	struct b43legacy_dfsentry *e = dev->dfsentry;
-	int i;
-
-	for (i = 0; i < __B43legacy_NR_DYNDBG; i++)
-		debugfs_remove(e->dyn_debug_dentries[i]);
-}
-
 static void b43legacy_add_dynamic_debug(struct b43legacy_wldev *dev)
 {
 	struct b43legacy_dfsentry *e = dev->dfsentry;
 
 #define add_dyn_dbg(name, id, initstate) do {			\
 	e->dyn_debug[id] = (initstate);				\
-	e->dyn_debug_dentries[id] =				\
-		debugfs_create_bool(name, 0600, e->subdir,	\
-				&(e->dyn_debug[id]));		\
+	debugfs_create_bool(name, 0600, e->subdir,		\
+			    &(e->dyn_debug[id]));		\
 	} while (0)
 
 	add_dyn_dbg("debug_xmitpower", B43legacy_DBG_XMITPOWER, false);
@@ -396,11 +386,9 @@ void b43legacy_debugfs_add_device(struct b43legacy_wldev *dev)
 
 #define ADD_FILE(name, mode)	\
 	do {							\
-		e->file_##name.dentry =				\
-			debugfs_create_file(__stringify(name),	\
-					mode, e->subdir, dev,	\
-					&fops_##name.fops);	\
-		e->file_##name.dentry = NULL;			\
+		debugfs_create_file(__stringify(name), mode,	\
+				    e->subdir, dev,		\
+				    &fops_##name.fops);		\
 	} while (0)
 
 
@@ -424,13 +412,6 @@ void b43legacy_debugfs_remove_device(struct b43legacy_wldev *dev)
 	e = dev->dfsentry;
 	if (!e)
 		return;
-	b43legacy_remove_dynamic_debug(dev);
-
-	debugfs_remove(e->file_tsf.dentry);
-	debugfs_remove(e->file_ucode_regs.dentry);
-	debugfs_remove(e->file_shm.dentry);
-	debugfs_remove(e->file_txstat.dentry);
-	debugfs_remove(e->file_restart.dentry);
 
 	debugfs_remove(e->subdir);
 	kfree(e->txstatlog.log);

@@ -127,13 +127,13 @@ static int isl29003_set_resolution(struct i2c_client *client, int res)
 static int isl29003_get_mode(struct i2c_client *client)
 {
 	return __isl29003_read_reg(client, ISL29003_REG_COMMAND,
-		ISL29003_RES_MASK, ISL29003_RES_SHIFT);
+		ISL29003_MODE_MASK, ISL29003_MODE_SHIFT);
 }
 
 static int isl29003_set_mode(struct i2c_client *client, int mode)
 {
 	return __isl29003_write_reg(client, ISL29003_REG_COMMAND,
-		ISL29003_RES_MASK, ISL29003_RES_SHIFT, mode);
+		ISL29003_MODE_MASK, ISL29003_MODE_SHIFT, mode);
 }
 
 /* power_state */
@@ -186,7 +186,7 @@ static ssize_t isl29003_show_range(struct device *dev,
 {
 	struct i2c_client *client = to_i2c_client(dev);
 
-	return sprintf(buf, "%i\n", isl29003_get_range(client));
+	return sysfs_emit(buf, "%i\n", isl29003_get_range(client));
 }
 
 static ssize_t isl29003_store_range(struct device *dev,
@@ -222,7 +222,7 @@ static ssize_t isl29003_show_resolution(struct device *dev,
 {
 	struct i2c_client *client = to_i2c_client(dev);
 
-	return sprintf(buf, "%d\n", isl29003_get_resolution(client));
+	return sysfs_emit(buf, "%d\n", isl29003_get_resolution(client));
 }
 
 static ssize_t isl29003_store_resolution(struct device *dev,
@@ -256,7 +256,7 @@ static ssize_t isl29003_show_mode(struct device *dev,
 {
 	struct i2c_client *client = to_i2c_client(dev);
 
-	return sprintf(buf, "%d\n", isl29003_get_mode(client));
+	return sysfs_emit(buf, "%d\n", isl29003_get_mode(client));
 }
 
 static ssize_t isl29003_store_mode(struct device *dev,
@@ -291,7 +291,7 @@ static ssize_t isl29003_show_power_state(struct device *dev,
 {
 	struct i2c_client *client = to_i2c_client(dev);
 
-	return sprintf(buf, "%d\n", isl29003_get_power_state(client));
+	return sysfs_emit(buf, "%d\n", isl29003_get_power_state(client));
 }
 
 static ssize_t isl29003_store_power_state(struct device *dev,
@@ -327,7 +327,7 @@ static ssize_t isl29003_show_lux(struct device *dev,
 	if (!isl29003_get_power_state(client))
 		return -EBUSY;
 
-	return sprintf(buf, "%d\n", isl29003_get_adc_value(client));
+	return sysfs_emit(buf, "%d\n", isl29003_get_adc_value(client));
 }
 
 static DEVICE_ATTR(lux, S_IRUGO, isl29003_show_lux, NULL);
@@ -374,8 +374,7 @@ static int isl29003_init_client(struct i2c_client *client)
  * I2C layer
  */
 
-static int isl29003_probe(struct i2c_client *client,
-				    const struct i2c_device_id *id)
+static int isl29003_probe(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	struct isl29003_data *data;
@@ -410,12 +409,11 @@ exit_kfree:
 	return err;
 }
 
-static int isl29003_remove(struct i2c_client *client)
+static void isl29003_remove(struct i2c_client *client)
 {
 	sysfs_remove_group(&client->dev.kobj, &isl29003_attr_group);
 	isl29003_set_power_state(client, 0);
 	kfree(i2c_get_clientdata(client));
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -461,7 +459,7 @@ static struct i2c_driver isl29003_driver = {
 		.name	= ISL29003_DRV_NAME,
 		.pm	= ISL29003_PM_OPS,
 	},
-	.probe	= isl29003_probe,
+	.probe = isl29003_probe,
 	.remove	= isl29003_remove,
 	.id_table = isl29003_id,
 };

@@ -1,0 +1,96 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree for ULCB + Simple Audio Card (MIXer)
+ *
+ * Copyright (C) 2022 Renesas Electronics Corp.
+ */
+
+/*
+ * Note:
+ * The HDMI output is ignored due to the limited number of subdevices
+ *
+ *	(A) CPU0 (2ch) <----> (2ch) (X) ak4613	(MIX-0)
+ *	(B) CPU1 (2ch)  --/			(MIX-1)
+ *
+ *	(A) aplay   -D plughw:0,0 xxx.wav
+ *	(B) aplay   -D plughw:0,1 xxx.wav
+ *
+ *	(A) arecord -D plughw:0,0 xxx.wav
+ */
+
+/ {
+	sound_card: sound {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		compatible = "simple-scu-audio-card";
+		label = "snd-ulcb-mix";
+
+		simple-audio-card,prefix  = "ak4613";
+		simple-audio-card,routing = "ak4613 Playback", "DAI0 Playback",
+					    "ak4613 Playback", "DAI1 Playback",
+					    "DAI0 Capture",    "ak4613 Capture";
+
+		simple-audio-card,dai-link@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+			convert-rate = <48000>;
+
+			/*
+			 * (A) CPU0
+			 */
+			cpu@0 {
+				reg = <0>;
+				bitclock-master;
+				frame-master;
+				sound-dai = <&rcar_sound 0>;
+			};
+			/*
+			 * (B) CPU1
+			 */
+			cpu@1 {
+				reg = <1>;
+				sound-dai = <&rcar_sound 1>;
+			};
+			/*
+			 * (X) ak4613
+			 */
+			codec {
+				prefix = "ak4613";
+				sound-dai = <&ak4613>;
+			};
+		};
+	};
+};
+
+&ak4613 {
+	/*
+	 * (X) ak4613
+	 */
+	#sound-dai-cells = <0>;
+};
+
+&rcar_sound {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	#sound-dai-cells = <1>;
+
+	rcar_sound,dai@0 {
+		reg = <0>;
+
+		/*
+		 * (A) CPU0
+		 */
+		dai0 {
+			playback = <&src1 &ctu02 &mix0 &dvc0 &ssi0>;
+			capture  = <&ssi1 &src0 &dvc1>;
+		};
+		/*
+		 * (B) CPU1
+		 */
+		dai1 {
+			playback = <&src2 &ctu03 &mix0 &dvc0 &ssi0>;
+		};
+	};
+};

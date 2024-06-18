@@ -8,15 +8,21 @@ Translations
    :maxdepth: 1
 
    zh_CN/index
+   zh_TW/index
    it_IT/index
    ko_KR/index
    ja_JP/index
+   sp_SP/index
 
 
 .. _translations_disclaimer:
 
 Disclaimer
 ----------
+
+.. raw:: latex
+
+	\kerneldocCJKoff
 
 Translation's purpose is to ease reading and understanding in languages other
 than English. Its aim is to help people who do not understand English or have

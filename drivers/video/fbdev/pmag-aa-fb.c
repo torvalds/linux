@@ -147,12 +147,10 @@ static int aafb_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops aafb_ops = {
+static const struct fb_ops aafb_ops = {
 	.owner		= THIS_MODULE,
+	FB_DEFAULT_IOMEM_OPS,
 	.fb_blank	= aafb_blank,
-	.fb_fillrect	= cfb_fillrect,
-	.fb_copyarea	= cfb_copyarea,
-	.fb_imageblit	= cfb_imageblit,
 	.fb_cursor	= aafb_cursor,
 };
 
@@ -174,7 +172,6 @@ static int pmagaafb_probe(struct device *dev)
 	info->fbops = &aafb_ops;
 	info->fix = aafb_fix;
 	info->var = aafb_defined;
-	info->flags = FBINFO_DEFAULT;
 
 	/* Request the I/O MEM resource. */
 	start = tdev->resource.start;
@@ -188,7 +185,7 @@ static int pmagaafb_probe(struct device *dev)
 
 	/* MMIO mapping setup. */
 	info->fix.mmio_start = start + PMAG_AA_BT455_OFFSET;
-	par->mmio = ioremap_nocache(info->fix.mmio_start, info->fix.mmio_len);
+	par->mmio = ioremap(info->fix.mmio_start, info->fix.mmio_len);
 	if (!par->mmio) {
 		printk(KERN_ERR "%s: Cannot map MMIO\n", dev_name(dev));
 		err = -ENOMEM;
@@ -199,7 +196,7 @@ static int pmagaafb_probe(struct device *dev)
 
 	/* Frame buffer mapping setup. */
 	info->fix.smem_start = start + PMAG_AA_ONBOARD_FBMEM_OFFSET;
-	info->screen_base = ioremap_nocache(info->fix.smem_start,
+	info->screen_base = ioremap(info->fix.smem_start,
 					    info->fix.smem_len);
 	if (!info->screen_base) {
 		printk(KERN_ERR "%s: Cannot map FB\n", dev_name(dev));

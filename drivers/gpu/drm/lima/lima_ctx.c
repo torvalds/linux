@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /* Copyright 2018-2019 Qiang Yu <yuq825@gmail.com> */
 
+#include <linux/pid.h>
 #include <linux/slab.h>
 
 #include "lima_device.h"
@@ -18,7 +19,7 @@ int lima_ctx_create(struct lima_device *dev, struct lima_ctx_mgr *mgr, u32 *id)
 	kref_init(&ctx->refcnt);
 
 	for (i = 0; i < lima_pipe_num; i++) {
-		err = lima_sched_context_init(dev->pipe + i, ctx->context + i, &ctx->guilty);
+		err = lima_sched_context_init(dev->pipe + i, ctx->context + i);
 		if (err)
 			goto err_out0;
 	}
@@ -26,6 +27,9 @@ int lima_ctx_create(struct lima_device *dev, struct lima_ctx_mgr *mgr, u32 *id)
 	err = xa_alloc(&mgr->handles, id, ctx, xa_limit_32b, GFP_KERNEL);
 	if (err < 0)
 		goto err_out0;
+
+	ctx->pid = task_pid_nr(current);
+	get_task_comm(ctx->pname, current);
 
 	return 0;
 

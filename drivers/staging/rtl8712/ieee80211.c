@@ -162,44 +162,44 @@ int r8712_generate_ie(struct registry_priv *registrypriv)
 	uint sz = 0;
 	struct wlan_bssid_ex *dev_network = &registrypriv->dev_network;
 	u8 *ie = dev_network->IEs;
-	u16 beaconPeriod = (u16)dev_network->Configuration.BeaconPeriod;
+	u16 beacon_period = (u16)dev_network->Configuration.BeaconPeriod;
 
 	/*timestamp will be inserted by hardware*/
 	sz += 8;
 	ie += sz;
 	/*beacon interval : 2bytes*/
-	*(__le16 *)ie = cpu_to_le16(beaconPeriod);
+	*(__le16 *)ie = cpu_to_le16(beacon_period);
 	sz += 2;
 	ie += 2;
 	/*capability info*/
 	*(u16 *)ie = 0;
-	*(__le16 *)ie |= cpu_to_le16(cap_IBSS);
+	*(__le16 *)ie |= cpu_to_le16(WLAN_CAPABILITY_IBSS);
 	if (registrypriv->preamble == PREAMBLE_SHORT)
-		*(__le16 *)ie |= cpu_to_le16(cap_ShortPremble);
+		*(__le16 *)ie |= cpu_to_le16(WLAN_CAPABILITY_SHORT_PREAMBLE);
 	if (dev_network->Privacy)
-		*(__le16 *)ie |= cpu_to_le16(cap_Privacy);
+		*(__le16 *)ie |= cpu_to_le16(WLAN_CAPABILITY_PRIVACY);
 	sz += 2;
 	ie += 2;
 	/*SSID*/
-	ie = r8712_set_ie(ie, _SSID_IE_, dev_network->Ssid.SsidLength,
+	ie = r8712_set_ie(ie, WLAN_EID_SSID, dev_network->Ssid.SsidLength,
 			  dev_network->Ssid.Ssid, &sz);
 	/*supported rates*/
 	set_supported_rate(dev_network->rates, registrypriv->wireless_mode);
 	rate_len = r8712_get_rateset_len(dev_network->rates);
 	if (rate_len > 8) {
-		ie = r8712_set_ie(ie, _SUPPORTEDRATES_IE_, 8,
+		ie = r8712_set_ie(ie, WLAN_EID_SUPP_RATES, 8,
 				  dev_network->rates, &sz);
-		ie = r8712_set_ie(ie, _EXT_SUPPORTEDRATES_IE_, (rate_len - 8),
+		ie = r8712_set_ie(ie, WLAN_EID_EXT_SUPP_RATES, (rate_len - 8),
 				  (dev_network->rates + 8), &sz);
 	} else {
-		ie = r8712_set_ie(ie, _SUPPORTEDRATES_IE_,
+		ie = r8712_set_ie(ie, WLAN_EID_SUPP_RATES,
 				  rate_len, dev_network->rates, &sz);
 	}
 	/*DS parameter set*/
-	ie = r8712_set_ie(ie, _DSSET_IE_, 1,
+	ie = r8712_set_ie(ie, WLAN_EID_DS_PARAMS, 1,
 			  (u8 *)&dev_network->Configuration.DSConfig, &sz);
 	/*IBSS Parameter Set*/
-	ie = r8712_set_ie(ie, _IBSS_PARA_IE_, 2,
+	ie = r8712_set_ie(ie, WLAN_EID_IBSS_PARAMS, 2,
 			  (u8 *)&dev_network->Configuration.ATIMWindow, &sz);
 	return sz;
 }

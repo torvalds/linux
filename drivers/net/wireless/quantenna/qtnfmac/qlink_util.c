@@ -124,6 +124,8 @@ void qlink_chandef_q2cfg(struct wiphy *wiphy,
 	chdef->center_freq1 = le16_to_cpu(qch->center_freq1);
 	chdef->center_freq2 = le16_to_cpu(qch->center_freq2);
 	chdef->width = qlink_chanwidth_to_nl(qch->width);
+	chdef->edmg.bw_config = 0;
+	chdef->edmg.channels = 0;
 }
 
 void qlink_chandef_cfg2q(const struct cfg80211_chan_def *chdef,

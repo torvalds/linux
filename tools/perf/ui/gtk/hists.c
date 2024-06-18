@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include "gtk.h"
 #include "../evlist.h"
 #include "../callchain.h"
 #include "../evsel.h"
@@ -6,7 +7,6 @@
 #include "../hist.h"
 #include "../helpline.h"
 #include "../string2.h"
-#include "gtk.h"
 #include <signal.h>
 #include <stdlib.h>
 #include <linux/string.h>
@@ -590,10 +590,8 @@ static void perf_gtk__show_hierarchy(GtkWidget *window, struct hists *hists,
 	gtk_container_add(GTK_CONTAINER(window), view);
 }
 
-int perf_evlist__gtk_browse_hists(struct evlist *evlist,
-				  const char *help,
-				  struct hist_browser_timer *hbt __maybe_unused,
-				  float min_pcnt)
+int evlist__gtk_browse_hists(struct evlist *evlist, const char *help,
+			     struct hist_browser_timer *hbt __maybe_unused, float min_pcnt)
 {
 	struct evsel *pos;
 	GtkWidget *vbox;
@@ -635,18 +633,18 @@ int perf_evlist__gtk_browse_hists(struct evlist *evlist,
 
 	evlist__for_each_entry(evlist, pos) {
 		struct hists *hists = evsel__hists(pos);
-		const char *evname = perf_evsel__name(pos);
+		const char *evname = evsel__name(pos);
 		GtkWidget *scrolled_window;
 		GtkWidget *tab_label;
 		char buf[512];
 		size_t size = sizeof(buf);
 
 		if (symbol_conf.event_group) {
-			if (!perf_evsel__is_group_leader(pos))
+			if (!evsel__is_group_leader(pos))
 				continue;
 
 			if (pos->core.nr_members > 1) {
-				perf_evsel__group_desc(pos, buf, size);
+				evsel__group_desc(pos, buf, size);
 				evname = buf;
 			}
 		}

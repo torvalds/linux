@@ -28,6 +28,10 @@ sottomissione delle patch, in particolare
 
   c) quando si usa ``O=builddir``
 
+  d) Qualsiasi modifica in Documentation/ deve compilare con successo senza
+     avvisi o errori. Usare ``make htmldocs`` o ``make pdfdocs`` per verificare
+     e correggere i problemi
+
 3) Compilare per diverse architetture di processore usando strumenti per
    la cross-compilazione o altri.
 
@@ -54,8 +58,7 @@ sottomissione delle patch, in particolare
 
 9) Verificare con sparse.
 
-10) Usare ``make checkstack`` e ``make namespacecheck`` e correggere tutti i
-    problemi rilevati.
+10) Usare ``make checkstack`` e correggere tutti i problemi rilevati.
 
     .. note::
 
@@ -95,31 +98,29 @@ sottomissione delle patch, in particolare
     informazioni.  Le patch che modificano le interfacce utente dovrebbero
     essere inviate in copia anche a linux-api@vger.kernel.org.
 
-20) Verifica che il kernel passi con successo ``make headers_check``
-
-21) La patch è stata verificata con l'iniezione di fallimenti in slab e
+20) La patch è stata verificata con l'iniezione di fallimenti in slab e
     nell'allocazione di pagine.  Vedere ``Documentation/fault-injection/``.
 
     Se il nuovo codice è corposo, potrebbe essere opportuno aggiungere
     l'iniezione di fallimenti specifici per il sottosistema.
 
-22) Il nuovo codice è stato compilato con ``gcc -W`` (usate
-    ``make EXTRA_CFLAGS=-W``).  Questo genererà molti avvisi, ma è ottimo
+21) Il nuovo codice è stato compilato con ``gcc -W`` (usate
+    ``make KCFLAGS=-W``).  Questo genererà molti avvisi, ma è ottimo
     per scovare bachi come  "warning: comparison between signed and unsigned".
 
-23) La patch è stata verificata dopo essere stata inclusa nella serie di patch
+22) La patch è stata verificata dopo essere stata inclusa nella serie di patch
     -mm; questo al fine di assicurarsi che continui a funzionare assieme a
     tutte le altre patch in coda e i vari cambiamenti nei sottosistemi VM, VFS
     e altri.
 
-24) Tutte le barriere di sincronizzazione {per esempio, ``barrier()``,
+23) Tutte le barriere di sincronizzazione {per esempio, ``barrier()``,
     ``rmb()``, ``wmb()``} devono essere accompagnate da un commento nei
     sorgenti che ne spieghi la logica: cosa fanno e perché.
 
-25) Se la patch aggiunge nuove chiamate ioctl, allora aggiornate
-    ``Documentation/ioctl/ioctl-number.rst``.
+24) Se la patch aggiunge nuove chiamate ioctl, allora aggiornate
+    ``Documentation/userspace-api/ioctl/ioctl-number.rst``.
 
-26) Se il codice che avete modificato dipende o usa una qualsiasi interfaccia o
+25) Se il codice che avete modificato dipende o usa una qualsiasi interfaccia o
     funzionalità del kernel che è associata a uno dei seguenti simboli
     ``Kconfig``, allora verificate che il kernel compili con diverse
     configurazioni dove i simboli sono disabilitati e/o ``=m`` (se c'è la

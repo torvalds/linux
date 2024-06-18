@@ -6,6 +6,8 @@
  * space mapped. This allows lockless config space operation.
  */
 
+#define pr_fmt(fmt) "PCI: " fmt
+
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/acpi.h>
@@ -13,8 +15,6 @@
 #include <linux/rcupdate.h>
 #include <asm/e820/api.h>
 #include <asm/pci_x86.h>
-
-#define PREFIX "PCI: "
 
 static char __iomem *pci_dev_base(unsigned int seg, unsigned int bus, unsigned int devfn)
 {
@@ -105,10 +105,29 @@ static void __iomem *mcfg_ioremap(struct pci_mmcfg_region *cfg)
 	start = cfg->address + PCI_MMCFG_BUS_OFFSET(cfg->start_bus);
 	num_buses = cfg->end_bus - cfg->start_bus + 1;
 	size = PCI_MMCFG_BUS_OFFSET(num_buses);
-	addr = ioremap_nocache(start, size);
+	addr = ioremap(start, size);
 	if (addr)
 		addr -= PCI_MMCFG_BUS_OFFSET(cfg->start_bus);
 	return addr;
+}
+
+int pci_mmcfg_arch_map(struct pci_mmcfg_region *cfg)
+{
+	cfg->virt = mcfg_ioremap(cfg);
+	if (!cfg->virt) {
+		pr_err("can't map ECAM at %pR\n", &cfg->res);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+void pci_mmcfg_arch_unmap(struct pci_mmcfg_region *cfg)
+{
+	if (cfg && cfg->virt) {
+		iounmap(cfg->virt + PCI_MMCFG_BUS_OFFSET(cfg->start_bus));
+		cfg->virt = NULL;
+	}
 }
 
 int __init pci_mmcfg_arch_init(void)
@@ -132,23 +151,4 @@ void __init pci_mmcfg_arch_free(void)
 
 	list_for_each_entry(cfg, &pci_mmcfg_list, list)
 		pci_mmcfg_arch_unmap(cfg);
-}
-
-int pci_mmcfg_arch_map(struct pci_mmcfg_region *cfg)
-{
-	cfg->virt = mcfg_ioremap(cfg);
-	if (!cfg->virt) {
-		pr_err(PREFIX "can't map MMCONFIG at %pR\n", &cfg->res);
-		return -ENOMEM;
-	}
-
-	return 0;
-}
-
-void pci_mmcfg_arch_unmap(struct pci_mmcfg_region *cfg)
-{
-	if (cfg && cfg->virt) {
-		iounmap(cfg->virt + PCI_MMCFG_BUS_OFFSET(cfg->start_bus));
-		cfg->virt = NULL;
-	}
 }

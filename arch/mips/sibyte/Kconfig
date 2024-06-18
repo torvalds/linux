@@ -10,15 +10,6 @@ config SIBYTE_SB1250
 	select SIBYTE_SB1xxx_SOC
 	select SYS_SUPPORTS_SMP
 
-config SIBYTE_BCM1120
-	bool
-	select CEVT_SB1250
-	select CSRC_SB1250
-	select IRQ_MIPS_CPU
-	select SIBYTE_BCM112X
-	select SIBYTE_HAS_ZBUS_PROFILING
-	select SIBYTE_SB1xxx_SOC
-
 config SIBYTE_BCM1125
 	bool
 	select CEVT_SB1250
@@ -26,17 +17,6 @@ config SIBYTE_BCM1125
 	select HAVE_PCI
 	select IRQ_MIPS_CPU
 	select SIBYTE_BCM112X
-	select SIBYTE_HAS_ZBUS_PROFILING
-	select SIBYTE_SB1xxx_SOC
-
-config SIBYTE_BCM1125H
-	bool
-	select CEVT_SB1250
-	select CSRC_SB1250
-	select HAVE_PCI
-	select IRQ_MIPS_CPU
-	select SIBYTE_BCM112X
-	select SIBYTE_ENABLE_LDT_IF_PCI
 	select SIBYTE_HAS_ZBUS_PROFILING
 	select SIBYTE_SB1xxx_SOC
 
@@ -56,16 +36,6 @@ config SIBYTE_BCM1x80
 	select IRQ_MIPS_CPU
 	select SIBYTE_HAS_ZBUS_PROFILING
 	select SIBYTE_SB1xxx_SOC
-	select SYS_SUPPORTS_SMP
-
-config SIBYTE_BCM1x55
-	bool
-	select CEVT_BCM1480
-	select CSRC_BCM1480
-	select HAVE_PCI
-	select IRQ_MIPS_CPU
-	select SIBYTE_SB1xxx_SOC
-	select SIBYTE_HAS_ZBUS_PROFILING
 	select SYS_SUPPORTS_SMP
 
 config SIBYTE_SB1xxx_SOC
@@ -143,8 +113,7 @@ config SIBYTE_CFE_CONSOLE
 config SIBYTE_BUS_WATCHER
 	bool "Support for Bus Watcher statistics"
 	depends on SIBYTE_SB1xxx_SOC && \
-		(SIBYTE_BCM112X || SIBYTE_SB1250 || \
-		 SIBYTE_BCM1x55 || SIBYTE_BCM1x80)
+		(SIBYTE_BCM112X || SIBYTE_SB1250 || SIBYTE_BCM1x80)
 	help
 	  Handle and keep statistics on the bus error interrupts (COR_ECC,
 	  BAD_ECC, IO_BUS).

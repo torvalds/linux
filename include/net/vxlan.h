@@ -3,12 +3,15 @@
 #define __NET_VXLAN_H 1
 
 #include <linux/if_vlan.h>
+#include <linux/rhashtable-types.h>
 #include <net/udp_tunnel.h>
 #include <net/dst_metadata.h>
 #include <net/rtnetlink.h>
 #include <net/switchdev.h>
+#include <net/nexthop.h>
 
 #define IANA_VXLAN_UDP_PORT     4789
+#define IANA_VXLAN_GPE_UDP_PORT 4790
 
 /* VXLAN protocol (RFC 7348) header:
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -120,6 +123,9 @@ struct vxlanhdr_gbp {
 #define VXLAN_GBP_POLICY_APPLIED	(BIT(3) << 16)
 #define VXLAN_GBP_ID_MASK		(0xFFFF)
 
+#define VXLAN_GBP_MASK (VXLAN_GBP_DONT_LEARN | VXLAN_GBP_POLICY_APPLIED | \
+			VXLAN_GBP_ID_MASK)
+
 /*
  * VXLAN Generic Protocol Extension (VXLAN_F_GPE):
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -197,33 +203,80 @@ struct vxlan_rdst {
 	u8			 offloaded:1;
 	__be32			 remote_vni;
 	u32			 remote_ifindex;
+	struct net_device	 *remote_dev;
 	struct list_head	 list;
 	struct rcu_head		 rcu;
 	struct dst_cache	 dst_cache;
 };
 
 struct vxlan_config {
-	union vxlan_addr	remote_ip;
-	union vxlan_addr	saddr;
-	__be32			vni;
-	int			remote_ifindex;
-	int			mtu;
-	__be16			dst_port;
-	u16			port_min;
-	u16			port_max;
-	u8			tos;
-	u8			ttl;
-	__be32			label;
-	u32			flags;
-	unsigned long		age_interval;
-	unsigned int		addrmax;
-	bool			no_share;
-	enum ifla_vxlan_df	df;
+	union vxlan_addr		remote_ip;
+	union vxlan_addr		saddr;
+	__be32				vni;
+	int				remote_ifindex;
+	int				mtu;
+	__be16				dst_port;
+	u16				port_min;
+	u16				port_max;
+	u8				tos;
+	u8				ttl;
+	__be32				label;
+	enum ifla_vxlan_label_policy	label_policy;
+	u32				flags;
+	unsigned long			age_interval;
+	unsigned int			addrmax;
+	bool				no_share;
+	enum ifla_vxlan_df		df;
+};
+
+enum {
+	VXLAN_VNI_STATS_RX,
+	VXLAN_VNI_STATS_RX_DROPS,
+	VXLAN_VNI_STATS_RX_ERRORS,
+	VXLAN_VNI_STATS_TX,
+	VXLAN_VNI_STATS_TX_DROPS,
+	VXLAN_VNI_STATS_TX_ERRORS,
+};
+
+struct vxlan_vni_stats {
+	u64 rx_packets;
+	u64 rx_bytes;
+	u64 rx_drops;
+	u64 rx_errors;
+	u64 tx_packets;
+	u64 tx_bytes;
+	u64 tx_drops;
+	u64 tx_errors;
+};
+
+struct vxlan_vni_stats_pcpu {
+	struct vxlan_vni_stats stats;
+	struct u64_stats_sync syncp;
 };
 
 struct vxlan_dev_node {
 	struct hlist_node hlist;
 	struct vxlan_dev *vxlan;
+};
+
+struct vxlan_vni_node {
+	struct rhash_head vnode;
+	struct vxlan_dev_node hlist4; /* vni hash table for IPv4 socket */
+#if IS_ENABLED(CONFIG_IPV6)
+	struct vxlan_dev_node hlist6; /* vni hash table for IPv6 socket */
+#endif
+	struct list_head vlist;
+	__be32 vni;
+	union vxlan_addr remote_ip; /* default remote ip for this vni */
+	struct vxlan_vni_stats_pcpu __percpu *stats;
+
+	struct rcu_head rcu;
+};
+
+struct vxlan_vni_group {
+	struct rhashtable	vni_hash;
+	struct list_head	vni_list;
+	u32			num_vnis;
 };
 
 /* Pseudo network device */
@@ -248,7 +301,13 @@ struct vxlan_dev {
 
 	struct vxlan_config	cfg;
 
+	struct vxlan_vni_group  __rcu *vnigrp;
+
 	struct hlist_head fdb_head[FDB_HASH_SIZE];
+
+	struct rhashtable mdb_tbl;
+	struct hlist_head mdb_list;
+	unsigned int mdb_seq;
 };
 
 #define VXLAN_F_LEARN			0x01
@@ -268,6 +327,9 @@ struct vxlan_dev {
 #define VXLAN_F_GPE			0x4000
 #define VXLAN_F_IPV6_LINKLOCAL		0x8000
 #define VXLAN_F_TTL_INHERIT		0x10000
+#define VXLAN_F_VNIFILTER               0x20000
+#define VXLAN_F_MDB			0x40000
+#define VXLAN_F_LOCALBYPASS		0x80000
 
 /* Flags that are used in the receive path. These flags must match in
  * order for a socket to be shareable
@@ -277,7 +339,8 @@ struct vxlan_dev {
 					 VXLAN_F_UDP_ZERO_CSUM6_RX |	\
 					 VXLAN_F_REMCSUM_RX |		\
 					 VXLAN_F_REMCSUM_NOPARTIAL |	\
-					 VXLAN_F_COLLECT_METADATA)
+					 VXLAN_F_COLLECT_METADATA |	\
+					 VXLAN_F_VNIFILTER)
 
 /* Flags that can be set together with VXLAN_F_GPE. */
 #define VXLAN_F_ALLOWED_GPE		(VXLAN_F_GPE |			\
@@ -286,7 +349,9 @@ struct vxlan_dev {
 					 VXLAN_F_UDP_ZERO_CSUM_TX |	\
 					 VXLAN_F_UDP_ZERO_CSUM6_TX |	\
 					 VXLAN_F_UDP_ZERO_CSUM6_RX |	\
-					 VXLAN_F_COLLECT_METADATA)
+					 VXLAN_F_COLLECT_METADATA  |	\
+					 VXLAN_F_VNIFILTER         |    \
+					 VXLAN_F_LOCALBYPASS)
 
 struct net_device *vxlan_dev_create(struct net *net, const char *name,
 				    u8 name_assign_type, struct vxlan_config *conf);
@@ -322,10 +387,15 @@ static inline netdev_features_t vxlan_features_check(struct sk_buff *skb,
 	return features;
 }
 
-/* IP header + UDP + VXLAN + Ethernet header */
-#define VXLAN_HEADROOM (20 + 8 + 8 + 14)
-/* IPv6 header + UDP + VXLAN + Ethernet header */
-#define VXLAN6_HEADROOM (40 + 8 + 8 + 14)
+static inline int vxlan_headroom(u32 flags)
+{
+	/* VXLAN:     IP4/6 header + UDP + VXLAN + Ethernet header */
+	/* VXLAN-GPE: IP4/6 header + UDP + VXLAN */
+	return (flags & VXLAN_F_IPV6 ? sizeof(struct ipv6hdr) :
+				       sizeof(struct iphdr)) +
+	       sizeof(struct udphdr) + sizeof(struct vxlanhdr) +
+	       (flags & VXLAN_F_GPE ? 0 : ETH_HLEN);
+}
 
 static inline struct vxlanhdr *vxlan_hdr(struct sk_buff *skb)
 {
@@ -484,6 +554,49 @@ static inline void vxlan_flag_attr_error(int attrtype,
 		break;
 	}
 #undef VXLAN_FLAG
+}
+
+static inline bool vxlan_fdb_nh_path_select(struct nexthop *nh,
+					    u32 hash,
+					    struct vxlan_rdst *rdst)
+{
+	struct fib_nh_common *nhc;
+
+	nhc = nexthop_path_fdb_result(nh, hash >> 1);
+	if (unlikely(!nhc))
+		return false;
+
+	switch (nhc->nhc_gw_family) {
+	case AF_INET:
+		rdst->remote_ip.sin.sin_addr.s_addr = nhc->nhc_gw.ipv4;
+		rdst->remote_ip.sa.sa_family = AF_INET;
+		break;
+	case AF_INET6:
+		rdst->remote_ip.sin6.sin6_addr = nhc->nhc_gw.ipv6;
+		rdst->remote_ip.sa.sa_family = AF_INET6;
+		break;
+	}
+
+	return true;
+}
+
+static inline void vxlan_build_gbp_hdr(struct vxlanhdr *vxh, const struct vxlan_metadata *md)
+{
+	struct vxlanhdr_gbp *gbp;
+
+	if (!md->gbp)
+		return;
+
+	gbp = (struct vxlanhdr_gbp *)vxh;
+	vxh->vx_flags |= VXLAN_HF_GBP;
+
+	if (md->gbp & VXLAN_GBP_DONT_LEARN)
+		gbp->dont_learn = 1;
+
+	if (md->gbp & VXLAN_GBP_POLICY_APPLIED)
+		gbp->policy_applied = 1;
+
+	gbp->policy_id = htons(md->gbp & VXLAN_GBP_ID_MASK);
 }
 
 #endif

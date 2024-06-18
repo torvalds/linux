@@ -19,8 +19,10 @@
 #ifndef _ASM_POWERPC_PTRACE_H
 #define _ASM_POWERPC_PTRACE_H
 
+#include <linux/err.h>
 #include <uapi/asm/ptrace.h>
 #include <asm/asm-const.h>
+#include <asm/reg.h>
 
 #ifndef __ASSEMBLY__
 struct pt_regs
@@ -42,24 +44,64 @@ struct pt_regs
 			unsigned long mq;
 #endif
 			unsigned long trap;
-			unsigned long dar;
-			unsigned long dsisr;
+			union {
+				unsigned long dar;
+				unsigned long dear;
+			};
+			union {
+				unsigned long dsisr;
+				unsigned long esr;
+			};
 			unsigned long result;
 		};
 	};
-
+#if defined(CONFIG_PPC64) || defined(CONFIG_PPC_KUAP)
 	union {
 		struct {
 #ifdef CONFIG_PPC64
 			unsigned long ppr;
+			unsigned long exit_result;
 #endif
+			union {
 #ifdef CONFIG_PPC_KUAP
-			unsigned long kuap;
+				unsigned long kuap;
+#endif
+#ifdef CONFIG_PPC_PKEY
+				unsigned long amr;
+#endif
+			};
+#ifdef CONFIG_PPC_PKEY
+			unsigned long iamr;
 #endif
 		};
-		unsigned long __pad[2];	/* Maintain 16 byte interrupt stack alignment */
+		unsigned long __pad[4];	/* Maintain 16 byte interrupt stack alignment */
 	};
+#endif
+#if defined(CONFIG_PPC32) && defined(CONFIG_BOOKE)
+	struct { /* Must be a multiple of 16 bytes */
+		unsigned long mas0;
+		unsigned long mas1;
+		unsigned long mas2;
+		unsigned long mas3;
+		unsigned long mas6;
+		unsigned long mas7;
+		unsigned long srr0;
+		unsigned long srr1;
+		unsigned long csrr0;
+		unsigned long csrr1;
+		unsigned long dsrr0;
+		unsigned long dsrr1;
+	};
+#endif
 };
+#endif
+
+
+// Always displays as "REGS" in memory dumps
+#ifdef CONFIG_CPU_BIG_ENDIAN
+#define STACK_FRAME_REGS_MARKER	ASM_CONST(0x52454753)
+#else
+#define STACK_FRAME_REGS_MARKER	ASM_CONST(0x53474552)
 #endif
 
 #ifdef __powerpc64__
@@ -76,17 +118,27 @@ struct pt_regs
 #define USER_REDZONE_SIZE	512
 #define KERNEL_REDZONE_SIZE	288
 
-#define STACK_FRAME_OVERHEAD	112	/* size of minimum stack frame */
 #define STACK_FRAME_LR_SAVE	2	/* Location of LR in stack frame */
-#define STACK_FRAME_REGS_MARKER	ASM_CONST(0x7265677368657265)
-#define STACK_INT_FRAME_SIZE	(sizeof(struct pt_regs) + \
-				 STACK_FRAME_OVERHEAD + KERNEL_REDZONE_SIZE)
-#define STACK_FRAME_MARKER	12
 
-#ifdef PPC64_ELF_ABI_v2
+#ifdef CONFIG_PPC64_ELF_ABI_V2
 #define STACK_FRAME_MIN_SIZE	32
+#define STACK_USER_INT_FRAME_SIZE	(sizeof(struct pt_regs) + STACK_FRAME_MIN_SIZE + 16)
+#define STACK_INT_FRAME_REGS	(STACK_FRAME_MIN_SIZE + 16)
+#define STACK_INT_FRAME_MARKER	STACK_FRAME_MIN_SIZE
+#define STACK_SWITCH_FRAME_SIZE (sizeof(struct pt_regs) + STACK_FRAME_MIN_SIZE + 16)
+#define STACK_SWITCH_FRAME_REGS	(STACK_FRAME_MIN_SIZE + 16)
 #else
-#define STACK_FRAME_MIN_SIZE	STACK_FRAME_OVERHEAD
+/*
+ * The ELFv1 ABI specifies 48 bytes plus a minimum 64 byte parameter save
+ * area. This parameter area is not used by calls to C from interrupt entry,
+ * so the second from last one of those is used for the frame marker.
+ */
+#define STACK_FRAME_MIN_SIZE	112
+#define STACK_USER_INT_FRAME_SIZE	(sizeof(struct pt_regs) + STACK_FRAME_MIN_SIZE)
+#define STACK_INT_FRAME_REGS	STACK_FRAME_MIN_SIZE
+#define STACK_INT_FRAME_MARKER	(STACK_FRAME_MIN_SIZE - 16)
+#define STACK_SWITCH_FRAME_SIZE	(sizeof(struct pt_regs) + STACK_FRAME_MIN_SIZE)
+#define STACK_SWITCH_FRAME_REGS	STACK_FRAME_MIN_SIZE
 #endif
 
 /* Size of dummy stack frame allocated when calling signal handler. */
@@ -97,19 +149,58 @@ struct pt_regs
 
 #define USER_REDZONE_SIZE	0
 #define KERNEL_REDZONE_SIZE	0
-#define STACK_FRAME_OVERHEAD	16	/* size of minimum stack frame */
+#define STACK_FRAME_MIN_SIZE	16
 #define STACK_FRAME_LR_SAVE	1	/* Location of LR in stack frame */
-#define STACK_FRAME_REGS_MARKER	ASM_CONST(0x72656773)
-#define STACK_INT_FRAME_SIZE	(sizeof(struct pt_regs) + STACK_FRAME_OVERHEAD)
-#define STACK_FRAME_MARKER	2
-#define STACK_FRAME_MIN_SIZE	STACK_FRAME_OVERHEAD
+#define STACK_USER_INT_FRAME_SIZE	(sizeof(struct pt_regs) + STACK_FRAME_MIN_SIZE)
+#define STACK_INT_FRAME_REGS	STACK_FRAME_MIN_SIZE
+#define STACK_INT_FRAME_MARKER	(STACK_FRAME_MIN_SIZE - 8)
+#define STACK_SWITCH_FRAME_SIZE	(sizeof(struct pt_regs) + STACK_FRAME_MIN_SIZE)
+#define STACK_SWITCH_FRAME_REGS	STACK_FRAME_MIN_SIZE
 
 /* Size of stack frame allocated when calling signal handler. */
 #define __SIGNAL_FRAMESIZE	64
 
 #endif /* __powerpc64__ */
 
+#define STACK_INT_FRAME_SIZE	(KERNEL_REDZONE_SIZE + STACK_USER_INT_FRAME_SIZE)
+#define STACK_INT_FRAME_MARKER_LONGS	(STACK_INT_FRAME_MARKER/sizeof(long))
+
 #ifndef __ASSEMBLY__
+#include <asm/paca.h>
+
+#ifdef CONFIG_SMP
+extern unsigned long profile_pc(struct pt_regs *regs);
+#else
+#define profile_pc(regs) instruction_pointer(regs)
+#endif
+
+long do_syscall_trace_enter(struct pt_regs *regs);
+void do_syscall_trace_leave(struct pt_regs *regs);
+
+static inline void set_return_regs_changed(void)
+{
+#ifdef CONFIG_PPC_BOOK3S_64
+	WRITE_ONCE(local_paca->hsrr_valid, 0);
+	WRITE_ONCE(local_paca->srr_valid, 0);
+#endif
+}
+
+static inline void regs_set_return_ip(struct pt_regs *regs, unsigned long ip)
+{
+	regs->nip = ip;
+	set_return_regs_changed();
+}
+
+static inline void regs_set_return_msr(struct pt_regs *regs, unsigned long msr)
+{
+	regs->msr = msr;
+	set_return_regs_changed();
+}
+
+static inline void regs_add_return_ip(struct pt_regs *regs, long offset)
+{
+	regs_set_return_ip(regs, regs->nip + offset);
+}
 
 static inline unsigned long instruction_pointer(struct pt_regs *regs)
 {
@@ -119,7 +210,7 @@ static inline unsigned long instruction_pointer(struct pt_regs *regs)
 static inline void instruction_pointer_set(struct pt_regs *regs,
 		unsigned long val)
 {
-	regs->nip = val;
+	regs_set_return_ip(regs, val);
 }
 
 static inline unsigned long user_stack_pointer(struct pt_regs *regs)
@@ -132,20 +223,80 @@ static inline unsigned long frame_pointer(struct pt_regs *regs)
 	return 0;
 }
 
-#ifdef CONFIG_SMP
-extern unsigned long profile_pc(struct pt_regs *regs);
+#define user_mode(regs) (((regs)->msr & MSR_PR) != 0)
+
+#define force_successful_syscall_return()   \
+	do { \
+		set_thread_flag(TIF_NOERROR); \
+	} while(0)
+
+#define current_pt_regs() \
+	((struct pt_regs *)((unsigned long)task_stack_page(current) + THREAD_SIZE) - 1)
+
+/*
+ * The 4 low bits (0xf) are available as flags to overload the trap word,
+ * because interrupt vectors have minimum alignment of 0x10. TRAP_FLAGS_MASK
+ * must cover the bits used as flags, including bit 0 which is used as the
+ * "norestart" bit.
+ */
+#ifdef __powerpc64__
+#define TRAP_FLAGS_MASK		0x1
 #else
-#define profile_pc(regs) instruction_pointer(regs)
-#endif
+/*
+ * On 4xx we use bit 1 in the trap word to indicate whether the exception
+ * is a critical exception (1 means it is).
+ */
+#define TRAP_FLAGS_MASK		0xf
+#define IS_CRITICAL_EXC(regs)	(((regs)->trap & 2) != 0)
+#define IS_MCHECK_EXC(regs)	(((regs)->trap & 4) != 0)
+#define IS_DEBUG_EXC(regs)	(((regs)->trap & 8) != 0)
+#endif /* __powerpc64__ */
+#define TRAP(regs)		((regs)->trap & ~TRAP_FLAGS_MASK)
+
+static __always_inline void set_trap(struct pt_regs *regs, unsigned long val)
+{
+	regs->trap = (regs->trap & TRAP_FLAGS_MASK) | (val & ~TRAP_FLAGS_MASK);
+}
+
+static inline bool trap_is_scv(struct pt_regs *regs)
+{
+	return (IS_ENABLED(CONFIG_PPC_BOOK3S_64) && TRAP(regs) == 0x3000);
+}
+
+static inline bool trap_is_unsupported_scv(struct pt_regs *regs)
+{
+	return IS_ENABLED(CONFIG_PPC_BOOK3S_64) && TRAP(regs) == 0x7ff0;
+}
+
+static inline bool trap_is_syscall(struct pt_regs *regs)
+{
+	return (trap_is_scv(regs) || TRAP(regs) == 0xc00);
+}
+
+static inline bool trap_norestart(struct pt_regs *regs)
+{
+	return regs->trap & 0x1;
+}
+
+static __always_inline void set_trap_norestart(struct pt_regs *regs)
+{
+	regs->trap |= 0x1;
+}
 
 #define kernel_stack_pointer(regs) ((regs)->gpr[1])
 static inline int is_syscall_success(struct pt_regs *regs)
 {
-	return !(regs->ccr & 0x10000000);
+	if (trap_is_scv(regs))
+		return !IS_ERR_VALUE((unsigned long)regs->gpr[3]);
+	else
+		return !(regs->ccr & 0x10000000);
 }
 
 static inline long regs_return_value(struct pt_regs *regs)
 {
+	if (trap_is_scv(regs))
+		return regs->gpr[3];
+
 	if (is_syscall_success(regs))
 		return regs->gpr[3];
 	else
@@ -157,57 +308,30 @@ static inline void regs_set_return_value(struct pt_regs *regs, unsigned long rc)
 	regs->gpr[3] = rc;
 }
 
-#ifdef __powerpc64__
-#define user_mode(regs) ((((regs)->msr) >> MSR_PR_LG) & 0x1)
-#else
-#define user_mode(regs) (((regs)->msr & MSR_PR) != 0)
-#endif
+static inline bool cpu_has_msr_ri(void)
+{
+	return !IS_ENABLED(CONFIG_BOOKE_OR_40x);
+}
 
-#define force_successful_syscall_return()   \
-	do { \
-		set_thread_flag(TIF_NOERROR); \
-	} while(0)
+static inline bool regs_is_unrecoverable(struct pt_regs *regs)
+{
+	return unlikely(cpu_has_msr_ri() && !(regs->msr & MSR_RI));
+}
 
-struct task_struct;
-extern int ptrace_get_reg(struct task_struct *task, int regno,
-			  unsigned long *data);
-extern int ptrace_put_reg(struct task_struct *task, int regno,
-			  unsigned long data);
+static inline void regs_set_recoverable(struct pt_regs *regs)
+{
+	if (cpu_has_msr_ri())
+		regs_set_return_msr(regs, regs->msr | MSR_RI);
+}
 
-#define current_pt_regs() \
-	((struct pt_regs *)((unsigned long)task_stack_page(current) + THREAD_SIZE) - 1)
-/*
- * We use the least-significant bit of the trap field to indicate
- * whether we have saved the full set of registers, or only a
- * partial set.  A 1 there means the partial set.
- * On 4xx we use the next bit to indicate whether the exception
- * is a critical exception (1 means it is).
- */
-#define FULL_REGS(regs)		(((regs)->trap & 1) == 0)
-#ifndef __powerpc64__
-#define IS_CRITICAL_EXC(regs)	(((regs)->trap & 2) != 0)
-#define IS_MCHECK_EXC(regs)	(((regs)->trap & 4) != 0)
-#define IS_DEBUG_EXC(regs)	(((regs)->trap & 8) != 0)
-#endif /* ! __powerpc64__ */
-#define TRAP(regs)		((regs)->trap & ~0xF)
-#ifdef __powerpc64__
-#define NV_REG_POISON		0xdeadbeefdeadbeefUL
-#define CHECK_FULL_REGS(regs)	BUG_ON(regs->trap & 1)
-#else
-#define NV_REG_POISON		0xdeadbeef
-#define CHECK_FULL_REGS(regs)						      \
-do {									      \
-	if ((regs)->trap & 1)						      \
-		printk(KERN_CRIT "%s: partial register set\n", __func__); \
-} while (0)
-#endif /* __powerpc64__ */
+static inline void regs_set_unrecoverable(struct pt_regs *regs)
+{
+	if (cpu_has_msr_ri())
+		regs_set_return_msr(regs, regs->msr & ~MSR_RI);
+}
 
 #define arch_has_single_step()	(1)
-#ifndef CONFIG_BOOK3S_601
 #define arch_has_block_step()	(true)
-#else
-#define arch_has_block_step()	(false)
-#endif
 #define ARCH_HAS_USER_SINGLE_STEP_REPORT
 
 /*
@@ -273,9 +397,28 @@ static inline unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs,
 		return 0;
 }
 
+/**
+ * regs_get_kernel_argument() - get Nth function argument in kernel
+ * @regs:	pt_regs of that context
+ * @n:		function argument number (start from 0)
+ *
+ * We support up to 8 arguments and assume they are sent in through the GPRs.
+ * This will fail for fp/vector arguments, but those aren't usually found in
+ * kernel code. This is expected to be called from kprobes or ftrace with regs.
+ */
+static inline unsigned long regs_get_kernel_argument(struct pt_regs *regs, unsigned int n)
+{
+#define NR_REG_ARGUMENTS 8
+	if (n < NR_REG_ARGUMENTS)
+		return regs_get_register(regs, offsetof(struct pt_regs, gpr[3 + n]));
+	return 0;
+}
+
 #endif /* __ASSEMBLY__ */
 
 #ifndef __powerpc64__
+/* We need PT_SOFTE defined at all time to avoid #ifdefs */
+#define PT_SOFTE PT_MQ
 #else /* __powerpc64__ */
 #define PT_FPSCR32 (PT_FPR0 + 2*32 + 1)	/* each FP reg occupies 2 32-bit userspace slots */
 #define PT_VR0_32 164	/* each Vector reg occupies 4 slots in 32-bit */

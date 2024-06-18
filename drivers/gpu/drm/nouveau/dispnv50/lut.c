@@ -49,7 +49,7 @@ nv50_lut_load(struct nv50_lut *lut, int buffer, struct drm_property_blob *blob,
 			kvfree(in);
 		}
 	} else {
-		load(in, blob->length / sizeof(*in), mem);
+		load(in, drm_color_lut_size(blob), mem);
 	}
 
 	return addr;
@@ -60,7 +60,7 @@ nv50_lut_fini(struct nv50_lut *lut)
 {
 	int i;
 	for (i = 0; i < ARRAY_SIZE(lut->mem); i++)
-		nvif_mem_fini(&lut->mem[i]);
+		nvif_mem_dtor(&lut->mem[i]);
 }
 
 int
@@ -70,8 +70,8 @@ nv50_lut_init(struct nv50_disp *disp, struct nvif_mmu *mmu,
 	const u32 size = disp->disp->object.oclass < GF110_DISP ? 257 : 1025;
 	int i;
 	for (i = 0; i < ARRAY_SIZE(lut->mem); i++) {
-		int ret = nvif_mem_init_map(mmu, NVIF_MEM_VRAM, size * 8,
-					    &lut->mem[i]);
+		int ret = nvif_mem_ctor_map(mmu, "kmsLut", NVIF_MEM_VRAM,
+					    size * 8, &lut->mem[i]);
 		if (ret)
 			return ret;
 	}

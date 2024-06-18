@@ -4,7 +4,7 @@
  * R.N.Shorten, D.J.Leith:
  *   "H-TCP: TCP for high-speed and long-distance networks"
  *   Proc. PFLDnet, Argonne, 2004.
- * http://www.hamilton.ie/net/htcp3.pdf
+ * https://www.hamilton.ie/net/htcp3.pdf
  */
 
 #include <linux/mm.h>
@@ -124,7 +124,7 @@ static void measure_achieved_throughput(struct sock *sk,
 
 	ca->packetcount += sample->pkts_acked;
 
-	if (ca->packetcount >= tp->snd_cwnd - (ca->alpha >> 7 ? : 1) &&
+	if (ca->packetcount >= tcp_snd_cwnd(tp) - (ca->alpha >> 7 ? : 1) &&
 	    now - ca->lasttime >= ca->minRTT &&
 	    ca->minRTT > 0) {
 		__u32 cur_Bi = ca->packetcount * HZ / (now - ca->lasttime);
@@ -225,7 +225,7 @@ static u32 htcp_recalc_ssthresh(struct sock *sk)
 	const struct htcp *ca = inet_csk_ca(sk);
 
 	htcp_param_update(sk);
-	return max((tp->snd_cwnd * ca->beta) >> 7, 2U);
+	return max((tcp_snd_cwnd(tp) * ca->beta) >> 7, 2U);
 }
 
 static void htcp_cong_avoid(struct sock *sk, u32 ack, u32 acked)
@@ -242,9 +242,9 @@ static void htcp_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 		/* In dangerous area, increase slowly.
 		 * In theory this is tp->snd_cwnd += alpha / tp->snd_cwnd
 		 */
-		if ((tp->snd_cwnd_cnt * ca->alpha)>>7 >= tp->snd_cwnd) {
-			if (tp->snd_cwnd < tp->snd_cwnd_clamp)
-				tp->snd_cwnd++;
+		if ((tp->snd_cwnd_cnt * ca->alpha)>>7 >= tcp_snd_cwnd(tp)) {
+			if (tcp_snd_cwnd(tp) < tp->snd_cwnd_clamp)
+				tcp_snd_cwnd_set(tp, tcp_snd_cwnd(tp) + 1);
 			tp->snd_cwnd_cnt = 0;
 			htcp_alpha_update(ca);
 		} else

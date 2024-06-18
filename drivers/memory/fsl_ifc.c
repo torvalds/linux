@@ -15,7 +15,7 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/fsl_ifc.h>
 #include <linux/irqdomain.h>
@@ -53,6 +53,7 @@ int fsl_ifc_find(phys_addr_t addr_base)
 
 	for (i = 0; i < fsl_ifc_ctrl_dev->banks; i++) {
 		u32 cspr = ifc_in32(&fsl_ifc_ctrl_dev->gregs->cspr_cs[i].cspr);
+
 		if (cspr & CSPR_V && (cspr & CSPR_BA) ==
 				convert_ifc_address(addr_base))
 			return i;
@@ -83,10 +84,11 @@ static int fsl_ifc_ctrl_init(struct fsl_ifc_ctrl *ctrl)
 	return 0;
 }
 
-static int fsl_ifc_ctrl_remove(struct platform_device *dev)
+static void fsl_ifc_ctrl_remove(struct platform_device *dev)
 {
 	struct fsl_ifc_ctrl *ctrl = dev_get_drvdata(&dev->dev);
 
+	of_platform_depopulate(&dev->dev);
 	free_irq(ctrl->nand_irq, ctrl);
 	free_irq(ctrl->irq, ctrl);
 
@@ -96,9 +98,6 @@ static int fsl_ifc_ctrl_remove(struct platform_device *dev)
 	iounmap(ctrl->gregs);
 
 	dev_set_drvdata(&dev->dev, NULL);
-	kfree(ctrl);
-
-	return 0;
 }
 
 /*
@@ -153,8 +152,8 @@ static irqreturn_t fsl_ifc_ctrl_irq(int irqno, void *data)
 	/* read for chip select error */
 	cs_err = ifc_in32(&ifc->cm_evter_stat);
 	if (cs_err) {
-		dev_err(ctrl->dev, "transaction sent to IFC is not mapped to"
-				"any memory bank 0x%08X\n", cs_err);
+		dev_err(ctrl->dev, "transaction sent to IFC is not mapped to any memory bank 0x%08X\n",
+			cs_err);
 		/* clear the chip select error */
 		ifc_out32(IFC_CM_EVTER_STAT_CSER, &ifc->cm_evter_stat);
 
@@ -163,24 +162,24 @@ static irqreturn_t fsl_ifc_ctrl_irq(int irqno, void *data)
 		err_addr = ifc_in32(&ifc->cm_erattr1);
 
 		if (status & IFC_CM_ERATTR0_ERTYP_READ)
-			dev_err(ctrl->dev, "Read transaction error"
-				"CM_ERATTR0 0x%08X\n", status);
+			dev_err(ctrl->dev, "Read transaction error CM_ERATTR0 0x%08X\n",
+				status);
 		else
-			dev_err(ctrl->dev, "Write transaction error"
-				"CM_ERATTR0 0x%08X\n", status);
+			dev_err(ctrl->dev, "Write transaction error CM_ERATTR0 0x%08X\n",
+				status);
 
 		err_axiid = (status & IFC_CM_ERATTR0_ERAID) >>
 					IFC_CM_ERATTR0_ERAID_SHIFT;
-		dev_err(ctrl->dev, "AXI ID of the error"
-					"transaction 0x%08X\n", err_axiid);
+		dev_err(ctrl->dev, "AXI ID of the error transaction 0x%08X\n",
+			err_axiid);
 
 		err_srcid = (status & IFC_CM_ERATTR0_ESRCID) >>
 					IFC_CM_ERATTR0_ESRCID_SHIFT;
-		dev_err(ctrl->dev, "SRC ID of the error"
-					"transaction 0x%08X\n", err_srcid);
+		dev_err(ctrl->dev, "SRC ID of the error transaction 0x%08X\n",
+			err_srcid);
 
-		dev_err(ctrl->dev, "Transaction Address corresponding to error"
-					"ERADDR 0x%08X\n", err_addr);
+		dev_err(ctrl->dev, "Transaction Address corresponding to error ERADDR 0x%08X\n",
+			err_addr);
 
 		ret = IRQ_HANDLED;
 	}
@@ -199,7 +198,7 @@ static irqreturn_t fsl_ifc_ctrl_irq(int irqno, void *data)
  * the resources needed for the controller only.  The
  * resources for the NAND banks themselves are allocated
  * in the chip probe function.
-*/
+ */
 static int fsl_ifc_ctrl_probe(struct platform_device *dev)
 {
 	int ret = 0;
@@ -208,7 +207,8 @@ static int fsl_ifc_ctrl_probe(struct platform_device *dev)
 
 	dev_info(&dev->dev, "Freescale Integrated Flash Controller\n");
 
-	fsl_ifc_ctrl_dev = kzalloc(sizeof(*fsl_ifc_ctrl_dev), GFP_KERNEL);
+	fsl_ifc_ctrl_dev = devm_kzalloc(&dev->dev, sizeof(*fsl_ifc_ctrl_dev),
+					GFP_KERNEL);
 	if (!fsl_ifc_ctrl_dev)
 		return -ENOMEM;
 
@@ -218,8 +218,7 @@ static int fsl_ifc_ctrl_probe(struct platform_device *dev)
 	fsl_ifc_ctrl_dev->gregs = of_iomap(dev->dev.of_node, 0);
 	if (!fsl_ifc_ctrl_dev->gregs) {
 		dev_err(&dev->dev, "failed to get memory region\n");
-		ret = -ENODEV;
-		goto err;
+		return -ENODEV;
 	}
 
 	if (of_property_read_bool(dev->dev.of_node, "little-endian")) {
@@ -250,8 +249,7 @@ static int fsl_ifc_ctrl_probe(struct platform_device *dev)
 	/* get the Controller level irq */
 	fsl_ifc_ctrl_dev->irq = irq_of_parse_and_map(dev->dev.of_node, 0);
 	if (fsl_ifc_ctrl_dev->irq == 0) {
-		dev_err(&dev->dev, "failed to get irq resource "
-							"for IFC\n");
+		dev_err(&dev->dev, "failed to get irq resource for IFC\n");
 		ret = -ENODEV;
 		goto err;
 	}
@@ -264,7 +262,7 @@ static int fsl_ifc_ctrl_probe(struct platform_device *dev)
 
 	ret = fsl_ifc_ctrl_init(fsl_ifc_ctrl_dev);
 	if (ret < 0)
-		goto err;
+		goto err_unmap_nandirq;
 
 	init_waitqueue_head(&fsl_ifc_ctrl_dev->nand_wait);
 
@@ -273,7 +271,7 @@ static int fsl_ifc_ctrl_probe(struct platform_device *dev)
 	if (ret != 0) {
 		dev_err(&dev->dev, "failed to install irq (%d)\n",
 			fsl_ifc_ctrl_dev->irq);
-		goto err_irq;
+		goto err_unmap_nandirq;
 	}
 
 	if (fsl_ifc_ctrl_dev->nand_irq) {
@@ -282,19 +280,26 @@ static int fsl_ifc_ctrl_probe(struct platform_device *dev)
 		if (ret != 0) {
 			dev_err(&dev->dev, "failed to install irq (%d)\n",
 				fsl_ifc_ctrl_dev->nand_irq);
-			goto err_nandirq;
+			goto err_free_irq;
 		}
 	}
 
+	/* legacy dts may still use "simple-bus" compatible */
+	ret = of_platform_default_populate(dev->dev.of_node, NULL, &dev->dev);
+	if (ret)
+		goto err_free_nandirq;
+
 	return 0;
 
-err_nandirq:
+err_free_nandirq:
 	free_irq(fsl_ifc_ctrl_dev->nand_irq, fsl_ifc_ctrl_dev);
-	irq_dispose_mapping(fsl_ifc_ctrl_dev->nand_irq);
-err_irq:
+err_free_irq:
 	free_irq(fsl_ifc_ctrl_dev->irq, fsl_ifc_ctrl_dev);
+err_unmap_nandirq:
+	irq_dispose_mapping(fsl_ifc_ctrl_dev->nand_irq);
 	irq_dispose_mapping(fsl_ifc_ctrl_dev->irq);
 err:
+	iounmap(fsl_ifc_ctrl_dev->gregs);
 	return ret;
 }
 
@@ -311,7 +316,7 @@ static struct platform_driver fsl_ifc_ctrl_driver = {
 		.of_match_table = fsl_ifc_match,
 	},
 	.probe       = fsl_ifc_ctrl_probe,
-	.remove      = fsl_ifc_ctrl_remove,
+	.remove_new  = fsl_ifc_ctrl_remove,
 };
 
 static int __init fsl_ifc_init(void)
@@ -320,6 +325,5 @@ static int __init fsl_ifc_init(void)
 }
 subsys_initcall(fsl_ifc_init);
 
-MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Freescale Semiconductor");
 MODULE_DESCRIPTION("Freescale Integrated Flash Controller driver");

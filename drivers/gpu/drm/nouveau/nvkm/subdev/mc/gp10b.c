@@ -23,7 +23,7 @@
 
 #include "priv.h"
 
-void
+static void
 gp10b_mc_init(struct nvkm_mc *mc)
 {
 	struct nvkm_device *device = mc->subdev.device;
@@ -34,16 +34,15 @@ gp10b_mc_init(struct nvkm_mc *mc)
 static const struct nvkm_mc_func
 gp10b_mc = {
 	.init = gp10b_mc_init,
-	.intr = gp100_mc_intr,
-	.intr_unarm = gp100_mc_intr_unarm,
-	.intr_rearm = gp100_mc_intr_rearm,
-	.intr_mask = gp100_mc_intr_mask,
-	.intr_stat = gf100_mc_intr_stat,
+	.intr = &gp100_mc_intr,
+	.intrs = gp100_mc_intrs,
+	.intr_nonstall = true,
+	.device = &nv04_mc_device,
 	.reset = gk104_mc_reset,
 };
 
 int
-gp10b_mc_new(struct nvkm_device *device, int index, struct nvkm_mc **pmc)
+gp10b_mc_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_mc **pmc)
 {
-	return gp100_mc_new_(&gp10b_mc, device, index, pmc);
+	return nvkm_mc_new_(&gp10b_mc, device, type, inst, pmc);
 }

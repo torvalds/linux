@@ -15,7 +15,9 @@
 #include <linux/iio/machine.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/mfd/syscon.h>
@@ -280,6 +282,13 @@ static const struct iio_info berlin2_adc_info = {
 	.read_raw	= berlin2_adc_read_raw,
 };
 
+static void berlin2_adc_powerdown(void *regmap)
+{
+	regmap_update_bits(regmap, BERLIN2_SM_CTRL,
+			   BERLIN2_SM_CTRL_ADC_POWER, 0);
+
+}
+
 static int berlin2_adc_probe(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev;
@@ -289,11 +298,12 @@ static int berlin2_adc_probe(struct platform_device *pdev)
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*priv));
-	if (!indio_dev)
+	if (!indio_dev) {
+		of_node_put(parent_np);
 		return -ENOMEM;
+	}
 
 	priv = iio_priv(indio_dev);
-	platform_set_drvdata(pdev, indio_dev);
 
 	priv->regmap = syscon_node_to_regmap(parent_np);
 	of_node_put(parent_np);
@@ -321,7 +331,6 @@ static int berlin2_adc_probe(struct platform_device *pdev)
 	init_waitqueue_head(&priv->wq);
 	mutex_init(&priv->lock);
 
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->name = dev_name(&pdev->dev);
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &berlin2_adc_info;
@@ -334,29 +343,12 @@ static int berlin2_adc_probe(struct platform_device *pdev)
 			   BERLIN2_SM_CTRL_ADC_POWER,
 			   BERLIN2_SM_CTRL_ADC_POWER);
 
-	ret = iio_device_register(indio_dev);
-	if (ret) {
-		/* Power down the ADC */
-		regmap_update_bits(priv->regmap, BERLIN2_SM_CTRL,
-				   BERLIN2_SM_CTRL_ADC_POWER, 0);
+	ret = devm_add_action_or_reset(&pdev->dev, berlin2_adc_powerdown,
+				       priv->regmap);
+	if (ret)
 		return ret;
-	}
 
-	return 0;
-}
-
-static int berlin2_adc_remove(struct platform_device *pdev)
-{
-	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
-	struct berlin2_adc_priv *priv = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-
-	/* Power down the ADC */
-	regmap_update_bits(priv->regmap, BERLIN2_SM_CTRL,
-			   BERLIN2_SM_CTRL_ADC_POWER, 0);
-
-	return 0;
+	return devm_iio_device_register(&pdev->dev, indio_dev);
 }
 
 static const struct of_device_id berlin2_adc_match[] = {
@@ -371,7 +363,6 @@ static struct platform_driver berlin2_adc_driver = {
 		.of_match_table	= berlin2_adc_match,
 	},
 	.probe	= berlin2_adc_probe,
-	.remove	= berlin2_adc_remove,
 };
 module_platform_driver(berlin2_adc_driver);
 

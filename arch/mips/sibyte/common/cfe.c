@@ -7,7 +7,6 @@
 #include <linux/kernel.h>
 #include <linux/linkage.h>
 #include <linux/mm.h>
-#include <linux/blkdev.h>
 #include <linux/memblock.h>
 #include <linux/pm.h>
 #include <linux/smp.h>
@@ -35,11 +34,6 @@
 #define MAX_RAM_SIZE (0x1fffffffULL)
 #endif
 #endif
-
-#define SIBYTE_MAX_MEM_REGIONS 8
-phys_addr_t board_mem_region_addrs[SIBYTE_MAX_MEM_REGIONS];
-phys_addr_t board_mem_region_sizes[SIBYTE_MAX_MEM_REGIONS];
-unsigned int board_mem_region_count;
 
 int cfe_cons_handle;
 
@@ -114,16 +108,14 @@ static __init void prom_meminit(void)
 			if (initrd_start) {
 				if ((initrd_pstart > addr) &&
 				    (initrd_pstart < (addr + size))) {
-					add_memory_region(addr,
-							  initrd_pstart - addr,
-							  BOOT_MEM_RAM);
+					memblock_add(addr,
+						     initrd_pstart - addr);
 					rd_flag = 1;
 				}
 				if ((initrd_pend > addr) &&
 				    (initrd_pend < (addr + size))) {
-					add_memory_region(initrd_pend,
-						(addr + size) - initrd_pend,
-						 BOOT_MEM_RAM);
+					memblock_add(initrd_pend,
+						(addr + size) - initrd_pend);
 					rd_flag = 1;
 				}
 			}
@@ -142,24 +134,14 @@ static __init void prom_meminit(void)
 				 */
 				if (size > 512)
 					size -= 512;
-				add_memory_region(addr, size, BOOT_MEM_RAM);
-			}
-			board_mem_region_addrs[board_mem_region_count] = addr;
-			board_mem_region_sizes[board_mem_region_count] = size;
-			board_mem_region_count++;
-			if (board_mem_region_count ==
-			    SIBYTE_MAX_MEM_REGIONS) {
-				/*
-				 * Too many regions.  Need to configure more
-				 */
-				while(1);
+				memblock_add(addr, size);
 			}
 		}
 	}
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (initrd_start) {
-		add_memory_region(initrd_pstart, initrd_pend - initrd_pstart,
-				  BOOT_MEM_RESERVED);
+		memblock_add(initrd_pstart, initrd_pend - initrd_pstart);
+		memblock_reserve(initrd_pstart, initrd_pend - initrd_pstart);
 	}
 #endif
 }
@@ -313,14 +295,9 @@ void __init prom_init(void)
 #if defined(CONFIG_SIBYTE_BCM112X) || defined(CONFIG_SIBYTE_SB1250)
 	register_smp_ops(&sb_smp_ops);
 #endif
-#if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
+#ifdef CONFIG_SIBYTE_BCM1x80
 	register_smp_ops(&bcm1480_smp_ops);
 #endif
-}
-
-void __init prom_free_prom_memory(void)
-{
-	/* Not sure what I'm supposed to do here.  Nothing, I think */
 }
 
 void prom_putchar(char c)

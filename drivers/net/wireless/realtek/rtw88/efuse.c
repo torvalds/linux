@@ -2,6 +2,8 @@
 /* Copyright(c) 2018-2019  Realtek Corporation
  */
 
+#include <linux/iopoll.h>
+
 #include "main.h"
 #include "efuse.h"
 #include "reg.h"
@@ -84,11 +86,13 @@ static int rtw_dump_logical_efuse_map(struct rtw_dev *rtwdev, u8 *phy_map,
 
 static int rtw_dump_physical_efuse_map(struct rtw_dev *rtwdev, u8 *map)
 {
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 	u32 size = rtwdev->efuse.physical_size;
 	u32 efuse_ctl;
 	u32 addr;
 	u32 cnt;
+
+	rtw_chip_efuse_grant_on(rtwdev);
 
 	switch_efuse_bank(rtwdev);
 
@@ -113,12 +117,35 @@ static int rtw_dump_physical_efuse_map(struct rtw_dev *rtwdev, u8 *map)
 		*(map + addr) = (u8)(efuse_ctl & BIT_MASK_EF_DATA);
 	}
 
+	rtw_chip_efuse_grant_off(rtwdev);
+
 	return 0;
 }
 
+int rtw_read8_physical_efuse(struct rtw_dev *rtwdev, u16 addr, u8 *data)
+{
+	u32 efuse_ctl;
+	int ret;
+
+	rtw_write32_mask(rtwdev, REG_EFUSE_CTRL, 0x3ff00, addr);
+	rtw_write32_clr(rtwdev, REG_EFUSE_CTRL, BIT_EF_FLAG);
+
+	ret = read_poll_timeout(rtw_read32, efuse_ctl, efuse_ctl & BIT_EF_FLAG,
+				1000, 100000, false, rtwdev, REG_EFUSE_CTRL);
+	if (ret) {
+		*data = EFUSE_READ_FAIL;
+		return ret;
+	}
+
+	*data = rtw_read8(rtwdev, REG_EFUSE_CTRL);
+
+	return 0;
+}
+EXPORT_SYMBOL(rtw_read8_physical_efuse);
+
 int rtw_parse_efuse_map(struct rtw_dev *rtwdev)
 {
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_efuse *efuse = &rtwdev->efuse;
 	u32 phy_size = efuse->physical_size;
 	u32 log_size = efuse->logical_size;

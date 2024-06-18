@@ -5,7 +5,7 @@
 #include <linux/pkt_cls.h>
 #include <string.h>
 
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
@@ -68,7 +68,7 @@ static struct foo struct3 = {
 		bpf_map_update_elem(&result_##map, &key, var, 0);	\
 	} while (0)
 
-SEC("static_data_load")
+SEC("tc")
 int load_static_data(struct __sk_buff *skb)
 {
 	static const __u64 bar = ~0;

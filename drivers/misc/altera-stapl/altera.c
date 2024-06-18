@@ -530,11 +530,8 @@ exit_done:
 			}
 			break;
 		case OP_SWP:
-			if (altera_check_stack(stack_ptr, 2, &status)) {
-				long_tmp = stack[stack_ptr - 2];
-				stack[stack_ptr - 2] = stack[stack_ptr - 1];
-				stack[stack_ptr - 1] = long_tmp;
-			}
+			if (altera_check_stack(stack_ptr, 2, &status))
+				swap(stack[stack_ptr - 2], stack[stack_ptr - 1]);
 			break;
 		case OP_ADD:
 			if (altera_check_stack(stack_ptr, 2, &status)) {
@@ -912,34 +909,22 @@ exit_done:
 			 */
 
 			/* SWP  */
-			if (altera_check_stack(stack_ptr, 2, &status)) {
-				long_tmp = stack[stack_ptr - 2];
-				stack[stack_ptr - 2] = stack[stack_ptr - 1];
-				stack[stack_ptr - 1] = long_tmp;
-			}
+			if (altera_check_stack(stack_ptr, 2, &status))
+				swap(stack[stack_ptr - 2], stack[stack_ptr - 1]);
 
 			/* SWPN 7 */
 			index = 7 + 1;
-			if (altera_check_stack(stack_ptr, index, &status)) {
-				long_tmp = stack[stack_ptr - index];
-				stack[stack_ptr - index] = stack[stack_ptr - 1];
-				stack[stack_ptr - 1] = long_tmp;
-			}
+			if (altera_check_stack(stack_ptr, index, &status))
+				swap(stack[stack_ptr - index], stack[stack_ptr - 1]);
 
 			/* SWP  */
-			if (altera_check_stack(stack_ptr, 2, &status)) {
-				long_tmp = stack[stack_ptr - 2];
-				stack[stack_ptr - 2] = stack[stack_ptr - 1];
-				stack[stack_ptr - 1] = long_tmp;
-			}
+			if (altera_check_stack(stack_ptr, 2, &status))
+				swap(stack[stack_ptr - 2], stack[stack_ptr - 1]);
 
 			/* SWPN 6 */
 			index = 6 + 1;
-			if (altera_check_stack(stack_ptr, index, &status)) {
-				long_tmp = stack[stack_ptr - index];
-				stack[stack_ptr - index] = stack[stack_ptr - 1];
-				stack[stack_ptr - 1] = long_tmp;
-			}
+			if (altera_check_stack(stack_ptr, index, &status))
+				swap(stack[stack_ptr - index], stack[stack_ptr - 1]);
 
 			/* DUPN 8 */
 			index = 8 + 1;
@@ -950,18 +935,12 @@ exit_done:
 
 			/* SWPN 2 */
 			index = 2 + 1;
-			if (altera_check_stack(stack_ptr, index, &status)) {
-				long_tmp = stack[stack_ptr - index];
-				stack[stack_ptr - index] = stack[stack_ptr - 1];
-				stack[stack_ptr - 1] = long_tmp;
-			}
+			if (altera_check_stack(stack_ptr, index, &status))
+				swap(stack[stack_ptr - index], stack[stack_ptr - 1]);
 
 			/* SWP  */
-			if (altera_check_stack(stack_ptr, 2, &status)) {
-				long_tmp = stack[stack_ptr - 2];
-				stack[stack_ptr - 2] = stack[stack_ptr - 1];
-				stack[stack_ptr - 1] = long_tmp;
-			}
+			if (altera_check_stack(stack_ptr, 2, &status))
+				swap(stack[stack_ptr - 2], stack[stack_ptr - 1]);
 
 			/* DUPN 6 */
 			index = 6 + 1;
@@ -1035,7 +1014,7 @@ exit_done:
 			 * ...argument 0 is string ID
 			 */
 			count = strlen(msg_buff);
-			strlcpy(&msg_buff[count],
+			strscpy(&msg_buff[count],
 				&p[str_table + args[0]],
 				ALTERA_MESSAGE_LENGTH - count);
 			break;
@@ -1075,11 +1054,8 @@ exit_done:
 			 * to swap with top element
 			 */
 			index = (args[0]) + 1;
-			if (altera_check_stack(stack_ptr, index, &status)) {
-				long_tmp = stack[stack_ptr - index];
-				stack[stack_ptr - index] = stack[stack_ptr - 1];
-				stack[stack_ptr - 1] = long_tmp;
-			}
+			if (altera_check_stack(stack_ptr, index, &status))
+				swap(stack[stack_ptr - index], stack[stack_ptr - 1]);
 			break;
 		case OP_DUPN:
 			/*
@@ -2112,8 +2088,8 @@ exit_done:
 	return status;
 }
 
-static int altera_get_note(u8 *p, s32 program_size,
-			s32 *offset, char *key, char *value, int length)
+static int altera_get_note(u8 *p, s32 program_size, s32 *offset,
+			   char *key, char *value, int keylen, int vallen)
 /*
  * Gets key and value of NOTE fields in the JBC file.
  * Can be called in two modes:  if offset pointer is NULL,
@@ -2170,7 +2146,7 @@ static int altera_get_note(u8 *p, s32 program_size,
 						&p[note_table + (8 * i) + 4])];
 
 				if (value != NULL)
-					strlcpy(value, value_ptr, length);
+					strscpy(value, value_ptr, vallen);
 
 			}
 		}
@@ -2186,16 +2162,16 @@ static int altera_get_note(u8 *p, s32 program_size,
 			status = 0;
 
 			if (key != NULL)
-				strlcpy(key, &p[note_strings +
+				strscpy(key, &p[note_strings +
 						get_unaligned_be32(
 						&p[note_table + (8 * i)])],
-					length);
+					keylen);
 
 			if (value != NULL)
-				strlcpy(value, &p[note_strings +
+				strscpy(value, &p[note_strings +
 						get_unaligned_be32(
 						&p[note_table + (8 * i) + 4])],
-					length);
+					vallen);
 
 			*offset = i + 1;
 		}
@@ -2263,11 +2239,6 @@ static int altera_check_crc(u8 *p, s32 program_size)
 		case -EILSEQ:
 			printk(KERN_ERR "%s: CRC mismatch: expected %04x, "
 				"actual %04x\n", __func__, local_expected,
-				local_actual);
-			break;
-		case -ENODATA:
-			printk(KERN_ERR "%s: expected CRC not found, "
-				"actual CRC = %04x\n", __func__,
 				local_actual);
 			break;
 		case -EIO:
@@ -2436,6 +2407,10 @@ int altera_init(struct altera_config *config, const struct firmware *fw)
 
 	astate->config = config;
 	if (!astate->config->jtag_io) {
+		if (!IS_ENABLED(CONFIG_HAS_IOPORT)) {
+			retval = -ENODEV;
+			goto free_state;
+		}
 		dprintk("%s: using byteblaster!\n", __func__);
 		astate->config->jtag_io = netup_jtag_io_lpt;
 	}
@@ -2449,7 +2424,7 @@ int altera_init(struct altera_config *config, const struct firmware *fw)
 			__func__, (format_version == 2) ? "Jam STAPL" :
 						"pre-standardized Jam 1.1");
 		while (altera_get_note((u8 *)fw->data, fw->size,
-					&offset, key, value, 256) == 0)
+					&offset, key, value, 32, 256) == 0)
 			printk(KERN_INFO "%s: NOTE \"%s\" = \"%s\"\n",
 					__func__, key, value);
 	}
@@ -2510,7 +2485,7 @@ int altera_init(struct altera_config *config, const struct firmware *fw)
 
 	} else if (exec_result)
 		printk(KERN_ERR "%s: error %d\n", __func__, exec_result);
-
+free_state:
 	kfree(astate);
 free_value:
 	kfree(value);

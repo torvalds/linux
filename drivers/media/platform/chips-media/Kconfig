@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+comment "Chips&Media media platform drivers"
+
+source "drivers/media/platform/chips-media/coda/Kconfig"
+source "drivers/media/platform/chips-media/wave5/Kconfig"

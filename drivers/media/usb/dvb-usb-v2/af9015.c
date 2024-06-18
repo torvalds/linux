@@ -43,7 +43,7 @@ static int af9015_ctrl_msg(struct dvb_usb_device *d, struct req_t *req)
 	case READ_I2C:
 		write = 0;
 		state->buf[2] |= 0x01; /* set I2C direction */
-		/* fall through */
+		fallthrough;
 	case WRITE_I2C:
 		state->buf[0] = READ_WRITE_I2C;
 		break;
@@ -51,6 +51,7 @@ static int af9015_ctrl_msg(struct dvb_usb_device *d, struct req_t *req)
 		if (((req->addr & 0xff00) == 0xff00) ||
 		    ((req->addr & 0xff00) == 0xae00))
 			state->buf[0] = WRITE_VIRTUAL_MEMORY;
+		break;
 	case WRITE_VIRTUAL_MEMORY:
 	case COPY_FIRMWARE:
 	case DOWNLOAD_FIRMWARE:
@@ -1164,7 +1165,7 @@ static int af9015_rc_query(struct dvb_usb_device *d)
 	/* If any of these are non-zero, assume invalid data */
 	if (buf[1] || buf[2] || buf[3]) {
 		dev_dbg(&intf->dev, "invalid data\n");
-		return ret;
+		return 0;
 	}
 
 	/* Check for repeat of previous code */
@@ -1173,7 +1174,7 @@ static int af9015_rc_query(struct dvb_usb_device *d)
 		dev_dbg(&intf->dev, "key repeated\n");
 		rc_repeat(d->rc_dev);
 		state->rc_repeat = buf[6];
-		return ret;
+		return 0;
 	}
 
 	/* Only process key if canary killed */

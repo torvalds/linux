@@ -1,0 +1,172 @@
+[
+    {
+        "id": "8937",
+        "name": "Create CHOKE with default setting",
+        "category": [
+            "qdisc",
+            "choke"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root choke limit 1000 bandwidth 10000",
+        "expExitCode": "0",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc choke 1: root refcnt [0-9]+ limit 1000p min 83p max 250p",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY handle 1: root"
+        ]
+    },
+    {
+        "id": "48c0",
+        "name": "Create CHOKE with min packet setting",
+        "category": [
+            "qdisc",
+            "choke"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root choke limit 1000 bandwidth 10000 min 100",
+        "expExitCode": "0",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc choke 1: root refcnt [0-9]+ limit 1000p min 100p max 250p",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY handle 1: root"
+        ]
+    },
+    {
+        "id": "38c1",
+        "name": "Create CHOKE with max packet setting",
+        "category": [
+            "qdisc",
+            "choke"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root choke limit 1000 bandwidth 10000 max 900",
+        "expExitCode": "0",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc choke 1: root refcnt [0-9]+ limit 1000p min.*max 900p",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY handle 1: root"
+        ]
+    },
+    {
+        "id": "234a",
+        "name": "Create CHOKE with ecn setting",
+        "category": [
+            "qdisc",
+            "choke"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root choke limit 1000 bandwidth 10000 ecn",
+        "expExitCode": "0",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc choke 1: root refcnt [0-9]+ limit 1000p min 83p max 250p ecn",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY handle 1: root"
+        ]
+    },
+    {
+        "id": "4380",
+        "name": "Create CHOKE with burst setting",
+        "category": [
+            "qdisc",
+            "choke"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root choke limit 1000 bandwidth 10000 burst 100",
+        "expExitCode": "0",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc choke 1: root refcnt [0-9]+ limit 1000p min 83p max 250p",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY handle 1: root"
+        ]
+    },
+    {
+        "id": "48c7",
+        "name": "Delete CHOKE with valid handle",
+        "category": [
+            "qdisc",
+            "choke"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DUMMY handle 1: root choke limit 1000 bandwidth 10000"
+        ],
+        "cmdUnderTest": "$TC qdisc del dev $DUMMY handle 1: root",
+        "expExitCode": "0",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc choke 1: root refcnt [0-9]+ limit 1000p min 83p max 250p",
+        "matchCount": "0",
+        "teardown": [
+        ]
+    },
+    {
+        "id": "4398",
+        "name": "Replace CHOKE with min setting",
+        "category": [
+            "qdisc",
+            "choke"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DUMMY handle 1: root choke limit 1000 bandwidth 10000"
+        ],
+        "cmdUnderTest": "$TC qdisc replace dev $DUMMY handle 1: root choke limit 1000 bandwidth 10000 min 100",
+        "expExitCode": "0",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc choke 1: root refcnt [0-9]+ limit 1000p min 100p max 250p",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY handle 1: root"
+        ]
+    },
+    {
+        "id": "0301",
+        "name": "Change CHOKE with limit setting",
+        "category": [
+            "qdisc",
+            "choke"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DUMMY handle 1: root choke limit 1000 bandwidth 10000"
+        ],
+        "cmdUnderTest": "$TC qdisc change dev $DUMMY handle 1: root choke limit 1000 bandwidth 10000 min 100",
+        "expExitCode": "0",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc choke 1: root refcnt [0-9]+ limit 1000p min 100p max 250p",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY handle 1: root"
+        ]
+    }
+]

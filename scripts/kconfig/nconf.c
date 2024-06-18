@@ -8,9 +8,12 @@
 #define _GNU_SOURCE
 #endif
 #include <string.h>
+#include <strings.h>
 #include <stdlib.h>
 
+#include "list.h"
 #include "lkc.h"
+#include "mnconf-common.h"
 #include "nconf.h"
 #include <ctype.h>
 
@@ -51,8 +54,8 @@ static const char nconf_global_help[] =
 "\n"
 "Menu navigation keys\n"
 "----------------------------------------------------------------------\n"
-"Linewise up                 <Up>\n"
-"Linewise down               <Down>\n"
+"Linewise up                 <Up>    <k>\n"
+"Linewise down               <Down>  <j>\n"
 "Pagewise up                 <Page Up>\n"
 "Pagewise down               <Page Down>\n"
 "First entry                 <Home>\n"
@@ -215,11 +218,11 @@ search_help[] =
 "Symbol: FOO [ = m]\n"
 "Prompt: Foo bus is used to drive the bar HW\n"
 "Defined at drivers/pci/Kconfig:47\n"
-"Depends on: X86_LOCAL_APIC && X86_IO_APIC || IA64\n"
+"Depends on: X86_LOCAL_APIC && X86_IO_APIC\n"
 "Location:\n"
 "  -> Bus options (PCI, PCMCIA, EISA, ISA)\n"
 "    -> PCI support (PCI [ = y])\n"
-"      -> PCI access mode (<choice> [ = y])\n"
+"(1)   -> PCI access mode (<choice> [ = y])\n"
 "Selects: LIBCRC32\n"
 "Selected by: BAR\n"
 "-----------------------------------------------------------------\n"
@@ -230,9 +233,13 @@ search_help[] =
 "o  The 'Depends on:' line lists symbols that need to be defined for\n"
 "   this symbol to be visible and selectable in the menu.\n"
 "o  The 'Location:' lines tell, where in the menu structure this symbol\n"
-"   is located.  A location followed by a [ = y] indicates that this is\n"
-"   a selectable menu item, and the current value is displayed inside\n"
-"   brackets.\n"
+"   is located.\n"
+"     A location followed by a [ = y] indicates that this is\n"
+"     a selectable menu item, and the current value is displayed inside\n"
+"     brackets.\n"
+"     Press the key in the (#) prefix to jump directly to that\n"
+"     location. You will be returned to the current search results\n"
+"     after exiting this new menu.\n"
 "o  The 'Selects:' line tells, what symbol will be automatically selected\n"
 "   if this symbol is selected (y or m).\n"
 "o  The 'Selected by' line tells what symbol has selected this symbol.\n"
@@ -267,7 +274,7 @@ static int mwin_max_cols;
 static MENU *curses_menu;
 static ITEM *curses_menu_items[MAX_MENU_ITEMS];
 static struct mitem k_menu_items[MAX_MENU_ITEMS];
-static int items_num;
+static unsigned int items_num;
 static int global_exit;
 /* the currently selected button */
 static const char *current_instructions = menu_instructions;
@@ -275,6 +282,7 @@ static const char *current_instructions = menu_instructions;
 static char *dialog_input_result;
 static int dialog_input_result_len;
 
+static void selected_conf(struct menu *menu, struct menu *active_menu);
 static void conf(struct menu *menu);
 static void conf_choice(struct menu *menu);
 static void conf_string(struct menu *menu);
@@ -369,18 +377,18 @@ static void print_function_line(void)
 	int lines = getmaxy(stdscr);
 
 	for (i = 0; i < function_keys_num; i++) {
-		(void) wattrset(main_window, attributes[FUNCTION_HIGHLIGHT]);
+		wattrset(main_window, attr_function_highlight);
 		mvwprintw(main_window, lines-3, offset,
 				"%s",
 				function_keys[i].key_str);
-		(void) wattrset(main_window, attributes[FUNCTION_TEXT]);
+		wattrset(main_window, attr_function_text);
 		offset += strlen(function_keys[i].key_str);
 		mvwprintw(main_window, lines-3,
 				offset, "%s",
 				function_keys[i].func);
 		offset += strlen(function_keys[i].func) + skip;
 	}
-	(void) wattrset(main_window, attributes[NORMAL]);
+	wattrset(main_window, attr_normal);
 }
 
 /* help */
@@ -495,16 +503,20 @@ typedef enum {MATCH_TINKER_PATTERN_UP, MATCH_TINKER_PATTERN_DOWN,
 /* return the index of the matched item, or -1 if no such item exists */
 static int get_mext_match(const char *match_str, match_f flag)
 {
-	int match_start = item_index(current_item(curses_menu));
-	int index;
+	int match_start, index;
+
+	/* Do not search if the menu is empty (i.e. items_num == 0) */
+	match_start = item_index(current_item(curses_menu));
+	if (match_start == ERR)
+		return -1;
 
 	if (flag == FIND_NEXT_MATCH_DOWN)
 		++match_start;
 	else if (flag == FIND_NEXT_MATCH_UP)
 		--match_start;
 
+	match_start = (match_start + items_num) % items_num;
 	index = match_start;
-	index = (index + items_num) % items_num;
 	while (true) {
 		char *str = k_menu_items[index].str;
 		if (strcasestr(str, match_str) != NULL)
@@ -626,19 +638,12 @@ static int item_is_tag(char tag)
 
 static char filename[PATH_MAX+1];
 static char menu_backtitle[PATH_MAX+128];
-static const char *set_config_filename(const char *config_filename)
+static void set_config_filename(const char *config_filename)
 {
-	int size;
+	snprintf(menu_backtitle, sizeof(menu_backtitle), "%s - %s",
+		 config_filename, rootmenu.prompt->text);
 
-	size = snprintf(menu_backtitle, sizeof(menu_backtitle),
-			"%s - %s", config_filename, rootmenu.prompt->text);
-	if (size >= sizeof(menu_backtitle))
-		menu_backtitle[sizeof(menu_backtitle)-1] = '\0';
-
-	size = snprintf(filename, sizeof(filename), "%s", config_filename);
-	if (size >= sizeof(filename))
-		filename[sizeof(filename)-1] = '\0';
-	return menu_backtitle;
+	snprintf(filename, sizeof(filename), "%s", config_filename);
 }
 
 /* return = 0 means we are successful.
@@ -694,7 +699,8 @@ static void search_conf(void)
 	struct gstr res;
 	struct gstr title;
 	char *dialog_input;
-	int dres;
+	int dres, vscroll = 0, hscroll = 0;
+	bool again;
 
 	title = str_new();
 	str_printf( &title, "Enter (sub)string or regexp to search for "
@@ -723,11 +729,28 @@ again:
 		dialog_input += strlen(CONFIG_);
 
 	sym_arr = sym_re_search(dialog_input);
-	res = get_relations_str(sym_arr, NULL);
+
+	do {
+		LIST_HEAD(head);
+		struct search_data data = {
+			.head = &head,
+			.target = NULL,
+		};
+		jump_key_char = 0;
+		res = get_relations_str(sym_arr, &head);
+		dres = show_scroll_win_ext(main_window,
+				"Search Results", str_get(&res),
+				&vscroll, &hscroll,
+				handle_search_keys, &data);
+		again = false;
+		if (dres >= '1' && dres <= '9') {
+			assert(data.target != NULL);
+			selected_conf(data.target->parent, data.target);
+			again = true;
+		}
+		str_free(&res);
+	} while (again);
 	free(sym_arr);
-	show_scroll_win(main_window,
-			"Search Results", str_get(&res));
-	str_free(&res);
 	str_free(&title);
 }
 
@@ -754,7 +777,6 @@ static void build_conf(struct menu *menu)
 			switch (ptype) {
 			case P_MENU:
 				child_count++;
-				prompt = prompt;
 				if (single_menu_mode) {
 					item_make(menu, 'm',
 						"%s%*c%s",
@@ -804,26 +826,18 @@ static void build_conf(struct menu *menu)
 
 		val = sym_get_tristate_value(sym);
 		if (sym_is_changeable(sym)) {
-			switch (type) {
-			case S_BOOLEAN:
-				item_make(menu, 't', "[%c]",
-						val == no ? ' ' : '*');
+			switch (val) {
+			case yes:
+				ch = '*';
 				break;
-			case S_TRISTATE:
-				switch (val) {
-				case yes:
-					ch = '*';
-					break;
-				case mod:
-					ch = 'M';
-					break;
-				default:
-					ch = ' ';
-					break;
-				}
-				item_make(menu, 't', "<%c>", ch);
+			case mod:
+				ch = 'M';
+				break;
+			default:
+				ch = ' ';
 				break;
 			}
+			item_make(menu, 't', "<%c>", ch);
 		} else {
 			item_make(menu, def_menu ? 't' : ':', "   ");
 		}
@@ -831,16 +845,8 @@ static void build_conf(struct menu *menu)
 		item_add_str("%*c%s", indent + 1,
 				' ', menu_get_prompt(menu));
 		if (val == yes) {
-			if (def_menu) {
-				item_add_str(" (%s)",
-					menu_get_prompt(def_menu));
-				item_add_str("  --->");
-				if (def_menu->list) {
-					indent += 2;
-					build_conf(def_menu);
-					indent -= 2;
-				}
-			}
+			if (def_menu)
+				item_add_str(" (%s)  --->", menu_get_prompt(def_menu));
 			return;
 		}
 	} else {
@@ -852,54 +858,46 @@ static void build_conf(struct menu *menu)
 		}
 		child_count++;
 		val = sym_get_tristate_value(sym);
-		if (sym_is_choice_value(sym) && val == yes) {
-			item_make(menu, ':', "   ");
-		} else {
-			switch (type) {
-			case S_BOOLEAN:
-				if (sym_is_changeable(sym))
-					item_make(menu, 't', "[%c]",
-						val == no ? ' ' : '*');
-				else
-					item_make(menu, 't', "-%c-",
-						val == no ? ' ' : '*');
+		switch (type) {
+		case S_BOOLEAN:
+			if (sym_is_changeable(sym))
+				item_make(menu, 't', "[%c]",
+					  val == no ? ' ' : '*');
+			else
+				item_make(menu, 't', "-%c-",
+					  val == no ? ' ' : '*');
+			break;
+		case S_TRISTATE:
+			switch (val) {
+			case yes:
+				ch = '*';
 				break;
-			case S_TRISTATE:
-				switch (val) {
-				case yes:
-					ch = '*';
-					break;
-				case mod:
-					ch = 'M';
-					break;
-				default:
-					ch = ' ';
-					break;
-				}
-				if (sym_is_changeable(sym)) {
-					if (sym->rev_dep.tri == mod)
-						item_make(menu,
-							't', "{%c}", ch);
-					else
-						item_make(menu,
-							't', "<%c>", ch);
-				} else
-					item_make(menu, 't', "-%c-", ch);
+			case mod:
+				ch = 'M';
 				break;
 			default:
-				tmp = 2 + strlen(sym_get_string_value(sym));
-				item_make(menu, 's', "    (%s)",
-						sym_get_string_value(sym));
-				tmp = indent - tmp + 4;
-				if (tmp < 0)
-					tmp = 0;
-				item_add_str("%*c%s%s", tmp, ' ',
-						menu_get_prompt(menu),
-						(sym_has_value(sym) ||
-						 !sym_is_changeable(sym)) ? "" :
-						" (NEW)");
-				goto conf_childs;
+				ch = ' ';
+				break;
 			}
+			if (sym_is_changeable(sym)) {
+				if (sym->rev_dep.tri == mod)
+					item_make(menu, 't', "{%c}", ch);
+				else
+					item_make(menu, 't', "<%c>", ch);
+			} else
+				item_make(menu, 't', "-%c-", ch);
+			break;
+		default:
+			tmp = 2 + strlen(sym_get_string_value(sym));
+			item_make(menu, 's', "    (%s)",
+				  sym_get_string_value(sym));
+			tmp = indent - tmp + 4;
+			if (tmp < 0)
+				tmp = 0;
+			item_add_str("%*c%s%s", tmp, ' ', menu_get_prompt(menu),
+				     (sym_has_value(sym) ||
+				      !sym_is_changeable(sym)) ? "" : " (NEW)");
+			goto conf_childs;
 		}
 		item_add_str("%*c%s%s", indent + 1, ' ',
 				menu_get_prompt(menu),
@@ -956,16 +954,15 @@ static void show_menu(const char *prompt, const char *instructions,
 	current_instructions = instructions;
 
 	clear();
-	(void) wattrset(main_window, attributes[NORMAL]);
-	print_in_middle(stdscr, 1, 0, getmaxx(stdscr),
+	print_in_middle(stdscr, 1, getmaxx(stdscr),
 			menu_backtitle,
-			attributes[MAIN_HEADING]);
+			attr_main_heading);
 
-	(void) wattrset(main_window, attributes[MAIN_MENU_BOX]);
+	wattrset(main_window, attr_main_menu_box);
 	box(main_window, 0, 0);
-	(void) wattrset(main_window, attributes[MAIN_MENU_HEADING]);
+	wattrset(main_window, attr_main_menu_heading);
 	mvwprintw(main_window, 0, 3, " %s ", prompt);
-	(void) wattrset(main_window, attributes[NORMAL]);
+	wattrset(main_window, attr_normal);
 
 	set_menu_items(curses_menu, curses_menu_items);
 
@@ -1067,10 +1064,14 @@ static int do_match(int key, struct match_state *state, int *ans)
 
 static void conf(struct menu *menu)
 {
+	selected_conf(menu, NULL);
+}
+
+static void selected_conf(struct menu *menu, struct menu *active_menu)
+{
 	struct menu *submenu = NULL;
-	const char *prompt = menu_get_prompt(menu);
 	struct symbol *sym;
-	int res;
+	int i, res;
 	int current_index = 0;
 	int last_top_row = 0;
 	struct match_state match_state = {
@@ -1086,9 +1087,21 @@ static void conf(struct menu *menu)
 		if (!child_count)
 			break;
 
-		show_menu(prompt ? prompt : "Main Menu",
-				menu_instructions,
-				current_index, &last_top_row);
+		if (active_menu != NULL) {
+			for (i = 0; i < items_num; i++) {
+				struct mitem *mcur;
+
+				mcur = (struct mitem *) item_userptr(curses_menu_items[i]);
+				if ((struct menu *) mcur->usrptr == active_menu) {
+					current_index = i;
+					break;
+				}
+			}
+			active_menu = NULL;
+		}
+
+		show_menu(menu_get_prompt(menu), menu_instructions,
+			  current_index, &last_top_row);
 		keypad((menu_win(curses_menu)), TRUE);
 		while (!global_exit) {
 			if (match_state.in_search) {
@@ -1111,9 +1124,11 @@ static void conf(struct menu *menu)
 				break;
 			switch (res) {
 			case KEY_DOWN:
+			case 'j':
 				menu_driver(curses_menu, REQ_DOWN_ITEM);
 				break;
 			case KEY_UP:
+			case 'k':
 				menu_driver(curses_menu, REQ_UP_ITEM);
 				break;
 			case KEY_NPAGE:
@@ -1293,9 +1308,11 @@ static void conf_choice(struct menu *menu)
 				break;
 			switch (res) {
 			case KEY_DOWN:
+			case 'j':
 				menu_driver(curses_menu, REQ_DOWN_ITEM);
 				break;
 			case KEY_UP:
+			case 'k':
 				menu_driver(curses_menu, REQ_UP_ITEM);
 				break;
 			case KEY_NPAGE:
@@ -1404,7 +1421,7 @@ static void conf_load(void)
 				return;
 			if (!conf_read(dialog_input_result)) {
 				set_config_filename(dialog_input_result);
-				sym_set_change_count(1);
+				conf_set_changed(true);
 				return;
 			}
 			btn_dialog(main_window, "File does not exist!", 0);
@@ -1523,9 +1540,9 @@ int main(int ac, char **av)
 	menu_opts_on(curses_menu, O_NONCYCLIC);
 	menu_opts_on(curses_menu, O_IGNORECASE);
 	set_menu_mark(curses_menu, " ");
-	set_menu_fore(curses_menu, attributes[MAIN_MENU_FORE]);
-	set_menu_back(curses_menu, attributes[MAIN_MENU_BACK]);
-	set_menu_grey(curses_menu, attributes[MAIN_MENU_GREY]);
+	set_menu_fore(curses_menu, attr_main_menu_fore);
+	set_menu_back(curses_menu, attr_main_menu_back);
+	set_menu_grey(curses_menu, attr_main_menu_grey);
 
 	set_config_filename(conf_get_configname());
 	setup_windows();

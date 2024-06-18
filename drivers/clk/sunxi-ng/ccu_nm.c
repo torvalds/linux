@@ -27,8 +27,8 @@ static unsigned long ccu_nm_calc_rate(unsigned long parent,
 	return rate;
 }
 
-static void ccu_nm_find_best(unsigned long parent, unsigned long rate,
-			     struct _ccu_nm *nm)
+static unsigned long ccu_nm_find_best(struct ccu_common *common, unsigned long parent,
+				      unsigned long rate, struct _ccu_nm *nm)
 {
 	unsigned long best_rate = 0;
 	unsigned long best_n = 0, best_m = 0;
@@ -39,10 +39,7 @@ static void ccu_nm_find_best(unsigned long parent, unsigned long rate,
 			unsigned long tmp_rate = ccu_nm_calc_rate(parent,
 								  _n, _m);
 
-			if (tmp_rate > rate)
-				continue;
-
-			if ((rate - tmp_rate) < (rate - best_rate)) {
+			if (ccu_is_better_rate(common, rate, tmp_rate, best_rate)) {
 				best_rate = tmp_rate;
 				best_n = _n;
 				best_m = _m;
@@ -52,6 +49,8 @@ static void ccu_nm_find_best(unsigned long parent, unsigned long rate,
 
 	nm->n = best_n;
 	nm->m = best_m;
+
+	return best_rate;
 }
 
 static void ccu_nm_disable(struct clk_hw *hw)
@@ -157,8 +156,7 @@ static long ccu_nm_round_rate(struct clk_hw *hw, unsigned long rate,
 	_nm.min_m = 1;
 	_nm.max_m = nm->m.max ?: 1 << nm->m.width;
 
-	ccu_nm_find_best(*parent_rate, rate, &_nm);
-	rate = ccu_nm_calc_rate(*parent_rate, _nm.n, _nm.m);
+	rate = ccu_nm_find_best(&nm->common, *parent_rate, rate, &_nm);
 
 	if (nm->common.features & CCU_FEATURE_FIXED_POSTDIV)
 		rate /= nm->fixed_post_div;
@@ -209,7 +207,7 @@ static int ccu_nm_set_rate(struct clk_hw *hw, unsigned long rate,
 					   &_nm.m, &_nm.n);
 	} else {
 		ccu_sdm_helper_disable(&nm->common, &nm->sdm);
-		ccu_nm_find_best(parent_rate, rate, &_nm);
+		ccu_nm_find_best(&nm->common, parent_rate, rate, &_nm);
 	}
 
 	spin_lock_irqsave(nm->common.lock, flags);
@@ -238,3 +236,4 @@ const struct clk_ops ccu_nm_ops = {
 	.round_rate	= ccu_nm_round_rate,
 	.set_rate	= ccu_nm_set_rate,
 };
+EXPORT_SYMBOL_NS_GPL(ccu_nm_ops, SUNXI_CCU);

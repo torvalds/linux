@@ -29,9 +29,12 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
+#include <drm/display/drm_dp_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
-#include <drm/drm_dp_helper.h>
+#include <drm/drm_edid.h>
+#include <drm/drm_modeset_helper_vtables.h>
+#include <drm/drm_simple_kms_helper.h>
 
 #include "gma_display.h"
 #include "psb_drv.h"
@@ -81,7 +84,6 @@ i2c_algo_dp_aux_address(struct i2c_adapter *adapter, u16 address, bool reading)
 {
 	struct i2c_algo_dp_aux_data *algo_data = adapter->algo_data;
 	int mode = MODE_I2C_START;
-	int ret;
 
 	if (reading)
 		mode |= MODE_I2C_READ;
@@ -89,8 +91,7 @@ i2c_algo_dp_aux_address(struct i2c_adapter *adapter, u16 address, bool reading)
 		mode |= MODE_I2C_WRITE;
 	algo_data->address = address;
 	algo_data->running = true;
-	ret = i2c_algo_dp_aux_transaction(adapter, mode, 0, NULL);
-	return ret;
+	return i2c_algo_dp_aux_transaction(adapter, mode, 0, NULL);
 }
 
 /*
@@ -115,19 +116,17 @@ i2c_algo_dp_aux_stop(struct i2c_adapter *adapter, bool reading)
 
 /*
  * Write a single byte to the current I2C address, the
- * the I2C link must be running or this returns -EIO
+ * I2C link must be running or this returns -EIO
  */
 static int
 i2c_algo_dp_aux_put_byte(struct i2c_adapter *adapter, u8 byte)
 {
 	struct i2c_algo_dp_aux_data *algo_data = adapter->algo_data;
-	int ret;
 
 	if (!algo_data->running)
 		return -EIO;
 
-	ret = i2c_algo_dp_aux_transaction(adapter, MODE_I2C_WRITE, byte, NULL);
-	return ret;
+	return i2c_algo_dp_aux_transaction(adapter, MODE_I2C_WRITE, byte, NULL);
 }
 
 /*
@@ -138,13 +137,11 @@ static int
 i2c_algo_dp_aux_get_byte(struct i2c_adapter *adapter, u8 *byte_ret)
 {
 	struct i2c_algo_dp_aux_data *algo_data = adapter->algo_data;
-	int ret;
 
 	if (!algo_data->running)
 		return -EIO;
 
-	ret = i2c_algo_dp_aux_transaction(adapter, MODE_I2C_READ, 0, byte_ret);
-	return ret;
+	return i2c_algo_dp_aux_transaction(adapter, MODE_I2C_READ, 0, byte_ret);
 }
 
 static int
@@ -244,7 +241,7 @@ i2c_dp_aux_add_bus(struct i2c_adapter *adapter)
                 if (W && !in_dbg_master()) msleep(W);                   \
         }                                                               \
         ret__;                                                          \
-})      
+})
 
 #define wait_for(COND, MS) _wait_for(COND, MS, 1)
 
@@ -305,7 +302,7 @@ static uint32_t dp_vswing_premph_table[] = {
 };
 /**
  * is_edp - is the given port attached to an eDP panel (either CPU or PCH)
- * @intel_dp: DP struct
+ * @encoder: GMA encoder struct
  *
  * If a CPU or PCH DP output is attached to an eDP panel, this function
  * will return true, and false otherwise.
@@ -385,7 +382,7 @@ static void cdv_intel_edp_panel_vdd_on(struct gma_encoder *intel_encoder)
 	if (intel_dp->panel_on) {
 		DRM_DEBUG_KMS("Skip VDD on because of panel on\n");
 		return;
-	}	
+	}
 	DRM_DEBUG_KMS("\n");
 
 	pp = REG_READ(PP_CONTROL);
@@ -432,7 +429,7 @@ static bool cdv_intel_edp_panel_on(struct gma_encoder *intel_encoder)
 		DRM_DEBUG_KMS("Error in Powering up eDP panel, status %x\n", REG_READ(PP_STATUS));
 		intel_dp->panel_on = false;
 	} else
-		intel_dp->panel_on = true;	
+		intel_dp->panel_on = true;
 	msleep(intel_dp->panel_power_up_delay);
 
 	return false;
@@ -448,7 +445,7 @@ static void cdv_intel_edp_panel_off (struct gma_encoder *intel_encoder)
 
 	pp = REG_READ(PP_CONTROL);
 
-	if ((pp & POWER_TARGET_ON) == 0) 
+	if ((pp & POWER_TARGET_ON) == 0)
 		return;
 
 	intel_dp->panel_on = false;
@@ -463,7 +460,7 @@ static void cdv_intel_edp_panel_off (struct gma_encoder *intel_encoder)
 	DRM_DEBUG_KMS("PP_STATUS %x\n", REG_READ(PP_STATUS));
 
 	if (wait_for((REG_READ(PP_STATUS) & idle_off_mask) == 0, 1000)) {
-		DRM_DEBUG_KMS("Error in turning off Panel\n");	
+		DRM_DEBUG_KMS("Error in turning off Panel\n");
 	}
 
 	msleep(intel_dp->panel_power_cycle_delay);
@@ -514,7 +511,7 @@ cdv_intel_dp_mode_valid(struct drm_connector *connector,
 	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	int max_link_clock = cdv_intel_dp_link_clock(cdv_intel_dp_max_link_bw(encoder));
 	int max_lanes = cdv_intel_dp_max_lane_count(encoder);
-	struct drm_psb_private *dev_priv = connector->dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(connector->dev);
 
 	if (is_edp(encoder) && intel_dp->panel_fixed_mode) {
 		if (mode->hdisplay > intel_dp->panel_fixed_mode->hdisplay)
@@ -534,7 +531,7 @@ cdv_intel_dp_mode_valid(struct drm_connector *connector,
 	    if (cdv_intel_dp_link_required(mode->clock, 24)
 	     	> cdv_intel_dp_max_data_rate(max_link_clock, max_lanes))
 		return MODE_CLOCK_HIGH;
-		
+
 	}
 	if (mode->clock < 10000)
 		return MODE_CLOCK_LOW;
@@ -605,7 +602,7 @@ cdv_intel_dp_aux_ch(struct gma_encoder *encoder,
 		for (i = 0; i < send_bytes; i += 4)
 			REG_WRITE(ch_data + i,
 				   pack_aux(send + i, send_bytes - i));
-	
+
 		/* Send the command and wait for it to complete */
 		REG_WRITE(ch_ctl,
 			   DP_AUX_CH_CTL_SEND_BUSY |
@@ -622,7 +619,7 @@ cdv_intel_dp_aux_ch(struct gma_encoder *encoder,
 				break;
 			udelay(100);
 		}
-	
+
 		/* Clear done status and any errors */
 		REG_WRITE(ch_ctl,
 			   status |
@@ -658,7 +655,7 @@ cdv_intel_dp_aux_ch(struct gma_encoder *encoder,
 		      DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT);
 	if (recv_bytes > recv_size)
 		recv_bytes = recv_size;
-	
+
 	for (i = 0; i < recv_bytes; i += 4)
 		unpack_aux(REG_READ(ch_data + i),
 			   recv + i, recv_bytes - i);
@@ -858,7 +855,6 @@ cdv_intel_dp_i2c_init(struct gma_connector *connector,
 
 	memset(&intel_dp->adapter, '\0', sizeof (intel_dp->adapter));
 	intel_dp->adapter.owner = THIS_MODULE;
-	intel_dp->adapter.class = I2C_CLASS_DDC;
 	strncpy (intel_dp->adapter.name, name, sizeof(intel_dp->adapter.name) - 1);
 	intel_dp->adapter.name[sizeof(intel_dp->adapter.name) - 1] = '\0';
 	intel_dp->adapter.algo_data = &intel_dp->algo;
@@ -869,7 +865,7 @@ cdv_intel_dp_i2c_init(struct gma_connector *connector,
 	ret = i2c_dp_aux_add_bus(&intel_dp->adapter);
 	if (is_edp(encoder))
 		cdv_intel_edp_panel_vdd_off(encoder);
-	
+
 	return ret;
 }
 
@@ -895,7 +891,7 @@ static bool
 cdv_intel_dp_mode_fixup(struct drm_encoder *encoder, const struct drm_display_mode *mode,
 		    struct drm_display_mode *adjusted_mode)
 {
-	struct drm_psb_private *dev_priv = encoder->dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(encoder->dev);
 	struct gma_encoder *intel_encoder = to_gma_encoder(encoder);
 	struct cdv_intel_dp *intel_dp = intel_encoder->dev_priv;
 	int lane_count, clock;
@@ -987,7 +983,7 @@ cdv_intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 		 struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct drm_encoder *encoder;
 	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
@@ -1271,37 +1267,8 @@ cdv_intel_get_adjust_request_pre_emphasis(uint8_t link_status[DP_LINK_STATUS_SIZ
 	return ((l >> s) & 3) << DP_TRAIN_PRE_EMPHASIS_SHIFT;
 }
 
-
-#if 0
-static char	*voltage_names[] = {
-	"0.4V", "0.6V", "0.8V", "1.2V"
-};
-static char	*pre_emph_names[] = {
-	"0dB", "3.5dB", "6dB", "9.5dB"
-};
-static char	*link_train_names[] = {
-	"pattern 1", "pattern 2", "idle", "off"
-};
-#endif
-
 #define CDV_DP_VOLTAGE_MAX	    DP_TRAIN_VOLTAGE_SWING_LEVEL_3
-/*
-static uint8_t
-cdv_intel_dp_pre_emphasis_max(uint8_t voltage_swing)
-{
-	switch (voltage_swing & DP_TRAIN_VOLTAGE_SWING_MASK) {
-	case DP_TRAIN_VOLTAGE_SWING_400:
-		return DP_TRAIN_PRE_EMPHASIS_6;
-	case DP_TRAIN_VOLTAGE_SWING_600:
-		return DP_TRAIN_PRE_EMPHASIS_6;
-	case DP_TRAIN_VOLTAGE_SWING_800:
-		return DP_TRAIN_PRE_EMPHASIS_3_5;
-	case DP_TRAIN_VOLTAGE_SWING_1200:
-	default:
-		return DP_TRAIN_PRE_EMPHASIS_0;
-	}
-}
-*/
+
 static void
 cdv_intel_get_adjust_train(struct gma_encoder *encoder)
 {
@@ -1319,13 +1286,13 @@ cdv_intel_get_adjust_train(struct gma_encoder *encoder)
 		if (this_p > p)
 			p = this_p;
 	}
-	
+
 	if (v >= CDV_DP_VOLTAGE_MAX)
 		v = CDV_DP_VOLTAGE_MAX | DP_TRAIN_MAX_SWING_REACHED;
 
 	if (p == DP_TRAIN_PRE_EMPHASIS_MASK)
 		p |= DP_TRAIN_MAX_PRE_EMPHASIS_REACHED;
-		
+
 	for (lane = 0; lane < 4; lane++)
 		intel_dp->train_set[lane] = v | p;
 }
@@ -1386,7 +1353,6 @@ cdv_intel_dp_set_link_train(struct gma_encoder *encoder,
 			uint32_t dp_reg_value,
 			uint8_t dp_train_pat)
 {
-	
 	struct drm_device *dev = encoder->base.dev;
 	int ret;
 	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
@@ -1412,7 +1378,6 @@ static bool
 cdv_intel_dplink_set_level(struct gma_encoder *encoder,
 			uint8_t dp_train_pat)
 {
-	
 	int ret;
 	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 
@@ -1490,7 +1455,7 @@ cdv_intel_dp_set_vswing_premph(struct gma_encoder *encoder, uint8_t signal_level
 	/* ;gfx_dpio_set_reg(0x8124, 0x00004000) */
 	index = 2 * premph + 1;
 	cdv_sb_write(dev, ddi_reg->PreEmph2, dp_vswing_premph_table[index]);
-	return;	
+	return;
 }
 
 
@@ -1509,8 +1474,8 @@ cdv_intel_dp_start_link_train(struct gma_encoder *encoder)
 
 	DP |= DP_PORT_EN;
 	DP &= ~DP_LINK_TRAIN_MASK;
-		
-	reg = DP;	
+
+	reg = DP;
 	reg |= DP_LINK_TRAIN_PAT_1;
 	/* Enable output, wait for it to become active */
 	REG_WRITE(intel_dp->output_reg, reg);
@@ -1529,8 +1494,7 @@ cdv_intel_dp_start_link_train(struct gma_encoder *encoder)
 	clock_recovery = false;
 
 	DRM_DEBUG_KMS("Start train\n");
-		reg = DP | DP_LINK_TRAIN_PAT_1;
-
+	reg = DP | DP_LINK_TRAIN_PAT_1;
 
 	for (;;) {
 		/* Use intel_dp->train_set[0] to set the voltage and pre emphasis values */
@@ -1585,7 +1549,7 @@ cdv_intel_dp_start_link_train(struct gma_encoder *encoder)
 	if (!clock_recovery) {
 		DRM_DEBUG_KMS("failure in DP patter 1 training, train set %x\n", intel_dp->train_set[0]);
 	}
-	
+
 	intel_dp->DP = DP;
 }
 
@@ -1594,7 +1558,6 @@ cdv_intel_dp_complete_link_train(struct gma_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
-	bool channel_eq = false;
 	int tries, cr_tries;
 	u32 reg;
 	uint32_t DP = intel_dp->DP;
@@ -1602,10 +1565,9 @@ cdv_intel_dp_complete_link_train(struct gma_encoder *encoder)
 	/* channel equalization */
 	tries = 0;
 	cr_tries = 0;
-	channel_eq = false;
 
 	DRM_DEBUG_KMS("\n");
-		reg = DP | DP_LINK_TRAIN_PAT_2;
+	reg = DP | DP_LINK_TRAIN_PAT_2;
 
 	for (;;) {
 
@@ -1648,7 +1610,6 @@ cdv_intel_dp_complete_link_train(struct gma_encoder *encoder)
 
 		if (cdv_intel_channel_eq_ok(encoder)) {
 			DRM_DEBUG_KMS("PT2 train is done\n");
-			channel_eq = true;
 			break;
 		}
 
@@ -1719,7 +1680,7 @@ static enum drm_connector_status cdv_dp_detect(struct gma_encoder *encoder)
 	return status;
 }
 
-/**
+/*
  * Uses CRT_HOTPLUG_EN and CRT_HOTPLUG_STAT to detect DP connection.
  *
  * \return true if DP port is connected.
@@ -1778,8 +1739,8 @@ static int cdv_intel_dp_get_modes(struct drm_connector *connector)
 
 	if (is_edp(intel_encoder)) {
 		struct drm_device *dev = connector->dev;
-		struct drm_psb_private *dev_priv = dev->dev_private;
-		
+		struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
+
 		cdv_intel_edp_panel_vdd_off(intel_encoder);
 		if (ret) {
 			if (edp && !intel_dp->panel_fixed_mode) {
@@ -1843,7 +1804,7 @@ cdv_intel_dp_set_property(struct drm_connector *connector,
 		      struct drm_property *property,
 		      uint64_t val)
 {
-	struct drm_psb_private *dev_priv = connector->dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(connector->dev);
 	struct gma_encoder *encoder = gma_attached_encoder(connector);
 	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	int ret;
@@ -1897,6 +1858,7 @@ done:
 static void
 cdv_intel_dp_destroy(struct drm_connector *connector)
 {
+	struct gma_connector *gma_connector = to_gma_connector(connector);
 	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
 	struct cdv_intel_dp *intel_dp = gma_encoder->dev_priv;
 
@@ -1906,14 +1868,8 @@ cdv_intel_dp_destroy(struct drm_connector *connector)
 		intel_dp->panel_fixed_mode = NULL;
 	}
 	i2c_del_adapter(&intel_dp->adapter);
-	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
-	kfree(connector);
-}
-
-static void cdv_intel_dp_encoder_destroy(struct drm_encoder *encoder)
-{
-	drm_encoder_cleanup(encoder);
+	kfree(gma_connector);
 }
 
 static const struct drm_encoder_helper_funcs cdv_intel_dp_helper_funcs = {
@@ -1938,11 +1894,6 @@ static const struct drm_connector_helper_funcs cdv_intel_dp_connector_helper_fun
 	.best_encoder = gma_best_encoder,
 };
 
-static const struct drm_encoder_funcs cdv_intel_dp_enc_funcs = {
-	.destroy = cdv_intel_dp_encoder_destroy,
-};
-
-
 static void cdv_intel_dp_add_properties(struct drm_connector *connector)
 {
 	cdv_intel_attach_force_audio_property(connector);
@@ -1952,7 +1903,7 @@ static void cdv_intel_dp_add_properties(struct drm_connector *connector)
 /* check the VBT to see whether the eDP is on DP-D port */
 static bool cdv_intel_dpc_is_edp(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct child_device_config *p_child;
 	int i;
 
@@ -1984,11 +1935,11 @@ static void cdv_disable_intel_clock_gating(struct drm_device *dev)
 			DPCUNIT_CLOCK_GATE_DISABLE |
 			DPLSUNIT_CLOCK_GATE_DISABLE |
 			DPOUNIT_CLOCK_GATE_DISABLE |
-		 	DPIOUNIT_CLOCK_GATE_DISABLE);	
+			DPIOUNIT_CLOCK_GATE_DISABLE);
 
 	REG_WRITE(DSPCLK_GATE_D, reg_value);
 
-	udelay(500);		
+	udelay(500);
 }
 
 void
@@ -2019,8 +1970,7 @@ cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev
 	encoder = &gma_encoder->base;
 
 	drm_connector_init(dev, connector, &cdv_intel_dp_connector_funcs, type);
-	drm_encoder_init(dev, encoder, &cdv_intel_dp_enc_funcs,
-			 DRM_MODE_ENCODER_TMDS, NULL);
+	drm_simple_encoder_init(dev, encoder, DRM_MODE_ENCODER_TMDS);
 
 	gma_connector_attach_encoder(gma_connector, gma_encoder);
 
@@ -2033,15 +1983,13 @@ cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev
 	gma_encoder->dev_priv=intel_dp;
 	intel_dp->encoder = gma_encoder;
 	intel_dp->output_reg = output_reg;
-	
+
 	drm_encoder_helper_add(encoder, &cdv_intel_dp_helper_funcs);
 	drm_connector_helper_add(connector, &cdv_intel_dp_connector_helper_funcs);
 
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
 	connector->interlace_allowed = false;
 	connector->doublescan_allowed = false;
-
-	drm_connector_register(connector);
 
 	/* Set up the DDC bus. */
 	switch (output_reg) {
@@ -2070,7 +2018,7 @@ cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev
 		pp_on = REG_READ(PP_CONTROL);
 		pp_on &= ~PANEL_UNLOCK_MASK;
 	        pp_on |= PANEL_UNLOCK_REGS;
-		
+
 		REG_WRITE(PP_CONTROL, pp_on);
 
 		pwm_ctrl = REG_READ(BLC_PWM_CTL2);
@@ -2080,7 +2028,7 @@ cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev
                 pp_on = REG_READ(PP_ON_DELAYS);
                 pp_off = REG_READ(PP_OFF_DELAYS);
                 pp_div = REG_READ(PP_DIVISOR);
-	
+
 		/* Pull timing values out of registers */
                 cur.t1_t3 = (pp_on & PANEL_POWER_UP_DELAY_MASK) >>
                         PANEL_POWER_UP_DELAY_SHIFT;
@@ -2120,17 +2068,17 @@ cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev
 					       intel_dp->dpcd,
 					       sizeof(intel_dp->dpcd));
 		cdv_intel_edp_panel_vdd_off(gma_encoder);
-		if (ret == 0) {
+		if (ret <= 0) {
 			/* if this fails, presume the device is a ghost */
 			DRM_INFO("failed to retrieve link info, disabling eDP\n");
-			cdv_intel_dp_encoder_destroy(encoder);
+			drm_encoder_cleanup(encoder);
 			cdv_intel_dp_destroy(connector);
-			goto err_priv;
+			goto err_connector;
 		} else {
         		DRM_DEBUG_KMS("DPCD: Rev=%x LN_Rate=%x LN_CNT=%x LN_DOWNSP=%x\n",
-				intel_dp->dpcd[0], intel_dp->dpcd[1], 
+				intel_dp->dpcd[0], intel_dp->dpcd[1],
 				intel_dp->dpcd[2], intel_dp->dpcd[3]);
-			
+
 		}
 		/* The CDV reference driver moves pnale backlight setup into the displays that
 		   have a backlight: this is a good idea and one we should probably adopt, however

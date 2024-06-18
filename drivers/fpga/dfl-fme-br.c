@@ -68,17 +68,17 @@ static int fme_br_probe(struct platform_device *pdev)
 
 	priv->pdata = dev_get_platdata(dev);
 
-	br = devm_fpga_bridge_create(dev, "DFL FPGA FME Bridge",
-				     &fme_bridge_ops, priv);
-	if (!br)
-		return -ENOMEM;
+	br = fpga_bridge_register(dev, "DFL FPGA FME Bridge",
+				  &fme_bridge_ops, priv);
+	if (IS_ERR(br))
+		return PTR_ERR(br);
 
 	platform_set_drvdata(pdev, br);
 
-	return fpga_bridge_register(br);
+	return 0;
 }
 
-static int fme_br_remove(struct platform_device *pdev)
+static void fme_br_remove(struct platform_device *pdev)
 {
 	struct fpga_bridge *br = platform_get_drvdata(pdev);
 	struct fme_br_priv *priv = br->priv;
@@ -89,8 +89,6 @@ static int fme_br_remove(struct platform_device *pdev)
 		put_device(&priv->port_pdev->dev);
 	if (priv->port_ops)
 		dfl_fpga_port_ops_put(priv->port_ops);
-
-	return 0;
 }
 
 static struct platform_driver fme_br_driver = {
@@ -98,7 +96,7 @@ static struct platform_driver fme_br_driver = {
 		.name    = DFL_FPGA_FME_BRIDGE,
 	},
 	.probe   = fme_br_probe,
-	.remove  = fme_br_remove,
+	.remove_new = fme_br_remove,
 };
 
 module_platform_driver(fme_br_driver);

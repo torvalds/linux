@@ -44,11 +44,26 @@ enum opal_lock_state {
 	OPAL_LK = 0x04, /* 0100 */
 };
 
+enum opal_lock_flags {
+	/* IOC_OPAL_SAVE will also store the provided key for locking */
+	OPAL_SAVE_FOR_LOCK = 0x01,
+};
+
+enum opal_key_type {
+	OPAL_INCLUDED = 0,	/* key[] is the key */
+	OPAL_KEYRING,		/* key is in keyring */
+};
+
 struct opal_key {
 	__u8 lr;
 	__u8 key_len;
-	__u8 __align[6];
+	__u8 key_type;
+	__u8 __align[5];
 	__u8 key[OPAL_KEY_MAX];
+};
+
+enum opal_revert_lsp_opts {
+	OPAL_PRESERVE = 0x01,
 };
 
 struct opal_lr_act {
@@ -73,10 +88,21 @@ struct opal_user_lr_setup {
 	struct opal_session_info session;
 };
 
+struct opal_lr_status {
+	struct opal_session_info session;
+	__u64 range_start;
+	__u64 range_length;
+	__u32 RLE; /* Read Lock enabled */
+	__u32 WLE; /* Write Lock Enabled */
+	__u32 l_state;
+	__u8  align[4];
+};
+
 struct opal_lock_unlock {
 	struct opal_session_info session;
 	__u32 l_state;
-	__u8 __align[4];
+	__u16 flags;
+	__u8 __align[2];
 };
 
 struct opal_new_pw {
@@ -113,6 +139,61 @@ struct opal_shadow_mbr {
 	__u64 size;
 };
 
+/* Opal table operations */
+enum opal_table_ops {
+	OPAL_READ_TABLE,
+	OPAL_WRITE_TABLE,
+};
+
+#define OPAL_UID_LENGTH 8
+struct opal_read_write_table {
+	struct opal_key key;
+	const __u64 data;
+	const __u8 table_uid[OPAL_UID_LENGTH];
+	__u64 offset;
+	__u64 size;
+#define OPAL_TABLE_READ (1 << OPAL_READ_TABLE)
+#define OPAL_TABLE_WRITE (1 << OPAL_WRITE_TABLE)
+	__u64 flags;
+	__u64 priv;
+};
+
+#define OPAL_FL_SUPPORTED		0x00000001
+#define OPAL_FL_LOCKING_SUPPORTED	0x00000002
+#define OPAL_FL_LOCKING_ENABLED		0x00000004
+#define OPAL_FL_LOCKED			0x00000008
+#define OPAL_FL_MBR_ENABLED		0x00000010
+#define OPAL_FL_MBR_DONE		0x00000020
+#define OPAL_FL_SUM_SUPPORTED		0x00000040
+
+struct opal_status {
+	__u32 flags;
+	__u32 reserved;
+};
+
+/*
+ * Geometry Reporting per TCG Storage OPAL SSC
+ * section 3.1.1.4
+ */
+struct opal_geometry {
+	__u8 align;
+	__u32 logical_block_size;
+	__u64 alignment_granularity;
+	__u64 lowest_aligned_lba;
+	__u8  __align[3];
+};
+
+struct opal_discovery {
+	__u64 data;
+	__u64 size;
+};
+
+struct opal_revert_lsp {
+	struct opal_key key;
+	__u32 options;
+	__u32 __pad;
+};
+
 #define IOC_OPAL_SAVE		    _IOW('p', 220, struct opal_lock_unlock)
 #define IOC_OPAL_LOCK_UNLOCK	    _IOW('p', 221, struct opal_lock_unlock)
 #define IOC_OPAL_TAKE_OWNERSHIP	    _IOW('p', 222, struct opal_key)
@@ -128,5 +209,11 @@ struct opal_shadow_mbr {
 #define IOC_OPAL_PSID_REVERT_TPR    _IOW('p', 232, struct opal_key)
 #define IOC_OPAL_MBR_DONE           _IOW('p', 233, struct opal_mbr_done)
 #define IOC_OPAL_WRITE_SHADOW_MBR   _IOW('p', 234, struct opal_shadow_mbr)
+#define IOC_OPAL_GENERIC_TABLE_RW   _IOW('p', 235, struct opal_read_write_table)
+#define IOC_OPAL_GET_STATUS         _IOR('p', 236, struct opal_status)
+#define IOC_OPAL_GET_LR_STATUS      _IOW('p', 237, struct opal_lr_status)
+#define IOC_OPAL_GET_GEOMETRY       _IOR('p', 238, struct opal_geometry)
+#define IOC_OPAL_DISCOVERY          _IOW('p', 239, struct opal_discovery)
+#define IOC_OPAL_REVERT_LSP         _IOW('p', 240, struct opal_revert_lsp)
 
 #endif /* _UAPI_SED_OPAL_H */

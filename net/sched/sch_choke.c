@@ -60,7 +60,6 @@ struct choke_sched_data {
 		u32	forced_drop;	/* Forced drops, qavg > max_thresh */
 		u32	forced_mark;	/* Forced marks, qavg > max_thresh */
 		u32	pdrop;          /* Drops due to queue limits */
-		u32	other;          /* Drops due to drop() calls */
 		u32	matched;	/* Drops to flow match */
 	} stats;
 
@@ -131,7 +130,6 @@ static void choke_drop_by_idx(struct Qdisc *sch, unsigned int idx,
 }
 
 struct choke_skb_cb {
-	u16			classid;
 	u8			keys_valid;
 	struct			flow_keys_digest keys;
 };
@@ -140,11 +138,6 @@ static inline struct choke_skb_cb *choke_skb_cb(const struct sk_buff *skb)
 {
 	qdisc_cb_private_validate(skb, sizeof(struct choke_skb_cb));
 	return (struct choke_skb_cb *)qdisc_skb_cb(skb)->data;
-}
-
-static inline void choke_set_classid(struct sk_buff *skb, u16 classid)
-{
-	choke_skb_cb(skb)->classid = classid;
 }
 
 /*
@@ -190,7 +183,7 @@ static struct sk_buff *choke_peek_random(const struct choke_sched_data *q,
 	int retrys = 3;
 
 	do {
-		*pidx = (q->head + prandom_u32_max(choke_len(q))) & q->tab_mask;
+		*pidx = (q->head + get_random_u32_below(choke_len(q))) & q->tab_mask;
 		skb = q->tab[*pidx];
 		if (skb)
 			return skb;
@@ -321,9 +314,8 @@ static void choke_reset(struct Qdisc *sch)
 		rtnl_qdisc_drop(skb, sch);
 	}
 
-	sch->q.qlen = 0;
-	sch->qstats.backlog = 0;
-	memset(q->tab, 0, (q->tab_mask + 1) * sizeof(struct sk_buff *));
+	if (q->tab)
+		memset(q->tab, 0, (q->tab_mask + 1) * sizeof(struct sk_buff *));
 	q->head = q->tail = 0;
 	red_restart(&q->vars);
 }
@@ -350,6 +342,7 @@ static int choke_change(struct Qdisc *sch, struct nlattr *opt,
 	struct sk_buff **old = NULL;
 	unsigned int mask;
 	u32 max_P;
+	u8 *stab;
 
 	if (opt == NULL)
 		return -EINVAL;
@@ -366,8 +359,8 @@ static int choke_change(struct Qdisc *sch, struct nlattr *opt,
 	max_P = tb[TCA_CHOKE_MAX_P] ? nla_get_u32(tb[TCA_CHOKE_MAX_P]) : 0;
 
 	ctl = nla_data(tb[TCA_CHOKE_PARMS]);
-
-	if (!red_check_params(ctl->qth_min, ctl->qth_max, ctl->Wlog))
+	stab = nla_data(tb[TCA_CHOKE_STAB]);
+	if (!red_check_params(ctl->qth_min, ctl->qth_max, ctl->Wlog, ctl->Scell_log, stab))
 		return -EINVAL;
 
 	if (ctl->limit > CHOKE_MAX_QUEUE)
@@ -377,7 +370,7 @@ static int choke_change(struct Qdisc *sch, struct nlattr *opt,
 	if (mask != q->tab_mask) {
 		struct sk_buff **ntab;
 
-		ntab = kvmalloc_array((mask + 1), sizeof(struct sk_buff *), GFP_KERNEL | __GFP_ZERO);
+		ntab = kvcalloc(mask + 1, sizeof(struct sk_buff *), GFP_KERNEL);
 		if (!ntab)
 			return -ENOMEM;
 
@@ -412,12 +405,12 @@ static int choke_change(struct Qdisc *sch, struct nlattr *opt,
 	} else
 		sch_tree_lock(sch);
 
-	q->flags = ctl->flags;
-	q->limit = ctl->limit;
+	WRITE_ONCE(q->flags, ctl->flags);
+	WRITE_ONCE(q->limit, ctl->limit);
 
 	red_set_parms(&q->parms, ctl->qth_min, ctl->qth_max, ctl->Wlog,
 		      ctl->Plog, ctl->Scell_log,
-		      nla_data(tb[TCA_CHOKE_STAB]),
+		      stab,
 		      max_P);
 	red_set_vars(&q->vars);
 
@@ -438,15 +431,16 @@ static int choke_init(struct Qdisc *sch, struct nlattr *opt,
 static int choke_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct choke_sched_data *q = qdisc_priv(sch);
+	u8 Wlog = READ_ONCE(q->parms.Wlog);
 	struct nlattr *opts = NULL;
 	struct tc_red_qopt opt = {
-		.limit		= q->limit,
-		.flags		= q->flags,
-		.qth_min	= q->parms.qth_min >> q->parms.Wlog,
-		.qth_max	= q->parms.qth_max >> q->parms.Wlog,
-		.Wlog		= q->parms.Wlog,
-		.Plog		= q->parms.Plog,
-		.Scell_log	= q->parms.Scell_log,
+		.limit		= READ_ONCE(q->limit),
+		.flags		= READ_ONCE(q->flags),
+		.qth_min	= READ_ONCE(q->parms.qth_min) >> Wlog,
+		.qth_max	= READ_ONCE(q->parms.qth_max) >> Wlog,
+		.Wlog		= Wlog,
+		.Plog		= READ_ONCE(q->parms.Plog),
+		.Scell_log	= READ_ONCE(q->parms.Scell_log),
 	};
 
 	opts = nla_nest_start_noflag(skb, TCA_OPTIONS);
@@ -454,7 +448,7 @@ static int choke_dump(struct Qdisc *sch, struct sk_buff *skb)
 		goto nla_put_failure;
 
 	if (nla_put(skb, TCA_CHOKE_PARMS, sizeof(opt), &opt) ||
-	    nla_put_u32(skb, TCA_CHOKE_MAX_P, q->parms.max_P))
+	    nla_put_u32(skb, TCA_CHOKE_MAX_P, READ_ONCE(q->parms.max_P)))
 		goto nla_put_failure;
 	return nla_nest_end(skb, opts);
 
@@ -470,7 +464,6 @@ static int choke_dump_stats(struct Qdisc *sch, struct gnet_dump *d)
 		.early	= q->stats.prob_drop + q->stats.forced_drop,
 		.marked	= q->stats.prob_mark + q->stats.forced_mark,
 		.pdrop	= q->stats.pdrop,
-		.other	= q->stats.other,
 		.matched = q->stats.matched,
 	};
 
@@ -506,6 +499,7 @@ static struct Qdisc_ops choke_qdisc_ops __read_mostly = {
 	.dump_stats	=	choke_dump_stats,
 	.owner		=	THIS_MODULE,
 };
+MODULE_ALIAS_NET_SCH("choke");
 
 static int __init choke_module_init(void)
 {
@@ -521,3 +515,4 @@ module_init(choke_module_init)
 module_exit(choke_module_exit)
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Choose and keep responsive flows scheduler");

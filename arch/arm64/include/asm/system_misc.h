@@ -18,21 +18,19 @@
 
 struct pt_regs;
 
-void die(const char *msg, struct pt_regs *regs, int err);
+void die(const char *msg, struct pt_regs *regs, long err);
 
 struct siginfo;
 void arm64_notify_die(const char *str, struct pt_regs *regs,
-		      int signo, int sicode, void __user *addr,
-		      int err);
+		      int signo, int sicode, unsigned long far,
+		      unsigned long err);
 
-void hook_debug_fault_code(int nr, int (*fn)(unsigned long, unsigned int,
+void hook_debug_fault_code(int nr, int (*fn)(unsigned long, unsigned long,
 					     struct pt_regs *),
 			   int sig, int code, const char *name);
 
 struct mm_struct;
 extern void __show_regs(struct pt_regs *);
-
-extern void (*arm_pm_restart)(enum reboot_mode reboot_mode, const char *cmd);
 
 #endif	/* __ASSEMBLY__ */
 

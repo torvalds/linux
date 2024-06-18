@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// Copyright (C) 2020 Chen-Yu Tsai <wens@csie.org>
+
+#include "sun50i-h5-libretech-all-h3-cc.dts"
+
+/ {
+	model = "Libre Computer Board ALL-H5-CC H5";
+	compatible = "libretech,all-h5-cc-h5", "allwinner,sun50i-h5";
+
+	aliases {
+		spi0 = &spi0;
+	};
+
+	reg_gmac_3v3: gmac-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "gmac-3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		startup-delay-us = <5000>;
+		enable-active-high;
+		gpio = <&pio 3 6 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&reg_vcc5v0>;
+	};
+};
+
+&codec {
+	/* No line out; only onboard microphone */
+	allwinner,audio-routing =
+		"MIC1", "Mic",
+		"Mic",  "MBIAS";
+};
+
+/* This board has external PHY */
+&emac {
+	pinctrl-names = "default";
+	pinctrl-0 = <&emac_rgmii_pins>;
+	phy-supply = <&reg_gmac_3v3>;
+	phy-handle = <&ext_rgmii_phy>;
+	phy-mode = "rgmii-id";
+	/delete-property/ allwinner,leds-active-low;
+	status = "okay";
+};
+
+&external_mdio {
+	ext_rgmii_phy: ethernet-phy@1 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <1>;
+	};
+};
+
+&spi0  {
+	status = "okay";
+
+	flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <50000000>;
+	};
+};

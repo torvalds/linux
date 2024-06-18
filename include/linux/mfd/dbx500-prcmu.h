@@ -186,10 +186,12 @@ enum ddr_pwrst {
 #define PRCMU_FW_PROJECT_U8500_C3	8
 #define PRCMU_FW_PROJECT_U8500_C4	9
 #define PRCMU_FW_PROJECT_U9500_MBL	10
-#define PRCMU_FW_PROJECT_U8500_MBL	11 /* Customer specific */
+#define PRCMU_FW_PROJECT_U8500_SSG1	11 /* Samsung specific */
 #define PRCMU_FW_PROJECT_U8500_MBL2	12 /* Customer specific */
 #define PRCMU_FW_PROJECT_U8520		13
 #define PRCMU_FW_PROJECT_U8420		14
+#define PRCMU_FW_PROJECT_U8500_SSG2	15 /* Samsung specific */
+#define PRCMU_FW_PROJECT_U8420_SYSCLK	17
 #define PRCMU_FW_PROJECT_A9420		20
 /* [32..63] 9540 and derivatives */
 #define PRCMU_FW_PROJECT_U9540		32
@@ -211,9 +213,9 @@ struct prcmu_fw_version {
 
 #if defined(CONFIG_UX500_SOC_DB8500)
 
-static inline void prcmu_early_init(u32 phy_base, u32 size)
+static inline void prcmu_early_init(void)
 {
-	return db8500_prcmu_early_init(phy_base, size);
+	return db8500_prcmu_early_init();
 }
 
 static inline int prcmu_set_power_state(u8 state, bool keep_ulp_clk,
@@ -320,21 +322,6 @@ static inline bool prcmu_is_ac_wake_requested(void)
 	return db8500_prcmu_is_ac_wake_requested();
 }
 
-static inline int prcmu_set_display_clocks(void)
-{
-	return db8500_prcmu_set_display_clocks();
-}
-
-static inline int prcmu_disable_dsipll(void)
-{
-	return db8500_prcmu_disable_dsipll();
-}
-
-static inline int prcmu_enable_dsipll(void)
-{
-	return db8500_prcmu_enable_dsipll();
-}
-
 static inline int prcmu_config_esram0_deep_sleep(u8 state)
 {
 	return db8500_prcmu_config_esram0_deep_sleep(state);
@@ -401,7 +388,7 @@ static inline int prcmu_config_a9wdog(u8 num, bool sleep_auto_off)
 }
 #else
 
-static inline void prcmu_early_init(u32 phy_base, u32 size) {}
+static inline void prcmu_early_init(void) {}
 
 static inline int prcmu_set_power_state(u8 state, bool keep_ulp_clk,
 	bool keep_ap_pll)
@@ -510,21 +497,6 @@ static inline bool prcmu_is_ac_wake_requested(void)
 	return false;
 }
 
-static inline int prcmu_set_display_clocks(void)
-{
-	return 0;
-}
-
-static inline int prcmu_disable_dsipll(void)
-{
-	return 0;
-}
-
-static inline int prcmu_enable_dsipll(void)
-{
-	return 0;
-}
-
 static inline int prcmu_config_esram0_deep_sleep(u8 state)
 {
 	return 0;
@@ -584,36 +556,6 @@ static inline void prcmu_clear(unsigned int reg, u32 bits)
 #define PRCMU_QOS_ARM_OPP 3
 #define PRCMU_QOS_DEFAULT_VALUE -1
 
-#ifdef CONFIG_DBX500_PRCMU_QOS_POWER
-
-unsigned long prcmu_qos_get_cpufreq_opp_delay(void);
-void prcmu_qos_set_cpufreq_opp_delay(unsigned long);
-void prcmu_qos_force_opp(int, s32);
-int prcmu_qos_requirement(int pm_qos_class);
-int prcmu_qos_add_requirement(int pm_qos_class, char *name, s32 value);
-int prcmu_qos_update_requirement(int pm_qos_class, char *name, s32 new_value);
-void prcmu_qos_remove_requirement(int pm_qos_class, char *name);
-int prcmu_qos_add_notifier(int prcmu_qos_class,
-			   struct notifier_block *notifier);
-int prcmu_qos_remove_notifier(int prcmu_qos_class,
-			      struct notifier_block *notifier);
-
-#else
-
-static inline unsigned long prcmu_qos_get_cpufreq_opp_delay(void)
-{
-	return 0;
-}
-
-static inline void prcmu_qos_set_cpufreq_opp_delay(unsigned long n) {}
-
-static inline void prcmu_qos_force_opp(int prcmu_qos_class, s32 i) {}
-
-static inline int prcmu_qos_requirement(int prcmu_qos_class)
-{
-	return 0;
-}
-
 static inline int prcmu_qos_add_requirement(int prcmu_qos_class,
 					    char *name, s32 value)
 {
@@ -629,18 +571,5 @@ static inline int prcmu_qos_update_requirement(int prcmu_qos_class,
 static inline void prcmu_qos_remove_requirement(int prcmu_qos_class, char *name)
 {
 }
-
-static inline int prcmu_qos_add_notifier(int prcmu_qos_class,
-					 struct notifier_block *notifier)
-{
-	return 0;
-}
-static inline int prcmu_qos_remove_notifier(int prcmu_qos_class,
-					    struct notifier_block *notifier)
-{
-	return 0;
-}
-
-#endif
 
 #endif /* __MACH_PRCMU_H */

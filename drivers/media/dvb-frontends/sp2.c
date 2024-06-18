@@ -363,8 +363,7 @@ static int sp2_exit(struct i2c_client *client)
 	return 0;
 }
 
-static int sp2_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int sp2_probe(struct i2c_client *client)
 {
 	struct sp2_config *cfg = client->dev.platform_data;
 	struct sp2 *s;
@@ -398,14 +397,13 @@ err:
 	return ret;
 }
 
-static int sp2_remove(struct i2c_client *client)
+static void sp2_remove(struct i2c_client *client)
 {
 	struct sp2 *s = i2c_get_clientdata(client);
 
 	dev_dbg(&client->dev, "\n");
 	sp2_exit(client);
 	kfree(s);
-	return 0;
 }
 
 static const struct i2c_device_id sp2_id[] = {

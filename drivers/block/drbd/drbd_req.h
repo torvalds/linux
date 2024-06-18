@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
    drbd_req.h
 
@@ -256,18 +256,6 @@ enum drbd_req_state_bits {
 #define MR_WRITE       1
 #define MR_READ        2
 
-static inline void drbd_req_make_private_bio(struct drbd_request *req, struct bio *bio_src)
-{
-	struct bio *bio;
-	bio = bio_clone_fast(bio_src, GFP_NOIO, &drbd_io_bio_set);
-
-	req->private_bio = bio;
-
-	bio->bi_private  = req;
-	bio->bi_end_io   = drbd_request_endio;
-	bio->bi_next     = NULL;
-}
-
 /* Short lived temporary struct on the stack.
  * We could squirrel the error to be returned into
  * bio->bi_iter.bi_size, or similar. But that would be too ugly. */
@@ -278,9 +266,8 @@ struct bio_and_error {
 
 extern void start_new_tl_epoch(struct drbd_connection *connection);
 extern void drbd_req_destroy(struct kref *kref);
-extern void _req_may_be_done(struct drbd_request *req,
-		struct bio_and_error *m);
 extern int __req_mod(struct drbd_request *req, enum drbd_req_event what,
+		struct drbd_peer_device *peer_device,
 		struct bio_and_error *m);
 extern void complete_master_bio(struct drbd_device *device,
 		struct bio_and_error *m);
@@ -294,14 +281,15 @@ extern void drbd_restart_request(struct drbd_request *req);
 
 /* use this if you don't want to deal with calling complete_master_bio()
  * outside the spinlock, e.g. when walking some list on cleanup. */
-static inline int _req_mod(struct drbd_request *req, enum drbd_req_event what)
+static inline int _req_mod(struct drbd_request *req, enum drbd_req_event what,
+		struct drbd_peer_device *peer_device)
 {
 	struct drbd_device *device = req->device;
 	struct bio_and_error m;
 	int rv;
 
 	/* __req_mod possibly frees req, do not touch req after that! */
-	rv = __req_mod(req, what, &m);
+	rv = __req_mod(req, what, peer_device, &m);
 	if (m.bio)
 		complete_master_bio(device, &m);
 
@@ -313,7 +301,8 @@ static inline int _req_mod(struct drbd_request *req, enum drbd_req_event what)
  * of the lower level driver completion callback, so we need to
  * spin_lock_irqsave here. */
 static inline int req_mod(struct drbd_request *req,
-		enum drbd_req_event what)
+		enum drbd_req_event what,
+		struct drbd_peer_device *peer_device)
 {
 	unsigned long flags;
 	struct drbd_device *device = req->device;
@@ -321,7 +310,7 @@ static inline int req_mod(struct drbd_request *req,
 	int rv;
 
 	spin_lock_irqsave(&device->resource->req_lock, flags);
-	rv = __req_mod(req, what, &m);
+	rv = __req_mod(req, what, peer_device, &m);
 	spin_unlock_irqrestore(&device->resource->req_lock, flags);
 
 	if (m.bio)

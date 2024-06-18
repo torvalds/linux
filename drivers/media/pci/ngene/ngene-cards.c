@@ -934,15 +934,11 @@ static int eeprom_read_ushort(struct i2c_adapter *adapter, u16 tag, u16 *data)
 
 static int eeprom_write_ushort(struct i2c_adapter *adapter, u16 tag, u16 data)
 {
-	int stat;
 	u8 buf[2];
 
 	buf[0] = data >> 8;
 	buf[1] = data & 0xff;
-	stat = WriteEEProm(adapter, tag, 2, buf);
-	if (stat)
-		return stat;
-	return 0;
+	return WriteEEProm(adapter, tag, 2, buf);
 }
 
 static s16 osc_deviation(void *priv, s16 deviation, int flag)
@@ -1186,7 +1182,7 @@ MODULE_DEVICE_TABLE(pci, ngene_id_tbl);
 /****************************************************************************/
 
 static pci_ers_result_t ngene_error_detected(struct pci_dev *dev,
-					     enum pci_channel_state state)
+					     pci_channel_state_t state)
 {
 	dev_err(&dev->dev, "PCI error\n");
 	if (state == pci_channel_io_perm_failure)

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2013-2019, Intel Corporation. All rights reserved.
+ * Copyright (c) 2013-2023, Intel Corporation. All rights reserved.
  * Intel Management Engine Interface (Intel MEI) Linux driver
  */
 
@@ -9,12 +9,13 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/slab.h>
-#include <linux/uuid.h>
 
+#include <linux/mei.h>
 #include <linux/mei_cl_bus.h>
 
 #include "mei_dev.h"
 #include "client.h"
+#include "mkhi.h"
 
 #define MEI_UUID_NFC_INFO UUID_LE(0xd2de1625, 0x382d, 0x417d, \
 			0x48, 0xa4, 0xef, 0xab, 0xba, 0x8a, 0x12, 0x06)
@@ -30,8 +31,17 @@ static const uuid_le mei_nfc_info_guid = MEI_UUID_NFC_INFO;
 #define MEI_UUID_MKHIF_FIX UUID_LE(0x55213584, 0x9a29, 0x4916, \
 			0xba, 0xdf, 0xf, 0xb7, 0xed, 0x68, 0x2a, 0xeb)
 
+#define MEI_UUID_IGSC_MKHI UUID_LE(0xE2C2AFA2, 0x3817, 0x4D19, \
+			0x9D, 0x95, 0x06, 0xB1, 0x6B, 0x58, 0x8A, 0x5D)
+
+#define MEI_UUID_IGSC_MKHI_FIX UUID_LE(0x46E0C1FB, 0xA546, 0x414F, \
+			0x91, 0x70, 0xB7, 0xF4, 0x6D, 0x57, 0xB4, 0xAD)
+
 #define MEI_UUID_HDCP UUID_LE(0xB638AB7E, 0x94E2, 0x4EA2, \
 			      0xA5, 0x52, 0xD1, 0xC5, 0x4B, 0x62, 0x7F, 0x04)
+
+#define MEI_UUID_PAVP UUID_LE(0xfbf6fcf1, 0x96cf, 0x4e2e, 0xA6, \
+			      0xa6, 0x1b, 0xab, 0x8c, 0xbe, 0x36, 0xb1)
 
 #define MEI_UUID_ANY NULL_UUID_LE
 
@@ -46,8 +56,6 @@ static const uuid_le mei_nfc_info_guid = MEI_UUID_NFC_INFO;
  */
 static void number_of_connections(struct mei_cl_device *cldev)
 {
-	dev_dbg(&cldev->dev, "running hook %s\n", __func__);
-
 	if (cldev->me_cl->props.max_number_of_connections > 1)
 		cldev->do_match = 0;
 }
@@ -59,8 +67,6 @@ static void number_of_connections(struct mei_cl_device *cldev)
  */
 static void blacklist(struct mei_cl_device *cldev)
 {
-	dev_dbg(&cldev->dev, "running hook %s\n", __func__);
-
 	cldev->do_match = 0;
 }
 
@@ -71,8 +77,6 @@ static void blacklist(struct mei_cl_device *cldev)
  */
 static void whitelist(struct mei_cl_device *cldev)
 {
-	dev_dbg(&cldev->dev, "running hook %s\n", __func__);
-
 	cldev->do_match = 1;
 }
 
@@ -84,20 +88,6 @@ struct mei_os_ver {
 	u8  major;
 	u8  minor;
 	u8  reserved2;
-} __packed;
-
-#define MKHI_FEATURE_PTT 0x10
-
-struct mkhi_rule_id {
-	__le16 rule_type;
-	u8 feature_id;
-	u8 reserved;
-} __packed;
-
-struct mkhi_fwcaps {
-	struct mkhi_rule_id id;
-	u8 len;
-	u8 data[0];
 } __packed;
 
 struct mkhi_fw_ver_block {
@@ -112,29 +102,13 @@ struct mkhi_fw_ver {
 	struct mkhi_fw_ver_block ver[MEI_MAX_FW_VER_BLOCKS];
 } __packed;
 
-#define MKHI_FWCAPS_GROUP_ID 0x3
-#define MKHI_FWCAPS_SET_OS_VER_APP_RULE_CMD 6
-#define MKHI_GEN_GROUP_ID 0xFF
-#define MKHI_GEN_GET_FW_VERSION_CMD 0x2
-struct mkhi_msg_hdr {
-	u8  group_id;
-	u8  command;
-	u8  reserved;
-	u8  result;
-} __packed;
-
-struct mkhi_msg {
-	struct mkhi_msg_hdr hdr;
-	u8 data[0];
-} __packed;
-
 #define MKHI_OSVER_BUF_LEN (sizeof(struct mkhi_msg_hdr) + \
 			    sizeof(struct mkhi_fwcaps) + \
 			    sizeof(struct mei_os_ver))
 static int mei_osver(struct mei_cl_device *cldev)
 {
 	const size_t size = MKHI_OSVER_BUF_LEN;
-	char buf[MKHI_OSVER_BUF_LEN];
+	u8 buf[MKHI_OSVER_BUF_LEN];
 	struct mkhi_msg *req;
 	struct mkhi_fwcaps *fwcaps;
 	struct mei_os_ver *os_ver;
@@ -154,47 +128,47 @@ static int mei_osver(struct mei_cl_device *cldev)
 	os_ver = (struct mei_os_ver *)fwcaps->data;
 	os_ver->os_type = OSTYPE_LINUX;
 
-	return __mei_cl_send(cldev->cl, buf, size, mode);
+	return __mei_cl_send(cldev->cl, buf, size, 0, mode);
 }
 
 #define MKHI_FWVER_BUF_LEN (sizeof(struct mkhi_msg_hdr) + \
 			    sizeof(struct mkhi_fw_ver))
 #define MKHI_FWVER_LEN(__num) (sizeof(struct mkhi_msg_hdr) + \
 			       sizeof(struct mkhi_fw_ver_block) * (__num))
-#define MKHI_RCV_TIMEOUT 500 /* receive timeout in msec */
 static int mei_fwver(struct mei_cl_device *cldev)
 {
-	char buf[MKHI_FWVER_BUF_LEN];
-	struct mkhi_msg *req;
+	u8 buf[MKHI_FWVER_BUF_LEN];
+	struct mkhi_msg req;
+	struct mkhi_msg *rsp;
 	struct mkhi_fw_ver *fwver;
 	int bytes_recv, ret, i;
 
 	memset(buf, 0, sizeof(buf));
 
-	req = (struct mkhi_msg *)buf;
-	req->hdr.group_id = MKHI_GEN_GROUP_ID;
-	req->hdr.command = MKHI_GEN_GET_FW_VERSION_CMD;
+	req.hdr.group_id = MKHI_GEN_GROUP_ID;
+	req.hdr.command = MKHI_GEN_GET_FW_VERSION_CMD;
 
-	ret = __mei_cl_send(cldev->cl, buf, sizeof(struct mkhi_msg_hdr),
+	ret = __mei_cl_send(cldev->cl, (u8 *)&req, sizeof(req), 0,
 			    MEI_CL_IO_TX_BLOCKING);
 	if (ret < 0) {
-		dev_err(&cldev->dev, "Could not send ReqFWVersion cmd\n");
+		dev_info(&cldev->dev, "Could not send ReqFWVersion cmd ret = %d\n", ret);
 		return ret;
 	}
 
 	ret = 0;
-	bytes_recv = __mei_cl_recv(cldev->cl, buf, sizeof(buf), 0,
-				   MKHI_RCV_TIMEOUT);
+	bytes_recv = __mei_cl_recv(cldev->cl, buf, sizeof(buf), NULL, 0,
+				   cldev->bus->timeouts.mkhi_recv);
 	if (bytes_recv < 0 || (size_t)bytes_recv < MKHI_FWVER_LEN(1)) {
 		/*
 		 * Should be at least one version block,
 		 * error out if nothing found
 		 */
-		dev_err(&cldev->dev, "Could not read FW version\n");
+		dev_info(&cldev->dev, "Could not read FW version ret = %d\n", bytes_recv);
 		return -EIO;
 	}
 
-	fwver = (struct mkhi_fw_ver *)req->data;
+	rsp = (struct mkhi_msg *)buf;
+	fwver = (struct mkhi_fw_ver *)rsp->data;
 	memset(cldev->bus->fw_ver, 0, sizeof(cldev->bus->fw_ver));
 	for (i = 0; i < MEI_MAX_FW_VER_BLOCKS; i++) {
 		if ((size_t)bytes_recv < MKHI_FWVER_LEN(i + 1))
@@ -210,13 +184,66 @@ static int mei_fwver(struct mei_cl_device *cldev)
 		cldev->bus->fw_ver[i].hotfix = fwver->ver[i].hotfix;
 		cldev->bus->fw_ver[i].buildno = fwver->ver[i].buildno;
 	}
+	cldev->bus->fw_ver_received = 1;
 
 	return ret;
+}
+
+#define GFX_MEMORY_READY_TIMEOUT 200 /* timeout in milliseconds */
+
+static int mei_gfx_memory_ready(struct mei_cl_device *cldev)
+{
+	struct mkhi_gfx_mem_ready req = {0};
+	unsigned int mode = MEI_CL_IO_TX_INTERNAL | MEI_CL_IO_TX_BLOCKING;
+
+	req.hdr.group_id = MKHI_GROUP_ID_GFX;
+	req.hdr.command = MKHI_GFX_MEMORY_READY_CMD_REQ;
+	req.flags = MKHI_GFX_MEM_READY_PXP_ALLOWED;
+
+	dev_dbg(&cldev->dev, "Sending memory ready command\n");
+	return __mei_cl_send_timeout(cldev->cl, (u8 *)&req, sizeof(req), 0,
+				     mode, GFX_MEMORY_READY_TIMEOUT);
 }
 
 static void mei_mkhi_fix(struct mei_cl_device *cldev)
 {
 	int ret;
+
+	/* No need to enable the client if nothing is needed from it */
+	if (!cldev->bus->fw_f_fw_ver_supported &&
+	    !cldev->bus->hbm_f_os_supported)
+		return;
+
+	ret = mei_cldev_enable(cldev);
+	if (ret)
+		return;
+
+	if (cldev->bus->fw_f_fw_ver_supported) {
+		ret = mei_fwver(cldev);
+		if (ret < 0)
+			dev_info(&cldev->dev, "FW version command failed %d\n",
+				 ret);
+	}
+
+	if (cldev->bus->hbm_f_os_supported) {
+		ret = mei_osver(cldev);
+		if (ret < 0)
+			dev_info(&cldev->dev, "OS version command failed %d\n",
+				 ret);
+	}
+	mei_cldev_disable(cldev);
+}
+
+static void mei_gsc_mkhi_ver(struct mei_cl_device *cldev)
+{
+	int ret;
+
+	/*
+	 * No need to enable the client if nothing is needed from it.
+	 * No need to fill in version if it is already filled in by the fix address client.
+	 */
+	if (!cldev->bus->fw_f_fw_ver_supported || cldev->bus->fw_ver_received)
+		return;
 
 	ret = mei_cldev_enable(cldev);
 	if (ret)
@@ -224,14 +251,40 @@ static void mei_mkhi_fix(struct mei_cl_device *cldev)
 
 	ret = mei_fwver(cldev);
 	if (ret < 0)
-		dev_err(&cldev->dev, "FW version command failed %d\n", ret);
+		dev_info(&cldev->dev, "FW version command failed %d\n", ret);
+	mei_cldev_disable(cldev);
+}
 
-	if (cldev->bus->hbm_f_os_supported) {
-		ret = mei_osver(cldev);
-		if (ret < 0)
-			dev_err(&cldev->dev, "OS version command failed %d\n",
-				ret);
+static void mei_gsc_mkhi_fix_ver(struct mei_cl_device *cldev)
+{
+	int ret;
+
+	/* No need to enable the client if nothing is needed from it */
+	if (!cldev->bus->fw_f_fw_ver_supported &&
+	    cldev->bus->pxp_mode != MEI_DEV_PXP_INIT)
+		return;
+
+	ret = mei_cldev_enable(cldev);
+	if (ret)
+		return;
+
+	if (cldev->bus->pxp_mode == MEI_DEV_PXP_INIT) {
+		ret = mei_gfx_memory_ready(cldev);
+		if (ret < 0) {
+			dev_err(&cldev->dev, "memory ready command failed %d\n", ret);
+		} else {
+			dev_dbg(&cldev->dev, "memory ready command sent\n");
+			cldev->bus->pxp_mode = MEI_DEV_PXP_SETUP;
+		}
+		/* we go to reset after that */
+		goto out;
 	}
+
+	ret = mei_fwver(cldev);
+	if (ret < 0)
+		dev_info(&cldev->dev, "FW version command failed %d\n",
+			 ret);
+out:
 	mei_cldev_disable(cldev);
 }
 
@@ -248,7 +301,6 @@ static void mei_wd(struct mei_cl_device *cldev)
 {
 	struct pci_dev *pdev = to_pci_dev(cldev->dev.parent);
 
-	dev_dbg(&cldev->dev, "running hook %s\n", __func__);
 	if (pdev->device == MEI_DEV_ID_WPT_LP ||
 	    pdev->device == MEI_DEV_ID_SPT ||
 	    pdev->device == MEI_DEV_ID_SPT_H)
@@ -322,39 +374,40 @@ static int mei_nfc_if_version(struct mei_cl *cl,
 	};
 	struct mei_nfc_reply *reply = NULL;
 	size_t if_version_length;
+	u8 vtag;
 	int bytes_recv, ret;
 
 	bus = cl->dev;
 
 	WARN_ON(mutex_is_locked(&bus->device_lock));
 
-	ret = __mei_cl_send(cl, (u8 *)&cmd, sizeof(struct mei_nfc_cmd),
+	ret = __mei_cl_send(cl, (u8 *)&cmd, sizeof(cmd), 0,
 			    MEI_CL_IO_TX_BLOCKING);
 	if (ret < 0) {
-		dev_err(bus->dev, "Could not send IF version cmd\n");
+		dev_err(bus->dev, "Could not send IF version cmd ret = %d\n", ret);
 		return ret;
 	}
 
 	/* to be sure on the stack we alloc memory */
-	if_version_length = sizeof(struct mei_nfc_reply) +
-		sizeof(struct mei_nfc_if_version);
+	if_version_length = sizeof(*reply) + sizeof(*ver);
 
 	reply = kzalloc(if_version_length, GFP_KERNEL);
 	if (!reply)
 		return -ENOMEM;
 
 	ret = 0;
-	bytes_recv = __mei_cl_recv(cl, (u8 *)reply, if_version_length, 0, 0);
+	bytes_recv = __mei_cl_recv(cl, (u8 *)reply, if_version_length, &vtag,
+				   0, 0);
 	if (bytes_recv < 0 || (size_t)bytes_recv < if_version_length) {
-		dev_err(bus->dev, "Could not read IF version\n");
+		dev_err(bus->dev, "Could not read IF version ret = %d\n", bytes_recv);
 		ret = -EIO;
 		goto err;
 	}
 
-	memcpy(ver, reply->data, sizeof(struct mei_nfc_if_version));
+	memcpy(ver, reply->data, sizeof(*ver));
 
 	dev_info(bus->dev, "NFC MEI VERSION: IVN 0x%x Vendor ID 0x%x Type 0x%x\n",
-		ver->fw_ivn, ver->vendor_id, ver->radio_type);
+		 ver->fw_ivn, ver->vendor_id, ver->radio_type);
 
 err:
 	kfree(reply);
@@ -402,8 +455,6 @@ static void mei_nfc(struct mei_cl_device *cldev)
 
 	bus = cldev->bus;
 
-	dev_dbg(&cldev->dev, "running hook %s\n", __func__);
-
 	mutex_lock(&bus->device_lock);
 	/* we need to connect to INFO GUID */
 	cl = mei_cl_alloc_linked(bus);
@@ -444,7 +495,7 @@ static void mei_nfc(struct mei_cl_device *cldev)
 	}
 
 	dev_dbg(bus->dev, "nfc radio %s\n", radio_name);
-	strlcpy(cldev->name, radio_name, sizeof(cldev->name));
+	strscpy(cldev->name, radio_name, sizeof(cldev->name));
 
 disconnect:
 	mutex_lock(&bus->device_lock);
@@ -465,6 +516,37 @@ out:
 	dev_dbg(bus->dev, "end of fixup match = %d\n", cldev->do_match);
 }
 
+/**
+ * vt_support - enable on bus clients with vtag support
+ *
+ * @cldev: me clients device
+ */
+static void vt_support(struct mei_cl_device *cldev)
+{
+	if (cldev->me_cl->props.vt_supported == 1)
+		cldev->do_match = 1;
+}
+
+/**
+ * pxp_is_ready - enable bus client if pxp is ready
+ *
+ * @cldev: me clients device
+ */
+static void pxp_is_ready(struct mei_cl_device *cldev)
+{
+	struct mei_device *bus = cldev->bus;
+
+	switch (bus->pxp_mode) {
+	case MEI_DEV_PXP_READY:
+	case MEI_DEV_PXP_DEFAULT:
+		cldev->do_match = 1;
+	break;
+	default:
+		cldev->do_match = 0;
+	break;
+	}
+}
+
 #define MEI_FIXUP(_uuid, _hook) { _uuid, _hook }
 
 static struct mei_fixup {
@@ -477,11 +559,15 @@ static struct mei_fixup {
 	MEI_FIXUP(MEI_UUID_NFC_HCI, mei_nfc),
 	MEI_FIXUP(MEI_UUID_WD, mei_wd),
 	MEI_FIXUP(MEI_UUID_MKHIF_FIX, mei_mkhi_fix),
+	MEI_FIXUP(MEI_UUID_IGSC_MKHI_FIX, mei_gsc_mkhi_fix_ver),
+	MEI_FIXUP(MEI_UUID_IGSC_MKHI, mei_gsc_mkhi_ver),
 	MEI_FIXUP(MEI_UUID_HDCP, whitelist),
+	MEI_FIXUP(MEI_UUID_ANY, vt_support),
+	MEI_FIXUP(MEI_UUID_PAVP, pxp_is_ready),
 };
 
 /**
- * mei_cldev_fixup - run fixup handlers
+ * mei_cl_bus_dev_fixup - run fixup handlers
  *
  * @cldev: me client device
  */

@@ -25,6 +25,7 @@
  */
 
 #include <linux/firmware.h>
+#include <drm/drm_drv.h>
 
 #include "amdgpu.h"
 #include "amdgpu_vce.h"
@@ -82,7 +83,7 @@ static uint64_t vce_v4_0_ring_get_wptr(struct amdgpu_ring *ring)
 	struct amdgpu_device *adev = ring->adev;
 
 	if (ring->use_doorbell)
-		return adev->wb.wb[ring->wptr_offs];
+		return *ring->wptr_cpu_addr;
 
 	if (ring->me == 0)
 		return RREG32(SOC15_REG_OFFSET(VCE, 0, mmVCE_RB_WPTR));
@@ -105,7 +106,7 @@ static void vce_v4_0_ring_set_wptr(struct amdgpu_ring *ring)
 
 	if (ring->use_doorbell) {
 		/* XXX check if swapping is necessary on BE */
-		adev->wb.wb[ring->wptr_offs] = lower_32_bits(ring->wptr);
+		*ring->wptr_cpu_addr = lower_32_bits(ring->wptr);
 		WDOORBELL32(ring->doorbell_index, lower_32_bits(ring->wptr));
 		return;
 	}
@@ -176,7 +177,7 @@ static int vce_v4_0_mmsch_start(struct amdgpu_device *adev,
 	WREG32(SOC15_REG_OFFSET(VCE, 0, mmVCE_MMSCH_VF_MAILBOX_RESP), 0);
 
 	WDOORBELL32(adev->vce.ring[0].doorbell_index, 0);
-	adev->wb.wb[adev->vce.ring[0].wptr_offs] = 0;
+	*adev->vce.ring[0].wptr_cpu_addr = 0;
 	adev->vce.ring[0].wptr = 0;
 	adev->vce.ring[0].wptr_old = 0;
 
@@ -462,7 +463,10 @@ static int vce_v4_0_sw_init(void *handle)
 	}
 
 	for (i = 0; i < adev->vce.num_rings; i++) {
+		enum amdgpu_ring_priority_level hw_prio = amdgpu_vce_get_ring_prio(i);
+
 		ring = &adev->vce.ring[i];
+		ring->vm_hub = AMDGPU_MMHUB0(0);
 		sprintf(ring->name, "vce%d", i);
 		if (amdgpu_sriov_vf(adev)) {
 			/* DOORBELL only works under SRIOV */
@@ -476,15 +480,11 @@ static int vce_v4_0_sw_init(void *handle)
 			else
 				ring->doorbell_index = adev->doorbell_index.uvd_vce.vce_ring2_3 * 2 + 1;
 		}
-		r = amdgpu_ring_init(adev, ring, 512, &adev->vce.irq, 0);
+		r = amdgpu_ring_init(adev, ring, 512, &adev->vce.irq, 0,
+				     hw_prio, NULL);
 		if (r)
 			return r;
 	}
-
-
-	r = amdgpu_vce_entity_init(adev);
-	if (r)
-		return r;
 
 	r = amdgpu_virt_alloc_mm_table(adev);
 	if (r)
@@ -539,7 +539,8 @@ static int vce_v4_0_hw_init(void *handle)
 static int vce_v4_0_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	int i;
+
+	cancel_delayed_work_sync(&adev->vce.idle_work);
 
 	if (!amdgpu_sriov_vf(adev)) {
 		/* vce_v4_0_wait_for_idle(handle); */
@@ -549,25 +550,48 @@ static int vce_v4_0_hw_fini(void *handle)
 		DRM_DEBUG("For SRIOV client, shouldn't do anything.\n");
 	}
 
-	for (i = 0; i < adev->vce.num_rings; i++)
-		adev->vce.ring[i].sched.ready = false;
-
 	return 0;
 }
 
 static int vce_v4_0_suspend(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	int r;
+	int r, idx;
 
 	if (adev->vce.vcpu_bo == NULL)
 		return 0;
 
-	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
-		unsigned size = amdgpu_bo_size(adev->vce.vcpu_bo);
-		void *ptr = adev->vce.cpu_addr;
+	if (drm_dev_enter(adev_to_drm(adev), &idx)) {
+		if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
+			unsigned size = amdgpu_bo_size(adev->vce.vcpu_bo);
+			void *ptr = adev->vce.cpu_addr;
 
-		memcpy_fromio(adev->vce.saved_bo, ptr, size);
+			memcpy_fromio(adev->vce.saved_bo, ptr, size);
+		}
+		drm_dev_exit(idx);
+	}
+
+	/*
+	 * Proper cleanups before halting the HW engine:
+	 *   - cancel the delayed idle work
+	 *   - enable powergating
+	 *   - enable clockgating
+	 *   - disable dpm
+	 *
+	 * TODO: to align with the VCN implementation, move the
+	 * jobs for clockgating/powergating/dpm setting to
+	 * ->set_powergating_state().
+	 */
+	cancel_delayed_work_sync(&adev->vce.idle_work);
+
+	if (adev->pm.dpm_enabled) {
+		amdgpu_dpm_enable_vce(adev, false);
+	} else {
+		amdgpu_asic_set_vce_clocks(adev, 0, 0);
+		amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
+						       AMD_PG_STATE_GATE);
+		amdgpu_device_ip_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
+						       AMD_CG_STATE_GATE);
 	}
 
 	r = vce_v4_0_hw_fini(adev);
@@ -580,16 +604,20 @@ static int vce_v4_0_suspend(void *handle)
 static int vce_v4_0_resume(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	int r;
+	int r, idx;
 
 	if (adev->vce.vcpu_bo == NULL)
 		return -EINVAL;
 
 	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
-		unsigned size = amdgpu_bo_size(adev->vce.vcpu_bo);
-		void *ptr = adev->vce.cpu_addr;
 
-		memcpy_toio(ptr, adev->vce.saved_bo, size);
+		if (drm_dev_enter(adev_to_drm(adev), &idx)) {
+			unsigned size = amdgpu_bo_size(adev->vce.vcpu_bo);
+			void *ptr = adev->vce.cpu_addr;
+
+			memcpy_toio(ptr, adev->vce.saved_bo, size);
+			drm_dev_exit(idx);
+		}
 	} else {
 		r = amdgpu_vce_resume(adev);
 		if (r)
@@ -887,7 +915,7 @@ static int vce_v4_0_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	bool enable = (state == AMD_CG_STATE_GATE) ? true : false;
+	bool enable = (state == AMD_CG_STATE_GATE);
 	int i;
 
 	if ((adev->asic_type == CHIP_POLARIS10) ||
@@ -989,12 +1017,13 @@ static void vce_v4_0_emit_reg_wait(struct amdgpu_ring *ring, uint32_t reg,
 static void vce_v4_0_emit_vm_flush(struct amdgpu_ring *ring,
 				   unsigned int vmid, uint64_t pd_addr)
 {
-	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->funcs->vmhub];
+	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->vm_hub];
 
 	pd_addr = amdgpu_gmc_emit_flush_gpu_tlb(ring, vmid, pd_addr);
 
 	/* wait for reg writes */
-	vce_v4_0_emit_reg_wait(ring, hub->ctx0_ptb_addr_lo32 + vmid * 2,
+	vce_v4_0_emit_reg_wait(ring, hub->ctx0_ptb_addr_lo32 +
+			       vmid * hub->ctx_addr_distance,
 			       lower_32_bits(pd_addr), 0xffffffff);
 }
 
@@ -1070,7 +1099,6 @@ static const struct amdgpu_ring_funcs vce_v4_0_ring_vm_funcs = {
 	.nop = VCE_CMD_NO_OP,
 	.support_64bit_ptrs = false,
 	.no_user_fence = true,
-	.vmhub = AMDGPU_MMHUB_0,
 	.get_rptr = vce_v4_0_ring_get_rptr,
 	.get_wptr = vce_v4_0_ring_get_wptr,
 	.set_wptr = vce_v4_0_ring_set_wptr,

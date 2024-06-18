@@ -249,7 +249,7 @@
 			reg = <0x4c0 0x40>;
 			interrupts = <2>;
 			interrupt-parent = <&qeic>;
-			gpios = <&qe_pio_d 13 0>;
+			cs-gpios = <&qe_pio_d 13 0>;
 			mode = "cpu-qe";
 
 			mmc-slot@0 {

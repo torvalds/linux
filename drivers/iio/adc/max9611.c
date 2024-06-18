@@ -22,7 +22,8 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
+#include <linux/property.h>
 
 #define DRIVER_NAME			"max9611"
 
@@ -89,6 +90,12 @@
 #define MAX9611_TEMP_SCALE_NUM		1000000
 #define MAX9611_TEMP_SCALE_DIV		2083
 
+/*
+ * Conversion time is 2 ms (typically) at Ta=25 degreeC
+ * No maximum value is known, so play it safe.
+ */
+#define MAX9611_CONV_TIME_US_RANGE	3000, 3300
+
 struct max9611_dev {
 	struct device *dev;
 	struct i2c_client *i2c_client;
@@ -104,27 +111,22 @@ enum max9611_conf_ids {
 	CONF_TEMP,
 };
 
-/**
+/*
  * max9611_mux_conf - associate ADC mux configuration with register address
  *		      where data shall be read from
  */
 static const unsigned int max9611_mux_conf[][2] = {
-	/* CONF_SENSE_1x */
-	{ MAX9611_MUX_SENSE_1x, MAX9611_REG_CSA_DATA },
-	/* CONF_SENSE_4x */
-	{ MAX9611_MUX_SENSE_4x, MAX9611_REG_CSA_DATA },
-	/* CONF_SENSE_8x */
-	{ MAX9611_MUX_SENSE_8x, MAX9611_REG_CSA_DATA },
-	/* CONF_IN_VOLT */
-	{ MAX9611_INPUT_VOLT, MAX9611_REG_RS_DATA },
-	/* CONF_TEMP */
-	{ MAX9611_MUX_TEMP, MAX9611_REG_TEMP_DATA },
+	[CONF_SENSE_1x]	= { MAX9611_MUX_SENSE_1x, MAX9611_REG_CSA_DATA },
+	[CONF_SENSE_4x]	= { MAX9611_MUX_SENSE_4x, MAX9611_REG_CSA_DATA },
+	[CONF_SENSE_8x]	= { MAX9611_MUX_SENSE_8x, MAX9611_REG_CSA_DATA },
+	[CONF_IN_VOLT]	= { MAX9611_INPUT_VOLT, MAX9611_REG_RS_DATA },
+	[CONF_TEMP]	= { MAX9611_MUX_TEMP, MAX9611_REG_TEMP_DATA },
 };
 
 enum max9611_csa_gain {
-	CSA_GAIN_1x,
-	CSA_GAIN_4x,
-	CSA_GAIN_8x,
+	CSA_GAIN_1x = CONF_SENSE_1x,
+	CSA_GAIN_4x = CONF_SENSE_4x,
+	CSA_GAIN_8x = CONF_SENSE_8x,
 };
 
 enum max9611_csa_gain_params {
@@ -132,7 +134,7 @@ enum max9611_csa_gain_params {
 	CSA_GAIN_OFFS_RAW,
 };
 
-/**
+/*
  * max9611_csa_gain_conf - associate gain multiplier with LSB and
  *			   offset values.
  *
@@ -142,18 +144,9 @@ enum max9611_csa_gain_params {
  * value; use this structure to retrieve the correct LSB and offset values.
  */
 static const unsigned int max9611_gain_conf[][2] = {
-	{ /* [0] CSA_GAIN_1x */
-		MAX9611_CSA_1X_LSB_nV,
-		MAX9611_CSA_1X_OFFS_RAW,
-	},
-	{ /* [1] CSA_GAIN_4x */
-		MAX9611_CSA_4X_LSB_nV,
-		MAX9611_CSA_4X_OFFS_RAW,
-	},
-	{ /* [2] CSA_GAIN_8x */
-		MAX9611_CSA_8X_LSB_nV,
-		MAX9611_CSA_8X_OFFS_RAW,
-	},
+	[CSA_GAIN_1x] = { MAX9611_CSA_1X_LSB_nV, MAX9611_CSA_1X_OFFS_RAW, },
+	[CSA_GAIN_4x] = { MAX9611_CSA_4X_LSB_nV, MAX9611_CSA_4X_OFFS_RAW, },
+	[CSA_GAIN_8x] = { MAX9611_CSA_8X_LSB_nV, MAX9611_CSA_8X_OFFS_RAW, },
 };
 
 enum max9611_chan_addrs {
@@ -236,11 +229,9 @@ static int max9611_read_single(struct max9611_dev *max9611,
 		return ret;
 	}
 
-	/*
-	 * need a delay here to make register configuration
-	 * stabilize. 1 msec at least, from empirical testing.
-	 */
-	usleep_range(1000, 2000);
+	/* need a delay here to make register configuration stabilize. */
+
+	usleep_range(MAX9611_CONV_TIME_US_RANGE);
 
 	ret = i2c_smbus_read_word_swapped(max9611->i2c_client, reg_addr);
 	if (ret < 0) {
@@ -438,7 +429,7 @@ static ssize_t max9611_shunt_resistor_show(struct device *dev,
 	i = max9611->shunt_resistor_uohm / 1000000;
 	r = max9611->shunt_resistor_uohm % 1000000;
 
-	return sprintf(buf, "%u.%06u\n", i, r);
+	return sysfs_emit(buf, "%u.%06u\n", i, r);
 }
 
 static IIO_DEVICE_ATTR(in_power_shunt_resistor, 0444,
@@ -507,7 +498,7 @@ static int max9611_init(struct max9611_dev *max9611)
 			MAX9611_REG_CTRL2, 0);
 		return ret;
 	}
-	usleep_range(1000, 2000);
+	usleep_range(MAX9611_CONV_TIME_US_RANGE);
 
 	return 0;
 }
@@ -519,15 +510,12 @@ static const struct of_device_id max9611_of_table[] = {
 };
 
 MODULE_DEVICE_TABLE(of, max9611_of_table);
-static int max9611_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int max9611_probe(struct i2c_client *client)
 {
 	const char * const shunt_res_prop = "shunt-resistor-micro-ohms";
-	const struct device_node *of_node = client->dev.of_node;
-	const struct of_device_id *of_id =
-		of_match_device(max9611_of_table, &client->dev);
 	struct max9611_dev *max9611;
 	struct iio_dev *indio_dev;
+	struct device *dev = &client->dev;
 	unsigned int of_shunt;
 	int ret;
 
@@ -538,15 +526,14 @@ static int max9611_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, indio_dev);
 
 	max9611			= iio_priv(indio_dev);
-	max9611->dev		= &client->dev;
+	max9611->dev		= dev;
 	max9611->i2c_client	= client;
 	mutex_init(&max9611->lock);
 
-	ret = of_property_read_u32(of_node, shunt_res_prop, &of_shunt);
+	ret = device_property_read_u32(dev, shunt_res_prop, &of_shunt);
 	if (ret) {
-		dev_err(&client->dev,
-			"Missing %s property for %pOF node\n",
-			shunt_res_prop, of_node);
+		dev_err(dev, "Missing %s property for %pfw node\n",
+			shunt_res_prop, dev_fwnode(dev));
 		return ret;
 	}
 	max9611->shunt_resistor_uohm = of_shunt;
@@ -555,15 +542,13 @@ static int max9611_probe(struct i2c_client *client,
 	if (ret)
 		return ret;
 
-	indio_dev->dev.parent	= &client->dev;
-	indio_dev->dev.of_node	= client->dev.of_node;
-	indio_dev->name		= of_id->data;
+	indio_dev->name		= device_get_match_data(dev);
 	indio_dev->modes	= INDIO_DIRECT_MODE;
 	indio_dev->info		= &indio_info;
 	indio_dev->channels	= max9611_channels;
 	indio_dev->num_channels	= ARRAY_SIZE(max9611_channels);
 
-	return devm_iio_device_register(&client->dev, indio_dev);
+	return devm_iio_device_register(dev, indio_dev);
 }
 
 static struct i2c_driver max9611_driver = {

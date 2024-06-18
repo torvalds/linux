@@ -21,7 +21,6 @@
 #include "denali.h"
 
 #define DENALI_NAND_NAME    "denali-nand"
-#define DENALI_DEFAULT_OOB_SKIP_BYTES	8
 
 /* for Indexed Addressing */
 #define DENALI_INDEXED_CTRL	0x00
@@ -762,9 +761,10 @@ static int denali_write_page(struct nand_chip *chip, const u8 *buf,
 	return denali_page_xfer(chip, (void *)buf, mtd->writesize, page, true);
 }
 
-static int denali_setup_data_interface(struct nand_chip *chip, int chipnr,
-				       const struct nand_data_interface *conf)
+static int denali_setup_interface(struct nand_chip *chip, int chipnr,
+				  const struct nand_interface_config *conf)
 {
+	static const unsigned int data_setup_on_host = 10000;
 	struct denali_controller *denali = to_denali_controller(chip);
 	struct denali_chip_sel *sel;
 	const struct nand_sdr_timings *timings;
@@ -796,15 +796,6 @@ static int denali_setup_data_interface(struct nand_chip *chip, int chipnr,
 		return 0;
 
 	sel = &to_denali_chip(chip)->sels[chipnr];
-
-	/* tREA -> ACC_CLKS */
-	acc_clks = DIV_ROUND_UP(timings->tREA_max, t_x);
-	acc_clks = min_t(int, acc_clks, ACC_CLKS__VALUE);
-
-	tmp = ioread32(denali->reg + ACC_CLKS);
-	tmp &= ~ACC_CLKS__VALUE;
-	tmp |= FIELD_PREP(ACC_CLKS__VALUE, acc_clks);
-	sel->acc_clks = tmp;
 
 	/* tRWH -> RE_2_WE */
 	re_2_we = DIV_ROUND_UP(timings->tRHW_min, t_x);
@@ -863,13 +854,44 @@ static int denali_setup_data_interface(struct nand_chip *chip, int chipnr,
 	tmp |= FIELD_PREP(RDWR_EN_HI_CNT__VALUE, rdwr_en_hi);
 	sel->rdwr_en_hi_cnt = tmp;
 
-	/* tRP, tWP -> RDWR_EN_LO_CNT */
+	/*
+	 * tREA -> ACC_CLKS
+	 * tRP, tWP, tRHOH, tRC, tWC -> RDWR_EN_LO_CNT
+	 */
+
+	/*
+	 * Determine the minimum of acc_clks to meet the setup timing when
+	 * capturing the incoming data.
+	 *
+	 * The delay on the chip side is well-defined as tREA, but we need to
+	 * take additional delay into account. This includes a certain degree
+	 * of unknowledge, such as signal propagation delays on the PCB and
+	 * in the SoC, load capacity of the I/O pins, etc.
+	 */
+	acc_clks = DIV_ROUND_UP(timings->tREA_max + data_setup_on_host, t_x);
+
+	/* Determine the minimum of rdwr_en_lo_cnt from RE#/WE# pulse width */
 	rdwr_en_lo = DIV_ROUND_UP(max(timings->tRP_min, timings->tWP_min), t_x);
+
+	/* Extend rdwr_en_lo to meet the data hold timing */
+	rdwr_en_lo = max_t(int, rdwr_en_lo,
+			   acc_clks - timings->tRHOH_min / t_x);
+
+	/* Extend rdwr_en_lo to meet the requirement for RE#/WE# cycle time */
 	rdwr_en_lo_hi = DIV_ROUND_UP(max(timings->tRC_min, timings->tWC_min),
 				     t_x);
-	rdwr_en_lo_hi = max_t(int, rdwr_en_lo_hi, mult_x);
 	rdwr_en_lo = max(rdwr_en_lo, rdwr_en_lo_hi - rdwr_en_hi);
 	rdwr_en_lo = min_t(int, rdwr_en_lo, RDWR_EN_LO_CNT__VALUE);
+
+	/* Center the data latch timing for extra safety */
+	acc_clks = (acc_clks + rdwr_en_lo +
+		    DIV_ROUND_UP(timings->tRHOH_min, t_x)) / 2;
+	acc_clks = min_t(int, acc_clks, ACC_CLKS__VALUE);
+
+	tmp = ioread32(denali->reg + ACC_CLKS);
+	tmp &= ~ACC_CLKS__VALUE;
+	tmp |= FIELD_PREP(ACC_CLKS__VALUE, acc_clks);
+	sel->acc_clks = tmp;
 
 	tmp = ioread32(denali->reg + RDWR_EN_LO_CNT);
 	tmp &= ~RDWR_EN_LO_CNT__VALUE;
@@ -1151,7 +1173,7 @@ static int denali_exec_op(struct nand_chip *chip,
 static const struct nand_controller_ops denali_controller_ops = {
 	.attach_chip = denali_attach_chip,
 	.exec_op = denali_exec_op,
-	.setup_data_interface = denali_setup_data_interface,
+	.setup_interface = denali_setup_interface,
 };
 
 int denali_chip_init(struct denali_controller *denali,
@@ -1204,18 +1226,19 @@ int denali_chip_init(struct denali_controller *denali,
 		mtd->name = "denali-nand";
 
 	if (denali->dma_avail) {
-		chip->options |= NAND_USE_BOUNCE_BUFFER;
+		chip->options |= NAND_USES_DMA;
 		chip->buf_align = 16;
 	}
 
-	/* clk rate info is needed for setup_data_interface */
+	/* clk rate info is needed for setup_interface */
 	if (!denali->clk_rate || !denali->clk_x_rate)
 		chip->options |= NAND_KEEP_TIMINGS;
 
 	chip->bbt_options |= NAND_BBT_USE_FLASH;
 	chip->bbt_options |= NAND_BBT_NO_OOB;
 	chip->options |= NAND_NO_SUBPAGE_WRITE;
-	chip->ecc.mode = NAND_ECC_HW_SYNDROME;
+	chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_ON_HOST;
+	chip->ecc.placement = NAND_ECC_PLACEMENT_INTERLEAVED;
 	chip->ecc.read_page = denali_read_page;
 	chip->ecc.write_page = denali_write_page;
 	chip->ecc.read_page_raw = denali_read_page_raw;
@@ -1302,21 +1325,23 @@ int denali_init(struct denali_controller *denali)
 
 	/*
 	 * Set how many bytes should be skipped before writing data in OOB.
-	 * If a non-zero value has already been set (by firmware or something),
-	 * just use it. Otherwise, set the driver's default.
+	 * If a platform requests a non-zero value, set it to the register.
+	 * Otherwise, read the value out, expecting it has already been set up
+	 * by firmware.
 	 */
-	denali->oob_skip_bytes = ioread32(denali->reg + SPARE_AREA_SKIP_BYTES);
-	if (!denali->oob_skip_bytes) {
-		denali->oob_skip_bytes = DENALI_DEFAULT_OOB_SKIP_BYTES;
+	if (denali->oob_skip_bytes)
 		iowrite32(denali->oob_skip_bytes,
 			  denali->reg + SPARE_AREA_SKIP_BYTES);
-	}
+	else
+		denali->oob_skip_bytes = ioread32(denali->reg +
+						  SPARE_AREA_SKIP_BYTES);
 
 	iowrite32(0, denali->reg + TRANSFER_SPARE_REG);
 	iowrite32(GENMASK(denali->nbanks - 1, 0), denali->reg + RB_PIN_ENABLED);
 	iowrite32(CHIP_EN_DONT_CARE__FLAG, denali->reg + CHIP_ENABLE_DONT_CARE);
 	iowrite32(ECC_ENABLE__FLAG, denali->reg + ECC_ENABLE);
 	iowrite32(0xffff, denali->reg + SPARE_AREA_MARKER);
+	iowrite32(WRITE_PROTECT__FLAG, denali->reg + WRITE_PROTECT);
 
 	denali_clear_irq_all(denali);
 
@@ -1335,10 +1360,17 @@ EXPORT_SYMBOL(denali_init);
 
 void denali_remove(struct denali_controller *denali)
 {
-	struct denali_chip *dchip;
+	struct denali_chip *dchip, *tmp;
+	struct nand_chip *chip;
+	int ret;
 
-	list_for_each_entry(dchip, &denali->chips, node)
-		nand_release(&dchip->chip);
+	list_for_each_entry_safe(dchip, tmp, &denali->chips, node) {
+		chip = &dchip->chip;
+		ret = mtd_device_unregister(nand_to_mtd(chip));
+		WARN_ON(ret);
+		nand_cleanup(chip);
+		list_del(&dchip->node);
+	}
 
 	denali_disable_irq(denali);
 }

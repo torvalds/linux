@@ -12,7 +12,6 @@
 
 MODULE_AUTHOR("Broadcom Corporation");
 MODULE_DESCRIPTION("Broadcom 802.11n wireless LAN driver utilities.");
-MODULE_SUPPORTED_DEVICE("Broadcom 802.11n WLAN cards");
 MODULE_LICENSE("Dual BSD/GPL");
 
 struct sk_buff *brcmu_pkt_buf_get_skb(uint len)
@@ -187,7 +186,7 @@ struct sk_buff *brcmu_pktq_peek_tail(struct pktq *pq, int *prec_out)
 {
 	int prec;
 
-	if (pq->len == 0)
+	if (pktq_empty(pq))
 		return NULL;
 
 	for (prec = 0; prec < pq->hi_prec; prec++)
@@ -224,7 +223,7 @@ struct sk_buff *brcmu_pktq_mdeq(struct pktq *pq, uint prec_bmp,
 	struct sk_buff *p;
 	int prec;
 
-	if (pq->len == 0)
+	if (pktq_empty(pq))
 		return NULL;
 
 	while ((prec = pq->hi_prec) > 0 &&

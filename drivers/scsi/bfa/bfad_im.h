@@ -43,6 +43,22 @@ u32 bfad_im_supported_speeds(struct bfa_s *bfa);
  */
 #define IO_DONE_BIT			0
 
+/**
+ * struct bfad_cmd_priv - private data per SCSI command.
+ * @status: Lowest bit represents IO_DONE. The next seven bits hold a value of
+ * type enum bfi_tskim_status.
+ * @wq: Wait queue used to wait for completion of an operation.
+ */
+struct bfad_cmd_priv {
+	unsigned long status;
+	wait_queue_head_t *wq;
+};
+
+static inline struct bfad_cmd_priv *bfad_priv(struct scsi_cmnd *cmd)
+{
+	return scsi_cmd_priv(cmd);
+}
+
 struct bfad_itnim_data_s {
 	struct bfad_itnim_s *itnim;
 };
@@ -174,38 +190,12 @@ extern struct fc_function_template bfad_im_vport_fc_function_template;
 extern struct scsi_transport_template *bfad_im_scsi_transport_template;
 extern struct scsi_transport_template *bfad_im_scsi_vport_transport_template;
 
-extern struct device_attribute *bfad_im_host_attrs[];
-extern struct device_attribute *bfad_im_vport_attrs[];
+extern const struct attribute_group *bfad_im_host_groups[];
+extern const struct attribute_group *bfad_im_vport_groups[];
 
 irqreturn_t bfad_intx(int irq, void *dev_id);
 
 int bfad_im_bsg_request(struct bsg_job *job);
 int bfad_im_bsg_timeout(struct bsg_job *job);
-
-/*
- * Macro to set the SCSI device sdev_bflags - sdev_bflags are used by the
- * SCSI mid-layer to choose LUN Scanning mode REPORT_LUNS vs. Sequential Scan
- *
- * Internally iterate's over all the ITNIM's part of the im_port & set's the
- * sdev_bflags for the scsi_device associated with LUN #0.
- */
-#define bfad_reset_sdev_bflags(__im_port, __lunmask_cfg) do {		\
-	struct scsi_device *__sdev = NULL;				\
-	struct bfad_itnim_s *__itnim = NULL;				\
-	u32 scan_flags = BLIST_NOREPORTLUN | BLIST_SPARSELUN;		\
-	list_for_each_entry(__itnim, &((__im_port)->itnim_mapped_list),	\
-			    list_entry) {				\
-		__sdev = scsi_device_lookup((__im_port)->shost,		\
-					    __itnim->channel,		\
-					    __itnim->scsi_tgt_id, 0);	\
-		if (__sdev) {						\
-			if ((__lunmask_cfg) == BFA_TRUE)		\
-				__sdev->sdev_bflags |= scan_flags;	\
-			else						\
-				__sdev->sdev_bflags &= ~scan_flags;	\
-			scsi_device_put(__sdev);			\
-		}							\
-	}								\
-} while (0)
 
 #endif

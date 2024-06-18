@@ -15,21 +15,29 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/seq_file.h>
-#include <linux/vmalloc.h>
+#include <linux/mm.h>
 #include "gcov.h"
 
-#if (__GNUC__ >= 7)
+#if (__GNUC__ >= 14)
+#define GCOV_COUNTERS			9
+#elif (__GNUC__ >= 10)
+#define GCOV_COUNTERS			8
+#elif (__GNUC__ >= 7)
 #define GCOV_COUNTERS			9
 #elif (__GNUC__ > 5) || (__GNUC__ == 5 && __GNUC_MINOR__ >= 1)
 #define GCOV_COUNTERS			10
-#elif __GNUC__ == 4 && __GNUC_MINOR__ >= 9
-#define GCOV_COUNTERS			9
 #else
-#define GCOV_COUNTERS			8
+#define GCOV_COUNTERS			9
 #endif
 
 #define GCOV_TAG_FUNCTION_LENGTH	3
+
+/* Since GCC 12.1 sizes are in BYTES and not in WORDS (4B). */
+#if (__GNUC__ >= 12)
+#define GCOV_UNIT_SIZE				4
+#else
+#define GCOV_UNIT_SIZE				1
+#endif
 
 static struct gcov_info *gcov_info_head;
 
@@ -68,7 +76,7 @@ struct gcov_fn_info {
 	unsigned int ident;
 	unsigned int lineno_checksum;
 	unsigned int cfg_checksum;
-	struct gcov_ctr_info ctrs[0];
+	struct gcov_ctr_info ctrs[];
 };
 
 /**
@@ -76,6 +84,7 @@ struct gcov_fn_info {
  * @version: gcov version magic indicating the gcc version used for compilation
  * @next: list head for a singly-linked list
  * @stamp: uniquifying time stamp
+ * @checksum: unique object checksum
  * @filename: name of the associated gcov data file
  * @merge: merge functions (null for unused counter type)
  * @n_functions: number of instrumented functions
@@ -88,6 +97,10 @@ struct gcov_info {
 	unsigned int version;
 	struct gcov_info *next;
 	unsigned int stamp;
+ /* Since GCC 12.1 a checksum field is added. */
+#if (__GNUC__ >= 12)
+	unsigned int checksum;
+#endif
 	const char *filename;
 	void (*merge[GCOV_COUNTERS])(gcov_type *, unsigned int);
 	unsigned int n_functions;
@@ -227,10 +240,10 @@ int gcov_info_is_compatible(struct gcov_info *info1, struct gcov_info *info2)
 
 /**
  * gcov_info_add - add up profiling data
- * @dest: profiling data set to which data is added
- * @source: profiling data set which is added
+ * @dst: profiling data set to which data is added
+ * @src: profiling data set which is added
  *
- * Adds profiling counts of @source to @dest.
+ * Adds profiling counts of @src to @dst.
  */
 void gcov_info_add(struct gcov_info *dst, struct gcov_info *src)
 {
@@ -310,7 +323,7 @@ struct gcov_info *gcov_info_dup(struct gcov_info *info)
 
 			cv_size = sizeof(gcov_type) * sci_ptr->num;
 
-			dci_ptr->values = vmalloc(cv_size);
+			dci_ptr->values = kvmalloc(cv_size, GFP_KERNEL);
 
 			if (!dci_ptr->values)
 				goto err_free;
@@ -352,7 +365,7 @@ void gcov_info_free(struct gcov_info *info)
 		ci_ptr = info->functions[fi_idx]->ctrs;
 
 		for (ct_idx = 0; ct_idx < active; ct_idx++, ci_ptr++)
-			vfree(ci_ptr->values);
+			kvfree(ci_ptr->values);
 
 		kfree(info->functions[fi_idx]);
 	}
@@ -363,71 +376,6 @@ free_info:
 	kfree(info);
 }
 
-#define ITER_STRIDE	PAGE_SIZE
-
-/**
- * struct gcov_iterator - specifies current file position in logical records
- * @info: associated profiling data
- * @buffer: buffer containing file data
- * @size: size of buffer
- * @pos: current position in file
- */
-struct gcov_iterator {
-	struct gcov_info *info;
-	void *buffer;
-	size_t size;
-	loff_t pos;
-};
-
-/**
- * store_gcov_u32 - store 32 bit number in gcov format to buffer
- * @buffer: target buffer or NULL
- * @off: offset into the buffer
- * @v: value to be stored
- *
- * Number format defined by gcc: numbers are recorded in the 32 bit
- * unsigned binary form of the endianness of the machine generating the
- * file. Returns the number of bytes stored. If @buffer is %NULL, doesn't
- * store anything.
- */
-static size_t store_gcov_u32(void *buffer, size_t off, u32 v)
-{
-	u32 *data;
-
-	if (buffer) {
-		data = buffer + off;
-		*data = v;
-	}
-
-	return sizeof(*data);
-}
-
-/**
- * store_gcov_u64 - store 64 bit number in gcov format to buffer
- * @buffer: target buffer or NULL
- * @off: offset into the buffer
- * @v: value to be stored
- *
- * Number format defined by gcc: numbers are recorded in the 32 bit
- * unsigned binary form of the endianness of the machine generating the
- * file. 64 bit numbers are stored as two 32 bit numbers, the low part
- * first. Returns the number of bytes stored. If @buffer is %NULL, doesn't store
- * anything.
- */
-static size_t store_gcov_u64(void *buffer, size_t off, u64 v)
-{
-	u32 *data;
-
-	if (buffer) {
-		data = buffer + off;
-
-		data[0] = (v & 0xffffffffUL);
-		data[1] = (v >> 32);
-	}
-
-	return sizeof(*data) * 2;
-}
-
 /**
  * convert_to_gcda - convert profiling data set to gcda file format
  * @buffer: the buffer to store file data or %NULL if no data should be stored
@@ -435,7 +383,7 @@ static size_t store_gcov_u64(void *buffer, size_t off, u64 v)
  *
  * Returns the number of bytes that were/would have been stored into the buffer.
  */
-static size_t convert_to_gcda(char *buffer, struct gcov_info *info)
+size_t convert_to_gcda(char *buffer, struct gcov_info *info)
 {
 	struct gcov_fn_info *fi_ptr;
 	struct gcov_ctr_info *ci_ptr;
@@ -449,12 +397,18 @@ static size_t convert_to_gcda(char *buffer, struct gcov_info *info)
 	pos += store_gcov_u32(buffer, pos, info->version);
 	pos += store_gcov_u32(buffer, pos, info->stamp);
 
+#if (__GNUC__ >= 12)
+	/* Use zero as checksum of the compilation unit. */
+	pos += store_gcov_u32(buffer, pos, 0);
+#endif
+
 	for (fi_idx = 0; fi_idx < info->n_functions; fi_idx++) {
 		fi_ptr = info->functions[fi_idx];
 
 		/* Function record. */
 		pos += store_gcov_u32(buffer, pos, GCOV_TAG_FUNCTION);
-		pos += store_gcov_u32(buffer, pos, GCOV_TAG_FUNCTION_LENGTH);
+		pos += store_gcov_u32(buffer, pos,
+			GCOV_TAG_FUNCTION_LENGTH * GCOV_UNIT_SIZE);
 		pos += store_gcov_u32(buffer, pos, fi_ptr->ident);
 		pos += store_gcov_u32(buffer, pos, fi_ptr->lineno_checksum);
 		pos += store_gcov_u32(buffer, pos, fi_ptr->cfg_checksum);
@@ -468,7 +422,8 @@ static size_t convert_to_gcda(char *buffer, struct gcov_info *info)
 			/* Counter record. */
 			pos += store_gcov_u32(buffer, pos,
 					      GCOV_TAG_FOR_COUNTER(ct_idx));
-			pos += store_gcov_u32(buffer, pos, ci_ptr->num * 2);
+			pos += store_gcov_u32(buffer, pos,
+				ci_ptr->num * 2 * GCOV_UNIT_SIZE);
 
 			for (cv_idx = 0; cv_idx < ci_ptr->num; cv_idx++) {
 				pos += store_gcov_u64(buffer, pos,
@@ -480,103 +435,4 @@ static size_t convert_to_gcda(char *buffer, struct gcov_info *info)
 	}
 
 	return pos;
-}
-
-/**
- * gcov_iter_new - allocate and initialize profiling data iterator
- * @info: profiling data set to be iterated
- *
- * Return file iterator on success, %NULL otherwise.
- */
-struct gcov_iterator *gcov_iter_new(struct gcov_info *info)
-{
-	struct gcov_iterator *iter;
-
-	iter = kzalloc(sizeof(struct gcov_iterator), GFP_KERNEL);
-	if (!iter)
-		goto err_free;
-
-	iter->info = info;
-	/* Dry-run to get the actual buffer size. */
-	iter->size = convert_to_gcda(NULL, info);
-	iter->buffer = vmalloc(iter->size);
-	if (!iter->buffer)
-		goto err_free;
-
-	convert_to_gcda(iter->buffer, info);
-
-	return iter;
-
-err_free:
-	kfree(iter);
-	return NULL;
-}
-
-
-/**
- * gcov_iter_get_info - return profiling data set for given file iterator
- * @iter: file iterator
- */
-void gcov_iter_free(struct gcov_iterator *iter)
-{
-	vfree(iter->buffer);
-	kfree(iter);
-}
-
-/**
- * gcov_iter_get_info - return profiling data set for given file iterator
- * @iter: file iterator
- */
-struct gcov_info *gcov_iter_get_info(struct gcov_iterator *iter)
-{
-	return iter->info;
-}
-
-/**
- * gcov_iter_start - reset file iterator to starting position
- * @iter: file iterator
- */
-void gcov_iter_start(struct gcov_iterator *iter)
-{
-	iter->pos = 0;
-}
-
-/**
- * gcov_iter_next - advance file iterator to next logical record
- * @iter: file iterator
- *
- * Return zero if new position is valid, non-zero if iterator has reached end.
- */
-int gcov_iter_next(struct gcov_iterator *iter)
-{
-	if (iter->pos < iter->size)
-		iter->pos += ITER_STRIDE;
-
-	if (iter->pos >= iter->size)
-		return -EINVAL;
-
-	return 0;
-}
-
-/**
- * gcov_iter_write - write data for current pos to seq_file
- * @iter: file iterator
- * @seq: seq_file handle
- *
- * Return zero on success, non-zero otherwise.
- */
-int gcov_iter_write(struct gcov_iterator *iter, struct seq_file *seq)
-{
-	size_t len;
-
-	if (iter->pos >= iter->size)
-		return -EINVAL;
-
-	len = ITER_STRIDE;
-	if (iter->pos + len > iter->size)
-		len = iter->size - iter->pos;
-
-	seq_write(seq, iter->buffer + iter->pos, len);
-
-	return 0;
 }

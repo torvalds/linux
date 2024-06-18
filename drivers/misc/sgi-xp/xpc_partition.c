@@ -3,6 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
+ * (C) Copyright 2020 Hewlett Packard Enterprise Development LP
  * Copyright (c) 2004-2008 Silicon Graphics, Inc.  All Rights Reserved.
  */
 
@@ -261,8 +262,8 @@ xpc_get_remote_rp(int nasid, unsigned long *discovered_nasids,
  * from us. Though we requested the remote partition to deactivate with regard
  * to us, we really only need to wait for the other side to disengage from us.
  */
-int
-xpc_partition_disengaged(struct xpc_partition *part)
+static int __xpc_partition_disengaged(struct xpc_partition *part,
+				      bool from_timer)
 {
 	short partid = XPC_PARTID(part);
 	int disengaged;
@@ -288,9 +289,9 @@ xpc_partition_disengaged(struct xpc_partition *part)
 		}
 		part->disengage_timeout = 0;
 
-		/* cancel the timer function, provided it's not us */
-		if (!in_interrupt())
-			del_singleshot_timer_sync(&part->disengage_timer);
+		/* Cancel the timer function if not called from it */
+		if (!from_timer)
+			del_timer_sync(&part->disengage_timer);
 
 		DBUG_ON(part->act_state != XPC_P_AS_DEACTIVATING &&
 			part->act_state != XPC_P_AS_INACTIVE);
@@ -300,6 +301,16 @@ xpc_partition_disengaged(struct xpc_partition *part)
 		xpc_arch_ops.cancel_partition_deactivation_request(part);
 	}
 	return disengaged;
+}
+
+int xpc_partition_disengaged(struct xpc_partition *part)
+{
+	return __xpc_partition_disengaged(part, false);
+}
+
+int xpc_partition_disengaged_from_timer(struct xpc_partition *part)
+{
+	return __xpc_partition_disengaged(part, true);
 }
 
 /*
@@ -433,7 +444,7 @@ xpc_discovery(void)
 	 */
 	region_size = xp_region_size;
 
-	if (is_uv())
+	if (is_uv_system())
 		max_regions = 256;
 	else {
 		max_regions = 64;
@@ -441,10 +452,10 @@ xpc_discovery(void)
 		switch (region_size) {
 		case 128:
 			max_regions *= 2;
-			/* fall through */
+			fallthrough;
 		case 64:
 			max_regions *= 2;
-			/* fall through */
+			fallthrough;
 		case 32:
 			max_regions *= 2;
 			region_size = 16;

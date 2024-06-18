@@ -8,9 +8,9 @@
 #define __ASM_SPARC_FLOPPY_H
 
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/of_platform.h>
+#include <linux/pgtable.h>
 
-#include <asm/pgtable.h>
 #include <asm/idprom.h>
 #include <asm/oplib.h>
 #include <asm/auxio.h>
@@ -59,8 +59,8 @@ struct sun_floppy_ops {
 
 static struct sun_floppy_ops sun_fdops;
 
-#define fd_inb(port)              sun_fdops.fd_inb(port)
-#define fd_outb(value,port)       sun_fdops.fd_outb(value,port)
+#define fd_inb(base, reg)         sun_fdops.fd_inb(reg)
+#define fd_outb(value, base, reg) sun_fdops.fd_outb(value, reg)
 #define fd_enable_dma()           sun_fd_enable_dma()
 #define fd_disable_dma()          sun_fd_disable_dma()
 #define fd_request_dma()          (0) /* nothing... */
@@ -114,15 +114,15 @@ static unsigned char sun_read_dir(void)
 static unsigned char sun_82072_fd_inb(int port)
 {
 	udelay(5);
-	switch(port & 7) {
+	switch (port) {
 	default:
 		printk("floppy: Asked to read unknown port %d\n", port);
 		panic("floppy: Port bolixed.");
-	case 4: /* FD_STATUS */
+	case FD_STATUS:
 		return sun_fdc->status_82072 & ~STATUS_DMA;
-	case 5: /* FD_DATA */
+	case FD_DATA:
 		return sun_fdc->data_82072;
-	case 7: /* FD_DIR */
+	case FD_DIR:
 		return sun_read_dir();
 	}
 	panic("sun_82072_fd_inb: How did I get here?");
@@ -131,20 +131,20 @@ static unsigned char sun_82072_fd_inb(int port)
 static void sun_82072_fd_outb(unsigned char value, int port)
 {
 	udelay(5);
-	switch(port & 7) {
+	switch (port) {
 	default:
 		printk("floppy: Asked to write to unknown port %d\n", port);
 		panic("floppy: Port bolixed.");
-	case 2: /* FD_DOR */
+	case FD_DOR:
 		sun_set_dor(value, 0);
 		break;
-	case 5: /* FD_DATA */
+	case FD_DATA:
 		sun_fdc->data_82072 = value;
 		break;
-	case 7: /* FD_DCR */
+	case FD_DCR:
 		sun_fdc->dcr_82072 = value;
 		break;
-	case 4: /* FD_STATUS */
+	case FD_DSR:
 		sun_fdc->status_82072 = value;
 		break;
 	}
@@ -154,23 +154,23 @@ static void sun_82072_fd_outb(unsigned char value, int port)
 static unsigned char sun_82077_fd_inb(int port)
 {
 	udelay(5);
-	switch(port & 7) {
+	switch (port) {
 	default:
 		printk("floppy: Asked to read unknown port %d\n", port);
 		panic("floppy: Port bolixed.");
-	case 0: /* FD_STATUS_0 */
+	case FD_SRA:
 		return sun_fdc->status1_82077;
-	case 1: /* FD_STATUS_1 */
+	case FD_SRB:
 		return sun_fdc->status2_82077;
-	case 2: /* FD_DOR */
+	case FD_DOR:
 		return sun_fdc->dor_82077;
-	case 3: /* FD_TDR */
+	case FD_TDR:
 		return sun_fdc->tapectl_82077;
-	case 4: /* FD_STATUS */
+	case FD_STATUS:
 		return sun_fdc->status_82077 & ~STATUS_DMA;
-	case 5: /* FD_DATA */
+	case FD_DATA:
 		return sun_fdc->data_82077;
-	case 7: /* FD_DIR */
+	case FD_DIR:
 		return sun_read_dir();
 	}
 	panic("sun_82077_fd_inb: How did I get here?");
@@ -179,23 +179,23 @@ static unsigned char sun_82077_fd_inb(int port)
 static void sun_82077_fd_outb(unsigned char value, int port)
 {
 	udelay(5);
-	switch(port & 7) {
+	switch (port) {
 	default:
 		printk("floppy: Asked to write to unknown port %d\n", port);
 		panic("floppy: Port bolixed.");
-	case 2: /* FD_DOR */
+	case FD_DOR:
 		sun_set_dor(value, 1);
 		break;
-	case 5: /* FD_DATA */
+	case FD_DATA:
 		sun_fdc->data_82077 = value;
 		break;
-	case 7: /* FD_DCR */
+	case FD_DCR:
 		sun_fdc->dcr_82077 = value;
 		break;
-	case 4: /* FD_STATUS */
+	case FD_DSR:
 		sun_fdc->status_82077 = value;
 		break;
-	case 3: /* FD_TDR */
+	case FD_TDR:
 		sun_fdc->tapectl_82077 = value;
 		break;
 	}

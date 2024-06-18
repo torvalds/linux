@@ -61,7 +61,8 @@ static int net_failover_open(struct net_device *dev)
 	return 0;
 
 err_standby_open:
-	dev_close(primary_dev);
+	if (primary_dev)
+		dev_close(primary_dev);
 err_primary_open:
 	netif_tx_disable(dev);
 	return err;
@@ -88,7 +89,7 @@ static int net_failover_close(struct net_device *dev)
 static netdev_tx_t net_failover_drop_xmit(struct sk_buff *skb,
 					  struct net_device *dev)
 {
-	atomic_long_inc(&dev->tx_dropped);
+	dev_core_stats_tx_dropped_inc(dev);
 	dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
 }
@@ -129,13 +130,9 @@ static u16 net_failover_select_queue(struct net_device *dev,
 			txq = ops->ndo_select_queue(primary_dev, skb, sb_dev);
 		else
 			txq = netdev_pick_tx(primary_dev, skb, NULL);
-
-		qdisc_skb_cb(skb)->slave_dev_queue_mapping = skb->queue_mapping;
-
-		return txq;
+	} else {
+		txq = skb_rx_queue_recorded(skb) ? skb_get_rx_queue(skb) : 0;
 	}
-
-	txq = skb_rx_queue_recorded(skb) ? skb_get_rx_queue(skb) : 0;
 
 	/* Save the original txq to restore before passing to the driver */
 	qdisc_skb_cb(skb)->slave_dev_queue_mapping = skb->queue_mapping;
@@ -234,7 +231,7 @@ static int net_failover_change_mtu(struct net_device *dev, int new_mtu)
 		}
 	}
 
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 
 	return 0;
 }
@@ -323,8 +320,8 @@ static const struct net_device_ops failover_dev_ops = {
 static void nfo_ethtool_get_drvinfo(struct net_device *dev,
 				    struct ethtool_drvinfo *drvinfo)
 {
-	strlcpy(drvinfo->driver, FAILOVER_NAME, sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, FAILOVER_VERSION, sizeof(drvinfo->version));
+	strscpy(drvinfo->driver, FAILOVER_NAME, sizeof(drvinfo->driver));
+	strscpy(drvinfo->version, FAILOVER_VERSION, sizeof(drvinfo->version));
 }
 
 static int nfo_ethtool_get_link_ksettings(struct net_device *dev,
@@ -696,7 +693,7 @@ static struct failover_ops net_failover_ops = {
 /**
  * net_failover_create - Create and register a failover instance
  *
- * @dev: standby netdev
+ * @standby_dev: standby netdev
  *
  * Creates a failover netdev and registers a failover instance for a standby
  * netdev. Used by paravirtual drivers that use 3-netdev model.
@@ -747,8 +744,7 @@ struct failover *net_failover_create(struct net_device *standby_dev)
 	failover_dev->hw_features |= NETIF_F_GSO_ENCAP_ALL;
 	failover_dev->features |= failover_dev->hw_features;
 
-	memcpy(failover_dev->dev_addr, standby_dev->dev_addr,
-	       failover_dev->addr_len);
+	dev_addr_set(failover_dev, standby_dev->dev_addr);
 
 	failover_dev->min_mtu = standby_dev->min_mtu;
 	failover_dev->max_mtu = standby_dev->max_mtu;

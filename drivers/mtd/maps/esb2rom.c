@@ -249,7 +249,7 @@ static int __init esb2rom_init_one(struct pci_dev *pdev,
 	}
 
 	/* Map the firmware hub into my address space. */
-	window->virt = ioremap_nocache(window->phys, window->size);
+	window->virt = ioremap(window->phys, window->size);
 	if (!window->virt) {
 		printk(KERN_ERR MOD_NAME ": ioremap(%08lx, %08lx) failed\n",
 			window->phys, window->size);
@@ -277,11 +277,10 @@ static int __init esb2rom_init_one(struct pci_dev *pdev,
 		unsigned long offset;
 		int i;
 
-		if (!map)
-			map = kmalloc(sizeof(*map), GFP_KERNEL);
 		if (!map) {
-			printk(KERN_ERR MOD_NAME ": kmalloc failed");
-			goto out;
+			map = kmalloc(sizeof(*map), GFP_KERNEL);
+			if (!map)
+				goto out;
 		}
 		memset(map, 0, sizeof(*map));
 		INIT_LIST_HEAD(&map->list);

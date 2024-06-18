@@ -23,6 +23,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/acpi.h>
+#include <linux/cper.h>
 #include <linux/io.h>
 
 #include "apei-internal.h"
@@ -30,14 +31,25 @@
 #undef pr_fmt
 #define pr_fmt(fmt) "BERT: " fmt
 
-static int bert_disable;
+#define ACPI_BERT_PRINT_MAX_RECORDS 5
+#define ACPI_BERT_PRINT_MAX_LEN 1024
 
+static int bert_disable __initdata;
+
+/*
+ * Print "all" the error records in the BERT table, but avoid huge spam to
+ * the console if the BIOS included oversize records, or too many records.
+ * Skipping some records here does not lose anything because the full
+ * data is available to user tools in:
+ *	/sys/firmware/acpi/tables/data/BERT
+ */
 static void __init bert_print_all(struct acpi_bert_region *region,
 				  unsigned int region_len)
 {
 	struct acpi_hest_generic_status *estatus =
 		(struct acpi_hest_generic_status *)region;
 	int remain = region_len;
+	int printed = 0, skipped = 0;
 	u32 estatus_len;
 
 	while (remain >= sizeof(struct acpi_bert_region)) {
@@ -45,21 +57,26 @@ static void __init bert_print_all(struct acpi_bert_region *region,
 		if (remain < estatus_len) {
 			pr_err(FW_BUG "Truncated status block (length: %u).\n",
 			       estatus_len);
-			return;
+			break;
 		}
 
 		/* No more error records. */
 		if (!estatus->block_status)
-			return;
+			break;
 
 		if (cper_estatus_check(estatus)) {
 			pr_err(FW_BUG "Invalid error record.\n");
-			return;
+			break;
 		}
 
-		pr_info_once("Error records from previous boot:\n");
-
-		cper_estatus_print(KERN_INFO HW_ERR, estatus);
+		if (estatus_len < ACPI_BERT_PRINT_MAX_LEN &&
+		    printed < ACPI_BERT_PRINT_MAX_RECORDS) {
+			pr_info_once("Error records from previous boot:\n");
+			cper_estatus_print(KERN_INFO HW_ERR, estatus);
+			printed++;
+		} else {
+			skipped++;
+		}
 
 		/*
 		 * Because the boot error source is "one-time polled" type,
@@ -71,13 +88,19 @@ static void __init bert_print_all(struct acpi_bert_region *region,
 		estatus = (void *)estatus + estatus_len;
 		remain -= estatus_len;
 	}
+
+	if (skipped)
+		pr_info(HW_ERR "Skipped %d error records\n", skipped);
+
+	if (printed + skipped)
+		pr_info("Total records found: %d\n", printed + skipped);
 }
 
 static int __init setup_bert_disable(char *str)
 {
 	bert_disable = 1;
 
-	return 0;
+	return 1;
 }
 __setup("bert_disable", setup_bert_disable);
 
@@ -119,7 +142,7 @@ static int __init bert_init(void)
 	rc = bert_check_table(bert_tab);
 	if (rc) {
 		pr_err(FW_BUG "table invalid.\n");
-		return rc;
+		goto out_put_bert_tab;
 	}
 
 	region_len = bert_tab->region_length;
@@ -127,7 +150,7 @@ static int __init bert_init(void)
 	rc = apei_resources_add(&bert_resources, bert_tab->address,
 				region_len, true);
 	if (rc)
-		return rc;
+		goto out_put_bert_tab;
 	rc = apei_resources_request(&bert_resources, "APEI BERT");
 	if (rc)
 		goto out_fini;
@@ -142,6 +165,8 @@ static int __init bert_init(void)
 	apei_resources_release(&bert_resources);
 out_fini:
 	apei_resources_fini(&bert_resources);
+out_put_bert_tab:
+	acpi_put_table((struct acpi_table_header *)bert_tab);
 
 	return rc;
 }

@@ -40,7 +40,7 @@
  * This driver also supports the ADM1024, a sensor chip made by Analog
  * Devices. That chip is fully compatible with the LM87. Complete
  * datasheet can be obtained from Analog's website at:
- *   http://www.analog.com/en/prod/0,2877,ADM1024,00.html
+ *   https://www.analog.com/en/prod/0,2877,ADM1024,00.html
  */
 
 #include <linux/module.h>
@@ -141,7 +141,7 @@ static u8 LM87_REG_TEMP_LOW[3] = { 0x3A, 0x38, 0x2C };
 
 struct lm87_data {
 	struct mutex update_lock;
-	char valid; /* zero until following fields are valid */
+	bool valid; /* false until following fields are valid */
 	unsigned long last_updated; /* In jiffies */
 
 	u8 channel;		/* register value */
@@ -251,7 +251,7 @@ static struct lm87_data *lm87_update_device(struct device *dev)
 		data->aout = lm87_read_value(client, LM87_REG_AOUT);
 
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->update_lock);
@@ -833,7 +833,7 @@ static int lm87_detect(struct i2c_client *client, struct i2c_board_info *info)
 		return -ENODEV;
 	}
 
-	strlcpy(info->type, name, I2C_NAME_SIZE);
+	strscpy(info->type, name, I2C_NAME_SIZE);
 
 	return 0;
 }
@@ -912,7 +912,7 @@ static int lm87_init_client(struct i2c_client *client)
 	return 0;
 }
 
-static int lm87_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int lm87_probe(struct i2c_client *client)
 {
 	struct lm87_data *data;
 	struct device *hwmon_dev;
@@ -975,8 +975,8 @@ static int lm87_probe(struct i2c_client *client, const struct i2c_device_id *id)
  */
 
 static const struct i2c_device_id lm87_id[] = {
-	{ "lm87", 0 },
-	{ "adm1024", 0 },
+	{ "lm87" },
+	{ "adm1024" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm87_id);

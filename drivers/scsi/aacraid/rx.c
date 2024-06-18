@@ -144,7 +144,16 @@ static void aac_rx_enable_interrupt_message(struct aac_dev *dev)
  *	@dev: Adapter
  *	@command: Command to execute
  *	@p1: first parameter
- *	@ret: adapter status
+ *	@p2: second parameter
+ *	@p3: third parameter
+ *	@p4: forth parameter
+ *	@p5: fifth parameter
+ *	@p6: sixth parameter
+ *	@status: adapter status
+ *	@r1: first return value
+ *	@r2: second return value
+ *	@r3: third return value
+ *	@r4: forth return value
  *
  *	This routine will send a synchronous command to the adapter and wait 
  *	for its	completion.
@@ -443,6 +452,7 @@ static int aac_rx_deliver_message(struct fib * fib)
 
 /**
  *	aac_rx_ioremap
+ *	@dev: adapter
  *	@size: mapping resize request
  *
  */
@@ -522,7 +532,7 @@ int aac_rx_select_comm(struct aac_dev *dev, int comm)
 }
 
 /**
- *	aac_rx_init	-	initialize an i960 based AAC card
+ *	_aac_rx_init	-	initialize an i960 based AAC card
  *	@dev: device to configure
  *
  *	Allocate and set up resources for the i960 based AAC variants. The 

@@ -1,0 +1,43 @@
+Some notes about the working of the atomisp drivers (learned while working
+on cleaning it up).
+
+The atomisp seems to be a generic DSP(ISP) like processor without a fixed
+pipeline. It does not have its own memory, but instead uses main memory.
+The ISP has its own address-space and main memory needs to be mapped into
+its address space through the ISP's MMU.
+
+Memory is allocated by the hmm code. hmm_alloc() returns an ISP virtual
+address. The hmm code keeps a list of all allocations and when necessary
+the hmm code finds the backing hmm-buffer-object (hmm_bo) by looking
+up the hmm_bo based on the ISP virtual address.
+
+The actual processing pipeline is made by loading one or more programs,
+called binaries. The shisp_240??0_v21.bin firmware file contains many
+different binaries. Binaries are picked by filling a ia_css_binary_descr
+struct with various input and output parameters and then calling
+ia_css_binary_find(). Some binaries support creating multiple outputs
+(preview + video frame?) at the same time.
+
+For example for the /dev/video0 preview node load_preview_binaries()
+from atomisp/pci/sh_css.c is called and then loads a preview and
+optionally a scalar binary. Note when digital zoom is disabled
+(it is enabled by default) only the preview binary is loaded.
+So in this case a single binary handles the entire pipeline.
+
+Since getting a picture requires multiple processing steps,
+this means that unlike in fixed pipelines the soft pipelines
+on the ISP can do multiple processing steps in a single pipeline
+element (in a single binary).
+
+###
+
+The sensor drivers use of v4l2_get_subdev_hostdata(), which returns
+a camera_mipi_info struct. This struct is allocated/managed by
+the core atomisp code. The most important parts of the struct
+are filled by the atomisp core itself, like e.g. the port number.
+
+Other members of camera_mipi_info which are set by some drivers are:
+-metadata_width, metadata_height, metadata_effective_width, set by
+ the ov5693 driver (and used by the atomisp core)
+-raw_bayer_order, adjusted by the ov2680 driver when flipping since
+ flipping can change the bayer order

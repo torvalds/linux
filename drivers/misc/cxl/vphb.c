@@ -67,12 +67,6 @@ static void cxl_pci_disable_device(struct pci_dev *dev)
 	}
 }
 
-static resource_size_t cxl_pci_window_alignment(struct pci_bus *bus,
-						unsigned long type)
-{
-	return 1;
-}
-
 static void cxl_pci_reset_secondary_bus(struct pci_dev *dev)
 {
 	/* Should we do an AFU reset here ? */
@@ -150,7 +144,7 @@ static int cxl_pcie_read_config(struct pci_bus *bus, unsigned int devfn,
 
 out:
 	cxl_afu_configured_put(afu);
-	return rc ? PCIBIOS_DEVICE_NOT_FOUND : PCIBIOS_SUCCESSFUL;
+	return rc ? PCIBIOS_DEVICE_NOT_FOUND : 0;
 }
 
 static int cxl_pcie_write_config(struct pci_bus *bus, unsigned int devfn,
@@ -184,7 +178,7 @@ static int cxl_pcie_write_config(struct pci_bus *bus, unsigned int devfn,
 
 out:
 	cxl_afu_configured_put(afu);
-	return rc ? PCIBIOS_SET_FAILED : PCIBIOS_SUCCESSFUL;
+	return rc ? PCIBIOS_SET_FAILED : 0;
 }
 
 static struct pci_ops cxl_pcie_pci_ops =
@@ -200,7 +194,6 @@ static struct pci_controller_ops cxl_pci_controller_ops =
 	.enable_device_hook = cxl_pci_enable_device_hook,
 	.disable_device = cxl_pci_disable_device,
 	.release_device = cxl_pci_disable_device,
-	.window_alignment = cxl_pci_window_alignment,
 	.reset_secondary_bus = cxl_pci_reset_secondary_bus,
 	.setup_msi_irqs = cxl_setup_msi_irqs,
 	.teardown_msi_irqs = cxl_teardown_msi_irqs,

@@ -60,7 +60,7 @@
     },
     {
         "BriefDescription": "Stalls due to short latency decimal floating ops.",
-        "MetricExpr": "(PM_CMPLU_STALL_DFU - PM_CMPLU_STALL_DFLONG)/PM_RUN_INST_CMPL",
+        "MetricExpr": "dfu_stall_cpi - dflong_stall_cpi",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "dfu_other_stall_cpi"
     },
@@ -72,7 +72,7 @@
     },
     {
         "BriefDescription": "Completion stall by Dcache miss which resolved off node memory/cache",
-        "MetricExpr": "(PM_CMPLU_STALL_DMISS_L3MISS - PM_CMPLU_STALL_DMISS_L21_L31 - PM_CMPLU_STALL_DMISS_LMEM - PM_CMPLU_STALL_DMISS_REMOTE)/PM_RUN_INST_CMPL",
+        "MetricExpr": "dmiss_non_local_stall_cpi - dmiss_remote_stall_cpi",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "dmiss_distant_stall_cpi"
     },
@@ -90,7 +90,7 @@
     },
     {
         "BriefDescription": "Completion stall due to cache miss that resolves in the L2 or L3 without conflict",
-        "MetricExpr": "(PM_CMPLU_STALL_DMISS_L2L3 - PM_CMPLU_STALL_DMISS_L2L3_CONFLICT)/PM_RUN_INST_CMPL",
+        "MetricExpr": "dmiss_l2l3_stall_cpi - dmiss_l2l3_conflict_stall_cpi",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "dmiss_l2l3_noconflict_stall_cpi"
     },
@@ -114,7 +114,7 @@
     },
     {
         "BriefDescription": "Completion stall by Dcache miss which resolved outside of local memory",
-        "MetricExpr": "(PM_CMPLU_STALL_DMISS_L3MISS - PM_CMPLU_STALL_DMISS_L21_L31 - PM_CMPLU_STALL_DMISS_LMEM)/PM_RUN_INST_CMPL",
+        "MetricExpr": "dmiss_l3miss_stall_cpi - dmiss_l21_l31_stall_cpi - dmiss_lmem_stall_cpi",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "dmiss_non_local_stall_cpi"
     },
@@ -126,7 +126,7 @@
     },
     {
         "BriefDescription": "Stalls due to short latency double precision ops.",
-        "MetricExpr": "(PM_CMPLU_STALL_DP - PM_CMPLU_STALL_DPLONG)/PM_RUN_INST_CMPL",
+        "MetricExpr": "dp_stall_cpi - dplong_stall_cpi",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "dp_other_stall_cpi"
     },
@@ -155,7 +155,7 @@
         "MetricName": "emq_full_stall_cpi"
     },
     {
-        "MetricExpr": "(PM_CMPLU_STALL_ERAT_MISS + PM_CMPLU_STALL_EMQ_FULL)/PM_RUN_INST_CMPL",
+        "MetricExpr": "erat_miss_stall_cpi + emq_full_stall_cpi",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "emq_stall_cpi"
     },
@@ -173,7 +173,7 @@
     },
     {
         "BriefDescription": "Completion stall due to execution units for other reasons.",
-        "MetricExpr": "(PM_CMPLU_STALL_EXEC_UNIT - PM_CMPLU_STALL_FXU - PM_CMPLU_STALL_DP - PM_CMPLU_STALL_DFU - PM_CMPLU_STALL_PM - PM_CMPLU_STALL_CRYPTO - PM_CMPLU_STALL_VFXU - PM_CMPLU_STALL_VDP)/PM_RUN_INST_CMPL",
+        "MetricExpr": "exec_unit_stall_cpi - scalar_stall_cpi - vector_stall_cpi",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "exec_unit_other_stall_cpi"
     },
@@ -197,7 +197,7 @@
     },
     {
         "BriefDescription": "Stalls due to short latency integer ops",
-        "MetricExpr": "(PM_CMPLU_STALL_FXU - PM_CMPLU_STALL_FXLONG)/PM_RUN_INST_CMPL",
+        "MetricExpr": "fxu_stall_cpi - fxlong_stall_cpi",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "fxu_other_stall_cpi"
     },
@@ -208,7 +208,85 @@
         "MetricName": "fxu_stall_cpi"
     },
     {
-        "MetricExpr": "(PM_NTC_ISSUE_HELD_DARQ_FULL + PM_NTC_ISSUE_HELD_ARB + PM_NTC_ISSUE_HELD_OTHER)/PM_RUN_INST_CMPL",
+        "BriefDescription": "Instruction Completion Table empty for this thread due to branch mispred",
+        "MetricExpr": "PM_ICT_NOSLOT_BR_MPRED/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "ict_noslot_br_mpred_cpi"
+    },
+    {
+        "BriefDescription": "Instruction Completion Table empty for this thread due to Icache Miss and branch mispred",
+        "MetricExpr": "PM_ICT_NOSLOT_BR_MPRED_ICMISS/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "ict_noslot_br_mpred_icmiss_cpi"
+    },
+    {
+        "BriefDescription": "Instruction Completion Table other stalls",
+        "MetricExpr": "nothing_dispatched_cpi - ict_noslot_ic_miss_cpi - ict_noslot_br_mpred_icmiss_cpi - ict_noslot_br_mpred_cpi - ict_noslot_disp_held_cpi",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "ict_noslot_cyc_other_cpi"
+    },
+    {
+        "BriefDescription": "Cycles in which the NTC instruciton is held at dispatch for any reason",
+        "MetricExpr": "PM_ICT_NOSLOT_DISP_HELD/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "ict_noslot_disp_held_cpi"
+    },
+    {
+        "BriefDescription": "Instruction Completion Table empty for this thread due to dispatch holds because the History Buffer was full. Could be GPR/VSR/VMR/FPR/CR/XVF",
+        "MetricExpr": "PM_ICT_NOSLOT_DISP_HELD_HB_FULL/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "ict_noslot_disp_held_hb_full_cpi"
+    },
+    {
+        "BriefDescription": "Instruction Completion Table empty for this thread due to dispatch hold on this thread due to Issue q full, BRQ full, XVCF Full, Count cache, Link, Tar full",
+        "MetricExpr": "PM_ICT_NOSLOT_DISP_HELD_ISSQ/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "ict_noslot_disp_held_issq_cpi"
+    },
+    {
+        "BriefDescription": "ICT_NOSLOT_DISP_HELD_OTHER_CPI",
+        "MetricExpr": "ict_noslot_disp_held_cpi - ict_noslot_disp_held_hb_full_cpi - ict_noslot_disp_held_sync_cpi - ict_noslot_disp_held_tbegin_cpi - ict_noslot_disp_held_issq_cpi",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "ict_noslot_disp_held_other_cpi"
+    },
+    {
+        "BriefDescription": "Dispatch held due to a synchronizing instruction at dispatch",
+        "MetricExpr": "PM_ICT_NOSLOT_DISP_HELD_SYNC/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "ict_noslot_disp_held_sync_cpi"
+    },
+    {
+        "BriefDescription": "the NTC instruction is being held at dispatch because it is a tbegin instruction and there is an older tbegin in the pipeline that must complete before the younger tbegin can dispatch",
+        "MetricExpr": "PM_ICT_NOSLOT_DISP_HELD_TBEGIN/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "ict_noslot_disp_held_tbegin_cpi"
+    },
+    {
+        "BriefDescription": "ICT_NOSLOT_IC_L2_CPI",
+        "MetricExpr": "ict_noslot_ic_miss_cpi - ict_noslot_ic_l3_cpi - ict_noslot_ic_l3miss_cpi",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "ict_noslot_ic_l2_cpi"
+    },
+    {
+        "BriefDescription": "Instruction Completion Table empty for this thread due to icache misses that were sourced from the local L3",
+        "MetricExpr": "PM_ICT_NOSLOT_IC_L3/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "ict_noslot_ic_l3_cpi"
+    },
+    {
+        "BriefDescription": "Instruction Completion Table empty for this thread due to icache misses that were sourced from beyond the local L3. The source could be local/remote/distant memory or another core's cache",
+        "MetricExpr": "PM_ICT_NOSLOT_IC_L3MISS/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "ict_noslot_ic_l3miss_cpi"
+    },
+    {
+        "BriefDescription": "Instruction Completion Table empty for this thread due to Icache Miss",
+        "MetricExpr": "PM_ICT_NOSLOT_IC_MISS/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "ict_noslot_ic_miss_cpi"
+    },
+    {
+        "MetricExpr": "ntc_issue_held_darq_full_cpi + ntc_issue_held_arb_cpi + ntc_issue_held_other_cpi",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "issue_hold_cpi"
     },
@@ -249,7 +327,7 @@
         "MetricName": "lrq_other_stall_cpi"
     },
     {
-        "MetricExpr": "(PM_CMPLU_STALL_LMQ_FULL + PM_CMPLU_STALL_ST_FWD + PM_CMPLU_STALL_LHS + PM_CMPLU_STALL_LSU_MFSPR + PM_CMPLU_STALL_LARX + PM_CMPLU_STALL_LRQ_OTHER)/PM_RUN_INST_CMPL",
+        "MetricExpr": "lmq_full_stall_cpi + st_fwd_stall_cpi + lhs_stall_cpi + lsu_mfspr_stall_cpi + larx_stall_cpi + lrq_other_stall_cpi",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "lrq_stall_cpi"
     },
@@ -260,7 +338,7 @@
         "MetricName": "lsaq_arb_stall_cpi"
     },
     {
-        "MetricExpr": "(PM_CMPLU_STALL_LRQ_FULL + PM_CMPLU_STALL_SRQ_FULL + PM_CMPLU_STALL_LSAQ_ARB)/PM_RUN_INST_CMPL",
+        "MetricExpr": "lrq_full_stall_cpi + srq_full_stall_cpi + lsaq_arb_stall_cpi",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "lsaq_stall_cpi"
     },
@@ -284,7 +362,7 @@
     },
     {
         "BriefDescription": "Completion LSU stall for other reasons",
-        "MetricExpr": "(PM_CMPLU_STALL_LSU - PM_CMPLU_STALL_LSU_FIN - PM_CMPLU_STALL_STORE_FINISH - PM_CMPLU_STALL_STORE_DATA - PM_CMPLU_STALL_EIEIO - PM_CMPLU_STALL_STCX - PM_CMPLU_STALL_SLB - PM_CMPLU_STALL_TEND - PM_CMPLU_STALL_PASTE - PM_CMPLU_STALL_TLBIE - PM_CMPLU_STALL_STORE_PIPE_ARB - PM_CMPLU_STALL_STORE_FIN_ARB - PM_CMPLU_STALL_LOAD_FINISH + PM_CMPLU_STALL_DCACHE_MISS - PM_CMPLU_STALL_LMQ_FULL - PM_CMPLU_STALL_ST_FWD - PM_CMPLU_STALL_LHS - PM_CMPLU_STALL_LSU_MFSPR - PM_CMPLU_STALL_LARX - PM_CMPLU_STALL_LRQ_OTHER + PM_CMPLU_STALL_ERAT_MISS + PM_CMPLU_STALL_EMQ_FULL - PM_CMPLU_STALL_LRQ_FULL - PM_CMPLU_STALL_SRQ_FULL - PM_CMPLU_STALL_LSAQ_ARB) / PM_RUN_INST_CMPL",
+        "MetricExpr": "lsu_stall_cpi - lsu_fin_stall_cpi - store_finish_stall_cpi - srq_stall_cpi - load_finish_stall_cpi + lsu_stall_dcache_miss_cpi - lrq_stall_cpi + emq_stall_cpi - lsaq_stall_cpi",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "lsu_other_stall_cpi"
     },
@@ -313,7 +391,7 @@
         "MetricName": "nested_tend_stall_cpi"
     },
     {
-        "BriefDescription": "Number of cycles the ICT has no itags assigned to this thread",
+        "BriefDescription": "Number of cycles the Instruction Completion Table has no itags assigned to this thread",
         "MetricExpr": "PM_ICT_NOSLOT_CYC/PM_RUN_INST_CMPL",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "nothing_dispatched_cpi"
@@ -356,13 +434,13 @@
     },
     {
         "BriefDescription": "Cycles unaccounted for.",
-        "MetricExpr": "(PM_RUN_CYC - PM_1PLUS_PPC_CMPL - PM_CMPLU_STALL_THRD - PM_CMPLU_STALL - PM_ICT_NOSLOT_CYC)/PM_RUN_INST_CMPL",
+        "MetricExpr": "run_cpi - completion_cpi - thread_block_stall_cpi - stall_cpi - nothing_dispatched_cpi",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "other_cpi"
     },
     {
         "BriefDescription": "Completion stall for other reasons",
-        "MetricExpr": "PM_CMPLU_STALL - PM_CMPLU_STALL_NTC_DISP_FIN - PM_CMPLU_STALL_NTC_FLUSH - PM_CMPLU_STALL_LSU - PM_CMPLU_STALL_EXEC_UNIT - PM_CMPLU_STALL_BRU)/PM_RUN_INST_CMPL",
+        "MetricExpr": "stall_cpi - ntc_disp_fin_stall_cpi - ntc_flush_stall_cpi - lsu_stall_cpi - exec_unit_stall_cpi - bru_stall_cpi",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "other_stall_cpi"
     },
@@ -391,7 +469,7 @@
         "MetricName": "run_cyc_cpi"
     },
     {
-        "MetricExpr": "(PM_CMPLU_STALL_FXU + PM_CMPLU_STALL_DP + PM_CMPLU_STALL_DFU + PM_CMPLU_STALL_PM + PM_CMPLU_STALL_CRYPTO)/PM_RUN_INST_CMPL",
+        "MetricExpr": "fxu_stall_cpi + dp_stall_cpi + dfu_stall_cpi + pm_stall_cpi + crypto_stall_cpi",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "scalar_stall_cpi"
     },
@@ -414,7 +492,7 @@
         "MetricName": "srq_full_stall_cpi"
     },
     {
-        "MetricExpr": "(PM_CMPLU_STALL_STORE_DATA + PM_CMPLU_STALL_EIEIO + PM_CMPLU_STALL_STCX + PM_CMPLU_STALL_SLB + PM_CMPLU_STALL_TEND + PM_CMPLU_STALL_PASTE + PM_CMPLU_STALL_TLBIE + PM_CMPLU_STALL_STORE_PIPE_ARB + PM_CMPLU_STALL_STORE_FIN_ARB)/PM_RUN_INST_CMPL",
+        "MetricExpr": "store_data_stall_cpi + eieio_stall_cpi + stcx_stall_cpi + slb_stall_cpi + tend_stall_cpi + paste_stall_cpi + tlbie_stall_cpi + store_pipe_arb_stall_cpi + store_fin_arb_stall_cpi",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "srq_stall_cpi"
     },
@@ -425,7 +503,7 @@
         "MetricName": "st_fwd_stall_cpi"
     },
     {
-        "BriefDescription": "Nothing completed and ICT not empty",
+        "BriefDescription": "Nothing completed and Instruction Completion Table not empty",
         "MetricExpr": "PM_CMPLU_STALL/PM_RUN_INST_CMPL",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "stall_cpi"
@@ -480,7 +558,7 @@
     },
     {
         "BriefDescription": "Vector stalls due to small latency double precision ops",
-        "MetricExpr": "(PM_CMPLU_STALL_VDP - PM_CMPLU_STALL_VDPLONG)/PM_RUN_INST_CMPL",
+        "MetricExpr": "vdp_stall_cpi - vdplong_stall_cpi",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "vdp_other_stall_cpi"
     },
@@ -497,7 +575,7 @@
         "MetricName": "vdplong_stall_cpi"
     },
     {
-        "MetricExpr": "(PM_CMPLU_STALL_VFXU + PM_CMPLU_STALL_VDP)/PM_RUN_INST_CMPL",
+        "MetricExpr": "vfxu_stall_cpi + vdp_stall_cpi",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "vector_stall_cpi"
     },
@@ -509,7 +587,7 @@
     },
     {
         "BriefDescription": "Vector stalls due to small latency integer ops",
-        "MetricExpr": "(PM_CMPLU_STALL_VFXU - PM_CMPLU_STALL_VFXLONG)/PM_RUN_INST_CMPL",
+        "MetricExpr": "vfxu_stall_cpi - vfxlong_stall_cpi",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "vfxu_other_stall_cpi"
     },
@@ -1132,112 +1210,10 @@
         "MetricName": "inst_from_rmem_percent"
     },
     {
-        "BriefDescription": "%L2 Modified CO Cache read Utilization (4 pclks per disp attempt)",
-        "MetricExpr": "((PM_L2_CASTOUT_MOD/2)*4)/ PM_RUN_CYC * 100",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_co_m_rd_util"
-    },
-    {
-        "BriefDescription": "L2 dcache invalidates per run inst (per core)",
-        "MetricExpr": "(PM_L2_DC_INV / 2) / PM_RUN_INST_CMPL * 100",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_dc_inv_rate_percent"
-    },
-    {
         "BriefDescription": "Demand load misses as a % of L2 LD dispatches (per thread)",
         "MetricExpr": "PM_L1_DCACHE_RELOAD_VALID / (PM_L2_LD / 2) * 100",
         "MetricGroup": "l2_stats",
         "MetricName": "l2_dem_ld_disp_percent"
-    },
-    {
-        "BriefDescription": "L2 Icache invalidates per run inst (per core)",
-        "MetricExpr": "(PM_L2_IC_INV / 2) / PM_RUN_INST_CMPL * 100",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_ic_inv_rate_percent"
-    },
-    {
-        "BriefDescription": "L2 Inst misses as a % of total L2 Inst dispatches (per thread)",
-        "MetricExpr": "PM_L2_INST_MISS / PM_L2_INST * 100",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_inst_miss_ratio_percent"
-    },
-    {
-        "BriefDescription": "Average number of cycles between L2 Load hits",
-        "MetricExpr": "(PM_L2_LD_HIT / PM_RUN_CYC) / 2",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_ld_hit_frequency"
-    },
-    {
-        "BriefDescription": "Average number of cycles between L2 Load misses",
-        "MetricExpr": "(PM_L2_LD_MISS / PM_RUN_CYC) / 2",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_ld_miss_frequency"
-    },
-    {
-        "BriefDescription": "L2 Load misses as a % of total L2 Load dispatches (per thread)",
-        "MetricExpr": "PM_L2_LD_MISS / PM_L2_LD * 100",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_ld_miss_ratio_percent"
-    },
-    {
-        "BriefDescription": "% L2 load disp attempts Cache read Utilization (4 pclks per disp attempt)",
-        "MetricExpr": "((PM_L2_RCLD_DISP/2)*4)/ PM_RUN_CYC * 100",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_ld_rd_util"
-    },
-    {
-        "BriefDescription": "L2 load misses that require a cache write (4 pclks per disp attempt) % of pclks",
-        "MetricExpr": "((( PM_L2_LD_DISP - PM_L2_LD_HIT)/2)*4)/ PM_RUN_CYC * 100",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_ldmiss_wr_util"
-    },
-    {
-        "BriefDescription": "L2 local pump prediction success",
-        "MetricExpr": "PM_L2_LOC_GUESS_CORRECT / (PM_L2_LOC_GUESS_CORRECT + PM_L2_LOC_GUESS_WRONG) * 100",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_local_pred_correct_percent"
-    },
-    {
-        "BriefDescription": "L2 COs that were in M,Me,Mu state as a % of all L2 COs",
-        "MetricExpr": "PM_L2_CASTOUT_MOD / (PM_L2_CASTOUT_MOD + PM_L2_CASTOUT_SHR) * 100",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_mod_co_percent"
-    },
-    {
-        "BriefDescription": "% of L2 Load RC dispatch atampts that failed because of address collisions and cclass conflicts",
-        "MetricExpr": "(PM_L2_RCLD_DISP_FAIL_ADDR )/ PM_L2_RCLD_DISP * 100",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_rc_ld_disp_addr_fail_percent"
-    },
-    {
-        "BriefDescription": "% of L2 Load RC dispatch attempts that failed",
-        "MetricExpr": "(PM_L2_RCLD_DISP_FAIL_ADDR + PM_L2_RCLD_DISP_FAIL_OTHER)/ PM_L2_RCLD_DISP * 100",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_rc_ld_disp_fail_percent"
-    },
-    {
-        "BriefDescription": "% of L2 Store RC dispatch atampts that failed because of address collisions and cclass conflicts",
-        "MetricExpr": "PM_L2_RCST_DISP_FAIL_ADDR / PM_L2_RCST_DISP * 100",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_rc_st_disp_addr_fail_percent"
-    },
-    {
-        "BriefDescription": "% of L2 Store RC dispatch attempts that failed",
-        "MetricExpr": "(PM_L2_RCST_DISP_FAIL_ADDR + PM_L2_RCST_DISP_FAIL_OTHER)/ PM_L2_RCST_DISP * 100",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_rc_st_disp_fail_percent"
-    },
-    {
-        "BriefDescription": "L2 Cache Read Utilization (per core)",
-        "MetricExpr": "(((PM_L2_RCLD_DISP/2)*4)/ PM_RUN_CYC * 100) + (((PM_L2_RCST_DISP/2)*4)/PM_RUN_CYC * 100) + (((PM_L2_CASTOUT_MOD/2)*4)/PM_RUN_CYC * 100)",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_rd_util_percent"
-    },
-    {
-        "BriefDescription": "L2 COs that were in T,Te,Si,S state as a % of all L2 COs",
-        "MetricExpr": "PM_L2_CASTOUT_SHR / (PM_L2_CASTOUT_MOD + PM_L2_CASTOUT_SHR) * 100",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_shr_co_percent"
     },
     {
         "BriefDescription": "L2 Store misses as a % of total L2 Store dispatches (per thread)",
@@ -1246,40 +1222,10 @@
         "MetricName": "l2_st_miss_ratio_percent"
     },
     {
-        "BriefDescription": "% L2 store disp attempts Cache read Utilization (4 pclks per disp attempt)",
-        "MetricExpr": "((PM_L2_RCST_DISP/2)*4) / PM_RUN_CYC * 100",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_st_rd_util"
-    },
-    {
         "BriefDescription": "L2 stores that require a cache write (4 pclks per disp attempt) % of pclks",
         "MetricExpr": "((PM_L2_ST_DISP/2)*4) / PM_RUN_CYC * 100",
         "MetricGroup": "l2_stats",
         "MetricName": "l2_st_wr_util"
-    },
-    {
-        "BriefDescription": "L2 Cache Write Utilization (per core)",
-        "MetricExpr": "((((PM_L2_LD_DISP - PM_L2_LD_HIT)/2)*4) / PM_RUN_CYC * 100) + (((PM_L2_ST_DISP/2)*4) / PM_RUN_CYC * 100)",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_wr_util_percent"
-    },
-    {
-        "BriefDescription": "Average number of cycles between L3 Load hits",
-        "MetricExpr": "(PM_L3_LD_HIT / PM_RUN_CYC) / 2",
-        "MetricGroup": "l3_stats",
-        "MetricName": "l3_ld_hit_frequency"
-    },
-    {
-        "BriefDescription": "Average number of cycles between L3 Load misses",
-        "MetricExpr": "(PM_L3_LD_MISS / PM_RUN_CYC) / 2",
-        "MetricGroup": "l3_stats",
-        "MetricName": "l3_ld_miss_frequency"
-    },
-    {
-        "BriefDescription": "Average number of Write-in machines used. 1 of 8 WI machines is sampled every L3 cycle",
-        "MetricExpr": "(PM_L3_WI_USAGE / PM_RUN_CYC) * 8",
-        "MetricGroup": "l3_stats",
-        "MetricName": "l3_wi_usage"
     },
     {
         "BriefDescription": "Average icache miss latency",
@@ -1745,7 +1691,7 @@
         "MetricName": "custom_secs"
     },
     {
-        "BriefDescription": "Percentage Cycles atleast one instruction dispatched",
+        "BriefDescription": "Percentage Cycles at least one instruction dispatched",
         "MetricExpr": "PM_1PLUS_PPC_DISP / PM_CYC * 100",
         "MetricName": "cycles_atleast_one_inst_dispatched_percent"
     },
@@ -1766,7 +1712,7 @@
     },
     {
         "BriefDescription": "% of DL1 reloads from Private L3, other core per Inst",
-        "MetricExpr": "(PM_DATA_FROM_L31_MOD + PM_DATA_FROM_L31_SHR) * 100 / PM_RUN_INST_CMPL",
+        "MetricExpr": "dl1_reload_from_l31_mod_rate_percent + dl1_reload_from_l31_shr_rate_percent",
         "MetricName": "dl1_reload_from_l31_rate_percent"
     },
     {
@@ -1818,71 +1764,6 @@
         "BriefDescription": "All FXU Idle",
         "MetricExpr": "PM_FXU_IDLE / PM_CYC",
         "MetricName": "fxu_all_idle"
-    },
-    {
-        "BriefDescription": "Ict empty for this thread due to branch mispred",
-        "MetricExpr": "PM_ICT_NOSLOT_BR_MPRED/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_br_mpred_cpi"
-    },
-    {
-        "BriefDescription": "Ict empty for this thread due to Icache Miss and branch mispred",
-        "MetricExpr": "PM_ICT_NOSLOT_BR_MPRED_ICMISS/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_br_mpred_icmiss_cpi"
-    },
-    {
-        "BriefDescription": "ICT other stalls",
-        "MetricExpr": "(PM_ICT_NOSLOT_CYC - PM_ICT_NOSLOT_IC_MISS - PM_ICT_NOSLOT_BR_MPRED_ICMISS - PM_ICT_NOSLOT_BR_MPRED - PM_ICT_NOSLOT_DISP_HELD)/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_cyc_other_cpi"
-    },
-    {
-        "BriefDescription": "Cycles in which the NTC instruciton is held at dispatch for any reason",
-        "MetricExpr": "PM_ICT_NOSLOT_DISP_HELD/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_disp_held_cpi"
-    },
-    {
-        "BriefDescription": "Ict empty for this thread due to dispatch holds because the History Buffer was full. Could be GPR/VSR/VMR/FPR/CR/XVF",
-        "MetricExpr": "PM_ICT_NOSLOT_DISP_HELD_HB_FULL/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_disp_held_hb_full_cpi"
-    },
-    {
-        "BriefDescription": "Ict empty for this thread due to dispatch hold on this thread due to Issue q full, BRQ full, XVCF Full, Count cache, Link, Tar full",
-        "MetricExpr": "PM_ICT_NOSLOT_DISP_HELD_ISSQ/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_disp_held_issq_cpi"
-    },
-    {
-        "BriefDescription": "ICT_NOSLOT_DISP_HELD_OTHER_CPI",
-        "MetricExpr": "(PM_ICT_NOSLOT_DISP_HELD - PM_ICT_NOSLOT_DISP_HELD_HB_FULL - PM_ICT_NOSLOT_DISP_HELD_SYNC - PM_ICT_NOSLOT_DISP_HELD_TBEGIN - PM_ICT_NOSLOT_DISP_HELD_ISSQ)/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_disp_held_other_cpi"
-    },
-    {
-        "BriefDescription": "Dispatch held due to a synchronizing instruction at dispatch",
-        "MetricExpr": "PM_ICT_NOSLOT_DISP_HELD_SYNC/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_disp_held_sync_cpi"
-    },
-    {
-        "BriefDescription": "the NTC instruction is being held at dispatch because it is a tbegin instruction and there is an older tbegin in the pipeline that must complete before the younger tbegin can dispatch",
-        "MetricExpr": "PM_ICT_NOSLOT_DISP_HELD_TBEGIN/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_disp_held_tbegin_cpi"
-    },
-    {
-        "BriefDescription": "ICT_NOSLOT_IC_L2_CPI",
-        "MetricExpr": "(PM_ICT_NOSLOT_IC_MISS - PM_ICT_NOSLOT_IC_L3 - PM_ICT_NOSLOT_IC_L3MISS)/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_ic_l2_cpi"
-    },
-    {
-        "BriefDescription": "Ict empty for this thread due to icache misses that were sourced from the local L3",
-        "MetricExpr": "PM_ICT_NOSLOT_IC_L3/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_ic_l3_cpi"
-    },
-    {
-        "BriefDescription": "Ict empty for this thread due to icache misses that were sourced from beyond the local L3. The source could be local/remote/distant memory or another core's cache",
-        "MetricExpr": "PM_ICT_NOSLOT_IC_L3MISS/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_ic_l3miss_cpi"
-    },
-    {
-        "BriefDescription": "Ict empty for this thread due to Icache Miss",
-        "MetricExpr": "PM_ICT_NOSLOT_IC_MISS/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_ic_miss_cpi"
     },
     {
         "BriefDescription": "Rate of IERAT reloads from L2",
@@ -1966,7 +1847,7 @@
     },
     {
         "BriefDescription": "Completion stall because a different thread was using the completion pipe",
-        "MetricExpr": "(PM_CMPLU_STALL_THRD - PM_CMPLU_STALL_EXCEPTION - PM_CMPLU_STALL_ANY_SYNC - PM_CMPLU_STALL_SYNC_PMU_INT - PM_CMPLU_STALL_SPEC_FINISH - PM_CMPLU_STALL_FLUSH_ANY_THREAD - PM_CMPLU_STALL_LSU_FLUSH_NEXT - PM_CMPLU_STALL_NESTED_TBEGIN - PM_CMPLU_STALL_NESTED_TEND - PM_CMPLU_STALL_MTFPSCR)/PM_RUN_INST_CMPL",
+        "MetricExpr": "thread_block_stall_cpi - exception_stall_cpi - any_sync_stall_cpi - sync_pmu_int_stall_cpi - spec_finish_stall_cpi - flush_any_thread_stall_cpi - lsu_flush_next_stall_cpi - nested_tbegin_stall_cpi - nested_tend_stall_cpi - mtfpscr_stall_cpi",
         "MetricName": "other_thread_cmpl_stall"
     },
     {

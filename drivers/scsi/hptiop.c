@@ -758,10 +758,9 @@ static void hptiop_finish_scsi_req(struct hptiop_hba *hba, u32 tag,
 		scp->result = SAM_STAT_CHECK_CONDITION;
 		memcpy(scp->sense_buffer, &req->sg_list, SCSI_SENSE_BUFFERSIZE);
 		goto skip_resid;
-		break;
 
 	default:
-		scp->result = DRIVER_INVALID << 24 | DID_ABORT << 16;
+		scp->result = DID_ABORT << 16;
 		break;
 	}
 
@@ -770,7 +769,7 @@ static void hptiop_finish_scsi_req(struct hptiop_hba *hba, u32 tag,
 
 skip_resid:
 	dprintk("scsi_done(%p)\n", scp);
-	scp->scsi_done(scp);
+	scsi_done(scp);
 	free_req(hba, &hba->reqs[tag]);
 }
 
@@ -994,17 +993,13 @@ static int hptiop_reset_comm_mvfrey(struct hptiop_hba *hba)
 	return 0;
 }
 
-static int hptiop_queuecommand_lck(struct scsi_cmnd *scp,
-				void (*done)(struct scsi_cmnd *))
+static int hptiop_queuecommand_lck(struct scsi_cmnd *scp)
 {
 	struct Scsi_Host *host = scp->device->host;
 	struct hptiop_hba *hba = (struct hptiop_hba *)host->hostdata;
 	struct hpt_iop_request_scsi_command *req;
 	int sg_count = 0;
 	struct hptiop_request *_req;
-
-	BUG_ON(!done);
-	scp->scsi_done = done;
 
 	_req = get_req(hba);
 	if (_req == NULL) {
@@ -1049,10 +1044,7 @@ static int hptiop_queuecommand_lck(struct scsi_cmnd *scp,
 	req->channel = scp->device->channel;
 	req->target = scp->device->id;
 	req->lun = scp->device->lun;
-	req->header.size = cpu_to_le32(
-				sizeof(struct hpt_iop_request_scsi_command)
-				 - sizeof(struct hpt_iopsg)
-				 + sg_count * sizeof(struct hpt_iopsg));
+	req->header.size = cpu_to_le32(struct_size(req, sg_list, sg_count));
 
 	memcpy(req->cdb, scp->cmnd, sizeof(req->cdb));
 	hba->ops->post_req(hba, _req);
@@ -1060,7 +1052,7 @@ static int hptiop_queuecommand_lck(struct scsi_cmnd *scp,
 
 cmd_done:
 	dprintk("scsi_done(scp=%p)\n", scp);
-	scp->scsi_done(scp);
+	scsi_done(scp);
 	return 0;
 }
 
@@ -1151,21 +1143,23 @@ static struct device_attribute hptiop_attr_fw_version = {
 	.show = hptiop_show_fw_version,
 };
 
-static struct device_attribute *hptiop_attrs[] = {
-	&hptiop_attr_version,
-	&hptiop_attr_fw_version,
+static struct attribute *hptiop_host_attrs[] = {
+	&hptiop_attr_version.attr,
+	&hptiop_attr_fw_version.attr,
 	NULL
 };
 
-static int hptiop_slave_config(struct scsi_device *sdev)
+ATTRIBUTE_GROUPS(hptiop_host);
+
+static int hptiop_device_configure(struct scsi_device *sdev,
+		struct queue_limits *lim)
 {
 	if (sdev->type == TYPE_TAPE)
-		blk_queue_max_hw_sectors(sdev->request_queue, 8192);
-
+		lim->max_hw_sectors = 8192;
 	return 0;
 }
 
-static struct scsi_host_template driver_template = {
+static const struct scsi_host_template driver_template = {
 	.module                     = THIS_MODULE,
 	.name                       = driver_name,
 	.queuecommand               = hptiop_queuecommand,
@@ -1173,10 +1167,11 @@ static struct scsi_host_template driver_template = {
 	.info                       = hptiop_info,
 	.emulated                   = 0,
 	.proc_name                  = driver_name,
-	.shost_attrs                = hptiop_attrs,
-	.slave_configure            = hptiop_slave_config,
+	.shost_groups		    = hptiop_host_groups,
+	.device_configure	    = hptiop_device_configure,
 	.this_id                    = -1,
 	.change_queue_depth         = hptiop_adjust_disk_queue_depth,
+	.cmd_size		    = sizeof(struct hpt_cmd_priv),
 };
 
 static int hptiop_internal_memalloc_itl(struct hptiop_hba *hba)
@@ -1399,8 +1394,8 @@ static int hptiop_probe(struct pci_dev *pcidev, const struct pci_device_id *id)
 	host->cmd_per_lun = le32_to_cpu(iop_config.max_requests);
 	host->max_cmd_len = 16;
 
-	req_size = sizeof(struct hpt_iop_request_scsi_command)
-		+ sizeof(struct hpt_iopsg) * (hba->max_sg_descriptors - 1);
+	req_size = struct_size_t(struct hpt_iop_request_scsi_command,
+				 sg_list, hba->max_sg_descriptors);
 	if ((req_size & 0x1f) != 0)
 		req_size = (req_size + 0x1f) & ~0x1f;
 

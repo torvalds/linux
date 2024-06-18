@@ -9,9 +9,6 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/platform_device.h>
-#include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_platform.h>
 
 #include "hns_dsaf_ppe.h"
 
@@ -66,8 +63,8 @@ hns_ppe_common_get_ioaddr(struct ppe_common_cb *ppe_common)
 /**
  * hns_ppe_common_get_cfg - get ppe common config
  * @dsaf_dev: dasf device
- * comm_index: common index
- * retuen 0 - success , negative --fail
+ * @comm_index: common index
+ * return 0 - success , negative --fail
  */
 static int hns_ppe_common_get_cfg(struct dsaf_device *dsaf_dev, int comm_index)
 {
@@ -143,7 +140,7 @@ static void hns_ppe_set_vlan_strip(struct hns_ppe_cb *ppe_cb, int en)
 
 /**
  * hns_ppe_checksum_hw - set ppe checksum caculate
- * @ppe_device: ppe device
+ * @ppe_cb: ppe device
  * @value: value
  */
 static void hns_ppe_checksum_hw(struct hns_ppe_cb *ppe_cb, u32 value)
@@ -179,7 +176,7 @@ static void hns_ppe_set_qid(struct ppe_common_cb *ppe_common, u32 qid)
 
 /**
  * hns_ppe_set_port_mode - set port mode
- * @ppe_device: ppe device
+ * @ppe_cb: ppe device
  * @mode: port mode
  */
 static void hns_ppe_set_port_mode(struct hns_ppe_cb *ppe_cb,
@@ -296,7 +293,7 @@ int hns_ppe_wait_tx_fifo_clean(struct hns_ppe_cb *ppe_cb)
 }
 
 /**
- * ppe_init_hw - init ppe
+ * hns_ppe_init_hw - init ppe
  * @ppe_cb: ppe device
  */
 static void hns_ppe_init_hw(struct hns_ppe_cb *ppe_cb)
@@ -343,8 +340,8 @@ static void hns_ppe_init_hw(struct hns_ppe_cb *ppe_cb)
 }
 
 /**
- * ppe_uninit_hw - uninit ppe
- * @ppe_device: ppe device
+ * hns_ppe_uninit_hw - uninit ppe
+ * @ppe_cb: ppe device
  */
 static void hns_ppe_uninit_hw(struct hns_ppe_cb *ppe_cb)
 {
@@ -382,9 +379,10 @@ void hns_ppe_uninit(struct dsaf_device *dsaf_dev)
 }
 
 /**
- * hns_ppe_reset - reinit ppe/rcb hw
+ * hns_ppe_reset_common - reinit ppe/rcb hw
  * @dsaf_dev: dasf device
- * retuen void
+ * @ppe_common_index: the index
+ * return void
  */
 void hns_ppe_reset_common(struct dsaf_device *dsaf_dev, u8 ppe_common_index)
 {
@@ -454,40 +452,29 @@ int hns_ppe_get_regs_count(void)
 }
 
 /**
- * ppe_get_strings - get ppe srting
- * @ppe_device: ppe device
+ * hns_ppe_get_strings - get ppe srting
+ * @ppe_cb: ppe device
  * @stringset: string set type
  * @data: output string
  */
 void hns_ppe_get_strings(struct hns_ppe_cb *ppe_cb, int stringset, u8 *data)
 {
-	char *buff = (char *)data;
 	int index = ppe_cb->index;
+	u8 *buff = data;
 
-	snprintf(buff, ETH_GSTRING_LEN, "ppe%d_rx_sw_pkt", index);
-	buff = buff + ETH_GSTRING_LEN;
-	snprintf(buff, ETH_GSTRING_LEN, "ppe%d_rx_pkt_ok", index);
-	buff = buff + ETH_GSTRING_LEN;
-	snprintf(buff, ETH_GSTRING_LEN, "ppe%d_rx_drop_pkt_no_bd", index);
-	buff = buff + ETH_GSTRING_LEN;
-	snprintf(buff, ETH_GSTRING_LEN, "ppe%d_rx_alloc_buf_fail", index);
-	buff = buff + ETH_GSTRING_LEN;
-	snprintf(buff, ETH_GSTRING_LEN, "ppe%d_rx_alloc_buf_wait", index);
-	buff = buff + ETH_GSTRING_LEN;
-	snprintf(buff, ETH_GSTRING_LEN, "ppe%d_rx_pkt_drop_no_buf", index);
-	buff = buff + ETH_GSTRING_LEN;
-	snprintf(buff, ETH_GSTRING_LEN, "ppe%d_rx_pkt_err_fifo_full", index);
-	buff = buff + ETH_GSTRING_LEN;
+	ethtool_sprintf(&buff, "ppe%d_rx_sw_pkt", index);
+	ethtool_sprintf(&buff, "ppe%d_rx_pkt_ok", index);
+	ethtool_sprintf(&buff, "ppe%d_rx_drop_pkt_no_bd", index);
+	ethtool_sprintf(&buff, "ppe%d_rx_alloc_buf_fail", index);
+	ethtool_sprintf(&buff, "ppe%d_rx_alloc_buf_wait", index);
+	ethtool_sprintf(&buff, "ppe%d_rx_pkt_drop_no_buf", index);
+	ethtool_sprintf(&buff, "ppe%d_rx_pkt_err_fifo_full", index);
 
-	snprintf(buff, ETH_GSTRING_LEN, "ppe%d_tx_bd", index);
-	buff = buff + ETH_GSTRING_LEN;
-	snprintf(buff, ETH_GSTRING_LEN, "ppe%d_tx_pkt", index);
-	buff = buff + ETH_GSTRING_LEN;
-	snprintf(buff, ETH_GSTRING_LEN, "ppe%d_tx_pkt_ok", index);
-	buff = buff + ETH_GSTRING_LEN;
-	snprintf(buff, ETH_GSTRING_LEN, "ppe%d_tx_pkt_err_fifo_empty", index);
-	buff = buff + ETH_GSTRING_LEN;
-	snprintf(buff, ETH_GSTRING_LEN, "ppe%d_tx_pkt_err_csum_fail", index);
+	ethtool_sprintf(&buff, "ppe%d_tx_bd", index);
+	ethtool_sprintf(&buff, "ppe%d_tx_pkt", index);
+	ethtool_sprintf(&buff, "ppe%d_tx_pkt_ok", index);
+	ethtool_sprintf(&buff, "ppe%d_tx_pkt_err_fifo_empty", index);
+	ethtool_sprintf(&buff, "ppe%d_tx_pkt_err_csum_fail", index);
 }
 
 void hns_ppe_get_stats(struct hns_ppe_cb *ppe_cb, u64 *data)
@@ -513,7 +500,7 @@ void hns_ppe_get_stats(struct hns_ppe_cb *ppe_cb, u64 *data)
 /**
  * hns_ppe_init - init ppe device
  * @dsaf_dev: dasf device
- * retuen 0 - success , negative --fail
+ * return 0 - success , negative --fail
  */
 int hns_ppe_init(struct dsaf_device *dsaf_dev)
 {

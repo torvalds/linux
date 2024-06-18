@@ -23,13 +23,12 @@
 #include <linux/kdev_t.h>
 #include <linux/delay.h>
 #include <linux/seq_file.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 
 #include <asm/time.h>
 #include <asm/machdep.h>
 #include <asm/pci-bridge.h>
 #include <asm/mpic.h>
-#include <asm/prom.h>
 #include <mm/mmu_decl.h>
 #include <asm/udbg.h>
 
@@ -70,23 +69,11 @@ static void __init socrates_setup_arch(void)
 
 machine_arch_initcall(socrates, mpc85xx_common_publish_devices);
 
-/*
- * Called very early, device-tree isn't unflattened
- */
-static int __init socrates_probe(void)
-{
-	if (of_machine_is_compatible("abb,socrates"))
-		return 1;
-
-	return 0;
-}
-
 define_machine(socrates) {
 	.name			= "Socrates",
-	.probe			= socrates_probe,
+	.compatible		= "abb,socrates",
 	.setup_arch		= socrates_setup_arch,
 	.init_IRQ		= socrates_pic_init,
 	.get_irq		= mpic_get_irq,
-	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
 };

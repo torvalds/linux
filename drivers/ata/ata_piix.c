@@ -77,6 +77,7 @@
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
 #include <linux/dmi.h>
+#include <trace/events/libata.h>
 
 #define DRV_NAME	"ata_piix"
 #define DRV_VERSION	"2.13"
@@ -816,10 +817,15 @@ static int piix_sidpr_set_lpm(struct ata_link *link, enum ata_lpm_policy policy,
 
 static bool piix_irq_check(struct ata_port *ap)
 {
+	unsigned char host_stat;
+
 	if (unlikely(!ap->ioaddr.bmdma_addr))
 		return false;
 
-	return ap->ops->bmdma_status(ap) & ATA_DMA_INTR;
+	host_stat = ap->ops->bmdma_status(ap);
+	trace_ata_bmdma_status(ap, host_stat);
+
+	return host_stat & ATA_DMA_INTR;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -838,6 +844,12 @@ static int piix_broken_suspend(void)
 			.matches = {
 				DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
 				DMI_MATCH(DMI_PRODUCT_NAME, "Tecra M3"),
+			},
+		},
+		{
+			.ident = "TECRA M3",
+			.matches = {
+				DMI_MATCH(DMI_OEM_STRING, "Tecra M3,"),
 			},
 		},
 		{
@@ -955,17 +967,9 @@ static int piix_broken_suspend(void)
 
 		{ }	/* terminate list */
 	};
-	static const char *oemstrs[] = {
-		"Tecra M3,",
-	};
-	int i;
 
 	if (dmi_check_system(sysids))
 		return 1;
-
-	for (i = 0; i < ARRAY_SIZE(oemstrs); i++)
-		if (dmi_find_device(DMI_DEV_TYPE_OEM_STRING, oemstrs[i], NULL))
-			return 1;
 
 	/* TECRA M4 sometimes forgets its identify and reports bogus
 	 * DMI information.  As the bogus information is a bit
@@ -989,11 +993,8 @@ static int piix_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg)
 {
 	struct ata_host *host = pci_get_drvdata(pdev);
 	unsigned long flags;
-	int rc = 0;
 
-	rc = ata_host_suspend(host, mesg);
-	if (rc)
-		return rc;
+	ata_host_suspend(host, mesg);
 
 	/* Some braindamaged ACPI suspend implementations expect the
 	 * controller to be awake on entry; otherwise, it burns cpu
@@ -1058,7 +1059,7 @@ static u8 piix_vmw_bmdma_status(struct ata_port *ap)
 	return ata_bmdma_status(ap) & ~ATA_DMA_ERR;
 }
 
-static struct scsi_host_template piix_sht = {
+static const struct scsi_host_template piix_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 
@@ -1087,14 +1088,16 @@ static struct ata_port_operations ich_pata_ops = {
 	.set_dmamode		= ich_set_dmamode,
 };
 
-static struct device_attribute *piix_sidpr_shost_attrs[] = {
-	&dev_attr_link_power_management_policy,
+static struct attribute *piix_sidpr_shost_attrs[] = {
+	&dev_attr_link_power_management_policy.attr,
 	NULL
 };
 
-static struct scsi_host_template piix_sidpr_sht = {
+ATTRIBUTE_GROUPS(piix_sidpr_shost);
+
+static const struct scsi_host_template piix_sidpr_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
-	.shost_attrs		= piix_sidpr_shost_attrs,
+	.shost_groups		= piix_sidpr_shost_groups,
 };
 
 static struct ata_port_operations piix_sidpr_sata_ops = {
@@ -1345,7 +1348,6 @@ static void piix_init_pcs(struct ata_host *host,
 	new_pcs = pcs | map_db->port_enable;
 
 	if (new_pcs != pcs) {
-		DPRINTK("updating PCS from 0x%x to 0x%x\n", pcs, new_pcs);
 		pci_write_config_word(pdev, ICH5_PCS, new_pcs);
 		msleep(150);
 	}
@@ -1643,7 +1645,7 @@ static int piix_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct device *dev = &pdev->dev;
 	struct ata_port_info port_info[2];
 	const struct ata_port_info *ppi[] = { &port_info[0], &port_info[1] };
-	struct scsi_host_template *sht = &piix_sht;
+	const struct scsi_host_template *sht = &piix_sht;
 	unsigned long port_flags;
 	struct ata_host *host;
 	struct piix_host_priv *hpriv;
@@ -1769,14 +1771,12 @@ static int __init piix_init(void)
 {
 	int rc;
 
-	DPRINTK("pci_register_driver\n");
 	rc = pci_register_driver(&piix_pci_driver);
 	if (rc)
 		return rc;
 
 	in_module_init = 0;
 
-	DPRINTK("done\n");
 	return 0;
 }
 

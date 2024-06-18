@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2008 Red Hat, Inc. All rights reserved.
  *
@@ -11,13 +12,13 @@
 
 struct dm_sysfs_attr {
 	struct attribute attr;
-	ssize_t (*show)(struct mapped_device *, char *);
-	ssize_t (*store)(struct mapped_device *, const char *, size_t count);
+	ssize_t (*show)(struct mapped_device *md, char *p);
+	ssize_t (*store)(struct mapped_device *md, const char *p, size_t count);
 };
 
 #define DM_ATTR_RO(_name) \
 struct dm_sysfs_attr dm_attr_##_name = \
-	__ATTR(_name, S_IRUGO, dm_attr_##_name##_show, NULL)
+	__ATTR(_name, 0444, dm_attr_##_name##_show, NULL)
 
 static ssize_t dm_attr_show(struct kobject *kobj, struct attribute *attr,
 			    char *page)
@@ -42,7 +43,7 @@ static ssize_t dm_attr_show(struct kobject *kobj, struct attribute *attr,
 
 #define DM_ATTR_RW(_name) \
 struct dm_sysfs_attr dm_attr_##_name = \
-	__ATTR(_name, S_IRUGO | S_IWUSR, dm_attr_##_name##_show, dm_attr_##_name##_store)
+	__ATTR(_name, 0644, dm_attr_##_name##_show, dm_attr_##_name##_store)
 
 static ssize_t dm_attr_store(struct kobject *kobj, struct attribute *attr,
 			     const char *page, size_t count)
@@ -112,15 +113,16 @@ static struct attribute *dm_attrs[] = {
 	&dm_attr_rq_based_seq_io_merge_deadline.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(dm);
 
 static const struct sysfs_ops dm_sysfs_ops = {
 	.show	= dm_attr_show,
 	.store	= dm_attr_store,
 };
 
-static struct kobj_type dm_ktype = {
+static const struct kobj_type dm_ktype = {
 	.sysfs_ops	= &dm_sysfs_ops,
-	.default_attrs	= dm_attrs,
+	.default_groups	= dm_groups,
 	.release	= dm_kobject_release,
 };
 
@@ -141,6 +143,7 @@ int dm_sysfs_init(struct mapped_device *md)
 void dm_sysfs_exit(struct mapped_device *md)
 {
 	struct kobject *kobj = dm_kobject(md);
+
 	kobject_put(kobj);
 	wait_for_completion(dm_get_completion_from_kobject(kobj));
 }

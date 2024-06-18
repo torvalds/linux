@@ -11,7 +11,7 @@
 #include "parse-events.h"
 #include "symbol.h"
 #include "top.h"
-#include "../perf.h"
+#include "util.h"
 #include <inttypes.h>
 
 #define SNPRINTF(buf, size, fmt, args...) \
@@ -28,6 +28,7 @@ size_t perf_top__header_snprintf(struct perf_top *top, char *bf, size_t size)
 	struct record_opts *opts = &top->record_opts;
 	struct target *target = &opts->target;
 	size_t ret = 0;
+	int nr_cpus;
 
 	if (top->samples) {
 		samples_per_sec = top->samples / top->delay_secs;
@@ -77,7 +78,7 @@ size_t perf_top__header_snprintf(struct perf_top *top, char *bf, size_t size)
 				opts->freq ? "Hz" : "");
 	}
 
-	ret += SNPRINTF(bf + ret, size - ret, "%s", perf_evsel__name(top->sym_evsel));
+	ret += SNPRINTF(bf + ret, size - ret, "%s", evsel__name(top->sym_evsel));
 
 	ret += SNPRINTF(bf + ret, size - ret, "], ");
 
@@ -93,17 +94,17 @@ size_t perf_top__header_snprintf(struct perf_top *top, char *bf, size_t size)
 	else
 		ret += SNPRINTF(bf + ret, size - ret, " (all");
 
+	nr_cpus = perf_cpu_map__nr(top->evlist->core.user_requested_cpus);
 	if (target->cpu_list)
 		ret += SNPRINTF(bf + ret, size - ret, ", CPU%s: %s)",
-				top->evlist->core.cpus->nr > 1 ? "s" : "",
+				nr_cpus > 1 ? "s" : "",
 				target->cpu_list);
 	else {
 		if (target->tid)
 			ret += SNPRINTF(bf + ret, size - ret, ")");
 		else
 			ret += SNPRINTF(bf + ret, size - ret, ", %d CPU%s)",
-					top->evlist->core.cpus->nr,
-					top->evlist->core.cpus->nr > 1 ? "s" : "");
+					nr_cpus, nr_cpus > 1 ? "s" : "");
 	}
 
 	perf_top__reset_sample_counters(top);

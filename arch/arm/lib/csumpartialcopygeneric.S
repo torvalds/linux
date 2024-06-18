@@ -86,6 +86,7 @@ sum	.req	r3
 
 FN_ENTRY
 		save_regs
+		mov	sum, #-1
 
 		cmp	len, #8			@ Ensure that we have at least
 		blo	.Lless8			@ 8 bytes to copy.

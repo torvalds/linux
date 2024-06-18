@@ -50,6 +50,10 @@ detailed description):
 	- WAN enable and disable
 	- UWB enable and disable
 	- LCD Shadow (PrivacyGuard) enable and disable
+	- Lap mode sensor
+	- Setting keyboard language
+	- WWAN Antenna type
+	- Auxmac
 
 A compatibility table by model and feature is maintained on the web
 site, http://ibm-acpi.sf.net/. I appreciate any success or failure
@@ -440,7 +444,9 @@ event	code	Key		Notes
 
 0x1008	0x07	FN+F8		IBM: toggle screen expand
 				Lenovo: configure UltraNav,
-				or toggle screen expand
+				or toggle screen expand.
+				On newer platforms (2024+)
+				replaced by 0x131f (see below)
 
 0x1009	0x08	FN+F9		-
 
@@ -499,6 +505,9 @@ event	code	Key		Notes
 0x1018	0x17	THINKPAD	ThinkPad/Access IBM/Lenovo key
 
 0x1019	0x18	unknown
+
+0x131f	...	FN+F8	        Platform Mode change.
+				Implemented in driver.
 
 ...	...	...
 
@@ -904,7 +913,7 @@ temperatures:
 The mapping of thermal sensors to physical locations varies depending on
 system-board model (and thus, on ThinkPad model).
 
-http://thinkwiki.org/wiki/Thermal_Sensors is a public wiki page that
+https://thinkwiki.org/wiki/Thermal_Sensors is a public wiki page that
 tries to track down these locations for various models.
 
 Most (newer?) models seem to follow this pattern:
@@ -925,7 +934,7 @@ For the R51 (source: Thomas Gruber):
 - 3:  Internal HDD
 
 For the T43, T43/p (source: Shmidoax/Thinkwiki.org)
-http://thinkwiki.org/wiki/Thermal_Sensors#ThinkPad_T43.2C_T43p
+https://thinkwiki.org/wiki/Thermal_Sensors#ThinkPad_T43.2C_T43p
 
 - 2:  System board, left side (near PCMCIA slot), reported as HDAPS temp
 - 3:  PCMCIA slot
@@ -935,7 +944,7 @@ http://thinkwiki.org/wiki/Thermal_Sensors#ThinkPad_T43.2C_T43p
 - 11: Power regulator, underside of system board, below F2 key
 
 The A31 has a very atypical layout for the thermal sensors
-(source: Milos Popovic, http://thinkwiki.org/wiki/Thermal_Sensors#ThinkPad_A31)
+(source: Milos Popovic, https://thinkwiki.org/wiki/Thermal_Sensors#ThinkPad_A31)
 
 - 1:  CPU
 - 2:  Main Battery: main sensor
@@ -1432,6 +1441,20 @@ The first command ensures the best viewing angle and the latter one turns
 on the feature, restricting the viewing angles.
 
 
+DYTC Lapmode sensor
+-------------------
+
+sysfs: dytc_lapmode
+
+Newer thinkpads and mobile workstations have the ability to determine if
+the device is in deskmode or lapmode. This feature is used by user space
+to decide if WWAN transmission can be increased to maximum power and is
+also useful for understanding the different thermal modes available as
+they differ between desk and lap mode.
+
+The property is read-only. If the platform doesn't have support the sysfs
+class is not created.
+
 EXPERIMENTAL: UWB
 -----------------
 
@@ -1451,6 +1474,68 @@ Sysfs notes
 	rfkill controller switch "tpacpi_uwb_sw": refer to
 	Documentation/driver-api/rfkill.rst for details.
 
+
+Setting keyboard language
+-------------------------
+
+sysfs: keyboard_lang
+
+This feature is used to set keyboard language to ECFW using ASL interface.
+Fewer thinkpads models like T580 , T590 , T15 Gen 1 etc.. has "=", "(',
+")" numeric keys, which are not displaying correctly, when keyboard language
+is other than "english". This is because the default keyboard language in ECFW
+is set as "english". Hence using this sysfs, user can set the correct keyboard
+language to ECFW and then these key's will work correctly.
+
+Example of command to set keyboard language is mentioned below::
+
+        echo jp > /sys/devices/platform/thinkpad_acpi/keyboard_lang
+
+Text corresponding to keyboard layout to be set in sysfs are: be(Belgian),
+cz(Czech), da(Danish), de(German), en(English), es(Spain), et(Estonian),
+fr(French), fr-ch(French(Switzerland)), hu(Hungarian), it(Italy), jp (Japan),
+nl(Dutch), nn(Norway), pl(Polish), pt(portuguese), sl(Slovenian), sv(Sweden),
+tr(Turkey)
+
+WWAN Antenna type
+-----------------
+
+sysfs: wwan_antenna_type
+
+On some newer Thinkpads we need to set SAR value based on the antenna
+type. This interface will be used by userspace to get the antenna type
+and set the corresponding SAR value, as is required for FCC certification.
+
+The available commands are::
+
+        cat /sys/devices/platform/thinkpad_acpi/wwan_antenna_type
+
+Currently 2 antenna types are supported as mentioned below:
+- type a
+- type b
+
+The property is read-only. If the platform doesn't have support the sysfs
+class is not created.
+
+Auxmac
+------
+
+sysfs: auxmac
+
+Some newer Thinkpads have a feature called MAC Address Pass-through. This
+feature is implemented by the system firmware to provide a system unique MAC,
+that can override a dock or USB ethernet dongle MAC, when connected to a
+network. This property enables user-space to easily determine the MAC address
+if the feature is enabled.
+
+The values of this auxiliary MAC are:
+
+        cat /sys/devices/platform/thinkpad_acpi/auxmac
+
+If the feature is disabled, the value will be 'disabled'.
+
+This property is read-only.
+
 Adaptive keyboard
 -----------------
 
@@ -1460,15 +1545,32 @@ This sysfs attribute controls the keyboard "face" that will be shown on the
 Lenovo X1 Carbon 2nd gen (2014)'s adaptive keyboard. The value can be read
 and set.
 
-- 1 = Home mode
-- 2 = Web-browser mode
-- 3 = Web-conference mode
-- 4 = Function mode
-- 5 = Layflat mode
+- 0 = Home mode
+- 1 = Web-browser mode
+- 2 = Web-conference mode
+- 3 = Function mode
+- 4 = Layflat mode
 
 For more details about which buttons will appear depending on the mode, please
 review the laptop's user guide:
-http://www.lenovo.com/shop/americas/content/user_guides/x1carbon_2_ug_en.pdf
+https://download.lenovo.com/ibmdl/pub/pc/pccbbs/mobiles_pdf/x1carbon_2_ug_en.pdf
+
+Battery charge control
+----------------------
+
+sysfs attributes:
+/sys/class/power_supply/BAT*/charge_control_{start,end}_threshold
+
+These two attributes are created for those batteries that are supported by the
+driver. They enable the user to control the battery charge thresholds of the
+given battery. Both values may be read and set. `charge_control_start_threshold`
+accepts an integer between 0 and 99 (inclusive); this value represents a battery
+percentage level, below which charging will begin. `charge_control_end_threshold`
+accepts an integer between 1 and 100 (inclusive); this value represents a battery
+percentage level, above which charging will stop.
+
+The exact semantics of the attributes may be found in
+Documentation/ABI/testing/sysfs-class-power.
 
 Multiple Commands, Module Parameters
 ------------------------------------

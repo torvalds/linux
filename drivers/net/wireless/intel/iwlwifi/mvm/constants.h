@@ -1,66 +1,9 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2013 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2015        Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2013 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2015        Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
+/*
+ * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
+ * Copyright (C) 2013-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2015 Intel Deutschland GmbH
+ */
 #ifndef __MVM_CONSTANTS_H
 #define __MVM_CONSTANTS_H
 
@@ -68,6 +11,11 @@
 #include "fw-api.h"
 
 #define IWL_MVM_UAPSD_NOAGG_BSSIDS_NUM		20
+#define IWL_MVM_BT_COEX_DISABLE_ESR_THRESH	69
+#define IWL_MVM_BT_COEX_ENABLE_ESR_THRESH	63
+#define IWL_MVM_BT_COEX_WIFI_LOSS_THRESH	0
+#define IWL_MVM_TRIGGER_LINK_SEL_TIME_SEC	30
+#define IWL_MVM_TPT_COUNT_WINDOW_SEC		5
 
 #define IWL_MVM_DEFAULT_PS_TX_DATA_TIMEOUT	(100 * USEC_PER_MSEC)
 #define IWL_MVM_DEFAULT_PS_RX_DATA_TIMEOUT	(100 * USEC_PER_MSEC)
@@ -107,7 +55,6 @@
 #define IWL_MVM_RS_RSSI_BASED_INIT_RATE         0
 #define IWL_MVM_RS_80_20_FAR_RANGE_TWEAK	1
 #define IWL_MVM_TOF_IS_RESPONDER		0
-#define IWL_MVM_SW_TX_CSUM_OFFLOAD		0
 #define IWL_MVM_HW_CSUM_DISABLE			0
 #define IWL_MVM_PARSE_NVM			0
 #define IWL_MVM_ADWELL_ENABLE			1
@@ -118,6 +65,7 @@
 #define IWL_MVM_UAPSD_NONAGG_PERIOD		5000 /* msecs */
 #define IWL_MVM_UAPSD_NOAGG_LIST_LEN		IWL_MVM_UAPSD_NOAGG_BSSIDS_NUM
 #define IWL_MVM_NON_TRANSMITTING_AP		0
+#define IWL_MVM_CONN_LISTEN_INTERVAL		10
 #define IWL_MVM_RS_NUM_TRY_BEFORE_ANT_TOGGLE    1
 #define IWL_MVM_RS_HT_VHT_RETRIES_PER_RATE      2
 #define IWL_MVM_RS_HT_VHT_RETRIES_PER_RATE_TW   1
@@ -151,8 +99,42 @@
 #define IWL_MVM_ENABLE_EBS			1
 #define IWL_MVM_FTM_INITIATOR_ALGO		IWL_TOF_ALGO_TYPE_MAX_LIKE
 #define IWL_MVM_FTM_INITIATOR_DYNACK		true
+#define IWL_MVM_FTM_LMR_FEEDBACK_TERMINATE	false
+#define IWL_MVM_FTM_R2I_MAX_REP			7
+#define IWL_MVM_FTM_I2R_MAX_REP			7
+#define IWL_MVM_FTM_R2I_MAX_STS			1
+#define IWL_MVM_FTM_I2R_MAX_STS			1
+#define IWL_MVM_FTM_R2I_MAX_TOTAL_LTF		3
+#define IWL_MVM_FTM_I2R_MAX_TOTAL_LTF		3
+#define IWL_MVM_FTM_INITIATOR_SECURE_LTF	false
+#define IWL_MVM_FTM_RESP_NDP_SUPPORT		true
+#define IWL_MVM_FTM_RESP_LMR_FEEDBACK_SUPPORT	true
+#define IWL_MVM_FTM_NON_TB_MIN_TIME_BETWEEN_MSR	5
+#define IWL_MVM_FTM_NON_TB_MAX_TIME_BETWEEN_MSR	1000
 #define IWL_MVM_D3_DEBUG			false
-#define IWL_MVM_USE_TWT				false
-#define IWL_MVM_AMPDU_CONSEC_DROPS_DELBA	10
+#define IWL_MVM_USE_TWT				true
+#define IWL_MVM_AMPDU_CONSEC_DROPS_DELBA	20
+#define IWL_MVM_USE_NSSN_SYNC			0
+#define IWL_MVM_FTM_INITIATOR_ENABLE_SMOOTH     false
+#define IWL_MVM_FTM_INITIATOR_SMOOTH_ALPHA      40
+/*  20016 pSec is 6 meter RTT, meaning 3 meter range */
+#define IWL_MVM_FTM_INITIATOR_SMOOTH_UNDERSHOOT 20016
+#define IWL_MVM_FTM_INITIATOR_SMOOTH_OVERSHOOT  20016
+#define IWL_MVM_FTM_INITIATOR_SMOOTH_AGE_SEC    2
+#define IWL_MVM_DISABLE_AP_FILS			false
+#define IWL_MVM_6GHZ_PASSIVE_SCAN_TIMEOUT       3000 /* in seconds */
+#define IWL_MVM_6GHZ_PASSIVE_SCAN_ASSOC_TIMEOUT 60   /* in seconds */
+#define IWL_MVM_AUTO_EML_ENABLE                 true
+#define IWL_MVM_MISSED_BEACONS_EXIT_ESR_THRESH	7
 
+#define IWL_MVM_HIGH_RSSI_THRESH_20MHZ		-67
+#define IWL_MVM_LOW_RSSI_THRESH_20MHZ		-71
+#define IWL_MVM_HIGH_RSSI_THRESH_40MHZ		-64
+#define IWL_MVM_LOW_RSSI_THRESH_40MHZ		-67
+#define IWL_MVM_HIGH_RSSI_THRESH_80MHZ		-61
+#define IWL_MVM_LOW_RSSI_THRESH_80MHZ		-74
+#define IWL_MVM_HIGH_RSSI_THRESH_160MHZ		-58
+#define IWL_MVM_LOW_RSSI_THRESH_160MHZ		-61
+
+#define IWL_MVM_ENTER_ESR_TPT_THRESH		400
 #endif /* __MVM_CONSTANTS_H */

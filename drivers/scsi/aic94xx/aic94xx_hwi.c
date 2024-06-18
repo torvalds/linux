@@ -28,7 +28,7 @@ static int asd_get_user_sas_addr(struct asd_ha_struct *asd_ha)
 	if (asd_ha->hw_prof.sas_addr[0])
 		return 0;
 
-	return sas_request_addr(asd_ha->sas_ha.core.shost,
+	return sas_request_addr(asd_ha->sas_ha.shost,
 				asd_ha->hw_prof.sas_addr);
 }
 
@@ -72,10 +72,8 @@ static int asd_init_phy(struct asd_phy *phy)
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
 
 	sas_phy->enabled = 1;
-	sas_phy->class = SAS;
 	sas_phy->iproto = SAS_PROTOCOL_ALL;
 	sas_phy->tproto = 0;
-	sas_phy->type = PHY_TYPE_PHYSICAL;
 	sas_phy->role = PHY_ROLE_INITIATOR;
 	sas_phy->oob_mode = OOB_NOT_CONNECTED;
 	sas_phy->linkrate = SAS_LINK_RATE_UNKNOWN;
@@ -575,7 +573,7 @@ static int asd_extend_cmdctx(struct asd_ha_struct *asd_ha)
 
 /**
  * asd_init_ctxmem -- initialize context memory
- * asd_ha: pointer to host adapter structure
+ * @asd_ha: pointer to host adapter structure
  *
  * This function sets the maximum number of SCBs and
  * DDBs which can be used by the sequencer.  This is normally
@@ -903,7 +901,7 @@ static void asd_dch_sas_isr(struct asd_ha_struct *asd_ha)
 }
 
 /**
- * ads_rbi_exsi_isr -- process external system interface interrupt (INITERR)
+ * asd_rbi_exsi_isr -- process external system interface interrupt (INITERR)
  * @asd_ha: pointer to host adapter structure
  */
 static void asd_rbi_exsi_isr(struct asd_ha_struct *asd_ha)
@@ -1144,9 +1142,8 @@ static void asd_swap_head_scb(struct asd_ha_struct *asd_ha,
 }
 
 /**
- * asd_start_timers -- (add and) start timers of SCBs
+ * asd_start_scb_timers -- (add and) start timers of SCBs
  * @list: pointer to struct list_head of the scbs
- * @to: timeout in jiffies
  *
  * If an SCB in the @list has no timer function, assign the default
  * one,  then start the timer of the SCB.  This function is

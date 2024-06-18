@@ -2,8 +2,6 @@
 #ifndef _ARM_KEXEC_H
 #define _ARM_KEXEC_H
 
-#ifdef CONFIG_KEXEC
-
 /* Maximum physical address we can use pages from */
 #define KEXEC_SOURCE_MEMORY_LIMIT (-1UL)
 /* Maximum address we can reach in physical address mode */
@@ -56,9 +54,6 @@ static inline void crash_setup_regs(struct pt_regs *newregs,
 	}
 }
 
-/* Function pointer to optional machine-specific reinitialization */
-extern void (*kexec_reinit)(void);
-
 static inline unsigned long phys_to_boot_phys(phys_addr_t phys)
 {
 	return phys_to_idmap(phys);
@@ -84,7 +79,5 @@ static inline struct page *boot_pfn_to_page(unsigned long boot_pfn)
 #define boot_pfn_to_page boot_pfn_to_page
 
 #endif /* __ASSEMBLY__ */
-
-#endif /* CONFIG_KEXEC */
 
 #endif /* _ARM_KEXEC_H */

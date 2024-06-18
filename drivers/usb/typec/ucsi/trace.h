@@ -10,54 +10,18 @@
 #include <linux/usb/typec_altmode.h>
 
 const char *ucsi_cmd_str(u64 raw_cmd);
-const char *ucsi_ack_str(u8 ack);
 const char *ucsi_cci_str(u32 cci);
 const char *ucsi_recipient_str(u8 recipient);
 
-DECLARE_EVENT_CLASS(ucsi_log_ack,
-	TP_PROTO(u8 ack),
-	TP_ARGS(ack),
-	TP_STRUCT__entry(
-		__field(u8, ack)
-	),
-	TP_fast_assign(
-		__entry->ack = ack;
-	),
-	TP_printk("ACK %s", ucsi_ack_str(__entry->ack))
-);
-
-DEFINE_EVENT(ucsi_log_ack, ucsi_ack,
-	TP_PROTO(u8 ack),
-	TP_ARGS(ack)
-);
-
-DECLARE_EVENT_CLASS(ucsi_log_control,
-	TP_PROTO(struct ucsi_control *ctrl),
-	TP_ARGS(ctrl),
-	TP_STRUCT__entry(
-		__field(u64, ctrl)
-	),
-	TP_fast_assign(
-		__entry->ctrl = ctrl->raw_cmd;
-	),
-	TP_printk("control=%08llx (%s)", __entry->ctrl,
-		ucsi_cmd_str(__entry->ctrl))
-);
-
-DEFINE_EVENT(ucsi_log_control, ucsi_command,
-	TP_PROTO(struct ucsi_control *ctrl),
-	TP_ARGS(ctrl)
-);
-
 DECLARE_EVENT_CLASS(ucsi_log_command,
-	TP_PROTO(struct ucsi_control *ctrl, int ret),
-	TP_ARGS(ctrl, ret),
+	TP_PROTO(u64 command, int ret),
+	TP_ARGS(command, ret),
 	TP_STRUCT__entry(
 		__field(u64, ctrl)
 		__field(int, ret)
 	),
 	TP_fast_assign(
-		__entry->ctrl = ctrl->raw_cmd;
+		__entry->ctrl = command;
 		__entry->ret = ret;
 	),
 	TP_printk("%s -> %s (err=%d)", ucsi_cmd_str(__entry->ctrl),
@@ -66,30 +30,13 @@ DECLARE_EVENT_CLASS(ucsi_log_command,
 );
 
 DEFINE_EVENT(ucsi_log_command, ucsi_run_command,
-	TP_PROTO(struct ucsi_control *ctrl, int ret),
-	TP_ARGS(ctrl, ret)
+	TP_PROTO(u64 command, int ret),
+	TP_ARGS(command, ret)
 );
 
 DEFINE_EVENT(ucsi_log_command, ucsi_reset_ppm,
-	TP_PROTO(struct ucsi_control *ctrl, int ret),
-	TP_ARGS(ctrl, ret)
-);
-
-DECLARE_EVENT_CLASS(ucsi_log_cci,
-	TP_PROTO(u32 cci),
-	TP_ARGS(cci),
-	TP_STRUCT__entry(
-		__field(u32, cci)
-	),
-	TP_fast_assign(
-		__entry->cci = cci;
-	),
-	TP_printk("CCI=%08x %s", __entry->cci, ucsi_cci_str(__entry->cci))
-);
-
-DEFINE_EVENT(ucsi_log_cci, ucsi_notify,
-	TP_PROTO(u32 cci),
-	TP_ARGS(cci)
+	TP_PROTO(u64 command, int ret),
+	TP_ARGS(command, ret)
 );
 
 DECLARE_EVENT_CLASS(ucsi_log_connector_status,
@@ -109,13 +56,13 @@ DECLARE_EVENT_CLASS(ucsi_log_connector_status,
 	TP_fast_assign(
 		__entry->port = port - 1;
 		__entry->change = status->change;
-		__entry->opmode = status->pwr_op_mode;
-		__entry->connected = status->connected;
-		__entry->pwr_dir = status->pwr_dir;
-		__entry->partner_flags = status->partner_flags;
-		__entry->partner_type = status->partner_type;
+		__entry->opmode = UCSI_CONSTAT_PWR_OPMODE(status->flags);
+		__entry->connected = !!(status->flags & UCSI_CONSTAT_CONNECTED);
+		__entry->pwr_dir = !!(status->flags & UCSI_CONSTAT_PWR_DIR);
+		__entry->partner_flags = UCSI_CONSTAT_PARTNER_FLAGS(status->flags);
+		__entry->partner_type = UCSI_CONSTAT_PARTNER_TYPE(status->flags);
 		__entry->request_data_obj = status->request_data_obj;
-		__entry->bc_status = status->bc_status;
+		__entry->bc_status = UCSI_CONSTAT_BC_STATUS(status->pwr_status);
 	),
 	TP_printk("port%d status: change=%04x, opmode=%x, connected=%d, "
 		"sourcing=%d, partner_flags=%x, partner_type=%x, "

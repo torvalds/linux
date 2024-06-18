@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config DRM_ACCEL_IVPU
+	tristate "Intel NPU (Neural Processing Unit)"
+	depends on DRM_ACCEL
+	depends on X86_64 && !UML
+	depends on PCI && PCI_MSI
+	select FW_LOADER
+	select DRM_GEM_SHMEM_HELPER
+	select GENERIC_ALLOCATOR
+	help
+	  Choose this option if you have a system with an 14th generation
+	  Intel CPU (Meteor Lake) or newer. Intel NPU (formerly called Intel VPU)
+	  is a CPU-integrated inference accelerator for Computer Vision
+	  and Deep Learning applications.
+
+	  If "M" is selected, the module will be called intel_vpu.

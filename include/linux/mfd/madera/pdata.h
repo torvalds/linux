@@ -21,7 +21,6 @@
 
 struct gpio_desc;
 struct pinctrl_map;
-struct madera_codec_pdata;
 
 /**
  * struct madera_pdata - Configuration data for Madera devices
@@ -32,7 +31,7 @@ struct madera_codec_pdata;
  * @irq_flags:	    Mode for primary IRQ (defaults to active low)
  * @gpio_base:	    Base GPIO number
  * @gpio_configs:   Array of GPIO configurations (See
- *		    Documentation/driver-api/pinctl.rst)
+ *		    Documentation/driver-api/pin-control.rst)
  * @n_gpio_configs: Number of entries in gpio_configs
  * @gpsw:	    General purpose switch mode setting. Depends on the external
  *		    hardware connected to the switch. (See the SW1_MODE field

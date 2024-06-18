@@ -1,66 +1,9 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *****************************************************************************/
-
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
+/*
+ * Copyright (C) 2012-2014, 2018-2021, 2023 Intel Corporation
+ * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
+ * Copyright (C) 2016-2017 Intel Deutschland GmbH
+ */
 #ifndef __iwl_fw_api_sta_h__
 #define __iwl_fw_api_sta_h__
 
@@ -85,6 +28,8 @@
  * @STA_FLG_MAX_AGG_SIZE_256K: maximal size for A-MPDU (256k supported)
  * @STA_FLG_MAX_AGG_SIZE_512K: maximal size for A-MPDU (512k supported)
  * @STA_FLG_MAX_AGG_SIZE_1024K: maximal size for A-MPDU (1024k supported)
+ * @STA_FLG_MAX_AGG_SIZE_2M: maximal size for A-MPDU (2M supported)
+ * @STA_FLG_MAX_AGG_SIZE_4M: maximal size for A-MPDU (4M supported)
  * @STA_FLG_AGG_MPDU_DENS_MSK: maximal MPDU density for Tx aggregation
  * @STA_FLG_FAT_EN_MSK: support for channel width (for Tx). This flag is
  *	initialised by driver and can be updated by fw upon reception of
@@ -128,7 +73,9 @@ enum iwl_sta_flags {
 	STA_FLG_MAX_AGG_SIZE_256K	= (5 << STA_FLG_MAX_AGG_SIZE_SHIFT),
 	STA_FLG_MAX_AGG_SIZE_512K	= (6 << STA_FLG_MAX_AGG_SIZE_SHIFT),
 	STA_FLG_MAX_AGG_SIZE_1024K	= (7 << STA_FLG_MAX_AGG_SIZE_SHIFT),
-	STA_FLG_MAX_AGG_SIZE_MSK	= (7 << STA_FLG_MAX_AGG_SIZE_SHIFT),
+	STA_FLG_MAX_AGG_SIZE_2M		= (8 << STA_FLG_MAX_AGG_SIZE_SHIFT),
+	STA_FLG_MAX_AGG_SIZE_4M		= (9 << STA_FLG_MAX_AGG_SIZE_SHIFT),
+	STA_FLG_MAX_AGG_SIZE_MSK	= (0xf << STA_FLG_MAX_AGG_SIZE_SHIFT),
 
 	STA_FLG_AGG_MPDU_DENS_SHIFT	= 23,
 	STA_FLG_AGG_MPDU_DENS_2US	= (4 << STA_FLG_AGG_MPDU_DENS_SHIFT),
@@ -162,6 +109,7 @@ enum iwl_sta_flags {
  * @STA_KEY_FLG_EN_MSK: mask for encryption algorithmi value
  * @STA_KEY_FLG_WEP_KEY_MAP: wep is either a group key (0 - legacy WEP) or from
  *	station info array (1 - n 1X mode)
+ * @STA_KEY_FLG_AMSDU_SPP: SPP (signaling and payload protected) A-MSDU
  * @STA_KEY_FLG_KEYID_MSK: the index of the key
  * @STA_KEY_FLG_KEYID_POS: key index bit position
  * @STA_KEY_NOT_VALID: key is invalid
@@ -182,6 +130,7 @@ enum iwl_sta_key_flag {
 	STA_KEY_FLG_EN_MSK		= (7 << 0),
 
 	STA_KEY_FLG_WEP_KEY_MAP		= BIT(3),
+	STA_KEY_FLG_AMSDU_SPP		= BIT(7),
 	STA_KEY_FLG_KEYID_POS		 = 8,
 	STA_KEY_FLG_KEYID_MSK		= (3 << STA_KEY_FLG_KEYID_POS),
 	STA_KEY_NOT_VALID		= BIT(11),
@@ -245,32 +194,6 @@ enum iwl_sta_sleep_flag {
 #define STA_KEY_LEN_WEP40 (5)
 #define STA_KEY_LEN_WEP104 (13)
 
-/**
- * struct iwl_mvm_keyinfo - key information
- * @key_flags: type &enum iwl_sta_key_flag
- * @tkip_rx_tsc_byte2: TSC[2] for key mix ph1 detection
- * @reserved1: reserved
- * @tkip_rx_ttak: 10-byte unicast TKIP TTAK for Rx
- * @key_offset: key offset in the fw's key table
- * @reserved2: reserved
- * @key: 16-byte unicast decryption key
- * @tx_secur_seq_cnt: initial RSC / PN needed for replay check
- * @hw_tkip_mic_rx_key: byte: MIC Rx Key - used for TKIP only
- * @hw_tkip_mic_tx_key: byte: MIC Tx Key - used for TKIP only
- */
-struct iwl_mvm_keyinfo {
-	__le16 key_flags;
-	u8 tkip_rx_tsc_byte2;
-	u8 reserved1;
-	__le16 tkip_rx_ttak[5];
-	u8 key_offset;
-	u8 reserved2;
-	u8 key[16];
-	__le64 tx_secur_seq_cnt;
-	__le64 hw_tkip_mic_rx_key;
-	__le64 hw_tkip_mic_tx_key;
-} __packed;
-
 #define IWL_ADD_STA_STATUS_MASK		0xFF
 #define IWL_ADD_STA_BAID_VALID_MASK	0x8000
 #define IWL_ADD_STA_BAID_MASK		0x7F00
@@ -288,8 +211,7 @@ struct iwl_mvm_keyinfo {
  * @addr: station's MAC address
  * @reserved2: reserved
  * @sta_id: index of station in uCode's station table
- * @modify_mask: STA_MODIFY_*, selects which parameters to modify vs. leave
- *	alone. 1 - modify, 0 - don't change.
+ * @modify_mask: from &enum iwl_sta_modify_flag, selects what to change
  * @reserved3: reserved
  * @station_flags: look at &enum iwl_sta_flags
  * @station_flags_msk: what of %station_flags have changed,
@@ -369,8 +291,7 @@ enum iwl_sta_type {
  * @addr: station's MAC address
  * @reserved2: reserved
  * @sta_id: index of station in uCode's station table
- * @modify_mask: STA_MODIFY_*, selects which parameters to modify vs. leave
- *	alone. 1 - modify, 0 - don't change.
+ * @modify_mask: from &enum iwl_sta_modify_flag, selects what to change
  * @reserved3: reserved
  * @station_flags: look at &enum iwl_sta_flags
  * @station_flags_msk: what of %station_flags have changed,
@@ -408,7 +329,7 @@ struct iwl_mvm_add_sta_cmd {
 	u8 add_modify;
 	u8 awake_acs;
 	__le16 tid_disable_tx;
-	__le32 mac_id_n_color;
+	__le32 mac_id_n_color;  /* can be used for lmac id when using cmd v12 */
 	u8 addr[ETH_ALEN];	/* _STA_ID_MODIFY_INFO_API_S_VER_1 */
 	__le16 reserved2;
 	u8 sta_id;
@@ -467,13 +388,17 @@ struct iwl_mvm_add_sta_key_cmd_v1 {
  * @rx_mic_key: TKIP RX unicast or multicast key
  * @tx_mic_key: TKIP TX key
  * @transmit_seq_cnt: TSC, transmit packet number
+ *
+ * Note: This is used for both v2 and v3, the difference being
+ * in the way the common.rx_secur_seq_cnt is used, in v2 that's
+ * the strange hole format, in v3 it's just a u64.
  */
 struct iwl_mvm_add_sta_key_cmd {
 	struct iwl_mvm_add_sta_key_common common;
 	__le64 rx_mic_key;
 	__le64 tx_mic_key;
 	__le64 transmit_seq_cnt;
-} __packed; /* ADD_MODIFY_STA_KEY_API_S_VER_2 */
+} __packed; /* ADD_MODIFY_STA_KEY_API_S_VER_2, ADD_MODIFY_STA_KEY_API_S_VER_3 */
 
 /**
  * enum iwl_mvm_add_sta_rsp_status - status in the response to ADD_STA command
@@ -554,7 +479,7 @@ struct iwl_mvm_wep_key_cmd {
 	u8 decryption_type;
 	u8 flags;
 	u8 reserved;
-	struct iwl_mvm_wep_key wep_key[0];
+	struct iwl_mvm_wep_key wep_key[];
 } __packed; /* SEC_CURR_WEP_KEY_CMD_API_S_VER_2 */
 
 /**

@@ -1,0 +1,263 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (C) 2020 Texas Instruments Incorporated
+# Author: Peter Ujfalusi <peter.ujfalusi@ti.com>
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/dma/ti/k3-bcdma.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments K3 DMSS BCDMA
+
+maintainers:
+  - Peter Ujfalusi <peter.ujfalusi@gmail.com>
+
+description: |
+  The Block Copy DMA (BCDMA) is intended to perform similar functions as the TR
+  mode channels of K3 UDMA-P.
+  BCDMA includes block copy channels and Split channels.
+
+  Block copy channels mainly used for memory to memory transfers, but with
+  optional triggers a block copy channel can service peripherals by accessing
+  directly to memory mapped registers or area.
+
+  Split channels can be used to service PSI-L based peripherals.
+  The peripherals can be PSI-L native or legacy, non PSI-L native peripherals
+  with PDMAs. PDMA is tasked to act as a bridge between the PSI-L fabric and the
+  legacy peripheral.
+
+  PDMAs can be configured via BCDMA split channel's peer registers to match with
+  the configuration of the legacy peripheral.
+
+properties:
+  compatible:
+    enum:
+      - ti,am62a-dmss-bcdma-csirx
+      - ti,am64-dmss-bcdma
+      - ti,j721s2-dmss-bcdma-csi
+
+  reg:
+    minItems: 3
+    maxItems: 9
+
+  reg-names:
+    minItems: 3
+    maxItems: 9
+
+  "#dma-cells":
+    const: 3
+    description: |
+      cell 1: type of the BCDMA channel to be used to service the peripheral:
+        0 - split channel
+        1 - block copy channel using global trigger 1
+        2 - block copy channel using global trigger 2
+        3 - block copy channel using local trigger
+
+      cell 2: parameter for the channel:
+        if cell 1 is 0 (split channel):
+          PSI-L thread ID of the remote (to BCDMA) end.
+          Valid ranges for thread ID depends on the data movement direction:
+          for source thread IDs (rx): 0 - 0x7fff
+          for destination thread IDs (tx): 0x8000 - 0xffff
+
+          Please refer to the device documentation for the PSI-L thread map and
+          also the PSI-L peripheral chapter for the correct thread ID.
+        if cell 1 is 1 or 2 (block copy channel using global trigger):
+          Unused, ignored
+
+          The trigger must be configured for the channel externally to BCDMA,
+          channels using global triggers should not be requested directly, but
+          via DMA event router.
+        if cell 1 is 3 (block copy channel using local trigger):
+          bchan number of the locally triggered channel
+
+      cell 3: ASEL value for the channel
+
+  msi-parent: true
+
+  power-domains:
+    description:
+      Power domain if available
+    maxItems: 1
+
+  ti,asel:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: ASEL value for non slave channels
+
+  ti,sci-rm-range-bchan:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    description: |
+      Array of BCDMA block-copy channel resource subtypes for resource
+      allocation for this host
+    minItems: 1
+    # Should be enough
+    maxItems: 255
+    items:
+      maximum: 0x3f
+
+  ti,sci-rm-range-tchan:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    description: |
+      Array of BCDMA split tx channel resource subtypes for resource allocation
+      for this host
+    minItems: 1
+    # Should be enough
+    maxItems: 255
+    items:
+      maximum: 0x3f
+
+  ti,sci-rm-range-rchan:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    description: |
+      Array of BCDMA split rx channel resource subtypes for resource allocation
+      for this host
+    minItems: 1
+    # Should be enough
+    maxItems: 255
+    items:
+      maximum: 0x3f
+
+required:
+  - compatible
+  - "#dma-cells"
+  - reg
+  - reg-names
+  - msi-parent
+  - ti,sci
+  - ti,sci-dev-id
+  - ti,sci-rm-range-rchan
+
+allOf:
+  - $ref: /schemas/dma/dma-controller.yaml#
+  - $ref: /schemas/arm/keystone/ti,k3-sci-common.yaml#
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ti,am62a-dmss-bcdma-csirx
+    then:
+      properties:
+        ti,sci-rm-range-bchan: false
+        ti,sci-rm-range-tchan: false
+
+        reg:
+          items:
+            - description: BCDMA Control /Status Registers region
+            - description: RX Channel Realtime Registers region
+            - description: Ring Realtime Registers region
+
+        reg-names:
+          items:
+            - const: gcfg
+            - const: rchanrt
+            - const: ringrt
+
+      required:
+        - power-domains
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ti,am64-dmss-bcdma
+    then:
+      properties:
+        reg:
+          minItems: 5
+          items:
+            - description: BCDMA Control /Status Registers region
+            - description: Block Copy Channel Realtime Registers region
+            - description: RX Channel Realtime Registers region
+            - description: TX Channel Realtime Registers region
+            - description: Ring Realtime Registers region
+            - description: Ring Configuration Registers region
+            - description: TX Channel Configuration Registers region
+            - description: RX Channel Configuration Registers region
+            - description: Block Copy Channel Configuration Registers region
+
+        reg-names:
+          minItems: 5
+          items:
+            - const: gcfg
+            - const: bchanrt
+            - const: rchanrt
+            - const: tchanrt
+            - const: ringrt
+            - const: ring
+            - const: tchan
+            - const: rchan
+            - const: bchan
+
+      required:
+        - ti,sci-rm-range-bchan
+        - ti,sci-rm-range-tchan
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ti,j721s2-dmss-bcdma-csi
+    then:
+      properties:
+        ti,sci-rm-range-bchan: false
+
+        reg:
+          items:
+            - description: BCDMA Control /Status Registers region
+            - description: RX Channel Realtime Registers region
+            - description: TX Channel Realtime Registers region
+            - description: Ring Realtime Registers region
+
+        reg-names:
+          items:
+            - const: gcfg
+            - const: rchanrt
+            - const: tchanrt
+            - const: ringrt
+
+      required:
+        - ti,sci-rm-range-tchan
+
+unevaluatedProperties: false
+
+examples:
+  - |+
+    cbass_main {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        main_dmss {
+            compatible = "simple-mfd";
+            #address-cells = <2>;
+            #size-cells = <2>;
+            dma-ranges;
+            ranges;
+
+            ti,sci-dev-id = <25>;
+
+            main_bcdma: dma-controller@485c0100 {
+                compatible = "ti,am64-dmss-bcdma";
+
+                reg = <0x0 0x485c0100 0x0 0x100>,
+                      <0x0 0x4c000000 0x0 0x20000>,
+                      <0x0 0x4a820000 0x0 0x20000>,
+                      <0x0 0x4aa40000 0x0 0x20000>,
+                      <0x0 0x4bc00000 0x0 0x100000>,
+                      <0x0 0x48600000 0x0 0x8000>,
+                      <0x0 0x484a4000 0x0 0x2000>,
+                      <0x0 0x484c2000 0x0 0x2000>,
+                      <0x0 0x48420000 0x0 0x2000>;
+                reg-names = "gcfg", "bchanrt", "rchanrt", "tchanrt", "ringrt",
+                            "ring", "tchan", "rchan", "bchan";
+                msi-parent = <&inta_main_dmss>;
+                #dma-cells = <3>;
+
+                ti,sci = <&dmsc>;
+                ti,sci-dev-id = <26>;
+
+                ti,sci-rm-range-bchan = <0x20>; /* BLOCK_COPY_CHAN */
+                ti,sci-rm-range-rchan = <0x21>; /* SPLIT_TR_RX_CHAN */
+                ti,sci-rm-range-tchan = <0x22>; /* SPLIT_TR_TX_CHAN */
+            };
+        };
+    };

@@ -19,6 +19,7 @@
 #include <asm/mipsmtregs.h>
 #include <asm/r4kcache.h>
 #include <asm/cacheflush.h>
+#include <asm/mips_mt.h>
 
 int vpelimit;
 
@@ -228,19 +229,13 @@ void mips_mt_set_cpuoptions(void)
 	}
 }
 
-struct class *mt_class;
+const struct class mt_class = {
+	.name = "mt",
+};
 
-static int __init mt_init(void)
+static int __init mips_mt_init(void)
 {
-	struct class *mtc;
-
-	mtc = class_create(THIS_MODULE, "mt");
-	if (IS_ERR(mtc))
-		return PTR_ERR(mtc);
-
-	mt_class = mtc;
-
-	return 0;
+	return class_register(&mt_class);
 }
 
-subsys_initcall(mt_init);
+subsys_initcall(mips_mt_init);

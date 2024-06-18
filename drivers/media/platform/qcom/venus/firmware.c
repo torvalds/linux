@@ -10,9 +10,10 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 #include <linux/of_device.h>
-#include <linux/qcom_scm.h>
+#include <linux/firmware/qcom/qcom_scm.h>
 #include <linux/sizes.h>
 #include <linux/soc/qcom/mdt_loader.h>
 
@@ -27,30 +28,53 @@
 static void venus_reset_cpu(struct venus_core *core)
 {
 	u32 fw_size = core->fw.mapped_mem_size;
-	void __iomem *base = core->base;
+	void __iomem *wrapper_base;
 
-	writel(0, base + WRAPPER_FW_START_ADDR);
-	writel(fw_size, base + WRAPPER_FW_END_ADDR);
-	writel(0, base + WRAPPER_CPA_START_ADDR);
-	writel(fw_size, base + WRAPPER_CPA_END_ADDR);
-	writel(fw_size, base + WRAPPER_NONPIX_START_ADDR);
-	writel(fw_size, base + WRAPPER_NONPIX_END_ADDR);
-	writel(0x0, base + WRAPPER_CPU_CGC_DIS);
-	writel(0x0, base + WRAPPER_CPU_CLOCK_CONFIG);
+	if (IS_IRIS2_1(core))
+		wrapper_base = core->wrapper_tz_base;
+	else
+		wrapper_base = core->wrapper_base;
 
-	/* Bring ARM9 out of reset */
-	writel(0, base + WRAPPER_A9SS_SW_RESET);
+	writel(0, wrapper_base + WRAPPER_FW_START_ADDR);
+	writel(fw_size, wrapper_base + WRAPPER_FW_END_ADDR);
+	writel(0, wrapper_base + WRAPPER_CPA_START_ADDR);
+	writel(fw_size, wrapper_base + WRAPPER_CPA_END_ADDR);
+	writel(fw_size, wrapper_base + WRAPPER_NONPIX_START_ADDR);
+	writel(fw_size, wrapper_base + WRAPPER_NONPIX_END_ADDR);
+
+	if (IS_IRIS2_1(core)) {
+		/* Bring XTSS out of reset */
+		writel(0, wrapper_base + WRAPPER_TZ_XTSS_SW_RESET);
+	} else {
+		writel(0x0, wrapper_base + WRAPPER_CPU_CGC_DIS);
+		writel(0x0, wrapper_base + WRAPPER_CPU_CLOCK_CONFIG);
+
+		/* Bring ARM9 out of reset */
+		writel(0, wrapper_base + WRAPPER_A9SS_SW_RESET);
+	}
 }
 
 int venus_set_hw_state(struct venus_core *core, bool resume)
 {
-	if (core->use_tz)
-		return qcom_scm_set_remote_state(resume, 0);
+	int ret;
 
-	if (resume)
+	if (core->use_tz) {
+		ret = qcom_scm_set_remote_state(resume, 0);
+		if (resume && ret == -EINVAL)
+			ret = 0;
+		return ret;
+	}
+
+	if (resume) {
 		venus_reset_cpu(core);
-	else
-		writel(1, core->base + WRAPPER_A9SS_SW_RESET);
+	} else {
+		if (IS_IRIS2_1(core))
+			writel(WRAPPER_XTSS_SW_RESET_BIT,
+			       core->wrapper_tz_base + WRAPPER_TZ_XTSS_SW_RESET);
+		else
+			writel(WRAPPER_A9SS_SW_RESET_BIT,
+			       core->wrapper_base + WRAPPER_A9SS_SW_RESET);
+	}
 
 	return 0;
 }
@@ -59,9 +83,9 @@ static int venus_load_fw(struct venus_core *core, const char *fwname,
 			 phys_addr_t *mem_phys, size_t *mem_size)
 {
 	const struct firmware *mdt;
+	struct reserved_mem *rmem;
 	struct device_node *node;
 	struct device *dev;
-	struct resource r;
 	ssize_t fw_size;
 	void *mem_va;
 	int ret;
@@ -76,13 +100,16 @@ static int venus_load_fw(struct venus_core *core, const char *fwname,
 		return -EINVAL;
 	}
 
-	ret = of_address_to_resource(node, 0, &r);
-	if (ret)
-		goto err_put_node;
+	rmem = of_reserved_mem_lookup(node);
+	of_node_put(node);
+	if (!rmem) {
+		dev_err(dev, "failed to lookup reserved memory-region\n");
+		return -EINVAL;
+	}
 
 	ret = request_firmware(&mdt, fwname, dev);
 	if (ret < 0)
-		goto err_put_node;
+		return ret;
 
 	fw_size = qcom_mdt_get_size(mdt);
 	if (fw_size < 0) {
@@ -90,18 +117,17 @@ static int venus_load_fw(struct venus_core *core, const char *fwname,
 		goto err_release_fw;
 	}
 
-	*mem_phys = r.start;
-	*mem_size = resource_size(&r);
+	*mem_phys = rmem->base;
+	*mem_size = rmem->size;
 
 	if (*mem_size < fw_size || fw_size > VENUS_FW_MEM_SIZE) {
 		ret = -EINVAL;
 		goto err_release_fw;
 	}
 
-	mem_va = memremap(r.start, *mem_size, MEMREMAP_WC);
+	mem_va = memremap(*mem_phys, *mem_size, MEMREMAP_WC);
 	if (!mem_va) {
-		dev_err(dev, "unable to map memory region: %pa+%zx\n",
-			&r.start, *mem_size);
+		dev_err(dev, "unable to map memory region %pa size %#zx\n", mem_phys, *mem_size);
 		ret = -ENOMEM;
 		goto err_release_fw;
 	}
@@ -116,8 +142,6 @@ static int venus_load_fw(struct venus_core *core, const char *fwname,
 	memunmap(mem_va);
 err_release_fw:
 	release_firmware(mdt);
-err_put_node:
-	of_node_put(node);
 	return ret;
 }
 
@@ -136,7 +160,7 @@ static int venus_boot_no_tz(struct venus_core *core, phys_addr_t mem_phys,
 	core->fw.mapped_mem_size = mem_size;
 
 	ret = iommu_map(iommu, VENUS_FW_START_ADDR, mem_phys, mem_size,
-			IOMMU_READ | IOMMU_WRITE | IOMMU_PRIV);
+			IOMMU_READ | IOMMU_WRITE | IOMMU_PRIV, GFP_KERNEL);
 	if (ret) {
 		dev_err(dev, "could not map video firmware region\n");
 		return ret;
@@ -154,21 +178,31 @@ static int venus_shutdown_no_tz(struct venus_core *core)
 	size_t unmapped;
 	u32 reg;
 	struct device *dev = core->fw.dev;
-	void __iomem *base = core->base;
+	void __iomem *wrapper_base = core->wrapper_base;
+	void __iomem *wrapper_tz_base = core->wrapper_tz_base;
 
-	/* Assert the reset to ARM9 */
-	reg = readl_relaxed(base + WRAPPER_A9SS_SW_RESET);
-	reg |= WRAPPER_A9SS_SW_RESET_BIT;
-	writel_relaxed(reg, base + WRAPPER_A9SS_SW_RESET);
-
-	/* Make sure reset is asserted before the mapping is removed */
-	mb();
+	if (IS_IRIS2_1(core)) {
+		/* Assert the reset to XTSS */
+		reg = readl(wrapper_tz_base + WRAPPER_TZ_XTSS_SW_RESET);
+		reg |= WRAPPER_XTSS_SW_RESET_BIT;
+		writel(reg, wrapper_tz_base + WRAPPER_TZ_XTSS_SW_RESET);
+	} else {
+		/* Assert the reset to ARM9 */
+		reg = readl(wrapper_base + WRAPPER_A9SS_SW_RESET);
+		reg |= WRAPPER_A9SS_SW_RESET_BIT;
+		writel(reg, wrapper_base + WRAPPER_A9SS_SW_RESET);
+	}
 
 	iommu = core->fw.iommu_domain;
 
-	unmapped = iommu_unmap(iommu, VENUS_FW_START_ADDR, mapped);
-	if (unmapped != mapped)
-		dev_err(dev, "failed to unmap firmware\n");
+	if (core->fw.mapped_mem_size && iommu) {
+		unmapped = iommu_unmap(iommu, VENUS_FW_START_ADDR, mapped);
+
+		if (unmapped != mapped)
+			dev_err(dev, "failed to unmap firmware\n");
+		else
+			core->fw.mapped_mem_size = 0;
+	}
 
 	return 0;
 }
@@ -176,6 +210,8 @@ static int venus_shutdown_no_tz(struct venus_core *core)
 int venus_boot(struct venus_core *core)
 {
 	struct device *dev = core->dev;
+	const struct venus_resources *res = core->res;
+	const char *fwpath = NULL;
 	phys_addr_t mem_phys;
 	size_t mem_size;
 	int ret;
@@ -184,18 +220,52 @@ int venus_boot(struct venus_core *core)
 	    (core->use_tz && !qcom_scm_is_available()))
 		return -EPROBE_DEFER;
 
-	ret = venus_load_fw(core, core->res->fwname, &mem_phys, &mem_size);
+	ret = of_property_read_string_index(dev->of_node, "firmware-name", 0,
+					    &fwpath);
+	if (ret)
+		fwpath = core->res->fwname;
+
+	ret = venus_load_fw(core, fwpath, &mem_phys, &mem_size);
 	if (ret) {
 		dev_err(dev, "fail to load video firmware\n");
 		return -EINVAL;
 	}
+
+	core->fw.mem_size = mem_size;
+	core->fw.mem_phys = mem_phys;
 
 	if (core->use_tz)
 		ret = qcom_scm_pas_auth_and_reset(VENUS_PAS_ID);
 	else
 		ret = venus_boot_no_tz(core, mem_phys, mem_size);
 
-	return ret;
+	if (ret)
+		return ret;
+
+	if (core->use_tz && res->cp_size) {
+		/*
+		 * Clues for porting using downstream data:
+		 * cp_start = 0
+		 * cp_size = venus_ns/virtual-addr-pool[0] - yes, address and not size!
+		 *   This works, as the non-secure context bank is placed
+		 *   contiguously right after the Content Protection region.
+		 *
+		 * cp_nonpixel_start = venus_sec_non_pixel/virtual-addr-pool[0]
+		 * cp_nonpixel_size = venus_sec_non_pixel/virtual-addr-pool[1]
+		 */
+		ret = qcom_scm_mem_protect_video_var(res->cp_start,
+						     res->cp_size,
+						     res->cp_nonpixel_start,
+						     res->cp_nonpixel_size);
+		if (ret) {
+			qcom_scm_pas_shutdown(VENUS_PAS_ID);
+			dev_err(dev, "set virtual address ranges fail (%d)\n",
+				ret);
+			return ret;
+		}
+	}
+
+	return 0;
 }
 
 int venus_shutdown(struct venus_core *core)
@@ -283,7 +353,11 @@ void venus_firmware_deinit(struct venus_core *core)
 	iommu = core->fw.iommu_domain;
 
 	iommu_detach_device(iommu, core->fw.dev);
-	iommu_domain_free(iommu);
+
+	if (core->fw.iommu_domain) {
+		iommu_domain_free(iommu);
+		core->fw.iommu_domain = NULL;
+	}
 
 	platform_device_unregister(to_platform_device(core->fw.dev));
 }

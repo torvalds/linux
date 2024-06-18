@@ -70,18 +70,6 @@ static int slave_alloc(struct scsi_device *sdev)
 
 static int slave_configure(struct scsi_device *sdev)
 {
-	/*
-	 * Scatter-gather buffers (all but the last) must have a length
-	 * divisible by the bulk maxpacket size.  Otherwise a data packet
-	 * would end up being short, causing a premature end to the data
-	 * transfer.  Since high-speed bulk pipes have a maxpacket size
-	 * of 512, we'll use that as the scsi device queue's DMA alignment
-	 * mask.  Guaranteeing proper alignment of the first buffer will
-	 * have the desired effect because, except at the beginning and
-	 * the end, scatter-gather buffers follow page boundaries.
-	 */
-	blk_queue_dma_alignment(sdev->request_queue, (512 - 1));
-
 	/* Set the SCSI level to at least 2.  We'll leave it at 3 if that's
 	 * what is originally reported.  We need this to avoid confusing
 	 * the SCSI layer with devices that report 0 or 1, but need 10-byte
@@ -117,10 +105,10 @@ static int slave_configure(struct scsi_device *sdev)
 	} while (0)
 
 /* queue a command */
-/* This is always called with scsi_lock(host) held */
-static int queuecommand_lck(struct scsi_cmnd *srb,
-			    void (*done)(struct scsi_cmnd *))
+/* This is always called with spin_lock_irq(host->host_lock) held */
+static int queuecommand_lck(struct scsi_cmnd *srb)
 {
+	void (*done)(struct scsi_cmnd *) = scsi_done;
 	struct rtsx_dev *dev = host_to_rtsx(srb->device->host);
 	struct rtsx_chip *chip = dev->chip;
 
@@ -140,7 +128,6 @@ static int queuecommand_lck(struct scsi_cmnd *srb,
 	}
 
 	/* enqueue the command and wake up the control thread */
-	srb->scsi_done = done;
 	chip->srb = srb;
 	complete(&dev->cmnd_ready);
 
@@ -160,20 +147,18 @@ static int command_abort(struct scsi_cmnd *srb)
 	struct rtsx_dev *dev = host_to_rtsx(host);
 	struct rtsx_chip *chip = dev->chip;
 
-	dev_info(&dev->pci->dev, "%s called\n", __func__);
-
-	scsi_lock(host);
+	spin_lock_irq(host->host_lock);
 
 	/* Is this command still active? */
 	if (chip->srb != srb) {
-		scsi_unlock(host);
+		spin_unlock_irq(host->host_lock);
 		dev_info(&dev->pci->dev, "-- nothing to abort\n");
 		return FAILED;
 	}
 
 	rtsx_set_stat(chip, RTSX_STAT_ABORT);
 
-	scsi_unlock(host);
+	spin_unlock_irq(host->host_lock);
 
 	/* Wait for the aborted command to finish */
 	wait_for_completion(&dev->notify);
@@ -187,10 +172,6 @@ static int command_abort(struct scsi_cmnd *srb)
  */
 static int device_reset(struct scsi_cmnd *srb)
 {
-	struct rtsx_dev *dev = host_to_rtsx(srb->device->host);
-
-	dev_info(&dev->pci->dev, "%s called\n", __func__);
-
 	return SUCCESS;
 }
 
@@ -198,7 +179,7 @@ static int device_reset(struct scsi_cmnd *srb)
  * this defines our host template, with which we'll allocate hosts
  */
 
-static struct scsi_host_template rtsx_host_template = {
+static const struct scsi_host_template rtsx_host_template = {
 	/* basic userland interface stuff */
 	.name =				CR_DRIVER_NAME,
 	.proc_name =			CR_DRIVER_NAME,
@@ -225,6 +206,18 @@ static struct scsi_host_template rtsx_host_template = {
 
 	/* limit the total size of a transfer to 120 KB */
 	.max_sectors =                  240,
+
+	/*
+	 * Scatter-gather buffers (all but the last) must have a length
+	 * divisible by the bulk maxpacket size.  Otherwise a data packet
+	 * would end up being short, causing a premature end to the data
+	 * transfer.  Since high-speed bulk pipes have a maxpacket size
+	 * of 512, we'll use that as the scsi device queue's DMA alignment
+	 * mask.  Guaranteeing proper alignment of the first buffer will
+	 * have the desired effect because, except at the beginning and
+	 * the end, scatter-gather buffers follow page boundaries.
+	 */
+	.dma_alignment =		511,
 
 	/* emulated HBA */
 	.emulated =			1,
@@ -258,12 +251,12 @@ static int rtsx_acquire_irq(struct rtsx_dev *dev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
 /*
  * power management
  */
-static int rtsx_suspend(struct pci_dev *pci, pm_message_t state)
+static int __maybe_unused rtsx_suspend(struct device *dev_d)
 {
+	struct pci_dev *pci = to_pci_dev(dev_d);
 	struct rtsx_dev *dev = pci_get_drvdata(pci);
 	struct rtsx_chip *chip;
 
@@ -283,12 +276,9 @@ static int rtsx_suspend(struct pci_dev *pci, pm_message_t state)
 	}
 
 	if (chip->msi_en)
-		pci_disable_msi(pci);
+		pci_free_irq_vectors(pci);
 
-	pci_save_state(pci);
-	pci_enable_wake(pci, pci_choose_state(pci, state), 1);
-	pci_disable_device(pci);
-	pci_set_power_state(pci, pci_choose_state(pci, state));
+	device_wakeup_enable(dev_d);
 
 	/* unlock the device pointers */
 	mutex_unlock(&dev->dev_mutex);
@@ -296,8 +286,9 @@ static int rtsx_suspend(struct pci_dev *pci, pm_message_t state)
 	return 0;
 }
 
-static int rtsx_resume(struct pci_dev *pci)
+static int __maybe_unused rtsx_resume(struct device *dev_d)
 {
+	struct pci_dev *pci = to_pci_dev(dev_d);
 	struct rtsx_dev *dev = pci_get_drvdata(pci);
 	struct rtsx_chip *chip;
 
@@ -309,20 +300,10 @@ static int rtsx_resume(struct pci_dev *pci)
 	/* lock the device pointers */
 	mutex_lock(&dev->dev_mutex);
 
-	pci_set_power_state(pci, PCI_D0);
-	pci_restore_state(pci);
-	if (pci_enable_device(pci) < 0) {
-		dev_err(&dev->pci->dev,
-			"%s: pci_enable_device failed, disabling device\n",
-			CR_DRIVER_NAME);
-		/* unlock the device pointers */
-		mutex_unlock(&dev->dev_mutex);
-		return -EIO;
-	}
 	pci_set_master(pci);
 
 	if (chip->msi_en) {
-		if (pci_enable_msi(pci) < 0)
+		if (pci_alloc_irq_vectors(pci, 1, 1, PCI_IRQ_MSI) < 0)
 			chip->msi_en = 0;
 	}
 
@@ -340,7 +321,6 @@ static int rtsx_resume(struct pci_dev *pci)
 
 	return 0;
 }
-#endif /* CONFIG_PM */
 
 static void rtsx_shutdown(struct pci_dev *pci)
 {
@@ -360,7 +340,7 @@ static void rtsx_shutdown(struct pci_dev *pci)
 	}
 
 	if (chip->msi_en)
-		pci_disable_msi(pci);
+		pci_free_irq_vectors(pci);
 
 	pci_disable_device(pci);
 }
@@ -386,7 +366,7 @@ static int rtsx_control_thread(void *__dev)
 		}
 
 		/* lock access to the state */
-		scsi_lock(host);
+		spin_lock_irq(host->host_lock);
 
 		/* has the command aborted ? */
 		if (rtsx_chk_stat(chip, RTSX_STAT_ABORT)) {
@@ -394,7 +374,7 @@ static int rtsx_control_thread(void *__dev)
 			goto skip_for_abort;
 		}
 
-		scsi_unlock(host);
+		spin_unlock_irq(host->host_lock);
 
 		/* reject the command if the direction indicator
 		 * is UNKNOWN
@@ -402,33 +382,27 @@ static int rtsx_control_thread(void *__dev)
 		if (chip->srb->sc_data_direction == DMA_BIDIRECTIONAL) {
 			dev_err(&dev->pci->dev, "UNKNOWN data direction\n");
 			chip->srb->result = DID_ERROR << 16;
-		}
-
-		/* reject if target != 0 or if LUN is higher than
-		 * the maximum known LUN
-		 */
-		else if (chip->srb->device->id) {
+		} else if (chip->srb->device->id) {
+			/* reject if target != 0 or if LUN is higher than
+			 * the maximum known LUN
+			 */
 			dev_err(&dev->pci->dev, "Bad target number (%d:%d)\n",
 				chip->srb->device->id,
 				(u8)chip->srb->device->lun);
 			chip->srb->result = DID_BAD_TARGET << 16;
-		}
-
-		else if (chip->srb->device->lun > chip->max_lun) {
+		} else if (chip->srb->device->lun > chip->max_lun) {
 			dev_err(&dev->pci->dev, "Bad LUN (%d:%d)\n",
 				chip->srb->device->id,
 				(u8)chip->srb->device->lun);
 			chip->srb->result = DID_BAD_TARGET << 16;
-		}
-
-		/* we've got a command, let's do it! */
-		else {
+		} else {
+			/* we've got a command, let's do it! */
 			scsi_show_command(chip);
 			rtsx_invoke_transport(chip->srb, chip);
 		}
 
 		/* lock access to the state */
-		scsi_lock(host);
+		spin_lock_irq(host->host_lock);
 
 		/* did the command already complete because of a disconnect? */
 		if (!chip->srb)
@@ -436,7 +410,7 @@ static int rtsx_control_thread(void *__dev)
 
 		/* indicate that the command is done */
 		else if (chip->srb->result != DID_ABORT << 16) {
-			chip->srb->scsi_done(chip->srb);
+			scsi_done(chip->srb);
 		} else {
 skip_for_abort:
 			dev_err(&dev->pci->dev, "scsi command aborted\n");
@@ -450,7 +424,7 @@ skip_for_abort:
 
 		/* finished working on this command */
 		chip->srb = NULL;
-		scsi_unlock(host);
+		spin_unlock_irq(host->host_lock);
 
 		/* unlock the device pointers */
 		mutex_unlock(&dev->dev_mutex);
@@ -464,13 +438,13 @@ skip_for_abort:
 	 * after the down() -- that's necessary for the thread-shutdown
 	 * case.
 	 *
-	 * complete_and_exit() goes even further than this -- it is safe in
-	 * the case that the thread of the caller is going away (not just
-	 * the structure) -- this is necessary for the module-remove case.
-	 * This is important in preemption kernels, which transfer the flow
-	 * of execution immediately upon a complete().
+	 * kthread_complete_and_exit() goes even further than this --
+	 * it is safe in the case that the thread of the caller is going away
+	 * (not just the structure) -- this is necessary for the module-remove
+	 * case.  This is important in preemption kernels, which transfer the
+	 * flow of execution immediately upon a complete().
 	 */
-	complete_and_exit(&dev->control_exit, 0);
+	kthread_complete_and_exit(&dev->control_exit, 0);
 }
 
 static int rtsx_polling_thread(void *__dev)
@@ -515,7 +489,7 @@ static int rtsx_polling_thread(void *__dev)
 		mutex_unlock(&dev->dev_mutex);
 	}
 
-	complete_and_exit(&dev->polling_exit, 0);
+	kthread_complete_and_exit(&dev->polling_exit, 0);
 }
 
 /*
@@ -571,7 +545,7 @@ static irqreturn_t rtsx_interrupt(int irq, void *dev_id)
 				complete(dev->done);
 		} else if (status & DATA_DONE_INT) {
 			dev->trans_result = TRANS_NOT_READY;
-			if (dev->done && (dev->trans_state == STATE_TRANS_SG))
+			if (dev->done && dev->trans_state == STATE_TRANS_SG)
 				complete(dev->done);
 		}
 	}
@@ -607,7 +581,7 @@ static void rtsx_release_resources(struct rtsx_dev *dev)
 	if (dev->irq > 0)
 		free_irq(dev->irq, (void *)dev);
 	if (dev->chip->msi_en)
-		pci_disable_msi(dev->pci);
+		pci_free_irq_vectors(dev->pci);
 	if (dev->remap_addr)
 		iounmap(dev->remap_addr);
 
@@ -629,9 +603,9 @@ static void quiesce_and_remove_host(struct rtsx_dev *dev)
 	 * interrupt a SCSI-scan or device-reset delay
 	 */
 	mutex_lock(&dev->dev_mutex);
-	scsi_lock(host);
+	spin_lock_irq(host->host_lock);
 	rtsx_set_stat(chip, RTSX_STAT_DISCONNECT);
-	scsi_unlock(host);
+	spin_unlock_irq(host->host_lock);
 	mutex_unlock(&dev->dev_mutex);
 	wake_up(&dev->delay_wait);
 	wait_for_completion(&dev->scanning_done);
@@ -647,10 +621,10 @@ static void quiesce_and_remove_host(struct rtsx_dev *dev)
 	mutex_lock(&dev->dev_mutex);
 	if (chip->srb) {
 		chip->srb->result = DID_NO_CONNECT << 16;
-		scsi_lock(host);
-		chip->srb->scsi_done(dev->chip->srb);
+		spin_lock_irq(host->host_lock);
+		scsi_done(dev->chip->srb);
 		chip->srb = NULL;
-		scsi_unlock(host);
+		spin_unlock_irq(host->host_lock);
 	}
 	mutex_unlock(&dev->dev_mutex);
 
@@ -696,7 +670,7 @@ static int rtsx_scan_thread(void *__dev)
 		/* Should we unbind if no devices were detected? */
 	}
 
-	complete_and_exit(&dev->scanning_done, 0);
+	kthread_complete_and_exit(&dev->scanning_done, 0);
 }
 
 static void rtsx_init_options(struct rtsx_chip *chip)
@@ -831,7 +805,8 @@ static int rtsx_probe(struct pci_dev *pci,
 	host = scsi_host_alloc(&rtsx_host_template, sizeof(*dev));
 	if (!host) {
 		dev_err(&pci->dev, "Unable to allocate the scsi host\n");
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto scsi_host_alloc_fail;
 	}
 
 	dev = host_to_rtsx(host);
@@ -858,7 +833,7 @@ static int rtsx_probe(struct pci_dev *pci,
 	dev_info(&pci->dev, "Resource length: 0x%x\n",
 		 (unsigned int)pci_resource_len(pci, 0));
 	dev->addr = pci_resource_start(pci, 0);
-	dev->remap_addr = ioremap_nocache(dev->addr, pci_resource_len(pci, 0));
+	dev->remap_addr = ioremap(dev->addr, pci_resource_len(pci, 0));
 	if (!dev->remap_addr) {
 		dev_err(&pci->dev, "ioremap error\n");
 		err = -ENXIO;
@@ -873,7 +848,8 @@ static int rtsx_probe(struct pci_dev *pci,
 		 (unsigned long)(dev->addr), (unsigned long)(dev->remap_addr));
 
 	dev->rtsx_resv_buf = dmam_alloc_coherent(&pci->dev, RTSX_RESV_BUF_LEN,
-			&dev->rtsx_resv_buf_addr, GFP_KERNEL);
+						 &dev->rtsx_resv_buf_addr,
+						 GFP_KERNEL);
 	if (!dev->rtsx_resv_buf) {
 		dev_err(&pci->dev, "alloc dma buffer fail\n");
 		err = -ENXIO;
@@ -892,7 +868,7 @@ static int rtsx_probe(struct pci_dev *pci,
 	dev_info(&pci->dev, "pci->irq = %d\n", pci->irq);
 
 	if (dev->chip->msi_en) {
-		if (pci_enable_msi(pci) < 0)
+		if (pci_alloc_irq_vectors(pci, 1, 1, PCI_IRQ_MSI) < 0)
 			dev->chip->msi_en = 0;
 	}
 
@@ -963,14 +939,16 @@ irq_acquire_fail:
 	dev->chip->host_cmds_ptr = NULL;
 	dev->chip->host_sg_tbl_ptr = NULL;
 	if (dev->chip->msi_en)
-		pci_disable_msi(dev->pci);
+		pci_free_irq_vectors(dev->pci);
 dma_alloc_fail:
 	iounmap(dev->remap_addr);
 ioremap_fail:
 	kfree(dev->chip);
 chip_alloc_fail:
 	dev_err(&pci->dev, "%s failed\n", __func__);
-
+	scsi_host_put(host);
+scsi_host_alloc_fail:
+	pci_release_regions(pci);
 	return err;
 }
 
@@ -978,10 +956,9 @@ static void rtsx_remove(struct pci_dev *pci)
 {
 	struct rtsx_dev *dev = pci_get_drvdata(pci);
 
-	dev_info(&pci->dev, "%s called\n", __func__);
-
 	quiesce_and_remove_host(dev);
 	release_everything(dev);
+	pci_release_regions(pci);
 }
 
 /* PCI IDs */
@@ -995,16 +972,15 @@ static const struct pci_device_id rtsx_ids[] = {
 
 MODULE_DEVICE_TABLE(pci, rtsx_ids);
 
+static SIMPLE_DEV_PM_OPS(rtsx_pm_ops, rtsx_suspend, rtsx_resume);
+
 /* pci_driver definition */
 static struct pci_driver rtsx_driver = {
 	.name = CR_DRIVER_NAME,
 	.id_table = rtsx_ids,
 	.probe = rtsx_probe,
 	.remove = rtsx_remove,
-#ifdef CONFIG_PM
-	.suspend = rtsx_suspend,
-	.resume = rtsx_resume,
-#endif
+	.driver.pm = &rtsx_pm_ops,
 	.shutdown = rtsx_shutdown,
 };
 

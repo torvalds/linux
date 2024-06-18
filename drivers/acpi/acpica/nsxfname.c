@@ -4,7 +4,7 @@
  * Module Name: nsxfname - Public interfaces to the ACPI subsystem
  *                         ACPI Namespace oriented interfaces
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2023, Intel Corp.
  *
  *****************************************************************************/
 
@@ -44,7 +44,7 @@ static char *acpi_ns_copy_device_id(struct acpi_pnp_device_id *dest,
 
 acpi_status
 acpi_get_handle(acpi_handle parent,
-		acpi_string pathname, acpi_handle *ret_handle)
+		const char *pathname, acpi_handle *ret_handle)
 {
 	acpi_status status;
 	struct acpi_namespace_node *node = NULL;
@@ -425,8 +425,8 @@ acpi_get_object_info(acpi_handle handle,
 	}
 
 	if (cls) {
-		next_id_string = acpi_ns_copy_device_id(&info->class_code,
-							cls, next_id_string);
+		(void)acpi_ns_copy_device_id(&info->class_code,
+					     cls, next_id_string);
 	}
 
 	/* Copy the fixed-length data */
@@ -516,7 +516,7 @@ acpi_status acpi_install_method(u8 *buffer)
 
 	method_flags = *parser_state.aml++;
 	aml_start = parser_state.aml;
-	aml_length = ACPI_PTR_DIFF(parser_state.pkg_end, aml_start);
+	aml_length = (u32)ACPI_PTR_DIFF(parser_state.pkg_end, aml_start);
 
 	/*
 	 * Allocate resources up-front. We don't want to have to delete a new

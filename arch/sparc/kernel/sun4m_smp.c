@@ -157,7 +157,7 @@ static void sun4m_ipi_mask_one(int cpu)
 }
 
 static struct smp_funcall {
-	smpfunc_t func;
+	void *func;
 	unsigned long arg1;
 	unsigned long arg2;
 	unsigned long arg3;
@@ -170,7 +170,7 @@ static struct smp_funcall {
 static DEFINE_SPINLOCK(cross_call_lock);
 
 /* Cross calls must be serialized, at least currently. */
-static void sun4m_cross_call(smpfunc_t func, cpumask_t mask, unsigned long arg1,
+static void sun4m_cross_call(void *func, cpumask_t mask, unsigned long arg1,
 			     unsigned long arg2, unsigned long arg3,
 			     unsigned long arg4)
 {
@@ -230,11 +230,13 @@ static void sun4m_cross_call(smpfunc_t func, cpumask_t mask, unsigned long arg1,
 /* Running cross calls. */
 void smp4m_cross_call_irq(void)
 {
+	void (*func)(unsigned long, unsigned long, unsigned long, unsigned long,
+		     unsigned long) = ccall_info.func;
 	int i = smp_processor_id();
 
 	ccall_info.processors_in[i] = 1;
-	ccall_info.func(ccall_info.arg1, ccall_info.arg2, ccall_info.arg3,
-			ccall_info.arg4, ccall_info.arg5);
+	func(ccall_info.arg1, ccall_info.arg2, ccall_info.arg3, ccall_info.arg4,
+	     ccall_info.arg5);
 	ccall_info.processors_out[i] = 1;
 }
 

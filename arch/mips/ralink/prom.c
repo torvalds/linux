@@ -7,8 +7,6 @@
  */
 
 #include <linux/string.h>
-#include <linux/of_fdt.h>
-#include <linux/of_platform.h>
 
 #include <asm/bootinfo.h>
 #include <asm/addrspace.h>
@@ -18,7 +16,6 @@
 #include "common.h"
 
 struct ralink_soc_info soc_info;
-struct rt2880_pmx_group *rt2880_pinmux_data = NULL;
 
 enum ralink_soc_type ralink_soc;
 EXPORT_SYMBOL_GPL(ralink_soc);
@@ -65,8 +62,4 @@ void __init prom_init(void)
 	pr_info("SoC Type: %s\n", get_system_type());
 
 	prom_init_cmdline();
-}
-
-void __init prom_free_prom_memory(void)
-{
 }

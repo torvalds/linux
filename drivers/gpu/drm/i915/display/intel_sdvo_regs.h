@@ -57,7 +57,7 @@ struct intel_sdvo_caps {
 	u8 device_rev_id;
 	u8 sdvo_version_major;
 	u8 sdvo_version_minor;
-	unsigned int sdvo_inputs_mask:2;
+	unsigned int sdvo_num_inputs:2;
 	unsigned int smooth_scaling:1;
 	unsigned int sharp_scaling:1;
 	unsigned int up_scaling:1;
@@ -705,10 +705,10 @@ struct intel_sdvo_enhancements_arg {
 #define SDVO_CMD_GET_PIXEL_REPLI	0x8c
 #define SDVO_CMD_GET_COLORIMETRY_CAP	0x8d
 #define SDVO_CMD_SET_COLORIMETRY	0x8e
-  #define SDVO_COLORIMETRY_RGB256   0x0
-  #define SDVO_COLORIMETRY_RGB220   0x1
-  #define SDVO_COLORIMETRY_YCrCb422 0x3
-  #define SDVO_COLORIMETRY_YCrCb444 0x4
+  #define SDVO_COLORIMETRY_RGB256	(1 << 0)
+  #define SDVO_COLORIMETRY_RGB220	(1 << 1)
+  #define SDVO_COLORIMETRY_YCrCb422	(1 << 2)
+  #define SDVO_COLORIMETRY_YCrCb444	(1 << 3)
 #define SDVO_CMD_GET_COLORIMETRY	0x8f
 #define SDVO_CMD_GET_AUDIO_ENCRYPT_PREFER 0x90
 #define SDVO_CMD_SET_AUDIO_STAT		0x91

@@ -7,6 +7,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/mutex.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
@@ -134,8 +135,7 @@ static const struct iio_info ams_iaqcore_info = {
 	.read_raw	= ams_iaqcore_read_raw,
 };
 
-static int ams_iaqcore_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int ams_iaqcore_probe(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev;
 	struct ams_iaqcore_data *data;
@@ -152,7 +152,6 @@ static int ams_iaqcore_probe(struct i2c_client *client,
 	data->last_update = jiffies - HZ;
 	mutex_init(&data->lock);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &ams_iaqcore_info;
 	indio_dev->name = dev_name(&client->dev);
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -178,7 +177,7 @@ MODULE_DEVICE_TABLE(of, ams_iaqcore_dt_ids);
 static struct i2c_driver ams_iaqcore_driver = {
 	.driver = {
 		.name	= "ams-iaq-core",
-		.of_match_table = of_match_ptr(ams_iaqcore_dt_ids),
+		.of_match_table = ams_iaqcore_dt_ids,
 	},
 	.probe = ams_iaqcore_probe,
 	.id_table = ams_iaqcore_id,

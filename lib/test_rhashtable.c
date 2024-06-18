@@ -16,6 +16,7 @@
 #include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/rcupdate.h>
+#include <linux/rcupdate_wait.h>
 #include <linux/rhashtable.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
@@ -291,7 +292,7 @@ static int __init test_rhltable(unsigned int entries)
 	if (WARN_ON(err))
 		goto out_free;
 
-	k = prandom_u32();
+	k = get_random_u32();
 	ret = 0;
 	for (i = 0; i < entries; i++) {
 		rhl_test_objects[i].value.id = k;
@@ -368,18 +369,10 @@ static int __init test_rhltable(unsigned int entries)
 
 	pr_info("test %d random rhlist add/delete operations\n", entries);
 	for (j = 0; j < entries; j++) {
-		u32 i = prandom_u32_max(entries);
-		u32 prand = prandom_u32();
+		u32 i = get_random_u32_below(entries);
+		u32 prand = get_random_u32_below(4);
 
 		cond_resched();
-
-		if (prand == 0)
-			prand = prandom_u32();
-
-		if (prand & 1) {
-			prand >>= 1;
-			continue;
-		}
 
 		err = rhltable_remove(&rhlt, &rhl_test_objects[i].list_node, test_rht_params);
 		if (test_bit(i, obj_in_table)) {
@@ -393,35 +386,29 @@ static int __init test_rhltable(unsigned int entries)
 		}
 
 		if (prand & 1) {
-			prand >>= 1;
-			continue;
-		}
-
-		err = rhltable_insert(&rhlt, &rhl_test_objects[i].list_node, test_rht_params);
-		if (err == 0) {
-			if (WARN(test_and_set_bit(i, obj_in_table), "succeeded to insert same object %d", i))
-				continue;
-		} else {
-			if (WARN(!test_bit(i, obj_in_table), "failed to insert object %d", i))
-				continue;
-		}
-
-		if (prand & 1) {
-			prand >>= 1;
-			continue;
-		}
-
-		i = prandom_u32_max(entries);
-		if (test_bit(i, obj_in_table)) {
-			err = rhltable_remove(&rhlt, &rhl_test_objects[i].list_node, test_rht_params);
-			WARN(err, "cannot remove element at slot %d", i);
-			if (err == 0)
-				clear_bit(i, obj_in_table);
-		} else {
 			err = rhltable_insert(&rhlt, &rhl_test_objects[i].list_node, test_rht_params);
-			WARN(err, "failed to insert object %d", i);
-			if (err == 0)
-				set_bit(i, obj_in_table);
+			if (err == 0) {
+				if (WARN(test_and_set_bit(i, obj_in_table), "succeeded to insert same object %d", i))
+					continue;
+			} else {
+				if (WARN(!test_bit(i, obj_in_table), "failed to insert object %d", i))
+					continue;
+			}
+		}
+
+		if (prand & 2) {
+			i = get_random_u32_below(entries);
+			if (test_bit(i, obj_in_table)) {
+				err = rhltable_remove(&rhlt, &rhl_test_objects[i].list_node, test_rht_params);
+				WARN(err, "cannot remove element at slot %d", i);
+				if (err == 0)
+					clear_bit(i, obj_in_table);
+			} else {
+				err = rhltable_insert(&rhlt, &rhl_test_objects[i].list_node, test_rht_params);
+				WARN(err, "failed to insert object %d", i);
+				if (err == 0)
+					set_bit(i, obj_in_table);
+			}
 		}
 	}
 
@@ -434,7 +421,7 @@ static int __init test_rhltable(unsigned int entries)
 		} else {
 			if (WARN(err != -ENOENT, "removed non-existent element, error %d not %d",
 				 err, -ENOENT))
-			continue;
+				continue;
 		}
 	}
 
@@ -448,7 +435,7 @@ out_free:
 static int __init test_rhashtable_max(struct test_obj *array,
 				      unsigned int entries)
 {
-	unsigned int i, insert_retries = 0;
+	unsigned int i;
 	int err;
 
 	test_rht_params.max_size = roundup_pow_of_two(entries / 8);
@@ -461,9 +448,7 @@ static int __init test_rhashtable_max(struct test_obj *array,
 
 		obj->value.id = i * 2;
 		err = insert_retry(&ht, obj, test_rht_params);
-		if (err > 0)
-			insert_retries += err;
-		else if (err)
+		if (err < 0)
 			return err;
 	}
 
@@ -487,6 +472,7 @@ static unsigned int __init print_ht(struct rhltable *rhlt)
 	struct rhashtable *ht;
 	const struct bucket_table *tbl;
 	char buff[512] = "";
+	int offset = 0;
 	unsigned int i, cnt = 0;
 
 	ht = &rhlt->ht;
@@ -501,18 +487,18 @@ static unsigned int __init print_ht(struct rhltable *rhlt)
 		next = !rht_is_a_nulls(pos) ? rht_dereference(pos->next, ht) : NULL;
 
 		if (!rht_is_a_nulls(pos)) {
-			sprintf(buff, "%s\nbucket[%d] -> ", buff, i);
+			offset += sprintf(buff + offset, "\nbucket[%d] -> ", i);
 		}
 
 		while (!rht_is_a_nulls(pos)) {
 			struct rhlist_head *list = container_of(pos, struct rhlist_head, rhead);
-			sprintf(buff, "%s[[", buff);
+			offset += sprintf(buff + offset, "[[");
 			do {
 				pos = &list->rhead;
 				list = rht_dereference(list->next, ht);
 				p = rht_obj(ht, pos);
 
-				sprintf(buff, "%s val %d (tid=%d)%s", buff, p->value.id, p->value.tid,
+				offset += sprintf(buff + offset, " val %d (tid=%d)%s", p->value.id, p->value.tid,
 					list? ", " : " ");
 				cnt++;
 			} while (list);
@@ -521,7 +507,7 @@ static unsigned int __init print_ht(struct rhltable *rhlt)
 			next = !rht_is_a_nulls(pos) ?
 				rht_dereference(pos->next, ht) : NULL;
 
-			sprintf(buff, "%s]]%s", buff, !rht_is_a_nulls(pos) ? " -> " : "");
+			offset += sprintf(buff + offset, "]]%s", !rht_is_a_nulls(pos) ? " -> " : "");
 		}
 	}
 	printk(KERN_ERR "\n---- ht: ----%s\n-------------\n", buff);
@@ -825,4 +811,5 @@ static void __exit test_rht_exit(void)
 module_init(test_rht_init);
 module_exit(test_rht_exit);
 
+MODULE_DESCRIPTION("Resizable, Scalable, Concurrent Hash Table test module");
 MODULE_LICENSE("GPL v2");

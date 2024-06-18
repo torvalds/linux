@@ -6,8 +6,8 @@
 #
 
 ccflags-y += \
-	-I $(srctree)/$(src) \
-	-I $(srctree)/$(src)/../include
+	-I $(src) \
+	-I $(src)/../include
 
 obj-$(CONFIG_BRCMFMAC) += brcmfmac.o
 brcmfmac-objs += \
@@ -20,10 +20,12 @@ brcmfmac-objs += \
 		common.o \
 		core.o \
 		firmware.o \
+		fwvid.o \
 		feature.o \
 		btcoex.o \
 		vendor.o \
-		pno.o
+		pno.o \
+		xtlv.o
 brcmfmac-$(CONFIG_BRCMFMAC_PROTO_BCDC) += \
 		bcdc.o \
 		fwsignal.o
@@ -46,3 +48,15 @@ brcmfmac-$(CONFIG_OF) += \
 		of.o
 brcmfmac-$(CONFIG_DMI) += \
 		dmi.o
+brcmfmac-$(CONFIG_ACPI) += \
+		acpi.o
+
+ifeq ($(CONFIG_BRCMFMAC),m)
+obj-m += wcc/
+obj-m += cyw/
+obj-m += bca/
+else
+brcmfmac-$(CONFIG_BRCMFMAC) += wcc/core.o
+brcmfmac-$(CONFIG_BRCMFMAC) += cyw/core.o
+brcmfmac-$(CONFIG_BRCMFMAC) += bca/core.o
+endif

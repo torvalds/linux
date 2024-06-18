@@ -219,7 +219,7 @@ static void ll_device_want_to_wakeup(struct hci_uart *hu)
 		 * perfectly safe to always send one.
 		 */
 		BT_DBG("dual wake-up-indication");
-		/* fall through */
+		fallthrough;
 	case HCILL_ASLEEP:
 		/* acknowledge device wake up */
 		if (send_hcill_cmd(HCILL_WAKE_UP_ACK, hu) < 0) {
@@ -345,7 +345,7 @@ static int ll_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 	default:
 		BT_ERR("illegal hcill state: %ld (losing packet)",
 		       ll->hcill_state);
-		kfree_skb(skb);
+		dev_kfree_skb_irq(skb);
 		break;
 	}
 
@@ -509,7 +509,7 @@ static int send_command_from_firmware(struct ll_device *lldev,
 	return 0;
 }
 
-/**
+/*
  * download_firmware -
  *	internal function which parses through the .bts firmware
  *	script file intreprets SEND, DELAY actions only as of now
@@ -621,36 +621,16 @@ static int ll_setup(struct hci_uart *hu)
 
 	serdev_device_set_flow_control(serdev, true);
 
-	if (hu->oper_speed)
-		speed = hu->oper_speed;
-	else if (hu->proto->oper_speed)
-		speed = hu->proto->oper_speed;
-	else
-		speed = 0;
-
 	do {
 		/* Reset the Bluetooth device */
 		gpiod_set_value_cansleep(lldev->enable_gpio, 0);
 		msleep(5);
 		gpiod_set_value_cansleep(lldev->enable_gpio, 1);
+		mdelay(100);
 		err = serdev_device_wait_for_cts(serdev, true, 200);
 		if (err) {
 			bt_dev_err(hu->hdev, "Failed to get CTS");
 			return err;
-		}
-
-		if (speed) {
-			__le32 speed_le = cpu_to_le32(speed);
-			struct sk_buff *skb;
-
-			skb = __hci_cmd_sync(hu->hdev,
-					     HCI_VS_UPDATE_UART_HCI_BAUDRATE,
-					     sizeof(speed_le), &speed_le,
-					     HCI_INIT_TIMEOUT);
-			if (!IS_ERR(skb)) {
-				kfree_skb(skb);
-				serdev_device_set_baudrate(serdev, speed);
-			}
 		}
 
 		err = download_firmware(lldev);
@@ -677,7 +657,25 @@ static int ll_setup(struct hci_uart *hu)
 	}
 
 	/* Operational speed if any */
+	if (hu->oper_speed)
+		speed = hu->oper_speed;
+	else if (hu->proto->oper_speed)
+		speed = hu->proto->oper_speed;
+	else
+		speed = 0;
 
+	if (speed) {
+		__le32 speed_le = cpu_to_le32(speed);
+		struct sk_buff *skb;
+
+		skb = __hci_cmd_sync(hu->hdev, HCI_VS_UPDATE_UART_HCI_BAUDRATE,
+				     sizeof(speed_le), &speed_le,
+				     HCI_INIT_TIMEOUT);
+		if (!IS_ERR(skb)) {
+			kfree_skb(skb);
+			serdev_device_set_baudrate(serdev, speed);
+		}
+	}
 
 	return 0;
 }
@@ -788,7 +786,7 @@ MODULE_DEVICE_TABLE(of, hci_ti_of_match);
 static struct serdev_device_driver hci_ti_drv = {
 	.driver		= {
 		.name	= "hci-ti",
-		.of_match_table = of_match_ptr(hci_ti_of_match),
+		.of_match_table = hci_ti_of_match,
 	},
 	.probe	= hci_ti_probe,
 	.remove	= hci_ti_remove,

@@ -26,12 +26,6 @@
 
 #define FPUDEBUG 0
 
-/* Format of the floating-point exception registers. */
-struct exc_reg {
-	unsigned int exception : 6;
-	unsigned int ei : 26;
-};
-
 /* Macros for grabbing bits of the instruction format from the 'ei'
    field above. */
 /* Major opcode 0c and 0e */

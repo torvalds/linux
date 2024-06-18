@@ -461,7 +461,7 @@ static int lm95245_detect(struct i2c_client *new_client,
 		return -ENODEV;
 	}
 
-	strlcpy(info->type, name, I2C_NAME_SIZE);
+	strscpy(info->type, name, I2C_NAME_SIZE);
 	return 0;
 }
 
@@ -518,12 +518,12 @@ static const struct regmap_config lm95245_regmap_config = {
 	.val_bits = 8,
 	.writeable_reg = lm95245_is_writeable_reg,
 	.volatile_reg = lm95245_is_volatile_reg,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.use_single_read = true,
 	.use_single_write = true,
 };
 
-static const struct hwmon_channel_info *lm95245_info[] = {
+static const struct hwmon_channel_info * const lm95245_info[] = {
 	HWMON_CHANNEL_INFO(chip,
 			   HWMON_C_UPDATE_INTERVAL),
 	HWMON_CHANNEL_INFO(temp,
@@ -547,8 +547,7 @@ static const struct hwmon_chip_info lm95245_chip_info = {
 	.info = lm95245_info,
 };
 
-static int lm95245_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int lm95245_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct lm95245_data *data;
@@ -579,8 +578,8 @@ static int lm95245_probe(struct i2c_client *client,
 
 /* Driver data (common to all clients) */
 static const struct i2c_device_id lm95245_id[] = {
-	{ "lm95235", 0 },
-	{ "lm95245", 0 },
+	{ "lm95235" },
+	{ "lm95245" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm95245_id);

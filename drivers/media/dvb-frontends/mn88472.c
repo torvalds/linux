@@ -572,8 +572,7 @@ static struct dvb_frontend *mn88472_get_dvb_frontend(struct i2c_client *client)
 	return &dev->fe;
 }
 
-static int mn88472_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int mn88472_probe(struct i2c_client *client)
 {
 	struct mn88472_config *pdata = client->dev.platform_data;
 	struct mn88472_dev *dev;
@@ -691,7 +690,7 @@ err:
 	return ret;
 }
 
-static int mn88472_remove(struct i2c_client *client)
+static void mn88472_remove(struct i2c_client *client)
 {
 	struct mn88472_dev *dev = i2c_get_clientdata(client);
 
@@ -706,8 +705,6 @@ static int mn88472_remove(struct i2c_client *client)
 	regmap_exit(dev->regmap[0]);
 
 	kfree(dev);
-
-	return 0;
 }
 
 static const struct i2c_device_id mn88472_id_table[] = {

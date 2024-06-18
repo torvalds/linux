@@ -1556,7 +1556,7 @@ static PAD_ST_CONF(I2S_BCLK0, 1, 1, 1);
 static PAD_ST_CONF(I2S_MCLK0, 1, 0, 1);
 
 /* Pad info table */
-static struct owl_padinfo s900_padinfo[NUM_PADS] = {
+static const struct owl_padinfo s900_padinfo[NUM_PADS] = {
 	[ETH_TXD0] = PAD_INFO_ST(ETH_TXD0),
 	[ETH_TXD1] = PAD_INFO_ST(ETH_TXD1),
 	[ETH_TXEN] = PAD_INFO_ST(ETH_TXEN),
@@ -1827,4 +1827,3 @@ module_exit(s900_pinctrl_exit);
 MODULE_AUTHOR("Actions Semi Inc.");
 MODULE_AUTHOR("Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>");
 MODULE_DESCRIPTION("Actions Semi S900 SoC Pinctrl Driver");
-MODULE_LICENSE("GPL");

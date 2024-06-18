@@ -711,9 +711,9 @@ static void isl29018_disable_regulator_action(void *_data)
 		pr_err("failed to disable isl29018's VCC regulator!\n");
 }
 
-static int isl29018_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int isl29018_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct isl29018_chip *chip;
 	struct iio_dev *indio_dev;
 	int err;
@@ -746,12 +746,9 @@ static int isl29018_probe(struct i2c_client *client,
 	chip->suspended = false;
 
 	chip->vcc_reg = devm_regulator_get(&client->dev, "vcc");
-	if (IS_ERR(chip->vcc_reg)) {
-		err = PTR_ERR(chip->vcc_reg);
-		if (err != -EPROBE_DEFER)
-			dev_err(&client->dev, "failed to get VCC regulator!\n");
-		return err;
-	}
+	if (IS_ERR(chip->vcc_reg))
+		return dev_err_probe(&client->dev, PTR_ERR(chip->vcc_reg),
+				     "failed to get VCC regulator!\n");
 
 	err = regulator_enable(chip->vcc_reg);
 	if (err) {
@@ -782,13 +779,11 @@ static int isl29018_probe(struct i2c_client *client,
 	indio_dev->channels = isl29018_chip_info_tbl[dev_id].channels;
 	indio_dev->num_channels = isl29018_chip_info_tbl[dev_id].num_channels;
 	indio_dev->name = name;
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int isl29018_suspend(struct device *dev)
 {
 	struct isl29018_chip *chip = iio_priv(dev_get_drvdata(dev));
@@ -834,11 +829,8 @@ static int isl29018_resume(struct device *dev)
 	return err;
 }
 
-static SIMPLE_DEV_PM_OPS(isl29018_pm_ops, isl29018_suspend, isl29018_resume);
-#define ISL29018_PM_OPS (&isl29018_pm_ops)
-#else
-#define ISL29018_PM_OPS NULL
-#endif
+static DEFINE_SIMPLE_DEV_PM_OPS(isl29018_pm_ops, isl29018_suspend,
+				isl29018_resume);
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id isl29018_acpi_match[] = {
@@ -870,10 +862,10 @@ static struct i2c_driver isl29018_driver = {
 	.driver	 = {
 			.name = "isl29018",
 			.acpi_match_table = ACPI_PTR(isl29018_acpi_match),
-			.pm = ISL29018_PM_OPS,
+			.pm = pm_sleep_ptr(&isl29018_pm_ops),
 			.of_match_table = isl29018_of_match,
 		    },
-	.probe	 = isl29018_probe,
+	.probe = isl29018_probe,
 	.id_table = isl29018_id,
 };
 module_i2c_driver(isl29018_driver);

@@ -10,9 +10,7 @@
  * General Public License for more details.
  */
 #include <linux/bpf.h>
-#include "bpf_helpers.h"
-
-int _version SEC("version") = 1;
+#include <bpf/bpf_helpers.h>
 
 SEC("redirect_to_111")
 int xdp_redirect_to_111(struct xdp_md *xdp)

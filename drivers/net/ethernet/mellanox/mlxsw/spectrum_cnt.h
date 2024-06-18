@@ -4,11 +4,12 @@
 #ifndef _MLXSW_SPECTRUM_CNT_H
 #define _MLXSW_SPECTRUM_CNT_H
 
+#include "core.h"
 #include "spectrum.h"
 
 enum mlxsw_sp_counter_sub_pool_id {
-	MLXSW_SP_COUNTER_SUB_POOL_FLOW,
 	MLXSW_SP_COUNTER_SUB_POOL_RIF,
+	MLXSW_SP_COUNTER_SUB_POOL_FLOW,
 };
 
 int mlxsw_sp_counter_alloc(struct mlxsw_sp *mlxsw_sp,
@@ -19,5 +20,6 @@ void mlxsw_sp_counter_free(struct mlxsw_sp *mlxsw_sp,
 			   unsigned int counter_index);
 int mlxsw_sp_counter_pool_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_counter_pool_fini(struct mlxsw_sp *mlxsw_sp);
+int mlxsw_sp_counter_resources_register(struct mlxsw_core *mlxsw_core);
 
 #endif

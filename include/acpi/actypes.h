@@ -3,7 +3,7 @@
  *
  * Name: actypes.h - Common data types for the entire ACPI subsystem
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2023, Intel Corp.
  *
  *****************************************************************************/
 
@@ -507,9 +507,12 @@ typedef u64 acpi_integer;
 /* Pointer/Integer type conversions */
 
 #define ACPI_TO_POINTER(i)              ACPI_CAST_PTR (void, (acpi_size) (i))
+#ifndef ACPI_TO_INTEGER
 #define ACPI_TO_INTEGER(p)              ACPI_PTR_DIFF (p, (void *) 0)
+#endif
+#ifndef ACPI_OFFSET
 #define ACPI_OFFSET(d, f)               ACPI_PTR_DIFF (&(((d *) 0)->f), (void *) 0)
-#define ACPI_PHYSADDR_TO_PTR(i)         ACPI_TO_POINTER(i)
+#endif
 #define ACPI_PTR_TO_PHYSADDR(i)         ACPI_TO_INTEGER(i)
 
 /* Optimizations for 4-character (32-bit) acpi_name manipulation */
@@ -532,11 +535,18 @@ typedef u64 acpi_integer;
 	 strnlen (a, ACPI_NAMESEG_SIZE) == ACPI_NAMESEG_SIZE)
 
 /*
- * Algorithm to obtain access bit width.
+ * Algorithm to obtain access bit or byte width.
  * Can be used with access_width of struct acpi_generic_address and access_size of
  * struct acpi_resource_generic_register.
  */
-#define ACPI_ACCESS_BIT_WIDTH(size)     (1 << ((size) + 2))
+#define ACPI_ACCESS_BIT_SHIFT           2
+#define ACPI_ACCESS_BYTE_SHIFT          -1
+#define ACPI_ACCESS_BIT_MAX             (31 - ACPI_ACCESS_BIT_SHIFT)
+#define ACPI_ACCESS_BYTE_MAX            (31 - ACPI_ACCESS_BYTE_SHIFT)
+#define ACPI_ACCESS_BIT_DEFAULT         (8 - ACPI_ACCESS_BIT_SHIFT)
+#define ACPI_ACCESS_BYTE_DEFAULT        (8 - ACPI_ACCESS_BYTE_SHIFT)
+#define ACPI_ACCESS_BIT_WIDTH(size)     (1 << ((size) + ACPI_ACCESS_BIT_SHIFT))
+#define ACPI_ACCESS_BYTE_WIDTH(size)    (1 << ((size) + ACPI_ACCESS_BYTE_SHIFT))
 
 /*******************************************************************************
  *
@@ -814,15 +824,16 @@ typedef u8 acpi_adr_space_type;
 #define ACPI_ADR_SPACE_GPIO             (acpi_adr_space_type) 8
 #define ACPI_ADR_SPACE_GSBUS            (acpi_adr_space_type) 9
 #define ACPI_ADR_SPACE_PLATFORM_COMM    (acpi_adr_space_type) 10
+#define ACPI_ADR_SPACE_PLATFORM_RT      (acpi_adr_space_type) 11
 
-#define ACPI_NUM_PREDEFINED_REGIONS     11
+#define ACPI_NUM_PREDEFINED_REGIONS     12
 
 /*
  * Special Address Spaces
  *
  * Note: A Data Table region is a special type of operation region
  * that has its own AML opcode. However, internally, the AML
- * interpreter simply creates an operation region with an an address
+ * interpreter simply creates an operation region with an address
  * space type of ACPI_ADR_SPACE_DATA_TABLE.
  */
 #define ACPI_ADR_SPACE_DATA_TABLE       (acpi_adr_space_type) 0x7E	/* Internal to ACPICA only */
@@ -1096,6 +1107,21 @@ struct acpi_connection_info {
 	u8 access_length;
 };
 
+/* Special Context data for PCC Opregion (ACPI 6.3) */
+
+struct acpi_pcc_info {
+	u8 subspace_id;
+	u16 length;
+	u8 *internal_buffer;
+};
+
+/* Special Context data for FFH Opregion (ACPI 6.5) */
+
+struct acpi_ffh_info {
+	u64 offset;
+	u64 length;
+};
+
 typedef
 acpi_status (*acpi_adr_space_setup) (acpi_handle region_handle,
 				     u32 function,
@@ -1144,7 +1170,7 @@ struct acpi_pnp_device_id {
 struct acpi_pnp_device_id_list {
 	u32 count;		/* Number of IDs in Ids array */
 	u32 list_size;		/* Size of list, including ID strings */
-	struct acpi_pnp_device_id ids[1];	/* ID array */
+	struct acpi_pnp_device_id ids[];	/* ID array */
 };
 
 /*
@@ -1199,12 +1225,22 @@ struct acpi_pci_id {
 	u16 function;
 };
 
+struct acpi_mem_mapping {
+	acpi_physical_address physical_address;
+	u8 *logical_address;
+	acpi_size length;
+	struct acpi_mem_mapping *next_mm;
+};
+
 struct acpi_mem_space_context {
 	u32 length;
 	acpi_physical_address address;
-	acpi_physical_address mapped_physical_address;
-	u8 *mapped_logical_address;
-	acpi_size mapped_length;
+	struct acpi_mem_mapping *cur_mm;
+	struct acpi_mem_mapping *first_mm;
+};
+
+struct acpi_data_table_mapping {
+	void *pointer;
 };
 
 /*
@@ -1273,9 +1309,21 @@ typedef enum {
 #define ACPI_OSI_WIN_10_RS4             0x12
 #define ACPI_OSI_WIN_10_RS5             0x13
 #define ACPI_OSI_WIN_10_19H1            0x14
+#define ACPI_OSI_WIN_10_20H1            0x15
+#define ACPI_OSI_WIN_11                 0x16
 
 /* Definitions of getopt */
 
 #define ACPI_OPT_END                    -1
+
+/* Definitions for explicit fallthrough */
+
+#ifndef ACPI_FALLTHROUGH
+#define ACPI_FALLTHROUGH do {} while(0)
+#endif
+
+#ifndef ACPI_FLEX_ARRAY
+#define ACPI_FLEX_ARRAY(TYPE, NAME)     TYPE NAME[0]
+#endif
 
 #endif				/* __ACTYPES_H__ */

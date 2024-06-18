@@ -16,17 +16,17 @@ USB support
     gadget_multi
     gadget_printer
     gadget_serial
+    gadget_uvc
     gadget-testing
     iuu_phoenix
     mass-storage
     misc_usbsevseg
     mtouchusb
     ohci
-    rio
+    raw-gadget
     usbip_protocol
     usbmon
     usb-serial
-    wusb-design-overview
 
     usb-help
     text_files

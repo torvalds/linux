@@ -319,12 +319,7 @@ void tulip_select_media(struct net_device *dev, int startup)
 			break;
 		}
 		case 5: case 6: {
-			u16 setup[5];
-
 			new_csr6 = 0; /* FIXME */
-
-			for (i = 0; i < 5; i++)
-				setup[i] = get_u16(&p[i*2 + 1]);
 
 			if (startup && mtable->has_reset) {
 				struct medialeaf *rleaf = &mtable->mleaf[mtable->has_reset];
@@ -367,7 +362,7 @@ void tulip_select_media(struct net_device *dev, int startup)
 			iowrite32(0x33, ioaddr + CSR12);
 			new_csr6 = 0x01860000;
 			/* Trigger autonegotiation. */
-			iowrite32(startup ? 0x0201F868 : 0x0001F868, ioaddr + 0xB8);
+			iowrite32(0x0001F868, ioaddr + 0xB8);
 		} else {
 			iowrite32(0x32, ioaddr + CSR12);
 			new_csr6 = 0x00420000;

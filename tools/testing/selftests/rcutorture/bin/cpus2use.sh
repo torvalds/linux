@@ -15,8 +15,14 @@ then
 	exit 0
 fi
 ncpus=`grep '^processor' /proc/cpuinfo | wc -l`
-idlecpus=`mpstat | tail -1 | \
-	awk -v ncpus=$ncpus '{ print ncpus * ($7 + $NF) / 100 }'`
+if mpstat -V > /dev/null 2>&1
+then
+	idlecpus=`mpstat | tail -1 | \
+		awk -v ncpus=$ncpus '{ print ncpus * ($7 + $NF) / 100 }'`
+else
+	# No mpstat command, so use all available CPUs.
+	idlecpus=$ncpus
+fi
 awk -v ncpus=$ncpus -v idlecpus=$idlecpus < /dev/null '
 BEGIN {
 	cpus2use = idlecpus;

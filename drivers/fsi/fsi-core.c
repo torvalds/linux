@@ -16,6 +16,8 @@
 #include <linux/idr.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/slab.h>
 #include <linux/bitops.h>
 #include <linux/cdev.h>
@@ -23,6 +25,7 @@
 #include <linux/uaccess.h>
 
 #include "fsi-master.h"
+#include "fsi-slave.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/fsi.h>
@@ -50,6 +53,7 @@ static const int engine_page_size = 0x400;
 #define FSI_SMODE		0x0	/* R/W: Mode register */
 #define FSI_SISC		0x8	/* R/W: Interrupt condition */
 #define FSI_SSTAT		0x14	/* R  : Slave status */
+#define FSI_SLBUS		0x30	/* W  : LBUS Ownership */
 #define FSI_LLMODE		0x100	/* R/W: Link layer mode register */
 
 /*
@@ -67,6 +71,11 @@ static const int engine_page_size = 0x400;
 #define FSI_SMODE_LBCRR_MASK	0xf		/* Clk ratio mask */
 
 /*
+ * SLBUS fields
+ */
+#define FSI_SLBUS_FORCE		0x80000000	/* Force LBUS ownership */
+
+/*
  * LLMODE fields
  */
 #define FSI_LLMODE_ASYNC	0x1
@@ -74,23 +83,6 @@ static const int engine_page_size = 0x400;
 #define FSI_SLAVE_SIZE_23b		0x800000
 
 static DEFINE_IDA(master_ida);
-
-struct fsi_slave {
-	struct device		dev;
-	struct fsi_master	*master;
-	struct cdev		cdev;
-	int			cdev_idx;
-	int			id;	/* FSI address */
-	int			link;	/* FSI link# */
-	u32			cfam_id;
-	int			chip_id;
-	uint32_t		size;	/* size of slave address space */
-	u8			t_send_delay;
-	u8			t_echo_delay;
-};
-
-#define to_fsi_master(d) container_of(d, struct fsi_master, dev)
-#define to_fsi_slave(d) container_of(d, struct fsi_slave, dev)
 
 static const int slave_retries = 2;
 static int discard_errors;
@@ -386,8 +378,8 @@ int fsi_slave_write(struct fsi_slave *slave, uint32_t addr,
 }
 EXPORT_SYMBOL_GPL(fsi_slave_write);
 
-extern int fsi_slave_claim_range(struct fsi_slave *slave,
-		uint32_t addr, uint32_t size)
+int fsi_slave_claim_range(struct fsi_slave *slave,
+			  uint32_t addr, uint32_t size)
 {
 	if (addr + size < addr)
 		return -EINVAL;
@@ -400,8 +392,8 @@ extern int fsi_slave_claim_range(struct fsi_slave *slave,
 }
 EXPORT_SYMBOL_GPL(fsi_slave_claim_range);
 
-extern void fsi_slave_release_range(struct fsi_slave *slave,
-		uint32_t addr, uint32_t size)
+void fsi_slave_release_range(struct fsi_slave *slave,
+			     uint32_t addr, uint32_t size)
 {
 }
 EXPORT_SYMBOL_GPL(fsi_slave_release_range);
@@ -409,28 +401,18 @@ EXPORT_SYMBOL_GPL(fsi_slave_release_range);
 static bool fsi_device_node_matches(struct device *dev, struct device_node *np,
 		uint32_t addr, uint32_t size)
 {
-	unsigned int len, na, ns;
-	const __be32 *prop;
-	uint32_t psize;
+	u64 paddr, psize;
 
-	na = of_n_addr_cells(np);
-	ns = of_n_size_cells(np);
-
-	if (na != 1 || ns != 1)
+	if (of_property_read_reg(np, 0, &paddr, &psize))
 		return false;
 
-	prop = of_get_property(np, "reg", &len);
-	if (!prop || len != 8)
+	if (paddr != addr)
 		return false;
 
-	if (of_read_number(prop, 1) != addr)
-		return false;
-
-	psize = of_read_number(prop + 1, 1);
 	if (psize != size) {
 		dev_warn(dev,
-			"node %s matches probed address, but not size (got 0x%x, expected 0x%x)",
-			of_node_full_name(np), psize, size);
+			"node %pOF matches probed address, but not size (got 0x%llx, expected 0x%x)",
+			np, psize, size);
 	}
 
 	return true;
@@ -518,6 +500,8 @@ static int fsi_slave_scan(struct fsi_slave *slave)
 			dev->addr = engine_addr;
 			dev->size = slots * engine_page_size;
 
+			trace_fsi_dev_init(dev);
+
 			dev_dbg(&slave->dev,
 			"engine[%i]: type %x, version %x, addr %x size %x\n",
 					dev->unit, dev->engine_type, version,
@@ -544,6 +528,31 @@ static int fsi_slave_scan(struct fsi_slave *slave)
 	return 0;
 }
 
+static unsigned long aligned_access_size(size_t offset, size_t count)
+{
+	unsigned long offset_unit, count_unit;
+
+	/* Criteria:
+	 *
+	 * 1. Access size must be less than or equal to the maximum access
+	 *    width or the highest power-of-two factor of offset
+	 * 2. Access size must be less than or equal to the amount specified by
+	 *    count
+	 *
+	 * The access width is optimal if we can calculate 1 to be strictly
+	 * equal while still satisfying 2.
+	 */
+
+	/* Find 1 by the bottom bit of offset (with a 4 byte access cap) */
+	offset_unit = BIT(__builtin_ctzl(offset | 4));
+
+	/* Find 2 by the top bit of count */
+	count_unit = BIT(8 * sizeof(unsigned long) - 1 - __builtin_clzl(count));
+
+	/* Constrain the maximum access width to the minimum of both criteria */
+	return BIT(__builtin_ctzl(offset_unit | count_unit));
+}
+
 static ssize_t fsi_slave_sysfs_raw_read(struct file *file,
 		struct kobject *kobj, struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count)
@@ -559,8 +568,7 @@ static ssize_t fsi_slave_sysfs_raw_read(struct file *file,
 		return -EINVAL;
 
 	for (total_len = 0; total_len < count; total_len += read_len) {
-		read_len = min_t(size_t, count, 4);
-		read_len -= off & 0x3;
+		read_len = aligned_access_size(off, count - total_len);
 
 		rc = fsi_slave_read(slave, off, buf + total_len, read_len);
 		if (rc)
@@ -587,8 +595,7 @@ static ssize_t fsi_slave_sysfs_raw_write(struct file *file,
 		return -EINVAL;
 
 	for (total_len = 0; total_len < count; total_len += write_len) {
-		write_len = min_t(size_t, count, 4);
-		write_len -= off & 0x3;
+		write_len = aligned_access_size(off, count - total_len);
 
 		rc = fsi_slave_write(slave, off, buf + total_len, write_len);
 		if (rc)
@@ -622,24 +629,12 @@ static void fsi_slave_release(struct device *dev)
 static bool fsi_slave_node_matches(struct device_node *np,
 		int link, uint8_t id)
 {
-	unsigned int len, na, ns;
-	const __be32 *prop;
+	u64 addr;
 
-	na = of_n_addr_cells(np);
-	ns = of_n_size_cells(np);
-
-	/* Ensure we have the correct format for addresses and sizes in
-	 * reg properties
-	 */
-	if (na != 2 || ns != 0)
+	if (of_property_read_reg(np, 0, &addr, NULL))
 		return false;
 
-	prop = of_get_property(np, "reg", &len);
-	if (!prop || len != 8)
-		return false;
-
-	return (of_read_number(prop, 1) == link) &&
-		(of_read_number(prop + 1, 1) == id);
+	return addr == (((u64)link << 32) | id);
 }
 
 /* Find a matching node for the slave at (link, id). Returns NULL if none
@@ -695,7 +690,7 @@ static ssize_t cfam_read(struct file *filep, char __user *buf, size_t count,
 	rc = count;
  fail:
 	*offset = off;
-	return count;
+	return rc;
 }
 
 static ssize_t cfam_write(struct file *filep, const char __user *buf,
@@ -732,7 +727,7 @@ static ssize_t cfam_write(struct file *filep, const char __user *buf,
 	rc = count;
  fail:
 	*offset = off;
-	return count;
+	return rc;
 }
 
 static loff_t cfam_llseek(struct file *file, loff_t offset, int whence)
@@ -866,10 +861,10 @@ static const struct attribute_group *cfam_attr_groups[] = {
 	NULL,
 };
 
-static char *cfam_devnode(struct device *dev, umode_t *mode,
+static char *cfam_devnode(const struct device *dev, umode_t *mode,
 			  kuid_t *uid, kgid_t *gid)
 {
-	struct fsi_slave *slave = to_fsi_slave(dev);
+	const struct fsi_slave *slave = to_fsi_slave(dev);
 
 #ifdef CONFIG_FSI_NEW_DEV_NODE
 	return kasprintf(GFP_KERNEL, "fsi/cfam%d", slave->cdev_idx);
@@ -884,7 +879,7 @@ static const struct device_type cfam_type = {
 	.groups = cfam_attr_groups
 };
 
-static char *fsi_cdev_devnode(struct device *dev, umode_t *mode,
+static char *fsi_cdev_devnode(const struct device *dev, umode_t *mode,
 			      kuid_t *uid, kgid_t *gid)
 {
 #ifdef CONFIG_FSI_NEW_DEV_NODE
@@ -918,9 +913,13 @@ static int __fsi_get_new_minor(struct fsi_slave *slave, enum fsi_dev_type type,
 
 	/* Check if we qualify for legacy numbering */
 	if (cid >= 0 && cid < 16 && type < 4) {
-		/* Try reserving the legacy number */
-		id = (cid << 4) | type;
-		id = ida_simple_get(&fsi_minor_ida, id, id + 1, GFP_KERNEL);
+		/*
+		 * Try reserving the legacy number, which has 0 - 0x3f reserved
+		 * in the ida range. cid goes up to 0xf and type contains two
+		 * bits, so construct the id with the below two bit shift.
+		 */
+		id = (cid << 2) | type;
+		id = ida_alloc_range(&fsi_minor_ida, id, id, GFP_KERNEL);
 		if (id >= 0) {
 			*out_index = fsi_adjust_index(cid);
 			*out_dev = fsi_base_dev + id;
@@ -931,8 +930,8 @@ static int __fsi_get_new_minor(struct fsi_slave *slave, enum fsi_dev_type type,
 			return id;
 		/* Fallback to non-legacy allocation */
 	}
-	id = ida_simple_get(&fsi_minor_ida, FSI_CHAR_LEGACY_TOP,
-			    FSI_CHAR_MAX_DEVICES, GFP_KERNEL);
+	id = ida_alloc_range(&fsi_minor_ida, FSI_CHAR_LEGACY_TOP,
+			     FSI_CHAR_MAX_DEVICES - 1, GFP_KERNEL);
 	if (id < 0)
 		return id;
 	*out_index = fsi_adjust_index(id);
@@ -940,16 +939,42 @@ static int __fsi_get_new_minor(struct fsi_slave *slave, enum fsi_dev_type type,
 	return 0;
 }
 
+static const char *const fsi_dev_type_names[] = {
+	"cfam",
+	"sbefifo",
+	"scom",
+	"occ",
+};
+
 int fsi_get_new_minor(struct fsi_device *fdev, enum fsi_dev_type type,
 		      dev_t *out_dev, int *out_index)
 {
+	if (fdev->dev.of_node) {
+		int aid = of_alias_get_id(fdev->dev.of_node, fsi_dev_type_names[type]);
+
+		if (aid >= 0) {
+			/* Use the same scheme as the legacy numbers. */
+			int id = (aid << 2) | type;
+
+			id = ida_alloc_range(&fsi_minor_ida, id, id, GFP_KERNEL);
+			if (id >= 0) {
+				*out_index = aid;
+				*out_dev = fsi_base_dev + id;
+				return 0;
+			}
+
+			if (id != -ENOSPC)
+				return id;
+		}
+	}
+
 	return __fsi_get_new_minor(fdev->slave, type, out_dev, out_index);
 }
 EXPORT_SYMBOL_GPL(fsi_get_new_minor);
 
 void fsi_free_minor(dev_t dev)
 {
-	ida_simple_remove(&fsi_minor_ida, MINOR(dev));
+	ida_free(&fsi_minor_ida, MINOR(dev));
 }
 EXPORT_SYMBOL_GPL(fsi_free_minor);
 
@@ -958,7 +983,7 @@ static int fsi_slave_init(struct fsi_master *master, int link, uint8_t id)
 	uint32_t cfam_id;
 	struct fsi_slave *slave;
 	uint8_t crc;
-	__be32 data, llmode;
+	__be32 data, llmode, slbus;
 	int rc;
 
 	/* Currently, we only support single slaves on a link, and use the
@@ -977,6 +1002,7 @@ static int fsi_slave_init(struct fsi_master *master, int link, uint8_t id)
 
 	crc = crc4(0, cfam_id, 32);
 	if (crc) {
+		trace_fsi_slave_invalid_cfam(master, link, cfam_id);
 		dev_warn(&master->dev, "slave %02x:%02x invalid cfam id CRC!\n",
 				link, id);
 		return -EIO;
@@ -1029,6 +1055,14 @@ static int fsi_slave_init(struct fsi_master *master, int link, uint8_t id)
 
 	}
 
+	slbus = cpu_to_be32(FSI_SLBUS_FORCE);
+	rc = fsi_master_write(master, link, id, FSI_SLAVE_BASE + FSI_SLBUS,
+			      &slbus, sizeof(slbus));
+	if (rc)
+		dev_warn(&master->dev,
+			 "can't set slbus on slave:%02x:%02x %d\n", link, id,
+			 rc);
+
 	rc = fsi_slave_set_smode(slave);
 	if (rc) {
 		dev_warn(&master->dev,
@@ -1042,6 +1076,8 @@ static int fsi_slave_init(struct fsi_master *master, int link, uint8_t id)
 				 &slave->cdev_idx);
 	if (rc)
 		goto err_free;
+
+	trace_fsi_slave_init(slave);
 
 	/* Create chardev for userspace access */
 	cdev_init(&slave->cdev, &cfam_fops);
@@ -1131,10 +1167,18 @@ static int fsi_master_write(struct fsi_master *master, int link,
 	return rc;
 }
 
+static int fsi_master_link_disable(struct fsi_master *master, int link)
+{
+	if (master->link_enable)
+		return master->link_enable(master, link, false);
+
+	return 0;
+}
+
 static int fsi_master_link_enable(struct fsi_master *master, int link)
 {
 	if (master->link_enable)
-		return master->link_enable(master, link);
+		return master->link_enable(master, link, true);
 
 	return 0;
 }
@@ -1160,6 +1204,7 @@ static int fsi_master_scan(struct fsi_master *master)
 {
 	int link, rc;
 
+	trace_fsi_master_scan(master, true);
 	for (link = 0; link < master->n_links; link++) {
 		rc = fsi_master_link_enable(master, link);
 		if (rc) {
@@ -1169,12 +1214,15 @@ static int fsi_master_scan(struct fsi_master *master)
 		}
 		rc = fsi_master_break(master, link);
 		if (rc) {
+			fsi_master_link_disable(master, link);
 			dev_dbg(&master->dev,
 				"break to link %d failed: %d\n", link, rc);
 			continue;
 		}
 
-		fsi_slave_init(master, link, 0);
+		rc = fsi_slave_init(master, link, 0);
+		if (rc)
+			fsi_master_link_disable(master, link);
 	}
 
 	return 0;
@@ -1198,6 +1246,7 @@ static int fsi_master_remove_slave(struct device *dev, void *arg)
 
 static void fsi_master_unscan(struct fsi_master *master)
 {
+	trace_fsi_master_scan(master, false);
 	device_for_each_child(&master->dev, NULL, fsi_master_remove_slave);
 }
 
@@ -1241,57 +1290,72 @@ static ssize_t master_break_store(struct device *dev,
 
 static DEVICE_ATTR(break, 0200, NULL, master_break_store);
 
+static struct attribute *master_attrs[] = {
+	&dev_attr_break.attr,
+	&dev_attr_rescan.attr,
+	NULL
+};
+
+ATTRIBUTE_GROUPS(master);
+
+static struct class fsi_master_class = {
+	.name = "fsi-master",
+	.dev_groups = master_groups,
+};
+
 int fsi_master_register(struct fsi_master *master)
 {
 	int rc;
 	struct device_node *np;
 
 	mutex_init(&master->scan_lock);
-	master->idx = ida_simple_get(&master_ida, 0, INT_MAX, GFP_KERNEL);
-	dev_set_name(&master->dev, "fsi%d", master->idx);
 
+	/* Alloc the requested index if it's non-zero */
+	if (master->idx) {
+		master->idx = ida_alloc_range(&master_ida, master->idx,
+					      master->idx, GFP_KERNEL);
+	} else {
+		master->idx = ida_alloc(&master_ida, GFP_KERNEL);
+	}
+
+	if (master->idx < 0)
+		return master->idx;
+
+	if (!dev_name(&master->dev))
+		dev_set_name(&master->dev, "fsi%d", master->idx);
+
+	master->dev.class = &fsi_master_class;
+
+	mutex_lock(&master->scan_lock);
 	rc = device_register(&master->dev);
 	if (rc) {
-		ida_simple_remove(&master_ida, master->idx);
-		return rc;
-	}
-
-	rc = device_create_file(&master->dev, &dev_attr_rescan);
-	if (rc) {
-		device_del(&master->dev);
-		ida_simple_remove(&master_ida, master->idx);
-		return rc;
-	}
-
-	rc = device_create_file(&master->dev, &dev_attr_break);
-	if (rc) {
-		device_del(&master->dev);
-		ida_simple_remove(&master_ida, master->idx);
-		return rc;
+		ida_free(&master_ida, master->idx);
+		goto out;
 	}
 
 	np = dev_of_node(&master->dev);
 	if (!of_property_read_bool(np, "no-scan-on-init")) {
-		mutex_lock(&master->scan_lock);
 		fsi_master_scan(master);
-		mutex_unlock(&master->scan_lock);
 	}
-
-	return 0;
+out:
+	mutex_unlock(&master->scan_lock);
+	return rc;
 }
 EXPORT_SYMBOL_GPL(fsi_master_register);
 
 void fsi_master_unregister(struct fsi_master *master)
 {
-	if (master->idx >= 0) {
-		ida_simple_remove(&master_ida, master->idx);
-		master->idx = -1;
-	}
+	int idx = master->idx;
+
+	trace_fsi_master_unregister(master);
 
 	mutex_lock(&master->scan_lock);
 	fsi_master_unscan(master);
+	master->n_links = 0;
 	mutex_unlock(&master->scan_lock);
+
 	device_unregister(&master->dev);
+	ida_free(&master_ida, idx);
 }
 EXPORT_SYMBOL_GPL(fsi_master_unregister);
 
@@ -1310,8 +1374,14 @@ static int fsi_bus_match(struct device *dev, struct device_driver *drv)
 		if (id->engine_type != fsi_dev->engine_type)
 			continue;
 		if (id->version == FSI_VERSION_ANY ||
-				id->version == fsi_dev->version)
-			return 1;
+		    id->version == fsi_dev->version) {
+			if (drv->of_match_table) {
+				if (of_driver_match_device(dev, drv))
+					return 1;
+			} else {
+				return 1;
+			}
+		}
 	}
 
 	return 0;
@@ -1350,8 +1420,15 @@ static int __init fsi_init(void)
 	rc = bus_register(&fsi_bus_type);
 	if (rc)
 		goto fail_bus;
+
+	rc = class_register(&fsi_master_class);
+	if (rc)
+		goto fail_class;
+
 	return 0;
 
+ fail_class:
+	bus_unregister(&fsi_bus_type);
  fail_bus:
 	unregister_chrdev_region(fsi_base_dev, FSI_CHAR_MAX_DEVICES);
 	return rc;
@@ -1360,6 +1437,7 @@ postcore_initcall(fsi_init);
 
 static void fsi_exit(void)
 {
+	class_unregister(&fsi_master_class);
 	bus_unregister(&fsi_bus_type);
 	unregister_chrdev_region(fsi_base_dev, FSI_CHAR_MAX_DEVICES);
 	ida_destroy(&fsi_minor_ida);

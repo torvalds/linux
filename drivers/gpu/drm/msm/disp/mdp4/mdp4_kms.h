@@ -42,20 +42,14 @@ struct mdp4_kms {
 };
 #define to_mdp4_kms(x) container_of(x, struct mdp4_kms, base)
 
-/* platform config data (ie. from DT, or pdata) */
-struct mdp4_platform_config {
-	struct iommu_domain *iommu;
-	uint32_t max_clk;
-};
-
 static inline void mdp4_write(struct mdp4_kms *mdp4_kms, u32 reg, u32 data)
 {
-	msm_writel(data, mdp4_kms->mmio + reg);
+	writel(data, mdp4_kms->mmio + reg);
 }
 
 static inline u32 mdp4_read(struct mdp4_kms *mdp4_kms, u32 reg)
 {
-	return msm_readl(mdp4_kms->mmio + reg);
+	return readl(mdp4_kms->mmio + reg);
 }
 
 static inline uint32_t pipe2flush(enum mdp4_pipe pipe)
@@ -219,19 +213,6 @@ struct clk *mpd4_lvds_pll_init(struct drm_device *dev);
 static inline struct clk *mpd4_lvds_pll_init(struct drm_device *dev)
 {
 	return ERR_PTR(-ENODEV);
-}
-#endif
-
-#ifdef DOWNSTREAM_CONFIG_MSM_BUS_SCALING
-/* bus scaling data is associated with extra pointless platform devices,
- * "dtv", etc.. this is a bit of a hack, but we need a way for encoders
- * to find their pdata to make the bus-scaling stuff work.
- */
-static inline void *mdp4_find_pdata(const char *devname)
-{
-	struct device *dev;
-	dev = bus_find_device_by_name(&platform_bus_type, NULL, devname);
-	return dev ? dev->platform_data : NULL;
 }
 #endif
 

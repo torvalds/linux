@@ -127,12 +127,10 @@ static const struct regmap_config arcx_regmap_cfg = {
 static struct regmap *create_parallel_regmap(struct platform_device *pdev,
 					     int idx)
 {
-	struct resource *res;
 	void __iomem *base;
 	struct device *dev = &pdev->dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, idx + 1);
-	base = devm_ioremap_resource(dev, res);
+	base = devm_platform_ioremap_resource(pdev, idx + 1);
 	if (IS_ERR(base))
 		return ERR_CAST(base);
 	return devm_regmap_init_mmio(dev, base, &arcx_regmap_cfg);
@@ -158,8 +156,8 @@ create_anybus_host(struct platform_device *pdev, int idx)
 	if (IS_ERR(ops.regmap))
 		return ERR_CAST(ops.regmap);
 	ops.irq = platform_get_irq(pdev, idx);
-	if (ops.irq <= 0)
-		return ERR_PTR(-EINVAL);
+	if (ops.irq < 0)
+		return ERR_PTR(ops.irq);
 	return devm_anybuss_host_common_probe(&pdev->dev, &ops);
 }
 
@@ -187,7 +185,7 @@ static struct attribute *controller_attributes[] = {
 	NULL,
 };
 
-static struct attribute_group controller_attribute_group = {
+static const struct attribute_group controller_attribute_group = {
 	.attrs = controller_attributes,
 };
 
@@ -208,7 +206,7 @@ static int can_power_is_enabled(struct regulator_dev *rdev)
 	return !(readb(cd->cpld_base + CPLD_STATUS1) & CPLD_STATUS1_CAN_POWER);
 }
 
-static struct regulator_ops can_power_ops = {
+static const struct regulator_ops can_power_ops = {
 	.is_enabled = can_power_is_enabled,
 };
 
@@ -220,7 +218,10 @@ static const struct regulator_desc can_power_desc = {
 	.ops = &can_power_ops,
 };
 
-static struct class *controller_class;
+static const struct class controller_class = {
+	.name = "arcx_anybus_controller",
+};
+
 static DEFINE_IDA(controller_index_ida);
 
 static int controller_probe(struct platform_device *pdev)
@@ -230,7 +231,6 @@ static int controller_probe(struct platform_device *pdev)
 	struct regulator_config config = { };
 	struct regulator_dev *regulator;
 	int err, id;
-	struct resource *res;
 	struct anybuss_host *host;
 	u8 status1, cap;
 
@@ -244,8 +244,7 @@ static int controller_probe(struct platform_device *pdev)
 		return PTR_ERR(cd->reset_gpiod);
 
 	/* CPLD control memory, sits at index 0 */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	cd->cpld_base = devm_ioremap_resource(dev, res);
+	cd->cpld_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(cd->cpld_base)) {
 		dev_err(dev,
 			"failed to map cpld base address\n");
@@ -286,7 +285,7 @@ static int controller_probe(struct platform_device *pdev)
 		}
 	}
 
-	id = ida_simple_get(&controller_index_ida, 0, 0, GFP_KERNEL);
+	id = ida_alloc(&controller_index_ida, GFP_KERNEL);
 	if (id < 0) {
 		err = id;
 		goto out_reset;
@@ -297,7 +296,7 @@ static int controller_probe(struct platform_device *pdev)
 	regulator = devm_regulator_register(dev, &can_power_desc, &config);
 	if (IS_ERR(regulator)) {
 		err = PTR_ERR(regulator);
-		goto out_reset;
+		goto out_ida;
 	}
 	/* make controller info visible to userspace */
 	cd->class_dev = kzalloc(sizeof(*cd->class_dev), GFP_KERNEL);
@@ -305,7 +304,7 @@ static int controller_probe(struct platform_device *pdev)
 		err = -ENOMEM;
 		goto out_ida;
 	}
-	cd->class_dev->class = controller_class;
+	cd->class_dev->class = &controller_class;
 	cd->class_dev->groups = controller_attribute_groups;
 	cd->class_dev->parent = dev;
 	cd->class_dev->id = id;
@@ -319,21 +318,20 @@ static int controller_probe(struct platform_device *pdev)
 out_dev:
 	put_device(cd->class_dev);
 out_ida:
-	ida_simple_remove(&controller_index_ida, id);
+	ida_free(&controller_index_ida, id);
 out_reset:
 	gpiod_set_value_cansleep(cd->reset_gpiod, 1);
 	return err;
 }
 
-static int controller_remove(struct platform_device *pdev)
+static void controller_remove(struct platform_device *pdev)
 {
 	struct controller_priv *cd = platform_get_drvdata(pdev);
 	int id = cd->class_dev->id;
 
 	device_unregister(cd->class_dev);
-	ida_simple_remove(&controller_index_ida, id);
+	ida_free(&controller_index_ida, id);
 	gpiod_set_value_cansleep(cd->reset_gpiod, 1);
-	return 0;
 }
 
 static const struct of_device_id controller_of_match[] = {
@@ -345,10 +343,10 @@ MODULE_DEVICE_TABLE(of, controller_of_match);
 
 static struct platform_driver controller_driver = {
 	.probe = controller_probe,
-	.remove = controller_remove,
+	.remove_new = controller_remove,
 	.driver		= {
 		.name   = "arcx-anybus-controller",
-		.of_match_table	= of_match_ptr(controller_of_match),
+		.of_match_table	= controller_of_match,
 	},
 };
 
@@ -356,12 +354,12 @@ static int __init controller_init(void)
 {
 	int err;
 
-	controller_class = class_create(THIS_MODULE, "arcx_anybus_controller");
-	if (IS_ERR(controller_class))
-		return PTR_ERR(controller_class);
+	err = class_register(&controller_class);
+	if (err)
+		return err;
 	err = platform_driver_register(&controller_driver);
 	if (err)
-		class_destroy(controller_class);
+		class_unregister(&controller_class);
 
 	return err;
 }
@@ -369,7 +367,7 @@ static int __init controller_init(void)
 static void __exit controller_exit(void)
 {
 	platform_driver_unregister(&controller_driver);
-	class_destroy(controller_class);
+	class_unregister(&controller_class);
 	ida_destroy(&controller_index_ida);
 }
 

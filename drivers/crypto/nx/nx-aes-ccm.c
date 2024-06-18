@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * AES CCM routines supporting the Power 7+ Nest Accelerators driver
  *
  * Copyright (C) 2012 International Business Machines Inc.
@@ -134,7 +134,6 @@ static int generate_b0(u8 *iv, unsigned int assoclen, unsigned int authsize,
 		       unsigned int cryptlen, u8 *b0)
 {
 	unsigned int l, lp, m = authsize;
-	int rc;
 
 	memcpy(b0, iv, 16);
 
@@ -148,9 +147,7 @@ static int generate_b0(u8 *iv, unsigned int assoclen, unsigned int authsize,
 	if (assoclen)
 		*b0 |= 64;
 
-	rc = set_msg_len(b0 + 16 - l, cryptlen, l);
-
-	return rc;
+	return set_msg_len(b0 + 16 - l, cryptlen, l);
 }
 
 static int generate_pat(u8                   *iv,
@@ -327,7 +324,7 @@ static int generate_pat(u8                   *iv,
 }
 
 static int ccm_nx_decrypt(struct aead_request   *req,
-			  struct blkcipher_desc *desc,
+			  u8                    *iv,
 			  unsigned int assoclen)
 {
 	struct nx_crypto_ctx *nx_ctx = crypto_tfm_ctx(req->base.tfm);
@@ -348,7 +345,7 @@ static int ccm_nx_decrypt(struct aead_request   *req,
 				 req->src, nbytes + req->assoclen, authsize,
 				 SCATTERWALK_FROM_SG);
 
-	rc = generate_pat(desc->info, req, nx_ctx, authsize, nbytes, assoclen,
+	rc = generate_pat(iv, req, nx_ctx, authsize, nbytes, assoclen,
 			  csbcpb->cpb.aes_ccm.in_pat_or_b0);
 	if (rc)
 		goto out;
@@ -367,7 +364,7 @@ static int ccm_nx_decrypt(struct aead_request   *req,
 
 		NX_CPB_FDM(nx_ctx->csbcpb) &= ~NX_FDM_ENDE_ENCRYPT;
 
-		rc = nx_build_sg_lists(nx_ctx, desc, req->dst, req->src,
+		rc = nx_build_sg_lists(nx_ctx, iv, req->dst, req->src,
 				       &to_process, processed + req->assoclen,
 				       csbcpb->cpb.aes_ccm.iv_or_ctr);
 		if (rc)
@@ -381,7 +378,7 @@ static int ccm_nx_decrypt(struct aead_request   *req,
 		/* for partial completion, copy following for next
 		 * entry into loop...
 		 */
-		memcpy(desc->info, csbcpb->cpb.aes_ccm.out_ctr, AES_BLOCK_SIZE);
+		memcpy(iv, csbcpb->cpb.aes_ccm.out_ctr, AES_BLOCK_SIZE);
 		memcpy(csbcpb->cpb.aes_ccm.in_pat_or_b0,
 			csbcpb->cpb.aes_ccm.out_pat_or_mac, AES_BLOCK_SIZE);
 		memcpy(csbcpb->cpb.aes_ccm.in_s0,
@@ -391,7 +388,7 @@ static int ccm_nx_decrypt(struct aead_request   *req,
 
 		/* update stats */
 		atomic_inc(&(nx_ctx->stats->aes_ops));
-		atomic64_add(csbcpb->csb.processed_byte_count,
+		atomic64_add(be32_to_cpu(csbcpb->csb.processed_byte_count),
 			     &(nx_ctx->stats->aes_bytes));
 
 		processed += to_process;
@@ -405,7 +402,7 @@ out:
 }
 
 static int ccm_nx_encrypt(struct aead_request   *req,
-			  struct blkcipher_desc *desc,
+			  u8                    *iv,
 			  unsigned int assoclen)
 {
 	struct nx_crypto_ctx *nx_ctx = crypto_tfm_ctx(req->base.tfm);
@@ -418,7 +415,7 @@ static int ccm_nx_encrypt(struct aead_request   *req,
 
 	spin_lock_irqsave(&nx_ctx->lock, irq_flags);
 
-	rc = generate_pat(desc->info, req, nx_ctx, authsize, nbytes, assoclen,
+	rc = generate_pat(iv, req, nx_ctx, authsize, nbytes, assoclen,
 			  csbcpb->cpb.aes_ccm.in_pat_or_b0);
 	if (rc)
 		goto out;
@@ -436,7 +433,7 @@ static int ccm_nx_encrypt(struct aead_request   *req,
 
 		NX_CPB_FDM(csbcpb) |= NX_FDM_ENDE_ENCRYPT;
 
-		rc = nx_build_sg_lists(nx_ctx, desc, req->dst, req->src,
+		rc = nx_build_sg_lists(nx_ctx, iv, req->dst, req->src,
 				       &to_process, processed + req->assoclen,
 				       csbcpb->cpb.aes_ccm.iv_or_ctr);
 		if (rc)
@@ -450,7 +447,7 @@ static int ccm_nx_encrypt(struct aead_request   *req,
 		/* for partial completion, copy following for next
 		 * entry into loop...
 		 */
-		memcpy(desc->info, csbcpb->cpb.aes_ccm.out_ctr, AES_BLOCK_SIZE);
+		memcpy(iv, csbcpb->cpb.aes_ccm.out_ctr, AES_BLOCK_SIZE);
 		memcpy(csbcpb->cpb.aes_ccm.in_pat_or_b0,
 			csbcpb->cpb.aes_ccm.out_pat_or_mac, AES_BLOCK_SIZE);
 		memcpy(csbcpb->cpb.aes_ccm.in_s0,
@@ -460,7 +457,7 @@ static int ccm_nx_encrypt(struct aead_request   *req,
 
 		/* update stats */
 		atomic_inc(&(nx_ctx->stats->aes_ops));
-		atomic64_add(csbcpb->csb.processed_byte_count,
+		atomic64_add(be32_to_cpu(csbcpb->csb.processed_byte_count),
 			     &(nx_ctx->stats->aes_bytes));
 
 		processed += to_process;
@@ -481,67 +478,50 @@ static int ccm4309_aes_nx_encrypt(struct aead_request *req)
 {
 	struct nx_crypto_ctx *nx_ctx = crypto_tfm_ctx(req->base.tfm);
 	struct nx_gcm_rctx *rctx = aead_request_ctx(req);
-	struct blkcipher_desc desc;
 	u8 *iv = rctx->iv;
 
 	iv[0] = 3;
 	memcpy(iv + 1, nx_ctx->priv.ccm.nonce, 3);
 	memcpy(iv + 4, req->iv, 8);
 
-	desc.info = iv;
-
-	return ccm_nx_encrypt(req, &desc, req->assoclen - 8);
+	return ccm_nx_encrypt(req, iv, req->assoclen - 8);
 }
 
 static int ccm_aes_nx_encrypt(struct aead_request *req)
 {
-	struct blkcipher_desc desc;
 	int rc;
 
-	desc.info = req->iv;
-
-	rc = crypto_ccm_check_iv(desc.info);
+	rc = crypto_ccm_check_iv(req->iv);
 	if (rc)
 		return rc;
 
-	return ccm_nx_encrypt(req, &desc, req->assoclen);
+	return ccm_nx_encrypt(req, req->iv, req->assoclen);
 }
 
 static int ccm4309_aes_nx_decrypt(struct aead_request *req)
 {
 	struct nx_crypto_ctx *nx_ctx = crypto_tfm_ctx(req->base.tfm);
 	struct nx_gcm_rctx *rctx = aead_request_ctx(req);
-	struct blkcipher_desc desc;
 	u8 *iv = rctx->iv;
 
 	iv[0] = 3;
 	memcpy(iv + 1, nx_ctx->priv.ccm.nonce, 3);
 	memcpy(iv + 4, req->iv, 8);
 
-	desc.info = iv;
-
-	return ccm_nx_decrypt(req, &desc, req->assoclen - 8);
+	return ccm_nx_decrypt(req, iv, req->assoclen - 8);
 }
 
 static int ccm_aes_nx_decrypt(struct aead_request *req)
 {
-	struct blkcipher_desc desc;
 	int rc;
 
-	desc.info = req->iv;
-
-	rc = crypto_ccm_check_iv(desc.info);
+	rc = crypto_ccm_check_iv(req->iv);
 	if (rc)
 		return rc;
 
-	return ccm_nx_decrypt(req, &desc, req->assoclen);
+	return ccm_nx_decrypt(req, req->iv, req->assoclen);
 }
 
-/* tell the block cipher walk routines that this is a stream cipher by
- * setting cra_blocksize to 1. Even using blkcipher_walk_virt_block
- * during encrypt/decrypt doesn't solve this problem, because it calls
- * blkcipher_walk_done under the covers, which doesn't use walk->blocksize,
- * but instead uses this tfm->blocksize. */
 struct aead_alg nx_ccm_aes_alg = {
 	.base = {
 		.cra_name        = "ccm(aes)",

@@ -796,7 +796,7 @@ struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe, int pll_addr,
 	b1[0] = 0;
 	msg.buf = b1;
 
-	nr = ida_simple_get(&pll_ida, 0, DVB_PLL_MAX, GFP_KERNEL);
+	nr = ida_alloc_max(&pll_ida, DVB_PLL_MAX - 1, GFP_KERNEL);
 	if (nr < 0) {
 		kfree(b1);
 		return NULL;
@@ -862,16 +862,17 @@ struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe, int pll_addr,
 	return fe;
 out:
 	kfree(b1);
-	ida_simple_remove(&pll_ida, nr);
+	ida_free(&pll_ida, nr);
 
 	return NULL;
 }
-EXPORT_SYMBOL(dvb_pll_attach);
+EXPORT_SYMBOL_GPL(dvb_pll_attach);
 
 
 static int
-dvb_pll_probe(struct i2c_client *client, const struct i2c_device_id *id)
+dvb_pll_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct dvb_pll_config *cfg;
 	struct dvb_frontend *fe;
 	unsigned int desc_id;
@@ -899,14 +900,13 @@ dvb_pll_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	return 0;
 }
 
-static int dvb_pll_remove(struct i2c_client *client)
+static void dvb_pll_remove(struct i2c_client *client)
 {
 	struct dvb_frontend *fe = i2c_get_clientdata(client);
 	struct dvb_pll_priv *priv = fe->tuner_priv;
 
-	ida_simple_remove(&pll_ida, priv->nr);
+	ida_free(&pll_ida, priv->nr);
 	dvb_pll_release(fe);
-	return 0;
 }
 
 

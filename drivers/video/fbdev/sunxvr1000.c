@@ -8,7 +8,8 @@
 #include <linux/kernel.h>
 #include <linux/fb.h>
 #include <linux/init.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 
 struct gfb_info {
 	struct fb_info		*info;
@@ -59,12 +60,10 @@ static int gfb_setcolreg(unsigned regno,
 	return 0;
 }
 
-static struct fb_ops gfb_ops = {
+static const struct fb_ops gfb_ops = {
 	.owner			= THIS_MODULE,
+	FB_DEFAULT_IOMEM_OPS,
 	.fb_setcolreg		= gfb_setcolreg,
-	.fb_fillrect		= cfb_fillrect,
-	.fb_copyarea		= cfb_copyarea,
-	.fb_imageblit		= cfb_imageblit,
 };
 
 static int gfb_set_fbinfo(struct gfb_info *gp)
@@ -72,7 +71,6 @@ static int gfb_set_fbinfo(struct gfb_info *gp)
 	struct fb_info *info = gp->info;
 	struct fb_var_screeninfo *var = &info->var;
 
-	info->flags = FBINFO_DEFAULT;
 	info->fbops = &gfb_ops;
 	info->screen_base = gp->fb_base;
 	info->screen_size = gp->fb_size;
@@ -80,7 +78,7 @@ static int gfb_set_fbinfo(struct gfb_info *gp)
 	info->pseudo_palette = gp->pseudo_palette;
 
 	/* Fill fix common fields */
-	strlcpy(info->fix.id, "gfb", sizeof(info->fix.id));
+	strscpy(info->fix.id, "gfb", sizeof(info->fix.id));
         info->fix.smem_start = gp->fb_base_phys;
         info->fix.smem_len = gp->fb_size;
         info->fix.type = FB_TYPE_PACKED_PIXELS;

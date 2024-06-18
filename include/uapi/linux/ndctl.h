@@ -30,25 +30,25 @@ struct nd_cmd_get_config_data_hdr {
 	__u32 in_offset;
 	__u32 in_length;
 	__u32 status;
-	__u8 out_buf[0];
+	__u8 out_buf[];
 } __packed;
 
 struct nd_cmd_set_config_hdr {
 	__u32 in_offset;
 	__u32 in_length;
-	__u8 in_buf[0];
+	__u8 in_buf[];
 } __packed;
 
 struct nd_cmd_vendor_hdr {
 	__u32 opcode;
 	__u32 in_length;
-	__u8 in_buf[0];
+	__u8 in_buf[];
 } __packed;
 
 struct nd_cmd_vendor_tail {
 	__u32 status;
 	__u32 out_length;
-	__u8 out_buf[0];
+	__u8 out_buf[];
 } __packed;
 
 struct nd_cmd_ars_cap {
@@ -86,7 +86,7 @@ struct nd_cmd_ars_status {
 		__u32 reserved;
 		__u64 err_address;
 		__u64 length;
-	} __packed records[0];
+	} __packed records[];
 } __packed;
 
 struct nd_cmd_clear_error {
@@ -189,7 +189,6 @@ static inline const char *nvdimm_cmd_name(unsigned cmd)
 #define ND_DEVICE_REGION_BLK 3      /* nd_region: (parent of BLK namespaces) */
 #define ND_DEVICE_NAMESPACE_IO 4    /* legacy persistent memory */
 #define ND_DEVICE_NAMESPACE_PMEM 5  /* PMEM namespace (may alias with BLK) */
-#define ND_DEVICE_NAMESPACE_BLK 6   /* BLK namespace (may alias with PMEM) */
 #define ND_DEVICE_DAX_PMEM 7        /* Device DAX interface to pmem */
 
 enum nd_driver_flags {
@@ -198,7 +197,6 @@ enum nd_driver_flags {
 	ND_DRIVER_REGION_BLK      = 1 << ND_DEVICE_REGION_BLK,
 	ND_DRIVER_NAMESPACE_IO    = 1 << ND_DEVICE_NAMESPACE_IO,
 	ND_DRIVER_NAMESPACE_PMEM  = 1 << ND_DEVICE_NAMESPACE_PMEM,
-	ND_DRIVER_NAMESPACE_BLK   = 1 << ND_DEVICE_NAMESPACE_BLK,
 	ND_DRIVER_DAX_PMEM	  = 1 << ND_DEVICE_DAX_PMEM,
 };
 
@@ -244,6 +242,12 @@ struct nd_cmd_pkg {
 #define NVDIMM_FAMILY_HPE2 2
 #define NVDIMM_FAMILY_MSFT 3
 #define NVDIMM_FAMILY_HYPERV 4
+#define NVDIMM_FAMILY_PAPR 5
+#define NVDIMM_FAMILY_MAX NVDIMM_FAMILY_PAPR
+
+#define NVDIMM_BUS_FAMILY_NFIT 0
+#define NVDIMM_BUS_FAMILY_INTEL 1
+#define NVDIMM_BUS_FAMILY_MAX NVDIMM_BUS_FAMILY_INTEL
 
 #define ND_IOCTL_CALL			_IOWR(ND_IOCTL, ND_CMD_CALL,\
 					struct nd_cmd_pkg)

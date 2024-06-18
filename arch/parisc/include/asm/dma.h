@@ -14,6 +14,8 @@
 #define dma_outb	outb
 #define dma_inb		inb
 
+extern unsigned long pcxl_dma_start;
+
 /*
 ** DMA_CHUNK_SIZE is used by the SCSI mid-layer to break up
 ** (or rather not merge) DMAs into manageable chunks.
@@ -175,11 +177,5 @@ static __inline__ void set_dma_count(unsigned int dmanr, unsigned int count)
 
 
 #define free_dma(dmanr)
-
-#ifdef CONFIG_PCI
-extern int isa_dma_bridge_buggy;
-#else
-#define isa_dma_bridge_buggy 	(0)
-#endif
 
 #endif /* _ASM_DMA_H */

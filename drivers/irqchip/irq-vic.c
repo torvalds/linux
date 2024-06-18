@@ -27,7 +27,10 @@
 
 #define VIC_IRQ_STATUS			0x00
 #define VIC_FIQ_STATUS			0x04
+#define VIC_RAW_STATUS			0x08
 #define VIC_INT_SELECT			0x0c	/* 1 = FIQ, 0 = IRQ */
+#define VIC_INT_ENABLE			0x10	/* 1 = enable, 0 = disable */
+#define VIC_INT_ENABLE_CLEAR		0x14
 #define VIC_INT_SOFT			0x18
 #define VIC_INT_SOFT_CLEAR		0x1c
 #define VIC_PROTECT			0x20
@@ -44,9 +47,8 @@
 
 /**
  * struct vic_device - VIC PM device
- * @parent_irq: The parent IRQ number of the VIC if cascaded, or 0.
- * @irq: The IRQ number for the base of the VIC.
  * @base: The register base for the VIC.
+ * @irq: The IRQ number for the base of the VIC.
  * @valid_sources: A bitmask of valid interrupts
  * @resume_sources: A bitmask of interrupts for resume.
  * @resume_irqs: The IRQs enabled for resume.
@@ -160,7 +162,7 @@ static struct syscore_ops vic_syscore_ops = {
 };
 
 /**
- * vic_pm_init - initicall to register VIC pm
+ * vic_pm_init - initcall to register VIC pm
  *
  * This is called via late_initcall() to register
  * the resources for the VICs due to the early
@@ -205,7 +207,7 @@ static int handle_one_vic(struct vic_device *vic, struct pt_regs *regs)
 
 	while ((stat = readl_relaxed(vic->base + VIC_IRQ_STATUS))) {
 		irq = ffs(stat) - 1;
-		handle_domain_irq(vic->domain, irq, regs);
+		generic_handle_domain_irq(vic->domain, irq);
 		handled = 1;
 	}
 
@@ -222,7 +224,7 @@ static void vic_handle_irq_cascaded(struct irq_desc *desc)
 
 	while ((stat = readl_relaxed(vic->base + VIC_IRQ_STATUS))) {
 		hwirq = ffs(stat) - 1;
-		generic_handle_irq(irq_find_mapping(vic->domain, hwirq));
+		generic_handle_domain_irq(vic->domain, hwirq);
 	}
 
 	chained_irq_exit(host_chip, desc);
@@ -394,7 +396,7 @@ static void __init vic_clear_interrupts(void __iomem *base)
 /*
  * The PL190 cell from ARM has been modified by ST to handle 64 interrupts.
  * The original cell has 32 interrupts, while the modified one has 64,
- * replocating two blocks 0x00..0x1f in 0x20..0x3f. In that case
+ * replicating two blocks 0x00..0x1f in 0x20..0x3f. In that case
  * the probe function is called twice, with base set to offset 000
  *  and 020 within the page. We call this "second block".
  */
@@ -428,7 +430,7 @@ static void __init vic_init_st(void __iomem *base, unsigned int irq_start,
 	vic_register(base, 0, irq_start, vic_sources, 0, node);
 }
 
-void __init __vic_init(void __iomem *base, int parent_irq, int irq_start,
+static void __init __vic_init(void __iomem *base, int parent_irq, int irq_start,
 			      u32 vic_sources, u32 resume_sources,
 			      struct device_node *node)
 {
@@ -452,7 +454,7 @@ void __init __vic_init(void __iomem *base, int parent_irq, int irq_start,
 		return;
 	default:
 		printk(KERN_WARNING "VIC: unknown vendor, continuing anyways\n");
-		/* fall through */
+		fallthrough;
 	case AMBA_VENDOR_ARM:
 		break;
 	}
@@ -481,27 +483,6 @@ void __init vic_init(void __iomem *base, unsigned int irq_start,
 	__vic_init(base, 0, irq_start, vic_sources, resume_sources, NULL);
 }
 
-/**
- * vic_init_cascaded() - initialise a cascaded vectored interrupt controller
- * @base: iomem base address
- * @parent_irq: the parent IRQ we're cascaded off
- * @vic_sources: bitmask of interrupt sources to allow
- * @resume_sources: bitmask of interrupt sources to allow for resume
- *
- * This returns the base for the new interrupts or negative on error.
- */
-int __init vic_init_cascaded(void __iomem *base, unsigned int parent_irq,
-			      u32 vic_sources, u32 resume_sources)
-{
-	struct vic_device *v;
-
-	v = &vic_devices[vic_id];
-	__vic_init(base, parent_irq, 0, vic_sources, resume_sources, NULL);
-	/* Return out acquired base */
-	return v->irq;
-}
-EXPORT_SYMBOL_GPL(vic_init_cascaded);
-
 #ifdef CONFIG_OF
 static int __init vic_of_init(struct device_node *node,
 			      struct device_node *parent)
@@ -509,9 +490,7 @@ static int __init vic_of_init(struct device_node *node,
 	void __iomem *regs;
 	u32 interrupt_mask = ~0;
 	u32 wakeup_mask = ~0;
-
-	if (WARN(parent, "non-root VICs are not supported"))
-		return -EINVAL;
+	int parent_irq;
 
 	regs = of_iomap(node, 0);
 	if (WARN_ON(!regs))
@@ -519,11 +498,14 @@ static int __init vic_of_init(struct device_node *node,
 
 	of_property_read_u32(node, "valid-mask", &interrupt_mask);
 	of_property_read_u32(node, "valid-wakeup-mask", &wakeup_mask);
+	parent_irq = of_irq_get(node, 0);
+	if (parent_irq < 0)
+		parent_irq = 0;
 
 	/*
 	 * Passing 0 as first IRQ makes the simple domain allocate descriptors
 	 */
-	__vic_init(regs, 0, 0, interrupt_mask, wakeup_mask, node);
+	__vic_init(regs, parent_irq, 0, interrupt_mask, wakeup_mask, node);
 
 	return 0;
 }

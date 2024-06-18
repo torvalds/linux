@@ -56,9 +56,6 @@ struct machine_desc {
 	void			(*init_time)(void);
 	void			(*init_machine)(void);
 	void			(*init_late)(void);
-#ifdef CONFIG_GENERIC_IRQ_MULTI_HANDLER
-	void			(*handle_irq)(struct pt_regs *);
-#endif
 	void			(*restart)(enum reboot_mode, const char *);
 };
 
@@ -81,7 +78,7 @@ extern const struct machine_desc __arch_info_begin[], __arch_info_end[];
 #define MACHINE_START(_type,_name)			\
 static const struct machine_desc __mach_desc_##_type	\
  __used							\
- __attribute__((__section__(".arch.info.init"))) = {	\
+ __section(".arch.info.init") = {			\
 	.nr		= MACH_TYPE_##_type,		\
 	.name		= _name,
 
@@ -91,7 +88,7 @@ static const struct machine_desc __mach_desc_##_type	\
 #define DT_MACHINE_START(_name, _namestr)		\
 static const struct machine_desc __mach_desc_##_name	\
  __used							\
- __attribute__((__section__(".arch.info.init"))) = {	\
+ __section(".arch.info.init") = {			\
 	.nr		= ~0,				\
 	.name		= _namestr,
 

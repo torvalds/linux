@@ -11,6 +11,7 @@
  *  Code is based on s3fb
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -317,14 +318,6 @@ struct dac_info
 	void *data;
 };
 
-
-static inline u8 dac_read_reg(struct dac_info *info, u8 reg)
-{
-	u8 code[2] = {reg, 0};
-	info->dac_read_regs(info->data, code, 1);
-	return code[1];
-}
-
 static inline void dac_read_regs(struct dac_info *info, u8 *code, int count)
 {
 	info->dac_read_regs(info->data, code, count);
@@ -566,6 +559,9 @@ static int arkfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
 	int rv, mem, step;
 
+	if (!var->pixclock)
+		return -EINVAL;
+
 	/* Find appropriate format */
 	rv = svga_match_format (arkfb_formats, var, NULL);
 	if (rv < 0)
@@ -626,8 +622,13 @@ static int arkfb_set_par(struct fb_info *info)
 		info->tileops = NULL;
 
 		/* in 4bpp supports 8p wide tiles only, any tiles otherwise */
-		info->pixmap.blit_x = (bpp == 4) ? (1 << (8 - 1)) : (~(u32)0);
-		info->pixmap.blit_y = ~(u32)0;
+		if (bpp == 4) {
+			bitmap_zero(info->pixmap.blit_x, FB_MAX_BLIT_WIDTH);
+			set_bit(8 - 1, info->pixmap.blit_x);
+		} else {
+			bitmap_fill(info->pixmap.blit_x, FB_MAX_BLIT_WIDTH);
+		}
+		bitmap_fill(info->pixmap.blit_y, FB_MAX_BLIT_HEIGHT);
 
 		offset_value = (info->var.xres_virtual * bpp) / 64;
 		screen_size = info->var.yres_virtual * info->fix.line_length;
@@ -639,8 +640,10 @@ static int arkfb_set_par(struct fb_info *info)
 		info->tileops = &arkfb_tile_ops;
 
 		/* supports 8x16 tiles only */
-		info->pixmap.blit_x = 1 << (8 - 1);
-		info->pixmap.blit_y = 1 << (16 - 1);
+		bitmap_zero(info->pixmap.blit_x, FB_MAX_BLIT_WIDTH);
+		set_bit(8 - 1, info->pixmap.blit_x);
+		bitmap_zero(info->pixmap.blit_y, FB_MAX_BLIT_HEIGHT);
+		set_bit(16 - 1, info->pixmap.blit_y);
 
 		offset_value = info->var.xres_virtual / 16;
 		screen_size = (info->var.xres_virtual * info->var.yres_virtual) / 64;
@@ -778,7 +781,12 @@ static int arkfb_set_par(struct fb_info *info)
 		return -EINVAL;
 	}
 
-	ark_set_pixclock(info, (hdiv * info->var.pixclock) / hmul);
+	value = (hdiv * info->var.pixclock) / hmul;
+	if (!value) {
+		fb_dbg(info, "invalid pixclock\n");
+		value = 1;
+	}
+	ark_set_pixclock(info, value);
 	svga_set_timings(par->state.vgabase, &ark_timing_regs, &(info->var), hmul, hdiv,
 			 (info->var.vmode & FB_VMODE_DOUBLE)     ? 2 : 1,
 			 (info->var.vmode & FB_VMODE_INTERLACED) ? 2 : 1,
@@ -789,6 +797,8 @@ static int arkfb_set_par(struct fb_info *info)
 	value = ((value * hmul / hdiv) / 8) - 5;
 	vga_wcrt(par->state.vgabase, 0x42, (value + 1) / 2);
 
+	if (screen_size > info->screen_size)
+		screen_size = info->screen_size;
 	memset_io(info->screen_base, 0x00, screen_size);
 	/* Device and screen back on */
 	svga_wcrt_mask(par->state.vgabase, 0x17, 0x80, 0x80);
@@ -917,10 +927,11 @@ static int arkfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info
 
 /* Frame buffer operations */
 
-static struct fb_ops arkfb_ops = {
+static const struct fb_ops arkfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_open	= arkfb_open,
 	.fb_release	= arkfb_release,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_check_var	= arkfb_check_var,
 	.fb_set_par	= arkfb_set_par,
 	.fb_setcolreg	= arkfb_setcolreg,
@@ -929,6 +940,7 @@ static struct fb_ops arkfb_ops = {
 	.fb_fillrect	= arkfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= arkfb_imageblit,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 	.fb_get_caps    = svga_get_caps,
 };
 
@@ -945,6 +957,10 @@ static int ark_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	struct arkfb_info *par;
 	int rc;
 	u8 regval;
+
+	rc = aperture_remove_conflicting_pci_devices(dev, "arkfb");
+	if (rc < 0)
+		return rc;
 
 	/* Ignore secondary VGA device because there is no VGA arbitration */
 	if (! svga_primary_device(dev)) {
@@ -1085,12 +1101,11 @@ static void ark_pci_remove(struct pci_dev *dev)
 }
 
 
-#ifdef CONFIG_PM
 /* PCI suspend */
 
-static int ark_pci_suspend (struct pci_dev* dev, pm_message_t state)
+static int __maybe_unused ark_pci_suspend(struct device *dev)
 {
-	struct fb_info *info = pci_get_drvdata(dev);
+	struct fb_info *info = dev_get_drvdata(dev);
 	struct arkfb_info *par = info->par;
 
 	dev_info(info->device, "suspend\n");
@@ -1098,17 +1113,13 @@ static int ark_pci_suspend (struct pci_dev* dev, pm_message_t state)
 	console_lock();
 	mutex_lock(&(par->open_lock));
 
-	if ((state.event == PM_EVENT_FREEZE) || (par->ref_count == 0)) {
+	if (par->ref_count == 0) {
 		mutex_unlock(&(par->open_lock));
 		console_unlock();
 		return 0;
 	}
 
 	fb_set_suspend(info, 1);
-
-	pci_save_state(dev);
-	pci_disable_device(dev);
-	pci_set_power_state(dev, pci_choose_state(dev, state));
 
 	mutex_unlock(&(par->open_lock));
 	console_unlock();
@@ -1119,9 +1130,9 @@ static int ark_pci_suspend (struct pci_dev* dev, pm_message_t state)
 
 /* PCI resume */
 
-static int ark_pci_resume (struct pci_dev* dev)
+static int __maybe_unused ark_pci_resume(struct device *dev)
 {
-	struct fb_info *info = pci_get_drvdata(dev);
+	struct fb_info *info = dev_get_drvdata(dev);
 	struct arkfb_info *par = info->par;
 
 	dev_info(info->device, "resume\n");
@@ -1132,14 +1143,6 @@ static int ark_pci_resume (struct pci_dev* dev)
 	if (par->ref_count == 0)
 		goto fail;
 
-	pci_set_power_state(dev, PCI_D0);
-	pci_restore_state(dev);
-
-	if (pci_enable_device(dev))
-		goto fail;
-
-	pci_set_master(dev);
-
 	arkfb_set_par(info);
 	fb_set_suspend(info, 0);
 
@@ -1148,10 +1151,17 @@ fail:
 	console_unlock();
 	return 0;
 }
-#else
-#define ark_pci_suspend NULL
-#define ark_pci_resume NULL
-#endif /* CONFIG_PM */
+
+static const struct dev_pm_ops ark_pci_pm_ops = {
+#ifdef CONFIG_PM_SLEEP
+	.suspend	= ark_pci_suspend,
+	.resume		= ark_pci_resume,
+	.freeze		= NULL,
+	.thaw		= ark_pci_resume,
+	.poweroff	= ark_pci_suspend,
+	.restore	= ark_pci_resume,
+#endif
+};
 
 /* List of boards that we are trying to support */
 
@@ -1168,8 +1178,7 @@ static struct pci_driver arkfb_pci_driver = {
 	.id_table	= ark_devices,
 	.probe		= ark_pci_probe,
 	.remove		= ark_pci_remove,
-	.suspend	= ark_pci_suspend,
-	.resume		= ark_pci_resume,
+	.driver.pm	= &ark_pci_pm_ops,
 };
 
 /* Cleanup */
@@ -1187,7 +1196,12 @@ static int __init arkfb_init(void)
 
 #ifndef MODULE
 	char *option = NULL;
+#endif
 
+	if (fb_modesetting_disabled("arkfb"))
+		return -ENODEV;
+
+#ifndef MODULE
 	if (fb_get_options("arkfb", &option))
 		return -ENODEV;
 

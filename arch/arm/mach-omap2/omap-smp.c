@@ -72,7 +72,7 @@ void __iomem *omap4_get_scu_base(void)
 }
 
 #ifdef CONFIG_OMAP5_ERRATA_801819
-void omap5_erratum_workaround_801819(void)
+static void omap5_erratum_workaround_801819(void)
 {
 	u32 acr, revidr;
 	u32 acr_mask;

@@ -8,16 +8,15 @@
 #include <linux/sched.h>
 #include <linux/mm_types.h>
 #include <linux/mm.h>
+#include <linux/stop_machine.h>
 
-#include <asm/pgalloc.h>
-#include <asm/pgtable.h>
 #include <asm/sections.h>
 #include <asm/mmu.h>
 #include <asm/tlb.h>
+#include <asm/firmware.h>
 
 #include <mm/mmu_decl.h>
 
-#define CREATE_TRACE_POINTS
 #include <trace/events/thp.h>
 
 #if H_PGTABLE_RANGE > (USER_VSID_RANGE * (TASK_SIZE_USER64 / TASK_CONTEXT_SIZE))
@@ -148,6 +147,7 @@ void hash__vmemmap_remove_mapping(unsigned long start,
 int hash__map_kernel_page(unsigned long ea, unsigned long pa, pgprot_t prot)
 {
 	pgd_t *pgdp;
+	p4d_t *p4dp;
 	pud_t *pudp;
 	pmd_t *pmdp;
 	pte_t *ptep;
@@ -155,7 +155,8 @@ int hash__map_kernel_page(unsigned long ea, unsigned long pa, pgprot_t prot)
 	BUILD_BUG_ON(TASK_SIZE_USER64 > H_PGTABLE_RANGE);
 	if (slab_is_available()) {
 		pgdp = pgd_offset_k(ea);
-		pudp = pud_alloc(&init_mm, pgdp, ea);
+		p4dp = p4d_offset(pgdp, ea);
+		pudp = pud_alloc(&init_mm, p4dp, ea);
 		if (!pudp)
 			return -ENOMEM;
 		pmdp = pmd_alloc(&init_mm, pudp, ea);
@@ -213,7 +214,7 @@ unsigned long hash__pmd_hugepage_update(struct mm_struct *mm, unsigned long addr
 
 	old = be64_to_cpu(old_be);
 
-	trace_hugepage_update(addr, old, clr, set);
+	trace_hugepage_update_pmd(addr, old, clr, set);
 	if (old & H_PAGE_HASHPTE)
 		hpte_do_hugepage_flush(mm, addr, pmdp, old);
 	return old;
@@ -236,7 +237,7 @@ pmd_t hash__pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long addres
 	 * to hugepage, we first clear the pmd, then invalidate all
 	 * the PTE entries. The assumption here is that any low level
 	 * page fault will see a none pmd and take the slow path that
-	 * will wait on mmap_sem. But we could very well be in a
+	 * will wait on mmap_lock. But we could very well be in a
 	 * hash_page with local ptep pointer value. Such a hash page
 	 * can result in adding new HPTE entries for normal subpages.
 	 * That means we could be modifying the page content as we
@@ -250,12 +251,12 @@ pmd_t hash__pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long addres
 	 * Now invalidate the hpte entries in the range
 	 * covered by pmd. This make sure we take a
 	 * fault and will find the pmd as none, which will
-	 * result in a major fault which takes mmap_sem and
+	 * result in a major fault which takes mmap_lock and
 	 * hence wait for collapse to complete. Without this
 	 * the __collapse_huge_page_copy can result in copying
 	 * the old content.
 	 */
-	flush_tlb_pmd_range(vma->vm_mm, &pmd, address);
+	flush_hash_table_pmd_range(vma->vm_mm, &pmd, address);
 	return pmd;
 }
 
@@ -363,17 +364,6 @@ pmd_t hash__pmdp_huge_get_and_clear(struct mm_struct *mm,
 	 * hash fault look at them.
 	 */
 	memset(pgtable, 0, PTE_FRAG_SIZE);
-	/*
-	 * Serialize against find_current_mm_pte variants which does lock-less
-	 * lookup in page tables with local interrupts disabled. For huge pages
-	 * it casts pmd_t to pte_t. Since format of pte_t is different from
-	 * pmd_t we want to prevent transit from pmd pointing to page table
-	 * to pmd pointing to huge page (and back) while interrupts are disabled.
-	 * We clear pmd to possibly replace it with page table pointer in
-	 * different code paths. So make sure we wait for the parallel
-	 * find_curren_mm_pte to finish.
-	 */
-	serialize_against_pte_lookup(mm);
 	return old_pmd;
 }
 
@@ -388,7 +378,7 @@ int hash__has_transparent_hugepage(void)
 	if (mmu_psize_defs[MMU_PAGE_16M].shift != PMD_SHIFT)
 		return 0;
 	/*
-	 * We need to make sure that we support 16MB hugepage in a segement
+	 * We need to make sure that we support 16MB hugepage in a segment
 	 * with base page size 64K or 4K. We only enable THP with a PAGE_SIZE
 	 * of 64K.
 	 */
@@ -411,10 +401,105 @@ EXPORT_SYMBOL_GPL(hash__has_transparent_hugepage);
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 #ifdef CONFIG_STRICT_KERNEL_RWX
+
+struct change_memory_parms {
+	unsigned long start, end, newpp;
+	unsigned int step, nr_cpus;
+	atomic_t master_cpu;
+	atomic_t cpu_counter;
+};
+
+// We'd rather this was on the stack but it has to be in the RMO
+static struct change_memory_parms chmem_parms;
+
+// And therefore we need a lock to protect it from concurrent use
+static DEFINE_MUTEX(chmem_lock);
+
+static void change_memory_range(unsigned long start, unsigned long end,
+				unsigned int step, unsigned long newpp)
+{
+	unsigned long idx;
+
+	pr_debug("Changing page protection on range 0x%lx-0x%lx, to 0x%lx, step 0x%x\n",
+		 start, end, newpp, step);
+
+	for (idx = start; idx < end; idx += step)
+		/* Not sure if we can do much with the return value */
+		mmu_hash_ops.hpte_updateboltedpp(newpp, idx, mmu_linear_psize,
+							mmu_kernel_ssize);
+}
+
+static int notrace chmem_secondary_loop(struct change_memory_parms *parms)
+{
+	unsigned long msr, tmp, flags;
+	int *p;
+
+	p = &parms->cpu_counter.counter;
+
+	local_irq_save(flags);
+	hard_irq_disable();
+
+	asm volatile (
+	// Switch to real mode and leave interrupts off
+	"mfmsr	%[msr]			;"
+	"li	%[tmp], %[MSR_IR_DR]	;"
+	"andc	%[tmp], %[msr], %[tmp]	;"
+	"mtmsrd %[tmp]			;"
+
+	// Tell the master we are in real mode
+	"1:				"
+	"lwarx	%[tmp], 0, %[p]		;"
+	"addic	%[tmp], %[tmp], -1	;"
+	"stwcx.	%[tmp], 0, %[p]		;"
+	"bne-	1b			;"
+
+	// Spin until the counter goes to zero
+	"2:				;"
+	"lwz	%[tmp], 0(%[p])		;"
+	"cmpwi	%[tmp], 0		;"
+	"bne-	2b			;"
+
+	// Switch back to virtual mode
+	"mtmsrd %[msr]			;"
+
+	: // outputs
+	  [msr] "=&r" (msr), [tmp] "=&b" (tmp), "+m" (*p)
+	: // inputs
+	  [p] "b" (p), [MSR_IR_DR] "i" (MSR_IR | MSR_DR)
+	: // clobbers
+	  "cc", "xer"
+	);
+
+	local_irq_restore(flags);
+
+	return 0;
+}
+
+static int change_memory_range_fn(void *data)
+{
+	struct change_memory_parms *parms = data;
+
+	// First CPU goes through, all others wait.
+	if (atomic_xchg(&parms->master_cpu, 1) == 1)
+		return chmem_secondary_loop(parms);
+
+	// Wait for all but one CPU (this one) to call-in
+	while (atomic_read(&parms->cpu_counter) > 1)
+		barrier();
+
+	change_memory_range(parms->start, parms->end, parms->step, parms->newpp);
+
+	mb();
+
+	// Signal the other CPUs that we're done
+	atomic_dec(&parms->cpu_counter);
+
+	return 0;
+}
+
 static bool hash__change_memory_range(unsigned long start, unsigned long end,
 				      unsigned long newpp)
 {
-	unsigned long idx;
 	unsigned int step, shift;
 
 	shift = mmu_psize_defs[mmu_linear_psize].shift;
@@ -426,25 +511,43 @@ static bool hash__change_memory_range(unsigned long start, unsigned long end,
 	if (start >= end)
 		return false;
 
-	pr_debug("Changing page protection on range 0x%lx-0x%lx, to 0x%lx, step 0x%x\n",
-		 start, end, newpp, step);
+	if (firmware_has_feature(FW_FEATURE_LPAR)) {
+		mutex_lock(&chmem_lock);
 
-	for (idx = start; idx < end; idx += step)
-		/* Not sure if we can do much with the return value */
-		mmu_hash_ops.hpte_updateboltedpp(newpp, idx, mmu_linear_psize,
-							mmu_kernel_ssize);
+		chmem_parms.start = start;
+		chmem_parms.end = end;
+		chmem_parms.step = step;
+		chmem_parms.newpp = newpp;
+		atomic_set(&chmem_parms.master_cpu, 0);
+
+		cpus_read_lock();
+
+		atomic_set(&chmem_parms.cpu_counter, num_online_cpus());
+
+		// Ensure state is consistent before we call the other CPUs
+		mb();
+
+		stop_machine_cpuslocked(change_memory_range_fn, &chmem_parms,
+					cpu_online_mask);
+
+		cpus_read_unlock();
+		mutex_unlock(&chmem_lock);
+	} else
+		change_memory_range(start, end, step, newpp);
 
 	return true;
 }
 
 void hash__mark_rodata_ro(void)
 {
-	unsigned long start, end;
+	unsigned long start, end, pp;
 
 	start = (unsigned long)_stext;
-	end = (unsigned long)__init_begin;
+	end = (unsigned long)__end_rodata;
 
-	WARN_ON(!hash__change_memory_range(start, end, PP_RXXX));
+	pp = htab_convert_pte_flags(pgprot_val(PAGE_KERNEL_ROX), HPTE_USE_KERNEL_KEY);
+
+	WARN_ON(!hash__change_memory_range(start, end, pp));
 }
 
 void hash__mark_initmem_nx(void)
@@ -454,7 +557,7 @@ void hash__mark_initmem_nx(void)
 	start = (unsigned long)__init_begin;
 	end = (unsigned long)__init_end;
 
-	pp = htab_convert_pte_flags(pgprot_val(PAGE_KERNEL));
+	pp = htab_convert_pte_flags(pgprot_val(PAGE_KERNEL), HPTE_USE_KERNEL_KEY);
 
 	WARN_ON(!hash__change_memory_range(start, end, pp));
 }

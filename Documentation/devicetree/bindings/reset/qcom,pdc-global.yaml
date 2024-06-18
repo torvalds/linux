@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/reset/qcom,pdc-global.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm PDC Global
+
+maintainers:
+  - Sibi Sankar <quic_sibis@quicinc.com>
+
+description:
+  The bindings describes the reset-controller found on PDC-Global (Power Domain
+  Controller) block for Qualcomm Technologies Inc SoCs.
+
+properties:
+  compatible:
+    oneOf:
+      - description: on SC7180 SoCs the following compatibles must be specified
+        items:
+          - const: qcom,sc7180-pdc-global
+          - const: qcom,sdm845-pdc-global
+
+      - description: on SC7280 SoCs the following compatibles must be specified
+        items:
+          - const: qcom,sc7280-pdc-global
+
+      - description: on SDM845 SoCs the following compatibles must be specified
+        items:
+          - const: qcom,sdm845-pdc-global
+
+  reg:
+    maxItems: 1
+
+  '#reset-cells':
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - '#reset-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    pdc_reset: reset-controller@b2e0000 {
+      compatible = "qcom,sdm845-pdc-global";
+      reg = <0xb2e0000 0x20000>;
+      #reset-cells = <1>;
+    };

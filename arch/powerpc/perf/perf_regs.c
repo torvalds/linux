@@ -13,9 +13,11 @@
 #include <asm/ptrace.h>
 #include <asm/perf_regs.h>
 
+u64 PERF_REG_EXTENDED_MASK;
+
 #define PT_REGS_OFFSET(id, r) [id] = offsetof(struct pt_regs, r)
 
-#define REG_RESERVED (~((1ULL << PERF_REG_POWERPC_MAX) - 1))
+#define REG_RESERVED (~(PERF_REG_EXTENDED_MASK | PERF_REG_PMU_MASK))
 
 static unsigned int pt_regs_offset[PERF_REG_POWERPC_MAX] = {
 	PT_REGS_OFFSET(PERF_REG_POWERPC_R0,  gpr[0]),
@@ -69,11 +71,36 @@ static unsigned int pt_regs_offset[PERF_REG_POWERPC_MAX] = {
 	PT_REGS_OFFSET(PERF_REG_POWERPC_MMCRA, dsisr),
 };
 
+/* Function to return the extended register values */
+static u64 get_ext_regs_value(int idx)
+{
+	switch (idx) {
+	case PERF_REG_POWERPC_PMC1 ... PERF_REG_POWERPC_PMC6:
+		return get_pmcs_ext_regs(idx - PERF_REG_POWERPC_PMC1);
+	case PERF_REG_POWERPC_MMCR0:
+		return mfspr(SPRN_MMCR0);
+	case PERF_REG_POWERPC_MMCR1:
+		return mfspr(SPRN_MMCR1);
+	case PERF_REG_POWERPC_MMCR2:
+		return mfspr(SPRN_MMCR2);
+#ifdef CONFIG_PPC64
+	case PERF_REG_POWERPC_MMCR3:
+		return mfspr(SPRN_MMCR3);
+	case PERF_REG_POWERPC_SIER2:
+		return mfspr(SPRN_SIER2);
+	case PERF_REG_POWERPC_SIER3:
+		return mfspr(SPRN_SIER3);
+	case PERF_REG_POWERPC_SDAR:
+		return mfspr(SPRN_SDAR);
+#endif
+	case PERF_REG_POWERPC_SIAR:
+		return mfspr(SPRN_SIAR);
+	default: return 0;
+	}
+}
+
 u64 perf_reg_value(struct pt_regs *regs, int idx)
 {
-	if (WARN_ON_ONCE(idx >= PERF_REG_POWERPC_MAX))
-		return 0;
-
 	if (idx == PERF_REG_POWERPC_SIER &&
 	   (IS_ENABLED(CONFIG_FSL_EMB_PERF_EVENT) ||
 	    IS_ENABLED(CONFIG_PPC32) ||
@@ -83,6 +110,16 @@ u64 perf_reg_value(struct pt_regs *regs, int idx)
 	if (idx == PERF_REG_POWERPC_MMCRA &&
 	   (IS_ENABLED(CONFIG_FSL_EMB_PERF_EVENT) ||
 	    IS_ENABLED(CONFIG_PPC32)))
+		return 0;
+
+	if (idx >= PERF_REG_POWERPC_MAX && idx < PERF_REG_EXTENDED_MAX)
+		return get_ext_regs_value(idx);
+
+	/*
+	 * If the idx is referring to value beyond the
+	 * supported registers, return 0 with a warning
+	 */
+	if (WARN_ON_ONCE(idx >= PERF_REG_EXTENDED_MAX))
 		return 0;
 
 	return regs_get_register(regs, pt_regs_offset[idx]);
@@ -97,17 +134,14 @@ int perf_reg_validate(u64 mask)
 
 u64 perf_reg_abi(struct task_struct *task)
 {
-#ifdef CONFIG_PPC64
-	if (!test_tsk_thread_flag(task, TIF_32BIT))
-		return PERF_SAMPLE_REGS_ABI_64;
+	if (is_tsk_32bit_task(task))
+		return PERF_SAMPLE_REGS_ABI_32;
 	else
-#endif
-	return PERF_SAMPLE_REGS_ABI_32;
+		return PERF_SAMPLE_REGS_ABI_64;
 }
 
 void perf_get_regs_user(struct perf_regs *regs_user,
-			struct pt_regs *regs,
-			struct pt_regs *regs_user_copy)
+			struct pt_regs *regs)
 {
 	regs_user->regs = task_pt_regs(current);
 	regs_user->abi = (regs_user->regs) ? perf_reg_abi(current) :

@@ -1,4 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+#include <byteswap.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -9,7 +11,9 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <elf.h>
+#include "../../include/linux/module_symbol.h"
 
+#include "list.h"
 #include "elfconfig.h"
 
 /* On BSD-alike OSes elf.h defines these according to host's word size */
@@ -24,7 +28,6 @@
 #define Elf_Shdr    Elf32_Shdr
 #define Elf_Sym     Elf32_Sym
 #define Elf_Addr    Elf32_Addr
-#define Elf_Sword   Elf64_Sword
 #define Elf_Section Elf32_Half
 #define ELF_ST_BIND ELF32_ST_BIND
 #define ELF_ST_TYPE ELF32_ST_TYPE
@@ -39,7 +42,6 @@
 #define Elf_Shdr    Elf64_Shdr
 #define Elf_Sym     Elf64_Sym
 #define Elf_Addr    Elf64_Addr
-#define Elf_Sword   Elf64_Sxword
 #define Elf_Section Elf64_Half
 #define ELF_ST_BIND ELF64_ST_BIND
 #define ELF_ST_TYPE ELF64_ST_TYPE
@@ -50,43 +52,19 @@
 #define ELF_R_TYPE  ELF64_R_TYPE
 #endif
 
-/* The 64-bit MIPS ELF ABI uses an unusual reloc format. */
-typedef struct
-{
-	Elf32_Word    r_sym;	/* Symbol index */
-	unsigned char r_ssym;	/* Special symbol for 2nd relocation */
-	unsigned char r_type3;	/* 3rd relocation type */
-	unsigned char r_type2;	/* 2nd relocation type */
-	unsigned char r_type1;	/* 1st relocation type */
-} _Elf64_Mips_R_Info;
-
-typedef union
-{
-	Elf64_Xword		r_info_number;
-	_Elf64_Mips_R_Info	r_info_fields;
-} _Elf64_Mips_R_Info_union;
-
-#define ELF64_MIPS_R_SYM(i) \
-  ((__extension__ (_Elf64_Mips_R_Info_union)(i)).r_info_fields.r_sym)
-
-#define ELF64_MIPS_R_TYPE(i) \
-  ((__extension__ (_Elf64_Mips_R_Info_union)(i)).r_info_fields.r_type1)
+#define bswap(x) \
+({ \
+	_Static_assert(sizeof(x) == 1 || sizeof(x) == 2 || \
+		       sizeof(x) == 4 || sizeof(x) == 8, "bug"); \
+	(typeof(x))(sizeof(x) == 2 ? bswap_16(x) : \
+		    sizeof(x) == 4 ? bswap_32(x) : \
+		    sizeof(x) == 8 ? bswap_64(x) : \
+		    x); \
+})
 
 #if KERNEL_ELFDATA != HOST_ELFDATA
 
-static inline void __endian(const void *src, void *dest, unsigned int size)
-{
-	unsigned int i;
-	for (i = 0; i < size; i++)
-		((unsigned char*)dest)[i] = ((unsigned char*)src)[size - i-1];
-}
-
-#define TO_NATIVE(x)						\
-({								\
-	typeof(x) __x;						\
-	__endian(&(x), &(__x), sizeof(__x));			\
-	__x;							\
-})
+#define TO_NATIVE(x) (bswap(x))
 
 #else /* endianness matches */
 
@@ -95,6 +73,9 @@ static inline void __endian(const void *src, void *dest, unsigned int size)
 #endif
 
 #define NOFAIL(ptr)   do_nofail((ptr), #ptr)
+
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+
 void *do_nofail(void *ptr, const char *expr);
 
 struct buffer {
@@ -109,40 +90,32 @@ buf_printf(struct buffer *buf, const char *fmt, ...);
 void
 buf_write(struct buffer *buf, const char *s, int len);
 
-struct namespace_list {
-	struct namespace_list *next;
-	char namespace[0];
-};
-
 struct module {
-	struct module *next;
-	const char *name;
-	int gpl_compatible;
-	struct symbol *unres;
-	int seen;
-	int skip;
-	int has_init;
-	int has_cleanup;
+	struct list_head list;
+	struct list_head exported_symbols;
+	struct list_head unresolved_symbols;
+	bool is_gpl_compatible;
+	bool from_dump;		/* true if module was loaded from *.symvers */
+	bool is_vmlinux;
+	bool seen;
+	bool has_init;
+	bool has_cleanup;
 	struct buffer dev_table_buf;
 	char	     srcversion[25];
-	int is_dot_o;
-	// Required namespace dependencies
-	struct namespace_list *required_namespaces;
+	// Missing namespace dependencies
+	struct list_head missing_namespaces;
 	// Actual imported namespaces
-	struct namespace_list *imported_namespaces;
+	struct list_head imported_namespaces;
+	char name[];
 };
 
 struct elf_info {
-	unsigned long size;
+	size_t size;
 	Elf_Ehdr     *hdr;
 	Elf_Shdr     *sechdrs;
 	Elf_Sym      *symtab_start;
 	Elf_Sym      *symtab_stop;
-	Elf_Section  export_sec;
-	Elf_Section  export_unused_sec;
-	Elf_Section  export_gpl_sec;
-	Elf_Section  export_unused_gpl_sec;
-	Elf_Section  export_gpl_future_sec;
+	unsigned int export_symbol_secndx;	/* .export_symbol section */
 	char         *strtab;
 	char	     *modinfo;
 	unsigned int modinfo_len;
@@ -155,49 +128,90 @@ struct elf_info {
 	 * take shndx from symtab_shndx_start[N] instead */
 	Elf32_Word   *symtab_shndx_start;
 	Elf32_Word   *symtab_shndx_stop;
+
+	struct symsearch *symsearch;
 };
-
-static inline int is_shndx_special(unsigned int i)
-{
-	return i != SHN_XINDEX && i >= SHN_LORESERVE && i <= SHN_HIRESERVE;
-}
-
-/*
- * Move reserved section indices SHN_LORESERVE..SHN_HIRESERVE out of
- * the way to -256..-1, to avoid conflicting with real section
- * indices.
- */
-#define SPECIAL(i) ((i) - (SHN_HIRESERVE + 1))
 
 /* Accessor for sym->st_shndx, hides ugliness of "64k sections" */
 static inline unsigned int get_secindex(const struct elf_info *info,
 					const Elf_Sym *sym)
 {
-	if (is_shndx_special(sym->st_shndx))
-		return SPECIAL(sym->st_shndx);
-	if (sym->st_shndx != SHN_XINDEX)
-		return sym->st_shndx;
-	return info->symtab_shndx_start[sym - info->symtab_start];
+	unsigned int index = sym->st_shndx;
+
+	/*
+	 * Elf{32,64}_Sym::st_shndx is 2 byte. Big section numbers are available
+	 * in the .symtab_shndx section.
+	 */
+	if (index == SHN_XINDEX)
+		return info->symtab_shndx_start[sym - info->symtab_start];
+
+	/*
+	 * Move reserved section indices SHN_LORESERVE..SHN_HIRESERVE out of
+	 * the way to UINT_MAX-255..UINT_MAX, to avoid conflicting with real
+	 * section indices.
+	 */
+	if (index >= SHN_LORESERVE && index <= SHN_HIRESERVE)
+		return index - SHN_HIRESERVE - 1;
+
+	return index;
 }
 
+/*
+ * If there's no name there, ignore it; likewise, ignore it if it's
+ * one of the magic symbols emitted used by current tools.
+ *
+ * Internal symbols created by tools should be ignored by modpost.
+ */
+static inline bool is_valid_name(struct elf_info *elf, Elf_Sym *sym)
+{
+	const char *name = elf->strtab + sym->st_name;
+
+	if (!name || !strlen(name))
+		return false;
+	return !is_mapping_symbol(name);
+}
+
+/* symsearch.c */
+void symsearch_init(struct elf_info *elf);
+void symsearch_finish(struct elf_info *elf);
+Elf_Sym *symsearch_find_nearest(struct elf_info *elf, Elf_Addr addr,
+				unsigned int secndx, bool allow_negative,
+				Elf_Addr min_distance);
+
 /* file2alias.c */
-extern unsigned int cross_build;
 void handle_moddevtable(struct module *mod, struct elf_info *info,
 			Elf_Sym *sym, const char *symname);
 void add_moddevtable(struct buffer *buf, struct module *mod);
 
 /* sumversion.c */
-void maybe_frob_rcs_version(const char *modfilename,
-			    char *version,
-			    void *modinfo,
-			    unsigned long modinfo_offset);
 void get_src_version(const char *modname, char sum[], unsigned sumlen);
 
 /* from modpost.c */
-void *grab_file(const char *filename, unsigned long *size);
-char* get_next_line(unsigned long *pos, void *file, unsigned long size);
-void release_file(void *file, unsigned long size);
+char *read_text_file(const char *filename);
+char *get_line(char **stringp);
+void *sym_get_data(const struct elf_info *info, const Elf_Sym *sym);
 
-void fatal(const char *fmt, ...);
-void warn(const char *fmt, ...);
-void merror(const char *fmt, ...);
+enum loglevel {
+	LOG_WARN,
+	LOG_ERROR,
+};
+
+void __attribute__((format(printf, 2, 3)))
+modpost_log(enum loglevel loglevel, const char *fmt, ...);
+
+/*
+ * warn - show the given message, then let modpost continue running, still
+ *        allowing modpost to exit successfully. This should be used when
+ *        we still allow to generate vmlinux and modules.
+ *
+ * error - show the given message, then let modpost continue running, but fail
+ *         in the end. This should be used when we should stop building vmlinux
+ *         or modules, but we can continue running modpost to catch as many
+ *         issues as possible.
+ *
+ * fatal - show the given message, and bail out immediately. This should be
+ *         used when there is no point to continue running modpost.
+ */
+#define warn(fmt, args...)	modpost_log(LOG_WARN, fmt, ##args)
+#define error(fmt, args...)	modpost_log(LOG_ERROR, fmt, ##args)
+#define fatal(fmt, args...)	do { error(fmt, ##args); exit(1); } while (1)

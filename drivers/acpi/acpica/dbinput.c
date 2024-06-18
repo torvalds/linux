@@ -37,6 +37,7 @@ acpi_db_match_command_help(const char *command,
 enum acpi_ex_debugger_commands {
 	CMD_NOT_FOUND = 0,
 	CMD_NULL,
+	CMD_ALL,
 	CMD_ALLOCATIONS,
 	CMD_ARGS,
 	CMD_ARGUMENTS,
@@ -50,6 +51,7 @@ enum acpi_ex_debugger_commands {
 	CMD_EVALUATE,
 	CMD_EXECUTE,
 	CMD_EXIT,
+	CMD_FIELDS,
 	CMD_FIND,
 	CMD_GO,
 	CMD_HANDLERS,
@@ -104,6 +106,7 @@ enum acpi_ex_debugger_commands {
 	CMD_THREADS,
 
 	CMD_TEST,
+	CMD_INTERRUPT,
 #endif
 };
 
@@ -114,6 +117,7 @@ enum acpi_ex_debugger_commands {
 static const struct acpi_db_command_info acpi_gbl_db_commands[] = {
 	{"<NOT FOUND>", 0},
 	{"<NULL>", 0},
+	{"ALL", 1},
 	{"ALLOCATIONS", 0},
 	{"ARGS", 0},
 	{"ARGUMENTS", 0},
@@ -127,6 +131,7 @@ static const struct acpi_db_command_info acpi_gbl_db_commands[] = {
 	{"EVALUATE", 1},
 	{"EXECUTE", 1},
 	{"EXIT", 0},
+	{"FIELDS", 1},
 	{"FIND", 1},
 	{"GO", 0},
 	{"HANDLERS", 0},
@@ -181,6 +186,7 @@ static const struct acpi_db_command_info acpi_gbl_db_commands[] = {
 	{"THREADS", 3},
 
 	{"TEST", 1},
+	{"INTERRUPT", 1},
 #endif
 	{NULL, 0}
 };
@@ -200,6 +206,8 @@ static const struct acpi_db_command_help acpi_gbl_db_command_help[] = {
 	 "Find ACPI name(s) with wildcards\n"},
 	{1, "  Integrity", "Validate namespace integrity\n"},
 	{1, "  Methods", "Display list of loaded control methods\n"},
+	{1, "  Fields <AddressSpaceId>",
+	 "Display list of loaded field units by space ID\n"},
 	{1, "  Namespace [Object] [Depth]",
 	 "Display loaded namespace tree/subtree\n"},
 	{1, "  Notify <Object> <Value>", "Send a notification on Object\n"},
@@ -218,6 +226,7 @@ static const struct acpi_db_command_help acpi_gbl_db_command_help[] = {
 	{1, "  Type <Object>", "Display object type\n"},
 
 	{0, "\nControl Method Execution:", "\n"},
+	{1, "  All <NameSeg>", "Evaluate all objects named NameSeg\n"},
 	{1, "  Evaluate <Namepath> [Arguments]",
 	 "Evaluate object or control method\n"},
 	{1, "  Execute <Namepath> [Arguments]", "Synonym for Evaluate\n"},
@@ -311,6 +320,7 @@ static const struct acpi_db_command_help acpi_gbl_db_command_help[] = {
 	{1, "  Gpes", "Display info on all GPE devices\n"},
 	{1, "  Sci", "Generate an SCI\n"},
 	{1, "  Sleep [SleepState]", "Simulate sleep/wake sequence(s) (0-5)\n"},
+	{1, "  Interrupt <GSIV>", "Simulate an interrupt\n"},
 #endif
 	{0, NULL, NULL}
 };
@@ -432,7 +442,7 @@ static void acpi_db_display_help(char *command)
 		acpi_os_printf("\n");
 
 	} else {
-		/* Display help for all commands that match the subtring */
+		/* Display help for all commands that match the substring */
 
 		acpi_db_display_command_info(command, TRUE);
 	}
@@ -464,16 +474,14 @@ char *acpi_db_get_next_token(char *string,
 		return (NULL);
 	}
 
-	/* Remove any spaces at the beginning */
+	/* Remove any spaces at the beginning, ignore blank lines */
 
-	if (*string == ' ') {
-		while (*string && (*string == ' ')) {
-			string++;
-		}
+	while (*string && isspace((int)*string)) {
+		string++;
+	}
 
-		if (!(*string)) {
-			return (NULL);
-		}
+	if (!(*string)) {
+		return (NULL);
 	}
 
 	switch (*string) {
@@ -503,6 +511,21 @@ char *acpi_db_get_next_token(char *string,
 		/* Find end of buffer */
 
 		while (*string && (*string != ')')) {
+			string++;
+		}
+		break;
+
+	case '{':
+
+		/* This is the start of a field unit, scan until closing brace */
+
+		string++;
+		start = string;
+		type = ACPI_TYPE_FIELD_UNIT;
+
+		/* Find end of buffer */
+
+		while (*string && (*string != '}')) {
 			string++;
 		}
 		break;
@@ -551,7 +574,7 @@ char *acpi_db_get_next_token(char *string,
 
 		/* Find end of token */
 
-		while (*string && (*string != ' ')) {
+		while (*string && !isspace((int)*string)) {
 			string++;
 		}
 		break;
@@ -674,6 +697,7 @@ acpi_db_command_dispatch(char *input_buffer,
 			 union acpi_parse_object *op)
 {
 	u32 temp;
+	u64 temp64;
 	u32 command_index;
 	u32 param_count;
 	char *command_line;
@@ -689,7 +713,6 @@ acpi_db_command_dispatch(char *input_buffer,
 
 	param_count = acpi_db_get_line(input_buffer);
 	command_index = acpi_db_match_command(acpi_gbl_db_args[0]);
-	temp = 0;
 
 	/*
 	 * We don't want to add the !! command to the history buffer. It
@@ -721,6 +744,15 @@ acpi_db_command_dispatch(char *input_buffer,
 		if (op) {
 			return (AE_OK);
 		}
+		break;
+
+	case CMD_ALL:
+
+		acpi_os_printf("Executing all objects with NameSeg: %s\n",
+			       acpi_gbl_db_args[1]);
+		acpi_db_execute(acpi_gbl_db_args[1], &acpi_gbl_db_args[2],
+				&acpi_gbl_db_arg_types[2],
+				EX_NO_SINGLE_STEP | EX_ALL);
 		break;
 
 	case CMD_ALLOCATIONS:
@@ -788,6 +820,21 @@ acpi_db_command_dispatch(char *input_buffer,
 	case CMD_FIND:
 
 		status = acpi_db_find_name_in_namespace(acpi_gbl_db_args[1]);
+		break;
+
+	case CMD_FIELDS:
+
+		status = acpi_ut_strtoul64(acpi_gbl_db_args[1], &temp64);
+
+		if (ACPI_FAILURE(status)
+		    || temp64 >= ACPI_NUM_PREDEFINED_REGIONS) {
+			acpi_os_printf
+			    ("Invalid address space ID: must be between 0 and %u inclusive\n",
+			     ACPI_NUM_PREDEFINED_REGIONS - 1);
+			return (AE_OK);
+		}
+
+		status = acpi_db_display_fields((u32)temp64);
 		break;
 
 	case CMD_GO:
@@ -1018,6 +1065,11 @@ acpi_db_command_dispatch(char *input_buffer,
 	case CMD_EVENT:
 
 		acpi_os_printf("Event command not implemented\n");
+		break;
+
+	case CMD_INTERRUPT:
+
+		acpi_db_generate_interrupt(acpi_gbl_db_args[1]);
 		break;
 
 	case CMD_GPE:

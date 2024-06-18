@@ -4,11 +4,11 @@
  *
  * Copyright (C) 1996-2005 Paul Mackerras.
  */
+#include <linux/export.h>
 #include <asm/processor.h>
 #include <asm/cache.h>
 #include <asm/errno.h>
 #include <asm/ppc_asm.h>
-#include <asm/export.h>
 #include <asm/code-patching-asm.h>
 #include <asm/kasan.h>
 
@@ -57,9 +57,6 @@
 	EX_TABLE(8 ## n ## 7b,9 ## n ## 1b)
 
 	.text
-	.stabs	"arch/powerpc/lib/",N_SO,0,0,0f
-	.stabs	"copy_32.S",N_SO,0,0,0f
-0:
 
 CACHELINE_BYTES = L1_CACHE_BYTES
 LG_CACHELINE_BYTES = L1_CACHE_SHIFT

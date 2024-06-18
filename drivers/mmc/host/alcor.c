@@ -1104,7 +1104,7 @@ static int alcor_pci_sdmmc_drv_probe(struct platform_device *pdev)
 
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to get irq for data line\n");
-		return ret;
+		goto free_host;
 	}
 
 	mutex_init(&host->cmd_mutex);
@@ -1114,11 +1114,18 @@ static int alcor_pci_sdmmc_drv_probe(struct platform_device *pdev)
 	alcor_hw_init(host);
 
 	dev_set_drvdata(&pdev->dev, host);
-	mmc_add_host(mmc);
+	ret = mmc_add_host(mmc);
+	if (ret)
+		goto free_host;
+
 	return 0;
+
+free_host:
+	mmc_free_host(mmc);
+	return ret;
 }
 
-static int alcor_pci_sdmmc_drv_remove(struct platform_device *pdev)
+static void alcor_pci_sdmmc_drv_remove(struct platform_device *pdev)
 {
 	struct alcor_sdmmc_host *host = dev_get_drvdata(&pdev->dev);
 	struct mmc_host *mmc = mmc_from_priv(host);
@@ -1129,8 +1136,6 @@ static int alcor_pci_sdmmc_drv_remove(struct platform_device *pdev)
 	alcor_hw_uninit(host);
 	mmc_remove_host(mmc);
 	mmc_free_host(mmc);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1170,10 +1175,11 @@ MODULE_DEVICE_TABLE(platform, alcor_pci_sdmmc_ids);
 
 static struct platform_driver alcor_pci_sdmmc_driver = {
 	.probe		= alcor_pci_sdmmc_drv_probe,
-	.remove		= alcor_pci_sdmmc_drv_remove,
+	.remove_new	= alcor_pci_sdmmc_drv_remove,
 	.id_table	= alcor_pci_sdmmc_ids,
 	.driver		= {
 		.name	= DRV_NAME_ALCOR_PCI_SDMMC,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.pm	= &alcor_mmc_pm_ops
 	},
 };

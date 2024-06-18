@@ -141,10 +141,11 @@ struct st21nfca_se_info {
 
 	se_io_cb_t cb;
 	void *cb_context;
+	struct work_struct timeout_work;
 };
 
 struct st21nfca_hci_info {
-	struct nfc_phy_ops *phy_ops;
+	const struct nfc_phy_ops *phy_ops;
 	void *phy_id;
 
 	struct nfc_hci_dev *hdev;
@@ -163,7 +164,7 @@ struct st21nfca_hci_info {
 	struct st21nfca_vendor_info vendor_info;
 };
 
-int st21nfca_hci_probe(void *phy_id, struct nfc_phy_ops *phy_ops,
+int st21nfca_hci_probe(void *phy_id, const struct nfc_phy_ops *phy_ops,
 		       char *llc_name, int phy_headroom, int phy_tailroom,
 		       int phy_payload, struct nfc_hci_dev **hdev,
 		       struct st21nfca_se_status *se_status);

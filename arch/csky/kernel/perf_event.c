@@ -87,7 +87,7 @@ static int csky_pmu_irq;
 })
 
 /* cycle counter */
-static uint64_t csky_pmu_read_cc(void)
+uint64_t csky_pmu_read_cc(void)
 {
 	uint32_t lo, hi, tmp;
 	uint64_t result;
@@ -1319,7 +1319,7 @@ int csky_pmu_device_probe(struct platform_device *pdev,
 		pr_notice("[perf] PMU request irq fail!\n");
 	}
 
-	ret = cpuhp_setup_state(CPUHP_AP_PERF_ONLINE, "AP_PERF_ONLINE",
+	ret = cpuhp_setup_state(CPUHP_AP_PERF_CSKY_ONLINE, "AP_PERF_ONLINE",
 				csky_pmu_starting_cpu,
 				csky_pmu_dying_cpu);
 	if (ret) {

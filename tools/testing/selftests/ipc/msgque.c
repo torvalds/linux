@@ -69,7 +69,7 @@ int restore_queue(struct msgque_data *msgque)
 			printf("msgsnd failed (%m)\n");
 			ret = -errno;
 			goto destroy;
-		};
+		}
 	}
 	return 0;
 
@@ -137,7 +137,7 @@ int dump_queue(struct msgque_data *msgque)
 	for (kern_id = 0; kern_id < 256; kern_id++) {
 		ret = msgctl(kern_id, MSG_STAT, &ds);
 		if (ret < 0) {
-			if (errno == -EINVAL)
+			if (errno == EINVAL)
 				continue;
 			printf("Failed to get stats for IPC queue with id %d\n",
 					kern_id);
@@ -180,7 +180,7 @@ int fill_msgque(struct msgque_data *msgque)
 				IPC_NOWAIT) != 0) {
 		printf("First message send failed (%m)\n");
 		return -errno;
-	};
+	}
 
 	msgbuf.mtype = ANOTHER_MSG_TYPE;
 	memcpy(msgbuf.mtext, ANOTHER_TEST_STRING, sizeof(ANOTHER_TEST_STRING));
@@ -188,7 +188,7 @@ int fill_msgque(struct msgque_data *msgque)
 				IPC_NOWAIT) != 0) {
 		printf("Second message send failed (%m)\n");
 		return -errno;
-	};
+	}
 	return 0;
 }
 
@@ -198,13 +198,12 @@ int main(int argc, char **argv)
 	struct msgque_data msgque;
 
 	if (getuid() != 0)
-		return ksft_exit_skip(
-				"Please run the test as root - Exiting.\n");
+		ksft_exit_skip("Please run the test as root - Exiting.\n");
 
 	msgque.key = ftok(argv[0], 822155650);
 	if (msgque.key == -1) {
 		printf("Can't make key: %d\n", -errno);
-		return ksft_exit_fail();
+		ksft_exit_fail();
 	}
 
 	msgque.msq_id = msgget(msgque.key, IPC_CREAT | IPC_EXCL | 0666);
@@ -243,13 +242,13 @@ int main(int argc, char **argv)
 		printf("Failed to test queue: %d\n", err);
 		goto err_out;
 	}
-	return ksft_exit_pass();
+	ksft_exit_pass();
 
 err_destroy:
 	if (msgctl(msgque.msq_id, IPC_RMID, NULL)) {
 		printf("Failed to destroy queue: %d\n", -errno);
-		return ksft_exit_fail();
+		ksft_exit_fail();
 	}
 err_out:
-	return ksft_exit_fail();
+	ksft_exit_fail();
 }

@@ -1,0 +1,129 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (C) 2021 Microchip Technology, Inc.
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/microchip,xisc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Microchip eXtended Image Sensor Controller (XISC)
+
+maintainers:
+  - Eugen Hristev <eugen.hristev@microchip.com>
+
+description: |
+  The eXtended Image Sensor Controller (XISC) device provides the video input capabilities for the
+  Microchip AT91 SAM family of devices.
+
+  The XISC has a single internal parallel input that supports RAW Bayer, RGB or YUV video.
+  The source can be either a demuxer from a CSI2 type of bus, or a simple direct bridge to a
+  parallel sensor.
+
+  The XISC provides one clock output that is used to clock the demuxer/bridge.
+
+properties:
+  compatible:
+    const: microchip,sama7g5-isc
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: hclock
+
+  '#clock-cells':
+    const: 0
+
+  clock-output-names:
+    const: isc-mck
+
+  microchip,mipi-mode:
+    type: boolean
+    description:
+      As the XISC is usually connected to a demux/bridge, the XISC receives
+      the same type of input, however, it should be aware of the type of
+      signals received. The mipi-mode enables different internal handling
+      of the data and clock lines.
+
+  port:
+    $ref: /schemas/graph.yaml#/$defs/port-base
+    description:
+      Input port node, single endpoint describing the input pad.
+
+    properties:
+      endpoint:
+        $ref: video-interfaces.yaml#
+
+        properties:
+          bus-type:
+            enum: [5, 6]
+
+          remote-endpoint: true
+
+          bus-width:
+            enum: [8, 9, 10, 11, 12, 14]
+            default: 12
+
+          hsync-active:
+            enum: [0, 1]
+            default: 1
+
+          vsync-active:
+            enum: [0, 1]
+            default: 1
+
+          pclk-sample:
+            enum: [0, 1]
+            default: 1
+
+        required:
+          - remote-endpoint
+          - bus-type
+
+        additionalProperties: false
+
+    additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - '#clock-cells'
+  - clock-output-names
+  - port
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/at91.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/media/video-interfaces.h>
+
+    xisc: xisc@e1408000 {
+        compatible = "microchip,sama7g5-isc";
+        reg = <0xe1408000 0x2000>;
+        interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&pmc PMC_TYPE_PERIPHERAL 56>;
+        clock-names = "hclock";
+        #clock-cells = <0>;
+        clock-output-names = "isc-mck";
+
+        port {
+                xisc_in: endpoint {
+                       bus-type = <MEDIA_BUS_TYPE_PARALLEL>;
+                       remote-endpoint = <&csi2dc_out>;
+                       hsync-active = <1>;
+                       vsync-active = <1>;
+                       bus-width = <12>;
+                };
+        };
+    };

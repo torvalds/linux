@@ -15,6 +15,8 @@
 #include <linux/of.h>
 #include <linux/of_dma.h>
 
+#include "dmaengine.h"
+
 static LIST_HEAD(of_dma_list);
 static DEFINE_MUTEX(of_dma_lock);
 
@@ -27,7 +29,7 @@ static DEFINE_MUTEX(of_dma_lock);
  * to the DMA data stored is retuned. A NULL pointer is returned if no match is
  * found.
  */
-static struct of_dma *of_dma_find_controller(struct of_phandle_args *dma_spec)
+static struct of_dma *of_dma_find_controller(const struct of_phandle_args *dma_spec)
 {
 	struct of_dma *ofdma;
 
@@ -44,7 +46,7 @@ static struct of_dma *of_dma_find_controller(struct of_phandle_args *dma_spec)
 /**
  * of_dma_router_xlate - translation function for router devices
  * @dma_spec:	pointer to DMA specifier as found in the device tree
- * @of_dma:	pointer to DMA controller data (router information)
+ * @ofdma:	pointer to DMA controller data (router information)
  *
  * The function creates new dma_spec to be passed to the router driver's
  * of_dma_route_allocate() function to prepare a dma_spec which will be used
@@ -65,18 +67,33 @@ static struct dma_chan *of_dma_router_xlate(struct of_phandle_args *dma_spec,
 		return NULL;
 
 	ofdma_target = of_dma_find_controller(&dma_spec_target);
-	if (!ofdma_target)
-		return NULL;
-
-	chan = ofdma_target->of_dma_xlate(&dma_spec_target, ofdma_target);
-	if (chan) {
-		chan->router = ofdma->dma_router;
-		chan->route_data = route_data;
-	} else {
+	if (!ofdma_target) {
 		ofdma->dma_router->route_free(ofdma->dma_router->dev,
 					      route_data);
+		chan = ERR_PTR(-EPROBE_DEFER);
+		goto err;
 	}
 
+	chan = ofdma_target->of_dma_xlate(&dma_spec_target, ofdma_target);
+	if (IS_ERR_OR_NULL(chan)) {
+		ofdma->dma_router->route_free(ofdma->dma_router->dev,
+					      route_data);
+	} else {
+		int ret = 0;
+
+		chan->router = ofdma->dma_router;
+		chan->route_data = route_data;
+
+		if (chan->device->device_router_config)
+			ret = chan->device->device_router_config(chan);
+
+		if (ret) {
+			dma_release_channel(chan);
+			chan = ERR_PTR(ret);
+		}
+	}
+
+err:
 	/*
 	 * Need to put the node back since the ofdma->of_dma_route_allocate
 	 * has taken it for generating the new, translated dma_spec
@@ -90,7 +107,7 @@ static struct dma_chan *of_dma_router_xlate(struct of_phandle_args *dma_spec,
  * @np:			device node of DMA controller
  * @of_dma_xlate:	translation function which converts a phandle
  *			arguments list into a dma_chan structure
- * @data		pointer to controller specific data to be used by
+ * @data:		pointer to controller specific data to be used by
  *			translation function
  *
  * Returns 0 on success or appropriate errno value on error.
@@ -247,7 +264,7 @@ struct dma_chan *of_dma_request_slave_channel(struct device_node *np,
 	}
 
 	/* Silently fail if there is not even the "dmas" property */
-	if (!of_find_property(np, "dmas", NULL))
+	if (!of_property_present(np, "dmas"))
 		return ERR_PTR(-ENODEV);
 
 	count = of_property_count_strings(np, "dma-names");
@@ -293,7 +310,7 @@ EXPORT_SYMBOL_GPL(of_dma_request_slave_channel);
 /**
  * of_dma_simple_xlate - Simple DMA engine translation function
  * @dma_spec:	pointer to DMA specifier as found in the device tree
- * @of_dma:	pointer to DMA controller data
+ * @ofdma:	pointer to DMA controller data
  *
  * A simple translation function for devices that use a 32-bit value for the
  * filter_param when calling the DMA engine dma_request_channel() function.
@@ -321,7 +338,7 @@ EXPORT_SYMBOL_GPL(of_dma_simple_xlate);
 /**
  * of_dma_xlate_by_chan_id - Translate dt property to DMA channel by channel id
  * @dma_spec:	pointer to DMA specifier as found in the device tree
- * @of_dma:	pointer to DMA controller data
+ * @ofdma:	pointer to DMA controller data
  *
  * This function can be used as the of xlate callback for DMA driver which wants
  * to match the channel based on the channel id. When using this xlate function

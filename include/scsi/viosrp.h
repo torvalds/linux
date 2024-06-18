@@ -70,12 +70,17 @@ enum viosrp_crq_status {
 };
 
 struct viosrp_crq {
-	u8 valid;		/* used by RPA */
-	u8 format;		/* SCSI vs out-of-band */
-	u8 reserved;
-	u8 status;		/* non-scsi failure? (e.g. DMA failure) */
-	__be16 timeout;		/* in seconds */
-	__be16 IU_length;		/* in bytes */
+	union {
+		__be64 high;			/* High 64 bits */
+		struct {
+			u8 valid;		/* used by RPA */
+			u8 format;		/* SCSI vs out-of-band */
+			u8 reserved;
+			u8 status;		/* non-scsi failure? (e.g. DMA failure) */
+			__be16 timeout;		/* in seconds */
+			__be16 IU_length;	/* in bytes */
+		};
+	};
 	__be64 IU_data_ptr;	/* the TCE for transferring data */
 };
 

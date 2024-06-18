@@ -14,9 +14,6 @@
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 
-#define kmap_get_fixmap_pte(vaddr)                                     \
-	pte_offset_kernel(pmd_offset(pud_offset(pgd_offset_k(vaddr), (vaddr)), (vaddr)), (vaddr))
-
 static pte_t *kmap_coherent_pte;
 
 void __init kmap_coherent_init(void)
@@ -25,15 +22,16 @@ void __init kmap_coherent_init(void)
 
 	/* cache the first coherent kmap pte */
 	vaddr = __fix_to_virt(FIX_CMAP_BEGIN);
-	kmap_coherent_pte = kmap_get_fixmap_pte(vaddr);
+	kmap_coherent_pte = virt_to_kpte(vaddr);
 }
 
 void *kmap_coherent(struct page *page, unsigned long addr)
 {
+	struct folio *folio = page_folio(page);
 	enum fixed_addresses idx;
 	unsigned long vaddr;
 
-	BUG_ON(!test_bit(PG_dcache_clean, &page->flags));
+	BUG_ON(!test_bit(PG_dcache_clean, &folio->flags));
 
 	preempt_disable();
 	pagefault_disable();

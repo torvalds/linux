@@ -20,6 +20,7 @@ enum sys_t_message_type {
 	MIPI_SYST_TYPE_RAW	= 6,
 	MIPI_SYST_TYPE_SHORT64,
 	MIPI_SYST_TYPE_CLOCK,
+	MIPI_SYST_TYPE_SBD,
 };
 
 enum sys_t_message_severity {
@@ -53,6 +54,19 @@ enum sys_t_message_string_subtype {
 	MIPI_SYST_STRING_PRINTF_64	= 12,
 };
 
+/**
+ * enum sys_t_message_sbd_subtype - SyS-T SBD message subtypes
+ * @MIPI_SYST_SBD_ID32: SBD message with 32-bit message ID
+ * @MIPI_SYST_SBD_ID64: SBD message with 64-bit message ID
+ *
+ * Structured Binary Data messages can send information of arbitrary length,
+ * together with ID's that describe BLOB's content and layout.
+ */
+enum sys_t_message_sbd_subtype {
+	MIPI_SYST_SBD_ID32 = 0,
+	MIPI_SYST_SBD_ID64 = 1,
+};
+
 #define MIPI_SYST_TYPE(t)		((u32)(MIPI_SYST_TYPE_ ## t))
 #define MIPI_SYST_SEVERITY(s)		((u32)(MIPI_SYST_SEVERITY_ ## s) << 4)
 #define MIPI_SYST_OPT_LOC		BIT(8)
@@ -75,6 +89,20 @@ enum sys_t_message_string_subtype {
 #define CLOCK_SYNC_HEADER	(MIPI_SYST_TYPES(CLOCK, TRANSPORT_SYNC)	| \
 				 MIPI_SYST_SEVERITY(MAX))
 
+/*
+ * SyS-T and ftrace headers are compatible to an extent that ftrace event ID
+ * and args can be treated as SyS-T SBD message with 64-bit ID and arguments
+ * BLOB right behind the header without modification. Bits [16:63] coming
+ * together with message ID from ftrace aren't used by SBD and must be zeroed.
+ *
+ *         0       15  16   23  24     31  32   39  40  63
+ * ftrace: <event_id>  <flags>  <preempt>  <-pid->  <----> <args>
+ * SBD:    <------- msg_id ------------------------------> <BLOB>
+ */
+#define SBD_HEADER (MIPI_SYST_TYPES(SBD, ID64) | \
+			 MIPI_SYST_SEVERITY(INFO)		| \
+			 MIPI_SYST_OPT_GUID)
+
 struct sys_t_policy_node {
 	uuid_t		uuid;
 	bool		do_len;
@@ -92,7 +120,7 @@ static void sys_t_policy_node_init(void *priv)
 {
 	struct sys_t_policy_node *pn = priv;
 
-	generate_random_uuid(pn->uuid.b);
+	uuid_gen(&pn->uuid);
 }
 
 static int sys_t_output_open(void *priv, struct stm_output *output)
@@ -238,7 +266,7 @@ static struct configfs_attribute *sys_t_policy_attrs[] = {
 static inline bool sys_t_need_ts(struct sys_t_output *op)
 {
 	if (op->node.ts_interval &&
-	    time_after(op->ts_jiffies + op->node.ts_interval, jiffies)) {
+	    time_after(jiffies, op->ts_jiffies + op->node.ts_interval)) {
 		op->ts_jiffies = jiffies;
 
 		return true;
@@ -250,8 +278,8 @@ static inline bool sys_t_need_ts(struct sys_t_output *op)
 static bool sys_t_need_clock_sync(struct sys_t_output *op)
 {
 	if (op->node.clocksync_interval &&
-	    time_after(op->clocksync_jiffies + op->node.clocksync_interval,
-		       jiffies)) {
+	    time_after(jiffies,
+		       op->clocksync_jiffies + op->node.clocksync_interval)) {
 		op->clocksync_jiffies = jiffies;
 
 		return true;
@@ -284,14 +312,68 @@ sys_t_clock_sync(struct stm_data *data, unsigned int m, unsigned int c)
 	return sizeof(header) + sizeof(payload);
 }
 
+static inline u32 sys_t_header(struct stm_source_data *source)
+{
+	if (source && source->type == STM_FTRACE)
+		return SBD_HEADER;
+	return DATA_HEADER;
+}
+
+static ssize_t sys_t_write_data(struct stm_data *data,
+				struct stm_source_data *source,
+				unsigned int master, unsigned int channel,
+				bool ts_first, const void *buf, size_t count)
+{
+	ssize_t sz;
+	const unsigned char nil = 0;
+
+	/*
+	 * Ftrace is zero-copy compatible with SyS-T SBD, but requires
+	 * special handling of first 64 bits. Trim and send them separately
+	 * to avoid damage on original ftrace buffer.
+	 */
+	if (source && source->type == STM_FTRACE) {
+		u64 compat_ftrace_header;
+		ssize_t header_sz;
+		ssize_t buf_sz;
+
+		if (count < sizeof(compat_ftrace_header))
+			return -EINVAL;
+
+		/* SBD only makes use of low 16 bits (event ID) from ftrace event */
+		compat_ftrace_header = *(u64 *)buf & 0xffff;
+		header_sz = stm_data_write(data, master, channel, false,
+					   &compat_ftrace_header,
+					   sizeof(compat_ftrace_header));
+		if (header_sz != sizeof(compat_ftrace_header))
+			return header_sz;
+
+		buf_sz = stm_data_write(data, master, channel, false,
+					buf + header_sz, count - header_sz);
+		if (buf_sz != count - header_sz)
+			return buf_sz;
+		sz = header_sz + buf_sz;
+	} else {
+		sz = stm_data_write(data, master, channel, false, buf, count);
+	}
+
+	if (sz <= 0)
+		return sz;
+
+	data->packet(data, master, channel, STP_PACKET_FLAG, 0, 0, &nil);
+
+	return sz;
+}
+
 static ssize_t sys_t_write(struct stm_data *data, struct stm_output *output,
-			   unsigned int chan, const char *buf, size_t count)
+			   unsigned int chan, const char *buf, size_t count,
+			   struct stm_source_data *source)
 {
 	struct sys_t_output *op = output->pdrv_private;
 	unsigned int c = output->channel + chan;
 	unsigned int m = output->master;
-	const unsigned char nil = 0;
-	u32 header = DATA_HEADER;
+	u32 header = sys_t_header(source);
+	u8 uuid[UUID_SIZE];
 	ssize_t sz;
 
 	/* We require an existing policy node to proceed */
@@ -322,7 +404,8 @@ static ssize_t sys_t_write(struct stm_data *data, struct stm_output *output,
 		return sz;
 
 	/* GUID */
-	sz = stm_data_write(data, m, c, false, op->node.uuid.b, UUID_SIZE);
+	export_uuid(uuid, &op->node.uuid);
+	sz = stm_data_write(data, m, c, false, uuid, sizeof(op->node.uuid));
 	if (sz <= 0)
 		return sz;
 
@@ -346,11 +429,7 @@ static ssize_t sys_t_write(struct stm_data *data, struct stm_output *output,
 	}
 
 	/* DATA */
-	sz = stm_data_write(data, m, c, false, buf, count);
-	if (sz > 0)
-		data->packet(data, m, c, STP_PACKET_FLAG, 0, 0, &nil);
-
-	return sz;
+	return sys_t_write_data(data, source, m, c, false, buf, count);
 }
 
 static const struct stm_protocol_driver sys_t_pdrv = {

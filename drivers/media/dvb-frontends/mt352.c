@@ -201,7 +201,7 @@ static int mt352_set_parameters(struct dvb_frontend *fe)
 			if (op->hierarchy == HIERARCHY_AUTO ||
 			    op->hierarchy == HIERARCHY_NONE)
 				break;
-			/* fall through */
+			fallthrough;
 		default:
 			return -EINVAL;
 	}
@@ -593,4 +593,4 @@ MODULE_DESCRIPTION("Zarlink MT352 DVB-T Demodulator driver");
 MODULE_AUTHOR("Holger Waechtler, Daniel Mack, Antonio Mancuso");
 MODULE_LICENSE("GPL");
 
-EXPORT_SYMBOL(mt352_attach);
+EXPORT_SYMBOL_GPL(mt352_attach);

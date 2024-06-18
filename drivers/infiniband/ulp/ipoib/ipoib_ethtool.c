@@ -65,17 +65,16 @@ static void ipoib_get_drvinfo(struct net_device *netdev,
 
 	ib_get_device_fw_str(priv->ca, drvinfo->fw_version);
 
-	strlcpy(drvinfo->bus_info, dev_name(priv->ca->dev.parent),
+	strscpy(drvinfo->bus_info, dev_name(priv->ca->dev.parent),
 		sizeof(drvinfo->bus_info));
 
-	strlcpy(drvinfo->version, ipoib_driver_version,
-		sizeof(drvinfo->version));
-
-	strlcpy(drvinfo->driver, "ib_ipoib", sizeof(drvinfo->driver));
+	strscpy(drvinfo->driver, "ib_ipoib", sizeof(drvinfo->driver));
 }
 
 static int ipoib_get_coalesce(struct net_device *dev,
-			      struct ethtool_coalesce *coal)
+			      struct ethtool_coalesce *coal,
+			      struct kernel_ethtool_coalesce *kernel_coal,
+			      struct netlink_ext_ack *extack)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
@@ -86,7 +85,9 @@ static int ipoib_get_coalesce(struct net_device *dev,
 }
 
 static int ipoib_set_coalesce(struct net_device *dev,
-			      struct ethtool_coalesce *coal)
+			      struct ethtool_coalesce *coal,
+			      struct kernel_ethtool_coalesce *kernel_coal,
+			      struct netlink_ext_ack *extack)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	int ret;
@@ -169,6 +170,12 @@ static inline int ib_speed_enum_to_int(int speed)
 		return SPEED_14000;
 	case IB_SPEED_EDR:
 		return SPEED_25000;
+	case IB_SPEED_HDR:
+		return SPEED_50000;
+	case IB_SPEED_NDR:
+		return SPEED_100000;
+	case IB_SPEED_XDR:
+		return SPEED_200000;
 	}
 
 	return SPEED_UNKNOWN;
@@ -213,6 +220,8 @@ static int ipoib_get_link_ksettings(struct net_device *netdev,
 }
 
 static const struct ethtool_ops ipoib_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_RX_USECS |
+				     ETHTOOL_COALESCE_RX_MAX_FRAMES,
 	.get_link_ksettings	= ipoib_get_link_ksettings,
 	.get_drvinfo		= ipoib_get_drvinfo,
 	.get_coalesce		= ipoib_get_coalesce,

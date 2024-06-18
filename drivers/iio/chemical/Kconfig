@@ -5,6 +5,17 @@
 
 menu "Chemical Sensors"
 
+config AOSONG_AGS02MA
+	tristate "Aosong AGS02MA TVOC sensor driver"
+	depends on I2C
+	select CRC8
+	help
+	  Say Y here to build support for Aosong AGS02MA TVOC (Total Volatile
+	  Organic Compounds) sensor.
+
+	  To compile this driver as module, choose M here: the module will be
+	  called ags02ma.
+
 config ATLAS_PH_SENSOR
 	tristate "Atlas Scientific OEM SM sensors"
 	depends on I2C
@@ -21,6 +32,17 @@ config ATLAS_PH_SENSOR
 
 	  To compile this driver as module, choose M here: the
 	  module will be called atlas-ph-sensor.
+
+config ATLAS_EZO_SENSOR
+	tristate "Atlas Scientific EZO sensors"
+	depends on I2C
+	help
+	  Say Y here to build I2C interface support for the following
+	  Atlas Scientific EZO sensors
+	    * CO2 EZO Sensor
+
+	  To compile this driver as module, choose M here: the
+	  module will be called atlas-ezo-sensor.
 
 config BME680
 	tristate "Bosch Sensortec BME680 sensor driver"
@@ -65,6 +87,7 @@ config IAQCORE
 config PMS7003
 	tristate "Plantower PMS7003 particulate matter sensor"
 	depends on SERIAL_DEV_BUS
+	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
 	  Say Y here to build support for the Plantower PMS7003 particulate
@@ -72,6 +95,52 @@ config PMS7003
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called pms7003.
+
+config SCD30_CORE
+	tristate "SCD30 carbon dioxide sensor driver"
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say Y here to build support for the Sensirion SCD30 sensor with carbon
+	  dioxide, relative humidity and temperature sensing capabilities.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called scd30_core.
+
+config SCD30_I2C
+	tristate "SCD30 carbon dioxide sensor I2C driver"
+	depends on SCD30_CORE && I2C
+	select CRC8
+	help
+	  Say Y here to build support for the Sensirion SCD30 I2C interface
+	  driver.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called scd30_i2c.
+
+config SCD30_SERIAL
+	tristate "SCD30 carbon dioxide sensor serial driver"
+	depends on SCD30_CORE && SERIAL_DEV_BUS
+	select CRC16
+	help
+	  Say Y here to build support for the Sensirion SCD30 serial interface
+	  driver.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called scd30_serial.
+
+config SCD4X
+	tristate "SCD4X carbon dioxide sensor driver"
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	depends on I2C
+	select CRC8
+	help
+	  Say Y here to build support for the Sensirion SCD4X sensor with carbon
+	  dioxide, relative humidity and temperature sensing capabilities.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called scd4x.
 
 config SENSIRION_SGP30
 	tristate "Sensirion SGPxx gas sensors"
@@ -86,16 +155,55 @@ config SENSIRION_SGP30
 	  To compile this driver as module, choose M here: the
 	  module will be called sgp30.
 
-config SPS30
-	tristate "SPS30 particulate matter sensor"
+config SENSIRION_SGP40
+	tristate "Sensirion SGP40 gas sensor"
 	depends on I2C
 	select CRC8
 	help
-	  Say Y here to build support for the Sensirion SPS30 particulate
-	  matter sensor.
+	  Say Y here to build I2C interface to support Sensirion SGP40 gas
+	  sensor
+
+	  To compile this driver as module, choose M here: the
+	  module will be called sgp40.
+
+config SPS30
+	tristate
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+
+config SPS30_I2C
+	tristate "SPS30 particulate matter sensor I2C driver"
+	depends on I2C
+	select SPS30
+	select CRC8
+	help
+	  Say Y here to build support for the Sensirion SPS30 I2C interface
+	  driver.
 
 	  To compile this driver as a module, choose M here: the module will
-	  be called sps30.
+	  be called sps30_i2c.
+
+config SPS30_SERIAL
+	tristate "SPS30 particulate matter sensor serial driver"
+	depends on SERIAL_DEV_BUS
+	select SPS30
+	help
+	  Say Y here to build support for the Sensirion SPS30 serial interface
+	  driver.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called sps30_serial.
+
+config SENSEAIR_SUNRISE_CO2
+	tristate "Senseair Sunrise 006-0-0007 CO2 sensor"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say yes here to build support for Senseair Sunrise 006-0-0007 CO2
+	  sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sunrise_co2.
 
 config VZ89X
 	tristate "SGX Sensortech MiCS VZ89X VOC sensor"

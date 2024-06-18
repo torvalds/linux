@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * exynos_ppmu.h - EXYNOS PPMU header file
+ * exynos_ppmu.h - Exynos PPMU header file
  *
  * Copyright (c) 2015 Samsung Electronics Co., Ltd.
  * Author : Chanwoo Choi <cw00.choi@samsung.com>

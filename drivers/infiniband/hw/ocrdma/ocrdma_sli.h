@@ -2034,7 +2034,7 @@ struct ocrdma_rx_stats {
 };
 
 struct ocrdma_rx_qp_err_stats {
-	u32 nak_invalid_requst_errors;
+	u32 nak_invalid_request_errors;
 	u32 nak_remote_operation_errors;
 	u32 nak_count_remote_access_errors;
 	u32 local_length_errors;

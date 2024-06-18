@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * drd.c - DesignWare USB3 DRD Controller Dual-role support
  *
- * Copyright (C) 2017 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2017 Texas Instruments Incorporated - https://www.ti.com
  *
  * Authors: Roger Quadros <rogerq@ti.com>
  */
 
 #include <linux/extcon.h>
-#include <linux/of_graph.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
 
@@ -56,7 +56,7 @@ static irqreturn_t dwc3_otg_thread_irq(int irq, void *_dwc)
 	spin_lock(&dwc->lock);
 	if (dwc->otg_restart_host) {
 		dwc3_otg_host_init(dwc);
-		dwc->otg_restart_host = 0;
+		dwc->otg_restart_host = false;
 	}
 
 	spin_unlock(&dwc->lock);
@@ -82,7 +82,7 @@ static irqreturn_t dwc3_otg_irq(int irq, void *_dwc)
 
 		if (dwc->current_otg_role == DWC3_OTG_ROLE_HOST &&
 		    !(reg & DWC3_OEVT_DEVICEMODE))
-			dwc->otg_restart_host = 1;
+			dwc->otg_restart_host = true;
 		dwc3_writel(dwc->regs, DWC3_OEVT, reg);
 		ret = IRQ_WAKE_THREAD;
 	}
@@ -139,14 +139,14 @@ static int dwc3_otg_get_irq(struct dwc3 *dwc)
 	struct platform_device *dwc3_pdev = to_platform_device(dwc->dev);
 	int irq;
 
-	irq = platform_get_irq_byname(dwc3_pdev, "otg");
+	irq = platform_get_irq_byname_optional(dwc3_pdev, "otg");
 	if (irq > 0)
 		goto out;
 
 	if (irq == -EPROBE_DEFER)
 		goto out;
 
-	irq = platform_get_irq_byname(dwc3_pdev, "dwc_usb3");
+	irq = platform_get_irq_byname_optional(dwc3_pdev, "dwc_usb3");
 	if (irq > 0)
 		goto out;
 
@@ -156,9 +156,6 @@ static int dwc3_otg_get_irq(struct dwc3 *dwc)
 	irq = platform_get_irq(dwc3_pdev, 0);
 	if (irq > 0)
 		goto out;
-
-	if (irq != -EPROBE_DEFER)
-		dev_err(dwc->dev, "missing OTG IRQ\n");
 
 	if (!irq)
 		irq = -EINVAL;
@@ -334,6 +331,7 @@ void dwc3_otg_update(struct dwc3 *dwc, bool ignore_idstatus)
 	u32 reg;
 	int id;
 	unsigned long flags;
+	int i;
 
 	if (dwc->dr_mode != USB_DR_MODE_OTG)
 		return;
@@ -389,9 +387,12 @@ void dwc3_otg_update(struct dwc3 *dwc, bool ignore_idstatus)
 		} else {
 			if (dwc->usb2_phy)
 				otg_set_vbus(dwc->usb2_phy->otg, true);
-			if (dwc->usb2_generic_phy)
-				phy_set_mode(dwc->usb2_generic_phy,
-					     PHY_MODE_USB_HOST);
+			for (i = 0; i < dwc->num_usb2_ports; i++) {
+				if (dwc->usb2_generic_phy[i]) {
+					phy_set_mode(dwc->usb2_generic_phy[i],
+						     PHY_MODE_USB_HOST);
+				}
+			}
 		}
 		break;
 	case DWC3_OTG_ROLE_DEVICE:
@@ -403,9 +404,8 @@ void dwc3_otg_update(struct dwc3 *dwc, bool ignore_idstatus)
 
 		if (dwc->usb2_phy)
 			otg_set_vbus(dwc->usb2_phy->otg, false);
-		if (dwc->usb2_generic_phy)
-			phy_set_mode(dwc->usb2_generic_phy,
-				     PHY_MODE_USB_DEVICE);
+		if (dwc->usb2_generic_phy[0])
+			phy_set_mode(dwc->usb2_generic_phy[0], PHY_MODE_USB_DEVICE);
 		ret = dwc3_gadget_init(dwc);
 		if (ret)
 			dev_err(dwc->dev, "failed to initialize peripheral\n");
@@ -441,51 +441,109 @@ static int dwc3_drd_notifier(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-static struct extcon_dev *dwc3_get_extcon(struct dwc3 *dwc)
+#if IS_ENABLED(CONFIG_USB_ROLE_SWITCH)
+#define ROLE_SWITCH 1
+static int dwc3_usb_role_switch_set(struct usb_role_switch *sw,
+				    enum usb_role role)
 {
-	struct device *dev = dwc->dev;
-	struct device_node *np_phy, *np_conn;
-	struct extcon_dev *edev;
-	const char *name;
+	struct dwc3 *dwc = usb_role_switch_get_drvdata(sw);
+	u32 mode;
 
-	if (device_property_read_bool(dev, "extcon"))
-		return extcon_get_edev_by_phandle(dev, 0);
-
-	/*
-	 * Device tree platforms should get extcon via phandle.
-	 * On ACPI platforms, we get the name from a device property.
-	 * This device property is for kernel internal use only and
-	 * is expected to be set by the glue code.
-	 */
-	if (device_property_read_string(dev, "linux,extcon-name", &name) == 0) {
-		edev = extcon_get_extcon_dev(name);
-		if (!edev)
-			return ERR_PTR(-EPROBE_DEFER);
-
-		return edev;
+	switch (role) {
+	case USB_ROLE_HOST:
+		mode = DWC3_GCTL_PRTCAP_HOST;
+		break;
+	case USB_ROLE_DEVICE:
+		mode = DWC3_GCTL_PRTCAP_DEVICE;
+		break;
+	default:
+		if (dwc->role_switch_default_mode == USB_DR_MODE_HOST)
+			mode = DWC3_GCTL_PRTCAP_HOST;
+		else
+			mode = DWC3_GCTL_PRTCAP_DEVICE;
+		break;
 	}
 
-	np_phy = of_parse_phandle(dev->of_node, "phys", 0);
-	np_conn = of_graph_get_remote_node(np_phy, -1, -1);
-
-	if (np_conn)
-		edev = extcon_find_edev_by_node(np_conn);
-	else
-		edev = NULL;
-
-	of_node_put(np_conn);
-	of_node_put(np_phy);
-
-	return edev;
+	dwc3_set_mode(dwc, mode);
+	return 0;
 }
+
+static enum usb_role dwc3_usb_role_switch_get(struct usb_role_switch *sw)
+{
+	struct dwc3 *dwc = usb_role_switch_get_drvdata(sw);
+	unsigned long flags;
+	enum usb_role role;
+
+	spin_lock_irqsave(&dwc->lock, flags);
+	switch (dwc->current_dr_role) {
+	case DWC3_GCTL_PRTCAP_HOST:
+		role = USB_ROLE_HOST;
+		break;
+	case DWC3_GCTL_PRTCAP_DEVICE:
+		role = USB_ROLE_DEVICE;
+		break;
+	case DWC3_GCTL_PRTCAP_OTG:
+		role = dwc->current_otg_role;
+		break;
+	default:
+		if (dwc->role_switch_default_mode == USB_DR_MODE_HOST)
+			role = USB_ROLE_HOST;
+		else
+			role = USB_ROLE_DEVICE;
+		break;
+	}
+	spin_unlock_irqrestore(&dwc->lock, flags);
+	return role;
+}
+
+static int dwc3_setup_role_switch(struct dwc3 *dwc)
+{
+	struct usb_role_switch_desc dwc3_role_switch = {NULL};
+	u32 mode;
+
+	dwc->role_switch_default_mode = usb_get_role_switch_default_mode(dwc->dev);
+	if (dwc->role_switch_default_mode == USB_DR_MODE_HOST) {
+		mode = DWC3_GCTL_PRTCAP_HOST;
+	} else {
+		dwc->role_switch_default_mode = USB_DR_MODE_PERIPHERAL;
+		mode = DWC3_GCTL_PRTCAP_DEVICE;
+	}
+	dwc3_set_mode(dwc, mode);
+
+	dwc3_role_switch.fwnode = dev_fwnode(dwc->dev);
+	dwc3_role_switch.set = dwc3_usb_role_switch_set;
+	dwc3_role_switch.get = dwc3_usb_role_switch_get;
+	dwc3_role_switch.driver_data = dwc;
+	dwc->role_sw = usb_role_switch_register(dwc->dev, &dwc3_role_switch);
+	if (IS_ERR(dwc->role_sw))
+		return PTR_ERR(dwc->role_sw);
+
+	if (dwc->dev->of_node) {
+		/* populate connector entry */
+		int ret = devm_of_platform_populate(dwc->dev);
+
+		if (ret) {
+			usb_role_switch_unregister(dwc->role_sw);
+			dwc->role_sw = NULL;
+			dev_err(dwc->dev, "DWC3 platform devices creation failed: %i\n", ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+#else
+#define ROLE_SWITCH 0
+#define dwc3_setup_role_switch(x) 0
+#endif
 
 int dwc3_drd_init(struct dwc3 *dwc)
 {
 	int ret, irq;
 
-	dwc->edev = dwc3_get_extcon(dwc);
-	if (IS_ERR(dwc->edev))
-		return PTR_ERR(dwc->edev);
+	if (ROLE_SWITCH &&
+	    device_property_read_bool(dwc->dev, "usb-role-switch"))
+		return dwc3_setup_role_switch(dwc);
 
 	if (dwc->edev) {
 		dwc->edev_nb.notifier_call = dwc3_drd_notifier;
@@ -499,7 +557,6 @@ int dwc3_drd_init(struct dwc3 *dwc)
 		dwc3_drd_update(dwc);
 	} else {
 		dwc3_set_prtcap(dwc, DWC3_GCTL_PRTCAP_OTG);
-		dwc->current_dr_role = DWC3_GCTL_PRTCAP_OTG;
 
 		/* use OTG block to get ID event */
 		irq = dwc3_otg_get_irq(dwc);
@@ -534,6 +591,9 @@ void dwc3_drd_exit(struct dwc3 *dwc)
 {
 	unsigned long flags;
 
+	if (dwc->role_sw)
+		usb_role_switch_unregister(dwc->role_sw);
+
 	if (dwc->edev)
 		extcon_unregister_notifier(dwc->edev, EXTCON_USB_HOST,
 					   &dwc->edev_nb);
@@ -560,6 +620,6 @@ void dwc3_drd_exit(struct dwc3 *dwc)
 		break;
 	}
 
-	if (!dwc->edev)
+	if (dwc->otg_irq)
 		free_irq(dwc->otg_irq, dwc);
 }

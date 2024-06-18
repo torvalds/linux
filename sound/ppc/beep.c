@@ -44,7 +44,7 @@ void snd_pmac_beep_stop(struct snd_pmac *chip)
  * so we can multiply by an amplitude in the range 0..100 to get a
  * signed short value to put in the output buffer.
  */
-static short beep_wform[256] = {
+static const short beep_wform[256] = {
 	0,	40,	79,	117,	153,	187,	218,	245,
 	269,	288,	304,	316,	323,	327,	327,	324,
 	318,	310,	299,	288,	275,	262,	249,	236,
@@ -99,13 +99,16 @@ static int snd_pmac_beep_event(struct input_dev *dev, unsigned int type,
 		return -1;
 
 	switch (code) {
-	case SND_BELL: if (hz) hz = 1000;
+	case SND_BELL: if (hz) hz = 1000; break;
 	case SND_TONE: break;
 	default: return -1;
 	}
 
 	chip = input_get_drvdata(dev);
-	if (! chip || (beep = chip->beep) == NULL)
+	if (!chip)
+		return -1;
+	beep = chip->beep;
+	if (!beep)
 		return -1;
 
 	if (! hz) {

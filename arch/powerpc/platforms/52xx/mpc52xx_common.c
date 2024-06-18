@@ -12,14 +12,12 @@
 
 #undef DEBUG
 
-#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
-#include <linux/of_gpio.h>
 #include <linux/export.h>
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/mpc52xx.h>
 
 /* MPC5200 device tree match tables */
@@ -141,8 +139,8 @@ mpc52xx_map_common_devices(void)
 	 * on a gpt0, so check has-wdt property before mapping.
 	 */
 	for_each_matching_node(np, mpc52xx_gpt_ids) {
-		if (of_get_property(np, "fsl,has-wdt", NULL) ||
-		    of_get_property(np, "has-wdt", NULL)) {
+		if (of_property_read_bool(np, "fsl,has-wdt") ||
+		    of_property_read_bool(np, "has-wdt")) {
 			mpc52xx_wdt = of_iomap(np, 0);
 			of_node_put(np);
 			break;
@@ -202,43 +200,6 @@ int mpc52xx_set_psc_clkdiv(int psc_id, int clkdiv)
 	return 0;
 }
 EXPORT_SYMBOL(mpc52xx_set_psc_clkdiv);
-
-/**
- * mpc52xx_get_xtal_freq - Get SYS_XTAL_IN frequency for a device
- *
- * @node: device node
- *
- * Returns the frequency of the external oscillator clock connected
- * to the SYS_XTAL_IN pin, or 0 if it cannot be determined.
- */
-unsigned int mpc52xx_get_xtal_freq(struct device_node *node)
-{
-	u32 val;
-	unsigned int freq;
-
-	if (!mpc52xx_cdm)
-		return 0;
-
-	freq = mpc5xxx_get_bus_frequency(node);
-	if (!freq)
-		return 0;
-
-	if (in_8(&mpc52xx_cdm->ipb_clk_sel) & 0x1)
-		freq *= 2;
-
-	val  = in_be32(&mpc52xx_cdm->rstcfg);
-	if (val & (1 << 5))
-		freq *= 8;
-	else
-		freq *= 4;
-	if (val & (1 << 6))
-		freq /= 12;
-	else
-		freq /= 16;
-
-	return freq;
-}
-EXPORT_SYMBOL(mpc52xx_get_xtal_freq);
 
 /**
  * mpc52xx_restart: ppc_md->restart hook for mpc5200 using the watchdog timer
@@ -308,7 +269,7 @@ int mpc5200_psc_ac97_gpio_reset(int psc_number)
 
 	spin_lock_irqsave(&gpio_lock, flags);
 
-	/* Reconfiure pin-muxing to gpio */
+	/* Reconfigure pin-muxing to gpio */
 	mux = in_be32(&simple_gpio->port_config);
 	out_be32(&simple_gpio->port_config, mux & (~gpio));
 

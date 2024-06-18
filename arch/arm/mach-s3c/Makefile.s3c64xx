@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# Copyright 2008 Openmoko, Inc.
+# Copyright 2008 Simtec Electronics
+
+# PM
+
+obj-$(CONFIG_PM)		+= pm-s3c64xx.o
+obj-$(CONFIG_PM_SLEEP)		+= sleep-s3c64xx.o
+obj-$(CONFIG_CPU_IDLE)		+= cpuidle-s3c64xx.o
+
+ifdef CONFIG_SAMSUNG_ATAGS
+
+obj-$(CONFIG_PM_SLEEP)          += irq-pm-s3c64xx.o
+
+# Core
+
+obj-y				+= s3c64xx.o
+obj-$(CONFIG_CPU_S3C6410)	+= s3c6410.o
+
+# DMA support
+
+obj-$(CONFIG_S3C64XX_PL080)	+= pl080.o
+
+# Device support
+
+obj-y				+= dev-uart-s3c64xx.o
+obj-y				+= dev-audio-s3c64xx.o
+
+# Device setup
+
+obj-$(CONFIG_S3C64XX_SETUP_FB_24BPP)	+= setup-fb-24bpp-s3c64xx.o
+obj-$(CONFIG_S3C64XX_SETUP_I2C0)	+= setup-i2c0-s3c64xx.o
+obj-$(CONFIG_S3C64XX_SETUP_I2C1)	+= setup-i2c1-s3c64xx.o
+obj-$(CONFIG_S3C64XX_SETUP_KEYPAD)	+= setup-keypad-s3c64xx.o
+obj-$(CONFIG_S3C64XX_SETUP_SDHCI_GPIO)	+= setup-sdhci-gpio-s3c64xx.o
+obj-$(CONFIG_S3C64XX_SETUP_SPI)		+= setup-spi-s3c64xx.o
+obj-$(CONFIG_S3C64XX_SETUP_USB_PHY) += setup-usb-phy-s3c64xx.o
+
+# Machine support
+obj-$(CONFIG_MACH_WLF_CRAGG_6410)	+= mach-crag6410.o mach-crag6410-module.o
+endif
+
+obj-$(CONFIG_MACH_S3C64XX_DT)		+= mach-s3c64xx-dt.o

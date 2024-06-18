@@ -11,7 +11,6 @@
 #include <linux/elf.h>
 
 #include "kvm_util.h"
-#include "kvm_util_internal.h"
 
 static void elfhdr_get(const char *filename, Elf64_Ehdr *hdrp)
 {
@@ -91,6 +90,7 @@ static void elfhdr_get(const char *filename, Elf64_Ehdr *hdrp)
 		"  hdrp->e_shentsize: %x\n"
 		"  expected: %zx",
 		hdrp->e_shentsize, sizeof(Elf64_Shdr));
+	close(fd);
 }
 
 /* VM ELF Load
@@ -111,8 +111,7 @@ static void elfhdr_get(const char *filename, Elf64_Ehdr *hdrp)
  * by the image and it needs to have sufficient available physical pages, to
  * back the virtual pages used to load the image.
  */
-void kvm_vm_elf_load(struct kvm_vm *vm, const char *filename,
-	uint32_t data_memslot, uint32_t pgd_memslot)
+void kvm_vm_elf_load(struct kvm_vm *vm, const char *filename)
 {
 	off_t offset, offset_rv;
 	Elf64_Ehdr hdr;
@@ -140,7 +139,7 @@ void kvm_vm_elf_load(struct kvm_vm *vm, const char *filename,
 		offset = hdr.e_phoff + (n1 * hdr.e_phentsize);
 		offset_rv = lseek(fd, offset, SEEK_SET);
 		TEST_ASSERT(offset_rv == offset,
-			"Failed to seek to begining of program header %u,\n"
+			"Failed to seek to beginning of program header %u,\n"
 			"  filename: %s\n"
 			"  rv: %jd errno: %i",
 			n1, filename, (intmax_t) offset_rv, errno);
@@ -158,14 +157,13 @@ void kvm_vm_elf_load(struct kvm_vm *vm, const char *filename,
 			"memsize of 0,\n"
 			"  phdr index: %u p_memsz: 0x%" PRIx64,
 			n1, (uint64_t) phdr.p_memsz);
-		vm_vaddr_t seg_vstart = phdr.p_vaddr;
-		seg_vstart &= ~(vm_vaddr_t)(vm->page_size - 1);
+		vm_vaddr_t seg_vstart = align_down(phdr.p_vaddr, vm->page_size);
 		vm_vaddr_t seg_vend = phdr.p_vaddr + phdr.p_memsz - 1;
 		seg_vend |= vm->page_size - 1;
 		size_t seg_size = seg_vend - seg_vstart + 1;
 
-		vm_vaddr_t vaddr = vm_vaddr_alloc(vm, seg_size, seg_vstart,
-			data_memslot, pgd_memslot);
+		vm_vaddr_t vaddr = __vm_vaddr_alloc(vm, seg_size, seg_vstart,
+						    MEM_REGION_CODE);
 		TEST_ASSERT(vaddr == seg_vstart, "Unable to allocate "
 			"virtual memory for segment at requested min addr,\n"
 			"  segment idx: %u\n"
@@ -186,11 +184,12 @@ void kvm_vm_elf_load(struct kvm_vm *vm, const char *filename,
 				"Seek to program segment offset failed,\n"
 				"  program header idx: %u errno: %i\n"
 				"  offset_rv: 0x%jx\n"
-				"  expected: 0x%jx\n",
+				"  expected: 0x%jx",
 				n1, errno, (intmax_t) offset_rv,
 				(intmax_t) phdr.p_offset);
 			test_read(fd, addr_gva2hva(vm, phdr.p_vaddr),
 				phdr.p_filesz);
 		}
 	}
+	close(fd);
 }

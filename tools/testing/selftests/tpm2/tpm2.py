@@ -6,8 +6,8 @@ import socket
 import struct
 import sys
 import unittest
-from fcntl import ioctl
-
+import fcntl
+import select
 
 TPM2_ST_NO_SESSIONS = 0x8001
 TPM2_ST_SESSIONS = 0x8002
@@ -56,6 +56,7 @@ TSS2_RESMGR_TPM_RC_LAYER = (11 << TSS2_RC_LAYER_SHIFT)
 
 TPM2_CAP_HANDLES = 0x00000001
 TPM2_CAP_COMMANDS = 0x00000002
+TPM2_CAP_PCRS = 0x00000005
 TPM2_CAP_TPM_PROPERTIES = 0x00000006
 
 TPM2_PT_FIXED = 0x100
@@ -247,14 +248,14 @@ class ProtocolError(Exception):
 class AuthCommand(object):
     """TPMS_AUTH_COMMAND"""
 
-    def __init__(self, session_handle=TPM2_RS_PW, nonce='', session_attributes=0,
-                 hmac=''):
+    def __init__(self, session_handle=TPM2_RS_PW, nonce=bytes(),
+                 session_attributes=0, hmac=bytes()):
         self.session_handle = session_handle
         self.nonce = nonce
         self.session_attributes = session_attributes
         self.hmac = hmac
 
-    def __str__(self):
+    def __bytes__(self):
         fmt = '>I H%us B H%us' % (len(self.nonce), len(self.hmac))
         return struct.pack(fmt, self.session_handle, len(self.nonce),
                            self.nonce, self.session_attributes, len(self.hmac),
@@ -268,11 +269,11 @@ class AuthCommand(object):
 class SensitiveCreate(object):
     """TPMS_SENSITIVE_CREATE"""
 
-    def __init__(self, user_auth='', data=''):
+    def __init__(self, user_auth=bytes(), data=bytes()):
         self.user_auth = user_auth
         self.data = data
 
-    def __str__(self):
+    def __bytes__(self):
         fmt = '>H%us H%us' % (len(self.user_auth), len(self.data))
         return struct.pack(fmt, len(self.user_auth), self.user_auth,
                            len(self.data), self.data)
@@ -296,8 +297,9 @@ class Public(object):
         return '>HHIH%us%usH%us' % \
             (len(self.auth_policy), len(self.parameters), len(self.unique))
 
-    def __init__(self, object_type, name_alg, object_attributes, auth_policy='',
-                 parameters='', unique=''):
+    def __init__(self, object_type, name_alg, object_attributes,
+                 auth_policy=bytes(), parameters=bytes(),
+                 unique=bytes()):
         self.object_type = object_type
         self.name_alg = name_alg
         self.object_attributes = object_attributes
@@ -305,7 +307,7 @@ class Public(object):
         self.parameters = parameters
         self.unique = unique
 
-    def __str__(self):
+    def __bytes__(self):
         return struct.pack(self.__fmt(),
                            self.object_type,
                            self.name_alg,
@@ -342,8 +344,8 @@ def get_algorithm(name):
 
 
 def hex_dump(d):
-    d = [format(ord(x), '02x') for x in d]
-    d = [d[i: i + 16] for i in xrange(0, len(d), 16)]
+    d = [format(x, '02x') for x in d]
+    d = [d[i: i + 16] for i in range(0, len(d), 16)]
     d = [' '.join(x) for x in d]
     d = os.linesep.join(d)
 
@@ -352,6 +354,7 @@ def hex_dump(d):
 class Client:
     FLAG_DEBUG = 0x01
     FLAG_SPACE = 0x02
+    FLAG_NONBLOCK = 0x04
     TPM_IOC_NEW_SPACE = 0xa200
 
     def __init__(self, flags = 0):
@@ -362,12 +365,30 @@ class Client:
         else:
             self.tpm = open('/dev/tpmrm0', 'r+b', buffering=0)
 
+        if (self.flags & Client.FLAG_NONBLOCK):
+            flags = fcntl.fcntl(self.tpm, fcntl.F_GETFL)
+            flags |= os.O_NONBLOCK
+            fcntl.fcntl(self.tpm, fcntl.F_SETFL, flags)
+            self.tpm_poll = select.poll()
+
+    def __del__(self):
+        if self.tpm:
+            self.tpm.close()
+
     def close(self):
         self.tpm.close()
 
     def send_cmd(self, cmd):
         self.tpm.write(cmd)
+
+        if (self.flags & Client.FLAG_NONBLOCK):
+            self.tpm_poll.register(self.tpm, select.POLLIN)
+            self.tpm_poll.poll(10000)
+
         rsp = self.tpm.read()
+
+        if (self.flags & Client.FLAG_NONBLOCK):
+            self.tpm_poll.unregister(self.tpm)
 
         if (self.flags & Client.FLAG_DEBUG) != 0:
             sys.stderr.write('cmd' + os.linesep)
@@ -386,7 +407,7 @@ class Client:
         pcrsel_len = max((i >> 3) + 1, 3)
         pcrsel = [0] * pcrsel_len
         pcrsel[i >> 3] = 1 << (i & 7)
-        pcrsel = ''.join(map(chr, pcrsel))
+        pcrsel = ''.join(map(chr, pcrsel)).encode()
 
         fmt = '>HII IHB%us' % (pcrsel_len)
         cmd = struct.pack(fmt,
@@ -428,7 +449,7 @@ class Client:
             TPM2_CC_PCR_EXTEND,
             i,
             len(auth_cmd),
-            str(auth_cmd),
+            bytes(auth_cmd),
             1, bank_alg, dig)
 
         self.send_cmd(cmd)
@@ -442,7 +463,7 @@ class Client:
                           TPM2_RH_NULL,
                           TPM2_RH_NULL,
                           16,
-                          '\0' * 16,
+                          ('\0' * 16).encode(),
                           0,
                           session_type,
                           TPM2_ALG_NULL,
@@ -457,7 +478,7 @@ class Client:
 
         for i in pcrs:
             pcr = self.read_pcr(i, bank_alg)
-            if pcr == None:
+            if pcr is None:
                 return None
             x += pcr
 
@@ -474,7 +495,7 @@ class Client:
         pcrsel = [0] * pcrsel_len
         for i in pcrs:
             pcrsel[i >> 3] |= 1 << (i & 7)
-        pcrsel = ''.join(map(chr, pcrsel))
+        pcrsel = ''.join(map(chr, pcrsel)).encode()
 
         fmt = '>HII IH%usIHB3s' % ds
         cmd = struct.pack(fmt,
@@ -482,7 +503,8 @@ class Client:
                           struct.calcsize(fmt),
                           TPM2_CC_POLICY_PCR,
                           handle,
-                          len(dig), str(dig),
+                          len(dig),
+                          bytes(dig),
                           1,
                           bank_alg,
                           pcrsel_len, pcrsel)
@@ -519,7 +541,7 @@ class Client:
 
         self.send_cmd(cmd)
 
-    def create_root_key(self, auth_value = ''):
+    def create_root_key(self, auth_value = bytes()):
         attributes = \
             Public.FIXED_TPM | \
             Public.FIXED_PARENT | \
@@ -555,11 +577,11 @@ class Client:
             TPM2_CC_CREATE_PRIMARY,
             TPM2_RH_OWNER,
             len(auth_cmd),
-            str(auth_cmd),
+            bytes(auth_cmd),
             len(sensitive),
-            str(sensitive),
+            bytes(sensitive),
             len(public),
-            str(public),
+            bytes(public),
             0, 0)
 
         return struct.unpack('>I', self.send_cmd(cmd)[10:14])[0]
@@ -572,7 +594,7 @@ class Client:
         attributes = 0
         if not policy_dig:
             attributes |= Public.USER_WITH_AUTH
-            policy_dig = ''
+            policy_dig = bytes()
 
         auth_cmd =  AuthCommand()
         sensitive = SensitiveCreate(user_auth=auth_value, data=data)
@@ -593,11 +615,11 @@ class Client:
             TPM2_CC_CREATE,
             parent_key,
             len(auth_cmd),
-            str(auth_cmd),
+            bytes(auth_cmd),
             len(sensitive),
-            str(sensitive),
+            bytes(sensitive),
             len(public),
-            str(public),
+            bytes(public),
             0, 0)
 
         rsp = self.send_cmd(cmd)
@@ -620,7 +642,7 @@ class Client:
             TPM2_CC_LOAD,
             parent_key,
             len(auth_cmd),
-            str(auth_cmd),
+            bytes(auth_cmd),
             blob)
 
         data_handle = struct.unpack('>I', self.send_cmd(cmd)[10:14])[0]
@@ -638,7 +660,7 @@ class Client:
             TPM2_CC_UNSEAL,
             data_handle,
             len(auth_cmd),
-            str(auth_cmd))
+            bytes(auth_cmd))
 
         try:
             rsp = self.send_cmd(cmd)
@@ -660,7 +682,7 @@ class Client:
             TPM2_CC_DICTIONARY_ATTACK_LOCK_RESET,
             TPM2_RH_LOCKOUT,
             len(auth_cmd),
-            str(auth_cmd))
+            bytes(auth_cmd))
 
         self.send_cmd(cmd)
 
@@ -678,7 +700,7 @@ class Client:
         more_data, cap, cnt = struct.unpack('>BII', rsp[:9])
         rsp = rsp[9:]
 
-        for i in xrange(0, cnt):
+        for i in range(0, cnt):
             handle = struct.unpack('>I', rsp[:4])[0]
             handles.append(handle)
             rsp = rsp[4:]
@@ -695,3 +717,33 @@ class Client:
             pt += 1
 
         return handles
+
+    def get_cap_pcrs(self):
+        pcr_banks = {}
+
+        fmt = '>HII III'
+
+        cmd = struct.pack(fmt,
+                          TPM2_ST_NO_SESSIONS,
+                          struct.calcsize(fmt),
+                          TPM2_CC_GET_CAPABILITY,
+                          TPM2_CAP_PCRS, 0, 1)
+        rsp = self.send_cmd(cmd)[10:]
+        _, _, cnt = struct.unpack('>BII', rsp[:9])
+        rsp = rsp[9:]
+
+        # items are TPMS_PCR_SELECTION's
+        for i in range(0, cnt):
+              hash, sizeOfSelect = struct.unpack('>HB', rsp[:3])
+              rsp = rsp[3:]
+
+              pcrSelect = 0
+              if sizeOfSelect > 0:
+                  pcrSelect, = struct.unpack('%ds' % sizeOfSelect,
+                                             rsp[:sizeOfSelect])
+                  rsp = rsp[sizeOfSelect:]
+                  pcrSelect = int.from_bytes(pcrSelect, byteorder='big')
+
+              pcr_banks[hash] = pcrSelect
+
+        return pcr_banks

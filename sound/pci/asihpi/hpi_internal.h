@@ -53,7 +53,7 @@ If handle is invalid *pPhysicalAddr is set to zero and return 1
 u16 hpios_locked_mem_get_phys_addr(struct consistent_dma_area
 	*locked_mem_handle, u32 *p_physical_addr);
 
-/** Get the CPU address of of memory represented by LockedMemHandle.
+/** Get the CPU address of memory represented by LockedMemHandle.
 
 If handle is NULL *ppvVirtualAddr is set to NULL and return 1
 */
@@ -1394,16 +1394,11 @@ u32 hpi_indexes_to_handle(const char c_object, const u16 adapter_index,
 void hpi_send_recv(struct hpi_message *phm, struct hpi_response *phr);
 
 /* used in PnP OS/driver */
-u16 hpi_subsys_create_adapter(const struct hpi_resource *p_resource,
-	u16 *pw_adapter_index);
-
 u16 hpi_outstream_host_buffer_get_info(u32 h_outstream, u8 **pp_buffer,
 	struct hpi_hostbuffer_status **pp_status);
 
 u16 hpi_instream_host_buffer_get_info(u32 h_instream, u8 **pp_buffer,
 	struct hpi_hostbuffer_status **pp_status);
-
-u16 hpi_adapter_restart(u16 adapter_index);
 
 /*
 The following 3 functions were last declared in header files for

@@ -202,9 +202,9 @@ static inline void iosapic_write(void __iomem *iosapic, unsigned int reg, u32 va
 
 static DEFINE_SPINLOCK(iosapic_lock);
 
-static inline void iosapic_eoi(void __iomem *addr, unsigned int data)
+static inline void iosapic_eoi(__le32 __iomem *addr, __le32 data)
 {
-	__raw_writel(data, addr);
+	__raw_writel((__force u32)data, addr);
 }
 
 /*
@@ -221,16 +221,7 @@ static size_t irt_num_entry;
 
 static struct irt_entry *iosapic_alloc_irt(int num_entries)
 {
-	unsigned long a;
-
-	/* The IRT needs to be 8-byte aligned for the PDC call. 
-	 * Normally kmalloc would guarantee larger alignment, but
-	 * if CONFIG_DEBUG_SLAB is enabled, then we can get only
-	 * 4-byte alignment on 32-bit kernels
-	 */
-	a = (unsigned long)kmalloc(sizeof(struct irt_entry) * num_entries + 8, GFP_KERNEL);
-	a = (a + 7UL) & ~7UL;
-	return (struct irt_entry *)a;
+	return kcalloc(num_entries, sizeof(struct irt_entry), GFP_KERNEL);
 }
 
 /**
@@ -357,12 +348,9 @@ iosapic_load_irt(unsigned long cell_num, struct irt_entry **irt)
 }
 
 
-
-void __init iosapic_init(void)
+static int __init iosapic_init(void)
 {
 	unsigned long cell = 0;
-
-	DBG("iosapic_init()\n");
 
 #ifdef __LP64__
 	if (is_pdc_pat()) {
@@ -380,7 +368,10 @@ void __init iosapic_init(void)
 	irt_num_entry = iosapic_load_irt(cell, &irt_cell);
 	if (irt_num_entry == 0)
 		irt_cell = NULL;	/* old PDC w/o iosapic */
+
+	return 0;
 }
+arch_initcall(iosapic_init);
 
 
 /*
@@ -677,7 +668,7 @@ static int iosapic_set_affinity_irq(struct irq_data *d,
 	if (dest_cpu < 0)
 		return -1;
 
-	cpumask_copy(irq_data_get_affinity_mask(d), cpumask_of(dest_cpu));
+	irq_data_update_affinity(d, cpumask_of(dest_cpu));
 	vi->txn_addr = txn_affinity_addr(d->irq, dest_cpu);
 
 	spin_lock_irqsave(&iosapic_lock, flags);
@@ -875,6 +866,7 @@ int iosapic_serial_irq(struct parisc_device *dev)
 
 	return vi->txn_irq;
 }
+EXPORT_SYMBOL(iosapic_serial_irq);
 #endif
 
 
@@ -898,7 +890,7 @@ iosapic_rd_version(struct iosapic_info *isi)
 **	o allocate and initialize isi_vector[]
 **	o allocate irq region
 */
-void *iosapic_register(unsigned long hpa)
+void *iosapic_register(unsigned long hpa, void __iomem *vaddr)
 {
 	struct iosapic_info *isi = NULL;
 	struct irt_entry *irte = irt_cell;
@@ -927,7 +919,7 @@ void *iosapic_register(unsigned long hpa)
 		return NULL;
 	}
 
-	isi->addr = ioremap_nocache(hpa, 4096);
+	isi->addr = vaddr;
 	isi->isi_hpa = hpa;
 	isi->isi_version = iosapic_rd_version(isi);
 	isi->isi_num_vectors = IOSAPIC_IRDT_MAX_ENTRY(isi->isi_version) + 1;

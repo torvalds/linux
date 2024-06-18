@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Texas Instruments SoC Adaptive Body Bias(ABB) Regulator
  *
@@ -7,22 +8,12 @@
  * Copyright (C) 2012-2013 Texas Instruments, Inc.
  * Andrii Tseglytskyi <andrii.tseglytskyi@ti.com>
  * Nishanth Menon <nm@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
@@ -42,7 +33,7 @@
 /**
  * struct ti_abb_info - ABB information per voltage setting
  * @opp_sel:	one of TI_ABB macro
- * @vset:	(optional) vset value that LDOVBB needs to be overriden with.
+ * @vset:	(optional) vset value that LDOVBB needs to be overridden with.
  *
  * Array of per voltage entries organized in the same order as regulator_desc's
  * volt_table list. (selector is used to index from this array)
@@ -159,7 +150,7 @@ static inline void ti_abb_clear_txdone(const struct ti_abb *abb)
 };
 
 /**
- * ti_abb_wait_tranx() - waits for ABB tranxdone event
+ * ti_abb_wait_txdone() - waits for ABB tranxdone event
  * @dev:	device
  * @abb:	pointer to the abb instance
  *
@@ -173,19 +164,14 @@ static int ti_abb_wait_txdone(struct device *dev, struct ti_abb *abb)
 	while (timeout++ <= abb->settling_time) {
 		status = ti_abb_check_txdone(abb);
 		if (status)
-			break;
+			return 0;
 
 		udelay(1);
 	}
 
-	if (timeout > abb->settling_time) {
-		dev_warn_ratelimited(dev,
-				     "%s:TRANXDONE timeout(%duS) int=0x%08x\n",
-				     __func__, timeout, readl(abb->int_base));
-		return -ETIMEDOUT;
-	}
-
-	return 0;
+	dev_warn_ratelimited(dev, "%s:TRANXDONE timeout(%duS) int=0x%08x\n",
+			     __func__, timeout, readl(abb->int_base));
+	return -ETIMEDOUT;
 }
 
 /**
@@ -205,19 +191,14 @@ static int ti_abb_clear_all_txdone(struct device *dev, const struct ti_abb *abb)
 
 		status = ti_abb_check_txdone(abb);
 		if (!status)
-			break;
+			return 0;
 
 		udelay(1);
 	}
 
-	if (timeout > abb->settling_time) {
-		dev_warn_ratelimited(dev,
-				     "%s:TRANXDONE timeout(%duS) int=0x%08x\n",
-				     __func__, timeout, readl(abb->int_base));
-		return -ETIMEDOUT;
-	}
-
-	return 0;
+	dev_warn_ratelimited(dev, "%s:TRANXDONE timeout(%duS) int=0x%08x\n",
+			     __func__, timeout, readl(abb->int_base));
+	return -ETIMEDOUT;
 }
 
 /**
@@ -319,7 +300,7 @@ out:
  *
  * Return: 0 on success or appropriate error value when fails
  */
-static int ti_abb_set_voltage_sel(struct regulator_dev *rdev, unsigned sel)
+static int ti_abb_set_voltage_sel(struct regulator_dev *rdev, unsigned int sel)
 {
 	const struct regulator_desc *desc = rdev->desc;
 	struct ti_abb *abb = rdev_get_drvdata(rdev);
@@ -352,8 +333,17 @@ static int ti_abb_set_voltage_sel(struct regulator_dev *rdev, unsigned sel)
 		return ret;
 	}
 
-	/* If data is exactly the same, then just update index, no change */
 	info = &abb->info[sel];
+	/*
+	 * When Linux kernel is starting up, we aren't sure of the
+	 * Bias configuration that bootloader has configured.
+	 * So, we get to know the actual setting the first time
+	 * we are asked to transition.
+	 */
+	if (abb->current_info_idx == -EINVAL)
+		goto just_set_abb;
+
+	/* If data is exactly the same, then just update index, no change */
 	oinfo = &abb->info[abb->current_info_idx];
 	if (!memcmp(info, oinfo, sizeof(*info))) {
 		dev_dbg(dev, "%s: Same data new idx=%d, old idx=%d\n", __func__,
@@ -361,6 +351,7 @@ static int ti_abb_set_voltage_sel(struct regulator_dev *rdev, unsigned sel)
 		goto out;
 	}
 
+just_set_abb:
 	ret = ti_abb_set_opp(rdev, abb, info);
 
 out:
@@ -484,7 +475,7 @@ static int ti_abb_init_timings(struct device *dev, struct ti_abb *abb)
 	/* Calculate cycle rate */
 	cycle_rate = DIV_ROUND_CLOSEST(clock_cycles * 10, clk_rate);
 
-	/* Calulate SR2_WTCNT_VALUE */
+	/* Calculate SR2_WTCNT_VALUE */
 	sr2_wt_cnt_val = DIV_ROUND_CLOSEST(abb->settling_time * 10, cycle_rate);
 
 	dev_dbg(dev, "%s: Clk_rate=%ld, sr2_cnt=0x%08x\n", __func__,
@@ -629,7 +620,7 @@ check_abb:
 	return 0;
 }
 
-static struct regulator_ops ti_abb_reg_ops = {
+static const struct regulator_ops ti_abb_reg_ops = {
 	.list_voltage = regulator_list_voltage_table,
 
 	.set_voltage_sel = ti_abb_set_voltage_sel,
@@ -688,7 +679,7 @@ MODULE_DEVICE_TABLE(of, ti_abb_of_match);
  * @pdev: ABB platform device
  *
  * Initializes an individual ABB LDO for required Body-Bias. ABB is used to
- * addional bias supply to SoC modules for power savings or mandatory stability
+ * additional bias supply to SoC modules for power savings or mandatory stability
  * configuration at certain Operating Performance Points(OPPs).
  *
  * Return: 0 on success or appropriate error value when fails
@@ -696,7 +687,6 @@ MODULE_DEVICE_TABLE(of, ti_abb_of_match);
 static int ti_abb_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *match;
 	struct resource *res;
 	struct ti_abb *abb;
 	struct regulator_init_data *initdata = NULL;
@@ -707,27 +697,19 @@ static int ti_abb_probe(struct platform_device *pdev)
 	char *pname;
 	int ret = 0;
 
-	match = of_match_device(ti_abb_of_match, dev);
-	if (!match) {
-		/* We do not expect this to happen */
-		dev_err(dev, "%s: Unable to match device\n", __func__);
-		return -ENODEV;
-	}
-	if (!match->data) {
+	abb = devm_kzalloc(dev, sizeof(struct ti_abb), GFP_KERNEL);
+	if (!abb)
+		return -ENOMEM;
+
+	abb->regs = device_get_match_data(dev);
+	if (!abb->regs) {
 		dev_err(dev, "%s: Bad data in match\n", __func__);
 		return -EINVAL;
 	}
 
-	abb = devm_kzalloc(dev, sizeof(struct ti_abb), GFP_KERNEL);
-	if (!abb)
-		return -ENOMEM;
-	abb->regs = match->data;
-
 	/* Map ABB resources */
 	if (abb->regs->setup_off || abb->regs->control_off) {
-		pname = "base-address";
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, pname);
-		abb->base = devm_ioremap_resource(dev, res);
+		abb->base = devm_platform_ioremap_resource_byname(pdev, "base-address");
 		if (IS_ERR(abb->base))
 			return PTR_ERR(abb->base);
 
@@ -735,15 +717,11 @@ static int ti_abb_probe(struct platform_device *pdev)
 		abb->control_reg = abb->base + abb->regs->control_off;
 
 	} else {
-		pname = "control-address";
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, pname);
-		abb->control_reg = devm_ioremap_resource(dev, res);
+		abb->control_reg = devm_platform_ioremap_resource_byname(pdev, "control-address");
 		if (IS_ERR(abb->control_reg))
 			return PTR_ERR(abb->control_reg);
 
-		pname = "setup-address";
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, pname);
-		abb->setup_reg = devm_ioremap_resource(dev, res);
+		abb->setup_reg = devm_platform_ioremap_resource_byname(pdev, "setup-address");
 		if (IS_ERR(abb->setup_reg))
 			return PTR_ERR(abb->setup_reg);
 	}
@@ -755,10 +733,13 @@ static int ti_abb_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 	/*
-	 * We may have shared interrupt register offsets which are
-	 * write-1-to-clear between domains ensuring exclusivity.
+	 * The MPU interrupt status register (PRM_IRQSTATUS_MPU) is
+	 * shared between regulator-abb-{ivahd,dspeve,gpu} driver
+	 * instances. Therefore use devm_ioremap() rather than
+	 * devm_platform_ioremap_resource_byname() to avoid busy
+	 * resource region conflicts.
 	 */
-	abb->int_base = devm_ioremap_nocache(dev, res->start,
+	abb->int_base = devm_ioremap(dev, res->start,
 					     resource_size(res));
 	if (!abb->int_base) {
 		dev_err(dev, "Unable to map '%s'\n", pname);
@@ -778,7 +759,7 @@ static int ti_abb_probe(struct platform_device *pdev)
 	 * We may have shared efuse register offsets which are read-only
 	 * between domains
 	 */
-	abb->efuse_base = devm_ioremap_nocache(dev, res->start,
+	abb->efuse_base = devm_ioremap(dev, res->start,
 					       resource_size(res));
 	if (!abb->efuse_base) {
 		dev_err(dev, "Unable to map '%s'\n", pname);
@@ -892,7 +873,8 @@ static struct platform_driver ti_abb_driver = {
 	.probe = ti_abb_probe,
 	.driver = {
 		   .name = "ti_abb",
-		   .of_match_table = of_match_ptr(ti_abb_of_match),
+		   .probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		   .of_match_table = ti_abb_of_match,
 		   },
 };
 module_platform_driver(ti_abb_driver);

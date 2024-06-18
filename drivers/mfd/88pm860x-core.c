@@ -26,99 +26,99 @@
 
 #define INT_STATUS_NUM			3
 
-static struct resource bk0_resources[] = {
+static const struct resource bk0_resources[] = {
 	{2, 2, "duty cycle", IORESOURCE_REG, },
 	{3, 3, "always on",  IORESOURCE_REG, },
 	{3, 3, "current",    IORESOURCE_REG, },
 };
-static struct resource bk1_resources[] = {
+static const struct resource bk1_resources[] = {
 	{4, 4, "duty cycle", IORESOURCE_REG, },
 	{5, 5, "always on",  IORESOURCE_REG, },
 	{5, 5, "current",    IORESOURCE_REG, },
 };
-static struct resource bk2_resources[] = {
+static const struct resource bk2_resources[] = {
 	{6, 6, "duty cycle", IORESOURCE_REG, },
 	{7, 7, "always on",  IORESOURCE_REG, },
 	{5, 5, "current",    IORESOURCE_REG, },
 };
 
-static struct resource led0_resources[] = {
+static const struct resource led0_resources[] = {
 	/* RGB1 Red LED */
 	{0xd, 0xd, "control", IORESOURCE_REG, },
 	{0xc, 0xc, "blink",   IORESOURCE_REG, },
 };
-static struct resource led1_resources[] = {
+static const struct resource led1_resources[] = {
 	/* RGB1 Green LED */
 	{0xe, 0xe, "control", IORESOURCE_REG, },
 	{0xc, 0xc, "blink",   IORESOURCE_REG, },
 };
-static struct resource led2_resources[] = {
+static const struct resource led2_resources[] = {
 	/* RGB1 Blue LED */
 	{0xf, 0xf, "control", IORESOURCE_REG, },
 	{0xc, 0xc, "blink",   IORESOURCE_REG, },
 };
-static struct resource led3_resources[] = {
+static const struct resource led3_resources[] = {
 	/* RGB2 Red LED */
 	{0x9, 0x9, "control", IORESOURCE_REG, },
 	{0x8, 0x8, "blink",   IORESOURCE_REG, },
 };
-static struct resource led4_resources[] = {
+static const struct resource led4_resources[] = {
 	/* RGB2 Green LED */
 	{0xa, 0xa, "control", IORESOURCE_REG, },
 	{0x8, 0x8, "blink",   IORESOURCE_REG, },
 };
-static struct resource led5_resources[] = {
+static const struct resource led5_resources[] = {
 	/* RGB2 Blue LED */
 	{0xb, 0xb, "control", IORESOURCE_REG, },
 	{0x8, 0x8, "blink",   IORESOURCE_REG, },
 };
 
-static struct resource buck1_resources[] = {
+static const struct resource buck1_resources[] = {
 	{0x24, 0x24, "buck set", IORESOURCE_REG, },
 };
-static struct resource buck2_resources[] = {
+static const struct resource buck2_resources[] = {
 	{0x25, 0x25, "buck set", IORESOURCE_REG, },
 };
-static struct resource buck3_resources[] = {
+static const struct resource buck3_resources[] = {
 	{0x26, 0x26, "buck set", IORESOURCE_REG, },
 };
-static struct resource ldo1_resources[] = {
+static const struct resource ldo1_resources[] = {
 	{0x10, 0x10, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo2_resources[] = {
+static const struct resource ldo2_resources[] = {
 	{0x11, 0x11, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo3_resources[] = {
+static const struct resource ldo3_resources[] = {
 	{0x12, 0x12, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo4_resources[] = {
+static const struct resource ldo4_resources[] = {
 	{0x13, 0x13, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo5_resources[] = {
+static const struct resource ldo5_resources[] = {
 	{0x14, 0x14, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo6_resources[] = {
+static const struct resource ldo6_resources[] = {
 	{0x15, 0x15, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo7_resources[] = {
+static const struct resource ldo7_resources[] = {
 	{0x16, 0x16, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo8_resources[] = {
+static const struct resource ldo8_resources[] = {
 	{0x17, 0x17, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo9_resources[] = {
+static const struct resource ldo9_resources[] = {
 	{0x18, 0x18, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo10_resources[] = {
+static const struct resource ldo10_resources[] = {
 	{0x19, 0x19, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo12_resources[] = {
+static const struct resource ldo12_resources[] = {
 	{0x1a, 0x1a, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo_vibrator_resources[] = {
+static const struct resource ldo_vibrator_resources[] = {
 	{0x28, 0x28, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo14_resources[] = {
+static const struct resource ldo14_resources[] = {
 	{0x1b, 0x1b, "ldo set", IORESOURCE_REG, },
 };
 
@@ -1117,8 +1117,7 @@ static int pm860x_dt_init(struct device_node *np,
 {
 	int ret;
 
-	if (of_get_property(np, "marvell,88pm860x-irq-read-clr", NULL))
-		pdata->irq_mode = 1;
+	pdata->irq_mode = of_property_read_bool(np, "marvell,88pm860x-irq-read-clr");
 	ret = of_property_read_u32(np, "marvell,88pm860x-slave-addr",
 				   &pdata->companion_addr);
 	if (ret) {
@@ -1167,7 +1166,6 @@ static int pm860x_probe(struct i2c_client *client)
 	chip->client = client;
 	i2c_set_clientdata(client, chip);
 	chip->dev = &client->dev;
-	dev_set_drvdata(chip->dev, chip);
 
 	/*
 	 * Both client and companion client shares same platform driver.
@@ -1201,7 +1199,7 @@ static int pm860x_probe(struct i2c_client *client)
 	return 0;
 }
 
-static int pm860x_remove(struct i2c_client *client)
+static void pm860x_remove(struct i2c_client *client)
 {
 	struct pm860x_chip *chip = i2c_get_clientdata(client);
 
@@ -1210,10 +1208,8 @@ static int pm860x_remove(struct i2c_client *client)
 		regmap_exit(chip->regmap_companion);
 		i2c_unregister_device(chip->companion);
 	}
-	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int pm860x_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -1233,9 +1229,8 @@ static int pm860x_resume(struct device *dev)
 		disable_irq_wake(chip->core_irq);
 	return 0;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(pm860x_pm_ops, pm860x_suspend, pm860x_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(pm860x_pm_ops, pm860x_suspend, pm860x_resume);
 
 static const struct i2c_device_id pm860x_id_table[] = {
 	{ "88PM860x", 0 },
@@ -1252,10 +1247,10 @@ MODULE_DEVICE_TABLE(of, pm860x_dt_ids);
 static struct i2c_driver pm860x_driver = {
 	.driver	= {
 		.name	= "88PM860x",
-		.pm     = &pm860x_pm_ops,
+		.pm     = pm_sleep_ptr(&pm860x_pm_ops),
 		.of_match_table	= pm860x_dt_ids,
 	},
-	.probe_new	= pm860x_probe,
+	.probe		= pm860x_probe,
 	.remove		= pm860x_remove,
 	.id_table	= pm860x_id_table,
 };
@@ -1279,4 +1274,3 @@ module_exit(pm860x_i2c_exit);
 
 MODULE_DESCRIPTION("PMIC Driver for Marvell 88PM860x");
 MODULE_AUTHOR("Haojian Zhuang <haojian.zhuang@marvell.com>");
-MODULE_LICENSE("GPL");

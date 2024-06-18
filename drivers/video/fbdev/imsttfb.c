@@ -16,6 +16,7 @@
  *  more details.
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -86,7 +87,7 @@ enum {
 	SSTATUS	= 36, /* 0x90 */
 	PRC	= 37, /* 0x94 */
 
-#if 0	
+#if 0
 	/* PCI Registers */
 	DVID	= 0x00000000L,
 	SC	= 0x00000004L,
@@ -103,8 +104,8 @@ enum {
 	PDATA	= 0x04,
 	PPMASK	= 0x08,
 	PADDRR	= 0x0c,
-	PIDXLO	= 0x10,	
-	PIDXHI	= 0x14,	
+	PIDXLO	= 0x10,
+	PIDXHI	= 0x14,
 	PIDXDATA= 0x18,
 	PIDXCTL	= 0x1c
 };
@@ -131,7 +132,7 @@ enum {
 	SYSCLKC		= 0x18,	/* () System Clock C */
 	/*
 	 * Dot clock rate is 20MHz * (m + 1) / ((n + 1) * (p ? 2 * p : 1)
-	 * c is charge pump bias which depends on the VCO frequency  
+	 * c is charge pump bias which depends on the VCO frequency
 	 */
 	PIXM0		= 0x20,	/* () Pixel M 0 */
 	PIXN0		= 0x21,	/* () Pixel N 0 */
@@ -320,7 +321,7 @@ struct imstt_par {
 	__u32 ramdac;
 	__u32 palette[16];
 };
- 
+
 enum {
 	IBM = 0,
 	TVP = 1
@@ -373,7 +374,7 @@ static struct imstt_regvals tvp_reg_init_17 = {
 
 static struct imstt_regvals tvp_reg_init_18 = {
 	1152,
-  	0x0009, 0x0011, 0x059, 0x5b, 0x0003, 0x0031, 0x0397, 0x039a, 0x0000, 
+  	0x0009, 0x0011, 0x059, 0x5b, 0x0003, 0x0031, 0x0397, 0x039a, 0x0000,
 	0xfd, 0x3a, 0xf1,
 	{ 0x39, 0x38, 0x38 }, { 0xf3, 0xf3, 0xf2 }
 };
@@ -856,10 +857,10 @@ imsttfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 }
 
 static int
-imsttfb_set_par(struct fb_info *info) 
+imsttfb_set_par(struct fb_info *info)
 {
 	struct imstt_par *par = info->par;
-		
+
 	if (!compute_imstt_regvals(par, info->var.xres, info->var.yres))
 		return -EINVAL;
 
@@ -930,7 +931,7 @@ imsttfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 	return 0;
 }
 
-static int 
+static int
 imsttfb_blank(int blank, struct fb_info *info)
 {
 	struct imstt_par *par = info->par;
@@ -986,7 +987,7 @@ imsttfb_blank(int blank, struct fb_info *info)
 
 static void
 imsttfb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
-{ 
+{
 	struct imstt_par *par = info->par;
 	__u32 Bpp, line_pitch, bgc, dx, dy, width, height;
 
@@ -1192,7 +1193,7 @@ imstt_set_cursor(struct imstt_par *par, struct fb_image *d, int on)
 	}
 }
 
-static int 
+static int
 imsttfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 {
 	struct imstt_par *par = info->par;
@@ -1200,7 +1201,7 @@ imsttfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 
 	if (cursor->dest == NULL && cursor->rop == ROP_XOR)
 		return 1;
-	
+
 	imstt_set_cursor(info, cursor, 0);
 
 	if (flags & FB_CUR_SETPOS) {
@@ -1333,8 +1334,9 @@ static struct pci_driver imsttfb_pci_driver = {
 	.remove =	imsttfb_remove,
 };
 
-static struct fb_ops imsttfb_ops = {
+static const struct fb_ops imsttfb_ops = {
 	.owner 		= THIS_MODULE,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_check_var	= imsttfb_check_var,
 	.fb_set_par 	= imsttfb_set_par,
 	.fb_setcolreg 	= imsttfb_setcolreg,
@@ -1344,9 +1346,10 @@ static struct fb_ops imsttfb_ops = {
 	.fb_copyarea	= imsttfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
 	.fb_ioctl 	= imsttfb_ioctl,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 };
 
-static void init_imstt(struct fb_info *info)
+static int init_imstt(struct fb_info *info)
 {
 	struct imstt_par *par = info->par;
 	__u32 i, tmp, *ip, *end;
@@ -1418,8 +1421,7 @@ static void init_imstt(struct fb_info *info)
 	if ((info->var.xres * info->var.yres) * (info->var.bits_per_pixel >> 3) > info->fix.smem_len
 	    || !(compute_imstt_regvals(par, info->var.xres, info->var.yres))) {
 		printk("imsttfb: %ux%ux%u not supported\n", info->var.xres, info->var.yres, info->var.bits_per_pixel);
-		framebuffer_release(info);
-		return;
+		return -ENODEV;
 	}
 
 	sprintf(info->fix.id, "IMS TT (%s)", par->ramdac == IBM ? "IBM" : "TVP");
@@ -1446,21 +1448,22 @@ static void init_imstt(struct fb_info *info)
 	info->var.pixclock = 1000000 / getclkMHz(par);
 
 	info->fbops = &imsttfb_ops;
-	info->flags = FBINFO_DEFAULT |
-                      FBINFO_HWACCEL_COPYAREA |
+	info->flags = FBINFO_HWACCEL_COPYAREA |
 	              FBINFO_HWACCEL_FILLRECT |
 	              FBINFO_HWACCEL_YPAN;
 
-	fb_alloc_cmap(&info->cmap, 0, 0);
+	if (fb_alloc_cmap(&info->cmap, 0, 0))
+		return -ENODEV;
 
 	if (register_framebuffer(info) < 0) {
-		framebuffer_release(info);
-		return;
+		fb_dealloc_cmap(&info->cmap);
+		return -ENODEV;
 	}
 
 	tmp = (read_reg_le32(par->dc_regs, SSTATUS) & 0x0f00) >> 8;
 	fb_info(info, "%s frame buffer; %uMB vram; chip version %u\n",
 		info->fix.id, info->fix.smem_len >> 20, tmp);
+	return 0;
 }
 
 static int imsttfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -1469,7 +1472,13 @@ static int imsttfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct imstt_par *par;
 	struct fb_info *info;
 	struct device_node *dp;
-	
+	int ret;
+
+	ret = aperture_remove_conflicting_pci_devices(pdev, "imsttfb");
+	if (ret)
+		return ret;
+	ret = -ENOMEM;
+
 	dp = pci_device_to_OF_node(pdev);
 	if(dp)
 		printk(KERN_INFO "%s: OF name %pOFn\n",__func__, dp);
@@ -1487,8 +1496,8 @@ static int imsttfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (!request_mem_region(addr, size, "imsttfb")) {
 		printk(KERN_ERR "imsttfb: Can't reserve memory region\n");
-		framebuffer_release(info);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto release_info;
 	}
 
 	switch (pdev->device) {
@@ -1504,28 +1513,42 @@ static int imsttfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		default:
 			printk(KERN_INFO "imsttfb: Device 0x%x unknown, "
 					 "contact maintainer.\n", pdev->device);
-			release_mem_region(addr, size);
-			framebuffer_release(info);
-			return -ENODEV;
+			ret = -ENODEV;
+			goto release_mem_region;
 	}
 
 	info->fix.smem_start = addr;
 	info->screen_base = (__u8 *)ioremap(addr, par->ramdac == IBM ?
 					    0x400000 : 0x800000);
-	if (!info->screen_base) {
-		release_mem_region(addr, size);
-		framebuffer_release(info);
-		return -ENOMEM;
-	}
+	if (!info->screen_base)
+		goto release_mem_region;
 	info->fix.mmio_start = addr + 0x800000;
 	par->dc_regs = ioremap(addr + 0x800000, 0x1000);
+	if (!par->dc_regs)
+		goto unmap_screen_base;
 	par->cmap_regs_phys = addr + 0x840000;
 	par->cmap_regs = (__u8 *)ioremap(addr + 0x840000, 0x1000);
+	if (!par->cmap_regs)
+		goto unmap_dc_regs;
 	info->pseudo_palette = par->palette;
-	init_imstt(info);
+	ret = init_imstt(info);
+	if (ret)
+		goto unmap_cmap_regs;
 
 	pci_set_drvdata(pdev, info);
 	return 0;
+
+unmap_cmap_regs:
+	iounmap(par->cmap_regs);
+unmap_dc_regs:
+	iounmap(par->dc_regs);
+unmap_screen_base:
+	iounmap(info->screen_base);
+release_mem_region:
+	release_mem_region(addr, size);
+release_info:
+	framebuffer_release(info);
+	return ret;
 }
 
 static void imsttfb_remove(struct pci_dev *pdev)
@@ -1601,7 +1624,12 @@ static int __init imsttfb_init(void)
 {
 #ifndef MODULE
 	char *option = NULL;
+#endif
 
+	if (fb_modesetting_disabled("imsttfb"))
+		return -ENODEV;
+
+#ifndef MODULE
 	if (fb_get_options("imsttfb", &option))
 		return -ENODEV;
 
@@ -1609,7 +1637,7 @@ static int __init imsttfb_init(void)
 #endif
 	return pci_register_driver(&imsttfb_pci_driver);
 }
- 
+
 static void __exit imsttfb_exit(void)
 {
 	pci_unregister_driver(&imsttfb_pci_driver);

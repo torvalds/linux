@@ -1,0 +1,128 @@
+# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+#
+# Author: Chuck Lever <chuck.lever@oracle.com>
+#
+# Copyright (c) 2023, Oracle and/or its affiliates.
+#
+
+name: handshake
+
+protocol: genetlink
+
+doc: Netlink protocol to request a transport layer security handshake.
+
+definitions:
+  -
+    type: enum
+    name: handler-class
+    value-start: 0
+    entries: [ none, tlshd, max ]
+  -
+    type: enum
+    name: msg-type
+    value-start: 0
+    entries: [ unspec, clienthello, serverhello ]
+  -
+    type: enum
+    name: auth
+    value-start: 0
+    entries: [ unspec, unauth, psk, x509 ]
+
+attribute-sets:
+  -
+    name: x509
+    attributes:
+      -
+        name: cert
+        type: s32
+      -
+        name: privkey
+        type: s32
+  -
+    name: accept
+    attributes:
+      -
+        name: sockfd
+        type: s32
+      -
+        name: handler-class
+        type: u32
+        enum: handler-class
+      -
+        name: message-type
+        type: u32
+        enum: msg-type
+      -
+        name: timeout
+        type: u32
+      -
+        name: auth-mode
+        type: u32
+        enum: auth
+      -
+        name: peer-identity
+        type: u32
+        multi-attr: true
+      -
+        name: certificate
+        type: nest
+        nested-attributes: x509
+        multi-attr: true
+      -
+        name: peername
+        type: string
+  -
+    name: done
+    attributes:
+      -
+        name: status
+        type: u32
+      -
+        name: sockfd
+        type: s32
+      -
+        name: remote-auth
+        type: u32
+        multi-attr: true
+
+operations:
+  list:
+    -
+      name: ready
+      doc: Notify handlers that a new handshake request is waiting
+      notify: accept
+    -
+      name: accept
+      doc: Handler retrieves next queued handshake request
+      attribute-set: accept
+      flags: [ admin-perm ]
+      do:
+        request:
+          attributes:
+            - handler-class
+        reply:
+          attributes:
+            - sockfd
+            - message-type
+            - timeout
+            - auth-mode
+            - peer-identity
+            - certificate
+            - peername
+    -
+      name: done
+      doc: Handler reports handshake completion
+      attribute-set: done
+      do:
+        request:
+          attributes:
+            - status
+            - sockfd
+            - remote-auth
+
+mcast-groups:
+  list:
+    -
+      name: none
+    -
+      name: tlshd

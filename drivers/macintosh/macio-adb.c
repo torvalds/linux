@@ -2,17 +2,19 @@
 /*
  * Driver for the ADB controller in the Mac I/O (Hydra) chip.
  */
-#include <stdarg.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
-#include <asm/prom.h>
+#include <linux/pgtable.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/adb.h>
+
 #include <asm/io.h>
-#include <asm/pgtable.h>
 #include <asm/hydra.h>
 #include <asm/irq.h>
 #include <linux/init.h>
@@ -81,31 +83,32 @@ struct adb_driver macio_adb_driver = {
 
 int macio_probe(void)
 {
-	struct device_node *np;
+	struct device_node *np __free(device_node) =
+		of_find_compatible_node(NULL, "adb", "chrp,adb0");
 
-	np = of_find_compatible_node(NULL, "adb", "chrp,adb0");
-	if (np) {
-		of_node_put(np);
+	if (np)
 		return 0;
-	}
+
 	return -ENODEV;
 }
 
 int macio_init(void)
 {
-	struct device_node *adbs;
+	struct device_node *adbs __free(device_node) =
+		of_find_compatible_node(NULL, "adb", "chrp,adb0");
 	struct resource r;
 	unsigned int irq;
 
-	adbs = of_find_compatible_node(NULL, "adb", "chrp,adb0");
-	if (adbs == 0)
+	if (!adbs)
 		return -ENXIO;
 
-	if (of_address_to_resource(adbs, 0, &r)) {
-		of_node_put(adbs);
+	if (of_address_to_resource(adbs, 0, &r))
 		return -ENXIO;
-	}
+
 	adb = ioremap(r.start, sizeof(struct adb_regs));
+	if (!adb)
+		return -ENOMEM;
+
 
 	out_8(&adb->ctrl.r, 0);
 	out_8(&adb->intr.r, 0);
@@ -115,8 +118,8 @@ int macio_init(void)
 	out_8(&adb->autopoll.r, APE);
 
 	irq = irq_of_parse_and_map(adbs, 0);
-	of_node_put(adbs);
 	if (request_irq(irq, macio_adb_interrupt, 0, "ADB", (void *)0)) {
+		iounmap(adb);
 		printk(KERN_ERR "ADB: can't get irq %d\n", irq);
 		return -EAGAIN;
 	}
@@ -181,7 +184,7 @@ static int macio_send_request(struct adb_request *req, int sync)
 	req->reply_len = 0;
 
 	spin_lock_irqsave(&macio_lock, flags);
-	if (current_req != 0) {
+	if (current_req) {
 		last_req->next = req;
 		last_req = req;
 	} else {
@@ -211,7 +214,8 @@ static irqreturn_t macio_adb_interrupt(int irq, void *arg)
 	spin_lock(&macio_lock);
 	if (in_8(&adb->intr.r) & TAG) {
 		handled = 1;
-		if ((req = current_req) != 0) {
+		req = current_req;
+		if (req) {
 			/* put the current request in */
 			for (i = 0; i < req->nbytes; ++i)
 				out_8(&adb->data[i].r, req->data[i]);

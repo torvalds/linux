@@ -12,7 +12,7 @@
 static int cxgb4_thermal_get_temp(struct thermal_zone_device *tzdev,
 				  int *temp)
 {
-	struct adapter *adap = tzdev->devdata;
+	struct adapter *adap = thermal_zone_device_priv(tzdev);
 	u32 param, val;
 	int ret;
 
@@ -29,39 +29,16 @@ static int cxgb4_thermal_get_temp(struct thermal_zone_device *tzdev,
 	return 0;
 }
 
-static int cxgb4_thermal_get_trip_type(struct thermal_zone_device *tzdev,
-				       int trip, enum thermal_trip_type *type)
-{
-	struct adapter *adap = tzdev->devdata;
-
-	if (!adap->ch_thermal.trip_temp)
-		return -EINVAL;
-
-	*type = adap->ch_thermal.trip_type;
-	return 0;
-}
-
-static int cxgb4_thermal_get_trip_temp(struct thermal_zone_device *tzdev,
-				       int trip, int *temp)
-{
-	struct adapter *adap = tzdev->devdata;
-
-	if (!adap->ch_thermal.trip_temp)
-		return -EINVAL;
-
-	*temp = adap->ch_thermal.trip_temp;
-	return 0;
-}
-
 static struct thermal_zone_device_ops cxgb4_thermal_ops = {
 	.get_temp = cxgb4_thermal_get_temp,
-	.get_trip_type = cxgb4_thermal_get_trip_type,
-	.get_trip_temp = cxgb4_thermal_get_trip_temp,
 };
+
+static struct thermal_trip trip = { .type = THERMAL_TRIP_CRITICAL } ;
 
 int cxgb4_thermal_init(struct adapter *adap)
 {
 	struct ch_thermal *ch_thermal = &adap->ch_thermal;
+	char ch_tz_name[THERMAL_NAME_LENGTH];
 	int num_trip = CXGB4_NUM_TRIPS;
 	u32 param, val;
 	int ret;
@@ -78,26 +55,36 @@ int cxgb4_thermal_init(struct adapter *adap)
 	if (ret < 0) {
 		num_trip = 0; /* could not get trip temperature */
 	} else {
-		ch_thermal->trip_temp = val * 1000;
-		ch_thermal->trip_type = THERMAL_TRIP_CRITICAL;
+		trip.temperature = val * 1000;
 	}
 
-	ch_thermal->tzdev = thermal_zone_device_register("cxgb4", num_trip,
-							 0, adap,
-							 &cxgb4_thermal_ops,
-							 NULL, 0, 0);
+	snprintf(ch_tz_name, sizeof(ch_tz_name), "cxgb4_%s", adap->name);
+	ch_thermal->tzdev = thermal_zone_device_register_with_trips(ch_tz_name, &trip, num_trip,
+								    adap,
+								    &cxgb4_thermal_ops,
+								    NULL, 0, 0);
 	if (IS_ERR(ch_thermal->tzdev)) {
 		ret = PTR_ERR(ch_thermal->tzdev);
 		dev_err(adap->pdev_dev, "Failed to register thermal zone\n");
 		ch_thermal->tzdev = NULL;
 		return ret;
 	}
+
+	ret = thermal_zone_device_enable(ch_thermal->tzdev);
+	if (ret) {
+		dev_err(adap->pdev_dev, "Failed to enable thermal zone\n");
+		thermal_zone_device_unregister(adap->ch_thermal.tzdev);
+		return ret;
+	}
+
 	return 0;
 }
 
 int cxgb4_thermal_remove(struct adapter *adap)
 {
-	if (adap->ch_thermal.tzdev)
+	if (adap->ch_thermal.tzdev) {
 		thermal_zone_device_unregister(adap->ch_thermal.tzdev);
+		adap->ch_thermal.tzdev = NULL;
+	}
 	return 0;
 }

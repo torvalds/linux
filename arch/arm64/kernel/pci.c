@@ -11,8 +11,6 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/of_pci.h>
-#include <linux/of_platform.h>
 #include <linux/pci.h>
 #include <linux/pci-acpi.h>
 #include <linux/pci-ecam.h>
@@ -82,14 +80,29 @@ int acpi_pci_bus_find_domain_nr(struct pci_bus *bus)
 
 int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
 {
-	if (!acpi_disabled) {
-		struct pci_config_window *cfg = bridge->bus->sysdata;
-		struct acpi_device *adev = to_acpi_device(cfg->parent);
-		struct device *bus_dev = &bridge->bus->dev;
+	struct pci_config_window *cfg;
+	struct acpi_device *adev;
+	struct device *bus_dev;
 
-		ACPI_COMPANION_SET(&bridge->dev, adev);
-		set_dev_node(bus_dev, acpi_get_node(acpi_device_handle(adev)));
-	}
+	if (acpi_disabled)
+		return 0;
+
+	cfg = bridge->bus->sysdata;
+
+	/*
+	 * On Hyper-V there is no corresponding ACPI device for a root bridge,
+	 * therefore ->parent is set as NULL by the driver. And set 'adev' as
+	 * NULL in this case because there is no proper ACPI device.
+	 */
+	if (!cfg->parent)
+		adev = NULL;
+	else
+		adev = to_acpi_device(cfg->parent);
+
+	bus_dev = &bridge->bus->dev;
+
+	ACPI_COMPANION_SET(&bridge->dev, adev);
+	set_dev_node(bus_dev, acpi_get_node(acpi_device_handle(adev)));
 
 	return 0;
 }
@@ -117,7 +130,7 @@ pci_acpi_setup_ecam_mapping(struct acpi_pci_root *root)
 	struct device *dev = &root->device->dev;
 	struct resource *bus_res = &root->secondary;
 	u16 seg = root->segment;
-	struct pci_ecam_ops *ecam_ops;
+	const struct pci_ecam_ops *ecam_ops;
 	struct resource cfgres;
 	struct acpi_device *adev;
 	struct pci_config_window *cfg;
@@ -185,7 +198,7 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 
 	root_ops->release_info = pci_acpi_generic_release_info;
 	root_ops->prepare_resources = pci_acpi_root_prepare_resources;
-	root_ops->pci_ops = &ri->cfg->ops->pci_ops;
+	root_ops->pci_ops = (struct pci_ops *)&ri->cfg->ops->pci_ops;
 	bus = acpi_pci_root_create(root, root_ops, &ri->common, ri->cfg);
 	if (!bus)
 		return NULL;

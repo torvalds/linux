@@ -100,7 +100,7 @@ static int qs_scr_write(struct ata_link *link, unsigned int sc_reg, u32 val);
 static int qs_ata_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
 static int qs_port_start(struct ata_port *ap);
 static void qs_host_stop(struct ata_host *host);
-static void qs_qc_prep(struct ata_queued_cmd *qc);
+static enum ata_completion_errors qs_qc_prep(struct ata_queued_cmd *qc);
 static unsigned int qs_qc_issue(struct ata_queued_cmd *qc);
 static int qs_check_atapi_dma(struct ata_queued_cmd *qc);
 static void qs_freeze(struct ata_port *ap);
@@ -108,7 +108,7 @@ static void qs_thaw(struct ata_port *ap);
 static int qs_prereset(struct ata_link *link, unsigned long deadline);
 static void qs_error_handler(struct ata_port *ap);
 
-static struct scsi_host_template qs_ata_sht = {
+static const struct scsi_host_template qs_ata_sht = {
 	ATA_BASE_SHT(DRV_NAME),
 	.sg_tablesize		= QS_MAX_PRD,
 	.dma_boundary		= QS_DMA_BOUNDARY,
@@ -252,15 +252,12 @@ static unsigned int qs_fill_sg(struct ata_queued_cmd *qc)
 		len = sg_dma_len(sg);
 		*(__le32 *)prd = cpu_to_le32(len);
 		prd += sizeof(u64);
-
-		VPRINTK("PRD[%u] = (0x%llX, 0x%X)\n", si,
-					(unsigned long long)addr, len);
 	}
 
 	return si;
 }
 
-static void qs_qc_prep(struct ata_queued_cmd *qc)
+static enum ata_completion_errors qs_qc_prep(struct ata_queued_cmd *qc)
 {
 	struct qs_port_priv *pp = qc->ap->private_data;
 	u8 dflags = QS_DF_PORD, *buf = pp->pkt;
@@ -268,11 +265,9 @@ static void qs_qc_prep(struct ata_queued_cmd *qc)
 	u64 addr;
 	unsigned int nelem;
 
-	VPRINTK("ENTER\n");
-
 	qs_enter_reg_mode(qc->ap);
 	if (qc->tf.protocol != ATA_PROT_DMA)
-		return;
+		return AC_ERR_OK;
 
 	nelem = qs_fill_sg(qc);
 
@@ -295,14 +290,14 @@ static void qs_qc_prep(struct ata_queued_cmd *qc)
 
 	/* frame information structure (FIS) */
 	ata_tf_to_fis(&qc->tf, 0, 1, &buf[32]);
+
+	return AC_ERR_OK;
 }
 
 static inline void qs_packet_start(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	u8 __iomem *chan = qs_mmio_base(ap->host) + (ap->port_no * 0x4000);
-
-	VPRINTK("ENTER, ap %p\n", ap);
 
 	writeb(QS_CTR0_CLER, chan + QS_CCT_CTR0);
 	wmb();                             /* flush PRDs and pkt to memory */
@@ -372,8 +367,8 @@ static inline unsigned int qs_intr_pkt(struct ata_host *host)
 			struct qs_port_priv *pp = ap->private_data;
 			struct ata_queued_cmd *qc;
 
-			DPRINTK("SFF=%08x%08x: sCHAN=%u sHST=%d sDST=%02x\n",
-					sff1, sff0, port_no, sHST, sDST);
+			dev_dbg(host->dev, "SFF=%08x%08x: sHST=%d sDST=%02x\n",
+				sff1, sff0, sHST, sDST);
 			handled = 1;
 			if (!pp || pp->state != qs_state_pkt)
 				continue;
@@ -433,13 +428,9 @@ static irqreturn_t qs_intr(int irq, void *dev_instance)
 	unsigned int handled = 0;
 	unsigned long flags;
 
-	VPRINTK("ENTER\n");
-
 	spin_lock_irqsave(&host->lock, flags);
 	handled  = qs_intr_pkt(host) | qs_intr_mmio(host);
 	spin_unlock_irqrestore(&host->lock, flags);
-
-	VPRINTK("EXIT\n");
 
 	return IRQ_RETVAL(handled);
 }

@@ -8,6 +8,7 @@
 #include <linux/fs.h>
 #include <linux/quotaops.h>
 #include <linux/slab.h>
+#include <linux/sched/mm.h>
 #include "ext4_jbd2.h"
 #include "ext4.h"
 #include "ext4_extents.h"
@@ -31,8 +32,7 @@ get_ext_path(struct inode *inode, ext4_lblk_t lblock,
 	if (IS_ERR(path))
 		return PTR_ERR(path);
 	if (path[ext_depth(inode)].p_ext == NULL) {
-		ext4_ext_drop_refs(path);
-		kfree(path);
+		ext4_free_ext_path(path);
 		*ppath = NULL;
 		return -ENODATA;
 	}
@@ -102,32 +102,30 @@ mext_check_coverage(struct inode *inode, ext4_lblk_t from, ext4_lblk_t count,
 		if (unwritten != ext4_ext_is_unwritten(ext))
 			goto out;
 		from += ext4_ext_get_actual_len(ext);
-		ext4_ext_drop_refs(path);
 	}
 	ret = 1;
 out:
-	ext4_ext_drop_refs(path);
-	kfree(path);
+	ext4_free_ext_path(path);
 	return ret;
 }
 
 /**
- * mext_page_double_lock - Grab and lock pages on both @inode1 and @inode2
+ * mext_folio_double_lock - Grab and lock folio on both @inode1 and @inode2
  *
  * @inode1:	the inode structure
  * @inode2:	the inode structure
- * @index1:	page index
- * @index2:	page index
- * @page:	result page vector
+ * @index1:	folio index
+ * @index2:	folio index
+ * @folio:	result folio vector
  *
- * Grab two locked pages for inode's by inode order
+ * Grab two locked folio for inode's by inode order
  */
 static int
-mext_page_double_lock(struct inode *inode1, struct inode *inode2,
-		      pgoff_t index1, pgoff_t index2, struct page *page[2])
+mext_folio_double_lock(struct inode *inode1, struct inode *inode2,
+		      pgoff_t index1, pgoff_t index2, struct folio *folio[2])
 {
 	struct address_space *mapping[2];
-	unsigned fl = AOP_FLAG_NOFS;
+	unsigned int flags;
 
 	BUG_ON(!inode1 || !inode2);
 	if (inode1 < inode2) {
@@ -139,50 +137,56 @@ mext_page_double_lock(struct inode *inode1, struct inode *inode2,
 		mapping[1] = inode1->i_mapping;
 	}
 
-	page[0] = grab_cache_page_write_begin(mapping[0], index1, fl);
-	if (!page[0])
-		return -ENOMEM;
+	flags = memalloc_nofs_save();
+	folio[0] = __filemap_get_folio(mapping[0], index1, FGP_WRITEBEGIN,
+			mapping_gfp_mask(mapping[0]));
+	if (IS_ERR(folio[0])) {
+		memalloc_nofs_restore(flags);
+		return PTR_ERR(folio[0]);
+	}
 
-	page[1] = grab_cache_page_write_begin(mapping[1], index2, fl);
-	if (!page[1]) {
-		unlock_page(page[0]);
-		put_page(page[0]);
-		return -ENOMEM;
+	folio[1] = __filemap_get_folio(mapping[1], index2, FGP_WRITEBEGIN,
+			mapping_gfp_mask(mapping[1]));
+	memalloc_nofs_restore(flags);
+	if (IS_ERR(folio[1])) {
+		folio_unlock(folio[0]);
+		folio_put(folio[0]);
+		return PTR_ERR(folio[1]);
 	}
 	/*
-	 * grab_cache_page_write_begin() may not wait on page's writeback if
+	 * __filemap_get_folio() may not wait on folio's writeback if
 	 * BDI not demand that. But it is reasonable to be very conservative
-	 * here and explicitly wait on page's writeback
+	 * here and explicitly wait on folio's writeback
 	 */
-	wait_on_page_writeback(page[0]);
-	wait_on_page_writeback(page[1]);
+	folio_wait_writeback(folio[0]);
+	folio_wait_writeback(folio[1]);
 	if (inode1 > inode2)
-		swap(page[0], page[1]);
+		swap(folio[0], folio[1]);
 
 	return 0;
 }
 
 /* Force page buffers uptodate w/o dropping page's lock */
 static int
-mext_page_mkuptodate(struct page *page, unsigned from, unsigned to)
+mext_page_mkuptodate(struct folio *folio, unsigned from, unsigned to)
 {
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	sector_t block;
 	struct buffer_head *bh, *head, *arr[MAX_BUF_PER_PAGE];
 	unsigned int blocksize, block_start, block_end;
 	int i, err,  nr = 0, partial = 0;
-	BUG_ON(!PageLocked(page));
-	BUG_ON(PageWriteback(page));
+	BUG_ON(!folio_test_locked(folio));
+	BUG_ON(folio_test_writeback(folio));
 
-	if (PageUptodate(page))
+	if (folio_test_uptodate(folio))
 		return 0;
 
 	blocksize = i_blocksize(inode);
-	if (!page_has_buffers(page))
-		create_empty_buffers(page, blocksize, 0);
+	head = folio_buffers(folio);
+	if (!head)
+		head = create_empty_buffers(folio, blocksize, 0);
 
-	head = page_buffers(page);
-	block = (sector_t)page->index << (PAGE_SHIFT - inode->i_blkbits);
+	block = (sector_t)folio->index << (PAGE_SHIFT - inode->i_blkbits);
 	for (bh = head, block_start = 0; bh != head || !block_start;
 	     block++, block_start = block_end, bh = bh->b_this_page) {
 		block_end = block_start + blocksize;
@@ -195,12 +199,10 @@ mext_page_mkuptodate(struct page *page, unsigned from, unsigned to)
 			continue;
 		if (!buffer_mapped(bh)) {
 			err = ext4_get_block(inode, block, bh, 0);
-			if (err) {
-				SetPageError(page);
+			if (err)
 				return err;
-			}
 			if (!buffer_mapped(bh)) {
-				zero_user(page, block_start, blocksize);
+				folio_zero_range(folio, block_start, blocksize);
 				set_buffer_uptodate(bh);
 				continue;
 			}
@@ -215,14 +217,14 @@ mext_page_mkuptodate(struct page *page, unsigned from, unsigned to)
 	for (i = 0; i < nr; i++) {
 		bh = arr[i];
 		if (!bh_uptodate_or_lock(bh)) {
-			err = bh_submit_read(bh);
+			err = ext4_read_bh(bh, 0, NULL);
 			if (err)
 				return err;
 		}
 	}
 out:
 	if (!partial)
-		SetPageUptodate(page);
+		folio_mark_uptodate(folio);
 	return 0;
 }
 
@@ -250,7 +252,7 @@ move_extent_per_page(struct file *o_filp, struct inode *donor_inode,
 		     int block_len_in_page, int unwritten, int *err)
 {
 	struct inode *orig_inode = file_inode(o_filp);
-	struct page *pagep[2] = {NULL, NULL};
+	struct folio *folio[2] = {NULL, NULL};
 	handle_t *handle;
 	ext4_lblk_t orig_blk_offset, donor_blk_offset;
 	unsigned long blocksize = orig_inode->i_sb->s_blocksize;
@@ -300,8 +302,8 @@ again:
 
 	replaced_size = data_size;
 
-	*err = mext_page_double_lock(orig_inode, donor_inode, orig_page_offset,
-				     donor_page_offset, pagep);
+	*err = mext_folio_double_lock(orig_inode, donor_inode, orig_page_offset,
+				     donor_page_offset, folio);
 	if (unlikely(*err < 0))
 		goto stop_journal;
 	/*
@@ -311,6 +313,11 @@ again:
 	 * hold page's lock, if it is still the case data copy is not
 	 * necessary, just swap data blocks between orig and donor.
 	 */
+
+	VM_BUG_ON_FOLIO(folio_test_large(folio[0]), folio[0]);
+	VM_BUG_ON_FOLIO(folio_test_large(folio[1]), folio[1]);
+	VM_BUG_ON_FOLIO(folio_nr_pages(folio[0]) != folio_nr_pages(folio[1]), folio[1]);
+
 	if (unwritten) {
 		ext4_double_down_write_data_sem(orig_inode, donor_inode);
 		/* If any of extents in range became initialized we have to
@@ -329,10 +336,8 @@ again:
 			ext4_double_up_write_data_sem(orig_inode, donor_inode);
 			goto data_copy;
 		}
-		if ((page_has_private(pagep[0]) &&
-		     !try_to_release_page(pagep[0], 0)) ||
-		    (page_has_private(pagep[1]) &&
-		     !try_to_release_page(pagep[1], 0))) {
+		if (!filemap_release_folio(folio[0], 0) ||
+		    !filemap_release_folio(folio[1], 0)) {
 			*err = -EBUSY;
 			goto drop_data_sem;
 		}
@@ -342,19 +347,19 @@ again:
 						   block_len_in_page, 1, err);
 	drop_data_sem:
 		ext4_double_up_write_data_sem(orig_inode, donor_inode);
-		goto unlock_pages;
+		goto unlock_folios;
 	}
 data_copy:
-	*err = mext_page_mkuptodate(pagep[0], from, from + replaced_size);
+	*err = mext_page_mkuptodate(folio[0], from, from + replaced_size);
 	if (*err)
-		goto unlock_pages;
+		goto unlock_folios;
 
 	/* At this point all buffers in range are uptodate, old mapping layout
 	 * is no longer required, try to drop it now. */
-	if ((page_has_private(pagep[0]) && !try_to_release_page(pagep[0], 0)) ||
-	    (page_has_private(pagep[1]) && !try_to_release_page(pagep[1], 0))) {
+	if (!filemap_release_folio(folio[0], 0) ||
+	    !filemap_release_folio(folio[1], 0)) {
 		*err = -EBUSY;
-		goto unlock_pages;
+		goto unlock_folios;
 	}
 	ext4_double_down_write_data_sem(orig_inode, donor_inode);
 	replaced_count = ext4_swap_extents(handle, orig_inode, donor_inode,
@@ -367,37 +372,35 @@ data_copy:
 			replaced_size =
 				block_len_in_page << orig_inode->i_blkbits;
 		} else
-			goto unlock_pages;
+			goto unlock_folios;
 	}
 	/* Perform all necessary steps similar write_begin()/write_end()
 	 * but keeping in mind that i_size will not change */
-	if (!page_has_buffers(pagep[0]))
-		create_empty_buffers(pagep[0], 1 << orig_inode->i_blkbits, 0);
-	bh = page_buffers(pagep[0]);
+	bh = folio_buffers(folio[0]);
+	if (!bh)
+		bh = create_empty_buffers(folio[0],
+				1 << orig_inode->i_blkbits, 0);
 	for (i = 0; i < data_offset_in_page; i++)
 		bh = bh->b_this_page;
 	for (i = 0; i < block_len_in_page; i++) {
 		*err = ext4_get_block(orig_inode, orig_blk_offset + i, bh, 0);
 		if (*err < 0)
-			break;
+			goto repair_branches;
 		bh = bh->b_this_page;
 	}
-	if (!*err)
-		*err = block_commit_write(pagep[0], from, from + replaced_size);
 
-	if (unlikely(*err < 0))
-		goto repair_branches;
+	block_commit_write(&folio[0]->page, from, from + replaced_size);
 
 	/* Even in case of data=writeback it is reasonable to pin
 	 * inode to transaction, to prevent unexpected data loss */
 	*err = ext4_jbd2_inode_add_write(handle, orig_inode,
 			(loff_t)orig_page_offset << PAGE_SHIFT, replaced_size);
 
-unlock_pages:
-	unlock_page(pagep[0]);
-	put_page(pagep[0]);
-	unlock_page(pagep[1]);
-	put_page(pagep[1]);
+unlock_folios:
+	folio_unlock(folio[0]);
+	folio_put(folio[0]);
+	folio_unlock(folio[1]);
+	folio_put(folio[1]);
 stop_journal:
 	ext4_journal_stop(handle);
 	if (*err == -ENOSPC &&
@@ -422,13 +425,13 @@ repair_branches:
 					   block_len_in_page, 0, &err2);
 	ext4_double_up_write_data_sem(orig_inode, donor_inode);
 	if (replaced_count != block_len_in_page) {
-		EXT4_ERROR_INODE_BLOCK(orig_inode, (sector_t)(orig_blk_offset),
-				       "Unable to copy data block,"
+		ext4_error_inode_block(orig_inode, (sector_t)(orig_blk_offset),
+				       EIO, "Unable to copy data block,"
 				       " data will be lost.");
 		*err = -EIO;
 	}
 	replaced_count = 0;
-	goto unlock_pages;
+	goto unlock_folios;
 }
 
 /**
@@ -467,19 +470,17 @@ mext_check_arguments(struct inode *orig_inode,
 	if (IS_IMMUTABLE(donor_inode) || IS_APPEND(donor_inode))
 		return -EPERM;
 
-	/* Ext4 move extent does not support swapfile */
+	/* Ext4 move extent does not support swap files */
 	if (IS_SWAPFILE(orig_inode) || IS_SWAPFILE(donor_inode)) {
-		ext4_debug("ext4 move extent: The argument files should "
-			"not be swapfile [ino:orig %lu, donor %lu]\n",
+		ext4_debug("ext4 move extent: The argument files should not be swap files [ino:orig %lu, donor %lu]\n",
 			orig_inode->i_ino, donor_inode->i_ino);
-		return -EBUSY;
+		return -ETXTBSY;
 	}
 
 	if (ext4_is_quota_file(orig_inode) && ext4_is_quota_file(donor_inode)) {
-		ext4_debug("ext4 move extent: The argument files should "
-			"not be quota files [ino:orig %lu, donor %lu]\n",
+		ext4_debug("ext4 move extent: The argument files should not be quota files [ino:orig %lu, donor %lu]\n",
 			orig_inode->i_ino, donor_inode->i_ino);
-		return -EBUSY;
+		return -EOPNOTSUPP;
 	}
 
 	/* Ext4 move extent supports only extent based file */
@@ -615,6 +616,7 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp, __u64 orig_blk,
 		goto out;
 	o_end = o_start + len;
 
+	*moved_len = 0;
 	while (o_start < o_end) {
 		struct ext4_extent *ex;
 		ext4_lblk_t cur_blk, next_blk;
@@ -626,13 +628,12 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp, __u64 orig_blk,
 		if (ret)
 			goto out;
 		ex = path[path->p_depth].p_ext;
-		next_blk = ext4_ext_next_allocated_block(path);
 		cur_blk = le32_to_cpu(ex->ee_block);
 		cur_len = ext4_ext_get_actual_len(ex);
 		/* Check hole before the start pos */
 		if (cur_blk + cur_len - 1 < o_start) {
+			next_blk = ext4_ext_next_allocated_block(path);
 			if (next_blk == EXT_MAX_BLOCKS) {
-				o_start = o_end;
 				ret = -ENODATA;
 				goto out;
 			}
@@ -659,18 +660,18 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp, __u64 orig_blk,
 		donor_page_index = d_start >> (PAGE_SHIFT -
 					       donor_inode->i_blkbits);
 		offset_in_page = o_start % blocks_per_page;
-		if (cur_len > blocks_per_page- offset_in_page)
+		if (cur_len > blocks_per_page - offset_in_page)
 			cur_len = blocks_per_page - offset_in_page;
 		/*
 		 * Up semaphore to avoid following problems:
 		 * a. transaction deadlock among ext4_journal_start,
 		 *    ->write_begin via pagefault, and jbd2_journal_commit
-		 * b. racing with ->readpage, ->write_begin, and ext4_get_block
-		 *    in move_extent_per_page
+		 * b. racing with ->read_folio, ->write_begin, and
+		 *    ext4_get_block in move_extent_per_page
 		 */
 		ext4_double_up_write_data_sem(orig_inode, donor_inode);
 		/* Swap original branches with new branches */
-		move_extent_per_page(o_filp, donor_inode,
+		*moved_len += move_extent_per_page(o_filp, donor_inode,
 				     orig_page_index, donor_page_index,
 				     offset_in_page, cur_len,
 				     unwritten, &ret);
@@ -680,9 +681,6 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp, __u64 orig_blk,
 		o_start += cur_len;
 		d_start += cur_len;
 	}
-	*moved_len = o_start - orig_blk;
-	if (*moved_len > len)
-		*moved_len = len;
 
 out:
 	if (*moved_len) {
@@ -690,8 +688,7 @@ out:
 		ext4_discard_preallocations(donor_inode);
 	}
 
-	ext4_ext_drop_refs(path);
-	kfree(path);
+	ext4_free_ext_path(path);
 	ext4_double_up_write_data_sem(orig_inode, donor_inode);
 	unlock_two_nondirectories(orig_inode, donor_inode);
 

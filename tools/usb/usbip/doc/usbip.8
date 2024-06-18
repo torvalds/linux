@@ -50,9 +50,16 @@ Attach a remote USB device.
 .PP
 
 .HP
+\fBattach\fR \-\-remote=<\fIhost\fR> \-\-device=<\fIdev_id\fR>
+.IP
+Attach a remote USB gadget.
+Only used when the remote usbipd is in device mode.
+.PP
+
+.HP
 \fBdetach\fR \-\-port=<\fIport\fR>
 .IP
-Detach an imported USB device.
+Detach an imported USB device/gadget.
 .PP
 
 .HP
@@ -74,22 +81,57 @@ List USB devices exported by a remote host.
 .PP
 
 .HP
+\fBlist\fR \-\-device
+.IP
+List USB gadgets of local usbip-vudc.
+Only used when the local usbipd is in device mode.
+Note that this can not list usbip-vudc USB gadgets of the remote device mode usbipd.
+.PP
+
+.HP
 \fBlist\fR \-\-local
 .IP
 List local USB devices.
+.PP
+
+.HP
+\fBport\fR
+.IP
+List imported devices/gadgets.
 .PP
 
 
 .SH EXAMPLES
 
     client:# usbip list --remote=server
-        - List exportable usb devices on the server.
+        - List devices exported by remote server.
+
+    client:# modprobe vhci-hcd
 
     client:# usbip attach --remote=server --busid=1-2
         - Connect the remote USB device.
 
+    client:# usbip port
+        - List imported devices/gadgets.
+
     client:# usbip detach --port=0
         - Detach the usb device.
+
+The following example shows the usage of device mode
+
+    server:# usbip list --device
+        - List gadgets exported by local usbipd server.
+
+    client:# modprobe vhci-hcd
+
+    client:# usbip attach --remote=server --device=usbip-vudc.0
+        - Connect the remote USB gadget.
+
+    client:# usbip port
+        - List imported devices/gadgets.
+
+    client:# usbip detach --port=0
+        - Detach the usb gadget.
 
 .SH "SEE ALSO"
 \fBusbipd\fP\fB(8)\fB\fP

@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/opp/opp-v1.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Generic OPP (Operating Performance Points) v1
+
+maintainers:
+  - Viresh Kumar <viresh.kumar@linaro.org>
+
+description: |+
+  Devices work at voltage-current-frequency combinations and some implementations
+  have the liberty of choosing these. These combinations are called Operating
+  Performance Points aka OPPs. This document defines bindings for these OPPs
+  applicable across wide range of devices. For illustration purpose, this document
+  uses CPU as a device.
+
+  This binding only supports voltage-frequency pairs.
+
+select: true
+
+properties:
+  operating-points:
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    items:
+      items:
+        - description: Frequency in kHz
+        - description: Voltage for OPP in uV
+
+
+additionalProperties: true
+examples:
+  - |
+    cpus {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        cpu@0 {
+            compatible = "arm,cortex-a9";
+            device_type = "cpu";
+            reg = <0>;
+            next-level-cache = <&L2>;
+            operating-points =
+                /* kHz    uV */
+                <792000 1100000>,
+                <396000 950000>,
+                <198000 850000>;
+        };
+    };
+...

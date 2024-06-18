@@ -47,7 +47,7 @@ the Forced Unit Access is implemented.  The REQ_PREFLUSH and REQ_FUA flags
 may both be set on a single bio.
 
 
-Implementation details for make_request_fn based block drivers
+Implementation details for bio based block drivers
 --------------------------------------------------------------
 
 These drivers will always see the REQ_PREFLUSH and REQ_FUA bits as they sit

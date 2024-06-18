@@ -1525,7 +1525,7 @@ int cx23885_417_register(struct cx23885_dev *dev)
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	q->io_modes = VB2_MMAP | VB2_USERPTR | VB2_DMABUF | VB2_READ;
 	q->gfp_flags = GFP_DMA32;
-	q->min_buffers_needed = 2;
+	q->min_queued_buffers = 2;
 	q->drv_priv = dev;
 	q->buf_struct_size = sizeof(struct cx23885_buffer);
 	q->ops = &cx23885_qops;
@@ -1545,7 +1545,7 @@ int cx23885_417_register(struct cx23885_dev *dev)
 	if (dev->tuner_type != TUNER_ABSENT)
 		dev->v4l_device->device_caps |= V4L2_CAP_TUNER;
 	err = video_register_device(dev->v4l_device,
-		VFL_TYPE_GRABBER, -1);
+		VFL_TYPE_VIDEO, -1);
 	if (err < 0) {
 		pr_info("%s: can't register mpeg device\n", dev->name);
 		return err;

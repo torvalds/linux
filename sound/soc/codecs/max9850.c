@@ -7,7 +7,7 @@
  * Author: Christian Glindkamp <christian.glindkamp@taskit.de>
  *
  * Initial development of this code was funded by
- * MICRONIC Computer Systeme GmbH, http://www.mcsberlin.de/
+ * MICRONIC Computer Systeme GmbH, https://www.mcsberlin.de/
  */
 
 #include <linux/module.h>
@@ -121,7 +121,7 @@ static int max9850_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 
 	/* lrclk_div = 2^22 * rate / iclk with iclk = mclk / sf */
-	sf = (snd_soc_component_read32(component, MAX9850_CLOCK) >> 2) + 1;
+	sf = (snd_soc_component_read(component, MAX9850_CLOCK) >> 2) + 1;
 	lrclk_div = (1 << 22);
 	lrclk_div *= params_rate(params);
 	lrclk_div *= sf;
@@ -173,12 +173,12 @@ static int max9850_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	struct snd_soc_component *component = codec_dai->component;
 	u8 da = 0;
 
-	/* set master/slave audio interface */
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	/* set clock provider for audio interface */
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
 		da |= MAX9850_MASTER;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		break;
 	default:
 		return -EINVAL;
@@ -296,11 +296,9 @@ static const struct snd_soc_component_driver soc_component_dev_max9850 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
-static int max9850_i2c_probe(struct i2c_client *i2c,
-			     const struct i2c_device_id *id)
+static int max9850_i2c_probe(struct i2c_client *i2c)
 {
 	struct max9850_priv *max9850;
 	int ret;
@@ -322,7 +320,7 @@ static int max9850_i2c_probe(struct i2c_client *i2c,
 }
 
 static const struct i2c_device_id max9850_i2c_id[] = {
-	{ "max9850", 0 },
+	{ "max9850" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max9850_i2c_id);

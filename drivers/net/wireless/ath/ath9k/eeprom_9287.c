@@ -79,8 +79,8 @@ static bool ath9k_hw_ar9287_fill_eeprom(struct ath_hw *ah)
 static u32 ar9287_dump_modal_eeprom(char *buf, u32 len, u32 size,
 				    struct modal_eep_ar9287_header *modal_hdr)
 {
-	PR_EEP("Chain0 Ant. Control", le16_to_cpu(modal_hdr->antCtrlChain[0]));
-	PR_EEP("Chain1 Ant. Control", le16_to_cpu(modal_hdr->antCtrlChain[1]));
+	PR_EEP("Chain0 Ant. Control", le32_to_cpu(modal_hdr->antCtrlChain[0]));
+	PR_EEP("Chain1 Ant. Control", le32_to_cpu(modal_hdr->antCtrlChain[1]));
 	PR_EEP("Ant. Common Control", le32_to_cpu(modal_hdr->antCtrlCommon));
 	PR_EEP("Chain0 Ant. Gain", modal_hdr->antennaGainCh[0]);
 	PR_EEP("Chain1 Ant. Gain", modal_hdr->antennaGainCh[1]);
@@ -572,8 +572,7 @@ static void ath9k_hw_set_ar9287_power_per_rate_table(struct ath_hw *ah,
 	}
 
 	for (ctlMode = 0; ctlMode < numCtlModes; ctlMode++) {
-		bool isHt40CtlMode =
-			(pCtlMode[ctlMode] == CTL_2GHT40) ? true : false;
+		bool isHt40CtlMode = pCtlMode[ctlMode] == CTL_2GHT40;
 
 		if (isHt40CtlMode)
 			freq = centers.synth_center;

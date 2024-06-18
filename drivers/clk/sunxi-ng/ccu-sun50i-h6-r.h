@@ -14,6 +14,6 @@
 
 #define CLK_R_APB2	3
 
-#define CLK_NUMBER	(CLK_W1 + 1)
+#define CLK_NUMBER	(CLK_R_APB1_RTC + 1)
 
 #endif /* _CCU_SUN50I_H6_R_H */

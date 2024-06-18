@@ -173,8 +173,7 @@ static const struct dvb_tuner_ops tda18212_tuner_ops = {
 	.get_if_frequency = tda18212_get_if_frequency,
 };
 
-static int tda18212_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int tda18212_probe(struct i2c_client *client)
 {
 	struct tda18212_config *cfg = client->dev.platform_data;
 	struct dvb_frontend *fe = cfg->fe;
@@ -242,7 +241,7 @@ err:
 	return ret;
 }
 
-static int tda18212_remove(struct i2c_client *client)
+static void tda18212_remove(struct i2c_client *client)
 {
 	struct tda18212_dev *dev = i2c_get_clientdata(client);
 	struct dvb_frontend *fe = dev->cfg.fe;
@@ -252,8 +251,6 @@ static int tda18212_remove(struct i2c_client *client)
 	memset(&fe->ops.tuner_ops, 0, sizeof(struct dvb_tuner_ops));
 	fe->tuner_priv = NULL;
 	kfree(dev);
-
-	return 0;
 }
 
 static const struct i2c_device_id tda18212_id[] = {

@@ -1,163 +1,148 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * This file contains core tag-based KASAN code.
+ * This file contains common tag-based KASAN code.
  *
  * Copyright (c) 2018 Google, Inc.
- * Author: Andrey Konovalov <andreyknvl@google.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
+ * Copyright (c) 2020 Google, Inc.
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-#define DISABLE_BRANCH_PROFILING
-
-#include <linux/export.h>
-#include <linux/interrupt.h>
+#include <linux/atomic.h>
 #include <linux/init.h>
 #include <linux/kasan.h>
 #include <linux/kernel.h>
-#include <linux/kmemleak.h>
-#include <linux/linkage.h>
 #include <linux/memblock.h>
 #include <linux/memory.h>
 #include <linux/mm.h>
-#include <linux/module.h>
-#include <linux/printk.h>
-#include <linux/random.h>
-#include <linux/sched.h>
-#include <linux/sched/task_stack.h>
-#include <linux/slab.h>
-#include <linux/stacktrace.h>
+#include <linux/sched/clock.h>
+#include <linux/stackdepot.h>
+#include <linux/static_key.h>
 #include <linux/string.h>
 #include <linux/types.h>
-#include <linux/vmalloc.h>
-#include <linux/bug.h>
 
 #include "kasan.h"
 #include "../slab.h"
 
-static DEFINE_PER_CPU(u32, prng_state);
+#define KASAN_STACK_RING_SIZE_DEFAULT (32 << 10)
 
-void kasan_init_tags(void)
+enum kasan_arg_stacktrace {
+	KASAN_ARG_STACKTRACE_DEFAULT,
+	KASAN_ARG_STACKTRACE_OFF,
+	KASAN_ARG_STACKTRACE_ON,
+};
+
+static enum kasan_arg_stacktrace kasan_arg_stacktrace __initdata;
+
+/* Whether to collect alloc/free stack traces. */
+DEFINE_STATIC_KEY_TRUE(kasan_flag_stacktrace);
+
+/* Non-zero, as initial pointer values are 0. */
+#define STACK_RING_BUSY_PTR ((void *)1)
+
+struct kasan_stack_ring stack_ring = {
+	.lock = __RW_LOCK_UNLOCKED(stack_ring.lock)
+};
+
+/* kasan.stacktrace=off/on */
+static int __init early_kasan_flag_stacktrace(char *arg)
 {
-	int cpu;
+	if (!arg)
+		return -EINVAL;
 
-	for_each_possible_cpu(cpu)
-		per_cpu(prng_state, cpu) = (u32)get_cycles();
+	if (!strcmp(arg, "off"))
+		kasan_arg_stacktrace = KASAN_ARG_STACKTRACE_OFF;
+	else if (!strcmp(arg, "on"))
+		kasan_arg_stacktrace = KASAN_ARG_STACKTRACE_ON;
+	else
+		return -EINVAL;
+
+	return 0;
+}
+early_param("kasan.stacktrace", early_kasan_flag_stacktrace);
+
+/* kasan.stack_ring_size=<number of entries> */
+static int __init early_kasan_flag_stack_ring_size(char *arg)
+{
+	if (!arg)
+		return -EINVAL;
+
+	return kstrtoul(arg, 0, &stack_ring.size);
+}
+early_param("kasan.stack_ring_size", early_kasan_flag_stack_ring_size);
+
+void __init kasan_init_tags(void)
+{
+	switch (kasan_arg_stacktrace) {
+	case KASAN_ARG_STACKTRACE_DEFAULT:
+		/* Default is specified by kasan_flag_stacktrace definition. */
+		break;
+	case KASAN_ARG_STACKTRACE_OFF:
+		static_branch_disable(&kasan_flag_stacktrace);
+		break;
+	case KASAN_ARG_STACKTRACE_ON:
+		static_branch_enable(&kasan_flag_stacktrace);
+		break;
+	}
+
+	if (kasan_stack_collection_enabled()) {
+		if (!stack_ring.size)
+			stack_ring.size = KASAN_STACK_RING_SIZE_DEFAULT;
+		stack_ring.entries = memblock_alloc(
+			sizeof(stack_ring.entries[0]) * stack_ring.size,
+			SMP_CACHE_BYTES);
+		if (WARN_ON(!stack_ring.entries))
+			static_branch_disable(&kasan_flag_stacktrace);
+	}
 }
 
-/*
- * If a preemption happens between this_cpu_read and this_cpu_write, the only
- * side effect is that we'll give a few allocated in different contexts objects
- * the same tag. Since tag-based KASAN is meant to be used a probabilistic
- * bug-detection debug feature, this doesn't have significant negative impact.
- *
- * Ideally the tags use strong randomness to prevent any attempts to predict
- * them during explicit exploit attempts. But strong randomness is expensive,
- * and we did an intentional trade-off to use a PRNG. This non-atomic RMW
- * sequence has in fact positive effect, since interrupts that randomly skew
- * PRNG at unpredictable points do only good.
- */
-u8 random_tag(void)
+static void save_stack_info(struct kmem_cache *cache, void *object,
+			gfp_t gfp_flags, bool is_free)
 {
-	u32 state = this_cpu_read(prng_state);
+	unsigned long flags;
+	depot_stack_handle_t stack, old_stack;
+	u64 pos;
+	struct kasan_stack_ring_entry *entry;
+	void *old_ptr;
 
-	state = 1664525 * state + 1013904223;
-	this_cpu_write(prng_state, state);
-
-	return (u8)(state % (KASAN_TAG_MAX + 1));
-}
-
-void *kasan_reset_tag(const void *addr)
-{
-	return reset_tag(addr);
-}
-
-bool check_memory_region(unsigned long addr, size_t size, bool write,
-				unsigned long ret_ip)
-{
-	u8 tag;
-	u8 *shadow_first, *shadow_last, *shadow;
-	void *untagged_addr;
-
-	if (unlikely(size == 0))
-		return true;
-
-	tag = get_tag((const void *)addr);
+	stack = kasan_save_stack(gfp_flags,
+			STACK_DEPOT_FLAG_CAN_ALLOC | STACK_DEPOT_FLAG_GET);
 
 	/*
-	 * Ignore accesses for pointers tagged with 0xff (native kernel
-	 * pointer tag) to suppress false positives caused by kmap.
-	 *
-	 * Some kernel code was written to account for archs that don't keep
-	 * high memory mapped all the time, but rather map and unmap particular
-	 * pages when needed. Instead of storing a pointer to the kernel memory,
-	 * this code saves the address of the page structure and offset within
-	 * that page for later use. Those pages are then mapped and unmapped
-	 * with kmap/kunmap when necessary and virt_to_page is used to get the
-	 * virtual address of the page. For arm64 (that keeps the high memory
-	 * mapped all the time), kmap is turned into a page_address call.
-
-	 * The issue is that with use of the page_address + virt_to_page
-	 * sequence the top byte value of the original pointer gets lost (gets
-	 * set to KASAN_TAG_KERNEL (0xFF)).
+	 * Prevent save_stack_info() from modifying stack ring
+	 * when kasan_complete_mode_report_info() is walking it.
 	 */
-	if (tag == KASAN_TAG_KERNEL)
-		return true;
+	read_lock_irqsave(&stack_ring.lock, flags);
 
-	untagged_addr = reset_tag((const void *)addr);
-	if (unlikely(untagged_addr <
-			kasan_shadow_to_mem((void *)KASAN_SHADOW_START))) {
-		kasan_report(addr, size, write, ret_ip);
-		return false;
-	}
-	shadow_first = kasan_mem_to_shadow(untagged_addr);
-	shadow_last = kasan_mem_to_shadow(untagged_addr + size - 1);
-	for (shadow = shadow_first; shadow <= shadow_last; shadow++) {
-		if (*shadow != tag) {
-			kasan_report(addr, size, write, ret_ip);
-			return false;
-		}
-	}
+next:
+	pos = atomic64_fetch_add(1, &stack_ring.pos);
+	entry = &stack_ring.entries[pos % stack_ring.size];
 
-	return true;
+	/* Detect stack ring entry slots that are being written to. */
+	old_ptr = READ_ONCE(entry->ptr);
+	if (old_ptr == STACK_RING_BUSY_PTR)
+		goto next; /* Busy slot. */
+	if (!try_cmpxchg(&entry->ptr, &old_ptr, STACK_RING_BUSY_PTR))
+		goto next; /* Busy slot. */
+
+	old_stack = entry->track.stack;
+
+	entry->size = cache->object_size;
+	kasan_set_track(&entry->track, stack);
+	entry->is_free = is_free;
+
+	entry->ptr = object;
+
+	read_unlock_irqrestore(&stack_ring.lock, flags);
+
+	if (old_stack)
+		stack_depot_put(old_stack);
 }
 
-#define DEFINE_HWASAN_LOAD_STORE(size)					\
-	void __hwasan_load##size##_noabort(unsigned long addr)		\
-	{								\
-		check_memory_region(addr, size, false, _RET_IP_);	\
-	}								\
-	EXPORT_SYMBOL(__hwasan_load##size##_noabort);			\
-	void __hwasan_store##size##_noabort(unsigned long addr)		\
-	{								\
-		check_memory_region(addr, size, true, _RET_IP_);	\
-	}								\
-	EXPORT_SYMBOL(__hwasan_store##size##_noabort)
-
-DEFINE_HWASAN_LOAD_STORE(1);
-DEFINE_HWASAN_LOAD_STORE(2);
-DEFINE_HWASAN_LOAD_STORE(4);
-DEFINE_HWASAN_LOAD_STORE(8);
-DEFINE_HWASAN_LOAD_STORE(16);
-
-void __hwasan_loadN_noabort(unsigned long addr, unsigned long size)
+void kasan_save_alloc_info(struct kmem_cache *cache, void *object, gfp_t flags)
 {
-	check_memory_region(addr, size, false, _RET_IP_);
+	save_stack_info(cache, object, flags, false);
 }
-EXPORT_SYMBOL(__hwasan_loadN_noabort);
 
-void __hwasan_storeN_noabort(unsigned long addr, unsigned long size)
+void kasan_save_free_info(struct kmem_cache *cache, void *object)
 {
-	check_memory_region(addr, size, true, _RET_IP_);
+	save_stack_info(cache, object, 0, true);
 }
-EXPORT_SYMBOL(__hwasan_storeN_noabort);
-
-void __hwasan_tag_memory(unsigned long addr, u8 tag, unsigned long size)
-{
-	kasan_poison_shadow((void *)addr, size, tag);
-}
-EXPORT_SYMBOL(__hwasan_tag_memory);

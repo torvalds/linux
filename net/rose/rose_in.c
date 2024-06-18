@@ -9,6 +9,7 @@
  * diagrams as the code is not obvious and probably very easy to break.
  */
 #include <linux/errno.h>
+#include <linux/filter.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -216,7 +217,7 @@ static int rose_state4_machine(struct sock *sk, struct sk_buff *skb, int framety
 	switch (frametype) {
 	case ROSE_RESET_REQUEST:
 		rose_write_internal(sk, ROSE_RESET_CONFIRMATION);
-		/* fall through */
+		fallthrough;
 	case ROSE_RESET_CONFIRMATION:
 		rose_stop_timer(sk);
 		rose_start_idletimer(sk);

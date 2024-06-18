@@ -97,7 +97,7 @@ static void pata_imx_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	__raw_writel(val, priv->host_regs + PATA_IMX_ATA_CONTROL);
 }
 
-static struct scsi_host_template pata_imx_sht = {
+static const struct scsi_host_template pata_imx_sht = {
 	ATA_PIO_SHT(DRV_NAME),
 };
 
@@ -141,21 +141,15 @@ static int pata_imx_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->clk = devm_clk_get(&pdev->dev, NULL);
+	priv->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(priv->clk)) {
-		dev_err(&pdev->dev, "Failed to get clock\n");
+		dev_err(&pdev->dev, "Failed to get and enable clock\n");
 		return PTR_ERR(priv->clk);
 	}
 
-	ret = clk_prepare_enable(priv->clk);
-	if (ret)
-		return ret;
-
 	host = ata_host_alloc(&pdev->dev, 1);
-	if (!host) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	if (!host)
+		return -ENOMEM;
 
 	host->private_data = priv;
 	ap = host->ports[0];
@@ -164,12 +158,9 @@ static int pata_imx_probe(struct platform_device *pdev)
 	ap->pio_mask = ATA_PIO4;
 	ap->flags |= ATA_FLAG_SLAVE_POSS;
 
-	io_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->host_regs = devm_ioremap_resource(&pdev->dev, io_res);
-	if (IS_ERR(priv->host_regs)) {
-		ret = PTR_ERR(priv->host_regs);
-		goto err;
-	}
+	priv->host_regs = devm_platform_get_and_ioremap_resource(pdev, 0, &io_res);
+	if (IS_ERR(priv->host_regs))
+		return PTR_ERR(priv->host_regs);
 
 	ap->ioaddr.cmd_addr = priv->host_regs + PATA_IMX_DRIVE_DATA;
 	ap->ioaddr.ctl_addr = priv->host_regs + PATA_IMX_DRIVE_CONTROL;
@@ -195,16 +186,12 @@ static int pata_imx_probe(struct platform_device *pdev)
 				&pata_imx_sht);
 
 	if (ret)
-		goto err;
+		return ret;
 
 	return 0;
-err:
-	clk_disable_unprepare(priv->clk);
-
-	return ret;
 }
 
-static int pata_imx_remove(struct platform_device *pdev)
+static void pata_imx_remove(struct platform_device *pdev)
 {
 	struct ata_host *host = platform_get_drvdata(pdev);
 	struct pata_imx_priv *priv = host->private_data;
@@ -212,10 +199,6 @@ static int pata_imx_remove(struct platform_device *pdev)
 	ata_host_detach(host);
 
 	__raw_writel(0, priv->host_regs + PATA_IMX_ATA_INT_EN);
-
-	clk_disable_unprepare(priv->clk);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -223,17 +206,14 @@ static int pata_imx_suspend(struct device *dev)
 {
 	struct ata_host *host = dev_get_drvdata(dev);
 	struct pata_imx_priv *priv = host->private_data;
-	int ret;
 
-	ret = ata_host_suspend(host, PMSG_SUSPEND);
-	if (!ret) {
-		__raw_writel(0, priv->host_regs + PATA_IMX_ATA_INT_EN);
-		priv->ata_ctl =
-			__raw_readl(priv->host_regs + PATA_IMX_ATA_CONTROL);
-		clk_disable_unprepare(priv->clk);
-	}
+	ata_host_suspend(host, PMSG_SUSPEND);
 
-	return ret;
+	__raw_writel(0, priv->host_regs + PATA_IMX_ATA_INT_EN);
+	priv->ata_ctl = __raw_readl(priv->host_regs + PATA_IMX_ATA_CONTROL);
+	clk_disable_unprepare(priv->clk);
+
+	return 0;
 }
 
 static int pata_imx_resume(struct device *dev)
@@ -269,7 +249,7 @@ MODULE_DEVICE_TABLE(of, imx_pata_dt_ids);
 
 static struct platform_driver pata_imx_driver = {
 	.probe		= pata_imx_probe,
-	.remove		= pata_imx_remove,
+	.remove_new	= pata_imx_remove,
 	.driver = {
 		.name		= DRV_NAME,
 		.of_match_table	= imx_pata_dt_ids,

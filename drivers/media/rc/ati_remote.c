@@ -135,8 +135,6 @@ MODULE_PARM_DESC(mouse, "Enable mouse device, default = yes");
 
 #define dbginfo(dev, format, arg...) \
 	do { if (debug) dev_info(dev , format , ## arg); } while (0)
-#undef err
-#define err(format, arg...) printk(KERN_ERR format , ## arg)
 
 struct ati_receiver_type {
 	/* either default_keymap or get_default_keymap should be set */
@@ -253,7 +251,7 @@ struct ati_remote {
 
 	char rc_name[NAME_BUFSIZE];
 	char rc_phys[NAME_BUFSIZE];
-	char mouse_name[NAME_BUFSIZE];
+	char mouse_name[NAME_BUFSIZE + 6];
 	char mouse_phys[NAME_BUFSIZE];
 
 	wait_queue_head_t wait;
@@ -773,7 +771,7 @@ static int ati_remote_initialize(struct ati_remote *ati_remote)
 
 	/* Set up irq_urb */
 	pipe = usb_rcvintpipe(udev, ati_remote->endpoint_in->bEndpointAddress);
-	maxp = usb_maxpacket(udev, pipe, usb_pipeout(pipe));
+	maxp = usb_maxpacket(udev, pipe);
 	maxp = (maxp > DATA_BUFSIZE) ? DATA_BUFSIZE : maxp;
 
 	usb_fill_int_urb(ati_remote->irq_urb, udev, pipe, ati_remote->inbuf,
@@ -784,7 +782,7 @@ static int ati_remote_initialize(struct ati_remote *ati_remote)
 
 	/* Set up out_urb */
 	pipe = usb_sndintpipe(udev, ati_remote->endpoint_out->bEndpointAddress);
-	maxp = usb_maxpacket(udev, pipe, usb_pipeout(pipe));
+	maxp = usb_maxpacket(udev, pipe);
 	maxp = (maxp > DATA_BUFSIZE) ? DATA_BUFSIZE : maxp;
 
 	usb_fill_int_urb(ati_remote->out_urb, udev, pipe, ati_remote->outbuf,
@@ -816,11 +814,12 @@ static int ati_remote_probe(struct usb_interface *interface,
 	struct ati_receiver_type *type = (struct ati_receiver_type *)id->driver_info;
 	struct ati_remote *ati_remote;
 	struct input_dev *input_dev;
+	struct device *device = &interface->dev;
 	struct rc_dev *rc_dev;
 	int err = -ENOMEM;
 
 	if (iface_host->desc.bNumEndpoints != 2) {
-		err("%s: Unexpected desc.bNumEndpoints\n", __func__);
+		dev_err(device, "%s: Unexpected desc.bNumEndpoints\n", __func__);
 		return -ENODEV;
 	}
 
@@ -828,11 +827,15 @@ static int ati_remote_probe(struct usb_interface *interface,
 	endpoint_out = &iface_host->endpoint[1].desc;
 
 	if (!usb_endpoint_is_int_in(endpoint_in)) {
-		err("%s: Unexpected endpoint_in\n", __func__);
+		dev_err(device, "%s: Unexpected endpoint_in\n", __func__);
 		return -ENODEV;
 	}
 	if (le16_to_cpu(endpoint_in->wMaxPacketSize) == 0) {
-		err("%s: endpoint_in message size==0? \n", __func__);
+		dev_err(device, "%s: endpoint_in message size==0?\n", __func__);
+		return -ENODEV;
+	}
+	if (!usb_endpoint_is_int_out(endpoint_out)) {
+		dev_err(device, "%s: Unexpected endpoint_out\n", __func__);
 		return -ENODEV;
 	}
 

@@ -24,11 +24,7 @@ config GENERIC_IRQ_SHOW_LEVEL
 
 # Supports effective affinity mask
 config GENERIC_IRQ_EFFECTIVE_AFF_MASK
-       bool
-
-# Facility to allocate a hardware interrupt. This is legacy support
-# and should not be used in new code. Use irq domains instead.
-config GENERIC_IRQ_LEGACY_ALLOC_HWIRQ
+       depends on SMP
        bool
 
 # Support for delayed migration from interrupt context
@@ -43,12 +39,12 @@ config GENERIC_IRQ_MIGRATION
 config AUTO_IRQ_AFFINITY
        bool
 
+# Interrupt injection mechanism
+config GENERIC_IRQ_INJECTION
+	bool
+
 # Tasklet based software resend for pending interrupts on enable_irq()
 config HARDIRQS_SW_RESEND
-       bool
-
-# Preflow handler support for fasteoi (sparc64)
-config IRQ_PREFLOW_FASTEOI
        bool
 
 # Edge style eoi based handler (cell)
@@ -68,9 +64,15 @@ config IRQ_DOMAIN
 config IRQ_SIM
 	bool
 	select IRQ_WORK
+	select IRQ_DOMAIN
 
 # Support for hierarchical irq domains
 config IRQ_DOMAIN_HIERARCHY
+	bool
+	select IRQ_DOMAIN
+
+# Support for obsolete non-mapping irq domains
+config IRQ_DOMAIN_NOMAP
 	bool
 	select IRQ_DOMAIN
 
@@ -81,21 +83,20 @@ config IRQ_FASTEOI_HIERARCHY_HANDLERS
 # Generic IRQ IPI support
 config GENERIC_IRQ_IPI
 	bool
+	depends on SMP
+	select IRQ_DOMAIN_HIERARCHY
 
-# Generic MSI interrupt support
-config GENERIC_MSI_IRQ
+# Generic IRQ IPI Mux support
+config GENERIC_IRQ_IPI_MUX
 	bool
+	depends on SMP
 
 # Generic MSI hierarchical interrupt domain support
-config GENERIC_MSI_IRQ_DOMAIN
+config GENERIC_MSI_IRQ
 	bool
 	select IRQ_DOMAIN_HIERARCHY
-	select GENERIC_MSI_IRQ
 
 config IRQ_MSI_IOMMU
-	bool
-
-config HANDLE_DOMAIN_IRQ
 	bool
 
 config IRQ_TIMINGS
@@ -107,13 +108,17 @@ config GENERIC_IRQ_MATRIX_ALLOCATOR
 config GENERIC_IRQ_RESERVATION_MODE
 	bool
 
+# Snapshot for interrupt statistics
+config GENERIC_IRQ_STAT_SNAPSHOT
+	bool
+
 # Support forced irq threading
 config IRQ_FORCED_THREADING
        bool
 
 config SPARSE_IRQ
 	bool "Support sparse irq numbering" if MAY_HAVE_SPARSE_IRQ
-	---help---
+	help
 
 	  Sparse irq numbering is useful for distro kernels that want
 	  to define a high CONFIG_NR_CPUS value but still want to have
@@ -127,8 +132,9 @@ config SPARSE_IRQ
 config GENERIC_IRQ_DEBUGFS
 	bool "Expose irq internals in debugfs"
 	depends on DEBUG_FS
+	select GENERIC_IRQ_INJECTION
 	default n
-	---help---
+	help
 
 	  Exposes internal state information through debugfs. Mostly for
 	  developers and debugging of hard to diagnose interrupt problems.
@@ -141,3 +147,10 @@ config GENERIC_IRQ_MULTI_HANDLER
 	bool
 	help
 	  Allow to specify the low level IRQ handler at run time.
+
+# Cavium Octeon is the last system to use this deprecated option
+# Do not even think of enabling this on any new platform
+config DEPRECATED_IRQ_CPU_ONOFFLINE
+	bool
+	depends on CAVIUM_OCTEON_SOC
+	default CAVIUM_OCTEON_SOC

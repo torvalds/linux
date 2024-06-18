@@ -26,16 +26,15 @@
 static const struct nvkm_mc_func
 gk20a_mc = {
 	.init = nv50_mc_init,
-	.intr = gk104_mc_intr,
-	.intr_unarm = gf100_mc_intr_unarm,
-	.intr_rearm = gf100_mc_intr_rearm,
-	.intr_mask = gf100_mc_intr_mask,
-	.intr_stat = gf100_mc_intr_stat,
+	.intr = &gt215_mc_intr,
+	.intrs = gk104_mc_intrs,
+	.intr_nonstall = true,
+	.device = &nv04_mc_device,
 	.reset = gk104_mc_reset,
 };
 
 int
-gk20a_mc_new(struct nvkm_device *device, int index, struct nvkm_mc **pmc)
+gk20a_mc_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_mc **pmc)
 {
-	return nvkm_mc_new_(&gk20a_mc, device, index, pmc);
+	return nvkm_mc_new_(&gk20a_mc, device, type, inst, pmc);
 }

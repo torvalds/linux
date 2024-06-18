@@ -30,6 +30,7 @@
 #define NAND_MFR_SAMSUNG	0xec
 #define NAND_MFR_SANDISK	0x45
 #define NAND_MFR_STMICRO	0x20
+/* Kioxia is new name of Toshiba memory. */
 #define NAND_MFR_TOSHIBA	0x98
 #define NAND_MFR_WINBOND	0xef
 
@@ -52,12 +53,12 @@ struct nand_manufacturer_ops {
 };
 
 /**
- * struct nand_manufacturer - NAND Flash Manufacturer structure
+ * struct nand_manufacturer_desc - NAND Flash Manufacturer descriptor
  * @name: Manufacturer name
  * @id: manufacturer ID code of device.
  * @ops: manufacturer operations
  */
-struct nand_manufacturer {
+struct nand_manufacturer_desc {
 	int id;
 	char *name;
 	const struct nand_manufacturer_ops *ops;
@@ -72,24 +73,39 @@ extern const struct nand_manufacturer_ops hynix_nand_manuf_ops;
 extern const struct nand_manufacturer_ops macronix_nand_manuf_ops;
 extern const struct nand_manufacturer_ops micron_nand_manuf_ops;
 extern const struct nand_manufacturer_ops samsung_nand_manuf_ops;
+extern const struct nand_manufacturer_ops sandisk_nand_manuf_ops;
 extern const struct nand_manufacturer_ops toshiba_nand_manuf_ops;
 
+/* MLC pairing schemes */
+extern const struct mtd_pairing_scheme dist3_pairing_scheme;
+
 /* Core functions */
-const struct nand_manufacturer *nand_get_manufacturer(u8 id);
+const struct nand_manufacturer_desc *nand_get_manufacturer_desc(u8 id);
 int nand_bbm_get_next_page(struct nand_chip *chip, int page);
 int nand_markbad_bbm(struct nand_chip *chip, loff_t ofs);
 int nand_erase_nand(struct nand_chip *chip, struct erase_info *instr,
 		    int allowbbt);
-int onfi_fill_data_interface(struct nand_chip *chip,
-			     enum nand_data_interface_type type,
-			     int timing_mode);
+void onfi_fill_interface_config(struct nand_chip *chip,
+				struct nand_interface_config *iface,
+				enum nand_interface_type type,
+				unsigned int timing_mode);
+unsigned int
+onfi_find_closest_sdr_mode(const struct nand_sdr_timings *spec_timings);
+unsigned int
+onfi_find_closest_nvddr_mode(const struct nand_nvddr_timings *spec_timings);
+int nand_choose_best_sdr_timings(struct nand_chip *chip,
+				 struct nand_interface_config *iface,
+				 struct nand_sdr_timings *spec_timings);
+int nand_choose_best_nvddr_timings(struct nand_chip *chip,
+				   struct nand_interface_config *iface,
+				   struct nand_nvddr_timings *spec_timings);
+const struct nand_interface_config *nand_get_reset_interface_config(void);
 int nand_get_features(struct nand_chip *chip, int addr, u8 *subfeature_param);
 int nand_set_features(struct nand_chip *chip, int addr, u8 *subfeature_param);
 int nand_read_page_raw_notsupp(struct nand_chip *chip, u8 *buf,
 			       int oob_required, int page);
 int nand_write_page_raw_notsupp(struct nand_chip *chip, const u8 *buf,
 				int oob_required, int page);
-int nand_exit_status_op(struct nand_chip *chip);
 int nand_read_param_page_op(struct nand_chip *chip, u8 page, void *buf,
 			    unsigned int len);
 void nand_decode_ext_id(struct nand_chip *chip);
@@ -105,6 +121,15 @@ static inline bool nand_has_exec_op(struct nand_chip *chip)
 	return true;
 }
 
+static inline int nand_check_op(struct nand_chip *chip,
+				const struct nand_operation *op)
+{
+	if (!nand_has_exec_op(chip))
+		return 0;
+
+	return chip->controller->ops->exec_op(chip, op, true);
+}
+
 static inline int nand_exec_op(struct nand_chip *chip,
 			       const struct nand_operation *op)
 {
@@ -117,10 +142,10 @@ static inline int nand_exec_op(struct nand_chip *chip,
 	return chip->controller->ops->exec_op(chip, op, false);
 }
 
-static inline bool nand_has_setup_data_iface(struct nand_chip *chip)
+static inline bool nand_controller_can_setup_interface(struct nand_chip *chip)
 {
 	if (!chip->controller || !chip->controller->ops ||
-	    !chip->controller->ops->setup_data_interface)
+	    !chip->controller->ops->setup_interface)
 		return false;
 
 	if (chip->options & NAND_KEEP_TIMINGS)

@@ -5,9 +5,6 @@
  *  Copyright (c) 2010 Xing Wei <weixing@hanwang.com.cn>
  */
 
-/*
- */
-
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -356,7 +353,7 @@ static int hanwang_probe(struct usb_interface *intf, const struct usb_device_id 
 	usb_make_path(dev, hanwang->phys, sizeof(hanwang->phys));
 	strlcat(hanwang->phys, "/input0", sizeof(hanwang->phys));
 
-	strlcpy(hanwang->name, hanwang->features->name, sizeof(hanwang->name));
+	strscpy(hanwang->name, hanwang->features->name, sizeof(hanwang->name));
 	input_dev->name = hanwang->name;
 	input_dev->phys = hanwang->phys;
 	usb_to_input_id(dev, &input_dev->id);

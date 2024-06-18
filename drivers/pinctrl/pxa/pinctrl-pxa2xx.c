@@ -10,6 +10,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/module.h>
+#include <linux/pinctrl/machine.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinmux.h>
@@ -31,7 +32,7 @@ static const char *pxa2xx_pctrl_get_group_name(struct pinctrl_dev *pctldev,
 					       unsigned tgroup)
 {
 	struct pxa_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
-	struct pxa_pinctrl_group *group = pctl->groups + tgroup;
+	struct pingroup *group = pctl->groups + tgroup;
 
 	return group->name;
 }
@@ -42,10 +43,10 @@ static int pxa2xx_pctrl_get_group_pins(struct pinctrl_dev *pctldev,
 				       unsigned *num_pins)
 {
 	struct pxa_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
-	struct pxa_pinctrl_group *group = pctl->groups + tgroup;
+	struct pingroup *group = pctl->groups + tgroup;
 
-	*pins = (unsigned *)&group->pin;
-	*num_pins = 1;
+	*pins = group->pins;
+	*num_pins = group->npins;
 
 	return 0;
 }
@@ -108,7 +109,7 @@ static const char *pxa2xx_pmx_get_func_name(struct pinctrl_dev *pctldev,
 					    unsigned function)
 {
 	struct pxa_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
-	struct pxa_pinctrl_function *pf = pctl->functions + function;
+	struct pinfunction *pf = pctl->functions + function;
 
 	return pf->name;
 }
@@ -126,7 +127,7 @@ static int pxa2xx_pmx_get_func_groups(struct pinctrl_dev *pctldev,
 				      unsigned * const num_groups)
 {
 	struct pxa_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
-	struct pxa_pinctrl_function *pf = pctl->functions + function;
+	struct pinfunction *pf = pctl->functions + function;
 
 	*groups = pf->groups;
 	*num_groups = pf->ngroups;
@@ -138,20 +139,18 @@ static int pxa2xx_pmx_set_mux(struct pinctrl_dev *pctldev, unsigned function,
 			      unsigned tgroup)
 {
 	struct pxa_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
-	struct pxa_pinctrl_group *group = pctl->groups + tgroup;
+	struct pingroup *g = pctl->groups + tgroup;
+	unsigned int pin = g->pins[0];
 	struct pxa_desc_function *df;
-	int pin, shift;
 	unsigned long flags;
 	void __iomem *gafr, *gpdr;
+	int shift;
 	u32 val;
 
-
-	df = pxa_desc_by_func_group(pctl, group->name,
-				    (pctl->functions + function)->name);
+	df = pxa_desc_by_func_group(pctl, g->name, (pctl->functions + function)->name);
 	if (!df)
 		return -EINVAL;
 
-	pin = group->pin;
 	gafr = pctl->base_gafr[pin / 16];
 	gpdr = pctl->base_gpdr[pin / 32];
 	shift = (pin % 16) << 1;
@@ -185,15 +184,15 @@ static int pxa2xx_pconf_group_get(struct pinctrl_dev *pctldev,
 				  unsigned long *config)
 {
 	struct pxa_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
-	struct pxa_pinctrl_group *g = pctl->groups + group;
+	struct pingroup *g = pctl->groups + group;
+	unsigned int pin = g->pins[0];
 	unsigned long flags;
-	unsigned pin = g->pin;
 	void __iomem *pgsr = pctl->base_pgsr[pin / 32];
 	u32 val;
 
 	spin_lock_irqsave(&pctl->lock, flags);
 	val = readl_relaxed(pgsr) & BIT(pin % 32);
-	*config = val ? PIN_CONFIG_LOW_POWER_MODE : 0;
+	*config = val ? PIN_CONFIG_MODE_LOW_POWER : 0;
 	spin_unlock_irqrestore(&pctl->lock, flags);
 
 	dev_dbg(pctl->dev, "get sleep gpio state(pin=%d) %d\n",
@@ -207,16 +206,16 @@ static int pxa2xx_pconf_group_set(struct pinctrl_dev *pctldev,
 				  unsigned num_configs)
 {
 	struct pxa_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
-	struct pxa_pinctrl_group *g = pctl->groups + group;
+	struct pingroup *g = pctl->groups + group;
+	unsigned int pin = g->pins[0];
 	unsigned long flags;
-	unsigned pin = g->pin;
 	void __iomem *pgsr = pctl->base_pgsr[pin / 32];
 	int i, is_set = 0;
 	u32 val;
 
 	for (i = 0; i < num_configs; i++) {
 		switch (pinconf_to_config_param(configs[i])) {
-		case PIN_CONFIG_LOW_POWER_MODE:
+		case PIN_CONFIG_MODE_LOW_POWER:
 			is_set = pinconf_to_config_argument(configs[i]);
 			break;
 		default:
@@ -248,11 +247,11 @@ static struct pinctrl_desc pxa2xx_pinctrl_desc = {
 	.pmxops		= &pxa2xx_pinmux_ops,
 };
 
-static const struct pxa_pinctrl_function *
-pxa2xx_find_function(struct pxa_pinctrl *pctl, const char *fname,
-		     const struct pxa_pinctrl_function *functions)
+static const struct pinfunction *pxa2xx_find_function(struct pxa_pinctrl *pctl,
+						      const char *fname,
+						      const struct pinfunction *functions)
 {
-	const struct pxa_pinctrl_function *func;
+	const struct pinfunction *func;
 
 	for (func = functions; func->name; func++)
 		if (!strcmp(fname, func->name))
@@ -263,8 +262,8 @@ pxa2xx_find_function(struct pxa_pinctrl *pctl, const char *fname,
 
 static int pxa2xx_build_functions(struct pxa_pinctrl *pctl)
 {
+	struct pinfunction *functions;
 	int i;
-	struct pxa_pinctrl_function *functions;
 	struct pxa_desc_function *df;
 
 	/*
@@ -295,9 +294,9 @@ static int pxa2xx_build_functions(struct pxa_pinctrl *pctl)
 static int pxa2xx_build_groups(struct pxa_pinctrl *pctl)
 {
 	int i, j, ngroups;
-	struct pxa_pinctrl_function *func;
 	struct pxa_desc_function *df;
-	char **gtmp;
+	struct pinfunction *func;
+	const char **gtmp;
 
 	gtmp = devm_kmalloc_array(pctl->dev, pctl->npins, sizeof(*gtmp),
 				  GFP_KERNEL);
@@ -315,13 +314,9 @@ static int pxa2xx_build_groups(struct pxa_pinctrl *pctl)
 						pctl->ppins[j].pin.name;
 		func = pctl->functions + i;
 		func->ngroups = ngroups;
-		func->groups =
-			devm_kmalloc_array(pctl->dev, ngroups,
-					   sizeof(char *), GFP_KERNEL);
+		func->groups = devm_kmemdup(pctl->dev, gtmp, ngroups * sizeof(*gtmp), GFP_KERNEL);
 		if (!func->groups)
 			return -ENOMEM;
-
-		memcpy(func->groups, gtmp, ngroups * sizeof(*gtmp));
 	}
 
 	devm_kfree(pctl->dev, gtmp);
@@ -331,8 +326,8 @@ static int pxa2xx_build_groups(struct pxa_pinctrl *pctl)
 static int pxa2xx_build_state(struct pxa_pinctrl *pctl,
 			      const struct pxa_desc_pin *ppins, int npins)
 {
-	struct pxa_pinctrl_group *group;
 	struct pinctrl_pin_desc *pins;
+	struct pingroup *group;
 	int ret, i;
 
 	pctl->npins = npins;
@@ -356,7 +351,8 @@ static int pxa2xx_build_state(struct pxa_pinctrl *pctl,
 	for (i = 0; i < npins; i++) {
 		group = pctl->groups + i;
 		group->name = ppins[i].pin.name;
-		group->pin = ppins[i].pin.number;
+		group->pins = &ppins[i].pin.number;
+		group->npins = 1;
 	}
 
 	ret = pxa2xx_build_functions(pctl);
@@ -423,15 +419,6 @@ int pxa2xx_pinctrl_init(struct platform_device *pdev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(pxa2xx_pinctrl_init);
-
-int pxa2xx_pinctrl_exit(struct platform_device *pdev)
-{
-	struct pxa_pinctrl *pctl = platform_get_drvdata(pdev);
-
-	pinctrl_unregister(pctl->pctl_dev);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(pxa2xx_pinctrl_exit);
 
 MODULE_AUTHOR("Robert Jarzmik <robert.jarzmik@free.fr>");
 MODULE_DESCRIPTION("Marvell PXA2xx pinctrl driver");

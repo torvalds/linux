@@ -365,9 +365,8 @@ static int obex_bind(struct usb_configuration *c, struct usb_function *f)
 	if (status)
 		goto fail;
 
-	dev_dbg(&cdev->gadget->dev, "obex ttyGS%d: %s speed IN/%s OUT/%s\n",
+	dev_dbg(&cdev->gadget->dev, "obex ttyGS%d: IN/%s OUT/%s\n",
 		obex->port_num,
-		gadget_is_dualspeed(c->cdev->gadget) ? "dual" : "full",
 		obex->port.in->name, obex->port.out->name);
 
 	return 0;
@@ -432,7 +431,7 @@ static struct usb_function_instance *obex_alloc_inst(void)
 		return ERR_PTR(-ENOMEM);
 
 	opts->func_inst.free_func_inst = obex_free_inst;
-	ret = gserial_alloc_line(&opts->port_num);
+	ret = gserial_alloc_line_no_console(&opts->port_num);
 	if (ret) {
 		kfree(opts);
 		return ERR_PTR(ret);

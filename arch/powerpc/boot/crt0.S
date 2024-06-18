@@ -8,7 +8,8 @@
 #include "ppc_asm.h"
 
 RELA = 7
-RELACOUNT = 0x6ffffff9
+RELASZ = 8
+RELAENT = 9
 
 	.data
 	/* A procedure descriptor used when booting this as a COFF file.
@@ -28,7 +29,7 @@ p_etext:	.8byte	_etext
 p_bss_start:	.8byte	__bss_start
 p_end:		.8byte	_end
 
-p_toc:		.8byte	__toc_start + 0x8000 - p_base
+p_toc:		.8byte	.TOC. - p_base
 p_dyn:		.8byte	__dynamic_start - p_base
 p_rela:		.8byte	__rela_dyn_start - p_base
 p_prom:		.8byte	0
@@ -44,16 +45,13 @@ p_end:		.long	_end
 p_pstack:	.long	_platform_stack_top
 #endif
 
-	.globl	_zimage_start
-	/* Clang appears to require the .weak directive to be after the symbol
-	 * is defined. See https://bugs.llvm.org/show_bug.cgi?id=38921  */
 	.weak	_zimage_start
 _zimage_start:
 	.globl	_zimage_start_lib
 _zimage_start_lib:
 	/* Work out the offset between the address we were linked at
 	   and the address where we're running. */
-	bl	.+4
+	bcl	20,31,.+4
 p_base:	mflr	r10		/* r10 now points to runtime addr of p_base */
 #ifndef __powerpc64__
 	/* grab the link address of the dynamic section in r11 */
@@ -78,34 +76,39 @@ p_base:	mflr	r10		/* r10 now points to runtime addr of p_base */
 	bne	11f
 	lwz	r9,4(r12)	/* get RELA pointer in r9 */
 	b	12f
-11:	addis	r8,r8,(-RELACOUNT)@ha
-	cmpwi	r8,RELACOUNT@l
+11:	cmpwi	r8,RELASZ
+	bne	.Lcheck_for_relaent
+	lwz	r0,4(r12)       /* get RELASZ value in r0 */
+	b	12f
+.Lcheck_for_relaent:
+	cmpwi	r8,RELAENT
 	bne	12f
-	lwz	r0,4(r12)	/* get RELACOUNT value in r0 */
+	lwz     r14,4(r12)      /* get RELAENT value in r14 */
 12:	addi	r12,r12,8
 	b	9b
 
 	/* The relocation section contains a list of relocations.
 	 * We now do the R_PPC_RELATIVE ones, which point to words
-	 * which need to be initialized with addend + offset.
-	 * The R_PPC_RELATIVE ones come first and there are RELACOUNT
-	 * of them. */
+	 * which need to be initialized with addend + offset */
 10:	/* skip relocation if we don't have both */
 	cmpwi	r0,0
 	beq	3f
 	cmpwi	r9,0
 	beq	3f
+	cmpwi	r14,0
+	beq	3f
 
 	add	r9,r9,r11	/* Relocate RELA pointer */
+	divwu   r0,r0,r14       /* RELASZ / RELAENT */
 	mtctr	r0
 2:	lbz	r0,4+3(r9)	/* ELF32_R_INFO(reloc->r_info) */
 	cmpwi	r0,22		/* R_PPC_RELATIVE */
-	bne	3f
+	bne	.Lnext
 	lwz	r12,0(r9)	/* reloc->r_offset */
 	lwz	r0,8(r9)	/* reloc->r_addend */
 	add	r0,r0,r11
 	stwx	r0,r11,r12
-	addi	r9,r9,12
+.Lnext:	add	r9,r9,r14
 	bdnz	2b
 
 	/* Do a cache flush for our text, in case the loader didn't */
@@ -163,32 +166,39 @@ p_base:	mflr	r10		/* r10 now points to runtime addr of p_base */
 	bne	10f
 	ld	r13,8(r11)       /* get RELA pointer in r13 */
 	b	11f
-10:	addis	r12,r12,(-RELACOUNT)@ha
-	cmpdi	r12,RELACOUNT@l
-	bne	11f
-	ld	r8,8(r11)       /* get RELACOUNT value in r8 */
+10:	cmpwi   r12,RELASZ
+	bne	.Lcheck_for_relaent
+	lwz	r8,8(r11)	/* get RELASZ pointer in r8 */
+	b	11f
+.Lcheck_for_relaent:
+	cmpwi	r12,RELAENT
+	bne     11f
+	lwz     r14,8(r11)      /* get RELAENT pointer in r14 */
 11:	addi	r11,r11,16
 	b	9b
 12:
-	cmpdi	r13,0            /* check we have both RELA and RELACOUNT */
+	cmpdi	r13,0            /* check we have both RELA, RELASZ, RELAENT*/
 	cmpdi	cr1,r8,0
 	beq	3f
 	beq	cr1,3f
+	cmpdi	r14,0
+	beq	3f
 
 	/* Calcuate the runtime offset. */
 	subf	r13,r13,r9
 
 	/* Run through the list of relocations and process the
 	 * R_PPC64_RELATIVE ones. */
+	divdu   r8,r8,r14       /* RELASZ / RELAENT */
 	mtctr	r8
 13:	ld	r0,8(r9)        /* ELF64_R_TYPE(reloc->r_info) */
 	cmpdi	r0,22           /* R_PPC64_RELATIVE */
-	bne	3f
+	bne	.Lnext
 	ld	r12,0(r9)        /* reloc->r_offset */
 	ld	r0,16(r9)       /* reloc->r_addend */
 	add	r0,r0,r13
 	stdx	r0,r13,r12
-	addi	r9,r9,24
+.Lnext:	add	r9,r9,r14
 	bdnz	13b
 
 	/* Do a cache flush for our text, in case the loader didn't */
@@ -229,16 +239,19 @@ p_base:	mflr	r10		/* r10 now points to runtime addr of p_base */
 #ifdef __powerpc64__
 
 #define PROM_FRAME_SIZE 512
-#define SAVE_GPR(n, base)       std     n,8*(n)(base)
-#define REST_GPR(n, base)       ld      n,8*(n)(base)
-#define SAVE_2GPRS(n, base)     SAVE_GPR(n, base); SAVE_GPR(n+1, base)
-#define SAVE_4GPRS(n, base)     SAVE_2GPRS(n, base); SAVE_2GPRS(n+2, base)
-#define SAVE_8GPRS(n, base)     SAVE_4GPRS(n, base); SAVE_4GPRS(n+4, base)
-#define SAVE_10GPRS(n, base)    SAVE_8GPRS(n, base); SAVE_2GPRS(n+8, base)
-#define REST_2GPRS(n, base)     REST_GPR(n, base); REST_GPR(n+1, base)
-#define REST_4GPRS(n, base)     REST_2GPRS(n, base); REST_2GPRS(n+2, base)
-#define REST_8GPRS(n, base)     REST_4GPRS(n, base); REST_4GPRS(n+4, base)
-#define REST_10GPRS(n, base)    REST_8GPRS(n, base); REST_2GPRS(n+8, base)
+
+.macro OP_REGS op, width, start, end, base, offset
+	.Lreg=\start
+	.rept (\end - \start + 1)
+	\op	.Lreg,\offset+\width*.Lreg(\base)
+	.Lreg=.Lreg+1
+	.endr
+.endm
+
+#define SAVE_GPRS(start, end, base)	OP_REGS std, 8, start, end, base, 0
+#define REST_GPRS(start, end, base)	OP_REGS ld, 8, start, end, base, 0
+#define SAVE_GPR(n, base)		SAVE_GPRS(n, n, base)
+#define REST_GPR(n, base)		REST_GPRS(n, n, base)
 
 /* prom handles the jump into and return from firmware.  The prom args pointer
    is loaded in r3. */
@@ -249,9 +262,7 @@ prom:
 	stdu	r1,-PROM_FRAME_SIZE(r1) /* Save SP and create stack space */
 
 	SAVE_GPR(2, r1)
-	SAVE_GPR(13, r1)
-	SAVE_8GPRS(14, r1)
-	SAVE_10GPRS(22, r1)
+	SAVE_GPRS(13, 31, r1)
 	mfcr    r10
 	std     r10,8*32(r1)
 	mfmsr   r10
@@ -263,7 +274,7 @@ prom:
 	mtsrr1	r10
 
 	/* Load FW address, set LR to label 1, and jump to FW */
-	bl	0f
+	bcl	20,31,0f
 0:	mflr	r10
 	addi	r11,r10,(1f-0b)
 	mtlr	r11
@@ -286,9 +297,7 @@ prom:
 
 	/* Restore other registers */
 	REST_GPR(2, r1)
-	REST_GPR(13, r1)
-	REST_8GPRS(14, r1)
-	REST_10GPRS(22, r1)
+	REST_GPRS(13, 31, r1)
 	ld      r10,8*32(r1)
 	mtcr	r10
 

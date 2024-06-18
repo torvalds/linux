@@ -14,12 +14,14 @@
 			 X86_EFLAGS_CF | X86_EFLAGS_RF)
 
 void signal_fault(struct pt_regs *regs, void __user *frame, char *where);
-int setup_sigcontext(struct sigcontext __user *sc, void __user *fpstate,
-		     struct pt_regs *regs, unsigned long mask);
 
+void __user *
+get_sigframe(struct ksignal *ksig, struct pt_regs *regs, size_t frame_size,
+	     void __user **fpstate);
 
-#ifdef CONFIG_X86_X32_ABI
-asmlinkage long sys32_x32_rt_sigreturn(void);
-#endif
+int ia32_setup_frame(struct ksignal *ksig, struct pt_regs *regs);
+int ia32_setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs);
+int x64_setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs);
+int x32_setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs);
 
 #endif /* _ASM_X86_SIGHANDLING_H */

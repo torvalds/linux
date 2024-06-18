@@ -248,6 +248,7 @@ struct el_MCPCIA_uncorrected_frame_mcheck {
 
 #define vip	volatile int __force *
 #define vuip	volatile unsigned int __force *
+#define vulp	volatile unsigned long __force *
 
 #ifndef MCPCIA_ONE_HAE_WINDOW
 #define MCPCIA_FROB_MMIO						\
@@ -267,7 +268,7 @@ extern inline int __mcpcia_is_mmio(unsigned long addr)
 	return (addr & 0x80000000UL) == 0;
 }
 
-__EXTERN_INLINE unsigned int mcpcia_ioread8(void __iomem *xaddr)
+__EXTERN_INLINE u8 mcpcia_ioread8(const void __iomem *xaddr)
 {
 	unsigned long addr = (unsigned long)xaddr & MCPCIA_MEM_MASK;
 	unsigned long hose = (unsigned long)xaddr & ~MCPCIA_MEM_MASK;
@@ -291,7 +292,7 @@ __EXTERN_INLINE void mcpcia_iowrite8(u8 b, void __iomem *xaddr)
 	*(vuip) ((addr << 5) + hose + 0x00) = w;
 }
 
-__EXTERN_INLINE unsigned int mcpcia_ioread16(void __iomem *xaddr)
+__EXTERN_INLINE u16 mcpcia_ioread16(const void __iomem *xaddr)
 {
 	unsigned long addr = (unsigned long)xaddr & MCPCIA_MEM_MASK;
 	unsigned long hose = (unsigned long)xaddr & ~MCPCIA_MEM_MASK;
@@ -315,7 +316,7 @@ __EXTERN_INLINE void mcpcia_iowrite16(u16 b, void __iomem *xaddr)
 	*(vuip) ((addr << 5) + hose + 0x08) = w;
 }
 
-__EXTERN_INLINE unsigned int mcpcia_ioread32(void __iomem *xaddr)
+__EXTERN_INLINE u32 mcpcia_ioread32(const void __iomem *xaddr)
 {
 	unsigned long addr = (unsigned long)xaddr;
 
@@ -333,6 +334,26 @@ __EXTERN_INLINE void mcpcia_iowrite32(u32 b, void __iomem *xaddr)
 		addr = ((addr & 0xffff) << 5) + (addr & ~0xfffful) + 0x18;
 
 	*(vuip)addr = b;
+}
+
+__EXTERN_INLINE u64 mcpcia_ioread64(const void __iomem *xaddr)
+{
+	unsigned long addr = (unsigned long)xaddr;
+
+	if (!__mcpcia_is_mmio(addr))
+		addr = ((addr & 0xffff) << 5) + (addr & ~0xfffful) + 0x18;
+
+	return *(vulp)addr;
+}
+
+__EXTERN_INLINE void mcpcia_iowrite64(u64 b, void __iomem *xaddr)
+{
+	unsigned long addr = (unsigned long)xaddr;
+
+	if (!__mcpcia_is_mmio(addr))
+		addr = ((addr & 0xffff) << 5) + (addr & ~0xfffful) + 0x18;
+
+	*(vulp)addr = b;
 }
 
 
@@ -362,6 +383,7 @@ __EXTERN_INLINE int mcpcia_is_mmio(const volatile void __iomem *xaddr)
 
 #undef vip
 #undef vuip
+#undef vulp
 
 #undef __IO_PREFIX
 #define __IO_PREFIX		mcpcia

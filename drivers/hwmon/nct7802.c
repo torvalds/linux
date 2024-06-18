@@ -23,8 +23,8 @@
 static const u8 REG_VOLTAGE[5] = { 0x09, 0x0a, 0x0c, 0x0d, 0x0e };
 
 static const u8 REG_VOLTAGE_LIMIT_LSB[2][5] = {
-	{ 0x40, 0x00, 0x42, 0x44, 0x46 },
-	{ 0x3f, 0x00, 0x41, 0x43, 0x45 },
+	{ 0x46, 0x00, 0x40, 0x42, 0x44 },
+	{ 0x45, 0x00, 0x3f, 0x41, 0x43 },
 };
 
 static const u8 REG_VOLTAGE_LIMIT_MSB[5] = { 0x48, 0x00, 0x47, 0x47, 0x48 };
@@ -52,12 +52,31 @@ static const u8 REG_VOLTAGE_LIMIT_MSB_SHIFT[2][5] = {
 #define REG_VERSION_ID		0xff
 
 /*
+ * Resistance temperature detector (RTD) modes according to 7.2.32 Mode
+ * Selection Register
+ */
+#define RTD_MODE_CURRENT	0x1
+#define RTD_MODE_THERMISTOR	0x2
+#define RTD_MODE_VOLTAGE	0x3
+
+#define MODE_RTD_MASK		0x3
+#define MODE_LTD_EN		0x40
+
+/*
+ * Bit offset for sensors modes in REG_MODE.
+ * Valid for index 0..2, indicating RTD1..3.
+ */
+#define MODE_BIT_OFFSET_RTD(index) ((index) * 2)
+
+/*
  * Data structures and manipulation thereof
  */
 
 struct nct7802_data {
 	struct regmap *regmap;
 	struct mutex access_lock; /* for multi-byte read and write operations */
+	u8 in_status;
+	struct mutex in_alarm_lock;
 };
 
 static ssize_t temp_type_show(struct device *dev,
@@ -368,6 +387,66 @@ static ssize_t in_store(struct device *dev, struct device_attribute *attr,
 	return err ? : count;
 }
 
+static ssize_t in_alarm_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	struct sensor_device_attribute_2 *sattr = to_sensor_dev_attr_2(attr);
+	struct nct7802_data *data = dev_get_drvdata(dev);
+	int volt, min, max, ret;
+	unsigned int val;
+
+	mutex_lock(&data->in_alarm_lock);
+
+	/*
+	 * The SMI Voltage status register is the only register giving a status
+	 * for voltages. A bit is set for each input crossing a threshold, in
+	 * both direction, but the "inside" or "outside" limits info is not
+	 * available. Also this register is cleared on read.
+	 * Note: this is not explicitly spelled out in the datasheet, but
+	 * from experiment.
+	 * To deal with this we use a status cache with one validity bit and
+	 * one status bit for each input. Validity is cleared at startup and
+	 * each time the register reports a change, and the status is processed
+	 * by software based on current input value and limits.
+	 */
+	ret = regmap_read(data->regmap, 0x1e, &val); /* SMI Voltage status */
+	if (ret < 0)
+		goto abort;
+
+	/* invalidate cached status for all inputs crossing a threshold */
+	data->in_status &= ~((val & 0x0f) << 4);
+
+	/* if cached status for requested input is invalid, update it */
+	if (!(data->in_status & (0x10 << sattr->index))) {
+		ret = nct7802_read_voltage(data, sattr->nr, 0);
+		if (ret < 0)
+			goto abort;
+		volt = ret;
+
+		ret = nct7802_read_voltage(data, sattr->nr, 1);
+		if (ret < 0)
+			goto abort;
+		min = ret;
+
+		ret = nct7802_read_voltage(data, sattr->nr, 2);
+		if (ret < 0)
+			goto abort;
+		max = ret;
+
+		if (volt < min || volt > max)
+			data->in_status |= (1 << sattr->index);
+		else
+			data->in_status &= ~(1 << sattr->index);
+
+		data->in_status |= 0x10 << sattr->index;
+	}
+
+	ret = sprintf(buf, "%u\n", !!(data->in_status & (1 << sattr->index)));
+abort:
+	mutex_unlock(&data->in_alarm_lock);
+	return ret;
+}
+
 static ssize_t temp_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
@@ -617,7 +696,7 @@ static struct attribute *nct7802_temp_attrs[] = {
 static umode_t nct7802_temp_is_visible(struct kobject *kobj,
 				       struct attribute *attr, int index)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct nct7802_data *data = dev_get_drvdata(dev);
 	unsigned int reg;
 	int err;
@@ -646,7 +725,7 @@ static umode_t nct7802_temp_is_visible(struct kobject *kobj,
 	if (index >= 38 && index < 46 && !(reg & 0x01))		/* PECI 0 */
 		return 0;
 
-	if (index >= 0x46 && (!(reg & 0x02)))			/* PECI 1 */
+	if (index >= 46 && !(reg & 0x02))			/* PECI 1 */
 		return 0;
 
 	return attr->mode;
@@ -660,7 +739,7 @@ static const struct attribute_group nct7802_temp_group = {
 static SENSOR_DEVICE_ATTR_2_RO(in0_input, in, 0, 0);
 static SENSOR_DEVICE_ATTR_2_RW(in0_min, in, 0, 1);
 static SENSOR_DEVICE_ATTR_2_RW(in0_max, in, 0, 2);
-static SENSOR_DEVICE_ATTR_2_RO(in0_alarm, alarm, 0x1e, 3);
+static SENSOR_DEVICE_ATTR_2_RO(in0_alarm, in_alarm, 0, 3);
 static SENSOR_DEVICE_ATTR_2_RW(in0_beep, beep, 0x5a, 3);
 
 static SENSOR_DEVICE_ATTR_2_RO(in1_input, in, 1, 0);
@@ -668,19 +747,19 @@ static SENSOR_DEVICE_ATTR_2_RO(in1_input, in, 1, 0);
 static SENSOR_DEVICE_ATTR_2_RO(in2_input, in, 2, 0);
 static SENSOR_DEVICE_ATTR_2_RW(in2_min, in, 2, 1);
 static SENSOR_DEVICE_ATTR_2_RW(in2_max, in, 2, 2);
-static SENSOR_DEVICE_ATTR_2_RO(in2_alarm, alarm, 0x1e, 0);
+static SENSOR_DEVICE_ATTR_2_RO(in2_alarm, in_alarm, 2, 0);
 static SENSOR_DEVICE_ATTR_2_RW(in2_beep, beep, 0x5a, 0);
 
 static SENSOR_DEVICE_ATTR_2_RO(in3_input, in, 3, 0);
 static SENSOR_DEVICE_ATTR_2_RW(in3_min, in, 3, 1);
 static SENSOR_DEVICE_ATTR_2_RW(in3_max, in, 3, 2);
-static SENSOR_DEVICE_ATTR_2_RO(in3_alarm, alarm, 0x1e, 1);
+static SENSOR_DEVICE_ATTR_2_RO(in3_alarm, in_alarm, 3, 1);
 static SENSOR_DEVICE_ATTR_2_RW(in3_beep, beep, 0x5a, 1);
 
 static SENSOR_DEVICE_ATTR_2_RO(in4_input, in, 4, 0);
 static SENSOR_DEVICE_ATTR_2_RW(in4_min, in, 4, 1);
 static SENSOR_DEVICE_ATTR_2_RW(in4_max, in, 4, 2);
-static SENSOR_DEVICE_ATTR_2_RO(in4_alarm, alarm, 0x1e, 2);
+static SENSOR_DEVICE_ATTR_2_RO(in4_alarm, in_alarm, 4, 2);
 static SENSOR_DEVICE_ATTR_2_RW(in4_beep, beep, 0x5a, 2);
 
 static struct attribute *nct7802_in_attrs[] = {
@@ -716,7 +795,7 @@ static struct attribute *nct7802_in_attrs[] = {
 static umode_t nct7802_in_is_visible(struct kobject *kobj,
 				     struct attribute *attr, int index)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct nct7802_data *data = dev_get_drvdata(dev);
 	unsigned int reg;
 	int err;
@@ -791,7 +870,7 @@ static struct attribute *nct7802_fan_attrs[] = {
 static umode_t nct7802_fan_is_visible(struct kobject *kobj,
 				      struct attribute *attr, int index)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct nct7802_data *data = dev_get_drvdata(dev);
 	int fan = index / 4;	/* 4 attributes per fan */
 	unsigned int reg;
@@ -959,7 +1038,7 @@ static int nct7802_detect(struct i2c_client *client,
 	if (reg < 0 || (reg & 0x3f))
 		return -ENODEV;
 
-	strlcpy(info->type, "nct7802", I2C_NAME_SIZE);
+	strscpy(info->type, "nct7802", I2C_NAME_SIZE);
 	return 0;
 }
 
@@ -972,11 +1051,118 @@ static bool nct7802_regmap_is_volatile(struct device *dev, unsigned int reg)
 static const struct regmap_config nct7802_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.volatile_reg = nct7802_regmap_is_volatile,
 };
 
-static int nct7802_init_chip(struct nct7802_data *data)
+static int nct7802_get_channel_config(struct device *dev,
+				      struct device_node *node, u8 *mode_mask,
+				      u8 *mode_val)
+{
+	u32 reg;
+	const char *type_str, *md_str;
+	u8 md;
+
+	if (!node->name || of_node_cmp(node->name, "channel"))
+		return 0;
+
+	if (of_property_read_u32(node, "reg", &reg)) {
+		dev_err(dev, "Could not read reg value for '%s'\n",
+			node->full_name);
+		return -EINVAL;
+	}
+
+	if (reg > 3) {
+		dev_err(dev, "Invalid reg (%u) in '%s'\n", reg,
+			node->full_name);
+		return -EINVAL;
+	}
+
+	if (reg == 0) {
+		if (!of_device_is_available(node))
+			*mode_val &= ~MODE_LTD_EN;
+		else
+			*mode_val |= MODE_LTD_EN;
+		*mode_mask |= MODE_LTD_EN;
+		return 0;
+	}
+
+	/* At this point we have reg >= 1 && reg <= 3 */
+
+	if (!of_device_is_available(node)) {
+		*mode_val &= ~(MODE_RTD_MASK << MODE_BIT_OFFSET_RTD(reg - 1));
+		*mode_mask |= MODE_RTD_MASK << MODE_BIT_OFFSET_RTD(reg - 1);
+		return 0;
+	}
+
+	if (of_property_read_string(node, "sensor-type", &type_str)) {
+		dev_err(dev, "No type for '%s'\n", node->full_name);
+		return -EINVAL;
+	}
+
+	if (!strcmp(type_str, "voltage")) {
+		*mode_val |= (RTD_MODE_VOLTAGE & MODE_RTD_MASK)
+			     << MODE_BIT_OFFSET_RTD(reg - 1);
+		*mode_mask |= MODE_RTD_MASK << MODE_BIT_OFFSET_RTD(reg - 1);
+		return 0;
+	}
+
+	if (strcmp(type_str, "temperature")) {
+		dev_err(dev, "Invalid type '%s' for '%s'\n", type_str,
+			node->full_name);
+		return -EINVAL;
+	}
+
+	if (reg == 3) {
+		/* RTD3 only supports thermistor mode */
+		md = RTD_MODE_THERMISTOR;
+	} else {
+		if (of_property_read_string(node, "temperature-mode",
+					    &md_str)) {
+			dev_err(dev, "No mode for '%s'\n", node->full_name);
+			return -EINVAL;
+		}
+
+		if (!strcmp(md_str, "thermal-diode"))
+			md = RTD_MODE_CURRENT;
+		else if (!strcmp(md_str, "thermistor"))
+			md = RTD_MODE_THERMISTOR;
+		else {
+			dev_err(dev, "Invalid mode '%s' for '%s'\n", md_str,
+				node->full_name);
+			return -EINVAL;
+		}
+	}
+
+	*mode_val |= (md & MODE_RTD_MASK) << MODE_BIT_OFFSET_RTD(reg - 1);
+	*mode_mask |= MODE_RTD_MASK << MODE_BIT_OFFSET_RTD(reg - 1);
+
+	return 0;
+}
+
+static int nct7802_configure_channels(struct device *dev,
+				      struct nct7802_data *data)
+{
+	/* Enable local temperature sensor by default */
+	u8 mode_mask = MODE_LTD_EN, mode_val = MODE_LTD_EN;
+	struct device_node *node;
+	int err;
+
+	if (dev->of_node) {
+		for_each_child_of_node(dev->of_node, node) {
+			err = nct7802_get_channel_config(dev, node, &mode_mask,
+							 &mode_val);
+			if (err) {
+				of_node_put(node);
+				return err;
+			}
+		}
+	}
+
+	return regmap_update_bits(data->regmap, REG_MODE, mode_mask, mode_val);
+}
+
+static int nct7802_init_chip(struct device *dev, struct nct7802_data *data)
 {
 	int err;
 
@@ -985,8 +1171,7 @@ static int nct7802_init_chip(struct nct7802_data *data)
 	if (err)
 		return err;
 
-	/* Enable local temperature sensor */
-	err = regmap_update_bits(data->regmap, REG_MODE, 0x40, 0x40);
+	err = nct7802_configure_channels(dev, data);
 	if (err)
 		return err;
 
@@ -994,8 +1179,7 @@ static int nct7802_init_chip(struct nct7802_data *data)
 	return regmap_update_bits(data->regmap, REG_VMON_ENABLE, 0x03, 0x03);
 }
 
-static int nct7802_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int nct7802_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct nct7802_data *data;
@@ -1011,8 +1195,9 @@ static int nct7802_probe(struct i2c_client *client,
 		return PTR_ERR(data->regmap);
 
 	mutex_init(&data->access_lock);
+	mutex_init(&data->in_alarm_lock);
 
-	ret = nct7802_init_chip(data);
+	ret = nct7802_init_chip(dev, data);
 	if (ret < 0)
 		return ret;
 
@@ -1027,7 +1212,7 @@ static const unsigned short nct7802_address_list[] = {
 };
 
 static const struct i2c_device_id nct7802_idtable[] = {
-	{ "nct7802", 0 },
+	{ "nct7802" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, nct7802_idtable);

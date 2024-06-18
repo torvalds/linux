@@ -361,8 +361,15 @@
 	};
 
 	pmu {
-		compatible = "cavium,thunder-pmu", "arm,armv8-pmuv3";
+		compatible = "cavium,thunder-pmu";
 		interrupts = <1 7 4>;
+	};
+
+	refclk50mhz: refclk50mhz {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <50000000>;
+		clock-output-names = "refclk50mhz";
 	};
 
 	soc {
@@ -371,14 +378,7 @@
 		#size-cells = <2>;
 		ranges;
 
-		refclk50mhz: refclk50mhz {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <50000000>;
-			clock-output-names = "refclk50mhz";
-		};
-
-		gic0: interrupt-controller@8010,00000000 {
+		gic0: interrupt-controller@801000000000 {
 			compatible = "arm,gic-v3";
 			#interrupt-cells = <3>;
 			#address-cells = <2>;
@@ -389,14 +389,15 @@
 			      <0x8010 0x80000000 0x0 0x600000>; /* GICR */
 			interrupts = <1 9 0xf04>;
 
-			its: gic-its@8010,00020000 {
+			its: msi-controller@801000020000 {
 				compatible = "arm,gic-v3-its";
 				msi-controller;
+				#msi-cells = <1>;
 				reg = <0x8010 0x20000 0x0 0x200000>;
 			};
 		};
 
-		uaa0: serial@87e0,24000000 {
+		uaa0: serial@87e024000000 {
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x87e0 0x24000000 0x0 0x1000>;
 			interrupts = <1 21 4>;
@@ -404,7 +405,7 @@
 			clock-names = "apb_pclk";
 		};
 
-		uaa1: serial@87e0,25000000 {
+		uaa1: serial@87e025000000 {
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x87e0 0x25000000 0x0 0x1000>;
 			interrupts = <1 22 4>;

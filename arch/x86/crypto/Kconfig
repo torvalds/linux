@@ -1,0 +1,522 @@
+# SPDX-License-Identifier: GPL-2.0
+
+menu "Accelerated Cryptographic Algorithms for CPU (x86)"
+
+config CRYPTO_CURVE25519_X86
+	tristate "Public key crypto: Curve25519 (ADX)"
+	depends on X86 && 64BIT
+	select CRYPTO_LIB_CURVE25519_GENERIC
+	select CRYPTO_ARCH_HAVE_LIB_CURVE25519
+	help
+	  Curve25519 algorithm
+
+	  Architecture: x86_64 using:
+	  - ADX (large integer arithmetic)
+
+config CRYPTO_AES_NI_INTEL
+	tristate "Ciphers: AES, modes: ECB, CBC, CTS, CTR, XTR, XTS, GCM (AES-NI)"
+	depends on X86
+	select CRYPTO_AEAD
+	select CRYPTO_LIB_AES
+	select CRYPTO_ALGAPI
+	select CRYPTO_SKCIPHER
+	select CRYPTO_SIMD
+	help
+	  Block cipher: AES cipher algorithms
+	  AEAD cipher: AES with GCM
+	  Length-preserving ciphers: AES with ECB, CBC, CTS, CTR, XTR, XTS
+
+	  Architecture: x86 (32-bit and 64-bit) using:
+	  - AES-NI (AES new instructions)
+
+config CRYPTO_BLOWFISH_X86_64
+	tristate "Ciphers: Blowfish, modes: ECB, CBC"
+	depends on X86 && 64BIT
+	select CRYPTO_SKCIPHER
+	select CRYPTO_BLOWFISH_COMMON
+	imply CRYPTO_CTR
+	help
+	  Block cipher: Blowfish cipher algorithm
+	  Length-preserving ciphers: Blowfish with ECB and CBC modes
+
+	  Architecture: x86_64
+
+config CRYPTO_CAMELLIA_X86_64
+	tristate "Ciphers: Camellia with modes: ECB, CBC"
+	depends on X86 && 64BIT
+	select CRYPTO_SKCIPHER
+	imply CRYPTO_CTR
+	help
+	  Block cipher: Camellia cipher algorithms
+	  Length-preserving ciphers: Camellia with ECB and CBC modes
+
+	  Architecture: x86_64
+
+config CRYPTO_CAMELLIA_AESNI_AVX_X86_64
+	tristate "Ciphers: Camellia with modes: ECB, CBC (AES-NI/AVX)"
+	depends on X86 && 64BIT
+	select CRYPTO_SKCIPHER
+	select CRYPTO_CAMELLIA_X86_64
+	select CRYPTO_SIMD
+	imply CRYPTO_XTS
+	help
+	  Length-preserving ciphers: Camellia with ECB and CBC modes
+
+	  Architecture: x86_64 using:
+	  - AES-NI (AES New Instructions)
+	  - AVX (Advanced Vector Extensions)
+
+config CRYPTO_CAMELLIA_AESNI_AVX2_X86_64
+	tristate "Ciphers: Camellia with modes: ECB, CBC (AES-NI/AVX2)"
+	depends on X86 && 64BIT
+	select CRYPTO_CAMELLIA_AESNI_AVX_X86_64
+	help
+	  Length-preserving ciphers: Camellia with ECB and CBC modes
+
+	  Architecture: x86_64 using:
+	  - AES-NI (AES New Instructions)
+	  - AVX2 (Advanced Vector Extensions 2)
+
+config CRYPTO_CAST5_AVX_X86_64
+	tristate "Ciphers: CAST5 with modes: ECB, CBC (AVX)"
+	depends on X86 && 64BIT
+	select CRYPTO_SKCIPHER
+	select CRYPTO_CAST5
+	select CRYPTO_CAST_COMMON
+	select CRYPTO_SIMD
+	imply CRYPTO_CTR
+	help
+	  Length-preserving ciphers: CAST5 (CAST-128) cipher algorithm
+	  (RFC2144) with ECB and CBC modes
+
+	  Architecture: x86_64 using:
+	  - AVX (Advanced Vector Extensions)
+
+	  Processes 16 blocks in parallel.
+
+config CRYPTO_CAST6_AVX_X86_64
+	tristate "Ciphers: CAST6 with modes: ECB, CBC (AVX)"
+	depends on X86 && 64BIT
+	select CRYPTO_SKCIPHER
+	select CRYPTO_CAST6
+	select CRYPTO_CAST_COMMON
+	select CRYPTO_SIMD
+	imply CRYPTO_XTS
+	imply CRYPTO_CTR
+	help
+	  Length-preserving ciphers: CAST6 (CAST-256) cipher algorithm
+	  (RFC2612) with ECB and CBC modes
+
+	  Architecture: x86_64 using:
+	  - AVX (Advanced Vector Extensions)
+
+	  Processes eight blocks in parallel.
+
+config CRYPTO_DES3_EDE_X86_64
+	tristate "Ciphers: Triple DES EDE with modes: ECB, CBC"
+	depends on X86 && 64BIT
+	select CRYPTO_SKCIPHER
+	select CRYPTO_LIB_DES
+	imply CRYPTO_CTR
+	help
+	  Block cipher: Triple DES EDE (FIPS 46-3) cipher algorithm
+	  Length-preserving ciphers: Triple DES EDE with ECB and CBC modes
+
+	  Architecture: x86_64
+
+	  Processes one or three blocks in parallel.
+
+config CRYPTO_SERPENT_SSE2_X86_64
+	tristate "Ciphers: Serpent with modes: ECB, CBC (SSE2)"
+	depends on X86 && 64BIT
+	select CRYPTO_SKCIPHER
+	select CRYPTO_SERPENT
+	select CRYPTO_SIMD
+	imply CRYPTO_CTR
+	help
+	  Length-preserving ciphers: Serpent cipher algorithm
+	  with ECB and CBC modes
+
+	  Architecture: x86_64 using:
+	  - SSE2 (Streaming SIMD Extensions 2)
+
+	  Processes eight blocks in parallel.
+
+config CRYPTO_SERPENT_SSE2_586
+	tristate "Ciphers: Serpent with modes: ECB, CBC (32-bit with SSE2)"
+	depends on X86 && !64BIT
+	select CRYPTO_SKCIPHER
+	select CRYPTO_SERPENT
+	select CRYPTO_SIMD
+	imply CRYPTO_CTR
+	help
+	  Length-preserving ciphers: Serpent cipher algorithm
+	  with ECB and CBC modes
+
+	  Architecture: x86 (32-bit) using:
+	  - SSE2 (Streaming SIMD Extensions 2)
+
+	  Processes four blocks in parallel.
+
+config CRYPTO_SERPENT_AVX_X86_64
+	tristate "Ciphers: Serpent with modes: ECB, CBC (AVX)"
+	depends on X86 && 64BIT
+	select CRYPTO_SKCIPHER
+	select CRYPTO_SERPENT
+	select CRYPTO_SIMD
+	imply CRYPTO_XTS
+	imply CRYPTO_CTR
+	help
+	  Length-preserving ciphers: Serpent cipher algorithm
+	  with ECB and CBC modes
+
+	  Architecture: x86_64 using:
+	  - AVX (Advanced Vector Extensions)
+
+	  Processes eight blocks in parallel.
+
+config CRYPTO_SERPENT_AVX2_X86_64
+	tristate "Ciphers: Serpent with modes: ECB, CBC (AVX2)"
+	depends on X86 && 64BIT
+	select CRYPTO_SERPENT_AVX_X86_64
+	help
+	  Length-preserving ciphers: Serpent cipher algorithm
+	  with ECB and CBC modes
+
+	  Architecture: x86_64 using:
+	  - AVX2 (Advanced Vector Extensions 2)
+
+	  Processes 16 blocks in parallel.
+
+config CRYPTO_SM4_AESNI_AVX_X86_64
+	tristate "Ciphers: SM4 with modes: ECB, CBC, CTR (AES-NI/AVX)"
+	depends on X86 && 64BIT
+	select CRYPTO_SKCIPHER
+	select CRYPTO_SIMD
+	select CRYPTO_ALGAPI
+	select CRYPTO_SM4
+	help
+	  Length-preserving ciphers: SM4 cipher algorithms
+	  (OSCCA GB/T 32907-2016) with ECB, CBC, and CTR modes
+
+	  Architecture: x86_64 using:
+	  - AES-NI (AES New Instructions)
+	  - AVX (Advanced Vector Extensions)
+
+	  Through two affine transforms,
+	  we can use the AES S-Box to simulate the SM4 S-Box to achieve the
+	  effect of instruction acceleration.
+
+	  If unsure, say N.
+
+config CRYPTO_SM4_AESNI_AVX2_X86_64
+	tristate "Ciphers: SM4 with modes: ECB, CBC, CTR (AES-NI/AVX2)"
+	depends on X86 && 64BIT
+	select CRYPTO_SKCIPHER
+	select CRYPTO_SIMD
+	select CRYPTO_ALGAPI
+	select CRYPTO_SM4
+	select CRYPTO_SM4_AESNI_AVX_X86_64
+	help
+	  Length-preserving ciphers: SM4 cipher algorithms
+	  (OSCCA GB/T 32907-2016) with ECB, CBC, and CTR modes
+
+	  Architecture: x86_64 using:
+	  - AES-NI (AES New Instructions)
+	  - AVX2 (Advanced Vector Extensions 2)
+
+	  Through two affine transforms,
+	  we can use the AES S-Box to simulate the SM4 S-Box to achieve the
+	  effect of instruction acceleration.
+
+	  If unsure, say N.
+
+config CRYPTO_TWOFISH_586
+	tristate "Ciphers: Twofish (32-bit)"
+	depends on (X86 || UML_X86) && !64BIT
+	select CRYPTO_ALGAPI
+	select CRYPTO_TWOFISH_COMMON
+	imply CRYPTO_CTR
+	help
+	  Block cipher: Twofish cipher algorithm
+
+	  Architecture: x86 (32-bit)
+
+config CRYPTO_TWOFISH_X86_64
+	tristate "Ciphers: Twofish"
+	depends on (X86 || UML_X86) && 64BIT
+	select CRYPTO_ALGAPI
+	select CRYPTO_TWOFISH_COMMON
+	imply CRYPTO_CTR
+	help
+	  Block cipher: Twofish cipher algorithm
+
+	  Architecture: x86_64
+
+config CRYPTO_TWOFISH_X86_64_3WAY
+	tristate "Ciphers: Twofish with modes: ECB, CBC (3-way parallel)"
+	depends on X86 && 64BIT
+	select CRYPTO_SKCIPHER
+	select CRYPTO_TWOFISH_COMMON
+	select CRYPTO_TWOFISH_X86_64
+	help
+	  Length-preserving cipher: Twofish cipher algorithm
+	  with ECB and CBC modes
+
+	  Architecture: x86_64
+
+	  Processes three blocks in parallel, better utilizing resources of
+	  out-of-order CPUs.
+
+config CRYPTO_TWOFISH_AVX_X86_64
+	tristate "Ciphers: Twofish with modes: ECB, CBC (AVX)"
+	depends on X86 && 64BIT
+	select CRYPTO_SKCIPHER
+	select CRYPTO_SIMD
+	select CRYPTO_TWOFISH_COMMON
+	select CRYPTO_TWOFISH_X86_64
+	select CRYPTO_TWOFISH_X86_64_3WAY
+	imply CRYPTO_XTS
+	help
+	  Length-preserving cipher: Twofish cipher algorithm
+	  with ECB and CBC modes
+
+	  Architecture: x86_64 using:
+	  - AVX (Advanced Vector Extensions)
+
+	  Processes eight blocks in parallel.
+
+config CRYPTO_ARIA_AESNI_AVX_X86_64
+	tristate "Ciphers: ARIA with modes: ECB, CTR (AES-NI/AVX/GFNI)"
+	depends on X86 && 64BIT
+	select CRYPTO_SKCIPHER
+	select CRYPTO_SIMD
+	select CRYPTO_ALGAPI
+	select CRYPTO_ARIA
+	help
+	  Length-preserving cipher: ARIA cipher algorithms
+	  (RFC 5794) with ECB and CTR modes
+
+	  Architecture: x86_64 using:
+	  - AES-NI (AES New Instructions)
+	  - AVX (Advanced Vector Extensions)
+	  - GFNI (Galois Field New Instructions)
+
+	  Processes 16 blocks in parallel.
+
+config CRYPTO_ARIA_AESNI_AVX2_X86_64
+	tristate "Ciphers: ARIA with modes: ECB, CTR (AES-NI/AVX2/GFNI)"
+	depends on X86 && 64BIT
+	select CRYPTO_SKCIPHER
+	select CRYPTO_SIMD
+	select CRYPTO_ALGAPI
+	select CRYPTO_ARIA
+	select CRYPTO_ARIA_AESNI_AVX_X86_64
+	help
+	  Length-preserving cipher: ARIA cipher algorithms
+	  (RFC 5794) with ECB and CTR modes
+
+	  Architecture: x86_64 using:
+	  - AES-NI (AES New Instructions)
+	  - AVX2 (Advanced Vector Extensions)
+	  - GFNI (Galois Field New Instructions)
+
+	  Processes 32 blocks in parallel.
+
+config CRYPTO_ARIA_GFNI_AVX512_X86_64
+	tristate "Ciphers: ARIA with modes: ECB, CTR (AVX512/GFNI)"
+	depends on X86 && 64BIT && AS_AVX512 && AS_GFNI
+	select CRYPTO_SKCIPHER
+	select CRYPTO_SIMD
+	select CRYPTO_ALGAPI
+	select CRYPTO_ARIA
+	select CRYPTO_ARIA_AESNI_AVX_X86_64
+	select CRYPTO_ARIA_AESNI_AVX2_X86_64
+	help
+	  Length-preserving cipher: ARIA cipher algorithms
+	  (RFC 5794) with ECB and CTR modes
+
+	  Architecture: x86_64 using:
+	  - AVX512 (Advanced Vector Extensions)
+	  - GFNI (Galois Field New Instructions)
+
+	  Processes 64 blocks in parallel.
+
+config CRYPTO_CHACHA20_X86_64
+	tristate "Ciphers: ChaCha20, XChaCha20, XChaCha12 (SSSE3/AVX2/AVX-512VL)"
+	depends on X86 && 64BIT
+	select CRYPTO_SKCIPHER
+	select CRYPTO_LIB_CHACHA_GENERIC
+	select CRYPTO_ARCH_HAVE_LIB_CHACHA
+	help
+	  Length-preserving ciphers: ChaCha20, XChaCha20, and XChaCha12
+	  stream cipher algorithms
+
+	  Architecture: x86_64 using:
+	  - SSSE3 (Supplemental SSE3)
+	  - AVX2 (Advanced Vector Extensions 2)
+	  - AVX-512VL (Advanced Vector Extensions-512VL)
+
+config CRYPTO_AEGIS128_AESNI_SSE2
+	tristate "AEAD ciphers: AEGIS-128 (AES-NI/SSE2)"
+	depends on X86 && 64BIT
+	select CRYPTO_AEAD
+	select CRYPTO_SIMD
+	help
+	  AEGIS-128 AEAD algorithm
+
+	  Architecture: x86_64 using:
+	  - AES-NI (AES New Instructions)
+	  - SSE2 (Streaming SIMD Extensions 2)
+
+config CRYPTO_NHPOLY1305_SSE2
+	tristate "Hash functions: NHPoly1305 (SSE2)"
+	depends on X86 && 64BIT
+	select CRYPTO_NHPOLY1305
+	help
+	  NHPoly1305 hash function for Adiantum
+
+	  Architecture: x86_64 using:
+	  - SSE2 (Streaming SIMD Extensions 2)
+
+config CRYPTO_NHPOLY1305_AVX2
+	tristate "Hash functions: NHPoly1305 (AVX2)"
+	depends on X86 && 64BIT
+	select CRYPTO_NHPOLY1305
+	help
+	  NHPoly1305 hash function for Adiantum
+
+	  Architecture: x86_64 using:
+	  - AVX2 (Advanced Vector Extensions 2)
+
+config CRYPTO_BLAKE2S_X86
+	bool "Hash functions: BLAKE2s (SSSE3/AVX-512)"
+	depends on X86 && 64BIT
+	select CRYPTO_LIB_BLAKE2S_GENERIC
+	select CRYPTO_ARCH_HAVE_LIB_BLAKE2S
+	help
+	  BLAKE2s cryptographic hash function (RFC 7693)
+
+	  Architecture: x86_64 using:
+	  - SSSE3 (Supplemental SSE3)
+	  - AVX-512 (Advanced Vector Extensions-512)
+
+config CRYPTO_POLYVAL_CLMUL_NI
+	tristate "Hash functions: POLYVAL (CLMUL-NI)"
+	depends on X86 && 64BIT
+	select CRYPTO_POLYVAL
+	help
+	  POLYVAL hash function for HCTR2
+
+	  Architecture: x86_64 using:
+	  - CLMUL-NI (carry-less multiplication new instructions)
+
+config CRYPTO_POLY1305_X86_64
+	tristate "Hash functions: Poly1305 (SSE2/AVX2)"
+	depends on X86 && 64BIT
+	select CRYPTO_LIB_POLY1305_GENERIC
+	select CRYPTO_ARCH_HAVE_LIB_POLY1305
+	help
+	  Poly1305 authenticator algorithm (RFC7539)
+
+	  Architecture: x86_64 using:
+	  - SSE2 (Streaming SIMD Extensions 2)
+	  - AVX2 (Advanced Vector Extensions 2)
+
+config CRYPTO_SHA1_SSSE3
+	tristate "Hash functions: SHA-1 (SSSE3/AVX/AVX2/SHA-NI)"
+	depends on X86 && 64BIT
+	select CRYPTO_SHA1
+	select CRYPTO_HASH
+	help
+	  SHA-1 secure hash algorithm (FIPS 180)
+
+	  Architecture: x86_64 using:
+	  - SSSE3 (Supplemental SSE3)
+	  - AVX (Advanced Vector Extensions)
+	  - AVX2 (Advanced Vector Extensions 2)
+	  - SHA-NI (SHA Extensions New Instructions)
+
+config CRYPTO_SHA256_SSSE3
+	tristate "Hash functions: SHA-224 and SHA-256 (SSSE3/AVX/AVX2/SHA-NI)"
+	depends on X86 && 64BIT
+	select CRYPTO_SHA256
+	select CRYPTO_HASH
+	help
+	  SHA-224 and SHA-256 secure hash algorithms (FIPS 180)
+
+	  Architecture: x86_64 using:
+	  - SSSE3 (Supplemental SSE3)
+	  - AVX (Advanced Vector Extensions)
+	  - AVX2 (Advanced Vector Extensions 2)
+	  - SHA-NI (SHA Extensions New Instructions)
+
+config CRYPTO_SHA512_SSSE3
+	tristate "Hash functions: SHA-384 and SHA-512 (SSSE3/AVX/AVX2)"
+	depends on X86 && 64BIT
+	select CRYPTO_SHA512
+	select CRYPTO_HASH
+	help
+	  SHA-384 and SHA-512 secure hash algorithms (FIPS 180)
+
+	  Architecture: x86_64 using:
+	  - SSSE3 (Supplemental SSE3)
+	  - AVX (Advanced Vector Extensions)
+	  - AVX2 (Advanced Vector Extensions 2)
+
+config CRYPTO_SM3_AVX_X86_64
+	tristate "Hash functions: SM3 (AVX)"
+	depends on X86 && 64BIT
+	select CRYPTO_HASH
+	select CRYPTO_SM3
+	help
+	  SM3 secure hash function as defined by OSCCA GM/T 0004-2012 SM3
+
+	  Architecture: x86_64 using:
+	  - AVX (Advanced Vector Extensions)
+
+	  If unsure, say N.
+
+config CRYPTO_GHASH_CLMUL_NI_INTEL
+	tristate "Hash functions: GHASH (CLMUL-NI)"
+	depends on X86 && 64BIT
+	select CRYPTO_CRYPTD
+	help
+	  GCM GHASH hash function (NIST SP800-38D)
+
+	  Architecture: x86_64 using:
+	  - CLMUL-NI (carry-less multiplication new instructions)
+
+config CRYPTO_CRC32C_INTEL
+	tristate "CRC32c (SSE4.2/PCLMULQDQ)"
+	depends on X86
+	select CRYPTO_HASH
+	help
+	  CRC32c CRC algorithm with the iSCSI polynomial (RFC 3385 and RFC 3720)
+
+	  Architecture: x86 (32-bit and 64-bit) using:
+	  - SSE4.2 (Streaming SIMD Extensions 4.2) CRC32 instruction
+	  - PCLMULQDQ (carry-less multiplication)
+
+config CRYPTO_CRC32_PCLMUL
+	tristate "CRC32 (PCLMULQDQ)"
+	depends on X86
+	select CRYPTO_HASH
+	select CRC32
+	help
+	  CRC32 CRC algorithm (IEEE 802.3)
+
+	  Architecture: x86 (32-bit and 64-bit) using:
+	  - PCLMULQDQ (carry-less multiplication)
+
+config CRYPTO_CRCT10DIF_PCLMUL
+	tristate "CRCT10DIF (PCLMULQDQ)"
+	depends on X86 && 64BIT && CRC_T10DIF
+	select CRYPTO_HASH
+	help
+	  CRC16 CRC algorithm used for the T10 (SCSI) Data Integrity Field (DIF)
+
+	  Architecture: x86_64 using:
+	  - PCLMULQDQ (carry-less multiplication)
+
+endmenu

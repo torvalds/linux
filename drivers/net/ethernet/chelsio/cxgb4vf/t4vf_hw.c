@@ -33,6 +33,7 @@
  * SOFTWARE.
  */
 
+#include <linux/ethtool.h>
 #include <linux/pci.h>
 
 #include "t4vf_common.h"
@@ -389,9 +390,7 @@ static inline enum cc_fec fwcap_to_cc_fec(fw_port_cap32_t fw_fec)
 	return cc_fec;
 }
 
-/**
- * Return the highest speed set in the port capabilities, in Mb/s.
- */
+/* Return the highest speed set in the port capabilities, in Mb/s. */
 static unsigned int fwcap_to_speed(fw_port_cap32_t caps)
 {
 	#define TEST_SPEED_RETURN(__caps_speed, __speed) \
@@ -878,7 +877,7 @@ int t4vf_get_sge_params(struct adapter *adapter)
 
 	/* T4 uses a single control field to specify both the PCIe Padding and
 	 * Packing Boundary.  T5 introduced the ability to specify these
-	 * separately with the Padding Boundary in SGE_CONTROL and and Packing
+	 * separately with the Padding Boundary in SGE_CONTROL and Packing
 	 * Boundary in SGE_CONTROL2.  So for T5 and later we need to grab
 	 * SGE_CONTROL in order to determine how ingress packet data will be
 	 * laid out in Packed Buffer Mode.  Unfortunately, older versions of
@@ -1467,6 +1466,7 @@ int t4vf_identify_port(struct adapter *adapter, unsigned int viid,
  *	@bcast: 1 to enable broadcast Rx, 0 to disable it, -1 no change
  *	@vlanex: 1 to enable hardware VLAN Tag extraction, 0 to disable it,
  *		-1 no change
+ *	@sleep_ok: call is allowed to sleep
  *
  *	Sets Rx properties of a virtual interface.
  */
@@ -1906,23 +1906,23 @@ static const char *t4vf_link_down_rc_str(unsigned char link_down_rc)
 /**
  *	t4vf_handle_get_port_info - process a FW reply message
  *	@pi: the port info
- *	@rpl: start of the FW message
+ *	@cmd: start of the FW message
  *
  *	Processes a GET_PORT_INFO FW reply message.
  */
 static void t4vf_handle_get_port_info(struct port_info *pi,
 				      const struct fw_port_cmd *cmd)
 {
-	int action = FW_PORT_CMD_ACTION_G(be32_to_cpu(cmd->action_to_len16));
-	struct adapter *adapter = pi->adapter;
-	struct link_config *lc = &pi->link_cfg;
-	int link_ok, linkdnrc;
-	enum fw_port_type port_type;
-	enum fw_port_module_type mod_type;
-	unsigned int speed, fc, fec;
 	fw_port_cap32_t pcaps, acaps, lpacaps, linkattr;
+	struct link_config *lc = &pi->link_cfg;
+	struct adapter *adapter = pi->adapter;
+	unsigned int speed, fc, fec, adv_fc;
+	enum fw_port_module_type mod_type;
+	int action, link_ok, linkdnrc;
+	enum fw_port_type port_type;
 
 	/* Extract the various fields from the Port Information message. */
+	action = FW_PORT_CMD_ACTION_G(be32_to_cpu(cmd->action_to_len16));
 	switch (action) {
 	case FW_PORT_ACTION_GET_PORT_INFO: {
 		u32 lstatus = be32_to_cpu(cmd->u.info.lstatus_to_modtype);
@@ -1982,6 +1982,7 @@ static void t4vf_handle_get_port_info(struct port_info *pi,
 	}
 
 	fec = fwcap_to_cc_fec(acaps);
+	adv_fc = fwcap_to_cc_pause(acaps);
 	fc = fwcap_to_cc_pause(linkattr);
 	speed = fwcap_to_speed(linkattr);
 
@@ -2012,7 +2013,9 @@ static void t4vf_handle_get_port_info(struct port_info *pi,
 	}
 
 	if (link_ok != lc->link_ok || speed != lc->speed ||
-	    fc != lc->fc || fec != lc->fec) {	/* something changed */
+	    fc != lc->fc || adv_fc != lc->advertised_fc ||
+	    fec != lc->fec) {
+		/* something changed */
 		if (!link_ok && lc->link_ok) {
 			lc->link_down_rc = linkdnrc;
 			dev_warn_ratelimited(adapter->pdev_dev,
@@ -2022,6 +2025,7 @@ static void t4vf_handle_get_port_info(struct port_info *pi,
 		}
 		lc->link_ok = link_ok;
 		lc->speed = speed;
+		lc->advertised_fc = adv_fc;
 		lc->fc = fc;
 		lc->fec = fec;
 
@@ -2133,8 +2137,6 @@ int t4vf_handle_fw_rpl(struct adapter *adapter, const __be64 *rpl)
 	return 0;
 }
 
-/**
- */
 int t4vf_prep_adapter(struct adapter *adapter)
 {
 	int err;
@@ -2186,14 +2188,14 @@ int t4vf_prep_adapter(struct adapter *adapter)
  *	t4vf_get_vf_mac_acl - Get the MAC address to be set to
  *			      the VI of this VF.
  *	@adapter: The adapter
- *	@pf: The pf associated with vf
+ *	@port: The port associated with vf
  *	@naddr: the number of ACL MAC addresses returned in addr
  *	@addr: Placeholder for MAC addresses
  *
  *	Find the MAC address to be set to the VF's VI. The requested MAC address
  *	is from the host OS via callback in the PF driver.
  */
-int t4vf_get_vf_mac_acl(struct adapter *adapter, unsigned int pf,
+int t4vf_get_vf_mac_acl(struct adapter *adapter, unsigned int port,
 			unsigned int *naddr, u8 *addr)
 {
 	struct fw_acl_mac_cmd cmd;
@@ -2211,7 +2213,7 @@ int t4vf_get_vf_mac_acl(struct adapter *adapter, unsigned int pf,
 	if (cmd.nmac < *naddr)
 		*naddr = cmd.nmac;
 
-	switch (pf) {
+	switch (port) {
 	case 3:
 		memcpy(addr, cmd.macaddr3, sizeof(cmd.macaddr3));
 		break;

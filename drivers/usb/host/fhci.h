@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Freescale QUICC Engine USB Host Controller Driver
  *
@@ -23,6 +23,7 @@
 #include <linux/io.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
+#include <linux/gpio/consumer.h>
 #include <soc/fsl/qe/qe.h>
 #include <soc/fsl/qe/immap_qe.h>
 
@@ -242,8 +243,7 @@ struct fhci_hcd {
 	enum qe_clock fullspeed_clk;
 	enum qe_clock lowspeed_clk;
 	struct qe_pin *pins[NUM_PINS];
-	int gpios[NUM_GPIOS];
-	bool alow_gpios[NUM_GPIOS];
+	struct gpio_desc *gpiods[NUM_GPIOS];
 
 	struct qe_usb_ctlr __iomem *regs; /* I/O memory used to communicate */
 	struct fhci_pram __iomem *pram;	/* Parameter RAM */

@@ -82,7 +82,7 @@ static bool is_packet_valid(struct Qdisc *sch, struct sk_buff *nskb)
 	if (q->skip_sock_check)
 		goto skip;
 
-	if (!sk)
+	if (!sk || !sk_fullsock(sk))
 		return false;
 
 	if (!sock_flag(sk, SOCK_TXTIME))
@@ -137,8 +137,9 @@ static void report_sock_error(struct sk_buff *skb, u32 err, u8 code)
 	struct sock_exterr_skb *serr;
 	struct sk_buff *clone;
 	ktime_t txtime = skb->tstamp;
+	struct sock *sk = skb->sk;
 
-	if (!skb->sk || !(skb->sk->sk_txtime_report_errors))
+	if (!sk || !sk_fullsock(sk) || !(sk->sk_txtime_report_errors))
 		return;
 
 	clone = skb_clone(skb, GFP_ATOMIC);
@@ -154,7 +155,7 @@ static void report_sock_error(struct sk_buff *skb, u32 err, u8 code)
 	serr->ee.ee_data = (txtime >> 32); /* high part of tstamp */
 	serr->ee.ee_info = txtime; /* low part of tstamp */
 
-	if (sock_queue_err_skb(skb->sk, clone))
+	if (sock_queue_err_skb(sk, clone))
 		kfree_skb(clone);
 }
 
@@ -177,7 +178,7 @@ static int etf_enqueue_timesortedlist(struct sk_buff *nskb, struct Qdisc *sch,
 
 		parent = *p;
 		skb = rb_to_skb(parent);
-		if (ktime_after(txtime, skb->tstamp)) {
+		if (ktime_compare(txtime, skb->tstamp) >= 0) {
 			p = &parent->rb_right;
 			leftmost = false;
 		} else {
@@ -322,9 +323,6 @@ static int etf_enable_offload(struct net_device *dev, struct etf_sched_data *q,
 	struct tc_etf_qopt_offload etf = { };
 	int err;
 
-	if (q->offload)
-		return 0;
-
 	if (!ops->ndo_setup_tc) {
 		NL_SET_ERR_MSG(extack, "Specified device does not support ETF offload");
 		return -EOPNOTSUPP;
@@ -444,9 +442,6 @@ static void etf_reset(struct Qdisc *sch)
 	timesortedlist_clear(sch);
 	__qdisc_reset_queue(&sch->q);
 
-	sch->qstats.backlog = 0;
-	sch->q.qlen = 0;
-
 	q->last = 0;
 }
 
@@ -472,15 +467,15 @@ static int etf_dump(struct Qdisc *sch, struct sk_buff *skb)
 	if (!nest)
 		goto nla_put_failure;
 
-	opt.delta = q->delta;
-	opt.clockid = q->clockid;
-	if (q->offload)
+	opt.delta = READ_ONCE(q->delta);
+	opt.clockid = READ_ONCE(q->clockid);
+	if (READ_ONCE(q->offload))
 		opt.flags |= TC_ETF_OFFLOAD_ON;
 
-	if (q->deadline_mode)
+	if (READ_ONCE(q->deadline_mode))
 		opt.flags |= TC_ETF_DEADLINE_MODE_ON;
 
-	if (q->skip_sock_check)
+	if (READ_ONCE(q->skip_sock_check))
 		opt.flags |= TC_ETF_SKIP_SOCK_CHECK;
 
 	if (nla_put(skb, TCA_ETF_PARMS, sizeof(opt), &opt))
@@ -505,6 +500,7 @@ static struct Qdisc_ops etf_qdisc_ops __read_mostly = {
 	.dump		=	etf_dump,
 	.owner		=	THIS_MODULE,
 };
+MODULE_ALIAS_NET_SCH("etf");
 
 static int __init etf_module_init(void)
 {
@@ -518,3 +514,4 @@ static void __exit etf_module_exit(void)
 module_init(etf_module_init)
 module_exit(etf_module_exit)
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Earliest TxTime First (ETF) qdisc");

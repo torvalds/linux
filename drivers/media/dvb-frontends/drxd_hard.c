@@ -914,44 +914,36 @@ static int DownloadMicrocode(struct drxd_state *state,
 	u32 Address;
 	u16 nBlocks;
 	u16 BlockSize;
-	u32 offset = 0;
 	int i, status = 0;
 
 	pSrc = (u8 *) pMCImage;
 	/* We're not using Flags */
 	/* Flags = (pSrc[0] << 8) | pSrc[1]; */
 	pSrc += sizeof(u16);
-	offset += sizeof(u16);
 	nBlocks = (pSrc[0] << 8) | pSrc[1];
 	pSrc += sizeof(u16);
-	offset += sizeof(u16);
 
 	for (i = 0; i < nBlocks; i++) {
 		Address = (pSrc[0] << 24) | (pSrc[1] << 16) |
 		    (pSrc[2] << 8) | pSrc[3];
 		pSrc += sizeof(u32);
-		offset += sizeof(u32);
 
 		BlockSize = ((pSrc[0] << 8) | pSrc[1]) * sizeof(u16);
 		pSrc += sizeof(u16);
-		offset += sizeof(u16);
 
 		/* We're not using Flags */
 		/* u16 Flags = (pSrc[0] << 8) | pSrc[1]; */
 		pSrc += sizeof(u16);
-		offset += sizeof(u16);
 
 		/* We're not using BlockCRC */
 		/* u16 BlockCRC = (pSrc[0] << 8) | pSrc[1]; */
 		pSrc += sizeof(u16);
-		offset += sizeof(u16);
 
 		status = WriteBlock(state, Address, BlockSize,
 				    pSrc, DRX_I2C_CLEARCRC);
 		if (status < 0)
 			break;
 		pSrc += BlockSize;
-		offset += BlockSize;
 	}
 
 	return status;
@@ -1512,14 +1504,14 @@ static int SetDeviceTypeId(struct drxd_state *state)
 			switch (deviceId) {
 			case 4:
 				state->diversity = 1;
-				/* fall through */
+				fallthrough;
 			case 3:
 			case 7:
 				state->PGA = 1;
 				break;
 			case 6:
 				state->diversity = 1;
-				/* fall through */
+				fallthrough;
 			case 5:
 			case 8:
 				break;
@@ -1622,7 +1614,6 @@ static int CorrectSysClockDeviation(struct drxd_state *state)
 			break;
 		default:
 			return -1;
-			break;
 		}
 
 		/* Compute new sysclock value
@@ -1966,7 +1957,7 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 		switch (p->transmission_mode) {
 		default:	/* Not set, detect it automatically */
 			operationMode |= SC_RA_RAM_OP_AUTO_MODE__M;
-			/* fall through - try first guess DRX_FFTMODE_8K */
+			fallthrough;	/* try first guess DRX_FFTMODE_8K */
 		case TRANSMISSION_MODE_8K:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_MODE_8K;
 			if (state->type_A) {
@@ -2139,7 +2130,7 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 		switch (p->modulation) {
 		default:
 			operationMode |= SC_RA_RAM_OP_AUTO_CONST__M;
-			/* fall through - try first guess DRX_CONSTELLATION_QAM64 */
+			fallthrough;	/* try first guess DRX_CONSTELLATION_QAM64 */
 		case QAM_64:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_CONST_QAM64;
 			if (state->type_A) {
@@ -2266,7 +2257,7 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 			break;
 		default:
 			operationMode |= SC_RA_RAM_OP_AUTO_RATE__M;
-			/* fall through */
+			fallthrough;
 		case FEC_2_3:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_RATE_2_3;
 			if (state->type_A)
@@ -2301,7 +2292,7 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 		switch (p->bandwidth_hz) {
 		case 0:
 			p->bandwidth_hz = 8000000;
-			/* fall through */
+			fallthrough;
 		case 8000000:
 			/* (64/7)*(8/8)*1000000 */
 			bandwidth = DRXD_BANDWIDTH_8MHZ_IN_HZ;
@@ -2948,7 +2939,7 @@ error:
 	kfree(state);
 	return NULL;
 }
-EXPORT_SYMBOL(drxd_attach);
+EXPORT_SYMBOL_GPL(drxd_attach);
 
 MODULE_DESCRIPTION("DRXD driver");
 MODULE_AUTHOR("Micronas");

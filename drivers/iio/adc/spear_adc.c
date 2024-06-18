@@ -5,8 +5,10 @@
  * Copyright 2012 Stefan Roese <sr@denx.de>
  */
 
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
@@ -15,8 +17,6 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/completion.h>
-#include <linux/of.h>
-#include <linux/of_address.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -70,11 +70,20 @@ struct adc_regs_spear6xx {
 };
 
 struct spear_adc_state {
-	struct device_node *np;
+	struct device *dev;
 	struct adc_regs_spear3xx __iomem *adc_base_spear3xx;
 	struct adc_regs_spear6xx __iomem *adc_base_spear6xx;
 	struct clk *clk;
 	struct completion completion;
+	/*
+	 * Lock to protect the device state during a potential concurrent
+	 * read access from userspace. Reading a raw value requires a sequence
+	 * of register writes, then a wait for a completion callback,
+	 * and finally a register read, during which userspace could issue
+	 * another read request. This lock protects a read access from
+	 * ocurring before another one has finished.
+	 */
+	struct mutex lock;
 	u32 current_clk;
 	u32 sampling_freq;
 	u32 avg_samples;
@@ -114,7 +123,7 @@ static void spear_adc_set_ctrl(struct spear_adc_state *st, int n,
 
 static u32 spear_adc_get_average(struct spear_adc_state *st)
 {
-	if (of_device_is_compatible(st->np, "st,spear600-adc")) {
+	if (device_is_compatible(st->dev, "st,spear600-adc")) {
 		return __raw_readl(&st->adc_base_spear6xx->average.msb) &
 			SPEAR_ADC_DATA_MASK;
 	} else {
@@ -125,7 +134,7 @@ static u32 spear_adc_get_average(struct spear_adc_state *st)
 
 static void spear_adc_set_scanrate(struct spear_adc_state *st, u32 rate)
 {
-	if (of_device_is_compatible(st->np, "st,spear600-adc")) {
+	if (device_is_compatible(st->dev, "st,spear600-adc")) {
 		__raw_writel(SPEAR600_ADC_SCAN_RATE_LO(rate),
 			     &st->adc_base_spear6xx->scan_rate_lo);
 		__raw_writel(SPEAR600_ADC_SCAN_RATE_HI(rate),
@@ -146,7 +155,7 @@ static int spear_adc_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		mutex_lock(&indio_dev->mlock);
+		mutex_lock(&st->lock);
 
 		status = SPEAR_ADC_STATUS_CHANNEL_NUM(chan->channel) |
 			SPEAR_ADC_STATUS_AVG_SAMPLE(st->avg_samples) |
@@ -159,7 +168,7 @@ static int spear_adc_read_raw(struct iio_dev *indio_dev,
 		wait_for_completion(&st->completion); /* set by ISR */
 		*val = st->value;
 
-		mutex_unlock(&indio_dev->mlock);
+		mutex_unlock(&st->lock);
 
 		return IIO_VAL_INT;
 
@@ -187,7 +196,7 @@ static int spear_adc_write_raw(struct iio_dev *indio_dev,
 	if (mask != IIO_CHAN_INFO_SAMP_FREQ)
 		return -EINVAL;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&st->lock);
 
 	if ((val < SPEAR_ADC_CLK_MIN) ||
 	    (val > SPEAR_ADC_CLK_MAX) ||
@@ -199,7 +208,7 @@ static int spear_adc_write_raw(struct iio_dev *indio_dev,
 	spear_adc_set_clk(st, val);
 
 out:
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&st->lock);
 	return ret;
 }
 
@@ -257,131 +266,94 @@ static const struct iio_info spear_adc_info = {
 
 static int spear_adc_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
 	struct spear_adc_state *st;
-	struct resource *res;
 	struct iio_dev *indio_dev = NULL;
 	int ret = -ENODEV;
 	int irq;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(struct spear_adc_state));
-	if (!indio_dev) {
-		dev_err(dev, "failed allocating iio device\n");
-		return -ENOMEM;
-	}
+	if (!indio_dev)
+		return dev_err_probe(dev, -ENOMEM,
+				     "failed allocating iio device\n");
 
 	st = iio_priv(indio_dev);
-	st->np = np;
+	st->dev = dev;
+
+	mutex_init(&st->lock);
 
 	/*
 	 * SPEAr600 has a different register layout than other SPEAr SoC's
 	 * (e.g. SPEAr3xx). Let's provide two register base addresses
 	 * to support multi-arch kernels.
 	 */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	st->adc_base_spear6xx = devm_ioremap_resource(&pdev->dev, res);
+	st->adc_base_spear6xx = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(st->adc_base_spear6xx))
 		return PTR_ERR(st->adc_base_spear6xx);
 
 	st->adc_base_spear3xx =
 		(struct adc_regs_spear3xx __iomem *)st->adc_base_spear6xx;
 
-	st->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(st->clk)) {
-		dev_err(dev, "failed getting clock\n");
-		return PTR_ERR(st->clk);
-	}
-
-	ret = clk_prepare_enable(st->clk);
-	if (ret) {
-		dev_err(dev, "failed enabling clock\n");
-		return ret;
-	}
+	st->clk = devm_clk_get_enabled(dev, NULL);
+	if (IS_ERR(st->clk))
+		return dev_err_probe(dev, PTR_ERR(st->clk),
+				     "failed enabling clock\n");
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0) {
-		ret = -EINVAL;
-		goto errout2;
-	}
+	if (irq < 0)
+		return irq;
 
 	ret = devm_request_irq(dev, irq, spear_adc_isr, 0, SPEAR_ADC_MOD_NAME,
 			       st);
-	if (ret < 0) {
-		dev_err(dev, "failed requesting interrupt\n");
-		goto errout2;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "failed requesting interrupt\n");
 
-	if (of_property_read_u32(np, "sampling-frequency",
-				 &st->sampling_freq)) {
-		dev_err(dev, "sampling-frequency missing in DT\n");
-		ret = -EINVAL;
-		goto errout2;
-	}
+	if (device_property_read_u32(dev, "sampling-frequency", &st->sampling_freq))
+		return dev_err_probe(dev, -EINVAL,
+				     "sampling-frequency missing in DT\n");
 
 	/*
 	 * Optional avg_samples defaults to 0, resulting in single data
 	 * conversion
 	 */
-	of_property_read_u32(np, "average-samples", &st->avg_samples);
+	device_property_read_u32(dev, "average-samples", &st->avg_samples);
 
 	/*
 	 * Optional vref_external defaults to 0, resulting in internal vref
 	 * selection
 	 */
-	of_property_read_u32(np, "vref-external", &st->vref_external);
+	device_property_read_u32(dev, "vref-external", &st->vref_external);
 
 	spear_adc_configure(st);
-
-	platform_set_drvdata(pdev, indio_dev);
 
 	init_completion(&st->completion);
 
 	indio_dev->name = SPEAR_ADC_MOD_NAME;
-	indio_dev->dev.parent = dev;
 	indio_dev->info = &spear_adc_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = spear_adc_iio_channels;
 	indio_dev->num_channels = ARRAY_SIZE(spear_adc_iio_channels);
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_device_register(dev, indio_dev);
 	if (ret)
-		goto errout2;
+		return ret;
 
 	dev_info(dev, "SPEAR ADC driver loaded, IRQ %d\n", irq);
 
 	return 0;
-
-errout2:
-	clk_disable_unprepare(st->clk);
-	return ret;
 }
 
-static int spear_adc_remove(struct platform_device *pdev)
-{
-	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
-	struct spear_adc_state *st = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	clk_disable_unprepare(st->clk);
-
-	return 0;
-}
-
-#ifdef CONFIG_OF
 static const struct of_device_id spear_adc_dt_ids[] = {
 	{ .compatible = "st,spear600-adc", },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, spear_adc_dt_ids);
-#endif
 
 static struct platform_driver spear_adc_driver = {
 	.probe		= spear_adc_probe,
-	.remove		= spear_adc_remove,
 	.driver		= {
 		.name	= SPEAR_ADC_MOD_NAME,
-		.of_match_table = of_match_ptr(spear_adc_dt_ids),
+		.of_match_table = spear_adc_dt_ids,
 	},
 };
 

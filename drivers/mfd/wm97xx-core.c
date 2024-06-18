@@ -95,7 +95,7 @@ static const struct regmap_config wm9705_regmap_config = {
 	.reg_stride = 2,
 	.val_bits = 16,
 	.max_register = 0x7e,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 
 	.reg_defaults = wm9705_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm9705_reg_defaults),
@@ -163,7 +163,7 @@ static const struct regmap_config wm9712_regmap_config = {
 	.reg_stride = 2,
 	.val_bits = 16,
 	.max_register = 0x7e,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 
 	.reg_defaults = wm9712_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm9712_reg_defaults),
@@ -234,7 +234,7 @@ static const struct regmap_config wm9713_regmap_config = {
 	.reg_stride = 2,
 	.val_bits = 16,
 	.max_register = 0x7e,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 
 	.reg_defaults = wm9713_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm9713_reg_defaults),
@@ -319,13 +319,11 @@ err_free_compat:
 	return ret;
 }
 
-static int wm97xx_ac97_remove(struct ac97_codec_device *adev)
+static void wm97xx_ac97_remove(struct ac97_codec_device *adev)
 {
 	struct wm97xx_priv *wm97xx = ac97_get_drvdata(adev);
 
 	snd_ac97_compat_release(wm97xx->ac97);
-
-	return 0;
 }
 
 static const struct ac97_id wm97xx_ac97_ids[] = {

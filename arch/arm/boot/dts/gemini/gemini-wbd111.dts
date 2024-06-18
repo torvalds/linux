@@ -1,0 +1,142 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree file for Wiliboard WBD-111
+ */
+
+/dts-v1/;
+
+#include "gemini.dtsi"
+#include <dt-bindings/input/input.h>
+
+/ {
+	model = "Wiliboard WBD-111";
+	compatible = "wiligear,wiliboard-wbd111", "cortina,gemini";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	memory@0 {
+		/* 128 MB */
+		device_type = "memory";
+		reg = <0x00000000 0x8000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8";
+		stdout-path = &uart0;
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+
+		button-reset {
+			debounce-interval = <100>;
+			wakeup-source;
+			linux,code = <KEY_RESTART>;
+			label = "reset";
+			/* Conflict with ICE */
+			gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		led-red-l3 {
+			label = "wbd111:red:L3";
+			/* Conflict with TVC and extended parallel flash */
+			gpios = <&gpio0 1 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led-green-l4 {
+			label = "wbd111:green:L4";
+			/* Conflict with TVC and extended parallel flash */
+			gpios = <&gpio0 2 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led-red-l4 {
+			label = "wbd111:red:L4";
+			/* Conflict with TVC and extended parallel flash */
+			gpios = <&gpio0 3 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led-greeb-l3 {
+			label = "wbd111:green:L3";
+			/* Conflict with TVC and extended parallel flash */
+			gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	mdio0: mdio {
+		compatible = "virtual,mdio-gpio";
+		gpios = <&gpio0 22 GPIO_ACTIVE_HIGH>, /* MDC */
+			<&gpio0 21 GPIO_ACTIVE_HIGH>; /* MDIO */
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		phy0: ethernet-phy@1 {
+			reg = <1>;
+			device_type = "ethernet-phy";
+		};
+	};
+
+	soc {
+		flash@30000000 {
+			status = "okay";
+			/* 8MB of flash */
+			reg = <0x30000000 0x00800000>;
+
+			partitions {
+				compatible = "redboot-fis";
+				/* Eraseblock at 0x7e0000 */
+				fis-index-block = <0x3f>;
+			};
+		};
+
+		syscon: syscon@40000000 {
+			pinctrl {
+				/*
+				 * gpio0agrp cover line 0-4
+				 * gpio0bgrp cover line 5
+				 */
+				gpio0_default_pins: pinctrl-gpio0 {
+					mux {
+						function = "gpio0";
+						groups = "gpio0agrp",
+						"gpio0bgrp";
+					};
+				};
+			};
+		};
+
+		gpio0: gpio@4d000000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&gpio0_default_pins>;
+		};
+
+		pci@50000000 {
+			status = "okay";
+		};
+
+		ethernet@60000000 {
+			status = "okay";
+
+			ethernet-port@0 {
+				phy-mode = "rgmii";
+				phy-handle = <&phy0>;
+			};
+			ethernet-port@1 {
+				/* Not used in this platform */
+			};
+		};
+
+		usb@68000000 {
+			status = "okay";
+		};
+
+		usb@69000000 {
+			status = "okay";
+		};
+	};
+};

@@ -1,0 +1,339 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright 2022 Toradex
+ */
+
+#include "imx8qm-apalis-v1.1.dtsi"
+
+/ {
+	model = "Toradex Apalis iMX8QM";
+	compatible = "toradex,apalis-imx8",
+		     "fsl,imx8qm";
+};
+
+&ethphy0 {
+	interrupts = <5 IRQ_TYPE_LEVEL_LOW>;
+};
+
+/*
+ * Apalis iMX8QM V1.0 has PHY KSZ9031. the Micrel PHY driver
+ * doesn't support setting internal PHY delay for TXC line for
+ * this PHY model. Use delay on MAC side instead.
+ */
+&fec1 {
+	phy-mode = "rgmii-rxid";
+};
+
+/* TODO: Apalis HDMI1 */
+
+/* Apalis I2C2 (DDC) */
+&i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_lpi2c0>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	clock-frequency = <100000>;
+};
+
+&lsio_gpio0 {
+	gpio-line-names = "MXM3_279",
+			  "MXM3_277",
+			  "MXM3_135",
+			  "MXM3_203",
+			  "MXM3_201",
+			  "MXM3_275",
+			  "MXM3_110",
+			  "MXM3_120",
+			  "MXM3_1/GPIO1",
+			  "MXM3_3/GPIO2",
+			  "MXM3_124",
+			  "MXM3_122",
+			  "MXM3_5/GPIO3",
+			  "MXM3_7/GPIO4",
+			  "",
+			  "",
+			  "MXM3_4",
+			  "MXM3_211",
+			  "MXM3_209",
+			  "MXM3_2",
+			  "MXM3_136",
+			  "MXM3_134",
+			  "MXM3_6",
+			  "MXM3_8",
+			  "MXM3_112",
+			  "MXM3_118",
+			  "MXM3_114",
+			  "MXM3_116";
+};
+
+&lsio_gpio1 {
+	gpio-line-names = "",
+			  "",
+			  "",
+			  "",
+			  "MXM3_286",
+			  "",
+			  "MXM3_87",
+			  "MXM3_99",
+			  "MXM3_138",
+			  "MXM3_140",
+			  "MXM3_239",
+			  "",
+			  "MXM3_281",
+			  "MXM3_283",
+			  "MXM3_126",
+			  "MXM3_132",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "MXM3_173",
+			  "MXM3_175",
+			  "MXM3_123";
+};
+
+&lsio_gpio2 {
+	gpio-line-names = "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "MXM3_198",
+			  "MXM3_35",
+			  "MXM3_164",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "MXM3_217",
+			  "MXM3_215",
+			  "",
+			  "",
+			  "MXM3_193",
+			  "MXM3_194",
+			  "MXM3_37",
+			  "",
+			  "MXM3_271",
+			  "MXM3_273",
+			  "MXM3_195",
+			  "MXM3_197",
+			  "MXM3_177",
+			  "MXM3_179",
+			  "MXM3_181",
+			  "MXM3_183",
+			  "MXM3_185",
+			  "MXM3_187";
+};
+
+&lsio_gpio3 {
+	gpio-line-names = "MXM3_191",
+			  "",
+			  "MXM3_221",
+			  "MXM3_225",
+			  "MXM3_223",
+			  "MXM3_227",
+			  "MXM3_200",
+			  "MXM3_235",
+			  "MXM3_231",
+			  "MXM3_229",
+			  "MXM3_233",
+			  "MXM3_204",
+			  "MXM3_196",
+			  "",
+			  "MXM3_202",
+			  "",
+			  "",
+			  "",
+			  "MXM3_305",
+			  "MXM3_307",
+			  "MXM3_309",
+			  "MXM3_311",
+			  "MXM3_315",
+			  "MXM3_317",
+			  "MXM3_319",
+			  "MXM3_321",
+			  "MXM3_15/GPIO7",
+			  "MXM3_63",
+			  "MXM3_17/GPIO8",
+			  "MXM3_12",
+			  "MXM3_14",
+			  "MXM3_16";
+};
+
+&lsio_gpio4 {
+	gpio-line-names = "MXM3_18",
+			  "MXM3_11/GPIO5",
+			  "MXM3_13/GPIO6",
+			  "MXM3_274",
+			  "MXM3_84",
+			  "MXM3_262",
+			  "MXM3_96",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "MXM3_190",
+			  "",
+			  "",
+			  "",
+			  "MXM3_269",
+			  "MXM3_251",
+			  "MXM3_253",
+			  "MXM3_295",
+			  "MXM3_299",
+			  "MXM3_301",
+			  "MXM3_297",
+			  "MXM3_293",
+			  "MXM3_291",
+			  "MXM3_289",
+			  "MXM3_287";
+
+	/* Enable pcie root / sata ref clock unconditionally */
+	pcie-sata-hog {
+		gpios = <27 GPIO_ACTIVE_HIGH>;
+	};
+
+};
+
+&lsio_gpio5 {
+	gpio-line-names = "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "MXM3_150",
+			  "MXM3_160",
+			  "MXM3_162",
+			  "MXM3_144",
+			  "MXM3_146",
+			  "MXM3_148",
+			  "MXM3_152",
+			  "MXM3_156",
+			  "MXM3_158",
+			  "MXM3_159",
+			  "MXM3_184",
+			  "MXM3_180",
+			  "MXM3_186",
+			  "MXM3_188",
+			  "MXM3_176",
+			  "MXM3_178";
+};
+
+&lsio_gpio6 {
+	gpio-line-names = "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "MXM3_261",
+			  "MXM3_263",
+			  "MXM3_259",
+			  "MXM3_257",
+			  "MXM3_255",
+			  "MXM3_128",
+			  "MXM3_130",
+			  "MXM3_265",
+			  "MXM3_249",
+			  "MXM3_247",
+			  "MXM3_245",
+			  "MXM3_243";
+};
+
+&pinctrl_fec1 {
+	fsl,pins =
+		/* Use pads in 1.8V mode */
+		<IMX8QM_COMP_CTL_GPIO_1V8_3V3_ENET_ENETB_PAD			0x000014a0>,
+		<IMX8QM_ENET0_MDC_CONN_ENET0_MDC				0x06000020>,
+		<IMX8QM_ENET0_MDIO_CONN_ENET0_MDIO				0x06000020>,
+		<IMX8QM_ENET0_RGMII_TX_CTL_CONN_ENET0_RGMII_TX_CTL		0x06000020>,
+		<IMX8QM_ENET0_RGMII_TXC_CONN_ENET0_RGMII_TXC			0x06000020>,
+		<IMX8QM_ENET0_RGMII_TXD0_CONN_ENET0_RGMII_TXD0			0x06000020>,
+		<IMX8QM_ENET0_RGMII_TXD1_CONN_ENET0_RGMII_TXD1			0x06000020>,
+		<IMX8QM_ENET0_RGMII_TXD2_CONN_ENET0_RGMII_TXD2			0x06000020>,
+		<IMX8QM_ENET0_RGMII_TXD3_CONN_ENET0_RGMII_TXD3			0x06000020>,
+		<IMX8QM_ENET0_RGMII_RXC_CONN_ENET0_RGMII_RXC			0x06000020>,
+		<IMX8QM_ENET0_RGMII_RX_CTL_CONN_ENET0_RGMII_RX_CTL		0x06000020>,
+		<IMX8QM_ENET0_RGMII_RXD0_CONN_ENET0_RGMII_RXD0			0x06000020>,
+		<IMX8QM_ENET0_RGMII_RXD1_CONN_ENET0_RGMII_RXD1			0x06000020>,
+		<IMX8QM_ENET0_RGMII_RXD2_CONN_ENET0_RGMII_RXD2			0x06000020>,
+		<IMX8QM_ENET0_RGMII_RXD3_CONN_ENET0_RGMII_RXD3			0x06000020>,
+		<IMX8QM_ENET0_REFCLK_125M_25M_CONN_ENET0_REFCLK_125M_25M	0x06000020>,
+		/* On-module ETH_RESET# */
+		<IMX8QM_LVDS1_GPIO01_LSIO_GPIO1_IO11				0x06000020>,
+		/* On-module ETH_INT# */
+		<IMX8QM_LVDS0_GPIO01_LSIO_GPIO1_IO05				0x04000060>;
+};
+
+&pinctrl_fec1_sleep {
+	fsl,pins =
+		<IMX8QM_COMP_CTL_GPIO_1V8_3V3_ENET_ENETB_PAD			0x000014a0>,
+		<IMX8QM_ENET0_MDC_LSIO_GPIO4_IO14				0x04000040>,
+		<IMX8QM_ENET0_MDIO_LSIO_GPIO4_IO13				0x04000040>,
+		<IMX8QM_ENET0_RGMII_TX_CTL_LSIO_GPIO5_IO31			0x04000040>,
+		<IMX8QM_ENET0_RGMII_TXC_LSIO_GPIO5_IO30				0x04000040>,
+		<IMX8QM_ENET0_RGMII_TXD0_LSIO_GPIO6_IO00			0x04000040>,
+		<IMX8QM_ENET0_RGMII_TXD1_LSIO_GPIO6_IO01			0x04000040>,
+		<IMX8QM_ENET0_RGMII_TXD2_LSIO_GPIO6_IO02			0x04000040>,
+		<IMX8QM_ENET0_RGMII_TXD3_LSIO_GPIO6_IO03			0x04000040>,
+		<IMX8QM_ENET0_RGMII_RXC_LSIO_GPIO6_IO04				0x04000040>,
+		<IMX8QM_ENET0_RGMII_RX_CTL_LSIO_GPIO6_IO05			0x04000040>,
+		<IMX8QM_ENET0_RGMII_RXD0_LSIO_GPIO6_IO06			0x04000040>,
+		<IMX8QM_ENET0_RGMII_RXD1_LSIO_GPIO6_IO07			0x04000040>,
+		<IMX8QM_ENET0_RGMII_RXD2_LSIO_GPIO6_IO08			0x04000040>,
+		<IMX8QM_ENET0_RGMII_RXD3_LSIO_GPIO6_IO09			0x04000040>,
+		<IMX8QM_ENET0_REFCLK_125M_25M_LSIO_GPIO4_IO15			0x04000040>,
+		<IMX8QM_LVDS1_GPIO01_LSIO_GPIO1_IO11				0x04000040>,
+		<IMX8QM_LVDS0_GPIO01_LSIO_GPIO1_IO05				0x04000040>;
+};
+
+&iomuxc {
+	/* Apalis I2C2 (DDC) */
+	pinctrl_lpi2c0: lpi2c0grp {
+		fsl,pins =
+			<IMX8QM_HDMI_TX0_TS_SCL_DMA_I2C0_SCL			0x04000022>,
+			<IMX8QM_HDMI_TX0_TS_SDA_DMA_I2C0_SDA			0x04000022>;
+	};
+};
+
+/* On-module PCIe_CTRL0_CLKREQ */
+&pinctrl_pcie_sata_refclk {
+	fsl,pins =
+		<IMX8QM_PCIE_CTRL0_CLKREQ_B_LSIO_GPIO4_IO27			0x00000021>;
+};
+
+/* TODO: On-module Wi-Fi */
+
+/* Apalis MMC1 */
+&usdhc2 {
+	/*
+	 * The PMIC on V1.0A HW generates 1.6V instead of 1.8V which creates
+	 * issues with certain SD cards, disable 1.8V signaling for now.
+	 */
+	no-1-8-v;
+};
+
+/* Apalis SD1 */
+&usdhc3 {
+	/*
+	 * The PMIC on V1.0A HW generates 1.6V instead of 1.8V which creates
+	 * issues with certain SD cards, disable 1.8V signaling for now.
+	 */
+	no-1-8-v;
+};

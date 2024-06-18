@@ -20,8 +20,6 @@ struct omap_mmc_platform_data {
 	 * maximum frequency on the MMC bus */
 	unsigned int max_freq;
 
-	/* switch the bus to a new slot */
-	int (*switch_slot)(struct device *dev, int slot);
 	/* initialize board-specific MMC functionality, can be NULL if
 	 * not supported */
 	int (*init)(struct device *dev);
@@ -108,11 +106,13 @@ struct omap_mmc_platform_data {
 		const char *name;
 		u32 ocr_mask;
 
-		/* Card detection IRQs */
-		int card_detect_irq;
+		/* Card detection */
 		int (*card_detect)(struct device *dev, int slot);
 
 		unsigned int ban_openended:1;
 
 	} slots[OMAP_MMC_MAX_SLOTS];
 };
+
+extern void omap_mmc_notify_cover_event(struct device *dev, int slot,
+					int is_closed);

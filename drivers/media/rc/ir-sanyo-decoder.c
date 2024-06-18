@@ -17,7 +17,7 @@
 #include "rc-core-priv.h"
 
 #define SANYO_NBITS		(13+13+8+8)
-#define SANYO_UNIT		562500  /* ns */
+#define SANYO_UNIT		563  /* us */
 #define SANYO_HEADER_PULSE	(16  * SANYO_UNIT)
 #define SANYO_HEADER_SPACE	(8   * SANYO_UNIT)
 #define SANYO_BIT_PULSE		(1   * SANYO_UNIT)
@@ -51,15 +51,15 @@ static int ir_sanyo_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	u8 command, not_command;
 
 	if (!is_timing_event(ev)) {
-		if (ev.reset) {
-			dev_dbg(&dev->dev, "SANYO event reset received. reset to state 0\n");
+		if (ev.overflow) {
+			dev_dbg(&dev->dev, "SANYO event overflow received. reset to state 0\n");
 			data->state = STATE_INACTIVE;
 		}
 		return 0;
 	}
 
 	dev_dbg(&dev->dev, "SANYO decode started at state %d (%uus %s)\n",
-		data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+		data->state, ev.duration, TO_STR(ev.pulse));
 
 	switch (data->state) {
 
@@ -158,7 +158,7 @@ static int ir_sanyo_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	}
 
 	dev_dbg(&dev->dev, "SANYO decode failed at count %d state %d (%uus %s)\n",
-		data->count, data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+		data->count, data->state, ev.duration, TO_STR(ev.pulse));
 	data->state = STATE_INACTIVE;
 	return -EINVAL;
 }

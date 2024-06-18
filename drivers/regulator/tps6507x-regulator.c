@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * tps6507x-regulator.c
  *
  * Regulator driver for TPS65073 PMIC
  *
- * Copyright (C) 2009 Texas Instrument Incorporated - http://www.ti.com/
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any kind,
- * whether express or implied; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ * Copyright (C) 2009 Texas Instrument Incorporated - https://www.ti.com/
  */
 
 #include <linux/kernel.h>
@@ -446,6 +438,7 @@ static int tps6507x_pmic_probe(struct platform_device *pdev)
 static struct platform_driver tps6507x_pmic_driver = {
 	.driver = {
 		.name = "tps6507x-pmic",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = tps6507x_pmic_probe,
 };

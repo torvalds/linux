@@ -10,13 +10,12 @@
 #include <linux/init.h>
 #include <linux/bitops.h>
 #include <linux/memblock.h>
-#include <linux/clk-provider.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/of_clk.h>
 #include <linux/of_fdt.h>
-#include <linux/of_platform.h>
 #include <linux/libfdt.h>
 #include <linux/smp.h>
 #include <asm/addrspace.h>
@@ -28,11 +27,14 @@
 #include <asm/smp-ops.h>
 #include <asm/time.h>
 #include <asm/traps.h>
+#include <asm/fw/cfe/cfe_api.h>
 
 #define RELO_NORMAL_VEC		BIT(18)
 
 #define REG_BCM6328_OTP		((void __iomem *)CKSEG1ADDR(0x1000062c))
 #define BCM6328_TP1_DISABLED	BIT(9)
+
+extern bool bmips_rac_flush_disable;
 
 static const unsigned long kbase = VMLINUX_LOAD_ADDRESS & 0xfff00000;
 
@@ -103,6 +105,12 @@ static void bcm6358_quirks(void)
 	 * disable SMP for now
 	 */
 	bmips_smp_enabled = 0;
+
+	/*
+	 * RAC flush causes kernel panics on BCM6358 when booting from TP1
+	 * because the bootloader is not initializing it properly.
+	 */
+	bmips_rac_flush_disable = !!(read_c0_brcm_cmt_local() & (1 << 31));
 }
 
 static void bcm6368_quirks(void)
@@ -123,14 +131,21 @@ static const struct bmips_quirk bmips_quirk_list[] = {
 	{ },
 };
 
-void __init prom_init(void)
+static void __init bmips_init_cfe(void)
 {
-	bmips_cpu_setup();
-	register_bmips_smp_ops();
+	cfe_seal = fw_arg3;
+
+	if (cfe_seal != CFE_EPTSEAL)
+		return;
+
+	cfe_init(fw_arg0, fw_arg2);
 }
 
-void __init prom_free_prom_memory(void)
+void __init prom_init(void)
 {
+	bmips_init_cfe();
+	bmips_cpu_setup();
+	register_bmips_smp_ops();
 }
 
 const char *get_system_type(void)
@@ -162,15 +177,17 @@ void __init plat_mem_setup(void)
 	ioport_resource.start = 0;
 	ioport_resource.end = ~0;
 
-	/* intended to somewhat resemble ARM; see Documentation/arm/booting.rst */
+	/*
+	 * intended to somewhat resemble ARM; see
+	 * Documentation/arch/arm/booting.rst
+	 */
 	if (fw_arg0 == 0 && fw_arg1 == 0xffffffff)
 		dtb = phys_to_virt(fw_arg2);
-	else if (fw_passed_dtb) /* UHI interface or appended dtb */
-		dtb = (void *)fw_passed_dtb;
-	else if (__dtb_start != __dtb_end)
-		dtb = (void *)__dtb_start;
 	else
-		panic("no dtb found");
+		dtb = get_fdt();
+
+	if (!dtb)
+		cfe_die("no dtb found");
 
 	__dt_setup_arch(dtb);
 
@@ -201,4 +218,4 @@ static int __init plat_dev_init(void)
 	return 0;
 }
 
-device_initcall(plat_dev_init);
+arch_initcall(plat_dev_init);

@@ -13,7 +13,8 @@
  *
  * Copyright (c) 2006 Andrzej Zaborowski  <balrog@zabor.org>
  */
-#include <linux/gpio.h>
+#include <linux/gpio/machine.h>
+#include <linux/gpio/consumer.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/input.h>
@@ -25,21 +26,19 @@
 #include <linux/interrupt.h>
 #include <linux/apm-emulation.h>
 #include <linux/omapfb.h>
+#include <linux/omap-dma.h>
+#include <linux/platform_data/keypad-omap.h>
 #include <linux/platform_data/omap1_bl.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
+#include "tc.h"
 #include "flash.h"
-#include <mach/mux.h>
-#include <mach/tc.h>
-#include <linux/omap-dma.h>
-#include <linux/platform_data/keypad-omap.h>
-
-#include <mach/hardware.h>
-#include <mach/usb.h>
-
+#include "mux.h"
+#include "hardware.h"
+#include "usb.h"
 #include "mmc.h"
 #include "common.h"
 
@@ -52,11 +51,6 @@
 #define PALMTE_HDQ_GPIO		11
 #define PALMTE_HEADPHONES_GPIO	14
 #define PALMTE_SPEAKER_GPIO	15
-#define PALMTE_DC_GPIO		OMAP_MPUIO(2)
-#define PALMTE_MMC_SWITCH_GPIO	OMAP_MPUIO(4)
-#define PALMTE_MMC1_GPIO	OMAP_MPUIO(6)
-#define PALMTE_MMC2_GPIO	OMAP_MPUIO(7)
-#define PALMTE_MMC3_GPIO	OMAP_MPUIO(11)
 
 static const unsigned int palmte_keymap[] = {
 	KEY(0, 0, KEY_F1),		/* Calendar */
@@ -189,23 +183,6 @@ static struct spi_board_info palmte_spi_info[] __initdata = {
 	},
 };
 
-static void __init palmte_misc_gpio_setup(void)
-{
-	/* Set TSC2102 PINTDAV pin as input (used by TSC2102 driver) */
-	if (gpio_request(PALMTE_PINTDAV_GPIO, "TSC2102 PINTDAV") < 0) {
-		printk(KERN_ERR "Could not reserve PINTDAV GPIO!\n");
-		return;
-	}
-	gpio_direction_input(PALMTE_PINTDAV_GPIO);
-
-	/* Set USB-or-DC-IN pin as input (unused) */
-	if (gpio_request(PALMTE_USB_OR_DC_GPIO, "USB/DC-IN") < 0) {
-		printk(KERN_ERR "Could not reserve cable signal GPIO!\n");
-		return;
-	}
-	gpio_direction_input(PALMTE_USB_OR_DC_GPIO);
-}
-
 #if IS_ENABLED(CONFIG_MMC_OMAP)
 
 static struct omap_mmc_platform_data _palmte_mmc_config = {
@@ -233,8 +210,23 @@ static void palmte_mmc_init(void)
 
 #endif /* CONFIG_MMC_OMAP */
 
+static struct gpiod_lookup_table palmte_irq_gpio_table = {
+	.dev_id = NULL,
+	.table = {
+		/* GPIO used for TSC2102 PINTDAV IRQ */
+		GPIO_LOOKUP("gpio-0-15", PALMTE_PINTDAV_GPIO, "tsc2102_irq",
+			    GPIO_ACTIVE_HIGH),
+		/* GPIO used for USB or DC input detection */
+		GPIO_LOOKUP("gpio-0-15", PALMTE_USB_OR_DC_GPIO, "usb_dc_irq",
+			    GPIO_ACTIVE_HIGH),
+		{ }
+	},
+};
+
 static void __init omap_palmte_init(void)
 {
+	struct gpio_desc *d;
+
 	/* mux pins for uarts */
 	omap_cfg_reg(UART1_TX);
 	omap_cfg_reg(UART1_RTS);
@@ -245,9 +237,21 @@ static void __init omap_palmte_init(void)
 
 	platform_add_devices(palmte_devices, ARRAY_SIZE(palmte_devices));
 
-	palmte_spi_info[0].irq = gpio_to_irq(PALMTE_PINTDAV_GPIO);
+	gpiod_add_lookup_table(&palmte_irq_gpio_table);
+	d = gpiod_get(NULL, "tsc2102_irq", GPIOD_IN);
+	if (IS_ERR(d))
+		pr_err("Unable to get TSC2102 IRQ GPIO descriptor\n");
+	else
+		palmte_spi_info[0].irq = gpiod_to_irq(d);
 	spi_register_board_info(palmte_spi_info, ARRAY_SIZE(palmte_spi_info));
-	palmte_misc_gpio_setup();
+
+	/* We are getting this just to set it up as input */
+	d = gpiod_get(NULL, "usb_dc_irq", GPIOD_IN);
+	if (IS_ERR(d))
+		pr_err("Unable to get USB/DC IRQ GPIO descriptor\n");
+	else
+		gpiod_put(d);
+
 	omap_serial_init();
 	omap1_usb_init(&palmte_usb_config);
 	omap_register_i2c_bus(1, 100, NULL, 0);
@@ -258,10 +262,9 @@ static void __init omap_palmte_init(void)
 
 MACHINE_START(OMAP_PALMTE, "OMAP310 based Palm Tungsten E")
 	.atag_offset	= 0x100,
-	.map_io		= omap15xx_map_io,
+	.map_io		= omap1_map_io,
 	.init_early     = omap1_init_early,
 	.init_irq	= omap1_init_irq,
-	.handle_irq	= omap1_handle_irq,
 	.init_machine	= omap_palmte_init,
 	.init_late	= omap1_init_late,
 	.init_time	= omap1_timer_init,

@@ -60,7 +60,7 @@ do { \
 	set_desc_limit(&gdt[(selname) >> 3], (size) - 1); \
 } while(0)
 
-static struct desc_struct bad_bios_desc = GDT_ENTRY_INIT(0x4092,
+static struct desc_struct bad_bios_desc = GDT_ENTRY_INIT(DESC_DATA32_BIOS,
 			(unsigned long)__va(0x400UL), PAGE_SIZE - 0x400 - 1);
 
 /*
@@ -72,7 +72,7 @@ __visible u32 pnp_bios_fault_esp;
 __visible u32 pnp_bios_fault_eip;
 __visible u32 pnp_bios_is_utter_crap = 0;
 
-static spinlock_t pnp_bios_lock;
+static DEFINE_SPINLOCK(pnp_bios_lock);
 
 /*
  * Support Functions
@@ -473,7 +473,6 @@ void pnpbios_calls_init(union pnp_bios_install_struct *header)
 {
 	int i;
 
-	spin_lock_init(&pnp_bios_lock);
 	pnp_bios_callpoint.offset = header->fields.pm16offset;
 	pnp_bios_callpoint.segment = PNP_CS16;
 

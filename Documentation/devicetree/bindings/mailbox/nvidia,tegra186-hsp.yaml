@@ -1,0 +1,124 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mailbox/nvidia,tegra186-hsp.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra Hardware Synchronization Primitives (HSP)
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+
+description: |
+  The HSP modules are used for the processors to share resources and
+  communicate together. It provides a set of hardware synchronization
+  primitives for interprocessor communication. So the interprocessor
+  communication (IPC) protocols can use hardware synchronization
+  primitives, when operating between two processors not in an SMP
+  relationship.
+
+  The features that HSP supported are shared mailboxes, shared
+  semaphores, arbitrated semaphores and doorbells.
+
+  The mbox specifier of the "mboxes" property in the client node should
+  contain two cells. The first cell determines the HSP type and the
+  second cell is used to identify the mailbox that the client is going
+  to use.
+
+  For shared mailboxes, the first cell composed of two fields:
+    - bits 15..8:
+        A bit mask of flags that further specifies the type of shared
+        mailbox to be used (based on the data size). If no flag is
+        specified then, 32-bit shared mailbox is used.
+    - bits 7..0:
+        Defines the type of the mailbox to be used. This field should be
+        TEGRA_HSP_MBOX_TYPE_SM for shared mailboxes.
+
+  For doorbells, the second cell specifies the index of the doorbell to
+  use.
+
+  For shared mailboxes, the second cell is composed of two fields:
+    - bits 31..24:
+        A bit mask of flags that further specify how the shared mailbox
+        will be used. Valid flags are:
+          - bit 31:
+              Defines the direction of the mailbox. If set, the mailbox
+              will be used as a producer (i.e. used to send data). If
+              cleared, the mailbox is the consumer of data sent by a
+              producer.
+
+    - bits 23..0:
+        The index of the shared mailbox to use. The number of available
+        mailboxes may vary by instance of the HSP block and SoC
+        generation.
+
+    The following file contains definitions that can be used to
+    construct mailbox specifiers:
+
+        <dt-bindings/mailbox/tegra186-hsp.h>
+
+properties:
+  $nodename:
+    pattern: "^hsp@[0-9a-f]+$"
+
+  compatible:
+    oneOf:
+      - const: nvidia,tegra186-hsp
+      - const: nvidia,tegra194-hsp
+      - const: nvidia,tegra264-hsp
+      - items:
+          - const: nvidia,tegra234-hsp
+          - const: nvidia,tegra194-hsp
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    minItems: 1
+    maxItems: 9
+
+  interrupt-names:
+    oneOf:
+      # shared interrupts are optional
+      - items:
+          - const: doorbell
+
+      - items:
+          - const: doorbell
+          - pattern: "^shared[0-7]$"
+          - pattern: "^shared[0-7]$"
+          - pattern: "^shared[0-7]$"
+          - pattern: "^shared[0-7]$"
+          - pattern: "^shared[0-7]$"
+          - pattern: "^shared[0-7]$"
+          - pattern: "^shared[0-7]$"
+          - pattern: "^shared[0-7]$"
+
+      - items:
+          - pattern: "^shared[0-7]$"
+          - pattern: "^shared[0-7]$"
+          - pattern: "^shared[0-7]$"
+          - pattern: "^shared[0-7]$"
+
+  "#mbox-cells":
+    const: 2
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/mailbox/tegra186-hsp.h>
+
+    hsp_top0: hsp@3c00000 {
+        compatible = "nvidia,tegra186-hsp";
+        reg = <0x03c00000 0xa0000>;
+        interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "doorbell";
+        #mbox-cells = <2>;
+    };
+
+    client {
+        mboxes = <&hsp_top0 TEGRA_HSP_MBOX_TYPE_DB TEGRA_HSP_DB_MASTER_CCPLEX>;
+    };

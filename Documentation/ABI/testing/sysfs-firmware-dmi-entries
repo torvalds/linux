@@ -2,7 +2,7 @@ What:		/sys/firmware/dmi/entries/
 Date:		February 2011
 Contact:	Mike Waychison <mikew@google.com>
 Description:
-		Many machines' firmware (x86 and ia64) export DMI /
+		Many machines' firmware (x86 and arm64) export DMI /
 		SMBIOS tables to the operating system.  Getting at this
 		information is often valuable to userland, especially in
 		cases where there are OEM extensions used.
@@ -33,7 +33,7 @@ Description:
 		doesn't matter), they will be represented in sysfs as
 		entries "T-0" through "T-(N-1)":
 
-		Example entry directories:
+		Example entry directories::
 
 			/sys/firmware/dmi/entries/17-0
 			/sys/firmware/dmi/entries/17-1
@@ -50,61 +50,65 @@ Description:
 		Each DMI entry in sysfs has the common header values
 		exported as attributes:
 
-		handle	: The 16bit 'handle' that is assigned to this
+		========  =================================================
+		handle	  The 16bit 'handle' that is assigned to this
 			  entry by the firmware.  This handle may be
 			  referred to by other entries.
-		length	: The length of the entry, as presented in the
+		length	  The length of the entry, as presented in the
 			  entry itself.  Note that this is _not the
 			  total count of bytes associated with the
-			  entry_.  This value represents the length of
+			  entry.  This value represents the length of
 			  the "formatted" portion of the entry.  This
 			  "formatted" region is sometimes followed by
 			  the "unformatted" region composed of nul
 			  terminated strings, with termination signalled
 			  by a two nul characters in series.
-		raw	: The raw bytes of the entry. This includes the
+		raw	  The raw bytes of the entry. This includes the
 			  "formatted" portion of the entry, the
 			  "unformatted" strings portion of the entry,
 			  and the two terminating nul characters.
-		type	: The type of the entry.  This value is the same
+		type	  The type of the entry.  This value is the same
 			  as found in the directory name.  It indicates
 			  how the rest of the entry should be interpreted.
-		instance: The instance ordinal of the entry for the
+		instance  The instance ordinal of the entry for the
 			  given type.  This value is the same as found
 			  in the parent directory name.
-		position: The ordinal position (zero-based) of the entry
+		position  The ordinal position (zero-based) of the entry
 			  within the entirety of the DMI entry table.
+		========  =================================================
 
-		=== Entry Specialization ===
+		**Entry Specialization**
 
 		Some entry types may have other information available in
 		sysfs.  Not all types are specialized.
 
-		--- Type 15 - System Event Log ---
+		**Type 15 - System Event Log**
 
 		This entry allows the firmware to export a log of
 		events the system has taken.  This information is
 		typically backed by nvram, but the implementation
 		details are abstracted by this table.  This entry's data
-		is exported in the directory:
+		is exported in the directory::
 
-		/sys/firmware/dmi/entries/15-0/system_event_log
+		  /sys/firmware/dmi/entries/15-0/system_event_log
 
 		and has the following attributes (documented in the
 		SMBIOS / DMI specification under "System Event Log (Type 15)":
 
-		area_length
-		header_start_offset
-		data_start_offset
-		access_method
-		status
-		change_token
-		access_method_address
-		header_format
-		per_log_type_descriptor_length
-		type_descriptors_supported_count
+		- area_length
+		- header_start_offset
+		- data_start_offset
+		- access_method
+		- status
+		- change_token
+		- access_method_address
+		- header_format
+		- per_log_type_descriptor_length
+		- type_descriptors_supported_count
 
 		As well, the kernel exports the binary attribute:
 
-		raw_event_log	: The raw binary bits of the event log
+		=============	  ====================================
+		raw_event_log	  The raw binary bits of the event log
 				  as described by the DMI entry.
+		=============	  ====================================

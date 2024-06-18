@@ -1,0 +1,79 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/power/reset/gpio-restart.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: GPIO controlled reset
+
+maintainers:
+  - Sebastian Reichel <sre@kernel.org>
+
+description: >
+  Drive a GPIO line that can be used to restart the system from a restart handler.
+
+  This binding supports level and edge triggered reset.  At driver load time, the driver will
+  request the given gpio line and install a restart handler. If the optional properties
+  'open-source' is not found, the GPIO line will be driven in the inactive state.  Otherwise its
+  not driven until the restart is initiated.
+
+  When the system is restarted, the restart handler will be invoked in priority order.  The GPIO
+  is configured as an output, and driven active, triggering a level triggered reset condition.
+  This will also cause an inactive->active edge condition, triggering positive edge triggered
+  reset. After a delay specified by active-delay, the GPIO is set to inactive, thus causing an
+  active->inactive edge, triggering negative edge triggered reset. After a delay specified by
+  inactive-delay, the GPIO is driven active again.  After a delay specified by wait-delay, the
+  restart handler completes allowing other restart handlers to be attempted.
+
+allOf:
+  - $ref: restart-handler.yaml#
+
+properties:
+  compatible:
+    const: gpio-restart
+
+  gpios:
+    description: The GPIO to set high/low, see "gpios property" in
+      Documentation/devicetree/bindings/gpio/gpio.txt. If the pin should be low to reset the board
+      set it to "Active Low", otherwise set GPIO to "Active High".
+
+  open-source:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: Treat the GPIO as being open source and defer driving it to when the restart is
+      initiated.  If this optional property is not specified, the GPIO is initialized as an output
+      in its inactive state.
+
+  priority:
+    default: 129
+
+  active-delay:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Delay (default 100) to wait after driving gpio active [ms]
+    default: 100
+
+  inactive-delay:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Delay (default 100) to wait after driving gpio inactive [ms]
+    default: 100
+
+  wait-delay:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Delay (default 3000) to wait after completing restart sequence [ms]
+    default: 100
+
+additionalProperties: false
+
+required:
+  - compatible
+  - gpios
+
+examples:
+  - |
+    gpio-restart {
+      compatible = "gpio-restart";
+      gpios = <&gpio 4 0>;
+      priority = <128>;
+      active-delay = <100>;
+      inactive-delay = <100>;
+      wait-delay = <3000>;
+    };

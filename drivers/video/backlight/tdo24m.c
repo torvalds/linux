@@ -322,7 +322,7 @@ static int tdo24m_set_mode(struct lcd_device *ld, struct fb_videomode *m)
 	return lcd->adj_mode(lcd, mode);
 }
 
-static struct lcd_ops tdo24m_ops = {
+static const struct lcd_ops tdo24m_ops = {
 	.get_power	= tdo24m_get_power,
 	.set_power	= tdo24m_set_power,
 	.set_mode	= tdo24m_set_mode,
@@ -397,12 +397,11 @@ static int tdo24m_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int tdo24m_remove(struct spi_device *spi)
+static void tdo24m_remove(struct spi_device *spi)
 {
 	struct tdo24m *lcd = spi_get_drvdata(spi);
 
 	tdo24m_power(lcd, FB_BLANK_POWERDOWN);
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

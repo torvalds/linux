@@ -150,7 +150,7 @@ int sensor_hub_remove_callback(struct hid_sensor_hub_device *hsdev,
 * @info:	return information about attribute after parsing report
 *
 * Parses report and returns the attribute information such as report id,
-* field index, units and exponet etc.
+* field index, units and exponent etc.
 */
 int sensor_hub_input_get_attribute_info(struct hid_sensor_hub_device *hsdev,
 			u8 type,
@@ -167,7 +167,7 @@ int sensor_hub_input_get_attribute_info(struct hid_sensor_hub_device *hsdev,
 * @is_signed:   If true then fields < 32 bits will be sign-extended
 *
 * Issues a synchronous or asynchronous read request for an input attribute.
-* Returns data upto 32 bits.
+* Return: data up to 32 bits.
 */
 
 enum sensor_hub_read_flags {
@@ -205,8 +205,9 @@ int sensor_hub_set_feature(struct hid_sensor_hub_device *hsdev, u32 report_id,
 * @buffer:	buffer to copy output
 *
 * Used to get a field in feature report. For example this can get polling
-* interval, sensitivity, activate/deactivate state. On success it returns
-* number of bytes copied to buffer. On failure, it returns value < 0.
+* interval, sensitivity, activate/deactivate state.
+* Return: On success, it returns the number of bytes copied to buffer.
+* On failure, it returns value < 0.
 */
 int sensor_hub_get_feature(struct hid_sensor_hub_device *hsdev, u32 report_id,
 			   u32 field_index, int buffer_size, void *buffer);
@@ -230,6 +231,7 @@ struct hid_sensor_common {
 	struct hid_sensor_hub_attribute_info report_state;
 	struct hid_sensor_hub_attribute_info power_state;
 	struct hid_sensor_hub_attribute_info sensitivity;
+	struct hid_sensor_hub_attribute_info sensitivity_rel;
 	struct hid_sensor_hub_attribute_info report_latency;
 	struct work_struct work;
 };
@@ -247,11 +249,17 @@ static inline int hid_sensor_convert_exponent(int unit_expo)
 
 int hid_sensor_parse_common_attributes(struct hid_sensor_hub_device *hsdev,
 					u32 usage_id,
-					struct hid_sensor_common *st);
+					struct hid_sensor_common *st,
+					const u32 *sensitivity_addresses,
+					u32 sensitivity_addresses_len);
 int hid_sensor_write_raw_hyst_value(struct hid_sensor_common *st,
 					int val1, int val2);
+int hid_sensor_write_raw_hyst_rel_value(struct hid_sensor_common *st, int val1,
+					int val2);
 int hid_sensor_read_raw_hyst_value(struct hid_sensor_common *st,
 					int *val1, int *val2);
+int hid_sensor_read_raw_hyst_rel_value(struct hid_sensor_common *st,
+				       int *val1, int *val2);
 int hid_sensor_write_samp_freq_value(struct hid_sensor_common *st,
 					int val1, int val2);
 int hid_sensor_read_samp_freq_value(struct hid_sensor_common *st,

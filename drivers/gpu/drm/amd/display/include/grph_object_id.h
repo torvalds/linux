@@ -162,6 +162,7 @@ enum connector_id {
 	CONNECTOR_ID_MXM = 21,
 	CONNECTOR_ID_WIRELESS = 22,
 	CONNECTOR_ID_MIRACAST = 23,
+	CONNECTOR_ID_USBC = 24,
 
 	CONNECTOR_ID_VIRTUAL = 100
 };
@@ -184,6 +185,12 @@ enum engine_id {
 	ENGINE_ID_DACA,
 	ENGINE_ID_DACB,
 	ENGINE_ID_VCE,	/* wireless display pseudo-encoder */
+	ENGINE_ID_HPO_0,
+	ENGINE_ID_HPO_1,
+	ENGINE_ID_HPO_DP_0,
+	ENGINE_ID_HPO_DP_1,
+	ENGINE_ID_HPO_DP_2,
+	ENGINE_ID_HPO_DP_3,
 	ENGINE_ID_VIRTUAL,
 
 	ENGINE_ID_COUNT,
@@ -219,8 +226,8 @@ enum dp_alt_mode {
 
 struct graphics_object_id {
 	uint32_t  id:8;
-	uint32_t  enum_id:4;
-	uint32_t  type:4;
+	enum object_enum_id  enum_id;
+	enum object_type  type;
 	uint32_t  reserved:16; /* for padding. total size should be u32 */
 };
 

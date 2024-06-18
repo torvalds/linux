@@ -9,6 +9,7 @@
 #include <linux/swiotlb.h>
 
 extern unsigned int ppc_swiotlb_enable;
+extern unsigned int ppc_swiotlb_flags;
 
 #ifdef CONFIG_SWIOTLB
 void swiotlb_detect_4g(void);

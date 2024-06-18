@@ -110,7 +110,8 @@ static void dwmac1000_dma_init(void __iomem *ioaddr,
 	writel(DMA_INTR_DEFAULT_MASK, ioaddr + DMA_INTR_ENA);
 }
 
-static void dwmac1000_dma_init_rx(void __iomem *ioaddr,
+static void dwmac1000_dma_init_rx(struct stmmac_priv *priv,
+				  void __iomem *ioaddr,
 				  struct stmmac_dma_cfg *dma_cfg,
 				  dma_addr_t dma_rx_phy, u32 chan)
 {
@@ -118,7 +119,8 @@ static void dwmac1000_dma_init_rx(void __iomem *ioaddr,
 	writel(lower_32_bits(dma_rx_phy), ioaddr + DMA_RCV_BASE_ADDR);
 }
 
-static void dwmac1000_dma_init_tx(void __iomem *ioaddr,
+static void dwmac1000_dma_init_tx(struct stmmac_priv *priv,
+				  void __iomem *ioaddr,
 				  struct stmmac_dma_cfg *dma_cfg,
 				  dma_addr_t dma_tx_phy, u32 chan)
 {
@@ -147,7 +149,8 @@ static u32 dwmac1000_configure_fc(u32 csr6, int rxfifosz)
 	return csr6;
 }
 
-static void dwmac1000_dma_operation_mode_rx(void __iomem *ioaddr, int mode,
+static void dwmac1000_dma_operation_mode_rx(struct stmmac_priv *priv,
+					    void __iomem *ioaddr, int mode,
 					    u32 channel, int fifosz, u8 qmode)
 {
 	u32 csr6 = readl(ioaddr + DMA_CONTROL);
@@ -175,7 +178,8 @@ static void dwmac1000_dma_operation_mode_rx(void __iomem *ioaddr, int mode,
 	writel(csr6, ioaddr + DMA_CONTROL);
 }
 
-static void dwmac1000_dma_operation_mode_tx(void __iomem *ioaddr, int mode,
+static void dwmac1000_dma_operation_mode_tx(struct stmmac_priv *priv,
+					    void __iomem *ioaddr, int mode,
 					    u32 channel, int fifosz, u8 qmode)
 {
 	u32 csr6 = readl(ioaddr + DMA_CONTROL);
@@ -208,7 +212,8 @@ static void dwmac1000_dma_operation_mode_tx(void __iomem *ioaddr, int mode,
 	writel(csr6, ioaddr + DMA_CONTROL);
 }
 
-static void dwmac1000_dump_dma_regs(void __iomem *ioaddr, u32 *reg_space)
+static void dwmac1000_dump_dma_regs(struct stmmac_priv *priv,
+				    void __iomem *ioaddr, u32 *reg_space)
 {
 	int i;
 
@@ -218,10 +223,17 @@ static void dwmac1000_dump_dma_regs(void __iomem *ioaddr, u32 *reg_space)
 				readl(ioaddr + DMA_BUS_MODE + i * 4);
 }
 
-static void dwmac1000_get_hw_feature(void __iomem *ioaddr,
-				     struct dma_features *dma_cap)
+static int dwmac1000_get_hw_feature(void __iomem *ioaddr,
+				    struct dma_features *dma_cap)
 {
 	u32 hw_cap = readl(ioaddr + DMA_HW_FEATURE);
+
+	if (!hw_cap) {
+		/* 0x00000000 is the value read on old hardware that does not
+		 * implement this register
+		 */
+		return -EOPNOTSUPP;
+	}
 
 	dma_cap->mbps_10_100 = (hw_cap & DMA_HW_FEAT_MIISEL);
 	dma_cap->mbps_1000 = (hw_cap & DMA_HW_FEAT_GMIISEL) >> 1;
@@ -252,10 +264,12 @@ static void dwmac1000_get_hw_feature(void __iomem *ioaddr,
 	dma_cap->number_tx_channel = (hw_cap & DMA_HW_FEAT_TXCHCNT) >> 22;
 	/* Alternate (enhanced) DESC mode */
 	dma_cap->enh_desc = (hw_cap & DMA_HW_FEAT_ENHDESSEL) >> 24;
+
+	return 0;
 }
 
-static void dwmac1000_rx_watchdog(void __iomem *ioaddr, u32 riwt,
-				  u32 number_chan)
+static void dwmac1000_rx_watchdog(struct stmmac_priv *priv,
+				  void __iomem *ioaddr, u32 riwt, u32 queue)
 {
 	writel(riwt, ioaddr + DMA_RX_WATCHDOG);
 }

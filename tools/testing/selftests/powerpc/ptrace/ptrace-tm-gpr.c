@@ -12,15 +12,15 @@
 int shm_id;
 unsigned long *cptr, *pptr;
 
-float a = FPR_1;
-float b = FPR_2;
-float c = FPR_3;
+double a = FPR_1;
+double b = FPR_2;
+double c = FPR_3;
 
 void tm_gpr(void)
 {
 	unsigned long gpr_buf[18];
 	unsigned long result, texasr;
-	float fpr_buf[32];
+	double fpr_buf[32];
 
 	printf("Starting the child\n");
 	cptr = (unsigned long *)shmat(shm_id, NULL, 0);
@@ -29,12 +29,12 @@ trans:
 	cptr[1] = 0;
 	asm __volatile__(
 		ASM_LOAD_GPR_IMMED(gpr_1)
-		ASM_LOAD_FPR_SINGLE_PRECISION(flt_1)
+		ASM_LOAD_FPR(flt_1)
 		"1: ;"
 		"tbegin.;"
 		"beq 2f;"
 		ASM_LOAD_GPR_IMMED(gpr_2)
-		ASM_LOAD_FPR_SINGLE_PRECISION(flt_2)
+		ASM_LOAD_FPR(flt_2)
 		"tsuspend.;"
 		"li 7, 1;"
 		"stw 7, 0(%[cptr1]);"
@@ -57,7 +57,7 @@ trans:
 		: [gpr_1]"i"(GPR_1), [gpr_2]"i"(GPR_2),
 		[sprn_texasr] "i" (SPRN_TEXASR), [flt_1] "b" (&a),
 		[flt_2] "b" (&b), [cptr1] "b" (&cptr[1])
-		: "memory", "r7", "r8", "r9", "r10",
+		: "memory", "r0", "r7", "r8", "r9", "r10",
 		"r11", "r12", "r13", "r14", "r15", "r16",
 		"r17", "r18", "r19", "r20", "r21", "r22",
 		"r23", "r24", "r25", "r26", "r27", "r28",
@@ -70,12 +70,12 @@ trans:
 
 		shmdt((void *)cptr);
 		store_gpr(gpr_buf);
-		store_fpr_single_precision(fpr_buf);
+		store_fpr(fpr_buf);
 
 		if (validate_gpr(gpr_buf, GPR_3))
 			exit(1);
 
-		if (validate_fpr_float(fpr_buf, c))
+		if (validate_fpr_double(fpr_buf, c))
 			exit(1);
 
 		exit(0);
@@ -87,7 +87,7 @@ trans:
 int trace_tm_gpr(pid_t child)
 {
 	unsigned long gpr[18];
-	unsigned long fpr[32];
+	__u64 fpr[32];
 
 	FAIL_IF(start_trace(child));
 	FAIL_IF(show_gpr(child, gpr));
@@ -112,7 +112,8 @@ int ptrace_tm_gpr(void)
 	pid_t pid;
 	int ret, status;
 
-	SKIP_IF(!have_htm());
+	SKIP_IF_MSG(!have_htm(), "Don't have transactional memory");
+	SKIP_IF_MSG(htm_is_synthetic(), "Transactional memory is synthetic");
 	shm_id = shmget(IPC_PRIVATE, sizeof(int) * 2, 0777|IPC_CREAT);
 	pid = fork();
 	if (pid < 0) {

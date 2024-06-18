@@ -1,77 +1,21 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0-or-later
 /*
- * Copyright 2008-2015 Freescale Semiconductor Inc.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
- *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
- *       names of its contributors may be used to endorse or promote products
- *       derived from this software without specific prior written permission.
- *
- *
- * ALTERNATIVELY, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") as published by the Free Software
- * Foundation, either version 2 of that License or (at your option) any
- * later version.
- *
- * THIS SOFTWARE IS PROVIDED BY Freescale Semiconductor ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL Freescale Semiconductor BE LIABLE FOR ANY
- * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Copyright 2008 - 2015 Freescale Semiconductor Inc.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include "fman_memac.h"
 #include "fman.h"
+#include "mac.h"
 
 #include <linux/slab.h>
 #include <linux/io.h>
+#include <linux/pcs-lynx.h>
 #include <linux/phy.h>
 #include <linux/phy_fixed.h>
+#include <linux/phy/phy.h>
 #include <linux/of_mdio.h>
-
-/* PCS registers */
-#define MDIO_SGMII_CR			0x00
-#define MDIO_SGMII_DEV_ABIL_SGMII	0x04
-#define MDIO_SGMII_LINK_TMR_L		0x12
-#define MDIO_SGMII_LINK_TMR_H		0x13
-#define MDIO_SGMII_IF_MODE		0x14
-
-/* SGMII Control defines */
-#define SGMII_CR_AN_EN			0x1000
-#define SGMII_CR_RESTART_AN		0x0200
-#define SGMII_CR_FD			0x0100
-#define SGMII_CR_SPEED_SEL1_1G		0x0040
-#define SGMII_CR_DEF_VAL		(SGMII_CR_AN_EN | SGMII_CR_FD | \
-					 SGMII_CR_SPEED_SEL1_1G)
-
-/* SGMII Device Ability for SGMII defines */
-#define MDIO_SGMII_DEV_ABIL_SGMII_MODE	0x4001
-#define MDIO_SGMII_DEV_ABIL_BASEX_MODE	0x01A0
-
-/* Link timer define */
-#define LINK_TMR_L			0xa120
-#define LINK_TMR_H			0x0007
-#define LINK_TMR_L_BASEX		0xaf08
-#define LINK_TMR_H_BASEX		0x002f
-
-/* SGMII IF Mode defines */
-#define IF_MODE_USE_SGMII_AN		0x0002
-#define IF_MODE_SGMII_EN		0x0001
-#define IF_MODE_SGMII_SPEED_100M	0x0004
-#define IF_MODE_SGMII_SPEED_1G		0x0008
-#define IF_MODE_SGMII_DUPLEX_HALF	0x0010
 
 /* Num of additional exact match MAC adr regs */
 #define MEMAC_NUM_OF_PADDRS 7
@@ -110,7 +54,8 @@ do {									\
 /* Interface Mode Register (IF_MODE) */
 
 #define IF_MODE_MASK		0x00000003 /* 30-31 Mask on i/f mode bits */
-#define IF_MODE_XGMII		0x00000000 /* 30-31 XGMII (10G) interface */
+#define IF_MODE_10G		0x00000000 /* 30-31 10G interface */
+#define IF_MODE_MII		0x00000001 /* 30-31 MII interface */
 #define IF_MODE_GMII		0x00000002 /* 30-31 GMII (1G) interface */
 #define IF_MODE_RGMII		0x00000004
 #define IF_MODE_RGMII_AUTO	0x00008000
@@ -322,7 +267,6 @@ struct memac_cfg {
 	bool reset_on_init;
 	bool pause_ignore;
 	bool promiscuous_mode_enable;
-	struct fixed_phy_status *fixed_link;
 	u16 max_frame_length;
 	u16 pause_quanta;
 	u32 tx_ipg_length;
@@ -333,10 +277,7 @@ struct fman_mac {
 	struct memac_regs __iomem *regs;
 	/* MAC address of device */
 	u64 addr;
-	/* Ethernet physical interface */
-	phy_interface_t phy_if;
-	u16 max_speed;
-	void *dev_id; /* device cookie used by the exception cbs */
+	struct mac_device *dev_id; /* device cookie used by the exception cbs */
 	fman_mac_exception_cb *exception_cb;
 	fman_mac_exception_cb *event_cb;
 	/* Pointer to driver's global address hash table  */
@@ -348,12 +289,15 @@ struct fman_mac {
 	struct memac_cfg *memac_drv_param;
 	void *fm;
 	struct fman_rev_info fm_rev_info;
-	bool basex_if;
-	struct phy_device *pcsphy;
+	struct phy *serdes;
+	struct phylink_pcs *sgmii_pcs;
+	struct phylink_pcs *qsgmii_pcs;
+	struct phylink_pcs *xfi_pcs;
 	bool allmulti_enabled;
+	bool rgmii_no_half_duplex;
 };
 
-static void add_addr_in_paddr(struct memac_regs __iomem *regs, u8 *adr,
+static void add_addr_in_paddr(struct memac_regs __iomem *regs, const u8 *adr,
 			      u8 paddr_num)
 {
 	u32 tmp0, tmp1;
@@ -408,7 +352,6 @@ static void set_exception(struct memac_regs __iomem *regs, u32 val,
 }
 
 static int init(struct memac_regs __iomem *regs, struct memac_cfg *cfg,
-		phy_interface_t phy_if, u16 speed, bool slow_10g_if,
 		u32 exceptions)
 {
 	u32 tmp;
@@ -435,38 +378,6 @@ static int init(struct memac_regs __iomem *regs, struct memac_cfg *cfg,
 	/* Pause Time */
 	iowrite32be((u32)cfg->pause_quanta, &regs->pause_quanta[0]);
 	iowrite32be((u32)0, &regs->pause_thresh[0]);
-
-	/* IF_MODE */
-	tmp = 0;
-	switch (phy_if) {
-	case PHY_INTERFACE_MODE_XGMII:
-		tmp |= IF_MODE_XGMII;
-		break;
-	default:
-		tmp |= IF_MODE_GMII;
-		if (phy_if == PHY_INTERFACE_MODE_RGMII ||
-		    phy_if == PHY_INTERFACE_MODE_RGMII_ID ||
-		    phy_if == PHY_INTERFACE_MODE_RGMII_RXID ||
-		    phy_if == PHY_INTERFACE_MODE_RGMII_TXID)
-			tmp |= IF_MODE_RGMII | IF_MODE_RGMII_AUTO;
-	}
-	iowrite32be(tmp, &regs->if_mode);
-
-	/* TX_FIFO_SECTIONS */
-	tmp = 0;
-	if (phy_if == PHY_INTERFACE_MODE_XGMII) {
-		if (slow_10g_if) {
-			tmp |= (TX_FIFO_SECTIONS_TX_AVAIL_SLOW_10G |
-				TX_FIFO_SECTIONS_TX_EMPTY_DEFAULT_10G);
-		} else {
-			tmp |= (TX_FIFO_SECTIONS_TX_AVAIL_10G |
-				TX_FIFO_SECTIONS_TX_EMPTY_DEFAULT_10G);
-		}
-	} else {
-		tmp |= (TX_FIFO_SECTIONS_TX_AVAIL_1G |
-			TX_FIFO_SECTIONS_TX_EMPTY_DEFAULT_1G);
-	}
-	iowrite32be(tmp, &regs->tx_fifo_sections);
 
 	/* clear all pending events and set-up interrupts */
 	iowrite32be(0xffffffff, &regs->ievent);
@@ -507,99 +418,8 @@ static u32 get_mac_addr_hash_code(u64 eth_addr)
 	return xor_val;
 }
 
-static void setup_sgmii_internal_phy(struct fman_mac *memac,
-				     struct fixed_phy_status *fixed_link)
-{
-	u16 tmp_reg16;
-
-	if (WARN_ON(!memac->pcsphy))
-		return;
-
-	/* SGMII mode */
-	tmp_reg16 = IF_MODE_SGMII_EN;
-	if (!fixed_link)
-		/* AN enable */
-		tmp_reg16 |= IF_MODE_USE_SGMII_AN;
-	else {
-		switch (fixed_link->speed) {
-		case 10:
-			/* For 10M: IF_MODE[SPEED_10M] = 0 */
-		break;
-		case 100:
-			tmp_reg16 |= IF_MODE_SGMII_SPEED_100M;
-		break;
-		case 1000: /* fallthrough */
-		default:
-			tmp_reg16 |= IF_MODE_SGMII_SPEED_1G;
-		break;
-		}
-		if (!fixed_link->duplex)
-			tmp_reg16 |= IF_MODE_SGMII_DUPLEX_HALF;
-	}
-	phy_write(memac->pcsphy, MDIO_SGMII_IF_MODE, tmp_reg16);
-
-	/* Device ability according to SGMII specification */
-	tmp_reg16 = MDIO_SGMII_DEV_ABIL_SGMII_MODE;
-	phy_write(memac->pcsphy, MDIO_SGMII_DEV_ABIL_SGMII, tmp_reg16);
-
-	/* Adjust link timer for SGMII  -
-	 * According to Cisco SGMII specification the timer should be 1.6 ms.
-	 * The link_timer register is configured in units of the clock.
-	 * - When running as 1G SGMII, Serdes clock is 125 MHz, so
-	 * unit = 1 / (125*10^6 Hz) = 8 ns.
-	 * 1.6 ms in units of 8 ns = 1.6ms / 8ns = 2*10^5 = 0x30d40
-	 * - When running as 2.5G SGMII, Serdes clock is 312.5 MHz, so
-	 * unit = 1 / (312.5*10^6 Hz) = 3.2 ns.
-	 * 1.6 ms in units of 3.2 ns = 1.6ms / 3.2ns = 5*10^5 = 0x7a120.
-	 * Since link_timer value of 1G SGMII will be too short for 2.5 SGMII,
-	 * we always set up here a value of 2.5 SGMII.
-	 */
-	phy_write(memac->pcsphy, MDIO_SGMII_LINK_TMR_H, LINK_TMR_H);
-	phy_write(memac->pcsphy, MDIO_SGMII_LINK_TMR_L, LINK_TMR_L);
-
-	if (!fixed_link)
-		/* Restart AN */
-		tmp_reg16 = SGMII_CR_DEF_VAL | SGMII_CR_RESTART_AN;
-	else
-		/* AN disabled */
-		tmp_reg16 = SGMII_CR_DEF_VAL & ~SGMII_CR_AN_EN;
-	phy_write(memac->pcsphy, 0x0, tmp_reg16);
-}
-
-static void setup_sgmii_internal_phy_base_x(struct fman_mac *memac)
-{
-	u16 tmp_reg16;
-
-	/* AN Device capability  */
-	tmp_reg16 = MDIO_SGMII_DEV_ABIL_BASEX_MODE;
-	phy_write(memac->pcsphy, MDIO_SGMII_DEV_ABIL_SGMII, tmp_reg16);
-
-	/* Adjust link timer for SGMII  -
-	 * For Serdes 1000BaseX auto-negotiation the timer should be 10 ms.
-	 * The link_timer register is configured in units of the clock.
-	 * - When running as 1G SGMII, Serdes clock is 125 MHz, so
-	 * unit = 1 / (125*10^6 Hz) = 8 ns.
-	 * 10 ms in units of 8 ns = 10ms / 8ns = 1250000 = 0x1312d0
-	 * - When running as 2.5G SGMII, Serdes clock is 312.5 MHz, so
-	 * unit = 1 / (312.5*10^6 Hz) = 3.2 ns.
-	 * 10 ms in units of 3.2 ns = 10ms / 3.2ns = 3125000 = 0x2faf08.
-	 * Since link_timer value of 1G SGMII will be too short for 2.5 SGMII,
-	 * we always set up here a value of 2.5 SGMII.
-	 */
-	phy_write(memac->pcsphy, MDIO_SGMII_LINK_TMR_H, LINK_TMR_H_BASEX);
-	phy_write(memac->pcsphy, MDIO_SGMII_LINK_TMR_L, LINK_TMR_L_BASEX);
-
-	/* Restart AN */
-	tmp_reg16 = SGMII_CR_DEF_VAL | SGMII_CR_RESTART_AN;
-	phy_write(memac->pcsphy, 0x0, tmp_reg16);
-}
-
 static int check_init_parameters(struct fman_mac *memac)
 {
-	if (memac->addr == 0) {
-		pr_err("Ethernet MAC must have a valid MAC address\n");
-		return -EINVAL;
-	}
 	if (!memac->exception_cb) {
 		pr_err("Uninitialized exception handler\n");
 		return -EINVAL;
@@ -703,60 +523,37 @@ static void free_init_resources(struct fman_mac *memac)
 	memac->unicast_addr_hash = NULL;
 }
 
-static bool is_init_done(struct memac_cfg *memac_drv_params)
+static int memac_enable(struct fman_mac *memac)
 {
-	/* Checks if mEMAC driver parameters were initialized */
-	if (!memac_drv_params)
-		return true;
+	int ret;
 
-	return false;
+	ret = phy_init(memac->serdes);
+	if (ret) {
+		dev_err(memac->dev_id->dev,
+			"could not initialize serdes: %pe\n", ERR_PTR(ret));
+		return ret;
+	}
+
+	ret = phy_power_on(memac->serdes);
+	if (ret) {
+		dev_err(memac->dev_id->dev,
+			"could not power on serdes: %pe\n", ERR_PTR(ret));
+		phy_exit(memac->serdes);
+	}
+
+	return ret;
 }
 
-int memac_enable(struct fman_mac *memac, enum comm_mode mode)
+static void memac_disable(struct fman_mac *memac)
+{
+	phy_power_off(memac->serdes);
+	phy_exit(memac->serdes);
+}
+
+static int memac_set_promiscuous(struct fman_mac *memac, bool new_val)
 {
 	struct memac_regs __iomem *regs = memac->regs;
 	u32 tmp;
-
-	if (!is_init_done(memac->memac_drv_param))
-		return -EINVAL;
-
-	tmp = ioread32be(&regs->command_config);
-	if (mode & COMM_MODE_RX)
-		tmp |= CMD_CFG_RX_EN;
-	if (mode & COMM_MODE_TX)
-		tmp |= CMD_CFG_TX_EN;
-
-	iowrite32be(tmp, &regs->command_config);
-
-	return 0;
-}
-
-int memac_disable(struct fman_mac *memac, enum comm_mode mode)
-{
-	struct memac_regs __iomem *regs = memac->regs;
-	u32 tmp;
-
-	if (!is_init_done(memac->memac_drv_param))
-		return -EINVAL;
-
-	tmp = ioread32be(&regs->command_config);
-	if (mode & COMM_MODE_RX)
-		tmp &= ~CMD_CFG_RX_EN;
-	if (mode & COMM_MODE_TX)
-		tmp &= ~CMD_CFG_TX_EN;
-
-	iowrite32be(tmp, &regs->command_config);
-
-	return 0;
-}
-
-int memac_set_promiscuous(struct fman_mac *memac, bool new_val)
-{
-	struct memac_regs __iomem *regs = memac->regs;
-	u32 tmp;
-
-	if (!is_init_done(memac->memac_drv_param))
-		return -EINVAL;
 
 	tmp = ioread32be(&regs->command_config);
 	if (new_val)
@@ -769,85 +566,11 @@ int memac_set_promiscuous(struct fman_mac *memac, bool new_val)
 	return 0;
 }
 
-int memac_adjust_link(struct fman_mac *memac, u16 speed)
+static int memac_set_tx_pause_frames(struct fman_mac *memac, u8 priority,
+				     u16 pause_time, u16 thresh_time)
 {
 	struct memac_regs __iomem *regs = memac->regs;
 	u32 tmp;
-
-	if (!is_init_done(memac->memac_drv_param))
-		return -EINVAL;
-
-	tmp = ioread32be(&regs->if_mode);
-
-	/* Set full duplex */
-	tmp &= ~IF_MODE_HD;
-
-	if (memac->phy_if == PHY_INTERFACE_MODE_RGMII) {
-		/* Configure RGMII in manual mode */
-		tmp &= ~IF_MODE_RGMII_AUTO;
-		tmp &= ~IF_MODE_RGMII_SP_MASK;
-		/* Full duplex */
-		tmp |= IF_MODE_RGMII_FD;
-
-		switch (speed) {
-		case SPEED_1000:
-			tmp |= IF_MODE_RGMII_1000;
-			break;
-		case SPEED_100:
-			tmp |= IF_MODE_RGMII_100;
-			break;
-		case SPEED_10:
-			tmp |= IF_MODE_RGMII_10;
-			break;
-		default:
-			break;
-		}
-	}
-
-	iowrite32be(tmp, &regs->if_mode);
-
-	return 0;
-}
-
-int memac_cfg_max_frame_len(struct fman_mac *memac, u16 new_val)
-{
-	if (is_init_done(memac->memac_drv_param))
-		return -EINVAL;
-
-	memac->memac_drv_param->max_frame_length = new_val;
-
-	return 0;
-}
-
-int memac_cfg_reset_on_init(struct fman_mac *memac, bool enable)
-{
-	if (is_init_done(memac->memac_drv_param))
-		return -EINVAL;
-
-	memac->memac_drv_param->reset_on_init = enable;
-
-	return 0;
-}
-
-int memac_cfg_fixed_link(struct fman_mac *memac,
-			 struct fixed_phy_status *fixed_link)
-{
-	if (is_init_done(memac->memac_drv_param))
-		return -EINVAL;
-
-	memac->memac_drv_param->fixed_link = fixed_link;
-
-	return 0;
-}
-
-int memac_set_tx_pause_frames(struct fman_mac *memac, u8 priority,
-			      u16 pause_time, u16 thresh_time)
-{
-	struct memac_regs __iomem *regs = memac->regs;
-	u32 tmp;
-
-	if (!is_init_done(memac->memac_drv_param))
-		return -EINVAL;
 
 	tmp = ioread32be(&regs->tx_fifo_sections);
 
@@ -856,7 +579,6 @@ int memac_set_tx_pause_frames(struct fman_mac *memac, u8 priority,
 
 	tmp = ioread32be(&regs->command_config);
 	tmp &= ~CMD_CFG_PFC_MODE;
-	priority = 0;
 
 	iowrite32be(tmp, &regs->command_config);
 
@@ -879,13 +601,10 @@ int memac_set_tx_pause_frames(struct fman_mac *memac, u8 priority,
 	return 0;
 }
 
-int memac_accept_rx_pause_frames(struct fman_mac *memac, bool en)
+static int memac_accept_rx_pause_frames(struct fman_mac *memac, bool en)
 {
 	struct memac_regs __iomem *regs = memac->regs;
 	u32 tmp;
-
-	if (!is_init_done(memac->memac_drv_param))
-		return -EINVAL;
 
 	tmp = ioread32be(&regs->command_config);
 	if (en)
@@ -898,25 +617,186 @@ int memac_accept_rx_pause_frames(struct fman_mac *memac, bool en)
 	return 0;
 }
 
-int memac_modify_mac_address(struct fman_mac *memac, enet_addr_t *enet_addr)
+static unsigned long memac_get_caps(struct phylink_config *config,
+				    phy_interface_t interface)
 {
-	if (!is_init_done(memac->memac_drv_param))
-		return -EINVAL;
+	struct fman_mac *memac = fman_config_to_mac(config)->fman_mac;
+	unsigned long caps = config->mac_capabilities;
 
-	add_addr_in_paddr(memac->regs, (u8 *)(*enet_addr), 0);
+	if (phy_interface_mode_is_rgmii(interface) &&
+	    memac->rgmii_no_half_duplex)
+		caps &= ~(MAC_10HD | MAC_100HD);
+
+	return caps;
+}
+
+/**
+ * memac_if_mode() - Convert an interface mode into an IF_MODE config
+ * @interface: A phy interface mode
+ *
+ * Return: A configuration word, suitable for programming into the lower bits
+ *         of %IF_MODE.
+ */
+static u32 memac_if_mode(phy_interface_t interface)
+{
+	switch (interface) {
+	case PHY_INTERFACE_MODE_MII:
+		return IF_MODE_MII;
+	case PHY_INTERFACE_MODE_RGMII:
+	case PHY_INTERFACE_MODE_RGMII_ID:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+	case PHY_INTERFACE_MODE_RGMII_TXID:
+		return IF_MODE_GMII | IF_MODE_RGMII;
+	case PHY_INTERFACE_MODE_SGMII:
+	case PHY_INTERFACE_MODE_1000BASEX:
+	case PHY_INTERFACE_MODE_QSGMII:
+		return IF_MODE_GMII;
+	case PHY_INTERFACE_MODE_10GBASER:
+		return IF_MODE_10G;
+	default:
+		WARN_ON_ONCE(1);
+		return 0;
+	}
+}
+
+static struct phylink_pcs *memac_select_pcs(struct phylink_config *config,
+					    phy_interface_t iface)
+{
+	struct fman_mac *memac = fman_config_to_mac(config)->fman_mac;
+
+	switch (iface) {
+	case PHY_INTERFACE_MODE_SGMII:
+	case PHY_INTERFACE_MODE_1000BASEX:
+		return memac->sgmii_pcs;
+	case PHY_INTERFACE_MODE_QSGMII:
+		return memac->qsgmii_pcs;
+	case PHY_INTERFACE_MODE_10GBASER:
+		return memac->xfi_pcs;
+	default:
+		return NULL;
+	}
+}
+
+static int memac_prepare(struct phylink_config *config, unsigned int mode,
+			 phy_interface_t iface)
+{
+	struct fman_mac *memac = fman_config_to_mac(config)->fman_mac;
+
+	switch (iface) {
+	case PHY_INTERFACE_MODE_SGMII:
+	case PHY_INTERFACE_MODE_1000BASEX:
+	case PHY_INTERFACE_MODE_QSGMII:
+	case PHY_INTERFACE_MODE_10GBASER:
+		return phy_set_mode_ext(memac->serdes, PHY_MODE_ETHERNET,
+					iface);
+	default:
+		return 0;
+	}
+}
+
+static void memac_mac_config(struct phylink_config *config, unsigned int mode,
+			     const struct phylink_link_state *state)
+{
+	struct mac_device *mac_dev = fman_config_to_mac(config);
+	struct memac_regs __iomem *regs = mac_dev->fman_mac->regs;
+	u32 tmp = ioread32be(&regs->if_mode);
+
+	tmp &= ~(IF_MODE_MASK | IF_MODE_RGMII);
+	tmp |= memac_if_mode(state->interface);
+	if (phylink_autoneg_inband(mode))
+		tmp |= IF_MODE_RGMII_AUTO;
+	iowrite32be(tmp, &regs->if_mode);
+}
+
+static void memac_link_up(struct phylink_config *config, struct phy_device *phy,
+			  unsigned int mode, phy_interface_t interface,
+			  int speed, int duplex, bool tx_pause, bool rx_pause)
+{
+	struct mac_device *mac_dev = fman_config_to_mac(config);
+	struct fman_mac *memac = mac_dev->fman_mac;
+	struct memac_regs __iomem *regs = memac->regs;
+	u32 tmp = memac_if_mode(interface);
+	u16 pause_time = tx_pause ? FSL_FM_PAUSE_TIME_ENABLE :
+			 FSL_FM_PAUSE_TIME_DISABLE;
+
+	memac_set_tx_pause_frames(memac, 0, pause_time, 0);
+	memac_accept_rx_pause_frames(memac, rx_pause);
+
+	if (duplex == DUPLEX_HALF)
+		tmp |= IF_MODE_HD;
+
+	switch (speed) {
+	case SPEED_1000:
+		tmp |= IF_MODE_RGMII_1000;
+		break;
+	case SPEED_100:
+		tmp |= IF_MODE_RGMII_100;
+		break;
+	case SPEED_10:
+		tmp |= IF_MODE_RGMII_10;
+		break;
+	}
+	iowrite32be(tmp, &regs->if_mode);
+
+	/* TODO: EEE? */
+
+	if (speed == SPEED_10000) {
+		if (memac->fm_rev_info.major == 6 &&
+		    memac->fm_rev_info.minor == 4)
+			tmp = TX_FIFO_SECTIONS_TX_AVAIL_SLOW_10G;
+		else
+			tmp = TX_FIFO_SECTIONS_TX_AVAIL_10G;
+		tmp |= TX_FIFO_SECTIONS_TX_EMPTY_DEFAULT_10G;
+	} else {
+		tmp = TX_FIFO_SECTIONS_TX_AVAIL_1G |
+		      TX_FIFO_SECTIONS_TX_EMPTY_DEFAULT_1G;
+	}
+	iowrite32be(tmp, &regs->tx_fifo_sections);
+
+	mac_dev->update_speed(mac_dev, speed);
+
+	tmp = ioread32be(&regs->command_config);
+	tmp |= CMD_CFG_RX_EN | CMD_CFG_TX_EN;
+	iowrite32be(tmp, &regs->command_config);
+}
+
+static void memac_link_down(struct phylink_config *config, unsigned int mode,
+			    phy_interface_t interface)
+{
+	struct fman_mac *memac = fman_config_to_mac(config)->fman_mac;
+	struct memac_regs __iomem *regs = memac->regs;
+	u32 tmp;
+
+	/* TODO: graceful */
+	tmp = ioread32be(&regs->command_config);
+	tmp &= ~(CMD_CFG_RX_EN | CMD_CFG_TX_EN);
+	iowrite32be(tmp, &regs->command_config);
+}
+
+static const struct phylink_mac_ops memac_mac_ops = {
+	.mac_get_caps = memac_get_caps,
+	.mac_select_pcs = memac_select_pcs,
+	.mac_prepare = memac_prepare,
+	.mac_config = memac_mac_config,
+	.mac_link_up = memac_link_up,
+	.mac_link_down = memac_link_down,
+};
+
+static int memac_modify_mac_address(struct fman_mac *memac,
+				    const enet_addr_t *enet_addr)
+{
+	add_addr_in_paddr(memac->regs, (const u8 *)(*enet_addr), 0);
 
 	return 0;
 }
 
-int memac_add_hash_mac_address(struct fman_mac *memac, enet_addr_t *eth_addr)
+static int memac_add_hash_mac_address(struct fman_mac *memac,
+				      enet_addr_t *eth_addr)
 {
 	struct memac_regs __iomem *regs = memac->regs;
 	struct eth_hash_entry *hash_entry;
 	u32 hash;
 	u64 addr;
-
-	if (!is_init_done(memac->memac_drv_param))
-		return -EINVAL;
 
 	addr = ENET_ADDR_TO_UINT64(*eth_addr);
 
@@ -941,13 +821,10 @@ int memac_add_hash_mac_address(struct fman_mac *memac, enet_addr_t *eth_addr)
 	return 0;
 }
 
-int memac_set_allmulti(struct fman_mac *memac, bool enable)
+static int memac_set_allmulti(struct fman_mac *memac, bool enable)
 {
 	u32 entry;
 	struct memac_regs __iomem *regs = memac->regs;
-
-	if (!is_init_done(memac->memac_drv_param))
-		return -EINVAL;
 
 	if (enable) {
 		for (entry = 0; entry < HASH_TABLE_SIZE; entry++)
@@ -964,12 +841,13 @@ int memac_set_allmulti(struct fman_mac *memac, bool enable)
 	return 0;
 }
 
-int memac_set_tstamp(struct fman_mac *memac, bool enable)
+static int memac_set_tstamp(struct fman_mac *memac, bool enable)
 {
 	return 0; /* Always enabled. */
 }
 
-int memac_del_hash_mac_address(struct fman_mac *memac, enet_addr_t *eth_addr)
+static int memac_del_hash_mac_address(struct fman_mac *memac,
+				      enet_addr_t *eth_addr)
 {
 	struct memac_regs __iomem *regs = memac->regs;
 	struct eth_hash_entry *hash_entry = NULL;
@@ -977,16 +855,13 @@ int memac_del_hash_mac_address(struct fman_mac *memac, enet_addr_t *eth_addr)
 	u32 hash;
 	u64 addr;
 
-	if (!is_init_done(memac->memac_drv_param))
-		return -EINVAL;
-
 	addr = ENET_ADDR_TO_UINT64(*eth_addr);
 
 	hash = get_mac_addr_hash_code(addr) & HASH_CTRL_ADDR_MASK;
 
 	list_for_each(pos, &memac->multicast_addr_hash->lsts[hash]) {
 		hash_entry = ETH_HASH_ENTRY_OBJ(pos);
-		if (hash_entry->addr == addr) {
+		if (hash_entry && hash_entry->addr == addr) {
 			list_del_init(&hash_entry->node);
 			kfree(hash_entry);
 			break;
@@ -1002,13 +877,10 @@ int memac_del_hash_mac_address(struct fman_mac *memac, enet_addr_t *eth_addr)
 	return 0;
 }
 
-int memac_set_exception(struct fman_mac *memac,
-			enum fman_mac_exceptions exception, bool enable)
+static int memac_set_exception(struct fman_mac *memac,
+			       enum fman_mac_exceptions exception, bool enable)
 {
 	u32 bit_mask = 0;
-
-	if (!is_init_done(memac->memac_drv_param))
-		return -EINVAL;
 
 	bit_mask = get_exception_flag(exception);
 	if (bit_mask) {
@@ -1025,27 +897,18 @@ int memac_set_exception(struct fman_mac *memac,
 	return 0;
 }
 
-int memac_init(struct fman_mac *memac)
+static int memac_init(struct fman_mac *memac)
 {
 	struct memac_cfg *memac_drv_param;
-	u8 i;
 	enet_addr_t eth_addr;
-	bool slow_10g_if = false;
-	struct fixed_phy_status *fixed_link;
 	int err;
 	u32 reg32 = 0;
-
-	if (is_init_done(memac->memac_drv_param))
-		return -EINVAL;
 
 	err = check_init_parameters(memac);
 	if (err)
 		return err;
 
 	memac_drv_param = memac->memac_drv_param;
-
-	if (memac->fm_rev_info.major == 6 && memac->fm_rev_info.minor == 4)
-		slow_10g_if = true;
 
 	/* First, reset the MAC if desired. */
 	if (memac_drv_param->reset_on_init) {
@@ -1057,13 +920,12 @@ int memac_init(struct fman_mac *memac)
 	}
 
 	/* MAC Address */
-	MAKE_ENET_ADDR_FROM_UINT64(memac->addr, eth_addr);
-	add_addr_in_paddr(memac->regs, (u8 *)eth_addr, 0);
+	if (memac->addr != 0) {
+		MAKE_ENET_ADDR_FROM_UINT64(memac->addr, eth_addr);
+		add_addr_in_paddr(memac->regs, (const u8 *)eth_addr, 0);
+	}
 
-	fixed_link = memac_drv_param->fixed_link;
-
-	init(memac->regs, memac->memac_drv_param, memac->phy_if,
-	     memac->max_speed, slow_10g_if, memac->exceptions);
+	init(memac->regs, memac->memac_drv_param, memac->exceptions);
 
 	/* FM_RX_FIFO_CORRUPT_ERRATA_10GMAC_A006320 errata workaround
 	 * Exists only in FMan 6.0 and 6.3.
@@ -1077,33 +939,6 @@ int memac_init(struct fman_mac *memac)
 		reg32 = ioread32be(&memac->regs->command_config);
 		reg32 &= ~CMD_CFG_CRC_FWD;
 		iowrite32be(reg32, &memac->regs->command_config);
-	}
-
-	if (memac->phy_if == PHY_INTERFACE_MODE_SGMII) {
-		/* Configure internal SGMII PHY */
-		if (memac->basex_if)
-			setup_sgmii_internal_phy_base_x(memac);
-		else
-			setup_sgmii_internal_phy(memac, fixed_link);
-	} else if (memac->phy_if == PHY_INTERFACE_MODE_QSGMII) {
-		/* Configure 4 internal SGMII PHYs */
-		for (i = 0; i < 4; i++) {
-			u8 qsmgii_phy_addr, phy_addr;
-			/* QSGMII PHY address occupies 3 upper bits of 5-bit
-			 * phy_address; the lower 2 bits are used to extend
-			 * register address space and access each one of 4
-			 * ports inside QSGMII.
-			 */
-			phy_addr = memac->pcsphy->mdio.addr;
-			qsmgii_phy_addr = (u8)((phy_addr << 2) | i);
-			memac->pcsphy->mdio.addr = qsmgii_phy_addr;
-			if (memac->basex_if)
-				setup_sgmii_internal_phy_base_x(memac);
-			else
-				setup_sgmii_internal_phy(memac, fixed_link);
-
-			memac->pcsphy->mdio.addr = phy_addr;
-		}
 	}
 
 	/* Max Frame Length */
@@ -1134,32 +969,36 @@ int memac_init(struct fman_mac *memac)
 	fman_register_intr(memac->fm, FMAN_MOD_MAC, memac->mac_id,
 			   FMAN_INTR_TYPE_NORMAL, memac_exception, memac);
 
-	kfree(memac_drv_param);
-	memac->memac_drv_param = NULL;
-
 	return 0;
 }
 
-int memac_free(struct fman_mac *memac)
+static void pcs_put(struct phylink_pcs *pcs)
+{
+	if (IS_ERR_OR_NULL(pcs))
+		return;
+
+	lynx_pcs_destroy(pcs);
+}
+
+static int memac_free(struct fman_mac *memac)
 {
 	free_init_resources(memac);
 
-	if (memac->pcsphy)
-		put_device(&memac->pcsphy->mdio.dev);
-
+	pcs_put(memac->sgmii_pcs);
+	pcs_put(memac->qsgmii_pcs);
+	pcs_put(memac->xfi_pcs);
 	kfree(memac->memac_drv_param);
 	kfree(memac);
 
 	return 0;
 }
 
-struct fman_mac *memac_config(struct fman_mac_params *params)
+static struct fman_mac *memac_config(struct mac_device *mac_dev,
+				     struct fman_mac_params *params)
 {
 	struct fman_mac *memac;
 	struct memac_cfg *memac_drv_param;
-	void __iomem *base_addr;
 
-	base_addr = params->base_addr;
 	/* allocate memory for the m_emac data structure */
 	memac = kzalloc(sizeof(*memac), GFP_KERNEL);
 	if (!memac)
@@ -1177,38 +1016,234 @@ struct fman_mac *memac_config(struct fman_mac_params *params)
 
 	set_dflts(memac_drv_param);
 
-	memac->addr = ENET_ADDR_TO_UINT64(params->addr);
+	memac->addr = ENET_ADDR_TO_UINT64(mac_dev->addr);
 
-	memac->regs = base_addr;
-	memac->max_speed = params->max_speed;
-	memac->phy_if = params->phy_if;
+	memac->regs = mac_dev->vaddr;
 	memac->mac_id = params->mac_id;
 	memac->exceptions = (MEMAC_IMASK_TSECC_ER | MEMAC_IMASK_TECC_ER |
 			     MEMAC_IMASK_RECC_ER | MEMAC_IMASK_MGI);
 	memac->exception_cb = params->exception_cb;
 	memac->event_cb = params->event_cb;
-	memac->dev_id = params->dev_id;
+	memac->dev_id = mac_dev;
 	memac->fm = params->fm;
-	memac->basex_if = params->basex_if;
 
 	/* Save FMan revision */
 	fman_get_revision(memac->fm, &memac->fm_rev_info);
 
-	if (memac->phy_if == PHY_INTERFACE_MODE_SGMII ||
-	    memac->phy_if == PHY_INTERFACE_MODE_QSGMII) {
-		if (!params->internal_phy_node) {
-			pr_err("PCS PHY node is not available\n");
-			memac_free(memac);
-			return NULL;
-		}
+	return memac;
+}
 
-		memac->pcsphy = of_phy_find_device(params->internal_phy_node);
-		if (!memac->pcsphy) {
-			pr_err("of_phy_find_device (PCS PHY) failed\n");
-			memac_free(memac);
-			return NULL;
+static struct phylink_pcs *memac_pcs_create(struct device_node *mac_node,
+					    int index)
+{
+	struct device_node *node;
+	struct phylink_pcs *pcs;
+
+	node = of_parse_phandle(mac_node, "pcsphy-handle", index);
+	if (!node)
+		return ERR_PTR(-ENODEV);
+
+	pcs = lynx_pcs_create_fwnode(of_fwnode_handle(node));
+	of_node_put(node);
+
+	return pcs;
+}
+
+static bool memac_supports(struct mac_device *mac_dev, phy_interface_t iface)
+{
+	/* If there's no serdes device, assume that it's been configured for
+	 * whatever the default interface mode is.
+	 */
+	if (!mac_dev->fman_mac->serdes)
+		return mac_dev->phy_if == iface;
+	/* Otherwise, ask the serdes */
+	return !phy_validate(mac_dev->fman_mac->serdes, PHY_MODE_ETHERNET,
+			     iface, NULL);
+}
+
+int memac_initialization(struct mac_device *mac_dev,
+			 struct device_node *mac_node,
+			 struct fman_mac_params *params)
+{
+	int			 err;
+	struct device_node      *fixed;
+	struct phylink_pcs	*pcs;
+	struct fman_mac		*memac;
+	unsigned long		 capabilities;
+	unsigned long		*supported;
+
+	/* The internal connection to the serdes is XGMII, but this isn't
+	 * really correct for the phy mode (which is the external connection).
+	 * However, this is how all older device trees say that they want
+	 * 10GBASE-R (aka XFI), so just convert it for them.
+	 */
+	if (mac_dev->phy_if == PHY_INTERFACE_MODE_XGMII)
+		mac_dev->phy_if = PHY_INTERFACE_MODE_10GBASER;
+
+	mac_dev->phylink_ops		= &memac_mac_ops;
+	mac_dev->set_promisc		= memac_set_promiscuous;
+	mac_dev->change_addr		= memac_modify_mac_address;
+	mac_dev->add_hash_mac_addr	= memac_add_hash_mac_address;
+	mac_dev->remove_hash_mac_addr	= memac_del_hash_mac_address;
+	mac_dev->set_exception		= memac_set_exception;
+	mac_dev->set_allmulti		= memac_set_allmulti;
+	mac_dev->set_tstamp		= memac_set_tstamp;
+	mac_dev->set_multi		= fman_set_multi;
+	mac_dev->enable			= memac_enable;
+	mac_dev->disable		= memac_disable;
+
+	mac_dev->fman_mac = memac_config(mac_dev, params);
+	if (!mac_dev->fman_mac)
+		return -EINVAL;
+
+	memac = mac_dev->fman_mac;
+	memac->memac_drv_param->max_frame_length = fman_get_max_frm();
+	memac->memac_drv_param->reset_on_init = true;
+
+	err = of_property_match_string(mac_node, "pcs-handle-names", "xfi");
+	if (err >= 0) {
+		memac->xfi_pcs = memac_pcs_create(mac_node, err);
+		if (IS_ERR(memac->xfi_pcs)) {
+			err = PTR_ERR(memac->xfi_pcs);
+			dev_err_probe(mac_dev->dev, err, "missing xfi pcs\n");
+			goto _return_fm_mac_free;
 		}
+	} else if (err != -EINVAL && err != -ENODATA) {
+		goto _return_fm_mac_free;
 	}
 
-	return memac;
+	err = of_property_match_string(mac_node, "pcs-handle-names", "qsgmii");
+	if (err >= 0) {
+		memac->qsgmii_pcs = memac_pcs_create(mac_node, err);
+		if (IS_ERR(memac->qsgmii_pcs)) {
+			err = PTR_ERR(memac->qsgmii_pcs);
+			dev_err_probe(mac_dev->dev, err,
+				      "missing qsgmii pcs\n");
+			goto _return_fm_mac_free;
+		}
+	} else if (err != -EINVAL && err != -ENODATA) {
+		goto _return_fm_mac_free;
+	}
+
+	/* For compatibility, if pcs-handle-names is missing, we assume this
+	 * phy is the first one in pcsphy-handle
+	 */
+	err = of_property_match_string(mac_node, "pcs-handle-names", "sgmii");
+	if (err == -EINVAL || err == -ENODATA)
+		pcs = memac_pcs_create(mac_node, 0);
+	else if (err < 0)
+		goto _return_fm_mac_free;
+	else
+		pcs = memac_pcs_create(mac_node, err);
+
+	if (IS_ERR(pcs)) {
+		err = PTR_ERR(pcs);
+		dev_err_probe(mac_dev->dev, err, "missing pcs\n");
+		goto _return_fm_mac_free;
+	}
+
+	/* If err is set here, it means that pcs-handle-names was missing above
+	 * (and therefore that xfi_pcs cannot be set). If we are defaulting to
+	 * XGMII, assume this is for XFI. Otherwise, assume it is for SGMII.
+	 */
+	if (err && mac_dev->phy_if == PHY_INTERFACE_MODE_10GBASER)
+		memac->xfi_pcs = pcs;
+	else
+		memac->sgmii_pcs = pcs;
+
+	memac->serdes = devm_of_phy_optional_get(mac_dev->dev, mac_node,
+						 "serdes");
+	if (!memac->serdes) {
+		dev_dbg(mac_dev->dev, "could not get (optional) serdes\n");
+	} else if (IS_ERR(memac->serdes)) {
+		err = PTR_ERR(memac->serdes);
+		goto _return_fm_mac_free;
+	}
+
+	/* TODO: The following interface modes are supported by (some) hardware
+	 * but not by this driver:
+	 * - 1000BASE-KX
+	 * - 10GBASE-KR
+	 * - XAUI/HiGig
+	 */
+	supported = mac_dev->phylink_config.supported_interfaces;
+
+	/* Note that half duplex is only supported on 10/100M interfaces. */
+
+	if (memac->sgmii_pcs &&
+	    (memac_supports(mac_dev, PHY_INTERFACE_MODE_SGMII) ||
+	     memac_supports(mac_dev, PHY_INTERFACE_MODE_1000BASEX))) {
+		__set_bit(PHY_INTERFACE_MODE_SGMII, supported);
+		__set_bit(PHY_INTERFACE_MODE_1000BASEX, supported);
+	}
+
+	if (memac->sgmii_pcs &&
+	    memac_supports(mac_dev, PHY_INTERFACE_MODE_2500BASEX))
+		__set_bit(PHY_INTERFACE_MODE_2500BASEX, supported);
+
+	if (memac->qsgmii_pcs &&
+	    memac_supports(mac_dev, PHY_INTERFACE_MODE_QSGMII))
+		__set_bit(PHY_INTERFACE_MODE_QSGMII, supported);
+	else if (mac_dev->phy_if == PHY_INTERFACE_MODE_QSGMII)
+		dev_warn(mac_dev->dev, "no QSGMII pcs specified\n");
+
+	if (memac->xfi_pcs &&
+	    memac_supports(mac_dev, PHY_INTERFACE_MODE_10GBASER)) {
+		__set_bit(PHY_INTERFACE_MODE_10GBASER, supported);
+	} else {
+		/* From what I can tell, no 10g macs support RGMII. */
+		phy_interface_set_rgmii(supported);
+		__set_bit(PHY_INTERFACE_MODE_MII, supported);
+	}
+
+	capabilities = MAC_SYM_PAUSE | MAC_ASYM_PAUSE | MAC_10 | MAC_100;
+	capabilities |= MAC_1000FD | MAC_2500FD | MAC_10000FD;
+
+	/* These SoCs don't support half duplex at all; there's no different
+	 * FMan version or compatible, so we just have to check the machine
+	 * compatible instead
+	 */
+	if (of_machine_is_compatible("fsl,ls1043a") ||
+	    of_machine_is_compatible("fsl,ls1046a") ||
+	    of_machine_is_compatible("fsl,B4QDS"))
+		capabilities &= ~(MAC_10HD | MAC_100HD);
+
+	mac_dev->phylink_config.mac_capabilities = capabilities;
+
+	/* The T2080 and T4240 don't support half duplex RGMII. There is no
+	 * other way to identify these SoCs, so just use the machine
+	 * compatible.
+	 */
+	if (of_machine_is_compatible("fsl,T2080QDS") ||
+	    of_machine_is_compatible("fsl,T2080RDB") ||
+	    of_machine_is_compatible("fsl,T2081QDS") ||
+	    of_machine_is_compatible("fsl,T4240QDS") ||
+	    of_machine_is_compatible("fsl,T4240RDB"))
+		memac->rgmii_no_half_duplex = true;
+
+	/* Most boards should use MLO_AN_INBAND, but existing boards don't have
+	 * a managed property. Default to MLO_AN_INBAND if nothing else is
+	 * specified. We need to be careful and not enable this if we have a
+	 * fixed link or if we are using MII or RGMII, since those
+	 * configurations modes don't use in-band autonegotiation.
+	 */
+	fixed = of_get_child_by_name(mac_node, "fixed-link");
+	if (!fixed && !of_property_read_bool(mac_node, "fixed-link") &&
+	    !of_property_read_bool(mac_node, "managed") &&
+	    mac_dev->phy_if != PHY_INTERFACE_MODE_MII &&
+	    !phy_interface_mode_is_rgmii(mac_dev->phy_if))
+		mac_dev->phylink_config.ovr_an_inband = true;
+	of_node_put(fixed);
+
+	err = memac_init(mac_dev->fman_mac);
+	if (err < 0)
+		goto _return_fm_mac_free;
+
+	dev_info(mac_dev->dev, "FMan MEMAC\n");
+
+	return 0;
+
+_return_fm_mac_free:
+	memac_free(mac_dev->fman_mac);
+	return err;
 }

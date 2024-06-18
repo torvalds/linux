@@ -12,6 +12,7 @@
 #include <linux/io.h>
 #include <linux/async.h>
 #include <linux/delay.h>
+#include <linux/dma-map-ops.h>
 #include <linux/slab.h>
 #include <linux/clk.h>
 #include <linux/sh_clk.h>
@@ -30,7 +31,8 @@ struct sh7786_pcie_port {
 
 static struct sh7786_pcie_port *sh7786_pcie_ports;
 static unsigned int nr_ports;
-static unsigned long dma_pfn_offset;
+size_t memsize;
+u64 memstart;
 
 static struct sh7786_pcie_hwops {
 	int (*core_init)(void);
@@ -137,12 +139,12 @@ static void sh7786_pci_fixup(struct pci_dev *dev)
 	 * Prevent enumeration of root complex resources.
 	 */
 	if (pci_is_root_bus(dev->bus) && dev->devfn == 0) {
-		int i;
+		struct resource *r;
 
-		for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
-			dev->resource[i].start	= 0;
-			dev->resource[i].end	= 0;
-			dev->resource[i].flags	= 0;
+		pci_dev_for_each_resource(dev, r) {
+			r->start	= 0;
+			r->end		= 0;
+			r->flags	= 0;
 		}
 	}
 }
@@ -301,7 +303,6 @@ static int __init pcie_init(struct sh7786_pcie_port *port)
 	struct pci_channel *chan = port->hose;
 	unsigned int data;
 	phys_addr_t memstart, memend;
-	size_t memsize;
 	int ret, i, win;
 
 	/* Begin initialization */
@@ -312,7 +313,7 @@ static int __init pcie_init(struct sh7786_pcie_port *port)
 	 * class to match. Hardware takes care of propagating the IDSETR
 	 * settings, so there is no need to bother with a quirk.
 	 */
-	pci_write_reg(chan, PCI_CLASS_BRIDGE_PCI << 16, SH4A_PCIEIDSETR1);
+	pci_write_reg(chan, PCI_CLASS_BRIDGE_PCI_NORMAL << 8, SH4A_PCIEIDSETR1);
 
 	/* Initialize default capabilities. */
 	data = pci_read_reg(chan, SH4A_PCIEEXPCAP0);
@@ -367,8 +368,6 @@ static int __init pcie_init(struct sh7786_pcie_port *port)
 	 */
 	memstart = ALIGN_DOWN(memstart, memsize);
 	memsize = roundup_pow_of_two(memend - memstart);
-
-	dma_pfn_offset = memstart >> PAGE_SHIFT;
 
 	/*
 	 * If there's more than 512MB of memory, we need to roll over to
@@ -487,7 +486,8 @@ int pcibios_map_platform_irq(const struct pci_dev *pdev, u8 slot, u8 pin)
 
 void pcibios_bus_add_device(struct pci_dev *pdev)
 {
-	pdev->dev.dma_pfn_offset = dma_pfn_offset;
+	dma_direct_set_offset(&pdev->dev, __pa(memory_start),
+			      __pa(memory_start) - memstart, memsize);
 }
 
 static int __init sh7786_pcie_core_init(void)

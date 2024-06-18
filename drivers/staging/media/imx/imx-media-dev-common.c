@@ -6,8 +6,6 @@
  * Copyright (c) 2016 Mentor Graphics Inc.
  */
 
-#include <linux/of_graph.h>
-#include <linux/of_platform.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-ioctl.h>
@@ -19,52 +17,31 @@ static inline struct imx_media_dev *notifier2dev(struct v4l2_async_notifier *n)
 	return container_of(n, struct imx_media_dev, notifier);
 }
 
-/* async subdev bound notifier */
-static int imx_media_subdev_bound(struct v4l2_async_notifier *notifier,
-				  struct v4l2_subdev *sd,
-				  struct v4l2_async_subdev *asd)
-{
-	v4l2_info(sd->v4l2_dev, "subdev %s bound\n", sd->name);
-
-	return 0;
-}
-
 /*
- * Create the media links for all subdevs that registered.
+ * Create the missing media links from the CSI-2 receiver.
  * Called after all async subdevs have bound.
  */
-static int imx_media_create_links(struct v4l2_async_notifier *notifier)
+static void imx_media_create_csi2_links(struct imx_media_dev *imxmd)
 {
-	struct imx_media_dev *imxmd = notifier2dev(notifier);
-	struct v4l2_subdev *sd;
+	struct v4l2_subdev *sd, *csi2 = NULL;
 
 	list_for_each_entry(sd, &imxmd->v4l2_dev.subdevs, list) {
-		switch (sd->grp_id) {
-		case IMX_MEDIA_GRP_ID_IPU_VDIC:
-		case IMX_MEDIA_GRP_ID_IPU_IC_PRP:
-		case IMX_MEDIA_GRP_ID_IPU_IC_PRPENC:
-		case IMX_MEDIA_GRP_ID_IPU_IC_PRPVF:
-			/*
-			 * links have already been created for the
-			 * sync-registered subdevs.
-			 */
-			break;
-		case IMX_MEDIA_GRP_ID_IPU_CSI0:
-		case IMX_MEDIA_GRP_ID_IPU_CSI1:
-		case IMX_MEDIA_GRP_ID_CSI:
-			imx_media_create_csi_of_links(imxmd, sd);
-			break;
-		default:
-			/*
-			 * if this subdev has fwnode links, create media
-			 * links for them.
-			 */
-			imx_media_create_of_links(imxmd, sd);
+		if (sd->grp_id == IMX_MEDIA_GRP_ID_CSI2) {
+			csi2 = sd;
 			break;
 		}
 	}
+	if (!csi2)
+		return;
 
-	return 0;
+	list_for_each_entry(sd, &imxmd->v4l2_dev.subdevs, list) {
+		/* skip if not a CSI or a CSI mux */
+		if (!(sd->grp_id & IMX_MEDIA_GRP_ID_IPU_CSI) &&
+		    !(sd->grp_id & IMX_MEDIA_GRP_ID_CSI_MUX))
+			continue;
+
+		v4l2_create_fwnode_links(csi2, sd);
+	}
 }
 
 /*
@@ -196,9 +173,7 @@ int imx_media_probe_complete(struct v4l2_async_notifier *notifier)
 
 	mutex_lock(&imxmd->mutex);
 
-	ret = imx_media_create_links(notifier);
-	if (ret)
-		goto unlock;
+	imx_media_create_csi2_links(imxmd);
 
 	ret = imx_media_create_pad_vdev_lists(imxmd);
 	if (ret)
@@ -245,7 +220,7 @@ static int imx_media_inherit_controls(struct imx_media_dev *imxmd,
 		if (!(spad->flags & MEDIA_PAD_FL_SINK))
 			continue;
 
-		pad = media_entity_remote_pad(spad);
+		pad = media_pad_remote_pad_first(spad);
 		if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
 			continue;
 
@@ -297,6 +272,8 @@ static int imx_media_link_notify(struct media_link *link, u32 flags,
 	    !(flags & MEDIA_LNK_FL_ENABLED)) {
 		list_for_each_entry(pad_vdev, pad_vdev_list, list) {
 			vfd = pad_vdev->vdev->vfd;
+			if (!vfd->ctrl_handler)
+				continue;
 			dev_dbg(imxmd->md.dev,
 				"reset controls for %s\n",
 				vfd->entity.name);
@@ -307,6 +284,8 @@ static int imx_media_link_notify(struct media_link *link, u32 flags,
 		   (link->flags & MEDIA_LNK_FL_ENABLED)) {
 		list_for_each_entry(pad_vdev, pad_vdev_list, list) {
 			vfd = pad_vdev->vdev->vfd;
+			if (!vfd->ctrl_handler)
+				continue;
 			dev_dbg(imxmd->md.dev,
 				"refresh controls for %s\n",
 				vfd->entity.name);
@@ -343,7 +322,6 @@ static void imx_media_notify(struct v4l2_subdev *sd, unsigned int notification,
 }
 
 static const struct v4l2_async_notifier_operations imx_media_notifier_ops = {
-	.bound = imx_media_subdev_bound,
 	.complete = imx_media_probe_complete,
 };
 
@@ -373,6 +351,8 @@ struct imx_media_dev *imx_media_dev_init(struct device *dev,
 	imxmd->v4l2_dev.notify = imx_media_notify;
 	strscpy(imxmd->v4l2_dev.name, "imx-media",
 		sizeof(imxmd->v4l2_dev.name));
+	snprintf(imxmd->md.bus_info, sizeof(imxmd->md.bus_info),
+		 "platform:%s", dev_name(imxmd->md.dev));
 
 	media_device_init(&imxmd->md);
 
@@ -385,7 +365,7 @@ struct imx_media_dev *imx_media_dev_init(struct device *dev,
 
 	INIT_LIST_HEAD(&imxmd->vdev_list);
 
-	v4l2_async_notifier_init(&imxmd->notifier);
+	v4l2_async_nf_init(&imxmd->notifier, &imxmd->v4l2_dev);
 
 	return imxmd;
 
@@ -402,18 +382,17 @@ int imx_media_dev_notifier_register(struct imx_media_dev *imxmd,
 	int ret;
 
 	/* no subdevs? just bail */
-	if (list_empty(&imxmd->notifier.asd_list)) {
+	if (list_empty(&imxmd->notifier.waiting_list)) {
 		v4l2_err(&imxmd->v4l2_dev, "no subdevs\n");
 		return -ENODEV;
 	}
 
 	/* prepare the async subdev notifier and register it */
 	imxmd->notifier.ops = ops ? ops : &imx_media_notifier_ops;
-	ret = v4l2_async_notifier_register(&imxmd->v4l2_dev,
-					   &imxmd->notifier);
+	ret = v4l2_async_nf_register(&imxmd->notifier);
 	if (ret) {
 		v4l2_err(&imxmd->v4l2_dev,
-			 "v4l2_async_notifier_register failed with %d\n", ret);
+			 "v4l2_async_nf_register failed with %d\n", ret);
 		return ret;
 	}
 

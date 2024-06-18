@@ -22,7 +22,6 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/input.h>
-#include <linux/input-polldev.h>
 #include <linux/module.h>
 #include <linux/spi/spi.h>
 #include <linux/types.h>
@@ -45,6 +44,8 @@ static const u8 PSX_CMD_POLL[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
+
+#ifdef CONFIG_JOYSTICK_PSXPAD_SPI_FF
 /*	0x01, 0x43, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00 */
 static const u8 PSX_CMD_ENTER_CFG[] = {
 	0x80, 0xC2, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00
@@ -57,10 +58,11 @@ static const u8 PSX_CMD_EXIT_CFG[] = {
 static const u8 PSX_CMD_ENABLE_MOTOR[]	= {
 	0x80, 0xB2, 0x00, 0x00, 0x80, 0xFF, 0xFF, 0xFF, 0xFF
 };
+#endif /* CONFIG_JOYSTICK_PSXPAD_SPI_FF */
 
 struct psxpad {
 	struct spi_device *spi;
-	struct input_polled_dev *pdev;
+	struct input_dev *idev;
 	char phys[0x20];
 	bool motor1enable;
 	bool motor2enable;
@@ -140,8 +142,7 @@ static void psxpad_set_motor_level(struct psxpad *pad,
 static int psxpad_spi_play_effect(struct input_dev *idev,
 				  void *data, struct ff_effect *effect)
 {
-	struct input_polled_dev *pdev = input_get_drvdata(idev);
-	struct psxpad *pad = pdev->private;
+	struct psxpad *pad = input_get_drvdata(idev);
 
 	switch (effect->type) {
 	case FF_RUMBLE:
@@ -158,10 +159,9 @@ static int psxpad_spi_init_ff(struct psxpad *pad)
 {
 	int err;
 
-	input_set_capability(pad->pdev->input, EV_FF, FF_RUMBLE);
+	input_set_capability(pad->idev, EV_FF, FF_RUMBLE);
 
-	err = input_ff_create_memless(pad->pdev->input, NULL,
-				      psxpad_spi_play_effect);
+	err = input_ff_create_memless(pad->idev, NULL, psxpad_spi_play_effect);
 	if (err) {
 		dev_err(&pad->spi->dev,
 			"input_ff_create_memless() failed: %d\n", err);
@@ -189,24 +189,25 @@ static inline int psxpad_spi_init_ff(struct psxpad *pad)
 }
 #endif	/* CONFIG_JOYSTICK_PSXPAD_SPI_FF */
 
-static void psxpad_spi_poll_open(struct input_polled_dev *pdev)
+static int psxpad_spi_poll_open(struct input_dev *input)
 {
-	struct psxpad *pad = pdev->private;
+	struct psxpad *pad = input_get_drvdata(input);
 
 	pm_runtime_get_sync(&pad->spi->dev);
+
+	return 0;
 }
 
-static void psxpad_spi_poll_close(struct input_polled_dev *pdev)
+static void psxpad_spi_poll_close(struct input_dev *input)
 {
-	struct psxpad *pad = pdev->private;
+	struct psxpad *pad = input_get_drvdata(input);
 
 	pm_runtime_put_sync(&pad->spi->dev);
 }
 
-static void psxpad_spi_poll(struct input_polled_dev *pdev)
+static void psxpad_spi_poll(struct input_dev *input)
 {
-	struct psxpad *pad = pdev->private;
-	struct input_dev *input = pdev->input;
+	struct psxpad *pad = input_get_drvdata(input);
 	u8 b_rsp3, b_rsp4;
 	int err;
 
@@ -284,7 +285,6 @@ static void psxpad_spi_poll(struct input_polled_dev *pdev)
 static int psxpad_spi_probe(struct spi_device *spi)
 {
 	struct psxpad *pad;
-	struct input_polled_dev *pdev;
 	struct input_dev *idev;
 	int err;
 
@@ -292,30 +292,25 @@ static int psxpad_spi_probe(struct spi_device *spi)
 	if (!pad)
 		return -ENOMEM;
 
-	pdev = input_allocate_polled_device();
-	if (!pdev) {
+	idev = devm_input_allocate_device(&spi->dev);
+	if (!idev) {
 		dev_err(&spi->dev, "failed to allocate input device\n");
 		return -ENOMEM;
 	}
 
 	/* input poll device settings */
-	pad->pdev = pdev;
+	pad->idev = idev;
 	pad->spi = spi;
 
-	pdev->private = pad;
-	pdev->open = psxpad_spi_poll_open;
-	pdev->close = psxpad_spi_poll_close;
-	pdev->poll = psxpad_spi_poll;
-	/* poll interval is about 60fps */
-	pdev->poll_interval = 16;
-	pdev->poll_interval_min = 8;
-	pdev->poll_interval_max = 32;
-
 	/* input device settings */
-	idev = pdev->input;
+	input_set_drvdata(idev, pad);
+
 	idev->name = "PlayStation 1/2 joypad";
 	snprintf(pad->phys, sizeof(pad->phys), "%s/input", dev_name(&spi->dev));
 	idev->id.bustype = BUS_SPI;
+
+	idev->open = psxpad_spi_poll_open;
+	idev->close = psxpad_spi_poll_close;
 
 	/* key/value map settings */
 	input_set_abs_params(idev, ABS_X, 0, 255, 0, 0);
@@ -347,18 +342,30 @@ static int psxpad_spi_probe(struct spi_device *spi)
 	spi->mode = SPI_MODE_3;
 	spi->bits_per_word = 8;
 	/* (PlayStation 1/2 joypad might be possible works 250kHz/500kHz) */
-	spi->master->min_speed_hz = 125000;
-	spi->master->max_speed_hz = 125000;
+	spi->controller->min_speed_hz = 125000;
+	spi->controller->max_speed_hz = 125000;
 	spi_setup(spi);
 
 	/* pad settings */
 	psxpad_set_motor_level(pad, 0, 0);
 
+
+	err = input_setup_polling(idev, psxpad_spi_poll);
+	if (err) {
+		dev_err(&spi->dev, "failed to set up polling: %d\n", err);
+		return err;
+	}
+
+	/* poll interval is about 60fps */
+	input_set_poll_interval(idev, 16);
+	input_set_min_poll_interval(idev, 8);
+	input_set_max_poll_interval(idev, 32);
+
 	/* register input poll device */
-	err = input_register_polled_device(pdev);
+	err = input_register_device(idev);
 	if (err) {
 		dev_err(&spi->dev,
-			"failed to register input poll device: %d\n", err);
+			"failed to register input device: %d\n", err);
 		return err;
 	}
 
@@ -367,7 +374,7 @@ static int psxpad_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int __maybe_unused psxpad_spi_suspend(struct device *dev)
+static int psxpad_spi_suspend(struct device *dev)
 {
 	struct spi_device *spi = to_spi_device(dev);
 	struct psxpad *pad = spi_get_drvdata(spi);
@@ -377,7 +384,7 @@ static int __maybe_unused psxpad_spi_suspend(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(psxpad_spi_pm, psxpad_spi_suspend, NULL);
+static DEFINE_SIMPLE_DEV_PM_OPS(psxpad_spi_pm, psxpad_spi_suspend, NULL);
 
 static const struct spi_device_id psxpad_spi_id[] = {
 	{ "psxpad-spi", 0 },
@@ -388,7 +395,7 @@ MODULE_DEVICE_TABLE(spi, psxpad_spi_id);
 static struct spi_driver psxpad_spi_driver = {
 	.driver = {
 		.name = "psxpad-spi",
-		.pm = &psxpad_spi_pm,
+		.pm = pm_sleep_ptr(&psxpad_spi_pm),
 	},
 	.id_table = psxpad_spi_id,
 	.probe   = psxpad_spi_probe,

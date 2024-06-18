@@ -40,7 +40,6 @@
 #include <linux/iommu.h>
 #include <linux/workqueue.h>
 #include <linux/list.h>
-#include <linux/pci.h>
 #include <rdma/ib_verbs.h>
 
 #include "usnic_log.h"
@@ -75,7 +74,7 @@ static void usnic_uiom_put_pages(struct list_head *chunk_list, int dirty)
 		for_each_sg(chunk->page_list, sg, chunk->nents, i) {
 			page = sg_page(sg);
 			pa = sg_phys(sg);
-			put_user_pages_dirty_lock(&page, 1, dirty);
+			unpin_user_pages_dirty_lock(&page, 1, dirty);
 			usnic_dbg("pa: %pa\n", &pa);
 		}
 		kfree(chunk);
@@ -86,6 +85,7 @@ static int usnic_uiom_get_pages(unsigned long addr, size_t size, int writable,
 				int dmasync, struct usnic_uiom_reg *uiomr)
 {
 	struct list_head *chunk_list = &uiomr->chunk_list;
+	unsigned int gup_flags = FOLL_LONGTERM;
 	struct page **page_list;
 	struct scatterlist *sg;
 	struct usnic_uiom_chunk *chunk;
@@ -96,9 +96,7 @@ static int usnic_uiom_get_pages(unsigned long addr, size_t size, int writable,
 	int ret;
 	int off;
 	int i;
-	int flags;
 	dma_addr_t pa;
-	unsigned int gup_flags;
 	struct mm_struct *mm;
 
 	/*
@@ -123,7 +121,7 @@ static int usnic_uiom_get_pages(unsigned long addr, size_t size, int writable,
 	npages = PAGE_ALIGN(size + (addr & ~PAGE_MASK)) >> PAGE_SHIFT;
 
 	uiomr->owning_mm = mm = current->mm;
-	down_read(&mm->mmap_sem);
+	mmap_read_lock(mm);
 
 	locked = atomic64_add_return(npages, &current->mm->pinned_vm);
 	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
@@ -133,19 +131,16 @@ static int usnic_uiom_get_pages(unsigned long addr, size_t size, int writable,
 		goto out;
 	}
 
-	flags = IOMMU_READ | IOMMU_CACHE;
-	flags |= (writable) ? IOMMU_WRITE : 0;
-	gup_flags = FOLL_WRITE;
-	gup_flags |= (writable) ? 0 : FOLL_FORCE;
+	if (writable)
+		gup_flags |= FOLL_WRITE;
 	cur_base = addr & PAGE_MASK;
 	ret = 0;
 
 	while (npages) {
-		ret = get_user_pages(cur_base,
+		ret = pin_user_pages(cur_base,
 				     min_t(unsigned long, npages,
 				     PAGE_SIZE / sizeof(struct page *)),
-				     gup_flags | FOLL_LONGTERM,
-				     page_list, NULL);
+				     gup_flags, page_list);
 
 		if (ret < 0)
 			goto out;
@@ -187,7 +182,7 @@ out:
 	} else
 		mmgrab(uiomr->owning_mm);
 
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 	free_page((unsigned long) page_list);
 	return ret;
 }
@@ -282,7 +277,7 @@ iter_chunk:
 				usnic_dbg("va 0x%lx pa %pa size 0x%zx flags 0x%x",
 					va_start, &pa_start, size, flags);
 				err = iommu_map(pd->domain, va_start, pa_start,
-							size, flags);
+						size, flags, GFP_ATOMIC);
 				if (err) {
 					usnic_err("Failed to map va 0x%lx pa %pa size 0x%zx with err %d\n",
 						va_start, &pa_start, size, err);
@@ -299,7 +294,7 @@ iter_chunk:
 				usnic_dbg("va 0x%lx pa %pa size 0x%zx flags 0x%x\n",
 					va_start, &pa_start, size, flags);
 				err = iommu_map(pd->domain, va_start, pa_start,
-						size, flags);
+						size, flags, GFP_ATOMIC);
 				if (err) {
 					usnic_err("Failed to map va 0x%lx pa %pa size 0x%zx with err %d\n",
 						va_start, &pa_start, size, err);
@@ -439,7 +434,7 @@ void usnic_uiom_reg_release(struct usnic_uiom_reg *uiomr)
 	__usnic_uiom_release_tail(uiomr);
 }
 
-struct usnic_uiom_pd *usnic_uiom_alloc_pd(void)
+struct usnic_uiom_pd *usnic_uiom_alloc_pd(struct device *dev)
 {
 	struct usnic_uiom_pd *pd;
 	void *domain;
@@ -448,7 +443,7 @@ struct usnic_uiom_pd *usnic_uiom_alloc_pd(void)
 	if (!pd)
 		return ERR_PTR(-ENOMEM);
 
-	pd->domain = domain = iommu_domain_alloc(&pci_bus_type);
+	pd->domain = domain = iommu_domain_alloc(dev->bus);
 	if (!domain) {
 		usnic_err("Failed to allocate IOMMU domain");
 		kfree(pd);
@@ -483,7 +478,7 @@ int usnic_uiom_attach_dev_to_pd(struct usnic_uiom_pd *pd, struct device *dev)
 	if (err)
 		goto out_free_dev;
 
-	if (!iommu_capable(dev->bus, IOMMU_CAP_CACHE_COHERENCY)) {
+	if (!device_iommu_capable(dev, IOMMU_CAP_CACHE_COHERENCY)) {
 		usnic_err("IOMMU of %s does not support cache coherency\n",
 				dev_name(dev));
 		err = -EINVAL;
@@ -555,14 +550,4 @@ out:
 void usnic_uiom_free_dev_list(struct device **devs)
 {
 	kfree(devs);
-}
-
-int usnic_uiom_init(char *drv_name)
-{
-	if (!iommu_present(&pci_bus_type)) {
-		usnic_err("IOMMU required but not present or enabled.  USNIC QPs will not function w/o enabling IOMMU\n");
-		return -EPERM;
-	}
-
-	return 0;
 }

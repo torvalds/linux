@@ -13,32 +13,20 @@
 #include <uapi/linux/audit.h>
 #include <linux/sched.h>
 #include <linux/err.h>
-#include <asm/asm-offsets.h>	/* For NR_syscalls */
 #include <asm/thread_info.h>	/* for TS_COMPAT */
 #include <asm/unistd.h>
 
-#ifdef CONFIG_X86_64
-typedef asmlinkage long (*sys_call_ptr_t)(const struct pt_regs *);
-#else
-typedef asmlinkage long (*sys_call_ptr_t)(unsigned long, unsigned long,
-					  unsigned long, unsigned long,
-					  unsigned long, unsigned long);
-#endif /* CONFIG_X86_64 */
+/* This is used purely for kernel/trace/trace_syscalls.c */
+typedef long (*sys_call_ptr_t)(const struct pt_regs *);
 extern const sys_call_ptr_t sys_call_table[];
 
-#if defined(CONFIG_X86_32)
-#define ia32_sys_call_table sys_call_table
-#define __NR_syscall_compat_max __NR_syscall_max
-#define IA32_NR_syscalls NR_syscalls
-#endif
-
-#if defined(CONFIG_IA32_EMULATION)
-extern const sys_call_ptr_t ia32_sys_call_table[];
-#endif
-
-#ifdef CONFIG_X86_X32_ABI
-extern const sys_call_ptr_t x32_sys_call_table[];
-#endif
+/*
+ * These may not exist, but still put the prototypes in so we
+ * can use IS_ENABLED().
+ */
+extern long ia32_sys_call(const struct pt_regs *, unsigned int nr);
+extern long x32_sys_call(const struct pt_regs *, unsigned int nr);
+extern long x64_sys_call(const struct pt_regs *, unsigned int nr);
 
 /*
  * Only the low 32 bits of orig_ax are meaningful, so we return int.
@@ -97,15 +85,6 @@ static inline void syscall_get_arguments(struct task_struct *task,
 	memcpy(args, &regs->bx, 6 * sizeof(args[0]));
 }
 
-static inline void syscall_set_arguments(struct task_struct *task,
-					 struct pt_regs *regs,
-					 unsigned int i, unsigned int n,
-					 const unsigned long *args)
-{
-	BUG_ON(i + n > 6);
-	memcpy(&regs->bx + i, args, n * sizeof(args[0]));
-}
-
 static inline int syscall_get_arch(struct task_struct *task)
 {
 	return AUDIT_ARCH_I386;
@@ -137,30 +116,6 @@ static inline void syscall_get_arguments(struct task_struct *task,
 	}
 }
 
-static inline void syscall_set_arguments(struct task_struct *task,
-					 struct pt_regs *regs,
-					 const unsigned long *args)
-{
-# ifdef CONFIG_IA32_EMULATION
-	if (task->thread_info.status & TS_COMPAT) {
-		regs->bx = *args++;
-		regs->cx = *args++;
-		regs->dx = *args++;
-		regs->si = *args++;
-		regs->di = *args++;
-		regs->bp = *args;
-	} else
-# endif
-	{
-		regs->di = *args++;
-		regs->si = *args++;
-		regs->dx = *args++;
-		regs->r10 = *args++;
-		regs->r8 = *args++;
-		regs->r9 = *args;
-	}
-}
-
 static inline int syscall_get_arch(struct task_struct *task)
 {
 	/* x32 tasks should be considered AUDIT_ARCH_X86_64. */
@@ -168,6 +123,14 @@ static inline int syscall_get_arch(struct task_struct *task)
 		task->thread_info.status & TS_COMPAT)
 		? AUDIT_ARCH_I386 : AUDIT_ARCH_X86_64;
 }
+
+bool do_syscall_64(struct pt_regs *regs, int nr);
+void do_int80_emulation(struct pt_regs *regs);
+
 #endif	/* CONFIG_X86_32 */
+
+void do_int80_syscall_32(struct pt_regs *regs);
+bool do_fast_syscall_32(struct pt_regs *regs);
+bool do_SYSENTER_32(struct pt_regs *regs);
 
 #endif	/* _ASM_X86_SYSCALL_H */

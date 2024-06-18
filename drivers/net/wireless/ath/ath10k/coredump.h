@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: ISC */
 /*
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _COREDUMP_H_
@@ -12,7 +13,11 @@
 
 /**
  * enum ath10k_fw_crash_dump_type - types of data in the dump file
- * @ATH10K_FW_CRASH_DUMP_REGDUMP: Register crash dump in binary format
+ * @ATH10K_FW_CRASH_DUMP_REGISTERS: Register crash dump in binary format
+ * @ATH10K_FW_CRASH_DUMP_CE_DATA: Copy Engine crash dump data
+ * @ATH10K_FW_CRASH_DUMP_RAM_DATA: RAM crash dump data, contains multiple
+ *				   struct ath10k_dump_ram_data_hdr
+ * @ATH10K_FW_CRASH_DUMP_MAX: Maximum enumeration
  */
 enum ath10k_fw_crash_dump_type {
 	ATH10K_FW_CRASH_DUMP_REGISTERS = 0,
@@ -88,7 +93,7 @@ struct ath10k_dump_file_data {
 	u8 unused[128];
 
 	/* struct ath10k_tlv_dump_data + more */
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 struct ath10k_dump_ram_data_hdr {
@@ -100,7 +105,7 @@ struct ath10k_dump_ram_data_hdr {
 	/* length of payload data, not including this header */
 	__le32 length;
 
-	u8 data[0];
+	u8 data[];
 };
 
 /* magic number to fill the holes not copied due to sections in regions */
@@ -115,6 +120,7 @@ enum ath10k_mem_region_type {
 	ATH10K_MEM_REGION_TYPE_IRAM2	= 5,
 	ATH10K_MEM_REGION_TYPE_IOSRAM	= 6,
 	ATH10K_MEM_REGION_TYPE_IOREG	= 7,
+	ATH10K_MEM_REGION_TYPE_MSA	= 8,
 };
 
 /* Define a section of the region which should be copied. As not all parts
@@ -124,7 +130,7 @@ enum ath10k_mem_region_type {
  * To minimize the size of the array, the list must obey the format:
  * '{start0,stop0},{start1,stop1},{start2,stop2}....' The values below must
  * also obey to 'start0 < stop0 < start1 < stop1 < start2 < ...', otherwise
- * we may encouter error in the dump processing.
+ * we may encounter error in the dump processing.
  */
 struct ath10k_mem_section {
 	u32 start;
@@ -155,6 +161,7 @@ struct ath10k_mem_region {
 struct ath10k_hw_mem_layout {
 	u32 hw_id;
 	u32 hw_rev;
+	enum ath10k_bus bus;
 
 	struct {
 		const struct ath10k_mem_region *regions;
@@ -174,6 +181,7 @@ int ath10k_coredump_register(struct ath10k *ar);
 void ath10k_coredump_unregister(struct ath10k *ar);
 void ath10k_coredump_destroy(struct ath10k *ar);
 
+const struct ath10k_hw_mem_layout *_ath10k_coredump_get_mem_layout(struct ath10k *ar);
 const struct ath10k_hw_mem_layout *ath10k_coredump_get_mem_layout(struct ath10k *ar);
 
 #else /* CONFIG_DEV_COREDUMP */
@@ -208,6 +216,12 @@ static inline void ath10k_coredump_destroy(struct ath10k *ar)
 
 static inline const struct ath10k_hw_mem_layout *
 ath10k_coredump_get_mem_layout(struct ath10k *ar)
+{
+	return NULL;
+}
+
+static inline const struct ath10k_hw_mem_layout *
+_ath10k_coredump_get_mem_layout(struct ath10k *ar)
 {
 	return NULL;
 }

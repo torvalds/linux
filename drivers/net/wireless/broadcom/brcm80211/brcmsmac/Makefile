@@ -16,9 +16,9 @@
 # CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 ccflags-y := \
-	-I $(srctree)/$(src) \
-	-I $(srctree)/$(src)/phy \
-	-I $(srctree)/$(src)/../include
+	-I $(src) \
+	-I $(src)/phy \
+	-I $(src)/../include
 
 brcmsmac-y := \
 	mac80211_if.o \
@@ -42,6 +42,6 @@ brcmsmac-y := \
 	brcms_trace_events.o \
 	debug.o
 
-brcmsmac-$(CONFIG_BCMA_DRIVER_GPIO) += led.o
+brcmsmac-$(CONFIG_BRCMSMAC_LEDS) += led.o
 
 obj-$(CONFIG_BRCMSMAC)	+= brcmsmac.o

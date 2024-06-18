@@ -32,9 +32,9 @@ static int mpu3050_i2c_bypass_deselect(struct i2c_mux_core *mux, u32 chan_id)
 	return 0;
 }
 
-static int mpu3050_i2c_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int mpu3050_i2c_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct regmap *regmap;
 	const char *name;
 	struct mpu3050 *mpu3050;
@@ -51,8 +51,8 @@ static int mpu3050_i2c_probe(struct i2c_client *client,
 
 	regmap = devm_regmap_init_i2c(client, &mpu3050_i2c_regmap_config);
 	if (IS_ERR(regmap)) {
-		dev_err(&client->dev, "Failed to register i2c regmap %d\n",
-			(int)PTR_ERR(regmap));
+		dev_err(&client->dev, "Failed to register i2c regmap: %pe\n",
+			regmap);
 		return PTR_ERR(regmap);
 	}
 
@@ -72,13 +72,13 @@ static int mpu3050_i2c_probe(struct i2c_client *client,
 	else {
 		mpu3050->i2cmux->priv = mpu3050;
 		/* Ignore failure, not critical */
-		i2c_mux_add_adapter(mpu3050->i2cmux, 0, 0, 0);
+		i2c_mux_add_adapter(mpu3050->i2cmux, 0, 0);
 	}
 
 	return 0;
 }
 
-static int mpu3050_i2c_remove(struct i2c_client *client)
+static void mpu3050_i2c_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(&client->dev);
 	struct mpu3050 *mpu3050 = iio_priv(indio_dev);
@@ -86,7 +86,7 @@ static int mpu3050_i2c_remove(struct i2c_client *client)
 	if (mpu3050->i2cmux)
 		i2c_mux_del_adapters(mpu3050->i2cmux);
 
-	return mpu3050_common_remove(&client->dev);
+	mpu3050_common_remove(&client->dev);
 }
 
 /*
@@ -114,7 +114,7 @@ static struct i2c_driver mpu3050_i2c_driver = {
 	.driver = {
 		.of_match_table = mpu3050_i2c_of_match,
 		.name = "mpu3050-i2c",
-		.pm = &mpu3050_dev_pm_ops,
+		.pm = pm_ptr(&mpu3050_dev_pm_ops),
 	},
 };
 module_i2c_driver(mpu3050_i2c_driver);

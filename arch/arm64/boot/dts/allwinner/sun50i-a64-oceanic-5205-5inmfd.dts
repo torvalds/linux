@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
-/*
- * Copyright (C) 2019 Oceanic Systems (UK) Ltd.
- * Copyright (C) 2019 Amarula Solutions B.V.
- * Author: Jagan Teki <jagan@amarulasolutions.com>
- */
+// Copyright (C) 2019 Oceanic Systems (UK) Ltd.
+// Copyright (C) 2019 Amarula Solutions B.V.
+// Author: Jagan Teki <jagan@amarulasolutions.com>
 
 /dts-v1/;
 

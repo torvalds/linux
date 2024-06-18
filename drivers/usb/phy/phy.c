@@ -34,6 +34,20 @@ struct phy_devm {
 	struct notifier_block *nb;
 };
 
+static const char *const usb_chger_type[] = {
+	[UNKNOWN_TYPE]			= "USB_CHARGER_UNKNOWN_TYPE",
+	[SDP_TYPE]			= "USB_CHARGER_SDP_TYPE",
+	[CDP_TYPE]			= "USB_CHARGER_CDP_TYPE",
+	[DCP_TYPE]			= "USB_CHARGER_DCP_TYPE",
+	[ACA_TYPE]			= "USB_CHARGER_ACA_TYPE",
+};
+
+static const char *const usb_chger_state[] = {
+	[USB_CHARGER_DEFAULT]	= "USB_CHARGER_DEFAULT",
+	[USB_CHARGER_PRESENT]	= "USB_CHARGER_PRESENT",
+	[USB_CHARGER_ABSENT]	= "USB_CHARGER_ABSENT",
+};
+
 static struct usb_phy *__usb_find_phy(struct list_head *list,
 	enum usb_phy_type type)
 {
@@ -66,6 +80,18 @@ static struct usb_phy *__of_usb_find_phy(struct device_node *node)
 	return ERR_PTR(-EPROBE_DEFER);
 }
 
+static struct usb_phy *__device_to_usb_phy(const struct device *dev)
+{
+	struct usb_phy *usb_phy;
+
+	list_for_each_entry(usb_phy, &phy_list, head) {
+		if (usb_phy->dev == dev)
+			return usb_phy;
+	}
+
+	return NULL;
+}
+
 static void usb_phy_set_default_current(struct usb_phy *usb_phy)
 {
 	usb_phy->chg_cur.sdp_min = DEFAULT_SDP_CUR_MIN;
@@ -80,7 +106,7 @@ static void usb_phy_set_default_current(struct usb_phy *usb_phy)
 
 /**
  * usb_phy_notify_charger_work - notify the USB charger state
- * @work - the charger work to notify the USB charger state
+ * @work: the charger work to notify the USB charger state
  *
  * This work can be issued when USB charger state has been changed or
  * USB charger current has been changed, then we can notify the current
@@ -97,8 +123,6 @@ static void usb_phy_set_default_current(struct usb_phy *usb_phy)
 static void usb_phy_notify_charger_work(struct work_struct *work)
 {
 	struct usb_phy *usb_phy = container_of(work, struct usb_phy, chg_work);
-	char uchger_state[50] = { 0 };
-	char *envp[] = { uchger_state, NULL };
 	unsigned int min, max;
 
 	switch (usb_phy->chg_state) {
@@ -106,15 +130,11 @@ static void usb_phy_notify_charger_work(struct work_struct *work)
 		usb_phy_get_charger_current(usb_phy, &min, &max);
 
 		atomic_notifier_call_chain(&usb_phy->notifier, max, usb_phy);
-		snprintf(uchger_state, ARRAY_SIZE(uchger_state),
-			 "USB_CHARGER_STATE=%s", "USB_CHARGER_PRESENT");
 		break;
 	case USB_CHARGER_ABSENT:
 		usb_phy_set_default_current(usb_phy);
 
 		atomic_notifier_call_chain(&usb_phy->notifier, 0, usb_phy);
-		snprintf(uchger_state, ARRAY_SIZE(uchger_state),
-			 "USB_CHARGER_STATE=%s", "USB_CHARGER_ABSENT");
 		break;
 	default:
 		dev_warn(usb_phy->dev, "Unknown USB charger state: %d\n",
@@ -122,7 +142,36 @@ static void usb_phy_notify_charger_work(struct work_struct *work)
 		return;
 	}
 
-	kobject_uevent_env(&usb_phy->dev->kobj, KOBJ_CHANGE, envp);
+	kobject_uevent(&usb_phy->dev->kobj, KOBJ_CHANGE);
+}
+
+static int usb_phy_uevent(const struct device *dev, struct kobj_uevent_env *env)
+{
+	const struct usb_phy *usb_phy;
+	char uchger_state[50] = { 0 };
+	char uchger_type[50] = { 0 };
+	unsigned long flags;
+
+	spin_lock_irqsave(&phy_lock, flags);
+	usb_phy = __device_to_usb_phy(dev);
+	spin_unlock_irqrestore(&phy_lock, flags);
+
+	if (!usb_phy)
+		return -ENODEV;
+
+	snprintf(uchger_state, ARRAY_SIZE(uchger_state),
+		 "USB_CHARGER_STATE=%s", usb_chger_state[usb_phy->chg_state]);
+
+	snprintf(uchger_type, ARRAY_SIZE(uchger_type),
+		 "USB_CHARGER_TYPE=%s", usb_chger_type[usb_phy->chg_type]);
+
+	if (add_uevent_var(env, uchger_state))
+		return -ENOMEM;
+
+	if (add_uevent_var(env, uchger_type))
+		return -ENOMEM;
+
+	return 0;
 }
 
 static void __usb_phy_get_charger_type(struct usb_phy *usb_phy)
@@ -149,9 +198,9 @@ static void __usb_phy_get_charger_type(struct usb_phy *usb_phy)
 
 /**
  * usb_phy_get_charger_type - get charger type from extcon subsystem
- * @nb -the notifier block to determine charger type
- * @state - the cable state
- * @data - private data
+ * @nb: the notifier block to determine charger type
+ * @state: the cable state
+ * @data: private data
  *
  * Determin the charger type from extcon subsystem which also means the
  * charger state has been chaned, then we should notify this event.
@@ -167,8 +216,8 @@ static int usb_phy_get_charger_type(struct notifier_block *nb,
 
 /**
  * usb_phy_set_charger_current - set the USB charger current
- * @usb_phy - the USB phy to be used
- * @mA - the current need to be set
+ * @usb_phy: the USB phy to be used
+ * @mA: the current need to be set
  *
  * Usually we only change the charger default current when USB finished the
  * enumeration as one SDP charger. As one SDP charger, usb_phy_set_power()
@@ -220,9 +269,9 @@ EXPORT_SYMBOL_GPL(usb_phy_set_charger_current);
 
 /**
  * usb_phy_get_charger_current - get the USB charger current
- * @usb_phy - the USB phy to be used
- * @min - the minimum current
- * @max - the maximum current
+ * @usb_phy: the USB phy to be used
+ * @min: the minimum current
+ * @max: the maximum current
  *
  * Usually we will notify the maximum current to power user, but for some
  * special case, power user also need the minimum current value. Then the
@@ -258,8 +307,8 @@ EXPORT_SYMBOL_GPL(usb_phy_get_charger_current);
 
 /**
  * usb_phy_set_charger_state - set the USB charger state
- * @usb_phy - the USB phy to be used
- * @state - the new state need to be set for charger
+ * @usb_phy: the USB phy to be used
+ * @state: the new state need to be set for charger
  *
  * The usb phy driver can issue this function when the usb phy driver
  * detected the charger state has been changed, in this case the charger
@@ -403,8 +452,8 @@ static int usb_add_extcon(struct usb_phy *x)
 
 /**
  * devm_usb_get_phy - find the USB PHY
- * @dev - device that requests this phy
- * @type - the type of the phy the controller requires
+ * @dev: device that requests this phy
+ * @type: the type of the phy the controller requires
  *
  * Gets the phy using usb_get_phy(), and associates a device with it using
  * devres. On driver detach, release function is invoked on the devres data,
@@ -433,7 +482,7 @@ EXPORT_SYMBOL_GPL(devm_usb_get_phy);
 
 /**
  * usb_get_phy - find the USB PHY
- * @type - the type of the phy the controller requires
+ * @type: the type of the phy the controller requires
  *
  * Returns the phy driver, after getting a refcount to it; or
  * -ENODEV if there is no such phy.  The caller is responsible for
@@ -469,9 +518,9 @@ EXPORT_SYMBOL_GPL(usb_get_phy);
 
 /**
  * devm_usb_get_phy_by_node - find the USB PHY by device_node
- * @dev - device that requests this phy
- * @node - the device_node for the phy device.
- * @nb - a notifier_block to register with the phy.
+ * @dev: device that requests this phy
+ * @node: the device_node for the phy device.
+ * @nb: a notifier_block to register with the phy.
  *
  * Returns the phy driver associated with the given device_node,
  * after getting a refcount to it, -ENODEV if there is no such phy or
@@ -529,9 +578,9 @@ EXPORT_SYMBOL_GPL(devm_usb_get_phy_by_node);
 
 /**
  * devm_usb_get_phy_by_phandle - find the USB PHY by phandle
- * @dev - device that requests this phy
- * @phandle - name of the property holding the phy phandle value
- * @index - the index of the phy
+ * @dev: device that requests this phy
+ * @phandle: name of the property holding the phy phandle value
+ * @index: the index of the phy
  *
  * Returns the phy driver associated with the given phandle value,
  * after getting a refcount to it, -ENODEV if there is no such phy or
@@ -567,8 +616,8 @@ EXPORT_SYMBOL_GPL(devm_usb_get_phy_by_phandle);
 
 /**
  * devm_usb_put_phy - release the USB PHY
- * @dev - device that wants to release this phy
- * @phy - the phy returned by devm_usb_get_phy()
+ * @dev: device that wants to release this phy
+ * @phy: the phy returned by devm_usb_get_phy()
  *
  * destroys the devres associated with this phy and invokes usb_put_phy
  * to release the phy.
@@ -604,9 +653,9 @@ void usb_put_phy(struct usb_phy *x)
 EXPORT_SYMBOL_GPL(usb_put_phy);
 
 /**
- * usb_add_phy - declare the USB PHY
+ * usb_add_phy: declare the USB PHY
  * @x: the USB phy to be used; or NULL
- * @type - the type of this PHY
+ * @type: the type of this PHY
  *
  * This call is exclusively for use by phy drivers, which
  * coordinate the activities of drivers for host and peripheral
@@ -650,6 +699,11 @@ out:
 }
 EXPORT_SYMBOL_GPL(usb_add_phy);
 
+static const struct device_type usb_phy_dev_type = {
+	.name = "usb_phy",
+	.uevent = usb_phy_uevent,
+};
+
 /**
  * usb_add_phy_dev - declare the USB PHY
  * @x: the USB phy to be used; or NULL
@@ -672,6 +726,8 @@ int usb_add_phy_dev(struct usb_phy *x)
 	ret = usb_add_extcon(x);
 	if (ret)
 		return ret;
+
+	x->dev->type = &usb_phy_dev_type;
 
 	ATOMIC_INIT_NOTIFIER_HEAD(&x->notifier);
 
@@ -703,6 +759,7 @@ EXPORT_SYMBOL_GPL(usb_remove_phy);
 /**
  * usb_phy_set_event - set event to phy event
  * @x: the phy returned by usb_get_phy();
+ * @event: event to set
  *
  * This sets event to phy event
  */

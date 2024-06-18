@@ -9,18 +9,11 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/errno.h>
-#include <linux/types.h>
-#include <linux/interrupt.h>
-#include <linux/i2c.h>
-#include <linux/gpio.h>
-#include <linux/irq.h>
-#include <linux/delay.h>
+#include <linux/mutex.h>
+#include <linux/sysfs.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/trigger.h>
-#include <linux/iio/buffer.h>
 #include <asm/unaligned.h>
 
 #include <linux/iio/common/st_sensors.h>
@@ -559,6 +552,76 @@ static const struct st_sensor_settings st_press_sensors_settings[] = {
 		.multi_read_bit = false,
 		.bootime = 2,
 	},
+	{
+		/*
+		 * CUSTOM VALUES FOR LPS22DF SENSOR
+		 * See LPS22DF datasheet:
+		 * http://www.st.com/resource/en/datasheet/lps22df.pdf
+		 */
+		.wai = 0xb4,
+		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
+		.sensors_supported = {
+			[0] = LPS22DF_PRESS_DEV_NAME,
+		},
+		.ch = (struct iio_chan_spec *)st_press_lps22hb_channels,
+		.num_ch = ARRAY_SIZE(st_press_lps22hb_channels),
+		.odr = {
+			.addr = 0x10,
+			.mask = 0x78,
+			.odr_avl = {
+				{ .hz = 1, .value = 0x01 },
+				{ .hz = 4, .value = 0x02 },
+				{ .hz = 10, .value = 0x03 },
+				{ .hz = 25, .value = 0x04 },
+				{ .hz = 50, .value = 0x05 },
+				{ .hz = 75, .value = 0x06 },
+				{ .hz = 100, .value = 0x07 },
+				{ .hz = 200, .value = 0x08 },
+			},
+		},
+		.pw = {
+			.addr = 0x10,
+			.mask = 0x78,
+			.value_off = ST_SENSORS_DEFAULT_POWER_OFF_VALUE,
+		},
+		.fs = {
+			.fs_avl = {
+				/*
+				 * Pressure and temperature sensitivity values
+				 * as defined in table 2 of LPS22DF datasheet.
+				 */
+				[0] = {
+					.num = ST_PRESS_FS_AVL_1260MB,
+					.gain = ST_PRESS_KPASCAL_NANO_SCALE,
+					.gain2 = ST_PRESS_LPS22HB_LSB_PER_CELSIUS,
+				},
+			},
+		},
+		.bdu = {
+			.addr = 0x11,
+			.mask = BIT(3),
+		},
+		.drdy_irq = {
+			.int1 = {
+				.addr = 0x13,
+				.mask = BIT(5),
+				.addr_od = 0x12,
+				.mask_od = BIT(1),
+			},
+			.addr_ihl = 0x12,
+			.mask_ihl = BIT(3),
+			.stat_drdy = {
+				.addr = ST_SENSORS_DEFAULT_STAT_ADDR,
+				.mask = 0x03,
+			},
+		},
+		.sim = {
+			.addr = 0x0E,
+			.value = BIT(5),
+		},
+		.multi_read_bit = false,
+		.bootime = 2,
+	},
 };
 
 static int st_press_write_raw(struct iio_dev *indio_dev,
@@ -567,16 +630,12 @@ static int st_press_write_raw(struct iio_dev *indio_dev,
 			      int val2,
 			      long mask)
 {
-	int err;
-
 	switch (mask) {
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		if (val2)
 			return -EINVAL;
-		mutex_lock(&indio_dev->mlock);
-		err = st_sensors_set_odr(indio_dev, val);
-		mutex_unlock(&indio_dev->mlock);
-		return err;
+
+		return st_sensors_set_odr(indio_dev, val);
 	default:
 		return -EINVAL;
 	}
@@ -679,25 +738,21 @@ const struct st_sensor_settings *st_press_get_settings(const char *name)
 
 	return &st_press_sensors_settings[index];
 }
-EXPORT_SYMBOL(st_press_get_settings);
+EXPORT_SYMBOL_NS(st_press_get_settings, IIO_ST_SENSORS);
 
 int st_press_common_probe(struct iio_dev *indio_dev)
 {
 	struct st_sensor_data *press_data = iio_priv(indio_dev);
-	struct st_sensors_platform_data *pdata =
-		(struct st_sensors_platform_data *)press_data->dev->platform_data;
+	struct device *parent = indio_dev->dev.parent;
+	struct st_sensors_platform_data *pdata = dev_get_platdata(parent);
 	int err;
 
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &press_info;
 
-	err = st_sensors_power_enable(indio_dev);
-	if (err)
-		return err;
-
 	err = st_sensors_verify_id(indio_dev);
 	if (err < 0)
-		goto st_press_power_off;
+		return err;
 
 	/*
 	 * Skip timestamping channel while declaring available channels to
@@ -709,9 +764,7 @@ int st_press_common_probe(struct iio_dev *indio_dev)
 	indio_dev->channels = press_data->sensor_settings->ch;
 	indio_dev->num_channels = press_data->sensor_settings->num_ch;
 
-	press_data->current_fullscale =
-		(struct st_sensor_fullscale_avl *)
-			&press_data->sensor_settings->fs.fs_avl[0];
+	press_data->current_fullscale = &press_data->sensor_settings->fs.fs_avl[0];
 
 	press_data->odr = press_data->sensor_settings->odr.odr_avl[0].hz;
 
@@ -722,54 +775,24 @@ int st_press_common_probe(struct iio_dev *indio_dev)
 
 	err = st_sensors_init_sensor(indio_dev, pdata);
 	if (err < 0)
-		goto st_press_power_off;
+		return err;
 
 	err = st_press_allocate_ring(indio_dev);
 	if (err < 0)
-		goto st_press_power_off;
+		return err;
 
 	if (press_data->irq > 0) {
 		err = st_sensors_allocate_trigger(indio_dev,
 						  ST_PRESS_TRIGGER_OPS);
 		if (err < 0)
-			goto st_press_probe_trigger_error;
+			return err;
 	}
 
-	err = iio_device_register(indio_dev);
-	if (err)
-		goto st_press_device_register_error;
-
-	dev_info(&indio_dev->dev, "registered pressure sensor %s\n",
-		 indio_dev->name);
-
-	return err;
-
-st_press_device_register_error:
-	if (press_data->irq > 0)
-		st_sensors_deallocate_trigger(indio_dev);
-st_press_probe_trigger_error:
-	st_press_deallocate_ring(indio_dev);
-st_press_power_off:
-	st_sensors_power_disable(indio_dev);
-
-	return err;
+	return devm_iio_device_register(parent, indio_dev);
 }
-EXPORT_SYMBOL(st_press_common_probe);
-
-void st_press_common_remove(struct iio_dev *indio_dev)
-{
-	struct st_sensor_data *press_data = iio_priv(indio_dev);
-
-	st_sensors_power_disable(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	if (press_data->irq > 0)
-		st_sensors_deallocate_trigger(indio_dev);
-
-	st_press_deallocate_ring(indio_dev);
-}
-EXPORT_SYMBOL(st_press_common_remove);
+EXPORT_SYMBOL_NS(st_press_common_probe, IIO_ST_SENSORS);
 
 MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");
 MODULE_DESCRIPTION("STMicroelectronics pressures driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_ST_SENSORS);

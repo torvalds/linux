@@ -13,7 +13,6 @@
 #include "hw.h"
 #include "fw.h"
 #include "../rtl8723com/fw_common.h"
-#include "sw.h"
 #include "trx.h"
 #include "led.h"
 #include "table.h"
@@ -26,9 +25,6 @@ static void rtl8723be_init_aspm_vars(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
-
-	/*close ASPM for AMD defaultly */
-	rtlpci->const_amdpci_aspm = 0;
 
 	/* ASPM PS mode.
 	 * 0 - Disable ASPM,
@@ -64,7 +60,7 @@ static void rtl8723be_init_aspm_vars(struct ieee80211_hw *hw)
 	rtlpci->const_support_pciaspm = rtlpriv->cfg->mod_params->aspm_support;
 }
 
-int rtl8723be_init_sw_vars(struct ieee80211_hw *hw)
+static int rtl8723be_init_sw_vars(struct ieee80211_hw *hw)
 {
 	int err = 0;
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -75,9 +71,9 @@ int rtl8723be_init_sw_vars(struct ieee80211_hw *hw)
 	rtl8723be_bt_reg_init(hw);
 	rtlpriv->btcoexist.btc_ops = rtl_btc_get_ops_pointer();
 
-	rtlpriv->dm.dm_initialgain_enable = 1;
+	rtlpriv->dm.dm_initialgain_enable = true;
 	rtlpriv->dm.dm_flag = 0;
-	rtlpriv->dm.disable_framebursting = 0;
+	rtlpriv->dm.disable_framebursting = false;
 	rtlpriv->dm.thermalvalue = 0;
 	rtlpci->transmit_config = CFENDFORM | BIT(15) | BIT(24) | BIT(25);
 
@@ -170,7 +166,7 @@ int rtl8723be_init_sw_vars(struct ieee80211_hw *hw)
 	return 0;
 }
 
-void rtl8723be_deinit_sw_vars(struct ieee80211_hw *hw)
+static void rtl8723be_deinit_sw_vars(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
@@ -181,7 +177,7 @@ void rtl8723be_deinit_sw_vars(struct ieee80211_hw *hw)
 }
 
 /* get bt coexist status */
-bool rtl8723be_get_btc_status(void)
+static bool rtl8723be_get_btc_status(void)
 {
 	return true;
 }
@@ -228,7 +224,6 @@ static struct rtl_hal_ops rtl8723be_hal_ops = {
 	.tx_polling = rtl8723be_tx_polling,
 	.enable_hw_sec = rtl8723be_enable_hw_security_config,
 	.set_key = rtl8723be_set_key,
-	.init_sw_leds = rtl8723be_init_sw_leds,
 	.get_bbreg = rtl8723_phy_query_bb_reg,
 	.set_bbreg = rtl8723_phy_set_bb_reg,
 	.get_rfreg = rtl8723be_phy_query_rf_reg,

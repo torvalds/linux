@@ -17,7 +17,6 @@
 #define cpu_has_rixiex			0
 #define cpu_has_maar			0
 #define cpu_has_rw_llb			0
-#define cpu_has_tx39_cache		0
 #define cpu_has_divec			0
 #define cpu_has_prefetch		0
 #define cpu_has_mcheck			0
@@ -43,7 +42,6 @@
 #define cpu_has_dsp2			0
 #define cpu_has_mipsmt			0
 #define cpu_has_userlocal		0
-#define cpu_hwrena_impl_bits		0
 #define cpu_has_perf_cntr_intr_bit	0
 #define cpu_has_vz			0
 #define cpu_has_fre			0

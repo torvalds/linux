@@ -545,6 +545,7 @@ static const struct mtk_eint_hw mt8183_eint_hw = {
 	.ports     = 6,
 	.ap_num    = 212,
 	.db_cnt    = 13,
+	.db_time   = debounce_time_mt6765,
 };
 
 static const struct mtk_pin_soc mt8183_data = {
@@ -554,13 +555,10 @@ static const struct mtk_pin_soc mt8183_data = {
 	.ngrps = ARRAY_SIZE(mtk_pins_mt8183),
 	.eint_hw = &mt8183_eint_hw,
 	.gpio_m = 0,
-	.ies_present = true,
 	.base_names = mt8183_pinctrl_register_base_names,
 	.nbase_names = ARRAY_SIZE(mt8183_pinctrl_register_base_names),
-	.bias_disable_set = mtk_pinconf_bias_disable_set_rev1,
-	.bias_disable_get = mtk_pinconf_bias_disable_get_rev1,
-	.bias_set = mtk_pinconf_bias_set_rev1,
-	.bias_get = mtk_pinconf_bias_get_rev1,
+	.bias_set_combo = mtk_pinconf_bias_set_combo,
+	.bias_get_combo = mtk_pinconf_bias_get_combo,
 	.drive_set = mtk_pinconf_drive_set_rev1,
 	.drive_get = mtk_pinconf_drive_get_rev1,
 	.adv_pull_get = mtk_pinconf_adv_pull_get,
@@ -570,22 +568,17 @@ static const struct mtk_pin_soc mt8183_data = {
 };
 
 static const struct of_device_id mt8183_pinctrl_of_match[] = {
-	{ .compatible = "mediatek,mt8183-pinctrl", },
+	{ .compatible = "mediatek,mt8183-pinctrl", .data = &mt8183_data },
 	{ }
 };
-
-static int mt8183_pinctrl_probe(struct platform_device *pdev)
-{
-	return mtk_paris_pinctrl_probe(pdev, &mt8183_data);
-}
 
 static struct platform_driver mt8183_pinctrl_driver = {
 	.driver = {
 		.name = "mt8183-pinctrl",
 		.of_match_table = mt8183_pinctrl_of_match,
-		.pm = &mtk_paris_pinctrl_pm_ops,
+		.pm = pm_sleep_ptr(&mtk_paris_pinctrl_pm_ops),
 	},
-	.probe = mt8183_pinctrl_probe,
+	.probe = mtk_paris_pinctrl_probe,
 };
 
 static int __init mt8183_pinctrl_init(void)

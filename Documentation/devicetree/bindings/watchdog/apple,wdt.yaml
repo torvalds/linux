@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/watchdog/apple,wdt.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Apple SoC Watchdog
+
+maintainers:
+  - Sven Peter <sven@svenpeter.dev>
+
+allOf:
+  - $ref: watchdog.yaml#
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - apple,t8103-wdt
+          - apple,t8112-wdt
+          - apple,t6000-wdt
+      - const: apple,wdt
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - interrupts
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/apple-aic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    wdt: watchdog@50000000 {
+        compatible = "apple,t8103-wdt", "apple,wdt";
+        reg = <0x50000000 0x4000>;
+        clocks = <&clk>;
+        interrupts = <AIC_IRQ 123 IRQ_TYPE_LEVEL_HIGH>;
+    };
+
+...

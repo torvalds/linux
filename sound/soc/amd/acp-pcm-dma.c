@@ -36,8 +36,8 @@
 #define ST_MIN_BUFFER ST_MAX_BUFFER
 
 #define DRV_NAME "acp_audio_dma"
-bool bt_uart_enable = true;
-EXPORT_SYMBOL(bt_uart_enable);
+bool acp_bt_uart_enable = true;
+EXPORT_SYMBOL(acp_bt_uart_enable);
 
 static const struct snd_pcm_hardware acp_pcm_hardware_playback = {
 	.info = SNDRV_PCM_INFO_INTERLEAVED |
@@ -156,7 +156,7 @@ static void config_acp_dma_channel(void __iomem *acp_mmio, u8 ch_num,
 	acp_reg_write(priority_level, acp_mmio, mmACP_DMA_PRIO_0 + ch_num);
 }
 
-/* Initialize a dma descriptor in SRAM based on descritor information passed */
+/* Initialize a dma descriptor in SRAM based on descriptor information passed */
 static void config_dma_descriptor_in_sram(void __iomem *acp_mmio,
 					  u16 descr_idx,
 					  acp_dma_dscr_transfer_t *descr_info)
@@ -288,7 +288,7 @@ static void set_acp_to_i2s_dma_descriptors(void __iomem *acp_mmio, u32 size,
 					      &dmadscr[i]);
 	}
 	pre_config_reset(acp_mmio, ch);
-	/* Configure the DMA channel with the above descriptore */
+	/* Configure the DMA channel with the above descriptor */
 	config_acp_dma_channel(acp_mmio, ch, dma_dscr_idx - 1,
 			       NUM_DSCRS_PER_CHANNEL,
 			       ACP_DMA_PRIORITY_LEVEL_NORMAL);
@@ -322,7 +322,7 @@ static void acp_pte_config(void __iomem *acp_mmio, dma_addr_t addr,
 		high |= BIT(31);
 		acp_reg_write(high, acp_mmio, mmACP_SRBM_Targ_Idx_Data);
 
-		/* Move to next physically contiguos page */
+		/* Move to next physically contiguous page */
 		addr += PAGE_SIZE;
 	}
 }
@@ -433,6 +433,7 @@ static void acp_dma_start(void __iomem *acp_mmio, u16 ch_num, bool is_circular)
 	case I2S_TO_ACP_DMA_CH_NUM:
 	case ACP_TO_I2S_DMA_BT_INSTANCE_CH_NUM:
 	case I2S_TO_ACP_DMA_BT_INSTANCE_CH_NUM:
+	case ACP_TO_I2S_DMA_MICSP_INSTANCE_CH_NUM:
 		dma_ctrl |= ACP_DMA_CNTL_0__DMAChIOCEn_MASK;
 		break;
 	default:
@@ -596,17 +597,17 @@ static int acp_init(void __iomem *acp_mmio, u32 asic_type)
 	acp_reg_write(val, acp_mmio, mmACP_SOFT_RESET);
 
 	/* For BT instance change pins from UART to BT */
-	if (!bt_uart_enable) {
+	if (!acp_bt_uart_enable) {
 		val = acp_reg_read(acp_mmio, mmACP_BT_UART_PAD_SEL);
 		val |= ACP_BT_UART_PAD_SELECT_MASK;
 		acp_reg_write(val, acp_mmio, mmACP_BT_UART_PAD_SEL);
 	}
 
-	/* initiailize Onion control DAGB register */
+	/* initialize Onion control DAGB register */
 	acp_reg_write(ACP_ONION_CNTL_DEFAULT, acp_mmio,
 		      mmACP_AXI2DAGB_ONION_CNTL);
 
-	/* initiailize Garlic control DAGB registers */
+	/* initialize Garlic control DAGB registers */
 	acp_reg_write(ACP_GARLIC_CNTL_DEFAULT, acp_mmio,
 		      mmACP_AXI2DAGB_GARLIC_CNTL);
 
@@ -621,7 +622,7 @@ static int acp_init(void __iomem *acp_mmio, u32 asic_type)
 	acp_reg_write(ACP_SRAM_BASE_ADDRESS, acp_mmio,
 		      mmACP_DMA_DESC_BASE_ADDR);
 
-	/* Num of descriptiors in SRAM 0x4, means 256 descriptors;(64 * 4) */
+	/* Num of descriptors in SRAM 0x4, means 256 descriptors;(64 * 4) */
 	acp_reg_write(0x4, acp_mmio, mmACP_DMA_DESC_MAX_NUM_DSCR);
 	acp_reg_write(ACP_EXTERNAL_INTR_CNTL__DMAIOCMask_MASK,
 		      acp_mmio, mmACP_EXTERNAL_INTR_CNTL);
@@ -710,6 +711,13 @@ static irqreturn_t dma_irq_handler(int irq, void *arg)
 			      acp_mmio, mmACP_EXTERNAL_INTR_STAT);
 	}
 
+	if ((intr_flag & BIT(ACP_TO_I2S_DMA_MICSP_INSTANCE_CH_NUM)) != 0) {
+		valid_irq = true;
+		snd_pcm_period_elapsed(irq_data->play_i2s_micsp_stream);
+		acp_reg_write((intr_flag & BIT(ACP_TO_I2S_DMA_MICSP_INSTANCE_CH_NUM)) << 16,
+			      acp_mmio, mmACP_EXTERNAL_INTR_STAT);
+	}
+
 	if ((intr_flag & BIT(ACP_TO_I2S_DMA_BT_INSTANCE_CH_NUM)) != 0) {
 		valid_irq = true;
 		snd_pcm_period_elapsed(irq_data->play_i2sbt_stream);
@@ -759,14 +767,12 @@ static irqreturn_t dma_irq_handler(int irq, void *arg)
 		return IRQ_NONE;
 }
 
-static int acp_dma_open(struct snd_pcm_substream *substream)
+static int acp_dma_open(struct snd_soc_component *component,
+			struct snd_pcm_substream *substream)
 {
 	u16 bank;
 	int ret = 0;
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_soc_pcm_runtime *prtd = substream->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(prtd,
-								    DRV_NAME);
 	struct audio_drv_data *intr_data = dev_get_drvdata(component->dev);
 	struct audio_substream_data *adata =
 		kzalloc(sizeof(struct audio_substream_data), GFP_KERNEL);
@@ -809,7 +815,8 @@ static int acp_dma_open(struct snd_pcm_substream *substream)
 	 * stream is not closed
 	 */
 	if (!intr_data->play_i2ssp_stream && !intr_data->capture_i2ssp_stream &&
-	    !intr_data->play_i2sbt_stream && !intr_data->capture_i2sbt_stream)
+	    !intr_data->play_i2sbt_stream && !intr_data->capture_i2sbt_stream &&
+	    !intr_data->play_i2s_micsp_stream)
 		acp_reg_write(1, adata->acp_mmio, mmACP_EXTERNAL_INTR_ENB);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -834,17 +841,15 @@ static int acp_dma_open(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int acp_dma_hw_params(struct snd_pcm_substream *substream,
+static int acp_dma_hw_params(struct snd_soc_component *component,
+			     struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params)
 {
-	int status;
 	uint64_t size;
 	u32 val = 0;
 	struct snd_pcm_runtime *runtime;
 	struct audio_substream_data *rtd;
-	struct snd_soc_pcm_runtime *prtd = substream->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(prtd,
-								    DRV_NAME);
+	struct snd_soc_pcm_runtime *prtd = snd_soc_substream_to_rtd(substream);
 	struct audio_drv_data *adata = dev_get_drvdata(component->dev);
 	struct snd_soc_card *card = prtd->card;
 	struct acp_platform_info *pinfo = snd_soc_card_get_drvdata(card);
@@ -871,6 +876,9 @@ static int acp_dma_hw_params(struct snd_pcm_substream *substream,
 			case I2S_BT_INSTANCE:
 				val |= ACP_I2S_BT_16BIT_RESOLUTION_EN;
 				break;
+			case I2S_MICSP_INSTANCE:
+				val |= ACP_I2S_MICSP_16BIT_RESOLUTION_EN;
+				break;
 			case I2S_SP_INSTANCE:
 			default:
 				val |= ACP_I2S_SP_16BIT_RESOLUTION_EN;
@@ -880,6 +888,7 @@ static int acp_dma_hw_params(struct snd_pcm_substream *substream,
 			case I2S_BT_INSTANCE:
 				val |= ACP_I2S_BT_16BIT_RESOLUTION_EN;
 				break;
+			case I2S_MICSP_INSTANCE:
 			case I2S_SP_INSTANCE:
 			default:
 				val |= ACP_I2S_MIC_16BIT_RESOLUTION_EN;
@@ -904,6 +913,27 @@ static int acp_dma_hw_params(struct snd_pcm_substream *substream,
 			rtd->byte_cnt_low_reg_offset =
 					mmACP_I2S_BT_TRANSMIT_BYTE_CNT_LOW;
 			adata->play_i2sbt_stream = substream;
+			break;
+		case I2S_MICSP_INSTANCE:
+			switch (adata->asic_type) {
+			case CHIP_STONEY:
+				rtd->pte_offset = ACP_ST_PLAYBACK_PTE_OFFSET;
+				break;
+			default:
+				rtd->pte_offset = ACP_PLAYBACK_PTE_OFFSET;
+			}
+			rtd->ch1 = SYSRAM_TO_ACP_MICSP_INSTANCE_CH_NUM;
+			rtd->ch2 = ACP_TO_I2S_DMA_MICSP_INSTANCE_CH_NUM;
+			rtd->sram_bank = ACP_SRAM_BANK_1_ADDRESS;
+			rtd->destination = TO_ACP_I2S_2;
+			rtd->dma_dscr_idx_1 = PLAYBACK_START_DMA_DESCR_CH4;
+			rtd->dma_dscr_idx_2 = PLAYBACK_START_DMA_DESCR_CH5;
+			rtd->byte_cnt_high_reg_offset =
+					mmACP_I2S_MICSP_TRANSMIT_BYTE_CNT_HIGH;
+			rtd->byte_cnt_low_reg_offset =
+					mmACP_I2S_MICSP_TRANSMIT_BYTE_CNT_LOW;
+
+			adata->play_i2s_micsp_stream = substream;
 			break;
 		case I2S_SP_INSTANCE:
 		default:
@@ -943,6 +973,7 @@ static int acp_dma_hw_params(struct snd_pcm_substream *substream,
 			rtd->dma_curr_dscr = mmACP_DMA_CUR_DSCR_11;
 			adata->capture_i2sbt_stream = substream;
 			break;
+		case I2S_MICSP_INSTANCE:
 		case I2S_SP_INSTANCE:
 		default:
 			rtd->pte_offset = ACP_CAPTURE_PTE_OFFSET;
@@ -970,34 +1001,19 @@ static int acp_dma_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	size = params_buffer_bytes(params);
-	status = snd_pcm_lib_malloc_pages(substream, size);
-	if (status < 0)
-		return status;
 
-	memset(substream->runtime->dma_area, 0, params_buffer_bytes(params));
+	acp_set_sram_bank_state(rtd->acp_mmio, 0, true);
+	/* Save for runtime private data */
+	rtd->dma_addr = runtime->dma_addr;
+	rtd->order = get_order(size);
 
-	if (substream->dma_buffer.area) {
-		acp_set_sram_bank_state(rtd->acp_mmio, 0, true);
-		/* Save for runtime private data */
-		rtd->dma_addr = substream->dma_buffer.addr;
-		rtd->order = get_order(size);
+	/* Fill the page table entries in ACP SRAM */
+	rtd->size = size;
+	rtd->num_of_pages = PAGE_ALIGN(size) >> PAGE_SHIFT;
+	rtd->direction = substream->stream;
 
-		/* Fill the page table entries in ACP SRAM */
-		rtd->size = size;
-		rtd->num_of_pages = PAGE_ALIGN(size) >> PAGE_SHIFT;
-		rtd->direction = substream->stream;
-
-		config_acp_dma(rtd->acp_mmio, rtd, adata->asic_type);
-		status = 0;
-	} else {
-		status = -ENOMEM;
-	}
-	return status;
-}
-
-static int acp_dma_hw_free(struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
+	config_acp_dma(rtd->acp_mmio, rtd, adata->asic_type);
+	return 0;
 }
 
 static u64 acp_get_byte_count(struct audio_substream_data *rtd)
@@ -1011,7 +1027,8 @@ static u64 acp_get_byte_count(struct audio_substream_data *rtd)
 	return byte_count.bytescount;
 }
 
-static snd_pcm_uframes_t acp_dma_pointer(struct snd_pcm_substream *substream)
+static snd_pcm_uframes_t acp_dma_pointer(struct snd_soc_component *component,
+					 struct snd_pcm_substream *substream)
 {
 	u32 buffersize;
 	u32 pos = 0;
@@ -1021,6 +1038,7 @@ static snd_pcm_uframes_t acp_dma_pointer(struct snd_pcm_substream *substream)
 
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct audio_substream_data *rtd = runtime->private_data;
+	struct audio_drv_data *adata = dev_get_drvdata(component->dev);
 
 	if (!rtd)
 		return -EINVAL;
@@ -1041,7 +1059,7 @@ static snd_pcm_uframes_t acp_dma_pointer(struct snd_pcm_substream *substream)
 		}
 		if (bytescount > 0) {
 			delay = do_div(bytescount, period_bytes);
-			runtime->delay = bytes_to_frames(runtime, delay);
+			adata->delay += bytes_to_frames(runtime, delay);
 		}
 	} else {
 		buffersize = frames_to_bytes(runtime, runtime->buffer_size);
@@ -1053,13 +1071,19 @@ static snd_pcm_uframes_t acp_dma_pointer(struct snd_pcm_substream *substream)
 	return bytes_to_frames(runtime, pos);
 }
 
-static int acp_dma_mmap(struct snd_pcm_substream *substream,
-			struct vm_area_struct *vma)
+static snd_pcm_sframes_t acp_dma_delay(struct snd_soc_component *component,
+				       struct snd_pcm_substream *substream)
 {
-	return snd_pcm_lib_default_mmap(substream, vma);
+	struct audio_drv_data *adata = dev_get_drvdata(component->dev);
+	snd_pcm_sframes_t delay = adata->delay;
+
+	adata->delay = 0;
+
+	return delay;
 }
 
-static int acp_dma_prepare(struct snd_pcm_substream *substream)
+static int acp_dma_prepare(struct snd_soc_component *component,
+			   struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct audio_substream_data *rtd = runtime->private_data;
@@ -1086,7 +1110,8 @@ static int acp_dma_prepare(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int acp_dma_trigger(struct snd_pcm_substream *substream, int cmd)
+static int acp_dma_trigger(struct snd_soc_component *component,
+			   struct snd_pcm_substream *substream, int cmd)
 {
 	int ret;
 
@@ -1132,46 +1157,46 @@ static int acp_dma_trigger(struct snd_pcm_substream *substream, int cmd)
 	return ret;
 }
 
-static int acp_dma_new(struct snd_soc_pcm_runtime *rtd)
+static int acp_dma_new(struct snd_soc_component *component,
+		       struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd,
-								    DRV_NAME);
 	struct audio_drv_data *adata = dev_get_drvdata(component->dev);
 	struct device *parent = component->dev->parent;
 
 	switch (adata->asic_type) {
 	case CHIP_STONEY:
-		snd_pcm_lib_preallocate_pages_for_all(rtd->pcm,
-						      SNDRV_DMA_TYPE_DEV,
-						      parent,
-						      ST_MIN_BUFFER,
-						      ST_MAX_BUFFER);
+		snd_pcm_set_managed_buffer_all(rtd->pcm,
+					       SNDRV_DMA_TYPE_DEV,
+					       parent,
+					       ST_MIN_BUFFER,
+					       ST_MAX_BUFFER);
 		break;
 	default:
-		snd_pcm_lib_preallocate_pages_for_all(rtd->pcm,
-						      SNDRV_DMA_TYPE_DEV,
-						      parent,
-						      MIN_BUFFER,
-						      MAX_BUFFER);
+		snd_pcm_set_managed_buffer_all(rtd->pcm,
+					       SNDRV_DMA_TYPE_DEV,
+					       parent,
+					       MIN_BUFFER,
+					       MAX_BUFFER);
 		break;
 	}
 	return 0;
 }
 
-static int acp_dma_close(struct snd_pcm_substream *substream)
+static int acp_dma_close(struct snd_soc_component *component,
+			 struct snd_pcm_substream *substream)
 {
 	u16 bank;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct audio_substream_data *rtd = runtime->private_data;
-	struct snd_soc_pcm_runtime *prtd = substream->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(prtd,
-								    DRV_NAME);
 	struct audio_drv_data *adata = dev_get_drvdata(component->dev);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		switch (rtd->i2s_instance) {
 		case I2S_BT_INSTANCE:
 			adata->play_i2sbt_stream = NULL;
+			break;
+		case I2S_MICSP_INSTANCE:
+			adata->play_i2s_micsp_stream = NULL;
 			break;
 		case I2S_SP_INSTANCE:
 		default:
@@ -1194,6 +1219,7 @@ static int acp_dma_close(struct snd_pcm_substream *substream)
 		case I2S_BT_INSTANCE:
 			adata->capture_i2sbt_stream = NULL;
 			break;
+		case I2S_MICSP_INSTANCE:
 		case I2S_SP_INSTANCE:
 		default:
 			adata->capture_i2ssp_stream = NULL;
@@ -1210,35 +1236,29 @@ static int acp_dma_close(struct snd_pcm_substream *substream)
 	 * another stream is also not active.
 	 */
 	if (!adata->play_i2ssp_stream && !adata->capture_i2ssp_stream &&
-	    !adata->play_i2sbt_stream && !adata->capture_i2sbt_stream)
+	    !adata->play_i2sbt_stream && !adata->capture_i2sbt_stream &&
+	    !adata->play_i2s_micsp_stream)
 		acp_reg_write(0, adata->acp_mmio, mmACP_EXTERNAL_INTR_ENB);
 	kfree(rtd);
 	return 0;
 }
 
-static const struct snd_pcm_ops acp_dma_ops = {
-	.open = acp_dma_open,
-	.close = acp_dma_close,
-	.ioctl = snd_pcm_lib_ioctl,
-	.hw_params = acp_dma_hw_params,
-	.hw_free = acp_dma_hw_free,
-	.trigger = acp_dma_trigger,
-	.pointer = acp_dma_pointer,
-	.mmap = acp_dma_mmap,
-	.prepare = acp_dma_prepare,
-};
-
 static const struct snd_soc_component_driver acp_asoc_platform = {
-	.name = DRV_NAME,
-	.ops = &acp_dma_ops,
-	.pcm_new = acp_dma_new,
+	.name		= DRV_NAME,
+	.open		= acp_dma_open,
+	.close		= acp_dma_close,
+	.hw_params	= acp_dma_hw_params,
+	.trigger	= acp_dma_trigger,
+	.pointer	= acp_dma_pointer,
+	.delay		= acp_dma_delay,
+	.prepare	= acp_dma_prepare,
+	.pcm_construct	= acp_dma_new,
 };
 
 static int acp_audio_probe(struct platform_device *pdev)
 {
-	int status;
+	int status, irq;
 	struct audio_drv_data *audio_drv_data;
-	struct resource *res;
 	const u32 *pdata = pdev->dev.platform_data;
 
 	if (!pdata) {
@@ -1265,16 +1285,15 @@ static int acp_audio_probe(struct platform_device *pdev)
 	audio_drv_data->capture_i2ssp_stream = NULL;
 	audio_drv_data->play_i2sbt_stream = NULL;
 	audio_drv_data->capture_i2sbt_stream = NULL;
+	audio_drv_data->play_i2s_micsp_stream = NULL;
 
 	audio_drv_data->asic_type =  *pdata;
 
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "IORESOURCE_IRQ FAILED\n");
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
 		return -ENODEV;
-	}
 
-	status = devm_request_irq(&pdev->dev, res->start, dma_irq_handler,
+	status = devm_request_irq(&pdev->dev, irq, dma_irq_handler,
 				  0, "ACP_IRQ", &pdev->dev);
 	if (status) {
 		dev_err(&pdev->dev, "ACP IRQ request failed\n");
@@ -1304,7 +1323,7 @@ static int acp_audio_probe(struct platform_device *pdev)
 	return status;
 }
 
-static int acp_audio_remove(struct platform_device *pdev)
+static void acp_audio_remove(struct platform_device *pdev)
 {
 	int status;
 	struct audio_drv_data *adata = dev_get_drvdata(&pdev->dev);
@@ -1313,8 +1332,6 @@ static int acp_audio_remove(struct platform_device *pdev)
 	if (status)
 		dev_err(&pdev->dev, "ACP Deinit failed status:%d\n", status);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static int acp_pcm_resume(struct device *dev)
@@ -1355,6 +1372,11 @@ static int acp_pcm_resume(struct device *dev)
 		config_acp_dma(adata->acp_mmio, rtd, adata->asic_type);
 	}
 	if (adata->asic_type != CHIP_CARRIZO) {
+		if (adata->play_i2s_micsp_stream &&
+		    adata->play_i2s_micsp_stream->runtime) {
+			rtd = adata->play_i2s_micsp_stream->runtime->private_data;
+			config_acp_dma(adata->acp_mmio, rtd, adata->asic_type);
+		}
 		if (adata->play_i2sbt_stream &&
 		    adata->play_i2sbt_stream->runtime) {
 			rtd = adata->play_i2sbt_stream->runtime->private_data;
@@ -1404,7 +1426,7 @@ static const struct dev_pm_ops acp_pm_ops = {
 
 static struct platform_driver acp_dma_driver = {
 	.probe = acp_audio_probe,
-	.remove = acp_audio_remove,
+	.remove_new = acp_audio_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.pm = &acp_pm_ops,

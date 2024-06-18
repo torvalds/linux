@@ -28,13 +28,11 @@
 #define CISCO_ADDR_REPLY	1	/* Cisco address reply */
 #define CISCO_KEEPALIVE_REQ	2	/* Cisco keepalive request */
 
-
 struct hdlc_header {
 	u8 address;
 	u8 control;
 	__be16 protocol;
-}__packed;
-
+} __packed;
 
 struct cisco_packet {
 	__be32 type;		/* code */
@@ -42,10 +40,9 @@ struct cisco_packet {
 	__be32 par2;
 	__be16 rel;		/* reliability */
 	__be32 time;
-}__packed;
+} __packed;
 #define	CISCO_PACKET_LEN	18
 #define	CISCO_BIG_PACKET_LEN	20
-
 
 struct cisco_state {
 	cisco_proto settings;
@@ -59,15 +56,12 @@ struct cisco_state {
 	u32 rxseq; /* RX sequence number */
 };
 
+static int cisco_ioctl(struct net_device *dev, struct if_settings *ifs);
 
-static int cisco_ioctl(struct net_device *dev, struct ifreq *ifr);
-
-
-static inline struct cisco_state* state(hdlc_device *hdlc)
+static inline struct cisco_state *state(hdlc_device *hdlc)
 {
 	return (struct cisco_state *)hdlc->state;
 }
-
 
 static int cisco_hard_header(struct sk_buff *skb, struct net_device *dev,
 			     u16 type, const void *daddr, const void *saddr,
@@ -75,11 +69,11 @@ static int cisco_hard_header(struct sk_buff *skb, struct net_device *dev,
 {
 	struct hdlc_header *data;
 #ifdef DEBUG_HARD_HEADER
-	printk(KERN_DEBUG "%s: cisco_hard_header called\n", dev->name);
+	netdev_dbg(dev, "%s called\n", __func__);
 #endif
 
 	skb_push(skb, sizeof(struct hdlc_header));
-	data = (struct hdlc_header*)skb->data;
+	data = (struct hdlc_header *)skb->data;
 	if (type == CISCO_KEEPALIVE)
 		data->address = CISCO_MULTICAST;
 	else
@@ -90,8 +84,6 @@ static int cisco_hard_header(struct sk_buff *skb, struct net_device *dev,
 	return sizeof(struct hdlc_header);
 }
 
-
-
 static void cisco_keepalive_send(struct net_device *dev, u32 type,
 				 __be32 par1, __be32 par2)
 {
@@ -100,13 +92,12 @@ static void cisco_keepalive_send(struct net_device *dev, u32 type,
 
 	skb = dev_alloc_skb(sizeof(struct hdlc_header) +
 			    sizeof(struct cisco_packet));
-	if (!skb) {
-		netdev_warn(dev, "Memory squeeze on cisco_keepalive_send()\n");
+	if (!skb)
 		return;
-	}
+
 	skb_reserve(skb, 4);
 	cisco_hard_header(skb, dev, CISCO_KEEPALIVE, NULL, NULL, 0);
-	data = (struct cisco_packet*)(skb->data + 4);
+	data = (struct cisco_packet *)(skb->data + 4);
 
 	data->type = htonl(type);
 	data->par1 = par1;
@@ -118,16 +109,15 @@ static void cisco_keepalive_send(struct net_device *dev, u32 type,
 	skb_put(skb, sizeof(struct cisco_packet));
 	skb->priority = TC_PRIO_CONTROL;
 	skb->dev = dev;
+	skb->protocol = htons(ETH_P_HDLC);
 	skb_reset_network_header(skb);
 
 	dev_queue_xmit(skb);
 }
 
-
-
 static __be16 cisco_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
-	struct hdlc_header *data = (struct hdlc_header*)skb->data;
+	struct hdlc_header *data = (struct hdlc_header *)skb->data;
 
 	if (skb->len < sizeof(struct hdlc_header))
 		return cpu_to_be16(ETH_P_HDLC);
@@ -147,13 +137,12 @@ static __be16 cisco_type_trans(struct sk_buff *skb, struct net_device *dev)
 	}
 }
 
-
 static int cisco_rx(struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
 	hdlc_device *hdlc = dev_to_hdlc(dev);
 	struct cisco_state *st = state(hdlc);
-	struct hdlc_header *data = (struct hdlc_header*)skb->data;
+	struct hdlc_header *data = (struct hdlc_header *)skb->data;
 	struct cisco_packet *cisco_data;
 	struct in_device *in_dev;
 	__be32 addr, mask;
@@ -182,10 +171,10 @@ static int cisco_rx(struct sk_buff *skb)
 			goto rx_error;
 		}
 
-		cisco_data = (struct cisco_packet*)(skb->data + sizeof
+		cisco_data = (struct cisco_packet *)(skb->data + sizeof
 						    (struct hdlc_header));
 
-		switch (ntohl (cisco_data->type)) {
+		switch (ntohl(cisco_data->type)) {
 		case CISCO_ADDR_REQ: /* Stolen from syncppp.c :-) */
 			rcu_read_lock();
 			in_dev = __in_dev_get_rcu(dev);
@@ -225,6 +214,7 @@ static int cisco_rx(struct sk_buff *skb)
 				st->last_poll = jiffies;
 				if (!st->up) {
 					u32 sec, min, hrs, days;
+
 					sec = ntohl(cisco_data->time) / 1000;
 					min = sec / 60; sec -= min * 60;
 					hrs = min / 60; min -= hrs * 60;
@@ -252,8 +242,6 @@ rx_error:
 	return NET_RX_DROP;
 }
 
-
-
 static void cisco_timer(struct timer_list *t)
 {
 	struct cisco_state *st = from_timer(st, t, timer);
@@ -275,8 +263,6 @@ static void cisco_timer(struct timer_list *t)
 	add_timer(&st->timer);
 }
 
-
-
 static void cisco_start(struct net_device *dev)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
@@ -293,8 +279,6 @@ static void cisco_start(struct net_device *dev)
 	add_timer(&st->timer);
 }
 
-
-
 static void cisco_stop(struct net_device *dev)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
@@ -309,7 +293,6 @@ static void cisco_stop(struct net_device *dev)
 	spin_unlock_irqrestore(&st->lock, flags);
 }
 
-
 static struct hdlc_proto proto = {
 	.start		= cisco_start,
 	.stop		= cisco_stop,
@@ -323,21 +306,21 @@ static const struct header_ops cisco_header_ops = {
 	.create = cisco_hard_header,
 };
 
-static int cisco_ioctl(struct net_device *dev, struct ifreq *ifr)
+static int cisco_ioctl(struct net_device *dev, struct if_settings *ifs)
 {
-	cisco_proto __user *cisco_s = ifr->ifr_settings.ifs_ifsu.cisco;
+	cisco_proto __user *cisco_s = ifs->ifs_ifsu.cisco;
 	const size_t size = sizeof(cisco_proto);
 	cisco_proto new_settings;
 	hdlc_device *hdlc = dev_to_hdlc(dev);
 	int result;
 
-	switch (ifr->ifr_settings.type) {
+	switch (ifs->type) {
 	case IF_GET_PROTO:
 		if (dev_to_hdlc(dev)->proto != &proto)
 			return -EINVAL;
-		ifr->ifr_settings.type = IF_PROTO_CISCO;
-		if (ifr->ifr_settings.size < size) {
-			ifr->ifr_settings.size = size; /* data size wanted */
+		ifs->type = IF_PROTO_CISCO;
+		if (ifs->size < size) {
+			ifs->size = size; /* data size wanted */
 			return -ENOBUFS;
 		}
 		if (copy_to_user(cisco_s, &state(hdlc)->settings, size))
@@ -358,7 +341,8 @@ static int cisco_ioctl(struct net_device *dev, struct ifreq *ifr)
 		    new_settings.timeout < 2)
 			return -EINVAL;
 
-		result = hdlc->attach(dev, ENCODING_NRZ,PARITY_CRC16_PR1_CCITT);
+		result = hdlc->attach(dev, ENCODING_NRZ,
+				      PARITY_CRC16_PR1_CCITT);
 		if (result)
 			return result;
 
@@ -370,6 +354,7 @@ static int cisco_ioctl(struct net_device *dev, struct ifreq *ifr)
 		memcpy(&state(hdlc)->settings, &new_settings, size);
 		spin_lock_init(&state(hdlc)->lock);
 		dev->header_ops = &cisco_header_ops;
+		dev->hard_header_len = sizeof(struct hdlc_header);
 		dev->type = ARPHRD_CISCO;
 		call_netdevice_notifiers(NETDEV_POST_TYPE_CHANGE, dev);
 		netif_dormant_on(dev);
@@ -379,23 +364,19 @@ static int cisco_ioctl(struct net_device *dev, struct ifreq *ifr)
 	return -EINVAL;
 }
 
-
-static int __init mod_init(void)
+static int __init hdlc_cisco_init(void)
 {
 	register_hdlc_protocol(&proto);
 	return 0;
 }
 
-
-
-static void __exit mod_exit(void)
+static void __exit hdlc_cisco_exit(void)
 {
 	unregister_hdlc_protocol(&proto);
 }
 
-
-module_init(mod_init);
-module_exit(mod_exit);
+module_init(hdlc_cisco_init);
+module_exit(hdlc_cisco_exit);
 
 MODULE_AUTHOR("Krzysztof Halasa <khc@pm.waw.pl>");
 MODULE_DESCRIPTION("Cisco HDLC protocol support for generic HDLC");

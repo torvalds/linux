@@ -57,12 +57,6 @@
 	(MSG_TYPE_SET(MSG_TYPE_PWRMGMT) | \
 	MSG_SUBTYPE_SET(hndl) | TPC_CMD_SET(cmd) | type)
 
-/* PCC defines */
-#define PCC_SIGNATURE_MASK		0x50424300
-#define PCCC_GENERATE_DB_INT		BIT(15)
-#define PCCS_CMD_COMPLETE		BIT(0)
-#define PCCS_SCI_DOORBEL		BIT(1)
-#define PCCS_PLATFORM_NOTIFICATION	BIT(3)
 /*
  * Arbitrary retries in case the remote processor is slow to respond
  * to PCC commands
@@ -93,6 +87,7 @@ struct slimpro_resp_msg {
 struct xgene_hwmon_dev {
 	struct device		*dev;
 	struct mbox_chan	*mbox_chan;
+	struct pcc_mbox_chan	*pcc_chan;
 	struct mbox_client	mbox_client;
 	int			mbox_idx;
 
@@ -141,15 +136,15 @@ static int xgene_hwmon_pcc_rd(struct xgene_hwmon_dev *ctx, u32 *msg)
 
 	/* Write signature for subspace */
 	WRITE_ONCE(generic_comm_base->signature,
-		   cpu_to_le32(PCC_SIGNATURE_MASK | ctx->mbox_idx));
+		   cpu_to_le32(PCC_SIGNATURE | ctx->mbox_idx));
 
 	/* Write to the shared command region */
 	WRITE_ONCE(generic_comm_base->command,
-		   cpu_to_le16(MSG_TYPE(msg[0]) | PCCC_GENERATE_DB_INT));
+		   cpu_to_le16(MSG_TYPE(msg[0]) | PCC_CMD_GENERATE_DB_INTR));
 
 	/* Flip CMD COMPLETE bit */
 	val = le16_to_cpu(READ_ONCE(generic_comm_base->status));
-	val &= ~PCCS_CMD_COMPLETE;
+	val &= ~PCC_STATUS_CMD_COMPLETE;
 	WRITE_ONCE(generic_comm_base->status, cpu_to_le16(val));
 
 	/* Copy the message to the PCC comm space */
@@ -329,14 +324,14 @@ static ssize_t temp1_input_show(struct device *dev,
 
 	temp = sign_extend32(val, TEMP_NEGATIVE_BIT);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", CELSIUS_TO_mCELSIUS(temp));
+	return sysfs_emit(buf, "%d\n", CELSIUS_TO_mCELSIUS(temp));
 }
 
 static ssize_t temp1_label_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "SoC Temperature\n");
+	return sysfs_emit(buf, "SoC Temperature\n");
 }
 
 static ssize_t temp1_critical_alarm_show(struct device *dev,
@@ -345,21 +340,21 @@ static ssize_t temp1_critical_alarm_show(struct device *dev,
 {
 	struct xgene_hwmon_dev *ctx = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", ctx->temp_critical_alarm);
+	return sysfs_emit(buf, "%d\n", ctx->temp_critical_alarm);
 }
 
 static ssize_t power1_label_show(struct device *dev,
 				 struct device_attribute *attr,
 				 char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "CPU power\n");
+	return sysfs_emit(buf, "CPU power\n");
 }
 
 static ssize_t power2_label_show(struct device *dev,
 				 struct device_attribute *attr,
 				 char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "IO power\n");
+	return sysfs_emit(buf, "IO power\n");
 }
 
 static ssize_t power1_input_show(struct device *dev,
@@ -374,7 +369,7 @@ static ssize_t power1_input_show(struct device *dev,
 	if (rc < 0)
 		return rc;
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", mWATT_TO_uWATT(val));
+	return sysfs_emit(buf, "%u\n", mWATT_TO_uWATT(val));
 }
 
 static ssize_t power2_input_show(struct device *dev,
@@ -389,7 +384,7 @@ static ssize_t power2_input_show(struct device *dev,
 	if (rc < 0)
 		return rc;
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", mWATT_TO_uWATT(val));
+	return sysfs_emit(buf, "%u\n", mWATT_TO_uWATT(val));
 }
 
 static DEVICE_ATTR_RO(temp1_label);
@@ -543,7 +538,7 @@ static void xgene_hwmon_pcc_rx_cb(struct mbox_client *cl, void *msg)
 	msg = generic_comm_base + 1;
 	/* Check if platform sends interrupt */
 	if (!xgene_word_tst_and_clr(&generic_comm_base->status,
-				    PCCS_SCI_DOORBEL))
+				    PCC_STATUS_SCI_DOORBELL))
 		return;
 
 	/*
@@ -565,7 +560,7 @@ static void xgene_hwmon_pcc_rx_cb(struct mbox_client *cl, void *msg)
 	      TPC_CMD(((u32 *)msg)[0]) == TPC_ALARM))) {
 		/* Check if platform completes command */
 		if (xgene_word_tst_and_clr(&generic_comm_base->status,
-					   PCCS_CMD_COMPLETE)) {
+					   PCC_STATUS_CMD_COMPLETE)) {
 			ctx->sync_msg.msg = ((u32 *)msg)[0];
 			ctx->sync_msg.param1 = ((u32 *)msg)[1];
 			ctx->sync_msg.param2 = ((u32 *)msg)[2];
@@ -652,14 +647,16 @@ static int xgene_hwmon_probe(struct platform_device *pdev)
 			goto out_mbox_free;
 		}
 	} else {
-		struct acpi_pcct_hw_reduced *cppc_ss;
+		struct pcc_mbox_chan *pcc_chan;
 		const struct acpi_device_id *acpi_id;
 		int version;
 
 		acpi_id = acpi_match_device(pdev->dev.driver->acpi_match_table,
 					    &pdev->dev);
-		if (!acpi_id)
-			return -EINVAL;
+		if (!acpi_id) {
+			rc = -EINVAL;
+			goto out_mbox_free;
+		}
 
 		version = (int)acpi_id->driver_data;
 
@@ -671,26 +668,16 @@ static int xgene_hwmon_probe(struct platform_device *pdev)
 		}
 
 		cl->rx_callback = xgene_hwmon_pcc_rx_cb;
-		ctx->mbox_chan = pcc_mbox_request_channel(cl, ctx->mbox_idx);
-		if (IS_ERR(ctx->mbox_chan)) {
+		pcc_chan = pcc_mbox_request_channel(cl, ctx->mbox_idx);
+		if (IS_ERR(pcc_chan)) {
 			dev_err(&pdev->dev,
 				"PPC channel request failed\n");
 			rc = -ENODEV;
 			goto out_mbox_free;
 		}
 
-		/*
-		 * The PCC mailbox controller driver should
-		 * have parsed the PCCT (global table of all
-		 * PCC channels) and stored pointers to the
-		 * subspace communication region in con_priv.
-		 */
-		cppc_ss = ctx->mbox_chan->con_priv;
-		if (!cppc_ss) {
-			dev_err(&pdev->dev, "PPC subspace not found\n");
-			rc = -ENODEV;
-			goto out;
-		}
+		ctx->pcc_chan = pcc_chan;
+		ctx->mbox_chan = pcc_chan->mchan;
 
 		if (!ctx->mbox_chan->mbox->txdone_irq) {
 			dev_err(&pdev->dev, "PCC IRQ not supported\n");
@@ -702,17 +689,17 @@ static int xgene_hwmon_probe(struct platform_device *pdev)
 		 * This is the shared communication region
 		 * for the OS and Platform to communicate over.
 		 */
-		ctx->comm_base_addr = cppc_ss->base_address;
+		ctx->comm_base_addr = pcc_chan->shmem_base_addr;
 		if (ctx->comm_base_addr) {
 			if (version == XGENE_HWMON_V2)
-				ctx->pcc_comm_addr = (void __force *)ioremap(
-							ctx->comm_base_addr,
-							cppc_ss->length);
+				ctx->pcc_comm_addr = (void __force *)devm_ioremap(&pdev->dev,
+								  ctx->comm_base_addr,
+								  pcc_chan->shmem_size);
 			else
-				ctx->pcc_comm_addr = memremap(
-							ctx->comm_base_addr,
-							cppc_ss->length,
-							MEMREMAP_WB);
+				ctx->pcc_comm_addr = devm_memremap(&pdev->dev,
+								   ctx->comm_base_addr,
+								   pcc_chan->shmem_size,
+								   MEMREMAP_WB);
 		} else {
 			dev_err(&pdev->dev, "Failed to get PCC comm region\n");
 			rc = -ENODEV;
@@ -727,11 +714,11 @@ static int xgene_hwmon_probe(struct platform_device *pdev)
 		}
 
 		/*
-		 * cppc_ss->latency is just a Nominal value. In reality
+		 * pcc_chan->latency is just a Nominal value. In reality
 		 * the remote processor could be much slower to reply.
 		 * So add an arbitrary amount of wait on top of Nominal.
 		 */
-		ctx->usecs_lat = PCC_NUM_RETRIES * cppc_ss->latency;
+		ctx->usecs_lat = PCC_NUM_RETRIES * pcc_chan->latency;
 	}
 
 	ctx->hwmon_dev = hwmon_device_register_with_groups(ctx->dev,
@@ -757,25 +744,24 @@ out:
 	if (acpi_disabled)
 		mbox_free_channel(ctx->mbox_chan);
 	else
-		pcc_mbox_free_channel(ctx->mbox_chan);
+		pcc_mbox_free_channel(ctx->pcc_chan);
 out_mbox_free:
 	kfifo_free(&ctx->async_msg_fifo);
 
 	return rc;
 }
 
-static int xgene_hwmon_remove(struct platform_device *pdev)
+static void xgene_hwmon_remove(struct platform_device *pdev)
 {
 	struct xgene_hwmon_dev *ctx = platform_get_drvdata(pdev);
 
+	cancel_work_sync(&ctx->workq);
 	hwmon_device_unregister(ctx->hwmon_dev);
 	kfifo_free(&ctx->async_msg_fifo);
 	if (acpi_disabled)
 		mbox_free_channel(ctx->mbox_chan);
 	else
-		pcc_mbox_free_channel(ctx->mbox_chan);
-
-	return 0;
+		pcc_mbox_free_channel(ctx->pcc_chan);
 }
 
 static const struct of_device_id xgene_hwmon_of_match[] = {
@@ -784,9 +770,9 @@ static const struct of_device_id xgene_hwmon_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, xgene_hwmon_of_match);
 
-static struct platform_driver xgene_hwmon_driver __refdata = {
+static struct platform_driver xgene_hwmon_driver = {
 	.probe = xgene_hwmon_probe,
-	.remove = xgene_hwmon_remove,
+	.remove_new = xgene_hwmon_remove,
 	.driver = {
 		.name = "xgene-slimpro-hwmon",
 		.of_match_table = xgene_hwmon_of_match,

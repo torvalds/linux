@@ -17,29 +17,13 @@ struct device_node;
 enum mxc_cpu_pwr_mode;
 struct of_device_id;
 
-void mx21_map_io(void);
-void mx27_map_io(void);
 void mx31_map_io(void);
 void mx35_map_io(void);
 void imx21_init_early(void);
-void imx27_init_early(void);
 void imx31_init_early(void);
 void imx35_init_early(void);
-void mxc_init_irq(void __iomem *);
-void mx21_init_irq(void);
-void mx27_init_irq(void);
 void mx31_init_irq(void);
 void mx35_init_irq(void);
-void imx21_soc_init(void);
-void imx27_soc_init(void);
-void imx31_soc_init(void);
-void imx35_soc_init(void);
-int mx21_clocks_init(unsigned long lref, unsigned long fref);
-int mx27_clocks_init(unsigned long fref);
-int mx31_clocks_init(unsigned long fref);
-int mx35_clocks_init(void);
-struct platform_device *mxc_register_gpio(char *name, int id,
-	resource_size_t iobase, resource_size_t iosize, int irq, int irq_high);
 void mxc_set_cpu_type(unsigned int type);
 void mxc_restart(enum reboot_mode, const char *);
 void mxc_arch_reset_init(void __iomem *);
@@ -49,7 +33,6 @@ void imx_aips_allow_unprivileged_access(const char *compat);
 int mxc_device_init(void);
 void imx_set_soc_revision(unsigned int rev);
 void imx_init_revision_from_anatop(void);
-struct device *imx_soc_device_init(void);
 void imx6_enable_rbc(bool enable);
 void imx_gpc_check_dt(void);
 void imx_gpc_set_arm_power_in_lpm(bool power_off);
@@ -90,18 +73,19 @@ static inline void imx_scu_map_io(void) {}
 static inline void imx_smp_prepare(void) {}
 #endif
 void imx_src_init(void);
+void imx7_src_init(void);
 void imx_gpc_pre_suspend(bool arm_power_off);
 void imx_gpc_post_resume(void);
 void imx_gpc_mask_all(void);
 void imx_gpc_restore_all(void);
 void imx_gpc_hwirq_mask(unsigned int hwirq);
 void imx_gpc_hwirq_unmask(unsigned int hwirq);
+void imx_gpcv2_set_core1_pdn_pup_by_software(bool pdn);
 void imx_anatop_init(void);
 void imx_anatop_pre_suspend(void);
 void imx_anatop_post_resume(void);
 int imx6_set_lpm(enum mxc_cpu_pwr_mode mode);
 void imx6_set_int_mem_clk_lpm(bool enable);
-void imx6sl_set_wait_clk(bool enter);
 int imx_mmdc_get_ddr_type(void);
 int imx7ulp_set_lpm(enum ulp_cpu_pwr_mode mode);
 
@@ -109,16 +93,16 @@ void imx_cpu_die(unsigned int cpu);
 int imx_cpu_kill(unsigned int cpu);
 
 #ifdef CONFIG_SUSPEND
-void v7_cpu_resume(void);
 void imx53_suspend(void __iomem *ocram_vbase);
 extern const u32 imx53_suspend_sz;
 void imx6_suspend(void __iomem *ocram_vbase);
 #else
-static inline void v7_cpu_resume(void) {}
 static inline void imx53_suspend(void __iomem *ocram_vbase) {}
 static const u32 imx53_suspend_sz;
 static inline void imx6_suspend(void __iomem *ocram_vbase) {}
 #endif
+
+void v7_cpu_resume(void);
 
 void imx6_pm_ccm_init(const char *ccm_compat);
 void imx6q_pm_init(void);
@@ -149,6 +133,7 @@ static inline void imx_init_l2cache(void) {}
 #endif
 
 extern const struct smp_operations imx_smp_ops;
+extern const struct smp_operations imx7_smp_ops;
 extern const struct smp_operations ls1021a_smp_ops;
 
 #endif

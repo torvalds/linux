@@ -6,7 +6,7 @@
 config NET_NCSI
 	bool "NCSI interface support"
 	depends on INET
-	---help---
+	help
 	  This module provides NCSI (Network Controller Sideband Interface)
 	  support. Enable this only if your system connects to a network
 	  device via NCSI and the ethernet driver you're using supports
@@ -14,6 +14,12 @@ config NET_NCSI
 config NCSI_OEM_CMD_GET_MAC
 	bool "Get NCSI OEM MAC Address"
 	depends on NET_NCSI
-	---help---
+	help
 	  This allows to get MAC address from NCSI firmware and set them back to
 		controller.
+config NCSI_OEM_CMD_KEEP_PHY
+	bool "Keep PHY Link up"
+	depends on NET_NCSI
+	help
+	  This allows to keep PHY link up and prevents any channel resets during
+	  the host load.

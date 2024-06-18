@@ -25,13 +25,16 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <drm/drm_mipi_dsi.h>
-
 #include <linux/device.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
+
+#include <drm/display/drm_dsc.h>
+#include <drm/drm_mipi_dsi.h>
+#include <drm/drm_print.h>
 
 #include <video/mipi_display.h>
 
@@ -60,9 +63,9 @@ static int mipi_dsi_device_match(struct device *dev, struct device_driver *drv)
 	return 0;
 }
 
-static int mipi_dsi_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int mipi_dsi_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct mipi_dsi_device *dsi = to_mipi_dsi_device(dev);
+	const struct mipi_dsi_device *dsi = to_mipi_dsi_device(dev);
 	int err;
 
 	err = of_device_uevent_modalias(dev, env);
@@ -86,7 +89,7 @@ static const struct dev_pm_ops mipi_dsi_device_pm_ops = {
 	.restore = pm_generic_restore,
 };
 
-static struct bus_type mipi_dsi_bus_type = {
+static const struct bus_type mipi_dsi_bus_type = {
 	.name = "mipi-dsi",
 	.match = mipi_dsi_device_match,
 	.uevent = mipi_dsi_uevent,
@@ -154,19 +157,18 @@ static int mipi_dsi_device_add(struct mipi_dsi_device *dsi)
 static struct mipi_dsi_device *
 of_mipi_dsi_device_add(struct mipi_dsi_host *host, struct device_node *node)
 {
-	struct device *dev = host->dev;
 	struct mipi_dsi_device_info info = { };
 	int ret;
 	u32 reg;
 
-	if (of_modalias_node(node, info.type, sizeof(info.type)) < 0) {
-		dev_err(dev, "modalias failure on %pOF\n", node);
+	if (of_alias_from_compatible(node, info.type, sizeof(info.type)) < 0) {
+		drm_err(host, "modalias failure on %pOF\n", node);
 		return ERR_PTR(-EINVAL);
 	}
 
 	ret = of_property_read_u32(node, "reg", &reg);
 	if (ret) {
-		dev_err(dev, "device node %pOF has no valid reg property: %d\n",
+		drm_err(host, "device node %pOF has no valid reg property: %d\n",
 			node, ret);
 		return ERR_PTR(-EINVAL);
 	}
@@ -201,33 +203,32 @@ mipi_dsi_device_register_full(struct mipi_dsi_host *host,
 			      const struct mipi_dsi_device_info *info)
 {
 	struct mipi_dsi_device *dsi;
-	struct device *dev = host->dev;
 	int ret;
 
 	if (!info) {
-		dev_err(dev, "invalid mipi_dsi_device_info pointer\n");
+		drm_err(host, "invalid mipi_dsi_device_info pointer\n");
 		return ERR_PTR(-EINVAL);
 	}
 
 	if (info->channel > 3) {
-		dev_err(dev, "invalid virtual channel: %u\n", info->channel);
+		drm_err(host, "invalid virtual channel: %u\n", info->channel);
 		return ERR_PTR(-EINVAL);
 	}
 
 	dsi = mipi_dsi_device_alloc(host);
 	if (IS_ERR(dsi)) {
-		dev_err(dev, "failed to allocate DSI device %ld\n",
+		drm_err(host, "failed to allocate DSI device %ld\n",
 			PTR_ERR(dsi));
 		return dsi;
 	}
 
-	dsi->dev.of_node = info->node;
+	device_set_node(&dsi->dev, of_fwnode_handle(info->node));
 	dsi->channel = info->channel;
-	strlcpy(dsi->name, info->type, sizeof(dsi->name));
+	strscpy(dsi->name, info->type, sizeof(dsi->name));
 
 	ret = mipi_dsi_device_add(dsi);
 	if (ret) {
-		dev_err(dev, "failed to add DSI device %d\n", ret);
+		drm_err(host, "failed to add DSI device %d\n", ret);
 		kfree(dsi);
 		return ERR_PTR(ret);
 	}
@@ -245,6 +246,52 @@ void mipi_dsi_device_unregister(struct mipi_dsi_device *dsi)
 	device_unregister(&dsi->dev);
 }
 EXPORT_SYMBOL(mipi_dsi_device_unregister);
+
+static void devm_mipi_dsi_device_unregister(void *arg)
+{
+	struct mipi_dsi_device *dsi = arg;
+
+	mipi_dsi_device_unregister(dsi);
+}
+
+/**
+ * devm_mipi_dsi_device_register_full - create a managed MIPI DSI device
+ * @dev: device to tie the MIPI-DSI device lifetime to
+ * @host: DSI host to which this device is connected
+ * @info: pointer to template containing DSI device information
+ *
+ * Create a MIPI DSI device by using the device information provided by
+ * mipi_dsi_device_info template
+ *
+ * This is the managed version of mipi_dsi_device_register_full() which
+ * automatically calls mipi_dsi_device_unregister() when @dev is
+ * unbound.
+ *
+ * Returns:
+ * A pointer to the newly created MIPI DSI device, or, a pointer encoded
+ * with an error
+ */
+struct mipi_dsi_device *
+devm_mipi_dsi_device_register_full(struct device *dev,
+				   struct mipi_dsi_host *host,
+				   const struct mipi_dsi_device_info *info)
+{
+	struct mipi_dsi_device *dsi;
+	int ret;
+
+	dsi = mipi_dsi_device_register_full(host, info);
+	if (IS_ERR(dsi))
+		return dsi;
+
+	ret = devm_add_action_or_reset(dev,
+				       devm_mipi_dsi_device_unregister,
+				       dsi);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return dsi;
+}
+EXPORT_SYMBOL_GPL(devm_mipi_dsi_device_register_full);
 
 static DEFINE_MUTEX(host_lock);
 static LIST_HEAD(host_list);
@@ -283,7 +330,7 @@ int mipi_dsi_host_register(struct mipi_dsi_host *host)
 
 	for_each_available_child_of_node(host->dev->of_node, node) {
 		/* skip nodes without reg property */
-		if (!of_find_property(node, "reg", NULL))
+		if (!of_property_present(node, "reg"))
 			continue;
 		of_mipi_dsi_device_add(host, node);
 	}
@@ -300,6 +347,8 @@ static int mipi_dsi_remove_device_fn(struct device *dev, void *priv)
 {
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(dev);
 
+	if (dsi->attached)
+		mipi_dsi_detach(dsi);
 	mipi_dsi_device_unregister(dsi);
 
 	return 0;
@@ -322,11 +371,18 @@ EXPORT_SYMBOL(mipi_dsi_host_unregister);
 int mipi_dsi_attach(struct mipi_dsi_device *dsi)
 {
 	const struct mipi_dsi_host_ops *ops = dsi->host->ops;
+	int ret;
 
 	if (!ops || !ops->attach)
 		return -ENOSYS;
 
-	return ops->attach(dsi->host, dsi);
+	ret = ops->attach(dsi->host, dsi);
+	if (ret)
+		return ret;
+
+	dsi->attached = true;
+
+	return 0;
 }
 EXPORT_SYMBOL(mipi_dsi_attach);
 
@@ -338,12 +394,52 @@ int mipi_dsi_detach(struct mipi_dsi_device *dsi)
 {
 	const struct mipi_dsi_host_ops *ops = dsi->host->ops;
 
+	if (WARN_ON(!dsi->attached))
+		return -EINVAL;
+
 	if (!ops || !ops->detach)
 		return -ENOSYS;
+
+	dsi->attached = false;
 
 	return ops->detach(dsi->host, dsi);
 }
 EXPORT_SYMBOL(mipi_dsi_detach);
+
+static void devm_mipi_dsi_detach(void *arg)
+{
+	struct mipi_dsi_device *dsi = arg;
+
+	mipi_dsi_detach(dsi);
+}
+
+/**
+ * devm_mipi_dsi_attach - Attach a MIPI-DSI device to its DSI Host
+ * @dev: device to tie the MIPI-DSI device attachment lifetime to
+ * @dsi: DSI peripheral
+ *
+ * This is the managed version of mipi_dsi_attach() which automatically
+ * calls mipi_dsi_detach() when @dev is unbound.
+ *
+ * Returns:
+ * 0 on success, a negative error code on failure.
+ */
+int devm_mipi_dsi_attach(struct device *dev,
+			 struct mipi_dsi_device *dsi)
+{
+	int ret;
+
+	ret = mipi_dsi_attach(dsi);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(dev, devm_mipi_dsi_detach, dsi);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devm_mipi_dsi_attach);
 
 static ssize_t mipi_dsi_device_transfer(struct mipi_dsi_device *dsi,
 					struct mipi_dsi_msg *msg)
@@ -373,6 +469,7 @@ bool mipi_dsi_packet_format_is_short(u8 type)
 	case MIPI_DSI_V_SYNC_END:
 	case MIPI_DSI_H_SYNC_START:
 	case MIPI_DSI_H_SYNC_END:
+	case MIPI_DSI_COMPRESSION_MODE:
 	case MIPI_DSI_END_OF_TRANSMISSION:
 	case MIPI_DSI_COLOR_MODE_OFF:
 	case MIPI_DSI_COLOR_MODE_ON:
@@ -387,7 +484,7 @@ bool mipi_dsi_packet_format_is_short(u8 type)
 	case MIPI_DSI_DCS_SHORT_WRITE:
 	case MIPI_DSI_DCS_SHORT_WRITE_PARAM:
 	case MIPI_DSI_DCS_READ:
-	case MIPI_DSI_DCS_COMPRESSION_MODE:
+	case MIPI_DSI_EXECUTE_QUEUE:
 	case MIPI_DSI_SET_MAXIMUM_RETURN_PACKET_SIZE:
 		return true;
 	}
@@ -406,11 +503,12 @@ EXPORT_SYMBOL(mipi_dsi_packet_format_is_short);
 bool mipi_dsi_packet_format_is_long(u8 type)
 {
 	switch (type) {
-	case MIPI_DSI_PPS_LONG_WRITE:
 	case MIPI_DSI_NULL_PACKET:
 	case MIPI_DSI_BLANKING_PACKET:
 	case MIPI_DSI_GENERIC_LONG_WRITE:
 	case MIPI_DSI_DCS_LONG_WRITE:
+	case MIPI_DSI_PICTURE_PARAMETER_SET:
+	case MIPI_DSI_COMPRESSED_PIXEL_STREAM:
 	case MIPI_DSI_LOOSELY_PACKED_PIXEL_STREAM_YCBCR20:
 	case MIPI_DSI_PACKED_PIXEL_STREAM_YCBCR24:
 	case MIPI_DSI_PACKED_PIXEL_STREAM_YCBCR16:
@@ -522,7 +620,7 @@ int mipi_dsi_turn_on_peripheral(struct mipi_dsi_device *dsi)
 EXPORT_SYMBOL(mipi_dsi_turn_on_peripheral);
 
 /*
- * mipi_dsi_set_maximum_return_packet_size() - specify the maximum size of the
+ * mipi_dsi_set_maximum_return_packet_size() - specify the maximum size of
  *    the payload in a long packet transmitted from the peripheral back to the
  *    host processor
  * @dsi: DSI peripheral device
@@ -545,6 +643,83 @@ int mipi_dsi_set_maximum_return_packet_size(struct mipi_dsi_device *dsi,
 	return (ret < 0) ? ret : 0;
 }
 EXPORT_SYMBOL(mipi_dsi_set_maximum_return_packet_size);
+
+/**
+ * mipi_dsi_compression_mode_ext() - enable/disable DSC on the peripheral
+ * @dsi: DSI peripheral device
+ * @enable: Whether to enable or disable the DSC
+ * @algo: Selected compression algorithm
+ * @pps_selector: Select PPS from the table of pre-stored or uploaded PPS entries
+ *
+ * Enable or disable Display Stream Compression on the peripheral.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int mipi_dsi_compression_mode_ext(struct mipi_dsi_device *dsi, bool enable,
+				  enum mipi_dsi_compression_algo algo,
+				  unsigned int pps_selector)
+{
+	u8 tx[2] = { };
+	struct mipi_dsi_msg msg = {
+		.channel = dsi->channel,
+		.type = MIPI_DSI_COMPRESSION_MODE,
+		.tx_len = sizeof(tx),
+		.tx_buf = tx,
+	};
+	int ret;
+
+	if (algo > 3 || pps_selector > 3)
+		return -EINVAL;
+
+	tx[0] = (enable << 0) |
+		(algo << 1) |
+		(pps_selector << 4);
+
+	ret = mipi_dsi_device_transfer(dsi, &msg);
+
+	return (ret < 0) ? ret : 0;
+}
+EXPORT_SYMBOL(mipi_dsi_compression_mode_ext);
+
+/**
+ * mipi_dsi_compression_mode() - enable/disable DSC on the peripheral
+ * @dsi: DSI peripheral device
+ * @enable: Whether to enable or disable the DSC
+ *
+ * Enable or disable Display Stream Compression on the peripheral using the
+ * default Picture Parameter Set and VESA DSC 1.1 algorithm.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int mipi_dsi_compression_mode(struct mipi_dsi_device *dsi, bool enable)
+{
+	return mipi_dsi_compression_mode_ext(dsi, enable, MIPI_DSI_COMPRESSION_DSC, 0);
+}
+EXPORT_SYMBOL(mipi_dsi_compression_mode);
+
+/**
+ * mipi_dsi_picture_parameter_set() - transmit the DSC PPS to the peripheral
+ * @dsi: DSI peripheral device
+ * @pps: VESA DSC 1.1 Picture Parameter Set
+ *
+ * Transmit the VESA DSC 1.1 Picture Parameter Set to the peripheral.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int mipi_dsi_picture_parameter_set(struct mipi_dsi_device *dsi,
+				   const struct drm_dsc_picture_parameter_set *pps)
+{
+	struct mipi_dsi_msg msg = {
+		.channel = dsi->channel,
+		.type = MIPI_DSI_PICTURE_PARAMETER_SET,
+		.tx_len = sizeof(*pps),
+		.tx_buf = pps,
+	};
+	int ret = mipi_dsi_device_transfer(dsi, &msg);
+
+	return (ret < 0) ? ret : 0;
+}
+EXPORT_SYMBOL(mipi_dsi_picture_parameter_set);
 
 /**
  * mipi_dsi_generic_write() - transmit data using a generic write packet
@@ -695,26 +870,26 @@ ssize_t mipi_dsi_dcs_write(struct mipi_dsi_device *dsi, u8 cmd,
 {
 	ssize_t err;
 	size_t size;
+	u8 stack_tx[8];
 	u8 *tx;
 
-	if (len > 0) {
-		size = 1 + len;
-
+	size = 1 + len;
+	if (len > ARRAY_SIZE(stack_tx) - 1) {
 		tx = kmalloc(size, GFP_KERNEL);
 		if (!tx)
 			return -ENOMEM;
-
-		/* concatenate the DCS command byte and the payload */
-		tx[0] = cmd;
-		memcpy(&tx[1], data, len);
 	} else {
-		tx = &cmd;
-		size = 1;
+		tx = stack_tx;
 	}
+
+	/* concatenate the DCS command byte and the payload */
+	tx[0] = cmd;
+	if (data)
+		memcpy(&tx[1], data, len);
 
 	err = mipi_dsi_dcs_write_buffer(dsi, tx, size);
 
-	if (len > 0)
+	if (tx != stack_tx)
 		kfree(tx);
 
 	return err;
@@ -1029,11 +1204,11 @@ EXPORT_SYMBOL(mipi_dsi_dcs_set_pixel_format);
  */
 int mipi_dsi_dcs_set_tear_scanline(struct mipi_dsi_device *dsi, u16 scanline)
 {
-	u8 payload[3] = { MIPI_DCS_SET_TEAR_SCANLINE, scanline >> 8,
-			  scanline & 0xff };
+	u8 payload[2] = { scanline >> 8, scanline & 0xff };
 	ssize_t err;
 
-	err = mipi_dsi_generic_write(dsi, payload, sizeof(payload));
+	err = mipi_dsi_dcs_write(dsi, MIPI_DCS_SET_TEAR_SCANLINE, payload,
+				 sizeof(payload));
 	if (err < 0)
 		return err;
 
@@ -1090,6 +1265,58 @@ int mipi_dsi_dcs_get_display_brightness(struct mipi_dsi_device *dsi,
 }
 EXPORT_SYMBOL(mipi_dsi_dcs_get_display_brightness);
 
+/**
+ * mipi_dsi_dcs_set_display_brightness_large() - sets the 16-bit brightness value
+ *    of the display
+ * @dsi: DSI peripheral device
+ * @brightness: brightness value
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int mipi_dsi_dcs_set_display_brightness_large(struct mipi_dsi_device *dsi,
+					     u16 brightness)
+{
+	u8 payload[2] = { brightness >> 8, brightness & 0xff };
+	ssize_t err;
+
+	err = mipi_dsi_dcs_write(dsi, MIPI_DCS_SET_DISPLAY_BRIGHTNESS,
+				 payload, sizeof(payload));
+	if (err < 0)
+		return err;
+
+	return 0;
+}
+EXPORT_SYMBOL(mipi_dsi_dcs_set_display_brightness_large);
+
+/**
+ * mipi_dsi_dcs_get_display_brightness_large() - gets the current 16-bit
+ *    brightness value of the display
+ * @dsi: DSI peripheral device
+ * @brightness: brightness value
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int mipi_dsi_dcs_get_display_brightness_large(struct mipi_dsi_device *dsi,
+					     u16 *brightness)
+{
+	u8 brightness_be[2];
+	ssize_t err;
+
+	err = mipi_dsi_dcs_read(dsi, MIPI_DCS_GET_DISPLAY_BRIGHTNESS,
+				brightness_be, sizeof(brightness_be));
+	if (err <= 0) {
+		if (err == 0)
+			err = -ENODATA;
+
+		return err;
+	}
+
+	*brightness = (brightness_be[0] << 8) | brightness_be[1];
+
+	return 0;
+}
+EXPORT_SYMBOL(mipi_dsi_dcs_get_display_brightness_large);
+
 static int mipi_dsi_drv_probe(struct device *dev)
 {
 	struct mipi_dsi_driver *drv = to_mipi_dsi_driver(dev->driver);
@@ -1103,7 +1330,9 @@ static int mipi_dsi_drv_remove(struct device *dev)
 	struct mipi_dsi_driver *drv = to_mipi_dsi_driver(dev->driver);
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(dev);
 
-	return drv->remove(dsi);
+	drv->remove(dsi);
+
+	return 0;
 }
 
 static void mipi_dsi_drv_shutdown(struct device *dev)

@@ -19,7 +19,6 @@
 
 int hyperv_flush_guest_mapping(u64 as)
 {
-	struct hv_guest_mapping_flush **flush_pcpu;
 	struct hv_guest_mapping_flush *flush;
 	u64 status;
 	unsigned long flags;
@@ -30,10 +29,7 @@ int hyperv_flush_guest_mapping(u64 as)
 
 	local_irq_save(flags);
 
-	flush_pcpu = (struct hv_guest_mapping_flush **)
-		this_cpu_ptr(hyperv_pcpu_input_arg);
-
-	flush = *flush_pcpu;
+	flush = *this_cpu_ptr(hyperv_pcpu_input_arg);
 
 	if (unlikely(!flush)) {
 		local_irq_restore(flags);
@@ -47,7 +43,7 @@ int hyperv_flush_guest_mapping(u64 as)
 				 flush, NULL);
 	local_irq_restore(flags);
 
-	if (!(status & HV_HYPERCALL_RESULT_MASK))
+	if (hv_result_success(status))
 		ret = 0;
 
 fault:
@@ -90,9 +86,8 @@ EXPORT_SYMBOL_GPL(hyperv_fill_flush_guest_mapping_list);
 int hyperv_flush_guest_mapping_range(u64 as,
 		hyperv_fill_flush_list_func fill_flush_list_func, void *data)
 {
-	struct hv_guest_mapping_flush_list **flush_pcpu;
 	struct hv_guest_mapping_flush_list *flush;
-	u64 status = 0;
+	u64 status;
 	unsigned long flags;
 	int ret = -ENOTSUPP;
 	int gpa_n = 0;
@@ -102,10 +97,8 @@ int hyperv_flush_guest_mapping_range(u64 as,
 
 	local_irq_save(flags);
 
-	flush_pcpu = (struct hv_guest_mapping_flush_list **)
-		this_cpu_ptr(hyperv_pcpu_input_arg);
+	flush = *this_cpu_ptr(hyperv_pcpu_input_arg);
 
-	flush = *flush_pcpu;
 	if (unlikely(!flush)) {
 		local_irq_restore(flags);
 		goto fault;
@@ -125,10 +118,10 @@ int hyperv_flush_guest_mapping_range(u64 as,
 
 	local_irq_restore(flags);
 
-	if (!(status & HV_HYPERCALL_RESULT_MASK))
+	if (hv_result_success(status))
 		ret = 0;
 	else
-		ret = status;
+		ret = hv_result(status);
 fault:
 	trace_hyperv_nested_flush_guest_mapping_range(as, ret);
 	return ret;

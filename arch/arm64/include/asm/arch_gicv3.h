@@ -26,13 +26,7 @@
  * sets the GP register's most significant bits to 0 with an explicit cast.
  */
 
-static inline void gic_write_eoir(u32 irq)
-{
-	write_sysreg_s(irq, SYS_ICC_EOIR1_EL1);
-	isb();
-}
-
-static inline void gic_write_dir(u32 irq)
+static __always_inline void gic_write_dir(u32 irq)
 {
 	write_sysreg_s(irq, SYS_ICC_DIR_EL1);
 	isb();
@@ -53,17 +47,44 @@ static inline u64 gic_read_iar_common(void)
  * The gicv3 of ThunderX requires a modified version for reading the
  * IAR status to ensure data synchronization (access to icc_iar1_el1
  * is not sync'ed before and after).
+ *
+ * Erratum 38545
+ *
+ * When a IAR register read races with a GIC interrupt RELEASE event,
+ * GIC-CPU interface could wrongly return a valid INTID to the CPU
+ * for an interrupt that is already released(non activated) instead of 0x3ff.
+ *
+ * To workaround this, return a valid interrupt ID only if there is a change
+ * in the active priority list after the IAR read.
+ *
+ * Common function used for both the workarounds since,
+ * 1. On Thunderx 88xx 1.x both erratas are applicable.
+ * 2. Having extra nops doesn't add any side effects for Silicons where
+ *    erratum 23154 is not applicable.
  */
 static inline u64 gic_read_iar_cavium_thunderx(void)
 {
-	u64 irqstat;
+	u64 irqstat, apr;
 
+	apr = read_sysreg_s(SYS_ICC_AP1R0_EL1);
 	nops(8);
 	irqstat = read_sysreg_s(SYS_ICC_IAR1_EL1);
 	nops(4);
 	mb();
 
-	return irqstat;
+	/* Max priority groups implemented is only 32 */
+	if (likely(apr != read_sysreg_s(SYS_ICC_AP1R0_EL1)))
+		return irqstat;
+
+	return 0x3ff;
+}
+
+static u64 __maybe_unused gic_read_iar(void)
+{
+	if (alternative_has_cap_unlikely(ARM64_WORKAROUND_CAVIUM_23154))
+		return gic_read_iar_cavium_thunderx();
+	else
+		return gic_read_iar_common();
 }
 
 static inline void gic_write_ctlr(u32 val)
@@ -109,7 +130,7 @@ static inline u32 gic_read_pmr(void)
 	return read_sysreg_s(SYS_ICC_PMR_EL1);
 }
 
-static inline void gic_write_pmr(u32 val)
+static __always_inline void gic_write_pmr(u32 val)
 {
 	write_sysreg_s(val, SYS_ICC_PMR_EL1);
 }
@@ -124,7 +145,8 @@ static inline u32 gic_read_rpr(void)
 #define gic_read_lpir(c)		readq_relaxed(c)
 #define gic_write_lpir(v, c)		writeq_relaxed(v, c)
 
-#define gic_flush_dcache_to_poc(a,l)	__flush_dcache_area((a), (l))
+#define gic_flush_dcache_to_poc(a,l)	\
+	dcache_clean_inval_poc((unsigned long)(a), (unsigned long)(a)+(l))
 
 #define gits_read_baser(c)		readq_relaxed(c)
 #define gits_write_baser(v, c)		writeq_relaxed(v, c)
@@ -140,10 +162,11 @@ static inline u32 gic_read_rpr(void)
 #define gicr_write_pendbaser(v, c)	writeq_relaxed(v, c)
 #define gicr_read_pendbaser(c)		readq_relaxed(c)
 
-#define gits_write_vpropbaser(v, c)	writeq_relaxed(v, c)
+#define gicr_write_vpropbaser(v, c)	writeq_relaxed(v, c)
+#define gicr_read_vpropbaser(c)		readq_relaxed(c)
 
-#define gits_write_vpendbaser(v, c)	writeq_relaxed(v, c)
-#define gits_read_vpendbaser(c)		readq_relaxed(c)
+#define gicr_write_vpendbaser(v, c)	writeq_relaxed(v, c)
+#define gicr_read_vpendbaser(c)		readq_relaxed(c)
 
 static inline bool gic_prio_masking_enabled(void)
 {
@@ -152,7 +175,7 @@ static inline bool gic_prio_masking_enabled(void)
 
 static inline void gic_pmr_mask_irqs(void)
 {
-	BUILD_BUG_ON(GICD_INT_DEF_PRI < (GIC_PRIO_IRQOFF |
+	BUILD_BUG_ON(GICD_INT_DEF_PRI < (__GIC_PRIO_IRQOFF |
 					 GIC_PRIO_PSR_I_SET));
 	BUILD_BUG_ON(GICD_INT_DEF_PRI >= GIC_PRIO_IRQON);
 	/*
@@ -161,12 +184,23 @@ static inline void gic_pmr_mask_irqs(void)
 	 * are applied to IRQ priorities
 	 */
 	BUILD_BUG_ON((0x80 | (GICD_INT_DEF_PRI >> 1)) >= GIC_PRIO_IRQON);
+	/*
+	 * Same situation as above, but now we make sure that we can mask
+	 * regular interrupts.
+	 */
+	BUILD_BUG_ON((0x80 | (GICD_INT_DEF_PRI >> 1)) < (__GIC_PRIO_IRQOFF_NS |
+							 GIC_PRIO_PSR_I_SET));
 	gic_write_pmr(GIC_PRIO_IRQOFF);
 }
 
 static inline void gic_arch_enable_irqs(void)
 {
-	asm volatile ("msr daifclr, #2" : : : "memory");
+	asm volatile ("msr daifclr, #3" : : : "memory");
+}
+
+static inline bool gic_has_relaxed_pmr_sync(void)
+{
+	return cpus_have_cap(ARM64_HAS_GIC_PRIO_RELAXED_SYNC);
 }
 
 #endif /* __ASSEMBLY__ */

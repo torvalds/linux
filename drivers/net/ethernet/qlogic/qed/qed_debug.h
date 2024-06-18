@@ -1,10 +1,11 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause) */
 /* QLogic qed NIC Driver
  * Copyright (c) 2015 QLogic Corporation
+ * Copyright (c) 2019-2021 Marvell International Ltd.
  */
 
-#ifndef _QED_DEBUGFS_H
-#define _QED_DEBUGFS_H
+#ifndef _QED_DEBUG_H
+#define _QED_DEBUG_H
 
 enum qed_dbg_features {
 	DBG_FEATURE_GRC,
@@ -14,11 +15,13 @@ enum qed_dbg_features {
 	DBG_FEATURE_IGU_FIFO,
 	DBG_FEATURE_PROTECTION_OVERRIDE,
 	DBG_FEATURE_FW_ASSERTS,
+	DBG_FEATURE_ILT,
 	DBG_FEATURE_NUM
 };
 
 /* Forward Declaration */
 struct qed_dev;
+struct qed_hwfn;
 
 int qed_dbg_grc(struct qed_dev *cdev, void *buffer, u32 *num_dumped_bytes);
 int qed_dbg_grc_size(struct qed_dev *cdev);
@@ -37,9 +40,12 @@ int qed_dbg_protection_override_size(struct qed_dev *cdev);
 int qed_dbg_fw_asserts(struct qed_dev *cdev, void *buffer,
 		       u32 *num_dumped_bytes);
 int qed_dbg_fw_asserts_size(struct qed_dev *cdev);
+int qed_dbg_ilt(struct qed_dev *cdev, void *buffer, u32 *num_dumped_bytes);
+int qed_dbg_ilt_size(struct qed_dev *cdev);
 int qed_dbg_mcp_trace(struct qed_dev *cdev, void *buffer,
 		      u32 *num_dumped_bytes);
 int qed_dbg_mcp_trace_size(struct qed_dev *cdev);
+int qed_dbg_phy_size(struct qed_dev *cdev);
 int qed_dbg_all_data(struct qed_dev *cdev, void *buffer);
 int qed_dbg_all_data_size(struct qed_dev *cdev);
 u8 qed_get_debug_engine(struct qed_dev *cdev);

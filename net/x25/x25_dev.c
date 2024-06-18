@@ -55,7 +55,7 @@ static int x25_receive_data(struct sk_buff *skb, struct x25_neigh *nb)
 		if (!sock_owned_by_user(sk)) {
 			queued = x25_process_rx_frame(sk, skb);
 		} else {
-			queued = !sk_add_backlog(sk, skb, sk->sk_rcvbuf);
+			queued = !sk_add_backlog(sk, skb, READ_ONCE(sk->sk_rcvbuf));
 		}
 		bh_unlock_sock(sk);
 		sock_put(sk);
@@ -115,8 +115,10 @@ int x25_lapb_receive_frame(struct sk_buff *skb, struct net_device *dev,
 		goto drop;
 	}
 
-	if (!pskb_may_pull(skb, 1))
-		return 0;
+	if (!pskb_may_pull(skb, 1)) {
+		x25_neigh_put(nb);
+		goto drop;
+	}
 
 	switch (skb->data[0]) {
 
@@ -158,10 +160,6 @@ void x25_establish_link(struct x25_neigh *nb)
 		*ptr = X25_IFACE_CONNECT;
 		break;
 
-#if IS_ENABLED(CONFIG_LLC)
-	case ARPHRD_ETHER:
-		return;
-#endif
 	default:
 		return;
 	}
@@ -177,10 +175,6 @@ void x25_terminate_link(struct x25_neigh *nb)
 	struct sk_buff *skb;
 	unsigned char *ptr;
 
-#if IS_ENABLED(CONFIG_LLC)
-	if (nb->dev->type == ARPHRD_ETHER)
-		return;
-#endif
 	if (nb->dev->type != ARPHRD_X25)
 		return;
 
@@ -210,11 +204,6 @@ void x25_send_frame(struct sk_buff *skb, struct x25_neigh *nb)
 		*dptr = X25_IFACE_DATA;
 		break;
 
-#if IS_ENABLED(CONFIG_LLC)
-	case ARPHRD_ETHER:
-		kfree_skb(skb);
-		return;
-#endif
 	default:
 		kfree_skb(skb);
 		return;

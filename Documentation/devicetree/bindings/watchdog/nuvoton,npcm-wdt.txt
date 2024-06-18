@@ -5,7 +5,9 @@ The watchdog supports a pre-timeout interrupt that fires 10ms before the
 expiry.
 
 Required properties:
-- compatible      : "nuvoton,npcm750-wdt" for NPCM750 (Poleg).
+- compatible      : "nuvoton,npcm750-wdt" for NPCM750 (Poleg), or
+                    "nuvoton,wpcm450-wdt" for WPCM450 (Hermon), or
+                    "nuvoton,npcm845-wdt" for NPCM845 (Arbel).
 - reg             : Offset and length of the register set for the device.
 - interrupts      : Contain the timer interrupt with flags for
                     falling edge.

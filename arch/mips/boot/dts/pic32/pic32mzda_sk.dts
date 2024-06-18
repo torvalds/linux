@@ -28,19 +28,19 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&user_leds_s0>;
 
-		led@1 {
+		led-1 {
 			label = "pic32mzda_sk:red:led1";
 			gpios = <&gpio7 0 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
 
-		led@2 {
+		led-2 {
 			label = "pic32mzda_sk:yellow:led2";
 			gpios = <&gpio7 1 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "mmc0";
 		};
 
-		led@3 {
+		led-3 {
 			label = "pic32mzda_sk:green:led3";
 			gpios = <&gpio7 2 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
@@ -52,22 +52,19 @@
 		pinctrl-0 = <&user_buttons_s0>;
 		pinctrl-names = "default";
 
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		button@sw1 {
+		button-1 {
 			label = "ESC";
 			linux,code = <1>;
 			gpios = <&gpio1 12 0>;
 		};
 
-		button@sw2 {
+		button-2 {
 			label = "Home";
 			linux,code = <102>;
 			gpios = <&gpio1 13 0>;
 		};
 
-		button@sw3 {
+		button-3 {
 			label = "Menu";
 			linux,code = <139>;
 			gpios = <&gpio1 14 0>;

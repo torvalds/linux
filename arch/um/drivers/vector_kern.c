@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2017 - Cambridge Greys Limited
+ * Copyright (C) 2017 - 2019 Cambridge Greys Limited
  * Copyright (C) 2011 - 2014 Cisco Systems Inc
  * Copyright (C) 2001 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Copyright (C) 2001 Lennert Buytenhek (buytenh@gnu.org) and
@@ -8,7 +8,6 @@
  * Copyright (C) 2001 by various other people who didn't put their name here.
  */
 
-#include <linux/version.h>
 #include <linux/memblock.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
@@ -21,6 +20,9 @@
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
+#include <linux/firmware.h>
+#include <linux/fs.h>
+#include <uapi/linux/filter.h>
 #include <init.h>
 #include <irq_kern.h>
 #include <irq_user.h>
@@ -43,7 +45,6 @@
 
 
 #define DRIVER_NAME "uml-vector"
-#define DRIVER_VERSION "01"
 struct vector_cmd_line_arg {
 	struct list_head list;
 	int unit;
@@ -66,6 +67,7 @@ static LIST_HEAD(vector_devices);
 static int driver_registered;
 
 static void vector_eth_configure(int n, struct arglist *def);
+static int vector_mmsg_rx(struct vector_private *vp, int budget);
 
 /* Argument accessors to set variables (and/or set default values)
  * mtu, buffer sizing, default headroom, etc
@@ -76,7 +78,6 @@ static void vector_eth_configure(int n, struct arglist *def);
 #define DEFAULT_VECTOR_SIZE 64
 #define TX_SMALL_PACKET 128
 #define MAX_IOV_SIZE (MAX_SKB_FRAGS + 1)
-#define MAX_ITERATIONS 64
 
 static const struct {
 	const char string[ETH_GSTRING_LEN];
@@ -128,6 +129,23 @@ static int get_mtu(struct arglist *def)
 	return ETH_MAX_PACKET;
 }
 
+static char *get_bpf_file(struct arglist *def)
+{
+	return uml_vector_fetch_arg(def, "bpffile");
+}
+
+static bool get_bpf_flash(struct arglist *def)
+{
+	char *allow = uml_vector_fetch_arg(def, "bpfflash");
+	long result;
+
+	if (allow != NULL) {
+		if (kstrtoul(allow, 10, &result) == 0)
+			return result > 0;
+	}
+	return false;
+}
+
 static int get_depth(struct arglist *def)
 {
 	char *mtu = uml_vector_fetch_arg(def, "depth");
@@ -176,6 +194,10 @@ static int get_transport_options(struct arglist *def)
 	int vec_rx = VECTOR_RX;
 	int vec_tx = VECTOR_TX;
 	long parsed;
+	int result = 0;
+
+	if (transport == NULL)
+		return -EINVAL;
 
 	if (vector != NULL) {
 		if (kstrtoul(vector, 10, &parsed) == 0) {
@@ -186,14 +208,16 @@ static int get_transport_options(struct arglist *def)
 		}
 	}
 
+	if (get_bpf_flash(def))
+		result = VECTOR_BPF_FLASH;
 
 	if (strncmp(transport, TRANS_TAP, TRANS_TAP_LEN) == 0)
-		return 0;
+		return result;
 	if (strncmp(transport, TRANS_HYBRID, TRANS_HYBRID_LEN) == 0)
-		return (vec_rx | VECTOR_BPF);
+		return (result | vec_rx | VECTOR_BPF);
 	if (strncmp(transport, TRANS_RAW, TRANS_RAW_LEN) == 0)
-		return (vec_rx | vec_tx | VECTOR_QDISC_BYPASS);
-	return (vec_rx | vec_tx);
+		return (result | vec_rx | vec_tx | VECTOR_QDISC_BYPASS);
+	return (result | vec_rx | vec_tx);
 }
 
 
@@ -434,7 +458,6 @@ static int vector_send(struct vector_queue *qi)
 					vp->estats.tx_queue_running_average =
 						(vp->estats.tx_queue_running_average + result) >> 1;
 				}
-				netif_trans_update(qi->dev);
 				netif_wake_queue(qi->dev);
 				/* if TX is busy, break out of the send loop,
 				 *  poll write IRQ will reschedule xmit for us
@@ -446,8 +469,6 @@ static int vector_send(struct vector_queue *qi)
 			}
 		}
 		spin_unlock(&qi->head_lock);
-	} else {
-		tasklet_schedule(&vp->tx_poll);
 	}
 	return queue_depth;
 }
@@ -584,7 +605,7 @@ out_fail:
 
 /*
  * We do not use the RX queue as a proper wraparound queue for now
- * This is not necessary because the consumption via netif_rx()
+ * This is not necessary because the consumption via napi_gro_receive()
  * happens in-line. While we can try using the return code of
  * netif_rx() for flow control there are no drivers doing this today.
  * For this RX specific use we ignore the tail/head locks and
@@ -691,10 +712,8 @@ static struct vector_device *find_device(int n)
 static int vector_parse(char *str, int *index_out, char **str_out,
 			char **error_out)
 {
-	int n, len, err;
+	int n, err;
 	char *start = str;
-
-	len = strlen(str);
 
 	while ((*str != ':') && (strlen(str) > 1))
 		str++;
@@ -746,6 +765,7 @@ static int vector_config(char *str, char **error_out)
 
 	if (parsed == NULL) {
 		*error_out = "vector_config failed to parse parameters";
+		kfree(params);
 		return -EINVAL;
 	}
 
@@ -872,7 +892,7 @@ static int vector_legacy_rx(struct vector_private *vp)
 			skb->protocol = eth_type_trans(skb, skb->dev);
 			vp->dev->stats.rx_bytes += skb->len;
 			vp->dev->stats.rx_packets++;
-			netif_rx(skb);
+			napi_gro_receive(&vp->napi, skb);
 		} else {
 			dev_kfree_skb_irq(skb);
 		}
@@ -931,7 +951,7 @@ drop:
  * mmsg vector matched to an skb vector which we prepared earlier.
  */
 
-static int vector_mmsg_rx(struct vector_private *vp)
+static int vector_mmsg_rx(struct vector_private *vp, int budget)
 {
 	int packet_count, i;
 	struct vector_queue *qi = vp->rx_queue;
@@ -947,6 +967,9 @@ static int vector_mmsg_rx(struct vector_private *vp)
 	prep_queue_for_rx(qi);
 
 	/* Fire the Lazy Gun - get as many packets as we can in one go. */
+
+	if (budget > qi->max_depth)
+		budget = qi->max_depth;
 
 	packet_count = uml_vector_recvmmsg(
 		vp->fds->rx_fd, qi->mmsg_vector, qi->max_depth, 0);
@@ -997,7 +1020,7 @@ static int vector_mmsg_rx(struct vector_private *vp)
 			 */
 			vp->dev->stats.rx_bytes += skb->len;
 			vp->dev->stats.rx_packets++;
-			netif_rx(skb);
+			napi_gro_receive(&vp->napi, skb);
 		} else {
 			/* Overlay header too short to do anything - discard.
 			 * We can actually keep this skb and reuse it,
@@ -1018,23 +1041,6 @@ static int vector_mmsg_rx(struct vector_private *vp)
 			(vp->estats.rx_queue_running_average + packet_count) >> 1;
 	}
 	return packet_count;
-}
-
-static void vector_rx(struct vector_private *vp)
-{
-	int err;
-	int iter = 0;
-
-	if ((vp->options & VECTOR_RX) > 0)
-		while (((err = vector_mmsg_rx(vp)) > 0) && (iter < MAX_ITERATIONS))
-			iter++;
-	else
-		while (((err = vector_legacy_rx(vp)) > 0) && (iter < MAX_ITERATIONS))
-			iter++;
-	if ((err != 0) && net_ratelimit())
-		netdev_err(vp->dev, "vector_rx: error(%d)\n", err);
-	if (iter == MAX_ITERATIONS)
-		netdev_err(vp->dev, "vector_rx: device stuck, remote end may have closed the connection\n");
 }
 
 static int vector_net_start_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -1061,25 +1067,15 @@ static int vector_net_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	netdev_sent_queue(vp->dev, skb->len);
 	queue_depth = vector_enqueue(vp->tx_queue, skb);
 
-	/* if the device queue is full, stop the upper layers and
-	 * flush it.
-	 */
-
-	if (queue_depth >= vp->tx_queue->max_depth - 1) {
-		vp->estats.tx_kicks++;
-		netif_stop_queue(dev);
-		vector_send(vp->tx_queue);
-		return NETDEV_TX_OK;
-	}
-	if (netdev_xmit_more()) {
+	if (queue_depth < vp->tx_queue->max_depth && netdev_xmit_more()) {
 		mod_timer(&vp->tl, vp->coalesce);
 		return NETDEV_TX_OK;
+	} else {
+		queue_depth = vector_send(vp->tx_queue);
+		if (queue_depth > 0)
+			napi_schedule(&vp->napi);
 	}
-	if (skb->len < TX_SMALL_PACKET) {
-		vp->estats.tx_kicks++;
-		vector_send(vp->tx_queue);
-	} else
-		tasklet_schedule(&vp->tx_poll);
+
 	return NETDEV_TX_OK;
 }
 
@@ -1090,7 +1086,7 @@ static irqreturn_t vector_rx_interrupt(int irq, void *dev_id)
 
 	if (!netif_running(dev))
 		return IRQ_NONE;
-	vector_rx(vp);
+	napi_schedule(&vp->napi);
 	return IRQ_HANDLED;
 
 }
@@ -1109,8 +1105,7 @@ static irqreturn_t vector_tx_interrupt(int irq, void *dev_id)
 	 * tweaking the IRQ mask less costly
 	 */
 
-	if (vp->in_write_poll)
-		tasklet_schedule(&vp->tx_poll);
+	napi_schedule(&vp->napi);
 	return IRQ_HANDLED;
 
 }
@@ -1137,8 +1132,11 @@ static int vector_net_close(struct net_device *dev)
 		um_free_irq(vp->tx_irq, dev);
 		vp->tx_irq = 0;
 	}
-	tasklet_kill(&vp->tx_poll);
+	napi_disable(&vp->napi);
+	netif_napi_del(&vp->napi);
 	if (vp->fds->rx_fd > 0) {
+		if (vp->bpf)
+			uml_vector_detach_bpf(vp->fds->rx_fd, vp->bpf);
 		os_close_file(vp->fds->rx_fd);
 		vp->fds->rx_fd = -1;
 	}
@@ -1146,7 +1144,10 @@ static int vector_net_close(struct net_device *dev)
 		os_close_file(vp->fds->tx_fd);
 		vp->fds->tx_fd = -1;
 	}
+	if (vp->bpf != NULL)
+		kfree(vp->bpf->filter);
 	kfree(vp->bpf);
+	vp->bpf = NULL;
 	kfree(vp->fds->remote_addr);
 	kfree(vp->transport_data);
 	kfree(vp->header_rxbuffer);
@@ -1164,15 +1165,32 @@ static int vector_net_close(struct net_device *dev)
 	return 0;
 }
 
-/* TX tasklet */
-
-static void vector_tx_poll(unsigned long data)
+static int vector_poll(struct napi_struct *napi, int budget)
 {
-	struct vector_private *vp = (struct vector_private *)data;
+	struct vector_private *vp = container_of(napi, struct vector_private, napi);
+	int work_done = 0;
+	int err;
+	bool tx_enqueued = false;
 
-	vp->estats.tx_kicks++;
-	vector_send(vp->tx_queue);
+	if ((vp->options & VECTOR_TX) != 0)
+		tx_enqueued = (vector_send(vp->tx_queue) > 0);
+	if ((vp->options & VECTOR_RX) > 0)
+		err = vector_mmsg_rx(vp, budget);
+	else {
+		err = vector_legacy_rx(vp);
+		if (err > 0)
+			err = 1;
+	}
+	if (err > 0)
+		work_done += err;
+
+	if (tx_enqueued || err > 0)
+		napi_schedule(napi);
+	if (work_done < budget)
+		napi_complete_done(napi, work_done);
+	return work_done;
 }
+
 static void vector_reset_tx(struct work_struct *work)
 {
 	struct vector_private *vp =
@@ -1181,6 +1199,7 @@ static void vector_reset_tx(struct work_struct *work)
 	netif_start_queue(vp->dev);
 	netif_wake_queue(vp->dev);
 }
+
 static int vector_net_open(struct net_device *dev)
 {
 	struct vector_private *vp = netdev_priv(dev);
@@ -1195,6 +1214,8 @@ static int vector_net_open(struct net_device *dev)
 	}
 	vp->opened = true;
 	spin_unlock_irqrestore(&vp->lock, flags);
+
+	vp->bpf = uml_vector_user_bpf(get_bpf_file(vp->parsed));
 
 	vp->fds = uml_vector_user_open(vp->unit, vp->parsed);
 
@@ -1233,12 +1254,16 @@ static int vector_net_open(struct net_device *dev)
 			goto out_close;
 	}
 
+	netif_napi_add_weight(vp->dev, &vp->napi, vector_poll,
+			      get_depth(vp->parsed));
+	napi_enable(&vp->napi);
+
 	/* READ IRQ */
 	err = um_request_irq(
 		irq_rr + VECTOR_BASE_IRQ, vp->fds->rx_fd,
 			IRQ_READ, vector_rx_interrupt,
 			IRQF_SHARED, dev->name, dev);
-	if (err != 0) {
+	if (err < 0) {
 		netdev_err(dev, "vector_open: failed to get rx irq(%d)\n", err);
 		err = -ENETUNREACH;
 		goto out_close;
@@ -1253,7 +1278,7 @@ static int vector_net_open(struct net_device *dev)
 			irq_rr + VECTOR_BASE_IRQ, vp->fds->tx_fd,
 				IRQ_WRITE, vector_tx_interrupt,
 				IRQF_SHARED, dev->name, dev);
-		if (err != 0) {
+		if (err < 0) {
 			netdev_err(dev,
 				"vector_open: failed to get tx irq(%d)\n", err);
 			err = -ENETUNREACH;
@@ -1267,19 +1292,22 @@ static int vector_net_open(struct net_device *dev)
 		if (!uml_raw_enable_qdisc_bypass(vp->fds->rx_fd))
 			vp->options |= VECTOR_BPF;
 	}
-	if ((vp->options & VECTOR_BPF) != 0)
-		vp->bpf = uml_vector_default_bpf(vp->fds->rx_fd, dev->dev_addr);
+	if (((vp->options & VECTOR_BPF) != 0) && (vp->bpf == NULL))
+		vp->bpf = uml_vector_default_bpf(dev->dev_addr);
+
+	if (vp->bpf != NULL)
+		uml_vector_attach_bpf(vp->fds->rx_fd, vp->bpf);
 
 	netif_start_queue(dev);
+	vector_reset_stats(vp);
 
 	/* clear buffer - it can happen that the host side of the interface
 	 * is full when we get here. In this case, new data is never queued,
 	 * SIGIOs never arrive, and the net never works.
 	 */
 
-	vector_rx(vp);
+	napi_schedule(&vp->napi);
 
-	vector_reset_stats(vp);
 	vdevice = find_device(vp->unit);
 	vdevice->opened = 1;
 
@@ -1298,7 +1326,7 @@ static void vector_net_set_multicast_list(struct net_device *dev)
 	return;
 }
 
-static void vector_net_tx_timeout(struct net_device *dev)
+static void vector_net_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct vector_private *vp = netdev_priv(dev);
 
@@ -1343,12 +1371,72 @@ static void vector_net_poll_controller(struct net_device *dev)
 static void vector_net_get_drvinfo(struct net_device *dev,
 				struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, DRIVER_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRIVER_VERSION, sizeof(info->version));
+	strscpy(info->driver, DRIVER_NAME);
+}
+
+static int vector_net_load_bpf_flash(struct net_device *dev,
+				struct ethtool_flash *efl)
+{
+	struct vector_private *vp = netdev_priv(dev);
+	struct vector_device *vdevice;
+	const struct firmware *fw;
+	int result = 0;
+
+	if (!(vp->options & VECTOR_BPF_FLASH)) {
+		netdev_err(dev, "loading firmware not permitted: %s\n", efl->data);
+		return -1;
+	}
+
+	spin_lock(&vp->lock);
+
+	if (vp->bpf != NULL) {
+		if (vp->opened)
+			uml_vector_detach_bpf(vp->fds->rx_fd, vp->bpf);
+		kfree(vp->bpf->filter);
+		vp->bpf->filter = NULL;
+	} else {
+		vp->bpf = kmalloc(sizeof(struct sock_fprog), GFP_ATOMIC);
+		if (vp->bpf == NULL) {
+			netdev_err(dev, "failed to allocate memory for firmware\n");
+			goto flash_fail;
+		}
+	}
+
+	vdevice = find_device(vp->unit);
+
+	if (request_firmware(&fw, efl->data, &vdevice->pdev.dev))
+		goto flash_fail;
+
+	vp->bpf->filter = kmemdup(fw->data, fw->size, GFP_ATOMIC);
+	if (!vp->bpf->filter)
+		goto free_buffer;
+
+	vp->bpf->len = fw->size / sizeof(struct sock_filter);
+	release_firmware(fw);
+
+	if (vp->opened)
+		result = uml_vector_attach_bpf(vp->fds->rx_fd, vp->bpf);
+
+	spin_unlock(&vp->lock);
+
+	return result;
+
+free_buffer:
+	release_firmware(fw);
+
+flash_fail:
+	spin_unlock(&vp->lock);
+	if (vp->bpf != NULL)
+		kfree(vp->bpf->filter);
+	kfree(vp->bpf);
+	vp->bpf = NULL;
+	return -1;
 }
 
 static void vector_get_ringparam(struct net_device *netdev,
-				struct ethtool_ringparam *ring)
+				 struct ethtool_ringparam *ring,
+				 struct kernel_ethtool_ringparam *kernel_ring,
+				 struct netlink_ext_ack *extack)
 {
 	struct vector_private *vp = netdev_priv(netdev);
 
@@ -1395,7 +1483,9 @@ static void vector_get_ethtool_stats(struct net_device *dev,
 }
 
 static int vector_get_coalesce(struct net_device *netdev,
-					struct ethtool_coalesce *ec)
+			       struct ethtool_coalesce *ec,
+			       struct kernel_ethtool_coalesce *kernel_coal,
+			       struct netlink_ext_ack *extack)
 {
 	struct vector_private *vp = netdev_priv(netdev);
 
@@ -1404,7 +1494,9 @@ static int vector_get_coalesce(struct net_device *netdev,
 }
 
 static int vector_set_coalesce(struct net_device *netdev,
-					struct ethtool_coalesce *ec)
+			       struct ethtool_coalesce *ec,
+			       struct kernel_ethtool_coalesce *kernel_coal,
+			       struct netlink_ext_ack *extack)
 {
 	struct vector_private *vp = netdev_priv(netdev);
 
@@ -1415,6 +1507,7 @@ static int vector_set_coalesce(struct net_device *netdev,
 }
 
 static const struct ethtool_ops vector_net_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_TX_USECS,
 	.get_drvinfo	= vector_net_get_drvinfo,
 	.get_link	= ethtool_op_get_link,
 	.get_ts_info	= ethtool_op_get_ts_info,
@@ -1424,6 +1517,7 @@ static const struct ethtool_ops vector_net_ethtool_ops = {
 	.get_ethtool_stats = vector_get_ethtool_stats,
 	.get_coalesce	= vector_get_coalesce,
 	.set_coalesce	= vector_set_coalesce,
+	.flash_device	= vector_net_load_bpf_flash,
 };
 
 
@@ -1442,14 +1536,15 @@ static const struct net_device_ops vector_netdev_ops = {
 #endif
 };
 
-
 static void vector_timer_expire(struct timer_list *t)
 {
 	struct vector_private *vp = from_timer(vp, t, tl);
 
 	vp->estats.tx_kicks++;
-	vector_send(vp->tx_queue);
+	napi_schedule(&vp->napi);
 }
+
+
 
 static void vector_eth_configure(
 		int n,
@@ -1528,11 +1623,11 @@ static void vector_eth_configure(
 		.in_write_poll		= false,
 		.coalesce		= 2,
 		.req_size		= get_req_size(def),
-		.in_error		= false
-		});
+		.in_error		= false,
+		.bpf			= NULL
+	});
 
 	dev->features = dev->hw_features = (NETIF_F_SG | NETIF_F_FRAGLIST);
-	tasklet_init(&vp->tx_poll, vector_tx_poll, (unsigned long)vp);
 	INIT_WORK(&vp->reset_tx, vector_reset_tx);
 
 	timer_setup(&vp->tl, vector_timer_expire, 0);

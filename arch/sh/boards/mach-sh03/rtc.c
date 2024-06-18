@@ -11,7 +11,6 @@
 #include <linux/sched.h>
 #include <linux/time.h>
 #include <linux/bcd.h>
-#include <linux/rtc.h>
 #include <linux/spinlock.h>
 #include <linux/io.h>
 #include <linux/rtc.h>
@@ -121,7 +120,7 @@ static int set_rtc_mmss(struct rtc_time *tm)
 	return retval;
 }
 
-int sh03_rtc_settimeofday(struct device *dev, struct rtc_time *tm)
+static int sh03_rtc_settimeofday(struct device *dev, struct rtc_time *tm)
 {
 	return set_rtc_mmss(tm);
 }

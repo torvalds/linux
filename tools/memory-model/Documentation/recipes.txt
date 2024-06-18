@@ -1,7 +1,7 @@
 This document provides "recipes", that is, litmus tests for commonly
 occurring situations, as well as a few that illustrate subtly broken but
 attractive nuisances.  Many of these recipes include example code from
-v4.13 of the Linux kernel.
+v5.7 of the Linux kernel.
 
 The first section covers simple special cases, the second section
 takes off the training wheels to cover more involved examples,
@@ -126,7 +126,7 @@ However, it is not necessarily the case that accesses ordered by
 locking will be seen as ordered by CPUs not holding that lock.
 Consider this example:
 
-	/* See Z6.0+pooncerelease+poacquirerelease+fencembonceonce.litmus. */
+	/* See Z6.0+pooncelock+pooncelock+pombonce.litmus. */
 	void CPU0(void)
 	{
 		spin_lock(&mylock);
@@ -278,7 +278,7 @@ is present if the value loaded determines the address of a later access
 first place (control dependency).  Note that the term "data dependency"
 is sometimes casually used to cover both address and data dependencies.
 
-In lib/prime_numbers.c, the expand_to_next_prime() function invokes
+In lib/math/prime_numbers.c, the expand_to_next_prime() function invokes
 rcu_assign_pointer(), and the next_prime_number() function invokes
 rcu_dereference().  This combination mediates access to a bit vector
 that is expanded as additional primes are needed.

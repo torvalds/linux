@@ -70,7 +70,7 @@
 #define TC3589x_KBD_INT_CLR	0x1
 
 /**
- * struct tc35893_keypad_platform_data - platform specific keypad data
+ * struct tc3589x_keypad_platform_data - platform specific keypad data
  * @keymap_data:        matrix scan code table for keycodes
  * @krow:               mask for available rows, value is 0xFF
  * @kcol:               mask for available columns, value is 0xFF
@@ -455,7 +455,6 @@ static int tc3589x_keypad_probe(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int tc3589x_keypad_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -492,15 +491,14 @@ static int tc3589x_keypad_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(tc3589x_keypad_dev_pm_ops,
-			 tc3589x_keypad_suspend, tc3589x_keypad_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(tc3589x_keypad_dev_pm_ops,
+				tc3589x_keypad_suspend, tc3589x_keypad_resume);
 
 static struct platform_driver tc3589x_keypad_driver = {
 	.driver	= {
 		.name	= "tc3589x-keypad",
-		.pm	= &tc3589x_keypad_dev_pm_ops,
+		.pm	= pm_sleep_ptr(&tc3589x_keypad_dev_pm_ops),
 	},
 	.probe	= tc3589x_keypad_probe,
 };

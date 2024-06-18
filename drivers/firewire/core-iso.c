@@ -91,13 +91,6 @@ int fw_iso_buffer_init(struct fw_iso_buffer *buffer, struct fw_card *card,
 }
 EXPORT_SYMBOL(fw_iso_buffer_init);
 
-int fw_iso_buffer_map_vma(struct fw_iso_buffer *buffer,
-			  struct vm_area_struct *vma)
-{
-	return vm_map_pages_zero(vma, buffer->pages,
-					buffer->page_count);
-}
-
 void fw_iso_buffer_destroy(struct fw_iso_buffer *buffer,
 			   struct fw_card *card)
 {
@@ -284,7 +277,7 @@ static int manage_channel(struct fw_card *card, int irm_id, int generation,
 			if ((data[0] & bit) == (data[1] & bit))
 				continue;
 
-			/* fall through - It's a 1394-1995 IRM, retry. */
+			fallthrough;	/* It's a 1394-1995 IRM, retry */
 		default:
 			if (retry) {
 				retry--;

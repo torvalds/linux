@@ -6,7 +6,11 @@
 #include <bpf/libbpf.h>
 #include <linux/btf.h>
 #include <linux/err.h>
+#include <linux/string.h>
+#include <internal/lib.h>
+#include <symbol/kallsyms.h>
 #include "bpf-event.h"
+#include "bpf-utils.h"
 #include "debug.h"
 #include "dso.h"
 #include "symbol.h"
@@ -17,8 +21,6 @@
 #include "evlist.h"
 #include "record.h"
 #include "util/synthetic-events.h"
-
-#define ptr_to_u64(ptr)    ((__u64)(unsigned long)(ptr))
 
 static int snprintf_hex(char *buf, size_t size, unsigned char *data, size_t len)
 {
@@ -34,9 +36,9 @@ static int machine__process_bpf_event_load(struct machine *machine,
 					   union perf_event *event,
 					   struct perf_sample *sample __maybe_unused)
 {
-	struct bpf_prog_info_linear *info_linear;
 	struct bpf_prog_info_node *info_node;
 	struct perf_env *env = machine->env;
+	struct perf_bpil *info_linear;
 	int id = event->bpf.id;
 	unsigned int i;
 
@@ -52,15 +54,16 @@ static int machine__process_bpf_event_load(struct machine *machine,
 	for (i = 0; i < info_linear->info.nr_jited_ksyms; i++) {
 		u64 *addrs = (u64 *)(uintptr_t)(info_linear->info.jited_ksyms);
 		u64 addr = addrs[i];
-		struct map *map;
-
-		map = map_groups__find(&machine->kmaps, addr);
+		struct map *map = maps__find(machine__kernel_maps(machine), addr);
 
 		if (map) {
-			map->dso->binary_type = DSO_BINARY_TYPE__BPF_PROG_INFO;
-			map->dso->bpf_prog.id = id;
-			map->dso->bpf_prog.sub_id = i;
-			map->dso->bpf_prog.env = env;
+			struct dso *dso = map__dso(map);
+
+			dso__set_binary_type(dso, DSO_BINARY_TYPE__BPF_PROG_INFO);
+			dso__bpf_prog(dso)->id = id;
+			dso__bpf_prog(dso)->sub_id = i;
+			dso__bpf_prog(dso)->env = env;
+			map__put(map);
 		}
 	}
 	return 0;
@@ -98,7 +101,7 @@ static int perf_env__fetch_btf(struct perf_env *env,
 	u32 data_size;
 	const void *data;
 
-	data = btf__get_raw_data(btf, &data_size);
+	data = btf__raw_data(btf, &data_size);
 
 	node = malloc(data_size + sizeof(struct btf_node));
 	if (!node)
@@ -108,7 +111,11 @@ static int perf_env__fetch_btf(struct perf_env *env,
 	node->data_size = data_size;
 	memcpy(node->data, data, data_size);
 
-	perf_env__insert_btf(env, node);
+	if (!perf_env__insert_btf(env, node)) {
+		/* Insertion failed because of a duplicate. */
+		free(node);
+		return -1;
+	}
 	return 0;
 }
 
@@ -163,9 +170,9 @@ static int perf_event__synthesize_one_bpf_prog(struct perf_session *session,
 {
 	struct perf_record_ksymbol *ksymbol_event = &event->ksymbol;
 	struct perf_record_bpf_event *bpf_event = &event->bpf;
-	struct bpf_prog_info_linear *info_linear;
 	struct perf_tool *tool = session->tool;
 	struct bpf_prog_info_node *info_node;
+	struct perf_bpil *info_linear;
 	struct bpf_prog_info *info;
 	struct btf *btf = NULL;
 	struct perf_env *env;
@@ -179,15 +186,15 @@ static int perf_event__synthesize_one_bpf_prog(struct perf_session *session,
 	 */
 	env = session->data ? &session->header.env : &perf_env;
 
-	arrays = 1UL << BPF_PROG_INFO_JITED_KSYMS;
-	arrays |= 1UL << BPF_PROG_INFO_JITED_FUNC_LENS;
-	arrays |= 1UL << BPF_PROG_INFO_FUNC_INFO;
-	arrays |= 1UL << BPF_PROG_INFO_PROG_TAGS;
-	arrays |= 1UL << BPF_PROG_INFO_JITED_INSNS;
-	arrays |= 1UL << BPF_PROG_INFO_LINE_INFO;
-	arrays |= 1UL << BPF_PROG_INFO_JITED_LINE_INFO;
+	arrays = 1UL << PERF_BPIL_JITED_KSYMS;
+	arrays |= 1UL << PERF_BPIL_JITED_FUNC_LENS;
+	arrays |= 1UL << PERF_BPIL_FUNC_INFO;
+	arrays |= 1UL << PERF_BPIL_PROG_TAGS;
+	arrays |= 1UL << PERF_BPIL_JITED_INSNS;
+	arrays |= 1UL << PERF_BPIL_LINE_INFO;
+	arrays |= 1UL << PERF_BPIL_JITED_LINE_INFO;
 
-	info_linear = bpf_program__get_prog_info_linear(fd, arrays);
+	info_linear = get_bpf_prog_info_linear(fd, arrays);
 	if (IS_ERR_OR_NULL(info_linear)) {
 		info_linear = NULL;
 		pr_debug("%s: failed to get BPF program info. aborting\n", __func__);
@@ -195,30 +202,37 @@ static int perf_event__synthesize_one_bpf_prog(struct perf_session *session,
 	}
 
 	if (info_linear->info_len < offsetof(struct bpf_prog_info, prog_tags)) {
+		free(info_linear);
 		pr_debug("%s: the kernel is too old, aborting\n", __func__);
 		return -2;
 	}
 
 	info = &info_linear->info;
+	if (!info->jited_ksyms) {
+		free(info_linear);
+		return -1;
+	}
 
 	/* number of ksyms, func_lengths, and tags should match */
 	sub_prog_cnt = info->nr_jited_ksyms;
 	if (sub_prog_cnt != info->nr_prog_tags ||
-	    sub_prog_cnt != info->nr_jited_func_lens)
+	    sub_prog_cnt != info->nr_jited_func_lens) {
+		free(info_linear);
 		return -1;
+	}
 
 	/* check BTF func info support */
 	if (info->btf_id && info->nr_func_info && info->func_info_rec_size) {
 		/* btf func info number should be same as sub_prog_cnt */
 		if (sub_prog_cnt != info->nr_func_info) {
 			pr_debug("%s: mismatch in BPF sub program count and BTF function info count, aborting\n", __func__);
-			err = -1;
-			goto out;
+			free(info_linear);
+			return -1;
 		}
-		if (btf__get_from_id(info->btf_id, &btf)) {
+		btf = btf__load_from_kernel_by_id(info->btf_id);
+		if (libbpf_get_error(btf)) {
 			pr_debug("%s: failed to get BTF of id %u, aborting\n", __func__, info->btf_id);
 			err = -1;
-			btf = NULL;
 			goto out;
 		}
 		perf_env__fetch_btf(env, info->btf_id, btf);
@@ -288,8 +302,77 @@ static int perf_event__synthesize_one_bpf_prog(struct perf_session *session,
 
 out:
 	free(info_linear);
-	free(btf);
+	btf__free(btf);
 	return err ? -1 : 0;
+}
+
+struct kallsyms_parse {
+	union perf_event	*event;
+	perf_event__handler_t	 process;
+	struct machine		*machine;
+	struct perf_tool	*tool;
+};
+
+static int
+process_bpf_image(char *name, u64 addr, struct kallsyms_parse *data)
+{
+	struct machine *machine = data->machine;
+	union perf_event *event = data->event;
+	struct perf_record_ksymbol *ksymbol;
+	int len;
+
+	ksymbol = &event->ksymbol;
+
+	*ksymbol = (struct perf_record_ksymbol) {
+		.header = {
+			.type = PERF_RECORD_KSYMBOL,
+			.size = offsetof(struct perf_record_ksymbol, name),
+		},
+		.addr      = addr,
+		.len       = page_size,
+		.ksym_type = PERF_RECORD_KSYMBOL_TYPE_BPF,
+		.flags     = 0,
+	};
+
+	len = scnprintf(ksymbol->name, KSYM_NAME_LEN, "%s", name);
+	ksymbol->header.size += PERF_ALIGN(len + 1, sizeof(u64));
+	memset((void *) event + event->header.size, 0, machine->id_hdr_size);
+	event->header.size += machine->id_hdr_size;
+
+	return perf_tool__process_synth_event(data->tool, event, machine,
+					      data->process);
+}
+
+static int
+kallsyms_process_symbol(void *data, const char *_name,
+			char type __maybe_unused, u64 start)
+{
+	char disp[KSYM_NAME_LEN];
+	char *module, *name;
+	unsigned long id;
+	int err = 0;
+
+	module = strchr(_name, '\t');
+	if (!module)
+		return 0;
+
+	/* We are going after [bpf] module ... */
+	if (strcmp(module + 1, "[bpf]"))
+		return 0;
+
+	name = memdup(_name, (module - _name) + 1);
+	if (!name)
+		return -ENOMEM;
+
+	name[module - _name] = 0;
+
+	/* .. and only for trampolines and dispatchers */
+	if ((sscanf(name, "bpf_trampoline_%lu", &id) == 1) ||
+	    (sscanf(name, "bpf_dispatcher_%s", disp) == 1))
+		err = process_bpf_image(name, start, data);
+
+	free(name);
+	return err;
 }
 
 int perf_event__synthesize_bpf_events(struct perf_session *session,
@@ -297,14 +380,21 @@ int perf_event__synthesize_bpf_events(struct perf_session *session,
 				      struct machine *machine,
 				      struct record_opts *opts)
 {
+	const char *kallsyms_filename = "/proc/kallsyms";
+	struct kallsyms_parse arg;
 	union perf_event *event;
 	__u32 id = 0;
 	int err;
 	int fd;
 
+	if (opts->no_bpf_event)
+		return 0;
+
 	event = malloc(sizeof(event->bpf) + KSYM_NAME_LEN + machine->id_hdr_size);
 	if (!event)
 		return -1;
+
+	/* Synthesize all the bpf programs in system. */
 	while (true) {
 		err = bpf_prog_get_next_id(id, &id);
 		if (err) {
@@ -337,14 +427,31 @@ int perf_event__synthesize_bpf_events(struct perf_session *session,
 			break;
 		}
 	}
+
+	/* Synthesize all the bpf images - trampolines/dispatchers. */
+	if (symbol_conf.kallsyms_name != NULL)
+		kallsyms_filename = symbol_conf.kallsyms_name;
+
+	arg = (struct kallsyms_parse) {
+		.event   = event,
+		.process = process,
+		.machine = machine,
+		.tool    = session->tool,
+	};
+
+	if (kallsyms__parse(kallsyms_filename, &arg, kallsyms_process_symbol)) {
+		pr_err("%s: failed to synthesize bpf images: %s\n",
+		       __func__, strerror(errno));
+	}
+
 	free(event);
 	return err;
 }
 
 static void perf_env__add_bpf_info(struct perf_env *env, u32 id)
 {
-	struct bpf_prog_info_linear *info_linear;
 	struct bpf_prog_info_node *info_node;
+	struct perf_bpil *info_linear;
 	struct btf *btf = NULL;
 	u64 arrays;
 	u32 btf_id;
@@ -354,15 +461,15 @@ static void perf_env__add_bpf_info(struct perf_env *env, u32 id)
 	if (fd < 0)
 		return;
 
-	arrays = 1UL << BPF_PROG_INFO_JITED_KSYMS;
-	arrays |= 1UL << BPF_PROG_INFO_JITED_FUNC_LENS;
-	arrays |= 1UL << BPF_PROG_INFO_FUNC_INFO;
-	arrays |= 1UL << BPF_PROG_INFO_PROG_TAGS;
-	arrays |= 1UL << BPF_PROG_INFO_JITED_INSNS;
-	arrays |= 1UL << BPF_PROG_INFO_LINE_INFO;
-	arrays |= 1UL << BPF_PROG_INFO_JITED_LINE_INFO;
+	arrays = 1UL << PERF_BPIL_JITED_KSYMS;
+	arrays |= 1UL << PERF_BPIL_JITED_FUNC_LENS;
+	arrays |= 1UL << PERF_BPIL_FUNC_INFO;
+	arrays |= 1UL << PERF_BPIL_PROG_TAGS;
+	arrays |= 1UL << PERF_BPIL_JITED_INSNS;
+	arrays |= 1UL << PERF_BPIL_LINE_INFO;
+	arrays |= 1UL << PERF_BPIL_JITED_LINE_INFO;
 
-	info_linear = bpf_program__get_prog_info_linear(fd, arrays);
+	info_linear = get_bpf_prog_info_linear(fd, arrays);
 	if (IS_ERR_OR_NULL(info_linear)) {
 		pr_debug("%s: failed to get BPF program info. aborting\n", __func__);
 		goto out;
@@ -380,7 +487,8 @@ static void perf_env__add_bpf_info(struct perf_env *env, u32 id)
 	if (btf_id == 0)
 		goto out;
 
-	if (btf__get_from_id(btf_id, &btf)) {
+	btf = btf__load_from_kernel_by_id(btf_id);
+	if (libbpf_get_error(btf)) {
 		pr_debug("%s: failed to get BTF of id %u, aborting\n",
 			 __func__, btf_id);
 		goto out;
@@ -388,7 +496,7 @@ static void perf_env__add_bpf_info(struct perf_env *env, u32 id)
 	perf_env__fetch_btf(env, btf_id, btf);
 
 out:
-	free(btf);
+	btf__free(btf);
 	close(fd);
 }
 
@@ -418,8 +526,7 @@ static int bpf_event__sb_cb(union perf_event *event, void *data)
 	return 0;
 }
 
-int bpf_event__add_sb_event(struct evlist **evlist,
-			    struct perf_env *env)
+int evlist__add_bpf_sb_event(struct evlist *evlist, struct perf_env *env)
 {
 	struct perf_event_attr attr = {
 		.type	          = PERF_TYPE_SOFTWARE,
@@ -436,12 +543,12 @@ int bpf_event__add_sb_event(struct evlist **evlist,
 	 */
 	attr.wakeup_watermark = 1;
 
-	return perf_evlist__add_sb_event(evlist, &attr, bpf_event__sb_cb, env);
+	return evlist__add_sb_event(evlist, &attr, bpf_event__sb_cb, env);
 }
 
-void bpf_event__print_bpf_prog_info(struct bpf_prog_info *info,
-				    struct perf_env *env,
-				    FILE *fp)
+void __bpf_event__print_bpf_prog_info(struct bpf_prog_info *info,
+				      struct perf_env *env,
+				      FILE *fp)
 {
 	__u32 *prog_lens = (__u32 *)(uintptr_t)(info->jited_func_lens);
 	__u64 *prog_addrs = (__u64 *)(uintptr_t)(info->jited_ksyms);
@@ -457,7 +564,7 @@ void bpf_event__print_bpf_prog_info(struct bpf_prog_info *info,
 	if (info->btf_id) {
 		struct btf_node *node;
 
-		node = perf_env__find_btf(env, info->btf_id);
+		node = __perf_env__find_btf(env, info->btf_id);
 		if (node)
 			btf = btf__new((__u8 *)(node->data),
 				       node->data_size);
@@ -467,7 +574,7 @@ void bpf_event__print_bpf_prog_info(struct bpf_prog_info *info,
 		synthesize_bpf_prog_name(name, KSYM_NAME_LEN, info, btf, 0);
 		fprintf(fp, "# bpf_prog_info %u: %s addr 0x%llx size %u\n",
 			info->id, name, prog_addrs[0], prog_lens[0]);
-		return;
+		goto out;
 	}
 
 	fprintf(fp, "# bpf_prog_info %u:\n", info->id);
@@ -477,4 +584,6 @@ void bpf_event__print_bpf_prog_info(struct bpf_prog_info *info,
 		fprintf(fp, "# \tsub_prog %u: %s addr 0x%llx size %u\n",
 			i, name, prog_addrs[i], prog_lens[i]);
 	}
+out:
+	btf__free(btf);
 }

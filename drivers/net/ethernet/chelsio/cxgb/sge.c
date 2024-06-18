@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*****************************************************************************
  *                                                                           *
  * File: sge.c                                                               *
@@ -7,16 +8,6 @@
  *  DMA engine.                                                              *
  *  part of the Chelsio 10Gb Ethernet Driver.                                *
  *                                                                           *
- * This program is free software; you can redistribute it and/or modify      *
- * it under the terms of the GNU General Public License, version 2, as       *
- * published by the Free Software Foundation.                                *
- *                                                                           *
- * You should have received a copy of the GNU General Public License along   *
- * with this program; if not, see <http://www.gnu.org/licenses/>.            *
- *                                                                           *
- * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED    *
- * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF      *
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.                     *
  *                                                                           *
  * http://www.chelsio.com                                                    *
  *                                                                           *
@@ -239,8 +230,10 @@ struct sched {
 	unsigned int	num;		/* num skbs in per port queues */
 	struct sched_port p[MAX_NPORTS];
 	struct tasklet_struct sched_tsk;/* tasklet used to run scheduler */
+	struct sge *sge;
 };
-static void restart_sched(unsigned long);
+
+static void restart_sched(struct tasklet_struct *t);
 
 
 /*
@@ -378,7 +371,8 @@ static int tx_sched_init(struct sge *sge)
 		return -ENOMEM;
 
 	pr_debug("tx_sched_init\n");
-	tasklet_init(&s->sched_tsk, restart_sched, (unsigned long) sge);
+	tasklet_setup(&s->sched_tsk, restart_sched);
+	s->sge = sge;
 	sge->tx_sched = s;
 
 	for (i = 0; i < MAX_NPORTS; i++) {
@@ -509,9 +503,8 @@ static void free_freelQ_buffers(struct pci_dev *pdev, struct freelQ *q)
 	while (q->credits--) {
 		struct freelQ_ce *ce = &q->centries[cidx];
 
-		pci_unmap_single(pdev, dma_unmap_addr(ce, dma_addr),
-				 dma_unmap_len(ce, dma_len),
-				 PCI_DMA_FROMDEVICE);
+		dma_unmap_single(&pdev->dev, dma_unmap_addr(ce, dma_addr),
+				 dma_unmap_len(ce, dma_len), DMA_FROM_DEVICE);
 		dev_kfree_skb(ce->skb);
 		ce->skb = NULL;
 		if (++cidx == q->size)
@@ -529,8 +522,8 @@ static void free_rx_resources(struct sge *sge)
 
 	if (sge->respQ.entries) {
 		size = sizeof(struct respQ_e) * sge->respQ.size;
-		pci_free_consistent(pdev, size, sge->respQ.entries,
-				    sge->respQ.dma_addr);
+		dma_free_coherent(&pdev->dev, size, sge->respQ.entries,
+				  sge->respQ.dma_addr);
 	}
 
 	for (i = 0; i < SGE_FREELQ_N; i++) {
@@ -542,8 +535,8 @@ static void free_rx_resources(struct sge *sge)
 		}
 		if (q->entries) {
 			size = sizeof(struct freelQ_e) * q->size;
-			pci_free_consistent(pdev, size, q->entries,
-					    q->dma_addr);
+			dma_free_coherent(&pdev->dev, size, q->entries,
+					  q->dma_addr);
 		}
 	}
 }
@@ -564,7 +557,8 @@ static int alloc_rx_resources(struct sge *sge, struct sge_params *p)
 		q->size = p->freelQ_size[i];
 		q->dma_offset = sge->rx_pkt_pad ? 0 : NET_IP_ALIGN;
 		size = sizeof(struct freelQ_e) * q->size;
-		q->entries = pci_alloc_consistent(pdev, size, &q->dma_addr);
+		q->entries = dma_alloc_coherent(&pdev->dev, size,
+						&q->dma_addr, GFP_KERNEL);
 		if (!q->entries)
 			goto err_no_mem;
 
@@ -601,7 +595,8 @@ static int alloc_rx_resources(struct sge *sge, struct sge_params *p)
 	sge->respQ.credits = 0;
 	size = sizeof(struct respQ_e) * sge->respQ.size;
 	sge->respQ.entries =
-		pci_alloc_consistent(pdev, size, &sge->respQ.dma_addr);
+		dma_alloc_coherent(&pdev->dev, size, &sge->respQ.dma_addr,
+				   GFP_KERNEL);
 	if (!sge->respQ.entries)
 		goto err_no_mem;
 	return 0;
@@ -624,9 +619,10 @@ static void free_cmdQ_buffers(struct sge *sge, struct cmdQ *q, unsigned int n)
 	ce = &q->centries[cidx];
 	while (n--) {
 		if (likely(dma_unmap_len(ce, dma_len))) {
-			pci_unmap_single(pdev, dma_unmap_addr(ce, dma_addr),
+			dma_unmap_single(&pdev->dev,
+					 dma_unmap_addr(ce, dma_addr),
 					 dma_unmap_len(ce, dma_len),
-					 PCI_DMA_TODEVICE);
+					 DMA_TO_DEVICE);
 			if (q->sop)
 				q->sop = 0;
 		}
@@ -663,8 +659,8 @@ static void free_tx_resources(struct sge *sge)
 		}
 		if (q->entries) {
 			size = sizeof(struct cmdQ_e) * q->size;
-			pci_free_consistent(pdev, size, q->entries,
-					    q->dma_addr);
+			dma_free_coherent(&pdev->dev, size, q->entries,
+					  q->dma_addr);
 		}
 	}
 }
@@ -689,7 +685,8 @@ static int alloc_tx_resources(struct sge *sge, struct sge_params *p)
 		q->stop_thres = 0;
 		spin_lock_init(&q->lock);
 		size = sizeof(struct cmdQ_e) * q->size;
-		q->entries = pci_alloc_consistent(pdev, size, &q->dma_addr);
+		q->entries = dma_alloc_coherent(&pdev->dev, size,
+						&q->dma_addr, GFP_KERNEL);
 		if (!q->entries)
 			goto err_no_mem;
 
@@ -837,8 +834,8 @@ static void refill_free_list(struct sge *sge, struct freelQ *q)
 			break;
 
 		skb_reserve(skb, q->dma_offset);
-		mapping = pci_map_single(pdev, skb->data, dma_len,
-					 PCI_DMA_FROMDEVICE);
+		mapping = dma_map_single(&pdev->dev, skb->data, dma_len,
+					 DMA_FROM_DEVICE);
 		skb_reserve(skb, sge->rx_pkt_pad);
 
 		ce->skb = skb;
@@ -934,10 +931,11 @@ void t1_sge_intr_clear(struct sge *sge)
 /*
  * SGE 'Error' interrupt handler
  */
-int t1_sge_intr_error_handler(struct sge *sge)
+bool t1_sge_intr_error_handler(struct sge *sge)
 {
 	struct adapter *adapter = sge->adapter;
 	u32 cause = readl(adapter->regs + A_SG_INT_CAUSE);
+	bool wake = false;
 
 	if (adapter->port[0].dev->hw_features & NETIF_F_TSO)
 		cause &= ~F_PACKET_TOO_BIG;
@@ -961,11 +959,14 @@ int t1_sge_intr_error_handler(struct sge *sge)
 		sge->stats.pkt_mismatch++;
 		pr_alert("%s: SGE packet mismatch\n", adapter->name);
 	}
-	if (cause & SGE_INT_FATAL)
-		t1_fatal_err(adapter);
+	if (cause & SGE_INT_FATAL) {
+		t1_interrupts_disable(adapter);
+		adapter->pending_thread_intr |= F_PL_INTR_SGE_ERR;
+		wake = true;
+	}
 
 	writel(cause, adapter->regs + A_SG_INT_CAUSE);
-	return 0;
+	return wake;
 }
 
 const struct sge_intr_counts *t1_sge_get_intr_counts(const struct sge *sge)
@@ -1049,15 +1050,15 @@ static inline struct sk_buff *get_packet(struct adapter *adapter,
 			goto use_orig_buf;
 
 		skb_put(skb, len);
-		pci_dma_sync_single_for_cpu(pdev,
-					    dma_unmap_addr(ce, dma_addr),
-					    dma_unmap_len(ce, dma_len),
-					    PCI_DMA_FROMDEVICE);
+		dma_sync_single_for_cpu(&pdev->dev,
+					dma_unmap_addr(ce, dma_addr),
+					dma_unmap_len(ce, dma_len),
+					DMA_FROM_DEVICE);
 		skb_copy_from_linear_data(ce->skb, skb->data, len);
-		pci_dma_sync_single_for_device(pdev,
-					       dma_unmap_addr(ce, dma_addr),
-					       dma_unmap_len(ce, dma_len),
-					       PCI_DMA_FROMDEVICE);
+		dma_sync_single_for_device(&pdev->dev,
+					   dma_unmap_addr(ce, dma_addr),
+					   dma_unmap_len(ce, dma_len),
+					   DMA_FROM_DEVICE);
 		recycle_fl_buf(fl, fl->cidx);
 		return skb;
 	}
@@ -1068,8 +1069,8 @@ use_orig_buf:
 		return NULL;
 	}
 
-	pci_unmap_single(pdev, dma_unmap_addr(ce, dma_addr),
-			 dma_unmap_len(ce, dma_len), PCI_DMA_FROMDEVICE);
+	dma_unmap_single(&pdev->dev, dma_unmap_addr(ce, dma_addr),
+			 dma_unmap_len(ce, dma_len), DMA_FROM_DEVICE);
 	skb = ce->skb;
 	prefetch(skb->data);
 
@@ -1091,8 +1092,9 @@ static void unexpected_offload(struct adapter *adapter, struct freelQ *fl)
 	struct freelQ_ce *ce = &fl->centries[fl->cidx];
 	struct sk_buff *skb = ce->skb;
 
-	pci_dma_sync_single_for_cpu(adapter->pdev, dma_unmap_addr(ce, dma_addr),
-			    dma_unmap_len(ce, dma_len), PCI_DMA_FROMDEVICE);
+	dma_sync_single_for_cpu(&adapter->pdev->dev,
+				dma_unmap_addr(ce, dma_addr),
+				dma_unmap_len(ce, dma_len), DMA_FROM_DEVICE);
 	pr_err("%s: unexpected offload packet, cmd %u\n",
 	       adapter->name, *skb->data);
 	recycle_fl_buf(fl, fl->cidx);
@@ -1209,8 +1211,8 @@ static inline void write_tx_descs(struct adapter *adapter, struct sk_buff *skb,
 	e = e1 = &q->entries[pidx];
 	ce = &q->centries[pidx];
 
-	mapping = pci_map_single(adapter->pdev, skb->data,
-				 skb_headlen(skb), PCI_DMA_TODEVICE);
+	mapping = dma_map_single(&adapter->pdev->dev, skb->data,
+				 skb_headlen(skb), DMA_TO_DEVICE);
 
 	desc_mapping = mapping;
 	desc_len = skb_headlen(skb);
@@ -1301,9 +1303,10 @@ static inline void reclaim_completed_tx(struct sge *sge, struct cmdQ *q)
  * Called from tasklet. Checks the scheduler for any
  * pending skbs that can be sent.
  */
-static void restart_sched(unsigned long arg)
+static void restart_sched(struct tasklet_struct *t)
 {
-	struct sge *sge = (struct sge *) arg;
+	struct sched *s = from_tasklet(s, t, sched_tsk);
+	struct sge *sge = s->sge;
 	struct adapter *adapter = sge->adapter;
 	struct cmdQ *q = &sge->cmdQ[0];
 	struct sk_buff *skb;
@@ -1347,7 +1350,7 @@ static void restart_sched(unsigned long arg)
  *	@fl: the free list that contains the packet buffer
  *	@len: the packet length
  *
- *	Process an ingress ethernet pakcet and deliver it to the stack.
+ *	Process an ingress ethernet packet and deliver it to the stack.
  */
 static void sge_rx(struct sge *sge, struct freelQ *fl, unsigned int len)
 {
@@ -1611,11 +1614,46 @@ int t1_poll(struct napi_struct *napi, int budget)
 	return work_done;
 }
 
+irqreturn_t t1_interrupt_thread(int irq, void *data)
+{
+	struct adapter *adapter = data;
+	u32 pending_thread_intr;
+
+	spin_lock_irq(&adapter->async_lock);
+	pending_thread_intr = adapter->pending_thread_intr;
+	adapter->pending_thread_intr = 0;
+	spin_unlock_irq(&adapter->async_lock);
+
+	if (!pending_thread_intr)
+		return IRQ_NONE;
+
+	if (pending_thread_intr & F_PL_INTR_EXT)
+		t1_elmer0_ext_intr_handler(adapter);
+
+	/* This error is fatal, interrupts remain off */
+	if (pending_thread_intr & F_PL_INTR_SGE_ERR) {
+		pr_alert("%s: encountered fatal error, operation suspended\n",
+			 adapter->name);
+		t1_sge_stop(adapter->sge);
+		return IRQ_HANDLED;
+	}
+
+	spin_lock_irq(&adapter->async_lock);
+	adapter->slow_intr_mask |= F_PL_INTR_EXT;
+
+	writel(F_PL_INTR_EXT, adapter->regs + A_PL_CAUSE);
+	writel(adapter->slow_intr_mask | F_PL_INTR_SGE_DATA,
+	       adapter->regs + A_PL_ENABLE);
+	spin_unlock_irq(&adapter->async_lock);
+
+	return IRQ_HANDLED;
+}
+
 irqreturn_t t1_interrupt(int irq, void *data)
 {
 	struct adapter *adapter = data;
 	struct sge *sge = adapter->sge;
-	int handled;
+	irqreturn_t handled;
 
 	if (likely(responses_pending(adapter))) {
 		writel(F_PL_INTR_SGE_DATA, adapter->regs + A_PL_CAUSE);
@@ -1637,10 +1675,10 @@ irqreturn_t t1_interrupt(int irq, void *data)
 	handled = t1_slow_intr_handler(adapter);
 	spin_unlock(&adapter->async_lock);
 
-	if (!handled)
+	if (handled == IRQ_NONE)
 		sge->stats.unhandled_irqs++;
 
-	return IRQ_RETVAL(handled != 0);
+	return handled;
 }
 
 /*

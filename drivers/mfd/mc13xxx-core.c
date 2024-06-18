@@ -7,6 +7,7 @@
  * Copyright 2009 Pengutronix, Sascha Hauer <s.hauer@pengutronix.de>
  */
 
+#include <linux/bitfield.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -174,28 +175,27 @@ int mc13xxx_irq_free(struct mc13xxx *mc13xxx, int irq, void *dev)
 }
 EXPORT_SYMBOL(mc13xxx_irq_free);
 
-#define maskval(reg, mask)	(((reg) & (mask)) >> __ffs(mask))
 static void mc13xxx_print_revision(struct mc13xxx *mc13xxx, u32 revision)
 {
 	dev_info(mc13xxx->dev, "%s: rev: %d.%d, "
 			"fin: %d, fab: %d, icid: %d/%d\n",
 			mc13xxx->variant->name,
-			maskval(revision, MC13XXX_REVISION_REVFULL),
-			maskval(revision, MC13XXX_REVISION_REVMETAL),
-			maskval(revision, MC13XXX_REVISION_FIN),
-			maskval(revision, MC13XXX_REVISION_FAB),
-			maskval(revision, MC13XXX_REVISION_ICID),
-			maskval(revision, MC13XXX_REVISION_ICIDCODE));
+			FIELD_GET(MC13XXX_REVISION_REVFULL, revision),
+			FIELD_GET(MC13XXX_REVISION_REVMETAL, revision),
+			FIELD_GET(MC13XXX_REVISION_FIN, revision),
+			FIELD_GET(MC13XXX_REVISION_FAB, revision),
+			FIELD_GET(MC13XXX_REVISION_ICID, revision),
+			FIELD_GET(MC13XXX_REVISION_ICIDCODE, revision));
 }
 
 static void mc34708_print_revision(struct mc13xxx *mc13xxx, u32 revision)
 {
 	dev_info(mc13xxx->dev, "%s: rev %d.%d, fin: %d, fab: %d\n",
 			mc13xxx->variant->name,
-			maskval(revision, MC34708_REVISION_REVFULL),
-			maskval(revision, MC34708_REVISION_REVMETAL),
-			maskval(revision, MC34708_REVISION_FIN),
-			maskval(revision, MC34708_REVISION_FAB));
+			FIELD_GET(MC34708_REVISION_REVFULL, revision),
+			FIELD_GET(MC34708_REVISION_REVMETAL, revision),
+			FIELD_GET(MC34708_REVISION_FIN, revision),
+			FIELD_GET(MC34708_REVISION_FAB, revision));
 }
 
 /* These are only exported for mc13xxx-i2c and mc13xxx-spi */
@@ -323,8 +323,10 @@ int mc13xxx_adc_do_conversion(struct mc13xxx *mc13xxx, unsigned int mode,
 		adc1 |= MC13783_ADC1_ATOX;
 
 	dev_dbg(mc13xxx->dev, "%s: request irq\n", __func__);
-	mc13xxx_irq_request(mc13xxx, MC13XXX_IRQ_ADCDONE,
+	ret = mc13xxx_irq_request(mc13xxx, MC13XXX_IRQ_ADCDONE,
 			mc13xxx_handler_adcdone, __func__, &adcdone_data);
+	if (ret)
+		goto out;
 
 	mc13xxx_reg_write(mc13xxx, MC13XXX_ADC0, adc0);
 	mc13xxx_reg_write(mc13xxx, MC13XXX_ADC1, adc1);
@@ -496,15 +498,13 @@ int mc13xxx_common_init(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(mc13xxx_common_init);
 
-int mc13xxx_common_exit(struct device *dev)
+void mc13xxx_common_exit(struct device *dev)
 {
 	struct mc13xxx *mc13xxx = dev_get_drvdata(dev);
 
 	mfd_remove_devices(dev);
 	regmap_del_irq_chip(mc13xxx->irq, mc13xxx->irq_data);
 	mutex_destroy(&mc13xxx->lock);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(mc13xxx_common_exit);
 

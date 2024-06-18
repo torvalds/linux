@@ -1,6 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: event trigger - test synthetic_events syntax parser
+# requires: set_event synthetic_events
 
 do_reset() {
     reset_trigger
@@ -13,16 +14,6 @@ fail() { #msg
     echo $1
     exit_fail
 }
-
-if [ ! -f set_event ]; then
-    echo "event tracing is not supported"
-    exit_unsupported
-fi
-
-if [ ! -f synthetic_events ]; then
-    echo "synthetic event is not supported"
-    exit_unsupported
-fi
 
 reset_tracer
 do_reset
@@ -40,6 +31,10 @@ grep "myevent[[:space:]]u64 var1" synthetic_events
 
 # it is not possible to add same name event
 ! echo "myevent u64 var2" >> synthetic_events
+
+# make sure !synthetic event doesn't require a field
+echo "!myevent" >> synthetic_events
+echo "myevent u64 var1" >> synthetic_events
 
 # Non-append open will cleanup all events and add new one
 echo "myevent u64 var2" > synthetic_events
@@ -74,6 +69,12 @@ grep "myevent[[:space:]]unsigned long var" synthetic_events
 # test string type
 echo "myevent char var[10]" > synthetic_events
 grep "myevent[[:space:]]char\[10\] var" synthetic_events
+
+if grep -q 'long\[\]' README; then
+  # test stacktrace type
+  echo "myevent unsigned long[] var" > synthetic_events
+  grep "myevent[[:space:]]unsigned long\[\] var" synthetic_events
+fi
 
 do_reset
 

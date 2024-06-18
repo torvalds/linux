@@ -10,6 +10,10 @@
 #include "zlib_inflate/inftrees.c"
 #include "zlib_inflate/inffast.c"
 #include "zlib_inflate/inflate.c"
+#ifdef CONFIG_ZLIB_DFLTCC
+#include "zlib_dfltcc/dfltcc.c"
+#include "zlib_dfltcc/dfltcc_inflate.c"
+#endif
 
 #else /* STATIC */
 /* initramfs et al: linked */
@@ -35,7 +39,7 @@ static long INIT nofill(void *buffer, unsigned long len)
 }
 
 /* Included from initramfs et al code */
-STATIC int INIT __gunzip(unsigned char *buf, long len,
+static int INIT __gunzip(unsigned char *buf, long len,
 		       long (*fill)(void*, unsigned long),
 		       long (*flush)(void*, unsigned long),
 		       unsigned char *out_buf, long out_len,
@@ -76,7 +80,12 @@ STATIC int INIT __gunzip(unsigned char *buf, long len,
 	}
 
 	strm->workspace = malloc(flush ? zlib_inflate_workspacesize() :
+#ifdef CONFIG_ZLIB_DFLTCC
+	/* Always allocate the full workspace for DFLTCC */
+				 zlib_inflate_workspacesize());
+#else
 				 sizeof(struct inflate_state));
+#endif
 	if (strm->workspace == NULL) {
 		error("Out of memory while allocating workspace");
 		goto gunzip_nomem4;
@@ -123,10 +132,14 @@ STATIC int INIT __gunzip(unsigned char *buf, long len,
 
 	rc = zlib_inflateInit2(strm, -MAX_WBITS);
 
+#ifdef CONFIG_ZLIB_DFLTCC
+	/* Always keep the window for DFLTCC */
+#else
 	if (!flush) {
 		WS(strm)->inflate_state.wsize = 0;
 		WS(strm)->inflate_state.window = NULL;
 	}
+#endif
 
 	while (rc == Z_OK) {
 		if (strm->avail_in == 0) {

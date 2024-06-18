@@ -10,9 +10,10 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/ioport.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
+#include <linux/pgtable.h>
 
-#include <asm/pgtable.h>
-#include <asm/prom.h>
 #include <asm/io.h>
 
 #include "interrupt.h"
@@ -190,16 +191,11 @@ static void spider_irq_cascade(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct spider_pic *pic = irq_desc_get_handler_data(desc);
-	unsigned int cs, virq;
+	unsigned int cs;
 
 	cs = in_be32(pic->regs + TIR_CS) >> 24;
-	if (cs == SPIDER_IRQ_INVALID)
-		virq = 0;
-	else
-		virq = irq_linear_revmap(pic->host, cs);
-
-	if (virq)
-		generic_handle_irq(virq);
+	if (cs != SPIDER_IRQ_INVALID)
+		generic_handle_domain_irq(pic->host, cs);
 
 	chip->irq_eoi(&desc->irq_data);
 }

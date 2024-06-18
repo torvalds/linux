@@ -15,7 +15,7 @@ The ALSA driver programs this portion of chip by default code
 IEC958 (S/PDIF) raw PCM
 =======================
 
-This PCM device (it's the 4th PCM device (index 3!) and first subdevice
+This PCM device (it's the 3rd PCM device (index 2!) and first subdevice
 (index 0) for a given card) allows to forward 48kHz, stereo, 16-bit
 little endian streams without any modifications to the digital output
 (coaxial or optical). The universal interface allows the creation of up
@@ -31,11 +31,11 @@ Digital mixer controls
 ======================
 
 These controls are built using the DSP instructions. They offer extended
-functionality. Only the default build-in code in the ALSA driver is described
+functionality. Only the default built-in code in the ALSA driver is described
 here. Note that the controls work as attenuators: the maximum value is the 
-neutral position leaving the signal unchanged. Note that if the  same destination 
-is mentioned in multiple controls, the signal is accumulated and can be wrapped 
-(set to maximal or minimal value without checking of overflow).
+neutral position leaving the signal unchanged. Note that if the same destination
+is mentioned in multiple controls, the signal is accumulated and can be clipped
+(set to maximal or minimal value without checking for overflow).
 
 
 Explanation of used abbreviations:
@@ -46,11 +46,11 @@ ADC
 	analog to digital converter
 I2S
 	one-way three wire serial bus for digital sound by Philips Semiconductors
-        (this standard is used for connecting standalone DAC and ADC converters)
+	(this standard is used for connecting standalone D/A and A/D converters)
 LFE
-	low frequency effects (subwoofer signal)
+	low frequency effects (used as subwoofer signal)
 AC97
-	a chip containing an analog mixer, DAC and ADC converters
+	a chip containing an analog mixer, D/A and A/D converters
 IEC958
 	S/PDIF
 FX-bus
@@ -61,61 +61,61 @@ FX-bus
 
 ``name='Wave Playback Volume',index=0``
 ---------------------------------------
-This control is used to attenuate samples for left and right PCM FX-bus
+This control is used to attenuate samples from left and right PCM FX-bus
 accumulators. ALSA uses accumulators 0 and 1 for left and right PCM samples.
 The result samples are forwarded to the front DAC PCM slots of the AC97 codec.
 
 ``name='Wave Surround Playback Volume',index=0``
 ------------------------------------------------
-This control is used to attenuate samples for left and right PCM FX-bus
+This control is used to attenuate samples from left and right PCM FX-bus
 accumulators. ALSA uses accumulators 0 and 1 for left and right PCM samples.
 The result samples are forwarded to the rear I2S DACs. These DACs operates
 separately (they are not inside the AC97 codec).
 
 ``name='Wave Center Playback Volume',index=0``
 ----------------------------------------------
-This control is used to attenuate samples for left and right PCM FX-bus
+This control is used to attenuate samples from left and right PCM FX-bus
 accumulators. ALSA uses accumulators 0 and 1 for left and right PCM samples.
 The result is mixed to mono signal (single channel) and forwarded to
 the ??rear?? right DAC PCM slot of the AC97 codec.
 
 ``name='Wave LFE Playback Volume',index=0``
 -------------------------------------------
-This control is used to attenuate samples for left and right PCM FX-bus
+This control is used to attenuate samples from left and right PCM FX-bus
 accumulators. ALSA uses accumulators 0 and 1 for left and right PCM.
 The result is mixed to mono signal (single channel) and forwarded to
 the ??rear?? left DAC PCM slot of the AC97 codec.
 
 ``name='Wave Capture Volume',index=0``, ``name='Wave Capture Switch',index=0``
 ------------------------------------------------------------------------------
-These controls are used to attenuate samples for left and right PCM FX-bus
+These controls are used to attenuate samples from left and right PCM FX-bus
 accumulator. ALSA uses accumulators 0 and 1 for left and right PCM.
 The result is forwarded to the ADC capture FIFO (thus to the standard capture
 PCM device).
 
 ``name='Synth Playback Volume',index=0``
 ----------------------------------------
-This control is used to attenuate samples for left and right MIDI FX-bus
+This control is used to attenuate samples from left and right MIDI FX-bus
 accumulators. ALSA uses accumulators 4 and 5 for left and right MIDI samples.
 The result samples are forwarded to the front DAC PCM slots of the AC97 codec.
 
 ``name='Synth Capture Volume',index=0``, ``name='Synth Capture Switch',index=0``
 --------------------------------------------------------------------------------
-These controls are used to attenuate samples for left and right MIDI FX-bus
-accumulator. ALSA uses accumulators 4 and 5 for left and right PCM.
+These controls are used to attenuate samples from left and right MIDI FX-bus
+accumulator. ALSA uses accumulators 4 and 5 for left and right MIDI samples.
 The result is forwarded to the ADC capture FIFO (thus to the standard capture
 PCM device).
 
 ``name='Surround Playback Volume',index=0``
 -------------------------------------------
-This control is used to attenuate samples for left and right rear PCM FX-bus
+This control is used to attenuate samples from left and right rear PCM FX-bus
 accumulators. ALSA uses accumulators 2 and 3 for left and right rear PCM samples.
 The result samples are forwarded to the rear I2S DACs. These DACs operate
 separately (they are not inside the AC97 codec).
 
 ``name='Surround Capture Volume',index=0``, ``name='Surround Capture Switch',index=0``
 --------------------------------------------------------------------------------------
-These controls are used to attenuate samples for left and right rear PCM FX-bus
+These controls are used to attenuate samples from left and right rear PCM FX-bus
 accumulators. ALSA uses accumulators 2 and 3 for left and right rear PCM samples.
 The result is forwarded to the ADC capture FIFO (thus to the standard capture
 PCM device).
@@ -134,7 +134,7 @@ to the ??rear?? left DAC PCM slot of the AC97 codec.
 
 ``name='AC97 Playback Volume',index=0``
 ---------------------------------------
-This control is used to attenuate samples for left and right front ADC PCM slots
+This control is used to attenuate samples from left and right front ADC PCM slots
 of the AC97 codec. The result samples are forwarded to the front DAC PCM
 slots of the AC97 codec.
 
@@ -145,7 +145,7 @@ slots of the AC97 codec.
 
 ``name='AC97 Capture Volume',index=0``
 --------------------------------------
-This control is used to attenuate samples for left and right front ADC PCM slots
+This control is used to attenuate samples from left and right front ADC PCM slots
 of the AC97 codec. The result is forwarded to the ADC capture FIFO (thus to
 the standard capture PCM device).
 
@@ -258,7 +258,7 @@ PCM stream related controls
 
 ``name='EMU10K1 PCM Volume',index 0-31``
 ----------------------------------------
-Channel volume attenuation in range 0-0xffff. The maximum value (no
+Channel volume attenuation in range 0-0x1fffd. The middle value (no
 attenuation) is default. The channel mapping for three values is
 as follows:
 
@@ -313,6 +313,9 @@ MANUALS/PATENTS
 ftp://opensource.creative.com/pub/doc
 -------------------------------------
 
+Note that the site is defunct, but the documents are available
+from various other locations.
+
 LM4545.pdf
 	AC97 Codec
 m2049.pdf
@@ -336,8 +339,8 @@ WO 9901953 (A1)
         Execution and Audio Data Sequencing (Jan. 14, 1999)
 
 
-US Patents (http://www.uspto.gov/)
-----------------------------------
+US Patents (https://www.uspto.gov/)
+-----------------------------------
 
 US 5925841
 	Digital Sampling Instrument employing cache memory (Jul. 20, 1999)

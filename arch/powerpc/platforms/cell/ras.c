@@ -12,17 +12,17 @@
 #include <linux/reboot.h>
 #include <linux/kexec.h>
 #include <linux/crash_dump.h>
+#include <linux/of.h>
 
 #include <asm/kexec.h>
 #include <asm/reg.h>
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/rtas.h>
 #include <asm/cell-regs.h>
 
 #include "ras.h"
-
+#include "pervasive.h"
 
 static void dump_fir(int cpu)
 {
@@ -49,7 +49,7 @@ static void dump_fir(int cpu)
 
 }
 
-void cbe_system_error_exception(struct pt_regs *regs)
+DEFINE_INTERRUPT_HANDLER(cbe_system_error_exception)
 {
 	int cpu = smp_processor_id();
 
@@ -58,7 +58,7 @@ void cbe_system_error_exception(struct pt_regs *regs)
 	dump_stack();
 }
 
-void cbe_maintenance_exception(struct pt_regs *regs)
+DEFINE_INTERRUPT_HANDLER(cbe_maintenance_exception)
 {
 	int cpu = smp_processor_id();
 
@@ -70,7 +70,7 @@ void cbe_maintenance_exception(struct pt_regs *regs)
 	dump_stack();
 }
 
-void cbe_thermal_exception(struct pt_regs *regs)
+DEFINE_INTERRUPT_HANDLER(cbe_thermal_exception)
 {
 	int cpu = smp_processor_id();
 
@@ -297,8 +297,8 @@ int cbe_sysreset_hack(void)
 static int __init cbe_ptcal_init(void)
 {
 	int ret;
-	ptcal_start_tok = rtas_token("ibm,cbe-start-ptcal");
-	ptcal_stop_tok = rtas_token("ibm,cbe-stop-ptcal");
+	ptcal_start_tok = rtas_function_token(RTAS_FN_IBM_CBE_START_PTCAL);
+	ptcal_stop_tok = rtas_function_token(RTAS_FN_IBM_CBE_STOP_PTCAL);
 
 	if (ptcal_start_tok == RTAS_UNKNOWN_SERVICE
 			|| ptcal_stop_tok == RTAS_UNKNOWN_SERVICE)

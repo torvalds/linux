@@ -16,31 +16,56 @@
 #include <sound/soc.h>
 #include <uapi/linux/input-event-codes.h>
 #include <dt-bindings/sound/apq8016-lpass.h>
+#include <dt-bindings/sound/qcom,q6afe.h>
+#include "common.h"
+#include "qdsp6/q6afe.h"
+
+#define MI2S_COUNT  (MI2S_QUATERNARY + 1)
 
 struct apq8016_sbc_data {
+	struct snd_soc_card card;
 	void __iomem *mic_iomux;
 	void __iomem *spkr_iomux;
 	struct snd_soc_jack jack;
 	bool jack_setup;
-	struct snd_soc_dai_link dai_link[];	/* dynamically allocated */
+	int mi2s_clk_count[MI2S_COUNT];
 };
 
 #define MIC_CTRL_TER_WS_SLAVE_SEL	BIT(21)
 #define MIC_CTRL_QUA_WS_SLAVE_SEL_10	BIT(17)
 #define MIC_CTRL_TLMM_SCLK_EN		BIT(1)
 #define	SPKR_CTL_PRI_WS_SLAVE_SEL_11	(BIT(17) | BIT(16))
+#define SPKR_CTL_TLMM_MCLK_EN		BIT(1)
+#define SPKR_CTL_TLMM_SCLK_EN		BIT(2)
+#define SPKR_CTL_TLMM_DATA1_EN		BIT(3)
+#define SPKR_CTL_TLMM_WS_OUT_SEL_MASK	GENMASK(7, 6)
+#define SPKR_CTL_TLMM_WS_OUT_SEL_SEC	BIT(6)
+#define SPKR_CTL_TLMM_WS_EN_SEL_MASK	GENMASK(19, 18)
+#define SPKR_CTL_TLMM_WS_EN_SEL_SEC	BIT(18)
 #define DEFAULT_MCLK_RATE		9600000
+#define MI2S_BCLK_RATE			1536000
 
-static int apq8016_sbc_dai_init(struct snd_soc_pcm_runtime *rtd)
+static struct snd_soc_jack_pin apq8016_sbc_jack_pins[] = {
+	{
+		.pin = "Mic Jack",
+		.mask = SND_JACK_MICROPHONE,
+	},
+	{
+		.pin = "Headphone Jack",
+		.mask = SND_JACK_HEADPHONE,
+	},
+};
+
+static int apq8016_dai_init(struct snd_soc_pcm_runtime *rtd, int mi2s)
 {
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_dai *codec_dai;
 	struct snd_soc_component *component;
-	struct snd_soc_dai_link *dai_link = rtd->dai_link;
 	struct snd_soc_card *card = rtd->card;
 	struct apq8016_sbc_data *pdata = snd_soc_card_get_drvdata(card);
 	int i, rval;
+	u32 value;
 
-	switch (cpu_dai->id) {
+	switch (mi2s) {
 	case MI2S_PRIMARY:
 		writel(readl(pdata->spkr_iomux) | SPKR_CTL_PRI_WS_SLAVE_SEL_11,
 			pdata->spkr_iomux);
@@ -51,6 +76,15 @@ static int apq8016_sbc_dai_init(struct snd_soc_pcm_runtime *rtd)
 		writel(readl(pdata->mic_iomux) | MIC_CTRL_QUA_WS_SLAVE_SEL_10 |
 			MIC_CTRL_TLMM_SCLK_EN,
 			pdata->mic_iomux);
+		break;
+	case MI2S_SECONDARY:
+		/* Clear TLMM_WS_OUT_SEL and TLMM_WS_EN_SEL fields */
+		value = readl(pdata->spkr_iomux) &
+			~(SPKR_CTL_TLMM_WS_OUT_SEL_MASK | SPKR_CTL_TLMM_WS_EN_SEL_MASK);
+		/* Configure the Sec MI2S to TLMM */
+		writel(value | SPKR_CTL_TLMM_MCLK_EN | SPKR_CTL_TLMM_SCLK_EN |
+			SPKR_CTL_TLMM_DATA1_EN | SPKR_CTL_TLMM_WS_OUT_SEL_SEC |
+			SPKR_CTL_TLMM_WS_EN_SEL_SEC, pdata->spkr_iomux);
 		break;
 	case MI2S_TERTIARY:
 		writel(readl(pdata->mic_iomux) | MIC_CTRL_TER_WS_SLAVE_SEL |
@@ -68,13 +102,15 @@ static int apq8016_sbc_dai_init(struct snd_soc_pcm_runtime *rtd)
 	if (!pdata->jack_setup) {
 		struct snd_jack *jack;
 
-		rval = snd_soc_card_jack_new(card, "Headset Jack",
-					     SND_JACK_HEADSET |
-					     SND_JACK_HEADPHONE |
-					     SND_JACK_BTN_0 | SND_JACK_BTN_1 |
-					     SND_JACK_BTN_2 | SND_JACK_BTN_3 |
-					     SND_JACK_BTN_4,
-					     &pdata->jack, NULL, 0);
+		rval = snd_soc_card_jack_new_pins(card, "Headset Jack",
+						  SND_JACK_HEADSET |
+						  SND_JACK_HEADPHONE |
+						  SND_JACK_BTN_0 | SND_JACK_BTN_1 |
+						  SND_JACK_BTN_2 | SND_JACK_BTN_3 |
+						  SND_JACK_BTN_4,
+						  &pdata->jack,
+						  apq8016_sbc_jack_pins,
+						  ARRAY_SIZE(apq8016_sbc_jack_pins));
 
 		if (rval < 0) {
 			dev_err(card->dev, "Unable to add Headphone Jack\n");
@@ -90,10 +126,9 @@ static int apq8016_sbc_dai_init(struct snd_soc_pcm_runtime *rtd)
 		pdata->jack_setup = true;
 	}
 
-	for (i = 0 ; i < dai_link->num_codecs; i++) {
-		struct snd_soc_dai *dai = rtd->codec_dais[i];
+	for_each_rtd_codec_dais(rtd, i, codec_dai) {
 
-		component = dai->component;
+		component = codec_dai->component;
 		/* Set default mclk for internal codec */
 		rval = snd_soc_component_set_sysclk(component, 0, 0, DEFAULT_MCLK_RATE,
 				       SND_SOC_CLOCK_IN);
@@ -111,111 +146,137 @@ static int apq8016_sbc_dai_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static struct apq8016_sbc_data *apq8016_sbc_parse_of(struct snd_soc_card *card)
+static int apq8016_sbc_dai_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct device *dev = card->dev;
-	struct snd_soc_dai_link *link;
-	struct device_node *np, *codec, *cpu, *node  = dev->of_node;
-	struct apq8016_sbc_data *data;
-	struct snd_soc_dai_link_component *dlc;
-	int ret, num_links;
+	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
 
-	ret = snd_soc_of_parse_card_name(card, "qcom,model");
-	if (ret) {
-		dev_err(dev, "Error parsing card name: %d\n", ret);
-		return ERR_PTR(ret);
-	}
-
-	/* DAPM routes */
-	if (of_property_read_bool(node, "qcom,audio-routing")) {
-		ret = snd_soc_of_parse_audio_routing(card,
-					"qcom,audio-routing");
-		if (ret)
-			return ERR_PTR(ret);
-	}
-
-
-	/* Populate links */
-	num_links = of_get_child_count(node);
-
-	/* Allocate the private data and the DAI link array */
-	data = devm_kzalloc(dev,
-			    struct_size(data, dai_link, num_links),
-			    GFP_KERNEL);
-	if (!data)
-		return ERR_PTR(-ENOMEM);
-
-	card->dai_link	= &data->dai_link[0];
-	card->num_links	= num_links;
-
-	link = data->dai_link;
-
-	for_each_child_of_node(node, np) {
-		dlc = devm_kzalloc(dev, 2 * sizeof(*dlc), GFP_KERNEL);
-		if (!dlc)
-			return ERR_PTR(-ENOMEM);
-
-		link->cpus	= &dlc[0];
-		link->platforms	= &dlc[1];
-
-		link->num_cpus		= 1;
-		link->num_platforms	= 1;
-
-		cpu = of_get_child_by_name(np, "cpu");
-		codec = of_get_child_by_name(np, "codec");
-
-		if (!cpu || !codec) {
-			dev_err(dev, "Can't find cpu/codec DT node\n");
-			ret = -EINVAL;
-			goto error;
-		}
-
-		link->cpus->of_node = of_parse_phandle(cpu, "sound-dai", 0);
-		if (!link->cpus->of_node) {
-			dev_err(card->dev, "error getting cpu phandle\n");
-			ret = -EINVAL;
-			goto error;
-		}
-
-		ret = snd_soc_of_get_dai_name(cpu, &link->cpus->dai_name);
-		if (ret) {
-			dev_err(card->dev, "error getting cpu dai name\n");
-			goto error;
-		}
-
-		ret = snd_soc_of_get_dai_link_codecs(dev, codec, link);
-
-		if (ret < 0) {
-			dev_err(card->dev, "error getting codec dai name\n");
-			goto error;
-		}
-
-		link->platforms->of_node = link->cpus->of_node;
-		ret = of_property_read_string(np, "link-name", &link->name);
-		if (ret) {
-			dev_err(card->dev, "error getting codec dai_link name\n");
-			goto error;
-		}
-
-		link->stream_name = link->name;
-		link->init = apq8016_sbc_dai_init;
-		link++;
-
-		of_node_put(cpu);
-		of_node_put(codec);
-	}
-
-	return data;
-
- error:
-	of_node_put(np);
-	of_node_put(cpu);
-	of_node_put(codec);
-	return ERR_PTR(ret);
+	return apq8016_dai_init(rtd, cpu_dai->id);
 }
 
-static const struct snd_soc_dapm_widget apq8016_sbc_dapm_widgets[] = {
+static void apq8016_sbc_add_ops(struct snd_soc_card *card)
+{
+	struct snd_soc_dai_link *link;
+	int i;
 
+	for_each_card_prelinks(card, i, link)
+		link->init = apq8016_sbc_dai_init;
+}
+
+static int qdsp6_dai_get_lpass_id(struct snd_soc_dai *cpu_dai)
+{
+	switch (cpu_dai->id) {
+	case PRIMARY_MI2S_RX:
+	case PRIMARY_MI2S_TX:
+		return MI2S_PRIMARY;
+	case SECONDARY_MI2S_RX:
+	case SECONDARY_MI2S_TX:
+		return MI2S_SECONDARY;
+	case TERTIARY_MI2S_RX:
+	case TERTIARY_MI2S_TX:
+		return MI2S_TERTIARY;
+	case QUATERNARY_MI2S_RX:
+	case QUATERNARY_MI2S_TX:
+		return MI2S_QUATERNARY;
+	default:
+		return -EINVAL;
+	}
+}
+
+static int msm8916_qdsp6_dai_init(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
+
+	snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_BP_FP);
+	return apq8016_dai_init(rtd, qdsp6_dai_get_lpass_id(cpu_dai));
+}
+
+static int msm8916_qdsp6_startup(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_card *card = rtd->card;
+	struct apq8016_sbc_data *data = snd_soc_card_get_drvdata(card);
+	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
+	int mi2s, ret;
+
+	mi2s = qdsp6_dai_get_lpass_id(cpu_dai);
+	if (mi2s < 0)
+		return mi2s;
+
+	if (++data->mi2s_clk_count[mi2s] > 1)
+		return 0;
+
+	ret = snd_soc_dai_set_sysclk(cpu_dai, LPAIF_BIT_CLK, MI2S_BCLK_RATE, 0);
+	if (ret)
+		dev_err(card->dev, "Failed to enable LPAIF bit clk: %d\n", ret);
+	return ret;
+}
+
+static void msm8916_qdsp6_shutdown(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_card *card = rtd->card;
+	struct apq8016_sbc_data *data = snd_soc_card_get_drvdata(card);
+	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
+	int mi2s, ret;
+
+	mi2s = qdsp6_dai_get_lpass_id(cpu_dai);
+	if (mi2s < 0)
+		return;
+
+	if (--data->mi2s_clk_count[mi2s] > 0)
+		return;
+
+	ret = snd_soc_dai_set_sysclk(cpu_dai, LPAIF_BIT_CLK, 0, 0);
+	if (ret)
+		dev_err(card->dev, "Failed to disable LPAIF bit clk: %d\n", ret);
+}
+
+static const struct snd_soc_ops msm8916_qdsp6_be_ops = {
+	.startup = msm8916_qdsp6_startup,
+	.shutdown = msm8916_qdsp6_shutdown,
+};
+
+static int msm8916_qdsp6_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
+					    struct snd_pcm_hw_params *params)
+{
+	struct snd_interval *rate = hw_param_interval(params,
+					SNDRV_PCM_HW_PARAM_RATE);
+	struct snd_interval *channels = hw_param_interval(params,
+					SNDRV_PCM_HW_PARAM_CHANNELS);
+	struct snd_mask *fmt = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
+
+	rate->min = rate->max = 48000;
+	channels->min = channels->max = 2;
+	snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S16_LE);
+
+	return 0;
+}
+
+static void msm8916_qdsp6_add_ops(struct snd_soc_card *card)
+{
+	struct snd_soc_dai_link *link;
+	int i;
+
+	/* Make it obvious to userspace that QDSP6 is used */
+	card->components = "qdsp6";
+
+	for_each_card_prelinks(card, i, link) {
+		if (link->no_pcm) {
+			link->init = msm8916_qdsp6_dai_init;
+			link->ops = &msm8916_qdsp6_be_ops;
+			link->be_hw_params_fixup = msm8916_qdsp6_be_hw_params_fixup;
+		}
+	}
+}
+
+static const struct snd_kcontrol_new apq8016_sbc_snd_controls[] = {
+	SOC_DAPM_PIN_SWITCH("Headphone Jack"),
+	SOC_DAPM_PIN_SWITCH("Mic Jack"),
+};
+
+static const struct snd_soc_dapm_widget apq8016_sbc_dapm_widgets[] = {
+	SND_SOC_DAPM_HP("Headphone Jack", NULL),
+	SND_SOC_DAPM_MIC("Mic Jack", NULL),
 	SND_SOC_DAPM_MIC("Handset Mic", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 	SND_SOC_DAPM_MIC("Secondary Mic", NULL),
@@ -225,42 +286,49 @@ static const struct snd_soc_dapm_widget apq8016_sbc_dapm_widgets[] = {
 
 static int apq8016_sbc_platform_probe(struct platform_device *pdev)
 {
+	void (*add_ops)(struct snd_soc_card *card);
 	struct device *dev = &pdev->dev;
 	struct snd_soc_card *card;
 	struct apq8016_sbc_data *data;
-	struct resource *res;
+	int ret;
 
-	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
-	if (!card)
+	add_ops = device_get_match_data(&pdev->dev);
+	if (!add_ops)
+		return -EINVAL;
+
+	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	if (!data)
 		return -ENOMEM;
 
+	card = &data->card;
 	card->dev = dev;
+	card->owner = THIS_MODULE;
 	card->dapm_widgets = apq8016_sbc_dapm_widgets;
 	card->num_dapm_widgets = ARRAY_SIZE(apq8016_sbc_dapm_widgets);
-	data = apq8016_sbc_parse_of(card);
-	if (IS_ERR(data)) {
-		dev_err(&pdev->dev, "Error resolving dai links: %ld\n",
-			PTR_ERR(data));
-		return PTR_ERR(data);
-	}
+	card->controls = apq8016_sbc_snd_controls;
+	card->num_controls = ARRAY_SIZE(apq8016_sbc_snd_controls);
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mic-iomux");
-	data->mic_iomux = devm_ioremap_resource(dev, res);
+	ret = qcom_snd_parse_of(card);
+	if (ret)
+		return ret;
+
+	data->mic_iomux = devm_platform_ioremap_resource_byname(pdev, "mic-iomux");
 	if (IS_ERR(data->mic_iomux))
 		return PTR_ERR(data->mic_iomux);
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "spkr-iomux");
-	data->spkr_iomux = devm_ioremap_resource(dev, res);
+	data->spkr_iomux = devm_platform_ioremap_resource_byname(pdev, "spkr-iomux");
 	if (IS_ERR(data->spkr_iomux))
 		return PTR_ERR(data->spkr_iomux);
 
 	snd_soc_card_set_drvdata(card, data);
 
+	add_ops(card);
 	return devm_snd_soc_register_card(&pdev->dev, card);
 }
 
-static const struct of_device_id apq8016_sbc_device_id[]  = {
-	{ .compatible = "qcom,apq8016-sbc-sndcard" },
+static const struct of_device_id apq8016_sbc_device_id[] __maybe_unused = {
+	{ .compatible = "qcom,apq8016-sbc-sndcard", .data = apq8016_sbc_add_ops },
+	{ .compatible = "qcom,msm8916-qdsp6-sndcard", .data = msm8916_qdsp6_add_ops },
 	{},
 };
 MODULE_DEVICE_TABLE(of, apq8016_sbc_device_id);
@@ -276,4 +344,4 @@ module_platform_driver(apq8016_sbc_platform_driver);
 
 MODULE_AUTHOR("Srinivas Kandagatla <srinivas.kandagatla@linaro.org");
 MODULE_DESCRIPTION("APQ8016 ASoC Machine Driver");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");

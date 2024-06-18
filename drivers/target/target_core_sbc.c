@@ -25,7 +25,7 @@
 #include "target_core_alua.h"
 
 static sense_reason_t
-sbc_check_prot(struct se_device *, struct se_cmd *, unsigned char *, u32, bool);
+sbc_check_prot(struct se_device *, struct se_cmd *, unsigned char, u32, bool);
 static sense_reason_t sbc_execute_unmap(struct se_cmd *cmd);
 
 static sense_reason_t
@@ -67,7 +67,7 @@ sbc_emulate_readcapacity(struct se_cmd *cmd)
 		transport_kunmap_data_sg(cmd);
 	}
 
-	target_complete_cmd_with_length(cmd, GOOD, 8);
+	target_complete_cmd_with_length(cmd, SAM_STAT_GOOD, 8);
 	return 0;
 }
 
@@ -130,7 +130,7 @@ sbc_emulate_readcapacity_16(struct se_cmd *cmd)
 		transport_kunmap_data_sg(cmd);
 	}
 
-	target_complete_cmd_with_length(cmd, GOOD, 32);
+	target_complete_cmd_with_length(cmd, SAM_STAT_GOOD, 32);
 	return 0;
 }
 
@@ -192,7 +192,7 @@ EXPORT_SYMBOL(sbc_get_write_same_sectors);
 static sense_reason_t
 sbc_execute_write_same_unmap(struct se_cmd *cmd)
 {
-	struct sbc_ops *ops = cmd->protocol_data;
+	struct exec_cmd_ops *ops = cmd->protocol_data;
 	sector_t nolb = sbc_get_write_same_sectors(cmd);
 	sense_reason_t ret;
 
@@ -202,14 +202,14 @@ sbc_execute_write_same_unmap(struct se_cmd *cmd)
 			return ret;
 	}
 
-	target_complete_cmd(cmd, GOOD);
+	target_complete_cmd(cmd, SAM_STAT_GOOD);
 	return 0;
 }
 
 static sense_reason_t
 sbc_emulate_noop(struct se_cmd *cmd)
 {
-	target_complete_cmd(cmd, GOOD);
+	target_complete_cmd(cmd, SAM_STAT_GOOD);
 	return 0;
 }
 
@@ -270,23 +270,16 @@ static inline unsigned long long transport_lba_64(unsigned char *cdb)
 	return get_unaligned_be64(&cdb[2]);
 }
 
-/*
- * For VARIABLE_LENGTH_CDB w/ 32 byte extended CDBs
- */
-static inline unsigned long long transport_lba_64_ext(unsigned char *cdb)
-{
-	return get_unaligned_be64(&cdb[12]);
-}
-
 static sense_reason_t
-sbc_setup_write_same(struct se_cmd *cmd, unsigned char *flags, struct sbc_ops *ops)
+sbc_setup_write_same(struct se_cmd *cmd, unsigned char flags,
+		     struct exec_cmd_ops *ops)
 {
 	struct se_device *dev = cmd->se_dev;
 	sector_t end_lba = dev->transport->get_blocks(dev) + 1;
 	unsigned int sectors = sbc_get_write_same_sectors(cmd);
 	sense_reason_t ret;
 
-	if ((flags[0] & 0x04) || (flags[0] & 0x02)) {
+	if ((flags & 0x04) || (flags & 0x02)) {
 		pr_err("WRITE_SAME PBDATA and LBDATA"
 			" bits not supported for Block Discard"
 			" Emulation\n");
@@ -308,15 +301,21 @@ sbc_setup_write_same(struct se_cmd *cmd, unsigned char *flags, struct sbc_ops *o
 	}
 
 	/* We always have ANC_SUP == 0 so setting ANCHOR is always an error */
-	if (flags[0] & 0x10) {
+	if (flags & 0x10) {
 		pr_warn("WRITE SAME with ANCHOR not supported\n");
 		return TCM_INVALID_CDB_FIELD;
 	}
+
+	if (flags & 0x01) {
+		pr_warn("WRITE SAME with NDOB not supported\n");
+		return TCM_INVALID_CDB_FIELD;
+	}
+
 	/*
 	 * Special case for WRITE_SAME w/ UNMAP=1 that ends up getting
 	 * translated into block discard requests within backend code.
 	 */
-	if (flags[0] & 0x08) {
+	if (flags & 0x08) {
 		if (!ops->execute_unmap)
 			return TCM_UNSUPPORTED_SCSI_OPCODE;
 
@@ -331,7 +330,7 @@ sbc_setup_write_same(struct se_cmd *cmd, unsigned char *flags, struct sbc_ops *o
 	if (!ops->execute_write_same)
 		return TCM_UNSUPPORTED_SCSI_OPCODE;
 
-	ret = sbc_check_prot(dev, cmd, &cmd->t_task_cdb[0], sectors, true);
+	ret = sbc_check_prot(dev, cmd, flags >> 5, sectors, true);
 	if (ret)
 		return ret;
 
@@ -339,72 +338,10 @@ sbc_setup_write_same(struct se_cmd *cmd, unsigned char *flags, struct sbc_ops *o
 	return 0;
 }
 
-static sense_reason_t xdreadwrite_callback(struct se_cmd *cmd, bool success,
-					   int *post_ret)
-{
-	unsigned char *buf, *addr;
-	struct scatterlist *sg;
-	unsigned int offset;
-	sense_reason_t ret = TCM_NO_SENSE;
-	int i, count;
-
-	if (!success)
-		return 0;
-
-	/*
-	 * From sbc3r22.pdf section 5.48 XDWRITEREAD (10) command
-	 *
-	 * 1) read the specified logical block(s);
-	 * 2) transfer logical blocks from the data-out buffer;
-	 * 3) XOR the logical blocks transferred from the data-out buffer with
-	 *    the logical blocks read, storing the resulting XOR data in a buffer;
-	 * 4) if the DISABLE WRITE bit is set to zero, then write the logical
-	 *    blocks transferred from the data-out buffer; and
-	 * 5) transfer the resulting XOR data to the data-in buffer.
-	 */
-	buf = kmalloc(cmd->data_length, GFP_KERNEL);
-	if (!buf) {
-		pr_err("Unable to allocate xor_callback buf\n");
-		return TCM_OUT_OF_RESOURCES;
-	}
-	/*
-	 * Copy the scatterlist WRITE buffer located at cmd->t_data_sg
-	 * into the locally allocated *buf
-	 */
-	sg_copy_to_buffer(cmd->t_data_sg,
-			  cmd->t_data_nents,
-			  buf,
-			  cmd->data_length);
-
-	/*
-	 * Now perform the XOR against the BIDI read memory located at
-	 * cmd->t_mem_bidi_list
-	 */
-
-	offset = 0;
-	for_each_sg(cmd->t_bidi_data_sg, sg, cmd->t_bidi_data_nents, count) {
-		addr = kmap_atomic(sg_page(sg));
-		if (!addr) {
-			ret = TCM_OUT_OF_RESOURCES;
-			goto out;
-		}
-
-		for (i = 0; i < sg->length; i++)
-			*(addr + sg->offset + i) ^= *(buf + offset + i);
-
-		offset += sg->length;
-		kunmap_atomic(addr);
-	}
-
-out:
-	kfree(buf);
-	return ret;
-}
-
 static sense_reason_t
 sbc_execute_rw(struct se_cmd *cmd)
 {
-	struct sbc_ops *ops = cmd->protocol_data;
+	struct exec_cmd_ops *ops = cmd->protocol_data;
 
 	return ops->execute_rw(cmd, cmd->t_data_sg, cmd->t_data_nents,
 			       cmd->data_direction);
@@ -434,27 +371,98 @@ static sense_reason_t compare_and_write_post(struct se_cmd *cmd, bool success,
 	return ret;
 }
 
+/*
+ * compare @cmp_len bytes of @read_sgl with @cmp_sgl. On miscompare, fill
+ * @miscmp_off and return TCM_MISCOMPARE_VERIFY.
+ */
+static sense_reason_t
+compare_and_write_do_cmp(struct scatterlist *read_sgl, unsigned int read_nents,
+			 struct scatterlist *cmp_sgl, unsigned int cmp_nents,
+			 unsigned int cmp_len, unsigned int *miscmp_off)
+{
+	unsigned char *buf = NULL;
+	struct scatterlist *sg;
+	sense_reason_t ret;
+	unsigned int offset;
+	size_t rc;
+	int sg_cnt;
+
+	buf = kzalloc(cmp_len, GFP_KERNEL);
+	if (!buf) {
+		ret = TCM_OUT_OF_RESOURCES;
+		goto out;
+	}
+
+	rc = sg_copy_to_buffer(cmp_sgl, cmp_nents, buf, cmp_len);
+	if (!rc) {
+		pr_err("sg_copy_to_buffer() failed for compare_and_write\n");
+		ret = TCM_OUT_OF_RESOURCES;
+		goto out;
+	}
+	/*
+	 * Compare SCSI READ payload against verify payload
+	 */
+	offset = 0;
+	ret = TCM_NO_SENSE;
+	for_each_sg(read_sgl, sg, read_nents, sg_cnt) {
+		unsigned int len = min(sg->length, cmp_len);
+		unsigned char *addr = kmap_atomic(sg_page(sg));
+
+		if (memcmp(addr, buf + offset, len)) {
+			unsigned int i;
+
+			for (i = 0; i < len && addr[i] == buf[offset + i]; i++)
+				;
+			*miscmp_off = offset + i;
+			pr_warn("Detected MISCOMPARE at offset %u\n",
+				*miscmp_off);
+			ret = TCM_MISCOMPARE_VERIFY;
+		}
+		kunmap_atomic(addr);
+		if (ret != TCM_NO_SENSE)
+			goto out;
+
+		offset += len;
+		cmp_len -= len;
+		if (!cmp_len)
+			break;
+	}
+	pr_debug("COMPARE AND WRITE read data matches compare data\n");
+out:
+	kfree(buf);
+	return ret;
+}
+
 static sense_reason_t compare_and_write_callback(struct se_cmd *cmd, bool success,
 						 int *post_ret)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct sg_table write_tbl = { };
-	struct scatterlist *write_sg, *sg;
-	unsigned char *buf = NULL, *addr;
+	struct scatterlist *write_sg;
 	struct sg_mapping_iter m;
-	unsigned int offset = 0, len;
-	unsigned int nlbas = cmd->t_task_nolb;
+	unsigned int len;
 	unsigned int block_size = dev->dev_attrib.block_size;
-	unsigned int compare_len = (nlbas * block_size);
+	unsigned int compare_len = (cmd->t_task_nolb * block_size);
+	unsigned int miscmp_off = 0;
 	sense_reason_t ret = TCM_NO_SENSE;
-	int rc, i;
+	int i;
 
-	/*
-	 * Handle early failure in transport_generic_request_failure(),
-	 * which will not have taken ->caw_sem yet..
-	 */
-	if (!success && (!cmd->t_data_sg || !cmd->t_bidi_data_sg))
-		return TCM_NO_SENSE;
+	if (!success) {
+		/*
+		 * Handle early failure in transport_generic_request_failure(),
+		 * which will not have taken ->caw_sem yet..
+		 */
+		if (!cmd->t_data_sg || !cmd->t_bidi_data_sg)
+			return TCM_NO_SENSE;
+
+		/*
+		 * The command has been stopped or aborted so
+		 * we don't have to perform the write operation.
+		 */
+		WARN_ON(!(cmd->transport_state &
+			(CMD_T_ABORTED | CMD_T_STOP)));
+		goto out;
+	}
 	/*
 	 * Handle special case for zero-length COMPARE_AND_WRITE
 	 */
@@ -473,12 +481,23 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd, bool succes
 		goto out;
 	}
 
-	buf = kzalloc(cmd->data_length, GFP_KERNEL);
-	if (!buf) {
-		pr_err("Unable to allocate compare_and_write buf\n");
-		ret = TCM_OUT_OF_RESOURCES;
+	ret = compare_and_write_do_cmp(cmd->t_bidi_data_sg,
+				       cmd->t_bidi_data_nents,
+				       cmd->t_data_sg,
+				       cmd->t_data_nents,
+				       compare_len,
+				       &miscmp_off);
+	if (ret == TCM_MISCOMPARE_VERIFY) {
+		/*
+		 * SBC-4 r15: 5.3 COMPARE AND WRITE command
+		 * In the sense data (see 4.18 and SPC-5) the offset from the
+		 * start of the Data-Out Buffer to the first byte of data that
+		 * was not equal shall be reported in the INFORMATION field.
+		 */
+		cmd->sense_info = miscmp_off;
 		goto out;
-	}
+	} else if (ret)
+		goto out;
 
 	if (sg_alloc_table(&write_tbl, cmd->t_data_nents, GFP_KERNEL) < 0) {
 		pr_err("Unable to allocate compare_and_write sg\n");
@@ -486,44 +505,9 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd, bool succes
 		goto out;
 	}
 	write_sg = write_tbl.sgl;
-	/*
-	 * Setup verify and write data payloads from total NumberLBAs.
-	 */
-	rc = sg_copy_to_buffer(cmd->t_data_sg, cmd->t_data_nents, buf,
-			       cmd->data_length);
-	if (!rc) {
-		pr_err("sg_copy_to_buffer() failed for compare_and_write\n");
-		ret = TCM_OUT_OF_RESOURCES;
-		goto out;
-	}
-	/*
-	 * Compare against SCSI READ payload against verify payload
-	 */
-	for_each_sg(cmd->t_bidi_data_sg, sg, cmd->t_bidi_data_nents, i) {
-		addr = (unsigned char *)kmap_atomic(sg_page(sg));
-		if (!addr) {
-			ret = TCM_OUT_OF_RESOURCES;
-			goto out;
-		}
-
-		len = min(sg->length, compare_len);
-
-		if (memcmp(addr, buf + offset, len)) {
-			pr_warn("Detected MISCOMPARE for addr: %p buf: %p\n",
-				addr, buf + offset);
-			kunmap_atomic(addr);
-			goto miscompare;
-		}
-		kunmap_atomic(addr);
-
-		offset += len;
-		compare_len -= len;
-		if (!compare_len)
-			break;
-	}
 
 	i = 0;
-	len = cmd->t_task_nolb * block_size;
+	len = compare_len;
 	sg_miter_start(&m, cmd->t_data_sg, cmd->t_data_nents, SG_MITER_TO_SG);
 	/*
 	 * Currently assumes NoLB=1 and SGLs are PAGE_SIZE..
@@ -568,13 +552,8 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd, bool succes
 
 	__target_execute_cmd(cmd, false);
 
-	kfree(buf);
 	return ret;
 
-miscompare:
-	pr_warn("Target/%s: Send MISCOMPARE check condition and sense\n",
-		dev->transport->name);
-	ret = TCM_MISCOMPARE_VERIFY;
 out:
 	/*
 	 * In the MISCOMPARE or failure case, unlock ->caw_sem obtained in
@@ -582,14 +561,13 @@ out:
 	 */
 	up(&dev->caw_sem);
 	sg_free_table(&write_tbl);
-	kfree(buf);
 	return ret;
 }
 
 static sense_reason_t
 sbc_compare_and_write(struct se_cmd *cmd)
 {
-	struct sbc_ops *ops = cmd->protocol_data;
+	struct exec_cmd_ops *ops = cmd->protocol_data;
 	struct se_device *dev = cmd->se_dev;
 	sense_reason_t ret;
 	int rc;
@@ -686,10 +664,9 @@ sbc_set_prot_op_checks(u8 protect, bool fabric_prot, enum target_prot_type prot_
 }
 
 static sense_reason_t
-sbc_check_prot(struct se_device *dev, struct se_cmd *cmd, unsigned char *cdb,
+sbc_check_prot(struct se_device *dev, struct se_cmd *cmd, unsigned char protect,
 	       u32 sectors, bool is_write)
 {
-	u8 protect = cdb[1] >> 5;
 	int sp_ops = cmd->se_sess->sup_prot_ops;
 	int pi_prot_type = dev->dev_attrib.pi_prot_type;
 	bool fabric_prot = false;
@@ -734,10 +711,10 @@ sbc_check_prot(struct se_device *dev, struct se_cmd *cmd, unsigned char *cdb,
 		}
 		if (!protect)
 			return TCM_NO_SENSE;
-		/* Fallthrough */
+		fallthrough;
 	default:
 		pr_err("Unable to determine pi_prot_type for CDB: 0x%02x "
-		       "PROTECT: 0x%02x\n", cdb[0], protect);
+		       "PROTECT: 0x%02x\n", cmd->t_task_cdb[0], protect);
 		return TCM_INVALID_CDB_FIELD;
 	}
 
@@ -788,7 +765,7 @@ sbc_check_dpofua(struct se_device *dev, struct se_cmd *cmd, unsigned char *cdb)
 }
 
 sense_reason_t
-sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
+sbc_parse_cdb(struct se_cmd *cmd, struct exec_cmd_ops *ops)
 {
 	struct se_device *dev = cmd->se_dev;
 	unsigned char *cdb = cmd->t_task_cdb;
@@ -812,7 +789,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		if (sbc_check_dpofua(dev, cmd, cdb))
 			return TCM_INVALID_CDB_FIELD;
 
-		ret = sbc_check_prot(dev, cmd, cdb, sectors, false);
+		ret = sbc_check_prot(dev, cmd, cdb[1] >> 5, sectors, false);
 		if (ret)
 			return ret;
 
@@ -826,7 +803,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		if (sbc_check_dpofua(dev, cmd, cdb))
 			return TCM_INVALID_CDB_FIELD;
 
-		ret = sbc_check_prot(dev, cmd, cdb, sectors, false);
+		ret = sbc_check_prot(dev, cmd, cdb[1] >> 5, sectors, false);
 		if (ret)
 			return ret;
 
@@ -840,7 +817,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		if (sbc_check_dpofua(dev, cmd, cdb))
 			return TCM_INVALID_CDB_FIELD;
 
-		ret = sbc_check_prot(dev, cmd, cdb, sectors, false);
+		ret = sbc_check_prot(dev, cmd, cdb[1] >> 5, sectors, false);
 		if (ret)
 			return ret;
 
@@ -861,7 +838,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		if (sbc_check_dpofua(dev, cmd, cdb))
 			return TCM_INVALID_CDB_FIELD;
 
-		ret = sbc_check_prot(dev, cmd, cdb, sectors, true);
+		ret = sbc_check_prot(dev, cmd, cdb[1] >> 5, sectors, true);
 		if (ret)
 			return ret;
 
@@ -875,7 +852,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		if (sbc_check_dpofua(dev, cmd, cdb))
 			return TCM_INVALID_CDB_FIELD;
 
-		ret = sbc_check_prot(dev, cmd, cdb, sectors, true);
+		ret = sbc_check_prot(dev, cmd, cdb[1] >> 5, sectors, true);
 		if (ret)
 			return ret;
 
@@ -890,54 +867,17 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		if (sbc_check_dpofua(dev, cmd, cdb))
 			return TCM_INVALID_CDB_FIELD;
 
-		ret = sbc_check_prot(dev, cmd, cdb, sectors, true);
+		ret = sbc_check_prot(dev, cmd, cdb[1] >> 5, sectors, true);
 		if (ret)
 			return ret;
 
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
 		cmd->execute_cmd = sbc_execute_rw;
 		break;
-	case XDWRITEREAD_10:
-		if (cmd->data_direction != DMA_TO_DEVICE ||
-		    !(cmd->se_cmd_flags & SCF_BIDI))
-			return TCM_INVALID_CDB_FIELD;
-		sectors = transport_get_sectors_10(cdb);
-
-		if (sbc_check_dpofua(dev, cmd, cdb))
-			return TCM_INVALID_CDB_FIELD;
-
-		cmd->t_task_lba = transport_lba_32(cdb);
-		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
-
-		/*
-		 * Setup BIDI XOR callback to be run after I/O completion.
-		 */
-		cmd->execute_cmd = sbc_execute_rw;
-		cmd->transport_complete_callback = &xdreadwrite_callback;
-		break;
 	case VARIABLE_LENGTH_CMD:
 	{
 		u16 service_action = get_unaligned_be16(&cdb[8]);
 		switch (service_action) {
-		case XDWRITEREAD_32:
-			sectors = transport_get_sectors_32(cdb);
-
-			if (sbc_check_dpofua(dev, cmd, cdb))
-				return TCM_INVALID_CDB_FIELD;
-			/*
-			 * Use WRITE_32 and READ_32 opcodes for the emulated
-			 * XDWRITE_READ_32 logic.
-			 */
-			cmd->t_task_lba = transport_lba_64_ext(cdb);
-			cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
-
-			/*
-			 * Setup BIDI XOR callback to be run during after I/O
-			 * completion.
-			 */
-			cmd->execute_cmd = sbc_execute_rw;
-			cmd->transport_complete_callback = &xdreadwrite_callback;
-			break;
 		case WRITE_SAME_32:
 			sectors = transport_get_sectors_32(cdb);
 			if (!sectors) {
@@ -949,7 +889,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 			size = sbc_get_size(cmd, 1);
 			cmd->t_task_lba = get_unaligned_be64(&cdb[12]);
 
-			ret = sbc_setup_write_same(cmd, &cdb[10], ops);
+			ret = sbc_setup_write_same(cmd, cdb[10], ops);
 			if (ret)
 				return ret;
 			break;
@@ -1048,7 +988,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		size = sbc_get_size(cmd, 1);
 		cmd->t_task_lba = get_unaligned_be64(&cdb[2]);
 
-		ret = sbc_setup_write_same(cmd, &cdb[1], ops);
+		ret = sbc_setup_write_same(cmd, cdb[1], ops);
 		if (ret)
 			return ret;
 		break;
@@ -1066,7 +1006,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		 * Follow sbcr26 with WRITE_SAME (10) and check for the existence
 		 * of byte 1 bit 3 UNMAP instead of original reserved field
 		 */
-		ret = sbc_setup_write_same(cmd, &cdb[1], ops);
+		ret = sbc_setup_write_same(cmd, cdb[1], ops);
 		if (ret)
 			return ret;
 		break;
@@ -1137,7 +1077,7 @@ EXPORT_SYMBOL(sbc_get_device_type);
 static sense_reason_t
 sbc_execute_unmap(struct se_cmd *cmd)
 {
-	struct sbc_ops *ops = cmd->protocol_data;
+	struct exec_cmd_ops *ops = cmd->protocol_data;
 	struct se_device *dev = cmd->se_dev;
 	unsigned char *buf, *ptr = NULL;
 	sector_t lba;
@@ -1214,7 +1154,7 @@ sbc_execute_unmap(struct se_cmd *cmd)
 err:
 	transport_kunmap_data_sg(cmd);
 	if (!ret)
-		target_complete_cmd(cmd, GOOD);
+		target_complete_cmd(cmd, SAM_STAT_GOOD);
 	return ret;
 }
 
@@ -1439,7 +1379,7 @@ sbc_dif_verify(struct se_cmd *cmd, sector_t start, unsigned int sectors,
 			if (rc) {
 				kunmap_atomic(daddr - dsg->offset);
 				kunmap_atomic(paddr - psg->offset);
-				cmd->bad_sector = sector;
+				cmd->sense_info = sector;
 				return rc;
 			}
 next:

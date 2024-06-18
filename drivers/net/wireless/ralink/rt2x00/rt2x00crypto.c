@@ -179,7 +179,7 @@ void rt2x00crypto_rx_insert_iv(struct sk_buff *skb,
 	 * Make room for new data. There are 2 possibilities
 	 * either the alignment is already present between
 	 * the 802.11 header and payload. In that case we
-	 * we have to move the header less then the iv_len
+	 * have to move the header less than the iv_len
 	 * since we can use the already available l2pad bytes
 	 * for the iv data.
 	 * When the alignment must be added manually we must
@@ -197,10 +197,7 @@ void rt2x00crypto_rx_insert_iv(struct sk_buff *skb,
 		transfer += header_length;
 	} else {
 		skb_push(skb, iv_len + align);
-		if (align < icv_len)
-			skb_put(skb, icv_len - align);
-		else if (align > icv_len)
-			skb_trim(skb, rxdesc->size + iv_len + icv_len);
+		skb_put(skb, icv_len - align);
 
 		/* Move ieee80211 header */
 		memmove(skb->data + transfer,

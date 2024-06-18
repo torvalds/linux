@@ -23,22 +23,49 @@
 #include "core.h"
 #include "head.h"
 
-#include <nvif/cl507a.h>
+#include <nvif/if0014.h>
+#include <nvif/timer.h>
+
+#include <nvhw/class/cl507a.h>
 
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_plane_helper.h>
+#include <drm/drm_fourcc.h>
 
-static void
-curs507a_update(struct nv50_wndw *wndw, u32 *interlock)
+bool
+curs507a_space(struct nv50_wndw *wndw)
 {
-	nvif_wr32(&wndw->wimm.base.user, 0x0080, 0x00000000);
+	nvif_msec(&nouveau_drm(wndw->plane.dev)->client.device, 100,
+		if (NVIF_TV32(&wndw->wimm.base.user, NV507A, FREE, COUNT, >=, 4))
+			return true;
+	);
+
+	WARN_ON(1);
+	return false;
 }
 
-static void
+static int
+curs507a_update(struct nv50_wndw *wndw, u32 *interlock)
+{
+	struct nvif_object *user = &wndw->wimm.base.user;
+	int ret = nvif_chan_wait(&wndw->wimm, 1);
+	if (ret == 0) {
+		NVIF_WR32(user, NV507A, UPDATE,
+			  NVDEF(NV507A, UPDATE, INTERLOCK_WITH_CORE, DISABLE));
+	}
+	return ret;
+}
+
+static int
 curs507a_point(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	nvif_wr32(&wndw->wimm.base.user, 0x0084, asyw->point.y << 16 |
-						 asyw->point.x);
+	struct nvif_object *user = &wndw->wimm.base.user;
+	int ret = nvif_chan_wait(&wndw->wimm, 1);
+	if (ret == 0) {
+		NVIF_WR32(user, NV507A, SET_CURSOR_HOT_SPOT_POINT_OUT,
+			  NVVAL(NV507A, SET_CURSOR_HOT_SPOT_POINT_OUT, X, asyw->point.x) |
+			  NVVAL(NV507A, SET_CURSOR_HOT_SPOT_POINT_OUT, Y, asyw->point.y));
+	}
+	return ret;
 }
 
 const struct nv50_wimm_func
@@ -71,25 +98,58 @@ static int
 curs507a_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 		 struct nv50_head_atom *asyh)
 {
+	struct nouveau_drm *drm = nouveau_drm(wndw->plane.dev);
 	struct nv50_head *head = nv50_head(asyw->state.crtc);
+	struct drm_framebuffer *fb = asyw->state.fb;
 	int ret;
 
 	ret = drm_atomic_helper_check_plane_state(&asyw->state, &asyh->state,
-						  DRM_PLANE_HELPER_NO_SCALING,
-						  DRM_PLANE_HELPER_NO_SCALING,
+						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_NO_SCALING,
 						  true, true);
 	asyh->curs.visible = asyw->state.visible;
 	if (ret || !asyh->curs.visible)
 		return ret;
 
-	if (asyw->image.w != asyw->image.h)
+	if (asyw->state.crtc_w != asyw->state.crtc_h) {
+		NV_ATOMIC(drm, "Plane width/height must be equal for cursors\n");
 		return -EINVAL;
+	}
+
+	if (asyw->image.w != asyw->state.crtc_w) {
+		NV_ATOMIC(drm, "Plane width must be equal to fb width for cursors (height can be larger though)\n");
+		return -EINVAL;
+	}
+
+	if (asyw->state.src_x || asyw->state.src_y) {
+		NV_ATOMIC(drm, "Cursor planes do not support framebuffer offsets\n");
+		return -EINVAL;
+	}
+
+	if (asyw->image.pitch[0] != asyw->image.w * fb->format->cpp[0]) {
+		NV_ATOMIC(drm,
+			  "%s: invalid cursor image pitch: image must be packed (pitch = %d, width = %d)\n",
+			  wndw->plane.name, asyw->image.pitch[0], asyw->image.w);
+		return -EINVAL;
+	}
 
 	ret = head->func->curs_layout(head, asyw, asyh);
-	if (ret)
+	if (ret) {
+		NV_ATOMIC(drm,
+			  "%s: invalid cursor image size: unsupported size %dx%d\n",
+			  wndw->plane.name, asyw->image.w, asyw->image.h);
 		return ret;
+	}
 
-	return head->func->curs_format(head, asyw, asyh);
+	ret = head->func->curs_format(head, asyw, asyh);
+	if (ret) {
+		NV_ATOMIC(drm,
+			  "%s: invalid cursor image format 0x%X\n",
+			  wndw->plane.name, fb->format->format);
+		return ret;
+	}
+
+	return 0;
 }
 
 static const u32
@@ -110,8 +170,8 @@ curs507a_new_(const struct nv50_wimm_func *func, struct nouveau_drm *drm,
 	      int head, s32 oclass, u32 interlock_data,
 	      struct nv50_wndw **pwndw)
 {
-	struct nv50_disp_cursor_v0 args = {
-		.head = head,
+	struct nvif_disp_chan_v0 args = {
+		.id = head,
 	};
 	struct nv50_disp *disp = nv50_disp(drm->dev);
 	struct nv50_wndw *wndw;
@@ -123,8 +183,8 @@ curs507a_new_(const struct nv50_wimm_func *func, struct nouveau_drm *drm,
 	if (*pwndw = wndw, ret)
 		return ret;
 
-	ret = nvif_object_init(&disp->disp->object, 0, oclass, &args,
-			       sizeof(args), &wndw->wimm.base.user);
+	ret = nvif_object_ctor(&disp->disp->object, "kmsCurs", 0, oclass,
+			       &args, sizeof(args), &wndw->wimm.base.user);
 	if (ret) {
 		NV_ERROR(drm, "curs%04x allocation failed: %d\n", oclass, ret);
 		return ret;

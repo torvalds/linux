@@ -11,6 +11,7 @@
 #include <linux/atomic.h>
 #include <linux/init.h>
 #include <linux/crypto.h>
+#include <linux/fips.h>
 #include <linux/module.h>	/* for module_name() */
 #include <linux/rwsem.h>
 #include <linux/proc_fs.h>
@@ -36,7 +37,7 @@ static void c_stop(struct seq_file *m, void *p)
 static int c_show(struct seq_file *m, void *p)
 {
 	struct crypto_alg *alg = list_entry(p, struct crypto_alg, cra_list);
-	
+
 	seq_printf(m, "name         : %s\n", alg->cra_name);
 	seq_printf(m, "driver       : %s\n", alg->cra_driver_name);
 	seq_printf(m, "module       : %s\n", module_name(alg->cra_module));
@@ -48,6 +49,11 @@ static int c_show(struct seq_file *m, void *p)
 	seq_printf(m, "internal     : %s\n",
 		   (alg->cra_flags & CRYPTO_ALG_INTERNAL) ?
 		   "yes" : "no");
+	if (fips_enabled) {
+		seq_printf(m, "fips         : %s\n",
+			   (alg->cra_flags & CRYPTO_ALG_FIPS_INTERNAL) ?
+			   "no" : "yes");
+	}
 
 	if (alg->cra_flags & CRYPTO_ALG_LARVAL) {
 		seq_printf(m, "type         : larval\n");
@@ -59,8 +65,8 @@ static int c_show(struct seq_file *m, void *p)
 		alg->cra_type->show(m, alg);
 		goto out;
 	}
-	
-	switch (alg->cra_flags & (CRYPTO_ALG_TYPE_MASK | CRYPTO_ALG_LARVAL)) {
+
+	switch (alg->cra_flags & CRYPTO_ALG_TYPE_MASK) {
 	case CRYPTO_ALG_TYPE_CIPHER:
 		seq_printf(m, "type         : cipher\n");
 		seq_printf(m, "blocksize    : %u\n", alg->cra_blocksize);

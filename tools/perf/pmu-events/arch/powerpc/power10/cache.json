@@ -1,0 +1,12 @@
+[
+  {
+    "EventCode": "0x300F4",
+    "EventName": "PM_RUN_INST_CMPL_CONC",
+    "BriefDescription": "PowerPC instruction completed by this thread when all threads in the core had the run-latch set."
+  },
+  {
+    "EventCode": "0x400F6",
+    "EventName": "PM_BR_MPRED_CMPL",
+    "BriefDescription": "A mispredicted branch completed. Includes direction and target."
+  }
+]

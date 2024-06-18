@@ -295,7 +295,7 @@ exit:
 	return r;
 }
 
-static struct nfc_vendor_cmd st21nfca_vendor_cmds[] = {
+static const struct nfc_vendor_cmd st21nfca_vendor_cmds[] = {
 	{
 		.vendor_id = ST21NFCA_VENDOR_OUI,
 		.subcmd = FACTORY_MODE,
@@ -358,7 +358,7 @@ int st21nfca_vendor_cmds_init(struct nfc_hci_dev *hdev)
 	struct st21nfca_hci_info *info = nfc_hci_get_clientdata(hdev);
 
 	init_completion(&info->vendor_info.req_completion);
-	return nfc_set_vendor_cmds(hdev->ndev, st21nfca_vendor_cmds,
-				   sizeof(st21nfca_vendor_cmds));
+	return nfc_hci_set_vendor_cmds(hdev, st21nfca_vendor_cmds,
+				       sizeof(st21nfca_vendor_cmds));
 }
 EXPORT_SYMBOL(st21nfca_vendor_cmds_init);

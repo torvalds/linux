@@ -11,7 +11,8 @@ menuconfig IP_SCTP
 	select CRYPTO_HMAC
 	select CRYPTO_SHA1
 	select LIBCRC32C
-	---help---
+	select NET_UDP_TUNNEL
+	help
 	  Stream Control Transmission Protocol
 
 	  From RFC 2960 <http://www.ietf.org/rfc/rfc2960.txt>.
@@ -31,7 +32,7 @@ menuconfig IP_SCTP
 	  homing at either or both ends of an association."
 
 	  To compile this protocol support as a module, choose M here: the
-	  module will be called sctp. Debug messages are handeled by the
+	  module will be called sctp. Debug messages are handled by the
 	  kernel's dynamic debugging framework.
 
 	  If in doubt, say N.

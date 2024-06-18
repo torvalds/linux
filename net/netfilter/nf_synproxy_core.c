@@ -31,6 +31,9 @@ synproxy_parse_options(const struct sk_buff *skb, unsigned int doff,
 	int length = (th->doff * 4) - sizeof(*th);
 	u8 buf[40], *ptr;
 
+	if (unlikely(length < 0))
+		return false;
+
 	ptr = skb_header_pointer(skb, doff + sizeof(*th), length, buf);
 	if (ptr == NULL)
 		return false;
@@ -47,6 +50,8 @@ synproxy_parse_options(const struct sk_buff *skb, unsigned int doff,
 			length--;
 			continue;
 		default:
+			if (length < 2)
+				return true;
 			opsize = *ptr++;
 			if (opsize < 2)
 				return true;
@@ -148,7 +153,7 @@ void synproxy_init_timestamp_cookie(const struct nf_synproxy_info *info,
 				    struct synproxy_options *opts)
 {
 	opts->tsecr = opts->tsval;
-	opts->tsval = tcp_time_stamp_raw() & ~0x3f;
+	opts->tsval = tcp_clock_ms() & ~0x3f;
 
 	if (opts->options & NF_SYNPROXY_OPT_WSCALE) {
 		opts->tsval |= opts->wscale;
@@ -231,12 +236,6 @@ synproxy_tstamp_adjust(struct sk_buff *skb, unsigned int protoff,
 	return 1;
 }
 
-static struct nf_ct_ext_type nf_ct_synproxy_extend __read_mostly = {
-	.len		= sizeof(struct nf_conn_synproxy),
-	.align		= __alignof__(struct nf_conn_synproxy),
-	.id		= NF_CT_EXT_SYNPROXY,
-};
-
 #ifdef CONFIG_PROC_FS
 static void *synproxy_cpu_seq_start(struct seq_file *seq, loff_t *pos)
 {
@@ -267,7 +266,7 @@ static void *synproxy_cpu_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 		*pos = cpu + 1;
 		return per_cpu_ptr(snet->stats, cpu);
 	}
-
+	(*pos)++;
 	return NULL;
 }
 
@@ -344,7 +343,6 @@ static int __net_init synproxy_net_init(struct net *net)
 		goto err2;
 
 	__set_bit(IPS_CONFIRMED_BIT, &ct->status);
-	nf_conntrack_get(&ct->ct_general);
 	snet->tmpl = ct;
 
 	snet->stats = alloc_percpu(struct synproxy_stats);
@@ -383,28 +381,12 @@ static struct pernet_operations synproxy_net_ops = {
 
 static int __init synproxy_core_init(void)
 {
-	int err;
-
-	err = nf_ct_extend_register(&nf_ct_synproxy_extend);
-	if (err < 0)
-		goto err1;
-
-	err = register_pernet_subsys(&synproxy_net_ops);
-	if (err < 0)
-		goto err2;
-
-	return 0;
-
-err2:
-	nf_ct_extend_unregister(&nf_ct_synproxy_extend);
-err1:
-	return err;
+	return register_pernet_subsys(&synproxy_net_ops);
 }
 
 static void __exit synproxy_core_exit(void)
 {
 	unregister_pernet_subsys(&synproxy_net_ops);
-	nf_ct_extend_unregister(&nf_ct_synproxy_extend);
 }
 
 module_init(synproxy_core_init);
@@ -423,7 +405,7 @@ synproxy_build_ip(struct net *net, struct sk_buff *skb, __be32 saddr,
 	iph->tos	= 0;
 	iph->id		= 0;
 	iph->frag_off	= htons(IP_DF);
-	iph->ttl	= net->ipv4.sysctl_ip_default_ttl;
+	iph->ttl	= READ_ONCE(net->ipv4.sysctl_ip_default_ttl);
 	iph->protocol	= IPPROTO_TCP;
 	iph->check	= 0;
 	iph->saddr	= saddr;
@@ -446,7 +428,7 @@ synproxy_send_tcp(struct net *net,
 
 	skb_dst_set_noref(nskb, skb_dst(skb));
 	nskb->protocol = htons(ETH_P_IP);
-	if (ip_route_me_harder(net, nskb, RTN_UNSPEC))
+	if (ip_route_me_harder(net, nskb->sk, nskb, RTN_UNSPEC))
 		goto free_nskb;
 
 	if (nfct) {
@@ -635,7 +617,7 @@ synproxy_recv_client_ack(struct net *net,
 	struct synproxy_net *snet = synproxy_pernet(net);
 	int mss;
 
-	mss = __cookie_v4_check(ip_hdr(skb), th, ntohl(th->ack_seq) - 1);
+	mss = __cookie_v4_check(ip_hdr(skb), th);
 	if (mss == 0) {
 		this_cpu_inc(snet->stats->cookie_invalid);
 		return false;
@@ -704,8 +686,7 @@ ipv4_synproxy_hook(void *priv, struct sk_buff *skb,
 		nf_ct_seqadj_init(ct, ctinfo, 0);
 		synproxy->tsoff = 0;
 		this_cpu_inc(snet->stats->conn_reopened);
-
-		/* fall through */
+		fallthrough;
 	case TCP_CONNTRACK_SYN_SENT:
 		if (!synproxy_parse_options(skb, thoff, th, &opts))
 			return NF_DROP;
@@ -819,7 +800,7 @@ synproxy_build_ip_ipv6(struct net *net, struct sk_buff *skb,
 	skb_reset_network_header(skb);
 	iph = skb_put(skb, sizeof(*iph));
 	ip6_flow_hdr(iph, 0, 0);
-	iph->hop_limit	= net->ipv6.devconf_all->hop_limit;
+	iph->hop_limit	= READ_ONCE(net->ipv6.devconf_all->hop_limit);
 	iph->nexthdr	= IPPROTO_TCP;
 	iph->saddr	= *saddr;
 	iph->daddr	= *daddr;
@@ -850,7 +831,7 @@ synproxy_send_tcp_ipv6(struct net *net,
 	fl6.fl6_sport = nth->source;
 	fl6.fl6_dport = nth->dest;
 	security_skb_classify_flow((struct sk_buff *)skb,
-				   flowi6_to_flowi(&fl6));
+				   flowi6_to_flowi_common(&fl6));
 	err = nf_ip6_route(net, &dst, flowi6_to_flowi(&fl6), false);
 	if (err) {
 		goto free_nskb;
@@ -1053,7 +1034,7 @@ synproxy_recv_client_ack_ipv6(struct net *net,
 	struct synproxy_net *snet = synproxy_pernet(net);
 	int mss;
 
-	mss = nf_cookie_v6_check(ipv6_hdr(skb), th, ntohl(th->ack_seq) - 1);
+	mss = nf_cookie_v6_check(ipv6_hdr(skb), th);
 	if (mss == 0) {
 		this_cpu_inc(snet->stats->cookie_invalid);
 		return false;
@@ -1128,8 +1109,7 @@ ipv6_synproxy_hook(void *priv, struct sk_buff *skb,
 		nf_ct_seqadj_init(ct, ctinfo, 0);
 		synproxy->tsoff = 0;
 		this_cpu_inc(snet->stats->conn_reopened);
-
-		/* fall through */
+		fallthrough;
 	case TCP_CONNTRACK_SYN_SENT:
 		if (!synproxy_parse_options(skb, thoff, th, &opts))
 			return NF_DROP;
@@ -1237,3 +1217,4 @@ EXPORT_SYMBOL_GPL(nf_synproxy_ipv6_fini);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
+MODULE_DESCRIPTION("nftables SYNPROXY expression support");

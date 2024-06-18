@@ -17,11 +17,12 @@
 #include <asm/cachectl.h>
 #include <asm/fixmap.h>
 
-#define __ARCH_USE_5LEVEL_HACK
-#if defined(CONFIG_PAGE_SIZE_64KB) && !defined(CONFIG_MIPS_VA_BITS_48)
+#if CONFIG_PGTABLE_LEVELS == 2
 #include <asm-generic/pgtable-nopmd.h>
-#elif !(defined(CONFIG_PAGE_SIZE_4KB) && defined(CONFIG_MIPS_VA_BITS_48))
+#elif CONFIG_PGTABLE_LEVELS == 3
 #include <asm-generic/pgtable-nopud.h>
+#else
+#include <asm-generic/pgtable-nop4d.h>
 #endif
 
 /*
@@ -41,24 +42,24 @@
 
 /* PGDIR_SHIFT determines what a third-level page table entry can map */
 #ifdef __PAGETABLE_PMD_FOLDED
-#define PGDIR_SHIFT	(PAGE_SHIFT + PAGE_SHIFT + PTE_ORDER - 3)
+#define PGDIR_SHIFT	(PAGE_SHIFT + PAGE_SHIFT - 3)
 #else
 
 /* PMD_SHIFT determines the size of the area a second-level page table can map */
-#define PMD_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT + PTE_ORDER - 3))
+#define PMD_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT - 3))
 #define PMD_SIZE	(1UL << PMD_SHIFT)
 #define PMD_MASK	(~(PMD_SIZE-1))
 
 # ifdef __PAGETABLE_PUD_FOLDED
-# define PGDIR_SHIFT	(PMD_SHIFT + (PAGE_SHIFT + PMD_ORDER - 3))
+# define PGDIR_SHIFT	(PMD_SHIFT + (PAGE_SHIFT + PMD_TABLE_ORDER - 3))
 # endif
 #endif
 
 #ifndef __PAGETABLE_PUD_FOLDED
-#define PUD_SHIFT	(PMD_SHIFT + (PAGE_SHIFT + PMD_ORDER - 3))
+#define PUD_SHIFT	(PMD_SHIFT + (PAGE_SHIFT + PMD_TABLE_ORDER - 3))
 #define PUD_SIZE	(1UL << PUD_SHIFT)
 #define PUD_MASK	(~(PUD_SIZE-1))
-#define PGDIR_SHIFT	(PUD_SHIFT + (PAGE_SHIFT + PUD_ORDER - 3))
+#define PGDIR_SHIFT	(PUD_SHIFT + (PAGE_SHIFT + PUD_TABLE_ORDER - 3))
 #endif
 
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
@@ -84,59 +85,53 @@
  */
 #ifdef CONFIG_PAGE_SIZE_4KB
 # ifdef CONFIG_MIPS_VA_BITS_48
-#  define PGD_ORDER		0
-#  define PUD_ORDER		0
+#  define PGD_TABLE_ORDER	0
+#  define PUD_TABLE_ORDER	0
 # else
-#  define PGD_ORDER		1
-#  define PUD_ORDER		aieeee_attempt_to_allocate_pud
+#  define PGD_TABLE_ORDER	1
+#  define PUD_TABLE_ORDER	aieeee_attempt_to_allocate_pud
 # endif
-#define PMD_ORDER		0
-#define PTE_ORDER		0
+#define PMD_TABLE_ORDER		0
 #endif
 #ifdef CONFIG_PAGE_SIZE_8KB
-#define PGD_ORDER		0
-#define PUD_ORDER		aieeee_attempt_to_allocate_pud
-#define PMD_ORDER		0
-#define PTE_ORDER		0
+#define PGD_TABLE_ORDER		0
+#define PUD_TABLE_ORDER		aieeee_attempt_to_allocate_pud
+#define PMD_TABLE_ORDER		0
 #endif
 #ifdef CONFIG_PAGE_SIZE_16KB
 #ifdef CONFIG_MIPS_VA_BITS_48
-#define PGD_ORDER               1
+#define PGD_TABLE_ORDER		1
 #else
-#define PGD_ORDER               0
+#define PGD_TABLE_ORDER		0
 #endif
-#define PUD_ORDER		aieeee_attempt_to_allocate_pud
-#define PMD_ORDER		0
-#define PTE_ORDER		0
+#define PUD_TABLE_ORDER		aieeee_attempt_to_allocate_pud
+#define PMD_TABLE_ORDER		0
 #endif
 #ifdef CONFIG_PAGE_SIZE_32KB
-#define PGD_ORDER		0
-#define PUD_ORDER		aieeee_attempt_to_allocate_pud
-#define PMD_ORDER		0
-#define PTE_ORDER		0
+#define PGD_TABLE_ORDER		0
+#define PUD_TABLE_ORDER		aieeee_attempt_to_allocate_pud
+#define PMD_TABLE_ORDER		0
 #endif
 #ifdef CONFIG_PAGE_SIZE_64KB
-#define PGD_ORDER		0
-#define PUD_ORDER		aieeee_attempt_to_allocate_pud
+#define PGD_TABLE_ORDER		0
+#define PUD_TABLE_ORDER		aieeee_attempt_to_allocate_pud
 #ifdef CONFIG_MIPS_VA_BITS_48
-#define PMD_ORDER		0
+#define PMD_TABLE_ORDER		0
 #else
-#define PMD_ORDER		aieeee_attempt_to_allocate_pmd
+#define PMD_TABLE_ORDER		aieeee_attempt_to_allocate_pmd
 #endif
-#define PTE_ORDER		0
 #endif
 
-#define PTRS_PER_PGD	((PAGE_SIZE << PGD_ORDER) / sizeof(pgd_t))
+#define PTRS_PER_PGD	((PAGE_SIZE << PGD_TABLE_ORDER) / sizeof(pgd_t))
 #ifndef __PAGETABLE_PUD_FOLDED
-#define PTRS_PER_PUD	((PAGE_SIZE << PUD_ORDER) / sizeof(pud_t))
+#define PTRS_PER_PUD	((PAGE_SIZE << PUD_TABLE_ORDER) / sizeof(pud_t))
 #endif
 #ifndef __PAGETABLE_PMD_FOLDED
-#define PTRS_PER_PMD	((PAGE_SIZE << PMD_ORDER) / sizeof(pmd_t))
+#define PTRS_PER_PMD	((PAGE_SIZE << PMD_TABLE_ORDER) / sizeof(pmd_t))
 #endif
-#define PTRS_PER_PTE	((PAGE_SIZE << PTE_ORDER) / sizeof(pte_t))
+#define PTRS_PER_PTE	(PAGE_SIZE / sizeof(pte_t))
 
 #define USER_PTRS_PER_PGD       ((TASK_SIZE64 / PGDIR_SIZE)?(TASK_SIZE64 / PGDIR_SIZE):1)
-#define FIRST_USER_ADDRESS	0UL
 
 /*
  * TLB refill handlers also map the vmalloc area into xuseg.  Avoid
@@ -152,8 +147,8 @@
 #if defined(CONFIG_MODULES) && defined(KBUILD_64BIT_SYM32) && \
 	VMALLOC_START != CKSSEG
 /* Load modules into 32bit-compatible segment. */
-#define MODULE_START	CKSSEG
-#define MODULE_END	(FIXADDR_START-2*PAGE_SIZE)
+#define MODULES_VADDR	CKSSEG
+#define MODULES_END	(FIXADDR_START-2*PAGE_SIZE)
 #endif
 
 #define pte_ERROR(e) \
@@ -186,44 +181,42 @@ extern pud_t invalid_pud_table[PTRS_PER_PUD];
 /*
  * Empty pgd entries point to the invalid_pud_table.
  */
-static inline int pgd_none(pgd_t pgd)
+static inline int p4d_none(p4d_t p4d)
 {
-	return pgd_val(pgd) == (unsigned long)invalid_pud_table;
+	return p4d_val(p4d) == (unsigned long)invalid_pud_table;
 }
 
-static inline int pgd_bad(pgd_t pgd)
+static inline int p4d_bad(p4d_t p4d)
 {
-	if (unlikely(pgd_val(pgd) & ~PAGE_MASK))
+	if (unlikely(p4d_val(p4d) & ~PAGE_MASK))
 		return 1;
 
 	return 0;
 }
 
-static inline int pgd_present(pgd_t pgd)
+static inline int p4d_present(p4d_t p4d)
 {
-	return pgd_val(pgd) != (unsigned long)invalid_pud_table;
+	return p4d_val(p4d) != (unsigned long)invalid_pud_table;
 }
 
-static inline void pgd_clear(pgd_t *pgdp)
+static inline void p4d_clear(p4d_t *p4dp)
 {
-	pgd_val(*pgdp) = (unsigned long)invalid_pud_table;
+	p4d_val(*p4dp) = (unsigned long)invalid_pud_table;
 }
 
-#define pud_index(address)	(((address) >> PUD_SHIFT) & (PTRS_PER_PUD - 1))
-
-static inline unsigned long pgd_page_vaddr(pgd_t pgd)
+static inline pud_t *p4d_pgtable(p4d_t p4d)
 {
-	return pgd_val(pgd);
+	return (pud_t *)p4d_val(p4d);
 }
 
-static inline pud_t *pud_offset(pgd_t *pgd, unsigned long address)
-{
-	return (pud_t *)pgd_page_vaddr(*pgd) + pud_index(address);
-}
+#define p4d_phys(p4d)		virt_to_phys((void *)p4d_val(p4d))
+#define p4d_page(p4d)		(pfn_to_page(p4d_phys(p4d) >> PAGE_SHIFT))
 
-static inline void set_pgd(pgd_t *pgd, pgd_t pgdval)
+#define p4d_index(address)	(((address) >> P4D_SHIFT) & (PTRS_PER_P4D - 1))
+
+static inline void set_p4d(p4d_t *p4d, p4d_t p4dval)
 {
-	*pgd = pgdval;
+	*p4d = p4dval;
 }
 
 #endif
@@ -252,7 +245,7 @@ static inline int pmd_none(pmd_t pmd)
 static inline int pmd_bad(pmd_t pmd)
 {
 #ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
-	/* pmd_huge(pmd) but inline */
+	/* pmd_leaf(pmd) but inline */
 	if (unlikely(pmd_val(pmd) & _PAGE_HUGE))
 		return 0;
 #endif
@@ -305,72 +298,53 @@ static inline void pud_clear(pud_t *pudp)
 
 #define pte_page(x)		pfn_to_page(pte_pfn(x))
 
-#ifdef CONFIG_CPU_VR41XX
-#define pte_pfn(x)		((unsigned long)((x).pte >> (PAGE_SHIFT + 2)))
-#define pfn_pte(pfn, prot)	__pte(((pfn) << (PAGE_SHIFT + 2)) | pgprot_val(prot))
-#else
-#define pte_pfn(x)		((unsigned long)((x).pte >> _PFN_SHIFT))
-#define pfn_pte(pfn, prot)	__pte(((pfn) << _PFN_SHIFT) | pgprot_val(prot))
-#define pfn_pmd(pfn, prot)	__pmd(((pfn) << _PFN_SHIFT) | pgprot_val(prot))
-#endif
-
-#define __pgd_offset(address)	pgd_index(address)
-#define __pud_offset(address)	(((address) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
-#define __pmd_offset(address)	pmd_index(address)
-
-/* to find an entry in a kernel page-table-directory */
-#define pgd_offset_k(address) pgd_offset(&init_mm, address)
-
-#define pgd_index(address)	(((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD-1))
-#define pmd_index(address)	(((address) >> PMD_SHIFT) & (PTRS_PER_PMD-1))
-
-/* to find an entry in a page-table-directory */
-#define pgd_offset(mm, addr)	((mm)->pgd + pgd_index(addr))
+#define pte_pfn(x)		((unsigned long)((x).pte >> PFN_PTE_SHIFT))
+#define pfn_pte(pfn, prot)	__pte(((pfn) << PFN_PTE_SHIFT) | pgprot_val(prot))
+#define pfn_pmd(pfn, prot)	__pmd(((pfn) << PFN_PTE_SHIFT) | pgprot_val(prot))
 
 #ifndef __PAGETABLE_PMD_FOLDED
-static inline unsigned long pud_page_vaddr(pud_t pud)
+static inline pmd_t *pud_pgtable(pud_t pud)
 {
-	return pud_val(pud);
+	return (pmd_t *)pud_val(pud);
 }
 #define pud_phys(pud)		virt_to_phys((void *)pud_val(pud))
 #define pud_page(pud)		(pfn_to_page(pud_phys(pud) >> PAGE_SHIFT))
 
-/* Find an entry in the second-level page table.. */
-static inline pmd_t *pmd_offset(pud_t * pud, unsigned long address)
-{
-	return (pmd_t *) pud_page_vaddr(*pud) + pmd_index(address);
-}
 #endif
 
-/* Find an entry in the third-level page table.. */
-#define __pte_offset(address)						\
-	(((address) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
-#define pte_offset(dir, address)					\
-	((pte_t *) pmd_page_vaddr(*(dir)) + __pte_offset(address))
-#define pte_offset_kernel(dir, address)					\
-	((pte_t *) pmd_page_vaddr(*(dir)) + __pte_offset(address))
-#define pte_offset_map(dir, address)					\
-	((pte_t *)page_address(pmd_page(*(dir))) + __pte_offset(address))
-#define pte_unmap(pte) ((void)(pte))
-
 /*
- * Initialize a new pgd / pmd table with invalid pointers.
+ * Initialize a new pgd / pud / pmd table with invalid pointers.
  */
-extern void pgd_init(unsigned long page);
-extern void pud_init(unsigned long page, unsigned long pagetable);
-extern void pmd_init(unsigned long page, unsigned long pagetable);
+extern void pgd_init(void *addr);
+extern void pud_init(void *addr);
+extern void pmd_init(void *addr);
 
 /*
- * Non-present pages:  high 40 bits are offset, next 8 bits type,
- * low 16 bits zero.
+ * Encode/decode swap entries and swap PTEs. Swap PTEs are all PTEs that
+ * are !pte_none() && !pte_present().
+ *
+ * Format of swap PTEs:
+ *
+ *   6 6 6 6 5 5 5 5 5 5 5 5 5 5 4 4 4 4 4 4 4 4 4 4 3 3 3 3 3 3 3 3
+ *   3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2
+ *   <--------------------------- offset ---------------------------
+ *
+ *   3 3 2 2 2 2 2 2 2 2 2 2 1 1 1 1 1 1 1 1 1 1
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *   --------------> E <-- type ---> <---------- zeroes ----------->
+ *
+ *  E is the exclusive marker that is not stored in swap entries.
  */
 static inline pte_t mk_swap_pte(unsigned long type, unsigned long offset)
-{ pte_t pte; pte_val(pte) = (type << 16) | (offset << 24); return pte; }
+{ pte_t pte; pte_val(pte) = ((type & 0x7f) << 16) | (offset << 24); return pte; }
 
-#define __swp_type(x)		(((x).val >> 16) & 0xff)
+#define __swp_type(x)		(((x).val >> 16) & 0x7f)
 #define __swp_offset(x)		((x).val >> 24)
 #define __swp_entry(type, offset) ((swp_entry_t) { pte_val(mk_swap_pte((type), (offset))) })
 #define __pte_to_swp_entry(pte) ((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(x)	((pte_t) { (x).val })
+
+/* We borrow bit 23 to store the exclusive marker in swap PTEs. */
+#define _PAGE_SWP_EXCLUSIVE	(1 << 23)
 
 #endif /* _ASM_PGTABLE_64_H */

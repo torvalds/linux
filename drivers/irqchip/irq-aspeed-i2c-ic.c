@@ -34,14 +34,12 @@ static void aspeed_i2c_ic_irq_handler(struct irq_desc *desc)
 	struct aspeed_i2c_ic *i2c_ic = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned long bit, status;
-	unsigned int bus_irq;
 
 	chained_irq_enter(chip, desc);
 	status = readl(i2c_ic->base);
-	for_each_set_bit(bit, &status, ASPEED_I2C_IC_NUM_BUS) {
-		bus_irq = irq_find_mapping(i2c_ic->irq_domain, bit);
-		generic_handle_irq(bus_irq);
-	}
+	for_each_set_bit(bit, &status, ASPEED_I2C_IC_NUM_BUS)
+		generic_handle_domain_irq(i2c_ic->irq_domain, bit);
+
 	chained_irq_exit(chip, desc);
 }
 
@@ -79,8 +77,8 @@ static int __init aspeed_i2c_ic_of_init(struct device_node *node,
 	}
 
 	i2c_ic->parent_irq = irq_of_parse_and_map(node, 0);
-	if (i2c_ic->parent_irq < 0) {
-		ret = i2c_ic->parent_irq;
+	if (!i2c_ic->parent_irq) {
+		ret = -EINVAL;
 		goto err_iounmap;
 	}
 

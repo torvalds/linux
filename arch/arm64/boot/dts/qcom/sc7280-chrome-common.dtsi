@@ -1,0 +1,180 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * sc7280 fragment for devices with Chrome bootloader
+ *
+ * This file mainly tries to abstract out the memory protections put into
+ * place by the Chrome bootloader which are different than what's put into
+ * place by Qualcomm's typical bootloader. It also has a smattering of other
+ * things that will hold true for any conceivable Chrome design
+ *
+ * Copyright 2022 Google LLC.
+ */
+
+/*
+ * Reserved memory changes
+ *
+ * Delete all unused memory nodes and define the peripheral memory regions
+ * required by the setup for Chrome boards.
+ */
+
+/delete-node/ &cdsp_mem;
+/delete-node/ &domain_idle_states;
+/delete-node/ &gpu_zap_mem;
+/delete-node/ &gpu_zap_shader;
+/delete-node/ &hyp_mem;
+/delete-node/ &xbl_mem;
+/delete-node/ &reserved_xbl_uefi_log;
+/delete-node/ &sec_apps_mem;
+
+/ {
+	cpus {
+		domain_idle_states: domain-idle-states {
+			CLUSTER_SLEEP_0: cluster-sleep-0 {
+				compatible = "domain-idle-state";
+				arm,psci-suspend-param = <0x40003444>;
+				entry-latency-us = <2752>;
+				exit-latency-us = <6562>;
+				min-residency-us = <9926>;
+			};
+		};
+	};
+
+	reserved-memory {
+		camera_mem: memory@8ad00000 {
+			reg = <0x0 0x8ad00000 0x0 0x500000>;
+			no-map;
+		};
+
+		venus_mem: memory@8b200000 {
+			reg = <0x0 0x8b200000 0x0 0x500000>;
+			no-map;
+		};
+	};
+};
+
+&CLUSTER_PD {
+	domain-idle-states = <&CLUSTER_SLEEP_0>;
+};
+
+&lpass_aon {
+	status = "okay";
+};
+
+&lpass_core {
+	status = "okay";
+};
+
+&lpass_hm {
+	status = "okay";
+};
+
+&lpasscc {
+	status = "okay";
+};
+
+&pdc_reset {
+	status = "okay";
+};
+
+/* The PMIC PON code isn't compatible w/ how Chrome EC/BIOS handle things. */
+&pmk8350_pon {
+	status = "disabled";
+};
+
+/*
+ * Chrome designs always boot from SPI flash hooked up to the qspi.
+ *
+ * It's expected that all boards will support "dual SPI" at 37.5 MHz.
+ * If some boards need a different speed or have a package that allows
+ * Quad SPI together with WP then those boards can easily override.
+ */
+&qspi {
+	status = "okay";
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&qspi_clk>, <&qspi_cs0>, <&qspi_data0>, <&qspi_data1>;
+	pinctrl-1 = <&qspi_sleep>;
+
+	spi_flash: flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+
+		spi-max-frequency = <37500000>;
+		spi-tx-bus-width = <2>;
+		spi-rx-bus-width = <2>;
+	};
+};
+
+/* Currently not used */
+&remoteproc_cdsp {
+	/delete-property/ memory-region;
+};
+
+&remoteproc_wpss {
+	compatible = "qcom,sc7280-wpss-pil";
+	clocks = <&gcc GCC_WPSS_AHB_BDG_MST_CLK>,
+		 <&gcc GCC_WPSS_AHB_CLK>,
+		 <&gcc GCC_WPSS_RSCP_CLK>,
+		 <&rpmhcc RPMH_CXO_CLK>;
+	clock-names = "ahb_bdg",
+		      "ahb",
+		      "rscp",
+		      "xo";
+
+	resets = <&aoss_reset AOSS_CC_WCSS_RESTART>,
+		 <&pdc_reset PDC_WPSS_SYNC_RESET>;
+	reset-names = "restart", "pdc_sync";
+
+	qcom,halt-regs = <&tcsr_1 0x17000>;
+
+	firmware-name = "ath11k/WCN6750/hw1.0/wpss.mdt";
+
+	status = "okay";
+};
+
+&scm {
+	/* TF-A firmware maps memory cached so mark dma-coherent to match. */
+	dma-coherent;
+};
+
+&venus {
+	iommus = <&apps_smmu 0x2180 0x20>,
+		 <&apps_smmu 0x2184 0x20>;
+
+	status = "okay";
+
+	video-firmware {
+		iommus = <&apps_smmu 0x21a2 0x0>;
+	};
+};
+
+&watchdog {
+	status = "okay";
+};
+
+&wifi {
+	status = "okay";
+
+	wifi-firmware {
+		iommus = <&apps_smmu 0x1c02 0x1>;
+	};
+};
+
+/* PINCTRL - chrome-common pinctrl */
+
+&tlmm {
+	qspi_sleep: qspi-sleep-state {
+		pins = "gpio12", "gpio13", "gpio14", "gpio15";
+
+		/*
+		 * When we're not actively transferring we want pins as GPIOs
+		 * with output disabled so that the quad SPI IP block stops
+		 * driving them. We rely on the normal pulls configured in
+		 * the active state and don't redefine them here. Also note
+		 * that we don't need the reverse (output-enable) in the
+		 * normal mode since the "output-enable" only matters for
+		 * GPIO function.
+		 */
+		function = "gpio";
+		output-disable;
+	};
+};

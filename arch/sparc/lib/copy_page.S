@@ -5,13 +5,13 @@
  * Copyright (C) 1997 Jakub Jelinek (jakub@redhat.com)
  */
 
+#include <linux/export.h>
 #include <asm/visasm.h>
 #include <asm/thread_info.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/spitfire.h>
 #include <asm/head.h>
-#include <asm/export.h>
 
 	/* What we used to do was lock a TLB entry into a specific
 	 * TLB slot, clear the page with interrupts disabled, then

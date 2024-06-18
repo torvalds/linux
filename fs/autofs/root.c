@@ -10,10 +10,13 @@
 
 #include "autofs_i.h"
 
-static int autofs_dir_symlink(struct inode *, struct dentry *, const char *);
+static int autofs_dir_permission(struct mnt_idmap *, struct inode *, int);
+static int autofs_dir_symlink(struct mnt_idmap *, struct inode *,
+			      struct dentry *, const char *);
 static int autofs_dir_unlink(struct inode *, struct dentry *);
 static int autofs_dir_rmdir(struct inode *, struct dentry *);
-static int autofs_dir_mkdir(struct inode *, struct dentry *, umode_t);
+static int autofs_dir_mkdir(struct mnt_idmap *, struct inode *,
+			    struct dentry *, umode_t);
 static long autofs_root_ioctl(struct file *, unsigned int, unsigned long);
 #ifdef CONFIG_COMPAT
 static long autofs_root_compat_ioctl(struct file *,
@@ -48,6 +51,7 @@ const struct file_operations autofs_dir_operations = {
 
 const struct inode_operations autofs_dir_inode_operations = {
 	.lookup		= autofs_lookup,
+	.permission	= autofs_dir_permission,
 	.unlink		= autofs_dir_unlink,
 	.symlink	= autofs_dir_symlink,
 	.mkdir		= autofs_dir_mkdir,
@@ -75,6 +79,7 @@ static int autofs_dir_open(struct inode *inode, struct file *file)
 {
 	struct dentry *dentry = file->f_path.dentry;
 	struct autofs_sb_info *sbi = autofs_sbi(dentry->d_sb);
+	struct autofs_info *ino = autofs_dentry_ino(dentry);
 
 	pr_debug("file=%p dentry=%p %pd\n", file, dentry, dentry);
 
@@ -91,7 +96,7 @@ static int autofs_dir_open(struct inode *inode, struct file *file)
 	 * it.
 	 */
 	spin_lock(&sbi->lookup_lock);
-	if (!path_is_mountpoint(&file->f_path) && simple_empty(dentry)) {
+	if (!path_is_mountpoint(&file->f_path) && autofs_empty(ino)) {
 		spin_unlock(&sbi->lookup_lock);
 		return -ENOENT;
 	}
@@ -286,9 +291,26 @@ static struct dentry *autofs_mountpoint_changed(struct path *path)
 	struct dentry *dentry = path->dentry;
 	struct autofs_sb_info *sbi = autofs_sbi(dentry->d_sb);
 
-	/*
-	 * If this is an indirect mount the dentry could have gone away
-	 * as a result of an expire and a new one created.
+	/* If this is an indirect mount the dentry could have gone away
+	 * and a new one created.
+	 *
+	 * This is unusual and I can't remember the case for which it
+	 * was originally added now. But an example of how this can
+	 * happen is an autofs indirect mount that has the "browse"
+	 * option set and also has the "symlink" option in the autofs
+	 * map entry. In this case the daemon will remove the browse
+	 * directory and create a symlink as the mount leaving the
+	 * struct path stale.
+	 *
+	 * Another not so obvious case is when a mount in an autofs
+	 * indirect mount that uses the "nobrowse" option is being
+	 * expired at the same time as a path walk. If the mount has
+	 * been umounted but the mount point directory seen before
+	 * becoming unhashed (during a lockless path walk) when a stat
+	 * family system call is made the mount won't be re-mounted as
+	 * it should. In this case the mount point that's been removed
+	 * (by the daemon) will be stale and the a new mount point
+	 * dentry created.
 	 */
 	if (autofs_type_indirect(sbi->type) && d_unhashed(dentry)) {
 		struct dentry *parent = dentry->d_parent;
@@ -360,7 +382,7 @@ static struct vfsmount *autofs_d_automount(struct path *path)
 		 * the mount never trigger mounts themselves (they have an
 		 * autofs trigger mount mounted on them). But v4 pseudo direct
 		 * mounts do need the leaves to trigger mounts. In this case
-		 * we have no choice but to use the list_empty() check and
+		 * we have no choice but to use the autofs_empty() check and
 		 * require user space behave.
 		 */
 		if (sbi->version > 4) {
@@ -369,7 +391,7 @@ static struct vfsmount *autofs_d_automount(struct path *path)
 				goto done;
 			}
 		} else {
-			if (!simple_empty(dentry)) {
+			if (!autofs_empty(ino)) {
 				spin_unlock(&sbi->fs_lock);
 				goto done;
 			}
@@ -424,9 +446,8 @@ static int autofs_d_manage(const struct path *path, bool rcu_walk)
 
 	if (rcu_walk) {
 		/* We don't need fs_lock in rcu_walk mode,
-		 * just testing 'AUTOFS_INFO_NO_RCU' is enough.
-		 * simple_empty() takes a spinlock, so leave it
-		 * to last.
+		 * just testing 'AUTOFS_INF_WANT_EXPIRE' is enough.
+		 *
 		 * We only return -EISDIR when certain this isn't
 		 * a mount-trap.
 		 */
@@ -439,9 +460,7 @@ static int autofs_d_manage(const struct path *path, bool rcu_walk)
 		inode = d_inode_rcu(dentry);
 		if (inode && S_ISLNK(inode->i_mode))
 			return -EISDIR;
-		if (list_empty(&dentry->d_subdirs))
-			return 0;
-		if (!simple_empty(dentry))
+		if (!autofs_empty(ino))
 			return -EISDIR;
 		return 0;
 	}
@@ -461,7 +480,7 @@ static int autofs_d_manage(const struct path *path, bool rcu_walk)
 		 * we can avoid needless calls ->d_automount() and avoid
 		 * an incorrect ELOOP error return.
 		 */
-		if ((!path_is_mountpoint(path) && !simple_empty(dentry)) ||
+		if ((!path_is_mountpoint(path) && !autofs_empty(ino)) ||
 		    (d_really_is_positive(dentry) && d_is_symlink(dentry)))
 			status = -EISDIR;
 	}
@@ -524,11 +543,30 @@ static struct dentry *autofs_lookup(struct inode *dir,
 	return NULL;
 }
 
-static int autofs_dir_symlink(struct inode *dir,
-			       struct dentry *dentry,
-			       const char *symname)
+static int autofs_dir_permission(struct mnt_idmap *idmap,
+				 struct inode *inode, int mask)
 {
-	struct autofs_sb_info *sbi = autofs_sbi(dir->i_sb);
+	if (mask & MAY_WRITE) {
+		struct autofs_sb_info *sbi = autofs_sbi(inode->i_sb);
+
+		if (!autofs_oz_mode(sbi))
+			return -EACCES;
+
+		/* autofs_oz_mode() needs to allow path walks when the
+		 * autofs mount is catatonic but the state of an autofs
+		 * file system needs to be preserved over restarts.
+		 */
+		if (sbi->flags & AUTOFS_SBI_CATATONIC)
+			return -EACCES;
+	}
+
+	return generic_permission(idmap, inode, mask);
+}
+
+static int autofs_dir_symlink(struct mnt_idmap *idmap,
+			      struct inode *dir, struct dentry *dentry,
+			      const char *symname)
+{
 	struct autofs_info *ino = autofs_dentry_ino(dentry);
 	struct autofs_info *p_ino;
 	struct inode *inode;
@@ -536,16 +574,6 @@ static int autofs_dir_symlink(struct inode *dir,
 	char *cp;
 
 	pr_debug("%s <- %pd\n", symname, dentry);
-
-	if (!autofs_oz_mode(sbi))
-		return -EACCES;
-
-	/* autofs_oz_mode() needs to allow path walks when the
-	 * autofs mount is catatonic but the state of an autofs
-	 * file system needs to be preserved over restarts.
-	 */
-	if (sbi->flags & AUTOFS_SBI_CATATONIC)
-		return -EACCES;
 
 	BUG_ON(!ino);
 
@@ -569,12 +597,10 @@ static int autofs_dir_symlink(struct inode *dir,
 	d_add(dentry, inode);
 
 	dget(dentry);
-	atomic_inc(&ino->count);
 	p_ino = autofs_dentry_ino(dentry->d_parent);
-	if (p_ino && !IS_ROOT(dentry))
-		atomic_inc(&p_ino->count);
+	p_ino->count++;
 
-	dir->i_mtime = current_time(dir);
+	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 
 	return 0;
 }
@@ -600,27 +626,14 @@ static int autofs_dir_unlink(struct inode *dir, struct dentry *dentry)
 	struct autofs_info *ino = autofs_dentry_ino(dentry);
 	struct autofs_info *p_ino;
 
-	if (!autofs_oz_mode(sbi))
-		return -EACCES;
-
-	/* autofs_oz_mode() needs to allow path walks when the
-	 * autofs mount is catatonic but the state of an autofs
-	 * file system needs to be preserved over restarts.
-	 */
-	if (sbi->flags & AUTOFS_SBI_CATATONIC)
-		return -EACCES;
-
-	if (atomic_dec_and_test(&ino->count)) {
-		p_ino = autofs_dentry_ino(dentry->d_parent);
-		if (p_ino && !IS_ROOT(dentry))
-			atomic_dec(&p_ino->count);
-	}
+	p_ino = autofs_dentry_ino(dentry->d_parent);
+	p_ino->count--;
 	dput(ino->dentry);
 
 	d_inode(dentry)->i_size = 0;
 	clear_nlink(d_inode(dentry));
 
-	dir->i_mtime = current_time(dir);
+	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 
 	spin_lock(&sbi->lookup_lock);
 	__autofs_add_expiring(dentry);
@@ -660,7 +673,6 @@ static void autofs_set_leaf_automount_flags(struct dentry *dentry)
 
 static void autofs_clear_leaf_automount_flags(struct dentry *dentry)
 {
-	struct list_head *d_child;
 	struct dentry *parent;
 
 	/* flags for dentrys in the root are handled elsewhere */
@@ -673,10 +685,7 @@ static void autofs_clear_leaf_automount_flags(struct dentry *dentry)
 	/* only consider parents below dentrys in the root */
 	if (IS_ROOT(parent->d_parent))
 		return;
-	d_child = &dentry->d_child;
-	/* Set parent managed if it's becoming empty */
-	if (d_child->next == &parent->d_subdirs &&
-	    d_child->prev == &parent->d_subdirs)
+	if (autofs_dentry_ino(parent)->count == 2)
 		managed_dentry_set_managed(parent);
 }
 
@@ -688,21 +697,10 @@ static int autofs_dir_rmdir(struct inode *dir, struct dentry *dentry)
 
 	pr_debug("dentry %p, removing %pd\n", dentry, dentry);
 
-	if (!autofs_oz_mode(sbi))
-		return -EACCES;
-
-	/* autofs_oz_mode() needs to allow path walks when the
-	 * autofs mount is catatonic but the state of an autofs
-	 * file system needs to be preserved over restarts.
-	 */
-	if (sbi->flags & AUTOFS_SBI_CATATONIC)
-		return -EACCES;
+	if (ino->count != 1)
+		return -ENOTEMPTY;
 
 	spin_lock(&sbi->lookup_lock);
-	if (!simple_empty(dentry)) {
-		spin_unlock(&sbi->lookup_lock);
-		return -ENOTEMPTY;
-	}
 	__autofs_add_expiring(dentry);
 	d_drop(dentry);
 	spin_unlock(&sbi->lookup_lock);
@@ -710,11 +708,8 @@ static int autofs_dir_rmdir(struct inode *dir, struct dentry *dentry)
 	if (sbi->version < 5)
 		autofs_clear_leaf_automount_flags(dentry);
 
-	if (atomic_dec_and_test(&ino->count)) {
-		p_ino = autofs_dentry_ino(dentry->d_parent);
-		if (p_ino && dentry->d_parent != dentry)
-			atomic_dec(&p_ino->count);
-	}
+	p_ino = autofs_dentry_ino(dentry->d_parent);
+	p_ino->count--;
 	dput(ino->dentry);
 	d_inode(dentry)->i_size = 0;
 	clear_nlink(d_inode(dentry));
@@ -725,23 +720,14 @@ static int autofs_dir_rmdir(struct inode *dir, struct dentry *dentry)
 	return 0;
 }
 
-static int autofs_dir_mkdir(struct inode *dir,
-			    struct dentry *dentry, umode_t mode)
+static int autofs_dir_mkdir(struct mnt_idmap *idmap,
+			    struct inode *dir, struct dentry *dentry,
+			    umode_t mode)
 {
 	struct autofs_sb_info *sbi = autofs_sbi(dir->i_sb);
 	struct autofs_info *ino = autofs_dentry_ino(dentry);
 	struct autofs_info *p_ino;
 	struct inode *inode;
-
-	if (!autofs_oz_mode(sbi))
-		return -EACCES;
-
-	/* autofs_oz_mode() needs to allow path walks when the
-	 * autofs mount is catatonic but the state of an autofs
-	 * file system needs to be preserved over restarts.
-	 */
-	if (sbi->flags & AUTOFS_SBI_CATATONIC)
-		return -EACCES;
 
 	pr_debug("dentry %p, creating %pd\n", dentry, dentry);
 
@@ -760,12 +746,10 @@ static int autofs_dir_mkdir(struct inode *dir,
 		autofs_set_leaf_automount_flags(dentry);
 
 	dget(dentry);
-	atomic_inc(&ino->count);
 	p_ino = autofs_dentry_ino(dentry->d_parent);
-	if (p_ino && !IS_ROOT(dentry))
-		atomic_inc(&p_ino->count);
+	p_ino->count++;
 	inc_nlink(dir);
-	dir->i_mtime = current_time(dir);
+	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 
 	return 0;
 }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * Copyright (C) 2008, Creative Technology Ltd. All Rights Reserved.
  *
  * @File	cthw20k2.c
@@ -991,7 +991,7 @@ static int daio_mgr_dao_init(void *blk, unsigned int idx, unsigned int conf)
 
 	if (idx < 4) {
 		/* S/PDIF output */
-		switch ((conf & 0x7)) {
+		switch ((conf & 0xf)) {
 		case 1:
 			set_field(&ctl->txctl[idx], ATXCTL_NUC, 0);
 			break;
@@ -2026,12 +2026,8 @@ static int hw_card_start(struct hw *hw)
 		return err;
 
 	/* Set DMA transfer mask */
-	if (!dma_set_mask(&pci->dev, DMA_BIT_MASK(dma_bits))) {
-		dma_set_coherent_mask(&pci->dev, DMA_BIT_MASK(dma_bits));
-	} else {
-		dma_set_mask(&pci->dev, DMA_BIT_MASK(32));
-		dma_set_coherent_mask(&pci->dev, DMA_BIT_MASK(32));
-	}
+	if (dma_set_mask_and_coherent(&pci->dev, DMA_BIT_MASK(dma_bits)))
+		dma_set_mask_and_coherent(&pci->dev, DMA_BIT_MASK(32));
 
 	if (!hw->io_base) {
 		err = pci_request_regions(pci, "XFi");
@@ -2061,6 +2057,7 @@ static int hw_card_start(struct hw *hw)
 			goto error2;
 		}
 		hw->irq = pci->irq;
+		hw->card->sync_irq = hw->irq;
 	}
 
 	pci_set_master(pci);

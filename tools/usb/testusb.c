@@ -96,7 +96,10 @@ struct usb_interface_descriptor {
 enum usb_device_speed {
 	USB_SPEED_UNKNOWN = 0,			/* enumerating */
 	USB_SPEED_LOW, USB_SPEED_FULL,		/* usb 1.1 */
-	USB_SPEED_HIGH				/* usb 2.0 */
+	USB_SPEED_HIGH,				/* usb 2.0 */
+	USB_SPEED_WIRELESS,			/* wireless (usb 2.5) */
+	USB_SPEED_SUPER,			/* usb 3.0 */
+	USB_SPEED_SUPER_PLUS,			/* usb 3.1 */
 };
 
 /*-------------------------------------------------------------------------*/
@@ -104,11 +107,14 @@ enum usb_device_speed {
 static char *speed (enum usb_device_speed s)
 {
 	switch (s) {
-	case USB_SPEED_UNKNOWN:	return "unknown";
-	case USB_SPEED_LOW:	return "low";
-	case USB_SPEED_FULL:	return "full";
-	case USB_SPEED_HIGH:	return "high";
-	default:		return "??";
+	case USB_SPEED_UNKNOWN:		return "unknown";
+	case USB_SPEED_LOW:		return "low";
+	case USB_SPEED_FULL:		return "full";
+	case USB_SPEED_HIGH:		return "high";
+	case USB_SPEED_WIRELESS:	return "wireless";
+	case USB_SPEED_SUPER:		return "super";
+	case USB_SPEED_SUPER_PLUS:	return "super-plus";
+	default:			return "??";
 	}
 }
 
@@ -265,12 +271,6 @@ nomem:
 	}
 
 	entry->ifnum = ifnum;
-
-	/* FIXME update USBDEVFS_CONNECTINFO so it tells about high speed etc */
-
-	fprintf(stderr, "%s speed\t%s\t%u\n",
-		speed(entry->speed), entry->name, entry->ifnum);
-
 	entry->next = testdevs;
 	testdevs = entry;
 	return 0;
@@ -298,6 +298,14 @@ static void *handle_testdev (void *arg)
 		perror ("can't open dev file r/w");
 		return 0;
 	}
+
+	status  =  ioctl(fd, USBDEVFS_GET_SPEED, NULL);
+	if (status < 0)
+		fprintf(stderr, "USBDEVFS_GET_SPEED failed %d\n", status);
+	else
+		dev->speed = status;
+	fprintf(stderr, "%s speed\t%s\t%u\n",
+			speed(dev->speed), dev->name, dev->ifnum);
 
 restart:
 	for (i = 0; i < TEST_CASES; i++) {
@@ -480,7 +488,7 @@ usage:
 	}
 	if (not)
 		return 0;
-	if (testdevs && testdevs->next == 0 && !device)
+	if (testdevs && !testdevs->next && !device)
 		device = testdevs->name;
 	for (entry = testdevs; entry; entry = entry->next) {
 		int	status;

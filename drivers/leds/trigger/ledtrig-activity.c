@@ -11,6 +11,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/leds.h>
 #include <linux/module.h>
+#include <linux/panic_notifier.h>
 #include <linux/reboot.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -57,11 +58,15 @@ static void led_activity_function(struct timer_list *t)
 	curr_used = 0;
 
 	for_each_possible_cpu(i) {
-		curr_used += kcpustat_cpu(i).cpustat[CPUTIME_USER]
-			  +  kcpustat_cpu(i).cpustat[CPUTIME_NICE]
-			  +  kcpustat_cpu(i).cpustat[CPUTIME_SYSTEM]
-			  +  kcpustat_cpu(i).cpustat[CPUTIME_SOFTIRQ]
-			  +  kcpustat_cpu(i).cpustat[CPUTIME_IRQ];
+		struct kernel_cpustat kcpustat;
+
+		kcpustat_cpu_fetch(&kcpustat, i);
+
+		curr_used += kcpustat.cpustat[CPUTIME_USER]
+			  +  kcpustat.cpustat[CPUTIME_NICE]
+			  +  kcpustat.cpustat[CPUTIME_SYSTEM]
+			  +  kcpustat.cpustat[CPUTIME_SOFTIRQ]
+			  +  kcpustat.cpustat[CPUTIME_IRQ];
 		cpus++;
 	}
 
@@ -203,7 +208,7 @@ static void activity_deactivate(struct led_classdev *led_cdev)
 {
 	struct activity_data *activity_data = led_get_trigger_data(led_cdev);
 
-	del_timer_sync(&activity_data->timer);
+	timer_shutdown_sync(&activity_data->timer);
 	kfree(activity_data);
 	clear_bit(LED_BLINK_SW, &led_cdev->work_flags);
 }

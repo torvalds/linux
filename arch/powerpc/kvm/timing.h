@@ -10,13 +10,12 @@
 #define __POWERPC_KVM_EXITTIMING_H__
 
 #include <linux/kvm_host.h>
-#include <asm/kvm_host.h>
 
 #ifdef CONFIG_KVM_EXIT_TIMING
 void kvmppc_init_timing_stats(struct kvm_vcpu *vcpu);
 void kvmppc_update_timing_stats(struct kvm_vcpu *vcpu);
-void kvmppc_create_vcpu_debugfs(struct kvm_vcpu *vcpu, unsigned int id);
-void kvmppc_remove_vcpu_debugfs(struct kvm_vcpu *vcpu);
+int kvmppc_create_vcpu_debugfs_e500(struct kvm_vcpu *vcpu,
+				    struct dentry *debugfs_dentry);
 
 static inline void kvmppc_set_exit_type(struct kvm_vcpu *vcpu, int type)
 {
@@ -27,9 +26,11 @@ static inline void kvmppc_set_exit_type(struct kvm_vcpu *vcpu, int type)
 /* if exit timing is not configured there is no need to build the c file */
 static inline void kvmppc_init_timing_stats(struct kvm_vcpu *vcpu) {}
 static inline void kvmppc_update_timing_stats(struct kvm_vcpu *vcpu) {}
-static inline void kvmppc_create_vcpu_debugfs(struct kvm_vcpu *vcpu,
-						unsigned int id) {}
-static inline void kvmppc_remove_vcpu_debugfs(struct kvm_vcpu *vcpu) {}
+static inline int kvmppc_create_vcpu_debugfs_e500(struct kvm_vcpu *vcpu,
+						  struct dentry *debugfs_dentry)
+{
+	return 0;
+}
 static inline void kvmppc_set_exit_type(struct kvm_vcpu *vcpu, int type) {}
 #endif /* CONFIG_KVM_EXIT_TIMING */
 

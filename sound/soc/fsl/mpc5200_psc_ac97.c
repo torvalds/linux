@@ -5,9 +5,8 @@
 // Copyright (C) 2009 Jon Smirl, Digispeaker
 // Author: Jon Smirl <jonsmirl@gmail.com>
 
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
-#include <linux/of_platform.h>
 #include <linux/delay.h>
 #include <linux/time.h>
 
@@ -222,6 +221,7 @@ static int psc_ac97_probe(struct snd_soc_dai *cpu_dai)
  * psc_ac97_dai_template: template CPU Digital Audio Interface
  */
 static const struct snd_soc_dai_ops psc_ac97_analog_ops = {
+	.probe		= psc_ac97_probe,
 	.hw_params	= psc_ac97_hw_analog_params,
 	.trigger	= psc_ac97_trigger,
 };
@@ -233,8 +233,6 @@ static const struct snd_soc_dai_ops psc_ac97_digital_ops = {
 static struct snd_soc_dai_driver psc_ac97_dai[] = {
 {
 	.name = "mpc5200-psc-ac97.0",
-	.bus_control = true,
-	.probe	= psc_ac97_probe,
 	.playback = {
 		.stream_name	= "AC97 Playback",
 		.channels_min   = 1,
@@ -253,7 +251,6 @@ static struct snd_soc_dai_driver psc_ac97_dai[] = {
 },
 {
 	.name = "mpc5200-psc-ac97.1",
-	.bus_control = true,
 	.playback = {
 		.stream_name	= "AC97 SPDIF",
 		.channels_min   = 1,
@@ -313,12 +310,11 @@ static int psc_ac97_of_probe(struct platform_device *op)
 	return 0;
 }
 
-static int psc_ac97_of_remove(struct platform_device *op)
+static void psc_ac97_of_remove(struct platform_device *op)
 {
 	mpc5200_audio_dma_destroy(op);
 	snd_soc_unregister_component(&op->dev);
 	snd_soc_set_ac97_ops(NULL);
-	return 0;
 }
 
 /* Match table for of_platform binding */
@@ -331,7 +327,7 @@ MODULE_DEVICE_TABLE(of, psc_ac97_match);
 
 static struct platform_driver psc_ac97_driver = {
 	.probe = psc_ac97_of_probe,
-	.remove = psc_ac97_of_remove,
+	.remove_new = psc_ac97_of_remove,
 	.driver = {
 		.name = "mpc5200-psc-ac97",
 		.of_match_table = psc_ac97_match,

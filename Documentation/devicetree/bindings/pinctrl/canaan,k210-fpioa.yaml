@@ -1,0 +1,180 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/canaan,k210-fpioa.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Canaan Kendryte K210 FPIOA
+
+maintainers:
+  - Damien Le Moal <dlemoal@kernel.org>
+
+description:
+  The Canaan Kendryte K210 SoC Fully Programmable IO Array (FPIOA)
+  controller allows assigning any of 256 possible functions to any of
+  48 IO pins of the SoC. Pin function configuration is performed on
+  a per-pin basis.
+
+properties:
+  compatible:
+    const: canaan,k210-fpioa
+
+  reg:
+    maxItems: 1
+    description:
+      Address and length of the register set for the FPIOA controller.
+
+  clocks:
+    items:
+      - description: Controller reference clock source
+      - description: APB interface clock source
+
+  clock-names:
+    items:
+      - const: ref
+      - const: pclk
+
+  resets:
+    maxItems: 1
+
+  canaan,k210-sysctl-power:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: phandle of the K210 system controller node
+          - description: offset of its power domain control register
+    description: |
+      phandle of the K210 system controller node and offset of its
+      power domain control register.
+
+patternProperties:
+  '-pinmux$':
+    type: object
+    $ref: /schemas/pinctrl/pinmux-node.yaml
+    description:
+      FPIOA client devices use sub-nodes to define the desired pin
+      configuration. Client device sub-nodes use the pinux property
+      below.
+
+    properties:
+      pinmux:
+        description:
+          List of IO pins alternate functions. The values for each IO
+          pin is a combination of an IO pin number (0 to 47) with the
+          desired function for the IO pin. Functions are defined as
+          macros in include/dt-bindings/pinctrl/k210-fpioa.h.
+          The K210_FPIOA(IO pin, function) macro is provided to
+          facilitate the combination of IO pin numbers and functions.
+
+    required:
+      - pinmux
+
+    additionalProperties: false
+
+  '-pins$':
+    type: object
+    $ref: /schemas/pinctrl/pincfg-node.yaml
+    description:
+      FPIOA client devices use sub-nodes to define the desired
+      configuration of pins. Client device sub-nodes use the
+      properties below.
+
+    properties:
+      pins:
+        description:
+          List of IO pins affected by the properties specified in this
+          subnode. IO pins are identified using the pin names "IO_xx".
+          Pin configuration nodes can also define the power domain to
+          be used for the SoC pin groups A0 (IO pins 0-5),
+          A1 (IO pins 6-11), A2 (IO pins 12-17), B0 (IO pins 18-23),
+          B1 (IO pins 24-29), B2 (IO pins 30-35), B3 (IO pins 30-35),
+          C0 (IO pins 36-41) and C1 (IO pins 42-47) using the
+          power-source property.
+        items:
+          anyOf:
+            - pattern: "^(IO_([0-9]*))|(A[0-2])|(B[3-5])|(C[6-7])$"
+            - enum: [ IO_0, IO_1, IO_2, IO_3, IO_4, IO_5, IO_6, IO_7,
+                      IO_8, IO_9, IO_10, IO_11, IO_12, IO_13, IO_14,
+                      IO_15, IO_16, IO_17, IO_18, IO_19, IO_20, IO_21,
+                      IO_22, IO_23, IO_24, IO_25, IO_26, IO_27, IO_28,
+                      IO_29, IO_30, IO_31, IO_32, IO_33, IO_34, IO_35,
+                      IO_36, IO_37, IO_38, IO_39, IO_40, IO_41, IO_42,
+                      IO_43, IO_44, IO_45, IO_46, IO_47,
+                      A0, A1, A2, B3, B4, B5, C6, C7 ]
+      bias-disable: true
+
+      bias-pull-down: true
+
+      bias-pull-up: true
+
+      drive-strength: true
+
+      drive-strength-microamp: true
+
+      input-enable: true
+
+      input-disable: true
+
+      input-schmitt-enable: true
+
+      input-schmitt-disable: true
+
+      input-polarity-invert:
+        type: boolean
+        description:
+          Enable or disable pin input polarity inversion.
+
+      output-enable: true
+
+      output-disable: true
+
+      output-high: true
+
+      output-low: true
+
+      output-polarity-invert:
+        type: boolean
+        description:
+          Enable or disable pin output polarity inversion.
+
+      slew-rate: true
+
+      power-source: true
+
+    additionalProperties: false
+
+allOf:
+  - $ref: pinctrl.yaml#
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - canaan,k210-sysctl-power
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/pinctrl/k210-fpioa.h>
+    #include <dt-bindings/clock/k210-clk.h>
+    #include <dt-bindings/reset/k210-rst.h>
+
+    fpioa: pinmux@502b0000 {
+      compatible = "canaan,k210-fpioa";
+      reg = <0x502b0000 0x100>;
+      clocks = <&sysclk K210_CLK_FPIOA>,
+               <&sysclk K210_CLK_APB0>;
+      clock-names = "ref", "pclk";
+      resets = <&sysrst K210_RST_FPIOA>;
+      canaan,k210-sysctl-power = <&sysctl 108>;
+      pinctrl-0 = <&jtag_pinctrl>;
+      pinctrl-names = "default";
+
+      jtag_pinctrl: jtag-pinmux {
+        pinmux = <K210_FPIOA(0, K210_PCF_JTAG_TCLK)>,
+                 <K210_FPIOA(1, K210_PCF_JTAG_TDI)>,
+                 <K210_FPIOA(2, K210_PCF_JTAG_TMS)>,
+                 <K210_FPIOA(3, K210_PCF_JTAG_TDO)>;
+      };
+    };

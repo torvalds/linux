@@ -18,7 +18,6 @@
 
 struct ssfdcr_record {
 	struct mtd_blktrans_dev mbd;
-	int usecount;
 	unsigned char heads;
 	unsigned char sectors;
 	unsigned short cylinders;
@@ -163,7 +162,7 @@ static int read_physical_sector(struct mtd_info *mtd, uint8_t *sect_buf,
 /* Read redundancy area (wrapper to MTD_READ_OOB */
 static int read_raw_oob(struct mtd_info *mtd, loff_t offs, uint8_t *buf)
 {
-	struct mtd_oob_ops ops;
+	struct mtd_oob_ops ops = { };
 	int ret;
 
 	ops.mode = MTD_OPS_RAW;
@@ -296,7 +295,7 @@ static void ssfdcr_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	if (cis_sector == -1)
 		return;
 
-	ssfdc = kzalloc(sizeof(struct ssfdcr_record), GFP_KERNEL);
+	ssfdc = kzalloc(sizeof(*ssfdc), GFP_KERNEL);
 	if (!ssfdc)
 		return;
 
@@ -333,7 +332,7 @@ static void ssfdcr_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 		kmalloc_array(ssfdc->map_len,
 			      sizeof(ssfdc->logic_block_map[0]), GFP_KERNEL);
 	if (!ssfdc->logic_block_map)
-		goto out_err;
+		goto out_free_ssfdc;
 	memset(ssfdc->logic_block_map, 0xff, sizeof(ssfdc->logic_block_map[0]) *
 		ssfdc->map_len);
 
@@ -351,7 +350,8 @@ static void ssfdcr_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 
 out_err:
 	kfree(ssfdc->logic_block_map);
-        kfree(ssfdc);
+out_free_ssfdc:
+	kfree(ssfdc);
 }
 
 static void ssfdcr_remove_dev(struct mtd_blktrans_dev *dev)

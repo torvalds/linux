@@ -9,7 +9,7 @@
  * Since the DRAM controller is on the cpu chip, we can use its PCI device
  * id to identify these processors.
  *
- * PCI DRAM controller device ids (Taken from The PCI ID Repository - http://pci-ids.ucw.cz/)
+ * PCI DRAM controller device ids (Taken from The PCI ID Repository - https://pci-ids.ucw.cz/)
  *
  * 0108: Xeon E3-1200 Processor Family DRAM Controller
  * 010c: Xeon E3-1200/2nd Generation Core Processor Family DRAM Controller
@@ -20,12 +20,16 @@
  * 0c08: Xeon E3-1200 v3 Processor DRAM Controller
  * 1918: Xeon E3-1200 v5 Skylake Host Bridge/DRAM Registers
  * 5918: Xeon E3-1200 Xeon E3-1200 v6/7th Gen Core Processor Host Bridge/DRAM Registers
+ * 190f: 6th Gen Core Dual-Core Processor Host Bridge/DRAM Registers
+ * 191f: 6th Gen Core Quad-Core Processor Host Bridge/DRAM Registers
  * 3e..: 8th/9th Gen Core Processor Host Bridge/DRAM Registers
  *
  * Based on Intel specification:
- * http://www.intel.com/content/dam/www/public/us/en/documents/datasheets/xeon-e3-1200v3-vol-2-datasheet.pdf
+ * https://www.intel.com/content/dam/www/public/us/en/documents/datasheets/xeon-e3-1200v3-vol-2-datasheet.pdf
  * http://www.intel.com/content/www/us/en/processors/xeon/xeon-e3-1200-family-vol-2-datasheet.html
- * http://www.intel.com/content/www/us/en/processors/core/7th-gen-core-family-mobile-h-processor-lines-datasheet-vol-2.html
+ * https://www.intel.com/content/dam/www/public/us/en/documents/datasheets/desktop-6th-gen-core-family-datasheet-vol-2.pdf
+ * https://www.intel.com/content/dam/www/public/us/en/documents/datasheets/xeon-e3-1200v6-vol-2-datasheet.pdf
+ * https://www.intel.com/content/www/us/en/processors/core/7th-gen-core-family-mobile-h-processor-lines-datasheet-vol-2.html
  * https://www.intel.com/content/www/us/en/products/docs/processors/core/8th-gen-core-family-datasheet-vol-2.html
  *
  * According to the above datasheet (p.16):
@@ -53,15 +57,17 @@
 #define ie31200_printk(level, fmt, arg...) \
 	edac_printk(level, "ie31200", fmt, ##arg)
 
-#define PCI_DEVICE_ID_INTEL_IE31200_HB_1 0x0108
-#define PCI_DEVICE_ID_INTEL_IE31200_HB_2 0x010c
-#define PCI_DEVICE_ID_INTEL_IE31200_HB_3 0x0150
-#define PCI_DEVICE_ID_INTEL_IE31200_HB_4 0x0158
-#define PCI_DEVICE_ID_INTEL_IE31200_HB_5 0x015c
-#define PCI_DEVICE_ID_INTEL_IE31200_HB_6 0x0c04
-#define PCI_DEVICE_ID_INTEL_IE31200_HB_7 0x0c08
-#define PCI_DEVICE_ID_INTEL_IE31200_HB_8 0x1918
-#define PCI_DEVICE_ID_INTEL_IE31200_HB_9 0x5918
+#define PCI_DEVICE_ID_INTEL_IE31200_HB_1  0x0108
+#define PCI_DEVICE_ID_INTEL_IE31200_HB_2  0x010c
+#define PCI_DEVICE_ID_INTEL_IE31200_HB_3  0x0150
+#define PCI_DEVICE_ID_INTEL_IE31200_HB_4  0x0158
+#define PCI_DEVICE_ID_INTEL_IE31200_HB_5  0x015c
+#define PCI_DEVICE_ID_INTEL_IE31200_HB_6  0x0c04
+#define PCI_DEVICE_ID_INTEL_IE31200_HB_7  0x0c08
+#define PCI_DEVICE_ID_INTEL_IE31200_HB_8  0x190F
+#define PCI_DEVICE_ID_INTEL_IE31200_HB_9  0x1918
+#define PCI_DEVICE_ID_INTEL_IE31200_HB_10 0x191F
+#define PCI_DEVICE_ID_INTEL_IE31200_HB_11 0x5918
 
 /* Coffee Lake-S */
 #define PCI_DEVICE_ID_INTEL_IE31200_HB_CFL_MASK 0x3e00
@@ -80,6 +86,8 @@
 #define DEVICE_ID_SKYLAKE_OR_LATER(did)                                        \
 	(((did) == PCI_DEVICE_ID_INTEL_IE31200_HB_8) ||                        \
 	 ((did) == PCI_DEVICE_ID_INTEL_IE31200_HB_9) ||                        \
+	 ((did) == PCI_DEVICE_ID_INTEL_IE31200_HB_10) ||                       \
+	 ((did) == PCI_DEVICE_ID_INTEL_IE31200_HB_11) ||                       \
 	 (((did) & PCI_DEVICE_ID_INTEL_IE31200_HB_CFL_MASK) ==                 \
 	  PCI_DEVICE_ID_INTEL_IE31200_HB_CFL_MASK))
 
@@ -170,6 +178,8 @@
 	(n << (28 + (2 * skl) - PAGE_SHIFT))
 
 static int nr_channels;
+static struct pci_dev *mci_pdev;
+static int ie31200_registered = 1;
 
 struct ie31200_priv {
 	void __iomem *window;
@@ -331,7 +341,6 @@ static void ie31200_check(struct mem_ctl_info *mci)
 {
 	struct ie31200_error_info info;
 
-	edac_dbg(1, "MC%d\n", mci->mc_idx);
 	ie31200_get_and_clear_error_info(mci, &info);
 	ie31200_process_error_info(mci, &info);
 }
@@ -357,7 +366,7 @@ static void __iomem *ie31200_map_mchbar(struct pci_dev *pdev)
 		return NULL;
 	}
 
-	window = ioremap_nocache(u.mchbar, IE31200_MMR_WINDOW_SIZE);
+	window = ioremap(u.mchbar, IE31200_MMR_WINDOW_SIZE);
 	if (!window)
 		ie31200_printk(KERN_ERR, "Cannot map mmio space at 0x%llx\n",
 			       (unsigned long long)u.mchbar);
@@ -490,9 +499,7 @@ static int ie31200_probe1(struct pci_dev *pdev, int dev_idx)
 
 			if (dimm_info[j][i].dual_rank) {
 				nr_pages = nr_pages / 2;
-				dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms,
-						     mci->n_layers, (i * 2) + 1,
-						     j, 0);
+				dimm = edac_get_dimm(mci, (i * 2) + 1, j, 0);
 				dimm->nr_pages = nr_pages;
 				edac_dbg(0, "set nr pages: 0x%lx\n", nr_pages);
 				dimm->grain = 8; /* just a guess */
@@ -503,8 +510,7 @@ static int ie31200_probe1(struct pci_dev *pdev, int dev_idx)
 				dimm->dtype = DEV_UNKNOWN;
 				dimm->edac_mode = EDAC_UNKNOWN;
 			}
-			dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms,
-					     mci->n_layers, i * 2, j, 0);
+			dimm = edac_get_dimm(mci, i * 2, j, 0);
 			dimm->nr_pages = nr_pages;
 			edac_dbg(0, "set nr pages: 0x%lx\n", nr_pages);
 			dimm->grain = 8; /* same guess */
@@ -541,12 +547,16 @@ fail_free:
 static int ie31200_init_one(struct pci_dev *pdev,
 			    const struct pci_device_id *ent)
 {
-	edac_dbg(0, "MC:\n");
+	int rc;
 
+	edac_dbg(0, "MC:\n");
 	if (pci_enable_device(pdev) < 0)
 		return -EIO;
+	rc = ie31200_probe1(pdev, ent->driver_data);
+	if (rc == 0 && !mci_pdev)
+		mci_pdev = pci_dev_get(pdev);
 
-	return ie31200_probe1(pdev, ent->driver_data);
+	return rc;
 }
 
 static void ie31200_remove_one(struct pci_dev *pdev)
@@ -555,6 +565,8 @@ static void ie31200_remove_one(struct pci_dev *pdev)
 	struct ie31200_priv *priv;
 
 	edac_dbg(0, "\n");
+	pci_dev_put(mci_pdev);
+	mci_pdev = NULL;
 	mci = edac_mc_del_mc(&pdev->dev);
 	if (!mci)
 		return;
@@ -573,6 +585,8 @@ static const struct pci_device_id ie31200_pci_tbl[] = {
 	{ PCI_VEND_DEV(INTEL, IE31200_HB_7),      PCI_ANY_ID, PCI_ANY_ID, 0, 0, IE31200 },
 	{ PCI_VEND_DEV(INTEL, IE31200_HB_8),      PCI_ANY_ID, PCI_ANY_ID, 0, 0, IE31200 },
 	{ PCI_VEND_DEV(INTEL, IE31200_HB_9),      PCI_ANY_ID, PCI_ANY_ID, 0, 0, IE31200 },
+	{ PCI_VEND_DEV(INTEL, IE31200_HB_10),     PCI_ANY_ID, PCI_ANY_ID, 0, 0, IE31200 },
+	{ PCI_VEND_DEV(INTEL, IE31200_HB_11),     PCI_ANY_ID, PCI_ANY_ID, 0, 0, IE31200 },
 	{ PCI_VEND_DEV(INTEL, IE31200_HB_CFL_1),  PCI_ANY_ID, PCI_ANY_ID, 0, 0, IE31200 },
 	{ PCI_VEND_DEV(INTEL, IE31200_HB_CFL_2),  PCI_ANY_ID, PCI_ANY_ID, 0, 0, IE31200 },
 	{ PCI_VEND_DEV(INTEL, IE31200_HB_CFL_3),  PCI_ANY_ID, PCI_ANY_ID, 0, 0, IE31200 },
@@ -596,17 +610,53 @@ static struct pci_driver ie31200_driver = {
 
 static int __init ie31200_init(void)
 {
+	int pci_rc, i;
+
 	edac_dbg(3, "MC:\n");
 	/* Ensure that the OPSTATE is set correctly for POLL or NMI */
 	opstate_init();
 
-	return pci_register_driver(&ie31200_driver);
+	pci_rc = pci_register_driver(&ie31200_driver);
+	if (pci_rc < 0)
+		goto fail0;
+
+	if (!mci_pdev) {
+		ie31200_registered = 0;
+		for (i = 0; ie31200_pci_tbl[i].vendor != 0; i++) {
+			mci_pdev = pci_get_device(ie31200_pci_tbl[i].vendor,
+						  ie31200_pci_tbl[i].device,
+						  NULL);
+			if (mci_pdev)
+				break;
+		}
+		if (!mci_pdev) {
+			edac_dbg(0, "ie31200 pci_get_device fail\n");
+			pci_rc = -ENODEV;
+			goto fail1;
+		}
+		pci_rc = ie31200_init_one(mci_pdev, &ie31200_pci_tbl[i]);
+		if (pci_rc < 0) {
+			edac_dbg(0, "ie31200 init fail\n");
+			pci_rc = -ENODEV;
+			goto fail1;
+		}
+	}
+	return 0;
+
+fail1:
+	pci_unregister_driver(&ie31200_driver);
+fail0:
+	pci_dev_put(mci_pdev);
+
+	return pci_rc;
 }
 
 static void __exit ie31200_exit(void)
 {
 	edac_dbg(3, "MC:\n");
 	pci_unregister_driver(&ie31200_driver);
+	if (!ie31200_registered)
+		ie31200_remove_one(mci_pdev);
 }
 
 module_init(ie31200_init);

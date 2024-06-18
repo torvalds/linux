@@ -11,8 +11,10 @@
 
 #include <linux/iio/timer/stm32-lptim-trigger.h>
 #include <linux/mfd/stm32-lptimer.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 
 /* List Low-Power Timer triggers */
 static const char * const stm32_lptim_triggers[] = {
@@ -71,13 +73,12 @@ static int stm32_lptim_trigger_probe(struct platform_device *pdev)
 {
 	struct stm32_lptim_trigger *priv;
 	u32 index;
-	int ret;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	if (of_property_read_u32(pdev->dev.of_node, "reg", &index))
+	if (device_property_read_u32(&pdev->dev, "reg", &index))
 		return -EINVAL;
 
 	if (index >= ARRAY_SIZE(stm32_lptim_triggers))
@@ -86,13 +87,7 @@ static int stm32_lptim_trigger_probe(struct platform_device *pdev)
 	priv->dev = &pdev->dev;
 	priv->trg = stm32_lptim_triggers[index];
 
-	ret = stm32_lptim_setup_trig(priv);
-	if (ret)
-		return ret;
-
-	platform_set_drvdata(pdev, priv);
-
-	return 0;
+	return stm32_lptim_setup_trig(priv);
 }
 
 static const struct of_device_id stm32_lptim_trig_of_match[] = {

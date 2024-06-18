@@ -553,6 +553,8 @@ gk208_grctx = {
 	.bundle_token_limit = 0x200,
 	.pagepool = gk104_grctx_generate_pagepool,
 	.pagepool_size = 0x8000,
+	.attrib_cb_size = gf100_grctx_generate_attrib_cb_size,
+	.attrib_cb = gf100_grctx_generate_attrib_cb,
 	.attrib = gf117_grctx_generate_attrib,
 	.attrib_nr_max = 0x324,
 	.attrib_nr = 0x218,
@@ -566,4 +568,5 @@ gk208_grctx = {
 	.dist_skip_table = gf117_grctx_generate_dist_skip_table,
 	.gpc_tpc_nr = gk104_grctx_generate_gpc_tpc_nr,
 	.r418800 = gk104_grctx_generate_r418800,
+	.r419f78 = gk110_grctx_generate_r419f78,
 };

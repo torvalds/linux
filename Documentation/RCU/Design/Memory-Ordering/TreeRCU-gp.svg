@@ -1448,15 +1448,6 @@
        style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier">rcutree_migrate_callbacks()</text>
     <text
        xml:space="preserve"
-       x="8335.4873"
-       y="5357.1006"
-       font-style="normal"
-       font-weight="bold"
-       font-size="192"
-       id="text202-7-9-6-0"
-       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier">rcu_migrate_callbacks()</text>
-    <text
-       xml:space="preserve"
        x="8768.4678"
        y="6224.9038"
        font-style="normal"
@@ -3274,7 +3265,7 @@
          font-weight="bold"
          font-size="192"
          id="text202-7-5-3-27-6-5"
-         style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier">rcu_report_dead()</text>
+         style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier">rcutree_report_cpu_dead()</text>
       <text
          xml:space="preserve"
          x="3745.7725"
@@ -3395,7 +3386,7 @@
          font-style="normal"
          y="3679.27"
          x="-3804.9949"
-         xml:space="preserve">rcu_cpu_starting()</text>
+         xml:space="preserve">rcutree_report_cpu_starting()</text>
       <g
          style="fill:none;stroke-width:0.025in"
          id="g3107-7-5-0"
@@ -3880,7 +3871,7 @@
          font-style="normal"
          y="-4418.6582"
          x="3745.7725"
-         xml:space="preserve">rcu_node_context_switch()</text>
+         xml:space="preserve">rcu_note_context_switch()</text>
     </g>
     <g
        transform="translate(1881.1886,54048.57)"

@@ -10,8 +10,8 @@
 #include <linux/genalloc.h>
 #include <linux/io.h>
 #include <linux/list_sort.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
@@ -97,7 +97,24 @@ static int sram_add_partition(struct sram_dev *sram, struct sram_reserve *block,
 	struct sram_partition *part = &sram->partition[sram->partitions];
 
 	mutex_init(&part->lock);
-	part->base = sram->virt_base + block->start;
+
+	if (sram->config && sram->config->map_only_reserved) {
+		void __iomem *virt_base;
+
+		if (sram->no_memory_wc)
+			virt_base = devm_ioremap_resource(sram->dev, &block->res);
+		else
+			virt_base = devm_ioremap_resource_wc(sram->dev, &block->res);
+
+		if (IS_ERR(virt_base)) {
+			dev_err(sram->dev, "could not map SRAM at %pr\n", &block->res);
+			return PTR_ERR(virt_base);
+		}
+
+		part->base = virt_base;
+	} else {
+		part->base = sram->virt_base + block->start;
+	}
 
 	if (block->pool) {
 		ret = sram_add_pool(sram, block, start, part);
@@ -144,8 +161,8 @@ static void sram_free_partitions(struct sram_dev *sram)
 	}
 }
 
-static int sram_reserve_cmp(void *priv, struct list_head *a,
-					struct list_head *b)
+static int sram_reserve_cmp(void *priv, const struct list_head *a,
+					const struct list_head *b)
 {
 	struct sram_reserve *ra = list_entry(a, struct sram_reserve, list);
 	struct sram_reserve *rb = list_entry(b, struct sram_reserve, list);
@@ -198,16 +215,12 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 
 		block->start = child_res.start - res->start;
 		block->size = resource_size(&child_res);
+		block->res = child_res;
 		list_add_tail(&block->list, &reserve_list);
 
-		if (of_find_property(child, "export", NULL))
-			block->export = true;
-
-		if (of_find_property(child, "pool", NULL))
-			block->pool = true;
-
-		if (of_find_property(child, "protect-exec", NULL))
-			block->protect_exec = true;
+		block->export = of_property_read_bool(child, "export");
+		block->pool = of_property_read_bool(child, "pool");
+		block->protect_exec = of_property_read_bool(child, "protect-exec");
 
 		if ((block->export || block->pool || block->protect_exec) &&
 		    block->size) {
@@ -222,10 +235,11 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 				goto err_chunks;
 			}
 			if (!label)
-				label = child->name;
-
-			block->label = devm_kstrdup(sram->dev,
-						    label, GFP_KERNEL);
+				block->label = devm_kasprintf(sram->dev, GFP_KERNEL,
+							      "%s", of_node_full_name(child));
+			else
+				block->label = devm_kstrdup(sram->dev,
+							    label, GFP_KERNEL);
 			if (!block->label) {
 				ret = -ENOMEM;
 				goto err_chunks;
@@ -295,15 +309,17 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 		 */
 		cur_size = block->start - cur_start;
 
-		dev_dbg(sram->dev, "adding chunk 0x%lx-0x%lx\n",
-			cur_start, cur_start + cur_size);
+		if (sram->pool) {
+			dev_dbg(sram->dev, "adding chunk 0x%lx-0x%lx\n",
+				cur_start, cur_start + cur_size);
 
-		ret = gen_pool_add_virt(sram->pool,
-				(unsigned long)sram->virt_base + cur_start,
-				res->start + cur_start, cur_size, -1);
-		if (ret < 0) {
-			sram_free_partitions(sram);
-			goto err_chunks;
+			ret = gen_pool_add_virt(sram->pool,
+					(unsigned long)sram->virt_base + cur_start,
+					res->start + cur_start, cur_size, -1);
+			if (ret < 0) {
+				sram_free_partitions(sram);
+				goto err_chunks;
+			}
 		}
 
 		/* next allocation after this reserved block */
@@ -331,97 +347,102 @@ static int atmel_securam_wait(void)
 					10000, 500000);
 }
 
+static const struct sram_config atmel_securam_config = {
+	.init = atmel_securam_wait,
+};
+
+/*
+ * SYSRAM contains areas that are not accessible by the
+ * kernel, such as the first 256K that is reserved for TZ.
+ * Accesses to those areas (including speculative accesses)
+ * trigger SErrors. As such we must map only the areas of
+ * SYSRAM specified in the device tree.
+ */
+static const struct sram_config tegra_sysram_config = {
+	.map_only_reserved = true,
+};
+
 static const struct of_device_id sram_dt_ids[] = {
 	{ .compatible = "mmio-sram" },
-	{ .compatible = "atmel,sama5d2-securam", .data = atmel_securam_wait },
+	{ .compatible = "atmel,sama5d2-securam", .data = &atmel_securam_config },
+	{ .compatible = "nvidia,tegra186-sysram", .data = &tegra_sysram_config },
+	{ .compatible = "nvidia,tegra194-sysram", .data = &tegra_sysram_config },
+	{ .compatible = "nvidia,tegra234-sysram", .data = &tegra_sysram_config },
 	{}
 };
 
 static int sram_probe(struct platform_device *pdev)
 {
+	const struct sram_config *config;
 	struct sram_dev *sram;
-	struct resource *res;
-	size_t size;
 	int ret;
-	int (*init_func)(void);
+	struct resource *res;
+	struct clk *clk;
+
+	config = of_device_get_match_data(&pdev->dev);
 
 	sram = devm_kzalloc(&pdev->dev, sizeof(*sram), GFP_KERNEL);
 	if (!sram)
 		return -ENOMEM;
 
 	sram->dev = &pdev->dev;
+	sram->no_memory_wc = of_property_read_bool(pdev->dev.of_node, "no-memory-wc");
+	sram->config = config;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(sram->dev, "found no memory resource\n");
-		return -EINVAL;
+	if (!config || !config->map_only_reserved) {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		if (sram->no_memory_wc)
+			sram->virt_base = devm_ioremap_resource(&pdev->dev, res);
+		else
+			sram->virt_base = devm_ioremap_resource_wc(&pdev->dev, res);
+		if (IS_ERR(sram->virt_base)) {
+			dev_err(&pdev->dev, "could not map SRAM registers\n");
+			return PTR_ERR(sram->virt_base);
+		}
+
+		sram->pool = devm_gen_pool_create(sram->dev, ilog2(SRAM_GRANULARITY),
+						  NUMA_NO_NODE, NULL);
+		if (IS_ERR(sram->pool))
+			return PTR_ERR(sram->pool);
 	}
 
-	size = resource_size(res);
+	clk = devm_clk_get_optional_enabled(sram->dev, NULL);
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
 
-	if (!devm_request_mem_region(sram->dev, res->start, size, pdev->name)) {
-		dev_err(sram->dev, "could not request region for resource\n");
-		return -EBUSY;
-	}
-
-	if (of_property_read_bool(pdev->dev.of_node, "no-memory-wc"))
-		sram->virt_base = devm_ioremap(sram->dev, res->start, size);
-	else
-		sram->virt_base = devm_ioremap_wc(sram->dev, res->start, size);
-	if (!sram->virt_base)
-		return -ENOMEM;
-
-	sram->pool = devm_gen_pool_create(sram->dev, ilog2(SRAM_GRANULARITY),
-					  NUMA_NO_NODE, NULL);
-	if (IS_ERR(sram->pool))
-		return PTR_ERR(sram->pool);
-
-	sram->clk = devm_clk_get(sram->dev, NULL);
-	if (IS_ERR(sram->clk))
-		sram->clk = NULL;
-	else
-		clk_prepare_enable(sram->clk);
-
-	ret = sram_reserve_regions(sram, res);
+	ret = sram_reserve_regions(sram,
+			platform_get_resource(pdev, IORESOURCE_MEM, 0));
 	if (ret)
-		goto err_disable_clk;
+		return ret;
 
 	platform_set_drvdata(pdev, sram);
 
-	init_func = of_device_get_match_data(&pdev->dev);
-	if (init_func) {
-		ret = init_func();
+	if (config && config->init) {
+		ret = config->init();
 		if (ret)
 			goto err_free_partitions;
 	}
 
-	dev_dbg(sram->dev, "SRAM pool: %zu KiB @ 0x%p\n",
-		gen_pool_size(sram->pool) / 1024, sram->virt_base);
+	if (sram->pool)
+		dev_dbg(sram->dev, "SRAM pool: %zu KiB @ 0x%p\n",
+			gen_pool_size(sram->pool) / 1024, sram->virt_base);
 
 	return 0;
 
 err_free_partitions:
 	sram_free_partitions(sram);
-err_disable_clk:
-	if (sram->clk)
-		clk_disable_unprepare(sram->clk);
 
 	return ret;
 }
 
-static int sram_remove(struct platform_device *pdev)
+static void sram_remove(struct platform_device *pdev)
 {
 	struct sram_dev *sram = platform_get_drvdata(pdev);
 
 	sram_free_partitions(sram);
 
-	if (gen_pool_avail(sram->pool) < gen_pool_size(sram->pool))
+	if (sram->pool && gen_pool_avail(sram->pool) < gen_pool_size(sram->pool))
 		dev_err(sram->dev, "removed while SRAM allocated\n");
-
-	if (sram->clk)
-		clk_disable_unprepare(sram->clk);
-
-	return 0;
 }
 
 static struct platform_driver sram_driver = {
@@ -430,7 +451,7 @@ static struct platform_driver sram_driver = {
 		.of_match_table = sram_dt_ids,
 	},
 	.probe = sram_probe,
-	.remove = sram_remove,
+	.remove_new = sram_remove,
 };
 
 static int __init sram_init(void)

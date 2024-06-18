@@ -217,18 +217,16 @@ err_free_mem:
 	return ret;
 }
 
-static int mc13783_ts_remove(struct platform_device *pdev)
+static void mc13783_ts_remove(struct platform_device *pdev)
 {
 	struct mc13783_ts_priv *priv = platform_get_drvdata(pdev);
 
 	input_unregister_device(priv->idev);
 	kfree(priv);
-
-	return 0;
 }
 
 static struct platform_driver mc13783_ts_driver = {
-	.remove		= mc13783_ts_remove,
+	.remove_new	= mc13783_ts_remove,
 	.driver		= {
 		.name	= MC13783_TS_NAME,
 	},

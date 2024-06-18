@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+menu "AMD SFH HID Support"
+	depends on X86_64 || COMPILE_TEST
+	depends on PCI
+
+config AMD_SFH_HID
+	tristate "AMD Sensor Fusion Hub"
+	depends on HID
+	depends on X86
+	help
+	  If you say yes to this option, support will be included for the
+	  AMD Sensor Fusion Hub.
+	  This driver will enable sensors functionality on AMD platforms
+	  starting from 17h family of RYZEN parts.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called amd-sfh.
+	  Say Y or M here if you want to support AMD SFH. If unsure, say N.
+endmenu

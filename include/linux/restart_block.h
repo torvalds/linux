@@ -7,8 +7,8 @@
 
 #include <linux/compiler.h>
 #include <linux/types.h>
-#include <linux/time64.h>
 
+struct __kernel_timespec;
 struct timespec;
 struct old_timespec32;
 struct pollfd;
@@ -23,6 +23,7 @@ enum timespec_type {
  * System call restart block.
  */
 struct restart_block {
+	unsigned long arch_data;
 	long (*fn)(struct restart_block *);
 	union {
 		/* For futex_wait and futex_wait_requeue_pi */

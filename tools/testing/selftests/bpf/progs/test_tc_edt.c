@@ -7,8 +7,8 @@
 #include <linux/ip.h>
 #include <linux/pkt_cls.h>
 #include <linux/tcp.h>
-#include "bpf_helpers.h"
-#include "bpf_endian.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_endian.h>
 
 /* the maximum delay we are willing to add (drop packets beyond that) */
 #define TIME_HORIZON_NS (2000 * 1000 * 1000)
@@ -17,12 +17,12 @@
 #define THROTTLE_RATE_BPS (5 * 1000 * 1000)
 
 /* flow_key => last_tstamp timestamp used */
-struct bpf_map_def SEC("maps") flow_map = {
-	.type = BPF_MAP_TYPE_HASH,
-	.key_size = sizeof(uint32_t),
-	.value_size = sizeof(uint64_t),
-	.max_entries = 1,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__type(key, uint32_t);
+	__type(value, uint64_t);
+	__uint(max_entries, 1);
+} flow_map SEC(".maps");
 
 static inline int throttle_flow(struct __sk_buff *skb)
 {

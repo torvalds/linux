@@ -73,7 +73,7 @@ static void microread_i2c_remove_len_crc(struct sk_buff *skb)
 	skb_trim(skb, MICROREAD_I2C_FRAME_TAILROOM);
 }
 
-static int check_crc(struct sk_buff *skb)
+static int check_crc(const struct sk_buff *skb)
 {
 	int i;
 	u8 crc = 0;
@@ -225,19 +225,16 @@ static irqreturn_t microread_i2c_irq_thread_fn(int irq, void *phy_id)
 	return IRQ_HANDLED;
 }
 
-static struct nfc_phy_ops i2c_phy_ops = {
+static const struct nfc_phy_ops i2c_phy_ops = {
 	.write = microread_i2c_write,
 	.enable = microread_i2c_enable,
 	.disable = microread_i2c_disable,
 };
 
-static int microread_i2c_probe(struct i2c_client *client,
-			       const struct i2c_device_id *id)
+static int microread_i2c_probe(struct i2c_client *client)
 {
 	struct microread_i2c_phy *phy;
 	int r;
-
-	dev_dbg(&client->dev, "client %p\n", client);
 
 	phy = devm_kzalloc(&client->dev, sizeof(struct microread_i2c_phy),
 			   GFP_KERNEL);
@@ -262,8 +259,6 @@ static int microread_i2c_probe(struct i2c_client *client,
 	if (r < 0)
 		goto err_irq;
 
-	nfc_info(&client->dev, "Probed\n");
-
 	return 0;
 
 err_irq:
@@ -272,15 +267,13 @@ err_irq:
 	return r;
 }
 
-static int microread_i2c_remove(struct i2c_client *client)
+static void microread_i2c_remove(struct i2c_client *client)
 {
 	struct microread_i2c_phy *phy = i2c_get_clientdata(client);
 
 	microread_remove(phy->hdev);
 
 	free_irq(client->irq, phy);
-
-	return 0;
 }
 
 static const struct i2c_device_id microread_i2c_id[] = {

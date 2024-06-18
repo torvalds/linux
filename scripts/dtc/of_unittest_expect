@@ -1,0 +1,541 @@
+#!/usr/bin/perl
+# SPDX-License-Identifier: GPL-2.0
+#
+# Copyright 2020, 2022 Sony Corporation
+#
+# Author: Frank Rowand
+
+# This program is meant to be an aid to reading the verbose output of
+# on the console log that results from executing the Linux kernel
+# devicetree unittest (drivers/of/unitest.c).
+
+$VUFX = "230211a";
+
+use strict 'refs';
+use strict subs;
+
+use Getopt::Long;
+use Text::Wrap;
+
+# strip off everything before final "/"
+(undef, $script_name) = split(/^.*\//, $0);
+
+# following /usr/include/sysexits.h
+$EX_OK=0;
+$EX_USAGE=64;
+
+
+#______________________________________________________________________________
+sub compare {
+	my ($expect, $got) = @_;
+	my $expect_next;
+	my $expect_next_lit;
+	my $got_next;
+	my $type;
+
+	while ($expect) {
+
+		($expect_next, $type) = split(/<</, $expect);
+		($type) = split(/>>/, $type);
+		$expect =~ s/^.*?>>//;	# '?' is non-greedy, minimal match
+
+		# literal, ignore all metacharacters when used in a regex
+		$expect_next_lit = quotemeta($expect_next);
+
+		$got_next = $got;
+		$got_next =~ s/^($expect_next_lit).*/\1/;
+		$got       =~ s/^$expect_next_lit//;
+
+		if ($expect_next ne $got_next) {
+			return 0;
+		}
+
+		if ($type eq "int") {
+			if ($got =~ /^[+-]*[0-9]+/) {
+				$got =~ s/^[+-]*[0-9]+//;
+			} else {
+				return 0;
+			}
+		} elsif ($type eq "hex") {
+			if ($got =~ /^(0x)*[0-9a-f]+/) {
+				$got =~ s/^(0x)*[0-9a-f]+//;
+			} else {
+				return 0;
+			}
+		} elsif ($type eq "all") {
+			return 1;
+		} elsif ($type eq "") {
+			if ($expect_next ne $got_next) {
+				return 0;
+			} else {
+				return 1;
+			}
+		} else {
+			$internal_err++;
+			print "** ERROR: special pattern not recognized: <<$type>>, CONSOLE_LOG line: $.\n";
+			return 0;
+		}
+
+	}
+
+	# should not get here
+	$internal_err++;
+	print "** ERROR: $script_name internal error, at end of compare(), CONSOLE_LOG line: $.\n";
+
+	return 0;
+}
+
+
+#______________________________________________________________________________
+sub usage {
+
+# ***** when editing, be careful to not put tabs in the string printed:
+
+	print STDERR
+"
+usage:
+
+  $script_name CONSOLE_LOG
+
+     -h                print program usage
+    --help             print program usage
+    --hide-expect      suppress output of EXPECTed lines
+    --line-num         report line number of CONSOLE_LOG
+    --no-expect-stats  do not report EXPECT statistics
+    --no-strip-ts      do not strip leading console timestamps
+    --verbose          do not suppress EXPECT begin and end lines
+    --version          print program version and exit
+
+
+  Process a console log for EXPECTed test related messages to either
+  highlight expected devicetree unittest related messages or suppress
+  the messages.  Leading console timestamps will be stripped.
+
+  Various unittests may trigger kernel messages from outside the
+  unittest code.  The unittest annotates that it expects the message
+  to occur with an 'EXPECT \\ : text' (begin) before triggering the
+  message, and an 'EXPECT / : text' (end) after triggering the message.
+
+  If an expected message does not occur, that will be reported.
+
+  For each expected message, the 'EXPECT \\ : text' (begin) and
+  'EXPECT / : text' (end), 'text' will contain the message text.
+
+  If 'EXPECT \\' (begin) and 'EXPECT /' (end) lines do not contain
+  matching 'text', that will be reported.
+
+  If EXPECT lines are nested, 'EXPECT /' (end) lines must be in the
+  reverse order of the corresponding 'EXPECT \\' (begin) lines.
+
+  'EXPECT \\ : text' (begin) and 'EXPECT / : text' (end) lines can
+  contain special patterns in 'text':
+
+     <<int>> matches: [+-]*[0-9]+
+     <<hex>> matches: (0x)*[0-9a-f]+
+     <<all>> matches: anything to end of line
+
+  'EXPECT \\' (begin) and 'EXPECT /' (end) lines are suppressed.
+
+  A prefix is added to every line of output:
+
+    'ok ' Line matches an enclosing EXPECT begin/end pair
+
+    '** ' Line reports $script_name warning or error
+
+    '-> ' Line reports start or end of the unittests
+
+    '>> ' Line reports a unittest test FAIL
+
+    '   ' Lines that are not otherwise prefixed
+
+  Issues detected in CONSOLE_LOG are reported to STDOUT, not to STDERR.
+
+  Known Issues:
+
+    --line-num causes the CONSOLE_LOG line number to be printed in 4 columns.
+       If CONSOLE_LOG contains more than 9999 lines then more columns will be
+       used to report the line number for lines greater than 9999 (eg for
+       lines 10000 - 99999, 5 columns will be used).
+";
+
+	return {};
+}
+
+#______________________________________________________________________________
+#______________________________________________________________________________
+
+if (!GetOptions(
+	"h"               => \$help,
+	"help"            => \$help,
+	"hide-expect"     => \$hide_expect,
+	"line-num"        => \$print_line_num,
+	"no-expect-stats" => \$no_expect_stats,
+	"no-strip-ts"     => \$no_strip_ts,
+	"verbose"         => \$verbose,
+	"version"         => \$version,
+	)) {
+	print STDERR "\n";
+	print STDERR "ERROR processing command line options\n";
+	print STDERR "\n";
+	print STDERR "For help, type '$script_name --help'\n";
+	print STDERR "\n";
+
+	exit $EX_OK;
+}
+
+
+if ($no_strip_ts) {
+	$strip_ts = 1;
+	$no_strip_ts = 0;
+} else {
+	$strip_ts = 0;
+	$no_strip_ts = 1;
+}
+
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+if ($help){
+
+	&usage;
+
+	exit $EX_OK;
+}
+
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+if ($version) {
+	print STDERR "\n$script_name  $VUFX\n\n";
+	print STDERR "\n";
+
+	exit $EX_OK;
+}
+
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+if ($#ARGV != 0) {
+
+	# Limit input files to exactly one.
+	#
+	# 'while ($line = <ARGV>) {' in the code below supports multiple file
+	# names on the command line, but the EXPECT statistics are reported
+	# once for all input - it is not an expected use case to generate one
+	# set of statistics for multiple input files.
+
+	print STDERR "\n";
+	print STDERR "Required arguments: CONSOLE_LOG\n";
+	print STDERR "\n";
+
+	exit $EX_USAGE;
+}
+
+
+#______________________________________________________________________________
+
+# Patterns to match 'EXPECT \ : ' (begin) and 'EXPECT / : ' (end)
+#
+# $exp_* are used as regex match patterns,
+# so '\\\\' in $exp_begin matches a single '\'
+# quotemeta() does not do the right thing in this case
+#
+# $pr_fmt is the prefix that unittest prints for every message
+
+$pr_fmt = "### dt-test ### ";
+$exp_begin = "${pr_fmt}EXPECT \\\\ : ";
+$exp_end   = "${pr_fmt}EXPECT / : ";
+$expnot_begin = "${pr_fmt}EXPECT_NOT \\\\ : ";
+$expnot_end   = "${pr_fmt}EXPECT_NOT / : ";
+
+
+$line_num = "";
+$timestamp = "";
+
+LINE:
+while ($line = <ARGV>) {
+
+	chomp $line;
+
+	$suppress_line = 0;
+
+	$prefix = "  ";  ## 2 characters
+
+
+	if ($strip_ts) {
+
+		$timestamp = $line;
+
+		if ($timestamp =~ /^\[\s*[0-9]+\.[0-9]*\] /) {
+			($timestamp, $null) = split(/]/, $line);
+			$timestamp = $timestamp . "] ";
+
+		} else {
+			$timestamp = "";
+		}
+	}
+
+	$line =~ s/^\[\s*[0-9]+\.[0-9]*\] //;
+
+
+	# -----  find EXPECT begin
+
+	if ($line =~ /^\s*$exp_begin/) {
+		$data = $line;
+		$data =~ s/^\s*$exp_begin//;
+		push @exp_begin_stack, $data;
+
+		if ($verbose) {
+			if ($print_line_num) {
+				$line_num = sprintf("%4s ", $.);
+			}
+			printf "%s %s%s%s\n", $prefix, $line_num,  $timestamp, $line;
+		}
+
+		next LINE;
+	}
+
+
+	# -----  find EXPECT end
+
+	if ($line =~ /^\s*$exp_end/) {
+		$data = $line;
+		$data =~ s/^\s*$exp_end//;
+
+		if ($verbose) {
+			if ($print_line_num) {
+				$line_num = sprintf("%4s ", $.);
+			}
+			printf "%s %s%s%s\n", $prefix, $line_num,  $timestamp, $line;
+		}
+
+		$found = 0;
+		$no_begin = 0;
+		if (@exp_found_or_begin > 0) {
+			$begin = pop @exp_found_or_begin;
+			if (compare($data, $begin)) {
+				$found = 1;
+				$exp_found++;
+			}
+		} elsif (@begin > 0) {
+			$begin = pop @exp_begin_stack;
+		} else {
+			$no_begin = 1;
+		}
+
+		if ($no_begin) {
+
+			$exp_missing_begin++;
+			print "** ERROR: EXPECT end without matching EXPECT begin:\n";
+			print "       end ---> $line\n";
+
+		} elsif (! $found) {
+
+			if ($print_line_num) {
+				$line_num = sprintf("%4s ", $.);
+			}
+
+			$exp_missing++;
+			printf "** %s%s$script_name WARNING - not found ---> %s\n",
+					$line_num,  $timestamp, $data;
+
+		} elsif (! compare($data, $begin) and ($data ne $begin)) {
+
+			$exp_missing_end++;
+			print "** ERROR: EXPECT end does not match EXPECT begin:\n";
+			print "       begin -> $begin\n";
+			print "       end ---> $line\n";
+
+		}
+
+		next LINE;
+	}
+
+
+	# -----  find EXPECT_NOT begin
+
+	if ($line =~ /^\s*$expnot_begin/) {
+		$data = $line;
+		$data =~ s/^\s*$expnot_begin//;
+		push @expnot_begin_stack, $data;
+
+		if ($verbose) {
+			if ($print_line_num) {
+				$line_num = sprintf("%4s ", $.);
+			}
+			printf "%s %s%s%s\n", $prefix, $line_num,  $timestamp, $line;
+		}
+
+		next LINE;
+	}
+
+
+	# -----  find EXPECT_NOT end
+
+	if ($line =~ /^\s*$expnot_end/) {
+		$data = $line;
+		$data =~ s/^\s*$expnot_end//;
+
+		if ($verbose) {
+			if ($print_line_num) {
+				$line_num = sprintf("%4s ", $.);
+			}
+			printf "%s %s%s%s\n", $prefix, $line_num,  $timestamp, $line;
+		}
+
+		$found = 0;
+		$no_begin = 0;
+		if (@expnot_found_or_begin > 0) {
+			$begin = pop @expnot_found_or_begin;
+			if (compare($data, $begin)) {
+				$found = 1;
+				$expnot_found++;
+			}
+		} elsif (@expnot_begin_stack <= 0) {
+			$no_begin = 1;
+		}
+
+		if ($no_begin) {
+
+			$expnot_missing_begin++;
+			print "** ERROR: EXPECT_NOT end without matching EXPECT_NOT begin:\n";
+			print "       end ---> $line\n";
+
+		}
+
+		if ($found) {
+
+			if ($print_line_num) {
+				$line_num = sprintf("%4s ", $.);
+			}
+
+			printf "** %s%s$script_name WARNING - next line matches EXPECT_NOT\n",
+					$line_num,  $timestamp;
+			printf "** %s%s%s\n", $line_num,  $timestamp, $line;
+
+		} else {
+
+			$expnot_missing++;
+
+		}
+
+		if (@expnot_begin_stack > 0) {
+			$begin = pop @expnot_begin_stack;
+
+			if (! compare($data, $begin) and ($data ne $begin)) {
+
+				$expnot_missing_end++;
+				print "** ERROR: EXPECT_NOT end does not match EXPECT_NOT begin:\n";
+				print "       begin -> $begin\n";
+				print "       end ---> $line\n";
+
+			}
+		}
+
+		next LINE;
+	}
+
+
+	# -----  not an EXPECT line
+
+	if (($line =~ /^${pr_fmt}start of unittest - you will see error messages$/) ||
+	    ($line =~ /^${pr_fmt}end of unittest - [0-9]+ passed, [0-9]+ failed$/ )   ) {
+		$prefix = "->"; # 2 characters
+	} elsif ($line =~ /^${pr_fmt}FAIL /) {
+		$unittest_fail++;
+		$prefix = ">>"; # 2 characters
+	}
+
+	$found = 0;
+	foreach $begin (@exp_begin_stack) {
+		if (compare($begin, $line)) {
+			$found = 1;
+			last;
+		}
+	}
+
+	if ($found) {
+		$begin = shift @exp_begin_stack;
+		while (! compare($begin, $line)) {
+			push @exp_found_or_begin, $begin;
+			$begin = shift @exp_begin_stack;
+		}
+		push @exp_found_or_begin, $line;
+
+		if ($hide_expect) {
+			$suppress_line = 1;
+		}
+		$prefix = "ok"; # 2 characters
+	}
+
+
+	$found = 0;
+	foreach $begin (@expnot_begin_stack) {
+		if (compare($begin, $line)) {
+			$found = 1;
+			last;
+		}
+	}
+
+	if ($found) {
+		$begin = shift @begin;
+		while (! compare($begin, $line)) {
+			push @expnot_found_or_begin, $begin;
+			$begin = shift @begin;
+		}
+		push @expnot_found_or_begin, $line;
+
+		if ($hide_expect) {
+			$suppress_line = 1;
+		}
+		$prefix = "**"; # 2 characters
+	}
+
+
+	if ($suppress_line) {
+		next LINE;
+	}
+
+	if ($print_line_num) {
+		$line_num = sprintf("%4s ", $.);
+	}
+
+	printf "%s %s%s%s\n", $prefix, $line_num,  $timestamp, $line;
+}
+
+if (! $no_expect_stats) {
+	print  "\n";
+	print  "** EXPECT statistics:\n";
+	print  "**\n";
+	printf "**   non-zero values expected:\n";
+	print  "**\n";
+	printf "**     EXPECT found              : %4i\n", $exp_found;
+	printf "**     EXPECT_NOT not found      : %4i\n", $expnot_missing;
+	print  "**\n";
+	printf "**   zero values expected:\n";
+	print  "**\n";
+	printf "**     EXPECT not found          : %4i\n", $exp_missing;
+	printf "**     missing EXPECT begin      : %4i\n", $exp_missing_begin;
+	printf "**     missing EXPECT end        : %4i\n", $exp_missing_end;
+	print  "**\n";
+	printf "**     EXPECT_NOT found          : %4i\n", $expnot_found;
+	printf "**     missing EXPECT_NOT begin  : %4i\n", $expnot_missing_begin;
+	printf "**     missing EXPECT_NOT end    : %4i\n", $expnot_missing_end;
+	print  "**\n";
+	printf "**     unittest FAIL             : %4i\n", $unittest_fail;
+	printf "**     internal error            : %4i\n", $internal_err;
+}
+
+if (@exp_begin_stack) {
+	print "** ERROR: EXPECT begin without matching EXPECT end:\n";
+	print "          This list may be misleading.\n";
+	foreach $begin (@exp_begin_stack) {
+		print "       begin ---> $begin\n";
+	}
+}
+
+if (@expnot_begin_stack) {
+	print "** ERROR: EXPECT_NOT begin without matching EXPECT_NOT end:\n";
+	print "          This list may be misleading.\n";
+	foreach $begin (@expnot_begin_stack) {
+		print "       begin ---> $begin\n";
+	}
+}

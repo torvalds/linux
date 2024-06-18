@@ -31,6 +31,20 @@ OPTIONS
 --verbose::
 	Be more verbose.
 
+-S::
+--sequential::
+	Run tests one after the other, this is the default mode.
+
+-p:: 
+--parallel::
+	Run tests in parallel, speeds up the whole process but is not safe with
+	the current infrastructure, where some tests that compete for some resources,
+	for instance, 'perf probe' tests that add/remove probes or clean all probes, etc.
+
 -F::
 --dont-fork::
-	Do not fork child for each test, run all tests within single process.
+	Do not fork child for each test, run all tests within single process, this
+	sets sequential mode.
+
+--dso::
+	Specify a DSO for the "Symbols" test.

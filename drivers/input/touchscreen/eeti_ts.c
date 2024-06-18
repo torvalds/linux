@@ -158,8 +158,7 @@ static void eeti_ts_close(struct input_dev *dev)
 	eeti_ts_stop(eeti);
 }
 
-static int eeti_ts_probe(struct i2c_client *client,
-			 const struct i2c_device_id *idp)
+static int eeti_ts_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct eeti_ts *eeti;
@@ -233,7 +232,7 @@ static int eeti_ts_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int __maybe_unused eeti_ts_suspend(struct device *dev)
+static int eeti_ts_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct eeti_ts *eeti = i2c_get_clientdata(client);
@@ -241,7 +240,7 @@ static int __maybe_unused eeti_ts_suspend(struct device *dev)
 
 	mutex_lock(&input_dev->mutex);
 
-	if (input_dev->users)
+	if (input_device_enabled(input_dev))
 		eeti_ts_stop(eeti);
 
 	mutex_unlock(&input_dev->mutex);
@@ -252,7 +251,7 @@ static int __maybe_unused eeti_ts_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused eeti_ts_resume(struct device *dev)
+static int eeti_ts_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct eeti_ts *eeti = i2c_get_clientdata(client);
@@ -263,7 +262,7 @@ static int __maybe_unused eeti_ts_resume(struct device *dev)
 
 	mutex_lock(&input_dev->mutex);
 
-	if (input_dev->users)
+	if (input_device_enabled(input_dev))
 		eeti_ts_start(eeti);
 
 	mutex_unlock(&input_dev->mutex);
@@ -271,10 +270,10 @@ static int __maybe_unused eeti_ts_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(eeti_ts_pm, eeti_ts_suspend, eeti_ts_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(eeti_ts_pm, eeti_ts_suspend, eeti_ts_resume);
 
 static const struct i2c_device_id eeti_ts_id[] = {
-	{ "eeti_ts", 0 },
+	{ "eeti_ts" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, eeti_ts_id);
@@ -289,7 +288,7 @@ static const struct of_device_id of_eeti_ts_match[] = {
 static struct i2c_driver eeti_ts_driver = {
 	.driver = {
 		.name = "eeti_ts",
-		.pm = &eeti_ts_pm,
+		.pm = pm_sleep_ptr(&eeti_ts_pm),
 		.of_match_table = of_match_ptr(of_eeti_ts_match),
 	},
 	.probe = eeti_ts_probe,

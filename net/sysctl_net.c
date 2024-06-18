@@ -40,7 +40,7 @@ static int is_seen(struct ctl_table_set *set)
 
 /* Return standard mode bits for table entry. */
 static int net_ctl_permissions(struct ctl_table_header *head,
-			       struct ctl_table *table)
+			       const struct ctl_table *table)
 {
 	struct net *net = container_of(head->set, struct net, sysctls);
 
@@ -54,7 +54,6 @@ static int net_ctl_permissions(struct ctl_table_header *head,
 }
 
 static void net_ctl_set_ownership(struct ctl_table_header *head,
-				  struct ctl_table *table,
 				  kuid_t *uid, kgid_t *gid)
 {
 	struct net *net = container_of(head->set, struct net, sysctls);
@@ -101,7 +100,7 @@ __init int net_sysctl_init(void)
 	 * registering "/proc/sys/net" as an empty directory not in a
 	 * network namespace.
 	 */
-	net_header = register_sysctl("net", empty);
+	net_header = register_sysctl_sz("net", empty, 0);
 	if (!net_header)
 		goto out;
 	ret = register_pernet_subsys(&sysctl_pernet_ops);
@@ -115,12 +114,70 @@ out1:
 	goto out;
 }
 
-struct ctl_table_header *register_net_sysctl(struct net *net,
-	const char *path, struct ctl_table *table)
+/* Verify that sysctls for non-init netns are safe by either:
+ * 1) being read-only, or
+ * 2) having a data pointer which points outside of the global kernel/module
+ *    data segment, and rather into the heap where a per-net object was
+ *    allocated.
+ */
+static void ensure_safe_net_sysctl(struct net *net, const char *path,
+				   struct ctl_table *table, size_t table_size)
 {
-	return __register_sysctl_table(&net->sysctls, path, table);
+	struct ctl_table *ent;
+
+	pr_debug("Registering net sysctl (net %p): %s\n", net, path);
+	ent = table;
+	for (size_t i = 0; i < table_size && ent->procname; ent++, i++) {
+		unsigned long addr;
+		const char *where;
+
+		pr_debug("  procname=%s mode=%o proc_handler=%ps data=%p\n",
+			 ent->procname, ent->mode, ent->proc_handler, ent->data);
+
+		/* If it's not writable inside the netns, then it can't hurt. */
+		if ((ent->mode & 0222) == 0) {
+			pr_debug("    Not writable by anyone\n");
+			continue;
+		}
+
+		/* Where does data point? */
+		addr = (unsigned long)ent->data;
+		if (is_module_address(addr))
+			where = "module";
+		else if (is_kernel_core_data(addr))
+			where = "kernel";
+		else
+			continue;
+
+		/* If it is writable and points to kernel/module global
+		 * data, then it's probably a netns leak.
+		 */
+		WARN(1, "sysctl %s/%s: data points to %s global data: %ps\n",
+		     path, ent->procname, where, ent->data);
+
+		/* Make it "safe" by dropping writable perms */
+		ent->mode &= ~0222;
+	}
 }
-EXPORT_SYMBOL_GPL(register_net_sysctl);
+
+struct ctl_table_header *register_net_sysctl_sz(struct net *net,
+						const char *path,
+						struct ctl_table *table,
+						size_t table_size)
+{
+	int count;
+	struct ctl_table *entry;
+
+	if (!net_eq(net, &init_net))
+		ensure_safe_net_sysctl(net, path, table, table_size);
+
+	entry = table;
+	for (count = 0 ; count < table_size && entry->procname; entry++, count++)
+		;
+
+	return __register_sysctl_table(&net->sysctls, path, table, count);
+}
+EXPORT_SYMBOL_GPL(register_net_sysctl_sz);
 
 void unregister_net_sysctl_table(struct ctl_table_header *header)
 {

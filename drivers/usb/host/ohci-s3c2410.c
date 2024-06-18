@@ -39,8 +39,6 @@
 
 #define DRIVER_DESC "OHCI S3C2410 driver"
 
-static const char hcd_name[] = "ohci-s3c2410";
-
 static struct clk *clk;
 static struct clk *usb_clk;
 
@@ -324,15 +322,14 @@ static void s3c2410_hcd_oc(struct s3c2410_hcd_info *info, int port_oc)
 /*
  * ohci_hcd_s3c2410_remove - shutdown processing for HCD
  * @dev: USB Host Controller being removed
- * Context: !in_interrupt()
+ *
+ * Context: task context, might sleep
  *
  * Reverses the effect of ohci_hcd_3c2410_probe(), first invoking
  * the HCD's stop() method.  It is always called from a thread
  * context, normally "rmmod", "apmd", or something similar.
- *
-*/
-
-static int
+ */
+static void
 ohci_hcd_s3c2410_remove(struct platform_device *dev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(dev);
@@ -340,23 +337,23 @@ ohci_hcd_s3c2410_remove(struct platform_device *dev)
 	usb_remove_hcd(hcd);
 	s3c2410_stop_hc(dev);
 	usb_put_hcd(hcd);
-	return 0;
 }
 
-/**
+/*
  * ohci_hcd_s3c2410_probe - initialize S3C2410-based HCDs
- * Context: !in_interrupt()
+ * @dev: USB Host Controller to be probed
+ *
+ * Context: task context, might sleep
  *
  * Allocates basic resources for this USB host controller, and
  * then invokes the start() method for the HCD associated with it
  * through the hotplug entry's driver_data.
- *
  */
 static int ohci_hcd_s3c2410_probe(struct platform_device *dev)
 {
 	struct usb_hcd *hcd = NULL;
 	struct s3c2410_hcd_info *info = dev_get_platdata(&dev->dev);
-	int retval;
+	int retval, irq;
 
 	s3c2410_usb_set_power(info, 1, 1);
 	s3c2410_usb_set_power(info, 2, 1);
@@ -388,9 +385,15 @@ static int ohci_hcd_s3c2410_probe(struct platform_device *dev)
 		goto err_put;
 	}
 
+	irq = platform_get_irq(dev, 0);
+	if (irq < 0) {
+		retval = irq;
+		goto err_put;
+	}
+
 	s3c2410_start_hc(dev, hcd);
 
-	retval = usb_add_hcd(hcd, dev->resource[1].start, 0);
+	retval = usb_add_hcd(hcd, irq, 0);
 	if (retval != 0)
 		goto err_ioremap;
 
@@ -454,7 +457,7 @@ MODULE_DEVICE_TABLE(of, ohci_hcd_s3c2410_dt_ids);
 
 static struct platform_driver ohci_hcd_s3c2410_driver = {
 	.probe		= ohci_hcd_s3c2410_probe,
-	.remove		= ohci_hcd_s3c2410_remove,
+	.remove_new	= ohci_hcd_s3c2410_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
 	.driver		= {
 		.name	= "s3c2410-ohci",
@@ -468,7 +471,6 @@ static int __init ohci_s3c2410_init(void)
 	if (usb_disabled())
 		return -ENODEV;
 
-	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
 	ohci_init_driver(&ohci_s3c2410_hc_driver, NULL);
 
 	/*

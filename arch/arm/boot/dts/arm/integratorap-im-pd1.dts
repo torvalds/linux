@@ -1,0 +1,275 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree for the ARM Integrator/AP platform
+ * with the IM-PD1 example logical module mounted.
+ */
+
+#include "integratorap.dts"
+
+/ {
+	model = "ARM Integrator/AP with IM-PD1";
+	compatible = "arm,integrator-ap";
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		impd1_ram: vram@c2000000 {
+			/* 1 MB of designated video RAM on the IM-PD1 */
+			compatible = "shared-dma-pool";
+			reg = <0xc2000000 0x00100000>;
+			no-map;
+		};
+	};
+};
+
+&lm0 {
+	syscon@0 {
+		compatible = "arm,im-pd1-syscon", "syscon";
+		reg = <0x00000000 0x1000>;
+		ranges;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		vco1: clock-controller@0 {
+			compatible = "arm,impd1-vco1";
+			reg = <0x00 0x04>;
+			#clock-cells = <0>;
+			lock-offset = <0x08>;
+			vco-offset = <0x00>;
+			clocks = <&sysclk>;
+			clock-output-names = "IM-PD1-VCO1";
+		};
+
+		vco2: clock-controller@4 {
+			compatible = "arm,impd1-vco2";
+			reg = <0x04 0x04>;
+			#clock-cells = <0>;
+			lock-offset = <0x08>;
+			vco-offset = <0x04>;
+			clocks = <&sysclk>;
+			clock-output-names = "IM-PD1-VCO2";
+		};
+	};
+
+	/* Also used for the Smart Card Interface SCI */
+	impd1_uartclk: clock@1_4 {
+		compatible = "fixed-factor-clock";
+		#clock-cells = <0>;
+		clock-div = <4>;
+		clock-mult = <1>;
+		clocks = <&vco2>;
+		clock-output-names = "VCO2_DIV4";
+	};
+
+	/* For the SSP the clock is divided by 64 */
+	impd1_sspclk: clock@1_64 {
+		compatible = "fixed-factor-clock";
+		#clock-cells = <0>;
+		clock-div = <64>;
+		clock-mult = <1>;
+		clocks = <&vco2>;
+		clock-output-names = "VCO2_DIV64";
+	};
+
+	/* Fixed regulator for the MMC */
+	impd1_3v3: regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+
+	/* Push buttons on the IM-PD1 */
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		button@0 {
+			debounce-interval = <50>;
+			linux,code = <KEY_UP>;
+			label = "UP";
+			gpios = <&impd1_gpio1 0 GPIO_ACTIVE_HIGH>;
+		};
+		button@1 {
+			debounce-interval = <50>;
+			linux,code = <KEY_DOWN>;
+			label = "DOWN";
+			gpios = <&impd1_gpio1 1 GPIO_ACTIVE_HIGH>;
+		};
+		button@2 {
+			debounce-interval = <50>;
+			linux,code = <KEY_LEFT>;
+			label = "LEFT";
+			gpios = <&impd1_gpio1 2 GPIO_ACTIVE_HIGH>;
+		};
+		button@3 {
+			debounce-interval = <50>;
+			linux,code = <KEY_RIGHT>;
+			label = "UP";
+			gpios = <&impd1_gpio1 3 GPIO_ACTIVE_HIGH>;
+		};
+		button@4 {
+			debounce-interval = <50>;
+			linux,code = <KEY_ESC>;
+			label = "ESC";
+			gpios = <&impd1_gpio1 4 GPIO_ACTIVE_HIGH>;
+		};
+		button@5 {
+			debounce-interval = <50>;
+			linux,code = <KEY_ENTER>;
+			label = "ENTER";
+			gpios = <&impd1_gpio1 5 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+
+	bridge {
+		compatible = "ti,ths8134b", "ti,ths8134";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			port@0 {
+				reg = <0>;
+					vga_bridge_in: endpoint {
+					remote-endpoint = <&clcd_pads_vga_dac>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				vga_bridge_out: endpoint {
+					remote-endpoint = <&vga_con_in>;
+				};
+			};
+		};
+	};
+
+	vga {
+		compatible = "vga-connector";
+		label = "J30";
+
+		port {
+			vga_con_in: endpoint {
+				remote-endpoint = <&vga_bridge_out>;
+			};
+		};
+	};
+
+	serial@100000 {
+		compatible = "arm,pl011", "arm,primecell";
+		reg = <0x00100000 0x1000>;
+		interrupts-extended = <&impd1_vic 1>;
+		clocks = <&impd1_uartclk>, <&sysclk>;
+		clock-names = "uartclk", "apb_pclk";
+	};
+
+	serial@200000 {
+		compatible = "arm,pl011", "arm,primecell";
+		reg = <0x00200000 0x1000>;
+		interrupts-extended = <&impd1_vic 2>;
+		clocks = <&impd1_uartclk>, <&sysclk>;
+		clock-names = "uartclk", "apb_pclk";
+	};
+
+	spi@300000 {
+		compatible = "arm,pl022", "arm,primecell";
+		reg = <0x00300000 0x1000>;
+		interrupts-extended = <&impd1_vic 3>;
+		clocks = <&impd1_sspclk>, <&sysclk>;
+		clock-names = "sspclk", "apb_pclk";
+	};
+
+	impd1_gpio0: gpio@400000 {
+		compatible = "arm,pl061", "arm,primecell";
+		reg = <0x00400000 0x1000>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		interrupts-extended = <&impd1_vic 4>;
+		clocks = <&sysclk>;
+		clock-names = "apb_pclk";
+	};
+
+	impd1_gpio1: gpio@500000 {
+		compatible = "arm,pl061", "arm,primecell";
+		reg = <0x00500000 0x1000>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		interrupts-extended = <&impd1_vic 5>;
+		clocks = <&sysclk>;
+		clock-names = "apb_pclk";
+	};
+
+	rtc@600000 {
+		compatible = "arm,pl030", "arm,primecell";
+		reg = <0x00600000 0x1000>;
+		interrupts-extended = <&impd1_vic 6>;
+		clocks = <&sysclk>;
+		clock-names = "apb_pclk";
+	};
+
+	mmc@700000 {
+		compatible = "arm,pl181", "arm,primecell";
+		reg = <0x00700000 0x1000>;
+		interrupts-extended = <&impd1_vic 7>,
+				    <&impd1_vic 8>;
+		clocks = <&sysclk>, <&sysclk>;
+		clock-names = "mclk", "apb_pclk";
+		bus-width = <1>;
+		max-frequency = <515633>;
+		vmmc-supply = <&impd1_3v3>;
+		wp-gpios = <&impd1_gpio0 3 GPIO_ACTIVE_HIGH>;
+		cd-gpios = <&impd1_gpio0 4 GPIO_ACTIVE_LOW>;
+	};
+
+	aaci@800000 {
+		compatible = "arm,pl041", "arm,primecell";
+		reg = <0x00800000 0x1000>;
+		interrupts-extended = <&impd1_vic 9>;
+		clocks = <&sysclk>;
+		clock-names = "apb_pclk";
+	};
+
+	display@1000000 {
+		compatible = "arm,pl110", "arm,primecell";
+		reg = <0x01000000 0x1000>;
+		interrupts-extended = <&impd1_vic 11>;
+		clocks = <&vco1>, <&sysclk>;
+		clock-names = "clcdclk", "apb_pclk";
+		/* 640x480 16bpp @ 25.175MHz is 36827428 bytes/s */
+		max-memory-bandwidth = <40000000>;
+		memory-region = <&impd1_ram>;
+		dma-ranges;
+
+		port@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			clcd_pads_vga_dac: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&vga_bridge_in>;
+				arm,pl11x,tft-r0g0b0-pads = <0 8 16>;
+			};
+		};
+	};
+
+	impd1_vic: interrupt-controller@3000000 {
+		compatible = "arm,pl192-vic";
+		interrupt-controller;
+		#interrupt-cells = <1>;
+		reg = <0x03000000 0x1000>;
+		/* Valid interrupts, 0-9 and 11 */
+		valid-mask = <0x00000bff>;
+		/* LM site 0 has IRQ 9 on the PIC */
+		interrupts-extended = <&pic 9>;
+	};
+};

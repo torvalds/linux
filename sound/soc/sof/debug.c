@@ -1,9 +1,9 @@
-// SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 //
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2018 Intel Corporation. All rights reserved.
+// Copyright(c) 2018 Intel Corporation
 //
 // Author: Liam Girdwood <liam.r.girdwood@linux.intel.com>
 //
@@ -14,207 +14,10 @@
 #include <linux/debugfs.h>
 #include <linux/io.h>
 #include <linux/pm_runtime.h>
+#include <sound/sof/ext_manifest.h>
+#include <sound/sof/debug.h>
 #include "sof-priv.h"
 #include "ops.h"
-
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_IPC_FLOOD_TEST)
-#define MAX_IPC_FLOOD_DURATION_MS 1000
-#define MAX_IPC_FLOOD_COUNT 10000
-#define IPC_FLOOD_TEST_RESULT_LEN 512
-
-static int sof_debug_ipc_flood_test(struct snd_sof_dev *sdev,
-				    struct snd_sof_dfsentry *dfse,
-				    bool flood_duration_test,
-				    unsigned long ipc_duration_ms,
-				    unsigned long ipc_count)
-{
-	struct sof_ipc_cmd_hdr hdr;
-	struct sof_ipc_reply reply;
-	u64 min_response_time = U64_MAX;
-	ktime_t start, end, test_end;
-	u64 avg_response_time = 0;
-	u64 max_response_time = 0;
-	u64 ipc_response_time;
-	int i = 0;
-	int ret;
-
-	/* configure test IPC */
-	hdr.cmd = SOF_IPC_GLB_TEST_MSG | SOF_IPC_TEST_IPC_FLOOD;
-	hdr.size = sizeof(hdr);
-
-	/* set test end time for duration flood test */
-	if (flood_duration_test)
-		test_end = ktime_get_ns() + ipc_duration_ms * NSEC_PER_MSEC;
-
-	/* send test IPC's */
-	while (1) {
-		start = ktime_get();
-		ret = sof_ipc_tx_message(sdev->ipc, hdr.cmd, &hdr, hdr.size,
-					 &reply, sizeof(reply));
-		end = ktime_get();
-
-		if (ret < 0)
-			break;
-
-		/* compute min and max response times */
-		ipc_response_time = ktime_to_ns(ktime_sub(end, start));
-		min_response_time = min(min_response_time, ipc_response_time);
-		max_response_time = max(max_response_time, ipc_response_time);
-
-		/* sum up response times */
-		avg_response_time += ipc_response_time;
-		i++;
-
-		/* test complete? */
-		if (flood_duration_test) {
-			if (ktime_to_ns(end) >= test_end)
-				break;
-		} else {
-			if (i == ipc_count)
-				break;
-		}
-	}
-
-	if (ret < 0)
-		dev_err(sdev->dev,
-			"error: ipc flood test failed at %d iterations\n", i);
-
-	/* return if the first IPC fails */
-	if (!i)
-		return ret;
-
-	/* compute average response time */
-	do_div(avg_response_time, i);
-
-	/* clear previous test output */
-	memset(dfse->cache_buf, 0, IPC_FLOOD_TEST_RESULT_LEN);
-
-	if (flood_duration_test) {
-		dev_dbg(sdev->dev, "IPC Flood test duration: %lums\n",
-			ipc_duration_ms);
-		snprintf(dfse->cache_buf, IPC_FLOOD_TEST_RESULT_LEN,
-			 "IPC Flood test duration: %lums\n", ipc_duration_ms);
-	}
-
-	dev_dbg(sdev->dev,
-		"IPC Flood count: %d, Avg response time: %lluns\n",
-		i, avg_response_time);
-	dev_dbg(sdev->dev, "Max response time: %lluns\n",
-		max_response_time);
-	dev_dbg(sdev->dev, "Min response time: %lluns\n",
-		min_response_time);
-
-	/* format output string */
-	snprintf(dfse->cache_buf + strlen(dfse->cache_buf),
-		 IPC_FLOOD_TEST_RESULT_LEN - strlen(dfse->cache_buf),
-		 "IPC Flood count: %d\nAvg response time: %lluns\n",
-		 i, avg_response_time);
-
-	snprintf(dfse->cache_buf + strlen(dfse->cache_buf),
-		 IPC_FLOOD_TEST_RESULT_LEN - strlen(dfse->cache_buf),
-		 "Max response time: %lluns\nMin response time: %lluns\n",
-		 max_response_time, min_response_time);
-
-	return ret;
-}
-#endif
-
-static ssize_t sof_dfsentry_write(struct file *file, const char __user *buffer,
-				  size_t count, loff_t *ppos)
-{
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_IPC_FLOOD_TEST)
-	struct snd_sof_dfsentry *dfse = file->private_data;
-	struct snd_sof_dev *sdev = dfse->sdev;
-	unsigned long ipc_duration_ms = 0;
-	bool flood_duration_test = false;
-	unsigned long ipc_count = 0;
-	struct dentry *dentry;
-	int err;
-#endif
-	size_t size;
-	char *string;
-	int ret;
-
-	string = kzalloc(count, GFP_KERNEL);
-	if (!string)
-		return -ENOMEM;
-
-	size = simple_write_to_buffer(string, count, ppos, buffer, count);
-	ret = size;
-
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_IPC_FLOOD_TEST)
-	/*
-	 * write op is only supported for ipc_flood_count or
-	 * ipc_flood_duration_ms debugfs entries atm.
-	 * ipc_flood_count floods the DSP with the number of IPC's specified.
-	 * ipc_duration_ms test floods the DSP for the time specified
-	 * in the debugfs entry.
-	 */
-	dentry = file->f_path.dentry;
-	if (strcmp(dentry->d_name.name, "ipc_flood_count") &&
-	    strcmp(dentry->d_name.name, "ipc_flood_duration_ms"))
-		return -EINVAL;
-
-	if (!strcmp(dentry->d_name.name, "ipc_flood_duration_ms"))
-		flood_duration_test = true;
-
-	/* test completion criterion */
-	if (flood_duration_test)
-		ret = kstrtoul(string, 0, &ipc_duration_ms);
-	else
-		ret = kstrtoul(string, 0, &ipc_count);
-	if (ret < 0)
-		goto out;
-
-	/* limit max duration/ipc count for flood test */
-	if (flood_duration_test) {
-		if (!ipc_duration_ms) {
-			ret = size;
-			goto out;
-		}
-
-		/* find the minimum. min() is not used to avoid warnings */
-		if (ipc_duration_ms > MAX_IPC_FLOOD_DURATION_MS)
-			ipc_duration_ms = MAX_IPC_FLOOD_DURATION_MS;
-	} else {
-		if (!ipc_count) {
-			ret = size;
-			goto out;
-		}
-
-		/* find the minimum. min() is not used to avoid warnings */
-		if (ipc_count > MAX_IPC_FLOOD_COUNT)
-			ipc_count = MAX_IPC_FLOOD_COUNT;
-	}
-
-	ret = pm_runtime_get_sync(sdev->dev);
-	if (ret < 0) {
-		dev_err_ratelimited(sdev->dev,
-				    "error: debugfs write failed to resume %d\n",
-				    ret);
-		pm_runtime_put_noidle(sdev->dev);
-		goto out;
-	}
-
-	/* flood test */
-	ret = sof_debug_ipc_flood_test(sdev, dfse, flood_duration_test,
-				       ipc_duration_ms, ipc_count);
-
-	pm_runtime_mark_last_busy(sdev->dev);
-	err = pm_runtime_put_autosuspend(sdev->dev);
-	if (err < 0)
-		dev_err_ratelimited(sdev->dev,
-				    "error: debugfs write failed to idle %d\n",
-				    err);
-
-	/* return size if test is successful */
-	if (ret >= 0)
-		ret = size;
-out:
-#endif
-	kfree(string);
-	return ret;
-}
 
 static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 				 size_t count, loff_t *ppos)
@@ -227,25 +30,6 @@ static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 	int size;
 	u8 *buf;
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_IPC_FLOOD_TEST)
-	struct dentry *dentry;
-
-	dentry = file->f_path.dentry;
-	if ((!strcmp(dentry->d_name.name, "ipc_flood_count") ||
-	     !strcmp(dentry->d_name.name, "ipc_flood_duration_ms")) &&
-	    dfse->cache_buf) {
-		if (*ppos)
-			return 0;
-
-		count = strlen(dfse->cache_buf);
-		size_ret = copy_to_user(buffer, dfse->cache_buf, count);
-		if (size_ret)
-			return -EFAULT;
-
-		*ppos += count;
-		return count;
-	}
-#endif
 	size = dfse->size;
 
 	/* validate position & count */
@@ -324,14 +108,13 @@ static const struct file_operations sof_dfs_fops = {
 	.open = simple_open,
 	.read = sof_dfsentry_read,
 	.llseek = default_llseek,
-	.write = sof_dfsentry_write,
 };
 
 /* create FS entry for debug files that can expose DSP memories, registers */
-int snd_sof_debugfs_io_item(struct snd_sof_dev *sdev,
-			    void __iomem *base, size_t size,
-			    const char *name,
-			    enum sof_debugfs_access_type access_type)
+static int snd_sof_debugfs_io_item(struct snd_sof_dev *sdev,
+				   void __iomem *base, size_t size,
+				   const char *name,
+				   enum sof_debugfs_access_type access_type)
 {
 	struct snd_sof_dfsentry *dfse;
 
@@ -368,7 +151,21 @@ int snd_sof_debugfs_io_item(struct snd_sof_dev *sdev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(snd_sof_debugfs_io_item);
+
+int snd_sof_debugfs_add_region_item_iomem(struct snd_sof_dev *sdev,
+					  enum snd_sof_fw_blk_type blk_type, u32 offset,
+					  size_t size, const char *name,
+					  enum sof_debugfs_access_type access_type)
+{
+	int bar = snd_sof_dsp_get_bar_index(sdev, blk_type);
+
+	if (bar < 0)
+		return bar;
+
+	return snd_sof_debugfs_io_item(sdev, sdev->bar[bar] + offset, size, name,
+				       access_type);
+}
+EXPORT_SYMBOL_GPL(snd_sof_debugfs_add_region_item_iomem);
 
 /* create FS entry for debug files to expose kernel memory */
 int snd_sof_debugfs_buf_item(struct snd_sof_dev *sdev,
@@ -389,17 +186,6 @@ int snd_sof_debugfs_buf_item(struct snd_sof_dev *sdev,
 	dfse->size = size;
 	dfse->sdev = sdev;
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_IPC_FLOOD_TEST)
-	/*
-	 * cache_buf is unused for SOF_DFSENTRY_TYPE_BUF debugfs entries.
-	 * So, use it to save the results of the last IPC flood test.
-	 */
-	dfse->cache_buf = devm_kzalloc(sdev->dev, IPC_FLOOD_TEST_RESULT_LEN,
-				       GFP_KERNEL);
-	if (!dfse->cache_buf)
-		return -ENOMEM;
-#endif
-
 	debugfs_create_file(name, mode, sdev->debugfs_root, dfse,
 			    &sof_dfs_fops);
 	/* add to dfsentry list */
@@ -409,15 +195,166 @@ int snd_sof_debugfs_buf_item(struct snd_sof_dev *sdev,
 }
 EXPORT_SYMBOL_GPL(snd_sof_debugfs_buf_item);
 
+static int memory_info_update(struct snd_sof_dev *sdev, char *buf, size_t buff_size)
+{
+	struct sof_ipc_cmd_hdr msg = {
+		.size = sizeof(struct sof_ipc_cmd_hdr),
+		.cmd = SOF_IPC_GLB_DEBUG | SOF_IPC_DEBUG_MEM_USAGE,
+	};
+	struct sof_ipc_dbg_mem_usage *reply;
+	int len;
+	int ret;
+	int i;
+
+	reply = kmalloc(SOF_IPC_MSG_MAX_SIZE, GFP_KERNEL);
+	if (!reply)
+		return -ENOMEM;
+
+	ret = pm_runtime_resume_and_get(sdev->dev);
+	if (ret < 0 && ret != -EACCES) {
+		dev_err(sdev->dev, "error: enabling device failed: %d\n", ret);
+		goto error;
+	}
+
+	ret = sof_ipc_tx_message(sdev->ipc, &msg, msg.size, reply, SOF_IPC_MSG_MAX_SIZE);
+	pm_runtime_mark_last_busy(sdev->dev);
+	pm_runtime_put_autosuspend(sdev->dev);
+	if (ret < 0 || reply->rhdr.error < 0) {
+		ret = min(ret, reply->rhdr.error);
+		dev_err(sdev->dev, "error: reading memory info failed, %d\n", ret);
+		goto error;
+	}
+
+	if (struct_size(reply, elems, reply->num_elems) != reply->rhdr.hdr.size) {
+		dev_err(sdev->dev, "error: invalid memory info ipc struct size, %d\n",
+			reply->rhdr.hdr.size);
+		ret = -EINVAL;
+		goto error;
+	}
+
+	for (i = 0, len = 0; i < reply->num_elems; i++) {
+		ret = scnprintf(buf + len, buff_size - len, "zone %d.%d used %#8x free %#8x\n",
+				reply->elems[i].zone, reply->elems[i].id,
+				reply->elems[i].used, reply->elems[i].free);
+		if (ret < 0)
+			goto error;
+		len += ret;
+	}
+
+	ret = len;
+error:
+	kfree(reply);
+	return ret;
+}
+
+static ssize_t memory_info_read(struct file *file, char __user *to, size_t count, loff_t *ppos)
+{
+	struct snd_sof_dfsentry *dfse = file->private_data;
+	struct snd_sof_dev *sdev = dfse->sdev;
+	int data_length;
+
+	/* read memory info from FW only once for each file read */
+	if (!*ppos) {
+		dfse->buf_data_size = 0;
+		data_length = memory_info_update(sdev, dfse->buf, dfse->size);
+		if (data_length < 0)
+			return data_length;
+		dfse->buf_data_size = data_length;
+	}
+
+	return simple_read_from_buffer(to, count, ppos, dfse->buf, dfse->buf_data_size);
+}
+
+static int memory_info_open(struct inode *inode, struct file *file)
+{
+	struct snd_sof_dfsentry *dfse = inode->i_private;
+	struct snd_sof_dev *sdev = dfse->sdev;
+
+	file->private_data = dfse;
+
+	/* allocate buffer memory only in first open run, to save memory when unused */
+	if (!dfse->buf) {
+		dfse->buf = devm_kmalloc(sdev->dev, PAGE_SIZE, GFP_KERNEL);
+		if (!dfse->buf)
+			return -ENOMEM;
+		dfse->size = PAGE_SIZE;
+	}
+
+	return 0;
+}
+
+static const struct file_operations memory_info_fops = {
+	.open = memory_info_open,
+	.read = memory_info_read,
+	.llseek = default_llseek,
+};
+
+int snd_sof_dbg_memory_info_init(struct snd_sof_dev *sdev)
+{
+	struct snd_sof_dfsentry *dfse;
+
+	dfse = devm_kzalloc(sdev->dev, sizeof(*dfse), GFP_KERNEL);
+	if (!dfse)
+		return -ENOMEM;
+
+	/* don't allocate buffer before first usage, to save memory when unused */
+	dfse->type = SOF_DFSENTRY_TYPE_BUF;
+	dfse->sdev = sdev;
+
+	debugfs_create_file("memory_info", 0444, sdev->debugfs_root, dfse, &memory_info_fops);
+
+	/* add to dfsentry list */
+	list_add(&dfse->list, &sdev->dfsentry_list);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_sof_dbg_memory_info_init);
+
 int snd_sof_dbg_init(struct snd_sof_dev *sdev)
 {
 	const struct snd_sof_dsp_ops *ops = sof_ops(sdev);
+	struct snd_sof_pdata *plat_data = sdev->pdata;
 	const struct snd_sof_debugfs_map *map;
+	struct dentry *fw_profile;
 	int i;
 	int err;
 
 	/* use "sof" as top level debugFS dir */
 	sdev->debugfs_root = debugfs_create_dir("sof", NULL);
+
+	/* expose firmware/topology prefix/names for test purposes */
+	fw_profile = debugfs_create_dir("fw_profile", sdev->debugfs_root);
+
+	debugfs_create_str("fw_path", 0444, fw_profile,
+			   (char **)&plat_data->fw_filename_prefix);
+	/* library path is not valid for IPC3 */
+	if (plat_data->ipc_type != SOF_IPC_TYPE_3) {
+		/*
+		 * fw_lib_prefix can be NULL if the vendor/platform does not
+		 * support loadable libraries
+		 */
+		if (plat_data->fw_lib_prefix) {
+			debugfs_create_str("fw_lib_path", 0444, fw_profile,
+					   (char **)&plat_data->fw_lib_prefix);
+		} else {
+			static char *fw_lib_path;
+
+			fw_lib_path = devm_kasprintf(sdev->dev, GFP_KERNEL,
+						     "Not supported");
+			if (!fw_lib_path)
+				return -ENOMEM;
+
+			debugfs_create_str("fw_lib_path", 0444, fw_profile,
+					   (char **)&fw_lib_path);
+		}
+	}
+	debugfs_create_str("tplg_path", 0444, fw_profile,
+			   (char **)&plat_data->tplg_filename_prefix);
+	debugfs_create_str("fw_name", 0444, fw_profile,
+			   (char **)&plat_data->fw_filename);
+	debugfs_create_str("tplg_name", 0444, fw_profile,
+			   (char **)&plat_data->tplg_filename);
+	debugfs_create_u32("ipc_type", 0444, fw_profile,
+			   (u32 *)&plat_data->ipc_type);
 
 	/* init dfsentry list */
 	INIT_LIST_HEAD(&sdev->dfsentry_list);
@@ -434,25 +371,9 @@ int snd_sof_dbg_init(struct snd_sof_dev *sdev)
 			return err;
 	}
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_IPC_FLOOD_TEST)
-	/* create read-write ipc_flood_count debugfs entry */
-	err = snd_sof_debugfs_buf_item(sdev, NULL, 0,
-				       "ipc_flood_count", 0666);
-
-	/* errors are only due to memory allocation, not debugfs */
-	if (err < 0)
-		return err;
-
-	/* create read-write ipc_flood_duration_ms debugfs entry */
-	err = snd_sof_debugfs_buf_item(sdev, NULL, 0,
-				       "ipc_flood_duration_ms", 0666);
-
-	/* errors are only due to memory allocation, not debugfs */
-	if (err < 0)
-		return err;
-#endif
-
-	return 0;
+	return snd_sof_debugfs_buf_item(sdev, &sdev->fw_state,
+					sizeof(sdev->fw_state),
+					"fw_state", 0444);
 }
 EXPORT_SYMBOL_GPL(snd_sof_dbg_init);
 
@@ -461,3 +382,89 @@ void snd_sof_free_debug(struct snd_sof_dev *sdev)
 	debugfs_remove_recursive(sdev->debugfs_root);
 }
 EXPORT_SYMBOL_GPL(snd_sof_free_debug);
+
+static const struct soc_fw_state_info {
+	enum sof_fw_state state;
+	const char *name;
+} fw_state_dbg[] = {
+	{SOF_FW_BOOT_NOT_STARTED, "SOF_FW_BOOT_NOT_STARTED"},
+	{SOF_DSPLESS_MODE, "SOF_DSPLESS_MODE"},
+	{SOF_FW_BOOT_PREPARE, "SOF_FW_BOOT_PREPARE"},
+	{SOF_FW_BOOT_IN_PROGRESS, "SOF_FW_BOOT_IN_PROGRESS"},
+	{SOF_FW_BOOT_FAILED, "SOF_FW_BOOT_FAILED"},
+	{SOF_FW_BOOT_READY_FAILED, "SOF_FW_BOOT_READY_FAILED"},
+	{SOF_FW_BOOT_READY_OK, "SOF_FW_BOOT_READY_OK"},
+	{SOF_FW_BOOT_COMPLETE, "SOF_FW_BOOT_COMPLETE"},
+	{SOF_FW_CRASHED, "SOF_FW_CRASHED"},
+};
+
+static void snd_sof_dbg_print_fw_state(struct snd_sof_dev *sdev, const char *level)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(fw_state_dbg); i++) {
+		if (sdev->fw_state == fw_state_dbg[i].state) {
+			dev_printk(level, sdev->dev, "fw_state: %s (%d)\n",
+				   fw_state_dbg[i].name, i);
+			return;
+		}
+	}
+
+	dev_printk(level, sdev->dev, "fw_state: UNKNOWN (%d)\n", sdev->fw_state);
+}
+
+void snd_sof_dsp_dbg_dump(struct snd_sof_dev *sdev, const char *msg, u32 flags)
+{
+	char *level = (flags & SOF_DBG_DUMP_OPTIONAL) ? KERN_DEBUG : KERN_ERR;
+	bool print_all = sof_debug_check_flag(SOF_DBG_PRINT_ALL_DUMPS);
+
+	if (flags & SOF_DBG_DUMP_OPTIONAL && !print_all)
+		return;
+
+	if (sof_ops(sdev)->dbg_dump && !sdev->dbg_dump_printed) {
+		dev_printk(level, sdev->dev,
+			   "------------[ DSP dump start ]------------\n");
+		if (msg)
+			dev_printk(level, sdev->dev, "%s\n", msg);
+		snd_sof_dbg_print_fw_state(sdev, level);
+		sof_ops(sdev)->dbg_dump(sdev, flags);
+		dev_printk(level, sdev->dev,
+			   "------------[ DSP dump end ]------------\n");
+		if (!print_all)
+			sdev->dbg_dump_printed = true;
+	} else if (msg) {
+		dev_printk(level, sdev->dev, "%s\n", msg);
+	}
+}
+EXPORT_SYMBOL(snd_sof_dsp_dbg_dump);
+
+static void snd_sof_ipc_dump(struct snd_sof_dev *sdev)
+{
+	if (sof_ops(sdev)->ipc_dump  && !sdev->ipc_dump_printed) {
+		dev_err(sdev->dev, "------------[ IPC dump start ]------------\n");
+		sof_ops(sdev)->ipc_dump(sdev);
+		dev_err(sdev->dev, "------------[ IPC dump end ]------------\n");
+		if (!sof_debug_check_flag(SOF_DBG_PRINT_ALL_DUMPS))
+			sdev->ipc_dump_printed = true;
+	}
+}
+
+void snd_sof_handle_fw_exception(struct snd_sof_dev *sdev, const char *msg)
+{
+	if ((IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_RETAIN_DSP_CONTEXT) ||
+	    sof_debug_check_flag(SOF_DBG_RETAIN_CTX)) && !sdev->d3_prevented) {
+		/* should we prevent DSP entering D3 ? */
+		if (!sdev->ipc_dump_printed)
+			dev_info(sdev->dev,
+				 "Attempting to prevent DSP from entering D3 state to preserve context\n");
+
+		if (pm_runtime_get_if_in_use(sdev->dev) == 1)
+			sdev->d3_prevented = true;
+	}
+
+	/* dump vital information to the logs */
+	snd_sof_ipc_dump(sdev);
+	snd_sof_dsp_dbg_dump(sdev, msg, SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_MBOX);
+	sof_fw_trace_fw_crashed(sdev);
+}
+EXPORT_SYMBOL(snd_sof_handle_fw_exception);

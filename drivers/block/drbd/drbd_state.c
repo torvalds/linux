@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+// SPDX-License-Identifier: GPL-2.0-only
 /*
    drbd_state.c
 
@@ -904,9 +904,9 @@ out:
  * is_valid_soft_transition() - Returns an SS_ error code if the state transition is not possible
  * This function limits state transitions that may be declined by DRBD. I.e.
  * user requests (aka soft transitions).
- * @device:	DRBD device.
- * @ns:		new state.
  * @os:		old state.
+ * @ns:		new state.
+ * @connection:  DRBD connection.
  */
 static enum drbd_state_rv
 is_valid_soft_transition(union drbd_state os, union drbd_state ns, struct drbd_connection *connection)
@@ -1044,7 +1044,7 @@ static void print_sanitize_warnings(struct drbd_device *device, enum sanitize_st
  * @device:	DRBD device.
  * @os:		old state.
  * @ns:		new state.
- * @warn_sync_abort:
+ * @warn:	placeholder for returned state warning.
  *
  * When we loose connection, we have to set the state of the peers disk (pdsk)
  * to D_UNKNOWN. This rule and many more along those lines are in this function.
@@ -1222,9 +1222,11 @@ void drbd_resume_al(struct drbd_device *device)
 }
 
 /* helper for _drbd_set_state */
-static void set_ov_position(struct drbd_device *device, enum drbd_conns cs)
+static void set_ov_position(struct drbd_peer_device *peer_device, enum drbd_conns cs)
 {
-	if (first_peer_device(device)->connection->agreed_pro_version < 90)
+	struct drbd_device *device = peer_device->device;
+
+	if (peer_device->connection->agreed_pro_version < 90)
 		device->ov_start_sector = 0;
 	device->rs_total = drbd_bm_bits(device);
 	device->ov_position = 0;
@@ -1387,7 +1389,7 @@ _drbd_set_state(struct drbd_device *device, union drbd_state ns,
 		unsigned long now = jiffies;
 		int i;
 
-		set_ov_position(device, ns.conn);
+		set_ov_position(peer_device, ns.conn);
 		device->rs_start = now;
 		device->rs_last_sect_ev = 0;
 		device->ov_last_oos_size = 0;
@@ -1398,7 +1400,7 @@ _drbd_set_state(struct drbd_device *device, union drbd_state ns,
 			device->rs_mark_time[i] = now;
 		}
 
-		drbd_rs_controller_reset(device);
+		drbd_rs_controller_reset(peer_device);
 
 		if (ns.conn == C_VERIFY_S) {
 			drbd_info(device, "Starting Online Verify from sector %llu\n",
@@ -1518,8 +1520,9 @@ static void abw_start_sync(struct drbd_device *device, int rv)
 }
 
 int drbd_bitmap_io_from_worker(struct drbd_device *device,
-		int (*io_fn)(struct drbd_device *),
-		char *why, enum bm_flag flags)
+		int (*io_fn)(struct drbd_device *, struct drbd_peer_device *),
+		char *why, enum bm_flag flags,
+		struct drbd_peer_device *peer_device)
 {
 	int rv;
 
@@ -1529,7 +1532,7 @@ int drbd_bitmap_io_from_worker(struct drbd_device *device,
 	atomic_inc(&device->suspend_cnt);
 
 	drbd_bm_lock(device, why, flags);
-	rv = io_fn(device);
+	rv = io_fn(device, peer_device);
 	drbd_bm_unlock(device);
 
 	drbd_resume_io(device);
@@ -1537,11 +1540,12 @@ int drbd_bitmap_io_from_worker(struct drbd_device *device,
 	return rv;
 }
 
-void notify_resource_state_change(struct sk_buff *skb,
+int notify_resource_state_change(struct sk_buff *skb,
 				  unsigned int seq,
-				  struct drbd_resource_state_change *resource_state_change,
+				  void *state_change,
 				  enum drbd_notification_type type)
 {
+	struct drbd_resource_state_change *resource_state_change = state_change;
 	struct drbd_resource *resource = resource_state_change->resource;
 	struct resource_info resource_info = {
 		.res_role = resource_state_change->role[NEW],
@@ -1550,41 +1554,44 @@ void notify_resource_state_change(struct sk_buff *skb,
 		.res_susp_fen = resource_state_change->susp_fen[NEW],
 	};
 
-	notify_resource_state(skb, seq, resource, &resource_info, type);
+	return notify_resource_state(skb, seq, resource, &resource_info, type);
 }
 
-void notify_connection_state_change(struct sk_buff *skb,
+int notify_connection_state_change(struct sk_buff *skb,
 				    unsigned int seq,
-				    struct drbd_connection_state_change *connection_state_change,
+				    void *state_change,
 				    enum drbd_notification_type type)
 {
-	struct drbd_connection *connection = connection_state_change->connection;
+	struct drbd_connection_state_change *p = state_change;
+	struct drbd_connection *connection = p->connection;
 	struct connection_info connection_info = {
-		.conn_connection_state = connection_state_change->cstate[NEW],
-		.conn_role = connection_state_change->peer_role[NEW],
+		.conn_connection_state = p->cstate[NEW],
+		.conn_role = p->peer_role[NEW],
 	};
 
-	notify_connection_state(skb, seq, connection, &connection_info, type);
+	return notify_connection_state(skb, seq, connection, &connection_info, type);
 }
 
-void notify_device_state_change(struct sk_buff *skb,
+int notify_device_state_change(struct sk_buff *skb,
 				unsigned int seq,
-				struct drbd_device_state_change *device_state_change,
+				void *state_change,
 				enum drbd_notification_type type)
 {
+	struct drbd_device_state_change *device_state_change = state_change;
 	struct drbd_device *device = device_state_change->device;
 	struct device_info device_info = {
 		.dev_disk_state = device_state_change->disk_state[NEW],
 	};
 
-	notify_device_state(skb, seq, device, &device_info, type);
+	return notify_device_state(skb, seq, device, &device_info, type);
 }
 
-void notify_peer_device_state_change(struct sk_buff *skb,
+int notify_peer_device_state_change(struct sk_buff *skb,
 				     unsigned int seq,
-				     struct drbd_peer_device_state_change *p,
+				     void *state_change,
 				     enum drbd_notification_type type)
 {
+	struct drbd_peer_device_state_change *p = state_change;
 	struct drbd_peer_device *peer_device = p->peer_device;
 	struct peer_device_info peer_device_info = {
 		.peer_repl_state = p->repl_state[NEW],
@@ -1594,7 +1601,7 @@ void notify_peer_device_state_change(struct sk_buff *skb,
 		.peer_resync_susp_dependency = p->resync_susp_dependency[NEW],
 	};
 
-	notify_peer_device_state(skb, seq, peer_device, &peer_device_info, type);
+	return notify_peer_device_state(skb, seq, peer_device, &peer_device_info, type);
 }
 
 static void broadcast_state_change(struct drbd_state_change *state_change)
@@ -1602,9 +1609,9 @@ static void broadcast_state_change(struct drbd_state_change *state_change)
 	struct drbd_resource_state_change *resource_state_change = &state_change->resource[0];
 	bool resource_state_has_changed;
 	unsigned int n_device, n_connection, n_peer_device, n_peer_devices;
-	void (*last_func)(struct sk_buff *, unsigned int, void *,
-			  enum drbd_notification_type) = NULL;
-	void *uninitialized_var(last_arg);
+	int (*last_func)(struct sk_buff *, unsigned int,
+		void *, enum drbd_notification_type) = NULL;
+	void *last_arg = NULL;
 
 #define HAS_CHANGED(state) ((state)[OLD] != (state)[NEW])
 #define FINAL_STATE_CHANGE(type) \
@@ -1613,7 +1620,7 @@ static void broadcast_state_change(struct drbd_state_change *state_change)
 	})
 #define REMEMBER_STATE_CHANGE(func, arg, type) \
 	({ FINAL_STATE_CHANGE(type | NOTIFY_CONTINUES); \
-	   last_func = (typeof(last_func))func; \
+	   last_func = func; \
 	   last_arg = arg; \
 	 })
 
@@ -1696,6 +1703,7 @@ static bool lost_contact_to_peer_data(enum drbd_disk_state os, enum drbd_disk_st
  * @os:		old state.
  * @ns:		new state.
  * @flags:	Flags
+ * @state_change: state change to broadcast
  */
 static void after_state_ch(struct drbd_device *device, union drbd_state os,
 			   union drbd_state ns, enum chg_state_flags flags,
@@ -1808,7 +1816,7 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 	    device->state.conn == C_WF_BITMAP_S)
 		drbd_queue_bitmap_io(device, &drbd_send_bitmap, NULL,
 				"send_bitmap (WFBitMapS)",
-				BM_LOCKED_TEST_ALLOWED);
+				BM_LOCKED_TEST_ALLOWED, peer_device);
 
 	/* Lost contact to peer's copy of the data */
 	if (lost_contact_to_peer_data(os.pdsk, ns.pdsk)) {
@@ -1838,7 +1846,7 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 			 * No harm done if the bitmap still changes,
 			 * redirtied pages will follow later. */
 			drbd_bitmap_io_from_worker(device, &drbd_bm_write,
-				"demote diskless peer", BM_LOCKED_SET_ALLOWED);
+				"demote diskless peer", BM_LOCKED_SET_ALLOWED, peer_device);
 		put_ldev(device);
 	}
 
@@ -1850,7 +1858,7 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 		/* No changes to the bitmap expected this time, so assert that,
 		 * even though no harm was done if it did change. */
 		drbd_bitmap_io_from_worker(device, &drbd_bm_write,
-				"demote", BM_LOCKED_TEST_ALLOWED);
+				"demote", BM_LOCKED_TEST_ALLOWED, peer_device);
 		put_ldev(device);
 	}
 
@@ -1887,7 +1895,8 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 		/* no other bitmap changes expected during this phase */
 		drbd_queue_bitmap_io(device,
 			&drbd_bmio_set_n_write, &abw_start_sync,
-			"set_n_write from StartingSync", BM_LOCKED_TEST_ALLOWED);
+			"set_n_write from StartingSync", BM_LOCKED_TEST_ALLOWED,
+			peer_device);
 
 	/* first half of local IO error, failure to attach,
 	 * or administrative detach */
@@ -2010,7 +2019,8 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 	if ((os.conn > C_CONNECTED && os.conn < C_AHEAD) &&
 	    (ns.conn == C_CONNECTED || ns.conn >= C_AHEAD) && get_ldev(device)) {
 		drbd_queue_bitmap_io(device, &drbd_bm_write_copy_pages, NULL,
-			"write from resync_finished", BM_LOCKED_CHANGE_ALLOWED);
+			"write from resync_finished", BM_LOCKED_CHANGE_ALLOWED,
+			peer_device);
 		put_ldev(device);
 	}
 
@@ -2070,8 +2080,7 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
 		conn_free_crypto(connection);
 		mutex_unlock(&connection->resource->conf_update);
 
-		synchronize_rcu();
-		kfree(old_conf);
+		kvfree_rcu_mightsleep(old_conf);
 	}
 
 	if (ns_max.susp_fen) {

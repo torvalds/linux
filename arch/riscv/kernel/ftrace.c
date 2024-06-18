@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2013 Linaro Limited
  * Author: AKASHI Takahiro <takahiro.akashi@linaro.org>
@@ -7,9 +7,31 @@
 
 #include <linux/ftrace.h>
 #include <linux/uaccess.h>
+#include <linux/memory.h>
+#include <linux/stop_machine.h>
 #include <asm/cacheflush.h>
+#include <asm/patch.h>
 
 #ifdef CONFIG_DYNAMIC_FTRACE
+void ftrace_arch_code_modify_prepare(void) __acquires(&text_mutex)
+{
+	mutex_lock(&text_mutex);
+
+	/*
+	 * The code sequences we use for ftrace can't be patched while the
+	 * kernel is running, so we need to use stop_machine() to modify them
+	 * for now.  This doesn't play nice with text_mutex, we use this flag
+	 * to elide the check.
+	 */
+	riscv_patch_in_stop_machine = true;
+}
+
+void ftrace_arch_code_modify_post_process(void) __releases(&text_mutex)
+{
+	riscv_patch_in_stop_machine = false;
+	mutex_unlock(&text_mutex);
+}
+
 static int ftrace_check_current_call(unsigned long hook_pos,
 				     unsigned int *expected)
 {
@@ -24,7 +46,8 @@ static int ftrace_check_current_call(unsigned long hook_pos,
 	 * Read the text we want to modify;
 	 * return must be -EFAULT on read error
 	 */
-	if (probe_kernel_read(replaced, (void *)hook_pos, MCOUNT_INSN_SIZE))
+	if (copy_from_kernel_nofault(replaced, (void *)hook_pos,
+			MCOUNT_INSN_SIZE))
 		return -EFAULT;
 
 	/*
@@ -42,84 +65,127 @@ static int ftrace_check_current_call(unsigned long hook_pos,
 }
 
 static int __ftrace_modify_call(unsigned long hook_pos, unsigned long target,
-				bool enable)
+				bool enable, bool ra)
 {
 	unsigned int call[2];
 	unsigned int nops[2] = {NOP4, NOP4};
-	int ret = 0;
 
-	make_call(hook_pos, target, call);
+	if (ra)
+		make_call_ra(hook_pos, target, call);
+	else
+		make_call_t0(hook_pos, target, call);
 
-	/* replace the auipc-jalr pair at once */
-	ret = probe_kernel_write((void *)hook_pos, enable ? call : nops,
-				 MCOUNT_INSN_SIZE);
-	/* return must be -EPERM on write error */
-	if (ret)
+	/* Replace the auipc-jalr pair at once. Return -EPERM on write error. */
+	if (patch_insn_write((void *)hook_pos, enable ? call : nops, MCOUNT_INSN_SIZE))
 		return -EPERM;
-
-	smp_mb();
-	flush_icache_range((void *)hook_pos, (void *)hook_pos + MCOUNT_INSN_SIZE);
 
 	return 0;
 }
 
 int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 {
-	int ret = ftrace_check_current_call(rec->ip, NULL);
+	unsigned int call[2];
 
-	if (ret)
-		return ret;
+	make_call_t0(rec->ip, addr, call);
 
-	return __ftrace_modify_call(rec->ip, addr, true);
+	if (patch_insn_write((void *)rec->ip, call, MCOUNT_INSN_SIZE))
+		return -EPERM;
+
+	return 0;
 }
 
 int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
 		    unsigned long addr)
 {
-	unsigned int call[2];
-	int ret;
+	unsigned int nops[2] = {NOP4, NOP4};
 
-	make_call(rec->ip, addr, call);
-	ret = ftrace_check_current_call(rec->ip, call);
+	if (patch_insn_write((void *)rec->ip, nops, MCOUNT_INSN_SIZE))
+		return -EPERM;
 
-	if (ret)
-		return ret;
+	return 0;
+}
 
-	return __ftrace_modify_call(rec->ip, addr, false);
+/*
+ * This is called early on, and isn't wrapped by
+ * ftrace_arch_code_modify_{prepare,post_process}() and therefor doesn't hold
+ * text_mutex, which triggers a lockdep failure.  SMP isn't running so we could
+ * just directly poke the text, but it's simpler to just take the lock
+ * ourselves.
+ */
+int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec)
+{
+	int out;
+
+	mutex_lock(&text_mutex);
+	out = ftrace_make_nop(mod, rec, MCOUNT_ADDR);
+	mutex_unlock(&text_mutex);
+
+	if (!mod)
+		local_flush_icache_range(rec->ip, rec->ip + MCOUNT_INSN_SIZE);
+
+	return out;
 }
 
 int ftrace_update_ftrace_func(ftrace_func_t func)
 {
 	int ret = __ftrace_modify_call((unsigned long)&ftrace_call,
-				       (unsigned long)func, true);
-	if (!ret) {
-		ret = __ftrace_modify_call((unsigned long)&ftrace_regs_call,
-					   (unsigned long)func, true);
-	}
+				       (unsigned long)func, true, true);
 
 	return ret;
 }
 
-int __init ftrace_dyn_arch_init(void)
+struct ftrace_modify_param {
+	int command;
+	atomic_t cpu_count;
+};
+
+static int __ftrace_modify_code(void *data)
 {
+	struct ftrace_modify_param *param = data;
+
+	if (atomic_inc_return(&param->cpu_count) == num_online_cpus()) {
+		ftrace_modify_all_code(param->command);
+		/*
+		 * Make sure the patching store is effective *before* we
+		 * increment the counter which releases all waiting CPUs
+		 * by using the release variant of atomic increment. The
+		 * release pairs with the call to local_flush_icache_all()
+		 * on the waiting CPU.
+		 */
+		atomic_inc_return_release(&param->cpu_count);
+	} else {
+		while (atomic_read(&param->cpu_count) <= num_online_cpus())
+			cpu_relax();
+	}
+
+	local_flush_icache_all();
+
 	return 0;
+}
+
+void arch_ftrace_update_code(int command)
+{
+	struct ftrace_modify_param param = { command, ATOMIC_INIT(0) };
+
+	stop_machine(__ftrace_modify_code, &param, cpu_online_mask);
 }
 #endif
 
-#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
 int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 		       unsigned long addr)
 {
 	unsigned int call[2];
+	unsigned long caller = rec->ip;
 	int ret;
 
-	make_call(rec->ip, old_addr, call);
-	ret = ftrace_check_current_call(rec->ip, call);
+	make_call_t0(caller, old_addr, call);
+	ret = ftrace_check_current_call(caller, call);
 
 	if (ret)
 		return ret;
 
-	return __ftrace_modify_call(rec->ip, addr, true);
+	return __ftrace_modify_call(caller, addr, true, false);
 }
 #endif
 
@@ -142,60 +208,30 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 	 */
 	old = *parent;
 
-	if (function_graph_enter(old, self_addr, frame_pointer, parent))
+	if (!function_graph_enter(old, self_addr, frame_pointer, parent))
 		*parent = return_hooker;
 }
 
 #ifdef CONFIG_DYNAMIC_FTRACE
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_ARGS
+void ftrace_graph_func(unsigned long ip, unsigned long parent_ip,
+		       struct ftrace_ops *op, struct ftrace_regs *fregs)
+{
+	prepare_ftrace_return(&fregs->ra, ip, fregs->s0);
+}
+#else /* CONFIG_DYNAMIC_FTRACE_WITH_ARGS */
 extern void ftrace_graph_call(void);
 int ftrace_enable_ftrace_graph_caller(void)
 {
-	unsigned int call[2];
-	static int init_graph = 1;
-	int ret;
-
-	make_call(&ftrace_graph_call, &ftrace_stub, call);
-
-	/*
-	 * When enabling graph tracer for the first time, ftrace_graph_call
-	 * should contains a call to ftrace_stub.  Once it has been disabled,
-	 * the 8-bytes at the position becomes NOPs.
-	 */
-	if (init_graph) {
-		ret = ftrace_check_current_call((unsigned long)&ftrace_graph_call,
-						call);
-		init_graph = 0;
-	} else {
-		ret = ftrace_check_current_call((unsigned long)&ftrace_graph_call,
-						NULL);
-	}
-
-	if (ret)
-		return ret;
-
 	return __ftrace_modify_call((unsigned long)&ftrace_graph_call,
-				    (unsigned long)&prepare_ftrace_return, true);
+				    (unsigned long)&prepare_ftrace_return, true, true);
 }
 
 int ftrace_disable_ftrace_graph_caller(void)
 {
-	unsigned int call[2];
-	int ret;
-
-	make_call(&ftrace_graph_call, &prepare_ftrace_return, call);
-
-	/*
-	 * This is to make sure that ftrace_enable_ftrace_graph_caller
-	 * did the right thing.
-	 */
-	ret = ftrace_check_current_call((unsigned long)&ftrace_graph_call,
-					call);
-
-	if (ret)
-		return ret;
-
 	return __ftrace_modify_call((unsigned long)&ftrace_graph_call,
-				    (unsigned long)&prepare_ftrace_return, false);
+				    (unsigned long)&prepare_ftrace_return, false, true);
 }
+#endif /* CONFIG_DYNAMIC_FTRACE_WITH_ARGS */
 #endif /* CONFIG_DYNAMIC_FTRACE */
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */

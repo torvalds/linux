@@ -1,0 +1,114 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright 2018-2021 Toradex
+ */
+
+/ {
+	aliases {
+		rtc0 = &rtc_i2c;
+		rtc1 = &rtc;
+	};
+
+	reg_3v3: regulator-3v3 {
+		compatible = "regulator-fixed";
+		regulator-max-microvolt = <3300000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-name = "3.3V";
+	};
+};
+
+&colibri_gpio_keys {
+	status = "okay";
+};
+
+/* Colibri FastEthernet */
+&fec1 {
+	status = "okay";
+};
+
+/* Colibri I2C */
+&i2c1 {
+	status = "okay";
+
+	/* M41T0M6 real time clock on carrier board */
+	rtc_i2c: rtc@68 {
+		compatible = "st,m41t0";
+		reg = <0x68>;
+	};
+};
+
+&iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_gpio_iris>;
+
+	pinctrl_gpio_iris: gpioirisgrp {
+		fsl,pins = <IMX8QXP_QSPI0B_DATA3_LSIO_GPIO3_IO21	0x20>,		/* SODIMM  98 */
+			   <IMX8QXP_USB_SS3_TC1_LSIO_GPIO4_IO04		0x20>,		/* SODIMM 133 */
+			   <IMX8QXP_SAI0_TXD_LSIO_GPIO0_IO25		0x20>,		/* SODIMM 103 */
+			   <IMX8QXP_SAI0_TXFS_LSIO_GPIO0_IO28		0x20>,		/* SODIMM 101 */
+			   <IMX8QXP_SAI0_RXD_LSIO_GPIO0_IO27		0x20>,		/* SODIMM  97 */
+			   <IMX8QXP_ENET0_RGMII_RXC_LSIO_GPIO5_IO03	0x06000020>,	/* SODIMM  85 */
+			   <IMX8QXP_SAI0_TXC_LSIO_GPIO0_IO26		0x20>;		/* SODIMM  79 */
+	};
+
+	pinctrl_uart1_forceoff: uart1forceoffgrp {
+		fsl,pins = <IMX8QXP_QSPI0A_SS0_B_LSIO_GPIO3_IO14	0x20>;	/* SODIMM 22 */
+	};
+
+	pinctrl_uart23_forceoff: uart23forceoffgrp {
+		fsl,pins = <IMX8QXP_MIPI_DSI1_GPIO0_01_LSIO_GPIO2_IO00	0x20>; /* SODIMM 23 */
+	};
+};
+
+/* Colibri SPI */
+&lpspi2 {
+	status = "okay";
+};
+
+/* Colibri UART_B */
+&lpuart0 {
+	status = "okay";
+};
+
+/* Colibri UART_C */
+&lpuart2 {
+	status = "okay";
+};
+
+/* Colibri UART_A */
+&lpuart3 {
+	status = "okay";
+};
+
+&lsio_gpio3 {
+	/*
+	 * This turns the LVDS transceiver on. If one wants to turn the
+	 * transceiver off, that property has to be deleted and the gpio handled
+	 * in userspace.
+	 */
+	lvds-tx-on-hog {
+		gpio-hog;
+		gpios = <18 0>;
+		output-high;
+	};
+};
+
+/* Colibri PWM_B */
+&lsio_pwm0 {
+	status = "okay";
+};
+
+/* Colibri PWM_C */
+&lsio_pwm1 {
+	status = "okay";
+};
+
+/* Colibri PWM_D */
+&lsio_pwm2 {
+	status = "okay";
+};
+
+/* Colibri SD/MMC Card */
+&usdhc2 {
+	status = "okay";
+};

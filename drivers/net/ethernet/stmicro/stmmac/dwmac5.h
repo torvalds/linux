@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/* SPDX-License-Identifier: (GPL-2.0 OR MIT) */
 // Copyright (c) 2017 Synopsys, Inc. and/or its affiliates.
 // stmmac Support for 5.xx Ethernet QoS cores
 
@@ -10,6 +10,15 @@
 #define MAC_FSM_CONTROL			0x00000148
 #define PRTYEN				BIT(1)
 #define TMOUTEN				BIT(0)
+
+#define MAC_FPE_CTRL_STS		0x00000234
+#define TRSP				BIT(19)
+#define TVER				BIT(18)
+#define RRSP				BIT(17)
+#define RVER				BIT(16)
+#define SRSP				BIT(2)
+#define SVER				BIT(1)
+#define EFPE				BIT(0)
 
 #define MAC_PPS_CONTROL			0x00000b70
 #define PPS_MAXIDX(x)			((((x) + 1) * 8) - 1)
@@ -42,6 +51,7 @@
 #define ADDR				GENMASK(15, 0)
 #define MTL_RXP_IACC_DATA		0x00000cb4
 #define MTL_ECC_CONTROL			0x00000cc0
+#define MEEAO				BIT(8)
 #define TSOEE				BIT(4)
 #define MRXPEE				BIT(3)
 #define MESTEE				BIT(2)
@@ -72,7 +82,16 @@
 #define TCEIE				BIT(0)
 #define DMA_ECC_INT_STATUS		0x00001088
 
-int dwmac5_safety_feat_config(void __iomem *ioaddr, unsigned int asp);
+/* EQoS version 5.xx VLAN Tag Filter Fail Packets Queuing */
+#define GMAC_RXQ_CTRL4			0x00000094
+#define GMAC_RXQCTRL_VFFQ_MASK		GENMASK(19, 17)
+#define GMAC_RXQCTRL_VFFQ_SHIFT		17
+#define GMAC_RXQCTRL_VFFQE		BIT(16)
+
+#define GMAC_INT_FPE_EN			BIT(17)
+
+int dwmac5_safety_feat_config(void __iomem *ioaddr, unsigned int asp,
+			      struct stmmac_safety_feature_cfg *safety_cfg);
 int dwmac5_safety_feat_irq_status(struct net_device *ndev,
 		void __iomem *ioaddr, unsigned int asp,
 		struct stmmac_safety_stats *stats);
@@ -83,5 +102,12 @@ int dwmac5_rxp_config(void __iomem *ioaddr, struct stmmac_tc_entry *entries,
 int dwmac5_flex_pps_config(void __iomem *ioaddr, int index,
 			   struct stmmac_pps_cfg *cfg, bool enable,
 			   u32 sub_second_inc, u32 systime_flags);
+void dwmac5_fpe_configure(void __iomem *ioaddr, struct stmmac_fpe_cfg *cfg,
+			  u32 num_txq, u32 num_rxq,
+			  bool enable);
+void dwmac5_fpe_send_mpacket(void __iomem *ioaddr,
+			     struct stmmac_fpe_cfg *cfg,
+			     enum stmmac_mpacket_type type);
+int dwmac5_fpe_irq_status(void __iomem *ioaddr, struct net_device *dev);
 
 #endif /* __DWMAC5_H__ */

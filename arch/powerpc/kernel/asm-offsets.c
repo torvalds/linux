@@ -9,8 +9,6 @@
  * #defines from the assembly-language output.
  */
 
-#define GENERATING_ASM_OFFSETS	/* asm/smp.h */
-
 #include <linux/compat.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
@@ -30,7 +28,6 @@
 
 #include <asm/io.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/cputable.h>
 #include <asm/thread_info.h>
@@ -57,12 +54,12 @@
 #endif
 
 #ifdef CONFIG_PPC32
-#if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
+#ifdef CONFIG_BOOKE_OR_40x
 #include "head_booke.h"
 #endif
 #endif
 
-#if defined(CONFIG_PPC_FSL_BOOK3E)
+#if defined(CONFIG_PPC_E500)
 #include "../mm/mmu_decl.h"
 #endif
 
@@ -70,8 +67,12 @@
 #include <asm/fixmap.h>
 #endif
 
+#ifdef CONFIG_XMON
+#include "../xmon/xmon_bpts.h"
+#endif
+
 #define STACK_PT_REGS_OFFSET(sym, val)	\
-	DEFINE(sym, STACK_FRAME_OVERHEAD + offsetof(struct pt_regs, val))
+	DEFINE(sym, STACK_INT_FRAME_REGS + offsetof(struct pt_regs, val))
 
 int main(void)
 {
@@ -83,22 +84,17 @@ int main(void)
 	OFFSET(PACA_CANARY, paca_struct, canary);
 #endif
 #endif
-	OFFSET(MMCONTEXTID, mm_struct, context.id);
-#ifdef CONFIG_PPC64
-	DEFINE(SIGSEGV, SIGSEGV);
-	DEFINE(NMI_MASK, NMI_MASK);
-#else
-	OFFSET(KSP_LIMIT, thread_struct, ksp_limit);
+#ifdef CONFIG_PPC32
 #ifdef CONFIG_PPC_RTAS
 	OFFSET(RTAS_SP, thread_struct, rtas_sp);
 #endif
 #endif /* CONFIG_PPC64 */
 	OFFSET(TASK_STACK, task_struct, stack);
 #ifdef CONFIG_SMP
-	OFFSET(TASK_CPU, task_struct, cpu);
+	OFFSET(TASK_CPU, task_struct, thread_info.cpu);
 #endif
 
-#ifdef CONFIG_LIVEPATCH
+#ifdef CONFIG_LIVEPATCH_64
 	OFFSET(TI_livepatch_sp, thread_info, livepatch_sp);
 #endif
 
@@ -107,15 +103,16 @@ int main(void)
 #ifdef CONFIG_BOOKE
 	OFFSET(THREAD_NORMSAVES, thread_struct, normsave[0]);
 #endif
+#ifdef CONFIG_PPC_FPU
 	OFFSET(THREAD_FPEXC_MODE, thread_struct, fpexc_mode);
 	OFFSET(THREAD_FPSTATE, thread_struct, fp_state.fpr);
 	OFFSET(THREAD_FPSAVEAREA, thread_struct, fp_save_area);
+#endif
 	OFFSET(FPSTATE_FPSCR, thread_fp_state, fpscr);
 	OFFSET(THREAD_LOAD_FP, thread_struct, load_fp);
 #ifdef CONFIG_ALTIVEC
 	OFFSET(THREAD_VRSTATE, thread_struct, vr_state.vr);
 	OFFSET(THREAD_VRSAVEAREA, thread_struct, vr_save_area);
-	OFFSET(THREAD_VRSAVE, thread_struct, vrsave);
 	OFFSET(THREAD_USED_VR, thread_struct, used_vr);
 	OFFSET(VRSTATE_VSCR, thread_vr_state, vscr);
 	OFFSET(THREAD_LOAD_VEC, thread_struct, load_vec);
@@ -127,24 +124,34 @@ int main(void)
 	OFFSET(KSP_VSID, thread_struct, ksp_vsid);
 #else /* CONFIG_PPC64 */
 	OFFSET(PGDIR, thread_struct, pgdir);
+	OFFSET(SRR0, thread_struct, srr0);
+	OFFSET(SRR1, thread_struct, srr1);
+	OFFSET(DAR, thread_struct, dar);
+	OFFSET(DSISR, thread_struct, dsisr);
+#ifdef CONFIG_PPC_BOOK3S_32
+	OFFSET(THR0, thread_struct, r0);
+	OFFSET(THR3, thread_struct, r3);
+	OFFSET(THR4, thread_struct, r4);
+	OFFSET(THR5, thread_struct, r5);
+	OFFSET(THR6, thread_struct, r6);
+	OFFSET(THR8, thread_struct, r8);
+	OFFSET(THR9, thread_struct, r9);
+	OFFSET(THR11, thread_struct, r11);
+	OFFSET(THLR, thread_struct, lr);
+	OFFSET(THCTR, thread_struct, ctr);
+	OFFSET(THSR0, thread_struct, sr0);
+#endif
 #ifdef CONFIG_SPE
 	OFFSET(THREAD_EVR0, thread_struct, evr[0]);
 	OFFSET(THREAD_ACC, thread_struct, acc);
-	OFFSET(THREAD_SPEFSCR, thread_struct, spefscr);
 	OFFSET(THREAD_USED_SPE, thread_struct, used_spe);
 #endif /* CONFIG_SPE */
 #endif /* CONFIG_PPC64 */
-#if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
-	OFFSET(THREAD_DBCR0, thread_struct, debug.dbcr0);
-#endif
 #ifdef CONFIG_KVM_BOOK3S_32_HANDLER
 	OFFSET(THREAD_KVM_SVCPU, thread_struct, kvm_shadow_vcpu);
 #endif
 #if defined(CONFIG_KVM) && defined(CONFIG_BOOKE)
 	OFFSET(THREAD_KVM_VCPU, thread_struct, kvm_vcpu);
-#endif
-#if defined(CONFIG_PPC_BOOK3S_32) && defined(CONFIG_PPC_KUAP)
-	OFFSET(KUAP, thread_struct, kuap);
 #endif
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
@@ -155,28 +162,21 @@ int main(void)
 	OFFSET(THREAD_TM_TAR, thread_struct, tm_tar);
 	OFFSET(THREAD_TM_PPR, thread_struct, tm_ppr);
 	OFFSET(THREAD_TM_DSCR, thread_struct, tm_dscr);
+	OFFSET(THREAD_TM_AMR, thread_struct, tm_amr);
 	OFFSET(PT_CKPT_REGS, thread_struct, ckpt_regs);
 	OFFSET(THREAD_CKVRSTATE, thread_struct, ckvr_state.vr);
 	OFFSET(THREAD_CKVRSAVE, thread_struct, ckvrsave);
 	OFFSET(THREAD_CKFPSTATE, thread_struct, ckfp_state.fpr);
-	/* Local pt_regs on stack for Transactional Memory funcs. */
-	DEFINE(TM_FRAME_SIZE, STACK_FRAME_OVERHEAD +
-	       sizeof(struct pt_regs) + 16);
+	/* Local pt_regs on stack in int frame form, plus 16 bytes for TM */
+	DEFINE(TM_FRAME_SIZE, STACK_INT_FRAME_SIZE + 16);
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 
-	OFFSET(TI_FLAGS, thread_info, flags);
 	OFFSET(TI_LOCAL_FLAGS, thread_info, local_flags);
-	OFFSET(TI_PREEMPT, thread_info, preempt_count);
 
 #ifdef CONFIG_PPC64
 	OFFSET(DCACHEL1BLOCKSIZE, ppc64_caches, l1d.block_size);
 	OFFSET(DCACHEL1LOGBLOCKSIZE, ppc64_caches, l1d.log_block_size);
-	OFFSET(DCACHEL1BLOCKSPERPAGE, ppc64_caches, l1d.blocks_per_page);
-	OFFSET(ICACHEL1BLOCKSIZE, ppc64_caches, l1i.block_size);
-	OFFSET(ICACHEL1LOGBLOCKSIZE, ppc64_caches, l1i.log_block_size);
-	OFFSET(ICACHEL1BLOCKSPERPAGE, ppc64_caches, l1i.blocks_per_page);
 	/* paca */
-	DEFINE(PACA_SIZE, sizeof(struct paca_struct));
 	OFFSET(PACAPACAINDEX, paca_struct, paca_index);
 	OFFSET(PACAPROCSTART, paca_struct, cpu_start);
 	OFFSET(PACAKSAVE, paca_struct, kstack);
@@ -185,23 +185,20 @@ int main(void)
 				 offsetof(struct task_struct, thread_info));
 	OFFSET(PACASAVEDMSR, paca_struct, saved_msr);
 	OFFSET(PACAR1, paca_struct, saved_r1);
+#ifndef CONFIG_PPC_KERNEL_PCREL
 	OFFSET(PACATOC, paca_struct, kernel_toc);
+#endif
 	OFFSET(PACAKBASE, paca_struct, kernelbase);
 	OFFSET(PACAKMSR, paca_struct, kernel_msr);
+#ifdef CONFIG_PPC_BOOK3S_64
+	OFFSET(PACAHSRR_VALID, paca_struct, hsrr_valid);
+	OFFSET(PACASRR_VALID, paca_struct, srr_valid);
+#endif
 	OFFSET(PACAIRQSOFTMASK, paca_struct, irq_soft_mask);
 	OFFSET(PACAIRQHAPPENED, paca_struct, irq_happened);
 	OFFSET(PACA_FTRACE_ENABLED, paca_struct, ftrace_enabled);
-#ifdef CONFIG_PPC_BOOK3S
-	OFFSET(PACACONTEXTID, paca_struct, mm_ctx_id);
-#ifdef CONFIG_PPC_MM_SLICES
-	OFFSET(PACALOWSLICESPSIZE, paca_struct, mm_ctx_low_slices_psize);
-	OFFSET(PACAHIGHSLICEPSIZE, paca_struct, mm_ctx_high_slices_psize);
-	OFFSET(PACA_SLB_ADDR_LIMIT, paca_struct, mm_ctx_slb_addr_limit);
-	DEFINE(MMUPSIZEDEFSIZE, sizeof(struct mmu_psize_def));
-#endif /* CONFIG_PPC_MM_SLICES */
-#endif
 
-#ifdef CONFIG_PPC_BOOK3E
+#ifdef CONFIG_PPC_BOOK3E_64
 	OFFSET(PACAPGD, paca_struct, pgd);
 	OFFSET(PACA_KERNELPGD, paca_struct, kernel_pgd);
 	OFFSET(PACA_EXGEN, paca_struct, exgen);
@@ -217,36 +214,23 @@ int main(void)
 	OFFSET(TCD_ESEL_NEXT, tlb_core_data, esel_next);
 	OFFSET(TCD_ESEL_MAX, tlb_core_data, esel_max);
 	OFFSET(TCD_ESEL_FIRST, tlb_core_data, esel_first);
-#endif /* CONFIG_PPC_BOOK3E */
+#endif /* CONFIG_PPC_BOOK3E_64 */
 
 #ifdef CONFIG_PPC_BOOK3S_64
-	OFFSET(PACASLBCACHE, paca_struct, slb_cache);
-	OFFSET(PACASLBCACHEPTR, paca_struct, slb_cache_ptr);
-	OFFSET(PACASTABRR, paca_struct, stab_rr);
-	OFFSET(PACAVMALLOCSLLP, paca_struct, vmalloc_sllp);
-#ifdef CONFIG_PPC_MM_SLICES
-	OFFSET(MMUPSIZESLLP, mmu_psize_def, sllp);
-#else
-	OFFSET(PACACONTEXTSLLP, paca_struct, mm_ctx_sllp);
-#endif /* CONFIG_PPC_MM_SLICES */
 	OFFSET(PACA_EXGEN, paca_struct, exgen);
 	OFFSET(PACA_EXMC, paca_struct, exmc);
-	OFFSET(PACA_EXSLB, paca_struct, exslb);
 	OFFSET(PACA_EXNMI, paca_struct, exnmi);
-#ifdef CONFIG_PPC_PSERIES
-	OFFSET(PACALPPACAPTR, paca_struct, lppaca_ptr);
-#endif
+#ifdef CONFIG_PPC_64S_HASH_MMU
 	OFFSET(PACA_SLBSHADOWPTR, paca_struct, slb_shadow_ptr);
 	OFFSET(SLBSHADOW_STACKVSID, slb_shadow, save_area[SLB_NUM_BOLTED - 1].vsid);
 	OFFSET(SLBSHADOW_STACKESID, slb_shadow, save_area[SLB_NUM_BOLTED - 1].esid);
 	OFFSET(SLBSHADOW_SAVEAREA, slb_shadow, save_area);
+#endif
 	OFFSET(LPPACA_PMCINUSE, lppaca, pmcregs_in_use);
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	OFFSET(PACA_PMCINUSE, paca_struct, pmcregs_in_use);
 #endif
-	OFFSET(LPPACA_DTLIDX, lppaca, dtl_idx);
 	OFFSET(LPPACA_YIELDCOUNT, lppaca, yield_count);
-	OFFSET(PACA_DTL_RIDX, paca_struct, dtl_ridx);
 #endif /* CONFIG_PPC_BOOK3S_64 */
 	OFFSET(PACAEMERGSP, paca_struct, emergency_sp);
 #ifdef CONFIG_PPC_BOOK3S_64
@@ -262,21 +246,12 @@ int main(void)
 	OFFSET(PACAHWCPUID, paca_struct, hw_cpu_id);
 	OFFSET(PACAKEXECSTATE, paca_struct, kexec_state);
 	OFFSET(PACA_DSCR_DEFAULT, paca_struct, dscr_default);
-	OFFSET(ACCOUNT_STARTTIME, paca_struct, accounting.starttime);
-	OFFSET(ACCOUNT_STARTTIME_USER, paca_struct, accounting.starttime_user);
-	OFFSET(ACCOUNT_USER_TIME, paca_struct, accounting.utime);
-	OFFSET(ACCOUNT_SYSTEM_TIME, paca_struct, accounting.stime);
-#ifdef CONFIG_PPC_BOOK3E
+	OFFSET(PACA_EXIT_SAVE_R1, paca_struct, exit_save_r1);
+#ifdef CONFIG_PPC_BOOK3E_64
 	OFFSET(PACA_TRAP_SAVE, paca_struct, trap_save);
 #endif
 	OFFSET(PACA_SPRG_VDSO, paca_struct, sprg_vdso);
 #else /* CONFIG_PPC64 */
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
-	OFFSET(ACCOUNT_STARTTIME, thread_info, accounting.starttime);
-	OFFSET(ACCOUNT_STARTTIME_USER, thread_info, accounting.starttime_user);
-	OFFSET(ACCOUNT_USER_TIME, thread_info, accounting.utime);
-	OFFSET(ACCOUNT_SYSTEM_TIME, thread_info, accounting.stime);
-#endif
 #endif /* CONFIG_PPC64 */
 
 	/* RTAS */
@@ -285,7 +260,7 @@ int main(void)
 
 	/* Interrupt register frame */
 	DEFINE(INT_FRAME_SIZE, STACK_INT_FRAME_SIZE);
-	DEFINE(SWITCH_FRAME_SIZE, STACK_FRAME_OVERHEAD + sizeof(struct pt_regs));
+	DEFINE(SWITCH_FRAME_SIZE, STACK_SWITCH_FRAME_SIZE);
 	STACK_PT_REGS_OFFSET(GPR0, gpr[0]);
 	STACK_PT_REGS_OFFSET(GPR1, gpr[1]);
 	STACK_PT_REGS_OFFSET(GPR2, gpr[2]);
@@ -300,9 +275,6 @@ int main(void)
 	STACK_PT_REGS_OFFSET(GPR11, gpr[11]);
 	STACK_PT_REGS_OFFSET(GPR12, gpr[12]);
 	STACK_PT_REGS_OFFSET(GPR13, gpr[13]);
-#ifndef CONFIG_PPC64
-	STACK_PT_REGS_OFFSET(GPR14, gpr[14]);
-#endif /* CONFIG_PPC64 */
 	/*
 	 * Note: these symbols include _ because they overlap with special
 	 * register names
@@ -314,52 +286,38 @@ int main(void)
 	STACK_PT_REGS_OFFSET(_CCR, ccr);
 	STACK_PT_REGS_OFFSET(_XER, xer);
 	STACK_PT_REGS_OFFSET(_DAR, dar);
+	STACK_PT_REGS_OFFSET(_DEAR, dear);
 	STACK_PT_REGS_OFFSET(_DSISR, dsisr);
+	STACK_PT_REGS_OFFSET(_ESR, esr);
 	STACK_PT_REGS_OFFSET(ORIG_GPR3, orig_gpr3);
 	STACK_PT_REGS_OFFSET(RESULT, result);
 	STACK_PT_REGS_OFFSET(_TRAP, trap);
-#ifndef CONFIG_PPC64
-	/*
-	 * The PowerPC 400-class & Book-E processors have neither the DAR
-	 * nor the DSISR SPRs. Hence, we overload them to hold the similar
-	 * DEAR and ESR SPRs for such processors.  For critical interrupts
-	 * we use them to hold SRR0 and SRR1.
-	 */
-	STACK_PT_REGS_OFFSET(_DEAR, dar);
-	STACK_PT_REGS_OFFSET(_ESR, dsisr);
-#else /* CONFIG_PPC64 */
+#ifdef CONFIG_PPC64
 	STACK_PT_REGS_OFFSET(SOFTE, softe);
 	STACK_PT_REGS_OFFSET(_PPR, ppr);
-#endif /* CONFIG_PPC64 */
-
-#ifdef CONFIG_PPC_KUAP
-	STACK_PT_REGS_OFFSET(STACK_REGS_KUAP, kuap);
 #endif
 
-#if defined(CONFIG_PPC32)
-#if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
-	DEFINE(EXC_LVL_SIZE, STACK_EXC_LVL_FRAME_SIZE);
-	DEFINE(MAS0, STACK_INT_FRAME_SIZE+offsetof(struct exception_regs, mas0));
+#ifdef CONFIG_PPC_PKEY
+	STACK_PT_REGS_OFFSET(STACK_REGS_AMR, amr);
+	STACK_PT_REGS_OFFSET(STACK_REGS_IAMR, iamr);
+#endif
+
+#if defined(CONFIG_PPC32) && defined(CONFIG_BOOKE)
+	STACK_PT_REGS_OFFSET(MAS0, mas0);
 	/* we overload MMUCR for 44x on MAS0 since they are mutually exclusive */
-	DEFINE(MMUCR, STACK_INT_FRAME_SIZE+offsetof(struct exception_regs, mas0));
-	DEFINE(MAS1, STACK_INT_FRAME_SIZE+offsetof(struct exception_regs, mas1));
-	DEFINE(MAS2, STACK_INT_FRAME_SIZE+offsetof(struct exception_regs, mas2));
-	DEFINE(MAS3, STACK_INT_FRAME_SIZE+offsetof(struct exception_regs, mas3));
-	DEFINE(MAS6, STACK_INT_FRAME_SIZE+offsetof(struct exception_regs, mas6));
-	DEFINE(MAS7, STACK_INT_FRAME_SIZE+offsetof(struct exception_regs, mas7));
-	DEFINE(_SRR0, STACK_INT_FRAME_SIZE+offsetof(struct exception_regs, srr0));
-	DEFINE(_SRR1, STACK_INT_FRAME_SIZE+offsetof(struct exception_regs, srr1));
-	DEFINE(_CSRR0, STACK_INT_FRAME_SIZE+offsetof(struct exception_regs, csrr0));
-	DEFINE(_CSRR1, STACK_INT_FRAME_SIZE+offsetof(struct exception_regs, csrr1));
-	DEFINE(_DSRR0, STACK_INT_FRAME_SIZE+offsetof(struct exception_regs, dsrr0));
-	DEFINE(_DSRR1, STACK_INT_FRAME_SIZE+offsetof(struct exception_regs, dsrr1));
-	DEFINE(SAVED_KSP_LIMIT, STACK_INT_FRAME_SIZE+offsetof(struct exception_regs, saved_ksp_limit));
+	STACK_PT_REGS_OFFSET(MMUCR, mas0);
+	STACK_PT_REGS_OFFSET(MAS1, mas1);
+	STACK_PT_REGS_OFFSET(MAS2, mas2);
+	STACK_PT_REGS_OFFSET(MAS3, mas3);
+	STACK_PT_REGS_OFFSET(MAS6, mas6);
+	STACK_PT_REGS_OFFSET(MAS7, mas7);
+	STACK_PT_REGS_OFFSET(_SRR0, srr0);
+	STACK_PT_REGS_OFFSET(_SRR1, srr1);
+	STACK_PT_REGS_OFFSET(_CSRR0, csrr0);
+	STACK_PT_REGS_OFFSET(_CSRR1, csrr1);
+	STACK_PT_REGS_OFFSET(_DSRR0, dsrr0);
+	STACK_PT_REGS_OFFSET(_DSRR1, dsrr1);
 #endif
-#endif
-
-#ifndef CONFIG_PPC64
-	OFFSET(MM_PGD, mm_struct, pgd);
-#endif /* ! CONFIG_PPC64 */
 
 	/* About the CPU features table */
 	OFFSET(CPU_SPEC_FEATURES, cpu_spec, cpu_features);
@@ -376,59 +334,22 @@ int main(void)
 #endif /* ! CONFIG_PPC64 */
 
 	/* datapage offsets for use by vdso */
-	OFFSET(CFG_TB_ORIG_STAMP, vdso_data, tb_orig_stamp);
-	OFFSET(CFG_TB_TICKS_PER_SEC, vdso_data, tb_ticks_per_sec);
-	OFFSET(CFG_TB_TO_XS, vdso_data, tb_to_xs);
-	OFFSET(CFG_TB_UPDATE_COUNT, vdso_data, tb_update_count);
-	OFFSET(CFG_TZ_MINUTEWEST, vdso_data, tz_minuteswest);
-	OFFSET(CFG_TZ_DSTTIME, vdso_data, tz_dsttime);
-	OFFSET(CFG_SYSCALL_MAP32, vdso_data, syscall_map_32);
-	OFFSET(WTOM_CLOCK_SEC, vdso_data, wtom_clock_sec);
-	OFFSET(WTOM_CLOCK_NSEC, vdso_data, wtom_clock_nsec);
-	OFFSET(STAMP_XTIME, vdso_data, stamp_xtime);
-	OFFSET(STAMP_SEC_FRAC, vdso_data, stamp_sec_fraction);
-	OFFSET(CFG_ICACHE_BLOCKSZ, vdso_data, icache_block_size);
-	OFFSET(CFG_DCACHE_BLOCKSZ, vdso_data, dcache_block_size);
-	OFFSET(CFG_ICACHE_LOGBLOCKSZ, vdso_data, icache_log_block_size);
-	OFFSET(CFG_DCACHE_LOGBLOCKSZ, vdso_data, dcache_log_block_size);
+	OFFSET(VDSO_DATA_OFFSET, vdso_arch_data, data);
+	OFFSET(CFG_TB_TICKS_PER_SEC, vdso_arch_data, tb_ticks_per_sec);
 #ifdef CONFIG_PPC64
-	OFFSET(CFG_SYSCALL_MAP64, vdso_data, syscall_map_64);
-	OFFSET(TVAL64_TV_SEC, timeval, tv_sec);
-	OFFSET(TVAL64_TV_USEC, timeval, tv_usec);
-	OFFSET(TVAL32_TV_SEC, old_timeval32, tv_sec);
-	OFFSET(TVAL32_TV_USEC, old_timeval32, tv_usec);
-	OFFSET(TSPC64_TV_SEC, timespec, tv_sec);
-	OFFSET(TSPC64_TV_NSEC, timespec, tv_nsec);
-	OFFSET(TSPC32_TV_SEC, old_timespec32, tv_sec);
-	OFFSET(TSPC32_TV_NSEC, old_timespec32, tv_nsec);
+	OFFSET(CFG_ICACHE_BLOCKSZ, vdso_arch_data, icache_block_size);
+	OFFSET(CFG_DCACHE_BLOCKSZ, vdso_arch_data, dcache_block_size);
+	OFFSET(CFG_ICACHE_LOGBLOCKSZ, vdso_arch_data, icache_log_block_size);
+	OFFSET(CFG_DCACHE_LOGBLOCKSZ, vdso_arch_data, dcache_log_block_size);
+	OFFSET(CFG_SYSCALL_MAP64, vdso_arch_data, syscall_map);
+	OFFSET(CFG_SYSCALL_MAP32, vdso_arch_data, compat_syscall_map);
 #else
-	OFFSET(TVAL32_TV_SEC, timeval, tv_sec);
-	OFFSET(TVAL32_TV_USEC, timeval, tv_usec);
-	OFFSET(TSPC32_TV_SEC, timespec, tv_sec);
-	OFFSET(TSPC32_TV_NSEC, timespec, tv_nsec);
+	OFFSET(CFG_SYSCALL_MAP32, vdso_arch_data, syscall_map);
 #endif
-	/* timeval/timezone offsets for use by vdso */
-	OFFSET(TZONE_TZ_MINWEST, timezone, tz_minuteswest);
-	OFFSET(TZONE_TZ_DSTTIME, timezone, tz_dsttime);
-
-	/* Other bits used by the vdso */
-	DEFINE(CLOCK_REALTIME, CLOCK_REALTIME);
-	DEFINE(CLOCK_MONOTONIC, CLOCK_MONOTONIC);
-	DEFINE(CLOCK_REALTIME_COARSE, CLOCK_REALTIME_COARSE);
-	DEFINE(CLOCK_MONOTONIC_COARSE, CLOCK_MONOTONIC_COARSE);
-	DEFINE(NSEC_PER_SEC, NSEC_PER_SEC);
-	DEFINE(CLOCK_REALTIME_RES, MONOTONIC_RES_NSEC);
 
 #ifdef CONFIG_BUG
 	DEFINE(BUG_ENTRY_SIZE, sizeof(struct bug_entry));
 #endif
-
-#ifdef CONFIG_PPC_BOOK3S_64
-	DEFINE(PGD_TABLE_SIZE, (sizeof(pgd_t) << max(RADIX_PGD_INDEX_SIZE, H_PGD_INDEX_SIZE)));
-#else
-	DEFINE(PGD_TABLE_SIZE, PGD_TABLE_SIZE);
-#endif
-	DEFINE(PTE_SIZE, sizeof(pte_t));
 
 #ifdef CONFIG_KVM
 	OFFSET(VCPU_HOST_STACK, kvm_vcpu, arch.host_stack);
@@ -457,7 +378,7 @@ int main(void)
 	OFFSET(VCPU_SPRG2, kvm_vcpu, arch.shregs.sprg2);
 	OFFSET(VCPU_SPRG3, kvm_vcpu, arch.shregs.sprg3);
 #endif
-#ifdef CONFIG_KVM_BOOK3S_HV_EXIT_TIMING
+#ifdef CONFIG_KVM_BOOK3S_HV_P8_TIMING
 	OFFSET(VCPU_TB_RMENTRY, kvm_vcpu, arch.rm_entry);
 	OFFSET(VCPU_TB_RMINTR, kvm_vcpu, arch.rm_intr);
 	OFFSET(VCPU_TB_RMEXIT, kvm_vcpu, arch.rm_exit);
@@ -496,23 +417,18 @@ int main(void)
 
 	/* book3s */
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
-	OFFSET(KVM_TLB_SETS, kvm, arch.tlb_sets);
 	OFFSET(KVM_SDR1, kvm, arch.sdr1);
 	OFFSET(KVM_HOST_LPID, kvm, arch.host_lpid);
 	OFFSET(KVM_HOST_LPCR, kvm, arch.host_lpcr);
 	OFFSET(KVM_HOST_SDR1, kvm, arch.host_sdr1);
-	OFFSET(KVM_NEED_FLUSH, kvm, arch.need_tlb_flush.bits);
 	OFFSET(KVM_ENABLED_HCALLS, kvm, arch.enabled_hcalls);
 	OFFSET(KVM_VRMA_SLB_V, kvm, arch.vrma_slb_v);
-	OFFSET(KVM_RADIX, kvm, arch.radix);
-	OFFSET(KVM_FWNMI, kvm, arch.fwnmi_enabled);
 	OFFSET(KVM_SECURE_GUEST, kvm, arch.secure_guest);
 	OFFSET(VCPU_DSISR, kvm_vcpu, arch.shregs.dsisr);
 	OFFSET(VCPU_DAR, kvm_vcpu, arch.shregs.dar);
 	OFFSET(VCPU_VPA, kvm_vcpu, arch.vpa.pinned_addr);
 	OFFSET(VCPU_VPA_DIRTY, kvm_vcpu, arch.vpa.dirty);
 	OFFSET(VCPU_HEIR, kvm_vcpu, arch.emul_inst);
-	OFFSET(VCPU_NESTED, kvm_vcpu, arch.nested);
 	OFFSET(VCPU_CPU, kvm_vcpu, cpu);
 	OFFSET(VCPU_THREAD_CPU, kvm_vcpu, arch.thread_cpu);
 #endif
@@ -527,20 +443,18 @@ int main(void)
 	OFFSET(VCPU_CTRL, kvm_vcpu, arch.ctrl);
 	OFFSET(VCPU_DABR, kvm_vcpu, arch.dabr);
 	OFFSET(VCPU_DABRX, kvm_vcpu, arch.dabrx);
-	OFFSET(VCPU_DAWR, kvm_vcpu, arch.dawr);
-	OFFSET(VCPU_DAWRX, kvm_vcpu, arch.dawrx);
+	OFFSET(VCPU_DAWR0, kvm_vcpu, arch.dawr0);
+	OFFSET(VCPU_DAWRX0, kvm_vcpu, arch.dawrx0);
 	OFFSET(VCPU_CIABR, kvm_vcpu, arch.ciabr);
 	OFFSET(VCPU_HFLAGS, kvm_vcpu, arch.hflags);
-	OFFSET(VCPU_DEC, kvm_vcpu, arch.dec);
 	OFFSET(VCPU_DEC_EXPIRES, kvm_vcpu, arch.dec_expires);
 	OFFSET(VCPU_PENDING_EXC, kvm_vcpu, arch.pending_exceptions);
 	OFFSET(VCPU_CEDED, kvm_vcpu, arch.ceded);
 	OFFSET(VCPU_PRODDED, kvm_vcpu, arch.prodded);
-	OFFSET(VCPU_IRQ_PENDING, kvm_vcpu, arch.irq_pending);
-	OFFSET(VCPU_DBELL_REQ, kvm_vcpu, arch.doorbell_request);
 	OFFSET(VCPU_MMCR, kvm_vcpu, arch.mmcr);
+	OFFSET(VCPU_MMCRA, kvm_vcpu, arch.mmcra);
+	OFFSET(VCPU_MMCRS, kvm_vcpu, arch.mmcrs);
 	OFFSET(VCPU_PMC, kvm_vcpu, arch.pmc);
-	OFFSET(VCPU_SPMC, kvm_vcpu, arch.spmc);
 	OFFSET(VCPU_SIAR, kvm_vcpu, arch.siar);
 	OFFSET(VCPU_SDAR, kvm_vcpu, arch.sdar);
 	OFFSET(VCPU_SIER, kvm_vcpu, arch.sier);
@@ -549,7 +463,6 @@ int main(void)
 	OFFSET(VCPU_SLB_NR, kvm_vcpu, arch.slb_nr);
 	OFFSET(VCPU_FAULT_DSISR, kvm_vcpu, arch.fault_dsisr);
 	OFFSET(VCPU_FAULT_DAR, kvm_vcpu, arch.fault_dar);
-	OFFSET(VCPU_FAULT_GPA, kvm_vcpu, arch.fault_gpa);
 	OFFSET(VCPU_INTR_MSR, kvm_vcpu, arch.intr_msr);
 	OFFSET(VCPU_LAST_INST, kvm_vcpu, arch.last_inst);
 	OFFSET(VCPU_TRAP, kvm_vcpu, arch.trap);
@@ -565,8 +478,6 @@ int main(void)
 	OFFSET(VCPU_TCSCR, kvm_vcpu, arch.tcscr);
 	OFFSET(VCPU_ACOP, kvm_vcpu, arch.acop);
 	OFFSET(VCPU_WORT, kvm_vcpu, arch.wort);
-	OFFSET(VCPU_TID, kvm_vcpu, arch.tid);
-	OFFSET(VCPU_PSSCR, kvm_vcpu, arch.psscr);
 	OFFSET(VCPU_HFSCR, kvm_vcpu, arch.hfscr);
 	OFFSET(VCORE_ENTRY_EXIT, kvmppc_vcore, entry_exit_map);
 	OFFSET(VCORE_IN_GUEST, kvmppc_vcore, in_guest);
@@ -661,13 +572,8 @@ int main(void)
 	HSTATE_FIELD(HSTATE_HWTHREAD_STATE, hwthread_state);
 	HSTATE_FIELD(HSTATE_KVM_VCPU, kvm_vcpu);
 	HSTATE_FIELD(HSTATE_KVM_VCORE, kvm_vcore);
-	HSTATE_FIELD(HSTATE_XICS_PHYS, xics_phys);
-	HSTATE_FIELD(HSTATE_XIVE_TIMA_PHYS, xive_tima_phys);
-	HSTATE_FIELD(HSTATE_XIVE_TIMA_VIRT, xive_tima_virt);
-	HSTATE_FIELD(HSTATE_SAVED_XIRR, saved_xirr);
 	HSTATE_FIELD(HSTATE_HOST_IPI, host_ipi);
 	HSTATE_FIELD(HSTATE_PTID, ptid);
-	HSTATE_FIELD(HSTATE_TID, tid);
 	HSTATE_FIELD(HSTATE_FAKE_SUSPEND, fake_suspend);
 	HSTATE_FIELD(HSTATE_MMCR0, host_mmcr[0]);
 	HSTATE_FIELD(HSTATE_MMCR1, host_mmcr[1]);
@@ -694,8 +600,6 @@ int main(void)
 	OFFSET(KVM_SPLIT_LDBAR, kvm_split_mode, ldbar);
 	OFFSET(KVM_SPLIT_DO_NAP, kvm_split_mode, do_nap);
 	OFFSET(KVM_SPLIT_NAPPED, kvm_split_mode, napped);
-	OFFSET(KVM_SPLIT_DO_SET, kvm_split_mode, do_set);
-	OFFSET(KVM_SPLIT_DO_RESTORE, kvm_split_mode, do_restore);
 #endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 
 #ifdef CONFIG_PPC_BOOK3S_64
@@ -732,7 +636,7 @@ int main(void)
 	DEFINE(PGD_T_LOG2, PGD_T_LOG2);
 	DEFINE(PTE_T_LOG2, PTE_T_LOG2);
 #endif
-#ifdef CONFIG_PPC_FSL_BOOK3E
+#ifdef CONFIG_PPC_E500
 	DEFINE(TLBCAM_SIZE, sizeof(struct tlbcam));
 	OFFSET(TLBCAM_MAS0, tlbcam, MAS0);
 	OFFSET(TLBCAM_MAS1, tlbcam, MAS1);
@@ -753,17 +657,6 @@ int main(void)
 	OFFSET(VCPU_HOST_MAS6, kvm_vcpu, arch.host_mas6);
 #endif
 
-#ifdef CONFIG_KVM_XICS
-	DEFINE(VCPU_XIVE_SAVED_STATE, offsetof(struct kvm_vcpu,
-					       arch.xive_saved_state));
-	DEFINE(VCPU_XIVE_CAM_WORD, offsetof(struct kvm_vcpu,
-					    arch.xive_cam_word));
-	DEFINE(VCPU_XIVE_PUSHED, offsetof(struct kvm_vcpu, arch.xive_pushed));
-	DEFINE(VCPU_XIVE_ESC_ON, offsetof(struct kvm_vcpu, arch.xive_esc_on));
-	DEFINE(VCPU_XIVE_ESC_RADDR, offsetof(struct kvm_vcpu, arch.xive_esc_raddr));
-	DEFINE(VCPU_XIVE_ESC_VADDR, offsetof(struct kvm_vcpu, arch.xive_esc_vaddr));
-#endif
-
 #ifdef CONFIG_KVM_EXIT_TIMING
 	OFFSET(VCPU_TIMING_EXIT_TBU, kvm_vcpu, arch.timing_exit.tv32.tbu);
 	OFFSET(VCPU_TIMING_EXIT_TBL, kvm_vcpu, arch.timing_exit.tv32.tbl);
@@ -772,10 +665,13 @@ int main(void)
 #endif
 
 	DEFINE(PPC_DBELL_SERVER, PPC_DBELL_SERVER);
-	DEFINE(PPC_DBELL_MSGTYPE, PPC_DBELL_MSGTYPE);
 
 #ifdef CONFIG_PPC_8xx
 	DEFINE(VIRT_IMMR_BASE, (u64)__fix_to_virt(FIX_IMMR_BASE));
+#endif
+
+#ifdef CONFIG_XMON
+	DEFINE(BPT_SIZE, BPT_SIZE);
 #endif
 
 	return 0;

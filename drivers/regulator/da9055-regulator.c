@@ -9,7 +9,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
@@ -413,31 +412,35 @@ static struct da9055_regulator_info da9055_regulator_info[] = {
  * GPIO can control regulator state and/or select the regulator register
  * set A/B for voltage ramping.
  */
-static int da9055_gpio_init(struct da9055_regulator *regulator,
+static int da9055_gpio_init(struct device *dev,
+			    struct da9055_regulator *regulator,
 			    struct regulator_config *config,
 			    struct da9055_pdata *pdata, int id)
 {
 	struct da9055_regulator_info *info = regulator->info;
+	struct gpio_desc *ren;
+	struct gpio_desc *ena;
+	struct gpio_desc *rsel;
 	int ret = 0;
 
-	if (!pdata)
-		return 0;
+	/* Look for "regulator-enable-gpios" GPIOs in the regulator node */
+	ren = devm_gpiod_get_optional(dev, "regulator-enable", GPIOD_IN);
+	if (IS_ERR(ren))
+		return PTR_ERR(ren);
 
-	if (pdata->gpio_ren && pdata->gpio_ren[id]) {
-		char name[18];
-		int gpio_mux = pdata->gpio_ren[id];
+	if (ren) {
+		/* This GPIO is not optional at this point */
+		ena = devm_gpiod_get(dev, "enable", GPIOD_OUT_HIGH);
+		if (IS_ERR(ena))
+			return PTR_ERR(ena);
 
-		config->ena_gpiod = pdata->ena_gpiods[id];
+		config->ena_gpiod = ena;
 
 		/*
 		 * GPI pin is muxed with regulator to control the
 		 * regulator state.
 		 */
-		sprintf(name, "DA9055 GPI %d", gpio_mux);
-		ret = devm_gpio_request_one(config->dev, gpio_mux, GPIOF_DIR_IN,
-					    name);
-		if (ret < 0)
-			goto err;
+		gpiod_set_consumer_name(ren, "DA9055 ren GPI");
 
 		/*
 		 * Let the regulator know that its state is controlled
@@ -448,24 +451,22 @@ static int da9055_gpio_init(struct da9055_regulator *regulator,
 					pdata->reg_ren[id]
 					<< DA9055_E_GPI_SHIFT);
 		if (ret < 0)
-			goto err;
+			return ret;
 	}
 
-	if (pdata->gpio_rsel && pdata->gpio_rsel[id]) {
-		char name[18];
-		int gpio_mux = pdata->gpio_rsel[id];
+	/* Look for "regulator-select-gpios" GPIOs in the regulator node */
+	rsel = devm_gpiod_get_optional(dev, "regulator-select", GPIOD_IN);
+	if (IS_ERR(rsel))
+		return PTR_ERR(rsel);
 
+	if (rsel) {
 		regulator->reg_rselect = pdata->reg_rsel[id];
 
 		/*
 		 * GPI pin is muxed with regulator to select the
 		 * regulator register set A/B for voltage ramping.
 		 */
-		sprintf(name, "DA9055 GPI %d", gpio_mux);
-		ret = devm_gpio_request_one(config->dev, gpio_mux, GPIOF_DIR_IN,
-					    name);
-		if (ret < 0)
-			goto err;
+		gpiod_set_consumer_name(rsel, "DA9055 rsel GPI");
 
 		/*
 		 * Let the regulator know that its register set A/B
@@ -477,7 +478,6 @@ static int da9055_gpio_init(struct da9055_regulator *regulator,
 					<< DA9055_V_GPI_SHIFT);
 	}
 
-err:
 	return ret;
 }
 
@@ -485,10 +485,8 @@ static irqreturn_t da9055_ldo5_6_oc_irq(int irq, void *data)
 {
 	struct da9055_regulator *regulator = data;
 
-	regulator_lock(regulator->rdev);
 	regulator_notifier_call_chain(regulator->rdev,
 				      REGULATOR_EVENT_OVER_CURRENT, NULL);
-	regulator_unlock(regulator->rdev);
 
 	return IRQ_HANDLED;
 }
@@ -534,7 +532,7 @@ static int da9055_regulator_probe(struct platform_device *pdev)
 	if (pdata)
 		config.init_data = pdata->regulators[pdev->id];
 
-	ret = da9055_gpio_init(regulator, &config, pdata, pdev->id);
+	ret = da9055_gpio_init(&pdev->dev, regulator, &config, pdata, pdev->id);
 	if (ret < 0)
 		return ret;
 
@@ -578,6 +576,7 @@ static struct platform_driver da9055_regulator_driver = {
 	.probe = da9055_regulator_probe,
 	.driver = {
 		.name = "da9055-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
 

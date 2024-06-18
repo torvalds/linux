@@ -1,0 +1,84 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/ata/renesas,rcar-sata.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Renesas R-Car Serial-ATA Interface
+
+maintainers:
+  - Geert Uytterhoeven <geert+renesas@glider.be>
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - renesas,sata-r8a7779      # R-Car H1
+      - items:
+          - enum:
+              - renesas,sata-r8a7742      # RZ/G1H
+              - renesas,sata-r8a7790-es1  # R-Car H2 ES1
+              - renesas,sata-r8a7790      # R-Car H2 other than ES1
+              - renesas,sata-r8a7791      # R-Car M2-W
+              - renesas,sata-r8a7793      # R-Car M2-N
+          - const: renesas,rcar-gen2-sata # generic R-Car Gen2
+      - items:
+          - enum:
+              - renesas,sata-r8a774b1     # RZ/G2N
+              - renesas,sata-r8a774e1     # RZ/G2H
+              - renesas,sata-r8a7795      # R-Car H3
+              - renesas,sata-r8a77965     # R-Car M3-N
+          - const: renesas,rcar-gen3-sata # generic R-Car Gen3 or RZ/G2
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  iommus:
+    maxItems: 1
+
+  power-domains:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - power-domains
+
+if:
+  not:
+    properties:
+      compatible:
+        contains:
+          const: renesas,sata-r8a7779
+then:
+  required:
+    - resets
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/r8a7791-cpg-mssr.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/power/r8a7791-sysc.h>
+
+    sata@ee300000 {
+            compatible = "renesas,sata-r8a7791", "renesas,rcar-gen2-sata";
+            reg = <0xee300000 0x200000>;
+            interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&cpg CPG_MOD 815>;
+            power-domains = <&sysc R8A7791_PD_ALWAYS_ON>;
+            resets = <&cpg 815>;
+    };

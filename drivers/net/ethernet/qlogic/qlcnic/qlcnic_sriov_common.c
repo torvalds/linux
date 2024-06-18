@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * QLogic qlcnic NIC Driver
  * Copyright (c) 2009-2013 QLogic Corporation
- *
- * See LICENSE.qlcnic for copyright and licensing details.
  */
 
 #include <linux/types.h>
@@ -222,6 +221,8 @@ int qlcnic_sriov_init(struct qlcnic_adapter *adapter, int num_vfs)
 	return 0;
 
 qlcnic_destroy_async_wq:
+	while (i--)
+		kfree(sriov->vf_info[i].vp);
 	destroy_workqueue(bc->bc_async_wq);
 
 qlcnic_destroy_trans_wq:
@@ -433,7 +434,7 @@ static int qlcnic_sriov_set_guest_vlan_mode(struct qlcnic_adapter *adapter,
 					    struct qlcnic_cmd_args *cmd)
 {
 	struct qlcnic_sriov *sriov = adapter->ahw->sriov;
-	int i, num_vlans;
+	int i, num_vlans, ret;
 	u16 *vlans;
 
 	if (sriov->allowed_vlans)
@@ -444,7 +445,9 @@ static int qlcnic_sriov_set_guest_vlan_mode(struct qlcnic_adapter *adapter,
 	dev_info(&adapter->pdev->dev, "Number of allowed Guest VLANs = %d\n",
 		 sriov->num_allowed_vlans);
 
-	qlcnic_sriov_alloc_vlans(adapter);
+	ret = qlcnic_sriov_alloc_vlans(adapter);
+	if (ret)
+		return ret;
 
 	if (!sriov->any_vlan)
 		return 0;
@@ -524,8 +527,7 @@ static int qlcnic_sriov_vf_init_driver(struct qlcnic_adapter *adapter)
 	return 0;
 }
 
-static int qlcnic_sriov_setup_vf(struct qlcnic_adapter *adapter,
-				 int pci_using_dac)
+static int qlcnic_sriov_setup_vf(struct qlcnic_adapter *adapter)
 {
 	int err;
 
@@ -570,7 +572,7 @@ static int qlcnic_sriov_setup_vf(struct qlcnic_adapter *adapter,
 	if (err)
 		goto err_out_send_channel_term;
 
-	err = qlcnic_setup_netdev(adapter, adapter->netdev, pci_using_dac);
+	err = qlcnic_setup_netdev(adapter, adapter->netdev);
 	if (err)
 		goto err_out_send_channel_term;
 
@@ -613,7 +615,7 @@ static int qlcnic_sriov_check_dev_ready(struct qlcnic_adapter *adapter)
 	return 0;
 }
 
-int qlcnic_sriov_vf_init(struct qlcnic_adapter *adapter, int pci_using_dac)
+int qlcnic_sriov_vf_init(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	int err;
@@ -630,7 +632,7 @@ int qlcnic_sriov_vf_init(struct qlcnic_adapter *adapter, int pci_using_dac)
 	if (err)
 		return err;
 
-	err = qlcnic_sriov_setup_vf(adapter, pci_using_dac);
+	err = qlcnic_sriov_setup_vf(adapter);
 	if (err)
 		return err;
 
@@ -1582,10 +1584,10 @@ void qlcnic_sriov_vf_set_multi(struct net_device *netdev)
 		if (mode == VPORT_MISS_MODE_ACCEPT_ALL &&
 		    !adapter->fdb_mac_learn) {
 			qlcnic_alloc_lb_filters_mem(adapter);
-			adapter->drv_mac_learn = 1;
+			adapter->drv_mac_learn = true;
 			adapter->rx_mac_learn = true;
 		} else {
-			adapter->drv_mac_learn = 0;
+			adapter->drv_mac_learn = false;
 			adapter->rx_mac_learn = false;
 		}
 	}
@@ -2113,7 +2115,6 @@ static int qlcnic_sriov_vf_shutdown(struct pci_dev *pdev)
 {
 	struct qlcnic_adapter *adapter = pci_get_drvdata(pdev);
 	struct net_device *netdev = adapter->netdev;
-	int retval;
 
 	netif_device_detach(netdev);
 	qlcnic_cancel_idc_work(adapter);
@@ -2126,11 +2127,7 @@ static int qlcnic_sriov_vf_shutdown(struct pci_dev *pdev)
 	qlcnic_83xx_disable_mbx_intr(adapter);
 	cancel_delayed_work_sync(&adapter->idc_aen_work);
 
-	retval = pci_save_state(pdev);
-	if (retval)
-		return retval;
-
-	return 0;
+	return pci_save_state(pdev);
 }
 
 static int qlcnic_sriov_vf_resume(struct qlcnic_adapter *adapter)
@@ -2160,7 +2157,7 @@ static int qlcnic_sriov_vf_resume(struct qlcnic_adapter *adapter)
 	return err;
 }
 
-void qlcnic_sriov_alloc_vlans(struct qlcnic_adapter *adapter)
+int qlcnic_sriov_alloc_vlans(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_sriov *sriov = adapter->ahw->sriov;
 	struct qlcnic_vf_info *vf;
@@ -2170,7 +2167,11 @@ void qlcnic_sriov_alloc_vlans(struct qlcnic_adapter *adapter)
 		vf = &sriov->vf_info[i];
 		vf->sriov_vlans = kcalloc(sriov->num_allowed_vlans,
 					  sizeof(*vf->sriov_vlans), GFP_KERNEL);
+		if (!vf->sriov_vlans)
+			return -ENOMEM;
 	}
+
+	return 0;
 }
 
 void qlcnic_sriov_free_vlans(struct qlcnic_adapter *adapter)

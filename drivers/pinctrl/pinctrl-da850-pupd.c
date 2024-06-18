@@ -146,14 +146,12 @@ static int da850_pupd_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct da850_pupd_data *data;
-	struct resource *res;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	data->base = devm_ioremap_resource(dev, res);
+	data->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(data->base)) {
 		dev_err(dev, "Could not map resource\n");
 		return PTR_ERR(data->base);
@@ -175,11 +173,6 @@ static int da850_pupd_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int da850_pupd_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static const struct of_device_id da850_pupd_of_match[] = {
 	{ .compatible = "ti,da850-pupd" },
 	{ }
@@ -192,7 +185,6 @@ static struct platform_driver da850_pupd_driver = {
 		.of_match_table	= da850_pupd_of_match,
 	},
 	.probe	= da850_pupd_probe,
-	.remove	= da850_pupd_remove,
 };
 module_platform_driver(da850_pupd_driver);
 

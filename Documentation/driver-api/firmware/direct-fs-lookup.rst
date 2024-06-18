@@ -24,7 +24,7 @@ available. Stuffing the firmware into initramfs resolves this race issue,
 however note that using initrd does not suffice to address the same race.
 
 There are circumstances that justify not wanting to include firmware into
-initramfs, such as dealing with large firmware firmware files for the
+initramfs, such as dealing with large firmware files for the
 remote-proc subsystem. For such cases using a userspace fallback mechanism
 is currently the only viable solution as only userspace can know for sure
 when the real rootfs is ready and mounted.

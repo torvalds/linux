@@ -1,0 +1,342 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (c) 2020 MediaTek
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/usb/mediatek,mtu3.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MediaTek USB3 DRD Controller
+
+maintainers:
+  - Chunfeng Yun <chunfeng.yun@mediatek.com>
+
+allOf:
+  - $ref: usb-drd.yaml
+
+description: |
+  The DRD controller has a glue layer IPPC (IP Port Control), and its host is
+  based on xHCI.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - mediatek,mt2712-mtu3
+          - mediatek,mt8173-mtu3
+          - mediatek,mt8183-mtu3
+          - mediatek,mt8186-mtu3
+          - mediatek,mt8188-mtu3
+          - mediatek,mt8192-mtu3
+          - mediatek,mt8195-mtu3
+          - mediatek,mt8365-mtu3
+      - const: mediatek,mtu3
+
+  reg:
+    items:
+      - description: the registers of device MAC
+      - description: the registers of IP Port Control
+
+  reg-names:
+    items:
+      - const: mac
+      - const: ippc
+
+  interrupts:
+    description:
+      use "interrupts-extended" when the interrupts are connected to the
+      separate interrupt controllers
+    minItems: 1
+    items:
+      - description: SSUSB device controller interrupt
+      - description: optional, wakeup interrupt used to support runtime PM
+
+  interrupt-names:
+    items:
+      - const: device
+      - const: wakeup
+
+  power-domains:
+    description: A phandle to USB power domain node to control USB's MTCMOS
+    maxItems: 1
+
+  clocks:
+    minItems: 1
+    items:
+      - description: Controller clock used by normal mode
+      - description: Reference clock used by low power mode etc
+      - description: Mcu bus clock for register access
+      - description: DMA bus clock for data transfer
+      - description: DRD controller clock
+      - description: Frame count clock
+
+  clock-names:
+    minItems: 1
+    items:
+      - const: sys_ck  # required, others are optional
+      - const: ref_ck
+      - const: mcu_ck
+      - const: dma_ck
+      - const: xhci_ck
+      - const: frmcnt_ck
+
+  phys:
+    description:
+      List of all the USB PHYs used, it's better to keep the sequence
+      as the hardware layout.
+    minItems: 1
+    items:
+      - description: USB2/HS PHY    # required, others are optional
+      - description: USB3/SS(P) PHY
+      - description: USB2/HS PHY    # the following for backward compatible
+      - description: USB3/SS(P) PHY
+      - description: USB2/HS PHY
+      - description: USB3/SS(P) PHY
+      - description: USB2/HS PHY
+      - description: USB3/SS(P) PHY
+      - description: USB2/HS PHY
+
+  vusb33-supply:
+    description: Regulator of USB AVDD3.3v
+
+  vbus-supply:
+    deprecated: true
+    description: |
+      Regulator of USB VBUS5v, needed when supports dual-role mode.
+      Particularly, if use an output GPIO to control a VBUS regulator, should
+      model it as a regulator. See bindings/regulator/fixed-regulator.yaml
+      It's considered valid for compatibility reasons, not allowed for
+      new bindings, and put into a usb-connector node.
+
+  dr_mode:
+    enum: [host, peripheral, otg]
+    default: otg
+
+  maximum-speed:
+    enum: [super-speed-plus, super-speed, high-speed, full-speed]
+
+  resets:
+    maxItems: 1
+
+  "#address-cells":
+    enum: [1, 2]
+
+  "#size-cells":
+    enum: [1, 2]
+
+  ranges: true
+
+  extcon:
+    deprecated: true
+    description: |
+      Phandle to the extcon device detecting the IDDIG state, needed
+      when supports dual-role mode.
+      It's considered valid for compatibility reasons, not allowed for
+      new bindings, and use "usb-role-switch" property instead.
+
+  usb-role-switch:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: Support role switch.
+    type: boolean
+
+  role-switch-default-mode:
+    enum: [host, peripheral]
+    default: host
+
+  connector:
+    $ref: /schemas/connector/usb-connector.yaml#
+    description:
+      Connector for dual role switch, especially for "gpio-usb-b-connector"
+    type: object
+
+  port:
+    description:
+      Any connector to the data bus of this controller should be modelled
+      using the OF graph bindings specified, if the "usb-role-switch"
+      property is used. See graph.txt
+    $ref: /schemas/graph.yaml#/properties/port
+
+  enable-manual-drd:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      supports manual dual-role switch via debugfs; usually used when
+      receptacle is TYPE-A and also wants to support dual-role mode.
+    type: boolean
+
+  wakeup-source:
+    description: enable USB remote wakeup, see power/wakeup-source.txt
+    type: boolean
+
+  mediatek,syscon-wakeup:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    maxItems: 1
+    description:
+      A phandle to syscon used to access the register of the USB wakeup glue
+      layer between xHCI and SPM, the field should always be 3 cells long.
+    items:
+      items:
+        - description:
+            The first cell represents a phandle to syscon
+        - description:
+            The second cell represents the register base address of the glue
+            layer in syscon
+        - description: |
+            The third cell represents the hardware version of the glue layer,
+            1 - used by mt8173 etc, revision 1 without following IPM rule;
+            2 - used by mt2712 etc, revision 2 with following IPM rule;
+            101 - used by mt8183, specific 1.01;
+            102 - used by mt8192, specific 1.02;
+            103 - used by mt8195, IP0, specific 1.03;
+            105 - used by mt8195, IP2, specific 1.05;
+            106 - used by mt8195, IP3, specific 1.06;
+          enum: [1, 2, 101, 102, 103, 105, 106]
+
+  mediatek,u3p-dis-msk:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: The mask to disable u3ports, bit0 for u3port0,
+      bit1 for u3port1, ... etc
+
+  mediatek,u2p-dis-msk:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: The mask to disable u2ports, bit0 for u2port0,
+      bit1 for u2port1, ... etc; but can't disable u2port0 if dual role mode
+      is enabled, so will be skipped in this case.
+
+# Required child node when support dual-role
+patternProperties:
+  "^usb@[0-9a-f]+$":
+    type: object
+    $ref: /schemas/usb/mediatek,mtk-xhci.yaml#
+    description:
+      The xhci should be added as subnode to mtu3 as shown in the following
+      example if the host mode is enabled.
+
+dependencies:
+  connector: [ usb-role-switch ]
+  port: [ usb-role-switch ]
+  role-switch-default-mode: [ usb-role-switch ]
+  wakeup-source: [ 'mediatek,syscon-wakeup' ]
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - interrupts
+  - clocks
+  - clock-names
+
+additionalProperties: false
+
+examples:
+  # Dual role switch by extcon
+  - |
+    #include <dt-bindings/clock/mt8173-clk.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/phy/phy.h>
+    #include <dt-bindings/power/mt8173-power.h>
+
+    usb@11271000 {
+        compatible = "mediatek,mt8173-mtu3", "mediatek,mtu3";
+        reg = <0x11271000 0x3000>, <0x11280700 0x0100>;
+        reg-names = "mac", "ippc";
+        interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_LOW>;
+        phys = <&phy_port0 PHY_TYPE_USB3>, <&phy_port1 PHY_TYPE_USB2>;
+        power-domains = <&scpsys MT8173_POWER_DOMAIN_USB>;
+        clocks = <&topckgen CLK_TOP_USB30_SEL>;
+        clock-names = "sys_ck";
+        vusb33-supply = <&mt6397_vusb_reg>;
+        vbus-supply = <&usb_p0_vbus>;
+        extcon = <&extcon_usb>;
+        dr_mode = "otg";
+        wakeup-source;
+        mediatek,syscon-wakeup = <&pericfg 0x400 1>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges;
+
+        xhci: usb@11270000 {
+            compatible = "mediatek,mt8173-xhci", "mediatek,mtk-xhci";
+            reg = <0x11270000 0x1000>;
+            reg-names = "mac";
+            interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_LOW>;
+            power-domains = <&scpsys MT8173_POWER_DOMAIN_USB>;
+            clocks = <&topckgen CLK_TOP_USB30_SEL>, <&clk26m>;
+            clock-names = "sys_ck", "ref_ck";
+            vusb33-supply = <&mt6397_vusb_reg>;
+        };
+    };
+
+  # Dual role switch by gpio-usb-b-connector
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/power/mt2712-power.h>
+
+    usb@112c1000 {
+        compatible = "mediatek,mt2712-mtu3", "mediatek,mtu3";
+        reg = <0x112c1000 0x3000>, <0x112d0700 0x0100>;
+        reg-names = "mac", "ippc";
+        interrupts = <GIC_SPI 248 IRQ_TYPE_LEVEL_LOW>;
+        phys = <&u2port2 PHY_TYPE_USB2>;
+        power-domains = <&scpsys MT2712_POWER_DOMAIN_USB2>;
+        clocks = <&topckgen CLK_TOP_USB30_SEL>;
+        clock-names = "sys_ck";
+        dr_mode = "otg";
+        usb-role-switch;
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges;
+
+        host0: usb@11270000 {
+            compatible = "mediatek,mt2712-xhci", "mediatek,mtk-xhci";
+            reg = <0x11270000 0x1000>;
+            reg-names = "mac";
+            interrupts = <GIC_SPI 123 IRQ_TYPE_LEVEL_LOW>;
+            power-domains = <&scpsys MT2712_POWER_DOMAIN_USB>;
+            clocks = <&topckgen CLK_TOP_USB30_SEL>, <&clk26m>;
+            clock-names = "sys_ck", "ref_ck";
+        };
+
+        connector {
+            compatible = "gpio-usb-b-connector", "usb-b-connector";
+            type = "micro";
+            id-gpios = <&pio 12 GPIO_ACTIVE_HIGH>;
+            vbus-supply = <&usb_p0_vbus>;
+        };
+    };
+
+  # Dual role switch with type-c
+  - |
+    usb@11201000 {
+        compatible = "mediatek,mt8183-mtu3", "mediatek,mtu3";
+        reg = <0x11201000 0x2e00>, <0x11203e00 0x0100>;
+        reg-names = "mac", "ippc";
+        interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_LOW>;
+        phys = <&u2port0 PHY_TYPE_USB2>;
+        clocks = <&clk26m>;
+        clock-names = "sys_ck";
+        mediatek,syscon-wakeup = <&pericfg 0x400 1>;
+        wakeup-source;
+        dr_mode = "otg";
+        usb-role-switch;
+        role-switch-default-mode = "host";
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges;
+
+        host: usb@11200000 {
+            compatible = "mediatek,mt8183-xhci", "mediatek,mtk-xhci";
+            reg = <0x11200000 0x1000>;
+            reg-names = "mac";
+            interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_LOW>;
+            clocks = <&clk26m>;
+            clock-names = "sys_ck";
+        };
+
+        port {
+            usb_role_sw: endpoint {
+                remote-endpoint = <&hs_ep>;
+            };
+        };
+    };
+
+...

@@ -91,7 +91,7 @@ err:
 	return ret;
 }
 
-static int switch_drv_remove(struct platform_device *pdev)
+static void switch_drv_remove(struct platform_device *pdev)
 {
 	struct push_switch *psw = platform_get_drvdata(pdev);
 	struct push_switch_platform_info *psw_info = pdev->dev.platform_data;
@@ -101,18 +101,16 @@ static int switch_drv_remove(struct platform_device *pdev)
 		device_remove_file(&pdev->dev, &dev_attr_switch);
 
 	platform_set_drvdata(pdev, NULL);
+	timer_shutdown_sync(&psw->debounce);
 	flush_work(&psw->work);
-	del_timer_sync(&psw->debounce);
 	free_irq(irq, pdev);
 
 	kfree(psw);
-
-	return 0;
 }
 
 static struct platform_driver switch_driver = {
 	.probe		= switch_drv_probe,
-	.remove		= switch_drv_remove,
+	.remove_new	= switch_drv_remove,
 	.driver		= {
 		.name	= DRV_NAME,
 	},

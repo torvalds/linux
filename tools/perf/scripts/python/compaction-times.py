@@ -260,7 +260,7 @@ def pr_help():
 
 comm_re = None
 pid_re = None
-pid_regex = "^(\d*)-(\d*)$|^(\d*)$"
+pid_regex = r"^(\d*)-(\d*)$|^(\d*)$"
 
 opt_proc = popt.DISP_DFL
 opt_disp = topt.DISP_ALL

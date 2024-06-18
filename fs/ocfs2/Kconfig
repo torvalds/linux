@@ -1,12 +1,14 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config OCFS2_FS
 	tristate "OCFS2 file system support"
-	depends on NET && SYSFS && CONFIGFS_FS
+	depends on INET && SYSFS && CONFIGFS_FS
+	select BUFFER_HEAD
 	select JBD2
 	select CRC32
 	select QUOTA
 	select QUOTA_TREE
 	select FS_POSIX_ACL
+	select LEGACY_DIRECT_IO
 	help
 	  OCFS2 is a general purpose extent based shared disk cluster file
 	  system with many similarities to ext3. It supports 64 bit inode
@@ -16,12 +18,12 @@ config OCFS2_FS
 	  You'll want to install the ocfs2-tools package in order to at least
 	  get "mount.ocfs2".
 
-	  Project web page:    http://oss.oracle.com/projects/ocfs2
-	  Tools web page:      http://oss.oracle.com/projects/ocfs2-tools
-	  OCFS2 mailing lists: http://oss.oracle.com/projects/ocfs2/mailman/
+	  Project web page:    https://ocfs2.wiki.kernel.org/
+	  Tools web page:      https://github.com/markfasheh/ocfs2-tools
+	  OCFS2 mailing lists: https://subspace.kernel.org/lists.linux.dev.html
 
 	  For more information on OCFS2, see the file
-	  <file:Documentation/filesystems/ocfs2.txt>.
+	  <file:Documentation/filesystems/ocfs2.rst>.
 
 config OCFS2_FS_O2CB
 	tristate "O2CB Kernelspace Clustering"

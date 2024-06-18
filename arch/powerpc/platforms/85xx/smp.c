@@ -16,9 +16,9 @@
 #include <linux/highmem.h>
 #include <linux/cpu.h>
 #include <linux/fsl/guts.h>
+#include <linux/pgtable.h>
 
 #include <asm/machdep.h>
-#include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/mpic.h>
 #include <asm/cacheflush.h>
@@ -40,7 +40,6 @@ struct epapr_spin_table {
 	u32	pir;
 };
 
-#ifdef CONFIG_HOTPLUG_CPU
 static u64 timebase;
 static int tb_req;
 static int tb_valid;
@@ -112,7 +111,8 @@ static void mpc85xx_take_timebase(void)
 	local_irq_restore(flags);
 }
 
-static void smp_85xx_mach_cpu_die(void)
+#ifdef CONFIG_HOTPLUG_CPU
+static void smp_85xx_cpu_offline_self(void)
 {
 	unsigned int cpu = smp_processor_id();
 
@@ -180,7 +180,7 @@ static void wake_hw_thread(void *info)
 	unsigned long inia;
 	int cpu = *(const int *)info;
 
-	inia = *(unsigned long *)fsl_secondary_thread_init;
+	inia = ppc_function_entry(fsl_secondary_thread_init);
 	book3e_start_thread(cpu_thread_in_core(cpu), inia);
 }
 #endif
@@ -208,7 +208,7 @@ static int smp_85xx_start_cpu(int cpu)
 	 * The bootpage and highmem can be accessed via ioremap(), but
 	 * we need to directly access the spinloop if its in lowmem.
 	 */
-	ioremappable = *cpu_rel_addr > virt_to_phys(high_memory);
+	ioremappable = *cpu_rel_addr > virt_to_phys(high_memory - 1);
 
 	/* Map the spin table */
 	if (ioremappable)
@@ -220,7 +220,7 @@ static int smp_85xx_start_cpu(int cpu)
 	local_irq_save(flags);
 	hard_irq_disable();
 
-	if (qoriq_pm_ops)
+	if (qoriq_pm_ops && qoriq_pm_ops->cpu_up_prepare)
 		qoriq_pm_ops->cpu_up_prepare(cpu);
 
 	/* if cpu is not spinning, reset it */
@@ -252,6 +252,15 @@ static int smp_85xx_start_cpu(int cpu)
 	out_be64((u64 *)(&spin_table->addr_h),
 		__pa(ppc_function_entry(generic_secondary_smp_init)));
 #else
+#ifdef CONFIG_PHYS_ADDR_T_64BIT
+	/*
+	 * We need also to write addr_h to spin table for systems
+	 * in which their physical memory start address was configured
+	 * to above 4G, otherwise the secondary core can not get
+	 * correct entry to start from.
+	 */
+	out_be32(&spin_table->addr_h, __pa(__early_start) >> 32);
+#endif
 	out_be32(&spin_table->addr_l, __pa(__early_start));
 #endif
 	flush_spin_table(spin_table);
@@ -283,7 +292,7 @@ static int smp_85xx_kick_cpu(int nr)
 		booting_thread_hwid = cpu_thread_in_core(nr);
 		primary = cpu_first_thread_sibling(nr);
 
-		if (qoriq_pm_ops)
+		if (qoriq_pm_ops && qoriq_pm_ops->cpu_up_prepare)
 			qoriq_pm_ops->cpu_up_prepare(nr);
 
 		/*
@@ -357,7 +366,7 @@ struct smp_ops_t smp_85xx_ops = {
 #ifdef CONFIG_PPC32
 atomic_t kexec_down_cpus = ATOMIC_INIT(0);
 
-void mpc85xx_smp_kexec_cpu_down(int crash_shutdown, int secondary)
+static void mpc85xx_smp_kexec_cpu_down(int crash_shutdown, int secondary)
 {
 	local_irq_disable();
 
@@ -375,7 +384,7 @@ static void mpc85xx_smp_kexec_down(void *arg)
 		ppc_md.kexec_cpu_down(0,1);
 }
 #else
-void mpc85xx_smp_kexec_cpu_down(int crash_shutdown, int secondary)
+static void mpc85xx_smp_kexec_cpu_down(int crash_shutdown, int secondary)
 {
 	int cpu = smp_processor_id();
 	int sibling = cpu_last_thread_sibling(cpu);
@@ -389,6 +398,7 @@ void mpc85xx_smp_kexec_cpu_down(int crash_shutdown, int secondary)
 	hard_irq_disable();
 	mpic_teardown_this_cpu(secondary);
 
+#ifdef CONFIG_CRASH_DUMP
 	if (cpu == crashing_cpu && cpu_thread_in_core(cpu) != 0) {
 		/*
 		 * We enter the crash kernel on whatever cpu crashed,
@@ -397,9 +407,11 @@ void mpc85xx_smp_kexec_cpu_down(int crash_shutdown, int secondary)
 		 */
 		disable_threadbit = 1;
 		disable_cpu = cpu_first_thread_sibling(cpu);
-	} else if (sibling != crashing_cpu &&
-		   cpu_thread_in_core(cpu) == 0 &&
-		   cpu_thread_in_core(sibling) != 0) {
+	} else if (sibling == crashing_cpu) {
+		return;
+	}
+#endif
+	if (cpu_thread_in_core(cpu) == 0 && cpu_thread_in_core(sibling) != 0) {
 		disable_threadbit = 2;
 		disable_cpu = sibling;
 	}
@@ -486,21 +498,21 @@ void __init mpc85xx_smp_init(void)
 		smp_85xx_ops.probe = NULL;
 	}
 
-#ifdef CONFIG_HOTPLUG_CPU
 #ifdef CONFIG_FSL_CORENET_RCPM
+	/* Assign a value to qoriq_pm_ops on PPC_E500MC */
 	fsl_rcpm_init();
-#endif
-
-#ifdef CONFIG_FSL_PMC
+#else
+	/* Assign a value to qoriq_pm_ops on !PPC_E500MC */
 	mpc85xx_setup_pmc();
 #endif
 	if (qoriq_pm_ops) {
 		smp_85xx_ops.give_timebase = mpc85xx_give_timebase;
 		smp_85xx_ops.take_timebase = mpc85xx_take_timebase;
-		ppc_md.cpu_die = smp_85xx_mach_cpu_die;
+#ifdef CONFIG_HOTPLUG_CPU
+		smp_85xx_ops.cpu_offline_self = smp_85xx_cpu_offline_self;
 		smp_85xx_ops.cpu_die = qoriq_cpu_kill;
-	}
 #endif
+	}
 	smp_ops = &smp_85xx_ops;
 
 #ifdef CONFIG_KEXEC_CORE

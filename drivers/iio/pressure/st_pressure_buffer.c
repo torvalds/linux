@@ -7,16 +7,10 @@
  * Denis Ciocca <denis.ciocca@st.com>
  */
 
-#include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/stat.h>
-#include <linux/interrupt.h>
-#include <linux/i2c.h>
-#include <linux/delay.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
-#include <linux/iio/trigger_consumer.h>
+#include <linux/iio/trigger.h>
 #include <linux/iio/triggered_buffer.h>
 
 #include <linux/iio/common/st_sensors.h>
@@ -31,34 +25,12 @@ int st_press_trig_set_state(struct iio_trigger *trig, bool state)
 
 static int st_press_buffer_postenable(struct iio_dev *indio_dev)
 {
-	int err;
-
-	err = iio_triggered_buffer_postenable(indio_dev);
-	if (err < 0)
-		return err;
-
-	err = st_sensors_set_enable(indio_dev, true);
-	if (err < 0)
-		goto st_press_buffer_predisable;
-
-	return 0;
-
-st_press_buffer_predisable:
-	iio_triggered_buffer_predisable(indio_dev);
-	return err;
+	return st_sensors_set_enable(indio_dev, true);
 }
 
 static int st_press_buffer_predisable(struct iio_dev *indio_dev)
 {
-	int err, err2;
-
-	err = st_sensors_set_enable(indio_dev, false);
-
-	err2 = iio_triggered_buffer_predisable(indio_dev);
-	if (!err)
-		err = err2;
-
-	return err;
+	return st_sensors_set_enable(indio_dev, false);
 }
 
 static const struct iio_buffer_setup_ops st_press_buffer_setup_ops = {
@@ -68,15 +40,6 @@ static const struct iio_buffer_setup_ops st_press_buffer_setup_ops = {
 
 int st_press_allocate_ring(struct iio_dev *indio_dev)
 {
-	return iio_triggered_buffer_setup(indio_dev, NULL,
-		&st_sensors_trigger_handler, &st_press_buffer_setup_ops);
+	return devm_iio_triggered_buffer_setup(indio_dev->dev.parent, indio_dev,
+		NULL, &st_sensors_trigger_handler, &st_press_buffer_setup_ops);
 }
-
-void st_press_deallocate_ring(struct iio_dev *indio_dev)
-{
-	iio_triggered_buffer_cleanup(indio_dev);
-}
-
-MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");
-MODULE_DESCRIPTION("STMicroelectronics pressures buffer");
-MODULE_LICENSE("GPL v2");

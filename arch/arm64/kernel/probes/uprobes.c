@@ -21,7 +21,7 @@ void arch_uprobe_copy_ixol(struct page *page, unsigned long vaddr,
 	memcpy(dst, src, len);
 
 	/* flush caches (dcache/icache) */
-	sync_icache_aliases(dst, len);
+	sync_icache_aliases((unsigned long)dst, (unsigned long)dst + len);
 
 	kunmap_atomic(xol_page_kaddr);
 }
@@ -38,7 +38,7 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm,
 
 	/* TODO: Currently we do not support AARCH32 instruction probing */
 	if (mm->context.flags & MMCF_AARCH32)
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	else if (!IS_ALIGNED(addr, AARCH64_INSN_SIZE))
 		return -EINVAL;
 
@@ -166,7 +166,7 @@ int arch_uprobe_exception_notify(struct notifier_block *self,
 }
 
 static int uprobe_breakpoint_handler(struct pt_regs *regs,
-		unsigned int esr)
+				     unsigned long esr)
 {
 	if (uprobe_pre_sstep_notifier(regs))
 		return DBG_HOOK_HANDLED;
@@ -175,7 +175,7 @@ static int uprobe_breakpoint_handler(struct pt_regs *regs,
 }
 
 static int uprobe_single_step_handler(struct pt_regs *regs,
-		unsigned int esr)
+				      unsigned long esr)
 {
 	struct uprobe_task *utask = current->utask;
 

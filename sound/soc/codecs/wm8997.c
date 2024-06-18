@@ -969,8 +969,8 @@ static struct snd_soc_dai_driver wm8997_dai[] = {
 			 .formats = WM8997_FORMATS,
 		 },
 		.ops = &arizona_dai_ops,
-		.symmetric_rates = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_rate = 1,
+		.symmetric_sample_bits = 1,
 	},
 	{
 		.name = "wm8997-aif2",
@@ -991,8 +991,8 @@ static struct snd_soc_dai_driver wm8997_dai[] = {
 			 .formats = WM8997_FORMATS,
 		 },
 		.ops = &arizona_dai_ops,
-		.symmetric_rates = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_rate = 1,
+		.symmetric_sample_bits = 1,
 	},
 	{
 		.name = "wm8997-slim1",
@@ -1096,6 +1096,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm8997 = {
 	.remove			= wm8997_component_remove,
 	.set_sysclk		= arizona_set_sysclk,
 	.set_pll		= wm8997_set_fll,
+	.set_jack		= arizona_jack_set_jack,
 	.controls		= wm8997_snd_controls,
 	.num_controls		= ARRAY_SIZE(wm8997_snd_controls),
 	.dapm_widgets		= wm8997_dapm_widgets,
@@ -1104,7 +1105,6 @@ static const struct snd_soc_component_driver soc_component_dev_wm8997 = {
 	.num_dapm_routes	= ARRAY_SIZE(wm8997_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static int wm8997_probe(struct platform_device *pdev)
@@ -1131,6 +1131,11 @@ static int wm8997_probe(struct platform_device *pdev)
 	wm8997->core.num_inputs = 4;
 
 	arizona_init_dvfs(&wm8997->core);
+
+	/* This may return -EPROBE_DEFER, so do this early on */
+	ret = arizona_jack_codec_dev_probe(&wm8997->core, &pdev->dev);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < ARRAY_SIZE(wm8997->fll); i++)
 		wm8997->fll[i].vco_mult = 1;
@@ -1163,10 +1168,10 @@ static int wm8997_probe(struct platform_device *pdev)
 
 	ret = arizona_init_vol_limit(arizona);
 	if (ret < 0)
-		return ret;
+		goto err_jack_codec_dev;
 	ret = arizona_init_spk_irqs(arizona);
 	if (ret < 0)
-		return ret;
+		goto err_jack_codec_dev;
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
 					      &soc_component_dev_wm8997,
@@ -1177,13 +1182,18 @@ static int wm8997_probe(struct platform_device *pdev)
 		goto err_spk_irqs;
 	}
 
+	return ret;
+
 err_spk_irqs:
 	arizona_free_spk_irqs(arizona);
+err_jack_codec_dev:
+	pm_runtime_disable(&pdev->dev);
+	arizona_jack_codec_dev_remove(&wm8997->core);
 
 	return ret;
 }
 
-static int wm8997_remove(struct platform_device *pdev)
+static void wm8997_remove(struct platform_device *pdev)
 {
 	struct wm8997_priv *wm8997 = platform_get_drvdata(pdev);
 	struct arizona *arizona = wm8997->core.arizona;
@@ -1192,7 +1202,7 @@ static int wm8997_remove(struct platform_device *pdev)
 
 	arizona_free_spk_irqs(arizona);
 
-	return 0;
+	arizona_jack_codec_dev_remove(&wm8997->core);
 }
 
 static struct platform_driver wm8997_codec_driver = {
@@ -1200,7 +1210,7 @@ static struct platform_driver wm8997_codec_driver = {
 		.name = "wm8997-codec",
 	},
 	.probe = wm8997_probe,
-	.remove = wm8997_remove,
+	.remove_new = wm8997_remove,
 };
 
 module_platform_driver(wm8997_codec_driver);

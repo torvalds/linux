@@ -18,7 +18,7 @@ struct ingenic_battery {
 	struct iio_channel *channel;
 	struct power_supply_desc desc;
 	struct power_supply *battery;
-	struct power_supply_battery_info info;
+	struct power_supply_battery_info *info;
 };
 
 static int ingenic_battery_get_property(struct power_supply *psy,
@@ -26,7 +26,7 @@ static int ingenic_battery_get_property(struct power_supply *psy,
 					union power_supply_propval *val)
 {
 	struct ingenic_battery *bat = power_supply_get_drvdata(psy);
-	struct power_supply_battery_info *info = &bat->info;
+	struct power_supply_battery_info *info = bat->info;
 	int ret;
 
 	switch (psp) {
@@ -52,7 +52,7 @@ static int ingenic_battery_get_property(struct power_supply *psy,
 		return 0;
 	default:
 		return -EINVAL;
-	};
+	}
 }
 
 /* Set the most appropriate IIO channel voltage reference scale
@@ -80,7 +80,7 @@ static int ingenic_battery_set_scale(struct ingenic_battery *bat)
 	if (ret != IIO_AVAIL_LIST || scale_type != IIO_VAL_FRACTIONAL_LOG2)
 		return -EINVAL;
 
-	max_mV = bat->info.voltage_max_design_uv / 1000;
+	max_mV = bat->info->voltage_max_design_uv / 1000;
 
 	for (i = 0; i < scale_len; i += 2) {
 		u64 scale_mV = (max_raw * scale_raw[i]) >> scale_raw[i + 1];
@@ -100,10 +100,17 @@ static int ingenic_battery_set_scale(struct ingenic_battery *bat)
 		return -EINVAL;
 	}
 
-	return iio_write_channel_attribute(bat->channel,
-					   scale_raw[best_idx],
-					   scale_raw[best_idx + 1],
-					   IIO_CHAN_INFO_SCALE);
+	/* Only set scale if there is more than one (fractional) entry */
+	if (scale_len > 2) {
+		ret = iio_write_channel_attribute(bat->channel,
+						  scale_raw[best_idx],
+						  scale_raw[best_idx + 1],
+						  IIO_CHAN_INFO_SCALE);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static enum power_supply_property ingenic_battery_properties[] = {
@@ -140,23 +147,22 @@ static int ingenic_battery_probe(struct platform_device *pdev)
 	psy_cfg.of_node = dev->of_node;
 
 	bat->battery = devm_power_supply_register(dev, desc, &psy_cfg);
-	if (IS_ERR(bat->battery)) {
-		dev_err(dev, "Unable to register battery\n");
-		return PTR_ERR(bat->battery);
-	}
+	if (IS_ERR(bat->battery))
+		return dev_err_probe(dev, PTR_ERR(bat->battery),
+				     "Unable to register battery\n");
 
 	ret = power_supply_get_battery_info(bat->battery, &bat->info);
 	if (ret) {
 		dev_err(dev, "Unable to get battery info: %d\n", ret);
 		return ret;
 	}
-	if (bat->info.voltage_min_design_uv < 0) {
+	if (bat->info->voltage_min_design_uv < 0) {
 		dev_err(dev, "Unable to get voltage min design\n");
-		return bat->info.voltage_min_design_uv;
+		return bat->info->voltage_min_design_uv;
 	}
-	if (bat->info.voltage_max_design_uv < 0) {
+	if (bat->info->voltage_max_design_uv < 0) {
 		dev_err(dev, "Unable to get voltage max design\n");
-		return bat->info.voltage_max_design_uv;
+		return bat->info->voltage_max_design_uv;
 	}
 
 	return ingenic_battery_set_scale(bat);

@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * OF helpers for usb devices.
- *
- * This file is released under the GPLv2
  */
 
 #ifndef __LINUX_USB_OF_H
 #define __LINUX_USB_OF_H
 
+#include <linux/usb.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/phy.h>
@@ -19,6 +18,7 @@ enum usb_dr_mode of_usb_get_dr_mode_by_phy(struct device_node *np, int arg0);
 bool of_usb_host_tpl_support(struct device_node *np);
 int of_usb_update_otg_caps(struct device_node *np,
 			struct usb_otg_caps *otg_caps);
+enum usb_port_connect_type usb_of_get_connect_type(struct usb_device *hub, int port1);
 struct device_node *usb_of_get_device_node(struct usb_device *hub, int port1);
 bool usb_of_has_combined_node(struct usb_device *udev);
 struct device_node *usb_of_get_interface_node(struct usb_device *udev,
@@ -38,6 +38,11 @@ static inline int of_usb_update_otg_caps(struct device_node *np,
 				struct usb_otg_caps *otg_caps)
 {
 	return 0;
+}
+static inline enum usb_port_connect_type
+usb_of_get_connect_type(const struct usb_device *hub, int port1)
+{
+	return USB_PORT_CONNECT_TYPE_UNKNOWN;
 }
 static inline struct device_node *
 usb_of_get_device_node(struct usb_device *hub, int port1)

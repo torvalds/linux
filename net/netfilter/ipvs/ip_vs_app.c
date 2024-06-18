@@ -193,21 +193,29 @@ struct ip_vs_app *register_ip_vs_app(struct netns_ipvs *ipvs, struct ip_vs_app *
 
 	mutex_lock(&__ip_vs_app_mutex);
 
+	/* increase the module use count */
+	if (!ip_vs_use_count_inc()) {
+		err = -ENOENT;
+		goto out_unlock;
+	}
+
 	list_for_each_entry(a, &ipvs->app_list, a_list) {
 		if (!strcmp(app->name, a->name)) {
 			err = -EEXIST;
+			/* decrease the module use count */
+			ip_vs_use_count_dec();
 			goto out_unlock;
 		}
 	}
 	a = kmemdup(app, sizeof(*app), GFP_KERNEL);
 	if (!a) {
 		err = -ENOMEM;
+		/* decrease the module use count */
+		ip_vs_use_count_dec();
 		goto out_unlock;
 	}
 	INIT_LIST_HEAD(&a->incs_list);
 	list_add(&a->a_list, &ipvs->app_list);
-	/* increase the module use count */
-	ip_vs_use_count_inc();
 
 out_unlock:
 	mutex_unlock(&__ip_vs_app_mutex);
@@ -591,13 +599,19 @@ static const struct seq_operations ip_vs_app_seq_ops = {
 int __net_init ip_vs_app_net_init(struct netns_ipvs *ipvs)
 {
 	INIT_LIST_HEAD(&ipvs->app_list);
-	proc_create_net("ip_vs_app", 0, ipvs->net->proc_net, &ip_vs_app_seq_ops,
-			sizeof(struct seq_net_private));
+#ifdef CONFIG_PROC_FS
+	if (!proc_create_net("ip_vs_app", 0, ipvs->net->proc_net,
+			     &ip_vs_app_seq_ops,
+			     sizeof(struct seq_net_private)))
+		return -ENOMEM;
+#endif
 	return 0;
 }
 
 void __net_exit ip_vs_app_net_cleanup(struct netns_ipvs *ipvs)
 {
 	unregister_ip_vs_app(ipvs, NULL /* all */);
+#ifdef CONFIG_PROC_FS
 	remove_proc_entry("ip_vs_app", ipvs->net->proc_net);
+#endif
 }

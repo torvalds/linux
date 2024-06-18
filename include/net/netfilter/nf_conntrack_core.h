@@ -30,7 +30,6 @@ void nf_conntrack_cleanup_net(struct net *net);
 void nf_conntrack_cleanup_net_list(struct list_head *net_exit_list);
 
 void nf_conntrack_proto_pernet_init(struct net *net);
-void nf_conntrack_proto_pernet_fini(struct net *net);
 
 int nf_conntrack_proto_init(void);
 void nf_conntrack_proto_fini(void);
@@ -59,16 +58,20 @@ static inline int nf_conntrack_confirm(struct sk_buff *skb)
 	int ret = NF_ACCEPT;
 
 	if (ct) {
-		if (!nf_ct_is_confirmed(ct))
+		if (!nf_ct_is_confirmed(ct)) {
 			ret = __nf_conntrack_confirm(skb);
-		if (likely(ret == NF_ACCEPT))
+
+			if (ret == NF_ACCEPT)
+				ct = (struct nf_conn *)skb_nfct(skb);
+		}
+
+		if (ret == NF_ACCEPT && nf_ct_ecache_exist(ct))
 			nf_ct_deliver_cached_events(ct);
 	}
 	return ret;
 }
 
-unsigned int nf_confirm(struct sk_buff *skb, unsigned int protoff,
-			struct nf_conn *ct, enum ip_conntrack_info ctinfo);
+unsigned int nf_confirm(void *priv, struct sk_buff *skb, const struct nf_hook_state *state);
 
 void print_tuple(struct seq_file *s, const struct nf_conntrack_tuple *tuple,
 		 const struct nf_conntrack_l4proto *proto);
@@ -79,5 +82,22 @@ extern spinlock_t nf_conntrack_locks[CONNTRACK_LOCKS];
 void nf_conntrack_lock(spinlock_t *lock);
 
 extern spinlock_t nf_conntrack_expect_lock;
+
+/* ctnetlink code shared by both ctnetlink and nf_conntrack_bpf */
+
+static inline void __nf_ct_set_timeout(struct nf_conn *ct, u64 timeout)
+{
+	if (timeout > INT_MAX)
+		timeout = INT_MAX;
+
+	if (nf_ct_is_confirmed(ct))
+		WRITE_ONCE(ct->timeout, nfct_time_stamp + (u32)timeout);
+	else
+		ct->timeout = (u32)timeout;
+}
+
+int __nf_ct_change_timeout(struct nf_conn *ct, u64 cta_timeout);
+void __nf_ct_change_status(struct nf_conn *ct, unsigned long on, unsigned long off);
+int nf_ct_change_status_common(struct nf_conn *ct, unsigned int status);
 
 #endif /* _NF_CONNTRACK_CORE_H */

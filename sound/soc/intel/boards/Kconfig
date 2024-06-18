@@ -3,20 +3,51 @@ menuconfig SND_SOC_INTEL_MACH
 	bool "Intel Machine drivers"
 	depends on SND_SOC_INTEL_SST_TOPLEVEL || SND_SOC_SOF_INTEL_TOPLEVEL
 	help
-         Intel ASoC Machine Drivers. If you have a Intel machine that
-         has an audio controller with a DSP and I2S or DMIC port, then
-         enable this option by saying Y
+	 Intel ASoC Machine Drivers. If you have a Intel machine that
+	 has an audio controller with a DSP and I2S or DMIC port, then
+	 enable this option by saying Y
 
-         Note that the answer to this question doesn't directly affect the
-         kernel: saying N will just cause the configurator to skip all
-         the questions about Intel ASoC machine drivers.
+	 Note that the answer to this question doesn't directly affect the
+	 kernel: saying N will just cause the configurator to skip all
+	 the questions about Intel ASoC machine drivers.
 
 if SND_SOC_INTEL_MACH
 
-if SND_SOC_INTEL_HASWELL
+config SND_SOC_INTEL_USER_FRIENDLY_LONG_NAMES
+	bool "Use more user friendly long card names"
+	help
+	  Some drivers report the I/O configuration to userspace through the
+	  soundcard's long card name in the control user space AP. An unfortunate
+	  side effect is that this long name may also be used by the GUI,
+	  confusing users with information they don't need.
+	  This option prevents the long name from being modified, and the I/O
+	  configuration will be provided through a different component interface.
+	  Select Y if userspace like UCM (Use Case Manager) uses the component
+	  interface.
+	  If unsure select N.
+
+config SND_SOC_INTEL_HDA_DSP_COMMON
+	tristate
+
+config SND_SOC_INTEL_SOF_MAXIM_COMMON
+	tristate
+
+config SND_SOC_INTEL_SOF_REALTEK_COMMON
+	tristate
+
+config SND_SOC_INTEL_SOF_CIRRUS_COMMON
+	tristate
+
+config SND_SOC_INTEL_SOF_NUVOTON_COMMON
+	tristate
+
+config SND_SOC_INTEL_SOF_BOARD_HELPERS
+	tristate
+
+if SND_SOC_INTEL_CATPT
 
 config SND_SOC_INTEL_HASWELL_MACH
-	tristate "Haswell Lynxpoint"
+	tristate "Haswell with RT5640 I2S codec"
 	depends on I2C
 	depends on I2C_DESIGNWARE_PLATFORM || COMPILE_TEST
 	depends on X86_INTEL_LPSS || COMPILE_TEST
@@ -27,9 +58,21 @@ config SND_SOC_INTEL_HASWELL_MACH
 	  Say Y or m if you have such a device.
 	  If unsure select "N".
 
-endif ## SND_SOC_INTEL_HASWELL
+endif ## SND_SOC_INTEL_CATPT
 
-if SND_SOC_INTEL_HASWELL || SND_SOC_SOF_BROADWELL
+if SND_SOC_INTEL_CATPT || SND_SOC_SOF_BROADWELL
+
+config SND_SOC_INTEL_BDW_RT5650_MACH
+	tristate "Broadwell with RT5650 codec"
+	depends on I2C
+	depends on I2C_DESIGNWARE_PLATFORM || COMPILE_TEST
+	depends on X86_INTEL_LPSS || COMPILE_TEST
+	select SND_SOC_RT5645
+	help
+	  This adds the ASoC machine driver for Intel Broadwell platforms with
+	  the RT5650 codec.
+	  Say Y if you have such a device.
+	  If unsure select "N".
 
 config SND_SOC_INTEL_BDW_RT5677_MACH
 	tristate "Broadwell with RT5677 codec"
@@ -37,6 +80,9 @@ config SND_SOC_INTEL_BDW_RT5677_MACH
 	depends on I2C_DESIGNWARE_PLATFORM || COMPILE_TEST
 	depends on GPIOLIB || COMPILE_TEST
 	depends on X86_INTEL_LPSS || COMPILE_TEST
+	depends on SPI_MASTER
+	select SPI_PXA2XX
+	select SND_SOC_RT5677_SPI
 	select SND_SOC_RT5677
 	help
 	  This adds support for Intel Broadwell platform based boards with
@@ -45,7 +91,7 @@ config SND_SOC_INTEL_BDW_RT5677_MACH
 	  If unsure select "N".
 
 config SND_SOC_INTEL_BROADWELL_MACH
-	tristate "Broadwell Wildcatpoint"
+	tristate "Broadwell with RT286 I2S codec"
 	depends on I2C
 	depends on I2C_DESIGNWARE_PLATFORM || COMPILE_TEST
 	depends on X86_INTEL_LPSS || COMPILE_TEST
@@ -55,32 +101,7 @@ config SND_SOC_INTEL_BROADWELL_MACH
 	  Ultrabook platforms.
 	  Say Y or m if you have such a device. This is a recommended option.
 	  If unsure select "N".
-endif ## SND_SOC_INTEL_HASWELL || SND_SOC_SOF_BROADWELL
-
-if SND_SOC_INTEL_BAYTRAIL
-
-config SND_SOC_INTEL_BYT_MAX98090_MACH
-	tristate "Baytrail with MAX98090 codec"
-	depends on I2C
-	depends on X86_INTEL_LPSS || COMPILE_TEST
-	select SND_SOC_MAX98090
-	help
-	  This adds audio driver for Intel Baytrail platform based boards
-	  with the MAX98090 audio codec. This driver is deprecated, use
-	  SND_SOC_INTEL_CHT_BSW_MAX98090_TI_MACH instead for better
-	  functionality.
-
-config SND_SOC_INTEL_BYT_RT5640_MACH
-	tristate "Baytrail with RT5640 codec"
-	depends on I2C
-	depends on X86_INTEL_LPSS || COMPILE_TEST
-	select SND_SOC_RT5640
-	help
-	  This adds audio driver for Intel Baytrail platform based boards
-	  with the RT5640 audio codec. This driver is deprecated, use
-	  SND_SOC_INTEL_BYTCR_RT5640_MACH instead for better functionality.
-
-endif ## SND_SOC_INTEL_BAYTRAIL
+endif ## SND_SOC_INTEL_CATPT || SND_SOC_SOF_BROADWELL
 
 if SND_SST_ATOM_HIFI2_PLATFORM || SND_SOC_SOF_BAYTRAIL
 
@@ -88,6 +109,7 @@ config SND_SOC_INTEL_BYTCR_RT5640_MACH
 	tristate "Baytrail and Baytrail-CR with RT5640 codec"
 	depends on I2C && ACPI
 	depends on X86_INTEL_LPSS || COMPILE_TEST
+	depends on GPIOLIB || COMPILE_TEST
 	select SND_SOC_ACPI
 	select SND_SOC_RT5640
 	help
@@ -100,6 +122,7 @@ config SND_SOC_INTEL_BYTCR_RT5651_MACH
 	tristate "Baytrail and Baytrail-CR with RT5651 codec"
 	depends on I2C && ACPI
 	depends on X86_INTEL_LPSS || COMPILE_TEST
+	depends on GPIOLIB || COMPILE_TEST
 	select SND_SOC_ACPI
 	select SND_SOC_RT5651
 	help
@@ -108,17 +131,31 @@ config SND_SOC_INTEL_BYTCR_RT5651_MACH
 	  Say Y or m if you have such a device. This is a recommended option.
 	  If unsure select "N".
 
+config SND_SOC_INTEL_BYTCR_WM5102_MACH
+	tristate "Baytrail and Baytrail-CR with WM5102 codec"
+	depends on MFD_ARIZONA && MFD_WM5102 && SPI_MASTER && ACPI
+	depends on X86_INTEL_LPSS || COMPILE_TEST
+	depends on GPIOLIB || COMPILE_TEST
+	select SND_SOC_ACPI
+	select SND_SOC_WM5102
+	help
+	  This adds support for ASoC machine driver for Intel(R) Baytrail and Baytrail-CR
+	  platforms with WM5102 audio codec.
+	  Say Y if you have such a device.
+	  If unsure select "N".
+
 config SND_SOC_INTEL_CHT_BSW_RT5672_MACH
 	tristate "Cherrytrail & Braswell with RT5672 codec"
 	depends on I2C && ACPI
 	depends on X86_INTEL_LPSS || COMPILE_TEST
+	depends on GPIOLIB || COMPILE_TEST
 	select SND_SOC_ACPI
 	select SND_SOC_RT5670
-        help
-          This adds support for ASoC machine driver for Intel(R) Cherrytrail & Braswell
-          platforms with RT5672 audio codec.
-          Say Y or m if you have such a device. This is a recommended option.
-          If unsure select "N".
+	help
+	  This adds support for ASoC machine driver for Intel(R) Cherrytrail & Braswell
+	  platforms with RT5672 audio codec.
+	  Say Y or m if you have such a device. This is a recommended option.
+	  If unsure select "N".
 
 config SND_SOC_INTEL_CHT_BSW_RT5645_MACH
 	tristate "Cherrytrail & Braswell with RT5645/5650 codec"
@@ -136,6 +173,7 @@ config SND_SOC_INTEL_CHT_BSW_MAX98090_TI_MACH
 	tristate "Cherrytrail & Braswell with MAX98090 & TI codec"
 	depends on I2C && ACPI
 	depends on X86_INTEL_LPSS || COMPILE_TEST
+	depends on GPIOLIB || COMPILE_TEST
 	select SND_SOC_MAX98090
 	select SND_SOC_TS3A227E
 	help
@@ -160,6 +198,7 @@ config SND_SOC_INTEL_BYT_CHT_CX2072X_MACH
 	tristate "Baytrail & Cherrytrail with CX2072X codec"
 	depends on I2C && ACPI
 	depends on X86_INTEL_LPSS || COMPILE_TEST
+	depends on GPIOLIB || COMPILE_TEST
 	select SND_SOC_ACPI
 	select SND_SOC_CX2072X
 	help
@@ -184,8 +223,10 @@ config SND_SOC_INTEL_BYT_CHT_ES8316_MACH
 	tristate "Baytrail & Cherrytrail with ES8316 codec"
 	depends on I2C && ACPI
 	depends on X86_INTEL_LPSS || COMPILE_TEST
+	depends on GPIOLIB || COMPILE_TEST
 	select SND_SOC_ACPI
 	select SND_SOC_ES8316
+	select SND_SOC_ES83XX_DSM_COMMON
 	help
 	  This adds support for ASoC machine driver for Intel(R) Baytrail &
 	  Cherrytrail platforms with ES8316 audio codec.
@@ -262,6 +303,7 @@ config SND_SOC_INTEL_DA7219_MAX98357A_GENERIC
 	select SND_SOC_MAX98357A
 	select SND_SOC_DMIC
 	select SND_SOC_HDAC_HDMI
+	select SND_SOC_INTEL_HDA_DSP_COMMON
 
 if SND_SOC_INTEL_APL
 
@@ -269,8 +311,8 @@ config SND_SOC_INTEL_BXT_DA7219_MAX98357A_MACH
 	tristate "Broxton with DA7219 and MAX98357A in I2S Mode"
 	depends on I2C && ACPI
 	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	depends on SND_HDA_CODEC_HDMI
 	select SND_SOC_INTEL_DA7219_MAX98357A_GENERIC
-	select SND_HDA_DSP_LOADER
 	help
 	   This adds support for ASoC machine driver for Broxton-P platforms
 	   with DA7219 + MAX98357A I2S audio codec.
@@ -284,7 +326,7 @@ config SND_SOC_INTEL_BXT_RT298_MACH
 	select SND_SOC_RT298
 	select SND_SOC_DMIC
 	select SND_SOC_HDAC_HDMI
-	select SND_HDA_DSP_LOADER
+	select SND_SOC_INTEL_HDA_DSP_COMMON
 	help
 	   This adds support for ASoC machine driver for Broxton platforms
 	   with RT286 I2S audio codec.
@@ -292,6 +334,22 @@ config SND_SOC_INTEL_BXT_RT298_MACH
 	   If unsure select "N".
 
 endif ## SND_SOC_INTEL_APL
+
+if SND_SOC_SOF_APOLLOLAKE
+
+config SND_SOC_INTEL_SOF_WM8804_MACH
+	tristate "SOF with Wolfson/Cirrus WM8804 codec"
+	depends on I2C && ACPI
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	depends on GPIOLIB || COMPILE_TEST
+	select SND_SOC_WM8804_I2C
+	help
+	  This adds support for ASoC machine driver for Intel platforms
+	  with the Wolfson/Cirrus WM8804 I2S audio codec.
+	  Say Y or m if you have such a device. This is a recommended option.
+	  If unsure select "N".
+
+endif ## SND_SOC_SOF_APOLLOLAKE
 
 if SND_SOC_INTEL_KBL
 
@@ -311,20 +369,21 @@ config SND_SOC_INTEL_KBL_RT5663_MAX98927_MACH
 	  If unsure select "N".
 
 config SND_SOC_INTEL_KBL_RT5663_RT5514_MAX98927_MACH
-        tristate "KBL with RT5663, RT5514 and MAX98927 in I2S Mode"
+	tristate "KBL with RT5663, RT5514 and MAX98927 in I2S Mode"
 	depends on I2C && ACPI
 	depends on MFD_INTEL_LPSS || COMPILE_TEST
-        depends on SPI
-        select SND_SOC_RT5663
-        select SND_SOC_RT5514
-        select SND_SOC_RT5514_SPI
-        select SND_SOC_MAX98927
-        select SND_SOC_HDAC_HDMI
-        help
-          This adds support for ASoC Onboard Codec I2S machine driver. This will
-          create an alsa sound card for RT5663 + RT5514 + MAX98927.
-          Say Y or m if you have such a device. This is a recommended option.
-          If unsure select "N".
+	depends on SPI
+	select SND_SOC_RT5663
+	select SND_SOC_RT5514
+	select SND_SOC_RT5514_SPI
+	select SND_SOC_MAX98927
+	select SND_SOC_HDAC_HDMI
+	select SND_SOC_INTEL_SKYLAKE_SSP_CLK
+	help
+	  This adds support for ASoC Onboard Codec I2S machine driver. This will
+	  create an alsa sound card for RT5663 + RT5514 + MAX98927.
+	  Say Y or m if you have such a device. This is a recommended option.
+	  If unsure select "N".
 
 config SND_SOC_INTEL_KBL_DA7219_MAX98357A_MACH
 	tristate "KBL with DA7219 and MAX98357A in I2S Mode"
@@ -342,7 +401,7 @@ config SND_SOC_INTEL_KBL_DA7219_MAX98927_MACH
 	depends on MFD_INTEL_LPSS || COMPILE_TEST
 	select SND_SOC_DA7219
 	select SND_SOC_MAX98927
-	select SND_SOC_MAX98373
+	select SND_SOC_MAX98373_I2C
 	select SND_SOC_DMIC
 	select SND_SOC_HDAC_HDMI
 	help
@@ -355,6 +414,7 @@ config SND_SOC_INTEL_KBL_RT5660_MACH
 	tristate "KBL with RT5660 in I2S Mode"
 	depends on I2C && ACPI
 	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	depends on GPIOLIB || COMPILE_TEST
 	select SND_SOC_RT5660
 	select SND_SOC_HDAC_HDMI
 	help
@@ -364,64 +424,269 @@ config SND_SOC_INTEL_KBL_RT5660_MACH
 
 endif ## SND_SOC_INTEL_KBL
 
-if SND_SOC_INTEL_GLK || (SND_SOC_SOF_GEMINILAKE  && SND_SOC_SOF_HDA_LINK)
+if SND_SOC_SOF_GEMINILAKE
+
+config SND_SOC_INTEL_GLK_DA7219_MAX98357A_MACH
+	tristate "GLK with DA7219 and MAX98357A in I2S Mode"
+	imply SND_SOC_INTEL_SOF_DA7219_MACH
+	help
+	   This adds support for ASoC machine driver for Geminilake platforms
+	   with DA7219 + MAX98357A I2S audio codec. This option is deprecated
+	   and please use SND_SOC_INTEL_SOF_DA7219_MACH instead.
+	   Say Y or m if you have such a device. This is a recommended option.
+	   If unsure select "N".
 
 config SND_SOC_INTEL_GLK_RT5682_MAX98357A_MACH
 	tristate "GLK with RT5682 and MAX98357A in I2S Mode"
-	depends on I2C && ACPI
-	depends on MFD_INTEL_LPSS || COMPILE_TEST
-	select SND_SOC_RT5682
-	select SND_SOC_MAX98357A
-	select SND_SOC_DMIC
-	select SND_SOC_HDAC_HDMI
-	select SND_HDA_DSP_LOADER
+	imply SND_SOC_INTEL_SOF_RT5682_MACH
 	help
 	   This adds support for ASoC machine driver for Geminilake platforms
-	   with RT5682 + MAX98357A I2S audio codec.
+	   with RT5682 + MAX98357A I2S audio codec. This option is deprecated
+	   and please use SND_SOC_INTEL_SOF_RT5682_MACH instead.
 	   Say Y if you have such a device.
 	   If unsure select "N".
 
-endif ## SND_SOC_INTEL_GLK || (SND_SOC_SOF_GEMINILAKE  && SND_SOC_SOF_HDA_LINK)
+endif ## SND_SOC_SOF_GEMINILAKE
 
 if SND_SOC_INTEL_SKYLAKE_HDAUDIO_CODEC || SND_SOC_SOF_HDA_AUDIO_CODEC
 
 config SND_SOC_INTEL_SKL_HDA_DSP_GENERIC_MACH
-	tristate "SKL/KBL/BXT/APL with HDA Codecs"
+	tristate "Skylake+ with HDA Codecs"
+	depends on SND_HDA_CODEC_HDMI
 	select SND_SOC_HDAC_HDMI
+	select SND_SOC_INTEL_HDA_DSP_COMMON
 	select SND_SOC_DMIC
 	# SND_SOC_HDAC_HDA is already selected
 	help
-	  This adds support for ASoC machine driver for Intel platforms
-	  SKL/KBL/BXT/APL with iDisp, HDA audio codecs.
-          Say Y or m if you have such a device. This is a recommended option.
+	  This adds support for ASoC machine driver for Intel Skylake+
+	  platforms with display (HDMI/DP) and HDA audio codecs, and
+	  Smart Sound Technology (SST) integrated audio DSP.
+	  Say Y or m if you have such a device. This is a recommended option.
 	  If unsure select "N".
 
 endif ## SND_SOC_INTEL_SKYLAKE_HDAUDIO_CODEC || SND_SOC_SOF_HDA_AUDIO_CODEC
 
-if SND_SOC_SOF_HDA_COMMON || SND_SOC_SOF_BAYTRAIL
+if SND_SOC_SOF_HDA_LINK || SND_SOC_SOF_BAYTRAIL
 config SND_SOC_INTEL_SOF_RT5682_MACH
-	tristate "SOF with rt5682 codec in I2S Mode"
+	tristate "SOF with rt5650/rt5682 codec in I2S Mode"
 	depends on I2C && ACPI
-	depends on (SND_SOC_SOF_HDA_COMMON && (MFD_INTEL_LPSS || COMPILE_TEST)) ||\
+	depends on ((SND_HDA_CODEC_HDMI && SND_SOC_SOF_HDA_AUDIO_CODEC) &&\
+		    (MFD_INTEL_LPSS || COMPILE_TEST)) ||\
 		   (SND_SOC_SOF_BAYTRAIL && (X86_INTEL_LPSS || COMPILE_TEST))
-	select SND_SOC_RT5682
+	select SND_SOC_MAX98357A
+	select SND_SOC_MAX98373_I2C
+	select SND_SOC_MAX98390
+	select SND_SOC_RT1011
+	select SND_SOC_RT1015
+	select SND_SOC_RT1015P
+	select SND_SOC_RT5645
+	select SND_SOC_RT5682_I2C
+	select SND_SOC_RT5682S
 	select SND_SOC_DMIC
-	select SND_SOC_HDAC_HDMI
+	select SND_SOC_INTEL_HDA_DSP_COMMON
+	select SND_SOC_INTEL_SOF_BOARD_HELPERS
+	select SND_SOC_INTEL_SOF_MAXIM_COMMON
+	select SND_SOC_INTEL_SOF_REALTEK_COMMON
+	select SND_SOC_ACPI_INTEL_MATCH
 	help
 	   This adds support for ASoC machine driver for SOF platforms
-	   with rt5682 codec.
+	   with rt5650 or rt5682 codec.
 	   Say Y if you have such a device.
 	   If unsure select "N".
-endif ## SND_SOC_SOF_HDA_COMMON || SND_SOC_SOF_BAYTRAIL
 
-if (SND_SOC_SOF_COMETLAKE_LP && SND_SOC_SOF_HDA_LINK)
+config SND_SOC_INTEL_SOF_CS42L42_MACH
+	tristate "SOF with cs42l42 codec in I2S Mode"
+	depends on I2C && ACPI
+	depends on ((SND_HDA_CODEC_HDMI && SND_SOC_SOF_HDA_AUDIO_CODEC) &&\
+		    (MFD_INTEL_LPSS || COMPILE_TEST))
+	select SND_SOC_CS42L42
+	select SND_SOC_MAX98357A
+	select SND_SOC_DMIC
+	select SND_SOC_INTEL_HDA_DSP_COMMON
+	select SND_SOC_INTEL_SOF_BOARD_HELPERS
+	select SND_SOC_INTEL_SOF_MAXIM_COMMON
+	select SND_SOC_ACPI_INTEL_MATCH
+	help
+	   This adds support for ASoC machine driver for SOF platforms
+	   with cs42l42 codec.
+	   Say Y if you have such a device.
+	   If unsure select "N".
+
+config SND_SOC_INTEL_SOF_PCM512x_MACH
+	tristate "SOF with TI PCM512x codec"
+	depends on I2C && ACPI
+	depends on (SND_SOC_SOF_HDA_AUDIO_CODEC && (MFD_INTEL_LPSS || COMPILE_TEST)) ||\
+		   (SND_SOC_SOF_BAYTRAIL && (X86_INTEL_LPSS || COMPILE_TEST))
+	depends on SND_HDA_CODEC_HDMI
+	select SND_SOC_INTEL_HDA_DSP_COMMON
+	select SND_SOC_PCM512x_I2C
+	help
+	  This adds support for ASoC machine driver for SOF platforms
+	  with TI PCM512x I2S audio codec.
+	  Say Y or m if you have such a device.
+	  If unsure select "N".
+
+config SND_SOC_INTEL_SOF_ES8336_MACH
+	tristate "SOF with ES8336 or ES8326 codec in I2S mode"
+	depends on I2C && ACPI
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	depends on GPIOLIB || COMPILE_TEST
+	depends on SND_HDA_CODEC_HDMI && SND_SOC_SOF_HDA_AUDIO_CODEC
+	select SND_SOC_ES8316
+	select SND_SOC_ES8326
+	select SND_SOC_DMIC
+	select SND_SOC_INTEL_HDA_DSP_COMMON
+	help
+	   This adds support for ASoC machine driver for SOF platforms
+	   with es8336 codec.
+	   Say Y if you have such a device.
+	   If unsure select "N".
+
+config SND_SOC_INTEL_SOF_NAU8825_MACH
+	tristate "SOF with nau8825 codec in I2S Mode"
+	depends on I2C && ACPI
+	depends on ((SND_HDA_CODEC_HDMI && SND_SOC_SOF_HDA_AUDIO_CODEC) &&\
+		    (MFD_INTEL_LPSS || COMPILE_TEST))
+	select SND_SOC_NAU8825
+	select SND_SOC_RT1015P
+	select SND_SOC_MAX98373_I2C
+	select SND_SOC_MAX98357A
+	select SND_SOC_NAU8315
+	select SND_SOC_DMIC
+	select SND_SOC_INTEL_HDA_DSP_COMMON
+	select SND_SOC_INTEL_SOF_BOARD_HELPERS
+	select SND_SOC_INTEL_SOF_MAXIM_COMMON
+	select SND_SOC_INTEL_SOF_NUVOTON_COMMON
+	select SND_SOC_INTEL_SOF_REALTEK_COMMON
+	select SND_SOC_ACPI_INTEL_MATCH
+	help
+	   This adds support for ASoC machine driver for SOF platforms
+	   with nau8825 codec.
+	   Say Y if you have such a device.
+	   If unsure select "N".
+
+endif ## SND_SOC_SOF_HDA_LINK || SND_SOC_SOF_BAYTRAIL
+
+if (SND_SOC_SOF_COMETLAKE && SND_SOC_SOF_HDA_LINK)
 
 config SND_SOC_INTEL_CML_LP_DA7219_MAX98357A_MACH
 	tristate "CML_LP with DA7219 and MAX98357A in I2S Mode"
+	imply SND_SOC_INTEL_SOF_DA7219_MACH
+	help
+	   This adds support for ASoC machine driver for Cometlake platforms
+	   with DA7219 + MAX98357A I2S audio codec. This option is deprecated
+	   and please use SND_SOC_INTEL_SOF_DA7219_MACH instead.
+	   Say Y or m if you have such a device. This is a recommended option.
+	   If unsure select "N".
+
+config SND_SOC_INTEL_SOF_CML_RT1011_RT5682_MACH
+	tristate "CML with RT1011 and RT5682 in I2S Mode"
+	imply SND_SOC_INTEL_SOF_RT5682_MACH
+	help
+	  This adds support for ASoC machine driver for SOF platform with
+	  RT1011 + RT5682 I2S codec. This option is deprecated and please used
+	  SND_SOC_INTEL_SOF_RT5682_MACH instead.
+	  Say Y if you have such a device.
+	  If unsure select "N".
+
+endif ## SND_SOC_SOF_COMETLAKE && SND_SOC_SOF_HDA_LINK
+
+config SND_SOC_INTEL_SOF_DA7219_MACH
+	tristate "SOF with DA7219 codec in I2S Mode"
 	depends on I2C && ACPI
 	depends on MFD_INTEL_LPSS || COMPILE_TEST
-	select SND_SOC_INTEL_DA7219_MAX98357A_GENERIC
+	depends on SND_HDA_CODEC_HDMI && SND_SOC_SOF_HDA_AUDIO_CODEC
+	select SND_SOC_INTEL_HDA_DSP_COMMON
+	select SND_SOC_DA7219
+	select SND_SOC_MAX98357A
+	select SND_SOC_MAX98373_I2C
+	select SND_SOC_MAX98390
+	select SND_SOC_DMIC
+	select SND_SOC_INTEL_SOF_BOARD_HELPERS
+	select SND_SOC_INTEL_SOF_MAXIM_COMMON
+	select SND_SOC_ACPI_INTEL_MATCH
+	help
+	  This adds support for ASoC machine driver for SOF platforms
+	  with Dialog DA7219 I2S audio codec.
+	  Say Y if you have such a device.
+	  If unsure select "N".
 
-endif ## SND_SOC_SOF_COMETLAKE_LP && SND_SOC_SOF_HDA_LINK
+if SND_SOC_SOF_HDA_LINK
+
+config SND_SOC_INTEL_SOF_SSP_AMP_MACH
+	tristate "SOF with amplifiers in I2S Mode"
+	depends on I2C && ACPI
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	select SND_SOC_RT1308
+	select SND_SOC_CS35L41_I2C
+	select SND_SOC_DMIC
+	select SND_SOC_INTEL_HDA_DSP_COMMON
+	select SND_SOC_INTEL_SOF_BOARD_HELPERS
+	select SND_SOC_INTEL_SOF_REALTEK_COMMON
+	select SND_SOC_INTEL_SOF_CIRRUS_COMMON
+	select SND_SOC_ACPI_INTEL_MATCH
+	help
+	   This adds support for ASoC machine driver for SOF platforms
+	   with RT1308/CS35L41 I2S audio codec.
+	   Say Y if you have such a device.
+	   If unsure select "N".
+endif ## SND_SOC_SOF_HDA_LINK
+
+if SND_SOC_SOF_ELKHARTLAKE
+
+config SND_SOC_INTEL_EHL_RT5660_MACH
+	tristate "EHL with RT5660 in I2S mode"
+	depends on I2C && ACPI
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	depends on SND_HDA_CODEC_HDMI && SND_SOC_SOF_HDA_AUDIO_CODEC
+	select SND_SOC_RT5660
+	select SND_SOC_DMIC
+	select SND_SOC_INTEL_HDA_DSP_COMMON
+	help
+	  This adds support for ASoC machine driver for Elkhart Lake
+	  platform with RT5660 I2S audio codec.
+
+endif ## SND_SOC_SOF_ELKHARTLAKE
+
+if SND_SOC_SOF_INTEL_SOUNDWIRE
+
+config SND_SOC_INTEL_SOUNDWIRE_SOF_MACH
+	tristate "SoundWire generic machine driver"
+	depends on I2C && SPI_MASTER && ACPI
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	depends on SND_SOC_INTEL_USER_FRIENDLY_LONG_NAMES || COMPILE_TEST
+	depends on SOUNDWIRE
+	select SND_SOC_MAX98363
+	select SND_SOC_MAX98373_I2C
+	select SND_SOC_MAX98373_SDW
+	select SND_SOC_RT700_SDW
+	select SND_SOC_RT711_SDW
+	select SND_SOC_RT711_SDCA_SDW
+	select SND_SOC_RT712_SDCA_SDW
+	select SND_SOC_RT712_SDCA_DMIC_SDW
+	select SND_SOC_RT715_SDW
+	select SND_SOC_RT715_SDCA_SDW
+	select SND_SOC_RT722_SDCA_SDW
+	select SND_SOC_RT1308_SDW
+	select SND_SOC_RT1308
+	select SND_SOC_RT1316_SDW
+	select SND_SOC_RT1318_SDW
+	select SND_SOC_RT5682_SDW
+	select SND_SOC_CS42L42_SDW
+	select SND_SOC_CS42L43
+	select SND_SOC_CS42L43_SDW
+	select MFD_CS42L43
+	select MFD_CS42L43_SDW
+	select SND_SOC_CS35L56_SPI
+	select SND_SOC_CS35L56_SDW
+	select SND_SOC_DMIC
+	select SND_SOC_INTEL_HDA_DSP_COMMON
+	imply SND_SOC_SDW_MOCKUP
+	help
+	  Add support for Intel SoundWire-based platforms connected to
+	  MAX98373, RT700, RT711, RT1308 and RT715
+	  If unsure select "N".
+
+endif
 
 endif ## SND_SOC_INTEL_MACH

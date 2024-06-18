@@ -18,6 +18,7 @@
 #include <net/netlink.h>
 #include <net/act_api.h>
 #include <net/pkt_cls.h>
+#include <net/tc_wrapper.h>
 
 struct basic_head {
 	struct list_head	flist;
@@ -36,8 +37,9 @@ struct basic_filter {
 	struct rcu_work		rwork;
 };
 
-static int basic_classify(struct sk_buff *skb, const struct tcf_proto *tp,
-			  struct tcf_result *res)
+TC_INDIRECT_SCOPE int basic_classify(struct sk_buff *skb,
+				     const struct tcf_proto *tp,
+				     struct tcf_result *res)
 {
 	int r;
 	struct basic_head *head = rcu_dereference_bh(tp->root);
@@ -145,12 +147,12 @@ static const struct nla_policy basic_policy[TCA_BASIC_MAX + 1] = {
 static int basic_set_parms(struct net *net, struct tcf_proto *tp,
 			   struct basic_filter *f, unsigned long base,
 			   struct nlattr **tb,
-			   struct nlattr *est, bool ovr,
+			   struct nlattr *est, u32 flags,
 			   struct netlink_ext_ack *extack)
 {
 	int err;
 
-	err = tcf_exts_validate(net, tp, tb, est, &f->exts, ovr, true, extack);
+	err = tcf_exts_validate(net, tp, tb, est, &f->exts, flags, extack);
 	if (err < 0)
 		return err;
 
@@ -169,8 +171,8 @@ static int basic_set_parms(struct net *net, struct tcf_proto *tp,
 
 static int basic_change(struct net *net, struct sk_buff *in_skb,
 			struct tcf_proto *tp, unsigned long base, u32 handle,
-			struct nlattr **tca, void **arg, bool ovr,
-			bool rtnl_held, struct netlink_ext_ack *extack)
+			struct nlattr **tca, void **arg,
+			u32 flags, struct netlink_ext_ack *extack)
 {
 	int err;
 	struct basic_head *head = rtnl_dereference(tp->root);
@@ -216,7 +218,7 @@ static int basic_change(struct net *net, struct sk_buff *in_skb,
 		goto errout;
 	}
 
-	err = basic_set_parms(net, tp, fnew, base, tb, tca[TCA_RATE], ovr,
+	err = basic_set_parms(net, tp, fnew, base, tb, tca[TCA_RATE], flags,
 			      extack);
 	if (err < 0) {
 		if (!fold)
@@ -251,24 +253,17 @@ static void basic_walk(struct tcf_proto *tp, struct tcf_walker *arg,
 	struct basic_filter *f;
 
 	list_for_each_entry(f, &head->flist, link) {
-		if (arg->count < arg->skip)
-			goto skip;
-
-		if (arg->fn(tp, f, arg) < 0) {
-			arg->stop = 1;
+		if (!tc_cls_stats_dump(tp, arg, f))
 			break;
-		}
-skip:
-		arg->count++;
 	}
 }
 
-static void basic_bind_class(void *fh, u32 classid, unsigned long cl)
+static void basic_bind_class(void *fh, u32 classid, unsigned long cl, void *q,
+			     unsigned long base)
 {
 	struct basic_filter *f = fh;
 
-	if (f && f->res.classid == classid)
-		f->res.class = cl;
+	tc_cls_bind_class(classid, cl, q, &f->res, base);
 }
 
 static int basic_dump(struct net *net, struct tcf_proto *tp, void *fh,
@@ -333,6 +328,7 @@ static struct tcf_proto_ops cls_basic_ops __read_mostly = {
 	.bind_class	=	basic_bind_class,
 	.owner		=	THIS_MODULE,
 };
+MODULE_ALIAS_NET_CLS("basic");
 
 static int __init init_basic(void)
 {
@@ -346,4 +342,5 @@ static void __exit exit_basic(void)
 
 module_init(init_basic)
 module_exit(exit_basic)
+MODULE_DESCRIPTION("TC basic classifier");
 MODULE_LICENSE("GPL");

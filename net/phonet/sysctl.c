@@ -49,8 +49,7 @@ void phonet_get_local_port_range(int *min, int *max)
 }
 
 static int proc_local_port_range(struct ctl_table *table, int write,
-				void __user *buffer,
-				size_t *lenp, loff_t *ppos)
+				 void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret;
 	int range[2] = {local_port_range[0], local_port_range[1]};
@@ -82,7 +81,6 @@ static struct ctl_table phonet_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_local_port_range,
 	},
-	{ }
 };
 
 int __init phonet_sysctl_init(void)

@@ -7,13 +7,14 @@
 
 #include "trace/beauty/beauty.h"
 #include <linux/kernel.h>
-#include <uapi/linux/prctl.h>
+#include <linux/prctl.h>
 
 #include "trace/beauty/generated/prctl_option_array.c"
 
+DEFINE_STRARRAY(prctl_options, "PR_");
+
 static size_t prctl__scnprintf_option(int option, char *bf, size_t size, bool show_prefix)
 {
-	static DEFINE_STRARRAY(prctl_options, "PR_");
 	return strarray__scnprintf(&strarray__prctl_options, bf, size, "%d", show_prefix, option);
 }
 

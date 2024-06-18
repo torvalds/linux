@@ -1,7 +1,7 @@
 What:		/sys/bus/nd/devices/regionX/nfit/ecc_unit_size
 Date:		Aug, 2017
 KernelVersion:	v4.14 (Removed v4.18)
-Contact:	linux-nvdimm@lists.01.org
+Contact:	nvdimm@lists.linux.dev
 Description:
 		(RO) Size of a write request to a DIMM that will not incur a
 		read-modify-write cycle at the memory controller.

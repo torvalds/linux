@@ -1,6 +1,3 @@
-#
-# Generated files
-#
-kheaders.md5
-timeconst.h
-hz.bc
+# SPDX-License-Identifier: GPL-2.0-only
+/config_data
+/kheaders.md5

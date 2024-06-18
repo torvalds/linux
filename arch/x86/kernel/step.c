@@ -6,7 +6,9 @@
 #include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/ptrace.h>
+
 #include <asm/desc.h>
+#include <asm/debugreg.h>
 #include <asm/mmu_context.h>
 
 unsigned long convert_ip_to_linear(struct task_struct *child, struct pt_regs *regs)
@@ -127,11 +129,16 @@ static int enable_single_step(struct task_struct *child)
 		regs->flags |= X86_EFLAGS_TF;
 
 	/*
-	 * Always set TIF_SINGLESTEP - this guarantees that
-	 * we single-step system calls etc..  This will also
+	 * Always set TIF_SINGLESTEP.  This will also
 	 * cause us to set TF when returning to user mode.
 	 */
 	set_tsk_thread_flag(child, TIF_SINGLESTEP);
+
+	/*
+	 * Ensure that a trap is triggered once stepping out of a system
+	 * call prior to executing any user instruction.
+	 */
+	set_task_syscall_work(child, SYSCALL_EXIT_TRAP);
 
 	oflags = regs->flags;
 
@@ -175,8 +182,7 @@ void set_task_blockstep(struct task_struct *task, bool on)
 	 *
 	 * NOTE: this means that set/clear TIF_BLOCKSTEP is only safe if
 	 * task is current or it can't be running, otherwise we can race
-	 * with __switch_to_xtra(). We rely on ptrace_freeze_traced() but
-	 * PTRACE_KILL is not safe.
+	 * with __switch_to_xtra(). We rely on ptrace_freeze_traced().
 	 */
 	local_irq_disable();
 	debugctl = get_debugctlmsr();
@@ -230,6 +236,7 @@ void user_disable_single_step(struct task_struct *child)
 
 	/* Always clear TIF_SINGLESTEP... */
 	clear_tsk_thread_flag(child, TIF_SINGLESTEP);
+	clear_task_syscall_work(child, SYSCALL_EXIT_TRAP);
 
 	/* But touch TF only if it was set by us.. */
 	if (test_and_clear_tsk_thread_flag(child, TIF_FORCED_TF))

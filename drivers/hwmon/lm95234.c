@@ -644,7 +644,7 @@ static int lm95234_detect(struct i2c_client *client,
 	if (val & model_mask)
 		return -ENODEV;
 
-	strlcpy(info->type, name, I2C_NAME_SIZE);
+	strscpy(info->type, name, I2C_NAME_SIZE);
 	return 0;
 }
 
@@ -677,8 +677,9 @@ static int lm95234_init_client(struct i2c_client *client)
 	return 0;
 }
 
-static int lm95234_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static const struct i2c_device_id lm95234_id[];
+
+static int lm95234_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct lm95234_data *data;
@@ -698,7 +699,7 @@ static int lm95234_probe(struct i2c_client *client,
 		return err;
 
 	data->groups[0] = &lm95234_common_group;
-	if (id->driver_data == lm95234)
+	if (i2c_match_id(lm95234_id, client)->driver_data == lm95234)
 		data->groups[1] = &lm95234_group;
 
 	hwmon_dev = devm_hwmon_device_register_with_groups(dev, client->name,

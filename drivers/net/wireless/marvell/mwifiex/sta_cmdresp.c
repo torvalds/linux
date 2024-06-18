@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Marvell Wireless LAN device driver: station command response handling
+ * NXP Wireless LAN device driver: station command response handling
  *
- * Copyright (C) 2011-2014, Marvell International Ltd.
- *
- * This software file (the "File") is distributed by Marvell International
- * Ltd. under the terms of the GNU General Public License Version 2, June 1991
- * (the "License").  You may use, redistribute and/or modify this File in
- * accordance with the terms and conditions of the License, a copy of which
- * is available by writing to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or on the
- * worldwide web at http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
- *
- * THE FILE IS DISTRIBUTED AS-IS, WITHOUT WARRANTY OF ANY KIND, AND THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE
- * ARE EXPRESSLY DISCLAIMED.  The License provides additional details about
- * this warranty disclaimer.
+ * Copyright 2011-2020 NXP
  */
 
 #include "decl.h"
@@ -201,6 +189,7 @@ static int mwifiex_ret_802_11_snmp_mib(struct mwifiex_private *priv,
 			mwifiex_dbg(priv->adapter, INFO,
 				    "info: SNMP_RESP: DTIM period=%u\n",
 				    ul_temp);
+			break;
 		default:
 			break;
 		}
@@ -580,6 +569,11 @@ static int mwifiex_ret_802_11_key_material_v1(struct mwifiex_private *priv,
 {
 	struct host_cmd_ds_802_11_key_material *key =
 						&resp->params.key_material;
+	int len;
+
+	len = le16_to_cpu(key->key_param_set.key_len);
+	if (len > sizeof(key->key_param_set.key))
+		return -EINVAL;
 
 	if (le16_to_cpu(key->action) == HostCmd_ACT_GEN_SET) {
 		if ((le16_to_cpu(key->key_param_set.key_info) & KEY_MCAST)) {
@@ -593,9 +587,8 @@ static int mwifiex_ret_802_11_key_material_v1(struct mwifiex_private *priv,
 
 	memset(priv->aes_key.key_param_set.key, 0,
 	       sizeof(key->key_param_set.key));
-	priv->aes_key.key_param_set.key_len = key->key_param_set.key_len;
-	memcpy(priv->aes_key.key_param_set.key, key->key_param_set.key,
-	       le16_to_cpu(priv->aes_key.key_param_set.key_len));
+	priv->aes_key.key_param_set.key_len = cpu_to_le16(len);
+	memcpy(priv->aes_key.key_param_set.key, key->key_param_set.key, len);
 
 	return 0;
 }
@@ -610,9 +603,14 @@ static int mwifiex_ret_802_11_key_material_v2(struct mwifiex_private *priv,
 					      struct host_cmd_ds_command *resp)
 {
 	struct host_cmd_ds_802_11_key_material_v2 *key_v2;
-	__le16 len;
+	int len;
 
 	key_v2 = &resp->params.key_material_v2;
+
+	len = le16_to_cpu(key_v2->key_param_set.key_params.aes.key_len);
+	if (len > sizeof(key_v2->key_param_set.key_params.aes.key))
+		return -EINVAL;
+
 	if (le16_to_cpu(key_v2->action) == HostCmd_ACT_GEN_SET) {
 		if ((le16_to_cpu(key_v2->key_param_set.key_info) & KEY_MCAST)) {
 			mwifiex_dbg(priv->adapter, INFO, "info: key: GTK is set\n");
@@ -626,12 +624,11 @@ static int mwifiex_ret_802_11_key_material_v2(struct mwifiex_private *priv,
 		return 0;
 
 	memset(priv->aes_key_v2.key_param_set.key_params.aes.key, 0,
-	       WLAN_KEY_LEN_CCMP);
+	       sizeof(key_v2->key_param_set.key_params.aes.key));
 	priv->aes_key_v2.key_param_set.key_params.aes.key_len =
-				key_v2->key_param_set.key_params.aes.key_len;
-	len = priv->aes_key_v2.key_param_set.key_params.aes.key_len;
+				cpu_to_le16(len);
 	memcpy(priv->aes_key_v2.key_param_set.key_params.aes.key,
-	       key_v2->key_param_set.key_params.aes.key, le16_to_cpu(len));
+	       key_v2->key_param_set.key_params.aes.key, len);
 
 	return 0;
 }
@@ -699,11 +696,35 @@ static int mwifiex_ret_ver_ext(struct mwifiex_private *priv,
 {
 	struct host_cmd_ds_version_ext *ver_ext = &resp->params.verext;
 
+	if (test_and_clear_bit(MWIFIEX_IS_REQUESTING_FW_VEREXT, &priv->adapter->work_flags)) {
+		if (strncmp(ver_ext->version_str, "ChipRev:20, BB:9b(10.00), RF:40(21)",
+			    MWIFIEX_VERSION_STR_LENGTH) == 0) {
+			struct mwifiex_ds_auto_ds auto_ds = {
+				.auto_ds = DEEP_SLEEP_OFF,
+			};
+
+			mwifiex_dbg(priv->adapter, MSG,
+				    "Bad HW revision detected, disabling deep sleep\n");
+
+			if (mwifiex_send_cmd(priv, HostCmd_CMD_802_11_PS_MODE_ENH,
+					     DIS_AUTO_PS, BITMAP_AUTO_DS, &auto_ds, false)) {
+				mwifiex_dbg(priv->adapter, MSG,
+					    "Disabling deep sleep failed.\n");
+			}
+		}
+
+		return 0;
+	}
+
 	if (version_ext) {
 		version_ext->version_str_sel = ver_ext->version_str_sel;
 		memcpy(version_ext->version_str, ver_ext->version_str,
-		       sizeof(char) * 128);
-		memcpy(priv->version_str, ver_ext->version_str, 128);
+		       MWIFIEX_VERSION_STR_LENGTH);
+		memcpy(priv->version_str, ver_ext->version_str,
+		       MWIFIEX_VERSION_STR_LENGTH);
+
+		/* Ensure the version string from the firmware is 0-terminated */
+		priv->version_str[MWIFIEX_VERSION_STR_LENGTH - 1] = '\0';
 	}
 	return 0;
 }
@@ -1385,6 +1406,7 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		break;
 	case HostCmd_CMD_TDLS_OPER:
 		ret = mwifiex_ret_tdls_oper(priv, resp);
+		break;
 	case HostCmd_CMD_MC_POLICY:
 		break;
 	case HostCmd_CMD_CHAN_REPORT_REQUEST:

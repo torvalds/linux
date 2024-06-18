@@ -26,20 +26,6 @@
 MODULE_AUTHOR("Daniel Mack <daniel@caiaq.de>");
 MODULE_DESCRIPTION("caiaq USB audio");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Native Instruments,RigKontrol2},"
-			 "{Native Instruments,RigKontrol3},"
-			 "{Native Instruments,Kore Controller},"
-			 "{Native Instruments,Kore Controller 2},"
-			 "{Native Instruments,Audio Kontrol 1},"
-			 "{Native Instruments,Audio 2 DJ},"
-			 "{Native Instruments,Audio 4 DJ},"
-			 "{Native Instruments,Audio 8 DJ},"
-			 "{Native Instruments,Traktor Audio 2},"
-			 "{Native Instruments,Session I/O},"
-			 "{Native Instruments,GuitarRig mobile},"
-			 "{Native Instruments,Traktor Kontrol X1},"
-			 "{Native Instruments,Traktor Kontrol S4},"
-			 "{Native Instruments,Maschine Controller}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX; /* Index 0-max */
 static char* id[SNDRV_CARDS] = SNDRV_DEFAULT_STR; /* Id for this card */
@@ -187,7 +173,7 @@ static void usb_ep1_command_reply_dispatch (struct urb* urb)
 			break;
 		}
 #ifdef CONFIG_SND_USB_CAIAQ_INPUT
-		/* fall through */
+		fallthrough;
 	case EP1_CMD_READ_ERP:
 	case EP1_CMD_READ_ANALOG:
 		snd_usb_caiaq_input_dispatch(cdev, buf, urb->actual_length);
@@ -477,9 +463,9 @@ static int init_card(struct snd_usb_caiaqdev *cdev)
 	usb_string(usb_dev, usb_dev->descriptor.iProduct,
 		   cdev->product_name, CAIAQ_USB_STR_LEN);
 
-	strlcpy(card->driver, MODNAME, sizeof(card->driver));
-	strlcpy(card->shortname, cdev->product_name, sizeof(card->shortname));
-	strlcpy(card->mixername, cdev->product_name, sizeof(card->mixername));
+	strscpy(card->driver, MODNAME, sizeof(card->driver));
+	strscpy(card->shortname, cdev->product_name, sizeof(card->shortname));
+	strscpy(card->mixername, cdev->product_name, sizeof(card->mixername));
 
 	/* if the id was not passed as module option, fill it with a shortened
 	 * version of the product string which does not contain any
@@ -499,7 +485,7 @@ static int init_card(struct snd_usb_caiaqdev *cdev)
 	}
 
 	usb_make_path(usb_dev, usbpath, sizeof(usbpath));
-	snprintf(card->longname, sizeof(card->longname), "%s %s (%s)",
+	scnprintf(card->longname, sizeof(card->longname), "%s %s (%s)",
 		       cdev->vendor_name, cdev->product_name, usbpath);
 
 	setup_card(cdev);

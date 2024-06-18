@@ -1,3 +1,5 @@
+.. Copyright 2020 DisplayLink (UK) Ltd.
+
 ===================
 Userland interfaces
 ===================
@@ -34,6 +36,15 @@ Primary Nodes, DRM Master and Authentication
 
 .. kernel-doc:: include/drm/drm_auth.h
    :internal:
+
+
+.. _drm_leasing:
+
+DRM Display Resource Leasing
+============================
+
+.. kernel-doc:: drivers/gpu/drm/drm_lease.c
+   :doc: drm leasing
 
 Open-Source Userspace Requirements
 ==================================
@@ -137,7 +148,9 @@ clients together with the legacy drmAuth authentication procedure.
 If a driver advertises render node support, DRM core will create a
 separate render node called renderD<num>. There will be one render node
 per device. No ioctls except PRIME-related ioctls will be allowed on
-this node. Especially GEM_OPEN will be explicitly prohibited. Render
+this node. Especially GEM_OPEN will be explicitly prohibited. For a
+complete list of driver-independent ioctls that can be used on render
+nodes, see the ioctls marked DRM_RENDER_ALLOW in drm_ioctl.c  Render
 nodes are designed to avoid the buffer-leaks, which occur if clients
 guess the flink names or mmap offsets on the legacy interface.
 Additionally to this basic interface, drivers must mark their
@@ -161,6 +174,193 @@ to run without a master object if they support render nodes. If, on the
 other hand, a driver requires shared state between clients which is
 visible to user-space and accessible beyond open-file boundaries, they
 cannot support render nodes.
+
+Device Hot-Unplug
+=================
+
+.. note::
+   The following is the plan. Implementation is not there yet
+   (2020 May).
+
+Graphics devices (display and/or render) may be connected via USB (e.g.
+display adapters or docking stations) or Thunderbolt (e.g. eGPU). An end
+user is able to hot-unplug this kind of devices while they are being
+used, and expects that the very least the machine does not crash. Any
+damage from hot-unplugging a DRM device needs to be limited as much as
+possible and userspace must be given the chance to handle it if it wants
+to. Ideally, unplugging a DRM device still lets a desktop continue to
+run, but that is going to need explicit support throughout the whole
+graphics stack: from kernel and userspace drivers, through display
+servers, via window system protocols, and in applications and libraries.
+
+Other scenarios that should lead to the same are: unrecoverable GPU
+crash, PCI device disappearing off the bus, or forced unbind of a driver
+from the physical device.
+
+In other words, from userspace perspective everything needs to keep on
+working more or less, until userspace stops using the disappeared DRM
+device and closes it completely. Userspace will learn of the device
+disappearance from the device removed uevent, ioctls returning ENODEV
+(or driver-specific ioctls returning driver-specific things), or open()
+returning ENXIO.
+
+Only after userspace has closed all relevant DRM device and dmabuf file
+descriptors and removed all mmaps, the DRM driver can tear down its
+instance for the device that no longer exists. If the same physical
+device somehow comes back in the mean time, it shall be a new DRM
+device.
+
+Similar to PIDs, chardev minor numbers are not recycled immediately. A
+new DRM device always picks the next free minor number compared to the
+previous one allocated, and wraps around when minor numbers are
+exhausted.
+
+The goal raises at least the following requirements for the kernel and
+drivers.
+
+Requirements for KMS UAPI
+-------------------------
+
+- KMS connectors must change their status to disconnected.
+
+- Legacy modesets and pageflips, and atomic commits, both real and
+  TEST_ONLY, and any other ioctls either fail with ENODEV or fake
+  success.
+
+- Pending non-blocking KMS operations deliver the DRM events userspace
+  is expecting. This applies also to ioctls that faked success.
+
+- open() on a device node whose underlying device has disappeared will
+  fail with ENXIO.
+
+- Attempting to create a DRM lease on a disappeared DRM device will
+  fail with ENODEV. Existing DRM leases remain and work as listed
+  above.
+
+Requirements for Render and Cross-Device UAPI
+---------------------------------------------
+
+- All GPU jobs that can no longer run must have their fences
+  force-signalled to avoid inflicting hangs on userspace.
+  The associated error code is ENODEV.
+
+- Some userspace APIs already define what should happen when the device
+  disappears (OpenGL, GL ES: `GL_KHR_robustness`_; `Vulkan`_:
+  VK_ERROR_DEVICE_LOST; etc.). DRM drivers are free to implement this
+  behaviour the way they see best, e.g. returning failures in
+  driver-specific ioctls and handling those in userspace drivers, or
+  rely on uevents, and so on.
+
+- dmabuf which point to memory that has disappeared will either fail to
+  import with ENODEV or continue to be successfully imported if it would
+  have succeeded before the disappearance. See also about memory maps
+  below for already imported dmabufs.
+
+- Attempting to import a dmabuf to a disappeared device will either fail
+  with ENODEV or succeed if it would have succeeded without the
+  disappearance.
+
+- open() on a device node whose underlying device has disappeared will
+  fail with ENXIO.
+
+.. _GL_KHR_robustness: https://www.khronos.org/registry/OpenGL/extensions/KHR/KHR_robustness.txt
+.. _Vulkan: https://www.khronos.org/vulkan/
+
+Requirements for Memory Maps
+----------------------------
+
+Memory maps have further requirements that apply to both existing maps
+and maps created after the device has disappeared. If the underlying
+memory disappears, the map is created or modified such that reads and
+writes will still complete successfully but the result is undefined.
+This applies to both userspace mmap()'d memory and memory pointed to by
+dmabuf which might be mapped to other devices (cross-device dmabuf
+imports).
+
+Raising SIGBUS is not an option, because userspace cannot realistically
+handle it. Signal handlers are global, which makes them extremely
+difficult to use correctly from libraries like those that Mesa produces.
+Signal handlers are not composable, you can't have different handlers
+for GPU1 and GPU2 from different vendors, and a third handler for
+mmapped regular files. Threads cause additional pain with signal
+handling as well.
+
+Device reset
+============
+
+The GPU stack is really complex and is prone to errors, from hardware bugs,
+faulty applications and everything in between the many layers. Some errors
+require resetting the device in order to make the device usable again. This
+section describes the expectations for DRM and usermode drivers when a
+device resets and how to propagate the reset status.
+
+Device resets can not be disabled without tainting the kernel, which can lead to
+hanging the entire kernel through shrinkers/mmu_notifiers. Userspace role in
+device resets is to propagate the message to the application and apply any
+special policy for blocking guilty applications, if any. Corollary is that
+debugging a hung GPU context require hardware support to be able to preempt such
+a GPU context while it's stopped.
+
+Kernel Mode Driver
+------------------
+
+The KMD is responsible for checking if the device needs a reset, and to perform
+it as needed. Usually a hang is detected when a job gets stuck executing. KMD
+should keep track of resets, because userspace can query any time about the
+reset status for a specific context. This is needed to propagate to the rest of
+the stack that a reset has happened. Currently, this is implemented by each
+driver separately, with no common DRM interface. Ideally this should be properly
+integrated at DRM scheduler to provide a common ground for all drivers. After a
+reset, KMD should reject new command submissions for affected contexts.
+
+User Mode Driver
+----------------
+
+After command submission, UMD should check if the submission was accepted or
+rejected. After a reset, KMD should reject submissions, and UMD can issue an
+ioctl to the KMD to check the reset status, and this can be checked more often
+if the UMD requires it. After detecting a reset, UMD will then proceed to report
+it to the application using the appropriate API error code, as explained in the
+section below about robustness.
+
+Robustness
+----------
+
+The only way to try to keep a graphical API context working after a reset is if
+it complies with the robustness aspects of the graphical API that it is using.
+
+Graphical APIs provide ways to applications to deal with device resets. However,
+there is no guarantee that the app will use such features correctly, and a
+userspace that doesn't support robust interfaces (like a non-robust
+OpenGL context or API without any robustness support like libva) leave the
+robustness handling entirely to the userspace driver. There is no strong
+community consensus on what the userspace driver should do in that case,
+since all reasonable approaches have some clear downsides.
+
+OpenGL
+~~~~~~
+
+Apps using OpenGL should use the available robust interfaces, like the
+extension ``GL_ARB_robustness`` (or ``GL_EXT_robustness`` for OpenGL ES). This
+interface tells if a reset has happened, and if so, all the context state is
+considered lost and the app proceeds by creating new ones. There's no consensus
+on what to do to if robustness is not in use.
+
+Vulkan
+~~~~~~
+
+Apps using Vulkan should check for ``VK_ERROR_DEVICE_LOST`` for submissions.
+This error code means, among other things, that a device reset has happened and
+it needs to recreate the contexts to keep going.
+
+Reporting causes of resets
+--------------------------
+
+Apart from propagating the reset through the stack so apps can recover, it's
+really useful for driver developers to learn more about what caused the reset in
+the first place. DRM devices should make use of devcoredump to store relevant
+information about the reset, so this information can be added to user bug
+reports.
 
 .. _drm_driver_ioctl:
 
@@ -195,11 +395,11 @@ ENOSPC:
 EPERM/EACCES:
         Returned for an operation that is valid, but needs more privileges.
         E.g. root-only or much more common, DRM master-only operations return
-        this when when called by unpriviledged clients. There's no clear
+        this when called by unpriviledged clients. There's no clear
         difference between EACCES and EPERM.
 
 ENODEV:
-        The device is not (yet) present or fully initialized.
+        The device is not present anymore or is not yet fully initialized.
 
 EOPNOTSUPP:
         Feature (like PRIME, modesetting, GEM) is not supported by the driver.
@@ -254,36 +454,45 @@ Validating changes with IGT
 There's a collection of tests that aims to cover the whole functionality of
 DRM drivers and that can be used to check that changes to DRM drivers or the
 core don't regress existing functionality. This test suite is called IGT and
-its code can be found in https://cgit.freedesktop.org/drm/igt-gpu-tools/.
+its code and instructions to build and run can be found in
+https://gitlab.freedesktop.org/drm/igt-gpu-tools/.
 
-To build IGT, start by installing its build dependencies. In Debian-based
-systems::
+Using VKMS to test DRM API
+--------------------------
 
-	# apt-get build-dep intel-gpu-tools
+VKMS is a software-only model of a KMS driver that is useful for testing
+and for running compositors. VKMS aims to enable a virtual display without
+the need for a hardware display capability. These characteristics made VKMS
+a perfect tool for validating the DRM core behavior and also support the
+compositor developer. VKMS makes it possible to test DRM functions in a
+virtual machine without display, simplifying the validation of some of the
+core changes.
 
-And in Fedora-based systems::
+To Validate changes in DRM API with VKMS, start setting the kernel: make
+sure to enable VKMS module; compile the kernel with the VKMS enabled and
+install it in the target machine. VKMS can be run in a Virtual Machine
+(QEMU, virtme or similar). It's recommended the use of KVM with the minimum
+of 1GB of RAM and four cores.
 
-	# dnf builddep intel-gpu-tools
+It's possible to run the IGT-tests in a VM in two ways:
 
-Then clone the repository::
+	1. Use IGT inside a VM
+	2. Use IGT from the host machine and write the results in a shared directory.
 
-	$ git clone git://anongit.freedesktop.org/drm/igt-gpu-tools
+Following is an example of using a VM with a shared directory with
+the host machine to run igt-tests. This example uses virtme::
 
-Configure the build system and start the build::
+	$ virtme-run --rwdir /path/for/shared_dir --kdir=path/for/kernel/directory --mods=auto
 
-	$ cd igt-gpu-tools && ./autogen.sh && make -j6
+Run the igt-tests in the guest machine. This example runs the 'kms_flip'
+tests::
 
-Download the piglit dependency::
+	$ /path/for/igt-gpu-tools/scripts/run-tests.sh -p -s -t "kms_flip.*" -v
 
-	$ ./scripts/run-tests.sh -d
-
-And run the tests::
-
-	$ ./scripts/run-tests.sh -t kms -t core -s
-
-run-tests.sh is a wrapper around piglit that will execute the tests matching
-the -t options. A report in HTML format will be available in
-./results/html/index.html. Results can be compared with piglit.
+In this example, instead of building the igt_runner, Piglit is used
+(-p option). It creates an HTML summary of the test results and saves
+them in the folder "igt-gpu-tools/results". It executes only the igt-tests
+matching the -t option.
 
 Display CRC Support
 -------------------
@@ -318,12 +527,12 @@ VBlank event handling
 
 The DRM core exposes two vertical blank related ioctls:
 
-DRM_IOCTL_WAIT_VBLANK
+:c:macro:`DRM_IOCTL_WAIT_VBLANK`
     This takes a struct drm_wait_vblank structure as its argument, and
     it is used to block or request a signal when a specified vblank
     event occurs.
 
-DRM_IOCTL_MODESET_CTL
+:c:macro:`DRM_IOCTL_MODESET_CTL`
     This was only used for user-mode-settind drivers around modesetting
     changes to allow the kernel to update the vblank interrupt after
     mode setting, since on many devices the vertical blank counter is
@@ -336,5 +545,28 @@ Userspace API Structures
 .. kernel-doc:: include/uapi/drm/drm_mode.h
    :doc: overview
 
+.. _crtc_index:
+
+CRTC index
+----------
+
+CRTC's have both an object ID and an index, and they are not the same thing.
+The index is used in cases where a densely packed identifier for a CRTC is
+needed, for instance a bitmask of CRTC's. The member possible_crtcs of struct
+drm_mode_get_plane is an example.
+
+:c:macro:`DRM_IOCTL_MODE_GETRESOURCES` populates a structure with an array of
+CRTC ID's, and the CRTC index is its position in this array.
+
+.. kernel-doc:: include/uapi/drm/drm.h
+   :internal:
+
 .. kernel-doc:: include/uapi/drm/drm_mode.h
    :internal:
+
+
+dma-buf interoperability
+========================
+
+Please see Documentation/userspace-api/dma-buf-alloc-exchange.rst for
+information on how dma-buf is integrated and exposed within DRM.

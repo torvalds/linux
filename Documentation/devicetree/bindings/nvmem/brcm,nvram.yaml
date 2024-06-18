@@ -1,0 +1,73 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/nvmem/brcm,nvram.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom's NVRAM
+
+description: |
+  Broadcom's NVRAM is a structure containing device specific environment
+  variables. It is used for storing device configuration, booting parameters
+  and calibration data.
+
+  NVRAM can be accessed on Broadcom BCM47xx MIPS and Northstar ARM Cortex-A9
+  devices usiong I/O mapped memory.
+
+  NVRAM variables can be defined as NVMEM device subnodes.
+
+maintainers:
+  - Rafał Miłecki <rafal@milecki.pl>
+
+allOf:
+  - $ref: nvmem.yaml#
+
+properties:
+  compatible:
+    const: brcm,nvram
+
+  reg:
+    maxItems: 1
+
+  board_id:
+    type: object
+    description: Board identification name
+
+  et0macaddr:
+    type: object
+    description: First Ethernet interface's MAC address
+    properties:
+      "#nvmem-cell-cells":
+        description: The first argument is a MAC address offset.
+        const: 1
+    additionalProperties: false
+
+  et1macaddr:
+    type: object
+    description: Second Ethernet interface's MAC address
+    properties:
+      "#nvmem-cell-cells":
+        description: The first argument is a MAC address offset.
+        const: 1
+    additionalProperties: false
+
+  et2macaddr:
+    type: object
+    description: Third Ethernet interface's MAC address
+    properties:
+      "#nvmem-cell-cells":
+        description: The first argument is a MAC address offset.
+        const: 1
+    additionalProperties: false
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    nvram@1eff0000 {
+        compatible = "brcm,nvram";
+        reg = <0x1eff0000 0x10000>;
+
+        mac: et0macaddr {
+        };
+    };

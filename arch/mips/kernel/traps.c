@@ -57,8 +57,8 @@
 #include <asm/mipsmtregs.h>
 #include <asm/module.h>
 #include <asm/msa.h>
-#include <asm/pgtable.h>
 #include <asm/ptrace.h>
+#include <asm/regdef.h>
 #include <asm/sections.h>
 #include <asm/siginfo.h>
 #include <asm/tlbdebug.h>
@@ -70,6 +70,10 @@
 #include <asm/stacktrace.h>
 #include <asm/tlbex.h>
 #include <asm/uasm.h>
+
+#include <asm/mach-loongson64/cpucfg-emul.h>
+
+#include "access-helper.h"
 
 extern void check_wait(void);
 extern asmlinkage void rollback_handle_int(void);
@@ -89,6 +93,7 @@ extern asmlinkage void handle_tr(void);
 extern asmlinkage void handle_msa_fpe(void);
 extern asmlinkage void handle_fpe(void);
 extern asmlinkage void handle_ftlb(void);
+extern asmlinkage void handle_gsexc(void);
 extern asmlinkage void handle_msa(void);
 extern asmlinkage void handle_mdmx(void);
 extern asmlinkage void handle_watch(void);
@@ -99,33 +104,38 @@ extern asmlinkage void handle_reserved(void);
 extern void tlb_do_page_fault_0(void);
 
 void (*board_be_init)(void);
-int (*board_be_handler)(struct pt_regs *regs, int is_fixup);
+static int (*board_be_handler)(struct pt_regs *regs, int is_fixup);
 void (*board_nmi_handler_setup)(void);
 void (*board_ejtag_handler_setup)(void);
 void (*board_bind_eic_interrupt)(int irq, int regset);
 void (*board_ebase_setup)(void);
 void(*board_cache_error_setup)(void);
 
-static void show_raw_backtrace(unsigned long reg29)
+void mips_set_be_handler(int (*handler)(struct pt_regs *regs, int is_fixup))
+{
+	board_be_handler = handler;
+}
+EXPORT_SYMBOL_GPL(mips_set_be_handler);
+
+static void show_raw_backtrace(unsigned long reg29, const char *loglvl,
+			       bool user)
 {
 	unsigned long *sp = (unsigned long *)(reg29 & ~3);
 	unsigned long addr;
 
-	printk("Call Trace:");
+	printk("%sCall Trace:", loglvl);
 #ifdef CONFIG_KALLSYMS
-	printk("\n");
+	printk("%s\n", loglvl);
 #endif
 	while (!kstack_end(sp)) {
-		unsigned long __user *p =
-			(unsigned long __user *)(unsigned long)sp++;
-		if (__get_user(addr, p)) {
-			printk(" (Bad stack address)");
+		if (__get_addr(&addr, sp++, user)) {
+			printk("%s (Bad stack address)", loglvl);
 			break;
 		}
 		if (__kernel_text_address(addr))
-			print_ip_sym(addr);
+			print_ip_sym(loglvl, addr);
 	}
-	printk("\n");
+	printk("%s\n", loglvl);
 }
 
 #ifdef CONFIG_KALLSYMS
@@ -138,7 +148,8 @@ static int __init set_raw_show_trace(char *str)
 __setup("raw_show_trace", set_raw_show_trace);
 #endif
 
-static void show_backtrace(struct task_struct *task, const struct pt_regs *regs)
+static void show_backtrace(struct task_struct *task, const struct pt_regs *regs,
+			   const char *loglvl, bool user)
 {
 	unsigned long sp = regs->regs[29];
 	unsigned long ra = regs->regs[31];
@@ -148,12 +159,12 @@ static void show_backtrace(struct task_struct *task, const struct pt_regs *regs)
 		task = current;
 
 	if (raw_show_trace || user_mode(regs) || !__kernel_text_address(pc)) {
-		show_raw_backtrace(sp);
+		show_raw_backtrace(sp, loglvl, user);
 		return;
 	}
-	printk("Call Trace:\n");
+	printk("%sCall Trace:\n", loglvl);
 	do {
-		print_ip_sym(pc);
+		print_ip_sym(loglvl, pc);
 		pc = unwind_stack(task, &sp, pc, &ra);
 	} while (pc);
 	pr_cont("\n");
@@ -164,26 +175,26 @@ static void show_backtrace(struct task_struct *task, const struct pt_regs *regs)
  * with at least a bit of error checking ...
  */
 static void show_stacktrace(struct task_struct *task,
-	const struct pt_regs *regs)
+	const struct pt_regs *regs, const char *loglvl, bool user)
 {
 	const int field = 2 * sizeof(unsigned long);
-	long stackdata;
+	unsigned long stackdata;
 	int i;
-	unsigned long __user *sp = (unsigned long __user *)regs->regs[29];
+	unsigned long *sp = (unsigned long *)regs->regs[29];
 
-	printk("Stack :");
+	printk("%sStack :", loglvl);
 	i = 0;
 	while ((unsigned long) sp & (PAGE_SIZE - 1)) {
 		if (i && ((i % (64 / field)) == 0)) {
 			pr_cont("\n");
-			printk("       ");
+			printk("%s       ", loglvl);
 		}
 		if (i > 39) {
 			pr_cont(" ...");
 			break;
 		}
 
-		if (__get_user(stackdata, sp++)) {
+		if (__get_addr(&stackdata, sp++, user)) {
 			pr_cont(" (Bad stack address)");
 			break;
 		}
@@ -192,13 +203,12 @@ static void show_stacktrace(struct task_struct *task,
 		i++;
 	}
 	pr_cont("\n");
-	show_backtrace(task, regs);
+	show_backtrace(task, regs, loglvl, user);
 }
 
-void show_stack(struct task_struct *task, unsigned long *sp)
+void show_stack(struct task_struct *task, unsigned long *sp, const char *loglvl)
 {
 	struct pt_regs regs;
-	mm_segment_t old_fs = get_fs();
 
 	regs.cp0_status = KSU_KERNEL;
 	if (sp) {
@@ -210,42 +220,45 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 			regs.regs[29] = task->thread.reg29;
 			regs.regs[31] = 0;
 			regs.cp0_epc = task->thread.reg31;
-#ifdef CONFIG_KGDB_KDB
-		} else if (atomic_read(&kgdb_active) != -1 &&
-			   kdb_current_regs) {
-			memcpy(&regs, kdb_current_regs, sizeof(regs));
-#endif /* CONFIG_KGDB_KDB */
 		} else {
 			prepare_frametrace(&regs);
 		}
 	}
-	/*
-	 * show_stack() deals exclusively with kernel mode, so be sure to access
-	 * the stack in the kernel (not user) address space.
-	 */
-	set_fs(KERNEL_DS);
-	show_stacktrace(task, &regs);
-	set_fs(old_fs);
+	show_stacktrace(task, &regs, loglvl, false);
 }
 
-static void show_code(unsigned int __user *pc)
+static void show_code(void *pc, bool user)
 {
 	long i;
-	unsigned short __user *pc16 = NULL;
+	unsigned short *pc16 = NULL;
 
 	printk("Code:");
 
 	if ((unsigned long)pc & 1)
-		pc16 = (unsigned short __user *)((unsigned long)pc & ~1);
+		pc16 = (u16 *)((unsigned long)pc & ~1);
+
 	for(i = -3 ; i < 6 ; i++) {
-		unsigned int insn;
-		if (pc16 ? __get_user(insn, pc16 + i) : __get_user(insn, pc + i)) {
-			pr_cont(" (Bad address in epc)\n");
-			break;
+		if (pc16) {
+			u16 insn16;
+
+			if (__get_inst16(&insn16, pc16 + i, user))
+				goto bad_address;
+
+			pr_cont("%c%04x%c", (i?' ':'<'), insn16, (i?' ':'>'));
+		} else {
+			u32 insn32;
+
+			if (__get_inst32(&insn32, (u32 *)pc + i, user))
+				goto bad_address;
+
+			pr_cont("%c%08x%c", (i?' ':'<'), insn32, (i?' ':'>'));
 		}
-		pr_cont("%c%0*x%c", (i?' ':'<'), pc16 ? 4 : 8, insn, (i?' ':'>'));
 	}
 	pr_cont("\n");
+	return;
+
+bad_address:
+	pr_cont(" (Bad address in epc)\n\n");
 }
 
 static void __show_regs(const struct pt_regs *regs)
@@ -358,7 +371,6 @@ void show_regs(struct pt_regs *regs)
 void show_registers(struct pt_regs *regs)
 {
 	const int field = 2 * sizeof(unsigned long);
-	mm_segment_t old_fs = get_fs();
 
 	__show_regs(regs);
 	print_modules();
@@ -373,13 +385,9 @@ void show_registers(struct pt_regs *regs)
 			printk("*HwTLS: %0*lx\n", field, tls);
 	}
 
-	if (!user_mode(regs))
-		/* Necessary for getting the correct stack content */
-		set_fs(KERNEL_DS);
-	show_stacktrace(current, regs);
-	show_code((unsigned int __user *) regs->cp0_epc);
+	show_stacktrace(current, regs, KERN_DEFAULT, user_mode(regs));
+	show_code((void *)regs->cp0_epc, user_mode(regs));
 	printk("\n");
-	set_fs(old_fs);
 }
 
 static DEFINE_RAW_SPINLOCK(die_lock);
@@ -415,7 +423,7 @@ void __noreturn die(const char *str, struct pt_regs *regs)
 	if (regs && kexec_should_crash(current))
 		crash_kexec(regs);
 
-	do_exit(sig);
+	make_task_dead(sig);
 }
 
 extern struct exception_table_entry __start___dbe_table[];
@@ -698,6 +706,50 @@ static int simulate_sync(struct pt_regs *regs, unsigned int opcode)
 	return -1;			/* Must be something else ... */
 }
 
+/*
+ * Loongson-3 CSR instructions emulation
+ */
+
+#ifdef CONFIG_CPU_LOONGSON3_CPUCFG_EMULATION
+
+#define LWC2             0xc8000000
+#define RS               BASE
+#define CSR_OPCODE2      0x00000118
+#define CSR_OPCODE2_MASK 0x000007ff
+#define CSR_FUNC_MASK    RT
+#define CSR_FUNC_CPUCFG  0x8
+
+static int simulate_loongson3_cpucfg(struct pt_regs *regs,
+				     unsigned int opcode)
+{
+	int op = opcode & OPCODE;
+	int op2 = opcode & CSR_OPCODE2_MASK;
+	int csr_func = (opcode & CSR_FUNC_MASK) >> 16;
+
+	if (op == LWC2 && op2 == CSR_OPCODE2 && csr_func == CSR_FUNC_CPUCFG) {
+		int rd = (opcode & RD) >> 11;
+		int rs = (opcode & RS) >> 21;
+		__u64 sel = regs->regs[rs];
+
+		perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS, 1, regs, 0);
+
+		/* Do not emulate on unsupported core models. */
+		preempt_disable();
+		if (!loongson3_cpucfg_emulation_enabled(&current_cpu_data)) {
+			preempt_enable();
+			return -1;
+		}
+		regs->regs[rd] = loongson3_cpucfg_read_synthesized(
+			&current_cpu_data, sel);
+		preempt_enable();
+		return 0;
+	}
+
+	/* Not ours.  */
+	return -1;
+}
+#endif /* CONFIG_CPU_LOONGSON3_CPUCFG_EMULATION */
+
 asmlinkage void do_ov(struct pt_regs *regs)
 {
 	enum ctx_state prev_state;
@@ -739,7 +791,6 @@ void force_fcr31_sig(unsigned long fcr31, void __user *fault_addr,
 int process_fpemu_return(int sig, void __user *fault_addr, unsigned long fcr31)
 {
 	int si_code;
-	struct vm_area_struct *vma;
 
 	switch (sig) {
 	case 0:
@@ -754,13 +805,12 @@ int process_fpemu_return(int sig, void __user *fault_addr, unsigned long fcr31)
 		return 1;
 
 	case SIGSEGV:
-		down_read(&current->mm->mmap_sem);
-		vma = find_vma(current->mm, (unsigned long)fault_addr);
-		if (vma && (vma->vm_start <= (unsigned long)fault_addr))
+		mmap_read_lock(current->mm);
+		if (vma_lookup(current->mm, (unsigned long)fault_addr))
 			si_code = SEGV_ACCERR;
 		else
 			si_code = SEGV_MAPERR;
-		up_read(&current->mm->mmap_sem);
+		mmap_read_unlock(current->mm);
 		force_sig_fault(SIGSEGV, si_code, fault_addr);
 		return 1;
 
@@ -980,18 +1030,14 @@ asmlinkage void do_bp(struct pt_regs *regs)
 	unsigned long epc = msk_isa16_mode(exception_epc(regs));
 	unsigned int opcode, bcode;
 	enum ctx_state prev_state;
-	mm_segment_t seg;
-
-	seg = get_fs();
-	if (!user_mode(regs))
-		set_fs(KERNEL_DS);
+	bool user = user_mode(regs);
 
 	prev_state = exception_enter();
 	current->thread.trap_nr = (regs->cp0_cause >> 2) & 0x1f;
 	if (get_isa16_mode(regs->cp0_epc)) {
 		u16 instr[2];
 
-		if (__get_user(instr[0], (u16 __user *)epc))
+		if (__get_inst16(&instr[0], (u16 *)epc, user))
 			goto out_sigsegv;
 
 		if (!cpu_has_mmips) {
@@ -1002,13 +1048,13 @@ asmlinkage void do_bp(struct pt_regs *regs)
 			bcode = instr[0] & 0xf;
 		} else {
 			/* 32-bit microMIPS BREAK */
-			if (__get_user(instr[1], (u16 __user *)(epc + 2)))
+			if (__get_inst16(&instr[1], (u16 *)(epc + 2), user))
 				goto out_sigsegv;
 			opcode = (instr[0] << 16) | instr[1];
 			bcode = (opcode >> 6) & ((1 << 20) - 1);
 		}
 	} else {
-		if (__get_user(opcode, (unsigned int __user *)epc))
+		if (__get_inst32(&opcode, (u32 *)epc, user))
 			goto out_sigsegv;
 		bcode = (opcode >> 6) & ((1 << 20) - 1);
 	}
@@ -1058,7 +1104,6 @@ asmlinkage void do_bp(struct pt_regs *regs)
 	do_trap_or_bp(regs, bcode, TRAP_BRKPT, "Break");
 
 out:
-	set_fs(seg);
 	exception_exit(prev_state);
 	return;
 
@@ -1072,25 +1117,21 @@ asmlinkage void do_tr(struct pt_regs *regs)
 	u32 opcode, tcode = 0;
 	enum ctx_state prev_state;
 	u16 instr[2];
-	mm_segment_t seg;
+	bool user = user_mode(regs);
 	unsigned long epc = msk_isa16_mode(exception_epc(regs));
-
-	seg = get_fs();
-	if (!user_mode(regs))
-		set_fs(KERNEL_DS);
 
 	prev_state = exception_enter();
 	current->thread.trap_nr = (regs->cp0_cause >> 2) & 0x1f;
 	if (get_isa16_mode(regs->cp0_epc)) {
-		if (__get_user(instr[0], (u16 __user *)(epc + 0)) ||
-		    __get_user(instr[1], (u16 __user *)(epc + 2)))
+		if (__get_inst16(&instr[0], (u16 *)(epc + 0), user) ||
+		    __get_inst16(&instr[1], (u16 *)(epc + 2), user))
 			goto out_sigsegv;
 		opcode = (instr[0] << 16) | instr[1];
 		/* Immediate versions don't provide a code.  */
 		if (!(opcode & OPCODE))
 			tcode = (opcode >> 12) & ((1 << 4) - 1);
 	} else {
-		if (__get_user(opcode, (u32 __user *)epc))
+		if (__get_inst32(&opcode, (u32 *)epc, user))
 			goto out_sigsegv;
 		/* Immediate versions don't provide a code.  */
 		if (!(opcode & OPCODE))
@@ -1100,7 +1141,6 @@ asmlinkage void do_tr(struct pt_regs *regs)
 	do_trap_or_bp(regs, tcode, 0, "Trap");
 
 out:
-	set_fs(seg);
 	exception_exit(prev_state);
 	return;
 
@@ -1171,6 +1211,11 @@ no_r2_instr:
 
 		if (status < 0)
 			status = simulate_fp(regs, opcode, old_epc, old31);
+
+#ifdef CONFIG_CPU_LOONGSON3_CPUCFG_EMULATION
+		if (status < 0)
+			status = simulate_loongson3_cpucfg(regs, opcode);
+#endif
 	} else if (cpu_has_mmips) {
 		unsigned short mmop[2] = { 0 };
 
@@ -1240,6 +1285,18 @@ static int enable_restore_fp_context(int msa)
 		err = own_fpu_inatomic(1);
 		if (msa && !err) {
 			enable_msa();
+			/*
+			 * with MSA enabled, userspace can see MSACSR
+			 * and MSA regs, but the values in them are from
+			 * other task before current task, restore them
+			 * from saved fp/msa context
+			 */
+			write_msa_csr(current->thread.fpu.msacsr);
+			/*
+			 * own_fpu_inatomic(1) just restore low 64bit,
+			 * fix the high 64bit
+			 */
+			init_msa_upper();
 			set_thread_flag(TIF_USEDMSA);
 			set_thread_flag(TIF_MSA_CTX_LIVE);
 		}
@@ -1406,8 +1463,7 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 			force_sig(SIGILL);
 			break;
 		}
-		/* Fall through.  */
-
+		fallthrough;
 	case 1: {
 		void __user *fault_addr;
 		unsigned long fcr31;
@@ -1533,7 +1589,6 @@ asmlinkage void do_mcheck(struct pt_regs *regs)
 {
 	int multi_match = regs->cp0_status & ST0_TS;
 	enum ctx_state prev_state;
-	mm_segment_t old_fs = get_fs();
 
 	prev_state = exception_enter();
 	show_regs(regs);
@@ -1544,12 +1599,7 @@ asmlinkage void do_mcheck(struct pt_regs *regs)
 		dump_tlb_all();
 	}
 
-	if (!user_mode(regs))
-		set_fs(KERNEL_DS);
-
-	show_code((unsigned int __user *) regs->cp0_epc);
-
-	set_fs(old_fs);
+	show_code((void *)regs->cp0_epc, user_mode(regs));
 
 	/*
 	 * Some chips may have other causes of machine check (e.g. SB1
@@ -1635,7 +1685,7 @@ __setup("nol2par", nol2parity);
  * Some MIPS CPUs can enable/disable for cache parity detection, but do
  * it different ways.
  */
-static inline void parity_protection_init(void)
+static inline __init void parity_protection_init(void)
 {
 #define ERRCTL_PE	0x80000000
 #define ERRCTL_L2P	0x00800000
@@ -1761,7 +1811,7 @@ static inline void parity_protection_init(void)
 
 	case CPU_5KC:
 	case CPU_5KE:
-	case CPU_LOONGSON1:
+	case CPU_LOONGSON32:
 		write_c0_ecc(0x80000000);
 		back_to_back_c0_hazard();
 		/* Set the PE bit (bit 31) in the c0_errctl register. */
@@ -1857,6 +1907,37 @@ asmlinkage void do_ftlb(void)
 	cache_parity_error();
 }
 
+asmlinkage void do_gsexc(struct pt_regs *regs, u32 diag1)
+{
+	u32 exccode = (diag1 & LOONGSON_DIAG1_EXCCODE) >>
+			LOONGSON_DIAG1_EXCCODE_SHIFT;
+	enum ctx_state prev_state;
+
+	prev_state = exception_enter();
+
+	switch (exccode) {
+	case 0x08:
+		/* Undocumented exception, will trigger on certain
+		 * also-undocumented instructions accessible from userspace.
+		 * Processor state is not otherwise corrupted, but currently
+		 * we don't know how to proceed. Maybe there is some
+		 * undocumented control flag to enable the instructions?
+		 */
+		force_sig(SIGILL);
+		break;
+
+	default:
+		/* None of the other exceptions, documented or not, have
+		 * further details given; none are encountered in the wild
+		 * either. Panic in case some of them turn out to be fatal.
+		 */
+		show_regs(regs);
+		panic("Unhandled Loongson exception - GSCause = %08x", diag1);
+	}
+
+	exception_exit(prev_state);
+}
+
 /*
  * SDBBP EJTAG debug exception handler.
  * We skip the instruction and return to the next instruction.
@@ -1920,12 +2001,21 @@ void __noreturn nmi_exception_handler(struct pt_regs *regs)
 	nmi_exit();
 }
 
-#define VECTORSPACING 0x100	/* for EI/VI mode */
-
 unsigned long ebase;
 EXPORT_SYMBOL_GPL(ebase);
 unsigned long exception_handlers[32];
 unsigned long vi_handlers[64];
+
+void reserve_exception_space(phys_addr_t addr, unsigned long size)
+{
+	/*
+	 * reserve exception space on CPUs other than CPU0
+	 * is too late, since memblock is unavailable when APs
+	 * up
+	 */
+	if (smp_processor_id() == 0)
+		memblock_reserve(addr, size);
+}
 
 void __init *set_except_vector(int n, void *addr)
 {
@@ -1952,13 +2042,12 @@ void __init *set_except_vector(int n, void *addr)
 		unsigned long jump_mask = ~((1 << 28) - 1);
 #endif
 		u32 *buf = (u32 *)(ebase + 0x200);
-		unsigned int k0 = 26;
 		if ((handler & jump_mask) == ((ebase + 0x200) & jump_mask)) {
 			uasm_i_j(&buf, handler & ~jump_mask);
 			uasm_i_nop(&buf);
 		} else {
-			UASM_i_LA(&buf, k0, handler);
-			uasm_i_jr(&buf, k0);
+			UASM_i_LA(&buf, GPR_K0, handler);
+			uasm_i_jr(&buf, GPR_K0);
 			uasm_i_nop(&buf);
 		}
 		local_flush_icache_range(ebase + 0x200, (unsigned long)buf);
@@ -1972,109 +2061,70 @@ static void do_default_vi(void)
 	panic("Caught unexpected vectored interrupt.");
 }
 
-static void *set_vi_srs_handler(int n, vi_handler_t addr, int srs)
+void *set_vi_handler(int n, vi_handler_t addr)
 {
+	extern const u8 except_vec_vi[];
+	extern const u8 except_vec_vi_ori[], except_vec_vi_end[];
+	extern const u8 rollback_except_vec_vi[];
 	unsigned long handler;
 	unsigned long old_handler = vi_handlers[n];
 	int srssets = current_cpu_data.srsets;
 	u16 *h;
 	unsigned char *b;
+	const u8 *vec_start;
+	int ori_offset;
+	int handler_len;
 
 	BUG_ON(!cpu_has_veic && !cpu_has_vint);
 
 	if (addr == NULL) {
 		handler = (unsigned long) do_default_vi;
-		srs = 0;
 	} else
 		handler = (unsigned long) addr;
 	vi_handlers[n] = handler;
 
 	b = (unsigned char *)(ebase + 0x200 + n*VECTORSPACING);
 
-	if (srs >= srssets)
-		panic("Shadow register set %d not supported", srs);
-
 	if (cpu_has_veic) {
 		if (board_bind_eic_interrupt)
-			board_bind_eic_interrupt(n, srs);
+			board_bind_eic_interrupt(n, 0);
 	} else if (cpu_has_vint) {
 		/* SRSMap is only defined if shadow sets are implemented */
 		if (srssets > 1)
-			change_c0_srsmap(0xf << n*4, srs << n*4);
+			change_c0_srsmap(0xf << n*4, 0 << n*4);
 	}
 
-	if (srs == 0) {
-		/*
-		 * If no shadow set is selected then use the default handler
-		 * that does normal register saving and standard interrupt exit
-		 */
-		extern char except_vec_vi, except_vec_vi_lui;
-		extern char except_vec_vi_ori, except_vec_vi_end;
-		extern char rollback_except_vec_vi;
-		char *vec_start = using_rollback_handler() ?
-			&rollback_except_vec_vi : &except_vec_vi;
+	vec_start = using_rollback_handler() ? rollback_except_vec_vi :
+					       except_vec_vi;
 #if defined(CONFIG_CPU_MICROMIPS) || defined(CONFIG_CPU_BIG_ENDIAN)
-		const int lui_offset = &except_vec_vi_lui - vec_start + 2;
-		const int ori_offset = &except_vec_vi_ori - vec_start + 2;
+	ori_offset = except_vec_vi_ori - vec_start + 2;
 #else
-		const int lui_offset = &except_vec_vi_lui - vec_start;
-		const int ori_offset = &except_vec_vi_ori - vec_start;
+	ori_offset = except_vec_vi_ori - vec_start;
 #endif
-		const int handler_len = &except_vec_vi_end - vec_start;
+	handler_len = except_vec_vi_end - vec_start;
 
-		if (handler_len > VECTORSPACING) {
-			/*
-			 * Sigh... panicing won't help as the console
-			 * is probably not configured :(
-			 */
-			panic("VECTORSPACING too small");
-		}
-
-		set_handler(((unsigned long)b - ebase), vec_start,
-#ifdef CONFIG_CPU_MICROMIPS
-				(handler_len - 1));
-#else
-				handler_len);
-#endif
-		h = (u16 *)(b + lui_offset);
-		*h = (handler >> 16) & 0xffff;
-		h = (u16 *)(b + ori_offset);
-		*h = (handler & 0xffff);
-		local_flush_icache_range((unsigned long)b,
-					 (unsigned long)(b+handler_len));
-	}
-	else {
+	if (handler_len > VECTORSPACING) {
 		/*
-		 * In other cases jump directly to the interrupt handler. It
-		 * is the handler's responsibility to save registers if required
-		 * (eg hi/lo) and return from the exception using "eret".
+		 * Sigh... panicing won't help as the console
+		 * is probably not configured :(
 		 */
-		u32 insn;
-
-		h = (u16 *)b;
-		/* j handler */
-#ifdef CONFIG_CPU_MICROMIPS
-		insn = 0xd4000000 | (((u32)handler & 0x07ffffff) >> 1);
-#else
-		insn = 0x08000000 | (((u32)handler & 0x0fffffff) >> 2);
-#endif
-		h[0] = (insn >> 16) & 0xffff;
-		h[1] = insn & 0xffff;
-		h[2] = 0;
-		h[3] = 0;
-		local_flush_icache_range((unsigned long)b,
-					 (unsigned long)(b+8));
+		panic("VECTORSPACING too small");
 	}
+
+	set_handler(((unsigned long)b - ebase), vec_start,
+#ifdef CONFIG_CPU_MICROMIPS
+			(handler_len - 1));
+#else
+			handler_len);
+#endif
+	/* insert offset into vi_handlers[] */
+	h = (u16 *)(b + ori_offset);
+	*h = n * sizeof(handler);
+	local_flush_icache_range((unsigned long)b,
+				 (unsigned long)(b+handler_len));
 
 	return (void *)old_handler;
 }
-
-void *set_vi_handler(int n, vi_handler_t addr)
-{
-	return set_vi_srs_handler(n, addr, 0);
-}
-
-extern void tlb_init(void);
 
 /*
  * Timer interrupt
@@ -2115,7 +2165,7 @@ static void configure_status(void)
 	 * flag that some firmware may have left set and the TS bit (for
 	 * IP27).  Set XX for ISA IV code to work.
 	 */
-	unsigned int status_set = ST0_CU0;
+	unsigned int status_set = ST0_KERNEL_CUMASK;
 #ifdef CONFIG_64BIT
 	status_set |= ST0_FR|ST0_KX|ST0_SX|ST0_UX;
 #endif
@@ -2126,6 +2176,7 @@ static void configure_status(void)
 
 	change_c0_status(ST0_CU|ST0_MX|ST0_RE|ST0_FR|ST0_BEV|ST0_TS|ST0_KX|ST0_SX|ST0_UX,
 			 status_set);
+	back_to_back_c0_hazard();
 }
 
 unsigned int hwrena;
@@ -2227,7 +2278,7 @@ void per_cpu_trap_init(bool is_boot_cpu)
 }
 
 /* Install CPU exception handler */
-void set_handler(unsigned long offset, void *addr, unsigned long size)
+void set_handler(unsigned long offset, const void *addr, unsigned long size)
 {
 #ifdef CONFIG_CPU_MICROMIPS
 	memcpy((void *)(ebase + offset), ((unsigned char *)addr - 1), size);
@@ -2248,7 +2299,7 @@ static const char panic_null_cerr[] =
 void set_uncached_handler(unsigned long offset, void *addr,
 	unsigned long size)
 {
-	unsigned long uncached_ebase = CKSEG1ADDR(ebase);
+	unsigned long uncached_ebase = CKSEG1ADDR_OR_64BIT(__pa(ebase));
 
 	if (!addr)
 		panic(panic_null_cerr);
@@ -2277,10 +2328,7 @@ void __init trap_init(void)
 
 	if (!cpu_has_mips_r2_r6) {
 		ebase = CAC_BASE;
-		ebase_pa = virt_to_phys((void *)ebase);
 		vec_size = 0x400;
-
-		memblock_reserve(ebase_pa, vec_size);
 	} else {
 		if (cpu_has_veic || cpu_has_vint)
 			vec_size = 0x200 + VECTORSPACING*64;
@@ -2303,10 +2351,13 @@ void __init trap_init(void)
 		 * EVA is special though as it allows segments to be rearranged
 		 * and to become uncached during cache error handling.
 		 */
-		if (!IS_ENABLED(CONFIG_EVA) && !WARN_ON(ebase_pa >= 0x20000000))
+		if (!IS_ENABLED(CONFIG_EVA) && ebase_pa < 0x20000000)
 			ebase = CKSEG0ADDR(ebase_pa);
 		else
 			ebase = (unsigned long)phys_to_virt(ebase_pa);
+		if (ebase_pa >= 0x20000000)
+			pr_warn("ebase(%pa) should better be in KSeg0",
+				&ebase_pa);
 	}
 
 	if (cpu_has_mmips) {
@@ -2337,7 +2388,7 @@ void __init trap_init(void)
 		set_except_vector(i, handle_reserved);
 
 	/*
-	 * Copy the EJTAG debug exception vector handler code to it's final
+	 * Copy the EJTAG debug exception vector handler code to its final
 	 * destination.
 	 */
 	if (cpu_has_ejtag && board_ejtag_handler_setup)
@@ -2394,7 +2445,7 @@ void __init trap_init(void)
 	else {
 		if (cpu_has_vtag_icache)
 			set_except_vector(EXCCODE_RI, handle_ri_rdhwr_tlbp);
-		else if (current_cpu_type() == CPU_LOONGSON3)
+		else if (current_cpu_type() == CPU_LOONGSON64)
 			set_except_vector(EXCCODE_RI, handle_ri_rdhwr_tlbp);
 		else
 			set_except_vector(EXCCODE_RI, handle_ri_rdhwr);
@@ -2411,7 +2462,11 @@ void __init trap_init(void)
 	if (cpu_has_fpu && !cpu_has_nofpuex)
 		set_except_vector(EXCCODE_FPE, handle_fpe);
 
-	set_except_vector(MIPS_EXCCODE_TLBPAR, handle_ftlb);
+	if (cpu_has_ftlbparex)
+		set_except_vector(MIPS_EXCCODE_TLBPAR, handle_ftlb);
+
+	if (cpu_has_gsexcex)
+		set_except_vector(LOONGSON_EXCCODE_GSEXC, handle_gsexc);
 
 	if (cpu_has_rixiex) {
 		set_except_vector(EXCCODE_TLBRI, tlb_do_page_fault_0);

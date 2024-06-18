@@ -99,7 +99,7 @@ static int nvdimm_probe(struct device *dev)
 	if (ndd->ns_current >= 0) {
 		rc = nd_label_reserve_dpa(ndd);
 		if (rc == 0)
-			nvdimm_set_aliasing(dev);
+			nvdimm_set_labeling(dev);
 	}
 	nvdimm_bus_unlock(dev);
 
@@ -113,19 +113,14 @@ static int nvdimm_probe(struct device *dev)
 	return rc;
 }
 
-static int nvdimm_remove(struct device *dev)
+static void nvdimm_remove(struct device *dev)
 {
 	struct nvdimm_drvdata *ndd = dev_get_drvdata(dev);
-
-	if (!ndd)
-		return 0;
 
 	nvdimm_bus_lock(dev);
 	dev_set_drvdata(dev, NULL);
 	nvdimm_bus_unlock(dev);
 	put_ndd(ndd);
-
-	return 0;
 }
 
 static struct nd_device_driver nvdimm_driver = {

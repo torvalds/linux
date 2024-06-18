@@ -92,14 +92,14 @@ config MOUSE_PS2_SYNAPTICS_SMBUS
 	  If unsure, say Y.
 
 config MOUSE_PS2_CYPRESS
-       bool "Cypress PS/2 mouse protocol extension" if EXPERT
-       default y
-       depends on MOUSE_PS2
-       help
-         Say Y here if you have a Cypress PS/2 Trackpad connected to
-         your system.
+	bool "Cypress PS/2 mouse protocol extension" if EXPERT
+	default y
+	depends on MOUSE_PS2
+	help
+	  Say Y here if you have a Cypress PS/2 Trackpad connected to
+	  your system.
 
-         If unsure, say Y.
+	  If unsure, say Y.
 
 config MOUSE_PS2_LIFEBOOK
 	bool "Fujitsu Lifebook PS/2 mouse protocol extension" if EXPERT
@@ -372,7 +372,7 @@ config MOUSE_VSXXXAA
 	select SERIO
 	help
 	  Say Y (or M) if you want to use a DEC VSXXX-AA (hockey
-	  puck) or a VSXXX-GA (rectangular) mouse. Theses mice are
+	  puck) or a VSXXX-GA (rectangular) mouse. These mice are
 	  typically used on DECstations or VAXstations, but can also
 	  be used on any box capable of RS232 (with some adaptor
 	  described in the source file). This driver also works with the
@@ -381,7 +381,6 @@ config MOUSE_VSXXXAA
 config MOUSE_GPIO
 	tristate "GPIO mouse"
 	depends on GPIOLIB || COMPILE_TEST
-	select INPUT_POLLDEV
 	help
 	  This driver simulates a mouse on GPIO lines of various CPUs (and some
 	  other chips).
@@ -393,12 +392,6 @@ config MOUSE_GPIO
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called gpio_mouse.
-
-config MOUSE_PXA930_TRKBALL
-	tristate "PXA930 Trackball mouse"
-	depends on CPU_PXA930 || CPU_PXA935
-	help
-	  Say Y here to support PXA930 Trackball mouse.
 
 config MOUSE_MAPLE
 	tristate "Maple mouse (for the Dreamcast)"
@@ -445,17 +438,5 @@ config MOUSE_SYNAPTICS_USB
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called synaptics_usb.
-
-config MOUSE_NAVPOINT_PXA27x
-	tristate "Synaptics NavPoint (PXA27x SSP/SPI)"
-	depends on PXA27x && PXA_SSP
-	help
-	  This driver adds support for the Synaptics NavPoint touchpad connected
-	  to a PXA27x SSP port in SPI slave mode. The device emulates a mouse;
-	  a tap or tap-and-a-half drag gesture emulates the left mouse button.
-	  For example, use the xf86-input-evdev driver for an X pointing device.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called navpoint.
 
 endif

@@ -3,6 +3,7 @@
 #define _TRANSP_V6_H
 
 #include <net/checksum.h>
+#include <net/sock.h>
 
 /* IPv6 transport protocols */
 extern struct proto rawv6_prot;
@@ -12,6 +13,7 @@ extern struct proto tcpv6_prot;
 extern struct proto pingv6_prot;
 
 struct flowi6;
+struct ipcm6_cookie;
 
 /* extension headers */
 int ipv6_exthdrs_init(void);
@@ -30,8 +32,6 @@ int udplitev6_init(void);
 void udplitev6_exit(void);
 int tcpv6_init(void);
 void tcpv6_exit(void);
-
-int udpv6_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len);
 
 /* this does all the common and the specific ctl work */
 void ip6_datagram_recv_ctl(struct sock *sk, struct msghdr *msg,
@@ -55,11 +55,6 @@ ip6_dgram_sock_seq_show(struct seq_file *seq, struct sock *sp, __u16 srcp,
 }
 
 #define LOOPBACK4_IPV6 cpu_to_be32(0x7f000006)
-
-/* address family specific functions */
-extern const struct inet_connection_sock_af_ops ipv4_specific;
-
-void inet6_destroy_sock(struct sock *sk);
 
 #define IPV6_SEQ_DGRAM_HEADER					       \
 	"  sl  "						       \

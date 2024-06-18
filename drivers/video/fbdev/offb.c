@@ -12,6 +12,7 @@
  *  more details.
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -26,6 +27,7 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
+#include <linux/platform_device.h>
 #include <asm/io.h>
 
 #ifdef CONFIG_PPC32
@@ -52,9 +54,10 @@ struct offb_par {
 	volatile void __iomem *cmap_data;
 	int cmap_type;
 	int blanked;
+	u32 pseudo_palette[16];
+	resource_size_t base;
+	resource_size_t size;
 };
-
-struct offb_par default_par;
 
 #ifdef CONFIG_PPC32
 extern boot_infos_t *boot_infos;
@@ -141,7 +144,7 @@ static int offb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 		/* Clear PALETTE_ACCESS_CNTL in DAC_CNTL */
 		out_le32(par->cmap_adr + 0x58,
 			 in_le32(par->cmap_adr + 0x58) & ~0x20);
-		/* fall through */
+		fallthrough;
 	case cmap_r128:
 		/* Set palette index & data */
 		out_8(par->cmap_adr + 0xb0, regno);
@@ -211,7 +214,7 @@ static int offb_blank(int blank, struct fb_info *info)
 				/* Clear PALETTE_ACCESS_CNTL in DAC_CNTL */
 				out_le32(par->cmap_adr + 0x58,
 					 in_le32(par->cmap_adr + 0x58) & ~0x20);
-				/* fall through */
+				fallthrough;
 			case cmap_r128:
 				/* Set palette index & data */
 				out_8(par->cmap_adr + 0xb0, i);
@@ -279,22 +282,22 @@ static int offb_set_par(struct fb_info *info)
 
 static void offb_destroy(struct fb_info *info)
 {
+	struct offb_par *par = info->par;
+
 	if (info->screen_base)
 		iounmap(info->screen_base);
-	release_mem_region(info->apertures->ranges[0].base, info->apertures->ranges[0].size);
+	release_mem_region(par->base, par->size);
 	fb_dealloc_cmap(&info->cmap);
 	framebuffer_release(info);
 }
 
-static struct fb_ops offb_ops = {
+static const struct fb_ops offb_ops = {
 	.owner		= THIS_MODULE,
+	FB_DEFAULT_IOMEM_OPS,
 	.fb_destroy	= offb_destroy,
 	.fb_setcolreg	= offb_setcolreg,
 	.fb_set_par	= offb_set_par,
 	.fb_blank	= offb_blank,
-	.fb_fillrect	= cfb_fillrect,
-	.fb_copyarea	= cfb_copyarea,
-	.fb_imageblit	= cfb_imageblit,
 };
 
 static void __iomem *offb_map_reg(struct device_node *np, int index,
@@ -354,7 +357,7 @@ static void offb_init_palette_hacks(struct fb_info *info, struct device_node *dp
 			par->cmap_type = cmap_gxt2000;
 	} else if (of_node_name_prefix(dp, "vga,Display-")) {
 		/* Look for AVIVO initialized by SLOF */
-		struct device_node *pciparent = of_get_parent(dp);
+		struct device_node *pciparent __free(device_node) = of_get_parent(dp);
 		const u32 *vid, *did;
 		vid = of_get_property(pciparent, "vendor-id", NULL);
 		did = of_get_property(pciparent, "device-id", NULL);
@@ -366,7 +369,6 @@ static void offb_init_palette_hacks(struct fb_info *info, struct device_node *dp
 			if (par->cmap_adr)
 				par->cmap_type = cmap_avivo;
 		}
-		of_node_put(pciparent);
 	} else if (dp && of_device_is_compatible(dp, "qemu,std-vga")) {
 #ifdef __BIG_ENDIAN
 		const __be32 io_of_addr[3] = { 0x01000000, 0x0, 0x0 };
@@ -386,17 +388,17 @@ static void offb_init_palette_hacks(struct fb_info *info, struct device_node *dp
 		FB_VISUAL_PSEUDOCOLOR : FB_VISUAL_STATIC_PSEUDOCOLOR;
 }
 
-static void __init offb_init_fb(const char *name,
-				int width, int height, int depth,
-				int pitch, unsigned long address,
-				int foreign_endian, struct device_node *dp)
+static void offb_init_fb(struct platform_device *parent, const char *name,
+			 int width, int height, int depth,
+			 int pitch, unsigned long address,
+			 int foreign_endian, struct device_node *dp)
 {
 	unsigned long res_size = pitch * height;
-	struct offb_par *par = &default_par;
 	unsigned long res_start = address;
 	struct fb_fix_screeninfo *fix;
 	struct fb_var_screeninfo *var;
 	struct fb_info *info;
+	struct offb_par *par;
 
 	if (!request_mem_region(res_start, res_size, "offb"))
 		return;
@@ -410,22 +412,19 @@ static void __init offb_init_fb(const char *name,
 		return;
 	}
 
-	info = framebuffer_alloc(sizeof(u32) * 16, NULL);
-
-	if (info == 0) {
+	info = framebuffer_alloc(sizeof(*par), &parent->dev);
+	if (!info) {
 		release_mem_region(res_start, res_size);
 		return;
 	}
-
+	platform_set_drvdata(parent, info);
+	par = info->par;
 	fix = &info->fix;
 	var = &info->var;
-	info->par = par;
 
-	if (name) {
-		strcpy(fix->id, "OFfb ");
-		strncat(fix->id, name, sizeof(fix->id) - sizeof("OFfb "));
-		fix->id[sizeof(fix->id) - 1] = '\0';
-	} else
+	if (name)
+		snprintf(fix->id, sizeof(fix->id), "OFfb %s", name);
+	else
 		snprintf(fix->id, sizeof(fix->id), "OFfb %pOFn", dp);
 
 
@@ -504,20 +503,18 @@ static void __init offb_init_fb(const char *name,
 	var->sync = 0;
 	var->vmode = FB_VMODE_NONINTERLACED;
 
-	/* set offb aperture size for generic probing */
-	info->apertures = alloc_apertures(1);
-	if (!info->apertures)
-		goto out_aper;
-	info->apertures->ranges[0].base = address;
-	info->apertures->ranges[0].size = fix->smem_len;
+	par->base = address;
+	par->size = fix->smem_len;
 
 	info->fbops = &offb_ops;
 	info->screen_base = ioremap(address, fix->smem_len);
-	info->pseudo_palette = (void *) (info + 1);
-	info->flags = FBINFO_DEFAULT | FBINFO_MISC_FIRMWARE | foreign_endian;
+	info->pseudo_palette = par->pseudo_palette;
+	info->flags = foreign_endian;
 
 	fb_alloc_cmap(&info->cmap, 256, 0);
 
+	if (devm_aperture_acquire_for_platform_device(parent, par->base, par->size) < 0)
+		goto out_err;
 	if (register_framebuffer(info) < 0)
 		goto out_err;
 
@@ -527,7 +524,6 @@ static void __init offb_init_fb(const char *name,
 out_err:
 	fb_dealloc_cmap(&info->cmap);
 	iounmap(info->screen_base);
-out_aper:
 	iounmap(par->cmap_adr);
 	par->cmap_adr = NULL;
 	framebuffer_release(info);
@@ -535,7 +531,8 @@ out_aper:
 }
 
 
-static void __init offb_init_nodriver(struct device_node *dp, int no_real_node)
+static void offb_init_nodriver(struct platform_device *parent, struct device_node *dp,
+			       int no_real_node)
 {
 	unsigned int len;
 	int i, width = 640, height = 480, depth = 8, pitch = 640;
@@ -547,10 +544,10 @@ static void __init offb_init_nodriver(struct device_node *dp, int no_real_node)
 	int foreign_endian = 0;
 
 #ifdef __BIG_ENDIAN
-	if (of_get_property(dp, "little-endian", NULL))
+	if (of_property_read_bool(dp, "little-endian"))
 		foreign_endian = FBINFO_FOREIGN_ENDIAN;
 #else
-	if (of_get_property(dp, "big-endian", NULL))
+	if (of_property_read_bool(dp, "big-endian"))
 		foreign_endian = FBINFO_FOREIGN_ENDIAN;
 #endif
 
@@ -650,46 +647,74 @@ static void __init offb_init_nodriver(struct device_node *dp, int no_real_node)
 		/* kludge for valkyrie */
 		if (of_node_name_eq(dp, "valkyrie"))
 			address += 0x1000;
-		offb_init_fb(no_real_node ? "bootx" : NULL,
+		offb_init_fb(parent, no_real_node ? "bootx" : NULL,
 			     width, height, depth, pitch, address,
 			     foreign_endian, no_real_node ? NULL : dp);
 	}
 }
 
-static int __init offb_init(void)
+static void offb_remove(struct platform_device *pdev)
 {
-	struct device_node *dp = NULL, *boot_disp = NULL;
+	struct fb_info *info = platform_get_drvdata(pdev);
 
-	if (fb_get_options("offb", NULL))
-		return -ENODEV;
+	if (info)
+		unregister_framebuffer(info);
+}
 
-	/* Check if we have a MacOS display without a node spec */
-	if (of_get_property(of_chosen, "linux,bootx-noscreen", NULL) != NULL) {
-		/* The old code tried to work out which node was the MacOS
-		 * display based on the address. I'm dropping that since the
-		 * lack of a node spec only happens with old BootX versions
-		 * (users can update) and with this code, they'll still get
-		 * a display (just not the palette hacks).
-		 */
-		offb_init_nodriver(of_chosen, 1);
-	}
-
-	for_each_node_by_type(dp, "display") {
-		if (of_get_property(dp, "linux,opened", NULL) &&
-		    of_get_property(dp, "linux,boot-display", NULL)) {
-			boot_disp = dp;
-			offb_init_nodriver(dp, 0);
-		}
-	}
-	for_each_node_by_type(dp, "display") {
-		if (of_get_property(dp, "linux,opened", NULL) &&
-		    dp != boot_disp)
-			offb_init_nodriver(dp, 0);
-	}
+static int offb_probe_bootx_noscreen(struct platform_device *pdev)
+{
+	offb_init_nodriver(pdev, of_chosen, 1);
 
 	return 0;
 }
 
+static struct platform_driver offb_driver_bootx_noscreen = {
+	.driver = {
+		.name = "bootx-noscreen",
+	},
+	.probe = offb_probe_bootx_noscreen,
+	.remove_new = offb_remove,
+};
 
+static int offb_probe_display(struct platform_device *pdev)
+{
+	offb_init_nodriver(pdev, pdev->dev.of_node, 0);
+
+	return 0;
+}
+
+static const struct of_device_id offb_of_match_display[] = {
+	{ .compatible = "display", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, offb_of_match_display);
+
+static struct platform_driver offb_driver_display = {
+	.driver = {
+		.name = "of-display",
+		.of_match_table = offb_of_match_display,
+	},
+	.probe = offb_probe_display,
+	.remove_new = offb_remove,
+};
+
+static int __init offb_init(void)
+{
+	if (fb_get_options("offb", NULL))
+		return -ENODEV;
+
+	platform_driver_register(&offb_driver_bootx_noscreen);
+	platform_driver_register(&offb_driver_display);
+
+	return 0;
+}
 module_init(offb_init);
+
+static void __exit offb_exit(void)
+{
+	platform_driver_unregister(&offb_driver_display);
+	platform_driver_unregister(&offb_driver_bootx_noscreen);
+}
+module_exit(offb_exit);
+
 MODULE_LICENSE("GPL");

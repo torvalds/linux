@@ -29,6 +29,7 @@
 #include <drm/drm_mode.h>
 
 #include "drm_crtc_internal.h"
+#include "drm_internal.h"
 
 /**
  * DOC: overview
@@ -46,9 +47,10 @@
  * KMS frame buffers.
  *
  * To support dumb objects drivers must implement the &drm_driver.dumb_create
- * operation. &drm_driver.dumb_destroy defaults to drm_gem_dumb_destroy() if
- * not set and &drm_driver.dumb_map_offset defaults to
- * drm_gem_dumb_map_offset(). See the callbacks for further details.
+ * and &drm_driver.dumb_map_offset operations (the latter defaults to
+ * drm_gem_dumb_map_offset() if not set). Drivers that don't use GEM handles
+ * additionally need to implement the &drm_driver.dumb_destroy operation. See
+ * the callbacks for further details.
  *
  * Note that dumb objects may not be used for gpu acceleration, as has been
  * attempted on some ARM embedded platforms. Such drivers really must have
@@ -137,10 +139,7 @@ int drm_mode_destroy_dumb(struct drm_device *dev, u32 handle,
 	if (!dev->driver->dumb_create)
 		return -ENOSYS;
 
-	if (dev->driver->dumb_destroy)
-		return dev->driver->dumb_destroy(file_priv, dev, handle);
-	else
-		return drm_gem_dumb_destroy(file_priv, dev, handle);
+	return drm_gem_handle_delete(file_priv, handle);
 }
 
 int drm_mode_destroy_dumb_ioctl(struct drm_device *dev,

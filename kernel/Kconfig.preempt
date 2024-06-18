@@ -1,11 +1,23 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
+config PREEMPT_NONE_BUILD
+	bool
+
+config PREEMPT_VOLUNTARY_BUILD
+	bool
+
+config PREEMPT_BUILD
+	bool
+	select PREEMPTION
+	select UNINLINE_SPIN_UNLOCK if !ARCH_INLINE_SPIN_UNLOCK
+
 choice
 	prompt "Preemption Model"
 	default PREEMPT_NONE
 
 config PREEMPT_NONE
 	bool "No Forced Preemption (Server)"
+	select PREEMPT_NONE_BUILD if !PREEMPT_DYNAMIC
 	help
 	  This is the traditional Linux preemption model, geared towards
 	  throughput. It will still provide good latencies most of the
@@ -20,6 +32,7 @@ config PREEMPT_NONE
 config PREEMPT_VOLUNTARY
 	bool "Voluntary Kernel Preemption (Desktop)"
 	depends on !ARCH_NO_PREEMPT
+	select PREEMPT_VOLUNTARY_BUILD if !PREEMPT_DYNAMIC
 	help
 	  This option reduces the latency of the kernel by adding more
 	  "explicit preemption points" to the kernel code. These new
@@ -38,8 +51,7 @@ config PREEMPT_VOLUNTARY
 config PREEMPT
 	bool "Preemptible Kernel (Low-Latency Desktop)"
 	depends on !ARCH_NO_PREEMPT
-	select PREEMPTION
-	select UNINLINE_SPIN_UNLOCK if !ARCH_INLINE_SPIN_UNLOCK
+	select PREEMPT_BUILD
 	help
 	  This option reduces the latency of the kernel by making
 	  all kernel code (that is not executing in a critical section)
@@ -65,7 +77,7 @@ config PREEMPT_RT
 	  preemptible priority-inheritance aware variants, enforcing
 	  interrupt threading and introducing mechanisms to break up long
 	  non-preemptible sections. This makes the kernel, except for very
-	  low level and critical code pathes (entry code, scheduler, low
+	  low level and critical code paths (entry code, scheduler, low
 	  level interrupt handling) fully preemptible and brings most
 	  execution contexts under scheduler control.
 
@@ -80,3 +92,45 @@ config PREEMPT_COUNT
 config PREEMPTION
        bool
        select PREEMPT_COUNT
+
+config PREEMPT_DYNAMIC
+	bool "Preemption behaviour defined on boot"
+	depends on HAVE_PREEMPT_DYNAMIC && !PREEMPT_RT
+	select JUMP_LABEL if HAVE_PREEMPT_DYNAMIC_KEY
+	select PREEMPT_BUILD
+	default y if HAVE_PREEMPT_DYNAMIC_CALL
+	help
+	  This option allows to define the preemption model on the kernel
+	  command line parameter and thus override the default preemption
+	  model defined during compile time.
+
+	  The feature is primarily interesting for Linux distributions which
+	  provide a pre-built kernel binary to reduce the number of kernel
+	  flavors they offer while still offering different usecases.
+
+	  The runtime overhead is negligible with HAVE_STATIC_CALL_INLINE enabled
+	  but if runtime patching is not available for the specific architecture
+	  then the potential overhead should be considered.
+
+	  Interesting if you want the same pre-built kernel should be used for
+	  both Server and Desktop workloads.
+
+config SCHED_CORE
+	bool "Core Scheduling for SMT"
+	depends on SCHED_SMT
+	help
+	  This option permits Core Scheduling, a means of coordinated task
+	  selection across SMT siblings. When enabled -- see
+	  prctl(PR_SCHED_CORE) -- task selection ensures that all SMT siblings
+	  will execute a task from the same 'core group', forcing idle when no
+	  matching task is found.
+
+	  Use of this feature includes:
+	   - mitigation of some (not all) SMT side channels;
+	   - limiting SMT interference to improve determinism and/or performance.
+
+	  SCHED_CORE is default disabled. When it is enabled and unused,
+	  which is the likely usage by Linux distributions, there should
+	  be no measurable impact on performance.
+
+

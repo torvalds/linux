@@ -20,25 +20,17 @@
 #include <asm/irqdomain.h>
 #include <asm/hpet.h>
 #include <asm/apic.h>
+#include <asm/io_apic.h>
 #include <asm/pci_x86.h>
 #include <asm/setup.h>
 #include <asm/i8259.h>
+#include <asm/numa.h>
 #include <asm/prom.h>
 
 __initdata u64 initial_dtb;
 char __initdata cmd_line[COMMAND_LINE_SIZE];
 
 int __initdata of_ioapic;
-
-void __init early_init_dt_scan_chosen_arch(unsigned long node)
-{
-	BUG();
-}
-
-void __init early_init_dt_add_memory_arch(u64 base, u64 size)
-{
-	BUG();
-}
 
 void __init add_dtb(u64 data)
 {
@@ -137,17 +129,16 @@ static void __init dtb_setup_hpet(void)
 static void __init dtb_cpu_setup(void)
 {
 	struct device_node *dn;
-	u32 apic_id, version;
-	int ret;
+	u32 apic_id;
 
-	version = GET_APIC_VERSION(apic_read(APIC_LVR));
 	for_each_of_cpu_node(dn) {
-		ret = of_property_read_u32(dn, "reg", &apic_id);
-		if (ret < 0) {
+		apic_id = of_get_cpu_hwid(dn, 0);
+		if (apic_id == ~0U) {
 			pr_warn("%pOF: missing local APIC ID\n", dn);
 			continue;
 		}
-		generic_processor_info(apic_id, version);
+		topology_register_apic(apic_id, CPU_ACPIID_INVALID, true);
+		set_apicid_to_node(apic_id, of_node_to_nid(dn));
 	}
 }
 
@@ -168,12 +159,15 @@ static void __init dtb_lapic_setup(void)
 
 	/* Did the boot loader setup the local APIC ? */
 	if (!boot_cpu_has(X86_FEATURE_APIC)) {
-		if (apic_force_enable(lapic_addr))
+		/* Try force enabling, which registers the APIC address */
+		if (!apic_force_enable(lapic_addr))
 			return;
+	} else {
+		register_lapic_address(lapic_addr);
 	}
 	smp_found_config = 1;
-	pic_mode = 1;
-	register_lapic_address(lapic_addr);
+	pic_mode = !of_property_read_bool(dn, "intel,virtual-wire-mode");
+	pr_info("%s compatibility mode.\n", pic_mode ? "IMCR and PIC" : "Virtual Wire");
 }
 
 #endif /* CONFIG_X86_LOCAL_APIC */
@@ -183,31 +177,31 @@ static unsigned int ioapic_id;
 
 struct of_ioapic_type {
 	u32 out_type;
-	u32 trigger;
-	u32 polarity;
+	u32 is_level;
+	u32 active_low;
 };
 
 static struct of_ioapic_type of_ioapic_type[] =
 {
 	{
-		.out_type	= IRQ_TYPE_EDGE_RISING,
-		.trigger	= IOAPIC_EDGE,
-		.polarity	= 1,
-	},
-	{
-		.out_type	= IRQ_TYPE_LEVEL_LOW,
-		.trigger	= IOAPIC_LEVEL,
-		.polarity	= 0,
+		.out_type	= IRQ_TYPE_EDGE_FALLING,
+		.is_level	= 0,
+		.active_low	= 1,
 	},
 	{
 		.out_type	= IRQ_TYPE_LEVEL_HIGH,
-		.trigger	= IOAPIC_LEVEL,
-		.polarity	= 1,
+		.is_level	= 1,
+		.active_low	= 0,
 	},
 	{
-		.out_type	= IRQ_TYPE_EDGE_FALLING,
-		.trigger	= IOAPIC_EDGE,
-		.polarity	= 0,
+		.out_type	= IRQ_TYPE_LEVEL_LOW,
+		.is_level	= 1,
+		.active_low	= 1,
+	},
+	{
+		.out_type	= IRQ_TYPE_EDGE_RISING,
+		.is_level	= 0,
+		.active_low	= 0,
 	},
 };
 
@@ -227,9 +221,9 @@ static int dt_irqdomain_alloc(struct irq_domain *domain, unsigned int virq,
 		return -EINVAL;
 
 	it = &of_ioapic_type[type_index];
-	ioapic_set_alloc_attr(&tmp, NUMA_NO_NODE, it->trigger, it->polarity);
-	tmp.ioapic_id = mpc_ioapic_id(mp_irqdomain_ioapic_idx(domain));
-	tmp.ioapic_pin = fwspec->param[0];
+	ioapic_set_alloc_attr(&tmp, NUMA_NO_NODE, it->is_level, it->active_low);
+	tmp.devid = mpc_ioapic_id(mp_irqdomain_ioapic_idx(domain));
+	tmp.ioapic.pin = fwspec->param[0];
 
 	return mp_irqdomain_alloc(domain, virq, nr_irqs, &tmp);
 }
@@ -253,7 +247,7 @@ static void __init dtb_add_ioapic(struct device_node *dn)
 
 	ret = of_address_to_resource(dn, 0, &r);
 	if (ret) {
-		printk(KERN_ERR "Can't obtain address from device node %pOF.\n", dn);
+		pr_err("Can't obtain address from device node %pOF.\n", dn);
 		return;
 	}
 	mp_register_ioapic(++ioapic_id, r.start, gsi_top, &cfg);
@@ -270,7 +264,7 @@ static void __init dtb_ioapic_setup(void)
 		of_ioapic = 1;
 		return;
 	}
-	printk(KERN_ERR "Error: No information about IO-APIC in OF.\n");
+	pr_err("Error: No information about IO-APIC in OF.\n");
 }
 #else
 static void __init dtb_ioapic_setup(void) {}
@@ -285,40 +279,40 @@ static void __init dtb_apic_setup(void)
 	dtb_ioapic_setup();
 }
 
-#ifdef CONFIG_OF_EARLY_FLATTREE
-static void __init x86_flattree_get_config(void)
+static void __init x86_dtb_parse_smp_config(void)
 {
-	u32 size, map_len;
-	void *dt;
-
-	if (!initial_dtb)
-		return;
-
-	map_len = max(PAGE_SIZE - (initial_dtb & ~PAGE_MASK), (u64)128);
-
-	dt = early_memremap(initial_dtb, map_len);
-	size = fdt_totalsize(dt);
-	if (map_len < size) {
-		early_memunmap(dt, map_len);
-		dt = early_memremap(initial_dtb, size);
-		map_len = size;
-	}
-
-	early_init_dt_verify(dt);
-	unflatten_and_copy_device_tree();
-	early_memunmap(dt, map_len);
-}
-#else
-static inline void x86_flattree_get_config(void) { }
-#endif
-
-void __init x86_dtb_init(void)
-{
-	x86_flattree_get_config();
-
 	if (!of_have_populated_dt())
 		return;
 
 	dtb_setup_hpet();
 	dtb_apic_setup();
+}
+
+void __init x86_flattree_get_config(void)
+{
+#ifdef CONFIG_OF_EARLY_FLATTREE
+	u32 size, map_len;
+	void *dt;
+
+	if (initial_dtb) {
+		map_len = max(PAGE_SIZE - (initial_dtb & ~PAGE_MASK), (u64)128);
+
+		dt = early_memremap(initial_dtb, map_len);
+		size = fdt_totalsize(dt);
+		if (map_len < size) {
+			early_memunmap(dt, map_len);
+			dt = early_memremap(initial_dtb, size);
+			map_len = size;
+		}
+
+		early_init_dt_verify(dt);
+	}
+
+	unflatten_and_copy_device_tree();
+
+	if (initial_dtb)
+		early_memunmap(dt, map_len);
+#endif
+	if (of_have_populated_dt())
+		x86_init.mpparse.parse_smp_cfg = x86_dtb_parse_smp_config;
 }

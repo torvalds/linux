@@ -1,0 +1,106 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/dma/st,stm32-mdma.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: STMicroelectronics STM32 MDMA Controller
+
+description: |
+  The STM32 MDMA is a general-purpose direct memory access controller capable of
+  supporting 64 independent DMA channels with 256 HW requests.
+  DMA clients connected to the STM32 MDMA controller must use the format
+  described in the dma.txt file, using a five-cell specifier for each channel:
+  a phandle to the MDMA controller plus the following five integer cells:
+    1. The request line number
+    2. The priority level
+      0x0: Low
+      0x1: Medium
+      0x2: High
+      0x3: Very high
+    3. A 32bit mask specifying the DMA channel configuration
+      -bit 0-1: Source increment mode
+        0x0: Source address pointer is fixed
+        0x2: Source address pointer is incremented after each data transfer
+        0x3: Source address pointer is decremented after each data transfer
+      -bit 2-3: Destination increment mode
+        0x0: Destination address pointer is fixed
+        0x2: Destination address pointer is incremented after each data transfer
+        0x3: Destination address pointer is decremented after each data transfer
+      -bit 8-9: Source increment offset size
+        0x0: byte (8bit)
+        0x1: half-word (16bit)
+        0x2: word (32bit)
+        0x3: double-word (64bit)
+      -bit 10-11: Destination increment offset size
+        0x0: byte (8bit)
+        0x1: half-word (16bit)
+        0x2: word (32bit)
+        0x3: double-word (64bit)
+      -bit 25-18: The number of bytes to be transferred in a single transfer
+                  (min = 1 byte, max = 128 bytes)
+      -bit 29:28: Trigger Mode
+        0x00: Each MDMA request triggers a buffer transfer (max 128 bytes)
+        0x1: Each MDMA request triggers a block transfer (max 64K bytes)
+        0x2: Each MDMA request triggers a repeated block transfer
+        0x3: Each MDMA request triggers a linked list transfer
+    4. A 32bit value specifying the register to be used to acknowledge the request
+       if no HW ack signal is used by the MDMA client
+    5. A 32bit mask specifying the value to be written to acknowledge the request
+       if no HW ack signal is used by the MDMA client
+
+maintainers:
+  - Amelie Delaunay <amelie.delaunay@foss.st.com>
+
+allOf:
+  - $ref: dma-controller.yaml#
+
+properties:
+  "#dma-cells":
+    const: 5
+
+  compatible:
+    const: st,stm32h7-mdma
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+  st,ahb-addr-masks:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    description: Array of u32 mask to list memory devices addressed via AHB bus.
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - interrupts
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/stm32mp1-clks.h>
+    #include <dt-bindings/reset/stm32mp1-resets.h>
+    dma-controller@52000000 {
+      compatible = "st,stm32h7-mdma";
+      reg = <0x52000000 0x1000>;
+      interrupts = <122>;
+      clocks = <&timer_clk>;
+      resets = <&rcc 992>;
+      #dma-cells = <5>;
+      dma-channels = <16>;
+      dma-requests = <32>;
+      st,ahb-addr-masks = <0x20000000>, <0x00000000>;
+    };
+
+...

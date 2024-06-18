@@ -30,6 +30,7 @@ static const struct debugfs_reg32 mtu3_ippc_regs[] = {
 	dump_register(SSUSB_IP_PW_CTRL1),
 	dump_register(SSUSB_IP_PW_CTRL2),
 	dump_register(SSUSB_IP_PW_CTRL3),
+	dump_register(SSUSB_IP_PW_STS1),
 	dump_register(SSUSB_OTG_STS),
 	dump_register(SSUSB_IP_XHCI_CAP),
 	dump_register(SSUSB_IP_DEV_CAP),
@@ -100,13 +101,13 @@ static int mtu3_ep_used_show(struct seq_file *sf, void *unused)
 	for (i = 0; i < mtu->num_eps; i++) {
 		mep = mtu->in_eps + i;
 		if (mep->flags & MTU3_EP_ENABLED) {
-			seq_printf(sf, "%s - type: %d\n", mep->name, mep->type);
+			seq_printf(sf, "%s - type: %s\n", mep->name, usb_ep_type_string(mep->type));
 			used++;
 		}
 
 		mep = mtu->out_eps + i;
 		if (mep->flags & MTU3_EP_ENABLED) {
-			seq_printf(sf, "%s - type: %d\n", mep->name, mep->type);
+			seq_printf(sf, "%s - type: %s\n", mep->name, usb_ep_type_string(mep->type));
 			used++;
 		}
 	}
@@ -127,7 +128,7 @@ static void mtu3_debugfs_regset(struct mtu3 *mtu, void __iomem *base,
 	struct debugfs_regset32 *regset;
 	struct mtu3_regset *mregs;
 
-	mregs = devm_kzalloc(mtu->dev, sizeof(*regset), GFP_KERNEL);
+	mregs = devm_kzalloc(mtu->dev, sizeof(*mregs), GFP_KERNEL);
 	if (!mregs)
 		return;
 
@@ -176,8 +177,8 @@ static int mtu3_ep_info_show(struct seq_file *sf, void *unused)
 	unsigned long flags;
 
 	spin_lock_irqsave(&mtu->lock, flags);
-	seq_printf(sf, "ep - type:%d, maxp:%d, slot:%d, flags:%x\n",
-		   mep->type, mep->maxp, mep->slot, mep->flags);
+	seq_printf(sf, "ep - type:%s, maxp:%d, slot:%d, flags:%x\n",
+		   usb_ep_type_string(mep->type), mep->maxp, mep->slot, mep->flags);
 	spin_unlock_irqrestore(&mtu->lock, flags);
 
 	return 0;
@@ -276,7 +277,7 @@ static const struct file_operations mtu3_ep_fops = {
 	.release = single_release,
 };
 
-static struct debugfs_reg32 mtu3_prb_regs[] = {
+static const struct debugfs_reg32 mtu3_prb_regs[] = {
 	dump_prb_reg("enable", U3D_SSUSB_PRB_CTRL0),
 	dump_prb_reg("byte-sell", U3D_SSUSB_PRB_CTRL1),
 	dump_prb_reg("byte-selh", U3D_SSUSB_PRB_CTRL2),
@@ -349,7 +350,7 @@ static const struct file_operations mtu3_probe_fops = {
 static void mtu3_debugfs_create_prb_files(struct mtu3 *mtu)
 {
 	struct ssusb_mtk *ssusb = mtu->ssusb;
-	struct debugfs_reg32 *regs;
+	const struct debugfs_reg32 *regs;
 	struct dentry *dir_prb;
 	int i;
 

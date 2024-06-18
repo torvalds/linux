@@ -2,7 +2,7 @@
 /*
  *  Turris Mox Moxtet GPIO expander
  *
- *  Copyright (C) 2018 Marek Behun <marek.behun@nic.cz>
+ *  Copyright (C) 2018 Marek Behún <kabel@kernel.org>
  */
 
 #include <linux/bitops.h>
@@ -78,9 +78,9 @@ static int moxtet_gpio_get_direction(struct gpio_chip *gc, unsigned int offset)
 
 	/* All lines are hard wired to be either input or output, not both. */
 	if (chip->desc->in_mask & BIT(offset))
-		return 1;
+		return GPIO_LINE_DIRECTION_IN;
 	else if (chip->desc->out_mask & BIT(offset))
-		return 0;
+		return GPIO_LINE_DIRECTION_OUT;
 	else
 		return -EINVAL;
 }
@@ -174,6 +174,6 @@ static struct moxtet_driver moxtet_gpio_driver = {
 };
 module_moxtet_driver(moxtet_gpio_driver);
 
-MODULE_AUTHOR("Marek Behun <marek.behun@nic.cz>");
+MODULE_AUTHOR("Marek Behun <kabel@kernel.org>");
 MODULE_DESCRIPTION("Turris Mox Moxtet GPIO expander");
 MODULE_LICENSE("GPL v2");

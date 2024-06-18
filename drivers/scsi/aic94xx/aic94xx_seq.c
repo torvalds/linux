@@ -582,6 +582,7 @@ static void asd_init_cseq_scratch(struct asd_ha_struct *asd_ha)
 /**
  * asd_init_lseq_mip -- initialize LSEQ Mode independent pages 0-3
  * @asd_ha: pointer to host adapter structure
+ * @lseq:  link sequencer
  */
 static void asd_init_lseq_mip(struct asd_ha_struct *asd_ha, u8 lseq)
 {
@@ -669,6 +670,7 @@ static void asd_init_lseq_mip(struct asd_ha_struct *asd_ha, u8 lseq)
 /**
  * asd_init_lseq_mdp -- initialize LSEQ mode dependent pages.
  * @asd_ha: pointer to host adapter structure
+ * @lseq:  link sequencer
  */
 static void asd_init_lseq_mdp(struct asd_ha_struct *asd_ha,  int lseq)
 {
@@ -953,6 +955,7 @@ static void asd_init_cseq_cio(struct asd_ha_struct *asd_ha)
 /**
  * asd_init_lseq_cio -- initialize LmSEQ CIO registers
  * @asd_ha: pointer to host adapter structure
+ * @lseq:  link sequencer
  */
 static void asd_init_lseq_cio(struct asd_ha_struct *asd_ha, int lseq)
 {
@@ -1345,7 +1348,8 @@ int asd_start_seqs(struct asd_ha_struct *asd_ha)
 
 /**
  * asd_update_port_links -- update port_map_by_links and phy_is_up
- * @sas_phy: pointer to the phy which has been added to a port
+ * @asd_ha: pointer to host adapter structure
+ * @phy: pointer to the phy which has been added to a port
  *
  * 1) When a link reset has completed and we got BYTES DMAED with a
  * valid frame we call this function for that phy, to indicate that

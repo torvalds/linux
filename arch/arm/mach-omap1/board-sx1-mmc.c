@@ -9,12 +9,10 @@
  * Copyright (C) 2007 Instituto Nokia de Tecnologia - INdT
  */
 
-#include <linux/gpio.h>
 #include <linux/platform_device.h>
 
-#include <mach/hardware.h>
+#include "hardware.h"
 #include "board-sx1.h"
-
 #include "mmc.h"
 
 #if IS_ENABLED(CONFIG_MMC_OMAP)

@@ -31,16 +31,17 @@
  * SOFTWARE.
  */
 
-#include <linux/platform_device.h>
 #include <linux/vmalloc.h>
+#include <linux/count_zeros.h>
 #include <rdma/ib_umem.h>
+#include <linux/math.h>
 #include "hns_roce_device.h"
 #include "hns_roce_cmd.h"
 #include "hns_roce_hem.h"
 
-static u32 hw_index_to_key(unsigned long ind)
+static u32 hw_index_to_key(int ind)
 {
-	return (u32)(ind >> 24) | (ind << 8);
+	return ((u32)ind >> 24) | ((u32)ind << 8);
 }
 
 unsigned long key_to_hw_index(u32 key)
@@ -48,1143 +49,168 @@ unsigned long key_to_hw_index(u32 key)
 	return (key << 24) | (key >> 8);
 }
 
-static int hns_roce_sw2hw_mpt(struct hns_roce_dev *hr_dev,
-			      struct hns_roce_cmd_mailbox *mailbox,
-			      unsigned long mpt_index)
+static int alloc_mr_key(struct hns_roce_dev *hr_dev, struct hns_roce_mr *mr)
 {
-	return hns_roce_cmd_mbox(hr_dev, mailbox->dma, 0, mpt_index, 0,
-				 HNS_ROCE_CMD_SW2HW_MPT,
-				 HNS_ROCE_CMD_TIMEOUT_MSECS);
-}
-
-int hns_roce_hw2sw_mpt(struct hns_roce_dev *hr_dev,
-			      struct hns_roce_cmd_mailbox *mailbox,
-			      unsigned long mpt_index)
-{
-	return hns_roce_cmd_mbox(hr_dev, 0, mailbox ? mailbox->dma : 0,
-				 mpt_index, !mailbox, HNS_ROCE_CMD_HW2SW_MPT,
-				 HNS_ROCE_CMD_TIMEOUT_MSECS);
-}
-
-static int hns_roce_buddy_alloc(struct hns_roce_buddy *buddy, int order,
-				unsigned long *seg)
-{
-	int o;
-	u32 m;
-
-	spin_lock(&buddy->lock);
-
-	for (o = order; o <= buddy->max_order; ++o) {
-		if (buddy->num_free[o]) {
-			m = 1 << (buddy->max_order - o);
-			*seg = find_first_bit(buddy->bits[o], m);
-			if (*seg < m)
-				goto found;
-		}
-	}
-	spin_unlock(&buddy->lock);
-	return -1;
-
- found:
-	clear_bit(*seg, buddy->bits[o]);
-	--buddy->num_free[o];
-
-	while (o > order) {
-		--o;
-		*seg <<= 1;
-		set_bit(*seg ^ 1, buddy->bits[o]);
-		++buddy->num_free[o];
-	}
-
-	spin_unlock(&buddy->lock);
-
-	*seg <<= order;
-	return 0;
-}
-
-static void hns_roce_buddy_free(struct hns_roce_buddy *buddy, unsigned long seg,
-				int order)
-{
-	seg >>= order;
-
-	spin_lock(&buddy->lock);
-
-	while (test_bit(seg ^ 1, buddy->bits[order])) {
-		clear_bit(seg ^ 1, buddy->bits[order]);
-		--buddy->num_free[order];
-		seg >>= 1;
-		++order;
-	}
-
-	set_bit(seg, buddy->bits[order]);
-	++buddy->num_free[order];
-
-	spin_unlock(&buddy->lock);
-}
-
-static int hns_roce_buddy_init(struct hns_roce_buddy *buddy, int max_order)
-{
-	int i, s;
-
-	buddy->max_order = max_order;
-	spin_lock_init(&buddy->lock);
-	buddy->bits = kcalloc(buddy->max_order + 1,
-			      sizeof(*buddy->bits),
-			      GFP_KERNEL);
-	buddy->num_free = kcalloc(buddy->max_order + 1,
-				  sizeof(*buddy->num_free),
-				  GFP_KERNEL);
-	if (!buddy->bits || !buddy->num_free)
-		goto err_out;
-
-	for (i = 0; i <= buddy->max_order; ++i) {
-		s = BITS_TO_LONGS(1 << (buddy->max_order - i));
-		buddy->bits[i] = kcalloc(s, sizeof(long), GFP_KERNEL |
-					 __GFP_NOWARN);
-		if (!buddy->bits[i]) {
-			buddy->bits[i] = vzalloc(array_size(s, sizeof(long)));
-			if (!buddy->bits[i])
-				goto err_out_free;
-		}
-	}
-
-	set_bit(0, buddy->bits[buddy->max_order]);
-	buddy->num_free[buddy->max_order] = 1;
-
-	return 0;
-
-err_out_free:
-	for (i = 0; i <= buddy->max_order; ++i)
-		kvfree(buddy->bits[i]);
-
-err_out:
-	kfree(buddy->bits);
-	kfree(buddy->num_free);
-	return -ENOMEM;
-}
-
-static void hns_roce_buddy_cleanup(struct hns_roce_buddy *buddy)
-{
-	int i;
-
-	for (i = 0; i <= buddy->max_order; ++i)
-		kvfree(buddy->bits[i]);
-
-	kfree(buddy->bits);
-	kfree(buddy->num_free);
-}
-
-static int hns_roce_alloc_mtt_range(struct hns_roce_dev *hr_dev, int order,
-				    unsigned long *seg, u32 mtt_type)
-{
-	struct hns_roce_mr_table *mr_table = &hr_dev->mr_table;
-	struct hns_roce_hem_table *table;
-	struct hns_roce_buddy *buddy;
-	int ret;
-
-	switch (mtt_type) {
-	case MTT_TYPE_WQE:
-		buddy = &mr_table->mtt_buddy;
-		table = &mr_table->mtt_table;
-		break;
-	case MTT_TYPE_CQE:
-		buddy = &mr_table->mtt_cqe_buddy;
-		table = &mr_table->mtt_cqe_table;
-		break;
-	case MTT_TYPE_SRQWQE:
-		buddy = &mr_table->mtt_srqwqe_buddy;
-		table = &mr_table->mtt_srqwqe_table;
-		break;
-	case MTT_TYPE_IDX:
-		buddy = &mr_table->mtt_idx_buddy;
-		table = &mr_table->mtt_idx_table;
-		break;
-	default:
-		dev_err(hr_dev->dev, "Unsupport MTT table type: %d\n",
-			mtt_type);
-		return -EINVAL;
-	}
-
-	ret = hns_roce_buddy_alloc(buddy, order, seg);
-	if (ret == -1)
-		return -1;
-
-	if (hns_roce_table_get_range(hr_dev, table, *seg,
-				     *seg + (1 << order) - 1)) {
-		hns_roce_buddy_free(buddy, *seg, order);
-		return -1;
-	}
-
-	return 0;
-}
-
-int hns_roce_mtt_init(struct hns_roce_dev *hr_dev, int npages, int page_shift,
-		      struct hns_roce_mtt *mtt)
-{
-	int ret;
-	int i;
-
-	/* Page num is zero, correspond to DMA memory register */
-	if (!npages) {
-		mtt->order = -1;
-		mtt->page_shift = HNS_ROCE_HEM_PAGE_SHIFT;
-		return 0;
-	}
-
-	/* Note: if page_shift is zero, FAST memory register */
-	mtt->page_shift = page_shift;
-
-	/* Compute MTT entry necessary */
-	for (mtt->order = 0, i = HNS_ROCE_MTT_ENTRY_PER_SEG; i < npages;
-	     i <<= 1)
-		++mtt->order;
-
-	/* Allocate MTT entry */
-	ret = hns_roce_alloc_mtt_range(hr_dev, mtt->order, &mtt->first_seg,
-				       mtt->mtt_type);
-	if (ret == -1)
-		return -ENOMEM;
-
-	return 0;
-}
-
-void hns_roce_mtt_cleanup(struct hns_roce_dev *hr_dev, struct hns_roce_mtt *mtt)
-{
-	struct hns_roce_mr_table *mr_table = &hr_dev->mr_table;
-
-	if (mtt->order < 0)
-		return;
-
-	switch (mtt->mtt_type) {
-	case MTT_TYPE_WQE:
-		hns_roce_buddy_free(&mr_table->mtt_buddy, mtt->first_seg,
-				    mtt->order);
-		hns_roce_table_put_range(hr_dev, &mr_table->mtt_table,
-					mtt->first_seg,
-					mtt->first_seg + (1 << mtt->order) - 1);
-		break;
-	case MTT_TYPE_CQE:
-		hns_roce_buddy_free(&mr_table->mtt_cqe_buddy, mtt->first_seg,
-				    mtt->order);
-		hns_roce_table_put_range(hr_dev, &mr_table->mtt_cqe_table,
-					mtt->first_seg,
-					mtt->first_seg + (1 << mtt->order) - 1);
-		break;
-	case MTT_TYPE_SRQWQE:
-		hns_roce_buddy_free(&mr_table->mtt_srqwqe_buddy, mtt->first_seg,
-				    mtt->order);
-		hns_roce_table_put_range(hr_dev, &mr_table->mtt_srqwqe_table,
-					mtt->first_seg,
-					mtt->first_seg + (1 << mtt->order) - 1);
-		break;
-	case MTT_TYPE_IDX:
-		hns_roce_buddy_free(&mr_table->mtt_idx_buddy, mtt->first_seg,
-				    mtt->order);
-		hns_roce_table_put_range(hr_dev, &mr_table->mtt_idx_table,
-					mtt->first_seg,
-					mtt->first_seg + (1 << mtt->order) - 1);
-		break;
-	default:
-		dev_err(hr_dev->dev,
-			"Unsupport mtt type %d, clean mtt failed\n",
-			mtt->mtt_type);
-		break;
-	}
-}
-
-static void hns_roce_loop_free(struct hns_roce_dev *hr_dev,
-			       struct hns_roce_mr *mr, int err_loop_index,
-			       int loop_i, int loop_j)
-{
-	struct device *dev = hr_dev->dev;
-	u32 mhop_num;
-	u32 pbl_bt_sz;
-	u64 bt_idx;
-	int i, j;
-
-	pbl_bt_sz = 1 << (hr_dev->caps.pbl_ba_pg_sz + PAGE_SHIFT);
-	mhop_num = hr_dev->caps.pbl_hop_num;
-
-	i = loop_i;
-	if (mhop_num == 3 && err_loop_index == 2) {
-		for (; i >= 0; i--) {
-			dma_free_coherent(dev, pbl_bt_sz, mr->pbl_bt_l1[i],
-					  mr->pbl_l1_dma_addr[i]);
-
-			for (j = 0; j < pbl_bt_sz / BA_BYTE_LEN; j++) {
-				if (i == loop_i && j >= loop_j)
-					break;
-
-				bt_idx = i * pbl_bt_sz / BA_BYTE_LEN + j;
-				dma_free_coherent(dev, pbl_bt_sz,
-						  mr->pbl_bt_l2[bt_idx],
-						  mr->pbl_l2_dma_addr[bt_idx]);
-			}
-		}
-	} else if (mhop_num == 3 && err_loop_index == 1) {
-		for (i -= 1; i >= 0; i--) {
-			dma_free_coherent(dev, pbl_bt_sz, mr->pbl_bt_l1[i],
-					  mr->pbl_l1_dma_addr[i]);
-
-			for (j = 0; j < pbl_bt_sz / BA_BYTE_LEN; j++) {
-				bt_idx = i * pbl_bt_sz / BA_BYTE_LEN + j;
-				dma_free_coherent(dev, pbl_bt_sz,
-						  mr->pbl_bt_l2[bt_idx],
-						  mr->pbl_l2_dma_addr[bt_idx]);
-			}
-		}
-	} else if (mhop_num == 2 && err_loop_index == 1) {
-		for (i -= 1; i >= 0; i--)
-			dma_free_coherent(dev, pbl_bt_sz, mr->pbl_bt_l1[i],
-					  mr->pbl_l1_dma_addr[i]);
-	} else {
-		dev_warn(dev, "not support: mhop_num=%d, err_loop_index=%d.",
-			 mhop_num, err_loop_index);
-		return;
-	}
-
-	dma_free_coherent(dev, pbl_bt_sz, mr->pbl_bt_l0, mr->pbl_l0_dma_addr);
-	mr->pbl_bt_l0 = NULL;
-	mr->pbl_l0_dma_addr = 0;
-}
-static int pbl_1hop_alloc(struct hns_roce_dev *hr_dev, int npages,
-			       struct hns_roce_mr *mr, u32 pbl_bt_sz)
-{
-	struct device *dev = hr_dev->dev;
-
-	if (npages > pbl_bt_sz / 8) {
-		dev_err(dev, "npages %d is larger than buf_pg_sz!",
-			npages);
-		return -EINVAL;
-	}
-	mr->pbl_buf = dma_alloc_coherent(dev, npages * 8,
-					 &(mr->pbl_dma_addr),
-					 GFP_KERNEL);
-	if (!mr->pbl_buf)
-		return -ENOMEM;
-
-	mr->pbl_size = npages;
-	mr->pbl_ba = mr->pbl_dma_addr;
-	mr->pbl_hop_num = 1;
-	mr->pbl_ba_pg_sz = hr_dev->caps.pbl_ba_pg_sz;
-	mr->pbl_buf_pg_sz = hr_dev->caps.pbl_buf_pg_sz;
-	return 0;
-
-}
-
-
-static int pbl_2hop_alloc(struct hns_roce_dev *hr_dev, int npages,
-			       struct hns_roce_mr *mr, u32 pbl_bt_sz)
-{
-	struct device *dev = hr_dev->dev;
-	int npages_allocated;
-	u64 pbl_last_bt_num;
-	u64 pbl_bt_cnt = 0;
-	u64 size;
-	int i;
-
-	pbl_last_bt_num = (npages + pbl_bt_sz / 8 - 1) / (pbl_bt_sz / 8);
-
-	/* alloc L1 BT */
-	for (i = 0; i < pbl_bt_sz / 8; i++) {
-		if (pbl_bt_cnt + 1 < pbl_last_bt_num) {
-			size = pbl_bt_sz;
-		} else {
-			npages_allocated = i * (pbl_bt_sz / 8);
-			size = (npages - npages_allocated) * 8;
-		}
-		mr->pbl_bt_l1[i] = dma_alloc_coherent(dev, size,
-					    &(mr->pbl_l1_dma_addr[i]),
-					    GFP_KERNEL);
-		if (!mr->pbl_bt_l1[i]) {
-			hns_roce_loop_free(hr_dev, mr, 1, i, 0);
-			return -ENOMEM;
-		}
-
-		*(mr->pbl_bt_l0 + i) = mr->pbl_l1_dma_addr[i];
-
-		pbl_bt_cnt++;
-		if (pbl_bt_cnt >= pbl_last_bt_num)
-			break;
-	}
-
-	mr->l0_chunk_last_num = i + 1;
-
-	return 0;
-}
-
-static int pbl_3hop_alloc(struct hns_roce_dev *hr_dev, int npages,
-			       struct hns_roce_mr *mr, u32 pbl_bt_sz)
-{
-	struct device *dev = hr_dev->dev;
-	int mr_alloc_done = 0;
-	int npages_allocated;
-	u64 pbl_last_bt_num;
-	u64 pbl_bt_cnt = 0;
-	u64 bt_idx;
-	u64 size;
-	int i;
-	int j = 0;
-
-	pbl_last_bt_num = (npages + pbl_bt_sz / 8 - 1) / (pbl_bt_sz / 8);
-
-	mr->pbl_l2_dma_addr = kcalloc(pbl_last_bt_num,
-				      sizeof(*mr->pbl_l2_dma_addr),
-				      GFP_KERNEL);
-	if (!mr->pbl_l2_dma_addr)
-		return -ENOMEM;
-
-	mr->pbl_bt_l2 = kcalloc(pbl_last_bt_num,
-				sizeof(*mr->pbl_bt_l2),
-				GFP_KERNEL);
-	if (!mr->pbl_bt_l2)
-		goto err_kcalloc_bt_l2;
-
-	/* alloc L1, L2 BT */
-	for (i = 0; i < pbl_bt_sz / 8; i++) {
-		mr->pbl_bt_l1[i] = dma_alloc_coherent(dev, pbl_bt_sz,
-					    &(mr->pbl_l1_dma_addr[i]),
-					    GFP_KERNEL);
-		if (!mr->pbl_bt_l1[i]) {
-			hns_roce_loop_free(hr_dev, mr, 1, i, 0);
-			goto err_dma_alloc_l0;
-		}
-
-		*(mr->pbl_bt_l0 + i) = mr->pbl_l1_dma_addr[i];
-
-		for (j = 0; j < pbl_bt_sz / 8; j++) {
-			bt_idx = i * pbl_bt_sz / 8 + j;
-
-			if (pbl_bt_cnt + 1 < pbl_last_bt_num) {
-				size = pbl_bt_sz;
-			} else {
-				npages_allocated = bt_idx *
-						   (pbl_bt_sz / 8);
-				size = (npages - npages_allocated) * 8;
-			}
-			mr->pbl_bt_l2[bt_idx] = dma_alloc_coherent(
-				      dev, size,
-				      &(mr->pbl_l2_dma_addr[bt_idx]),
-				      GFP_KERNEL);
-			if (!mr->pbl_bt_l2[bt_idx]) {
-				hns_roce_loop_free(hr_dev, mr, 2, i, j);
-				goto err_dma_alloc_l0;
-			}
-
-			*(mr->pbl_bt_l1[i] + j) =
-					mr->pbl_l2_dma_addr[bt_idx];
-
-			pbl_bt_cnt++;
-			if (pbl_bt_cnt >= pbl_last_bt_num) {
-				mr_alloc_done = 1;
-				break;
-			}
-		}
-
-		if (mr_alloc_done)
-			break;
-	}
-
-	mr->l0_chunk_last_num = i + 1;
-	mr->l1_chunk_last_num = j + 1;
-
-
-	return 0;
-
-err_dma_alloc_l0:
-	kfree(mr->pbl_bt_l2);
-	mr->pbl_bt_l2 = NULL;
-
-err_kcalloc_bt_l2:
-	kfree(mr->pbl_l2_dma_addr);
-	mr->pbl_l2_dma_addr = NULL;
-
-	return -ENOMEM;
-}
-
-
-/* PBL multi hop addressing */
-static int hns_roce_mhop_alloc(struct hns_roce_dev *hr_dev, int npages,
-			       struct hns_roce_mr *mr)
-{
-	struct device *dev = hr_dev->dev;
-	u32 pbl_bt_sz;
-	u32 mhop_num;
-
-	mhop_num = (mr->type == MR_TYPE_FRMR ? 1 : hr_dev->caps.pbl_hop_num);
-	pbl_bt_sz = 1 << (hr_dev->caps.pbl_ba_pg_sz + PAGE_SHIFT);
-
-	if (mhop_num == HNS_ROCE_HOP_NUM_0)
-		return 0;
-
-	if (mhop_num == 1)
-		return pbl_1hop_alloc(hr_dev, npages, mr, pbl_bt_sz);
-
-	mr->pbl_l1_dma_addr = kcalloc(pbl_bt_sz / 8,
-				      sizeof(*mr->pbl_l1_dma_addr),
-				      GFP_KERNEL);
-	if (!mr->pbl_l1_dma_addr)
-		return -ENOMEM;
-
-	mr->pbl_bt_l1 = kcalloc(pbl_bt_sz / 8, sizeof(*mr->pbl_bt_l1),
-				GFP_KERNEL);
-	if (!mr->pbl_bt_l1)
-		goto err_kcalloc_bt_l1;
-
-	/* alloc L0 BT */
-	mr->pbl_bt_l0 = dma_alloc_coherent(dev, pbl_bt_sz,
-					   &(mr->pbl_l0_dma_addr),
-					   GFP_KERNEL);
-	if (!mr->pbl_bt_l0)
-		goto err_kcalloc_l2_dma;
-
-	if (mhop_num == 2) {
-		if (pbl_2hop_alloc(hr_dev, npages, mr, pbl_bt_sz))
-			goto err_kcalloc_l2_dma;
-	}
-
-	if (mhop_num == 3) {
-		if (pbl_3hop_alloc(hr_dev, npages, mr, pbl_bt_sz))
-			goto err_kcalloc_l2_dma;
-	}
-
-
-	mr->pbl_size = npages;
-	mr->pbl_ba = mr->pbl_l0_dma_addr;
-	mr->pbl_hop_num = hr_dev->caps.pbl_hop_num;
-	mr->pbl_ba_pg_sz = hr_dev->caps.pbl_ba_pg_sz;
-	mr->pbl_buf_pg_sz = hr_dev->caps.pbl_buf_pg_sz;
-
-	return 0;
-
-err_kcalloc_l2_dma:
-	kfree(mr->pbl_bt_l1);
-	mr->pbl_bt_l1 = NULL;
-
-err_kcalloc_bt_l1:
-	kfree(mr->pbl_l1_dma_addr);
-	mr->pbl_l1_dma_addr = NULL;
-
-	return -ENOMEM;
-}
-
-static int hns_roce_mr_alloc(struct hns_roce_dev *hr_dev, u32 pd, u64 iova,
-			     u64 size, u32 access, int npages,
-			     struct hns_roce_mr *mr)
-{
-	struct device *dev = hr_dev->dev;
-	unsigned long index = 0;
-	int ret;
+	struct hns_roce_ida *mtpt_ida = &hr_dev->mr_table.mtpt_ida;
+	struct ib_device *ibdev = &hr_dev->ib_dev;
+	int err;
+	int id;
 
 	/* Allocate a key for mr from mr_table */
-	ret = hns_roce_bitmap_alloc(&hr_dev->mr_table.mtpt_bitmap, &index);
-	if (ret == -1)
+	id = ida_alloc_range(&mtpt_ida->ida, mtpt_ida->min, mtpt_ida->max,
+			     GFP_KERNEL);
+	if (id < 0) {
+		ibdev_err(ibdev, "failed to alloc id for MR key, id(%d)\n", id);
 		return -ENOMEM;
-
-	mr->iova = iova;			/* MR va starting addr */
-	mr->size = size;			/* MR addr range */
-	mr->pd = pd;				/* MR num */
-	mr->access = access;			/* MR access permit */
-	mr->enabled = 0;			/* MR active status */
-	mr->key = hw_index_to_key(index);	/* MR key */
-
-	if (size == ~0ull) {
-		mr->pbl_buf = NULL;
-		mr->pbl_dma_addr = 0;
-		/* PBL multi-hop addressing parameters */
-		mr->pbl_bt_l2 = NULL;
-		mr->pbl_bt_l1 = NULL;
-		mr->pbl_bt_l0 = NULL;
-		mr->pbl_l2_dma_addr = NULL;
-		mr->pbl_l1_dma_addr = NULL;
-		mr->pbl_l0_dma_addr = 0;
-	} else {
-		if (!hr_dev->caps.pbl_hop_num) {
-			mr->pbl_buf = dma_alloc_coherent(dev,
-							 npages * BA_BYTE_LEN,
-							 &(mr->pbl_dma_addr),
-							 GFP_KERNEL);
-			if (!mr->pbl_buf)
-				return -ENOMEM;
-		} else {
-			ret = hns_roce_mhop_alloc(hr_dev, npages, mr);
-		}
 	}
 
-	return ret;
+	mr->key = hw_index_to_key(id); /* MR key */
+
+	err = hns_roce_table_get(hr_dev, &hr_dev->mr_table.mtpt_table,
+				 (unsigned long)id);
+	if (err) {
+		ibdev_err(ibdev, "failed to alloc mtpt, ret = %d.\n", err);
+		goto err_free_bitmap;
+	}
+
+	return 0;
+err_free_bitmap:
+	ida_free(&mtpt_ida->ida, id);
+	return err;
 }
 
-static void hns_roce_mhop_free(struct hns_roce_dev *hr_dev,
-			       struct hns_roce_mr *mr)
+static void free_mr_key(struct hns_roce_dev *hr_dev, struct hns_roce_mr *mr)
 {
-	struct device *dev = hr_dev->dev;
-	int npages_allocated;
-	int npages;
-	int i, j;
-	u32 pbl_bt_sz;
-	u32 mhop_num;
-	u64 bt_idx;
+	unsigned long obj = key_to_hw_index(mr->key);
 
-	npages = mr->pbl_size;
-	pbl_bt_sz = 1 << (hr_dev->caps.pbl_ba_pg_sz + PAGE_SHIFT);
-	mhop_num = (mr->type == MR_TYPE_FRMR) ? 1 : hr_dev->caps.pbl_hop_num;
-
-	if (mhop_num == HNS_ROCE_HOP_NUM_0)
-		return;
-
-	if (mhop_num == 1) {
-		dma_free_coherent(dev, (unsigned int)(npages * BA_BYTE_LEN),
-				  mr->pbl_buf, mr->pbl_dma_addr);
-		return;
-	}
-
-	dma_free_coherent(dev, pbl_bt_sz, mr->pbl_bt_l0,
-			  mr->pbl_l0_dma_addr);
-
-	if (mhop_num == 2) {
-		for (i = 0; i < mr->l0_chunk_last_num; i++) {
-			if (i == mr->l0_chunk_last_num - 1) {
-				npages_allocated =
-						i * (pbl_bt_sz / BA_BYTE_LEN);
-
-				dma_free_coherent(dev,
-				      (npages - npages_allocated) * BA_BYTE_LEN,
-				       mr->pbl_bt_l1[i],
-				       mr->pbl_l1_dma_addr[i]);
-
-				break;
-			}
-
-			dma_free_coherent(dev, pbl_bt_sz, mr->pbl_bt_l1[i],
-					  mr->pbl_l1_dma_addr[i]);
-		}
-	} else if (mhop_num == 3) {
-		for (i = 0; i < mr->l0_chunk_last_num; i++) {
-			dma_free_coherent(dev, pbl_bt_sz, mr->pbl_bt_l1[i],
-					  mr->pbl_l1_dma_addr[i]);
-
-			for (j = 0; j < pbl_bt_sz / BA_BYTE_LEN; j++) {
-				bt_idx = i * (pbl_bt_sz / BA_BYTE_LEN) + j;
-
-				if ((i == mr->l0_chunk_last_num - 1)
-				    && j == mr->l1_chunk_last_num - 1) {
-					npages_allocated = bt_idx *
-						      (pbl_bt_sz / BA_BYTE_LEN);
-
-					dma_free_coherent(dev,
-					      (npages - npages_allocated) *
-					      BA_BYTE_LEN,
-					      mr->pbl_bt_l2[bt_idx],
-					      mr->pbl_l2_dma_addr[bt_idx]);
-
-					break;
-				}
-
-				dma_free_coherent(dev, pbl_bt_sz,
-						mr->pbl_bt_l2[bt_idx],
-						mr->pbl_l2_dma_addr[bt_idx]);
-			}
-		}
-	}
-
-	kfree(mr->pbl_bt_l1);
-	kfree(mr->pbl_l1_dma_addr);
-	mr->pbl_bt_l1 = NULL;
-	mr->pbl_l1_dma_addr = NULL;
-	if (mhop_num == 3) {
-		kfree(mr->pbl_bt_l2);
-		kfree(mr->pbl_l2_dma_addr);
-		mr->pbl_bt_l2 = NULL;
-		mr->pbl_l2_dma_addr = NULL;
-	}
+	hns_roce_table_put(hr_dev, &hr_dev->mr_table.mtpt_table, obj);
+	ida_free(&hr_dev->mr_table.mtpt_ida.ida, (int)obj);
 }
 
-static void hns_roce_mr_free(struct hns_roce_dev *hr_dev,
-			     struct hns_roce_mr *mr)
+static int alloc_mr_pbl(struct hns_roce_dev *hr_dev, struct hns_roce_mr *mr,
+			struct ib_udata *udata, u64 start)
 {
-	struct device *dev = hr_dev->dev;
-	int npages = 0;
+	struct ib_device *ibdev = &hr_dev->ib_dev;
+	bool is_fast = mr->type == MR_TYPE_FRMR;
+	struct hns_roce_buf_attr buf_attr = {};
+	int err;
+
+	mr->pbl_hop_num = is_fast ? 1 : hr_dev->caps.pbl_hop_num;
+	buf_attr.page_shift = is_fast ? PAGE_SHIFT :
+			      hr_dev->caps.pbl_buf_pg_sz + PAGE_SHIFT;
+	buf_attr.region[0].size = mr->size;
+	buf_attr.region[0].hopnum = mr->pbl_hop_num;
+	buf_attr.region_count = 1;
+	buf_attr.user_access = mr->access;
+	/* fast MR's buffer is alloced before mapping, not at creation */
+	buf_attr.mtt_only = is_fast;
+	buf_attr.iova = mr->iova;
+	/* pagesize and hopnum is fixed for fast MR */
+	buf_attr.adaptive = !is_fast;
+	buf_attr.type = MTR_PBL;
+
+	err = hns_roce_mtr_create(hr_dev, &mr->pbl_mtr, &buf_attr,
+				  hr_dev->caps.pbl_ba_pg_sz + PAGE_SHIFT,
+				  udata, start);
+	if (err) {
+		ibdev_err(ibdev, "failed to alloc pbl mtr, ret = %d.\n", err);
+		return err;
+	}
+
+	mr->npages = mr->pbl_mtr.hem_cfg.buf_pg_count;
+	mr->pbl_hop_num = buf_attr.region[0].hopnum;
+
+	return err;
+}
+
+static void free_mr_pbl(struct hns_roce_dev *hr_dev, struct hns_roce_mr *mr)
+{
+	hns_roce_mtr_destroy(hr_dev, &mr->pbl_mtr);
+}
+
+static void hns_roce_mr_free(struct hns_roce_dev *hr_dev, struct hns_roce_mr *mr)
+{
+	struct ib_device *ibdev = &hr_dev->ib_dev;
 	int ret;
 
 	if (mr->enabled) {
-		ret = hns_roce_hw2sw_mpt(hr_dev, NULL, key_to_hw_index(mr->key)
-					 & (hr_dev->caps.num_mtpts - 1));
+		ret = hns_roce_destroy_hw_ctx(hr_dev, HNS_ROCE_CMD_DESTROY_MPT,
+					      key_to_hw_index(mr->key) &
+					      (hr_dev->caps.num_mtpts - 1));
 		if (ret)
-			dev_warn(dev, "HW2SW_MPT failed (%d)\n", ret);
+			ibdev_warn(ibdev, "failed to destroy mpt, ret = %d.\n",
+				   ret);
 	}
 
-	if (mr->size != ~0ULL) {
-		if (mr->type == MR_TYPE_MR)
-			npages = ib_umem_page_count(mr->umem);
-
-		if (!hr_dev->caps.pbl_hop_num)
-			dma_free_coherent(dev,
-					  (unsigned int)(npages * BA_BYTE_LEN),
-					  mr->pbl_buf, mr->pbl_dma_addr);
-		else
-			hns_roce_mhop_free(hr_dev, mr);
-	}
-
-	if (mr->enabled)
-		hns_roce_table_put(hr_dev, &hr_dev->mr_table.mtpt_table,
-				   key_to_hw_index(mr->key));
-
-	hns_roce_bitmap_free(&hr_dev->mr_table.mtpt_bitmap,
-			     key_to_hw_index(mr->key), BITMAP_NO_RR);
+	free_mr_pbl(hr_dev, mr);
+	free_mr_key(hr_dev, mr);
 }
 
 static int hns_roce_mr_enable(struct hns_roce_dev *hr_dev,
 			      struct hns_roce_mr *mr)
 {
-	int ret;
 	unsigned long mtpt_idx = key_to_hw_index(mr->key);
-	struct device *dev = hr_dev->dev;
 	struct hns_roce_cmd_mailbox *mailbox;
-	struct hns_roce_mr_table *mr_table = &hr_dev->mr_table;
-
-	/* Prepare HEM entry memory */
-	ret = hns_roce_table_get(hr_dev, &mr_table->mtpt_table, mtpt_idx);
-	if (ret)
-		return ret;
+	struct device *dev = hr_dev->dev;
+	int ret;
 
 	/* Allocate mailbox memory */
 	mailbox = hns_roce_alloc_cmd_mailbox(hr_dev);
-	if (IS_ERR(mailbox)) {
-		ret = PTR_ERR(mailbox);
-		goto err_table;
-	}
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
 
 	if (mr->type != MR_TYPE_FRMR)
-		ret = hr_dev->hw->write_mtpt(mailbox->buf, mr, mtpt_idx);
+		ret = hr_dev->hw->write_mtpt(hr_dev, mailbox->buf, mr);
 	else
 		ret = hr_dev->hw->frmr_write_mtpt(mailbox->buf, mr);
 	if (ret) {
-		dev_err(dev, "Write mtpt fail!\n");
+		dev_err(dev, "failed to write mtpt, ret = %d.\n", ret);
 		goto err_page;
 	}
 
-	ret = hns_roce_sw2hw_mpt(hr_dev, mailbox,
-				 mtpt_idx & (hr_dev->caps.num_mtpts - 1));
+	ret = hns_roce_create_hw_ctx(hr_dev, mailbox, HNS_ROCE_CMD_CREATE_MPT,
+				     mtpt_idx & (hr_dev->caps.num_mtpts - 1));
 	if (ret) {
-		dev_err(dev, "SW2HW_MPT failed (%d)\n", ret);
+		dev_err(dev, "failed to create mpt, ret = %d.\n", ret);
 		goto err_page;
 	}
 
 	mr->enabled = 1;
-	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
-
-	return 0;
 
 err_page:
 	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
 
-err_table:
-	hns_roce_table_put(hr_dev, &mr_table->mtpt_table, mtpt_idx);
 	return ret;
 }
 
-static int hns_roce_write_mtt_chunk(struct hns_roce_dev *hr_dev,
-				    struct hns_roce_mtt *mtt, u32 start_index,
-				    u32 npages, u64 *page_list)
+void hns_roce_init_mr_table(struct hns_roce_dev *hr_dev)
 {
-	struct hns_roce_hem_table *table;
-	dma_addr_t dma_handle;
-	__le64 *mtts;
-	u32 bt_page_size;
-	u32 i;
+	struct hns_roce_ida *mtpt_ida = &hr_dev->mr_table.mtpt_ida;
 
-	switch (mtt->mtt_type) {
-	case MTT_TYPE_WQE:
-		table = &hr_dev->mr_table.mtt_table;
-		bt_page_size = 1 << (hr_dev->caps.mtt_ba_pg_sz + PAGE_SHIFT);
-		break;
-	case MTT_TYPE_CQE:
-		table = &hr_dev->mr_table.mtt_cqe_table;
-		bt_page_size = 1 << (hr_dev->caps.cqe_ba_pg_sz + PAGE_SHIFT);
-		break;
-	case MTT_TYPE_SRQWQE:
-		table = &hr_dev->mr_table.mtt_srqwqe_table;
-		bt_page_size = 1 << (hr_dev->caps.srqwqe_ba_pg_sz + PAGE_SHIFT);
-		break;
-	case MTT_TYPE_IDX:
-		table = &hr_dev->mr_table.mtt_idx_table;
-		bt_page_size = 1 << (hr_dev->caps.idx_ba_pg_sz + PAGE_SHIFT);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	/* All MTTs must fit in the same page */
-	if (start_index / (bt_page_size / sizeof(u64)) !=
-		(start_index + npages - 1) / (bt_page_size / sizeof(u64)))
-		return -EINVAL;
-
-	if (start_index & (HNS_ROCE_MTT_ENTRY_PER_SEG - 1))
-		return -EINVAL;
-
-	mtts = hns_roce_table_find(hr_dev, table,
-				mtt->first_seg +
-				start_index / HNS_ROCE_MTT_ENTRY_PER_SEG,
-				&dma_handle);
-	if (!mtts)
-		return -ENOMEM;
-
-	/* Save page addr, low 12 bits : 0 */
-	for (i = 0; i < npages; ++i) {
-		if (!hr_dev->caps.mtt_hop_num)
-			mtts[i] = cpu_to_le64(page_list[i] >> PAGE_ADDR_SHIFT);
-		else
-			mtts[i] = cpu_to_le64(page_list[i]);
-	}
-
-	return 0;
-}
-
-static int hns_roce_write_mtt(struct hns_roce_dev *hr_dev,
-			      struct hns_roce_mtt *mtt, u32 start_index,
-			      u32 npages, u64 *page_list)
-{
-	int chunk;
-	int ret;
-	u32 bt_page_size;
-
-	if (mtt->order < 0)
-		return -EINVAL;
-
-	switch (mtt->mtt_type) {
-	case MTT_TYPE_WQE:
-		bt_page_size = 1 << (hr_dev->caps.mtt_ba_pg_sz + PAGE_SHIFT);
-		break;
-	case MTT_TYPE_CQE:
-		bt_page_size = 1 << (hr_dev->caps.cqe_ba_pg_sz + PAGE_SHIFT);
-		break;
-	case MTT_TYPE_SRQWQE:
-		bt_page_size = 1 << (hr_dev->caps.srqwqe_ba_pg_sz + PAGE_SHIFT);
-		break;
-	case MTT_TYPE_IDX:
-		bt_page_size = 1 << (hr_dev->caps.idx_ba_pg_sz + PAGE_SHIFT);
-		break;
-	default:
-		dev_err(hr_dev->dev,
-			"Unsupport mtt type %d, write mtt failed\n",
-			mtt->mtt_type);
-		return -EINVAL;
-	}
-
-	while (npages > 0) {
-		chunk = min_t(int, bt_page_size / sizeof(u64), npages);
-
-		ret = hns_roce_write_mtt_chunk(hr_dev, mtt, start_index, chunk,
-					       page_list);
-		if (ret)
-			return ret;
-
-		npages -= chunk;
-		start_index += chunk;
-		page_list += chunk;
-	}
-
-	return 0;
-}
-
-int hns_roce_buf_write_mtt(struct hns_roce_dev *hr_dev,
-			   struct hns_roce_mtt *mtt, struct hns_roce_buf *buf)
-{
-	u64 *page_list;
-	int ret;
-	u32 i;
-
-	page_list = kmalloc_array(buf->npages, sizeof(*page_list), GFP_KERNEL);
-	if (!page_list)
-		return -ENOMEM;
-
-	for (i = 0; i < buf->npages; ++i) {
-		if (buf->nbufs == 1)
-			page_list[i] = buf->direct.map + (i << buf->page_shift);
-		else
-			page_list[i] = buf->page_list[i].map;
-
-	}
-	ret = hns_roce_write_mtt(hr_dev, mtt, 0, buf->npages, page_list);
-
-	kfree(page_list);
-
-	return ret;
-}
-
-int hns_roce_init_mr_table(struct hns_roce_dev *hr_dev)
-{
-	struct hns_roce_mr_table *mr_table = &hr_dev->mr_table;
-	int ret;
-
-	ret = hns_roce_bitmap_init(&mr_table->mtpt_bitmap,
-				   hr_dev->caps.num_mtpts,
-				   hr_dev->caps.num_mtpts - 1,
-				   hr_dev->caps.reserved_mrws, 0);
-	if (ret)
-		return ret;
-
-	ret = hns_roce_buddy_init(&mr_table->mtt_buddy,
-				  ilog2(hr_dev->caps.num_mtt_segs));
-	if (ret)
-		goto err_buddy;
-
-	if (hns_roce_check_whether_mhop(hr_dev, HEM_TYPE_CQE)) {
-		ret = hns_roce_buddy_init(&mr_table->mtt_cqe_buddy,
-					  ilog2(hr_dev->caps.num_cqe_segs));
-		if (ret)
-			goto err_buddy_cqe;
-	}
-
-	if (hr_dev->caps.num_srqwqe_segs) {
-		ret = hns_roce_buddy_init(&mr_table->mtt_srqwqe_buddy,
-					  ilog2(hr_dev->caps.num_srqwqe_segs));
-		if (ret)
-			goto err_buddy_srqwqe;
-	}
-
-	if (hr_dev->caps.num_idx_segs) {
-		ret = hns_roce_buddy_init(&mr_table->mtt_idx_buddy,
-					  ilog2(hr_dev->caps.num_idx_segs));
-		if (ret)
-			goto err_buddy_idx;
-	}
-
-	return 0;
-
-err_buddy_idx:
-	if (hr_dev->caps.num_srqwqe_segs)
-		hns_roce_buddy_cleanup(&mr_table->mtt_srqwqe_buddy);
-
-err_buddy_srqwqe:
-	if (hns_roce_check_whether_mhop(hr_dev, HEM_TYPE_CQE))
-		hns_roce_buddy_cleanup(&mr_table->mtt_cqe_buddy);
-
-err_buddy_cqe:
-	hns_roce_buddy_cleanup(&mr_table->mtt_buddy);
-
-err_buddy:
-	hns_roce_bitmap_cleanup(&mr_table->mtpt_bitmap);
-	return ret;
-}
-
-void hns_roce_cleanup_mr_table(struct hns_roce_dev *hr_dev)
-{
-	struct hns_roce_mr_table *mr_table = &hr_dev->mr_table;
-
-	if (hr_dev->caps.num_idx_segs)
-		hns_roce_buddy_cleanup(&mr_table->mtt_idx_buddy);
-	if (hr_dev->caps.num_srqwqe_segs)
-		hns_roce_buddy_cleanup(&mr_table->mtt_srqwqe_buddy);
-	hns_roce_buddy_cleanup(&mr_table->mtt_buddy);
-	if (hns_roce_check_whether_mhop(hr_dev, HEM_TYPE_CQE))
-		hns_roce_buddy_cleanup(&mr_table->mtt_cqe_buddy);
-	hns_roce_bitmap_cleanup(&mr_table->mtpt_bitmap);
+	ida_init(&mtpt_ida->ida);
+	mtpt_ida->max = hr_dev->caps.num_mtpts - 1;
+	mtpt_ida->min = hr_dev->caps.reserved_mrws;
 }
 
 struct ib_mr *hns_roce_get_dma_mr(struct ib_pd *pd, int acc)
 {
+	struct hns_roce_dev *hr_dev = to_hr_dev(pd->device);
 	struct hns_roce_mr *mr;
 	int ret;
 
-	mr = kmalloc(sizeof(*mr), GFP_KERNEL);
-	if (mr == NULL)
+	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+	if (!mr)
 		return  ERR_PTR(-ENOMEM);
 
 	mr->type = MR_TYPE_DMA;
+	mr->pd = to_hr_pd(pd)->pdn;
+	mr->access = acc;
 
 	/* Allocate memory region key */
-	ret = hns_roce_mr_alloc(to_hr_dev(pd->device), to_hr_pd(pd)->pdn, 0,
-				~0ULL, acc, 0, mr);
+	hns_roce_hem_list_init(&mr->pbl_mtr.hem_list);
+	ret = alloc_mr_key(hr_dev, mr);
 	if (ret)
 		goto err_free;
-
-	ret = hns_roce_mr_enable(to_hr_dev(pd->device), mr);
-	if (ret)
-		goto err_mr;
-
-	mr->ibmr.rkey = mr->ibmr.lkey = mr->key;
-	mr->umem = NULL;
-
-	return &mr->ibmr;
-
-err_mr:
-	hns_roce_mr_free(to_hr_dev(pd->device), mr);
-
-err_free:
-	kfree(mr);
-	return ERR_PTR(ret);
-}
-
-int hns_roce_ib_umem_write_mtt(struct hns_roce_dev *hr_dev,
-			       struct hns_roce_mtt *mtt, struct ib_umem *umem)
-{
-	struct device *dev = hr_dev->dev;
-	struct sg_dma_page_iter sg_iter;
-	unsigned int order;
-	int npage = 0;
-	int ret = 0;
-	int i;
-	u64 page_addr;
-	u64 *pages;
-	u32 bt_page_size;
-	u32 n;
-
-	switch (mtt->mtt_type) {
-	case MTT_TYPE_WQE:
-		order = hr_dev->caps.mtt_ba_pg_sz;
-		break;
-	case MTT_TYPE_CQE:
-		order = hr_dev->caps.cqe_ba_pg_sz;
-		break;
-	case MTT_TYPE_SRQWQE:
-		order = hr_dev->caps.srqwqe_ba_pg_sz;
-		break;
-	case MTT_TYPE_IDX:
-		order = hr_dev->caps.idx_ba_pg_sz;
-		break;
-	default:
-		dev_err(dev, "Unsupport mtt type %d, write mtt failed\n",
-			mtt->mtt_type);
-		return -EINVAL;
-	}
-
-	bt_page_size = 1 << (order + PAGE_SHIFT);
-
-	pages = (u64 *) __get_free_pages(GFP_KERNEL, order);
-	if (!pages)
-		return -ENOMEM;
-
-	i = n = 0;
-
-	for_each_sg_dma_page(umem->sg_head.sgl, &sg_iter, umem->nmap, 0) {
-		page_addr = sg_page_iter_dma_address(&sg_iter);
-		if (!(npage % (1 << (mtt->page_shift - PAGE_SHIFT)))) {
-			if (page_addr & ((1 << mtt->page_shift) - 1)) {
-				dev_err(dev,
-					"page_addr 0x%llx is not page_shift %d alignment!\n",
-					page_addr, mtt->page_shift);
-				ret = -EINVAL;
-				goto out;
-			}
-			pages[i++] = page_addr;
-		}
-		npage++;
-		if (i == bt_page_size / sizeof(u64)) {
-			ret = hns_roce_write_mtt(hr_dev, mtt, n, i, pages);
-			if (ret)
-				goto out;
-			n += i;
-			i = 0;
-		}
-	}
-
-	if (i)
-		ret = hns_roce_write_mtt(hr_dev, mtt, n, i, pages);
-
-out:
-	free_pages((unsigned long) pages, order);
-	return ret;
-}
-
-static int hns_roce_ib_umem_write_mr(struct hns_roce_dev *hr_dev,
-				     struct hns_roce_mr *mr,
-				     struct ib_umem *umem)
-{
-	struct sg_dma_page_iter sg_iter;
-	int i = 0, j = 0;
-	u64 page_addr;
-	u32 pbl_bt_sz;
-
-	if (hr_dev->caps.pbl_hop_num == HNS_ROCE_HOP_NUM_0)
-		return 0;
-
-	pbl_bt_sz = 1 << (hr_dev->caps.pbl_ba_pg_sz + PAGE_SHIFT);
-	for_each_sg_dma_page(umem->sg_head.sgl, &sg_iter, umem->nmap, 0) {
-		page_addr = sg_page_iter_dma_address(&sg_iter);
-		if (!hr_dev->caps.pbl_hop_num) {
-			/* for hip06, page addr is aligned to 4K */
-			mr->pbl_buf[i++] = page_addr >> 12;
-		} else if (hr_dev->caps.pbl_hop_num == 1) {
-			mr->pbl_buf[i++] = page_addr;
-		} else {
-			if (hr_dev->caps.pbl_hop_num == 2)
-				mr->pbl_bt_l1[i][j] = page_addr;
-			else if (hr_dev->caps.pbl_hop_num == 3)
-				mr->pbl_bt_l2[i][j] = page_addr;
-
-			j++;
-			if (j >= (pbl_bt_sz / BA_BYTE_LEN)) {
-				i++;
-				j = 0;
-			}
-		}
-	}
-
-	/* Memory barrier */
-	mb();
-
-	return 0;
-}
-
-struct ib_mr *hns_roce_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
-				   u64 virt_addr, int access_flags,
-				   struct ib_udata *udata)
-{
-	struct hns_roce_dev *hr_dev = to_hr_dev(pd->device);
-	struct device *dev = hr_dev->dev;
-	struct hns_roce_mr *mr;
-	int bt_size;
-	int ret;
-	int n;
-	int i;
-
-	mr = kmalloc(sizeof(*mr), GFP_KERNEL);
-	if (!mr)
-		return ERR_PTR(-ENOMEM);
-
-	mr->umem = ib_umem_get(udata, start, length, access_flags, 0);
-	if (IS_ERR(mr->umem)) {
-		ret = PTR_ERR(mr->umem);
-		goto err_free;
-	}
-
-	n = ib_umem_page_count(mr->umem);
-
-	if (!hr_dev->caps.pbl_hop_num) {
-		if (n > HNS_ROCE_MAX_MTPT_PBL_NUM) {
-			dev_err(dev,
-			     " MR len %lld err. MR is limited to 4G at most!\n",
-			     length);
-			ret = -EINVAL;
-			goto err_umem;
-		}
-	} else {
-		u64 pbl_size = 1;
-
-		bt_size = (1 << (hr_dev->caps.pbl_ba_pg_sz + PAGE_SHIFT)) /
-			  BA_BYTE_LEN;
-		for (i = 0; i < hr_dev->caps.pbl_hop_num; i++)
-			pbl_size *= bt_size;
-		if (n > pbl_size) {
-			dev_err(dev,
-			    " MR len %lld err. MR page num is limited to %lld!\n",
-			    length, pbl_size);
-			ret = -EINVAL;
-			goto err_umem;
-		}
-	}
-
-	mr->type = MR_TYPE_MR;
-
-	ret = hns_roce_mr_alloc(hr_dev, to_hr_pd(pd)->pdn, virt_addr, length,
-				access_flags, n, mr);
-	if (ret)
-		goto err_umem;
-
-	ret = hns_roce_ib_umem_write_mr(hr_dev, mr, mr->umem);
-	if (ret)
-		goto err_mr;
 
 	ret = hns_roce_mr_enable(hr_dev, mr);
 	if (ret)
@@ -1193,196 +219,164 @@ struct ib_mr *hns_roce_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	mr->ibmr.rkey = mr->ibmr.lkey = mr->key;
 
 	return &mr->ibmr;
-
 err_mr:
-	hns_roce_mr_free(hr_dev, mr);
-
-err_umem:
-	ib_umem_release(mr->umem);
+	free_mr_key(hr_dev, mr);
 
 err_free:
 	kfree(mr);
 	return ERR_PTR(ret);
 }
 
-static int rereg_mr_trans(struct ib_mr *ibmr, int flags,
-			  u64 start, u64 length,
-			  u64 virt_addr, int mr_access_flags,
-			  struct hns_roce_cmd_mailbox *mailbox,
-			  u32 pdn, struct ib_udata *udata)
+struct ib_mr *hns_roce_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
+				   u64 virt_addr, int access_flags,
+				   struct ib_udata *udata)
 {
-	struct hns_roce_dev *hr_dev = to_hr_dev(ibmr->device);
-	struct hns_roce_mr *mr = to_hr_mr(ibmr);
-	struct device *dev = hr_dev->dev;
-	int npages;
+	struct hns_roce_dev *hr_dev = to_hr_dev(pd->device);
+	struct hns_roce_mr *mr;
 	int ret;
 
-	if (mr->size != ~0ULL) {
-		npages = ib_umem_page_count(mr->umem);
-
-		if (hr_dev->caps.pbl_hop_num)
-			hns_roce_mhop_free(hr_dev, mr);
-		else
-			dma_free_coherent(dev, npages * 8,
-					  mr->pbl_buf, mr->pbl_dma_addr);
-	}
-	ib_umem_release(mr->umem);
-
-	mr->umem = ib_umem_get(udata, start, length, mr_access_flags, 0);
-	if (IS_ERR(mr->umem)) {
-		ret = PTR_ERR(mr->umem);
-		mr->umem = NULL;
-		return -ENOMEM;
-	}
-	npages = ib_umem_page_count(mr->umem);
-
-	if (hr_dev->caps.pbl_hop_num) {
-		ret = hns_roce_mhop_alloc(hr_dev, npages, mr);
-		if (ret)
-			goto release_umem;
-	} else {
-		mr->pbl_buf = dma_alloc_coherent(dev, npages * 8,
-						 &(mr->pbl_dma_addr),
-						 GFP_KERNEL);
-		if (!mr->pbl_buf) {
-			ret = -ENOMEM;
-			goto release_umem;
-		}
+	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+	if (!mr) {
+		ret = -ENOMEM;
+		goto err_out;
 	}
 
-	ret = hr_dev->hw->rereg_write_mtpt(hr_dev, mr, flags, pdn,
-					   mr_access_flags, virt_addr,
-					   length, mailbox->buf);
+	mr->iova = virt_addr;
+	mr->size = length;
+	mr->pd = to_hr_pd(pd)->pdn;
+	mr->access = access_flags;
+	mr->type = MR_TYPE_MR;
+
+	ret = alloc_mr_key(hr_dev, mr);
 	if (ret)
-		goto release_umem;
+		goto err_alloc_mr;
 
+	ret = alloc_mr_pbl(hr_dev, mr, udata, start);
+	if (ret)
+		goto err_alloc_key;
 
-	ret = hns_roce_ib_umem_write_mr(hr_dev, mr, mr->umem);
-	if (ret) {
-		if (mr->size != ~0ULL) {
-			npages = ib_umem_page_count(mr->umem);
+	ret = hns_roce_mr_enable(hr_dev, mr);
+	if (ret)
+		goto err_alloc_pbl;
 
-			if (hr_dev->caps.pbl_hop_num)
-				hns_roce_mhop_free(hr_dev, mr);
-			else
-				dma_free_coherent(dev, npages * 8,
-						  mr->pbl_buf,
-						  mr->pbl_dma_addr);
-		}
+	mr->ibmr.rkey = mr->ibmr.lkey = mr->key;
 
-		goto release_umem;
-	}
+	return &mr->ibmr;
 
-	return 0;
+err_alloc_pbl:
+	free_mr_pbl(hr_dev, mr);
+err_alloc_key:
+	free_mr_key(hr_dev, mr);
+err_alloc_mr:
+	kfree(mr);
+err_out:
+	atomic64_inc(&hr_dev->dfx_cnt[HNS_ROCE_DFX_MR_REG_ERR_CNT]);
 
-release_umem:
-	ib_umem_release(mr->umem);
-	return ret;
-
+	return ERR_PTR(ret);
 }
 
-
-int hns_roce_rereg_user_mr(struct ib_mr *ibmr, int flags, u64 start, u64 length,
-			   u64 virt_addr, int mr_access_flags, struct ib_pd *pd,
-			   struct ib_udata *udata)
+struct ib_mr *hns_roce_rereg_user_mr(struct ib_mr *ibmr, int flags, u64 start,
+				     u64 length, u64 virt_addr,
+				     int mr_access_flags, struct ib_pd *pd,
+				     struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibmr->device);
+	struct ib_device *ib_dev = &hr_dev->ib_dev;
 	struct hns_roce_mr *mr = to_hr_mr(ibmr);
 	struct hns_roce_cmd_mailbox *mailbox;
-	struct device *dev = hr_dev->dev;
 	unsigned long mtpt_idx;
-	u32 pdn = 0;
 	int ret;
 
-	if (!mr->enabled)
-		return -EINVAL;
+	if (!mr->enabled) {
+		ret = -EINVAL;
+		goto err_out;
+	}
 
 	mailbox = hns_roce_alloc_cmd_mailbox(hr_dev);
-	if (IS_ERR(mailbox))
-		return PTR_ERR(mailbox);
+	ret = PTR_ERR_OR_ZERO(mailbox);
+	if (ret)
+		goto err_out;
 
 	mtpt_idx = key_to_hw_index(mr->key) & (hr_dev->caps.num_mtpts - 1);
-	ret = hns_roce_cmd_mbox(hr_dev, 0, mailbox->dma, mtpt_idx, 0,
-				HNS_ROCE_CMD_QUERY_MPT,
-				HNS_ROCE_CMD_TIMEOUT_MSECS);
+
+	ret = hns_roce_cmd_mbox(hr_dev, 0, mailbox->dma, HNS_ROCE_CMD_QUERY_MPT,
+				mtpt_idx);
 	if (ret)
 		goto free_cmd_mbox;
 
-	ret = hns_roce_hw2sw_mpt(hr_dev, NULL, mtpt_idx);
+	ret = hns_roce_destroy_hw_ctx(hr_dev, HNS_ROCE_CMD_DESTROY_MPT,
+				      mtpt_idx);
 	if (ret)
-		dev_warn(dev, "HW2SW_MPT failed (%d)\n", ret);
+		ibdev_warn(ib_dev, "failed to destroy MPT, ret = %d.\n", ret);
 
 	mr->enabled = 0;
+	mr->iova = virt_addr;
+	mr->size = length;
 
 	if (flags & IB_MR_REREG_PD)
-		pdn = to_hr_pd(pd)->pdn;
+		mr->pd = to_hr_pd(pd)->pdn;
+
+	if (flags & IB_MR_REREG_ACCESS)
+		mr->access = mr_access_flags;
 
 	if (flags & IB_MR_REREG_TRANS) {
-		ret = rereg_mr_trans(ibmr, flags,
-				     start, length,
-				     virt_addr, mr_access_flags,
-				     mailbox, pdn, udata);
-		if (ret)
+		free_mr_pbl(hr_dev, mr);
+		ret = alloc_mr_pbl(hr_dev, mr, udata, start);
+		if (ret) {
+			ibdev_err(ib_dev, "failed to alloc mr PBL, ret = %d.\n",
+				  ret);
 			goto free_cmd_mbox;
-	} else {
-		ret = hr_dev->hw->rereg_write_mtpt(hr_dev, mr, flags, pdn,
-						   mr_access_flags, virt_addr,
-						   length, mailbox->buf);
-		if (ret)
-			goto free_cmd_mbox;
+		}
 	}
 
-	ret = hns_roce_sw2hw_mpt(hr_dev, mailbox, mtpt_idx);
+	ret = hr_dev->hw->rereg_write_mtpt(hr_dev, mr, flags, mailbox->buf);
 	if (ret) {
-		dev_err(dev, "SW2HW_MPT failed (%d)\n", ret);
-		ib_umem_release(mr->umem);
+		ibdev_err(ib_dev, "failed to write mtpt, ret = %d.\n", ret);
+		goto free_cmd_mbox;
+	}
+
+	ret = hns_roce_create_hw_ctx(hr_dev, mailbox, HNS_ROCE_CMD_CREATE_MPT,
+				     mtpt_idx);
+	if (ret) {
+		ibdev_err(ib_dev, "failed to create MPT, ret = %d.\n", ret);
 		goto free_cmd_mbox;
 	}
 
 	mr->enabled = 1;
-	if (flags & IB_MR_REREG_ACCESS)
-		mr->access = mr_access_flags;
-
-	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
-
-	return 0;
 
 free_cmd_mbox:
 	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
 
-	return ret;
+err_out:
+	if (ret) {
+		atomic64_inc(&hr_dev->dfx_cnt[HNS_ROCE_DFX_MR_REREG_ERR_CNT]);
+		return ERR_PTR(ret);
+	}
+
+	return NULL;
 }
 
 int hns_roce_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibmr->device);
 	struct hns_roce_mr *mr = to_hr_mr(ibmr);
-	int ret = 0;
 
-	if (hr_dev->hw->dereg_mr) {
-		ret = hr_dev->hw->dereg_mr(hr_dev, mr, udata);
-	} else {
-		hns_roce_mr_free(hr_dev, mr);
+	if (hr_dev->hw->dereg_mr)
+		hr_dev->hw->dereg_mr(hr_dev);
 
-		ib_umem_release(mr->umem);
-		kfree(mr);
-	}
+	hns_roce_mr_free(hr_dev, mr);
+	kfree(mr);
 
-	return ret;
+	return 0;
 }
 
 struct ib_mr *hns_roce_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
-				u32 max_num_sg, struct ib_udata *udata)
+				u32 max_num_sg)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(pd->device);
 	struct device *dev = hr_dev->dev;
 	struct hns_roce_mr *mr;
-	u64 length;
-	u32 page_size;
 	int ret;
-
-	page_size = 1 << (hr_dev->caps.pbl_buf_pg_sz + PAGE_SHIFT);
-	length = max_num_sg * page_size;
 
 	if (mr_type != IB_MR_TYPE_MEM_REG)
 		return ERR_PTR(-EINVAL);
@@ -1398,25 +392,31 @@ struct ib_mr *hns_roce_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 		return ERR_PTR(-ENOMEM);
 
 	mr->type = MR_TYPE_FRMR;
+	mr->pd = to_hr_pd(pd)->pdn;
+	mr->size = max_num_sg * (1 << PAGE_SHIFT);
 
 	/* Allocate memory region key */
-	ret = hns_roce_mr_alloc(hr_dev, to_hr_pd(pd)->pdn, 0, length,
-				0, max_num_sg, mr);
+	ret = alloc_mr_key(hr_dev, mr);
 	if (ret)
 		goto err_free;
 
+	ret = alloc_mr_pbl(hr_dev, mr, NULL, 0);
+	if (ret)
+		goto err_key;
+
 	ret = hns_roce_mr_enable(hr_dev, mr);
 	if (ret)
-		goto err_mr;
+		goto err_pbl;
 
 	mr->ibmr.rkey = mr->ibmr.lkey = mr->key;
-	mr->umem = NULL;
+	mr->ibmr.length = mr->size;
 
 	return &mr->ibmr;
 
-err_mr:
-	hns_roce_mr_free(to_hr_dev(pd->device), mr);
-
+err_pbl:
+	free_mr_pbl(hr_dev, mr);
+err_key:
+	free_mr_key(hr_dev, mr);
 err_free:
 	kfree(mr);
 	return ERR_PTR(ret);
@@ -1426,19 +426,53 @@ static int hns_roce_set_page(struct ib_mr *ibmr, u64 addr)
 {
 	struct hns_roce_mr *mr = to_hr_mr(ibmr);
 
-	mr->pbl_buf[mr->npages++] = addr;
+	if (likely(mr->npages < mr->pbl_mtr.hem_cfg.buf_pg_count)) {
+		mr->page_list[mr->npages++] = addr;
+		return 0;
+	}
 
-	return 0;
+	return -ENOBUFS;
 }
 
 int hns_roce_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
 		       unsigned int *sg_offset)
 {
+	struct hns_roce_dev *hr_dev = to_hr_dev(ibmr->device);
+	struct ib_device *ibdev = &hr_dev->ib_dev;
 	struct hns_roce_mr *mr = to_hr_mr(ibmr);
+	struct hns_roce_mtr *mtr = &mr->pbl_mtr;
+	int ret, sg_num = 0;
 
 	mr->npages = 0;
+	mr->page_list = kvcalloc(mr->pbl_mtr.hem_cfg.buf_pg_count,
+				 sizeof(dma_addr_t), GFP_KERNEL);
+	if (!mr->page_list)
+		return sg_num;
 
-	return ib_sg_to_pages(ibmr, sg, sg_nents, sg_offset, hns_roce_set_page);
+	sg_num = ib_sg_to_pages(ibmr, sg, sg_nents, sg_offset, hns_roce_set_page);
+	if (sg_num < 1) {
+		ibdev_err(ibdev, "failed to store sg pages %u %u, cnt = %d.\n",
+			  mr->npages, mr->pbl_mtr.hem_cfg.buf_pg_count, sg_num);
+		goto err_page_list;
+	}
+
+	mtr->hem_cfg.region[0].offset = 0;
+	mtr->hem_cfg.region[0].count = mr->npages;
+	mtr->hem_cfg.region[0].hopnum = mr->pbl_hop_num;
+	mtr->hem_cfg.region_count = 1;
+	ret = hns_roce_mtr_map(hr_dev, mtr, mr->page_list, mr->npages);
+	if (ret) {
+		ibdev_err(ibdev, "failed to map sg mtr, ret = %d.\n", ret);
+		sg_num = 0;
+	} else {
+		mr->pbl_mtr.hem_cfg.buf_pg_shift = (u32)ilog2(ibmr->page_size);
+	}
+
+err_page_list:
+	kvfree(mr->page_list);
+	mr->page_list = NULL;
+
+	return sg_num;
 }
 
 static void hns_roce_mw_free(struct hns_roce_dev *hr_dev,
@@ -1448,17 +482,18 @@ static void hns_roce_mw_free(struct hns_roce_dev *hr_dev,
 	int ret;
 
 	if (mw->enabled) {
-		ret = hns_roce_hw2sw_mpt(hr_dev, NULL, key_to_hw_index(mw->rkey)
-					 & (hr_dev->caps.num_mtpts - 1));
+		ret = hns_roce_destroy_hw_ctx(hr_dev, HNS_ROCE_CMD_DESTROY_MPT,
+					      key_to_hw_index(mw->rkey) &
+					      (hr_dev->caps.num_mtpts - 1));
 		if (ret)
-			dev_warn(dev, "MW HW2SW_MPT failed (%d)\n", ret);
+			dev_warn(dev, "MW DESTROY_MPT failed (%d)\n", ret);
 
 		hns_roce_table_put(hr_dev, &hr_dev->mr_table.mtpt_table,
 				   key_to_hw_index(mw->rkey));
 	}
 
-	hns_roce_bitmap_free(&hr_dev->mr_table.mtpt_bitmap,
-			     key_to_hw_index(mw->rkey), BITMAP_NO_RR);
+	ida_free(&hr_dev->mr_table.mtpt_ida.ida,
+		 (int)key_to_hw_index(mw->rkey));
 }
 
 static int hns_roce_mw_enable(struct hns_roce_dev *hr_dev,
@@ -1487,10 +522,10 @@ static int hns_roce_mw_enable(struct hns_roce_dev *hr_dev,
 		goto err_page;
 	}
 
-	ret = hns_roce_sw2hw_mpt(hr_dev, mailbox,
-				 mtpt_idx & (hr_dev->caps.num_mtpts - 1));
+	ret = hns_roce_create_hw_ctx(hr_dev, mailbox, HNS_ROCE_CMD_CREATE_MPT,
+				     mtpt_idx & (hr_dev->caps.num_mtpts - 1));
 	if (ret) {
-		dev_err(dev, "MW sw2hw_mpt failed (%d)\n", ret);
+		dev_err(dev, "MW CREATE_MPT failed (%d)\n", ret);
 		goto err_page;
 	}
 
@@ -1509,28 +544,27 @@ err_table:
 	return ret;
 }
 
-struct ib_mw *hns_roce_alloc_mw(struct ib_pd *ib_pd, enum ib_mw_type type,
-				struct ib_udata *udata)
+int hns_roce_alloc_mw(struct ib_mw *ibmw, struct ib_udata *udata)
 {
-	struct hns_roce_dev *hr_dev = to_hr_dev(ib_pd->device);
-	struct hns_roce_mw *mw;
-	unsigned long index = 0;
+	struct hns_roce_dev *hr_dev = to_hr_dev(ibmw->device);
+	struct hns_roce_ida *mtpt_ida = &hr_dev->mr_table.mtpt_ida;
+	struct ib_device *ibdev = &hr_dev->ib_dev;
+	struct hns_roce_mw *mw = to_hr_mw(ibmw);
 	int ret;
+	int id;
 
-	mw = kmalloc(sizeof(*mw), GFP_KERNEL);
-	if (!mw)
-		return ERR_PTR(-ENOMEM);
+	/* Allocate a key for mw from mr_table */
+	id = ida_alloc_range(&mtpt_ida->ida, mtpt_ida->min, mtpt_ida->max,
+			     GFP_KERNEL);
+	if (id < 0) {
+		ibdev_err(ibdev, "failed to alloc id for MW key, id(%d)\n", id);
+		return -ENOMEM;
+	}
 
-	/* Allocate a key for mw from bitmap */
-	ret = hns_roce_bitmap_alloc(&hr_dev->mr_table.mtpt_bitmap, &index);
-	if (ret)
-		goto err_bitmap;
+	mw->rkey = hw_index_to_key(id);
 
-	mw->rkey = hw_index_to_key(index);
-
-	mw->ibmw.rkey = mw->rkey;
-	mw->ibmw.type = type;
-	mw->pdn = to_hr_pd(ib_pd)->pdn;
+	ibmw->rkey = mw->rkey;
+	mw->pdn = to_hr_pd(ibmw->pd)->pdn;
 	mw->pbl_hop_num = hr_dev->caps.pbl_hop_num;
 	mw->pbl_ba_pg_sz = hr_dev->caps.pbl_ba_pg_sz;
 	mw->pbl_buf_pg_sz = hr_dev->caps.pbl_buf_pg_sz;
@@ -1539,15 +573,11 @@ struct ib_mw *hns_roce_alloc_mw(struct ib_pd *ib_pd, enum ib_mw_type type,
 	if (ret)
 		goto err_mw;
 
-	return &mw->ibmw;
+	return 0;
 
 err_mw:
 	hns_roce_mw_free(hr_dev, mw);
-
-err_bitmap:
-	kfree(mw);
-
-	return ERR_PTR(ret);
+	return ret;
 }
 
 int hns_roce_dealloc_mw(struct ib_mw *ibmw)
@@ -1556,122 +586,623 @@ int hns_roce_dealloc_mw(struct ib_mw *ibmw)
 	struct hns_roce_mw *mw = to_hr_mw(ibmw);
 
 	hns_roce_mw_free(hr_dev, mw);
-	kfree(mw);
-
 	return 0;
 }
 
-void hns_roce_mtr_init(struct hns_roce_mtr *mtr, int bt_pg_shift,
-		       int buf_pg_shift)
+static int mtr_map_region(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
+			  struct hns_roce_buf_region *region, dma_addr_t *pages,
+			  int max_count)
 {
-	hns_roce_hem_list_init(&mtr->hem_list, bt_pg_shift);
-	mtr->buf_pg_shift = buf_pg_shift;
-}
-
-void hns_roce_mtr_cleanup(struct hns_roce_dev *hr_dev,
-			  struct hns_roce_mtr *mtr)
-{
-	hns_roce_hem_list_release(hr_dev, &mtr->hem_list);
-}
-
-static int hns_roce_write_mtr(struct hns_roce_dev *hr_dev,
-			      struct hns_roce_mtr *mtr, dma_addr_t *bufs,
-			      struct hns_roce_buf_region *r)
-{
-	int offset;
-	int count;
-	int npage;
-	u64 *mtts;
-	int end;
+	int count, npage;
+	int offset, end;
+	__le64 *mtts;
+	u64 addr;
 	int i;
 
-	offset = r->offset;
-	end = offset + r->count;
+	offset = region->offset;
+	end = offset + region->count;
 	npage = 0;
-	while (offset < end) {
+	while (offset < end && npage < max_count) {
+		count = 0;
 		mtts = hns_roce_hem_list_find_mtt(hr_dev, &mtr->hem_list,
-						  offset, &count, NULL);
+						  offset, &count);
 		if (!mtts)
 			return -ENOBUFS;
 
-		/* Save page addr, low 12 bits : 0 */
-		for (i = 0; i < count; i++) {
-			if (hr_dev->hw_rev == HNS_ROCE_HW_VER1)
-				mtts[i] = bufs[npage] >> PAGE_ADDR_SHIFT;
-			else
-				mtts[i] = bufs[npage];
+		for (i = 0; i < count && npage < max_count; i++) {
+			addr = pages[npage];
 
+			mtts[i] = cpu_to_le64(addr);
 			npage++;
 		}
 		offset += count;
 	}
 
+	return npage;
+}
+
+static inline bool mtr_has_mtt(struct hns_roce_buf_attr *attr)
+{
+	int i;
+
+	for (i = 0; i < attr->region_count; i++)
+		if (attr->region[i].hopnum != HNS_ROCE_HOP_NUM_0 &&
+		    attr->region[i].hopnum > 0)
+			return true;
+
+	/* because the mtr only one root base address, when hopnum is 0 means
+	 * root base address equals the first buffer address, thus all alloced
+	 * memory must in a continuous space accessed by direct mode.
+	 */
+	return false;
+}
+
+static inline size_t mtr_bufs_size(struct hns_roce_buf_attr *attr)
+{
+	size_t size = 0;
+	int i;
+
+	for (i = 0; i < attr->region_count; i++)
+		size += attr->region[i].size;
+
+	return size;
+}
+
+/*
+ * check the given pages in continuous address space
+ * Returns 0 on success, or the error page num.
+ */
+static inline int mtr_check_direct_pages(dma_addr_t *pages, int page_count,
+					 unsigned int page_shift)
+{
+	size_t page_size = 1 << page_shift;
+	int i;
+
+	for (i = 1; i < page_count; i++)
+		if (pages[i] - pages[i - 1] != page_size)
+			return i;
+
 	return 0;
 }
 
-int hns_roce_mtr_attach(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
-			dma_addr_t **bufs, struct hns_roce_buf_region *regions,
-			int region_cnt)
+static void mtr_free_bufs(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr)
 {
-	struct hns_roce_buf_region *r;
-	int ret;
-	int i;
+	/* release user buffers */
+	if (mtr->umem) {
+		ib_umem_release(mtr->umem);
+		mtr->umem = NULL;
+	}
 
-	ret = hns_roce_hem_list_request(hr_dev, &mtr->hem_list, regions,
-					region_cnt);
-	if (ret)
-		return ret;
+	/* release kernel buffers */
+	if (mtr->kmem) {
+		hns_roce_buf_free(hr_dev, mtr->kmem);
+		mtr->kmem = NULL;
+	}
+}
 
-	for (i = 0; i < region_cnt; i++) {
-		r = &regions[i];
-		ret = hns_roce_write_mtr(hr_dev, mtr, bufs[i], r);
-		if (ret) {
-			dev_err(hr_dev->dev,
-				"write mtr[%d/%d] err %d,offset=%d.\n",
-				i, region_cnt, ret,  r->offset);
-			goto err_write;
+static int mtr_alloc_bufs(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
+			  struct hns_roce_buf_attr *buf_attr,
+			  struct ib_udata *udata, unsigned long user_addr)
+{
+	struct ib_device *ibdev = &hr_dev->ib_dev;
+	size_t total_size;
+
+	total_size = mtr_bufs_size(buf_attr);
+
+	if (udata) {
+		mtr->kmem = NULL;
+		mtr->umem = ib_umem_get(ibdev, user_addr, total_size,
+					buf_attr->user_access);
+		if (IS_ERR(mtr->umem)) {
+			ibdev_err(ibdev, "failed to get umem, ret = %ld.\n",
+				  PTR_ERR(mtr->umem));
+			return -ENOMEM;
+		}
+	} else {
+		mtr->umem = NULL;
+		mtr->kmem = hns_roce_buf_alloc(hr_dev, total_size,
+					       buf_attr->page_shift,
+					       !mtr_has_mtt(buf_attr) ?
+					       HNS_ROCE_BUF_DIRECT : 0);
+		if (IS_ERR(mtr->kmem)) {
+			ibdev_err(ibdev, "failed to alloc kmem, ret = %ld.\n",
+				  PTR_ERR(mtr->kmem));
+			return PTR_ERR(mtr->kmem);
 		}
 	}
 
 	return 0;
+}
 
-err_write:
-	hns_roce_hem_list_release(hr_dev, &mtr->hem_list);
+static int cal_mtr_pg_cnt(struct hns_roce_mtr *mtr)
+{
+	struct hns_roce_buf_region *region;
+	int page_cnt = 0;
+	int i;
+
+	for (i = 0; i < mtr->hem_cfg.region_count; i++) {
+		region = &mtr->hem_cfg.region[i];
+		page_cnt += region->count;
+	}
+
+	return page_cnt;
+}
+
+static bool need_split_huge_page(struct hns_roce_mtr *mtr)
+{
+	/* When HEM buffer uses 0-level addressing, the page size is
+	 * equal to the whole buffer size. If the current MTR has multiple
+	 * regions, we split the buffer into small pages(4k, required by hns
+	 * ROCEE). These pages will be used in multiple regions.
+	 */
+	return mtr->hem_cfg.is_direct && mtr->hem_cfg.region_count > 1;
+}
+
+static int mtr_map_bufs(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr)
+{
+	struct ib_device *ibdev = &hr_dev->ib_dev;
+	int page_count = cal_mtr_pg_cnt(mtr);
+	unsigned int page_shift;
+	dma_addr_t *pages;
+	int npage;
+	int ret;
+
+	page_shift = need_split_huge_page(mtr) ? HNS_HW_PAGE_SHIFT :
+						 mtr->hem_cfg.buf_pg_shift;
+	/* alloc a tmp array to store buffer's dma address */
+	pages = kvcalloc(page_count, sizeof(dma_addr_t), GFP_KERNEL);
+	if (!pages)
+		return -ENOMEM;
+
+	if (mtr->umem)
+		npage = hns_roce_get_umem_bufs(pages, page_count,
+					       mtr->umem, page_shift);
+	else
+		npage = hns_roce_get_kmem_bufs(hr_dev, pages, page_count,
+					       mtr->kmem, page_shift);
+
+	if (npage != page_count) {
+		ibdev_err(ibdev, "failed to get mtr page %d != %d.\n", npage,
+			  page_count);
+		ret = -ENOBUFS;
+		goto err_alloc_list;
+	}
+
+	if (need_split_huge_page(mtr) && npage > 1) {
+		ret = mtr_check_direct_pages(pages, npage, page_shift);
+		if (ret) {
+			ibdev_err(ibdev, "failed to check %s page: %d / %d.\n",
+				  mtr->umem ? "umtr" : "kmtr", ret, npage);
+			ret = -ENOBUFS;
+			goto err_alloc_list;
+		}
+	}
+
+	ret = hns_roce_mtr_map(hr_dev, mtr, pages, page_count);
+	if (ret)
+		ibdev_err(ibdev, "failed to map mtr pages, ret = %d.\n", ret);
+
+err_alloc_list:
+	kvfree(pages);
 
 	return ret;
 }
 
-int hns_roce_mtr_find(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
-		      int offset, u64 *mtt_buf, int mtt_max, u64 *base_addr)
+int hns_roce_mtr_map(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
+		     dma_addr_t *pages, unsigned int page_cnt)
 {
-	u64 *mtts = mtt_buf;
-	int mtt_count;
-	int total = 0;
-	u64 *addr;
-	int npage;
-	int left;
+	struct ib_device *ibdev = &hr_dev->ib_dev;
+	struct hns_roce_buf_region *r;
+	unsigned int i, mapped_cnt;
+	int ret = 0;
 
-	if (mtts == NULL || mtt_max < 1)
-		goto done;
-
-	left = mtt_max;
-	while (left > 0) {
-		mtt_count = 0;
-		addr = hns_roce_hem_list_find_mtt(hr_dev, &mtr->hem_list,
-						  offset + total,
-						  &mtt_count, NULL);
-		if (!addr || !mtt_count)
-			goto done;
-
-		npage = min(mtt_count, left);
-		memcpy(&mtts[total], addr, BA_BYTE_LEN * npage);
-		left -= npage;
-		total += npage;
+	/*
+	 * Only use the first page address as root ba when hopnum is 0, this
+	 * is because the addresses of all pages are consecutive in this case.
+	 */
+	if (mtr->hem_cfg.is_direct) {
+		mtr->hem_cfg.root_ba = pages[0];
+		return 0;
 	}
 
-done:
-	if (base_addr)
-		*base_addr = mtr->hem_list.root_ba;
+	for (i = 0, mapped_cnt = 0; i < mtr->hem_cfg.region_count &&
+	     mapped_cnt < page_cnt; i++) {
+		r = &mtr->hem_cfg.region[i];
+		/* if hopnum is 0, no need to map pages in this region */
+		if (!r->hopnum) {
+			mapped_cnt += r->count;
+			continue;
+		}
 
-	return total;
+		if (r->offset + r->count > page_cnt) {
+			ret = -EINVAL;
+			ibdev_err(ibdev,
+				  "failed to check mtr%u count %u + %u > %u.\n",
+				  i, r->offset, r->count, page_cnt);
+			return ret;
+		}
+
+		ret = mtr_map_region(hr_dev, mtr, r, &pages[r->offset],
+				     page_cnt - mapped_cnt);
+		if (ret < 0) {
+			ibdev_err(ibdev,
+				  "failed to map mtr%u offset %u, ret = %d.\n",
+				  i, r->offset, ret);
+			return ret;
+		}
+		mapped_cnt += ret;
+		ret = 0;
+	}
+
+	if (mapped_cnt < page_cnt) {
+		ret = -ENOBUFS;
+		ibdev_err(ibdev, "failed to map mtr pages count: %u < %u.\n",
+			  mapped_cnt, page_cnt);
+	}
+
+	return ret;
+}
+
+static int hns_roce_get_direct_addr_mtt(struct hns_roce_hem_cfg *cfg,
+					u32 start_index, u64 *mtt_buf,
+					int mtt_cnt)
+{
+	int mtt_count;
+	int total = 0;
+	u32 npage;
+	u64 addr;
+
+	if (mtt_cnt > cfg->region_count)
+		return -EINVAL;
+
+	for (mtt_count = 0; mtt_count < cfg->region_count && total < mtt_cnt;
+	     mtt_count++) {
+		npage = cfg->region[mtt_count].offset;
+		if (npage < start_index)
+			continue;
+
+		addr = cfg->root_ba + (npage << HNS_HW_PAGE_SHIFT);
+		mtt_buf[total] = addr;
+
+		total++;
+	}
+
+	if (!total)
+		return -ENOENT;
+
+	return 0;
+}
+
+static int hns_roce_get_mhop_mtt(struct hns_roce_dev *hr_dev,
+				 struct hns_roce_mtr *mtr, u32 start_index,
+				 u64 *mtt_buf, int mtt_cnt)
+{
+	int left = mtt_cnt;
+	int total = 0;
+	int mtt_count;
+	__le64 *mtts;
+	u32 npage;
+
+	while (left > 0) {
+		mtt_count = 0;
+		mtts = hns_roce_hem_list_find_mtt(hr_dev, &mtr->hem_list,
+						  start_index + total,
+						  &mtt_count);
+		if (!mtts || !mtt_count)
+			break;
+
+		npage = min(mtt_count, left);
+		left -= npage;
+		for (mtt_count = 0; mtt_count < npage; mtt_count++)
+			mtt_buf[total++] = le64_to_cpu(mtts[mtt_count]);
+	}
+
+	if (!total)
+		return -ENOENT;
+
+	return 0;
+}
+
+int hns_roce_mtr_find(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
+		      u32 offset, u64 *mtt_buf, int mtt_max)
+{
+	struct hns_roce_hem_cfg *cfg = &mtr->hem_cfg;
+	u32 start_index;
+	int ret;
+
+	if (!mtt_buf || mtt_max < 1)
+		return -EINVAL;
+
+	/* no mtt memory in direct mode, so just return the buffer address */
+	if (cfg->is_direct) {
+		start_index = offset >> HNS_HW_PAGE_SHIFT;
+		ret = hns_roce_get_direct_addr_mtt(cfg, start_index,
+						   mtt_buf, mtt_max);
+	} else {
+		start_index = offset >> cfg->buf_pg_shift;
+		ret = hns_roce_get_mhop_mtt(hr_dev, mtr, start_index,
+					    mtt_buf, mtt_max);
+	}
+	return ret;
+}
+
+static int get_best_page_shift(struct hns_roce_dev *hr_dev,
+			       struct hns_roce_mtr *mtr,
+			       struct hns_roce_buf_attr *buf_attr)
+{
+	unsigned int page_sz;
+
+	if (!buf_attr->adaptive || buf_attr->type != MTR_PBL || !mtr->umem)
+		return 0;
+
+	page_sz = ib_umem_find_best_pgsz(mtr->umem,
+					 hr_dev->caps.page_size_cap,
+					 buf_attr->iova);
+	if (!page_sz)
+		return -EINVAL;
+
+	buf_attr->page_shift = order_base_2(page_sz);
+	return 0;
+}
+
+static int get_best_hop_num(struct hns_roce_dev *hr_dev,
+			    struct hns_roce_mtr *mtr,
+			    struct hns_roce_buf_attr *buf_attr,
+			    unsigned int ba_pg_shift)
+{
+#define INVALID_HOPNUM -1
+#define MIN_BA_CNT 1
+	size_t buf_pg_sz = 1 << buf_attr->page_shift;
+	struct ib_device *ibdev = &hr_dev->ib_dev;
+	size_t ba_pg_sz = 1 << ba_pg_shift;
+	int hop_num = INVALID_HOPNUM;
+	size_t unit = MIN_BA_CNT;
+	size_t ba_cnt;
+	int j;
+
+	if (!buf_attr->adaptive || buf_attr->type != MTR_PBL)
+		return 0;
+
+	/* Caculating the number of buf pages, each buf page need a BA */
+	if (mtr->umem)
+		ba_cnt = ib_umem_num_dma_blocks(mtr->umem, buf_pg_sz);
+	else
+		ba_cnt = DIV_ROUND_UP(buf_attr->region[0].size, buf_pg_sz);
+
+	for (j = 0; j <= HNS_ROCE_MAX_HOP_NUM; j++) {
+		if (ba_cnt <= unit) {
+			hop_num = j;
+			break;
+		}
+		/* Number of BAs can be represented at per hop */
+		unit *= ba_pg_sz / BA_BYTE_LEN;
+	}
+
+	if (hop_num < 0) {
+		ibdev_err(ibdev,
+			  "failed to calculate a valid hopnum.\n");
+		return -EINVAL;
+	}
+
+	buf_attr->region[0].hopnum = hop_num;
+
+	return 0;
+}
+
+static bool is_buf_attr_valid(struct hns_roce_dev *hr_dev,
+			      struct hns_roce_buf_attr *attr)
+{
+	struct ib_device *ibdev = &hr_dev->ib_dev;
+
+	if (attr->region_count > ARRAY_SIZE(attr->region) ||
+	    attr->region_count < 1 || attr->page_shift < HNS_HW_PAGE_SHIFT) {
+		ibdev_err(ibdev,
+			  "invalid buf attr, region count %d, page shift %u.\n",
+			  attr->region_count, attr->page_shift);
+		return false;
+	}
+
+	return true;
+}
+
+static int mtr_init_buf_cfg(struct hns_roce_dev *hr_dev,
+			    struct hns_roce_mtr *mtr,
+			    struct hns_roce_buf_attr *attr)
+{
+	struct hns_roce_hem_cfg *cfg = &mtr->hem_cfg;
+	struct hns_roce_buf_region *r;
+	size_t buf_pg_sz;
+	size_t buf_size;
+	int page_cnt, i;
+	u64 pgoff = 0;
+
+	if (!is_buf_attr_valid(hr_dev, attr))
+		return -EINVAL;
+
+	/* If mtt is disabled, all pages must be within a continuous range */
+	cfg->is_direct = !mtr_has_mtt(attr);
+	cfg->region_count = attr->region_count;
+	buf_size = mtr_bufs_size(attr);
+	if (need_split_huge_page(mtr)) {
+		buf_pg_sz = HNS_HW_PAGE_SIZE;
+		cfg->buf_pg_count = 1;
+		/* The ROCEE requires the page size to be 4K * 2 ^ N. */
+		cfg->buf_pg_shift = HNS_HW_PAGE_SHIFT +
+			order_base_2(DIV_ROUND_UP(buf_size, HNS_HW_PAGE_SIZE));
+	} else {
+		buf_pg_sz = 1 << attr->page_shift;
+		cfg->buf_pg_count = mtr->umem ?
+			ib_umem_num_dma_blocks(mtr->umem, buf_pg_sz) :
+			DIV_ROUND_UP(buf_size, buf_pg_sz);
+		cfg->buf_pg_shift = attr->page_shift;
+		pgoff = mtr->umem ? mtr->umem->address & ~PAGE_MASK : 0;
+	}
+
+	/* Convert buffer size to page index and page count for each region and
+	 * the buffer's offset needs to be appended to the first region.
+	 */
+	for (page_cnt = 0, i = 0; i < attr->region_count; i++) {
+		r = &cfg->region[i];
+		r->offset = page_cnt;
+		buf_size = hr_hw_page_align(attr->region[i].size + pgoff);
+		if (attr->type == MTR_PBL && mtr->umem)
+			r->count = ib_umem_num_dma_blocks(mtr->umem, buf_pg_sz);
+		else
+			r->count = DIV_ROUND_UP(buf_size, buf_pg_sz);
+
+		pgoff = 0;
+		page_cnt += r->count;
+		r->hopnum = to_hr_hem_hopnum(attr->region[i].hopnum, r->count);
+	}
+
+	return 0;
+}
+
+static u64 cal_pages_per_l1ba(unsigned int ba_per_bt, unsigned int hopnum)
+{
+	return int_pow(ba_per_bt, hopnum - 1);
+}
+
+static unsigned int cal_best_bt_pg_sz(struct hns_roce_dev *hr_dev,
+				      struct hns_roce_mtr *mtr,
+				      unsigned int pg_shift)
+{
+	unsigned long cap = hr_dev->caps.page_size_cap;
+	struct hns_roce_buf_region *re;
+	unsigned int pgs_per_l1ba;
+	unsigned int ba_per_bt;
+	unsigned int ba_num;
+	int i;
+
+	for_each_set_bit_from(pg_shift, &cap, sizeof(cap) * BITS_PER_BYTE) {
+		if (!(BIT(pg_shift) & cap))
+			continue;
+
+		ba_per_bt = BIT(pg_shift) / BA_BYTE_LEN;
+		ba_num = 0;
+		for (i = 0; i < mtr->hem_cfg.region_count; i++) {
+			re = &mtr->hem_cfg.region[i];
+			if (re->hopnum == 0)
+				continue;
+
+			pgs_per_l1ba = cal_pages_per_l1ba(ba_per_bt, re->hopnum);
+			ba_num += DIV_ROUND_UP(re->count, pgs_per_l1ba);
+		}
+
+		if (ba_num <= ba_per_bt)
+			return pg_shift;
+	}
+
+	return 0;
+}
+
+static int mtr_alloc_mtt(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
+			 unsigned int ba_page_shift)
+{
+	struct hns_roce_hem_cfg *cfg = &mtr->hem_cfg;
+	int ret;
+
+	hns_roce_hem_list_init(&mtr->hem_list);
+	if (!cfg->is_direct) {
+		ba_page_shift = cal_best_bt_pg_sz(hr_dev, mtr, ba_page_shift);
+		if (!ba_page_shift)
+			return -ERANGE;
+
+		ret = hns_roce_hem_list_request(hr_dev, &mtr->hem_list,
+						cfg->region, cfg->region_count,
+						ba_page_shift);
+		if (ret)
+			return ret;
+		cfg->root_ba = mtr->hem_list.root_ba;
+		cfg->ba_pg_shift = ba_page_shift;
+	} else {
+		cfg->ba_pg_shift = cfg->buf_pg_shift;
+	}
+
+	return 0;
+}
+
+static void mtr_free_mtt(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr)
+{
+	hns_roce_hem_list_release(hr_dev, &mtr->hem_list);
+}
+
+/**
+ * hns_roce_mtr_create - Create hns memory translate region.
+ *
+ * @hr_dev: RoCE device struct pointer
+ * @mtr: memory translate region
+ * @buf_attr: buffer attribute for creating mtr
+ * @ba_page_shift: page shift for multi-hop base address table
+ * @udata: user space context, if it's NULL, means kernel space
+ * @user_addr: userspace virtual address to start at
+ */
+int hns_roce_mtr_create(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
+			struct hns_roce_buf_attr *buf_attr,
+			unsigned int ba_page_shift, struct ib_udata *udata,
+			unsigned long user_addr)
+{
+	struct ib_device *ibdev = &hr_dev->ib_dev;
+	int ret;
+
+	/* The caller has its own buffer list and invokes the hns_roce_mtr_map()
+	 * to finish the MTT configuration.
+	 */
+	if (buf_attr->mtt_only) {
+		mtr->umem = NULL;
+		mtr->kmem = NULL;
+	} else {
+		ret = mtr_alloc_bufs(hr_dev, mtr, buf_attr, udata, user_addr);
+		if (ret) {
+			ibdev_err(ibdev,
+				  "failed to alloc mtr bufs, ret = %d.\n", ret);
+			return ret;
+		}
+
+		ret = get_best_page_shift(hr_dev, mtr, buf_attr);
+		if (ret)
+			goto err_init_buf;
+
+		ret = get_best_hop_num(hr_dev, mtr, buf_attr, ba_page_shift);
+		if (ret)
+			goto err_init_buf;
+	}
+
+	ret = mtr_init_buf_cfg(hr_dev, mtr, buf_attr);
+	if (ret)
+		goto err_init_buf;
+
+	ret = mtr_alloc_mtt(hr_dev, mtr, ba_page_shift);
+	if (ret) {
+		ibdev_err(ibdev, "failed to alloc mtr mtt, ret = %d.\n", ret);
+		goto err_init_buf;
+	}
+
+	if (buf_attr->mtt_only)
+		return 0;
+
+	/* Write buffer's dma address to MTT */
+	ret = mtr_map_bufs(hr_dev, mtr);
+	if (ret) {
+		ibdev_err(ibdev, "failed to map mtr bufs, ret = %d.\n", ret);
+		goto err_alloc_mtt;
+	}
+
+	return 0;
+
+err_alloc_mtt:
+	mtr_free_mtt(hr_dev, mtr);
+err_init_buf:
+	mtr_free_bufs(hr_dev, mtr);
+
+	return ret;
+}
+
+void hns_roce_mtr_destroy(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr)
+{
+	/* release multi-hop addressing resource */
+	hns_roce_hem_list_release(hr_dev, &mtr->hem_list);
+
+	/* free buffers */
+	mtr_free_bufs(hr_dev, mtr);
 }

@@ -290,8 +290,7 @@ static const struct v4l2_subdev_ops saa7185_ops = {
 
 /* ----------------------------------------------------------------------- */
 
-static int saa7185_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int saa7185_probe(struct i2c_client *client)
 {
 	int i;
 	struct saa7185 *encoder;
@@ -322,7 +321,7 @@ static int saa7185_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int saa7185_remove(struct i2c_client *client)
+static void saa7185_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct saa7185 *encoder = to_saa7185(sd);
@@ -330,7 +329,6 @@ static int saa7185_remove(struct i2c_client *client)
 	v4l2_device_unregister_subdev(sd);
 	/* SW: output off is active */
 	saa7185_write(sd, 0x61, (encoder->reg[0x61]) | 0x40);
-	return 0;
 }
 
 /* ----------------------------------------------------------------------- */

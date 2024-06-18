@@ -11,12 +11,6 @@
 #include <linux/fs.h>
 #include "swab.h"
 
-
-/*
- * some useful macros
- */
-#define in_range(b,first,len)	((b)>=(first)&&(b)<(first)+(len))
-
 /*
  * functions used for retyping
  */
@@ -42,7 +36,7 @@ ufs_get_fs_state(struct super_block *sb, struct ufs_super_block_first *usb1,
 	case UFS_ST_SUNOS:
 		if (fs32_to_cpu(sb, usb3->fs_postblformat) == UFS_42POSTBLFMT)
 			return fs32_to_cpu(sb, usb1->fs_u0.fs_sun.fs_state);
-		/* Fall Through - to UFS_ST_SUN */
+		fallthrough;	/* to UFS_ST_SUN */
 	case UFS_ST_SUN:
 		return fs32_to_cpu(sb, usb3->fs_un2.fs_sun.fs_state);
 	case UFS_ST_SUNx86:
@@ -63,7 +57,7 @@ ufs_set_fs_state(struct super_block *sb, struct ufs_super_block_first *usb1,
 			usb1->fs_u0.fs_sun.fs_state = cpu_to_fs32(sb, value);
 			break;
 		}
-		/* Fall Through - to UFS_ST_SUN */
+		fallthrough;	/* to UFS_ST_SUN */
 	case UFS_ST_SUN:
 		usb3->fs_un2.fs_sun.fs_state = cpu_to_fs32(sb, value);
 		break;
@@ -197,7 +191,7 @@ ufs_get_inode_uid(struct super_block *sb, struct ufs_inode *inode)
 	case UFS_UID_EFT:
 		if (inode->ui_u1.oldids.ui_suid == 0xFFFF)
 			return fs32_to_cpu(sb, inode->ui_u3.ui_sun.ui_uid);
-		/* Fall through */
+		fallthrough;
 	default:
 		return fs16_to_cpu(sb, inode->ui_u1.oldids.ui_suid);
 	}
@@ -215,7 +209,7 @@ ufs_set_inode_uid(struct super_block *sb, struct ufs_inode *inode, u32 value)
 		inode->ui_u3.ui_sun.ui_uid = cpu_to_fs32(sb, value);
 		if (value > 0xFFFF)
 			value = 0xFFFF;
-		/* Fall through */
+		fallthrough;
 	default:
 		inode->ui_u1.oldids.ui_suid = cpu_to_fs16(sb, value);
 		break;
@@ -231,7 +225,7 @@ ufs_get_inode_gid(struct super_block *sb, struct ufs_inode *inode)
 	case UFS_UID_EFT:
 		if (inode->ui_u1.oldids.ui_sgid == 0xFFFF)
 			return fs32_to_cpu(sb, inode->ui_u3.ui_sun.ui_gid);
-		/* Fall through */
+		fallthrough;
 	default:
 		return fs16_to_cpu(sb, inode->ui_u1.oldids.ui_sgid);
 	}
@@ -249,7 +243,7 @@ ufs_set_inode_gid(struct super_block *sb, struct ufs_inode *inode, u32 value)
 		inode->ui_u3.ui_sun.ui_gid = cpu_to_fs32(sb, value);
 		if (value > 0xFFFF)
 			value = 0xFFFF;
-		/* Fall through */
+		fallthrough;
 	default:
 		inode->ui_u1.oldids.ui_sgid =  cpu_to_fs16(sb, value);
 		break;
@@ -279,14 +273,12 @@ extern void _ubh_ubhcpymem_(struct ufs_sb_private_info *, unsigned char *, struc
 extern void _ubh_memcpyubh_(struct ufs_sb_private_info *, struct ufs_buffer_head *, unsigned char *, unsigned);
 
 /* This functions works with cache pages*/
-extern struct page *ufs_get_locked_page(struct address_space *mapping,
-					pgoff_t index);
-static inline void ufs_put_locked_page(struct page *page)
+struct folio *ufs_get_locked_folio(struct address_space *mapping, pgoff_t index);
+static inline void ufs_put_locked_folio(struct folio *folio)
 {
-       unlock_page(page);
-       put_page(page);
+       folio_unlock(folio);
+       folio_put(folio);
 }
-
 
 /*
  * macros and inline function to get important structures from ufs_sb_private_info

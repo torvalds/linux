@@ -1,0 +1,322 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree for the ARM Integrator/CP platform
+ */
+
+/dts-v1/;
+/include/ "integrator.dtsi"
+
+/ {
+	model = "ARM Integrator/CP";
+	compatible = "arm,integrator-cp";
+
+	chosen {
+		bootargs = "root=/dev/ram0 console=ttyAMA0,38400n8 earlyprintk";
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			/*
+			 * Since the board has pluggable CPU modules, we
+			 * cannot define a proper compatible here. Let the
+			 * boot loader fill in the apropriate compatible
+			 * string if necessary.
+			 */
+			/* compatible = "arm,arm920t"; */
+			reg = <0>;
+			/*
+			 * TBD comment.
+			 */
+					 /* kHz     uV   */
+			operating-points = <50000  0
+					    48000  0>;
+			clocks = <&cmcore>;
+			clock-names = "cpu";
+			clock-latency = <1000000>; /* 1 ms */
+		};
+	};
+
+	/*
+	 * The Integrator/CP overall clocking architecture can be found in
+	 * ARM DUI 0184B page 7-28 "Integrator/CP922T system clocks" which
+	 * appear to illustrate the layout used in most configurations.
+	 */
+
+	/* The codec chrystal operates at 24.576 MHz */
+	xtal_codec: xtal24.576@24.576M {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <24576000>;
+	};
+
+	/* The chrystal is divided by 2 by the codec for the AACI bit clock */
+	aaci_bitclk: aaci_bitclk@12.288M {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clock-div = <2>;
+		clock-mult = <1>;
+		clocks = <&xtal_codec>;
+	};
+
+	/* This is a 25MHz chrystal on the base board */
+	xtal25mhz: xtal25mhz@25M {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <25000000>;
+	};
+
+	/* The UART clock is 14.74 MHz divided from 25MHz by an ICS525 */
+	uartclk: uartclk@14.74M {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <14745600>;
+	};
+
+	/* Actually sysclk I think */
+	pclk: pclk@0 {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <0>;
+	};
+
+	core-module@10000000 {
+		/* 24 MHz chrystal on the core module */
+		cm24mhz: cm24mhz@24M {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <24000000>;
+		};
+
+		/* Oscillator on the core module, clocks the CPU core */
+		cmcore: clock-controller@8 {
+			compatible = "arm,syscon-icst525-integratorcp-cm-core";
+			reg = <0x08 0x04>;
+			#clock-cells = <0>;
+			lock-offset = <0x14>;
+			vco-offset = <0x08>;
+			clocks = <&cm24mhz>;
+		};
+
+		/* Oscillator on the core module, clocks the memory bus */
+		cmmem: clock-controller@8,12 {
+			compatible = "arm,syscon-icst525-integratorcp-cm-mem";
+			reg = <0x08 0x04>;
+			#clock-cells = <0>;
+			lock-offset = <0x14>;
+			vco-offset = <0x08>;
+			clocks = <&cm24mhz>;
+		};
+
+		/* Auxilary oscillator on the core module, clocks the CLCD */
+		auxosc: clock-controller@1c {
+			compatible = "arm,syscon-icst525";
+			reg = <0x1c 0x04>;
+			#clock-cells = <0>;
+			lock-offset = <0x14>;
+			vco-offset = <0x1c>;
+			clocks = <&cm24mhz>;
+		};
+
+		/* The KMI clock is the 24 MHz oscillator divided to 8MHz */
+		kmiclk: kmiclk@1M {
+			#clock-cells = <0>;
+			compatible = "fixed-factor-clock";
+			clock-div = <3>;
+			clock-mult = <1>;
+			clocks = <&cm24mhz>;
+		};
+
+		/* The timer clock is the 24 MHz oscillator divided to 1MHz */
+		timclk: timclk@1M {
+			#clock-cells = <0>;
+			compatible = "fixed-factor-clock";
+			clock-div = <24>;
+			clock-mult = <1>;
+			clocks = <&cm24mhz>;
+		};
+	};
+
+	syscon {
+		compatible = "arm,integrator-cp-syscon", "syscon";
+		reg = <0xcb000000 0x100>;
+	};
+
+	timer0: timer@13000000 {
+		/* TIMER0 runs directly on the 25MHz chrystal */
+		compatible = "arm,integrator-cp-timer";
+		clocks = <&xtal25mhz>;
+	};
+
+	timer1: timer@13000100 {
+		/* TIMER1 runs @ 1MHz */
+		compatible = "arm,integrator-cp-timer";
+		clocks = <&timclk>;
+	};
+
+	timer2: timer@13000200 {
+		/* TIMER2 runs @ 1MHz */
+		compatible = "arm,integrator-cp-timer";
+		clocks = <&timclk>;
+	};
+
+	pic: pic@14000000 {
+		valid-mask = <0x1fc003ff>;
+	};
+
+	cic: cic@10000040 {
+		compatible = "arm,versatile-fpga-irq";
+		#interrupt-cells = <1>;
+		interrupt-controller;
+		reg = <0x10000040 0x100>;
+		clear-mask = <0xffffffff>;
+		valid-mask = <0x00000007>;
+	};
+
+	/* The SIC is cascaded off IRQ 26 on the PIC */
+	sic: sic@ca000000 {
+		compatible = "arm,versatile-fpga-irq";
+		interrupt-parent = <&pic>;
+		interrupts = <26>;
+		#interrupt-cells = <1>;
+		interrupt-controller;
+		reg = <0xca000000 0x100>;
+		clear-mask = <0x00000fff>;
+		valid-mask = <0x00000fff>;
+	};
+
+	ethernet@c8000000 {
+		compatible = "smsc,lan91c111";
+		reg = <0xc8000000 0x10>;
+		interrupt-parent = <&pic>;
+		interrupts = <27>;
+	};
+
+	bridge {
+		compatible = "ti,ths8134a", "ti,ths8134";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				vga_bridge_in: endpoint {
+					remote-endpoint = <&clcd_pads_vga_dac>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				vga_bridge_out: endpoint {
+					remote-endpoint = <&vga_con_in>;
+				};
+			};
+		};
+	};
+
+	vga {
+		compatible = "vga-connector";
+
+		port {
+			vga_con_in: endpoint {
+				remote-endpoint = <&vga_bridge_out>;
+			};
+		};
+	};
+
+	fpga {
+		/*
+		 * These PrimeCells are at the same location and using
+		 * the same interrupts in all Integrators, but in the CP
+		 * slightly newer versions are deployed.
+		 */
+		rtc@15000000 {
+			compatible = "arm,pl031", "arm,primecell";
+			clocks = <&pclk>;
+			clock-names = "apb_pclk";
+		};
+
+		serial@16000000 {
+			compatible = "arm,pl011", "arm,primecell";
+			clocks = <&uartclk>, <&pclk>;
+			clock-names = "uartclk", "apb_pclk";
+		};
+
+		serial@17000000 {
+			compatible = "arm,pl011", "arm,primecell";
+			clocks = <&uartclk>, <&pclk>;
+			clock-names = "uartclk", "apb_pclk";
+		};
+
+		kmi@18000000 {
+			compatible = "arm,pl050", "arm,primecell";
+			clocks = <&kmiclk>, <&pclk>;
+			clock-names = "KMIREFCLK", "apb_pclk";
+		};
+
+		kmi@19000000 {
+			compatible = "arm,pl050", "arm,primecell";
+			clocks = <&kmiclk>, <&pclk>;
+			clock-names = "KMIREFCLK", "apb_pclk";
+		};
+
+		/*
+		 * These PrimeCells are only available on the Integrator/CP
+		 */
+		mmc@1c000000 {
+			compatible = "arm,pl180", "arm,primecell";
+			reg = <0x1c000000 0x1000>;
+			interrupts = <23 24>;
+			max-frequency = <515633>;
+			clocks = <&uartclk>, <&pclk>;
+			clock-names = "mclk", "apb_pclk";
+		};
+
+		aaci@1d000000 {
+			compatible = "arm,pl041", "arm,primecell";
+			reg = <0x1d000000 0x1000>;
+			interrupts = <25>;
+			clocks = <&pclk>;
+			clock-names = "apb_pclk";
+		};
+
+		clcd@c0000000 {
+			compatible = "arm,pl110", "arm,primecell";
+			reg = <0xC0000000 0x1000>;
+			interrupts = <22>;
+			clocks = <&auxosc>, <&pclk>;
+			clock-names = "clcdclk", "apb_pclk";
+			/* 640x480 16bpp @ 25.175MHz is 36827428 bytes/s */
+			max-memory-bandwidth = <40000000>;
+
+			/*
+			 * This port is routed through a PLD (Programmable
+			 * Logic Device) that routes the output from the CLCD
+			 * (after transformations) to the VGA DAC and also an
+			 * external panel connector. The PLD is essential for
+			 * supporting RGB565/BGR565.
+			 *
+			 * The signals from the port thus reaches two endpoints.
+			 * The PLD is managed through a few special bits in the
+			 * FPGA "sysreg".
+			 *
+			 * This arrangement can be clearly seen in
+			 * ARM DUI 0225D, page 3-41, figure 3-19.
+			 */
+			port@0 {
+				clcd_pads_vga_dac: endpoint {
+					remote-endpoint = <&vga_bridge_in>;
+					arm,pl11x,tft-r0g0b0-pads = <0 8 16>;
+				};
+			};
+		};
+	};
+};

@@ -89,7 +89,8 @@ static const struct pci_device_id ath5k_led_devices[] = {
 
 void ath5k_led_enable(struct ath5k_hw *ah)
 {
-	if (test_bit(ATH_STAT_LEDSOFT, ah->status)) {
+	if (IS_ENABLED(CONFIG_MAC80211_LEDS) &&
+	    test_bit(ATH_STAT_LEDSOFT, ah->status)) {
 		ath5k_hw_set_gpio_output(ah, ah->led_pin);
 		ath5k_led_off(ah);
 	}
@@ -104,7 +105,8 @@ static void ath5k_led_on(struct ath5k_hw *ah)
 
 void ath5k_led_off(struct ath5k_hw *ah)
 {
-	if (!test_bit(ATH_STAT_LEDSOFT, ah->status))
+	if (!IS_ENABLED(CONFIG_MAC80211_LEDS) ||
+	    !test_bit(ATH_STAT_LEDSOFT, ah->status))
 		return;
 	ath5k_hw_set_gpio(ah, ah->led_pin, !ah->led_on);
 }
@@ -129,8 +131,7 @@ ath5k_register_led(struct ath5k_hw *ah, struct ath5k_led *led,
 	int err;
 
 	led->ah = ah;
-	strncpy(led->name, name, sizeof(led->name));
-	led->name[sizeof(led->name)-1] = 0;
+	strscpy(led->name, name, sizeof(led->name));
 	led->led_dev.name = led->name;
 	led->led_dev.default_trigger = trigger;
 	led->led_dev.brightness_set = ath5k_led_brightness_set;
@@ -146,7 +147,7 @@ ath5k_register_led(struct ath5k_hw *ah, struct ath5k_led *led,
 static void
 ath5k_unregister_led(struct ath5k_led *led)
 {
-	if (!led->ah)
+	if (!IS_ENABLED(CONFIG_MAC80211_LEDS) || !led->ah)
 		return;
 	led_classdev_unregister(&led->led_dev);
 	ath5k_led_off(led->ah);
@@ -169,7 +170,7 @@ int ath5k_init_leds(struct ath5k_hw *ah)
 	char name[ATH5K_LED_MAX_NAME_LEN + 1];
 	const struct pci_device_id *match;
 
-	if (!ah->pdev)
+	if (!IS_ENABLED(CONFIG_MAC80211_LEDS) || !ah->pdev)
 		return 0;
 
 #ifdef CONFIG_ATH5K_AHB

@@ -1,0 +1,121 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-2.0-only
+
+import fnmatch
+import os
+import re
+import argparse
+
+
+def parse_of_declare_macros(data, include_driver_macros=True):
+	""" Find all compatible strings in OF_DECLARE() style macros """
+	compat_list = []
+	# CPU_METHOD_OF_DECLARE does not have a compatible string
+	if include_driver_macros:
+		re_macros = r'(?<!CPU_METHOD_)(IRQCHIP|OF)_(DECLARE|MATCH)(_DRIVER)?\(.*?\)'
+	else:
+		re_macros = r'(?<!CPU_METHOD_)(IRQCHIP|OF)_(DECLARE|MATCH)\(.*?\)'
+	for m in re.finditer(re_macros, data):
+		try:
+			compat = re.search(r'"(.*?)"', m[0])[1]
+		except:
+			# Fails on compatible strings in #define, so just skip
+			continue
+		compat_list += [compat]
+
+	return compat_list
+
+
+def parse_of_device_id(data, match_table_list=None):
+	""" Find all compatible strings in of_device_id structs """
+	compat_list = []
+	for m in re.finditer(r'of_device_id(\s+\S+)?\s+(\S+)\[\](\s+\S+)?\s*=\s*({.*?);', data):
+		if match_table_list is not None and m[2] not in match_table_list:
+			continue
+		compat_list += re.findall(r'\.compatible\s+=\s+"(\S+)"', m[4])
+
+	return compat_list
+
+
+def parse_of_match_table(data):
+	""" Find all driver's of_match_table """
+	match_table_list = []
+	for m in re.finditer(r'\.of_match_table\s+=\s+(of_match_ptr\()?([a-zA-Z0-9_-]+)', data):
+		match_table_list.append(m[2])
+
+	return match_table_list
+
+
+def parse_compatibles(file, compat_ignore_list):
+	with open(file, 'r', encoding='utf-8') as f:
+		data = f.read().replace('\n', '')
+
+	if compat_ignore_list is not None:
+		# For a compatible in the DT to be matched to a driver it needs to show
+		# up in a driver's of_match_table
+		match_table_list = parse_of_match_table(data)
+		compat_list = parse_of_device_id(data, match_table_list)
+
+		compat_list = [compat for compat in compat_list if compat not in compat_ignore_list]
+	else:
+		compat_list = parse_of_declare_macros(data)
+		compat_list += parse_of_device_id(data)
+
+	return compat_list
+
+def parse_compatibles_to_ignore(file):
+	with open(file, 'r', encoding='utf-8') as f:
+		data = f.read().replace('\n', '')
+
+	# Compatibles that show up in OF_DECLARE macros can't be expected to
+	# match a driver, except for the _DRIVER ones.
+	return parse_of_declare_macros(data, include_driver_macros=False)
+
+
+def print_compat(filename, compatibles):
+	if not compatibles:
+		return
+	if show_filename:
+		compat_str = ' '.join(compatibles)
+		print(filename + ": compatible(s): " + compat_str)
+	else:
+		print(*compatibles, sep='\n')
+
+def glob_without_symlinks(root, glob):
+	for path, dirs, files in os.walk(root):
+		# Ignore hidden directories
+		for d in dirs:
+			if fnmatch.fnmatch(d, ".*"):
+				dirs.remove(d)
+		for f in files:
+			if fnmatch.fnmatch(f, glob):
+				yield os.path.join(path, f)
+
+def files_to_parse(path_args):
+	for f in path_args:
+		if os.path.isdir(f):
+			for filename in glob_without_symlinks(f, "*.c"):
+				yield filename
+		else:
+			yield f
+
+show_filename = False
+
+if __name__ == "__main__":
+	ap = argparse.ArgumentParser()
+	ap.add_argument("cfile", type=str, nargs='*', help="C source files or directories to parse")
+	ap.add_argument('-H', '--with-filename', help="Print filename with compatibles", action="store_true")
+	ap.add_argument('-d', '--driver-match', help="Only print compatibles that should match to a driver", action="store_true")
+	args = ap.parse_args()
+
+	show_filename = args.with_filename
+	compat_ignore_list = None
+
+	if args.driver_match:
+		compat_ignore_list = []
+		for f in files_to_parse(args.cfile):
+			compat_ignore_list.extend(parse_compatibles_to_ignore(f))
+
+	for f in files_to_parse(args.cfile):
+		compat_list = parse_compatibles(f, compat_ignore_list)
+		print_compat(f, compat_list)

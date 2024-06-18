@@ -25,7 +25,7 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/platform_data/atmel.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
@@ -704,7 +704,7 @@ done:
 static int at91_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 {
 	struct at91_ep		*ep;
-	struct at91_request	*req;
+	struct at91_request	*req = NULL, *iter;
 	unsigned long		flags;
 	struct at91_udc		*udc;
 
@@ -717,11 +717,13 @@ static int at91_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 	spin_lock_irqsave(&udc->lock, flags);
 
 	/* make sure it's actually queued on this endpoint */
-	list_for_each_entry (req, &ep->queue, queue) {
-		if (&req->req == _req)
-			break;
+	list_for_each_entry(iter, &ep->queue, queue) {
+		if (&iter->req != _req)
+			continue;
+		req = iter;
+		break;
 	}
-	if (&req->req != _req) {
+	if (!req) {
 		spin_unlock_irqrestore(&udc->lock, flags);
 		return -EINVAL;
 	}
@@ -992,7 +994,7 @@ static const struct usb_gadget_ops at91_udc_ops = {
 	.udc_stop		= at91_stop,
 
 	/*
-	 * VBUS-powered devices may also also want to support bigger
+	 * VBUS-powered devices may also want to support bigger
 	 * power budgets after an appropriate SET_CONFIGURATION.
 	 */
 	/* .vbus_power		= at91_vbus_power, */
@@ -1510,7 +1512,6 @@ static irqreturn_t at91_udc_irq (int irq, void *_udc)
 
 static void at91_vbus_update(struct at91_udc *udc, unsigned value)
 {
-	value ^= udc->board.vbus_active_low;
 	if (value != udc->vbus)
 		at91_vbus_session(&udc->gadget, value);
 }
@@ -1521,7 +1522,7 @@ static irqreturn_t at91_vbus_irq(int irq, void *_udc)
 
 	/* vbus needs at least brief debouncing */
 	udelay(10);
-	at91_vbus_update(udc, gpio_get_value(udc->board.vbus_pin));
+	at91_vbus_update(udc, gpiod_get_value(udc->board.vbus_pin));
 
 	return IRQ_HANDLED;
 }
@@ -1531,7 +1532,7 @@ static void at91_vbus_timer_work(struct work_struct *work)
 	struct at91_udc *udc = container_of(work, struct at91_udc,
 					    vbus_timer_work);
 
-	at91_vbus_update(udc, gpio_get_value_cansleep(udc->board.vbus_pin));
+	at91_vbus_update(udc, gpiod_get_value_cansleep(udc->board.vbus_pin));
 
 	if (!timer_pending(&udc->vbus_timer))
 		mod_timer(&udc->vbus_timer, jiffies + VBUS_POLL_TIMEOUT);
@@ -1595,7 +1596,6 @@ static void at91udc_shutdown(struct platform_device *dev)
 static int at91rm9200_udc_init(struct at91_udc *udc)
 {
 	struct at91_ep *ep;
-	int ret;
 	int i;
 
 	for (i = 0; i < NUM_ENDPOINTS; i++) {
@@ -1615,32 +1615,20 @@ static int at91rm9200_udc_init(struct at91_udc *udc)
 		}
 	}
 
-	if (!gpio_is_valid(udc->board.pullup_pin)) {
+	if (!udc->board.pullup_pin) {
 		DBG("no D+ pullup?\n");
 		return -ENODEV;
 	}
 
-	ret = devm_gpio_request(&udc->pdev->dev, udc->board.pullup_pin,
-				"udc_pullup");
-	if (ret) {
-		DBG("D+ pullup is busy\n");
-		return ret;
-	}
-
-	gpio_direction_output(udc->board.pullup_pin,
-			      udc->board.pullup_active_low);
+	gpiod_direction_output(udc->board.pullup_pin,
+			       gpiod_is_active_low(udc->board.pullup_pin));
 
 	return 0;
 }
 
 static void at91rm9200_udc_pullup(struct at91_udc *udc, int is_on)
 {
-	int active = !udc->board.pullup_active_low;
-
-	if (is_on)
-		gpio_set_value(udc->board.pullup_pin, active);
-	else
-		gpio_set_value(udc->board.pullup_pin, !active);
+	gpiod_set_value(udc->board.pullup_pin, is_on);
 }
 
 static const struct at91_udc_caps at91rm9200_udc_caps = {
@@ -1783,20 +1771,22 @@ static void at91udc_of_init(struct at91_udc *udc, struct device_node *np)
 {
 	struct at91_udc_data *board = &udc->board;
 	const struct of_device_id *match;
-	enum of_gpio_flags flags;
 	u32 val;
 
 	if (of_property_read_u32(np, "atmel,vbus-polled", &val) == 0)
 		board->vbus_polled = 1;
 
-	board->vbus_pin = of_get_named_gpio_flags(np, "atmel,vbus-gpio", 0,
-						  &flags);
-	board->vbus_active_low = (flags & OF_GPIO_ACTIVE_LOW) ? 1 : 0;
+	board->vbus_pin = fwnode_gpiod_get_index(of_fwnode_handle(np),
+						 "atmel,vbus", 0, GPIOD_IN,
+						 "udc_vbus");
+	if (IS_ERR(board->vbus_pin))
+		board->vbus_pin = NULL;
 
-	board->pullup_pin = of_get_named_gpio_flags(np, "atmel,pullup-gpio", 0,
-						  &flags);
-
-	board->pullup_active_low = (flags & OF_GPIO_ACTIVE_LOW) ? 1 : 0;
+	board->pullup_pin = fwnode_gpiod_get_index(of_fwnode_handle(np),
+						   "atmel,pullup", 0,
+						   GPIOD_ASIS, "udc_pullup");
+	if (IS_ERR(board->pullup_pin))
+		board->pullup_pin = NULL;
 
 	match = of_match_node(at91_udc_dt_ids, np);
 	if (match)
@@ -1808,7 +1798,6 @@ static int at91udc_probe(struct platform_device *pdev)
 	struct device	*dev = &pdev->dev;
 	struct at91_udc	*udc;
 	int		retval;
-	struct resource	*res;
 	struct at91_ep	*ep;
 	int		i;
 
@@ -1839,8 +1828,7 @@ static int at91udc_probe(struct platform_device *pdev)
 			ep->is_pingpong = 1;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	udc->udp_baseaddr = devm_ioremap_resource(dev, res);
+	udc->udp_baseaddr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(udc->udp_baseaddr))
 		return PTR_ERR(udc->udp_baseaddr);
 
@@ -1878,7 +1866,9 @@ static int at91udc_probe(struct platform_device *pdev)
 	clk_disable(udc->iclk);
 
 	/* request UDC and maybe VBUS irqs */
-	udc->udp_irq = platform_get_irq(pdev, 0);
+	udc->udp_irq = retval = platform_get_irq(pdev, 0);
+	if (retval < 0)
+		goto err_unprepare_iclk;
 	retval = devm_request_irq(dev, udc->udp_irq, at91_udc_irq, 0,
 				  driver_name, udc);
 	if (retval) {
@@ -1886,22 +1876,14 @@ static int at91udc_probe(struct platform_device *pdev)
 		goto err_unprepare_iclk;
 	}
 
-	if (gpio_is_valid(udc->board.vbus_pin)) {
-		retval = devm_gpio_request(dev, udc->board.vbus_pin,
-					   "udc_vbus");
-		if (retval) {
-			DBG("request vbus pin failed\n");
-			goto err_unprepare_iclk;
-		}
-
-		gpio_direction_input(udc->board.vbus_pin);
+	if (udc->board.vbus_pin) {
+		gpiod_direction_input(udc->board.vbus_pin);
 
 		/*
 		 * Get the initial state of VBUS - we cannot expect
 		 * a pending interrupt.
 		 */
-		udc->vbus = gpio_get_value_cansleep(udc->board.vbus_pin) ^
-			udc->board.vbus_active_low;
+		udc->vbus = gpiod_get_value_cansleep(udc->board.vbus_pin);
 
 		if (udc->board.vbus_polled) {
 			INIT_WORK(&udc->vbus_timer_work, at91_vbus_timer_work);
@@ -1910,11 +1892,11 @@ static int at91udc_probe(struct platform_device *pdev)
 				  jiffies + VBUS_POLL_TIMEOUT);
 		} else {
 			retval = devm_request_irq(dev,
-					gpio_to_irq(udc->board.vbus_pin),
+					gpiod_to_irq(udc->board.vbus_pin),
 					at91_vbus_irq, 0, driver_name, udc);
 			if (retval) {
 				DBG("request vbus irq %d failed\n",
-				    udc->board.vbus_pin);
+				    desc_to_gpio(udc->board.vbus_pin));
 				goto err_unprepare_iclk;
 			}
 		}
@@ -1942,7 +1924,7 @@ err_unprepare_fclk:
 	return retval;
 }
 
-static int at91udc_remove(struct platform_device *pdev)
+static void at91udc_remove(struct platform_device *pdev)
 {
 	struct at91_udc *udc = platform_get_drvdata(pdev);
 	unsigned long	flags;
@@ -1950,8 +1932,11 @@ static int at91udc_remove(struct platform_device *pdev)
 	DBG("remove\n");
 
 	usb_del_gadget_udc(&udc->gadget);
-	if (udc->driver)
-		return -EBUSY;
+	if (udc->driver) {
+		dev_err(&pdev->dev,
+			"Driver still in use but removing anyhow\n");
+		return;
+	}
 
 	spin_lock_irqsave(&udc->lock, flags);
 	pullup(udc, 0);
@@ -1961,8 +1946,6 @@ static int at91udc_remove(struct platform_device *pdev)
 	remove_debug_file(udc);
 	clk_unprepare(udc->fclk);
 	clk_unprepare(udc->iclk);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -1988,8 +1971,8 @@ static int at91udc_suspend(struct platform_device *pdev, pm_message_t mesg)
 		enable_irq_wake(udc->udp_irq);
 
 	udc->active_suspend = wake;
-	if (gpio_is_valid(udc->board.vbus_pin) && !udc->board.vbus_polled && wake)
-		enable_irq_wake(udc->board.vbus_pin);
+	if (udc->board.vbus_pin && !udc->board.vbus_polled && wake)
+		enable_irq_wake(gpiod_to_irq(udc->board.vbus_pin));
 	return 0;
 }
 
@@ -1998,9 +1981,9 @@ static int at91udc_resume(struct platform_device *pdev)
 	struct at91_udc *udc = platform_get_drvdata(pdev);
 	unsigned long	flags;
 
-	if (gpio_is_valid(udc->board.vbus_pin) && !udc->board.vbus_polled &&
+	if (udc->board.vbus_pin && !udc->board.vbus_polled &&
 	    udc->active_suspend)
-		disable_irq_wake(udc->board.vbus_pin);
+		disable_irq_wake(gpiod_to_irq(udc->board.vbus_pin));
 
 	/* maybe reconnect to host; if so, clocks on */
 	if (udc->active_suspend)
@@ -2018,17 +2001,18 @@ static int at91udc_resume(struct platform_device *pdev)
 #endif
 
 static struct platform_driver at91_udc_driver = {
-	.remove		= at91udc_remove,
+	.probe		= at91udc_probe,
+	.remove_new	= at91udc_remove,
 	.shutdown	= at91udc_shutdown,
 	.suspend	= at91udc_suspend,
 	.resume		= at91udc_resume,
 	.driver		= {
-		.name	= (char *) driver_name,
+		.name	= driver_name,
 		.of_match_table	= at91_udc_dt_ids,
 	},
 };
 
-module_platform_driver_probe(at91_udc_driver, at91udc_probe);
+module_platform_driver(at91_udc_driver);
 
 MODULE_DESCRIPTION("AT91 udc driver");
 MODULE_AUTHOR("Thomas Rathbone, David Brownell");

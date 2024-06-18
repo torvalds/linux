@@ -165,14 +165,15 @@ static int ali15x3_setup(struct pci_dev *ALI15X3_dev)
 	}
 
 	if(force_addr) {
+		int ret;
+
 		dev_info(&ALI15X3_dev->dev, "forcing ISA address 0x%04X\n",
 			ali15x3_smba);
-		if (PCIBIOS_SUCCESSFUL != pci_write_config_word(ALI15X3_dev,
-								SMBBA,
-								ali15x3_smba))
+		ret = pci_write_config_word(ALI15X3_dev, SMBBA, ali15x3_smba);
+		if (ret != PCIBIOS_SUCCESSFUL)
 			goto error;
-		if (PCIBIOS_SUCCESSFUL != pci_read_config_word(ALI15X3_dev,
-								SMBBA, &a))
+		ret = pci_read_config_word(ALI15X3_dev, SMBBA, &a);
+		if (ret != PCIBIOS_SUCCESSFUL)
 			goto error;
 		if ((a & ~(ALI15X3_SMB_IOSIZE - 1)) != ali15x3_smba) {
 			/* make sure it works */
@@ -293,10 +294,8 @@ static int ali15x3_transaction(struct i2c_adapter *adap)
 		 && (timeout++ < MAX_TIMEOUT));
 
 	/* If the SMBus is still busy, we give up */
-	if (timeout > MAX_TIMEOUT) {
+	if (timeout > MAX_TIMEOUT)
 		result = -ETIMEDOUT;
-		dev_err(&adap->dev, "SMBus Timeout!\n");
-	}
 
 	if (temp & ALI15X3_STS_TERM) {
 		result = -EIO;
@@ -460,7 +459,7 @@ static const struct i2c_algorithm smbus_algorithm = {
 
 static struct i2c_adapter ali15x3_adapter = {
 	.owner		= THIS_MODULE,
-	.class          = I2C_CLASS_HWMON | I2C_CLASS_SPD,
+	.class          = I2C_CLASS_HWMON,
 	.algo		= &smbus_algorithm,
 };
 
@@ -502,8 +501,8 @@ static struct pci_driver ali15x3_driver = {
 
 module_pci_driver(ali15x3_driver);
 
-MODULE_AUTHOR ("Frodo Looijaard <frodol@dds.nl>, "
-		"Philip Edelbrock <phil@netroedge.com>, "
-		"and Mark D. Studebaker <mdsxyz123@yahoo.com>");
+MODULE_AUTHOR("Frodo Looijaard <frodol@dds.nl>");
+MODULE_AUTHOR("Philip Edelbrock <phil@netroedge.com>");
+MODULE_AUTHOR("Mark D. Studebaker <mdsxyz123@yahoo.com>");
 MODULE_DESCRIPTION("ALI15X3 SMBus driver");
 MODULE_LICENSE("GPL");

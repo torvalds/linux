@@ -18,7 +18,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/sysfs.h>
 #include <linux/cpu.h>
 #include <linux/suspend.h>
@@ -63,7 +63,7 @@ static unsigned int cpm_set(unsigned int cpm_reg, unsigned int mask)
 	 * known as class 1, 2 and 3. For class 1 units, they are
 	 * unconditionally put to sleep when the corresponding CPM bit is
 	 * set. For class 2 and 3 units this is not case; if they can be
-	 * put to to sleep, they will. Here we do not verify, we just
+	 * put to sleep, they will. Here we do not verify, we just
 	 * set them and expect them to eventually go off when they can.
 	 */
 	value = dcr_read(cpm.dcr_host, cpm.dcr_offset[cpm_reg]);
@@ -163,7 +163,7 @@ static ssize_t cpm_idle_store(struct kobject *kobj,
 static struct kobj_attribute cpm_idle_attr =
 	__ATTR(idle, 0644, cpm_idle_show, cpm_idle_store);
 
-static void cpm_idle_config_sysfs(void)
+static void __init cpm_idle_config_sysfs(void)
 {
 	struct device *dev;
 	unsigned long ret;
@@ -231,7 +231,7 @@ static const struct platform_suspend_ops cpm_suspend_ops = {
 	.enter		= cpm_suspend_enter,
 };
 
-static int cpm_get_uint_property(struct device_node *np,
+static int __init cpm_get_uint_property(struct device_node *np,
 				 const char *name)
 {
 	int len;
@@ -327,6 +327,6 @@ late_initcall(cpm_init);
 static int __init cpm_powersave_off(char *arg)
 {
 	cpm.powersave_off = 1;
-	return 0;
+	return 1;
 }
 __setup("powersave=off", cpm_powersave_off);

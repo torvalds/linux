@@ -113,6 +113,9 @@ static void do_poll(int fd, int timeout_ms)
 				interrupted = true;
 				break;
 			}
+
+			/* no events and more time to wait, do poll again */
+			continue;
 		}
 		if (pfd.revents != POLLIN)
 			error(1, errno, "poll: 0x%x expected 0x%x\n",
@@ -211,11 +214,10 @@ static void do_verify_udp(const char *data, int len)
 
 static int recv_msg(int fd, char *buf, int len, int *gso_size)
 {
-	char control[CMSG_SPACE(sizeof(uint16_t))] = {0};
+	char control[CMSG_SPACE(sizeof(int))] = {0};
 	struct msghdr msg = {0};
 	struct iovec iov = {0};
 	struct cmsghdr *cmsg;
-	uint16_t *gsosizeptr;
 	int ret;
 
 	iov.iov_base = buf;
@@ -234,8 +236,7 @@ static int recv_msg(int fd, char *buf, int len, int *gso_size)
 		     cmsg = CMSG_NXTHDR(&msg, cmsg)) {
 			if (cmsg->cmsg_level == SOL_UDP
 			    && cmsg->cmsg_type == UDP_GRO) {
-				gsosizeptr = (uint16_t *) CMSG_DATA(cmsg);
-				*gso_size = *gsosizeptr;
+				*gso_size = *(int *)CMSG_DATA(cmsg);
 				break;
 			}
 		}
@@ -247,7 +248,7 @@ static int recv_msg(int fd, char *buf, int len, int *gso_size)
 static void do_flush_udp(int fd)
 {
 	static char rbuf[ETH_MAX_MTU];
-	int ret, len, gso_size, budget = 256;
+	int ret, len, gso_size = 0, budget = 256;
 
 	len = cfg_read_all ? sizeof(rbuf) : 0;
 	while (budget--) {
@@ -290,19 +291,17 @@ static void usage(const char *filepath)
 
 static void parse_opts(int argc, char **argv)
 {
+	const char *bind_addr = NULL;
 	int c;
 
-	/* bind to any by default */
-	setup_sockaddr(PF_INET6, "::", &cfg_bind_addr);
 	while ((c = getopt(argc, argv, "4b:C:Gl:n:p:rR:S:tv")) != -1) {
 		switch (c) {
 		case '4':
 			cfg_family = PF_INET;
 			cfg_alen = sizeof(struct sockaddr_in);
-			setup_sockaddr(PF_INET, "0.0.0.0", &cfg_bind_addr);
 			break;
 		case 'b':
-			setup_sockaddr(cfg_family, optarg, &cfg_bind_addr);
+			bind_addr = optarg;
 			break;
 		case 'C':
 			cfg_connect_timeout_ms = strtoul(optarg, NULL, 0);
@@ -335,8 +334,15 @@ static void parse_opts(int argc, char **argv)
 			cfg_verify = true;
 			cfg_read_all = true;
 			break;
+		default:
+			exit(1);
 		}
 	}
+
+	if (!bind_addr)
+		bind_addr = cfg_family == PF_INET6 ? "::" : "0.0.0.0";
+
+	setup_sockaddr(cfg_family, bind_addr, &cfg_bind_addr);
 
 	if (optind != argc)
 		usage(argv[0]);
@@ -369,7 +375,7 @@ static void do_recv(void)
 			do_flush_udp(fd);
 
 		tnow = gettimeofday_ms();
-		if (tnow > treport) {
+		if (!cfg_expected_pkt_nr && tnow > treport) {
 			if (packets)
 				fprintf(stderr,
 					"%s rx: %6lu MB/s %8lu calls/s\n",

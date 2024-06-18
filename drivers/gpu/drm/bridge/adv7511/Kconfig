@@ -4,8 +4,9 @@ config DRM_I2C_ADV7511
 	depends on OF
 	select DRM_KMS_HELPER
 	select REGMAP_I2C
+	select DRM_MIPI_DSI
 	help
-	  Support for the Analog Device ADV7511(W) and ADV7513 HDMI encoders.
+	  Support for the Analog Devices ADV7511(W)/13/33/35 HDMI encoders.
 
 config DRM_I2C_ADV7511_AUDIO
 	bool "ADV7511 HDMI Audio driver"
@@ -15,16 +16,8 @@ config DRM_I2C_ADV7511_AUDIO
 	  Support the ADV7511 HDMI Audio interface. This is used in
 	  conjunction with the AV7511  HDMI driver.
 
-config DRM_I2C_ADV7533
-	bool "ADV7533 encoder"
-	depends on DRM_I2C_ADV7511
-	select DRM_MIPI_DSI
-	default y
-	help
-	  Support for the Analog Devices ADV7533 DSI to HDMI encoder.
-
 config DRM_I2C_ADV7511_CEC
-	bool "ADV7511/33 HDMI CEC driver"
+	bool "ADV7511/33/35 HDMI CEC driver"
 	depends on DRM_I2C_ADV7511
 	select CEC_CORE
 	default y

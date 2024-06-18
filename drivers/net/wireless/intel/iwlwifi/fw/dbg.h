@@ -1,67 +1,9 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
-
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
+/*
+ * Copyright (C) 2005-2014, 2018-2019, 2021-2023 Intel Corporation
+ * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
+ * Copyright (C) 2015-2017 Intel Deutschland GmbH
+ */
 #ifndef __iwl_fw_dbg_h__
 #define __iwl_fw_dbg_h__
 #include <linux/workqueue.h>
@@ -98,25 +40,14 @@ struct iwl_fw_dbg_params {
 
 extern const struct iwl_fw_dump_desc iwl_dump_desc_assert;
 
-static inline void iwl_fw_free_dump_desc(struct iwl_fw_runtime *fwrt)
-{
-	if (fwrt->dump.desc != &iwl_dump_desc_assert)
-		kfree(fwrt->dump.desc);
-	fwrt->dump.desc = NULL;
-	fwrt->dump.lmac_err_id[0] = 0;
-	if (fwrt->smem_cfg.num_lmacs > 1)
-		fwrt->dump.lmac_err_id[1] = 0;
-	fwrt->dump.umac_err_id = 0;
-}
-
 int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
 			    const struct iwl_fw_dump_desc *desc,
 			    bool monitor_only, unsigned int delay);
 int iwl_fw_dbg_error_collect(struct iwl_fw_runtime *fwrt,
 			     enum iwl_fw_dbg_trigger trig_type);
-int _iwl_fw_dbg_ini_collect(struct iwl_fw_runtime *fwrt,
-			    enum iwl_fw_ini_trigger_id id);
-int iwl_fw_dbg_ini_collect(struct iwl_fw_runtime *fwrt, u32 legacy_trigger_id);
+int iwl_fw_dbg_ini_collect(struct iwl_fw_runtime *fwrt,
+			   struct iwl_fwrt_dump_data *dump_data,
+			   bool sync);
 int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 		       enum iwl_fw_dbg_trigger trig, const char *str,
 		       size_t len, struct iwl_fw_dbg_trigger_tlv *trigger);
@@ -222,29 +153,6 @@ _iwl_fw_dbg_trigger_on(struct iwl_fw_runtime *fwrt,
 	_iwl_fw_dbg_trigger_on((fwrt), (wdev), (id));		\
 })
 
-static inline bool
-iwl_fw_ini_trigger_on(struct iwl_fw_runtime *fwrt,
-		      enum iwl_fw_ini_trigger_id id)
-{
-	struct iwl_fw_ini_trigger *trig;
-	u32 usec;
-
-	if (!iwl_trans_dbg_ini_valid(fwrt->trans) ||
-	    id == IWL_FW_TRIGGER_ID_INVALID || id >= IWL_FW_TRIGGER_ID_NUM ||
-	    !fwrt->dump.active_trigs[id].active)
-		return false;
-
-	trig = fwrt->dump.active_trigs[id].trig;
-	usec = le32_to_cpu(trig->ignore_consec);
-
-	if (iwl_fw_dbg_no_trig_window(fwrt, id, usec)) {
-		IWL_WARN(fwrt, "Trigger %d fired in no-collect window\n", id);
-		return false;
-	}
-
-	return true;
-}
-
 static inline void
 _iwl_fw_dbg_trigger_simple_stop(struct iwl_fw_runtime *fwrt,
 				struct wireless_dev *wdev,
@@ -263,9 +171,9 @@ _iwl_fw_dbg_trigger_simple_stop(struct iwl_fw_runtime *fwrt,
 	_iwl_fw_dbg_trigger_simple_stop((fwrt), (wdev),		\
 					iwl_fw_dbg_get_trigger((fwrt)->fw,\
 							       (trig)))
-int iwl_fw_dbg_stop_restart_recording(struct iwl_fw_runtime *fwrt,
-				      struct iwl_fw_dbg_params *params,
-				      bool stop);
+void iwl_fw_dbg_stop_restart_recording(struct iwl_fw_runtime *fwrt,
+				       struct iwl_fw_dbg_params *params,
+				       bool stop);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 static inline void iwl_fw_set_dbg_rec_on(struct iwl_fw_runtime *fwrt)
@@ -315,11 +223,11 @@ static inline void iwl_fw_flush_dumps(struct iwl_fw_runtime *fwrt)
 	int i;
 
 	iwl_dbg_tlv_del_timers(fwrt->trans);
-	for (i = 0; i < IWL_FW_RUNTIME_DUMP_WK_NUM; i++) {
+	for (i = 0; i < IWL_FW_RUNTIME_DUMP_WK_NUM; i++)
 		flush_delayed_work(&fwrt->dump.wks[i].wk);
-		fwrt->dump.wks[i].ini_trig_id = IWL_FW_TRIGGER_ID_INVALID;
-	}
 }
+
+int iwl_fw_send_timestamp_marker_cmd(struct iwl_fw_runtime *fwrt);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 static inline void iwl_fw_cancel_timestamp(struct iwl_fw_runtime *fwrt)
@@ -379,17 +287,24 @@ static inline void iwl_fw_umac_set_alive_err_table(struct iwl_trans *trans,
 		trans->dbg.umac_error_event_table = umac_error_event_table;
 }
 
-static inline void iwl_fw_error_collect(struct iwl_fw_runtime *fwrt)
+static inline void iwl_fw_error_collect(struct iwl_fw_runtime *fwrt, bool sync)
 {
-	if (iwl_trans_dbg_ini_valid(fwrt->trans) && fwrt->trans->dbg.hw_error) {
-		_iwl_fw_dbg_ini_collect(fwrt, IWL_FW_TRIGGER_ID_FW_HW_ERROR);
+	enum iwl_fw_ini_time_point tp_id;
+
+	if (!iwl_trans_dbg_ini_valid(fwrt->trans)) {
+		iwl_fw_dbg_collect_desc(fwrt, &iwl_dump_desc_assert, false, 0);
+		return;
+	}
+
+	if (fwrt->trans->dbg.hw_error) {
+		tp_id = IWL_FW_INI_TIME_POINT_FW_HW_ERROR;
 		fwrt->trans->dbg.hw_error = false;
 	} else {
-		iwl_fw_dbg_collect_desc(fwrt, &iwl_dump_desc_assert, false, 0);
+		tp_id = IWL_FW_INI_TIME_POINT_FW_ASSERT;
 	}
-}
 
-void iwl_fw_error_print_fseq_regs(struct iwl_fw_runtime *fwrt);
+	_iwl_dbg_tlv_time_point(fwrt, tp_id, NULL, sync);
+}
 
 static inline void iwl_fwrt_update_fw_versions(struct iwl_fw_runtime *fwrt,
 					       struct iwl_lmac_alive *lmac,
@@ -407,4 +322,25 @@ static inline void iwl_fwrt_update_fw_versions(struct iwl_fw_runtime *fwrt,
 		fwrt->dump.fw_ver.umac_minor = le32_to_cpu(umac->umac_minor);
 	}
 }
+
+void iwl_fwrt_dump_error_logs(struct iwl_fw_runtime *fwrt);
+void iwl_send_dbg_dump_complete_cmd(struct iwl_fw_runtime *fwrt,
+				    u32 timepoint,
+				    u32 timepoint_data);
+void iwl_fw_disable_dbg_asserts(struct iwl_fw_runtime *fwrt);
+void iwl_fw_dbg_clear_monitor_buf(struct iwl_fw_runtime *fwrt);
+
+#define IWL_FW_CHECK_FAILED(_obj, _fmt, ...)				\
+	IWL_ERR_LIMIT(_obj, _fmt, __VA_ARGS__)
+
+#define IWL_FW_CHECK(_obj, _cond, _fmt, ...)				\
+	({								\
+		bool __cond = (_cond);					\
+									\
+		if (unlikely(__cond))					\
+			IWL_FW_CHECK_FAILED(_obj, _fmt, __VA_ARGS__);	\
+									\
+		unlikely(__cond);					\
+	})
+
 #endif  /* __iwl_fw_dbg_h__ */

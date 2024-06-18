@@ -18,7 +18,7 @@ config UIO_CIF
 	depends on PCI
 	help
 	  Driver for Hilscher CIF DeviceNet and Profibus cards.  This
-  	  driver requires a userspace component called cif that handles
+	  driver requires a userspace component called cif that handles
 	  all of the heavy lifting and can be found at:
 	        <http://www.osadl.org/projects/downloads/UIO/user/>
 
@@ -125,24 +125,6 @@ config UIO_FSL_ELBC_GPCM_NETX5152
 	  Information about this hardware can be found at:
 	  http://www.hilscher.com/netx
 
-config UIO_PRUSS
-	tristate "Texas Instruments PRUSS driver"
-	select GENERIC_ALLOCATOR
-	depends on HAS_IOMEM && HAS_DMA
-	help
-	  PRUSS driver for OMAPL138/DA850/AM18XX devices
-	  PRUSS driver requires user space components, examples and user space
-	  driver is available from below SVN repo - you may use anonymous login
-
-	  https://gforge.ti.com/gf/project/pru_sw/
-
-	  More info on API is available at below wiki
-
-	  http://processors.wiki.ti.com/index.php/PRU_Linux_Application_Loader
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called uio_pruss.
-
 config UIO_MF624
 	tristate "Humusoft MF624 DAQ PCI card driver"
 	depends on PCI
@@ -165,4 +147,21 @@ config UIO_HV_GENERIC
 	  to network and storage devices from userspace.
 
 	  If you compile this as a module, it will be called uio_hv_generic.
+
+config UIO_DFL
+	tristate "Generic driver for DFL (Device Feature List) bus"
+	depends on FPGA_DFL
+	help
+	  Generic DFL (Device Feature List) driver for Userspace I/O devices.
+	  It is useful to provide direct access to DFL devices from userspace.
+	  A sample userspace application using this driver is available for
+	  download in a git repository:
+
+	    git clone https://github.com/OPAE/opae-sdk.git
+
+	  It could be found at:
+
+	    opae-sdk/tools/libopaeuio/
+
+	  If you compile this as a module, it will be called uio_dfl.
 endif

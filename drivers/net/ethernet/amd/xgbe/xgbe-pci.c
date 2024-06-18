@@ -170,7 +170,7 @@ static int xgbe_config_irqs(struct xgbe_prv_data *pdata)
 		goto out;
 
 	ret = pci_alloc_irq_vectors(pdata->pcidev, 1, 1,
-				    PCI_IRQ_LEGACY | PCI_IRQ_MSI);
+				    PCI_IRQ_INTX | PCI_IRQ_MSI);
 	if (ret < 0) {
 		dev_info(pdata->dev, "single IRQ enablement failed\n");
 		return ret;
@@ -278,6 +278,16 @@ static int xgbe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	    (rdev->vendor == PCI_VENDOR_ID_AMD) && (rdev->device == 0x15d0)) {
 		pdata->xpcs_window_def_reg = PCS_V2_RV_WINDOW_DEF;
 		pdata->xpcs_window_sel_reg = PCS_V2_RV_WINDOW_SELECT;
+	} else if (rdev && (rdev->vendor == PCI_VENDOR_ID_AMD) &&
+		   (rdev->device == 0x14b5)) {
+		pdata->xpcs_window_def_reg = PCS_V2_YC_WINDOW_DEF;
+		pdata->xpcs_window_sel_reg = PCS_V2_YC_WINDOW_SELECT;
+
+		/* Yellow Carp devices do not need cdr workaround */
+		pdata->vdata->an_cdr_workaround = 0;
+
+		/* Yellow Carp devices do not need rrc */
+		pdata->vdata->enable_rrc = 0;
 	} else {
 		pdata->xpcs_window_def_reg = PCS_V2_WINDOW_DEF;
 		pdata->xpcs_window_sel_reg = PCS_V2_WINDOW_SELECT;
@@ -418,13 +428,15 @@ static void xgbe_pci_remove(struct pci_dev *pdev)
 
 	pci_free_irq_vectors(pdata->pcidev);
 
+	/* Disable all interrupts in the hardware */
+	XP_IOWRITE(pdata, XP_INT_EN, 0x0);
+
 	xgbe_free_pdata(pdata);
 }
 
-#ifdef CONFIG_PM
-static int xgbe_pci_suspend(struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused xgbe_pci_suspend(struct device *dev)
 {
-	struct xgbe_prv_data *pdata = pci_get_drvdata(pdev);
+	struct xgbe_prv_data *pdata = dev_get_drvdata(dev);
 	struct net_device *netdev = pdata->netdev;
 	int ret = 0;
 
@@ -438,9 +450,9 @@ static int xgbe_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	return ret;
 }
 
-static int xgbe_pci_resume(struct pci_dev *pdev)
+static int __maybe_unused xgbe_pci_resume(struct device *dev)
 {
-	struct xgbe_prv_data *pdata = pci_get_drvdata(pdev);
+	struct xgbe_prv_data *pdata = dev_get_drvdata(dev);
 	struct net_device *netdev = pdata->netdev;
 	int ret = 0;
 
@@ -460,9 +472,8 @@ static int xgbe_pci_resume(struct pci_dev *pdev)
 
 	return ret;
 }
-#endif /* CONFIG_PM */
 
-static const struct xgbe_version_data xgbe_v2a = {
+static struct xgbe_version_data xgbe_v2a = {
 	.init_function_ptrs_phy_impl	= xgbe_init_function_ptrs_phy_v2,
 	.xpcs_access			= XGBE_XPCS_ACCESS_V2,
 	.mmc_64bit			= 1,
@@ -475,9 +486,10 @@ static const struct xgbe_version_data xgbe_v2a = {
 	.tx_desc_prefetch		= 5,
 	.rx_desc_prefetch		= 5,
 	.an_cdr_workaround		= 1,
+	.enable_rrc			= 1,
 };
 
-static const struct xgbe_version_data xgbe_v2b = {
+static struct xgbe_version_data xgbe_v2b = {
 	.init_function_ptrs_phy_impl	= xgbe_init_function_ptrs_phy_v2,
 	.xpcs_access			= XGBE_XPCS_ACCESS_V2,
 	.mmc_64bit			= 1,
@@ -490,6 +502,7 @@ static const struct xgbe_version_data xgbe_v2b = {
 	.tx_desc_prefetch		= 5,
 	.rx_desc_prefetch		= 5,
 	.an_cdr_workaround		= 1,
+	.enable_rrc			= 1,
 };
 
 static const struct pci_device_id xgbe_pci_table[] = {
@@ -502,15 +515,16 @@ static const struct pci_device_id xgbe_pci_table[] = {
 };
 MODULE_DEVICE_TABLE(pci, xgbe_pci_table);
 
+static SIMPLE_DEV_PM_OPS(xgbe_pci_pm_ops, xgbe_pci_suspend, xgbe_pci_resume);
+
 static struct pci_driver xgbe_driver = {
 	.name = XGBE_DRV_NAME,
 	.id_table = xgbe_pci_table,
 	.probe = xgbe_pci_probe,
 	.remove = xgbe_pci_remove,
-#ifdef CONFIG_PM
-	.suspend = xgbe_pci_suspend,
-	.resume = xgbe_pci_resume,
-#endif
+	.driver = {
+		.pm = &xgbe_pci_pm_ops,
+	}
 };
 
 int xgbe_pci_init(void)

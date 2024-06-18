@@ -1,8 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * fs/verity/signature.c: verification of builtin signatures
+ * Verification of builtin signatures
  *
  * Copyright 2019 Google LLC
+ */
+
+/*
+ * This file implements verification of fs-verity builtin signatures.  Please
+ * take great care before using this feature.  It is not the only way to do
+ * signatures with fs-verity, and the alternatives (such as userspace signature
+ * verification, and IMA appraisal) can be much better.  For details about the
+ * limitations of this feature, see Documentation/filesystems/fsverity.rst.
  */
 
 #include "fsverity_private.h"
@@ -16,7 +24,7 @@
  * /proc/sys/fs/verity/require_signatures
  * If 1, all verity files must have a valid builtin signature.
  */
-static int fsverity_require_signatures;
+int fsverity_require_signatures;
 
 /*
  * Keyring that contains the trusted X.509 certificates.
@@ -28,20 +36,21 @@ static struct key *fsverity_keyring;
 
 /**
  * fsverity_verify_signature() - check a verity file's signature
+ * @vi: the file's fsverity_info
+ * @signature: the file's built-in signature
+ * @sig_size: size of signature in bytes, or 0 if no signature
  *
- * If the file's fs-verity descriptor includes a signature of the file
- * measurement, verify it against the certificates in the fs-verity keyring.
+ * If the file includes a signature of its fs-verity file digest, verify it
+ * against the certificates in the fs-verity keyring.
  *
  * Return: 0 on success (signature valid or not required); -errno on failure
  */
 int fsverity_verify_signature(const struct fsverity_info *vi,
-			      const struct fsverity_descriptor *desc,
-			      size_t desc_size)
+			      const u8 *signature, size_t sig_size)
 {
 	const struct inode *inode = vi->inode;
 	const struct fsverity_hash_alg *hash_alg = vi->tree_params.hash_alg;
-	const u32 sig_size = le32_to_cpu(desc->sig_size);
-	struct fsverity_signed_digest *d;
+	struct fsverity_formatted_digest *d;
 	int err;
 
 	if (sig_size == 0) {
@@ -53,9 +62,20 @@ int fsverity_verify_signature(const struct fsverity_info *vi,
 		return 0;
 	}
 
-	if (sig_size > desc_size - sizeof(*desc)) {
-		fsverity_err(inode, "Signature overflows verity descriptor");
-		return -EBADMSG;
+	if (fsverity_keyring->keys.nr_leaves_on_tree == 0) {
+		/*
+		 * The ".fs-verity" keyring is empty, due to builtin signatures
+		 * being supported by the kernel but not actually being used.
+		 * In this case, verify_pkcs7_signature() would always return an
+		 * error, usually ENOKEY.  It could also be EBADMSG if the
+		 * PKCS#7 is malformed, but that isn't very important to
+		 * distinguish.  So, just skip to ENOKEY to avoid the attack
+		 * surface of the PKCS#7 parser, which would otherwise be
+		 * reachable by any task able to execute FS_IOC_ENABLE_VERITY.
+		 */
+		fsverity_err(inode,
+			     "fs-verity keyring is empty, rejecting signed file!");
+		return -ENOKEY;
 	}
 
 	d = kzalloc(sizeof(*d) + hash_alg->digest_size, GFP_KERNEL);
@@ -64,11 +84,10 @@ int fsverity_verify_signature(const struct fsverity_info *vi,
 	memcpy(d->magic, "FSVerity", 8);
 	d->digest_algorithm = cpu_to_le16(hash_alg - fsverity_hash_algs);
 	d->digest_size = cpu_to_le16(hash_alg->digest_size);
-	memcpy(d->digest, vi->measurement, hash_alg->digest_size);
+	memcpy(d->digest, vi->file_digest, hash_alg->digest_size);
 
 	err = verify_pkcs7_signature(d, sizeof(*d) + hash_alg->digest_size,
-				     desc->signature, sig_size,
-				     fsverity_keyring,
+				     signature, sig_size, fsverity_keyring,
 				     VERIFYING_UNSPECIFIED_SIGNATURE,
 				     NULL, NULL);
 	kfree(d);
@@ -87,71 +106,17 @@ int fsverity_verify_signature(const struct fsverity_info *vi,
 		return err;
 	}
 
-	pr_debug("Valid signature for file measurement %s:%*phN\n",
-		 hash_alg->name, hash_alg->digest_size, vi->measurement);
 	return 0;
 }
 
-#ifdef CONFIG_SYSCTL
-static struct ctl_table_header *fsverity_sysctl_header;
-
-static const struct ctl_path fsverity_sysctl_path[] = {
-	{ .procname = "fs", },
-	{ .procname = "verity", },
-	{ }
-};
-
-static struct ctl_table fsverity_sysctl_table[] = {
-	{
-		.procname       = "require_signatures",
-		.data           = &fsverity_require_signatures,
-		.maxlen         = sizeof(int),
-		.mode           = 0644,
-		.proc_handler   = proc_dointvec_minmax,
-		.extra1         = SYSCTL_ZERO,
-		.extra2         = SYSCTL_ONE,
-	},
-	{ }
-};
-
-static int __init fsverity_sysctl_init(void)
+void __init fsverity_init_signature(void)
 {
-	fsverity_sysctl_header = register_sysctl_paths(fsverity_sysctl_path,
-						       fsverity_sysctl_table);
-	if (!fsverity_sysctl_header) {
-		pr_err("sysctl registration failed!\n");
-		return -ENOMEM;
-	}
-	return 0;
-}
-#else /* !CONFIG_SYSCTL */
-static inline int __init fsverity_sysctl_init(void)
-{
-	return 0;
-}
-#endif /* !CONFIG_SYSCTL */
-
-int __init fsverity_init_signature(void)
-{
-	struct key *ring;
-	int err;
-
-	ring = keyring_alloc(".fs-verity", KUIDT_INIT(0), KGIDT_INIT(0),
-			     current_cred(), KEY_POS_SEARCH |
+	fsverity_keyring =
+		keyring_alloc(".fs-verity", KUIDT_INIT(0), KGIDT_INIT(0),
+			      current_cred(), KEY_POS_SEARCH |
 				KEY_USR_VIEW | KEY_USR_READ | KEY_USR_WRITE |
 				KEY_USR_SEARCH | KEY_USR_SETATTR,
-			     KEY_ALLOC_NOT_IN_QUOTA, NULL, NULL);
-	if (IS_ERR(ring))
-		return PTR_ERR(ring);
-
-	err = fsverity_sysctl_init();
-	if (err)
-		goto err_put_ring;
-
-	fsverity_keyring = ring;
-	return 0;
-
-err_put_ring:
-	key_put(ring);
-	return err;
+			      KEY_ALLOC_NOT_IN_QUOTA, NULL, NULL);
+	if (IS_ERR(fsverity_keyring))
+		panic("failed to allocate \".fs-verity\" keyring");
 }

@@ -55,7 +55,7 @@
 
 /* Some common global variables */
 
-/**
+/*
  * The root device for ctcm group devices
  */
 static struct device *ctcm_root_dev;
@@ -65,7 +65,7 @@ static struct device *ctcm_root_dev;
  */
 struct channel *channels;
 
-/**
+/*
  * Unpack a just received skb and hand it over to
  * upper layers.
  *
@@ -166,7 +166,7 @@ void ctcm_unpack_skb(struct channel *ch, struct sk_buff *pskb)
 		ch->logflags = 0;
 		priv->stats.rx_packets++;
 		priv->stats.rx_bytes += skblen;
-		netif_rx_ni(skb);
+		netif_rx(skb);
 		if (len > 0) {
 			skb_pull(pskb, header->length);
 			if (skb_tailroom(pskb) < LL_HEADER_LENGTH) {
@@ -180,7 +180,7 @@ void ctcm_unpack_skb(struct channel *ch, struct sk_buff *pskb)
 	}
 }
 
-/**
+/*
  * Release a specific channel in the channel list.
  *
  *  ch		Pointer to channel struct to be released.
@@ -192,7 +192,7 @@ static void channel_free(struct channel *ch)
 	fsm_newstate(ch->fsm, CTC_STATE_IDLE);
 }
 
-/**
+/*
  * Remove a specific channel in the channel list.
  *
  *  ch		Pointer to channel struct to be released.
@@ -200,13 +200,13 @@ static void channel_free(struct channel *ch)
 static void channel_remove(struct channel *ch)
 {
 	struct channel **c = &channels;
-	char chid[CTCM_ID_SIZE+1];
+	char chid[CTCM_ID_SIZE];
 	int ok = 0;
 
 	if (ch == NULL)
 		return;
 	else
-		strncpy(chid, ch->id, CTCM_ID_SIZE);
+		strscpy(chid, ch->id, sizeof(chid));
 
 	channel_free(ch);
 	while (*c) {
@@ -240,7 +240,7 @@ static void channel_remove(struct channel *ch)
 			chid, ok ? "OK" : "failed");
 }
 
-/**
+/*
  * Get a specific channel from the channel list.
  *
  *  type	Type of channel we are interested in.
@@ -300,7 +300,7 @@ static long ctcm_check_irb_error(struct ccw_device *cdev, struct irb *irb)
 }
 
 
-/**
+/*
  * Check sense of a unit check.
  *
  *  ch		The channel, the sense code belongs to.
@@ -414,7 +414,7 @@ int ctcm_ch_alloc_buffer(struct channel *ch)
  * Interface API for upper network layers
  */
 
-/**
+/*
  * Open an interface.
  * Called from generic network layer when ifconfig up is run.
  *
@@ -432,7 +432,7 @@ int ctcm_open(struct net_device *dev)
 	return 0;
 }
 
-/**
+/*
  * Close an interface.
  * Called from generic network layer when ifconfig down is run.
  *
@@ -451,7 +451,7 @@ int ctcm_close(struct net_device *dev)
 }
 
 
-/**
+/*
  * Transmit a packet.
  * This is a helper function for ctcm_tx().
  *
@@ -494,7 +494,7 @@ static int ctcm_transmit_skb(struct channel *ch, struct sk_buff *skb)
 			ch->collect_len += l;
 		}
 		spin_unlock_irqrestore(&ch->collect_lock, saveflags);
-				goto done;
+		goto done;
 	}
 	spin_unlock_irqrestore(&ch->collect_lock, saveflags);
 	/*
@@ -623,24 +623,9 @@ static void ctcmpc_send_sweep_req(struct channel *rch)
 				goto nomem;
 	}
 
-	header = kmalloc(TH_SWEEP_LENGTH, gfp_type());
-
-	if (!header) {
-		dev_kfree_skb_any(sweep_skb);
-		/* rc = -ENOMEM; */
-				goto nomem;
-	}
-
-	header->th.th_seg	= 0x00 ;
+	header = skb_put_zero(sweep_skb, TH_SWEEP_LENGTH);
 	header->th.th_ch_flag	= TH_SWEEP_REQ;  /* 0x0f */
-	header->th.th_blk_flag	= 0x00;
-	header->th.th_is_xid	= 0x00;
-	header->th.th_seq_num	= 0x00;
 	header->sw.th_last_seq	= ch->th_seq_num;
-
-	skb_put_data(sweep_skb, header, TH_SWEEP_LENGTH);
-
-	kfree(header);
 
 	netif_trans_update(dev);
 	skb_queue_tail(&ch->sweep_queue, sweep_skb);
@@ -680,24 +665,16 @@ static int ctcmpc_transmit_skb(struct channel *ch, struct sk_buff *skb)
 	if ((fsm_getstate(ch->fsm) != CTC_STATE_TXIDLE) || grp->in_sweep) {
 		spin_lock_irqsave(&ch->collect_lock, saveflags);
 		refcount_inc(&skb->users);
-		p_header = kmalloc(PDU_HEADER_LENGTH, gfp_type());
 
-		if (!p_header) {
-			spin_unlock_irqrestore(&ch->collect_lock, saveflags);
-				goto nomem_exit;
-		}
-
-		p_header->pdu_offset = skb->len;
+		p_header = skb_push(skb, PDU_HEADER_LENGTH);
+		p_header->pdu_offset = skb->len - PDU_HEADER_LENGTH;
 		p_header->pdu_proto = 0x01;
-		p_header->pdu_flag = 0x00;
 		if (be16_to_cpu(skb->protocol) == ETH_P_SNAP) {
-			p_header->pdu_flag |= PDU_FIRST | PDU_CNTL;
+			p_header->pdu_flag = PDU_FIRST | PDU_CNTL;
 		} else {
-			p_header->pdu_flag |= PDU_FIRST;
+			p_header->pdu_flag = PDU_FIRST;
 		}
 		p_header->pdu_seq = 0;
-		memcpy(skb_push(skb, PDU_HEADER_LENGTH), p_header,
-		       PDU_HEADER_LENGTH);
 
 		CTCM_PR_DEBUG("%s(%s): Put on collect_q - skb len: %04x \n"
 				"pdu header and data for up to 32 bytes:\n",
@@ -706,10 +683,9 @@ static int ctcmpc_transmit_skb(struct channel *ch, struct sk_buff *skb)
 
 		skb_queue_tail(&ch->collect_queue, skb);
 		ch->collect_len += skb->len;
-		kfree(p_header);
 
 		spin_unlock_irqrestore(&ch->collect_lock, saveflags);
-			goto done;
+		goto done;
 	}
 
 	/*
@@ -736,23 +712,15 @@ static int ctcmpc_transmit_skb(struct channel *ch, struct sk_buff *skb)
 		}
 	}
 
-	p_header = kmalloc(PDU_HEADER_LENGTH, gfp_type());
-
-	if (!p_header)
-		goto nomem_exit;
-
-	p_header->pdu_offset = skb->len;
+	p_header = skb_push(skb, PDU_HEADER_LENGTH);
+	p_header->pdu_offset = skb->len - PDU_HEADER_LENGTH;
 	p_header->pdu_proto = 0x01;
-	p_header->pdu_flag = 0x00;
 	p_header->pdu_seq = 0;
 	if (be16_to_cpu(skb->protocol) == ETH_P_SNAP) {
-		p_header->pdu_flag |= PDU_FIRST | PDU_CNTL;
+		p_header->pdu_flag = PDU_FIRST | PDU_CNTL;
 	} else {
-		p_header->pdu_flag |= PDU_FIRST;
+		p_header->pdu_flag = PDU_FIRST;
 	}
-	memcpy(skb_push(skb, PDU_HEADER_LENGTH), p_header, PDU_HEADER_LENGTH);
-
-	kfree(p_header);
 
 	if (ch->collect_len > 0) {
 		spin_lock_irqsave(&ch->collect_lock, saveflags);
@@ -768,24 +736,16 @@ static int ctcmpc_transmit_skb(struct channel *ch, struct sk_buff *skb)
 
 	ch->prof.txlen += skb->len - PDU_HEADER_LENGTH;
 
-	header = kmalloc(TH_HEADER_LENGTH, gfp_type());
-	if (!header)
-		goto nomem_exit;
+	/* put the TH on the packet */
+	header = skb_push(skb, TH_HEADER_LENGTH);
+	memset(header, 0, TH_HEADER_LENGTH);
 
-	header->th_seg = 0x00;
 	header->th_ch_flag = TH_HAS_PDU;  /* Normal data */
-	header->th_blk_flag = 0x00;
-	header->th_is_xid = 0x00;          /* Just data here */
 	ch->th_seq_num++;
 	header->th_seq_num = ch->th_seq_num;
 
 	CTCM_PR_DBGDATA("%s(%s) ToVTAM_th_seq= %08x\n" ,
 		       __func__, dev->name, ch->th_seq_num);
-
-	/* put the TH on the packet */
-	memcpy(skb_push(skb, TH_HEADER_LENGTH), header, TH_HEADER_LENGTH);
-
-	kfree(header);
 
 	CTCM_PR_DBGDATA("%s(%s): skb len: %04x\n - pdu header and data for "
 			"up to 32 bytes sent to vtam:\n",
@@ -862,19 +822,12 @@ done:
 	return rc;
 }
 
-/**
+/*
  * Start transmission of a packet.
  * Called from generic network device layer.
- *
- *  skb		Pointer to buffer containing the packet.
- *  dev		Pointer to interface struct.
- *
- * returns 0 if packet consumed, !0 if packet rejected.
- *         Note: If we return !0, then the packet is free'd by
- *               the generic network layer.
  */
 /* first merge version - leaving both functions separated */
-static int ctcm_tx(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t ctcm_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ctcm_priv *priv = dev->ml_priv;
 
@@ -917,7 +870,7 @@ static int ctcm_tx(struct sk_buff *skb, struct net_device *dev)
 }
 
 /* unmerged MPC variant of ctcm_tx */
-static int ctcmpc_tx(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t ctcmpc_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	int len = 0;
 	struct ctcm_priv *priv = dev->ml_priv;
@@ -932,7 +885,7 @@ static int ctcmpc_tx(struct sk_buff *skb, struct net_device *dev)
 			"%s(%s): NULL sk_buff passed",
 					CTCM_FUNTAIL, dev->name);
 		priv->stats.tx_dropped++;
-					goto done;
+		goto done;
 	}
 	if (skb_headroom(skb) < (TH_HEADER_LENGTH + PDU_HEADER_LENGTH)) {
 		CTCM_DBF_TEXT_(MPC_TRACE, CTC_DBF_ERROR,
@@ -943,7 +896,7 @@ static int ctcmpc_tx(struct sk_buff *skb, struct net_device *dev)
 		CTCM_D3_DUMP((char *)skb->data, min_t(int, 32, skb->len));
 
 		len =  skb->len + TH_HEADER_LENGTH + PDU_HEADER_LENGTH;
-		newskb = __dev_alloc_skb(len, gfp_type() | GFP_DMA);
+		newskb = __dev_alloc_skb(len, GFP_ATOMIC | GFP_DMA);
 
 		if (!newskb) {
 			CTCM_DBF_TEXT_(MPC_TRACE, CTC_DBF_ERROR,
@@ -955,7 +908,7 @@ static int ctcmpc_tx(struct sk_buff *skb, struct net_device *dev)
 			priv->stats.tx_errors++;
 			priv->stats.tx_carrier_errors++;
 			fsm_event(grp->fsm, MPCG_EVENT_INOP, dev);
-					goto done;
+			goto done;
 		}
 		newskb->protocol = skb->protocol;
 		skb_reserve(newskb, TH_HEADER_LENGTH + PDU_HEADER_LENGTH);
@@ -978,7 +931,7 @@ static int ctcmpc_tx(struct sk_buff *skb, struct net_device *dev)
 		priv->stats.tx_dropped++;
 		priv->stats.tx_errors++;
 		priv->stats.tx_carrier_errors++;
-					goto done;
+		goto done;
 	}
 
 	if (ctcm_test_and_set_busy(dev)) {
@@ -990,7 +943,7 @@ static int ctcmpc_tx(struct sk_buff *skb, struct net_device *dev)
 		priv->stats.tx_errors++;
 		priv->stats.tx_carrier_errors++;
 		fsm_event(grp->fsm, MPCG_EVENT_INOP, dev);
-					goto done;
+		goto done;
 	}
 
 	netif_trans_update(dev);
@@ -1004,7 +957,7 @@ static int ctcmpc_tx(struct sk_buff *skb, struct net_device *dev)
 		priv->stats.tx_carrier_errors++;
 		ctcm_clear_busy(dev);
 		fsm_event(grp->fsm, MPCG_EVENT_INOP, dev);
-					goto done;
+		goto done;
 	}
 	ctcm_clear_busy(dev);
 done:
@@ -1015,7 +968,7 @@ done:
 }
 
 
-/**
+/*
  * Sets MTU of an interface.
  *
  *  dev		Pointer to interface struct.
@@ -1043,11 +996,11 @@ static int ctcm_change_mtu(struct net_device *dev, int new_mtu)
 			return -EINVAL;
 		dev->hard_header_len = LL_HEADER_LENGTH + 2;
 	}
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 	return 0;
 }
 
-/**
+/*
  * Returns interface statistics of a device.
  *
  *  dev		Pointer to interface struct.
@@ -1184,7 +1137,7 @@ static struct net_device *ctcm_init_netdevice(struct ctcm_priv *priv)
 	return dev;
 }
 
-/**
+/*
  * Main IRQ handler.
  *
  *  cdev	The ccw_device the interrupt is for.
@@ -1297,7 +1250,7 @@ static const struct device_type ctcm_devtype = {
 	.groups = ctcm_attr_groups,
 };
 
-/**
+/*
  * Add ctcm specific attributes.
  * Add ctcm private data.
  *
@@ -1333,7 +1286,7 @@ static int ctcm_probe_device(struct ccwgroup_device *cgdev)
 	return 0;
 }
 
-/**
+/*
  * Add a new channel to the list of channels.
  * Keeps the channel list sorted.
  *
@@ -1361,7 +1314,7 @@ static int add_channel(struct ccw_device *cdev, enum ctcm_channel_types type,
 
 	ch->protocol = priv->protocol;
 	if (IS_MPC(priv)) {
-		ch->discontact_th = kzalloc(TH_HEADER_LENGTH, gfp_type());
+		ch->discontact_th = kzalloc(TH_HEADER_LENGTH, GFP_KERNEL);
 		if (ch->discontact_th == NULL)
 					goto nomem_return;
 
@@ -1380,10 +1333,10 @@ static int add_channel(struct ccw_device *cdev, enum ctcm_channel_types type,
 					goto nomem_return;
 
 	ch->cdev = cdev;
-	snprintf(ch->id, CTCM_ID_SIZE, "ch-%s", dev_name(&cdev->dev));
+	scnprintf(ch->id, CTCM_ID_SIZE, "ch-%s", dev_name(&cdev->dev));
 	ch->type = type;
 
-	/**
+	/*
 	 * "static" ccws are used in the following way:
 	 *
 	 * ccw[0..2] (Channel program for generic I/O):
@@ -1436,7 +1389,7 @@ static int add_channel(struct ccw_device *cdev, enum ctcm_channel_types type,
 		ch->ccw[15].cmd_code = CCW_CMD_WRITE;
 		ch->ccw[15].flags    = CCW_FLAG_SLI | CCW_FLAG_CC;
 		ch->ccw[15].count    = TH_HEADER_LENGTH;
-		ch->ccw[15].cda      = virt_to_phys(ch->discontact_th);
+		ch->ccw[15].cda      = virt_to_dma32(ch->discontact_th);
 
 		ch->ccw[16].cmd_code = CCW_CMD_NOOP;
 		ch->ccw[16].flags    = CCW_FLAG_SLI;
@@ -1468,7 +1421,7 @@ static int add_channel(struct ccw_device *cdev, enum ctcm_channel_types type,
 				"%s (%s) already in list, using old entry",
 				__func__, (*c)->id);
 
-				goto free_return;
+		goto free_return;
 	}
 
 	spin_lock_init(&ch->collect_lock);
@@ -1511,7 +1464,7 @@ static enum ctcm_channel_types get_channel_type(struct ccw_device_id *id)
 	return type;
 }
 
-/**
+/*
  *
  * Setup an interface.
  *
@@ -1545,8 +1498,8 @@ static int ctcm_new_device(struct ccwgroup_device *cgdev)
 
 	type = get_channel_type(&cdev0->id);
 
-	snprintf(read_id, CTCM_ID_SIZE, "ch-%s", dev_name(&cdev0->dev));
-	snprintf(write_id, CTCM_ID_SIZE, "ch-%s", dev_name(&cdev1->dev));
+	scnprintf(read_id, CTCM_ID_SIZE, "ch-%s", dev_name(&cdev0->dev));
+	scnprintf(write_id, CTCM_ID_SIZE, "ch-%s", dev_name(&cdev1->dev));
 
 	ret = add_channel(cdev0, type, priv);
 	if (ret) {
@@ -1606,7 +1559,7 @@ static int ctcm_new_device(struct ccwgroup_device *cgdev)
 		goto out_dev;
 	}
 
-	strlcpy(priv->fsm->name, dev->name, sizeof(priv->fsm->name));
+	strscpy(priv->fsm->name, dev->name, sizeof(priv->fsm->name));
 
 	dev_info(&dev->dev,
 		"setup OK : r/w = %s/%s, protocol : %d\n",
@@ -1635,7 +1588,7 @@ out_err_result:
 	return result;
 }
 
-/**
+/*
  * Shutdown an interface.
  *
  *  cgdev	Device to be shut down.
@@ -1698,43 +1651,6 @@ static void ctcm_remove_device(struct ccwgroup_device *cgdev)
 	put_device(&cgdev->dev);
 }
 
-static int ctcm_pm_suspend(struct ccwgroup_device *gdev)
-{
-	struct ctcm_priv *priv = dev_get_drvdata(&gdev->dev);
-
-	if (gdev->state == CCWGROUP_OFFLINE)
-		return 0;
-	netif_device_detach(priv->channel[CTCM_READ]->netdev);
-	ctcm_close(priv->channel[CTCM_READ]->netdev);
-	if (!wait_event_timeout(priv->fsm->wait_q,
-	    fsm_getstate(priv->fsm) == DEV_STATE_STOPPED, CTCM_TIME_5_SEC)) {
-		netif_device_attach(priv->channel[CTCM_READ]->netdev);
-		return -EBUSY;
-	}
-	ccw_device_set_offline(gdev->cdev[1]);
-	ccw_device_set_offline(gdev->cdev[0]);
-	return 0;
-}
-
-static int ctcm_pm_resume(struct ccwgroup_device *gdev)
-{
-	struct ctcm_priv *priv = dev_get_drvdata(&gdev->dev);
-	int rc;
-
-	if (gdev->state == CCWGROUP_OFFLINE)
-		return 0;
-	rc = ccw_device_set_online(gdev->cdev[1]);
-	if (rc)
-		goto err_out;
-	rc = ccw_device_set_online(gdev->cdev[0]);
-	if (rc)
-		goto err_out;
-	ctcm_open(priv->channel[CTCM_READ]->netdev);
-err_out:
-	netif_device_attach(priv->channel[CTCM_READ]->netdev);
-	return rc;
-}
-
 static struct ccw_device_id ctcm_ids[] = {
 	{CCW_DEVICE(0x3088, 0x08), .driver_info = ctcm_channel_type_parallel},
 	{CCW_DEVICE(0x3088, 0x1e), .driver_info = ctcm_channel_type_ficon},
@@ -1764,9 +1680,6 @@ static struct ccwgroup_driver ctcm_group_driver = {
 	.remove      = ctcm_remove_device,
 	.set_online  = ctcm_new_device,
 	.set_offline = ctcm_shutdown_device,
-	.freeze	     = ctcm_pm_suspend,
-	.thaw	     = ctcm_pm_resume,
-	.restore     = ctcm_pm_resume,
 };
 
 static ssize_t group_store(struct device_driver *ddrv, const char *buf,
@@ -1818,7 +1731,7 @@ static void print_banner(void)
 	pr_info("CTCM driver initialized\n");
 }
 
-/**
+/*
  * Initialize module.
  * This is called just after the module is loaded.
  *

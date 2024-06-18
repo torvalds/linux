@@ -383,7 +383,7 @@ static dma_async_tx_callback __ld_cleanup(struct shdma_chan *schan, bool all)
 			switch (desc->mark) {
 			case DESC_COMPLETED:
 				desc->mark = DESC_WAITING;
-				/* Fall through */
+				fallthrough;
 			case DESC_WAITING:
 				if (head_acked)
 					async_tx_ack(&desc->async_tx);
@@ -709,7 +709,7 @@ static struct dma_async_tx_descriptor *shdma_prep_dma_cyclic(
 	BUG_ON(!schan->desc_num);
 
 	if (sg_len > SHDMA_MAX_SG_LEN) {
-		dev_err(schan->dev, "sg length %d exceds limit %d",
+		dev_err(schan->dev, "sg length %d exceeds limit %d",
 				sg_len, SHDMA_MAX_SG_LEN);
 		return NULL;
 	}
@@ -728,7 +728,7 @@ static struct dma_async_tx_descriptor *shdma_prep_dma_cyclic(
 	 * Allocate the sg list dynamically as it would consumer too much stack
 	 * space.
 	 */
-	sgl = kcalloc(sg_len, sizeof(*sgl), GFP_KERNEL);
+	sgl = kmalloc_array(sg_len, sizeof(*sgl), GFP_KERNEL);
 	if (!sgl)
 		return NULL;
 
@@ -785,14 +785,6 @@ static int shdma_config(struct dma_chan *chan,
 	 */
 	if (!config)
 		return -EINVAL;
-
-	/*
-	 * overriding the slave_id through dma_slave_config is deprecated,
-	 * but possibly some out-of-tree drivers still do it.
-	 */
-	if (WARN_ON_ONCE(config->slave_id &&
-			 config->slave_id != schan->real_slave_id))
-		schan->real_slave_id = config->slave_id;
 
 	/*
 	 * We could lock this, but you shouldn't be configuring the
@@ -1042,9 +1034,7 @@ EXPORT_SYMBOL(shdma_cleanup);
 
 static int __init shdma_enter(void)
 {
-	shdma_slave_used = kcalloc(DIV_ROUND_UP(slave_num, BITS_PER_LONG),
-				   sizeof(long),
-				   GFP_KERNEL);
+	shdma_slave_used = bitmap_zalloc(slave_num, GFP_KERNEL);
 	if (!shdma_slave_used)
 		return -ENOMEM;
 	return 0;
@@ -1053,10 +1043,9 @@ module_init(shdma_enter);
 
 static void __exit shdma_exit(void)
 {
-	kfree(shdma_slave_used);
+	bitmap_free(shdma_slave_used);
 }
 module_exit(shdma_exit);
 
-MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("SH-DMA driver base library");
 MODULE_AUTHOR("Guennadi Liakhovetski <g.liakhovetski@gmx.de>");

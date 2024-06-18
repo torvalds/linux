@@ -13,8 +13,7 @@ struct dm_stats {
 	struct mutex mutex;
 	struct list_head list;	/* list of struct dm_stat */
 	struct dm_stats_last_position __percpu *last;
-	sector_t last_sector;
-	unsigned last_rw;
+	bool precise_timestamps;
 };
 
 struct dm_stats_aux {
@@ -22,22 +21,28 @@ struct dm_stats_aux {
 	unsigned long long duration_ns;
 };
 
-void dm_stats_init(struct dm_stats *st);
+int dm_stats_init(struct dm_stats *st);
 void dm_stats_cleanup(struct dm_stats *st);
 
 struct mapped_device;
 
-int dm_stats_message(struct mapped_device *md, unsigned argc, char **argv,
-		     char *result, unsigned maxlen);
+int dm_stats_message(struct mapped_device *md, unsigned int argc, char **argv,
+		     char *result, unsigned int maxlen);
 
 void dm_stats_account_io(struct dm_stats *stats, unsigned long bi_rw,
-			 sector_t bi_sector, unsigned bi_sectors, bool end,
-			 unsigned long duration_jiffies,
+			 sector_t bi_sector, unsigned int bi_sectors, bool end,
+			 unsigned long start_time,
 			 struct dm_stats_aux *aux);
 
 static inline bool dm_stats_used(struct dm_stats *st)
 {
 	return !list_empty(&st->list);
+}
+
+static inline void dm_stats_record_start(struct dm_stats *stats, struct dm_stats_aux *aux)
+{
+	if (unlikely(stats->precise_timestamps))
+		aux->duration_ns = ktime_to_ns(ktime_get());
 }
 
 #endif

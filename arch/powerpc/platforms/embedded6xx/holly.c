@@ -22,12 +22,13 @@
 #include <linux/serial.h>
 #include <linux/tty.h>
 #include <linux/serial_core.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/extable.h>
 
 #include <asm/time.h>
 #include <asm/machdep.h>
-#include <asm/prom.h>
 #include <asm/udbg.h>
 #include <asm/tsi108.h>
 #include <asm/pci-bridge.h>
@@ -50,7 +51,7 @@ static int holly_exclude_device(struct pci_controller *hose, u_char bus,
 		return PCIBIOS_SUCCESSFUL;
 }
 
-static void holly_remap_bridge(void)
+static void __init holly_remap_bridge(void)
 {
 	u32 lut_val, lut_addr;
 	int i;
@@ -108,14 +109,12 @@ static void holly_remap_bridge(void)
 	tsi108_write_reg(TSI108_PCI_P2O_BAR2, 0x0);
 }
 
-static void __init holly_setup_arch(void)
+static void __init holly_init_pci(void)
 {
 	struct device_node *np;
 
 	if (ppc_md.progress)
 		ppc_md.progress("holly_setup_arch():set_bridge", 0);
-
-	tsi108_csr_vir_base = get_vir_csrbase();
 
 	/* setup PCI host bridge */
 	holly_remap_bridge();
@@ -124,9 +123,16 @@ static void __init holly_setup_arch(void)
 	if (np)
 		tsi108_setup_pci(np, HOLLY_PCI_CFG_PHYS, 1);
 
+	of_node_put(np);
+
 	ppc_md.pci_exclude_device = holly_exclude_device;
 	if (ppc_md.progress)
 		ppc_md.progress("tsi108: resources set", 0x100);
+}
+
+static void __init holly_setup_arch(void)
+{
+	tsi108_csr_vir_base = get_vir_csrbase();
 
 	printk(KERN_INFO "PPC750GX/CL Platform\n");
 }
@@ -180,6 +186,9 @@ static void __init holly_init_IRQ(void)
 	tsi108_pci_int_init(cascade_node);
 	irq_set_handler_data(cascade_pci_irq, mpic);
 	irq_set_chained_handler(cascade_pci_irq, tsi108_irq_cascade);
+
+	of_node_put(tsi_pci);
+	of_node_put(cascade_node);
 #endif
 	/* Configure MPIC outputs to CPU0 */
 	tsi108_write_reg(TSI108_MPIC_OFFSET + 0x30c, 0);
@@ -196,16 +205,16 @@ static void __noreturn holly_restart(char *cmd)
 	__be32 __iomem *ocn_bar1 = NULL;
 	unsigned long bar;
 	struct device_node *bridge = NULL;
-	const void *prop;
-	int size;
+	struct resource res;
 	phys_addr_t addr = 0xc0000000;
 
 	local_irq_disable();
 
 	bridge = of_find_node_by_type(NULL, "tsi-bridge");
 	if (bridge) {
-		prop = of_get_property(bridge, "reg", &size);
-		addr = of_translate_address(bridge, prop);
+		of_address_to_resource(bridge, 0, &res);
+		addr = res.start;
+		of_node_put(bridge);
 	}
 	addr += (TSI108_PB_OFFSET + 0x414);
 
@@ -231,16 +240,6 @@ static void __noreturn holly_restart(char *cmd)
 	for (;;) ;
 }
 
-/*
- * Called very early, device-tree isn't unflattened
- */
-static int __init holly_probe(void)
-{
-	if (!of_machine_is_compatible("ibm,holly"))
-		return 0;
-	return 1;
-}
-
 static int ppc750_machine_check_exception(struct pt_regs *regs)
 {
 	const struct exception_table_entry *entry;
@@ -248,8 +247,8 @@ static int ppc750_machine_check_exception(struct pt_regs *regs)
 	/* Are we prepared to handle this fault */
 	if ((entry = search_exception_tables(regs->nip)) != NULL) {
 		tsi108_clear_pci_cfg_error();
-		regs->msr |= MSR_RI;
-		regs->nip = extable_fixup(entry);
+		regs_set_recoverable(regs);
+		regs_set_return_ip(regs, extable_fixup(entry));
 		return 1;
 	}
 	return 0;
@@ -257,13 +256,13 @@ static int ppc750_machine_check_exception(struct pt_regs *regs)
 
 define_machine(holly){
 	.name                   	= "PPC750 GX/CL TSI",
-	.probe                  	= holly_probe,
+	.compatible			= "ibm,holly",
 	.setup_arch             	= holly_setup_arch,
+	.discover_phbs			= holly_init_pci,
 	.init_IRQ               	= holly_init_IRQ,
 	.show_cpuinfo           	= holly_show_cpuinfo,
 	.get_irq                	= mpic_get_irq,
 	.restart                	= holly_restart,
-	.calibrate_decr         	= generic_calibrate_decr,
 	.machine_check_exception	= ppc750_machine_check_exception,
 	.progress               	= udbg_progress,
 };

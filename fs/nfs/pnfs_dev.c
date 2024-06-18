@@ -34,6 +34,8 @@
 #include "internal.h"
 #include "pnfs.h"
 
+#include "nfs4trace.h"
+
 #define NFSDBG_FACILITY		NFSDBG_PNFS
 
 /*
@@ -152,7 +154,7 @@ nfs4_get_device_info(struct nfs_server *server,
 		set_bit(NFS_DEVICEID_NOCACHE, &d->flags);
 
 out_free_pages:
-	for (i = 0; i < max_pages; i++)
+	while (--i >= 0)
 		__free_page(pages[i]);
 	kfree(pages);
 out_free_pdev:
@@ -192,24 +194,28 @@ nfs4_find_get_deviceid(struct nfs_server *server,
 
 	d = __nfs4_find_get_deviceid(server, id, hash);
 	if (d)
-		return d;
+		goto found;
 
 	new = nfs4_get_device_info(server, id, cred, gfp_mask);
-	if (!new)
+	if (!new) {
+		trace_nfs4_find_deviceid(server, id, -ENOENT);
 		return new;
+	}
 
 	spin_lock(&nfs4_deviceid_lock);
 	d = __nfs4_find_get_deviceid(server, id, hash);
 	if (d) {
 		spin_unlock(&nfs4_deviceid_lock);
 		server->pnfs_curr_ld->free_deviceid_node(new);
-		return d;
+	} else {
+		atomic_inc(&new->ref);
+		hlist_add_head_rcu(&new->node, &nfs4_deviceid_cache[hash]);
+		spin_unlock(&nfs4_deviceid_lock);
+		d = new;
 	}
-	hlist_add_head_rcu(&new->node, &nfs4_deviceid_cache[hash]);
-	atomic_inc(&new->ref);
-	spin_unlock(&nfs4_deviceid_lock);
-
-	return new;
+found:
+	trace_nfs4_find_deviceid(server, id, 0);
+	return d;
 }
 EXPORT_SYMBOL_GPL(nfs4_find_get_deviceid);
 
@@ -278,6 +284,7 @@ nfs4_put_deviceid_node(struct nfs4_deviceid_node *d)
 	}
 	if (!atomic_dec_and_test(&d->ref))
 		return false;
+	trace_nfs4_deviceid_free(d->nfs_client, &d->deviceid);
 	d->ld->free_deviceid_node(d);
 	return true;
 }

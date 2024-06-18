@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/mscc,miim.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Microsemi MII Management Controller (MIIM)
+
+maintainers:
+  - Alexandre Belloni <alexandre.belloni@bootlin.com>
+
+allOf:
+  - $ref: mdio.yaml#
+
+properties:
+  compatible:
+    enum:
+      - mscc,ocelot-miim
+      - microchip,lan966x-miim
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 0
+
+  reg:
+    items:
+      - description: base address
+      - description: associated reset register for internal PHYs
+    minItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-frequency: true
+
+required:
+  - compatible
+  - reg
+  - "#address-cells"
+  - "#size-cells"
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    mdio@107009c {
+      compatible = "mscc,ocelot-miim";
+      reg = <0x107009c 0x36>, <0x10700f0 0x8>;
+      interrupts = <14>;
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      phy0: ethernet-phy@0 {
+        reg = <0>;
+      };
+    };

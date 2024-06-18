@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2015 Broadcom Corporation
  */
@@ -8,6 +8,9 @@
 
 #include <linux/brcmphy.h>
 #include <linux/phy.h>
+#include <linux/interrupt.h>
+
+struct ethtool_wolinfo;
 
 /* 28nm only register definitions */
 #define MISC_ADDR(base, channel)	base, channel
@@ -27,13 +30,22 @@
 #define AFE_HPF_TRIM_OTHERS		MISC_ADDR(0x3a, 0)
 
 
+int __bcm_phy_write_exp(struct phy_device *phydev, u16 reg, u16 val);
+int __bcm_phy_read_exp(struct phy_device *phydev, u16 reg);
+int __bcm_phy_modify_exp(struct phy_device *phydev, u16 reg, u16 mask, u16 set);
 int bcm_phy_write_exp(struct phy_device *phydev, u16 reg, u16 val);
 int bcm_phy_read_exp(struct phy_device *phydev, u16 reg);
+int bcm_phy_modify_exp(struct phy_device *phydev, u16 reg, u16 mask, u16 set);
 
 static inline int bcm_phy_write_exp_sel(struct phy_device *phydev,
 					u16 reg, u16 val)
 {
 	return bcm_phy_write_exp(phydev, reg | MII_BCM54XX_EXP_SEL_ER, val);
+}
+
+static inline int bcm_phy_read_exp_sel(struct phy_device *phydev, u16 reg)
+{
+	return bcm_phy_read_exp(phydev, reg | MII_BCM54XX_EXP_SEL_ER);
 }
 
 int bcm54xx_auxctl_write(struct phy_device *phydev, u16 regnum, u16 val);
@@ -48,8 +60,18 @@ int bcm_phy_write_shadow(struct phy_device *phydev, u16 shadow,
 			 u16 val);
 int bcm_phy_read_shadow(struct phy_device *phydev, u16 shadow);
 
+int __bcm_phy_write_rdb(struct phy_device *phydev, u16 rdb, u16 val);
+int bcm_phy_write_rdb(struct phy_device *phydev, u16 rdb, u16 val);
+int __bcm_phy_read_rdb(struct phy_device *phydev, u16 rdb);
+int bcm_phy_read_rdb(struct phy_device *phydev, u16 rdb);
+int __bcm_phy_modify_rdb(struct phy_device *phydev, u16 rdb, u16 mask,
+			 u16 set);
+int bcm_phy_modify_rdb(struct phy_device *phydev, u16 rdb, u16 mask,
+		       u16 set);
+
 int bcm_phy_ack_intr(struct phy_device *phydev);
 int bcm_phy_config_intr(struct phy_device *phydev);
+irqreturn_t bcm_phy_handle_interrupt(struct phy_device *phydev);
 
 int bcm_phy_enable_apd(struct phy_device *phydev, bool dll_pwr_down);
 
@@ -65,5 +87,38 @@ void bcm_phy_get_stats(struct phy_device *phydev, u64 *shadow,
 		       struct ethtool_stats *stats, u64 *data);
 void bcm_phy_r_rc_cal_reset(struct phy_device *phydev);
 int bcm_phy_28nm_a0b0_afe_config_init(struct phy_device *phydev);
+int bcm_phy_enable_jumbo(struct phy_device *phydev);
+
+int bcm_phy_cable_test_get_status_rdb(struct phy_device *phydev,
+				      bool *finished);
+int bcm_phy_cable_test_start_rdb(struct phy_device *phydev);
+int bcm_phy_cable_test_start(struct phy_device *phydev);
+int bcm_phy_cable_test_get_status(struct phy_device *phydev, bool *finished);
+
+#if IS_ENABLED(CONFIG_BCM_NET_PHYPTP)
+struct bcm_ptp_private *bcm_ptp_probe(struct phy_device *phydev);
+void bcm_ptp_config_init(struct phy_device *phydev);
+void bcm_ptp_stop(struct bcm_ptp_private *priv);
+#else
+static inline struct bcm_ptp_private *bcm_ptp_probe(struct phy_device *phydev)
+{
+	return NULL;
+}
+
+static inline void bcm_ptp_config_init(struct phy_device *phydev)
+{
+}
+
+static inline void bcm_ptp_stop(struct bcm_ptp_private *priv)
+{
+}
+#endif
+
+int bcm_phy_set_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol);
+void bcm_phy_get_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol);
+irqreturn_t bcm_phy_wol_isr(int irq, void *dev_id);
+
+int bcm_phy_led_brightness_set(struct phy_device *phydev,
+			       u8 index, enum led_brightness value);
 
 #endif /* _LINUX_BCM_PHY_LIB_H */

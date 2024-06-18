@@ -7,39 +7,28 @@
  *	Wu, Jeff <Jeff.Wu@amd.com>
  */
 
-#include <linux/clk-provider.h>
-#include <linux/platform_data/clk-st.h>
-#include <linux/platform_device.h>
-#include <linux/pm_domain.h>
-#include <linux/clkdev.h>
 #include <linux/acpi.h>
+#include <linux/clkdev.h>
+#include <linux/clk-provider.h>
 #include <linux/err.h>
 #include <linux/io.h>
-#include <linux/pm.h>
+#include <linux/platform_data/clk-fch.h>
+#include <linux/platform_device.h>
 
 #include "internal.h"
 
-ACPI_MODULE_NAME("acpi_apd");
 struct apd_private_data;
 
 /**
- * ACPI_APD_SYSFS : add device attributes in sysfs
- * ACPI_APD_PM : attach power domain to device
- */
-#define ACPI_APD_SYSFS	BIT(0)
-#define ACPI_APD_PM	BIT(1)
-
-/**
  * struct apd_device_desc - a descriptor for apd device
- * @flags: device flags like %ACPI_APD_SYSFS, %ACPI_APD_PM
  * @fixed_clk_rate: fixed rate input clock source for acpi device;
  *			0 means no fixed rate input clock source
+ * @properties: build-in properties of the device such as UART
  * @setup: a hook routine to set device resource during create platform device
  *
  * Device description defined as acpi_device_id.driver_data
  */
 struct apd_device_desc {
-	unsigned int flags;
 	unsigned int fixed_clk_rate;
 	struct property_entry *properties;
 	int (*setup)(struct apd_private_data *pdata);
@@ -72,18 +61,12 @@ static int acpi_apd_setup(struct apd_private_data *pdata)
 
 #ifdef CONFIG_X86_AMD_PLATFORM_DEVICE
 
-static int misc_check_res(struct acpi_resource *ares, void *data)
-{
-	struct resource res;
-
-	return !acpi_dev_resource_memory(ares, &res);
-}
-
-static int st_misc_setup(struct apd_private_data *pdata)
+static int fch_misc_setup(struct apd_private_data *pdata)
 {
 	struct acpi_device *adev = pdata->adev;
+	const union acpi_object *obj;
 	struct platform_device *clkdev;
-	struct st_clk_data *clk_data;
+	struct fch_clk_data *clk_data;
 	struct resource_entry *rentry;
 	struct list_head resource_list;
 	int ret;
@@ -93,20 +76,33 @@ static int st_misc_setup(struct apd_private_data *pdata)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&resource_list);
-	ret = acpi_dev_get_resources(adev, &resource_list, misc_check_res,
-				     NULL);
+	ret = acpi_dev_get_memory_resources(adev, &resource_list);
 	if (ret < 0)
 		return -ENOENT;
+
+	if (!acpi_dev_get_property(adev, "clk-name", ACPI_TYPE_STRING, &obj)) {
+		clk_data->name = devm_kzalloc(&adev->dev, obj->string.length,
+					      GFP_KERNEL);
+		if (!clk_data->name)
+			return -ENOMEM;
+
+		strcpy(clk_data->name, obj->string.pointer);
+	} else {
+		/* Set default name to mclk if entry missing in firmware */
+		clk_data->name = "mclk";
+	}
 
 	list_for_each_entry(rentry, &resource_list, node) {
 		clk_data->base = devm_ioremap(&adev->dev, rentry->res->start,
 					      resource_size(rentry->res));
 		break;
 	}
+	if (!clk_data->base)
+		return -ENOMEM;
 
 	acpi_dev_free_resource_list(&resource_list);
 
-	clkdev = platform_device_register_data(&adev->dev, "clk-st",
+	clkdev = platform_device_register_data(&adev->dev, "clk-fch",
 					       PLATFORM_DEVID_NONE, clk_data,
 					       sizeof(*clk_data));
 	return PTR_ERR_OR_ZERO(clkdev);
@@ -135,10 +131,10 @@ static const struct apd_device_desc cz_uart_desc = {
 	.properties = uart_properties,
 };
 
-static const struct apd_device_desc st_misc_desc = {
-	.setup = st_misc_setup,
+static const struct apd_device_desc fch_misc_desc = {
+	.setup = fch_misc_setup,
 };
-#endif
+#endif /* CONFIG_X86_AMD_PLATFORM_DEVICE */
 
 #ifdef CONFIG_ARM64
 static const struct apd_device_desc xgene_i2c_desc = {
@@ -161,6 +157,11 @@ static const struct apd_device_desc hip08_i2c_desc = {
 	.fixed_clk_rate = 250000000,
 };
 
+static const struct apd_device_desc hip08_lite_i2c_desc = {
+	.setup = acpi_apd_setup,
+	.fixed_clk_rate = 125000000,
+};
+
 static const struct apd_device_desc thunderx2_i2c_desc = {
 	.setup = acpi_apd_setup,
 	.fixed_clk_rate = 125000000,
@@ -175,18 +176,14 @@ static const struct apd_device_desc hip08_spi_desc = {
 	.setup = acpi_apd_setup,
 	.fixed_clk_rate = 250000000,
 };
+#endif /* CONFIG_ARM64 */
+
 #endif
 
-#else
-
-#define APD_ADDR(desc) (0UL)
-
-#endif /* CONFIG_X86_AMD_PLATFORM_DEVICE */
-
-/**
-* Create platform device during acpi scan attach handle.
-* Return value > 0 on success of creating device.
-*/
+/*
+ * Create platform device during acpi scan attach handle.
+ * Return value > 0 on success of creating device.
+ */
 static int acpi_apd_create_device(struct acpi_device *adev,
 				   const struct acpi_device_id *id)
 {
@@ -230,11 +227,14 @@ static const struct acpi_device_id acpi_apd_device_ids[] = {
 	/* Generic apd devices */
 #ifdef CONFIG_X86_AMD_PLATFORM_DEVICE
 	{ "AMD0010", APD_ADDR(cz_i2c_desc) },
-	{ "AMDI0010", APD_ADDR(wt_i2c_desc) },
 	{ "AMD0020", APD_ADDR(cz_uart_desc) },
-	{ "AMDI0020", APD_ADDR(cz_uart_desc) },
 	{ "AMD0030", },
-	{ "AMD0040", APD_ADDR(st_misc_desc)},
+	{ "AMD0040", APD_ADDR(fch_misc_desc)},
+	{ "AMDI0010", APD_ADDR(wt_i2c_desc) },
+	{ "AMDI0019", APD_ADDR(wt_i2c_desc) },
+	{ "AMDI0020", APD_ADDR(cz_uart_desc) },
+	{ "AMDI0022", APD_ADDR(cz_uart_desc) },
+	{ "HYGO0010", APD_ADDR(wt_i2c_desc) },
 #endif
 #ifdef CONFIG_ARM64
 	{ "APMC0D0F", APD_ADDR(xgene_i2c_desc) },
@@ -243,6 +243,7 @@ static const struct acpi_device_id acpi_apd_device_ids[] = {
 	{ "CAV9007",  APD_ADDR(thunderx2_i2c_desc) },
 	{ "HISI02A1", APD_ADDR(hip07_i2c_desc) },
 	{ "HISI02A2", APD_ADDR(hip08_i2c_desc) },
+	{ "HISI02A3", APD_ADDR(hip08_lite_i2c_desc) },
 	{ "HISI0173", APD_ADDR(hip08_spi_desc) },
 	{ "NXP0001", APD_ADDR(nxp_i2c_desc) },
 #endif

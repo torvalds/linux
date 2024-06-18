@@ -21,9 +21,9 @@
 #include <linux/mutex.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
-#include <linux/gpio.h>
 #include <linux/platform_data/gpio-omap.h>
 #include <linux/platform_data/keypad-omap.h>
+#include <linux/soc/ti/omap1-io.h>
 
 #undef NEW_BOARD_LEARNING_MODE
 
@@ -46,10 +46,7 @@ struct omap_kp {
 	unsigned short keymap[];
 };
 
-static DECLARE_TASKLET_DISABLED(kp_tasklet, omap_kp_tasklet, 0);
-
-static unsigned int *row_gpios;
-static unsigned int *col_gpios;
+static DECLARE_TASKLET_DISABLED_OLD(kp_tasklet, omap_kp_tasklet);
 
 static irqreturn_t omap_kp_interrupt(int irq, void *dev_id)
 {
@@ -179,7 +176,7 @@ static int omap_kp_probe(struct platform_device *pdev)
 	struct omap_kp *omap_kp;
 	struct input_dev *input_dev;
 	struct omap_kp_platform_data *pdata = dev_get_platdata(&pdev->dev);
-	int i, col_idx, row_idx, ret;
+	int ret;
 	unsigned int row_shift, keycodemax;
 
 	if (!pdata->rows || !pdata->cols || !pdata->keymap_data) {
@@ -190,8 +187,7 @@ static int omap_kp_probe(struct platform_device *pdev)
 	row_shift = get_count_order(pdata->cols);
 	keycodemax = pdata->rows << row_shift;
 
-	omap_kp = kzalloc(sizeof(struct omap_kp) +
-			keycodemax * sizeof(unsigned short), GFP_KERNEL);
+	omap_kp = kzalloc(struct_size(omap_kp, keymap, keycodemax), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!omap_kp || !input_dev) {
 		kfree(omap_kp);
@@ -209,16 +205,8 @@ static int omap_kp_probe(struct platform_device *pdev)
 	if (pdata->delay)
 		omap_kp->delay = pdata->delay;
 
-	if (pdata->row_gpios && pdata->col_gpios) {
-		row_gpios = pdata->row_gpios;
-		col_gpios = pdata->col_gpios;
-	}
-
 	omap_kp->rows = pdata->rows;
 	omap_kp->cols = pdata->cols;
-
-	col_idx = 0;
-	row_idx = 0;
 
 	timer_setup(&omap_kp->timer, omap_kp_timer, 0);
 
@@ -276,18 +264,13 @@ err4:
 err3:
 	device_remove_file(&pdev->dev, &dev_attr_enable);
 err2:
-	for (i = row_idx - 1; i >= 0; i--)
-		gpio_free(row_gpios[i]);
-	for (i = col_idx - 1; i >= 0; i--)
-		gpio_free(col_gpios[i]);
-
 	kfree(omap_kp);
 	input_free_device(input_dev);
 
 	return -EINVAL;
 }
 
-static int omap_kp_remove(struct platform_device *pdev)
+static void omap_kp_remove(struct platform_device *pdev)
 {
 	struct omap_kp *omap_kp = platform_get_drvdata(pdev);
 
@@ -296,20 +279,18 @@ static int omap_kp_remove(struct platform_device *pdev)
 	omap_writew(1, OMAP1_MPUIO_BASE + OMAP_MPUIO_KBD_MASKIT);
 	free_irq(omap_kp->irq, omap_kp);
 
-	del_timer_sync(&omap_kp->timer);
+	timer_shutdown_sync(&omap_kp->timer);
 	tasklet_kill(&kp_tasklet);
 
 	/* unregister everything */
 	input_unregister_device(omap_kp->input);
 
 	kfree(omap_kp);
-
-	return 0;
 }
 
 static struct platform_driver omap_kp_driver = {
 	.probe		= omap_kp_probe,
-	.remove		= omap_kp_remove,
+	.remove_new	= omap_kp_remove,
 	.driver		= {
 		.name	= "omap-keypad",
 	},

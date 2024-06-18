@@ -43,7 +43,6 @@ extern int octeon_get_southbridge_interrupt(void);
 extern int octeon_get_boot_coremask(void);
 extern int octeon_get_boot_num_arguments(void);
 extern const char *octeon_get_boot_argument(int arg);
-extern void octeon_hal_setup_reserved32(void);
 extern void octeon_user_io_init(void);
 
 extern void octeon_init_cvmcount(void);
@@ -198,7 +197,7 @@ union octeon_cvmemctl {
 		 * CvmMemCtl[DIDTTO] */
 		__BITFIELD_FIELD(uint64_t didtto2:1,
 		/* R/W If set, marked write-buffer entries time out
-		 * the same as as other entries; if clear, marked
+		 * the same as other entries; if clear, marked
 		 * write-buffer entries use the maximum timeout. */
 		__BITFIELD_FIELD(uint64_t dismarkwblongto:1,
 		/* R/W If set, a merged store does not clear the
@@ -282,7 +281,6 @@ union octeon_cvmemctl {
 extern void octeon_check_cpu_bist(void);
 
 int octeon_prune_device_tree(void);
-extern const char __appended_dtb;
 extern const char __dtb_octeon_3xxx_begin;
 extern const char __dtb_octeon_68xx_begin;
 

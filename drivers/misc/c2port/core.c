@@ -899,7 +899,7 @@ struct c2port_device *c2port_device_register(char *name,
 		unlikely(!ops->c2d_get) || unlikely(!ops->c2d_set))
 		return ERR_PTR(-EINVAL);
 
-	c2dev = kmalloc(sizeof(struct c2port_device), GFP_KERNEL);
+	c2dev = kzalloc(sizeof(struct c2port_device), GFP_KERNEL);
 	if (unlikely(!c2dev))
 		return ERR_PTR(-ENOMEM);
 
@@ -923,7 +923,7 @@ struct c2port_device *c2port_device_register(char *name,
 	}
 	dev_set_drvdata(c2dev->dev, c2dev);
 
-	strncpy(c2dev->name, name, C2PORT_NAME_LEN);
+	strscpy(c2dev->name, name, sizeof(c2dev->name));
 	c2dev->ops = ops;
 	mutex_init(&c2dev->mutex);
 
@@ -977,7 +977,7 @@ static int __init c2port_init(void)
 	printk(KERN_INFO "Silicon Labs C2 port support v. " DRIVER_VERSION
 		" - (C) 2007 Rodolfo Giometti\n");
 
-	c2port_class = class_create(THIS_MODULE, "c2port");
+	c2port_class = class_create("c2port");
 	if (IS_ERR(c2port_class)) {
 		printk(KERN_ERR "c2port: failed to allocate class\n");
 		return PTR_ERR(c2port_class);

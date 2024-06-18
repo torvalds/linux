@@ -1,0 +1,190 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/nxp,pf8x00-regulator.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP PF8100/PF8121A/PF8200 PMIC regulators
+
+maintainers:
+  - Jagan Teki <jagan@amarulasolutions.com>
+  - Troy Kisky <troy.kisky@boundarydevices.com>
+
+description: |
+  PF8100/PF8121A/PF8200 is a PMIC designed for highperformance consumer
+  applications. It features seven high efficiency buck converters, four
+  linear and one vsnvs regulators. It has built-in one time programmable
+  fuse bank for device configurations.
+
+properties:
+  compatible:
+    enum:
+      - nxp,pf8100
+      - nxp,pf8121a
+      - nxp,pf8200
+
+  reg:
+    maxItems: 1
+
+  regulators:
+    type: object
+    description: |
+      list of regulators provided by this controller
+
+    patternProperties:
+      "^ldo[1-4]$":
+        type: object
+        $ref: regulator.yaml#
+        description:
+          Properties for single LDO regulator.
+
+        unevaluatedProperties: false
+
+      "^buck[1-7]$":
+        type: object
+        $ref: regulator.yaml#
+        description:
+          Properties for single BUCK regulator.
+
+        properties:
+          nxp,ilim-ma:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            minimum: 2100
+            maximum: 4500
+            deprecated: true
+            description:
+              BUCK regulators current limit in mA.
+              This property is deprecated, please use
+              "regulator-max-microamp" instead.
+
+              Listed current limits in mA are,
+              2100 (default)
+              2600
+              3000
+              4500
+
+          nxp,phase-shift:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            default: 0
+            enum: [ 0, 45, 90, 135, 180, 225, 270, 315 ]
+            description:
+              BUCK regulators phase shift control in degrees.
+
+        unevaluatedProperties: false
+
+    properties:
+      vsnvs:
+        type: object
+        $ref: regulator.yaml#
+        description:
+          Properties for single VSNVS regulator.
+
+        unevaluatedProperties: false
+
+    additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - regulators
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        pmic@8 {
+            compatible = "nxp,pf8100";
+            reg = <0x08>;
+
+            regulators {
+                reg_ldo1: ldo1 {
+                    regulator-always-on;
+                    regulator-boot-on;
+                    regulator-max-microvolt = <5000000>;
+                    regulator-min-microvolt = <1500000>;
+                };
+
+                reg_ldo2: ldo2 {
+                    regulator-always-on;
+                    regulator-boot-on;
+                    regulator-max-microvolt = <5000000>;
+                    regulator-min-microvolt = <1500000>;
+                };
+
+                reg_ldo3: ldo3 {
+                    regulator-always-on;
+                    regulator-boot-on;
+                    regulator-max-microvolt = <5000000>;
+                    regulator-min-microvolt = <1500000>;
+                };
+
+                reg_ldo4: ldo4 {
+                    regulator-always-on;
+                    regulator-boot-on;
+                    regulator-max-microvolt = <5000000>;
+                    regulator-min-microvolt = <1500000>;
+                };
+
+                reg_buck1: buck1 {
+                    nxp,ilim-ma = <4500>;
+                    regulator-always-on;
+                    regulator-boot-on;
+                    regulator-max-microvolt = <1800000>;
+                    regulator-min-microvolt =  <400000>;
+                };
+
+                reg_buck2: buck2 {
+                    regulator-always-on;
+                    regulator-boot-on;
+                    regulator-max-microvolt = <1800000>;
+                    regulator-min-microvolt =  <400000>;
+                };
+
+                reg_buck3: buck3 {
+                    regulator-always-on;
+                    regulator-boot-on;
+                    regulator-max-microvolt = <1800000>;
+                    regulator-min-microvolt =  <400000>;
+                };
+
+                reg_buck4: buck4 {
+                    regulator-always-on;
+                    regulator-boot-on;
+                    regulator-max-microvolt = <1800000>;
+                    regulator-min-microvolt =  <400000>;
+                };
+
+                reg_buck5: buck5 {
+                    regulator-always-on;
+                    regulator-boot-on;
+                    regulator-max-microvolt = <1800000>;
+                    regulator-min-microvolt =  <400000>;
+                };
+
+                reg_buck6: buck6 {
+                    regulator-always-on;
+                    regulator-boot-on;
+                    regulator-max-microvolt = <1800000>;
+                    regulator-min-microvolt =  <400000>;
+                };
+
+                reg_buck7: buck7 {
+                    regulator-always-on;
+                    regulator-boot-on;
+                    regulator-max-microvolt = <3300000>;
+                    regulator-min-microvolt = <3300000>;
+                };
+
+                reg_vsnvs: vsnvs {
+                    regulator-always-on;
+                    regulator-boot-on;
+                    regulator-max-microvolt = <3300000>;
+                    regulator-min-microvolt = <1800000>;
+                };
+            };
+        };
+    };

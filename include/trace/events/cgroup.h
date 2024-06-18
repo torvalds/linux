@@ -23,7 +23,7 @@ DECLARE_EVENT_CLASS(cgroup_root,
 	TP_fast_assign(
 		__entry->root = root->hierarchy_id;
 		__entry->ss_mask = root->subsys_mask;
-		__assign_str(name, root->name);
+		__assign_str(name);
 	),
 
 	TP_printk("root=%d ss_mask=%#x name=%s",
@@ -59,19 +59,19 @@ DECLARE_EVENT_CLASS(cgroup,
 
 	TP_STRUCT__entry(
 		__field(	int,		root			)
-		__field(	int,		id			)
 		__field(	int,		level			)
+		__field(	u64,		id			)
 		__string(	path,		path			)
 	),
 
 	TP_fast_assign(
 		__entry->root = cgrp->root->hierarchy_id;
-		__entry->id = cgrp->id;
+		__entry->id = cgroup_id(cgrp);
 		__entry->level = cgrp->level;
-		__assign_str(path, path);
+		__assign_str(path);
 	),
 
-	TP_printk("root=%d id=%d level=%d path=%s",
+	TP_printk("root=%d id=%llu level=%d path=%s",
 		  __entry->root, __entry->id, __entry->level, __get_str(path))
 );
 
@@ -126,8 +126,8 @@ DECLARE_EVENT_CLASS(cgroup_migrate,
 
 	TP_STRUCT__entry(
 		__field(	int,		dst_root		)
-		__field(	int,		dst_id			)
 		__field(	int,		dst_level		)
+		__field(	u64,		dst_id			)
 		__field(	int,		pid			)
 		__string(	dst_path,	path			)
 		__string(	comm,		task->comm		)
@@ -135,14 +135,14 @@ DECLARE_EVENT_CLASS(cgroup_migrate,
 
 	TP_fast_assign(
 		__entry->dst_root = dst_cgrp->root->hierarchy_id;
-		__entry->dst_id = dst_cgrp->id;
+		__entry->dst_id = cgroup_id(dst_cgrp);
 		__entry->dst_level = dst_cgrp->level;
-		__assign_str(dst_path, path);
+		__assign_str(dst_path);
 		__entry->pid = task->pid;
-		__assign_str(comm, task->comm);
+		__assign_str(comm);
 	),
 
-	TP_printk("dst_root=%d dst_id=%d dst_level=%d dst_path=%s pid=%d comm=%s",
+	TP_printk("dst_root=%d dst_id=%llu dst_level=%d dst_path=%s pid=%d comm=%s",
 		  __entry->dst_root, __entry->dst_id, __entry->dst_level,
 		  __get_str(dst_path), __entry->pid, __get_str(comm))
 );
@@ -171,21 +171,21 @@ DECLARE_EVENT_CLASS(cgroup_event,
 
 	TP_STRUCT__entry(
 		__field(	int,		root			)
-		__field(	int,		id			)
 		__field(	int,		level			)
+		__field(	u64,		id			)
 		__string(	path,		path			)
 		__field(	int,		val			)
 	),
 
 	TP_fast_assign(
 		__entry->root = cgrp->root->hierarchy_id;
-		__entry->id = cgrp->id;
+		__entry->id = cgroup_id(cgrp);
 		__entry->level = cgrp->level;
-		__assign_str(path, path);
+		__assign_str(path);
 		__entry->val = val;
 	),
 
-	TP_printk("root=%d id=%d level=%d path=%s val=%d",
+	TP_printk("root=%d id=%llu level=%d path=%s val=%d",
 		  __entry->root, __entry->id, __entry->level, __get_str(path),
 		  __entry->val)
 );
@@ -202,6 +202,98 @@ DEFINE_EVENT(cgroup_event, cgroup_notify_frozen,
 	TP_PROTO(struct cgroup *cgrp, const char *path, int val),
 
 	TP_ARGS(cgrp, path, val)
+);
+
+DECLARE_EVENT_CLASS(cgroup_rstat,
+
+	TP_PROTO(struct cgroup *cgrp, int cpu, bool contended),
+
+	TP_ARGS(cgrp, cpu, contended),
+
+	TP_STRUCT__entry(
+		__field(	int,		root			)
+		__field(	int,		level			)
+		__field(	u64,		id			)
+		__field(	int,		cpu			)
+		__field(	bool,		contended		)
+	),
+
+	TP_fast_assign(
+		__entry->root = cgrp->root->hierarchy_id;
+		__entry->id = cgroup_id(cgrp);
+		__entry->level = cgrp->level;
+		__entry->cpu = cpu;
+		__entry->contended = contended;
+	),
+
+	TP_printk("root=%d id=%llu level=%d cpu=%d lock contended:%d",
+		  __entry->root, __entry->id, __entry->level,
+		  __entry->cpu, __entry->contended)
+);
+
+/* Related to global: cgroup_rstat_lock */
+DEFINE_EVENT(cgroup_rstat, cgroup_rstat_lock_contended,
+
+	TP_PROTO(struct cgroup *cgrp, int cpu, bool contended),
+
+	TP_ARGS(cgrp, cpu, contended)
+);
+
+DEFINE_EVENT(cgroup_rstat, cgroup_rstat_locked,
+
+	TP_PROTO(struct cgroup *cgrp, int cpu, bool contended),
+
+	TP_ARGS(cgrp, cpu, contended)
+);
+
+DEFINE_EVENT(cgroup_rstat, cgroup_rstat_unlock,
+
+	TP_PROTO(struct cgroup *cgrp, int cpu, bool contended),
+
+	TP_ARGS(cgrp, cpu, contended)
+);
+
+/* Related to per CPU: cgroup_rstat_cpu_lock */
+DEFINE_EVENT(cgroup_rstat, cgroup_rstat_cpu_lock_contended,
+
+	TP_PROTO(struct cgroup *cgrp, int cpu, bool contended),
+
+	TP_ARGS(cgrp, cpu, contended)
+);
+
+DEFINE_EVENT(cgroup_rstat, cgroup_rstat_cpu_lock_contended_fastpath,
+
+	TP_PROTO(struct cgroup *cgrp, int cpu, bool contended),
+
+	TP_ARGS(cgrp, cpu, contended)
+);
+
+DEFINE_EVENT(cgroup_rstat, cgroup_rstat_cpu_locked,
+
+	TP_PROTO(struct cgroup *cgrp, int cpu, bool contended),
+
+	TP_ARGS(cgrp, cpu, contended)
+);
+
+DEFINE_EVENT(cgroup_rstat, cgroup_rstat_cpu_locked_fastpath,
+
+	TP_PROTO(struct cgroup *cgrp, int cpu, bool contended),
+
+	TP_ARGS(cgrp, cpu, contended)
+);
+
+DEFINE_EVENT(cgroup_rstat, cgroup_rstat_cpu_unlock,
+
+	TP_PROTO(struct cgroup *cgrp, int cpu, bool contended),
+
+	TP_ARGS(cgrp, cpu, contended)
+);
+
+DEFINE_EVENT(cgroup_rstat, cgroup_rstat_cpu_unlock_fastpath,
+
+	TP_PROTO(struct cgroup *cgrp, int cpu, bool contended),
+
+	TP_ARGS(cgrp, cpu, contended)
 );
 
 #endif /* _TRACE_CGROUP_H */

@@ -320,6 +320,16 @@ acpi_rs_get_aml_length(struct acpi_resource *resource,
 
 			break;
 
+		case ACPI_RESOURCE_TYPE_CLOCK_INPUT:
+
+			total_size = (acpi_rs_length)(total_size +
+						      resource->data.
+						      clock_input.
+						      resource_source.
+						      string_length);
+
+			break;
+
 		case ACPI_RESOURCE_TYPE_SERIAL_BUS:
 
 			total_size =
@@ -596,15 +606,23 @@ acpi_rs_get_list_length(u8 *aml_buffer,
 			}
 			break;
 
-		case ACPI_RESOURCE_NAME_SERIAL_BUS:
+		case ACPI_RESOURCE_NAME_SERIAL_BUS:{
 
-			minimum_aml_resource_length =
-			    acpi_gbl_resource_aml_serial_bus_sizes
-			    [aml_resource->common_serial_bus.type];
-			extra_struct_bytes +=
-			    aml_resource->common_serial_bus.resource_length -
-			    minimum_aml_resource_length;
-			break;
+				/* Avoid undefined behavior: member access within misaligned address */
+
+				struct aml_resource_common_serialbus
+				    common_serial_bus;
+				memcpy(&common_serial_bus, aml_resource,
+				       sizeof(common_serial_bus));
+
+				minimum_aml_resource_length =
+				    acpi_gbl_resource_aml_serial_bus_sizes
+				    [common_serial_bus.type];
+				extra_struct_bytes +=
+				    common_serial_bus.resource_length -
+				    minimum_aml_resource_length;
+				break;
+			}
 
 		case ACPI_RESOURCE_NAME_PIN_CONFIG:
 
@@ -650,6 +668,13 @@ acpi_rs_get_list_length(u8 *aml_buffer,
 
 			break;
 
+		case ACPI_RESOURCE_NAME_CLOCK_INPUT:
+			extra_struct_bytes =
+			    acpi_rs_stream_option_length(resource_length,
+							 minimum_aml_resource_length);
+
+			break;
+
 		default:
 
 			break;
@@ -663,10 +688,16 @@ acpi_rs_get_list_length(u8 *aml_buffer,
 		 */
 		if (acpi_ut_get_resource_type(aml_buffer) ==
 		    ACPI_RESOURCE_NAME_SERIAL_BUS) {
+
+			/* Avoid undefined behavior: member access within misaligned address */
+
+			struct aml_resource_common_serialbus common_serial_bus;
+			memcpy(&common_serial_bus, aml_resource,
+			       sizeof(common_serial_bus));
+
 			buffer_size =
 			    acpi_gbl_resource_struct_serial_bus_sizes
-			    [aml_resource->common_serial_bus.type] +
-			    extra_struct_bytes;
+			    [common_serial_bus.type] + extra_struct_bytes;
 		} else {
 			buffer_size =
 			    acpi_gbl_resource_struct_sizes[resource_index] +
@@ -677,10 +708,10 @@ acpi_rs_get_list_length(u8 *aml_buffer,
 		*size_needed += buffer_size;
 
 		ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES,
-				  "Type %.2X, AmlLength %.2X InternalLength %.2X\n",
+				  "Type %.2X, AmlLength %.2X InternalLength %.2X%8X\n",
 				  acpi_ut_get_resource_type(aml_buffer),
 				  acpi_ut_get_descriptor_length(aml_buffer),
-				  buffer_size));
+				  ACPI_FORMAT_UINT64(*size_needed)));
 
 		/*
 		 * Point to the next resource within the AML stream using the length

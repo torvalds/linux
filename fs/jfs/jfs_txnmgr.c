@@ -105,7 +105,7 @@ static DEFINE_SPINLOCK(jfsTxnLock);
 #define TXN_LOCK()		spin_lock(&jfsTxnLock)
 #define TXN_UNLOCK()		spin_unlock(&jfsTxnLock)
 
-#define LAZY_LOCK_INIT()	spin_lock_init(&TxAnchor.LazyLock);
+#define LAZY_LOCK_INIT()	spin_lock_init(&TxAnchor.LazyLock)
 #define LAZY_LOCK(flags)	spin_lock_irqsave(&TxAnchor.LazyLock, flags)
 #define LAZY_UNLOCK(flags) spin_unlock_irqrestore(&TxAnchor.LazyLock, flags)
 
@@ -148,10 +148,10 @@ static struct {
 /*
  * forward references
  */
-static int diLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
-		struct tlock * tlck, struct commit * cd);
-static int dataLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
-		struct tlock * tlck);
+static void diLog(struct jfs_log *log, struct tblock *tblk, struct lrd *lrd,
+		struct tlock *tlck, struct commit *cd);
+static void dataLog(struct jfs_log *log, struct tblock *tblk, struct lrd *lrd,
+		struct tlock *tlck);
 static void dtLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 		struct tlock * tlck);
 static void mapLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
@@ -159,8 +159,8 @@ static void mapLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 static void txAllocPMap(struct inode *ip, struct maplock * maplock,
 		struct tblock * tblk);
 static void txForce(struct tblock * tblk);
-static int txLog(struct jfs_log * log, struct tblock * tblk,
-		struct commit * cd);
+static void txLog(struct jfs_log *log, struct tblock *tblk,
+		struct commit *cd);
 static void txUpdateMap(struct tblock * tblk);
 static void txRelease(struct tblock * tblk);
 static void xtLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
@@ -353,6 +353,11 @@ tid_t txBegin(struct super_block *sb, int flag)
 
 	jfs_info("txBegin: flag = 0x%x", flag);
 	log = JFS_SBI(sb)->log;
+
+	if (!log) {
+		jfs_error(sb, "read-only filesystem\n");
+		return 0;
+	}
 
 	TXN_LOCK();
 
@@ -778,7 +783,7 @@ struct tlock *txLock(tid_t tid, struct inode *ip, struct metapage * mp,
 			if (mp->xflag & COMMIT_PAGE)
 				p = (xtpage_t *) mp->data;
 			else
-				p = &jfs_ip->i_xtroot;
+				p = (xtpage_t *) &jfs_ip->i_xtroot;
 			xtlck->lwm.offset =
 			    le16_to_cpu(p->header.nextindex);
 		}
@@ -1256,8 +1261,7 @@ int txCommit(tid_t tid,		/* transaction identifier */
 	 *
 	 * txUpdateMap() resets XAD_NEW in XAD.
 	 */
-	if ((rc = txLog(log, tblk, &cd)))
-		goto TheEnd;
+	txLog(log, tblk, &cd);
 
 	/*
 	 * Ensure that inode isn't reused before
@@ -1365,9 +1369,8 @@ int txCommit(tid_t tid,		/* transaction identifier */
  *
  * RETURN :
  */
-static int txLog(struct jfs_log * log, struct tblock * tblk, struct commit * cd)
+static void txLog(struct jfs_log *log, struct tblock *tblk, struct commit *cd)
 {
-	int rc = 0;
 	struct inode *ip;
 	lid_t lid;
 	struct tlock *tlck;
@@ -1414,7 +1417,7 @@ static int txLog(struct jfs_log * log, struct tblock * tblk, struct commit * cd)
 		}
 	}
 
-	return rc;
+	return;
 }
 
 /*
@@ -1422,10 +1425,9 @@ static int txLog(struct jfs_log * log, struct tblock * tblk, struct commit * cd)
  *
  * function:	log inode tlock and format maplock to update bmap;
  */
-static int diLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
-		 struct tlock * tlck, struct commit * cd)
+static void diLog(struct jfs_log *log, struct tblock *tblk, struct lrd *lrd,
+		 struct tlock *tlck, struct commit *cd)
 {
-	int rc = 0;
 	struct metapage *mp;
 	pxd_t *pxd;
 	struct pxd_lock *pxdlock;
@@ -1474,7 +1476,7 @@ static int diLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 		 * For the LOG_NOREDOINOEXT record, we need
 		 * to pass the IAG number and inode extent
 		 * index (within that IAG) from which the
-		 * the extent being released.  These have been
+		 * extent is being released.  These have been
 		 * passed to us in the iplist[1] and iplist[2].
 		 */
 		lrd->log.noredoinoext.iagnum =
@@ -1493,41 +1495,7 @@ static int diLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 		tlck->flag |= tlckWRITEPAGE;
 	} else
 		jfs_err("diLog: UFO type tlck:0x%p", tlck);
-#ifdef  _JFS_WIP
-	/*
-	 *	alloc/free external EA extent
-	 *
-	 * a maplock for txUpdateMap() to update bPWMAP for alloc/free
-	 * of the extent has been formatted at txLock() time;
-	 */
-	else {
-		assert(tlck->type & tlckEA);
-
-		/* log LOG_UPDATEMAP for logredo() to update bmap for
-		 * alloc of new (and free of old) external EA extent;
-		 */
-		lrd->type = cpu_to_le16(LOG_UPDATEMAP);
-		pxdlock = (struct pxd_lock *) & tlck->lock;
-		nlock = pxdlock->index;
-		for (i = 0; i < nlock; i++, pxdlock++) {
-			if (pxdlock->flag & mlckALLOCPXD)
-				lrd->log.updatemap.type =
-				    cpu_to_le16(LOG_ALLOCPXD);
-			else
-				lrd->log.updatemap.type =
-				    cpu_to_le16(LOG_FREEPXD);
-			lrd->log.updatemap.nxd = cpu_to_le16(1);
-			lrd->log.updatemap.pxd = pxdlock->pxd;
-			lrd->backchain =
-			    cpu_to_le32(lmLog(log, tblk, lrd, NULL));
-		}
-
-		/* update bmap */
-		tlck->flag |= tlckUPDATEMAP;
-	}
-#endif				/* _JFS_WIP */
-
-	return rc;
+	return;
 }
 
 /*
@@ -1535,8 +1503,8 @@ static int diLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
  *
  * function:	log data tlock
  */
-static int dataLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
-	    struct tlock * tlck)
+static void dataLog(struct jfs_log *log, struct tblock *tblk, struct lrd *lrd,
+	    struct tlock *tlck)
 {
 	struct metapage *mp;
 	pxd_t *pxd;
@@ -1562,7 +1530,7 @@ static int dataLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 		metapage_homeok(mp);
 		discard_metapage(mp);
 		tlck->mp = NULL;
-		return 0;
+		return;
 	}
 
 	PXDaddress(pxd, mp->index);
@@ -1573,7 +1541,7 @@ static int dataLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 	/* mark page as homeward bound */
 	tlck->flag |= tlckWRITEPAGE;
 
-	return 0;
+	return;
 }
 
 /*
@@ -1708,7 +1676,7 @@ static void xtLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 
 	if (tlck->type & tlckBTROOT) {
 		lrd->log.redopage.type |= cpu_to_le16(LOG_BTROOT);
-		p = &JFS_IP(ip)->i_xtroot;
+		p = (xtpage_t *) &JFS_IP(ip)->i_xtroot;
 		if (S_ISDIR(ip->i_mode))
 			lrd->log.redopage.type |=
 			    cpu_to_le16(LOG_DIR_XTREE);
@@ -2734,6 +2702,7 @@ int jfs_lazycommit(void *arg)
 	unsigned long flags;
 	struct jfs_sb_info *sbi;
 
+	set_freezable();
 	do {
 		LAZY_LOCK(flags);
 		jfs_commit_thread_waking = 0;	/* OK to wake another thread */
@@ -2916,6 +2885,7 @@ int jfs_sync(void *arg)
 	struct jfs_inode_info *jfs_ip;
 	tid_t tid;
 
+	set_freezable();
 	do {
 		/*
 		 * write each inode on the anonymous inode list

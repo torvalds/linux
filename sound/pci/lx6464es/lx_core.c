@@ -161,7 +161,7 @@ struct dsp_cmd_info {
     the number of status words (in addition to the return value)
 */
 
-static struct dsp_cmd_info dsp_commands[] =
+static const struct dsp_cmd_info dsp_commands[] =
 {
 	{ (CMD_00_INFO_DEBUG << OPCODE_OFFSET)			, 1 /*custom*/
 	  , 1	, 0 /**/		    , CMD_NAME("INFO_DEBUG") },
@@ -493,12 +493,11 @@ int lx_buffer_ask(struct lx6464es *chip, u32 pipe, int is_capture,
 		dev_dbg(chip->card->dev,
 			"CMD_08_ASK_BUFFERS: needed %d, freed %d\n",
 			    *r_needed, *r_freed);
-		for (i = 0; i < MAX_STREAM_BUFFER; ++i) {
-			for (i = 0; i != chip->rmh.stat_len; ++i)
-				dev_dbg(chip->card->dev,
-					"  stat[%d]: %x, %x\n", i,
-					    chip->rmh.stat[i],
-					    chip->rmh.stat[i] & MASK_DATA_SIZE);
+		for (i = 0; i < MAX_STREAM_BUFFER && i < chip->rmh.stat_len;
+		     ++i) {
+			dev_dbg(chip->card->dev, "  stat[%d]: %x, %x\n", i,
+				chip->rmh.stat[i],
+				chip->rmh.stat[i] & MASK_DATA_SIZE);
 		}
 	}
 
@@ -673,10 +672,6 @@ int lx_stream_set_format(struct lx6464es *chip, struct snd_pcm_runtime *runtime,
 	int err;
 	u32 pipe_cmd = PIPE_INFO_TO_CMD(is_capture, pipe);
 	u32 channels = runtime->channels;
-
-	if (runtime->channels != channels)
-		dev_err(chip->card->dev, "channel count mismatch: %d vs %d",
-			   runtime->channels, channels);
 
 	mutex_lock(&chip->msg_lock);
 	lx_message_init(&chip->rmh, CMD_0C_DEF_STREAM);
@@ -858,7 +853,7 @@ int lx_level_unmute(struct lx6464es *chip, int is_capture, int unmute)
 	return err;
 }
 
-static u32 peak_map[] = {
+static const u32 peak_map[] = {
 	0x00000109, /* -90.308dB */
 	0x0000083B, /* -72.247dB */
 	0x000020C4, /* -60.205dB */

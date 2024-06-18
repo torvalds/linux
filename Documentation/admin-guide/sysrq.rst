@@ -48,9 +48,10 @@ always allowed (by a user with admin privileges).
 How do I use the magic SysRq key?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-On x86   - You press the key combo :kbd:`ALT-SysRq-<command key>`.
+On x86
+	You press the key combo :kbd:`ALT-SysRq-<command key>`.
 
-.. note::
+	.. note::
 	   Some
            keyboards may not have a key labeled 'SysRq'. The 'SysRq' key is
            also known as the 'Print Screen' key. Also some keyboards cannot
@@ -58,24 +59,36 @@ On x86   - You press the key combo :kbd:`ALT-SysRq-<command key>`.
 	   have better luck with press :kbd:`Alt`, press :kbd:`SysRq`,
 	   release :kbd:`SysRq`, press :kbd:`<command key>`, release everything.
 
-On SPARC - You press :kbd:`ALT-STOP-<command key>`, I believe.
+On SPARC
+	You press :kbd:`ALT-STOP-<command key>`, I believe.
 
 On the serial console (PC style standard serial ports only)
         You send a ``BREAK``, then within 5 seconds a command key. Sending
         ``BREAK`` twice is interpreted as a normal BREAK.
 
 On PowerPC
-	Press :kbd:`ALT - Print Screen` (or :kbd:`F13`) - :kbd:`<command key>`,
+	Press :kbd:`ALT - Print Screen` (or :kbd:`F13`) - :kbd:`<command key>`.
         :kbd:`Print Screen` (or :kbd:`F13`) - :kbd:`<command key>` may suffice.
 
 On other
 	If you know of the key combos for other architectures, please
-        let me know so I can add them to this section.
+	submit a patch to be included in this section.
 
 On all
-	write a character to /proc/sysrq-trigger.  e.g.::
+	Write a single character to /proc/sysrq-trigger.
+	Only the first character is processed, the rest of the string is
+	ignored. However, it is not recommended to write any extra characters
+	as the behavior is undefined and might change in the future versions.
+	E.g.::
 
 		echo t > /proc/sysrq-trigger
+
+	Alternatively, write multiple characters prepended by underscore.
+	This way, all characters will be processed. E.g.::
+
+		echo _reisub > /proc/sysrq-trigger
+
+The :kbd:`<command key>` is case sensitive.
 
 What are the 'command' keys?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -86,8 +99,8 @@ Command	    Function
 ``b``	    Will immediately reboot the system without syncing or unmounting
             your disks.
 
-``c``	    Will perform a system crash by a NULL pointer dereference.
-            A crashdump will be taken if configured.
+``c``	    Will perform a system crash and a crashdump will be taken
+            if configured.
 
 ``d``	    Shows all locks that are held.
 
@@ -134,7 +147,7 @@ Command	    Function
 ``v``	    Forcefully restores framebuffer console
 ``v``	    Causes ETM buffer dump [ARM-specific]
 
-``w``	    Dumps tasks that are in uninterruptable (blocked) state.
+``w``	    Dumps tasks that are in uninterruptible (blocked) state.
 
 ``x``	    Used by xmon interface on ppc/powerpc platforms.
             Show global PMU Registers on sparc64.
@@ -148,6 +161,8 @@ Command	    Function
             will be printed to your console. (``0``, for example would make
             it so that only emergency messages like PANICs or OOPSes would
             make it to your console.)
+
+``R``	    Replay the kernel log messages on consoles.
 =========== ===================================================================
 
 Okay, so what can I use them for?
@@ -198,13 +213,22 @@ processes.
 "just thaw ``it(j)``" is useful if your system becomes unresponsive due to a
 frozen (probably root) filesystem via the FIFREEZE ioctl.
 
+``Replay logs(R)`` is useful to view the kernel log messages when system is hung
+or you are not able to use dmesg command to view the messages in printk buffer.
+User may have to press the key combination multiple times if console system is
+busy. If it is completely locked up, then messages won't be printed. Output
+messages depend on current console loglevel, which can be modified using
+sysrq[0-9] (see above).
+
 Sometimes SysRq seems to get 'stuck' after using it, what can I do?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-That happens to me, also. I've found that tapping shift, alt, and control
-on both sides of the keyboard, and hitting an invalid sysrq sequence again
-will fix the problem. (i.e., something like :kbd:`alt-sysrq-z`). Switching to
-another virtual console (:kbd:`ALT+Fn`) and then back again should also help.
+When this happens, try tapping shift, alt and control on both sides of the
+keyboard, and hitting an invalid sysrq sequence again. (i.e., something like
+:kbd:`alt-sysrq-z`).
+
+Switching to another virtual console (:kbd:`ALT+Fn`) and then back again
+should also help.
 
 I hit SysRq, but nothing seems to happen, what's wrong?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -229,13 +253,13 @@ prints help, and C) an action_msg string, that will print right before your
 handler is called. Your handler must conform to the prototype in 'sysrq.h'.
 
 After the ``sysrq_key_op`` is created, you can call the kernel function
-``register_sysrq_key(int key, struct sysrq_key_op *op_p);`` this will
+``register_sysrq_key(int key, const struct sysrq_key_op *op_p);`` this will
 register the operation pointed to by ``op_p`` at table key 'key',
 if that slot in the table is blank. At module unload time, you must call
-the function ``unregister_sysrq_key(int key, struct sysrq_key_op *op_p)``, which
-will remove the key op pointed to by 'op_p' from the key 'key', if and only if
-it is currently registered in that slot. This is in case the slot has been
-overwritten since you registered it.
+the function ``unregister_sysrq_key(int key, const struct sysrq_key_op *op_p)``,
+which will remove the key op pointed to by 'op_p' from the key 'key', if and
+only if it is currently registered in that slot. This is in case the slot has
+been overwritten since you registered it.
 
 The Magic SysRQ system works by registering key operations against a key op
 lookup table, which is defined in 'drivers/tty/sysrq.c'. This key table has
@@ -282,7 +306,7 @@ Just ask them on the linux-kernel mailing list:
 Credits
 ~~~~~~~
 
-Written by Mydraal <vulpyne@vulpyne.net>
-Updated by Adam Sulmicki <adam@cfar.umd.edu>
-Updated by Jeremy M. Dolan <jmd@turbogeek.org> 2001/01/28 10:15:59
-Added to by Crutcher Dunnavant <crutcher+kernel@datastacks.com>
+- Written by Mydraal <vulpyne@vulpyne.net>
+- Updated by Adam Sulmicki <adam@cfar.umd.edu>
+- Updated by Jeremy M. Dolan <jmd@turbogeek.org> 2001/01/28 10:15:59
+- Added to by Crutcher Dunnavant <crutcher+kernel@datastacks.com>

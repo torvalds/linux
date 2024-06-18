@@ -145,7 +145,9 @@
 /*
  * Flags for sja1000priv.flags
  */
-#define SJA1000_CUSTOM_IRQ_HANDLER 0x1
+#define SJA1000_CUSTOM_IRQ_HANDLER	BIT(0)
+#define SJA1000_QUIRK_NO_CDR_REG	BIT(1)
+#define SJA1000_QUIRK_RESET_ON_OVERRUN	BIT(2)
 
 /*
  * SJA1000 private data structure

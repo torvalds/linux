@@ -3,6 +3,7 @@
  * Copyright (c) 2004-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2012 Qualcomm Atheros, Inc.
  * Copyright (c) 2016-2017 Erik Stromdahl <erik.stromdahl@gmail.com>
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _USB_H_
@@ -26,7 +27,7 @@
 #define ATH10K_USB_EP_ADDR_APP_DATA_MP_OUT      0x03
 #define ATH10K_USB_EP_ADDR_APP_DATA_HP_OUT      0x04
 
-/* diagnostic command defnitions */
+/* diagnostic command definitions */
 #define ATH10K_USB_CONTROL_REQ_SEND_BMI_CMD        1
 #define ATH10K_USB_CONTROL_REQ_RECV_BMI_RESP       2
 #define ATH10K_USB_CONTROL_REQ_DIAG_CMD            3

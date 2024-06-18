@@ -203,12 +203,15 @@ Deadline Task Scheduling
   - Total bandwidth (this_bw): this is the sum of all tasks "belonging" to the
     runqueue, including the tasks in Inactive state.
 
+  - Maximum usable bandwidth (max_bw): This is the maximum bandwidth usable by
+    deadline tasks and is currently set to the RT capacity.
+
 
  The algorithm reclaims the bandwidth of the tasks in Inactive state.
  It does so by decrementing the runtime of the executing task Ti at a pace equal
  to
 
-           dq = -max{ Ui / Umax, (1 - Uinact - Uextra) } dt
+           dq = -(max{ Ui, (Umax - Uinact - Uextra) } / Umax) dt
 
  where:
 
@@ -707,7 +710,7 @@ Deadline Task Scheduling
     and how to prevent non-root users "cheat" the system?
 
  As already discussed, we are planning also to merge this work with the EDF
- throttling patches [https://lkml.org/lkml/2010/2/23/239] but we still are in
+ throttling patches [https://lore.kernel.org/r/cover.1266931410.git.fabio@helm.retis] but we still are in
  the preliminary phases of the merge and we really seek feedback that would
  help us decide on the direction it should take.
 

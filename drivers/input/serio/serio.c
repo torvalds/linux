@@ -7,9 +7,6 @@
  *  Copyright (c) 2003 Daniele Bellucci
  */
 
-/*
- */
-
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/stddef.h>
@@ -778,12 +775,11 @@ static int serio_driver_probe(struct device *dev)
 	return serio_connect_driver(serio, drv);
 }
 
-static int serio_driver_remove(struct device *dev)
+static void serio_driver_remove(struct device *dev)
 {
 	struct serio *serio = to_serio_port(dev);
 
 	serio_disconnect_driver(serio);
-	return 0;
 }
 
 static void serio_cleanup(struct serio *serio)
@@ -899,9 +895,9 @@ static int serio_bus_match(struct device *dev, struct device_driver *drv)
 			return err;					\
 	} while (0)
 
-static int serio_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int serio_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct serio *serio;
+	const struct serio *serio;
 
 	if (!dev)
 		return -ENODEV;
@@ -1011,7 +1007,7 @@ irqreturn_t serio_interrupt(struct serio *serio,
 }
 EXPORT_SYMBOL(serio_interrupt);
 
-struct bus_type serio_bus = {
+const struct bus_type serio_bus = {
 	.name		= "serio",
 	.drv_groups	= serio_driver_groups,
 	.match		= serio_bus_match,

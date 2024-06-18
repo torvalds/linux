@@ -25,11 +25,12 @@ include $(srctree)/tools/build/Makefile.include
 #
 # We need the following to be outside of kernel tree
 #
-$(OUTPUT)include/linux/spi/spidev.h: ../../include/uapi/linux/spi/spidev.h
+$(OUTPUT)include/linux/spi: ../../include/uapi/linux/spi
 	mkdir -p $(OUTPUT)include/linux/spi 2>&1 || true
 	ln -sf $(CURDIR)/../../include/uapi/linux/spi/spidev.h $@
+	ln -sf $(CURDIR)/../../include/uapi/linux/spi/spi.h $@
 
-prepare: $(OUTPUT)include/linux/spi/spidev.h
+prepare: $(OUTPUT)include/linux/spi
 
 #
 # spidev_test
@@ -51,8 +52,10 @@ $(OUTPUT)spidev_fdx: $(SPIDEV_FDX_IN)
 
 clean:
 	rm -f $(ALL_PROGRAMS)
-	rm -f $(OUTPUT)include/linux/spi/spidev.h
-	find $(if $(OUTPUT),$(OUTPUT),.) -name '*.o' -delete -o -name '\.*.d' -delete
+	rm -rf $(OUTPUT)include/
+	find $(or $(OUTPUT),.) -name '*.o' -delete
+	find $(or $(OUTPUT),.) -name '\.*.o.d' -delete
+	find $(or $(OUTPUT),.) -name '\.*.o.cmd' -delete
 
 install: $(ALL_PROGRAMS)
 	install -d -m 755 $(DESTDIR)$(bindir);		\

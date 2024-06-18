@@ -24,6 +24,7 @@
 #include <linux/of.h>
 #include <linux/clk-provider.h>
 #include <linux/of_address.h>
+#include <linux/slab.h>
 
 #include <asm/timex.h>
 #include <asm/processor.h>
@@ -32,45 +33,32 @@
 #include <platform/lcd.h>
 #include <platform/hardware.h>
 
-void platform_halt(void)
-{
-	lcd_disp_at_pos(" HALT ", 0);
-	local_irq_disable();
-	while (1)
-		cpu_relax();
-}
-
-void platform_power_off(void)
+static int xtfpga_power_off(struct sys_off_data *unused)
 {
 	lcd_disp_at_pos("POWEROFF", 0);
 	local_irq_disable();
 	while (1)
 		cpu_relax();
+	return NOTIFY_DONE;
 }
 
-void platform_restart(void)
+static int xtfpga_restart(struct notifier_block *this,
+			  unsigned long event, void *ptr)
 {
-	/* Flush and reset the mmu, simulate a processor reset, and
-	 * jump to the reset vector. */
+	/* Try software reset first. */
+	WRITE_ONCE(*(u32 *)XTFPGA_SWRST_VADDR, 0xdead);
+
+	/* If software reset did not work, flush and reset the mmu,
+	 * simulate a processor reset, and jump to the reset vector.
+	 */
 	cpu_reset();
-	/* control never gets here */
+
+	return NOTIFY_DONE;
 }
 
-void __init platform_setup(char **cmdline)
-{
-}
-
-/* early initialization */
-
-void __init platform_init(bp_tag_t *first)
-{
-}
-
-/* Heartbeat. */
-
-void platform_heartbeat(void)
-{
-}
+static struct notifier_block xtfpga_restart_block = {
+	.notifier_call = xtfpga_restart,
+};
 
 #ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT
 
@@ -81,7 +69,15 @@ void __init platform_calibrate_ccount(void)
 
 #endif
 
-#ifdef CONFIG_OF
+static void __init xtfpga_register_handlers(void)
+{
+	register_restart_handler(&xtfpga_restart_block);
+	register_sys_off_handler(SYS_OFF_MODE_POWER_OFF,
+				 SYS_OFF_PRIO_DEFAULT,
+				 xtfpga_power_off, NULL);
+}
+
+#ifdef CONFIG_USE_OF
 
 static void __init xtfpga_clk_setup(struct device_node *np)
 {
@@ -144,6 +140,10 @@ static int __init machine_setup(void)
 
 	if ((eth = of_find_compatible_node(eth, NULL, "opencores,ethoc")))
 		update_local_mac(eth);
+	of_node_put(eth);
+
+	xtfpga_register_handlers();
+
 	return 0;
 }
 arch_initcall(machine_setup);
@@ -291,6 +291,8 @@ static int __init xtavnet_init(void)
 	pr_info("XTFPGA: Ethernet MAC %pM\n", ethoc_pdata.hwaddr);
 	ethoc_pdata.eth_clkfreq = *(long *)XTFPGA_CLKFRQ_VADDR;
 
+	xtfpga_register_handlers();
+
 	return 0;
 }
 
@@ -299,4 +301,4 @@ static int __init xtavnet_init(void)
  */
 arch_initcall(xtavnet_init);
 
-#endif /* CONFIG_OF */
+#endif /* CONFIG_USE_OF */

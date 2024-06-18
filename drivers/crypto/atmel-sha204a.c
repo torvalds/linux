@@ -91,13 +91,68 @@ static int atmel_sha204a_rng_read(struct hwrng *rng, void *data, size_t max,
 	return max;
 }
 
-static int atmel_sha204a_probe(struct i2c_client *client,
-			       const struct i2c_device_id *id)
+static int atmel_sha204a_otp_read(struct i2c_client *client, u16 addr, u8 *otp)
+{
+	struct atmel_i2c_cmd cmd;
+	int ret = -1;
+
+	if (atmel_i2c_init_read_otp_cmd(&cmd, addr) < 0) {
+		dev_err(&client->dev, "failed, invalid otp address %04X\n",
+			addr);
+		return ret;
+	}
+
+	ret = atmel_i2c_send_receive(client, &cmd);
+
+	if (cmd.data[0] == 0xff) {
+		dev_err(&client->dev, "failed, device not ready\n");
+		return -ret;
+	}
+
+	memcpy(otp, cmd.data+1, 4);
+
+	return ret;
+}
+
+static ssize_t otp_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	u16 addr;
+	u8 otp[OTP_ZONE_SIZE];
+	char *str = buf;
+	struct i2c_client *client = to_i2c_client(dev);
+	int i;
+
+	for (addr = 0; addr < OTP_ZONE_SIZE/4; addr++) {
+		if (atmel_sha204a_otp_read(client, addr, otp + addr * 4) < 0) {
+			dev_err(dev, "failed to read otp zone\n");
+			break;
+		}
+	}
+
+	for (i = 0; i < addr*2; i++)
+		str += sprintf(str, "%02X", otp[i]);
+	str += sprintf(str, "\n");
+	return str - buf;
+}
+static DEVICE_ATTR_RO(otp);
+
+static struct attribute *atmel_sha204a_attrs[] = {
+	&dev_attr_otp.attr,
+	NULL
+};
+
+static const struct attribute_group atmel_sha204a_groups = {
+	.name = "atsha204a",
+	.attrs = atmel_sha204a_attrs,
+};
+
+static int atmel_sha204a_probe(struct i2c_client *client)
 {
 	struct atmel_i2c_client_priv *i2c_priv;
 	int ret;
 
-	ret = atmel_i2c_probe(client, id);
+	ret = atmel_i2c_probe(client);
 	if (ret)
 		return ret;
 
@@ -107,37 +162,47 @@ static int atmel_sha204a_probe(struct i2c_client *client,
 
 	i2c_priv->hwrng.name = dev_name(&client->dev);
 	i2c_priv->hwrng.read = atmel_sha204a_rng_read;
-	i2c_priv->hwrng.quality = 1024;
 
 	ret = devm_hwrng_register(&client->dev, &i2c_priv->hwrng);
 	if (ret)
 		dev_warn(&client->dev, "failed to register RNG (%d)\n", ret);
 
+	/* otp read out */
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
+		return -ENODEV;
+
+	ret = sysfs_create_group(&client->dev.kobj, &atmel_sha204a_groups);
+	if (ret) {
+		dev_err(&client->dev, "failed to register sysfs entry\n");
+		return ret;
+	}
+
 	return ret;
 }
 
-static int atmel_sha204a_remove(struct i2c_client *client)
+static void atmel_sha204a_remove(struct i2c_client *client)
 {
 	struct atmel_i2c_client_priv *i2c_priv = i2c_get_clientdata(client);
 
 	if (atomic_read(&i2c_priv->tfm_count)) {
-		dev_err(&client->dev, "Device is busy\n");
-		return -EBUSY;
+		dev_emerg(&client->dev, "Device is busy, will remove it anyhow\n");
+		return;
 	}
 
-	if (i2c_priv->hwrng.priv)
-		kfree((void *)i2c_priv->hwrng.priv);
+	sysfs_remove_group(&client->dev.kobj, &atmel_sha204a_groups);
 
-	return 0;
+	kfree((void *)i2c_priv->hwrng.priv);
 }
 
-static const struct of_device_id atmel_sha204a_dt_ids[] = {
+static const struct of_device_id atmel_sha204a_dt_ids[] __maybe_unused = {
+	{ .compatible = "atmel,atsha204", },
 	{ .compatible = "atmel,atsha204a", },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, atmel_sha204a_dt_ids);
 
 static const struct i2c_device_id atmel_sha204a_id[] = {
+	{ "atsha204", 0 },
 	{ "atsha204a", 0 },
 	{ /* sentinel */ }
 };
@@ -159,7 +224,7 @@ static int __init atmel_sha204a_init(void)
 
 static void __exit atmel_sha204a_exit(void)
 {
-	flush_scheduled_work();
+	atmel_i2c_flush_queue();
 	i2c_del_driver(&atmel_sha204a_driver);
 }
 

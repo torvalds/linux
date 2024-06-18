@@ -6,7 +6,7 @@
  * Copyright (c) 2007 SUSE Linux Products GmbH
  * Copyright (c) 2007 Tejun Heo <teheo@suse.de>
  *
- * Please see Documentation/filesystems/sysfs.txt for more information.
+ * Please see Documentation/filesystems/sysfs.rst for more information.
  */
 
 #define pr_fmt(fmt)	"sysfs: " fmt
@@ -56,8 +56,7 @@ int sysfs_create_dir_ns(struct kobject *kobj, const void *ns)
 
 	kobject_get_ownership(kobj, &uid, &gid);
 
-	kn = kernfs_create_dir_ns(parent, kobject_name(kobj),
-				  S_IRWXU | S_IRUGO | S_IXUGO, uid, gid,
+	kn = kernfs_create_dir_ns(parent, kobject_name(kobj), 0755, uid, gid,
 				  kobj, ns);
 	if (IS_ERR(kn)) {
 		if (PTR_ERR(kn) == -EEXIST)
@@ -82,7 +81,7 @@ void sysfs_remove_dir(struct kobject *kobj)
 	struct kernfs_node *kn = kobj->sd;
 
 	/*
-	 * In general, kboject owner is responsible for ensuring removal
+	 * In general, kobject owner is responsible for ensuring removal
 	 * doesn't race with other operations and sysfs doesn't provide any
 	 * protection; however, when @kobj is used as a symlink target, the
 	 * symlinking entity usually doesn't own @kobj and thus has no

@@ -12,6 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/ratelimit.h>
 #include <linux/irq.h>
+#include <linux/sched/isolation.h>
 
 #include "internals.h"
 
@@ -69,6 +70,14 @@ static bool migrate_one_irq(struct irq_desc *desc)
 	}
 
 	/*
+	 * Complete an eventually pending irq move cleanup. If this
+	 * interrupt was moved in hard irq context, then the vectors need
+	 * to be cleaned up. It can't wait until this interrupt actually
+	 * happens and this CPU was involved.
+	 */
+	irq_force_complete_move(desc);
+
+	/*
 	 * No move required, if:
 	 * - Interrupt is per cpu
 	 * - Interrupt is not started
@@ -85,14 +94,6 @@ static bool migrate_one_irq(struct irq_desc *desc)
 		irq_fixup_move_pending(desc, false);
 		return false;
 	}
-
-	/*
-	 * Complete an eventually pending irq move cleanup. If this
-	 * interrupt was moved in hard irq context, then the vectors need
-	 * to be cleaned up. It can't wait until this interrupt actually
-	 * happens and this CPU was involved.
-	 */
-	irq_force_complete_move(desc);
 
 	/*
 	 * If there is a setaffinity pending, then try to reuse the pending
@@ -129,6 +130,22 @@ static bool migrate_one_irq(struct irq_desc *desc)
 	 * CPU.
 	 */
 	err = irq_do_set_affinity(d, affinity, false);
+
+	/*
+	 * If there are online CPUs in the affinity mask, but they have no
+	 * vectors left to make the migration work, try to break the
+	 * affinity by migrating to any online CPU.
+	 */
+	if (err == -ENOSPC && !irqd_affinity_is_managed(d) && affinity != cpu_online_mask) {
+		pr_debug("IRQ%u: set affinity failed for %*pbl, re-try with online CPUs\n",
+			 d->irq, cpumask_pr_args(affinity));
+
+		affinity = cpu_online_mask;
+		brokeaff = true;
+
+		err = irq_do_set_affinity(d, affinity, false);
+	}
+
 	if (err) {
 		pr_warn_ratelimited("IRQ%u: set affinity failed(%d).\n",
 				    d->irq, err);
@@ -165,10 +182,24 @@ void irq_migrate_all_off_this_cpu(void)
 		raw_spin_unlock(&desc->lock);
 
 		if (affinity_broken) {
-			pr_warn_ratelimited("IRQ %u: no longer affine to CPU%u\n",
+			pr_debug_ratelimited("IRQ %u: no longer affine to CPU%u\n",
 					    irq, smp_processor_id());
 		}
 	}
+}
+
+static bool hk_should_isolate(struct irq_data *data, unsigned int cpu)
+{
+	const struct cpumask *hk_mask;
+
+	if (!housekeeping_enabled(HK_TYPE_MANAGED_IRQ))
+		return false;
+
+	hk_mask = housekeeping_cpumask(HK_TYPE_MANAGED_IRQ);
+	if (cpumask_subset(irq_data_get_effective_affinity_mask(data), hk_mask))
+		return false;
+
+	return cpumask_test_cpu(cpu, hk_mask);
 }
 
 static void irq_restore_affinity_of_irq(struct irq_desc *desc, unsigned int cpu)
@@ -180,17 +211,24 @@ static void irq_restore_affinity_of_irq(struct irq_desc *desc, unsigned int cpu)
 	    !irq_data_get_irq_chip(data) || !cpumask_test_cpu(cpu, affinity))
 		return;
 
-	if (irqd_is_managed_and_shutdown(data)) {
-		irq_startup(desc, IRQ_RESEND, IRQ_START_COND);
+	/*
+	 * Don't restore suspended interrupts here when a system comes back
+	 * from S3. They are reenabled via resume_device_irqs().
+	 */
+	if (desc->istate & IRQS_SUSPENDED)
 		return;
-	}
+
+	if (irqd_is_managed_and_shutdown(data))
+		irq_startup(desc, IRQ_RESEND, IRQ_START_COND);
 
 	/*
 	 * If the interrupt can only be directed to a single target
 	 * CPU then it is already assigned to a CPU in the affinity
-	 * mask. No point in trying to move it around.
+	 * mask. No point in trying to move it around unless the
+	 * isolation mechanism requests to move it to an upcoming
+	 * housekeeping CPU.
 	 */
-	if (!irqd_is_single_target(data))
+	if (!irqd_is_single_target(data) || hk_should_isolate(data, cpu))
 		irq_set_affinity_locked(data, affinity, false);
 }
 

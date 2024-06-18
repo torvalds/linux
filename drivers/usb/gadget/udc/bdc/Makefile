@@ -5,5 +5,3 @@ bdc-y	:= bdc_core.o bdc_cmd.o bdc_ep.o bdc_udc.o
 ifneq ($(CONFIG_USB_GADGET_VERBOSE),)
 	bdc-y			+= bdc_dbg.o
 endif
-
-obj-$(CONFIG_USB_BDC_PCI)	+= bdc_pci.o

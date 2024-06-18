@@ -195,19 +195,18 @@ static int alchemy_ac97c_startup(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static const struct snd_soc_dai_ops alchemy_ac97c_ops = {
-	.startup		= alchemy_ac97c_startup,
-};
-
 static int au1xac97c_dai_probe(struct snd_soc_dai *dai)
 {
 	return ac97c_workdata ? 0 : -ENODEV;
 }
 
+static const struct snd_soc_dai_ops alchemy_ac97c_ops = {
+	.probe			= au1xac97c_dai_probe,
+	.startup		= alchemy_ac97c_startup,
+};
+
 static struct snd_soc_dai_driver au1xac97c_dai_driver = {
 	.name			= "alchemy-ac97c",
-	.bus_control		= true,
-	.probe			= au1xac97c_dai_probe,
 	.playback = {
 		.rates		= AC97_RATES,
 		.formats	= AC97_FMTS,
@@ -224,7 +223,8 @@ static struct snd_soc_dai_driver au1xac97c_dai_driver = {
 };
 
 static const struct snd_soc_component_driver au1xac97c_component = {
-	.name		= "au1xac97c",
+	.name			= "au1xac97c",
+	.legacy_dai_naming	= 1,
 };
 
 static int au1xac97c_drvprobe(struct platform_device *pdev)
@@ -248,7 +248,7 @@ static int au1xac97c_drvprobe(struct platform_device *pdev)
 				     pdev->name))
 		return -EBUSY;
 
-	ctx->mmio = devm_ioremap_nocache(&pdev->dev, iores->start,
+	ctx->mmio = devm_ioremap(&pdev->dev, iores->start,
 					 resource_size(iores));
 	if (!ctx->mmio)
 		return -EBUSY;
@@ -285,7 +285,7 @@ static int au1xac97c_drvprobe(struct platform_device *pdev)
 	return 0;
 }
 
-static int au1xac97c_drvremove(struct platform_device *pdev)
+static void au1xac97c_drvremove(struct platform_device *pdev)
 {
 	struct au1xpsc_audio_data *ctx = platform_get_drvdata(pdev);
 
@@ -294,8 +294,6 @@ static int au1xac97c_drvremove(struct platform_device *pdev)
 	WR(ctx, AC97_ENABLE, EN_D);	/* clock off, disable */
 
 	ac97c_workdata = NULL;	/* MDEV */
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -338,7 +336,7 @@ static struct platform_driver au1xac97c_driver = {
 		.pm	= AU1XPSCAC97_PMOPS,
 	},
 	.probe		= au1xac97c_drvprobe,
-	.remove		= au1xac97c_drvremove,
+	.remove_new	= au1xac97c_drvremove,
 };
 
 module_platform_driver(au1xac97c_driver);

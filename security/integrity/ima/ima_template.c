@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Politecnico di Torino, Italy
- *                    TORSEC group -- http://security.polito.it
+ *                    TORSEC group -- https://security.polito.it
  *
  * Author: Roberto Sassu <roberto.sassu@polito.it>
  *
  * File: ima_template.c
  *      Helpers to manage template descriptors.
  */
-
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/rculist.h>
 #include "ima.h"
@@ -22,13 +20,18 @@ static struct ima_template_desc builtin_templates[] = {
 	{.name = IMA_TEMPLATE_IMA_NAME, .fmt = IMA_TEMPLATE_IMA_FMT},
 	{.name = "ima-ng", .fmt = "d-ng|n-ng"},
 	{.name = "ima-sig", .fmt = "d-ng|n-ng|sig"},
+	{.name = "ima-ngv2", .fmt = "d-ngv2|n-ng"},
+	{.name = "ima-sigv2", .fmt = "d-ngv2|n-ng|sig"},
 	{.name = "ima-buf", .fmt = "d-ng|n-ng|buf"},
 	{.name = "ima-modsig", .fmt = "d-ng|n-ng|sig|d-modsig|modsig"},
+	{.name = "evm-sig",
+	 .fmt = "d-ng|n-ng|evmsig|xattrnames|xattrlengths|xattrvalues|iuid|igid|imode"},
 	{.name = "", .fmt = ""},	/* placeholder for a custom format */
 };
 
 static LIST_HEAD(defined_templates);
 static DEFINE_SPINLOCK(template_list);
+static int template_setup_done;
 
 static const struct ima_template_field supported_fields[] = {
 	{.field_id = "d", .field_init = ima_eventdigest_init,
@@ -37,6 +40,8 @@ static const struct ima_template_field supported_fields[] = {
 	 .field_show = ima_show_template_string},
 	{.field_id = "d-ng", .field_init = ima_eventdigest_ng_init,
 	 .field_show = ima_show_template_digest_ng},
+	{.field_id = "d-ngv2", .field_init = ima_eventdigest_ngv2_init,
+	 .field_show = ima_show_template_digest_ngv2},
 	{.field_id = "n-ng", .field_init = ima_eventname_ng_init,
 	 .field_show = ima_show_template_string},
 	{.field_id = "sig", .field_init = ima_eventsig_init,
@@ -47,6 +52,23 @@ static const struct ima_template_field supported_fields[] = {
 	 .field_show = ima_show_template_digest_ng},
 	{.field_id = "modsig", .field_init = ima_eventmodsig_init,
 	 .field_show = ima_show_template_sig},
+	{.field_id = "evmsig", .field_init = ima_eventevmsig_init,
+	 .field_show = ima_show_template_sig},
+	{.field_id = "iuid", .field_init = ima_eventinodeuid_init,
+	 .field_show = ima_show_template_uint},
+	{.field_id = "igid", .field_init = ima_eventinodegid_init,
+	 .field_show = ima_show_template_uint},
+	{.field_id = "imode", .field_init = ima_eventinodemode_init,
+	 .field_show = ima_show_template_uint},
+	{.field_id = "xattrnames",
+	 .field_init = ima_eventinodexattrnames_init,
+	 .field_show = ima_show_template_string},
+	{.field_id = "xattrlengths",
+	 .field_init = ima_eventinodexattrlengths_init,
+	 .field_show = ima_show_template_sig},
+	{.field_id = "xattrvalues",
+	 .field_init = ima_eventinodexattrvalues_init,
+	 .field_show = ima_show_template_sig},
 };
 
 /*
@@ -54,9 +76,11 @@ static const struct ima_template_field supported_fields[] = {
  * need to be accounted for since they shouldn't be defined in the same template
  * description as 'd-ng' and 'n-ng' respectively.
  */
-#define MAX_TEMPLATE_NAME_LEN sizeof("d-ng|n-ng|sig|buf|d-modisg|modsig")
+#define MAX_TEMPLATE_NAME_LEN \
+	sizeof("d-ng|n-ng|evmsig|xattrnames|xattrlengths|xattrvalues|iuid|igid|imode")
 
 static struct ima_template_desc *ima_template;
+static struct ima_template_desc *ima_buf_template;
 
 /**
  * ima_template_has_modsig - Check whether template has modsig-related fields.
@@ -82,10 +106,11 @@ static int __init ima_template_setup(char *str)
 	struct ima_template_desc *template_desc;
 	int template_len = strlen(str);
 
-	if (ima_template)
+	if (template_setup_done)
 		return 1;
 
-	ima_init_template_list();
+	if (!ima_template)
+		ima_init_template_list();
 
 	/*
 	 * Verify that a template with the supplied name exists.
@@ -109,6 +134,7 @@ static int __init ima_template_setup(char *str)
 	}
 
 	ima_template = template_desc;
+	template_setup_done = 1;
 	return 1;
 }
 __setup("ima_template=", ima_template_setup);
@@ -117,7 +143,7 @@ static int __init ima_template_fmt_setup(char *str)
 {
 	int num_templates = ARRAY_SIZE(builtin_templates);
 
-	if (ima_template)
+	if (template_setup_done)
 		return 1;
 
 	if (template_desc_init_fields(str, NULL, NULL) < 0) {
@@ -128,6 +154,7 @@ static int __init ima_template_fmt_setup(char *str)
 
 	builtin_templates[num_templates - 1].fmt = str;
 	ima_template = builtin_templates + num_templates - 1;
+	template_setup_done = 1;
 
 	return 1;
 }
@@ -218,11 +245,11 @@ int template_desc_init_fields(const char *template_fmt,
 	}
 
 	if (fields && num_fields) {
-		*fields = kmalloc_array(i, sizeof(*fields), GFP_KERNEL);
+		*fields = kmalloc_array(i, sizeof(**fields), GFP_KERNEL);
 		if (*fields == NULL)
 			return -ENOMEM;
 
-		memcpy(*fields, found_fields, i * sizeof(*fields));
+		memcpy(*fields, found_fields, i * sizeof(**fields));
 		*num_fields = i;
 	}
 
@@ -254,10 +281,35 @@ struct ima_template_desc *ima_template_desc_current(void)
 	return ima_template;
 }
 
+struct ima_template_desc *ima_template_desc_buf(void)
+{
+	if (!ima_buf_template) {
+		ima_init_template_list();
+		ima_buf_template = lookup_template_desc("ima-buf");
+	}
+	return ima_buf_template;
+}
+
 int __init ima_init_template(void)
 {
 	struct ima_template_desc *template = ima_template_desc_current();
 	int result;
+
+	result = template_desc_init_fields(template->fmt,
+					   &(template->fields),
+					   &(template->num_fields));
+	if (result < 0) {
+		pr_err("template %s init failed, result: %d\n",
+		       (strlen(template->name) ?
+		       template->name : template->fmt), result);
+		return result;
+	}
+
+	template = ima_template_desc_buf();
+	if (!template) {
+		pr_err("Failed to get ima-buf template\n");
+		return -EINVAL;
+	}
 
 	result = template_desc_init_fields(template->fmt,
 					   &(template->fields),
@@ -288,8 +340,11 @@ static struct ima_template_desc *restore_template_fmt(char *template_name)
 
 	template_desc->name = "";
 	template_desc->fmt = kstrdup(template_name, GFP_KERNEL);
-	if (!template_desc->fmt)
+	if (!template_desc->fmt) {
+		kfree(template_desc);
+		template_desc = NULL;
 		goto out;
+	}
 
 	spin_lock(&template_list);
 	list_add_tail_rcu(&template_desc->list, &defined_templates);
@@ -303,6 +358,7 @@ static int ima_restore_template_data(struct ima_template_desc *template_desc,
 				     int template_data_size,
 				     struct ima_template_entry **entry)
 {
+	struct tpm_digest *digests;
 	int ret = 0;
 	int i;
 
@@ -311,11 +367,21 @@ static int ima_restore_template_data(struct ima_template_desc *template_desc,
 	if (!*entry)
 		return -ENOMEM;
 
+	digests = kcalloc(NR_BANKS(ima_tpm_chip) + ima_extra_slots,
+			  sizeof(*digests), GFP_NOFS);
+	if (!digests) {
+		kfree(*entry);
+		return -ENOMEM;
+	}
+
+	(*entry)->digests = digests;
+
 	ret = ima_parse_buf(template_data, template_data + template_data_size,
 			    NULL, template_desc->num_fields,
 			    (*entry)->template_data, NULL, NULL,
 			    ENFORCE_FIELDS | ENFORCE_BUFEND, "template data");
 	if (ret < 0) {
+		kfree((*entry)->digests);
 		kfree(*entry);
 		return ret;
 	}
@@ -348,6 +414,7 @@ static int ima_restore_template_data(struct ima_template_desc *template_desc,
 int ima_restore_measurement_list(loff_t size, void *buf)
 {
 	char template_name[MAX_TEMPLATE_NAME_LEN];
+	unsigned char zero[TPM_DIGEST_SIZE] = { 0 };
 
 	struct ima_kexec_hdr *khdr = buf;
 	struct ima_field_data hdr[HDR__LAST] = {
@@ -367,9 +434,9 @@ int ima_restore_measurement_list(loff_t size, void *buf)
 		return 0;
 
 	if (ima_canonical_fmt) {
-		khdr->version = le16_to_cpu(khdr->version);
-		khdr->count = le64_to_cpu(khdr->count);
-		khdr->buffer_size = le64_to_cpu(khdr->buffer_size);
+		khdr->version = le16_to_cpu((__force __le16)khdr->version);
+		khdr->count = le64_to_cpu((__force __le64)khdr->count);
+		khdr->buffer_size = le64_to_cpu((__force __le64)khdr->buffer_size);
 	}
 
 	if (khdr->version != 1) {
@@ -447,10 +514,19 @@ int ima_restore_measurement_list(loff_t size, void *buf)
 		if (ret < 0)
 			break;
 
-		memcpy(entry->digest, hdr[HDR_DIGEST].data,
-		       hdr[HDR_DIGEST].len);
-		entry->pcr = !ima_canonical_fmt ? *(hdr[HDR_PCR].data) :
-			     le32_to_cpu(*(hdr[HDR_PCR].data));
+		if (memcmp(hdr[HDR_DIGEST].data, zero, sizeof(zero))) {
+			ret = ima_calc_field_array_hash(
+						&entry->template_data[0],
+						entry);
+			if (ret < 0) {
+				pr_err("cannot calculate template digest\n");
+				ret = -EINVAL;
+				break;
+			}
+		}
+
+		entry->pcr = !ima_canonical_fmt ? *(u32 *)(hdr[HDR_PCR].data) :
+			     le32_to_cpu(*(__le32 *)(hdr[HDR_PCR].data));
 		ret = ima_restore_measurement_entry(entry);
 		if (ret < 0)
 			break;

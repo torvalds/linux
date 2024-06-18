@@ -6,10 +6,10 @@
  * Copyright 2011 Paul Mackerras, IBM Corp. <paulus@au1.ibm.com>
  */
 
+#include <linux/export.h>
 #include <asm/reg.h>
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
-#include <asm/export.h>
 #include <asm/tm.h>
 #include <asm/cputable.h>
 
@@ -110,7 +110,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_P9_TM_HV_ASSIST)
 	mtmsrd	r2, 1
 
 	/* Reload TOC pointer. */
-	ld	r2, PACATOC(r13)
+	LOAD_PACA_TOC()
 
 	/* Save all but r0-r2, r9 & r13 */
 	reg = 3

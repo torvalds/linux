@@ -34,7 +34,7 @@ static void fake_event(struct snd_emux *emu, struct snd_emux_port *port,
 		       int ch, int param, int val, int atomic, int hop);
 
 /* operators */
-static struct snd_seq_oss_callback oss_callback = {
+static const struct snd_seq_oss_callback oss_callback = {
 	.owner = THIS_MODULE,
 	.open = snd_emux_open_seq_oss,
 	.close = snd_emux_close_seq_oss,
@@ -205,8 +205,7 @@ snd_emux_load_patch_seq_oss(struct snd_seq_oss_arg *arg, int format,
 		return -ENXIO;
 
 	if (format == GUS_PATCH)
-		rc = snd_soundfont_load_guspatch(emu->sflist, buf, count,
-						 SF_CLIENT_NO(p->chset.port));
+		rc = snd_soundfont_load_guspatch(emu->sflist, buf, count);
 	else if (format == SNDRV_OSS_SOUNDFONT_PATCH) {
 		struct soundfont_patch_info patch;
 		if (count < (int)sizeof(patch))

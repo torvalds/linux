@@ -41,11 +41,10 @@
 #define CAP_AUTH_RESULT_CR_NO_KEY	0x03
 #define CAP_AUTH_RESULT_CR_SIG_FAIL	0x04
 
-
 /* IOCTL support */
 struct cap_ioc_get_endpoint_uid {
 	__u8			uid[8];
-} __attribute__ ((__packed__));
+} __packed;
 
 struct cap_ioc_get_ims_certificate {
 	__u32			certificate_class;
@@ -54,7 +53,7 @@ struct cap_ioc_get_ims_certificate {
 	__u8			result_code;
 	__u32			cert_size;
 	__u8			certificate[CAP_CERTIFICATE_MAX_SIZE];
-} __attribute__ ((__packed__));
+} __packed;
 
 struct cap_ioc_authenticate {
 	__u32			auth_type;
@@ -65,7 +64,7 @@ struct cap_ioc_authenticate {
 	__u8			response[64];
 	__u32			signature_size;
 	__u8			signature[CAP_SIGNATURE_MAX_SIZE];
-} __attribute__ ((__packed__));
+} __packed;
 
 #define CAP_IOCTL_BASE			'C'
 #define CAP_IOC_GET_ENDPOINT_UID	_IOR(CAP_IOCTL_BASE, 0, struct cap_ioc_get_endpoint_uid)

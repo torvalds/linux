@@ -8,7 +8,9 @@
 
 #include <linux/clk-provider.h>
 #include <linux/io.h>
-#include <linux/of_address.h>
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 
 #include "ccu_common.h"
 #include "ccu_reset.h"
@@ -40,18 +42,29 @@ static SUNXI_CCU_NKMP_WITH_GATE_LOCK(pll_cpu_clk, "pll-cpu",
  * the base (2x, 4x and 8x), and one variable divider (the one true
  * pll audio).
  *
- * We don't have any need for the variable divider for now, so we just
- * hardcode it to match with the clock names
+ * With sigma-delta modulation for fractional-N on the audio PLL,
+ * we have to use specific dividers. This means the variable divider
+ * can no longer be used, as the audio codec requests the exact clock
+ * rates we support through this mechanism. So we now hard code the
+ * variable divider to 1. This means the clock rates will no longer
+ * match the clock names.
  */
 #define SUN8I_V3S_PLL_AUDIO_REG	0x008
 
-static SUNXI_CCU_NM_WITH_GATE_LOCK(pll_audio_base_clk, "pll-audio-base",
-				   "osc24M", 0x008,
-				   8, 7,	/* N */
-				   0, 5,	/* M */
-				   BIT(31),	/* gate */
-				   BIT(28),	/* lock */
-				   0);
+static struct ccu_sdm_setting pll_audio_sdm_table[] = {
+	{ .rate = 22579200, .pattern = 0xc0010d84, .m = 8, .n = 7 },
+	{ .rate = 24576000, .pattern = 0xc000ac02, .m = 14, .n = 14 },
+};
+
+static SUNXI_CCU_NM_WITH_SDM_GATE_LOCK(pll_audio_base_clk, "pll-audio-base",
+				       "osc24M", 0x008,
+				       8, 7,	/* N */
+				       0, 5,	/* M */
+				       pll_audio_sdm_table, BIT(24),
+				       0x284, BIT(31),
+				       BIT(31),	/* gate */
+				       BIT(28),	/* lock */
+				       CLK_SET_RATE_UNGATE);
 
 static SUNXI_CCU_NM_WITH_FRAC_GATE_LOCK(pll_video_clk, "pll-video",
 					"osc24M", 0x0010,
@@ -408,82 +421,6 @@ static struct ccu_common *sun8i_v3s_ccu_clks[] = {
 	&bus_de_clk.common,
 	&bus_codec_clk.common,
 	&bus_pio_clk.common,
-	&bus_i2c0_clk.common,
-	&bus_i2c1_clk.common,
-	&bus_uart0_clk.common,
-	&bus_uart1_clk.common,
-	&bus_uart2_clk.common,
-	&bus_ephy_clk.common,
-	&bus_dbg_clk.common,
-	&mmc0_clk.common,
-	&mmc0_sample_clk.common,
-	&mmc0_output_clk.common,
-	&mmc1_clk.common,
-	&mmc1_sample_clk.common,
-	&mmc1_output_clk.common,
-	&mmc2_clk.common,
-	&mmc2_sample_clk.common,
-	&mmc2_output_clk.common,
-	&ce_clk.common,
-	&spi0_clk.common,
-	&usb_phy0_clk.common,
-	&usb_ohci0_clk.common,
-	&dram_clk.common,
-	&dram_ve_clk.common,
-	&dram_csi_clk.common,
-	&dram_ohci_clk.common,
-	&dram_ehci_clk.common,
-	&de_clk.common,
-	&tcon_clk.common,
-	&csi_misc_clk.common,
-	&csi0_mclk_clk.common,
-	&csi1_sclk_clk.common,
-	&csi1_mclk_clk.common,
-	&ve_clk.common,
-	&ac_dig_clk.common,
-	&avs_clk.common,
-	&mbus_clk.common,
-	&mipi_csi_clk.common,
-};
-
-static const struct clk_hw *clk_parent_pll_audio[] = {
-	&pll_audio_base_clk.common.hw
-};
-
-static struct ccu_common *sun8i_v3_ccu_clks[] = {
-	&pll_cpu_clk.common,
-	&pll_audio_base_clk.common,
-	&pll_video_clk.common,
-	&pll_ve_clk.common,
-	&pll_ddr0_clk.common,
-	&pll_periph0_clk.common,
-	&pll_isp_clk.common,
-	&pll_periph1_clk.common,
-	&pll_ddr1_clk.common,
-	&cpu_clk.common,
-	&axi_clk.common,
-	&ahb1_clk.common,
-	&apb1_clk.common,
-	&apb2_clk.common,
-	&ahb2_clk.common,
-	&bus_ce_clk.common,
-	&bus_dma_clk.common,
-	&bus_mmc0_clk.common,
-	&bus_mmc1_clk.common,
-	&bus_mmc2_clk.common,
-	&bus_dram_clk.common,
-	&bus_emac_clk.common,
-	&bus_hstimer_clk.common,
-	&bus_spi0_clk.common,
-	&bus_otg_clk.common,
-	&bus_ehci0_clk.common,
-	&bus_ohci0_clk.common,
-	&bus_ve_clk.common,
-	&bus_tcon0_clk.common,
-	&bus_csi_clk.common,
-	&bus_de_clk.common,
-	&bus_codec_clk.common,
-	&bus_pio_clk.common,
 	&bus_i2s0_clk.common,
 	&bus_i2c0_clk.common,
 	&bus_i2c1_clk.common,
@@ -524,10 +461,14 @@ static struct ccu_common *sun8i_v3_ccu_clks[] = {
 	&mipi_csi_clk.common,
 };
 
-/* We hardcode the divider to 4 for now */
+static const struct clk_hw *clk_parent_pll_audio[] = {
+	&pll_audio_base_clk.common.hw
+};
+
+/* We hardcode the divider to 1 for SDM support */
 static CLK_FIXED_FACTOR_HWS(pll_audio_clk, "pll-audio",
 			    clk_parent_pll_audio,
-			    4, 1, CLK_SET_RATE_PARENT);
+			    1, 1, CLK_SET_RATE_PARENT);
 static CLK_FIXED_FACTOR_HWS(pll_audio_2x_clk, "pll-audio-2x",
 			    clk_parent_pll_audio,
 			    2, 1, CLK_SET_RATE_PARENT);
@@ -618,7 +559,7 @@ static struct clk_hw_onecell_data sun8i_v3s_hw_clks = {
 		[CLK_MBUS]		= &mbus_clk.common.hw,
 		[CLK_MIPI_CSI]		= &mipi_csi_clk.common.hw,
 	},
-	.num	= CLK_NUMBER,
+	.num	= CLK_PLL_DDR1 + 1,
 };
 
 static struct clk_hw_onecell_data sun8i_v3_hw_clks = {
@@ -700,7 +641,7 @@ static struct clk_hw_onecell_data sun8i_v3_hw_clks = {
 		[CLK_MBUS]		= &mbus_clk.common.hw,
 		[CLK_MIPI_CSI]		= &mipi_csi_clk.common.hw,
 	},
-	.num	= CLK_NUMBER,
+	.num	= CLK_I2S0 + 1,
 };
 
 static struct ccu_reset_map sun8i_v3s_ccu_resets[] = {
@@ -785,8 +726,8 @@ static const struct sunxi_ccu_desc sun8i_v3s_ccu_desc = {
 };
 
 static const struct sunxi_ccu_desc sun8i_v3_ccu_desc = {
-	.ccu_clks	= sun8i_v3_ccu_clks,
-	.num_ccu_clks	= ARRAY_SIZE(sun8i_v3_ccu_clks),
+	.ccu_clks	= sun8i_v3s_ccu_clks,
+	.num_ccu_clks	= ARRAY_SIZE(sun8i_v3s_ccu_clks),
 
 	.hw_clks	= &sun8i_v3_hw_clks,
 
@@ -794,38 +735,50 @@ static const struct sunxi_ccu_desc sun8i_v3_ccu_desc = {
 	.num_resets	= ARRAY_SIZE(sun8i_v3_ccu_resets),
 };
 
-static void __init sun8i_v3_v3s_ccu_init(struct device_node *node,
-					 const struct sunxi_ccu_desc *ccu_desc)
+static int sun8i_v3s_ccu_probe(struct platform_device *pdev)
 {
+	const struct sunxi_ccu_desc *desc;
 	void __iomem *reg;
 	u32 val;
 
-	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
-	if (IS_ERR(reg)) {
-		pr_err("%pOF: Could not map the clock registers\n", node);
-		return;
-	}
+	desc = of_device_get_match_data(&pdev->dev);
+	if (!desc)
+		return -EINVAL;
 
-	/* Force the PLL-Audio-1x divider to 4 */
+	reg = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(reg))
+		return PTR_ERR(reg);
+
+	/* Force the PLL-Audio-1x divider to 1 */
 	val = readl(reg + SUN8I_V3S_PLL_AUDIO_REG);
 	val &= ~GENMASK(19, 16);
-	writel(val | (3 << 16), reg + SUN8I_V3S_PLL_AUDIO_REG);
+	writel(val, reg + SUN8I_V3S_PLL_AUDIO_REG);
 
-	sunxi_ccu_probe(node, reg, ccu_desc);
+	return devm_sunxi_ccu_probe(&pdev->dev, reg, desc);
 }
 
-static void __init sun8i_v3s_ccu_setup(struct device_node *node)
-{
-	sun8i_v3_v3s_ccu_init(node, &sun8i_v3s_ccu_desc);
-}
+static const struct of_device_id sun8i_v3s_ccu_ids[] = {
+	{
+		.compatible = "allwinner,sun8i-v3-ccu",
+		.data = &sun8i_v3_ccu_desc,
+	},
+	{
+		.compatible = "allwinner,sun8i-v3s-ccu",
+		.data = &sun8i_v3s_ccu_desc,
+	},
+	{ }
+};
+MODULE_DEVICE_TABLE(of, sun8i_v3s_ccu_ids);
 
-static void __init sun8i_v3_ccu_setup(struct device_node *node)
-{
-	sun8i_v3_v3s_ccu_init(node, &sun8i_v3_ccu_desc);
-}
+static struct platform_driver sun8i_v3s_ccu_driver = {
+	.probe	= sun8i_v3s_ccu_probe,
+	.driver	= {
+		.name			= "sun8i-v3s-ccu",
+		.suppress_bind_attrs	= true,
+		.of_match_table		= sun8i_v3s_ccu_ids,
+	},
+};
+module_platform_driver(sun8i_v3s_ccu_driver);
 
-CLK_OF_DECLARE(sun8i_v3s_ccu, "allwinner,sun8i-v3s-ccu",
-	       sun8i_v3s_ccu_setup);
-
-CLK_OF_DECLARE(sun8i_v3_ccu, "allwinner,sun8i-v3-ccu",
-	       sun8i_v3_ccu_setup);
+MODULE_IMPORT_NS(SUNXI_CCU);
+MODULE_LICENSE("GPL");

@@ -40,16 +40,16 @@ enum cpio_fields {
 };
 
 /**
- * cpio_data find_cpio_data - Search for files in an uncompressed cpio
+ * find_cpio_data - Search for files in an uncompressed cpio
  * @path:       The directory to search for, including a slash at the end
- * @data:       Pointer to the the cpio archive or a header inside
+ * @data:       Pointer to the cpio archive or a header inside
  * @len:        Remaining length of the cpio based on data pointer
  * @nextoff:    When a matching file is found, this is the offset from the
  *              beginning of the cpio to the beginning of the next file, not the
  *              matching file itself. It can be used to iterate through the cpio
  *              to find all files inside of a directory path.
  *
- * @return:     struct cpio_data containing the address, length and
+ * Return:      &struct cpio_data containing the address, length and
  *              filename (with the directory path cut off) of the found file.
  *              If you search for a filename and not for files in a directory,
  *              pass the absolute path of the filename in the cpio and make sure
@@ -126,7 +126,7 @@ struct cpio_data find_cpio_data(const char *path, void *data,
 				"File %s exceeding MAX_CPIO_FILE_NAME [%d]\n",
 				p, MAX_CPIO_FILE_NAME);
 			}
-			strlcpy(cd.name, p + mypathsize, MAX_CPIO_FILE_NAME);
+			strscpy(cd.name, p + mypathsize, MAX_CPIO_FILE_NAME);
 
 			cd.data = (void *)dptr;
 			cd.size = ch[C_FILESIZE];

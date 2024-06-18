@@ -42,7 +42,7 @@
 #define CTL_DMA_ENABLE 0xd8
 #define CTL_RESET_SD 0xe0
 #define CTL_VERSION 0xe2
-#define CTL_SDIF_MODE 0xe6
+#define CTL_SDIF_MODE 0xe6 /* only known on R-Car 2+ */
 
 /* Definitions for values the CTL_STOP_INTERNAL_ACTION register can take */
 #define TMIO_STOP_STP		BIT(0)
@@ -81,7 +81,11 @@
 #define	CLK_CTL_SCLKEN		BIT(8)
 
 /* Definitions for values the CTL_SD_MEM_CARD_OPT register can take */
+#define CARD_OPT_TOP_MASK	0xf0
+#define CARD_OPT_TOP_SHIFT	4
+#define CARD_OPT_EXTOP		BIT(9) /* first appeared on R-Car Gen3 SDHI */
 #define CARD_OPT_WIDTH8		BIT(13)
+#define CARD_OPT_ALWAYS1	BIT(14)
 #define CARD_OPT_WIDTH		BIT(15)
 
 /* Definitions for values the CTL_SDIO_STATUS register can take */
@@ -95,10 +99,13 @@
 /* Definitions for values the CTL_DMA_ENABLE register can take */
 #define DMA_ENABLE_DMASDRW	BIT(1)
 
+/* Definitions for values the CTL_SDIF_MODE register can take */
+#define SDIF_MODE_HS400		BIT(0) /* only known on R-Car 2+ */
+
 /* Define some IRQ masks */
 /* This is the mask used at reset by the chip */
-#define TMIO_MASK_INIT_RCAR2	0x8b7f031d /* Initial value for R-Car Gen2+ */
 #define TMIO_MASK_ALL           0x837f031d
+#define TMIO_MASK_ALL_RCAR2	0x8b7f031d
 #define TMIO_MASK_READOP  (TMIO_STAT_RXRDY | TMIO_STAT_DATAEND)
 #define TMIO_MASK_WRITEOP (TMIO_STAT_TXRQ | TMIO_STAT_DATAEND)
 #define TMIO_MASK_CMD     (TMIO_STAT_CMDRESPEND | TMIO_STAT_CMDTIMEOUT | \
@@ -118,6 +125,10 @@ struct tmio_mmc_dma_ops {
 	void (*release)(struct tmio_mmc_host *host);
 	void (*abort)(struct tmio_mmc_host *host);
 	void (*dataend)(struct tmio_mmc_host *host);
+
+	/* optional */
+	void (*end)(struct tmio_mmc_host *host);	/* held host->lock */
+	bool (*dma_irq)(struct tmio_mmc_host *host);
 };
 
 struct tmio_mmc_host {
@@ -158,12 +169,12 @@ struct tmio_mmc_host {
 	u32			sdio_irq_mask;
 	unsigned int		clk_cache;
 	u32			sdcard_irq_setbit_mask;
+	u32			sdcard_irq_mask_all;
 
 	spinlock_t		lock;		/* protect host private data */
 	unsigned long		last_req_ts;
 	struct mutex		ios_lock;	/* protect set_ios() context */
 	bool			native_hotplug;
-	bool			runtime_synced;
 	bool			sdio_irq_enabled;
 
 	/* Mandatory callback */
@@ -175,26 +186,10 @@ struct tmio_mmc_host {
 	int (*multi_io_quirk)(struct mmc_card *card,
 			      unsigned int direction, int blk_size);
 	int (*write16_hook)(struct tmio_mmc_host *host, int addr);
-	void (*reset)(struct tmio_mmc_host *host);
-	void (*hw_reset)(struct tmio_mmc_host *host);
-	void (*prepare_tuning)(struct tmio_mmc_host *host, unsigned long tap);
-	bool (*check_scc_error)(struct tmio_mmc_host *host);
-
-	/*
-	 * Mandatory callback for tuning to occur which is optional for SDR50
-	 * and mandatory for SDR104.
-	 */
-	unsigned int (*init_tuning)(struct tmio_mmc_host *host);
-	int (*select_tuning)(struct tmio_mmc_host *host);
-
-	/* Tuning values: 1 for success, 0 for failure */
-	DECLARE_BITMAP(taps, BITS_PER_BYTE * sizeof(long));
-	unsigned int tap_num;
-	unsigned long tap_set;
-
-	void (*prepare_hs400_tuning)(struct tmio_mmc_host *host);
-	void (*hs400_downgrade)(struct tmio_mmc_host *host);
-	void (*hs400_complete)(struct tmio_mmc_host *host);
+	void (*reset)(struct tmio_mmc_host *host, bool preserve);
+	bool (*check_retune)(struct tmio_mmc_host *host, struct mmc_request *mrq);
+	void (*fixup_request)(struct tmio_mmc_host *host, struct mmc_request *mrq);
+	unsigned int (*get_timeout_cycles)(struct tmio_mmc_host *host);
 
 	const struct tmio_mmc_dma_ops *dma_ops;
 };
@@ -209,20 +204,6 @@ void tmio_mmc_do_data_irq(struct tmio_mmc_host *host);
 void tmio_mmc_enable_mmc_irqs(struct tmio_mmc_host *host, u32 i);
 void tmio_mmc_disable_mmc_irqs(struct tmio_mmc_host *host, u32 i);
 irqreturn_t tmio_mmc_irq(int irq, void *devid);
-
-static inline char *tmio_mmc_kmap_atomic(struct scatterlist *sg,
-					 unsigned long *flags)
-{
-	local_irq_save(*flags);
-	return kmap_atomic(sg_page(sg)) + sg->offset;
-}
-
-static inline void tmio_mmc_kunmap_atomic(struct scatterlist *sg,
-					  unsigned long *flags, void *virt)
-{
-	kunmap_atomic(virt - sg->offset);
-	local_irq_restore(*flags);
-}
 
 #ifdef CONFIG_PM
 int tmio_mmc_host_runtime_suspend(struct device *dev);

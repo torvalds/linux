@@ -14,7 +14,6 @@
 struct rockchip_mmc_clock {
 	struct clk_hw	hw;
 	void __iomem	*reg;
-	int		id;
 	int		shift;
 	int		cached_phase;
 	struct notifier_block clk_rate_change_nb;
@@ -51,9 +50,9 @@ static int rockchip_mmc_get_phase(struct clk_hw *hw)
 	u16 degrees;
 	u32 delay_num = 0;
 
-	/* See the comment for rockchip_mmc_set_phase below */
+	/* Constant signal, no measurable phase shift */
 	if (!rate)
-		return -EINVAL;
+		return 0;
 
 	raw_value = readl(mmc_clock->reg) >> (mmc_clock->shift);
 

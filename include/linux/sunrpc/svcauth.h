@@ -10,8 +10,6 @@
 #ifndef _LINUX_SUNRPC_SVCAUTH_H_
 #define _LINUX_SUNRPC_SVCAUTH_H_
 
-#ifdef __KERNEL__
-
 #include <linux/string.h>
 #include <linux/sunrpc/msg_prot.h>
 #include <linux/sunrpc/cache.h>
@@ -85,6 +83,19 @@ struct auth_domain {
 	struct rcu_head		rcu_head;
 };
 
+enum svc_auth_status {
+	SVC_GARBAGE = 1,
+	SVC_SYSERR,
+	SVC_VALID,
+	SVC_NEGATIVE,
+	SVC_OK,
+	SVC_DROP,
+	SVC_CLOSE,
+	SVC_DENIED,
+	SVC_PENDING,
+	SVC_COMPLETE,
+};
+
 /*
  * Each authentication flavour registers an auth_ops
  * structure.
@@ -100,6 +111,8 @@ struct auth_domain {
  *             is (probably) already in place.  Certainly space is
  *	       reserved for it.
  *      DROP - simply drop the request. It may have been deferred
+ *      CLOSE - like SVC_DROP, but request is definitely lost.
+ *		If there is a tcp connection, it should be closed.
  *      GARBAGE - rpc garbage_args error
  *      SYSERR - rpc system_err error
  *      DENIED - authp holds reason for denial.
@@ -113,60 +126,45 @@ struct auth_domain {
  *
  * release() is given a request after the procedure has been run.
  *  It should sign/encrypt the results if needed
- * It should return:
- *    OK - the resbuf is ready to be sent
- *    DROP - the reply should be quitely dropped
- *    DENIED - authp holds a reason for MSG_DENIED
- *    SYSERR - rpc system_err
  *
  * domain_release()
  *   This call releases a domain.
+ *
  * set_client()
- *   Givens a pending request (struct svc_rqst), finds and assigns
+ *   Given a pending request (struct svc_rqst), finds and assigns
  *   an appropriate 'auth_domain' as the client.
+ *
+ * pseudoflavor()
+ *   Returns RPC_AUTH pseudoflavor in use by @rqstp.
  */
 struct auth_ops {
 	char *	name;
 	struct module *owner;
 	int	flavour;
-	int	(*accept)(struct svc_rqst *rq, __be32 *authp);
-	int	(*release)(struct svc_rqst *rq);
-	void	(*domain_release)(struct auth_domain *);
-	int	(*set_client)(struct svc_rqst *rq);
-};
 
-#define	SVC_GARBAGE	1
-#define	SVC_SYSERR	2
-#define	SVC_VALID	3
-#define	SVC_NEGATIVE	4
-#define	SVC_OK		5
-#define	SVC_DROP	6
-#define	SVC_CLOSE	7	/* Like SVC_DROP, but request is definitely
-				 * lost so if there is a tcp connection, it
-				 * should be closed
-				 */
-#define	SVC_DENIED	8
-#define	SVC_PENDING	9
-#define	SVC_COMPLETE	10
+	enum svc_auth_status	(*accept)(struct svc_rqst *rqstp);
+	int			(*release)(struct svc_rqst *rqstp);
+	void			(*domain_release)(struct auth_domain *dom);
+	enum svc_auth_status	(*set_client)(struct svc_rqst *rqstp);
+	rpc_authflavor_t	(*pseudoflavor)(struct svc_rqst *rqstp);
+};
 
 struct svc_xprt;
 
-extern int	svc_authenticate(struct svc_rqst *rqstp, __be32 *authp);
+extern enum svc_auth_status svc_authenticate(struct svc_rqst *rqstp);
+extern rpc_authflavor_t svc_auth_flavor(struct svc_rqst *rqstp);
 extern int	svc_authorise(struct svc_rqst *rqstp);
-extern int	svc_set_client(struct svc_rqst *rqstp);
+extern enum svc_auth_status svc_set_client(struct svc_rqst *rqstp);
 extern int	svc_auth_register(rpc_authflavor_t flavor, struct auth_ops *aops);
 extern void	svc_auth_unregister(rpc_authflavor_t flavor);
 
 extern struct auth_domain *unix_domain_find(char *name);
 extern void auth_domain_put(struct auth_domain *item);
-extern int auth_unix_add_addr(struct net *net, struct in6_addr *addr, struct auth_domain *dom);
 extern struct auth_domain *auth_domain_lookup(char *name, struct auth_domain *new);
 extern struct auth_domain *auth_domain_find(char *name);
-extern struct auth_domain *auth_unix_lookup(struct net *net, struct in6_addr *addr);
-extern int auth_unix_forget_old(struct auth_domain *dom);
 extern void svcauth_unix_purge(struct net *net);
 extern void svcauth_unix_info_release(struct svc_xprt *xpt);
-extern int svcauth_unix_set_client(struct svc_rqst *rqstp);
+extern enum svc_auth_status svcauth_unix_set_client(struct svc_rqst *rqstp);
 
 extern int unix_gid_cache_create(struct net *net);
 extern void unix_gid_cache_destroy(struct net *net);
@@ -184,7 +182,5 @@ static inline unsigned long hash_mem(char const *buf, int length, int bits)
 {
 	return full_name_hash(NULL, buf, length) >> (32 - bits);
 }
-
-#endif /* __KERNEL__ */
 
 #endif /* _LINUX_SUNRPC_SVCAUTH_H_ */

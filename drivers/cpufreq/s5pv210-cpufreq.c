@@ -91,7 +91,7 @@ static DEFINE_MUTEX(set_freq_lock);
 /* Use 800MHz when entering sleep mode */
 #define SLEEP_FREQ	(800 * 1000)
 
-/* Tracks if cpu freqency can be updated anymore */
+/* Tracks if CPU frequency can be updated anymore */
 static bool no_cpufreq_access;
 
 /*
@@ -190,7 +190,7 @@ static u32 clkdiv_val[5][11] = {
 
 /*
  * This function set DRAM refresh counter
- * accoriding to operating frequency of DRAM
+ * according to operating frequency of DRAM
  * ch: DMC port number 0 or 1
  * freq: Operating frequency of DRAM(KHz)
  */
@@ -243,7 +243,7 @@ static int s5pv210_target(struct cpufreq_policy *policy, unsigned int index)
 	new_freq = s5pv210_freq_table[index].frequency;
 
 	/* Finding current running level index */
-	priv_index = cpufreq_table_find_index_h(policy, old_freq);
+	priv_index = cpufreq_table_find_index_h(policy, old_freq, false);
 
 	arm_volt = dvs_conf[index].arm_volt;
 	int_volt = dvs_conf[index].int_volt;
@@ -320,7 +320,7 @@ static int s5pv210_target(struct cpufreq_policy *policy, unsigned int index)
 
 		/*
 		 * 3. DMC1 refresh count for 133Mhz if (index == L4) is
-		 * true refresh counter is already programed in upper
+		 * true refresh counter is already programmed in upper
 		 * code. 0x287@83Mhz
 		 */
 		if (!bus_speed_changing)
@@ -378,7 +378,7 @@ static int s5pv210_target(struct cpufreq_policy *policy, unsigned int index)
 		/*
 		 * 6. Turn on APLL
 		 * 6-1. Set PMS values
-		 * 6-2. Wait untile the PLL is locked
+		 * 6-2. Wait until the PLL is locked
 		 */
 		if (index == L0)
 			writel_relaxed(APLL_VAL_1000, S5P_APLL_CON);
@@ -390,7 +390,7 @@ static int s5pv210_target(struct cpufreq_policy *policy, unsigned int index)
 		} while (!(reg & (0x1 << 29)));
 
 		/*
-		 * 7. Change souce clock from SCLKMPLL(667Mhz)
+		 * 7. Change source clock from SCLKMPLL(667Mhz)
 		 * to SCLKA2M(200Mhz) in MFC_MUX and G3D MUX
 		 * (667/4=166)->(200/4=50)Mhz
 		 */
@@ -439,8 +439,8 @@ static int s5pv210_target(struct cpufreq_policy *policy, unsigned int index)
 	}
 
 	/*
-	 * L4 level need to change memory bus speed, hence onedram clock divier
-	 * and memory refresh parameter should be changed
+	 * L4 level needs to change memory bus speed, hence ONEDRAM clock
+	 * divider and memory refresh parameter should be changed
 	 */
 	if (bus_speed_changing) {
 		reg = readl_relaxed(S5P_CLK_DIV6);
@@ -555,8 +555,17 @@ static int s5pv210_cpufreq_reboot_notifier_event(struct notifier_block *this,
 						 unsigned long event, void *ptr)
 {
 	int ret;
+	struct cpufreq_policy *policy;
 
-	ret = cpufreq_driver_target(cpufreq_cpu_get(0), SLEEP_FREQ, 0);
+	policy = cpufreq_cpu_get(0);
+	if (!policy) {
+		pr_debug("cpufreq: get no policy for cpu0\n");
+		return NOTIFY_BAD;
+	}
+
+	ret = cpufreq_driver_target(policy, SLEEP_FREQ, 0);
+	cpufreq_cpu_put(policy);
+
 	if (ret < 0)
 		return NOTIFY_BAD;
 
@@ -565,7 +574,7 @@ static int s5pv210_cpufreq_reboot_notifier_event(struct notifier_block *this,
 }
 
 static struct cpufreq_driver s5pv210_driver = {
-	.flags		= CPUFREQ_STICKY | CPUFREQ_NEED_INITIAL_FREQ_CHECK,
+	.flags		= CPUFREQ_NEED_INITIAL_FREQ_CHECK,
 	.verify		= cpufreq_generic_frequency_table_verify,
 	.target_index	= s5pv210_target,
 	.get		= cpufreq_generic_get,
@@ -581,6 +590,7 @@ static struct notifier_block s5pv210_cpufreq_reboot_notifier = {
 
 static int s5pv210_cpufreq_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct device_node *np;
 	int id, result = 0;
 
@@ -593,28 +603,20 @@ static int s5pv210_cpufreq_probe(struct platform_device *pdev)
 	 * cpufreq-dt driver.
 	 */
 	arm_regulator = regulator_get(NULL, "vddarm");
-	if (IS_ERR(arm_regulator)) {
-		if (PTR_ERR(arm_regulator) == -EPROBE_DEFER)
-			pr_debug("vddarm regulator not ready, defer\n");
-		else
-			pr_err("failed to get regulator vddarm\n");
-		return PTR_ERR(arm_regulator);
-	}
+	if (IS_ERR(arm_regulator))
+		return dev_err_probe(dev, PTR_ERR(arm_regulator),
+				     "failed to get regulator vddarm\n");
 
 	int_regulator = regulator_get(NULL, "vddint");
 	if (IS_ERR(int_regulator)) {
-		if (PTR_ERR(int_regulator) == -EPROBE_DEFER)
-			pr_debug("vddint regulator not ready, defer\n");
-		else
-			pr_err("failed to get regulator vddint\n");
-		result = PTR_ERR(int_regulator);
+		result = dev_err_probe(dev, PTR_ERR(int_regulator),
+				       "failed to get regulator vddint\n");
 		goto err_int_regulator;
 	}
 
 	np = of_find_compatible_node(NULL, NULL, "samsung,s5pv210-clock");
 	if (!np) {
-		pr_err("%s: failed to find clock controller DT node\n",
-			__func__);
+		dev_err(dev, "failed to find clock controller DT node\n");
 		result = -ENODEV;
 		goto err_clock;
 	}
@@ -622,7 +624,7 @@ static int s5pv210_cpufreq_probe(struct platform_device *pdev)
 	clk_base = of_iomap(np, 0);
 	of_node_put(np);
 	if (!clk_base) {
-		pr_err("%s: failed to map clock registers\n", __func__);
+		dev_err(dev, "failed to map clock registers\n");
 		result = -EFAULT;
 		goto err_clock;
 	}
@@ -630,8 +632,7 @@ static int s5pv210_cpufreq_probe(struct platform_device *pdev)
 	for_each_compatible_node(np, NULL, "samsung,s5pv210-dmc") {
 		id = of_alias_get_id(np, "dmc");
 		if (id < 0 || id >= ARRAY_SIZE(dmc_base)) {
-			pr_err("%s: failed to get alias of dmc node '%pOFn'\n",
-				__func__, np);
+			dev_err(dev, "failed to get alias of dmc node '%pOFn'\n", np);
 			of_node_put(np);
 			result = id;
 			goto err_clk_base;
@@ -639,8 +640,7 @@ static int s5pv210_cpufreq_probe(struct platform_device *pdev)
 
 		dmc_base[id] = of_iomap(np, 0);
 		if (!dmc_base[id]) {
-			pr_err("%s: failed to map dmc%d registers\n",
-				__func__, id);
+			dev_err(dev, "failed to map dmc%d registers\n", id);
 			of_node_put(np);
 			result = -EFAULT;
 			goto err_dmc;
@@ -649,7 +649,7 @@ static int s5pv210_cpufreq_probe(struct platform_device *pdev)
 
 	for (id = 0; id < ARRAY_SIZE(dmc_base); ++id) {
 		if (!dmc_base[id]) {
-			pr_err("%s: failed to find dmc%d node\n", __func__, id);
+			dev_err(dev, "failed to find dmc%d node\n", id);
 			result = -ENODEV;
 			goto err_dmc;
 		}

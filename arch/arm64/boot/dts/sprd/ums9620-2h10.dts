@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Unisoc UMS9620-2h10 board DTS file
+ *
+ * Copyright (C) 2023, Unisoc Inc.
+ */
+
+/dts-v1/;
+
+#include "ums9620.dtsi"
+
+/ {
+	model = "Unisoc UMS9620-2H10 Board";
+
+	compatible = "sprd,ums9620-2h10", "sprd,ums9620";
+
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x0 0x80000000 0x2 0x00000000>;
+	};
+
+	chosen {
+		stdout-path = "serial1:921600n8";
+	};
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&uart1 {
+	status = "okay";
+};

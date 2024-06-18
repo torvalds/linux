@@ -4,8 +4,4 @@
 
 #include <asm-generic/extable.h>
 
-#if defined(CONFIG_SUPERH64) && defined(CONFIG_MMU)
-#define ARCH_HAS_SEARCH_EXTABLE
-#endif
-
 #endif

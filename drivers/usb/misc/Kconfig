@@ -4,9 +4,38 @@
 #
 comment "USB Miscellaneous drivers"
 
+config USB_USS720
+	tristate "USS720 parport driver"
+	depends on PARPORT
+	select PARPORT_NOT_PC
+	help
+	  This driver is for USB parallel port adapters that use the Lucent
+	  Technologies USS-720 chip. These cables are plugged into your USB
+	  port and provide USB compatibility to peripherals designed with
+	  parallel port interfaces.
+
+	  The chip has two modes: automatic mode and manual mode. In automatic
+	  mode, it looks to the computer like a standard USB printer. Only
+	  printers may be connected to the USS-720 in this mode. The generic
+	  USB printer driver ("USB Printer support", above) may be used in
+	  that mode, and you can say N here if you want to use the chip only
+	  in this mode.
+
+	  Manual mode is not limited to printers, any parallel port
+	  device should work. This driver utilizes manual mode.
+	  Note however that some operations are three orders of magnitude
+	  slower than on a PCI/ISA Parallel Port, so timing critical
+	  applications might not work.
+
+	  Say Y here if you own an USS-720 USB->Parport cable and intend to
+	  connect anything other than a printer to it.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called uss720.
+
 config USB_EMI62
 	tristate "EMI 6|2m USB Audio interface support"
-	---help---
+	help
 	  This driver loads firmware to Emagic EMI 6|2m low latency USB
 	  Audio and Midi interface.
 
@@ -20,7 +49,7 @@ config USB_EMI62
 
 config USB_EMI26
 	tristate "EMI 2|6 USB Audio interface support"
-	---help---
+	help
 	  This driver loads firmware to Emagic EMI 2|6 low latency USB
 	  Audio interface.
 
@@ -46,16 +75,6 @@ config USB_SEVSEG
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called usbsevseg.
-
-config USB_RIO500
-	tristate "USB Diamond Rio500 support"
-	help
-	  Say Y here if you want to connect a USB Rio500 mp3 player to your
-	  computer's USB port. Please read <file:Documentation/usb/rio.rst>
-	  for more information.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called rio500.
 
 config USB_LEGOTOWER
 	tristate "USB Lego Infrared Tower support"
@@ -88,7 +107,7 @@ config USB_CYPRESS_CY7C63
 	  driver supports the pre-programmed devices (incl. firmware)
 	  by AK Modul-Bus Computer GmbH.
 
-	  Please see: http://www.ak-modul-bus.de/stat/mikrocontroller.html
+	  Please see: https://www.ak-modul-bus.de/stat/mikrocontroller.html
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called cypress_cy7c63.
@@ -116,29 +135,7 @@ config USB_IDMOUSE
 	  This driver creates an entry "/dev/idmouseX" or "/dev/usb/idmouseX",
 	  which can be used by, e.g.,"cat /dev/idmouse0 > fingerprint.pnm".
 
-	  See also <http://www.fs.tum.de/~echtler/idmouse/>.
-
-config USB_FTDI_ELAN
-	tristate "Elan PCMCIA CardBus Adapter USB Client"
-	help
-	  ELAN's Uxxx series of adapters are USB to PCMCIA CardBus adapters.
-	  Currently only the U132 adapter is available.
-
-	  The U132 is specifically designed for CardBus PC cards that contain
-	  an OHCI host controller. Typical PC cards are the Orange Mobile 3G
-	  Option GlobeTrotter Fusion card. The U132 adapter will *NOT* work
-	  with PC cards that do not contain an OHCI controller. To use a U132
-	  adapter you will need this "ftdi-elan" module as well as the "u132-hcd"
-	  module which is a USB host controller driver that talks to the OHCI
-	  controller within CardBus card that are inserted in the U132 adapter.
-
-	  This driver has been tested with a CardBus OHCI USB adapter, and
-	  worked with a USB PEN Drive inserted into the first USB port of
-	  the PCCARD. A rather pointless thing to do, but useful for testing.
-
-	  See also the USB_U132_HCD entry "Elan U132 Adapter Host Controller"
-
-	  It is safe to say M here.
+	  See also <https://www.fs.tum.de/~echtler/idmouse/>.
 
 config USB_APPLEDISPLAY
 	tristate "Apple Cinema Display support"
@@ -146,6 +143,40 @@ config USB_APPLEDISPLAY
 	help
 	  Say Y here if you want to control the backlight of Apple Cinema
 	  Displays over USB. This driver provides a sysfs interface.
+
+config USB_QCOM_EUD
+	tristate "QCOM Embedded USB Debugger(EUD) Driver"
+	depends on ARCH_QCOM || COMPILE_TEST
+	select USB_ROLE_SWITCH
+	help
+	  This module enables support for Qualcomm Technologies, Inc.
+	  Embedded USB Debugger (EUD). The EUD is a control peripheral
+	  which reports VBUS attach/detach events and has USB-based
+	  debug and trace capabilities. On selecting m, the module name
+	  that is built is qcom_eud.ko
+
+config APPLE_MFI_FASTCHARGE
+	tristate "Fast charge control for iOS devices"
+	select POWER_SUPPLY
+	help
+	  Say Y here if you want to control whether iOS devices will
+	  fast charge from the USB interface, as implemented in "MFi"
+	  chargers.
+
+	  It is safe to say M here.
+
+config USB_LJCA
+	tristate "Intel La Jolla Cove Adapter support"
+	select AUXILIARY_BUS
+	depends on USB && ACPI
+	help
+	  This adds support for Intel La Jolla Cove USB-I2C/SPI/GPIO
+	  Master Adapter (LJCA). Additional drivers such as I2C_LJCA,
+	  GPIO_LJCA and SPI_LJCA must be enabled in order to use the
+	  functionality of the device.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called usb-ljca.
 
 source "drivers/usb/misc/sisusbvga/Kconfig"
 
@@ -191,8 +222,8 @@ config USB_TEST
 	  including sample test device firmware and "how to use it".
 
 config USB_EHSET_TEST_FIXTURE
-        tristate "USB EHSET Test Fixture driver"
-        help
+	tristate "USB EHSET Test Fixture driver"
+	help
 	  Say Y here if you want to support the special test fixture device
 	  used for the USB-IF Embedded Host High-Speed Electrical Test procedure.
 
@@ -243,17 +274,17 @@ config USB_HUB_USB251XB
 	  Say Y or M here if you need to configure such a device via SMBus.
 
 config USB_HSIC_USB3503
-       tristate "USB3503 HSIC to USB20 Driver"
-       depends on I2C
-       select REGMAP_I2C
-       help
-         This option enables support for SMSC USB3503 HSIC to USB 2.0 Driver.
+	tristate "USB3503 HSIC to USB20 Driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This option enables support for SMSC USB3503 HSIC to USB 2.0 Driver.
 
 config USB_HSIC_USB4604
-       tristate "USB4604 HSIC to USB20 Driver"
-       depends on I2C
-       help
-         This option enables support for SMSC USB4604 HSIC to USB 2.0 Driver.
+	tristate "USB4604 HSIC to USB20 Driver"
+	depends on I2C
+	help
+	  This option enables support for SMSC USB4604 HSIC to USB 2.0 Driver.
 
 config USB_LINK_LAYER_TEST
 	tristate "USB Link Layer Test driver"
@@ -275,3 +306,28 @@ config USB_CHAOSKEY
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called chaoskey.
+
+config BRCM_USB_PINMAP
+	tristate "Broadcom pinmap driver support"
+	depends on (ARCH_BRCMSTB && PHY_BRCM_USB) || COMPILE_TEST
+	default ARCH_BRCMSTB && PHY_BRCM_USB
+	help
+	  This option enables support for remapping some USB external
+	  signals, which are typically on dedicated pins on the chip,
+	  to any gpio.
+
+config USB_ONBOARD_DEV
+	tristate "Onboard USB device support"
+	depends on OF
+	help
+	  Say Y here if you want to support discrete onboard USB devices
+	  that don't require an additional control bus for initialization,
+	  but need some non-trivial form of initialization, such as
+	  enabling a power regulator. An example for such device is the
+	  Realtek RTS5411 hub.
+
+	  This driver can be used as a module but its state (module vs
+	  builtin) must match the state of the USB subsystem. Enabling
+	  this config will enable the driver and it will automatically
+	  match the state of the USB subsystem. If this driver is a
+	  module it will be called onboard_usb_dev.

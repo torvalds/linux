@@ -1,27 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * tps65218-regulator.c
  *
  * Regulator driver for TPS65218 PMIC
  *
- * Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether expressed or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License version 2 for more details.
+ * Copyright (C) 2014 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
-#include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/regulator/driver.h>
@@ -56,17 +48,17 @@
 		.bypass_mask	= _sm,				\
 	}							\
 
-static const struct regulator_linear_range dcdc1_dcdc2_ranges[] = {
+static const struct linear_range dcdc1_dcdc2_ranges[] = {
 	REGULATOR_LINEAR_RANGE(850000, 0x0, 0x32, 10000),
 	REGULATOR_LINEAR_RANGE(1375000, 0x33, 0x3f, 25000),
 };
 
-static const struct regulator_linear_range ldo1_dcdc3_ranges[] = {
+static const struct linear_range ldo1_dcdc3_ranges[] = {
 	REGULATOR_LINEAR_RANGE(900000, 0x0, 0x1a, 25000),
 	REGULATOR_LINEAR_RANGE(1600000, 0x1b, 0x3f, 50000),
 };
 
-static const struct regulator_linear_range dcdc4_ranges[] = {
+static const struct linear_range dcdc4_ranges[] = {
 	REGULATOR_LINEAR_RANGE(1175000, 0x0, 0xf, 25000),
 	REGULATOR_LINEAR_RANGE(1600000, 0x10, 0x34, 50000),
 };
@@ -128,7 +120,7 @@ static int tps65218_pmic_set_suspend_enable(struct regulator_dev *dev)
 	struct tps65218 *tps = rdev_get_drvdata(dev);
 	unsigned int rid = rdev_get_id(dev);
 
-	if (rid < TPS65218_DCDC_1 || rid > TPS65218_LDO_1)
+	if (rid > TPS65218_LDO_1)
 		return -EINVAL;
 
 	return tps65218_clear_bits(tps, dev->desc->bypass_reg,
@@ -141,7 +133,7 @@ static int tps65218_pmic_set_suspend_disable(struct regulator_dev *dev)
 	struct tps65218 *tps = rdev_get_drvdata(dev);
 	unsigned int rid = rdev_get_id(dev);
 
-	if (rid < TPS65218_DCDC_1 || rid > TPS65218_LDO_1)
+	if (rid > TPS65218_LDO_1)
 		return -EINVAL;
 
 	/*
@@ -357,6 +349,7 @@ MODULE_DEVICE_TABLE(platform, tps65218_regulator_id_table);
 static struct platform_driver tps65218_regulator_driver = {
 	.driver = {
 		.name = "tps65218-pmic",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = tps65218_regulator_probe,
 	.id_table = tps65218_regulator_id_table,

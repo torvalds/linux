@@ -765,7 +765,7 @@ static void i5000_clear_error(struct mem_ctl_info *mci)
 static void i5000_check_error(struct mem_ctl_info *mci)
 {
 	struct i5000_error_info info;
-	edac_dbg(4, "MC%d\n", mci->mc_idx);
+
 	i5000_get_error_info(mci, &info);
 	i5000_process_error_info(mci, &info, 1);
 }
@@ -1275,9 +1275,8 @@ static int i5000_init_csrows(struct mem_ctl_info *mci)
 			if (!MTR_DIMMS_PRESENT(mtr))
 				continue;
 
-			dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms, mci->n_layers,
-				       channel / MAX_BRANCHES,
-				       channel % MAX_BRANCHES, slot);
+			dimm = edac_get_dimm(mci, channel / MAX_BRANCHES,
+					     channel % MAX_BRANCHES, slot);
 
 			csrow_megs = pvt->dimm_info[slot][channel].megabytes;
 			dimm->grain = 8;
@@ -1574,13 +1573,10 @@ module_init(i5000_init);
 module_exit(i5000_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR
-    ("Linux Networx (http://lnxi.com) Doug Thompson <norsk5@xmission.com>");
-MODULE_DESCRIPTION("MC Driver for Intel I5000 memory controllers - "
-		I5000_REVISION);
+MODULE_AUTHOR("Linux Networx (http://lnxi.com) Doug Thompson <norsk5@xmission.com>");
+MODULE_DESCRIPTION("MC Driver for Intel I5000 memory controllers - " I5000_REVISION);
 
 module_param(edac_op_state, int, 0444);
 MODULE_PARM_DESC(edac_op_state, "EDAC Error Reporting state: 0=Poll,1=NMI");
 module_param(misc_messages, int, 0444);
 MODULE_PARM_DESC(misc_messages, "Log miscellaneous non fatal messages");
-

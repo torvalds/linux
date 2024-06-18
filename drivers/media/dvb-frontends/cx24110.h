@@ -34,11 +34,11 @@ static inline int cx24110_pll_write(struct dvb_frontend *fe, u32 val)
 }
 
 #if IS_REACHABLE(CONFIG_DVB_CX24110)
-extern struct dvb_frontend* cx24110_attach(const struct cx24110_config* config,
-					   struct i2c_adapter* i2c);
+extern struct dvb_frontend *cx24110_attach(const struct cx24110_config *config,
+					   struct i2c_adapter *i2c);
 #else
-static inline struct dvb_frontend* cx24110_attach(const struct cx24110_config* config,
-						  struct i2c_adapter* i2c)
+static inline struct dvb_frontend *cx24110_attach(const struct cx24110_config *config,
+						  struct i2c_adapter *i2c)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;

@@ -49,14 +49,14 @@
 #include <subdev/mmu.h>
 
 struct gk20a_instobj {
-	struct nvkm_memory memory;
+	struct nvkm_instobj base;
 	struct nvkm_mm_node *mn;
 	struct gk20a_instmem *imem;
 
 	/* CPU mapping */
 	u32 *vaddr;
 };
-#define gk20a_instobj(p) container_of((p), struct gk20a_instobj, memory)
+#define gk20a_instobj(p) container_of((p), struct gk20a_instobj, base.memory)
 
 /*
  * Used for objects allocated using the DMA API
@@ -148,7 +148,7 @@ gk20a_instobj_iommu_recycle_vaddr(struct gk20a_instobj_iommu *obj)
 	list_del(&obj->vaddr_node);
 	vunmap(obj->base.vaddr);
 	obj->base.vaddr = NULL;
-	imem->vaddr_use -= nvkm_memory_size(&obj->base.memory);
+	imem->vaddr_use -= nvkm_memory_size(&obj->base.base.memory);
 	nvkm_debug(&imem->base.subdev, "vaddr used: %x/%x\n", imem->vaddr_use,
 		   imem->vaddr_max);
 }
@@ -283,7 +283,7 @@ gk20a_instobj_map(struct nvkm_memory *memory, u64 offset, struct nvkm_vmm *vmm,
 {
 	struct gk20a_instobj *node = gk20a_instobj(memory);
 	struct nvkm_vmm_map map = {
-		.memory = &node->memory,
+		.memory = &node->base.memory,
 		.offset = offset,
 		.mem = node->mn,
 	};
@@ -391,8 +391,8 @@ gk20a_instobj_ctor_dma(struct gk20a_instmem *imem, u32 npages, u32 align,
 		return -ENOMEM;
 	*_node = &node->base;
 
-	nvkm_memory_ctor(&gk20a_instobj_func_dma, &node->base.memory);
-	node->base.memory.ptrs = &gk20a_instobj_ptrs;
+	nvkm_memory_ctor(&gk20a_instobj_func_dma, &node->base.base.memory);
+	node->base.base.memory.ptrs = &gk20a_instobj_ptrs;
 
 	node->base.vaddr = dma_alloc_attrs(dev, npages << PAGE_SHIFT,
 					   &node->handle, GFP_KERNEL,
@@ -438,8 +438,8 @@ gk20a_instobj_ctor_iommu(struct gk20a_instmem *imem, u32 npages, u32 align,
 	*_node = &node->base;
 	node->dma_addrs = (void *)(node->pages + npages);
 
-	nvkm_memory_ctor(&gk20a_instobj_func_iommu, &node->base.memory);
-	node->base.memory.ptrs = &gk20a_instobj_ptrs;
+	nvkm_memory_ctor(&gk20a_instobj_func_iommu, &node->base.base.memory);
+	node->base.base.memory.ptrs = &gk20a_instobj_ptrs;
 
 	/* Allocate backing memory */
 	for (i = 0; i < npages; i++) {
@@ -475,7 +475,8 @@ gk20a_instobj_ctor_iommu(struct gk20a_instmem *imem, u32 npages, u32 align,
 		u32 offset = (r->offset + i) << imem->iommu_pgshift;
 
 		ret = iommu_map(imem->domain, offset, node->dma_addrs[i],
-				PAGE_SIZE, IOMMU_READ | IOMMU_WRITE);
+				PAGE_SIZE, IOMMU_READ | IOMMU_WRITE,
+				GFP_KERNEL);
 		if (ret < 0) {
 			nvkm_error(subdev, "IOMMU mapping failure: %d\n", ret);
 
@@ -532,7 +533,7 @@ gk20a_instobj_new(struct nvkm_instmem *base, u32 size, u32 align, bool zero,
 	else
 		ret = gk20a_instobj_ctor_dma(imem, size >> PAGE_SHIFT,
 					     align, &node);
-	*pmemory = node ? &node->memory : NULL;
+	*pmemory = node ? &node->base.memory : NULL;
 	if (ret)
 		return ret;
 
@@ -563,12 +564,14 @@ gk20a_instmem_dtor(struct nvkm_instmem *base)
 static const struct nvkm_instmem_func
 gk20a_instmem = {
 	.dtor = gk20a_instmem_dtor,
+	.suspend = nv04_instmem_suspend,
+	.resume = nv04_instmem_resume,
 	.memory_new = gk20a_instobj_new,
 	.zero = false,
 };
 
 int
-gk20a_instmem_new(struct nvkm_device *device, int index,
+gk20a_instmem_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 		  struct nvkm_instmem **pimem)
 {
 	struct nvkm_device_tegra *tdev = device->func->tegra(device);
@@ -576,7 +579,7 @@ gk20a_instmem_new(struct nvkm_device *device, int index,
 
 	if (!(imem = kzalloc(sizeof(*imem), GFP_KERNEL)))
 		return -ENOMEM;
-	nvkm_instmem_ctor(&gk20a_instmem, device, index, &imem->base);
+	nvkm_instmem_ctor(&gk20a_instmem, device, type, inst, &imem->base);
 	mutex_init(&imem->lock);
 	*pimem = &imem->base;
 
@@ -594,8 +597,7 @@ gk20a_instmem_new(struct nvkm_device *device, int index,
 
 		nvkm_info(&imem->base.subdev, "using IOMMU\n");
 	} else {
-		imem->attrs = DMA_ATTR_NON_CONSISTENT |
-			      DMA_ATTR_WEAK_ORDERING |
+		imem->attrs = DMA_ATTR_WEAK_ORDERING |
 			      DMA_ATTR_WRITE_COMBINE;
 
 		nvkm_info(&imem->base.subdev, "using DMA API\n");

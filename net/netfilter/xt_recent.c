@@ -71,7 +71,7 @@ struct recent_entry {
 	u_int8_t		ttl;
 	u_int8_t		index;
 	u_int16_t		nstamps;
-	unsigned long		stamps[0];
+	unsigned long		stamps[];
 };
 
 struct recent_table {
@@ -82,7 +82,7 @@ struct recent_table {
 	unsigned int		entries;
 	u8			nstamps_max_mask;
 	struct list_head	lru_list;
-	struct list_head	iphash[0];
+	struct list_head	iphash[];
 };
 
 struct recent_net {
@@ -103,7 +103,7 @@ static DEFINE_SPINLOCK(recent_lock);
 static DEFINE_MUTEX(recent_mutex);
 
 #ifdef CONFIG_PROC_FS
-static const struct file_operations recent_mt_fops;
+static const struct proc_ops recent_mt_proc_ops;
 #endif
 
 static u_int32_t hash_rnd __read_mostly;
@@ -152,7 +152,8 @@ static void recent_entry_remove(struct recent_table *t, struct recent_entry *e)
 /*
  * Drop entries with timestamps older then 'time'.
  */
-static void recent_entry_reap(struct recent_table *t, unsigned long time)
+static void recent_entry_reap(struct recent_table *t, unsigned long time,
+			      struct recent_entry *working, bool update)
 {
 	struct recent_entry *e;
 
@@ -160,6 +161,12 @@ static void recent_entry_reap(struct recent_table *t, unsigned long time)
 	 * The head of the LRU list is always the oldest entry.
 	 */
 	e = list_entry(t->lru_list.next, struct recent_entry, lru_list);
+
+	/*
+	 * Do not reap the entry which are going to be updated.
+	 */
+	if (e == working && update)
+		return;
 
 	/*
 	 * The last time stamp is the most recent.
@@ -303,7 +310,8 @@ recent_mt(const struct sk_buff *skb, struct xt_action_param *par)
 
 		/* info->seconds must be non-zero */
 		if (info->check_set & XT_RECENT_REAP)
-			recent_entry_reap(t, time);
+			recent_entry_reap(t, time, e,
+				info->check_set & XT_RECENT_UPDATE && ret);
 	}
 
 	if (info->check_set & XT_RECENT_SET ||
@@ -405,7 +413,7 @@ static int recent_mt_check(const struct xt_mtchk_param *par,
 		goto out;
 	}
 	pde = proc_create_data(t->name, ip_list_perms, recent_net->xt_recent,
-		  &recent_mt_fops, t);
+			       &recent_mt_proc_ops, t);
 	if (pde == NULL) {
 		recent_table_free(t);
 		ret = -ENOMEM;
@@ -492,12 +500,12 @@ static void *recent_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	const struct recent_entry *e = v;
 	const struct list_head *head = e->list.next;
 
+	(*pos)++;
 	while (head == &t->iphash[st->bucket]) {
 		if (++st->bucket >= ip_list_hash_size)
 			return NULL;
 		head = t->iphash[st->bucket].next;
 	}
-	(*pos)++;
 	return list_entry(head, struct recent_entry, list);
 }
 
@@ -543,7 +551,7 @@ static int recent_seq_open(struct inode *inode, struct file *file)
 	if (st == NULL)
 		return -ENOMEM;
 
-	st->table    = PDE_DATA(inode);
+	st->table    = pde_data(inode);
 	return 0;
 }
 
@@ -551,9 +559,9 @@ static ssize_t
 recent_mt_proc_write(struct file *file, const char __user *input,
 		     size_t size, loff_t *loff)
 {
-	struct recent_table *t = PDE_DATA(file_inode(file));
+	struct recent_table *t = pde_data(file_inode(file));
 	struct recent_entry *e;
-	char buf[sizeof("+b335:1d35:1e55:dead:c0de:1715:5afe:c0de")];
+	char buf[sizeof("+b335:1d35:1e55:dead:c0de:1715:255.255.255.255")];
 	const char *c = buf;
 	union nf_inet_addr addr = {};
 	u_int16_t family;
@@ -616,13 +624,12 @@ recent_mt_proc_write(struct file *file, const char __user *input,
 	return size + 1;
 }
 
-static const struct file_operations recent_mt_fops = {
-	.open    = recent_seq_open,
-	.read    = seq_read,
-	.write   = recent_mt_proc_write,
-	.release = seq_release_private,
-	.owner   = THIS_MODULE,
-	.llseek = seq_lseek,
+static const struct proc_ops recent_mt_proc_ops = {
+	.proc_open	= recent_seq_open,
+	.proc_read	= seq_read,
+	.proc_write	= recent_mt_proc_write,
+	.proc_release	= seq_release_private,
+	.proc_lseek	= seq_lseek,
 };
 
 static int __net_init recent_proc_net_init(struct net *net)
@@ -641,7 +648,7 @@ static void __net_exit recent_proc_net_exit(struct net *net)
 	struct recent_table *t;
 
 	/* recent_net_exit() is called before recent_mt_destroy(). Make sure
-	 * that the parent xt_recent proc entry is is empty before trying to
+	 * that the parent xt_recent proc entry is empty before trying to
 	 * remove it.
 	 */
 	spin_lock_bh(&recent_lock);

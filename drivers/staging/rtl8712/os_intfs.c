@@ -166,7 +166,7 @@ static int r871x_net_set_mac_address(struct net_device *pnetdev, void *p)
 	struct sockaddr *addr = p;
 
 	if (!padapter->bup)
-		ether_addr_copy(pnetdev->dev_addr, addr->sa_data);
+		eth_hw_addr_set(pnetdev, addr->sa_data);
 	return 0;
 }
 
@@ -203,7 +203,7 @@ struct net_device *r8712_init_netdev(void)
 	if (!pnetdev)
 		return NULL;
 	if (dev_alloc_name(pnetdev, ifname) < 0) {
-		strcpy(ifname, "wlan%d");
+		strscpy(ifname, "wlan%d", sizeof(ifname));
 		dev_alloc_name(pnetdev, ifname);
 	}
 	padapter = netdev_priv(pnetdev);
@@ -222,7 +222,7 @@ struct net_device *r8712_init_netdev(void)
 static u32 start_drv_threads(struct _adapter *padapter)
 {
 	padapter->cmd_thread = kthread_run(r8712_cmd_thread, padapter, "%s",
-					  padapter->pnetdev->name);
+					   padapter->pnetdev->name);
 	if (IS_ERR(padapter->cmd_thread))
 		return _FAIL;
 	return _SUCCESS;
@@ -304,43 +304,56 @@ int r8712_init_drv_sw(struct _adapter *padapter)
 	padapter->cmdpriv.padapter = padapter;
 	ret = r8712_init_evt_priv(&padapter->evtpriv);
 	if (ret)
-		return ret;
+		goto free_cmd;
 	ret = r8712_init_mlme_priv(padapter);
 	if (ret)
-		return ret;
-	_r8712_init_xmit_priv(&padapter->xmitpriv, padapter);
-	_r8712_init_recv_priv(&padapter->recvpriv, padapter);
+		goto free_evt;
+	ret = _r8712_init_xmit_priv(&padapter->xmitpriv, padapter);
+	if (ret)
+		goto free_mlme;
+	ret = _r8712_init_recv_priv(&padapter->recvpriv, padapter);
+	if (ret)
+		goto free_xmit;
 	memset((unsigned char *)&padapter->securitypriv, 0,
 	       sizeof(struct security_priv));
 	timer_setup(&padapter->securitypriv.tkip_timer,
 		    r8712_use_tkipkey_handler, 0);
 	ret = _r8712_init_sta_priv(&padapter->stapriv);
 	if (ret)
-		return ret;
+		goto free_recv;
 	padapter->stapriv.padapter = padapter;
 	r8712_init_bcmc_stainfo(padapter);
 	r8712_init_pwrctrl_priv(padapter);
 	mp871xinit(padapter);
 	init_default_value(padapter);
 	r8712_InitSwLeds(padapter);
+	mutex_init(&padapter->mutex_start);
+
+	return 0;
+
+free_recv:
+	_r8712_free_recv_priv(&padapter->recvpriv);
+free_xmit:
+	_free_xmit_priv(&padapter->xmitpriv);
+free_mlme:
+	r8712_free_mlme_priv(&padapter->mlmepriv);
+free_evt:
+	r8712_free_evt_priv(&padapter->evtpriv);
+free_cmd:
+	r8712_free_cmd_priv(&padapter->cmdpriv);
 	return ret;
 }
 
 void r8712_free_drv_sw(struct _adapter *padapter)
 {
-	struct net_device *pnetdev = padapter->pnetdev;
-
 	r8712_free_cmd_priv(&padapter->cmdpriv);
 	r8712_free_evt_priv(&padapter->evtpriv);
 	r8712_DeInitSwLeds(padapter);
 	r8712_free_mlme_priv(&padapter->mlmepriv);
-	r8712_free_io_queue(padapter);
 	_free_xmit_priv(&padapter->xmitpriv);
 	_r8712_free_sta_priv(&padapter->stapriv);
 	_r8712_free_recv_priv(&padapter->recvpriv);
 	mp871xdeinit(padapter);
-	if (pnetdev)
-		free_netdev(pnetdev);
 }
 
 static void enable_video_mode(struct _adapter *padapter, int cbw40_value)
@@ -385,14 +398,15 @@ static int netdev_open(struct net_device *pnetdev)
 			goto netdev_open_error;
 		if (!r8712_initmac) {
 			/* Use the mac address stored in the Efuse */
-			memcpy(pnetdev->dev_addr,
-			       padapter->eeprompriv.mac_addr, ETH_ALEN);
+			eth_hw_addr_set(pnetdev,
+					padapter->eeprompriv.mac_addr);
 		} else {
 			/* We have to inform f/w to use user-supplied MAC
 			 * address.
 			 */
 			msleep(200);
-			r8712_setMacAddr_cmd(padapter, (u8 *)pnetdev->dev_addr);
+			r8712_setMacAddr_cmd(padapter,
+					     (const u8 *)pnetdev->dev_addr);
 			/*
 			 * The "myid" function will get the wifi mac address
 			 * from eeprompriv structure instead of netdev

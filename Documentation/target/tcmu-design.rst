@@ -5,7 +5,7 @@ TCM Userspace Design
 
 .. Contents:
 
-   1) TCM Userspace Design
+   1) Design
      a) Background
      b) Benefits
      c) Design constraints
@@ -23,8 +23,8 @@ TCM Userspace Design
    3) A final note
 
 
-TCM Userspace Design
-====================
+Design
+======
 
 TCM is another name for LIO, an in-kernel iSCSI target (server).
 Existing TCM targets run in the kernel.  TCMU (TCM in Userspace)
@@ -171,7 +171,7 @@ When the opcode is CMD, the entry in the command ring is a struct
 tcmu_cmd_entry. Userspace finds the SCSI CDB (Command Data Block) via
 tcmu_cmd_entry.req.cdb_off. This is an offset from the start of the
 overall shared memory region, not the entry. The data in/out buffers
-are accessible via tht req.iov[] array. iov_cnt contains the number of
+are accessible via the req.iov[] array. iov_cnt contains the number of
 entries in iov[] needed to describe either the Data-In or Data-Out
 buffers. For bidirectional commands, iov_cnt specifies how many iovec
 entries cover the Data-Out area, and iov_bidi_cnt specifies how many

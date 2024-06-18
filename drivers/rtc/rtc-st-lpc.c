@@ -41,7 +41,6 @@
 struct st_rtc {
 	struct rtc_device *rtc_dev;
 	struct rtc_wkalrm alarm;
-	struct resource *res;
 	struct clk *clk;
 	unsigned long clkrate;
 	void __iomem *ioaddr;
@@ -174,7 +173,7 @@ static int st_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	return 0;
 }
 
-static struct rtc_class_ops st_rtc_ops = {
+static const struct rtc_class_ops st_rtc_ops = {
 	.read_time		= st_rtc_read_time,
 	.set_time		= st_rtc_set_time,
 	.read_alarm		= st_rtc_read_alarm,
@@ -186,7 +185,6 @@ static int st_rtc_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct st_rtc *rtc;
-	struct resource *res;
 	uint32_t mode;
 	int ret = 0;
 
@@ -210,8 +208,7 @@ static int st_rtc_probe(struct platform_device *pdev)
 
 	spin_lock_init(&rtc->lock);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	rtc->ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	rtc->ioaddr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rtc->ioaddr))
 		return PTR_ERR(rtc->ioaddr);
 
@@ -231,13 +228,10 @@ static int st_rtc_probe(struct platform_device *pdev)
 	enable_irq_wake(rtc->irq);
 	disable_irq(rtc->irq);
 
-	rtc->clk = clk_get(&pdev->dev, NULL);
-	if (IS_ERR(rtc->clk)) {
-		dev_err(&pdev->dev, "Unable to request clock\n");
-		return PTR_ERR(rtc->clk);
-	}
-
-	clk_prepare_enable(rtc->clk);
+	rtc->clk = devm_clk_get_enabled(&pdev->dev, NULL);
+	if (IS_ERR(rtc->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(rtc->clk),
+				     "Unable to request clock\n");
 
 	rtc->clkrate = clk_get_rate(rtc->clk);
 	if (!rtc->clkrate) {
@@ -253,11 +247,9 @@ static int st_rtc_probe(struct platform_device *pdev)
 	rtc->rtc_dev->range_max = U64_MAX;
 	do_div(rtc->rtc_dev->range_max, rtc->clkrate);
 
-	ret = rtc_register_device(rtc->rtc_dev);
-	if (ret) {
-		clk_disable_unprepare(rtc->clk);
+	ret = devm_rtc_register_device(rtc->rtc_dev);
+	if (ret)
 		return ret;
-	}
 
 	return 0;
 }

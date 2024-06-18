@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* stnic.c : A SH7750 specific part of driver for NS DP83902A ST-NIC.
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  *
  * Copyright (C) 1999 kaz Kojima
  */
@@ -104,8 +101,8 @@ STNIC_WRITE (int reg, byte val)
 static int __init stnic_probe(void)
 {
   struct net_device *dev;
-  int i, err;
   struct ei_device *ei_local;
+  int err;
 
   /* If we are not running on a SolutionEngine, give up now */
   if (! MACH_SE)
@@ -114,13 +111,12 @@ static int __init stnic_probe(void)
   /* New style probing API */
   dev = alloc_ei_netdev();
   if (!dev)
-  	return -ENOMEM;
+	return -ENOMEM;
 
 #ifdef CONFIG_SH_STANDARD_BIOS
   sh_bios_get_node_addr (stnic_eadr);
 #endif
-  for (i = 0; i < ETH_ALEN; i++)
-    dev->dev_addr[i] = stnic_eadr[i];
+  eth_hw_addr_set(dev, stnic_eadr);
 
   /* Set the base address to point to the NIC, not the "real" base! */
   dev->base_addr = 0x1000;
@@ -300,4 +296,5 @@ static void __exit stnic_cleanup(void)
 
 module_init(stnic_probe);
 module_exit(stnic_cleanup);
+MODULE_DESCRIPTION("National Semiconductor DP83902AV ethernet driver");
 MODULE_LICENSE("GPL");

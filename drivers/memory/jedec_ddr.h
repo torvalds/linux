@@ -29,6 +29,7 @@
 #define DDR_TYPE_LPDDR2_S4	3
 #define DDR_TYPE_LPDDR2_S2	4
 #define DDR_TYPE_LPDDR2_NVM	5
+#define DDR_TYPE_LPDDR3		6
 
 /* DDR IO width */
 #define DDR_IO_WIDTH_4		1
@@ -111,6 +112,26 @@
 #define NUM_DDR_ADDR_TABLE_ENTRIES			11
 #define NUM_DDR_TIMING_TABLE_ENTRIES			4
 
+#define LPDDR2_MANID_SAMSUNG				1
+#define LPDDR2_MANID_QIMONDA				2
+#define LPDDR2_MANID_ELPIDA				3
+#define LPDDR2_MANID_ETRON				4
+#define LPDDR2_MANID_NANYA				5
+#define LPDDR2_MANID_HYNIX				6
+#define LPDDR2_MANID_MOSEL				7
+#define LPDDR2_MANID_WINBOND				8
+#define LPDDR2_MANID_ESMT				9
+#define LPDDR2_MANID_SPANSION				11
+#define LPDDR2_MANID_SST				12
+#define LPDDR2_MANID_ZMOS				13
+#define LPDDR2_MANID_INTEL				14
+#define LPDDR2_MANID_NUMONYX				254
+#define LPDDR2_MANID_MICRON				255
+
+#define LPDDR2_TYPE_S4					0
+#define LPDDR2_TYPE_S2					1
+#define LPDDR2_TYPE_NVM					2
+
 /* Structure for DDR addressing info from the JEDEC spec */
 struct lpddr2_addressing {
 	u32 num_banks;
@@ -168,5 +189,92 @@ extern const struct lpddr2_addressing
 extern const struct lpddr2_timings
 	lpddr2_jedec_timings[NUM_DDR_TIMING_TABLE_ENTRIES];
 extern const struct lpddr2_min_tck lpddr2_jedec_min_tck;
+
+/* Structure of MR8 */
+union lpddr2_basic_config4 {
+	u32 value;
+
+	struct {
+		unsigned int arch_type : 2;
+		unsigned int density : 4;
+		unsigned int io_width : 2;
+	} __packed;
+};
+
+/*
+ * Structure for information about LPDDR2 chip. All parameters are
+ * matching raw values of standard mode register bitfields or set to
+ * -ENOENT if info unavailable.
+ */
+struct lpddr2_info {
+	int arch_type;
+	int density;
+	int io_width;
+	int manufacturer_id;
+	int revision_id1;
+	int revision_id2;
+};
+
+const char *lpddr2_jedec_manufacturer(unsigned int manufacturer_id);
+
+/*
+ * Structure for timings for LPDDR3 based on LPDDR2 plus additional fields.
+ * All parameters are in pico seconds(ps) excluding max_freq, min_freq which
+ * are in Hz.
+ */
+struct lpddr3_timings {
+	u32 max_freq;
+	u32 min_freq;
+	u32 tRFC;
+	u32 tRRD;
+	u32 tRPab;
+	u32 tRPpb;
+	u32 tRCD;
+	u32 tRC;
+	u32 tRAS;
+	u32 tWTR;
+	u32 tWR;
+	u32 tRTP;
+	u32 tW2W_C2C;
+	u32 tR2R_C2C;
+	u32 tWL;
+	u32 tDQSCK;
+	u32 tRL;
+	u32 tFAW;
+	u32 tXSR;
+	u32 tXP;
+	u32 tCKE;
+	u32 tCKESR;
+	u32 tMRD;
+};
+
+/*
+ * Min value for some parameters in terms of number of tCK cycles(nCK)
+ * Please set to zero parameters that are not valid for a given memory
+ * type
+ */
+struct lpddr3_min_tck {
+	u32 tRFC;
+	u32 tRRD;
+	u32 tRPab;
+	u32 tRPpb;
+	u32 tRCD;
+	u32 tRC;
+	u32 tRAS;
+	u32 tWTR;
+	u32 tWR;
+	u32 tRTP;
+	u32 tW2W_C2C;
+	u32 tR2R_C2C;
+	u32 tWL;
+	u32 tDQSCK;
+	u32 tRL;
+	u32 tFAW;
+	u32 tXSR;
+	u32 tXP;
+	u32 tCKE;
+	u32 tCKESR;
+	u32 tMRD;
+};
 
 #endif /* __JEDEC_DDR_H */

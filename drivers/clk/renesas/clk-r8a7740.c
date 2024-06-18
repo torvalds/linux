@@ -18,7 +18,6 @@
 struct r8a7740_cpg {
 	struct clk_onecell_data data;
 	spinlock_t lock;
-	void __iomem *reg;
 };
 
 #define CPG_FRQCRA	0x00
@@ -27,28 +26,25 @@ struct r8a7740_cpg {
 #define CPG_USBCKCR	0x8c
 #define CPG_FRQCRC	0xe0
 
-#define CLK_ENABLE_ON_INIT BIT(0)
-
 struct div4_clk {
 	const char *name;
 	unsigned int reg;
 	unsigned int shift;
-	int flags;
 };
 
 static struct div4_clk div4_clks[] = {
-	{ "i", CPG_FRQCRA, 20, CLK_ENABLE_ON_INIT },
-	{ "zg", CPG_FRQCRA, 16, CLK_ENABLE_ON_INIT },
-	{ "b", CPG_FRQCRA,  8, CLK_ENABLE_ON_INIT },
-	{ "m1", CPG_FRQCRA,  4, CLK_ENABLE_ON_INIT },
-	{ "hp", CPG_FRQCRB,  4, 0 },
-	{ "hpp", CPG_FRQCRC, 20, 0 },
-	{ "usbp", CPG_FRQCRC, 16, 0 },
-	{ "s", CPG_FRQCRC, 12, 0 },
-	{ "zb", CPG_FRQCRC,  8, 0 },
-	{ "m3", CPG_FRQCRC,  4, 0 },
-	{ "cp", CPG_FRQCRC,  0, 0 },
-	{ NULL, 0, 0, 0 },
+	{ "i", CPG_FRQCRA, 20 },
+	{ "zg", CPG_FRQCRA, 16 },
+	{ "b", CPG_FRQCRA,  8 },
+	{ "m1", CPG_FRQCRA,  4 },
+	{ "hp", CPG_FRQCRB,  4 },
+	{ "hpp", CPG_FRQCRC, 20 },
+	{ "usbp", CPG_FRQCRC, 16 },
+	{ "s", CPG_FRQCRC, 12 },
+	{ "zb", CPG_FRQCRC,  8 },
+	{ "m3", CPG_FRQCRC,  4 },
+	{ "cp", CPG_FRQCRC,  0 },
+	{ NULL, 0, 0 },
 };
 
 static const struct clk_div_table div4_div_table[] = {
@@ -61,7 +57,7 @@ static u32 cpg_mode __initdata;
 
 static struct clk * __init
 r8a7740_cpg_register_clock(struct device_node *np, struct r8a7740_cpg *cpg,
-			     const char *name)
+			   void __iomem *base, const char *name)
 {
 	const struct clk_div_table *table = NULL;
 	const char *parent_name;
@@ -96,20 +92,20 @@ r8a7740_cpg_register_clock(struct device_node *np, struct r8a7740_cpg *cpg,
 		 * clock implementation and we currently have no need to change
 		 * the multiplier value.
 		 */
-		u32 value = readl(cpg->reg + CPG_FRQCRC);
+		u32 value = readl(base + CPG_FRQCRC);
 		parent_name = "system";
 		mult = ((value >> 24) & 0x7f) + 1;
 	} else if (!strcmp(name, "pllc1")) {
-		u32 value = readl(cpg->reg + CPG_FRQCRA);
+		u32 value = readl(base + CPG_FRQCRA);
 		parent_name = "system";
 		mult = ((value >> 24) & 0x7f) + 1;
 		div = 2;
 	} else if (!strcmp(name, "pllc2")) {
-		u32 value = readl(cpg->reg + CPG_PLLC2CR);
+		u32 value = readl(base + CPG_PLLC2CR);
 		parent_name = "system";
 		mult = ((value >> 24) & 0x3f) + 1;
 	} else if (!strcmp(name, "usb24s")) {
-		u32 value = readl(cpg->reg + CPG_USBCKCR);
+		u32 value = readl(base + CPG_USBCKCR);
 		if (value & BIT(7))
 			/* extal2 */
 			parent_name = of_clk_get_parent_name(np, 1);
@@ -137,7 +133,7 @@ r8a7740_cpg_register_clock(struct device_node *np, struct r8a7740_cpg *cpg,
 						 mult, div);
 	} else {
 		return clk_register_divider_table(NULL, name, parent_name, 0,
-						  cpg->reg + reg, shift, 4, 0,
+						  base + reg, shift, 4, 0,
 						  table, &cpg->lock);
 	}
 }
@@ -145,6 +141,7 @@ r8a7740_cpg_register_clock(struct device_node *np, struct r8a7740_cpg *cpg,
 static void __init r8a7740_cpg_clocks_init(struct device_node *np)
 {
 	struct r8a7740_cpg *cpg;
+	void __iomem *base;
 	struct clk **clks;
 	unsigned int i;
 	int num_clks;
@@ -172,8 +169,8 @@ static void __init r8a7740_cpg_clocks_init(struct device_node *np)
 	cpg->data.clks = clks;
 	cpg->data.clk_num = num_clks;
 
-	cpg->reg = of_iomap(np, 0);
-	if (WARN_ON(cpg->reg == NULL))
+	base = of_iomap(np, 0);
+	if (WARN_ON(base == NULL))
 		return;
 
 	for (i = 0; i < num_clks; ++i) {
@@ -183,7 +180,7 @@ static void __init r8a7740_cpg_clocks_init(struct device_node *np)
 		of_property_read_string_index(np, "clock-output-names", i,
 					      &name);
 
-		clk = r8a7740_cpg_register_clock(np, cpg, name);
+		clk = r8a7740_cpg_register_clock(np, cpg, base, name);
 		if (IS_ERR(clk))
 			pr_err("%s: failed to register %pOFn %s clock (%ld)\n",
 			       __func__, np, name, PTR_ERR(clk));

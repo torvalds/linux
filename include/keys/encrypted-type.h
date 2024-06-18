@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2010 IBM Corporation
  * Copyright (C) 2010 Politecnico di Torino, Italy
- *                    TORSEC group -- http://security.polito.it
+ *                    TORSEC group -- https://security.polito.it
  *
  * Authors:
  * Mimi Zohar <zohar@us.ibm.com>
@@ -27,7 +27,7 @@ struct encrypted_key_payload {
 	unsigned short payload_datalen;		/* payload data length */
 	unsigned short encrypted_key_format;	/* encrypted key format */
 	u8 *decrypted_data;	/* decrypted data */
-	u8 payload_data[0];	/* payload data + datablob + hmac */
+	u8 payload_data[];	/* payload data + datablob + hmac */
 };
 
 extern struct key_type key_type_encrypted;

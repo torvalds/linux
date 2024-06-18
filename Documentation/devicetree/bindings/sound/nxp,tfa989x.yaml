@@ -1,0 +1,99 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/nxp,tfa989x.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP/Goodix TFA989X (TFA1) Audio Amplifiers
+
+maintainers:
+  - Stephan Gerhold <stephan@gerhold.net>
+
+allOf:
+  - $ref: dai-common.yaml#
+
+properties:
+  compatible:
+    enum:
+      - nxp,tfa9890
+      - nxp,tfa9895
+      - nxp,tfa9897
+
+  reg:
+    maxItems: 1
+
+  '#sound-dai-cells':
+    const: 0
+
+  rcv-gpios:
+    description: optional GPIO to be asserted when receiver mode is enabled.
+
+  sound-name-prefix: true
+
+  vddd-supply:
+    description: regulator phandle for the VDDD power supply.
+
+if:
+  not:
+    properties:
+      compatible:
+        const: nxp,tfa9897
+then:
+  properties:
+    rcv-gpios: false
+
+required:
+  - compatible
+  - reg
+  - '#sound-dai-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      audio-codec@34 {
+        compatible = "nxp,tfa9895";
+        reg = <0x34>;
+        sound-name-prefix = "Speaker Left";
+        #sound-dai-cells = <0>;
+      };
+      audio-codec@36 {
+        compatible = "nxp,tfa9895";
+        reg = <0x36>;
+        sound-name-prefix = "Speaker Right";
+        #sound-dai-cells = <0>;
+      };
+    };
+
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      speaker_codec_top: audio-codec@34 {
+        compatible = "nxp,tfa9897";
+        reg = <0x34>;
+        vddd-supply = <&pm8916_l6>;
+        rcv-gpios = <&msmgpio 50 GPIO_ACTIVE_HIGH>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&speaker_top_default>;
+        sound-name-prefix = "Speaker Top";
+        #sound-dai-cells = <0>;
+      };
+
+      speaker_codec_bottom: audio-codec@36 {
+        compatible = "nxp,tfa9897";
+        reg = <0x36>;
+        vddd-supply = <&pm8916_l6>;
+        rcv-gpios = <&msmgpio 111 GPIO_ACTIVE_HIGH>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&speaker_bottom_default>;
+        sound-name-prefix = "Speaker Bottom";
+        #sound-dai-cells = <0>;
+      };
+    };

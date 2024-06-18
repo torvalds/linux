@@ -79,6 +79,9 @@ static void tfrc_lh_calc_i_mean(struct tfrc_loss_hist *lh)
 
 /**
  * tfrc_lh_update_i_mean  -  Update the `open' loss interval I_0
+ * @lh: histogram to update
+ * @skb: received socket triggering loss interval update
+ *
  * For recomputing p: returns `true' if p > p_prev  <=>  1/p < 1/p_prev
  */
 u8 tfrc_lh_update_i_mean(struct tfrc_loss_hist *lh, struct sk_buff *skb)

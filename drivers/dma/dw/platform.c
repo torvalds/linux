@@ -66,7 +66,7 @@ static int dw_probe(struct platform_device *pdev)
 
 	data->chip = chip;
 
-	chip->clk = devm_clk_get(chip->dev, "hclk");
+	chip->clk = devm_clk_get_optional(chip->dev, "hclk");
 	if (IS_ERR(chip->clk))
 		return PTR_ERR(chip->clk);
 	err = clk_prepare_enable(chip->clk);
@@ -93,7 +93,7 @@ err_dw_dma_probe:
 	return err;
 }
 
-static int dw_remove(struct platform_device *pdev)
+static void dw_remove(struct platform_device *pdev)
 {
 	struct dw_dma_chip_pdata *data = platform_get_drvdata(pdev);
 	struct dw_dma_chip *chip = data->chip;
@@ -109,8 +109,6 @@ static int dw_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 	clk_disable_unprepare(chip->clk);
-
-	return 0;
 }
 
 static void dw_shutdown(struct platform_device *pdev)
@@ -137,6 +135,7 @@ static void dw_shutdown(struct platform_device *pdev)
 #ifdef CONFIG_OF
 static const struct of_device_id dw_dma_of_id_table[] = {
 	{ .compatible = "snps,dma-spear1340", .data = &dw_dma_chip_pdata },
+	{ .compatible = "renesas,rzn1-dma", .data = &dw_dma_chip_pdata },
 	{}
 };
 MODULE_DEVICE_TABLE(of, dw_dma_of_id_table);
@@ -149,9 +148,9 @@ static const struct acpi_device_id dw_dma_acpi_id_table[] = {
 	{ "808622C0", (kernel_ulong_t)&dw_dma_chip_pdata },
 
 	/* Elkhart Lake iDMA 32-bit (PSE DMA) */
-	{ "80864BB4", (kernel_ulong_t)&idma32_chip_pdata },
-	{ "80864BB5", (kernel_ulong_t)&idma32_chip_pdata },
-	{ "80864BB6", (kernel_ulong_t)&idma32_chip_pdata },
+	{ "80864BB4", (kernel_ulong_t)&xbar_chip_pdata },
+	{ "80864BB5", (kernel_ulong_t)&xbar_chip_pdata },
+	{ "80864BB6", (kernel_ulong_t)&xbar_chip_pdata },
 
 	{ }
 };
@@ -192,7 +191,7 @@ static const struct dev_pm_ops dw_dev_pm_ops = {
 
 static struct platform_driver dw_driver = {
 	.probe		= dw_probe,
-	.remove		= dw_remove,
+	.remove_new	= dw_remove,
 	.shutdown       = dw_shutdown,
 	.driver = {
 		.name	= DRV_NAME,

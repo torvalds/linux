@@ -17,9 +17,13 @@
  * blocks below. Those offsets must be multiplied by 4 before adding them to
  * the base address to get the right value
  *
- * [0] http://dn.odroid.com/S805/Datasheet/S805_Datasheet%20V0.8%2020150126.pdf
+ * [0] https://dn.odroid.com/S805/Datasheet/S805_Datasheet%20V0.8%2020150126.pdf
  */
 #define HHI_GP_PLL_CNTL			0x40  /* 0x10 offset in data sheet */
+#define HHI_GP_PLL_CNTL2		0x44  /* 0x11 offset in data sheet */
+#define HHI_GP_PLL_CNTL3		0x48  /* 0x12 offset in data sheet */
+#define HHI_GP_PLL_CNTL4		0x4C  /* 0x13 offset in data sheet */
+#define HHI_GP_PLL_CNTL5		0x50  /* 0x14 offset in data sheet */
 #define HHI_VIID_CLK_DIV		0x128 /* 0x4a offset in data sheet */
 #define HHI_VIID_CLK_CNTL		0x12c /* 0x4b offset in data sheet */
 #define HHI_GCLK_MPEG0			0x140 /* 0x50 offset in data sheet */
@@ -47,6 +51,16 @@
 #define HHI_SYS_PLL_CNTL		0x300 /* 0xc0 offset in data sheet */
 #define HHI_VID_PLL_CNTL		0x320 /* 0xc8 offset in data sheet */
 #define HHI_VID_PLL_CNTL2		0x324 /* 0xc9 offset in data sheet */
+#define HHI_VID_PLL_CNTL3		0x328 /* 0xca offset in data sheet */
+#define HHI_VID_PLL_CNTL4		0x32c /* 0xcb offset in data sheet */
+#define HHI_VID_PLL_CNTL5		0x330 /* 0xcc offset in data sheet */
+#define HHI_VID_PLL_CNTL6		0x334 /* 0xcd offset in data sheet */
+#define HHI_VID2_PLL_CNTL		0x380 /* 0xe0 offset in data sheet */
+#define HHI_VID2_PLL_CNTL2		0x384 /* 0xe1 offset in data sheet */
+#define HHI_VID2_PLL_CNTL3		0x388 /* 0xe2 offset in data sheet */
+#define HHI_VID2_PLL_CNTL4		0x38c /* 0xe3 offset in data sheet */
+#define HHI_VID2_PLL_CNTL5		0x390 /* 0xe4 offset in data sheet */
+#define HHI_VID2_PLL_CNTL6		0x394 /* 0xe5 offset in data sheet */
 
 /*
  * MPLL register offeset taken from the S905 datasheet. Vendor kernel source
@@ -62,129 +76,5 @@
 #define HHI_MPLL_CNTL8			0x29C /* 0xa7 offset in data sheet */
 #define HHI_MPLL_CNTL9			0x2A0 /* 0xa8 offset in data sheet */
 #define HHI_MPLL_CNTL10			0x2A4 /* 0xa9 offset in data sheet */
-
-/*
- * CLKID index values
- *
- * These indices are entirely contrived and do not map onto the hardware.
- * It has now been decided to expose everything by default in the DT header:
- * include/dt-bindings/clock/gxbb-clkc.h. Only the clocks ids we don't want
- * to expose, such as the internal muxes and dividers of composite clocks,
- * will remain defined here.
- */
-
-#define CLKID_MPLL0_DIV		96
-#define CLKID_MPLL1_DIV		97
-#define CLKID_MPLL2_DIV		98
-#define CLKID_CPU_IN_SEL	99
-#define CLKID_CPU_IN_DIV2	100
-#define CLKID_CPU_IN_DIV3	101
-#define CLKID_CPU_SCALE_DIV	102
-#define CLKID_CPU_SCALE_OUT_SEL	103
-#define CLKID_MPLL_PREDIV	104
-#define CLKID_FCLK_DIV2_DIV	105
-#define CLKID_FCLK_DIV3_DIV	106
-#define CLKID_FCLK_DIV4_DIV	107
-#define CLKID_FCLK_DIV5_DIV	108
-#define CLKID_FCLK_DIV7_DIV	109
-#define CLKID_NAND_SEL		110
-#define CLKID_NAND_DIV		111
-#define CLKID_PLL_FIXED_DCO	113
-#define CLKID_HDMI_PLL_DCO	114
-#define CLKID_PLL_SYS_DCO	115
-#define CLKID_CPU_CLK_DIV2	116
-#define CLKID_CPU_CLK_DIV3	117
-#define CLKID_CPU_CLK_DIV4	118
-#define CLKID_CPU_CLK_DIV5	119
-#define CLKID_CPU_CLK_DIV6	120
-#define CLKID_CPU_CLK_DIV7	121
-#define CLKID_CPU_CLK_DIV8	122
-#define CLKID_APB_SEL		123
-#define CLKID_PERIPH_SEL	125
-#define CLKID_AXI_SEL		127
-#define CLKID_L2_DRAM_SEL	129
-#define CLKID_HDMI_PLL_LVDS_OUT	131
-#define CLKID_HDMI_PLL_HDMI_OUT	132
-#define CLKID_VID_PLL_IN_SEL	133
-#define CLKID_VID_PLL_IN_EN	134
-#define CLKID_VID_PLL_PRE_DIV	135
-#define CLKID_VID_PLL_POST_DIV	136
-#define CLKID_VID_PLL_FINAL_DIV	137
-#define CLKID_VCLK_IN_SEL	138
-#define CLKID_VCLK_IN_EN	139
-#define CLKID_VCLK_DIV1		140
-#define CLKID_VCLK_DIV2_DIV	141
-#define CLKID_VCLK_DIV2		142
-#define CLKID_VCLK_DIV4_DIV	143
-#define CLKID_VCLK_DIV4		144
-#define CLKID_VCLK_DIV6_DIV	145
-#define CLKID_VCLK_DIV6		146
-#define CLKID_VCLK_DIV12_DIV	147
-#define CLKID_VCLK_DIV12	148
-#define CLKID_VCLK2_IN_SEL	149
-#define CLKID_VCLK2_IN_EN	150
-#define CLKID_VCLK2_DIV1	151
-#define CLKID_VCLK2_DIV2_DIV	152
-#define CLKID_VCLK2_DIV2	153
-#define CLKID_VCLK2_DIV4_DIV	154
-#define CLKID_VCLK2_DIV4	155
-#define CLKID_VCLK2_DIV6_DIV	156
-#define CLKID_VCLK2_DIV6	157
-#define CLKID_VCLK2_DIV12_DIV	158
-#define CLKID_VCLK2_DIV12	159
-#define CLKID_CTS_ENCT_SEL	160
-#define CLKID_CTS_ENCT		161
-#define CLKID_CTS_ENCP_SEL	162
-#define CLKID_CTS_ENCP		163
-#define CLKID_CTS_ENCI_SEL	164
-#define CLKID_CTS_ENCI		165
-#define CLKID_HDMI_TX_PIXEL_SEL	166
-#define CLKID_HDMI_TX_PIXEL	167
-#define CLKID_CTS_ENCL_SEL	168
-#define CLKID_CTS_ENCL		169
-#define CLKID_CTS_VDAC0_SEL	170
-#define CLKID_CTS_VDAC0		171
-#define CLKID_HDMI_SYS_SEL	172
-#define CLKID_HDMI_SYS_DIV	173
-#define CLKID_HDMI_SYS		174
-#define CLKID_MALI_0_SEL	175
-#define CLKID_MALI_0_DIV	176
-#define CLKID_MALI_0		177
-#define CLKID_MALI_1_SEL	178
-#define CLKID_MALI_1_DIV	179
-#define CLKID_MALI_1		180
-#define CLKID_GP_PLL_DCO	181
-#define CLKID_GP_PLL		182
-#define CLKID_VPU_0_SEL		183
-#define CLKID_VPU_0_DIV		184
-#define CLKID_VPU_0		185
-#define CLKID_VPU_1_SEL		186
-#define CLKID_VPU_1_DIV		187
-#define CLKID_VPU_1		189
-#define CLKID_VDEC_1_SEL	191
-#define CLKID_VDEC_1_1_DIV	192
-#define CLKID_VDEC_1_1		193
-#define CLKID_VDEC_1_2_DIV	194
-#define CLKID_VDEC_1_2		195
-#define CLKID_VDEC_HCODEC_SEL	197
-#define CLKID_VDEC_HCODEC_DIV	198
-#define CLKID_VDEC_2_SEL	200
-#define CLKID_VDEC_2_DIV	201
-#define CLKID_VDEC_HEVC_SEL	203
-#define CLKID_VDEC_HEVC_DIV	204
-#define CLKID_VDEC_HEVC_EN	205
-#define CLKID_CTS_AMCLK_SEL	207
-#define CLKID_CTS_AMCLK_DIV	208
-#define CLKID_CTS_MCLK_I958_SEL	210
-#define CLKID_CTS_MCLK_I958_DIV	211
-
-#define CLK_NR_CLKS		214
-
-/*
- * include the CLKID and RESETID that have
- * been made part of the stable DT binding
- */
-#include <dt-bindings/clock/meson8b-clkc.h>
-#include <dt-bindings/reset/amlogic,meson8b-clkc-reset.h>
 
 #endif /* __MESON8B_H */

@@ -138,14 +138,8 @@ static int ce_aes_setkey(struct crypto_skcipher *tfm, const u8 *in_key,
 			 unsigned int key_len)
 {
 	struct crypto_aes_ctx *ctx = crypto_skcipher_ctx(tfm);
-	int ret;
 
-	ret = ce_aes_expandkey(ctx, in_key, key_len);
-	if (!ret)
-		return 0;
-
-	crypto_skcipher_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
-	return -EINVAL;
+	return ce_aes_expandkey(ctx, in_key, key_len);
 }
 
 struct crypto_aes_xts_ctx {
@@ -167,11 +161,7 @@ static int xts_set_key(struct crypto_skcipher *tfm, const u8 *in_key,
 	if (!ret)
 		ret = ce_aes_expandkey(&ctx->key2, &in_key[key_len / 2],
 				       key_len / 2);
-	if (!ret)
-		return 0;
-
-	crypto_skcipher_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
-	return -EINVAL;
+	return ret;
 }
 
 static int ecb_encrypt(struct skcipher_request *req)

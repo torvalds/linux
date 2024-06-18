@@ -43,7 +43,7 @@ struct perf_file_section {
 
 Flags section:
 
-For each of the optional features a perf_file_section it placed after the data
+For each of the optional features a perf_file_section is placed after the data
 section if the feature bit is set in the perf_header flags bitset. The
 respective perf_file_section points to the data of the additional header and
 defines its size.
@@ -346,7 +346,7 @@ to special needs.
 
         HEADER_BPF_PROG_INFO = 25,
 
-struct bpf_prog_info_linear, which contains detailed information about
+struct perf_bpil, which contains detailed information about
 a BPF program, including type, id, tag, jited/xlated instructions, etc.
 
         HEADER_BPF_BTF = 26,
@@ -372,6 +372,70 @@ struct {
 
 Indicates that trace contains records of PERF_RECORD_COMPRESSED type
 that have perf_events records in compressed form.
+
+	HEADER_CPU_PMU_CAPS = 28,
+
+	A list of cpu PMU capabilities. The format of data is as below.
+
+struct {
+	u32 nr_cpu_pmu_caps;
+	{
+		char	name[];
+		char	value[];
+	} [nr_cpu_pmu_caps]
+};
+
+
+Example:
+ cpu pmu capabilities: branches=32, max_precise=3, pmu_name=icelake
+
+	HEADER_CLOCK_DATA = 29,
+
+	Contains clock id and its reference time together with wall clock
+	time taken at the 'same time', both values are in nanoseconds.
+	The format of data is as below.
+
+struct {
+	u32 version;  /* version = 1 */
+	u32 clockid;
+	u64 wall_clock_ns;
+	u64 clockid_time_ns;
+};
+
+	HEADER_HYBRID_TOPOLOGY = 30,
+
+Indicate the hybrid CPUs. The format of data is as below.
+
+struct {
+	u32 nr;
+	struct {
+		char pmu_name[];
+		char cpus[];
+	} [nr]; /* Variable length records */
+};
+
+Example:
+  hybrid cpu system:
+  cpu_core cpu list : 0-15
+  cpu_atom cpu list : 16-23
+
+	HEADER_PMU_CAPS = 31,
+
+	List of pmu capabilities (except cpu pmu which is already
+	covered by HEADER_CPU_PMU_CAPS). Note that hybrid cpu pmu
+	capabilities are also stored here.
+
+struct {
+	u32 nr_pmu;
+	struct {
+		u32 nr_caps;
+		{
+			char	name[];
+			char	value[];
+		} [nr_caps];
+		char pmu_name[];
+	} [nr_pmu];
+};
 
 	other bits are reserved and should ignored for now
 	HEADER_FEAT_BITS	= 256,
@@ -544,6 +608,16 @@ struct compressed_event {
 	struct perf_event_header	header;
 	char				data[];
 };
+
+	PERF_RECORD_FINISHED_INIT			= 82,
+
+Marks the end of records for the system, pre-existing threads in system wide
+sessions, etc. Those are the ones prefixed PERF_RECORD_USER_*.
+
+This is used, for instance, to 'perf inject' events after init and before
+regular events, those emitted by the kernel, to support combining guest and
+host records.
+
 
 The header is followed by compressed data frame that can be decompressed
 into array of perf trace records. The size of the entire compressed event

@@ -2,8 +2,8 @@
 # Copyright 2018 Linaro Ltd.
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/interrupt-controller/intel,ixp4xx-interrupt.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/interrupt-controller/intel,ixp4xx-interrupt.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Intel IXP4xx XScale Networking Processors Interrupt Controller
 
@@ -25,10 +25,10 @@ properties:
   compatible:
     items:
       - enum:
-        - intel,ixp42x-interrupt
-        - intel,ixp43x-interrupt
-        - intel,ixp45x-interrupt
-        - intel,ixp46x-interrupt
+          - intel,ixp42x-interrupt
+          - intel,ixp43x-interrupt
+          - intel,ixp45x-interrupt
+          - intel,ixp46x-interrupt
 
   reg:
     maxItems: 1
@@ -43,6 +43,8 @@ required:
   - reg
   - interrupt-controller
   - '#interrupt-cells'
+
+additionalProperties: false
 
 examples:
   - |

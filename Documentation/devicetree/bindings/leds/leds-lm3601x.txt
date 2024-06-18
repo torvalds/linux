@@ -47,5 +47,5 @@ led-controller@64 {
 }
 
 For more product information please see the links below:
-http://www.ti.com/product/LM36010
-http://www.ti.com/product/LM36011
+https://www.ti.com/product/LM36010
+https://www.ti.com/product/LM36011

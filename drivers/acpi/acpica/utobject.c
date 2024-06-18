@@ -3,7 +3,7 @@
  *
  * Module Name: utobject - ACPI object create/delete/size/cache routines
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2023, Intel Corp.
  *
  *****************************************************************************/
 
@@ -44,7 +44,7 @@ acpi_ut_get_element_length(u8 object_type,
  *
  * NOTE:        We always allocate the worst-case object descriptor because
  *              these objects are cached, and we want them to be
- *              one-size-satisifies-any-request. This in itself may not be
+ *              one-size-satisfies-any-request. This in itself may not be
  *              the most memory efficient, but the efficiency of the object
  *              cache should more than make up for this!
  *

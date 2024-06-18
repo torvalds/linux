@@ -5,11 +5,15 @@
  * Copyright (C) 2012 NVIDIA CORPORATION. All rights reserved.
  */
 
+#include <linux/errno.h>
+
+struct device_node;
 struct of_phandle_args;
 
-#ifdef CONFIG_OF
+struct pinctrl;
+struct pinctrl_dev;
 
-bool pinctrl_dt_has_hogs(struct pinctrl_dev *pctldev);
+#ifdef CONFIG_OF
 
 void pinctrl_dt_free_maps(struct pinctrl *p);
 int pinctrl_dt_to_map(struct pinctrl *p, struct pinctrl_dev *pctldev);
@@ -22,11 +26,6 @@ int pinctrl_parse_index_with_args(const struct device_node *np,
 				  struct of_phandle_args *out_args);
 
 #else
-
-static inline bool pinctrl_dt_has_hogs(struct pinctrl_dev *pctldev)
-{
-	return false;
-}
 
 static inline int pinctrl_dt_to_map(struct pinctrl *p,
 				    struct pinctrl_dev *pctldev)

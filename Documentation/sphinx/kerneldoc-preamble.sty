@@ -1,0 +1,232 @@
+% -*- coding: utf-8 -*-
+% SPDX-License-Identifier: GPL-2.0
+%
+% LaTeX preamble for "make latexdocs" or "make pdfdocs" including:
+%   - TOC width settings
+%   - Setting of tabulary (\tymin)
+%   - Headheight setting for fancyhdr
+%   - Fontfamily settings for CJK (Chinese, Japanese, and Korean) translations
+%
+% Note on the suffix of .sty:
+%   This is not implemented as a LaTeX style file, but as a file containing
+%   plain LaTeX code to be included into preamble.
+%   ".sty" is chosen because ".tex" would cause the build scripts to confuse
+%   this file with a LaTeX main file.
+%
+% Copyright (C) 2022  Akira Yokosawa
+
+% Custom width parameters for TOC
+%  - Redefine low-level commands defined in report.cls.
+%  - Indent of 2 chars is preserved for ease of comparison.
+% Summary of changes from default params:
+%   Width of page number (\@pnumwidth): 1.55em -> 2.7em
+%   Width of chapter number:            1.5em  -> 2.4em
+%   Indent of section number:           1.5em  -> 2.4em
+%   Width of section number:            2.6em  -> 3.2em
+%   Indent of subsection number:        4.1em  -> 5.6em
+%   Width of subsection number:         3.5em  -> 4.3em
+%
+% These params can have 4 digit page counts, 3 digit chapter counts,
+% section counts of 4 digits + 1 period (e.g., 18.10), and subsection counts
+% of 5 digits + 2 periods (e.g., 18.7.13).
+\makeatletter
+%% Redefine \@pnumwidth (page number width)
+\renewcommand*\@pnumwidth{2.7em}
+%% Redefine \l@chapter (chapter list entry)
+\renewcommand*\l@chapter[2]{%
+  \ifnum \c@tocdepth >\m@ne
+    \addpenalty{-\@highpenalty}%
+    \vskip 1.0em \@plus\p@
+    \setlength\@tempdima{2.4em}%
+    \begingroup
+      \parindent \z@ \rightskip \@pnumwidth
+      \parfillskip -\@pnumwidth
+      \leavevmode \bfseries
+      \advance\leftskip\@tempdima
+      \hskip -\leftskip
+      #1\nobreak\hfil
+      \nobreak\hb@xt@\@pnumwidth{\hss #2%
+                                 \kern-\p@\kern\p@}\par
+      \penalty\@highpenalty
+    \endgroup
+  \fi}
+%% Redefine \l@section and \l@subsection
+\renewcommand*\l@section{\@dottedtocline{1}{2.4em}{3.2em}}
+\renewcommand*\l@subsection{\@dottedtocline{2}{5.6em}{4.3em}}
+\makeatother
+%% Prevent default \sphinxtableofcontentshook from overwriting above tweaks.
+\renewcommand{\sphinxtableofcontentshook}{} % Empty the hook
+
+% Prevent column squeezing of tabulary.  \tymin is set by Sphinx as:
+%   \setlength{\tymin}{3\fontcharwd\font`0 }
+% , which is too short.
+\setlength{\tymin}{20em}
+
+% Adjust \headheight for fancyhdr
+\addtolength{\headheight}{1.6pt}
+\addtolength{\topmargin}{-1.6pt}
+
+% Translations have Asian (CJK) characters which are only displayed if
+% xeCJK is used
+\usepackage{ifthen}
+\newboolean{enablecjk}
+\setboolean{enablecjk}{false}
+\IfFontExistsTF{Noto Sans CJK SC}{
+    \IfFileExists{xeCJK.sty}{
+	\setboolean{enablecjk}{true}
+    }{}
+}{}
+\ifthenelse{\boolean{enablecjk}}{
+    % Load xeCJK when both the Noto Sans CJK font and xeCJK.sty are available.
+    \usepackage{xeCJK}
+    % Noto CJK fonts don't provide slant shape. [AutoFakeSlant] permits
+    % its emulation.
+    % Select KR variant at the beginning of each document so that quotation
+    % and apostorph symbols of half-width is used in TOC of Latin documents.
+    \IfFontExistsTF{Noto Serif CJK KR}{
+	\setCJKmainfont{Noto Serif CJK KR}[AutoFakeSlant]
+    }{
+	\setCJKmainfont{Noto Sans CJK KR}[AutoFakeSlant]
+    }
+    \setCJKsansfont{Noto Sans CJK KR}[AutoFakeSlant]
+    \setCJKmonofont{Noto Sans Mono CJK KR}[AutoFakeSlant]
+    % Teach xeCJK of half-width symbols
+    \xeCJKDeclareCharClass{HalfLeft}{`“,`‘}
+    \xeCJKDeclareCharClass{HalfRight}{`”,`’}
+    % CJK Language-specific font choices
+    %% for Simplified Chinese
+    \IfFontExistsTF{Noto Serif CJK SC}{
+	\newCJKfontfamily[SCmain]\scmain{Noto Serif CJK SC}[AutoFakeSlant]
+	\newCJKfontfamily[SCserif]\scserif{Noto Serif CJK SC}[AutoFakeSlant]
+    }{
+	\newCJKfontfamily[SCmain]\scmain{Noto Sans CJK SC}[AutoFakeSlant]
+	\newCJKfontfamily[SCserif]\scserif{Noto Sans CJK SC}[AutoFakeSlant]
+    }
+    \newCJKfontfamily[SCsans]\scsans{Noto Sans CJK SC}[AutoFakeSlant]
+    \newCJKfontfamily[SCmono]\scmono{Noto Sans Mono CJK SC}[AutoFakeSlant]
+    %% for Traditional Chinese
+    \IfFontExistsTF{Noto Serif CJK TC}{
+	\newCJKfontfamily[TCmain]\tcmain{Noto Serif CJK TC}[AutoFakeSlant]
+	\newCJKfontfamily[TCserif]\tcserif{Noto Serif CJK TC}[AutoFakeSlant]
+    }{
+	\newCJKfontfamily[TCmain]\tcmain{Noto Sans CJK TC}[AutoFakeSlant]
+	\newCJKfontfamily[TCserif]\tcserif{Noto Sans CJK TC}[AutoFakeSlant]
+    }
+    \newCJKfontfamily[TCsans]\tcsans{Noto Sans CJK TC}[AutoFakeSlant]
+    \newCJKfontfamily[TCmono]\tcmono{Noto Sans Mono CJK TC}[AutoFakeSlant]
+    %% for Korean
+    \IfFontExistsTF{Noto Serif CJK KR}{
+	\newCJKfontfamily[KRmain]\krmain{Noto Serif CJK KR}[AutoFakeSlant]
+	\newCJKfontfamily[KRserif]\krserif{Noto Serif CJK KR}[AutoFakeSlant]
+    }{
+	\newCJKfontfamily[KRmain]\krmain{Noto Sans CJK KR}[AutoFakeSlant]
+	\newCJKfontfamily[KRserif]\krserif{Noto Sans CJK KR}[AutoFakeSlant]
+    }
+    \newCJKfontfamily[KRsans]\krsans{Noto Sans CJK KR}[AutoFakeSlant]
+    \newCJKfontfamily[KRmono]\krmono{Noto Sans Mono CJK KR}[AutoFakeSlant]
+    %% for Japanese
+    \IfFontExistsTF{Noto Serif CJK JP}{
+	\newCJKfontfamily[JPmain]\jpmain{Noto Serif CJK JP}[AutoFakeSlant]
+	\newCJKfontfamily[JPserif]\jpserif{Noto Serif CJK JP}[AutoFakeSlant]
+    }{
+	\newCJKfontfamily[JPmain]\jpmain{Noto Sans CJK JP}[AutoFakeSlant]
+	\newCJKfontfamily[JPserif]\jpserif{Noto Sans CJK JP}[AutoFakeSlant]
+    }
+    \newCJKfontfamily[JPsans]\jpsans{Noto Sans CJK JP}[AutoFakeSlant]
+    \newCJKfontfamily[JPmono]\jpmono{Noto Sans Mono CJK JP}[AutoFakeSlant]
+    % Define custom macros to on/off CJK
+    %% One and half spacing for CJK contents
+    \newcommand{\kerneldocCJKon}{\makexeCJKactive\onehalfspacing}
+    \newcommand{\kerneldocCJKoff}{\makexeCJKinactive\singlespacing}
+    % Define custom macros for switching CJK font setting
+    %% for Simplified Chinese
+    \newcommand{\kerneldocBeginSC}{%
+	\begingroup%
+	\scmain%
+	\xeCJKDeclareCharClass{FullLeft}{`“,`‘}% Full-width in SC
+	\xeCJKDeclareCharClass{FullRight}{`”,`’}% Full-width in SC
+	\renewcommand{\CJKrmdefault}{SCserif}%
+	\renewcommand{\CJKsfdefault}{SCsans}%
+	\renewcommand{\CJKttdefault}{SCmono}%
+	\xeCJKsetup{CJKspace = false}% gobble white spaces by ' '
+	% For CJK ascii-art alignment
+	\setmonofont{Noto Sans Mono CJK SC}[AutoFakeSlant]%
+    }
+    \newcommand{\kerneldocEndSC}{\endgroup}
+    %% for Traditional Chinese
+    \newcommand{\kerneldocBeginTC}{%
+	\begingroup%
+	\tcmain%
+	\xeCJKDeclareCharClass{FullLeft}{`“,`‘}% Full-width in TC
+	\xeCJKDeclareCharClass{FullRight}{`”,`’}% Full-width in TC
+	\renewcommand{\CJKrmdefault}{TCserif}%
+	\renewcommand{\CJKsfdefault}{TCsans}%
+	\renewcommand{\CJKttdefault}{TCmono}%
+	\xeCJKsetup{CJKspace = false}% gobble white spaces by ' '
+	% For CJK ascii-art alignment
+	\setmonofont{Noto Sans Mono CJK TC}[AutoFakeSlant]%
+    }
+    \newcommand{\kerneldocEndTC}{\endgroup}
+    %% for Korean
+    \newcommand{\kerneldocBeginKR}{%
+	\begingroup%
+	\krmain%
+	\renewcommand{\CJKrmdefault}{KRserif}%
+	\renewcommand{\CJKsfdefault}{KRsans}%
+	\renewcommand{\CJKttdefault}{KRmono}%
+	% \xeCJKsetup{CJKspace = true} % true by default
+	% For CJK ascii-art alignment (still misaligned for Hangul)
+	\setmonofont{Noto Sans Mono CJK KR}[AutoFakeSlant]%
+    }
+    \newcommand{\kerneldocEndKR}{\endgroup}
+    %% for Japanese
+    \newcommand{\kerneldocBeginJP}{%
+	\begingroup%
+	\jpmain%
+	\renewcommand{\CJKrmdefault}{JPserif}%
+	\renewcommand{\CJKsfdefault}{JPsans}%
+	\renewcommand{\CJKttdefault}{JPmono}%
+	\xeCJKsetup{CJKspace = false}% gobble white space by ' '
+	% For CJK ascii-art alignment
+	\setmonofont{Noto Sans Mono CJK JP}[AutoFakeSlant]%
+    }
+    \newcommand{\kerneldocEndJP}{\endgroup}
+
+    % Single spacing in literal blocks
+    \fvset{baselinestretch=1}
+    % To customize \sphinxtableofcontents
+    \usepackage{etoolbox}
+    % Inactivate CJK after tableofcontents
+    \apptocmd{\sphinxtableofcontents}{\kerneldocCJKoff}{}{}
+    \xeCJKsetup{CJKspace = true}% For inter-phrase space of Korean TOC
+}{ % Don't enable CJK
+    % Custom macros to on/off CJK and switch CJK fonts (Dummy)
+    \newcommand{\kerneldocCJKon}{}
+    \newcommand{\kerneldocCJKoff}{}
+    %% By defining \kerneldocBegin(SC|TC|KR|JP) as commands with an argument
+    %% and ignore the argument (#1) in their definitions, whole contents of
+    %% CJK chapters can be ignored.
+    \newcommand{\kerneldocBeginSC}[1]{%
+	%% Put a note on missing CJK fonts or the xecjk package in place of
+	%% zh_CN translation.
+	\begin{sphinxadmonition}{note}{Note on missing fonts and a package:}
+	    Translations of Simplified Chinese (zh\_CN), Traditional Chinese
+	    (zh\_TW), Korean (ko\_KR), and Japanese (ja\_JP) were skipped
+	    due to the lack of suitable font families and/or the texlive-xecjk
+	    package.
+
+	    If you want them, please install non-variable ``Noto Sans CJK''
+	    font families along with the texlive-xecjk package by following
+	    instructions from
+	    \sphinxcode{./scripts/sphinx-pre-install}.
+	    Having optional non-variable ``Noto Serif CJK'' font families will
+	    improve the looks of those translations.
+	\end{sphinxadmonition}}
+    \newcommand{\kerneldocEndSC}{}
+    \newcommand{\kerneldocBeginTC}[1]{}
+    \newcommand{\kerneldocEndTC}{}
+    \newcommand{\kerneldocBeginKR}[1]{}
+    \newcommand{\kerneldocEndKR}{}
+    \newcommand{\kerneldocBeginJP}[1]{}
+    \newcommand{\kerneldocEndJP}{}
+}

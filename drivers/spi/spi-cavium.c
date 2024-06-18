@@ -57,8 +57,8 @@ static int octeon_spi_do_transfer(struct octeon_spi *p,
 	mpi_cfg.s.cslate = cpha ? 1 : 0;
 	mpi_cfg.s.enable = 1;
 
-	if (spi->chip_select < 4)
-		p->cs_enax |= 1ull << (12 + spi->chip_select);
+	if (spi_get_chipselect(spi, 0) < 4)
+		p->cs_enax |= 1ull << (12 + spi_get_chipselect(spi, 0));
 	mpi_cfg.u64 |= p->cs_enax;
 
 	if (mpi_cfg.u64 != p->last_cfg) {
@@ -78,7 +78,7 @@ static int octeon_spi_do_transfer(struct octeon_spi *p,
 			writeq(d, p->register_base + OCTEON_SPI_DAT0(p) + (8 * i));
 		}
 		mpi_tx.u64 = 0;
-		mpi_tx.s.csid = spi->chip_select;
+		mpi_tx.s.csid = spi_get_chipselect(spi, 0);
 		mpi_tx.s.leavecs = 1;
 		mpi_tx.s.txnum = tx_buf ? OCTEON_SPI_MAX_BYTES : 0;
 		mpi_tx.s.totnum = OCTEON_SPI_MAX_BYTES;
@@ -103,7 +103,7 @@ static int octeon_spi_do_transfer(struct octeon_spi *p,
 	}
 
 	mpi_tx.u64 = 0;
-	mpi_tx.s.csid = spi->chip_select;
+	mpi_tx.s.csid = spi_get_chipselect(spi, 0);
 	if (last_xfer)
 		mpi_tx.s.leavecs = xfer->cs_change;
 	else
@@ -119,16 +119,15 @@ static int octeon_spi_do_transfer(struct octeon_spi *p,
 			*rx_buf++ = (u8)v;
 		}
 
-	if (xfer->delay_usecs)
-		udelay(xfer->delay_usecs);
+	spi_transfer_delay_exec(xfer);
 
 	return xfer->len;
 }
 
-int octeon_spi_transfer_one_message(struct spi_master *master,
+int octeon_spi_transfer_one_message(struct spi_controller *ctlr,
 				    struct spi_message *msg)
 {
-	struct octeon_spi *p = spi_master_get_devdata(master);
+	struct octeon_spi *p = spi_controller_get_devdata(ctlr);
 	unsigned int total_len = 0;
 	int status = 0;
 	struct spi_transfer *xfer;
@@ -146,6 +145,6 @@ int octeon_spi_transfer_one_message(struct spi_master *master,
 err:
 	msg->status = status;
 	msg->actual_length = total_len;
-	spi_finalize_current_message(master);
+	spi_finalize_current_message(ctlr);
 	return status;
 }

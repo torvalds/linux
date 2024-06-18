@@ -104,8 +104,6 @@ struct _io_ops {
 
 		void (*_read_port_cancel)(struct intf_hdl *pintfhdl);
 		void (*_write_port_cancel)(struct intf_hdl *pintfhdl);
-
-		u8 (*_sd_f0_read8)(struct intf_hdl *pintfhdl, u32 addr);
 };
 
 struct io_req {
@@ -127,117 +125,6 @@ struct	intf_hdl {
 	struct _io_ops	io_ops;
 };
 
-struct reg_protocol_rd {
-
-#ifdef __LITTLE_ENDIAN
-
-	/* DW1 */
-	u32 	NumOfTrans:4;
-	u32 	Reserved1:4;
-	u32 	Reserved2:24;
-	/* DW2 */
-	u32 	ByteCount:7;
-	u32 	WriteEnable:1;		/* 0:read, 1:write */
-	u32 	FixOrContinuous:1;	/* 0:continuous, 1: Fix */
-	u32 	BurstMode:1;
-	u32 	Byte1Access:1;
-	u32 	Byte2Access:1;
-	u32 	Byte4Access:1;
-	u32 	Reserved3:3;
-	u32 	Reserved4:16;
-	/* DW3 */
-	u32 	BusAddress;
-	/* DW4 */
-	/* u32 	Value; */
-#else
-
-
-/* DW1 */
-	u32 Reserved1  :4;
-	u32 NumOfTrans :4;
-
-	u32 Reserved2  :24;
-
-	/* DW2 */
-	u32 WriteEnable : 1;
-	u32 ByteCount :7;
-
-
-	u32 Reserved3 : 3;
-	u32 Byte4Access : 1;
-
-	u32 Byte2Access : 1;
-	u32 Byte1Access : 1;
-	u32 BurstMode :1 ;
-	u32 FixOrContinuous : 1;
-
-	u32 Reserved4 : 16;
-
-	/* DW3 */
-	u32 	BusAddress;
-
-	/* DW4 */
-	/* u32 	Value; */
-
-#endif
-
-};
-
-
-struct reg_protocol_wt {
-
-
-#ifdef __LITTLE_ENDIAN
-
-	/* DW1 */
-	u32 	NumOfTrans:4;
-	u32 	Reserved1:4;
-	u32 	Reserved2:24;
-	/* DW2 */
-	u32 	ByteCount:7;
-	u32 	WriteEnable:1;		/* 0:read, 1:write */
-	u32 	FixOrContinuous:1;	/* 0:continuous, 1: Fix */
-	u32 	BurstMode:1;
-	u32 	Byte1Access:1;
-	u32 	Byte2Access:1;
-	u32 	Byte4Access:1;
-	u32 	Reserved3:3;
-	u32 	Reserved4:16;
-	/* DW3 */
-	u32 	BusAddress;
-	/* DW4 */
-	u32 	Value;
-
-#else
-	/* DW1 */
-	u32 Reserved1  :4;
-	u32 NumOfTrans :4;
-
-	u32 Reserved2  :24;
-
-	/* DW2 */
-	u32 WriteEnable : 1;
-	u32 ByteCount :7;
-
-	u32 Reserved3 : 3;
-	u32 Byte4Access : 1;
-
-	u32 Byte2Access : 1;
-	u32 Byte1Access : 1;
-	u32 BurstMode :1 ;
-	u32 FixOrContinuous : 1;
-
-	u32 Reserved4 : 16;
-
-	/* DW3 */
-	u32 	BusAddress;
-
-	/* DW4 */
-	u32 	Value;
-
-#endif
-
-};
 #define SD_IO_TRY_CNT (8)
 #define MAX_CONTINUAL_IO_ERR SD_IO_TRY_CNT
 
@@ -250,7 +137,7 @@ Below is the data structure used by _io_handler
 */
 
 struct io_queue {
-	_lock	lock;
+	spinlock_t	lock;
 	struct list_head	free_ioreqs;
 	struct list_head		pending;		/* The io_req list that will be served in the single protocol read/write. */
 	struct list_head		processing;
@@ -259,7 +146,7 @@ struct io_queue {
 	struct	intf_hdl	intf;
 };
 
-struct io_priv{
+struct io_priv {
 
 	struct adapter *padapter;
 
@@ -281,29 +168,15 @@ extern void unregister_intf_hdl(struct intf_hdl *pintfhdl);
 extern void _rtw_attrib_read(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
 extern void _rtw_attrib_write(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
 
-extern u8 _rtw_read8(struct adapter *adapter, u32 addr);
-extern u16 _rtw_read16(struct adapter *adapter, u32 addr);
-extern u32 _rtw_read32(struct adapter *adapter, u32 addr);
+extern u8 rtw_read8(struct adapter *adapter, u32 addr);
+extern u16 rtw_read16(struct adapter *adapter, u32 addr);
+extern u32 rtw_read32(struct adapter *adapter, u32 addr);
 
-extern int _rtw_write8(struct adapter *adapter, u32 addr, u8 val);
-extern int _rtw_write16(struct adapter *adapter, u32 addr, u16 val);
-extern int _rtw_write32(struct adapter *adapter, u32 addr, u32 val);
+extern int rtw_write8(struct adapter *adapter, u32 addr, u8 val);
+extern int rtw_write16(struct adapter *adapter, u32 addr, u16 val);
+extern int rtw_write32(struct adapter *adapter, u32 addr, u32 val);
 
-extern u8 _rtw_sd_f0_read8(struct adapter *adapter, u32 addr);
-
-extern u32 _rtw_write_port(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
-
-#define rtw_read8(adapter, addr) _rtw_read8((adapter), (addr))
-#define rtw_read16(adapter, addr) _rtw_read16((adapter), (addr))
-#define rtw_read32(adapter, addr) _rtw_read32((adapter), (addr))
-
-#define  rtw_write8(adapter, addr, val) _rtw_write8((adapter), (addr), (val))
-#define  rtw_write16(adapter, addr, val) _rtw_write16((adapter), (addr), (val))
-#define  rtw_write32(adapter, addr, val) _rtw_write32((adapter), (addr), (val))
-
-#define rtw_write_port(adapter, addr, cnt, mem) _rtw_write_port((adapter), (addr), (cnt), (mem))
-
-#define rtw_sd_f0_read8(adapter, addr) _rtw_sd_f0_read8((adapter), (addr))
+extern u32 rtw_write_port(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
 
 extern void rtw_write_scsi(struct adapter *adapter, u32 cnt, u8 *pmem);
 
@@ -345,20 +218,6 @@ extern void free_io_queue(struct adapter *adapter);
 extern void async_bus_io(struct io_queue *pio_q);
 extern void bus_sync_io(struct io_queue *pio_q);
 extern u32 _ioreq2rwmem(struct io_queue *pio_q);
-extern void dev_power_down(struct adapter * Adapter, u8 bpwrup);
-
-#define PlatformEFIOWrite1Byte(_a, _b, _c)		\
-	rtw_write8(_a, _b, _c)
-#define PlatformEFIOWrite2Byte(_a, _b, _c)		\
-	rtw_write16(_a, _b, _c)
-#define PlatformEFIOWrite4Byte(_a, _b, _c)		\
-	rtw_write32(_a, _b, _c)
-
-#define PlatformEFIORead1Byte(_a, _b)		\
-		rtw_read8(_a, _b)
-#define PlatformEFIORead2Byte(_a, _b)		\
-		rtw_read16(_a, _b)
-#define PlatformEFIORead4Byte(_a, _b)		\
-		rtw_read32(_a, _b)
+extern void dev_power_down(struct adapter *Adapter, u8 bpwrup);
 
 #endif	/* _RTL8711_IO_H_ */

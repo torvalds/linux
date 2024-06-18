@@ -266,7 +266,7 @@ misc_register_error:
 	return ret;
 }
 
-static int ie6xx_wdt_remove(struct platform_device *pdev)
+static void ie6xx_wdt_remove(struct platform_device *pdev)
 {
 	struct resource *res;
 
@@ -276,13 +276,11 @@ static int ie6xx_wdt_remove(struct platform_device *pdev)
 	ie6xx_wdt_debugfs_exit();
 	release_region(res->start, resource_size(res));
 	ie6xx_wdt_data.sch_wdtba = 0;
-
-	return 0;
 }
 
 static struct platform_driver ie6xx_wdt_driver = {
 	.probe		= ie6xx_wdt_probe,
-	.remove		= ie6xx_wdt_remove,
+	.remove_new	= ie6xx_wdt_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 	},

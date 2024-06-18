@@ -13,8 +13,8 @@
 #include <linux/cpufeature.h>
 #include <linux/crc32.h>
 #include <crypto/internal/hash.h>
-#include <asm/fpu/api.h>
-
+#include <asm/fpu.h>
+#include "crc32-vx.h"
 
 #define CRC32_BLOCK_SIZE	1
 #define CRC32_DIGEST_SIZE	4
@@ -31,11 +31,6 @@ struct crc_desc_ctx {
 	u32 crc;
 };
 
-/* Prototypes for functions in assembly files */
-u32 crc32_le_vgfm_16(u32 crc, unsigned char const *buf, size_t size);
-u32 crc32_be_vgfm_16(u32 crc, unsigned char const *buf, size_t size);
-u32 crc32c_le_vgfm_16(u32 crc, unsigned char const *buf, size_t size);
-
 /*
  * DEFINE_CRC32_VX() - Define a CRC-32 function using the vector extension
  *
@@ -49,8 +44,8 @@ u32 crc32c_le_vgfm_16(u32 crc, unsigned char const *buf, size_t size);
 	static u32 __pure ___fname(u32 crc,				    \
 				unsigned char const *data, size_t datalen)  \
 	{								    \
-		struct kernel_fpu vxstate;				    \
 		unsigned long prealign, aligned, remaining;		    \
+		DECLARE_KERNEL_FPU_ONSTACK16(vxstate);			    \
 									    \
 		if (datalen < VX_MIN_LEN + VX_ALIGN_MASK)		    \
 			return ___crc32_sw(crc, data, datalen);		    \
@@ -111,10 +106,8 @@ static int crc32_vx_setkey(struct crypto_shash *tfm, const u8 *newkey,
 {
 	struct crc_ctx *mctx = crypto_shash_ctx(tfm);
 
-	if (newkeylen != sizeof(mctx->key)) {
-		crypto_shash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (newkeylen != sizeof(mctx->key))
 		return -EINVAL;
-	}
 	mctx->key = le32_to_cpu(*(__le32 *)newkey);
 	return 0;
 }
@@ -124,10 +117,8 @@ static int crc32be_vx_setkey(struct crypto_shash *tfm, const u8 *newkey,
 {
 	struct crc_ctx *mctx = crypto_shash_ctx(tfm);
 
-	if (newkeylen != sizeof(mctx->key)) {
-		crypto_shash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (newkeylen != sizeof(mctx->key))
 		return -EINVAL;
-	}
 	mctx->key = be32_to_cpu(*(__be32 *)newkey);
 	return 0;
 }
@@ -302,7 +293,7 @@ static void __exit crc_vx_mod_exit(void)
 	crypto_unregister_shashes(crc32_vx_algs, ARRAY_SIZE(crc32_vx_algs));
 }
 
-module_cpu_feature_match(VXRS, crc_vx_mod_init);
+module_cpu_feature_match(S390_CPU_FEATURE_VXRS, crc_vx_mod_init);
 module_exit(crc_vx_mod_exit);
 
 MODULE_AUTHOR("Hendrik Brueckner <brueckner@linux.vnet.ibm.com>");

@@ -313,8 +313,8 @@ https://lwn.net/Articles/576263/
 
 * TcpExtTCPOrigDataSent
 
-This counter is explained by `kernel commit f19c29e3e391`_, I pasted the
-explaination below::
+This counter is explained by kernel commit f19c29e3e391, I pasted the
+explanation below::
 
   TCPOrigDataSent: number of outgoing packets with original data (excluding
   retransmission but including data-in-SYN). This counter is different from
@@ -323,21 +323,19 @@ explaination below::
 
 * TCPSynRetrans
 
-This counter is explained by `kernel commit f19c29e3e391`_, I pasted the
-explaination below::
+This counter is explained by kernel commit f19c29e3e391, I pasted the
+explanation below::
 
   TCPSynRetrans: number of SYN and SYN/ACK retransmits to break down
   retransmissions into SYN, fast-retransmits, timeout retransmits, etc.
 
 * TCPFastOpenActiveFail
 
-This counter is explained by `kernel commit f19c29e3e391`_, I pasted the
-explaination below::
+This counter is explained by kernel commit f19c29e3e391, I pasted the
+explanation below::
 
   TCPFastOpenActiveFail: Fast Open attempts (SYN/data) failed because
   the remote does not accept it or the attempts timed out.
-
-.. _kernel commit f19c29e3e391: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=f19c29e3e391a66a273e9afebaf01917245148cd
 
 * TcpExtListenOverflows and TcpExtListenDrops
 
@@ -382,7 +380,7 @@ Defined in `RFC1213 tcpAttemptFails`_.
 
 Defined in `RFC1213 tcpOutRsts`_. The RFC says this counter indicates
 the 'segments sent containing the RST flag', but in linux kernel, this
-couner indicates the segments kerenl tried to send. The sending
+counter indicates the segments kernel tried to send. The sending
 process might be failed due to some errors (e.g. memory alloc failed).
 
 .. _RFC1213 tcpOutRsts: https://tools.ietf.org/html/rfc1213#page-52
@@ -698,11 +696,9 @@ number of the SACK block. For more details, please refer the comment
 of the function tcp_is_sackblock_valid in the kernel source code. A
 SACK option could have up to 4 blocks, they are checked
 individually. E.g., if 3 blocks of a SACk is invalid, the
-corresponding counter would be updated 3 times. The comment of the
-`Add counters for discarded SACK blocks`_ patch has additional
-explaination:
-
-.. _Add counters for discarded SACK blocks: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=18f02545a9a16c9a89778b91a162ad16d510bb32
+corresponding counter would be updated 3 times. The comment of commit
+18f02545a9a1 ("[TCP] MIB: Add counters for discarded SACK blocks")
+has additional explanation:
 
 * TcpExtTCPSACKDiscard
 
@@ -792,7 +788,7 @@ counters to indicate the ACK is skipped in which scenario. The ACK
 would only be skipped if the received packet is either a SYN packet or
 it has no data.
 
-.. _sysctl document: https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt
+.. _sysctl document: https://www.kernel.org/doc/Documentation/networking/ip-sysctl.rst
 
 * TcpExtTCPACKSkippedSynRecv
 
@@ -829,7 +825,7 @@ PAWS check fails or the received sequence number is out of window.
 
 * TcpExtTCPACKSkippedTimeWait
 
-Tha ACK is skipped in Time-Wait status, the reason would be either
+The ACK is skipped in Time-Wait status, the reason would be either
 PAWS check failed or the received sequence number is out of window.
 
 * TcpExtTCPACKSkippedChallenge
@@ -908,8 +904,8 @@ A TLP probe packet is sent.
 
 A packet loss is detected and recovered by TLP.
 
-TCP Fast Open
-=============
+TCP Fast Open description
+=========================
 TCP Fast Open is a technology which allows data transfer before the
 3-way handshake complete. Please refer the `TCP Fast Open wiki`_ for a
 general description.
@@ -980,11 +976,11 @@ How many reply packets of the SYN cookies the TCP stack receives.
 
 The MSS decoded from the SYN cookie is invalid. When this counter is
 updated, the received packet won't be treated as a SYN cookie and the
-TcpExtSyncookiesRecv counter wont be updated.
+TcpExtSyncookiesRecv counter won't be updated.
 
 Challenge ACK
 =============
-For details of challenge ACK, please refer the explaination of
+For details of challenge ACK, please refer the explanation of
 TcpExtTCPACKSkippedChallenge.
 
 * TcpExtTCPChallengeACK
@@ -1002,7 +998,7 @@ prune
 =====
 When a socket is under memory pressure, the TCP stack will try to
 reclaim memory from the receiving queue and out of order queue. One of
-the reclaiming method is 'collapse', which means allocate a big sbk,
+the reclaiming method is 'collapse', which means allocate a big skb,
 copy the contiguous skbs to the single big skb, and free these
 contiguous skbs.
 
@@ -1163,7 +1159,7 @@ The server side nstat output::
   IpExtOutOctets                  52                 0.0
   IpExtInNoECTPkts                1                  0.0
 
-Input a string in nc client side again ('world' in our exmaple)::
+Input a string in nc client side again ('world' in our example)::
 
   nstatuser@nstat-a:~$ nc -v nstat-b 9000
   Connection to nstat-b 9000 port [tcp/*] succeeded!
@@ -1211,7 +1207,7 @@ replied an ACK. But kernel handled them in different ways. When the
 TCP window scale option is not used, kernel will try to enable fast
 path immediately when the connection comes into the established state,
 but if the TCP window scale option is used, kernel will disable the
-fast path at first, and try to enable it after kerenl receives
+fast path at first, and try to enable it after kernel receives
 packets. We could use the 'ss' command to verify whether the window
 scale option is used. e.g. run below command on either server or
 client::
@@ -1343,7 +1339,7 @@ Check TcpExtTCPAbortOnMemory on client::
   nstatuser@nstat-a:~$ nstat | grep -i abort
   TcpExtTCPAbortOnMemory          54                 0.0
 
-Check orphane socket count on client::
+Check orphaned socket count on client::
 
   nstatuser@nstat-a:~$ ss -s
   Total: 131 (kernel 0)
@@ -1681,11 +1677,11 @@ RST to nstat-b::
 
   nstatuser@nstat-a:~$ sudo iptables -A INPUT -p tcp --sport 9000 -j DROP
 
-Send 3 SYN repeatly to nstat-b::
+Send 3 SYN repeatedly to nstat-b::
 
   nstatuser@nstat-a:~$ for i in {1..3}; do sudo tcpreplay -i ens3 /tmp/syn_fixcsum.pcap; done
 
-Check snmp cunter on nstat-b::
+Check snmp counter on nstat-b::
 
   nstatuser@nstat-b:~$ nstat | grep -i skip
   TcpExtTCPACKSkippedSynRecv      1                  0.0
@@ -1770,7 +1766,7 @@ string 'foo' in our example::
   Connection from nstat-a 42132 received!
   foo
 
-On nstat-a, the tcpdump should have caputred the ACK. We should check
+On nstat-a, the tcpdump should have captured the ACK. We should check
 the source port numbers of the two nc clients::
 
   nstatuser@nstat-a:~$ ss -ta '( dport = :9000 || dport = :9001 )' | tee
@@ -1778,7 +1774,7 @@ the source port numbers of the two nc clients::
   ESTAB  0        0            192.168.122.250:50208       192.168.122.251:9000
   ESTAB  0        0            192.168.122.250:42132       192.168.122.251:9001
 
-Run tcprewrite, change port 9001 to port 9000, chagne port 42132 to
+Run tcprewrite, change port 9001 to port 9000, change port 42132 to
 port 50208::
 
   nstatuser@nstat-a:~$ tcprewrite --infile /tmp/seq_pre.pcap --outfile /tmp/seq.pcap -r 9001:9000 -r 42132:50208 --fixcsum

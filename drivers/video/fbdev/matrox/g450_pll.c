@@ -333,11 +333,9 @@ static int __g450_setclk(struct matrox_fb_info *minfo, unsigned int fout,
 			 unsigned int *deltaarray)
 {
 	unsigned int mnpcount;
-	unsigned int pixel_vco;
 	const struct matrox_pll_limits* pi;
 	struct matrox_pll_cache* ci;
 
-	pixel_vco = 0;
 	switch (pll) {
 		case M_PIXEL_PLL_A:
 		case M_PIXEL_PLL_B:
@@ -420,7 +418,6 @@ static int __g450_setclk(struct matrox_fb_info *minfo, unsigned int fout,
 				
 				mnp = matroxfb_DAC_in(minfo, M1064_XPIXPLLCM) << 16;
 				mnp |= matroxfb_DAC_in(minfo, M1064_XPIXPLLCN) << 8;
-				pixel_vco = g450_mnp2vco(minfo, mnp);
 				matroxfb_DAC_unlock_irqrestore(flags);
 			}
 			pi = &minfo->limits.video;
@@ -441,25 +438,6 @@ static int __g450_setclk(struct matrox_fb_info *minfo, unsigned int fout,
 			unsigned int delta;
 
 			vco = g450_mnp2vco(minfo, mnp);
-#if 0			
-			if (pll == M_VIDEO_PLL) {
-				unsigned int big, small;
-
-				if (vco < pixel_vco) {
-					small = vco;
-					big = pixel_vco;
-				} else {
-					small = pixel_vco;
-					big = vco;
-				}
-				while (big > small) {
-					big >>= 1;
-				}
-				if (big == small) {
-					continue;
-				}
-			}
-#endif			
 			delta = pll_freq_delta(fout, g450_vco2f(mnp, vco));
 			for (idx = mnpcount; idx > 0; idx--) {
 				/* == is important; due to nextpll algorithm we get

@@ -1,0 +1,143 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interrupt-controller/apple,aic2.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Apple Interrupt Controller 2
+
+maintainers:
+  - Hector Martin <marcan@marcan.st>
+
+description: |
+  The Apple Interrupt Controller 2 is a simple interrupt controller present on
+  Apple ARM SoC platforms starting with t600x (M1 Pro and Max).
+
+  It provides the following features:
+
+  - Level-triggered hardware IRQs wired to SoC blocks
+    - Single mask bit per IRQ
+    - Automatic masking on event delivery (auto-ack)
+    - Software triggering (ORed with hw line)
+  - Automatic prioritization (single event/ack register per CPU, lower IRQs =
+    higher priority)
+  - Automatic masking on ack
+  - Support for multiple dies
+
+  This device also represents the FIQ interrupt sources on platforms using AIC,
+  which do not go through a discrete interrupt controller. It also handles
+  FIQ-based Fast IPIs.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - apple,t8112-aic
+          - apple,t6000-aic
+      - const: apple,aic2
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    minimum: 3
+    maximum: 4
+    description: |
+      The 1st cell contains the interrupt type:
+        - 0: Hardware IRQ
+        - 1: FIQ
+
+      The 2nd cell contains the die ID (only present on apple,t6000-aic).
+
+      The next cell contains the interrupt number.
+        - HW IRQs: interrupt number
+        - FIQs:
+          - 0: physical HV timer
+          - 1: virtual HV timer
+          - 2: physical guest timer
+          - 3: virtual guest timer
+
+      The last cell contains the interrupt flags. This is normally
+      IRQ_TYPE_LEVEL_HIGH (4).
+
+  reg:
+    items:
+      - description: Address and size of the main AIC2 registers.
+      - description: Address and size of the AIC2 Event register.
+
+  reg-names:
+    items:
+      - const: core
+      - const: event
+
+  power-domains:
+    maxItems: 1
+
+  affinities:
+    type: object
+    additionalProperties: false
+    description:
+      FIQ affinity can be expressed as a single "affinities" node,
+      containing a set of sub-nodes, one per FIQ with a non-default
+      affinity.
+    patternProperties:
+      "^.+-affinity$":
+        type: object
+        additionalProperties: false
+        properties:
+          apple,fiq-index:
+            description:
+              The interrupt number specified as a FIQ, and for which
+              the affinity is not the default.
+            $ref: /schemas/types.yaml#/definitions/uint32
+            maximum: 5
+
+          cpus:
+            $ref: /schemas/types.yaml#/definitions/phandle-array
+            description:
+              Should be a list of phandles to CPU nodes (as described in
+              Documentation/devicetree/bindings/arm/cpus.yaml).
+
+        required:
+          - apple,fiq-index
+          - cpus
+
+required:
+  - compatible
+  - '#interrupt-cells'
+  - interrupt-controller
+  - reg
+  - reg-names
+
+additionalProperties: false
+
+allOf:
+  - $ref: /schemas/interrupt-controller.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: apple,t8112-aic
+    then:
+      properties:
+        '#interrupt-cells':
+          const: 3
+    else:
+      properties:
+        '#interrupt-cells':
+          const: 4
+
+examples:
+  - |
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        aic: interrupt-controller@28e100000 {
+            compatible = "apple,t6000-aic", "apple,aic2";
+            #interrupt-cells = <4>;
+            interrupt-controller;
+            reg = <0x2 0x8e100000 0x0 0xc000>,
+                  <0x2 0x8e10c000 0x0 0x4>;
+            reg-names = "core", "event";
+        };
+    };

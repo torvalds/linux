@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * u_hid.h
  *
@@ -20,6 +20,7 @@ struct f_hid_opts {
 	int				minor;
 	unsigned char			subclass;
 	unsigned char			protocol;
+	unsigned char			no_out_endpoint;
 	unsigned short			report_length;
 	unsigned short			report_desc_length;
 	unsigned char			*report_desc;
@@ -29,8 +30,8 @@ struct f_hid_opts {
 	 * Protect the data form concurrent access by read/write
 	 * and create symlink/remove symlink.
 	 */
-	 struct mutex			lock;
-	 int				refcnt;
+	struct mutex			lock;
+	int				refcnt;
 };
 
 int ghid_setup(struct usb_gadget *g, int count);

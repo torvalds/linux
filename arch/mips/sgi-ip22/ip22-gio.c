@@ -12,7 +12,7 @@
 #include <asm/sgi/mc.h>
 #include <asm/sgi/ip22.h>
 
-static struct bus_type gio_bus_type;
+static const struct bus_type gio_bus_type;
 
 static struct {
 	const char *name;
@@ -47,8 +47,9 @@ static struct device gio_bus = {
  * Used by a driver to check whether an of_device present in the
  * system is in its list of supported devices.
  */
-const struct gio_device_id *gio_match_device(const struct gio_device_id *match,
-		     const struct gio_device *dev)
+static const struct gio_device_id *
+gio_match_device(const struct gio_device_id *match,
+		 const struct gio_device *dev)
 {
 	const struct gio_device_id *ids;
 
@@ -58,7 +59,6 @@ const struct gio_device_id *gio_match_device(const struct gio_device_id *match,
 
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(gio_match_device);
 
 struct gio_device *gio_dev_get(struct gio_device *dev)
 {
@@ -143,14 +143,13 @@ static int gio_device_probe(struct device *dev)
 	return error;
 }
 
-static int gio_device_remove(struct device *dev)
+static void gio_device_remove(struct device *dev)
 {
 	struct gio_device *gio_dev = to_gio_device(dev);
 	struct gio_driver *drv = to_gio_driver(dev->driver);
 
-	if (dev->driver && drv->remove)
+	if (drv->remove)
 		drv->remove(gio_dev);
-	return 0;
 }
 
 static void gio_device_shutdown(struct device *dev)
@@ -200,9 +199,9 @@ static struct attribute *gio_dev_attrs[] = {
 };
 ATTRIBUTE_GROUPS(gio_dev);
 
-static int gio_device_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int gio_device_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct gio_device *gio_dev = to_gio_device(dev);
+	const struct gio_device *gio_dev = to_gio_device(dev);
 
 	add_uevent_var(env, "MODALIAS=gio:%x", gio_dev->id.id);
 	return 0;
@@ -364,6 +363,8 @@ static void ip22_check_gio(int slotno, unsigned long addr, int irq)
 		printk(KERN_INFO "GIO: slot %d : %s (id %x)\n",
 		       slotno, name, id);
 		gio_dev = kzalloc(sizeof *gio_dev, GFP_KERNEL);
+		if (!gio_dev)
+			return;
 		gio_dev->name = name;
 		gio_dev->slotno = slotno;
 		gio_dev->id.id = id;
@@ -377,7 +378,7 @@ static void ip22_check_gio(int slotno, unsigned long addr, int irq)
 		printk(KERN_INFO "GIO: slot %d : Empty\n", slotno);
 }
 
-static struct bus_type gio_bus_type = {
+static const struct bus_type gio_bus_type = {
 	.name	   = "gio",
 	.dev_groups = gio_dev_groups,
 	.match	   = gio_bus_match,

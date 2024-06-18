@@ -1,15 +1,17 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Device Tree Include file for Freescale Layerscape-1043A family SoC.
+ * Device Tree Include file for NXP Layerscape-1043A family SoC.
  *
  * Copyright 2014-2015 Freescale Semiconductor, Inc.
- * Copyright 2018 NXP
+ * Copyright 2018, 2020 NXP
  *
  * Mingkai Hu <Mingkai.hu@freescale.com>
  */
 
+#include <dt-bindings/clock/fsl,qoriq-clockgen.h>
 #include <dt-bindings/thermal/thermal.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	compatible = "fsl,ls1043a";
@@ -27,6 +29,7 @@
 		ethernet4 = &enet4;
 		ethernet5 = &enet5;
 		ethernet6 = &enet6;
+		rtc1 = &ftm_alarm0;
 	};
 
 	cpus {
@@ -43,7 +46,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
 			reg = <0x0>;
-			clocks = <&clockgen 1 0>;
+			clocks = <&clockgen QORIQ_CLK_CMUX 0>;
 			next-level-cache = <&l2>;
 			cpu-idle-states = <&CPU_PH20>;
 			#cooling-cells = <2>;
@@ -53,7 +56,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
 			reg = <0x1>;
-			clocks = <&clockgen 1 0>;
+			clocks = <&clockgen QORIQ_CLK_CMUX 0>;
 			next-level-cache = <&l2>;
 			cpu-idle-states = <&CPU_PH20>;
 			#cooling-cells = <2>;
@@ -63,7 +66,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
 			reg = <0x2>;
-			clocks = <&clockgen 1 0>;
+			clocks = <&clockgen QORIQ_CLK_CMUX 0>;
 			next-level-cache = <&l2>;
 			cpu-idle-states = <&CPU_PH20>;
 			#cooling-cells = <2>;
@@ -73,7 +76,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
 			reg = <0x3>;
-			clocks = <&clockgen 1 0>;
+			clocks = <&clockgen QORIQ_CLK_CMUX 0>;
 			next-level-cache = <&l2>;
 			cpu-idle-states = <&CPU_PH20>;
 			#cooling-cells = <2>;
@@ -81,6 +84,8 @@
 
 		l2: l2-cache {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 	};
 
@@ -142,26 +147,86 @@
 	};
 
 	reboot {
-		compatible ="syscon-reboot";
+		compatible = "syscon-reboot";
 		regmap = <&dcfg>;
 		offset = <0xb0>;
 		mask = <0x02>;
 	};
 
 	thermal-zones {
-		cpu_thermal: cpu-thermal {
+		ddr-controller {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
-
-			thermal-sensors = <&tmu 3>;
+			thermal-sensors = <&tmu 0>;
 
 			trips {
-				cpu_alert: cpu-alert {
+				ddr-ctrler-alert {
 					temperature = <85000>;
 					hysteresis = <2000>;
 					type = "passive";
 				};
-				cpu_crit: cpu-crit {
+
+				ddr-ctrler-crit {
+					temperature = <95000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+		};
+
+		serdes {
+			polling-delay-passive = <1000>;
+			polling-delay = <5000>;
+			thermal-sensors = <&tmu 1>;
+
+			trips {
+				serdes-alert {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				serdes-crit {
+					temperature = <95000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+		};
+
+		fman {
+			polling-delay-passive = <1000>;
+			polling-delay = <5000>;
+			thermal-sensors = <&tmu 2>;
+
+			trips {
+				fman-alert {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				fman-crit {
+					temperature = <95000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+		};
+
+		core-cluster {
+			polling-delay-passive = <1000>;
+			polling-delay = <5000>;
+			thermal-sensors = <&tmu 3>;
+
+			trips {
+				core_cluster_alert: core-cluster-alert {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				core_cluster_crit: core-cluster-crit {
 					temperature = <95000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -170,12 +235,32 @@
 
 			cooling-maps {
 				map0 {
-					trip = <&cpu_alert>;
+					trip = <&core_cluster_alert>;
 					cooling-device =
 						<&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
 						<&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
 						<&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
 						<&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
+		};
+
+		sec {
+			polling-delay-passive = <1000>;
+			polling-delay = <5000>;
+			thermal-sensors = <&tmu 4>;
+
+			trips {
+				sec-alert {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				sec-crit {
+					temperature = <95000>;
+					hysteresis = <2000>;
+					type = "critical";
 				};
 			};
 		};
@@ -191,7 +276,7 @@
 	};
 
 	pmu {
-		compatible = "arm,armv8-pmuv3";
+		compatible = "arm,cortex-a53-pmu";
 		interrupts = <0 106 0x4>,
 			     <0 107 0x4>,
 			     <0 95 0x4>,
@@ -218,6 +303,8 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
+		dma-ranges = <0x0 0x0 0x0 0x0 0x10000 0x00000000>;
+		dma-coherent;
 
 		clockgen: clocking@1ee1000 {
 			compatible = "fsl,ls1043a-clockgen";
@@ -230,6 +317,31 @@
 			compatible = "fsl,ls1043a-scfg", "syscon";
 			reg = <0x0 0x1570000 0x0 0x10000>;
 			big-endian;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x0 0x1570000 0x10000>;
+
+			extirq: interrupt-controller@1ac {
+				compatible = "fsl,ls1043a-extirq";
+				#interrupt-cells = <2>;
+				#address-cells = <0>;
+				interrupt-controller;
+				reg = <0x1ac 4>;
+				interrupt-map =
+					<0 0 &gic GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>,
+					<1 0 &gic GIC_SPI 132 IRQ_TYPE_LEVEL_HIGH>,
+					<2 0 &gic GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>,
+					<3 0 &gic GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>,
+					<4 0 &gic GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>,
+					<5 0 &gic GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>,
+					<6 0 &gic GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>,
+					<7 0 &gic GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>,
+					<8 0 &gic GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>,
+					<9 0 &gic GIC_SPI 149 IRQ_TYPE_LEVEL_HIGH>,
+					<10 0 &gic GIC_SPI 150 IRQ_TYPE_LEVEL_HIGH>,
+					<11 0 &gic GIC_SPI 151 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-map-mask = <0xf 0x0>;
+			};
 		};
 
 		crypto: crypto@1700000 {
@@ -241,12 +353,13 @@
 			ranges = <0x0 0x00 0x1700000 0x100000>;
 			reg = <0x00 0x1700000 0x0 0x100000>;
 			interrupts = <0 75 0x4>;
+			dma-coherent;
 
 			sec_jr0: jr@10000 {
 				compatible = "fsl,sec-v5.4-job-ring",
 					     "fsl,sec-v5.0-job-ring",
 					     "fsl,sec-v4.0-job-ring";
-				reg	   = <0x10000 0x10000>;
+				reg = <0x10000 0x10000>;
 				interrupts = <0 71 0x4>;
 			};
 
@@ -254,7 +367,7 @@
 				compatible = "fsl,sec-v5.4-job-ring",
 					     "fsl,sec-v5.0-job-ring",
 					     "fsl,sec-v4.0-job-ring";
-				reg	   = <0x20000 0x10000>;
+				reg = <0x20000 0x10000>;
 				interrupts = <0 72 0x4>;
 			};
 
@@ -262,7 +375,7 @@
 				compatible = "fsl,sec-v5.4-job-ring",
 					     "fsl,sec-v5.0-job-ring",
 					     "fsl,sec-v4.0-job-ring";
-				reg	   = <0x30000 0x10000>;
+				reg = <0x30000 0x10000>;
 				interrupts = <0 73 0x4>;
 			};
 
@@ -270,19 +383,27 @@
 				compatible = "fsl,sec-v5.4-job-ring",
 					     "fsl,sec-v5.0-job-ring",
 					     "fsl,sec-v4.0-job-ring";
-				reg	   = <0x40000 0x10000>;
+				reg = <0x40000 0x10000>;
 				interrupts = <0 74 0x4>;
 			};
 		};
 
+		sfp: efuse@1e80000 {
+			compatible = "fsl,ls1021a-sfp";
+			reg = <0x0 0x1e80000 0x0 0x10000>;
+			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
+					    QORIQ_CLK_PLL_DIV(4)>;
+			clock-names = "sfp";
+		};
+
 		dcfg: dcfg@1ee0000 {
 			compatible = "fsl,ls1043a-dcfg", "syscon";
-			reg = <0x0 0x1ee0000 0x0 0x10000>;
+			reg = <0x0 0x1ee0000 0x0 0x1000>;
 			big-endian;
 		};
 
-		ifc: ifc@1530000 {
-			compatible = "fsl,ifc", "simple-bus";
+		ifc: memory-controller@1530000 {
+			compatible = "fsl,ifc";
 			reg = <0x0 0x1530000 0x0 0x10000>;
 			interrupts = <0 43 0x4>;
 		};
@@ -296,7 +417,10 @@
 			reg-names = "QuadSPI", "QuadSPI-memory";
 			interrupts = <0 99 0x4>;
 			clock-names = "qspi_en", "qspi";
-			clocks = <&clockgen 4 0>, <&clockgen 4 0>;
+			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
+					    QORIQ_CLK_PLL_DIV(1)>,
+				 <&clockgen QORIQ_CLK_PLATFORM_PLL
+					    QORIQ_CLK_PLL_DIV(1)>;
 			status = "disabled";
 		};
 
@@ -322,43 +446,48 @@
 			compatible = "fsl,qoriq-tmu";
 			reg = <0x0 0x1f00000 0x0 0x10000>;
 			interrupts = <0 33 0x4>;
-			fsl,tmu-range = <0xb0000 0x9002a 0x6004c 0x30062>;
-			fsl,tmu-calibration = <0x00000000 0x00000026
-					       0x00000001 0x0000002d
-					       0x00000002 0x00000032
-					       0x00000003 0x00000039
-					       0x00000004 0x0000003f
-					       0x00000005 0x00000046
-					       0x00000006 0x0000004d
-					       0x00000007 0x00000054
-					       0x00000008 0x0000005a
-					       0x00000009 0x00000061
-					       0x0000000a 0x0000006a
-					       0x0000000b 0x00000071
+			fsl,tmu-range = <0xb0000 0x9002a 0x6004c 0x70062>;
+			fsl,tmu-calibration =
+					<0x00000000 0x00000023>,
+					<0x00000001 0x0000002a>,
+					<0x00000002 0x00000031>,
+					<0x00000003 0x00000037>,
+					<0x00000004 0x0000003e>,
+					<0x00000005 0x00000044>,
+					<0x00000006 0x0000004b>,
+					<0x00000007 0x00000051>,
+					<0x00000008 0x00000058>,
+					<0x00000009 0x0000005e>,
+					<0x0000000a 0x00000065>,
+					<0x0000000b 0x0000006b>,
 
-					       0x00010000 0x00000025
-					       0x00010001 0x0000002c
-					       0x00010002 0x00000035
-					       0x00010003 0x0000003d
-					       0x00010004 0x00000045
-					       0x00010005 0x0000004e
-					       0x00010006 0x00000057
-					       0x00010007 0x00000061
-					       0x00010008 0x0000006b
-					       0x00010009 0x00000076
+					<0x00010000 0x00000023>,
+					<0x00010001 0x0000002b>,
+					<0x00010002 0x00000033>,
+					<0x00010003 0x0000003b>,
+					<0x00010004 0x00000043>,
+					<0x00010005 0x0000004b>,
+					<0x00010006 0x00000054>,
+					<0x00010007 0x0000005c>,
+					<0x00010008 0x00000064>,
+					<0x00010009 0x0000006c>,
 
-					       0x00020000 0x00000029
-					       0x00020001 0x00000033
-					       0x00020002 0x0000003d
-					       0x00020003 0x00000049
-					       0x00020004 0x00000056
-					       0x00020005 0x00000061
-					       0x00020006 0x0000006d
+					<0x00020000 0x00000021>,
+					<0x00020001 0x0000002c>,
+					<0x00020002 0x00000036>,
+					<0x00020003 0x00000040>,
+					<0x00020004 0x0000004b>,
+					<0x00020005 0x00000055>,
+					<0x00020006 0x0000005f>,
 
-					       0x00030000 0x00000021
-					       0x00030001 0x0000002a
-					       0x00030002 0x0000003c
-					       0x00030003 0x0000004e>;
+					<0x00030000 0x00000013>,
+					<0x00030001 0x0000001d>,
+					<0x00030002 0x00000028>,
+					<0x00030003 0x00000032>,
+					<0x00030004 0x0000003d>,
+					<0x00030005 0x00000047>,
+					<0x00030006 0x00000052>,
+					<0x00030007 0x0000005c>;
 			#thermal-sensor-cells = <1>;
 		};
 
@@ -391,69 +520,64 @@
 			reg = <0x0 0x2100000 0x0 0x10000>;
 			interrupts = <0 64 0x4>;
 			clock-names = "dspi";
-			clocks = <&clockgen 4 0>;
-			spi-num-chipselects = <5>;
-			big-endian;
-			status = "disabled";
-		};
-
-		dspi1: spi@2110000 {
-			compatible = "fsl,ls1043a-dspi", "fsl,ls1021a-v1.0-dspi";
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <0x0 0x2110000 0x0 0x10000>;
-			interrupts = <0 65 0x4>;
-			clock-names = "dspi";
-			clocks = <&clockgen 4 0>;
+			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
+					    QORIQ_CLK_PLL_DIV(1)>;
 			spi-num-chipselects = <5>;
 			big-endian;
 			status = "disabled";
 		};
 
 		i2c0: i2c@2180000 {
-			compatible = "fsl,vf610-i2c";
+			compatible = "fsl,ls1043a-i2c", "fsl,vf610-i2c";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x0 0x2180000 0x0 0x10000>;
 			interrupts = <0 56 0x4>;
 			clock-names = "i2c";
-			clocks = <&clockgen 4 0>;
-			dmas = <&edma0 1 39>,
-			       <&edma0 1 38>;
-			dma-names = "tx", "rx";
+			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
+					    QORIQ_CLK_PLL_DIV(1)>;
+			dmas = <&edma0 1 38>,
+			       <&edma0 1 39>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
 		i2c1: i2c@2190000 {
-			compatible = "fsl,vf610-i2c";
+			compatible = "fsl,ls1043a-i2c", "fsl,vf610-i2c";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x0 0x2190000 0x0 0x10000>;
 			interrupts = <0 57 0x4>;
 			clock-names = "i2c";
-			clocks = <&clockgen 4 0>;
+			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
+					    QORIQ_CLK_PLL_DIV(1)>;
+			scl-gpios = <&gpio4 2 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 			status = "disabled";
 		};
 
 		i2c2: i2c@21a0000 {
-			compatible = "fsl,vf610-i2c";
+			compatible = "fsl,ls1043a-i2c", "fsl,vf610-i2c";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x0 0x21a0000 0x0 0x10000>;
 			interrupts = <0 58 0x4>;
 			clock-names = "i2c";
-			clocks = <&clockgen 4 0>;
+			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
+					    QORIQ_CLK_PLL_DIV(1)>;
+			scl-gpios = <&gpio4 10 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 			status = "disabled";
 		};
 
 		i2c3: i2c@21b0000 {
-			compatible = "fsl,vf610-i2c";
+			compatible = "fsl,ls1043a-i2c", "fsl,vf610-i2c";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x0 0x21b0000 0x0 0x10000>;
 			interrupts = <0 59 0x4>;
 			clock-names = "i2c";
-			clocks = <&clockgen 4 0>;
+			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
+					    QORIQ_CLK_PLL_DIV(1)>;
+			scl-gpios = <&gpio4 12 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 			status = "disabled";
 		};
 
@@ -461,28 +585,32 @@
 			compatible = "fsl,ns16550", "ns16550a";
 			reg = <0x00 0x21c0500 0x0 0x100>;
 			interrupts = <0 54 0x4>;
-			clocks = <&clockgen 4 0>;
+			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
+					    QORIQ_CLK_PLL_DIV(1)>;
 		};
 
 		duart1: serial@21c0600 {
 			compatible = "fsl,ns16550", "ns16550a";
 			reg = <0x00 0x21c0600 0x0 0x100>;
 			interrupts = <0 54 0x4>;
-			clocks = <&clockgen 4 0>;
+			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
+					    QORIQ_CLK_PLL_DIV(1)>;
 		};
 
 		duart2: serial@21d0500 {
 			compatible = "fsl,ns16550", "ns16550a";
 			reg = <0x0 0x21d0500 0x0 0x100>;
 			interrupts = <0 55 0x4>;
-			clocks = <&clockgen 4 0>;
+			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
+					    QORIQ_CLK_PLL_DIV(1)>;
 		};
 
 		duart3: serial@21d0600 {
 			compatible = "fsl,ns16550", "ns16550a";
 			reg = <0x0 0x21d0600 0x0 0x100>;
 			interrupts = <0 55 0x4>;
-			clocks = <&clockgen 4 0>;
+			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
+					    QORIQ_CLK_PLL_DIV(1)>;
 		};
 
 		gpio1: gpio@2300000 {
@@ -525,11 +653,76 @@
 			#interrupt-cells = <2>;
 		};
 
+		uqe: uqe@2400000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,qe", "simple-bus";
+			ranges = <0x0 0x0 0x2400000 0x40000>;
+			reg = <0x0 0x2400000 0x0 0x480>;
+			brg-frequency = <100000000>;
+			bus-frequency = <200000000>;
+			fsl,qe-num-riscs = <1>;
+			fsl,qe-num-snums = <28>;
+
+			qeic: qeic@80 {
+				compatible = "fsl,qe-ic";
+				reg = <0x80 0x80>;
+				#address-cells = <0>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			si1: si@700 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,ls1043-qe-si",
+						"fsl,t1040-qe-si";
+				reg = <0x700 0x80>;
+			};
+
+			siram1: siram@1000 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "fsl,ls1043-qe-siram",
+						"fsl,t1040-qe-siram";
+				reg = <0x1000 0x800>;
+			};
+
+			ucc@2000 {
+				cell-index = <1>;
+				reg = <0x2000 0x200>;
+				interrupts = <32>;
+				interrupt-parent = <&qeic>;
+			};
+
+			ucc@2200 {
+				cell-index = <3>;
+				reg = <0x2200 0x200>;
+				interrupts = <34>;
+				interrupt-parent = <&qeic>;
+			};
+
+			muram@10000 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "fsl,qe-muram", "fsl,cpm-muram";
+				ranges = <0x0 0x10000 0x6000>;
+
+				data-only@0 {
+					compatible = "fsl,qe-muram-data",
+					"fsl,cpm-muram-data";
+					reg = <0x0 0x6000>;
+				};
+			};
+		};
+
 		lpuart0: serial@2950000 {
 			compatible = "fsl,ls1021a-lpuart";
 			reg = <0x0 0x2950000 0x0 0x1000>;
 			interrupts = <0 48 0x4>;
-			clocks = <&clockgen 0 0>;
+			clocks = <&clockgen QORIQ_CLK_SYSCLK 0>;
 			clock-names = "ipg";
 			status = "disabled";
 		};
@@ -538,7 +731,8 @@
 			compatible = "fsl,ls1021a-lpuart";
 			reg = <0x0 0x2960000 0x0 0x1000>;
 			interrupts = <0 49 0x4>;
-			clocks = <&clockgen 4 0>;
+			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
+					    QORIQ_CLK_PLL_DIV(1)>;
 			clock-names = "ipg";
 			status = "disabled";
 		};
@@ -547,7 +741,8 @@
 			compatible = "fsl,ls1021a-lpuart";
 			reg = <0x0 0x2970000 0x0 0x1000>;
 			interrupts = <0 50 0x4>;
-			clocks = <&clockgen 4 0>;
+			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
+					    QORIQ_CLK_PLL_DIV(1)>;
 			clock-names = "ipg";
 			status = "disabled";
 		};
@@ -556,7 +751,8 @@
 			compatible = "fsl,ls1021a-lpuart";
 			reg = <0x0 0x2980000 0x0 0x1000>;
 			interrupts = <0 51 0x4>;
-			clocks = <&clockgen 4 0>;
+			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
+					    QORIQ_CLK_PLL_DIV(1)>;
 			clock-names = "ipg";
 			status = "disabled";
 		};
@@ -565,7 +761,8 @@
 			compatible = "fsl,ls1021a-lpuart";
 			reg = <0x0 0x2990000 0x0 0x1000>;
 			interrupts = <0 52 0x4>;
-			clocks = <&clockgen 4 0>;
+			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
+					    QORIQ_CLK_PLL_DIV(1)>;
 			clock-names = "ipg";
 			status = "disabled";
 		};
@@ -574,21 +771,23 @@
 			compatible = "fsl,ls1021a-lpuart";
 			reg = <0x0 0x29a0000 0x0 0x1000>;
 			interrupts = <0 53 0x4>;
-			clocks = <&clockgen 4 0>;
+			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
+					    QORIQ_CLK_PLL_DIV(1)>;
 			clock-names = "ipg";
 			status = "disabled";
 		};
 
-		wdog0: wdog@2ad0000 {
+		wdog0: watchdog@2ad0000 {
 			compatible = "fsl,ls1043a-wdt", "fsl,imx21-wdt";
 			reg = <0x0 0x2ad0000 0x0 0x10000>;
 			interrupts = <0 83 0x4>;
-			clocks = <&clockgen 4 0>;
+			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
+					    QORIQ_CLK_PLL_DIV(1)>;
 			clock-names = "wdog";
 			big-endian;
 		};
 
-		edma0: edma@2c00000 {
+		edma0: dma-controller@2c00000 {
 			#dma-cells = <2>;
 			compatible = "fsl,vf610-edma";
 			reg = <0x0 0x2c00000 0x0 0x10000>,
@@ -600,48 +799,65 @@
 			dma-channels = <32>;
 			big-endian;
 			clock-names = "dmamux0", "dmamux1";
-			clocks = <&clockgen 4 0>,
-				 <&clockgen 4 0>;
+			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
+					    QORIQ_CLK_PLL_DIV(1)>,
+				 <&clockgen QORIQ_CLK_PLATFORM_PLL
+					    QORIQ_CLK_PLL_DIV(1)>;
 		};
 
-		usb0: usb3@2f00000 {
-			compatible = "snps,dwc3";
-			reg = <0x0 0x2f00000 0x0 0x10000>;
-			interrupts = <0 60 0x4>;
-			dr_mode = "host";
-			snps,quirk-frame-length-adjustment = <0x20>;
-			snps,dis_rxdet_inp3_quirk;
-			snps,incr-burst-type-adjustment = <1>, <4>, <8>, <16>;
-		};
+		aux_bus: aux_bus {
+			#address-cells = <2>;
+			#size-cells = <2>;
+			compatible = "simple-bus";
+			ranges;
+			dma-ranges = <0x0 0x0 0x0 0x0 0x100 0x00000000>;
 
-		usb1: usb3@3000000 {
-			compatible = "snps,dwc3";
-			reg = <0x0 0x3000000 0x0 0x10000>;
-			interrupts = <0 61 0x4>;
-			dr_mode = "host";
-			snps,quirk-frame-length-adjustment = <0x20>;
-			snps,dis_rxdet_inp3_quirk;
-			snps,incr-burst-type-adjustment = <1>, <4>, <8>, <16>;
-		};
+			usb0: usb@2f00000 {
+				compatible = "snps,dwc3";
+				reg = <0x0 0x2f00000 0x0 0x10000>;
+				interrupts = <0 60 IRQ_TYPE_LEVEL_HIGH>;
+				dr_mode = "host";
+				snps,quirk-frame-length-adjustment = <0x20>;
+				snps,dis_rxdet_inp3_quirk;
+				usb3-lpm-capable;
+				snps,incr-burst-type-adjustment = <1>, <4>, <8>, <16>;
+				status = "disabled";
+			};
 
-		usb2: usb3@3100000 {
-			compatible = "snps,dwc3";
-			reg = <0x0 0x3100000 0x0 0x10000>;
-			interrupts = <0 63 0x4>;
-			dr_mode = "host";
-			snps,quirk-frame-length-adjustment = <0x20>;
-			snps,dis_rxdet_inp3_quirk;
-			snps,incr-burst-type-adjustment = <1>, <4>, <8>, <16>;
-		};
+			usb1: usb@3000000 {
+				compatible = "snps,dwc3";
+				reg = <0x0 0x3000000 0x0 0x10000>;
+				interrupts = <0 61 IRQ_TYPE_LEVEL_HIGH>;
+				dr_mode = "host";
+				snps,quirk-frame-length-adjustment = <0x20>;
+				snps,dis_rxdet_inp3_quirk;
+				usb3-lpm-capable;
+				snps,incr-burst-type-adjustment = <1>, <4>, <8>, <16>;
+				status = "disabled";
+			};
 
-		sata: sata@3200000 {
-			compatible = "fsl,ls1043a-ahci";
-			reg = <0x0 0x3200000 0x0 0x10000>,
-				<0x0 0x20140520 0x0 0x4>;
-			reg-names = "ahci", "sata-ecc";
-			interrupts = <0 69 0x4>;
-			clocks = <&clockgen 4 0>;
-			dma-coherent;
+			usb2: usb@3100000 {
+				compatible = "snps,dwc3";
+				reg = <0x0 0x3100000 0x0 0x10000>;
+				interrupts = <0 63 IRQ_TYPE_LEVEL_HIGH>;
+				dr_mode = "host";
+				snps,quirk-frame-length-adjustment = <0x20>;
+				snps,dis_rxdet_inp3_quirk;
+				usb3-lpm-capable;
+				snps,incr-burst-type-adjustment = <1>, <4>, <8>, <16>;
+				status = "disabled";
+			};
+
+			sata: sata@3200000 {
+				compatible = "fsl,ls1043a-ahci";
+				reg = <0x0 0x3200000 0x0 0x10000>,
+					<0x0 0x20140520 0x0 0x4>;
+				reg-names = "ahci", "sata-ecc";
+				interrupts = <0 69 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
+						    QORIQ_CLK_PLL_DIV(1)>;
+				dma-coherent;
+			};
 		};
 
 		msi1: msi-controller1@1571000 {
@@ -665,18 +881,17 @@
 			interrupts = <0 160 0x4>;
 		};
 
-		pcie@3400000 {
+		pcie1: pcie@3400000 {
 			compatible = "fsl,ls1043a-pcie";
-			reg = <0x00 0x03400000 0x0 0x00100000   /* controller registers */
-			       0x40 0x00000000 0x0 0x00002000>; /* configuration space */
+			reg = <0x00 0x03400000 0x0 0x00100000>, /* controller registers */
+			      <0x40 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "regs", "config";
-			interrupts = <0 118 0x4>, /* controller interrupt */
-				     <0 117 0x4>; /* PME interrupt */
-			interrupt-names = "intr", "pme";
+			interrupts = <0 117 IRQ_TYPE_LEVEL_HIGH>,
+				     <0 118 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "pme", "aer";
 			#address-cells = <3>;
 			#size-cells = <2>;
 			device_type = "pci";
-			dma-coherent;
 			num-viewport = <6>;
 			bus-range = <0x0 0xff>;
 			ranges = <0x81000000 0x0 0x00000000 0x40 0x00010000 0x0 0x00010000   /* downstream I/O */
@@ -688,21 +903,22 @@
 					<0000 0 0 2 &gic 0 111 0x4>,
 					<0000 0 0 3 &gic 0 112 0x4>,
 					<0000 0 0 4 &gic 0 113 0x4>;
+			fsl,pcie-scfg = <&scfg 0>;
+			big-endian;
 			status = "disabled";
 		};
 
-		pcie@3500000 {
+		pcie2: pcie@3500000 {
 			compatible = "fsl,ls1043a-pcie";
-			reg = <0x00 0x03500000 0x0 0x00100000   /* controller registers */
-			       0x48 0x00000000 0x0 0x00002000>; /* configuration space */
+			reg = <0x00 0x03500000 0x0 0x00100000>, /* controller registers */
+			      <0x48 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "regs", "config";
-			interrupts = <0 128 0x4>,
-				     <0 127 0x4>;
-			interrupt-names = "intr", "pme";
+			interrupts = <0 127 IRQ_TYPE_LEVEL_HIGH>,
+				     <0 128 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "pme", "aer";
 			#address-cells = <3>;
 			#size-cells = <2>;
 			device_type = "pci";
-			dma-coherent;
 			num-viewport = <6>;
 			bus-range = <0x0 0xff>;
 			ranges = <0x81000000 0x0 0x00000000 0x48 0x00010000 0x0 0x00010000   /* downstream I/O */
@@ -714,21 +930,22 @@
 					<0000 0 0 2 &gic 0 121 0x4>,
 					<0000 0 0 3 &gic 0 122 0x4>,
 					<0000 0 0 4 &gic 0 123 0x4>;
+			fsl,pcie-scfg = <&scfg 1>;
+			big-endian;
 			status = "disabled";
 		};
 
-		pcie@3600000 {
+		pcie3: pcie@3600000 {
 			compatible = "fsl,ls1043a-pcie";
-			reg = <0x00 0x03600000 0x0 0x00100000   /* controller registers */
-			       0x50 0x00000000 0x0 0x00002000>; /* configuration space */
+			reg = <0x00 0x03600000 0x0 0x00100000>, /* controller registers */
+			      <0x50 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "regs", "config";
-			interrupts = <0 162 0x4>,
-				     <0 161 0x4>;
-			interrupt-names = "intr", "pme";
+			interrupts = <0 161 IRQ_TYPE_LEVEL_HIGH>,
+				     <0 162 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "pme", "aer";
 			#address-cells = <3>;
 			#size-cells = <2>;
 			device_type = "pci";
-			dma-coherent;
 			num-viewport = <6>;
 			bus-range = <0x0 0xff>;
 			ranges = <0x81000000 0x0 0x00000000 0x50 0x00010000 0x0 0x00010000   /* downstream I/O */
@@ -740,6 +957,8 @@
 					<0000 0 0 2 &gic 0 155 0x4>,
 					<0000 0 0 3 &gic 0 156 0x4>,
 					<0000 0 0 4 &gic 0 157 0x4>;
+			fsl,pcie-scfg = <&scfg 2>;
+			big-endian;
 			status = "disabled";
 		};
 
@@ -764,6 +983,19 @@
 			big-endian;
 		};
 
+		rcpm: power-controller@1ee2140 {
+			compatible = "fsl,ls1043a-rcpm", "fsl,qoriq-rcpm-2.1+";
+			reg = <0x0 0x1ee2140 0x0 0x4>;
+			#fsl,rcpm-wakeup-cells = <1>;
+		};
+
+		ftm_alarm0: timer@29d0000 {
+			compatible = "fsl,ls1043a-ftm-alarm";
+			reg = <0x0 0x29d0000 0x0 0x10000>;
+			fsl,rcpm-wakeup = <&rcpm 0x20000>;
+			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
+			big-endian;
+		};
 	};
 
 	firmware {

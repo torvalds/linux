@@ -18,11 +18,12 @@
 #endif
 
 #include <asm/ptrace.h>
-#include <asm/domain.h>
 #include <asm/opcodes-virt.h>
 #include <asm/asm-offsets.h>
 #include <asm/page.h>
+#include <asm/pgtable.h>
 #include <asm/thread_info.h>
+#include <asm/uaccess-asm.h>
 
 #define IOMEM(x)	(x)
 
@@ -86,6 +87,10 @@
 
 #define IMM12_MASK 0xfff
 
+/* the frame pointer used for stack unwinding */
+ARM(	fpreg	.req	r11	)
+THUMB(	fpreg	.req	r7	)
+
 /*
  * Enable and disable interrupts
  */
@@ -104,6 +109,16 @@
 
 	.macro	enable_irq_notrace
 	msr	cpsr_c, #SVC_MODE
+	.endm
+#endif
+
+#if __LINUX_ARM_ARCH__ < 7
+	.macro	dsb, args
+	mcr	p15, 0, r0, c7, c10, 4
+	.endm
+
+	.macro	isb, args
+	mcr	p15, 0, r0, c7, c5, 4
 	.endm
 #endif
 
@@ -203,10 +218,8 @@
  * Get current thread_info.
  */
 	.macro	get_thread_info, rd
- ARM(	mov	\rd, sp, lsr #THREAD_SIZE_ORDER + PAGE_SHIFT	)
- THUMB(	mov	\rd, sp			)
- THUMB(	lsr	\rd, \rd, #THREAD_SIZE_ORDER + PAGE_SHIFT	)
-	mov	\rd, \rd, lsl #THREAD_SIZE_ORDER + PAGE_SHIFT
+	/* thread_info is the first member of struct task_struct */
+	get_current \rd
 	.endm
 
 /*
@@ -224,19 +237,11 @@
 	sub	\tmp, \tmp, #1			@ decrement it
 	str	\tmp, [\ti, #TI_PREEMPT]
 	.endm
-
-	.macro	dec_preempt_count_ti, ti, tmp
-	get_thread_info \ti
-	dec_preempt_count \ti, \tmp
-	.endm
 #else
 	.macro	inc_preempt_count, ti, tmp
 	.endm
 
 	.macro	dec_preempt_count, ti, tmp
-	.endm
-
-	.macro	dec_preempt_count_ti, ti, tmp
 	.endm
 #endif
 
@@ -259,7 +264,8 @@
  */
 #define ALT_UP(instr...)					\
 	.pushsection ".alt.smp.init", "a"			;\
-	.long	9998b						;\
+	.align	2						;\
+	.long	9998b - .					;\
 9997:	instr							;\
 	.if . - 9997b == 2					;\
 		nop						;\
@@ -269,16 +275,90 @@
 	.endif							;\
 	.popsection
 #define ALT_UP_B(label)					\
-	.equ	up_b_offset, label - 9998b			;\
 	.pushsection ".alt.smp.init", "a"			;\
-	.long	9998b						;\
-	W(b)	. + up_b_offset					;\
+	.align	2						;\
+	.long	9998b - .					;\
+	W(b)	. + (label - 9998b)					;\
 	.popsection
 #else
 #define ALT_SMP(instr...)
 #define ALT_UP(instr...) instr
 #define ALT_UP_B(label) b label
 #endif
+
+	/*
+	 * this_cpu_offset - load the per-CPU offset of this CPU into
+	 * 		     register 'rd'
+	 */
+	.macro		this_cpu_offset, rd:req
+#ifdef CONFIG_SMP
+ALT_SMP(mrc		p15, 0, \rd, c13, c0, 4)
+#ifdef CONFIG_CPU_V6
+ALT_UP_B(.L1_\@)
+.L0_\@:
+	.subsection	1
+.L1_\@: ldr_va		\rd, __per_cpu_offset
+	b		.L0_\@
+	.previous
+#endif
+#else
+	mov		\rd, #0
+#endif
+	.endm
+
+	/*
+	 * set_current - store the task pointer of this CPU's current task
+	 */
+	.macro		set_current, rn:req, tmp:req
+#if defined(CONFIG_CURRENT_POINTER_IN_TPIDRURO) || defined(CONFIG_SMP)
+9998:	mcr		p15, 0, \rn, c13, c0, 3		@ set TPIDRURO register
+#ifdef CONFIG_CPU_V6
+ALT_UP_B(.L0_\@)
+	.subsection	1
+.L0_\@: str_va		\rn, __current, \tmp
+	b		.L1_\@
+	.previous
+.L1_\@:
+#endif
+#else
+	str_va		\rn, __current, \tmp
+#endif
+	.endm
+
+	/*
+	 * get_current - load the task pointer of this CPU's current task
+	 */
+	.macro		get_current, rd:req
+#if defined(CONFIG_CURRENT_POINTER_IN_TPIDRURO) || defined(CONFIG_SMP)
+9998:	mrc		p15, 0, \rd, c13, c0, 3		@ get TPIDRURO register
+#ifdef CONFIG_CPU_V6
+ALT_UP_B(.L0_\@)
+	.subsection	1
+.L0_\@: ldr_va		\rd, __current
+	b		.L1_\@
+	.previous
+.L1_\@:
+#endif
+#else
+	ldr_va		\rd, __current
+#endif
+	.endm
+
+	/*
+	 * reload_current - reload the task pointer of this CPU's current task
+	 *		    into the TLS register
+	 */
+	.macro		reload_current, t1:req, t2:req
+#if defined(CONFIG_CURRENT_POINTER_IN_TPIDRURO) || defined(CONFIG_SMP)
+#ifdef CONFIG_CPU_V6
+ALT_SMP(nop)
+ALT_UP_B(.L0_\@)
+#endif
+	ldr_this_cpu	\t1, __entry_task, \t1, \t2
+	mcr		p15, 0, \t1, c13, c0, 3		@ store in TPIDRURO
+.L0_\@:
+#endif
+	.endm
 
 /*
  * Instruction barrier
@@ -312,6 +392,23 @@
 	.else
 	ALT_UP(W(nop))
 	.endif
+#endif
+	.endm
+
+/*
+ * Raw SMP data memory barrier
+ */
+	.macro	__smp_dmb mode
+#if __LINUX_ARM_ARCH__ >= 7
+	.ifeqs "\mode","arm"
+	dmb	ish
+	.else
+	W(dmb)	ish
+	.endif
+#elif __LINUX_ARM_ARCH__ == 6
+	mcr	p15, 0, r0, c7, c10, 5	@ dmb
+#else
+	.error "Incompatible SMP platform"
 #endif
 	.endm
 
@@ -446,79 +543,6 @@ THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
 	.size \name , . - \name
 	.endm
 
-	.macro	csdb
-#ifdef CONFIG_THUMB2_KERNEL
-	.inst.w	0xf3af8014
-#else
-	.inst	0xe320f014
-#endif
-	.endm
-
-	.macro check_uaccess, addr:req, size:req, limit:req, tmp:req, bad:req
-#ifndef CONFIG_CPU_USE_DOMAINS
-	adds	\tmp, \addr, #\size - 1
-	sbcscc	\tmp, \tmp, \limit
-	bcs	\bad
-#ifdef CONFIG_CPU_SPECTRE
-	movcs	\addr, #0
-	csdb
-#endif
-#endif
-	.endm
-
-	.macro uaccess_mask_range_ptr, addr:req, size:req, limit:req, tmp:req
-#ifdef CONFIG_CPU_SPECTRE
-	sub	\tmp, \limit, #1
-	subs	\tmp, \tmp, \addr	@ tmp = limit - 1 - addr
-	addhs	\tmp, \tmp, #1		@ if (tmp >= 0) {
-	subshs	\tmp, \tmp, \size	@ tmp = limit - (addr + size) }
-	movlo	\addr, #0		@ if (tmp < 0) addr = NULL
-	csdb
-#endif
-	.endm
-
-	.macro	uaccess_disable, tmp, isb=1
-#ifdef CONFIG_CPU_SW_DOMAIN_PAN
-	/*
-	 * Whenever we re-enter userspace, the domains should always be
-	 * set appropriately.
-	 */
-	mov	\tmp, #DACR_UACCESS_DISABLE
-	mcr	p15, 0, \tmp, c3, c0, 0		@ Set domain register
-	.if	\isb
-	instr_sync
-	.endif
-#endif
-	.endm
-
-	.macro	uaccess_enable, tmp, isb=1
-#ifdef CONFIG_CPU_SW_DOMAIN_PAN
-	/*
-	 * Whenever we re-enter userspace, the domains should always be
-	 * set appropriately.
-	 */
-	mov	\tmp, #DACR_UACCESS_ENABLE
-	mcr	p15, 0, \tmp, c3, c0, 0
-	.if	\isb
-	instr_sync
-	.endif
-#endif
-	.endm
-
-	.macro	uaccess_save, tmp
-#ifdef CONFIG_CPU_SW_DOMAIN_PAN
-	mrc	p15, 0, \tmp, c3, c0, 0
-	str	\tmp, [sp, #SVC_DACR]
-#endif
-	.endm
-
-	.macro	uaccess_restore
-#ifdef CONFIG_CPU_SW_DOMAIN_PAN
-	ldr	r0, [sp, #SVC_DACR]
-	mcr	p15, 0, r0, c3, c0, 0
-#endif
-	.endm
-
 	.irp	c,,eq,ne,cs,cc,mi,pl,vs,vc,hi,ls,ge,lt,gt,le,hs,lo
 	.macro	ret\c, reg
 #if __LINUX_ARM_ARCH__ < 6
@@ -567,5 +591,205 @@ THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
 #else
 #define _ASM_NOKPROBE(entry)
 #endif
+
+	.macro		__adldst_l, op, reg, sym, tmp, c
+	.if		__LINUX_ARM_ARCH__ < 7
+	ldr\c		\tmp, .La\@
+	.subsection	1
+	.align		2
+.La\@:	.long		\sym - .Lpc\@
+	.previous
+	.else
+	.ifnb		\c
+ THUMB(	ittt		\c			)
+	.endif
+	movw\c		\tmp, #:lower16:\sym - .Lpc\@
+	movt\c		\tmp, #:upper16:\sym - .Lpc\@
+	.endif
+
+#ifndef CONFIG_THUMB2_KERNEL
+	.set		.Lpc\@, . + 8			// PC bias
+	.ifc		\op, add
+	add\c		\reg, \tmp, pc
+	.else
+	\op\c		\reg, [pc, \tmp]
+	.endif
+#else
+.Lb\@:	add\c		\tmp, \tmp, pc
+	/*
+	 * In Thumb-2 builds, the PC bias depends on whether we are currently
+	 * emitting into a .arm or a .thumb section. The size of the add opcode
+	 * above will be 2 bytes when emitting in Thumb mode and 4 bytes when
+	 * emitting in ARM mode, so let's use this to account for the bias.
+	 */
+	.set		.Lpc\@, . + (. - .Lb\@)
+
+	.ifnc		\op, add
+	\op\c		\reg, [\tmp]
+	.endif
+#endif
+	.endm
+
+	/*
+	 * mov_l - move a constant value or [relocated] address into a register
+	 */
+	.macro		mov_l, dst:req, imm:req, cond
+	.if		__LINUX_ARM_ARCH__ < 7
+	ldr\cond	\dst, =\imm
+	.else
+	movw\cond	\dst, #:lower16:\imm
+	movt\cond	\dst, #:upper16:\imm
+	.endif
+	.endm
+
+	/*
+	 * adr_l - adr pseudo-op with unlimited range
+	 *
+	 * @dst: destination register
+	 * @sym: name of the symbol
+	 * @cond: conditional opcode suffix
+	 */
+	.macro		adr_l, dst:req, sym:req, cond
+	__adldst_l	add, \dst, \sym, \dst, \cond
+	.endm
+
+	/*
+	 * ldr_l - ldr <literal> pseudo-op with unlimited range
+	 *
+	 * @dst: destination register
+	 * @sym: name of the symbol
+	 * @cond: conditional opcode suffix
+	 */
+	.macro		ldr_l, dst:req, sym:req, cond
+	__adldst_l	ldr, \dst, \sym, \dst, \cond
+	.endm
+
+	/*
+	 * str_l - str <literal> pseudo-op with unlimited range
+	 *
+	 * @src: source register
+	 * @sym: name of the symbol
+	 * @tmp: mandatory scratch register
+	 * @cond: conditional opcode suffix
+	 */
+	.macro		str_l, src:req, sym:req, tmp:req, cond
+	__adldst_l	str, \src, \sym, \tmp, \cond
+	.endm
+
+	.macro		__ldst_va, op, reg, tmp, sym, cond, offset
+#if __LINUX_ARM_ARCH__ >= 7 || \
+    !defined(CONFIG_ARM_HAS_GROUP_RELOCS) || \
+    (defined(MODULE) && defined(CONFIG_ARM_MODULE_PLTS))
+	mov_l		\tmp, \sym, \cond
+#else
+	/*
+	 * Avoid a literal load, by emitting a sequence of ADD/LDR instructions
+	 * with the appropriate relocations. The combined sequence has a range
+	 * of -/+ 256 MiB, which should be sufficient for the core kernel and
+	 * for modules loaded into the module region.
+	 */
+	.globl		\sym
+	.reloc		.L0_\@, R_ARM_ALU_PC_G0_NC, \sym
+	.reloc		.L1_\@, R_ARM_ALU_PC_G1_NC, \sym
+	.reloc		.L2_\@, R_ARM_LDR_PC_G2, \sym
+.L0_\@: sub\cond	\tmp, pc, #8 - \offset
+.L1_\@: sub\cond	\tmp, \tmp, #4 - \offset
+.L2_\@:
+#endif
+	\op\cond	\reg, [\tmp, #\offset]
+	.endm
+
+	/*
+	 * ldr_va - load a 32-bit word from the virtual address of \sym
+	 */
+	.macro		ldr_va, rd:req, sym:req, cond, tmp, offset=0
+	.ifnb		\tmp
+	__ldst_va	ldr, \rd, \tmp, \sym, \cond, \offset
+	.else
+	__ldst_va	ldr, \rd, \rd, \sym, \cond, \offset
+	.endif
+	.endm
+
+	/*
+	 * str_va - store a 32-bit word to the virtual address of \sym
+	 */
+	.macro		str_va, rn:req, sym:req, tmp:req, cond
+	__ldst_va	str, \rn, \tmp, \sym, \cond, 0
+	.endm
+
+	/*
+	 * ldr_this_cpu_armv6 - Load a 32-bit word from the per-CPU variable 'sym',
+	 *			without using a temp register. Supported in ARM mode
+	 *			only.
+	 */
+	.macro		ldr_this_cpu_armv6, rd:req, sym:req
+	this_cpu_offset	\rd
+	.globl		\sym
+	.reloc		.L0_\@, R_ARM_ALU_PC_G0_NC, \sym
+	.reloc		.L1_\@, R_ARM_ALU_PC_G1_NC, \sym
+	.reloc		.L2_\@, R_ARM_LDR_PC_G2, \sym
+	add		\rd, \rd, pc
+.L0_\@: sub		\rd, \rd, #4
+.L1_\@: sub		\rd, \rd, #0
+.L2_\@: ldr		\rd, [\rd, #4]
+	.endm
+
+	/*
+	 * ldr_this_cpu - Load a 32-bit word from the per-CPU variable 'sym'
+	 *		  into register 'rd', which may be the stack pointer,
+	 *		  using 't1' and 't2' as general temp registers. These
+	 *		  are permitted to overlap with 'rd' if != sp
+	 */
+	.macro		ldr_this_cpu, rd:req, sym:req, t1:req, t2:req
+#ifndef CONFIG_SMP
+	ldr_va		\rd, \sym, tmp=\t1
+#elif __LINUX_ARM_ARCH__ >= 7 || \
+      !defined(CONFIG_ARM_HAS_GROUP_RELOCS) || \
+      (defined(MODULE) && defined(CONFIG_ARM_MODULE_PLTS))
+	this_cpu_offset	\t1
+	mov_l		\t2, \sym
+	ldr		\rd, [\t1, \t2]
+#else
+	ldr_this_cpu_armv6 \rd, \sym
+#endif
+	.endm
+
+	/*
+	 * rev_l - byte-swap a 32-bit value
+	 *
+	 * @val: source/destination register
+	 * @tmp: scratch register
+	 */
+	.macro		rev_l, val:req, tmp:req
+	.if		__LINUX_ARM_ARCH__ < 6
+	eor		\tmp, \val, \val, ror #16
+	bic		\tmp, \tmp, #0x00ff0000
+	mov		\val, \val, ror #8
+	eor		\val, \val, \tmp, lsr #8
+	.else
+	rev		\val, \val
+	.endif
+	.endm
+
+	.if		__LINUX_ARM_ARCH__ < 6
+	.set		.Lrev_l_uses_tmp, 1
+	.else
+	.set		.Lrev_l_uses_tmp, 0
+	.endif
+
+	/*
+	 * bl_r - branch and link to register
+	 *
+	 * @dst: target to branch to
+	 * @c: conditional opcode suffix
+	 */
+	.macro		bl_r, dst:req, c
+	.if		__LINUX_ARM_ARCH__ < 6
+	mov\c		lr, pc
+	mov\c		pc, \dst
+	.else
+	blx\c		\dst
+	.endif
+	.endm
 
 #endif /* __ASM_ASSEMBLER_H__ */

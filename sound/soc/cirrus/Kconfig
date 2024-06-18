@@ -8,7 +8,11 @@ config SND_EP93XX_SOC
 	  the EP93xx I2S or AC97 interfaces.
 
 config SND_EP93XX_SOC_I2S
-	tristate
+	tristate "I2S controller support for the Cirrus Logic EP93xx series"
+	depends on SND_EP93XX_SOC
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the EP93xx I2S interface.
 
 if SND_EP93XX_SOC_I2S
 
@@ -26,29 +30,6 @@ config SND_EP93XX_SOC_I2S_WATCHDOG
 	  If you are unsure how to answer this question, answer Y.
 
 endif # if SND_EP93XX_SOC_I2S
-
-config SND_EP93XX_SOC_AC97
-	tristate
-	select AC97_BUS
-	select SND_SOC_AC97_BUS
-
-config SND_EP93XX_SOC_SNAPPERCL15
-        tristate "SoC Audio support for Bluewater Systems Snapper CL15 module"
-        depends on SND_EP93XX_SOC && MACH_SNAPPER_CL15 && I2C
-        select SND_EP93XX_SOC_I2S
-        select SND_SOC_TLV320AIC23_I2C
-        help
-          Say Y or M here if you want to add support for I2S audio on the
-          Bluewater Systems Snapper CL15 module.
-
-config SND_EP93XX_SOC_SIMONE
-	tristate "SoC Audio support for Simplemachines Sim.One board"
-	depends on SND_EP93XX_SOC && MACH_SIM_ONE
-	select SND_EP93XX_SOC_AC97
-	select SND_SOC_AC97_CODEC
-	help
-	  Say Y or M here if you want to add support for AC97 audio on the
-	  Simplemachines Sim.One board.
 
 config SND_EP93XX_SOC_EDB93XX
 	tristate "SoC Audio support for Cirrus Logic EDB93xx boards"

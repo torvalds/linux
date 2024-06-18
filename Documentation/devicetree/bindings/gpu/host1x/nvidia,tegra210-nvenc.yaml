@@ -1,0 +1,135 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/gpu/host1x/nvidia,tegra210-nvenc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra NVENC
+
+description: |
+  NVENC is the hardware video encoder present on NVIDIA Tegra210
+  and newer chips. It is located on the Host1x bus and typically
+  programmed through Host1x channels.
+
+maintainers:
+  - Thierry Reding <treding@gmail.com>
+  - Mikko Perttunen <mperttunen@nvidia.com>
+
+properties:
+  $nodename:
+    pattern: "^nvenc@[0-9a-f]*$"
+
+  compatible:
+    enum:
+      - nvidia,tegra210-nvenc
+      - nvidia,tegra186-nvenc
+      - nvidia,tegra194-nvenc
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: nvenc
+
+  resets:
+    maxItems: 1
+
+  reset-names:
+    items:
+      - const: nvenc
+
+  power-domains:
+    maxItems: 1
+
+  iommus:
+    maxItems: 1
+
+  dma-coherent: true
+
+  interconnects:
+    minItems: 2
+    maxItems: 3
+
+  interconnect-names:
+    minItems: 2
+    maxItems: 3
+
+  nvidia,host1x-class:
+    description: |
+      Host1x class of the engine, used to specify the targeted engine
+      when programming the engine through Host1x channels or when
+      configuring engine-specific behavior in Host1x.
+    default: 0x21
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - resets
+  - reset-names
+  - power-domains
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          enum:
+            - nvidia,tegra210-nvenc
+            - nvidia,tegra186-nvenc
+    then:
+      properties:
+        interconnects:
+          items:
+            - description: DMA read memory client
+            - description: DMA write memory client
+        interconnect-names:
+          items:
+            - const: dma-mem
+            - const: write
+  - if:
+      properties:
+        compatible:
+          enum:
+            - nvidia,tegra194-nvenc
+    then:
+      properties:
+        interconnects:
+          items:
+            - description: DMA read memory client
+            - description: DMA read 2 memory client
+            - description: DMA write memory client
+        interconnect-names:
+          items:
+            - const: dma-mem
+            - const: read-1
+            - const: write
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/tegra186-clock.h>
+    #include <dt-bindings/memory/tegra186-mc.h>
+    #include <dt-bindings/power/tegra186-powergate.h>
+    #include <dt-bindings/reset/tegra186-reset.h>
+
+    nvenc@154c0000 {
+            compatible = "nvidia,tegra186-nvenc";
+            reg = <0x154c0000 0x40000>;
+            clocks = <&bpmp TEGRA186_CLK_NVENC>;
+            clock-names = "nvenc";
+            resets = <&bpmp TEGRA186_RESET_NVENC>;
+            reset-names = "nvenc";
+
+            power-domains = <&bpmp TEGRA186_POWER_DOMAIN_MPE>;
+            interconnects = <&mc TEGRA186_MEMORY_CLIENT_NVENCSRD &emc>,
+                            <&mc TEGRA186_MEMORY_CLIENT_NVENCSWR &emc>;
+            interconnect-names = "dma-mem", "write";
+            iommus = <&smmu TEGRA186_SID_NVENC>;
+    };

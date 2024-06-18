@@ -33,7 +33,6 @@
 #ifndef MLX5_CORE_CQ_H
 #define MLX5_CORE_CQ_H
 
-#include <rdma/ib_verbs.h>
 #include <linux/mlx5/driver.h>
 #include <linux/refcount.h>
 
@@ -96,9 +95,10 @@ enum {
 };
 
 enum {
-	MLX5_CQ_MODIFY_PERIOD	= 1 << 0,
-	MLX5_CQ_MODIFY_COUNT	= 1 << 1,
-	MLX5_CQ_MODIFY_OVERRUN	= 1 << 2,
+	MLX5_CQ_MODIFY_PERIOD		= BIT(0),
+	MLX5_CQ_MODIFY_COUNT		= BIT(1),
+	MLX5_CQ_MODIFY_OVERRUN		= BIT(2),
+	MLX5_CQ_MODIFY_PERIOD_MODE	= BIT(4),
 };
 
 enum {
@@ -184,11 +184,13 @@ static inline void mlx5_cq_put(struct mlx5_core_cq *cq)
 		complete(&cq->free);
 }
 
+int mlx5_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
+		   u32 *in, int inlen, u32 *out, int outlen);
 int mlx5_core_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 			u32 *in, int inlen, u32 *out, int outlen);
 int mlx5_core_destroy_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq);
 int mlx5_core_query_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
-		       u32 *out, int outlen);
+		       u32 *out);
 int mlx5_core_modify_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 			u32 *in, int inlen);
 int mlx5_core_modify_cq_moderation(struct mlx5_core_dev *dev,

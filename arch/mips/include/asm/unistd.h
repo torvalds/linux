@@ -17,6 +17,10 @@
 #include <asm/unistd_nr_n64.h>
 #include <asm/unistd_nr_o32.h>
 
+#define __NR_N32_Linux	6000
+#define __NR_64_Linux	5000
+#define __NR_O32_Linux	4000
+
 #ifdef CONFIG_MIPS32_N32
 #define NR_syscalls  (__NR_N32_Linux + __NR_N32_Linux_syscalls)
 #elif defined(CONFIG_64BIT)
@@ -46,6 +50,8 @@
 # ifdef CONFIG_32BIT
 #  define __ARCH_WANT_STAT64
 #  define __ARCH_WANT_SYS_TIME32
+# else
+#  define __ARCH_WANT_COMPAT_STAT
 # endif
 # ifdef CONFIG_MIPS32_O32
 #  define __ARCH_WANT_SYS_TIME32

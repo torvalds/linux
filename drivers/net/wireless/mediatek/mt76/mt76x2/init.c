@@ -8,6 +8,35 @@
 #include "eeprom.h"
 #include "../mt76x02_phy.h"
 
+int mt76x2_set_sar_specs(struct ieee80211_hw *hw,
+			 const struct cfg80211_sar_specs *sar)
+{
+	int err = -EINVAL, power = hw->conf.power_level * 2;
+	struct mt76x02_dev *dev = hw->priv;
+	struct mt76_phy *mphy = &dev->mphy;
+
+	mutex_lock(&dev->mt76.mutex);
+	if (!cfg80211_chandef_valid(&mphy->chandef))
+		goto out;
+
+	err = mt76_init_sar_power(hw, sar);
+	if (err)
+		goto out;
+
+	dev->txpower_conf = mt76_get_sar_power(mphy, mphy->chandef.chan,
+					       power);
+	/* convert to per-chain power for 2x2 devices */
+	dev->txpower_conf -= 6;
+
+	if (test_bit(MT76_STATE_RUNNING, &mphy->state))
+		mt76x2_phy_set_txpower(dev);
+out:
+	mutex_unlock(&dev->mt76.mutex);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(mt76x2_set_sar_specs);
+
 static void
 mt76x2_set_wlan_state(struct mt76x02_dev *dev, bool enable)
 {
@@ -82,7 +111,7 @@ void mt76_write_mac_initvals(struct mt76x02_dev *dev)
 		{ MT_PBF_SYS_CTRL,		0x00080c00 },
 		{ MT_PBF_CFG,			0x1efebcff },
 		{ MT_FCE_PSE_CTRL,		0x00000001 },
-		{ MT_MAC_SYS_CTRL,		0x0000000c },
+		{ MT_MAC_SYS_CTRL,		0x00000000 },
 		{ MT_MAX_LEN_CFG,		0x003e3f00 },
 		{ MT_AMPDU_MAX_LEN_20M1S,	0xaaa99887 },
 		{ MT_AMPDU_MAX_LEN_20M2S,	0x000000aa },
@@ -153,7 +182,7 @@ void mt76x2_init_txpower(struct mt76x02_dev *dev,
 {
 	struct ieee80211_channel *chan;
 	struct mt76x2_tx_power_info txp;
-	struct mt76_rate_power t = {};
+	struct mt76x02_rate_power t = {};
 	int i;
 
 	for (i = 0; i < sband->n_channels; i++) {

@@ -1,3 +1,2 @@
-*
-!.gitignore
-!Makefile
+# SPDX-License-Identifier: GPL-2.0-only
+/*/

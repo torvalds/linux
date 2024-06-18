@@ -33,21 +33,6 @@ struct scsi_cdb_s {
 	u8         scsi_cdb[SCSI_MAX_CDBLEN];
 };
 
-/* ------------------------------------------------------------
- * SCSI status byte values
- * ------------------------------------------------------------
- */
-#define SCSI_STATUS_GOOD                   0x00
-#define SCSI_STATUS_CHECK_CONDITION        0x02
-#define SCSI_STATUS_CONDITION_MET          0x04
-#define SCSI_STATUS_BUSY                   0x08
-#define SCSI_STATUS_INTERMEDIATE           0x10
-#define SCSI_STATUS_ICM                    0x14 /* intermediate condition met */
-#define SCSI_STATUS_RESERVATION_CONFLICT   0x18
-#define SCSI_STATUS_COMMAND_TERMINATED     0x22
-#define SCSI_STATUS_QUEUE_FULL             0x28
-#define SCSI_STATUS_ACA_ACTIVE             0x30
-
 #define SCSI_MAX_ALLOC_LEN      0xFF    /* maximum allocarion length */
 
 /*
@@ -815,7 +800,7 @@ struct fc_rscn_pl_s {
 	u8	command;
 	u8	pagelen;
 	__be16	payldlen;
-	struct fc_rscn_event_s event[1];
+	struct fc_rscn_event_s event[];
 };
 
 /*
@@ -1208,7 +1193,7 @@ enum {
 };
 
 /*
- * defintions for CT reason code
+ * definitions for CT reason code
  */
 enum {
 	CT_RSN_INV_CMD		= 0x01,
@@ -1255,7 +1240,7 @@ enum {
 };
 
 /*
- * defintions for the explanation code for all servers
+ * definitions for the explanation code for all servers
  */
 enum {
 	CT_EXP_AUTH_EXCEPTION		= 0xF1,
@@ -1563,7 +1548,7 @@ enum fdmi_port_attribute_type {
 struct fdmi_attr_s {
 	__be16        type;
 	__be16        len;
-	u8         value[1];
+	u8         value[];
 };
 
 /*

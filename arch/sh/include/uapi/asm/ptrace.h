@@ -25,11 +25,6 @@
 #define PT_DATA_ADDR		248	/* &(struct user)->start_data */
 #define PT_TEXT_LEN		252
 
-#if defined(__SH5__) || defined(CONFIG_CPU_SH5)
-#include <asm/ptrace_64.h>
-#else
 #include <asm/ptrace_32.h>
-#endif
-
 
 #endif /* _UAPI__ASM_SH_PTRACE_H */

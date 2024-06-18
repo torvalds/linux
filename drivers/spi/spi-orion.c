@@ -16,11 +16,8 @@
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_device.h>
-#include <linux/of_gpio.h>
 #include <linux/clk.h>
 #include <linux/sizes.h>
-#include <linux/gpio.h>
 #include <asm/unaligned.h>
 
 #define DRIVER_NAME			"orion_spi"
@@ -93,15 +90,20 @@ struct orion_child_options {
 };
 
 struct orion_spi {
-	struct spi_master	*master;
+	struct spi_controller	*host;
 	void __iomem		*base;
 	struct clk              *clk;
 	struct clk              *axi_clk;
 	const struct orion_spi_dev *devdata;
-	int			unused_hw_gpio;
+	struct device		*dev;
 
 	struct orion_child_options	child[ORION_NUM_CHIPSELECTS];
 };
+
+#ifdef CONFIG_PM
+static int orion_spi_runtime_suspend(struct device *dev);
+static int orion_spi_runtime_resume(struct device *dev);
+#endif
 
 static inline void __iomem *spi_reg(struct orion_spi *orion_spi, u32 reg)
 {
@@ -139,7 +141,7 @@ static int orion_spi_baudrate_set(struct spi_device *spi, unsigned int speed)
 	struct orion_spi *orion_spi;
 	const struct orion_spi_dev *devdata;
 
-	orion_spi = spi_master_get_devdata(spi->master);
+	orion_spi = spi_controller_get_devdata(spi->controller);
 	devdata = orion_spi->devdata;
 
 	tclk_hz = clk_get_rate(orion_spi->clk);
@@ -233,7 +235,7 @@ orion_spi_mode_set(struct spi_device *spi)
 	u32 reg;
 	struct orion_spi *orion_spi;
 
-	orion_spi = spi_master_get_devdata(spi->master);
+	orion_spi = spi_controller_get_devdata(spi->controller);
 
 	reg = readl(spi_reg(orion_spi, ORION_SPI_IF_CONFIG_REG));
 	reg &= ~ORION_SPI_MODE_MASK;
@@ -255,7 +257,7 @@ orion_spi_50mhz_ac_timing_erratum(struct spi_device *spi, unsigned int speed)
 	u32 reg;
 	struct orion_spi *orion_spi;
 
-	orion_spi = spi_master_get_devdata(spi->master);
+	orion_spi = spi_controller_get_devdata(spi->controller);
 
 	/*
 	 * Erratum description: (Erratum NO. FE-9144572) The device
@@ -295,7 +297,7 @@ orion_spi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 	unsigned int bits_per_word = spi->bits_per_word;
 	int	rc;
 
-	orion_spi = spi_master_get_devdata(spi->master);
+	orion_spi = spi_controller_get_devdata(spi->controller);
 
 	if ((t != NULL) && t->speed_hz)
 		speed = t->speed_hz;
@@ -325,24 +327,41 @@ orion_spi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 static void orion_spi_set_cs(struct spi_device *spi, bool enable)
 {
 	struct orion_spi *orion_spi;
-	int cs;
+	void __iomem *ctrl_reg;
+	u32 val;
 
-	orion_spi = spi_master_get_devdata(spi->master);
+	orion_spi = spi_controller_get_devdata(spi->controller);
+	ctrl_reg = spi_reg(orion_spi, ORION_SPI_IF_CTRL_REG);
 
-	if (gpio_is_valid(spi->cs_gpio))
-		cs = orion_spi->unused_hw_gpio;
-	else
-		cs = spi->chip_select;
+	val = readl(ctrl_reg);
 
-	orion_spi_clrbits(orion_spi, ORION_SPI_IF_CTRL_REG, ORION_SPI_CS_MASK);
-	orion_spi_setbits(orion_spi, ORION_SPI_IF_CTRL_REG,
-				ORION_SPI_CS(cs));
+	/* Clear existing chip-select and assertion state */
+	val &= ~(ORION_SPI_CS_MASK | 0x1);
 
-	/* Chip select logic is inverted from spi_set_cs */
+	/*
+	 * If this line is using a GPIO to control chip select, this internal
+	 * .set_cs() function will still be called, so we clear any previous
+	 * chip select. The CS we activate will not have any elecrical effect,
+	 * as it is handled by a GPIO, but that doesn't matter. What we need
+	 * is to deassert the old chip select and assert some other chip select.
+	 */
+	val |= ORION_SPI_CS(spi_get_chipselect(spi, 0));
+
+	/*
+	 * Chip select logic is inverted from spi_set_cs(). For lines using a
+	 * GPIO to do chip select SPI_CS_HIGH is enforced and inversion happens
+	 * in the GPIO library, but we don't care about that, because in those
+	 * cases we are dealing with an unused native CS anyways so the polarity
+	 * doesn't matter.
+	 */
 	if (!enable)
-		orion_spi_setbits(orion_spi, ORION_SPI_IF_CTRL_REG, 0x1);
-	else
-		orion_spi_clrbits(orion_spi, ORION_SPI_IF_CTRL_REG, 0x1);
+		val |= 0x1;
+
+	/*
+	 * To avoid toggling unwanted chip selects update the register
+	 * with a single write.
+	 */
+	writel(val, ctrl_reg);
 }
 
 static inline int orion_spi_wait_till_ready(struct orion_spi *orion_spi)
@@ -365,8 +384,15 @@ orion_spi_write_read_8bit(struct spi_device *spi,
 {
 	void __iomem *tx_reg, *rx_reg, *int_reg;
 	struct orion_spi *orion_spi;
+	bool cs_single_byte;
 
-	orion_spi = spi_master_get_devdata(spi->master);
+	cs_single_byte = spi->mode & SPI_CS_WORD;
+
+	orion_spi = spi_controller_get_devdata(spi->controller);
+
+	if (cs_single_byte)
+		orion_spi_set_cs(spi, 0);
+
 	tx_reg = spi_reg(orion_spi, ORION_SPI_DATA_OUT_REG);
 	rx_reg = spi_reg(orion_spi, ORION_SPI_DATA_IN_REG);
 	int_reg = spi_reg(orion_spi, ORION_SPI_INT_CAUSE_REG);
@@ -380,12 +406,23 @@ orion_spi_write_read_8bit(struct spi_device *spi,
 		writel(0, tx_reg);
 
 	if (orion_spi_wait_till_ready(orion_spi) < 0) {
+		if (cs_single_byte) {
+			orion_spi_set_cs(spi, 1);
+			/* Satisfy some SLIC devices requirements */
+			udelay(4);
+		}
 		dev_err(&spi->dev, "TXS timed out\n");
 		return -1;
 	}
 
 	if (rx_buf && *rx_buf)
 		*(*rx_buf)++ = readl(rx_reg);
+
+	if (cs_single_byte) {
+		orion_spi_set_cs(spi, 1);
+		/* Satisfy some SLIC devices requirements */
+		udelay(4);
+	}
 
 	return 1;
 }
@@ -397,7 +434,12 @@ orion_spi_write_read_16bit(struct spi_device *spi,
 	void __iomem *tx_reg, *rx_reg, *int_reg;
 	struct orion_spi *orion_spi;
 
-	orion_spi = spi_master_get_devdata(spi->master);
+	if (spi->mode & SPI_CS_WORD) {
+		dev_err(&spi->dev, "SPI_CS_WORD is only supported for 8 bit words\n");
+		return -1;
+	}
+
+	orion_spi = spi_controller_get_devdata(spi->controller);
 	tx_reg = spi_reg(orion_spi, ORION_SPI_DATA_OUT_REG);
 	rx_reg = spi_reg(orion_spi, ORION_SPI_DATA_IN_REG);
 	int_reg = spi_reg(orion_spi, ORION_SPI_INT_CAUSE_REG);
@@ -427,21 +469,22 @@ orion_spi_write_read(struct spi_device *spi, struct spi_transfer *xfer)
 	unsigned int count;
 	int word_len;
 	struct orion_spi *orion_spi;
-	int cs = spi->chip_select;
+	int cs = spi_get_chipselect(spi, 0);
 	void __iomem *vaddr;
 
 	word_len = spi->bits_per_word;
 	count = xfer->len;
 
-	orion_spi = spi_master_get_devdata(spi->master);
+	orion_spi = spi_controller_get_devdata(spi->controller);
 
 	/*
-	 * Use SPI direct write mode if base address is available. Otherwise
-	 * fall back to PIO mode for this transfer.
+	 * Use SPI direct write mode if base address is available
+	 * and SPI_CS_WORD flag is not set.
+	 * Otherwise fall back to PIO mode for this transfer.
 	 */
 	vaddr = orion_spi->child[cs].direct_access.vaddr;
 
-	if (vaddr && xfer->tx_buf && word_len == 8) {
+	if (vaddr && xfer->tx_buf && word_len == 8 && (spi->mode & SPI_CS_WORD) == 0) {
 		unsigned int cnt = count / 4;
 		unsigned int rem = count % 4;
 
@@ -467,8 +510,7 @@ orion_spi_write_read(struct spi_device *spi, struct spi_transfer *xfer)
 			if (orion_spi_write_read_8bit(spi, &tx, &rx) < 0)
 				goto out;
 			count--;
-			if (xfer->word_delay_usecs)
-				udelay(xfer->word_delay_usecs);
+			spi_delay_exec(&xfer->word_delay, xfer);
 		} while (count);
 	} else if (word_len == 16) {
 		const u16 *tx = xfer->tx_buf;
@@ -478,8 +520,7 @@ orion_spi_write_read(struct spi_device *spi, struct spi_transfer *xfer)
 			if (orion_spi_write_read_16bit(spi, &tx, &rx) < 0)
 				goto out;
 			count -= 2;
-			if (xfer->word_delay_usecs)
-				udelay(xfer->word_delay_usecs);
+			spi_delay_exec(&xfer->word_delay, xfer);
 		} while (count);
 	}
 
@@ -487,7 +528,7 @@ out:
 	return xfer->len - count;
 }
 
-static int orion_spi_transfer_one(struct spi_master *master,
+static int orion_spi_transfer_one(struct spi_controller *host,
 					struct spi_device *spi,
 					struct spi_transfer *t)
 {
@@ -505,10 +546,21 @@ static int orion_spi_transfer_one(struct spi_master *master,
 
 static int orion_spi_setup(struct spi_device *spi)
 {
-	if (gpio_is_valid(spi->cs_gpio)) {
-		gpio_direction_output(spi->cs_gpio, !(spi->mode & SPI_CS_HIGH));
-	}
-	return orion_spi_setup_transfer(spi, NULL);
+	int ret;
+#ifdef CONFIG_PM
+	struct orion_spi *orion_spi = spi_controller_get_devdata(spi->controller);
+	struct device *dev = orion_spi->dev;
+
+	orion_spi_runtime_resume(dev);
+#endif
+
+	ret = orion_spi_setup_transfer(spi, NULL);
+
+#ifdef CONFIG_PM
+	orion_spi_runtime_suspend(dev);
+#endif
+
+	return ret;
 }
 
 static int orion_spi_reset(struct orion_spi *orion_spi)
@@ -591,67 +643,62 @@ MODULE_DEVICE_TABLE(of, orion_spi_of_match_table);
 
 static int orion_spi_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *of_id;
 	const struct orion_spi_dev *devdata;
-	struct spi_master *master;
+	struct spi_controller *host;
 	struct orion_spi *spi;
 	struct resource *r;
 	unsigned long tclk_hz;
 	int status = 0;
 	struct device_node *np;
 
-	master = spi_alloc_master(&pdev->dev, sizeof(*spi));
-	if (master == NULL) {
-		dev_dbg(&pdev->dev, "master allocation failed\n");
+	host = spi_alloc_host(&pdev->dev, sizeof(*spi));
+	if (host == NULL) {
+		dev_dbg(&pdev->dev, "host allocation failed\n");
 		return -ENOMEM;
 	}
 
 	if (pdev->id != -1)
-		master->bus_num = pdev->id;
+		host->bus_num = pdev->id;
 	if (pdev->dev.of_node) {
 		u32 cell_index;
 
 		if (!of_property_read_u32(pdev->dev.of_node, "cell-index",
 					  &cell_index))
-			master->bus_num = cell_index;
+			host->bus_num = cell_index;
 	}
 
 	/* we support all 4 SPI modes and LSB first option */
-	master->mode_bits = SPI_CPHA | SPI_CPOL | SPI_LSB_FIRST;
-	master->set_cs = orion_spi_set_cs;
-	master->transfer_one = orion_spi_transfer_one;
-	master->num_chipselect = ORION_NUM_CHIPSELECTS;
-	master->setup = orion_spi_setup;
-	master->bits_per_word_mask = SPI_BPW_MASK(8) | SPI_BPW_MASK(16);
-	master->auto_runtime_pm = true;
-	master->flags = SPI_MASTER_GPIO_SS;
+	host->mode_bits = SPI_CPHA | SPI_CPOL | SPI_LSB_FIRST | SPI_CS_WORD;
+	host->set_cs = orion_spi_set_cs;
+	host->transfer_one = orion_spi_transfer_one;
+	host->num_chipselect = ORION_NUM_CHIPSELECTS;
+	host->setup = orion_spi_setup;
+	host->bits_per_word_mask = SPI_BPW_MASK(8) | SPI_BPW_MASK(16);
+	host->auto_runtime_pm = true;
+	host->use_gpio_descriptors = true;
+	host->flags = SPI_CONTROLLER_GPIO_SS;
 
-	platform_set_drvdata(pdev, master);
+	platform_set_drvdata(pdev, host);
 
-	spi = spi_master_get_devdata(master);
-	spi->master = master;
-	spi->unused_hw_gpio = -1;
+	spi = spi_controller_get_devdata(host);
+	spi->host = host;
+	spi->dev = &pdev->dev;
 
-	of_id = of_match_device(orion_spi_of_match_table, &pdev->dev);
-	devdata = (of_id) ? of_id->data : &orion_spi_dev_data;
+	devdata = device_get_match_data(&pdev->dev);
+	devdata = devdata ? devdata : &orion_spi_dev_data;
 	spi->devdata = devdata;
 
-	spi->clk = devm_clk_get(&pdev->dev, NULL);
+	spi->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(spi->clk)) {
 		status = PTR_ERR(spi->clk);
 		goto out;
 	}
 
-	status = clk_prepare_enable(spi->clk);
-	if (status)
-		goto out;
-
 	/* The following clock is only used by some SoCs */
 	spi->axi_clk = devm_clk_get(&pdev->dev, "axi");
-	if (IS_ERR(spi->axi_clk) &&
-	    PTR_ERR(spi->axi_clk) == -EPROBE_DEFER) {
+	if (PTR_ERR(spi->axi_clk) == -EPROBE_DEFER) {
 		status = -EPROBE_DEFER;
-		goto out_rel_clk;
+		goto out;
 	}
 	if (!IS_ERR(spi->axi_clk))
 		clk_prepare_enable(spi->axi_clk);
@@ -667,17 +714,16 @@ static int orion_spi_probe(struct platform_device *pdev)
 	 */
 	if (of_device_is_compatible(pdev->dev.of_node,
 					"marvell,armada-370-spi"))
-		master->max_speed_hz = min(devdata->max_hz,
+		host->max_speed_hz = min(devdata->max_hz,
 				DIV_ROUND_UP(tclk_hz, devdata->min_divisor));
 	else if (devdata->min_divisor)
-		master->max_speed_hz =
+		host->max_speed_hz =
 			DIV_ROUND_UP(tclk_hz, devdata->min_divisor);
 	else
-		master->max_speed_hz = devdata->max_hz;
-	master->min_speed_hz = DIV_ROUND_UP(tclk_hz, devdata->max_divisor);
+		host->max_speed_hz = devdata->max_hz;
+	host->min_speed_hz = DIV_ROUND_UP(tclk_hz, devdata->max_divisor);
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	spi->base = devm_ioremap_resource(&pdev->dev, r);
+	spi->base = devm_platform_get_and_ioremap_resource(pdev, 0, &r);
 	if (IS_ERR(spi->base)) {
 		status = PTR_ERR(spi->base);
 		goto out_rel_axi_clk;
@@ -686,7 +732,6 @@ static int orion_spi_probe(struct platform_device *pdev)
 	for_each_available_child_of_node(pdev->dev.of_node, np) {
 		struct orion_direct_acc *dir_acc;
 		u32 cs;
-		int cs_gpio;
 
 		/* Get chip-select number from the "reg" property */
 		status = of_property_read_u32(np, "reg", &cs);
@@ -695,44 +740,6 @@ static int orion_spi_probe(struct platform_device *pdev)
 				"%pOF has no valid 'reg' property (%d)\n",
 				np, status);
 			continue;
-		}
-
-		/*
-		 * Initialize the CS GPIO:
-		 * - properly request the actual GPIO signal
-		 * - de-assert the logical signal so that all GPIO CS lines
-		 *   are inactive when probing for slaves
-		 * - find an unused physical CS which will be driven for any
-		 *   slave which uses a CS GPIO
-		 */
-		cs_gpio = of_get_named_gpio(pdev->dev.of_node, "cs-gpios", cs);
-		if (cs_gpio > 0) {
-			char *gpio_name;
-			int cs_flags;
-
-			if (spi->unused_hw_gpio == -1) {
-				dev_info(&pdev->dev,
-					"Selected unused HW CS#%d for any GPIO CSes\n",
-					cs);
-				spi->unused_hw_gpio = cs;
-			}
-
-			gpio_name = devm_kasprintf(&pdev->dev, GFP_KERNEL,
-					"%s-CS%d", dev_name(&pdev->dev), cs);
-			if (!gpio_name) {
-				status = -ENOMEM;
-				goto out_rel_axi_clk;
-			}
-
-			cs_flags = of_property_read_bool(np, "spi-cs-high") ?
-				GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH;
-			status = devm_gpio_request_one(&pdev->dev, cs_gpio,
-					cs_flags, gpio_name);
-			if (status) {
-				dev_err(&pdev->dev,
-					"Can't request GPIO for CS %d\n", cs);
-				goto out_rel_axi_clk;
-			}
 		}
 
 		/*
@@ -749,13 +756,14 @@ static int orion_spi_probe(struct platform_device *pdev)
 		/*
 		 * Only map one page for direct access. This is enough for the
 		 * simple TX transfer which only writes to the first word.
-		 * This needs to get extended for the direct SPI-NOR / SPI-NAND
+		 * This needs to get extended for the direct SPI NOR / SPI NAND
 		 * support, once this gets implemented.
 		 */
 		dir_acc = &spi->child[cs].direct_access;
 		dir_acc->vaddr = devm_ioremap(&pdev->dev, r->start, PAGE_SIZE);
 		if (!dir_acc->vaddr) {
 			status = -ENOMEM;
+			of_node_put(np);
 			goto out_rel_axi_clk;
 		}
 		dir_acc->size = PAGE_SIZE;
@@ -772,11 +780,8 @@ static int orion_spi_probe(struct platform_device *pdev)
 	if (status < 0)
 		goto out_rel_pm;
 
-	pm_runtime_mark_last_busy(&pdev->dev);
-	pm_runtime_put_autosuspend(&pdev->dev);
-
-	master->dev.of_node = pdev->dev.of_node;
-	status = spi_register_master(master);
+	host->dev.of_node = pdev->dev.of_node;
+	status = spi_register_controller(host);
 	if (status < 0)
 		goto out_rel_pm;
 
@@ -786,27 +791,22 @@ out_rel_pm:
 	pm_runtime_disable(&pdev->dev);
 out_rel_axi_clk:
 	clk_disable_unprepare(spi->axi_clk);
-out_rel_clk:
-	clk_disable_unprepare(spi->clk);
 out:
-	spi_master_put(master);
+	spi_controller_put(host);
 	return status;
 }
 
 
-static int orion_spi_remove(struct platform_device *pdev)
+static void orion_spi_remove(struct platform_device *pdev)
 {
-	struct spi_master *master = platform_get_drvdata(pdev);
-	struct orion_spi *spi = spi_master_get_devdata(master);
+	struct spi_controller *host = platform_get_drvdata(pdev);
+	struct orion_spi *spi = spi_controller_get_devdata(host);
 
 	pm_runtime_get_sync(&pdev->dev);
 	clk_disable_unprepare(spi->axi_clk);
-	clk_disable_unprepare(spi->clk);
 
-	spi_unregister_master(master);
+	spi_unregister_controller(host);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 MODULE_ALIAS("platform:" DRIVER_NAME);
@@ -814,8 +814,8 @@ MODULE_ALIAS("platform:" DRIVER_NAME);
 #ifdef CONFIG_PM
 static int orion_spi_runtime_suspend(struct device *dev)
 {
-	struct spi_master *master = dev_get_drvdata(dev);
-	struct orion_spi *spi = spi_master_get_devdata(master);
+	struct spi_controller *host = dev_get_drvdata(dev);
+	struct orion_spi *spi = spi_controller_get_devdata(host);
 
 	clk_disable_unprepare(spi->axi_clk);
 	clk_disable_unprepare(spi->clk);
@@ -824,8 +824,8 @@ static int orion_spi_runtime_suspend(struct device *dev)
 
 static int orion_spi_runtime_resume(struct device *dev)
 {
-	struct spi_master *master = dev_get_drvdata(dev);
-	struct orion_spi *spi = spi_master_get_devdata(master);
+	struct spi_controller *host = dev_get_drvdata(dev);
+	struct orion_spi *spi = spi_controller_get_devdata(host);
 
 	if (!IS_ERR(spi->axi_clk))
 		clk_prepare_enable(spi->axi_clk);
@@ -846,7 +846,7 @@ static struct platform_driver orion_spi_driver = {
 		.of_match_table = of_match_ptr(orion_spi_of_match_table),
 	},
 	.probe		= orion_spi_probe,
-	.remove		= orion_spi_remove,
+	.remove_new	= orion_spi_remove,
 };
 
 module_platform_driver(orion_spi_driver);

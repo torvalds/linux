@@ -12,15 +12,20 @@
 #include <linux/bits.h>
 
 /* Register offsets. */
-#define VMCI_STATUS_ADDR      0x00
-#define VMCI_CONTROL_ADDR     0x04
-#define VMCI_ICR_ADDR	      0x08
-#define VMCI_IMR_ADDR         0x0c
-#define VMCI_DATA_OUT_ADDR    0x10
-#define VMCI_DATA_IN_ADDR     0x14
-#define VMCI_CAPS_ADDR        0x18
-#define VMCI_RESULT_LOW_ADDR  0x1c
-#define VMCI_RESULT_HIGH_ADDR 0x20
+#define VMCI_STATUS_ADDR        0x00
+#define VMCI_CONTROL_ADDR       0x04
+#define VMCI_ICR_ADDR           0x08
+#define VMCI_IMR_ADDR           0x0c
+#define VMCI_DATA_OUT_ADDR      0x10
+#define VMCI_DATA_IN_ADDR       0x14
+#define VMCI_CAPS_ADDR          0x18
+#define VMCI_RESULT_LOW_ADDR    0x1c
+#define VMCI_RESULT_HIGH_ADDR   0x20
+#define VMCI_DATA_OUT_LOW_ADDR  0x24
+#define VMCI_DATA_OUT_HIGH_ADDR 0x28
+#define VMCI_DATA_IN_LOW_ADDR   0x2c
+#define VMCI_DATA_IN_HIGH_ADDR  0x30
+#define VMCI_GUEST_PAGE_SHIFT   0x34
 
 /* Max number of devices. */
 #define VMCI_MAX_DEVICES 1
@@ -39,17 +44,27 @@
 #define VMCI_CAPS_DATAGRAM      BIT(2)
 #define VMCI_CAPS_NOTIFICATIONS BIT(3)
 #define VMCI_CAPS_PPN64         BIT(4)
+#define VMCI_CAPS_DMA_DATAGRAM  BIT(5)
 
 /* Interrupt Cause register bits. */
 #define VMCI_ICR_DATAGRAM      BIT(0)
 #define VMCI_ICR_NOTIFICATION  BIT(1)
+#define VMCI_ICR_DMA_DATAGRAM  BIT(2)
 
 /* Interrupt Mask register bits. */
 #define VMCI_IMR_DATAGRAM      BIT(0)
 #define VMCI_IMR_NOTIFICATION  BIT(1)
+#define VMCI_IMR_DMA_DATAGRAM  BIT(2)
 
-/* Maximum MSI/MSI-X interrupt vectors in the device. */
-#define VMCI_MAX_INTRS 2
+/*
+ * Maximum MSI/MSI-X interrupt vectors in the device.
+ * If VMCI_CAPS_DMA_DATAGRAM is supported by the device,
+ * VMCI_MAX_INTRS_DMA_DATAGRAM vectors are available,
+ * otherwise only VMCI_MAX_INTRS_NOTIFICATION.
+ */
+#define VMCI_MAX_INTRS_NOTIFICATION 2
+#define VMCI_MAX_INTRS_DMA_DATAGRAM 3
+#define VMCI_MAX_INTRS              VMCI_MAX_INTRS_DMA_DATAGRAM
 
 /*
  * Supported interrupt vectors.  There is one for each ICR value above,
@@ -58,6 +73,7 @@
 enum {
 	VMCI_INTR_DATAGRAM = 0,
 	VMCI_INTR_NOTIFICATION = 1,
+	VMCI_INTR_DMA_DATAGRAM = 2,
 };
 
 /*
@@ -66,7 +82,7 @@ enum {
  * consists of at least two pages, the memory limit also dictates the
  * number of queue pairs a guest can create.
  */
-#define VMCI_MAX_GUEST_QP_MEMORY (128 * 1024 * 1024)
+#define VMCI_MAX_GUEST_QP_MEMORY ((size_t)(128 * 1024 * 1024))
 #define VMCI_MAX_GUEST_QP_COUNT  (VMCI_MAX_GUEST_QP_MEMORY / PAGE_SIZE / 2)
 
 /*
@@ -80,7 +96,53 @@ enum {
  * too much kernel memory (especially on vmkernel).  We limit a queuepair to
  * 32 KB, or 16 KB per queue for symmetrical pairs.
  */
-#define VMCI_MAX_PINNED_QP_MEMORY (32 * 1024)
+#define VMCI_MAX_PINNED_QP_MEMORY ((size_t)(32 * 1024))
+
+/*
+ * The version of the VMCI device that supports MMIO access to registers
+ * requests 256KB for BAR1 whereas the version of VMCI that supports
+ * MSI/MSI-X only requests 8KB. The layout of the larger 256KB region is:
+ * - the first 128KB are used for MSI/MSI-X.
+ * - the following 64KB are used for MMIO register access.
+ * - the remaining 64KB are unused.
+ */
+#define VMCI_WITH_MMIO_ACCESS_BAR_SIZE ((size_t)(256 * 1024))
+#define VMCI_MMIO_ACCESS_OFFSET        ((size_t)(128 * 1024))
+#define VMCI_MMIO_ACCESS_SIZE          ((size_t)(64 * 1024))
+
+/*
+ * For VMCI devices supporting the VMCI_CAPS_DMA_DATAGRAM capability, the
+ * sending and receiving of datagrams can be performed using DMA to/from
+ * a driver allocated buffer.
+ * Sending and receiving will be handled as follows:
+ * - when sending datagrams, the driver initializes the buffer where the
+ *   data part will refer to the outgoing VMCI datagram, sets the busy flag
+ *   to 1 and writes the address of the buffer to VMCI_DATA_OUT_HIGH_ADDR
+ *   and VMCI_DATA_OUT_LOW_ADDR. Writing to VMCI_DATA_OUT_LOW_ADDR triggers
+ *   the device processing of the buffer. When the device has processed the
+ *   buffer, it will write the result value to the buffer and then clear the
+ *   busy flag.
+ * - when receiving datagrams, the driver initializes the buffer where the
+ *   data part will describe the receive buffer, clears the busy flag and
+ *   writes the address of the buffer to VMCI_DATA_IN_HIGH_ADDR and
+ *   VMCI_DATA_IN_LOW_ADDR. Writing to VMCI_DATA_IN_LOW_ADDR triggers the
+ *   device processing of the buffer. The device will copy as many available
+ *   datagrams into the buffer as possible, and then sets the busy flag.
+ *   When the busy flag is set, the driver will process the datagrams in the
+ *   buffer.
+ */
+struct vmci_data_in_out_header {
+	uint32_t busy;
+	uint32_t opcode;
+	uint32_t size;
+	uint32_t rsvd;
+	uint64_t result;
+};
+
+struct vmci_sg_elem {
+	uint64_t addr;
+	uint64_t size;
+};
 
 /*
  * We have a fixed set of resource IDs available in the VMX.
@@ -159,7 +221,7 @@ static inline bool vmci_handle_is_invalid(struct vmci_handle h)
  */
 #define VMCI_ANON_SRC_CONTEXT_ID   VMCI_INVALID_ID
 #define VMCI_ANON_SRC_RESOURCE_ID  VMCI_INVALID_ID
-static const struct vmci_handle VMCI_ANON_SRC_HANDLE = {
+static const struct vmci_handle __maybe_unused VMCI_ANON_SRC_HANDLE = {
 	.context = VMCI_ANON_SRC_CONTEXT_ID,
 	.resource = VMCI_ANON_SRC_RESOURCE_ID
 };

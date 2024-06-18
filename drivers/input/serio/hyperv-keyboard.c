@@ -75,8 +75,8 @@ struct synth_kbd_keystroke {
 
 #define HK_MAXIMUM_MESSAGE_SIZE 256
 
-#define KBD_VSC_SEND_RING_BUFFER_SIZE		(40 * 1024)
-#define KBD_VSC_RECV_RING_BUFFER_SIZE		(40 * 1024)
+#define KBD_VSC_SEND_RING_BUFFER_SIZE	VMBUS_RING_SIZE(36 * 1024)
+#define KBD_VSC_RECV_RING_BUFFER_SIZE	VMBUS_RING_SIZE(36 * 1024)
 
 #define XTKBD_EMUL0     0xe0
 #define XTKBD_EMUL1     0xe1
@@ -259,6 +259,8 @@ static int hv_kbd_connect_to_vsp(struct hv_device *hv_dev)
 	u32 proto_status;
 	int error;
 
+	reinit_completion(&kbd_dev->wait_event);
+
 	request = &kbd_dev->protocol_req;
 	memset(request, 0, sizeof(struct synth_kbd_protocol_request));
 	request->header.type = __cpu_to_le32(SYNTH_KBD_PROTOCOL_REQUEST);
@@ -332,9 +334,9 @@ static int hv_kbd_probe(struct hv_device *hv_dev,
 	hv_serio->dev.parent  = &hv_dev->device;
 	hv_serio->id.type = SERIO_8042_XL;
 	hv_serio->port_data = kbd_dev;
-	strlcpy(hv_serio->name, dev_name(&hv_dev->device),
+	strscpy(hv_serio->name, dev_name(&hv_dev->device),
 		sizeof(hv_serio->name));
-	strlcpy(hv_serio->phys, dev_name(&hv_dev->device),
+	strscpy(hv_serio->phys, dev_name(&hv_dev->device),
 		sizeof(hv_serio->phys));
 
 	hv_serio->start = hv_kbd_start;
@@ -367,7 +369,7 @@ err_free_mem:
 	return error;
 }
 
-static int hv_kbd_remove(struct hv_device *hv_dev)
+static void hv_kbd_remove(struct hv_device *hv_dev)
 {
 	struct hv_kbd_dev *kbd_dev = hv_get_drvdata(hv_dev);
 
@@ -376,8 +378,29 @@ static int hv_kbd_remove(struct hv_device *hv_dev)
 	kfree(kbd_dev);
 
 	hv_set_drvdata(hv_dev, NULL);
+}
+
+static int hv_kbd_suspend(struct hv_device *hv_dev)
+{
+	vmbus_close(hv_dev->channel);
 
 	return 0;
+}
+
+static int hv_kbd_resume(struct hv_device *hv_dev)
+{
+	int ret;
+
+	ret = vmbus_open(hv_dev->channel,
+			 KBD_VSC_SEND_RING_BUFFER_SIZE,
+			 KBD_VSC_RECV_RING_BUFFER_SIZE,
+			 NULL, 0,
+			 hv_kbd_on_channel_callback,
+			 hv_dev);
+	if (ret == 0)
+		ret = hv_kbd_connect_to_vsp(hv_dev);
+
+	return ret;
 }
 
 static const struct hv_vmbus_device_id id_table[] = {
@@ -393,6 +416,8 @@ static struct  hv_driver hv_kbd_drv = {
 	.id_table = id_table,
 	.probe = hv_kbd_probe,
 	.remove = hv_kbd_remove,
+	.suspend = hv_kbd_suspend,
+	.resume = hv_kbd_resume,
 	.driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},

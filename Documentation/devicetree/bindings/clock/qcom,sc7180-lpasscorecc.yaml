@@ -1,0 +1,107 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/qcom,sc7180-lpasscorecc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm LPASS Core Clock Controller on SC7180
+
+maintainers:
+  - Taniya Das <quic_tdas@quicinc.com>
+
+description: |
+  Qualcomm LPASS core clock control module provides the clocks and power
+  domains on SC7180.
+
+  See also:: include/dt-bindings/clock/qcom,lpasscorecc-sc7180.h
+
+properties:
+  compatible:
+    enum:
+      - qcom,sc7180-lpasshm
+      - qcom,sc7180-lpasscorecc
+
+  clocks:
+    items:
+      - description: gcc_lpass_sway clock from GCC
+      - description: Board XO source
+
+  clock-names:
+    items:
+      - const: iface
+      - const: bi_tcxo
+
+  power-domains:
+    maxItems: 1
+
+  '#clock-cells':
+    const: 1
+
+  '#power-domain-cells':
+    const: 1
+
+  reg:
+    minItems: 1
+    items:
+      - description: lpass core cc register
+      - description: lpass audio cc register
+
+  reg-names:
+    items:
+      - const: lpass_core_cc
+      - const: lpass_audio_cc
+
+if:
+  properties:
+    compatible:
+      contains:
+        const: qcom,sc7180-lpasshm
+then:
+  properties:
+    reg:
+      maxItems: 1
+
+else:
+  properties:
+    reg:
+      minItems: 2
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - '#clock-cells'
+  - '#power-domain-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/qcom,rpmh.h>
+    #include <dt-bindings/clock/qcom,gcc-sc7180.h>
+    #include <dt-bindings/clock/qcom,lpasscorecc-sc7180.h>
+    clock-controller@63000000 {
+      compatible = "qcom,sc7180-lpasshm";
+      reg = <0x63000000 0x28>;
+      clocks = <&gcc GCC_LPASS_CFG_NOC_SWAY_CLK>, <&rpmhcc RPMH_CXO_CLK>;
+      clock-names = "iface", "bi_tcxo";
+      #clock-cells = <1>;
+      #power-domain-cells = <1>;
+    };
+
+  - |
+    #include <dt-bindings/clock/qcom,rpmh.h>
+    #include <dt-bindings/clock/qcom,gcc-sc7180.h>
+    #include <dt-bindings/clock/qcom,lpasscorecc-sc7180.h>
+    clock-controller@62d00000 {
+      compatible = "qcom,sc7180-lpasscorecc";
+      reg = <0x62d00000 0x50000>, <0x62780000 0x30000>;
+      reg-names = "lpass_core_cc", "lpass_audio_cc";
+      clocks = <&gcc GCC_LPASS_CFG_NOC_SWAY_CLK>, <&rpmhcc RPMH_CXO_CLK>;
+      clock-names = "iface", "bi_tcxo";
+      power-domains = <&lpass_hm LPASS_CORE_HM_GDSCR>;
+      #clock-cells = <1>;
+      #power-domain-cells = <1>;
+    };
+...

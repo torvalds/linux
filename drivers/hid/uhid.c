@@ -28,11 +28,22 @@
 
 struct uhid_device {
 	struct mutex devlock;
+
+	/* This flag tracks whether the HID device is usable for commands from
+	 * userspace. The flag is already set before hid_add_device(), which
+	 * runs in workqueue context, to allow hid_add_device() to communicate
+	 * with userspace.
+	 * However, if hid_add_device() fails, the flag is cleared without
+	 * holding devlock.
+	 * We guarantee that if @running changes from true to false while you're
+	 * holding @devlock, it's still fine to access @hid.
+	 */
 	bool running;
 
 	__u8 *rd_data;
 	uint rd_size;
 
+	/* When this is NULL, userspace may use UHID_CREATE/UHID_CREATE2. */
 	struct hid_device *hid;
 	struct uhid_event input_buf;
 
@@ -63,9 +74,18 @@ static void uhid_device_add_worker(struct work_struct *work)
 	if (ret) {
 		hid_err(uhid->hid, "Cannot register HID device: error %d\n", ret);
 
-		hid_destroy_device(uhid->hid);
-		uhid->hid = NULL;
-		uhid->running = false;
+		/* We used to call hid_destroy_device() here, but that's really
+		 * messy to get right because we have to coordinate with
+		 * concurrent writes from userspace that might be in the middle
+		 * of using uhid->hid.
+		 * Just leave uhid->hid as-is for now, and clean it up when
+		 * userspace tries to close or reinitialize the uhid instance.
+		 *
+		 * However, we do have to clear the ->running flag and do a
+		 * wakeup to make sure userspace knows that the device is gone.
+		 */
+		WRITE_ONCE(uhid->running, false);
+		wake_up_interruptible(&uhid->report_wait);
 	}
 }
 
@@ -174,9 +194,9 @@ static int __uhid_report_queue_and_wait(struct uhid_device *uhid,
 	spin_unlock_irqrestore(&uhid->qlock, flags);
 
 	ret = wait_event_interruptible_timeout(uhid->report_wait,
-				!uhid->report_running || !uhid->running,
+				!uhid->report_running || !READ_ONCE(uhid->running),
 				5 * HZ);
-	if (!ret || !uhid->running || uhid->report_running)
+	if (!ret || !READ_ONCE(uhid->running) || uhid->report_running)
 		ret = -EIO;
 	else if (ret < 0)
 		ret = -ERESTARTSYS;
@@ -217,7 +237,7 @@ static int uhid_hid_get_report(struct hid_device *hid, unsigned char rnum,
 	struct uhid_event *ev;
 	int ret;
 
-	if (!uhid->running)
+	if (!READ_ONCE(uhid->running))
 		return -EIO;
 
 	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
@@ -259,7 +279,7 @@ static int uhid_hid_set_report(struct hid_device *hid, unsigned char rnum,
 	struct uhid_event *ev;
 	int ret;
 
-	if (!uhid->running || count > UHID_DATA_MAX)
+	if (!READ_ONCE(uhid->running) || count > UHID_DATA_MAX)
 		return -EIO;
 
 	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
@@ -367,7 +387,7 @@ static int uhid_hid_output_report(struct hid_device *hid, __u8 *buf,
 	return uhid_hid_output_raw(hid, buf, count, HID_OUTPUT_REPORT);
 }
 
-struct hid_ll_driver uhid_hid_driver = {
+static const struct hid_ll_driver uhid_hid_driver = {
 	.start = uhid_hid_start,
 	.stop = uhid_hid_stop,
 	.open = uhid_hid_open,
@@ -375,8 +395,8 @@ struct hid_ll_driver uhid_hid_driver = {
 	.parse = uhid_hid_parse,
 	.raw_request = uhid_hid_raw_request,
 	.output_report = uhid_hid_output_report,
+	.max_buffer_size = UHID_DATA_MAX,
 };
-EXPORT_SYMBOL_GPL(uhid_hid_driver);
 
 #ifdef CONFIG_COMPAT
 
@@ -470,11 +490,11 @@ static int uhid_dev_create2(struct uhid_device *uhid,
 			    const struct uhid_event *ev)
 {
 	struct hid_device *hid;
-	size_t rd_size, len;
+	size_t rd_size;
 	void *rd_data;
 	int ret;
 
-	if (uhid->running)
+	if (uhid->hid)
 		return -EALREADY;
 
 	rd_size = ev->u.create2.rd_size;
@@ -494,13 +514,12 @@ static int uhid_dev_create2(struct uhid_device *uhid,
 		goto err_free;
 	}
 
-	/* @hid is zero-initialized, strncpy() is correct, strlcpy() not */
-	len = min(sizeof(hid->name), sizeof(ev->u.create2.name)) - 1;
-	strncpy(hid->name, ev->u.create2.name, len);
-	len = min(sizeof(hid->phys), sizeof(ev->u.create2.phys)) - 1;
-	strncpy(hid->phys, ev->u.create2.phys, len);
-	len = min(sizeof(hid->uniq), sizeof(ev->u.create2.uniq)) - 1;
-	strncpy(hid->uniq, ev->u.create2.uniq, len);
+	BUILD_BUG_ON(sizeof(hid->name) != sizeof(ev->u.create2.name));
+	strscpy(hid->name, ev->u.create2.name, sizeof(hid->name));
+	BUILD_BUG_ON(sizeof(hid->phys) != sizeof(ev->u.create2.phys));
+	strscpy(hid->phys, ev->u.create2.phys, sizeof(hid->phys));
+	BUILD_BUG_ON(sizeof(hid->uniq) != sizeof(ev->u.create2.uniq));
+	strscpy(hid->uniq, ev->u.create2.uniq, sizeof(hid->uniq));
 
 	hid->ll_driver = &uhid_hid_driver;
 	hid->bus = ev->u.create2.bus;
@@ -556,15 +575,16 @@ static int uhid_dev_create(struct uhid_device *uhid,
 
 static int uhid_dev_destroy(struct uhid_device *uhid)
 {
-	if (!uhid->running)
+	if (!uhid->hid)
 		return -EINVAL;
 
-	uhid->running = false;
+	WRITE_ONCE(uhid->running, false);
 	wake_up_interruptible(&uhid->report_wait);
 
 	cancel_work_sync(&uhid->worker);
 
 	hid_destroy_device(uhid->hid);
+	uhid->hid = NULL;
 	kfree(uhid->rd_data);
 
 	return 0;
@@ -572,7 +592,7 @@ static int uhid_dev_destroy(struct uhid_device *uhid)
 
 static int uhid_dev_input(struct uhid_device *uhid, struct uhid_event *ev)
 {
-	if (!uhid->running)
+	if (!READ_ONCE(uhid->running))
 		return -EINVAL;
 
 	hid_input_report(uhid->hid, HID_INPUT_REPORT, ev->u.input.data,
@@ -583,7 +603,7 @@ static int uhid_dev_input(struct uhid_device *uhid, struct uhid_event *ev)
 
 static int uhid_dev_input2(struct uhid_device *uhid, struct uhid_event *ev)
 {
-	if (!uhid->running)
+	if (!READ_ONCE(uhid->running))
 		return -EINVAL;
 
 	hid_input_report(uhid->hid, HID_INPUT_REPORT, ev->u.input2.data,
@@ -595,7 +615,7 @@ static int uhid_dev_input2(struct uhid_device *uhid, struct uhid_event *ev)
 static int uhid_dev_get_report_reply(struct uhid_device *uhid,
 				     struct uhid_event *ev)
 {
-	if (!uhid->running)
+	if (!READ_ONCE(uhid->running))
 		return -EINVAL;
 
 	uhid_report_wake_up(uhid, ev->u.get_report_reply.id, ev);
@@ -605,7 +625,7 @@ static int uhid_dev_get_report_reply(struct uhid_device *uhid,
 static int uhid_dev_set_report_reply(struct uhid_device *uhid,
 				     struct uhid_event *ev)
 {
-	if (!uhid->running)
+	if (!READ_ONCE(uhid->running))
 		return -EINVAL;
 
 	uhid_report_wake_up(uhid, ev->u.set_report_reply.id, ev);
@@ -726,7 +746,7 @@ static ssize_t uhid_char_write(struct file *file, const char __user *buffer,
 		 * copied from, so it's unsafe to allow this with elevated
 		 * privileges (e.g. from a setuid binary) or via kernel_write().
 		 */
-		if (file->f_cred != current_cred() || uaccess_kernel()) {
+		if (file->f_cred != current_cred()) {
 			pr_err_once("UHID_CREATE from different security context by process %d (%s), this is not allowed.\n",
 				    task_tgid_vnr(current), current->comm);
 			ret = -EACCES;
@@ -766,13 +786,14 @@ unlock:
 static __poll_t uhid_char_poll(struct file *file, poll_table *wait)
 {
 	struct uhid_device *uhid = file->private_data;
+	__poll_t mask = EPOLLOUT | EPOLLWRNORM; /* uhid is always writable */
 
 	poll_wait(file, &uhid->waitq, wait);
 
 	if (uhid->head != uhid->tail)
-		return EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 
-	return 0;
+	return mask;
 }
 
 static const struct file_operations uhid_fops = {

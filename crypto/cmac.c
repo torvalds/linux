@@ -11,6 +11,7 @@
  *   Author: Kazunori Miyazawa <miyazawa@linux-ipv6.org>
  */
 
+#include <crypto/internal/cipher.h>
 #include <crypto/internal/hash.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
@@ -27,7 +28,7 @@
  */
 struct cmac_tfm_ctx {
 	struct crypto_cipher *child;
-	u8 ctx[];
+	__be64 consts[];
 };
 
 /*
@@ -43,17 +44,15 @@ struct cmac_tfm_ctx {
  */
 struct cmac_desc_ctx {
 	unsigned int len;
-	u8 ctx[];
+	u8 odds[];
 };
 
 static int crypto_cmac_digest_setkey(struct crypto_shash *parent,
 				     const u8 *inkey, unsigned int keylen)
 {
-	unsigned long alignmask = crypto_shash_alignmask(parent);
 	struct cmac_tfm_ctx *ctx = crypto_shash_ctx(parent);
 	unsigned int bs = crypto_shash_blocksize(parent);
-	__be64 *consts = PTR_ALIGN((void *)ctx->ctx,
-				   (alignmask | (__alignof__(__be64) - 1)) + 1);
+	__be64 *consts = ctx->consts;
 	u64 _const[2];
 	int i, err = 0;
 	u8 msb_mask, gfmask;
@@ -103,10 +102,9 @@ static int crypto_cmac_digest_setkey(struct crypto_shash *parent,
 
 static int crypto_cmac_digest_init(struct shash_desc *pdesc)
 {
-	unsigned long alignmask = crypto_shash_alignmask(pdesc->tfm);
 	struct cmac_desc_ctx *ctx = shash_desc_ctx(pdesc);
 	int bs = crypto_shash_blocksize(pdesc->tfm);
-	u8 *prev = PTR_ALIGN((void *)ctx->ctx, alignmask + 1) + bs;
+	u8 *prev = &ctx->odds[bs];
 
 	ctx->len = 0;
 	memset(prev, 0, bs);
@@ -118,12 +116,11 @@ static int crypto_cmac_digest_update(struct shash_desc *pdesc, const u8 *p,
 				     unsigned int len)
 {
 	struct crypto_shash *parent = pdesc->tfm;
-	unsigned long alignmask = crypto_shash_alignmask(parent);
 	struct cmac_tfm_ctx *tctx = crypto_shash_ctx(parent);
 	struct cmac_desc_ctx *ctx = shash_desc_ctx(pdesc);
 	struct crypto_cipher *tfm = tctx->child;
 	int bs = crypto_shash_blocksize(parent);
-	u8 *odds = PTR_ALIGN((void *)ctx->ctx, alignmask + 1);
+	u8 *odds = ctx->odds;
 	u8 *prev = odds + bs;
 
 	/* checking the data can fill the block */
@@ -164,14 +161,11 @@ static int crypto_cmac_digest_update(struct shash_desc *pdesc, const u8 *p,
 static int crypto_cmac_digest_final(struct shash_desc *pdesc, u8 *out)
 {
 	struct crypto_shash *parent = pdesc->tfm;
-	unsigned long alignmask = crypto_shash_alignmask(parent);
 	struct cmac_tfm_ctx *tctx = crypto_shash_ctx(parent);
 	struct cmac_desc_ctx *ctx = shash_desc_ctx(pdesc);
 	struct crypto_cipher *tfm = tctx->child;
 	int bs = crypto_shash_blocksize(parent);
-	u8 *consts = PTR_ALIGN((void *)tctx->ctx,
-			       (alignmask | (__alignof__(__be64) - 1)) + 1);
-	u8 *odds = PTR_ALIGN((void *)ctx->ctx, alignmask + 1);
+	u8 *odds = ctx->odds;
 	u8 *prev = odds + bs;
 	unsigned int offset = 0;
 
@@ -190,20 +184,21 @@ static int crypto_cmac_digest_final(struct shash_desc *pdesc, u8 *out)
 	}
 
 	crypto_xor(prev, odds, bs);
-	crypto_xor(prev, consts + offset, bs);
+	crypto_xor(prev, (const u8 *)tctx->consts + offset, bs);
 
 	crypto_cipher_encrypt_one(tfm, out, prev);
 
 	return 0;
 }
 
-static int cmac_init_tfm(struct crypto_tfm *tfm)
+static int cmac_init_tfm(struct crypto_shash *tfm)
 {
+	struct shash_instance *inst = shash_alg_instance(tfm);
+	struct cmac_tfm_ctx *ctx = crypto_shash_ctx(tfm);
+	struct crypto_cipher_spawn *spawn;
 	struct crypto_cipher *cipher;
-	struct crypto_instance *inst = (void *)tfm->__crt_alg;
-	struct crypto_spawn *spawn = crypto_instance_ctx(inst);
-	struct cmac_tfm_ctx *ctx = crypto_tfm_ctx(tfm);
 
+	spawn = shash_instance_ctx(inst);
 	cipher = crypto_spawn_cipher(spawn);
 	if (IS_ERR(cipher))
 		return PTR_ERR(cipher);
@@ -211,29 +206,51 @@ static int cmac_init_tfm(struct crypto_tfm *tfm)
 	ctx->child = cipher;
 
 	return 0;
-};
+}
 
-static void cmac_exit_tfm(struct crypto_tfm *tfm)
+static int cmac_clone_tfm(struct crypto_shash *tfm, struct crypto_shash *otfm)
 {
-	struct cmac_tfm_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct cmac_tfm_ctx *octx = crypto_shash_ctx(otfm);
+	struct cmac_tfm_ctx *ctx = crypto_shash_ctx(tfm);
+	struct crypto_cipher *cipher;
+
+	cipher = crypto_clone_cipher(octx->child);
+	if (IS_ERR(cipher))
+		return PTR_ERR(cipher);
+
+	ctx->child = cipher;
+
+	return 0;
+}
+
+static void cmac_exit_tfm(struct crypto_shash *tfm)
+{
+	struct cmac_tfm_ctx *ctx = crypto_shash_ctx(tfm);
 	crypto_free_cipher(ctx->child);
 }
 
 static int cmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 {
 	struct shash_instance *inst;
+	struct crypto_cipher_spawn *spawn;
 	struct crypto_alg *alg;
-	unsigned long alignmask;
+	u32 mask;
 	int err;
 
-	err = crypto_check_attr_type(tb, CRYPTO_ALG_TYPE_SHASH);
+	err = crypto_check_attr_type(tb, CRYPTO_ALG_TYPE_SHASH, &mask);
 	if (err)
 		return err;
 
-	alg = crypto_get_attr_alg(tb, CRYPTO_ALG_TYPE_CIPHER,
-				  CRYPTO_ALG_TYPE_MASK);
-	if (IS_ERR(alg))
-		return PTR_ERR(alg);
+	inst = kzalloc(sizeof(*inst) + sizeof(*spawn), GFP_KERNEL);
+	if (!inst)
+		return -ENOMEM;
+	spawn = shash_instance_ctx(inst);
+
+	err = crypto_grab_cipher(spawn, shash_crypto_instance(inst),
+				 crypto_attr_alg_name(tb[1]), 0, mask);
+	if (err)
+		goto err_free_inst;
+	alg = crypto_spawn_cipher_alg(spawn);
 
 	switch (alg->cra_blocksize) {
 	case 16:
@@ -241,60 +258,42 @@ static int cmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 		break;
 	default:
 		err = -EINVAL;
-		goto out_put_alg;
+		goto err_free_inst;
 	}
 
-	inst = shash_alloc_instance("cmac", alg);
-	err = PTR_ERR(inst);
-	if (IS_ERR(inst))
-		goto out_put_alg;
-
-	err = crypto_init_spawn(shash_instance_ctx(inst), alg,
-				shash_crypto_instance(inst),
-				CRYPTO_ALG_TYPE_MASK);
+	err = crypto_inst_setname(shash_crypto_instance(inst), tmpl->name, alg);
 	if (err)
-		goto out_free_inst;
+		goto err_free_inst;
 
-	alignmask = alg->cra_alignmask;
-	inst->alg.base.cra_alignmask = alignmask;
 	inst->alg.base.cra_priority = alg->cra_priority;
 	inst->alg.base.cra_blocksize = alg->cra_blocksize;
+	inst->alg.base.cra_ctxsize = sizeof(struct cmac_tfm_ctx) +
+				     alg->cra_blocksize * 2;
 
 	inst->alg.digestsize = alg->cra_blocksize;
-	inst->alg.descsize =
-		ALIGN(sizeof(struct cmac_desc_ctx), crypto_tfm_ctx_alignment())
-		+ (alignmask & ~(crypto_tfm_ctx_alignment() - 1))
-		+ alg->cra_blocksize * 2;
-
-	inst->alg.base.cra_ctxsize =
-		ALIGN(sizeof(struct cmac_tfm_ctx), crypto_tfm_ctx_alignment())
-		+ ((alignmask | (__alignof__(__be64) - 1)) &
-		   ~(crypto_tfm_ctx_alignment() - 1))
-		+ alg->cra_blocksize * 2;
-
-	inst->alg.base.cra_init = cmac_init_tfm;
-	inst->alg.base.cra_exit = cmac_exit_tfm;
-
+	inst->alg.descsize = sizeof(struct cmac_desc_ctx) +
+			     alg->cra_blocksize * 2;
 	inst->alg.init = crypto_cmac_digest_init;
 	inst->alg.update = crypto_cmac_digest_update;
 	inst->alg.final = crypto_cmac_digest_final;
 	inst->alg.setkey = crypto_cmac_digest_setkey;
+	inst->alg.init_tfm = cmac_init_tfm;
+	inst->alg.clone_tfm = cmac_clone_tfm;
+	inst->alg.exit_tfm = cmac_exit_tfm;
+
+	inst->free = shash_free_singlespawn_instance;
 
 	err = shash_register_instance(tmpl, inst);
 	if (err) {
-out_free_inst:
-		shash_free_instance(shash_crypto_instance(inst));
+err_free_inst:
+		shash_free_singlespawn_instance(inst);
 	}
-
-out_put_alg:
-	crypto_mod_put(alg);
 	return err;
 }
 
 static struct crypto_template crypto_cmac_tmpl = {
 	.name = "cmac",
 	.create = cmac_create,
-	.free = shash_free_instance,
 	.module = THIS_MODULE,
 };
 
@@ -314,3 +313,4 @@ module_exit(crypto_cmac_module_exit);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("CMAC keyed hash algorithm");
 MODULE_ALIAS_CRYPTO("cmac");
+MODULE_IMPORT_NS(CRYPTO_INTERNAL);

@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _RX_DESC_H_
@@ -68,7 +69,7 @@ struct rx_attention {
  *		first_msdu is set.
  *
  * peer_idx_invalid
- *		Indicates no matching entries within the the max search
+ *		Indicates no matching entries within the max search
  *		count.  Only set when first_msdu is set.
  *
  * peer_idx_timeout
@@ -196,15 +197,29 @@ struct rx_attention {
  *		descriptor.
  */
 
-struct rx_frag_info {
+struct rx_frag_info_common {
 	u8 ring0_more_count;
 	u8 ring1_more_count;
 	u8 ring2_more_count;
 	u8 ring3_more_count;
+} __packed;
+
+struct rx_frag_info_wcn3990 {
 	u8 ring4_more_count;
 	u8 ring5_more_count;
 	u8 ring6_more_count;
 	u8 ring7_more_count;
+} __packed;
+
+struct rx_frag_info {
+	struct rx_frag_info_common common;
+	union {
+		struct rx_frag_info_wcn3990 wcn3990;
+	} __packed;
+} __packed;
+
+struct rx_frag_info_v1 {
+	struct rx_frag_info_common common;
 } __packed;
 
 /*
@@ -434,7 +449,7 @@ struct rx_mpdu_end {
  *     - 4 bytes for WEP
  *     - 8 bytes for TKIP, AES
  *  [padding to 4 bytes]
- *  c) A-MSDU subframe header (14 bytes) if appliable
+ *  c) A-MSDU subframe header (14 bytes) if applicable
  *  d) LLC/SNAP (RFC1042, 8 bytes)
  *
  * In case of A-MSDU only first frame in sequence contains (a) and (b).
@@ -474,8 +489,14 @@ struct rx_msdu_start_wcn3990 {
 struct rx_msdu_start {
 	struct rx_msdu_start_common common;
 	union {
-		struct rx_msdu_start_qca99x0 qca99x0;
 		struct rx_msdu_start_wcn3990 wcn3990;
+	} __packed;
+} __packed;
+
+struct rx_msdu_start_v1 {
+	struct rx_msdu_start_common common;
+	union {
+		struct rx_msdu_start_qca99x0 qca99x0;
 	} __packed;
 } __packed;
 
@@ -612,8 +633,14 @@ struct rx_msdu_end_wcn3990 {
 struct rx_msdu_end {
 	struct rx_msdu_end_common common;
 	union {
-		struct rx_msdu_end_qca99x0 qca99x0;
 		struct rx_msdu_end_wcn3990 wcn3990;
+	} __packed;
+} __packed;
+
+struct rx_msdu_end_v1 {
+	struct rx_msdu_end_common common;
+	union {
+		struct rx_msdu_end_qca99x0 qca99x0;
 	} __packed;
 } __packed;
 
@@ -1136,11 +1163,17 @@ struct rx_ppdu_end_wcn3990 {
 struct rx_ppdu_end {
 	struct rx_ppdu_end_common common;
 	union {
+		struct rx_ppdu_end_wcn3990 wcn3990;
+	} __packed;
+} __packed;
+
+struct rx_ppdu_end_v1 {
+	struct rx_ppdu_end_common common;
+	union {
 		struct rx_ppdu_end_qca988x qca988x;
 		struct rx_ppdu_end_qca6174 qca6174;
 		struct rx_ppdu_end_qca99x0 qca99x0;
 		struct rx_ppdu_end_qca9984 qca9984;
-		struct rx_ppdu_end_wcn3990 wcn3990;
 	} __packed;
 } __packed;
 
@@ -1282,7 +1315,19 @@ struct fw_rx_desc_base {
 #define FW_RX_DESC_UDP              (1 << 6)
 
 struct fw_rx_desc_hl {
-	u8 info0;
+	union {
+		struct {
+		u8 discard:1,
+		   forward:1,
+		   any_err:1,
+		   dup_err:1,
+		   reserved:1,
+		   inspect:1,
+		   extension:2;
+		} bits;
+		u8 info0;
+	} u;
+
 	u8 version;
 	u8 len;
 	u8 flags;

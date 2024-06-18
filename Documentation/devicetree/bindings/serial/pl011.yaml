@@ -10,7 +10,8 @@ maintainers:
   - Rob Herring <robh@kernel.org>
 
 allOf:
-  - $ref: /schemas/serial.yaml#
+  - $ref: /schemas/arm/primecell.yaml#
+  - $ref: serial.yaml#
 
 # Need a custom select here or 'arm,primecell' will match on lots of nodes
 select:
@@ -19,19 +20,14 @@ select:
       contains:
         enum:
           - arm,pl011
-          - zte,zx296702-uart
   required:
     - compatible
 
 properties:
   compatible:
-    oneOf:
-      - items:
-          - const: arm,pl011
-          - const: arm,primecell
-      - items:
-          - const: zte,zx296702-uart
-          - const: arm,primecell
+    items:
+      - const: arm,pl011
+      - const: arm,primecell
 
   reg:
     maxItems: 1
@@ -88,17 +84,22 @@ properties:
     description:
       Rate at which poll occurs when auto-poll is set.
       default 100ms.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - default: 100
+    default: 100
 
   poll-timeout-ms:
     description:
       Poll timeout when auto-poll is set, default
       3000ms.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - default: 3000
+    default: 3000
+
+  resets:
+    maxItems: 1
+
+  reg-io-width:
+    description:
+      The size (in bytes) of the IO accesses that should be performed
+      on the device.
+    enum: [1, 4]
 
 required:
   - compatible
@@ -109,7 +110,7 @@ dependencies:
   poll-rate-ms: [ auto-poll ]
   poll-timeout-ms: [ auto-poll ]
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2011 Red Hat, Inc.
  *
@@ -46,8 +47,8 @@ struct dm_space_map {
 
 	int (*commit)(struct dm_space_map *sm);
 
-	int (*inc_block)(struct dm_space_map *sm, dm_block_t b);
-	int (*dec_block)(struct dm_space_map *sm, dm_block_t b);
+	int (*inc_blocks)(struct dm_space_map *sm, dm_block_t b, dm_block_t e);
+	int (*dec_blocks)(struct dm_space_map *sm, dm_block_t b, dm_block_t e);
 
 	/*
 	 * new_block will increment the returned block.
@@ -76,7 +77,8 @@ struct dm_space_map {
 
 static inline void dm_sm_destroy(struct dm_space_map *sm)
 {
-	sm->destroy(sm);
+	if (sm)
+		sm->destroy(sm);
 }
 
 static inline int dm_sm_extend(struct dm_space_map *sm, dm_block_t extra_blocks)
@@ -117,14 +119,24 @@ static inline int dm_sm_commit(struct dm_space_map *sm)
 	return sm->commit(sm);
 }
 
+static inline int dm_sm_inc_blocks(struct dm_space_map *sm, dm_block_t b, dm_block_t e)
+{
+	return sm->inc_blocks(sm, b, e);
+}
+
 static inline int dm_sm_inc_block(struct dm_space_map *sm, dm_block_t b)
 {
-	return sm->inc_block(sm, b);
+	return dm_sm_inc_blocks(sm, b, b + 1);
+}
+
+static inline int dm_sm_dec_blocks(struct dm_space_map *sm, dm_block_t b, dm_block_t e)
+{
+	return sm->dec_blocks(sm, b, e);
 }
 
 static inline int dm_sm_dec_block(struct dm_space_map *sm, dm_block_t b)
 {
-	return sm->dec_block(sm, b);
+	return dm_sm_dec_blocks(sm, b, b + 1);
 }
 
 static inline int dm_sm_new_block(struct dm_space_map *sm, dm_block_t *b)

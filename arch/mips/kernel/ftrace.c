@@ -37,10 +37,6 @@ void arch_ftrace_update_code(int command)
 	ftrace_modify_all_code(command);
 }
 
-#endif
-
-#ifdef CONFIG_DYNAMIC_FTRACE
-
 #define JAL 0x0c000000		/* jump & link: ip --> ra, jump to target */
 #define ADDR_MASK 0x03ffffff	/*  op_code|addr : 31...26|25 ....0 */
 #define JUMP_RANGE_MASK ((1UL << 28) - 1)
@@ -77,7 +73,6 @@ static inline void ftrace_dyn_arch_init_insns(void)
 static int ftrace_modify_code(unsigned long ip, unsigned int new_code)
 {
 	int faulted;
-	mm_segment_t old_fs;
 
 	/* *(unsigned int *)ip = new_code; */
 	safe_store_code(new_code, ip, faulted);
@@ -85,10 +80,7 @@ static int ftrace_modify_code(unsigned long ip, unsigned int new_code)
 	if (unlikely(faulted))
 		return -EFAULT;
 
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
 	flush_icache_range(ip, ip + 8);
-	set_fs(old_fs);
 
 	return 0;
 }
@@ -98,7 +90,6 @@ static int ftrace_modify_code_2(unsigned long ip, unsigned int new_code1,
 				unsigned int new_code2)
 {
 	int faulted;
-	mm_segment_t old_fs;
 
 	safe_store_code(new_code1, ip, faulted);
 	if (unlikely(faulted))
@@ -110,10 +101,7 @@ static int ftrace_modify_code_2(unsigned long ip, unsigned int new_code1,
 		return -EFAULT;
 
 	ip -= 4;
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
 	flush_icache_range(ip, ip + 8);
-	set_fs(old_fs);
 
 	return 0;
 }
@@ -122,7 +110,6 @@ static int ftrace_modify_code_2r(unsigned long ip, unsigned int new_code1,
 				 unsigned int new_code2)
 {
 	int faulted;
-	mm_segment_t old_fs;
 
 	ip += 4;
 	safe_store_code(new_code2, ip, faulted);
@@ -134,10 +121,7 @@ static int ftrace_modify_code_2r(unsigned long ip, unsigned int new_code1,
 	if (unlikely(faulted))
 		return -EFAULT;
 
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
 	flush_icache_range(ip, ip + 8);
-	set_fs(old_fs);
 
 	return 0;
 }

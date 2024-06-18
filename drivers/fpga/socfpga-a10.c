@@ -471,7 +471,6 @@ static int socfpga_a10_fpga_probe(struct platform_device *pdev)
 	struct a10_fpga_priv *priv;
 	void __iomem *reg_base;
 	struct fpga_manager *mgr;
-	struct resource *res;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -479,14 +478,12 @@ static int socfpga_a10_fpga_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	/* First mmio base is for register access */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	reg_base = devm_ioremap_resource(dev, res);
+	reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(reg_base))
 		return PTR_ERR(reg_base);
 
 	/* Second mmio base is for writing FPGA image data */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	priv->fpga_data_addr = devm_ioremap_resource(dev, res);
+	priv->fpga_data_addr = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(priv->fpga_data_addr))
 		return PTR_ERR(priv->fpga_data_addr);
 
@@ -508,31 +505,25 @@ static int socfpga_a10_fpga_probe(struct platform_device *pdev)
 		return -EBUSY;
 	}
 
-	mgr = devm_fpga_mgr_create(dev, "SoCFPGA Arria10 FPGA Manager",
-				   &socfpga_a10_fpga_mgr_ops, priv);
-	if (!mgr)
-		return -ENOMEM;
+	mgr = fpga_mgr_register(dev, "SoCFPGA Arria10 FPGA Manager",
+				&socfpga_a10_fpga_mgr_ops, priv);
+	if (IS_ERR(mgr)) {
+		clk_disable_unprepare(priv->clk);
+		return PTR_ERR(mgr);
+	}
 
 	platform_set_drvdata(pdev, mgr);
-
-	ret = fpga_mgr_register(mgr);
-	if (ret) {
-		clk_disable_unprepare(priv->clk);
-		return ret;
-	}
 
 	return 0;
 }
 
-static int socfpga_a10_fpga_remove(struct platform_device *pdev)
+static void socfpga_a10_fpga_remove(struct platform_device *pdev)
 {
 	struct fpga_manager *mgr = platform_get_drvdata(pdev);
 	struct a10_fpga_priv *priv = mgr->priv;
 
 	fpga_mgr_unregister(mgr);
 	clk_disable_unprepare(priv->clk);
-
-	return 0;
 }
 
 static const struct of_device_id socfpga_a10_fpga_of_match[] = {
@@ -544,7 +535,7 @@ MODULE_DEVICE_TABLE(of, socfpga_a10_fpga_of_match);
 
 static struct platform_driver socfpga_a10_fpga_driver = {
 	.probe = socfpga_a10_fpga_probe,
-	.remove = socfpga_a10_fpga_remove,
+	.remove_new = socfpga_a10_fpga_remove,
 	.driver = {
 		.name	= "socfpga_a10_fpga_manager",
 		.of_match_table = socfpga_a10_fpga_of_match,

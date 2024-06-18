@@ -8,9 +8,10 @@
  * Copyright IBM Corporation, 2012
  */
 #include <linux/types.h>
+#include <asm/disassemble.h>
+#include <asm/ppc-opcode.h>
 
-typedef u32 ppc_opcode_t;
-#define BREAKPOINT_INSTRUCTION	0x7fe00008	/* trap */
+#define BREAKPOINT_INSTRUCTION	PPC_RAW_TRAP()	/* trap */
 
 /* Trap definitions per ISA */
 #define IS_TW(instr)		(((instr) & 0xfc0007fe) == 0x7c000008)
@@ -31,17 +32,52 @@ typedef u32 ppc_opcode_t;
 #define MSR_SINGLESTEP	(MSR_SE)
 #endif
 
+static inline bool can_single_step(u32 inst)
+{
+	switch (get_op(inst)) {
+	case OP_TRAP_64:	return false;
+	case OP_TRAP:		return false;
+	case OP_SC:		return false;
+	case OP_19:
+		switch (get_xop(inst)) {
+		case OP_19_XOP_RFID:		return false;
+		case OP_19_XOP_RFMCI:		return false;
+		case OP_19_XOP_RFDI:		return false;
+		case OP_19_XOP_RFI:		return false;
+		case OP_19_XOP_RFCI:		return false;
+		case OP_19_XOP_RFSCV:		return false;
+		case OP_19_XOP_HRFID:		return false;
+		case OP_19_XOP_URFID:		return false;
+		case OP_19_XOP_STOP:		return false;
+		case OP_19_XOP_DOZE:		return false;
+		case OP_19_XOP_NAP:		return false;
+		case OP_19_XOP_SLEEP:		return false;
+		case OP_19_XOP_RVWINKLE:	return false;
+		}
+		break;
+	case OP_31:
+		switch (get_xop(inst)) {
+		case OP_31_XOP_TRAP:		return false;
+		case OP_31_XOP_TRAP_64:		return false;
+		case OP_31_XOP_MTMSR:		return false;
+		case OP_31_XOP_MTMSRD:		return false;
+		}
+		break;
+	}
+	return true;
+}
+
 /* Enable single stepping for the current task */
 static inline void enable_single_step(struct pt_regs *regs)
 {
-	regs->msr |= MSR_SINGLESTEP;
+	regs_set_return_msr(regs, regs->msr | MSR_SINGLESTEP);
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
 	/*
 	 * We turn off Critical Input Exception(CE) to ensure that the single
 	 * step will be for the instruction we have the probe on; if we don't,
 	 * it is possible we'd get the single step reported for CE.
 	 */
-	regs->msr &= ~MSR_CE;
+	regs_set_return_msr(regs, regs->msr & ~MSR_CE);
 	mtspr(SPRN_DBCR0, mfspr(SPRN_DBCR0) | DBCR0_IC | DBCR0_IDM);
 #ifdef CONFIG_PPC_47x
 	isync();

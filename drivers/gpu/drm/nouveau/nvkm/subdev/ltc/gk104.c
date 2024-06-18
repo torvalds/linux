@@ -42,7 +42,8 @@ gk104_ltc = {
 	.intr = gf100_ltc_intr,
 	.cbc_clear = gf100_ltc_cbc_clear,
 	.cbc_wait = gf100_ltc_cbc_wait,
-	.zbc = 16,
+	.zbc_color = 16,
+	.zbc_depth = 16,
 	.zbc_clear_color = gf100_ltc_zbc_clear_color,
 	.zbc_clear_depth = gf100_ltc_zbc_clear_depth,
 	.invalidate = gf100_ltc_invalidate,
@@ -50,7 +51,8 @@ gk104_ltc = {
 };
 
 int
-gk104_ltc_new(struct nvkm_device *device, int index, struct nvkm_ltc **pltc)
+gk104_ltc_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	      struct nvkm_ltc **pltc)
 {
-	return nvkm_ltc_new_(&gk104_ltc, device, index, pltc);
+	return nvkm_ltc_new_(&gk104_ltc, device, type, inst, pltc);
 }

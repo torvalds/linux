@@ -285,10 +285,8 @@ static int ali1535_transaction(struct i2c_adapter *adap)
 		 && (timeout++ < MAX_TIMEOUT));
 
 	/* If the SMBus is still busy, we give up */
-	if (timeout > MAX_TIMEOUT) {
+	if (timeout > MAX_TIMEOUT)
 		result = -ETIMEDOUT;
-		dev_err(&adap->dev, "SMBus Timeout!\n");
-	}
 
 	if (temp & ALI1535_STS_FAIL) {
 		result = -EIO;
@@ -313,10 +311,8 @@ static int ali1535_transaction(struct i2c_adapter *adap)
 	}
 
 	/* check to see if the "command complete" indication is set */
-	if (!(temp & ALI1535_STS_DONE)) {
+	if (!(temp & ALI1535_STS_DONE))
 		result = -ETIMEDOUT;
-		dev_err(&adap->dev, "Error: command never completed\n");
-	}
 
 	dev_dbg(&adap->dev, "Transaction (post): STS=%02x, TYP=%02x, "
 		"CMD=%02x, ADD=%02x, DAT0=%02x, DAT1=%02x\n",
@@ -477,7 +473,7 @@ static const struct i2c_algorithm smbus_algorithm = {
 
 static struct i2c_adapter ali1535_adapter = {
 	.owner		= THIS_MODULE,
-	.class          = I2C_CLASS_HWMON | I2C_CLASS_SPD,
+	.class          = I2C_CLASS_HWMON,
 	.algo		= &smbus_algorithm,
 };
 
@@ -508,6 +504,11 @@ static void ali1535_remove(struct pci_dev *dev)
 {
 	i2c_del_adapter(&ali1535_adapter);
 	release_region(ali1535_smba, ALI1535_SMB_IOSIZE);
+
+	/*
+	 * do not call pci_disable_device(dev) since it can cause hard hangs on
+	 * some systems during power-off
+	 */
 }
 
 static struct pci_driver ali1535_driver = {
@@ -519,9 +520,9 @@ static struct pci_driver ali1535_driver = {
 
 module_pci_driver(ali1535_driver);
 
-MODULE_AUTHOR("Frodo Looijaard <frodol@dds.nl>, "
-	      "Philip Edelbrock <phil@netroedge.com>, "
-	      "Mark D. Studebaker <mdsxyz123@yahoo.com> "
-	      "and Dan Eaton <dan.eaton@rocketlogix.com>");
+MODULE_AUTHOR("Frodo Looijaard <frodol@dds.nl>");
+MODULE_AUTHOR("Philip Edelbrock <phil@netroedge.com>");
+MODULE_AUTHOR("Mark D. Studebaker <mdsxyz123@yahoo.com>");
+MODULE_AUTHOR("Dan Eaton <dan.eaton@rocketlogix.com>");
 MODULE_DESCRIPTION("ALI1535 SMBus driver");
 MODULE_LICENSE("GPL");

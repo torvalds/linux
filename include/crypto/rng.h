@@ -9,6 +9,8 @@
 #ifndef _CRYPTO_RNG_H
 #define _CRYPTO_RNG_H
 
+#include <linux/atomic.h>
+#include <linux/container_of.h>
 #include <linux/crypto.h>
 
 struct crypto_rng;
@@ -94,6 +96,11 @@ static inline struct crypto_tfm *crypto_rng_tfm(struct crypto_rng *tfm)
 	return &tfm->base;
 }
 
+static inline struct rng_alg *__crypto_rng_alg(struct crypto_alg *alg)
+{
+	return container_of(alg, struct rng_alg, base);
+}
+
 /**
  * crypto_rng_alg - obtain name of RNG
  * @tfm: cipher handle
@@ -104,13 +111,14 @@ static inline struct crypto_tfm *crypto_rng_tfm(struct crypto_rng *tfm)
  */
 static inline struct rng_alg *crypto_rng_alg(struct crypto_rng *tfm)
 {
-	return container_of(crypto_rng_tfm(tfm)->__crt_alg,
-			    struct rng_alg, base);
+	return __crypto_rng_alg(crypto_rng_tfm(tfm)->__crt_alg);
 }
 
 /**
  * crypto_free_rng() - zeroize and free RNG handle
  * @tfm: cipher handle to be freed
+ *
+ * If @tfm is a NULL or error pointer, this function does nothing.
  */
 static inline void crypto_free_rng(struct crypto_rng *tfm)
 {
@@ -135,13 +143,7 @@ static inline int crypto_rng_generate(struct crypto_rng *tfm,
 				      const u8 *src, unsigned int slen,
 				      u8 *dst, unsigned int dlen)
 {
-	struct crypto_alg *alg = tfm->base.__crt_alg;
-	int ret;
-
-	crypto_stats_get(alg);
-	ret = crypto_rng_alg(tfm)->generate(tfm, src, slen, dst, dlen);
-	crypto_stats_rng_generate(alg, dlen, ret);
-	return ret;
+	return crypto_rng_alg(tfm)->generate(tfm, src, slen, dst, dlen);
 }
 
 /**

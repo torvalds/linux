@@ -5,7 +5,6 @@
  */
 
 #include <drm/drm_atomic_uapi.h>
-#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_vblank.h>
 
 #include "msm_atomic_trace.h"
@@ -13,18 +12,51 @@
 #include "msm_gem.h"
 #include "msm_kms.h"
 
-int msm_atomic_prepare_fb(struct drm_plane *plane,
-			  struct drm_plane_state *new_state)
+/*
+ * Helpers to control vblanks while we flush.. basically just to ensure
+ * that vblank accounting is switched on, so we get valid seqn/timestamp
+ * on pageflip events (if requested)
+ */
+
+static void vblank_get(struct msm_kms *kms, unsigned crtc_mask)
 {
-	struct msm_drm_private *priv = plane->dev->dev_private;
-	struct msm_kms *kms = priv->kms;
+	struct drm_crtc *crtc;
 
-	if (!new_state->fb)
-		return 0;
+	for_each_crtc_mask(kms->dev, crtc, crtc_mask) {
+		if (!crtc->state->active)
+			continue;
+		drm_crtc_vblank_get(crtc);
+	}
+}
 
-	drm_gem_fb_prepare_fb(plane, new_state);
+static void vblank_put(struct msm_kms *kms, unsigned crtc_mask)
+{
+	struct drm_crtc *crtc;
 
-	return msm_framebuffer_prepare(new_state->fb, kms->aspace);
+	for_each_crtc_mask(kms->dev, crtc, crtc_mask) {
+		if (!crtc->state->active)
+			continue;
+		drm_crtc_vblank_put(crtc);
+	}
+}
+
+static void lock_crtcs(struct msm_kms *kms, unsigned int crtc_mask)
+{
+	int crtc_index;
+	struct drm_crtc *crtc;
+
+	for_each_crtc_mask(kms->dev, crtc, crtc_mask) {
+		crtc_index = drm_crtc_index(crtc);
+		mutex_lock_nested(&kms->commit_lock[crtc_index], crtc_index);
+	}
+}
+
+static void unlock_crtcs(struct msm_kms *kms, unsigned int crtc_mask)
+{
+	struct drm_crtc *crtc;
+
+	for_each_crtc_mask_reverse(kms->dev, crtc, crtc_mask)
+		mutex_unlock(&kms->commit_lock[drm_crtc_index(crtc)]);
 }
 
 static void msm_atomic_async_commit(struct msm_kms *kms, int crtc_idx)
@@ -33,10 +65,10 @@ static void msm_atomic_async_commit(struct msm_kms *kms, int crtc_idx)
 
 	trace_msm_atomic_async_commit_start(crtc_mask);
 
-	mutex_lock(&kms->commit_lock);
+	lock_crtcs(kms, crtc_mask);
 
 	if (!(kms->pending_crtc_mask & crtc_mask)) {
-		mutex_unlock(&kms->commit_lock);
+		unlock_crtcs(kms, crtc_mask);
 		goto out;
 	}
 
@@ -44,12 +76,13 @@ static void msm_atomic_async_commit(struct msm_kms *kms, int crtc_idx)
 
 	kms->funcs->enable_commit(kms);
 
+	vblank_get(kms, crtc_mask);
+
 	/*
 	 * Flush hardware updates:
 	 */
 	trace_msm_atomic_flush_commit(crtc_mask);
 	kms->funcs->flush_commit(kms, crtc_mask);
-	mutex_unlock(&kms->commit_lock);
 
 	/*
 	 * Wait for flush to complete:
@@ -58,42 +91,49 @@ static void msm_atomic_async_commit(struct msm_kms *kms, int crtc_idx)
 	kms->funcs->wait_flush(kms, crtc_mask);
 	trace_msm_atomic_wait_flush_finish(crtc_mask);
 
-	mutex_lock(&kms->commit_lock);
+	vblank_put(kms, crtc_mask);
+
 	kms->funcs->complete_commit(kms, crtc_mask);
-	mutex_unlock(&kms->commit_lock);
+	unlock_crtcs(kms, crtc_mask);
 	kms->funcs->disable_commit(kms);
 
 out:
 	trace_msm_atomic_async_commit_finish(crtc_mask);
 }
 
-static enum hrtimer_restart msm_atomic_pending_timer(struct hrtimer *t)
-{
-	struct msm_pending_timer *timer = container_of(t,
-			struct msm_pending_timer, timer);
-	struct msm_drm_private *priv = timer->kms->dev->dev_private;
-
-	queue_work(priv->wq, &timer->work);
-
-	return HRTIMER_NORESTART;
-}
-
-static void msm_atomic_pending_work(struct work_struct *work)
+static void msm_atomic_pending_work(struct kthread_work *work)
 {
 	struct msm_pending_timer *timer = container_of(work,
-			struct msm_pending_timer, work);
+			struct msm_pending_timer, work.work);
 
 	msm_atomic_async_commit(timer->kms, timer->crtc_idx);
 }
 
-void msm_atomic_init_pending_timer(struct msm_pending_timer *timer,
+int msm_atomic_init_pending_timer(struct msm_pending_timer *timer,
 		struct msm_kms *kms, int crtc_idx)
 {
 	timer->kms = kms;
 	timer->crtc_idx = crtc_idx;
-	hrtimer_init(&timer->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
-	timer->timer.function = msm_atomic_pending_timer;
-	INIT_WORK(&timer->work, msm_atomic_pending_work);
+
+	timer->worker = kthread_create_worker(0, "atomic-worker-%d", crtc_idx);
+	if (IS_ERR(timer->worker)) {
+		int ret = PTR_ERR(timer->worker);
+		timer->worker = NULL;
+		return ret;
+	}
+	sched_set_fifo(timer->worker->task);
+
+	msm_hrtimer_work_init(&timer->work, timer->worker,
+			      msm_atomic_pending_work,
+			      CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+
+	return 0;
+}
+
+void msm_atomic_destroy_pending_timer(struct msm_pending_timer *timer)
+{
+	if (timer->worker)
+		kthread_destroy_worker(timer->worker);
 }
 
 static bool can_do_async(struct drm_atomic_state *state,
@@ -114,6 +154,8 @@ static bool can_do_async(struct drm_atomic_state *state,
 
 	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
 		if (drm_atomic_crtc_needs_modeset(crtc_state))
+			return false;
+		if (!crtc_state->active)
 			return false;
 		if (++num_crtcs > 1)
 			return false;
@@ -139,6 +181,24 @@ static unsigned get_crtc_mask(struct drm_atomic_state *state)
 	return mask;
 }
 
+int msm_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
+{
+	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
+	struct drm_crtc *crtc;
+	int i;
+
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state,
+				      new_crtc_state, i) {
+		if ((old_crtc_state->ctm && !new_crtc_state->ctm) ||
+		    (!old_crtc_state->ctm && new_crtc_state->ctm)) {
+			new_crtc_state->mode_changed = true;
+			state->allow_modeset = true;
+		}
+	}
+
+	return drm_atomic_helper_check(dev, state);
+}
+
 void msm_atomic_commit_tail(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
@@ -146,8 +206,7 @@ void msm_atomic_commit_tail(struct drm_atomic_state *state)
 	struct msm_kms *kms = priv->kms;
 	struct drm_crtc *async_crtc = NULL;
 	unsigned crtc_mask = get_crtc_mask(state);
-	bool async = kms->funcs->vsync_time &&
-			can_do_async(state, &async_crtc);
+	bool async = can_do_async(state, &async_crtc);
 
 	trace_msm_atomic_commit_tail_start(async, crtc_mask);
 
@@ -157,17 +216,17 @@ void msm_atomic_commit_tail(struct drm_atomic_state *state)
 	 * Ensure any previous (potentially async) commit has
 	 * completed:
 	 */
+	lock_crtcs(kms, crtc_mask);
 	trace_msm_atomic_wait_flush_start(crtc_mask);
 	kms->funcs->wait_flush(kms, crtc_mask);
 	trace_msm_atomic_wait_flush_finish(crtc_mask);
-
-	mutex_lock(&kms->commit_lock);
 
 	/*
 	 * Now that there is no in-progress flush, prepare the
 	 * current update:
 	 */
-	kms->funcs->prepare_commit(kms, state);
+	if (kms->funcs->prepare_commit)
+		kms->funcs->prepare_commit(kms, state);
 
 	/*
 	 * Push atomic updates down to hardware:
@@ -192,16 +251,17 @@ void msm_atomic_commit_tail(struct drm_atomic_state *state)
 
 			kms->pending_crtc_mask |= crtc_mask;
 
-			vsync_time = kms->funcs->vsync_time(kms, async_crtc);
+			if (drm_crtc_next_vblank_start(async_crtc, &vsync_time))
+				goto fallback;
+
 			wakeup_time = ktime_sub(vsync_time, ms_to_ktime(1));
 
-			hrtimer_start(&timer->timer, wakeup_time,
+			msm_hrtimer_queue_work(&timer->work, wakeup_time,
 					HRTIMER_MODE_ABS);
 		}
 
 		kms->funcs->disable_commit(kms);
-		mutex_unlock(&kms->commit_lock);
-
+		unlock_crtcs(kms, crtc_mask);
 		/*
 		 * At this point, from drm core's perspective, we
 		 * are done with the atomic update, so we can just
@@ -215,19 +275,21 @@ void msm_atomic_commit_tail(struct drm_atomic_state *state)
 		return;
 	}
 
+fallback:
 	/*
 	 * If there is any async flush pending on updated crtcs, fold
 	 * them into the current flush.
 	 */
 	kms->pending_crtc_mask &= ~crtc_mask;
 
+	vblank_get(kms, crtc_mask);
+
 	/*
 	 * Flush hardware updates:
 	 */
 	trace_msm_atomic_flush_commit(crtc_mask);
 	kms->funcs->flush_commit(kms, crtc_mask);
-	mutex_unlock(&kms->commit_lock);
-
+	unlock_crtcs(kms, crtc_mask);
 	/*
 	 * Wait for flush to complete:
 	 */
@@ -235,9 +297,11 @@ void msm_atomic_commit_tail(struct drm_atomic_state *state)
 	kms->funcs->wait_flush(kms, crtc_mask);
 	trace_msm_atomic_wait_flush_finish(crtc_mask);
 
-	mutex_lock(&kms->commit_lock);
+	vblank_put(kms, crtc_mask);
+
+	lock_crtcs(kms, crtc_mask);
 	kms->funcs->complete_commit(kms, crtc_mask);
-	mutex_unlock(&kms->commit_lock);
+	unlock_crtcs(kms, crtc_mask);
 	kms->funcs->disable_commit(kms);
 
 	drm_atomic_helper_commit_hw_done(state);

@@ -10,11 +10,11 @@
 #include <linux/kernel.h>
 #include <linux/smp.h>
 #include <linux/platform_device.h>
+#include <linux/platform_data/sgi-w1.h>
 #include <linux/platform_data/xtalk-bridge.h>
 #include <asm/sn/addrs.h>
 #include <asm/sn/types.h>
 #include <asm/sn/klconfig.h>
-#include <asm/sn/hub.h>
 #include <asm/pci/bridge.h>
 #include <asm/xtalk/xtalk.h>
 
@@ -26,19 +26,60 @@
 static void bridge_platform_create(nasid_t nasid, int widget, int masterwid)
 {
 	struct xtalk_bridge_platform_data *bd;
-	struct platform_device *pdev;
+	struct sgi_w1_platform_data *wd;
+	struct platform_device *pdev_wd;
+	struct platform_device *pdev_bd;
+	struct resource w1_res;
 	unsigned long offset;
 
-	bd = kzalloc(sizeof(*bd), GFP_KERNEL);
-	if (!bd)
-		goto no_mem;
-	pdev = platform_device_alloc("xtalk-bridge", PLATFORM_DEVID_AUTO);
-	if (!pdev) {
-		kfree(bd);
-		goto no_mem;
+	offset = NODE_OFFSET(nasid);
+
+	wd = kzalloc(sizeof(*wd), GFP_KERNEL);
+	if (!wd) {
+		pr_warn("xtalk:n%d/%x bridge create out of memory\n", nasid, widget);
+		return;
 	}
 
-	offset = NODE_OFFSET(nasid);
+	snprintf(wd->dev_id, sizeof(wd->dev_id), "bridge-%012lx",
+		 offset + (widget << SWIN_SIZE_BITS));
+
+	memset(&w1_res, 0, sizeof(w1_res));
+	w1_res.start = offset + (widget << SWIN_SIZE_BITS) +
+				offsetof(struct bridge_regs, b_nic);
+	w1_res.end = w1_res.start + 3;
+	w1_res.flags = IORESOURCE_MEM;
+
+	pdev_wd = platform_device_alloc("sgi_w1", PLATFORM_DEVID_AUTO);
+	if (!pdev_wd) {
+		pr_warn("xtalk:n%d/%x bridge create out of memory\n", nasid, widget);
+		goto err_kfree_wd;
+	}
+	if (platform_device_add_resources(pdev_wd, &w1_res, 1)) {
+		pr_warn("xtalk:n%d/%x bridge failed to add platform resources.\n", nasid, widget);
+		goto err_put_pdev_wd;
+	}
+	if (platform_device_add_data(pdev_wd, wd, sizeof(*wd))) {
+		pr_warn("xtalk:n%d/%x bridge failed to add platform data.\n", nasid, widget);
+		goto err_put_pdev_wd;
+	}
+	if (platform_device_add(pdev_wd)) {
+		pr_warn("xtalk:n%d/%x bridge failed to add platform device.\n", nasid, widget);
+		goto err_put_pdev_wd;
+	}
+	/* platform_device_add_data() duplicates the data */
+	kfree(wd);
+
+	bd = kzalloc(sizeof(*bd), GFP_KERNEL);
+	if (!bd) {
+		pr_warn("xtalk:n%d/%x bridge create out of memory\n", nasid, widget);
+		goto err_unregister_pdev_wd;
+	}
+	pdev_bd = platform_device_alloc("xtalk-bridge", PLATFORM_DEVID_AUTO);
+	if (!pdev_bd) {
+		pr_warn("xtalk:n%d/%x bridge create out of memory\n", nasid, widget);
+		goto err_kfree_bd;
+	}
+
 
 	bd->bridge_addr = RAW_NODE_SWIN_BASE(nasid, widget);
 	bd->intr_addr	= BIT_ULL(47) + 0x01800000 + PI_INT_PEND_MOD;
@@ -46,24 +87,42 @@ static void bridge_platform_create(nasid_t nasid, int widget, int masterwid)
 	bd->masterwid	= masterwid;
 
 	bd->mem.name	= "Bridge PCI MEM";
-	bd->mem.start	= offset + (widget << SWIN_SIZE_BITS);
-	bd->mem.end	= bd->mem.start + SWIN_SIZE - 1;
+	bd->mem.start	= offset + (widget << SWIN_SIZE_BITS) + BRIDGE_DEVIO0;
+	bd->mem.end	= offset + (widget << SWIN_SIZE_BITS) + SWIN_SIZE - 1;
 	bd->mem.flags	= IORESOURCE_MEM;
 	bd->mem_offset	= offset;
 
 	bd->io.name	= "Bridge PCI IO";
-	bd->io.start	= offset + (widget << SWIN_SIZE_BITS);
-	bd->io.end	= bd->io.start + SWIN_SIZE - 1;
+	bd->io.start	= offset + (widget << SWIN_SIZE_BITS) + BRIDGE_DEVIO0;
+	bd->io.end	= offset + (widget << SWIN_SIZE_BITS) + SWIN_SIZE - 1;
 	bd->io.flags	= IORESOURCE_IO;
 	bd->io_offset	= offset;
 
-	platform_device_add_data(pdev, bd, sizeof(*bd));
-	platform_device_add(pdev);
+	if (platform_device_add_data(pdev_bd, bd, sizeof(*bd))) {
+		pr_warn("xtalk:n%d/%x bridge failed to add platform data.\n", nasid, widget);
+		goto err_put_pdev_bd;
+	}
+	if (platform_device_add(pdev_bd)) {
+		pr_warn("xtalk:n%d/%x bridge failed to add platform device.\n", nasid, widget);
+		goto err_put_pdev_bd;
+	}
+	/* platform_device_add_data() duplicates the data */
+	kfree(bd);
 	pr_info("xtalk:n%d/%x bridge widget\n", nasid, widget);
 	return;
 
-no_mem:
-	pr_warn("xtalk:n%d/%x bridge create out of memory\n", nasid, widget);
+err_put_pdev_bd:
+	platform_device_put(pdev_bd);
+err_kfree_bd:
+	kfree(bd);
+err_unregister_pdev_wd:
+	platform_device_unregister(pdev_wd);
+	return;
+err_put_pdev_wd:
+	platform_device_put(pdev_wd);
+err_kfree_wd:
+	kfree(wd);
+	return;
 }
 
 static int probe_one_port(nasid_t nasid, int widget, int masterwid)
@@ -81,6 +140,8 @@ static int probe_one_port(nasid_t nasid, int widget, int masterwid)
 		bridge_platform_create(nasid, widget, masterwid);
 		break;
 	default:
+		pr_info("xtalk:n%d/%d unknown widget (0x%x)\n",
+			nasid, widget, partnum);
 		break;
 	}
 
@@ -138,14 +199,12 @@ static int xbow_probe(nasid_t nasid)
 	return 0;
 }
 
-static void xtalk_probe_node(cnodeid_t nid)
+static void xtalk_probe_node(nasid_t nasid)
 {
 	volatile u64		hubreg;
-	nasid_t			nasid;
 	xwidget_part_num_t	partnum;
 	widgetreg_t		widget_id;
 
-	nasid = COMPACT_TO_NASID_NODEID(nid);
 	hubreg = REMOTE_HUB_L(nasid, IIO_LLP_CSR);
 
 	/* check whether the link is up */
@@ -173,10 +232,10 @@ static void xtalk_probe_node(cnodeid_t nid)
 
 static int __init xtalk_init(void)
 {
-	cnodeid_t cnode;
+	nasid_t nasid;
 
-	for_each_online_node(cnode)
-		xtalk_probe_node(cnode);
+	for_each_online_node(nasid)
+		xtalk_probe_node(nasid);
 
 	return 0;
 }

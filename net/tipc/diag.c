@@ -95,6 +95,7 @@ static int tipc_sock_diag_handler_dump(struct sk_buff *skb,
 }
 
 static const struct sock_diag_handler tipc_sock_diag_handler = {
+	.owner = THIS_MODULE,
 	.family = AF_TIPC,
 	.dump = tipc_sock_diag_handler_dump,
 };
@@ -113,4 +114,5 @@ module_init(tipc_diag_init);
 module_exit(tipc_diag_exit);
 
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_DESCRIPTION("TIPC socket monitoring via SOCK_DIAG");
 MODULE_ALIAS_NET_PF_PROTO_TYPE(PF_NETLINK, NETLINK_SOCK_DIAG, AF_TIPC);

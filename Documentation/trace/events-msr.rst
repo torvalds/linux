@@ -4,11 +4,11 @@ MSR Trace Events
 
 The x86 kernel supports tracing most MSR (Model Specific Register) accesses.
 To see the definition of the MSRs on Intel systems please see the SDM
-at http://www.intel.com/sdm (Volume 3)
+at https://www.intel.com/sdm (Volume 3)
 
 Available trace points:
 
-/sys/kernel/debug/tracing/events/msr/
+/sys/kernel/tracing/events/msr/
 
 Trace MSR reads:
 
@@ -34,7 +34,7 @@ rdpmc
 
 The trace data can be post processed with the postprocess/decode_msr.py script::
 
-  cat /sys/kernel/debug/tracing/trace | decode_msr.py /usr/src/linux/include/asm/msr-index.h
+  cat /sys/kernel/tracing/trace | decode_msr.py /usr/src/linux/include/asm/msr-index.h
 
 to add symbolic MSR names.
 

@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0
+ccflags-y := -I$(srctree)/drivers/cxl/ -I$(srctree)/drivers/cxl/core
+
+obj-m += cxl_test.o
+obj-m += cxl_mock.o
+obj-m += cxl_mock_mem.o
+
+cxl_test-y := cxl.o
+cxl_mock-y := mock.o
+cxl_mock_mem-y := mem.o
+
+KBUILD_CFLAGS := $(filter-out -Wmissing-prototypes -Wmissing-declarations, $(KBUILD_CFLAGS))

@@ -8,17 +8,17 @@
  * Copyright (C) 2010 Thomas Langer, <thomas.langer@lantiq.com>
  */
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/console.h>
 #include <linux/device.h>
-#include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/lantiq.h>
-#include <linux/of_address.h>
-#include <linux/of_irq.h>
-#include <linux/of_platform.h>
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/serial.h>
 #include <linux/serial_core.h>
 #include <linux/slab.h>
@@ -95,9 +95,7 @@
 #define ASCFSTAT_RXFFLMASK	0x003F
 #define ASCFSTAT_TXFFLMASK	0x3F00
 #define ASCFSTAT_TXFREEMASK	0x3F000000
-#define ASCFSTAT_TXFREEOFF	24
 
-static void lqasc_tx_chars(struct uart_port *port);
 static struct ltq_uart_port *lqasc_port[MAXPORTS];
 static struct uart_driver lqasc_reg;
 
@@ -141,14 +139,24 @@ lqasc_stop_tx(struct uart_port *port)
 	return;
 }
 
+static bool lqasc_tx_ready(struct uart_port *port)
+{
+	u32 fstat = __raw_readl(port->membase + LTQ_ASC_FSTAT);
+
+	return FIELD_GET(ASCFSTAT_TXFREEMASK, fstat);
+}
+
 static void
 lqasc_start_tx(struct uart_port *port)
 {
 	unsigned long flags;
 	struct ltq_uart_port *ltq_port = to_ltq_uart_port(port);
+	u8 ch;
 
 	spin_lock_irqsave(&ltq_port->lock, flags);
-	lqasc_tx_chars(port);
+	uart_port_tx(port, ch,
+		lqasc_tx_ready(port),
+		writeb(ch, port->membase + LTQ_ASC_TBUF));
 	spin_unlock_irqrestore(&ltq_port->lock, flags);
 	return;
 }
@@ -221,37 +229,6 @@ lqasc_rx_chars(struct uart_port *port)
 	return 0;
 }
 
-static void
-lqasc_tx_chars(struct uart_port *port)
-{
-	struct circ_buf *xmit = &port->state->xmit;
-	if (uart_tx_stopped(port)) {
-		lqasc_stop_tx(port);
-		return;
-	}
-
-	while (((__raw_readl(port->membase + LTQ_ASC_FSTAT) &
-		ASCFSTAT_TXFREEMASK) >> ASCFSTAT_TXFREEOFF) != 0) {
-		if (port->x_char) {
-			writeb(port->x_char, port->membase + LTQ_ASC_TBUF);
-			port->icount.tx++;
-			port->x_char = 0;
-			continue;
-		}
-
-		if (uart_circ_empty(xmit))
-			break;
-
-		writeb(port->state->xmit.buf[port->state->xmit.tail],
-			port->membase + LTQ_ASC_TBUF);
-		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
-		port->icount.tx++;
-	}
-
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
-		uart_write_wakeup(port);
-}
-
 static irqreturn_t
 lqasc_tx_int(int irq, void *_port)
 {
@@ -274,6 +251,7 @@ lqasc_err_int(int irq, void *_port)
 	struct ltq_uart_port *ltq_port = to_ltq_uart_port(port);
 
 	spin_lock_irqsave(&ltq_port->lock, flags);
+	__raw_writel(ASC_IRNCR_EIR, port->membase + LTQ_ASC_IRNCR);
 	/* clear any pending interrupts */
 	asc_update_bits(0, ASCWHBSTATE_CLRPE | ASCWHBSTATE_CLRFE |
 		ASCWHBSTATE_CLRROE, port->membase + LTQ_ASC_WHBSTATE);
@@ -407,8 +385,8 @@ lqasc_shutdown(struct uart_port *port)
 }
 
 static void
-lqasc_set_termios(struct uart_port *port,
-	struct ktermios *new, struct ktermios *old)
+lqasc_set_termios(struct uart_port *port, struct ktermios *new,
+		  const struct ktermios *old)
 {
 	unsigned int cflag;
 	unsigned int iflag;
@@ -549,7 +527,7 @@ lqasc_request_port(struct uart_port *port)
 	}
 
 	if (port->flags & UPF_IOREMAP) {
-		port->membase = devm_ioremap_nocache(&pdev->dev,
+		port->membase = devm_ioremap(&pdev->dev,
 			port->mapbase, size);
 		if (port->membase == NULL)
 			return -ENOMEM;
@@ -598,18 +576,16 @@ static const struct uart_ops lqasc_pops = {
 	.verify_port =	lqasc_verify_port,
 };
 
+#ifdef CONFIG_SERIAL_LANTIQ_CONSOLE
 static void
-lqasc_console_putchar(struct uart_port *port, int ch)
+lqasc_console_putchar(struct uart_port *port, unsigned char ch)
 {
-	int fifofree;
-
 	if (!port->membase)
 		return;
 
-	do {
-		fifofree = (__raw_readl(port->membase + LTQ_ASC_FSTAT)
-			& ASCFSTAT_TXFREEMASK) >> ASCFSTAT_TXFREEOFF;
-	} while (fifofree == 0);
+	while (!lqasc_tx_ready(port))
+		;
+
 	writeb(ch, port->membase + LTQ_ASC_TBUF);
 }
 
@@ -706,6 +682,14 @@ lqasc_serial_early_console_setup(struct earlycon_device *device,
 OF_EARLYCON_DECLARE(lantiq, "lantiq,asc", lqasc_serial_early_console_setup);
 OF_EARLYCON_DECLARE(lantiq, "intel,lgm-asc", lqasc_serial_early_console_setup);
 
+#define LANTIQ_SERIAL_CONSOLE	(&lqasc_console)
+
+#else
+
+#define LANTIQ_SERIAL_CONSOLE	NULL
+
+#endif /* CONFIG_SERIAL_LANTIQ_CONSOLE */
+
 static struct uart_driver lqasc_reg = {
 	.owner =	THIS_MODULE,
 	.driver_name =	DRVNAME,
@@ -713,25 +697,29 @@ static struct uart_driver lqasc_reg = {
 	.major =	0,
 	.minor =	0,
 	.nr =		MAXPORTS,
-	.cons =		&lqasc_console,
+	.cons =		LANTIQ_SERIAL_CONSOLE,
 };
 
 static int fetch_irq_lantiq(struct device *dev, struct ltq_uart_port *ltq_port)
 {
 	struct uart_port *port = &ltq_port->port;
-	struct resource irqres[3];
-	int ret;
+	struct platform_device *pdev = to_platform_device(dev);
+	int irq;
 
-	ret = of_irq_to_resource_table(dev->of_node, irqres, 3);
-	if (ret != 3) {
-		dev_err(dev,
-			"failed to get IRQs for serial port\n");
-		return -ENODEV;
-	}
-	ltq_port->tx_irq = irqres[0].start;
-	ltq_port->rx_irq = irqres[1].start;
-	ltq_port->err_irq = irqres[2].start;
-	port->irq = irqres[0].start;
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
+	ltq_port->tx_irq = irq;
+	irq = platform_get_irq(pdev, 1);
+	if (irq < 0)
+		return irq;
+	ltq_port->rx_irq = irq;
+	irq = platform_get_irq(pdev, 2);
+	if (irq < 0)
+		return irq;
+	ltq_port->err_irq = irq;
+
+	port->irq = ltq_port->tx_irq;
 
 	return 0;
 }
@@ -784,7 +772,7 @@ static int fetch_irq_intel(struct device *dev, struct ltq_uart_port *ltq_port)
 	struct uart_port *port = &ltq_port->port;
 	int ret;
 
-	ret = of_irq_get(dev->of_node, 0);
+	ret = platform_get_irq(to_platform_device(dev), 0);
 	if (ret < 0) {
 		dev_err(dev, "failed to fetch IRQ for serial port\n");
 		return ret;
@@ -815,8 +803,7 @@ static void free_irq_intel(struct uart_port *port)
 	free_irq(ltq_port->common_irq, port);
 }
 
-static int __init
-lqasc_probe(struct platform_device *pdev)
+static int lqasc_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
 	struct ltq_uart_port *ltq_port;
@@ -868,7 +855,7 @@ lqasc_probe(struct platform_device *pdev)
 	port->flags	= UPF_BOOT_AUTOCONF | UPF_IOREMAP;
 	port->ops	= &lqasc_pops;
 	port->fifosize	= 16;
-	port->type	= PORT_LTQ_ASC,
+	port->type	= PORT_LTQ_ASC;
 	port->line	= line;
 	port->dev	= &pdev->dev;
 	/* unused, just to be backward-compatible */
@@ -900,6 +887,13 @@ lqasc_probe(struct platform_device *pdev)
 	return ret;
 }
 
+static void lqasc_remove(struct platform_device *pdev)
+{
+	struct uart_port *port = platform_get_drvdata(pdev);
+
+	uart_remove_one_port(&lqasc_reg, port);
+}
+
 static const struct ltq_soc_data soc_data_lantiq = {
 	.fetch_irq = fetch_irq_lantiq,
 	.request_irq = request_irq_lantiq,
@@ -917,8 +911,11 @@ static const struct of_device_id ltq_asc_match[] = {
 	{ .compatible = "intel,lgm-asc", .data = &soc_data_intel },
 	{},
 };
+MODULE_DEVICE_TABLE(of, ltq_asc_match);
 
 static struct platform_driver lqasc_driver = {
+	.probe		= lqasc_probe,
+	.remove_new	= lqasc_remove,
 	.driver		= {
 		.name	= DRVNAME,
 		.of_match_table = ltq_asc_match,
@@ -934,10 +931,21 @@ init_lqasc(void)
 	if (ret != 0)
 		return ret;
 
-	ret = platform_driver_probe(&lqasc_driver, lqasc_probe);
+	ret = platform_driver_register(&lqasc_driver);
 	if (ret != 0)
 		uart_unregister_driver(&lqasc_reg);
 
 	return ret;
 }
-device_initcall(init_lqasc);
+
+static void __exit exit_lqasc(void)
+{
+	platform_driver_unregister(&lqasc_driver);
+	uart_unregister_driver(&lqasc_reg);
+}
+
+module_init(init_lqasc);
+module_exit(exit_lqasc);
+
+MODULE_DESCRIPTION("Serial driver for Lantiq & Intel gateway SoCs");
+MODULE_LICENSE("GPL v2");

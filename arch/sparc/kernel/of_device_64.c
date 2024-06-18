@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/string.h>
 #include <linux/kernel.h>
-#include <linux/of.h>
 #include <linux/dma-mapping.h>
 #include <linux/init.h>
 #include <linux/export.h>
@@ -9,8 +8,9 @@
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/irq.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <asm/spitfire.h>
 
 #include "of_device_common.h"
@@ -58,7 +58,7 @@ static int of_bus_pci_match(struct device_node *np)
 		 * parent as-is, not with the PCI translate
 		 * method which chops off the top address cell.
 		 */
-		if (!of_find_property(np, "ranges", NULL))
+		if (!of_property_present(np, "ranges"))
 			return 0;
 
 		return 1;
@@ -78,7 +78,7 @@ static int of_bus_simba_match(struct device_node *np)
 	 * simba.
 	 */
 	if (of_node_name_eq(np, "pci")) {
-		if (!of_find_property(np, "ranges", NULL))
+		if (!of_property_present(np, "ranges"))
 			return 1;
 	}
 
@@ -283,7 +283,7 @@ static int __init build_one_resource(struct device_node *parent,
 static int __init use_1to1_mapping(struct device_node *pp)
 {
 	/* If we have a ranges property in the parent, use it.  */
-	if (of_find_property(pp, "ranges", NULL) != NULL)
+	if (of_property_present(pp, "ranges"))
 		return 0;
 
 	/* If the parent is the dma node of an ISA bus, pass
@@ -560,7 +560,7 @@ static unsigned int __init build_one_device_irq(struct platform_device *op,
 	 *
 	 * If we hit a bus type or situation we cannot handle, we
 	 * stop and assume that the original IRQ number was in a
-	 * format which has special meaning to it's immediate parent.
+	 * format which has special meaning to its immediate parent.
 	 */
 	pp = dp->parent;
 	ip = NULL;
@@ -624,10 +624,7 @@ static unsigned int __init build_one_device_irq(struct platform_device *op,
 out:
 	nid = of_node_to_nid(dp);
 	if (nid != -1) {
-		cpumask_t numa_mask;
-
-		cpumask_copy(&numa_mask, cpumask_of_node(nid));
-		irq_set_affinity(irq, &numa_mask);
+		irq_set_affinity(irq, cpumask_of_node(nid));
 	}
 
 	return irq;

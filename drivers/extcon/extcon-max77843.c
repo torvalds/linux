@@ -189,8 +189,7 @@ static const struct regmap_irq max77843_muic_irq[] = {
 static const struct regmap_irq_chip max77843_muic_irq_chip = {
 	.name           = "max77843-muic",
 	.status_base    = MAX77843_MUIC_REG_INT1,
-	.mask_base      = MAX77843_MUIC_REG_INTMASK1,
-	.mask_invert    = true,
+	.unmask_base    = MAX77843_MUIC_REG_INTMASK1,
 	.num_regs       = 3,
 	.irqs           = max77843_muic_irq,
 	.num_irqs       = ARRAY_SIZE(max77843_muic_irq),
@@ -845,7 +844,7 @@ static int max77843_muic_probe(struct platform_device *pdev)
 			max77843_extcon_cable);
 	if (IS_ERR(info->edev)) {
 		dev_err(&pdev->dev, "Failed to allocate memory for extcon\n");
-		ret = -ENODEV;
+		ret = PTR_ERR(info->edev);
 		goto err_muic_irq;
 	}
 
@@ -929,7 +928,7 @@ err_muic_irq:
 	return ret;
 }
 
-static int max77843_muic_remove(struct platform_device *pdev)
+static void max77843_muic_remove(struct platform_device *pdev)
 {
 	struct max77843_muic_info *info = platform_get_drvdata(pdev);
 	struct max77693_dev *max77843 = info->max77843;
@@ -937,8 +936,6 @@ static int max77843_muic_remove(struct platform_device *pdev)
 	cancel_work_sync(&info->irq_work);
 	regmap_del_irq_chip(max77843->irq, max77843->irq_data_muic);
 	i2c_unregister_device(max77843->i2c_muic);
-
-	return 0;
 }
 
 static const struct platform_device_id max77843_muic_id[] = {
@@ -947,12 +944,19 @@ static const struct platform_device_id max77843_muic_id[] = {
 };
 MODULE_DEVICE_TABLE(platform, max77843_muic_id);
 
+static const struct of_device_id of_max77843_muic_dt_match[] = {
+	{ .compatible = "maxim,max77843-muic", },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, of_max77843_muic_dt_match);
+
 static struct platform_driver max77843_muic_driver = {
 	.driver		= {
 		.name		= "max77843-muic",
+		.of_match_table = of_max77843_muic_dt_match,
 	},
 	.probe		= max77843_muic_probe,
-	.remove		= max77843_muic_remove,
+	.remove_new	= max77843_muic_remove,
 	.id_table	= max77843_muic_id,
 };
 

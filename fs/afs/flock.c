@@ -70,12 +70,13 @@ static void afs_schedule_lock_extension(struct afs_vnode *vnode)
  */
 void afs_lock_op_done(struct afs_call *call)
 {
-	struct afs_vnode *vnode = call->lvnode;
+	struct afs_operation *op = call->op;
+	struct afs_vnode *vnode = op->file[0].vnode;
 
 	if (call->error == 0) {
 		spin_lock(&vnode->lock);
 		trace_afs_flock_ev(vnode, NULL, afs_flock_timestamp, 0);
-		vnode->locked_at = call->reply_time;
+		vnode->locked_at = call->issue_time;
 		afs_schedule_lock_extension(vnode);
 		spin_unlock(&vnode->lock);
 	}
@@ -92,13 +93,13 @@ static void afs_grant_locks(struct afs_vnode *vnode)
 	bool exclusive = (vnode->lock_type == AFS_LOCK_WRITE);
 
 	list_for_each_entry_safe(p, _p, &vnode->pending_locks, fl_u.afs.link) {
-		if (!exclusive && p->fl_type == F_WRLCK)
+		if (!exclusive && lock_is_write(p))
 			continue;
 
 		list_move_tail(&p->fl_u.afs.link, &vnode->granted_locks);
 		p->fl_u.afs.state = AFS_LOCK_GRANTED;
 		trace_afs_flock_op(vnode, p, afs_flock_op_grant);
-		wake_up(&p->fl_wait);
+		locks_wake_up(p);
 	}
 }
 
@@ -111,25 +112,24 @@ static void afs_next_locker(struct afs_vnode *vnode, int error)
 {
 	struct file_lock *p, *_p, *next = NULL;
 	struct key *key = vnode->lock_key;
-	unsigned int fl_type = F_RDLCK;
+	unsigned int type = F_RDLCK;
 
 	_enter("");
 
 	if (vnode->lock_type == AFS_LOCK_WRITE)
-		fl_type = F_WRLCK;
+		type = F_WRLCK;
 
 	list_for_each_entry_safe(p, _p, &vnode->pending_locks, fl_u.afs.link) {
 		if (error &&
-		    p->fl_type == fl_type &&
-		    afs_file_key(p->fl_file) == key) {
+		    p->c.flc_type == type &&
+		    afs_file_key(p->c.flc_file) == key) {
 			list_del_init(&p->fl_u.afs.link);
 			p->fl_u.afs.state = error;
-			wake_up(&p->fl_wait);
+			locks_wake_up(p);
 		}
 
 		/* Select the next locker to hand off to. */
-		if (next &&
-		    (next->fl_type == F_WRLCK || p->fl_type == F_RDLCK))
+		if (next && (lock_is_write(next) || lock_is_read(p)))
 			continue;
 		next = p;
 	}
@@ -141,7 +141,7 @@ static void afs_next_locker(struct afs_vnode *vnode, int error)
 		afs_set_lock_state(vnode, AFS_VNODE_LOCK_SETTING);
 		next->fl_u.afs.state = AFS_LOCK_YOUR_TRY;
 		trace_afs_flock_op(vnode, next, afs_flock_op_wake);
-		wake_up(&next->fl_wait);
+		locks_wake_up(next);
 	} else {
 		afs_set_lock_state(vnode, AFS_VNODE_LOCK_NONE);
 		trace_afs_flock_ev(vnode, NULL, afs_flock_no_lockers, 0);
@@ -165,12 +165,25 @@ static void afs_kill_lockers_enoent(struct afs_vnode *vnode)
 			       struct file_lock, fl_u.afs.link);
 		list_del_init(&p->fl_u.afs.link);
 		p->fl_u.afs.state = -ENOENT;
-		wake_up(&p->fl_wait);
+		locks_wake_up(p);
 	}
 
 	key_put(vnode->lock_key);
 	vnode->lock_key = NULL;
 }
+
+static void afs_lock_success(struct afs_operation *op)
+{
+	_enter("op=%08x", op->debug_id);
+	afs_vnode_commit_status(op, &op->file[0]);
+}
+
+static const struct afs_operation_ops afs_set_lock_operation = {
+	.issue_afs_rpc	= afs_fs_set_lock,
+	.issue_yfs_rpc	= yfs_fs_set_lock,
+	.success	= afs_lock_success,
+	.aborted	= afs_check_for_remote_deletion,
+};
 
 /*
  * Get a lock on a file
@@ -178,9 +191,7 @@ static void afs_kill_lockers_enoent(struct afs_vnode *vnode)
 static int afs_set_lock(struct afs_vnode *vnode, struct key *key,
 			afs_lock_type_t type)
 {
-	struct afs_status_cb *scb;
-	struct afs_fs_cursor fc;
-	int ret;
+	struct afs_operation *op;
 
 	_enter("%s{%llx:%llu.%u},%x,%u",
 	       vnode->volume->name,
@@ -189,35 +200,29 @@ static int afs_set_lock(struct afs_vnode *vnode, struct key *key,
 	       vnode->fid.unique,
 	       key_serial(key), type);
 
-	scb = kzalloc(sizeof(struct afs_status_cb), GFP_KERNEL);
-	if (!scb)
-		return -ENOMEM;
+	op = afs_alloc_operation(key, vnode->volume);
+	if (IS_ERR(op))
+		return PTR_ERR(op);
 
-	ret = -ERESTARTSYS;
-	if (afs_begin_vnode_operation(&fc, vnode, key, true)) {
-		while (afs_select_fileserver(&fc)) {
-			fc.cb_break = afs_calc_vnode_cb_break(vnode);
-			afs_fs_set_lock(&fc, type, scb);
-		}
+	afs_op_set_vnode(op, 0, vnode);
 
-		afs_check_for_remote_deletion(&fc, vnode);
-		afs_vnode_commit_status(&fc, vnode, fc.cb_break, NULL, scb);
-		ret = afs_end_vnode_operation(&fc);
-	}
-
-	kfree(scb);
-	_leave(" = %d", ret);
-	return ret;
+	op->lock.type	= type;
+	op->ops		= &afs_set_lock_operation;
+	return afs_do_sync_operation(op);
 }
+
+static const struct afs_operation_ops afs_extend_lock_operation = {
+	.issue_afs_rpc	= afs_fs_extend_lock,
+	.issue_yfs_rpc	= yfs_fs_extend_lock,
+	.success	= afs_lock_success,
+};
 
 /*
  * Extend a lock on a file
  */
 static int afs_extend_lock(struct afs_vnode *vnode, struct key *key)
 {
-	struct afs_status_cb *scb;
-	struct afs_fs_cursor fc;
-	int ret;
+	struct afs_operation *op;
 
 	_enter("%s{%llx:%llu.%u},%x",
 	       vnode->volume->name,
@@ -226,35 +231,29 @@ static int afs_extend_lock(struct afs_vnode *vnode, struct key *key)
 	       vnode->fid.unique,
 	       key_serial(key));
 
-	scb = kzalloc(sizeof(struct afs_status_cb), GFP_KERNEL);
-	if (!scb)
-		return -ENOMEM;
+	op = afs_alloc_operation(key, vnode->volume);
+	if (IS_ERR(op))
+		return PTR_ERR(op);
 
-	ret = -ERESTARTSYS;
-	if (afs_begin_vnode_operation(&fc, vnode, key, false)) {
-		while (afs_select_current_fileserver(&fc)) {
-			fc.cb_break = afs_calc_vnode_cb_break(vnode);
-			afs_fs_extend_lock(&fc, scb);
-		}
+	afs_op_set_vnode(op, 0, vnode);
 
-		afs_check_for_remote_deletion(&fc, vnode);
-		afs_vnode_commit_status(&fc, vnode, fc.cb_break, NULL, scb);
-		ret = afs_end_vnode_operation(&fc);
-	}
-
-	kfree(scb);
-	_leave(" = %d", ret);
-	return ret;
+	op->flags	|= AFS_OPERATION_UNINTR;
+	op->ops		= &afs_extend_lock_operation;
+	return afs_do_sync_operation(op);
 }
+
+static const struct afs_operation_ops afs_release_lock_operation = {
+	.issue_afs_rpc	= afs_fs_release_lock,
+	.issue_yfs_rpc	= yfs_fs_release_lock,
+	.success	= afs_lock_success,
+};
 
 /*
  * Release a lock on a file
  */
 static int afs_release_lock(struct afs_vnode *vnode, struct key *key)
 {
-	struct afs_status_cb *scb;
-	struct afs_fs_cursor fc;
-	int ret;
+	struct afs_operation *op;
 
 	_enter("%s{%llx:%llu.%u},%x",
 	       vnode->volume->name,
@@ -263,25 +262,15 @@ static int afs_release_lock(struct afs_vnode *vnode, struct key *key)
 	       vnode->fid.unique,
 	       key_serial(key));
 
-	scb = kzalloc(sizeof(struct afs_status_cb), GFP_KERNEL);
-	if (!scb)
-		return -ENOMEM;
+	op = afs_alloc_operation(key, vnode->volume);
+	if (IS_ERR(op))
+		return PTR_ERR(op);
 
-	ret = -ERESTARTSYS;
-	if (afs_begin_vnode_operation(&fc, vnode, key, false)) {
-		while (afs_select_current_fileserver(&fc)) {
-			fc.cb_break = afs_calc_vnode_cb_break(vnode);
-			afs_fs_release_lock(&fc, scb);
-		}
+	afs_op_set_vnode(op, 0, vnode);
 
-		afs_check_for_remote_deletion(&fc, vnode);
-		afs_vnode_commit_status(&fc, vnode, fc.cb_break, NULL, scb);
-		ret = afs_end_vnode_operation(&fc);
-	}
-
-	kfree(scb);
-	_leave(" = %d", ret);
-	return ret;
+	op->flags	|= AFS_OPERATION_UNINTR;
+	op->ops		= &afs_release_lock_operation;
+	return afs_do_sync_operation(op);
 }
 
 /*
@@ -346,8 +335,8 @@ again:
 		if (ret < 0) {
 			trace_afs_flock_ev(vnode, NULL, afs_flock_extend_fail,
 					   ret);
-			pr_warning("AFS: Failed to extend lock on {%llx:%llx} error %d\n",
-				   vnode->fid.vid, vnode->fid.vnode, ret);
+			pr_warn("AFS: Failed to extend lock on {%llx:%llx} error %d\n",
+				vnode->fid.vid, vnode->fid.vnode, ret);
 		}
 
 		spin_lock(&vnode->lock);
@@ -386,7 +375,6 @@ again:
 		spin_unlock(&vnode->lock);
 		return;
 
-		/* Fall through */
 	default:
 		/* Looks like a lock request was withdrawn. */
 		spin_unlock(&vnode->lock);
@@ -462,7 +450,7 @@ static int afs_do_setlk_check(struct afs_vnode *vnode, struct key *key,
  */
 static int afs_do_setlk(struct file *file, struct file_lock *fl)
 {
-	struct inode *inode = locks_inode(file);
+	struct inode *inode = file_inode(file);
 	struct afs_vnode *vnode = AFS_FS_I(inode);
 	enum afs_flock_mode mode = AFS_FS_S(inode->i_sb)->flock_mode;
 	afs_lock_type_t type;
@@ -475,14 +463,14 @@ static int afs_do_setlk(struct file *file, struct file_lock *fl)
 
 	_enter("{%llx:%llu},%llu-%llu,%u,%u",
 	       vnode->fid.vid, vnode->fid.vnode,
-	       fl->fl_start, fl->fl_end, fl->fl_type, mode);
+	       fl->fl_start, fl->fl_end, fl->c.flc_type, mode);
 
 	fl->fl_ops = &afs_lock_ops;
 	INIT_LIST_HEAD(&fl->fl_u.afs.link);
 	fl->fl_u.afs.state = AFS_LOCK_PENDING;
 
 	partial = (fl->fl_start != 0 || fl->fl_end != OFFSET_MAX);
-	type = (fl->fl_type == F_RDLCK) ? AFS_LOCK_READ : AFS_LOCK_WRITE;
+	type = lock_is_read(fl) ? AFS_LOCK_READ : AFS_LOCK_WRITE;
 	if (mode == afs_flock_mode_write && partial)
 		type = AFS_LOCK_WRITE;
 
@@ -535,7 +523,7 @@ static int afs_do_setlk(struct file *file, struct file_lock *fl)
 	}
 
 	if (vnode->lock_state == AFS_VNODE_LOCK_NONE &&
-	    !(fl->fl_flags & FL_SLEEP)) {
+	    !(fl->c.flc_flags & FL_SLEEP)) {
 		ret = -EAGAIN;
 		if (type == AFS_LOCK_READ) {
 			if (vnode->status.lock_count == -1)
@@ -632,7 +620,7 @@ skip_server_lock:
 	return 0;
 
 lock_is_contended:
-	if (!(fl->fl_flags & FL_SLEEP)) {
+	if (!(fl->c.flc_flags & FL_SLEEP)) {
 		list_del_init(&fl->fl_u.afs.link);
 		afs_next_locker(vnode, 0);
 		ret = -EAGAIN;
@@ -652,7 +640,7 @@ need_to_wait:
 	spin_unlock(&vnode->lock);
 
 	trace_afs_flock_ev(vnode, fl, afs_flock_waiting, 0);
-	ret = wait_event_interruptible(fl->fl_wait,
+	ret = wait_event_interruptible(fl->c.flc_wait,
 				       fl->fl_u.afs.state != AFS_LOCK_PENDING);
 	trace_afs_flock_ev(vnode, fl, afs_flock_waited, ret);
 
@@ -712,10 +700,11 @@ error:
  */
 static int afs_do_unlk(struct file *file, struct file_lock *fl)
 {
-	struct afs_vnode *vnode = AFS_FS_I(locks_inode(file));
+	struct afs_vnode *vnode = AFS_FS_I(file_inode(file));
 	int ret;
 
-	_enter("{%llx:%llu},%u", vnode->fid.vid, vnode->fid.vnode, fl->fl_type);
+	_enter("{%llx:%llu},%u", vnode->fid.vid, vnode->fid.vnode,
+	       fl->c.flc_type);
 
 	trace_afs_flock_op(vnode, fl, afs_flock_op_unlock);
 
@@ -732,7 +721,7 @@ static int afs_do_unlk(struct file *file, struct file_lock *fl)
  */
 static int afs_do_getlk(struct file *file, struct file_lock *fl)
 {
-	struct afs_vnode *vnode = AFS_FS_I(locks_inode(file));
+	struct afs_vnode *vnode = AFS_FS_I(file_inode(file));
 	struct key *key = afs_file_key(file);
 	int ret, lock_count;
 
@@ -741,11 +730,11 @@ static int afs_do_getlk(struct file *file, struct file_lock *fl)
 	if (vnode->lock_state == AFS_VNODE_LOCK_DELETED)
 		return -ENOENT;
 
-	fl->fl_type = F_UNLCK;
+	fl->c.flc_type = F_UNLCK;
 
 	/* check local lock records first */
 	posix_test_lock(file, fl);
-	if (fl->fl_type == F_UNLCK) {
+	if (lock_is_unlock(fl)) {
 		/* no local locks; consult the server */
 		ret = afs_fetch_status(vnode, key, false, NULL);
 		if (ret < 0)
@@ -754,18 +743,18 @@ static int afs_do_getlk(struct file *file, struct file_lock *fl)
 		lock_count = READ_ONCE(vnode->status.lock_count);
 		if (lock_count != 0) {
 			if (lock_count > 0)
-				fl->fl_type = F_RDLCK;
+				fl->c.flc_type = F_RDLCK;
 			else
-				fl->fl_type = F_WRLCK;
+				fl->c.flc_type = F_WRLCK;
 			fl->fl_start = 0;
 			fl->fl_end = OFFSET_MAX;
-			fl->fl_pid = 0;
+			fl->c.flc_pid = 0;
 		}
 	}
 
 	ret = 0;
 error:
-	_leave(" = %d [%hd]", ret, fl->fl_type);
+	_leave(" = %d [%hd]", ret, fl->c.flc_type);
 	return ret;
 }
 
@@ -774,18 +763,14 @@ error:
  */
 int afs_lock(struct file *file, int cmd, struct file_lock *fl)
 {
-	struct afs_vnode *vnode = AFS_FS_I(locks_inode(file));
+	struct afs_vnode *vnode = AFS_FS_I(file_inode(file));
 	enum afs_flock_operation op;
 	int ret;
 
 	_enter("{%llx:%llu},%d,{t=%x,fl=%x,r=%Ld:%Ld}",
 	       vnode->fid.vid, vnode->fid.vnode, cmd,
-	       fl->fl_type, fl->fl_flags,
+	       fl->c.flc_type, fl->c.flc_flags,
 	       (long long) fl->fl_start, (long long) fl->fl_end);
-
-	/* AFS doesn't support mandatory locks */
-	if (__mandatory_lock(&vnode->vfs_inode) && fl->fl_type != F_UNLCK)
-		return -ENOLCK;
 
 	if (IS_GETLK(cmd))
 		return afs_do_getlk(file, fl);
@@ -793,7 +778,7 @@ int afs_lock(struct file *file, int cmd, struct file_lock *fl)
 	fl->fl_u.afs.debug_id = atomic_inc_return(&afs_file_lock_debug_id);
 	trace_afs_flock_op(vnode, fl, afs_flock_op_lock);
 
-	if (fl->fl_type == F_UNLCK)
+	if (lock_is_unlock(fl))
 		ret = afs_do_unlk(file, fl);
 	else
 		ret = afs_do_setlk(file, fl);
@@ -813,13 +798,13 @@ int afs_lock(struct file *file, int cmd, struct file_lock *fl)
  */
 int afs_flock(struct file *file, int cmd, struct file_lock *fl)
 {
-	struct afs_vnode *vnode = AFS_FS_I(locks_inode(file));
+	struct afs_vnode *vnode = AFS_FS_I(file_inode(file));
 	enum afs_flock_operation op;
 	int ret;
 
 	_enter("{%llx:%llu},%d,{t=%x,fl=%x}",
 	       vnode->fid.vid, vnode->fid.vnode, cmd,
-	       fl->fl_type, fl->fl_flags);
+	       fl->c.flc_type, fl->c.flc_flags);
 
 	/*
 	 * No BSD flocks over NFS allowed.
@@ -828,14 +813,14 @@ int afs_flock(struct file *file, int cmd, struct file_lock *fl)
 	 * Not sure whether that would be unique, though, or whether
 	 * that would break in other places.
 	 */
-	if (!(fl->fl_flags & FL_FLOCK))
+	if (!(fl->c.flc_flags & FL_FLOCK))
 		return -ENOLCK;
 
 	fl->fl_u.afs.debug_id = atomic_inc_return(&afs_file_lock_debug_id);
 	trace_afs_flock_op(vnode, fl, afs_flock_op_flock);
 
 	/* we're simulating flock() locks using posix locks on the server */
-	if (fl->fl_type == F_UNLCK)
+	if (lock_is_unlock(fl))
 		ret = afs_do_unlk(file, fl);
 	else
 		ret = afs_do_setlk(file, fl);
@@ -858,7 +843,7 @@ int afs_flock(struct file *file, int cmd, struct file_lock *fl)
  */
 static void afs_fl_copy_lock(struct file_lock *new, struct file_lock *fl)
 {
-	struct afs_vnode *vnode = AFS_FS_I(locks_inode(fl->fl_file));
+	struct afs_vnode *vnode = AFS_FS_I(file_inode(fl->c.flc_file));
 
 	_enter("");
 
@@ -876,7 +861,7 @@ static void afs_fl_copy_lock(struct file_lock *new, struct file_lock *fl)
  */
 static void afs_fl_release_private(struct file_lock *fl)
 {
-	struct afs_vnode *vnode = AFS_FS_I(locks_inode(fl->fl_file));
+	struct afs_vnode *vnode = AFS_FS_I(file_inode(fl->c.flc_file));
 
 	_enter("");
 

@@ -26,7 +26,7 @@
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/err.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/thermal.h>
 
 /*
@@ -321,7 +321,7 @@ static SENSOR_DEVICE_ATTR_RO(gpio2_alarm, alarm, MAX6650_ALRM_GPIO2);
 static umode_t max6650_attrs_visible(struct kobject *kobj, struct attribute *a,
 				     int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct max6650_data *data = dev_get_drvdata(dev);
 	struct device_attribute *devattr;
 
@@ -737,7 +737,7 @@ static umode_t max6650_is_visible(const void *_data,
 	return 0;
 }
 
-static const struct hwmon_channel_info *max6650_info[] = {
+static const struct hwmon_channel_info * const max6650_info[] = {
 	HWMON_CHANNEL_INFO(fan, HWMON_F_INPUT | HWMON_F_TARGET | HWMON_F_DIV |
 			   HWMON_F_MIN_ALARM | HWMON_F_MAX_ALARM |
 			   HWMON_F_FAULT,
@@ -757,13 +757,12 @@ static const struct hwmon_chip_info max6650_chip_info = {
 	.info = max6650_info,
 };
 
-static int max6650_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static const struct i2c_device_id max6650_id[];
+
+static int max6650_probe(struct i2c_client *client)
 {
 	struct thermal_cooling_device *cooling_dev;
 	struct device *dev = &client->dev;
-	const struct of_device_id *of_id =
-		of_match_device(of_match_ptr(max6650_dt_match), dev);
 	struct max6650_data *data;
 	struct device *hwmon_dev;
 	int err;
@@ -775,7 +774,8 @@ static int max6650_probe(struct i2c_client *client,
 	data->client = client;
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
-	data->nr_fans = of_id ? (int)(uintptr_t)of_id->data : id->driver_data;
+
+	data->nr_fans = (uintptr_t)i2c_get_match_data(client);
 
 	/*
 	 * Initialize the max6650 chip

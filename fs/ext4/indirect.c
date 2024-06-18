@@ -148,6 +148,7 @@ static Indirect *ext4_get_branch(struct inode *inode, int depth,
 	struct super_block *sb = inode->i_sb;
 	Indirect *p = chain;
 	struct buffer_head *bh;
+	unsigned int key;
 	int ret = -EIO;
 
 	*err = 0;
@@ -156,14 +157,20 @@ static Indirect *ext4_get_branch(struct inode *inode, int depth,
 	if (!p->key)
 		goto no_block;
 	while (--depth) {
-		bh = sb_getblk(sb, le32_to_cpu(p->key));
+		key = le32_to_cpu(p->key);
+		if (key > ext4_blocks_count(EXT4_SB(sb)->s_es)) {
+			/* the block was out of range */
+			ret = -EFSCORRUPTED;
+			goto failure;
+		}
+		bh = sb_getblk(sb, key);
 		if (unlikely(!bh)) {
 			ret = -ENOMEM;
 			goto failure;
 		}
 
 		if (!bh_uptodate_or_lock(bh)) {
-			if (bh_submit_read(bh) < 0) {
+			if (ext4_read_bh(bh, 0, NULL) < 0) {
 				put_bh(bh);
 				goto failure;
 			}
@@ -331,11 +338,14 @@ static int ext4_alloc_branch(handle_t *handle,
 	for (i = 0; i <= indirect_blks; i++) {
 		if (i == indirect_blks) {
 			new_blocks[i] = ext4_mb_new_blocks(handle, ar, &err);
-		} else
+		} else {
 			ar->goal = new_blocks[i] = ext4_new_meta_blocks(handle,
 					ar->inode, ar->goal,
 					ar->flags & EXT4_MB_DELALLOC_RESERVED,
 					NULL, &err);
+			/* Simplify error cleanup... */
+			branch[i+1].bh = NULL;
+		}
 		if (err) {
 			i--;
 			goto failed;
@@ -351,7 +361,8 @@ static int ext4_alloc_branch(handle_t *handle,
 		}
 		lock_buffer(bh);
 		BUFFER_TRACE(bh, "call get_create_access");
-		err = ext4_journal_get_create_access(handle, bh);
+		err = ext4_journal_get_create_access(handle, ar->inode->i_sb,
+						     bh, EXT4_JTR_NONE);
 		if (err) {
 			unlock_buffer(bh);
 			goto failed;
@@ -377,18 +388,25 @@ static int ext4_alloc_branch(handle_t *handle,
 	}
 	return 0;
 failed:
+	if (i == indirect_blks) {
+		/* Free data blocks */
+		ext4_free_blocks(handle, ar->inode, NULL, new_blocks[i],
+				 ar->len, 0);
+		i--;
+	}
 	for (; i >= 0; i--) {
 		/*
 		 * We want to ext4_forget() only freshly allocated indirect
-		 * blocks.  Buffer for new_blocks[i-1] is at branch[i].bh and
-		 * buffer at branch[0].bh is indirect block / inode already
-		 * existing before ext4_alloc_branch() was called.
+		 * blocks. Buffer for new_blocks[i] is at branch[i+1].bh
+		 * (buffer at branch[0].bh is indirect block / inode already
+		 * existing before ext4_alloc_branch() was called). Also
+		 * because blocks are freshly allocated, we don't need to
+		 * revoke them which is why we don't set
+		 * EXT4_FREE_BLOCKS_METADATA.
 		 */
-		if (i > 0 && i != indirect_blks && branch[i].bh)
-			ext4_forget(handle, 1, ar->inode, branch[i].bh,
-				    branch[i].bh->b_blocknr);
-		ext4_free_blocks(handle, ar->inode, NULL, new_blocks[i],
-				 (i == indirect_blks) ? ar->len : 1, 0);
+		ext4_free_blocks(handle, ar->inode, branch[i+1].bh,
+				 new_blocks[i], 1,
+				 branch[i+1].bh ? EXT4_FREE_BLOCKS_FORGET : 0);
 	}
 	return err;
 }
@@ -419,7 +437,8 @@ static int ext4_splice_branch(handle_t *handle,
 	 */
 	if (where->bh) {
 		BUFFER_TRACE(where->bh, "get_write_access");
-		err = ext4_journal_get_write_access(handle, where->bh);
+		err = ext4_journal_get_write_access(handle, ar->inode->i_sb,
+						    where->bh, EXT4_JTR_NONE);
 		if (err)
 			goto err_out;
 	}
@@ -448,7 +467,7 @@ static int ext4_splice_branch(handle_t *handle,
 		 * the new i_size.  But that is not done here - it is done in
 		 * generic_commit_write->__mark_inode_dirty->ext4_dirty_inode.
 		 */
-		jbd_debug(5, "splicing indirect only\n");
+		ext4_debug("splicing indirect only\n");
 		BUFFER_TRACE(where->bh, "call ext4_handle_dirty_metadata");
 		err = ext4_handle_dirty_metadata(handle, ar->inode, where->bh);
 		if (err)
@@ -457,8 +476,10 @@ static int ext4_splice_branch(handle_t *handle,
 		/*
 		 * OK, we spliced it into the inode itself on a direct block.
 		 */
-		ext4_mark_inode_dirty(handle, ar->inode);
-		jbd_debug(5, "splicing direct\n");
+		err = ext4_mark_inode_dirty(handle, ar->inode);
+		if (unlikely(err))
+			goto err_out;
+		ext4_debug("splicing direct\n");
 	}
 	return err;
 
@@ -522,8 +543,8 @@ int ext4_ind_map_blocks(handle_t *handle, struct inode *inode,
 	ext4_fsblk_t first_block = 0;
 
 	trace_ext4_ind_map_blocks_enter(inode, map->m_lblk, map->m_len, flags);
-	J_ASSERT(!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)));
-	J_ASSERT(handle != NULL || (flags & EXT4_GET_BLOCKS_CREATE) == 0);
+	ASSERT(!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)));
+	ASSERT(handle != NULL || (flags & EXT4_GET_BLOCKS_CREATE) == 0);
 	depth = ext4_block_to_path(inode, map->m_lblk, offsets,
 				   &blocks_to_boundary);
 
@@ -581,7 +602,8 @@ int ext4_ind_map_blocks(handle_t *handle, struct inode *inode,
 	if (ext4_has_feature_bigalloc(inode->i_sb)) {
 		EXT4_ERROR_INODE(inode, "Can't allocate blocks for "
 				 "non-extent mapped inodes with bigalloc");
-		return -EFSCORRUPTED;
+		err = -EFSCORRUPTED;
+		goto out;
 	}
 
 	/* Set up for the direct block allocation */
@@ -629,6 +651,14 @@ int ext4_ind_map_blocks(handle_t *handle, struct inode *inode,
 
 	ext4_update_inode_fsync_trans(handle, inode, 1);
 	count = ar.len;
+
+	/*
+	 * Update reserved blocks/metadata blocks after successful block
+	 * allocation which had been deferred till now.
+	 */
+	if (flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE)
+		ext4_da_update_reserve_space(inode, count, 1);
+
 got_it:
 	map->m_flags |= EXT4_MAP_MAPPED;
 	map->m_pblk = le32_to_cpu(chain[depth-1].key);
@@ -650,32 +680,6 @@ out:
 }
 
 /*
- * Calculate the number of metadata blocks need to reserve
- * to allocate a new block at @lblocks for non extent file based file
- */
-int ext4_ind_calc_metadata_amount(struct inode *inode, sector_t lblock)
-{
-	struct ext4_inode_info *ei = EXT4_I(inode);
-	sector_t dind_mask = ~((sector_t)EXT4_ADDR_PER_BLOCK(inode->i_sb) - 1);
-	int blk_bits;
-
-	if (lblock < EXT4_NDIR_BLOCKS)
-		return 0;
-
-	lblock -= EXT4_NDIR_BLOCKS;
-
-	if (ei->i_da_metadata_calc_len &&
-	    (lblock & dind_mask) == ei->i_da_metadata_calc_last_lblock) {
-		ei->i_da_metadata_calc_len++;
-		return 0;
-	}
-	ei->i_da_metadata_calc_last_lblock = lblock & dind_mask;
-	ei->i_da_metadata_calc_len = 1;
-	blk_bits = order_base_2(lblock);
-	return (blk_bits / EXT4_ADDR_PER_BLOCK_BITS(inode->i_sb)) + 1;
-}
-
-/*
  * Calculate number of indirect blocks touched by mapping @nrblocks logically
  * contiguous blocks
  */
@@ -689,27 +693,64 @@ int ext4_ind_trans_blocks(struct inode *inode, int nrblocks)
 	return DIV_ROUND_UP(nrblocks, EXT4_ADDR_PER_BLOCK(inode->i_sb)) + 4;
 }
 
+static int ext4_ind_trunc_restart_fn(handle_t *handle, struct inode *inode,
+				     struct buffer_head *bh, int *dropped)
+{
+	int err;
+
+	if (bh) {
+		BUFFER_TRACE(bh, "call ext4_handle_dirty_metadata");
+		err = ext4_handle_dirty_metadata(handle, inode, bh);
+		if (unlikely(err))
+			return err;
+	}
+	err = ext4_mark_inode_dirty(handle, inode);
+	if (unlikely(err))
+		return err;
+	/*
+	 * Drop i_data_sem to avoid deadlock with ext4_map_blocks.  At this
+	 * moment, get_block can be called only for blocks inside i_size since
+	 * page cache has been already dropped and writes are blocked by
+	 * i_rwsem. So we can safely drop the i_data_sem here.
+	 */
+	BUG_ON(EXT4_JOURNAL(inode) == NULL);
+	ext4_discard_preallocations(inode);
+	up_write(&EXT4_I(inode)->i_data_sem);
+	*dropped = 1;
+	return 0;
+}
+
 /*
  * Truncate transactions can be complex and absolutely huge.  So we need to
- * be able to restart the transaction at a conventient checkpoint to make
+ * be able to restart the transaction at a convenient checkpoint to make
  * sure we don't overflow the journal.
  *
  * Try to extend this transaction for the purposes of truncation.  If
- * extend fails, we need to propagate the failure up and restart the
- * transaction in the top-level truncate loop. --sct
- *
- * Returns 0 if we managed to create more room.  If we can't create more
- * room, and the transaction must be restarted we return 1.
+ * extend fails, we restart transaction.
  */
-static int try_to_extend_transaction(handle_t *handle, struct inode *inode)
+static int ext4_ind_truncate_ensure_credits(handle_t *handle,
+					    struct inode *inode,
+					    struct buffer_head *bh,
+					    int revoke_creds)
 {
-	if (!ext4_handle_valid(handle))
-		return 0;
-	if (ext4_handle_has_enough_credits(handle, EXT4_RESERVE_TRANS_BLOCKS+1))
-		return 0;
-	if (!ext4_journal_extend(handle, ext4_blocks_for_truncate(inode)))
-		return 0;
-	return 1;
+	int ret;
+	int dropped = 0;
+
+	ret = ext4_journal_ensure_credits_fn(handle, EXT4_RESERVE_TRANS_BLOCKS,
+			ext4_blocks_for_truncate(inode), revoke_creds,
+			ext4_ind_trunc_restart_fn(handle, inode, bh, &dropped));
+	if (dropped)
+		down_write(&EXT4_I(inode)->i_data_sem);
+	if (ret <= 0)
+		return ret;
+	if (bh) {
+		BUFFER_TRACE(bh, "retaking write access");
+		ret = ext4_journal_get_write_access(handle, inode->i_sb, bh,
+						    EXT4_JTR_NONE);
+		if (unlikely(ret))
+			return ret;
+	}
+	return 0;
 }
 
 /*
@@ -836,35 +877,17 @@ static int ext4_clear_blocks(handle_t *handle, struct inode *inode,
 	else if (ext4_should_journal_data(inode))
 		flags |= EXT4_FREE_BLOCKS_FORGET;
 
-	if (!ext4_data_block_valid(EXT4_SB(inode->i_sb), block_to_free,
-				   count)) {
+	if (!ext4_inode_block_valid(inode, block_to_free, count)) {
 		EXT4_ERROR_INODE(inode, "attempt to clear invalid "
 				 "blocks %llu len %lu",
 				 (unsigned long long) block_to_free, count);
 		return 1;
 	}
 
-	if (try_to_extend_transaction(handle, inode)) {
-		if (bh) {
-			BUFFER_TRACE(bh, "call ext4_handle_dirty_metadata");
-			err = ext4_handle_dirty_metadata(handle, inode, bh);
-			if (unlikely(err))
-				goto out_err;
-		}
-		err = ext4_mark_inode_dirty(handle, inode);
-		if (unlikely(err))
-			goto out_err;
-		err = ext4_truncate_restart_trans(handle, inode,
-					ext4_blocks_for_truncate(inode));
-		if (unlikely(err))
-			goto out_err;
-		if (bh) {
-			BUFFER_TRACE(bh, "retaking write access");
-			err = ext4_journal_get_write_access(handle, bh);
-			if (unlikely(err))
-				goto out_err;
-		}
-	}
+	err = ext4_ind_truncate_ensure_credits(handle, inode, bh,
+				ext4_free_data_revoke_credits(inode, count));
+	if (err < 0)
+		goto out_err;
 
 	for (p = first; p < last; p++)
 		*p = 0;
@@ -911,7 +934,8 @@ static void ext4_free_data(handle_t *handle, struct inode *inode,
 
 	if (this_bh) {				/* For indirect block */
 		BUFFER_TRACE(this_bh, "get_write_access");
-		err = ext4_journal_get_write_access(handle, this_bh);
+		err = ext4_journal_get_write_access(handle, inode->i_sb,
+						    this_bh, EXT4_JTR_NONE);
 		/* Important: if we can't update the indirect pointers
 		 * to the blocks, we can't free them. */
 		if (err)
@@ -999,8 +1023,7 @@ static void ext4_free_branches(handle_t *handle, struct inode *inode,
 			if (!nr)
 				continue;		/* A hole */
 
-			if (!ext4_data_block_valid(EXT4_SB(inode->i_sb),
-						   nr, 1)) {
+			if (!ext4_inode_block_valid(inode, nr, 1)) {
 				EXT4_ERROR_INODE(inode,
 						 "invalid indirect mapped "
 						 "block %lu (level %d)",
@@ -1009,14 +1032,14 @@ static void ext4_free_branches(handle_t *handle, struct inode *inode,
 			}
 
 			/* Go read the buffer for the next level down */
-			bh = sb_bread(inode->i_sb, nr);
+			bh = ext4_sb_bread(inode->i_sb, nr, 0);
 
 			/*
 			 * A read failure? Report error and clear slot
 			 * (should be rare).
 			 */
-			if (!bh) {
-				EXT4_ERROR_INODE_BLOCK(inode, nr,
+			if (IS_ERR(bh)) {
+				ext4_error_inode_block(inode, nr, -PTR_ERR(bh),
 						       "Read failure");
 				continue;
 			}
@@ -1030,7 +1053,7 @@ static void ext4_free_branches(handle_t *handle, struct inode *inode,
 			brelse(bh);
 
 			/*
-			 * Everything below this this pointer has been
+			 * Everything below this pointer has been
 			 * released.  Now let this top-of-subtree go.
 			 *
 			 * We want the freeing of this indirect block to be
@@ -1047,11 +1070,11 @@ static void ext4_free_branches(handle_t *handle, struct inode *inode,
 			 */
 			if (ext4_handle_is_aborted(handle))
 				return;
-			if (try_to_extend_transaction(handle, inode)) {
-				ext4_mark_inode_dirty(handle, inode);
-				ext4_truncate_restart_trans(handle, inode,
-					    ext4_blocks_for_truncate(inode));
-			}
+			if (ext4_ind_truncate_ensure_credits(handle, inode,
+					NULL,
+					ext4_free_metadata_revoke_credits(
+							inode->i_sb, 1)) < 0)
+				return;
 
 			/*
 			 * The forget flag here is critical because if
@@ -1075,7 +1098,8 @@ static void ext4_free_branches(handle_t *handle, struct inode *inode,
 				 */
 				BUFFER_TRACE(parent_bh, "get_write_access");
 				if (!ext4_journal_get_write_access(handle,
-								   parent_bh)){
+						inode->i_sb, parent_bh,
+						EXT4_JTR_NONE)) {
 					*p = 0;
 					BUFFER_TRACE(parent_bh,
 					"call ext4_handle_dirty_metadata");
@@ -1177,21 +1201,21 @@ do_indirects:
 			ext4_free_branches(handle, inode, NULL, &nr, &nr+1, 1);
 			i_data[EXT4_IND_BLOCK] = 0;
 		}
-		/* fall through */
+		fallthrough;
 	case EXT4_IND_BLOCK:
 		nr = i_data[EXT4_DIND_BLOCK];
 		if (nr) {
 			ext4_free_branches(handle, inode, NULL, &nr, &nr+1, 2);
 			i_data[EXT4_DIND_BLOCK] = 0;
 		}
-		/* fall through */
+		fallthrough;
 	case EXT4_DIND_BLOCK:
 		nr = i_data[EXT4_TIND_BLOCK];
 		if (nr) {
 			ext4_free_branches(handle, inode, NULL, &nr, &nr+1, 3);
 			i_data[EXT4_TIND_BLOCK] = 0;
 		}
-		/* fall through */
+		fallthrough;
 	case EXT4_TIND_BLOCK:
 		;
 	}
@@ -1431,7 +1455,7 @@ do_indirects:
 			ext4_free_branches(handle, inode, NULL, &nr, &nr+1, 1);
 			i_data[EXT4_IND_BLOCK] = 0;
 		}
-		/* fall through */
+		fallthrough;
 	case EXT4_IND_BLOCK:
 		if (++n >= n2)
 			break;
@@ -1440,7 +1464,7 @@ do_indirects:
 			ext4_free_branches(handle, inode, NULL, &nr, &nr+1, 2);
 			i_data[EXT4_DIND_BLOCK] = 0;
 		}
-		/* fall through */
+		fallthrough;
 	case EXT4_DIND_BLOCK:
 		if (++n >= n2)
 			break;
@@ -1449,7 +1473,7 @@ do_indirects:
 			ext4_free_branches(handle, inode, NULL, &nr, &nr+1, 3);
 			i_data[EXT4_TIND_BLOCK] = 0;
 		}
-		/* fall through */
+		fallthrough;
 	case EXT4_TIND_BLOCK:
 		;
 	}

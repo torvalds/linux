@@ -125,7 +125,9 @@ gf117_gr_init_zcull(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, gr->tpc_total);
-	const u8 tile_nr = ALIGN(gr->tpc_total, 32);
+	/*TODO: fill in litter vals for gf117-gm2xx */
+	const u8 tile_nr = !gr->func->gpc_nr ? ALIGN(gr->tpc_total, 32) :
+			   (gr->func->gpc_nr * gr->func->tpc_nr);
 	u8 bank[GPC_MAX] = {}, gpc, i, j;
 	u32 data;
 
@@ -163,10 +165,13 @@ gf117_gr = {
 	.init_419eb4 = gf100_gr_init_419eb4,
 	.init_tex_hww_esr = gf100_gr_init_tex_hww_esr,
 	.init_shader_exceptions = gf100_gr_init_shader_exceptions,
+	.init_rop_exceptions = gf100_gr_init_rop_exceptions,
+	.init_exception2 = gf100_gr_init_exception2,
 	.init_400054 = gf100_gr_init_400054,
 	.trap_mp = gf100_gr_trap_mp,
 	.mmio = gf117_gr_pack_mmio,
 	.fecs.ucode = &gf117_gr_fecs_ucode,
+	.fecs.reset = gf100_gr_fecs_reset,
 	.gpccs.ucode = &gf117_gr_gpccs_ucode,
 	.rops = gf100_gr_rops,
 	.ppc_nr = 1,
@@ -184,8 +189,15 @@ gf117_gr = {
 	}
 };
 
+static const struct gf100_gr_fwif
+gf117_gr_fwif[] = {
+	{ -1, gf100_gr_load, &gf117_gr },
+	{ -1, gf100_gr_nofw, &gf117_gr },
+	{}
+};
+
 int
-gf117_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
+gf117_gr_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_gr **pgr)
 {
-	return gf100_gr_new_(&gf117_gr, device, index, pgr);
+	return gf100_gr_new_(gf117_gr_fwif, device, type, inst, pgr);
 }

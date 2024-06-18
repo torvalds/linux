@@ -117,19 +117,22 @@ int imgu_css_fw_init(struct imgu_css *css)
 	unsigned int i, j, binary_nr;
 	int r;
 
-	r = request_firmware(&css->fw, IMGU_FW_NAME, css->dev);
+	r = request_firmware(&css->fw, IMGU_FW_NAME_IPU_20161208, css->dev);
+	if (r == -ENOENT)
+		r = request_firmware(&css->fw, IMGU_FW_NAME_20161208, css->dev);
+	if (r == -ENOENT)
+		r = request_firmware(&css->fw, IMGU_FW_NAME, css->dev);
 	if (r)
 		return r;
 
 	/* Check and display fw header info */
 
 	css->fwp = (struct imgu_fw_header *)css->fw->data;
-	if (css->fw->size < sizeof(struct imgu_fw_header *) ||
+	if (css->fw->size < struct_size(css->fwp, binary_header, 1) ||
 	    css->fwp->file_header.h_size != sizeof(struct imgu_fw_bi_file_h))
 		goto bad_fw;
-	if (sizeof(struct imgu_fw_bi_file_h) +
-	    css->fwp->file_header.binary_nr * sizeof(struct imgu_fw_info) >
-	    css->fw->size)
+	if (struct_size(css->fwp, binary_header,
+			css->fwp->file_header.binary_nr) > css->fw->size)
 		goto bad_fw;
 
 	dev_info(dev, "loaded firmware version %.64s, %u binaries, %zu bytes\n",

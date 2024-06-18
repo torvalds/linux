@@ -5,7 +5,7 @@
  * c 2001 PPC 64 Team, IBM Corp
  */
 
-#include <stdarg.h>
+#include <linux/stdarg.h>
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/console.h>
@@ -67,6 +67,8 @@ void __init udbg_early_init(void)
 	udbg_init_debug_opal_raw();
 #elif defined(CONFIG_PPC_EARLY_DEBUG_OPAL_HVSI)
 	udbg_init_debug_opal_hvsi();
+#elif defined(CONFIG_PPC_EARLY_DEBUG_16550)
+	udbg_init_debug_16550();
 #endif
 
 #ifdef CONFIG_PPC_EARLY_DEBUG
@@ -120,13 +122,15 @@ int udbg_write(const char *s, int n)
 #define UDBG_BUFSIZE 256
 void udbg_printf(const char *fmt, ...)
 {
-	char buf[UDBG_BUFSIZE];
-	va_list args;
+	if (udbg_putc) {
+		char buf[UDBG_BUFSIZE];
+		va_list args;
 
-	va_start(args, fmt);
-	vsnprintf(buf, UDBG_BUFSIZE, fmt, args);
-	udbg_puts(buf);
-	va_end(args);
+		va_start(args, fmt);
+		vsnprintf(buf, UDBG_BUFSIZE, fmt, args);
+		udbg_puts(buf);
+		va_end(args);
+	}
 }
 
 void __init udbg_progress(char *s, unsigned short hex)

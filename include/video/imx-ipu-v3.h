@@ -17,6 +17,7 @@
 #include <linux/bitmap.h>
 #include <linux/fb.h>
 #include <linux/of.h>
+#include <drm/drm_color_mgmt.h>
 #include <media/v4l2-mediabus.h>
 #include <video/videomode.h>
 
@@ -330,6 +331,7 @@ int ipu_dp_enable_channel(struct ipu_dp *dp);
 void ipu_dp_disable_channel(struct ipu_dp *dp, bool sync);
 void ipu_dp_disable(struct ipu_soc *ipu);
 int ipu_dp_setup_channel(struct ipu_dp *dp,
+		enum drm_color_encoding ycbcr_enc, enum drm_color_range range,
 		enum ipu_color_space in, enum ipu_color_space out);
 int ipu_dp_set_window_pos(struct ipu_dp *, u16 x_pos, u16 y_pos);
 int ipu_dp_set_global_alpha(struct ipu_dp *dp, bool enable, u8 alpha,
@@ -484,9 +486,6 @@ int ipu_smfc_set_watermark(struct ipu_smfc *smfc, u32 set_level, u32 clr_level);
 
 enum ipu_color_space ipu_drm_fourcc_to_colorspace(u32 drm_fourcc);
 enum ipu_color_space ipu_pixelformat_to_colorspace(u32 pixelformat);
-enum ipu_color_space ipu_mbus_code_to_colorspace(u32 mbus_code);
-int ipu_stride_to_bytes(u32 pixel_stride, u32 pixelformat);
-bool ipu_pixelformat_is_planar(u32 pixelformat);
 int ipu_degrees_to_rot_mode(enum ipu_rotate_mode *mode, int degrees,
 			    bool hflip, bool vflip);
 int ipu_rot_mode_to_degrees(int *degrees, enum ipu_rotate_mode mode,

@@ -48,9 +48,8 @@
 #include <media/dvb_net.h>
 #include <media/dvbdev.h>
 
-/* Videobuf / YUV support */
-#include <media/videobuf-core.h>
-#include <media/videobuf-vmalloc.h>
+/* vb2 YUV support */
+#include <media/videobuf2-vmalloc.h>
 
 #ifndef CONFIG_PCI
 #  error "This driver requires kernel PCI support."
@@ -284,6 +283,14 @@ struct cx18_options {
 #define list_entry_is_past_end(pos, head, member) \
 	(&pos->member == (head))
 
+struct cx18_vb2_buffer {
+	/* Common video buffer sub-system struct */
+	struct vb2_v4l2_buffer vb;
+	struct list_head list;
+	v4l2_std_id tvnorm; /* selected tv norm */
+	u32 bytes_used;
+};
+
 struct cx18_buffer {
 	struct list_head list;
 	dma_addr_t dma_handle;
@@ -399,17 +406,10 @@ struct cx18_stream {
 	struct list_head vb_capture;    /* video capture queue */
 	spinlock_t vb_lock;
 	struct timer_list vb_timeout;
+	u32 sequence;
 
-	struct videobuf_queue vbuf_q;
-	spinlock_t vbuf_q_lock; /* Protect vbuf_q */
+	struct vb2_queue vidq;
 	enum v4l2_buf_type vb_type;
-};
-
-struct cx18_videobuf_buffer {
-	/* Common video buffer sub-system struct */
-	struct videobuf_buffer vb;
-	v4l2_std_id tvnorm; /* selected tv norm */
-	u32 bytes_used;
 };
 
 struct cx18_open_id {
@@ -631,7 +631,7 @@ struct cx18 {
 	u32 hw2_irq_mask;
 
 	struct workqueue_struct *in_work_queue;
-	char in_workq_name[11]; /* "cx18-NN-in" */
+	char in_workq_name[39]; /* "cx18-NN-in" */
 	struct cx18_in_work_order in_work_order[CX18_MAX_IN_WORK_ORDERS];
 	char epu_debug_str[256]; /* CX18_EPU_DEBUG is rare: use shared space */
 

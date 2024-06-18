@@ -1,7 +1,5 @@
 Binding for Texas Instruments clockdomain.
 
-Binding status: Unstable - ABI compatibility may be broken in the future
-
 This binding uses the common clock binding[1] in consumer role.
 Every clock on TI SoC belongs to one clockdomain, but software
 only needs this information for specific clocks which require
@@ -16,6 +14,9 @@ Required properties:
 - compatible : shall be "ti,clockdomain"
 - #clock-cells : from common clock binding; shall be set to 0.
 - clocks : link phandles of clocks within this domain
+
+Optional properties:
+- clock-output-names : from common clock binding.
 
 Examples:
 	dss_clkdm: dss_clkdm {

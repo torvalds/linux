@@ -1,52 +1,10 @@
-#ifndef DEF_RDMA_VT_H
-#define DEF_RDMA_VT_H
-
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
  * Copyright(c) 2016 - 2019 Intel Corporation.
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * BSD LICENSE
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
  */
+
+#ifndef DEF_RDMA_VT_H
+#define DEF_RDMA_VT_H
 
 /*
  * Structure that low level drivers will populate in order to register with the
@@ -134,7 +92,7 @@ struct rvt_ibport {
 	/*
 	 * The pkey table is allocated and maintained by the driver. Drivers
 	 * need to have access to this before registering with rdmav. However
-	 * rdmavt will need access to it so drivers need to proviee this during
+	 * rdmavt will need access to it so drivers need to provide this during
 	 * the attach port API call.
 	 */
 	u16 *pkey_table;
@@ -272,7 +230,7 @@ struct rvt_driver_provided {
 	void (*do_send)(struct rvt_qp *qp);
 
 	/*
-	 * Returns a pointer to the undelying hardware's PCI device. This is
+	 * Returns a pointer to the underlying hardware's PCI device. This is
 	 * used to display information as to what hardware is being referenced
 	 * in an output message
 	 */
@@ -287,7 +245,7 @@ struct rvt_driver_provided {
 	void * (*qp_priv_alloc)(struct rvt_dev_info *rdi, struct rvt_qp *qp);
 
 	/*
-	 * Init a struture allocated with qp_priv_alloc(). This should be
+	 * Init a structure allocated with qp_priv_alloc(). This should be
 	 * called after all qp fields have been initialized in rdmavt.
 	 */
 	int (*qp_priv_init)(struct rvt_dev_info *rdi, struct rvt_qp *qp,
@@ -299,7 +257,7 @@ struct rvt_driver_provided {
 	void (*qp_priv_free)(struct rvt_dev_info *rdi, struct rvt_qp *qp);
 
 	/*
-	 * Inform the driver the particular qp in quesiton has been reset so
+	 * Inform the driver the particular qp in question has been reset so
 	 * that it can clean up anything it needs to.
 	 */
 	void (*notify_qp_reset)(struct rvt_qp *qp);
@@ -323,7 +281,7 @@ struct rvt_driver_provided {
 	void (*stop_send_queue)(struct rvt_qp *qp);
 
 	/*
-	 * Have the drivr drain any in progress operations
+	 * Have the driver drain any in progress operations
 	 */
 	void (*quiesce_qp)(struct rvt_qp *qp);
 
@@ -351,16 +309,16 @@ struct rvt_driver_provided {
 	/*
 	 * Query driver for the state of the port.
 	 */
-	int (*query_port_state)(struct rvt_dev_info *rdi, u8 port_num,
+	int (*query_port_state)(struct rvt_dev_info *rdi, u32 port_num,
 				struct ib_port_attr *props);
 
 	/*
 	 * Tell driver to shutdown a port
 	 */
-	int (*shut_down_port)(struct rvt_dev_info *rdi, u8 port_num);
+	int (*shut_down_port)(struct rvt_dev_info *rdi, u32 port_num);
 
 	/* Tell driver to send a trap for changed  port capabilities */
-	void (*cap_mask_chg)(struct rvt_dev_info *rdi, u8 port_num);
+	void (*cap_mask_chg)(struct rvt_dev_info *rdi, u32 port_num);
 
 	/*
 	 * The following functions can be safely ignored completely. Any use of
@@ -380,7 +338,7 @@ struct rvt_driver_provided {
 
 	/* Let the driver pick the next queue pair number*/
 	int (*alloc_qpn)(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
-			 enum ib_qp_type type, u8 port_num);
+			 enum ib_qp_type type, u32 port_num);
 
 	/* Determine if its safe or allowed to modify the qp */
 	int (*check_modify_qp)(struct rvt_qp *qp, struct ib_qp_attr *attr,
@@ -487,7 +445,7 @@ static inline void rvt_set_ibdev_name(struct rvt_dev_info *rdi,
 	 * to work by setting the name manually here.
 	 */
 	dev_set_name(&rdi->ibdev.dev, fmt, name, unit);
-	strlcpy(rdi->ibdev.name, dev_name(&rdi->ibdev.dev), IB_DEVICE_NAME_MAX);
+	strscpy(rdi->ibdev.name, dev_name(&rdi->ibdev.dev), IB_DEVICE_NAME_MAX);
 }
 
 /**

@@ -1,5 +1,3 @@
-.. _numa_memory_policy:
-
 ==================
 NUMA Memory Policy
 ==================
@@ -111,7 +109,7 @@ VMA Policy
 	* A task may install a new VMA policy on a sub-range of a
 	  previously mmap()ed region.  When this happens, Linux splits
 	  the existing virtual memory area into 2 or 3 VMAs, each with
-	  it's own policy.
+	  its own policy.
 
 	* By default, VMA policy applies only to pages allocated after
 	  the policy is installed.  Any pages already faulted into the
@@ -245,6 +243,22 @@ MPOL_INTERLEAVED
 	address range or file.  During system boot up, the temporary
 	interleaved system default policy works in this mode.
 
+MPOL_PREFERRED_MANY
+	This mode specifies that the allocation should be preferably
+	satisfied from the nodemask specified in the policy. If there is
+	a memory pressure on all nodes in the nodemask, the allocation
+	can fall back to all existing numa nodes. This is effectively
+	MPOL_PREFERRED allowed for a mask rather than a single node.
+
+MPOL_WEIGHTED_INTERLEAVE
+	This mode operates the same as MPOL_INTERLEAVE, except that
+	interleaving behavior is executed based on weights set in
+	/sys/kernel/mm/mempolicy/weighted_interleave/
+
+	Weighted interleave allocates pages on nodes according to a
+	weight.  For example if nodes [0,1] are weighted [5,2], 5 pages
+	will be allocated on node0 for every 2 pages allocated on node1.
+
 NUMA memory policy supports the following optional mode flags:
 
 MPOL_F_STATIC_NODES
@@ -253,10 +267,10 @@ MPOL_F_STATIC_NODES
 	nodes changes after the memory policy has been defined.
 
 	Without this flag, any time a mempolicy is rebound because of a
-	change in the set of allowed nodes, the node (Preferred) or
-	nodemask (Bind, Interleave) is remapped to the new set of
-	allowed nodes.  This may result in nodes being used that were
-	previously undesired.
+        change in the set of allowed nodes, the preferred nodemask (Preferred
+        Many), preferred node (Preferred) or nodemask (Bind, Interleave) is
+        remapped to the new set of allowed nodes.  This may result in nodes
+        being used that were previously undesired.
 
 	With this flag, if the user-specified nodes overlap with the
 	nodes allowed by the task's cpuset, then the memory policy is
@@ -353,7 +367,7 @@ and NUMA nodes.  "Usage" here means one of the following:
 2) examination of the policy to determine the policy mode and associated node
    or node lists, if any, for page allocation.  This is considered a "hot
    path".  Note that for MPOL_BIND, the "usage" extends across the entire
-   allocation process, which may sleep during page reclaimation, because the
+   allocation process, which may sleep during page reclamation, because the
    BIND policy nodemask is used, by reference, to filter ineligible nodes.
 
 We can avoid taking an extra reference during the usages listed above as
@@ -364,19 +378,19 @@ follows:
 
 2) for querying the policy, we do not need to take an extra reference on the
    target task's task policy nor vma policies because we always acquire the
-   task's mm's mmap_sem for read during the query.  The set_mempolicy() and
-   mbind() APIs [see below] always acquire the mmap_sem for write when
+   task's mm's mmap_lock for read during the query.  The set_mempolicy() and
+   mbind() APIs [see below] always acquire the mmap_lock for write when
    installing or replacing task or vma policies.  Thus, there is no possibility
    of a task or thread freeing a policy while another task or thread is
    querying it.
 
 3) Page allocation usage of task or vma policy occurs in the fault path where
-   we hold them mmap_sem for read.  Again, because replacing the task or vma
-   policy requires that the mmap_sem be held for write, the policy can't be
+   we hold them mmap_lock for read.  Again, because replacing the task or vma
+   policy requires that the mmap_lock be held for write, the policy can't be
    freed out from under us while we're using it for page allocation.
 
 4) Shared policies require special consideration.  One task can replace a
-   shared memory policy while another task, with a distinct mmap_sem, is
+   shared memory policy while another task, with a distinct mmap_lock, is
    querying or allocating a page based on the policy.  To resolve this
    potential race, the shared policy infrastructure adds an extra reference
    to the shared policy during lookup while holding a spin lock on the shared
@@ -401,7 +415,7 @@ follows:
 Memory Policy APIs
 ==================
 
-Linux supports 3 system calls for controlling memory policy.  These APIS
+Linux supports 4 system calls for controlling memory policy.  These APIS
 always affect only the calling task, the calling task's address space, or
 some shared object mapped into the calling task's address space.
 
@@ -452,6 +466,20 @@ by the 'start' and 'len' arguments.  Additional actions may be
 requested via the 'flags' argument.
 
 See the mbind(2) man page for more details.
+
+Set home node for a Range of Task's Address Spacec::
+
+	long sys_set_mempolicy_home_node(unsigned long start, unsigned long len,
+					 unsigned long home_node,
+					 unsigned long flags);
+
+sys_set_mempolicy_home_node set the home node for a VMA policy present in the
+task's address range. The system call updates the home node only for the existing
+mempolicy range. Other address ranges are ignored. A home node is the NUMA node
+closest to which page allocation will come from. Specifying the home node override
+the default allocation policy to allocate memory close to the local node for an
+executing CPU.
+
 
 Memory Policy Command Line Interface
 ====================================

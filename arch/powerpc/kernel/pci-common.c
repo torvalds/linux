@@ -29,19 +29,21 @@
 #include <linux/slab.h>
 #include <linux/vgaarb.h>
 #include <linux/numa.h>
+#include <linux/msi.h>
+#include <linux/irqdomain.h>
 
 #include <asm/processor.h>
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/pci-bridge.h>
 #include <asm/byteorder.h>
 #include <asm/machdep.h>
 #include <asm/ppc-pci.h>
 #include <asm/eeh.h>
+#include <asm/setup.h>
 
 #include "../../../drivers/pci/pci.h"
 
-/* hose_spinlock protects accesses to the the phb_bitmap. */
+/* hose_spinlock protects accesses to the phb_bitmap. */
 static DEFINE_SPINLOCK(hose_spinlock);
 LIST_HEAD(hose_list);
 
@@ -61,28 +63,40 @@ EXPORT_SYMBOL(isa_mem_base);
 
 static const struct dma_map_ops *pci_dma_ops;
 
-void set_pci_dma_ops(const struct dma_map_ops *dma_ops)
+void __init set_pci_dma_ops(const struct dma_map_ops *dma_ops)
 {
 	pci_dma_ops = dma_ops;
 }
 
-/*
- * This function should run under locking protection, specifically
- * hose_spinlock.
- */
 static int get_phb_number(struct device_node *dn)
 {
 	int ret, phb_id = -1;
-	u32 prop_32;
 	u64 prop;
 
 	/*
 	 * Try fixed PHB numbering first, by checking archs and reading
-	 * the respective device-tree properties. Firstly, try powernv by
-	 * reading "ibm,opal-phbid", only present in OPAL environment.
+	 * the respective device-tree properties. Firstly, try reading
+	 * standard "linux,pci-domain", then try reading "ibm,opal-phbid"
+	 * (only present in powernv OPAL environment), then try device-tree
+	 * alias and as the last try to use lower bits of "reg" property.
 	 */
-	ret = of_property_read_u64(dn, "ibm,opal-phbid", &prop);
+	ret = of_get_pci_domain_nr(dn);
+	if (ret >= 0) {
+		prop = ret;
+		ret = 0;
+	}
+	if (ret)
+		ret = of_property_read_u64(dn, "ibm,opal-phbid", &prop);
+
 	if (ret) {
+		ret = of_alias_get_id(dn, "pci");
+		if (ret >= 0) {
+			prop = ret;
+			ret = 0;
+		}
+	}
+	if (ret) {
+		u32 prop_32;
 		ret = of_property_read_u32_index(dn, "reg", 1, &prop_32);
 		prop = prop_32;
 	}
@@ -90,17 +104,19 @@ static int get_phb_number(struct device_node *dn)
 	if (!ret)
 		phb_id = (int)(prop & (MAX_PHBS - 1));
 
+	spin_lock(&hose_spinlock);
+
 	/* We need to be sure to not use the same PHB number twice. */
 	if ((phb_id >= 0) && !test_and_set_bit(phb_id, phb_bitmap))
-		return phb_id;
+		goto out_unlock;
 
-	/*
-	 * If not pseries nor powernv, or if fixed PHB numbering tried to add
-	 * the same PHB number twice, then fallback to dynamic PHB numbering.
-	 */
+	/* If everything fails then fallback to dynamic PHB numbering. */
 	phb_id = find_first_zero_bit(phb_bitmap, MAX_PHBS);
 	BUG_ON(phb_id >= MAX_PHBS);
 	set_bit(phb_id, phb_bitmap);
+
+out_unlock:
+	spin_unlock(&hose_spinlock);
 
 	return phb_id;
 }
@@ -109,14 +125,17 @@ struct pci_controller *pcibios_alloc_controller(struct device_node *dev)
 {
 	struct pci_controller *phb;
 
-	phb = zalloc_maybe_bootmem(sizeof(struct pci_controller), GFP_KERNEL);
+	phb = kzalloc(sizeof(struct pci_controller), GFP_KERNEL);
 	if (phb == NULL)
 		return NULL;
-	spin_lock(&hose_spinlock);
+
 	phb->global_number = get_phb_number(dev);
+
+	spin_lock(&hose_spinlock);
 	list_add_tail(&phb->list_node, &hose_list);
 	spin_unlock(&hose_spinlock);
-	phb->dn = dev;
+
+	phb->dn = of_node_get(dev);
 	phb->is_dynamic = slab_is_available();
 #ifdef CONFIG_PPC64
 	if (dev) {
@@ -139,7 +158,7 @@ void pcibios_free_controller(struct pci_controller *phb)
 	/* Clear bit of phb_bitmap to allow reuse of this PHB number. */
 	if (phb->global_number < MAX_PHBS)
 		clear_bit(phb->global_number, phb_bitmap);
-
+	of_node_put(phb->dn);
 	list_del(&phb->list_node);
 	spin_unlock(&hose_spinlock);
 
@@ -261,12 +280,6 @@ int pcibios_sriov_disable(struct pci_dev *pdev)
 
 #endif /* CONFIG_PCI_IOV */
 
-void pcibios_bus_add_device(struct pci_dev *pdev)
-{
-	if (ppc_md.pcibios_bus_add_device)
-		ppc_md.pcibios_bus_add_device(pdev);
-}
-
 static resource_size_t pcibios_io_size(const struct pci_controller *hose)
 {
 #ifdef CONFIG_PPC64
@@ -359,6 +372,55 @@ struct pci_controller *pci_find_controller_for_domain(int domain_nr)
 	return NULL;
 }
 
+struct pci_intx_virq {
+	int virq;
+	struct kref kref;
+	struct list_head list_node;
+};
+
+static LIST_HEAD(intx_list);
+static DEFINE_MUTEX(intx_mutex);
+
+static void ppc_pci_intx_release(struct kref *kref)
+{
+	struct pci_intx_virq *vi = container_of(kref, struct pci_intx_virq, kref);
+
+	list_del(&vi->list_node);
+	irq_dispose_mapping(vi->virq);
+	kfree(vi);
+}
+
+static int ppc_pci_unmap_irq_line(struct notifier_block *nb,
+			       unsigned long action, void *data)
+{
+	struct pci_dev *pdev = to_pci_dev(data);
+
+	if (action == BUS_NOTIFY_DEL_DEVICE) {
+		struct pci_intx_virq *vi;
+
+		mutex_lock(&intx_mutex);
+		list_for_each_entry(vi, &intx_list, list_node) {
+			if (vi->virq == pdev->irq) {
+				kref_put(&vi->kref, ppc_pci_intx_release);
+				break;
+			}
+		}
+		mutex_unlock(&intx_mutex);
+	}
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block ppc_pci_unmap_irq_notifier = {
+	.notifier_call = ppc_pci_unmap_irq_line,
+};
+
+static int ppc_pci_register_irq_notifier(void)
+{
+	return bus_register_notifier(&pci_bus_type, &ppc_pci_unmap_irq_notifier);
+}
+arch_initcall(ppc_pci_register_irq_notifier);
+
 /*
  * Reads the interrupt pin to determine if interrupt is use by card.
  * If the interrupt is used, then gets the interrupt line from the
@@ -367,6 +429,12 @@ struct pci_controller *pci_find_controller_for_domain(int domain_nr)
 static int pci_read_irq_line(struct pci_dev *pci_dev)
 {
 	int virq;
+	struct pci_intx_virq *vi, *vitmp;
+
+	/* Preallocate vi as rewind is complex if this fails after mapping */
+	vi = kzalloc(sizeof(struct pci_intx_virq), GFP_KERNEL);
+	if (!vi)
+		return -1;
 
 	pr_debug("PCI: Try to map irq for %s...\n", pci_name(pci_dev));
 
@@ -383,12 +451,12 @@ static int pci_read_irq_line(struct pci_dev *pci_dev)
 		 * function.
 		 */
 		if (pci_read_config_byte(pci_dev, PCI_INTERRUPT_PIN, &pin))
-			return -1;
+			goto error_exit;
 		if (pin == 0)
-			return -1;
+			goto error_exit;
 		if (pci_read_config_byte(pci_dev, PCI_INTERRUPT_LINE, &line) ||
 		    line == 0xff || line == 0) {
-			return -1;
+			goto error_exit;
 		}
 		pr_debug(" No map ! Using line %d (pin %d) from PCI config\n",
 			 line, pin);
@@ -400,14 +468,33 @@ static int pci_read_irq_line(struct pci_dev *pci_dev)
 
 	if (!virq) {
 		pr_debug(" Failed to map !\n");
-		return -1;
+		goto error_exit;
 	}
 
 	pr_debug(" Mapped to linux irq %d\n", virq);
 
 	pci_dev->irq = virq;
 
+	mutex_lock(&intx_mutex);
+	list_for_each_entry(vitmp, &intx_list, list_node) {
+		if (vitmp->virq == virq) {
+			kref_get(&vitmp->kref);
+			kfree(vi);
+			vi = NULL;
+			break;
+		}
+	}
+	if (vi) {
+		vi->virq = virq;
+		kref_init(&vi->kref);
+		list_add_tail(&vi->list_node, &intx_list);
+	}
+	mutex_unlock(&intx_mutex);
+
 	return 0;
+error_exit:
+	kfree(vi);
+	return -1;
 }
 
 /*
@@ -430,12 +517,11 @@ int pci_iobar_pfn(struct pci_dev *pdev, int bar, struct vm_area_struct *vma)
 }
 
 /*
- * This one is used by /dev/mem and fbdev who have no clue about the
+ * This one is used by /dev/mem and video who have no clue about the
  * PCI device, it tries to find the PCI device first and calls the
  * above routine
  */
-pgprot_t pci_phys_mem_access_prot(struct file *file,
-				  unsigned long pfn,
+pgprot_t pci_phys_mem_access_prot(unsigned long pfn,
 				  unsigned long size,
 				  pgprot_t prot)
 {
@@ -734,7 +820,7 @@ void pci_process_bridge_OF_ranges(struct pci_controller *hose,
 			       " MEM 0x%016llx..0x%016llx -> 0x%016llx %s\n",
 			       range.cpu_addr, range.cpu_addr + range.size - 1,
 			       range.pci_addr,
-			       (range.pci_space & 0x40000000) ?
+			       (range.flags & IORESOURCE_PREFETCH) ?
 			       "Prefetch" : "");
 
 			/* We support only 3 memory ranges */
@@ -793,6 +879,7 @@ int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
 static void pcibios_fixup_resources(struct pci_dev *dev)
 {
 	struct pci_controller *hose = pci_bus_to_host(dev->bus);
+	struct resource *res;
 	int i;
 
 	if (!hose) {
@@ -804,9 +891,9 @@ static void pcibios_fixup_resources(struct pci_dev *dev)
 	if (dev->is_virtfn)
 		return;
 
-	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
-		struct resource *res = dev->resource + i;
+	pci_dev_for_each_resource(dev, res, i) {
 		struct pci_bus_region reg;
+
 		if (!res->flags)
 			continue;
 
@@ -964,7 +1051,7 @@ void pcibios_setup_bus_self(struct pci_bus *bus)
 		phb->controller_ops.dma_bus_setup(bus);
 }
 
-static void pcibios_setup_device(struct pci_dev *dev)
+void pcibios_bus_add_device(struct pci_dev *dev)
 {
 	struct pci_controller *phb;
 	/* Fixup NUMA node as it may not be setup yet by the generic
@@ -985,41 +1072,24 @@ static void pcibios_setup_device(struct pci_dev *dev)
 	pci_read_irq_line(dev);
 	if (ppc_md.pci_irq_fixup)
 		ppc_md.pci_irq_fixup(dev);
+
+	if (ppc_md.pcibios_bus_add_device)
+		ppc_md.pcibios_bus_add_device(dev);
 }
 
-int pcibios_add_device(struct pci_dev *dev)
+int pcibios_device_add(struct pci_dev *dev)
 {
-	/*
-	 * We can only call pcibios_setup_device() after bus setup is complete,
-	 * since some of the platform specific DMA setup code depends on it.
-	 */
-	if (dev->bus->is_added)
-		pcibios_setup_device(dev);
+	struct irq_domain *d;
 
 #ifdef CONFIG_PCI_IOV
 	if (ppc_md.pcibios_fixup_sriov)
 		ppc_md.pcibios_fixup_sriov(dev);
 #endif /* CONFIG_PCI_IOV */
 
+	d = dev_get_msi_domain(&dev->bus->dev);
+	if (d)
+		dev_set_msi_domain(&dev->dev, d);
 	return 0;
-}
-
-void pcibios_setup_bus_devices(struct pci_bus *bus)
-{
-	struct pci_dev *dev;
-
-	pr_debug("PCI: Fixup bus devices %d (%s)\n",
-		 bus->number, bus->self ? pci_name(bus->self) : "PHB");
-
-	list_for_each_entry(dev, &bus->devices, bus_list) {
-		/* Cardbus can call us to add new devices to a bus, so ignore
-		 * those who are already fully discovered
-		 */
-		if (pci_dev_is_added(dev))
-			continue;
-
-		pcibios_setup_device(dev);
-	}
 }
 
 void pcibios_set_master(struct pci_dev *dev)
@@ -1035,20 +1105,10 @@ void pcibios_fixup_bus(struct pci_bus *bus)
 	 */
 	pci_read_bridge_bases(bus);
 
-	/* Now fixup the bus bus */
+	/* Now fixup the bus */
 	pcibios_setup_bus_self(bus);
-
-	/* Now fixup devices on that bus */
-	pcibios_setup_bus_devices(bus);
 }
 EXPORT_SYMBOL(pcibios_fixup_bus);
-
-void pci_fixup_cardbus(struct pci_bus *bus)
-{
-	/* Now fixup devices on that bus */
-	pcibios_setup_bus_devices(bus);
-}
-
 
 static int skip_isa_ioresource_align(struct pci_dev *dev)
 {
@@ -1392,11 +1452,10 @@ void pcibios_claim_one_bus(struct pci_bus *bus)
 	struct pci_bus *child_bus;
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
+		struct resource *r;
 		int i;
 
-		for (i = 0; i < PCI_NUM_RESOURCES; i++) {
-			struct resource *r = &dev->resource[i];
-
+		pci_dev_for_each_resource(dev, r, i) {
 			if (r->parent || !r->start || !r->flags)
 				continue;
 
@@ -1437,14 +1496,8 @@ void pcibios_finish_adding_to_bus(struct pci_bus *bus)
 			pci_assign_unassigned_bus_resources(bus);
 	}
 
-	/* Fixup EEH */
-	eeh_add_device_tree_late(bus);
-
 	/* Add new devices to global lists.  Register in proc, sysfs. */
 	pci_bus_add_devices(bus);
-
-	/* sysfs files should only be added after devices are added */
-	eeh_add_sysfs_files(bus);
 }
 EXPORT_SYMBOL_GPL(pcibios_finish_adding_to_bus);
 
@@ -1651,21 +1704,32 @@ EXPORT_SYMBOL_GPL(pcibios_scan_phb);
 
 static void fixup_hide_host_resource_fsl(struct pci_dev *dev)
 {
-	int i, class = dev->class >> 8;
-	/* When configured as agent, programing interface = 1 */
+	int class = dev->class >> 8;
+	/* When configured as agent, programming interface = 1 */
 	int prog_if = dev->class & 0xf;
+	struct resource *r;
 
 	if ((class == PCI_CLASS_PROCESSOR_POWERPC ||
 	     class == PCI_CLASS_BRIDGE_OTHER) &&
 		(dev->hdr_type == PCI_HEADER_TYPE_NORMAL) &&
 		(prog_if == 0) &&
 		(dev->bus->parent == NULL)) {
-		for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
-			dev->resource[i].start = 0;
-			dev->resource[i].end = 0;
-			dev->resource[i].flags = 0;
+		pci_dev_for_each_resource(dev, r) {
+			r->start = 0;
+			r->end = 0;
+			r->flags = 0;
 		}
 	}
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MOTOROLA, PCI_ANY_ID, fixup_hide_host_resource_fsl);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_FREESCALE, PCI_ANY_ID, fixup_hide_host_resource_fsl);
+
+
+static int __init discover_phbs(void)
+{
+	if (ppc_md.discover_phbs)
+		ppc_md.discover_phbs();
+
+	return 0;
+}
+core_initcall(discover_phbs);

@@ -1,41 +1,44 @@
 # SPDX-License-Identifier: GPL-2.0-only
+menuconfig ARCH_OMAP1
+	bool "TI OMAP1"
+	depends on ARCH_MULTI_V4T || ARCH_MULTI_V5
+	depends on CPU_LITTLE_ENDIAN
+	depends on ATAGS
+	select ARCH_HAS_HOLES_MEMORYMODEL
+	select ARCH_OMAP
+	select CLKSRC_MMIO
+	select FORCE_PCI if PCCARD
+	select GPIOLIB
+	help
+	  Support for older TI OMAP1 (omap7xx, omap15xx or omap16xx)
+
 if ARCH_OMAP1
 
 menu "TI OMAP1 specific features"
 
 comment "OMAP Core Type"
-	depends on ARCH_OMAP1
-
-config ARCH_OMAP730
-	depends on ARCH_OMAP1
-	bool "OMAP730 Based System"
-	select ARCH_OMAP_OTG
-	select CPU_ARM926T
-	select OMAP_MPU_TIMER
-
-config ARCH_OMAP850
-	depends on ARCH_OMAP1
-	bool "OMAP850 Based System"
-	select ARCH_OMAP_OTG
-	select CPU_ARM926T
 
 config ARCH_OMAP15XX
-	depends on ARCH_OMAP1
+	depends on ARCH_MULTI_V4T
 	default y
 	bool "OMAP15xx Based System"
 	select CPU_ARM925T
 	select OMAP_MPU_TIMER
 
 config ARCH_OMAP16XX
-	depends on ARCH_OMAP1
+	depends on ARCH_MULTI_V5
 	bool "OMAP16xx Based System"
 	select ARCH_OMAP_OTG
 	select CPU_ARM926T
 	select OMAP_DM_TIMER
 
+config ARCH_OMAP
+	bool
+
+comment "OMAP Feature Selections"
+
 config OMAP_MUX
 	bool "OMAP multiplexing support"
-	depends on ARCH_OMAP
 	default y
 	help
 	  Pin multiplexing support for OMAP boards. If your bootloader
@@ -59,114 +62,94 @@ config OMAP_MUX_WARNINGS
 	  to change the pin multiplexing setup.	 When there are no warnings
 	  printed, it's safe to deselect OMAP_MUX for your product.
 
-comment "OMAP Board Type"
+config OMAP_32K_TIMER
+	bool "Use 32KHz timer"
+	depends on ARCH_OMAP16XX
+	default ARCH_OMAP16XX
+	help
+	  Select this option if you want to enable the OMAP 32KHz timer.
+	  This timer saves power compared to the OMAP_MPU_TIMER, and has
+	  support for no tick during idle. The 32KHz timer provides less
+	  intra-tick resolution than OMAP_MPU_TIMER. The 32KHz timer is
+	  currently only available for OMAP16XX, 24XX, 34XX, OMAP4/5 and DRA7XX.
+
+	  On OMAP2PLUS this value is only used for CONFIG_HZ and
+	  CLOCK_TICK_RATE compile time calculation.
+	  The actual timer selection is done in the board file
+	  through the (DT_)MACHINE_START structure.
+
+config OMAP_MPU_TIMER
+	bool "Use mpu timer"
 	depends on ARCH_OMAP1
-
-config MACH_OMAP_INNOVATOR
-	bool "TI Innovator"
-	depends on ARCH_OMAP1 && (ARCH_OMAP15XX || ARCH_OMAP16XX)
 	help
-          TI OMAP 1510 or 1610 Innovator board support. Say Y here if you
-          have such a board.
+	  Select this option if you want to use the OMAP mpu timer. This
+	  timer provides more intra-tick resolution than the 32KHz timer,
+	  but consumes more power.
 
-config MACH_OMAP_H2
-	bool "TI H2 Support"
-	depends on ARCH_OMAP1 && ARCH_OMAP16XX
-    	help
-	  TI OMAP 1610/1611B H2 board support. Say Y here if you have such
-	  a board.
-
-config MACH_OMAP_H3
-	bool "TI H3 Support"
-	depends on ARCH_OMAP1 && ARCH_OMAP16XX
-    	help
-	  TI OMAP 1710 H3 board support. Say Y here if you have such
-	  a board.
-
-config MACH_HERALD
-	bool "HTC Herald"
-	depends on ARCH_OMAP850
+config OMAP_SERIAL_WAKE
+	bool "Enable wake-up events for serial ports"
+	depends on ARCH_OMAP1 && OMAP_MUX
+	default y
 	help
-	  HTC Herald smartphone support (AKA T-Mobile Wing, ...)
+	  Select this option if you want to have your system wake up
+	  to data on the serial RX line. This allows you to wake the
+	  system from serial console.
+
+config OMAP_RESET_CLOCKS
+	bool "Reset unused clocks during boot"
+	depends on ARCH_OMAP
+	help
+	  Say Y if you want to reset unused clocks during boot.
+	  This option saves power, but assumes all drivers are
+	  using the clock framework. Broken drivers that do not
+	  yet use clock framework may not work with this option.
+	  If you are booting from another operating system, you
+	  probably do not want this option enabled until your
+	  device drivers work properly.
+
+config ARCH_OMAP_OTG
+	bool
+
+comment "OMAP Board Type"
 
 config MACH_OMAP_OSK
 	bool "TI OSK Support"
-	depends on ARCH_OMAP1 && ARCH_OMAP16XX
-    	help
+	depends on ARCH_OMAP16XX
+	help
 	  TI OMAP 5912 OSK (OMAP Starter Kit) board support. Say Y here
-          if you have such a board.
-
-config OMAP_OSK_MISTRAL
-	bool "Mistral QVGA board Support"
-	depends on MACH_OMAP_OSK
-    	help
-	  The OSK supports an optional add-on board with a Quarter-VGA
-	  touchscreen, PDA-ish buttons, a resume button, bicolor LED,
-	  and camera connector.  Say Y here if you have this board.
-
-config MACH_OMAP_PERSEUS2
-	bool "TI Perseus2"
-	depends on ARCH_OMAP1 && ARCH_OMAP730
-    	help
-	  Support for TI OMAP 730 Perseus2 board. Say Y here if you have such
-	  a board.
-
-config MACH_OMAP_FSAMPLE
-	bool "TI F-Sample"
-	depends on ARCH_OMAP1 && ARCH_OMAP730
-    	help
-	  Support for TI OMAP 850 F-Sample board. Say Y here if you have such
-	  a board.
+	  if you have such a board.
 
 config MACH_OMAP_PALMTE
 	bool "Palm Tungsten E"
-	depends on ARCH_OMAP1 && ARCH_OMAP15XX
+	depends on ARCH_OMAP15XX
 	help
 	  Support for the Palm Tungsten E PDA.  To boot the kernel, you'll
 	  need a PalmOS compatible bootloader; check out
 	  http://palmtelinux.sourceforge.net/ for more information.
 	  Say Y here if you have this PDA model, say N otherwise.
 
-config MACH_OMAP_PALMZ71
-	bool "Palm Zire71"
-	depends on ARCH_OMAP1 && ARCH_OMAP15XX
-	help
-	 Support for the Palm Zire71 PDA. To boot the kernel,
-	 you'll need a PalmOS compatible bootloader; check out
-	 http://hackndev.com/palm/z71 for more information.
-	 Say Y here if you have such a PDA, say N otherwise.
-
-config MACH_OMAP_PALMTT
-	bool "Palm Tungsten|T"
-	depends on ARCH_OMAP1 && ARCH_OMAP15XX
-	help
-	  Support for the Palm Tungsten|T PDA. To boot the kernel, you'll
-	  need a PalmOS compatible bootloader (Garux); check out
-	  http://garux.sourceforge.net/ for more information.
-	  Say Y here if you have this PDA model, say N otherwise.
-
 config MACH_SX1
 	bool "Siemens SX1"
-	depends on ARCH_OMAP1 && ARCH_OMAP15XX
+	depends on ARCH_OMAP15XX
 	select I2C
 	help
 	  Support for the Siemens SX1 phone. To boot the kernel,
 	  you'll need a SX1 compatible bootloader; check out
 	  http://forum.oslik.ru and
-	  http://www.handhelds.org/moin/moin.cgi/SiemensSX1
+	  https://www.handhelds.org/moin/moin.cgi/SiemensSX1
 	  for more information.
 	  Say Y here if you have such a phone, say NO otherwise.
 
 config MACH_NOKIA770
 	bool "Nokia 770"
-	depends on ARCH_OMAP1 && ARCH_OMAP16XX
+	depends on ARCH_OMAP16XX
 	help
 	  Support for the Nokia 770 Internet Tablet. Say Y here if you
 	  have such a device.
 
 config MACH_AMS_DELTA
 	bool "Amstrad E3 (Delta)"
-	depends on ARCH_OMAP1 && ARCH_OMAP15XX
+	depends on ARCH_OMAP15XX
 	select FIQ
 	select GPIO_GENERIC_PLATFORM
 	select LEDS_GPIO_REGISTER
@@ -175,15 +158,6 @@ config MACH_AMS_DELTA
 	help
 	  Support for the Amstrad E3 (codename Delta) videophone. Say Y here
 	  if you have such a device.
-
-config MACH_OMAP_GENERIC
-	bool "Generic OMAP board"
-	depends on ARCH_OMAP1 && (ARCH_OMAP15XX || ARCH_OMAP16XX)
-	help
-          Support for generic OMAP-1510, 1610 or 1710 board with
-          no FPGA. Can be used as template for porting Linux to
-          custom OMAP boards. Say Y here if you have a custom
-          board.
 
 endmenu
 

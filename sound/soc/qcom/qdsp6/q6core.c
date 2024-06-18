@@ -339,7 +339,7 @@ static int q6core_probe(struct apr_device *adev)
 	return 0;
 }
 
-static int q6core_exit(struct apr_device *adev)
+static void q6core_exit(struct apr_device *adev)
 {
 	struct q6core *core = dev_get_drvdata(&adev->dev);
 
@@ -350,15 +350,15 @@ static int q6core_exit(struct apr_device *adev)
 
 	g_core = NULL;
 	kfree(core);
-
-	return 0;
 }
 
+#ifdef CONFIG_OF
 static const struct of_device_id q6core_device_id[]  = {
 	{ .compatible = "qcom,q6core" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, q6core_device_id);
+#endif
 
 static struct apr_driver qcom_q6core_driver = {
 	.probe = q6core_probe,

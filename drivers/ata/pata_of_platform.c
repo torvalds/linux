@@ -15,7 +15,7 @@
 
 #define DRV_NAME "pata_of_platform"
 
-static struct scsi_host_template pata_platform_sht = {
+static const struct scsi_host_template pata_platform_sht = {
 	ATA_PIO_SHT(DRV_NAME),
 };
 
@@ -25,11 +25,12 @@ static int pata_of_platform_probe(struct platform_device *ofdev)
 	struct device_node *dn = ofdev->dev.of_node;
 	struct resource io_res;
 	struct resource ctl_res;
-	struct resource *irq_res;
+	struct resource irq_res;
 	unsigned int reg_shift = 0;
 	int pio_mode = 0;
 	int pio_mask;
 	bool use16bit;
+	int irq;
 
 	ret = of_address_to_resource(dn, 0, &io_res);
 	if (ret) {
@@ -45,7 +46,15 @@ static int pata_of_platform_probe(struct platform_device *ofdev)
 		return -EINVAL;
 	}
 
-	irq_res = platform_get_resource(ofdev, IORESOURCE_IRQ, 0);
+	memset(&irq_res, 0, sizeof(irq_res));
+
+	irq = platform_get_irq_optional(ofdev, 0);
+	if (irq < 0 && irq != -ENXIO)
+		return irq;
+	if (irq > 0) {
+		irq_res.start = irq;
+		irq_res.end = irq;
+	}
 
 	of_property_read_u32(dn, "reg-shift", &reg_shift);
 
@@ -63,14 +72,14 @@ static int pata_of_platform_probe(struct platform_device *ofdev)
 	pio_mask = 1 << pio_mode;
 	pio_mask |= (1 << pio_mode) - 1;
 
-	return __pata_platform_probe(&ofdev->dev, &io_res, &ctl_res, irq_res,
+	return __pata_platform_probe(&ofdev->dev, &io_res, &ctl_res, irq > 0 ? &irq_res : NULL,
 				     reg_shift, pio_mask, &pata_platform_sht,
 				     use16bit);
 }
 
 static const struct of_device_id pata_of_platform_match[] = {
 	{ .compatible = "ata-generic", },
-	{ },
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, pata_of_platform_match);
 
@@ -80,7 +89,7 @@ static struct platform_driver pata_of_platform_driver = {
 		.of_match_table = pata_of_platform_match,
 	},
 	.probe		= pata_of_platform_probe,
-	.remove		= ata_platform_remove_one,
+	.remove_new	= ata_platform_remove_one,
 };
 
 module_platform_driver(pata_of_platform_driver);

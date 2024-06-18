@@ -37,6 +37,10 @@
 
 #define YYTH_MAGIC	0x1B5E783D
 #define YYTH_FLAG_DIFF_ENCODE	1
+#define YYTH_FLAG_OOB_TRANS	2
+#define YYTH_FLAGS (YYTH_FLAG_DIFF_ENCODE | YYTH_FLAG_OOB_TRANS)
+
+#define MAX_OOB_SUPPORTED	1
 
 struct table_set_header {
 	u32 th_magic;		/* YYTH_MAGIC */
@@ -94,11 +98,9 @@ struct table_header {
 struct aa_dfa {
 	struct kref count;
 	u16 flags;
+	u32 max_oob;
 	struct table_header *tables[YYTD_ID_TSIZE];
 };
-
-extern struct aa_dfa *nulldfa;
-extern struct aa_dfa *stacksplitdfa;
 
 #define byte_to_byte(X) (X)
 
@@ -117,24 +119,23 @@ static inline size_t table_size(size_t len, size_t el_size)
 	return ALIGN(sizeof(struct table_header) + len * el_size, 8);
 }
 
-int aa_setup_dfa_engine(void);
-void aa_teardown_dfa_engine(void);
+#define aa_state_t unsigned int
 
 struct aa_dfa *aa_dfa_unpack(void *blob, size_t size, int flags);
-unsigned int aa_dfa_match_len(struct aa_dfa *dfa, unsigned int start,
-			      const char *str, int len);
-unsigned int aa_dfa_match(struct aa_dfa *dfa, unsigned int start,
-			  const char *str);
-unsigned int aa_dfa_next(struct aa_dfa *dfa, unsigned int state,
-			 const char c);
-unsigned int aa_dfa_match_until(struct aa_dfa *dfa, unsigned int start,
-				const char *str, const char **retpos);
-unsigned int aa_dfa_matchn_until(struct aa_dfa *dfa, unsigned int start,
-				 const char *str, int n, const char **retpos);
+aa_state_t aa_dfa_match_len(struct aa_dfa *dfa, aa_state_t start,
+			    const char *str, int len);
+aa_state_t aa_dfa_match(struct aa_dfa *dfa, aa_state_t start,
+			const char *str);
+aa_state_t aa_dfa_next(struct aa_dfa *dfa, aa_state_t state, const char c);
+aa_state_t aa_dfa_outofband_transition(struct aa_dfa *dfa, aa_state_t state);
+aa_state_t aa_dfa_match_until(struct aa_dfa *dfa, aa_state_t start,
+			      const char *str, const char **retpos);
+aa_state_t aa_dfa_matchn_until(struct aa_dfa *dfa, aa_state_t start,
+			       const char *str, int n, const char **retpos);
 
 void aa_dfa_free_kref(struct kref *kref);
 
-#define WB_HISTORY_SIZE 8
+#define WB_HISTORY_SIZE 24
 struct match_workbuf {
 	unsigned int count;
 	unsigned int pos;
@@ -147,11 +148,10 @@ struct match_workbuf N = {		\
 	.count = 0,			\
 	.pos = 0,			\
 	.len = 0,			\
-	.size = WB_HISTORY_SIZE,			\
 }
 
-unsigned int aa_dfa_leftmatch(struct aa_dfa *dfa, unsigned int start,
-			      const char *str, unsigned int *count);
+aa_state_t aa_dfa_leftmatch(struct aa_dfa *dfa, aa_state_t start,
+			    const char *str, unsigned int *count);
 
 /**
  * aa_get_dfa - increment refcount on dfa @p
@@ -182,5 +182,9 @@ static inline void aa_put_dfa(struct aa_dfa *dfa)
 
 #define MATCH_FLAG_DIFF_ENCODE 0x80000000
 #define MARK_DIFF_ENCODE 0x40000000
+#define MATCH_FLAG_OOB_TRANSITION 0x20000000
+#define MATCH_FLAGS_MASK 0xff000000
+#define MATCH_FLAGS_VALID (MATCH_FLAG_DIFF_ENCODE | MATCH_FLAG_OOB_TRANSITION)
+#define MATCH_FLAGS_INVALID (MATCH_FLAGS_MASK & ~MATCH_FLAGS_VALID)
 
 #endif /* __AA_MATCH_H */

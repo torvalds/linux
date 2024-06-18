@@ -22,6 +22,8 @@ MODULE_LICENSE("GPL");
 /* the IPMI timeout is 5s */
 #define IPMI_TIMEOUT			(5000)
 #define ACPI_IPMI_MAX_MSG_LENGTH	64
+/* 2s should be suffient for SMI being selected */
+#define ACPI_IPMI_SMI_SELECTION_TIMEOUT	(2 * HZ)
 
 struct acpi_ipmi_device {
 	/* the device list attached to driver_data.ipmi_devices */
@@ -54,6 +56,7 @@ struct ipmi_driver_data {
 	 * to this selected global IPMI system interface.
 	 */
 	struct acpi_ipmi_device *selected_smi;
+	struct completion smi_selection_done;
 };
 
 struct acpi_ipmi_msg {
@@ -353,29 +356,27 @@ static void ipmi_flush_tx_msg(struct acpi_ipmi_device *ipmi)
 static void ipmi_cancel_tx_msg(struct acpi_ipmi_device *ipmi,
 			       struct acpi_ipmi_msg *msg)
 {
-	struct acpi_ipmi_msg *tx_msg, *temp;
-	bool msg_found = false;
+	struct acpi_ipmi_msg *tx_msg = NULL, *iter, *temp;
 	unsigned long flags;
 
 	spin_lock_irqsave(&ipmi->tx_msg_lock, flags);
-	list_for_each_entry_safe(tx_msg, temp, &ipmi->tx_msg_list, head) {
-		if (msg == tx_msg) {
-			msg_found = true;
-			list_del(&tx_msg->head);
+	list_for_each_entry_safe(iter, temp, &ipmi->tx_msg_list, head) {
+		if (msg == iter) {
+			tx_msg = iter;
+			list_del(&iter->head);
 			break;
 		}
 	}
 	spin_unlock_irqrestore(&ipmi->tx_msg_lock, flags);
 
-	if (msg_found)
+	if (tx_msg)
 		acpi_ipmi_msg_put(tx_msg);
 }
 
 static void ipmi_msg_handler(struct ipmi_recv_msg *msg, void *user_msg_data)
 {
 	struct acpi_ipmi_device *ipmi_device = user_msg_data;
-	bool msg_found = false;
-	struct acpi_ipmi_msg *tx_msg, *temp;
+	struct acpi_ipmi_msg *tx_msg = NULL, *iter, *temp;
 	struct device *dev = ipmi_device->dev;
 	unsigned long flags;
 
@@ -387,16 +388,16 @@ static void ipmi_msg_handler(struct ipmi_recv_msg *msg, void *user_msg_data)
 	}
 
 	spin_lock_irqsave(&ipmi_device->tx_msg_lock, flags);
-	list_for_each_entry_safe(tx_msg, temp, &ipmi_device->tx_msg_list, head) {
-		if (msg->msgid == tx_msg->tx_msgid) {
-			msg_found = true;
-			list_del(&tx_msg->head);
+	list_for_each_entry_safe(iter, temp, &ipmi_device->tx_msg_list, head) {
+		if (msg->msgid == iter->tx_msgid) {
+			tx_msg = iter;
+			list_del(&iter->head);
 			break;
 		}
 	}
 	spin_unlock_irqrestore(&ipmi_device->tx_msg_lock, flags);
 
-	if (!msg_found) {
+	if (!tx_msg) {
 		dev_warn(dev,
 			 "Unexpected response (msg id %ld) is returned.\n",
 			 msg->msgid);
@@ -465,8 +466,10 @@ static void ipmi_register_bmc(int iface, struct device *dev)
 		if (temp->handle == handle)
 			goto err_lock;
 	}
-	if (!driver_data.selected_smi)
+	if (!driver_data.selected_smi) {
 		driver_data.selected_smi = ipmi_device;
+		complete(&driver_data.smi_selection_done);
+	}
 	list_add_tail(&ipmi_device->head, &driver_data.ipmi_devices);
 	mutex_unlock(&driver_data.ipmi_lock);
 
@@ -478,20 +481,18 @@ err_lock:
 	ipmi_dev_release(ipmi_device);
 err_ref:
 	put_device(smi_data.dev);
-	return;
 }
 
 static void ipmi_bmc_gone(int iface)
 {
-	struct acpi_ipmi_device *ipmi_device, *temp;
-	bool dev_found = false;
+	struct acpi_ipmi_device *ipmi_device = NULL, *iter, *temp;
 
 	mutex_lock(&driver_data.ipmi_lock);
-	list_for_each_entry_safe(ipmi_device, temp,
+	list_for_each_entry_safe(iter, temp,
 				 &driver_data.ipmi_devices, head) {
-		if (ipmi_device->ipmi_ifnum != iface) {
-			dev_found = true;
-			__ipmi_dev_kill(ipmi_device);
+		if (iter->ipmi_ifnum != iface) {
+			ipmi_device = iter;
+			__ipmi_dev_kill(iter);
 			break;
 		}
 	}
@@ -501,7 +502,7 @@ static void ipmi_bmc_gone(int iface)
 					struct acpi_ipmi_device, head);
 	mutex_unlock(&driver_data.ipmi_lock);
 
-	if (dev_found) {
+	if (ipmi_device) {
 		ipmi_flush_tx_msg(ipmi_device);
 		acpi_ipmi_dev_put(ipmi_device);
 	}
@@ -582,6 +583,20 @@ out_msg:
 	return status;
 }
 
+int acpi_wait_for_acpi_ipmi(void)
+{
+	long ret;
+
+	ret = wait_for_completion_interruptible_timeout(&driver_data.smi_selection_done,
+							ACPI_IPMI_SMI_SELECTION_TIMEOUT);
+
+	if (ret <= 0)
+		return -ETIMEDOUT;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(acpi_wait_for_acpi_ipmi);
+
 static int __init acpi_ipmi_init(void)
 {
 	int result;
@@ -589,6 +604,8 @@ static int __init acpi_ipmi_init(void)
 
 	if (acpi_disabled)
 		return 0;
+
+	init_completion(&driver_data.smi_selection_done);
 
 	status = acpi_install_address_space_handler(ACPI_ROOT_OBJECT,
 						    ACPI_ADR_SPACE_IPMI,
@@ -598,9 +615,14 @@ static int __init acpi_ipmi_init(void)
 		pr_warn("Can't register IPMI opregion space handle\n");
 		return -EINVAL;
 	}
+
 	result = ipmi_smi_watcher_register(&driver_data.bmc_events);
-	if (result)
+	if (result) {
+		acpi_remove_address_space_handler(ACPI_ROOT_OBJECT,
+										  ACPI_ADR_SPACE_IPMI,
+										  &acpi_ipmi_space_handler);
 		pr_err("Can't register IPMI system interface watcher\n");
+	}
 
 	return result;
 }

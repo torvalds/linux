@@ -1,0 +1,186 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pci/renesas,pci-rcar-gen2.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Renesas AHB to PCI bridge
+
+maintainers:
+  - Marek Vasut <marek.vasut+renesas@gmail.com>
+  - Yoshihiro Shimoda <yoshihiro.shimoda.uh@renesas.com>
+
+description: |
+  This is the bridge used internally to connect the USB controllers to the
+  AHB. There is one bridge instance per USB port connected to the internal
+  OHCI and EHCI controllers.
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - renesas,pci-r8a7742      # RZ/G1H
+              - renesas,pci-r8a7743      # RZ/G1M
+              - renesas,pci-r8a7744      # RZ/G1N
+              - renesas,pci-r8a7745      # RZ/G1E
+              - renesas,pci-r8a7790      # R-Car H2
+              - renesas,pci-r8a7791      # R-Car M2-W
+              - renesas,pci-r8a7793      # R-Car M2-N
+              - renesas,pci-r8a7794      # R-Car E2
+          - const: renesas,pci-rcar-gen2 # R-Car Gen2 and RZ/G1
+      - items:
+          - enum:
+              - renesas,pci-r9a06g032     # RZ/N1D
+          - const: renesas,pci-rzn1       # RZ/N1
+
+  reg:
+    items:
+      - description: Operational registers for the OHCI/EHCI controllers.
+      - description: Bridge configuration and control registers.
+
+  interrupts:
+    maxItems: 1
+
+  clocks: true
+
+  clock-names: true
+
+  resets:
+    maxItems: 1
+
+  power-domains:
+    maxItems: 1
+
+  bus-range:
+    description: |
+      The PCI bus number range; as this is a single bus, the range
+      should be specified as the same value twice.
+
+  dma-ranges:
+    description: |
+      A single range for the inbound memory region. If not supplied,
+      defaults to 1GiB at 0x40000000. Note there are hardware restrictions on
+      the allowed combinations of address and size.
+    maxItems: 1
+
+patternProperties:
+  '^usb@[0-1],0$':
+    type: object
+
+    description:
+      This a USB controller PCI device
+
+    properties:
+      reg:
+        description:
+          Identify the correct bus, device and function number in the
+          form <bdf 0 0 0 0>.
+
+        items:
+          minItems: 5
+          maxItems: 5
+
+      phys:
+        description:
+          Reference to the USB phy
+        maxItems: 1
+
+      phy-names:
+        maxItems: 1
+
+    required:
+      - reg
+      - phys
+      - phy-names
+
+    unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - interrupt-map
+  - interrupt-map-mask
+  - clocks
+  - power-domains
+  - bus-range
+  - "#address-cells"
+  - "#size-cells"
+  - "#interrupt-cells"
+
+allOf:
+  - $ref: /schemas/pci/pci-host-bridge.yaml#
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - renesas,pci-rzn1
+    then:
+      properties:
+        clocks:
+          items:
+            - description: Internal bus clock (AHB) for HOST
+            - description: Internal bus clock (AHB) Power Management
+            - description: PCI clock for USB subsystem
+        clock-names:
+          items:
+            - const: hclkh
+            - const: hclkpm
+            - const: pciclk
+      required:
+        - clock-names
+    else:
+      properties:
+        clocks:
+          items:
+            - description: Device clock
+        clock-names:
+          items:
+            - const: pclk
+      required:
+        - resets
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/r8a7790-cpg-mssr.h>
+    #include <dt-bindings/power/r8a7790-sysc.h>
+
+    pci@ee090000  {
+        compatible = "renesas,pci-r8a7790", "renesas,pci-rcar-gen2";
+        device_type = "pci";
+        reg = <0xee090000 0xc00>,
+              <0xee080000 0x1100>;
+        clocks = <&cpg CPG_MOD 703>;
+        power-domains = <&sysc R8A7790_PD_ALWAYS_ON>;
+        resets = <&cpg 703>;
+        interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
+
+        bus-range = <0 0>;
+        #address-cells = <3>;
+        #size-cells = <2>;
+        #interrupt-cells = <1>;
+        ranges = <0x02000000 0 0xee080000 0xee080000 0 0x00010000>;
+        dma-ranges = <0x42000000 0 0x40000000 0x40000000 0 0x40000000>;
+        interrupt-map-mask = <0xf800 0 0 0x7>;
+        interrupt-map = <0x0000 0 0 1 &gic GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>,
+                        <0x0800 0 0 1 &gic GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>,
+                        <0x1000 0 0 2 &gic GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
+
+        usb@1,0 {
+            reg = <0x800 0 0 0 0>;
+            phys = <&usb0 0>;
+            phy-names = "usb";
+        };
+
+        usb@2,0 {
+            reg = <0x1000 0 0 0 0>;
+            phys = <&usb0 0>;
+            phy-names = "usb";
+        };
+    };

@@ -55,20 +55,19 @@ static ssize_t exitcode_proc_write(struct file *file,
 	return count;
 }
 
-static const struct file_operations exitcode_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= exitcode_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= exitcode_proc_write,
+static const struct proc_ops exitcode_proc_ops = {
+	.proc_open	= exitcode_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= exitcode_proc_write,
 };
 
 static int make_proc_exitcode(void)
 {
 	struct proc_dir_entry *ent;
 
-	ent = proc_create("exitcode", 0600, NULL, &exitcode_proc_fops);
+	ent = proc_create("exitcode", 0600, NULL, &exitcode_proc_ops);
 	if (ent == NULL) {
 		printk(KERN_WARNING "make_proc_exitcode : Failed to register "
 		       "/proc/exitcode\n");

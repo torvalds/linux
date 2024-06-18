@@ -166,8 +166,8 @@ static struct snd_soc_dai_driver lochnagar_sc_dai[] = {
 			.formats = SNDRV_PCM_FMTBIT_S32_LE,
 		},
 		.ops = &lochnagar_sc_line_ops,
-		.symmetric_rates = true,
-		.symmetric_samplebits = true,
+		.symmetric_rate = true,
+		.symmetric_sample_bits = true,
 	},
 	{
 		.name = "lochnagar-usb1",
@@ -186,8 +186,8 @@ static struct snd_soc_dai_driver lochnagar_sc_dai[] = {
 			.formats = SNDRV_PCM_FMTBIT_S32_LE,
 		},
 		.ops = &lochnagar_sc_usb_ops,
-		.symmetric_rates = true,
-		.symmetric_samplebits = true,
+		.symmetric_rate = true,
+		.symmetric_sample_bits = true,
 	},
 	{
 		.name = "lochnagar-usb2",
@@ -206,18 +206,18 @@ static struct snd_soc_dai_driver lochnagar_sc_dai[] = {
 			.formats = SNDRV_PCM_FMTBIT_S32_LE,
 		},
 		.ops = &lochnagar_sc_usb_ops,
-		.symmetric_rates = true,
-		.symmetric_samplebits = true,
+		.symmetric_rate = true,
+		.symmetric_sample_bits = true,
 	},
 };
 
 static const struct snd_soc_component_driver lochnagar_sc_driver = {
-	.non_legacy_dai_naming = 1,
-
 	.dapm_widgets = lochnagar_sc_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(lochnagar_sc_widgets),
 	.dapm_routes = lochnagar_sc_routes,
 	.num_dapm_routes = ARRAY_SIZE(lochnagar_sc_routes),
+
+	.endianness = 1,
 };
 
 static int lochnagar_sc_probe(struct platform_device *pdev)
@@ -253,7 +253,7 @@ MODULE_DEVICE_TABLE(of, lochnagar_of_match);
 static struct platform_driver lochnagar_sc_codec_driver = {
 	.driver = {
 		.name = "lochnagar-soundcard",
-		.of_match_table = of_match_ptr(lochnagar_of_match),
+		.of_match_table = lochnagar_of_match,
 	},
 
 	.probe = lochnagar_sc_probe,

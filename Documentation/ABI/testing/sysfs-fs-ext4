@@ -33,7 +33,7 @@ What:		/sys/fs/ext4/<disk>/mb_order2_req
 Date:		March 2008
 Contact:	"Theodore Ts'o" <tytso@mit.edu>
 Description:
-		Tuning parameter which controls the minimum size for 
+		Tuning parameter which controls the minimum size for
 		requests (as a power of 2) where the buddy cache is
 		used
 
@@ -45,8 +45,8 @@ Description:
 		parameter will have their blocks allocated out of a
 		block group specific preallocation pool, so that small
 		files are packed closely together.  Each large file
-		 will have its blocks allocated out of its own unique
-		 preallocation pool.
+		will have its blocks allocated out of its own unique
+		preallocation pool.
 
 What:		/sys/fs/ext4/<disk>/inode_readahead_blks
 Date:		March 2008

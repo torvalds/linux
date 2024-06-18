@@ -11,7 +11,7 @@
  *
  * 1997-11-28 Modified for POSIX.1b signals by Richard Henderson
  *
- * This file was was derived from the sh version, arch/sh/kernel/signal.c
+ * This file was derived from the sh version, arch/sh/kernel/signal.c
  *
  * This file is subject to the terms and conditions of the GNU General
  * Public License. See the file COPYING in the main directory of this
@@ -31,12 +31,10 @@
 #include <linux/personality.h>
 #include <linux/percpu.h>
 #include <linux/linkage.h>
-#include <linux/tracehook.h>
+#include <linux/resume_user_mode.h>
 #include <asm/entry.h>
 #include <asm/ucontext.h>
 #include <linux/uaccess.h>
-#include <asm/pgtable.h>
-#include <asm/pgalloc.h>
 #include <linux/syscalls.h>
 #include <asm/cacheflush.h>
 #include <asm/syscalls.h>
@@ -159,10 +157,8 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	struct rt_sigframe __user *frame;
 	int err = 0, sig = ksig->sig;
 	unsigned long address = 0;
-#ifdef CONFIG_MMU
 	pmd_t *pmdp;
 	pte_t *ptep;
-#endif
 
 	frame = get_sigframe(ksig, regs, sizeof(*frame));
 
@@ -194,14 +190,11 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	regs->r15 = ((unsigned long)frame->tramp)-8;
 
 	address = ((unsigned long)frame->tramp);
-#ifdef CONFIG_MMU
-	pmdp = pmd_offset(pud_offset(
-			pgd_offset(current->mm, address),
-					address), address);
+	pmdp = pmd_off(current->mm, address);
 
 	preempt_disable();
 	ptep = pte_offset_map(pmdp, address);
-	if (pte_present(*ptep)) {
+	if (ptep && pte_present(*ptep)) {
 		address = (unsigned long) page_address(pte_page(*ptep));
 		/* MS: I need add offset in page */
 		address += ((unsigned long)frame->tramp) & ~PAGE_MASK;
@@ -210,12 +203,9 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 		invalidate_icache_range(address, address + 8);
 		flush_dcache_range(address, address + 8);
 	}
-	pte_unmap(ptep);
+	if (ptep)
+		pte_unmap(ptep);
 	preempt_enable();
-#else
-	flush_icache_range(address, address + 8);
-	flush_dcache_range(address, address + 8);
-#endif
 	if (err)
 		return -EFAULT;
 
@@ -253,7 +243,7 @@ handle_restart(struct pt_regs *regs, struct k_sigaction *ka, int has_handler)
 			regs->r3 = -EINTR;
 			break;
 	}
-	/* fallthrough */
+		fallthrough;
 	case -ERESTARTNOINTR:
 do_restart:
 		/* offset of 4 bytes to re-execute trap (brki) instruction */
@@ -294,7 +284,7 @@ static void do_signal(struct pt_regs *regs, int in_syscall)
 #ifdef DEBUG_SIG
 	pr_info("do signal: %p %d\n", regs, in_syscall);
 	pr_info("do signal2: %lx %lx %ld [%lx]\n", regs->pc, regs->r1,
-			regs->r12, current_thread_info()->flags);
+			regs->r12, read_thread_flags());
 #endif
 
 	if (get_signal(&ksig)) {
@@ -317,9 +307,10 @@ static void do_signal(struct pt_regs *regs, int in_syscall)
 
 asmlinkage void do_notify_resume(struct pt_regs *regs, int in_syscall)
 {
-	if (test_thread_flag(TIF_SIGPENDING))
+	if (test_thread_flag(TIF_SIGPENDING) ||
+	    test_thread_flag(TIF_NOTIFY_SIGNAL))
 		do_signal(regs, in_syscall);
 
-	if (test_and_clear_thread_flag(TIF_NOTIFY_RESUME))
-		tracehook_notify_resume(regs);
+	if (test_thread_flag(TIF_NOTIFY_RESUME))
+		resume_user_mode_work(regs);
 }

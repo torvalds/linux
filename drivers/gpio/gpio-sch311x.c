@@ -228,7 +228,10 @@ static int sch311x_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 	data = inb(block->runtime_reg + block->config_regs[offset]);
 	spin_unlock(&block->lock);
 
-	return !!(data & SCH311X_GPIO_CONF_DIR);
+	if (data & SCH311X_GPIO_CONF_DIR)
+		return GPIO_LINE_DIRECTION_IN;
+
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static int sch311x_gpio_set_config(struct gpio_chip *chip, unsigned offset,
@@ -278,8 +281,6 @@ static int sch311x_gpio_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	platform_set_drvdata(pdev, priv);
-
 	for (i = 0; i < ARRAY_SIZE(priv->blocks); i++) {
 		block = &priv->blocks[i];
 
@@ -302,42 +303,22 @@ static int sch311x_gpio_probe(struct platform_device *pdev)
 		block->data_reg = sch311x_gpio_blocks[i].data_reg;
 		block->runtime_reg = pdata->runtime_reg;
 
-		err = gpiochip_add_data(&block->chip, block);
+		err = devm_gpiochip_add_data(&pdev->dev, &block->chip, block);
 		if (err < 0) {
 			dev_err(&pdev->dev,
 				"Could not register gpiochip, %d\n", err);
-			goto exit_err;
+			return err;
 		}
 		dev_info(&pdev->dev,
 			 "SMSC SCH311x GPIO block %d registered.\n", i);
 	}
 
 	return 0;
-
-exit_err:
-	/* release already registered chips */
-	for (--i; i >= 0; i--)
-		gpiochip_remove(&priv->blocks[i].chip);
-	return err;
-}
-
-static int sch311x_gpio_remove(struct platform_device *pdev)
-{
-	struct sch311x_gpio_priv *priv = platform_get_drvdata(pdev);
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(priv->blocks); i++) {
-		gpiochip_remove(&priv->blocks[i].chip);
-		dev_info(&pdev->dev,
-			 "SMSC SCH311x GPIO block %d unregistered.\n", i);
-	}
-	return 0;
 }
 
 static struct platform_driver sch311x_gpio_driver = {
 	.driver.name	= DRV_NAME,
 	.probe		= sch311x_gpio_probe,
-	.remove		= sch311x_gpio_remove,
 };
 
 

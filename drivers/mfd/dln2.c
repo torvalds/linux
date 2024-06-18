@@ -14,7 +14,6 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/usb.h>
-#include <linux/i2c.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/core.h>
@@ -50,6 +49,7 @@ enum dln2_handle {
 	DLN2_HANDLE_GPIO,
 	DLN2_HANDLE_I2C,
 	DLN2_HANDLE_SPI,
+	DLN2_HANDLE_ADC,
 	DLN2_HANDLES
 };
 
@@ -282,7 +282,11 @@ static void dln2_rx(struct urb *urb)
 	len = urb->actual_length - sizeof(struct dln2_header);
 
 	if (handle == DLN2_HANDLE_EVENT) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&dln2->event_cb_lock, flags);
 		dln2_run_event_callbacks(dln2, id, echo, data, len);
+		spin_unlock_irqrestore(&dln2->event_cb_lock, flags);
 	} else {
 		/* URB will be re-submitted in _dln2_transfer (free_rx_slot) */
 		if (dln2_transfer_complete(dln2, urb, handle, echo))
@@ -640,8 +644,19 @@ static int dln2_start_rx_urbs(struct dln2_dev *dln2, gfp_t gfp)
 	return 0;
 }
 
+enum {
+	DLN2_ACPI_MATCH_GPIO	= 0,
+	DLN2_ACPI_MATCH_I2C	= 1,
+	DLN2_ACPI_MATCH_SPI	= 2,
+	DLN2_ACPI_MATCH_ADC	= 3,
+};
+
 static struct dln2_platform_data dln2_pdata_gpio = {
 	.handle = DLN2_HANDLE_GPIO,
+};
+
+static struct mfd_cell_acpi_match dln2_acpi_match_gpio = {
+	.adr = DLN2_ACPI_MATCH_GPIO,
 };
 
 /* Only one I2C port seems to be supported on current hardware */
@@ -650,26 +665,53 @@ static struct dln2_platform_data dln2_pdata_i2c = {
 	.port = 0,
 };
 
+static struct mfd_cell_acpi_match dln2_acpi_match_i2c = {
+	.adr = DLN2_ACPI_MATCH_I2C,
+};
+
 /* Only one SPI port supported */
 static struct dln2_platform_data dln2_pdata_spi = {
 	.handle = DLN2_HANDLE_SPI,
 	.port = 0,
 };
 
+static struct mfd_cell_acpi_match dln2_acpi_match_spi = {
+	.adr = DLN2_ACPI_MATCH_SPI,
+};
+
+/* Only one ADC port supported */
+static struct dln2_platform_data dln2_pdata_adc = {
+	.handle = DLN2_HANDLE_ADC,
+	.port = 0,
+};
+
+static struct mfd_cell_acpi_match dln2_acpi_match_adc = {
+	.adr = DLN2_ACPI_MATCH_ADC,
+};
+
 static const struct mfd_cell dln2_devs[] = {
 	{
 		.name = "dln2-gpio",
+		.acpi_match = &dln2_acpi_match_gpio,
 		.platform_data = &dln2_pdata_gpio,
 		.pdata_size = sizeof(struct dln2_platform_data),
 	},
 	{
 		.name = "dln2-i2c",
+		.acpi_match = &dln2_acpi_match_i2c,
 		.platform_data = &dln2_pdata_i2c,
 		.pdata_size = sizeof(struct dln2_platform_data),
 	},
 	{
 		.name = "dln2-spi",
+		.acpi_match = &dln2_acpi_match_spi,
 		.platform_data = &dln2_pdata_spi,
+		.pdata_size = sizeof(struct dln2_platform_data),
+	},
+	{
+		.name = "dln2-adc",
+		.acpi_match = &dln2_acpi_match_adc,
+		.platform_data = &dln2_pdata_adc,
 		.pdata_size = sizeof(struct dln2_platform_data),
 	},
 };
@@ -722,21 +764,26 @@ static int dln2_probe(struct usb_interface *interface,
 		      const struct usb_device_id *usb_id)
 {
 	struct usb_host_interface *hostif = interface->cur_altsetting;
+	struct usb_endpoint_descriptor *epin;
+	struct usb_endpoint_descriptor *epout;
 	struct device *dev = &interface->dev;
 	struct dln2_dev *dln2;
 	int ret;
 	int i, j;
 
-	if (hostif->desc.bInterfaceNumber != 0 ||
-	    hostif->desc.bNumEndpoints < 2)
+	if (hostif->desc.bInterfaceNumber != 0)
 		return -ENODEV;
+
+	ret = usb_find_common_endpoints(hostif, &epin, &epout, NULL, NULL);
+	if (ret)
+		return ret;
 
 	dln2 = kzalloc(sizeof(*dln2), GFP_KERNEL);
 	if (!dln2)
 		return -ENOMEM;
 
-	dln2->ep_out = hostif->endpoint[0].desc.bEndpointAddress;
-	dln2->ep_in = hostif->endpoint[1].desc.bEndpointAddress;
+	dln2->ep_out = epout->bEndpointAddress;
+	dln2->ep_in = epin->bEndpointAddress;
 	dln2->usb_dev = usb_get_dev(interface_to_usbdev(interface));
 	dln2->interface = interface;
 	usb_set_intfdata(interface, dln2);

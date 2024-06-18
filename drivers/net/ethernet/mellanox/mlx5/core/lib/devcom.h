@@ -6,9 +6,11 @@
 
 #include <linux/mlx5/driver.h>
 
-enum mlx5_devcom_components {
+enum mlx5_devcom_component {
 	MLX5_DEVCOM_ESW_OFFLOADS,
-
+	MLX5_DEVCOM_MPV,
+	MLX5_DEVCOM_HCA_PORTS,
+	MLX5_DEVCOM_SD_GROUP,
 	MLX5_DEVCOM_NUM_COMPONENTS,
 };
 
@@ -16,31 +18,45 @@ typedef int (*mlx5_devcom_event_handler_t)(int event,
 					   void *my_data,
 					   void *event_data);
 
-struct mlx5_devcom *mlx5_devcom_register_device(struct mlx5_core_dev *dev);
-void mlx5_devcom_unregister_device(struct mlx5_devcom *devcom);
+struct mlx5_devcom_dev *mlx5_devcom_register_device(struct mlx5_core_dev *dev);
+void mlx5_devcom_unregister_device(struct mlx5_devcom_dev *devc);
 
-void mlx5_devcom_register_component(struct mlx5_devcom *devcom,
-				    enum mlx5_devcom_components id,
-				    mlx5_devcom_event_handler_t handler,
-				    void *data);
-void mlx5_devcom_unregister_component(struct mlx5_devcom *devcom,
-				      enum mlx5_devcom_components id);
+struct mlx5_devcom_comp_dev *
+mlx5_devcom_register_component(struct mlx5_devcom_dev *devc,
+			       enum mlx5_devcom_component id,
+			       u64 key,
+			       mlx5_devcom_event_handler_t handler,
+			       void *data);
+void mlx5_devcom_unregister_component(struct mlx5_devcom_comp_dev *devcom);
 
-int mlx5_devcom_send_event(struct mlx5_devcom *devcom,
-			   enum mlx5_devcom_components id,
-			   int event,
+int mlx5_devcom_send_event(struct mlx5_devcom_comp_dev *devcom,
+			   int event, int rollback_event,
 			   void *event_data);
+int mlx5_devcom_comp_get_size(struct mlx5_devcom_comp_dev *devcom);
 
-void mlx5_devcom_set_paired(struct mlx5_devcom *devcom,
-			    enum mlx5_devcom_components id,
-			    bool paired);
-bool mlx5_devcom_is_paired(struct mlx5_devcom *devcom,
-			   enum mlx5_devcom_components id);
+void mlx5_devcom_comp_set_ready(struct mlx5_devcom_comp_dev *devcom, bool ready);
+bool mlx5_devcom_comp_is_ready(struct mlx5_devcom_comp_dev *devcom);
 
-void *mlx5_devcom_get_peer_data(struct mlx5_devcom *devcom,
-				enum mlx5_devcom_components id);
-void mlx5_devcom_release_peer_data(struct mlx5_devcom *devcom,
-				   enum mlx5_devcom_components id);
+bool mlx5_devcom_for_each_peer_begin(struct mlx5_devcom_comp_dev *devcom);
+void mlx5_devcom_for_each_peer_end(struct mlx5_devcom_comp_dev *devcom);
+void *mlx5_devcom_get_next_peer_data(struct mlx5_devcom_comp_dev *devcom,
+				     struct mlx5_devcom_comp_dev **pos);
 
-#endif
+#define mlx5_devcom_for_each_peer_entry(devcom, data, pos)                    \
+	for (pos = NULL, data = mlx5_devcom_get_next_peer_data(devcom, &pos); \
+	     data;                                                            \
+	     data = mlx5_devcom_get_next_peer_data(devcom, &pos))
 
+void *mlx5_devcom_get_next_peer_data_rcu(struct mlx5_devcom_comp_dev *devcom,
+					 struct mlx5_devcom_comp_dev **pos);
+
+#define mlx5_devcom_for_each_peer_entry_rcu(devcom, data, pos)                    \
+	for (pos = NULL, data = mlx5_devcom_get_next_peer_data_rcu(devcom, &pos); \
+	     data;								  \
+	     data = mlx5_devcom_get_next_peer_data_rcu(devcom, &pos))
+
+void mlx5_devcom_comp_lock(struct mlx5_devcom_comp_dev *devcom);
+void mlx5_devcom_comp_unlock(struct mlx5_devcom_comp_dev *devcom);
+int mlx5_devcom_comp_trylock(struct mlx5_devcom_comp_dev *devcom);
+
+#endif /* __LIB_MLX5_DEVCOM_H__ */

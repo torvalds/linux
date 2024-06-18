@@ -27,14 +27,17 @@
 
 #include <uapi/drm/i915_drm.h>
 
-#include "display/intel_display.h"
+#include "intel_step.h"
 
 #include "gt/intel_engine_types.h"
 #include "gt/intel_context_types.h"
 #include "gt/intel_sseu.h"
 
+#include "gem/i915_gem_object_types.h"
+
 struct drm_printer;
 struct drm_i915_private;
+struct intel_gt_definition;
 
 /* Keep in gen based order, and chronological order within a gen */
 enum intel_platform {
@@ -73,13 +76,19 @@ enum intel_platform {
 	INTEL_KABYLAKE,
 	INTEL_GEMINILAKE,
 	INTEL_COFFEELAKE,
-	/* gen10 */
-	INTEL_CANNONLAKE,
+	INTEL_COMETLAKE,
 	/* gen11 */
 	INTEL_ICELAKE,
 	INTEL_ELKHARTLAKE,
+	INTEL_JASPERLAKE,
 	/* gen12 */
 	INTEL_TIGERLAKE,
+	INTEL_ROCKETLAKE,
+	INTEL_DG1,
+	INTEL_ALDERLAKE_S,
+	INTEL_ALDERLAKE_P,
+	INTEL_DG2,
+	INTEL_METEORLAKE,
 	INTEL_MAX_PLATFORMS
 };
 
@@ -89,13 +98,34 @@ enum intel_platform {
  */
 
 #define INTEL_SUBPLATFORM_BITS (3)
+#define INTEL_SUBPLATFORM_MASK (BIT(INTEL_SUBPLATFORM_BITS) - 1)
 
 /* HSW/BDW/SKL/KBL/CFL */
 #define INTEL_SUBPLATFORM_ULT	(0)
 #define INTEL_SUBPLATFORM_ULX	(1)
 
-/* CNL/ICL */
+/* ICL */
 #define INTEL_SUBPLATFORM_PORTF	(0)
+
+/* TGL */
+#define INTEL_SUBPLATFORM_UY	(0)
+
+/* DG2 */
+#define INTEL_SUBPLATFORM_G10	0
+#define INTEL_SUBPLATFORM_G11	1
+#define INTEL_SUBPLATFORM_G12	2
+
+/* ADL */
+#define INTEL_SUBPLATFORM_RPL	0
+
+/* ADL-P */
+/*
+ * As #define INTEL_SUBPLATFORM_RPL 0 will apply
+ * here too, SUBPLATFORM_N will have different
+ * bit set
+ */
+#define INTEL_SUBPLATFORM_N    1
+#define INTEL_SUBPLATFORM_RPLU  2
 
 enum intel_ppgtt_type {
 	INTEL_PPGTT_NONE = I915_GEM_PPGTT_NONE,
@@ -107,92 +137,65 @@ enum intel_ppgtt_type {
 	func(is_mobile); \
 	func(is_lp); \
 	func(require_force_probe); \
+	func(is_dgfx); \
 	/* Keep has_* in alphabetical order */ \
 	func(has_64bit_reloc); \
+	func(has_64k_pages); \
 	func(gpu_reset_clobbers_display); \
 	func(has_reset_engine); \
-	func(has_fpga_dbg); \
+	func(has_3d_pipeline); \
+	func(has_flat_ccs); \
 	func(has_global_mocs); \
+	func(has_gmd_id); \
 	func(has_gt_uc); \
+	func(has_heci_pxp); \
+	func(has_heci_gscfi); \
+	func(has_guc_deprivilege); \
+	func(has_guc_tlb_invalidation); \
+	func(has_l3_ccs_read); \
 	func(has_l3_dpf); \
 	func(has_llc); \
 	func(has_logical_ring_contexts); \
 	func(has_logical_ring_elsq); \
-	func(has_logical_ring_preemption); \
-	func(has_pooled_eu); \
+	func(has_media_ratio_mode); \
+	func(has_mslice_steering); \
+	func(has_oa_bpc_reporting); \
+	func(has_oa_slice_contrib_limits); \
+	func(has_oam); \
+	func(has_one_eu_per_fuse_bit); \
+	func(has_pxp); \
 	func(has_rc6); \
 	func(has_rc6p); \
 	func(has_rps); \
 	func(has_runtime_pm); \
 	func(has_snoop); \
 	func(has_coherent_ggtt); \
+	func(tuning_thread_rr_after_dep); \
 	func(unfenced_needs_alignment); \
 	func(hws_needs_physical);
 
-#define DEV_INFO_DISPLAY_FOR_EACH_FLAG(func) \
-	/* Keep in alphabetical order */ \
-	func(cursor_needs_physical); \
-	func(has_csr); \
-	func(has_ddi); \
-	func(has_dp_mst); \
-	func(has_fbc); \
-	func(has_gmch); \
-	func(has_hotplug); \
-	func(has_ipc); \
-	func(has_modular_fia); \
-	func(has_overlay); \
-	func(has_psr); \
-	func(overlay_needs_physical); \
-	func(supports_tv);
-
-struct intel_device_info {
-	u16 gen_mask;
-
-	u8 gen;
-	u8 gt; /* GT number, 0 if undefined */
-	intel_engine_mask_t engine_mask; /* Engines supported by the HW */
-
-	enum intel_platform platform;
-
-	enum intel_ppgtt_type ppgtt_type;
-	unsigned int ppgtt_size; /* log2, e.g. 31/32/48 bits */
-
-	unsigned int page_sizes; /* page sizes supported by the HW */
-
-	u32 display_mmio_offset;
-
-	u8 num_pipes;
-
-#define DEFINE_FLAG(name) u8 name:1
-	DEV_INFO_FOR_EACH_FLAG(DEFINE_FLAG);
-#undef DEFINE_FLAG
-
-	struct {
-#define DEFINE_FLAG(name) u8 name:1
-		DEV_INFO_DISPLAY_FOR_EACH_FLAG(DEFINE_FLAG);
-#undef DEFINE_FLAG
-	} display;
-
-	u16 ddb_size; /* in blocks */
-
-	/* Register offsets for the various display pipes and transcoders */
-	int pipe_offsets[I915_MAX_TRANSCODERS];
-	int trans_offsets[I915_MAX_TRANSCODERS];
-	int cursor_offsets[I915_MAX_PIPES];
-
-	struct color_luts {
-		u32 degamma_lut_size;
-		u32 gamma_lut_size;
-		u32 degamma_lut_tests;
-		u32 gamma_lut_tests;
-	} color;
+struct intel_ip_version {
+	u8 ver;
+	u8 rel;
+	u8 step;
 };
 
 struct intel_runtime_info {
 	/*
+	 * Single "graphics" IP version that represents
+	 * render, compute and copy behavior.
+	 */
+	struct {
+		struct intel_ip_version ip;
+	} graphics;
+	struct {
+		struct intel_ip_version ip;
+	} media;
+
+	/*
 	 * Platform mask is used for optimizing or-ed IS_PLATFORM calls into
-	 * into single runtime conditionals, and also to provide groundwork
-	 * for future per platform, or per SKU build optimizations.
+	 * single runtime conditionals, and also to provide groundwork for
+	 * future per platform, or per SKU build optimizations.
 	 *
 	 * Array can be extended when necessary if the corresponding
 	 * BUILD_BUG_ON is hit.
@@ -201,18 +204,41 @@ struct intel_runtime_info {
 
 	u16 device_id;
 
-	u8 num_sprites[I915_MAX_PIPES];
-	u8 num_scalers[I915_MAX_PIPES];
+	u32 rawclk_freq;
 
-	u8 num_engines;
+	struct intel_step_info step;
 
-	/* Slice/subslice/EU info */
-	struct sseu_dev_info sseu;
+	unsigned int page_sizes; /* page sizes supported by the HW */
 
-	u32 cs_timestamp_frequency_khz;
+	enum intel_ppgtt_type ppgtt_type;
+	unsigned int ppgtt_size; /* log2, e.g. 31/32/48 bits */
 
-	/* Media engine access to SFC per instance */
-	u8 vdbox_sfc_access;
+	bool has_pooled_eu;
+};
+
+struct intel_device_info {
+	enum intel_platform platform;
+
+	unsigned int dma_mask_size; /* available DMA address bits */
+
+	const struct intel_gt_definition *extra_gt_list;
+
+	u8 gt; /* GT number, 0 if undefined */
+
+	intel_engine_mask_t platform_engine_mask; /* Engines supported by the HW */
+	u32 memory_regions; /* regions supported by the HW */
+
+#define DEFINE_FLAG(name) u8 name:1
+	DEV_INFO_FOR_EACH_FLAG(DEFINE_FLAG);
+#undef DEFINE_FLAG
+
+	/*
+	 * Initial runtime info. Do not access outside of i915_driver_create().
+	 */
+	const struct intel_runtime_info __runtime;
+
+	u32 cachelevel_to_pat[I915_MAX_CACHE_LEVEL];
+	u32 max_pat_index;
 };
 
 struct intel_driver_caps {
@@ -222,16 +248,14 @@ struct intel_driver_caps {
 
 const char *intel_platform_name(enum intel_platform platform);
 
-void intel_device_info_subplatform_init(struct drm_i915_private *dev_priv);
+void intel_device_info_driver_create(struct drm_i915_private *i915, u16 device_id,
+				     const struct intel_device_info *match_info);
+void intel_device_info_runtime_init_early(struct drm_i915_private *dev_priv);
 void intel_device_info_runtime_init(struct drm_i915_private *dev_priv);
-void intel_device_info_dump_flags(const struct intel_device_info *info,
-				  struct drm_printer *p);
-void intel_device_info_dump_runtime(const struct intel_runtime_info *info,
-				    struct drm_printer *p);
-void intel_device_info_dump_topology(const struct sseu_dev_info *sseu,
-				     struct drm_printer *p);
 
-void intel_device_info_init_mmio(struct drm_i915_private *dev_priv);
+void intel_device_info_print(const struct intel_device_info *info,
+			     const struct intel_runtime_info *runtime,
+			     struct drm_printer *p);
 
 void intel_driver_caps_print(const struct intel_driver_caps *caps,
 			     struct drm_printer *p);

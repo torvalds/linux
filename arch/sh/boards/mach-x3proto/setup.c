@@ -16,7 +16,7 @@
 #include <linux/input.h>
 #include <linux/usb/r8a66597.h>
 #include <linux/usb/m66592.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/gpio_keys.h>
 #include <mach/ilsel.h>
 #include <mach/hardware.h>

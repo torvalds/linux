@@ -30,7 +30,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #define DRV_NAME		"de2104x"
-#define DRV_VERSION		"0.7"
 #define DRV_RELDATE		"Mar 17, 2004"
 
 #include <linux/module.h>
@@ -52,14 +51,9 @@
 #include <linux/uaccess.h>
 #include <asm/unaligned.h>
 
-/* These identify the driver base version and may not be removed. */
-static char version[] =
-"PCI Ethernet driver v" DRV_VERSION " (" DRV_RELDATE ")";
-
 MODULE_AUTHOR("Jeff Garzik <jgarzik@pobox.com>");
 MODULE_DESCRIPTION("Intel/Digital 21040/1 series PCI Ethernet driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);
 
 static int debug = -1;
 module_param (debug, int, 0);
@@ -91,7 +85,7 @@ MODULE_PARM_DESC (rx_copybreak, "de2104x Breakpoint at which Rx packets are copi
 #define DSL			CONFIG_DE2104X_DSL
 #endif
 
-#define DE_RX_RING_SIZE		64
+#define DE_RX_RING_SIZE		128
 #define DE_TX_RING_SIZE		64
 #define DE_RING_BYTES		\
 		((sizeof(struct de_desc) * DE_RX_RING_SIZE) +	\
@@ -417,7 +411,10 @@ static void de_rx (struct de_private *de)
 		if (status & DescOwn)
 			break;
 
-		len = ((status >> 16) & 0x7ff) - 4;
+		/* the length is actually a 15 bit value here according
+		 * to Table 4-1 in the DE2104x spec so mask is 0x7fff
+		 */
+		len = ((status >> 16) & 0x7fff) - 4;
 		mapping = de->rx_skb[rx_tail].mapping;
 
 		if (unlikely(drop)) {
@@ -446,21 +443,23 @@ static void de_rx (struct de_private *de)
 		}
 
 		if (!copying_skb) {
-			pci_unmap_single(de->pdev, mapping,
-					 buflen, PCI_DMA_FROMDEVICE);
+			dma_unmap_single(&de->pdev->dev, mapping, buflen,
+					 DMA_FROM_DEVICE);
 			skb_put(skb, len);
 
 			mapping =
 			de->rx_skb[rx_tail].mapping =
-				pci_map_single(de->pdev, copy_skb->data,
-					       buflen, PCI_DMA_FROMDEVICE);
+				dma_map_single(&de->pdev->dev, copy_skb->data,
+					       buflen, DMA_FROM_DEVICE);
 			de->rx_skb[rx_tail].skb = copy_skb;
 		} else {
-			pci_dma_sync_single_for_cpu(de->pdev, mapping, len, PCI_DMA_FROMDEVICE);
+			dma_sync_single_for_cpu(&de->pdev->dev, mapping, len,
+						DMA_FROM_DEVICE);
 			skb_reserve(copy_skb, RX_OFFSET);
 			skb_copy_from_linear_data(skb, skb_put(copy_skb, len),
 						  len);
-			pci_dma_sync_single_for_device(de->pdev, mapping, len, PCI_DMA_FROMDEVICE);
+			dma_sync_single_for_device(&de->pdev->dev, mapping,
+						   len, DMA_FROM_DEVICE);
 
 			/* We'll reuse the original ring buffer. */
 			skb = copy_skb;
@@ -557,13 +556,15 @@ static void de_tx (struct de_private *de)
 			goto next;
 
 		if (unlikely(skb == DE_SETUP_SKB)) {
-			pci_unmap_single(de->pdev, de->tx_skb[tx_tail].mapping,
-					 sizeof(de->setup_frame), PCI_DMA_TODEVICE);
+			dma_unmap_single(&de->pdev->dev,
+					 de->tx_skb[tx_tail].mapping,
+					 sizeof(de->setup_frame),
+					 DMA_TO_DEVICE);
 			goto next;
 		}
 
-		pci_unmap_single(de->pdev, de->tx_skb[tx_tail].mapping,
-				 skb->len, PCI_DMA_TODEVICE);
+		dma_unmap_single(&de->pdev->dev, de->tx_skb[tx_tail].mapping,
+				 skb->len, DMA_TO_DEVICE);
 
 		if (status & LastFrag) {
 			if (status & TxError) {
@@ -623,7 +624,8 @@ static netdev_tx_t de_start_xmit (struct sk_buff *skb,
 	txd = &de->tx_ring[entry];
 
 	len = skb->len;
-	mapping = pci_map_single(de->pdev, skb->data, len, PCI_DMA_TODEVICE);
+	mapping = dma_map_single(&de->pdev->dev, skb->data, len,
+				 DMA_TO_DEVICE);
 	if (entry == (DE_TX_RING_SIZE - 1))
 		flags |= RingEnd;
 	if (!tx_free || (tx_free == (DE_TX_RING_SIZE / 2)))
@@ -664,8 +666,8 @@ static void build_setup_frame_hash(u16 *setup_frm, struct net_device *dev)
 	struct de_private *de = netdev_priv(dev);
 	u16 hash_table[32];
 	struct netdev_hw_addr *ha;
+	const u16 *eaddrs;
 	int i;
-	u16 *eaddrs;
 
 	memset(hash_table, 0, sizeof(hash_table));
 	__set_bit_le(255, hash_table);			/* Broadcast entry */
@@ -683,7 +685,7 @@ static void build_setup_frame_hash(u16 *setup_frm, struct net_device *dev)
 	setup_frm = &de->setup_frame[13*6];
 
 	/* Fill the final entry with our physical address. */
-	eaddrs = (u16 *)dev->dev_addr;
+	eaddrs = (const u16 *)dev->dev_addr;
 	*setup_frm++ = eaddrs[0]; *setup_frm++ = eaddrs[0];
 	*setup_frm++ = eaddrs[1]; *setup_frm++ = eaddrs[1];
 	*setup_frm++ = eaddrs[2]; *setup_frm++ = eaddrs[2];
@@ -693,7 +695,7 @@ static void build_setup_frame_perfect(u16 *setup_frm, struct net_device *dev)
 {
 	struct de_private *de = netdev_priv(dev);
 	struct netdev_hw_addr *ha;
-	u16 *eaddrs;
+	const u16 *eaddrs;
 
 	/* We have <= 14 addresses so we can use the wonderful
 	   16 address perfect filtering of the Tulip. */
@@ -708,7 +710,7 @@ static void build_setup_frame_perfect(u16 *setup_frm, struct net_device *dev)
 	setup_frm = &de->setup_frame[15*6];
 
 	/* Fill the final entry with our physical address. */
-	eaddrs = (u16 *)dev->dev_addr;
+	eaddrs = (const u16 *)dev->dev_addr;
 	*setup_frm++ = eaddrs[0]; *setup_frm++ = eaddrs[0];
 	*setup_frm++ = eaddrs[1]; *setup_frm++ = eaddrs[1];
 	*setup_frm++ = eaddrs[2]; *setup_frm++ = eaddrs[2];
@@ -766,8 +768,8 @@ static void __de_set_rx_mode (struct net_device *dev)
 
 	de->tx_skb[entry].skb = DE_SETUP_SKB;
 	de->tx_skb[entry].mapping = mapping =
-	    pci_map_single (de->pdev, de->setup_frame,
-			    sizeof (de->setup_frame), PCI_DMA_TODEVICE);
+	    dma_map_single(&de->pdev->dev, de->setup_frame,
+			   sizeof(de->setup_frame), DMA_TO_DEVICE);
 
 	/* Put the setup frame on the Tx list. */
 	txd = &de->tx_ring[entry];
@@ -830,8 +832,8 @@ static struct net_device_stats *de_get_stats(struct net_device *dev)
 
 	/* The chip only need report frame silently dropped. */
 	spin_lock_irq(&de->lock);
- 	if (netif_running(dev) && netif_device_present(dev))
- 		__de_get_stats(de);
+	if (netif_running(dev) && netif_device_present(dev))
+		__de_get_stats(de);
 	spin_unlock_irq(&de->lock);
 
 	return &dev->stats;
@@ -1282,8 +1284,10 @@ static int de_refill_rx (struct de_private *de)
 		if (!skb)
 			goto err_out;
 
-		de->rx_skb[i].mapping = pci_map_single(de->pdev,
-			skb->data, de->rx_buf_sz, PCI_DMA_FROMDEVICE);
+		de->rx_skb[i].mapping = dma_map_single(&de->pdev->dev,
+						       skb->data,
+						       de->rx_buf_sz,
+						       DMA_FROM_DEVICE);
 		de->rx_skb[i].skb = skb;
 
 		de->rx_ring[i].opts1 = cpu_to_le32(DescOwn);
@@ -1316,7 +1320,8 @@ static int de_init_rings (struct de_private *de)
 
 static int de_alloc_rings (struct de_private *de)
 {
-	de->rx_ring = pci_alloc_consistent(de->pdev, DE_RING_BYTES, &de->ring_dma);
+	de->rx_ring = dma_alloc_coherent(&de->pdev->dev, DE_RING_BYTES,
+					 &de->ring_dma, GFP_KERNEL);
 	if (!de->rx_ring)
 		return -ENOMEM;
 	de->tx_ring = &de->rx_ring[DE_RX_RING_SIZE];
@@ -1336,8 +1341,9 @@ static void de_clean_rings (struct de_private *de)
 
 	for (i = 0; i < DE_RX_RING_SIZE; i++) {
 		if (de->rx_skb[i].skb) {
-			pci_unmap_single(de->pdev, de->rx_skb[i].mapping,
-					 de->rx_buf_sz, PCI_DMA_FROMDEVICE);
+			dma_unmap_single(&de->pdev->dev,
+					 de->rx_skb[i].mapping, de->rx_buf_sz,
+					 DMA_FROM_DEVICE);
 			dev_kfree_skb(de->rx_skb[i].skb);
 		}
 	}
@@ -1347,15 +1353,15 @@ static void de_clean_rings (struct de_private *de)
 		if ((skb) && (skb != DE_DUMMY_SKB)) {
 			if (skb != DE_SETUP_SKB) {
 				de->dev->stats.tx_dropped++;
-				pci_unmap_single(de->pdev,
-					de->tx_skb[i].mapping,
-					skb->len, PCI_DMA_TODEVICE);
+				dma_unmap_single(&de->pdev->dev,
+						 de->tx_skb[i].mapping,
+						 skb->len, DMA_TO_DEVICE);
 				dev_kfree_skb(skb);
 			} else {
-				pci_unmap_single(de->pdev,
-					de->tx_skb[i].mapping,
-					sizeof(de->setup_frame),
-					PCI_DMA_TODEVICE);
+				dma_unmap_single(&de->pdev->dev,
+						 de->tx_skb[i].mapping,
+						 sizeof(de->setup_frame),
+						 DMA_TO_DEVICE);
 			}
 		}
 	}
@@ -1367,7 +1373,8 @@ static void de_clean_rings (struct de_private *de)
 static void de_free_rings (struct de_private *de)
 {
 	de_clean_rings(de);
-	pci_free_consistent(de->pdev, DE_RING_BYTES, de->rx_ring, de->ring_dma);
+	dma_free_coherent(&de->pdev->dev, DE_RING_BYTES, de->rx_ring,
+			  de->ring_dma);
 	de->rx_ring = NULL;
 	de->tx_ring = NULL;
 }
@@ -1436,7 +1443,7 @@ static int de_close (struct net_device *dev)
 	return 0;
 }
 
-static void de_tx_timeout (struct net_device *dev)
+static void de_tx_timeout (struct net_device *dev, unsigned int txqueue)
 {
 	struct de_private *de = netdev_priv(dev);
 	const int irq = de->pdev->irq;
@@ -1599,9 +1606,8 @@ static void de_get_drvinfo (struct net_device *dev,struct ethtool_drvinfo *info)
 {
 	struct de_private *de = netdev_priv(dev);
 
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
-	strlcpy(info->bus_info, pci_name(de->pdev), sizeof(info->bus_info));
+	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strscpy(info->bus_info, pci_name(de->pdev), sizeof(info->bus_info));
 }
 
 static int de_get_regs_len(struct net_device *dev)
@@ -1707,6 +1713,7 @@ static const struct ethtool_ops de_ethtool_ops = {
 
 static void de21040_get_mac_address(struct de_private *de)
 {
+	u8 addr[ETH_ALEN];
 	unsigned i;
 
 	dw32 (ROMCmd, 0);	/* Reset the pointer with a dummy write. */
@@ -1718,12 +1725,13 @@ static void de21040_get_mac_address(struct de_private *de)
 			value = dr32(ROMCmd);
 			rmb();
 		} while (value < 0 && --boguscnt > 0);
-		de->dev->dev_addr[i] = value;
+		addr[i] = value;
 		udelay(1);
 		if (boguscnt <= 0)
 			pr_warn("timeout reading 21040 MAC address byte %u\n",
 				i);
 	}
+	eth_hw_addr_set(de->dev, addr);
 }
 
 static void de21040_get_media_info(struct de_private *de)
@@ -1815,8 +1823,7 @@ static void de21041_get_srom_info(struct de_private *de)
 #endif
 
 	/* store MAC address */
-	for (i = 0; i < 6; i ++)
-		de->dev->dev_addr[i] = ee_data[i + sa_offset];
+	eth_hw_addr_set(de->dev, &ee_data[sa_offset]);
 
 	/* get offset of controller 0 info leaf.  ignore 2nd byte. */
 	ofs = ee_data[SROMC0InfoLeaf];
@@ -1977,11 +1984,6 @@ static int de_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	board_idx++;
 
-#ifndef MODULE
-	if (board_idx == 0)
-		pr_info("%s\n", version);
-#endif
-
 	/* allocate a new ethernet device structure, and fill in defaults */
 	dev = alloc_etherdev(sizeof(struct de_private));
 	if (!dev)
@@ -2039,7 +2041,7 @@ static int de_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	/* remap CSR registers */
-	regs = ioremap_nocache(pciaddr, DE_REGS_SIZE);
+	regs = ioremap(pciaddr, DE_REGS_SIZE);
 	if (!regs) {
 		rc = -EIO;
 		pr_err("Cannot map PCI MMIO (%llx@%lx) on pci dev %s\n",
@@ -2114,11 +2116,10 @@ static void de_remove_one(struct pci_dev *pdev)
 	free_netdev(dev);
 }
 
-#ifdef CONFIG_PM
-
-static int de_suspend (struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused de_suspend(struct device *dev_d)
 {
-	struct net_device *dev = pci_get_drvdata (pdev);
+	struct pci_dev *pdev = to_pci_dev(dev_d);
+	struct net_device *dev = pci_get_drvdata(pdev);
 	struct de_private *de = netdev_priv(dev);
 
 	rtnl_lock();
@@ -2145,7 +2146,6 @@ static int de_suspend (struct pci_dev *pdev, pm_message_t state)
 		de_clean_rings(de);
 
 		de_adapter_sleep(de);
-		pci_disable_device(pdev);
 	} else {
 		netif_device_detach(dev);
 	}
@@ -2153,21 +2153,17 @@ static int de_suspend (struct pci_dev *pdev, pm_message_t state)
 	return 0;
 }
 
-static int de_resume (struct pci_dev *pdev)
+static int __maybe_unused de_resume(struct device *dev_d)
 {
-	struct net_device *dev = pci_get_drvdata (pdev);
+	struct pci_dev *pdev = to_pci_dev(dev_d);
+	struct net_device *dev = pci_get_drvdata(pdev);
 	struct de_private *de = netdev_priv(dev);
-	int retval = 0;
 
 	rtnl_lock();
 	if (netif_device_present(dev))
 		goto out;
 	if (!netif_running(dev))
 		goto out_attach;
-	if ((retval = pci_enable_device(pdev))) {
-		netdev_err(dev, "pci_enable_device failed in resume\n");
-		goto out;
-	}
 	pci_set_master(pdev);
 	de_init_rings(de);
 	de_init_hw(de);
@@ -2178,31 +2174,24 @@ out:
 	return 0;
 }
 
-#endif /* CONFIG_PM */
+static SIMPLE_DEV_PM_OPS(de_pm_ops, de_suspend, de_resume);
+
+static void de_shutdown(struct pci_dev *pdev)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+
+	rtnl_lock();
+	dev_close(dev);
+	rtnl_unlock();
+}
 
 static struct pci_driver de_driver = {
 	.name		= DRV_NAME,
 	.id_table	= de_pci_tbl,
 	.probe		= de_init_one,
 	.remove		= de_remove_one,
-#ifdef CONFIG_PM
-	.suspend	= de_suspend,
-	.resume		= de_resume,
-#endif
+	.shutdown	= de_shutdown,
+	.driver.pm	= &de_pm_ops,
 };
 
-static int __init de_init (void)
-{
-#ifdef MODULE
-	pr_info("%s\n", version);
-#endif
-	return pci_register_driver(&de_driver);
-}
-
-static void __exit de_exit (void)
-{
-	pci_unregister_driver (&de_driver);
-}
-
-module_init(de_init);
-module_exit(de_exit);
+module_pci_driver(de_driver);

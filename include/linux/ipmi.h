@@ -72,6 +72,11 @@ struct ipmi_recv_msg {
 	unsigned char   msg_data[IPMI_MAX_MSG_LENGTH];
 };
 
+#define INIT_IPMI_RECV_MSG(done_handler) \
+{					\
+	.done = done_handler		\
+}
+
 /* Allocate and free the receive message. */
 void ipmi_free_recv_msg(struct ipmi_recv_msg *msg);
 
@@ -332,5 +337,10 @@ struct ipmi_smi_info {
 
 /* This is to get the private info of struct ipmi_smi */
 extern int ipmi_get_smi_info(int if_num, struct ipmi_smi_info *data);
+
+#define GET_DEVICE_ID_MAX_RETRY		5
+
+/* Helper function for computing the IPMB checksum of some data. */
+unsigned char ipmb_checksum(unsigned char *data, int size);
 
 #endif /* __LINUX_IPMI_H */

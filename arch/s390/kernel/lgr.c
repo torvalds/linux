@@ -88,8 +88,7 @@ static void lgr_stsi_2_2_2(struct lgr_info *lgr_info)
 	if (stsi(si, 2, 2, 2))
 		return;
 	cpascii(lgr_info->name, si->name, sizeof(si->name));
-	memcpy(&lgr_info->lpar_number, &si->lpar_number,
-	       sizeof(lgr_info->lpar_number));
+	lgr_info->lpar_number = si->lpar_number;
 }
 
 /*
@@ -167,7 +166,7 @@ static struct timer_list lgr_timer;
  */
 static void lgr_timer_set(void)
 {
-	mod_timer(&lgr_timer, jiffies + LGR_TIMER_INTERVAL_SECS * HZ);
+	mod_timer(&lgr_timer, jiffies + msecs_to_jiffies(LGR_TIMER_INTERVAL_SECS * MSEC_PER_SEC));
 }
 
 /*

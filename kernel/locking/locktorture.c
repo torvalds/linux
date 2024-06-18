@@ -16,7 +16,6 @@
 #include <linux/kthread.h>
 #include <linux/sched/rt.h>
 #include <linux/spinlock.h>
-#include <linux/rwlock.h>
 #include <linux/mutex.h>
 #include <linux/rwsem.h>
 #include <linux/smp.h>
@@ -28,44 +27,104 @@
 #include <linux/moduleparam.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/percpu-rwsem.h>
 #include <linux/torture.h>
+#include <linux/reboot.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Paul E. McKenney <paulmck@linux.ibm.com>");
 
-torture_param(int, nwriters_stress, -1,
-	     "Number of write-locking stress-test threads");
-torture_param(int, nreaders_stress, -1,
-	     "Number of read-locking stress-test threads");
+torture_param(int, acq_writer_lim, 0, "Write_acquisition time limit (jiffies).");
+torture_param(int, call_rcu_chains, 0, "Self-propagate call_rcu() chains during test (0=disable).");
+torture_param(int, long_hold, 100, "Do occasional long hold of lock (ms), 0=disable");
+torture_param(int, nested_locks, 0, "Number of nested locks (max = 8)");
+torture_param(int, nreaders_stress, -1, "Number of read-locking stress-test threads");
+torture_param(int, nwriters_stress, -1, "Number of write-locking stress-test threads");
 torture_param(int, onoff_holdoff, 0, "Time after boot before CPU hotplugs (s)");
-torture_param(int, onoff_interval, 0,
-	     "Time between CPU hotplugs (s), 0=disable");
-torture_param(int, shuffle_interval, 3,
-	     "Number of jiffies between shuffles, 0=disable");
+torture_param(int, onoff_interval, 0, "Time between CPU hotplugs (s), 0=disable");
+torture_param(int, rt_boost, 2,
+		   "Do periodic rt-boost. 0=Disable, 1=Only for rt_mutex, 2=For all lock types.");
+torture_param(int, rt_boost_factor, 50, "A factor determining how often rt-boost happens.");
+torture_param(int, shuffle_interval, 3, "Number of jiffies between shuffles, 0=disable");
 torture_param(int, shutdown_secs, 0, "Shutdown time (j), <= zero to disable.");
-torture_param(int, stat_interval, 60,
-	     "Number of seconds between stats printk()s");
+torture_param(int, stat_interval, 60, "Number of seconds between stats printk()s");
 torture_param(int, stutter, 5, "Number of jiffies to run/halt test, 0=disable");
-torture_param(int, verbose, 1,
-	     "Enable verbose debugging printk()s");
+torture_param(int, verbose, 1, "Enable verbose debugging printk()s");
+torture_param(int, writer_fifo, 0, "Run writers at sched_set_fifo() priority");
+/* Going much higher trips "BUG: MAX_LOCKDEP_CHAIN_HLOCKS too low!" errors */
+#define MAX_NESTED_LOCKS 8
 
-static char *torture_type = "spin_lock";
+static char *torture_type = IS_ENABLED(CONFIG_PREEMPT_RT) ? "raw_spin_lock" : "spin_lock";
 module_param(torture_type, charp, 0444);
 MODULE_PARM_DESC(torture_type,
 		 "Type of lock to torture (spin_lock, spin_lock_irq, mutex_lock, ...)");
+
+static cpumask_var_t bind_readers; // Bind the readers to the specified set of CPUs.
+static cpumask_var_t bind_writers; // Bind the writers to the specified set of CPUs.
+
+// Parse a cpumask kernel parameter.  If there are more users later on,
+// this might need to got to a more central location.
+static int param_set_cpumask(const char *val, const struct kernel_param *kp)
+{
+	cpumask_var_t *cm_bind = kp->arg;
+	int ret;
+	char *s;
+
+	if (!alloc_cpumask_var(cm_bind, GFP_KERNEL)) {
+		s = "Out of memory";
+		ret = -ENOMEM;
+		goto out_err;
+	}
+	ret = cpulist_parse(val, *cm_bind);
+	if (!ret)
+		return ret;
+	s = "Bad CPU range";
+out_err:
+	pr_warn("%s: %s, all CPUs set\n", kp->name, s);
+	cpumask_setall(*cm_bind);
+	return ret;
+}
+
+// Output a cpumask kernel parameter.
+static int param_get_cpumask(char *buffer, const struct kernel_param *kp)
+{
+	cpumask_var_t *cm_bind = kp->arg;
+
+	return sprintf(buffer, "%*pbl", cpumask_pr_args(*cm_bind));
+}
+
+static bool cpumask_nonempty(cpumask_var_t mask)
+{
+	return cpumask_available(mask) && !cpumask_empty(mask);
+}
+
+static const struct kernel_param_ops lt_bind_ops = {
+	.set = param_set_cpumask,
+	.get = param_get_cpumask,
+};
+
+module_param_cb(bind_readers, &lt_bind_ops, &bind_readers, 0644);
+module_param_cb(bind_writers, &lt_bind_ops, &bind_writers, 0644);
+
+long torture_sched_setaffinity(pid_t pid, const struct cpumask *in_mask);
 
 static struct task_struct *stats_task;
 static struct task_struct **writer_tasks;
 static struct task_struct **reader_tasks;
 
 static bool lock_is_write_held;
-static bool lock_is_read_held;
+static atomic_t lock_is_read_held;
+static unsigned long last_lock_release;
 
 struct lock_stress_stats {
 	long n_lock_fail;
 	long n_lock_acquired;
 };
+
+struct call_rcu_chain {
+	struct rcu_head crc_rh;
+	bool crc_stop;
+};
+struct call_rcu_chain *call_rcu_chain_list;
 
 /* Forward reference. */
 static void lock_torture_cleanup(void);
@@ -75,13 +134,16 @@ static void lock_torture_cleanup(void);
  */
 struct lock_torture_ops {
 	void (*init)(void);
-	int (*writelock)(void);
+	void (*exit)(void);
+	int (*nested_lock)(int tid, u32 lockset);
+	int (*writelock)(int tid);
 	void (*write_delay)(struct torture_random_state *trsp);
 	void (*task_boost)(struct torture_random_state *trsp);
-	void (*writeunlock)(void);
-	int (*readlock)(void);
+	void (*writeunlock)(int tid);
+	void (*nested_unlock)(int tid, u32 lockset);
+	int (*readlock)(int tid);
 	void (*read_delay)(struct torture_random_state *trsp);
-	void (*readunlock)(void);
+	void (*readunlock)(int tid);
 
 	unsigned long flags; /* for irq spinlocks */
 	const char *name;
@@ -91,49 +153,82 @@ struct lock_torture_cxt {
 	int nrealwriters_stress;
 	int nrealreaders_stress;
 	bool debug_lock;
+	bool init_called;
 	atomic_t n_lock_torture_errors;
 	struct lock_torture_ops *cur_ops;
 	struct lock_stress_stats *lwsa; /* writer statistics */
 	struct lock_stress_stats *lrsa; /* reader statistics */
 };
-static struct lock_torture_cxt cxt = { 0, 0, false,
+static struct lock_torture_cxt cxt = { 0, 0, false, false,
 				       ATOMIC_INIT(0),
 				       NULL, NULL};
 /*
  * Definitions for lock torture testing.
  */
 
-static int torture_lock_busted_write_lock(void)
+static int torture_lock_busted_write_lock(int tid __maybe_unused)
 {
 	return 0;  /* BUGGY, do not use in real life!!! */
 }
 
 static void torture_lock_busted_write_delay(struct torture_random_state *trsp)
 {
-	const unsigned long longdelay_ms = 100;
-
 	/* We want a long delay occasionally to force massive contention.  */
-	if (!(torture_random(trsp) %
-	      (cxt.nrealwriters_stress * 2000 * longdelay_ms)))
-		mdelay(longdelay_ms);
+	if (long_hold && !(torture_random(trsp) % (cxt.nrealwriters_stress * 2000 * long_hold)))
+		mdelay(long_hold);
 	if (!(torture_random(trsp) % (cxt.nrealwriters_stress * 20000)))
 		torture_preempt_schedule();  /* Allow test to be preempted. */
 }
 
-static void torture_lock_busted_write_unlock(void)
+static void torture_lock_busted_write_unlock(int tid __maybe_unused)
 {
 	  /* BUGGY, do not use in real life!!! */
 }
 
-static void torture_boost_dummy(struct torture_random_state *trsp)
+static void __torture_rt_boost(struct torture_random_state *trsp)
 {
-	/* Only rtmutexes care about priority */
+	const unsigned int factor = rt_boost_factor;
+
+	if (!rt_task(current)) {
+		/*
+		 * Boost priority once every rt_boost_factor operations. When
+		 * the task tries to take the lock, the rtmutex it will account
+		 * for the new priority, and do any corresponding pi-dance.
+		 */
+		if (trsp && !(torture_random(trsp) %
+			      (cxt.nrealwriters_stress * factor))) {
+			sched_set_fifo(current);
+		} else /* common case, do nothing */
+			return;
+	} else {
+		/*
+		 * The task will remain boosted for another 10 * rt_boost_factor
+		 * operations, then restored back to its original prio, and so
+		 * forth.
+		 *
+		 * When @trsp is nil, we want to force-reset the task for
+		 * stopping the kthread.
+		 */
+		if (!trsp || !(torture_random(trsp) %
+			       (cxt.nrealwriters_stress * factor * 2))) {
+			sched_set_normal(current, 0);
+		} else /* common case, do nothing */
+			return;
+	}
+}
+
+static void torture_rt_boost(struct torture_random_state *trsp)
+{
+	if (rt_boost != 2)
+		return;
+
+	__torture_rt_boost(trsp);
 }
 
 static struct lock_torture_ops lock_busted_ops = {
 	.writelock	= torture_lock_busted_write_lock,
 	.write_delay	= torture_lock_busted_write_delay,
-	.task_boost     = torture_boost_dummy,
+	.task_boost     = torture_rt_boost,
 	.writeunlock	= torture_lock_busted_write_unlock,
 	.readlock       = NULL,
 	.read_delay     = NULL,
@@ -143,7 +238,8 @@ static struct lock_torture_ops lock_busted_ops = {
 
 static DEFINE_SPINLOCK(torture_spinlock);
 
-static int torture_spin_lock_write_lock(void) __acquires(torture_spinlock)
+static int torture_spin_lock_write_lock(int tid __maybe_unused)
+__acquires(torture_spinlock)
 {
 	spin_lock(&torture_spinlock);
 	return 0;
@@ -152,22 +248,24 @@ static int torture_spin_lock_write_lock(void) __acquires(torture_spinlock)
 static void torture_spin_lock_write_delay(struct torture_random_state *trsp)
 {
 	const unsigned long shortdelay_us = 2;
-	const unsigned long longdelay_ms = 100;
+	unsigned long j;
 
 	/* We want a short delay mostly to emulate likely code, and
 	 * we want a long delay occasionally to force massive contention.
 	 */
-	if (!(torture_random(trsp) %
-	      (cxt.nrealwriters_stress * 2000 * longdelay_ms)))
-		mdelay(longdelay_ms);
-	if (!(torture_random(trsp) %
-	      (cxt.nrealwriters_stress * 2 * shortdelay_us)))
+	if (long_hold && !(torture_random(trsp) % (cxt.nrealwriters_stress * 2000 * long_hold))) {
+		j = jiffies;
+		mdelay(long_hold);
+		pr_alert("%s: delay = %lu jiffies.\n", __func__, jiffies - j);
+	}
+	if (!(torture_random(trsp) % (cxt.nrealwriters_stress * 200 * shortdelay_us)))
 		udelay(shortdelay_us);
 	if (!(torture_random(trsp) % (cxt.nrealwriters_stress * 20000)))
 		torture_preempt_schedule();  /* Allow test to be preempted. */
 }
 
-static void torture_spin_lock_write_unlock(void) __releases(torture_spinlock)
+static void torture_spin_lock_write_unlock(int tid __maybe_unused)
+__releases(torture_spinlock)
 {
 	spin_unlock(&torture_spinlock);
 }
@@ -175,7 +273,7 @@ static void torture_spin_lock_write_unlock(void) __releases(torture_spinlock)
 static struct lock_torture_ops spin_lock_ops = {
 	.writelock	= torture_spin_lock_write_lock,
 	.write_delay	= torture_spin_lock_write_delay,
-	.task_boost     = torture_boost_dummy,
+	.task_boost     = torture_rt_boost,
 	.writeunlock	= torture_spin_lock_write_unlock,
 	.readlock       = NULL,
 	.read_delay     = NULL,
@@ -183,7 +281,7 @@ static struct lock_torture_ops spin_lock_ops = {
 	.name		= "spin_lock"
 };
 
-static int torture_spin_lock_write_lock_irq(void)
+static int torture_spin_lock_write_lock_irq(int tid __maybe_unused)
 __acquires(torture_spinlock)
 {
 	unsigned long flags;
@@ -193,7 +291,7 @@ __acquires(torture_spinlock)
 	return 0;
 }
 
-static void torture_lock_spin_write_unlock_irq(void)
+static void torture_lock_spin_write_unlock_irq(int tid __maybe_unused)
 __releases(torture_spinlock)
 {
 	spin_unlock_irqrestore(&torture_spinlock, cxt.cur_ops->flags);
@@ -202,7 +300,7 @@ __releases(torture_spinlock)
 static struct lock_torture_ops spin_lock_irq_ops = {
 	.writelock	= torture_spin_lock_write_lock_irq,
 	.write_delay	= torture_spin_lock_write_delay,
-	.task_boost     = torture_boost_dummy,
+	.task_boost     = torture_rt_boost,
 	.writeunlock	= torture_lock_spin_write_unlock_irq,
 	.readlock       = NULL,
 	.read_delay     = NULL,
@@ -210,9 +308,63 @@ static struct lock_torture_ops spin_lock_irq_ops = {
 	.name		= "spin_lock_irq"
 };
 
+static DEFINE_RAW_SPINLOCK(torture_raw_spinlock);
+
+static int torture_raw_spin_lock_write_lock(int tid __maybe_unused)
+__acquires(torture_raw_spinlock)
+{
+	raw_spin_lock(&torture_raw_spinlock);
+	return 0;
+}
+
+static void torture_raw_spin_lock_write_unlock(int tid __maybe_unused)
+__releases(torture_raw_spinlock)
+{
+	raw_spin_unlock(&torture_raw_spinlock);
+}
+
+static struct lock_torture_ops raw_spin_lock_ops = {
+	.writelock	= torture_raw_spin_lock_write_lock,
+	.write_delay	= torture_spin_lock_write_delay,
+	.task_boost	= torture_rt_boost,
+	.writeunlock	= torture_raw_spin_lock_write_unlock,
+	.readlock	= NULL,
+	.read_delay	= NULL,
+	.readunlock	= NULL,
+	.name		= "raw_spin_lock"
+};
+
+static int torture_raw_spin_lock_write_lock_irq(int tid __maybe_unused)
+__acquires(torture_raw_spinlock)
+{
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&torture_raw_spinlock, flags);
+	cxt.cur_ops->flags = flags;
+	return 0;
+}
+
+static void torture_raw_spin_lock_write_unlock_irq(int tid __maybe_unused)
+__releases(torture_raw_spinlock)
+{
+	raw_spin_unlock_irqrestore(&torture_raw_spinlock, cxt.cur_ops->flags);
+}
+
+static struct lock_torture_ops raw_spin_lock_irq_ops = {
+	.writelock	= torture_raw_spin_lock_write_lock_irq,
+	.write_delay	= torture_spin_lock_write_delay,
+	.task_boost	= torture_rt_boost,
+	.writeunlock	= torture_raw_spin_lock_write_unlock_irq,
+	.readlock	= NULL,
+	.read_delay	= NULL,
+	.readunlock	= NULL,
+	.name		= "raw_spin_lock_irq"
+};
+
 static DEFINE_RWLOCK(torture_rwlock);
 
-static int torture_rwlock_write_lock(void) __acquires(torture_rwlock)
+static int torture_rwlock_write_lock(int tid __maybe_unused)
+__acquires(torture_rwlock)
 {
 	write_lock(&torture_rwlock);
 	return 0;
@@ -221,24 +373,24 @@ static int torture_rwlock_write_lock(void) __acquires(torture_rwlock)
 static void torture_rwlock_write_delay(struct torture_random_state *trsp)
 {
 	const unsigned long shortdelay_us = 2;
-	const unsigned long longdelay_ms = 100;
 
 	/* We want a short delay mostly to emulate likely code, and
 	 * we want a long delay occasionally to force massive contention.
 	 */
-	if (!(torture_random(trsp) %
-	      (cxt.nrealwriters_stress * 2000 * longdelay_ms)))
-		mdelay(longdelay_ms);
+	if (long_hold && !(torture_random(trsp) % (cxt.nrealwriters_stress * 2000 * long_hold)))
+		mdelay(long_hold);
 	else
 		udelay(shortdelay_us);
 }
 
-static void torture_rwlock_write_unlock(void) __releases(torture_rwlock)
+static void torture_rwlock_write_unlock(int tid __maybe_unused)
+__releases(torture_rwlock)
 {
 	write_unlock(&torture_rwlock);
 }
 
-static int torture_rwlock_read_lock(void) __acquires(torture_rwlock)
+static int torture_rwlock_read_lock(int tid __maybe_unused)
+__acquires(torture_rwlock)
 {
 	read_lock(&torture_rwlock);
 	return 0;
@@ -247,19 +399,18 @@ static int torture_rwlock_read_lock(void) __acquires(torture_rwlock)
 static void torture_rwlock_read_delay(struct torture_random_state *trsp)
 {
 	const unsigned long shortdelay_us = 10;
-	const unsigned long longdelay_ms = 100;
 
 	/* We want a short delay mostly to emulate likely code, and
 	 * we want a long delay occasionally to force massive contention.
 	 */
-	if (!(torture_random(trsp) %
-	      (cxt.nrealreaders_stress * 2000 * longdelay_ms)))
-		mdelay(longdelay_ms);
+	if (long_hold && !(torture_random(trsp) % (cxt.nrealreaders_stress * 2000 * long_hold)))
+		mdelay(long_hold);
 	else
 		udelay(shortdelay_us);
 }
 
-static void torture_rwlock_read_unlock(void) __releases(torture_rwlock)
+static void torture_rwlock_read_unlock(int tid __maybe_unused)
+__releases(torture_rwlock)
 {
 	read_unlock(&torture_rwlock);
 }
@@ -267,7 +418,7 @@ static void torture_rwlock_read_unlock(void) __releases(torture_rwlock)
 static struct lock_torture_ops rw_lock_ops = {
 	.writelock	= torture_rwlock_write_lock,
 	.write_delay	= torture_rwlock_write_delay,
-	.task_boost     = torture_boost_dummy,
+	.task_boost     = torture_rt_boost,
 	.writeunlock	= torture_rwlock_write_unlock,
 	.readlock       = torture_rwlock_read_lock,
 	.read_delay     = torture_rwlock_read_delay,
@@ -275,7 +426,8 @@ static struct lock_torture_ops rw_lock_ops = {
 	.name		= "rw_lock"
 };
 
-static int torture_rwlock_write_lock_irq(void) __acquires(torture_rwlock)
+static int torture_rwlock_write_lock_irq(int tid __maybe_unused)
+__acquires(torture_rwlock)
 {
 	unsigned long flags;
 
@@ -284,13 +436,14 @@ static int torture_rwlock_write_lock_irq(void) __acquires(torture_rwlock)
 	return 0;
 }
 
-static void torture_rwlock_write_unlock_irq(void)
+static void torture_rwlock_write_unlock_irq(int tid __maybe_unused)
 __releases(torture_rwlock)
 {
 	write_unlock_irqrestore(&torture_rwlock, cxt.cur_ops->flags);
 }
 
-static int torture_rwlock_read_lock_irq(void) __acquires(torture_rwlock)
+static int torture_rwlock_read_lock_irq(int tid __maybe_unused)
+__acquires(torture_rwlock)
 {
 	unsigned long flags;
 
@@ -299,7 +452,7 @@ static int torture_rwlock_read_lock_irq(void) __acquires(torture_rwlock)
 	return 0;
 }
 
-static void torture_rwlock_read_unlock_irq(void)
+static void torture_rwlock_read_unlock_irq(int tid __maybe_unused)
 __releases(torture_rwlock)
 {
 	read_unlock_irqrestore(&torture_rwlock, cxt.cur_ops->flags);
@@ -308,7 +461,7 @@ __releases(torture_rwlock)
 static struct lock_torture_ops rw_lock_irq_ops = {
 	.writelock	= torture_rwlock_write_lock_irq,
 	.write_delay	= torture_rwlock_write_delay,
-	.task_boost     = torture_boost_dummy,
+	.task_boost     = torture_rt_boost,
 	.writeunlock	= torture_rwlock_write_unlock_irq,
 	.readlock       = torture_rwlock_read_lock_irq,
 	.read_delay     = torture_rwlock_read_delay,
@@ -317,8 +470,31 @@ static struct lock_torture_ops rw_lock_irq_ops = {
 };
 
 static DEFINE_MUTEX(torture_mutex);
+static struct mutex torture_nested_mutexes[MAX_NESTED_LOCKS];
+static struct lock_class_key nested_mutex_keys[MAX_NESTED_LOCKS];
 
-static int torture_mutex_lock(void) __acquires(torture_mutex)
+static void torture_mutex_init(void)
+{
+	int i;
+
+	for (i = 0; i < MAX_NESTED_LOCKS; i++)
+		__mutex_init(&torture_nested_mutexes[i], __func__,
+			     &nested_mutex_keys[i]);
+}
+
+static int torture_mutex_nested_lock(int tid __maybe_unused,
+				     u32 lockset)
+{
+	int i;
+
+	for (i = 0; i < nested_locks; i++)
+		if (lockset & (1 << i))
+			mutex_lock(&torture_nested_mutexes[i]);
+	return 0;
+}
+
+static int torture_mutex_lock(int tid __maybe_unused)
+__acquires(torture_mutex)
 {
 	mutex_lock(&torture_mutex);
 	return 0;
@@ -326,28 +502,37 @@ static int torture_mutex_lock(void) __acquires(torture_mutex)
 
 static void torture_mutex_delay(struct torture_random_state *trsp)
 {
-	const unsigned long longdelay_ms = 100;
-
 	/* We want a long delay occasionally to force massive contention.  */
-	if (!(torture_random(trsp) %
-	      (cxt.nrealwriters_stress * 2000 * longdelay_ms)))
-		mdelay(longdelay_ms * 5);
-	else
-		mdelay(longdelay_ms / 5);
+	if (long_hold && !(torture_random(trsp) % (cxt.nrealwriters_stress * 2000 * long_hold)))
+		mdelay(long_hold * 5);
 	if (!(torture_random(trsp) % (cxt.nrealwriters_stress * 20000)))
 		torture_preempt_schedule();  /* Allow test to be preempted. */
 }
 
-static void torture_mutex_unlock(void) __releases(torture_mutex)
+static void torture_mutex_unlock(int tid __maybe_unused)
+__releases(torture_mutex)
 {
 	mutex_unlock(&torture_mutex);
 }
 
+static void torture_mutex_nested_unlock(int tid __maybe_unused,
+					u32 lockset)
+{
+	int i;
+
+	for (i = nested_locks - 1; i >= 0; i--)
+		if (lockset & (1 << i))
+			mutex_unlock(&torture_nested_mutexes[i]);
+}
+
 static struct lock_torture_ops mutex_lock_ops = {
+	.init		= torture_mutex_init,
+	.nested_lock	= torture_mutex_nested_lock,
 	.writelock	= torture_mutex_lock,
 	.write_delay	= torture_mutex_delay,
-	.task_boost     = torture_boost_dummy,
+	.task_boost     = torture_rt_boost,
 	.writeunlock	= torture_mutex_unlock,
+	.nested_unlock	= torture_mutex_nested_unlock,
 	.readlock       = NULL,
 	.read_delay     = NULL,
 	.readunlock     = NULL,
@@ -355,12 +540,34 @@ static struct lock_torture_ops mutex_lock_ops = {
 };
 
 #include <linux/ww_mutex.h>
+/*
+ * The torture ww_mutexes should belong to the same lock class as
+ * torture_ww_class to avoid lockdep problem. The ww_mutex_init()
+ * function is called for initialization to ensure that.
+ */
 static DEFINE_WD_CLASS(torture_ww_class);
-static DEFINE_WW_MUTEX(torture_ww_mutex_0, &torture_ww_class);
-static DEFINE_WW_MUTEX(torture_ww_mutex_1, &torture_ww_class);
-static DEFINE_WW_MUTEX(torture_ww_mutex_2, &torture_ww_class);
+static struct ww_mutex torture_ww_mutex_0, torture_ww_mutex_1, torture_ww_mutex_2;
+static struct ww_acquire_ctx *ww_acquire_ctxs;
 
-static int torture_ww_mutex_lock(void)
+static void torture_ww_mutex_init(void)
+{
+	ww_mutex_init(&torture_ww_mutex_0, &torture_ww_class);
+	ww_mutex_init(&torture_ww_mutex_1, &torture_ww_class);
+	ww_mutex_init(&torture_ww_mutex_2, &torture_ww_class);
+
+	ww_acquire_ctxs = kmalloc_array(cxt.nrealwriters_stress,
+					sizeof(*ww_acquire_ctxs),
+					GFP_KERNEL);
+	if (!ww_acquire_ctxs)
+		VERBOSE_TOROUT_STRING("ww_acquire_ctx: Out of memory");
+}
+
+static void torture_ww_mutex_exit(void)
+{
+	kfree(ww_acquire_ctxs);
+}
+
+static int torture_ww_mutex_lock(int tid)
 __acquires(torture_ww_mutex_0)
 __acquires(torture_ww_mutex_1)
 __acquires(torture_ww_mutex_2)
@@ -370,7 +577,7 @@ __acquires(torture_ww_mutex_2)
 		struct list_head link;
 		struct ww_mutex *lock;
 	} locks[3], *ll, *ln;
-	struct ww_acquire_ctx ctx;
+	struct ww_acquire_ctx *ctx = &ww_acquire_ctxs[tid];
 
 	locks[0].lock = &torture_ww_mutex_0;
 	list_add(&locks[0].link, &list);
@@ -381,12 +588,12 @@ __acquires(torture_ww_mutex_2)
 	locks[2].lock = &torture_ww_mutex_2;
 	list_add(&locks[2].link, &list);
 
-	ww_acquire_init(&ctx, &torture_ww_class);
+	ww_acquire_init(ctx, &torture_ww_class);
 
 	list_for_each_entry(ll, &list, link) {
 		int err;
 
-		err = ww_mutex_lock(ll->lock, &ctx);
+		err = ww_mutex_lock(ll->lock, ctx);
 		if (!err)
 			continue;
 
@@ -397,28 +604,32 @@ __acquires(torture_ww_mutex_2)
 		if (err != -EDEADLK)
 			return err;
 
-		ww_mutex_lock_slow(ll->lock, &ctx);
+		ww_mutex_lock_slow(ll->lock, ctx);
 		list_move(&ll->link, &list);
 	}
 
-	ww_acquire_fini(&ctx);
 	return 0;
 }
 
-static void torture_ww_mutex_unlock(void)
+static void torture_ww_mutex_unlock(int tid)
 __releases(torture_ww_mutex_0)
 __releases(torture_ww_mutex_1)
 __releases(torture_ww_mutex_2)
 {
+	struct ww_acquire_ctx *ctx = &ww_acquire_ctxs[tid];
+
 	ww_mutex_unlock(&torture_ww_mutex_0);
 	ww_mutex_unlock(&torture_ww_mutex_1);
 	ww_mutex_unlock(&torture_ww_mutex_2);
+	ww_acquire_fini(ctx);
 }
 
 static struct lock_torture_ops ww_mutex_lock_ops = {
+	.init		= torture_ww_mutex_init,
+	.exit		= torture_ww_mutex_exit,
 	.writelock	= torture_ww_mutex_lock,
 	.write_delay	= torture_mutex_delay,
-	.task_boost     = torture_boost_dummy,
+	.task_boost     = torture_rt_boost,
 	.writeunlock	= torture_ww_mutex_unlock,
 	.readlock       = NULL,
 	.read_delay     = NULL,
@@ -428,79 +639,85 @@ static struct lock_torture_ops ww_mutex_lock_ops = {
 
 #ifdef CONFIG_RT_MUTEXES
 static DEFINE_RT_MUTEX(torture_rtmutex);
+static struct rt_mutex torture_nested_rtmutexes[MAX_NESTED_LOCKS];
+static struct lock_class_key nested_rtmutex_keys[MAX_NESTED_LOCKS];
 
-static int torture_rtmutex_lock(void) __acquires(torture_rtmutex)
+static void torture_rtmutex_init(void)
+{
+	int i;
+
+	for (i = 0; i < MAX_NESTED_LOCKS; i++)
+		__rt_mutex_init(&torture_nested_rtmutexes[i], __func__,
+				&nested_rtmutex_keys[i]);
+}
+
+static int torture_rtmutex_nested_lock(int tid __maybe_unused,
+				       u32 lockset)
+{
+	int i;
+
+	for (i = 0; i < nested_locks; i++)
+		if (lockset & (1 << i))
+			rt_mutex_lock(&torture_nested_rtmutexes[i]);
+	return 0;
+}
+
+static int torture_rtmutex_lock(int tid __maybe_unused)
+__acquires(torture_rtmutex)
 {
 	rt_mutex_lock(&torture_rtmutex);
 	return 0;
 }
 
-static void torture_rtmutex_boost(struct torture_random_state *trsp)
-{
-	int policy;
-	struct sched_param param;
-	const unsigned int factor = 50000; /* yes, quite arbitrary */
-
-	if (!rt_task(current)) {
-		/*
-		 * Boost priority once every ~50k operations. When the
-		 * task tries to take the lock, the rtmutex it will account
-		 * for the new priority, and do any corresponding pi-dance.
-		 */
-		if (trsp && !(torture_random(trsp) %
-			      (cxt.nrealwriters_stress * factor))) {
-			policy = SCHED_FIFO;
-			param.sched_priority = MAX_RT_PRIO - 1;
-		} else /* common case, do nothing */
-			return;
-	} else {
-		/*
-		 * The task will remain boosted for another ~500k operations,
-		 * then restored back to its original prio, and so forth.
-		 *
-		 * When @trsp is nil, we want to force-reset the task for
-		 * stopping the kthread.
-		 */
-		if (!trsp || !(torture_random(trsp) %
-			       (cxt.nrealwriters_stress * factor * 2))) {
-			policy = SCHED_NORMAL;
-			param.sched_priority = 0;
-		} else /* common case, do nothing */
-			return;
-	}
-
-	sched_setscheduler_nocheck(current, policy, &param);
-}
-
 static void torture_rtmutex_delay(struct torture_random_state *trsp)
 {
 	const unsigned long shortdelay_us = 2;
-	const unsigned long longdelay_ms = 100;
 
 	/*
 	 * We want a short delay mostly to emulate likely code, and
 	 * we want a long delay occasionally to force massive contention.
 	 */
+	if (long_hold && !(torture_random(trsp) % (cxt.nrealwriters_stress * 2000 * long_hold)))
+		mdelay(long_hold);
 	if (!(torture_random(trsp) %
-	      (cxt.nrealwriters_stress * 2000 * longdelay_ms)))
-		mdelay(longdelay_ms);
-	if (!(torture_random(trsp) %
-	      (cxt.nrealwriters_stress * 2 * shortdelay_us)))
+	      (cxt.nrealwriters_stress * 200 * shortdelay_us)))
 		udelay(shortdelay_us);
 	if (!(torture_random(trsp) % (cxt.nrealwriters_stress * 20000)))
 		torture_preempt_schedule();  /* Allow test to be preempted. */
 }
 
-static void torture_rtmutex_unlock(void) __releases(torture_rtmutex)
+static void torture_rtmutex_unlock(int tid __maybe_unused)
+__releases(torture_rtmutex)
 {
 	rt_mutex_unlock(&torture_rtmutex);
 }
 
+static void torture_rt_boost_rtmutex(struct torture_random_state *trsp)
+{
+	if (!rt_boost)
+		return;
+
+	__torture_rt_boost(trsp);
+}
+
+static void torture_rtmutex_nested_unlock(int tid __maybe_unused,
+					  u32 lockset)
+{
+	int i;
+
+	for (i = nested_locks - 1; i >= 0; i--)
+		if (lockset & (1 << i))
+			rt_mutex_unlock(&torture_nested_rtmutexes[i]);
+}
+
 static struct lock_torture_ops rtmutex_lock_ops = {
+	.init		= torture_rtmutex_init,
+	.nested_lock	= torture_rtmutex_nested_lock,
 	.writelock	= torture_rtmutex_lock,
 	.write_delay	= torture_rtmutex_delay,
-	.task_boost     = torture_rtmutex_boost,
+	.task_boost     = torture_rt_boost_rtmutex,
 	.writeunlock	= torture_rtmutex_unlock,
+	.nested_unlock	= torture_rtmutex_nested_unlock,
 	.readlock       = NULL,
 	.read_delay     = NULL,
 	.readunlock     = NULL,
@@ -509,7 +726,8 @@ static struct lock_torture_ops rtmutex_lock_ops = {
 #endif
 
 static DECLARE_RWSEM(torture_rwsem);
-static int torture_rwsem_down_write(void) __acquires(torture_rwsem)
+static int torture_rwsem_down_write(int tid __maybe_unused)
+__acquires(torture_rwsem)
 {
 	down_write(&torture_rwsem);
 	return 0;
@@ -517,24 +735,21 @@ static int torture_rwsem_down_write(void) __acquires(torture_rwsem)
 
 static void torture_rwsem_write_delay(struct torture_random_state *trsp)
 {
-	const unsigned long longdelay_ms = 100;
-
 	/* We want a long delay occasionally to force massive contention.  */
-	if (!(torture_random(trsp) %
-	      (cxt.nrealwriters_stress * 2000 * longdelay_ms)))
-		mdelay(longdelay_ms * 10);
-	else
-		mdelay(longdelay_ms / 10);
+	if (long_hold && !(torture_random(trsp) % (cxt.nrealwriters_stress * 2000 * long_hold)))
+		mdelay(long_hold * 10);
 	if (!(torture_random(trsp) % (cxt.nrealwriters_stress * 20000)))
 		torture_preempt_schedule();  /* Allow test to be preempted. */
 }
 
-static void torture_rwsem_up_write(void) __releases(torture_rwsem)
+static void torture_rwsem_up_write(int tid __maybe_unused)
+__releases(torture_rwsem)
 {
 	up_write(&torture_rwsem);
 }
 
-static int torture_rwsem_down_read(void) __acquires(torture_rwsem)
+static int torture_rwsem_down_read(int tid __maybe_unused)
+__acquires(torture_rwsem)
 {
 	down_read(&torture_rwsem);
 	return 0;
@@ -542,19 +757,17 @@ static int torture_rwsem_down_read(void) __acquires(torture_rwsem)
 
 static void torture_rwsem_read_delay(struct torture_random_state *trsp)
 {
-	const unsigned long longdelay_ms = 100;
-
 	/* We want a long delay occasionally to force massive contention.  */
-	if (!(torture_random(trsp) %
-	      (cxt.nrealreaders_stress * 2000 * longdelay_ms)))
-		mdelay(longdelay_ms * 2);
+	if (long_hold && !(torture_random(trsp) % (cxt.nrealreaders_stress * 2000 * long_hold)))
+		mdelay(long_hold * 2);
 	else
-		mdelay(longdelay_ms / 2);
+		mdelay(long_hold / 2);
 	if (!(torture_random(trsp) % (cxt.nrealreaders_stress * 20000)))
 		torture_preempt_schedule();  /* Allow test to be preempted. */
 }
 
-static void torture_rwsem_up_read(void) __releases(torture_rwsem)
+static void torture_rwsem_up_read(int tid __maybe_unused)
+__releases(torture_rwsem)
 {
 	up_read(&torture_rwsem);
 }
@@ -562,7 +775,7 @@ static void torture_rwsem_up_read(void) __releases(torture_rwsem)
 static struct lock_torture_ops rwsem_lock_ops = {
 	.writelock	= torture_rwsem_down_write,
 	.write_delay	= torture_rwsem_write_delay,
-	.task_boost     = torture_boost_dummy,
+	.task_boost     = torture_rt_boost,
 	.writeunlock	= torture_rwsem_up_write,
 	.readlock       = torture_rwsem_down_read,
 	.read_delay     = torture_rwsem_read_delay,
@@ -573,38 +786,48 @@ static struct lock_torture_ops rwsem_lock_ops = {
 #include <linux/percpu-rwsem.h>
 static struct percpu_rw_semaphore pcpu_rwsem;
 
-void torture_percpu_rwsem_init(void)
+static void torture_percpu_rwsem_init(void)
 {
 	BUG_ON(percpu_init_rwsem(&pcpu_rwsem));
 }
 
-static int torture_percpu_rwsem_down_write(void) __acquires(pcpu_rwsem)
+static void torture_percpu_rwsem_exit(void)
+{
+	percpu_free_rwsem(&pcpu_rwsem);
+}
+
+static int torture_percpu_rwsem_down_write(int tid __maybe_unused)
+__acquires(pcpu_rwsem)
 {
 	percpu_down_write(&pcpu_rwsem);
 	return 0;
 }
 
-static void torture_percpu_rwsem_up_write(void) __releases(pcpu_rwsem)
+static void torture_percpu_rwsem_up_write(int tid __maybe_unused)
+__releases(pcpu_rwsem)
 {
 	percpu_up_write(&pcpu_rwsem);
 }
 
-static int torture_percpu_rwsem_down_read(void) __acquires(pcpu_rwsem)
+static int torture_percpu_rwsem_down_read(int tid __maybe_unused)
+__acquires(pcpu_rwsem)
 {
 	percpu_down_read(&pcpu_rwsem);
 	return 0;
 }
 
-static void torture_percpu_rwsem_up_read(void) __releases(pcpu_rwsem)
+static void torture_percpu_rwsem_up_read(int tid __maybe_unused)
+__releases(pcpu_rwsem)
 {
 	percpu_up_read(&pcpu_rwsem);
 }
 
 static struct lock_torture_ops percpu_rwsem_lock_ops = {
 	.init		= torture_percpu_rwsem_init,
+	.exit		= torture_percpu_rwsem_exit,
 	.writelock	= torture_percpu_rwsem_down_write,
 	.write_delay	= torture_rwsem_write_delay,
-	.task_boost     = torture_boost_dummy,
+	.task_boost     = torture_rt_boost,
 	.writeunlock	= torture_percpu_rwsem_up_write,
 	.readlock       = torture_percpu_rwsem_down_read,
 	.read_delay     = torture_rwsem_read_delay,
@@ -618,28 +841,63 @@ static struct lock_torture_ops percpu_rwsem_lock_ops = {
  */
 static int lock_torture_writer(void *arg)
 {
+	unsigned long j;
+	unsigned long j1;
+	u32 lockset_mask;
 	struct lock_stress_stats *lwsp = arg;
-	static DEFINE_TORTURE_RANDOM(rand);
+	DEFINE_TORTURE_RANDOM(rand);
+	bool skip_main_lock;
+	int tid = lwsp - cxt.lwsa;
 
 	VERBOSE_TOROUT_STRING("lock_torture_writer task started");
-	set_user_nice(current, MAX_NICE);
+	if (!rt_task(current))
+		set_user_nice(current, MAX_NICE);
 
 	do {
 		if ((torture_random(&rand) & 0xfffff) == 0)
 			schedule_timeout_uninterruptible(1);
 
-		cxt.cur_ops->task_boost(&rand);
-		cxt.cur_ops->writelock();
-		if (WARN_ON_ONCE(lock_is_write_held))
-			lwsp->n_lock_fail++;
-		lock_is_write_held = 1;
-		if (WARN_ON_ONCE(lock_is_read_held))
-			lwsp->n_lock_fail++; /* rare, but... */
+		lockset_mask = torture_random(&rand);
+		/*
+		 * When using nested_locks, we want to occasionally
+		 * skip the main lock so we can avoid always serializing
+		 * the lock chains on that central lock. By skipping the
+		 * main lock occasionally, we can create different
+		 * contention patterns (allowing for multiple disjoint
+		 * blocked trees)
+		 */
+		skip_main_lock = (nested_locks &&
+				 !(torture_random(&rand) % 100));
 
-		lwsp->n_lock_acquired++;
-		cxt.cur_ops->write_delay(&rand);
-		lock_is_write_held = 0;
-		cxt.cur_ops->writeunlock();
+		cxt.cur_ops->task_boost(&rand);
+		if (cxt.cur_ops->nested_lock)
+			cxt.cur_ops->nested_lock(tid, lockset_mask);
+
+		if (!skip_main_lock) {
+			if (acq_writer_lim > 0)
+				j = jiffies;
+			cxt.cur_ops->writelock(tid);
+			if (WARN_ON_ONCE(lock_is_write_held))
+				lwsp->n_lock_fail++;
+			lock_is_write_held = true;
+			if (WARN_ON_ONCE(atomic_read(&lock_is_read_held)))
+				lwsp->n_lock_fail++; /* rare, but... */
+			if (acq_writer_lim > 0) {
+				j1 = jiffies;
+				WARN_ONCE(time_after(j1, j + acq_writer_lim),
+					  "%s: Lock acquisition took %lu jiffies.\n",
+					  __func__, j1 - j);
+			}
+			lwsp->n_lock_acquired++;
+
+			cxt.cur_ops->write_delay(&rand);
+
+			lock_is_write_held = false;
+			WRITE_ONCE(last_lock_release, jiffies);
+			cxt.cur_ops->writeunlock(tid);
+		}
+		if (cxt.cur_ops->nested_unlock)
+			cxt.cur_ops->nested_unlock(tid, lockset_mask);
 
 		stutter_wait("lock_torture_writer");
 	} while (!torture_must_stop());
@@ -656,7 +914,8 @@ static int lock_torture_writer(void *arg)
 static int lock_torture_reader(void *arg)
 {
 	struct lock_stress_stats *lrsp = arg;
-	static DEFINE_TORTURE_RANDOM(rand);
+	int tid = lrsp - cxt.lrsa;
+	DEFINE_TORTURE_RANDOM(rand);
 
 	VERBOSE_TOROUT_STRING("lock_torture_reader task started");
 	set_user_nice(current, MAX_NICE);
@@ -665,15 +924,15 @@ static int lock_torture_reader(void *arg)
 		if ((torture_random(&rand) & 0xfffff) == 0)
 			schedule_timeout_uninterruptible(1);
 
-		cxt.cur_ops->readlock();
-		lock_is_read_held = 1;
+		cxt.cur_ops->readlock(tid);
+		atomic_inc(&lock_is_read_held);
 		if (WARN_ON_ONCE(lock_is_write_held))
 			lrsp->n_lock_fail++; /* rare, but... */
 
 		lrsp->n_lock_acquired++;
 		cxt.cur_ops->read_delay(&rand);
-		lock_is_read_held = 0;
-		cxt.cur_ops->readunlock();
+		atomic_dec(&lock_is_read_held);
+		cxt.cur_ops->readunlock(tid);
 
 		stutter_wait("lock_torture_reader");
 	} while (!torture_must_stop());
@@ -687,25 +946,28 @@ static int lock_torture_reader(void *arg)
 static void __torture_print_stats(char *page,
 				  struct lock_stress_stats *statp, bool write)
 {
-	bool fail = 0;
+	long cur;
+	bool fail = false;
 	int i, n_stress;
-	long max = 0, min = statp ? statp[0].n_lock_acquired : 0;
+	long max = 0, min = statp ? data_race(statp[0].n_lock_acquired) : 0;
 	long long sum = 0;
 
 	n_stress = write ? cxt.nrealwriters_stress : cxt.nrealreaders_stress;
 	for (i = 0; i < n_stress; i++) {
-		if (statp[i].n_lock_fail)
+		if (data_race(statp[i].n_lock_fail))
 			fail = true;
-		sum += statp[i].n_lock_acquired;
-		if (max < statp[i].n_lock_fail)
-			max = statp[i].n_lock_fail;
-		if (min > statp[i].n_lock_fail)
-			min = statp[i].n_lock_fail;
+		cur = data_race(statp[i].n_lock_acquired);
+		sum += cur;
+		if (max < cur)
+			max = cur;
+		if (min > cur)
+			min = cur;
 	}
 	page += sprintf(page,
 			"%s:  Total: %lld  Max/Min: %ld/%ld %s  Fail: %d %s\n",
 			write ? "Writes" : "Reads ",
-			sum, max, min, max / 2 > min ? "???" : "",
+			sum, max, min,
+			!onoff_interval && max / 2 > min ? "???" : "",
 			fail, fail ? "!!!" : "");
 	if (fail)
 		atomic_inc(&cxt.n_lock_torture_errors);
@@ -771,16 +1033,69 @@ static int lock_torture_stats(void *arg)
 	return 0;
 }
 
+
 static inline void
 lock_torture_print_module_parms(struct lock_torture_ops *cur_ops,
 				const char *tag)
 {
+	static cpumask_t cpumask_all;
+	cpumask_t *rcmp = cpumask_nonempty(bind_readers) ? bind_readers : &cpumask_all;
+	cpumask_t *wcmp = cpumask_nonempty(bind_writers) ? bind_writers : &cpumask_all;
+
+	cpumask_setall(&cpumask_all);
 	pr_alert("%s" TORTURE_FLAG
-		 "--- %s%s: nwriters_stress=%d nreaders_stress=%d stat_interval=%d verbose=%d shuffle_interval=%d stutter=%d shutdown_secs=%d onoff_interval=%d onoff_holdoff=%d\n",
+		 "--- %s%s: acq_writer_lim=%d bind_readers=%*pbl bind_writers=%*pbl call_rcu_chains=%d long_hold=%d nested_locks=%d nreaders_stress=%d nwriters_stress=%d onoff_holdoff=%d onoff_interval=%d rt_boost=%d rt_boost_factor=%d shuffle_interval=%d shutdown_secs=%d stat_interval=%d stutter=%d verbose=%d writer_fifo=%d\n",
 		 torture_type, tag, cxt.debug_lock ? " [debug]": "",
-		 cxt.nrealwriters_stress, cxt.nrealreaders_stress, stat_interval,
-		 verbose, shuffle_interval, stutter, shutdown_secs,
-		 onoff_interval, onoff_holdoff);
+		 acq_writer_lim, cpumask_pr_args(rcmp), cpumask_pr_args(wcmp),
+		 call_rcu_chains, long_hold, nested_locks, cxt.nrealreaders_stress,
+		 cxt.nrealwriters_stress, onoff_holdoff, onoff_interval, rt_boost,
+		 rt_boost_factor, shuffle_interval, shutdown_secs, stat_interval, stutter,
+		 verbose, writer_fifo);
+}
+
+// If requested, maintain call_rcu() chains to keep a grace period always
+// in flight.  These increase the probability of getting an RCU CPU stall
+// warning and associated diagnostics when a locking primitive stalls.
+
+static void call_rcu_chain_cb(struct rcu_head *rhp)
+{
+	struct call_rcu_chain *crcp = container_of(rhp, struct call_rcu_chain, crc_rh);
+
+	if (!smp_load_acquire(&crcp->crc_stop)) {
+		(void)start_poll_synchronize_rcu(); // Start one grace period...
+		call_rcu(&crcp->crc_rh, call_rcu_chain_cb); // ... and later start another.
+	}
+}
+
+// Start the requested number of call_rcu() chains.
+static int call_rcu_chain_init(void)
+{
+	int i;
+
+	if (call_rcu_chains <= 0)
+		return 0;
+	call_rcu_chain_list = kcalloc(call_rcu_chains, sizeof(*call_rcu_chain_list), GFP_KERNEL);
+	if (!call_rcu_chain_list)
+		return -ENOMEM;
+	for (i = 0; i < call_rcu_chains; i++) {
+		call_rcu_chain_list[i].crc_stop = false;
+		call_rcu(&call_rcu_chain_list[i].crc_rh, call_rcu_chain_cb);
+	}
+	return 0;
+}
+
+// Stop all of the call_rcu() chains.
+static void call_rcu_chain_cleanup(void)
+{
+	int i;
+
+	if (!call_rcu_chain_list)
+		return;
+	for (i = 0; i < call_rcu_chains; i++)
+		smp_store_release(&call_rcu_chain_list[i].crc_stop, true);
+	rcu_barrier();
+	kfree(call_rcu_chain_list);
+	call_rcu_chain_list = NULL;
 }
 
 static void lock_torture_cleanup(void)
@@ -792,17 +1107,17 @@ static void lock_torture_cleanup(void)
 
 	/*
 	 * Indicates early cleanup, meaning that the test has not run,
-	 * such as when passing bogus args when loading the module. As
-	 * such, only perform the underlying torture-specific cleanups,
-	 * and avoid anything related to locktorture.
+	 * such as when passing bogus args when loading the module.
+	 * However cxt->cur_ops.init() may have been invoked, so beside
+	 * perform the underlying torture-specific cleanups, cur_ops.exit()
+	 * will be invoked if needed.
 	 */
 	if (!cxt.lwsa && !cxt.lrsa)
 		goto end;
 
 	if (writer_tasks) {
 		for (i = 0; i < cxt.nrealwriters_stress; i++)
-			torture_stop_kthread(lock_torture_writer,
-					     writer_tasks[i]);
+			torture_stop_kthread(lock_torture_writer, writer_tasks[i]);
 		kfree(writer_tasks);
 		writer_tasks = NULL;
 	}
@@ -833,7 +1148,14 @@ static void lock_torture_cleanup(void)
 	kfree(cxt.lrsa);
 	cxt.lrsa = NULL;
 
+	call_rcu_chain_cleanup();
+
 end:
+	if (cxt.init_called) {
+		if (cxt.cur_ops->exit)
+			cxt.cur_ops->exit();
+		cxt.init_called = false;
+	}
 	torture_cleanup_end();
 }
 
@@ -844,6 +1166,7 @@ static int __init lock_torture_init(void)
 	static struct lock_torture_ops *torture_ops[] = {
 		&lock_busted_ops,
 		&spin_lock_ops, &spin_lock_irq_ops,
+		&raw_spin_lock_ops, &raw_spin_lock_irq_ops,
 		&rw_lock_ops, &rw_lock_irq_ops,
 		&mutex_lock_ops,
 		&ww_mutex_lock_ops,
@@ -874,37 +1197,40 @@ static int __init lock_torture_init(void)
 		goto unwind;
 	}
 
-	if (nwriters_stress == 0 && nreaders_stress == 0) {
+	if (nwriters_stress == 0 &&
+	    (!cxt.cur_ops->readlock || nreaders_stress == 0)) {
 		pr_alert("lock-torture: must run at least one locking thread\n");
 		firsterr = -EINVAL;
 		goto unwind;
 	}
-
-	if (cxt.cur_ops->init)
-		cxt.cur_ops->init();
 
 	if (nwriters_stress >= 0)
 		cxt.nrealwriters_stress = nwriters_stress;
 	else
 		cxt.nrealwriters_stress = 2 * num_online_cpus();
 
+	if (cxt.cur_ops->init) {
+		cxt.cur_ops->init();
+		cxt.init_called = true;
+	}
+
 #ifdef CONFIG_DEBUG_MUTEXES
-	if (strncmp(torture_type, "mutex", 5) == 0)
+	if (str_has_prefix(torture_type, "mutex"))
 		cxt.debug_lock = true;
 #endif
 #ifdef CONFIG_DEBUG_RT_MUTEXES
-	if (strncmp(torture_type, "rtmutex", 7) == 0)
+	if (str_has_prefix(torture_type, "rtmutex"))
 		cxt.debug_lock = true;
 #endif
 #ifdef CONFIG_DEBUG_SPINLOCK
-	if ((strncmp(torture_type, "spin", 4) == 0) ||
-	    (strncmp(torture_type, "rw_lock", 7) == 0))
+	if ((str_has_prefix(torture_type, "spin")) ||
+	    (str_has_prefix(torture_type, "rw_lock")))
 		cxt.debug_lock = true;
 #endif
 
 	/* Initialize the statistics so that each run gets its own numbers. */
 	if (nwriters_stress) {
-		lock_is_write_held = 0;
+		lock_is_write_held = false;
 		cxt.lwsa = kmalloc_array(cxt.nrealwriters_stress,
 					 sizeof(*cxt.lwsa),
 					 GFP_KERNEL);
@@ -935,7 +1261,6 @@ static int __init lock_torture_init(void)
 		}
 
 		if (nreaders_stress) {
-			lock_is_read_held = 0;
 			cxt.lrsa = kmalloc_array(cxt.nrealreaders_stress,
 						 sizeof(*cxt.lrsa),
 						 GFP_KERNEL);
@@ -954,29 +1279,33 @@ static int __init lock_torture_init(void)
 		}
 	}
 
+	firsterr = call_rcu_chain_init();
+	if (torture_init_error(firsterr))
+		goto unwind;
+
 	lock_torture_print_module_parms(cxt.cur_ops, "Start of test");
 
 	/* Prepare torture context. */
 	if (onoff_interval > 0) {
 		firsterr = torture_onoff_init(onoff_holdoff * HZ,
 					      onoff_interval * HZ, NULL);
-		if (firsterr)
+		if (torture_init_error(firsterr))
 			goto unwind;
 	}
 	if (shuffle_interval > 0) {
 		firsterr = torture_shuffle_init(shuffle_interval);
-		if (firsterr)
+		if (torture_init_error(firsterr))
 			goto unwind;
 	}
 	if (shutdown_secs > 0) {
 		firsterr = torture_shutdown_init(shutdown_secs,
 						 lock_torture_cleanup);
-		if (firsterr)
+		if (torture_init_error(firsterr))
 			goto unwind;
 	}
 	if (stutter > 0) {
 		firsterr = torture_stutter_init(stutter, stutter);
-		if (firsterr)
+		if (torture_init_error(firsterr))
 			goto unwind;
 	}
 
@@ -985,18 +1314,22 @@ static int __init lock_torture_init(void)
 				       sizeof(writer_tasks[0]),
 				       GFP_KERNEL);
 		if (writer_tasks == NULL) {
-			VERBOSE_TOROUT_ERRSTRING("writer_tasks: Out of memory");
+			TOROUT_ERRSTRING("writer_tasks: Out of memory");
 			firsterr = -ENOMEM;
 			goto unwind;
 		}
 	}
+
+	/* cap nested_locks to MAX_NESTED_LOCKS */
+	if (nested_locks > MAX_NESTED_LOCKS)
+		nested_locks = MAX_NESTED_LOCKS;
 
 	if (cxt.cur_ops->readlock) {
 		reader_tasks = kcalloc(cxt.nrealreaders_stress,
 				       sizeof(reader_tasks[0]),
 				       GFP_KERNEL);
 		if (reader_tasks == NULL) {
-			VERBOSE_TOROUT_ERRSTRING("reader_tasks: Out of memory");
+			TOROUT_ERRSTRING("reader_tasks: Out of memory");
 			kfree(writer_tasks);
 			writer_tasks = NULL;
 			firsterr = -ENOMEM;
@@ -1018,10 +1351,13 @@ static int __init lock_torture_init(void)
 			goto create_reader;
 
 		/* Create writer. */
-		firsterr = torture_create_kthread(lock_torture_writer, &cxt.lwsa[i],
-						  writer_tasks[i]);
-		if (firsterr)
+		firsterr = torture_create_kthread_cb(lock_torture_writer, &cxt.lwsa[i],
+						     writer_tasks[i],
+						     writer_fifo ? sched_set_fifo : NULL);
+		if (torture_init_error(firsterr))
 			goto unwind;
+		if (cpumask_nonempty(bind_writers))
+			torture_sched_setaffinity(writer_tasks[i]->pid, bind_writers);
 
 	create_reader:
 		if (cxt.cur_ops->readlock == NULL || (j >= cxt.nrealreaders_stress))
@@ -1029,13 +1365,15 @@ static int __init lock_torture_init(void)
 		/* Create reader. */
 		firsterr = torture_create_kthread(lock_torture_reader, &cxt.lrsa[j],
 						  reader_tasks[j]);
-		if (firsterr)
+		if (torture_init_error(firsterr))
 			goto unwind;
+		if (cpumask_nonempty(bind_readers))
+			torture_sched_setaffinity(reader_tasks[j]->pid, bind_readers);
 	}
 	if (stat_interval > 0) {
 		firsterr = torture_create_kthread(lock_torture_stats, NULL,
 						  stats_task);
-		if (firsterr)
+		if (torture_init_error(firsterr))
 			goto unwind;
 	}
 	torture_init_end();
@@ -1044,6 +1382,10 @@ static int __init lock_torture_init(void)
 unwind:
 	torture_init_end();
 	lock_torture_cleanup();
+	if (shutdown_secs) {
+		WARN_ON(!IS_MODULE(CONFIG_LOCK_TORTURE_TEST));
+		kernel_power_off();
+	}
 	return firsterr;
 }
 

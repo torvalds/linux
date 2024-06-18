@@ -304,13 +304,13 @@ static int locomokbd_probe(struct locomo_dev *dev)
 	return err;
 }
 
-static int locomokbd_remove(struct locomo_dev *dev)
+static void locomokbd_remove(struct locomo_dev *dev)
 {
 	struct locomokbd *locomokbd = locomo_get_drvdata(dev);
 
 	free_irq(dev->irq[0], locomokbd);
 
-	del_timer_sync(&locomokbd->timer);
+	timer_shutdown_sync(&locomokbd->timer);
 
 	input_unregister_device(locomokbd->input);
 	locomo_set_drvdata(dev, NULL);
@@ -318,8 +318,6 @@ static int locomokbd_remove(struct locomo_dev *dev)
 	release_mem_region((unsigned long) dev->mapbase, dev->length);
 
 	kfree(locomokbd);
-
-	return 0;
 }
 
 static struct locomo_driver keyboard_driver = {

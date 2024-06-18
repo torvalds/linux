@@ -15,6 +15,7 @@
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/refcount.h>
+#include <linux/sockptr.h>
 #include <uapi/linux/igmp.h>
 
 static inline struct igmphdr *igmp_hdr(const struct sk_buff *skb)
@@ -38,11 +39,8 @@ struct ip_sf_socklist {
 	unsigned int		sl_max;
 	unsigned int		sl_count;
 	struct rcu_head		rcu;
-	__be32			sl_addr[0];
+	__be32			sl_addr[] __counted_by(sl_max);
 };
-
-#define IP_SFLSIZE(count)	(sizeof(struct ip_sf_socklist) + \
-	(count) * sizeof(__be32))
 
 #define IP_SFBLOCK	10	/* allocate this many at once */
 
@@ -121,10 +119,10 @@ extern int ip_mc_source(int add, int omode, struct sock *sk,
 		struct ip_mreq_source *mreqs, int ifindex);
 extern int ip_mc_msfilter(struct sock *sk, struct ip_msfilter *msf,int ifindex);
 extern int ip_mc_msfget(struct sock *sk, struct ip_msfilter *msf,
-		struct ip_msfilter __user *optval, int __user *optlen);
+			sockptr_t optval, sockptr_t optlen);
 extern int ip_mc_gsfget(struct sock *sk, struct group_filter *gsf,
-		struct group_filter __user *optval, int __user *optlen);
-extern int ip_mc_sf_allow(struct sock *sk, __be32 local, __be32 rmt,
+			sockptr_t optval, size_t offset);
+extern int ip_mc_sf_allow(const struct sock *sk, __be32 local, __be32 rmt,
 			  int dif, int sdif);
 extern void ip_mc_init_dev(struct in_device *);
 extern void ip_mc_destroy_dev(struct in_device *);

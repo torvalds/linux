@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/mediatek/mediatek,cec.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Mediatek HDMI CEC Controller
+
+maintainers:
+  - CK Hu <ck.hu@mediatek.com>
+  - Jitao shi <jitao.shi@mediatek.com>
+
+description: |
+  The HDMI CEC controller handles hotplug detection and CEC communication.
+
+properties:
+  compatible:
+    enum:
+      - mediatek,mt7623-cec
+      - mediatek,mt8167-cec
+      - mediatek,mt8173-cec
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/mt8173-clk.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    cec: cec@10013000 {
+        compatible = "mediatek,mt8173-cec";
+        reg = <0x10013000 0xbc>;
+        interrupts = <GIC_SPI 167 IRQ_TYPE_LEVEL_LOW>;
+        clocks = <&infracfg CLK_INFRA_CEC>;
+    };
+
+...

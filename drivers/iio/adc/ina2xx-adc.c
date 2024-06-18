@@ -28,7 +28,7 @@
 #include <linux/iio/sysfs.h>
 #include <linux/kthread.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/sched/task.h>
 #include <linux/util_macros.h>
@@ -124,6 +124,7 @@ static const struct regmap_config ina2xx_regmap_config = {
 enum ina2xx_ids { ina219, ina226 };
 
 struct ina2xx_config {
+	const char *name;
 	u16 config_default;
 	int calibration_value;
 	int shunt_voltage_lsb;	/* nV */
@@ -146,10 +147,16 @@ struct ina2xx_chip_info {
 	int range_vbus; /* Bus voltage maximum in V */
 	int pga_gain_vshunt; /* Shunt voltage PGA gain */
 	bool allow_async_readout;
+	/* data buffer needs space for channel data and timestamp */
+	struct {
+		u16 chan[4];
+		u64 ts __aligned(8);
+	} scan;
 };
 
 static const struct ina2xx_config ina2xx_config[] = {
 	[ina219] = {
+		.name = "ina219",
 		.config_default = INA219_CONFIG_DEFAULT,
 		.calibration_value = 4096,
 		.shunt_voltage_lsb = 10000,
@@ -159,6 +166,7 @@ static const struct ina2xx_config ina2xx_config[] = {
 		.chip_id = ina219,
 	},
 	[ina226] = {
+		.name = "ina226",
 		.config_default = INA226_CONFIG_DEFAULT,
 		.calibration_value = 2048,
 		.shunt_voltage_lsb = 2500,
@@ -273,7 +281,7 @@ static int ina2xx_read_raw(struct iio_dev *indio_dev,
  * Available averaging rates for ina226. The indices correspond with
  * the bit values expected by the chip (according to the ina226 datasheet,
  * table 3 AVG bit settings, found at
- * http://www.ti.com/lit/ds/symlink/ina226.pdf.
+ * https://www.ti.com/lit/ds/symlink/ina226.pdf.
  */
 static const int ina226_avg_tab[] = { 1, 4, 16, 64, 128, 256, 512, 1024 };
 
@@ -534,7 +542,7 @@ static ssize_t ina2xx_allow_async_readout_show(struct device *dev,
 {
 	struct ina2xx_chip_info *chip = iio_priv(dev_to_iio_dev(dev));
 
-	return sprintf(buf, "%d\n", chip->allow_async_readout);
+	return sysfs_emit(buf, "%d\n", chip->allow_async_readout);
 }
 
 static ssize_t ina2xx_allow_async_readout_store(struct device *dev,
@@ -545,7 +553,7 @@ static ssize_t ina2xx_allow_async_readout_store(struct device *dev,
 	bool val;
 	int ret;
 
-	ret = strtobool((const char *) buf, &val);
+	ret = kstrtobool(buf, &val);
 	if (ret)
 		return ret;
 
@@ -738,8 +746,6 @@ static int ina2xx_conversion_ready(struct iio_dev *indio_dev)
 static int ina2xx_work_buffer(struct iio_dev *indio_dev)
 {
 	struct ina2xx_chip_info *chip = iio_priv(indio_dev);
-	/* data buffer needs space for channel data and timestap */
-	unsigned short data[4 + sizeof(s64)/sizeof(short)];
 	int bit, ret, i = 0;
 	s64 time;
 
@@ -758,10 +764,10 @@ static int ina2xx_work_buffer(struct iio_dev *indio_dev)
 		if (ret < 0)
 			return ret;
 
-		data[i++] = val;
+		chip->scan.chan[i++] = val;
 	}
 
-	iio_push_to_buffers_with_timestamp(indio_dev, data, time);
+	iio_push_to_buffers_with_timestamp(indio_dev, &chip->scan, time);
 
 	return 0;
 };
@@ -839,14 +845,13 @@ static int ina2xx_buffer_enable(struct iio_dev *indio_dev)
 	dev_dbg(&indio_dev->dev, "Async readout mode: %d\n",
 		chip->allow_async_readout);
 
-	task = kthread_create(ina2xx_capture_thread, (void *)indio_dev,
-			      "%s:%d-%uus", indio_dev->name, indio_dev->id,
-			      sampling_us);
+	task = kthread_run(ina2xx_capture_thread, (void *)indio_dev,
+			   "%s:%d-%uus", indio_dev->name,
+			   iio_device_id(indio_dev),
+			   sampling_us);
 	if (IS_ERR(task))
 		return PTR_ERR(task);
 
-	get_task_struct(task);
-	wake_up_process(task);
 	chip->task = task;
 
 	return 0;
@@ -858,7 +863,6 @@ static int ina2xx_buffer_disable(struct iio_dev *indio_dev)
 
 	if (chip->task) {
 		kthread_stop(chip->task);
-		put_task_struct(chip->task);
 		chip->task = NULL;
 	}
 
@@ -945,12 +949,11 @@ static int ina2xx_init(struct ina2xx_chip_info *chip, unsigned int config)
 	return ina2xx_set_calibration(chip);
 }
 
-static int ina2xx_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ina2xx_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct ina2xx_chip_info *chip;
 	struct iio_dev *indio_dev;
-	struct iio_buffer *buffer;
 	unsigned int val;
 	enum ina2xx_ids type;
 	int ret;
@@ -971,7 +974,7 @@ static int ina2xx_probe(struct i2c_client *client,
 	}
 
 	if (client->dev.of_node)
-		type = (enum ina2xx_ids)of_device_get_match_data(&client->dev);
+		type = (uintptr_t)of_device_get_match_data(&client->dev);
 	else
 		type = id->driver_data;
 	chip->config = &ina2xx_config[type];
@@ -996,7 +999,7 @@ static int ina2xx_probe(struct i2c_client *client,
 	/* Patch the current config register with default. */
 	val = chip->config->config_default;
 
-	if (id->driver_data == ina226) {
+	if (type == ina226) {
 		ina226_set_average(chip, INA226_DEFAULT_AVG, &val);
 		ina226_set_int_time_vbus(chip, INA226_DEFAULT_IT, &val);
 		ina226_set_int_time_vshunt(chip, INA226_DEFAULT_IT, &val);
@@ -1014,10 +1017,8 @@ static int ina2xx_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	indio_dev->modes = INDIO_DIRECT_MODE | INDIO_BUFFER_SOFTWARE;
-	indio_dev->dev.parent = &client->dev;
-	indio_dev->dev.of_node = client->dev.of_node;
-	if (id->driver_data == ina226) {
+	indio_dev->modes = INDIO_DIRECT_MODE;
+	if (type == ina226) {
 		indio_dev->channels = ina226_channels;
 		indio_dev->num_channels = ARRAY_SIZE(ina226_channels);
 		indio_dev->info = &ina226_info;
@@ -1026,28 +1027,30 @@ static int ina2xx_probe(struct i2c_client *client,
 		indio_dev->num_channels = ARRAY_SIZE(ina219_channels);
 		indio_dev->info = &ina219_info;
 	}
-	indio_dev->name = id->name;
-	indio_dev->setup_ops = &ina2xx_setup_ops;
+	indio_dev->name = id ? id->name : chip->config->name;
 
-	buffer = devm_iio_kfifo_allocate(&indio_dev->dev);
-	if (!buffer)
-		return -ENOMEM;
-
-	iio_device_attach_buffer(indio_dev, buffer);
+	ret = devm_iio_kfifo_buffer_setup(&client->dev, indio_dev,
+					  &ina2xx_setup_ops);
+	if (ret)
+		return ret;
 
 	return iio_device_register(indio_dev);
 }
 
-static int ina2xx_remove(struct i2c_client *client)
+static void ina2xx_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct ina2xx_chip_info *chip = iio_priv(indio_dev);
+	int ret;
 
 	iio_device_unregister(indio_dev);
 
 	/* Powerdown */
-	return regmap_update_bits(chip->regmap, INA2XX_CONFIG,
-				  INA2XX_MODE_MASK, 0);
+	ret = regmap_update_bits(chip->regmap, INA2XX_CONFIG,
+				 INA2XX_MODE_MASK, 0);
+	if (ret)
+		dev_warn(&client->dev, "Failed to power down device (%pe)\n",
+			 ERR_PTR(ret));
 }
 
 static const struct i2c_device_id ina2xx_id[] = {

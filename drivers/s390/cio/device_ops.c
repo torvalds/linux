@@ -202,11 +202,16 @@ int ccw_device_start_timeout_key(struct ccw_device *cdev, struct ccw1 *cpa,
 		return -EINVAL;
 	if (cdev->private->state == DEV_STATE_NOT_OPER)
 		return -ENODEV;
-	if (cdev->private->state == DEV_STATE_VERIFY) {
+	if (cdev->private->state == DEV_STATE_VERIFY ||
+	    cdev->private->flags.doverify) {
 		/* Remember to fake irb when finished. */
 		if (!cdev->private->flags.fake_irb) {
 			cdev->private->flags.fake_irb = FAKE_CMD_IRB;
 			cdev->private->intparm = intparm;
+			CIO_MSG_EVENT(2, "fakeirb: queue device 0.%x.%04x intparm %lx type=%d\n",
+				      cdev->private->dev_id.ssid,
+				      cdev->private->dev_id.devno, intparm,
+				      cdev->private->flags.fake_irb);
 			return 0;
 		} else
 			/* There's already a fake I/O around. */
@@ -214,8 +219,7 @@ int ccw_device_start_timeout_key(struct ccw_device *cdev, struct ccw1 *cpa,
 	}
 	if (cdev->private->state != DEV_STATE_ONLINE ||
 	    ((sch->schib.scsw.cmd.stctl & SCSW_STCTL_PRIM_STATUS) &&
-	     !(sch->schib.scsw.cmd.stctl & SCSW_STCTL_SEC_STATUS)) ||
-	    cdev->private->flags.doverify)
+	     !(sch->schib.scsw.cmd.stctl & SCSW_STCTL_SEC_STATUS)))
 		return -EBUSY;
 	ret = cio_set_options (sch, flags);
 	if (ret)
@@ -551,6 +555,10 @@ int ccw_device_tm_start_timeout_key(struct ccw_device *cdev, struct tcw *tcw,
 		if (!cdev->private->flags.fake_irb) {
 			cdev->private->flags.fake_irb = FAKE_TM_IRB;
 			cdev->private->intparm = intparm;
+			CIO_MSG_EVENT(2, "fakeirb: queue device 0.%x.%04x intparm %lx type=%d\n",
+				      cdev->private->dev_id.ssid,
+				      cdev->private->dev_id.devno, intparm,
+				      cdev->private->flags.fake_irb);
 			return 0;
 		} else
 			/* There's already a fake I/O around. */
@@ -635,7 +643,7 @@ EXPORT_SYMBOL(ccw_device_tm_start_timeout);
  * @mask: mask of paths to use
  *
  * Return the number of 64K-bytes blocks all paths at least support
- * for a transport command. Return values <= 0 indicate failures.
+ * for a transport command. Return value 0 indicates failure.
  */
 int ccw_device_get_mdc(struct ccw_device *cdev, u8 mask)
 {
@@ -710,20 +718,139 @@ void ccw_device_get_schid(struct ccw_device *cdev, struct subchannel_id *schid)
 }
 EXPORT_SYMBOL_GPL(ccw_device_get_schid);
 
+/**
+ * ccw_device_pnso() - Perform Network-Subchannel Operation
+ * @cdev:		device on which PNSO is performed
+ * @pnso_area:		request and response block for the operation
+ * @oc:			Operation Code
+ * @resume_token:	resume token for multiblock response
+ * @cnc:		Boolean change-notification control
+ *
+ * pnso_area must be allocated by the caller with get_zeroed_page(GFP_KERNEL)
+ *
+ * Returns 0 on success.
+ */
+int ccw_device_pnso(struct ccw_device *cdev,
+		    struct chsc_pnso_area *pnso_area, u8 oc,
+		    struct chsc_pnso_resume_token resume_token, int cnc)
+{
+	struct subchannel_id schid;
+
+	ccw_device_get_schid(cdev, &schid);
+	return chsc_pnso(schid, pnso_area, oc, resume_token, cnc);
+}
+EXPORT_SYMBOL_GPL(ccw_device_pnso);
+
+/**
+ * ccw_device_get_cssid() - obtain Channel Subsystem ID
+ * @cdev: device to obtain the CSSID for
+ * @cssid: The resulting Channel Subsystem ID
+ */
+int ccw_device_get_cssid(struct ccw_device *cdev, u8 *cssid)
+{
+	struct device *sch_dev = cdev->dev.parent;
+	struct channel_subsystem *css = to_css(sch_dev->parent);
+
+	if (css->id_valid)
+		*cssid = css->cssid;
+	return css->id_valid ? 0 : -ENODEV;
+}
+EXPORT_SYMBOL_GPL(ccw_device_get_cssid);
+
+/**
+ * ccw_device_get_iid() - obtain MIF-image ID
+ * @cdev: device to obtain the MIF-image ID for
+ * @iid: The resulting MIF-image ID
+ */
+int ccw_device_get_iid(struct ccw_device *cdev, u8 *iid)
+{
+	struct device *sch_dev = cdev->dev.parent;
+	struct channel_subsystem *css = to_css(sch_dev->parent);
+
+	if (css->id_valid)
+		*iid = css->iid;
+	return css->id_valid ? 0 : -ENODEV;
+}
+EXPORT_SYMBOL_GPL(ccw_device_get_iid);
+
+/**
+ * ccw_device_get_chpid() - obtain Channel Path ID
+ * @cdev: device to obtain the Channel Path ID for
+ * @chp_idx: Index of the channel path
+ * @chpid: The resulting Channel Path ID
+ */
+int ccw_device_get_chpid(struct ccw_device *cdev, int chp_idx, u8 *chpid)
+{
+	struct subchannel *sch = to_subchannel(cdev->dev.parent);
+	int mask;
+
+	if ((chp_idx < 0) || (chp_idx > 7))
+		return -EINVAL;
+	mask = 0x80 >> chp_idx;
+	if (!(sch->schib.pmcw.pim & mask))
+		return -ENODEV;
+
+	*chpid = sch->schib.pmcw.chpid[chp_idx];
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ccw_device_get_chpid);
+
+/**
+ * ccw_device_get_chid() - obtain Channel ID associated with specified CHPID
+ * @cdev: device to obtain the Channel ID for
+ * @chp_idx: Index of the channel path
+ * @chid: The resulting Channel ID
+ */
+int ccw_device_get_chid(struct ccw_device *cdev, int chp_idx, u16 *chid)
+{
+	struct chp_id cssid_chpid;
+	struct channel_path *chp;
+	int rc;
+
+	chp_id_init(&cssid_chpid);
+	rc = ccw_device_get_chpid(cdev, chp_idx, &cssid_chpid.id);
+	if (rc)
+		return rc;
+	chp = chpid_to_chp(cssid_chpid);
+	if (!chp)
+		return -ENODEV;
+
+	mutex_lock(&chp->lock);
+	if (chp->desc_fmt1.flags & 0x10)
+		*chid = chp->desc_fmt1.chid;
+	else
+		rc = -ENODEV;
+	mutex_unlock(&chp->lock);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(ccw_device_get_chid);
+
 /*
  * Allocate zeroed dma coherent 31 bit addressable memory using
  * the subchannels dma pool. Maximal size of allocation supported
  * is PAGE_SIZE.
  */
-void *ccw_device_dma_zalloc(struct ccw_device *cdev, size_t size)
+void *ccw_device_dma_zalloc(struct ccw_device *cdev, size_t size,
+			    dma32_t *dma_handle)
 {
-	return cio_gp_dma_zalloc(cdev->private->dma_pool, &cdev->dev, size);
+	void *addr;
+
+	if (!get_device(&cdev->dev))
+		return NULL;
+	addr = __cio_gp_dma_zalloc(cdev->private->dma_pool, &cdev->dev, size, dma_handle);
+	if (IS_ERR_OR_NULL(addr))
+		put_device(&cdev->dev);
+	return addr;
 }
 EXPORT_SYMBOL(ccw_device_dma_zalloc);
 
 void ccw_device_dma_free(struct ccw_device *cdev, void *cpu_addr, size_t size)
 {
+	if (!cpu_addr)
+		return;
 	cio_gp_dma_free(cdev->private->dma_pool, cpu_addr, size);
+	put_device(&cdev->dev);
 }
 EXPORT_SYMBOL(ccw_device_dma_free);
 

@@ -10,8 +10,7 @@
 
 #include "pcm3060.h"
 
-static int pcm3060_i2c_probe(struct i2c_client *i2c,
-			     const struct i2c_device_id *id)
+static int pcm3060_i2c_probe(struct i2c_client *i2c)
 {
 	struct pcm3060_priv *priv;
 

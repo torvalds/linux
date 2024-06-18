@@ -2,7 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 #include <sys/ioctl.h>
+#include <linux/compiler.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/kernel.h>
 #include "tests.h"
@@ -21,6 +23,7 @@ do {                                            \
 volatile u64 data1;
 volatile u8 data2[3];
 
+#ifndef __s390x__
 static int wp_read(int fd, long long *count, int size)
 {
 	int ret = read(fd, count, size);
@@ -56,20 +59,27 @@ static int __event(int wp_type, void *wp_addr, unsigned long wp_len)
 	get__perf_event_attr(&attr, wp_type, wp_addr, wp_len);
 	fd = sys_perf_event_open(&attr, 0, -1, -1,
 				 perf_event_open_cloexec_flag());
-	if (fd < 0)
+	if (fd < 0) {
+		fd = -errno;
 		pr_debug("failed opening event %x\n", attr.bp_type);
+	}
 
 	return fd;
 }
+#endif
 
-static int wp_ro_test(void)
+static int test__wp_ro(struct test_suite *test __maybe_unused,
+		       int subtest __maybe_unused)
 {
+#if defined(__s390x__) || defined(__x86_64__) || defined(__i386__)
+	return TEST_SKIP;
+#else
 	int fd;
 	unsigned long tmp, tmp1 = rand();
 
 	fd = __event(HW_BREAKPOINT_R, (void *)&data1, sizeof(data1));
 	if (fd < 0)
-		return -1;
+		return fd == -ENODEV ? TEST_SKIP : -1;
 
 	tmp = data1;
 	WP_TEST_ASSERT_VAL(fd, "RO watchpoint", 1);
@@ -79,16 +89,21 @@ static int wp_ro_test(void)
 
 	close(fd);
 	return 0;
+#endif
 }
 
-static int wp_wo_test(void)
+static int test__wp_wo(struct test_suite *test __maybe_unused,
+		       int subtest __maybe_unused)
 {
+#if defined(__s390x__)
+	return TEST_SKIP;
+#else
 	int fd;
 	unsigned long tmp, tmp1 = rand();
 
 	fd = __event(HW_BREAKPOINT_W, (void *)&data1, sizeof(data1));
 	if (fd < 0)
-		return -1;
+		return fd == -ENODEV ? TEST_SKIP : -1;
 
 	tmp = data1;
 	WP_TEST_ASSERT_VAL(fd, "WO watchpoint", 0);
@@ -98,17 +113,22 @@ static int wp_wo_test(void)
 
 	close(fd);
 	return 0;
+#endif
 }
 
-static int wp_rw_test(void)
+static int test__wp_rw(struct test_suite *test __maybe_unused,
+		       int subtest __maybe_unused)
 {
+#if defined(__s390x__)
+	return TEST_SKIP;
+#else
 	int fd;
 	unsigned long tmp, tmp1 = rand();
 
 	fd = __event(HW_BREAKPOINT_R | HW_BREAKPOINT_W, (void *)&data1,
 		     sizeof(data1));
 	if (fd < 0)
-		return -1;
+		return fd == -ENODEV ? TEST_SKIP : -1;
 
 	tmp = data1;
 	WP_TEST_ASSERT_VAL(fd, "RW watchpoint", 1);
@@ -118,17 +138,21 @@ static int wp_rw_test(void)
 
 	close(fd);
 	return 0;
+#endif
 }
 
-static int wp_modify_test(void)
+static int test__wp_modify(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
+#if defined(__s390x__)
+	return TEST_SKIP;
+#else
 	int fd, ret;
 	unsigned long tmp = rand();
 	struct perf_event_attr new_attr;
 
 	fd = __event(HW_BREAKPOINT_W, (void *)&data1, sizeof(data1));
 	if (fd < 0)
-		return -1;
+		return fd == -ENODEV ? TEST_SKIP : -1;
 
 	data1 = tmp;
 	WP_TEST_ASSERT_VAL(fd, "Modify watchpoint", 1);
@@ -139,6 +163,11 @@ static int wp_modify_test(void)
 	new_attr.disabled = 1;
 	ret = ioctl(fd, PERF_EVENT_IOC_MODIFY_ATTRIBUTES, &new_attr);
 	if (ret < 0) {
+		if (errno == ENOTTY) {
+			test->test_cases[subtest].skip_reason = "missing kernel support";
+			ret = TEST_SKIP;
+		}
+
 		pr_debug("ioctl(PERF_EVENT_IOC_MODIFY_ATTRIBUTES) failed\n");
 		close(fd);
 		return ret;
@@ -163,84 +192,18 @@ static int wp_modify_test(void)
 
 	close(fd);
 	return 0;
-}
-
-static bool wp_ro_supported(void)
-{
-#if defined (__x86_64__) || defined (__i386__)
-	return false;
-#else
-	return true;
 #endif
 }
 
-static void wp_ro_skip_msg(void)
-{
-#if defined (__x86_64__) || defined (__i386__)
-	pr_debug("Hardware does not support read only watchpoints.\n");
-#endif
-}
-
-static struct {
-	const char *desc;
-	int (*target_func)(void);
-	bool (*is_supported)(void);
-	void (*skip_msg)(void);
-} wp_testcase_table[] = {
-	{
-		.desc = "Read Only Watchpoint",
-		.target_func = &wp_ro_test,
-		.is_supported = &wp_ro_supported,
-		.skip_msg = &wp_ro_skip_msg,
-	},
-	{
-		.desc = "Write Only Watchpoint",
-		.target_func = &wp_wo_test,
-	},
-	{
-		.desc = "Read / Write Watchpoint",
-		.target_func = &wp_rw_test,
-	},
-	{
-		.desc = "Modify Watchpoint",
-		.target_func = &wp_modify_test,
-	},
+static struct test_case wp_tests[] = {
+	TEST_CASE_REASON("Read Only Watchpoint", wp_ro, "missing hardware support"),
+	TEST_CASE_REASON("Write Only Watchpoint", wp_wo, "missing hardware support"),
+	TEST_CASE_REASON("Read / Write Watchpoint", wp_rw, "missing hardware support"),
+	TEST_CASE_REASON("Modify Watchpoint", wp_modify, "missing hardware support"),
+	{ .name = NULL, }
 };
 
-int test__wp_subtest_get_nr(void)
-{
-	return (int)ARRAY_SIZE(wp_testcase_table);
-}
-
-const char *test__wp_subtest_get_desc(int i)
-{
-	if (i < 0 || i >= (int)ARRAY_SIZE(wp_testcase_table))
-		return NULL;
-	return wp_testcase_table[i].desc;
-}
-
-int test__wp(struct test *test __maybe_unused, int i)
-{
-	if (i < 0 || i >= (int)ARRAY_SIZE(wp_testcase_table))
-		return TEST_FAIL;
-
-	if (wp_testcase_table[i].is_supported &&
-	    !wp_testcase_table[i].is_supported()) {
-		wp_testcase_table[i].skip_msg();
-		return TEST_SKIP;
-	}
-
-	return !wp_testcase_table[i].target_func() ? TEST_OK : TEST_FAIL;
-}
-
-/* The s390 so far does not have support for
- * instruction breakpoint using the perf_event_open() system call.
- */
-bool test__wp_is_supported(void)
-{
-#if defined(__s390x__)
-	return false;
-#else
-	return true;
-#endif
-}
+struct test_suite suite__wp = {
+	.desc = "Watchpoint",
+	.test_cases = wp_tests,
+};

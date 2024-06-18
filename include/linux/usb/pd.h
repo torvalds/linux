@@ -45,7 +45,8 @@ enum pd_data_msg_type {
 	PD_DATA_BATT_STATUS = 5,
 	PD_DATA_ALERT = 6,
 	PD_DATA_GET_COUNTRY_INFO = 7,
-	/* 8-14 Reserved */
+	PD_DATA_ENTER_USB = 8,
+	/* 9-14 Reserved */
 	PD_DATA_VENDOR_DEF = 15,
 	/* 16-31 Reserved */
 };
@@ -218,14 +219,18 @@ enum pd_pdo_type {
 #define PDO_CURR_MASK		0x3ff
 #define PDO_PWR_MASK		0x3ff
 
-#define PDO_FIXED_DUAL_ROLE	BIT(29)	/* Power role swap supported */
-#define PDO_FIXED_SUSPEND	BIT(28) /* USB Suspend supported (Source) */
-#define PDO_FIXED_HIGHER_CAP	BIT(28) /* Requires more than vSafe5V (Sink) */
-#define PDO_FIXED_EXTPOWER	BIT(27) /* Externally powered */
-#define PDO_FIXED_USB_COMM	BIT(26) /* USB communications capable */
-#define PDO_FIXED_DATA_SWAP	BIT(25) /* Data role swap supported */
-#define PDO_FIXED_VOLT_SHIFT	10	/* 50mV units */
-#define PDO_FIXED_CURR_SHIFT	0	/* 10mA units */
+#define PDO_FIXED_DUAL_ROLE		BIT(29)	/* Power role swap supported */
+#define PDO_FIXED_SUSPEND		BIT(28) /* USB Suspend supported (Source) */
+#define PDO_FIXED_HIGHER_CAP		BIT(28) /* Requires more than vSafe5V (Sink) */
+#define PDO_FIXED_EXTPOWER		BIT(27) /* Externally powered */
+#define PDO_FIXED_USB_COMM		BIT(26) /* USB communications capable */
+#define PDO_FIXED_DATA_SWAP		BIT(25) /* Data role swap supported */
+#define PDO_FIXED_UNCHUNK_EXT		BIT(24) /* Unchunked Extended Message supported (Source) */
+#define PDO_FIXED_FRS_CURR_MASK		(BIT(24) | BIT(23)) /* FR_Swap Current (Sink) */
+#define PDO_FIXED_FRS_CURR_SHIFT	23
+#define PDO_FIXED_PEAK_CURR_SHIFT	20
+#define PDO_FIXED_VOLT_SHIFT		10	/* 50mV units */
+#define PDO_FIXED_CURR_SHIFT		0	/* 10mA units */
 
 #define PDO_FIXED_VOLT(mv)	((((mv) / 50) & PDO_VOLT_MASK) << PDO_FIXED_VOLT_SHIFT)
 #define PDO_FIXED_CURR(ma)	((((ma) / 10) & PDO_CURR_MASK) << PDO_FIXED_CURR_SHIFT)
@@ -418,20 +423,52 @@ static inline unsigned int rdo_max_power(u32 rdo)
 	return ((rdo >> RDO_BATT_MAX_PWR_SHIFT) & RDO_PWR_MASK) * 250;
 }
 
+/* Enter_USB Data Object */
+#define EUDO_USB_MODE_MASK		GENMASK(30, 28)
+#define EUDO_USB_MODE_SHIFT		28
+#define   EUDO_USB_MODE_USB2		0
+#define   EUDO_USB_MODE_USB3		1
+#define   EUDO_USB_MODE_USB4		2
+#define EUDO_USB4_DRD			BIT(26)
+#define EUDO_USB3_DRD			BIT(25)
+#define EUDO_CABLE_SPEED_MASK		GENMASK(23, 21)
+#define EUDO_CABLE_SPEED_SHIFT		21
+#define   EUDO_CABLE_SPEED_USB2		0
+#define   EUDO_CABLE_SPEED_USB3_GEN1	1
+#define   EUDO_CABLE_SPEED_USB4_GEN2	2
+#define   EUDO_CABLE_SPEED_USB4_GEN3	3
+#define EUDO_CABLE_TYPE_MASK		GENMASK(20, 19)
+#define EUDO_CABLE_TYPE_SHIFT		19
+#define   EUDO_CABLE_TYPE_PASSIVE	0
+#define   EUDO_CABLE_TYPE_RE_TIMER	1
+#define   EUDO_CABLE_TYPE_RE_DRIVER	2
+#define   EUDO_CABLE_TYPE_OPTICAL	3
+#define EUDO_CABLE_CURRENT_MASK		GENMASK(18, 17)
+#define EUDO_CABLE_CURRENT_SHIFT	17
+#define   EUDO_CABLE_CURRENT_NOTSUPP	0
+#define   EUDO_CABLE_CURRENT_3A		2
+#define   EUDO_CABLE_CURRENT_5A		3
+#define EUDO_PCIE_SUPPORT		BIT(16)
+#define EUDO_DP_SUPPORT			BIT(15)
+#define EUDO_TBT_SUPPORT		BIT(14)
+#define EUDO_HOST_PRESENT		BIT(13)
+
 /* USB PD timers and counters */
 #define PD_T_NO_RESPONSE	5000	/* 4.5 - 5.5 seconds */
 #define PD_T_DB_DETECT		10000	/* 10 - 15 seconds */
 #define PD_T_SEND_SOURCE_CAP	150	/* 100 - 200 ms */
 #define PD_T_SENDER_RESPONSE	60	/* 24 - 30 ms, relaxed */
+#define PD_T_RECEIVER_RESPONSE	15	/* 15ms max */
 #define PD_T_SOURCE_ACTIVITY	45
 #define PD_T_SINK_ACTIVITY	135
-#define PD_T_SINK_WAIT_CAP	240
+#define PD_T_SINK_WAIT_CAP	310	/* 310 - 620 ms */
 #define PD_T_PS_TRANSITION	500
 #define PD_T_SRC_TRANSITION	35
 #define PD_T_DRP_SNK		40
 #define PD_T_DRP_SRC		30
 #define PD_T_PS_SOURCE_OFF	920
 #define PD_T_PS_SOURCE_ON	480
+#define PD_T_PS_SOURCE_ON_PRS	450	/* 390 - 480ms */
 #define PD_T_PS_HARD_RESET	30
 #define PD_T_SRC_RECOVER	760
 #define PD_T_SRC_RECOVER_MAX	1000
@@ -440,16 +477,62 @@ static inline unsigned int rdo_max_power(u32 rdo)
 #define PD_T_VCONN_SOURCE_ON	100
 #define PD_T_SINK_REQUEST	100	/* 100 ms minimum */
 #define PD_T_ERROR_RECOVERY	100	/* minimum 25 is insufficient */
-#define PD_T_SRCSWAPSTDBY      625     /* Maximum of 650ms */
-#define PD_T_NEWSRC            250     /* Maximum of 275ms */
+#define PD_T_SRCSWAPSTDBY	625	/* Maximum of 650ms */
+#define PD_T_NEWSRC		250	/* Maximum of 275ms */
+#define PD_T_SWAP_SRC_START	20	/* Minimum of 20ms */
+#define PD_T_BIST_CONT_MODE	50	/* 30 - 60 ms */
+#define PD_T_SINK_TX		16	/* 16 - 20 ms */
+#define PD_T_CHUNK_NOT_SUPP	42	/* 40 - 50 ms */
+#define PD_T_VCONN_STABLE	50
 
 #define PD_T_DRP_TRY		100	/* 75 - 150 ms */
 #define PD_T_DRP_TRYWAIT	600	/* 400 - 800 ms */
 
 #define PD_T_CC_DEBOUNCE	200	/* 100 - 200 ms */
 #define PD_T_PD_DEBOUNCE	20	/* 10 - 20 ms */
+#define PD_T_TRY_CC_DEBOUNCE	15	/* 10 - 20 ms */
 
 #define PD_N_CAPS_COUNT		(PD_T_NO_RESPONSE / PD_T_SEND_SOURCE_CAP)
 #define PD_N_HARD_RESET_COUNT	2
+
+#define PD_P_SNK_STDBY_MW	2500	/* 2500 mW */
+
+#if IS_ENABLED(CONFIG_TYPEC)
+
+struct usb_power_delivery;
+
+/**
+ * usb_power_delivery_desc - USB Power Delivery Descriptor
+ * @revision: USB Power Delivery Specification Revision
+ * @version: USB Power Delivery Specicication Version - optional
+ */
+struct usb_power_delivery_desc {
+	u16 revision;
+	u16 version;
+};
+
+/**
+ * usb_power_delivery_capabilities_desc - Description of USB Power Delivery Capabilities Message
+ * @pdo: The Power Data Objects in the Capability Message
+ * @role: Power role of the capabilities
+ */
+struct usb_power_delivery_capabilities_desc {
+	u32 pdo[PDO_MAX_OBJECTS];
+	enum typec_role role;
+};
+
+struct usb_power_delivery_capabilities *
+usb_power_delivery_register_capabilities(struct usb_power_delivery *pd,
+					 struct usb_power_delivery_capabilities_desc *desc);
+void usb_power_delivery_unregister_capabilities(struct usb_power_delivery_capabilities *cap);
+
+struct usb_power_delivery *usb_power_delivery_register(struct device *parent,
+						       struct usb_power_delivery_desc *desc);
+void usb_power_delivery_unregister(struct usb_power_delivery *pd);
+
+int usb_power_delivery_link_device(struct usb_power_delivery *pd, struct device *dev);
+void usb_power_delivery_unlink_device(struct usb_power_delivery *pd, struct device *dev);
+
+#endif /* CONFIG_TYPEC */
 
 #endif /* __LINUX_USB_PD_H */

@@ -26,7 +26,7 @@
 #include <net/llc_c_st.h>
 #include <net/llc_conn.h>
 
-static void llc_ui_format_mac(struct seq_file *seq, u8 *addr)
+static void llc_ui_format_mac(struct seq_file *seq, const u8 *addr)
 {
 	seq_printf(seq, "%pM", addr);
 }
@@ -56,7 +56,7 @@ found:
 	return sk;
 }
 
-static void *llc_seq_start(struct seq_file *seq, loff_t *pos)
+static void *llc_seq_start(struct seq_file *seq, loff_t *pos) __acquires(RCU)
 {
 	loff_t l = *pos;
 
@@ -195,7 +195,7 @@ static int llc_seq_core_show(struct seq_file *seq, void *v)
 		   timer_pending(&llc->pf_cycle_timer.timer),
 		   timer_pending(&llc->rej_sent_timer.timer),
 		   timer_pending(&llc->busy_state_timer.timer),
-		   !!sk->sk_backlog.tail, !!sk->sk_lock.owned);
+		   !!sk->sk_backlog.tail, sock_owned_by_user_nocheck(sk));
 out:
 	return 0;
 }

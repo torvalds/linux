@@ -5,17 +5,21 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/limits.h>
+#include <poll.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/inotify.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
 #include "cgroup_util.h"
+#include "../clone3/clone3_selftests.h"
 
+/* Returns read len on success, or -errno on failure. */
 static ssize_t read_text(const char *path, char *buf, size_t max_len)
 {
 	ssize_t len;
@@ -23,35 +27,29 @@ static ssize_t read_text(const char *path, char *buf, size_t max_len)
 
 	fd = open(path, O_RDONLY);
 	if (fd < 0)
-		return fd;
+		return -errno;
 
 	len = read(fd, buf, max_len - 1);
-	if (len < 0)
-		goto out;
 
-	buf[len] = 0;
-out:
+	if (len >= 0)
+		buf[len] = 0;
+
 	close(fd);
-	return len;
+	return len < 0 ? -errno : len;
 }
 
+/* Returns written len on success, or -errno on failure. */
 static ssize_t write_text(const char *path, char *buf, ssize_t len)
 {
 	int fd;
 
 	fd = open(path, O_WRONLY | O_APPEND);
 	if (fd < 0)
-		return fd;
+		return -errno;
 
 	len = write(fd, buf, len);
-	if (len < 0) {
-		close(fd);
-		return len;
-	}
-
 	close(fd);
-
-	return len;
+	return len < 0 ? -errno : len;
 }
 
 char *cg_name(const char *root, const char *name)
@@ -84,16 +82,16 @@ char *cg_control(const char *cgroup, const char *control)
 	return ret;
 }
 
+/* Returns 0 on success, or -errno on failure. */
 int cg_read(const char *cgroup, const char *control, char *buf, size_t len)
 {
 	char path[PATH_MAX];
+	ssize_t ret;
 
 	snprintf(path, sizeof(path), "%s/%s", cgroup, control);
 
-	if (read_text(path, buf, len) >= 0)
-		return 0;
-
-	return -1;
+	ret = read_text(path, buf, len);
+	return ret >= 0 ? 0 : ret;
 }
 
 int cg_read_strcmp(const char *cgroup, const char *control,
@@ -105,7 +103,7 @@ int cg_read_strcmp(const char *cgroup, const char *control,
 
 	/* Handle the case of comparing against empty string */
 	if (!expected)
-		size = 32;
+		return -1;
 	else
 		size = strlen(expected) + 1;
 
@@ -158,23 +156,49 @@ long cg_read_key_long(const char *cgroup, const char *control, const char *key)
 	return atol(ptr + strlen(key));
 }
 
+long cg_read_lc(const char *cgroup, const char *control)
+{
+	char buf[PAGE_SIZE];
+	const char delim[] = "\n";
+	char *line;
+	long cnt = 0;
+
+	if (cg_read(cgroup, control, buf, sizeof(buf)))
+		return -1;
+
+	for (line = strtok(buf, delim); line; line = strtok(NULL, delim))
+		cnt++;
+
+	return cnt;
+}
+
+/* Returns 0 on success, or -errno on failure. */
 int cg_write(const char *cgroup, const char *control, char *buf)
 {
 	char path[PATH_MAX];
-	ssize_t len = strlen(buf);
+	ssize_t len = strlen(buf), ret;
 
 	snprintf(path, sizeof(path), "%s/%s", cgroup, control);
-
-	if (write_text(path, buf, len) == len)
-		return 0;
-
-	return -1;
+	ret = write_text(path, buf, len);
+	return ret == len ? 0 : ret;
 }
 
-int cg_find_unified_root(char *root, size_t len)
+int cg_write_numeric(const char *cgroup, const char *control, long value)
+{
+	char buf[64];
+	int ret;
+
+	ret = sprintf(buf, "%lu", value);
+	if (ret < 0)
+		return ret;
+
+	return cg_write(cgroup, control, buf);
+}
+
+int cg_find_unified_root(char *root, size_t len, bool *nsdelegate)
 {
 	char buf[10 * PAGE_SIZE];
-	char *fs, *mount, *type;
+	char *fs, *mount, *type, *options;
 	const char delim[] = "\n\t ";
 
 	if (read_text("/proc/self/mounts", buf, sizeof(buf)) <= 0)
@@ -187,12 +211,14 @@ int cg_find_unified_root(char *root, size_t len)
 	for (fs = strtok(buf, delim); fs; fs = strtok(NULL, delim)) {
 		mount = strtok(NULL, delim);
 		type = strtok(NULL, delim);
-		strtok(NULL, delim);
+		options = strtok(NULL, delim);
 		strtok(NULL, delim);
 		strtok(NULL, delim);
 
 		if (strcmp(type, "cgroup2") == 0) {
 			strncpy(root, mount, len);
+			if (nsdelegate)
+				*nsdelegate = !!strstr(options, "nsdelegate");
 			return 0;
 		}
 	}
@@ -202,7 +228,7 @@ int cg_find_unified_root(char *root, size_t len)
 
 int cg_create(const char *cgroup)
 {
-	return mkdir(cgroup, 0644);
+	return mkdir(cgroup, 0755);
 }
 
 int cg_wait_for_proc_count(const char *cgroup, int count)
@@ -235,6 +261,10 @@ int cg_killall(const char *cgroup)
 	char buf[PAGE_SIZE];
 	char *ptr = buf;
 
+	/* If cgroup.kill exists use it. */
+	if (!cg_write(cgroup, "cgroup.kill", "1"))
+		return 0;
+
 	if (cg_read(cgroup, "cgroup.procs", buf, sizeof(buf)))
 		return -1;
 
@@ -258,6 +288,8 @@ int cg_destroy(const char *cgroup)
 {
 	int ret;
 
+	if (!cgroup)
+		return 0;
 retry:
 	ret = rmdir(cgroup);
 	if (ret && errno == EBUSY) {
@@ -282,10 +314,12 @@ int cg_enter(const char *cgroup, int pid)
 
 int cg_enter_current(const char *cgroup)
 {
-	char pidbuf[64];
+	return cg_write(cgroup, "cgroup.procs", "0");
+}
 
-	snprintf(pidbuf, sizeof(pidbuf), "%d", getpid());
-	return cg_write(cgroup, "cgroup.procs", pidbuf);
+int cg_enter_current_thread(const char *cgroup)
+{
+	return cg_write(cgroup, "cgroup.threads", "0");
 }
 
 int cg_run(const char *cgroup,
@@ -313,11 +347,111 @@ int cg_run(const char *cgroup,
 	}
 }
 
+pid_t clone_into_cgroup(int cgroup_fd)
+{
+#ifdef CLONE_ARGS_SIZE_VER2
+	pid_t pid;
+
+	struct __clone_args args = {
+		.flags = CLONE_INTO_CGROUP,
+		.exit_signal = SIGCHLD,
+		.cgroup = cgroup_fd,
+	};
+
+	pid = sys_clone3(&args, sizeof(struct __clone_args));
+	/*
+	 * Verify that this is a genuine test failure:
+	 * ENOSYS -> clone3() not available
+	 * E2BIG  -> CLONE_INTO_CGROUP not available
+	 */
+	if (pid < 0 && (errno == ENOSYS || errno == E2BIG))
+		goto pretend_enosys;
+
+	return pid;
+
+pretend_enosys:
+#endif
+	errno = ENOSYS;
+	return -ENOSYS;
+}
+
+int clone_reap(pid_t pid, int options)
+{
+	int ret;
+	siginfo_t info = {
+		.si_signo = 0,
+	};
+
+again:
+	ret = waitid(P_PID, pid, &info, options | __WALL | __WNOTHREAD);
+	if (ret < 0) {
+		if (errno == EINTR)
+			goto again;
+		return -1;
+	}
+
+	if (options & WEXITED) {
+		if (WIFEXITED(info.si_status))
+			return WEXITSTATUS(info.si_status);
+	}
+
+	if (options & WSTOPPED) {
+		if (WIFSTOPPED(info.si_status))
+			return WSTOPSIG(info.si_status);
+	}
+
+	if (options & WCONTINUED) {
+		if (WIFCONTINUED(info.si_status))
+			return 0;
+	}
+
+	return -1;
+}
+
+int dirfd_open_opath(const char *dir)
+{
+	return open(dir, O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW | O_PATH);
+}
+
+#define close_prot_errno(fd)                                                   \
+	if (fd >= 0) {                                                         \
+		int _e_ = errno;                                               \
+		close(fd);                                                     \
+		errno = _e_;                                                   \
+	}
+
+static int clone_into_cgroup_run_nowait(const char *cgroup,
+					int (*fn)(const char *cgroup, void *arg),
+					void *arg)
+{
+	int cgroup_fd;
+	pid_t pid;
+
+	cgroup_fd =  dirfd_open_opath(cgroup);
+	if (cgroup_fd < 0)
+		return -1;
+
+	pid = clone_into_cgroup(cgroup_fd);
+	close_prot_errno(cgroup_fd);
+	if (pid == 0)
+		exit(fn(cgroup, arg));
+
+	return pid;
+}
+
 int cg_run_nowait(const char *cgroup,
 		  int (*fn)(const char *cgroup, void *arg),
 		  void *arg)
 {
 	int pid;
+
+	pid = clone_into_cgroup_run_nowait(cgroup, fn, arg);
+	if (pid > 0)
+		return pid;
+
+	/* Genuine test failure. */
+	if (pid < 0 && errno != ENOSYS)
+		return -1;
 
 	pid = fork();
 	if (pid == 0) {
@@ -410,11 +544,118 @@ int set_oom_adj_score(int pid, int score)
 	return 0;
 }
 
-char proc_read_text(int pid, const char *item, char *buf, size_t size)
+int proc_mount_contains(const char *option)
+{
+	char buf[4 * PAGE_SIZE];
+	ssize_t read;
+
+	read = read_text("/proc/mounts", buf, sizeof(buf));
+	if (read < 0)
+		return read;
+
+	return strstr(buf, option) != NULL;
+}
+
+ssize_t proc_read_text(int pid, bool thread, const char *item, char *buf, size_t size)
 {
 	char path[PATH_MAX];
+	ssize_t ret;
 
-	snprintf(path, sizeof(path), "/proc/%d/%s", pid, item);
+	if (!pid)
+		snprintf(path, sizeof(path), "/proc/%s/%s",
+			 thread ? "thread-self" : "self", item);
+	else
+		snprintf(path, sizeof(path), "/proc/%d/%s", pid, item);
 
-	return read_text(path, buf, size);
+	ret = read_text(path, buf, size);
+	return ret < 0 ? -1 : ret;
+}
+
+int proc_read_strstr(int pid, bool thread, const char *item, const char *needle)
+{
+	char buf[PAGE_SIZE];
+
+	if (proc_read_text(pid, thread, item, buf, sizeof(buf)) < 0)
+		return -1;
+
+	return strstr(buf, needle) ? 0 : -1;
+}
+
+int clone_into_cgroup_run_wait(const char *cgroup)
+{
+	int cgroup_fd;
+	pid_t pid;
+
+	cgroup_fd =  dirfd_open_opath(cgroup);
+	if (cgroup_fd < 0)
+		return -1;
+
+	pid = clone_into_cgroup(cgroup_fd);
+	close_prot_errno(cgroup_fd);
+	if (pid < 0)
+		return -1;
+
+	if (pid == 0)
+		exit(EXIT_SUCCESS);
+
+	/*
+	 * We don't care whether this fails. We only care whether the initial
+	 * clone succeeded.
+	 */
+	(void)clone_reap(pid, WEXITED);
+	return 0;
+}
+
+static int __prepare_for_wait(const char *cgroup, const char *filename)
+{
+	int fd, ret = -1;
+
+	fd = inotify_init1(0);
+	if (fd == -1)
+		return fd;
+
+	ret = inotify_add_watch(fd, cg_control(cgroup, filename), IN_MODIFY);
+	if (ret == -1) {
+		close(fd);
+		fd = -1;
+	}
+
+	return fd;
+}
+
+int cg_prepare_for_wait(const char *cgroup)
+{
+	return __prepare_for_wait(cgroup, "cgroup.events");
+}
+
+int memcg_prepare_for_wait(const char *cgroup)
+{
+	return __prepare_for_wait(cgroup, "memory.events");
+}
+
+int cg_wait_for(int fd)
+{
+	int ret = -1;
+	struct pollfd fds = {
+		.fd = fd,
+		.events = POLLIN,
+	};
+
+	while (true) {
+		ret = poll(&fds, 1, 10000);
+
+		if (ret == -1) {
+			if (errno == EINTR)
+				continue;
+
+			break;
+		}
+
+		if (ret > 0 && fds.revents & POLLIN) {
+			ret = 0;
+			break;
+		}
+	}
+
+	return ret;
 }

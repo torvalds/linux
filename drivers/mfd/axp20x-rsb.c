@@ -49,15 +49,16 @@ static int axp20x_rsb_probe(struct sunxi_rsb_device *rdev)
 	return axp20x_device_probe(axp20x);
 }
 
-static int axp20x_rsb_remove(struct sunxi_rsb_device *rdev)
+static void axp20x_rsb_remove(struct sunxi_rsb_device *rdev)
 {
 	struct axp20x_dev *axp20x = sunxi_rsb_device_get_drvdata(rdev);
 
-	return axp20x_device_remove(axp20x);
+	axp20x_device_remove(axp20x);
 }
 
 static const struct of_device_id axp20x_rsb_of_match[] = {
 	{ .compatible = "x-powers,axp223", .data = (void *)AXP223_ID },
+	{ .compatible = "x-powers,axp717", .data = (void *)AXP717_ID },
 	{ .compatible = "x-powers,axp803", .data = (void *)AXP803_ID },
 	{ .compatible = "x-powers,axp806", .data = (void *)AXP806_ID },
 	{ .compatible = "x-powers,axp809", .data = (void *)AXP809_ID },

@@ -348,7 +348,7 @@ static int is_sys_clk_from_pll(struct snd_soc_dapm_widget *source,
 {
 	unsigned int val;
 
-	val = snd_soc_component_read32(snd_soc_dapm_to_component(source->dapm), RT5616_GLB_CLK);
+	val = snd_soc_component_read(snd_soc_dapm_to_component(source->dapm), RT5616_GLB_CLK);
 	val &= RT5616_SCLK_SRC_MASK;
 	if (val == RT5616_SCLK_SRC_PLL1)
 		return 1;
@@ -1133,7 +1133,7 @@ static int rt5616_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 
 	ret = rl6231_pll_calc(freq_in, freq_out, &pll_code);
 	if (ret < 0) {
-		dev_err(component->dev, "Unsupport input clock %d\n", freq_in);
+		dev_err(component->dev, "Unsupported input clock %d\n", freq_in);
 		return ret;
 	}
 
@@ -1174,9 +1174,6 @@ static int rt5616_set_bias_level(struct snd_soc_component *component,
 		 * away from ON. Disable the clock in that case, otherwise
 		 * enable it.
 		 */
-		if (IS_ERR(rt5616->mclk))
-			break;
-
 		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_ON) {
 			clk_disable_unprepare(rt5616->mclk);
 		} else {
@@ -1225,9 +1222,9 @@ static int rt5616_probe(struct snd_soc_component *component)
 	struct rt5616_priv *rt5616 = snd_soc_component_get_drvdata(component);
 
 	/* Check if MCLK provided */
-	rt5616->mclk = devm_clk_get(component->dev, "mclk");
-	if (PTR_ERR(rt5616->mclk) == -EPROBE_DEFER)
-		return -EPROBE_DEFER;
+	rt5616->mclk = devm_clk_get_optional(component->dev, "mclk");
+	if (IS_ERR(rt5616->mclk))
+		return PTR_ERR(rt5616->mclk);
 
 	rt5616->component = component;
 
@@ -1304,7 +1301,6 @@ static const struct snd_soc_component_driver soc_component_dev_rt5616 = {
 	.num_dapm_routes	= ARRAY_SIZE(rt5616_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config rt5616_regmap = {
@@ -1316,7 +1312,7 @@ static const struct regmap_config rt5616_regmap = {
 					       RT5616_PR_SPACING),
 	.volatile_reg = rt5616_volatile_register,
 	.readable_reg = rt5616_readable_register,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = rt5616_reg,
 	.num_reg_defaults = ARRAY_SIZE(rt5616_reg),
 	.ranges = rt5616_ranges,
@@ -1324,7 +1320,7 @@ static const struct regmap_config rt5616_regmap = {
 };
 
 static const struct i2c_device_id rt5616_i2c_id[] = {
-	{ "rt5616", 0 },
+	{ "rt5616" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rt5616_i2c_id);
@@ -1337,8 +1333,7 @@ static const struct of_device_id rt5616_of_match[] = {
 MODULE_DEVICE_TABLE(of, rt5616_of_match);
 #endif
 
-static int rt5616_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int rt5616_i2c_probe(struct i2c_client *i2c)
 {
 	struct rt5616_priv *rt5616;
 	unsigned int val;
@@ -1390,10 +1385,8 @@ static int rt5616_i2c_probe(struct i2c_client *i2c,
 				      rt5616_dai, ARRAY_SIZE(rt5616_dai));
 }
 
-static int rt5616_i2c_remove(struct i2c_client *i2c)
-{
-	return 0;
-}
+static void rt5616_i2c_remove(struct i2c_client *i2c)
+{}
 
 static void rt5616_i2c_shutdown(struct i2c_client *client)
 {

@@ -71,8 +71,8 @@ static int ncsi_write_channel_info(struct sk_buff *skb,
 	if (nc == nc->package->preferred_channel)
 		nla_put_flag(skb, NCSI_CHANNEL_ATTR_FORCED);
 
-	nla_put_u32(skb, NCSI_CHANNEL_ATTR_VERSION_MAJOR, nc->version.version);
-	nla_put_u32(skb, NCSI_CHANNEL_ATTR_VERSION_MINOR, nc->version.alpha2);
+	nla_put_u32(skb, NCSI_CHANNEL_ATTR_VERSION_MAJOR, nc->version.major);
+	nla_put_u32(skb, NCSI_CHANNEL_ATTR_VERSION_MINOR, nc->version.minor);
 	nla_put_string(skb, NCSI_CHANNEL_ATTR_VERSION_STR, nc->version.fw_name);
 
 	vid_nest = nla_nest_start_noflag(skb, NCSI_CHANNEL_ATTR_VLAN_LIST);
@@ -112,7 +112,11 @@ static int ncsi_write_package_info(struct sk_buff *skb,
 		pnest = nla_nest_start_noflag(skb, NCSI_PKG_ATTR);
 		if (!pnest)
 			return -ENOMEM;
-		nla_put_u32(skb, NCSI_PKG_ATTR_ID, np->id);
+		rc = nla_put_u32(skb, NCSI_PKG_ATTR_ID, np->id);
+		if (rc) {
+			nla_nest_cancel(skb, pnest);
+			return rc;
+		}
 		if ((0x1 << np->id) == ndp->package_whitelist)
 			nla_put_flag(skb, NCSI_PKG_ATTR_FORCED);
 		cnest = nla_nest_start_noflag(skb, NCSI_PKG_ATTR_CHANNEL_LIST);
@@ -559,7 +563,7 @@ int ncsi_send_netlink_timeout(struct ncsi_request *nr,
 int ncsi_send_netlink_err(struct net_device *dev,
 			  u32 snd_seq,
 			  u32 snd_portid,
-			  struct nlmsghdr *nlhdr,
+			  const struct nlmsghdr *nlhdr,
 			  int err)
 {
 	struct nlmsghdr *nlh;
@@ -716,7 +720,7 @@ static int ncsi_set_channel_mask_nl(struct sk_buff *msg,
 	return 0;
 }
 
-static const struct genl_ops ncsi_ops[] = {
+static const struct genl_small_ops ncsi_ops[] = {
 	{
 		.cmd = NCSI_CMD_PKG_INFO,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
@@ -762,28 +766,13 @@ static struct genl_family ncsi_genl_family __ro_after_init = {
 	.maxattr = NCSI_ATTR_MAX,
 	.policy = ncsi_genl_policy,
 	.module = THIS_MODULE,
-	.ops = ncsi_ops,
-	.n_ops = ARRAY_SIZE(ncsi_ops),
+	.small_ops = ncsi_ops,
+	.n_small_ops = ARRAY_SIZE(ncsi_ops),
+	.resv_start_op = NCSI_CMD_SET_CHANNEL_MASK + 1,
 };
 
-int ncsi_init_netlink(struct net_device *dev)
+static int __init ncsi_init_netlink(void)
 {
-	int rc;
-
-	rc = genl_register_family(&ncsi_genl_family);
-	if (rc)
-		netdev_err(dev, "ncsi: failed to register netlink family\n");
-
-	return rc;
+	return genl_register_family(&ncsi_genl_family);
 }
-
-int ncsi_unregister_netlink(struct net_device *dev)
-{
-	int rc;
-
-	rc = genl_unregister_family(&ncsi_genl_family);
-	if (rc)
-		netdev_err(dev, "ncsi: failed to unregister netlink family\n");
-
-	return rc;
-}
+subsys_initcall(ncsi_init_netlink);

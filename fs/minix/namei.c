@@ -33,69 +33,64 @@ static struct dentry *minix_lookup(struct inode * dir, struct dentry *dentry, un
 	return d_splice_alias(inode, dentry);
 }
 
-static int minix_mknod(struct inode * dir, struct dentry *dentry, umode_t mode, dev_t rdev)
+static int minix_mknod(struct mnt_idmap *idmap, struct inode *dir,
+		       struct dentry *dentry, umode_t mode, dev_t rdev)
 {
-	int error;
 	struct inode *inode;
 
 	if (!old_valid_dev(rdev))
 		return -EINVAL;
 
-	inode = minix_new_inode(dir, mode, &error);
+	inode = minix_new_inode(dir, mode);
+	if (IS_ERR(inode))
+		return PTR_ERR(inode);
 
-	if (inode) {
-		minix_set_inode(inode, rdev);
-		mark_inode_dirty(inode);
-		error = add_nondir(dentry, inode);
-	}
-	return error;
+	minix_set_inode(inode, rdev);
+	mark_inode_dirty(inode);
+	return add_nondir(dentry, inode);
 }
 
-static int minix_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
+static int minix_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
+			 struct file *file, umode_t mode)
 {
-	int error;
-	struct inode *inode = minix_new_inode(dir, mode, &error);
-	if (inode) {
-		minix_set_inode(inode, 0);
-		mark_inode_dirty(inode);
-		d_tmpfile(dentry, inode);
-	}
-	return error;
+	struct inode *inode = minix_new_inode(dir, mode);
+
+	if (IS_ERR(inode))
+		return finish_open_simple(file, PTR_ERR(inode));
+	minix_set_inode(inode, 0);
+	mark_inode_dirty(inode);
+	d_tmpfile(file, inode);
+	return finish_open_simple(file, 0);
 }
 
-static int minix_create(struct inode *dir, struct dentry *dentry, umode_t mode,
-		bool excl)
+static int minix_create(struct mnt_idmap *idmap, struct inode *dir,
+			struct dentry *dentry, umode_t mode, bool excl)
 {
-	return minix_mknod(dir, dentry, mode, 0);
+	return minix_mknod(&nop_mnt_idmap, dir, dentry, mode, 0);
 }
 
-static int minix_symlink(struct inode * dir, struct dentry *dentry,
-	  const char * symname)
+static int minix_symlink(struct mnt_idmap *idmap, struct inode *dir,
+			 struct dentry *dentry, const char *symname)
 {
-	int err = -ENAMETOOLONG;
 	int i = strlen(symname)+1;
 	struct inode * inode;
+	int err;
 
 	if (i > dir->i_sb->s_blocksize)
-		goto out;
+		return -ENAMETOOLONG;
 
-	inode = minix_new_inode(dir, S_IFLNK | 0777, &err);
-	if (!inode)
-		goto out;
+	inode = minix_new_inode(dir, S_IFLNK | 0777);
+	if (IS_ERR(inode))
+		return PTR_ERR(inode);
 
 	minix_set_inode(inode, 0);
 	err = page_symlink(inode, symname, i);
-	if (err)
-		goto out_fail;
-
-	err = add_nondir(dentry, inode);
-out:
-	return err;
-
-out_fail:
-	inode_dec_link_count(inode);
-	iput(inode);
-	goto out;
+	if (unlikely(err)) {
+		inode_dec_link_count(inode);
+		iput(inode);
+		return err;
+	}
+	return add_nondir(dentry, inode);
 }
 
 static int minix_link(struct dentry * old_dentry, struct inode * dir,
@@ -103,25 +98,24 @@ static int minix_link(struct dentry * old_dentry, struct inode * dir,
 {
 	struct inode *inode = d_inode(old_dentry);
 
-	inode->i_ctime = current_time(inode);
+	inode_set_ctime_current(inode);
 	inode_inc_link_count(inode);
 	ihold(inode);
 	return add_nondir(dentry, inode);
 }
 
-static int minix_mkdir(struct inode * dir, struct dentry *dentry, umode_t mode)
+static int minix_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+		       struct dentry *dentry, umode_t mode)
 {
 	struct inode * inode;
 	int err;
 
+	inode = minix_new_inode(dir, S_IFDIR | mode);
+	if (IS_ERR(inode))
+		return PTR_ERR(inode);
+
 	inode_inc_link_count(dir);
-
-	inode = minix_new_inode(dir, S_IFDIR | mode, &err);
-	if (!inode)
-		goto out_dir;
-
 	minix_set_inode(inode, 0);
-
 	inode_inc_link_count(inode);
 
 	err = minix_make_empty(inode, dir);
@@ -140,30 +134,28 @@ out_fail:
 	inode_dec_link_count(inode);
 	inode_dec_link_count(inode);
 	iput(inode);
-out_dir:
 	inode_dec_link_count(dir);
 	goto out;
 }
 
 static int minix_unlink(struct inode * dir, struct dentry *dentry)
 {
-	int err = -ENOENT;
 	struct inode * inode = d_inode(dentry);
 	struct page * page;
 	struct minix_dir_entry * de;
+	int err;
 
 	de = minix_find_entry(dentry, &page);
 	if (!de)
-		goto end_unlink;
-
+		return -ENOENT;
 	err = minix_delete_entry(de, page);
-	if (err)
-		goto end_unlink;
+	unmap_and_put_page(page, de);
 
-	inode->i_ctime = dir->i_ctime;
+	if (err)
+		return err;
+	inode_set_ctime_to_ts(inode, inode_get_ctime(dir));
 	inode_dec_link_count(inode);
-end_unlink:
-	return err;
+	return 0;
 }
 
 static int minix_rmdir(struct inode * dir, struct dentry *dentry)
@@ -181,8 +173,9 @@ static int minix_rmdir(struct inode * dir, struct dentry *dentry)
 	return err;
 }
 
-static int minix_rename(struct inode * old_dir, struct dentry *old_dentry,
-			struct inode * new_dir, struct dentry *new_dentry,
+static int minix_rename(struct mnt_idmap *idmap,
+			struct inode *old_dir, struct dentry *old_dentry,
+			struct inode *new_dir, struct dentry *new_dentry,
 			unsigned int flags)
 {
 	struct inode * old_inode = d_inode(old_dentry);
@@ -219,8 +212,12 @@ static int minix_rename(struct inode * old_dir, struct dentry *old_dentry,
 		new_de = minix_find_entry(new_dentry, &new_page);
 		if (!new_de)
 			goto out_dir;
-		minix_set_link(new_de, new_page, old_inode);
-		new_inode->i_ctime = current_time(new_inode);
+		err = minix_set_link(new_de, new_page, old_inode);
+		kunmap(new_page);
+		put_page(new_page);
+		if (err)
+			goto out_dir;
+		inode_set_ctime_current(new_inode);
 		if (dir_de)
 			drop_nlink(new_inode);
 		inode_dec_link_count(new_inode);
@@ -232,23 +229,22 @@ static int minix_rename(struct inode * old_dir, struct dentry *old_dentry,
 			inode_inc_link_count(new_dir);
 	}
 
-	minix_delete_entry(old_de, old_page);
+	err = minix_delete_entry(old_de, old_page);
+	if (err)
+		goto out_dir;
+
 	mark_inode_dirty(old_inode);
 
 	if (dir_de) {
-		minix_set_link(dir_de, dir_page, new_dir);
-		inode_dec_link_count(old_dir);
+		err = minix_set_link(dir_de, dir_page, new_dir);
+		if (!err)
+			inode_dec_link_count(old_dir);
 	}
-	return 0;
-
 out_dir:
-	if (dir_de) {
-		kunmap(dir_page);
-		put_page(dir_page);
-	}
+	if (dir_de)
+		unmap_and_put_page(dir_page, dir_de);
 out_old:
-	kunmap(old_page);
-	put_page(old_page);
+	unmap_and_put_page(old_page, old_de);
 out:
 	return err;
 }

@@ -252,7 +252,8 @@ static int snd_card_saa7134_capture_trigger(struct snd_pcm_substream * substream
 	return err;
 }
 
-static int saa7134_alsa_dma_init(struct saa7134_dev *dev, int nr_pages)
+static int saa7134_alsa_dma_init(struct saa7134_dev *dev,
+				 unsigned long nr_pages)
 {
 	struct saa7134_dmasound *dma = &dev->dmasound;
 	struct page *pg;
@@ -260,11 +261,11 @@ static int saa7134_alsa_dma_init(struct saa7134_dev *dev, int nr_pages)
 
 	dma->vaddr = vmalloc_32(nr_pages << PAGE_SHIFT);
 	if (NULL == dma->vaddr) {
-		pr_debug("vmalloc_32(%d pages) failed\n", nr_pages);
+		pr_debug("vmalloc_32(%lu pages) failed\n", nr_pages);
 		return -ENOMEM;
 	}
 
-	pr_debug("vmalloc is at addr %p, size=%d\n",
+	pr_debug("vmalloc is at addr %p, size=%lu\n",
 		 dma->vaddr, nr_pages << PAGE_SHIFT);
 
 	memset(dma->vaddr, 0, nr_pages << PAGE_SHIFT);
@@ -297,7 +298,7 @@ static int saa7134_alsa_dma_map(struct saa7134_dev *dev)
 	struct saa7134_dmasound *dma = &dev->dmasound;
 
 	dma->sglen = dma_map_sg(&dev->pci->dev, dma->sglist,
-			dma->nr_pages, PCI_DMA_FROMDEVICE);
+			dma->nr_pages, DMA_FROM_DEVICE);
 
 	if (0 == dma->sglen) {
 		pr_warn("%s: saa7134_alsa_map_sg failed\n", __func__);
@@ -313,7 +314,7 @@ static int saa7134_alsa_dma_unmap(struct saa7134_dev *dev)
 	if (!dma->sglen)
 		return 0;
 
-	dma_unmap_sg(&dev->pci->dev, dma->sglist, dma->sglen, PCI_DMA_FROMDEVICE);
+	dma_unmap_sg(&dev->pci->dev, dma->sglist, dma->nr_pages, DMA_FROM_DEVICE);
 	dma->sglen = 0;
 	return 0;
 }
@@ -865,7 +866,6 @@ static struct page *snd_card_saa7134_page(struct snd_pcm_substream *substream,
 static const struct snd_pcm_ops snd_card_saa7134_capture_ops = {
 	.open =			snd_card_saa7134_capture_open,
 	.close =		snd_card_saa7134_capture_close,
-	.ioctl =		snd_pcm_lib_ioctl,
 	.hw_params =		snd_card_saa7134_hw_params,
 	.hw_free =		snd_card_saa7134_hw_free,
 	.prepare =		snd_card_saa7134_capture_prepare,
@@ -1096,9 +1096,6 @@ static void snd_saa7134_free(struct snd_card * card)
 	if (chip->dev->dmasound.priv_data == NULL)
 		return;
 
-	if (chip->irq >= 0)
-		free_irq(chip->irq, &chip->dev->dmasound);
-
 	chip->dev->dmasound.priv_data = NULL;
 
 }
@@ -1147,10 +1144,8 @@ static int alsa_card_saa7134_create(struct saa7134_dev *dev, int devnum)
 	chip->iobase = pci_resource_start(dev->pci, 0);
 
 
-	err = request_irq(dev->pci->irq, saa7134_alsa_irq,
-				IRQF_SHARED, dev->name,
-				(void*) &dev->dmasound);
-
+	err = devm_request_irq(&dev->pci->dev, dev->pci->irq, saa7134_alsa_irq,
+			       IRQF_SHARED, dev->name, &dev->dmasound);
 	if (err < 0) {
 		pr_err("%s: can't get IRQ %d for ALSA\n",
 			dev->name, dev->pci->irq);
@@ -1214,16 +1209,14 @@ static int alsa_device_exit(struct saa7134_dev *dev)
 
 static int saa7134_alsa_init(void)
 {
-	struct saa7134_dev *dev = NULL;
-	struct list_head *list;
+	struct saa7134_dev *dev;
 
 	saa7134_dmasound_init = alsa_device_init;
 	saa7134_dmasound_exit = alsa_device_exit;
 
 	pr_info("saa7134 ALSA driver for DMA sound loaded\n");
 
-	list_for_each(list,&saa7134_devlist) {
-		dev = list_entry(list, struct saa7134_dev, devlist);
+	list_for_each_entry(dev, &saa7134_devlist, devlist) {
 		if (dev->pci->device == PCI_DEVICE_ID_PHILIPS_SAA7130)
 			pr_info("%s/alsa: %s doesn't support digital audio\n",
 				dev->name, saa7134_boards[dev->board].name);
@@ -1231,7 +1224,7 @@ static int saa7134_alsa_init(void)
 			alsa_device_init(dev);
 	}
 
-	if (dev == NULL)
+	if (list_empty(&saa7134_devlist))
 		pr_info("saa7134 ALSA: no saa7134 cards found\n");
 
 	return 0;

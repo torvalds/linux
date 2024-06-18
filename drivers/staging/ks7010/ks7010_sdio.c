@@ -395,9 +395,9 @@ int ks_wlan_hw_tx(struct ks_wlan_private *priv, void *p, unsigned long size,
 	priv->hostt.buff[priv->hostt.qtail] = le16_to_cpu(hdr->event);
 	priv->hostt.qtail = (priv->hostt.qtail + 1) % SME_EVENT_BUFF_SIZE;
 
-	spin_lock(&priv->tx_dev.tx_dev_lock);
+	spin_lock_bh(&priv->tx_dev.tx_dev_lock);
 	result = enqueue_txdev(priv, p, size, complete_handler, skb);
-	spin_unlock(&priv->tx_dev.tx_dev_lock);
+	spin_unlock_bh(&priv->tx_dev.tx_dev_lock);
 
 	if (txq_has_space(priv))
 		queue_delayed_work(priv->wq, &priv->rw_dwork, 0);
@@ -405,9 +405,9 @@ int ks_wlan_hw_tx(struct ks_wlan_private *priv, void *p, unsigned long size,
 	return result;
 }
 
-static void rx_event_task(unsigned long dev)
+static void rx_event_task(struct tasklet_struct *t)
 {
-	struct ks_wlan_private *priv = (struct ks_wlan_private *)dev;
+	struct ks_wlan_private *priv = from_tasklet(priv, t, rx_bh_task);
 	struct rx_device_buffer *rp;
 
 	if (rxq_has_space(priv) && priv->dev_state >= DEVICE_STATE_BOOT) {
@@ -446,7 +446,8 @@ static void ks_wlan_hw_rx(struct ks_wlan_private *priv, size_t size)
 				     DUMP_PREFIX_OFFSET,
 				     rx_buffer->data, 32);
 #endif
-		ret = ks7010_sdio_writeb(priv, READ_STATUS_REG, REG_STATUS_IDLE);
+		ret = ks7010_sdio_writeb(priv, READ_STATUS_REG,
+					 REG_STATUS_IDLE);
 		if (ret)
 			netdev_err(priv->net_dev, "write READ_STATUS_REG\n");
 
@@ -617,7 +618,7 @@ static int trx_device_init(struct ks_wlan_private *priv)
 	spin_lock_init(&priv->tx_dev.tx_dev_lock);
 	spin_lock_init(&priv->rx_dev.rx_dev_lock);
 
-	tasklet_init(&priv->rx_bh_task, rx_event_task, (unsigned long)priv);
+	tasklet_setup(&priv->rx_bh_task, rx_event_task);
 
 	return 0;
 }
@@ -938,8 +939,8 @@ static void ks7010_private_init(struct ks_wlan_private *priv,
 	memset(&priv->wstats, 0, sizeof(priv->wstats));
 
 	/* sleep mode */
+	atomic_set(&priv->sleepstatus.status, 0);
 	atomic_set(&priv->sleepstatus.doze_request, 0);
-	atomic_set(&priv->sleepstatus.wakeup_request, 0);
 	atomic_set(&priv->sleepstatus.wakeup_request, 0);
 
 	trx_device_init(priv);
@@ -1028,10 +1029,12 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 
 	ret = register_netdev(priv->net_dev);
 	if (ret)
-		goto err_free_netdev;
+		goto err_destroy_wq;
 
 	return 0;
 
+ err_destroy_wq:
+	destroy_workqueue(priv->wq);
  err_free_netdev:
 	free_netdev(netdev);
  err_release_irq:
@@ -1099,10 +1102,8 @@ static void ks7010_sdio_remove(struct sdio_func *func)
 	if (ret)	/* memory allocation failure */
 		goto err_free_card;
 
-	if (priv->wq) {
-		flush_workqueue(priv->wq);
+	if (priv->wq)
 		destroy_workqueue(priv->wq);
-	}
 
 	hostif_exit(priv);
 
@@ -1135,7 +1136,7 @@ static struct sdio_driver ks7010_sdio_driver = {
 	.remove = ks7010_sdio_remove,
 };
 
-module_driver(ks7010_sdio_driver, sdio_register_driver, sdio_unregister_driver);
+module_sdio_driver(ks7010_sdio_driver);
 MODULE_AUTHOR("Sang Engineering, Qi-Hardware, KeyStream");
 MODULE_DESCRIPTION("Driver for KeyStream KS7010 based SDIO cards");
 MODULE_LICENSE("GPL v2");

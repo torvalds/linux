@@ -4,17 +4,8 @@
  * Copyright (c) 2019 Microsemi Corporation
  */
 
+#include <soc/mscc/ocelot.h>
 #include "ocelot_police.h"
-
-enum mscc_qos_rate_mode {
-	MSCC_QOS_RATE_MODE_DISABLED, /* Policer/shaper disabled */
-	MSCC_QOS_RATE_MODE_LINE, /* Measure line rate in kbps incl. IPG */
-	MSCC_QOS_RATE_MODE_DATA, /* Measures data rate in kbps excl. IPG */
-	MSCC_QOS_RATE_MODE_FRAME, /* Measures frame rate in fps */
-	__MSCC_QOS_RATE_MODE_END,
-	NUM_MSCC_QOS_RATE_MODE = __MSCC_QOS_RATE_MODE_END,
-	MSCC_QOS_RATE_MODE_MAX = __MSCC_QOS_RATE_MODE_END - 1,
-};
 
 /* Types for ANA:POL[0-192]:POL_MODE_CFG.FRM_MODE */
 #define POL_MODE_LINERATE   0 /* Incl IPG. Unit: 33 1/3 kbps, 4096 bytes */
@@ -29,24 +20,12 @@ enum mscc_qos_rate_mode {
 /* Default policer order */
 #define POL_ORDER 0x1d3 /* Ocelot policer order: Serial (QoS -> Port -> VCAP) */
 
-struct qos_policer_conf {
-	enum mscc_qos_rate_mode mode;
-	bool dlb; /* Enable DLB (dual leaky bucket mode */
-	bool cf;  /* Coupling flag (ignored in SLB mode) */
-	u32  cir; /* CIR in kbps/fps (ignored in SLB mode) */
-	u32  cbs; /* CBS in bytes/frames (ignored in SLB mode) */
-	u32  pir; /* PIR in kbps/fps */
-	u32  pbs; /* PBS in bytes/frames */
-	u8   ipg; /* Size of IPG when MSCC_QOS_RATE_MODE_LINE is chosen */
-};
-
-static int qos_policer_conf_set(struct ocelot_port *port, u32 pol_ix,
-				struct qos_policer_conf *conf)
+int qos_policer_conf_set(struct ocelot *ocelot, u32 pol_ix,
+			 struct qos_policer_conf *conf)
 {
 	u32 cf = 0, cir_ena = 0, frm_mode = POL_MODE_LINERATE;
 	u32 cir = 0, cbs = 0, pir = 0, pbs = 0;
 	bool cir_discard = 0, pir_discard = 0;
-	struct ocelot *ocelot = port->ocelot;
 	u32 pbs_max = 0, cbs_max = 0;
 	u8 ipg = 20;
 	u32 value;
@@ -123,22 +102,30 @@ static int qos_policer_conf_set(struct ocelot_port *port, u32 pol_ix,
 
 	/* Check limits */
 	if (pir > GENMASK(15, 0)) {
-		netdev_err(port->dev, "Invalid pir\n");
+		dev_err(ocelot->dev,
+			"Invalid pir for policer %u: %u (max %lu)\n",
+			pol_ix, pir, GENMASK(15, 0));
 		return -EINVAL;
 	}
 
 	if (cir > GENMASK(15, 0)) {
-		netdev_err(port->dev, "Invalid cir\n");
+		dev_err(ocelot->dev,
+			"Invalid cir for policer %u: %u (max %lu)\n",
+			pol_ix, cir, GENMASK(15, 0));
 		return -EINVAL;
 	}
 
 	if (pbs > pbs_max) {
-		netdev_err(port->dev, "Invalid pbs\n");
+		dev_err(ocelot->dev,
+			"Invalid pbs for policer %u: %u (max %u)\n",
+			pol_ix, pbs, pbs_max);
 		return -EINVAL;
 	}
 
 	if (cbs > cbs_max) {
-		netdev_err(port->dev, "Invalid cbs\n");
+		dev_err(ocelot->dev,
+			"Invalid cbs for policer %u: %u (max %u)\n",
+			pol_ix, cbs, cbs_max);
 		return -EINVAL;
 	}
 
@@ -171,10 +158,50 @@ static int qos_policer_conf_set(struct ocelot_port *port, u32 pol_ix,
 	return 0;
 }
 
-int ocelot_port_policer_add(struct ocelot_port *port,
+int ocelot_policer_validate(const struct flow_action *action,
+			    const struct flow_action_entry *a,
+			    struct netlink_ext_ack *extack)
+{
+	if (a->police.exceed.act_id != FLOW_ACTION_DROP) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when exceed action is not drop");
+		return -EOPNOTSUPP;
+	}
+
+	if (a->police.notexceed.act_id != FLOW_ACTION_PIPE &&
+	    a->police.notexceed.act_id != FLOW_ACTION_ACCEPT) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when conform action is not pipe or ok");
+		return -EOPNOTSUPP;
+	}
+
+	if (a->police.notexceed.act_id == FLOW_ACTION_ACCEPT &&
+	    !flow_action_is_last_entry(action, a)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when conform action is ok, but police action is not last");
+		return -EOPNOTSUPP;
+	}
+
+	if (a->police.peakrate_bytes_ps ||
+	    a->police.avrate || a->police.overhead) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when peakrate/avrate/overhead is configured");
+		return -EOPNOTSUPP;
+	}
+
+	if (a->police.rate_pkt_ps) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload does not support packets per second");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(ocelot_policer_validate);
+
+int ocelot_port_policer_add(struct ocelot *ocelot, int port,
 			    struct ocelot_policer *pol)
 {
-	struct ocelot *ocelot = port->ocelot;
 	struct qos_policer_conf pp = { 0 };
 	int err;
 
@@ -185,11 +212,10 @@ int ocelot_port_policer_add(struct ocelot_port *port,
 	pp.pir = pol->rate;
 	pp.pbs = pol->burst;
 
-	netdev_dbg(port->dev,
-		   "%s: port %u pir %u kbps, pbs %u bytes\n",
-		   __func__, port->chip_port, pp.pir, pp.pbs);
+	dev_dbg(ocelot->dev, "%s: port %u pir %u kbps, pbs %u bytes\n",
+		__func__, port, pp.pir, pp.pbs);
 
-	err = qos_policer_conf_set(port, POL_IX_PORT + port->chip_port, &pp);
+	err = qos_policer_conf_set(ocelot, POL_IX_PORT + port, &pp);
 	if (err)
 		return err;
 
@@ -198,22 +224,22 @@ int ocelot_port_policer_add(struct ocelot_port *port,
 		       ANA_PORT_POL_CFG_POL_ORDER(POL_ORDER),
 		       ANA_PORT_POL_CFG_PORT_POL_ENA |
 		       ANA_PORT_POL_CFG_POL_ORDER_M,
-		       ANA_PORT_POL_CFG, port->chip_port);
+		       ANA_PORT_POL_CFG, port);
 
 	return 0;
 }
+EXPORT_SYMBOL(ocelot_port_policer_add);
 
-int ocelot_port_policer_del(struct ocelot_port *port)
+int ocelot_port_policer_del(struct ocelot *ocelot, int port)
 {
-	struct ocelot *ocelot = port->ocelot;
 	struct qos_policer_conf pp = { 0 };
 	int err;
 
-	netdev_dbg(port->dev, "%s: port %u\n", __func__, port->chip_port);
+	dev_dbg(ocelot->dev, "%s: port %u\n", __func__, port);
 
 	pp.mode = MSCC_QOS_RATE_MODE_DISABLED;
 
-	err = qos_policer_conf_set(port, POL_IX_PORT + port->chip_port, &pp);
+	err = qos_policer_conf_set(ocelot, POL_IX_PORT + port, &pp);
 	if (err)
 		return err;
 
@@ -221,7 +247,8 @@ int ocelot_port_policer_del(struct ocelot_port *port)
 		       ANA_PORT_POL_CFG_POL_ORDER(POL_ORDER),
 		       ANA_PORT_POL_CFG_PORT_POL_ENA |
 		       ANA_PORT_POL_CFG_POL_ORDER_M,
-		       ANA_PORT_POL_CFG, port->chip_port);
+		       ANA_PORT_POL_CFG, port);
 
 	return 0;
 }
+EXPORT_SYMBOL(ocelot_port_policer_del);

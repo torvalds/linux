@@ -1,0 +1,85 @@
+# SPDX-License-Identifier: GPL-2.0-only
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/input/hid-over-i2c.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: HID over I2C Devices
+
+maintainers:
+  - Benjamin Tissoires <benjamin.tissoires@redhat.com>
+  - Jiri Kosina <jkosina@suse.cz>
+
+description: |+
+  HID over I2C provides support for various Human Interface Devices over the
+  I2C bus. These devices can be for example touchpads, keyboards, touch screens
+  or sensors.
+
+  The specification has been written by Microsoft and is currently available here:
+  https://msdn.microsoft.com/en-us/library/windows/hardware/hh852380.aspx
+
+  If this binding is used, the kernel module i2c-hid will handle the communication
+  with the device and the generic hid core layer will handle the protocol.
+
+allOf:
+  - $ref: /schemas/input/touchscreen/touchscreen.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - wacom,w9013
+          - const: hid-over-i2c
+      - description: Just "hid-over-i2c" alone is allowed, but not recommended.
+        const: hid-over-i2c
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  hid-descr-addr:
+    description: HID descriptor address
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  panel: true
+
+  post-power-on-delay-ms:
+    description: Time required by the device after enabling its regulators
+      or powering it on, before it is ready for communication.
+
+  touchscreen-inverted-x: true
+
+  touchscreen-inverted-y: true
+
+  vdd-supply:
+    description: 3.3V supply
+
+  vddl-supply:
+    description: 1.8V supply
+
+  wakeup-source: true
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        hid@2c {
+            compatible = "hid-over-i2c";
+            reg = <0x2c>;
+            hid-descr-addr = <0x0020>;
+            interrupts = <3 2>;
+        };
+    };
+...

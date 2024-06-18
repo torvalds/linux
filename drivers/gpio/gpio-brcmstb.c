@@ -1,24 +1,14 @@
-/*
- * Copyright (C) 2015-2017 Broadcom
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0-only
+// Copyright (C) 2015-2017 Broadcom
 
 #include <linux/bitops.h>
 #include <linux/gpio/driver.h>
-#include <linux/of_device.h>
-#include <linux/of_irq.h>
+#include <linux/of.h>
 #include <linux/module.h>
 #include <linux/irqdomain.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/interrupt.h>
+#include <linux/platform_device.h>
 
 enum gio_reg_index {
 	GIO_REG_ODEN = 0,
@@ -60,7 +50,6 @@ struct brcmstb_gpio_priv {
 	struct irq_domain *irq_domain;
 	struct irq_chip irq_chip;
 	int parent_irq;
-	int gpio_base;
 	int num_gpios;
 	int parent_wake_irq;
 };
@@ -92,9 +81,9 @@ brcmstb_gpio_get_active_irqs(struct brcmstb_gpio_bank *bank)
 	unsigned long status;
 	unsigned long flags;
 
-	spin_lock_irqsave(&bank->gc.bgpio_lock, flags);
+	raw_spin_lock_irqsave(&bank->gc.bgpio_lock, flags);
 	status = __brcmstb_gpio_get_active_irqs(bank);
-	spin_unlock_irqrestore(&bank->gc.bgpio_lock, flags);
+	raw_spin_unlock_irqrestore(&bank->gc.bgpio_lock, flags);
 
 	return status;
 }
@@ -102,7 +91,7 @@ brcmstb_gpio_get_active_irqs(struct brcmstb_gpio_bank *bank)
 static int brcmstb_gpio_hwirq_to_offset(irq_hw_number_t hwirq,
 					struct brcmstb_gpio_bank *bank)
 {
-	return hwirq - (bank->gc.base - bank->parent_priv->gpio_base);
+	return hwirq - bank->gc.offset;
 }
 
 static void brcmstb_gpio_set_imask(struct brcmstb_gpio_bank *bank,
@@ -114,21 +103,21 @@ static void brcmstb_gpio_set_imask(struct brcmstb_gpio_bank *bank,
 	u32 imask;
 	unsigned long flags;
 
-	spin_lock_irqsave(&gc->bgpio_lock, flags);
+	raw_spin_lock_irqsave(&gc->bgpio_lock, flags);
 	imask = gc->read_reg(priv->reg_base + GIO_MASK(bank->id));
 	if (enable)
 		imask |= mask;
 	else
 		imask &= ~mask;
 	gc->write_reg(priv->reg_base + GIO_MASK(bank->id), imask);
-	spin_unlock_irqrestore(&gc->bgpio_lock, flags);
+	raw_spin_unlock_irqrestore(&gc->bgpio_lock, flags);
 }
 
 static int brcmstb_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 {
 	struct brcmstb_gpio_priv *priv = brcmstb_gpio_gc_to_priv(gc);
 	/* gc_offset is relative to this gpio_chip; want real offset */
-	int hwirq = offset + (gc->base - priv->gpio_base);
+	int hwirq = offset + gc->offset;
 
 	if (hwirq >= priv->num_gpios)
 		return -ENXIO;
@@ -204,7 +193,7 @@ static int brcmstb_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 		return -EINVAL;
 	}
 
-	spin_lock_irqsave(&bank->gc.bgpio_lock, flags);
+	raw_spin_lock_irqsave(&bank->gc.bgpio_lock, flags);
 
 	iedge_config = bank->gc.read_reg(priv->reg_base +
 			GIO_EC(bank->id)) & ~mask;
@@ -220,7 +209,7 @@ static int brcmstb_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	bank->gc.write_reg(priv->reg_base + GIO_LEVEL(bank->id),
 			ilevel | level);
 
-	spin_unlock_irqrestore(&bank->gc.bgpio_lock, flags);
+	raw_spin_unlock_irqrestore(&bank->gc.bgpio_lock, flags);
 	return 0;
 }
 
@@ -273,19 +262,18 @@ static void brcmstb_gpio_irq_bank_handler(struct brcmstb_gpio_bank *bank)
 {
 	struct brcmstb_gpio_priv *priv = bank->parent_priv;
 	struct irq_domain *domain = priv->irq_domain;
-	int hwbase = bank->gc.base - priv->gpio_base;
+	int hwbase = bank->gc.offset;
 	unsigned long status;
 
 	while ((status = brcmstb_gpio_get_active_irqs(bank))) {
-		unsigned int irq, offset;
+		unsigned int offset;
 
 		for_each_set_bit(offset, &status, 32) {
 			if (offset >= bank->width)
 				dev_warn(&priv->pdev->dev,
 					 "IRQ for invalid GPIO (bank=%d, offset=%d)\n",
 					 bank->id, offset);
-			irq = irq_linear_revmap(domain, hwbase + offset);
-			generic_handle_irq(irq);
+			generic_handle_domain_irq(domain, hwbase + offset);
 		}
 	}
 }
@@ -382,16 +370,11 @@ static int brcmstb_gpio_sanity_check_banks(struct device *dev,
 	}
 }
 
-static int brcmstb_gpio_remove(struct platform_device *pdev)
+static void brcmstb_gpio_remove(struct platform_device *pdev)
 {
 	struct brcmstb_gpio_priv *priv = platform_get_drvdata(pdev);
 	struct brcmstb_gpio_bank *bank;
-	int offset, ret = 0, virq;
-
-	if (!priv) {
-		dev_err(&pdev->dev, "called %s without drvdata!\n", __func__);
-		return -EFAULT;
-	}
+	int offset, virq;
 
 	if (priv->parent_irq > 0)
 		irq_set_chained_handler_and_data(priv->parent_irq, NULL, NULL);
@@ -411,8 +394,6 @@ static int brcmstb_gpio_remove(struct platform_device *pdev)
 	 */
 	list_for_each_entry(bank, &priv->bank_list, node)
 		gpiochip_remove(&bank->gc);
-
-	return ret;
 }
 
 static int brcmstb_gpio_of_xlate(struct gpio_chip *gc,
@@ -430,7 +411,7 @@ static int brcmstb_gpio_of_xlate(struct gpio_chip *gc,
 	if (WARN_ON(gpiospec->args_count < gc->of_gpio_n_cells))
 		return -EINVAL;
 
-	offset = gpiospec->args[0] - (gc->base - priv->gpio_base);
+	offset = gpiospec->args[0] - bank->gc.offset;
 	if (offset >= gc->ngpio || offset < 0)
 		return -EINVAL;
 
@@ -614,8 +595,8 @@ static int brcmstb_gpio_probe(struct platform_device *pdev)
 	const __be32 *p;
 	u32 bank_width;
 	int num_banks = 0;
+	int num_gpios = 0;
 	int err;
-	static int gpio_base;
 	unsigned long flags = 0;
 	bool need_wakeup_event = false;
 
@@ -625,12 +606,10 @@ static int brcmstb_gpio_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, priv);
 	INIT_LIST_HEAD(&priv->bank_list);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	reg_base = devm_ioremap_resource(dev, res);
+	reg_base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(reg_base))
 		return PTR_ERR(reg_base);
 
-	priv->gpio_base = gpio_base;
 	priv->reg_base = reg_base;
 	priv->pdev = pdev;
 
@@ -670,7 +649,7 @@ static int brcmstb_gpio_probe(struct platform_device *pdev)
 			dev_dbg(dev, "Width 0 found: Empty bank @ %d\n",
 				num_banks);
 			num_banks++;
-			gpio_base += MAX_GPIO_PER_BANK;
+			num_gpios += MAX_GPIO_PER_BANK;
 			continue;
 		}
 
@@ -704,18 +683,19 @@ static int brcmstb_gpio_probe(struct platform_device *pdev)
 			goto fail;
 		}
 
-		gc->of_node = np;
 		gc->owner = THIS_MODULE;
-		gc->label = devm_kasprintf(dev, GFP_KERNEL, "%pOF", dev->of_node);
+		gc->label = devm_kasprintf(dev, GFP_KERNEL, "%pOF", np);
 		if (!gc->label) {
 			err = -ENOMEM;
 			goto fail;
 		}
-		gc->base = gpio_base;
 		gc->of_gpio_n_cells = 2;
 		gc->of_xlate = brcmstb_gpio_of_xlate;
 		/* not all ngpio lines are valid, will use bank width later */
 		gc->ngpio = MAX_GPIO_PER_BANK;
+		gc->offset = bank->id * MAX_GPIO_PER_BANK;
+		gc->request = gpiochip_generic_request;
+		gc->free = gpiochip_generic_free;
 		if (priv->parent_irq > 0)
 			gc->to_irq = brcmstb_gpio_to_irq;
 
@@ -732,7 +712,7 @@ static int brcmstb_gpio_probe(struct platform_device *pdev)
 					bank->id);
 			goto fail;
 		}
-		gpio_base += gc->ngpio;
+		num_gpios += gc->ngpio;
 
 		dev_dbg(dev, "bank=%d, base=%d, ngpio=%d, width=%d\n", bank->id,
 			gc->base, gc->ngpio, bank->width);
@@ -743,7 +723,7 @@ static int brcmstb_gpio_probe(struct platform_device *pdev)
 		num_banks++;
 	}
 
-	priv->num_gpios = gpio_base - priv->gpio_base;
+	priv->num_gpios = num_gpios;
 	if (priv->parent_irq > 0) {
 		err = brcmstb_gpio_irq_setup(pdev, priv);
 		if (err)
@@ -774,7 +754,7 @@ static struct platform_driver brcmstb_gpio_driver = {
 		.pm = &brcmstb_gpio_pm_ops,
 	},
 	.probe = brcmstb_gpio_probe,
-	.remove = brcmstb_gpio_remove,
+	.remove_new = brcmstb_gpio_remove,
 	.shutdown = brcmstb_gpio_shutdown,
 };
 module_platform_driver(brcmstb_gpio_driver);

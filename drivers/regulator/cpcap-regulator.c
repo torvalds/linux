@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Motorola CPCAP PMIC regulator driver
  *
@@ -6,21 +7,12 @@
  *
  * Rewritten for mainline kernel to use device tree and regmap
  * Copyright (C) 2017 Tony Lindgren <tony@atomide.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
@@ -89,7 +81,7 @@
  */
 #define CPCAP_REG_OFF_MODE_SEC		BIT(15)
 
-/**
+/*
  * SoC specific configuration for CPCAP regulator. There are at least three
  * different SoCs each with their own parameters: omap3, omap4 and tegra2.
  *
@@ -169,7 +161,7 @@ enum cpcap_regulator_id {
 static int cpcap_regulator_enable(struct regulator_dev *rdev)
 {
 	struct cpcap_regulator *regulator = rdev_get_drvdata(rdev);
-	int error, ignore;
+	int error;
 
 	error = regulator_enable_regmap(rdev);
 	if (error)
@@ -180,7 +172,7 @@ static int cpcap_regulator_enable(struct regulator_dev *rdev)
 					   regulator->assign_mask,
 					   regulator->assign_mask);
 		if (error)
-			ignore = regulator_disable_regmap(rdev);
+			regulator_disable_regmap(rdev);
 	}
 
 	return error;
@@ -193,7 +185,7 @@ static int cpcap_regulator_enable(struct regulator_dev *rdev)
 static int cpcap_regulator_disable(struct regulator_dev *rdev)
 {
 	struct cpcap_regulator *regulator = rdev_get_drvdata(rdev);
-	int error, ignore;
+	int error;
 
 	if (rdev->desc->enable_val & CPCAP_REG_OFF_MODE_SEC) {
 		error = regmap_update_bits(rdev->regmap, regulator->assign_reg,
@@ -204,9 +196,9 @@ static int cpcap_regulator_disable(struct regulator_dev *rdev)
 
 	error = regulator_disable_regmap(rdev);
 	if (error && (rdev->desc->enable_val & CPCAP_REG_OFF_MODE_SEC)) {
-		ignore = regmap_update_bits(rdev->regmap, regulator->assign_reg,
-					    regulator->assign_mask,
-					    regulator->assign_mask);
+		regmap_update_bits(rdev->regmap, regulator->assign_reg,
+				   regulator->assign_mask,
+				   regulator->assign_mask);
 	}
 
 	return error;
@@ -256,7 +248,7 @@ static int cpcap_regulator_set_mode(struct regulator_dev *rdev,
 				  CPCAP_BIT_AUDIO_LOW_PWR, value);
 }
 
-static struct regulator_ops cpcap_regulator_ops = {
+static const struct regulator_ops cpcap_regulator_ops = {
 	.enable = cpcap_regulator_enable,
 	.disable = cpcap_regulator_disable,
 	.is_enabled = regulator_is_enabled_regmap,
@@ -325,7 +317,7 @@ static const unsigned int vvib_val_tbl[] = { 1300000, 1800000, 2000000,
 static const unsigned int vusb_val_tbl[] = { 0, 3300000, };
 static const unsigned int vaudio_val_tbl[] = { 0, 2775000, };
 
-/**
+/*
  * SoC specific configuration for omap4. The data below is comes from Motorola
  * Linux kernel tree. It's basically the values of cpcap_regltr_data,
  * cpcap_regulator_mode_values and cpcap_regulator_off_mode_values, see
@@ -561,6 +553,7 @@ static struct platform_driver cpcap_regulator_driver = {
 	.probe		= cpcap_regulator_probe,
 	.driver		= {
 		.name	= "cpcap-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(cpcap_regulator_id_table),
 	},
 };

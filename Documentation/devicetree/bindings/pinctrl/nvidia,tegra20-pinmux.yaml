@@ -1,0 +1,110 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/nvidia,tegra20-pinmux.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra20 Pinmux Controller
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+
+properties:
+  compatible:
+    const: nvidia,tegra20-pinmux
+
+  reg:
+    items:
+      - description: tri-state registers
+      - description: mux register
+      - description: pull-up/down registers
+      - description: pad control registers
+
+patternProperties:
+  "^pinmux(-[a-z0-9-_]+)?$":
+    type: object
+
+    # pin groups
+    additionalProperties:
+      $ref: nvidia,tegra-pinmux-common.yaml
+      additionalProperties: false
+      properties:
+        nvidia,pins:
+          items:
+            enum: [ ata, atb, atc, atd, ate, cdev1, cdev2, crtp, csus, dap1,
+                    dap2, dap3, dap4, ddc, dta, dtb, dtc, dtd, dte, dtf, gma,
+                    gmb, gmc, gmd, gme, gpu, gpu7, gpv, hdint, i2cp, irrx,
+                    irtx, kbca, kbcb, kbcc, kbcd, kbce, kbcf, lcsn, ld0, ld1,
+                    ld2, ld3, ld4, ld5, ld6, ld7, ld8, ld9, ld10, ld11, ld12,
+                    ld13, ld14, ld15, ld16, ld17, ldc, ldi, lhp0, lhp1, lhp2,
+                    lhs, lm0, lm1, lpp, lpw0, lpw1, lpw2, lsc0, lsc1, lsck,
+                    lsda, lsdi, lspi, lvp0, lvp1, lvs, owc, pmc, pta, rm, sdb,
+                    sdc, sdd, sdio1, slxa, slxc, slxd, slxk, spdi, spdo, spia,
+                    spib, spic, spid, spie, spif, spig, spih, uaa, uab, uac,
+                    uad, uca, ucb, uda,
+                    # tristate groups
+                    ck32, ddrc, pmca, pmcb, pmcc, pmcd, pmce, xm2c, xm2d, ls,
+                    lc, ld17_0, ld19_18, ld21_20, ld23_22,
+                    # drive groups
+                    drive_ao1, drive_ao2, drive_at1, drive_at2, drive_cdev1,
+                    drive_cdev2, drive_csus, drive_dap1, drive_dap2,
+                    drive_dap3, drive_dap4, drive_dbg, drive_lcd1, drive_lcd2,
+                    drive_sdmmc2, drive_sdmmc3, drive_spi, drive_uaa,
+                    drive_uab, drive_uart2, drive_uart3, drive_vi1, drive_vi2,
+                    drive_xm2a, drive_xm2c, drive_xm2d, drive_xm2clk,
+                    drive_sdio1, drive_crt, drive_ddc, drive_gma, drive_gmb,
+                    drive_gmc, drive_gmd, drive_gme, drive_owr, drive_uda ]
+
+        nvidia,function:
+          enum: [ ahb_clk, apb_clk, audio_sync, crt, dap1, dap2, dap3, dap4,
+                  dap5, displaya, displayb, emc_test0_dll, emc_test1_dll, gmi,
+                  gmi_int, hdmi, i2cp, i2c1, i2c2, i2c3, ide, irda, kbc, mio,
+                  mipi_hs, nand, osc, owr, pcie, plla_out, pllc_out1,
+                  pllm_out1, pllp_out2, pllp_out3, pllp_out4, pwm, pwr_intr,
+                  pwr_on, rsvd1, rsvd2, rsvd3, rsvd4, rtck, sdio1, sdio2,
+                  sdio3, sdio4, sflash, spdif, spi1, spi2, spi2_alt, spi3,
+                  spi4, trace, twc, uarta, uartb, uartc, uartd, uarte, ulpi,
+                  vi, vi_sensor_clk, xio ]
+
+        nvidia,pull: true
+        nvidia,tristate: true
+        nvidia,schmitt: true
+        nvidia,pull-down-strength: true
+        nvidia,pull-up-strength: true
+        nvidia,high-speed-mode: true
+        nvidia,low-power-mode: true
+        nvidia,slew-rate-rising: true
+        nvidia,slew-rate-falling: true
+
+      required:
+        - nvidia,pins
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+
+examples:
+  - |
+    #include <dt-bindings/clock/tegra20-car.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    pinctrl@70000000 {
+        compatible = "nvidia,tegra20-pinmux";
+        reg = <0x70000014 0x10>, /* Tri-state registers */
+              <0x70000080 0x20>, /* Mux registers */
+              <0x700000a0 0x14>, /* Pull-up/down registers */
+              <0x70000868 0xa8>; /* Pad control registers */
+
+        pinmux {
+            atb {
+                nvidia,pins = "atb", "gma", "gme";
+                nvidia,function = "sdio4";
+                nvidia,pull = <0>;
+                nvidia,tristate = <0>;
+            };
+        };
+    };
+...

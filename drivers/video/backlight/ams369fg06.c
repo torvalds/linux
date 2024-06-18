@@ -11,7 +11,6 @@
 #include <linux/backlight.h>
 #include <linux/delay.h>
 #include <linux/fb.h>
-#include <linux/gpio.h>
 #include <linux/lcd.h>
 #include <linux/module.h>
 #include <linux/spi/spi.h>
@@ -428,7 +427,7 @@ static int ams369fg06_set_brightness(struct backlight_device *bd)
 	return ret;
 }
 
-static struct lcd_ops ams369fg06_lcd_ops = {
+static const struct lcd_ops ams369fg06_lcd_ops = {
 	.get_power = ams369fg06_get_power,
 	.set_power = ams369fg06_set_power,
 };
@@ -507,12 +506,11 @@ static int ams369fg06_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int ams369fg06_remove(struct spi_device *spi)
+static void ams369fg06_remove(struct spi_device *spi)
 {
 	struct ams369fg06 *lcd = spi_get_drvdata(spi);
 
 	ams369fg06_power(lcd, FB_BLANK_POWERDOWN);
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

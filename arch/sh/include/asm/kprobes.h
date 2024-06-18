@@ -26,7 +26,7 @@ typedef insn_size_t kprobe_opcode_t;
 struct kprobe;
 
 void arch_remove_kprobe(struct kprobe *);
-void kretprobe_trampoline(void);
+void __kretprobe_trampoline(void);
 
 /* Architecture specific copy of original instruction*/
 struct arch_specific_insn {
@@ -46,8 +46,6 @@ struct kprobe_ctlblk {
 };
 
 extern int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
-extern int kprobe_exceptions_notify(struct notifier_block *self,
-				    unsigned long val, void *data);
 extern int kprobe_handle_illslot(unsigned long pc);
 #else
 

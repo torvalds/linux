@@ -15,8 +15,9 @@
 #include <sys/uio.h>
 #include <asm/sigcontext.h>
 #include <linux/elf.h>
+#include <registers.h>
 
-int have_xstate_support;
+static int have_xstate_support;
 
 int save_i387_registers(int pid, unsigned long *fp_regs)
 {

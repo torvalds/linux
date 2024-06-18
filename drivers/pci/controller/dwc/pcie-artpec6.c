@@ -10,7 +10,7 @@
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/resource.h>
@@ -43,16 +43,6 @@ struct artpec_pcie_of_data {
 };
 
 static const struct of_device_id artpec6_pcie_of_match[];
-
-/* PCIe Port Logic registers (memory-mapped) */
-#define PL_OFFSET			0x700
-
-#define ACK_F_ASPM_CTRL_OFF		(PL_OFFSET + 0xc)
-#define ACK_N_FTS_MASK			GENMASK(15, 8)
-#define ACK_N_FTS(x)			(((x) << 8) & ACK_N_FTS_MASK)
-
-#define FAST_TRAINING_SEQ_MASK		GENMASK(7, 0)
-#define FAST_TRAINING_SEQ(x)		(((x) << 0) & FAST_TRAINING_SEQ_MASK)
 
 /* ARTPEC-6 specific registers */
 #define PCIECFG				0x18
@@ -107,7 +97,7 @@ static void artpec6_pcie_writel(struct artpec6_pcie *artpec6_pcie, u32 offset, u
 static u64 artpec6_pcie_cpu_addr_fixup(struct dw_pcie *pci, u64 pci_addr)
 {
 	struct artpec6_pcie *artpec6_pcie = to_artpec6_pcie(pci);
-	struct pcie_port *pp = &pci->pp;
+	struct dw_pcie_rp *pp = &pci->pp;
 	struct dw_pcie_ep *ep = &pci->ep;
 
 	switch (artpec6_pcie->mode) {
@@ -292,33 +282,6 @@ static void artpec6_pcie_init_phy(struct artpec6_pcie *artpec6_pcie)
 	}
 }
 
-static void artpec6_pcie_set_nfts(struct artpec6_pcie *artpec6_pcie)
-{
-	struct dw_pcie *pci = artpec6_pcie->pci;
-	u32 val;
-
-	if (artpec6_pcie->variant != ARTPEC7)
-		return;
-
-	/*
-	 * Increase the N_FTS (Number of Fast Training Sequences)
-	 * to be transmitted when transitioning from L0s to L0.
-	 */
-	val = dw_pcie_readl_dbi(pci, ACK_F_ASPM_CTRL_OFF);
-	val &= ~ACK_N_FTS_MASK;
-	val |= ACK_N_FTS(180);
-	dw_pcie_writel_dbi(pci, ACK_F_ASPM_CTRL_OFF, val);
-
-	/*
-	 * Set the Number of Fast Training Sequences that the core
-	 * advertises as its N_FTS during Gen2 or Gen3 link training.
-	 */
-	val = dw_pcie_readl_dbi(pci, PCIE_LINK_WIDTH_SPEED_CONTROL);
-	val &= ~FAST_TRAINING_SEQ_MASK;
-	val |= FAST_TRAINING_SEQ(180);
-	dw_pcie_writel_dbi(pci, PCIE_LINK_WIDTH_SPEED_CONTROL, val);
-}
-
 static void artpec6_pcie_assert_core_reset(struct artpec6_pcie *artpec6_pcie)
 {
 	u32 val;
@@ -352,63 +315,26 @@ static void artpec6_pcie_deassert_core_reset(struct artpec6_pcie *artpec6_pcie)
 	usleep_range(100, 200);
 }
 
-static void artpec6_pcie_enable_interrupts(struct artpec6_pcie *artpec6_pcie)
-{
-	struct dw_pcie *pci = artpec6_pcie->pci;
-	struct pcie_port *pp = &pci->pp;
-
-	if (IS_ENABLED(CONFIG_PCI_MSI))
-		dw_pcie_msi_init(pp);
-}
-
-static int artpec6_pcie_host_init(struct pcie_port *pp)
+static int artpec6_pcie_host_init(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct artpec6_pcie *artpec6_pcie = to_artpec6_pcie(pci);
 
+	if (artpec6_pcie->variant == ARTPEC7) {
+		pci->n_fts[0] = 180;
+		pci->n_fts[1] = 180;
+	}
 	artpec6_pcie_assert_core_reset(artpec6_pcie);
 	artpec6_pcie_init_phy(artpec6_pcie);
 	artpec6_pcie_deassert_core_reset(artpec6_pcie);
 	artpec6_pcie_wait_for_phy(artpec6_pcie);
-	artpec6_pcie_set_nfts(artpec6_pcie);
-	dw_pcie_setup_rc(pp);
-	artpec6_pcie_establish_link(pci);
-	dw_pcie_wait_for_link(pci);
-	artpec6_pcie_enable_interrupts(artpec6_pcie);
 
 	return 0;
 }
 
 static const struct dw_pcie_host_ops artpec6_pcie_host_ops = {
-	.host_init = artpec6_pcie_host_init,
+	.init = artpec6_pcie_host_init,
 };
-
-static int artpec6_add_pcie_port(struct artpec6_pcie *artpec6_pcie,
-				 struct platform_device *pdev)
-{
-	struct dw_pcie *pci = artpec6_pcie->pci;
-	struct pcie_port *pp = &pci->pp;
-	struct device *dev = pci->dev;
-	int ret;
-
-	if (IS_ENABLED(CONFIG_PCI_MSI)) {
-		pp->msi_irq = platform_get_irq_byname(pdev, "msi");
-		if (pp->msi_irq < 0) {
-			dev_err(dev, "failed to get MSI irq\n");
-			return pp->msi_irq;
-		}
-	}
-
-	pp->ops = &artpec6_pcie_host_ops;
-
-	ret = dw_pcie_host_init(pp);
-	if (ret) {
-		dev_err(dev, "failed to initialize host\n");
-		return ret;
-	}
-
-	return 0;
-}
 
 static void artpec6_pcie_ep_init(struct dw_pcie_ep *ep)
 {
@@ -420,22 +346,21 @@ static void artpec6_pcie_ep_init(struct dw_pcie_ep *ep)
 	artpec6_pcie_init_phy(artpec6_pcie);
 	artpec6_pcie_deassert_core_reset(artpec6_pcie);
 	artpec6_pcie_wait_for_phy(artpec6_pcie);
-	artpec6_pcie_set_nfts(artpec6_pcie);
 
-	for (bar = BAR_0; bar <= BAR_5; bar++)
+	for (bar = 0; bar < PCI_STD_NUM_BARS; bar++)
 		dw_pcie_ep_reset_bar(pci, bar);
 }
 
 static int artpec6_pcie_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
-				  enum pci_epc_irq_type type, u16 interrupt_num)
+				  unsigned int type, u16 interrupt_num)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 
 	switch (type) {
-	case PCI_EPC_IRQ_LEGACY:
-		dev_err(pci->dev, "EP cannot trigger legacy IRQs\n");
+	case PCI_IRQ_INTX:
+		dev_err(pci->dev, "EP cannot trigger INTx IRQs\n");
 		return -EINVAL;
-	case PCI_EPC_IRQ_MSI:
+	case PCI_IRQ_MSI:
 		return dw_pcie_ep_raise_msi_irq(ep, func_no, interrupt_num);
 	default:
 		dev_err(pci->dev, "UNKNOWN IRQ type\n");
@@ -445,61 +370,25 @@ static int artpec6_pcie_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
 }
 
 static const struct dw_pcie_ep_ops pcie_ep_ops = {
-	.ep_init = artpec6_pcie_ep_init,
+	.init = artpec6_pcie_ep_init,
 	.raise_irq = artpec6_pcie_raise_irq,
 };
-
-static int artpec6_add_pcie_ep(struct artpec6_pcie *artpec6_pcie,
-			       struct platform_device *pdev)
-{
-	int ret;
-	struct dw_pcie_ep *ep;
-	struct resource *res;
-	struct device *dev = &pdev->dev;
-	struct dw_pcie *pci = artpec6_pcie->pci;
-
-	ep = &pci->ep;
-	ep->ops = &pcie_ep_ops;
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi2");
-	pci->dbi_base2 = devm_ioremap_resource(dev, res);
-	if (IS_ERR(pci->dbi_base2))
-		return PTR_ERR(pci->dbi_base2);
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "addr_space");
-	if (!res)
-		return -EINVAL;
-
-	ep->phys_base = res->start;
-	ep->addr_size = resource_size(res);
-
-	ret = dw_pcie_ep_init(ep);
-	if (ret) {
-		dev_err(dev, "failed to initialize endpoint\n");
-		return ret;
-	}
-
-	return 0;
-}
 
 static int artpec6_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct dw_pcie *pci;
 	struct artpec6_pcie *artpec6_pcie;
-	struct resource *dbi_base;
-	struct resource *phy_base;
 	int ret;
-	const struct of_device_id *match;
 	const struct artpec_pcie_of_data *data;
 	enum artpec_pcie_variants variant;
 	enum dw_pcie_device_mode mode;
+	u32 val;
 
-	match = of_match_device(artpec6_pcie_of_match, dev);
-	if (!match)
+	data = of_device_get_match_data(dev);
+	if (!data)
 		return -EINVAL;
 
-	data = (struct artpec_pcie_of_data *)match->data;
 	variant = (enum artpec_pcie_variants)data->variant;
 	mode = (enum dw_pcie_device_mode)data->mode;
 
@@ -518,13 +407,8 @@ static int artpec6_pcie_probe(struct platform_device *pdev)
 	artpec6_pcie->variant = variant;
 	artpec6_pcie->mode = mode;
 
-	dbi_base = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
-	pci->dbi_base = devm_ioremap_resource(dev, dbi_base);
-	if (IS_ERR(pci->dbi_base))
-		return PTR_ERR(pci->dbi_base);
-
-	phy_base = platform_get_resource_byname(pdev, IORESOURCE_MEM, "phy");
-	artpec6_pcie->phy_base = devm_ioremap_resource(dev, phy_base);
+	artpec6_pcie->phy_base =
+		devm_platform_ioremap_resource_byname(pdev, "phy");
 	if (IS_ERR(artpec6_pcie->phy_base))
 		return PTR_ERR(artpec6_pcie->phy_base);
 
@@ -541,24 +425,36 @@ static int artpec6_pcie_probe(struct platform_device *pdev)
 		if (!IS_ENABLED(CONFIG_PCIE_ARTPEC6_HOST))
 			return -ENODEV;
 
-		ret = artpec6_add_pcie_port(artpec6_pcie, pdev);
+		pci->pp.ops = &artpec6_pcie_host_ops;
+
+		ret = dw_pcie_host_init(&pci->pp);
 		if (ret < 0)
 			return ret;
 		break;
-	case DW_PCIE_EP_TYPE: {
-		u32 val;
-
+	case DW_PCIE_EP_TYPE:
 		if (!IS_ENABLED(CONFIG_PCIE_ARTPEC6_EP))
 			return -ENODEV;
 
 		val = artpec6_pcie_readl(artpec6_pcie, PCIECFG);
 		val &= ~PCIECFG_DEVICE_TYPE_MASK;
 		artpec6_pcie_writel(artpec6_pcie, PCIECFG, val);
-		ret = artpec6_add_pcie_ep(artpec6_pcie, pdev);
-		if (ret < 0)
+
+		pci->ep.ops = &pcie_ep_ops;
+
+		ret = dw_pcie_ep_init(&pci->ep);
+		if (ret)
 			return ret;
+
+		ret = dw_pcie_ep_init_registers(&pci->ep);
+		if (ret) {
+			dev_err(dev, "Failed to initialize DWC endpoint registers\n");
+			dw_pcie_ep_deinit(&pci->ep);
+			return ret;
+		}
+
+		dw_pcie_ep_init_notify(&pci->ep);
+
 		break;
-	}
 	default:
 		dev_err(dev, "INVALID device type %d\n", artpec6_pcie->mode);
 	}

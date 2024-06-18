@@ -24,7 +24,6 @@
  *          Alex Deucher
  */
 
-#include <drm/drm_crtc_helper.h>
 #include <drm/amdgpu_drm.h>
 #include <drm/drm_fixed.h>
 #include "amdgpu.h"
@@ -41,7 +40,7 @@ void amdgpu_atombios_crtc_overscan_setup(struct drm_crtc *crtc,
 				  struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = crtc->dev;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	SET_CRTC_OVERSCAN_PS_ALLOCATION args;
 	int index = GetIndexIntoMasterTable(COMMAND, SetCRTC_OverScan);
@@ -78,13 +77,13 @@ void amdgpu_atombios_crtc_overscan_setup(struct drm_crtc *crtc,
 		args.usOverscanTop = cpu_to_le16(amdgpu_crtc->v_border);
 		break;
 	}
-	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args);
+	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args, sizeof(args));
 }
 
 void amdgpu_atombios_crtc_scaler_setup(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	ENABLE_SCALER_PS_ALLOCATION args;
 	int index = GetIndexIntoMasterTable(COMMAND, EnableScaler);
@@ -107,14 +106,14 @@ void amdgpu_atombios_crtc_scaler_setup(struct drm_crtc *crtc)
 		args.ucEnable = ATOM_SCALER_DISABLE;
 		break;
 	}
-	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args);
+	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args, sizeof(args));
 }
 
 void amdgpu_atombios_crtc_lock(struct drm_crtc *crtc, int lock)
 {
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	int index =
 	    GetIndexIntoMasterTable(COMMAND, UpdateCRTC_DoubleBufferRegisters);
 	ENABLE_CRTC_PS_ALLOCATION args;
@@ -124,14 +123,14 @@ void amdgpu_atombios_crtc_lock(struct drm_crtc *crtc, int lock)
 	args.ucCRTC = amdgpu_crtc->crtc_id;
 	args.ucEnable = lock;
 
-	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args);
+	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args, sizeof(args));
 }
 
 void amdgpu_atombios_crtc_enable(struct drm_crtc *crtc, int state)
 {
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	int index = GetIndexIntoMasterTable(COMMAND, EnableCRTC);
 	ENABLE_CRTC_PS_ALLOCATION args;
 
@@ -140,14 +139,14 @@ void amdgpu_atombios_crtc_enable(struct drm_crtc *crtc, int state)
 	args.ucCRTC = amdgpu_crtc->crtc_id;
 	args.ucEnable = state;
 
-	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args);
+	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args, sizeof(args));
 }
 
 void amdgpu_atombios_crtc_blank(struct drm_crtc *crtc, int state)
 {
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	int index = GetIndexIntoMasterTable(COMMAND, BlankCRTC);
 	BLANK_CRTC_PS_ALLOCATION args;
 
@@ -156,14 +155,14 @@ void amdgpu_atombios_crtc_blank(struct drm_crtc *crtc, int state)
 	args.ucCRTC = amdgpu_crtc->crtc_id;
 	args.ucBlanking = state;
 
-	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args);
+	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args, sizeof(args));
 }
 
 void amdgpu_atombios_crtc_powergate(struct drm_crtc *crtc, int state)
 {
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	int index = GetIndexIntoMasterTable(COMMAND, EnableDispPowerGating);
 	ENABLE_DISP_POWER_GATING_PS_ALLOCATION args;
 
@@ -172,7 +171,7 @@ void amdgpu_atombios_crtc_powergate(struct drm_crtc *crtc, int state)
 	args.ucDispPipeId = amdgpu_crtc->crtc_id;
 	args.ucEnable = state;
 
-	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args);
+	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args, sizeof(args));
 }
 
 void amdgpu_atombios_crtc_powergate_init(struct amdgpu_device *adev)
@@ -184,7 +183,7 @@ void amdgpu_atombios_crtc_powergate_init(struct amdgpu_device *adev)
 
 	args.ucEnable = ATOM_INIT;
 
-	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args);
+	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args, sizeof(args));
 }
 
 void amdgpu_atombios_crtc_set_dtd_timing(struct drm_crtc *crtc,
@@ -192,7 +191,7 @@ void amdgpu_atombios_crtc_set_dtd_timing(struct drm_crtc *crtc,
 {
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	SET_CRTC_USING_DTD_TIMING_PARAMETERS args;
 	int index = GetIndexIntoMasterTable(COMMAND, SetCRTC_UsingDTDTiming);
 	u16 misc = 0;
@@ -229,7 +228,7 @@ void amdgpu_atombios_crtc_set_dtd_timing(struct drm_crtc *crtc,
 	args.susModeMiscInfo.usAccess = cpu_to_le16(misc);
 	args.ucCRTC = amdgpu_crtc->crtc_id;
 
-	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args);
+	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args, sizeof(args));
 }
 
 union atom_enable_ss {
@@ -294,7 +293,7 @@ static void amdgpu_atombios_crtc_program_ss(struct amdgpu_device *adev,
 	args.v3.usSpreadSpectrumStep = cpu_to_le16(ss->step);
 	args.v3.ucEnable = enable;
 
-	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args);
+	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args, sizeof(args));
 }
 
 union adjust_pixel_clock {
@@ -307,7 +306,7 @@ static u32 amdgpu_atombios_crtc_adjust_pll(struct drm_crtc *crtc,
 {
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct drm_encoder *encoder = amdgpu_crtc->encoder;
 	struct amdgpu_encoder *amdgpu_encoder = to_amdgpu_encoder(encoder);
 	struct drm_connector *connector = amdgpu_get_connector_for_encoder(encoder);
@@ -396,7 +395,7 @@ static u32 amdgpu_atombios_crtc_adjust_pll(struct drm_crtc *crtc,
 					ADJUST_DISPLAY_CONFIG_SS_ENABLE;
 
 			amdgpu_atom_execute_table(adev->mode_info.atom_context,
-					   index, (uint32_t *)&args);
+					   index, (uint32_t *)&args, sizeof(args));
 			adjusted_clock = le16_to_cpu(args.v1.usPixelClock) * 10;
 			break;
 		case 3:
@@ -429,7 +428,7 @@ static u32 amdgpu_atombios_crtc_adjust_pll(struct drm_crtc *crtc,
 				args.v3.sInput.ucExtTransmitterID = 0;
 
 			amdgpu_atom_execute_table(adev->mode_info.atom_context,
-					   index, (uint32_t *)&args);
+					   index, (uint32_t *)&args, sizeof(args));
 			adjusted_clock = le32_to_cpu(args.v3.sOutput.ulDispPllFreq) * 10;
 			if (args.v3.sOutput.ucRefDiv) {
 				amdgpu_crtc->pll_flags |= AMDGPU_PLL_USE_FRAC_FB_DIV;
@@ -515,7 +514,7 @@ void amdgpu_atombios_crtc_set_disp_eng_pll(struct amdgpu_device *adev,
 		DRM_ERROR("Unknown table version %d %d\n", frev, crev);
 		return;
 	}
-	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args);
+	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args, sizeof(args));
 }
 
 union set_dce_clock {
@@ -545,7 +544,7 @@ u32 amdgpu_atombios_crtc_set_dce_clock(struct amdgpu_device *adev,
 			args.v2_1.asParam.ulDCEClkFreq = cpu_to_le32(freq); /* 10kHz units */
 			args.v2_1.asParam.ucDCEClkType = clk_type;
 			args.v2_1.asParam.ucDCEClkSrc = clk_src;
-			amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args);
+			amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args, sizeof(args));
 			ret_freq = le32_to_cpu(args.v2_1.asParam.ulDCEClkFreq) * 10;
 			break;
 		default:
@@ -588,7 +587,7 @@ void amdgpu_atombios_crtc_program_pll(struct drm_crtc *crtc,
 				      struct amdgpu_atom_ss *ss)
 {
 	struct drm_device *dev = crtc->dev;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	u8 frev, crev;
 	int index = GetIndexIntoMasterTable(COMMAND, SetPixelClock);
 	union set_pixel_clock args;
@@ -741,7 +740,7 @@ void amdgpu_atombios_crtc_program_pll(struct drm_crtc *crtc,
 		return;
 	}
 
-	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args);
+	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args, sizeof(args));
 }
 
 int amdgpu_atombios_crtc_prepare_pll(struct drm_crtc *crtc,
@@ -749,7 +748,7 @@ int amdgpu_atombios_crtc_prepare_pll(struct drm_crtc *crtc,
 {
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_encoder *amdgpu_encoder =
 		to_amdgpu_encoder(amdgpu_crtc->encoder);
 	int encoder_mode = amdgpu_atombios_encoder_get_encoder_mode(amdgpu_crtc->encoder);
@@ -818,7 +817,7 @@ void amdgpu_atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode
 {
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_encoder *amdgpu_encoder =
 		to_amdgpu_encoder(amdgpu_crtc->encoder);
 	u32 pll_clock = mode->clock;
@@ -851,7 +850,7 @@ void amdgpu_atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode
 	pll->reference_div = amdgpu_crtc->pll_reference_div;
 	pll->post_div = amdgpu_crtc->pll_post_div;
 
-	amdgpu_pll_compute(pll, amdgpu_crtc->adjusted_clock, &pll_clock,
+	amdgpu_pll_compute(adev, pll, amdgpu_crtc->adjusted_clock, &pll_clock,
 			    &fb_div, &frac_fb_div, &ref_div, &post_div);
 
 	amdgpu_atombios_crtc_program_ss(adev, ATOM_DISABLE, amdgpu_crtc->pll_id,

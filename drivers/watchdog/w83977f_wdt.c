@@ -321,7 +321,7 @@ static int wdt_release(struct inode *inode, struct file *file)
  *      @ppos: pointer to the position to write. No seeks allowed
  *
  *      A write to a watchdog device is defined as a keepalive signal. Any
- *      write of data will do, as we we don't define content meaning.
+ *      write of data will do, as we don't define content meaning.
  */
 
 static ssize_t wdt_write(struct file *file, const char __user *buf,
@@ -422,7 +422,7 @@ static long wdt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			return -EINVAL;
 
 		wdt_keepalive();
-		/* Fall through */
+		fallthrough;
 
 	case WDIOC_GETTIMEOUT:
 		return put_user(timeout, uarg.i);
@@ -446,6 +446,7 @@ static const struct file_operations wdt_fops = {
 	.llseek		= no_llseek,
 	.write		= wdt_write,
 	.unlocked_ioctl	= wdt_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= wdt_open,
 	.release	= wdt_release,
 };

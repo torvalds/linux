@@ -293,6 +293,96 @@ static int write_head(struct ubifs_info *c, int jhead, void *buf, int len,
 }
 
 /**
+ * __queue_and_wait - queue a task and wait until the task is waked up.
+ * @c: UBIFS file-system description object
+ *
+ * This function adds current task in queue and waits until the task is waked
+ * up. This function should be called with @c->reserve_space_wq locked.
+ */
+static void __queue_and_wait(struct ubifs_info *c)
+{
+	DEFINE_WAIT(wait);
+
+	__add_wait_queue_entry_tail_exclusive(&c->reserve_space_wq, &wait);
+	set_current_state(TASK_UNINTERRUPTIBLE);
+	spin_unlock(&c->reserve_space_wq.lock);
+
+	schedule();
+	finish_wait(&c->reserve_space_wq, &wait);
+}
+
+/**
+ * wait_for_reservation - try queuing current task to wait until waked up.
+ * @c: UBIFS file-system description object
+ *
+ * This function queues current task to wait until waked up, if queuing is
+ * started(@c->need_wait_space is not %0). Returns %true if current task is
+ * added in queue, otherwise %false is returned.
+ */
+static bool wait_for_reservation(struct ubifs_info *c)
+{
+	if (likely(atomic_read(&c->need_wait_space) == 0))
+		/* Quick path to check whether queuing is started. */
+		return false;
+
+	spin_lock(&c->reserve_space_wq.lock);
+	if (atomic_read(&c->need_wait_space) == 0) {
+		/* Queuing is not started, don't queue current task. */
+		spin_unlock(&c->reserve_space_wq.lock);
+		return false;
+	}
+
+	__queue_and_wait(c);
+	return true;
+}
+
+/**
+ * wake_up_reservation - wake up first task in queue or stop queuing.
+ * @c: UBIFS file-system description object
+ *
+ * This function wakes up the first task in queue if it exists, or stops
+ * queuing if no tasks in queue.
+ */
+static void wake_up_reservation(struct ubifs_info *c)
+{
+	spin_lock(&c->reserve_space_wq.lock);
+	if (waitqueue_active(&c->reserve_space_wq))
+		wake_up_locked(&c->reserve_space_wq);
+	else
+		/*
+		 * Compared with wait_for_reservation(), set @c->need_wait_space
+		 * under the protection of wait queue lock, which can avoid that
+		 * @c->need_wait_space is set to 0 after new task queued.
+		 */
+		atomic_set(&c->need_wait_space, 0);
+	spin_unlock(&c->reserve_space_wq.lock);
+}
+
+/**
+ * wake_up_reservation - add current task in queue or start queuing.
+ * @c: UBIFS file-system description object
+ *
+ * This function starts queuing if queuing is not started, otherwise adds
+ * current task in queue.
+ */
+static void add_or_start_queue(struct ubifs_info *c)
+{
+	spin_lock(&c->reserve_space_wq.lock);
+	if (atomic_cmpxchg(&c->need_wait_space, 0, 1) == 0) {
+		/* Starts queuing, task can go on directly. */
+		spin_unlock(&c->reserve_space_wq.lock);
+		return;
+	}
+
+	/*
+	 * There are at least two tasks have retried more than 32 times
+	 * at certain point, first task has started queuing, just queue
+	 * the left tasks.
+	 */
+	__queue_and_wait(c);
+}
+
+/**
  * make_reservation - reserve journal space.
  * @c: UBIFS file-system description object
  * @jhead: journal head
@@ -311,33 +401,27 @@ static int write_head(struct ubifs_info *c, int jhead, void *buf, int len,
 static int make_reservation(struct ubifs_info *c, int jhead, int len)
 {
 	int err, cmt_retries = 0, nospc_retries = 0;
+	bool blocked = wait_for_reservation(c);
 
 again:
 	down_read(&c->commit_sem);
 	err = reserve_space(c, jhead, len);
-	if (!err)
+	if (!err) {
 		/* c->commit_sem will get released via finish_reservation(). */
-		return 0;
+		goto out_wake_up;
+	}
 	up_read(&c->commit_sem);
 
 	if (err == -ENOSPC) {
 		/*
 		 * GC could not make any progress. We should try to commit
-		 * once because it could make some dirty space and GC would
-		 * make progress, so make the error -EAGAIN so that the below
+		 * because it could make some dirty space and GC would make
+		 * progress, so make the error -EAGAIN so that the below
 		 * will commit and re-try.
 		 */
-		if (nospc_retries++ < 2) {
-			dbg_jnl("no space, retry");
-			err = -EAGAIN;
-		}
-
-		/*
-		 * This means that the budgeting is incorrect. We always have
-		 * to be able to write to the media, because all operations are
-		 * budgeted. Deletions are not budgeted, though, but we reserve
-		 * an extra LEB for them.
-		 */
+		nospc_retries++;
+		dbg_jnl("no space, retry");
+		err = -EAGAIN;
 	}
 
 	if (err != -EAGAIN)
@@ -349,15 +433,37 @@ again:
 	 */
 	if (cmt_retries > 128) {
 		/*
-		 * This should not happen unless the journal size limitations
-		 * are too tough.
+		 * This should not happen unless:
+		 * 1. The journal size limitations are too tough.
+		 * 2. The budgeting is incorrect. We always have to be able to
+		 *    write to the media, because all operations are budgeted.
+		 *    Deletions are not budgeted, though, but we reserve an
+		 *    extra LEB for them.
 		 */
-		ubifs_err(c, "stuck in space allocation");
+		ubifs_err(c, "stuck in space allocation, nospc_retries %d",
+			  nospc_retries);
 		err = -ENOSPC;
 		goto out;
-	} else if (cmt_retries > 32)
-		ubifs_warn(c, "too many space allocation re-tries (%d)",
-			   cmt_retries);
+	} else if (cmt_retries > 32) {
+		/*
+		 * It's almost impossible to happen, unless there are many tasks
+		 * making reservation concurrently and someone task has retried
+		 * gc + commit for many times, generated available space during
+		 * this period are grabbed by other tasks.
+		 * But if it happens, start queuing up all tasks that will make
+		 * space reservation, then there is only one task making space
+		 * reservation at any time, and it can always make success under
+		 * the premise of correct budgeting.
+		 */
+		ubifs_warn(c, "too many space allocation cmt_retries (%d) "
+			   "nospc_retries (%d), start queuing tasks",
+			   cmt_retries, nospc_retries);
+
+		if (!blocked) {
+			blocked = true;
+			add_or_start_queue(c);
+		}
+	}
 
 	dbg_jnl("-EAGAIN, commit and retry (retried %d times)",
 		cmt_retries);
@@ -365,7 +471,7 @@ again:
 
 	err = ubifs_run_commit(c);
 	if (err)
-		return err;
+		goto out_wake_up;
 	goto again;
 
 out:
@@ -379,6 +485,27 @@ out:
 		ubifs_dump_lprops(c);
 		cmt_retries = dbg_check_lprops(c);
 		up_write(&c->commit_sem);
+	}
+out_wake_up:
+	if (blocked) {
+		/*
+		 * Only tasks that have ever started queuing or ever been queued
+		 * can wake up other queued tasks, which can make sure that
+		 * there is only one task waked up to make space reservation.
+		 * For example:
+		 *      task A          task B           task C
+		 *                 make_reservation  make_reservation
+		 * reserve_space // 0
+		 * wake_up_reservation
+		 *                  atomic_cmpxchg // 0, start queuing
+		 *                  reserve_space
+		 *                                    wait_for_reservation
+		 *                                     __queue_and_wait
+		 *                                      add_wait_queue
+		 *  if (blocked) // false
+		 *  // So that task C won't be waked up to race with task B
+		 */
+		wake_up_reservation(c);
 	}
 	return err;
 }
@@ -452,12 +579,12 @@ static void pack_inode(struct ubifs_info *c, struct ubifs_ino_node *ino,
 	ino->ch.node_type = UBIFS_INO_NODE;
 	ino_key_init_flash(c, &ino->key, inode->i_ino);
 	ino->creat_sqnum = cpu_to_le64(ui->creat_sqnum);
-	ino->atime_sec  = cpu_to_le64(inode->i_atime.tv_sec);
-	ino->atime_nsec = cpu_to_le32(inode->i_atime.tv_nsec);
-	ino->ctime_sec  = cpu_to_le64(inode->i_ctime.tv_sec);
-	ino->ctime_nsec = cpu_to_le32(inode->i_ctime.tv_nsec);
-	ino->mtime_sec  = cpu_to_le64(inode->i_mtime.tv_sec);
-	ino->mtime_nsec = cpu_to_le32(inode->i_mtime.tv_nsec);
+	ino->atime_sec  = cpu_to_le64(inode_get_atime_sec(inode));
+	ino->atime_nsec = cpu_to_le32(inode_get_atime_nsec(inode));
+	ino->ctime_sec  = cpu_to_le64(inode_get_ctime_sec(inode));
+	ino->ctime_nsec = cpu_to_le32(inode_get_ctime_nsec(inode));
+	ino->mtime_sec  = cpu_to_le64(inode_get_mtime_sec(inode));
+	ino->mtime_nsec = cpu_to_le32(inode_get_mtime_nsec(inode));
 	ino->uid   = cpu_to_le32(i_uid_read(inode));
 	ino->gid   = cpu_to_le32(i_gid_read(inode));
 	ino->mode  = cpu_to_le32(inode->i_mode);
@@ -503,7 +630,7 @@ static void mark_inode_clean(struct ubifs_info *c, struct ubifs_inode *ui)
 static void set_dent_cookie(struct ubifs_info *c, struct ubifs_dent_node *dent)
 {
 	if (c->double_hash)
-		dent->cookie = prandom_u32();
+		dent->cookie = (__force __le32) get_random_u32();
 	else
 		dent->cookie = 0;
 }
@@ -539,7 +666,7 @@ int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 		     const struct fscrypt_name *nm, const struct inode *inode,
 		     int deletion, int xent)
 {
-	int err, dlen, ilen, len, lnum, ino_offs, dent_offs;
+	int err, dlen, ilen, len, lnum, ino_offs, dent_offs, orphan_added = 0;
 	int aligned_dlen, aligned_ilen, sync = IS_DIRSYNC(dir);
 	int last_reference = !!(deletion && inode->i_nlink == 0);
 	struct ubifs_inode *ui = ubifs_inode(inode);
@@ -588,7 +715,7 @@ int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 
 	if (!xent) {
 		dent->ch.node_type = UBIFS_DENT_NODE;
-		if (nm->hash)
+		if (fname_name(nm) == NULL)
 			dent_key_init_hash(c, &dent_key, dir->i_ino, nm->hash);
 		else
 			dent_key_init(c, &dent_key, dir->i_ino, nm);
@@ -630,6 +757,7 @@ int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 			goto out_finish;
 		}
 		ui->del_cmtno = c->cmt_no;
+		orphan_added = 1;
 	}
 
 	err = write_head(c, BASEHD, dent, len, &lnum, &dent_offs, sync);
@@ -646,7 +774,7 @@ int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 	ubifs_add_auth_dirt(c, lnum);
 
 	if (deletion) {
-		if (nm->hash)
+		if (fname_name(nm) == NULL)
 			err = ubifs_tnc_remove_dh(c, &dent_key, nm->minor_hash);
 		else
 			err = ubifs_tnc_remove_nm(c, &dent_key, nm);
@@ -702,7 +830,7 @@ out_release:
 	kfree(dent);
 out_ro:
 	ubifs_ro_mode(c, err);
-	if (last_reference)
+	if (orphan_added)
 		ubifs_delete_orphan(c, inode->i_ino);
 	finish_reservation(c);
 	return err;
@@ -727,7 +855,7 @@ int ubifs_jnl_write_data(struct ubifs_info *c, const struct inode *inode,
 	int dlen = COMPRESSED_DATA_NODE_BUF_SZ, allocated = 1;
 	int write_len;
 	struct ubifs_inode *ui = ubifs_inode(inode);
-	bool encrypted = ubifs_crypt_is_encrypted(inode);
+	bool encrypted = IS_ENCRYPTED(inode);
 	u8 hash[UBIFS_HASH_ARR_SZ];
 
 	dbg_jnlk(key, "ino %lu, blk %u, len %d, key ",
@@ -880,7 +1008,8 @@ int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode)
 		struct inode *xino;
 		struct ubifs_dent_node *xent, *pxent = NULL;
 
-		if (ui->xattr_cnt >= ubifs_xattr_max_cnt(c)) {
+		if (ui->xattr_cnt > ubifs_xattr_max_cnt(c)) {
+			err = -EPERM;
 			ubifs_err(c, "Cannot delete inode, it has too much xattrs!");
 			goto out_release;
 		}
@@ -893,18 +1022,21 @@ int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode)
 				if (err == -ENOENT)
 					break;
 
+				kfree(pxent);
 				goto out_release;
 			}
 
 			fname_name(&nm) = xent->name;
 			fname_len(&nm) = le16_to_cpu(xent->nlen);
 
-			xino = ubifs_iget(c->vfs_sb, xent->inum);
+			xino = ubifs_iget(c->vfs_sb, le64_to_cpu(xent->inum));
 			if (IS_ERR(xino)) {
 				err = PTR_ERR(xino);
 				ubifs_err(c, "dead directory entry '%s', error %d",
 					  xent->name, err);
 				ubifs_ro_mode(c, err);
+				kfree(pxent);
+				kfree(xent);
 				goto out_release;
 			}
 			ubifs_assert(c, ubifs_inode(xino)->xattr);
@@ -934,8 +1066,6 @@ int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode)
 					  inode->i_ino);
 	release_head(c, BASEHD);
 
-	ubifs_add_auth_dirt(c, lnum);
-
 	if (last_reference) {
 		err = ubifs_tnc_remove_ino(c, inode->i_ino);
 		if (err)
@@ -944,6 +1074,8 @@ int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode)
 		err = ubifs_add_dirt(c, lnum, write_len);
 	} else {
 		union ubifs_key key;
+
+		ubifs_add_auth_dirt(c, lnum);
 
 		ino_key_init(c, &key, inode->i_ino);
 		err = ubifs_tnc_add(c, &key, lnum, offs, ilen, hash);
@@ -1196,15 +1328,19 @@ out_free:
  * ubifs_jnl_rename - rename a directory entry.
  * @c: UBIFS file-system description object
  * @old_dir: parent inode of directory entry to rename
- * @old_dentry: directory entry to rename
+ * @old_inode: directory entry's inode to rename
+ * @old_nm: name of the old directory entry to rename
  * @new_dir: parent inode of directory entry to rename
- * @new_dentry: new directory entry (or directory entry to replace)
+ * @new_inode: new directory entry's inode (or directory entry's inode to
+ *		replace)
+ * @new_nm: new name of the new directory entry
+ * @whiteout: whiteout inode
  * @sync: non-zero if the write-buffer has to be synchronized
  *
  * This function implements the re-name operation which may involve writing up
- * to 4 inodes and 2 directory entries. It marks the written inodes as clean
- * and returns zero on success. In case of failure, a negative error code is
- * returned.
+ * to 4 inodes(new inode, whiteout inode, old and new parent directory inodes)
+ * and 2 directory entries. It marks the written inodes as clean and returns
+ * zero on success. In case of failure, a negative error code is returned.
  */
 int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 		     const struct inode *old_inode,
@@ -1217,14 +1353,15 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 	void *p;
 	union ubifs_key key;
 	struct ubifs_dent_node *dent, *dent2;
-	int err, dlen1, dlen2, ilen, lnum, offs, len;
+	int err, dlen1, dlen2, ilen, wlen, lnum, offs, len, orphan_added = 0;
 	int aligned_dlen1, aligned_dlen2, plen = UBIFS_INO_NODE_SZ;
 	int last_reference = !!(new_inode && new_inode->i_nlink == 0);
 	int move = (old_dir != new_dir);
-	struct ubifs_inode *uninitialized_var(new_ui);
+	struct ubifs_inode *new_ui, *whiteout_ui;
 	u8 hash_old_dir[UBIFS_HASH_ARR_SZ];
 	u8 hash_new_dir[UBIFS_HASH_ARR_SZ];
 	u8 hash_new_inode[UBIFS_HASH_ARR_SZ];
+	u8 hash_whiteout_inode[UBIFS_HASH_ARR_SZ];
 	u8 hash_dent1[UBIFS_HASH_ARR_SZ];
 	u8 hash_dent2[UBIFS_HASH_ARR_SZ];
 
@@ -1244,9 +1381,20 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 	} else
 		ilen = 0;
 
+	if (whiteout) {
+		whiteout_ui = ubifs_inode(whiteout);
+		ubifs_assert(c, mutex_is_locked(&whiteout_ui->ui_mutex));
+		ubifs_assert(c, whiteout->i_nlink == 1);
+		ubifs_assert(c, !whiteout_ui->dirty);
+		wlen = UBIFS_INO_NODE_SZ;
+		wlen += whiteout_ui->data_len;
+	} else
+		wlen = 0;
+
 	aligned_dlen1 = ALIGN(dlen1, 8);
 	aligned_dlen2 = ALIGN(dlen2, 8);
-	len = aligned_dlen1 + aligned_dlen2 + ALIGN(ilen, 8) + ALIGN(plen, 8);
+	len = aligned_dlen1 + aligned_dlen2 + ALIGN(ilen, 8) +
+	      ALIGN(wlen, 8) + ALIGN(plen, 8);
 	if (move)
 		len += plen;
 
@@ -1308,6 +1456,15 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 		p += ALIGN(ilen, 8);
 	}
 
+	if (whiteout) {
+		pack_inode(c, p, whiteout, 0);
+		err = ubifs_node_calc_hash(c, p, hash_whiteout_inode);
+		if (err)
+			goto out_release;
+
+		p += ALIGN(wlen, 8);
+	}
+
 	if (!move) {
 		pack_inode(c, p, old_dir, 1);
 		err = ubifs_node_calc_hash(c, p, hash_old_dir);
@@ -1333,6 +1490,7 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 			goto out_finish;
 		}
 		new_ui->del_cmtno = c->cmt_no;
+		orphan_added = 1;
 	}
 
 	err = write_head(c, BASEHD, dent, len, &lnum, &offs, sync);
@@ -1346,6 +1504,9 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 		if (new_inode)
 			ubifs_wbuf_add_ino_nolock(&c->jheads[BASEHD].wbuf,
 						  new_inode->i_ino);
+		if (whiteout)
+			ubifs_wbuf_add_ino_nolock(&c->jheads[BASEHD].wbuf,
+						  whiteout->i_ino);
 	}
 	release_head(c, BASEHD);
 
@@ -1362,8 +1523,6 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 		err = ubifs_tnc_add_nm(c, &key, lnum, offs, dlen2, hash_dent2, old_nm);
 		if (err)
 			goto out_ro;
-
-		ubifs_delete_orphan(c, whiteout->i_ino);
 	} else {
 		err = ubifs_add_dirt(c, lnum, dlen2);
 		if (err)
@@ -1382,6 +1541,15 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 		if (err)
 			goto out_ro;
 		offs += ALIGN(ilen, 8);
+	}
+
+	if (whiteout) {
+		ino_key_init(c, &key, whiteout->i_ino);
+		err = ubifs_tnc_add(c, &key, lnum, offs, wlen,
+				    hash_whiteout_inode);
+		if (err)
+			goto out_ro;
+		offs += ALIGN(wlen, 8);
 	}
 
 	ino_key_init(c, &key, old_dir->i_ino);
@@ -1404,6 +1572,11 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 		new_ui->synced_i_size = new_ui->ui_size;
 		spin_unlock(&new_ui->ui_lock);
 	}
+	/*
+	 * No need to mark whiteout inode clean.
+	 * Whiteout doesn't have non-zero size, no need to update
+	 * synced_i_size for whiteout_ui.
+	 */
 	mark_inode_clean(c, ubifs_inode(old_dir));
 	if (move)
 		mark_inode_clean(c, ubifs_inode(new_dir));
@@ -1414,7 +1587,7 @@ out_release:
 	release_head(c, BASEHD);
 out_ro:
 	ubifs_ro_mode(c, err);
-	if (last_reference)
+	if (orphan_added)
 		ubifs_delete_orphan(c, new_inode->i_ino);
 out_finish:
 	finish_reservation(c);
@@ -1426,30 +1599,32 @@ out_free:
 /**
  * truncate_data_node - re-compress/encrypt a truncated data node.
  * @c: UBIFS file-system description object
- * @inode: inode which referes to the data node
+ * @inode: inode which refers to the data node
  * @block: data block number
  * @dn: data node to re-compress
  * @new_len: new length
+ * @dn_size: size of the data node @dn in memory
  *
  * This function is used when an inode is truncated and the last data node of
  * the inode has to be re-compressed/encrypted and re-written.
  */
 static int truncate_data_node(const struct ubifs_info *c, const struct inode *inode,
 			      unsigned int block, struct ubifs_data_node *dn,
-			      int *new_len)
+			      int *new_len, int dn_size)
 {
 	void *buf;
-	int err, dlen, compr_type, out_len, old_dlen;
+	int err, dlen, compr_type, out_len, data_size;
 
 	out_len = le32_to_cpu(dn->size);
 	buf = kmalloc_array(out_len, WORST_COMPR_FACTOR, GFP_NOFS);
 	if (!buf)
 		return -ENOMEM;
 
-	dlen = old_dlen = le32_to_cpu(dn->ch.len) - UBIFS_DATA_NODE_SZ;
+	dlen = le32_to_cpu(dn->ch.len) - UBIFS_DATA_NODE_SZ;
+	data_size = dn_size - UBIFS_DATA_NODE_SZ;
 	compr_type = le16_to_cpu(dn->compr_type);
 
-	if (ubifs_crypt_is_encrypted(inode)) {
+	if (IS_ENCRYPTED(inode)) {
 		err = ubifs_decrypt(inode, dn, &dlen, block);
 		if (err)
 			goto out;
@@ -1465,12 +1640,12 @@ static int truncate_data_node(const struct ubifs_info *c, const struct inode *in
 		ubifs_compress(c, buf, *new_len, &dn->data, &out_len, &compr_type);
 	}
 
-	if (ubifs_crypt_is_encrypted(inode)) {
-		err = ubifs_encrypt(inode, dn, out_len, &old_dlen, block);
+	if (IS_ENCRYPTED(inode)) {
+		err = ubifs_encrypt(inode, dn, out_len, &data_size, block);
 		if (err)
 			goto out;
 
-		out_len = old_dlen;
+		out_len = data_size;
 	} else {
 		dn->compr_size = 0;
 	}
@@ -1506,8 +1681,9 @@ int ubifs_jnl_truncate(struct ubifs_info *c, const struct inode *inode,
 	union ubifs_key key, to_key;
 	struct ubifs_ino_node *ino;
 	struct ubifs_trun_node *trun;
-	struct ubifs_data_node *uninitialized_var(dn);
+	struct ubifs_data_node *dn;
 	int err, dlen, len, lnum, offs, bit, sz, sync = IS_SYNC(inode);
+	int dn_size;
 	struct ubifs_inode *ui = ubifs_inode(inode);
 	ino_t inum = inode->i_ino;
 	unsigned int blk;
@@ -1520,10 +1696,13 @@ int ubifs_jnl_truncate(struct ubifs_info *c, const struct inode *inode,
 	ubifs_assert(c, S_ISREG(inode->i_mode));
 	ubifs_assert(c, mutex_is_locked(&ui->ui_mutex));
 
-	sz = UBIFS_TRUN_NODE_SZ + UBIFS_INO_NODE_SZ +
-	     UBIFS_MAX_DATA_NODE_SZ * WORST_COMPR_FACTOR;
+	dn_size = COMPRESSED_DATA_NODE_BUF_SZ;
 
-	sz += ubifs_auth_node_sz(c);
+	if (IS_ENCRYPTED(inode))
+		dn_size += UBIFS_CIPHER_BLOCK_SIZE;
+
+	sz =  UBIFS_TRUN_NODE_SZ + UBIFS_INO_NODE_SZ +
+		dn_size + ubifs_auth_node_sz(c);
 
 	ino = kmalloc(sz, GFP_NOFS);
 	if (!ino)
@@ -1554,14 +1733,16 @@ int ubifs_jnl_truncate(struct ubifs_info *c, const struct inode *inode,
 			if (dn_len <= 0 || dn_len > UBIFS_BLOCK_SIZE) {
 				ubifs_err(c, "bad data node (block %u, inode %lu)",
 					  blk, inode->i_ino);
-				ubifs_dump_node(c, dn);
+				ubifs_dump_node(c, dn, dn_size);
+				err = -EUCLEAN;
 				goto out_free;
 			}
 
 			if (dn_len <= dlen)
 				dlen = 0; /* Nothing to do */
 			else {
-				err = truncate_data_node(c, inode, blk, dn, &dlen);
+				err = truncate_data_node(c, inode, blk, dn,
+						&dlen, dn_size);
 				if (err)
 					goto out_free;
 			}
@@ -1795,7 +1976,6 @@ int ubifs_jnl_change_xattr(struct ubifs_info *c, const struct inode *inode,
 	u8 hash[UBIFS_HASH_ARR_SZ];
 
 	dbg_jnl("ino %lu, ino %lu", host->i_ino, inode->i_ino);
-	ubifs_assert(c, host->i_nlink > 0);
 	ubifs_assert(c, inode->i_nlink > 0);
 	ubifs_assert(c, mutex_is_locked(&host_ui->ui_mutex));
 

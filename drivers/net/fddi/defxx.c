@@ -21,7 +21,7 @@
  *   LVS	Lawrence V. Stefani <lstefani@yahoo.com>
  *
  * Maintainers:
- *   macro	Maciej W. Rozycki <macro@linux-mips.org>
+ *   macro	Maciej W. Rozycki <macro@orcam.me.uk>
  *
  * Credits:
  *   I'd like to thank Patricia Cross for helping me get started with
@@ -197,6 +197,7 @@
  *		23 Oct 2006	macro		Big-endian host support.
  *		14 Dec 2006	macro		TURBOchannel support.
  *		01 Jul 2014	macro		Fixes for DMA on 64-bit hosts.
+ *		10 Mar 2021	macro		Dynamic MMIO vs port I/O.
  */
 
 /* Include files */
@@ -225,8 +226,8 @@
 
 /* Version information string should be updated prior to each new release!  */
 #define DRV_NAME "defxx"
-#define DRV_VERSION "v1.11"
-#define DRV_RELDATE "2014/07/01"
+#define DRV_VERSION "v1.12"
+#define DRV_RELDATE "2021/03/10"
 
 static const char version[] =
 	DRV_NAME ": " DRV_VERSION " " DRV_RELDATE
@@ -253,10 +254,10 @@ static const char version[] =
 #define DFX_BUS_TC(dev) 0
 #endif
 
-#ifdef CONFIG_DEFXX_MMIO
-#define DFX_MMIO 1
+#ifdef CONFIG_HAS_IOPORT
+#define dfx_use_mmio bp->mmio
 #else
-#define DFX_MMIO 0
+#define dfx_use_mmio true
 #endif
 
 /* Define module-wide (static) routines */
@@ -374,8 +375,6 @@ static inline void dfx_outl(DFX_board_t *bp, int offset, u32 data)
 static void dfx_port_write_long(DFX_board_t *bp, int offset, u32 data)
 {
 	struct device __maybe_unused *bdev = bp->bus_dev;
-	int dfx_bus_tc = DFX_BUS_TC(bdev);
-	int dfx_use_mmio = DFX_MMIO || dfx_bus_tc;
 
 	if (dfx_use_mmio)
 		dfx_writel(bp, offset, data);
@@ -398,8 +397,6 @@ static inline void dfx_inl(DFX_board_t *bp, int offset, u32 *data)
 static void dfx_port_read_long(DFX_board_t *bp, int offset, u32 *data)
 {
 	struct device __maybe_unused *bdev = bp->bus_dev;
-	int dfx_bus_tc = DFX_BUS_TC(bdev);
-	int dfx_use_mmio = DFX_MMIO || dfx_bus_tc;
 
 	if (dfx_use_mmio)
 		dfx_readl(bp, offset, data);
@@ -421,7 +418,7 @@ static void dfx_port_read_long(DFX_board_t *bp, int offset, u32 *data)
  *   None
  *
  * Arguments:
- *   bdev	- pointer to device information
+ *   bp		- pointer to board information
  *   bar_start	- pointer to store the start addresses
  *   bar_len	- pointer to store the lengths of the areas
  *
@@ -431,13 +428,13 @@ static void dfx_port_read_long(DFX_board_t *bp, int offset, u32 *data)
  * Side Effects:
  *   None
  */
-static void dfx_get_bars(struct device *bdev,
+static void dfx_get_bars(DFX_board_t *bp,
 			 resource_size_t *bar_start, resource_size_t *bar_len)
 {
+	struct device *bdev = bp->bus_dev;
 	int dfx_bus_pci = dev_is_pci(bdev);
 	int dfx_bus_eisa = DFX_BUS_EISA(bdev);
 	int dfx_bus_tc = DFX_BUS_TC(bdev);
-	int dfx_use_mmio = DFX_MMIO || dfx_bus_tc;
 
 	if (dfx_bus_pci) {
 		int num = dfx_use_mmio ? 0 : 1;
@@ -495,6 +492,13 @@ static const struct net_device_ops dfx_netdev_ops = {
 	.ndo_set_mac_address	= dfx_ctl_set_mac_address,
 };
 
+static void dfx_register_res_err(const char *print_name, bool mmio,
+				 unsigned long start, unsigned long len)
+{
+	pr_err("%s: Cannot reserve %s resource 0x%lx @ 0x%lx, aborting\n",
+	       print_name, mmio ? "MMIO" : "I/O", len, start);
+}
+
 /*
  * ================
  * = dfx_register =
@@ -528,8 +532,6 @@ static int dfx_register(struct device *bdev)
 	static int version_disp;
 	int dfx_bus_pci = dev_is_pci(bdev);
 	int dfx_bus_eisa = DFX_BUS_EISA(bdev);
-	int dfx_bus_tc = DFX_BUS_TC(bdev);
-	int dfx_use_mmio = DFX_MMIO || dfx_bus_tc;
 	const char *print_name = dev_name(bdev);
 	struct net_device *dev;
 	DFX_board_t	  *bp;			/* board pointer */
@@ -567,46 +569,48 @@ static int dfx_register(struct device *bdev)
 	bp->bus_dev = bdev;
 	dev_set_drvdata(bdev, dev);
 
-	dfx_get_bars(bdev, bar_start, bar_len);
-	if (dfx_bus_eisa && dfx_use_mmio && bar_start[0] == 0) {
-		pr_err("%s: Cannot use MMIO, no address set, aborting\n",
-		       print_name);
-		pr_err("%s: Run ECU and set adapter's MMIO location\n",
-		       print_name);
-		pr_err("%s: Or recompile driver with \"CONFIG_DEFXX_MMIO=n\""
-		       "\n", print_name);
-		err = -ENXIO;
-		goto err_out;
+	bp->mmio = true;
+
+	dfx_get_bars(bp, bar_start, bar_len);
+	if (bar_len[0] == 0 ||
+	    (dfx_bus_eisa && dfx_use_mmio && bar_start[0] == 0)) {
+		bp->mmio = false;
+		dfx_get_bars(bp, bar_start, bar_len);
 	}
 
-	if (dfx_use_mmio)
+	if (dfx_use_mmio) {
 		region = request_mem_region(bar_start[0], bar_len[0],
-					    print_name);
-	else
-		region = request_region(bar_start[0], bar_len[0], print_name);
+					    bdev->driver->name);
+		if (!region && (dfx_bus_eisa || dfx_bus_pci)) {
+			bp->mmio = false;
+			dfx_get_bars(bp, bar_start, bar_len);
+		}
+	}
+	if (!dfx_use_mmio)
+		region = request_region(bar_start[0], bar_len[0],
+					bdev->driver->name);
 	if (!region) {
-		pr_err("%s: Cannot reserve %s resource 0x%lx @ 0x%lx, "
-		       "aborting\n", dfx_use_mmio ? "MMIO" : "I/O", print_name,
-		       (long)bar_len[0], (long)bar_start[0]);
+		dfx_register_res_err(print_name, dfx_use_mmio,
+				     bar_start[0], bar_len[0]);
 		err = -EBUSY;
 		goto err_out_disable;
 	}
 	if (bar_start[1] != 0) {
-		region = request_region(bar_start[1], bar_len[1], print_name);
+		region = request_region(bar_start[1], bar_len[1],
+					bdev->driver->name);
 		if (!region) {
-			pr_err("%s: Cannot reserve I/O resource "
-			       "0x%lx @ 0x%lx, aborting\n", print_name,
-			       (long)bar_len[1], (long)bar_start[1]);
+			dfx_register_res_err(print_name, 0,
+					     bar_start[1], bar_len[1]);
 			err = -EBUSY;
 			goto err_out_csr_region;
 		}
 	}
 	if (bar_start[2] != 0) {
-		region = request_region(bar_start[2], bar_len[2], print_name);
+		region = request_region(bar_start[2], bar_len[2],
+					bdev->driver->name);
 		if (!region) {
-			pr_err("%s: Cannot reserve I/O resource "
-			       "0x%lx @ 0x%lx, aborting\n", print_name,
-			       (long)bar_len[2], (long)bar_start[2]);
+			dfx_register_res_err(print_name, 0,
+					     bar_start[2], bar_len[2]);
 			err = -EBUSY;
 			goto err_out_bh_region;
 		}
@@ -614,7 +618,7 @@ static int dfx_register(struct device *bdev)
 
 	/* Set up I/O base address. */
 	if (dfx_use_mmio) {
-		bp->base.mem = ioremap_nocache(bar_start[0], bar_len[0]);
+		bp->base.mem = ioremap(bar_start[0], bar_len[0]);
 		if (!bp->base.mem) {
 			printk(KERN_ERR "%s: Cannot map MMIO\n", print_name);
 			err = -ENOMEM;
@@ -721,7 +725,6 @@ static void dfx_bus_init(struct net_device *dev)
 	int dfx_bus_pci = dev_is_pci(bdev);
 	int dfx_bus_eisa = DFX_BUS_EISA(bdev);
 	int dfx_bus_tc = DFX_BUS_TC(bdev);
-	int dfx_use_mmio = DFX_MMIO || dfx_bus_tc;
 	u8 val;
 
 	DBG_printk("In dfx_bus_init...\n");
@@ -1025,7 +1028,7 @@ static void dfx_bus_config_check(DFX_board_t *bp)
  *						or read adapter MAC address
  *
  * Assumptions:
- *   Memory allocated from pci_alloc_consistent() call is physically
+ *   Memory allocated from dma_alloc_coherent() call is physically
  *   contiguous, locked memory.
  *
  * Side Effects:
@@ -1041,7 +1044,6 @@ static int dfx_driver_init(struct net_device *dev, const char *print_name,
 	int dfx_bus_pci = dev_is_pci(bdev);
 	int dfx_bus_eisa = DFX_BUS_EISA(bdev);
 	int dfx_bus_tc = DFX_BUS_TC(bdev);
-	int dfx_use_mmio = DFX_MMIO || dfx_bus_tc;
 	int alloc_size;			/* total buffer size needed */
 	char *top_v, *curr_v;		/* virtual addrs into memory block */
 	dma_addr_t top_p, curr_p;	/* physical addrs into memory block */
@@ -1115,7 +1117,7 @@ static int dfx_driver_init(struct net_device *dev, const char *print_name,
 	 *       dfx_ctl_set_mac_address.
 	 */
 
-	memcpy(dev->dev_addr, bp->factory_mac_addr, FDDI_K_ALEN);
+	dev_addr_set(dev, bp->factory_mac_addr);
 	if (dfx_bus_tc)
 		board_name = "DEFTA";
 	if (dfx_bus_eisa)
@@ -1472,7 +1474,7 @@ static int dfx_open(struct net_device *dev)
 	 *		 address.
 	 */
 
-	memcpy(dev->dev_addr, bp->factory_mac_addr, FDDI_K_ALEN);
+	dev_addr_set(dev, bp->factory_mac_addr);
 
 	/* Clear local unicast/multicast address tables and counts */
 
@@ -2377,7 +2379,7 @@ static int dfx_ctl_set_mac_address(struct net_device *dev, void *addr)
 
 	/* Copy unicast address to driver-maintained structs and update count */
 
-	memcpy(dev->dev_addr, p_sockaddr->sa_data, FDDI_K_ALEN);	/* update device struct */
+	dev_addr_set(dev, p_sockaddr->sa_data);				/* update device struct */
 	memcpy(&bp->uc_table[0], p_sockaddr->sa_data, FDDI_K_ALEN);	/* update driver struct */
 	bp->uc_count = 1;
 
@@ -3247,7 +3249,7 @@ static void dfx_rcv_queue_process(
  *   is contained in a single physically contiguous buffer
  *   in which the virtual address of the start of packet
  *   (skb->data) can be converted to a physical address
- *   by using pci_map_single().
+ *   by using dma_map_single().
  *
  *   Since the adapter architecture requires a three byte
  *   packet request header to prepend the start of packet,
@@ -3400,7 +3402,7 @@ static netdev_tx_t dfx_xmt_queue_pkt(struct sk_buff *skb,
 	 *			skb->data.
 	 *		 6. The physical address of the start of packet
 	 *			can be determined from the virtual address
-	 *			by using pci_map_single() and is only 32-bits
+	 *			by using dma_map_single() and is only 32-bits
 	 *			wide.
 	 */
 
@@ -3695,8 +3697,6 @@ static void dfx_unregister(struct device *bdev)
 	struct net_device *dev = dev_get_drvdata(bdev);
 	DFX_board_t *bp = netdev_priv(dev);
 	int dfx_bus_pci = dev_is_pci(bdev);
-	int dfx_bus_tc = DFX_BUS_TC(bdev);
-	int dfx_use_mmio = DFX_MMIO || dfx_bus_tc;
 	resource_size_t bar_start[3] = {0};	/* pointers to ports */
 	resource_size_t bar_len[3] = {0};	/* resource lengths */
 	int		alloc_size;		/* total buffer size used */
@@ -3716,7 +3716,7 @@ static void dfx_unregister(struct device *bdev)
 
 	dfx_bus_uninit(dev);
 
-	dfx_get_bars(bdev, bar_start, bar_len);
+	dfx_get_bars(bp, bar_start, bar_len);
 	if (bar_start[2] != 0)
 		release_region(bar_start[2], bar_len[2]);
 	if (bar_start[1] != 0)
@@ -3748,7 +3748,7 @@ static const struct pci_device_id dfx_pci_table[] = {
 MODULE_DEVICE_TABLE(pci, dfx_pci_table);
 
 static struct pci_driver dfx_pci_driver = {
-	.name		= "defxx",
+	.name		= DRV_NAME,
 	.id_table	= dfx_pci_table,
 	.probe		= dfx_pci_register,
 	.remove		= dfx_pci_unregister,
@@ -3779,7 +3779,7 @@ MODULE_DEVICE_TABLE(eisa, dfx_eisa_table);
 static struct eisa_driver dfx_eisa_driver = {
 	.id_table	= dfx_eisa_table,
 	.driver		= {
-		.name	= "defxx",
+		.name	= DRV_NAME,
 		.bus	= &eisa_bus_type,
 		.probe	= dfx_dev_register,
 		.remove	= dfx_dev_unregister,
@@ -3800,7 +3800,7 @@ MODULE_DEVICE_TABLE(tc, dfx_tc_table);
 static struct tc_driver dfx_tc_driver = {
 	.id_table	= dfx_tc_table,
 	.driver		= {
-		.name	= "defxx",
+		.name	= DRV_NAME,
 		.bus	= &tc_bus_type,
 		.probe	= dfx_dev_register,
 		.remove	= dfx_dev_unregister,
@@ -3831,10 +3831,24 @@ static int dfx_init(void)
 	int status;
 
 	status = pci_register_driver(&dfx_pci_driver);
-	if (!status)
-		status = eisa_driver_register(&dfx_eisa_driver);
-	if (!status)
-		status = tc_register_driver(&dfx_tc_driver);
+	if (status)
+		goto err_pci_register;
+
+	status = eisa_driver_register(&dfx_eisa_driver);
+	if (status)
+		goto err_eisa_register;
+
+	status = tc_register_driver(&dfx_tc_driver);
+	if (status)
+		goto err_tc_register;
+
+	return 0;
+
+err_tc_register:
+	eisa_driver_unregister(&dfx_eisa_driver);
+err_eisa_register:
+	pci_unregister_driver(&dfx_pci_driver);
+err_pci_register:
 	return status;
 }
 

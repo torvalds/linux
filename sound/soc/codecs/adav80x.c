@@ -229,7 +229,7 @@ static int adav80x_dapm_sysclk_check(struct snd_soc_dapm_widget *source,
 		return 0;
 	}
 
-	return strcmp(source->name, clk) == 0;
+	return snd_soc_dapm_widget_name_cmp(source, clk) == 0;
 }
 
 static int adav80x_dapm_pll_check(struct snd_soc_dapm_widget *source,
@@ -369,11 +369,12 @@ static int adav80x_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	unsigned int capture = 0x00;
 	unsigned int playback = 0x00;
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
 		capture |= ADAV80X_CAPTURE_MODE_MASTER;
 		playback |= ADAV80X_PLAYBACK_MODE_MASTER;
-	case SND_SOC_DAIFMT_CBS_CFS:
+		break;
+	case SND_SOC_DAIFMT_CBC_CFC:
 		break;
 	default:
 		return -EINVAL;
@@ -647,7 +648,7 @@ static int adav80x_set_pll(struct snd_soc_component *component, int pll_id,
 			pll_ctrl1 |= ADAV80X_PLL_CTRL1_PLLDIV;
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		return -EINVAL;
 	}
@@ -725,7 +726,7 @@ static int adav80x_dai_startup(struct snd_pcm_substream *substream,
 	struct snd_soc_component *component = dai->component;
 	struct adav80x *adav80x = snd_soc_component_get_drvdata(component);
 
-	if (!snd_soc_component_is_active(component) || !adav80x->rate)
+	if (!snd_soc_component_active(component) || !adav80x->rate)
 		return 0;
 
 	return snd_pcm_hw_constraint_single(substream->runtime,
@@ -738,7 +739,7 @@ static void adav80x_dai_shutdown(struct snd_pcm_substream *substream,
 	struct snd_soc_component *component = dai->component;
 	struct adav80x *adav80x = snd_soc_component_get_drvdata(component);
 
-	if (!snd_soc_component_is_active(component))
+	if (!snd_soc_component_active(component))
 		adav80x->rate = 0;
 }
 
@@ -841,7 +842,6 @@ static const struct snd_soc_component_driver adav80x_component_driver = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 int adav80x_bus_probe(struct device *dev, struct regmap *regmap)
@@ -870,7 +870,7 @@ const struct regmap_config adav80x_regmap_config = {
 
 	.max_register = ADAV80X_PLL_OUTE,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = adav80x_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(adav80x_reg_defaults),
 };

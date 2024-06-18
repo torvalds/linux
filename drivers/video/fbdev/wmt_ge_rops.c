@@ -9,8 +9,11 @@
 
 #include <linux/module.h>
 #include <linux/fb.h>
+#include <linux/io.h>
 #include <linux/platform_device.h>
+
 #include "core/fb_draw.h"
+#include "wmt_ge_rops.h"
 
 #define GE_COMMAND_OFF		0x00
 #define GE_DEPTH_OFF		0x04
@@ -144,10 +147,9 @@ static int wmt_ge_rops_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int wmt_ge_rops_remove(struct platform_device *pdev)
+static void wmt_ge_rops_remove(struct platform_device *pdev)
 {
 	iounmap(regbase);
-	return 0;
 }
 
 static const struct of_device_id wmt_dt_ids[] = {
@@ -157,7 +159,7 @@ static const struct of_device_id wmt_dt_ids[] = {
 
 static struct platform_driver wmt_ge_rops_driver = {
 	.probe		= wmt_ge_rops_probe,
-	.remove		= wmt_ge_rops_remove,
+	.remove_new	= wmt_ge_rops_remove,
 	.driver		= {
 		.name	= "wmt_ge_rops",
 		.of_match_table = wmt_dt_ids,
@@ -169,5 +171,4 @@ module_platform_driver(wmt_ge_rops_driver);
 MODULE_AUTHOR("Alexey Charkov <alchark@gmail.com>");
 MODULE_DESCRIPTION("Accelerators for raster operations using "
 		   "WonderMedia Graphics Engine");
-MODULE_LICENSE("GPL v2");
 MODULE_DEVICE_TABLE(of, wmt_dt_ids);

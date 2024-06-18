@@ -41,7 +41,7 @@ NESTED(handle_sys, PT_SIZE, sp)
 #if 0
  SAVE_ALL
  move a1, v0
- PRINT("Scall %ld\n")
+ ASM_PRINT("Scall %ld\n")
  RESTORE_ALL
 #endif
 
@@ -73,11 +73,27 @@ load_a7: lw	a7, 28(t0)		# argument #8 from usp
 loads_done:
 
 	.section __ex_table,"a"
-	PTR	load_a4, bad_stack_a4
-	PTR	load_a5, bad_stack_a5
-	PTR	load_a6, bad_stack_a6
-	PTR	load_a7, bad_stack_a7
+	PTR_WD	load_a4, bad_stack_a4
+	PTR_WD	load_a5, bad_stack_a5
+	PTR_WD	load_a6, bad_stack_a6
+	PTR_WD	load_a7, bad_stack_a7
 	.previous
+
+	/*
+	 * absolute syscall number is in v0 unless we called syscall(__NR_###)
+	 * where the real syscall number is in a0
+	 * note: NR_syscall is the first O32 syscall but the macro is
+	 * only defined when compiling with -mabi=32 (CONFIG_32BIT)
+	 * therefore __NR_O32_Linux is used (4000)
+	 */
+
+	subu	t2, v0,  __NR_O32_Linux
+	bnez	t2, 1f /* __NR_syscall at offset 0 */
+	LONG_S	a0, TI_SYSCALL($28)	# Save a0 as syscall number
+	b	2f
+1:
+	LONG_S	v0, TI_SYSCALL($28)	# Save v0 as syscall number
+2:
 
 	li	t1, _TIF_WORK_SYSCALL_ENTRY
 	LONG_L	t0, TI_FLAGS($28)	# syscall tracing enabled?
@@ -113,22 +129,7 @@ trace_a_syscall:
 	sd	a7, PT_R11(sp)		# For indirect syscalls
 
 	move	a0, sp
-	/*
-	 * absolute syscall number is in v0 unless we called syscall(__NR_###)
-	 * where the real syscall number is in a0
-	 * note: NR_syscall is the first O32 syscall but the macro is
-	 * only defined when compiling with -mabi=32 (CONFIG_32BIT)
-	 * therefore __NR_O32_Linux is used (4000)
-	 */
-	.set	push
-	.set	reorder
-	subu	t1, v0,  __NR_O32_Linux
-	move	a1, v0
-	bnez	t1, 1f /* __NR_syscall at offset 0 */
-	ld	a1, PT_R4(sp) /* Arg1 for __NR_syscall case */
-	.set	pop
-
-1:	jal	syscall_trace_enter
+	jal	syscall_trace_enter
 
 	bltz	v0, 1f			# seccomp failed? Skip syscall
 
@@ -213,9 +214,9 @@ einval: li	v0, -ENOSYS
 	jr	ra
 	END(sys32_syscall)
 
-#define __SYSCALL(nr, entry)	PTR entry
+#define __SYSCALL_WITH_COMPAT(nr, native, compat)	__SYSCALL(nr, compat)
+#define __SYSCALL(nr, entry)	PTR_WD entry
 	.align	3
 	.type	sys32_call_table,@object
 EXPORT(sys32_call_table)
-#include <asm/syscall_table_64_o32.h>
-#undef __SYSCALL
+#include <asm/syscall_table_o32.h>

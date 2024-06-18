@@ -69,7 +69,7 @@ static int atlx_set_mac(struct net_device *netdev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
+	eth_hw_addr_set(netdev, addr->sa_data);
 	memcpy(adapter->hw.mac_addr, addr->sa_data, netdev->addr_len);
 
 	atlx_set_mac_addr(&adapter->hw);
@@ -183,7 +183,7 @@ static void atlx_clear_phy_int(struct atlx_adapter *adapter)
  * atlx_tx_timeout - Respond to a Tx Hang
  * @netdev: network interface device structure
  */
-static void atlx_tx_timeout(struct net_device *netdev)
+static void atlx_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct atlx_adapter *adapter = netdev_priv(netdev);
 	/* Do the reset outside of interrupt context */

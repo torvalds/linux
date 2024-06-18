@@ -1,0 +1,185 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/gpio/gpio-davinci.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: GPIO controller for Davinci and keystone devices
+
+maintainers:
+  - Keerthy <j-keerthy@ti.com>
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - ti,k2g-gpio
+              - ti,am654-gpio
+              - ti,j721e-gpio
+              - ti,am64-gpio
+          - const: ti,keystone-gpio
+
+      - items:
+          - enum:
+              - ti,dm6441-gpio
+              - ti,keystone-gpio
+
+  reg:
+    maxItems: 1
+
+  gpio-controller: true
+
+  gpio-ranges: true
+
+  gpio-line-names:
+    description: strings describing the names of each gpio line.
+    minItems: 1
+    maxItems: 144
+
+  "#gpio-cells":
+    const: 2
+    description:
+      first cell is the pin number and second cell is used to specify optional parameters (unused).
+
+  interrupts:
+    description:
+      The interrupts are specified as per the interrupt parent. Only banked
+      or unbanked IRQs are supported at a time. If the interrupts are
+      banked then provide list of interrupts corresponding to each bank, else
+      provide the list of interrupts for each gpio.
+    minItems: 1
+    maxItems: 100
+
+  ti,ngpio:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: The number of GPIO pins supported consecutively.
+    minimum: 1
+
+  ti,davinci-gpio-unbanked:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: The number of GPIOs that have an individual interrupt line to processor.
+    minimum: 0
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    const: gpio
+
+  interrupt-controller: true
+
+  power-domains:
+    maxItems: 1
+
+  "#interrupt-cells":
+    const: 2
+
+patternProperties:
+  "^(.+-hog(-[0-9]+)?)$":
+    type: object
+
+    required:
+      - gpio-hog
+
+required:
+  - compatible
+  - reg
+  - gpio-controller
+  - "#gpio-cells"
+  - interrupts
+  - ti,ngpio
+  - ti,davinci-gpio-unbanked
+  - clocks
+  - clock-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include<dt-bindings/interrupt-controller/arm-gic.h>
+
+    gpio0: gpio@2603000 {
+      compatible = "ti,k2g-gpio", "ti,keystone-gpio";
+      reg = <0x02603000 0x100>;
+      gpio-controller;
+      #gpio-cells = <2>;
+      interrupts = <GIC_SPI 432 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 433 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 434 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 435 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 436 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 437 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 438 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 439 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 440 IRQ_TYPE_EDGE_RISING>;
+      interrupt-controller;
+      #interrupt-cells = <2>;
+      ti,ngpio = <144>;
+      ti,davinci-gpio-unbanked = <0>;
+      clocks = <&k2g_clks 0x001b 0x0>;
+      clock-names = "gpio";
+    };
+
+  - |
+    #include<dt-bindings/interrupt-controller/arm-gic.h>
+
+    gpio1: gpio@260bf00 {
+      compatible = "ti,keystone-gpio";
+      reg = <0x0260bf00 0x100>;
+      gpio-controller;
+      #gpio-cells = <2>;
+      /* HW Interrupts mapped to GPIO pins */
+      interrupts = <GIC_SPI 120 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 121 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 122 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 123 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 124 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 125 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 126 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 127 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 128 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 129 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 130 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 131 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 132 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 133 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 134 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 135 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 136 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 137 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 138 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 139 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 140 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 141 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 142 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 143 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 144 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 145 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 146 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 147 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 148 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 149 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 150 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 151 IRQ_TYPE_EDGE_RISING>;
+      clocks = <&clkgpio>;
+      clock-names = "gpio";
+      ti,ngpio = <32>;
+      ti,davinci-gpio-unbanked = <32>;
+    };
+
+  - |
+    wkup_gpio0: gpio0@42110000 {
+      compatible = "ti,am654-gpio", "ti,keystone-gpio";
+      reg = <0x42110000 0x100>;
+      gpio-controller;
+      #gpio-cells = <2>;
+      interrupt-parent = <&intr_wkup_gpio>;
+      interrupts = <60>, <61>, <62>, <63>;
+      interrupt-controller;
+      #interrupt-cells = <2>;
+      ti,ngpio = <56>;
+      ti,davinci-gpio-unbanked = <0>;
+      clocks = <&k3_clks 59 0>;
+      clock-names = "gpio";
+    };

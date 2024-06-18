@@ -1,0 +1,58 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# Kconfig for sensor drivers
+#
+
+config VIDEO_ATOMISP_OV2722
+	tristate "OVT ov2722 sensor support"
+	depends on ACPI
+	depends on I2C && VIDEO_DEV
+	help
+	  This is a Video4Linux2 sensor-level driver for the OVT
+	  OV2722 raw camera.
+
+	  OVT is a 2M raw sensor.
+
+	  It currently only works with the atomisp driver.
+
+config VIDEO_ATOMISP_GC2235
+	tristate "Galaxy gc2235 sensor support"
+	depends on ACPI
+	depends on I2C && VIDEO_DEV
+	help
+	  This is a Video4Linux2 sensor-level driver for the OVT
+	  GC2235 raw camera.
+
+	  GC2235 is a 2M raw sensor.
+
+	  It currently only works with the atomisp driver.
+
+config VIDEO_ATOMISP_MSRLIST_HELPER
+	tristate "Helper library to load, parse and apply large register lists."
+	depends on I2C
+	help
+	  This is a helper library to be used from a sensor driver to load, parse
+	  and apply large register lists.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called libmsrlisthelper.
+
+config VIDEO_ATOMISP_MT9M114
+	tristate "Aptina mt9m114 sensor support"
+	depends on ACPI
+	depends on I2C && VIDEO_DEV
+	help
+	  This is a Video4Linux2 sensor-level driver for the Micron
+	  mt9m114 1.3 Mpixel camera.
+
+	  mt9m114 is video camera sensor.
+
+	  It currently only works with the atomisp driver.
+
+config VIDEO_ATOMISP_GC0310
+	tristate "GC0310 sensor support"
+	depends on ACPI
+	depends on I2C && VIDEO_DEV
+	help
+	  This is a Video4Linux2 sensor-level driver for the Galaxycore
+	  GC0310 0.3MP sensor.

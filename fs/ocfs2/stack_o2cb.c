@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
- *
+/*
  * stack_o2cb.c
  *
  * Code which interfaces ocfs2 with the o2cb stack.
@@ -59,31 +57,31 @@ static inline int mode_to_o2dlm(int mode)
 	return mode;
 }
 
-#define map_flag(_generic, _o2dlm)		\
-	if (flags & (_generic)) {		\
-		flags &= ~(_generic);		\
-		o2dlm_flags |= (_o2dlm);	\
-	}
 static int flags_to_o2dlm(u32 flags)
 {
 	int o2dlm_flags = 0;
 
-	map_flag(DLM_LKF_NOQUEUE, LKM_NOQUEUE);
-	map_flag(DLM_LKF_CANCEL, LKM_CANCEL);
-	map_flag(DLM_LKF_CONVERT, LKM_CONVERT);
-	map_flag(DLM_LKF_VALBLK, LKM_VALBLK);
-	map_flag(DLM_LKF_IVVALBLK, LKM_INVVALBLK);
-	map_flag(DLM_LKF_ORPHAN, LKM_ORPHAN);
-	map_flag(DLM_LKF_FORCEUNLOCK, LKM_FORCE);
-	map_flag(DLM_LKF_TIMEOUT, LKM_TIMEOUT);
-	map_flag(DLM_LKF_LOCAL, LKM_LOCAL);
-
-	/* map_flag() should have cleared every flag passed in */
-	BUG_ON(flags != 0);
+	if (flags & DLM_LKF_NOQUEUE)
+		o2dlm_flags |= LKM_NOQUEUE;
+	if (flags & DLM_LKF_CANCEL)
+		o2dlm_flags |= LKM_CANCEL;
+	if (flags & DLM_LKF_CONVERT)
+		o2dlm_flags |= LKM_CONVERT;
+	if (flags & DLM_LKF_VALBLK)
+		o2dlm_flags |= LKM_VALBLK;
+	if (flags & DLM_LKF_IVVALBLK)
+		o2dlm_flags |= LKM_INVVALBLK;
+	if (flags & DLM_LKF_ORPHAN)
+		o2dlm_flags |= LKM_ORPHAN;
+	if (flags & DLM_LKF_FORCEUNLOCK)
+		o2dlm_flags |= LKM_FORCE;
+	if (flags & DLM_LKF_TIMEOUT)
+		o2dlm_flags |= LKM_TIMEOUT;
+	if (flags & DLM_LKF_LOCAL)
+		o2dlm_flags |= LKM_LOCAL;
 
 	return o2dlm_flags;
 }
-#undef map_flag
 
 /*
  * Map an o2dlm status to standard errno values.
@@ -275,17 +273,17 @@ static int o2cb_cluster_check(void)
 	 */
 #define	O2CB_MAP_STABILIZE_COUNT	60
 	for (i = 0; i < O2CB_MAP_STABILIZE_COUNT; ++i) {
-		o2hb_fill_node_map(hbmap, sizeof(hbmap));
+		o2hb_fill_node_map(hbmap, O2NM_MAX_NODES);
 		if (!test_bit(node_num, hbmap)) {
 			printk(KERN_ERR "o2cb: %s heartbeat has not been "
 			       "started.\n", (o2hb_global_heartbeat_active() ?
 					      "Global" : "Local"));
 			return -EINVAL;
 		}
-		o2net_fill_node_map(netmap, sizeof(netmap));
+		o2net_fill_node_map(netmap, O2NM_MAX_NODES);
 		/* Force set the current node to allow easy compare */
 		set_bit(node_num, netmap);
-		if (!memcmp(hbmap, netmap, sizeof(hbmap)))
+		if (bitmap_equal(hbmap, netmap, O2NM_MAX_NODES))
 			return 0;
 		if (i < O2CB_MAP_STABILIZE_COUNT - 1)
 			msleep(1000);

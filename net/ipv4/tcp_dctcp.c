@@ -36,6 +36,8 @@
  *	Glenn Judd <glenn.judd@morganstanley.com>
  */
 
+#include <linux/btf.h>
+#include <linux/btf_ids.h>
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <net/tcp.h>
@@ -52,10 +54,22 @@ struct dctcp {
 	u32 next_seq;
 	u32 ce_state;
 	u32 loss_cwnd;
+	struct tcp_plb_state plb;
 };
 
 static unsigned int dctcp_shift_g __read_mostly = 4; /* g = 1/2^4 */
-module_param(dctcp_shift_g, uint, 0644);
+
+static int dctcp_shift_g_set(const char *val, const struct kernel_param *kp)
+{
+	return param_set_uint_minmax(val, kp, 0, 10);
+}
+
+static const struct kernel_param_ops dctcp_shift_g_ops = {
+	.set = dctcp_shift_g_set,
+	.get = param_get_uint,
+};
+
+module_param_cb(dctcp_shift_g, &dctcp_shift_g_ops, &dctcp_shift_g, 0644);
 MODULE_PARM_DESC(dctcp_shift_g, "parameter g for updating dctcp_alpha");
 
 static unsigned int dctcp_alpha_on_init __read_mostly = DCTCP_MAX_ALPHA;
@@ -72,7 +86,7 @@ static void dctcp_reset(const struct tcp_sock *tp, struct dctcp *ca)
 	ca->old_delivered_ce = tp->delivered_ce;
 }
 
-static void dctcp_init(struct sock *sk)
+__bpf_kfunc static void dctcp_init(struct sock *sk)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 
@@ -89,6 +103,8 @@ static void dctcp_init(struct sock *sk)
 		ca->ce_state = 0;
 
 		dctcp_reset(tp, ca);
+		tcp_plb_init(sk, &ca->plb);
+
 		return;
 	}
 
@@ -99,30 +115,44 @@ static void dctcp_init(struct sock *sk)
 	INET_ECN_dontxmit(sk);
 }
 
-static u32 dctcp_ssthresh(struct sock *sk)
+__bpf_kfunc static u32 dctcp_ssthresh(struct sock *sk)
 {
 	struct dctcp *ca = inet_csk_ca(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	ca->loss_cwnd = tp->snd_cwnd;
-	return max(tp->snd_cwnd - ((tp->snd_cwnd * ca->dctcp_alpha) >> 11U), 2U);
+	ca->loss_cwnd = tcp_snd_cwnd(tp);
+	return max(tcp_snd_cwnd(tp) - ((tcp_snd_cwnd(tp) * ca->dctcp_alpha) >> 11U), 2U);
 }
 
-static void dctcp_update_alpha(struct sock *sk, u32 flags)
+__bpf_kfunc static void dctcp_update_alpha(struct sock *sk, u32 flags)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 	struct dctcp *ca = inet_csk_ca(sk);
 
 	/* Expired RTT */
 	if (!before(tp->snd_una, ca->next_seq)) {
+		u32 delivered = tp->delivered - ca->old_delivered;
 		u32 delivered_ce = tp->delivered_ce - ca->old_delivered_ce;
 		u32 alpha = ca->dctcp_alpha;
+		u32 ce_ratio = 0;
+
+		if (delivered > 0) {
+			/* dctcp_alpha keeps EWMA of fraction of ECN marked
+			 * packets. Because of EWMA smoothing, PLB reaction can
+			 * be slow so we use ce_ratio which is an instantaneous
+			 * measure of congestion. ce_ratio is the fraction of
+			 * ECN marked packets in the previous RTT.
+			 */
+			if (delivered_ce > 0)
+				ce_ratio = (delivered_ce << TCP_PLB_SCALE) / delivered;
+			tcp_plb_update_state(sk, &ca->plb, (int)ce_ratio);
+			tcp_plb_check_rehash(sk, &ca->plb);
+		}
 
 		/* alpha = (1 - g) * alpha + g * F */
 
 		alpha -= min_not_zero(alpha, alpha >> dctcp_shift_g);
 		if (delivered_ce) {
-			u32 delivered = tp->delivered - ca->old_delivered;
 
 			/* If dctcp_shift_g == 1, a 32bit value would overflow
 			 * after 8 M packets.
@@ -146,11 +176,11 @@ static void dctcp_react_to_loss(struct sock *sk)
 	struct dctcp *ca = inet_csk_ca(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	ca->loss_cwnd = tp->snd_cwnd;
-	tp->snd_ssthresh = max(tp->snd_cwnd >> 1U, 2U);
+	ca->loss_cwnd = tcp_snd_cwnd(tp);
+	tp->snd_ssthresh = max(tcp_snd_cwnd(tp) >> 1U, 2U);
 }
 
-static void dctcp_state(struct sock *sk, u8 new_state)
+__bpf_kfunc static void dctcp_state(struct sock *sk, u8 new_state)
 {
 	if (new_state == TCP_CA_Recovery &&
 	    new_state != inet_csk(sk)->icsk_ca_state)
@@ -160,7 +190,7 @@ static void dctcp_state(struct sock *sk, u8 new_state)
 	 */
 }
 
-static void dctcp_cwnd_event(struct sock *sk, enum tcp_ca_event ev)
+__bpf_kfunc static void dctcp_cwnd_event(struct sock *sk, enum tcp_ca_event ev)
 {
 	struct dctcp *ca = inet_csk_ca(sk);
 
@@ -170,7 +200,11 @@ static void dctcp_cwnd_event(struct sock *sk, enum tcp_ca_event ev)
 		dctcp_ece_ack_update(sk, ev, &ca->prior_rcv_nxt, &ca->ce_state);
 		break;
 	case CA_EVENT_LOSS:
+		tcp_plb_update_state_upon_rto(sk, &ca->plb);
 		dctcp_react_to_loss(sk);
+		break;
+	case CA_EVENT_TX_START:
+		tcp_plb_check_rehash(sk, &ca->plb); /* Maybe rehash when inflight is 0 */
 		break;
 	default:
 		/* Don't care for the rest. */
@@ -206,11 +240,12 @@ static size_t dctcp_get_info(struct sock *sk, u32 ext, int *attr,
 	return 0;
 }
 
-static u32 dctcp_cwnd_undo(struct sock *sk)
+__bpf_kfunc static u32 dctcp_cwnd_undo(struct sock *sk)
 {
 	const struct dctcp *ca = inet_csk_ca(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
 
-	return max(tcp_sk(sk)->snd_cwnd, ca->loss_cwnd);
+	return max(tcp_snd_cwnd(tp), ca->loss_cwnd);
 }
 
 static struct tcp_congestion_ops dctcp __read_mostly = {
@@ -236,9 +271,29 @@ static struct tcp_congestion_ops dctcp_reno __read_mostly = {
 	.name		= "dctcp-reno",
 };
 
+BTF_KFUNCS_START(tcp_dctcp_check_kfunc_ids)
+BTF_ID_FLAGS(func, dctcp_init)
+BTF_ID_FLAGS(func, dctcp_update_alpha)
+BTF_ID_FLAGS(func, dctcp_cwnd_event)
+BTF_ID_FLAGS(func, dctcp_ssthresh)
+BTF_ID_FLAGS(func, dctcp_cwnd_undo)
+BTF_ID_FLAGS(func, dctcp_state)
+BTF_KFUNCS_END(tcp_dctcp_check_kfunc_ids)
+
+static const struct btf_kfunc_id_set tcp_dctcp_kfunc_set = {
+	.owner = THIS_MODULE,
+	.set   = &tcp_dctcp_check_kfunc_ids,
+};
+
 static int __init dctcp_register(void)
 {
+	int ret;
+
 	BUILD_BUG_ON(sizeof(struct dctcp) > ICSK_CA_PRIV_SIZE);
+
+	ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_STRUCT_OPS, &tcp_dctcp_kfunc_set);
+	if (ret < 0)
+		return ret;
 	return tcp_register_congestion_control(&dctcp);
 }
 

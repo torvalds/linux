@@ -7,10 +7,9 @@
  */
 
 #include <linux/delay.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/regulator/consumer.h>
@@ -59,16 +58,11 @@ static int sharp_ls_connect(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
-	int r;
 
 	if (omapdss_device_is_connected(dssdev))
 		return 0;
 
-	r = in->ops.dpi->connect(in, dssdev);
-	if (r)
-		return r;
-
-	return 0;
+	return in->ops.dpi->connect(in, dssdev);
 }
 
 static void sharp_ls_disconnect(struct omap_dss_device *dssdev)
@@ -216,10 +210,9 @@ static int sharp_ls_probe_of(struct platform_device *pdev)
 	int r;
 
 	ddata->vcc = devm_regulator_get(&pdev->dev, "envdd");
-	if (IS_ERR(ddata->vcc)) {
-		dev_err(&pdev->dev, "failed to get regulator\n");
-		return PTR_ERR(ddata->vcc);
-	}
+	if (IS_ERR(ddata->vcc))
+		return dev_err_probe(&pdev->dev, PTR_ERR(ddata->vcc),
+				     "failed to get regulator\n");
 
 	/* lcd INI */
 	r = sharp_ls_get_gpio_of(&pdev->dev, 0, 0, "enable", &ddata->ini_gpio);
@@ -299,7 +292,7 @@ err_reg:
 	return r;
 }
 
-static int __exit sharp_ls_remove(struct platform_device *pdev)
+static void sharp_ls_remove(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
 	struct omap_dss_device *dssdev = &ddata->dssdev;
@@ -311,8 +304,6 @@ static int __exit sharp_ls_remove(struct platform_device *pdev)
 	sharp_ls_disconnect(dssdev);
 
 	omap_dss_put_device(in);
-
-	return 0;
 }
 
 static const struct of_device_id sharp_ls_of_match[] = {
@@ -324,11 +315,10 @@ MODULE_DEVICE_TABLE(of, sharp_ls_of_match);
 
 static struct platform_driver sharp_ls_driver = {
 	.probe = sharp_ls_probe,
-	.remove = __exit_p(sharp_ls_remove),
+	.remove_new = sharp_ls_remove,
 	.driver = {
 		.name = "panel-sharp-ls037v7dw01",
 		.of_match_table = sharp_ls_of_match,
-		.suppress_bind_attrs = true,
 	},
 };
 

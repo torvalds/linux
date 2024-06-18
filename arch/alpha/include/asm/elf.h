@@ -120,12 +120,6 @@ extern int dump_elf_task(elf_greg_t *dest, struct task_struct *task);
 #define ELF_CORE_COPY_TASK_REGS(TASK, DEST) \
 	dump_elf_task(*(DEST), TASK)
 
-/* Similar, but for the FP registers.  */
-
-extern int dump_elf_task_fp(elf_fpreg_t *dest, struct task_struct *task);
-#define ELF_CORE_COPY_FPREGS(TASK, DEST) \
-	dump_elf_task_fp(*(DEST), TASK)
-
 /* This yields a mask that user programs can use to figure out what
    instruction set this CPU supports.  This is trivial on Alpha, 
    but not so on other machines. */
@@ -139,9 +133,7 @@ extern int dump_elf_task_fp(elf_fpreg_t *dest, struct task_struct *task);
 #define ELF_PLATFORM				\
 ({						\
 	enum implver_enum i_ = implver();	\
-	( i_ == IMPLVER_EV4 ? "ev4"		\
-	: i_ == IMPLVER_EV5			\
-	  ? (amask(AMASK_BWX) ? "ev5" : "ev56")	\
+	( i_ == IMPLVER_EV5 ? "ev56"			\
 	: amask (AMASK_CIX) ? "ev6" : "ev67");	\
 })
 

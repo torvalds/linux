@@ -11,7 +11,6 @@
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
-#include <linux/idr.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 
@@ -19,24 +18,89 @@
 #include "v9fs_vfs.h"
 #include "fid.h"
 
-/**
- * v9fs_fid_add - add a fid to a dentry
- * @dentry: dentry that the fid is being added to
- * @fid: fid to add
- *
- */
-
 static inline void __add_fid(struct dentry *dentry, struct p9_fid *fid)
 {
 	hlist_add_head(&fid->dlist, (struct hlist_head *)&dentry->d_fsdata);
 }
 
-void v9fs_fid_add(struct dentry *dentry, struct p9_fid *fid)
+
+/**
+ * v9fs_fid_add - add a fid to a dentry
+ * @dentry: dentry that the fid is being added to
+ * @pfid: fid to add, NULLed out
+ *
+ */
+void v9fs_fid_add(struct dentry *dentry, struct p9_fid **pfid)
 {
+	struct p9_fid *fid = *pfid;
+
 	spin_lock(&dentry->d_lock);
 	__add_fid(dentry, fid);
 	spin_unlock(&dentry->d_lock);
+
+	*pfid = NULL;
 }
+
+static bool v9fs_is_writeable(int mode)
+{
+	if (mode & (P9_OWRITE|P9_ORDWR))
+		return true;
+	else
+		return false;
+}
+
+/**
+ * v9fs_fid_find_inode - search for an open fid off of the inode list
+ * @inode: return a fid pointing to a specific inode
+ * @want_writeable: only consider fids which are writeable
+ * @uid: return a fid belonging to the specified user
+ * @any: ignore uid as a selection criteria
+ *
+ */
+struct p9_fid *v9fs_fid_find_inode(struct inode *inode, bool want_writeable,
+	kuid_t uid, bool any)
+{
+	struct hlist_head *h;
+	struct p9_fid *fid, *ret = NULL;
+
+	p9_debug(P9_DEBUG_VFS, " inode: %p\n", inode);
+
+	spin_lock(&inode->i_lock);
+	h = (struct hlist_head *)&inode->i_private;
+	hlist_for_each_entry(fid, h, ilist) {
+		if (any || uid_eq(fid->uid, uid)) {
+			if (want_writeable && !v9fs_is_writeable(fid->mode)) {
+				p9_debug(P9_DEBUG_VFS, " mode: %x not writeable?\n",
+							fid->mode);
+				continue;
+			}
+			p9_fid_get(fid);
+			ret = fid;
+			break;
+		}
+	}
+	spin_unlock(&inode->i_lock);
+	return ret;
+}
+
+/**
+ * v9fs_open_fid_add - add an open fid to an inode
+ * @inode: inode that the fid is being added to
+ * @pfid: fid to add, NULLed out
+ *
+ */
+
+void v9fs_open_fid_add(struct inode *inode, struct p9_fid **pfid)
+{
+	struct p9_fid *fid = *pfid;
+
+	spin_lock(&inode->i_lock);
+	hlist_add_head(&fid->ilist, (struct hlist_head *)&inode->i_private);
+	spin_unlock(&inode->i_lock);
+
+	*pfid = NULL;
+}
+
 
 /**
  * v9fs_fid_find - retrieve a fid that belongs to the specified uid
@@ -57,14 +121,19 @@ static struct p9_fid *v9fs_fid_find(struct dentry *dentry, kuid_t uid, int any)
 	/* we'll recheck under lock if there's anything to look in */
 	if (dentry->d_fsdata) {
 		struct hlist_head *h = (struct hlist_head *)&dentry->d_fsdata;
+
 		spin_lock(&dentry->d_lock);
 		hlist_for_each_entry(fid, h, dlist) {
 			if (any || uid_eq(fid->uid, uid)) {
 				ret = fid;
+				p9_fid_get(ret);
 				break;
 			}
 		}
 		spin_unlock(&dentry->d_lock);
+	} else {
+		if (dentry->d_inode)
+			ret = v9fs_fid_find_inode(dentry->d_inode, false, uid, any);
 	}
 
 	return ret;
@@ -103,9 +172,9 @@ static struct p9_fid *v9fs_fid_lookup_with_uid(struct dentry *dentry,
 {
 	struct dentry *ds;
 	const unsigned char **wnames, *uname;
-	int i, n, l, clone, access;
+	int i, n, l, access;
 	struct v9fs_session_info *v9ses;
-	struct p9_fid *fid, *old_fid = NULL;
+	struct p9_fid *fid, *root_fid, *old_fid;
 
 	v9ses = v9fs_dentry2v9ses(dentry);
 	access = v9ses->flags & V9FS_ACCESS_MASK;
@@ -122,20 +191,23 @@ static struct p9_fid *v9fs_fid_lookup_with_uid(struct dentry *dentry,
 	fid = v9fs_fid_find(ds, uid, any);
 	if (fid) {
 		/* Found the parent fid do a lookup with that */
-		fid = p9_client_walk(fid, 1, &dentry->d_name.name, 1);
+		old_fid = fid;
+
+		fid = p9_client_walk(old_fid, 1, &dentry->d_name.name, 1);
+		p9_fid_put(old_fid);
 		goto fid_out;
 	}
 	up_read(&v9ses->rename_sem);
 
 	/* start from the root and try to do a lookup */
-	fid = v9fs_fid_find(dentry->d_sb->s_root, uid, any);
-	if (!fid) {
+	root_fid = v9fs_fid_find(dentry->d_sb->s_root, uid, any);
+	if (!root_fid) {
 		/* the user is not attached to the fs yet */
 		if (access == V9FS_ACCESS_SINGLE)
 			return ERR_PTR(-EPERM);
 
 		if (v9fs_proto_dotu(v9ses) || v9fs_proto_dotl(v9ses))
-				uname = NULL;
+			uname = NULL;
 		else
 			uname = v9ses->uname;
 
@@ -144,11 +216,13 @@ static struct p9_fid *v9fs_fid_lookup_with_uid(struct dentry *dentry,
 		if (IS_ERR(fid))
 			return fid;
 
-		v9fs_fid_add(dentry->d_sb->s_root, fid);
+		root_fid = p9_fid_get(fid);
+		v9fs_fid_add(dentry->d_sb->s_root, &fid);
 	}
 	/* If we are root ourself just return that */
 	if (dentry->d_sb->s_root == dentry)
-		return fid;
+		return root_fid;
+
 	/*
 	 * Do a multipath walk with attached root.
 	 * When walking parent we need to make sure we
@@ -160,30 +234,27 @@ static struct p9_fid *v9fs_fid_lookup_with_uid(struct dentry *dentry,
 		fid = ERR_PTR(n);
 		goto err_out;
 	}
-	clone = 1;
+	fid = root_fid;
+	old_fid = root_fid;
 	i = 0;
 	while (i < n) {
 		l = min(n - i, P9_MAXWELEM);
 		/*
 		 * We need to hold rename lock when doing a multipath
-		 * walk to ensure none of the patch component change
+		 * walk to ensure none of the path components change
 		 */
-		fid = p9_client_walk(fid, l, &wnames[i], clone);
+		fid = p9_client_walk(old_fid, l, &wnames[i],
+				     old_fid == root_fid /* clone */);
+		/* non-cloning walk will return the same fid */
+		if (fid != old_fid) {
+			p9_fid_put(old_fid);
+			old_fid = fid;
+		}
 		if (IS_ERR(fid)) {
-			if (old_fid) {
-				/*
-				 * If we fail, clunk fid which are mapping
-				 * to path component and not the last component
-				 * of the path.
-				 */
-				p9_client_clunk(old_fid);
-			}
 			kfree(wnames);
 			goto err_out;
 		}
-		old_fid = fid;
 		i += l;
-		clone = 0;
 	}
 	kfree(wnames);
 fid_out:
@@ -191,10 +262,11 @@ fid_out:
 		spin_lock(&dentry->d_lock);
 		if (d_unhashed(dentry)) {
 			spin_unlock(&dentry->d_lock);
-			p9_client_clunk(fid);
+			p9_fid_put(fid);
 			fid = ERR_PTR(-ENOENT);
 		} else {
 			__add_fid(dentry, fid);
+			p9_fid_get(fid);
 			spin_unlock(&dentry->d_lock);
 		}
 	}
@@ -242,26 +314,3 @@ struct p9_fid *v9fs_fid_lookup(struct dentry *dentry)
 	return v9fs_fid_lookup_with_uid(dentry, uid, any);
 }
 
-struct p9_fid *v9fs_writeback_fid(struct dentry *dentry)
-{
-	int err;
-	struct p9_fid *fid;
-
-	fid = clone_fid(v9fs_fid_lookup_with_uid(dentry, GLOBAL_ROOT_UID, 0));
-	if (IS_ERR(fid))
-		goto error_out;
-	/*
-	 * writeback fid will only be used to write back the
-	 * dirty pages. We always request for the open fid in read-write
-	 * mode so that a partial page write which result in page
-	 * read can work.
-	 */
-	err = p9_client_open(fid, O_RDWR);
-	if (err < 0) {
-		p9_client_clunk(fid);
-		fid = ERR_PTR(err);
-		goto error_out;
-	}
-error_out:
-	return fid;
-}

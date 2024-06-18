@@ -56,7 +56,7 @@ int res_sample_browse(struct res_sample *res_samples, int num_res,
 			return -1;
 		}
 	}
-	choice = ui__popup_menu(num_res, names);
+	choice = ui__popup_menu(num_res, names, NULL);
 	for (i = 0; i < num_res; i++)
 		zfree(&names[i]);
 	free(names);
@@ -83,7 +83,7 @@ int res_sample_browse(struct res_sample *res_samples, int num_res,
 		     r->tid ? "--tid " : "",
 		     r->tid ? (sprintf(tidbuf, "%d", r->tid), tidbuf) : "",
 		     extra_format,
-		     rstype == A_ASM ? "-F +insn --xed" :
+		     rstype == A_ASM ? "-F +disasm" :
 		     rstype == A_SOURCE ? "-F +srcline,+srccode" : "",
 		     symbol_conf.inline_name ? "--inline" : "",
 		     "--show-lost-events ",

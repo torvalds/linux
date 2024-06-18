@@ -55,7 +55,7 @@ static int ltc3815_write_byte(struct i2c_client *client, int page, u8 reg)
 		 * LTC3815 does not support the CLEAR_FAULTS command.
 		 * Emulate it by clearing the status register.
 		 */
-		ret = pmbus_read_word_data(client, 0, PMBUS_STATUS_WORD);
+		ret = pmbus_read_word_data(client, 0, 0xff, PMBUS_STATUS_WORD);
 		if (ret > 0) {
 			pmbus_write_word_data(client, 0, PMBUS_STATUS_WORD,
 					      ret);
@@ -69,25 +69,31 @@ static int ltc3815_write_byte(struct i2c_client *client, int page, u8 reg)
 	return ret;
 }
 
-static int ltc3815_read_word_data(struct i2c_client *client, int page, int reg)
+static int ltc3815_read_word_data(struct i2c_client *client, int page,
+				  int phase, int reg)
 {
 	int ret;
 
 	switch (reg) {
 	case PMBUS_VIRT_READ_VIN_MAX:
-		ret = pmbus_read_word_data(client, page, LTC3815_MFR_VIN_PEAK);
+		ret = pmbus_read_word_data(client, page, phase,
+					   LTC3815_MFR_VIN_PEAK);
 		break;
 	case PMBUS_VIRT_READ_VOUT_MAX:
-		ret = pmbus_read_word_data(client, page, LTC3815_MFR_VOUT_PEAK);
+		ret = pmbus_read_word_data(client, page, phase,
+					   LTC3815_MFR_VOUT_PEAK);
 		break;
 	case PMBUS_VIRT_READ_TEMP_MAX:
-		ret = pmbus_read_word_data(client, page, LTC3815_MFR_TEMP_PEAK);
+		ret = pmbus_read_word_data(client, page, phase,
+					   LTC3815_MFR_TEMP_PEAK);
 		break;
 	case PMBUS_VIRT_READ_IOUT_MAX:
-		ret = pmbus_read_word_data(client, page, LTC3815_MFR_IOUT_PEAK);
+		ret = pmbus_read_word_data(client, page, phase,
+					   LTC3815_MFR_IOUT_PEAK);
 		break;
 	case PMBUS_VIRT_READ_IIN_MAX:
-		ret = pmbus_read_word_data(client, page, LTC3815_MFR_IIN_PEAK);
+		ret = pmbus_read_word_data(client, page, phase,
+					   LTC3815_MFR_IIN_PEAK);
 		break;
 	case PMBUS_VIRT_RESET_VOUT_HISTORY:
 	case PMBUS_VIRT_RESET_VIN_HISTORY:
@@ -137,7 +143,7 @@ static int ltc3815_write_word_data(struct i2c_client *client, int page,
 }
 
 static const struct i2c_device_id ltc3815_id[] = {
-	{"ltc3815", 0},
+	{"ltc3815"},
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ltc3815_id);
@@ -172,8 +178,7 @@ static struct pmbus_driver_info ltc3815_info = {
 	.write_word_data = ltc3815_write_word_data,
 };
 
-static int ltc3815_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int ltc3815_probe(struct i2c_client *client)
 {
 	int chip_id;
 
@@ -187,7 +192,7 @@ static int ltc3815_probe(struct i2c_client *client,
 	if ((chip_id & LTC3815_ID_MASK) != LTC3815_ID)
 		return -ENODEV;
 
-	return pmbus_do_probe(client, id, &ltc3815_info);
+	return pmbus_do_probe(client, &ltc3815_info);
 }
 
 static struct i2c_driver ltc3815_driver = {
@@ -195,7 +200,6 @@ static struct i2c_driver ltc3815_driver = {
 		   .name = "ltc3815",
 		   },
 	.probe = ltc3815_probe,
-	.remove = pmbus_do_remove,
 	.id_table = ltc3815_id,
 };
 
@@ -204,3 +208,4 @@ module_i2c_driver(ltc3815_driver);
 MODULE_AUTHOR("Guenter Roeck");
 MODULE_DESCRIPTION("PMBus driver for LTC3815");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(PMBUS);

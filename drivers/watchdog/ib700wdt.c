@@ -214,7 +214,7 @@ static long ibwdt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (ibwdt_set_heartbeat(new_margin))
 			return -EINVAL;
 		ibwdt_ping();
-		/* fall through */
+		fallthrough;
 
 	case WDIOC_GETTIMEOUT:
 		return put_user(timeout, p);
@@ -259,6 +259,7 @@ static const struct file_operations ibwdt_fops = {
 	.llseek		= no_llseek,
 	.write		= ibwdt_write,
 	.unlocked_ioctl	= ibwdt_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= ibwdt_open,
 	.release	= ibwdt_close,
 };
@@ -315,14 +316,13 @@ out_nostopreg:
 	return res;
 }
 
-static int ibwdt_remove(struct platform_device *dev)
+static void ibwdt_remove(struct platform_device *dev)
 {
 	misc_deregister(&ibwdt_miscdev);
 	release_region(WDT_START, 1);
 #if WDT_START != WDT_STOP
 	release_region(WDT_STOP, 1);
 #endif
-	return 0;
 }
 
 static void ibwdt_shutdown(struct platform_device *dev)
@@ -332,7 +332,7 @@ static void ibwdt_shutdown(struct platform_device *dev)
 }
 
 static struct platform_driver ibwdt_driver = {
-	.remove		= ibwdt_remove,
+	.remove_new	= ibwdt_remove,
 	.shutdown	= ibwdt_shutdown,
 	.driver		= {
 		.name	= DRV_NAME,

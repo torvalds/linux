@@ -272,6 +272,10 @@ static int node_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 
 	name_len = fw_csr_string(unit->directory, CSR_MODEL,
 				 name, sizeof(name));
+	if (name_len < 0) {
+		err = name_len;
+		goto fail_free;
+	}
 	for (i = ARRAY_SIZE(model_names); --i; )
 		if (strlen(model_names[i]) <= name_len &&
 		    strncmp(name, model_names[i], name_len) == 0)
@@ -426,4 +430,3 @@ MODULE_AUTHOR("Andreas Monitzer <andy@monitzer.com>");
 MODULE_AUTHOR("Ben Backx <ben@bbackx.com>");
 MODULE_DESCRIPTION("FireDTV DVB Driver");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("FireDTV DVB");

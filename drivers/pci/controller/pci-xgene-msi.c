@@ -8,9 +8,9 @@
  */
 #include <linux/cpu.h>
 #include <linux/interrupt.h>
+#include <linux/irqdomain.h>
 #include <linux/module.h>
 #include <linux/msi.h>
-#include <linux/of_irq.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
@@ -269,9 +269,7 @@ static void xgene_free_domains(struct xgene_msi *msi)
 
 static int xgene_msi_init_allocator(struct xgene_msi *xgene_msi)
 {
-	int size = BITS_TO_LONGS(NR_MSI_VEC) * sizeof(long);
-
-	xgene_msi->bitmap = kzalloc(size, GFP_KERNEL);
+	xgene_msi->bitmap = bitmap_zalloc(NR_MSI_VEC, GFP_KERNEL);
 	if (!xgene_msi->bitmap)
 		return -ENOMEM;
 
@@ -291,8 +289,7 @@ static void xgene_msi_isr(struct irq_desc *desc)
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct xgene_msi_group *msi_groups;
 	struct xgene_msi *xgene_msi;
-	unsigned int virq;
-	int msir_index, msir_val, hw_irq;
+	int msir_index, msir_val, hw_irq, ret;
 	u32 intr_index, grp_select, msi_grp;
 
 	chained_irq_enter(chip, desc);
@@ -303,7 +300,7 @@ static void xgene_msi_isr(struct irq_desc *desc)
 
 	/*
 	 * MSIINTn (n is 0..F) indicates if there is a pending MSI interrupt
-	 * If bit x of this register is set (x is 0..7), one or more interupts
+	 * If bit x of this register is set (x is 0..7), one or more interrupts
 	 * corresponding to MSInIRx is set.
 	 */
 	grp_select = xgene_msi_int_read(xgene_msi, msi_grp);
@@ -330,10 +327,8 @@ static void xgene_msi_isr(struct irq_desc *desc)
 			 * CPU0
 			 */
 			hw_irq = hwirq_to_canonical_hwirq(hw_irq);
-			virq = irq_find_mapping(xgene_msi->inner_domain, hw_irq);
-			WARN_ON(!virq);
-			if (virq != 0)
-				generic_handle_irq(virq);
+			ret = generic_handle_domain_irq(xgene_msi->inner_domain, hw_irq);
+			WARN_ON_ONCE(ret);
 			msir_val &= ~(1 << intr_index);
 		}
 		grp_select &= ~(1 << msir_index);
@@ -353,7 +348,7 @@ static void xgene_msi_isr(struct irq_desc *desc)
 
 static enum cpuhp_state pci_xgene_online;
 
-static int xgene_msi_remove(struct platform_device *pdev)
+static void xgene_msi_remove(struct platform_device *pdev)
 {
 	struct xgene_msi *msi = platform_get_drvdata(pdev);
 
@@ -363,12 +358,10 @@ static int xgene_msi_remove(struct platform_device *pdev)
 
 	kfree(msi->msi_groups);
 
-	kfree(msi->bitmap);
+	bitmap_free(msi->bitmap);
 	msi->bitmap = NULL;
 
 	xgene_free_domains(msi);
-
-	return 0;
 }
 
 static int xgene_msi_hwirq_alloc(unsigned int cpu)
@@ -384,13 +377,9 @@ static int xgene_msi_hwirq_alloc(unsigned int cpu)
 		if (!msi_group->gic_irq)
 			continue;
 
-		irq_set_chained_handler(msi_group->gic_irq,
-					xgene_msi_isr);
-		err = irq_set_handler_data(msi_group->gic_irq, msi_group);
-		if (err) {
-			pr_err("failed to register GIC IRQ handler\n");
-			return -EINVAL;
-		}
+		irq_set_chained_handler_and_data(msi_group->gic_irq,
+			xgene_msi_isr, msi_group);
+
 		/*
 		 * Statically allocate MSI GIC IRQs to each CPU core.
 		 * With 8-core X-Gene v1, 2 MSI GIC IRQs are allocated
@@ -452,10 +441,8 @@ static int xgene_msi_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, xgene_msi);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	xgene_msi->msi_regs = devm_ioremap_resource(&pdev->dev, res);
+	xgene_msi->msi_regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(xgene_msi->msi_regs)) {
-		dev_err(&pdev->dev, "no reg space\n");
 		rc = PTR_ERR(xgene_msi->msi_regs);
 		goto error;
 	}
@@ -478,8 +465,6 @@ static int xgene_msi_probe(struct platform_device *pdev)
 	for (irq_index = 0; irq_index < NR_HW_IRQS; irq_index++) {
 		virt_msir = platform_get_irq(pdev, irq_index);
 		if (virt_msir < 0) {
-			dev_err(&pdev->dev, "Cannot translate IRQ index %d\n",
-				irq_index);
 			rc = virt_msir;
 			goto error;
 		}
@@ -495,8 +480,8 @@ static int xgene_msi_probe(struct platform_device *pdev)
 	 */
 	for (irq_index = 0; irq_index < NR_HW_IRQS; irq_index++) {
 		for (msi_idx = 0; msi_idx < IDX_PER_GROUP; msi_idx++)
-			msi_val = xgene_msi_ir_read(xgene_msi, irq_index,
-						    msi_idx);
+			xgene_msi_ir_read(xgene_msi, irq_index, msi_idx);
+
 		/* Read MSIINTn to confirm */
 		msi_val = xgene_msi_int_read(xgene_msi, irq_index);
 		if (msi_val) {
@@ -533,7 +518,7 @@ static struct platform_driver xgene_msi_driver = {
 		.of_match_table = xgene_msi_match_table,
 	},
 	.probe = xgene_msi_probe,
-	.remove = xgene_msi_remove,
+	.remove_new = xgene_msi_remove,
 };
 
 static int __init xgene_pcie_msi_init(void)

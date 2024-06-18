@@ -77,6 +77,7 @@ enum sctp_event_timeout {
 	SCTP_EVENT_TIMEOUT_T5_SHUTDOWN_GUARD,
 	SCTP_EVENT_TIMEOUT_HEARTBEAT,
 	SCTP_EVENT_TIMEOUT_RECONF,
+	SCTP_EVENT_TIMEOUT_PROBE,
 	SCTP_EVENT_TIMEOUT_SACK,
 	SCTP_EVENT_TIMEOUT_AUTOCLOSE,
 };
@@ -200,6 +201,23 @@ enum sctp_sock_state {
 	SCTP_SS_CLOSING        = TCP_CLOSE_WAIT,
 };
 
+enum sctp_plpmtud_state {
+	SCTP_PL_DISABLED,
+	SCTP_PL_BASE,
+	SCTP_PL_SEARCH,
+	SCTP_PL_COMPLETE,
+	SCTP_PL_ERROR,
+};
+
+#define	SCTP_BASE_PLPMTU	1200
+#define	SCTP_MAX_PLPMTU		9000
+#define	SCTP_MIN_PLPMTU		512
+
+#define	SCTP_MAX_PROBES		3
+
+#define SCTP_PL_BIG_STEP	32
+#define SCTP_PL_MIN_STEP	4
+
 /* These functions map various type to printable names.  */
 const char *sctp_cname(const union sctp_subtype id);	/* chunk types */
 const char *sctp_oname(const union sctp_subtype id);	/* other events */
@@ -286,6 +304,20 @@ enum { SCTP_MAX_GABS = 16 };
 				 * functions simpler to write.
 				 */
 
+#define SCTP_DEFAULT_UDP_PORT 9899	/* default UDP tunneling port */
+
+/* These are the values for pf exposure, UNUSED is to keep compatible with old
+ * applications by default.
+ */
+enum {
+	SCTP_PF_EXPOSE_UNSET,
+	SCTP_PF_EXPOSE_DISABLE,
+	SCTP_PF_EXPOSE_ENABLE,
+};
+#define SCTP_PF_EXPOSE_MAX	SCTP_PF_EXPOSE_ENABLE
+
+#define SCTP_PS_RETRANS_MAX	0xffff
+
 /* These return values describe the success or failure of a number of
  * routines which form the lower interface to SCTP_outqueue.
  */
@@ -328,8 +360,7 @@ enum {
 #define SCTP_SCOPE_POLICY_MAX	SCTP_SCOPE_POLICY_LINK
 
 /* Based on IPv4 scoping <draft-stewart-tsvwg-sctp-ipv4-00.txt>,
- * SCTP IPv4 unusable addresses: 0.0.0.0/8, 224.0.0.0/4, 198.18.0.0/24,
- * 192.88.99.0/24.
+ * SCTP IPv4 unusable addresses: 0.0.0.0/8, 224.0.0.0/4, 192.88.99.0/24.
  * Also, RFC 8.4, non-unicast addresses are not considered valid SCTP
  * addresses.
  */
@@ -337,15 +368,16 @@ enum {
 	((htonl(INADDR_BROADCAST) == a) ||  \
 	 ipv4_is_multicast(a) ||	    \
 	 ipv4_is_zeronet(a) ||		    \
-	 ipv4_is_test_198(a) ||		    \
 	 ipv4_is_anycast_6to4(a))
 
 /* Flags used for the bind address copy functions.  */
-#define SCTP_ADDR6_ALLOWED	0x00000001	/* IPv6 address is allowed by
+#define SCTP_ADDR4_ALLOWED	0x00000001	/* IPv4 address is allowed by
 						   local sock family */
-#define SCTP_ADDR4_PEERSUPP	0x00000002	/* IPv4 address is supported by
+#define SCTP_ADDR6_ALLOWED	0x00000002	/* IPv6 address is allowed by
+						   local sock family */
+#define SCTP_ADDR4_PEERSUPP	0x00000004	/* IPv4 address is supported by
 						   peer */
-#define SCTP_ADDR6_PEERSUPP	0x00000004	/* IPv6 address is supported by
+#define SCTP_ADDR6_PEERSUPP	0x00000008	/* IPv6 address is supported by
 						   peer */
 
 /* Reasons to retransmit. */
@@ -407,5 +439,7 @@ enum {
  * The RANDOM parameter MUST contain a 32 byte random number.
  */
 #define SCTP_AUTH_RANDOM_LENGTH 32
+
+#define SCTP_PROBE_TIMER_MIN	5000
 
 #endif /* __sctp_constants_h__ */

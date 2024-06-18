@@ -20,8 +20,6 @@ static int qnx4_readdir(struct file *file, struct dir_context *ctx)
 	struct inode *inode = file_inode(file);
 	unsigned int offset;
 	struct buffer_head *bh;
-	struct qnx4_inode_entry *de;
-	struct qnx4_link_info *le;
 	unsigned long blknum;
 	int ix, ino;
 	int size;
@@ -38,27 +36,26 @@ static int qnx4_readdir(struct file *file, struct dir_context *ctx)
 		}
 		ix = (ctx->pos >> QNX4_DIR_ENTRY_SIZE_BITS) % QNX4_INODES_PER_BLOCK;
 		for (; ix < QNX4_INODES_PER_BLOCK; ix++, ctx->pos += QNX4_DIR_ENTRY_SIZE) {
+			union qnx4_directory_entry *de;
+			const char *fname;
+
 			offset = ix * QNX4_DIR_ENTRY_SIZE;
-			de = (struct qnx4_inode_entry *) (bh->b_data + offset);
-			if (!de->di_fname[0])
+			de = (union qnx4_directory_entry *) (bh->b_data + offset);
+
+			fname = get_entry_fname(de, &size);
+			if (!fname)
 				continue;
-			if (!(de->di_status & (QNX4_FILE_USED|QNX4_FILE_LINK)))
-				continue;
-			if (!(de->di_status & QNX4_FILE_LINK))
-				size = QNX4_SHORT_NAME_MAX;
-			else
-				size = QNX4_NAME_MAX;
-			size = strnlen(de->di_fname, size);
-			QNX4DEBUG((KERN_INFO "qnx4_readdir:%.*s\n", size, de->di_fname));
-			if (!(de->di_status & QNX4_FILE_LINK))
+
+			if (!(de->de_status & QNX4_FILE_LINK)) {
 				ino = blknum * QNX4_INODES_PER_BLOCK + ix - 1;
-			else {
-				le  = (struct qnx4_link_info*)de;
-				ino = ( le32_to_cpu(le->dl_inode_blk) - 1 ) *
+			} else {
+				ino = ( le32_to_cpu(de->link.dl_inode_blk) - 1 ) *
 					QNX4_INODES_PER_BLOCK +
-					le->dl_inode_ndx;
+					de->link.dl_inode_ndx;
 			}
-			if (!dir_emit(ctx, de->di_fname, size, ino, DT_UNKNOWN)) {
+
+			QNX4DEBUG((KERN_INFO "qnx4_readdir:%.*s\n", size, fname));
+			if (!dir_emit(ctx, fname, size, ino, DT_UNKNOWN)) {
 				brelse(bh);
 				return 0;
 			}

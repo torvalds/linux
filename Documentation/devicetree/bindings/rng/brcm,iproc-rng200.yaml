@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/rng/brcm,iproc-rng200.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: HWRNG support for the iproc-rng200 driver
+
+maintainers:
+  - Florian Fainelli <f.fainelli@gmail.com>
+
+properties:
+  compatible:
+    enum:
+      - brcm,bcm2711-rng200
+      - brcm,bcm7211-rng200
+      - brcm,bcm7278-rng200
+      - brcm,iproc-rng200
+
+  reg:
+    maxItems: 1
+
+additionalProperties: false
+
+examples:
+  - |
+    rng@18032000 {
+        compatible = "brcm,iproc-rng200";
+        reg = <0x18032000 0x28>;
+    };

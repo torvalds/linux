@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * QLogic qlcnic NIC Driver
  * Copyright (c) 2009-2013 QLogic Corporation
- *
- * See LICENSE.qlcnic for copyright and licensing details.
  */
 
 #include <linux/slab.h>
@@ -13,7 +12,6 @@
 #include <linux/ipv6.h>
 #include <linux/inetdevice.h>
 #include <linux/sysfs.h>
-#include <linux/aer.h>
 #include <linux/log2.h>
 #ifdef CONFIG_QLCNIC_HWMON
 #include <linux/hwmon.h>
@@ -269,7 +267,7 @@ static ssize_t qlcnic_sysfs_read_crb(struct file *filp, struct kobject *kobj,
 				     struct bin_attribute *attr, char *buf,
 				     loff_t offset, size_t size)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
 	int ret;
 
@@ -286,7 +284,7 @@ static ssize_t qlcnic_sysfs_write_crb(struct file *filp, struct kobject *kobj,
 				      struct bin_attribute *attr, char *buf,
 				      loff_t offset, size_t size)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
 	int ret;
 
@@ -315,7 +313,7 @@ static ssize_t qlcnic_sysfs_read_mem(struct file *filp, struct kobject *kobj,
 				     struct bin_attribute *attr, char *buf,
 				     loff_t offset, size_t size)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
 	u64 data;
 	int ret;
@@ -337,7 +335,7 @@ static ssize_t qlcnic_sysfs_write_mem(struct file *filp, struct kobject *kobj,
 				      struct bin_attribute *attr, char *buf,
 				      loff_t offset, size_t size)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
 	u64 data;
 	int ret;
@@ -402,7 +400,7 @@ static ssize_t qlcnic_sysfs_write_pm_config(struct file *filp,
 					    char *buf, loff_t offset,
 					    size_t size)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
 	struct qlcnic_pm_func_cfg *pm_cfg;
 	u32 id, action, pci_func;
@@ -452,7 +450,7 @@ static ssize_t qlcnic_sysfs_read_pm_config(struct file *filp,
 					   char *buf, loff_t offset,
 					   size_t size)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
 	struct qlcnic_pm_func_cfg *pm_cfg;
 	u8 pci_func;
@@ -545,7 +543,7 @@ static ssize_t qlcnic_sysfs_write_esw_config(struct file *file,
 					     char *buf, loff_t offset,
 					     size_t size)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
 	struct qlcnic_esw_func_cfg *esw_cfg;
 	struct qlcnic_npar_info *npar;
@@ -629,7 +627,7 @@ static ssize_t qlcnic_sysfs_read_esw_config(struct file *file,
 					    char *buf, loff_t offset,
 					    size_t size)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
 	struct qlcnic_esw_func_cfg *esw_cfg;
 	u8 pci_func;
@@ -681,7 +679,7 @@ static ssize_t qlcnic_sysfs_write_npar_config(struct file *file,
 					      char *buf, loff_t offset,
 					      size_t size)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
 	struct qlcnic_info nic_info;
 	struct qlcnic_npar_func_cfg *np_cfg;
@@ -728,7 +726,7 @@ static ssize_t qlcnic_sysfs_read_npar_config(struct file *file,
 					     char *buf, loff_t offset,
 					     size_t size)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
 	struct qlcnic_npar_func_cfg *np_cfg;
 	struct qlcnic_info nic_info;
@@ -775,7 +773,7 @@ static ssize_t qlcnic_sysfs_get_port_stats(struct file *file,
 					   char *buf, loff_t offset,
 					   size_t size)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
 	struct qlcnic_esw_statistics port_stats;
 	int ret;
@@ -810,7 +808,7 @@ static ssize_t qlcnic_sysfs_get_esw_stats(struct file *file,
 					  char *buf, loff_t offset,
 					  size_t size)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
 	struct qlcnic_esw_statistics esw_stats;
 	int ret;
@@ -845,7 +843,7 @@ static ssize_t qlcnic_sysfs_clear_esw_stats(struct file *file,
 					    char *buf, loff_t offset,
 					    size_t size)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
 	int ret;
 
@@ -875,7 +873,7 @@ static ssize_t qlcnic_sysfs_clear_port_stats(struct file *file,
 					     size_t size)
 {
 
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
 	int ret;
 
@@ -904,7 +902,7 @@ static ssize_t qlcnic_sysfs_read_pci_config(struct file *file,
 					    char *buf, loff_t offset,
 					    size_t size)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
 	struct qlcnic_pci_func_cfg *pci_cfg;
 	struct qlcnic_pci_info *pci_info;
@@ -946,7 +944,7 @@ static ssize_t qlcnic_83xx_sysfs_flash_read_handler(struct file *filp,
 {
 	unsigned char *p_read_buf;
 	int  ret, count;
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
 
 	if (!size)
@@ -1124,7 +1122,7 @@ static ssize_t qlcnic_83xx_sysfs_flash_write_handler(struct file *filp,
 	int  ret;
 	static int flash_mode;
 	unsigned long data;
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
 
 	ret = kstrtoul(buf, 16, &data);

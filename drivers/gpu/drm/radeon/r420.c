@@ -26,13 +26,13 @@
  *          Jerome Glisse
  */
 
+#include <linux/debugfs.h>
+#include <linux/pci.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 
-#include <drm/drm_debugfs.h>
 #include <drm/drm_device.h>
 #include <drm/drm_file.h>
-#include <drm/drm_pci.h>
 
 #include "atom.h"
 #include "r100d.h"
@@ -115,7 +115,7 @@ void r420_pipes_init(struct radeon_device *rdev)
 	default:
 		/* force to 1 pipe */
 		num_pipes = 1;
-		/* fall through */
+		fallthrough;
 	case 1:
 		tmp = (0 << 1);
 		break;
@@ -187,12 +187,8 @@ void r420_mc_wreg(struct radeon_device *rdev, u32 reg, u32 v)
 
 static void r420_debugfs(struct radeon_device *rdev)
 {
-	if (r100_debugfs_rbbm_init(rdev)) {
-		DRM_ERROR("Failed to register debugfs file for RBBM !\n");
-	}
-	if (r420_debugfs_pipes_info_init(rdev)) {
-		DRM_ERROR("Failed to register debugfs file for pipes !\n");
-	}
+	r100_debugfs_rbbm_init(rdev);
+	r420_debugfs_pipes_info_init(rdev);
 }
 
 static void r420_clock_resume(struct radeon_device *rdev)
@@ -430,10 +426,7 @@ int r420_init(struct radeon_device *rdev)
 	r300_mc_init(rdev);
 	r420_debugfs(rdev);
 	/* Fence driver */
-	r = radeon_fence_driver_init(rdev);
-	if (r) {
-		return r;
-	}
+	radeon_fence_driver_init(rdev);
 	/* Memory manager */
 	r = radeon_bo_init(rdev);
 	if (r) {
@@ -480,11 +473,9 @@ int r420_init(struct radeon_device *rdev)
  * Debugfs info
  */
 #if defined(CONFIG_DEBUG_FS)
-static int r420_debugfs_pipes_info(struct seq_file *m, void *data)
+static int r420_debugfs_pipes_info_show(struct seq_file *m, void *unused)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_device *rdev = m->private;
 	uint32_t tmp;
 
 	tmp = RREG32(R400_GB_PIPE_SELECT);
@@ -496,16 +487,15 @@ static int r420_debugfs_pipes_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-static struct drm_info_list r420_pipes_info_list[] = {
-	{"r420_pipes_info", r420_debugfs_pipes_info, 0, NULL},
-};
+DEFINE_SHOW_ATTRIBUTE(r420_debugfs_pipes_info);
 #endif
 
-int r420_debugfs_pipes_info_init(struct radeon_device *rdev)
+void r420_debugfs_pipes_info_init(struct radeon_device *rdev)
 {
 #if defined(CONFIG_DEBUG_FS)
-	return radeon_debugfs_add_files(rdev, r420_pipes_info_list, 1);
-#else
-	return 0;
+	struct dentry *root = rdev->ddev->primary->debugfs_root;
+
+	debugfs_create_file("r420_pipes_info", 0444, root, rdev,
+			    &r420_debugfs_pipes_info_fops);
 #endif
 }

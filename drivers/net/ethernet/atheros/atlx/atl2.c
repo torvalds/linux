@@ -36,18 +36,12 @@
 
 #include "atl2.h"
 
-#define ATL2_DRV_VERSION "2.2.3"
-
 static const char atl2_driver_name[] = "atl2";
-static const char atl2_driver_string[] = "Atheros(R) L2 Ethernet Driver";
-static const char atl2_copyright[] = "Copyright (c) 2007 Atheros Corporation.";
-static const char atl2_driver_version[] = ATL2_DRV_VERSION;
 static const struct ethtool_ops atl2_ethtool_ops;
 
 MODULE_AUTHOR("Atheros Corporation <xiong.huang@atheros.com>, Chris Snook <csnook@redhat.com>");
 MODULE_DESCRIPTION("Atheros Fast Ethernet Network Driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(ATL2_DRV_VERSION);
 
 /*
  * atl2_pci_tbl - PCI Device ID Table
@@ -287,8 +281,8 @@ static s32 atl2_setup_ring_resources(struct atl2_adapter *adapter)
 		adapter->txs_ring_size * 4 + 7 +	/* dword align */
 		adapter->rxd_ring_size * 1536 + 127;	/* 128bytes align */
 
-	adapter->ring_vir_addr = pci_alloc_consistent(pdev, size,
-		&adapter->ring_dma);
+	adapter->ring_vir_addr = dma_alloc_coherent(&pdev->dev, size,
+						    &adapter->ring_dma, GFP_KERNEL);
 	if (!adapter->ring_vir_addr)
 		return -ENOMEM;
 
@@ -669,8 +663,8 @@ static int atl2_request_irq(struct atl2_adapter *adapter)
 static void atl2_free_ring_resources(struct atl2_adapter *adapter)
 {
 	struct pci_dev *pdev = adapter->pdev;
-	pci_free_consistent(pdev, adapter->ring_size, adapter->ring_vir_addr,
-		adapter->ring_dma);
+	dma_free_coherent(&pdev->dev, adapter->ring_size,
+			  adapter->ring_vir_addr, adapter->ring_dma);
 }
 
 /**
@@ -911,7 +905,7 @@ static int atl2_change_mtu(struct net_device *netdev, int new_mtu)
 	struct atl2_hw *hw = &adapter->hw;
 
 	/* set MTU */
-	netdev->mtu = new_mtu;
+	WRITE_ONCE(netdev->mtu, new_mtu);
 	hw->max_frame_size = new_mtu;
 	ATL2_WRITE_REG(hw, REG_MTU, new_mtu + ETH_HLEN +
 		       VLAN_HLEN + ETH_FCS_LEN);
@@ -937,7 +931,7 @@ static int atl2_set_mac(struct net_device *netdev, void *p)
 	if (netif_running(netdev))
 		return -EBUSY;
 
-	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
+	eth_hw_addr_set(netdev, addr->sa_data);
 	memcpy(adapter->hw.mac_addr, addr->sa_data, netdev->addr_len);
 
 	atl2_set_mac_addr(&adapter->hw);
@@ -1000,8 +994,9 @@ static int atl2_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 /**
  * atl2_tx_timeout - Respond to a Tx Hang
  * @netdev: network interface device structure
+ * @txqueue: index of the hanging transmit queue
  */
-static void atl2_tx_timeout(struct net_device *netdev)
+static void atl2_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct atl2_adapter *adapter = netdev_priv(netdev);
 
@@ -1011,7 +1006,7 @@ static void atl2_tx_timeout(struct net_device *netdev)
 
 /**
  * atl2_watchdog - Timer Call-back
- * @data: pointer to netdev cast into an unsigned long
+ * @t: timer list containing a pointer to netdev cast into an unsigned long
  */
 static void atl2_watchdog(struct timer_list *t)
 {
@@ -1036,7 +1031,7 @@ static void atl2_watchdog(struct timer_list *t)
 
 /**
  * atl2_phy_config - Timer Call-back
- * @data: pointer to netdev cast into an unsigned long
+ * @t: timer list containing a pointer to netdev cast into an unsigned long
  */
 static void atl2_phy_config(struct timer_list *t)
 {
@@ -1091,7 +1086,6 @@ err_up:
 
 static void atl2_reinit_locked(struct atl2_adapter *adapter)
 {
-	WARN_ON(in_interrupt());
 	while (test_and_set_bit(__ATL2_RESETTING, &adapter->flags))
 		msleep(1);
 	atl2_down(adapter);
@@ -1241,6 +1235,7 @@ static int atl2_check_link(struct atl2_adapter *adapter)
 
 /**
  * atl2_link_chg_task - deal with link change event Out of interrupt context
+ * @work: pointer to work struct with private info
  */
 static void atl2_link_chg_task(struct work_struct *work)
 {
@@ -1298,7 +1293,7 @@ static const struct net_device_ops atl2_netdev_ops = {
 	.ndo_change_mtu		= atl2_change_mtu,
 	.ndo_fix_features	= atl2_fix_features,
 	.ndo_set_features	= atl2_set_features,
-	.ndo_do_ioctl		= atl2_ioctl,
+	.ndo_eth_ioctl		= atl2_ioctl,
 	.ndo_tx_timeout		= atl2_tx_timeout,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= atl2_poll_controller,
@@ -1334,8 +1329,8 @@ static int atl2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * until the kernel has the proper infrastructure to support 64-bit DMA
 	 * on these devices.
 	 */
-	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) &&
-		pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32))) {
+	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32)) &&
+	    dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32))) {
 		printk(KERN_ERR "atl2: No usable DMA configuration, aborting\n");
 		err = -EIO;
 		goto err_dma;
@@ -1382,7 +1377,7 @@ static int atl2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev->watchdog_timeo = 5 * HZ;
 	netdev->min_mtu = 40;
 	netdev->max_mtu = ETH_DATA_LEN + VLAN_HLEN;
-	strncpy(netdev->name, pci_name(pdev), sizeof(netdev->name) - 1);
+	strscpy(netdev->name, pci_name(pdev), sizeof(netdev->name));
 
 	netdev->mem_start = mmio_start;
 	netdev->mem_end = mmio_start + mmio_len;
@@ -1410,7 +1405,7 @@ static int atl2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* copy the MAC address out of the EEPROM */
 	atl2_read_mac_addr(&adapter->hw);
-	memcpy(netdev->dev_addr, adapter->hw.mac_addr, netdev->addr_len);
+	eth_hw_addr_set(netdev, adapter->hw.mac_addr);
 	if (!is_valid_ether_addr(netdev->dev_addr)) {
 		err = -EIO;
 		goto err_eeprom;
@@ -1680,32 +1675,7 @@ static struct pci_driver atl2_driver = {
 	.shutdown = atl2_shutdown,
 };
 
-/**
- * atl2_init_module - Driver Registration Routine
- *
- * atl2_init_module is the first routine called when the driver is
- * loaded. All it does is register with the PCI subsystem.
- */
-static int __init atl2_init_module(void)
-{
-	printk(KERN_INFO "%s - version %s\n", atl2_driver_string,
-		atl2_driver_version);
-	printk(KERN_INFO "%s\n", atl2_copyright);
-	return pci_register_driver(&atl2_driver);
-}
-module_init(atl2_init_module);
-
-/**
- * atl2_exit_module - Driver Exit Cleanup Routine
- *
- * atl2_exit_module is called just before the driver is removed
- * from memory.
- */
-static void __exit atl2_exit_module(void)
-{
-	pci_unregister_driver(&atl2_driver);
-}
-module_exit(atl2_exit_module);
+module_pci_driver(atl2_driver);
 
 static void atl2_read_pci_cfg(struct atl2_hw *hw, u32 reg, u16 *value)
 {
@@ -2010,11 +1980,9 @@ static void atl2_get_drvinfo(struct net_device *netdev,
 {
 	struct atl2_adapter *adapter = netdev_priv(netdev);
 
-	strlcpy(drvinfo->driver,  atl2_driver_name, sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, atl2_driver_version,
-		sizeof(drvinfo->version));
-	strlcpy(drvinfo->fw_version, "L2", sizeof(drvinfo->fw_version));
-	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
+	strscpy(drvinfo->driver,  atl2_driver_name, sizeof(drvinfo->driver));
+	strscpy(drvinfo->fw_version, "L2", sizeof(drvinfo->fw_version));
+	strscpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));
 }
 
@@ -2559,7 +2527,6 @@ static s32 atl2_write_phy_reg(struct atl2_hw *hw, u32 reg_addr, u16 phy_data)
  */
 static s32 atl2_phy_setup_autoneg_adv(struct atl2_hw *hw)
 {
-	s32 ret_val;
 	s16 mii_autoneg_adv_reg;
 
 	/* Read the MII Auto-Neg Advertisement Register (Address 4). */
@@ -2615,12 +2582,7 @@ static s32 atl2_phy_setup_autoneg_adv(struct atl2_hw *hw)
 
 	hw->mii_autoneg_adv_reg = mii_autoneg_adv_reg;
 
-	ret_val = atl2_write_phy_reg(hw, MII_ADVERTISE, mii_autoneg_adv_reg);
-
-	if (ret_val)
-		return ret_val;
-
-	return 0;
+	return atl2_write_phy_reg(hw, MII_ADVERTISE, mii_autoneg_adv_reg);
 }
 
 /*

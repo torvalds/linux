@@ -213,7 +213,7 @@ static char *libipw_translate_scan(struct libipw_device *ieee,
 	 * for given network. */
 	iwe.cmd = IWEVCUSTOM;
 	p = custom;
-	p += snprintf(p, MAX_CUSTOM_LEN - (p - custom),
+	p += scnprintf(p, MAX_CUSTOM_LEN - (p - custom),
 		      " Last beacon: %ums ago",
 		      elapsed_jiffies_msecs(network->last_scanned));
 	iwe.u.data.length = p - custom;
@@ -223,18 +223,18 @@ static char *libipw_translate_scan(struct libipw_device *ieee,
 	/* Add spectrum management information */
 	iwe.cmd = -1;
 	p = custom;
-	p += snprintf(p, MAX_CUSTOM_LEN - (p - custom), " Channel flags: ");
+	p += scnprintf(p, MAX_CUSTOM_LEN - (p - custom), " Channel flags: ");
 
 	if (libipw_get_channel_flags(ieee, network->channel) &
 	    LIBIPW_CH_INVALID) {
 		iwe.cmd = IWEVCUSTOM;
-		p += snprintf(p, MAX_CUSTOM_LEN - (p - custom), "INVALID ");
+		p += scnprintf(p, MAX_CUSTOM_LEN - (p - custom), "INVALID ");
 	}
 
 	if (libipw_get_channel_flags(ieee, network->channel) &
 	    LIBIPW_CH_RADAR_DETECT) {
 		iwe.cmd = IWEVCUSTOM;
-		p += snprintf(p, MAX_CUSTOM_LEN - (p - custom), "DFS ");
+		p += scnprintf(p, MAX_CUSTOM_LEN - (p - custom), "DFS ");
 	}
 
 	if (iwe.cmd == IWEVCUSTOM) {
@@ -633,8 +633,10 @@ int libipw_wx_set_encodeext(struct libipw_device *ieee,
 	}
 
 	if (ext->alg != IW_ENCODE_ALG_NONE) {
-		memcpy(sec.keys[idx], ext->key, ext->key_len);
-		sec.key_sizes[idx] = ext->key_len;
+		int key_len = clamp_val(ext->key_len, 0, SCM_KEY_LEN);
+
+		memcpy(sec.keys[idx], ext->key, key_len);
+		sec.key_sizes[idx] = key_len;
 		sec.flags |= (1 << idx);
 		if (ext->alg == IW_ENCODE_ALG_WEP) {
 			sec.encode_alg[idx] = SEC_ALG_WEP;

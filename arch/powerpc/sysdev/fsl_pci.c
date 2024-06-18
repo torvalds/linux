@@ -22,6 +22,8 @@
 #include <linux/interrupt.h>
 #include <linux/memblock.h>
 #include <linux/log2.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/suspend.h>
@@ -29,7 +31,6 @@
 #include <linux/uaccess.h>
 
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/pci-bridge.h>
 #include <asm/ppc-pci.h>
 #include <asm/machdep.h>
@@ -37,6 +38,7 @@
 #include <asm/disassemble.h>
 #include <asm/ppc-opcode.h>
 #include <asm/swiotlb.h>
+#include <asm/setup.h>
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
 
@@ -52,10 +54,10 @@ static void quirk_fsl_pcie_early(struct pci_dev *dev)
 
 	/* if we aren't in host mode don't bother */
 	pci_read_config_byte(dev, PCI_HEADER_TYPE, &hdr_type);
-	if ((hdr_type & 0x7f) != PCI_HEADER_TYPE_BRIDGE)
+	if ((hdr_type & PCI_HEADER_TYPE_MASK) != PCI_HEADER_TYPE_BRIDGE)
 		return;
 
-	dev->class = PCI_CLASS_BRIDGE_PCI << 8;
+	dev->class = PCI_CLASS_BRIDGE_PCI_NORMAL;
 	fsl_pcie_bus_fixup = 1;
 	return;
 }
@@ -115,8 +117,8 @@ static void pci_dma_dev_setup_swiotlb(struct pci_dev *pdev)
 {
 	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
 
-	pdev->dev.bus_dma_mask =
-		hose->dma_window_base_cur + hose->dma_window_size;
+	pdev->dev.bus_dma_limit =
+		hose->dma_window_base_cur + hose->dma_window_size - 1;
 }
 
 static void setup_swiotlb_ops(struct pci_controller *hose)
@@ -135,7 +137,7 @@ static void fsl_pci_dma_set_mask(struct device *dev, u64 dma_mask)
 	 * mapping that allows addressing any RAM address from across PCI.
 	 */
 	if (dev_is_pci(dev) && dma_mask >= pci64_dma_offset * 2 - 1) {
-		dev->bus_dma_mask = 0;
+		dev->bus_dma_limit = 0;
 		dev->archdata.dma_offset = pci64_dma_offset;
 	}
 }
@@ -179,6 +181,7 @@ static int setup_one_atmu(struct ccsr_pci __iomem *pci,
 static bool is_kdump(void)
 {
 	struct device_node *node;
+	bool ret;
 
 	node = of_find_node_by_type(NULL, "memory");
 	if (!node) {
@@ -186,7 +189,10 @@ static bool is_kdump(void)
 		return false;
 	}
 
-	return of_property_read_bool(node, "linux,usable-memory");
+	ret = of_property_read_bool(node, "linux,usable-memory");
+	of_node_put(node);
+
+	return ret;
 }
 
 /* atmu setup for fsl pci/pcie controller */
@@ -218,7 +224,7 @@ static void setup_pci_atmu(struct pci_controller *hose)
 		 * windows have implemented the default target value as 0xf
 		 * for CCSR space.In all Freescale legacy devices the target
 		 * of 0xf is reserved for local memory space. 9132 Rev1.0
-		 * now has local mempry space mapped to target 0x0 instead of
+		 * now has local memory space mapped to target 0x0 instead of
 		 * 0xf. Hence adding a workaround to remove the target 0xf
 		 * defined for memory space from Inbound window attributes.
 		 */
@@ -455,7 +461,7 @@ static void setup_pci_atmu(struct pci_controller *hose)
 	}
 }
 
-static void __init setup_pci_cmd(struct pci_controller *hose)
+static void setup_pci_cmd(struct pci_controller *hose)
 {
 	u16 cmd;
 	int cap_x;
@@ -513,13 +519,14 @@ void fsl_pcibios_fixup_bus(struct pci_bus *bus)
 	}
 }
 
-int fsl_add_bridge(struct platform_device *pdev, int is_primary)
+static int fsl_add_bridge(struct platform_device *pdev, int is_primary)
 {
 	int len;
 	struct pci_controller *hose;
 	struct resource rsrc;
 	const int *bus_range;
 	u8 hdr_type, progif;
+	u32 class_code;
 	struct device_node *dev;
 	struct ccsr_pci __iomem *pci;
 	u16 temp;
@@ -574,7 +581,7 @@ int fsl_add_bridge(struct platform_device *pdev, int is_primary)
 		hose->ops = &fsl_indirect_pcie_ops;
 		/* For PCIE read HEADER_TYPE to identify controller mode */
 		early_read_config_byte(hose, 0, 0, PCI_HEADER_TYPE, &hdr_type);
-		if ((hdr_type & 0x7f) != PCI_HEADER_TYPE_BRIDGE)
+		if ((hdr_type & PCI_HEADER_TYPE_MASK) != PCI_HEADER_TYPE_BRIDGE)
 			goto no_bridge;
 
 	} else {
@@ -593,6 +600,13 @@ int fsl_add_bridge(struct platform_device *pdev, int is_primary)
 			PPC_INDIRECT_TYPE_SURPRESS_PRIMARY_BUS;
 		if (fsl_pcie_check_link(hose))
 			hose->indirect_type |= PPC_INDIRECT_TYPE_NO_PCIE_LINK;
+		/* Fix Class Code to PCI_CLASS_BRIDGE_PCI_NORMAL for pre-3.0 controller */
+		if (in_be32(&pci->block_rev1) < PCIE_IP_REV_3_0) {
+			early_read_config_dword(hose, 0, 0, PCIE_FSL_CSR_CLASSCODE, &class_code);
+			class_code &= 0xff;
+			class_code |= PCI_CLASS_BRIDGE_PCI_NORMAL << 8;
+			early_write_config_dword(hose, 0, 0, PCIE_FSL_CSR_CLASSCODE, class_code);
+		}
 	} else {
 		/*
 		 * Set PBFR(PCI Bus Function Register)[10] = 1 to
@@ -753,7 +767,7 @@ static int __init mpc83xx_pcie_setup(struct pci_controller *hose,
 	u32 cfg_bar;
 	int ret = -ENOMEM;
 
-	pcie = zalloc_maybe_bootmem(sizeof(*pcie), GFP_KERNEL);
+	pcie = kzalloc(sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
 		return ret;
 
@@ -929,7 +943,7 @@ u64 fsl_pci_immrbar_base(struct pci_controller *hose)
 	return 0;
 }
 
-#ifdef CONFIG_E500
+#ifdef CONFIG_PPC_E500
 static int mcheck_handle_load(struct pt_regs *regs, u32 inst)
 {
 	unsigned int rd, ra, rb, d;
@@ -1065,16 +1079,14 @@ int fsl_pci_mcheck_exception(struct pt_regs *regs)
 	addr += mfspr(SPRN_MCAR);
 
 	if (is_in_pci_mem_space(addr)) {
-		if (user_mode(regs)) {
-			pagefault_disable();
-			ret = get_user(inst, (__u32 __user *)regs->nip);
-			pagefault_enable();
-		} else {
-			ret = probe_kernel_address((void *)regs->nip, inst);
-		}
+		if (user_mode(regs))
+			ret = copy_from_user_nofault(&inst,
+					(void __user *)regs->nip, sizeof(inst));
+		else
+			ret = get_kernel_nofault(inst, (void *)regs->nip);
 
 		if (!ret && mcheck_handle_load(regs, inst)) {
-			regs->nip += 4;
+			regs_add_return_ip(regs, 4);
 			return 1;
 		}
 	}
@@ -1108,7 +1120,7 @@ static const struct of_device_id pci_ids[] = {
 
 struct device_node *fsl_pci_primary;
 
-void fsl_pci_assign_primary(void)
+void __init fsl_pci_assign_primary(void)
 {
 	struct device_node *np;
 
@@ -1127,6 +1139,19 @@ void fsl_pci_assign_primary(void)
 	}
 
 	/*
+	 * If there's no PCI host bridge with ISA then check for
+	 * PCI host bridge with alias "pci0" (first PCI host bridge).
+	 */
+	np = of_find_node_by_path("pci0");
+	if (np && of_match_node(pci_ids, np) && of_device_is_available(np)) {
+		fsl_pci_primary = np;
+		of_node_put(np);
+		return;
+	}
+	if (np)
+		of_node_put(np);
+
+	/*
 	 * If there's no PCI host bridge with ISA, arbitrarily
 	 * designate one as primary.  This can go away once
 	 * various bugs with primary-less systems are fixed.
@@ -1134,7 +1159,6 @@ void fsl_pci_assign_primary(void)
 	for_each_matching_node(np, pci_ids) {
 		if (of_device_is_available(np)) {
 			fsl_pci_primary = np;
-			of_node_put(np);
 			return;
 		}
 	}
@@ -1329,6 +1353,7 @@ static struct platform_driver fsl_pci_driver = {
 		.of_match_table = pci_ids,
 	},
 	.probe = fsl_pci_probe,
+	.driver_managed_dma = true,
 };
 
 static int __init fsl_pci_init(void)

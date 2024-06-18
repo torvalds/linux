@@ -230,6 +230,12 @@
 #define CLK_MOUT_USER_MAU_EPLL	659
 #define CLK_MOUT_SCLK_SPLL	660
 #define CLK_MOUT_MX_MSPLL_CCORE_PHY	661
+#define CLK_MOUT_SW_ACLK_G3D	662
+#define CLK_MOUT_APLL		663
+#define CLK_MOUT_MSPLL_CPU	664
+#define CLK_MOUT_KPLL		665
+#define CLK_MOUT_MSPLL_KFC	666
+
 
 /* divider clocks */
 #define CLK_DOUT_PIXEL		768
@@ -264,8 +270,5 @@
 #define CLK_FF_DOUT_SPLL2	797
 #define CLK_DOUT_PCLK_DREX0	798
 #define CLK_DOUT_PCLK_DREX1	799
-
-/* must be greater than maximal clock id */
-#define CLK_NR_CLKS		800
 
 #endif /* _DT_BINDINGS_CLOCK_EXYNOS_5420_H */

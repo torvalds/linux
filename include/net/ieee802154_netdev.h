@@ -15,12 +15,68 @@
 #ifndef IEEE802154_NETDEVICE_H
 #define IEEE802154_NETDEVICE_H
 
+#define IEEE802154_REQUIRED_SIZE(struct_type, member) \
+	(offsetof(typeof(struct_type), member) + \
+	sizeof(((typeof(struct_type) *)(NULL))->member))
+
+#define IEEE802154_ADDR_OFFSET \
+	offsetof(typeof(struct sockaddr_ieee802154), addr)
+
+#define IEEE802154_MIN_NAMELEN (IEEE802154_ADDR_OFFSET + \
+	IEEE802154_REQUIRED_SIZE(struct ieee802154_addr_sa, addr_type))
+
+#define IEEE802154_NAMELEN_SHORT (IEEE802154_ADDR_OFFSET + \
+	IEEE802154_REQUIRED_SIZE(struct ieee802154_addr_sa, short_addr))
+
+#define IEEE802154_NAMELEN_LONG (IEEE802154_ADDR_OFFSET + \
+	IEEE802154_REQUIRED_SIZE(struct ieee802154_addr_sa, hwaddr))
+
 #include <net/af_ieee802154.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/ieee802154.h>
 
 #include <net/cfg802154.h>
+
+struct ieee802154_beacon_hdr {
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+	u16 beacon_order:4,
+	    superframe_order:4,
+	    final_cap_slot:4,
+	    battery_life_ext:1,
+	    reserved0:1,
+	    pan_coordinator:1,
+	    assoc_permit:1;
+	u8  gts_count:3,
+	    gts_reserved:4,
+	    gts_permit:1;
+	u8  pend_short_addr_count:3,
+	    reserved1:1,
+	    pend_ext_addr_count:3,
+	    reserved2:1;
+#elif defined(__BIG_ENDIAN_BITFIELD)
+	u16 assoc_permit:1,
+	    pan_coordinator:1,
+	    reserved0:1,
+	    battery_life_ext:1,
+	    final_cap_slot:4,
+	    superframe_order:4,
+	    beacon_order:4;
+	u8  gts_permit:1,
+	    gts_reserved:4,
+	    gts_count:3;
+	u8  reserved2:1,
+	    pend_ext_addr_count:3,
+	    reserved1:1,
+	    pend_short_addr_count:3;
+#else
+#error	"Please fix <asm/byteorder.h>"
+#endif
+} __packed;
+
+struct ieee802154_mac_cmd_pl {
+	u8  cmd_id;
+} __packed;
 
 struct ieee802154_sechdr {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
@@ -69,12 +125,102 @@ struct ieee802154_hdr_fc {
 #endif
 };
 
+struct ieee802154_assoc_req_pl {
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+	u8 reserved1:1,
+	   device_type:1,
+	   power_source:1,
+	   rx_on_when_idle:1,
+	   assoc_type:1,
+	   reserved2:1,
+	   security_cap:1,
+	   alloc_addr:1;
+#elif defined(__BIG_ENDIAN_BITFIELD)
+	u8 alloc_addr:1,
+	   security_cap:1,
+	   reserved2:1,
+	   assoc_type:1,
+	   rx_on_when_idle:1,
+	   power_source:1,
+	   device_type:1,
+	   reserved1:1;
+#else
+#error	"Please fix <asm/byteorder.h>"
+#endif
+} __packed;
+
+struct ieee802154_assoc_resp_pl {
+	__le16 short_addr;
+	u8 status;
+} __packed;
+
+enum ieee802154_frame_version {
+	IEEE802154_2003_STD,
+	IEEE802154_2006_STD,
+	IEEE802154_STD,
+	IEEE802154_RESERVED_STD,
+	IEEE802154_MULTIPURPOSE_STD = IEEE802154_2003_STD,
+};
+
+enum ieee802154_addressing_mode {
+	IEEE802154_NO_ADDRESSING,
+	IEEE802154_RESERVED,
+	IEEE802154_SHORT_ADDRESSING,
+	IEEE802154_EXTENDED_ADDRESSING,
+};
+
+enum ieee802154_association_status {
+	IEEE802154_ASSOCIATION_SUCCESSFUL = 0x00,
+	IEEE802154_PAN_AT_CAPACITY = 0x01,
+	IEEE802154_PAN_ACCESS_DENIED = 0x02,
+	IEEE802154_HOPPING_SEQUENCE_OFFSET_DUP = 0x03,
+	IEEE802154_FAST_ASSOCIATION_SUCCESSFUL = 0x80,
+};
+
+enum ieee802154_disassociation_reason {
+	IEEE802154_COORD_WISHES_DEVICE_TO_LEAVE = 0x1,
+	IEEE802154_DEVICE_WISHES_TO_LEAVE = 0x2,
+};
+
 struct ieee802154_hdr {
 	struct ieee802154_hdr_fc fc;
 	u8 seq;
 	struct ieee802154_addr source;
 	struct ieee802154_addr dest;
 	struct ieee802154_sechdr sec;
+};
+
+struct ieee802154_beacon_frame {
+	struct ieee802154_hdr mhr;
+	struct ieee802154_beacon_hdr mac_pl;
+};
+
+struct ieee802154_mac_cmd_frame {
+	struct ieee802154_hdr mhr;
+	struct ieee802154_mac_cmd_pl mac_pl;
+};
+
+struct ieee802154_beacon_req_frame {
+	struct ieee802154_hdr mhr;
+	struct ieee802154_mac_cmd_pl mac_pl;
+};
+
+struct ieee802154_association_req_frame {
+	struct ieee802154_hdr mhr;
+	struct ieee802154_mac_cmd_pl mac_pl;
+	struct ieee802154_assoc_req_pl assoc_req_pl;
+};
+
+struct ieee802154_association_resp_frame {
+	struct ieee802154_hdr mhr;
+	struct ieee802154_mac_cmd_pl mac_pl;
+	struct ieee802154_assoc_resp_pl assoc_resp_pl;
+};
+
+struct ieee802154_disassociation_notif_frame {
+	struct ieee802154_hdr mhr;
+	struct ieee802154_mac_cmd_pl mac_pl;
+	u8 disassoc_pl;
 };
 
 /* pushes hdr onto the skb. fields of hdr->fc that can be calculated from
@@ -101,6 +247,14 @@ int ieee802154_hdr_peek_addrs(const struct sk_buff *skb,
  * header_ops.parse
  */
 int ieee802154_hdr_peek(const struct sk_buff *skb, struct ieee802154_hdr *hdr);
+
+/* pushes/pulls various frame types into/from an skb */
+int ieee802154_beacon_push(struct sk_buff *skb,
+			   struct ieee802154_beacon_frame *beacon);
+int ieee802154_mac_cmd_push(struct sk_buff *skb, void *frame,
+			    const void *pl, unsigned int pl_len);
+int ieee802154_mac_cmd_pl_pull(struct sk_buff *skb,
+			       struct ieee802154_mac_cmd_pl *mac_pl);
 
 int ieee802154_max_payload(const struct ieee802154_hdr *hdr);
 
@@ -163,6 +317,33 @@ static inline void ieee802154_devaddr_to_raw(void *raw, __le64 addr)
 	u64 temp = swab64((__force u64)addr);
 
 	memcpy(raw, &temp, IEEE802154_ADDR_LEN);
+}
+
+static inline int
+ieee802154_sockaddr_check_size(struct sockaddr_ieee802154 *daddr, int len)
+{
+	struct ieee802154_addr_sa *sa;
+	int ret = 0;
+
+	sa = &daddr->addr;
+	if (len < IEEE802154_MIN_NAMELEN)
+		return -EINVAL;
+	switch (sa->addr_type) {
+	case IEEE802154_ADDR_NONE:
+		break;
+	case IEEE802154_ADDR_SHORT:
+		if (len < IEEE802154_NAMELEN_SHORT)
+			ret = -EINVAL;
+		break;
+	case IEEE802154_ADDR_LONG:
+		if (len < IEEE802154_NAMELEN_LONG)
+			ret = -EINVAL;
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+	return ret;
 }
 
 static inline void ieee802154_addr_from_sa(struct ieee802154_addr *a,

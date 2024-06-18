@@ -11,11 +11,10 @@ struct corgi_lcd_platform_data {
 	int	default_intensity;
 	int	limit_mask;
 
-	int	gpio_backlight_on;	/* -1 if n/a */
-	int	gpio_backlight_cont;	/* -1 if n/a */
-
 	void (*notify)(int intensity);
 	void (*kick_battery)(void);
 };
+
+void corgi_lcd_limit_intensity(int limit);
 
 #endif /* __LINUX_SPI_CORGI_LCD_H */

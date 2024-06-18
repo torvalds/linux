@@ -817,7 +817,7 @@ static void cit_model2_Packet1(struct gspca_dev *gspca_dev, u16 v1, u16 v2)
  * 00_d141_0124
  * 00_0096_0127
  * 00_fea8_0124
-*/
+ */
 static void cit_model3_Packet1(struct gspca_dev *gspca_dev, u16 v1, u16 v2)
 {
 	cit_write_reg(gspca_dev, 0x0078, 0x012d);
@@ -1409,7 +1409,7 @@ static int cit_restart_stream(struct gspca_dev *gspca_dev)
 	case CIT_MODEL0:
 	case CIT_MODEL1:
 		cit_write_reg(gspca_dev, 0x0001, 0x0114);
-		/* Fall through */
+		fallthrough;
 	case CIT_MODEL2:
 	case CIT_MODEL4:
 		cit_write_reg(gspca_dev, 0x00c0, 0x010c); /* Go! */
@@ -1441,6 +1441,9 @@ static int cit_get_packet_size(struct gspca_dev *gspca_dev)
 		pr_err("Couldn't get altsetting\n");
 		return -EIO;
 	}
+
+	if (alt->desc.bNumEndpoints < 1)
+		return -ENODEV;
 
 	return le16_to_cpu(alt->endpoint[0].desc.wMaxPacketSize);
 }
@@ -2626,6 +2629,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 static int sd_isoc_init(struct gspca_dev *gspca_dev)
 {
+	struct usb_interface_cache *intfc;
 	struct usb_host_interface *alt;
 	int max_packet_size;
 
@@ -2641,8 +2645,17 @@ static int sd_isoc_init(struct gspca_dev *gspca_dev)
 		break;
 	}
 
+	intfc = gspca_dev->dev->actconfig->intf_cache[0];
+
+	if (intfc->num_altsetting < 2)
+		return -ENODEV;
+
+	alt = &intfc->altsetting[1];
+
+	if (alt->desc.bNumEndpoints < 1)
+		return -ENODEV;
+
 	/* Start isoc bandwidth "negotiation" at max isoc bandwidth */
-	alt = &gspca_dev->dev->actconfig->intf_cache[0]->altsetting[1];
 	alt->endpoint[0].desc.wMaxPacketSize = cpu_to_le16(max_packet_size);
 
 	return 0;
@@ -2665,6 +2678,9 @@ static int sd_isoc_nego(struct gspca_dev *gspca_dev)
 		break;
 	}
 
+	/*
+	 * Existence of altsetting and endpoint was verified in sd_isoc_init()
+	 */
 	alt = &gspca_dev->dev->actconfig->intf_cache[0]->altsetting[1];
 	packet_size = le16_to_cpu(alt->endpoint[0].desc.wMaxPacketSize);
 	if (packet_size <= min_packet_size)
@@ -2709,7 +2725,7 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 		break;
 	case CIT_MODEL2:
 		v4l2_ctrl_grab(sd->lighting, false);
-		/* Fall through! */
+		fallthrough;
 	case CIT_MODEL4:
 		cit_model2_Packet1(gspca_dev, 0x0030, 0x0004);
 

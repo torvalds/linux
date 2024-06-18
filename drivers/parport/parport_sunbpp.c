@@ -28,7 +28,7 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/platform_device.h>
 
 #include <linux/parport.h>
 
@@ -314,7 +314,7 @@ static int bpp_probe(struct platform_device *op)
 	value_tcr &= ~P_TCR_DIR;
 	sbus_writeb(value_tcr, &regs->p_tcr);
 
-	printk(KERN_INFO "%s: sunbpp at 0x%lx\n", p->name, p->base);
+	pr_info("%s: sunbpp at 0x%lx\n", p->name, p->base);
 
 	dev_set_drvdata(&op->dev, p);
 
@@ -334,7 +334,7 @@ out_unmap:
 	return err;
 }
 
-static int bpp_remove(struct platform_device *op)
+static void bpp_remove(struct platform_device *op)
 {
 	struct parport *p = dev_get_drvdata(&op->dev);
 	struct parport_operations *ops = p->ops;
@@ -351,8 +351,6 @@ static int bpp_remove(struct platform_device *op)
 	kfree(ops);
 
 	dev_set_drvdata(&op->dev, NULL);
-
-	return 0;
 }
 
 static const struct of_device_id bpp_match[] = {
@@ -370,13 +368,12 @@ static struct platform_driver bpp_sbus_driver = {
 		.of_match_table = bpp_match,
 	},
 	.probe		= bpp_probe,
-	.remove		= bpp_remove,
+	.remove_new	= bpp_remove,
 };
 
 module_platform_driver(bpp_sbus_driver);
 
 MODULE_AUTHOR("Derrick J Brashear");
 MODULE_DESCRIPTION("Parport Driver for Sparc bidirectional Port");
-MODULE_SUPPORTED_DEVICE("Sparc Bidirectional Parallel Port");
 MODULE_VERSION("2.0");
 MODULE_LICENSE("GPL");

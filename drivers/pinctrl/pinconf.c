@@ -9,16 +9,18 @@
  */
 #define pr_fmt(fmt) "pinconfig core: " fmt
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/device.h>
-#include <linux/slab.h>
+#include <linux/array_size.h>
 #include <linux/debugfs.h>
+#include <linux/device.h>
+#include <linux/init.h>
+#include <linux/module.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
+
 #include <linux/pinctrl/machine.h>
-#include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinconf.h>
+#include <linux/pinctrl/pinctrl.h>
+
 #include "core.h"
 #include "pinconf.h"
 
@@ -53,7 +55,7 @@ int pinconf_validate_map(const struct pinctrl_map *map, int i)
 	return 0;
 }
 
-int pin_config_get_for_pin(struct pinctrl_dev *pctldev, unsigned pin,
+int pin_config_get_for_pin(struct pinctrl_dev *pctldev, unsigned int pin,
 			   unsigned long *config)
 {
 	const struct pinconf_ops *ops = pctldev->desc->confops;
@@ -197,7 +199,7 @@ int pinconf_apply_setting(const struct pinctrl_setting *setting)
 	return 0;
 }
 
-int pinconf_set_config(struct pinctrl_dev *pctldev, unsigned pin,
+int pinconf_set_config(struct pinctrl_dev *pctldev, unsigned int pin,
 		       unsigned long *configs, size_t nconfigs)
 {
 	const struct pinconf_ops *ops;
@@ -212,7 +214,7 @@ int pinconf_set_config(struct pinctrl_dev *pctldev, unsigned pin,
 #ifdef CONFIG_DEBUG_FS
 
 static void pinconf_show_config(struct seq_file *s, struct pinctrl_dev *pctldev,
-		      unsigned long *configs, unsigned num_configs)
+				unsigned long *configs, unsigned int num_configs)
 {
 	const struct pinconf_ops *confops;
 	int i;
@@ -302,7 +304,7 @@ static void pinconf_dump_pin(struct pinctrl_dev *pctldev,
 static int pinconf_pins_show(struct seq_file *s, void *what)
 {
 	struct pinctrl_dev *pctldev = s->private;
-	unsigned i, pin;
+	unsigned int i, pin;
 
 	seq_puts(s, "Pin config settings per pin\n");
 	seq_puts(s, "Format: pin (name): configs\n");
@@ -331,7 +333,7 @@ static int pinconf_pins_show(struct seq_file *s, void *what)
 }
 
 static void pinconf_dump_group(struct pinctrl_dev *pctldev,
-			       struct seq_file *s, unsigned selector,
+			       struct seq_file *s, unsigned int selector,
 			       const char *gname)
 {
 	const struct pinconf_ops *ops = pctldev->desc->confops;
@@ -346,8 +348,8 @@ static int pinconf_groups_show(struct seq_file *s, void *what)
 {
 	struct pinctrl_dev *pctldev = s->private;
 	const struct pinctrl_ops *pctlops = pctldev->desc->pctlops;
-	unsigned ngroups = pctlops->get_groups_count(pctldev);
-	unsigned selector = 0;
+	unsigned int ngroups = pctlops->get_groups_count(pctldev);
+	unsigned int selector = 0;
 
 	seq_puts(s, "Pin config settings per pin group\n");
 	seq_puts(s, "Format: group (name): configs\n");
@@ -370,9 +372,9 @@ DEFINE_SHOW_ATTRIBUTE(pinconf_groups);
 void pinconf_init_device_debugfs(struct dentry *devroot,
 			 struct pinctrl_dev *pctldev)
 {
-	debugfs_create_file("pinconf-pins", S_IFREG | S_IRUGO,
+	debugfs_create_file("pinconf-pins", 0444,
 			    devroot, pctldev, &pinconf_pins_fops);
-	debugfs_create_file("pinconf-groups", S_IFREG | S_IRUGO,
+	debugfs_create_file("pinconf-groups", 0444,
 			    devroot, pctldev, &pinconf_groups_fops);
 }
 

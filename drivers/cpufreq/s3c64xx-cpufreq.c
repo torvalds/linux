@@ -19,7 +19,6 @@
 static struct regulator *vddarm;
 static unsigned long regulator_latency;
 
-#ifdef CONFIG_CPU_S3C6410
 struct s3c64xx_dvfs {
 	unsigned int vddarm_min;
 	unsigned int vddarm_max;
@@ -48,7 +47,6 @@ static struct cpufreq_frequency_table s3c64xx_freq_table[] = {
 	{ 0, 4, 800000 },
 	{ 0, 0, CPUFREQ_TABLE_END },
 };
-#endif
 
 static int s3c64xx_cpufreq_set_target(struct cpufreq_policy *policy,
 				      unsigned int index)
@@ -148,11 +146,6 @@ static int s3c64xx_cpufreq_driver_init(struct cpufreq_policy *policy)
 
 	if (policy->cpu != 0)
 		return -EINVAL;
-
-	if (s3c64xx_freq_table == NULL) {
-		pr_err("No frequency information for this CPU\n");
-		return -ENODEV;
-	}
 
 	policy->clk = clk_get(NULL, "armclk");
 	if (IS_ERR(policy->clk)) {

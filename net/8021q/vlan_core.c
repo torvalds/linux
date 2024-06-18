@@ -4,6 +4,7 @@
 #include <linux/if_vlan.h>
 #include <linux/netpoll.h>
 #include <linux/export.h>
+#include <net/gro.h>
 #include "vlan.h"
 
 bool vlan_do_receive(struct sk_buff **skbp)
@@ -62,10 +63,10 @@ bool vlan_do_receive(struct sk_buff **skbp)
 	rx_stats = this_cpu_ptr(vlan_dev_priv(vlan_dev)->vlan_pcpu_stats);
 
 	u64_stats_update_begin(&rx_stats->syncp);
-	rx_stats->rx_packets++;
-	rx_stats->rx_bytes += skb->len;
+	u64_stats_inc(&rx_stats->rx_packets);
+	u64_stats_add(&rx_stats->rx_bytes, skb->len);
 	if (skb->pkt_type == PACKET_MULTICAST)
-		rx_stats->rx_multicast++;
+		u64_stats_inc(&rx_stats->rx_multicast);
 	u64_stats_update_end(&rx_stats->syncp);
 
 	return true;
@@ -359,9 +360,8 @@ static void __vlan_vid_del(struct vlan_info *vlan_info,
 	int err;
 
 	err = vlan_kill_rx_filter_info(dev, proto, vid);
-	if (err)
-		pr_warn("failed to kill vid %04x/%d for device %s\n",
-			proto, vid, dev->name);
+	if (err && dev->reg_state != NETREG_UNREGISTERING)
+		netdev_warn(dev, "failed to kill vid %04x/%d\n", proto, vid);
 
 	list_del(&vid_info->list);
 	kfree(vid_info);
@@ -407,6 +407,8 @@ int vlan_vids_add_by_dev(struct net_device *dev,
 		return 0;
 
 	list_for_each_entry(vid_info, &vlan_info->vid_list, list) {
+		if (!vlan_hw_filter_capable(by_dev, vid_info->proto))
+			continue;
 		err = vlan_vid_add(dev, vid_info->proto, vid_info->vid);
 		if (err)
 			goto unwind;
@@ -417,6 +419,8 @@ unwind:
 	list_for_each_entry_continue_reverse(vid_info,
 					     &vlan_info->vid_list,
 					     list) {
+		if (!vlan_hw_filter_capable(by_dev, vid_info->proto))
+			continue;
 		vlan_vid_del(dev, vid_info->proto, vid_info->vid);
 	}
 
@@ -436,8 +440,11 @@ void vlan_vids_del_by_dev(struct net_device *dev,
 	if (!vlan_info)
 		return;
 
-	list_for_each_entry(vid_info, &vlan_info->vid_list, list)
+	list_for_each_entry(vid_info, &vlan_info->vid_list, list) {
+		if (!vlan_hw_filter_capable(by_dev, vid_info->proto))
+			continue;
 		vlan_vid_del(dev, vid_info->proto, vid_info->vid);
+	}
 }
 EXPORT_SYMBOL(vlan_vids_del_by_dev);
 
@@ -467,19 +474,17 @@ static struct sk_buff *vlan_gro_receive(struct list_head *head,
 
 	off_vlan = skb_gro_offset(skb);
 	hlen = off_vlan + sizeof(*vhdr);
-	vhdr = skb_gro_header_fast(skb, off_vlan);
-	if (skb_gro_header_hard(skb, hlen)) {
-		vhdr = skb_gro_header_slow(skb, hlen, off_vlan);
-		if (unlikely(!vhdr))
-			goto out;
-	}
+	vhdr = skb_gro_header(skb, hlen, off_vlan);
+	if (unlikely(!vhdr))
+		goto out;
+
+	NAPI_GRO_CB(skb)->network_offsets[NAPI_GRO_CB(skb)->encap_mark] = hlen;
 
 	type = vhdr->h_vlan_encapsulated_proto;
 
-	rcu_read_lock();
 	ptype = gro_find_receive_by_type(type);
 	if (!ptype)
-		goto out_unlock;
+		goto out;
 
 	flush = 0;
 
@@ -496,10 +501,11 @@ static struct sk_buff *vlan_gro_receive(struct list_head *head,
 
 	skb_gro_pull(skb, sizeof(*vhdr));
 	skb_gro_postpull_rcsum(skb, vhdr, sizeof(*vhdr));
-	pp = call_gro_receive(ptype->callbacks.gro_receive, head, skb);
 
-out_unlock:
-	rcu_read_unlock();
+	pp = indirect_call_gro_receive_inet(ptype->callbacks.gro_receive,
+					    ipv6_gro_receive, inet_gro_receive,
+					    head, skb);
+
 out:
 	skb_gro_flush_final(skb, pp, flush);
 
@@ -513,12 +519,12 @@ static int vlan_gro_complete(struct sk_buff *skb, int nhoff)
 	struct packet_offload *ptype;
 	int err = -ENOENT;
 
-	rcu_read_lock();
 	ptype = gro_find_complete_by_type(type);
 	if (ptype)
-		err = ptype->callbacks.gro_complete(skb, nhoff + sizeof(*vhdr));
+		err = INDIRECT_CALL_INET(ptype->callbacks.gro_complete,
+					 ipv6_gro_complete, inet_gro_complete,
+					 skb, nhoff + sizeof(*vhdr));
 
-	rcu_read_unlock();
 	return err;
 }
 

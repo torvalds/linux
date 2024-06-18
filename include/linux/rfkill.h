@@ -138,6 +138,17 @@ void rfkill_unregister(struct rfkill *rfkill);
 void rfkill_destroy(struct rfkill *rfkill);
 
 /**
+ * rfkill_set_hw_state_reason - Set the internal rfkill hardware block state
+ *	with a reason
+ * @rfkill: pointer to the rfkill class to modify.
+ * @blocked: the current hardware block state to set
+ * @reason: one of &enum rfkill_hard_block_reasons
+ *
+ * Prefer to use rfkill_set_hw_state if you don't need any special reason.
+ */
+bool rfkill_set_hw_state_reason(struct rfkill *rfkill,
+				bool blocked, unsigned long reason);
+/**
  * rfkill_set_hw_state - Set the internal rfkill hardware block state
  * @rfkill: pointer to the rfkill class to modify.
  * @blocked: the current hardware block state to set
@@ -156,7 +167,11 @@ void rfkill_destroy(struct rfkill *rfkill);
  * should be blocked) so that drivers need not keep track of the soft
  * block state -- which they might not be able to.
  */
-bool rfkill_set_hw_state(struct rfkill *rfkill, bool blocked);
+static inline bool rfkill_set_hw_state(struct rfkill *rfkill, bool blocked)
+{
+	return rfkill_set_hw_state_reason(rfkill, blocked,
+					  RFKILL_HARD_BLOCK_SIGNAL);
+}
 
 /**
  * rfkill_set_sw_state - Set the internal rfkill software block state
@@ -215,6 +230,13 @@ void rfkill_set_states(struct rfkill *rfkill, bool sw, bool hw);
 bool rfkill_blocked(struct rfkill *rfkill);
 
 /**
+ * rfkill_soft_blocked - Query soft rfkill block state
+ *
+ * @rfkill: rfkill struct to query
+ */
+bool rfkill_soft_blocked(struct rfkill *rfkill);
+
+/**
  * rfkill_find_type - Helper for finding rfkill type by name
  * @name: the name of the type
  *
@@ -256,6 +278,13 @@ static inline void rfkill_destroy(struct rfkill *rfkill)
 {
 }
 
+static inline bool rfkill_set_hw_state_reason(struct rfkill *rfkill,
+					      bool blocked,
+					      unsigned long reason)
+{
+	return blocked;
+}
+
 static inline bool rfkill_set_hw_state(struct rfkill *rfkill, bool blocked)
 {
 	return blocked;
@@ -275,6 +304,11 @@ static inline void rfkill_set_states(struct rfkill *rfkill, bool sw, bool hw)
 }
 
 static inline bool rfkill_blocked(struct rfkill *rfkill)
+{
+	return false;
+}
+
+static inline bool rfkill_soft_blocked(struct rfkill *rfkill)
 {
 	return false;
 }

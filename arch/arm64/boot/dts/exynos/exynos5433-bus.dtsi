@@ -6,7 +6,7 @@
  * Chanwoo Choi <cw00.choi@samsung.com>
  */
 
-&soc {
+/ {
 	bus_g2d_400: bus0 {
 		compatible = "samsung,exynos-bus";
 		clocks = <&cmu_top CLK_ACLK_G2D_400>;
@@ -87,7 +87,7 @@
 		status = "disabled";
 	};
 
-	bus_g2d_400_opp_table: opp_table2 {
+	bus_g2d_400_opp_table: opp-table-2 {
 		compatible = "operating-points-v2";
 		opp-shared;
 
@@ -117,7 +117,7 @@
 		};
 	};
 
-	bus_g2d_266_opp_table: opp_table3 {
+	bus_g2d_266_opp_table: opp-table-3 {
 		compatible = "operating-points-v2";
 
 		opp-267000000 {
@@ -137,7 +137,7 @@
 		};
 	};
 
-	bus_gscl_opp_table: opp_table4 {
+	bus_gscl_opp_table: opp-table-4 {
 		compatible = "operating-points-v2";
 
 		opp-333000000 {
@@ -151,7 +151,7 @@
 		};
 	};
 
-	bus_hevc_opp_table: opp_table5 {
+	bus_hevc_opp_table: opp-table-5 {
 		compatible = "operating-points-v2";
 		opp-shared;
 
@@ -175,7 +175,7 @@
 		};
 	};
 
-	bus_noc2_opp_table: opp_table6 {
+	bus_noc2_opp_table: opp-table-6 {
 		compatible = "operating-points-v2";
 
 		opp-400000000 {

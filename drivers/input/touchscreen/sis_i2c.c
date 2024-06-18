@@ -296,8 +296,7 @@ static void sis_ts_reset(struct sis_ts_data *ts)
 	}
 }
 
-static int sis_ts_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int sis_ts_probe(struct i2c_client *client)
 {
 	struct sis_ts_data *ts;
 	struct input_dev *input;
@@ -311,23 +310,15 @@ static int sis_ts_probe(struct i2c_client *client,
 
 	ts->attn_gpio = devm_gpiod_get_optional(&client->dev,
 						"attn", GPIOD_IN);
-	if (IS_ERR(ts->attn_gpio)) {
-		error = PTR_ERR(ts->attn_gpio);
-		if (error != -EPROBE_DEFER)
-			dev_err(&client->dev,
-				"Failed to get attention GPIO: %d\n", error);
-		return error;
-	}
+	if (IS_ERR(ts->attn_gpio))
+		return dev_err_probe(&client->dev, PTR_ERR(ts->attn_gpio),
+				     "Failed to get attention GPIO\n");
 
 	ts->reset_gpio = devm_gpiod_get_optional(&client->dev,
 						 "reset", GPIOD_OUT_LOW);
-	if (IS_ERR(ts->reset_gpio)) {
-		error = PTR_ERR(ts->reset_gpio);
-		if (error != -EPROBE_DEFER)
-			dev_err(&client->dev,
-				"Failed to get reset GPIO: %d\n", error);
-		return error;
-	}
+	if (IS_ERR(ts->reset_gpio))
+		return dev_err_probe(&client->dev, PTR_ERR(ts->reset_gpio),
+				     "Failed to get reset GPIO\n");
 
 	sis_ts_reset(ts);
 
@@ -383,8 +374,8 @@ MODULE_DEVICE_TABLE(of, sis_ts_dt_ids);
 #endif
 
 static const struct i2c_device_id sis_ts_id[] = {
-	{ SIS_I2C_NAME,	0 },
-	{ "9200-ts",	0 },
+	{ SIS_I2C_NAME },
+	{ "9200-ts" },
 	{ /* sentinel */  }
 };
 MODULE_DEVICE_TABLE(i2c, sis_ts_id);

@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
-/*
- * Copyright (C) 2018 BayLibre, SAS
- * Author: Neil Armstrong <narmstrong@baylibre.com>
- */
+// Copyright (C) 2018 BayLibre, SAS
+// Author: Neil Armstrong <narmstrong@baylibre.com>
 
 /dts-v1/;
 #include "sun50i-h5.dtsi"
-#include <arm/sunxi-libretech-all-h3-cc.dtsi>
+#include "sun50i-h5-cpu-opp.dtsi"
+#include <arm/allwinner/sunxi-libretech-all-h3-cc.dtsi>
 
 / {
 	model = "Libre Computer Board ALL-H3-CC H5";

@@ -10,7 +10,11 @@
 #ifndef __DMA_HSU_H__
 #define __DMA_HSU_H__
 
-#include <linux/spinlock.h>
+#include <linux/bits.h>
+#include <linux/container_of.h>
+#include <linux/io.h>
+#include <linux/types.h>
+
 #include <linux/dma/hsu.h>
 
 #include "../virt-dma.h"
@@ -36,11 +40,11 @@
 
 /* Bits in HSU_CH_SR */
 #define HSU_CH_SR_DESCTO(x)	BIT(8 + (x))
-#define HSU_CH_SR_DESCTO_ANY	(BIT(11) | BIT(10) | BIT(9) | BIT(8))
+#define HSU_CH_SR_DESCTO_ANY	GENMASK(11, 8)
 #define HSU_CH_SR_CHE		BIT(15)
 #define HSU_CH_SR_DESCE(x)	BIT(16 + (x))
-#define HSU_CH_SR_DESCE_ANY	(BIT(19) | BIT(18) | BIT(17) | BIT(16))
-#define HSU_CH_SR_CDESC_ANY	(BIT(31) | BIT(30))
+#define HSU_CH_SR_DESCE_ANY	GENMASK(19, 16)
+#define HSU_CH_SR_CDESC_ANY	GENMASK(31, 30)
 
 /* Bits in HSU_CH_CR */
 #define HSU_CH_CR_CHA		BIT(0)

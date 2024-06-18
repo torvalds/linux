@@ -8,20 +8,16 @@
 
 struct xfs_inode;
 
-extern const struct file_operations xfs_file_operations;
-extern const struct file_operations xfs_dir_file_operations;
-
 extern ssize_t xfs_vn_listxattr(struct dentry *, char *data, size_t size);
 
-/*
- * Internal setattr interfaces.
- */
-#define XFS_ATTR_NOACL		0x01	/* Don't call posix_acl_chmod */
+int xfs_vn_setattr_size(struct mnt_idmap *idmap,
+		struct dentry *dentry, struct iattr *vap);
 
-extern void xfs_setattr_time(struct xfs_inode *ip, struct iattr *iattr);
-extern int xfs_setattr_nonsize(struct xfs_inode *ip, struct iattr *vap,
-			       int flags);
-extern int xfs_vn_setattr_nonsize(struct dentry *dentry, struct iattr *vap);
-extern int xfs_vn_setattr_size(struct dentry *dentry, struct iattr *vap);
+int xfs_inode_init_security(struct inode *inode, struct inode *dir,
+		const struct qstr *qstr);
+
+extern void xfs_setup_inode(struct xfs_inode *ip);
+extern void xfs_setup_iops(struct xfs_inode *ip);
+extern void xfs_diflags_to_iflags(struct xfs_inode *ip, bool init);
 
 #endif /* __XFS_IOPS_H__ */

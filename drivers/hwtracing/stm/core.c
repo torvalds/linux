@@ -600,7 +600,7 @@ EXPORT_SYMBOL_GPL(stm_data_write);
 
 static ssize_t notrace
 stm_write(struct stm_device *stm, struct stm_output *output,
-	  unsigned int chan, const char *buf, size_t count)
+	  unsigned int chan, const char *buf, size_t count, struct stm_source_data *source)
 {
 	int err;
 
@@ -608,7 +608,7 @@ stm_write(struct stm_device *stm, struct stm_output *output,
 	if (!stm->pdrv)
 		return -ENODEV;
 
-	err = stm->pdrv->write(stm->data, output, chan, buf, count);
+	err = stm->pdrv->write(stm->data, output, chan, buf, count, source);
 	if (err < 0)
 		return err;
 
@@ -657,7 +657,7 @@ static ssize_t stm_char_write(struct file *file, const char __user *buf,
 
 	pm_runtime_get_sync(&stm->dev);
 
-	count = stm_write(stm, &stmf->output, 0, kbuf, count);
+	count = stm_write(stm, &stmf->output, 0, kbuf, count, NULL);
 
 	pm_runtime_mark_last_busy(&stm->dev);
 	pm_runtime_put_autosuspend(&stm->dev);
@@ -715,7 +715,7 @@ static int stm_char_mmap(struct file *file, struct vm_area_struct *vma)
 	pm_runtime_get_sync(&stm->dev);
 
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-	vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
+	vm_flags_set(vma, VM_IO | VM_DONTEXPAND | VM_DONTDUMP);
 	vma->vm_ops = &stm_mmap_vmops;
 	vm_iomap_memory(vma, phys, size);
 
@@ -832,23 +832,13 @@ stm_char_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return err;
 }
 
-#ifdef CONFIG_COMPAT
-static long
-stm_char_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
-{
-	return stm_char_ioctl(file, cmd, (unsigned long)compat_ptr(arg));
-}
-#else
-#define stm_char_compat_ioctl	NULL
-#endif
-
 static const struct file_operations stm_fops = {
 	.open		= stm_char_open,
 	.release	= stm_char_release,
 	.write		= stm_char_write,
 	.mmap		= stm_char_mmap,
 	.unlocked_ioctl	= stm_char_ioctl,
-	.compat_ioctl	= stm_char_compat_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.llseek		= no_llseek,
 };
 
@@ -878,8 +868,11 @@ int stm_register_device(struct device *parent, struct stm_data *stm_data,
 		return -ENOMEM;
 
 	stm->major = register_chrdev(0, stm_data->name, &stm_fops);
-	if (stm->major < 0)
-		goto err_free;
+	if (stm->major < 0) {
+		err = stm->major;
+		vfree(stm);
+		return err;
+	}
 
 	device_initialize(&stm->dev);
 	stm->dev.devt = MKDEV(stm->major, 0);
@@ -923,10 +916,8 @@ int stm_register_device(struct device *parent, struct stm_data *stm_data,
 err_device:
 	unregister_chrdev(stm->major, stm_data->name);
 
-	/* matches device_initialize() above */
+	/* calls stm_device_release() */
 	put_device(&stm->dev);
-err_free:
-	vfree(stm);
 
 	return err;
 }
@@ -1308,7 +1299,7 @@ int notrace stm_source_write(struct stm_source_data *data,
 
 	stm = srcu_dereference(src->link, &stm_source_srcu);
 	if (stm)
-		count = stm_write(stm, &src->output, chan, buf, count);
+		count = stm_write(stm, &src->output, chan, buf, count, data);
 	else
 		count = -ENODEV;
 

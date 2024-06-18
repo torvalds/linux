@@ -11,6 +11,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/ktime.h>
+#include <linux/iopoll.h>
 #include <linux/of_address.h>
 
 #include "sdhci-pltfm.h"
@@ -108,6 +109,8 @@
 #define XENON_EMMC_5_0_PHY_LOGIC_TIMING_VALUE	0x5A54
 #define XENON_EMMC_PHY_LOGIC_TIMING_ADJUST	(XENON_EMMC_PHY_REG_BASE + 0x18)
 #define XENON_LOGIC_TIMING_VALUE		0x00AA8977
+
+#define XENON_MAX_PHY_TIMEOUT_LOOPS		100
 
 /*
  * List offset of PHY registers and some special register values
@@ -216,6 +219,19 @@ static int xenon_alloc_emmc_phy(struct sdhci_host *host)
 	return 0;
 }
 
+static int xenon_check_stability_internal_clk(struct sdhci_host *host)
+{
+	u32 reg;
+	int err;
+
+	err = read_poll_timeout(sdhci_readw, reg, reg & SDHCI_CLOCK_INT_STABLE,
+				1100, 20000, false, host, SDHCI_CLOCK_CONTROL);
+	if (err)
+		dev_err(mmc_dev(host->mmc), "phy_init: Internal clock never stabilized.\n");
+
+	return err;
+}
+
 /*
  * eMMC 5.0/5.1 PHY init/re-init.
  * eMMC PHY init should be executed after:
@@ -231,6 +247,11 @@ static int xenon_emmc_phy_init(struct sdhci_host *host)
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct xenon_priv *priv = sdhci_pltfm_priv(pltfm_host);
 	struct xenon_emmc_phy_regs *phy_regs = priv->emmc_phy_regs;
+
+	int ret = xenon_check_stability_internal_clk(host);
+
+	if (ret)
+		return ret;
 
 	reg = sdhci_readl(host, phy_regs->timing_adj);
 	reg |= XENON_PHY_INITIALIZAION;
@@ -259,18 +280,27 @@ static int xenon_emmc_phy_init(struct sdhci_host *host)
 	/* get the wait time */
 	wait /= clock;
 	wait++;
-	/* wait for host eMMC PHY init completes */
-	udelay(wait);
 
-	reg = sdhci_readl(host, phy_regs->timing_adj);
-	reg &= XENON_PHY_INITIALIZAION;
-	if (reg) {
+	/*
+	 * AC5X spec says bit must be polled until zero.
+	 * We see cases in which timeout can take longer
+	 * than the standard calculation on AC5X, which is
+	 * expected following the spec comment above.
+	 * According to the spec, we must wait as long as
+	 * it takes for that bit to toggle on AC5X.
+	 * Cap that with 100 delay loops so we won't get
+	 * stuck here forever:
+	 */
+
+	ret = read_poll_timeout(sdhci_readl, reg,
+				!(reg & XENON_PHY_INITIALIZAION),
+				wait, XENON_MAX_PHY_TIMEOUT_LOOPS * wait,
+				false, host, phy_regs->timing_adj);
+	if (ret)
 		dev_err(mmc_dev(host->mmc), "eMMC PHY init cannot complete after %d us\n",
-			wait);
-		return -ETIMEDOUT;
-	}
+			wait * XENON_MAX_PHY_TIMEOUT_LOOPS);
 
-	return 0;
+	return ret;
 }
 
 #define ARMADA_3700_SOC_PAD_1_8V	0x1
@@ -527,7 +557,7 @@ static bool xenon_emmc_phy_slow_mode(struct sdhci_host *host,
 			ret = true;
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		reg &= ~XENON_TIMING_ADJUST_SLOW_MODE;
 		ret = false;
@@ -651,11 +681,13 @@ static int get_dt_pad_ctrl_data(struct sdhci_host *host,
 				struct device_node *np,
 				struct xenon_emmc_phy_params *params)
 {
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct xenon_priv *priv = sdhci_pltfm_priv(pltfm_host);
 	int ret = 0;
 	const char *name;
 	struct resource iomem;
 
-	if (of_device_is_compatible(np, "marvell,armada-3700-sdhci"))
+	if (priv->hw_version == XENON_A3700)
 		params->pad_ctrl.set_soc_pad = armada_3700_soc_pad_voltage_set;
 	else
 		return 0;
@@ -689,35 +721,37 @@ static int get_dt_pad_ctrl_data(struct sdhci_host *host,
 	return ret;
 }
 
-static int xenon_emmc_phy_parse_param_dt(struct sdhci_host *host,
-					 struct device_node *np,
-					 struct xenon_emmc_phy_params *params)
+static int xenon_emmc_phy_parse_params(struct sdhci_host *host,
+				       struct device *dev,
+				       struct xenon_emmc_phy_params *params)
 {
 	u32 value;
 
 	params->slow_mode = false;
-	if (of_property_read_bool(np, "marvell,xenon-phy-slow-mode"))
+	if (device_property_read_bool(dev, "marvell,xenon-phy-slow-mode"))
 		params->slow_mode = true;
 
 	params->znr = XENON_ZNR_DEF_VALUE;
-	if (!of_property_read_u32(np, "marvell,xenon-phy-znr", &value))
+	if (!device_property_read_u32(dev, "marvell,xenon-phy-znr", &value))
 		params->znr = value & XENON_ZNR_MASK;
 
 	params->zpr = XENON_ZPR_DEF_VALUE;
-	if (!of_property_read_u32(np, "marvell,xenon-phy-zpr", &value))
+	if (!device_property_read_u32(dev, "marvell,xenon-phy-zpr", &value))
 		params->zpr = value & XENON_ZPR_MASK;
 
 	params->nr_tun_times = XENON_TUN_CONSECUTIVE_TIMES;
-	if (!of_property_read_u32(np, "marvell,xenon-phy-nr-success-tun",
-				  &value))
+	if (!device_property_read_u32(dev, "marvell,xenon-phy-nr-success-tun",
+				      &value))
 		params->nr_tun_times = value & XENON_TUN_CONSECUTIVE_TIMES_MASK;
 
 	params->tun_step_divider = XENON_TUNING_STEP_DIVIDER;
-	if (!of_property_read_u32(np, "marvell,xenon-phy-tun-step-divider",
-				  &value))
+	if (!device_property_read_u32(dev, "marvell,xenon-phy-tun-step-divider",
+				      &value))
 		params->tun_step_divider = value & 0xFF;
 
-	return get_dt_pad_ctrl_data(host, np, params);
+	if (dev->of_node)
+		return get_dt_pad_ctrl_data(host, dev->of_node, params);
+	return 0;
 }
 
 /* Set SoC PHY Voltage PAD */
@@ -811,7 +845,7 @@ int xenon_phy_adj(struct sdhci_host *host, struct mmc_ios *ios)
 	return ret;
 }
 
-static int xenon_add_phy(struct device_node *np, struct sdhci_host *host,
+static int xenon_add_phy(struct device *dev, struct sdhci_host *host,
 			 const char *phy_name)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
@@ -830,15 +864,15 @@ static int xenon_add_phy(struct device_node *np, struct sdhci_host *host,
 	if (ret)
 		return ret;
 
-	return xenon_emmc_phy_parse_param_dt(host, np, priv->phy_params);
+	return xenon_emmc_phy_parse_params(host, dev, priv->phy_params);
 }
 
-int xenon_phy_parse_dt(struct device_node *np, struct sdhci_host *host)
+int xenon_phy_parse_params(struct device *dev, struct sdhci_host *host)
 {
 	const char *phy_type = NULL;
 
-	if (!of_property_read_string(np, "marvell,xenon-phy-type", &phy_type))
-		return xenon_add_phy(np, host, phy_type);
+	if (!device_property_read_string(dev, "marvell,xenon-phy-type", &phy_type))
+		return xenon_add_phy(dev, host, phy_type);
 
-	return xenon_add_phy(np, host, "emmc 5.1 phy");
+	return xenon_add_phy(dev, host, "emmc 5.1 phy");
 }

@@ -109,7 +109,7 @@ static bool set_watchpoint(pid_t pid, int size, int wp)
 	return false;
 }
 
-static bool arun_test(int wr_size, int wp_size, int wr, int wp)
+static bool run_test(int wr_size, int wp_size, int wr, int wp)
 {
 	int status;
 	siginfo_t siginfo;
@@ -145,7 +145,7 @@ static bool arun_test(int wr_size, int wp_size, int wr, int wp)
 
 	if (ptrace(PTRACE_CONT, pid, NULL, NULL) < 0) {
 		ksft_print_msg(
-			"ptrace(PTRACE_SINGLESTEP) failed: %s\n",
+			"ptrace(PTRACE_CONT) failed: %s\n",
 			strerror(errno));
 		return false;
 	}
@@ -159,7 +159,7 @@ static bool arun_test(int wr_size, int wp_size, int wr, int wp)
 	}
 	alarm(0);
 	if (WIFEXITED(status)) {
-		ksft_print_msg("child did not single-step\n");
+		ksft_print_msg("child exited prematurely\n");
 		return false;
 	}
 	if (!WIFSTOPPED(status)) {

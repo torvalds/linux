@@ -19,28 +19,21 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
-#include <linux/of_platform.h>
 #include <linux/phy.h>
 #include <linux/spi/spi.h>
 #include <linux/fsl_devices.h>
-#include <linux/fs_enet_pd.h>
-#include <linux/fs_uart_pd.h>
 #include <linux/reboot.h>
 
 #include <linux/atomic.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/time.h>
-#include <asm/prom.h>
 #include <asm/machdep.h>
 #include <sysdev/fsl_soc.h>
 #include <mm/mmu_decl.h>
 #include <asm/cpm2.h>
 #include <asm/fsl_hcalls.h>	/* For the Freescale hypervisor */
 
-extern void init_fcc_ioports(struct fs_platform_info*);
-extern void init_fec_ioports(struct fs_platform_info*);
-extern void init_smc_ioports(struct fs_uart_platform_info*);
 static phys_addr_t immrbase = -1;
 
 phys_addr_t get_immrbase(void)
@@ -52,18 +45,10 @@ phys_addr_t get_immrbase(void)
 
 	soc = of_find_node_by_type(NULL, "soc");
 	if (soc) {
-		int size;
-		u32 naddr;
-		const __be32 *prop = of_get_property(soc, "#address-cells", &size);
+		struct resource res;
 
-		if (prop && size == 4)
-			naddr = be32_to_cpup(prop);
-		else
-			naddr = 2;
-
-		prop = of_get_property(soc, "ranges", &size);
-		if (prop)
-			immrbase = of_translate_address(soc, prop + naddr);
+		if (!of_range_to_resource(soc, 0, &res))
+			immrbase = res.start;
 
 		of_node_put(soc);
 	}
@@ -175,7 +160,7 @@ static int __init setup_rstcr(void)
 	};
 
 	for_each_node_by_name(np, "global-utilities") {
-		if ((of_get_property(np, "fsl,has-rstcr", NULL))) {
+		if (of_property_read_bool(np, "fsl,has-rstcr")) {
 			rstcr = of_iomap(np, 0) + 0xb0;
 			if (!rstcr) {
 				printk (KERN_ERR "Error: reset control "

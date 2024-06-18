@@ -19,7 +19,6 @@ struct thread_info {
 	unsigned int		flags;		/* low level flags */
 	unsigned int		ieee_state;	/* see fpu.h */
 
-	mm_segment_t		addr_limit;	/* thread address space */
 	unsigned		cpu;		/* current CPU */
 	int			preempt_count; /* 0 => preemptable, <0 => BUG */
 	unsigned int		status;		/* thread-synchronous flags */
@@ -27,6 +26,7 @@ struct thread_info {
 	int bpt_nsaved;
 	unsigned long bpt_addr[2];		/* breakpoint handling  */
 	unsigned int bpt_insn[2];
+	unsigned long fp[32];
 };
 
 /*
@@ -35,13 +35,14 @@ struct thread_info {
 #define INIT_THREAD_INFO(tsk)			\
 {						\
 	.task		= &tsk,			\
-	.addr_limit	= KERNEL_DS,		\
 	.preempt_count	= INIT_PREEMPT_COUNT,	\
 }
 
 /* How to get the thread information struct from C.  */
 register struct thread_info *__current_thread_info __asm__("$8");
 #define current_thread_info()  __current_thread_info
+
+register unsigned long *current_stack_pointer __asm__ ("$30");
 
 #endif /* __ASSEMBLY__ */
 
@@ -62,6 +63,7 @@ register struct thread_info *__current_thread_info __asm__("$8");
 #define TIF_SIGPENDING		2	/* signal pending */
 #define TIF_NEED_RESCHED	3	/* rescheduling necessary */
 #define TIF_SYSCALL_AUDIT	4	/* syscall audit active */
+#define TIF_NOTIFY_SIGNAL	5	/* signal notifications exist */
 #define TIF_DIE_IF_KERNEL	9	/* dik recursion lock */
 #define TIF_MEMDIE		13	/* is terminating due to OOM killer */
 #define TIF_POLLING_NRFLAG	14	/* idle is polling for TIF_NEED_RESCHED */
@@ -71,19 +73,19 @@ register struct thread_info *__current_thread_info __asm__("$8");
 #define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
 #define _TIF_NOTIFY_RESUME	(1<<TIF_NOTIFY_RESUME)
 #define _TIF_SYSCALL_AUDIT	(1<<TIF_SYSCALL_AUDIT)
+#define _TIF_NOTIFY_SIGNAL	(1<<TIF_NOTIFY_SIGNAL)
 #define _TIF_POLLING_NRFLAG	(1<<TIF_POLLING_NRFLAG)
 
 /* Work to do on interrupt/exception return.  */
 #define _TIF_WORK_MASK		(_TIF_SIGPENDING | _TIF_NEED_RESCHED | \
-				 _TIF_NOTIFY_RESUME)
-
-/* Work to do on any return to userspace.  */
-#define _TIF_ALLWORK_MASK	(_TIF_WORK_MASK		\
-				 | _TIF_SYSCALL_TRACE)
+				 _TIF_NOTIFY_RESUME | _TIF_NOTIFY_SIGNAL)
 
 #define TS_UAC_NOPRINT		0x0001	/* ! Preserve the following three */
 #define TS_UAC_NOFIX		0x0002	/* ! flags as they match          */
 #define TS_UAC_SIGBUS		0x0004	/* ! userspace part of 'osf_sysinfo' */
+
+#define TS_SAVED_FP		0x0008
+#define TS_RESTORE_FP		0x0010
 
 #define SET_UNALIGN_CTL(task,value)	({				\
 	__u32 status = task_thread_info(task)->status & ~UAC_BITMASK;	\
@@ -107,6 +109,18 @@ register struct thread_info *__current_thread_info __asm__("$8");
 		res |= 4;						\
 	put_user(res, (int __user *)(value));				\
 	})
+
+#ifndef __ASSEMBLY__
+extern void __save_fpu(void);
+
+static inline void save_fpu(void)
+{
+	if (!(current_thread_info()->status & TS_SAVED_FP)) {
+		current_thread_info()->status |= TS_SAVED_FP;
+		__save_fpu();
+	}
+}
+#endif
 
 #endif /* __KERNEL__ */
 #endif /* _ALPHA_THREAD_INFO_H */

@@ -66,7 +66,7 @@ struct jfs_inode_info {
 	lid_t	xtlid;		/* lid of xtree lock on directory */
 	union {
 		struct {
-			xtpage_t _xtroot;	/* 288: xtree root */
+			xtroot_t _xtroot;	/* 288: xtree root */
 			struct inomap *_imap;	/* 4: inode map header	*/
 		} file;
 		struct {
@@ -77,15 +77,22 @@ struct jfs_inode_info {
 			unchar _unused[16];	/* 16: */
 			dxd_t _dxd;		/* 16: */
 			/* _inline may overflow into _inline_ea when needed */
-			unchar _inline[128];	/* 128: inline symlink */
 			/* _inline_ea may overlay the last part of
 			 * file._xtroot if maxentry = XTROOTINITSLOT
 			 */
-			unchar _inline_ea[128];	/* 128: inline extended attr */
+			union {
+				struct {
+					/* 128: inline symlink */
+					unchar _inline[128];
+					/* 128: inline extended attr */
+					unchar _inline_ea[128];
+				};
+				unchar _inline_all[256];
+			};
 		} link;
 	} u;
 #ifdef CONFIG_QUOTA
-	struct dquot *i_dquot[MAXQUOTAS];
+	struct dquot __rcu *i_dquot[MAXQUOTAS];
 #endif
 	u32 dev;	/* will die when we get wide dev_t */
 	struct inode	vfs_inode;
@@ -96,6 +103,7 @@ struct jfs_inode_info {
 #define i_dtroot u.dir._dtroot
 #define i_inline u.link._inline
 #define i_inline_ea u.link._inline_ea
+#define i_inline_all u.link._inline_all
 
 #define IREAD_LOCK(ip, subclass) \
 	down_read_nested(&JFS_IP(ip)->rdwrlock, subclass)

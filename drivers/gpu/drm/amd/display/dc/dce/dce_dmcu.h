@@ -40,11 +40,33 @@
 	SR(MASTER_COMM_DATA_REG3), \
 	SR(MASTER_COMM_CMD_REG), \
 	SR(MASTER_COMM_CNTL_REG), \
+	SR(SLAVE_COMM_DATA_REG1), \
+	SR(SLAVE_COMM_DATA_REG2), \
+	SR(SLAVE_COMM_DATA_REG3), \
+	SR(SLAVE_COMM_CMD_REG), \
 	SR(DMCU_IRAM_RD_CTRL), \
 	SR(DMCU_IRAM_RD_DATA), \
 	SR(DMCU_INTERRUPT_TO_UC_EN_MASK), \
 	SR(SMU_INTERRUPT_CONTROL), \
 	SR(DC_DMCU_SCRATCH)
+
+#if defined(CONFIG_DRM_AMD_DC_SI)
+#define DMCU_DCE60_REG_LIST() \
+	SR(DMCU_CTRL), \
+	SR(DMCU_STATUS), \
+	SR(DMCU_RAM_ACCESS_CTRL), \
+	SR(DMCU_IRAM_WR_CTRL), \
+	SR(DMCU_IRAM_WR_DATA), \
+	SR(MASTER_COMM_DATA_REG1), \
+	SR(MASTER_COMM_DATA_REG2), \
+	SR(MASTER_COMM_DATA_REG3), \
+	SR(MASTER_COMM_CMD_REG), \
+	SR(MASTER_COMM_CNTL_REG), \
+	SR(DMCU_IRAM_RD_CTRL), \
+	SR(DMCU_IRAM_RD_DATA), \
+	SR(DMCU_INTERRUPT_TO_UC_EN_MASK), \
+	SR(DC_DMCU_SCRATCH)
+#endif
 
 #define DMCU_DCE80_REG_LIST() \
 	SR(DMCU_CTRL), \
@@ -71,6 +93,10 @@
 	DMCU_COMMON_REG_LIST_DCE_BASE(), \
 	SR(DMU_MEM_PWR_CNTL)
 
+#define DMCU_DCN20_REG_LIST()\
+	DMCU_DCN10_REG_LIST(), \
+	SR(DMCUB_SCRATCH15)
+
 #define DMCU_SF(reg_name, field_name, post_fix)\
 	.field_name = reg_name ## __ ## field_name ## post_fix
 
@@ -90,6 +116,7 @@
 	DMCU_SF(MASTER_COMM_CMD_REG, \
 			MASTER_COMM_CMD_REG_BYTE0, mask_sh), \
 	DMCU_SF(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, mask_sh), \
+	DMCU_SF(SLAVE_COMM_CNTL_REG, SLAVE_COMM_INTERRUPT, mask_sh), \
 	DMCU_SF(DMCU_INTERRUPT_TO_UC_EN_MASK, \
 			STATIC_SCREEN1_INT_TO_UC_EN, mask_sh), \
 	DMCU_SF(DMCU_INTERRUPT_TO_UC_EN_MASK, \
@@ -99,6 +126,25 @@
 	DMCU_SF(DMCU_INTERRUPT_TO_UC_EN_MASK, \
 			STATIC_SCREEN4_INT_TO_UC_EN, mask_sh), \
 	DMCU_SF(SMU_INTERRUPT_CONTROL, DC_SMU_INT_ENABLE, mask_sh)
+
+#if defined(CONFIG_DRM_AMD_DC_SI)
+#define DMCU_MASK_SH_LIST_DCE60(mask_sh) \
+	DMCU_SF(DMCU_CTRL, \
+			DMCU_ENABLE, mask_sh), \
+	DMCU_SF(DMCU_STATUS, \
+			UC_IN_STOP_MODE, mask_sh), \
+	DMCU_SF(DMCU_STATUS, \
+			UC_IN_RESET, mask_sh), \
+	DMCU_SF(DMCU_RAM_ACCESS_CTRL, \
+			IRAM_HOST_ACCESS_EN, mask_sh), \
+	DMCU_SF(DMCU_RAM_ACCESS_CTRL, \
+			IRAM_WR_ADDR_AUTO_INC, mask_sh), \
+	DMCU_SF(DMCU_RAM_ACCESS_CTRL, \
+			IRAM_RD_ADDR_AUTO_INC, mask_sh), \
+	DMCU_SF(MASTER_COMM_CMD_REG, \
+			MASTER_COMM_CMD_REG_BYTE0, mask_sh), \
+	DMCU_SF(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, mask_sh)
+#endif
 
 #define DMCU_MASK_SH_LIST_DCE80(mask_sh) \
 	DMCU_SF(DMCU_CTRL, \
@@ -138,6 +184,7 @@
 	type UC_IN_RESET; \
 	type MASTER_COMM_CMD_REG_BYTE0; \
 	type MASTER_COMM_INTERRUPT; \
+	type SLAVE_COMM_INTERRUPT; \
 	type DPHY_RX_FAST_TRAINING_CAPABLE; \
 	type DPHY_LOAD_BS_COUNT; \
 	type STATIC_SCREEN1_INT_TO_UC_EN; \
@@ -170,11 +217,17 @@ struct dce_dmcu_registers {
 	uint32_t MASTER_COMM_DATA_REG3;
 	uint32_t MASTER_COMM_CMD_REG;
 	uint32_t MASTER_COMM_CNTL_REG;
+	uint32_t SLAVE_COMM_DATA_REG1;
+	uint32_t SLAVE_COMM_DATA_REG2;
+	uint32_t SLAVE_COMM_DATA_REG3;
+	uint32_t SLAVE_COMM_CMD_REG;
+	uint32_t SLAVE_COMM_CNTL_REG;
 	uint32_t DMCU_IRAM_RD_CTRL;
 	uint32_t DMCU_IRAM_RD_DATA;
 	uint32_t DMCU_INTERRUPT_TO_UC_EN_MASK;
 	uint32_t SMU_INTERRUPT_CONTROL;
 	uint32_t DC_DMCU_SCRATCH;
+	uint32_t DMCUB_SCRATCH15;
 };
 
 struct dce_dmcu {
@@ -261,16 +314,18 @@ struct dmcu *dcn10_dmcu_create(
 	const struct dce_dmcu_shift *dmcu_shift,
 	const struct dce_dmcu_mask *dmcu_mask);
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 struct dmcu *dcn20_dmcu_create(
 	struct dc_context *ctx,
 	const struct dce_dmcu_registers *regs,
 	const struct dce_dmcu_shift *dmcu_shift,
 	const struct dce_dmcu_mask *dmcu_mask);
-#endif
+
+struct dmcu *dcn21_dmcu_create(
+	struct dc_context *ctx,
+	const struct dce_dmcu_registers *regs,
+	const struct dce_dmcu_shift *dmcu_shift,
+	const struct dce_dmcu_mask *dmcu_mask);
 
 void dce_dmcu_destroy(struct dmcu **dmcu);
-
-static const uint32_t abm_gain_stepsize = 0x0060;
 
 #endif /* _DCE_ABM_H_ */

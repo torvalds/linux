@@ -8,11 +8,11 @@
  */
 
 #include <asm/byteorder.h>
+#include <crypto/algapi.h>
 #include <linux/bitops.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/errno.h>
-#include <linux/crypto.h>
 
 #include <crypto/internal/des.h>
 
@@ -29,11 +29,8 @@ static int des_setkey(struct crypto_tfm *tfm, const u8 *key,
 		else
 			err = 0;
 	}
-
-	if (err) {
+	if (err)
 		memset(dctx, 0, sizeof(*dctx));
-		crypto_tfm_set_flags(tfm, CRYPTO_TFM_RES_WEAK_KEY);
-	}
 	return err;
 }
 
@@ -64,11 +61,8 @@ static int des3_ede_setkey(struct crypto_tfm *tfm, const u8 *key,
 		else
 			err = 0;
 	}
-
-	if (err) {
+	if (err)
 		memset(dctx, 0, sizeof(*dctx));
-		crypto_tfm_set_flags(tfm, CRYPTO_TFM_RES_WEAK_KEY);
-	}
 	return err;
 }
 

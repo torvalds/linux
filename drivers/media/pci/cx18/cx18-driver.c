@@ -23,7 +23,7 @@
 #include "cx18-mailbox.h"
 #include "cx18-ioctl.h"
 #include "cx18-controls.h"
-#include "tuner-xc2028.h"
+#include "xc2028.h"
 #include <linux/dma-mapping.h>
 #include <media/tveeprom.h>
 
@@ -232,7 +232,6 @@ MODULE_PARM_DESC(cx18_first_minor,
 
 MODULE_AUTHOR("Hans Verkuil");
 MODULE_DESCRIPTION("CX23418 driver");
-MODULE_SUPPORTED_DEVICE("CX23418 MPEG2 encoder");
 MODULE_LICENSE("GPL");
 
 MODULE_VERSION(CX18_VERSION);
@@ -676,7 +675,7 @@ done:
 			 cx->pci_dev->subsystem_device);
 		CX18_ERR("Defaulting to %s card\n", cx->card->name);
 		CX18_ERR("Please mail the vendor/device and subsystem vendor/device IDs and what kind of\n");
-		CX18_ERR("card you have to the ivtv-devel mailinglist (www.ivtvdriver.org)\n");
+		CX18_ERR("card you have to the linux-media mailinglist (www.linuxtv.org)\n");
 		CX18_ERR("Prefix your subject line with [UNKNOWN CX18 CARD].\n");
 	}
 	cx->v4l2_cap = cx->card->v4l2_capabilities;
@@ -772,11 +771,11 @@ static void cx18_init_struct2(struct cx18 *cx)
 {
 	int i;
 
-	for (i = 0; i < CX18_CARD_MAX_VIDEO_INPUTS - 1; i++)
+	for (i = 0; i < CX18_CARD_MAX_VIDEO_INPUTS; i++)
 		if (cx->card->video_inputs[i].video_type == 0)
 			break;
 	cx->nof_inputs = i;
-	for (i = 0; i < CX18_CARD_MAX_AUDIO_INPUTS - 1; i++)
+	for (i = 0; i < CX18_CARD_MAX_AUDIO_INPUTS; i++)
 		if (cx->card->audio_inputs[i].audio_type == 0)
 			break;
 	cx->nof_audio_inputs = i;
@@ -805,7 +804,7 @@ static int cx18_setup_pci(struct cx18 *cx, struct pci_dev *pci_dev,
 		CX18_ERR("Can't enable device %d!\n", cx->instance);
 		return -EIO;
 	}
-	if (pci_set_dma_mask(pci_dev, DMA_BIT_MASK(32))) {
+	if (dma_set_mask(&pci_dev->dev, DMA_BIT_MASK(32))) {
 		CX18_ERR("No suitable DMA available, card %d\n", cx->instance);
 		return -EIO;
 	}
@@ -900,7 +899,7 @@ static int cx18_probe(struct pci_dev *pci_dev,
 		return -ENOMEM;
 	}
 
-	cx = kzalloc(sizeof(*cx), GFP_ATOMIC);
+	cx = kzalloc(sizeof(*cx), GFP_KERNEL);
 	if (!cx)
 		return -ENOMEM;
 
@@ -938,7 +937,7 @@ static int cx18_probe(struct pci_dev *pci_dev,
 	/* map io memory */
 	CX18_DEBUG_INFO("attempting ioremap at 0x%llx len 0x%08x\n",
 		   (u64)cx->base_addr + CX18_MEM_OFFSET, CX18_MEM_SIZE);
-	cx->enc_mem = ioremap_nocache(cx->base_addr + CX18_MEM_OFFSET,
+	cx->enc_mem = ioremap(cx->base_addr + CX18_MEM_OFFSET,
 				       CX18_MEM_SIZE);
 	if (!cx->enc_mem) {
 		CX18_ERR("ioremap failed. Can't get a window into CX23418 memory and register space\n");

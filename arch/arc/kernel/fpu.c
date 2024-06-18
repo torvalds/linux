@@ -6,7 +6,9 @@
  */
 
 #include <linux/sched.h>
-#include <asm/switch_to.h>
+#include <asm/fpu.h>
+
+#ifdef CONFIG_ISA_ARCOMPACT
 
 /*
  * To save/restore FPU regs, simplest scheme would use LR/SR insns.
@@ -50,3 +52,31 @@ void fpu_save_restore(struct task_struct *prev, struct task_struct *next)
 		: "r" (zero), "r" (*(readfrom + 3)), "r" (*(readfrom + 2))
 	);
 }
+
+#else
+
+void fpu_init_task(struct pt_regs *regs)
+{
+	const unsigned int fwe = 0x80000000;
+
+	/* default rounding mode */
+	write_aux_reg(ARC_REG_FPU_CTRL, 0x100);
+
+	/* Initialize to zero: setting requires FWE be set */
+	write_aux_reg(ARC_REG_FPU_STATUS, fwe);
+}
+
+void fpu_save_restore(struct task_struct *prev, struct task_struct *next)
+{
+	struct arc_fpu *save = &prev->thread.fpu;
+	struct arc_fpu *restore = &next->thread.fpu;
+	const unsigned int fwe = 0x80000000;
+
+	save->ctrl = read_aux_reg(ARC_REG_FPU_CTRL);
+	save->status = read_aux_reg(ARC_REG_FPU_STATUS);
+
+	write_aux_reg(ARC_REG_FPU_CTRL, restore->ctrl);
+	write_aux_reg(ARC_REG_FPU_STATUS, (fwe | restore->status));
+}
+
+#endif

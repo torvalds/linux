@@ -12,13 +12,15 @@
 #include <linux/errno.h>
 #include <linux/skbuff.h>
 #include <net/pkt_sched.h>
+#include <net/pkt_cls.h>
 
 /* 1 band FIFO pseudo-"scheduler" */
 
 static int bfifo_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 			 struct sk_buff **to_free)
 {
-	if (likely(sch->qstats.backlog + qdisc_pkt_len(skb) <= sch->limit))
+	if (likely(sch->qstats.backlog + qdisc_pkt_len(skb) <=
+		   READ_ONCE(sch->limit)))
 		return qdisc_enqueue_tail(skb, sch);
 
 	return qdisc_drop(skb, sch, to_free);
@@ -27,7 +29,7 @@ static int bfifo_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 static int pfifo_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 			 struct sk_buff **to_free)
 {
-	if (likely(sch->q.qlen < sch->limit))
+	if (likely(sch->q.qlen < READ_ONCE(sch->limit)))
 		return qdisc_enqueue_tail(skb, sch);
 
 	return qdisc_drop(skb, sch, to_free);
@@ -38,7 +40,7 @@ static int pfifo_tail_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 {
 	unsigned int prev_backlog;
 
-	if (likely(sch->q.qlen < sch->limit))
+	if (likely(sch->q.qlen < READ_ONCE(sch->limit)))
 		return qdisc_enqueue_tail(skb, sch);
 
 	prev_backlog = sch->qstats.backlog;
@@ -51,8 +53,49 @@ static int pfifo_tail_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	return NET_XMIT_CN;
 }
 
-static int fifo_init(struct Qdisc *sch, struct nlattr *opt,
-		     struct netlink_ext_ack *extack)
+static void fifo_offload_init(struct Qdisc *sch)
+{
+	struct net_device *dev = qdisc_dev(sch);
+	struct tc_fifo_qopt_offload qopt;
+
+	if (!tc_can_offload(dev) || !dev->netdev_ops->ndo_setup_tc)
+		return;
+
+	qopt.command = TC_FIFO_REPLACE;
+	qopt.handle = sch->handle;
+	qopt.parent = sch->parent;
+	dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_QDISC_FIFO, &qopt);
+}
+
+static void fifo_offload_destroy(struct Qdisc *sch)
+{
+	struct net_device *dev = qdisc_dev(sch);
+	struct tc_fifo_qopt_offload qopt;
+
+	if (!tc_can_offload(dev) || !dev->netdev_ops->ndo_setup_tc)
+		return;
+
+	qopt.command = TC_FIFO_DESTROY;
+	qopt.handle = sch->handle;
+	qopt.parent = sch->parent;
+	dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_QDISC_FIFO, &qopt);
+}
+
+static int fifo_offload_dump(struct Qdisc *sch)
+{
+	struct tc_fifo_qopt_offload qopt;
+
+	qopt.command = TC_FIFO_STATS;
+	qopt.handle = sch->handle;
+	qopt.parent = sch->parent;
+	qopt.stats.bstats = &sch->bstats;
+	qopt.stats.qstats = &sch->qstats;
+
+	return qdisc_offload_dump_helper(sch, TC_SETUP_QDISC_FIFO, &qopt);
+}
+
+static int __fifo_init(struct Qdisc *sch, struct nlattr *opt,
+		       struct netlink_ext_ack *extack)
 {
 	bool bypass;
 	bool is_bfifo = sch->ops == &bfifo_qdisc_ops;
@@ -63,14 +106,14 @@ static int fifo_init(struct Qdisc *sch, struct nlattr *opt,
 		if (is_bfifo)
 			limit *= psched_mtu(qdisc_dev(sch));
 
-		sch->limit = limit;
+		WRITE_ONCE(sch->limit, limit);
 	} else {
 		struct tc_fifo_qopt *ctl = nla_data(opt);
 
 		if (nla_len(opt) < sizeof(*ctl))
 			return -EINVAL;
 
-		sch->limit = ctl->limit;
+		WRITE_ONCE(sch->limit, ctl->limit);
 	}
 
 	if (is_bfifo)
@@ -82,12 +125,37 @@ static int fifo_init(struct Qdisc *sch, struct nlattr *opt,
 		sch->flags |= TCQ_F_CAN_BYPASS;
 	else
 		sch->flags &= ~TCQ_F_CAN_BYPASS;
+
 	return 0;
 }
 
-static int fifo_dump(struct Qdisc *sch, struct sk_buff *skb)
+static int fifo_init(struct Qdisc *sch, struct nlattr *opt,
+		     struct netlink_ext_ack *extack)
 {
-	struct tc_fifo_qopt opt = { .limit = sch->limit };
+	int err;
+
+	err = __fifo_init(sch, opt, extack);
+	if (err)
+		return err;
+
+	fifo_offload_init(sch);
+	return 0;
+}
+
+static int fifo_hd_init(struct Qdisc *sch, struct nlattr *opt,
+			struct netlink_ext_ack *extack)
+{
+	return __fifo_init(sch, opt, extack);
+}
+
+static void fifo_destroy(struct Qdisc *sch)
+{
+	fifo_offload_destroy(sch);
+}
+
+static int __fifo_dump(struct Qdisc *sch, struct sk_buff *skb)
+{
+	struct tc_fifo_qopt opt = { .limit = READ_ONCE(sch->limit) };
 
 	if (nla_put(skb, TCA_OPTIONS, sizeof(opt), &opt))
 		goto nla_put_failure;
@@ -97,6 +165,22 @@ nla_put_failure:
 	return -1;
 }
 
+static int fifo_dump(struct Qdisc *sch, struct sk_buff *skb)
+{
+	int err;
+
+	err = fifo_offload_dump(sch);
+	if (err)
+		return err;
+
+	return __fifo_dump(sch, skb);
+}
+
+static int fifo_hd_dump(struct Qdisc *sch, struct sk_buff *skb)
+{
+	return __fifo_dump(sch, skb);
+}
+
 struct Qdisc_ops pfifo_qdisc_ops __read_mostly = {
 	.id		=	"pfifo",
 	.priv_size	=	0,
@@ -104,6 +188,7 @@ struct Qdisc_ops pfifo_qdisc_ops __read_mostly = {
 	.dequeue	=	qdisc_dequeue_head,
 	.peek		=	qdisc_peek_head,
 	.init		=	fifo_init,
+	.destroy	=	fifo_destroy,
 	.reset		=	qdisc_reset_queue,
 	.change		=	fifo_init,
 	.dump		=	fifo_dump,
@@ -118,6 +203,7 @@ struct Qdisc_ops bfifo_qdisc_ops __read_mostly = {
 	.dequeue	=	qdisc_dequeue_head,
 	.peek		=	qdisc_peek_head,
 	.init		=	fifo_init,
+	.destroy	=	fifo_destroy,
 	.reset		=	qdisc_reset_queue,
 	.change		=	fifo_init,
 	.dump		=	fifo_dump,
@@ -131,10 +217,10 @@ struct Qdisc_ops pfifo_head_drop_qdisc_ops __read_mostly = {
 	.enqueue	=	pfifo_tail_enqueue,
 	.dequeue	=	qdisc_dequeue_head,
 	.peek		=	qdisc_peek_head,
-	.init		=	fifo_init,
+	.init		=	fifo_hd_init,
 	.reset		=	qdisc_reset_queue,
-	.change		=	fifo_init,
-	.dump		=	fifo_dump,
+	.change		=	fifo_hd_init,
+	.dump		=	fifo_hd_dump,
 	.owner		=	THIS_MODULE,
 };
 
@@ -146,6 +232,9 @@ int fifo_set_limit(struct Qdisc *q, unsigned int limit)
 
 	/* Hack to avoid sending change message to non-FIFO */
 	if (strncmp(q->ops->id + 1, "fifo", 4) != 0)
+		return 0;
+
+	if (!q->ops->change)
 		return 0;
 
 	nla = kmalloc(nla_attr_size(sizeof(struct tc_fifo_qopt)), GFP_KERNEL);
@@ -181,3 +270,4 @@ struct Qdisc *fifo_create_dflt(struct Qdisc *sch, struct Qdisc_ops *ops,
 	return q ? : ERR_PTR(err);
 }
 EXPORT_SYMBOL(fifo_create_dflt);
+MODULE_DESCRIPTION("Single queue packet and byte based First In First Out(P/BFIFO) scheduler");

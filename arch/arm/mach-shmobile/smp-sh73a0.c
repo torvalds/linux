@@ -16,31 +16,48 @@
 #include "common.h"
 #include "sh73a0.h"
 
-#define WUPCR		IOMEM(0xe6151010)
-#define SRESCR		IOMEM(0xe6151018)
-#define PSTR		IOMEM(0xe6151040)
-#define SBAR		IOMEM(0xe6180020)
-#define APARMBAREA	IOMEM(0xe6f10020)
+#define CPG_BASE2	0xe6151000
+#define WUPCR		0x10	/* System-CPU Wake Up Control Register */
+#define SRESCR		0x18	/* System-CPU Software Reset Control Register */
+#define PSTR		0x40	/* System-CPU Power Status Register */
+
+#define SYSC_BASE	0xe6180000
+#define SBAR		0x20	/* SYS Boot Address Register */
+
+#define AP_BASE		0xe6f10000
+#define APARMBAREA	0x20	/* Address Translation Area Register */
 
 #define SH73A0_SCU_BASE 0xf0000000
 
 static int sh73a0_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	unsigned int lcpu = cpu_logical_map(cpu);
+	void __iomem *cpg2 = ioremap(CPG_BASE2, PAGE_SIZE);
 
-	if (((__raw_readl(PSTR) >> (4 * lcpu)) & 3) == 3)
-		__raw_writel(1 << lcpu, WUPCR);	/* wake up */
+	if (((readl(cpg2 + PSTR) >> (4 * lcpu)) & 3) == 3)
+		writel(1 << lcpu, cpg2 + WUPCR);	/* wake up */
 	else
-		__raw_writel(1 << lcpu, SRESCR);	/* reset */
-
+		writel(1 << lcpu, cpg2 + SRESCR);	/* reset */
+	iounmap(cpg2);
 	return 0;
 }
 
 static void __init sh73a0_smp_prepare_cpus(unsigned int max_cpus)
 {
+	void __iomem *ap, *sysc;
+
+	if (!request_mem_region(0, SZ_4K, "Boot Area")) {
+		pr_err("Failed to request boot area\n");
+		return;
+	}
+
 	/* Map the reset vector (in headsmp.S) */
-	__raw_writel(0, APARMBAREA);      /* 4k */
-	__raw_writel(__pa(shmobile_boot_vector), SBAR);
+	ap = ioremap(AP_BASE, PAGE_SIZE);
+	sysc = ioremap(SYSC_BASE, PAGE_SIZE);
+	writel(0, ap + APARMBAREA);      /* 4k */
+	writel(__pa(shmobile_boot_vector), sysc + SBAR);
+	iounmap(sysc);
+	iounmap(ap);
 
 	/* setup sh73a0 specific SCU bits */
 	shmobile_smp_scu_prepare_cpus(SH73A0_SCU_BASE, max_cpus);

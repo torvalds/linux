@@ -3,7 +3,7 @@
  *
  * Module Name: excreate - Named object creation
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2023, Intel Corp.
  *
  *****************************************************************************/
 
@@ -279,6 +279,7 @@ acpi_ex_create_region(u8 * aml_start,
 	obj_desc->region.space_id = space_id;
 	obj_desc->region.address = 0;
 	obj_desc->region.length = 0;
+	obj_desc->region.pointer = NULL;
 	obj_desc->region.node = node;
 	obj_desc->region.handler = NULL;
 	obj_desc->common.flags &=

@@ -6,28 +6,6 @@
 #ifndef _ASM_POWERPC_LPPACA_H
 #define _ASM_POWERPC_LPPACA_H
 
-/*
- * The below VPHN macros are outside the __KERNEL__ check since these are
- * used for compiling the vphn selftest in userspace
- */
-
-/* The H_HOME_NODE_ASSOCIATIVITY h_call returns 6 64-bit registers. */
-#define VPHN_REGISTER_COUNT 6
-
-/*
- * 6 64-bit registers unpacked into up to 24 be32 associativity values. To
- * form the complete property we have to add the length in the first cell.
- */
-#define VPHN_ASSOC_BUFSIZE (VPHN_REGISTER_COUNT*sizeof(u64)/sizeof(u16) + 1)
-
-/*
- * The H_HOME_NODE_ASSOCIATIVITY hcall takes two values for flags:
- * 1 for retrieving associativity information for a guest cpu
- * 2 for retrieving associativity information for a host/hypervisor cpu
- */
-#define VPHN_FLAG_VCPU	1
-#define VPHN_FLAG_PCPU	2
-
 #ifdef __KERNEL__
 
 /*
@@ -42,10 +20,10 @@
  */
 #include <linux/cache.h>
 #include <linux/threads.h>
-#include <linux/spinlock_types.h>
 #include <asm/types.h>
 #include <asm/mmu.h>
 #include <asm/firmware.h>
+#include <asm/paca.h>
 
 /*
  * The lppaca is the "virtual processor area" registered with the hypervisor,
@@ -105,14 +83,18 @@ struct lppaca {
 	volatile __be32 dispersion_count; /* dispatch changed physical cpu */
 	volatile __be64 cmo_faults;	/* CMO page fault count */
 	volatile __be64 cmo_fault_time;	/* CMO page fault time */
-	u8	reserved10[104];
+	u8	reserved10[64];		/* [S]PURR expropriated/donated */
+	volatile __be64 enqueue_dispatch_tb; /* Total TB enqueue->dispatch */
+	volatile __be64 ready_enqueue_tb; /* Total TB ready->enqueue */
+	volatile __be64 wait_ready_tb;	/* Total TB wait->ready */
+	u8	reserved11[16];
 
 	/* cacheline 4-5 */
 
 	__be32	page_ins;		/* CMO Hint - # page ins by OS */
-	u8	reserved11[148];
+	u8	reserved12[148];
 	volatile __be64 dtl_idx;	/* Dispatch Trace Log head index */
-	u8	reserved12[96];
+	u8	reserved13[96];
 } ____cacheline_aligned;
 
 #define lppaca_of(cpu)	(*paca_ptrs[cpu]->lppaca_ptr)
@@ -124,12 +106,22 @@ struct lppaca {
  */
 #define LPPACA_OLD_SHARED_PROC		2
 
-static inline bool lppaca_shared_proc(struct lppaca *l)
+#ifdef CONFIG_PPC_PSERIES
+/*
+ * All CPUs should have the same shared proc value, so directly access the PACA
+ * to avoid false positives from DEBUG_PREEMPT.
+ */
+static inline bool lppaca_shared_proc(void)
 {
+	struct lppaca *l = local_paca->lppaca_ptr;
+
 	if (!firmware_has_feature(FW_FEATURE_SPLPAR))
 		return false;
 	return !!(l->__old_status & LPPACA_OLD_SHARED_PROC);
 }
+
+#define get_lppaca()	(get_paca()->lppaca_ptr)
+#endif
 
 /*
  * SLB shadow buffer structure as defined in the PAPR.  The save_area
@@ -145,51 +137,6 @@ struct slb_shadow {
 		__be64	vsid;
 	} save_area[SLB_NUM_BOLTED];
 } ____cacheline_aligned;
-
-/*
- * Layout of entries in the hypervisor's dispatch trace log buffer.
- */
-struct dtl_entry {
-	u8	dispatch_reason;
-	u8	preempt_reason;
-	__be16	processor_id;
-	__be32	enqueue_to_dispatch_time;
-	__be32	ready_to_enqueue_time;
-	__be32	waiting_to_ready_time;
-	__be64	timebase;
-	__be64	fault_addr;
-	__be64	srr0;
-	__be64	srr1;
-};
-
-#define DISPATCH_LOG_BYTES	4096	/* bytes per cpu */
-#define N_DISPATCH_LOG		(DISPATCH_LOG_BYTES / sizeof(struct dtl_entry))
-
-/*
- * Dispatch trace log event enable mask:
- *   0x1: voluntary virtual processor waits
- *   0x2: time-slice preempts
- *   0x4: virtual partition memory page faults
- */
-#define DTL_LOG_CEDE		0x1
-#define DTL_LOG_PREEMPT		0x2
-#define DTL_LOG_FAULT		0x4
-#define DTL_LOG_ALL		(DTL_LOG_CEDE | DTL_LOG_PREEMPT | DTL_LOG_FAULT)
-
-extern struct kmem_cache *dtl_cache;
-extern rwlock_t dtl_access_lock;
-
-/*
- * When CONFIG_VIRT_CPU_ACCOUNTING_NATIVE = y, the cpu accounting code controls
- * reading from the dispatch trace log.  If other code wants to consume
- * DTL entries, it can set this pointer to a function that will get
- * called once for each DTL entry that gets processed.
- */
-extern void (*dtl_consumer)(struct dtl_entry *entry, u64 index);
-
-extern void register_dtl_buffer(int cpu);
-extern void alloc_dtl_buffers(unsigned long *time_limit);
-extern long hcall_vphn(unsigned long cpu, u64 flags, __be32 *associativity);
 
 #endif /* CONFIG_PPC_BOOK3S */
 #endif /* __KERNEL__ */

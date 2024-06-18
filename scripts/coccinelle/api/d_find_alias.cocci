@@ -4,7 +4,7 @@
 // Keywords: d_find_alias, dput
 //
 // Confidence: Moderate
-// URL: http://coccinelle.lip6.fr/
+// URL: https://coccinelle.gitlabpages.inria.fr/website
 // Options: --include-headers
 
 virtual context

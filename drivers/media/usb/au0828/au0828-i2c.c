@@ -23,13 +23,6 @@ MODULE_PARM_DESC(i2c_scan, "scan i2c bus at insmod time");
 #define I2C_WAIT_DELAY 25
 #define I2C_WAIT_RETRY 1000
 
-static inline int i2c_slave_did_write_ack(struct i2c_adapter *i2c_adap)
-{
-	struct au0828_dev *dev = i2c_adap->algo_data;
-	return au0828_read(dev, AU0828_I2C_STATUS_201) &
-		AU0828_I2C_STATUS_NO_WRITE_ACK ? 0 : 1;
-}
-
 static inline int i2c_slave_did_read_ack(struct i2c_adapter *i2c_adap)
 {
 	struct au0828_dev *dev = i2c_adap->algo_data;

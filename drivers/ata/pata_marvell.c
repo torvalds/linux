@@ -32,7 +32,6 @@
 
 static int marvell_pata_active(struct pci_dev *pdev)
 {
-	int i;
 	u32 devices;
 	void __iomem *barp;
 
@@ -43,11 +42,6 @@ static int marvell_pata_active(struct pci_dev *pdev)
 	barp = pci_iomap(pdev, 5, 0x10);
 	if (barp == NULL)
 		return -ENOMEM;
-
-	printk("BAR5:");
-	for(i = 0; i <= 0x0F; i++)
-		printk("%02X:%02X ", i, ioread8(barp + i));
-	printk("\n");
 
 	devices = ioread32(barp + 0x0C);
 	pci_iounmap(pdev, barp);
@@ -83,6 +77,8 @@ static int marvell_cable_detect(struct ata_port *ap)
 	switch(ap->port_no)
 	{
 	case 0:
+		if (!ap->ioaddr.bmdma_addr)
+			return ATA_CBL_PATA_UNK;
 		if (ioread8(ap->ioaddr.bmdma_addr + 1) & 1)
 			return ATA_CBL_PATA40;
 		return ATA_CBL_PATA80;
@@ -96,7 +92,7 @@ static int marvell_cable_detect(struct ata_port *ap)
 
 /* No PIO or DMA methods needed for this device */
 
-static struct scsi_host_template marvell_sht = {
+static const struct scsi_host_template marvell_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 
@@ -110,7 +106,7 @@ static struct ata_port_operations marvell_ops = {
 /**
  *	marvell_init_one - Register Marvell ATA PCI device with kernel services
  *	@pdev: PCI device to register
- *	@ent: Entry in marvell_pci_tbl matching with @pdev
+ *	@id: PCI device ID
  *
  *	Called from kernel PCI layer.
  *
@@ -149,7 +145,8 @@ static int marvell_init_one (struct pci_dev *pdev, const struct pci_device_id *i
 
 #if IS_ENABLED(CONFIG_SATA_AHCI)
 	if (!marvell_pata_active(pdev)) {
-		printk(KERN_INFO DRV_NAME ": PATA port not active, deferring to AHCI driver.\n");
+		dev_info(&pdev->dev,
+			 "PATA port not active, deferring to AHCI driver.\n");
 		return -ENODEV;
 	}
 #endif

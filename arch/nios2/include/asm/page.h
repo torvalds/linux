@@ -21,7 +21,7 @@
 /*
  * PAGE_SHIFT determines the page size
  */
-#define PAGE_SHIFT	12
+#define PAGE_SHIFT	CONFIG_PAGE_SHIFT
 #define PAGE_SIZE	(_AC(1, UL) << PAGE_SHIFT)
 #define PAGE_MASK	(~(PAGE_SIZE - 1))
 
@@ -86,20 +86,10 @@ extern struct page *mem_map;
 
 # define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
 
-static inline bool pfn_valid(unsigned long pfn)
-{
-	/* avoid <linux/mm.h> include hell */
-	extern unsigned long max_mapnr;
-	unsigned long pfn_offset = ARCH_PFN_OFFSET;
-
-	return pfn >= pfn_offset && pfn < max_mapnr;
-}
-
 # define virt_to_page(vaddr)	pfn_to_page(PFN_DOWN(virt_to_phys(vaddr)))
 # define virt_addr_valid(vaddr)	pfn_valid(PFN_DOWN(virt_to_phys(vaddr)))
 
-# define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | \
-				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
+# define VM_DATA_DEFAULT_FLAGS	VM_DATA_FLAGS_NON_EXEC
 
 #include <asm-generic/memory_model.h>
 

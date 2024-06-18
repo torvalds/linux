@@ -15,8 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/acpi.h>
-#include <linux/gpio.h>
-#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/regulator/consumer.h>
 #include <linux/mutex.h>
 #include <sound/core.h>
@@ -43,6 +42,7 @@ static const char *rt5668_supply_names[RT5668_NUM_SUPPLIES] = {
 struct rt5668_priv {
 	struct snd_soc_component *component;
 	struct rt5668_platform_data pdata;
+	struct gpio_desc *ldo1_en;
 	struct regmap *regmap;
 	struct snd_soc_jack *hs_jack;
 	struct regulator_bulk_data supplies[RT5668_NUM_SUPPLIES];
@@ -847,7 +847,7 @@ static int rt5668_button_detect(struct snd_soc_component *component)
 {
 	int btn_type, val;
 
-	val = snd_soc_component_read32(component, RT5668_4BTN_IL_CMD_1);
+	val = snd_soc_component_read(component, RT5668_4BTN_IL_CMD_1);
 	btn_type = val & 0xfff0;
 	snd_soc_component_write(component, RT5668_4BTN_IL_CMD_1, val);
 	pr_debug("%s btn_type=%x\n", __func__, btn_type);
@@ -907,11 +907,11 @@ static int rt5668_headset_detect(struct snd_soc_component *component,
 			RT5668_TRIG_JD_MASK, RT5668_TRIG_JD_HIGH);
 
 		count = 0;
-		val = snd_soc_component_read32(component, RT5668_CBJ_CTRL_2)
+		val = snd_soc_component_read(component, RT5668_CBJ_CTRL_2)
 			& RT5668_JACK_TYPE_MASK;
 		while (val == 0 && count < 50) {
 			usleep_range(10000, 15000);
-			val = snd_soc_component_read32(component,
+			val = snd_soc_component_read(component,
 				RT5668_CBJ_CTRL_2) & RT5668_JACK_TYPE_MASK;
 			count++;
 		}
@@ -955,7 +955,7 @@ static void rt5668_jd_check_handler(struct work_struct *work)
 	struct rt5668_priv *rt5668 = container_of(work, struct rt5668_priv,
 		jd_check_work.work);
 
-	if (snd_soc_component_read32(rt5668->component, RT5668_AJD1_CTRL)
+	if (snd_soc_component_read(rt5668->component, RT5668_AJD1_CTRL)
 		& RT5668_JDH_RS_MASK) {
 		/* jack out */
 		rt5668->jack_type = rt5668_headset_detect(rt5668->component, 0);
@@ -1022,15 +1022,17 @@ static void rt5668_jack_detect_handler(struct work_struct *work)
 		container_of(work, struct rt5668_priv, jack_detect_work.work);
 	int val, btn_type;
 
-	while (!rt5668->component)
-		usleep_range(10000, 15000);
-
-	while (!rt5668->component->card->instantiated)
-		usleep_range(10000, 15000);
+	if (!rt5668->component ||
+	    !snd_soc_card_is_instantiated(rt5668->component->card)) {
+		/* card not yet ready, try later */
+		mod_delayed_work(system_power_efficient_wq,
+				 &rt5668->jack_detect_work, msecs_to_jiffies(15));
+		return;
+	}
 
 	mutex_lock(&rt5668->calibrate_mutex);
 
-	val = snd_soc_component_read32(rt5668->component, RT5668_AJD1_CTRL)
+	val = snd_soc_component_read(rt5668->component, RT5668_AJD1_CTRL)
 		& RT5668_JDH_RS_MASK;
 	if (!val) {
 		/* jack in */
@@ -1171,7 +1173,7 @@ static int set_dmic_clk(struct snd_soc_dapm_widget *w,
 	struct snd_soc_component *component =
 		snd_soc_dapm_to_component(w->dapm);
 	struct rt5668_priv *rt5668 = snd_soc_component_get_drvdata(component);
-	int idx = -EINVAL;
+	int idx;
 	static const int div[] = {2, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128};
 
 	idx = rt5668_div_sel(rt5668, 1500000, div, ARRAY_SIZE(div));
@@ -1188,10 +1190,10 @@ static int set_filter_clk(struct snd_soc_dapm_widget *w,
 	struct snd_soc_component *component =
 		snd_soc_dapm_to_component(w->dapm);
 	struct rt5668_priv *rt5668 = snd_soc_component_get_drvdata(component);
-	int ref, val, reg, idx = -EINVAL;
+	int ref, val, reg, idx;
 	static const int div[] = {1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48};
 
-	val = snd_soc_component_read32(component, RT5668_GPIO_CTRL_1) &
+	val = snd_soc_component_read(component, RT5668_GPIO_CTRL_1) &
 		RT5668_GP4_PIN_MASK;
 	if (w->shift == RT5668_PWR_ADC_S1F_BIT &&
 		val == RT5668_GP4_PIN_ADCDAT2)
@@ -1219,7 +1221,7 @@ static int is_sys_clk_from_pll1(struct snd_soc_dapm_widget *w,
 	struct snd_soc_component *component =
 		snd_soc_dapm_to_component(w->dapm);
 
-	val = snd_soc_component_read32(component, RT5668_GLB_CLK);
+	val = snd_soc_component_read(component, RT5668_GLB_CLK);
 	val &= RT5668_SCLK_SRC_MASK;
 	if (val == RT5668_SCLK_SRC_PLL1)
 		return 1;
@@ -1247,7 +1249,7 @@ static int is_using_asrc(struct snd_soc_dapm_widget *w,
 		return 0;
 	}
 
-	val = (snd_soc_component_read32(component, reg) >> shift) & 0xf;
+	val = (snd_soc_component_read(component, reg) >> shift) & 0xf;
 	switch (val) {
 	case RT5668_CLK_SEL_I2S1_ASRC:
 	case RT5668_CLK_SEL_I2S2_ASRC:
@@ -2171,7 +2173,7 @@ static int rt5668_set_component_pll(struct snd_soc_component *component,
 
 	ret = rl6231_pll_calc(freq_in, freq_out, &pll_code);
 	if (ret < 0) {
-		dev_err(component->dev, "Unsupport input clock %d\n", freq_in);
+		dev_err(component->dev, "Unsupported input clock %d\n", freq_in);
 		return ret;
 	}
 
@@ -2182,8 +2184,8 @@ static int rt5668_set_component_pll(struct snd_soc_component *component,
 	snd_soc_component_write(component, RT5668_PLL_CTRL_1,
 		pll_code.n_code << RT5668_PLL_N_SFT | pll_code.k_code);
 	snd_soc_component_write(component, RT5668_PLL_CTRL_2,
-		(pll_code.m_bp ? 0 : pll_code.m_code) << RT5668_PLL_M_SFT |
-		pll_code.m_bp << RT5668_PLL_M_BP_SFT);
+		((pll_code.m_bp ? 0 : pll_code.m_code) << RT5668_PLL_M_SFT) |
+		(pll_code.m_bp << RT5668_PLL_M_BP_SFT));
 
 	rt5668->pll_in = freq_in;
 	rt5668->pll_out = freq_out;
@@ -2360,7 +2362,6 @@ static const struct snd_soc_component_driver soc_component_dev_rt5668 = {
 	.set_jack = rt5668_set_jack_detect,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config rt5668_regmap = {
@@ -2369,7 +2370,7 @@ static const struct regmap_config rt5668_regmap = {
 	.max_register = RT5668_I2C_MODE,
 	.volatile_reg = rt5668_volatile_register,
 	.readable_reg = rt5668_readable_register,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = rt5668_reg,
 	.num_reg_defaults = ARRAY_SIZE(rt5668_reg),
 	.use_single_read = true,
@@ -2377,7 +2378,7 @@ static const struct regmap_config rt5668_regmap = {
 };
 
 static const struct i2c_device_id rt5668_i2c_id[] = {
-	{"rt5668b", 0},
+	{"rt5668b"},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, rt5668_i2c_id);
@@ -2391,9 +2392,6 @@ static int rt5668_parse_dt(struct rt5668_priv *rt5668, struct device *dev)
 		&rt5668->pdata.dmic1_clk_pin);
 	of_property_read_u32(dev->of_node, "realtek,jd-src",
 		&rt5668->pdata.jd_src);
-
-	rt5668->pdata.ldo1_en = of_get_named_gpio(dev->of_node,
-		"realtek,ldo1-en-gpios", 0);
 
 	return 0;
 }
@@ -2451,8 +2449,7 @@ static void rt5668_calibrate(struct rt5668_priv *rt5668)
 
 }
 
-static int rt5668_i2c_probe(struct i2c_client *i2c,
-		    const struct i2c_device_id *id)
+static int rt5668_i2c_probe(struct i2c_client *i2c)
 {
 	struct rt5668_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct rt5668_priv *rt5668;
@@ -2497,10 +2494,12 @@ static int rt5668_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
-	if (gpio_is_valid(rt5668->pdata.ldo1_en)) {
-		if (devm_gpio_request_one(&i2c->dev, rt5668->pdata.ldo1_en,
-					  GPIOF_OUT_INIT_HIGH, "rt5668"))
-			dev_err(&i2c->dev, "Fail gpio_request gpio_ldo\n");
+	rt5668->ldo1_en = devm_gpiod_get_optional(&i2c->dev,
+						  "realtek,ldo1-en",
+						  GPIOD_OUT_HIGH);
+	if (IS_ERR(rt5668->ldo1_en)) {
+		dev_err(&i2c->dev, "Fail gpio request ldo1_en\n");
+		return PTR_ERR(rt5668->ldo1_en);
 	}
 
 	/* Sleep for 300 ms miniumum */
@@ -2581,7 +2580,7 @@ static int rt5668_i2c_probe(struct i2c_client *i2c,
 			rt5668_irq, IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING
 			| IRQF_ONESHOT, "rt5668", rt5668);
 		if (ret)
-			dev_err(&i2c->dev, "Failed to reguest IRQ: %d\n", ret);
+			dev_err(&i2c->dev, "Failed to request IRQ: %d\n", ret);
 
 	}
 

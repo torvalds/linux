@@ -1,0 +1,66 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/reserved-memory/qcom,rmtfs-mem.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Remote File System Memory
+
+description: |
+  This binding describes the Qualcomm remote filesystem memory, which serves the
+  purpose of describing the shared memory region used for remote processors to
+  access block device data using the Remote Filesystem protocol.
+
+maintainers:
+  - Bjorn Andersson <bjorn.andersson@linaro.org>
+
+allOf:
+  - $ref: reserved-memory.yaml
+
+properties:
+  compatible:
+    const: qcom,rmtfs-mem
+
+  qcom,client-id:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: >
+      identifier of the client to use this region for buffers
+
+  qcom,use-guard-pages:
+    type: boolean
+    description: >
+      Indicates that the firmware, or hardware, does not gracefully handle
+      memory protection of this region when placed adjacent to other protected
+      memory regions, and that padding around the used portion of the memory
+      region is necessary.
+
+      When this is set, the first and last page should be left unused, and the
+      effective size of the region will thereby shrink with two pages.
+
+  qcom,vmid:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    description: >
+      Array of vmids of the remote processors, to set up memory protection
+    minItems: 1
+    maxItems: 2
+
+required:
+  - qcom,client-id
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    reserved-memory {
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges;
+
+        rmtfs@86700000 {
+            compatible = "qcom,rmtfs-mem";
+            reg = <0x86700000 0xe0000>;
+            no-map;
+
+            qcom,client-id = <1>;
+        };
+    };

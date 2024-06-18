@@ -5,7 +5,7 @@
 // Common Clock Framework support for Exynos5 power-domain dependent clocks
 
 #include <linux/io.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
@@ -47,10 +47,10 @@ static void exynos5_subcmu_defer_gate(struct samsung_clk_provider *ctx,
 /*
  * Pass the needed clock provider context and register sub-CMU clocks
  *
- * NOTE: This function has to be called from the main, OF_CLK_DECLARE-
+ * NOTE: This function has to be called from the main, CLK_OF_DECLARE-
  * initialized clock provider driver. This happens very early during boot
  * process. Then this driver, during core_initcall registers two platform
- * drivers: one which binds to the same device-tree node as OF_CLK_DECLARE
+ * drivers: one which binds to the same device-tree node as CLK_OF_DECLARE
  * driver and second, for handling its per-domain child-devices. Those
  * platform drivers are bound to their devices a bit later in arch_initcall,
  * when OF-core populates all device-tree nodes.

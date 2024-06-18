@@ -1,67 +1,34 @@
+.. SPDX-License-Identifier: GPL-2.0+
+
 ================================
 Documentation for /proc/sys/abi/
 ================================
 
-kernel version 2.6.0.test2
+.. See scripts/check-sysctl-docs to keep this up to date:
+.. scripts/check-sysctl-docs -vtable="abi" \
+..         Documentation/admin-guide/sysctl/abi.rst \
+..         $(git grep -l register_sysctl_)
 
-Copyright (c) 2003,  Fabian Frederick <ffrederick@users.sourceforge.net>
+Copyright (c) 2020, Stephen Kitt
 
-For general info: index.rst.
+For general info, see Documentation/admin-guide/sysctl/index.rst.
 
 ------------------------------------------------------------------------------
 
-This path is binary emulation relevant aka personality types aka abi.
-When a process is executed, it's linked to an exec_domain whose
-personality is defined using values available from /proc/sys/abi.
-You can find further details about abi in include/linux/personality.h.
+The files in ``/proc/sys/abi`` can be used to see and modify
+ABI-related settings.
 
-Here are the files featuring in 2.6 kernel:
+Currently, these files might (depending on your configuration)
+show up in ``/proc/sys/kernel``:
 
-- defhandler_coff
-- defhandler_elf
-- defhandler_lcall7
-- defhandler_libcso
-- fake_utsname
-- trace
+.. contents:: :local:
 
-defhandler_coff
----------------
+vsyscall32 (x86)
+================
 
-defined value:
-	PER_SCOSVR3::
+Determines whether the kernels maps a vDSO page into 32-bit processes;
+can be set to 1 to enable, or 0 to disable. Defaults to enabled if
+``CONFIG_COMPAT_VDSO`` is set, disabled otherwise.
 
-		0x0003 | STICKY_TIMEOUTS | WHOLE_SECONDS | SHORT_INODE
-
-defhandler_elf
---------------
-
-defined value:
-	PER_LINUX::
-
-		0
-
-defhandler_lcall7
------------------
-
-defined value :
-	PER_SVR4::
-
-		0x0001 | STICKY_TIMEOUTS | MMAP_PAGE_ZERO,
-
-defhandler_libsco
------------------
-
-defined value:
-	PER_SVR4::
-
-		0x0001 | STICKY_TIMEOUTS | MMAP_PAGE_ZERO,
-
-fake_utsname
-------------
-
-Unused
-
-trace
------
-
-Unused
+This controls the same setting as the ``vdso32`` kernel boot
+parameter.

@@ -164,18 +164,16 @@ static int cyttsp4_spi_probe(struct spi_device *spi)
 	return PTR_ERR_OR_ZERO(ts);
 }
 
-static int cyttsp4_spi_remove(struct spi_device *spi)
+static void cyttsp4_spi_remove(struct spi_device *spi)
 {
 	struct cyttsp4 *ts = spi_get_drvdata(spi);
 	cyttsp4_remove(ts);
-
-	return 0;
 }
 
 static struct spi_driver cyttsp4_spi_driver = {
 	.driver = {
 		.name	= CYTTSP4_SPI_NAME,
-		.pm	= &cyttsp4_pm_ops,
+		.pm	= pm_ptr(&cyttsp4_pm_ops),
 	},
 	.probe  = cyttsp4_spi_probe,
 	.remove = cyttsp4_spi_remove,

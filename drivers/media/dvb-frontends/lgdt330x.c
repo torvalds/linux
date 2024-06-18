@@ -28,7 +28,7 @@
 #include <asm/byteorder.h>
 
 #include <media/dvb_frontend.h>
-#include <media/dvb_math.h>
+#include <linux/int_log.h>
 #include "lgdt330x_priv.h"
 #include "lgdt330x.h"
 
@@ -857,8 +857,7 @@ static struct dvb_frontend *lgdt330x_get_dvb_frontend(struct i2c_client *client)
 static const struct dvb_frontend_ops lgdt3302_ops;
 static const struct dvb_frontend_ops lgdt3303_ops;
 
-static int lgdt330x_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int lgdt330x_probe(struct i2c_client *client)
 {
 	struct lgdt330x_state *state = NULL;
 	u8 buf[1];
@@ -922,13 +921,13 @@ struct dvb_frontend *lgdt330x_attach(const struct lgdt330x_config *_config,
 	strscpy(board_info.type, "lgdt330x", sizeof(board_info.type));
 	board_info.addr = demod_address;
 	board_info.platform_data = &config;
-	client = i2c_new_device(i2c, &board_info);
-	if (!client || !client->dev.driver)
+	client = i2c_new_client_device(i2c, &board_info);
+	if (!i2c_client_has_driver(client))
 		return NULL;
 
 	return lgdt330x_get_dvb_frontend(client);
 }
-EXPORT_SYMBOL(lgdt330x_attach);
+EXPORT_SYMBOL_GPL(lgdt330x_attach);
 
 static const struct dvb_frontend_ops lgdt3302_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
@@ -974,15 +973,13 @@ static const struct dvb_frontend_ops lgdt3303_ops = {
 	.release              = lgdt330x_release,
 };
 
-static int lgdt330x_remove(struct i2c_client *client)
+static void lgdt330x_remove(struct i2c_client *client)
 {
 	struct lgdt330x_state *state = i2c_get_clientdata(client);
 
 	dev_dbg(&client->dev, "\n");
 
 	kfree(state);
-
-	return 0;
 }
 
 static const struct i2c_device_id lgdt330x_id_table[] = {

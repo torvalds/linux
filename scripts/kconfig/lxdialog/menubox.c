@@ -63,15 +63,7 @@ static void do_print_item(WINDOW * win, const char *item, int line_y,
 	/* Clear 'residue' of last item */
 	wattrset(win, dlg.menubox.atr);
 	wmove(win, line_y, 0);
-#if OLD_NCURSES
-	{
-		int i;
-		for (i = 0; i < menu_width; i++)
-			waddch(win, ' ');
-	}
-#else
 	wclrtoeol(win);
-#endif
 	wattrset(win, selected ? dlg.item_selected.atr : dlg.item.atr);
 	mvwaddstr(win, line_y, item_x, menu_item);
 	if (hotkey) {
@@ -180,7 +172,7 @@ int dialog_menu(const char *title, const char *prompt,
 do_resize:
 	height = getmaxy(stdscr);
 	width = getmaxx(stdscr);
-	if (height < MENUBOX_HEIGTH_MIN || width < MENUBOX_WIDTH_MIN)
+	if (height < MENUBOX_HEIGHT_MIN || width < MENUBOX_WIDTH_MIN)
 		return -ERRDISPLAYTOOSMALL;
 
 	height -= 4;

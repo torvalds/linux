@@ -2,7 +2,7 @@
 Wound/Wait Deadlock-Proof Mutex Design
 ======================================
 
-Please read mutex-design.txt first, as it applies to wait/wound mutexes too.
+Please read mutex-design.rst first, as it applies to wait/wound mutexes too.
 
 Motivation for WW-Mutexes
 -------------------------
@@ -49,7 +49,7 @@ However, the Wound-Wait algorithm is typically stated to generate fewer backoffs
 compared to Wait-Die, but is, on the other hand, associated with more work than
 Wait-Die when recovering from a backoff. Wound-Wait is also a preemptive
 algorithm in that transactions are wounded by other transactions, and that
-requires a reliable way to pick up up the wounded condition and preempt the
+requires a reliable way to pick up the wounded condition and preempt the
 running transaction. Note that this is not the same as process preemption. A
 Wound-Wait transaction is considered preempted when it dies (returning
 -EDEADLK) following a wound.
@@ -60,7 +60,7 @@ Concepts
 Compared to normal mutexes two additional concepts/objects show up in the lock
 interface for w/w mutexes:
 
-Acquire context: To ensure eventual forward progress it is important the a task
+Acquire context: To ensure eventual forward progress it is important that a task
 trying to acquire locks doesn't grab a new reservation id, but keeps the one it
 acquired when starting the lock acquisition. This ticket is stored in the
 acquire context. Furthermore the acquire context keeps track of debugging state

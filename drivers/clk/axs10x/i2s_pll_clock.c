@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Synopsys AXS10X SDP I2S PLL clock driver
  *
  * Copyright (C) 2016 Synopsys
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 #include <linux/platform_device.h>
@@ -172,14 +169,12 @@ static int i2s_pll_clk_probe(struct platform_device *pdev)
 	struct clk *clk;
 	struct i2s_pll_clk *pll_clk;
 	struct clk_init_data init;
-	struct resource *mem;
 
 	pll_clk = devm_kzalloc(dev, sizeof(*pll_clk), GFP_KERNEL);
 	if (!pll_clk)
 		return -ENOMEM;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pll_clk->base = devm_ioremap_resource(dev, mem);
+	pll_clk->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pll_clk->base))
 		return PTR_ERR(pll_clk->base);
 
@@ -203,10 +198,9 @@ static int i2s_pll_clk_probe(struct platform_device *pdev)
 	return of_clk_add_provider(node, of_clk_src_simple_get, clk);
 }
 
-static int i2s_pll_clk_remove(struct platform_device *pdev)
+static void i2s_pll_clk_remove(struct platform_device *pdev)
 {
 	of_clk_del_provider(pdev->dev.of_node);
-	return 0;
 }
 
 static const struct of_device_id i2s_pll_clk_id[] = {
@@ -221,7 +215,7 @@ static struct platform_driver i2s_pll_clk_driver = {
 		.of_match_table = i2s_pll_clk_id,
 	},
 	.probe = i2s_pll_clk_probe,
-	.remove = i2s_pll_clk_remove,
+	.remove_new = i2s_pll_clk_remove,
 };
 module_platform_driver(i2s_pll_clk_driver);
 

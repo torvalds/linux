@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _PCI_H_
@@ -81,7 +82,7 @@ struct ath10k_pci_pipe {
 	/* Handle of underlying Copy Engine */
 	struct ath10k_ce_pipe *ce_hdl;
 
-	/* Our pipe number; facilitiates use of pipe_info ptrs. */
+	/* Our pipe number; facilitates use of pipe_info ptrs. */
 	u8 pipe_num;
 
 	/* Convenience back pointer to hif_ce_state. */
@@ -100,7 +101,7 @@ struct ath10k_pci_supp_chip {
 
 enum ath10k_pci_irq_mode {
 	ATH10K_PCI_IRQ_AUTO = 0,
-	ATH10K_PCI_IRQ_LEGACY = 1,
+	ATH10K_PCI_IRQ_INTX = 1,
 	ATH10K_PCI_IRQ_MSI = 2,
 };
 
@@ -178,11 +179,16 @@ struct ath10k_pci {
 	 */
 	u32 (*targ_cpu_to_ce_addr)(struct ath10k *ar, u32 addr);
 
+	struct ce_attr *attr;
+	struct ce_pipe_config *pipe_config;
+	struct ce_service_to_pipe *serv_to_pipe;
+
 	/* Keep this entry in the last, memory for struct ath10k_ahb is
 	 * allocated (ahb support enabled case) in the continuation of
 	 * this struct.
 	 */
-	struct ath10k_ahb ahb[0];
+	struct ath10k_ahb ahb[];
+
 };
 
 static inline struct ath10k_pci *ath10k_pci_priv(struct ath10k *ar)
@@ -230,7 +236,6 @@ u16 ath10k_pci_hif_get_free_queue_number(struct ath10k *ar, u8 pipe);
 void ath10k_pci_hif_power_down(struct ath10k *ar);
 int ath10k_pci_alloc_pipes(struct ath10k *ar);
 void ath10k_pci_free_pipes(struct ath10k *ar);
-void ath10k_pci_free_pipes(struct ath10k *ar);
 void ath10k_pci_rx_replenish_retry(struct timer_list *t);
 void ath10k_pci_ce_deinit(struct ath10k *ar);
 void ath10k_pci_init_napi(struct ath10k *ar);
@@ -238,9 +243,9 @@ int ath10k_pci_init_pipes(struct ath10k *ar);
 int ath10k_pci_init_config(struct ath10k *ar);
 void ath10k_pci_rx_post(struct ath10k *ar);
 void ath10k_pci_flush(struct ath10k *ar);
-void ath10k_pci_enable_legacy_irq(struct ath10k *ar);
+void ath10k_pci_enable_intx_irq(struct ath10k *ar);
 bool ath10k_pci_irq_pending(struct ath10k *ar);
-void ath10k_pci_disable_and_clear_legacy_irq(struct ath10k *ar);
+void ath10k_pci_disable_and_clear_intx_irq(struct ath10k *ar);
 void ath10k_pci_irq_msi_fw_mask(struct ath10k *ar);
 int ath10k_pci_wait_for_target_init(struct ath10k *ar);
 int ath10k_pci_setup_resource(struct ath10k *ar);

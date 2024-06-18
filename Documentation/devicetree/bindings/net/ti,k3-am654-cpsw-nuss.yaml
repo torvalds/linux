@@ -1,0 +1,317 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/ti,k3-am654-cpsw-nuss.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: The TI AM654x/J721E/AM642x SoC Gigabit Ethernet MAC (Media Access Controller)
+
+maintainers:
+  - Siddharth Vadapalli <s-vadapalli@ti.com>
+  - Roger Quadros <rogerq@kernel.org>
+
+description:
+  The TI AM654x/J721E SoC Gigabit Ethernet MAC (CPSW2G NUSS) has two ports
+  (one external) and provides Ethernet packet communication for the device.
+  The TI AM642x SoC Gigabit Ethernet MAC (CPSW3G NUSS) has three ports
+  (two external) and provides Ethernet packet communication and switching.
+
+  The internal Communications Port Programming Interface (CPPI5) (Host port 0).
+  Host Port 0 CPPI Packet Streaming Interface interface supports 8 TX channels
+  and one RX channels and operating by NAVSS Unified DMA  Peripheral Root
+  Complex (UDMA-P) controller.
+
+  CPSWxG features
+  updated Address Lookup Engine (ALE).
+  priority level Quality Of Service (QOS) support (802.1p)
+  Support for Audio/Video Bridging (P802.1Qav/D6.0)
+  Support for IEEE 1588 Clock Synchronization (2008 Annex D, Annex E and Annex F)
+  Flow Control (802.3x) Support
+  Time Sensitive Network Support
+  IEEE P902.3br/D2.0 Interspersing Express Traffic
+  IEEE 802.1Qbv/D2.2 Enhancements for Scheduled Traffic
+  Configurable number of addresses plus VLANs
+  Configurable number of classifier/policers
+  VLAN support, 802.1Q compliant, Auto add port VLAN for untagged frames on
+  ingress, Auto VLAN removal on egress and auto pad to minimum frame size.
+  RX/TX csum offload
+  Management Data Input/Output (MDIO) interface for PHYs management
+  RMII/RGMII Interfaces support
+  new version of Common Platform Time Sync (CPTS)
+
+  The CPSWxG NUSS is integrated into
+    device MCU domain named MCU_CPSW0 on AM654x/J721E SoC.
+    device MAIN domain named CPSW0 on AM642x SoC.
+
+  Specifications can be found at
+    https://www.ti.com/lit/pdf/spruid7
+    https://www.ti.com/lit/zip/spruil1
+    https://www.ti.com/lit/pdf/spruim2
+
+properties:
+  "#address-cells": true
+  "#size-cells": true
+
+  compatible:
+    enum:
+      - ti,am642-cpsw-nuss
+      - ti,am654-cpsw-nuss
+      - ti,j7200-cpswxg-nuss
+      - ti,j721e-cpsw-nuss
+      - ti,j721e-cpswxg-nuss
+      - ti,j784s4-cpswxg-nuss
+
+  reg:
+    maxItems: 1
+    description:
+      The physical base address and size of full the CPSWxG NUSS IO range
+
+  reg-names:
+    items:
+      - const: cpsw_nuss
+
+  ranges: true
+
+  dma-coherent: true
+
+  clocks:
+    maxItems: 1
+    description: CPSWxG NUSS functional clock
+
+  clock-names:
+    items:
+      - const: fck
+
+  assigned-clock-parents: true
+
+  assigned-clocks: true
+
+  power-domains:
+    maxItems: 1
+
+  dmas:
+    maxItems: 9
+
+  dma-names:
+    items:
+      - const: tx0
+      - const: tx1
+      - const: tx2
+      - const: tx3
+      - const: tx4
+      - const: tx5
+      - const: tx6
+      - const: tx7
+      - const: rx
+
+  ethernet-ports:
+    type: object
+    properties:
+      '#address-cells':
+        const: 1
+      '#size-cells':
+        const: 0
+
+    patternProperties:
+      "^port@[1-8]$":
+        type: object
+        description: CPSWxG NUSS external ports
+
+        $ref: ethernet-controller.yaml#
+        unevaluatedProperties: false
+
+        properties:
+          reg:
+            minimum: 1
+            maximum: 8
+            description: CPSW port number
+
+          phys:
+            minItems: 1
+            items:
+              - description: CPSW MAC's PHY.
+              - description: Serdes PHY. Serdes PHY is required only if
+                             the Serdes has to be configured in the
+                             Single-Link configuration.
+
+          phy-names:
+            minItems: 1
+            items:
+              - const: mac
+              - const: serdes
+
+          label:
+            description: label associated with this port
+
+          ti,mac-only:
+            $ref: /schemas/types.yaml#/definitions/flag
+            description:
+              Specifies the port works in mac-only mode.
+
+          ti,syscon-efuse:
+            $ref: /schemas/types.yaml#/definitions/phandle-array
+            items:
+              - items:
+                  - description: Phandle to the system control device node which
+                      provides access to efuse
+                  - description: offset to efuse registers???
+            description:
+              Phandle to the system control device node which provides access
+              to efuse IO range with MAC addresses
+
+        required:
+          - reg
+          - phys
+
+    additionalProperties: false
+
+patternProperties:
+  "^mdio@[0-9a-f]+$":
+    type: object
+    $ref: ti,davinci-mdio.yaml#
+
+    description:
+      CPSW MDIO bus.
+
+  "^cpts@[0-9a-f]+":
+    type: object
+    $ref: ti,k3-am654-cpts.yaml#
+    description:
+      CPSW Common Platform Time Sync (CPTS) module.
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - ranges
+  - clocks
+  - clock-names
+  - power-domains
+  - dmas
+  - dma-names
+  - '#address-cells'
+  - '#size-cells'
+
+allOf:
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              enum:
+                - ti,j721e-cpswxg-nuss
+                - ti,j784s4-cpswxg-nuss
+    then:
+      properties:
+        ethernet-ports:
+          patternProperties:
+            "^port@[5-8]$": false
+            "^port@[1-4]$":
+              properties:
+                reg:
+                  minimum: 1
+                  maximum: 4
+
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              enum:
+                - ti,j7200-cpswxg-nuss
+                - ti,j721e-cpswxg-nuss
+                - ti,j784s4-cpswxg-nuss
+    then:
+      properties:
+        ethernet-ports:
+          patternProperties:
+            "^port@[3-8]$": false
+            "^port@[1-2]$":
+              properties:
+                reg:
+                  minimum: 1
+                  maximum: 2
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/soc/ti,sci_pm_domain.h>
+    #include <dt-bindings/net/ti-dp83867.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    bus {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        mcu_cpsw: ethernet@46000000 {
+            compatible = "ti,am654-cpsw-nuss";
+            #address-cells = <2>;
+            #size-cells = <2>;
+            reg = <0x0 0x46000000 0x0 0x200000>;
+            reg-names = "cpsw_nuss";
+            ranges = <0x0 0x0 0x0 0x46000000 0x0 0x200000>;
+            dma-coherent;
+            clocks = <&k3_clks 5 10>;
+            clock-names = "fck";
+            power-domains = <&k3_pds 5 TI_SCI_PD_EXCLUSIVE>;
+            pinctrl-names = "default";
+            pinctrl-0 = <&mcu_cpsw_pins_default &mcu_mdio_pins_default>;
+
+            dmas = <&mcu_udmap 0xf000>,
+                   <&mcu_udmap 0xf001>,
+                   <&mcu_udmap 0xf002>,
+                   <&mcu_udmap 0xf003>,
+                   <&mcu_udmap 0xf004>,
+                   <&mcu_udmap 0xf005>,
+                   <&mcu_udmap 0xf006>,
+                   <&mcu_udmap 0xf007>,
+                   <&mcu_udmap 0x7000>;
+            dma-names = "tx0", "tx1", "tx2", "tx3", "tx4", "tx5", "tx6", "tx7",
+                        "rx";
+
+            ethernet-ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                cpsw_port1: port@1 {
+                    reg = <1>;
+                    ti,mac-only;
+                    label = "port1";
+                    ti,syscon-efuse = <&mcu_conf 0x200>;
+                    phys = <&phy_gmii_sel 1>;
+
+                    phy-mode = "rgmii-rxid";
+                    phy-handle = <&phy0>;
+                };
+            };
+
+            davinci_mdio: mdio@f00 {
+                compatible = "ti,cpsw-mdio","ti,davinci_mdio";
+                reg = <0x0 0xf00 0x0 0x100>;
+                #address-cells = <1>;
+                #size-cells = <0>;
+                clocks = <&k3_clks 5 10>;
+                clock-names = "fck";
+                bus_freq = <1000000>;
+
+                phy0: ethernet-phy@0 {
+                    reg = <0>;
+                    ti,rx-internal-delay = <DP83867_RGMIIDCTL_2_00_NS>;
+                    ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_4_B_NIB>;
+                };
+            };
+        };
+
+        cpts@3d000 {
+             compatible = "ti,am65-cpts";
+             reg = <0x0 0x3d000 0x0 0x400>;
+             clocks = <&k3_clks 18 2>;
+             clock-names = "cpts";
+             interrupts-extended = <&gic500 GIC_SPI 858 IRQ_TYPE_LEVEL_HIGH>;
+             interrupt-names = "cpts";
+             ti,cpts-ext-ts-inputs = <4>;
+             ti,cpts-periodic-outputs = <2>;
+        };
+    };

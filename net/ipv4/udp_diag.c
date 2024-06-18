@@ -21,17 +21,16 @@ static int sk_diag_dump(struct sock *sk, struct sk_buff *skb,
 	if (!inet_diag_bc_sk(bc, sk))
 		return 0;
 
-	return inet_sk_diag_fill(sk, NULL, skb, req,
-			sk_user_ns(NETLINK_CB(cb->skb).sk),
-			NETLINK_CB(cb->skb).portid,
-			cb->nlh->nlmsg_seq, NLM_F_MULTI, cb->nlh, net_admin);
+	return inet_sk_diag_fill(sk, NULL, skb, cb, req, NLM_F_MULTI,
+				 net_admin);
 }
 
-static int udp_dump_one(struct udp_table *tbl, struct sk_buff *in_skb,
-			const struct nlmsghdr *nlh,
+static int udp_dump_one(struct udp_table *tbl,
+			struct netlink_callback *cb,
 			const struct inet_diag_req_v2 *req)
 {
-	int err = -EINVAL;
+	struct sk_buff *in_skb = cb->skb;
+	int err;
 	struct sock *sk = NULL;
 	struct sk_buff *rep;
 	struct net *net = sock_net(in_skb->sk);
@@ -64,26 +63,22 @@ static int udp_dump_one(struct udp_table *tbl, struct sk_buff *in_skb,
 		goto out;
 
 	err = -ENOMEM;
-	rep = nlmsg_new(sizeof(struct inet_diag_msg) +
-			sizeof(struct inet_diag_meminfo) + 64,
+	rep = nlmsg_new(nla_total_size(sizeof(struct inet_diag_msg)) +
+			inet_diag_msg_attrs_size() +
+			nla_total_size(sizeof(struct inet_diag_meminfo)) + 64,
 			GFP_KERNEL);
 	if (!rep)
 		goto out;
 
-	err = inet_sk_diag_fill(sk, NULL, rep, req,
-			   sk_user_ns(NETLINK_CB(in_skb).sk),
-			   NETLINK_CB(in_skb).portid,
-			   nlh->nlmsg_seq, 0, nlh,
-			   netlink_net_capable(in_skb, CAP_NET_ADMIN));
+	err = inet_sk_diag_fill(sk, NULL, rep, cb, req, 0,
+				netlink_net_capable(in_skb, CAP_NET_ADMIN));
 	if (err < 0) {
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(rep);
 		goto out;
 	}
-	err = netlink_unicast(net->diag_nlsk, rep, NETLINK_CB(in_skb).portid,
-			      MSG_DONTWAIT);
-	if (err > 0)
-		err = 0;
+	err = nlmsg_unicast(net->diag_nlsk, rep, NETLINK_CB(in_skb).portid);
+
 out:
 	if (sk)
 		sock_put(sk);
@@ -93,12 +88,16 @@ out_nosk:
 
 static void udp_dump(struct udp_table *table, struct sk_buff *skb,
 		     struct netlink_callback *cb,
-		     const struct inet_diag_req_v2 *r, struct nlattr *bc)
+		     const struct inet_diag_req_v2 *r)
 {
 	bool net_admin = netlink_net_capable(cb->skb, CAP_NET_ADMIN);
 	struct net *net = sock_net(skb->sk);
+	struct inet_diag_dump_data *cb_data;
 	int num, s_num, slot, s_slot;
+	struct nlattr *bc;
 
+	cb_data = cb->data;
+	bc = cb_data->inet_diag_nla_bc;
 	s_slot = cb->args[0];
 	num = s_num = cb->args[1];
 
@@ -146,15 +145,15 @@ done:
 }
 
 static void udp_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
-			  const struct inet_diag_req_v2 *r, struct nlattr *bc)
+			  const struct inet_diag_req_v2 *r)
 {
-	udp_dump(&udp_table, skb, cb, r, bc);
+	udp_dump(sock_net(cb->skb->sk)->ipv4.udp_table, skb, cb, r);
 }
 
-static int udp_diag_dump_one(struct sk_buff *in_skb, const struct nlmsghdr *nlh,
+static int udp_diag_dump_one(struct netlink_callback *cb,
 			     const struct inet_diag_req_v2 *req)
 {
-	return udp_dump_one(&udp_table, in_skb, nlh, req);
+	return udp_dump_one(sock_net(cb->skb->sk)->ipv4.udp_table, cb, req);
 }
 
 static void udp_diag_get_info(struct sock *sk, struct inet_diag_msg *r,
@@ -226,7 +225,7 @@ static int __udp_diag_destroy(struct sk_buff *in_skb,
 static int udp_diag_destroy(struct sk_buff *in_skb,
 			    const struct inet_diag_req_v2 *req)
 {
-	return __udp_diag_destroy(in_skb, req, &udp_table);
+	return __udp_diag_destroy(in_skb, req, sock_net(in_skb->sk)->ipv4.udp_table);
 }
 
 static int udplite_diag_destroy(struct sk_buff *in_skb,
@@ -238,6 +237,7 @@ static int udplite_diag_destroy(struct sk_buff *in_skb,
 #endif
 
 static const struct inet_diag_handler udp_diag_handler = {
+	.owner		 = THIS_MODULE,
 	.dump		 = udp_diag_dump,
 	.dump_one	 = udp_diag_dump_one,
 	.idiag_get_info  = udp_diag_get_info,
@@ -249,19 +249,19 @@ static const struct inet_diag_handler udp_diag_handler = {
 };
 
 static void udplite_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
-			      const struct inet_diag_req_v2 *r,
-			      struct nlattr *bc)
+			      const struct inet_diag_req_v2 *r)
 {
-	udp_dump(&udplite_table, skb, cb, r, bc);
+	udp_dump(&udplite_table, skb, cb, r);
 }
 
-static int udplite_diag_dump_one(struct sk_buff *in_skb, const struct nlmsghdr *nlh,
+static int udplite_diag_dump_one(struct netlink_callback *cb,
 				 const struct inet_diag_req_v2 *req)
 {
-	return udp_dump_one(&udplite_table, in_skb, nlh, req);
+	return udp_dump_one(&udplite_table, cb, req);
 }
 
 static const struct inet_diag_handler udplite_diag_handler = {
+	.owner		 = THIS_MODULE,
 	.dump		 = udplite_diag_dump,
 	.dump_one	 = udplite_diag_dump_one,
 	.idiag_get_info  = udp_diag_get_info,
@@ -298,5 +298,6 @@ static void __exit udp_diag_exit(void)
 module_init(udp_diag_init);
 module_exit(udp_diag_exit);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("UDP socket monitoring via SOCK_DIAG");
 MODULE_ALIAS_NET_PF_PROTO_TYPE(PF_NETLINK, NETLINK_SOCK_DIAG, 2-17 /* AF_INET - IPPROTO_UDP */);
 MODULE_ALIAS_NET_PF_PROTO_TYPE(PF_NETLINK, NETLINK_SOCK_DIAG, 2-136 /* AF_INET - IPPROTO_UDPLITE */);

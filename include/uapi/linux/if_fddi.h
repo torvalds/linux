@@ -9,7 +9,7 @@
  * Version:	@(#)if_fddi.h	1.0.3	Oct  6 2018
  *
  * Author:	Lawrence V. Stefani, <stefani@yahoo.com>
- * Maintainer:	Maciej W. Rozycki, <macro@linux-mips.org>
+ * Maintainer:	Maciej W. Rozycki, <macro@orcam.me.uk>
  *
  *		if_fddi.h is based on previous if_ether.h and if_tr.h work by
  *			Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>

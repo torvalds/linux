@@ -2652,17 +2652,17 @@ static int mem_ldx_skb(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 
 	switch (meta->insn.off) {
 	case offsetof(struct __sk_buff, len):
-		if (size != FIELD_SIZEOF(struct __sk_buff, len))
+		if (size != sizeof_field(struct __sk_buff, len))
 			return -EOPNOTSUPP;
 		wrp_mov(nfp_prog, dst, plen_reg(nfp_prog));
 		break;
 	case offsetof(struct __sk_buff, data):
-		if (size != FIELD_SIZEOF(struct __sk_buff, data))
+		if (size != sizeof_field(struct __sk_buff, data))
 			return -EOPNOTSUPP;
 		wrp_mov(nfp_prog, dst, pptr_reg(nfp_prog));
 		break;
 	case offsetof(struct __sk_buff, data_end):
-		if (size != FIELD_SIZEOF(struct __sk_buff, data_end))
+		if (size != sizeof_field(struct __sk_buff, data_end))
 			return -EOPNOTSUPP;
 		emit_alu(nfp_prog, dst,
 			 plen_reg(nfp_prog), ALU_OP_ADD, pptr_reg(nfp_prog));
@@ -2683,12 +2683,12 @@ static int mem_ldx_xdp(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 
 	switch (meta->insn.off) {
 	case offsetof(struct xdp_md, data):
-		if (size != FIELD_SIZEOF(struct xdp_md, data))
+		if (size != sizeof_field(struct xdp_md, data))
 			return -EOPNOTSUPP;
 		wrp_mov(nfp_prog, dst, pptr_reg(nfp_prog));
 		break;
 	case offsetof(struct xdp_md, data_end):
-		if (size != FIELD_SIZEOF(struct xdp_md, data_end))
+		if (size != sizeof_field(struct xdp_md, data_end))
 			return -EOPNOTSUPP;
 		emit_alu(nfp_prog, dst,
 			 plen_reg(nfp_prog), ALU_OP_ADD, pptr_reg(nfp_prog));
@@ -3109,13 +3109,19 @@ mem_xadd(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta, bool is64)
 	return 0;
 }
 
-static int mem_xadd4(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+static int mem_atomic4(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
+	if (meta->insn.imm != BPF_ADD)
+		return -EOPNOTSUPP;
+
 	return mem_xadd(nfp_prog, meta, false);
 }
 
-static int mem_xadd8(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+static int mem_atomic8(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
+	if (meta->insn.imm != BPF_ADD)
+		return -EOPNOTSUPP;
+
 	return mem_xadd(nfp_prog, meta, true);
 }
 
@@ -3475,8 +3481,8 @@ static const instr_cb_t instr_cb[256] = {
 	[BPF_STX | BPF_MEM | BPF_H] =	mem_stx2,
 	[BPF_STX | BPF_MEM | BPF_W] =	mem_stx4,
 	[BPF_STX | BPF_MEM | BPF_DW] =	mem_stx8,
-	[BPF_STX | BPF_XADD | BPF_W] =	mem_xadd4,
-	[BPF_STX | BPF_XADD | BPF_DW] =	mem_xadd8,
+	[BPF_STX | BPF_ATOMIC | BPF_W] =	mem_atomic4,
+	[BPF_STX | BPF_ATOMIC | BPF_DW] =	mem_atomic8,
 	[BPF_ST | BPF_MEM | BPF_B] =	mem_st1,
 	[BPF_ST | BPF_MEM | BPF_H] =	mem_st2,
 	[BPF_ST | BPF_MEM | BPF_W] =	mem_st4,
@@ -3952,7 +3958,7 @@ static void nfp_bpf_opt_neg_add_sub(struct nfp_prog *nfp_prog)
 static void nfp_bpf_opt_ld_mask(struct nfp_prog *nfp_prog)
 {
 	struct nfp_insn_meta *meta1, *meta2;
-	const s32 exp_mask[] = {
+	static const s32 exp_mask[] = {
 		[BPF_B] = 0x000000ffU,
 		[BPF_H] = 0x0000ffffU,
 		[BPF_W] = 0xffffffffU,
@@ -4227,7 +4233,7 @@ static void nfp_bpf_opt_ldst_gather(struct nfp_prog *nfp_prog)
 			}
 
 			/* If the chain is ended by an load/store pair then this
-			 * could serve as the new head of the the next chain.
+			 * could serve as the new head of the next chain.
 			 */
 			if (curr_pair_is_memcpy(meta1, meta2)) {
 				head_ld_meta = meta1;

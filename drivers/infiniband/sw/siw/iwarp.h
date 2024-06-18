@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 or BSD-3-Clause */
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 
 /* Authors: Bernard Metzler <bmt@zurich.ibm.com> */
 /* Copyright (c) 2008-2019, IBM Corporation */
@@ -114,24 +114,11 @@ static inline u8 __ddp_get_version(struct iwarp_ctrl *ctrl)
 	return be16_to_cpu(ctrl->ddp_rdmap_ctrl & DDP_MASK_VERSION) >> 8;
 }
 
-static inline void __ddp_set_version(struct iwarp_ctrl *ctrl, u8 version)
-{
-	ctrl->ddp_rdmap_ctrl =
-		(ctrl->ddp_rdmap_ctrl & ~DDP_MASK_VERSION) |
-		(cpu_to_be16((u16)version << 8) & DDP_MASK_VERSION);
-}
-
 static inline u8 __rdmap_get_version(struct iwarp_ctrl *ctrl)
 {
 	__be16 ver = ctrl->ddp_rdmap_ctrl & RDMAP_MASK_VERSION;
 
 	return be16_to_cpu(ver) >> 6;
-}
-
-static inline void __rdmap_set_version(struct iwarp_ctrl *ctrl, u8 version)
-{
-	ctrl->ddp_rdmap_ctrl = (ctrl->ddp_rdmap_ctrl & ~RDMAP_MASK_VERSION) |
-			       (cpu_to_be16(version << 6) & RDMAP_MASK_VERSION);
 }
 
 static inline u8 __rdmap_get_opcode(struct iwarp_ctrl *ctrl)

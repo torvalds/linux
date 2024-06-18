@@ -15,7 +15,6 @@
 #include <linux/elf.h>
 #include <linux/errno.h>
 #include <linux/ptrace.h>
-#include <linux/tracehook.h>
 #include <linux/user.h>
 #include <linux/personality.h>
 #include <linux/regset.h>
@@ -26,7 +25,6 @@
 #include <linux/audit.h>
 
 #include <linux/uaccess.h>
-#include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/asm-offsets.h>
 
@@ -128,6 +126,12 @@ long arch_ptrace(struct task_struct *child, long request,
 	unsigned long tmp;
 	long ret = -EIO;
 
+	unsigned long user_regs_struct_size = sizeof(struct user_regs_struct);
+#ifdef CONFIG_64BIT
+	if (is_compat_task())
+		user_regs_struct_size /= 2;
+#endif
+
 	switch (request) {
 
 	/* Read the word at location addr in the USER area.  For ptraced
@@ -168,7 +172,7 @@ long arch_ptrace(struct task_struct *child, long request,
 		     addr >= sizeof(struct pt_regs))
 			break;
 		if (addr == PT_IAOQ0 || addr == PT_IAOQ1) {
-			data |= 3; /* ensure userspace privilege */
+			data |= PRIV_USER; /* ensure userspace privilege */
 		}
 		if ((addr >= PT_GR1 && addr <= PT_GR31) ||
 				addr == PT_IAOQ0 || addr == PT_IAOQ1 ||
@@ -183,14 +187,14 @@ long arch_ptrace(struct task_struct *child, long request,
 		return copy_regset_to_user(child,
 					   task_user_regset_view(current),
 					   REGSET_GENERAL,
-					   0, sizeof(struct user_regs_struct),
+					   0, user_regs_struct_size,
 					   datap);
 
 	case PTRACE_SETREGS:	/* Set all gp regs in the child. */
 		return copy_regset_from_user(child,
 					     task_user_regset_view(current),
 					     REGSET_GENERAL,
-					     0, sizeof(struct user_regs_struct),
+					     0, user_regs_struct_size,
 					     datap);
 
 	case PTRACE_GETFPREGS:	/* Get the child FPU state. */
@@ -287,7 +291,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 			if (addr >= sizeof(struct pt_regs))
 				break;
 			if (addr == PT_IAOQ0+4 || addr == PT_IAOQ1+4) {
-				data |= 3; /* ensure userspace privilege */
+				data |= PRIV_USER; /* ensure userspace privilege */
 			}
 			if (addr >= PT_FR0 && addr <= PT_FR31 + 4) {
 				/* Special case, fp regs are 64 bits anyway */
@@ -304,6 +308,11 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 			}
 		}
 		break;
+	case PTRACE_GETREGS:
+	case PTRACE_SETREGS:
+	case PTRACE_GETFPREGS:
+	case PTRACE_SETFPREGS:
+		return arch_ptrace(child, request, addr, data);
 
 	default:
 		ret = compat_ptrace_request(child, request, addr, data);
@@ -317,7 +326,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 long do_syscall_trace_enter(struct pt_regs *regs)
 {
 	if (test_thread_flag(TIF_SYSCALL_TRACE)) {
-		int rc = tracehook_report_syscall_entry(regs);
+		int rc = ptrace_report_syscall_entry(regs);
 
 		/*
 		 * As tracesys_next does not set %r28 to -ENOSYS
@@ -328,7 +337,7 @@ long do_syscall_trace_enter(struct pt_regs *regs)
 		if (rc) {
 			/*
 			 * A nonzero return code from
-			 * tracehook_report_syscall_entry() tells us
+			 * ptrace_report_syscall_entry() tells us
 			 * to prevent the syscall execution.  Skip
 			 * the syscall call and the syscall restart handling.
 			 *
@@ -342,7 +351,7 @@ long do_syscall_trace_enter(struct pt_regs *regs)
 	}
 
 	/* Do the secure computing check after ptrace. */
-	if (secure_computing(NULL) == -1)
+	if (secure_computing() == -1)
 		return -1;
 
 #ifdef CONFIG_HAVE_SYSCALL_TRACEPOINTS
@@ -382,7 +391,7 @@ void do_syscall_trace_exit(struct pt_regs *regs)
 #endif
 
 	if (stepping || test_thread_flag(TIF_SYSCALL_TRACE))
-		tracehook_report_syscall_exit(regs, stepping);
+		ptrace_report_syscall_exit(regs, stepping);
 }
 
 
@@ -392,31 +401,11 @@ void do_syscall_trace_exit(struct pt_regs *regs)
 
 static int fpr_get(struct task_struct *target,
 		     const struct user_regset *regset,
-		     unsigned int pos, unsigned int count,
-		     void *kbuf, void __user *ubuf)
+		     struct membuf to)
 {
 	struct pt_regs *regs = task_regs(target);
-	__u64 *k = kbuf;
-	__u64 __user *u = ubuf;
-	__u64 reg;
 
-	pos /= sizeof(reg);
-	count /= sizeof(reg);
-
-	if (kbuf)
-		for (; count > 0 && pos < ELF_NFPREG; --count)
-			*k++ = regs->fr[pos++];
-	else
-		for (; count > 0 && pos < ELF_NFPREG; --count)
-			if (__put_user(regs->fr[pos++], u++))
-				return -EFAULT;
-
-	kbuf = k;
-	ubuf = u;
-	pos *= sizeof(reg);
-	count *= sizeof(reg);
-	return user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf,
-					ELF_NFPREG * sizeof(reg), -1);
+	return membuf_write(&to, regs->fr, ELF_NFPREG * sizeof(__u64));
 }
 
 static int fpr_set(struct task_struct *target,
@@ -446,8 +435,9 @@ static int fpr_set(struct task_struct *target,
 	ubuf = u;
 	pos *= sizeof(reg);
 	count *= sizeof(reg);
-	return user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
-					 ELF_NFPREG * sizeof(reg), -1);
+	user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+				  ELF_NFPREG * sizeof(reg), -1);
+	return 0;
 }
 
 #define RI(reg) (offsetof(struct user_regs_struct,reg) / sizeof(long))
@@ -505,7 +495,7 @@ static void set_reg(struct pt_regs *regs, int num, unsigned long val)
 	case RI(iaoq[0]):
 	case RI(iaoq[1]):
 			/* set 2 lowest bits to ensure userspace privilege: */
-			regs->iaoq[num - RI(iaoq[0])] = val | 3;
+			regs->iaoq[num - RI(iaoq[0])] = val | PRIV_USER;
 			return;
 	case RI(sar):	regs->sar = val;
 			return;
@@ -528,30 +518,14 @@ static void set_reg(struct pt_regs *regs, int num, unsigned long val)
 
 static int gpr_get(struct task_struct *target,
 		     const struct user_regset *regset,
-		     unsigned int pos, unsigned int count,
-		     void *kbuf, void __user *ubuf)
+		     struct membuf to)
 {
 	struct pt_regs *regs = task_regs(target);
-	unsigned long *k = kbuf;
-	unsigned long __user *u = ubuf;
-	unsigned long reg;
+	unsigned int pos;
 
-	pos /= sizeof(reg);
-	count /= sizeof(reg);
-
-	if (kbuf)
-		for (; count > 0 && pos < ELF_NGREG; --count)
-			*k++ = get_reg(regs, pos++);
-	else
-		for (; count > 0 && pos < ELF_NGREG; --count)
-			if (__put_user(get_reg(regs, pos++), u++))
-				return -EFAULT;
-	kbuf = k;
-	ubuf = u;
-	pos *= sizeof(reg);
-	count *= sizeof(reg);
-	return user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf,
-					ELF_NGREG * sizeof(reg), -1);
+	for (pos = 0; pos < ELF_NGREG; pos++)
+		membuf_store(&to, get_reg(regs, pos));
+	return 0;
 }
 
 static int gpr_set(struct task_struct *target,
@@ -581,20 +555,21 @@ static int gpr_set(struct task_struct *target,
 	ubuf = u;
 	pos *= sizeof(reg);
 	count *= sizeof(reg);
-	return user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
-					 ELF_NGREG * sizeof(reg), -1);
+	user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+				  ELF_NGREG * sizeof(reg), -1);
+	return 0;
 }
 
 static const struct user_regset native_regsets[] = {
 	[REGSET_GENERAL] = {
 		.core_note_type = NT_PRSTATUS, .n = ELF_NGREG,
 		.size = sizeof(long), .align = sizeof(long),
-		.get = gpr_get, .set = gpr_set
+		.regset_get = gpr_get, .set = gpr_set
 	},
 	[REGSET_FP] = {
 		.core_note_type = NT_PRFPREG, .n = ELF_NFPREG,
 		.size = sizeof(__u64), .align = sizeof(__u64),
-		.get = fpr_get, .set = fpr_set
+		.regset_get = fpr_get, .set = fpr_set
 	}
 };
 
@@ -604,35 +579,17 @@ static const struct user_regset_view user_parisc_native_view = {
 };
 
 #ifdef CONFIG_64BIT
-#include <linux/compat.h>
-
 static int gpr32_get(struct task_struct *target,
 		     const struct user_regset *regset,
-		     unsigned int pos, unsigned int count,
-		     void *kbuf, void __user *ubuf)
+		     struct membuf to)
 {
 	struct pt_regs *regs = task_regs(target);
-	compat_ulong_t *k = kbuf;
-	compat_ulong_t __user *u = ubuf;
-	compat_ulong_t reg;
+	unsigned int pos;
 
-	pos /= sizeof(reg);
-	count /= sizeof(reg);
+	for (pos = 0; pos < ELF_NGREG; pos++)
+		membuf_store(&to, (compat_ulong_t)get_reg(regs, pos));
 
-	if (kbuf)
-		for (; count > 0 && pos < ELF_NGREG; --count)
-			*k++ = get_reg(regs, pos++);
-	else
-		for (; count > 0 && pos < ELF_NGREG; --count)
-			if (__put_user((compat_ulong_t) get_reg(regs, pos++), u++))
-				return -EFAULT;
-
-	kbuf = k;
-	ubuf = u;
-	pos *= sizeof(reg);
-	count *= sizeof(reg);
-	return user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf,
-					ELF_NGREG * sizeof(reg), -1);
+	return 0;
 }
 
 static int gpr32_set(struct task_struct *target,
@@ -662,8 +619,9 @@ static int gpr32_set(struct task_struct *target,
 	ubuf = u;
 	pos *= sizeof(reg);
 	count *= sizeof(reg);
-	return user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
-					 ELF_NGREG * sizeof(reg), -1);
+	user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+				  ELF_NGREG * sizeof(reg), -1);
+	return 0;
 }
 
 /*
@@ -673,12 +631,12 @@ static const struct user_regset compat_regsets[] = {
 	[REGSET_GENERAL] = {
 		.core_note_type = NT_PRSTATUS, .n = ELF_NGREG,
 		.size = sizeof(compat_long_t), .align = sizeof(compat_long_t),
-		.get = gpr32_get, .set = gpr32_set
+		.regset_get = gpr32_get, .set = gpr32_set
 	},
 	[REGSET_FP] = {
 		.core_note_type = NT_PRFPREG, .n = ELF_NFPREG,
 		.size = sizeof(__u64), .align = sizeof(__u64),
-		.get = fpr_get, .set = fpr_set
+		.regset_get = fpr_get, .set = fpr_set
 	}
 };
 

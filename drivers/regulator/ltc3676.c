@@ -221,7 +221,7 @@ static const struct regulator_ops ltc3676_fixed_regulator_ops = {
 #define LTC3676_FIXED_REG(_id, _name, _en_reg, _en_bit)                \
 	LTC3676_REG(_id, _name, fixed, LTC3676_ ## _en_reg, _en_bit, 0, 0)
 
-static struct regulator_desc ltc3676_regulators[LTC3676_NUM_REGULATORS] = {
+static const struct regulator_desc ltc3676_regulators[LTC3676_NUM_REGULATORS] = {
 	LTC3676_LINEAR_REG(SW1, sw1, BUCK1, DVB1A),
 	LTC3676_LINEAR_REG(SW2, sw2, BUCK2, DVB2A),
 	LTC3676_LINEAR_REG(SW3, sw3, BUCK3, DVB3A),
@@ -261,7 +261,7 @@ static const struct regmap_config ltc3676_regmap_config = {
 	.max_register = LTC3676_CLIRQ,
 	.use_single_read = true,
 	.use_single_write = true,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static irqreturn_t ltc3676_isr(int irq, void *dev_id)
@@ -276,23 +276,17 @@ static irqreturn_t ltc3676_isr(int irq, void *dev_id)
 	if (irqstat & LTC3676_IRQSTAT_THERMAL_WARN) {
 		dev_warn(dev, "Over-temperature Warning\n");
 		event = REGULATOR_EVENT_OVER_TEMP;
-		for (i = 0; i < LTC3676_NUM_REGULATORS; i++) {
-			regulator_lock(ltc3676->regulators[i]);
+		for (i = 0; i < LTC3676_NUM_REGULATORS; i++)
 			regulator_notifier_call_chain(ltc3676->regulators[i],
 						      event, NULL);
-			regulator_unlock(ltc3676->regulators[i]);
-		}
 	}
 
 	if (irqstat & LTC3676_IRQSTAT_UNDERVOLT_WARN) {
 		dev_info(dev, "Undervoltage Warning\n");
 		event = REGULATOR_EVENT_UNDER_VOLTAGE;
-		for (i = 0; i < LTC3676_NUM_REGULATORS; i++) {
-			regulator_lock(ltc3676->regulators[i]);
+		for (i = 0; i < LTC3676_NUM_REGULATORS; i++)
 			regulator_notifier_call_chain(ltc3676->regulators[i],
 						      event, NULL);
-			regulator_unlock(ltc3676->regulators[i]);
-		}
 	}
 
 	/* Clear warning condition */
@@ -301,8 +295,7 @@ static irqreturn_t ltc3676_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int ltc3676_regulator_probe(struct i2c_client *client,
-				    const struct i2c_device_id *id)
+static int ltc3676_regulator_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct regulator_init_data *init_data = dev_get_platdata(dev);
@@ -369,7 +362,7 @@ static const struct i2c_device_id ltc3676_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ltc3676_i2c_id);
 
-static const struct of_device_id ltc3676_of_match[] = {
+static const struct of_device_id __maybe_unused ltc3676_of_match[] = {
 	{ .compatible = "lltc,ltc3676" },
 	{ },
 };
@@ -378,6 +371,7 @@ MODULE_DEVICE_TABLE(of, ltc3676_of_match);
 static struct i2c_driver ltc3676_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(ltc3676_of_match),
 	},
 	.probe = ltc3676_regulator_probe,

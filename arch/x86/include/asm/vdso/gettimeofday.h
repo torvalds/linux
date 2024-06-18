@@ -21,6 +21,7 @@
 #include <clocksource/hyperv_timer.h>
 
 #define __vdso_data (VVAR(_vdso_data))
+#define __timens_vdso_data (TIMENS(_vdso_data))
 
 #define VDSO_HAS_TIME 1
 
@@ -54,6 +55,14 @@ extern struct pvclock_vsyscall_time_info pvclock_page
 #ifdef CONFIG_HYPERV_TIMER
 extern struct ms_hyperv_tsc_page hvclock_page
 	__attribute__((visibility("hidden")));
+#endif
+
+#ifdef CONFIG_TIME_NS
+static __always_inline
+const struct vdso_data *__arch_get_timens_vdso_data(const struct vdso_data *vd)
+{
+	return __timens_vdso_data;
+}
 #endif
 
 #ifndef BUILD_VDSO32
@@ -95,8 +104,6 @@ long clock_getres_fallback(clockid_t _clkid, struct __kernel_timespec *_ts)
 }
 
 #else
-
-#define VDSO_HAS_32BIT_FALLBACK	1
 
 static __always_inline
 long clock_gettime_fallback(clockid_t _clkid, struct __kernel_timespec *_ts)
@@ -224,21 +231,27 @@ static u64 vread_pvclock(void)
 		ret = __pvclock_read_cycles(pvti, rdtsc_ordered());
 	} while (pvclock_read_retry(pvti, version));
 
-	return ret;
+	return ret & S64_MAX;
 }
 #endif
 
 #ifdef CONFIG_HYPERV_TIMER
 static u64 vread_hvclock(void)
 {
-	return hv_read_tsc_page(&hvclock_page);
+	u64 tsc, time;
+
+	if (hv_read_tsc_page_tsc(&hvclock_page, &tsc, &time))
+		return time & S64_MAX;
+
+	return U64_MAX;
 }
 #endif
 
-static inline u64 __arch_get_hw_counter(s32 clock_mode)
+static inline u64 __arch_get_hw_counter(s32 clock_mode,
+					const struct vdso_data *vd)
 {
-	if (clock_mode == VCLOCK_TSC)
-		return (u64)rdtsc_ordered();
+	if (likely(clock_mode == VDSO_CLOCKMODE_TSC))
+		return (u64)rdtsc_ordered() & S64_MAX;
 	/*
 	 * For any memory-mapped vclock type, we need to make sure that gcc
 	 * doesn't cleverly hoist a load before the mode check.  Otherwise we
@@ -246,13 +259,13 @@ static inline u64 __arch_get_hw_counter(s32 clock_mode)
 	 * question isn't enabled, which will segfault.  Hence the barriers.
 	 */
 #ifdef CONFIG_PARAVIRT_CLOCK
-	if (clock_mode == VCLOCK_PVCLOCK) {
+	if (clock_mode == VDSO_CLOCKMODE_PVCLOCK) {
 		barrier();
 		return vread_pvclock();
 	}
 #endif
 #ifdef CONFIG_HYPERV_TIMER
-	if (clock_mode == VCLOCK_HVCLOCK) {
+	if (clock_mode == VDSO_CLOCKMODE_HVCLOCK) {
 		barrier();
 		return vread_hvclock();
 	}
@@ -265,8 +278,29 @@ static __always_inline const struct vdso_data *__arch_get_vdso_data(void)
 	return __vdso_data;
 }
 
+static inline bool arch_vdso_clocksource_ok(const struct vdso_data *vd)
+{
+	return true;
+}
+#define vdso_clocksource_ok arch_vdso_clocksource_ok
+
 /*
- * x86 specific delta calculation.
+ * Clocksource read value validation to handle PV and HyperV clocksources
+ * which can be invalidated asynchronously and indicate invalidation by
+ * returning U64_MAX, which can be effectively tested by checking for a
+ * negative value after casting it to s64.
+ *
+ * This effectively forces a S64_MAX mask on the calculations, unlike the
+ * U64_MAX mask normally used by x86 clocksources.
+ */
+static inline bool arch_vdso_cycles_ok(u64 cycles)
+{
+	return (s64)cycles >= 0;
+}
+#define vdso_cycles_ok arch_vdso_cycles_ok
+
+/*
+ * x86 specific calculation of nanoseconds for the current cycle count
  *
  * The regular implementation assumes that clocksource reads are globally
  * monotonic. The TSC can be slightly off across sockets which can cause
@@ -274,23 +308,46 @@ static __always_inline const struct vdso_data *__arch_get_vdso_data(void)
  * jump.
  *
  * Therefore it needs to be verified that @cycles are greater than
- * @last. If not then use @last, which is the base time of the current
- * conversion period.
+ * @vd->cycles_last. If not then use @vd->cycles_last, which is the base
+ * time of the current conversion period.
  *
- * This variant also removes the masking of the subtraction because the
- * clocksource mask of all VDSO capable clocksources on x86 is U64_MAX
- * which would result in a pointless operation. The compiler cannot
- * optimize it away as the mask comes from the vdso data and is not compile
- * time constant.
+ * This variant also uses a custom mask because while the clocksource mask of
+ * all the VDSO capable clocksources on x86 is U64_MAX, the above code uses
+ * U64_MASK as an exception value, additionally arch_vdso_cycles_ok() above
+ * declares everything with the MSB/Sign-bit set as invalid. Therefore the
+ * effective mask is S64_MAX.
  */
-static __always_inline
-u64 vdso_calc_delta(u64 cycles, u64 last, u64 mask, u32 mult)
+static __always_inline u64 vdso_calc_ns(const struct vdso_data *vd, u64 cycles, u64 base)
 {
-	if (cycles > last)
-		return (cycles - last) * mult;
-	return 0;
+	u64 delta = cycles - vd->cycle_last;
+
+	/*
+	 * Negative motion and deltas which can cause multiplication
+	 * overflow require special treatment. This check covers both as
+	 * negative motion is guaranteed to be greater than @vd::max_cycles
+	 * due to unsigned comparison.
+	 *
+	 * Due to the MSB/Sign-bit being used as invalid marker (see
+	 * arch_vdso_cycles_valid() above), the effective mask is S64_MAX,
+	 * but that case is also unlikely and will also take the unlikely path
+	 * here.
+	 */
+	if (unlikely(delta > vd->max_cycles)) {
+		/*
+		 * Due to the above mentioned TSC wobbles, filter out
+		 * negative motion.  Per the above masking, the effective
+		 * sign bit is now bit 62.
+		 */
+		if (delta & (1ULL << 62))
+			return base >> vd->shift;
+
+		/* Handle multiplication overflow gracefully */
+		return mul_u64_u32_add_u64_shr(delta & S64_MAX, vd->mult, base, vd->shift);
+	}
+
+	return ((delta * vd->mult) + base) >> vd->shift;
 }
-#define vdso_calc_delta vdso_calc_delta
+#define vdso_calc_ns vdso_calc_ns
 
 #endif /* !__ASSEMBLY__ */
 

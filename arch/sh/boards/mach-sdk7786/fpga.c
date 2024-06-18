@@ -32,7 +32,7 @@ static void __iomem *sdk7786_fpga_probe(void)
 	 * is reserved.
 	 */
 	for (area = PA_AREA0; area < PA_AREA7; area += SZ_64M) {
-		base = ioremap_nocache(area + FPGA_REGS_OFFSET, FPGA_REGS_SIZE);
+		base = ioremap(area + FPGA_REGS_OFFSET, FPGA_REGS_SIZE);
 		if (!base) {
 			/* Failed to remap this area, move along. */
 			continue;

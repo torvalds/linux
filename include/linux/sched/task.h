@@ -7,12 +7,15 @@
  * functionality:
  */
 
+#include <linux/rcupdate.h>
+#include <linux/refcount.h>
 #include <linux/sched.h>
 #include <linux/uaccess.h>
 
 struct task_struct;
 struct rusage;
 union thread_union;
+struct css_set;
 
 /* All the bits taken by the old clone syscall. */
 #define CLONE_LEGACY_FLAGS 0xffffffffULL
@@ -22,10 +25,24 @@ struct kernel_clone_args {
 	int __user *pidfd;
 	int __user *child_tid;
 	int __user *parent_tid;
+	const char *name;
 	int exit_signal;
+	u32 kthread:1;
+	u32 io_thread:1;
+	u32 user_worker:1;
+	u32 no_files:1;
 	unsigned long stack;
 	unsigned long stack_size;
 	unsigned long tls;
+	pid_t *set_tid;
+	/* Number of elements in *set_tid */
+	size_t set_tid_size;
+	int cgroup;
+	int idle;
+	int (*fn)(void *);
+	void *fn_arg;
+	struct cgroup *cgrp;
+	struct css_set *cset;
 };
 
 /*
@@ -40,40 +57,28 @@ extern spinlock_t mmlist_lock;
 extern union thread_union init_thread_union;
 extern struct task_struct init_task;
 
-#ifdef CONFIG_PROVE_RCU
 extern int lockdep_tasklist_lock_is_held(void);
-#endif /* #ifdef CONFIG_PROVE_RCU */
 
 extern asmlinkage void schedule_tail(struct task_struct *prev);
 extern void init_idle(struct task_struct *idle, int cpu);
 
 extern int sched_fork(unsigned long clone_flags, struct task_struct *p);
+extern void sched_cgroup_fork(struct task_struct *p, struct kernel_clone_args *kargs);
+extern void sched_post_fork(struct task_struct *p);
 extern void sched_dead(struct task_struct *p);
 
 void __noreturn do_task_dead(void);
+void __noreturn make_task_dead(int signr);
 
+extern void mm_cache_init(void);
 extern void proc_caches_init(void);
 
 extern void fork_init(void);
 
 extern void release_task(struct task_struct * p);
 
-#ifdef CONFIG_HAVE_COPY_THREAD_TLS
-extern int copy_thread_tls(unsigned long, unsigned long, unsigned long,
-			struct task_struct *, unsigned long);
-#else
-extern int copy_thread(unsigned long, unsigned long, unsigned long,
-			struct task_struct *);
+extern int copy_thread(struct task_struct *, const struct kernel_clone_args *);
 
-/* Architectures that haven't opted into copy_thread_tls get the tls argument
- * via pt_regs, so ignore the tls argument passed via C. */
-static inline int copy_thread_tls(
-		unsigned long clone_flags, unsigned long sp, unsigned long arg,
-		struct task_struct *p, unsigned long tls)
-{
-	return copy_thread(clone_flags, sp, arg, p);
-}
-#endif
 extern void flush_thread(void);
 
 #ifdef CONFIG_HAVE_EXIT_THREAD
@@ -83,18 +88,21 @@ static inline void exit_thread(struct task_struct *tsk)
 {
 }
 #endif
-extern void do_group_exit(int);
+extern __noreturn void do_group_exit(int);
 
 extern void exit_files(struct task_struct *);
-extern void exit_itimers(struct signal_struct *);
+extern void exit_itimers(struct task_struct *);
 
-extern long _do_fork(struct kernel_clone_args *kargs);
-extern bool legacy_clone_args_valid(const struct kernel_clone_args *kargs);
-extern long do_fork(unsigned long, unsigned long, unsigned long, int __user *, int __user *);
+extern pid_t kernel_clone(struct kernel_clone_args *kargs);
+struct task_struct *copy_process(struct pid *pid, int trace, int node,
+				 struct kernel_clone_args *args);
+struct task_struct *create_io_thread(int (*fn)(void *), void *arg, int node);
 struct task_struct *fork_idle(int);
-struct mm_struct *copy_init_mm(void);
-extern pid_t kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
+extern pid_t kernel_thread(int (*fn)(void *), void *arg, const char *name,
+			    unsigned long flags);
+extern pid_t user_mode_thread(int (*fn)(void *), void *arg, unsigned long flags);
 extern long kernel_wait4(pid_t, int __user *, int, struct rusage *);
+int kernel_wait(pid_t pid, int *stat);
 
 extern void free_task(struct task_struct *tsk);
 
@@ -112,14 +120,61 @@ static inline struct task_struct *get_task_struct(struct task_struct *t)
 }
 
 extern void __put_task_struct(struct task_struct *t);
+extern void __put_task_struct_rcu_cb(struct rcu_head *rhp);
 
 static inline void put_task_struct(struct task_struct *t)
 {
-	if (refcount_dec_and_test(&t->usage))
+	if (!refcount_dec_and_test(&t->usage))
+		return;
+
+	/*
+	 * In !RT, it is always safe to call __put_task_struct().
+	 * Under RT, we can only call it in preemptible context.
+	 */
+	if (!IS_ENABLED(CONFIG_PREEMPT_RT) || preemptible()) {
+		static DEFINE_WAIT_OVERRIDE_MAP(put_task_map, LD_WAIT_SLEEP);
+
+		lock_map_acquire_try(&put_task_map);
+		__put_task_struct(t);
+		lock_map_release(&put_task_map);
+		return;
+	}
+
+	/*
+	 * under PREEMPT_RT, we can't call put_task_struct
+	 * in atomic context because it will indirectly
+	 * acquire sleeping locks.
+	 *
+	 * call_rcu() will schedule delayed_put_task_struct_rcu()
+	 * to be called in process context.
+	 *
+	 * __put_task_struct() is called when
+	 * refcount_dec_and_test(&t->usage) succeeds.
+	 *
+	 * This means that it can't "conflict" with
+	 * put_task_struct_rcu_user() which abuses ->rcu the same
+	 * way; rcu_users has a reference so task->usage can't be
+	 * zero after rcu_users 1 -> 0 transition.
+	 *
+	 * delayed_free_task() also uses ->rcu, but it is only called
+	 * when it fails to fork a process. Therefore, there is no
+	 * way it can conflict with put_task_struct().
+	 */
+	call_rcu(&t->rcu, __put_task_struct_rcu_cb);
+}
+
+DEFINE_FREE(put_task, struct task_struct *, if (_T) put_task_struct(_T))
+
+static inline void put_task_struct_many(struct task_struct *t, int nr)
+{
+	if (refcount_sub_and_test(nr, &t->usage))
 		__put_task_struct(t);
 }
 
 void put_task_struct_rcu_user(struct task_struct *task);
+
+/* Free all architecture-specific resources held by a thread. */
+void release_thread(struct task_struct *dead_task);
 
 #ifdef CONFIG_ARCH_WANTS_DYNAMIC_TASK_STRUCT
 extern int arch_task_struct_size __read_mostly;
@@ -157,7 +212,7 @@ static inline struct vm_struct *task_stack_vm_area(const struct task_struct *t)
  * Protects ->fs, ->files, ->mm, ->group_info, ->comm, keyring
  * subscriptions and synchronises with wait4().  Also used in procfs.  Also
  * pins the final release of task.io_context.  Also protects ->cpuset and
- * ->cgroup.subsys[]. And ->vfork_done.
+ * ->cgroup.subsys[]. And ->vfork_done. And ->sysvshm.shm_clist.
  *
  * Nests both inside and outside of read_lock(&tasklist_lock).
  * It must not be nested with write_lock_irq(&tasklist_lock),
@@ -172,5 +227,7 @@ static inline void task_unlock(struct task_struct *p)
 {
 	spin_unlock(&p->alloc_lock);
 }
+
+DEFINE_GUARD(task_lock, struct task_struct *, task_lock(_T), task_unlock(_T))
 
 #endif /* _LINUX_SCHED_TASK_H */

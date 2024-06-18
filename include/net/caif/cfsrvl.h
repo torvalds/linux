@@ -33,9 +33,6 @@ struct cflayer *cfrfml_create(u8 linkid, struct dev_info *dev_info,
 				int mtu_size);
 struct cflayer *cfdbgl_create(u8 linkid, struct dev_info *dev_info);
 
-void cfsrvl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
-		     int phyid);
-
 bool cfsrvl_phyid_match(struct cflayer *layer, int phyid);
 
 void cfsrvl_init(struct cfsrvl *service,

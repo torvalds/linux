@@ -28,7 +28,10 @@
 
 struct sigcontext {
 	struct user_regs_struct regs;  /* needs to be first */
-	unsigned long oldmask;
+	union {
+		unsigned long fpcsr;
+		unsigned long oldmask;	/* unused */
+	};
 };
 
 #endif /* __ASM_OPENRISC_SIGCONTEXT_H */

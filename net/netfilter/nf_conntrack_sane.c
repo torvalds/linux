@@ -34,10 +34,6 @@ MODULE_AUTHOR("Michal Schmidt <mschmidt@redhat.com>");
 MODULE_DESCRIPTION("SANE connection tracking helper");
 MODULE_ALIAS_NFCT_HELPER(HELPER_NAME);
 
-static char *sane_buffer;
-
-static DEFINE_SPINLOCK(nf_sane_lock);
-
 #define MAX_PORTS 8
 static u_int16_t ports[MAX_PORTS];
 static unsigned int ports_c;
@@ -67,14 +63,16 @@ static int help(struct sk_buff *skb,
 	unsigned int dataoff, datalen;
 	const struct tcphdr *th;
 	struct tcphdr _tcph;
-	void *sb_ptr;
 	int ret = NF_ACCEPT;
 	int dir = CTINFO2DIR(ctinfo);
 	struct nf_ct_sane_master *ct_sane_info = nfct_help_data(ct);
 	struct nf_conntrack_expect *exp;
 	struct nf_conntrack_tuple *tuple;
-	struct sane_request *req;
 	struct sane_reply_net_start *reply;
+	union {
+		struct sane_request req;
+		struct sane_reply_net_start repl;
+	} buf;
 
 	/* Until there's been traffic both ways, don't look in packets. */
 	if (ctinfo != IP_CT_ESTABLISHED &&
@@ -92,56 +90,62 @@ static int help(struct sk_buff *skb,
 		return NF_ACCEPT;
 
 	datalen = skb->len - dataoff;
-
-	spin_lock_bh(&nf_sane_lock);
-	sb_ptr = skb_header_pointer(skb, dataoff, datalen, sane_buffer);
-	BUG_ON(sb_ptr == NULL);
-
 	if (dir == IP_CT_DIR_ORIGINAL) {
-		if (datalen != sizeof(struct sane_request))
-			goto out;
+		const struct sane_request *req;
 
-		req = sb_ptr;
+		if (datalen != sizeof(struct sane_request))
+			return NF_ACCEPT;
+
+		req = skb_header_pointer(skb, dataoff, datalen, &buf.req);
+		if (!req)
+			return NF_ACCEPT;
+
 		if (req->RPC_code != htonl(SANE_NET_START)) {
 			/* Not an interesting command */
-			ct_sane_info->state = SANE_STATE_NORMAL;
-			goto out;
+			WRITE_ONCE(ct_sane_info->state, SANE_STATE_NORMAL);
+			return NF_ACCEPT;
 		}
 
 		/* We're interested in the next reply */
-		ct_sane_info->state = SANE_STATE_START_REQUESTED;
-		goto out;
+		WRITE_ONCE(ct_sane_info->state, SANE_STATE_START_REQUESTED);
+		return NF_ACCEPT;
 	}
 
+	/* IP_CT_DIR_REPLY */
+
 	/* Is it a reply to an uninteresting command? */
-	if (ct_sane_info->state != SANE_STATE_START_REQUESTED)
-		goto out;
+	if (READ_ONCE(ct_sane_info->state) != SANE_STATE_START_REQUESTED)
+		return NF_ACCEPT;
 
 	/* It's a reply to SANE_NET_START. */
-	ct_sane_info->state = SANE_STATE_NORMAL;
+	WRITE_ONCE(ct_sane_info->state, SANE_STATE_NORMAL);
 
 	if (datalen < sizeof(struct sane_reply_net_start)) {
 		pr_debug("NET_START reply too short\n");
-		goto out;
+		return NF_ACCEPT;
 	}
 
-	reply = sb_ptr;
+	datalen = sizeof(struct sane_reply_net_start);
+
+	reply = skb_header_pointer(skb, dataoff, datalen, &buf.repl);
+	if (!reply)
+		return NF_ACCEPT;
+
 	if (reply->status != htonl(SANE_STATUS_SUCCESS)) {
 		/* saned refused the command */
 		pr_debug("unsuccessful SANE_STATUS = %u\n",
 			 ntohl(reply->status));
-		goto out;
+		return NF_ACCEPT;
 	}
 
 	/* Invalid saned reply? Ignore it. */
 	if (reply->zero != 0)
-		goto out;
+		return NF_ACCEPT;
 
 	exp = nf_ct_expect_alloc(ct);
 	if (exp == NULL) {
 		nf_ct_helper_log(skb, ct, "cannot alloc expectation");
-		ret = NF_DROP;
-		goto out;
+		return NF_DROP;
 	}
 
 	tuple = &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple;
@@ -159,9 +163,6 @@ static int help(struct sk_buff *skb,
 	}
 
 	nf_ct_expect_put(exp);
-
-out:
-	spin_unlock_bh(&nf_sane_lock);
 	return ret;
 }
 
@@ -175,7 +176,6 @@ static const struct nf_conntrack_expect_policy sane_exp_policy = {
 static void __exit nf_conntrack_sane_fini(void)
 {
 	nf_conntrack_helpers_unregister(sane, ports_c * 2);
-	kfree(sane_buffer);
 }
 
 static int __init nf_conntrack_sane_init(void)
@@ -183,10 +183,6 @@ static int __init nf_conntrack_sane_init(void)
 	int i, ret = 0;
 
 	NF_CT_HELPER_BUILD_BUG_ON(sizeof(struct nf_ct_sane_master));
-
-	sane_buffer = kmalloc(65536, GFP_KERNEL);
-	if (!sane_buffer)
-		return -ENOMEM;
 
 	if (ports_c == 0)
 		ports[ports_c++] = SANE_PORT;
@@ -207,7 +203,6 @@ static int __init nf_conntrack_sane_init(void)
 	ret = nf_conntrack_helpers_register(sane, ports_c * 2);
 	if (ret < 0) {
 		pr_err("failed to register helpers\n");
-		kfree(sane_buffer);
 		return ret;
 	}
 

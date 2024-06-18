@@ -31,9 +31,10 @@ static bool check_need_swap(int file_endian)
 
 #define NT_GNU_BUILD_ID	3
 
-static int read_build_id(void *note_data, size_t note_len, void *bf,
-			 size_t size, bool need_swap)
+static int read_build_id(void *note_data, size_t note_len, struct build_id *bid,
+			 bool need_swap)
 {
+	size_t size = sizeof(bid->data);
 	struct {
 		u32 n_namesz;
 		u32 n_descsz;
@@ -63,8 +64,9 @@ static int read_build_id(void *note_data, size_t note_len, void *bf,
 		    nhdr->n_namesz == sizeof("GNU")) {
 			if (memcmp(name, "GNU", sizeof("GNU")) == 0) {
 				size_t sz = min(size, descsz);
-				memcpy(bf, ptr, sz);
-				memset(bf + sz, 0, size - sz);
+				memcpy(bid->data, ptr, sz);
+				memset(bid->data + sz, 0, size - sz);
+				bid->size = sz;
 				return 0;
 			}
 		}
@@ -84,7 +86,7 @@ int filename__read_debuglink(const char *filename __maybe_unused,
 /*
  * Just try PT_NOTE header otherwise fails
  */
-int filename__read_build_id(const char *filename, void *bf, size_t size)
+int filename__read_build_id(const char *filename, struct build_id *bid)
 {
 	FILE *fp;
 	int ret = -1;
@@ -156,10 +158,11 @@ int filename__read_build_id(const char *filename, void *bf, size_t size)
 			if (fread(buf, buf_size, 1, fp) != 1)
 				goto out_free;
 
-			ret = read_build_id(buf, buf_size, bf, size, need_swap);
-			if (ret == 0)
-				ret = size;
-			break;
+			ret = read_build_id(buf, buf_size, bid, need_swap);
+			if (ret == 0) {
+				ret = bid->size;
+				break;
+			}
 		}
 	} else {
 		Elf64_Ehdr ehdr;
@@ -207,10 +210,11 @@ int filename__read_build_id(const char *filename, void *bf, size_t size)
 			if (fread(buf, buf_size, 1, fp) != 1)
 				goto out_free;
 
-			ret = read_build_id(buf, buf_size, bf, size, need_swap);
-			if (ret == 0)
-				ret = size;
-			break;
+			ret = read_build_id(buf, buf_size, bid, need_swap);
+			if (ret == 0) {
+				ret = bid->size;
+				break;
+			}
 		}
 	}
 out_free:
@@ -220,7 +224,7 @@ out:
 	return ret;
 }
 
-int sysfs__read_build_id(const char *filename, void *build_id, size_t size)
+int sysfs__read_build_id(const char *filename, struct build_id *bid)
 {
 	int fd;
 	int ret = -1;
@@ -243,7 +247,7 @@ int sysfs__read_build_id(const char *filename, void *build_id, size_t size)
 	if (read(fd, buf, buf_size) != (ssize_t) buf_size)
 		goto out_free;
 
-	ret = read_build_id(buf, buf_size, build_id, size, false);
+	ret = read_build_id(buf, buf_size, bid, false);
 out_free:
 	free(buf);
 out:
@@ -269,7 +273,7 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 out_close:
 	close(fd);
 out_errno:
-	dso->load_errno = errno;
+	RC_CHK_ACCESS(dso)->load_errno = errno;
 	return -1;
 }
 
@@ -339,16 +343,15 @@ int dso__load_sym(struct dso *dso, struct map *map __maybe_unused,
 		  struct symsrc *runtime_ss __maybe_unused,
 		  int kmodule __maybe_unused)
 {
-	unsigned char build_id[BUILD_ID_SIZE];
+	struct build_id bid;
 	int ret;
 
 	ret = fd__is_64_bit(ss->fd);
 	if (ret >= 0)
-		dso->is_64_bit = ret;
+		RC_CHK_ACCESS(dso)->is_64_bit = ret;
 
-	if (filename__read_build_id(ss->name, build_id, BUILD_ID_SIZE) > 0) {
-		dso__set_build_id(dso, build_id);
-	}
+	if (filename__read_build_id(ss->name, &bid) > 0)
+		dso__set_build_id(dso, &bid);
 	return 0;
 }
 
@@ -383,4 +386,9 @@ char *dso__demangle_sym(struct dso *dso __maybe_unused,
 			const char *elf_name __maybe_unused)
 {
 	return NULL;
+}
+
+bool filename__has_section(const char *filename __maybe_unused, const char *sec __maybe_unused)
+{
+	return false;
 }

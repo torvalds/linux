@@ -24,7 +24,9 @@
 #define CLK_PLL_PERIPH		10
 #define CLK_PLL_PERIPH_2X	11
 #define CLK_PLL_GPU		12
-#define CLK_PLL_MIPI		13
+
+/* The PLL MIPI clock is exported */
+
 #define CLK_PLL_HSIC		14
 #define CLK_PLL_DE		15
 #define CLK_PLL_DDR1		16

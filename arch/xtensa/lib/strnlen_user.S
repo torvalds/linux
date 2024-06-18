@@ -133,6 +133,7 @@ EX(10f)	l32i	a9, a4, 0	# get word with first two bytes of string
 	abi_ret_default
 
 ENDPROC(__strnlen_user)
+EXPORT_SYMBOL(__strnlen_user)
 
 	.section .fixup, "ax"
 	.align	4

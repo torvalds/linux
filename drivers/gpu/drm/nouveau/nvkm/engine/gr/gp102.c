@@ -26,7 +26,7 @@
 
 #include <nvif/class.h>
 
-static void
+void
 gp102_gr_zbc_clear_stencil(struct gf100_gr *gr, int zbc)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
@@ -40,14 +40,14 @@ gp102_gr_zbc_clear_stencil(struct gf100_gr *gr, int zbc)
 			  gr->zbc_stencil[zbc].format << ((znum % 4) * 7));
 }
 
-static int
+int
 gp102_gr_zbc_stencil_get(struct gf100_gr *gr, int format,
 			 const u32 ds, const u32 l2)
 {
 	struct nvkm_ltc *ltc = gr->base.engine.subdev.device->ltc;
 	int zbc = -ENOSPC, i;
 
-	for (i = ltc->zbc_min; i <= ltc->zbc_max; i++) {
+	for (i = ltc->zbc_depth_min; i <= ltc->zbc_depth_max; i++) {
 		if (gr->zbc_stencil[i].format) {
 			if (gr->zbc_stencil[i].format != format)
 				continue;
@@ -115,7 +115,10 @@ gp102_gr = {
 	.init_tex_hww_esr = gf100_gr_init_tex_hww_esr,
 	.init_504430 = gm107_gr_init_504430,
 	.init_shader_exceptions = gp100_gr_init_shader_exceptions,
+	.init_rop_exceptions = gf100_gr_init_rop_exceptions,
+	.init_exception2 = gf100_gr_init_exception2,
 	.trap_mp = gf100_gr_trap_mp,
+	.fecs.reset = gf100_gr_fecs_reset,
 	.rops = gm200_gr_rops,
 	.gpc_nr = 6,
 	.tpc_nr = 5,
@@ -131,8 +134,28 @@ gp102_gr = {
 	}
 };
 
+MODULE_FIRMWARE("nvidia/gp102/gr/fecs_bl.bin");
+MODULE_FIRMWARE("nvidia/gp102/gr/fecs_inst.bin");
+MODULE_FIRMWARE("nvidia/gp102/gr/fecs_data.bin");
+MODULE_FIRMWARE("nvidia/gp102/gr/fecs_sig.bin");
+MODULE_FIRMWARE("nvidia/gp102/gr/gpccs_bl.bin");
+MODULE_FIRMWARE("nvidia/gp102/gr/gpccs_inst.bin");
+MODULE_FIRMWARE("nvidia/gp102/gr/gpccs_data.bin");
+MODULE_FIRMWARE("nvidia/gp102/gr/gpccs_sig.bin");
+MODULE_FIRMWARE("nvidia/gp102/gr/sw_ctx.bin");
+MODULE_FIRMWARE("nvidia/gp102/gr/sw_nonctx.bin");
+MODULE_FIRMWARE("nvidia/gp102/gr/sw_bundle_init.bin");
+MODULE_FIRMWARE("nvidia/gp102/gr/sw_method_init.bin");
+
+static const struct gf100_gr_fwif
+gp102_gr_fwif[] = {
+	{  0, gm200_gr_load, &gp102_gr, &gm200_gr_fecs_acr, &gm200_gr_gpccs_acr },
+	{ -1, gm200_gr_nofw },
+	{}
+};
+
 int
-gp102_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
+gp102_gr_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_gr **pgr)
 {
-	return gm200_gr_new_(&gp102_gr, device, index, pgr);
+	return gf100_gr_new_(gp102_gr_fwif, device, type, inst, pgr);
 }

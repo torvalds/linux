@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/rio.h>
 #include <linux/rio_ids.h>
+#include <linux/rio_drv.h>
 
 #include "rio.h"
 
@@ -111,7 +112,7 @@ static int rio_device_probe(struct device *dev)
  * driver, then run the driver remove() method.  Then update
  * the reference count.
  */
-static int rio_device_remove(struct device *dev)
+static void rio_device_remove(struct device *dev)
 {
 	struct rio_dev *rdev = to_rio_dev(dev);
 	struct rio_driver *rdrv = rdev->driver;
@@ -123,8 +124,6 @@ static int rio_device_remove(struct device *dev)
 	}
 
 	rio_dev_put(rdev);
-
-	return 0;
 }
 
 static void rio_device_shutdown(struct device *dev)
@@ -205,9 +204,9 @@ static int rio_match_bus(struct device *dev, struct device_driver *drv)
       out:return 0;
 }
 
-static int rio_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int rio_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct rio_dev *rdev;
+	const struct rio_dev *rdev;
 
 	if (!dev)
 		return -ENODEV;
@@ -224,7 +223,6 @@ static int rio_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 struct class rio_mport_class = {
 	.name		= "rapidio_port",
-	.owner		= THIS_MODULE,
 	.dev_groups	= rio_mport_groups,
 };
 EXPORT_SYMBOL_GPL(rio_mport_class);

@@ -25,7 +25,6 @@
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
-#include <drm/drm_print.h>
 
 #define LDI_MTP_LENGTH			24
 #define GAMMA_LEVEL_NUM			25
@@ -920,15 +919,15 @@ static int s6e8aa0_enable(struct drm_panel *panel)
 	return 0;
 }
 
-static int s6e8aa0_get_modes(struct drm_panel *panel)
+static int s6e8aa0_get_modes(struct drm_panel *panel,
+			     struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct s6e8aa0 *ctx = panel_to_s6e8aa0(panel);
 	struct drm_display_mode *mode;
 
 	mode = drm_mode_create(connector->dev);
 	if (!mode) {
-		DRM_ERROR("failed to create a new display mode\n");
+		dev_err(panel->dev, "failed to create a new display mode\n");
 		return 0;
 	}
 
@@ -991,8 +990,6 @@ static int s6e8aa0_probe(struct mipi_dsi_device *dsi)
 	dsi->lanes = 4;
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST
-		| MIPI_DSI_MODE_VIDEO_HFP | MIPI_DSI_MODE_VIDEO_HBP
-		| MIPI_DSI_MODE_VIDEO_HSA | MIPI_DSI_MODE_EOT_PACKET
 		| MIPI_DSI_MODE_VSYNC_FLUSH | MIPI_DSI_MODE_VIDEO_AUTO_VERT;
 
 	ret = s6e8aa0_parse_dt(ctx);
@@ -1017,13 +1014,11 @@ static int s6e8aa0_probe(struct mipi_dsi_device *dsi)
 
 	ctx->brightness = GAMMA_LEVEL_NUM - 1;
 
-	drm_panel_init(&ctx->panel);
-	ctx->panel.dev = dev;
-	ctx->panel.funcs = &s6e8aa0_drm_funcs;
+	drm_panel_init(&ctx->panel, dev, &s6e8aa0_drm_funcs,
+		       DRM_MODE_CONNECTOR_DSI);
+	ctx->panel.prepare_prev_first = true;
 
-	ret = drm_panel_add(&ctx->panel);
-	if (ret < 0)
-		return ret;
+	drm_panel_add(&ctx->panel);
 
 	ret = mipi_dsi_attach(dsi);
 	if (ret < 0)
@@ -1032,14 +1027,12 @@ static int s6e8aa0_probe(struct mipi_dsi_device *dsi)
 	return ret;
 }
 
-static int s6e8aa0_remove(struct mipi_dsi_device *dsi)
+static void s6e8aa0_remove(struct mipi_dsi_device *dsi)
 {
 	struct s6e8aa0 *ctx = mipi_dsi_get_drvdata(dsi);
 
 	mipi_dsi_detach(dsi);
 	drm_panel_remove(&ctx->panel);
-
-	return 0;
 }
 
 static const struct of_device_id s6e8aa0_of_match[] = {

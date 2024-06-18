@@ -660,7 +660,6 @@ static void pxa27x_keypad_close(struct input_dev *dev)
 	clk_disable_unprepare(keypad->clk);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int pxa27x_keypad_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -694,7 +693,7 @@ static int pxa27x_keypad_resume(struct device *dev)
 	} else {
 		mutex_lock(&input_dev->mutex);
 
-		if (input_dev->users) {
+		if (input_device_enabled(input_dev)) {
 			/* Enable unit clock */
 			ret = clk_prepare_enable(keypad->clk);
 			if (!ret)
@@ -706,10 +705,9 @@ static int pxa27x_keypad_resume(struct device *dev)
 
 	return ret;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(pxa27x_keypad_pm_ops,
-			 pxa27x_keypad_suspend, pxa27x_keypad_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(pxa27x_keypad_pm_ops,
+				pxa27x_keypad_suspend, pxa27x_keypad_resume);
 
 
 static int pxa27x_keypad_probe(struct platform_device *pdev)
@@ -719,7 +717,6 @@ static int pxa27x_keypad_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct pxa27x_keypad *keypad;
 	struct input_dev *input_dev;
-	struct resource *res;
 	int irq, error;
 
 	/* Driver need build keycode from device tree or pdata */
@@ -729,12 +726,6 @@ static int pxa27x_keypad_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return -ENXIO;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL) {
-		dev_err(&pdev->dev, "failed to get I/O memory\n");
-		return -ENXIO;
-	}
 
 	keypad = devm_kzalloc(&pdev->dev, sizeof(*keypad),
 			      GFP_KERNEL);
@@ -749,7 +740,7 @@ static int pxa27x_keypad_probe(struct platform_device *pdev)
 	keypad->input_dev = input_dev;
 	keypad->irq = irq;
 
-	keypad->mmio_base = devm_ioremap_resource(&pdev->dev, res);
+	keypad->mmio_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(keypad->mmio_base))
 		return PTR_ERR(keypad->mmio_base);
 
@@ -830,7 +821,7 @@ static struct platform_driver pxa27x_keypad_driver = {
 	.driver		= {
 		.name	= "pxa27x-keypad",
 		.of_match_table = of_match_ptr(pxa27x_keypad_dt_match),
-		.pm	= &pxa27x_keypad_pm_ops,
+		.pm	= pm_sleep_ptr(&pxa27x_keypad_pm_ops),
 	},
 };
 module_platform_driver(pxa27x_keypad_driver);

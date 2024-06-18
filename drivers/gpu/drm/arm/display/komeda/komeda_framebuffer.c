@@ -5,9 +5,9 @@
  *
  */
 #include <drm/drm_device.h>
-#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_gem.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 
 #include "komeda_framebuffer.h"
@@ -19,7 +19,7 @@ static void komeda_fb_destroy(struct drm_framebuffer *fb)
 	u32 i;
 
 	for (i = 0; i < fb->format->num_planes; i++)
-		drm_gem_object_put_unlocked(fb->obj[i]);
+		drm_gem_object_put(fb->obj[i]);
 
 	drm_framebuffer_cleanup(fb);
 	kfree(kfb);
@@ -103,7 +103,7 @@ komeda_fb_afbc_size_check(struct komeda_fb *kfb, struct drm_file *file,
 	return 0;
 
 check_failed:
-	drm_gem_object_put_unlocked(obj);
+	drm_gem_object_put(obj);
 	return -EINVAL;
 }
 
@@ -137,7 +137,7 @@ komeda_fb_none_afbc_size_check(struct komeda_dev *mdev, struct komeda_fb *kfb,
 		}
 
 		min_size = komeda_fb_get_pixel_addr(kfb, 0, fb->height, i)
-			 - to_drm_gem_cma_obj(obj)->paddr;
+			 - to_drm_gem_dma_obj(obj)->dma_addr;
 		if (obj->size < min_size) {
 			DRM_DEBUG_KMS("The fb->obj[%d] size: 0x%zx lower than the minimum requirement: 0x%llx.\n",
 				      i, obj->size, min_size);
@@ -199,7 +199,7 @@ komeda_fb_create(struct drm_device *dev, struct drm_file *file,
 
 err_cleanup:
 	for (i = 0; i < kfb->base.format->num_planes; i++)
-		drm_gem_object_put_unlocked(kfb->base.obj[i]);
+		drm_gem_object_put(kfb->base.obj[i]);
 
 	kfree(kfb);
 	return ERR_PTR(ret);
@@ -239,7 +239,7 @@ dma_addr_t
 komeda_fb_get_pixel_addr(struct komeda_fb *kfb, int x, int y, int plane)
 {
 	struct drm_framebuffer *fb = &kfb->base;
-	const struct drm_gem_cma_object *obj;
+	const struct drm_gem_dma_object *obj;
 	u32 offset, plane_x, plane_y, block_w, block_sz;
 
 	if (plane >= fb->format->num_planes) {
@@ -247,7 +247,7 @@ komeda_fb_get_pixel_addr(struct komeda_fb *kfb, int x, int y, int plane)
 		return -EINVAL;
 	}
 
-	obj = drm_fb_cma_get_gem_obj(fb, plane);
+	obj = drm_fb_dma_get_gem_obj(fb, plane);
 
 	offset = fb->offsets[plane];
 	if (!fb->modifier) {
@@ -260,7 +260,7 @@ komeda_fb_get_pixel_addr(struct komeda_fb *kfb, int x, int y, int plane)
 			+ plane_y * fb->pitches[plane];
 	}
 
-	return obj->paddr + offset;
+	return obj->dma_addr + offset;
 }
 
 /* if the fb can be supported by a specific layer */
@@ -276,8 +276,8 @@ bool komeda_fb_is_layer_supported(struct komeda_fb *kfb, u32 layer_type,
 	supported = komeda_format_mod_supported(&mdev->fmt_tbl, layer_type,
 						fourcc, modifier, rot);
 	if (!supported)
-		DRM_DEBUG_ATOMIC("Layer TYPE: %d doesn't support fb FMT: %s.\n",
-			layer_type, komeda_get_format_name(fourcc, modifier));
+		DRM_DEBUG_ATOMIC("Layer TYPE: %d doesn't support fb FMT: %p4cc with modifier: 0x%llx.\n",
+				 layer_type, &fourcc, modifier);
 
 	return supported;
 }

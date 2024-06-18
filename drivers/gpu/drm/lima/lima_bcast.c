@@ -26,18 +26,45 @@ void lima_bcast_enable(struct lima_device *dev, int num_pp)
 	bcast_write(LIMA_BCAST_BROADCAST_MASK, mask);
 }
 
+static int lima_bcast_hw_init(struct lima_ip *ip)
+{
+	bcast_write(LIMA_BCAST_BROADCAST_MASK, ip->data.mask << 16);
+	bcast_write(LIMA_BCAST_INTERRUPT_MASK, ip->data.mask);
+	return 0;
+}
+
+int lima_bcast_resume(struct lima_ip *ip)
+{
+	return lima_bcast_hw_init(ip);
+}
+
+void lima_bcast_suspend(struct lima_ip *ip)
+{
+
+}
+
+int lima_bcast_mask_irq(struct lima_ip *ip)
+{
+	bcast_write(LIMA_BCAST_BROADCAST_MASK, 0);
+	bcast_write(LIMA_BCAST_INTERRUPT_MASK, 0);
+	return 0;
+}
+
+int lima_bcast_reset(struct lima_ip *ip)
+{
+	return lima_bcast_hw_init(ip);
+}
+
 int lima_bcast_init(struct lima_ip *ip)
 {
-	int i, mask = 0;
+	int i;
 
 	for (i = lima_ip_pp0; i <= lima_ip_pp7; i++) {
 		if (ip->dev->ip[i].present)
-			mask |= 1 << (i - lima_ip_pp0);
+			ip->data.mask |= 1 << (i - lima_ip_pp0);
 	}
 
-	bcast_write(LIMA_BCAST_BROADCAST_MASK, mask << 16);
-	bcast_write(LIMA_BCAST_INTERRUPT_MASK, mask);
-	return 0;
+	return lima_bcast_hw_init(ip);
 }
 
 void lima_bcast_fini(struct lima_ip *ip)

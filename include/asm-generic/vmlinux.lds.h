@@ -3,7 +3,7 @@
  * linker scripts.
  *
  * A minimal linker scripts has following content:
- * [This is a sample, architectures may have special requiriements]
+ * [This is a sample, architectures may have special requirements]
  *
  * OUTPUT_FORMAT(...)
  * OUTPUT_ARCH(...)
@@ -23,18 +23,18 @@
  *	_etext = .;
  *
  *      _sdata = .;
- *	RO_DATA_SECTION(PAGE_SIZE)
- *	RW_DATA_SECTION(...)
+ *	RO_DATA(PAGE_SIZE)
+ *	RW_DATA(...)
  *	_edata = .;
  *
  *	EXCEPTION_TABLE(...)
- *	NOTES
  *
  *	BSS_SECTION(0, 0, 0)
  *	_end = .;
  *
  *	STABS_DEBUG
  *	DWARF_DEBUG
+ *	ELF_DETAILS
  *
  *	DISCARDS		// must be the last
  * }
@@ -50,12 +50,41 @@
  *               [__nosave_begin, __nosave_end] for the nosave data
  */
 
+#include <asm-generic/codetag.lds.h>
+
 #ifndef LOAD_OFFSET
 #define LOAD_OFFSET 0
 #endif
 
-/* Align . to a 8 byte boundary equals to maximum function alignment. */
-#define ALIGN_FUNCTION()  . = ALIGN(8)
+/*
+ * Only some architectures want to have the .notes segment visible in
+ * a separate PT_NOTE ELF Program Header. When this happens, it needs
+ * to be visible in both the kernel text's PT_LOAD and the PT_NOTE
+ * Program Headers. In this case, though, the PT_LOAD needs to be made
+ * the default again so that all the following sections don't also end
+ * up in the PT_NOTE Program Header.
+ */
+#ifdef EMITS_PT_NOTE
+#define NOTES_HEADERS		:text :note
+#define NOTES_HEADERS_RESTORE	__restore_ph : { *(.__restore_ph) } :text
+#else
+#define NOTES_HEADERS
+#define NOTES_HEADERS_RESTORE
+#endif
+
+/*
+ * Some architectures have non-executable read-only exception tables.
+ * They can be added to the RO_DATA segment by specifying their desired
+ * alignment.
+ */
+#ifdef RO_EXCEPTION_TABLE_ALIGN
+#define RO_EXCEPTION_TABLE	EXCEPTION_TABLE(RO_EXCEPTION_TABLE_ALIGN)
+#else
+#define RO_EXCEPTION_TABLE
+#endif
+
+/* Align . function alignment. */
+#define ALIGN_FUNCTION()  . = ALIGN(CONFIG_FUNCTION_ALIGNMENT)
 
 /*
  * LD_DEAD_CODE_DATA_ELIMINATION option enables -fdata-sections, which
@@ -63,15 +92,18 @@
  * .data. We don't want to pull in .data..other sections, which Linux
  * has defined. Same for text and bss.
  *
+ * With LTO_CLANG, the linker also splits sections by default, so we need
+ * these macros to combine the sections during the final link.
+ *
  * RODATA_MAIN is not used because existing code already defines .rodata.x
  * sections to be brought in with rodata.
  */
-#ifdef CONFIG_LD_DEAD_CODE_DATA_ELIMINATION
+#if defined(CONFIG_LD_DEAD_CODE_DATA_ELIMINATION) || defined(CONFIG_LTO_CLANG)
 #define TEXT_MAIN .text .text.[0-9a-zA-Z_]*
-#define DATA_MAIN .data .data.[0-9a-zA-Z_]* .data..LPBX*
+#define DATA_MAIN .data .data.[0-9a-zA-Z_]* .data..L* .data..compoundliteral* .data.$__unnamed_* .data.$L*
 #define SDATA_MAIN .sdata .sdata.[0-9a-zA-Z_]*
-#define RODATA_MAIN .rodata .rodata.[0-9a-zA-Z_]*
-#define BSS_MAIN .bss .bss.[0-9a-zA-Z_]*
+#define RODATA_MAIN .rodata .rodata.[0-9a-zA-Z_]* .rodata..L*
+#define BSS_MAIN .bss .bss.[0-9a-zA-Z_]* .bss..compoundliteral*
 #define SBSS_MAIN .sbss .sbss.[0-9a-zA-Z_]*
 #else
 #define TEXT_MAIN .text
@@ -83,23 +115,31 @@
 #endif
 
 /*
- * Align to a 32 byte boundary equal to the
- * alignment gcc 4.5 uses for a struct
+ * GCC 4.5 and later have a 32 bytes section alignment for structures.
+ * Except GCC 4.9, that feels the need to align on 64 bytes.
  */
 #define STRUCT_ALIGNMENT 32
 #define STRUCT_ALIGN() . = ALIGN(STRUCT_ALIGNMENT)
+
+/*
+ * The order of the sched class addresses are important, as they are
+ * used to determine the order of the priority of each sched class in
+ * relation to each other.
+ */
+#define SCHED_DATA				\
+	STRUCT_ALIGN();				\
+	__sched_class_highest = .;		\
+	*(__stop_sched_class)			\
+	*(__dl_sched_class)			\
+	*(__rt_sched_class)			\
+	*(__fair_sched_class)			\
+	*(__idle_sched_class)			\
+	__sched_class_lowest = .;
 
 /* The actual configuration determine if the init/exit sections
  * are handled as text/data or they can be discarded (which
  * often happens at runtime)
  */
-#ifdef CONFIG_HOTPLUG_CPU
-#define CPU_KEEP(sec)    *(.cpu##sec)
-#define CPU_DISCARD(sec)
-#else
-#define CPU_KEEP(sec)
-#define CPU_DISCARD(sec) *(.cpu##sec)
-#endif
 
 #if defined(CONFIG_MEMORY_HOTPLUG)
 #define MEM_KEEP(sec)    *(.mem##sec)
@@ -109,116 +149,159 @@
 #define MEM_DISCARD(sec) *(.mem##sec)
 #endif
 
-#ifdef CONFIG_FTRACE_MCOUNT_RECORD
-#ifdef CC_USING_PATCHABLE_FUNCTION_ENTRY
-#define MCOUNT_REC()	. = ALIGN(8);				\
-			__start_mcount_loc = .;			\
-			KEEP(*(__patchable_function_entries))	\
-			__stop_mcount_loc = .;
+#ifndef CONFIG_HAVE_DYNAMIC_FTRACE_NO_PATCHABLE
+#define KEEP_PATCHABLE		KEEP(*(__patchable_function_entries))
+#define PATCHABLE_DISCARDS
 #else
+#define KEEP_PATCHABLE
+#define PATCHABLE_DISCARDS	*(__patchable_function_entries)
+#endif
+
+#ifndef CONFIG_ARCH_SUPPORTS_CFI_CLANG
+/*
+ * Simply points to ftrace_stub, but with the proper protocol.
+ * Defined by the linker script in linux/vmlinux.lds.h
+ */
+#define	FTRACE_STUB_HACK	ftrace_stub_graph = ftrace_stub;
+#else
+#define FTRACE_STUB_HACK
+#endif
+
+#ifdef CONFIG_FTRACE_MCOUNT_RECORD
+/*
+ * The ftrace call sites are logged to a section whose name depends on the
+ * compiler option used. A given kernel image will only use one, AKA
+ * FTRACE_CALLSITE_SECTION. We capture all of them here to avoid header
+ * dependencies for FTRACE_CALLSITE_SECTION's definition.
+ *
+ * ftrace_ops_list_func will be defined as arch_ftrace_ops_list_func
+ * as some archs will have a different prototype for that function
+ * but ftrace_ops_list_func() will have a single prototype.
+ */
 #define MCOUNT_REC()	. = ALIGN(8);				\
 			__start_mcount_loc = .;			\
 			KEEP(*(__mcount_loc))			\
-			__stop_mcount_loc = .;
-#endif
+			KEEP_PATCHABLE				\
+			__stop_mcount_loc = .;			\
+			FTRACE_STUB_HACK			\
+			ftrace_ops_list_func = arch_ftrace_ops_list_func;
 #else
-#define MCOUNT_REC()
+# ifdef CONFIG_FUNCTION_TRACER
+#  define MCOUNT_REC()	FTRACE_STUB_HACK			\
+			ftrace_ops_list_func = arch_ftrace_ops_list_func;
+# else
+#  define MCOUNT_REC()
+# endif
 #endif
 
+#define BOUNDED_SECTION_PRE_LABEL(_sec_, _label_, _BEGIN_, _END_)	\
+	_BEGIN_##_label_ = .;						\
+	KEEP(*(_sec_))							\
+	_END_##_label_ = .;
+
+#define BOUNDED_SECTION_POST_LABEL(_sec_, _label_, _BEGIN_, _END_)	\
+	_label_##_BEGIN_ = .;						\
+	KEEP(*(_sec_))							\
+	_label_##_END_ = .;
+
+#define BOUNDED_SECTION_BY(_sec_, _label_)				\
+	BOUNDED_SECTION_PRE_LABEL(_sec_, _label_, __start, __stop)
+
+#define BOUNDED_SECTION(_sec)	 BOUNDED_SECTION_BY(_sec, _sec)
+
+#define HEADERED_SECTION_PRE_LABEL(_sec_, _label_, _BEGIN_, _END_, _HDR_) \
+	_HDR_##_label_	= .;						\
+	KEEP(*(.gnu.linkonce.##_sec_))					\
+	BOUNDED_SECTION_PRE_LABEL(_sec_, _label_, _BEGIN_, _END_)
+
+#define HEADERED_SECTION_POST_LABEL(_sec_, _label_, _BEGIN_, _END_, _HDR_) \
+	_label_##_HDR_ = .;						\
+	KEEP(*(.gnu.linkonce.##_sec_))					\
+	BOUNDED_SECTION_POST_LABEL(_sec_, _label_, _BEGIN_, _END_)
+
+#define HEADERED_SECTION_BY(_sec_, _label_)				\
+	HEADERED_SECTION_PRE_LABEL(_sec_, _label_, __start, __stop)
+
+#define HEADERED_SECTION(_sec)	 HEADERED_SECTION_BY(_sec, _sec)
+
 #ifdef CONFIG_TRACE_BRANCH_PROFILING
-#define LIKELY_PROFILE()	__start_annotated_branch_profile = .;	\
-				KEEP(*(_ftrace_annotated_branch))	\
-				__stop_annotated_branch_profile = .;
+#define LIKELY_PROFILE()						\
+	BOUNDED_SECTION_BY(_ftrace_annotated_branch, _annotated_branch_profile)
 #else
 #define LIKELY_PROFILE()
 #endif
 
 #ifdef CONFIG_PROFILE_ALL_BRANCHES
-#define BRANCH_PROFILE()	__start_branch_profile = .;		\
-				KEEP(*(_ftrace_branch))			\
-				__stop_branch_profile = .;
+#define BRANCH_PROFILE()					\
+	BOUNDED_SECTION_BY(_ftrace_branch, _branch_profile)
 #else
 #define BRANCH_PROFILE()
 #endif
 
 #ifdef CONFIG_KPROBES
-#define KPROBE_BLACKLIST()	. = ALIGN(8);				      \
-				__start_kprobe_blacklist = .;		      \
-				KEEP(*(_kprobe_blacklist))		      \
-				__stop_kprobe_blacklist = .;
+#define KPROBE_BLACKLIST()				\
+	. = ALIGN(8);					\
+	BOUNDED_SECTION(_kprobe_blacklist)
 #else
 #define KPROBE_BLACKLIST()
 #endif
 
 #ifdef CONFIG_FUNCTION_ERROR_INJECTION
-#define ERROR_INJECT_WHITELIST()	STRUCT_ALIGN();			      \
-			__start_error_injection_whitelist = .;		      \
-			KEEP(*(_error_injection_whitelist))		      \
-			__stop_error_injection_whitelist = .;
+#define ERROR_INJECT_WHITELIST()			\
+	STRUCT_ALIGN();					\
+	BOUNDED_SECTION(_error_injection_whitelist)
 #else
 #define ERROR_INJECT_WHITELIST()
 #endif
 
 #ifdef CONFIG_EVENT_TRACING
-#define FTRACE_EVENTS()	. = ALIGN(8);					\
-			__start_ftrace_events = .;			\
-			KEEP(*(_ftrace_events))				\
-			__stop_ftrace_events = .;			\
-			__start_ftrace_eval_maps = .;			\
-			KEEP(*(_ftrace_eval_map))			\
-			__stop_ftrace_eval_maps = .;
+#define FTRACE_EVENTS()							\
+	. = ALIGN(8);							\
+	BOUNDED_SECTION(_ftrace_events)					\
+	BOUNDED_SECTION_BY(_ftrace_eval_map, _ftrace_eval_maps)
 #else
 #define FTRACE_EVENTS()
 #endif
 
 #ifdef CONFIG_TRACING
-#define TRACE_PRINTKS()	 __start___trace_bprintk_fmt = .;      \
-			 KEEP(*(__trace_printk_fmt)) /* Trace_printk fmt' pointer */ \
-			 __stop___trace_bprintk_fmt = .;
-#define TRACEPOINT_STR() __start___tracepoint_str = .;	\
-			 KEEP(*(__tracepoint_str)) /* Trace_printk fmt' pointer */ \
-			 __stop___tracepoint_str = .;
+#define TRACE_PRINTKS()		BOUNDED_SECTION_BY(__trace_printk_fmt, ___trace_bprintk_fmt)
+#define TRACEPOINT_STR()	BOUNDED_SECTION_BY(__tracepoint_str, ___tracepoint_str)
 #else
 #define TRACE_PRINTKS()
 #define TRACEPOINT_STR()
 #endif
 
 #ifdef CONFIG_FTRACE_SYSCALLS
-#define TRACE_SYSCALLS() . = ALIGN(8);					\
-			 __start_syscalls_metadata = .;			\
-			 KEEP(*(__syscalls_metadata))			\
-			 __stop_syscalls_metadata = .;
+#define TRACE_SYSCALLS()			\
+	. = ALIGN(8);				\
+	BOUNDED_SECTION_BY(__syscalls_metadata, _syscalls_metadata)
 #else
 #define TRACE_SYSCALLS()
 #endif
 
 #ifdef CONFIG_BPF_EVENTS
-#define BPF_RAW_TP() STRUCT_ALIGN();					\
-			 __start__bpf_raw_tp = .;			\
-			 KEEP(*(__bpf_raw_tp_map))			\
-			 __stop__bpf_raw_tp = .;
+#define BPF_RAW_TP() STRUCT_ALIGN();				\
+	BOUNDED_SECTION_BY(__bpf_raw_tp_map, __bpf_raw_tp)
 #else
 #define BPF_RAW_TP()
 #endif
 
 #ifdef CONFIG_SERIAL_EARLYCON
-#define EARLYCON_TABLE() . = ALIGN(8);				\
-			 __earlycon_table = .;			\
-			 KEEP(*(__earlycon_table))		\
-			 __earlycon_table_end = .;
+#define EARLYCON_TABLE()						\
+	. = ALIGN(8);							\
+	BOUNDED_SECTION_POST_LABEL(__earlycon_table, __earlycon_table, , _end)
 #else
 #define EARLYCON_TABLE()
 #endif
 
 #ifdef CONFIG_SECURITY
-#define LSM_TABLE()	. = ALIGN(8);					\
-			__start_lsm_info = .;				\
-			KEEP(*(.lsm_info.init))				\
-			__end_lsm_info = .;
-#define EARLY_LSM_TABLE()	. = ALIGN(8);				\
-			__start_early_lsm_info = .;			\
-			KEEP(*(.early_lsm_info.init))			\
-			__end_early_lsm_info = .;
+#define LSM_TABLE()					\
+	. = ALIGN(8);					\
+	BOUNDED_SECTION_PRE_LABEL(.lsm_info.init, _lsm_info, __start, __end)
+
+#define EARLY_LSM_TABLE()						\
+	. = ALIGN(8);							\
+	BOUNDED_SECTION_PRE_LABEL(.early_lsm_info.init, _early_lsm_info, __start, __end)
 #else
 #define LSM_TABLE()
 #define EARLY_LSM_TABLE()
@@ -244,9 +327,8 @@
 #ifdef CONFIG_ACPI
 #define ACPI_PROBE_TABLE(name)						\
 	. = ALIGN(8);							\
-	__##name##_acpi_probe_table = .;				\
-	KEEP(*(__##name##_acpi_probe_table))				\
-	__##name##_acpi_probe_table_end = .;
+	BOUNDED_SECTION_POST_LABEL(__##name##_acpi_probe_table,		\
+				   __##name##_acpi_probe_table,, _end)
 #else
 #define ACPI_PROBE_TABLE(name)
 #endif
@@ -254,9 +336,8 @@
 #ifdef CONFIG_THERMAL
 #define THERMAL_TABLE(name)						\
 	. = ALIGN(8);							\
-	__##name##_thermal_table = .;					\
-	KEEP(*(__##name##_thermal_table))				\
-	__##name##_thermal_table_end = .;
+	BOUNDED_SECTION_POST_LABEL(__##name##_thermal_table,		\
+				   __##name##_thermal_table,, _end)
 #else
 #define THERMAL_TABLE(name)
 #endif
@@ -273,10 +354,10 @@
 #define DATA_DATA							\
 	*(.xiptext)							\
 	*(DATA_MAIN)							\
+	*(.data..decrypted)						\
 	*(.ref.data)							\
 	*(.data..shared_aligned) /* percpu related */			\
 	MEM_KEEP(init.data*)						\
-	MEM_KEEP(exit.data*)						\
 	*(.data.unlikely)						\
 	__start_once = .;						\
 	*(.data.once)							\
@@ -285,14 +366,15 @@
 	*(__tracepoints)						\
 	/* implement dynamic printk debug */				\
 	. = ALIGN(8);							\
-	__start___verbose = .;						\
-	KEEP(*(__verbose))                                              \
-	__stop___verbose = .;						\
+	BOUNDED_SECTION_BY(__dyndbg_classes, ___dyndbg_classes)		\
+	BOUNDED_SECTION_BY(__dyndbg, ___dyndbg)				\
+	CODETAG_SECTIONS()						\
 	LIKELY_PROFILE()		       				\
 	BRANCH_PROFILE()						\
 	TRACE_PRINTKS()							\
 	BPF_RAW_TP()							\
-	TRACEPOINT_STR()
+	TRACEPOINT_STR()						\
+	KUNIT_TABLE()
 
 /*
  * Data section helpers
@@ -306,7 +388,8 @@
 
 #define PAGE_ALIGNED_DATA(page_align)					\
 	. = ALIGN(page_align);						\
-	*(.data..page_aligned)
+	*(.data..page_aligned)						\
+	. = ALIGN(page_align);
 
 #define READ_MOSTLY_DATA(align)						\
 	. = ALIGN(align);						\
@@ -319,19 +402,26 @@
 
 #define INIT_TASK_DATA(align)						\
 	. = ALIGN(align);						\
-	__start_init_task = .;						\
+	__start_init_stack = .;						\
 	init_thread_union = .;						\
 	init_stack = .;							\
 	KEEP(*(.data..init_task))					\
 	KEEP(*(.data..init_thread_info))				\
-	. = __start_init_task + THREAD_SIZE;				\
-	__end_init_task = .;
+	. = __start_init_stack + THREAD_SIZE;				\
+	__end_init_stack = .;
 
 #define JUMP_TABLE_DATA							\
 	. = ALIGN(8);							\
-	__start___jump_table = .;					\
-	KEEP(*(__jump_table))						\
-	__stop___jump_table = .;
+	BOUNDED_SECTION_BY(__jump_table, ___jump_table)
+
+#ifdef CONFIG_HAVE_STATIC_CALL_INLINE
+#define STATIC_CALL_DATA						\
+	. = ALIGN(8);							\
+	BOUNDED_SECTION_BY(.static_call_sites, _static_call_sites)	\
+	BOUNDED_SECTION_BY(.static_call_tramp_key, _static_call_tramp_key)
+#else
+#define STATIC_CALL_DATA
+#endif
 
 /*
  * Allow architectures to handle ro_after_init data on their
@@ -339,25 +429,59 @@
  */
 #ifndef RO_AFTER_INIT_DATA
 #define RO_AFTER_INIT_DATA						\
+	. = ALIGN(8);							\
 	__start_ro_after_init = .;					\
 	*(.data..ro_after_init)						\
 	JUMP_TABLE_DATA							\
+	STATIC_CALL_DATA						\
 	__end_ro_after_init = .;
 #endif
 
 /*
+ * .kcfi_traps contains a list KCFI trap locations.
+ */
+#ifndef KCFI_TRAPS
+#ifdef CONFIG_ARCH_USES_CFI_TRAPS
+#define KCFI_TRAPS							\
+	__kcfi_traps : AT(ADDR(__kcfi_traps) - LOAD_OFFSET) {		\
+		BOUNDED_SECTION_BY(.kcfi_traps, ___kcfi_traps)		\
+	}
+#else
+#define KCFI_TRAPS
+#endif
+#endif
+
+/*
+ * Some symbol definitions will not exist yet during the first pass of the
+ * link, but are guaranteed to exist in the final link. Provide preliminary
+ * definitions that will be superseded in the final link to avoid having to
+ * rely on weak external linkage, which requires a GOT when used in position
+ * independent code.
+ */
+#define PRELIMINARY_SYMBOL_DEFINITIONS					\
+	PROVIDE(kallsyms_addresses = .);				\
+	PROVIDE(kallsyms_offsets = .);					\
+	PROVIDE(kallsyms_names = .);					\
+	PROVIDE(kallsyms_num_syms = .);					\
+	PROVIDE(kallsyms_relative_base = .);				\
+	PROVIDE(kallsyms_token_table = .);				\
+	PROVIDE(kallsyms_token_index = .);				\
+	PROVIDE(kallsyms_markers = .);					\
+	PROVIDE(kallsyms_seqs_of_names = .);
+
+/*
  * Read only Data
  */
-#define RO_DATA_SECTION(align)						\
+#define RO_DATA(align)							\
 	. = ALIGN((align));						\
+	PRELIMINARY_SYMBOL_DEFINITIONS					\
 	.rodata           : AT(ADDR(.rodata) - LOAD_OFFSET) {		\
 		__start_rodata = .;					\
 		*(.rodata) *(.rodata.*)					\
+		SCHED_DATA						\
 		RO_AFTER_INIT_DATA	/* Read only after init */	\
 		. = ALIGN(8);						\
-		__start___tracepoints_ptrs = .;				\
-		KEEP(*(__tracepoints_ptrs)) /* Tracepoints: pointer array */ \
-		__stop___tracepoints_ptrs = .;				\
+		BOUNDED_SECTION_BY(__tracepoints_ptrs, ___tracepoints_ptrs) \
 		*(__tracepoints_strings)/* Tracepoints: strings */	\
 	}								\
 									\
@@ -367,40 +491,20 @@
 									\
 	/* PCI quirks */						\
 	.pci_fixup        : AT(ADDR(.pci_fixup) - LOAD_OFFSET) {	\
-		__start_pci_fixups_early = .;				\
-		KEEP(*(.pci_fixup_early))				\
-		__end_pci_fixups_early = .;				\
-		__start_pci_fixups_header = .;				\
-		KEEP(*(.pci_fixup_header))				\
-		__end_pci_fixups_header = .;				\
-		__start_pci_fixups_final = .;				\
-		KEEP(*(.pci_fixup_final))				\
-		__end_pci_fixups_final = .;				\
-		__start_pci_fixups_enable = .;				\
-		KEEP(*(.pci_fixup_enable))				\
-		__end_pci_fixups_enable = .;				\
-		__start_pci_fixups_resume = .;				\
-		KEEP(*(.pci_fixup_resume))				\
-		__end_pci_fixups_resume = .;				\
-		__start_pci_fixups_resume_early = .;			\
-		KEEP(*(.pci_fixup_resume_early))			\
-		__end_pci_fixups_resume_early = .;			\
-		__start_pci_fixups_suspend = .;				\
-		KEEP(*(.pci_fixup_suspend))				\
-		__end_pci_fixups_suspend = .;				\
-		__start_pci_fixups_suspend_late = .;			\
-		KEEP(*(.pci_fixup_suspend_late))			\
-		__end_pci_fixups_suspend_late = .;			\
+		BOUNDED_SECTION_PRE_LABEL(.pci_fixup_early,  _pci_fixups_early,  __start, __end) \
+		BOUNDED_SECTION_PRE_LABEL(.pci_fixup_header, _pci_fixups_header, __start, __end) \
+		BOUNDED_SECTION_PRE_LABEL(.pci_fixup_final,  _pci_fixups_final,  __start, __end) \
+		BOUNDED_SECTION_PRE_LABEL(.pci_fixup_enable, _pci_fixups_enable, __start, __end) \
+		BOUNDED_SECTION_PRE_LABEL(.pci_fixup_resume, _pci_fixups_resume, __start, __end) \
+		BOUNDED_SECTION_PRE_LABEL(.pci_fixup_suspend, _pci_fixups_suspend, __start, __end) \
+		BOUNDED_SECTION_PRE_LABEL(.pci_fixup_resume_early, _pci_fixups_resume_early, __start, __end) \
+		BOUNDED_SECTION_PRE_LABEL(.pci_fixup_suspend_late, _pci_fixups_suspend_late, __start, __end) \
 	}								\
 									\
-	/* Built-in firmware blobs */					\
-	.builtin_fw        : AT(ADDR(.builtin_fw) - LOAD_OFFSET) {	\
-		__start_builtin_fw = .;					\
-		KEEP(*(.builtin_fw))					\
-		__end_builtin_fw = .;					\
-	}								\
-									\
+	FW_LOADER_BUILT_IN_DATA						\
 	TRACEDATA							\
+									\
+	PRINTK_INDEX							\
 									\
 	/* Kernel symbol table: Normal symbols */			\
 	__ksymtab         : AT(ADDR(__ksymtab) - LOAD_OFFSET) {		\
@@ -414,27 +518,6 @@
 		__start___ksymtab_gpl = .;				\
 		KEEP(*(SORT(___ksymtab_gpl+*)))				\
 		__stop___ksymtab_gpl = .;				\
-	}								\
-									\
-	/* Kernel symbol table: Normal unused symbols */		\
-	__ksymtab_unused  : AT(ADDR(__ksymtab_unused) - LOAD_OFFSET) {	\
-		__start___ksymtab_unused = .;				\
-		KEEP(*(SORT(___ksymtab_unused+*)))			\
-		__stop___ksymtab_unused = .;				\
-	}								\
-									\
-	/* Kernel symbol table: GPL-only unused symbols */		\
-	__ksymtab_unused_gpl : AT(ADDR(__ksymtab_unused_gpl) - LOAD_OFFSET) { \
-		__start___ksymtab_unused_gpl = .;			\
-		KEEP(*(SORT(___ksymtab_unused_gpl+*)))			\
-		__stop___ksymtab_unused_gpl = .;			\
-	}								\
-									\
-	/* Kernel symbol table: GPL-future-only symbols */		\
-	__ksymtab_gpl_future : AT(ADDR(__ksymtab_gpl_future) - LOAD_OFFSET) { \
-		__start___ksymtab_gpl_future = .;			\
-		KEEP(*(SORT(___ksymtab_gpl_future+*)))			\
-		__stop___ksymtab_gpl_future = .;			\
 	}								\
 									\
 	/* Kernel symbol table: Normal symbols */			\
@@ -451,27 +534,6 @@
 		__stop___kcrctab_gpl = .;				\
 	}								\
 									\
-	/* Kernel symbol table: Normal unused symbols */		\
-	__kcrctab_unused  : AT(ADDR(__kcrctab_unused) - LOAD_OFFSET) {	\
-		__start___kcrctab_unused = .;				\
-		KEEP(*(SORT(___kcrctab_unused+*)))			\
-		__stop___kcrctab_unused = .;				\
-	}								\
-									\
-	/* Kernel symbol table: GPL-only unused symbols */		\
-	__kcrctab_unused_gpl : AT(ADDR(__kcrctab_unused_gpl) - LOAD_OFFSET) { \
-		__start___kcrctab_unused_gpl = .;			\
-		KEEP(*(SORT(___kcrctab_unused_gpl+*)))			\
-		__stop___kcrctab_unused_gpl = .;			\
-	}								\
-									\
-	/* Kernel symbol table: GPL-future-only symbols */		\
-	__kcrctab_gpl_future : AT(ADDR(__kcrctab_gpl_future) - LOAD_OFFSET) { \
-		__start___kcrctab_gpl_future = .;			\
-		KEEP(*(SORT(___kcrctab_gpl_future+*)))			\
-		__stop___kcrctab_gpl_future = .;			\
-	}								\
-									\
 	/* Kernel symbol table: strings */				\
         __ksymtab_strings : AT(ADDR(__ksymtab_strings) - LOAD_OFFSET) {	\
 		*(__ksymtab_strings)					\
@@ -481,30 +543,39 @@
 	__init_rodata : AT(ADDR(__init_rodata) - LOAD_OFFSET) {		\
 		*(.ref.rodata)						\
 		MEM_KEEP(init.rodata)					\
-		MEM_KEEP(exit.rodata)					\
 	}								\
 									\
 	/* Built-in module parameters. */				\
 	__param : AT(ADDR(__param) - LOAD_OFFSET) {			\
-		__start___param = .;					\
-		KEEP(*(__param))					\
-		__stop___param = .;					\
+		BOUNDED_SECTION_BY(__param, ___param)			\
 	}								\
 									\
 	/* Built-in module versions. */					\
 	__modver : AT(ADDR(__modver) - LOAD_OFFSET) {			\
-		__start___modver = .;					\
-		KEEP(*(__modver))					\
-		__stop___modver = .;					\
-		. = ALIGN((align));					\
-		__end_rodata = .;					\
+		BOUNDED_SECTION_BY(__modver, ___modver)			\
 	}								\
-	. = ALIGN((align));
+									\
+	KCFI_TRAPS							\
+									\
+	RO_EXCEPTION_TABLE						\
+	NOTES								\
+	BTF								\
+									\
+	. = ALIGN((align));						\
+	__end_rodata = .;
 
-/* RODATA & RO_DATA provided for backward compatibility.
- * All archs are supposed to use RO_DATA() */
-#define RODATA          RO_DATA_SECTION(4096)
-#define RO_DATA(align)  RO_DATA_SECTION(align)
+
+/*
+ * Non-instrumentable text section
+ */
+#define NOINSTR_TEXT							\
+		ALIGN_FUNCTION();					\
+		__noinstr_text_start = .;				\
+		*(.noinstr.text)					\
+		__cpuidle_text_start = .;				\
+		*(.cpuidle.text)					\
+		__cpuidle_text_end = .;					\
+		__noinstr_text_end = .;
 
 /*
  * .text section. Map to function alignment to avoid address changes
@@ -516,11 +587,14 @@
  */
 #define TEXT_TEXT							\
 		ALIGN_FUNCTION();					\
-		*(.text.hot TEXT_MAIN .text.fixup .text.unlikely)	\
-		*(.text..refcount)					\
+		*(.text.hot .text.hot.*)				\
+		*(TEXT_MAIN .text.fixup)				\
+		*(.text.unlikely .text.unlikely.*)			\
+		*(.text.unknown .text.unknown.*)			\
+		NOINSTR_TEXT						\
 		*(.ref.text)						\
+		*(.text.asan.* .text.tsan.*)				\
 	MEM_KEEP(init.text*)						\
-	MEM_KEEP(exit.text*)						\
 
 
 /* sched.text is aling to function alignment to secure we have same
@@ -538,12 +612,6 @@
 		__lock_text_start = .;					\
 		*(.spinlock.text)					\
 		__lock_text_end = .;
-
-#define CPUIDLE_TEXT							\
-		ALIGN_FUNCTION();					\
-		__cpuidle_text_start = .;				\
-		*(.cpuidle.text)					\
-		__cpuidle_text_end = .;
 
 #define KPROBES_TEXT							\
 		ALIGN_FUNCTION();					\
@@ -569,6 +637,12 @@
 		*(.softirqentry.text)					\
 		__softirqentry_text_end = .;
 
+#define STATIC_CALL_TEXT						\
+		ALIGN_FUNCTION();					\
+		__static_call_text_start = .;				\
+		*(.static_call.text)					\
+		__static_call_text_end = .;
+
 /* Section used for early init (in .S files) */
 #define HEAD_TEXT  KEEP(*(.head.text))
 
@@ -583,10 +657,24 @@
 #define EXCEPTION_TABLE(align)						\
 	. = ALIGN(align);						\
 	__ex_table : AT(ADDR(__ex_table) - LOAD_OFFSET) {		\
-		__start___ex_table = .;					\
-		KEEP(*(__ex_table))					\
-		__stop___ex_table = .;					\
+		BOUNDED_SECTION_BY(__ex_table, ___ex_table)		\
 	}
+
+/*
+ * .BTF
+ */
+#ifdef CONFIG_DEBUG_INFO_BTF
+#define BTF								\
+	.BTF : AT(ADDR(.BTF) - LOAD_OFFSET) {				\
+		BOUNDED_SECTION_BY(.BTF, _BTF)				\
+	}								\
+	. = ALIGN(4);							\
+	.BTF_ids : AT(ADDR(.BTF_ids) - LOAD_OFFSET) {			\
+		*(.BTF_ids)						\
+	}
+#else
+#define BTF
+#endif
 
 /*
  * Init task
@@ -600,6 +688,7 @@
 #ifdef CONFIG_CONSTRUCTORS
 #define KERNEL_CTORS()	. = ALIGN(8);			   \
 			__ctors_start = .;		   \
+			KEEP(*(SORT(.ctors.*)))		   \
 			KEEP(*(.ctors))			   \
 			KEEP(*(SORT(.init_array.*)))	   \
 			KEEP(*(.init_array))		   \
@@ -611,7 +700,7 @@
 /* init and exit section handling */
 #define INIT_DATA							\
 	KEEP(*(SORT(___kentry+*)))					\
-	*(.init.data init.data.*)					\
+	*(.init.data .init.data.*)					\
 	MEM_DISCARD(init.data*)						\
 	KERNEL_CTORS()							\
 	MCOUNT_REC()							\
@@ -633,7 +722,8 @@
 	THERMAL_TABLE(governor)						\
 	EARLYCON_TABLE()						\
 	LSM_TABLE()							\
-	EARLY_LSM_TABLE()
+	EARLY_LSM_TABLE()						\
+	KUNIT_INIT_TABLE()
 
 #define INIT_TEXT							\
 	*(.init.text .init.text.*)					\
@@ -644,13 +734,10 @@
 	*(.exit.data .exit.data.*)					\
 	*(.fini_array .fini_array.*)					\
 	*(.dtors .dtors.*)						\
-	MEM_DISCARD(exit.data*)						\
-	MEM_DISCARD(exit.rodata*)
 
 #define EXIT_TEXT							\
 	*(.exit.text)							\
 	*(.text.exit)							\
-	MEM_DISCARD(exit.text)
 
 #define EXIT_CALL							\
 	*(.exitcall.exit)
@@ -679,7 +766,9 @@
 	. = ALIGN(bss_align);						\
 	.bss : AT(ADDR(.bss) - LOAD_OFFSET) {				\
 		BSS_FIRST_SECTIONS					\
+		. = ALIGN(PAGE_SIZE);					\
 		*(.bss..page_aligned)					\
+		. = ALIGN(PAGE_SIZE);					\
 		*(.dynbss)						\
 		*(BSS_MAIN)						\
 		*(COMMON)						\
@@ -723,26 +812,35 @@
 		/* DWARF 4 */						\
 		.debug_types	0 : { *(.debug_types) }			\
 		/* DWARF 5 */						\
+		.debug_addr	0 : { *(.debug_addr) }			\
+		.debug_line_str	0 : { *(.debug_line_str) }		\
+		.debug_loclists	0 : { *(.debug_loclists) }		\
 		.debug_macro	0 : { *(.debug_macro) }			\
-		.debug_addr	0 : { *(.debug_addr) }
+		.debug_names	0 : { *(.debug_names) }			\
+		.debug_rnglists	0 : { *(.debug_rnglists) }		\
+		.debug_str_offsets	0 : { *(.debug_str_offsets) }
 
-		/* Stabs debugging sections.  */
+/* Stabs debugging sections. */
 #define STABS_DEBUG							\
 		.stab 0 : { *(.stab) }					\
 		.stabstr 0 : { *(.stabstr) }				\
 		.stab.excl 0 : { *(.stab.excl) }			\
 		.stab.exclstr 0 : { *(.stab.exclstr) }			\
 		.stab.index 0 : { *(.stab.index) }			\
-		.stab.indexstr 0 : { *(.stab.indexstr) }		\
-		.comment 0 : { *(.comment) }
+		.stab.indexstr 0 : { *(.stab.indexstr) }
+
+/* Required sections not related to debugging. */
+#define ELF_DETAILS							\
+		.comment 0 : { *(.comment) }				\
+		.symtab 0 : { *(.symtab) }				\
+		.strtab 0 : { *(.strtab) }				\
+		.shstrtab 0 : { *(.shstrtab) }
 
 #ifdef CONFIG_GENERIC_BUG
 #define BUG_TABLE							\
 	. = ALIGN(8);							\
 	__bug_table : AT(ADDR(__bug_table) - LOAD_OFFSET) {		\
-		__start___bug_table = .;				\
-		KEEP(*(__bug_table))					\
-		__stop___bug_table = .;					\
+		BOUNDED_SECTION_BY(__bug_table, ___bug_table)		\
 	}
 #else
 #define BUG_TABLE
@@ -750,22 +848,22 @@
 
 #ifdef CONFIG_UNWINDER_ORC
 #define ORC_UNWIND_TABLE						\
+	.orc_header : AT(ADDR(.orc_header) - LOAD_OFFSET) {		\
+		BOUNDED_SECTION_BY(.orc_header, _orc_header)		\
+	}								\
 	. = ALIGN(4);							\
 	.orc_unwind_ip : AT(ADDR(.orc_unwind_ip) - LOAD_OFFSET) {	\
-		__start_orc_unwind_ip = .;				\
-		KEEP(*(.orc_unwind_ip))					\
-		__stop_orc_unwind_ip = .;				\
+		BOUNDED_SECTION_BY(.orc_unwind_ip, _orc_unwind_ip)	\
 	}								\
 	. = ALIGN(2);							\
 	.orc_unwind : AT(ADDR(.orc_unwind) - LOAD_OFFSET) {		\
-		__start_orc_unwind = .;					\
-		KEEP(*(.orc_unwind))					\
-		__stop_orc_unwind = .;					\
+		BOUNDED_SECTION_BY(.orc_unwind, _orc_unwind)		\
 	}								\
+	text_size = _etext - _stext;					\
 	. = ALIGN(4);							\
 	.orc_lookup : AT(ADDR(.orc_lookup) - LOAD_OFFSET) {		\
 		orc_lookup = .;						\
-		. += (((SIZEOF(.text) + LOOKUP_BLOCK_SIZE - 1) /	\
+		. += (((text_size + LOOKUP_BLOCK_SIZE - 1) /		\
 			LOOKUP_BLOCK_SIZE) + 1) * 4;			\
 		orc_lookup_end = .;					\
 	}
@@ -773,30 +871,56 @@
 #define ORC_UNWIND_TABLE
 #endif
 
+/* Built-in firmware blobs */
+#ifdef CONFIG_FW_LOADER
+#define FW_LOADER_BUILT_IN_DATA						\
+	.builtin_fw : AT(ADDR(.builtin_fw) - LOAD_OFFSET) ALIGN(8) {	\
+		BOUNDED_SECTION_PRE_LABEL(.builtin_fw, _builtin_fw, __start, __end) \
+	}
+#else
+#define FW_LOADER_BUILT_IN_DATA
+#endif
+
 #ifdef CONFIG_PM_TRACE
 #define TRACEDATA							\
 	. = ALIGN(4);							\
 	.tracedata : AT(ADDR(.tracedata) - LOAD_OFFSET) {		\
-		__tracedata_start = .;					\
-		KEEP(*(.tracedata))					\
-		__tracedata_end = .;					\
+		BOUNDED_SECTION_POST_LABEL(.tracedata, __tracedata, _start, _end) \
 	}
 #else
 #define TRACEDATA
 #endif
 
-#define NOTES								\
-	.notes : AT(ADDR(.notes) - LOAD_OFFSET) {			\
-		__start_notes = .;					\
-		KEEP(*(.note.*))					\
-		__stop_notes = .;					\
+#ifdef CONFIG_PRINTK_INDEX
+#define PRINTK_INDEX							\
+	.printk_index : AT(ADDR(.printk_index) - LOAD_OFFSET) {		\
+		BOUNDED_SECTION_BY(.printk_index, _printk_index)	\
 	}
+#else
+#define PRINTK_INDEX
+#endif
+
+/*
+ * Discard .note.GNU-stack, which is emitted as PROGBITS by the compiler.
+ * Otherwise, the type of .notes section would become PROGBITS instead of NOTES.
+ *
+ * Also, discard .note.gnu.property, otherwise it forces the notes section to
+ * be 8-byte aligned which causes alignment mismatches with the kernel's custom
+ * 4-byte aligned notes.
+ */
+#define NOTES								\
+	/DISCARD/ : {							\
+		*(.note.GNU-stack)					\
+		*(.note.gnu.property)					\
+	}								\
+	.notes : AT(ADDR(.notes) - LOAD_OFFSET) {			\
+		BOUNDED_SECTION_BY(.note.*, _notes)			\
+	} NOTES_HEADERS							\
+	NOTES_HEADERS_RESTORE
 
 #define INIT_SETUP(initsetup_align)					\
 		. = ALIGN(initsetup_align);				\
-		__setup_start = .;					\
-		KEEP(*(.init.setup))					\
-		__setup_end = .;
+		BOUNDED_SECTION_POST_LABEL(.init.setup, __setup, _start, _end)
 
 #define INIT_CALLS_LEVEL(level)						\
 		__initcall##level##_start = .;				\
@@ -818,9 +942,18 @@
 		__initcall_end = .;
 
 #define CON_INITCALL							\
-		__con_initcall_start = .;				\
-		KEEP(*(.con_initcall.init))				\
-		__con_initcall_end = .;
+	BOUNDED_SECTION_POST_LABEL(.con_initcall.init, __con_initcall, _start, _end)
+
+/* Alignment must be consistent with (kunit_suite *) in include/kunit/test.h */
+#define KUNIT_TABLE()							\
+		. = ALIGN(8);						\
+		BOUNDED_SECTION_POST_LABEL(.kunit_test_suites, __kunit_suites, _start, _end)
+
+/* Alignment must be consistent with (kunit_suite *) in include/kunit/test.h */
+#define KUNIT_INIT_TABLE()						\
+		. = ALIGN(8);						\
+		BOUNDED_SECTION_POST_LABEL(.kunit_init_test_suites, \
+				__kunit_init_suites, _start, _end)
 
 #ifdef CONFIG_BLK_DEV_INITRD
 #define INIT_RAM_FS							\
@@ -860,14 +993,54 @@
  * section definitions so that such archs put those in earlier section
  * definitions.
  */
-#define DISCARDS							\
-	/DISCARD/ : {							\
+#ifdef RUNTIME_DISCARD_EXIT
+#define EXIT_DISCARDS
+#else
+#define EXIT_DISCARDS							\
 	EXIT_TEXT							\
-	EXIT_DATA							\
-	EXIT_CALL							\
+	EXIT_DATA
+#endif
+
+/*
+ * Clang's -fprofile-arcs, -fsanitize=kernel-address, and
+ * -fsanitize=thread produce unwanted sections (.eh_frame
+ * and .init_array.*), but CONFIG_CONSTRUCTORS wants to
+ * keep any .init_array.* sections.
+ * https://llvm.org/pr46478
+ */
+#ifdef CONFIG_UNWIND_TABLES
+#define DISCARD_EH_FRAME
+#else
+#define DISCARD_EH_FRAME	*(.eh_frame)
+#endif
+#if defined(CONFIG_GCOV_KERNEL) || defined(CONFIG_KASAN_GENERIC) || defined(CONFIG_KCSAN)
+# ifdef CONFIG_CONSTRUCTORS
+#  define SANITIZER_DISCARDS						\
+	DISCARD_EH_FRAME
+# else
+#  define SANITIZER_DISCARDS						\
+	*(.init_array) *(.init_array.*)					\
+	DISCARD_EH_FRAME
+# endif
+#else
+# define SANITIZER_DISCARDS
+#endif
+
+#define COMMON_DISCARDS							\
+	SANITIZER_DISCARDS						\
+	PATCHABLE_DISCARDS						\
 	*(.discard)							\
 	*(.discard.*)							\
+	*(.export_symbol)						\
 	*(.modinfo)							\
+	/* ld.bfd warns about .gnu.version* even when not emitted */	\
+	*(.gnu.version*)						\
+
+#define DISCARDS							\
+	/DISCARD/ : {							\
+	EXIT_DISCARDS							\
+	EXIT_CALL							\
+	COMMON_DISCARDS							\
 	}
 
 /**
@@ -962,7 +1135,7 @@
  * matches the requirement of PAGE_ALIGNED_DATA.
  *
  * use 0 as page_align if page_aligned data is not used */
-#define RW_DATA_SECTION(cacheline, pagealigned, inittask)		\
+#define RW_DATA(cacheline, pagealigned, inittask)			\
 	. = ALIGN(PAGE_SIZE);						\
 	.data : AT(ADDR(.data) - LOAD_OFFSET) {				\
 		INIT_TASK_DATA(inittask)				\

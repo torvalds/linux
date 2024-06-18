@@ -66,6 +66,7 @@ int __init db1550_board_setup(void)
 	case BCSR_WHOAMI_PB1550_DDR:
 		bcsr_init(PB1550_BCSR_PHYS_ADDR,
 			  PB1550_BCSR_PHYS_ADDR + PB1550_BCSR_HEXLED_OFS);
+		break;
 	case BCSR_WHOAMI_DB1550:
 		break;
 	default:
@@ -225,7 +226,7 @@ static void __init pb1550_nand_setup(void)
 	case 0: case 2: case 8: case 0xC: case 0xD:
 		/* x16 NAND Flash */
 		pb1550_nand_pd.devwidth = 1;
-		/* fallthrough */
+		fallthrough;
 	case 1: case 3: case 9: case 0xE: case 0xF:
 		/* x8 NAND, already set up */
 		platform_device_register(&pb1550_nand_dev);
@@ -588,7 +589,7 @@ int __init db1550_dev_setup(void)
 	i2c_register_board_info(0, db1550_i2c_devs,
 				ARRAY_SIZE(db1550_i2c_devs));
 	spi_register_board_info(db1550_spi_devs,
-				ARRAY_SIZE(db1550_i2c_devs));
+				ARRAY_SIZE(db1550_spi_devs));
 
 	c = clk_get(NULL, "psc0_intclk");
 	if (!IS_ERR(c)) {

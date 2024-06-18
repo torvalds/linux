@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/ak4613.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: AK4613 I2C transmitter
+
+maintainers:
+  - Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+
+allOf:
+  - $ref: dai-common.yaml#
+
+properties:
+  compatible:
+    const: asahi-kasei,ak4613
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  "#sound-dai-cells":
+    const: 0
+
+  ports:
+    $ref: audio-graph-port.yaml#/definitions/ports
+
+  port:
+    $ref: audio-graph-port.yaml#
+    unevaluatedProperties: false
+
+patternProperties:
+  "^asahi-kasei,in[1-2]-single-end$":
+    description: Input Pin 1 - 2.
+    $ref: /schemas/types.yaml#/definitions/flag
+
+  "^asahi-kasei,out[1-6]-single-end$":
+    description: Output Pin 1 - 6.
+    $ref: /schemas/types.yaml#/definitions/flag
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        ak4613: codec@10 {
+            compatible = "asahi-kasei,ak4613";
+            reg = <0x10>;
+        };
+    };

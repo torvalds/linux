@@ -16,6 +16,8 @@
 #include <asm/setup.h>
 #include <asm/xen/hypercall.h>
 
+#include "xen-ops.h"
+
 static efi_char16_t vendor[100] __initdata;
 
 static efi_system_table_t efi_systab_xen __initdata = {
@@ -29,9 +31,9 @@ static efi_system_table_t efi_systab_xen __initdata = {
 	.fw_vendor	= EFI_INVALID_TABLE_ADDR, /* Initialized later. */
 	.fw_revision	= 0,			  /* Initialized later. */
 	.con_in_handle	= EFI_INVALID_TABLE_ADDR, /* Not used under Xen. */
-	.con_in		= EFI_INVALID_TABLE_ADDR, /* Not used under Xen. */
+	.con_in		= NULL,			  /* Not used under Xen. */
 	.con_out_handle	= EFI_INVALID_TABLE_ADDR, /* Not used under Xen. */
-	.con_out	= EFI_INVALID_TABLE_ADDR, /* Not used under Xen. */
+	.con_out	= NULL, 		  /* Not used under Xen. */
 	.stderr_handle	= EFI_INVALID_TABLE_ADDR, /* Not used under Xen. */
 	.stderr		= EFI_INVALID_TABLE_ADDR, /* Not used under Xen. */
 	.runtime	= (efi_runtime_services_t *)EFI_INVALID_TABLE_ADDR,
@@ -93,37 +95,22 @@ static efi_system_table_t __init *xen_efi_probe(void)
 
 /*
  * Determine whether we're in secure boot mode.
- *
- * Please keep the logic in sync with
- * drivers/firmware/efi/libstub/secureboot.c:efi_get_secureboot().
  */
 static enum efi_secureboot_mode xen_efi_get_secureboot(void)
 {
-	static efi_guid_t efi_variable_guid = EFI_GLOBAL_VARIABLE_GUID;
 	static efi_guid_t shim_guid = EFI_SHIM_LOCK_GUID;
+	enum efi_secureboot_mode mode;
 	efi_status_t status;
-	u8 moksbstate, secboot, setupmode;
+	u8 moksbstate;
 	unsigned long size;
 
-	size = sizeof(secboot);
-	status = efi.get_variable(L"SecureBoot", &efi_variable_guid,
-				  NULL, &size, &secboot);
-
-	if (status == EFI_NOT_FOUND)
-		return efi_secureboot_mode_disabled;
-
-	if (status != EFI_SUCCESS)
-		goto out_efi_err;
-
-	size = sizeof(setupmode);
-	status = efi.get_variable(L"SetupMode", &efi_variable_guid,
-				  NULL, &size, &setupmode);
-
-	if (status != EFI_SUCCESS)
-		goto out_efi_err;
-
-	if (secboot == 0 || setupmode == 1)
-		return efi_secureboot_mode_disabled;
+	mode = efi_get_secureboot_mode(efi.get_variable);
+	if (mode == efi_secureboot_mode_unknown) {
+		pr_err("Could not determine UEFI Secure Boot status.\n");
+		return efi_secureboot_mode_unknown;
+	}
+	if (mode != efi_secureboot_mode_enabled)
+		return mode;
 
 	/* See if a user has put the shim into insecure mode. */
 	size = sizeof(moksbstate);
@@ -140,10 +127,6 @@ static enum efi_secureboot_mode xen_efi_get_secureboot(void)
  secure_boot_enabled:
 	pr_info("UEFI Secure Boot is enabled.\n");
 	return efi_secureboot_mode_enabled;
-
- out_efi_err:
-	pr_err("Could not determine UEFI Secure Boot status.\n");
-	return efi_secureboot_mode_unknown;
 }
 
 void __init xen_efi_init(struct boot_params *boot_params)
@@ -155,7 +138,7 @@ void __init xen_efi_init(struct boot_params *boot_params)
 	if (efi_systab_xen == NULL)
 		return;
 
-	strncpy((char *)&boot_params->efi_info.efi_loader_signature, "Xen",
+	strscpy((char *)&boot_params->efi_info.efi_loader_signature, "Xen",
 			sizeof(boot_params->efi_info.efi_loader_signature));
 	boot_params->efi_info.efi_systab = (__u32)__pa(efi_systab_xen);
 	boot_params->efi_info.efi_systab_hi = (__u32)(__pa(efi_systab_xen) >> 32);

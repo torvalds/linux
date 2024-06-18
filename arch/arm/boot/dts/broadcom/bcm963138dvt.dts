@@ -1,0 +1,56 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Broadcom BCM63138 Reference Board DTS
+ */
+
+/dts-v1/;
+
+#include "bcm63138.dtsi"
+
+/ {
+	compatible = "brcm,BCM963138DVT", "brcm,bcm63138", "brcm,bcmbca";
+	model = "Broadcom BCM963138DVT";
+
+	chosen {
+		bootargs = "console=ttyS0,115200";
+		stdout-path = &serial0;
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x08000000>;
+	};
+
+};
+
+&serial0 {
+	status = "okay";
+};
+
+&serial1 {
+	status = "okay";
+};
+
+&nand_controller {
+	brcm,wp-not-connected;
+	status = "okay";
+};
+
+&nandcs {
+	nand-ecc-strength = <4>;
+	nand-ecc-step-size = <512>;
+	brcm,nand-oob-sector-size = <16>;
+	nand-on-flash-bbt;
+};
+
+&ahci {
+	status = "okay";
+};
+
+&sata_phy {
+	status = "okay";
+};
+
+&hsspi {
+	status = "okay";
+};

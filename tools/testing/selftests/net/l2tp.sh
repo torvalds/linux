@@ -13,6 +13,7 @@
 #                10.1.1.1    |            |   10.1.2.1
 #              2001:db8:1::1 |            | 2001:db8:2::1
 
+source lib.sh
 VERBOSE=0
 PAUSE_ON_FAIL=no
 
@@ -80,9 +81,6 @@ create_ns()
 	[ -z "${addr}" ] && addr="-"
 	[ -z "${addr6}" ] && addr6="-"
 
-	ip netns add ${ns}
-
-	ip -netns ${ns} link set lo up
 	if [ "${addr}" != "-" ]; then
 		ip -netns ${ns} addr add dev lo ${addr}
 	fi
@@ -133,12 +131,7 @@ connect_ns()
 
 cleanup()
 {
-	local ns
-
-	for ns in host-1 host-2 router
-	do
-		ip netns del ${ns} 2>/dev/null
-	done
+	cleanup_ns $host_1 $host_2 $router
 }
 
 setup_l2tp_ipv4()
@@ -146,28 +139,28 @@ setup_l2tp_ipv4()
 	#
 	# configure l2tpv3 tunnel on host-1
 	#
-	ip -netns host-1 l2tp add tunnel tunnel_id 1041 peer_tunnel_id 1042 \
+	ip -netns $host_1 l2tp add tunnel tunnel_id 1041 peer_tunnel_id 1042 \
 			 encap ip local 10.1.1.1 remote 10.1.2.1
-	ip -netns host-1 l2tp add session name l2tp4 tunnel_id 1041 \
+	ip -netns $host_1 l2tp add session name l2tp4 tunnel_id 1041 \
 			 session_id 1041 peer_session_id 1042
-	ip -netns host-1 link set dev l2tp4 up
-	ip -netns host-1 addr add dev l2tp4 172.16.1.1 peer 172.16.1.2
+	ip -netns $host_1 link set dev l2tp4 up
+	ip -netns $host_1 addr add dev l2tp4 172.16.1.1 peer 172.16.1.2
 
 	#
 	# configure l2tpv3 tunnel on host-2
 	#
-	ip -netns host-2 l2tp add tunnel tunnel_id 1042 peer_tunnel_id 1041 \
+	ip -netns $host_2 l2tp add tunnel tunnel_id 1042 peer_tunnel_id 1041 \
 			 encap ip local 10.1.2.1 remote 10.1.1.1
-	ip -netns host-2 l2tp add session name l2tp4 tunnel_id 1042 \
+	ip -netns $host_2 l2tp add session name l2tp4 tunnel_id 1042 \
 			 session_id 1042 peer_session_id 1041
-	ip -netns host-2 link set dev l2tp4 up
-	ip -netns host-2 addr add dev l2tp4 172.16.1.2 peer 172.16.1.1
+	ip -netns $host_2 link set dev l2tp4 up
+	ip -netns $host_2 addr add dev l2tp4 172.16.1.2 peer 172.16.1.1
 
 	#
 	# add routes to loopback addresses
 	#
-	ip -netns host-1 ro add 172.16.101.2/32 via 172.16.1.2
-	ip -netns host-2 ro add 172.16.101.1/32 via 172.16.1.1
+	ip -netns $host_1 ro add 172.16.101.2/32 via 172.16.1.2
+	ip -netns $host_2 ro add 172.16.101.1/32 via 172.16.1.1
 }
 
 setup_l2tp_ipv6()
@@ -175,28 +168,28 @@ setup_l2tp_ipv6()
 	#
 	# configure l2tpv3 tunnel on host-1
 	#
-	ip -netns host-1 l2tp add tunnel tunnel_id 1061 peer_tunnel_id 1062 \
+	ip -netns $host_1 l2tp add tunnel tunnel_id 1061 peer_tunnel_id 1062 \
 			 encap ip local 2001:db8:1::1 remote 2001:db8:2::1
-	ip -netns host-1 l2tp add session name l2tp6 tunnel_id 1061 \
+	ip -netns $host_1 l2tp add session name l2tp6 tunnel_id 1061 \
 			 session_id 1061 peer_session_id 1062
-	ip -netns host-1 link set dev l2tp6 up
-	ip -netns host-1 addr add dev l2tp6 fc00:1::1 peer fc00:1::2
+	ip -netns $host_1 link set dev l2tp6 up
+	ip -netns $host_1 addr add dev l2tp6 fc00:1::1 peer fc00:1::2
 
 	#
 	# configure l2tpv3 tunnel on host-2
 	#
-	ip -netns host-2 l2tp add tunnel tunnel_id 1062 peer_tunnel_id 1061 \
+	ip -netns $host_2 l2tp add tunnel tunnel_id 1062 peer_tunnel_id 1061 \
 			 encap ip local 2001:db8:2::1 remote 2001:db8:1::1
-	ip -netns host-2 l2tp add session name l2tp6 tunnel_id 1062 \
+	ip -netns $host_2 l2tp add session name l2tp6 tunnel_id 1062 \
 			 session_id 1062 peer_session_id 1061
-	ip -netns host-2 link set dev l2tp6 up
-	ip -netns host-2 addr add dev l2tp6 fc00:1::2 peer fc00:1::1
+	ip -netns $host_2 link set dev l2tp6 up
+	ip -netns $host_2 addr add dev l2tp6 fc00:1::2 peer fc00:1::1
 
 	#
 	# add routes to loopback addresses
 	#
-	ip -netns host-1 -6 ro add fc00:101::2/128 via fc00:1::2
-	ip -netns host-2 -6 ro add fc00:101::1/128 via fc00:1::1
+	ip -netns $host_1 -6 ro add fc00:101::2/128 via fc00:1::2
+	ip -netns $host_2 -6 ro add fc00:101::1/128 via fc00:1::1
 }
 
 setup()
@@ -205,21 +198,22 @@ setup()
 	cleanup
 
 	set -e
-	create_ns host-1 172.16.101.1/32 fc00:101::1/128
-	create_ns host-2 172.16.101.2/32 fc00:101::2/128
-	create_ns router
+	setup_ns host_1 host_2 router
+	create_ns $host_1 172.16.101.1/32 fc00:101::1/128
+	create_ns $host_2 172.16.101.2/32 fc00:101::2/128
+	create_ns $router
 
-	connect_ns host-1 eth0 10.1.1.1/24 2001:db8:1::1/64 \
-	           router eth1 10.1.1.2/24 2001:db8:1::2/64
+	connect_ns $host_1 eth0 10.1.1.1/24 2001:db8:1::1/64 \
+	           $router eth1 10.1.1.2/24 2001:db8:1::2/64
 
-	connect_ns host-2 eth0 10.1.2.1/24 2001:db8:2::1/64 \
-	           router eth2 10.1.2.2/24 2001:db8:2::2/64
+	connect_ns $host_2 eth0 10.1.2.1/24 2001:db8:2::1/64 \
+	           $router eth2 10.1.2.2/24 2001:db8:2::2/64
 
-	ip -netns host-1 ro add 10.1.2.0/24 via 10.1.1.2
-	ip -netns host-1 -6 ro add 2001:db8:2::/64 via 2001:db8:1::2
+	ip -netns $host_1 ro add 10.1.2.0/24 via 10.1.1.2
+	ip -netns $host_1 -6 ro add 2001:db8:2::/64 via 2001:db8:1::2
 
-	ip -netns host-2 ro add 10.1.1.0/24 via 10.1.2.2
-	ip -netns host-2 -6 ro add 2001:db8:1::/64 via 2001:db8:2::2
+	ip -netns $host_2 ro add 10.1.1.0/24 via 10.1.2.2
+	ip -netns $host_2 -6 ro add 2001:db8:1::/64 via 2001:db8:2::2
 
 	setup_l2tp_ipv4
 	setup_l2tp_ipv6
@@ -231,38 +225,38 @@ setup_ipsec()
 	#
 	# IPv4
 	#
-	run_cmd host-1 ip xfrm policy add \
+	run_cmd $host_1 ip xfrm policy add \
 		src 10.1.1.1 dst 10.1.2.1 dir out \
 		tmpl proto esp mode transport
 
-	run_cmd host-1 ip xfrm policy add \
+	run_cmd $host_1 ip xfrm policy add \
 		src 10.1.2.1 dst 10.1.1.1 dir in \
 		tmpl proto esp mode transport
 
-	run_cmd host-2 ip xfrm policy add \
+	run_cmd $host_2 ip xfrm policy add \
 		src 10.1.1.1 dst 10.1.2.1 dir in \
 		tmpl proto esp mode transport
 
-	run_cmd host-2 ip xfrm policy add \
+	run_cmd $host_2 ip xfrm policy add \
 		src 10.1.2.1 dst 10.1.1.1 dir out \
 		tmpl proto esp mode transport
 
-	ip -netns host-1 xfrm state add \
+	ip -netns $host_1 xfrm state add \
 		src 10.1.1.1 dst 10.1.2.1 \
 		spi 0x1000 proto esp aead 'rfc4106(gcm(aes))' \
 		0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f 128 mode transport
 
-	ip -netns host-1 xfrm state add \
+	ip -netns $host_1 xfrm state add \
 		src 10.1.2.1 dst 10.1.1.1 \
 		spi 0x1001 proto esp aead 'rfc4106(gcm(aes))' \
 		0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f 128 mode transport
 
-	ip -netns host-2 xfrm state add \
+	ip -netns $host_2 xfrm state add \
 		src 10.1.1.1 dst 10.1.2.1 \
 		spi 0x1000 proto esp aead 'rfc4106(gcm(aes))' \
 		0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f 128 mode transport
 
-	ip -netns host-2 xfrm state add \
+	ip -netns $host_2 xfrm state add \
 		src 10.1.2.1 dst 10.1.1.1 \
 		spi 0x1001 proto esp aead 'rfc4106(gcm(aes))' \
 		0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f 128 mode transport
@@ -270,38 +264,38 @@ setup_ipsec()
 	#
 	# IPV6
 	#
-	run_cmd host-1 ip -6 xfrm policy add \
+	run_cmd $host_1 ip -6 xfrm policy add \
 		src 2001:db8:1::1 dst 2001:db8:2::1 dir out \
 		tmpl proto esp mode transport
 
-	run_cmd host-1 ip -6 xfrm policy add \
+	run_cmd $host_1 ip -6 xfrm policy add \
 		src 2001:db8:2::1 dst 2001:db8:1::1 dir in \
 		tmpl proto esp mode transport
 
-	run_cmd host-2 ip -6 xfrm policy add \
+	run_cmd $host_2 ip -6 xfrm policy add \
 		src 2001:db8:1::1 dst 2001:db8:2::1 dir in \
 		tmpl proto esp mode transport
 
-	run_cmd host-2 ip -6 xfrm policy add \
+	run_cmd $host_2 ip -6 xfrm policy add \
 		src 2001:db8:2::1 dst 2001:db8:1::1 dir out \
 		tmpl proto esp mode transport
 
-	ip -netns host-1 -6 xfrm state add \
+	ip -netns $host_1 -6 xfrm state add \
 		src 2001:db8:1::1 dst 2001:db8:2::1 \
 		spi 0x1000 proto esp aead 'rfc4106(gcm(aes))' \
 		0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f 128 mode transport
 
-	ip -netns host-1 -6 xfrm state add \
+	ip -netns $host_1 -6 xfrm state add \
 		src 2001:db8:2::1 dst 2001:db8:1::1 \
 		spi 0x1001 proto esp aead 'rfc4106(gcm(aes))' \
 		0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f 128 mode transport
 
-	ip -netns host-2 -6 xfrm state add \
+	ip -netns $host_2 -6 xfrm state add \
 		src 2001:db8:1::1 dst 2001:db8:2::1 \
 		spi 0x1000 proto esp aead 'rfc4106(gcm(aes))' \
 		0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f 128 mode transport
 
-	ip -netns host-2 -6 xfrm state add \
+	ip -netns $host_2 -6 xfrm state add \
 		src 2001:db8:2::1 dst 2001:db8:1::1 \
 		spi 0x1001 proto esp aead 'rfc4106(gcm(aes))' \
 		0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f 128 mode transport
@@ -309,10 +303,10 @@ setup_ipsec()
 
 teardown_ipsec()
 {
-	run_cmd host-1 ip xfrm state flush
-	run_cmd host-1 ip xfrm policy flush
-	run_cmd host-2 ip xfrm state flush
-	run_cmd host-2 ip xfrm policy flush
+	run_cmd $host_1 ip xfrm state flush
+	run_cmd $host_1 ip xfrm policy flush
+	run_cmd $host_2 ip xfrm state flush
+	run_cmd $host_2 ip xfrm policy flush
 }
 
 ################################################################################
@@ -322,16 +316,16 @@ run_ping()
 {
 	local desc="$1"
 
-	run_cmd host-1 ping -c1 -w1 172.16.1.2
+	run_cmd $host_1 ping -c1 -w1 172.16.1.2
 	log_test $? 0 "IPv4 basic L2TP tunnel ${desc}"
 
-	run_cmd host-1 ping -c1 -w1 -I 172.16.101.1 172.16.101.2
+	run_cmd $host_1 ping -c1 -w1 -I 172.16.101.1 172.16.101.2
 	log_test $? 0 "IPv4 route through L2TP tunnel ${desc}"
 
-	run_cmd host-1 ${ping6} -c1 -w1 fc00:1::2
+	run_cmd $host_1 ${ping6} -c1 -w1 fc00:1::2
 	log_test $? 0 "IPv6 basic L2TP tunnel ${desc}"
 
-	run_cmd host-1 ${ping6} -c1 -w1 -I fc00:101::1 fc00:101::2
+	run_cmd $host_1 ${ping6} -c1 -w1 -I fc00:101::1 fc00:101::2
 	log_test $? 0 "IPv6 route through L2TP tunnel ${desc}"
 }
 
@@ -344,16 +338,16 @@ run_tests()
 
 	setup_ipsec
 	run_ping "- with IPsec"
-	run_cmd host-1 ping -c1 -w1 172.16.1.2
+	run_cmd $host_1 ping -c1 -w1 172.16.1.2
 	log_test $? 0 "IPv4 basic L2TP tunnel ${desc}"
 
-	run_cmd host-1 ping -c1 -w1 -I 172.16.101.1 172.16.101.2
+	run_cmd $host_1 ping -c1 -w1 -I 172.16.101.1 172.16.101.2
 	log_test $? 0 "IPv4 route through L2TP tunnel ${desc}"
 
-	run_cmd host-1 ${ping6} -c1 -w1 fc00:1::2
+	run_cmd $host_1 ${ping6} -c1 -w1 fc00:1::2
 	log_test $? 0 "IPv6 basic L2TP tunnel - with IPsec"
 
-	run_cmd host-1 ${ping6} -c1 -w1 -I fc00:101::1 fc00:101::2
+	run_cmd $host_1 ${ping6} -c1 -w1 -I fc00:101::1 fc00:101::2
 	log_test $? 0 "IPv6 route through L2TP tunnel - with IPsec"
 
 	teardown_ipsec

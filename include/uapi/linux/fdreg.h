@@ -7,26 +7,28 @@
  * Handbook", Sanches and Canton.
  */
 
-#ifdef FDPATCHES
-#define FD_IOPORT fdc_state[fdc].address
-#else
-/* It would be a lot saner just to force fdc_state[fdc].address to always
-   be set ! FIXME */
-#define FD_IOPORT 0x3f0
-#endif
-
-/* Fd controller regs. S&C, about page 340 */
-#define FD_STATUS	(4 + FD_IOPORT )
-#define FD_DATA		(5 + FD_IOPORT )
+/* 82077's auxiliary status registers A & B (R) */
+#define FD_SRA		0
+#define FD_SRB		1
 
 /* Digital Output Register */
-#define FD_DOR		(2 + FD_IOPORT )
+#define FD_DOR		2
+
+/* 82077's tape drive register (R/W) */
+#define FD_TDR		3
+
+/* 82077's data rate select register (W) */
+#define FD_DSR		4
+
+/* Fd controller regs. S&C, about page 340 */
+#define FD_STATUS	4
+#define FD_DATA		5
 
 /* Digital Input Register (read) */
-#define FD_DIR		(7 + FD_IOPORT )
+#define FD_DIR		7
 
 /* Diskette Control Register (write)*/
-#define FD_DCR		(7 + FD_IOPORT )
+#define FD_DCR		7
 
 /* Bits of main status register */
 #define STATUS_BUSYMASK	0x0F		/* drive busy mask */

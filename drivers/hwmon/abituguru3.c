@@ -145,7 +145,7 @@ struct abituguru3_data {
 	struct device *hwmon_dev;	/* hwmon registered device */
 	struct mutex update_lock;	/* protect access to data and uGuru */
 	unsigned short addr;		/* uguru base address */
-	char valid;			/* !=0 if following fields are valid */
+	bool valid;			/* true if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 
 	/*
@@ -1061,7 +1061,7 @@ abituguru3_probe_error:
 	return res;
 }
 
-static int abituguru3_remove(struct platform_device *pdev)
+static void abituguru3_remove(struct platform_device *pdev)
 {
 	int i;
 	struct abituguru3_data *data = platform_get_drvdata(pdev);
@@ -1072,7 +1072,6 @@ static int abituguru3_remove(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(abituguru3_sysfs_attr); i++)
 		device_remove_file(&pdev->dev,
 			&abituguru3_sysfs_attr[i].dev_attr);
-	return 0;
 }
 
 static struct abituguru3_data *abituguru3_update_device(struct device *dev)
@@ -1083,7 +1082,7 @@ static struct abituguru3_data *abituguru3_update_device(struct device *dev)
 	mutex_lock(&data->update_lock);
 	if (!data->valid || time_after(jiffies, data->last_updated + HZ)) {
 		/* Clear data->valid while updating */
-		data->valid = 0;
+		data->valid = false;
 		/* Read alarms */
 		if (abituguru3_read_increment_offset(data,
 				ABIT_UGURU3_SETTINGS_BANK,
@@ -1117,7 +1116,7 @@ static struct abituguru3_data *abituguru3_update_device(struct device *dev)
 				goto LEAVE_UPDATE;
 		}
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 LEAVE_UPDATE:
 	mutex_unlock(&data->update_lock);
@@ -1127,7 +1126,6 @@ LEAVE_UPDATE:
 		return NULL;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int abituguru3_suspend(struct device *dev)
 {
 	struct abituguru3_data *data = dev_get_drvdata(dev);
@@ -1146,19 +1144,15 @@ static int abituguru3_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(abituguru3_pm, abituguru3_suspend, abituguru3_resume);
-#define ABIT_UGURU3_PM	(&abituguru3_pm)
-#else
-#define ABIT_UGURU3_PM	NULL
-#endif /* CONFIG_PM */
+static DEFINE_SIMPLE_DEV_PM_OPS(abituguru3_pm, abituguru3_suspend, abituguru3_resume);
 
 static struct platform_driver abituguru3_driver = {
 	.driver = {
 		.name	= ABIT_UGURU3_NAME,
-		.pm	= ABIT_UGURU3_PM
+		.pm	= pm_sleep_ptr(&abituguru3_pm),
 	},
 	.probe	= abituguru3_probe,
-	.remove	= abituguru3_remove,
+	.remove_new = abituguru3_remove,
 };
 
 static int __init abituguru3_dmi_detect(void)

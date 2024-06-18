@@ -117,7 +117,6 @@ static struct nlm_host *nlm_alloc_host(struct nlm_lookup_host_info *ni,
 	if (nsm != NULL)
 		refcount_inc(&nsm->sm_count);
 	else {
-		host = NULL;
 		nsm = nsm_get_handle(ni->net, ni->sap, ni->salen,
 					ni->hostname, ni->hostname_len);
 		if (unlikely(nsm == NULL)) {
@@ -163,8 +162,8 @@ static struct nlm_host *nlm_alloc_host(struct nlm_lookup_host_info *ni,
 	host->h_nsmhandle  = nsm;
 	host->h_addrbuf    = nsm->sm_addrbuf;
 	host->net	   = ni->net;
-	host->h_cred	   = get_cred(ni->cred),
-	strlcpy(host->nodename, utsname()->nodename, sizeof(host->nodename));
+	host->h_cred	   = get_cred(ni->cred);
+	strscpy(host->nodename, utsname()->nodename, sizeof(host->nodename));
 
 out:
 	return host;
@@ -439,12 +438,7 @@ nlm_bind_host(struct nlm_host *host)
 	 * RPC rebind is required
 	 */
 	if ((clnt = host->h_rpcclnt) != NULL) {
-		if (time_after_eq(jiffies, host->h_nextrebind)) {
-			rpc_force_rebind(clnt);
-			host->h_nextrebind = jiffies + NLM_HOST_REBIND;
-			dprintk("lockd: next rebind in %lu jiffies\n",
-					host->h_nextrebind - jiffies);
-		}
+		nlm_rebind_host(host);
 	} else {
 		unsigned long increment = nlmsvc_timeout;
 		struct rpc_timeout timeparms = {
@@ -464,7 +458,8 @@ nlm_bind_host(struct nlm_host *host)
 			.version	= host->h_version,
 			.authflavor	= RPC_AUTH_UNIX,
 			.flags		= (RPC_CLNT_CREATE_NOPING |
-					   RPC_CLNT_CREATE_AUTOBIND),
+					   RPC_CLNT_CREATE_AUTOBIND |
+					   RPC_CLNT_CREATE_REUSEPORT),
 			.cred		= host->h_cred,
 		};
 
@@ -493,13 +488,20 @@ nlm_bind_host(struct nlm_host *host)
 	return clnt;
 }
 
-/*
- * Force a portmap lookup of the remote lockd port
+/**
+ * nlm_rebind_host - If needed, force a portmap lookup of the peer's lockd port
+ * @host: NLM host handle for peer
+ *
+ * This is not needed when using a connection-oriented protocol, such as TCP.
+ * The existing autobind mechanism is sufficient to force a rebind when
+ * required, e.g. on connection state transitions.
  */
 void
 nlm_rebind_host(struct nlm_host *host)
 {
-	dprintk("lockd: rebind host %s\n", host->h_name);
+	if (host->h_proto != IPPROTO_UDP)
+		return;
+
 	if (host->h_rpcclnt && time_after_eq(jiffies, host->h_nextrebind)) {
 		rpc_force_rebind(host->h_rpcclnt);
 		host->h_nextrebind = jiffies + NLM_HOST_REBIND;
@@ -626,6 +628,7 @@ nlm_shutdown_hosts_net(struct net *net)
 			rpc_shutdown_client(host->h_rpcclnt);
 			host->h_rpcclnt = NULL;
 		}
+		nlmsvc_free_host_resources(host);
 	}
 
 	/* Then, perform a garbage collection pass */

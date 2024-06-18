@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * Copyright (C) 2008, Creative Technology Ltd. All Rights Reserved.
  *
  * @File	cthw20k1.c
@@ -168,7 +168,7 @@ static int src_get_rsc_ctrl_blk(void **rblk)
 
 static int src_put_rsc_ctrl_blk(void *blk)
 {
-	kfree((struct src_rsc_ctrl_blk *)blk);
+	kfree(blk);
 
 	return 0;
 }
@@ -494,7 +494,7 @@ static int src_mgr_get_ctrl_blk(void **rblk)
 
 static int src_mgr_put_ctrl_blk(void *blk)
 {
-	kfree((struct src_mgr_ctrl_blk *)blk);
+	kfree(blk);
 
 	return 0;
 }
@@ -515,7 +515,7 @@ static int srcimp_mgr_get_ctrl_blk(void **rblk)
 
 static int srcimp_mgr_put_ctrl_blk(void *blk)
 {
-	kfree((struct srcimp_mgr_ctrl_blk *)blk);
+	kfree(blk);
 
 	return 0;
 }
@@ -702,7 +702,7 @@ static int amixer_rsc_get_ctrl_blk(void **rblk)
 
 static int amixer_rsc_put_ctrl_blk(void *blk)
 {
-	kfree((struct amixer_rsc_ctrl_blk *)blk);
+	kfree(blk);
 
 	return 0;
 }
@@ -909,7 +909,7 @@ static int dai_get_ctrl_blk(void **rblk)
 
 static int dai_put_ctrl_blk(void *blk)
 {
-	kfree((struct dai_ctrl_blk *)blk);
+	kfree(blk);
 
 	return 0;
 }
@@ -958,7 +958,7 @@ static int dao_get_ctrl_blk(void **rblk)
 
 static int dao_put_ctrl_blk(void *blk)
 {
-	kfree((struct dao_ctrl_blk *)blk);
+	kfree(blk);
 
 	return 0;
 }
@@ -1156,7 +1156,7 @@ static int daio_mgr_get_ctrl_blk(struct hw *hw, void **rblk)
 
 static int daio_mgr_put_ctrl_blk(void *blk)
 {
-	kfree((struct daio_mgr_ctrl_blk *)blk);
+	kfree(blk);
 
 	return 0;
 }
@@ -1901,12 +1901,8 @@ static int hw_card_start(struct hw *hw)
 		return err;
 
 	/* Set DMA transfer mask */
-	if (!dma_set_mask(&pci->dev, DMA_BIT_MASK(dma_bits))) {
-		dma_set_coherent_mask(&pci->dev, DMA_BIT_MASK(dma_bits));
-	} else {
-		dma_set_mask(&pci->dev, DMA_BIT_MASK(32));
-		dma_set_coherent_mask(&pci->dev, DMA_BIT_MASK(32));
-	}
+	if (dma_set_mask_and_coherent(&pci->dev, DMA_BIT_MASK(dma_bits)))
+		dma_set_mask_and_coherent(&pci->dev, DMA_BIT_MASK(32));
 
 	if (!hw->io_base) {
 		err = pci_request_regions(pci, "XFi");
@@ -1920,7 +1916,7 @@ static int hw_card_start(struct hw *hw)
 
 	}
 
-	/* Switch to X-Fi mode from UAA mode if neeeded */
+	/* Switch to X-Fi mode from UAA mode if needed */
 	if (hw->model == CTUAA) {
 		err = uaa_to_xfi(pci);
 		if (err)
@@ -1937,6 +1933,7 @@ static int hw_card_start(struct hw *hw)
 			goto error2;
 		}
 		hw->irq = pci->irq;
+		hw->card->sync_irq = hw->irq;
 	}
 
 	pci_set_master(pci);
@@ -1962,9 +1959,6 @@ static int hw_card_stop(struct hw *hw)
 	data = hw_read_20kx(hw, PLLCTL);
 	hw_write_20kx(hw, PLLCTL, (data & (~(0x0F<<12))));
 
-	/* TODO: Disable interrupt and so on... */
-	if (hw->irq >= 0)
-		synchronize_irq(hw->irq);
 	return 0;
 }
 

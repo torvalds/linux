@@ -184,7 +184,7 @@ int sclp_sdias_copy(void *dest, int start_blk, int nr_blks)
 	sccb->evbuf.asa_size = SDIAS_ASA_SIZE_64;
 	sccb->evbuf.event_status = 0;
 	sccb->evbuf.blk_cnt = nr_blks;
-	sccb->evbuf.asa = (unsigned long)dest;
+	sccb->evbuf.asa = __pa(dest);
 	sccb->evbuf.fbn = start_blk;
 	sccb->evbuf.lbn = 0;
 	sccb->evbuf.dbs = 1;
@@ -214,7 +214,7 @@ int sclp_sdias_copy(void *dest, int start_blk, int nr_blks)
 		break;
 	case SDIAS_EVSTATE_NO_DATA:
 		TRACE("no data\n");
-		/* fall through */
+		fallthrough;
 	default:
 		pr_err("Error from SCLP while copying hsa. Event status = %x\n",
 		       sdias_evbuf.event_status);
@@ -257,7 +257,7 @@ static int __init sclp_sdias_init_async(void)
 
 int __init sclp_sdias_init(void)
 {
-	if (ipl_info.type != IPL_TYPE_FCP_DUMP)
+	if (!is_ipl_type_dump())
 		return 0;
 	sclp_sdias_sccb = (void *) __get_free_page(GFP_KERNEL | GFP_DMA);
 	BUG_ON(!sclp_sdias_sccb);
@@ -274,10 +274,4 @@ int __init sclp_sdias_init(void)
 out:
 	TRACE("init done\n");
 	return 0;
-}
-
-void __exit sclp_sdias_exit(void)
-{
-	debug_unregister(sdias_dbf);
-	sclp_unregister(&sclp_sdias_register);
 }

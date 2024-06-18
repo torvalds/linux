@@ -80,7 +80,10 @@ static int xgene_gpio_get_direction(struct gpio_chip *gc, unsigned int offset)
 	bank_offset = GPIO_SET_DR_OFFSET + GPIO_BANK_OFFSET(offset);
 	bit_offset = GPIO_BIT_OFFSET(offset);
 
-	return !!(ioread32(chip->base + bank_offset) & BIT(bit_offset));
+	if (ioread32(chip->base + bank_offset) & BIT(bit_offset))
+		return GPIO_LINE_DIRECTION_IN;
+
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static int xgene_gpio_dir_in(struct gpio_chip *gc, unsigned int offset)
@@ -155,28 +158,15 @@ static SIMPLE_DEV_PM_OPS(xgene_gpio_pm, xgene_gpio_suspend, xgene_gpio_resume);
 
 static int xgene_gpio_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	struct xgene_gpio *gpio;
-	int err = 0;
 
 	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
-	if (!gpio) {
-		err = -ENOMEM;
-		goto err;
-	}
+	if (!gpio)
+		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		err = -EINVAL;
-		goto err;
-	}
-
-	gpio->base = devm_ioremap_nocache(&pdev->dev, res->start,
-							resource_size(res));
-	if (!gpio->base) {
-		err = -ENOMEM;
-		goto err;
-	}
+	gpio->base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(gpio->base))
+		return PTR_ERR(gpio->base);
 
 	gpio->chip.ngpio = XGENE_MAX_GPIOS;
 
@@ -192,18 +182,7 @@ static int xgene_gpio_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, gpio);
 
-	err = devm_gpiochip_add_data(&pdev->dev, &gpio->chip, gpio);
-	if (err) {
-		dev_err(&pdev->dev,
-			"failed to register gpiochip.\n");
-		goto err;
-	}
-
-	dev_info(&pdev->dev, "X-Gene GPIO driver registered.\n");
-	return 0;
-err:
-	dev_err(&pdev->dev, "X-Gene GPIO driver registration failed.\n");
-	return err;
+	return devm_gpiochip_add_data(&pdev->dev, &gpio->chip, gpio);
 }
 
 static const struct of_device_id xgene_gpio_of_match[] = {

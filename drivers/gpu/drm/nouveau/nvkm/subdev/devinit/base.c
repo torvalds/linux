@@ -51,17 +51,18 @@ u64
 nvkm_devinit_disable(struct nvkm_devinit *init)
 {
 	if (init && init->func->disable)
-		return init->func->disable(init);
+		init->func->disable(init);
+
 	return 0;
 }
 
 int
-nvkm_devinit_post(struct nvkm_devinit *init, u64 *disable)
+nvkm_devinit_post(struct nvkm_devinit *init)
 {
 	int ret = 0;
 	if (init && init->func->post)
 		ret = init->func->post(init, init->post);
-	*disable = nvkm_devinit_disable(init);
+	nvkm_devinit_disable(init);
 	return ret;
 }
 
@@ -126,11 +127,10 @@ nvkm_devinit = {
 };
 
 void
-nvkm_devinit_ctor(const struct nvkm_devinit_func *func,
-		  struct nvkm_device *device, int index,
-		  struct nvkm_devinit *init)
+nvkm_devinit_ctor(const struct nvkm_devinit_func *func, struct nvkm_device *device,
+		  enum nvkm_subdev_type type, int inst, struct nvkm_devinit *init)
 {
-	nvkm_subdev_ctor(&nvkm_devinit, device, index, &init->subdev);
+	nvkm_subdev_ctor(&nvkm_devinit, device, type, inst, &init->subdev);
 	init->func = func;
 	init->force_post = nvkm_boolopt(device->cfgopt, "NvForcePost", false);
 }

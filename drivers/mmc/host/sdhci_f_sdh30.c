@@ -5,6 +5,7 @@
  * Copyright (C) 2013 - 2015 Fujitsu Semiconductor, Ltd
  *              Vincent Yang <vincent.yang@tw.fujitsu.com>
  * Copyright (C) 2015 Linaro Ltd  Andy Green <andy.green@linaro.org>
+ * Copyright (C) 2019 Socionext Inc.
  */
 
 #include <linux/acpi.h>
@@ -14,45 +15,30 @@
 #include <linux/of.h>
 #include <linux/property.h>
 #include <linux/clk.h>
+#include <linux/reset.h>
 
 #include "sdhci-pltfm.h"
-
-/* F_SDH30 extended Controller registers */
-#define F_SDH30_AHB_CONFIG		0x100
-#define  F_SDH30_AHB_BIGED		0x00000040
-#define  F_SDH30_BUSLOCK_DMA		0x00000020
-#define  F_SDH30_BUSLOCK_EN		0x00000010
-#define  F_SDH30_SIN			0x00000008
-#define  F_SDH30_AHB_INCR_16		0x00000004
-#define  F_SDH30_AHB_INCR_8		0x00000002
-#define  F_SDH30_AHB_INCR_4		0x00000001
-
-#define F_SDH30_TUNING_SETTING		0x108
-#define  F_SDH30_CMD_CHK_DIS		0x00010000
-
-#define F_SDH30_IO_CONTROL2		0x114
-#define  F_SDH30_CRES_O_DN		0x00080000
-#define  F_SDH30_MSEL_O_1_8		0x00040000
-
-#define F_SDH30_ESD_CONTROL		0x124
-#define  F_SDH30_EMMC_RST		0x00000002
-#define  F_SDH30_EMMC_HS200		0x01000000
-
-#define F_SDH30_CMD_DAT_DELAY		0x200
-
-#define F_SDH30_MIN_CLOCK		400000
+#include "sdhci_f_sdh30.h"
 
 struct f_sdhost_priv {
 	struct clk *clk_iface;
 	struct clk *clk;
+	struct reset_control *rst;
 	u32 vendor_hs200;
 	struct device *dev;
 	bool enable_cmd_dat_delay;
 };
 
+static void *sdhci_f_sdhost_priv(struct sdhci_host *host)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+
+	return sdhci_pltfm_priv(pltfm_host);
+}
+
 static void sdhci_f_sdh30_soft_voltage_switch(struct sdhci_host *host)
 {
-	struct f_sdhost_priv *priv = sdhci_priv(host);
+	struct f_sdhost_priv *priv = sdhci_f_sdhost_priv(host);
 	u32 ctrl = 0;
 
 	usleep_range(2500, 3000);
@@ -85,7 +71,7 @@ static unsigned int sdhci_f_sdh30_get_min_clock(struct sdhci_host *host)
 
 static void sdhci_f_sdh30_reset(struct sdhci_host *host, u8 mask)
 {
-	struct f_sdhost_priv *priv = sdhci_priv(host);
+	struct f_sdhost_priv *priv = sdhci_f_sdhost_priv(host);
 	u32 ctl;
 
 	if (sdhci_readw(host, SDHCI_CLOCK_CONTROL) == 0)
@@ -98,6 +84,13 @@ static void sdhci_f_sdh30_reset(struct sdhci_host *host, u8 mask)
 		ctl |= F_SDH30_CMD_DAT_DELAY;
 		sdhci_writel(host, ctl, F_SDH30_ESD_CONTROL);
 	}
+
+	if ((host->mmc->caps & MMC_CAP_NONREMOVABLE) &&
+	    !(sdhci_readl(host, SDHCI_PRESENT_STATE) & SDHCI_CARD_PRESENT)) {
+		ctl = sdhci_readl(host, F_SDH30_TEST);
+		ctl |= F_SDH30_FORCE_CARD_INSERT;
+		sdhci_writel(host, ctl, F_SDH30_TEST);
+	}
 }
 
 static const struct sdhci_ops sdhci_f_sdh30_ops = {
@@ -109,30 +102,31 @@ static const struct sdhci_ops sdhci_f_sdh30_ops = {
 	.set_uhs_signaling = sdhci_set_uhs_signaling,
 };
 
+static const struct sdhci_pltfm_data sdhci_f_sdh30_pltfm_data = {
+	.ops = &sdhci_f_sdh30_ops,
+	.quirks = SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC
+		| SDHCI_QUIRK_INVERTED_WRITE_PROTECT,
+	.quirks2 = SDHCI_QUIRK2_SUPPORT_SINGLE
+		|  SDHCI_QUIRK2_TUNING_WORK_AROUND,
+};
+
 static int sdhci_f_sdh30_probe(struct platform_device *pdev)
 {
 	struct sdhci_host *host;
 	struct device *dev = &pdev->dev;
-	struct resource *res;
-	int irq, ctrl = 0, ret = 0;
+	int ctrl = 0, ret = 0;
 	struct f_sdhost_priv *priv;
+	struct sdhci_pltfm_host *pltfm_host;
 	u32 reg = 0;
 
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
-		return irq;
-
-	host = sdhci_alloc_host(dev, sizeof(struct f_sdhost_priv));
+	host = sdhci_pltfm_init(pdev, &sdhci_f_sdh30_pltfm_data,
+				sizeof(struct f_sdhost_priv));
 	if (IS_ERR(host))
 		return PTR_ERR(host);
 
-	priv = sdhci_priv(host);
+	pltfm_host = sdhci_priv(host);
+	priv = sdhci_pltfm_priv(pltfm_host);
 	priv->dev = dev;
-
-	host->quirks = SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC |
-		       SDHCI_QUIRK_INVERTED_WRITE_PROTECT;
-	host->quirks2 = SDHCI_QUIRK2_SUPPORT_SINGLE |
-			SDHCI_QUIRK2_TUNING_WORK_AROUND;
 
 	priv->enable_cmd_dat_delay = device_property_read_bool(dev,
 						"fujitsu,cmd-dat-delay-select");
@@ -140,19 +134,6 @@ static int sdhci_f_sdh30_probe(struct platform_device *pdev)
 	ret = mmc_of_parse(host->mmc);
 	if (ret)
 		goto err;
-
-	platform_set_drvdata(pdev, host);
-
-	host->hw_name = "f_sdh30";
-	host->ops = &sdhci_f_sdh30_ops;
-	host->irq = irq;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	host->ioaddr = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(host->ioaddr)) {
-		ret = PTR_ERR(host->ioaddr);
-		goto err;
-	}
 
 	if (dev_of_node(dev)) {
 		sdhci_get_of_property(pdev);
@@ -176,6 +157,16 @@ static int sdhci_f_sdh30_probe(struct platform_device *pdev)
 		ret = clk_prepare_enable(priv->clk);
 		if (ret)
 			goto err_clk;
+
+		priv->rst = devm_reset_control_get_optional_shared(dev, NULL);
+		if (IS_ERR(priv->rst)) {
+			ret = PTR_ERR(priv->rst);
+			goto err_rst;
+		}
+
+		ret = reset_control_deassert(priv->rst);
+		if (ret)
+			goto err_rst;
 	}
 
 	/* init vendor specific regs */
@@ -194,6 +185,9 @@ static int sdhci_f_sdh30_probe(struct platform_device *pdev)
 	if (reg & SDHCI_CAN_DO_8BIT)
 		priv->vendor_hs200 = F_SDH30_EMMC_HS200;
 
+	if (!(reg & SDHCI_TIMEOUT_CLK_MASK))
+		host->quirks |= SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK;
+
 	ret = sdhci_add_host(host);
 	if (ret)
 		goto err_add_host;
@@ -201,34 +195,36 @@ static int sdhci_f_sdh30_probe(struct platform_device *pdev)
 	return 0;
 
 err_add_host:
+	reset_control_assert(priv->rst);
+err_rst:
 	clk_disable_unprepare(priv->clk);
 err_clk:
 	clk_disable_unprepare(priv->clk_iface);
 err:
-	sdhci_free_host(host);
+	sdhci_pltfm_free(pdev);
+
 	return ret;
 }
 
-static int sdhci_f_sdh30_remove(struct platform_device *pdev)
+static void sdhci_f_sdh30_remove(struct platform_device *pdev)
 {
 	struct sdhci_host *host = platform_get_drvdata(pdev);
-	struct f_sdhost_priv *priv = sdhci_priv(host);
+	struct f_sdhost_priv *priv = sdhci_f_sdhost_priv(host);
+	struct clk *clk_iface = priv->clk_iface;
+	struct reset_control *rst = priv->rst;
+	struct clk *clk = priv->clk;
 
-	sdhci_remove_host(host, readl(host->ioaddr + SDHCI_INT_STATUS) ==
-			  0xffffffff);
+	sdhci_pltfm_remove(pdev);
 
-	clk_disable_unprepare(priv->clk_iface);
-	clk_disable_unprepare(priv->clk);
-
-	sdhci_free_host(host);
-	platform_set_drvdata(pdev, NULL);
-
-	return 0;
+	reset_control_assert(rst);
+	clk_disable_unprepare(clk);
+	clk_disable_unprepare(clk_iface);
 }
 
 #ifdef CONFIG_OF
 static const struct of_device_id f_sdh30_dt_ids[] = {
 	{ .compatible = "fujitsu,mb86s70-sdhci-3.0" },
+	{ .compatible = "socionext,f-sdh30-e51-mmc" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, f_sdh30_dt_ids);
@@ -245,17 +241,18 @@ MODULE_DEVICE_TABLE(acpi, f_sdh30_acpi_ids);
 static struct platform_driver sdhci_f_sdh30_driver = {
 	.driver = {
 		.name = "f_sdh30",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(f_sdh30_dt_ids),
 		.acpi_match_table = ACPI_PTR(f_sdh30_acpi_ids),
 		.pm	= &sdhci_pltfm_pmops,
 	},
-	.probe	= sdhci_f_sdh30_probe,
-	.remove	= sdhci_f_sdh30_remove,
+	.probe = sdhci_f_sdh30_probe,
+	.remove_new = sdhci_f_sdh30_remove,
 };
 
 module_platform_driver(sdhci_f_sdh30_driver);
 
 MODULE_DESCRIPTION("F_SDH30 SD Card Controller driver");
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("FUJITSU SEMICONDUCTOR LTD.");
+MODULE_AUTHOR("FUJITSU SEMICONDUCTOR LTD., Socionext Inc.");
 MODULE_ALIAS("platform:f_sdh30");

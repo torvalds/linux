@@ -3,7 +3,8 @@ Nuvoton NPCM Peripheral Serial Peripheral Interface(PSPI) controller driver
 Nuvoton NPCM7xx SOC support two PSPI channels.
 
 Required properties:
- - compatible : "nuvoton,npcm750-pspi" for NPCM7XX BMC
+ - compatible : "nuvoton,npcm750-pspi" for Poleg NPCM7XX.
+				"nuvoton,npcm845-pspi" for Arbel NPCM8XX.
  - #address-cells : should be 1. see spi-bus.txt
  - #size-cells : should be 0. see spi-bus.txt
  - specifies physical base address and size of the register.
@@ -12,22 +13,13 @@ Required properties:
  - clock-names: Should be "clk_apb5".
  - pinctrl-names : a pinctrl state named "default" must be defined.
  - pinctrl-0 : phandle referencing pin configuration of the device.
+ - resets : phandle to the reset control for this device.
  - cs-gpios: Specifies the gpio pins to be used for chipselects.
             See: Documentation/devicetree/bindings/spi/spi-bus.txt
 
 Optional properties:
 - clock-frequency : Input clock frequency to the PSPI block in Hz.
 		    Default is 25000000 Hz.
-
-Aliases:
-- All the SPI controller nodes should be represented in the aliases node using
-  the following format 'spi{n}' withe the correct numbered in "aliases" node.
-
-Example:
-
-aliases {
-	spi0 = &spi0;
-};
 
 spi0: spi@f0200000 {
 	compatible = "nuvoton,npcm750-pspi";
@@ -39,5 +31,6 @@ spi0: spi@f0200000 {
 	interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
 	clocks = <&clk NPCM7XX_CLK_APB5>;
 	clock-names = "clk_apb5";
+	resets = <&rstc NPCM7XX_RESET_IPSRST2 NPCM7XX_RESET_PSPI1>
 	cs-gpios = <&gpio6 11 GPIO_ACTIVE_LOW>;
 };

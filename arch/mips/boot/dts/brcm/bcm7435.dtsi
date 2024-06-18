@@ -422,6 +422,7 @@
 			reg = <0x41c800 0x600>, <0x41d000 0x100>;
 			interrupt-parent = <&hif_l2_intc>;
 			interrupts = <24>, <4>;
+			interrupt-names = "nand_ctlrdy", "flash_dma_done";
 			status = "disabled";
 		};
 
@@ -598,5 +599,35 @@
 				reg = <0x8000 0x13c>;
 			};
 		};
+	};
+
+	pcie_0: pcie@8b20000 {
+		status = "disabled";
+		compatible = "brcm,bcm7435-pcie";
+
+		ranges = <0x02000000 0x0 0xd0000000 0xd0000000 0x0 0x08000000
+			  0x02000000 0x0 0xd8000000 0xd8000000 0x0 0x08000000
+			  0x02000000 0x0 0xe0000000 0xe0000000 0x0 0x08000000
+			  0x02000000 0x0 0xe8000000 0xe8000000 0x0 0x08000000>;
+
+		reg = <0x10410000 0x19310>;
+		aspm-no-l0s;
+		device_type = "pci";
+		msi-controller;
+		msi-parent = <&pcie_0>;
+		#address-cells = <0x3>;
+		#size-cells = <0x2>;
+		bus-range = <0x0 0xff>;
+		interrupt-map-mask = <0x0 0x0 0x0 0x7>;
+		linux,pci-domain = <0x0>;
+
+		interrupt-parent = <&periph_intc>;
+		interrupts = <39>, <39>;
+		interrupt-names = "pcie", "msi";
+		#interrupt-cells = <0x1>;
+		interrupt-map = <0 0 0 1 &periph_intc 0x23
+				 0 0 0 1 &periph_intc 0x24
+				 0 0 0 1 &periph_intc 0x25
+				 0 0 0 1 &periph_intc 0x26>;
 	};
 };

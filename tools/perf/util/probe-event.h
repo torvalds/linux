@@ -15,10 +15,14 @@ struct probe_conf {
 	bool	force_add;
 	bool	no_inlines;
 	bool	cache;
+	bool	bootconfig;
 	int	max_probes;
+	unsigned long	magic_num;
 };
 extern struct probe_conf probe_conf;
 extern bool probe_event_dry_run;
+
+#define DEFAULT_PROBE_MAGIC_NUM	0xdeade12d	/* u32: 3735937325 */
 
 struct symbol;
 
@@ -29,7 +33,7 @@ struct probe_trace_point {
 	char		*module;	/* Module name */
 	unsigned long	offset;		/* Offset from symbol */
 	unsigned long	ref_ctr_offset;	/* SDT reference counter offset */
-	unsigned long	address;	/* Actual address of the trace point */
+	u64		address;	/* Actual address of the trace point */
 	bool		retprobe;	/* Return probe flag */
 };
 
@@ -66,7 +70,7 @@ struct perf_probe_point {
 	bool		retprobe;	/* Return probe flag */
 	char		*lazy_line;	/* Lazy matching pattern */
 	unsigned long	offset;		/* Offset from function entry */
-	unsigned long	abs_address;	/* Absolute address of the point */
+	u64		abs_address;	/* Absolute address of the point */
 };
 
 /* Perf probe probing argument field chain */
@@ -133,7 +137,6 @@ int parse_probe_trace_command(const char *cmd, struct probe_trace_event *tev);
 char *synthesize_perf_probe_command(struct perf_probe_event *pev);
 char *synthesize_probe_trace_command(struct probe_trace_event *tev);
 char *synthesize_perf_probe_arg(struct perf_probe_arg *pa);
-char *synthesize_perf_probe_point(struct perf_probe_point *pp);
 
 int perf_probe_event__copy(struct perf_probe_event *dst,
 			   struct perf_probe_event *src);
@@ -160,6 +163,7 @@ int add_perf_probe_events(struct perf_probe_event *pevs, int npevs);
 int convert_perf_probe_events(struct perf_probe_event *pevs, int npevs);
 int apply_perf_probe_events(struct perf_probe_event *pevs, int npevs);
 int show_probe_trace_events(struct perf_probe_event *pevs, int npevs);
+int show_bootconfig_events(struct perf_probe_event *pevs, int npevs);
 void cleanup_perf_probe_events(struct perf_probe_event *pevs, int npevs);
 
 struct strfilter;

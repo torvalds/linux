@@ -98,6 +98,7 @@ enum sctp_cid {
 	SCTP_CID_I_FWD_TSN		= 0xC2,
 	SCTP_CID_ASCONF_ACK		= 0x80,
 	SCTP_CID_RECONF			= 0x82,
+	SCTP_CID_PAD			= 0x84,
 }; /* enum */
 
 
@@ -221,7 +222,7 @@ struct sctp_datahdr {
 	__be16 stream;
 	__be16 ssn;
 	__u32 ppid;
-	__u8  payload[0];
+	/* __u8  payload[]; */
 };
 
 struct sctp_data_chunk {
@@ -269,7 +270,7 @@ struct sctp_inithdr {
 	__be16 num_outbound_streams;
 	__be16 num_inbound_streams;
 	__be32 initial_tsn;
-	__u8  params[0];
+	/* __u8  params[]; */
 };
 
 struct sctp_init_chunk {
@@ -299,13 +300,13 @@ struct sctp_cookie_preserve_param {
 /* Section 3.3.2.1 Host Name Address (11) */
 struct sctp_hostname_param {
 	struct sctp_paramhdr param_hdr;
-	uint8_t hostname[0];
+	uint8_t hostname[];
 };
 
 /* Section 3.3.2.1 Supported Address Types (12) */
 struct sctp_supported_addrs_param {
 	struct sctp_paramhdr param_hdr;
-	__be16 types[0];
+	__be16 types[];
 };
 
 /* ADDIP Section 3.2.6 Adaptation Layer Indication */
@@ -317,25 +318,25 @@ struct sctp_adaptation_ind_param {
 /* ADDIP Section 4.2.7 Supported Extensions Parameter */
 struct sctp_supported_ext_param {
 	struct sctp_paramhdr param_hdr;
-	__u8 chunks[0];
+	__u8 chunks[];
 };
 
 /* AUTH Section 3.1 Random */
 struct sctp_random_param {
 	struct sctp_paramhdr param_hdr;
-	__u8 random_val[0];
+	__u8 random_val[];
 };
 
 /* AUTH Section 3.2 Chunk List */
 struct sctp_chunks_param {
 	struct sctp_paramhdr param_hdr;
-	__u8 chunks[0];
+	__u8 chunks[];
 };
 
 /* AUTH Section 3.3 HMAC Algorithm */
 struct sctp_hmac_algo_param {
 	struct sctp_paramhdr param_hdr;
-	__be16 hmac_ids[0];
+	__be16 hmac_ids[];
 };
 
 /* RFC 2960.  Section 3.3.3 Initiation Acknowledgement (INIT ACK) (2):
@@ -350,7 +351,7 @@ struct sctp_initack_chunk {
 /* Section 3.3.3.1 State Cookie (7) */
 struct sctp_cookie_param {
 	struct sctp_paramhdr p;
-	__u8 body[0];
+	__u8 body[];
 };
 
 /* Section 3.3.3.1 Unrecognized Parameters (8) */
@@ -384,7 +385,7 @@ struct sctp_sackhdr {
 	__be32 a_rwnd;
 	__be16 num_gap_ack_blocks;
 	__be16 num_dup_tsns;
-	union sctp_sack_variable variable[0];
+	/* union sctp_sack_variable variable[]; */
 };
 
 struct sctp_sack_chunk {
@@ -407,6 +408,12 @@ struct sctp_heartbeathdr {
 struct sctp_heartbeat_chunk {
 	struct sctp_chunkhdr chunk_hdr;
 	struct sctp_heartbeathdr hb_hdr;
+};
+
+
+/* PAD chunk could be bundled with heartbeat chunk to probe pmtu */
+struct sctp_pad_chunk {
+	struct sctp_chunkhdr uh;
 };
 
 
@@ -436,7 +443,7 @@ struct sctp_shutdown_chunk {
 struct sctp_errhdr {
 	__be16 cause;
 	__be16 length;
-	__u8  variable[0];
+	/* __u8  variable[]; */
 };
 
 struct sctp_operr_chunk {
@@ -482,11 +489,13 @@ enum sctp_error {
 	 *  11  Restart of an association with new addresses
 	 *  12  User Initiated Abort
 	 *  13  Protocol Violation
+	 *  14  Restart of an Association with New Encapsulation Port
 	 */
 
 	SCTP_ERROR_RESTART         = cpu_to_be16(0x0b),
 	SCTP_ERROR_USER_ABORT      = cpu_to_be16(0x0c),
 	SCTP_ERROR_PROTO_VIOLATION = cpu_to_be16(0x0d),
+	SCTP_ERROR_NEW_ENCAP_PORT  = cpu_to_be16(0x0e),
 
 	/* ADDIP Section 3.3  New Error Causes
 	 *
@@ -594,7 +603,7 @@ struct sctp_fwdtsn_skip {
 
 struct sctp_fwdtsn_hdr {
 	__be32 new_cum_tsn;
-	struct sctp_fwdtsn_skip skip[0];
+	/* struct sctp_fwdtsn_skip skip[]; */
 };
 
 struct sctp_fwdtsn_chunk {
@@ -611,7 +620,7 @@ struct sctp_ifwdtsn_skip {
 
 struct sctp_ifwdtsn_hdr {
 	__be32 new_cum_tsn;
-	struct sctp_ifwdtsn_skip skip[0];
+	/* struct sctp_ifwdtsn_skip skip[]; */
 };
 
 struct sctp_ifwdtsn_chunk {
@@ -658,7 +667,7 @@ struct sctp_addip_param {
 
 struct sctp_addiphdr {
 	__be32	serial;
-	__u8	params[0];
+	/* __u8	params[]; */
 };
 
 struct sctp_addip_chunk {
@@ -718,7 +727,7 @@ struct sctp_addip_chunk {
 struct sctp_authhdr {
 	__be16 shkey_id;
 	__be16 hmac_id;
-	__u8   hmac[0];
+	/* __u8   hmac[]; */
 };
 
 struct sctp_auth_chunk {
@@ -733,7 +742,7 @@ struct sctp_infox {
 
 struct sctp_reconf_chunk {
 	struct sctp_chunkhdr chunk_hdr;
-	__u8 params[0];
+	/* __u8 params[]; */
 };
 
 struct sctp_strreset_outreq {
@@ -741,13 +750,13 @@ struct sctp_strreset_outreq {
 	__be32 request_seq;
 	__be32 response_seq;
 	__be32 send_reset_at_tsn;
-	__be16 list_of_streams[0];
+	__be16 list_of_streams[];
 };
 
 struct sctp_strreset_inreq {
 	struct sctp_paramhdr param_hdr;
 	__be32 request_seq;
-	__be16 list_of_streams[0];
+	__be16 list_of_streams[];
 };
 
 struct sctp_strreset_tsnreq {
@@ -792,5 +801,28 @@ enum {
 	SCTP_FLOWLABEL_SET_MASK = 0x100000,
 	SCTP_FLOWLABEL_VAL_MASK = 0xfffff
 };
+
+/* UDP Encapsulation
+ * draft-tuexen-tsvwg-sctp-udp-encaps-cons-03.html#section-4-4
+ *
+ *   The error cause indicating an "Restart of an Association with
+ *   New Encapsulation Port"
+ *
+ * 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |        Cause Code = 14        |       Cause Length = 8        |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |   Current Encapsulation Port  |     New Encapsulation Port    |
+ * +-------------------------------+-------------------------------+
+ */
+struct sctp_new_encap_port_hdr {
+	__be16 cur_port;
+	__be16 new_port;
+};
+
+/* Round an int up to the next multiple of 4.  */
+#define SCTP_PAD4(s) (((s)+3)&~3)
+/* Truncate to the previous multiple of 4.  */
+#define SCTP_TRUNC4(s) ((s)&~3)
 
 #endif /* __LINUX_SCTP_H__ */

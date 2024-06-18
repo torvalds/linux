@@ -10,4 +10,4 @@ Description:	This file was deprecated because there no longer was a way to
 		claim just control over a single rfkill instance.
 		This file was scheduled to be removed in 2012, and was removed
 		in 2016.
-Values: 	0: Kernel handles events
+Values:		0: Kernel handles events

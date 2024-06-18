@@ -11,13 +11,17 @@
 #include <asm/dmi.h>
 #include <asm/unaligned.h>
 
+#ifndef SMBIOS_ENTRY_POINT_SCAN_START
+#define SMBIOS_ENTRY_POINT_SCAN_START 0xF0000
+#endif
+
 struct kobject *dmi_kobj;
 EXPORT_SYMBOL_GPL(dmi_kobj);
 
 /*
  * DMI stands for "Desktop Management Interface".  It is part
  * of and an antecedent to, SMBIOS, which stands for System
- * Management BIOS.  See further: http://www.dmtf.org/standards
+ * Management BIOS.  See further: https://www.dmtf.org/standards
  */
 static const char dmi_empty_string[] = "";
 
@@ -35,8 +39,10 @@ static struct dmi_memdev_info {
 	const char *bank;
 	u64 size;		/* bytes */
 	u16 handle;
+	u8 type;		/* DDR2, DDR3, DDR4 etc */
 } *dmi_memdev;
 static int dmi_memdev_nr;
+static int dmi_memdev_populated_nr __initdata;
 
 static const char * __init dmi_string_nosave(const struct dmi_header *dm, u8 s)
 {
@@ -95,6 +101,17 @@ static void dmi_decode_table(u8 *buf,
 	while ((!dmi_num || i < dmi_num) &&
 	       (data - buf + sizeof(struct dmi_header)) <= dmi_len) {
 		const struct dmi_header *dm = (const struct dmi_header *)data;
+
+		/*
+		 * If a short entry is found (less than 4 bytes), not only it
+		 * is invalid, but we cannot reliably locate the next entry.
+		 */
+		if (dm->length < sizeof(struct dmi_header)) {
+			pr_warn(FW_BUG
+				"Corrupted DMI table, offset %zd (only %d entries processed)\n",
+				data - buf, i);
+			break;
+		}
 
 		/*
 		 *  We want to know the total length (formatted area and
@@ -161,6 +178,7 @@ static int __init dmi_checksum(const u8 *buf, u8 len)
 static const char *dmi_ident[DMI_STRING_MAX];
 static LIST_HEAD(dmi_devices);
 int dmi_available;
+EXPORT_SYMBOL_GPL(dmi_available);
 
 /*
  *	Save a DMI string
@@ -179,6 +197,34 @@ static void __init dmi_save_ident(const struct dmi_header *dm, int slot,
 		return;
 
 	dmi_ident[slot] = p;
+}
+
+static void __init dmi_save_release(const struct dmi_header *dm, int slot,
+		int index)
+{
+	const u8 *minor, *major;
+	char *s;
+
+	/* If the table doesn't have the field, let's return */
+	if (dmi_ident[slot] || dm->length < index)
+		return;
+
+	minor = (u8 *) dm + index;
+	major = (u8 *) dm + index - 1;
+
+	/* As per the spec, if the system doesn't support this field,
+	 * the value is FF
+	 */
+	if (*major == 0xFF && *minor == 0xFF)
+		return;
+
+	s = dmi_alloc(8);
+	if (!s)
+		return;
+
+	sprintf(s, "%u.%u", *major, *minor);
+
+	dmi_ident[slot] = s;
 }
 
 static void __init dmi_save_uuid(const struct dmi_header *dm, int slot,
@@ -391,7 +437,7 @@ static void __init save_mem_devices(const struct dmi_header *dm, void *v)
 	u64 bytes;
 	u16 size;
 
-	if (dm->type != DMI_ENTRY_MEM_DEVICE || dm->length < 0x12)
+	if (dm->type != DMI_ENTRY_MEM_DEVICE || dm->length < 0x13)
 		return;
 	if (nr >= dmi_memdev_nr) {
 		pr_warn(FW_BUG "Too many DIMM entries in SMBIOS table\n");
@@ -400,6 +446,7 @@ static void __init save_mem_devices(const struct dmi_header *dm, void *v)
 	dmi_memdev[nr].handle = get_unaligned(&dm->handle);
 	dmi_memdev[nr].device = dmi_string(dm, d[0x10]);
 	dmi_memdev[nr].bank = dmi_string(dm, d[0x11]);
+	dmi_memdev[nr].type = d[0x12];
 
 	size = get_unaligned((u16 *)&d[0xC]);
 	if (size == 0)
@@ -408,10 +455,13 @@ static void __init save_mem_devices(const struct dmi_header *dm, void *v)
 		bytes = ~0ull;
 	else if (size & 0x8000)
 		bytes = (u64)(size & 0x7fff) << 10;
-	else if (size != 0x7fff)
+	else if (size != 0x7fff || dm->length < 0x20)
 		bytes = (u64)size << 20;
 	else
 		bytes = (u64)get_unaligned((u32 *)&d[0x1C]) << 20;
+
+	if (bytes)
+		dmi_memdev_populated_nr++;
 
 	dmi_memdev[nr].size = bytes;
 	nr++;
@@ -438,6 +488,8 @@ static void __init dmi_decode(const struct dmi_header *dm, void *dummy)
 		dmi_save_ident(dm, DMI_BIOS_VENDOR, 4);
 		dmi_save_ident(dm, DMI_BIOS_VERSION, 5);
 		dmi_save_ident(dm, DMI_BIOS_DATE, 8);
+		dmi_save_release(dm, DMI_BIOS_RELEASE, 21);
+		dmi_save_release(dm, DMI_EC_FIRMWARE_RELEASE, 23);
 		break;
 	case 1:		/* System Information */
 		dmi_save_ident(dm, DMI_SYS_VENDOR, 4);
@@ -530,8 +582,13 @@ static int __init dmi_present(const u8 *buf)
 {
 	u32 smbios_ver;
 
+	/*
+	 * The size of this structure is 31 bytes, but we also accept value
+	 * 30 due to a mistake in SMBIOS specification version 2.1.
+	 */
 	if (memcmp(buf, "_SM_", 4) == 0 &&
-	    buf[5] < 32 && dmi_checksum(buf, buf[5])) {
+	    buf[5] >= 30 && buf[5] <= 32 &&
+	    dmi_checksum(buf, buf[5])) {
 		smbios_ver = get_unaligned_be16(buf + 6);
 		smbios_entry_point_size = buf[5];
 		memcpy(smbios_entry_point, buf, smbios_entry_point_size);
@@ -592,8 +649,9 @@ static int __init dmi_present(const u8 *buf)
 static int __init dmi_smbios3_present(const u8 *buf)
 {
 	if (memcmp(buf, "_SM3_", 5) == 0 &&
-	    buf[6] < 32 && dmi_checksum(buf, buf[6])) {
-		dmi_ver = get_unaligned_be32(buf + 6) & 0xFFFFFF;
+	    buf[6] >= 24 && buf[6] <= 32 &&
+	    dmi_checksum(buf, buf[6])) {
+		dmi_ver = get_unaligned_be24(buf + 7);
 		dmi_num = 0;			/* No longer specified */
 		dmi_len = get_unaligned_le32(buf + 12);
 		dmi_base = get_unaligned_le64(buf + 16);
@@ -661,7 +719,7 @@ static void __init dmi_scan_machine(void)
 			return;
 		}
 	} else if (IS_ENABLED(CONFIG_DMI_SCAN_MACHINE_NON_EFI_FALLBACK)) {
-		p = dmi_early_remap(0xF0000, 0x10000);
+		p = dmi_early_remap(SMBIOS_ENTRY_POINT_SCAN_START, 0x10000);
 		if (p == NULL)
 			goto error;
 
@@ -703,16 +761,8 @@ static void __init dmi_scan_machine(void)
 	pr_info("DMI not present or invalid.\n");
 }
 
-static ssize_t raw_table_read(struct file *file, struct kobject *kobj,
-			      struct bin_attribute *attr, char *buf,
-			      loff_t pos, size_t count)
-{
-	memcpy(buf, attr->private + pos, count);
-	return count;
-}
-
-static BIN_ATTR(smbios_entry_point, S_IRUSR, raw_table_read, NULL, 0);
-static BIN_ATTR(DMI, S_IRUSR, raw_table_read, NULL, 0);
+static BIN_ATTR_SIMPLE_ADMIN_RO(smbios_entry_point);
+static BIN_ATTR_SIMPLE_ADMIN_RO(DMI);
 
 static int __init dmi_init(void)
 {
@@ -781,6 +831,8 @@ void __init dmi_setup(void)
 		return;
 
 	dmi_memdev_walk();
+	pr_info("DMI: Memory slots populated: %d/%d\n",
+		dmi_memdev_populated_nr, dmi_memdev_nr);
 	dump_stack_set_arch_desc("%s", dmi_ids_string);
 }
 
@@ -1128,3 +1180,40 @@ u64 dmi_memdev_size(u16 handle)
 	return ~0ull;
 }
 EXPORT_SYMBOL_GPL(dmi_memdev_size);
+
+/**
+ * dmi_memdev_type - get the memory type
+ * @handle: DMI structure handle
+ *
+ * Return the DMI memory type of the module in the slot associated with the
+ * given DMI handle, or 0x0 if no such DMI handle exists.
+ */
+u8 dmi_memdev_type(u16 handle)
+{
+	int n;
+
+	if (dmi_memdev) {
+		for (n = 0; n < dmi_memdev_nr; n++) {
+			if (handle == dmi_memdev[n].handle)
+				return dmi_memdev[n].type;
+		}
+	}
+	return 0x0;	/* Not a valid value */
+}
+EXPORT_SYMBOL_GPL(dmi_memdev_type);
+
+/**
+ *	dmi_memdev_handle - get the DMI handle of a memory slot
+ *	@slot: slot number
+ *
+ *	Return the DMI handle associated with a given memory slot, or %0xFFFF
+ *      if there is no such slot.
+ */
+u16 dmi_memdev_handle(int slot)
+{
+	if (dmi_memdev && slot >= 0 && slot < dmi_memdev_nr)
+		return dmi_memdev[slot].handle;
+
+	return 0xffff;	/* Not a valid value */
+}
+EXPORT_SYMBOL_GPL(dmi_memdev_handle);

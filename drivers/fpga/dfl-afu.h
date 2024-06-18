@@ -41,7 +41,7 @@ struct dfl_afu_mmio_region {
 };
 
 /**
- * struct fpga_afu_dma_region - afu DMA region data structure
+ * struct dfl_afu_dma_region - afu DMA region data structure
  *
  * @user_addr: region userspace virtual address.
  * @length: region length.
@@ -67,7 +67,6 @@ struct dfl_afu_dma_region {
  * @regions: the mmio region linked list of this afu feature device.
  * @dma_regions: root of dma regions rb tree.
  * @num_umsgs: num of umsgs.
- * @pdata: afu platform device's pdata.
  */
 struct dfl_afu {
 	u64 region_cur_offset;
@@ -75,12 +74,10 @@ struct dfl_afu {
 	u8 num_umsgs;
 	struct list_head regions;
 	struct rb_root dma_regions;
-
-	struct dfl_feature_platform_data *pdata;
 };
 
 /* hold pdata->lock when call __afu_port_enable/disable */
-void __afu_port_enable(struct platform_device *pdev);
+int __afu_port_enable(struct platform_device *pdev);
 int __afu_port_disable(struct platform_device *pdev);
 
 void afu_mmio_region_init(struct dfl_feature_platform_data *pdata);

@@ -1,0 +1,42 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2021, Konrad Dybcio <konrad.dybcio@somainline.org>
+ */
+
+/dts-v1/;
+
+#include "sm8350-sony-xperia-sagami.dtsi"
+
+/ {
+	model = "Sony Xperia 5 III";
+	compatible = "sony,pdx214-generic", "qcom,sm8350";
+};
+
+&framebuffer {
+	width = <1080>;
+	height = <2520>;
+	stride = <(1080 * 4)>;
+};
+
+&pm8350b_gpios {
+	gpio-line-names = "NC", /* GPIO_1 */
+			  "NC",
+			  "NC",
+			  "NC",
+			  "SNAPSHOT_N",
+			  "NC",
+			  "NC",
+			  "FOCUS_N";
+};
+
+&pm8350c_gpios {
+	gpio-line-names = "FL_STROBE_TRIG_WIDE", /* GPIO_1 */
+			  "FL_STROBE_TRIG_TELE",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "RGBC_IR_PWR_EN",
+			  "NC",
+			  "NC",
+			  "WIDEC_PWR_EN";
+};

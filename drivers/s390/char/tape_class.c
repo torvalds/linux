@@ -22,7 +22,9 @@ MODULE_DESCRIPTION(
 );
 MODULE_LICENSE("GPL");
 
-static struct class *tape_class;
+static const struct class tape_class = {
+	.name = "tape390",
+};
 
 /*
  * Register a tape device and return a pointer to the cdev structure.
@@ -54,10 +56,10 @@ struct tape_class_device *register_tape_dev(
 	if (!tcd)
 		return ERR_PTR(-ENOMEM);
 
-	strlcpy(tcd->device_name, device_name, TAPECLASS_NAME_LEN);
+	strscpy(tcd->device_name, device_name, TAPECLASS_NAME_LEN);
 	for (s = strchr(tcd->device_name, '/'); s; s = strchr(s, '/'))
 		*s = '!';
-	strlcpy(tcd->mode_name, mode_name, TAPECLASS_NAME_LEN);
+	strscpy(tcd->mode_name, mode_name, TAPECLASS_NAME_LEN);
 	for (s = strchr(tcd->mode_name, '/'); s; s = strchr(s, '/'))
 		*s = '!';
 
@@ -74,7 +76,7 @@ struct tape_class_device *register_tape_dev(
 	if (rc)
 		goto fail_with_cdev;
 
-	tcd->class_device = device_create(tape_class, device,
+	tcd->class_device = device_create(&tape_class, device,
 					  tcd->char_device->dev, NULL,
 					  "%s", tcd->device_name);
 	rc = PTR_ERR_OR_ZERO(tcd->class_device);
@@ -91,7 +93,7 @@ struct tape_class_device *register_tape_dev(
 	return tcd;
 
 fail_with_class_device:
-	device_destroy(tape_class, tcd->char_device->dev);
+	device_destroy(&tape_class, tcd->char_device->dev);
 
 fail_with_cdev:
 	cdev_del(tcd->char_device);
@@ -107,7 +109,7 @@ void unregister_tape_dev(struct device *device, struct tape_class_device *tcd)
 {
 	if (tcd != NULL && !IS_ERR(tcd)) {
 		sysfs_remove_link(&device->kobj, tcd->mode_name);
-		device_destroy(tape_class, tcd->char_device->dev);
+		device_destroy(&tape_class, tcd->char_device->dev);
 		cdev_del(tcd->char_device);
 		kfree(tcd);
 	}
@@ -117,15 +119,12 @@ EXPORT_SYMBOL(unregister_tape_dev);
 
 static int __init tape_init(void)
 {
-	tape_class = class_create(THIS_MODULE, "tape390");
-
-	return 0;
+	return class_register(&tape_class);
 }
 
 static void __exit tape_exit(void)
 {
-	class_destroy(tape_class);
-	tape_class = NULL;
+	class_unregister(&tape_class);
 }
 
 postcore_initcall(tape_init);

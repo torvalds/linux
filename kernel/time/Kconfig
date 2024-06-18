@@ -26,13 +26,9 @@ config CLOCKSOURCE_VALIDATE_LAST_CYCLE
 config GENERIC_TIME_VSYSCALL
 	bool
 
-# Old style timekeeping
-config ARCH_USES_GETTIMEOFFSET
-	bool
-
 # The generic clock events infrastructure
 config GENERIC_CLOCKEVENTS
-	bool
+	def_bool !LEGACY_TIMER_TICK
 
 # Architecture can handle broadcast in a driver-agnostic way
 config ARCH_HAS_TICK_BROADCAST
@@ -43,6 +39,11 @@ config GENERIC_CLOCKEVENTS_BROADCAST
 	bool
 	depends on GENERIC_CLOCKEVENTS
 
+# Handle broadcast in default_idle_call()
+config GENERIC_CLOCKEVENTS_BROADCAST_IDLE
+	bool
+	depends on GENERIC_CLOCKEVENTS_BROADCAST
+
 # Automatically adjust the min. reprogramming time for
 # clock event device
 config GENERIC_CLOCKEVENTS_MIN_ADJUST
@@ -51,6 +52,40 @@ config GENERIC_CLOCKEVENTS_MIN_ADJUST
 # Generic update of CMOS clock
 config GENERIC_CMOS_UPDATE
 	bool
+
+# Select to handle posix CPU timers from task_work
+# and not from the timer interrupt context
+config HAVE_POSIX_CPU_TIMERS_TASK_WORK
+	bool
+
+config POSIX_CPU_TIMERS_TASK_WORK
+	bool
+	default y if POSIX_TIMERS && HAVE_POSIX_CPU_TIMERS_TASK_WORK
+
+config LEGACY_TIMER_TICK
+	bool
+	help
+	  The legacy timer tick helper is used by platforms that
+	  lack support for the generic clockevent framework.
+	  New platforms should use generic clockevents instead.
+
+config TIME_KUNIT_TEST
+	tristate "KUnit test for kernel/time functions" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  Enable this option to test RTC library functions.
+
+	  If unsure, say N.
+
+config CONTEXT_TRACKING
+	bool
+
+config CONTEXT_TRACKING_IDLE
+	bool
+	select CONTEXT_TRACKING
+	help
+	  Tracks idle state on behalf of RCU.
 
 if GENERIC_CLOCKEVENTS
 menu "Timers subsystem"
@@ -63,7 +98,6 @@ config TICK_ONESHOT
 
 config NO_HZ_COMMON
 	bool
-	depends on !ARCH_USES_GETTIMEOFFSET && GENERIC_CLOCKEVENTS
 	select TICK_ONESHOT
 
 choice
@@ -78,7 +112,6 @@ config HZ_PERIODIC
 
 config NO_HZ_IDLE
 	bool "Idle dynticks system (tickless idle)"
-	depends on !ARCH_USES_GETTIMEOFFSET && GENERIC_CLOCKEVENTS
 	select NO_HZ_COMMON
 	help
 	  This option enables a tickless idle system: timer interrupts
@@ -90,10 +123,9 @@ config NO_HZ_IDLE
 config NO_HZ_FULL
 	bool "Full dynticks system (tickless)"
 	# NO_HZ_COMMON dependency
-	depends on !ARCH_USES_GETTIMEOFFSET && GENERIC_CLOCKEVENTS
 	# We need at least one periodic CPU for timekeeping
 	depends on SMP
-	depends on HAVE_CONTEXT_TRACKING
+	depends on HAVE_CONTEXT_TRACKING_USER
 	# VIRT_CPU_ACCOUNTING_GEN dependency
 	depends on HAVE_VIRT_CPU_ACCOUNTING_GEN
 	select NO_HZ_COMMON
@@ -108,48 +140,54 @@ config NO_HZ_FULL
 	 the task mostly runs in userspace and has few kernel activity.
 
 	 You need to fill up the nohz_full boot parameter with the
-	 desired range of dynticks CPUs.
+	 desired range of dynticks CPUs to use it. This is implemented at
+	 the expense of some overhead in user <-> kernel transitions:
+	 syscalls, exceptions and interrupts.
 
-	 This is implemented at the expense of some overhead in user <-> kernel
-	 transitions: syscalls, exceptions and interrupts. Even when it's
-	 dynamically off.
+	 By default, without passing the nohz_full parameter, this behaves just
+	 like NO_HZ_IDLE.
 
-	 Say N.
+	 If you're a distro say Y.
 
 endchoice
 
-config CONTEXT_TRACKING
-       bool
+config CONTEXT_TRACKING_USER
+	bool
+	depends on HAVE_CONTEXT_TRACKING_USER
+	select CONTEXT_TRACKING
+	help
+	  Track transitions between kernel and user on behalf of RCU and
+	  tickless cputime accounting. The former case relies on context
+	  tracking to enter/exit RCU extended quiescent states.
 
-config CONTEXT_TRACKING_FORCE
-	bool "Force context tracking"
-	depends on CONTEXT_TRACKING
+config CONTEXT_TRACKING_USER_FORCE
+	bool "Force user context tracking"
+	depends on CONTEXT_TRACKING_USER
 	default y if !NO_HZ_FULL
 	help
 	  The major pre-requirement for full dynticks to work is to
-	  support the context tracking subsystem. But there are also
+	  support the user context tracking subsystem. But there are also
 	  other dependencies to provide in order to make the full
 	  dynticks working.
 
 	  This option stands for testing when an arch implements the
-	  context tracking backend but doesn't yet fullfill all the
+	  user context tracking backend but doesn't yet fulfill all the
 	  requirements to make the full dynticks feature working.
 	  Without the full dynticks, there is no way to test the support
-	  for context tracking and the subsystems that rely on it: RCU
+	  for user context tracking and the subsystems that rely on it: RCU
 	  userspace extended quiescent state and tickless cputime
 	  accounting. This option copes with the absence of the full
-	  dynticks subsystem by forcing the context tracking on all
+	  dynticks subsystem by forcing the user context tracking on all
 	  CPUs in the system.
 
 	  Say Y only if you're working on the development of an
-	  architecture backend for the context tracking.
+	  architecture backend for the user context tracking.
 
 	  Say N otherwise, this option brings an overhead that you
 	  don't want in production.
 
 config NO_HZ
 	bool "Old Idle dynticks config"
-	depends on !ARCH_USES_GETTIMEOFFSET && GENERIC_CLOCKEVENTS
 	help
 	  This is the old config entry that enables dynticks idle.
 	  We keep it around for a little while to enforce backward
@@ -157,12 +195,24 @@ config NO_HZ
 
 config HIGH_RES_TIMERS
 	bool "High Resolution Timer Support"
-	depends on !ARCH_USES_GETTIMEOFFSET && GENERIC_CLOCKEVENTS
 	select TICK_ONESHOT
 	help
 	  This option enables high resolution timer support. If your
 	  hardware is not capable then this option only increases
 	  the size of the kernel image.
+
+config CLOCKSOURCE_WATCHDOG_MAX_SKEW_US
+	int "Clocksource watchdog maximum allowable skew (in microseconds)"
+	depends on CLOCKSOURCE_WATCHDOG
+	range 50 1000
+	default 125
+	help
+	  Specify the maximum amount of allowable watchdog skew in
+	  microseconds before reporting the clocksource to be unstable.
+	  The default is based on a half-second clocksource watchdog
+	  interval and NTP's maximum frequency drift of 500 parts
+	  per million.	If the clocksource is good enough for NTP,
+	  it is good enough for the clocksource watchdog!
 
 endmenu
 endif

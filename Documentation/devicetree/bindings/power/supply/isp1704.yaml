@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (C) 2021 Sebastian Reichel
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/power/supply/isp1704.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP ISP1704 USB Charger Detection
+
+maintainers:
+  - Sebastian Reichel <sre@kernel.org>
+
+allOf:
+  - $ref: power-supply.yaml#
+
+properties:
+  compatible:
+    const: nxp,isp1704
+
+  nxp,enable-gpio:
+    maxItems: 1
+    description: GPIO connected to the chip's enable pin
+
+  usb-phy:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: USB PHY the ISP1704 is connected to
+
+required:
+  - compatible
+  - nxp,enable-gpio
+  - usb-phy
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    charger-detect {
+      compatible = "nxp,isp1704";
+      nxp,enable-gpio = <&gpio3 3 GPIO_ACTIVE_LOW>;
+      usb-phy = <&usb2_phy>;
+    };

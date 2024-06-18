@@ -54,6 +54,7 @@ struct snd_emux_operators {
 #if IS_ENABLED(CONFIG_SND_SEQUENCER_OSS)
 	int (*oss_ioctl)(struct snd_emux *emu, int cmd, int p1, int p2);
 #endif
+	int (*get_pitch_shift)(struct snd_emux *emu);
 };
 
 
@@ -82,7 +83,6 @@ struct snd_emux {
 	int max_voices;		/* Number of voices */
 	int mem_size;		/* memory size (in byte) */
 	int num_ports;		/* number of ports to be created */
-	int pitch_shift;	/* pitch shift value (for Emu10k1) */
 	struct snd_emux_operators ops;	/* operators */
 	void *hw;		/* hardware */
 	unsigned long flags;	/* other conditions */
@@ -103,7 +103,7 @@ struct snd_emux {
 	int ports[SNDRV_EMUX_MAX_PORTS];	/* The ports for this device */
 	struct snd_emux_port *portptrs[SNDRV_EMUX_MAX_PORTS];
 	int used;	/* use counter */
-	char *name;	/* name of the device (internal) */
+	const char *name;	/* name of the device (internal) */
 	struct snd_rawmidi **vmidi;
 	struct timer_list tlist;	/* for pending note-offs */
 	int timer_active;

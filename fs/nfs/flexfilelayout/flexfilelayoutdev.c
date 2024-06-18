@@ -69,7 +69,7 @@ nfs4_ff_alloc_deviceid_node(struct nfs_server *server, struct pnfs_device *pdev,
 	INIT_LIST_HEAD(&dsaddrs);
 
 	xdr_init_decode_pages(&stream, &buf, pdev->pages, pdev->pglen);
-	xdr_set_scratch_buffer(&stream, page_address(scratch), PAGE_SIZE);
+	xdr_set_scratch_page(&stream, scratch);
 
 	/* multipath count */
 	p = xdr_inline_decode(&stream, 4);
@@ -113,8 +113,10 @@ nfs4_ff_alloc_deviceid_node(struct nfs_server *server, struct pnfs_device *pdev,
 			goto out_err_drain_dsaddrs;
 		ds_versions[i].version = be32_to_cpup(p++);
 		ds_versions[i].minor_version = be32_to_cpup(p++);
-		ds_versions[i].rsize = nfs_block_size(be32_to_cpup(p++), NULL);
-		ds_versions[i].wsize = nfs_block_size(be32_to_cpup(p++), NULL);
+		ds_versions[i].rsize = nfs_io_size(be32_to_cpup(p++),
+						   server->nfs_client->cl_proto);
+		ds_versions[i].wsize = nfs_io_size(be32_to_cpup(p++),
+						   server->nfs_client->cl_proto);
 		ds_versions[i].tightly_coupled = be32_to_cpup(p);
 
 		if (ds_versions[i].rsize > NFS_MAX_FILE_IO_SIZE)
@@ -378,10 +380,10 @@ nfs4_ff_layout_prepare_ds(struct pnfs_layout_segment *lseg,
 		goto noconnect;
 
 	ds = mirror->mirror_ds->ds;
+	if (READ_ONCE(ds->ds_clp))
+		goto out;
 	/* matching smp_wmb() in _nfs4_pnfs_v3/4_ds_connect */
 	smp_rmb();
-	if (ds->ds_clp)
-		goto out;
 
 	/* FIXME: For now we assume the server sent only one version of NFS
 	 * to use for the DS.

@@ -17,22 +17,9 @@
 
 struct device;
 
-struct adt7x10_ops {
-	int (*read_byte)(struct device *, u8 reg);
-	int (*write_byte)(struct device *, u8 reg, u8 data);
-	int (*read_word)(struct device *, u8 reg);
-	int (*write_word)(struct device *, u8 reg, u16 data);
-};
-
 int adt7x10_probe(struct device *dev, const char *name, int irq,
-	const struct adt7x10_ops *ops);
-int adt7x10_remove(struct device *dev, int irq);
+		  struct regmap *regmap);
 
-#ifdef CONFIG_PM_SLEEP
 extern const struct dev_pm_ops adt7x10_dev_pm_ops;
-#define ADT7X10_DEV_PM_OPS (&adt7x10_dev_pm_ops)
-#else
-#define ADT7X10_DEV_PM_OPS NULL
-#endif
 
 #endif

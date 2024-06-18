@@ -187,7 +187,6 @@ static int saa7164_cmd_set(struct saa7164_dev *dev, struct tmComResInfo *msg,
 	mutex_lock(&dev->cmds[msg->id].lock);
 
 	size = msg->size;
-	idx = 0;
 	cmds = size / bus->m_wMaxReqSize;
 	if (size % bus->m_wMaxReqSize == 0)
 		cmds -= 1;
@@ -549,9 +548,6 @@ int saa7164_cmd_send(struct saa7164_dev *dev, u8 id, enum tmComResCmd command,
 		/* See of other commands are on the bus */
 		if (saa7164_cmd_dequeue(dev) != SAA_OK)
 			printk(KERN_ERR "dequeue(3) failed\n");
-
-		continue;
-
 	} /* (loop) */
 
 	/* Release the sequence number allocation */

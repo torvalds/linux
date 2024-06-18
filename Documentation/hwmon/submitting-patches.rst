@@ -12,7 +12,6 @@ increase the chances of your change being accepted.
 * It should be unnecessary to mention, but please read and follow:
 
     - Documentation/process/submit-checklist.rst
-    - Documentation/process/submitting-drivers.rst
     - Documentation/process/submitting-patches.rst
     - Documentation/process/coding-style.rst
 
@@ -127,7 +126,7 @@ increase the chances of your change being accepted.
 * Use devm_hwmon_device_register_with_info() or, if your driver needs a remove
   function, hwmon_device_register_with_info() to register your driver with the
   hwmon subsystem. Try using devm_add_action() instead of a remove function if
-  possible. Do not use hwmon_device_register().
+  possible. Do not use any of the deprecated registration functions.
 
 * Your driver should be buildable as module. If not, please be prepared to
   explain why it has to be built into the kernel.

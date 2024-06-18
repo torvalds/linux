@@ -152,14 +152,14 @@ static void jsm_tty_send_xchar(struct uart_port *port, char ch)
 		container_of(port, struct jsm_channel, uart_port);
 	struct ktermios *termios;
 
-	spin_lock_irqsave(&port->lock, lock_flags);
+	uart_port_lock_irqsave(port, &lock_flags);
 	termios = &port->state->port.tty->termios;
 	if (ch == termios->c_cc[VSTART])
 		channel->ch_bd->bd_ops->send_start_character(channel);
 
 	if (ch == termios->c_cc[VSTOP])
 		channel->ch_bd->bd_ops->send_stop_character(channel);
-	spin_unlock_irqrestore(&port->lock, lock_flags);
+	uart_port_unlock_irqrestore(port, lock_flags);
 }
 
 static void jsm_tty_stop_rx(struct uart_port *port)
@@ -176,17 +176,18 @@ static void jsm_tty_break(struct uart_port *port, int break_state)
 	struct jsm_channel *channel =
 		container_of(port, struct jsm_channel, uart_port);
 
-	spin_lock_irqsave(&port->lock, lock_flags);
+	uart_port_lock_irqsave(port, &lock_flags);
 	if (break_state == -1)
 		channel->ch_bd->bd_ops->send_break(channel);
 	else
 		channel->ch_bd->bd_ops->clear_break(channel);
 
-	spin_unlock_irqrestore(&port->lock, lock_flags);
+	uart_port_unlock_irqrestore(port, lock_flags);
 }
 
 static int jsm_tty_open(struct uart_port *port)
 {
+	unsigned long lock_flags;
 	struct jsm_board *brd;
 	struct jsm_channel *channel =
 		container_of(port, struct jsm_channel, uart_port);
@@ -240,6 +241,7 @@ static int jsm_tty_open(struct uart_port *port)
 	channel->ch_cached_lsr = 0;
 	channel->ch_stops_sent = 0;
 
+	uart_port_lock_irqsave(port, &lock_flags);
 	termios = &port->state->port.tty->termios;
 	channel->ch_c_cflag	= termios->c_cflag;
 	channel->ch_c_iflag	= termios->c_iflag;
@@ -259,6 +261,7 @@ static int jsm_tty_open(struct uart_port *port)
 	jsm_carrier(channel);
 
 	channel->ch_open_count++;
+	uart_port_unlock_irqrestore(port, lock_flags);
 
 	jsm_dbg(OPEN, &channel->ch_bd->pci_dev, "finish\n");
 	return 0;
@@ -297,14 +300,14 @@ static void jsm_tty_close(struct uart_port *port)
 }
 
 static void jsm_tty_set_termios(struct uart_port *port,
-				 struct ktermios *termios,
-				 struct ktermios *old_termios)
+				struct ktermios *termios,
+				const struct ktermios *old_termios)
 {
 	unsigned long lock_flags;
 	struct jsm_channel *channel =
 		container_of(port, struct jsm_channel, uart_port);
 
-	spin_lock_irqsave(&port->lock, lock_flags);
+	uart_port_lock_irqsave(port, &lock_flags);
 	channel->ch_c_cflag	= termios->c_cflag;
 	channel->ch_c_iflag	= termios->c_iflag;
 	channel->ch_c_oflag	= termios->c_oflag;
@@ -314,7 +317,7 @@ static void jsm_tty_set_termios(struct uart_port *port,
 
 	channel->ch_bd->bd_ops->param(channel);
 	jsm_carrier(channel);
-	spin_unlock_irqrestore(&port->lock, lock_flags);
+	uart_port_unlock_irqrestore(port, lock_flags);
 }
 
 static const char *jsm_tty_type(struct uart_port *port)
@@ -603,18 +606,22 @@ void jsm_input(struct jsm_channel *ch)
 
 		if (I_PARMRK(tp) || I_BRKINT(tp) || I_INPCK(tp)) {
 			for (i = 0; i < s; i++) {
+				u8 chr   = ch->ch_rqueue[tail + i];
+				u8 error = ch->ch_equeue[tail + i];
+				char flag = TTY_NORMAL;
+
 				/*
-				 * Give the Linux ld the flags in the
-				 * format it likes.
+				 * Give the Linux ld the flags in the format it
+				 * likes.
 				 */
-				if (*(ch->ch_equeue +tail +i) & UART_LSR_BI)
-					tty_insert_flip_char(port, *(ch->ch_rqueue +tail +i),  TTY_BREAK);
-				else if (*(ch->ch_equeue +tail +i) & UART_LSR_PE)
-					tty_insert_flip_char(port, *(ch->ch_rqueue +tail +i), TTY_PARITY);
-				else if (*(ch->ch_equeue +tail +i) & UART_LSR_FE)
-					tty_insert_flip_char(port, *(ch->ch_rqueue +tail +i), TTY_FRAME);
-				else
-					tty_insert_flip_char(port, *(ch->ch_rqueue +tail +i), TTY_NORMAL);
+				if (error & UART_LSR_BI)
+					flag = TTY_BREAK;
+				else if (error & UART_LSR_PE)
+					flag = TTY_PARITY;
+				else if (error & UART_LSR_FE)
+					flag = TTY_FRAME;
+
+				tty_insert_flip_char(port, chr, flag);
 			}
 		} else {
 			tty_insert_flip_string(port, ch->ch_rqueue + tail, s);
@@ -742,7 +749,8 @@ void jsm_check_queue_flow_control(struct jsm_channel *ch)
 	int qleft;
 
 	/* Store how much space we have left in the queue */
-	if ((qleft = ch->ch_r_tail - ch->ch_r_head - 1) < 0)
+	qleft = ch->ch_r_tail - ch->ch_r_head - 1;
+	if (qleft < 0)
 		qleft += RQUEUEMASK + 1;
 
 	/*

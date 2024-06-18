@@ -70,7 +70,8 @@ file:
     .dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
             | SND_SOC_DAIFMT_CBM_CFM,
     .ignore_suspend = 1,
-    .params = &dsp_codec_params,
+    .c2c_params = &dsp_codec_params,
+    .num_c2c_params = 1,
  },
  {
     .name = "DSP-CODEC",
@@ -81,12 +82,13 @@ file:
     .dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
             | SND_SOC_DAIFMT_CBM_CFM,
     .ignore_suspend = 1,
-    .params = &dsp_codec_params,
+    .c2c_params = &dsp_codec_params,
+    .num_c2c_params = 1,
  },
 
 Above code snippet is motivated from sound/soc/samsung/speyside.c.
 
-Note the "params" callback which lets the dapm know that this
+Note the "c2c_params" callback which lets the dapm know that this
 dai_link is a codec to codec connection.
 
 In dapm core a route is created between cpu_dai playback widget
@@ -104,5 +106,10 @@ Make sure to name your corresponding cpu and codec playback and capture
 dai names ending with "Playback" and "Capture" respectively as dapm core
 will link and power those dais based on the name.
 
-Note that in current device tree there is no way to mark a dai_link
-as codec to codec. However, it may change in future.
+A dai_link in a "simple-audio-card" will automatically be detected as
+codec to codec when all DAIs on the link belong to codec components.
+The dai_link will be initialized with the subset of stream parameters
+(channels, format, sample rate) supported by all DAIs on the link. Since
+there is no way to provide these parameters in the device tree, this is
+mostly useful for communication with simple fixed-function codecs, such
+as a Bluetooth controller or cellular modem.

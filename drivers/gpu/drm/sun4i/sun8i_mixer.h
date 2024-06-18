@@ -10,7 +10,6 @@
 #include <linux/regmap.h>
 #include <linux/reset.h>
 
-#include "sun8i_csc.h"
 #include "sunxi_engine.h"
 
 #define SUN8I_MIXER_SIZE(w, h)			(((h) - 1) << 16 | ((w) - 1))
@@ -51,10 +50,8 @@
 #define SUN8I_MIXER_BLEND_CK_MIN(base, x)	((base) + 0xe0 + 0x04 * (x))
 #define SUN8I_MIXER_BLEND_OUTCTL(base)		((base) + 0xfc)
 #define SUN50I_MIXER_BLEND_CSC_CTL(base)	((base) + 0x100)
-#define SUN50I_MIXER_BLEND_CSC_COEFF(base, layer, x, y) \
-	((base) + 0x110 + (layer) * 0x30 +  (x) * 0x10 + 4 * (y))
-#define SUN50I_MIXER_BLEND_CSC_CONST(base, layer, i) \
-	((base) + 0x110 + (layer) * 0x30 +  (i) * 0x10 + 0x0c)
+#define SUN50I_MIXER_BLEND_CSC_COEFF(base, layer, x) \
+	((base) + 0x110 + (layer) * 0x30 +  (x) * 4)
 
 #define SUN8I_MIXER_BLEND_PIPE_CTL_EN_MSK	GENMASK(12, 8)
 #define SUN8I_MIXER_BLEND_PIPE_CTL_EN(pipe)	BIT(8 + pipe)
@@ -93,6 +90,10 @@
 #define SUN8I_MIXER_FBFMT_ABGR1555	17
 #define SUN8I_MIXER_FBFMT_RGBA5551	18
 #define SUN8I_MIXER_FBFMT_BGRA5551	19
+#define SUN8I_MIXER_FBFMT_ARGB2101010	20
+#define SUN8I_MIXER_FBFMT_ABGR2101010	21
+#define SUN8I_MIXER_FBFMT_RGBA1010102	22
+#define SUN8I_MIXER_FBFMT_BGRA1010102	23
 
 #define SUN8I_MIXER_FBFMT_YUYV		0
 #define SUN8I_MIXER_FBFMT_UYVY		1
@@ -109,6 +110,13 @@
 /* format 12 is semi-planar YUV411 UVUV */
 /* format 13 is semi-planar YUV411 VUVU */
 #define SUN8I_MIXER_FBFMT_YUV411	14
+/* format 15 doesn't exist */
+#define SUN8I_MIXER_FBFMT_P010_YUV	16
+/* format 17 is P010 YVU */
+#define SUN8I_MIXER_FBFMT_P210_YUV	18
+/* format 19 is P210 YVU */
+/* format 20 is packed YVU444 10-bit */
+/* format 21 is packed YUV444 10-bit */
 
 /*
  * Sub-engines listed bellow are unused for now. The EN registers are here only
@@ -133,11 +141,13 @@
 #define SUN50I_MIXER_CDC0_EN			0xd0000
 #define SUN50I_MIXER_CDC1_EN			0xd8000
 
-struct de2_fmt_info {
-	u32			drm_fmt;
-	u32			de2_fmt;
-	bool			rgb;
-	enum sun8i_csc_mode	csc;
+enum {
+	/* First mixer or second mixer with VEP support. */
+	CCSC_MIXER0_LAYOUT,
+	/* Second mixer without VEP support. */
+	CCSC_MIXER1_LAYOUT,
+	/* First mixer with the MMIO layout found in the D1 SoC. */
+	CCSC_D1_MIXER0_LAYOUT,
 };
 
 /**
@@ -148,10 +158,7 @@ struct de2_fmt_info {
  *	First, scaler supports for VI channels is defined and after that, scaler
  *	support for UI channels. For example, if mixer has 2 VI channels without
  *	scaler and 2 UI channels with scaler, bitmask would be 0xC.
- * @ccsc: select set of CCSC base addresses
- *	Set value to 0 if this is first mixer or second mixer with VEP support.
- *	Set value to 1 if this is second mixer without VEP support. Other values
- *	are invalid.
+ * @ccsc: select set of CCSC base addresses from the enumeration above.
  * @mod_rate: module clock rate that needs to be set in order to have
  *	a functional block.
  * @is_de3: true, if this is next gen display engine 3.0, false otherwise.
@@ -199,5 +206,5 @@ sun8i_channel_base(struct sun8i_mixer *mixer, int channel)
 		return DE2_CH_BASE + channel * DE2_CH_SIZE;
 }
 
-const struct de2_fmt_info *sun8i_mixer_format_info(u32 format);
+int sun8i_mixer_drm_format_to_hw(u32 format, u32 *hw_format);
 #endif /* _SUN8I_MIXER_H_ */

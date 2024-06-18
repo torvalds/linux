@@ -111,7 +111,7 @@ static struct clk_aliastable {
 /* access locks to SYS_FREQCTRL0/1 and SYS_CLKSRC registers */
 static spinlock_t alchemy_clk_fg0_lock;
 static spinlock_t alchemy_clk_fg1_lock;
-static spinlock_t alchemy_clk_csrc_lock;
+static DEFINE_SPINLOCK(alchemy_clk_csrc_lock);
 
 /* CPU Core clock *****************************************************/
 
@@ -152,6 +152,7 @@ static struct clk __init *alchemy_clk_setup_cpu(const char *parent_name,
 {
 	struct clk_init_data id;
 	struct clk_hw *h;
+	struct clk *clk;
 
 	h = kzalloc(sizeof(*h), GFP_KERNEL);
 	if (!h)
@@ -164,7 +165,13 @@ static struct clk __init *alchemy_clk_setup_cpu(const char *parent_name,
 	id.ops = &alchemy_clkops_cpu;
 	h->init = &id;
 
-	return clk_register(NULL, h);
+	clk = clk_register(NULL, h);
+	if (IS_ERR(clk)) {
+		pr_err("failed to register clock\n");
+		kfree(h);
+	}
+
+	return clk;
 }
 
 /* AUXPLLs ************************************************************/
@@ -764,7 +771,7 @@ static int __init alchemy_clk_init_fgens(int ctype)
 	}
 	id.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE;
 
-	a = kzalloc((sizeof(*a)) * 6, GFP_KERNEL);
+	a = kcalloc(6, sizeof(*a), GFP_KERNEL);
 	if (!a)
 		return -ENOMEM;
 
@@ -989,7 +996,6 @@ static int __init alchemy_clk_setup_imux(int ctype)
 	if (!a)
 		return -ENOMEM;
 
-	spin_lock_init(&alchemy_clk_csrc_lock);
 	ret = 0;
 
 	for (i = 0; i < 6; i++) {

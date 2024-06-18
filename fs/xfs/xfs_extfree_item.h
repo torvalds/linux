@@ -9,17 +9,12 @@
 /* kernel only EFI/EFD definitions */
 
 struct xfs_mount;
-struct kmem_zone;
+struct kmem_cache;
 
 /*
  * Max number of extents in fast allocation path.
  */
 #define	XFS_EFI_MAX_FAST_EXTENTS	16
-
-/*
- * Define EFI flag bits. Manipulated by set/clear/test_bit operators.
- */
-#define	XFS_EFI_RECOVERED	1
 
 /*
  * This is the "extent free intention" log item.  It is used to log the fact
@@ -50,41 +45,47 @@ struct kmem_zone;
  * of commit failure or log I/O errors. Note that the EFD is not inserted in the
  * AIL, so at this point both the EFI and EFD are freed.
  */
-typedef struct xfs_efi_log_item {
+struct xfs_efi_log_item {
 	struct xfs_log_item	efi_item;
 	atomic_t		efi_refcount;
 	atomic_t		efi_next_extent;
-	unsigned long		efi_flags;	/* misc flags */
 	xfs_efi_log_format_t	efi_format;
-} xfs_efi_log_item_t;
+};
+
+static inline size_t
+xfs_efi_log_item_sizeof(
+	unsigned int		nr)
+{
+	return offsetof(struct xfs_efi_log_item, efi_format) +
+			xfs_efi_log_format_sizeof(nr);
+}
 
 /*
  * This is the "extent free done" log item.  It is used to log
  * the fact that some extents earlier mentioned in an efi item
  * have been freed.
  */
-typedef struct xfs_efd_log_item {
+struct xfs_efd_log_item {
 	struct xfs_log_item	efd_item;
-	xfs_efi_log_item_t	*efd_efip;
+	struct xfs_efi_log_item *efd_efip;
 	uint			efd_next_extent;
 	xfs_efd_log_format_t	efd_format;
-} xfs_efd_log_item_t;
+};
+
+static inline size_t
+xfs_efd_log_item_sizeof(
+	unsigned int		nr)
+{
+	return offsetof(struct xfs_efd_log_item, efd_format) +
+			xfs_efd_log_format_sizeof(nr);
+}
 
 /*
  * Max number of extents in fast allocation path.
  */
 #define	XFS_EFD_MAX_FAST_EXTENTS	16
 
-extern struct kmem_zone	*xfs_efi_zone;
-extern struct kmem_zone	*xfs_efd_zone;
-
-xfs_efi_log_item_t	*xfs_efi_init(struct xfs_mount *, uint);
-int			xfs_efi_copy_format(xfs_log_iovec_t *buf,
-					    xfs_efi_log_format_t *dst_efi_fmt);
-void			xfs_efi_item_free(xfs_efi_log_item_t *);
-void			xfs_efi_release(struct xfs_efi_log_item *);
-
-int			xfs_efi_recover(struct xfs_mount *mp,
-					struct xfs_efi_log_item *efip);
+extern struct kmem_cache	*xfs_efi_cache;
+extern struct kmem_cache	*xfs_efd_cache;
 
 #endif	/* __XFS_EXTFREE_ITEM_H__ */

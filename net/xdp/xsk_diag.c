@@ -46,6 +46,7 @@ static int xsk_diag_put_rings_cfg(const struct xdp_sock *xs,
 
 static int xsk_diag_put_umem(const struct xdp_sock *xs, struct sk_buff *nlskb)
 {
+	struct xsk_buff_pool *pool = xs->pool;
 	struct xdp_umem *umem = xs->umem;
 	struct xdp_diag_umem du = {};
 	int err;
@@ -56,24 +57,36 @@ static int xsk_diag_put_umem(const struct xdp_sock *xs, struct sk_buff *nlskb)
 	du.id = umem->id;
 	du.size = umem->size;
 	du.num_pages = umem->npgs;
-	du.chunk_size = umem->chunk_size_nohr + umem->headroom;
+	du.chunk_size = umem->chunk_size;
 	du.headroom = umem->headroom;
-	du.ifindex = umem->dev ? umem->dev->ifindex : 0;
-	du.queue_id = umem->queue_id;
+	du.ifindex = (pool && pool->netdev) ? pool->netdev->ifindex : 0;
+	du.queue_id = pool ? pool->queue_id : 0;
 	du.flags = 0;
 	if (umem->zc)
 		du.flags |= XDP_DU_F_ZEROCOPY;
 	du.refs = refcount_read(&umem->users);
 
 	err = nla_put(nlskb, XDP_DIAG_UMEM, sizeof(du), &du);
-
-	if (!err && umem->fq)
-		err = xsk_diag_put_ring(umem->fq, XDP_DIAG_UMEM_FILL_RING, nlskb);
-	if (!err && umem->cq) {
-		err = xsk_diag_put_ring(umem->cq, XDP_DIAG_UMEM_COMPLETION_RING,
-					nlskb);
-	}
+	if (!err && pool && pool->fq)
+		err = xsk_diag_put_ring(pool->fq,
+					XDP_DIAG_UMEM_FILL_RING, nlskb);
+	if (!err && pool && pool->cq)
+		err = xsk_diag_put_ring(pool->cq,
+					XDP_DIAG_UMEM_COMPLETION_RING, nlskb);
 	return err;
+}
+
+static int xsk_diag_put_stats(const struct xdp_sock *xs, struct sk_buff *nlskb)
+{
+	struct xdp_diag_stats du = {};
+
+	du.n_rx_dropped = xs->rx_dropped;
+	du.n_rx_invalid = xskq_nb_invalid_descs(xs->rx);
+	du.n_rx_full = xs->rx_queue_full;
+	du.n_fill_ring_empty = xs->pool ? xskq_nb_queue_empty_descs(xs->pool->fq) : 0;
+	du.n_tx_invalid = xskq_nb_invalid_descs(xs->tx);
+	du.n_tx_ring_empty = xskq_nb_queue_empty_descs(xs->tx);
+	return nla_put(nlskb, XDP_DIAG_STATS, sizeof(du), &du);
 }
 
 static int xsk_diag_fill(struct sock *sk, struct sk_buff *nlskb,
@@ -98,6 +111,9 @@ static int xsk_diag_fill(struct sock *sk, struct sk_buff *nlskb,
 	sock_diag_save_cookie(sk, msg->xdiag_cookie);
 
 	mutex_lock(&xs->mutex);
+	if (READ_ONCE(xs->state) == XSK_UNBOUND)
+		goto out_nlmsg_trim;
+
 	if ((req->xdiag_show & XDP_SHOW_INFO) && xsk_diag_put_info(xs, nlskb))
 		goto out_nlmsg_trim;
 
@@ -116,6 +132,10 @@ static int xsk_diag_fill(struct sock *sk, struct sk_buff *nlskb,
 
 	if ((req->xdiag_show & XDP_SHOW_MEMINFO) &&
 	    sock_diag_put_meminfo(sk, nlskb, XDP_DIAG_MEMINFO))
+		goto out_nlmsg_trim;
+
+	if ((req->xdiag_show & XDP_SHOW_STATS) &&
+	    xsk_diag_put_stats(xs, nlskb))
 		goto out_nlmsg_trim;
 
 	mutex_unlock(&xs->mutex);
@@ -174,6 +194,7 @@ static int xsk_diag_handler_dump(struct sk_buff *nlskb, struct nlmsghdr *hdr)
 }
 
 static const struct sock_diag_handler xsk_diag_handler = {
+	.owner = THIS_MODULE,
 	.family = AF_XDP,
 	.dump = xsk_diag_handler_dump,
 };
@@ -191,4 +212,5 @@ static void __exit xsk_diag_exit(void)
 module_init(xsk_diag_init);
 module_exit(xsk_diag_exit);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("XDP socket monitoring via SOCK_DIAG");
 MODULE_ALIAS_NET_PF_PROTO_TYPE(PF_NETLINK, NETLINK_SOCK_DIAG, AF_XDP);

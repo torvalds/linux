@@ -25,10 +25,10 @@ Required properties:
 - xlnx,axi-str-txc-tdata-width: Should be <0x20>
 - xlnx,axi-str-txd-protocol: Should be "XIL_AXI_STREAM_ETH_DATA"
 - xlnx,axi-str-txd-tdata-width: Should be <0x20>
-- xlnx,axis-tdest-width: AXI-Stream TDEST width
-- xlnx,axis-tid-width: AXI-Stream TID width
-- xlnx,axis-tuser-width: AXI-Stream TUSER width
-- xlnx,data-interface-type: Should be <0x0>
+- xlnx,axis-tdest-width: AXI-Stream TDEST width (ignored by the driver)
+- xlnx,axis-tid-width: AXI-Stream TID width (ignored by the driver)
+- xlnx,axis-tuser-width: AXI-Stream TUSER width (ignored by the driver)
+- xlnx,data-interface-type: Should be <0x0> (ignored by the driver)
 - xlnx,has-axis-tdest: Should be <0x0> (this feature isn't supported)
 - xlnx,has-axis-tid: Should be <0x0> (this feature isn't supported)
 - xlnx,has-axis-tkeep: Should be <0x0> (this feature isn't supported)
@@ -36,13 +36,17 @@ Required properties:
 - xlnx,has-axis-tuser: Should be <0x0> (this feature isn't supported)
 - xlnx,rx-fifo-depth: Depth of RX FIFO in words
 - xlnx,rx-fifo-pe-threshold: RX programmable empty interrupt threshold
+	(ignored by the driver)
 - xlnx,rx-fifo-pf-threshold: RX programmable full interrupt threshold
-- xlnx,s-axi-id-width: Should be <0x4>
-- xlnx,s-axi4-data-width: Should be <0x20>
-- xlnx,select-xpm: Should be <0x0>
+	(ignored by the driver)
+- xlnx,s-axi-id-width: Should be <0x4> (ignored by the driver)
+- xlnx,s-axi4-data-width: Should be <0x20> (ignored by the driver)
+- xlnx,select-xpm: Should be <0x0> (ignored by the driver)
 - xlnx,tx-fifo-depth: Depth of TX FIFO in words
 - xlnx,tx-fifo-pe-threshold: TX programmable empty interrupt threshold
+	(ignored by the driver)
 - xlnx,tx-fifo-pf-threshold: TX programmable full interrupt threshold
+	(ignored by the driver)
 - xlnx,use-rx-cut-through: Should be <0x0> (this feature isn't supported)
 - xlnx,use-rx-data: <0x1> if RX FIFO is enabled, <0x0> otherwise
 - xlnx,use-tx-ctrl: Should be <0x0> (this feature isn't supported)

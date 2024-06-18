@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * linux/arch/arm/mach-omap2/sdrc2xxx.c
- *
  * SDRAM timing related functions for OMAP2xxx
  *
  * Copyright (C) 2005, 2008 Texas Instruments Inc.

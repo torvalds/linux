@@ -86,7 +86,6 @@ static int ath79_reset_restart_handler(struct notifier_block *nb,
 static int ath79_reset_probe(struct platform_device *pdev)
 {
 	struct ath79_reset *ath79_reset;
-	struct resource *res;
 	int err;
 
 	ath79_reset = devm_kzalloc(&pdev->dev,
@@ -94,10 +93,7 @@ static int ath79_reset_probe(struct platform_device *pdev)
 	if (!ath79_reset)
 		return -ENOMEM;
 
-	platform_set_drvdata(pdev, ath79_reset);
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ath79_reset->base = devm_ioremap_resource(&pdev->dev, res);
+	ath79_reset->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ath79_reset->base))
 		return PTR_ERR(ath79_reset->base);
 

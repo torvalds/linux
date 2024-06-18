@@ -187,12 +187,11 @@ gf100_vmm_invalidate_pdb(struct nvkm_vmm *vmm, u64 addr)
 void
 gf100_vmm_invalidate(struct nvkm_vmm *vmm, u32 type)
 {
-	struct nvkm_subdev *subdev = &vmm->mmu->subdev;
-	struct nvkm_device *device = subdev->device;
+	struct nvkm_device *device = vmm->mmu->subdev.device;
 	struct nvkm_mmu_pt *pd = vmm->pd->pt[0];
 	u64 addr = 0;
 
-	mutex_lock(&subdev->mutex);
+	mutex_lock(&vmm->mmu->mutex);
 	/* Looks like maybe a "free flush slots" counter, the
 	 * faster you write to 0x100cbc to more it decreases.
 	 */
@@ -222,7 +221,7 @@ gf100_vmm_invalidate(struct nvkm_vmm *vmm, u32 type)
 		if (nvkm_rd32(device, 0x100c80) & 0x00008000)
 			break;
 	);
-	mutex_unlock(&subdev->mutex);
+	mutex_unlock(&vmm->mmu->mutex);
 }
 
 void
@@ -247,7 +246,7 @@ gf100_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 	} *args = argv;
 	struct nvkm_device *device = vmm->mmu->subdev.device;
 	struct nvkm_memory *memory = map->memory;
-	u8  kind, priv, ro, vol;
+	u8  kind, kind_inv, priv, ro, vol;
 	int kindn, aper, ret = -ENOSYS;
 	const u8 *kindm;
 
@@ -274,8 +273,8 @@ gf100_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 	if (WARN_ON(aper < 0))
 		return aper;
 
-	kindm = vmm->mmu->func->kind(vmm->mmu, &kindn);
-	if (kind >= kindn || kindm[kind] == 0xff) {
+	kindm = vmm->mmu->func->kind(vmm->mmu, &kindn, &kind_inv);
+	if (kind >= kindn || kindm[kind] == kind_inv) {
 		VMM_DEBUG(vmm, "kind %02x", kind);
 		return -EINVAL;
 	}
@@ -288,15 +287,17 @@ gf100_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 			return -EINVAL;
 		}
 
-		ret = nvkm_memory_tags_get(memory, device, tags,
-					   nvkm_ltc_tags_clear,
-					   &map->tags);
-		if (ret) {
-			VMM_DEBUG(vmm, "comp %d", ret);
-			return ret;
+		if (!map->no_comp) {
+			ret = nvkm_memory_tags_get(memory, device, tags,
+						   nvkm_ltc_tags_clear,
+						   &map->tags);
+			if (ret) {
+				VMM_DEBUG(vmm, "comp %d", ret);
+				return ret;
+			}
 		}
 
-		if (map->tags->mn) {
+		if (!map->no_comp && map->tags->mn) {
 			u64 tags = map->tags->mn->offset + (map->offset >> 17);
 			if (page->shift == 17 || !gm20x) {
 				map->type |= tags << 44;

@@ -25,7 +25,7 @@ struct sdio_func_tuple {
 	struct sdio_func_tuple *next;
 	unsigned char code;
 	unsigned char size;
-	unsigned char data[0];
+	unsigned char data[];
 };
 
 /*
@@ -51,6 +51,8 @@ struct sdio_func {
 
 	u8			*tmpbuf;	/* DMA:able scratch buffer */
 
+	u8			major_rev;	/* major revision number */
+	u8			minor_rev;	/* minor revision number */
 	unsigned		num_info;	/* number of info strings */
 	const char		**info;		/* info strings */
 
@@ -104,7 +106,10 @@ struct sdio_driver {
 	.class = (dev_class), \
 	.vendor = SDIO_ANY_ID, .device = SDIO_ANY_ID
 
-extern int sdio_register_driver(struct sdio_driver *);
+/* use a macro to avoid include chaining to get THIS_MODULE */
+#define sdio_register_driver(drv) \
+	__sdio_register_driver(drv, THIS_MODULE)
+extern int __sdio_register_driver(struct sdio_driver *, struct module *);
 extern void sdio_unregister_driver(struct sdio_driver *);
 
 /**

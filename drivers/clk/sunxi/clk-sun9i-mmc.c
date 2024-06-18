@@ -11,7 +11,6 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/reset.h>
 #include <linux/platform_device.h>
 #include <linux/reset-controller.h>
@@ -108,12 +107,12 @@ static int sun9i_a80_mmc_config_clk_probe(struct platform_device *pdev)
 
 	spin_lock_init(&data->lock);
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	/* one clock/reset pair per word */
-	count = DIV_ROUND_UP((resource_size(r)), SUN9I_MMC_WIDTH);
-	data->membase = devm_ioremap_resource(&pdev->dev, r);
+	data->membase = devm_platform_get_and_ioremap_resource(pdev, 0, &r);
 	if (IS_ERR(data->membase))
 		return PTR_ERR(data->membase);
+
+	/* one clock/reset pair per word */
+	count = DIV_ROUND_UP((resource_size(r)), SUN9I_MMC_WIDTH);
 
 	clk_data = &data->clk_data;
 	clk_data->clk_num = count;

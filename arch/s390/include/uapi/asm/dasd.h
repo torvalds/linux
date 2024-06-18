@@ -24,7 +24,7 @@
 /*
  * struct dasd_information2_t
  * represents any data about the device, which is visible to userspace.
- *  including foramt and featueres.
+ *  including format and featueres.
  */
 typedef struct dasd_information2_t {
 	unsigned int devno;	    /* S/390 devno */
@@ -78,6 +78,7 @@ typedef struct dasd_information2_t {
  * 0x040: give access to raw eckd data
  * 0x080: enable discard support
  * 0x100: enable autodisable for IFCC errors (default)
+ * 0x200: enable requeue of all requests on autoquiesce
  */
 #define DASD_FEATURE_READONLY	      0x001
 #define DASD_FEATURE_USEDIAG	      0x002
@@ -88,6 +89,7 @@ typedef struct dasd_information2_t {
 #define DASD_FEATURE_USERAW	      0x040
 #define DASD_FEATURE_DISCARD	      0x080
 #define DASD_FEATURE_PATH_AUTODISABLE 0x100
+#define DASD_FEATURE_REQUEUEQUIESCE   0x200
 #define DASD_FEATURE_DEFAULT	      DASD_FEATURE_PATH_AUTODISABLE
 
 #define DASD_PARTN_BITS 2
@@ -181,6 +183,18 @@ typedef struct format_data_t {
 	unsigned int blksize;	 /* sectorsize */
 	unsigned int intensity;
 } format_data_t;
+
+/*
+ * struct dasd_copypair_swap_data_t
+ * represents all data necessary to issue a swap of the copy pair relation
+ */
+struct dasd_copypair_swap_data_t {
+	char primary[20]; /* BUSID of primary */
+	char secondary[20]; /* BUSID of secondary */
+
+	/* Reserved for future updates. */
+	__u8 reserved[64];
+};
 
 /*
  * values to be used for format_data_t.intensity
@@ -326,6 +340,8 @@ struct dasd_snid_ioctl_data {
 #define BIODASDSATTR   _IOW(DASD_IOCTL_LETTER,2,attrib_data_t)
 /* Release Allocated Space */
 #define BIODASDRAS     _IOW(DASD_IOCTL_LETTER, 3, format_data_t)
+/* Swap copy pair relation */
+#define BIODASDCOPYPAIRSWAP _IOW(DASD_IOCTL_LETTER, 4, struct dasd_copypair_swap_data_t)
 
 /* Get Sense Path Group ID (SNID) data */
 #define BIODASDSNID    _IOWR(DASD_IOCTL_LETTER, 1, struct dasd_snid_ioctl_data)

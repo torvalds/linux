@@ -649,6 +649,7 @@ static int bcm3510_download_firmware(struct dvb_frontend* fe)
 		deb_info("firmware chunk, addr: 0x%04x, len: 0x%04x, total length: 0x%04zx\n",addr,len,fw->size);
 		if ((ret = bcm3510_write_ram(st,addr,&b[i+4],len)) < 0) {
 			err("firmware download failed: %d\n",ret);
+			release_firmware(fw);
 			return ret;
 		}
 		i += 4 + len;
@@ -773,7 +774,7 @@ static int bcm3510_init(struct dvb_frontend* fe)
 			deb_info("attempting to download firmware\n");
 			if ((ret = bcm3510_init_cold(st)) < 0)
 				return ret;
-			/* fall-through */
+			fallthrough;
 		case JDEC_EEPROM_LOAD_WAIT:
 			deb_info("firmware is loaded\n");
 			bcm3510_check_firmware_version(st);
@@ -796,7 +797,6 @@ struct dvb_frontend* bcm3510_attach(const struct bcm3510_config *config,
 				   struct i2c_adapter *i2c)
 {
 	struct bcm3510_state* state = NULL;
-	int ret;
 	bcm3510_register_value v;
 
 	/* allocate memory for the internal state */
@@ -815,7 +815,7 @@ struct dvb_frontend* bcm3510_attach(const struct bcm3510_config *config,
 
 	mutex_init(&state->hab_mutex);
 
-	if ((ret = bcm3510_readB(state,0xe0,&v)) < 0)
+	if (bcm3510_readB(state, 0xe0, &v) < 0)
 		goto error;
 
 	deb_info("Revision: 0x%1x, Layer: 0x%1x.\n",v.REVID_e0.REV,v.REVID_e0.LAYER);
@@ -834,7 +834,7 @@ error:
 	kfree(state);
 	return NULL;
 }
-EXPORT_SYMBOL(bcm3510_attach);
+EXPORT_SYMBOL_GPL(bcm3510_attach);
 
 static const struct dvb_frontend_ops bcm3510_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },

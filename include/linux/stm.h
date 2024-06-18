@@ -30,6 +30,16 @@ enum stp_packet_flags {
 	STP_PACKET_TIMESTAMPED	= 0x2,
 };
 
+/**
+ * enum stm_source_type - STM source driver
+ * @STM_USER: any STM trace source
+ * @STM_FTRACE: ftrace STM source
+ */
+enum stm_source_type {
+	STM_USER,
+	STM_FTRACE,
+};
+
 struct stp_policy;
 
 struct stm_device;
@@ -57,7 +67,7 @@ struct stm_device;
  *
  * Normally, an STM device will have a range of masters available to software
  * and the rest being statically assigned to various hardware trace sources.
- * The former is defined by the the range [@sw_start..@sw_end] of the device
+ * The former is defined by the range [@sw_start..@sw_end] of the device
  * description. That is, the lowest master that can be allocated to software
  * writers is @sw_start and data from this writer will appear is @sw_start
  * master in the STP stream.
@@ -106,6 +116,7 @@ struct stm_source_device;
  * @name:	device name, will be used for policy lookup
  * @src:	internal structure, only used by stm class code
  * @nr_chans:	number of channels to allocate
+ * @type:	type of STM source driver represented by stm_source_type
  * @link:	called when this source gets linked to an STM device
  * @unlink:	called when this source is about to get unlinked from its STM
  *
@@ -117,6 +128,7 @@ struct stm_source_data {
 	struct stm_source_device *src;
 	unsigned int		percpu;
 	unsigned int		nr_chans;
+	unsigned int		type;
 	int			(*link)(struct stm_source_data *data);
 	void			(*unlink)(struct stm_source_data *data);
 };

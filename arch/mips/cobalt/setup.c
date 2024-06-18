@@ -13,6 +13,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
+#include <linux/memblock.h>
 #include <linux/pm.h>
 
 #include <asm/bootinfo.h>
@@ -21,9 +22,6 @@
 #include <asm/gt64120.h>
 
 #include <cobalt.h>
-
-extern void cobalt_machine_restart(char *command);
-extern void cobalt_machine_halt(void);
 
 const char *get_system_type(void)
 {
@@ -112,12 +110,7 @@ void __init prom_init(void)
 			strlcat(arcs_cmdline, " ", COMMAND_LINE_SIZE);
 	}
 
-	add_memory_region(0x0, memsz, BOOT_MEM_RAM);
+	memblock_add(0, memsz);
 
 	setup_8250_early_printk_port(CKSEG1ADDR(0x1c800000), 0, 0);
-}
-
-void __init prom_free_prom_memory(void)
-{
-	/* Nothing to do! */
 }

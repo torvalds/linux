@@ -4,7 +4,7 @@
 
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
@@ -83,8 +83,7 @@ static int stm32_booster_probe(struct platform_device *pdev)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	desc = (const struct regulator_desc *)
-		of_match_device(dev->driver->of_match_table, dev)->data;
+	desc = device_get_match_data(dev);
 
 	config.regmap = regmap;
 	config.dev = dev;
@@ -101,7 +100,7 @@ static int stm32_booster_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id stm32_booster_of_match[] = {
+static const struct of_device_id __maybe_unused stm32_booster_of_match[] = {
 	{
 		.compatible = "st,stm32h7-booster",
 		.data = (void *)&stm32h7_booster_desc
@@ -117,6 +116,7 @@ static struct platform_driver stm32_booster_driver = {
 	.probe = stm32_booster_probe,
 	.driver = {
 		.name  = "stm32-booster",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(stm32_booster_of_match),
 	},
 };

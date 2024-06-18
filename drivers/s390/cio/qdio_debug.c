@@ -58,30 +58,16 @@ static void qdio_clear_dbf_list(void)
 	mutex_unlock(&qdio_dbf_list_mutex);
 }
 
-int qdio_allocate_dbf(struct qdio_initialize *init_data,
-		       struct qdio_irq *irq_ptr)
+int qdio_allocate_dbf(struct qdio_irq *irq_ptr)
 {
 	char text[QDIO_DBF_NAME_LEN];
 	struct qdio_dbf_entry *new_entry;
 
-	DBF_EVENT("qfmt:%1d", init_data->q_format);
-	DBF_HEX(init_data->adapter_name, 8);
-	DBF_EVENT("qpff%4x", init_data->qib_param_field_format);
-	DBF_HEX(&init_data->qib_param_field, sizeof(void *));
-	DBF_HEX(&init_data->input_slib_elements, sizeof(void *));
-	DBF_HEX(&init_data->output_slib_elements, sizeof(void *));
-	DBF_EVENT("niq:%1d noq:%1d", init_data->no_input_qs,
-		  init_data->no_output_qs);
-	DBF_HEX(&init_data->input_handler, sizeof(void *));
-	DBF_HEX(&init_data->output_handler, sizeof(void *));
-	DBF_HEX(&init_data->int_parm, sizeof(long));
-	DBF_HEX(&init_data->input_sbal_addr_array, sizeof(void *));
-	DBF_HEX(&init_data->output_sbal_addr_array, sizeof(void *));
 	DBF_EVENT("irq:%8lx", (unsigned long)irq_ptr);
 
 	/* allocate trace view for the interface */
 	snprintf(text, QDIO_DBF_NAME_LEN, "qdio_%s",
-					dev_name(&init_data->cdev->dev));
+		 dev_name(&irq_ptr->cdev->dev));
 	irq_ptr->debug_area = qdio_get_dbf_entry(text);
 	if (irq_ptr->debug_area)
 		DBF_DEV_EVENT(DBF_ERR, irq_ptr, "dbf reused");
@@ -101,7 +87,7 @@ int qdio_allocate_dbf(struct qdio_initialize *init_data,
 			debug_unregister(irq_ptr->debug_area);
 			return -ENOMEM;
 		}
-		strlcpy(new_entry->dbf_name, text, QDIO_DBF_NAME_LEN);
+		strscpy(new_entry->dbf_name, text, QDIO_DBF_NAME_LEN);
 		new_entry->dbf_info = irq_ptr->debug_area;
 		mutex_lock(&qdio_dbf_list_mutex);
 		list_add(&new_entry->dbf_list, &qdio_dbf_list);
@@ -119,18 +105,18 @@ static int qstat_show(struct seq_file *m, void *v)
 	if (!q)
 		return 0;
 
-	seq_printf(m, "Timestamp: %Lx  Last AI: %Lx\n",
-		   q->timestamp, last_ai_time);
+	seq_printf(m, "Timestamp: %llx\n", q->timestamp);
+	seq_printf(m, "Last Data IRQ: %llx  Last AI: %llx\n",
+		   q->irq_ptr->last_data_irq_time, last_ai_time);
 	seq_printf(m, "nr_used: %d  ftc: %d\n",
 		   atomic_read(&q->nr_buf_used), q->first_to_check);
 	if (q->is_input_q) {
-		seq_printf(m, "polling: %d  ack start: %d  ack count: %d\n",
-			   q->u.in.polling, q->u.in.ack_start,
-			   q->u.in.ack_count);
+		seq_printf(m, "batch start: %u  batch count: %u\n",
+			   q->u.in.batch_start, q->u.in.batch_count);
 		seq_printf(m, "DSCI: %x   IRQs disabled: %u\n",
 			   *(u8 *)q->irq_ptr->dsci,
-			   test_bit(QDIO_QUEUE_IRQS_DISABLED,
-			   &q->u.in.queue_irq_state));
+			   test_bit(QDIO_IRQ_DISABLED,
+				    &q->irq_ptr->poll_state));
 	}
 	seq_printf(m, "SBAL states:\n");
 	seq_printf(m, "|0      |8      |16     |24     |32     |40     |48     |56  63|\n");
@@ -180,7 +166,7 @@ static int qstat_show(struct seq_file *m, void *v)
 	}
 
 	seq_printf(m, "\n1          2..        4..        8..        "
-		   "16..       32..       64..       127\n");
+		   "16..       32..       64..       128\n");
 	for (i = 0; i < ARRAY_SIZE(q->q_stats.nr_sbals); i++)
 		seq_printf(m, "%-10u ", q->q_stats.nr_sbals[i]);
 	seq_printf(m, "\nError      NOP        Total\n%-10u %-10u %-10u\n\n",
@@ -191,23 +177,33 @@ static int qstat_show(struct seq_file *m, void *v)
 
 DEFINE_SHOW_ATTRIBUTE(qstat);
 
+static int ssqd_show(struct seq_file *m, void *v)
+{
+	struct ccw_device *cdev = m->private;
+	struct qdio_ssqd_desc ssqd;
+	int rc;
+
+	rc = qdio_get_ssqd_desc(cdev, &ssqd);
+	if (rc)
+		return rc;
+
+	seq_hex_dump(m, "", DUMP_PREFIX_NONE, 16, 4, &ssqd, sizeof(ssqd),
+		     false);
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(ssqd);
+
 static char *qperf_names[] = {
 	"Assumed adapter interrupts",
 	"QDIO interrupts",
-	"Requested PCIs",
-	"Inbound tasklet runs",
-	"Inbound tasklet resched",
-	"Inbound tasklet resched2",
-	"Outbound tasklet runs",
 	"SIGA read",
 	"SIGA write",
 	"SIGA sync",
 	"Inbound calls",
-	"Inbound handler",
 	"Inbound stop_polling",
 	"Inbound queue full",
 	"Outbound calls",
-	"Outbound handler",
 	"Outbound queue full",
 	"Outbound fast_requeue",
 	"Outbound target_full",
@@ -285,53 +281,37 @@ static const struct file_operations debugfs_perf_fops = {
 	.release = single_release,
 };
 
-static void setup_debugfs_entry(struct qdio_q *q)
+static void setup_debugfs_entry(struct dentry *parent, struct qdio_q *q)
 {
 	char name[QDIO_DEBUGFS_NAME_LEN];
 
 	snprintf(name, QDIO_DEBUGFS_NAME_LEN, "%s_%d",
 		 q->is_input_q ? "input" : "output",
 		 q->nr);
-	q->debugfs_q = debugfs_create_file(name, 0444,
-				q->irq_ptr->debugfs_dev, q, &qstat_fops);
-	if (IS_ERR(q->debugfs_q))
-		q->debugfs_q = NULL;
+	debugfs_create_file(name, 0444, parent, q, &qstat_fops);
 }
 
-void qdio_setup_debug_entries(struct qdio_irq *irq_ptr, struct ccw_device *cdev)
+void qdio_setup_debug_entries(struct qdio_irq *irq_ptr)
 {
 	struct qdio_q *q;
 	int i;
 
-	irq_ptr->debugfs_dev = debugfs_create_dir(dev_name(&cdev->dev),
+	irq_ptr->debugfs_dev = debugfs_create_dir(dev_name(&irq_ptr->cdev->dev),
 						  debugfs_root);
-	if (IS_ERR(irq_ptr->debugfs_dev))
-		irq_ptr->debugfs_dev = NULL;
-
-	irq_ptr->debugfs_perf = debugfs_create_file("statistics",
-				S_IFREG | S_IRUGO | S_IWUSR,
-				irq_ptr->debugfs_dev, irq_ptr,
-				&debugfs_perf_fops);
-	if (IS_ERR(irq_ptr->debugfs_perf))
-		irq_ptr->debugfs_perf = NULL;
+	debugfs_create_file("statistics", S_IFREG | S_IRUGO | S_IWUSR,
+			    irq_ptr->debugfs_dev, irq_ptr, &debugfs_perf_fops);
+	debugfs_create_file("ssqd", 0444, irq_ptr->debugfs_dev, irq_ptr->cdev,
+			    &ssqd_fops);
 
 	for_each_input_queue(irq_ptr, q, i)
-		setup_debugfs_entry(q);
+		setup_debugfs_entry(irq_ptr->debugfs_dev, q);
 	for_each_output_queue(irq_ptr, q, i)
-		setup_debugfs_entry(q);
+		setup_debugfs_entry(irq_ptr->debugfs_dev, q);
 }
 
 void qdio_shutdown_debug_entries(struct qdio_irq *irq_ptr)
 {
-	struct qdio_q *q;
-	int i;
-
-	for_each_input_queue(irq_ptr, q, i)
-		debugfs_remove(q->debugfs_q);
-	for_each_output_queue(irq_ptr, q, i)
-		debugfs_remove(q->debugfs_q);
-	debugfs_remove(irq_ptr->debugfs_perf);
-	debugfs_remove(irq_ptr->debugfs_dev);
+	debugfs_remove_recursive(irq_ptr->debugfs_dev);
 }
 
 int __init qdio_debug_init(void)
@@ -353,7 +333,7 @@ int __init qdio_debug_init(void)
 void qdio_debug_exit(void)
 {
 	qdio_clear_dbf_list();
-	debugfs_remove(debugfs_root);
+	debugfs_remove_recursive(debugfs_root);
 	debug_unregister(qdio_dbf_setup);
 	debug_unregister(qdio_dbf_error);
 }

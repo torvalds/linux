@@ -44,12 +44,14 @@ struct hotplug_slot_ops {
 	int (*get_attention_status)	(struct hotplug_slot *slot, u8 *value);
 	int (*get_latch_status)		(struct hotplug_slot *slot, u8 *value);
 	int (*get_adapter_status)	(struct hotplug_slot *slot, u8 *value);
-	int (*reset_slot)		(struct hotplug_slot *slot, int probe);
+	int (*reset_slot)		(struct hotplug_slot *slot, bool probe);
 };
 
 /**
  * struct hotplug_slot - used to register a physical slot with the hotplug pci core
  * @ops: pointer to the &struct hotplug_slot_ops to be used for this slot
+ * @slot_list: internal list used to track hotplug PCI slots
+ * @pci_slot: represents a physical slot
  * @owner: The module owner of this structure
  * @mod_name: The module name (KBUILD_MODNAME) of this structure
  */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * drivers/char/watchdog/sp805-wdt.c
  *
@@ -11,7 +12,6 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include <linux/acpi.h>
 #include <linux/device.h>
 #include <linux/resource.h>
 #include <linux/amba/bus.h>
@@ -23,8 +23,9 @@
 #include <linux/math64.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/of.h>
 #include <linux/pm.h>
+#include <linux/property.h>
+#include <linux/reset.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
@@ -58,7 +59,8 @@
  * @wdd: instance of struct watchdog_device
  * @lock: spin lock protecting dev structure and io access
  * @base: base address of wdt
- * @clk: clock structure of wdt
+ * @clk: (optional) clock structure of wdt
+ * @rate: (optional) clock rate when provided via properties
  * @adev: amba device structure of wdt
  * @status: current status of wdt
  * @load_val: load value to be set for current timeout
@@ -87,7 +89,7 @@ static bool wdt_is_running(struct watchdog_device *wdd)
 	return (wdtcontrol & ENABLE_MASK) == ENABLE_MASK;
 }
 
-/* This routine finds load value that will reset system in required timout */
+/* This routine finds load value that will reset system in required timeout */
 static int wdt_setload(struct watchdog_device *wdd, unsigned int timeout)
 {
 	struct sp805_wdt *wdt = watchdog_get_drvdata(wdd);
@@ -137,9 +139,13 @@ wdt_restart(struct watchdog_device *wdd, unsigned long mode, void *cmd)
 {
 	struct sp805_wdt *wdt = watchdog_get_drvdata(wdd);
 
+	writel_relaxed(UNLOCK, wdt->base + WDTLOCK);
 	writel_relaxed(0, wdt->base + WDTCONTROL);
 	writel_relaxed(0, wdt->base + WDTLOAD);
 	writel_relaxed(INT_ENABLE | RESET_ENABLE, wdt->base + WDTCONTROL);
+
+	/* Flush posted writes. */
+	readl_relaxed(wdt->base + WDTLOCK);
 
 	return 0;
 }
@@ -227,6 +233,8 @@ static int
 sp805_wdt_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	struct sp805_wdt *wdt;
+	struct reset_control *rst;
+	u64 rate = 0;
 	int ret = 0;
 
 	wdt = devm_kzalloc(&adev->dev, sizeof(*wdt), GFP_KERNEL);
@@ -239,26 +247,30 @@ sp805_wdt_probe(struct amba_device *adev, const struct amba_id *id)
 	if (IS_ERR(wdt->base))
 		return PTR_ERR(wdt->base);
 
-	if (adev->dev.of_node) {
-		wdt->clk = devm_clk_get(&adev->dev, NULL);
-		if (IS_ERR(wdt->clk)) {
-			dev_err(&adev->dev, "Clock not found\n");
-			return PTR_ERR(wdt->clk);
-		}
-		wdt->rate = clk_get_rate(wdt->clk);
-	} else if (has_acpi_companion(&adev->dev)) {
-		/*
-		 * When Driver probe with ACPI device, clock devices
-		 * are not available, so watchdog rate get from
-		 * clock-frequency property given in _DSD object.
-		 */
-		device_property_read_u64(&adev->dev, "clock-frequency",
-					 &wdt->rate);
-		if (!wdt->rate) {
-			dev_err(&adev->dev, "no clock-frequency property\n");
-			return -ENODEV;
-		}
+	/*
+	 * When driver probe with ACPI device, clock devices
+	 * are not available, so watchdog rate get from
+	 * clock-frequency property given in _DSD object.
+	 */
+	device_property_read_u64(&adev->dev, "clock-frequency", &rate);
+
+	wdt->clk = devm_clk_get_optional(&adev->dev, NULL);
+	if (IS_ERR(wdt->clk))
+		return dev_err_probe(&adev->dev, PTR_ERR(wdt->clk), "Clock not found\n");
+
+	wdt->rate = clk_get_rate(wdt->clk);
+	if (!wdt->rate)
+		wdt->rate = rate;
+	if (!wdt->rate) {
+		dev_err(&adev->dev, "no clock-frequency property\n");
+		return -ENODEV;
 	}
+
+	rst = devm_reset_control_get_optional_exclusive(&adev->dev, NULL);
+	if (IS_ERR(rst))
+		return dev_err_probe(&adev->dev, PTR_ERR(rst), "Can not get reset\n");
+
+	reset_control_deassert(rst);
 
 	wdt->adev = adev;
 	wdt->wdd.info = &wdt_info;
@@ -269,6 +281,7 @@ sp805_wdt_probe(struct amba_device *adev, const struct amba_id *id)
 	watchdog_set_nowayout(&wdt->wdd, nowayout);
 	watchdog_set_drvdata(&wdt->wdd, wdt);
 	watchdog_set_restart_priority(&wdt->wdd, 128);
+	watchdog_stop_on_unregister(&wdt->wdd);
 
 	/*
 	 * If 'timeout-sec' devicetree property is specified, use that.
@@ -287,6 +300,7 @@ sp805_wdt_probe(struct amba_device *adev, const struct amba_id *id)
 		set_bit(WDOG_HW_RUNNING, &wdt->wdd.status);
 	}
 
+	watchdog_stop_on_reboot(&wdt->wdd);
 	ret = watchdog_register_device(&wdt->wdd);
 	if (ret)
 		goto err;
@@ -300,14 +314,12 @@ err:
 	return ret;
 }
 
-static int sp805_wdt_remove(struct amba_device *adev)
+static void sp805_wdt_remove(struct amba_device *adev)
 {
 	struct sp805_wdt *wdt = amba_get_drvdata(adev);
 
 	watchdog_unregister_device(&wdt->wdd);
 	watchdog_set_drvdata(&wdt->wdd, NULL);
-
-	return 0;
 }
 
 static int __maybe_unused sp805_wdt_suspend(struct device *dev)
@@ -337,6 +349,10 @@ static const struct amba_id sp805_wdt_ids[] = {
 	{
 		.id	= 0x00141805,
 		.mask	= 0x00ffffff,
+	},
+	{
+		.id     = 0x001bb824,
+		.mask   = 0x00ffffff,
 	},
 	{ 0, 0 },
 };

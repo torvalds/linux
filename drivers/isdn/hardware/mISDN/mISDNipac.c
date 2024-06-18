@@ -694,7 +694,7 @@ isac_release(struct isac_hw *isac)
 {
 	if (isac->type & IPAC_TYPE_ISACX)
 		WriteISAC(isac, ISACX_MASK, 0xff);
-	else
+	else if (isac->type != 0)
 		WriteISAC(isac, ISAC_MASK, 0xff);
 	if (isac->dch.timer.function != NULL) {
 		del_timer(&isac->dch.timer);
@@ -936,8 +936,8 @@ hscx_empty_fifo(struct hscx_hw *hscx, u8 count)
 		hscx_cmdr(hscx, 0x80); /* RMC */
 		if (hscx->bch.rx_skb)
 			skb_trim(hscx->bch.rx_skb, 0);
-		pr_warning("%s.B%d: No bufferspace for %d bytes\n",
-			   hscx->ip->name, hscx->bch.nr, count);
+		pr_warn("%s.B%d: No bufferspace for %d bytes\n",
+			hscx->ip->name, hscx->bch.nr, count);
 		return;
 	}
 	p = skb_put(hscx->bch.rx_skb, count);
@@ -1062,7 +1062,7 @@ ipac_rme(struct hscx_hw *hx)
 	if (!hx->bch.rx_skb)
 		return;
 	if (hx->bch.rx_skb->len < 2) {
-		pr_debug("%s: B%1d frame to short %d\n",
+		pr_debug("%s: B%1d frame too short %d\n",
 			 hx->ip->name, hx->bch.nr, hx->bch.rx_skb->len);
 		skb_trim(hx->bch.rx_skb, 0);
 	} else {

@@ -34,7 +34,7 @@ config PPC_EFIKA
 	bool "bPlan Efika 5k2. MPC5200B based computer"
 	depends on PPC_MPC52xx
 	select PPC_RTAS
-	select PPC_NATIVE
+	select PPC_HASH_MMU_NATIVE
 
 config PPC_LITE5200
 	bool "Freescale Lite5200 Eval Board"
@@ -54,8 +54,3 @@ config PPC_MPC5200_BUGFIX
 	  for MPC5200B based boards.
 
 	  It is safe to say 'Y' here
-
-config PPC_MPC5200_LPBFIFO
-	tristate "MPC5200 LocalPlus bus FIFO driver"
-	depends on PPC_MPC52xx && PPC_BESTCOMM
-	select PPC_BESTCOMM_GEN_BD

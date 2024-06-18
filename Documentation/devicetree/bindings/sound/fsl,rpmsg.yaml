@@ -1,0 +1,133 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/fsl,rpmsg.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP Audio RPMSG CPU DAI Controller
+
+maintainers:
+  - Shengjiu Wang <shengjiu.wang@nxp.com>
+
+description: |
+  fsl_rpmsg is a virtual audio device. Mapping to real hardware devices
+  are SAI, MICFIL, DMA controlled by Cortex M core. What we see from
+  Linux side is a device which provides audio service by rpmsg channel.
+  We can create different sound cards which access different hardwares
+  such as SAI, MICFIL, .etc through building rpmsg channels between
+  Cortex-A and Cortex-M.
+
+allOf:
+  - $ref: sound-card-common.yaml#
+
+properties:
+  compatible:
+    enum:
+      - fsl,imx7ulp-rpmsg-audio
+      - fsl,imx8mn-rpmsg-audio
+      - fsl,imx8mm-rpmsg-audio
+      - fsl,imx8mp-rpmsg-audio
+      - fsl,imx8ulp-rpmsg-audio
+      - fsl,imx93-rpmsg-audio
+
+  clocks:
+    items:
+      - description: Peripheral clock for register access
+      - description: Master clock
+      - description: DMA clock for DMA register access
+      - description: Parent clock for multiple of 8kHz sample rates
+      - description: Parent clock for multiple of 11kHz sample rates
+
+  clock-names:
+    items:
+      - const: ipg
+      - const: mclk
+      - const: dma
+      - const: pll8k
+      - const: pll11k
+
+  power-domains:
+    description:
+      List of phandle and PM domain specifier as documented in
+      Documentation/devicetree/bindings/power/power_domain.txt
+    maxItems: 1
+
+  memory-region:
+    maxItems: 1
+    description:
+      phandle to a node describing reserved memory (System RAM memory)
+      The M core can't access all the DDR memory space on some platform,
+      So reserved a specific memory for dma buffer which M core can
+      access.
+      (see bindings/reserved-memory/reserved-memory.txt)
+
+  audio-codec:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: The phandle to a node of audio codec
+
+  fsl,enable-lpa:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: enable low power audio path.
+
+  fsl,rpmsg-out:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: |
+      This is a boolean property. If present, the transmitting function
+      will be enabled.
+
+  fsl,rpmsg-in:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: |
+      This is a boolean property. If present, the receiving function
+      will be enabled.
+
+  fsl,rpmsg-channel-name:
+    $ref: /schemas/types.yaml#/definitions/string
+    description: |
+      A string property to assign rpmsg channel this sound card sits on.
+      This property can be omitted if there is only one sound card and it sits
+      on "rpmsg-audio-channel".
+    enum:
+      - rpmsg-audio-channel
+      - rpmsg-micfil-channel
+
+required:
+  - compatible
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/imx8mn-clock.h>
+
+    rpmsg_audio: rpmsg_audio {
+        compatible = "fsl,imx8mn-rpmsg-audio";
+        model = "wm8524-audio";
+        fsl,enable-lpa;
+        fsl,rpmsg-out;
+        clocks = <&clk IMX8MN_CLK_SAI3_IPG>,
+                 <&clk IMX8MN_CLK_SAI3_ROOT>,
+                 <&clk IMX8MN_CLK_SDMA3_ROOT>,
+                 <&clk IMX8MN_AUDIO_PLL1_OUT>,
+                 <&clk IMX8MN_AUDIO_PLL2_OUT>;
+        clock-names = "ipg", "mclk", "dma", "pll8k", "pll11k";
+    };
+
+  - |
+    #include <dt-bindings/clock/imx8mm-clock.h>
+
+    rpmsg_micfil: audio-controller {
+        compatible = "fsl,imx8mm-rpmsg-audio";
+        model = "micfil-audio";
+        fsl,rpmsg-channel-name = "rpmsg-micfil-channel";
+        fsl,enable-lpa;
+        fsl,rpmsg-in;
+        clocks = <&clk IMX8MM_CLK_PDM_IPG>,
+                 <&clk IMX8MM_CLK_PDM_ROOT>,
+                 <&clk IMX8MM_CLK_SDMA3_ROOT>,
+                 <&clk IMX8MM_AUDIO_PLL1_OUT>,
+                 <&clk IMX8MM_AUDIO_PLL2_OUT>;
+        clock-names = "ipg", "mclk", "dma", "pll8k", "pll11k";
+    };
+
+...

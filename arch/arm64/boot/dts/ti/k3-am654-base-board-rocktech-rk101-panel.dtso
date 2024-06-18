@@ -1,0 +1,71 @@
+// SPDX-License-Identifier: GPL-2.0-only OR MIT
+/**
+ * OLDI-LCD1EVM Rocktech integrated panel and touch DT overlay for AM654-EVM.
+ * Panel Link: https://www.digimax.it/en/tft-lcd/20881-RK101II01D-CT
+ * AM654 LCD EVM: https://www.ti.com/tool/TMDSLCD1EVM
+ *
+ * Copyright (C) 2023-2024 Texas Instruments Incorporated - https://www.ti.com/
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+&{/} {
+	display0 {
+		compatible = "rocktech,rk101ii01d-ct";
+		backlight = <&lcd_bl>;
+		enable-gpios = <&pca9555 8 GPIO_ACTIVE_HIGH>;
+		port {
+			lcd_in0: endpoint {
+				remote-endpoint = <&oldi_out0>;
+			};
+		};
+	};
+
+	lcd_bl: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&ecap0 0 50000 PWM_POLARITY_INVERTED>;
+		brightness-levels =
+			<0 32 64 96 128 160 192 224 255>;
+		default-brightness-level = <8>;
+	};
+};
+
+&dss {
+	status = "okay";
+};
+
+&dss_ports {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	port@0 {
+		reg = <0>;
+
+		oldi_out0: endpoint {
+			remote-endpoint = <&lcd_in0>;
+		};
+	};
+};
+
+&main_i2c1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	touchscreen@14 {
+		compatible = "goodix,gt928";
+		reg = <0x14>;
+
+		interrupt-parent = <&pca9554>;
+		interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
+		touchscreen-size-x = <1280>;
+		touchscreen-size-y = <800>;
+
+		reset-gpios = <&pca9555 9 GPIO_ACTIVE_HIGH>;
+		irq-gpios = <&pca9554 3 GPIO_ACTIVE_HIGH>;
+	};
+};

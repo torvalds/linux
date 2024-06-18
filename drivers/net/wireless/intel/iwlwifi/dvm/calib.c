@@ -1,60 +1,7 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *****************************************************************************/
-
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+/*
+ * Copyright (C) 2005-2014 Intel Corporation
+ */
 #include <linux/slab.h>
 #include <net/mac80211.h>
 
@@ -72,8 +19,7 @@
 struct iwl_calib_result {
 	struct list_head list;
 	size_t cmd_len;
-	struct iwl_calib_hdr hdr;
-	/* data follows */
+	struct iwl_calib_cmd cmd;
 };
 
 struct statistics_general_data {
@@ -96,12 +42,12 @@ int iwl_send_calib_results(struct iwl_priv *priv)
 		int ret;
 
 		hcmd.len[0] = res->cmd_len;
-		hcmd.data[0] = &res->hdr;
+		hcmd.data[0] = &res->cmd;
 		hcmd.dataflags[0] = IWL_HCMD_DFL_NOCOPY;
 		ret = iwl_dvm_send_cmd(priv, &hcmd);
 		if (ret) {
 			IWL_ERR(priv, "Error %d on calib cmd %d\n",
-				ret, res->hdr.op_code);
+				ret, res->cmd.hdr.op_code);
 			return ret;
 		}
 	}
@@ -110,19 +56,22 @@ int iwl_send_calib_results(struct iwl_priv *priv)
 }
 
 int iwl_calib_set(struct iwl_priv *priv,
-		  const struct iwl_calib_hdr *cmd, int len)
+		  const struct iwl_calib_cmd *cmd, size_t len)
 {
 	struct iwl_calib_result *res, *tmp;
 
-	res = kmalloc(sizeof(*res) + len - sizeof(struct iwl_calib_hdr),
-		      GFP_ATOMIC);
+	if (check_sub_overflow(len, sizeof(*cmd), &len))
+		return -ENOMEM;
+
+	res = kmalloc(struct_size(res, cmd.data, len), GFP_ATOMIC);
 	if (!res)
 		return -ENOMEM;
-	memcpy(&res->hdr, cmd, len);
-	res->cmd_len = len;
+	res->cmd = *cmd;
+	memcpy(res->cmd.data, cmd->data, len);
+	res->cmd_len = struct_size(cmd, data, len);
 
 	list_for_each_entry(tmp, &priv->calib_results, list) {
-		if (tmp->hdr.op_code == res->hdr.op_code) {
+		if (tmp->cmd.hdr.op_code == res->cmd.hdr.op_code) {
 			list_replace(&tmp->list, &res->list);
 			kfree(tmp);
 			return 0;
@@ -761,7 +710,7 @@ static inline u8 find_first_chain(u8 mask)
 	return CHAIN_C;
 }
 
-/**
+/*
  * Run disconnected antenna algorithm to find out which antennas are
  * disconnected.
  */

@@ -23,7 +23,7 @@
 //   IN2 +---o--+------------+--o---+ OUT2
 //               loop2 relays
 //
-// The 'loop1' gpio pin controlls two relays, which are either in loop
+// The 'loop1' gpio pin controls two relays, which are either in loop
 // position, meaning that input and output are directly connected, or
 // they are in mixer position, meaning that the signal is passed through
 // the 'Sum' mixer. Similarly for 'loop2'.
@@ -35,11 +35,9 @@
 // of the (filtered) output from the PCM5142 codec.
 
 #include <linux/clk.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
-#include <linux/of_gpio.h>
 #include <linux/regulator/consumer.h>
 
 #include <sound/soc.h>
@@ -304,7 +302,7 @@ static struct snd_soc_dai_link tse850_dailink = {
 	.stream_name = "TSE-850-PCM",
 	.dai_fmt = SND_SOC_DAIFMT_I2S
 		 | SND_SOC_DAIFMT_NB_NF
-		 | SND_SOC_DAIFMT_CBM_CFS,
+		 | SND_SOC_DAIFMT_CBP_CFC,
 	SND_SOC_DAILINK_REG(pcm),
 };
 
@@ -371,35 +369,27 @@ static int tse850_probe(struct platform_device *pdev)
 	}
 
 	tse850->add = devm_gpiod_get(dev, "axentia,add", GPIOD_OUT_HIGH);
-	if (IS_ERR(tse850->add)) {
-		if (PTR_ERR(tse850->add) != -EPROBE_DEFER)
-			dev_err(dev, "failed to get 'add' gpio\n");
-		return PTR_ERR(tse850->add);
-	}
+	if (IS_ERR(tse850->add))
+		return dev_err_probe(dev, PTR_ERR(tse850->add),
+				     "failed to get 'add' gpio\n");
 	tse850->add_cache = 1;
 
 	tse850->loop1 = devm_gpiod_get(dev, "axentia,loop1", GPIOD_OUT_HIGH);
-	if (IS_ERR(tse850->loop1)) {
-		if (PTR_ERR(tse850->loop1) != -EPROBE_DEFER)
-			dev_err(dev, "failed to get 'loop1' gpio\n");
-		return PTR_ERR(tse850->loop1);
-	}
+	if (IS_ERR(tse850->loop1))
+		return dev_err_probe(dev, PTR_ERR(tse850->loop1),
+				     "failed to get 'loop1' gpio\n");
 	tse850->loop1_cache = 1;
 
 	tse850->loop2 = devm_gpiod_get(dev, "axentia,loop2", GPIOD_OUT_HIGH);
-	if (IS_ERR(tse850->loop2)) {
-		if (PTR_ERR(tse850->loop2) != -EPROBE_DEFER)
-			dev_err(dev, "failed to get 'loop2' gpio\n");
-		return PTR_ERR(tse850->loop2);
-	}
+	if (IS_ERR(tse850->loop2))
+		return dev_err_probe(dev, PTR_ERR(tse850->loop2),
+				     "failed to get 'loop2' gpio\n");
 	tse850->loop2_cache = 1;
 
 	tse850->ana = devm_regulator_get(dev, "axentia,ana");
-	if (IS_ERR(tse850->ana)) {
-		if (PTR_ERR(tse850->ana) != -EPROBE_DEFER)
-			dev_err(dev, "failed to get 'ana' regulator\n");
-		return PTR_ERR(tse850->ana);
-	}
+	if (IS_ERR(tse850->ana))
+		return dev_err_probe(dev, PTR_ERR(tse850->ana),
+				     "failed to get 'ana' regulator\n");
 
 	ret = regulator_enable(tse850->ana);
 	if (ret < 0) {
@@ -420,15 +410,13 @@ err_disable_ana:
 	return ret;
 }
 
-static int tse850_remove(struct platform_device *pdev)
+static void tse850_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 	struct tse850_priv *tse850 = snd_soc_card_get_drvdata(card);
 
 	snd_soc_unregister_card(card);
 	regulator_disable(tse850->ana);
-
-	return 0;
 }
 
 static const struct of_device_id tse850_dt_ids[] = {
@@ -440,10 +428,10 @@ MODULE_DEVICE_TABLE(of, tse850_dt_ids);
 static struct platform_driver tse850_driver = {
 	.driver = {
 		.name = "axentia-tse850-pcm5142",
-		.of_match_table = of_match_ptr(tse850_dt_ids),
+		.of_match_table = tse850_dt_ids,
 	},
 	.probe = tse850_probe,
-	.remove = tse850_remove,
+	.remove_new = tse850_remove,
 };
 
 module_platform_driver(tse850_driver);

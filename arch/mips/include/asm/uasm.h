@@ -145,6 +145,7 @@ Ip_u1(_mtlo);
 Ip_u3u1u2(_mul);
 Ip_u1u2(_multu);
 Ip_u3u1u2(_mulu);
+Ip_u3u1u2(_muhu);
 Ip_u3u1u2(_nor);
 Ip_u3u1u2(_or);
 Ip_u2u1u3(_ori);
@@ -192,9 +193,7 @@ struct uasm_label {
 
 void uasm_build_label(struct uasm_label **lab, u32 *addr,
 			int lid);
-#ifdef CONFIG_64BIT
 int uasm_in_compat_space_p(long addr);
-#endif
 int uasm_rel_hi(long val);
 int uasm_rel_lo(long val);
 void UASM_i_LA_mostly(u32 **buf, unsigned int rs, long addr);
@@ -248,7 +247,11 @@ static inline void uasm_l##lb(struct uasm_label **lab, u32 *addr)	\
 #define uasm_i_bnezl(buf, rs, off) uasm_i_bnel(buf, rs, 0, off)
 #define uasm_i_ehb(buf) uasm_i_sll(buf, 0, 0, 3)
 #define uasm_i_move(buf, a, b) UASM_i_ADDU(buf, a, 0, b)
+#ifdef CONFIG_CPU_NOP_WORKAROUNDS
+#define uasm_i_nop(buf) uasm_i_or(buf, 1, 1, 0)
+#else
 #define uasm_i_nop(buf) uasm_i_sll(buf, 0, 0, 0)
+#endif
 #define uasm_i_ssnop(buf) uasm_i_sll(buf, 0, 0, 1)
 
 static inline void uasm_i_drotr_safe(u32 **p, unsigned int a1,

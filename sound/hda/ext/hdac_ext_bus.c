@@ -19,10 +19,10 @@ MODULE_LICENSE("GPL v2");
 
 /**
  * snd_hdac_ext_bus_init - initialize a HD-audio extended bus
- * @ebus: the pointer to extended bus object
+ * @bus: the pointer to HDAC bus object
  * @dev: device pointer
  * @ops: bus verb operators
- * default ops
+ * @ext_ops: operators used for ASoC HDA codec drivers
  *
  * Returns 0 if successful, or a negative error code.
  */
@@ -51,7 +51,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_init);
 
 /**
  * snd_hdac_ext_bus_exit - clean up a HD-audio extended bus
- * @ebus: the pointer to extended bus object
+ * @bus: the pointer to HDAC bus object
  */
 void snd_hdac_ext_bus_exit(struct hdac_bus *bus)
 {
@@ -60,61 +60,10 @@ void snd_hdac_ext_bus_exit(struct hdac_bus *bus)
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_exit);
 
-static void default_release(struct device *dev)
-{
-	snd_hdac_ext_bus_device_exit(container_of(dev, struct hdac_device, dev));
-}
-
-/**
- * snd_hdac_ext_bus_device_init - initialize the HDA extended codec base device
- * @ebus: hdac extended bus to attach to
- * @addr: codec address
- *
- * Returns zero for success or a negative error code.
- */
-int snd_hdac_ext_bus_device_init(struct hdac_bus *bus, int addr,
-					struct hdac_device *hdev)
-{
-	char name[15];
-	int ret;
-
-	hdev->bus = bus;
-
-	snprintf(name, sizeof(name), "ehdaudio%dD%d", bus->idx, addr);
-
-	ret  = snd_hdac_device_init(hdev, bus, name, addr);
-	if (ret < 0) {
-		dev_err(bus->dev, "device init failed for hdac device\n");
-		return ret;
-	}
-	hdev->type = HDA_DEV_ASOC;
-	hdev->dev.release = default_release;
-
-	ret = snd_hdac_device_register(hdev);
-	if (ret) {
-		dev_err(bus->dev, "failed to register hdac device\n");
-		snd_hdac_ext_bus_device_exit(hdev);
-		return ret;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_device_init);
-
-/**
- * snd_hdac_ext_bus_device_exit - clean up a HD-audio extended codec base device
- * @hdev: hdac device to clean up
- */
-void snd_hdac_ext_bus_device_exit(struct hdac_device *hdev)
-{
-	snd_hdac_device_exit(hdev);
-}
-EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_device_exit);
-
 /**
  * snd_hdac_ext_bus_device_remove - remove HD-audio extended codec base devices
  *
- * @ebus: HD-audio extended bus
+ * @bus: the pointer to HDAC bus object
  */
 void snd_hdac_ext_bus_device_remove(struct hdac_bus *bus)
 {

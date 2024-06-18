@@ -103,19 +103,6 @@ static struct {
 	},
 };
 
-/*
- *  fcs_port_sm FCS logical port state machine
- */
-
-enum bfa_fcs_lport_event {
-	BFA_FCS_PORT_SM_CREATE = 1,
-	BFA_FCS_PORT_SM_ONLINE = 2,
-	BFA_FCS_PORT_SM_OFFLINE = 3,
-	BFA_FCS_PORT_SM_DELETE = 4,
-	BFA_FCS_PORT_SM_DELRPORT = 5,
-	BFA_FCS_PORT_SM_STOP = 6,
-};
-
 static void     bfa_fcs_lport_sm_uninit(struct bfa_fcs_lport_s *port,
 					enum bfa_fcs_lport_event event);
 static void     bfa_fcs_lport_sm_init(struct bfa_fcs_lport_s *port,
@@ -1283,7 +1270,7 @@ bfa_fcs_lport_n2n_offline(struct bfa_fcs_lport_s *port)
 	n2n_port->reply_oxid = 0;
 }
 
-void
+static void
 bfa_fcport_get_loop_attr(struct bfa_fcs_lport_s *port)
 {
 	int i = 0, j = 0, bit = 0, alpa_bit = 0;
@@ -1408,7 +1395,7 @@ static void     bfa_fcs_lport_fdmi_rpa_response(void *fcsarg,
 					       u32 resid_len,
 					       struct fchs_s *rsp_fchs);
 static void     bfa_fcs_lport_fdmi_timeout(void *arg);
-static u16 bfa_fcs_lport_fdmi_build_rhba_pyld(struct bfa_fcs_lport_fdmi_s *fdmi,
+static int bfa_fcs_lport_fdmi_build_rhba_pyld(struct bfa_fcs_lport_fdmi_s *fdmi,
 						  u8 *pyld);
 static u16 bfa_fcs_lport_fdmi_build_rprt_pyld(struct bfa_fcs_lport_fdmi_s *fdmi,
 						  u8 *pyld);
@@ -1425,20 +1412,6 @@ u32	bfa_fcs_fdmi_convert_speed(enum bfa_port_speed pport_speed);
 /*
  *  fcs_fdmi_sm FCS FDMI state machine
  */
-
-/*
- *  FDMI State Machine events
- */
-enum port_fdmi_event {
-	FDMISM_EVENT_PORT_ONLINE = 1,
-	FDMISM_EVENT_PORT_OFFLINE = 2,
-	FDMISM_EVENT_RSP_OK = 4,
-	FDMISM_EVENT_RSP_ERROR = 5,
-	FDMISM_EVENT_TIMEOUT = 6,
-	FDMISM_EVENT_RHBA_SENT = 7,
-	FDMISM_EVENT_RPRT_SENT = 8,
-	FDMISM_EVENT_RPA_SENT = 9,
-};
 
 static void     bfa_fcs_lport_fdmi_sm_offline(struct bfa_fcs_lport_fdmi_s *fdmi,
 					     enum port_fdmi_event event);
@@ -1887,6 +1860,8 @@ bfa_fcs_lport_fdmi_send_rhba(void *fdmi_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 		bfa_fcs_lport_fdmi_build_rhba_pyld(fdmi,
 					  (u8 *) ((struct ct_hdr_s *) pyld
 						       + 1));
+	if (attr_len < 0)
+		return;
 
 	bfa_fcxp_send(fcxp, NULL, port->fabric->vf_id, port->lp_tag, BFA_FALSE,
 			  FC_CLASS_3, (len + attr_len), &fchs,
@@ -1896,17 +1871,20 @@ bfa_fcs_lport_fdmi_send_rhba(void *fdmi_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 	bfa_sm_send_event(fdmi, FDMISM_EVENT_RHBA_SENT);
 }
 
-static          u16
+static int
 bfa_fcs_lport_fdmi_build_rhba_pyld(struct bfa_fcs_lport_fdmi_s *fdmi, u8 *pyld)
 {
 	struct bfa_fcs_lport_s *port = fdmi->ms->port;
-	struct bfa_fcs_fdmi_hba_attr_s hba_attr;
-	struct bfa_fcs_fdmi_hba_attr_s *fcs_hba_attr = &hba_attr;
+	struct bfa_fcs_fdmi_hba_attr_s *fcs_hba_attr;
 	struct fdmi_rhba_s *rhba = (struct fdmi_rhba_s *) pyld;
 	struct fdmi_attr_s *attr;
+	int        len;
 	u8        *curr_ptr;
-	u16        len, count;
-	u16	templen;
+	u16	templen, count;
+
+	fcs_hba_attr = kzalloc(sizeof(*fcs_hba_attr), GFP_KERNEL);
+	if (!fcs_hba_attr)
+		return -ENOMEM;
 
 	/*
 	 * get hba attributes
@@ -2148,6 +2126,9 @@ bfa_fcs_lport_fdmi_build_rhba_pyld(struct bfa_fcs_lport_fdmi_s *fdmi, u8 *pyld)
 	len += ((sizeof(attr->type) + sizeof(attr->len)) * count);
 
 	rhba->hba_attr_blk.attr_count = cpu_to_be32(count);
+
+	kfree(fcs_hba_attr);
+
 	return len;
 }
 
@@ -2634,10 +2615,10 @@ bfa_fcs_fdmi_get_hbaattr(struct bfa_fcs_lport_fdmi_s *fdmi,
 	bfa_ioc_get_adapter_fw_ver(&port->fcs->bfa->ioc,
 					hba_attr->fw_version);
 
-	strlcpy(hba_attr->driver_version, (char *)driver_info->version,
+	strscpy(hba_attr->driver_version, (char *)driver_info->version,
 		sizeof(hba_attr->driver_version));
 
-	strlcpy(hba_attr->os_name, driver_info->host_os_name,
+	strscpy(hba_attr->os_name, driver_info->host_os_name,
 		sizeof(hba_attr->os_name));
 
 	/*
@@ -2655,13 +2636,13 @@ bfa_fcs_fdmi_get_hbaattr(struct bfa_fcs_lport_fdmi_s *fdmi,
 	bfa_fcs_fdmi_get_portattr(fdmi, &fcs_port_attr);
 	hba_attr->max_ct_pyld = fcs_port_attr.max_frm_size;
 
-	strlcpy(hba_attr->node_sym_name.symname,
+	strscpy(hba_attr->node_sym_name.symname,
 		port->port_cfg.node_sym_name.symname, BFA_SYMNAME_MAXLEN);
 	strcpy(hba_attr->vendor_info, "QLogic");
 	hba_attr->num_ports =
 		cpu_to_be32(bfa_ioc_get_nports(&port->fcs->bfa->ioc));
 	hba_attr->fabric_name = port->fabric->lps->pr_nwwn;
-	strlcpy(hba_attr->bios_ver, hba_attr->option_rom_ver, BFA_VERSION_LEN);
+	strscpy(hba_attr->bios_ver, hba_attr->option_rom_ver, BFA_VERSION_LEN);
 
 }
 
@@ -2728,19 +2709,19 @@ bfa_fcs_fdmi_get_portattr(struct bfa_fcs_lport_fdmi_s *fdmi,
 	/*
 	 * OS device Name
 	 */
-	strlcpy(port_attr->os_device_name, driver_info->os_device_name,
+	strscpy(port_attr->os_device_name, driver_info->os_device_name,
 		sizeof(port_attr->os_device_name));
 
 	/*
 	 * Host name
 	 */
-	strlcpy(port_attr->host_name, driver_info->host_machine_name,
+	strscpy(port_attr->host_name, driver_info->host_machine_name,
 		sizeof(port_attr->host_name));
 
 	port_attr->node_name = bfa_fcs_lport_get_nwwn(port);
 	port_attr->port_name = bfa_fcs_lport_get_pwwn(port);
 
-	strlcpy(port_attr->port_sym_name.symname,
+	strscpy(port_attr->port_sym_name.symname,
 		bfa_fcs_lport_get_psym_name(port).symname, BFA_SYMNAME_MAXLEN);
 	bfa_fcs_lport_get_attr(port, &lport_attr);
 	port_attr->port_type = cpu_to_be32(lport_attr.port_type);
@@ -2854,19 +2835,6 @@ static void     bfa_fcs_lport_ms_gfn_response(void *fcsarg,
 /*
  *  fcs_ms_sm FCS MS state machine
  */
-
-/*
- *  MS State Machine events
- */
-enum port_ms_event {
-	MSSM_EVENT_PORT_ONLINE = 1,
-	MSSM_EVENT_PORT_OFFLINE = 2,
-	MSSM_EVENT_RSP_OK = 3,
-	MSSM_EVENT_RSP_ERROR = 4,
-	MSSM_EVENT_TIMEOUT = 5,
-	MSSM_EVENT_FCXP_SENT = 6,
-	MSSM_EVENT_PORT_FABRIC_RSCN = 7
-};
 
 static void     bfa_fcs_lport_ms_sm_offline(struct bfa_fcs_lport_ms_s *ms,
 					   enum port_ms_event event);
@@ -3221,7 +3189,7 @@ bfa_fcs_lport_ms_gmal_response(void *fcsarg, struct bfa_fcxp_s *fcxp,
 					rsp_str[gmal_entry->len-1] = 0;
 
 				/* copy IP Address to fabric */
-				strlcpy(bfa_fcs_lport_get_fabric_ipaddr(port),
+				strscpy(bfa_fcs_lport_get_fabric_ipaddr(port),
 					gmal_entry->ip_addr,
 					BFA_FCS_FABRIC_IPADDR_SZ);
 				break;
@@ -3635,25 +3603,6 @@ static void bfa_fcs_lport_ns_boot_target_disc(bfa_fcs_lport_t *port);
 /*
  *  fcs_ns_sm FCS nameserver interface state machine
  */
-
-/*
- * VPort NS State Machine events
- */
-enum vport_ns_event {
-	NSSM_EVENT_PORT_ONLINE = 1,
-	NSSM_EVENT_PORT_OFFLINE = 2,
-	NSSM_EVENT_PLOGI_SENT = 3,
-	NSSM_EVENT_RSP_OK = 4,
-	NSSM_EVENT_RSP_ERROR = 5,
-	NSSM_EVENT_TIMEOUT = 6,
-	NSSM_EVENT_NS_QUERY = 7,
-	NSSM_EVENT_RSPNID_SENT = 8,
-	NSSM_EVENT_RFTID_SENT = 9,
-	NSSM_EVENT_RFFID_SENT = 10,
-	NSSM_EVENT_GIDFT_SENT = 11,
-	NSSM_EVENT_RNNID_SENT = 12,
-	NSSM_EVENT_RSNN_NN_SENT = 13,
-};
 
 static void     bfa_fcs_lport_ns_sm_offline(struct bfa_fcs_lport_ns_s *ns,
 					   enum vport_ns_event event);
@@ -4358,7 +4307,7 @@ bfa_fcs_lport_ns_sm_online(struct bfa_fcs_lport_ns_s *ns,
 			bfa_sm_set_state(ns,
 				bfa_fcs_lport_ns_sm_sending_gid_ft);
 			bfa_fcs_lport_ns_send_gid_ft(ns, NULL);
-		};
+		}
 		break;
 
 	default:
@@ -4659,7 +4608,7 @@ bfa_fcs_lport_ns_send_rspn_id(void *ns_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 		 * to that of the base port.
 		 */
 
-		strlcpy(symbl,
+		strscpy(symbl,
 			(char *)&(bfa_fcs_lport_get_psym_name
 			 (bfa_fcs_get_base_port(port->fcs))),
 			sizeof(symbl));
@@ -5186,7 +5135,7 @@ bfa_fcs_lport_ns_util_send_rspn_id(void *cbarg, struct bfa_fcxp_s *fcxp_alloced)
 		 * For Vports, we append the vport's port symbolic name
 		 * to that of the base port.
 		 */
-		strlcpy(symbl, (char *)&(bfa_fcs_lport_get_psym_name
+		strscpy(symbl, (char *)&(bfa_fcs_lport_get_psym_name
 			(bfa_fcs_get_base_port(port->fcs))),
 			sizeof(symbl));
 
@@ -5230,18 +5179,6 @@ static void     bfa_fcs_lport_scn_timeout(void *arg);
 /*
  *  fcs_scm_sm FCS SCN state machine
  */
-
-/*
- * VPort SCN State Machine events
- */
-enum port_scn_event {
-	SCNSM_EVENT_PORT_ONLINE = 1,
-	SCNSM_EVENT_PORT_OFFLINE = 2,
-	SCNSM_EVENT_RSP_OK = 3,
-	SCNSM_EVENT_RSP_ERROR = 4,
-	SCNSM_EVENT_TIMEOUT = 5,
-	SCNSM_EVENT_SCR_SENT = 6,
-};
 
 static void     bfa_fcs_lport_scn_sm_offline(struct bfa_fcs_lport_scn_s *scn,
 					    enum port_scn_event event);
@@ -5671,7 +5608,7 @@ bfa_fcs_lport_scn_process_rscn(struct bfa_fcs_lport_s *port,
 				bfa_fcs_lport_ms_fabric_rscn(port);
 				break;
 			}
-			/* !!!!!!!!! Fall Through !!!!!!!!!!!!! */
+			fallthrough;
 
 		case FC_RSCN_FORMAT_AREA:
 		case FC_RSCN_FORMAT_DOMAIN:
@@ -5981,27 +5918,6 @@ static void     bfa_fcs_vport_free(struct bfa_fcs_vport_s *vport);
  *  fcs_vport_sm FCS virtual port state machine
  */
 
-/*
- * VPort State Machine events
- */
-enum bfa_fcs_vport_event {
-	BFA_FCS_VPORT_SM_CREATE = 1,	/*  vport create event */
-	BFA_FCS_VPORT_SM_DELETE = 2,	/*  vport delete event */
-	BFA_FCS_VPORT_SM_START = 3,	/*  vport start request */
-	BFA_FCS_VPORT_SM_STOP = 4,	/*  stop: unsupported */
-	BFA_FCS_VPORT_SM_ONLINE = 5,	/*  fabric online */
-	BFA_FCS_VPORT_SM_OFFLINE = 6,	/*  fabric offline event */
-	BFA_FCS_VPORT_SM_FRMSENT = 7,	/*  fdisc/logo sent events */
-	BFA_FCS_VPORT_SM_RSP_OK = 8,	/*  good response */
-	BFA_FCS_VPORT_SM_RSP_ERROR = 9,	/*  error/bad response */
-	BFA_FCS_VPORT_SM_TIMEOUT = 10,	/*  delay timer event */
-	BFA_FCS_VPORT_SM_DELCOMP = 11,	/*  lport delete completion */
-	BFA_FCS_VPORT_SM_RSP_DUP_WWN = 12,	/*  Dup wnn error*/
-	BFA_FCS_VPORT_SM_RSP_FAILED = 13,	/*  non-retryable failure */
-	BFA_FCS_VPORT_SM_STOPCOMP = 14,	/* vport delete completion */
-	BFA_FCS_VPORT_SM_FABRIC_MAX = 15, /* max vports on fabric */
-};
-
 static void     bfa_fcs_vport_sm_uninit(struct bfa_fcs_vport_s *vport,
 					enum bfa_fcs_vport_event event);
 static void     bfa_fcs_vport_sm_created(struct bfa_fcs_vport_s *vport,
@@ -6029,7 +5945,23 @@ static void	bfa_fcs_vport_sm_stopping(struct bfa_fcs_vport_s *vport,
 static void	bfa_fcs_vport_sm_logo_for_stop(struct bfa_fcs_vport_s *vport,
 					enum bfa_fcs_vport_event event);
 
-static struct bfa_sm_table_s  vport_sm_table[] = {
+struct bfa_fcs_vport_sm_table_s {
+	bfa_fcs_vport_sm_t sm;		/*  state machine function	*/
+	enum bfa_vport_state state;	/*  state machine encoding	*/
+	char		*name;		/*  state name for display	*/
+};
+
+static inline enum bfa_vport_state
+bfa_vport_sm_to_state(struct bfa_fcs_vport_sm_table_s *smt, bfa_fcs_vport_sm_t sm)
+{
+	int i = 0;
+
+	while (smt[i].sm && smt[i].sm != sm)
+		i++;
+	return smt[i].state;
+}
+
+static struct bfa_fcs_vport_sm_table_s  vport_sm_table[] = {
 	{BFA_SM(bfa_fcs_vport_sm_uninit), BFA_FCS_VPORT_UNINIT},
 	{BFA_SM(bfa_fcs_vport_sm_created), BFA_FCS_VPORT_CREATED},
 	{BFA_SM(bfa_fcs_vport_sm_offline), BFA_FCS_VPORT_OFFLINE},
@@ -6422,7 +6354,7 @@ bfa_fcs_vport_sm_logo_for_stop(struct bfa_fcs_vport_s *vport,
 	switch (event) {
 	case BFA_FCS_VPORT_SM_OFFLINE:
 		bfa_sm_send_event(vport->lps, BFA_LPS_SM_OFFLINE);
-		/* fall through */
+		fallthrough;
 
 	case BFA_FCS_VPORT_SM_RSP_OK:
 	case BFA_FCS_VPORT_SM_RSP_ERROR:
@@ -6448,7 +6380,7 @@ bfa_fcs_vport_sm_logo(struct bfa_fcs_vport_s *vport,
 	switch (event) {
 	case BFA_FCS_VPORT_SM_OFFLINE:
 		bfa_sm_send_event(vport->lps, BFA_LPS_SM_OFFLINE);
-		/* fall through */
+		fallthrough;
 
 	case BFA_FCS_VPORT_SM_RSP_OK:
 	case BFA_FCS_VPORT_SM_RSP_ERROR:
@@ -6856,7 +6788,7 @@ bfa_fcs_vport_get_attr(struct bfa_fcs_vport_s *vport,
 	memset(attr, 0, sizeof(struct bfa_vport_attr_s));
 
 	bfa_fcs_lport_get_attr(&vport->lport, &attr->port_attr);
-	attr->vport_state = bfa_sm_to_state(vport_sm_table, vport->sm);
+	attr->vport_state = bfa_vport_sm_to_state(vport_sm_table, vport->sm);
 }
 
 

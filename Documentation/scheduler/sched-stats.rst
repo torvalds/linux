@@ -2,6 +2,11 @@
 Scheduler Statistics
 ====================
 
+Version 16 of schedstats changed the order of definitions within
+'enum cpu_idle_type', which changed the order of [CPU_MAX_IDLE_TYPES]
+columns in show_schedstat(). In particular the position of CPU_IDLE
+and __CPU_NOT_IDLE changed places. The size of the array is unchanged.
+
 Version 15 of schedstats dropped counters for some sched_yield:
 yld_exp_empty, yld_act_empty and yld_both_empty. Otherwise, it is
 identical to version 14.
@@ -28,7 +33,7 @@ of these will need to start with a baseline observation and then calculate
 the change in the counters at each subsequent observation.  A perl script
 which does this for many of the fields is available at
 
-    http://eaglet.rain.com/rick/linux/schedstat/
+    http://eaglet.pdxhosts.com/rick/linux/schedstat/
 
 Note that any such script will necessarily be version-specific, as the main
 reason to change versions is changes in the output format.  For those wishing
@@ -56,9 +61,9 @@ Next two are try_to_wake_up() statistics:
 
 Next three are statistics describing scheduling latency:
 
-     7) sum of all time spent running by tasks on this processor (in jiffies)
+     7) sum of all time spent running by tasks on this processor (in nanoseconds)
      8) sum of all time spent waiting to run by tasks on this processor (in
-        jiffies)
+        nanoseconds)
      9) # of timeslices run on this cpu
 
 
@@ -72,53 +77,53 @@ domain<N> <cpumask> 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 
 
 The first field is a bit mask indicating what cpus this domain operates over.
 
-The next 24 are a variety of load_balance() statistics in grouped into types
+The next 24 are a variety of sched_balance_rq() statistics in grouped into types
 of idleness (idle, busy, and newly idle):
 
-    1)  # of times in this domain load_balance() was called when the
+    1)  # of times in this domain sched_balance_rq() was called when the
         cpu was idle
-    2)  # of times in this domain load_balance() checked but found
+    2)  # of times in this domain sched_balance_rq() checked but found
         the load did not require balancing when the cpu was idle
-    3)  # of times in this domain load_balance() tried to move one or
+    3)  # of times in this domain sched_balance_rq() tried to move one or
         more tasks and failed, when the cpu was idle
     4)  sum of imbalances discovered (if any) with each call to
-        load_balance() in this domain when the cpu was idle
+        sched_balance_rq() in this domain when the cpu was idle
     5)  # of times in this domain pull_task() was called when the cpu
         was idle
     6)  # of times in this domain pull_task() was called even though
         the target task was cache-hot when idle
-    7)  # of times in this domain load_balance() was called but did
+    7)  # of times in this domain sched_balance_rq() was called but did
         not find a busier queue while the cpu was idle
     8)  # of times in this domain a busier queue was found while the
         cpu was idle but no busier group was found
-    9)  # of times in this domain load_balance() was called when the
+    9)  # of times in this domain sched_balance_rq() was called when the
         cpu was busy
-    10) # of times in this domain load_balance() checked but found the
+    10) # of times in this domain sched_balance_rq() checked but found the
         load did not require balancing when busy
-    11) # of times in this domain load_balance() tried to move one or
+    11) # of times in this domain sched_balance_rq() tried to move one or
         more tasks and failed, when the cpu was busy
     12) sum of imbalances discovered (if any) with each call to
-        load_balance() in this domain when the cpu was busy
+        sched_balance_rq() in this domain when the cpu was busy
     13) # of times in this domain pull_task() was called when busy
     14) # of times in this domain pull_task() was called even though the
         target task was cache-hot when busy
-    15) # of times in this domain load_balance() was called but did not
+    15) # of times in this domain sched_balance_rq() was called but did not
         find a busier queue while the cpu was busy
     16) # of times in this domain a busier queue was found while the cpu
         was busy but no busier group was found
 
-    17) # of times in this domain load_balance() was called when the
+    17) # of times in this domain sched_balance_rq() was called when the
         cpu was just becoming idle
-    18) # of times in this domain load_balance() checked but found the
+    18) # of times in this domain sched_balance_rq() checked but found the
         load did not require balancing when the cpu was just becoming idle
-    19) # of times in this domain load_balance() tried to move one or more
+    19) # of times in this domain sched_balance_rq() tried to move one or more
         tasks and failed, when the cpu was just becoming idle
     20) sum of imbalances discovered (if any) with each call to
-        load_balance() in this domain when the cpu was just becoming idle
+        sched_balance_rq() in this domain when the cpu was just becoming idle
     21) # of times in this domain pull_task() was called when newly idle
     22) # of times in this domain pull_task() was called even though the
         target task was cache-hot when just becoming idle
-    23) # of times in this domain load_balance() was called but did not
+    23) # of times in this domain sched_balance_rq() was called but did not
         find a busier queue while the cpu was just becoming idle
     24) # of times in this domain a busier queue was found while the cpu
         was just becoming idle but no busier group was found
@@ -155,8 +160,8 @@ schedstats also adds a new /proc/<pid>/schedstat file to include some of
 the same information on a per-process level.  There are three fields in
 this file correlating for that process to:
 
-     1) time spent on the cpu
-     2) time spent waiting on a runqueue
+     1) time spent on the cpu (in nanoseconds)
+     2) time spent waiting on a runqueue (in nanoseconds)
      3) # of timeslices run on this cpu
 
 A program could be easily written to make use of these extra fields to
@@ -164,4 +169,4 @@ report on how well a particular process or set of processes is faring
 under the scheduler's policies.  A simple version of such a program is
 available at
 
-    http://eaglet.rain.com/rick/linux/schedstat/v12/latency.c
+    http://eaglet.pdxhosts.com/rick/linux/schedstat/v12/latency.c

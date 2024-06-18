@@ -37,6 +37,8 @@
 
 #define MII_LXT970_ISR       18  /* Interrupt Status Register */
 
+#define MII_LXT970_IRS_MINT  BIT(15)
+
 #define MII_LXT970_CONFIG    19  /* Configuration Register    */
 
 /* ------------------------------------------------------------------------- */
@@ -47,6 +49,7 @@
 #define MII_LXT971_IER_IEN	0x00f2
 
 #define MII_LXT971_ISR		19  /* Interrupt Status Register */
+#define MII_LXT971_ISR_MASK	0x00f0
 
 /* register definitions for the 973 */
 #define MII_LXT973_PCR 16 /* Port Configuration Register */
@@ -75,10 +78,50 @@ static int lxt970_ack_interrupt(struct phy_device *phydev)
 
 static int lxt970_config_intr(struct phy_device *phydev)
 {
-	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
-		return phy_write(phydev, MII_LXT970_IER, MII_LXT970_IER_IEN);
-	else
-		return phy_write(phydev, MII_LXT970_IER, 0);
+	int err;
+
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = lxt970_ack_interrupt(phydev);
+		if (err)
+			return err;
+
+		err = phy_write(phydev, MII_LXT970_IER, MII_LXT970_IER_IEN);
+	} else {
+		err = phy_write(phydev, MII_LXT970_IER, 0);
+		if (err)
+			return err;
+
+		err = lxt970_ack_interrupt(phydev);
+	}
+
+	return err;
+}
+
+static irqreturn_t lxt970_handle_interrupt(struct phy_device *phydev)
+{
+	int irq_status;
+
+	/* The interrupt status register is cleared by reading BMSR
+	 * followed by MII_LXT970_ISR
+	 */
+	irq_status = phy_read(phydev, MII_BMSR);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	irq_status = phy_read(phydev, MII_LXT970_ISR);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (!(irq_status & MII_LXT970_IRS_MINT))
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
 }
 
 static int lxt970_config_init(struct phy_device *phydev)
@@ -99,10 +142,41 @@ static int lxt971_ack_interrupt(struct phy_device *phydev)
 
 static int lxt971_config_intr(struct phy_device *phydev)
 {
-	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
-		return phy_write(phydev, MII_LXT971_IER, MII_LXT971_IER_IEN);
-	else
-		return phy_write(phydev, MII_LXT971_IER, 0);
+	int err;
+
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = lxt971_ack_interrupt(phydev);
+		if (err)
+			return err;
+
+		err = phy_write(phydev, MII_LXT971_IER, MII_LXT971_IER_IEN);
+	} else {
+		err = phy_write(phydev, MII_LXT971_IER, 0);
+		if (err)
+			return err;
+
+		err = lxt971_ack_interrupt(phydev);
+	}
+
+	return err;
+}
+
+static irqreturn_t lxt971_handle_interrupt(struct phy_device *phydev)
+{
+	int irq_status;
+
+	irq_status = phy_read(phydev, MII_LXT971_ISR);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (!(irq_status & MII_LXT971_ISR_MASK))
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
 }
 
 /*
@@ -168,8 +242,8 @@ static int lxt973a2_read_status(struct phy_device *phydev)
 				return lpa;
 
 			/* If both registers are equal, it is suspect but not
-			* impossible, hence a new try
-			*/
+			 * impossible, hence a new try
+			 */
 		} while (lpa == adv && retry--);
 
 		mii_lpa_to_linkmode_lpa_t(phydev->lp_advertising, lpa);
@@ -190,27 +264,11 @@ static int lxt973a2_read_status(struct phy_device *phydev)
 				phydev->duplex = DUPLEX_FULL;
 		}
 
-		if (phydev->duplex == DUPLEX_FULL) {
-			phydev->pause = lpa & LPA_PAUSE_CAP ? 1 : 0;
-			phydev->asym_pause = lpa & LPA_PAUSE_ASYM ? 1 : 0;
-		}
+		phy_resolve_aneg_pause(phydev);
 	} else {
-		int bmcr = phy_read(phydev, MII_BMCR);
-
-		if (bmcr < 0)
-			return bmcr;
-
-		if (bmcr & BMCR_FULLDPLX)
-			phydev->duplex = DUPLEX_FULL;
-		else
-			phydev->duplex = DUPLEX_HALF;
-
-		if (bmcr & BMCR_SPEED1000)
-			phydev->speed = SPEED_1000;
-		else if (bmcr & BMCR_SPEED100)
-			phydev->speed = SPEED_100;
-		else
-			phydev->speed = SPEED_10;
+		err = genphy_read_status_fixed(phydev);
+		if (err < 0)
+			return err;
 
 		phydev->pause = phydev->asym_pause = 0;
 		linkmode_zero(phydev->lp_advertising);
@@ -234,6 +292,7 @@ static int lxt973_probe(struct phy_device *phydev)
 		phy_write(phydev, MII_BMCR, val);
 		/* Remember that the port is in fiber mode. */
 		phydev->priv = lxt973_probe;
+		phydev->port = PORT_FIBRE;
 	} else {
 		phydev->priv = NULL;
 	}
@@ -253,15 +312,15 @@ static struct phy_driver lxt97x_driver[] = {
 	.phy_id_mask	= 0xfffffff0,
 	/* PHY_BASIC_FEATURES */
 	.config_init	= lxt970_config_init,
-	.ack_interrupt	= lxt970_ack_interrupt,
 	.config_intr	= lxt970_config_intr,
+	.handle_interrupt = lxt970_handle_interrupt,
 }, {
 	.phy_id		= 0x001378e0,
 	.name		= "LXT971",
 	.phy_id_mask	= 0xfffffff0,
 	/* PHY_BASIC_FEATURES */
-	.ack_interrupt	= lxt971_ack_interrupt,
 	.config_intr	= lxt971_config_intr,
+	.handle_interrupt = lxt971_handle_interrupt,
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
 }, {

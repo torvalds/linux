@@ -23,9 +23,7 @@ struct line_driver {
 	const short minor_start;
 	const short type;
 	const short subtype;
-	const int read_irq;
 	const char *read_irq_name;
-	const int write_irq;
 	const char *write_irq_name;
 	struct mc_device mc;
 	struct tty_driver *driver;
@@ -34,6 +32,8 @@ struct line_driver {
 struct line {
 	struct tty_port port;
 	int valid;
+
+	int read_irq, write_irq;
 
 	char *init_str;
 	struct list_head chan_list;
@@ -47,9 +47,9 @@ struct line {
 	 *
 	 * buffer points to a buffer allocated on demand, of length
 	 * LINE_BUFSIZE, head to the start of the ring, tail to the end.*/
-	char *buffer;
-	char *head;
-	char *tail;
+	u8 *buffer;
+	u8 *head;
+	u8 *tail;
 
 	int sigio;
 	struct delayed_work task;
@@ -64,14 +64,11 @@ extern void line_cleanup(struct tty_struct *tty);
 extern void line_hangup(struct tty_struct *tty);
 extern int line_setup(char **conf, unsigned nlines, char **def,
 		      char *init, char *name);
-extern int line_write(struct tty_struct *tty, const unsigned char *buf,
-		      int len);
-extern int line_put_char(struct tty_struct *tty, unsigned char ch);
-extern void line_set_termios(struct tty_struct *tty, struct ktermios * old);
-extern int line_chars_in_buffer(struct tty_struct *tty);
+extern ssize_t line_write(struct tty_struct *tty, const u8 *buf, size_t len);
+extern unsigned int line_chars_in_buffer(struct tty_struct *tty);
 extern void line_flush_buffer(struct tty_struct *tty);
 extern void line_flush_chars(struct tty_struct *tty);
-extern int line_write_room(struct tty_struct *tty);
+extern unsigned int line_write_room(struct tty_struct *tty);
 extern void line_throttle(struct tty_struct *tty);
 extern void line_unthrottle(struct tty_struct *tty);
 

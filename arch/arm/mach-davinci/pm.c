@@ -2,7 +2,7 @@
 /*
  * DaVinci Power Management Routines
  *
- * Copyright (C) 2009 Texas Instruments, Inc. http://www.ti.com/
+ * Copyright (C) 2009 Texas Instruments, Inc. https://www.ti.com/
  */
 
 #include <linux/pm.h>
@@ -16,11 +16,10 @@
 #include <asm/delay.h>
 #include <asm/io.h>
 
-#include <mach/common.h>
-#include <mach/da8xx.h>
-#include <mach/mux.h>
-#include <mach/pm.h>
-
+#include "common.h"
+#include "da8xx.h"
+#include "mux.h"
+#include "pm.h"
 #include "clock.h"
 #include "psc.h"
 #include "sram.h"

@@ -41,6 +41,10 @@ enum {
 	CY82_INDEX_TIMEOUT	= 0x32
 };
 
+static bool enable_dma = true;
+module_param(enable_dma, bool, 0);
+MODULE_PARM_DESC(enable_dma, "Enable bus master DMA operations");
+
 /**
  *	cy82c693_set_piomode	-	set initial PIO mode data
  *	@ap: ATA interface
@@ -58,7 +62,7 @@ static void cy82c693_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	u32 addr;
 
 	if (ata_timing_compute(adev, adev->pio_mode, &t, T, 1) < 0) {
-		printk(KERN_ERR DRV_NAME ": mome computation failed.\n");
+		ata_dev_err(adev, DRV_NAME ": mome computation failed.\n");
 		return;
 	}
 
@@ -111,7 +115,7 @@ static void cy82c693_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 	outb(0x50, 0x23);
 }
 
-static struct scsi_host_template cy82c693_sht = {
+static const struct scsi_host_template cy82c693_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 
@@ -124,13 +128,15 @@ static struct ata_port_operations cy82c693_port_ops = {
 
 static int cy82c693_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	static const struct ata_port_info info = {
+	static struct ata_port_info info = {
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = ATA_PIO4,
-		.mwdma_mask = ATA_MWDMA2,
 		.port_ops = &cy82c693_port_ops
 	};
 	const struct ata_port_info *ppi[] = { &info, &ata_dummy_port_info };
+
+	if (enable_dma)
+		info.mwdma_mask = ATA_MWDMA2;
 
 	/* Devfn 1 is the ATA primary. The secondary is magic and on devfn2.
 	   For the moment we don't handle the secondary. FIXME */

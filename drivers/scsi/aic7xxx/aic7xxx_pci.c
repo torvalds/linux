@@ -673,8 +673,8 @@ ahc_find_pci_device(ahc_dev_softc_t pci)
 
 	vendor = ahc_pci_read_config(pci, PCIR_DEVVENDOR, /*bytes*/2);
 	device = ahc_pci_read_config(pci, PCIR_DEVICE, /*bytes*/2);
-	subvendor = ahc_pci_read_config(pci, PCIR_SUBVEND_0, /*bytes*/2);
-	subdevice = ahc_pci_read_config(pci, PCIR_SUBDEV_0, /*bytes*/2);
+	subvendor = ahc_pci_read_config(pci, PCI_SUBSYSTEM_VENDOR_ID, /*bytes*/2);
+	subdevice = ahc_pci_read_config(pci, PCI_SUBSYSTEM_ID, /*bytes*/2);
 	full_id = ahc_compose_id(device, vendor, subdevice, subvendor);
 
 	/*
@@ -2008,8 +2008,7 @@ ahc_pci_chip_init(struct ahc_softc *ahc)
 	return (ahc_chip_init(ahc));
 }
 
-#ifdef CONFIG_PM
-void
+void __maybe_unused
 ahc_pci_resume(struct ahc_softc *ahc)
 {
 	/*
@@ -2040,7 +2039,6 @@ ahc_pci_resume(struct ahc_softc *ahc)
 		ahc_release_seeprom(&sd);
 	}
 }
-#endif
 
 static int
 ahc_aic785X_setup(struct ahc_softc *ahc)

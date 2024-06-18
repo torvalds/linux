@@ -15,6 +15,7 @@ config SND_USB_AUDIO
 	select SND_HWDEP
 	select SND_RAWMIDI
 	select SND_PCM
+	select SND_UMP if SND_USB_AUDIO_MIDI_V2
 	select BITREVERSE
 	select SND_USB_AUDIO_USE_MEDIA_CONTROLLER if MEDIA_CONTROLLER && (MEDIA_SUPPORT=y || MEDIA_SUPPORT=SND_USB_AUDIO)
 	help
@@ -23,6 +24,16 @@ config SND_USB_AUDIO
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-usb-audio.
+
+config SND_USB_AUDIO_MIDI_V2
+	bool "MIDI 2.0 support by USB Audio driver"
+	depends on SND_USB_AUDIO
+	help
+	  Say Y here to include the support for MIDI 2.0 by USB Audio driver.
+	  When the config is set, the driver tries to probe MIDI 2.0 interface
+	  at first, then falls back to MIDI 1.0 interface as default.
+	  The MIDI 2.0 support can be disabled dynamically via midi2_enable
+	  module option, too.
 
 config SND_USB_AUDIO_USE_MEDIA_CONTROLLER
 	bool
@@ -107,24 +118,24 @@ config SND_USB_US122L
 	  will be called snd-usb-us122l.
 
 config SND_USB_6FIRE
-        tristate "TerraTec DMX 6Fire USB"
-        select FW_LOADER
-        select BITREVERSE
-        select SND_RAWMIDI
-        select SND_PCM
-        select SND_VMASTER
-        help
-          Say Y here to include support for TerraTec 6fire DMX USB interface.
+	tristate "TerraTec DMX 6Fire USB"
+	select FW_LOADER
+	select BITREVERSE
+	select SND_RAWMIDI
+	select SND_PCM
+	select SND_VMASTER
+	help
+	  Say Y here to include support for TerraTec 6fire DMX USB interface.
 
-          You will need firmware files in order to be able to use the device
-          after it has been coldstarted. An install script for the firmware
-          and further help can be found at
-          http://sixfireusb.sourceforge.net
+	  You will need firmware files in order to be able to use the device
+	  after it has been coldstarted. An install script for the firmware
+	  and further help can be found at
+	  http://sixfireusb.sourceforge.net
 
 config SND_USB_HIFACE
-        tristate "M2Tech hiFace USB-SPDIF driver"
-        select SND_PCM
-        help
+	tristate "M2Tech hiFace USB-SPDIF driver"
+	select SND_PCM
+	help
 	  Select this option to include support for M2Tech hiFace USB-SPDIF
 	  interface.
 

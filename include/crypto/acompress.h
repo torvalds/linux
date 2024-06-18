@@ -8,9 +8,13 @@
  */
 #ifndef _CRYPTO_ACOMP_H
 #define _CRYPTO_ACOMP_H
+
+#include <linux/atomic.h>
+#include <linux/container_of.h>
 #include <linux/crypto.h>
 
 #define CRYPTO_ACOMP_ALLOC_OUTPUT	0x00000001
+#define CRYPTO_ACOMP_DST_MAX		131072
 
 /**
  * struct acomp_req - asynchronous (de)compression request
@@ -52,36 +56,10 @@ struct crypto_acomp {
 	struct crypto_tfm base;
 };
 
-/**
- * struct acomp_alg - asynchronous compression algorithm
- *
- * @compress:	Function performs a compress operation
- * @decompress:	Function performs a de-compress operation
- * @dst_free:	Frees destination buffer if allocated inside the algorithm
- * @init:	Initialize the cryptographic transformation object.
- *		This function is used to initialize the cryptographic
- *		transformation object. This function is called only once at
- *		the instantiation time, right after the transformation context
- *		was allocated. In case the cryptographic hardware has some
- *		special requirements which need to be handled by software, this
- *		function shall check for the precise requirement of the
- *		transformation and put any software fallbacks in place.
- * @exit:	Deinitialize the cryptographic transformation object. This is a
- *		counterpart to @init, used to remove various changes set in
- *		@init.
- *
- * @reqsize:	Context size for (de)compression requests
- * @base:	Common crypto API algorithm data structure
- */
-struct acomp_alg {
-	int (*compress)(struct acomp_req *req);
-	int (*decompress)(struct acomp_req *req);
-	void (*dst_free)(struct scatterlist *dst);
-	int (*init)(struct crypto_acomp *tfm);
-	void (*exit)(struct crypto_acomp *tfm);
-	unsigned int reqsize;
-	struct crypto_alg base;
-};
+#define COMP_ALG_COMMON {			\
+	struct crypto_alg base;			\
+}
+struct comp_alg_common COMP_ALG_COMMON;
 
 /**
  * DOC: Asynchronous Compression API
@@ -106,15 +84,34 @@ struct acomp_alg {
  */
 struct crypto_acomp *crypto_alloc_acomp(const char *alg_name, u32 type,
 					u32 mask);
+/**
+ * crypto_alloc_acomp_node() -- allocate ACOMPRESS tfm handle with desired NUMA node
+ * @alg_name:	is the cra_name / name or cra_driver_name / driver name of the
+ *		compression algorithm e.g. "deflate"
+ * @type:	specifies the type of the algorithm
+ * @mask:	specifies the mask for the algorithm
+ * @node:	specifies the NUMA node the ZIP hardware belongs to
+ *
+ * Allocate a handle for a compression algorithm. Drivers should try to use
+ * (de)compressors on the specified NUMA node.
+ * The returned struct crypto_acomp is the handle that is required for any
+ * subsequent API invocation for the compression operations.
+ *
+ * Return:	allocated handle in case of success; IS_ERR() is true in case
+ *		of an error, PTR_ERR() returns the error code.
+ */
+struct crypto_acomp *crypto_alloc_acomp_node(const char *alg_name, u32 type,
+					u32 mask, int node);
 
 static inline struct crypto_tfm *crypto_acomp_tfm(struct crypto_acomp *tfm)
 {
 	return &tfm->base;
 }
 
-static inline struct acomp_alg *__crypto_acomp_alg(struct crypto_alg *alg)
+static inline struct comp_alg_common *__crypto_comp_alg_common(
+	struct crypto_alg *alg)
 {
-	return container_of(alg, struct acomp_alg, base);
+	return container_of(alg, struct comp_alg_common, base);
 }
 
 static inline struct crypto_acomp *__crypto_acomp_tfm(struct crypto_tfm *tfm)
@@ -122,9 +119,10 @@ static inline struct crypto_acomp *__crypto_acomp_tfm(struct crypto_tfm *tfm)
 	return container_of(tfm, struct crypto_acomp, base);
 }
 
-static inline struct acomp_alg *crypto_acomp_alg(struct crypto_acomp *tfm)
+static inline struct comp_alg_common *crypto_comp_alg_common(
+	struct crypto_acomp *tfm)
 {
-	return __crypto_acomp_alg(crypto_acomp_tfm(tfm)->__crt_alg);
+	return __crypto_comp_alg_common(crypto_acomp_tfm(tfm)->__crt_alg);
 }
 
 static inline unsigned int crypto_acomp_reqsize(struct crypto_acomp *tfm)
@@ -138,6 +136,12 @@ static inline void acomp_request_set_tfm(struct acomp_req *req,
 	req->base.tfm = crypto_acomp_tfm(tfm);
 }
 
+static inline bool acomp_is_async(struct crypto_acomp *tfm)
+{
+	return crypto_comp_alg_common(tfm)->base.cra_flags &
+	       CRYPTO_ALG_ASYNC;
+}
+
 static inline struct crypto_acomp *crypto_acomp_reqtfm(struct acomp_req *req)
 {
 	return __crypto_acomp_tfm(req->base.tfm);
@@ -147,6 +151,8 @@ static inline struct crypto_acomp *crypto_acomp_reqtfm(struct acomp_req *req)
  * crypto_free_acomp() -- free ACOMPRESS tfm handle
  *
  * @tfm:	ACOMPRESS tfm handle allocated with crypto_alloc_acomp()
+ *
+ * If @tfm is a NULL or error pointer, this function does nothing.
  */
 static inline void crypto_free_acomp(struct crypto_acomp *tfm)
 {
@@ -157,7 +163,7 @@ static inline int crypto_has_acomp(const char *alg_name, u32 type, u32 mask)
 {
 	type &= ~CRYPTO_ALG_TYPE_MASK;
 	type |= CRYPTO_ALG_TYPE_ACOMPRESS;
-	mask |= CRYPTO_ALG_TYPE_MASK;
+	mask |= CRYPTO_ALG_TYPE_ACOMPRESS_MASK;
 
 	return crypto_has_alg(alg_name, type, mask);
 }
@@ -198,7 +204,8 @@ static inline void acomp_request_set_callback(struct acomp_req *req,
 {
 	req->base.complete = cmpl;
 	req->base.data = data;
-	req->base.flags = flgs;
+	req->base.flags &= CRYPTO_ACOMP_ALLOC_OUTPUT;
+	req->base.flags |= flgs & ~CRYPTO_ACOMP_ALLOC_OUTPUT;
 }
 
 /**
@@ -225,6 +232,7 @@ static inline void acomp_request_set_params(struct acomp_req *req,
 	req->slen = slen;
 	req->dlen = dlen;
 
+	req->flags &= ~CRYPTO_ACOMP_ALLOC_OUTPUT;
 	if (!req->dst)
 		req->flags |= CRYPTO_ACOMP_ALLOC_OUTPUT;
 }
@@ -240,15 +248,7 @@ static inline void acomp_request_set_params(struct acomp_req *req,
  */
 static inline int crypto_acomp_compress(struct acomp_req *req)
 {
-	struct crypto_acomp *tfm = crypto_acomp_reqtfm(req);
-	struct crypto_alg *alg = tfm->base.__crt_alg;
-	unsigned int slen = req->slen;
-	int ret;
-
-	crypto_stats_get(alg);
-	ret = tfm->compress(req);
-	crypto_stats_compress(slen, ret, alg);
-	return ret;
+	return crypto_acomp_reqtfm(req)->compress(req);
 }
 
 /**
@@ -262,15 +262,7 @@ static inline int crypto_acomp_compress(struct acomp_req *req)
  */
 static inline int crypto_acomp_decompress(struct acomp_req *req)
 {
-	struct crypto_acomp *tfm = crypto_acomp_reqtfm(req);
-	struct crypto_alg *alg = tfm->base.__crt_alg;
-	unsigned int slen = req->slen;
-	int ret;
-
-	crypto_stats_get(alg);
-	ret = tfm->decompress(req);
-	crypto_stats_decompress(slen, ret, alg);
-	return ret;
+	return crypto_acomp_reqtfm(req)->decompress(req);
 }
 
 #endif

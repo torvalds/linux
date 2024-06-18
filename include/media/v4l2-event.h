@@ -78,7 +78,7 @@ struct v4l2_subscribed_event {
 	unsigned int		elems;
 	unsigned int		first;
 	unsigned int		in_use;
-	struct v4l2_kevent	events[];
+	struct v4l2_kevent	events[] __counted_by(elems);
 };
 
 /**
@@ -101,7 +101,7 @@ int v4l2_event_dequeue(struct v4l2_fh *fh, struct v4l2_event *event,
  *
  * .. note::
  *    The driver's only responsibility is to fill in the type and the data
- *    fields.The other fields will be filled in by  V4L2.
+ *    fields. The other fields will be filled in by V4L2.
  */
 void v4l2_event_queue(struct video_device *vdev, const struct v4l2_event *ev);
 
@@ -116,9 +116,18 @@ void v4l2_event_queue(struct video_device *vdev, const struct v4l2_event *ev);
  *
  * .. note::
  *    The driver's only responsibility is to fill in the type and the data
- *    fields.The other fields will be filled in by  V4L2.
+ *    fields. The other fields will be filled in by V4L2.
  */
 void v4l2_event_queue_fh(struct v4l2_fh *fh, const struct v4l2_event *ev);
+
+/**
+ * v4l2_event_wake_all - Wake all filehandles.
+ *
+ * Used when unregistering a video device.
+ *
+ * @vdev: pointer to &struct video_device
+ */
+void v4l2_event_wake_all(struct video_device *vdev);
 
 /**
  * v4l2_event_pending - Check if an event is available

@@ -4,6 +4,7 @@
 # Copyright (c) 2019 Cloudflare
 
 set -eu
+readonly NS1="ns1-$(mktemp -u XXXXXX)"
 
 wait_for_ip()
 {
@@ -28,12 +29,12 @@ get_prog_id()
 
 ns1_exec()
 {
-	ip netns exec ns1 "$@"
+	ip netns exec ${NS1} "$@"
 }
 
 setup()
 {
-	ip netns add ns1
+	ip netns add ${NS1}
 	ns1_exec ip link set lo up
 
 	ns1_exec sysctl -w net.ipv4.tcp_syncookies=2
@@ -75,9 +76,9 @@ main()
 DIR=$(dirname $0)
 TEST_IF=lo
 MAX_PING_TRIES=5
-BPF_PROG_OBJ="${DIR}/test_tcp_check_syncookie_kern.o"
-CLSACT_SECTION="clsact/check_syncookie"
-XDP_SECTION="xdp/check_syncookie"
+BPF_PROG_OBJ="${DIR}/test_tcp_check_syncookie_kern.bpf.o"
+CLSACT_SECTION="tc"
+XDP_SECTION="xdp"
 BPF_PROG_ID=0
 PROG="${DIR}/test_tcp_check_syncookie_user"
 

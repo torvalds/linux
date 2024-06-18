@@ -28,7 +28,7 @@ DECLARE_EVENT_CLASS(iommu_group_event,
 
 	TP_fast_assign(
 		__entry->gid = group_id;
-		__assign_str(device, dev_name(dev));
+		__assign_str(device);
 	),
 
 	TP_printk("IOMMU: groupID=%d device=%s",
@@ -62,7 +62,7 @@ DECLARE_EVENT_CLASS(iommu_device_event,
 	),
 
 	TP_fast_assign(
-		__assign_str(device, dev_name(dev));
+		__assign_str(device);
 	),
 
 	TP_printk("IOMMU: device=%s", __get_str(device)
@@ -70,13 +70,6 @@ DECLARE_EVENT_CLASS(iommu_device_event,
 );
 
 DEFINE_EVENT(iommu_device_event, attach_device_to_domain,
-
-	TP_PROTO(struct device *dev),
-
-	TP_ARGS(dev)
-);
-
-DEFINE_EVENT(iommu_device_event, detach_device_from_domain,
 
 	TP_PROTO(struct device *dev),
 
@@ -101,8 +94,9 @@ TRACE_EVENT(map,
 		__entry->size = size;
 	),
 
-	TP_printk("IOMMU: iova=0x%016llx paddr=0x%016llx size=%zu",
-			__entry->iova, __entry->paddr, __entry->size
+	TP_printk("IOMMU: iova=0x%016llx - 0x%016llx paddr=0x%016llx size=%zu",
+		  __entry->iova, __entry->iova + __entry->size, __entry->paddr,
+		  __entry->size
 	)
 );
 
@@ -124,8 +118,9 @@ TRACE_EVENT(unmap,
 		__entry->unmapped_size = unmapped_size;
 	),
 
-	TP_printk("IOMMU: iova=0x%016llx size=%zu unmapped_size=%zu",
-			__entry->iova, __entry->size, __entry->unmapped_size
+	TP_printk("IOMMU: iova=0x%016llx - 0x%016llx size=%zu unmapped_size=%zu",
+		  __entry->iova, __entry->iova + __entry->size,
+		  __entry->size, __entry->unmapped_size
 	)
 );
 
@@ -143,8 +138,8 @@ DECLARE_EVENT_CLASS(iommu_error,
 	),
 
 	TP_fast_assign(
-		__assign_str(device, dev_name(dev));
-		__assign_str(driver, dev_driver_string(dev));
+		__assign_str(device);
+		__assign_str(driver);
 		__entry->iova = iova;
 		__entry->flags = flags;
 	),

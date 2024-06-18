@@ -7,8 +7,12 @@
 #include <drm/drm_file.h>
 
 #include "lima_ctx.h"
+#include "lima_device.h"
 
 extern int lima_sched_timeout_ms;
+extern uint lima_heap_init_nr_pages;
+extern uint lima_max_error_tasks;
+extern uint lima_job_hang_limit;
 
 struct lima_vm;
 struct lima_bo;
@@ -34,6 +38,10 @@ struct lima_submit {
 	u32 out_sync;
 
 	struct lima_sched_task *task;
+};
+
+struct lima_compatible {
+	enum lima_gpu_id id;
 };
 
 static inline struct lima_drm_priv *

@@ -5,13 +5,23 @@
 
 menuconfig VIRT_DRIVERS
 	bool "Virtualization drivers"
-	---help---
+	help
 	  Say Y here to get to see options for device drivers that support
 	  virtualization environments.
 
 	  If you say N, all options in this submenu will be skipped and disabled.
 
 if VIRT_DRIVERS
+
+config VMGENID
+	tristate "Virtual Machine Generation ID driver"
+	default y
+	help
+	  Say Y here to use the hypervisor-provided Virtual Machine Generation ID
+	  to reseed the RNG when the VM is cloned. This is highly recommended if
+	  you intend to do any rollback / cloning / snapshotting of VMs.
+
+	  Prefer Y to M so that this protection is activated very early.
 
 config FSL_HV_MANAGER
 	tristate "Freescale hypervisor management driver"
@@ -32,4 +42,11 @@ config FSL_HV_MANAGER
 	     partition shuts down.
 
 source "drivers/virt/vboxguest/Kconfig"
+
+source "drivers/virt/nitro_enclaves/Kconfig"
+
+source "drivers/virt/acrn/Kconfig"
+
+source "drivers/virt/coco/Kconfig"
+
 endif

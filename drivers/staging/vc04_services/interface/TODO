@@ -1,0 +1,48 @@
+* Import drivers using VCHI.
+
+VCHI is just a tool to let drivers talk to the firmware.  Here are
+some of the ones we want:
+
+  - vc_mem (https://github.com/raspberrypi/linux/blob/rpi-4.4.y/drivers/char/broadcom/vc_mem.c)
+
+  This driver is what the vcdbg userspace program uses to set up its
+  requests to the firmware, which are transmitted across VCHIQ.  vcdbg
+  is really useful for debugging firmware interactions.
+
+  - VCSM (https://github.com/raspberrypi/linux/tree/rpi-4.4.y/drivers/char/broadcom/vc_sm)
+
+  This driver is used for talking about regions of VC memory across
+  firmware protocols including VCHI.  We'll want to extend this driver
+  to manage these buffers as dmabufs so that we can zero-copy import
+  camera images into vc4 for rendering/display.
+
+* Fix kernel module support
+
+Even the VPU firmware doesn't support a VCHI re-connect, the driver
+should properly handle a module unload. This also includes that all
+resources must be freed (kthreads, debugfs entries, ...) and global
+variables avoided.
+
+* Documentation
+
+A short top-down description of this driver's architecture (function of
+kthreads, userspace, limitations) could be very helpful for reviewers.
+
+* Reformat core code with more sane indentations
+
+The code follows the 80 characters limitation yet tends to go 3 or 4 levels of
+indentation deep making it very unpleasant to read. This is specially relevant
+in the character driver ioctl code and in the core thread functions.
+
+* Clean up Sparse warnings from __user annotations. See
+vchiq_irq_queue_bulk_tx_rx(). Ensure that the address of "&waiter->bulk_waiter"
+is never disclosed to userspace.
+
+* Fix behavior of message handling
+
+The polling behavior of vchiq_bulk_transmit(), vchiq_bulk_receive() and
+vchiq_queue_kernel_message() looks broken. A possible signal should be
+propagated back to user space to let the calling task handle it before
+retrying. Hopefully these msleep(1) shouldn't be necessary anymore.
+
+https://lore.kernel.org/linux-staging/CAK8P3a3HGm1cPo4sW9fOY4E8AN8yAq3tevXxU5m8bmtmsU8WKw@mail.gmail.com/

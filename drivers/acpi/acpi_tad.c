@@ -237,7 +237,7 @@ static ssize_t time_show(struct device *dev, struct device_attribute *attr,
 		       rt.tz, rt.daylight);
 }
 
-static DEVICE_ATTR(time, S_IRUSR | S_IWUSR, time_show, time_store);
+static DEVICE_ATTR_RW(time);
 
 static struct attribute *acpi_tad_time_attrs[] = {
 	&dev_attr_time.attr,
@@ -446,7 +446,7 @@ static ssize_t ac_alarm_show(struct device *dev, struct device_attribute *attr,
 	return acpi_tad_alarm_read(dev, buf, ACPI_TAD_AC_TIMER);
 }
 
-static DEVICE_ATTR(ac_alarm, S_IRUSR | S_IWUSR, ac_alarm_show, ac_alarm_store);
+static DEVICE_ATTR_RW(ac_alarm);
 
 static ssize_t ac_policy_store(struct device *dev, struct device_attribute *attr,
 			       const char *buf, size_t count)
@@ -462,7 +462,7 @@ static ssize_t ac_policy_show(struct device *dev, struct device_attribute *attr,
 	return acpi_tad_policy_read(dev, buf, ACPI_TAD_AC_TIMER);
 }
 
-static DEVICE_ATTR(ac_policy, S_IRUSR | S_IWUSR, ac_policy_show, ac_policy_store);
+static DEVICE_ATTR_RW(ac_policy);
 
 static ssize_t ac_status_store(struct device *dev, struct device_attribute *attr,
 			       const char *buf, size_t count)
@@ -478,7 +478,7 @@ static ssize_t ac_status_show(struct device *dev, struct device_attribute *attr,
 	return acpi_tad_status_read(dev, buf, ACPI_TAD_AC_TIMER);
 }
 
-static DEVICE_ATTR(ac_status, S_IRUSR | S_IWUSR, ac_status_show, ac_status_store);
+static DEVICE_ATTR_RW(ac_status);
 
 static struct attribute *acpi_tad_attrs[] = {
 	&dev_attr_caps.attr,
@@ -505,7 +505,7 @@ static ssize_t dc_alarm_show(struct device *dev, struct device_attribute *attr,
 	return acpi_tad_alarm_read(dev, buf, ACPI_TAD_DC_TIMER);
 }
 
-static DEVICE_ATTR(dc_alarm, S_IRUSR | S_IWUSR, dc_alarm_show, dc_alarm_store);
+static DEVICE_ATTR_RW(dc_alarm);
 
 static ssize_t dc_policy_store(struct device *dev, struct device_attribute *attr,
 			       const char *buf, size_t count)
@@ -521,7 +521,7 @@ static ssize_t dc_policy_show(struct device *dev, struct device_attribute *attr,
 	return acpi_tad_policy_read(dev, buf, ACPI_TAD_DC_TIMER);
 }
 
-static DEVICE_ATTR(dc_policy, S_IRUSR | S_IWUSR, dc_policy_show, dc_policy_store);
+static DEVICE_ATTR_RW(dc_policy);
 
 static ssize_t dc_status_store(struct device *dev, struct device_attribute *attr,
 			       const char *buf, size_t count)
@@ -537,7 +537,7 @@ static ssize_t dc_status_show(struct device *dev, struct device_attribute *attr,
 	return acpi_tad_status_read(dev, buf, ACPI_TAD_DC_TIMER);
 }
 
-static DEVICE_ATTR(dc_status, S_IRUSR | S_IWUSR, dc_status_show, dc_status_store);
+static DEVICE_ATTR_RW(dc_status);
 
 static struct attribute *acpi_tad_dc_attrs[] = {
 	&dev_attr_dc_alarm.attr,
@@ -554,9 +554,10 @@ static int acpi_tad_disable_timer(struct device *dev, u32 timer_id)
 	return acpi_tad_wake_set(dev, "_STV", timer_id, ACPI_TAD_WAKE_DISABLED);
 }
 
-static int acpi_tad_remove(struct platform_device *pdev)
+static void acpi_tad_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	acpi_handle handle = ACPI_HANDLE(dev);
 	struct acpi_tad_driver_data *dd = dev_get_drvdata(dev);
 
 	device_init_wakeup(dev, false);
@@ -577,7 +578,7 @@ static int acpi_tad_remove(struct platform_device *pdev)
 
 	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
-	return 0;
+	acpi_remove_cmos_rtc_space_handler(handle);
 }
 
 static int acpi_tad_probe(struct platform_device *pdev)
@@ -589,6 +590,11 @@ static int acpi_tad_probe(struct platform_device *pdev)
 	unsigned long long caps;
 	int ret;
 
+	ret = acpi_install_cmos_rtc_space_handler(handle);
+	if (ret < 0) {
+		dev_info(dev, "Unable to install space handler\n");
+		return -ENODEV;
+	}
 	/*
 	 * Initialization failure messages are mostly about firmware issues, so
 	 * print them at the "info" level.
@@ -596,22 +602,27 @@ static int acpi_tad_probe(struct platform_device *pdev)
 	status = acpi_evaluate_integer(handle, "_GCP", NULL, &caps);
 	if (ACPI_FAILURE(status)) {
 		dev_info(dev, "Unable to get capabilities\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto remove_handler;
 	}
 
 	if (!(caps & ACPI_TAD_AC_WAKE)) {
 		dev_info(dev, "Unsupported capabilities\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto remove_handler;
 	}
 
 	if (!acpi_has_method(handle, "_PRW")) {
 		dev_info(dev, "Missing _PRW\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto remove_handler;
 	}
 
 	dd = devm_kzalloc(dev, sizeof(*dd), GFP_KERNEL);
-	if (!dd)
-		return -ENOMEM;
+	if (!dd) {
+		ret = -ENOMEM;
+		goto remove_handler;
+	}
 
 	dd->capabilities = caps;
 	dev_set_drvdata(dev, dd);
@@ -624,7 +635,7 @@ static int acpi_tad_probe(struct platform_device *pdev)
 	 */
 	device_init_wakeup(dev, true);
 	dev_pm_set_driver_flags(dev, DPM_FLAG_SMART_SUSPEND |
-				     DPM_FLAG_LEAVE_SUSPENDED);
+				     DPM_FLAG_MAY_SKIP_RESUME);
 	/*
 	 * The platform bus type layer tells the ACPI PM domain powers up the
 	 * device, so set the runtime PM status of it to "active".
@@ -653,6 +664,11 @@ static int acpi_tad_probe(struct platform_device *pdev)
 
 fail:
 	acpi_tad_remove(pdev);
+	/* Don't fallthrough because cmos rtc space handler is removed in acpi_tad_remove() */
+	return ret;
+
+remove_handler:
+	acpi_remove_cmos_rtc_space_handler(handle);
 	return ret;
 }
 
@@ -667,7 +683,7 @@ static struct platform_driver acpi_tad_driver = {
 		.acpi_match_table = acpi_tad_ids,
 	},
 	.probe = acpi_tad_probe,
-	.remove = acpi_tad_remove,
+	.remove_new = acpi_tad_remove,
 };
 MODULE_DEVICE_TABLE(acpi, acpi_tad_ids);
 

@@ -1,0 +1,285 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree Source for the APE6EVM board
+ *
+ * Copyright (C) 2013 Renesas Solutions Corp.
+ */
+
+/dts-v1/;
+#include "r8a73a4.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+
+/ {
+	model = "APE6EVM";
+	compatible = "renesas,ape6evm", "renesas,r8a73a4";
+
+	aliases {
+		serial0 = &scifa0;
+	};
+
+	chosen {
+		bootargs = "ignore_loglevel rw root=/dev/nfs ip=on";
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@40000000 {
+		device_type = "memory";
+		reg = <0 0x40000000 0 0x40000000>;
+	};
+
+	memory@200000000 {
+		device_type = "memory";
+		reg = <2 0x00000000 0 0x40000000>;
+	};
+
+	vcc_mmc0: regulator-mmc0 {
+		compatible = "regulator-fixed";
+		regulator-name = "MMC0 Vcc";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		regulator-always-on;
+	};
+
+	vcc_sdhi0: regulator-sdhi0 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "SDHI0 Vcc";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpio = <&pfc 76 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	/* Common 1.8V and 3.3V rails, used by several devices on APE6EVM */
+	ape6evm_fixed_1v8: regulator-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "1V8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+
+	ape6evm_fixed_3v3: regulator-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led1 {
+			gpios = <&pfc 28 GPIO_ACTIVE_HIGH>;
+			label = "GNSS_EN";
+		};
+		led2 {
+			gpios = <&pfc 126 GPIO_ACTIVE_HIGH>;
+			label = "NFC_NRST";
+		};
+		led3 {
+			gpios = <&pfc 132 GPIO_ACTIVE_HIGH>;
+			label = "GNSS_NRST";
+		};
+		led4 {
+			gpios = <&pfc 232 GPIO_ACTIVE_HIGH>;
+			label = "BT_WAKEUP";
+		};
+		led5 {
+			gpios = <&pfc 250 GPIO_ACTIVE_HIGH>;
+			label = "STROBE";
+		};
+		led6 {
+			gpios = <&pfc 288 GPIO_ACTIVE_HIGH>;
+			label = "BBRESETOUT";
+		};
+	};
+
+	keyboard {
+		compatible = "gpio-keys";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&keyboard_pins>;
+
+		zero-key {
+			gpios = <&pfc 324 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_0>;
+			label = "S16";
+			wakeup-source;
+		};
+
+		menu-key {
+			gpios = <&pfc 325 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_MENU>;
+			label = "S17";
+		};
+
+		home-key {
+			gpios = <&pfc 326 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_HOME>;
+			label = "S18";
+		};
+
+		back-key {
+			gpios = <&pfc 327 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_BACK>;
+			label = "S19";
+		};
+
+		volup-key {
+			gpios = <&pfc 328 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEUP>;
+			label = "S20";
+		};
+
+		voldown-key {
+			gpios = <&pfc 329 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEDOWN>;
+			label = "S21";
+		};
+	};
+};
+
+&i2c5 {
+	status = "okay";
+	vdd_dvfs: regulator@1b {
+		compatible = "maxim,max8973";
+		reg = <0x1b>;
+
+		regulator-min-microvolt = <935000>;
+		regulator-max-microvolt = <1200000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+};
+
+&cpu0 {
+	cpu0-supply = <&vdd_dvfs>;
+	operating-points = <1950000 1115000>,	/* kHz  uV */
+			   <1462500  995000>;
+	voltage-tolerance = <1>; /* 1% */
+};
+
+&bsc {
+	flash@0 {
+		compatible = "cfi-flash";
+		reg = <0x0 0x08000000>;
+		bank-width = <2>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "uboot";
+				reg = <0x00000000 0x00040000>;
+				read-only;
+			};
+			partition@40000 {
+				label = "uboot-env";
+				reg = <0x00040000 0x00040000>;
+				read-only;
+			};
+			partition@80000 {
+				label = "flash";
+				reg = <0x00080000 0x07f80000>;
+			};
+		};
+	};
+
+	ethernet@8000000 {
+		compatible = "smsc,lan9220", "smsc,lan9115";
+		reg = <0x08000000 0x1000>;
+		interrupt-parent = <&irqc1>;
+		interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
+		phy-mode = "mii";
+		reg-io-width = <4>;
+		smsc,irq-active-high;
+		smsc,irq-push-pull;
+		reset-gpios = <&pfc 270 GPIO_ACTIVE_LOW>;
+		vdd33a-supply = <&ape6evm_fixed_3v3>;
+		vddvario-supply = <&ape6evm_fixed_1v8>;
+	};
+};
+
+&cmt1 {
+	status = "okay";
+};
+
+&extal1_clk {
+	clock-frequency = <26000000>;
+};
+
+&extal2_clk {
+	clock-frequency = <48000000>;
+};
+
+&extalr_clk {
+	clock-frequency = <32768>;
+};
+
+&pfc {
+	scifa0_pins: scifa0 {
+		groups = "scifa0_data";
+		function = "scifa0";
+	};
+
+	mmc0_pins: mmc0 {
+		groups = "mmc0_data8", "mmc0_ctrl";
+		function = "mmc0";
+	};
+
+	sdhi0_pins: sd0 {
+		groups = "sdhi0_data4", "sdhi0_ctrl", "sdhi0_cd";
+		function = "sdhi0";
+	};
+
+	sdhi1_pins: sd1 {
+		groups = "sdhi1_data4", "sdhi1_ctrl";
+		function = "sdhi1";
+	};
+
+	keyboard_pins: keyboard {
+		pins = "PORT324", "PORT325", "PORT326", "PORT327", "PORT328",
+		       "PORT329";
+		bias-pull-up;
+	};
+};
+
+&mmcif0 {
+	vmmc-supply = <&vcc_mmc0>;
+	bus-width = <8>;
+	non-removable;
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc0_pins>;
+	status = "okay";
+};
+
+&scifa0 {
+	pinctrl-0 = <&scifa0_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+
+&sdhi0 {
+	vmmc-supply = <&vcc_sdhi0>;
+	bus-width = <4>;
+	disable-wp;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdhi0_pins>;
+	status = "okay";
+};
+
+&sdhi1 {
+	vmmc-supply = <&ape6evm_fixed_3v3>;
+	bus-width = <4>;
+	broken-cd;
+	disable-wp;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdhi1_pins>;
+	status = "okay";
+};

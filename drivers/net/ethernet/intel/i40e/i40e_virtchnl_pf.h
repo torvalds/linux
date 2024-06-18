@@ -4,20 +4,22 @@
 #ifndef _I40E_VIRTCHNL_PF_H_
 #define _I40E_VIRTCHNL_PF_H_
 
-#include "i40e.h"
+#include <linux/avf/virtchnl.h>
+#include <linux/netdevice.h>
+#include "i40e_type.h"
 
 #define I40E_MAX_VLANID 4095
 
 #define I40E_VIRTCHNL_SUPPORTED_QTYPES 2
-
-#define I40E_DEFAULT_NUM_MDD_EVENTS_ALLOWED	3
-#define I40E_DEFAULT_NUM_INVALID_MSGS_ALLOWED	10
 
 #define I40E_VLAN_PRIORITY_SHIFT	13
 #define I40E_VLAN_MASK			0xFFF
 #define I40E_PRIORITY_MASK		0xE000
 
 #define I40E_MAX_VF_PROMISC_FLAGS	3
+
+#define I40E_VF_STATE_WAIT_COUNT	20
+#define I40E_VFR_WAIT_COUNT		100
 
 /* Various queue ctrls */
 enum i40e_queue_ctrl {
@@ -34,18 +36,19 @@ enum i40e_queue_ctrl {
 enum i40e_vf_states {
 	I40E_VF_STATE_INIT = 0,
 	I40E_VF_STATE_ACTIVE,
-	I40E_VF_STATE_IWARPENA,
+	I40E_VF_STATE_RDMAENA,
 	I40E_VF_STATE_DISABLED,
 	I40E_VF_STATE_MC_PROMISC,
 	I40E_VF_STATE_UC_PROMISC,
 	I40E_VF_STATE_PRE_ENABLE,
+	I40E_VF_STATE_RESETTING
 };
 
 /* VF capabilities */
 enum i40e_vf_capabilities {
 	I40E_VIRTCHNL_VF_CAP_PRIVILEGE = 0,
 	I40E_VIRTCHNL_VF_CAP_L2,
-	I40E_VIRTCHNL_VF_CAP_IWARP,
+	I40E_VIRTCHNL_VF_CAP_RDMA,
 };
 
 /* In ADq, max 4 VSI's can be allocated per VF including primary VF VSI.
@@ -90,18 +93,14 @@ struct i40e_vf {
 	u8 num_queue_pairs;	/* num of qps assigned to VF vsis */
 	u8 num_req_queues;	/* num of requested qps */
 	u64 num_mdd_events;	/* num of mdd events detected */
-	/* num of continuous malformed or invalid msgs detected */
-	u64 num_invalid_msgs;
-	u64 num_valid_msgs;	/* num of valid msgs detected */
 
 	unsigned long vf_caps;	/* vf's adv. capabilities */
 	unsigned long vf_states;	/* vf's runtime states */
 	unsigned int tx_rate;	/* Tx bandwidth limit in Mbps */
 	bool link_forced;
 	bool link_up;		/* only valid if VF link is forced */
-	bool queues_enabled;	/* true if the VF queues are enabled */
 	bool spoofchk;
-	u16 num_mac;
+	bool is_disabled_from_host; /* PF ctrl of VF enable/disable */
 	u16 num_vlan;
 
 	/* ADq related variables */
@@ -112,7 +111,7 @@ struct i40e_vf {
 	u16 num_cloud_filters;
 
 	/* RDMA Client */
-	struct virtchnl_iwarp_qvlist_info *qvlist_info;
+	struct virtchnl_rdma_qvlist_info *qvlist_info;
 };
 
 void i40e_free_vfs(struct i40e_pf *pf);
@@ -139,5 +138,10 @@ int i40e_ndo_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool enable);
 
 void i40e_vc_notify_link_state(struct i40e_pf *pf);
 void i40e_vc_notify_reset(struct i40e_pf *pf);
+#ifdef CONFIG_PCI_IOV
+void i40e_restore_all_vfs_msi_state(struct pci_dev *pdev);
+#endif /* CONFIG_PCI_IOV */
+int i40e_get_vf_stats(struct net_device *netdev, int vf_id,
+		      struct ifla_vf_stats *vf_stats);
 
 #endif /* _I40E_VIRTCHNL_PF_H_ */

@@ -1,0 +1,140 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+
+#include "armada-385-clearfog-gtr.dtsi"
+
+/ {
+	model = "SolidRun Clearfog GTR L8";
+	compatible = "solidrun,clearfog-gtr-l8", "marvell,armada385",
+		     "marvell,armada380";
+
+	/* CON25 */
+	sfp1: sfp-1 {
+		compatible = "sff,sfp";
+		pinctrl-0 = <&cf_gtr_sfp1_pins>;
+		pinctrl-names = "default";
+		i2c-bus = <&i2c0>;
+		mod-def0-gpio = <&gpio0 24 GPIO_ACTIVE_LOW>;
+		tx-disable-gpio = <&gpio1 22 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&mdio {
+	switch0: ethernet-switch@4 {
+		compatible = "marvell,mv88e6190";
+		reg = <4>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cf_gtr_switch_reset_pins>;
+		reset-gpios = <&gpio0 18 GPIO_ACTIVE_LOW>;
+
+		ethernet-ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			ethernet-port@1 {
+				reg = <1>;
+				label = "lan1";
+				phy-handle = <&switch0phy0>;
+			};
+
+			ethernet-port@2 {
+				reg = <2>;
+				label = "lan2";
+				phy-handle = <&switch0phy1>;
+			};
+
+			ethernet-port@3 {
+				reg = <3>;
+				label = "lan3";
+				phy-handle = <&switch0phy2>;
+			};
+
+			ethernet-port@4 {
+				reg = <4>;
+				label = "lan4";
+				phy-handle = <&switch0phy3>;
+			};
+
+			ethernet-port@5 {
+				reg = <5>;
+				label = "lan5";
+				phy-handle = <&switch0phy4>;
+			};
+
+			ethernet-port@6 {
+				reg = <6>;
+				label = "lan6";
+				phy-handle = <&switch0phy5>;
+			};
+
+			ethernet-port@7 {
+				reg = <7>;
+				label = "lan7";
+				phy-handle = <&switch0phy6>;
+			};
+
+			ethernet-port@8 {
+				reg = <8>;
+				label = "lan8";
+				phy-handle = <&switch0phy7>;
+			};
+
+			ethernet-port@9 {
+				reg = <9>;
+				label = "lan-sfp";
+				phy-mode = "sgmii";
+				sfp = <&sfp1>;
+				managed = "in-band-status";
+			};
+
+			ethernet-port@10 {
+				reg = <10>;
+				phy-mode = "2500base-x";
+				ethernet = <&eth1>;
+
+				fixed-link {
+					speed = <2500>;
+					full-duplex;
+				};
+			};
+
+		};
+
+		mdio {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			switch0phy0: ethernet-phy@1 {
+				reg = <0x1>;
+			};
+
+			switch0phy1: ethernet-phy@2 {
+				reg = <0x2>;
+			};
+
+			switch0phy2: ethernet-phy@3 {
+				reg = <0x3>;
+			};
+
+			switch0phy3: ethernet-phy@4 {
+				reg = <0x4>;
+			};
+
+			switch0phy4: ethernet-phy@5 {
+				reg = <0x5>;
+			};
+
+			switch0phy5: ethernet-phy@6 {
+				reg = <0x6>;
+			};
+
+			switch0phy6: ethernet-phy@7 {
+				reg = <0x7>;
+			};
+
+			switch0phy7: ethernet-phy@8 {
+				reg = <0x8>;
+			};
+		};
+
+	};
+};

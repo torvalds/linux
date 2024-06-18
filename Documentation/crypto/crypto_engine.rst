@@ -63,24 +63,24 @@ request by using:
 When your driver receives a crypto_request, you must to transfer it to
 the crypto engine via one of:
 
-* crypto_transfer_ablkcipher_request_to_engine()
-
 * crypto_transfer_aead_request_to_engine()
 
 * crypto_transfer_akcipher_request_to_engine()
 
 * crypto_transfer_hash_request_to_engine()
 
+* crypto_transfer_kpp_request_to_engine()
+
 * crypto_transfer_skcipher_request_to_engine()
 
 At the end of the request process, a call to one of the following functions is needed:
-
-* crypto_finalize_ablkcipher_request()
 
 * crypto_finalize_aead_request()
 
 * crypto_finalize_akcipher_request()
 
 * crypto_finalize_hash_request()
+
+* crypto_finalize_kpp_request()
 
 * crypto_finalize_skcipher_request()

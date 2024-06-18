@@ -9,7 +9,6 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/dmaengine.h>
-#include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
@@ -87,7 +86,7 @@
 
 struct img_spfi {
 	struct device *dev;
-	struct spi_master *master;
+	struct spi_controller *host;
 	spinlock_t lock;
 
 	void __iomem *regs;
@@ -100,10 +99,6 @@ struct img_spfi {
 	struct dma_chan *tx_ch;
 	bool tx_dma_busy;
 	bool rx_dma_busy;
-};
-
-struct img_spfi_device_data {
-	bool gpio_requested;
 };
 
 static inline u32 spfi_readl(struct img_spfi *spfi, u32 reg)
@@ -226,11 +221,11 @@ static unsigned int spfi_pio_read8(struct img_spfi *spfi, u8 *buf,
 	return count;
 }
 
-static int img_spfi_start_pio(struct spi_master *master,
+static int img_spfi_start_pio(struct spi_controller *host,
 			       struct spi_device *spi,
 			       struct spi_transfer *xfer)
 {
-	struct img_spfi *spfi = spi_master_get_devdata(spi->master);
+	struct img_spfi *spfi = spi_controller_get_devdata(spi->controller);
 	unsigned int tx_bytes = 0, rx_bytes = 0;
 	const void *tx_buf = xfer->tx_buf;
 	void *rx_buf = xfer->rx_buf;
@@ -290,7 +285,7 @@ static void img_spfi_dma_rx_cb(void *data)
 	spin_lock_irqsave(&spfi->lock, flags);
 	spfi->rx_dma_busy = false;
 	if (!spfi->tx_dma_busy)
-		spi_finalize_current_transfer(spfi->master);
+		spi_finalize_current_transfer(spfi->host);
 	spin_unlock_irqrestore(&spfi->lock, flags);
 }
 
@@ -304,15 +299,15 @@ static void img_spfi_dma_tx_cb(void *data)
 	spin_lock_irqsave(&spfi->lock, flags);
 	spfi->tx_dma_busy = false;
 	if (!spfi->rx_dma_busy)
-		spi_finalize_current_transfer(spfi->master);
+		spi_finalize_current_transfer(spfi->host);
 	spin_unlock_irqrestore(&spfi->lock, flags);
 }
 
-static int img_spfi_start_dma(struct spi_master *master,
+static int img_spfi_start_dma(struct spi_controller *host,
 			      struct spi_device *spi,
 			      struct spi_transfer *xfer)
 {
-	struct img_spfi *spfi = spi_master_get_devdata(spi->master);
+	struct img_spfi *spfi = spi_controller_get_devdata(spi->controller);
 	struct dma_async_tx_descriptor *rxdesc = NULL, *txdesc = NULL;
 	struct dma_slave_config rxconf, txconf;
 
@@ -389,10 +384,10 @@ stop_dma:
 	return -EIO;
 }
 
-static void img_spfi_handle_err(struct spi_master *master,
+static void img_spfi_handle_err(struct spi_controller *host,
 				struct spi_message *msg)
 {
-	struct img_spfi *spfi = spi_master_get_devdata(master);
+	struct img_spfi *spfi = spi_controller_get_devdata(host);
 	unsigned long flags;
 
 	/*
@@ -410,90 +405,42 @@ static void img_spfi_handle_err(struct spi_master *master,
 	spin_unlock_irqrestore(&spfi->lock, flags);
 }
 
-static int img_spfi_prepare(struct spi_master *master, struct spi_message *msg)
+static int img_spfi_prepare(struct spi_controller *host, struct spi_message *msg)
 {
-	struct img_spfi *spfi = spi_master_get_devdata(master);
+	struct img_spfi *spfi = spi_controller_get_devdata(host);
 	u32 val;
 
 	val = spfi_readl(spfi, SPFI_PORT_STATE);
 	val &= ~(SPFI_PORT_STATE_DEV_SEL_MASK <<
 		 SPFI_PORT_STATE_DEV_SEL_SHIFT);
-	val |= msg->spi->chip_select << SPFI_PORT_STATE_DEV_SEL_SHIFT;
+	val |= spi_get_chipselect(msg->spi, 0) << SPFI_PORT_STATE_DEV_SEL_SHIFT;
 	if (msg->spi->mode & SPI_CPHA)
-		val |= SPFI_PORT_STATE_CK_PHASE(msg->spi->chip_select);
+		val |= SPFI_PORT_STATE_CK_PHASE(spi_get_chipselect(msg->spi, 0));
 	else
-		val &= ~SPFI_PORT_STATE_CK_PHASE(msg->spi->chip_select);
+		val &= ~SPFI_PORT_STATE_CK_PHASE(spi_get_chipselect(msg->spi, 0));
 	if (msg->spi->mode & SPI_CPOL)
-		val |= SPFI_PORT_STATE_CK_POL(msg->spi->chip_select);
+		val |= SPFI_PORT_STATE_CK_POL(spi_get_chipselect(msg->spi, 0));
 	else
-		val &= ~SPFI_PORT_STATE_CK_POL(msg->spi->chip_select);
+		val &= ~SPFI_PORT_STATE_CK_POL(spi_get_chipselect(msg->spi, 0));
 	spfi_writel(spfi, val, SPFI_PORT_STATE);
 
 	return 0;
 }
 
-static int img_spfi_unprepare(struct spi_master *master,
+static int img_spfi_unprepare(struct spi_controller *host,
 			      struct spi_message *msg)
 {
-	struct img_spfi *spfi = spi_master_get_devdata(master);
+	struct img_spfi *spfi = spi_controller_get_devdata(host);
 
 	spfi_reset(spfi);
 
 	return 0;
 }
 
-static int img_spfi_setup(struct spi_device *spi)
-{
-	int ret = -EINVAL;
-	struct img_spfi_device_data *spfi_data = spi_get_ctldata(spi);
-
-	if (!spfi_data) {
-		spfi_data = kzalloc(sizeof(*spfi_data), GFP_KERNEL);
-		if (!spfi_data)
-			return -ENOMEM;
-		spfi_data->gpio_requested = false;
-		spi_set_ctldata(spi, spfi_data);
-	}
-	if (!spfi_data->gpio_requested) {
-		ret = gpio_request_one(spi->cs_gpio,
-				       (spi->mode & SPI_CS_HIGH) ?
-				       GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH,
-				       dev_name(&spi->dev));
-		if (ret)
-			dev_err(&spi->dev, "can't request chipselect gpio %d\n",
-				spi->cs_gpio);
-		else
-			spfi_data->gpio_requested = true;
-	} else {
-		if (gpio_is_valid(spi->cs_gpio)) {
-			int mode = ((spi->mode & SPI_CS_HIGH) ?
-				    GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH);
-
-			ret = gpio_direction_output(spi->cs_gpio, mode);
-			if (ret)
-				dev_err(&spi->dev, "chipselect gpio %d setup failed (%d)\n",
-					spi->cs_gpio, ret);
-		}
-	}
-	return ret;
-}
-
-static void img_spfi_cleanup(struct spi_device *spi)
-{
-	struct img_spfi_device_data *spfi_data = spi_get_ctldata(spi);
-
-	if (spfi_data) {
-		if (spfi_data->gpio_requested)
-			gpio_free(spi->cs_gpio);
-		kfree(spfi_data);
-		spi_set_ctldata(spi, NULL);
-	}
-}
-
-static void img_spfi_config(struct spi_master *master, struct spi_device *spi,
+static void img_spfi_config(struct spi_controller *host, struct spi_device *spi,
 			    struct spi_transfer *xfer)
 {
-	struct img_spfi *spfi = spi_master_get_devdata(spi->master);
+	struct img_spfi *spfi = spi_controller_get_devdata(spi->controller);
 	u32 val, div;
 
 	/*
@@ -503,11 +450,11 @@ static void img_spfi_config(struct spi_master *master, struct spi_device *spi,
 	div = DIV_ROUND_UP(clk_get_rate(spfi->spfi_clk), xfer->speed_hz);
 	div = clamp(512 / (1 << get_count_order(div)), 1, 128);
 
-	val = spfi_readl(spfi, SPFI_DEVICE_PARAMETER(spi->chip_select));
+	val = spfi_readl(spfi, SPFI_DEVICE_PARAMETER(spi_get_chipselect(spi, 0)));
 	val &= ~(SPFI_DEVICE_PARAMETER_BITCLK_MASK <<
 		 SPFI_DEVICE_PARAMETER_BITCLK_SHIFT);
 	val |= div << SPFI_DEVICE_PARAMETER_BITCLK_SHIFT;
-	spfi_writel(spfi, val, SPFI_DEVICE_PARAMETER(spi->chip_select));
+	spfi_writel(spfi, val, SPFI_DEVICE_PARAMETER(spi_get_chipselect(spi, 0)));
 
 	spfi_writel(spfi, xfer->len << SPFI_TRANSACTION_TSIZE_SHIFT,
 		    SPFI_TRANSACTION);
@@ -529,11 +476,11 @@ static void img_spfi_config(struct spi_master *master, struct spi_device *spi,
 	spfi_writel(spfi, val, SPFI_CONTROL);
 }
 
-static int img_spfi_transfer_one(struct spi_master *master,
+static int img_spfi_transfer_one(struct spi_controller *host,
 				 struct spi_device *spi,
 				 struct spi_transfer *xfer)
 {
-	struct img_spfi *spfi = spi_master_get_devdata(spi->master);
+	struct img_spfi *spfi = spi_controller_get_devdata(spi->controller);
 	int ret;
 
 	if (xfer->len > SPFI_TRANSACTION_TSIZE_MASK) {
@@ -543,16 +490,16 @@ static int img_spfi_transfer_one(struct spi_master *master,
 		return -EINVAL;
 	}
 
-	img_spfi_config(master, spi, xfer);
-	if (master->can_dma && master->can_dma(master, spi, xfer))
-		ret = img_spfi_start_dma(master, spi, xfer);
+	img_spfi_config(host, spi, xfer);
+	if (host->can_dma && host->can_dma(host, spi, xfer))
+		ret = img_spfi_start_dma(host, spi, xfer);
 	else
-		ret = img_spfi_start_pio(master, spi, xfer);
+		ret = img_spfi_start_pio(host, spi, xfer);
 
 	return ret;
 }
 
-static bool img_spfi_can_dma(struct spi_master *master, struct spi_device *spi,
+static bool img_spfi_can_dma(struct spi_controller *host, struct spi_device *spi,
 			     struct spi_transfer *xfer)
 {
 	if (xfer->len > SPFI_32BIT_FIFO_SIZE)
@@ -577,24 +524,23 @@ static irqreturn_t img_spfi_irq(int irq, void *dev_id)
 
 static int img_spfi_probe(struct platform_device *pdev)
 {
-	struct spi_master *master;
+	struct spi_controller *host;
 	struct img_spfi *spfi;
 	struct resource *res;
 	int ret;
 	u32 max_speed_hz;
 
-	master = spi_alloc_master(&pdev->dev, sizeof(*spfi));
-	if (!master)
+	host = spi_alloc_host(&pdev->dev, sizeof(*spfi));
+	if (!host)
 		return -ENOMEM;
-	platform_set_drvdata(pdev, master);
+	platform_set_drvdata(pdev, host);
 
-	spfi = spi_master_get_devdata(master);
+	spfi = spi_controller_get_devdata(host);
 	spfi->dev = &pdev->dev;
-	spfi->master = master;
+	spfi->host = host;
 	spin_lock_init(&spfi->lock);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	spfi->regs = devm_ioremap_resource(spfi->dev, res);
+	spfi->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(spfi->regs)) {
 		ret = PTR_ERR(spfi->regs);
 		goto put_spi;
@@ -636,15 +582,15 @@ static int img_spfi_probe(struct platform_device *pdev)
 	 */
 	spfi_writel(spfi, SPFI_INTERRUPT_IACCESS, SPFI_INTERRUPT_ENABLE);
 
-	master->auto_runtime_pm = true;
-	master->bus_num = pdev->id;
-	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_TX_DUAL | SPI_RX_DUAL;
+	host->auto_runtime_pm = true;
+	host->bus_num = pdev->id;
+	host->mode_bits = SPI_CPOL | SPI_CPHA | SPI_TX_DUAL | SPI_RX_DUAL;
 	if (of_property_read_bool(spfi->dev->of_node, "img,supports-quad-mode"))
-		master->mode_bits |= SPI_TX_QUAD | SPI_RX_QUAD;
-	master->dev.of_node = pdev->dev.of_node;
-	master->bits_per_word_mask = SPI_BPW_MASK(32) | SPI_BPW_MASK(8);
-	master->max_speed_hz = clk_get_rate(spfi->spfi_clk) / 4;
-	master->min_speed_hz = clk_get_rate(spfi->spfi_clk) / 512;
+		host->mode_bits |= SPI_TX_QUAD | SPI_RX_QUAD;
+	host->dev.of_node = pdev->dev.of_node;
+	host->bits_per_word_mask = SPI_BPW_MASK(32) | SPI_BPW_MASK(8);
+	host->max_speed_hz = clk_get_rate(spfi->spfi_clk) / 4;
+	host->min_speed_hz = clk_get_rate(spfi->spfi_clk) / 512;
 
 	/*
 	 * Maximum speed supported by spfi is limited to the lower value
@@ -655,35 +601,50 @@ static int img_spfi_probe(struct platform_device *pdev)
 	 */
 	if (!of_property_read_u32(spfi->dev->of_node, "spfi-max-frequency",
 				  &max_speed_hz)) {
-		if (master->max_speed_hz > max_speed_hz)
-			master->max_speed_hz = max_speed_hz;
+		if (host->max_speed_hz > max_speed_hz)
+			host->max_speed_hz = max_speed_hz;
 	}
 
-	master->setup = img_spfi_setup;
-	master->cleanup = img_spfi_cleanup;
-	master->transfer_one = img_spfi_transfer_one;
-	master->prepare_message = img_spfi_prepare;
-	master->unprepare_message = img_spfi_unprepare;
-	master->handle_err = img_spfi_handle_err;
+	host->transfer_one = img_spfi_transfer_one;
+	host->prepare_message = img_spfi_prepare;
+	host->unprepare_message = img_spfi_unprepare;
+	host->handle_err = img_spfi_handle_err;
+	host->use_gpio_descriptors = true;
 
-	spfi->tx_ch = dma_request_slave_channel(spfi->dev, "tx");
-	spfi->rx_ch = dma_request_slave_channel(spfi->dev, "rx");
+	spfi->tx_ch = dma_request_chan(spfi->dev, "tx");
+	if (IS_ERR(spfi->tx_ch)) {
+		ret = PTR_ERR(spfi->tx_ch);
+		spfi->tx_ch = NULL;
+		if (ret == -EPROBE_DEFER)
+			goto disable_pm;
+	}
+
+	spfi->rx_ch = dma_request_chan(spfi->dev, "rx");
+	if (IS_ERR(spfi->rx_ch)) {
+		ret = PTR_ERR(spfi->rx_ch);
+		spfi->rx_ch = NULL;
+		if (ret == -EPROBE_DEFER)
+			goto disable_pm;
+	}
+
 	if (!spfi->tx_ch || !spfi->rx_ch) {
 		if (spfi->tx_ch)
 			dma_release_channel(spfi->tx_ch);
 		if (spfi->rx_ch)
 			dma_release_channel(spfi->rx_ch);
+		spfi->tx_ch = NULL;
+		spfi->rx_ch = NULL;
 		dev_warn(spfi->dev, "Failed to get DMA channels, falling back to PIO mode\n");
 	} else {
-		master->dma_tx = spfi->tx_ch;
-		master->dma_rx = spfi->rx_ch;
-		master->can_dma = img_spfi_can_dma;
+		host->dma_tx = spfi->tx_ch;
+		host->dma_rx = spfi->rx_ch;
+		host->can_dma = img_spfi_can_dma;
 	}
 
 	pm_runtime_set_active(spfi->dev);
 	pm_runtime_enable(spfi->dev);
 
-	ret = devm_spi_register_master(spfi->dev, master);
+	ret = devm_spi_register_controller(spfi->dev, host);
 	if (ret)
 		goto disable_pm;
 
@@ -699,15 +660,15 @@ disable_pm:
 disable_pclk:
 	clk_disable_unprepare(spfi->sys_clk);
 put_spi:
-	spi_master_put(master);
+	spi_controller_put(host);
 
 	return ret;
 }
 
-static int img_spfi_remove(struct platform_device *pdev)
+static void img_spfi_remove(struct platform_device *pdev)
 {
-	struct spi_master *master = platform_get_drvdata(pdev);
-	struct img_spfi *spfi = spi_master_get_devdata(master);
+	struct spi_controller *host = platform_get_drvdata(pdev);
+	struct img_spfi *spfi = spi_controller_get_devdata(host);
 
 	if (spfi->tx_ch)
 		dma_release_channel(spfi->tx_ch);
@@ -719,15 +680,13 @@ static int img_spfi_remove(struct platform_device *pdev)
 		clk_disable_unprepare(spfi->spfi_clk);
 		clk_disable_unprepare(spfi->sys_clk);
 	}
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
 static int img_spfi_runtime_suspend(struct device *dev)
 {
-	struct spi_master *master = dev_get_drvdata(dev);
-	struct img_spfi *spfi = spi_master_get_devdata(master);
+	struct spi_controller *host = dev_get_drvdata(dev);
+	struct img_spfi *spfi = spi_controller_get_devdata(host);
 
 	clk_disable_unprepare(spfi->spfi_clk);
 	clk_disable_unprepare(spfi->sys_clk);
@@ -737,8 +696,8 @@ static int img_spfi_runtime_suspend(struct device *dev)
 
 static int img_spfi_runtime_resume(struct device *dev)
 {
-	struct spi_master *master = dev_get_drvdata(dev);
-	struct img_spfi *spfi = spi_master_get_devdata(master);
+	struct spi_controller *host = dev_get_drvdata(dev);
+	struct img_spfi *spfi = spi_controller_get_devdata(host);
 	int ret;
 
 	ret = clk_prepare_enable(spfi->sys_clk);
@@ -757,24 +716,24 @@ static int img_spfi_runtime_resume(struct device *dev)
 #ifdef CONFIG_PM_SLEEP
 static int img_spfi_suspend(struct device *dev)
 {
-	struct spi_master *master = dev_get_drvdata(dev);
+	struct spi_controller *host = dev_get_drvdata(dev);
 
-	return spi_master_suspend(master);
+	return spi_controller_suspend(host);
 }
 
 static int img_spfi_resume(struct device *dev)
 {
-	struct spi_master *master = dev_get_drvdata(dev);
-	struct img_spfi *spfi = spi_master_get_devdata(master);
+	struct spi_controller *host = dev_get_drvdata(dev);
+	struct img_spfi *spfi = spi_controller_get_devdata(host);
 	int ret;
 
-	ret = pm_runtime_get_sync(dev);
-	if (ret)
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0)
 		return ret;
 	spfi_reset(spfi);
 	pm_runtime_put(dev);
 
-	return spi_master_resume(master);
+	return spi_controller_resume(host);
 }
 #endif /* CONFIG_PM_SLEEP */
 
@@ -797,7 +756,7 @@ static struct platform_driver img_spfi_driver = {
 		.of_match_table = of_match_ptr(img_spfi_of_match),
 	},
 	.probe = img_spfi_probe,
-	.remove = img_spfi_remove,
+	.remove_new = img_spfi_remove,
 };
 module_platform_driver(img_spfi_driver);
 

@@ -1,0 +1,108 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/gpio/ti,omap-gpio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: OMAP GPIO controller
+
+maintainers:
+  - Grygorii Strashko <grygorii.strashko@ti.com>
+
+description: |
+  The general-purpose interface combines general-purpose input/output (GPIO) banks.
+  Each GPIO banks provides up to 32 dedicated general-purpose pins with input
+  and output capabilities; interrupt generation in active mode and wake-up
+  request generation in idle mode upon the detection of external events.
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - ti,omap2-gpio
+          - ti,omap3-gpio
+          - ti,omap4-gpio
+      - items:
+          - const: ti,am4372-gpio
+          - const: ti,omap4-gpio
+
+  reg:
+    maxItems: 1
+
+  gpio-controller: true
+
+  '#gpio-cells':
+    const: 2
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 2
+
+  interrupts:
+    maxItems: 1
+
+  gpio-ranges: true
+
+  gpio-line-names:
+    minItems: 1
+    maxItems: 32
+
+  ti,gpio-always-on:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      Indicates if a GPIO bank is always powered and will never lose its logic state.
+
+  ti,hwmods:
+    $ref: /schemas/types.yaml#/definitions/string
+    deprecated: true
+    description:
+      Name of the hwmod associated with the GPIO. Needed on some legacy OMAP
+      SoCs which have not been converted to the ti,sysc interconnect hierarchy.
+
+  ti,no-reset-on-init:
+    $ref: /schemas/types.yaml#/definitions/flag
+    deprecated: true
+    description:
+      Do not reset on init. Used with ti,hwmods on some legacy OMAP SoCs which
+      have not been converted to the ti,sysc interconnect hierarchy.
+
+patternProperties:
+  "^(.+-hog(-[0-9]+)?)$":
+    type: object
+
+    required:
+      - gpio-hog
+
+required:
+  - compatible
+  - reg
+  - gpio-controller
+  - "#gpio-cells"
+  - interrupt-controller
+  - "#interrupt-cells"
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    gpio0: gpio@0 {
+        compatible = "ti,omap4-gpio";
+        reg = <0x0 0x1000>;
+        gpio-controller;
+        #gpio-cells = <2>;
+        interrupt-controller;
+        #interrupt-cells = <2>;
+        interrupts = <96>;
+        ti,gpio-always-on;
+
+        ls-buf-en-hog {
+            gpio-hog;
+            gpios = <10 GPIO_ACTIVE_HIGH>;
+            output-high;
+            line-name = "LS_BUF_EN";
+        };
+    };

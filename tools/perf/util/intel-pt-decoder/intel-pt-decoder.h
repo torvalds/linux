@@ -11,12 +11,16 @@
 #include <stddef.h>
 #include <stdbool.h>
 
+#include <linux/rbtree.h>
+
 #include "intel-pt-insn-decoder.h"
 
 #define INTEL_PT_IN_TX		(1 << 0)
 #define INTEL_PT_ABORT_TX	(1 << 1)
+#define INTEL_PT_IFLAG		(1 << 2)
 #define INTEL_PT_ASYNC		(1 << 2)
 #define INTEL_PT_FUP_IP		(1 << 3)
+#define INTEL_PT_SAMPLE_IPC	(1 << 4)
 
 enum intel_pt_sample_type {
 	INTEL_PT_BRANCH		= 1 << 0,
@@ -31,6 +35,9 @@ enum intel_pt_sample_type {
 	INTEL_PT_TRACE_BEGIN	= 1 << 9,
 	INTEL_PT_TRACE_END	= 1 << 10,
 	INTEL_PT_BLK_ITEMS	= 1 << 11,
+	INTEL_PT_PSB_EVT	= 1 << 12,
+	INTEL_PT_EVT		= 1 << 13,
+	INTEL_PT_IFLAG_CHG	= 1 << 14,
 };
 
 enum intel_pt_period_type {
@@ -51,6 +58,7 @@ enum {
 	INTEL_PT_ERR_LOST,
 	INTEL_PT_ERR_UNK,
 	INTEL_PT_ERR_NELOOP,
+	INTEL_PT_ERR_EPTW,
 	INTEL_PT_ERR_MAX,
 };
 
@@ -197,14 +205,38 @@ struct intel_pt_blk_items {
 	bool is_32_bit;
 };
 
+struct intel_pt_vmcs_info {
+	struct rb_node rb_node;
+	uint64_t vmcs;
+	uint64_t tsc_offset;
+	bool reliable;
+	bool error_printed;
+};
+
+/*
+ * Maximum number of event trace data in one go, assuming at most 1 per type
+ * and 6-bits of type in the EVD packet.
+ */
+#define INTEL_PT_MAX_EVDS 64
+
+/* Event trace data from EVD packet */
+struct intel_pt_evd {
+	int type;
+	uint64_t payload;
+};
+
 struct intel_pt_state {
 	enum intel_pt_sample_type type;
+	bool from_nr;
+	bool to_nr;
+	bool from_iflag;
+	bool to_iflag;
 	int err;
 	uint64_t from_ip;
 	uint64_t to_ip;
-	uint64_t cr3;
 	uint64_t tot_insn_cnt;
 	uint64_t tot_cyc_cnt;
+	uint64_t cycles;
 	uint64_t timestamp;
 	uint64_t est_timestamp;
 	uint64_t trace_nr;
@@ -213,12 +245,17 @@ struct intel_pt_state {
 	uint64_t pwre_payload;
 	uint64_t pwrx_payload;
 	uint64_t cbr_payload;
+	uint64_t psb_offset;
 	uint32_t cbr;
 	uint32_t flags;
 	enum intel_pt_insn_op insn_op;
 	int insn_len;
 	char insn[INTEL_PT_INSN_BUF_SZ];
 	struct intel_pt_blk_items items;
+	int cfe_type;
+	int cfe_vector;
+	int evd_cnt;
+	struct intel_pt_evd *evd;
 };
 
 struct intel_pt_insn;
@@ -240,9 +277,14 @@ struct intel_pt_params {
 			 uint64_t max_insn_cnt, void *data);
 	bool (*pgd_ip)(uint64_t ip, void *data);
 	int (*lookahead)(void *data, intel_pt_lookahead_cb_t cb, void *cb_data);
+	struct intel_pt_vmcs_info *(*findnew_vmcs_info)(void *data, uint64_t vmcs);
 	void *data;
 	bool return_compression;
 	bool branch_enable;
+	bool vm_time_correlation;
+	bool vm_tm_corr_dry_run;
+	uint64_t first_timestamp;
+	uint64_t ctl;
 	uint64_t period;
 	enum intel_pt_period_type period_type;
 	unsigned max_non_turbo_ratio;
@@ -250,6 +292,8 @@ struct intel_pt_params {
 	uint32_t tsc_ctc_ratio_n;
 	uint32_t tsc_ctc_ratio_d;
 	enum intel_pt_param_flags flags;
+	unsigned int quick;
+	int max_loops;
 };
 
 struct intel_pt_decoder;
@@ -263,8 +307,12 @@ int intel_pt_fast_forward(struct intel_pt_decoder *decoder, uint64_t timestamp);
 
 unsigned char *intel_pt_find_overlap(unsigned char *buf_a, size_t len_a,
 				     unsigned char *buf_b, size_t len_b,
-				     bool have_tsc, bool *consecutive);
+				     bool have_tsc, bool *consecutive,
+				     bool ooo_tsc);
 
 int intel_pt__strerror(int code, char *buf, size_t buflen);
+
+void intel_pt_set_first_timestamp(struct intel_pt_decoder *decoder,
+				  uint64_t first_timestamp);
 
 #endif

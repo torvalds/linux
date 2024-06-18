@@ -2,7 +2,7 @@
 /*
  * twl6030_usb - TWL6030 USB transceiver, talking to OMAP OTG driver.
  *
- * Copyright (C) 2010 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2010 Texas Instruments Incorporated - https://www.ti.com
  *
  * Author: Hema HK <hemahk@ti.com>
  */
@@ -179,16 +179,16 @@ static ssize_t vbus_show(struct device *dev,
 
 	switch (twl->linkstat) {
 	case MUSB_VBUS_VALID:
-	       ret = snprintf(buf, PAGE_SIZE, "vbus\n");
+	       ret = sysfs_emit(buf, "vbus\n");
 	       break;
 	case MUSB_ID_GROUND:
-	       ret = snprintf(buf, PAGE_SIZE, "id\n");
+	       ret = sysfs_emit(buf, "id\n");
 	       break;
 	case MUSB_VBUS_OFF:
-	       ret = snprintf(buf, PAGE_SIZE, "none\n");
+	       ret = sysfs_emit(buf, "none\n");
 	       break;
 	default:
-	       ret = snprintf(buf, PAGE_SIZE, "UNKNOWN\n");
+	       ret = sysfs_emit(buf, "UNKNOWN\n");
 	}
 	spin_unlock_irqrestore(&twl->lock, flags);
 
@@ -348,6 +348,11 @@ static int twl6030_usb_probe(struct platform_device *pdev)
 	twl->irq2		= platform_get_irq(pdev, 1);
 	twl->linkstat		= MUSB_UNKNOWN;
 
+	if (twl->irq1 < 0)
+		return twl->irq1;
+	if (twl->irq2 < 0)
+		return twl->irq2;
+
 	twl->comparator.set_vbus	= twl6030_set_vbus;
 	twl->comparator.start_srp	= twl6030_start_srp;
 
@@ -377,7 +382,7 @@ static int twl6030_usb_probe(struct platform_device *pdev)
 	if (status < 0) {
 		dev_err(&pdev->dev, "can't get IRQ %d, err %d\n",
 			twl->irq1, status);
-		return status;
+		goto err_put_regulator;
 	}
 
 	status = request_threaded_irq(twl->irq2, NULL, twl6030_usb_irq,
@@ -386,8 +391,7 @@ static int twl6030_usb_probe(struct platform_device *pdev)
 	if (status < 0) {
 		dev_err(&pdev->dev, "can't get IRQ %d, err %d\n",
 			twl->irq2, status);
-		free_irq(twl->irq1, twl);
-		return status;
+		goto err_free_irq1;
 	}
 
 	twl->asleep = 0;
@@ -396,9 +400,16 @@ static int twl6030_usb_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "Initialized TWL6030 USB module\n");
 
 	return 0;
+
+err_free_irq1:
+	free_irq(twl->irq1, twl);
+err_put_regulator:
+	regulator_put(twl->usb3v3);
+
+	return status;
 }
 
-static int twl6030_usb_remove(struct platform_device *pdev)
+static void twl6030_usb_remove(struct platform_device *pdev)
 {
 	struct twl6030_usb *twl = platform_get_drvdata(pdev);
 
@@ -411,8 +422,6 @@ static int twl6030_usb_remove(struct platform_device *pdev)
 	free_irq(twl->irq2, twl);
 	regulator_put(twl->usb3v3);
 	cancel_work_sync(&twl->set_vbus_work);
-
-	return 0;
 }
 
 static const struct of_device_id twl6030_usb_id_table[] = {
@@ -423,7 +432,7 @@ MODULE_DEVICE_TABLE(of, twl6030_usb_id_table);
 
 static struct platform_driver twl6030_usb_driver = {
 	.probe		= twl6030_usb_probe,
-	.remove		= twl6030_usb_remove,
+	.remove_new	= twl6030_usb_remove,
 	.driver		= {
 		.name	= "twl6030_usb",
 		.of_match_table = of_match_ptr(twl6030_usb_id_table),

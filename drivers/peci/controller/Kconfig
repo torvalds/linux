@@ -1,0 +1,34 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config PECI_ASPEED
+	tristate "ASPEED PECI support"
+	depends on ARCH_ASPEED || COMPILE_TEST
+	depends on OF
+	depends on HAS_IOMEM
+	depends on COMMON_CLK
+	help
+	  This option enables PECI controller driver for ASPEED AST2400,
+	  AST2500 and AST2600 SoCs. It allows BMC to discover devices
+	  connected to it, and communicate with them using PECI protocol.
+
+	  Say Y here if your system runs on ASPEED SoC and you are using it
+	  as BMC for Intel platform.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called peci-aspeed.
+
+config PECI_NPCM
+	tristate "Nuvoton NPCM PECI support"
+	depends on ARCH_NPCM || COMPILE_TEST
+	depends on OF
+	select REGMAP_MMIO
+	help
+	  This option enables PECI controller driver for Nuvoton NPCM7XX
+	  and NPCM8XX SoCs. It allows BMC to discover devices connected
+	  to it and communicate with them using PECI protocol.
+
+	  Say Y here if you want support for the Platform Environment Control
+	  Interface (PECI) bus adapter driver on the Nuvoton NPCM SoCs.
+
+	  This support is also available as a module. If so, the module
+	  will be called peci-npcm.

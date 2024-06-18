@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config ISO9660_FS
 	tristate "ISO 9660 CDROM file system support"
+	select BUFFER_HEAD
 	help
 	  This is the standard file system used on CD-ROMs.  It was previously
 	  known as "High Sierra File System" and is called "hsfs" on other
@@ -8,7 +9,7 @@ config ISO9660_FS
 	  long Unix filenames and symbolic links are also supported by this
 	  driver.  If you have a CD-ROM drive and want to do more with it than
 	  just listen to audio CDs and watch its LEDs, say Y (and read
-	  <file:Documentation/filesystems/isofs.txt> and the CD-ROM-HOWTO,
+	  <file:Documentation/filesystems/isofs.rst> and the CD-ROM-HOWTO,
 	  available from <http://www.tldp.org/docs.html#howto>), thereby
 	  enlarging your kernel by about 27 KB; otherwise say N.
 

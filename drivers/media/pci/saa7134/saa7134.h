@@ -328,6 +328,7 @@ struct saa7134_card_ir {
 #define SAA7134_BOARD_AVERMEDIA_505         194
 #define SAA7134_BOARD_LEADTEK_WINFAST_TV2100_FM 195
 #define SAA7134_BOARD_SNAZIO_TVPVR_PRO      196
+#define SAA7134_BOARD_LEADTEK_WINFAST_HDTV200_H 197
 
 #define SAA7134_MAXBOARDS 32
 #define SAA7134_INPUT_MAX 8
@@ -428,7 +429,6 @@ struct saa7134_board {
 /* ----------------------------------------------------------- */
 /* device / file handle status                                 */
 
-#define RESOURCE_OVERLAY       1
 #define RESOURCE_VIDEO         2
 #define RESOURCE_VBI           4
 #define RESOURCE_EMPRESS       8
@@ -509,7 +509,7 @@ struct saa7134_dmasound {
 	void			   *vaddr;
 	struct scatterlist	   *sglist;
 	int                        sglen;
-	int                        nr_pages;
+	unsigned long              nr_pages;
 	unsigned int               dma_blk;
 	unsigned int               read_offset;
 	unsigned int               read_count;
@@ -587,17 +587,6 @@ struct saa7134_dev {
 	struct i2c_client          i2c_client;
 	unsigned char              eedata[256];
 	int			   has_rds;
-
-	/* video overlay */
-	struct v4l2_framebuffer    ovbuf;
-	struct saa7134_format      *ovfmt;
-	unsigned int               ovenable;
-	enum v4l2_field            ovfield;
-	struct v4l2_window         win;
-	struct v4l2_clip           clips[8];
-	unsigned int               nclips;
-	struct v4l2_fh		   *overlay_owner;
-
 
 	/* video+ts+vbi capture */
 	struct saa7134_dmaqueue    video_q;
@@ -744,7 +733,6 @@ static inline bool is_empress(struct file *file)
 
 extern struct list_head  saa7134_devlist;
 extern struct mutex saa7134_devlist_lock;
-extern int saa7134_no_overlay;
 extern bool saa7134_userptr;
 
 void saa7134_track_gpio(struct saa7134_dev *dev, const char *msg);
@@ -865,7 +853,6 @@ int saa7134_ts_stop(struct saa7134_dev *dev);
 /* saa7134-vbi.c                                               */
 
 extern const struct vb2_ops saa7134_vbi_qops;
-extern struct video_device saa7134_vbi_template;
 
 int saa7134_vbi_init1(struct saa7134_dev *dev);
 int saa7134_vbi_fini(struct saa7134_dev *dev);
@@ -895,9 +882,6 @@ void saa7134_enable_i2s(struct saa7134_dev *dev);
 
 /* ----------------------------------------------------------- */
 /* saa7134-oss.c                                               */
-
-extern const struct file_operations saa7134_dsp_fops;
-extern const struct file_operations saa7134_mixer_fops;
 
 int saa7134_oss_init1(struct saa7134_dev *dev);
 int saa7134_oss_fini(struct saa7134_dev *dev);

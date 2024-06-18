@@ -61,9 +61,12 @@ setup_prepare()
 
 	vrf_prepare
 	mirror_gre_topo_create
+	# Avoid changing br1's PVID while it is operational as a L3 interface.
+	ip link set dev br1 down
 
 	ip link set dev $swp3 master br1
 	bridge vlan add dev br1 vid 555 pvid untagged self
+	ip link set dev br1 up
 	ip address add dev br1 192.0.2.129/28
 	ip address add dev br1 2001:db8:2::1/64
 
@@ -87,12 +90,16 @@ cleanup()
 
 test_gretap()
 {
+	ip neigh replace 192.0.2.130 lladdr $(mac_get $h3) \
+		 nud permanent dev br1
 	full_test_span_gre_dir gt4 ingress 8 0 "mirror to gretap"
 	full_test_span_gre_dir gt4 egress 0 8 "mirror to gretap"
 }
 
 test_ip6gretap()
 {
+	ip neigh replace 2001:db8:2::2 lladdr $(mac_get $h3) \
+		nud permanent dev br1
 	full_test_span_gre_dir gt6 ingress 8 0 "mirror to ip6gretap"
 	full_test_span_gre_dir gt6 egress 0 8 "mirror to ip6gretap"
 }

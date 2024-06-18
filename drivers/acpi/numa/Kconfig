@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: GPL-2.0
+config ACPI_NUMA
+	bool "NUMA support"
+	depends on NUMA
+	depends on (X86 || ARM64 || LOONGARCH)
+	default y if ARM64
+
+config ACPI_HMAT
+	bool "ACPI Heterogeneous Memory Attribute Table Support"
+	depends on ACPI_NUMA
+	select HMEM_REPORTING
+	select MEMREGION
+	help
+	 If set, this option has the kernel parse and report the
+	 platform's ACPI HMAT (Heterogeneous Memory Attributes Table),
+	 register memory initiators with their targets, and export
+	 performance attributes through the node's sysfs device if
+	 provided.

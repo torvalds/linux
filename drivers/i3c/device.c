@@ -27,6 +27,10 @@
  * This function can sleep and thus cannot be called in atomic context.
  *
  * Return: 0 in case of success, a negative error core otherwise.
+ *	   -EAGAIN: controller lost address arbitration. Target
+ *		    (IBI, HJ or controller role request) win the bus. Client
+ *		    driver needs to resend the 'xfers' some time later.
+ *		    See I3C spec ver 1.1.1 09-Jun-2021. Section: 5.1.2.2.3.
  */
 int i3c_device_do_priv_xfers(struct i3c_device *dev,
 			     struct i3c_priv_xfer *xfers,
@@ -51,6 +55,26 @@ int i3c_device_do_priv_xfers(struct i3c_device *dev,
 EXPORT_SYMBOL_GPL(i3c_device_do_priv_xfers);
 
 /**
+ * i3c_device_do_setdasa() - do I3C dynamic address assignement with
+ *                           static address
+ *
+ * @dev: device with which the DAA should be done
+ *
+ * Return: 0 in case of success, a negative error core otherwise.
+ */
+int i3c_device_do_setdasa(struct i3c_device *dev)
+{
+	int ret;
+
+	i3c_bus_normaluse_lock(dev->bus);
+	ret = i3c_dev_setdasa_locked(dev->desc);
+	i3c_bus_normaluse_unlock(dev->bus);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(i3c_device_do_setdasa);
+
+/**
  * i3c_device_get_info() - get I3C device information
  *
  * @dev: device we want information on
@@ -58,7 +82,7 @@ EXPORT_SYMBOL_GPL(i3c_device_do_priv_xfers);
  *
  * Retrieve I3C dev info.
  */
-void i3c_device_get_info(struct i3c_device *dev,
+void i3c_device_get_info(const struct i3c_device *dev,
 			 struct i3c_device_info *info)
 {
 	if (!info)
@@ -189,18 +213,6 @@ struct device *i3cdev_to_dev(struct i3c_device *i3cdev)
 EXPORT_SYMBOL_GPL(i3cdev_to_dev);
 
 /**
- * dev_to_i3cdev() - Returns the I3C device containing @dev
- * @dev: device object
- *
- * Return: a pointer to an I3C device object.
- */
-struct i3c_device *dev_to_i3cdev(struct device *dev)
-{
-	return container_of(dev, struct i3c_device, dev);
-}
-EXPORT_SYMBOL_GPL(dev_to_i3cdev);
-
-/**
  * i3c_device_match_id() - Returns the i3c_device_id entry matching @i3cdev
  * @i3cdev: I3C device
  * @id_table: I3C device match table
@@ -213,40 +225,34 @@ i3c_device_match_id(struct i3c_device *i3cdev,
 {
 	struct i3c_device_info devinfo;
 	const struct i3c_device_id *id;
+	u16 manuf, part, ext_info;
+	bool rndpid;
 
 	i3c_device_get_info(i3cdev, &devinfo);
 
-	/*
-	 * The lower 32bits of the provisional ID is just filled with a random
-	 * value, try to match using DCR info.
-	 */
-	if (!I3C_PID_RND_LOWER_32BITS(devinfo.pid)) {
-		u16 manuf = I3C_PID_MANUF_ID(devinfo.pid);
-		u16 part = I3C_PID_PART_ID(devinfo.pid);
-		u16 ext_info = I3C_PID_EXTRA_INFO(devinfo.pid);
+	manuf = I3C_PID_MANUF_ID(devinfo.pid);
+	part = I3C_PID_PART_ID(devinfo.pid);
+	ext_info = I3C_PID_EXTRA_INFO(devinfo.pid);
+	rndpid = I3C_PID_RND_LOWER_32BITS(devinfo.pid);
 
-		/* First try to match by manufacturer/part ID. */
-		for (id = id_table; id->match_flags != 0; id++) {
-			if ((id->match_flags & I3C_MATCH_MANUF_AND_PART) !=
-			    I3C_MATCH_MANUF_AND_PART)
-				continue;
-
-			if (manuf != id->manuf_id || part != id->part_id)
-				continue;
-
-			if ((id->match_flags & I3C_MATCH_EXTRA_INFO) &&
-			    ext_info != id->extra_info)
-				continue;
-
-			return id;
-		}
-	}
-
-	/* Fallback to DCR match. */
 	for (id = id_table; id->match_flags != 0; id++) {
 		if ((id->match_flags & I3C_MATCH_DCR) &&
-		    id->dcr == devinfo.dcr)
-			return id;
+		    id->dcr != devinfo.dcr)
+			continue;
+
+		if ((id->match_flags & I3C_MATCH_MANUF) &&
+		    id->manuf_id != manuf)
+			continue;
+
+		if ((id->match_flags & I3C_MATCH_PART) &&
+		    (rndpid || id->part_id != part))
+			continue;
+
+		if ((id->match_flags & I3C_MATCH_EXTRA_INFO) &&
+		    (rndpid || id->extra_info != ext_info))
+			continue;
+
+		return id;
 	}
 
 	return NULL;
@@ -267,6 +273,11 @@ int i3c_driver_register_with_owner(struct i3c_driver *drv, struct module *owner)
 {
 	drv->driver.owner = owner;
 	drv->driver.bus = &i3c_bus_type;
+
+	if (!drv->probe) {
+		pr_err("Trying to register an i3c driver without probe callback\n");
+		return -EINVAL;
+	}
 
 	return driver_register(&drv->driver);
 }

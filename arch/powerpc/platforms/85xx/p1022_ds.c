@@ -18,7 +18,8 @@
 
 #include <linux/fsl/guts.h>
 #include <linux/pci.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 #include <asm/div64.h>
 #include <asm/mpic.h>
 #include <asm/swiotlb.h>
@@ -369,7 +370,7 @@ exit:
  *
  * @pixclock: the wavelength, in picoseconds, of the clock
  */
-void p1022ds_set_pixel_clock(unsigned int pixclock)
+static void p1022ds_set_pixel_clock(unsigned int pixclock)
 {
 	struct device_node *guts_np = NULL;
 	struct ccsr_guts __iomem *guts;
@@ -417,7 +418,7 @@ void p1022ds_set_pixel_clock(unsigned int pixclock)
 /**
  * p1022ds_valid_monitor_port: set the monitor port for sysfs
  */
-enum fsl_diu_monitor_port
+static enum fsl_diu_monitor_port
 p1022ds_valid_monitor_port(enum fsl_diu_monitor_port port)
 {
 	switch (port) {
@@ -431,7 +432,7 @@ p1022ds_valid_monitor_port(enum fsl_diu_monitor_port port)
 
 #endif
 
-void __init p1022_ds_pic_init(void)
+static void __init p1022_ds_pic_init(void)
 {
 	struct mpic *mpic = mpic_alloc(NULL, 0, MPIC_BIG_ENDIAN |
 		MPIC_SINGLE_DEST_CPU,
@@ -548,17 +549,9 @@ static void __init p1022_ds_setup_arch(void)
 
 machine_arch_initcall(p1022_ds, mpc85xx_common_publish_devices);
 
-/*
- * Called very early, device-tree isn't unflattened
- */
-static int __init p1022_ds_probe(void)
-{
-	return of_machine_is_compatible("fsl,p1022ds");
-}
-
 define_machine(p1022_ds) {
 	.name			= "P1022 DS",
-	.probe			= p1022_ds_probe,
+	.compatible		= "fsl,p1022ds",
 	.setup_arch		= p1022_ds_setup_arch,
 	.init_IRQ		= p1022_ds_pic_init,
 #ifdef CONFIG_PCI
@@ -566,6 +559,5 @@ define_machine(p1022_ds) {
 	.pcibios_fixup_phb	= fsl_pcibios_fixup_phb,
 #endif
 	.get_irq		= mpic_get_irq,
-	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
 };

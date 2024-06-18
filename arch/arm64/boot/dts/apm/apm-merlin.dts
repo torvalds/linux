@@ -15,14 +15,14 @@
 
 	chosen { };
 
-	memory {
+	memory@100000000 {
 		device_type = "memory";
 		reg = < 0x1 0x00000000 0x0 0x80000000 >;
 	};
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		button@1 {
+		button {
 			label = "POWER";
 			linux,code = <116>;
 			linux,input-type = <0x1>;
@@ -45,38 +45,38 @@
 };
 
 &serial0 {
-	status = "ok";
+	status = "okay";
 };
 
 &sata1 {
-	status = "ok";
+	status = "okay";
 };
 
 &sata2 {
-	status = "ok";
+	status = "okay";
 };
 
 &sata3 {
-	status = "ok";
+	status = "okay";
 };
 
 &sgenet0 {
-	status = "ok";
+	status = "okay";
 };
 
 &xgenet1 {
-	status = "ok";
+	status = "okay";
 };
 
 &mmc0 {
-	status = "ok";
+	status = "okay";
 };
 
 &i2c4 {
 	rtc68: rtc@68 {
 		compatible = "dallas,ds1337";
 		reg = <0x68>;
-		status = "ok";
+		status = "okay";
 	};
 };
 

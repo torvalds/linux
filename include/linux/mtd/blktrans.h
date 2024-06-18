@@ -34,7 +34,7 @@ struct mtd_blktrans_dev {
 	struct blk_mq_tag_set *tag_set;
 	spinlock_t queue_lock;
 	void *priv;
-	fmode_t file_mode;
+	bool writable;
 };
 
 struct mtd_blktrans_ops {
@@ -77,5 +77,16 @@ extern int add_mtd_blktrans_dev(struct mtd_blktrans_dev *dev);
 extern int del_mtd_blktrans_dev(struct mtd_blktrans_dev *dev);
 extern int mtd_blktrans_cease_background(struct mtd_blktrans_dev *dev);
 
+/**
+ * module_mtd_blktrans() - Helper macro for registering a mtd blktrans driver
+ * @__mtd_blktrans: mtd_blktrans_ops struct
+ *
+ * Helper macro for mtd blktrans drivers which do not do anything special in
+ * module init/exit. This eliminates a lot of boilerplate. Each module may only
+ * use this macro once, and calling it replaces module_init() and module_exit()
+ */
+#define module_mtd_blktrans(__mtd_blktrans) \
+	module_driver(__mtd_blktrans, register_mtd_blktrans, \
+					deregister_mtd_blktrans)
 
 #endif /* __MTD_TRANS_H__ */

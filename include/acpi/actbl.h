@@ -3,7 +3,7 @@
  *
  * Name: actbl.h - Basic ACPI Table Definitions
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2023, Intel Corp.
  *
  *****************************************************************************/
 
@@ -307,7 +307,8 @@ enum acpi_preferred_pm_profiles {
 	PM_SOHO_SERVER = 5,
 	PM_APPLIANCE_PC = 6,
 	PM_PERFORMANCE_SERVER = 7,
-	PM_TABLET = 8
+	PM_TABLET = 8,
+	NR_PM_PROFILES = 9
 };
 
 /* Values for sleep_status and sleep_control registers (V5+ FADT) */

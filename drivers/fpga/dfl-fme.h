@@ -24,13 +24,11 @@
  * @mgr: FME's FPGA manager platform device.
  * @region_list: linked list of FME's FPGA regions.
  * @bridge_list: linked list of FME's FPGA bridges.
- * @pdata: fme platform device's pdata.
  */
 struct dfl_fme {
 	struct platform_device *mgr;
 	struct list_head region_list;
 	struct list_head bridge_list;
-	struct dfl_feature_platform_data *pdata;
 };
 
 extern const struct dfl_feature_ops fme_pr_mgmt_ops;
@@ -38,5 +36,7 @@ extern const struct dfl_feature_id fme_pr_mgmt_id_table[];
 extern const struct dfl_feature_ops fme_global_err_ops;
 extern const struct dfl_feature_id fme_global_err_id_table[];
 extern const struct attribute_group fme_global_err_group;
+extern const struct dfl_feature_ops fme_perf_ops;
+extern const struct dfl_feature_id fme_perf_id_table[];
 
 #endif /* __DFL_FME_H */

@@ -203,7 +203,7 @@ struct dme1737_data {
 	unsigned int addr;		/* for ISA devices only */
 
 	struct mutex update_lock;
-	int valid;			/* !=0 if following fields are valid */
+	bool valid;			/* true if following fields are valid */
 	unsigned long last_update;	/* in jiffies */
 	unsigned long last_vbat;	/* in jiffies */
 	enum chips type;
@@ -778,7 +778,7 @@ static struct dme1737_data *dme1737_update_device(struct device *dev)
 		}
 
 		data->last_update = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->update_lock);
@@ -2456,13 +2456,14 @@ static int dme1737_i2c_detect(struct i2c_client *client,
 	dev_info(dev, "Found a %s chip at 0x%02x (rev 0x%02x).\n",
 		 verstep == SCH5027_VERSTEP ? "SCH5027" : "DME1737",
 		 client->addr, verstep);
-	strlcpy(info->type, name, I2C_NAME_SIZE);
+	strscpy(info->type, name, I2C_NAME_SIZE);
 
 	return 0;
 }
 
-static int dme1737_i2c_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static const struct i2c_device_id dme1737_id[];
+
+static int dme1737_i2c_probe(struct i2c_client *client)
 {
 	struct dme1737_data *data;
 	struct device *dev = &client->dev;
@@ -2473,7 +2474,7 @@ static int dme1737_i2c_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
-	data->type = id->driver_data;
+	data->type = i2c_match_id(dme1737_id, client)->driver_data;
 	data->client = client;
 	data->name = client->name;
 	mutex_init(&data->update_lock);
@@ -2507,14 +2508,12 @@ exit_remove:
 	return err;
 }
 
-static int dme1737_i2c_remove(struct i2c_client *client)
+static void dme1737_i2c_remove(struct i2c_client *client)
 {
 	struct dme1737_data *data = i2c_get_clientdata(client);
 
 	hwmon_device_unregister(data->hwmon_dev);
 	dme1737_remove_files(&client->dev);
-
-	return 0;
 }
 
 static const struct i2c_device_id dme1737_id[] = {
@@ -2711,14 +2710,12 @@ exit_remove_files:
 	return err;
 }
 
-static int dme1737_isa_remove(struct platform_device *pdev)
+static void dme1737_isa_remove(struct platform_device *pdev)
 {
 	struct dme1737_data *data = platform_get_drvdata(pdev);
 
 	hwmon_device_unregister(data->hwmon_dev);
 	dme1737_remove_files(&pdev->dev);
-
-	return 0;
 }
 
 static struct platform_driver dme1737_isa_driver = {
@@ -2726,7 +2723,7 @@ static struct platform_driver dme1737_isa_driver = {
 		.name = "dme1737",
 	},
 	.probe = dme1737_isa_probe,
-	.remove = dme1737_isa_remove,
+	.remove_new = dme1737_isa_remove,
 };
 
 /* ---------------------------------------------------------------------

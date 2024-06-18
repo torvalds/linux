@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright 2019 Collabora Ltd */
 
-#include <drm/drm_file.h>
-#include <drm/drm_gem_shmem_helper.h>
-#include <drm/panfrost_drm.h>
 #include <linux/completion.h>
 #include <linux/iopoll.h>
+#include <linux/iosys-map.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
+
+#include <drm/drm_file.h>
+#include <drm/drm_gem_shmem_helper.h>
+#include <drm/panfrost_drm.h>
 
 #include "panfrost_device.h"
 #include "panfrost_features.h"
@@ -16,6 +18,7 @@
 #include "panfrost_issues.h"
 #include "panfrost_job.h"
 #include "panfrost_mmu.h"
+#include "panfrost_perfcnt.h"
 #include "panfrost_regs.h"
 
 #define COUNTERS_PER_BLOCK		64
@@ -24,7 +27,7 @@
 #define V4_SHADERS_PER_COREGROUP	4
 
 struct panfrost_perfcnt {
-	struct panfrost_gem_object *bo;
+	struct panfrost_gem_mapping *mapping;
 	size_t bosize;
 	void *buf;
 	struct panfrost_file_priv *user;
@@ -48,9 +51,9 @@ static int panfrost_perfcnt_dump_locked(struct panfrost_device *pfdev)
 	int ret;
 
 	reinit_completion(&pfdev->perfcnt->dump_comp);
-	gpuva = pfdev->perfcnt->bo->node.start << PAGE_SHIFT;
-	gpu_write(pfdev, GPU_PERFCNT_BASE_LO, gpuva);
-	gpu_write(pfdev, GPU_PERFCNT_BASE_HI, gpuva >> 32);
+	gpuva = pfdev->perfcnt->mapping->mmnode.start << PAGE_SHIFT;
+	gpu_write(pfdev, GPU_PERFCNT_BASE_LO, lower_32_bits(gpuva));
+	gpu_write(pfdev, GPU_PERFCNT_BASE_HI, upper_32_bits(gpuva));
 	gpu_write(pfdev, GPU_INT_CLEAR,
 		  GPU_IRQ_CLEAN_CACHES_COMPLETED |
 		  GPU_IRQ_PERFCNT_SAMPLE_COMPLETED);
@@ -66,12 +69,14 @@ static int panfrost_perfcnt_dump_locked(struct panfrost_device *pfdev)
 }
 
 static int panfrost_perfcnt_enable_locked(struct panfrost_device *pfdev,
-					  struct panfrost_file_priv *user,
+					  struct drm_file *file_priv,
 					  unsigned int counterset)
 {
+	struct panfrost_file_priv *user = file_priv->driver_priv;
 	struct panfrost_perfcnt *perfcnt = pfdev->perfcnt;
+	struct iosys_map map;
 	struct drm_gem_shmem_object *bo;
-	u32 cfg;
+	u32 cfg, as;
 	int ret;
 
 	if (user == perfcnt->user)
@@ -81,24 +86,30 @@ static int panfrost_perfcnt_enable_locked(struct panfrost_device *pfdev,
 
 	ret = pm_runtime_get_sync(pfdev->dev);
 	if (ret < 0)
-		return ret;
+		goto err_put_pm;
 
 	bo = drm_gem_shmem_create(pfdev->ddev, perfcnt->bosize);
-	if (IS_ERR(bo))
-		return PTR_ERR(bo);
-
-	perfcnt->bo = to_panfrost_bo(&bo->base);
+	if (IS_ERR(bo)) {
+		ret = PTR_ERR(bo);
+		goto err_put_pm;
+	}
 
 	/* Map the perfcnt buf in the address space attached to file_priv. */
-	ret = panfrost_mmu_map(perfcnt->bo);
+	ret = panfrost_gem_open(&bo->base, file_priv);
 	if (ret)
 		goto err_put_bo;
 
-	perfcnt->buf = drm_gem_shmem_vmap(&bo->base);
-	if (IS_ERR(perfcnt->buf)) {
-		ret = PTR_ERR(perfcnt->buf);
-		goto err_put_bo;
+	perfcnt->mapping = panfrost_gem_mapping_get(to_panfrost_bo(&bo->base),
+						    user);
+	if (!perfcnt->mapping) {
+		ret = -EINVAL;
+		goto err_close_bo;
 	}
+
+	ret = drm_gem_vmap_unlocked(&bo->base, &map);
+	if (ret)
+		goto err_put_mapping;
+	perfcnt->buf = map.vaddr;
 
 	/*
 	 * Invalidate the cache and clear the counters to start from a fresh
@@ -119,12 +130,8 @@ static int panfrost_perfcnt_enable_locked(struct panfrost_device *pfdev,
 
 	perfcnt->user = user;
 
-	/*
-	 * Always use address space 0 for now.
-	 * FIXME: this needs to be updated when we start using different
-	 * address space.
-	 */
-	cfg = GPU_PERFCNT_CFG_AS(0) |
+	as = panfrost_mmu_as_get(pfdev, perfcnt->mapping->mmu);
+	cfg = GPU_PERFCNT_CFG_AS(as) |
 	      GPU_PERFCNT_CFG_MODE(GPU_PERFCNT_CFG_MODE_MANUAL);
 
 	/*
@@ -152,19 +159,30 @@ static int panfrost_perfcnt_enable_locked(struct panfrost_device *pfdev,
 	if (panfrost_has_hw_issue(pfdev, HW_ISSUE_8186))
 		gpu_write(pfdev, GPU_PRFCNT_TILER_EN, 0xffffffff);
 
+	/* The BO ref is retained by the mapping. */
+	drm_gem_object_put(&bo->base);
+
 	return 0;
 
 err_vunmap:
-	drm_gem_shmem_vunmap(&perfcnt->bo->base.base, perfcnt->buf);
+	drm_gem_vunmap_unlocked(&bo->base, &map);
+err_put_mapping:
+	panfrost_gem_mapping_put(perfcnt->mapping);
+err_close_bo:
+	panfrost_gem_close(&bo->base, file_priv);
 err_put_bo:
-	drm_gem_object_put_unlocked(&bo->base);
+	drm_gem_object_put(&bo->base);
+err_put_pm:
+	pm_runtime_put(pfdev->dev);
 	return ret;
 }
 
 static int panfrost_perfcnt_disable_locked(struct panfrost_device *pfdev,
-					   struct panfrost_file_priv *user)
+					   struct drm_file *file_priv)
 {
+	struct panfrost_file_priv *user = file_priv->driver_priv;
 	struct panfrost_perfcnt *perfcnt = pfdev->perfcnt;
+	struct iosys_map map = IOSYS_MAP_INIT_VADDR(perfcnt->buf);
 
 	if (user != perfcnt->user)
 		return -EINVAL;
@@ -177,10 +195,12 @@ static int panfrost_perfcnt_disable_locked(struct panfrost_device *pfdev,
 		  GPU_PERFCNT_CFG_MODE(GPU_PERFCNT_CFG_MODE_OFF));
 
 	perfcnt->user = NULL;
-	drm_gem_shmem_vunmap(&perfcnt->bo->base.base, perfcnt->buf);
+	drm_gem_vunmap_unlocked(&perfcnt->mapping->obj->base.base, &map);
 	perfcnt->buf = NULL;
-	drm_gem_object_put_unlocked(&perfcnt->bo->base.base);
-	perfcnt->bo = NULL;
+	panfrost_gem_close(&perfcnt->mapping->obj->base.base, file_priv);
+	panfrost_mmu_as_put(pfdev, perfcnt->mapping->mmu);
+	panfrost_gem_mapping_put(perfcnt->mapping);
+	perfcnt->mapping = NULL;
 	pm_runtime_mark_last_busy(pfdev->dev);
 	pm_runtime_put_autosuspend(pfdev->dev);
 
@@ -190,7 +210,6 @@ static int panfrost_perfcnt_disable_locked(struct panfrost_device *pfdev,
 int panfrost_ioctl_perfcnt_enable(struct drm_device *dev, void *data,
 				  struct drm_file *file_priv)
 {
-	struct panfrost_file_priv *pfile = file_priv->driver_priv;
 	struct panfrost_device *pfdev = dev->dev_private;
 	struct panfrost_perfcnt *perfcnt = pfdev->perfcnt;
 	struct drm_panfrost_perfcnt_enable *req = data;
@@ -206,10 +225,10 @@ int panfrost_ioctl_perfcnt_enable(struct drm_device *dev, void *data,
 
 	mutex_lock(&perfcnt->lock);
 	if (req->enable)
-		ret = panfrost_perfcnt_enable_locked(pfdev, pfile,
+		ret = panfrost_perfcnt_enable_locked(pfdev, file_priv,
 						     req->counterset);
 	else
-		ret = panfrost_perfcnt_disable_locked(pfdev, pfile);
+		ret = panfrost_perfcnt_disable_locked(pfdev, file_priv);
 	mutex_unlock(&perfcnt->lock);
 
 	return ret;
@@ -247,15 +266,16 @@ out:
 	return ret;
 }
 
-void panfrost_perfcnt_close(struct panfrost_file_priv *pfile)
+void panfrost_perfcnt_close(struct drm_file *file_priv)
 {
+	struct panfrost_file_priv *pfile = file_priv->driver_priv;
 	struct panfrost_device *pfdev = pfile->pfdev;
 	struct panfrost_perfcnt *perfcnt = pfdev->perfcnt;
 
 	pm_runtime_get_sync(pfdev->dev);
 	mutex_lock(&perfcnt->lock);
 	if (perfcnt->user == pfile)
-		panfrost_perfcnt_disable_locked(pfdev, pfile);
+		panfrost_perfcnt_disable_locked(pfdev, file_priv);
 	mutex_unlock(&perfcnt->lock);
 	pm_runtime_mark_last_busy(pfdev->dev);
 	pm_runtime_put_autosuspend(pfdev->dev);

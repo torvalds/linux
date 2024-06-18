@@ -16,6 +16,13 @@
  * Connection state transition actions
  * (Fb = F bit; Pb = P bit; Xb = X bit)
  */
+
+#include <linux/types.h>
+
+struct sk_buff;
+struct sock;
+struct timer_list;
+
 #define LLC_CONN_AC_CLR_REMOTE_BUSY			 1
 #define LLC_CONN_AC_CONN_IND				 2
 #define LLC_CONN_AC_CONN_CONFIRM			 3
@@ -168,7 +175,6 @@ int llc_conn_ac_send_ack_if_needed(struct sock *sk, struct sk_buff *skb);
 int llc_conn_ac_adjust_npta_by_rr(struct sock *sk, struct sk_buff *skb);
 int llc_conn_ac_adjust_npta_by_rnr(struct sock *sk, struct sk_buff *skb);
 int llc_conn_ac_rst_sendack_flag(struct sock *sk, struct sk_buff *skb);
-int llc_conn_ac_send_i_rsp_as_ack(struct sock *sk, struct sk_buff *skb);
 int llc_conn_ac_send_i_as_ack(struct sock *sk, struct sk_buff *skb);
 
 void llc_conn_busy_tmr_cb(struct timer_list *t);

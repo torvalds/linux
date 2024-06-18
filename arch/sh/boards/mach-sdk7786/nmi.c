@@ -37,7 +37,7 @@ static int __init nmi_mode_setup(char *str)
 		nmi_mode = NMI_MODE_ANY;
 	else {
 		nmi_mode = NMI_MODE_UNKNOWN;
-		pr_warning("Unknown NMI mode %s\n", str);
+		pr_warn("Unknown NMI mode %s\n", str);
 	}
 
 	printk("Set NMI mode to %d\n", nmi_mode);

@@ -55,6 +55,7 @@
 *.ver
 *.xml
 *.xz
+*.zst
 *_MODULES
 *_vga16.c
 *~
@@ -90,7 +91,6 @@ asm_offsets.h
 autoconf.h*
 av_permissions.h
 bbootsect
-bin2c
 binkernel.spec
 bootsect
 bounds.h
@@ -177,8 +177,10 @@ mktables
 mktree
 mkutf8data
 modpost
+modules-only.symvers
 modules.builtin
 modules.builtin.modinfo
+modules.nsdeps
 modules.order
 modversions.h*
 nconf
@@ -208,6 +210,7 @@ r200_reg_safe.h
 r300_reg_safe.h
 r420_reg_safe.h
 r600_reg_safe.h
+randstruct.seed
 randomize_layout_hash.h
 randomize_layout_seed.h
 recordmcount
@@ -250,6 +253,8 @@ vmlinux-*
 vmlinux.aout
 vmlinux.bin.all
 vmlinux.lds
+vmlinux.map
+vmlinux.symvers
 vmlinuz
 voffset.h
 vsyscall.lds

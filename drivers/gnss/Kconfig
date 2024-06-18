@@ -5,7 +5,7 @@
 
 menuconfig GNSS
 	tristate "GNSS receiver support"
-	---help---
+	help
 	  Say Y here if you have a GNSS receiver (e.g. a GPS receiver).
 
 	  To compile this driver as a module, choose M here: the module will
@@ -32,7 +32,7 @@ config GNSS_MTK_SERIAL
 config GNSS_SIRF_SERIAL
 	tristate "SiRFstar GNSS receiver support"
 	depends on SERIAL_DEV_BUS
-	---help---
+	help
 	  Say Y here if you have a SiRFstar-based GNSS receiver which uses a
 	  serial interface.
 
@@ -45,12 +45,23 @@ config GNSS_UBX_SERIAL
 	tristate "u-blox GNSS receiver support"
 	depends on SERIAL_DEV_BUS
 	select GNSS_SERIAL
-	---help---
+	help
 	  Say Y here if you have a u-blox GNSS receiver which uses a serial
 	  interface.
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called gnss-ubx.
+
+	  If unsure, say N.
+
+config GNSS_USB
+	tristate "USB GNSS receiver support"
+	depends on USB
+	help
+	  Say Y here if you have a GNSS receiver which uses a USB interface.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called gnss-usb.
 
 	  If unsure, say N.
 

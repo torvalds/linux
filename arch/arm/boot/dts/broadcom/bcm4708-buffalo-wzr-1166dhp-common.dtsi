@@ -1,0 +1,193 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Broadcom BCM470X / BCM5301X ARM platform code.
+ * DTS for Buffalo WZR-1166DHP and WZR-1166DHP2
+ *
+ * Copyright (C) 2014 Rafał Miłecki <zajec5@gmail.com>
+ * Copyright (C) 2022 SHIMAMOTO Takayoshi <takayoshi.shimamoto.360@gmail.com>
+ */
+
+
+#include "bcm4708.dtsi"
+#include "bcm5301x-nand-cs0-bch8.dtsi"
+#include <dt-bindings/leds/common.h>
+
+/ {
+	spi {
+		compatible = "spi-gpio";
+		num-chipselects = <1>;
+		sck-gpios = <&chipcommon 7 0>;
+		mosi-gpios = <&chipcommon 4 0>;
+		cs-gpios = <&chipcommon 6 0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		hc595: gpio_spi@0 {
+			compatible = "fairchild,74hc595";
+			reg = <0>;
+			registers-number = <1>;
+			spi-max-frequency = <100000>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		led-usb {
+			/* label = "bcm53xx:blue:usb"; */
+			function = LED_FUNCTION_USB;
+			color = <LED_COLOR_ID_BLUE>;
+			gpios = <&hc595 0 GPIO_ACTIVE_HIGH>;
+			trigger-sources = <&ohci_port1>, <&ehci_port1>,
+					  <&xhci_port1>, <&ohci_port2>,
+					  <&ehci_port2>;
+			linux,default-trigger = "usbport";
+		};
+
+		led-power0 {
+			/* label = "bcm53xx:red:power"; */
+			function = LED_FUNCTION_FAULT;
+			color = <LED_COLOR_ID_RED>;
+			gpios = <&hc595 1 GPIO_ACTIVE_HIGH>;
+		};
+
+		led-power1 {
+			/* label = "bcm53xx:white:power"; */
+			function = LED_FUNCTION_POWER;
+			color = <LED_COLOR_ID_WHITE>;
+			gpios = <&hc595 2 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-on";
+		};
+
+		led-router0 {
+			/*  label = "bcm53xx:blue:router"; */
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_BLUE>;
+			gpios = <&hc595 3 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-on";
+		};
+
+		led-router1 {
+			/* label = "bcm53xx:amber:router"; */
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_AMBER>;
+			gpios = <&hc595 4 GPIO_ACTIVE_HIGH>;
+		};
+
+		led-wan {
+			/* label = "bcm53xx:blue:wan"; */
+			function = LED_FUNCTION_WAN;
+			color = <LED_COLOR_ID_BLUE>;
+			gpios = <&hc595 5 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-on";
+		};
+
+		led-wireless0 {
+			/* label = "bcm53xx:blue:wireless"; */
+			function = LED_FUNCTION_WLAN;
+			color = <LED_COLOR_ID_BLUE>;
+			gpios = <&hc595 6 GPIO_ACTIVE_HIGH>;
+		};
+
+		led-wireless1 {
+			/* label = "bcm53xx:amber:wireless"; */
+			function = LED_FUNCTION_WLAN;
+			color = <LED_COLOR_ID_AMBER>;
+			gpios = <&hc595 7 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		button-restart {
+			label = "Reset";
+			linux,code = <KEY_RESTART>;
+			gpios = <&chipcommon 11 GPIO_ACTIVE_LOW>;
+		};
+
+		button-aoss {
+			label = "AOSS";
+			linux,code = <KEY_WPS_BUTTON>;
+			gpios = <&chipcommon 12 GPIO_ACTIVE_LOW>;
+		};
+
+		/* Commit mode set by switch? */
+		button-mode {
+			label = "Mode";
+			linux,code = <KEY_SETUP>;
+			gpios = <&chipcommon 13 GPIO_ACTIVE_LOW>;
+		};
+
+		/* Switch: AP mode */
+		button-sw-ap {
+			label = "AP";
+			linux,code = <BTN_0>;
+			gpios = <&chipcommon 14 GPIO_ACTIVE_LOW>;
+		};
+
+		button-eject {
+			label = "USB eject";
+			linux,code = <KEY_EJECTCD>;
+			gpios = <&chipcommon 15 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&usb2 {
+	vcc-gpio = <&chipcommon 9 GPIO_ACTIVE_HIGH>;
+};
+
+&usb3 {
+	vcc-gpio = <&chipcommon 10 GPIO_ACTIVE_LOW>;
+};
+
+&spi_nor {
+	status = "okay";
+};
+
+&usb3_phy {
+	status = "okay";
+};
+
+&srab {
+	status = "okay";
+
+	ports {
+		port@0 {
+			label = "lan1";
+		};
+
+		port@1 {
+			label = "lan2";
+		};
+
+		port@2 {
+			label = "lan3";
+		};
+
+		port@3 {
+			label = "lan4";
+		};
+
+		port@4 {
+			label = "wan";
+		};
+
+		port@5 {
+			label = "cpu";
+		};
+
+		port@7 {
+			status = "disabled";
+		};
+
+		port@8 {
+			status = "disabled";
+		};
+	};
+};

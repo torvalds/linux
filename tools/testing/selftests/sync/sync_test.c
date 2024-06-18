@@ -86,9 +86,9 @@ int main(void)
 	int err;
 
 	ksft_print_header();
-	ksft_set_plan(3 + 7);
 
 	sync_api_supported();
+	ksft_set_plan(3 + 7);
 
 	ksft_print_msg("[RUN]\tTesting sync framework\n");
 
@@ -109,6 +109,5 @@ int main(void)
 		ksft_exit_fail_msg("%d out of %d sync tests failed\n",
 					err, ksft_test_num());
 
-	/* need this return to keep gcc happy */
-	return ksft_exit_pass();
+	ksft_exit_pass();
 }

@@ -13,13 +13,9 @@
 #include <asm/mmu.h>
 #include <asm/rtas.h>
 #include <asm/topology.h>
-#include "../../kernel/cacheinfo.h"
+#include "pseries.h"
 
-static u64 stream_id;
 static struct device suspend_dev;
-static DECLARE_COMPLETION(suspend_work);
-static struct rtas_suspend_me_data suspend_data;
-static atomic_t suspending;
 
 /**
  * pseries_suspend_begin - First phase of hibernation
@@ -29,7 +25,7 @@ static atomic_t suspending;
  * Return value:
  * 	0 on success / other on failure
  **/
-static int pseries_suspend_begin(suspend_state_t state)
+static int pseries_suspend_begin(u64 stream_id)
 {
 	long vasi_state, rc;
 	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
@@ -49,38 +45,7 @@ static int pseries_suspend_begin(suspend_state_t state)
 		       vasi_state);
 		return -EIO;
 	}
-
 	return 0;
-}
-
-/**
- * pseries_suspend_cpu - Suspend a single CPU
- *
- * Makes the H_JOIN call to suspend the CPU
- *
- **/
-static int pseries_suspend_cpu(void)
-{
-	if (atomic_read(&suspending))
-		return rtas_suspend_cpu(&suspend_data);
-	return 0;
-}
-
-/**
- * pseries_suspend_enable_irqs
- *
- * Post suspend configuration updates
- *
- **/
-static void pseries_suspend_enable_irqs(void)
-{
-	/*
-	 * Update configuration which can be modified based on device tree
-	 * changes during resume.
-	 */
-	cacheinfo_cpu_offline(smp_processor_id());
-	post_mobility_fixup();
-	cacheinfo_cpu_online(smp_processor_id());
 }
 
 /**
@@ -91,28 +56,7 @@ static void pseries_suspend_enable_irqs(void)
  **/
 static int pseries_suspend_enter(suspend_state_t state)
 {
-	int rc = rtas_suspend_last_cpu(&suspend_data);
-
-	atomic_set(&suspending, 0);
-	atomic_set(&suspend_data.done, 1);
-	return rc;
-}
-
-/**
- * pseries_prepare_late - Prepare to suspend all other CPUs
- *
- * Return value:
- * 	0 on success / other on failure
- **/
-static int pseries_prepare_late(void)
-{
-	atomic_set(&suspending, 1);
-	atomic_set(&suspend_data.working, 0);
-	atomic_set(&suspend_data.done, 0);
-	atomic_set(&suspend_data.error, 0);
-	suspend_data.complete = &suspend_work;
-	reinit_completion(&suspend_work);
-	return 0;
+	return rtas_ibm_suspend_me(NULL);
 }
 
 /**
@@ -132,50 +76,29 @@ static ssize_t store_hibernate(struct device *dev,
 			       struct device_attribute *attr,
 			       const char *buf, size_t count)
 {
-	cpumask_var_t offline_mask;
+	u64 stream_id;
 	int rc;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (!alloc_cpumask_var(&offline_mask, GFP_KERNEL))
-		return -ENOMEM;
-
 	stream_id = simple_strtoul(buf, NULL, 16);
 
 	do {
-		rc = pseries_suspend_begin(PM_SUSPEND_MEM);
+		rc = pseries_suspend_begin(stream_id);
 		if (rc == -EAGAIN)
 			ssleep(1);
 	} while (rc == -EAGAIN);
 
-	if (!rc) {
-		/* All present CPUs must be online */
-		cpumask_andnot(offline_mask, cpu_present_mask,
-				cpu_online_mask);
-		rc = rtas_online_cpus_mask(offline_mask);
-		if (rc) {
-			pr_err("%s: Could not bring present CPUs online.\n",
-					__func__);
-			goto out;
-		}
-
-		stop_topology_update();
+	if (!rc)
 		rc = pm_suspend(PM_SUSPEND_MEM);
-		start_topology_update();
 
-		/* Take down CPUs not online prior to suspend */
-		if (!rtas_offline_cpus_mask(offline_mask))
-			pr_warn("%s: Could not restore CPUs to offline "
-					"state.\n", __func__);
+	if (!rc) {
+		rc = count;
+		post_mobility_fixup();
 	}
 
-	stream_id = 0;
 
-	if (!rc)
-		rc = count;
-out:
-	free_cpumask_var(offline_mask);
 	return rc;
 }
 
@@ -210,8 +133,6 @@ static struct bus_type suspend_subsys = {
 
 static const struct platform_suspend_ops pseries_suspend_ops = {
 	.valid		= suspend_valid_only_mem,
-	.begin		= pseries_suspend_begin,
-	.prepare_late	= pseries_prepare_late,
 	.enter		= pseries_suspend_enter,
 };
 
@@ -223,6 +144,7 @@ static const struct platform_suspend_ops pseries_suspend_ops = {
  **/
 static int pseries_suspend_sysfs_register(struct device *dev)
 {
+	struct device *dev_root;
 	int rc;
 
 	if ((rc = subsys_system_register(&suspend_subsys, NULL)))
@@ -231,8 +153,13 @@ static int pseries_suspend_sysfs_register(struct device *dev)
 	dev->id = 0;
 	dev->bus = &suspend_subsys;
 
-	if ((rc = device_create_file(suspend_subsys.dev_root, &dev_attr_hibernate)))
-		goto subsys_unregister;
+	dev_root = bus_get_dev_root(&suspend_subsys);
+	if (dev_root) {
+		rc = device_create_file(dev_root, &dev_attr_hibernate);
+		put_device(dev_root);
+		if (rc)
+			goto subsys_unregister;
+	}
 
 	return 0;
 
@@ -254,15 +181,9 @@ static int __init pseries_suspend_init(void)
 	if (!firmware_has_feature(FW_FEATURE_LPAR))
 		return 0;
 
-	suspend_data.token = rtas_token("ibm,suspend-me");
-	if (suspend_data.token == RTAS_UNKNOWN_SERVICE)
-		return 0;
-
 	if ((rc = pseries_suspend_sysfs_register(&suspend_dev)))
 		return rc;
 
-	ppc_md.suspend_disable_cpu = pseries_suspend_cpu;
-	ppc_md.suspend_enable_irqs = pseries_suspend_enable_irqs;
 	suspend_set_ops(&pseries_suspend_ops);
 	return 0;
 }

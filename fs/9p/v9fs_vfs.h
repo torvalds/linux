@@ -36,30 +36,31 @@ extern const struct file_operations v9fs_dir_operations;
 extern const struct file_operations v9fs_dir_operations_dotl;
 extern const struct dentry_operations v9fs_dentry_operations;
 extern const struct dentry_operations v9fs_cached_dentry_operations;
-extern const struct file_operations v9fs_cached_file_operations;
-extern const struct file_operations v9fs_cached_file_operations_dotl;
-extern const struct file_operations v9fs_mmap_file_operations;
-extern const struct file_operations v9fs_mmap_file_operations_dotl;
 extern struct kmem_cache *v9fs_inode_cache;
 
 struct inode *v9fs_alloc_inode(struct super_block *sb);
 void v9fs_free_inode(struct inode *inode);
-struct inode *v9fs_get_inode(struct super_block *sb, umode_t mode, dev_t);
+void v9fs_set_netfs_context(struct inode *inode);
 int v9fs_init_inode(struct v9fs_session_info *v9ses,
-		    struct inode *inode, umode_t mode, dev_t);
+		    struct inode *inode, struct p9_qid *qid, umode_t mode, dev_t rdev);
 void v9fs_evict_inode(struct inode *inode);
-ino_t v9fs_qid2ino(struct p9_qid *qid);
+#if (BITS_PER_LONG == 32)
+#define QID2INO(q) ((ino_t) (((q)->path+2) ^ (((q)->path) >> 32)))
+#else
+#define QID2INO(q) ((ino_t) ((q)->path+2))
+#endif
+
 void v9fs_stat2inode(struct p9_wstat *stat, struct inode *inode,
 		      struct super_block *sb, unsigned int flags);
 void v9fs_stat2inode_dotl(struct p9_stat_dotl *stat, struct inode *inode,
 			   unsigned int flags);
 int v9fs_dir_release(struct inode *inode, struct file *filp);
 int v9fs_file_open(struct inode *inode, struct file *file);
-void v9fs_inode2stat(struct inode *inode, struct p9_wstat *stat);
 int v9fs_uflags2omode(int uflags, int extended);
 
 void v9fs_blank_wstat(struct p9_wstat *wstat);
-int v9fs_vfs_setattr_dotl(struct dentry *, struct iattr *);
+int v9fs_vfs_setattr_dotl(struct mnt_idmap *idmap,
+			  struct dentry *dentry, struct iattr *iattr);
 int v9fs_file_fsync_dotl(struct file *filp, loff_t start, loff_t end,
 			 int datasync);
 int v9fs_refresh_inode(struct p9_fid *fid, struct inode *inode);
@@ -67,9 +68,9 @@ int v9fs_refresh_inode_dotl(struct p9_fid *fid, struct inode *inode);
 static inline void v9fs_invalidate_inode_attr(struct inode *inode)
 {
 	struct v9fs_inode *v9inode;
+
 	v9inode = V9FS_I(inode);
 	v9inode->cache_validity |= V9FS_INO_INVALID_ATTR;
-	return;
 }
 
 int v9fs_open_to_dotl_flags(int flags);

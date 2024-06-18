@@ -1389,7 +1389,7 @@ static int aureon_oversampling_put(struct snd_kcontrol *kcontrol, struct snd_ctl
  * mixers
  */
 
-static struct snd_kcontrol_new aureon_dac_controls[] = {
+static const struct snd_kcontrol_new aureon_dac_controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",
@@ -1504,7 +1504,7 @@ static struct snd_kcontrol_new aureon_dac_controls[] = {
 	}
 };
 
-static struct snd_kcontrol_new wm_controls[] = {
+static const struct snd_kcontrol_new wm_controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "PCM Playback Switch",
@@ -1570,7 +1570,7 @@ static struct snd_kcontrol_new wm_controls[] = {
 	}
 };
 
-static struct snd_kcontrol_new ac97_controls[] = {
+static const struct snd_kcontrol_new ac97_controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "AC97 Playback Switch",
@@ -1675,7 +1675,7 @@ static struct snd_kcontrol_new ac97_controls[] = {
 	}
 };
 
-static struct snd_kcontrol_new universe_ac97_controls[] = {
+static const struct snd_kcontrol_new universe_ac97_controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "AC97 Playback Switch",
@@ -1807,7 +1807,7 @@ static struct snd_kcontrol_new universe_ac97_controls[] = {
 
 };
 
-static struct snd_kcontrol_new cs8415_controls[] = {
+static const struct snd_kcontrol_new cs8415_controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = SNDRV_CTL_NAME_IEC958("", CAPTURE, SWITCH),
@@ -1892,24 +1892,21 @@ static int aureon_add_controls(struct snd_ice1712 *ice)
 		unsigned char id;
 		snd_ice1712_save_gpio_status(ice);
 		id = aureon_cs8415_get(ice, CS8415_ID);
+		snd_ice1712_restore_gpio_status(ice);
 		if (id != 0x41)
 			dev_info(ice->card->dev,
 				 "No CS8415 chip. Skipping CS8415 controls.\n");
-		else if ((id & 0x0F) != 0x01)
-			dev_info(ice->card->dev,
-				 "Detected unsupported CS8415 rev. (%c)\n",
-				 (char)((id & 0x0F) + 'A' - 1));
 		else {
 			for (i = 0; i < ARRAY_SIZE(cs8415_controls); i++) {
 				struct snd_kcontrol *kctl;
-				err = snd_ctl_add(ice->card, (kctl = snd_ctl_new1(&cs8415_controls[i], ice)));
-				if (err < 0)
-					return err;
+				kctl = snd_ctl_new1(&cs8415_controls[i], ice);
 				if (i > 1)
 					kctl->id.device = ice->pcm->device;
+				err = snd_ctl_add(ice->card, kctl);
+				if (err < 0)
+					return err;
 			}
 		}
-		snd_ice1712_restore_gpio_status(ice);
 	}
 
 	return 0;
@@ -2133,7 +2130,7 @@ static int aureon_init(struct snd_ice1712 *ice)
  * hence the driver needs to sets up it properly.
  */
 
-static unsigned char aureon51_eeprom[] = {
+static const unsigned char aureon51_eeprom[] = {
 	[ICE_EEP2_SYSCONF]     = 0x0a,	/* clock 512, spdif-in/ADC, 3DACs */
 	[ICE_EEP2_ACLINK]      = 0x80,	/* I2S */
 	[ICE_EEP2_I2S]         = 0xfc,	/* vol, 96k, 24bit, 192k */
@@ -2149,7 +2146,7 @@ static unsigned char aureon51_eeprom[] = {
 	[ICE_EEP2_GPIO_STATE2] = 0x00,
 };
 
-static unsigned char aureon71_eeprom[] = {
+static const unsigned char aureon71_eeprom[] = {
 	[ICE_EEP2_SYSCONF]     = 0x0b,	/* clock 512, spdif-in/ADC, 4DACs */
 	[ICE_EEP2_ACLINK]      = 0x80,	/* I2S */
 	[ICE_EEP2_I2S]         = 0xfc,	/* vol, 96k, 24bit, 192k */
@@ -2166,7 +2163,7 @@ static unsigned char aureon71_eeprom[] = {
 };
 #define prodigy71_eeprom aureon71_eeprom
 
-static unsigned char aureon71_universe_eeprom[] = {
+static const unsigned char aureon71_universe_eeprom[] = {
 	[ICE_EEP2_SYSCONF]     = 0x2b,	/* clock 512, mpu401, spdif-in/ADC,
 					 * 4DACs
 					 */
@@ -2184,7 +2181,7 @@ static unsigned char aureon71_universe_eeprom[] = {
 	[ICE_EEP2_GPIO_STATE2] = 0x00,
 };
 
-static unsigned char prodigy71lt_eeprom[] = {
+static const unsigned char prodigy71lt_eeprom[] = {
 	[ICE_EEP2_SYSCONF]     = 0x4b,	/* clock 384, spdif-in/ADC, 4DACs */
 	[ICE_EEP2_ACLINK]      = 0x80,	/* I2S */
 	[ICE_EEP2_I2S]         = 0xfc,	/* vol, 96k, 24bit, 192k */

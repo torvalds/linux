@@ -331,27 +331,6 @@ bnx2x_vf_set_igu_info(struct bnx2x *bp, u8 igu_sb_id, u8 abs_vfid)
 	BP_VFDB(bp)->vf_sbs_pool++;
 }
 
-static inline void bnx2x_vf_vlan_credit(struct bnx2x *bp,
-					struct bnx2x_vlan_mac_obj *obj,
-					atomic_t *counter)
-{
-	struct list_head *pos;
-	int read_lock;
-	int cnt = 0;
-
-	read_lock = bnx2x_vlan_mac_h_read_lock(bp, obj);
-	if (read_lock)
-		DP(BNX2X_MSG_SP, "Failed to take vlan mac read head; continuing anyway\n");
-
-	list_for_each(pos, &obj->head)
-		cnt++;
-
-	if (!read_lock)
-		bnx2x_vlan_mac_h_read_unlock(bp, obj);
-
-	atomic_set(counter, cnt);
-}
-
 static int bnx2x_vf_vlan_mac_clear(struct bnx2x *bp, struct bnx2x_virtf *vf,
 				   int qid, bool drv_only, int type)
 {
@@ -779,9 +758,18 @@ static void bnx2x_vf_igu_reset(struct bnx2x *bp, struct bnx2x_virtf *vf)
 
 void bnx2x_vf_enable_access(struct bnx2x *bp, u8 abs_vfid)
 {
+	u16 abs_fid;
+
+	abs_fid = FW_VF_HANDLE(abs_vfid);
+
 	/* set the VF-PF association in the FW */
-	storm_memset_vf_to_pf(bp, FW_VF_HANDLE(abs_vfid), BP_FUNC(bp));
-	storm_memset_func_en(bp, FW_VF_HANDLE(abs_vfid), 1);
+	storm_memset_vf_to_pf(bp, abs_fid, BP_FUNC(bp));
+	storm_memset_func_en(bp, abs_fid, 1);
+
+	/* Invalidate fp_hsi version for vfs */
+	if (bp->fw_cap & FW_CAP_INVALIDATE_VF_FP_HSI)
+		REG_WR8(bp, BAR_XSTRORM_INTMEM +
+			    XSTORM_ETH_FUNCTION_INFO_FP_HSI_VALID_E2_OFFSET(abs_fid), 0);
 
 	/* clear vf errors*/
 	bnx2x_vf_semi_clear_err(bp, abs_vfid);
@@ -807,16 +795,20 @@ static void bnx2x_vf_enable_traffic(struct bnx2x *bp, struct bnx2x_virtf *vf)
 
 static u8 bnx2x_vf_is_pcie_pending(struct bnx2x *bp, u8 abs_vfid)
 {
-	struct pci_dev *dev;
 	struct bnx2x_virtf *vf = bnx2x_vf_by_abs_fid(bp, abs_vfid);
+	struct pci_dev *dev;
+	bool pending;
 
 	if (!vf)
 		return false;
 
 	dev = pci_get_domain_bus_and_slot(vf->domain, vf->bus, vf->devfn);
-	if (dev)
-		return bnx2x_is_pcie_pending(dev);
-	return false;
+	if (!dev)
+		return false;
+	pending = bnx2x_is_pcie_pending(dev);
+	pci_dev_put(dev);
+
+	return pending;
 }
 
 int bnx2x_vf_flr_clnup_epilog(struct bnx2x *bp, u8 abs_vfid)
@@ -1213,7 +1205,6 @@ int bnx2x_iov_init_one(struct bnx2x *bp, int int_mode_param,
 		return 0;
 	}
 
-	err = -EIO;
 	/* verify ari is enabled */
 	if (!pci_ari_enabled(bp->pdev->bus)) {
 		BNX2X_ERR("ARI not supported (check pci bridge ARI forwarding), SRIOV can not be enabled\n");
@@ -1245,8 +1236,10 @@ int bnx2x_iov_init_one(struct bnx2x *bp, int int_mode_param,
 		goto failed;
 
 	/* SR-IOV capability was enabled but there are no VFs*/
-	if (iov->total == 0)
+	if (iov->total == 0) {
+		err = 0;
 		goto failed;
+	}
 
 	iov->nr_virtfn = min_t(u16, iov->total, num_vfs_param);
 
@@ -1830,7 +1823,7 @@ get_vf:
 		DP(BNX2X_MSG_IOV, "got VF [%d:%d] RSS update ramrod\n",
 		   vf->abs_vfid, qidx);
 		bnx2x_vf_handle_rss_update_eqe(bp, vf);
-		/* fall through */
+		fallthrough;
 	case EVENT_RING_OPCODE_VF_FLR:
 		/* Do nothing for now */
 		return 0;
@@ -1878,7 +1871,6 @@ void bnx2x_iov_adjust_stats_req(struct bnx2x *bp)
 {
 	int i;
 	int first_queue_query_index, num_queues_req;
-	dma_addr_t cur_data_offset;
 	struct stats_query_entry *cur_query_entry;
 	u8 stats_count = 0;
 	bool is_fcoe = false;
@@ -1898,10 +1890,6 @@ void bnx2x_iov_adjust_stats_req(struct bnx2x *bp)
 	       "BNX2X_NUM_ETH_QUEUES %d, is_fcoe %d, first_queue_query_index %d => determined the last non virtual statistics query index is %d. Will add queries on top of that\n",
 	       BNX2X_NUM_ETH_QUEUES(bp), is_fcoe, first_queue_query_index,
 	       first_queue_query_index + num_queues_req);
-
-	cur_data_offset = bp->fw_stats_data_mapping +
-		offsetof(struct bnx2x_fw_stats_data, queue_stats) +
-		num_queues_req * sizeof(struct per_queue_stats);
 
 	cur_query_entry = &bp->fw_stats_req->
 		query[first_queue_query_index + num_queues_req];
@@ -1953,7 +1941,6 @@ void bnx2x_iov_adjust_stats_req(struct bnx2x *bp)
 			       cur_query_entry->funcID,
 			       j, cur_query_entry->index);
 			cur_query_entry++;
-			cur_data_offset += sizeof(struct per_queue_stats);
 			stats_count++;
 
 			/* all stats are coalesced to the leading queue */
@@ -2228,7 +2215,7 @@ int bnx2x_vf_free(struct bnx2x *bp, struct bnx2x_virtf *vf)
 		rc = bnx2x_vf_close(bp, vf);
 		if (rc)
 			goto op_err;
-		/* Fall through - to release resources */
+		fallthrough;	/* to release resources */
 	case VF_ACQUIRED:
 		DP(BNX2X_MSG_IOV, "about to free resources\n");
 		bnx2x_vf_free_resc(bp, vf);
@@ -2397,15 +2384,21 @@ static int bnx2x_set_pf_tx_switching(struct bnx2x *bp, bool enable)
 	/* send the ramrod on all the queues of the PF */
 	for_each_eth_queue(bp, i) {
 		struct bnx2x_fastpath *fp = &bp->fp[i];
+		int tx_idx;
 
 		/* Set the appropriate Queue object */
 		q_params.q_obj = &bnx2x_sp_obj(bp, fp).q_obj;
 
-		/* Update the Queue state */
-		rc = bnx2x_queue_state_change(bp, &q_params);
-		if (rc) {
-			BNX2X_ERR("Failed to configure Tx switching\n");
-			return rc;
+		for (tx_idx = FIRST_TX_COS_INDEX;
+		     tx_idx < fp->max_cos; tx_idx++) {
+			q_params.params.update.cid_index = tx_idx;
+
+			/* Update the Queue state */
+			rc = bnx2x_queue_state_change(bp, &q_params);
+			if (rc) {
+				BNX2X_ERR("Failed to configure Tx switching\n");
+				return rc;
+			}
 		}
 	}
 
@@ -3078,7 +3071,7 @@ enum sample_bulletin_result bnx2x_sample_bulletin(struct bnx2x *bp)
 	if (bulletin->valid_bitmap & 1 << MAC_ADDR_VALID &&
 	    !ether_addr_equal(bulletin->mac, bp->old_bulletin.mac)) {
 		/* update new mac to net device */
-		memcpy(bp->dev->dev_addr, bulletin->mac, ETH_ALEN);
+		eth_hw_addr_set(bp->dev, bulletin->mac);
 	}
 
 	if (bulletin->valid_bitmap & (1 << LINK_VALID)) {

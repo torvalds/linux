@@ -108,13 +108,13 @@ int systemasic_irq_demux(int irq)
 	__u32 j, bit;
 
 	switch (irq) {
-	case 13:
+	case 13 + 16:
 		level = 0;
 		break;
-	case 11:
+	case 11 + 16:
 		level = 1;
 		break;
-	case  9:
+	case 9 + 16:
 		level = 2;
 		break;
 	default:

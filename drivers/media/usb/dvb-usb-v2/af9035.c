@@ -208,8 +208,9 @@ static int af9035_add_i2c_dev(struct dvb_usb_device *d, const char *type,
 	request_module("%s", board_info.type);
 
 	/* register I2C device */
-	client = i2c_new_device(adapter, &board_info);
-	if (client == NULL || client->dev.driver == NULL) {
+	client = i2c_new_client_device(adapter, &board_info);
+	if (!i2c_client_has_driver(client)) {
+		dev_err(&intf->dev, "failed to bind i2c device to %s driver\n", type);
 		ret = -ENODEV;
 		goto err;
 	}
@@ -321,6 +322,10 @@ static int af9035_i2c_master_xfer(struct i2c_adapter *adap,
 			ret = -EOPNOTSUPP;
 		} else if ((msg[0].addr == state->af9033_i2c_addr[0]) ||
 			   (msg[0].addr == state->af9033_i2c_addr[1])) {
+			if (msg[0].len < 3 || msg[1].len < 1) {
+				ret = -EOPNOTSUPP;
+				goto unlock;
+			}
 			/* demod access via firmware interface */
 			u32 reg = msg[0].buf[0] << 16 | msg[0].buf[1] << 8 |
 					msg[0].buf[2];
@@ -380,6 +385,10 @@ static int af9035_i2c_master_xfer(struct i2c_adapter *adap,
 			ret = -EOPNOTSUPP;
 		} else if ((msg[0].addr == state->af9033_i2c_addr[0]) ||
 			   (msg[0].addr == state->af9033_i2c_addr[1])) {
+			if (msg[0].len < 3) {
+				ret = -EOPNOTSUPP;
+				goto unlock;
+			}
 			/* demod access via firmware interface */
 			u32 reg = msg[0].buf[0] << 16 | msg[0].buf[1] << 8 |
 					msg[0].buf[2];
@@ -387,10 +396,7 @@ static int af9035_i2c_master_xfer(struct i2c_adapter *adap,
 			if (msg[0].addr == state->af9033_i2c_addr[1])
 				reg |= 0x100000;
 
-			ret = (msg[0].len >= 3) ? af9035_wr_regs(d, reg,
-							         &msg[0].buf[3],
-							         msg[0].len - 3)
-					        : -EOPNOTSUPP;
+			ret = af9035_wr_regs(d, reg, &msg[0].buf[3], msg[0].len - 3);
 		} else {
 			/* I2C write */
 			u8 buf[MAX_XFER_SIZE];
@@ -457,6 +463,7 @@ static int af9035_i2c_master_xfer(struct i2c_adapter *adap,
 		ret = -EOPNOTSUPP;
 	}
 
+unlock:
 	mutex_unlock(&d->i2c_mutex);
 
 	if (ret < 0)
@@ -861,6 +868,9 @@ static int af9035_read_config(struct dvb_usb_device *d)
 		if ((le16_to_cpu(d->udev->descriptor.idVendor) == USB_VID_AVERMEDIA) &&
 		    (le16_to_cpu(d->udev->descriptor.idProduct) == USB_PID_AVERMEDIA_TD310)) {
 			state->it930x_addresses = 1;
+			/* TD310 RC works with NEC defaults */
+			state->ir_mode = 0x05;
+			state->ir_type = 0x00;
 		}
 		return 0;
 	}
@@ -1197,6 +1207,15 @@ err:
 	return ret;
 }
 
+/*
+ * The I2C speed register is calculated with:
+ *	I2C speed register = (1000000000 / (24.4 * 16 * I2C_speed))
+ *
+ * The default speed register for it930x is 7, with means a
+ * speed of ~366 kbps
+ */
+#define I2C_SPEED_366K 7
+
 static int it930x_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	struct state *state = adap_to_priv(adap);
@@ -1208,13 +1227,13 @@ static int it930x_frontend_attach(struct dvb_usb_adapter *adap)
 
 	dev_dbg(&intf->dev, "adap->id=%d\n", adap->id);
 
-	/* I2C master bus 2 clock speed 300k */
-	ret = af9035_wr_reg(d, 0x00f6a7, 0x07);
+	/* I2C master bus 2 clock speed 366k */
+	ret = af9035_wr_reg(d, 0x00f6a7, I2C_SPEED_366K);
 	if (ret < 0)
 		goto err;
 
-	/* I2C master bus 1,3 clock speed 300k */
-	ret = af9035_wr_reg(d, 0x00f103, 0x07);
+	/* I2C master bus 1,3 clock speed 366k */
+	ret = af9035_wr_reg(d, 0x00f103, I2C_SPEED_366K);
 	if (ret < 0)
 		goto err;
 
@@ -1487,7 +1506,7 @@ static int af9035_tuner_attach(struct dvb_usb_adapter *adap)
 		/*
 		 * AF9035 gpiot2 = FC0012 enable
 		 * XXX: there seems to be something on gpioh8 too, but on my
-		 * my test I didn't find any difference.
+		 * test I didn't find any difference.
 		 */
 
 		if (adap->id == 0) {
@@ -1610,6 +1629,27 @@ static int it930x_tuner_attach(struct dvb_usb_adapter *adap)
 
 	memset(&si2157_config, 0, sizeof(si2157_config));
 	si2157_config.fe = adap->fe[0];
+
+	/*
+	 * HACK: The Logilink VG0022A and TerraTec TC2 Stick have
+	 * a bug: when the si2157 firmware that came with the device
+	 * is replaced by a new one, the I2C transfers to the tuner
+	 * will return just 0xff.
+	 *
+	 * Probably, the vendor firmware has some patch specifically
+	 * designed for this device. So, we can't replace by the
+	 * generic firmware. The right solution would be to extract
+	 * the si2157 firmware from the original driver and ask the
+	 * driver to load the specifically designed firmware, but,
+	 * while we don't have that, the next best solution is to just
+	 * keep the original firmware at the device.
+	 */
+	if ((le16_to_cpu(d->udev->descriptor.idVendor) == USB_VID_DEXATEK &&
+	     le16_to_cpu(d->udev->descriptor.idProduct) == 0x0100) ||
+	    (le16_to_cpu(d->udev->descriptor.idVendor) == USB_VID_TERRATEC &&
+	     le16_to_cpu(d->udev->descriptor.idProduct) == USB_PID_TERRATEC_CINERGY_TC2_STICK))
+		si2157_config.dont_load_firmware = true;
+
 	si2157_config.if_port = it930x_addresses_table[state->it930x_addresses].tuner_if_port;
 	ret = af9035_add_i2c_dev(d, "si2157",
 				 it930x_addresses_table[state->it930x_addresses].tuner_i2c_addr,
@@ -2029,6 +2069,11 @@ static const struct dvb_usb_device_properties it930x_props = {
 	.tuner_attach = it930x_tuner_attach,
 	.tuner_detach = it930x_tuner_detach,
 	.init = it930x_init,
+	/*
+	 * dvb_usbv2_remote_init() calls rc_config() only for those devices
+	 * which have non-empty rc_map, so it's safe to enable it for every IT930x
+	 */
+	.get_rc_config = af9035_get_rc_config,
 	.get_stream_config = af9035_get_stream_config,
 
 	.get_adapter_count = af9035_get_adapter_count,
@@ -2120,7 +2165,11 @@ static const struct usb_device_id af9035_id_table[] = {
 	{ DVB_USB_DEVICE(USB_VID_ITETECH, USB_PID_ITETECH_IT9303,
 		&it930x_props, "ITE 9303 Generic", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_TD310,
-		&it930x_props, "AVerMedia TD310 DVB-T2", NULL) },
+		&it930x_props, "AVerMedia TD310 DVB-T2", RC_MAP_AVERMEDIA_RM_KS) },
+	{ DVB_USB_DEVICE(USB_VID_DEXATEK, 0x0100,
+		&it930x_props, "Logilink VG0022A", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_TERRATEC, USB_PID_TERRATEC_CINERGY_TC2_STICK,
+		&it930x_props, "TerraTec Cinergy TC2 Stick", NULL) },
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, af9035_id_table);

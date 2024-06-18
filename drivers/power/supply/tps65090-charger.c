@@ -13,7 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/kthread.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 #include <linux/slab.h>
@@ -262,7 +262,7 @@ static int tps65090_charger_probe(struct platform_device *pdev)
 	psy_cfg.of_node			= pdev->dev.of_node;
 	psy_cfg.drv_data		= cdata;
 
-	cdata->ac = power_supply_register(&pdev->dev, &tps65090_charger_desc,
+	cdata->ac = devm_power_supply_register(&pdev->dev, &tps65090_charger_desc,
 			&psy_cfg);
 	if (IS_ERR(cdata->ac)) {
 		dev_err(&pdev->dev, "failed: power supply register\n");
@@ -277,7 +277,7 @@ static int tps65090_charger_probe(struct platform_device *pdev)
 	ret = tps65090_config_charger(cdata);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "charger config failed, err %d\n", ret);
-		goto fail_unregister_supply;
+		return ret;
 	}
 
 	/* Check for charger presence */
@@ -286,14 +286,14 @@ static int tps65090_charger_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		dev_err(cdata->dev, "%s(): Error in reading reg 0x%x", __func__,
 			TPS65090_REG_CG_STATUS1);
-		goto fail_unregister_supply;
+		return ret;
 	}
 
 	if (status1 != 0) {
 		ret = tps65090_enable_charging(cdata);
 		if (ret < 0) {
 			dev_err(cdata->dev, "error enabling charger\n");
-			goto fail_unregister_supply;
+			return ret;
 		}
 		cdata->ac_online = 1;
 		power_supply_changed(cdata->ac);
@@ -301,12 +301,12 @@ static int tps65090_charger_probe(struct platform_device *pdev)
 
 	if (irq != -ENXIO) {
 		ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
-			tps65090_charger_isr, 0, "tps65090-charger", cdata);
+			tps65090_charger_isr, IRQF_ONESHOT, "tps65090-charger", cdata);
 		if (ret) {
 			dev_err(cdata->dev,
 				"Unable to register irq %d err %d\n", irq,
 				ret);
-			goto fail_unregister_supply;
+			return ret;
 		}
 	} else {
 		cdata->poll_task = kthread_run(tps65090_charger_poll_task,
@@ -316,27 +316,19 @@ static int tps65090_charger_probe(struct platform_device *pdev)
 			ret = PTR_ERR(cdata->poll_task);
 			dev_err(cdata->dev,
 				"Unable to run kthread err %d\n", ret);
-			goto fail_unregister_supply;
+			return ret;
 		}
 	}
 
 	return 0;
-
-fail_unregister_supply:
-	power_supply_unregister(cdata->ac);
-
-	return ret;
 }
 
-static int tps65090_charger_remove(struct platform_device *pdev)
+static void tps65090_charger_remove(struct platform_device *pdev)
 {
 	struct tps65090_charger *cdata = platform_get_drvdata(pdev);
 
 	if (cdata->irq == -ENXIO)
 		kthread_stop(cdata->poll_task);
-	power_supply_unregister(cdata->ac);
-
-	return 0;
 }
 
 static const struct of_device_id of_tps65090_charger_match[] = {
@@ -351,7 +343,7 @@ static struct platform_driver tps65090_charger_driver = {
 		.of_match_table = of_tps65090_charger_match,
 	},
 	.probe	= tps65090_charger_probe,
-	.remove = tps65090_charger_remove,
+	.remove_new = tps65090_charger_remove,
 };
 module_platform_driver(tps65090_charger_driver);
 

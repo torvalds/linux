@@ -10,11 +10,12 @@
 #define __PINCTRL_LANTIQ_H
 
 #include <linux/clkdev.h>
-#include <linux/pinctrl/pinctrl.h>
-#include <linux/pinctrl/pinconf.h>
-#include <linux/pinctrl/pinmux.h>
+
 #include <linux/pinctrl/consumer.h>
 #include <linux/pinctrl/machine.h>
+#include <linux/pinctrl/pinconf.h>
+#include <linux/pinctrl/pinctrl.h>
+#include <linux/pinctrl/pinmux.h>
 
 #include "core.h"
 
@@ -197,5 +198,4 @@ enum ltq_pin {
 
 extern int ltq_pinctrl_register(struct platform_device *pdev,
 				   struct ltq_pinmux_info *info);
-extern int ltq_pinctrl_unregister(struct platform_device *pdev);
 #endif	/* __PINCTRL_LANTIQ_H */

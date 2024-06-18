@@ -197,7 +197,7 @@ struct snd_ac97_bus_ops {
 
 struct snd_ac97_bus {
 	/* -- lowlevel (hardware) driver specific -- */
-	struct snd_ac97_bus_ops *ops;
+	const struct snd_ac97_bus_ops *ops;
 	void *private_data;
 	void (*private_free) (struct snd_ac97_bus *bus);
 	/* --- */
@@ -310,7 +310,8 @@ static inline int ac97_can_spdif(struct snd_ac97 * ac97)
 
 /* functions */
 /* create new AC97 bus */
-int snd_ac97_bus(struct snd_card *card, int num, struct snd_ac97_bus_ops *ops,
+int snd_ac97_bus(struct snd_card *card, int num,
+		 const struct snd_ac97_bus_ops *ops,
 		 void *private_data, struct snd_ac97_bus **rbus);
 /* create mixer controls */
 int snd_ac97_mixer(struct snd_ac97_bus *bus, struct snd_ac97_template *template,
@@ -334,6 +335,9 @@ static inline int snd_ac97_update_power(struct snd_ac97 *ac97, int reg,
 #ifdef CONFIG_PM
 void snd_ac97_suspend(struct snd_ac97 *ac97);
 void snd_ac97_resume(struct snd_ac97 *ac97);
+#else
+static inline void snd_ac97_suspend(struct snd_ac97 *ac97) {}
+static inline void snd_ac97_resume(struct snd_ac97 *ac97) {}
 #endif
 int snd_ac97_reset(struct snd_ac97 *ac97, bool try_warm, unsigned int id,
 	unsigned int id_mask);
@@ -406,7 +410,7 @@ int snd_ac97_pcm_close(struct ac97_pcm *pcm);
 int snd_ac97_pcm_double_rate_rules(struct snd_pcm_runtime *runtime);
 
 /* ad hoc AC97 device driver access */
-extern struct bus_type ac97_bus_type;
+extern const struct bus_type ac97_bus_type;
 
 /* AC97 platform_data adding function */
 static inline void snd_ac97_dev_add_pdata(struct snd_ac97 *ac97, void *data)

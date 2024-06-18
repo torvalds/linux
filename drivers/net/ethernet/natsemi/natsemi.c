@@ -158,7 +158,7 @@ MODULE_PARM_DESC(full_duplex, "DP8381x full duplex setting(s) (1)");
 I. Board Compatibility
 
 This driver is designed for National Semiconductor DP83815 PCI Ethernet NIC.
-It also works with other chips in in the DP83810 series.
+It also works with other chips in the DP83810 series.
 
 II. Board-specific settings
 
@@ -612,7 +612,7 @@ static void undo_cable_magic(struct net_device *dev);
 static void check_link(struct net_device *dev);
 static void netdev_timer(struct timer_list *t);
 static void dump_ring(struct net_device *dev);
-static void ns_tx_timeout(struct net_device *dev);
+static void ns_tx_timeout(struct net_device *dev, unsigned int txqueue);
 static int alloc_ring(struct net_device *dev);
 static void refill_rx(struct net_device *dev);
 static void init_ring(struct net_device *dev);
@@ -790,7 +790,7 @@ static const struct net_device_ops natsemi_netdev_ops = {
 	.ndo_get_stats		= get_stats,
 	.ndo_set_rx_mode	= set_rx_mode,
 	.ndo_change_mtu		= natsemi_change_mtu,
-	.ndo_do_ioctl		= netdev_ioctl,
+	.ndo_eth_ioctl		= netdev_ioctl,
 	.ndo_tx_timeout 	= ns_tx_timeout,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -809,6 +809,7 @@ static int natsemi_probe1(struct pci_dev *pdev, const struct pci_device_id *ent)
 	unsigned long iosize;
 	void __iomem *ioaddr;
 	const int pcibar = 1; /* PCI base address register */
+	u8 addr[ETH_ALEN];
 	int prev_eedata;
 	u32 tmp;
 
@@ -819,7 +820,7 @@ static int natsemi_probe1(struct pci_dev *pdev, const struct pci_device_id *ent)
 		printk(version);
 #endif
 
-	i = pci_enable_device(pdev);
+	i = pcim_enable_device(pdev);
 	if (i) return i;
 
 	/* natsemi has a non-standard PM control register
@@ -852,22 +853,23 @@ static int natsemi_probe1(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ioaddr = ioremap(iostart, iosize);
 	if (!ioaddr) {
 		i = -ENOMEM;
-		goto err_ioremap;
+		goto err_pci_request_regions;
 	}
 
 	/* Work around the dropped serial bit. */
 	prev_eedata = eeprom_read(ioaddr, 6);
 	for (i = 0; i < 3; i++) {
 		int eedata = eeprom_read(ioaddr, i + 7);
-		dev->dev_addr[i*2] = (eedata << 1) + (prev_eedata >> 15);
-		dev->dev_addr[i*2+1] = eedata >> 7;
+		addr[i*2] = (eedata << 1) + (prev_eedata >> 15);
+		addr[i*2+1] = eedata >> 7;
 		prev_eedata = eedata;
 	}
+	eth_hw_addr_set(dev, addr);
 
 	np = netdev_priv(dev);
 	np->ioaddr = ioaddr;
 
-	netif_napi_add(dev, &np->napi, natsemi_poll, 64);
+	netif_napi_add(dev, &np->napi, natsemi_poll);
 	np->dev = dev;
 
 	np->pci_dev = pdev;
@@ -969,13 +971,10 @@ static int natsemi_probe1(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return 0;
 
  err_create_file:
- 	unregister_netdev(dev);
+	unregister_netdev(dev);
 
  err_register_netdev:
 	iounmap(ioaddr);
-
- err_ioremap:
-	pci_release_regions(pdev);
 
  err_pci_request_regions:
 	free_netdev(dev);
@@ -990,8 +989,6 @@ static int natsemi_probe1(struct pci_dev *pdev, const struct pci_device_id *ent)
    No extra delay is needed with 33Mhz PCI, but future 66Mhz access may need
    a delay.  Note that pre-2.0.34 kernels had a cache-alignment bug that
    made udelay() unreliable.
-   The old method of using an ISA access as a delay, __SLOW_DOWN_IO__, is
-   deprecated.
 */
 #define eeprom_delay(ee_addr)	readl(ee_addr)
 
@@ -1881,7 +1878,7 @@ static void dump_ring(struct net_device *dev)
 	}
 }
 
-static void ns_tx_timeout(struct net_device *dev)
+static void ns_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct netdev_private *np = netdev_priv(dev);
 	void __iomem * ioaddr = ns_ioaddr(dev);
@@ -1916,9 +1913,9 @@ static void ns_tx_timeout(struct net_device *dev)
 static int alloc_ring(struct net_device *dev)
 {
 	struct netdev_private *np = netdev_priv(dev);
-	np->rx_ring = pci_alloc_consistent(np->pci_dev,
-		sizeof(struct netdev_desc) * (RX_RING_SIZE+TX_RING_SIZE),
-		&np->ring_dma);
+	np->rx_ring = dma_alloc_coherent(&np->pci_dev->dev,
+					 sizeof(struct netdev_desc) * (RX_RING_SIZE + TX_RING_SIZE),
+					 &np->ring_dma, GFP_KERNEL);
 	if (!np->rx_ring)
 		return -ENOMEM;
 	np->tx_ring = &np->rx_ring[RX_RING_SIZE];
@@ -1939,10 +1936,10 @@ static void refill_rx(struct net_device *dev)
 			np->rx_skbuff[entry] = skb;
 			if (skb == NULL)
 				break; /* Better luck next round. */
-			np->rx_dma[entry] = pci_map_single(np->pci_dev,
-				skb->data, buflen, PCI_DMA_FROMDEVICE);
-			if (pci_dma_mapping_error(np->pci_dev,
-						  np->rx_dma[entry])) {
+			np->rx_dma[entry] = dma_map_single(&np->pci_dev->dev,
+							   skb->data, buflen,
+							   DMA_FROM_DEVICE);
+			if (dma_mapping_error(&np->pci_dev->dev, np->rx_dma[entry])) {
 				dev_kfree_skb_any(skb);
 				np->rx_skbuff[entry] = NULL;
 				break; /* Better luck next round. */
@@ -2013,9 +2010,8 @@ static void drain_tx(struct net_device *dev)
 
 	for (i = 0; i < TX_RING_SIZE; i++) {
 		if (np->tx_skbuff[i]) {
-			pci_unmap_single(np->pci_dev,
-				np->tx_dma[i], np->tx_skbuff[i]->len,
-				PCI_DMA_TODEVICE);
+			dma_unmap_single(&np->pci_dev->dev, np->tx_dma[i],
+					 np->tx_skbuff[i]->len, DMA_TO_DEVICE);
 			dev_kfree_skb(np->tx_skbuff[i]);
 			dev->stats.tx_dropped++;
 		}
@@ -2034,9 +2030,9 @@ static void drain_rx(struct net_device *dev)
 		np->rx_ring[i].cmd_status = 0;
 		np->rx_ring[i].addr = cpu_to_le32(0xBADF00D0); /* An invalid address. */
 		if (np->rx_skbuff[i]) {
-			pci_unmap_single(np->pci_dev, np->rx_dma[i],
-				buflen + NATSEMI_PADDING,
-				PCI_DMA_FROMDEVICE);
+			dma_unmap_single(&np->pci_dev->dev, np->rx_dma[i],
+					 buflen + NATSEMI_PADDING,
+					 DMA_FROM_DEVICE);
 			dev_kfree_skb(np->rx_skbuff[i]);
 		}
 		np->rx_skbuff[i] = NULL;
@@ -2052,9 +2048,9 @@ static void drain_ring(struct net_device *dev)
 static void free_ring(struct net_device *dev)
 {
 	struct netdev_private *np = netdev_priv(dev);
-	pci_free_consistent(np->pci_dev,
-		sizeof(struct netdev_desc) * (RX_RING_SIZE+TX_RING_SIZE),
-		np->rx_ring, np->ring_dma);
+	dma_free_coherent(&np->pci_dev->dev,
+			  sizeof(struct netdev_desc) * (RX_RING_SIZE + TX_RING_SIZE),
+			  np->rx_ring, np->ring_dma);
 }
 
 static void reinit_rx(struct net_device *dev)
@@ -2101,9 +2097,9 @@ static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev)
 	entry = np->cur_tx % TX_RING_SIZE;
 
 	np->tx_skbuff[entry] = skb;
-	np->tx_dma[entry] = pci_map_single(np->pci_dev,
-				skb->data,skb->len, PCI_DMA_TODEVICE);
-	if (pci_dma_mapping_error(np->pci_dev, np->tx_dma[entry])) {
+	np->tx_dma[entry] = dma_map_single(&np->pci_dev->dev, skb->data,
+					   skb->len, DMA_TO_DEVICE);
+	if (dma_mapping_error(&np->pci_dev->dev, np->tx_dma[entry])) {
 		np->tx_skbuff[entry] = NULL;
 		dev_kfree_skb_irq(skb);
 		dev->stats.tx_dropped++;
@@ -2169,9 +2165,8 @@ static void netdev_tx_done(struct net_device *dev)
 				dev->stats.tx_window_errors++;
 			dev->stats.tx_errors++;
 		}
-		pci_unmap_single(np->pci_dev,np->tx_dma[entry],
-					np->tx_skbuff[entry]->len,
-					PCI_DMA_TODEVICE);
+		dma_unmap_single(&np->pci_dev->dev, np->tx_dma[entry],
+				 np->tx_skbuff[entry]->len, DMA_TO_DEVICE);
 		/* Free the original skb. */
 		dev_consume_skb_irq(np->tx_skbuff[entry]);
 		np->tx_skbuff[entry] = NULL;
@@ -2359,21 +2354,22 @@ static void netdev_rx(struct net_device *dev, int *work_done, int work_to_do)
 			    (skb = netdev_alloc_skb(dev, pkt_len + RX_OFFSET)) != NULL) {
 				/* 16 byte align the IP header */
 				skb_reserve(skb, RX_OFFSET);
-				pci_dma_sync_single_for_cpu(np->pci_dev,
-					np->rx_dma[entry],
-					buflen,
-					PCI_DMA_FROMDEVICE);
+				dma_sync_single_for_cpu(&np->pci_dev->dev,
+							np->rx_dma[entry],
+							buflen,
+							DMA_FROM_DEVICE);
 				skb_copy_to_linear_data(skb,
 					np->rx_skbuff[entry]->data, pkt_len);
 				skb_put(skb, pkt_len);
-				pci_dma_sync_single_for_device(np->pci_dev,
-					np->rx_dma[entry],
-					buflen,
-					PCI_DMA_FROMDEVICE);
+				dma_sync_single_for_device(&np->pci_dev->dev,
+							   np->rx_dma[entry],
+							   buflen,
+							   DMA_FROM_DEVICE);
 			} else {
-				pci_unmap_single(np->pci_dev, np->rx_dma[entry],
+				dma_unmap_single(&np->pci_dev->dev,
+						 np->rx_dma[entry],
 						 buflen + NATSEMI_PADDING,
-						 PCI_DMA_FROMDEVICE);
+						 DMA_FROM_DEVICE);
 				skb_put(skb = np->rx_skbuff[entry], pkt_len);
 				np->rx_skbuff[entry] = NULL;
 			}
@@ -2530,7 +2526,7 @@ static void __set_rx_mode(struct net_device *dev)
 
 static int natsemi_change_mtu(struct net_device *dev, int new_mtu)
 {
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 
 	/* synchronized against open : rtnl_lock() held by caller */
 	if (netif_running(dev)) {
@@ -2568,9 +2564,9 @@ static void set_rx_mode(struct net_device *dev)
 static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	struct netdev_private *np = netdev_priv(dev);
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
-	strlcpy(info->bus_info, pci_name(np->pci_dev), sizeof(info->bus_info));
+	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strscpy(info->version, DRV_VERSION, sizeof(info->version));
+	strscpy(info->bus_info, pci_name(np->pci_dev), sizeof(info->bus_info));
 }
 
 static int get_regs_len(struct net_device *dev)
@@ -3081,7 +3077,7 @@ static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	switch(cmd) {
 	case SIOCGMIIPHY:		/* Get address of MII PHY in use. */
 		data->phy_id = np->phy_addr_external;
-		/* Fall Through */
+		fallthrough;
 
 	case SIOCGMIIREG:		/* Read MII PHY register. */
 		/* The phy_id is not enough to uniquely identify
@@ -3104,14 +3100,14 @@ static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	case SIOCSMIIREG:		/* Write MII PHY register. */
 		if (dev->if_port == PORT_TP) {
 			if ((data->phy_id & 0x1f) == np->phy_addr_external) {
- 				if ((data->reg_num & 0x1f) == MII_ADVERTISE)
+				if ((data->reg_num & 0x1f) == MII_ADVERTISE)
 					np->advertising = data->val_in;
 				mdio_write(dev, data->reg_num & 0x1f,
 							data->val_in);
 			}
 		} else {
 			if ((data->phy_id & 0x1f) == np->phy_addr_external) {
- 				if ((data->reg_num & 0x1f) == MII_ADVERTISE)
+				if ((data->reg_num & 0x1f) == MII_ADVERTISE)
 					np->advertising = data->val_in;
 			}
 			move_int_phy(dev, data->phy_id & 0x1f);
@@ -3242,12 +3238,9 @@ static void natsemi_remove1(struct pci_dev *pdev)
 
 	NATSEMI_REMOVE_FILE(pdev, dspcfg_workaround);
 	unregister_netdev (dev);
-	pci_release_regions (pdev);
 	iounmap(ioaddr);
 	free_netdev (dev);
 }
-
-#ifdef CONFIG_PM
 
 /*
  * The ns83815 chip doesn't have explicit RxStop bits.
@@ -3275,9 +3268,9 @@ static void natsemi_remove1(struct pci_dev *pdev)
  * Interrupts must be disabled, otherwise hands_off can cause irq storms.
  */
 
-static int natsemi_suspend (struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused natsemi_suspend(struct device *dev_d)
 {
-	struct net_device *dev = pci_get_drvdata (pdev);
+	struct net_device *dev = dev_get_drvdata(dev_d);
 	struct netdev_private *np = netdev_priv(dev);
 	void __iomem * ioaddr = ns_ioaddr(dev);
 
@@ -3326,11 +3319,10 @@ static int natsemi_suspend (struct pci_dev *pdev, pm_message_t state)
 }
 
 
-static int natsemi_resume (struct pci_dev *pdev)
+static int __maybe_unused natsemi_resume(struct device *dev_d)
 {
-	struct net_device *dev = pci_get_drvdata (pdev);
+	struct net_device *dev = dev_get_drvdata(dev_d);
 	struct netdev_private *np = netdev_priv(dev);
-	int ret = 0;
 
 	rtnl_lock();
 	if (netif_device_present(dev))
@@ -3339,12 +3331,6 @@ static int natsemi_resume (struct pci_dev *pdev)
 		const int irq = np->pci_dev->irq;
 
 		BUG_ON(!np->hands_off);
-		ret = pci_enable_device(pdev);
-		if (ret < 0) {
-			dev_err(&pdev->dev,
-				"pci_enable_device() failed: %d\n", ret);
-			goto out;
-		}
 	/*	pci_power_on(pdev); */
 
 		napi_enable(&np->napi);
@@ -3364,20 +3350,17 @@ static int natsemi_resume (struct pci_dev *pdev)
 	netif_device_attach(dev);
 out:
 	rtnl_unlock();
-	return ret;
+	return 0;
 }
 
-#endif /* CONFIG_PM */
+static SIMPLE_DEV_PM_OPS(natsemi_pm_ops, natsemi_suspend, natsemi_resume);
 
 static struct pci_driver natsemi_driver = {
 	.name		= DRV_NAME,
 	.id_table	= natsemi_pci_tbl,
 	.probe		= natsemi_probe1,
 	.remove		= natsemi_remove1,
-#ifdef CONFIG_PM
-	.suspend	= natsemi_suspend,
-	.resume		= natsemi_resume,
-#endif
+	.driver.pm	= &natsemi_pm_ops,
 };
 
 static int __init natsemi_init_mod (void)

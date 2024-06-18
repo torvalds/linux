@@ -4,17 +4,21 @@
 
 &spmi_bus {
 
-	pmic@4 {
+	pm8004_lsid4: pmic@4 {
 		compatible = "qcom,pm8004", "qcom,spmi-pmic";
 		reg = <0x4 SPMI_USID>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
 
-	pmic@5 {
+	pm8004_lsid5: pmic@5 {
 		compatible = "qcom,pm8004", "qcom,spmi-pmic";
 		reg = <0x5 SPMI_USID>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		pm8004_spmi_regulators: regulators {
+			compatible = "qcom,pm8004-regulators";
+		};
 	};
 };

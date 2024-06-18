@@ -23,7 +23,6 @@
 MODULE_AUTHOR("Takashi Iwai <tiwai@suse.de>");
 MODULE_DESCRIPTION("ATI IXP AC97 controller");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{ATI,IXP150/200/250/300/400/600}}");
 
 static int index = SNDRV_DEFAULT_IDX1;	/* Index 0-MAX */
 static char *id = SNDRV_DEFAULT_STR1;	/* ID for this card */
@@ -282,7 +281,7 @@ static const struct pci_device_id snd_atiixp_ids[] = {
 
 MODULE_DEVICE_TABLE(pci, snd_atiixp_ids);
 
-static struct snd_pci_quirk atiixp_quirks[] = {
+static const struct snd_pci_quirk atiixp_quirks[] = {
 	SND_PCI_QUIRK(0x105b, 0x0c81, "Foxconn RC4107MA-RS2", 0),
 	SND_PCI_QUIRK(0x15bd, 0x3100, "DFI RS482", 0),
 	{ } /* terminator */
@@ -353,7 +352,7 @@ static int atiixp_build_dma_packets(struct atiixp *chip, struct atiixp_dma *dma,
 
 	if (dma->desc_buf.area == NULL) {
 		if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV,
-					snd_dma_pci_data(chip->pci),
+					&chip->pci->dev,
 					ATI_DESC_LIST_SIZE,
 					&dma->desc_buf) < 0)
 			return -ENOMEM;
@@ -521,7 +520,6 @@ static int snd_atiixp_aclink_reset(struct atiixp *chip)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int snd_atiixp_aclink_down(struct atiixp *chip)
 {
 	// if (atiixp_read(chip, MODEM_MIRROR) & 0x1) /* modem running, too? */
@@ -531,7 +529,6 @@ static int snd_atiixp_aclink_down(struct atiixp *chip)
 		     ATI_REG_CMD_POWERDOWN);
 	return 0;
 }
-#endif
 
 /*
  * auto-detection of codecs
@@ -896,15 +893,15 @@ static int snd_atiixp_playback_prepare(struct snd_pcm_substream *substream)
 	case 8:
 		data |= ATI_REG_OUT_DMA_SLOT_BIT(10) |
 			ATI_REG_OUT_DMA_SLOT_BIT(11);
-		/* fall through */
+		fallthrough;
 	case 6:
 		data |= ATI_REG_OUT_DMA_SLOT_BIT(7) |
 			ATI_REG_OUT_DMA_SLOT_BIT(8);
-		/* fall through */
+		fallthrough;
 	case 4:
 		data |= ATI_REG_OUT_DMA_SLOT_BIT(6) |
 			ATI_REG_OUT_DMA_SLOT_BIT(9);
-		/* fall through */
+		fallthrough;
 	default:
 		data |= ATI_REG_OUT_DMA_SLOT_BIT(3) |
 			ATI_REG_OUT_DMA_SLOT_BIT(4);
@@ -952,9 +949,6 @@ static int snd_atiixp_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct atiixp_dma *dma = substream->runtime->private_data;
 	int err;
 
-	err = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
-	if (err < 0)
-		return err;
 	dma->buf_addr = substream->runtime->dma_addr;
 	dma->buf_bytes = params_buffer_bytes(hw_params);
 
@@ -994,7 +988,6 @@ static int snd_atiixp_pcm_hw_free(struct snd_pcm_substream *substream)
 		dma->pcm_open_flag = 0;
 	}
 	atiixp_clear_dma_packets(chip, dma, substream);
-	snd_pcm_lib_free_pages(substream);
 	return 0;
 }
 
@@ -1044,7 +1037,8 @@ static int snd_atiixp_pcm_open(struct snd_pcm_substream *substream,
 		/* direct SPDIF */
 		runtime->hw.formats = SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE;
 	}
-	if ((err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS)) < 0)
+	err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
+	if (err < 0)
 		return err;
 	runtime->private_data = dma;
 
@@ -1144,7 +1138,6 @@ static int snd_atiixp_spdif_close(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_atiixp_playback_ops = {
 	.open =		snd_atiixp_playback_open,
 	.close =	snd_atiixp_playback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_atiixp_pcm_hw_params,
 	.hw_free =	snd_atiixp_pcm_hw_free,
 	.prepare =	snd_atiixp_playback_prepare,
@@ -1156,7 +1149,6 @@ static const struct snd_pcm_ops snd_atiixp_playback_ops = {
 static const struct snd_pcm_ops snd_atiixp_capture_ops = {
 	.open =		snd_atiixp_capture_open,
 	.close =	snd_atiixp_capture_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_atiixp_pcm_hw_params,
 	.hw_free =	snd_atiixp_pcm_hw_free,
 	.prepare =	snd_atiixp_capture_prepare,
@@ -1168,7 +1160,6 @@ static const struct snd_pcm_ops snd_atiixp_capture_ops = {
 static const struct snd_pcm_ops snd_atiixp_spdif_ops = {
 	.open =		snd_atiixp_spdif_open,
 	.close =	snd_atiixp_spdif_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_atiixp_pcm_hw_params,
 	.hw_free =	snd_atiixp_pcm_hw_free,
 	.prepare =	snd_atiixp_spdif_prepare,
@@ -1283,9 +1274,8 @@ static int snd_atiixp_pcm_new(struct atiixp *chip)
 	strcpy(pcm->name, "ATI IXP AC97");
 	chip->pcmdevs[ATI_PCMDEV_ANALOG] = pcm;
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(chip->pci),
-					      64*1024, 128*1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+				       &chip->pci->dev, 64*1024, 128*1024);
 
 	err = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
 				     snd_pcm_alt_chmaps, chip->max_channels, 0,
@@ -1316,9 +1306,8 @@ static int snd_atiixp_pcm_new(struct atiixp *chip)
 		strcpy(pcm->name, "ATI IXP IEC958 (Direct)");
 	chip->pcmdevs[ATI_PCMDEV_DIGITAL] = pcm;
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(chip->pci),
-					      64*1024, 128*1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+				       &chip->pci->dev, 64*1024, 128*1024);
 
 	/* pre-select AC97 SPDIF slots 10/11 */
 	for (i = 0; i < NUM_ATI_CODECS; i++) {
@@ -1412,11 +1401,11 @@ static int snd_atiixp_mixer_new(struct atiixp *chip, int clock,
 	struct snd_ac97_template ac97;
 	int i, err;
 	int codec_count;
-	static struct snd_ac97_bus_ops ops = {
+	static const struct snd_ac97_bus_ops ops = {
 		.write = snd_atiixp_ac97_write,
 		.read = snd_atiixp_ac97_read,
 	};
-	static unsigned int codec_skip[NUM_ATI_CODECS] = {
+	static const unsigned int codec_skip[NUM_ATI_CODECS] = {
 		ATI_REG_ISR_CODEC0_NOT_READY,
 		ATI_REG_ISR_CODEC1_NOT_READY,
 		ATI_REG_ISR_CODEC2_NOT_READY,
@@ -1425,7 +1414,8 @@ static int snd_atiixp_mixer_new(struct atiixp *chip, int clock,
 	if (snd_atiixp_codec_detect(chip) < 0)
 		return -ENXIO;
 
-	if ((err = snd_ac97_bus(chip->card, 0, &ops, chip, &pbus)) < 0)
+	err = snd_ac97_bus(chip->card, 0, &ops, chip, &pbus);
+	if (err < 0)
 		return err;
 	pbus->clock = clock;
 	chip->ac97_bus = pbus;
@@ -1441,7 +1431,8 @@ static int snd_atiixp_mixer_new(struct atiixp *chip, int clock,
 		ac97.scaps = AC97_SCAP_SKIP_MODEM | AC97_SCAP_POWER_SAVE;
 		if (! chip->spdif_over_aclink)
 			ac97.scaps |= AC97_SCAP_NO_SPDIF;
-		if ((err = snd_ac97_mixer(pbus, &ac97, &chip->ac97[i])) < 0) {
+		err = snd_ac97_mixer(pbus, &ac97, &chip->ac97[i]);
+		if (err < 0) {
 			chip->ac97[i] = NULL; /* to be sure */
 			dev_dbg(chip->card->dev,
 				"codec %d not available for audio\n", i);
@@ -1461,7 +1452,6 @@ static int snd_atiixp_mixer_new(struct atiixp *chip, int clock,
 }
 
 
-#ifdef CONFIG_PM_SLEEP
 /*
  * power management
  */
@@ -1506,12 +1496,7 @@ static int snd_atiixp_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(snd_atiixp_pm, snd_atiixp_suspend, snd_atiixp_resume);
-#define SND_ATIIXP_PM_OPS	&snd_atiixp_pm
-#else
-#define SND_ATIIXP_PM_OPS	NULL
-#endif /* CONFIG_PM_SLEEP */
-
+static DEFINE_SIMPLE_DEV_PM_OPS(snd_atiixp_pm, snd_atiixp_suspend, snd_atiixp_resume);
 
 /*
  * proc interface for register dump
@@ -1537,115 +1522,80 @@ static void snd_atiixp_proc_init(struct atiixp *chip)
  * destructor
  */
 
-static int snd_atiixp_free(struct atiixp *chip)
+static void snd_atiixp_free(struct snd_card *card)
 {
-	if (chip->irq < 0)
-		goto __hw_end;
-	snd_atiixp_chip_stop(chip);
-
-      __hw_end:
-	if (chip->irq >= 0)
-		free_irq(chip->irq, chip);
-	iounmap(chip->remap_addr);
-	pci_release_regions(chip->pci);
-	pci_disable_device(chip->pci);
-	kfree(chip);
-	return 0;
-}
-
-static int snd_atiixp_dev_free(struct snd_device *device)
-{
-	struct atiixp *chip = device->device_data;
-	return snd_atiixp_free(chip);
+	snd_atiixp_chip_stop(card->private_data);
 }
 
 /*
  * constructor for chip instance
  */
-static int snd_atiixp_create(struct snd_card *card,
-			     struct pci_dev *pci,
-			     struct atiixp **r_chip)
+static int snd_atiixp_init(struct snd_card *card, struct pci_dev *pci)
 {
-	static struct snd_device_ops ops = {
-		.dev_free =	snd_atiixp_dev_free,
-	};
-	struct atiixp *chip;
+	struct atiixp *chip = card->private_data;
 	int err;
 
-	if ((err = pci_enable_device(pci)) < 0)
+	err = pcim_enable_device(pci);
+	if (err < 0)
 		return err;
-
-	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
-	if (chip == NULL) {
-		pci_disable_device(pci);
-		return -ENOMEM;
-	}
 
 	spin_lock_init(&chip->reg_lock);
 	mutex_init(&chip->open_mutex);
 	chip->card = card;
 	chip->pci = pci;
 	chip->irq = -1;
-	if ((err = pci_request_regions(pci, "ATI IXP AC97")) < 0) {
-		pci_disable_device(pci);
-		kfree(chip);
+	err = pcim_iomap_regions(pci, 1 << 0, "ATI IXP AC97");
+	if (err < 0)
 		return err;
-	}
 	chip->addr = pci_resource_start(pci, 0);
-	chip->remap_addr = pci_ioremap_bar(pci, 0);
-	if (chip->remap_addr == NULL) {
-		dev_err(card->dev, "AC'97 space ioremap problem\n");
-		snd_atiixp_free(chip);
-		return -EIO;
-	}
+	chip->remap_addr = pcim_iomap_table(pci)[0];
 
-	if (request_irq(pci->irq, snd_atiixp_interrupt, IRQF_SHARED,
-			KBUILD_MODNAME, chip)) {
+	if (devm_request_irq(&pci->dev, pci->irq, snd_atiixp_interrupt,
+			     IRQF_SHARED, KBUILD_MODNAME, chip)) {
 		dev_err(card->dev, "unable to grab IRQ %d\n", pci->irq);
-		snd_atiixp_free(chip);
 		return -EBUSY;
 	}
 	chip->irq = pci->irq;
+	card->sync_irq = chip->irq;
+	card->private_free = snd_atiixp_free;
 	pci_set_master(pci);
-	synchronize_irq(chip->irq);
 
-	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
-		snd_atiixp_free(chip);
-		return err;
-	}
-
-	*r_chip = chip;
 	return 0;
 }
 
 
-static int snd_atiixp_probe(struct pci_dev *pci,
-			    const struct pci_device_id *pci_id)
+static int __snd_atiixp_probe(struct pci_dev *pci,
+			      const struct pci_device_id *pci_id)
 {
 	struct snd_card *card;
 	struct atiixp *chip;
 	int err;
 
-	err = snd_card_new(&pci->dev, index, id, THIS_MODULE, 0, &card);
+	err = snd_devm_card_new(&pci->dev, index, id, THIS_MODULE,
+				sizeof(*chip), &card);
 	if (err < 0)
 		return err;
+	chip = card->private_data;
 
 	strcpy(card->driver, spdif_aclink ? "ATIIXP" : "ATIIXP-SPDMA");
 	strcpy(card->shortname, "ATI IXP");
-	if ((err = snd_atiixp_create(card, pci, &chip)) < 0)
-		goto __error;
-	card->private_data = chip;
+	err = snd_atiixp_init(card, pci);
+	if (err < 0)
+		return err;
 
-	if ((err = snd_atiixp_aclink_reset(chip)) < 0)
-		goto __error;
+	err = snd_atiixp_aclink_reset(chip);
+	if (err < 0)
+		return err;
 
 	chip->spdif_over_aclink = spdif_aclink;
 
-	if ((err = snd_atiixp_mixer_new(chip, ac97_clock, ac97_quirk)) < 0)
-		goto __error;
+	err = snd_atiixp_mixer_new(chip, ac97_clock, ac97_quirk);
+	if (err < 0)
+		return err;
 
-	if ((err = snd_atiixp_pcm_new(chip)) < 0)
-		goto __error;
+	err = snd_atiixp_pcm_new(chip);
+	if (err < 0)
+		return err;
 	
 	snd_atiixp_proc_init(chip);
 
@@ -1657,29 +1607,26 @@ static int snd_atiixp_probe(struct pci_dev *pci,
 		 chip->ac97[0] ? snd_ac97_get_short_name(chip->ac97[0]) : "?",
 		 chip->addr, chip->irq);
 
-	if ((err = snd_card_register(card)) < 0)
-		goto __error;
+	err = snd_card_register(card);
+	if (err < 0)
+		return err;
 
 	pci_set_drvdata(pci, card);
 	return 0;
-
- __error:
-	snd_card_free(card);
-	return err;
 }
 
-static void snd_atiixp_remove(struct pci_dev *pci)
+static int snd_atiixp_probe(struct pci_dev *pci,
+			    const struct pci_device_id *pci_id)
 {
-	snd_card_free(pci_get_drvdata(pci));
+	return snd_card_free_on_error(&pci->dev, __snd_atiixp_probe(pci, pci_id));
 }
 
 static struct pci_driver atiixp_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_atiixp_ids,
 	.probe = snd_atiixp_probe,
-	.remove = snd_atiixp_remove,
 	.driver = {
-		.pm = SND_ATIIXP_PM_OPS,
+		.pm = &snd_atiixp_pm,
 	},
 };
 

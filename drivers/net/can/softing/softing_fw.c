@@ -273,7 +273,7 @@ int softing_load_app_fw(const char *file, struct softing *card)
 			goto failed;
 		}
 
-		/* regualar data */
+		/* regular data */
 		for (sum = 0, j = 0; j < len; ++j)
 			sum += dat[j];
 		/* work in 16bit (target) */
@@ -436,7 +436,7 @@ int softing_startstop(struct net_device *dev, int up)
 		return ret;
 
 	bus_bitmask_start = 0;
-	if (dev && up)
+	if (up)
 		/* prepare to start this bus as well */
 		bus_bitmask_start |= (1 << priv->index);
 	/* bring netdevs down */
@@ -474,14 +474,14 @@ int softing_startstop(struct net_device *dev, int up)
 	if (ret)
 		goto failed;
 	if (!bus_bitmask_start)
-		/* no busses to be brought up */
+		/* no buses to be brought up */
 		goto card_done;
 
 	if ((bus_bitmask_start & 1) && (bus_bitmask_start & 2)
 			&& (softing_error_reporting(card->net[0])
 				!= softing_error_reporting(card->net[1]))) {
 		dev_alert(&card->pdev->dev,
-				"err_reporting flag differs for busses\n");
+				"err_reporting flag differs for buses\n");
 		goto invalid;
 	}
 	error_reporting = 0;
@@ -565,18 +565,19 @@ int softing_startstop(struct net_device *dev, int up)
 		if (ret < 0)
 			goto failed;
 	}
-	/* enable_error_frame */
-	/*
+
+	/* enable_error_frame
+	 *
 	 * Error reporting is switched off at the moment since
 	 * the receiving of them is not yet 100% verified
 	 * This should be enabled sooner or later
-	 *
-	if (error_reporting) {
+	 */
+	if (0 && error_reporting) {
 		ret = softing_fct_cmd(card, 51, "enable_error_frame");
 		if (ret < 0)
 			goto failed;
 	}
-	*/
+
 	/* initialize interface */
 	iowrite16(1, &card->dpram[DPRAM_FCT_PARAM + 2]);
 	iowrite16(1, &card->dpram[DPRAM_FCT_PARAM + 4]);
@@ -624,7 +625,7 @@ int softing_startstop(struct net_device *dev, int up)
 	 */
 	memset(&msg, 0, sizeof(msg));
 	msg.can_id = CAN_ERR_FLAG | CAN_ERR_RESTARTED;
-	msg.can_dlc = CAN_ERR_DLC;
+	msg.len = CAN_ERR_DLC;
 	for (j = 0; j < ARRAY_SIZE(card->net); ++j) {
 		if (!(bus_bitmask_start & (1 << j)))
 			continue;
@@ -635,7 +636,7 @@ int softing_startstop(struct net_device *dev, int up)
 		priv->can.state = CAN_STATE_ERROR_ACTIVE;
 		open_candev(netdev);
 		if (dev != netdev) {
-			/* notify other busses on the restart */
+			/* notify other buses on the restart */
 			softing_netdev_rx(netdev, &msg, 0);
 			++priv->can.can_stats.restarts;
 		}

@@ -20,7 +20,6 @@
 #include <linux/mfd/max77686-private.h>
 #include <linux/err.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 
 static const struct mfd_cell max77686_devs[] = {
 	{ .name = "max77686-pmic", },
@@ -87,7 +86,7 @@ static bool max77802_rtc_is_volatile_reg(struct device *dev, unsigned int reg)
 		reg == MAX77802_RTC_WEEKDAY ||
 		reg == MAX77802_RTC_MONTH ||
 		reg == MAX77802_RTC_YEAR ||
-		reg == MAX77802_RTC_DATE);
+		reg == MAX77802_RTC_MONTHDAY);
 }
 
 static bool max77802_is_volatile_reg(struct device *dev, unsigned int reg)
@@ -109,7 +108,7 @@ static const struct regmap_config max77802_regmap_config = {
 	.precious_reg = max77802_is_precious_reg,
 	.volatile_reg = max77802_is_volatile_reg,
 	.name = "max77802-pmic",
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static const struct regmap_irq max77686_irqs[] = {
@@ -209,8 +208,7 @@ static int max77686_i2c_probe(struct i2c_client *i2c)
 
 	ret = devm_regmap_add_irq_chip(&i2c->dev, max77686->regmap,
 				       max77686->irq,
-				       IRQF_TRIGGER_FALLING | IRQF_ONESHOT |
-				       IRQF_SHARED, 0, irq_chip,
+				       IRQF_ONESHOT | IRQF_SHARED, 0, irq_chip,
 				       &max77686->irq_data);
 	if (ret < 0) {
 		dev_err(&i2c->dev, "failed to add PMIC irq chip: %d\n", ret);
@@ -227,7 +225,6 @@ static int max77686_i2c_probe(struct i2c_client *i2c)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int max77686_suspend(struct device *dev)
 {
 	struct i2c_client *i2c = to_i2c_client(dev);
@@ -262,17 +259,16 @@ static int max77686_resume(struct device *dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM_SLEEP */
 
-static SIMPLE_DEV_PM_OPS(max77686_pm, max77686_suspend, max77686_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(max77686_pm, max77686_suspend, max77686_resume);
 
 static struct i2c_driver max77686_i2c_driver = {
 	.driver = {
 		   .name = "max77686",
-		   .pm = &max77686_pm,
-		   .of_match_table = of_match_ptr(max77686_pmic_dt_match),
+		   .pm = pm_sleep_ptr(&max77686_pm),
+		   .of_match_table = max77686_pmic_dt_match,
 	},
-	.probe_new = max77686_i2c_probe,
+	.probe = max77686_i2c_probe,
 };
 
 module_i2c_driver(max77686_i2c_driver);

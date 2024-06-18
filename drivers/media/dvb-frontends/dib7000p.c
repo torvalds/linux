@@ -13,7 +13,7 @@
 #include <linux/mutex.h>
 #include <asm/div64.h>
 
-#include <media/dvb_math.h>
+#include <linux/int_log.h>
 #include <media/dvb_frontend.h>
 
 #include "dib7000p.h"
@@ -276,7 +276,7 @@ static int dib7000p_set_power_mode(struct dib7000p_state *state, enum dib7000p_p
 		if (state->version != SOC7090)
 			reg_1280 &= ~((1 << 11));
 		reg_1280 &= ~(1 << 6);
-		/* fall-through */
+		fallthrough;
 	case DIB7000P_POWER_INTERFACE_ONLY:
 		/* just leave power on the control-interfaces: GPIO and (I2C or SDIO) */
 		/* TODO power up either SDIO or I2C */
@@ -497,7 +497,7 @@ static int dib7000p_update_pll(struct dvb_frontend *fe, struct dibx000_bandwidth
 	prediv = reg_1856 & 0x3f;
 	loopdiv = (reg_1856 >> 6) & 0x3f;
 
-	if ((bw != NULL) && (bw->pll_prediv != prediv || bw->pll_ratio != loopdiv)) {
+	if (loopdiv && bw && (bw->pll_prediv != prediv || bw->pll_ratio != loopdiv)) {
 		dprintk("Updating pll (prediv: old =  %d new = %d ; loopdiv : old = %d new = %d)\n", prediv, bw->pll_prediv, loopdiv, bw->pll_ratio);
 		reg_1856 &= 0xf000;
 		reg_1857 = dib7000p_read_word(state, 1857);
@@ -915,7 +915,7 @@ static int dib7000p_agc_startup(struct dvb_frontend *demod)
 
 		dib7000p_restart_agc(state);
 
-		dprintk("SPLIT %p: %hd\n", demod, agc_split);
+		dprintk("SPLIT %p: %u\n", demod, agc_split);
 
 		(*agc_state)++;
 		ret = 5;
@@ -1188,8 +1188,8 @@ static int dib7000p_autosearch_is_irq(struct dvb_frontend *demod)
 
 static void dib7000p_spur_protect(struct dib7000p_state *state, u32 rf_khz, u32 bw)
 {
-	static s16 notch[] = { 16143, 14402, 12238, 9713, 6902, 3888, 759, -2392 };
-	static u8 sine[] = { 0, 2, 3, 5, 6, 8, 9, 11, 13, 14, 16, 17, 19, 20, 22,
+	static const s16 notch[] = { 16143, 14402, 12238, 9713, 6902, 3888, 759, -2392 };
+	static const u8 sine[] = { 0, 2, 3, 5, 6, 8, 9, 11, 13, 14, 16, 17, 19, 20, 22,
 		24, 25, 27, 28, 30, 31, 33, 34, 36, 38, 39, 41, 42, 44, 45, 47, 48, 50, 51,
 		53, 55, 56, 58, 59, 61, 62, 64, 65, 67, 68, 70, 71, 73, 74, 76, 77, 79, 80,
 		82, 83, 85, 86, 88, 89, 91, 92, 94, 95, 97, 98, 99, 101, 102, 104, 105,
@@ -2822,7 +2822,7 @@ void *dib7000p_attach(struct dib7000p_ops *ops)
 
 	return ops;
 }
-EXPORT_SYMBOL(dib7000p_attach);
+EXPORT_SYMBOL_GPL(dib7000p_attach);
 
 static const struct dvb_frontend_ops dib7000p_ops = {
 	.delsys = { SYS_DVBT },

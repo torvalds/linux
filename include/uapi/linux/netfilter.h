@@ -45,11 +45,13 @@ enum nf_inet_hooks {
 	NF_INET_FORWARD,
 	NF_INET_LOCAL_OUT,
 	NF_INET_POST_ROUTING,
-	NF_INET_NUMHOOKS
+	NF_INET_NUMHOOKS,
+	NF_INET_INGRESS = NF_INET_NUMHOOKS,
 };
 
 enum nf_dev_hooks {
 	NF_NETDEV_INGRESS,
+	NF_NETDEV_EGRESS,
 	NF_NETDEV_NUMHOOKS
 };
 
@@ -61,7 +63,9 @@ enum {
 	NFPROTO_NETDEV =  5,
 	NFPROTO_BRIDGE =  7,
 	NFPROTO_IPV6   = 10,
+#ifndef __KERNEL__ /* no longer supported by kernel */
 	NFPROTO_DECNET = 12,
+#endif
 	NFPROTO_NUMPROTO,
 };
 

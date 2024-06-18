@@ -18,6 +18,8 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 
+#include <asm/unaligned.h>
+
 #include "ad5624r.h"
 
 static int ad5624r_spi_write(struct spi_device *spi,
@@ -35,11 +37,9 @@ static int ad5624r_spi_write(struct spi_device *spi,
 	 * for the AD5664R, AD5644R, and AD5624R, respectively.
 	 */
 	data = (0 << 22) | (cmd << 19) | (addr << 16) | (val << shift);
-	msg[0] = data >> 16;
-	msg[1] = data >> 8;
-	msg[2] = data;
+	put_unaligned_be24(data, &msg[0]);
 
-	return spi_write(spi, msg, 3);
+	return spi_write(spi, msg, sizeof(msg));
 }
 
 static int ad5624r_read_raw(struct iio_dev *indio_dev,
@@ -117,8 +117,8 @@ static ssize_t ad5624r_read_dac_powerdown(struct iio_dev *indio_dev,
 {
 	struct ad5624r_state *st = iio_priv(indio_dev);
 
-	return sprintf(buf, "%d\n",
-			!!(st->pwr_down_mask & (1 << chan->channel)));
+	return sysfs_emit(buf, "%d\n",
+			  !!(st->pwr_down_mask & (1 << chan->channel)));
 }
 
 static ssize_t ad5624r_write_dac_powerdown(struct iio_dev *indio_dev,
@@ -129,7 +129,7 @@ static ssize_t ad5624r_write_dac_powerdown(struct iio_dev *indio_dev,
 	int ret;
 	struct ad5624r_state *st = iio_priv(indio_dev);
 
-	ret = strtobool(buf, &pwr_down);
+	ret = kstrtobool(buf, &pwr_down);
 	if (ret)
 		return ret;
 
@@ -159,7 +159,7 @@ static const struct iio_chan_spec_ext_info ad5624r_ext_info[] = {
 	},
 	IIO_ENUM("powerdown_mode", IIO_SHARED_BY_TYPE,
 		 &ad5624r_powerdown_mode_enum),
-	IIO_ENUM_AVAILABLE("powerdown_mode", &ad5624r_powerdown_mode_enum),
+	IIO_ENUM_AVAILABLE("powerdown_mode", IIO_SHARED_BY_TYPE, &ad5624r_powerdown_mode_enum),
 	{ },
 };
 
@@ -229,7 +229,7 @@ static int ad5624r_probe(struct spi_device *spi)
 	if (!indio_dev)
 		return -ENOMEM;
 	st = iio_priv(indio_dev);
-	st->reg = devm_regulator_get(&spi->dev, "vcc");
+	st->reg = devm_regulator_get_optional(&spi->dev, "vref");
 	if (!IS_ERR(st->reg)) {
 		ret = regulator_enable(st->reg);
 		if (ret)
@@ -240,6 +240,22 @@ static int ad5624r_probe(struct spi_device *spi)
 			goto error_disable_reg;
 
 		voltage_uv = ret;
+	} else {
+		if (PTR_ERR(st->reg) != -ENODEV)
+			return PTR_ERR(st->reg);
+		/* Backwards compatibility. This naming is not correct */
+		st->reg = devm_regulator_get_optional(&spi->dev, "vcc");
+		if (!IS_ERR(st->reg)) {
+			ret = regulator_enable(st->reg);
+			if (ret)
+				return ret;
+
+			ret = regulator_get_voltage(st->reg);
+			if (ret < 0)
+				goto error_disable_reg;
+
+			voltage_uv = ret;
+		}
 	}
 
 	spi_set_drvdata(spi, indio_dev);
@@ -253,7 +269,6 @@ static int ad5624r_probe(struct spi_device *spi)
 
 	st->us = spi;
 
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->info = &ad5624r_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -278,7 +293,7 @@ error_disable_reg:
 	return ret;
 }
 
-static int ad5624r_remove(struct spi_device *spi)
+static void ad5624r_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad5624r_state *st = iio_priv(indio_dev);
@@ -286,8 +301,6 @@ static int ad5624r_remove(struct spi_device *spi)
 	iio_device_unregister(indio_dev);
 	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
-
-	return 0;
 }
 
 static const struct spi_device_id ad5624r_id[] = {

@@ -80,6 +80,8 @@ struct pl031_vendor_data {
 	bool clockwatch;
 	bool st_weekday;
 	unsigned long irqflags;
+	time64_t range_min;
+	timeu64_t range_max;
 };
 
 struct pl031_local {
@@ -123,11 +125,9 @@ static int pl031_stv2_tm_to_time(struct device *dev,
 		return -EINVAL;
 	} else if (wday == -1) {
 		/* wday is not provided, calculate it here */
-		unsigned long time;
 		struct rtc_time calc_tm;
 
-		rtc_tm_to_time(tm, &time);
-		rtc_time_to_tm(time, &calc_tm);
+		rtc_time64_to_tm(rtc_tm_to_time64(tm), &calc_tm);
 		wday = calc_tm.tm_wday;
 	}
 
@@ -210,17 +210,13 @@ static int pl031_stv2_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	unsigned long bcd_year;
 	int ret;
 
-	/* At the moment, we can only deal with non-wildcarded alarm times. */
-	ret = rtc_valid_tm(&alarm->time);
+	ret = pl031_stv2_tm_to_time(dev, &alarm->time,
+				    &time, &bcd_year);
 	if (ret == 0) {
-		ret = pl031_stv2_tm_to_time(dev, &alarm->time,
-					    &time, &bcd_year);
-		if (ret == 0) {
-			writel(bcd_year, ldata->base + RTC_YMR);
-			writel(time, ldata->base + RTC_MR);
+		writel(bcd_year, ldata->base + RTC_YMR);
+		writel(time, ldata->base + RTC_MR);
 
-			pl031_alarm_irq_enable(dev, alarm->enabled);
-		}
+		pl031_alarm_irq_enable(dev, alarm->enabled);
 	}
 
 	return ret;
@@ -248,30 +244,25 @@ static int pl031_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct pl031_local *ldata = dev_get_drvdata(dev);
 
-	rtc_time_to_tm(readl(ldata->base + RTC_DR), tm);
+	rtc_time64_to_tm(readl(ldata->base + RTC_DR), tm);
 
 	return 0;
 }
 
 static int pl031_set_time(struct device *dev, struct rtc_time *tm)
 {
-	unsigned long time;
 	struct pl031_local *ldata = dev_get_drvdata(dev);
-	int ret;
 
-	ret = rtc_tm_to_time(tm, &time);
+	writel(rtc_tm_to_time64(tm), ldata->base + RTC_LR);
 
-	if (ret == 0)
-		writel(time, ldata->base + RTC_LR);
-
-	return ret;
+	return 0;
 }
 
 static int pl031_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
 	struct pl031_local *ldata = dev_get_drvdata(dev);
 
-	rtc_time_to_tm(readl(ldata->base + RTC_MR), &alarm->time);
+	rtc_time64_to_tm(readl(ldata->base + RTC_MR), &alarm->time);
 
 	alarm->pending = readl(ldata->base + RTC_RIS) & RTC_BIT_AI;
 	alarm->enabled = readl(ldata->base + RTC_IMSC) & RTC_BIT_AI;
@@ -282,23 +273,14 @@ static int pl031_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 static int pl031_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
 	struct pl031_local *ldata = dev_get_drvdata(dev);
-	unsigned long time;
-	int ret;
 
-	/* At the moment, we can only deal with non-wildcarded alarm times. */
-	ret = rtc_valid_tm(&alarm->time);
-	if (ret == 0) {
-		ret = rtc_tm_to_time(&alarm->time, &time);
-		if (ret == 0) {
-			writel(time, ldata->base + RTC_MR);
-			pl031_alarm_irq_enable(dev, alarm->enabled);
-		}
-	}
+	writel(rtc_tm_to_time64(&alarm->time), ldata->base + RTC_MR);
+	pl031_alarm_irq_enable(dev, alarm->enabled);
 
-	return ret;
+	return 0;
 }
 
-static int pl031_remove(struct amba_device *adev)
+static void pl031_remove(struct amba_device *adev)
 {
 	struct pl031_local *ldata = dev_get_drvdata(&adev->dev);
 
@@ -307,8 +289,6 @@ static int pl031_remove(struct amba_device *adev)
 	if (adev->irq[0])
 		free_irq(adev->irq[0], ldata);
 	amba_release_regions(adev);
-
-	return 0;
 }
 
 static int pl031_probe(struct amba_device *adev, const struct amba_id *id)
@@ -370,21 +350,21 @@ static int pl031_probe(struct amba_device *adev, const struct amba_id *id)
 		}
 	}
 
-	if (!adev->irq[0]) {
-		/* When there's no interrupt, no point in exposing the alarm */
-		ops->read_alarm = NULL;
-		ops->set_alarm = NULL;
-		ops->alarm_irq_enable = NULL;
-	}
-
 	device_init_wakeup(&adev->dev, true);
 	ldata->rtc = devm_rtc_allocate_device(&adev->dev);
-	if (IS_ERR(ldata->rtc))
-		return PTR_ERR(ldata->rtc);
+	if (IS_ERR(ldata->rtc)) {
+		ret = PTR_ERR(ldata->rtc);
+		goto out;
+	}
+
+	if (!adev->irq[0])
+		clear_bit(RTC_FEATURE_ALARM, ldata->rtc->features);
 
 	ldata->rtc->ops = ops;
+	ldata->rtc->range_min = vendor->range_min;
+	ldata->rtc->range_max = vendor->range_max;
 
-	ret = rtc_register_device(ldata->rtc);
+	ret = devm_rtc_register_device(ldata->rtc);
 	if (ret)
 		goto out;
 
@@ -413,6 +393,7 @@ static struct pl031_vendor_data arm_pl031 = {
 		.set_alarm = pl031_set_alarm,
 		.alarm_irq_enable = pl031_alarm_irq_enable,
 	},
+	.range_max = U32_MAX,
 };
 
 /* The First ST derivative */
@@ -426,6 +407,7 @@ static struct pl031_vendor_data stv1_pl031 = {
 	},
 	.clockwatch = true,
 	.st_weekday = true,
+	.range_max = U32_MAX,
 };
 
 /* And the second ST derivative */
@@ -446,6 +428,8 @@ static struct pl031_vendor_data stv2_pl031 = {
 	 * remove IRQF_COND_SUSPEND
 	 */
 	.irqflags = IRQF_SHARED | IRQF_COND_SUSPEND,
+	.range_min = RTC_TIMESTAMP_BEGIN_0000,
+	.range_max = RTC_TIMESTAMP_END_9999,
 };
 
 static const struct amba_id pl031_ids[] = {

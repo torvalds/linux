@@ -692,7 +692,7 @@ static bool fm10k_mbx_tx_complete(struct fm10k_mbx_info *mbx)
 }
 
 /**
- *  fm10k_mbx_deqeueue_rx - Dequeues the message from the head in the Rx FIFO
+ *  fm10k_mbx_dequeue_rx - Dequeues the message from the head in the Rx FIFO
  *  @hw: pointer to hardware structure
  *  @mbx: pointer to mailbox
  *
@@ -809,7 +809,7 @@ static s32 fm10k_mbx_read(struct fm10k_hw *hw, struct fm10k_mbx_info *mbx)
  *  @hw: pointer to hardware structure
  *  @mbx: pointer to mailbox
  *
- *  This function copies the message from the the message array to mbmem
+ *  This function copies the message from the message array to mbmem
  **/
 static void fm10k_mbx_write(struct fm10k_hw *hw, struct fm10k_mbx_info *mbx)
 {
@@ -967,7 +967,7 @@ static s32 fm10k_mbx_validate_msg_hdr(struct fm10k_mbx_info *mbx)
 		if (tail != mbx->head)
 			return FM10K_MBX_ERR_TAIL;
 
-		/* fall through */
+		fallthrough;
 	case FM10K_MSG_DATA:
 		/* validate that head is moving correctly */
 		if (!head || (head == FM10K_MSG_HDR_MASK(HEAD)))
@@ -987,7 +987,7 @@ static s32 fm10k_mbx_validate_msg_hdr(struct fm10k_mbx_info *mbx)
 		if ((size < FM10K_VFMBX_MSG_MTU) || (size & (size + 1)))
 			return FM10K_MBX_ERR_SIZE;
 
-		/* fall through */
+		fallthrough;
 	case FM10K_MSG_ERROR:
 		if (!head || (head == FM10K_MSG_HDR_MASK(HEAD)))
 			return FM10K_MBX_ERR_HEAD;
@@ -1039,6 +1039,7 @@ static s32 fm10k_mbx_create_reply(struct fm10k_hw *hw,
 	case FM10K_STATE_CLOSED:
 		/* generate new header based on data */
 		fm10k_mbx_create_disconnect_hdr(mbx);
+		break;
 	default:
 		break;
 	}
@@ -1570,7 +1571,7 @@ s32 fm10k_pfvf_mbx_init(struct fm10k_hw *hw, struct fm10k_mbx_info *mbx,
 			mbx->mbmem_reg = FM10K_MBMEM_VF(id, 0);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		return FM10K_MBX_ERR_NO_MBX;
 	}
@@ -1824,7 +1825,7 @@ static void fm10k_sm_mbx_process_error(struct fm10k_mbx_info *mbx)
 		fm10k_sm_mbx_connect_reset(mbx);
 		break;
 	case FM10K_STATE_CONNECT:
-		/* try connnecting at lower version */
+		/* try connecting at lower version */
 		if (mbx->remote) {
 			while (mbx->local > 1)
 				mbx->local--;
@@ -2017,6 +2018,7 @@ static s32 fm10k_sm_mbx_process_reset(struct fm10k_hw *hw,
 	case FM10K_STATE_CONNECT:
 		/* Update remote value to match local value */
 		mbx->remote = mbx->local;
+		break;
 	default:
 		break;
 	}

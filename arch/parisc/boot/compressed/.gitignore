@@ -1,5 +1,4 @@
-firmware.c
-real2.S
+# SPDX-License-Identifier: GPL-2.0-only
 sizes.h
 vmlinux
 vmlinux.lds

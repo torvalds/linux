@@ -8,34 +8,6 @@
  *  Copyright (c) by Paul Barton-Davis <pbd@op.net>
  */
 
-#if (!defined(__GNUC__) && !defined(__GNUG__))
-
-     You will not be able to compile this file correctly without gcc, because
-     it is necessary to pack the "wavefront_alias" structure to a size
-     of 22 bytes, corresponding to 16-bit alignment (as would have been
-     the case on the original platform, MS-DOS). If this is not done,
-     then WavePatch-format files cannot be read/written correctly.
-     The method used to do this here ("__attribute__((packed)") is
-     completely compiler dependent.
-     
-     All other wavefront_* types end up aligned to 32 bit values and
-     still have the same (correct) size.
-
-#else
-
-     /* However, note that as of G++ 2.7.3.2, g++ was unable to
-	correctly parse *type* __attribute__ tags. It will do the
-	right thing if we use the "packed" attribute on each struct
-	member, which has the same semantics anyway. 
-     */
-
-#endif /* __GNUC__ */
-
-/***************************** WARNING ********************************
-  PLEASE DO NOT MODIFY THIS FILE IN ANY WAY THAT AFFECTS ITS ABILITY TO 
-  BE USED WITH EITHER C *OR* C++.
- **********************************************************************/
-
 #ifndef NUM_MIDIKEYS 
 #define NUM_MIDIKEYS 128
 #endif  /* NUM_MIDIKEYS */
@@ -43,29 +15,6 @@
 #ifndef NUM_MIDICHANNELS
 #define NUM_MIDICHANNELS 16
 #endif  /* NUM_MIDICHANNELS */
-
-/* These are very useful/important. the original wavefront interface
-   was developed on a 16 bit system, where sizeof(int) = 2
-   bytes. Defining things like this makes the code much more portable, and
-   easier to understand without having to toggle back and forth
-   between a 16-bit view of the world and a 32-bit one. 
- */   
-
-#ifndef __KERNEL__
-/* keep them for compatibility */
-typedef short s16;
-typedef unsigned short u16;
-typedef int s32;
-typedef unsigned int u32;
-typedef char s8;
-typedef unsigned char u8;
-typedef s16 INT16;
-typedef u16 UINT16;
-typedef s32 INT32;
-typedef u32 UINT32;
-typedef s8 CHAR8;
-typedef u8 UCHAR8;
-#endif
 
 /* Pseudo-commands not part of the WaveFront command set.
    These are used for various driver controls and direct
@@ -468,7 +417,7 @@ typedef struct wf_alias {
     */
 
     u8 sixteen_bit_padding;
-} __attribute__((packed)) wavefront_alias;
+} __packed wavefront_alias;
 
 typedef struct wf_drum {
     u8 PatchNumber;

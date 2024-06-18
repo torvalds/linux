@@ -58,6 +58,12 @@ struct drm_mode_config_funcs {
 	 * actual modifier used if the request doesn't have it specified,
 	 * ie. when (@mode_cmd->flags & DRM_MODE_FB_MODIFIERS) == 0.
 	 *
+	 * IMPORTANT: These implied modifiers for legacy userspace must be
+	 * stored in struct &drm_framebuffer, including all relevant metadata
+	 * like &drm_framebuffer.pitches and &drm_framebuffer.offsets if the
+	 * modifier enables additional planes beyond the fourcc pixel format
+	 * code. This is required by the GETFB2 ioctl.
+	 *
 	 * If the parameters are deemed valid and the backing storage objects in
 	 * the underlying memory manager all exist, then the driver allocates
 	 * a new &drm_framebuffer structure, subclassed to contain
@@ -97,14 +103,13 @@ struct drm_mode_config_funcs {
 	 * Callback used by helpers to inform the driver of output configuration
 	 * changes.
 	 *
-	 * Drivers implementing fbdev emulation with the helpers can call
-	 * drm_fb_helper_hotplug_changed from this hook to inform the fbdev
-	 * helper of output changes.
+	 * Drivers implementing fbdev emulation use drm_kms_helper_hotplug_event()
+	 * to call this hook to inform the fbdev helper of output changes.
 	 *
-	 * FIXME:
-	 *
-	 * Except that there's no vtable for device-level helper callbacks
-	 * there's no reason this is a core function.
+	 * This hook is deprecated, drivers should instead use
+	 * drm_fbdev_generic_setup() which takes care of any necessary
+	 * hotplug event forwarding already without further involvement by
+	 * the driver.
 	 */
 	void (*output_poll_changed)(struct drm_device *dev);
 
@@ -340,7 +345,6 @@ struct drm_mode_config_funcs {
  * @max_width: maximum fb pixel width on this device
  * @max_height: maximum fb pixel height on this device
  * @funcs: core driver provided mode setting functions
- * @fb_base: base address of the framebuffer
  * @poll_enabled: track polling support for this device
  * @poll_running: track polling status for this device
  * @delayed_event: track delayed poll uevent deliver for this device
@@ -354,6 +358,19 @@ struct drm_mode_config_funcs {
  * Core mode resource tracking structure.  All CRTC, encoders, and connectors
  * enumerated by the driver are added here, as are global properties.  Some
  * global restrictions are also here, e.g. dimension restrictions.
+ *
+ * Framebuffer sizes refer to the virtual screen that can be displayed by
+ * the CRTC. This can be different from the physical resolution programmed.
+ * The minimum width and height, stored in @min_width and @min_height,
+ * describe the smallest size of the framebuffer. It correlates to the
+ * minimum programmable resolution.
+ * The maximum width, stored in @max_width, is typically limited by the
+ * maximum pitch between two adjacent scanlines. The maximum height, stored
+ * in @max_height, is usually only limited by the amount of addressable video
+ * memory. For hardware that has no real maximum, drivers should pick a
+ * reasonable default.
+ *
+ * See also @DRM_SHADOW_PLANE_MAX_WIDTH and @DRM_SHADOW_PLANE_MAX_HEIGHT.
  */
 struct drm_mode_config {
 	/**
@@ -489,6 +506,16 @@ struct drm_mode_config {
 	struct list_head plane_list;
 
 	/**
+	 * @panic_lock:
+	 *
+	 * Raw spinlock used to protect critical sections of code that access
+	 * the display hardware or modeset software state, which the panic
+	 * printing code must be protected against. See drm_panic_trylock(),
+	 * drm_panic_lock() and drm_panic_unlock().
+	 */
+	struct raw_spinlock panic_lock;
+
+	/**
 	 * @num_crtc:
 	 *
 	 * Number of CRTCs on this device linked with &drm_crtc.head. This is invariant over the lifetime
@@ -524,7 +551,6 @@ struct drm_mode_config {
 	int min_width, min_height;
 	int max_width, max_height;
 	const struct drm_mode_config_funcs *funcs;
-	resource_size_t fb_base;
 
 	/* output poll support */
 	bool poll_enabled;
@@ -603,22 +629,22 @@ struct drm_mode_config {
 	struct drm_property *prop_src_h;
 	/**
 	 * @prop_crtc_x: Default atomic plane property for the plane destination
-	 * position in the &drm_crtc is is being shown on.
+	 * position in the &drm_crtc is being shown on.
 	 */
 	struct drm_property *prop_crtc_x;
 	/**
 	 * @prop_crtc_y: Default atomic plane property for the plane destination
-	 * position in the &drm_crtc is is being shown on.
+	 * position in the &drm_crtc is being shown on.
 	 */
 	struct drm_property *prop_crtc_y;
 	/**
 	 * @prop_crtc_w: Default atomic plane property for the plane destination
-	 * position in the &drm_crtc is is being shown on.
+	 * position in the &drm_crtc is being shown on.
 	 */
 	struct drm_property *prop_crtc_w;
 	/**
 	 * @prop_crtc_h: Default atomic plane property for the plane destination
-	 * position in the &drm_crtc is is being shown on.
+	 * position in the &drm_crtc is being shown on.
 	 */
 	struct drm_property *prop_crtc_h;
 	/**
@@ -681,6 +707,12 @@ struct drm_mode_config {
 	struct drm_property *dvi_i_select_subconnector_property;
 
 	/**
+	 * @dp_subconnector_property: Optional DP property to differentiate
+	 * between different DP downstream port types.
+	 */
+	struct drm_property *dp_subconnector_property;
+
+	/**
 	 * @tv_subconnector_property: Optional TV property to differentiate
 	 * between different TV connector types.
 	 */
@@ -690,11 +722,21 @@ struct drm_mode_config {
 	 * between different TV connector types.
 	 */
 	struct drm_property *tv_select_subconnector_property;
+
 	/**
-	 * @tv_mode_property: Optional TV property to select
+	 * @legacy_tv_mode_property: Optional TV property to select
 	 * the output TV mode.
+	 *
+	 * Superseded by @tv_mode_property
+	 */
+	struct drm_property *legacy_tv_mode_property;
+
+	/**
+	 * @tv_mode_property: Optional TV property to select the TV
+	 * standard output on the connector.
 	 */
 	struct drm_property *tv_mode_property;
+
 	/**
 	 * @tv_left_margin_property: Optional TV property to set the left
 	 * margin (expressed in pixels).
@@ -859,13 +901,6 @@ struct drm_mode_config {
 	uint32_t preferred_depth, prefer_shadow;
 
 	/**
-	 * @prefer_shadow_fbdev:
-	 *
-	 * Hint to framebuffer emulation to prefer shadow-fb rendering.
-	 */
-	bool prefer_shadow_fbdev;
-
-	/**
 	 * @quirk_addfb_prefer_xbgr_30bpp:
 	 *
 	 * Special hack for legacy ADDFB to keep nouveau userspace happy. Should
@@ -894,11 +929,14 @@ struct drm_mode_config {
 	bool async_page_flip;
 
 	/**
-	 * @allow_fb_modifiers:
+	 * @fb_modifiers_not_supported:
 	 *
-	 * Whether the driver supports fb modifiers in the ADDFB2.1 ioctl call.
+	 * When this flag is set, the DRM device will not expose modifier
+	 * support to userspace. This is only used by legacy drivers that infer
+	 * the buffer layout through heuristics without using modifiers. New
+	 * drivers shall not set fhis flag.
 	 */
-	bool allow_fb_modifiers;
+	bool fb_modifiers_not_supported;
 
 	/**
 	 * @normalize_zpos:
@@ -913,6 +951,11 @@ struct drm_mode_config {
 	 * combination.
 	 */
 	struct drm_property *modifiers_property;
+
+	/**
+	 * @size_hints_property: Plane SIZE_HINTS property.
+	 */
+	struct drm_property *size_hints_property;
 
 	/* cursor size */
 	uint32_t cursor_width, cursor_height;
@@ -929,7 +972,23 @@ struct drm_mode_config {
 	const struct drm_mode_config_helper_funcs *helper_private;
 };
 
-void drm_mode_config_init(struct drm_device *dev);
+int __must_check drmm_mode_config_init(struct drm_device *dev);
+
+/**
+ * drm_mode_config_init - DRM mode_configuration structure initialization
+ * @dev: DRM device
+ *
+ * This is the unmanaged version of drmm_mode_config_init() for drivers which
+ * still explicitly call drm_mode_config_cleanup().
+ *
+ * FIXME: This function is deprecated and drivers should be converted over to
+ * drmm_mode_config_init().
+ */
+static inline int drm_mode_config_init(struct drm_device *dev)
+{
+	return drmm_mode_config_init(dev);
+}
+
 void drm_mode_config_reset(struct drm_device *dev);
 void drm_mode_config_cleanup(struct drm_device *dev);
 

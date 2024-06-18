@@ -11,7 +11,7 @@
 #include <linux/i2c.h>
 #include <linux/mutex.h>
 
-#include <media/dvb_math.h>
+#include <linux/int_log.h>
 #include <media/dvb_frontend.h>
 
 #include "dib9000.h"
@@ -258,7 +258,7 @@ static int dib9000_read16_attr(struct dib9000_state *state, u16 reg, u8 *b, u32 
 		state->i2c_write_buffer[0] |= (1 << 4);
 
 	do {
-		l = len < chunk_size ? len : chunk_size;
+		l = min(len, chunk_size);
 		state->msg[1].len = l;
 		state->msg[1].buf = b;
 		ret = i2c_transfer(state->i2c.i2c_adap, state->msg, 2) != 2 ? -EREMOTEIO : 0;
@@ -342,7 +342,7 @@ static int dib9000_write16_attr(struct dib9000_state *state, u16 reg, const u8 *
 		state->i2c_write_buffer[0] |= (1 << 4);
 
 	do {
-		l = len < chunk_size ? len : chunk_size;
+		l = min(len, chunk_size);
 		state->msg[0].len = l + 2;
 		memcpy(&state->i2c_write_buffer[2], buf, l);
 
@@ -2546,7 +2546,7 @@ error:
 	kfree(st);
 	return NULL;
 }
-EXPORT_SYMBOL(dib9000_attach);
+EXPORT_SYMBOL_GPL(dib9000_attach);
 
 static const struct dvb_frontend_ops dib9000_ops = {
 	.delsys = { SYS_DVBT },

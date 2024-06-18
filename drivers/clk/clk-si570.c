@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2010, 2011 Ericsson AB.
  * Copyright (C) 2011 Guenter Roeck.
- * Copyright (C) 2011 - 2013 Xilinx Inc.
+ * Copyright (C) 2011 - 2021 Xilinx Inc.
  *
  * Author: Guenter Roeck <guenter.roeck@ericsson.com>
  *	   Sören Brinkmann <soren.brinkmann@xilinx.com>
@@ -50,11 +50,21 @@
 #define SI570_FREEZE_DCO	(1 << 4)
 
 /**
+ * struct clk_si570_info:
+ * @max_freq:	Maximum frequency for this device
+ * @has_temperature_stability: Device support temperature stability
+ */
+struct clk_si570_info {
+	u64 max_freq;
+	bool has_temperature_stability;
+};
+
+/**
  * struct clk_si570:
  * @hw:	Clock hw struct
  * @regmap:	Device's regmap
  * @div_offset:	Rgister offset for dividers
- * @max_freq:	Maximum frequency for this device
+ * @info:	Device info
  * @fxtal:	Factory xtal frequency
  * @n1:		Clock divider N1
  * @hs_div:	Clock divider HSDIV
@@ -66,7 +76,7 @@ struct clk_si570 {
 	struct clk_hw hw;
 	struct regmap *regmap;
 	unsigned int div_offset;
-	u64 max_freq;
+	const struct clk_si570_info *info;
 	u64 fxtal;
 	unsigned int n1;
 	unsigned int hs_div;
@@ -75,11 +85,6 @@ struct clk_si570 {
 	struct i2c_client *i2c_client;
 };
 #define to_clk_si570(_hw)	container_of(_hw, struct clk_si570, hw)
-
-enum clk_si570_variant {
-	si57x,
-	si59x
-};
 
 /**
  * si570_get_divs() - Read clock dividers from HW
@@ -123,14 +128,18 @@ static int si570_get_divs(struct clk_si570 *data, u64 *rfreq,
  * si570_get_defaults() - Get default values
  * @data:	Driver data structure
  * @fout:	Factory frequency output
+ * @skip_recall:	If true, don't recall NVM into RAM
  * Returns 0 on success, negative errno otherwise.
  */
-static int si570_get_defaults(struct clk_si570 *data, u64 fout)
+static int si570_get_defaults(struct clk_si570 *data, u64 fout,
+			      bool skip_recall)
 {
 	int err;
 	u64 fdco;
 
-	regmap_write(data->regmap, SI570_REG_CONTROL, SI570_CNTRL_RECALL);
+	if (!skip_recall)
+		regmap_write(data->regmap, SI570_REG_CONTROL,
+			     SI570_CNTRL_RECALL);
 
 	err = si570_get_divs(data, &data->rfreq, &data->n1, &data->hs_div);
 	if (err)
@@ -337,7 +346,7 @@ static int si570_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct i2c_client *client = data->i2c_client;
 	int err;
 
-	if (rate < SI570_MIN_FREQ || rate > data->max_freq) {
+	if (rate < SI570_MIN_FREQ || rate > data->info->max_freq) {
 		dev_err(&client->dev,
 			"requested frequency %lu Hz is out of range\n", rate);
 		return -EINVAL;
@@ -388,20 +397,19 @@ static bool si570_regmap_is_writeable(struct device *dev, unsigned int reg)
 static const struct regmap_config si570_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.max_register = 137,
 	.writeable_reg = si570_regmap_is_writeable,
 	.volatile_reg = si570_regmap_is_volatile,
 };
 
-static int si570_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int si570_probe(struct i2c_client *client)
 {
 	struct clk_si570 *data;
 	struct clk_init_data init;
 	u32 initial_fout, factory_fout, stability;
+	bool skip_recall;
 	int err;
-	enum clk_si570_variant variant = id->driver_data;
 
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -413,7 +421,8 @@ static int si570_probe(struct i2c_client *client,
 	data->hw.init = &init;
 	data->i2c_client = client;
 
-	if (variant == si57x) {
+	data->info = i2c_get_match_data(client);
+	if (data->info->has_temperature_stability) {
 		err = of_property_read_u32(client->dev.of_node,
 				"temperature-stability", &stability);
 		if (err) {
@@ -424,10 +433,6 @@ static int si570_probe(struct i2c_client *client,
 		/* adjust register offsets for 7ppm devices */
 		if (stability == 7)
 			data->div_offset = SI570_DIV_OFFSET_7PPM;
-
-		data->max_freq = SI570_MAX_FREQ;
-	} else {
-		data->max_freq = SI598_MAX_FREQ;
 	}
 
 	if (of_property_read_string(client->dev.of_node, "clock-output-names",
@@ -441,6 +446,9 @@ static int si570_probe(struct i2c_client *client,
 		return err;
 	}
 
+	skip_recall = of_property_read_bool(client->dev.of_node,
+					    "silabs,skip-recall");
+
 	data->regmap = devm_regmap_init_i2c(client, &si570_regmap_config);
 	if (IS_ERR(data->regmap)) {
 		dev_err(&client->dev, "failed to allocate register map\n");
@@ -448,7 +456,7 @@ static int si570_probe(struct i2c_client *client,
 	}
 
 	i2c_set_clientdata(client, data);
-	err = si570_get_defaults(data, factory_fout);
+	err = si570_get_defaults(data, factory_fout, skip_recall);
 	if (err)
 		return err;
 
@@ -457,8 +465,8 @@ static int si570_probe(struct i2c_client *client,
 		dev_err(&client->dev, "clock registration failed\n");
 		return err;
 	}
-	err = of_clk_add_hw_provider(client->dev.of_node, of_clk_hw_simple_get,
-				     &data->hw);
+	err = devm_of_clk_add_hw_provider(&client->dev, of_clk_hw_simple_get,
+					  &data->hw);
 	if (err) {
 		dev_err(&client->dev, "unable to add clk provider\n");
 		return err;
@@ -468,10 +476,8 @@ static int si570_probe(struct i2c_client *client,
 	if (!of_property_read_u32(client->dev.of_node, "clock-frequency",
 				&initial_fout)) {
 		err = clk_set_rate(data->hw.clk, initial_fout);
-		if (err) {
-			of_clk_del_provider(client->dev.of_node);
+		if (err)
 			return err;
-		}
 	}
 
 	/* Display a message indicating that we've successfully registered */
@@ -481,27 +487,30 @@ static int si570_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int si570_remove(struct i2c_client *client)
-{
-	of_clk_del_provider(client->dev.of_node);
-	return 0;
-}
+static const struct clk_si570_info clk_si570_info = {
+	.max_freq = SI570_MAX_FREQ,
+	.has_temperature_stability = true,
+};
+
+static const struct clk_si570_info clk_si590_info = {
+	.max_freq = SI598_MAX_FREQ,
+};
 
 static const struct i2c_device_id si570_id[] = {
-	{ "si570", si57x },
-	{ "si571", si57x },
-	{ "si598", si59x },
-	{ "si599", si59x },
+	{ "si570", (kernel_ulong_t)&clk_si570_info },
+	{ "si571", (kernel_ulong_t)&clk_si570_info },
+	{ "si598", (kernel_ulong_t)&clk_si590_info },
+	{ "si599", (kernel_ulong_t)&clk_si590_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, si570_id);
 
 static const struct of_device_id clk_si570_of_match[] = {
-	{ .compatible = "silabs,si570" },
-	{ .compatible = "silabs,si571" },
-	{ .compatible = "silabs,si598" },
-	{ .compatible = "silabs,si599" },
-	{ },
+	{ .compatible = "silabs,si570", .data = &clk_si570_info },
+	{ .compatible = "silabs,si571", .data = &clk_si570_info },
+	{ .compatible = "silabs,si598", .data = &clk_si590_info },
+	{ .compatible = "silabs,si599", .data = &clk_si590_info },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, clk_si570_of_match);
 
@@ -511,7 +520,6 @@ static struct i2c_driver si570_driver = {
 		.of_match_table = clk_si570_of_match,
 	},
 	.probe		= si570_probe,
-	.remove		= si570_remove,
 	.id_table	= si570_id,
 };
 module_i2c_driver(si570_driver);

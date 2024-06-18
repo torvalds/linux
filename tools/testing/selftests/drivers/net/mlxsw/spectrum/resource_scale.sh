@@ -22,8 +22,19 @@ cleanup()
 devlink_sp_read_kvd_defaults
 trap cleanup EXIT
 
-ALL_TESTS="router tc_flower mirror_gre"
+ALL_TESTS="
+	router
+	tc_flower
+	mirror_gre
+	tc_police
+	port
+	rif_mac_profile
+	rif_counter
+	port_range
+"
+
 for current_test in ${TESTS:-$ALL_TESTS}; do
+	RET_FIN=0
 	source ${current_test}_scale.sh
 
 	num_netifs_var=${current_test^^}_NUM_NETIFS
@@ -40,18 +51,34 @@ for current_test in ${TESTS:-$ALL_TESTS}; do
 		for should_fail in 0 1; do
 			RET=0
 			target=$(${current_test}_get_target "$should_fail")
+			if ((target == 0)); then
+				continue
+			fi
 			${current_test}_setup_prepare
 			setup_wait $num_netifs
+			# Update target in case occupancy of a certain resource
+			# changed following the test setup.
+			target=$(${current_test}_get_target "$should_fail")
 			${current_test}_test "$target" "$should_fail"
-			${current_test}_cleanup
 			if [[ "$should_fail" -eq 0 ]]; then
 				log_test "'$current_test' [$profile] $target"
+
+				if ((!RET)); then
+					tt=${current_test}_traffic_test
+					if [[ $(type -t $tt) == "function" ]]
+					then
+						$tt "$target"
+						log_test "'$current_test' [$profile] $target traffic test"
+					fi
+				fi
 			else
 				log_test "'$current_test' [$profile] overflow $target"
 			fi
+			${current_test}_cleanup $target
+			RET_FIN=$(( RET_FIN || RET ))
 		done
 	done
 done
 current_test=""
 
-exit "$RET"
+exit "$RET_FIN"

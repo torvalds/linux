@@ -1,134 +1,145 @@
+/* SPDX-License-Identifier: MIT */
 /*
  * Copyright © 2014 Intel Corporation
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice (including the next
- * paragraph) shall be included in all copies or substantial portions of the
- * Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef _INTEL_LRC_H_
-#define _INTEL_LRC_H_
+#ifndef __INTEL_LRC_H__
+#define __INTEL_LRC_H__
 
+#include "i915_priolist_types.h"
+
+#include <linux/bitfield.h>
 #include <linux/types.h>
 
-struct drm_printer;
+#include "intel_context.h"
 
-struct drm_i915_private;
-struct i915_gem_context;
-struct i915_request;
-struct intel_context;
+struct drm_i915_gem_object;
+struct i915_gem_ww_ctx;
 struct intel_engine_cs;
+struct intel_ring;
+struct kref;
 
-/* Execlists regs */
-#define RING_ELSP(base)				_MMIO((base) + 0x230)
-#define RING_EXECLIST_STATUS_LO(base)		_MMIO((base) + 0x234)
-#define RING_EXECLIST_STATUS_HI(base)		_MMIO((base) + 0x234 + 4)
-#define RING_CONTEXT_CONTROL(base)		_MMIO((base) + 0x244)
-#define	  CTX_CTRL_INHIBIT_SYN_CTX_SWITCH	(1 << 3)
-#define	  CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT	(1 << 0)
-#define   CTX_CTRL_RS_CTX_ENABLE		(1 << 1)
-#define	  CTX_CTRL_ENGINE_CTX_SAVE_INHIBIT	(1 << 2)
-#define RING_CONTEXT_STATUS_PTR(base)		_MMIO((base) + 0x3a0)
-#define RING_EXECLIST_SQ_CONTENTS(base)		_MMIO((base) + 0x510)
-#define RING_EXECLIST_CONTROL(base)		_MMIO((base) + 0x550)
+/* At the start of the context image is its per-process HWS page */
+#define LRC_PPHWSP_PN	(0)
+#define LRC_PPHWSP_SZ	(1)
+/* After the PPHWSP we have the logical state for the context */
+#define LRC_STATE_PN	(LRC_PPHWSP_PN + LRC_PPHWSP_SZ)
+#define LRC_STATE_OFFSET (LRC_STATE_PN * PAGE_SIZE)
 
-#define	  EL_CTRL_LOAD				(1 << 0)
+/* Space within PPHWSP reserved to be used as scratch */
+#define LRC_PPHWSP_SCRATCH		0x34
+#define LRC_PPHWSP_SCRATCH_ADDR		(LRC_PPHWSP_SCRATCH * sizeof(u32))
 
-/* The docs specify that the write pointer wraps around after 5h, "After status
- * is written out to the last available status QW at offset 5h, this pointer
- * wraps to 0."
- *
- * Therefore, one must infer than even though there are 3 bits available, 6 and
- * 7 appear to be * reserved.
- */
-#define GEN8_CSB_ENTRIES 6
-#define GEN8_CSB_PTR_MASK 0x7
-#define GEN8_CSB_READ_PTR_MASK (GEN8_CSB_PTR_MASK << 8)
-#define GEN8_CSB_WRITE_PTR_MASK (GEN8_CSB_PTR_MASK << 0)
+void lrc_init_wa_ctx(struct intel_engine_cs *engine);
+void lrc_fini_wa_ctx(struct intel_engine_cs *engine);
 
-#define GEN11_CSB_ENTRIES 12
-#define GEN11_CSB_PTR_MASK 0xf
-#define GEN11_CSB_READ_PTR_MASK (GEN11_CSB_PTR_MASK << 8)
-#define GEN11_CSB_WRITE_PTR_MASK (GEN11_CSB_PTR_MASK << 0)
+int lrc_alloc(struct intel_context *ce,
+	      struct intel_engine_cs *engine);
+void lrc_reset(struct intel_context *ce);
+void lrc_fini(struct intel_context *ce);
+void lrc_destroy(struct kref *kref);
+
+int
+lrc_pre_pin(struct intel_context *ce,
+	    struct intel_engine_cs *engine,
+	    struct i915_gem_ww_ctx *ww,
+	    void **vaddr);
+int
+lrc_pin(struct intel_context *ce,
+	struct intel_engine_cs *engine,
+	void *vaddr);
+void lrc_unpin(struct intel_context *ce);
+void lrc_post_unpin(struct intel_context *ce);
+
+void lrc_init_state(struct intel_context *ce,
+		    struct intel_engine_cs *engine,
+		    void *state);
+
+void lrc_init_regs(const struct intel_context *ce,
+		   const struct intel_engine_cs *engine,
+		   bool clear);
+void lrc_reset_regs(const struct intel_context *ce,
+		    const struct intel_engine_cs *engine);
+
+u32 lrc_update_regs(const struct intel_context *ce,
+		    const struct intel_engine_cs *engine,
+		    u32 head);
+void lrc_update_offsets(struct intel_context *ce,
+			struct intel_engine_cs *engine);
+
+void lrc_check_regs(const struct intel_context *ce,
+		    const struct intel_engine_cs *engine,
+		    const char *when);
+
+void lrc_update_runtime(struct intel_context *ce);
 
 enum {
-	INTEL_CONTEXT_SCHEDULE_IN = 0,
-	INTEL_CONTEXT_SCHEDULE_OUT,
-	INTEL_CONTEXT_SCHEDULE_PREEMPTED,
+	INTEL_ADVANCED_CONTEXT = 0,
+	INTEL_LEGACY_32B_CONTEXT,
+	INTEL_ADVANCED_AD_CONTEXT,
+	INTEL_LEGACY_64B_CONTEXT
 };
 
-/* Logical Rings */
-void intel_logical_ring_cleanup(struct intel_engine_cs *engine);
+enum {
+	FAULT_AND_HANG = 0,
+	FAULT_AND_HALT, /* Debug only */
+	FAULT_AND_STREAM,
+	FAULT_AND_CONTINUE /* Unsupported */
+};
 
-int intel_execlists_submission_setup(struct intel_engine_cs *engine);
-int intel_execlists_submission_init(struct intel_engine_cs *engine);
+#define CTX_GTT_ADDRESS_MASK			GENMASK(31, 12)
+#define GEN8_CTX_VALID				(1 << 0)
+#define GEN8_CTX_FORCE_PD_RESTORE		(1 << 1)
+#define GEN8_CTX_FORCE_RESTORE			(1 << 2)
+#define GEN8_CTX_L3LLC_COHERENT			(1 << 5)
+#define GEN8_CTX_PRIVILEGE			(1 << 8)
+#define GEN8_CTX_ADDRESSING_MODE_SHIFT		3
+#define GEN12_CTX_PRIORITY_MASK			GENMASK(10, 9)
+#define GEN12_CTX_PRIORITY_HIGH			FIELD_PREP(GEN12_CTX_PRIORITY_MASK, 2)
+#define GEN12_CTX_PRIORITY_NORMAL		FIELD_PREP(GEN12_CTX_PRIORITY_MASK, 1)
+#define GEN12_CTX_PRIORITY_LOW			FIELD_PREP(GEN12_CTX_PRIORITY_MASK, 0)
+#define GEN8_CTX_ID_SHIFT			32
+#define GEN8_CTX_ID_WIDTH			21
+#define GEN11_SW_CTX_ID_SHIFT			37
+#define GEN11_SW_CTX_ID_WIDTH			11
+#define GEN11_ENGINE_CLASS_SHIFT		61
+#define GEN11_ENGINE_CLASS_WIDTH		3
+#define GEN11_ENGINE_INSTANCE_SHIFT		48
+#define GEN11_ENGINE_INSTANCE_WIDTH		6
+#define XEHP_SW_CTX_ID_SHIFT			39
+#define XEHP_SW_CTX_ID_WIDTH			16
+#define XEHP_SW_COUNTER_SHIFT			58
+#define XEHP_SW_COUNTER_WIDTH			6
+#define GEN12_GUC_SW_CTX_ID_SHIFT		39
+#define GEN12_GUC_SW_CTX_ID_WIDTH		16
 
-/* Logical Ring Contexts */
+static inline void lrc_runtime_start(struct intel_context *ce)
+{
+	struct intel_context_stats *stats = &ce->stats;
 
-/*
- * We allocate a header at the start of the context image for our own
- * use, therefore the actual location of the logical state is offset
- * from the start of the VMA. The layout is
- *
- * | [guc]          | [hwsp] [logical state] |
- * |<- our header ->|<- context image      ->|
- *
- */
-/* The first page is used for sharing data with the GuC */
-#define LRC_GUCSHR_PN	(0)
-#define LRC_GUCSHR_SZ	(1)
-/* At the start of the context image is its per-process HWS page */
-#define LRC_PPHWSP_PN	(LRC_GUCSHR_PN + LRC_GUCSHR_SZ)
-#define LRC_PPHWSP_SZ	(1)
-/* Finally we have the logical state for the context */
-#define LRC_STATE_PN	(LRC_PPHWSP_PN + LRC_PPHWSP_SZ)
+	if (intel_context_is_barrier(ce))
+		return;
 
-/*
- * Currently we include the PPHWSP in __intel_engine_context_size() so
- * the size of the header is synonymous with the start of the PPHWSP.
- */
-#define LRC_HEADER_PAGES LRC_PPHWSP_PN
+	if (stats->active)
+		return;
 
-void intel_execlists_set_default_submission(struct intel_engine_cs *engine);
+	WRITE_ONCE(stats->active, intel_context_clock());
+}
 
-void intel_lr_context_reset(struct intel_engine_cs *engine,
-			    struct intel_context *ce,
-			    u32 head,
-			    bool scrub);
+static inline void lrc_runtime_stop(struct intel_context *ce)
+{
+	struct intel_context_stats *stats = &ce->stats;
 
-void intel_execlists_show_requests(struct intel_engine_cs *engine,
-				   struct drm_printer *m,
-				   void (*show_request)(struct drm_printer *m,
-							struct i915_request *rq,
-							const char *prefix),
-				   unsigned int max);
+	if (!stats->active)
+		return;
 
-struct intel_context *
-intel_execlists_create_virtual(struct i915_gem_context *ctx,
-			       struct intel_engine_cs **siblings,
-			       unsigned int count);
+	lrc_update_runtime(ce);
+	WRITE_ONCE(stats->active, 0);
+}
 
-struct intel_context *
-intel_execlists_clone_virtual(struct i915_gem_context *ctx,
-			      struct intel_engine_cs *src);
+#define DG2_PREDICATE_RESULT_WA (PAGE_SIZE - sizeof(u64))
+#define DG2_PREDICATE_RESULT_BB (2048)
 
-int intel_virtual_engine_attach_bond(struct intel_engine_cs *engine,
-				     const struct intel_engine_cs *master,
-				     const struct intel_engine_cs *sibling);
+u32 lrc_indirect_bb(const struct intel_context *ce);
 
-#endif /* _INTEL_LRC_H_ */
+#endif /* __INTEL_LRC_H__ */

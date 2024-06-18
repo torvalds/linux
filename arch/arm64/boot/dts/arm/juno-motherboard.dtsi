@@ -8,102 +8,109 @@
  */
 
 / {
-	smb@8000000 {
-		mb_clk24mhz: clk24mhz {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <24000000>;
-			clock-output-names = "juno_mb:clk24mhz";
-		};
+	mb_clk24mhz: clk24mhz {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <24000000>;
+		clock-output-names = "juno_mb:clk24mhz";
+	};
 
-		mb_clk25mhz: clk25mhz {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <25000000>;
-			clock-output-names = "juno_mb:clk25mhz";
-		};
+	mb_clk25mhz: clk25mhz {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <25000000>;
+		clock-output-names = "juno_mb:clk25mhz";
+	};
 
-		v2m_refclk1mhz: refclk1mhz {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <1000000>;
-			clock-output-names = "juno_mb:refclk1mhz";
-		};
+	v2m_refclk1mhz: refclk1mhz {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <1000000>;
+		clock-output-names = "juno_mb:refclk1mhz";
+	};
 
-		v2m_refclk32khz: refclk32khz {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <32768>;
-			clock-output-names = "juno_mb:refclk32khz";
-		};
+	v2m_refclk32khz: refclk32khz {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+		clock-output-names = "juno_mb:refclk32khz";
+	};
 
-		motherboard {
+	mb_fixed_3v3: mcc-sb-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "MCC_SB_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		power-button {
+			debounce-interval = <50>;
+			wakeup-source;
+			linux,code = <116>;
+			label = "POWER";
+			gpios = <&iofpga_gpio0 0 0x4>;
+		};
+		home-button {
+			debounce-interval = <50>;
+			wakeup-source;
+			linux,code = <102>;
+			label = "HOME";
+			gpios = <&iofpga_gpio0 1 0x4>;
+		};
+		rlock-button {
+			debounce-interval = <50>;
+			wakeup-source;
+			linux,code = <152>;
+			label = "RLOCK";
+			gpios = <&iofpga_gpio0 2 0x4>;
+		};
+		vol-up-button {
+			debounce-interval = <50>;
+			wakeup-source;
+			linux,code = <115>;
+			label = "VOL+";
+			gpios = <&iofpga_gpio0 3 0x4>;
+		};
+		vol-down-button {
+			debounce-interval = <50>;
+			wakeup-source;
+			linux,code = <114>;
+			label = "VOL-";
+			gpios = <&iofpga_gpio0 4 0x4>;
+		};
+		nmi-button {
+			debounce-interval = <50>;
+			wakeup-source;
+			linux,code = <99>;
+			label = "NMI";
+			gpios = <&iofpga_gpio0 5 0x4>;
+		};
+	};
+
+	bus@8000000 {
+		compatible = "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges = <0 0x8000000 0 0x8000000 0x18000000>;
+
+		motherboard-bus@8000000 {
 			compatible = "arm,vexpress,v2p-p1", "simple-bus";
 			#address-cells = <2>;  /* SMB chipselect number and offset */
 			#size-cells = <1>;
-			#interrupt-cells = <1>;
-			ranges;
-			model = "V2M-Juno";
+			ranges = <0 0 0 0x08000000 0x04000000>,
+				 <1 0 0 0x14000000 0x04000000>,
+				 <2 0 0 0x18000000 0x04000000>,
+				 <3 0 0 0x1c000000 0x04000000>,
+				 <4 0 0 0x0c000000 0x04000000>,
+				 <5 0 0 0x10000000 0x04000000>;
 			arm,hbi = <0x252>;
 			arm,vexpress,site = <0>;
-			arm,v2m-memory-map = "rs1";
 
-			mb_fixed_3v3: mcc-sb-3v3 {
-				compatible = "regulator-fixed";
-				regulator-name = "MCC_SB_3V3";
-				regulator-min-microvolt = <3300000>;
-				regulator-max-microvolt = <3300000>;
-				regulator-always-on;
-			};
-
-			gpio-keys {
-				compatible = "gpio-keys";
-
-				power-button {
-					debounce-interval = <50>;
-					wakeup-source;
-					linux,code = <116>;
-					label = "POWER";
-					gpios = <&iofpga_gpio0 0 0x4>;
-				};
-				home-button {
-					debounce-interval = <50>;
-					wakeup-source;
-					linux,code = <102>;
-					label = "HOME";
-					gpios = <&iofpga_gpio0 1 0x4>;
-				};
-				rlock-button {
-					debounce-interval = <50>;
-					wakeup-source;
-					linux,code = <152>;
-					label = "RLOCK";
-					gpios = <&iofpga_gpio0 2 0x4>;
-				};
-				vol-up-button {
-					debounce-interval = <50>;
-					wakeup-source;
-					linux,code = <115>;
-					label = "VOL+";
-					gpios = <&iofpga_gpio0 3 0x4>;
-				};
-				vol-down-button {
-					debounce-interval = <50>;
-					wakeup-source;
-					linux,code = <114>;
-					label = "VOL-";
-					gpios = <&iofpga_gpio0 4 0x4>;
-				};
-				nmi-button {
-					debounce-interval = <50>;
-					wakeup-source;
-					linux,code = <99>;
-					label = "NMI";
-					gpios = <&iofpga_gpio0 5 0x4>;
-				};
-			};
-
-			flash@0,00000000 {
+			flash@0 {
 				/* 2 * 32MiB NOR Flash memory mounted on CS0 */
 				compatible = "arm,vexpress-flash", "cfi-flash";
 				reg = <0 0x00000000 0x04000000>;
@@ -120,7 +127,7 @@
 				};
 			};
 
-			ethernet@2,00000000 {
+			ethernet@200000000 {
 				compatible = "smsc,lan9118", "smsc,lan9115";
 				reg = <2 0x00000000 0x10000>;
 				interrupts = <3>;
@@ -133,7 +140,7 @@
 				vddvario-supply = <&mb_fixed_3v3>;
 			};
 
-			iofpga@3,00000000 {
+			iofpga-bus@300000000 {
 				compatible = "simple-bus";
 				#address-cells = <1>;
 				#size-cells = <1>;
@@ -153,64 +160,75 @@
 				apbregs@10000 {
 					compatible = "syscon", "simple-mfd";
 					reg = <0x010000 0x1000>;
+					ranges = <0x0 0x10000 0x1000>;
+					#address-cells = <1>;
+					#size-cells = <1>;
 
-					led0 {
+					led@8,0 {
 						compatible = "register-bit-led";
+						reg = <0x08 0x04>;
 						offset = <0x08>;
 						mask = <0x01>;
 						label = "vexpress:0";
 						linux,default-trigger = "heartbeat";
 						default-state = "on";
 					};
-					led1 {
+					led@8,1 {
 						compatible = "register-bit-led";
+						reg = <0x08 0x04>;
 						offset = <0x08>;
 						mask = <0x02>;
 						label = "vexpress:1";
 						linux,default-trigger = "mmc0";
 						default-state = "off";
 					};
-					led2 {
+					led@8,2 {
 						compatible = "register-bit-led";
+						reg = <0x08 0x04>;
 						offset = <0x08>;
 						mask = <0x04>;
 						label = "vexpress:2";
 						linux,default-trigger = "cpu0";
 						default-state = "off";
 					};
-					led3 {
+					led@8,3 {
 						compatible = "register-bit-led";
+						reg = <0x08 0x04>;
 						offset = <0x08>;
 						mask = <0x08>;
 						label = "vexpress:3";
 						linux,default-trigger = "cpu1";
 						default-state = "off";
 					};
-					led4 {
+					led@8,4 {
 						compatible = "register-bit-led";
+						reg = <0x08 0x04>;
 						offset = <0x08>;
 						mask = <0x10>;
 						label = "vexpress:4";
 						linux,default-trigger = "cpu2";
 						default-state = "off";
 					};
-					led5 {
+					led@8,5 {
 						compatible = "register-bit-led";
+						reg = <0x08 0x04>;
 						offset = <0x08>;
 						mask = <0x20>;
 						label = "vexpress:5";
 						linux,default-trigger = "cpu3";
 						default-state = "off";
 					};
-					led6 {
+					led@8,6 {
 						compatible = "register-bit-led";
+						reg = <0x08 0x04>;
 						offset = <0x08>;
 						mask = <0x40>;
 						label = "vexpress:6";
 						default-state = "off";
 					};
-					led7 {
+					led@8,7 {
 						compatible = "register-bit-led";
+						reg = <0x08 0x04>;
 						offset = <0x08>;
 						mask = <0x80>;
 						label = "vexpress:7";
@@ -218,7 +236,7 @@
 					};
 				};
 
-				mmci@50000 {
+				mmc@50000 {
 					compatible = "arm,pl180", "arm,primecell";
 					reg = <0x050000 0x1000>;
 					interrupts = <5>;
@@ -246,12 +264,12 @@
 					clock-names = "KMIREFCLK", "apb_pclk";
 				};
 
-				wdt@f0000 {
+				watchdog@f0000 {
 					compatible = "arm,sp805", "arm,primecell";
 					reg = <0x0f0000 0x10000>;
 					interrupts = <7>;
 					clocks = <&mb_clk24mhz>, <&soc_smc50mhz>;
-					clock-names = "wdogclk", "apb_pclk";
+					clock-names = "wdog_clk", "apb_pclk";
 				};
 
 				v2m_timer01: timer@110000 {

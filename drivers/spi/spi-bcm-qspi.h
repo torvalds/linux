@@ -96,7 +96,7 @@ static inline u32 get_qspi_mask(int type)
 /* The common driver functions to be called by the SoC platform driver */
 int bcm_qspi_probe(struct platform_device *pdev,
 		   struct bcm_qspi_soc_intc *soc_intc);
-int bcm_qspi_remove(struct platform_device *pdev);
+void bcm_qspi_remove(struct platform_device *pdev);
 
 /* pm_ops used by the SoC platform driver called on PM suspend/resume */
 extern const struct dev_pm_ops bcm_qspi_pm_ops;

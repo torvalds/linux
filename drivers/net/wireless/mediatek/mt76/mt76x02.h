@@ -15,6 +15,9 @@
 #include "mt76x02_dfs.h"
 #include "mt76x02_dma.h"
 
+#define MT76x02_TX_RING_SIZE	512
+#define MT76x02_PSD_RING_SIZE	128
+#define MT76x02_N_WCIDS 128
 #define MT_CALIBRATE_INTERVAL	HZ
 #define MT_MAC_WORK_INTERVAL	(HZ / 10)
 
@@ -69,18 +72,33 @@ struct mt76x02_beacon_ops {
 #define mt76x02_pre_tbtt_enable(dev, enable)	\
 	(dev)->beacon_ops->pre_tbtt_enable(dev, enable)
 
+struct mt76x02_rate_power {
+	union {
+		struct {
+			s8 cck[4];
+			s8 ofdm[8];
+			s8 ht[16];
+			s8 vht[2];
+		};
+		s8 all[30];
+	};
+};
+
 struct mt76x02_dev {
-	struct mt76_dev mt76; /* must be first */
+	union { /* must be first */
+		struct mt76_dev mt76;
+		struct mt76_phy mphy;
+	};
 
 	struct mac_address macaddr_list[8];
 
 	struct mutex phy_mutex;
 
-	u16 vif_mask;
-
 	u8 txdone_seq;
 	DECLARE_KFIFO_PTR(txstatus_fifo, struct mt76x02_tx_status);
 	spinlock_t txstatus_fifo_lock;
+	u32 tx_airtime;
+	u32 ampdu_ref;
 
 	struct sk_buff *rx_head;
 
@@ -92,26 +110,27 @@ struct mt76x02_dev {
 
 	const struct mt76x02_beacon_ops *beacon_ops;
 
-	u32 aggr_stats[32];
-
-	struct sk_buff *beacons[8];
-	u8 beacon_data_mask;
+	u8 beacon_data_count;
 
 	u8 tbtt_count;
 
 	u32 tx_hang_reset;
-	u8 tx_hang_check;
+	u8 tx_hang_check[4];
+	u8 beacon_hang_check;
 	u8 mcu_timeout;
+
+	struct mt76x02_rate_power rate_power;
 
 	struct mt76x02_calibration cal;
 
+	int txpower_conf;
 	s8 target_power;
 	s8 target_power_delta[2];
 	bool enable_tpc;
 
 	bool no_2ghz;
 
-	u8 coverage_class;
+	s16 coverage_class;
 	u8 slottime;
 
 	struct mt76x02_dfs_pattern_detector dfs_pd;
@@ -129,7 +148,7 @@ struct mt76x02_dev {
 
 extern struct ieee80211_rate mt76x02_rates[12];
 
-void mt76x02_init_device(struct mt76x02_dev *dev);
+int mt76x02_init_device(struct mt76x02_dev *dev);
 void mt76x02_configure_filter(struct ieee80211_hw *hw,
 			      unsigned int changed_flags,
 			      unsigned int *total_flags, u64 multicast);
@@ -151,7 +170,8 @@ int mt76x02_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		    struct ieee80211_vif *vif, struct ieee80211_sta *sta,
 		    struct ieee80211_key_conf *key);
 int mt76x02_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		    u16 queue, const struct ieee80211_tx_queue_params *params);
+		    unsigned int link_id, u16 queue,
+		    const struct ieee80211_tx_queue_params *params);
 void mt76x02_sta_rate_tbl_update(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_sta *sta);
@@ -168,7 +188,7 @@ int mt76x02_set_rts_threshold(struct ieee80211_hw *hw, u32 val);
 void mt76x02_remove_hdr_pad(struct sk_buff *skb, int len);
 bool mt76x02_tx_status_data(struct mt76_dev *mdev, u8 *update);
 void mt76x02_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
-			  struct sk_buff *skb);
+			  struct sk_buff *skb, u32 *info);
 void mt76x02_rx_poll_complete(struct mt76_dev *mdev, enum mt76_rxq_id q);
 irqreturn_t mt76x02_irq_handler(int irq, void *dev_instance);
 void mt76x02_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
@@ -182,7 +202,9 @@ void mt76x02_sw_scan_complete(struct ieee80211_hw *hw,
 void mt76x02_sta_ps(struct mt76_dev *dev, struct ieee80211_sta *sta, bool ps);
 void mt76x02_bss_info_changed(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
-			      struct ieee80211_bss_conf *info, u32 changed);
+			      struct ieee80211_bss_conf *info, u64 changed);
+void mt76x02_reconfig_complete(struct ieee80211_hw *hw,
+			       enum ieee80211_reconfig_type reconfig_type);
 
 struct beacon_bc_data {
 	struct mt76x02_dev *dev;
@@ -212,6 +234,7 @@ static inline bool is_mt76x0(struct mt76x02_dev *dev)
 static inline bool is_mt76x2(struct mt76x02_dev *dev)
 {
 	return mt76_chip(&dev->mt76) == 0x7612 ||
+	       mt76_chip(&dev->mt76) == 0x7632 ||
 	       mt76_chip(&dev->mt76) == 0x7662 ||
 	       mt76_chip(&dev->mt76) == 0x7602;
 }
@@ -239,7 +262,7 @@ mt76x02_rx_get_sta(struct mt76_dev *dev, u8 idx)
 {
 	struct mt76_wcid *wcid;
 
-	if (idx >= ARRAY_SIZE(dev->wcid))
+	if (idx >= MT76x02_N_WCIDS)
 		return NULL;
 
 	wcid = rcu_dereference(dev->wcid[idx]);

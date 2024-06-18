@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 Red Hat. All rights reserved.
  *
@@ -23,12 +24,12 @@
 /*
  * Safe division functions that return zero on divide by zero.
  */
-static unsigned safe_div(unsigned n, unsigned d)
+static unsigned int safe_div(unsigned int n, unsigned int d)
 {
 	return d ? n / d : 0u;
 }
 
-static unsigned safe_mod(unsigned n, unsigned d)
+static unsigned int safe_mod(unsigned int n, unsigned int d)
 {
 	return d ? n % d : 0u;
 }
@@ -36,10 +37,10 @@ static unsigned safe_mod(unsigned n, unsigned d)
 /*----------------------------------------------------------------*/
 
 struct entry {
-	unsigned hash_next:28;
-	unsigned prev:28;
-	unsigned next:28;
-	unsigned level:6;
+	unsigned int hash_next:28;
+	unsigned int prev:28;
+	unsigned int next:28;
+	unsigned int level:6;
 	bool dirty:1;
 	bool allocated:1;
 	bool sentinel:1;
@@ -62,7 +63,7 @@ struct entry_space {
 	struct entry *end;
 };
 
-static int space_init(struct entry_space *es, unsigned nr_entries)
+static int space_init(struct entry_space *es, unsigned int nr_entries)
 {
 	if (!nr_entries) {
 		es->begin = es->end = NULL;
@@ -82,7 +83,7 @@ static void space_exit(struct entry_space *es)
 	vfree(es->begin);
 }
 
-static struct entry *__get_entry(struct entry_space *es, unsigned block)
+static struct entry *__get_entry(struct entry_space *es, unsigned int block)
 {
 	struct entry *e;
 
@@ -92,13 +93,13 @@ static struct entry *__get_entry(struct entry_space *es, unsigned block)
 	return e;
 }
 
-static unsigned to_index(struct entry_space *es, struct entry *e)
+static unsigned int to_index(struct entry_space *es, struct entry *e)
 {
 	BUG_ON(e < es->begin || e >= es->end);
 	return e - es->begin;
 }
 
-static struct entry *to_entry(struct entry_space *es, unsigned block)
+static struct entry *to_entry(struct entry_space *es, unsigned int block)
 {
 	if (block == INDEXER_NULL)
 		return NULL;
@@ -109,8 +110,8 @@ static struct entry *to_entry(struct entry_space *es, unsigned block)
 /*----------------------------------------------------------------*/
 
 struct ilist {
-	unsigned nr_elts;	/* excluding sentinel entries */
-	unsigned head, tail;
+	unsigned int nr_elts;	/* excluding sentinel entries */
+	unsigned int head, tail;
 };
 
 static void l_init(struct ilist *l)
@@ -252,23 +253,23 @@ static struct entry *l_pop_tail(struct entry_space *es, struct ilist *l)
 struct queue {
 	struct entry_space *es;
 
-	unsigned nr_elts;
-	unsigned nr_levels;
+	unsigned int nr_elts;
+	unsigned int nr_levels;
 	struct ilist qs[MAX_LEVELS];
 
 	/*
 	 * We maintain a count of the number of entries we would like in each
 	 * level.
 	 */
-	unsigned last_target_nr_elts;
-	unsigned nr_top_levels;
-	unsigned nr_in_top_levels;
-	unsigned target_count[MAX_LEVELS];
+	unsigned int last_target_nr_elts;
+	unsigned int nr_top_levels;
+	unsigned int nr_in_top_levels;
+	unsigned int target_count[MAX_LEVELS];
 };
 
-static void q_init(struct queue *q, struct entry_space *es, unsigned nr_levels)
+static void q_init(struct queue *q, struct entry_space *es, unsigned int nr_levels)
 {
-	unsigned i;
+	unsigned int i;
 
 	q->es = es;
 	q->nr_elts = 0;
@@ -284,7 +285,7 @@ static void q_init(struct queue *q, struct entry_space *es, unsigned nr_levels)
 	q->nr_in_top_levels = 0u;
 }
 
-static unsigned q_size(struct queue *q)
+static unsigned int q_size(struct queue *q)
 {
 	return q->nr_elts;
 }
@@ -332,9 +333,9 @@ static void q_del(struct queue *q, struct entry *e)
 /*
  * Return the oldest entry of the lowest populated level.
  */
-static struct entry *q_peek(struct queue *q, unsigned max_level, bool can_cross_sentinel)
+static struct entry *q_peek(struct queue *q, unsigned int max_level, bool can_cross_sentinel)
 {
-	unsigned level;
+	unsigned int level;
 	struct entry *e;
 
 	max_level = min(max_level, q->nr_levels);
@@ -369,7 +370,7 @@ static struct entry *q_pop(struct queue *q)
  * used by redistribute, so we know this is true.  It also doesn't adjust
  * the q->nr_elts count.
  */
-static struct entry *__redist_pop_from(struct queue *q, unsigned level)
+static struct entry *__redist_pop_from(struct queue *q, unsigned int level)
 {
 	struct entry *e;
 
@@ -383,9 +384,10 @@ static struct entry *__redist_pop_from(struct queue *q, unsigned level)
 	return NULL;
 }
 
-static void q_set_targets_subrange_(struct queue *q, unsigned nr_elts, unsigned lbegin, unsigned lend)
+static void q_set_targets_subrange_(struct queue *q, unsigned int nr_elts,
+				    unsigned int lbegin, unsigned int lend)
 {
-	unsigned level, nr_levels, entries_per_level, remainder;
+	unsigned int level, nr_levels, entries_per_level, remainder;
 
 	BUG_ON(lbegin > lend);
 	BUG_ON(lend > q->nr_levels);
@@ -426,7 +428,7 @@ static void q_set_targets(struct queue *q)
 
 static void q_redistribute(struct queue *q)
 {
-	unsigned target, level;
+	unsigned int target, level;
 	struct ilist *l, *l_above;
 	struct entry *e;
 
@@ -467,12 +469,12 @@ static void q_redistribute(struct queue *q)
 	}
 }
 
-static void q_requeue(struct queue *q, struct entry *e, unsigned extra_levels,
+static void q_requeue(struct queue *q, struct entry *e, unsigned int extra_levels,
 		      struct entry *s1, struct entry *s2)
 {
 	struct entry *de;
-	unsigned sentinels_passed = 0;
-	unsigned new_level = min(q->nr_levels - 1u, e->level + extra_levels);
+	unsigned int sentinels_passed = 0;
+	unsigned int new_level = min(q->nr_levels - 1u, e->level + extra_levels);
 
 	/* try and find an entry to swap with */
 	if (extra_levels && (e->level < q->nr_levels - 1u)) {
@@ -512,9 +514,9 @@ static void q_requeue(struct queue *q, struct entry *e, unsigned extra_levels,
 #define EIGHTH (1u << (FP_SHIFT - 3u))
 
 struct stats {
-	unsigned hit_threshold;
-	unsigned hits;
-	unsigned misses;
+	unsigned int hit_threshold;
+	unsigned int hits;
+	unsigned int misses;
 };
 
 enum performance {
@@ -523,7 +525,7 @@ enum performance {
 	Q_WELL
 };
 
-static void stats_init(struct stats *s, unsigned nr_levels)
+static void stats_init(struct stats *s, unsigned int nr_levels)
 {
 	s->hit_threshold = (nr_levels * 3u) / 4u;
 	s->hits = 0u;
@@ -535,7 +537,7 @@ static void stats_reset(struct stats *s)
 	s->hits = s->misses = 0u;
 }
 
-static void stats_level_accessed(struct stats *s, unsigned level)
+static void stats_level_accessed(struct stats *s, unsigned int level)
 {
 	if (level >= s->hit_threshold)
 		s->hits++;
@@ -556,7 +558,7 @@ static void stats_miss(struct stats *s)
  */
 static enum performance stats_assess(struct stats *s)
 {
-	unsigned confidence = safe_div(s->hits << FP_SHIFT, s->hits + s->misses);
+	unsigned int confidence = safe_div(s->hits << FP_SHIFT, s->hits + s->misses);
 
 	if (confidence < SIXTEENTH)
 		return Q_POOR;
@@ -573,16 +575,16 @@ static enum performance stats_assess(struct stats *s)
 struct smq_hash_table {
 	struct entry_space *es;
 	unsigned long long hash_bits;
-	unsigned *buckets;
+	unsigned int *buckets;
 };
 
 /*
  * All cache entries are stored in a chained hash table.  To save space we
  * use indexing again, and only store indexes to the next entry.
  */
-static int h_init(struct smq_hash_table *ht, struct entry_space *es, unsigned nr_entries)
+static int h_init(struct smq_hash_table *ht, struct entry_space *es, unsigned int nr_entries)
 {
-	unsigned i, nr_buckets;
+	unsigned int i, nr_buckets;
 
 	ht->es = es;
 	nr_buckets = roundup_pow_of_two(max(nr_entries / 4u, 16u));
@@ -603,7 +605,7 @@ static void h_exit(struct smq_hash_table *ht)
 	vfree(ht->buckets);
 }
 
-static struct entry *h_head(struct smq_hash_table *ht, unsigned bucket)
+static struct entry *h_head(struct smq_hash_table *ht, unsigned int bucket)
 {
 	return to_entry(ht->es, ht->buckets[bucket]);
 }
@@ -613,7 +615,7 @@ static struct entry *h_next(struct smq_hash_table *ht, struct entry *e)
 	return to_entry(ht->es, e->hash_next);
 }
 
-static void __h_insert(struct smq_hash_table *ht, unsigned bucket, struct entry *e)
+static void __h_insert(struct smq_hash_table *ht, unsigned int bucket, struct entry *e)
 {
 	e->hash_next = ht->buckets[bucket];
 	ht->buckets[bucket] = to_index(ht->es, e);
@@ -621,11 +623,12 @@ static void __h_insert(struct smq_hash_table *ht, unsigned bucket, struct entry 
 
 static void h_insert(struct smq_hash_table *ht, struct entry *e)
 {
-	unsigned h = hash_64(from_oblock(e->oblock), ht->hash_bits);
+	unsigned int h = hash_64(from_oblock(e->oblock), ht->hash_bits);
+
 	__h_insert(ht, h, e);
 }
 
-static struct entry *__h_lookup(struct smq_hash_table *ht, unsigned h, dm_oblock_t oblock,
+static struct entry *__h_lookup(struct smq_hash_table *ht, unsigned int h, dm_oblock_t oblock,
 				struct entry **prev)
 {
 	struct entry *e;
@@ -641,7 +644,7 @@ static struct entry *__h_lookup(struct smq_hash_table *ht, unsigned h, dm_oblock
 	return NULL;
 }
 
-static void __h_unlink(struct smq_hash_table *ht, unsigned h,
+static void __h_unlink(struct smq_hash_table *ht, unsigned int h,
 		       struct entry *e, struct entry *prev)
 {
 	if (prev)
@@ -656,7 +659,7 @@ static void __h_unlink(struct smq_hash_table *ht, unsigned h,
 static struct entry *h_lookup(struct smq_hash_table *ht, dm_oblock_t oblock)
 {
 	struct entry *e, *prev;
-	unsigned h = hash_64(from_oblock(oblock), ht->hash_bits);
+	unsigned int h = hash_64(from_oblock(oblock), ht->hash_bits);
 
 	e = __h_lookup(ht, h, oblock, &prev);
 	if (e && prev) {
@@ -673,7 +676,7 @@ static struct entry *h_lookup(struct smq_hash_table *ht, dm_oblock_t oblock)
 
 static void h_remove(struct smq_hash_table *ht, struct entry *e)
 {
-	unsigned h = hash_64(from_oblock(e->oblock), ht->hash_bits);
+	unsigned int h = hash_64(from_oblock(e->oblock), ht->hash_bits);
 	struct entry *prev;
 
 	/*
@@ -689,16 +692,16 @@ static void h_remove(struct smq_hash_table *ht, struct entry *e)
 
 struct entry_alloc {
 	struct entry_space *es;
-	unsigned begin;
+	unsigned int begin;
 
-	unsigned nr_allocated;
+	unsigned int nr_allocated;
 	struct ilist free;
 };
 
 static void init_allocator(struct entry_alloc *ea, struct entry_space *es,
-			   unsigned begin, unsigned end)
+			   unsigned int begin, unsigned int end)
 {
-	unsigned i;
+	unsigned int i;
 
 	ea->es = es;
 	ea->nr_allocated = 0u;
@@ -742,7 +745,7 @@ static struct entry *alloc_entry(struct entry_alloc *ea)
 /*
  * This assumes the cblock hasn't already been allocated.
  */
-static struct entry *alloc_particular_entry(struct entry_alloc *ea, unsigned i)
+static struct entry *alloc_particular_entry(struct entry_alloc *ea, unsigned int i)
 {
 	struct entry *e = __get_entry(ea->es, ea->begin + i);
 
@@ -770,12 +773,12 @@ static bool allocator_empty(struct entry_alloc *ea)
 	return l_empty(&ea->free);
 }
 
-static unsigned get_index(struct entry_alloc *ea, struct entry *e)
+static unsigned int get_index(struct entry_alloc *ea, struct entry *e)
 {
 	return to_index(ea->es, e) - ea->begin;
 }
 
-static struct entry *get_entry(struct entry_alloc *ea, unsigned index)
+static struct entry *get_entry(struct entry_alloc *ea, unsigned int index)
 {
 	return __get_entry(ea->es, ea->begin + index);
 }
@@ -800,9 +803,9 @@ struct smq_policy {
 	sector_t cache_block_size;
 
 	sector_t hotspot_block_size;
-	unsigned nr_hotspot_blocks;
-	unsigned cache_blocks_per_hotspot_block;
-	unsigned hotspot_level_jump;
+	unsigned int nr_hotspot_blocks;
+	unsigned int cache_blocks_per_hotspot_block;
+	unsigned int hotspot_level_jump;
 
 	struct entry_space es;
 	struct entry_alloc writeback_sentinel_alloc;
@@ -831,7 +834,7 @@ struct smq_policy {
 	 * Keeps track of time, incremented by the core.  We use this to
 	 * avoid attributing multiple hits within the same tick.
 	 */
-	unsigned tick;
+	unsigned int tick;
 
 	/*
 	 * The hash tables allows us to quickly find an entry by origin
@@ -846,37 +849,43 @@ struct smq_policy {
 	bool current_demote_sentinels;
 	unsigned long next_demote_period;
 
-	unsigned write_promote_level;
-	unsigned read_promote_level;
+	unsigned int write_promote_level;
+	unsigned int read_promote_level;
 
 	unsigned long next_hotspot_period;
 	unsigned long next_cache_period;
 
 	struct background_tracker *bg_work;
 
-	bool migrations_allowed;
+	bool migrations_allowed:1;
+
+	/*
+	 * If this is set the policy will try and clean the whole cache
+	 * even if the device is not idle.
+	 */
+	bool cleaner:1;
 };
 
 /*----------------------------------------------------------------*/
 
-static struct entry *get_sentinel(struct entry_alloc *ea, unsigned level, bool which)
+static struct entry *get_sentinel(struct entry_alloc *ea, unsigned int level, bool which)
 {
 	return get_entry(ea, which ? level : NR_CACHE_LEVELS + level);
 }
 
-static struct entry *writeback_sentinel(struct smq_policy *mq, unsigned level)
+static struct entry *writeback_sentinel(struct smq_policy *mq, unsigned int level)
 {
 	return get_sentinel(&mq->writeback_sentinel_alloc, level, mq->current_writeback_sentinels);
 }
 
-static struct entry *demote_sentinel(struct smq_policy *mq, unsigned level)
+static struct entry *demote_sentinel(struct smq_policy *mq, unsigned int level)
 {
 	return get_sentinel(&mq->demote_sentinel_alloc, level, mq->current_demote_sentinels);
 }
 
 static void __update_writeback_sentinels(struct smq_policy *mq)
 {
-	unsigned level;
+	unsigned int level;
 	struct queue *q = &mq->dirty;
 	struct entry *sentinel;
 
@@ -889,7 +898,7 @@ static void __update_writeback_sentinels(struct smq_policy *mq)
 
 static void __update_demote_sentinels(struct smq_policy *mq)
 {
-	unsigned level;
+	unsigned int level;
 	struct queue *q = &mq->clean;
 	struct entry *sentinel;
 
@@ -917,7 +926,7 @@ static void update_sentinels(struct smq_policy *mq)
 
 static void __sentinels_init(struct smq_policy *mq)
 {
-	unsigned level;
+	unsigned int level;
 	struct entry *sentinel;
 
 	for (level = 0; level < NR_CACHE_LEVELS; level++) {
@@ -1008,7 +1017,7 @@ static void requeue(struct smq_policy *mq, struct entry *e)
 	}
 }
 
-static unsigned default_promote_level(struct smq_policy *mq)
+static unsigned int default_promote_level(struct smq_policy *mq)
 {
 	/*
 	 * The promote level depends on the current performance of the
@@ -1026,11 +1035,13 @@ static unsigned default_promote_level(struct smq_policy *mq)
 	 * This scheme reminds me of a graph of entropy vs probability of a
 	 * binary variable.
 	 */
-	static unsigned table[] = {1, 1, 1, 2, 4, 6, 7, 8, 7, 6, 4, 4, 3, 3, 2, 2, 1};
+	static const unsigned int table[] = {
+		1, 1, 1, 2, 4, 6, 7, 8, 7, 6, 4, 4, 3, 3, 2, 2, 1
+	};
 
-	unsigned hits = mq->cache_stats.hits;
-	unsigned misses = mq->cache_stats.misses;
-	unsigned index = safe_div(hits << 4u, hits + misses);
+	unsigned int hits = mq->cache_stats.hits;
+	unsigned int misses = mq->cache_stats.misses;
+	unsigned int index = safe_div(hits << 4u, hits + misses);
 	return table[index];
 }
 
@@ -1040,7 +1051,7 @@ static void update_promote_levels(struct smq_policy *mq)
 	 * If there are unused cache entries then we want to be really
 	 * eager to promote.
 	 */
-	unsigned threshold_level = allocator_empty(&mq->cache_alloc) ?
+	unsigned int threshold_level = allocator_empty(&mq->cache_alloc) ?
 		default_promote_level(mq) : (NR_HOTSPOT_LEVELS / 2u);
 
 	threshold_level = max(threshold_level, NR_HOTSPOT_LEVELS);
@@ -1122,7 +1133,7 @@ static void end_cache_period(struct smq_policy *mq)
 #define CLEAN_TARGET 25u
 #define FREE_TARGET 25u
 
-static unsigned percent_to_target(struct smq_policy *mq, unsigned p)
+static unsigned int percent_to_target(struct smq_policy *mq, unsigned int p)
 {
 	return from_cblock(mq->cache_size) * p / 100u;
 }
@@ -1133,7 +1144,7 @@ static bool clean_target_met(struct smq_policy *mq, bool idle)
 	 * Cache entries may not be populated.  So we cannot rely on the
 	 * size of the clean queue.
 	 */
-	if (idle) {
+	if (idle || mq->cleaner) {
 		/*
 		 * We'd like to clean everything.
 		 */
@@ -1148,7 +1159,7 @@ static bool clean_target_met(struct smq_policy *mq, bool idle)
 
 static bool free_target_met(struct smq_policy *mq)
 {
-	unsigned nr_free;
+	unsigned int nr_free;
 
 	nr_free = from_cblock(mq->cache_size) - mq->cache_alloc.nr_allocated;
 	return (nr_free + btracker_nr_demotions_queued(mq->bg_work)) >=
@@ -1298,7 +1309,7 @@ static dm_oblock_t to_hblock(struct smq_policy *mq, dm_oblock_t b)
 
 static struct entry *update_hotspot_queue(struct smq_policy *mq, dm_oblock_t b)
 {
-	unsigned hi;
+	unsigned int hi;
 	dm_oblock_t hb = to_hblock(mq, b);
 	struct entry *e = h_lookup(&mq->hotspot_table, hb);
 
@@ -1547,7 +1558,7 @@ static void smq_clear_dirty(struct dm_cache_policy *p, dm_cblock_t cblock)
 	spin_unlock_irqrestore(&mq->lock, flags);
 }
 
-static unsigned random_level(dm_cblock_t cblock)
+static unsigned int random_level(dm_cblock_t cblock)
 {
 	return hash_32(from_cblock(cblock), 9) & (NR_CACHE_LEVELS - 1);
 }
@@ -1629,6 +1640,7 @@ static void smq_tick(struct dm_cache_policy *p, bool can_block)
 static void smq_allow_migrations(struct dm_cache_policy *p, bool allow)
 {
 	struct smq_policy *mq = to_smq_policy(p);
+
 	mq->migrations_allowed = allow;
 }
 
@@ -1658,7 +1670,7 @@ static int mq_set_config_value(struct dm_cache_policy *p,
 }
 
 static int mq_emit_config_values(struct dm_cache_policy *p, char *result,
-				 unsigned maxlen, ssize_t *sz_ptr)
+				 unsigned int maxlen, ssize_t *sz_ptr)
 {
 	ssize_t sz = *sz_ptr;
 
@@ -1697,16 +1709,16 @@ static void init_policy_functions(struct smq_policy *mq, bool mimic_mq)
 
 static bool too_many_hotspot_blocks(sector_t origin_size,
 				    sector_t hotspot_block_size,
-				    unsigned nr_hotspot_blocks)
+				    unsigned int nr_hotspot_blocks)
 {
 	return (hotspot_block_size * nr_hotspot_blocks) > origin_size;
 }
 
 static void calc_hotspot_params(sector_t origin_size,
 				sector_t cache_block_size,
-				unsigned nr_cache_blocks,
+				unsigned int nr_cache_blocks,
 				sector_t *hotspot_block_size,
-				unsigned *nr_hotspot_blocks)
+				unsigned int *nr_hotspot_blocks)
 {
 	*hotspot_block_size = cache_block_size * 16u;
 	*nr_hotspot_blocks = max(nr_cache_blocks / 4u, 1024u);
@@ -1716,15 +1728,13 @@ static void calc_hotspot_params(sector_t origin_size,
 		*hotspot_block_size /= 2u;
 }
 
-static struct dm_cache_policy *__smq_create(dm_cblock_t cache_size,
-					    sector_t origin_size,
-					    sector_t cache_block_size,
-					    bool mimic_mq,
-					    bool migrations_allowed)
+static struct dm_cache_policy *
+__smq_create(dm_cblock_t cache_size, sector_t origin_size, sector_t cache_block_size,
+	     bool mimic_mq, bool migrations_allowed, bool cleaner)
 {
-	unsigned i;
-	unsigned nr_sentinels_per_queue = 2u * NR_CACHE_LEVELS;
-	unsigned total_sentinels = 2u * nr_sentinels_per_queue;
+	unsigned int i;
+	unsigned int nr_sentinels_per_queue = 2u * NR_CACHE_LEVELS;
+	unsigned int total_sentinels = 2u * nr_sentinels_per_queue;
 	struct smq_policy *mq = kzalloc(sizeof(*mq), GFP_KERNEL);
 
 	if (!mq)
@@ -1807,6 +1817,7 @@ static struct dm_cache_policy *__smq_create(dm_cblock_t cache_size,
 		goto bad_btracker;
 
 	mq->migrations_allowed = migrations_allowed;
+	mq->cleaner = cleaner;
 
 	return &mq->policy;
 
@@ -1830,21 +1841,24 @@ static struct dm_cache_policy *smq_create(dm_cblock_t cache_size,
 					  sector_t origin_size,
 					  sector_t cache_block_size)
 {
-	return __smq_create(cache_size, origin_size, cache_block_size, false, true);
+	return __smq_create(cache_size, origin_size, cache_block_size,
+			    false, true, false);
 }
 
 static struct dm_cache_policy *mq_create(dm_cblock_t cache_size,
 					 sector_t origin_size,
 					 sector_t cache_block_size)
 {
-	return __smq_create(cache_size, origin_size, cache_block_size, true, true);
+	return __smq_create(cache_size, origin_size, cache_block_size,
+			    true, true, false);
 }
 
 static struct dm_cache_policy *cleaner_create(dm_cblock_t cache_size,
 					      sector_t origin_size,
 					      sector_t cache_block_size)
 {
-	return __smq_create(cache_size, origin_size, cache_block_size, false, false);
+	return __smq_create(cache_size, origin_size, cache_block_size,
+			    false, false, true);
 }
 
 /*----------------------------------------------------------------*/
@@ -1933,7 +1947,7 @@ static void __exit smq_exit(void)
 module_init(smq_init);
 module_exit(smq_exit);
 
-MODULE_AUTHOR("Joe Thornber <dm-devel@redhat.com>");
+MODULE_AUTHOR("Joe Thornber <dm-devel@lists.linux.dev>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("smq cache policy");
 

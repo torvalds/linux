@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2013 Freescale Semiconductor, Inc.
+ * Copyright 2021 NXP
  *
  * clock driver for Freescale QorIQ SoCs.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <dt-bindings/clock/fsl,qoriq-clockgen.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
@@ -15,8 +17,8 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
-#include <linux/of_platform.h>
 #include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 
 #define PLL_DIV1	0
@@ -31,7 +33,7 @@
 #define CGA_PLL4	4	/* only on clockgen-1.0, which lacks CGB */
 #define CGB_PLL1	4
 #define CGB_PLL2	5
-#define MAX_PLL_DIV	16
+#define MAX_PLL_DIV	32
 
 struct clockgen_pll_div {
 	struct clk *clk;
@@ -95,6 +97,7 @@ struct clockgen {
 };
 
 static struct clockgen clockgen;
+static bool add_cpufreq_dev __initdata;
 
 static void cg_out(struct clockgen *cg, u32 val, u32 __iomem *reg)
 {
@@ -243,6 +246,14 @@ static const struct clockgen_muxinfo clockgen2_cmux_cgb = {
 	},
 };
 
+static const struct clockgen_muxinfo ls1021a_cmux = {
+	{
+		{ CLKSEL_VALID, CGA_PLL1, PLL_DIV1 },
+		{ CLKSEL_VALID, CGA_PLL1, PLL_DIV2 },
+		{ CLKSEL_VALID, CGA_PLL1, PLL_DIV4 },
+	}
+};
+
 static const struct clockgen_muxinfo ls1028a_hwa1 = {
 	{
 		{ CLKSEL_VALID, PLATFORM_PLL, PLL_DIV1 },
@@ -339,6 +350,32 @@ static const struct clockgen_muxinfo ls1046a_hwa2 = {
 		{},
 		{},
 		{ CLKSEL_VALID, CGA_PLL1, PLL_DIV2 },
+	},
+};
+
+static const struct clockgen_muxinfo ls1088a_hwa1 = {
+	{
+		{},
+		{ CLKSEL_VALID, CGA_PLL1, PLL_DIV1 },
+		{ CLKSEL_VALID, CGA_PLL1, PLL_DIV2 },
+		{ CLKSEL_VALID, CGA_PLL1, PLL_DIV3 },
+		{ CLKSEL_VALID, CGA_PLL1, PLL_DIV4 },
+		{},
+		{ CLKSEL_VALID, CGA_PLL2, PLL_DIV2 },
+		{ CLKSEL_VALID, CGA_PLL2, PLL_DIV3 },
+	},
+};
+
+static const struct clockgen_muxinfo ls1088a_hwa2 = {
+	{
+		{},
+		{ CLKSEL_VALID, CGA_PLL2, PLL_DIV1 },
+		{ CLKSEL_VALID, CGA_PLL2, PLL_DIV2 },
+		{ CLKSEL_VALID, CGA_PLL2, PLL_DIV3 },
+		{ CLKSEL_VALID, CGA_PLL2, PLL_DIV4 },
+		{},
+		{ CLKSEL_VALID, CGA_PLL1, PLL_DIV2 },
+		{ CLKSEL_VALID, CGA_PLL1, PLL_DIV3 },
 	},
 };
 
@@ -528,7 +565,9 @@ static const struct clockgen_chipinfo chipinfo[] = {
 		.cmux_to_group = {
 			0, 1, 1, 1, -1
 		},
-		.pll_mask = 0x3f,
+		.pll_mask = BIT(PLATFORM_PLL) |
+			    BIT(CGA_PLL1) | BIT(CGA_PLL2) | BIT(CGA_PLL3) |
+			    BIT(CGB_PLL1) | BIT(CGB_PLL2),
 		.flags = CG_PLL_8BIT,
 	},
 	{
@@ -544,18 +583,21 @@ static const struct clockgen_chipinfo chipinfo[] = {
 		.cmux_to_group = {
 			0, 1, 1, 1, -1
 		},
-		.pll_mask = 0x3f,
+		.pll_mask = BIT(PLATFORM_PLL) |
+			    BIT(CGA_PLL1) | BIT(CGA_PLL2) | BIT(CGA_PLL3) |
+			    BIT(CGB_PLL1) | BIT(CGB_PLL2),
 		.flags = CG_PLL_8BIT,
 	},
 	{
 		.compat = "fsl,ls1021a-clockgen",
 		.cmux_groups = {
-			&t1023_cmux
+			&ls1021a_cmux
 		},
 		.cmux_to_group = {
 			0, -1
 		},
-		.pll_mask = 0x03,
+		.pll_mask = BIT(PLATFORM_PLL) |
+			    BIT(CGA_PLL1) | BIT(CGA_PLL2),
 	},
 	{
 		.compat = "fsl,ls1028a-clockgen",
@@ -569,7 +611,8 @@ static const struct clockgen_chipinfo chipinfo[] = {
 		.cmux_to_group = {
 			0, 0, 0, 0, -1
 		},
-		.pll_mask = 0x07,
+		.pll_mask = BIT(PLATFORM_PLL) |
+			    BIT(CGA_PLL1) | BIT(CGA_PLL2),
 		.flags = CG_VER3 | CG_LITTLE_ENDIAN,
 	},
 	{
@@ -584,7 +627,8 @@ static const struct clockgen_chipinfo chipinfo[] = {
 		.cmux_to_group = {
 			0, -1
 		},
-		.pll_mask = 0x07,
+		.pll_mask = BIT(PLATFORM_PLL) |
+			    BIT(CGA_PLL1) | BIT(CGA_PLL2),
 		.flags = CG_PLL_8BIT,
 	},
 	{
@@ -599,7 +643,8 @@ static const struct clockgen_chipinfo chipinfo[] = {
 		.cmux_to_group = {
 			0, -1
 		},
-		.pll_mask = 0x07,
+		.pll_mask = BIT(PLATFORM_PLL) |
+			    BIT(CGA_PLL1) | BIT(CGA_PLL2),
 		.flags = CG_PLL_8BIT,
 	},
 	{
@@ -607,10 +652,14 @@ static const struct clockgen_chipinfo chipinfo[] = {
 		.cmux_groups = {
 			&clockgen2_cmux_cga12
 		},
+		.hwaccel = {
+			&ls1088a_hwa1, &ls1088a_hwa2
+		},
 		.cmux_to_group = {
 			0, 0, -1
 		},
-		.pll_mask = 0x07,
+		.pll_mask = BIT(PLATFORM_PLL) |
+			    BIT(CGA_PLL1) | BIT(CGA_PLL2),
 		.flags = CG_VER3 | CG_LITTLE_ENDIAN,
 	},
 	{
@@ -621,7 +670,7 @@ static const struct clockgen_chipinfo chipinfo[] = {
 		.cmux_to_group = {
 			0, -1
 		},
-		.pll_mask = 0x03,
+		.pll_mask = BIT(PLATFORM_PLL) | BIT(CGA_PLL1),
 	},
 	{
 		.compat = "fsl,ls2080a-clockgen",
@@ -631,7 +680,9 @@ static const struct clockgen_chipinfo chipinfo[] = {
 		.cmux_to_group = {
 			0, 0, 1, 1, -1
 		},
-		.pll_mask = 0x37,
+		.pll_mask = BIT(PLATFORM_PLL) |
+			    BIT(CGA_PLL1) | BIT(CGA_PLL2) |
+			    BIT(CGB_PLL1) | BIT(CGB_PLL2),
 		.flags = CG_VER3 | CG_LITTLE_ENDIAN,
 	},
 	{
@@ -642,7 +693,9 @@ static const struct clockgen_chipinfo chipinfo[] = {
 		.cmux_to_group = {
 			0, 0, 0, 0, 1, 1, 1, 1, -1
 		},
-		.pll_mask = 0x37,
+		.pll_mask = BIT(PLATFORM_PLL) |
+			    BIT(CGA_PLL1) | BIT(CGA_PLL2) |
+			    BIT(CGB_PLL1) | BIT(CGB_PLL2),
 		.flags = CG_VER3 | CG_LITTLE_ENDIAN,
 	},
 	{
@@ -655,7 +708,8 @@ static const struct clockgen_chipinfo chipinfo[] = {
 		.cmux_to_group = {
 			0, 0, 1, 1, -1
 		},
-		.pll_mask = 0x07,
+		.pll_mask = BIT(PLATFORM_PLL) |
+			    BIT(CGA_PLL1) | BIT(CGA_PLL2),
 	},
 	{
 		.compat = "fsl,p3041-clockgen",
@@ -667,7 +721,8 @@ static const struct clockgen_chipinfo chipinfo[] = {
 		.cmux_to_group = {
 			0, 0, 1, 1, -1
 		},
-		.pll_mask = 0x07,
+		.pll_mask = BIT(PLATFORM_PLL) |
+			    BIT(CGA_PLL1) | BIT(CGA_PLL2),
 	},
 	{
 		.compat = "fsl,p4080-clockgen",
@@ -679,7 +734,9 @@ static const struct clockgen_chipinfo chipinfo[] = {
 		.cmux_to_group = {
 			0, 0, 0, 0, 1, 1, 1, 1, -1
 		},
-		.pll_mask = 0x1f,
+		.pll_mask = BIT(PLATFORM_PLL) |
+			    BIT(CGA_PLL1) | BIT(CGA_PLL2) |
+			    BIT(CGA_PLL3) | BIT(CGA_PLL4),
 	},
 	{
 		.compat = "fsl,p5020-clockgen",
@@ -691,7 +748,8 @@ static const struct clockgen_chipinfo chipinfo[] = {
 		.cmux_to_group = {
 			0, 1, -1
 		},
-		.pll_mask = 0x07,
+		.pll_mask = BIT(PLATFORM_PLL) |
+			    BIT(CGA_PLL1) | BIT(CGA_PLL2),
 	},
 	{
 		.compat = "fsl,p5040-clockgen",
@@ -703,7 +761,8 @@ static const struct clockgen_chipinfo chipinfo[] = {
 		.cmux_to_group = {
 			0, 0, 1, 1, -1
 		},
-		.pll_mask = 0x0f,
+		.pll_mask = BIT(PLATFORM_PLL) |
+			    BIT(CGA_PLL1) | BIT(CGA_PLL2) | BIT(CGA_PLL3),
 	},
 	{
 		.compat = "fsl,t1023-clockgen",
@@ -718,7 +777,7 @@ static const struct clockgen_chipinfo chipinfo[] = {
 		.cmux_to_group = {
 			0, 0, -1
 		},
-		.pll_mask = 0x03,
+		.pll_mask = BIT(PLATFORM_PLL) | BIT(CGA_PLL1),
 		.flags = CG_PLL_8BIT,
 	},
 	{
@@ -731,7 +790,8 @@ static const struct clockgen_chipinfo chipinfo[] = {
 		.cmux_to_group = {
 			0, 0, 0, 0, -1
 		},
-		.pll_mask = 0x07,
+		.pll_mask = BIT(PLATFORM_PLL) |
+			    BIT(CGA_PLL1) | BIT(CGA_PLL2),
 		.flags = CG_PLL_8BIT,
 	},
 	{
@@ -747,7 +807,8 @@ static const struct clockgen_chipinfo chipinfo[] = {
 		.cmux_to_group = {
 			0, -1
 		},
-		.pll_mask = 0x07,
+		.pll_mask = BIT(PLATFORM_PLL) |
+			    BIT(CGA_PLL1) | BIT(CGA_PLL2),
 		.flags = CG_PLL_8BIT,
 	},
 	{
@@ -763,7 +824,9 @@ static const struct clockgen_chipinfo chipinfo[] = {
 		.cmux_to_group = {
 			0, 0, 1, -1
 		},
-		.pll_mask = 0x3f,
+		.pll_mask = BIT(PLATFORM_PLL) |
+			    BIT(CGA_PLL1) | BIT(CGA_PLL2) | BIT(CGA_PLL3) |
+			    BIT(CGB_PLL1) | BIT(CGB_PLL2),
 		.flags = CG_PLL_8BIT,
 	},
 	{},
@@ -815,6 +878,7 @@ static u8 mux_get_parent(struct clk_hw *hw)
 }
 
 static const struct clk_ops cmux_ops = {
+	.determine_rate = clk_hw_determine_rate_no_reparent,
 	.get_parent = mux_get_parent,
 	.set_parent = mux_set_parent,
 };
@@ -990,7 +1054,7 @@ static void __init create_muxes(struct clockgen *cg)
 	}
 }
 
-static void __init clockgen_init(struct device_node *np);
+static void __init _clockgen_init(struct device_node *np, bool legacy);
 
 /*
  * Legacy nodes may get probed before the parent clockgen node.
@@ -1000,8 +1064,13 @@ static void __init clockgen_init(struct device_node *np);
  */
 static void __init legacy_init_clockgen(struct device_node *np)
 {
-	if (!clockgen.node)
-		clockgen_init(of_get_parent(np));
+	if (!clockgen.node) {
+		struct device_node *parent_np;
+
+		parent_np = of_get_parent(np);
+		_clockgen_init(parent_np, true);
+		of_node_put(parent_np);
+	}
 }
 
 /* Legacy node */
@@ -1096,6 +1165,7 @@ static struct clk * __init create_sysclk(const char *name)
 	sysclk = of_get_child_by_name(clockgen.node, "sysclk");
 	if (sysclk) {
 		clk = sysclk_from_fixed(sysclk, name);
+		of_node_put(sysclk);
 		if (!IS_ERR(clk))
 			return clk;
 	}
@@ -1330,33 +1400,33 @@ static struct clk *clockgen_clk_get(struct of_phandle_args *clkspec, void *data)
 	idx = clkspec->args[1];
 
 	switch (type) {
-	case 0:
+	case QORIQ_CLK_SYSCLK:
 		if (idx != 0)
 			goto bad_args;
 		clk = cg->sysclk;
 		break;
-	case 1:
+	case QORIQ_CLK_CMUX:
 		if (idx >= ARRAY_SIZE(cg->cmux))
 			goto bad_args;
 		clk = cg->cmux[idx];
 		break;
-	case 2:
+	case QORIQ_CLK_HWACCEL:
 		if (idx >= ARRAY_SIZE(cg->hwaccel))
 			goto bad_args;
 		clk = cg->hwaccel[idx];
 		break;
-	case 3:
+	case QORIQ_CLK_FMAN:
 		if (idx >= ARRAY_SIZE(cg->fman))
 			goto bad_args;
 		clk = cg->fman[idx];
 		break;
-	case 4:
+	case QORIQ_CLK_PLATFORM_PLL:
 		pll = &cg->pll[PLATFORM_PLL];
 		if (idx >= ARRAY_SIZE(pll->div))
 			goto bad_args;
 		clk = pll->div[idx].clk;
 		break;
-	case 5:
+	case QORIQ_CLK_CORECLK:
 		if (idx != 0)
 			goto bad_args;
 		clk = cg->coreclk;
@@ -1418,7 +1488,7 @@ static bool __init has_erratum_a4510(void)
 }
 #endif
 
-static void __init clockgen_init(struct device_node *np)
+static void __init _clockgen_init(struct device_node *np, bool legacy)
 {
 	int i, ret;
 	bool is_old_ls1021a = false;
@@ -1487,11 +1557,34 @@ static void __init clockgen_init(struct device_node *np)
 		       __func__, np, ret);
 	}
 
+	/* Don't create cpufreq device for legacy clockgen blocks */
+	add_cpufreq_dev = !legacy;
+
 	return;
 err:
 	iounmap(clockgen.regs);
 	clockgen.regs = NULL;
 }
+
+static void __init clockgen_init(struct device_node *np)
+{
+	_clockgen_init(np, false);
+}
+
+static int __init clockgen_cpufreq_init(void)
+{
+	struct platform_device *pdev;
+
+	if (add_cpufreq_dev) {
+		pdev = platform_device_register_simple("qoriq-cpufreq", -1,
+				NULL, 0);
+		if (IS_ERR(pdev))
+			pr_err("Couldn't register qoriq-cpufreq err=%ld\n",
+				PTR_ERR(pdev));
+	}
+	return 0;
+}
+device_initcall(clockgen_cpufreq_init);
 
 CLK_OF_DECLARE(qoriq_clockgen_1, "fsl,qoriq-clockgen-1.0", clockgen_init);
 CLK_OF_DECLARE(qoriq_clockgen_2, "fsl,qoriq-clockgen-2.0", clockgen_init);

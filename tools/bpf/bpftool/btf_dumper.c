@@ -4,12 +4,14 @@
 #include <ctype.h>
 #include <stdio.h> /* for (FILE *) used by json_writer */
 #include <string.h>
+#include <unistd.h>
 #include <asm/byteorder.h>
 #include <linux/bitops.h>
 #include <linux/btf.h>
 #include <linux/err.h>
+#include <bpf/btf.h>
+#include <bpf/bpf.h>
 
-#include "btf.h"
 #include "json_writer.h"
 #include "main.h"
 
@@ -22,13 +24,112 @@
 static int btf_dumper_do_type(const struct btf_dumper *d, __u32 type_id,
 			      __u8 bit_offset, const void *data);
 
-static void btf_dumper_ptr(const void *data, json_writer_t *jw,
-			   bool is_plain_text)
+static int btf_dump_func(const struct btf *btf, char *func_sig,
+			 const struct btf_type *func_proto,
+			 const struct btf_type *func, int pos, int size);
+
+static int dump_prog_id_as_func_ptr(const struct btf_dumper *d,
+				    const struct btf_type *func_proto,
+				    __u32 prog_id)
 {
-	if (is_plain_text)
-		jsonw_printf(jw, "%p", data);
+	const struct btf_type *func_type;
+	int prog_fd = -1, func_sig_len;
+	struct bpf_prog_info info = {};
+	__u32 info_len = sizeof(info);
+	const char *prog_name = NULL;
+	struct btf *prog_btf = NULL;
+	struct bpf_func_info finfo;
+	__u32 finfo_rec_size;
+	char prog_str[1024];
+	int err;
+
+	/* Get the ptr's func_proto */
+	func_sig_len = btf_dump_func(d->btf, prog_str, func_proto, NULL, 0,
+				     sizeof(prog_str));
+	if (func_sig_len == -1)
+		return -1;
+
+	if (!prog_id)
+		goto print;
+
+	/* Get the bpf_prog's name.  Obtain from func_info. */
+	prog_fd = bpf_prog_get_fd_by_id(prog_id);
+	if (prog_fd < 0)
+		goto print;
+
+	err = bpf_prog_get_info_by_fd(prog_fd, &info, &info_len);
+	if (err)
+		goto print;
+
+	if (!info.btf_id || !info.nr_func_info)
+		goto print;
+
+	finfo_rec_size = info.func_info_rec_size;
+	memset(&info, 0, sizeof(info));
+	info.nr_func_info = 1;
+	info.func_info_rec_size = finfo_rec_size;
+	info.func_info = ptr_to_u64(&finfo);
+
+	err = bpf_prog_get_info_by_fd(prog_fd, &info, &info_len);
+	if (err)
+		goto print;
+
+	prog_btf = btf__load_from_kernel_by_id(info.btf_id);
+	if (!prog_btf)
+		goto print;
+	func_type = btf__type_by_id(prog_btf, finfo.type_id);
+	if (!func_type || !btf_is_func(func_type))
+		goto print;
+
+	prog_name = btf__name_by_offset(prog_btf, func_type->name_off);
+
+print:
+	if (!prog_id)
+		snprintf(&prog_str[func_sig_len],
+			 sizeof(prog_str) - func_sig_len, " 0");
+	else if (prog_name)
+		snprintf(&prog_str[func_sig_len],
+			 sizeof(prog_str) - func_sig_len,
+			 " %s/prog_id:%u", prog_name, prog_id);
 	else
-		jsonw_printf(jw, "%lu", *(unsigned long *)data);
+		snprintf(&prog_str[func_sig_len],
+			 sizeof(prog_str) - func_sig_len,
+			 " <unknown_prog_name>/prog_id:%u", prog_id);
+
+	prog_str[sizeof(prog_str) - 1] = '\0';
+	jsonw_string(d->jw, prog_str);
+	btf__free(prog_btf);
+	if (prog_fd >= 0)
+		close(prog_fd);
+	return 0;
+}
+
+static void btf_dumper_ptr(const struct btf_dumper *d,
+			   const struct btf_type *t,
+			   const void *data)
+{
+	unsigned long value = *(unsigned long *)data;
+	const struct btf_type *ptr_type;
+	__s32 ptr_type_id;
+
+	if (!d->prog_id_as_func_ptr || value > UINT32_MAX)
+		goto print_ptr_value;
+
+	ptr_type_id = btf__resolve_type(d->btf, t->type);
+	if (ptr_type_id < 0)
+		goto print_ptr_value;
+	ptr_type = btf__type_by_id(d->btf, ptr_type_id);
+	if (!ptr_type || !btf_is_func_proto(ptr_type))
+		goto print_ptr_value;
+
+	if (!dump_prog_id_as_func_ptr(d, ptr_type, value))
+		return;
+
+print_ptr_value:
+	if (d->is_plain_text)
+		jsonw_printf(d->jw, "\"%p\"", (void *)value);
+	else
+		jsonw_printf(d->jw, "%lu", value);
 }
 
 static int btf_dumper_modifier(const struct btf_dumper *d, __u32 type_id,
@@ -43,9 +144,104 @@ static int btf_dumper_modifier(const struct btf_dumper *d, __u32 type_id,
 	return btf_dumper_do_type(d, actual_type_id, bit_offset, data);
 }
 
-static void btf_dumper_enum(const void *data, json_writer_t *jw)
+static int btf_dumper_enum(const struct btf_dumper *d,
+			    const struct btf_type *t,
+			    const void *data)
 {
-	jsonw_printf(jw, "%d", *(int *)data);
+	const struct btf_enum *enums = btf_enum(t);
+	__s64 value;
+	__u16 i;
+
+	switch (t->size) {
+	case 8:
+		value = *(__s64 *)data;
+		break;
+	case 4:
+		value = *(__s32 *)data;
+		break;
+	case 2:
+		value = *(__s16 *)data;
+		break;
+	case 1:
+		value = *(__s8 *)data;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	for (i = 0; i < btf_vlen(t); i++) {
+		if (value == enums[i].val) {
+			jsonw_string(d->jw,
+				     btf__name_by_offset(d->btf,
+							 enums[i].name_off));
+			return 0;
+		}
+	}
+
+	jsonw_int(d->jw, value);
+	return 0;
+}
+
+static int btf_dumper_enum64(const struct btf_dumper *d,
+			     const struct btf_type *t,
+			     const void *data)
+{
+	const struct btf_enum64 *enums = btf_enum64(t);
+	__u32 val_lo32, val_hi32;
+	__u64 value;
+	__u16 i;
+
+	value = *(__u64 *)data;
+	val_lo32 = (__u32)value;
+	val_hi32 = value >> 32;
+
+	for (i = 0; i < btf_vlen(t); i++) {
+		if (val_lo32 == enums[i].val_lo32 && val_hi32 == enums[i].val_hi32) {
+			jsonw_string(d->jw,
+				     btf__name_by_offset(d->btf,
+							 enums[i].name_off));
+			return 0;
+		}
+	}
+
+	jsonw_int(d->jw, value);
+	return 0;
+}
+
+static bool is_str_array(const struct btf *btf, const struct btf_array *arr,
+			 const char *s)
+{
+	const struct btf_type *elem_type;
+	const char *end_s;
+
+	if (!arr->nelems)
+		return false;
+
+	elem_type = btf__type_by_id(btf, arr->type);
+	/* Not skipping typedef.  typedef to char does not count as
+	 * a string now.
+	 */
+	while (elem_type && btf_is_mod(elem_type))
+		elem_type = btf__type_by_id(btf, elem_type->type);
+
+	if (!elem_type || !btf_is_int(elem_type) || elem_type->size != 1)
+		return false;
+
+	if (btf_int_encoding(elem_type) != BTF_INT_CHAR &&
+	    strcmp("char", btf__name_by_offset(btf, elem_type->name_off)))
+		return false;
+
+	end_s = s + arr->nelems;
+	while (s < end_s) {
+		if (!*s)
+			return true;
+		if (*s <= 0x1f || *s >= 0x7f)
+			return false;
+		s++;
+	}
+
+	/* '\0' is not found */
+	return false;
 }
 
 static int btf_dumper_array(const struct btf_dumper *d, __u32 type_id,
@@ -56,6 +252,11 @@ static int btf_dumper_array(const struct btf_dumper *d, __u32 type_id,
 	long long elem_size;
 	int ret = 0;
 	__u32 i;
+
+	if (is_str_array(d->btf, arr, data)) {
+		jsonw_string(d->jw, data);
+		return 0;
+	}
 
 	elem_size = btf__resolve_size(d->btf, arr->type);
 	if (elem_size < 0)
@@ -106,8 +307,8 @@ static void btf_int128_print(json_writer_t *jw, const void *data,
 	}
 }
 
-static void btf_int128_shift(__u64 *print_num, u16 left_shift_bits,
-			     u16 right_shift_bits)
+static void btf_int128_shift(__u64 *print_num, __u16 left_shift_bits,
+			     __u16 right_shift_bits)
 {
 	__u64 upper_num, lower_num;
 
@@ -251,7 +452,7 @@ static int btf_dumper_int(const struct btf_type *t, __u8 bit_offset,
 					     *(char *)data);
 		break;
 	case BTF_INT_BOOL:
-		jsonw_bool(jw, *(int *)data);
+		jsonw_bool(jw, *(bool *)data);
 		break;
 	default:
 		/* shouldn't happen */
@@ -366,10 +567,11 @@ static int btf_dumper_do_type(const struct btf_dumper *d, __u32 type_id,
 	case BTF_KIND_ARRAY:
 		return btf_dumper_array(d, type_id, data);
 	case BTF_KIND_ENUM:
-		btf_dumper_enum(data, d->jw);
-		return 0;
+		return btf_dumper_enum(d, t, data);
+	case BTF_KIND_ENUM64:
+		return btf_dumper_enum64(d, t, data);
 	case BTF_KIND_PTR:
-		btf_dumper_ptr(data, d->jw, d->is_plain_text);
+		btf_dumper_ptr(d, t, data);
 		return 0;
 	case BTF_KIND_UNKN:
 		jsonw_printf(d->jw, "(unknown)");
@@ -414,10 +616,6 @@ int btf_dumper_type(const struct btf_dumper *d, __u32 type_id,
 			return -1;					\
 	} while (0)
 
-static int btf_dump_func(const struct btf *btf, char *func_sig,
-			 const struct btf_type *func_proto,
-			 const struct btf_type *func, int pos, int size);
-
 static int __btf_dumper_type_only(const struct btf *btf, __u32 type_id,
 				  char *func_sig, int pos, int size)
 {
@@ -436,6 +634,7 @@ static int __btf_dumper_type_only(const struct btf *btf, __u32 type_id,
 	switch (BTF_INFO_KIND(t->info)) {
 	case BTF_KIND_INT:
 	case BTF_KIND_TYPEDEF:
+	case BTF_KIND_FLOAT:
 		BTF_PRINT_ARG("%s ", btf__name_by_offset(btf, t->name_off));
 		break;
 	case BTF_KIND_STRUCT:
@@ -447,6 +646,7 @@ static int __btf_dumper_type_only(const struct btf *btf, __u32 type_id,
 			      btf__name_by_offset(btf, t->name_off));
 		break;
 	case BTF_KIND_ENUM:
+	case BTF_KIND_ENUM64:
 		BTF_PRINT_ARG("enum %s ",
 			      btf__name_by_offset(btf, t->name_off));
 		break;
@@ -526,8 +726,15 @@ static int btf_dump_func(const struct btf *btf, char *func_sig,
 			BTF_PRINT_ARG(", ");
 		if (arg->type) {
 			BTF_PRINT_TYPE(arg->type);
-			BTF_PRINT_ARG("%s",
-				      btf__name_by_offset(btf, arg->name_off));
+			if (arg->name_off)
+				BTF_PRINT_ARG("%s",
+					      btf__name_by_offset(btf, arg->name_off));
+			else if (pos && func_sig[pos - 1] == ' ')
+				/* Remove unnecessary space for
+				 * FUNC_PROTO that does not have
+				 * arg->name_off
+				 */
+				func_sig[--pos] = '\0';
 		} else {
 			BTF_PRINT_ARG("...");
 		}
@@ -613,4 +820,87 @@ void btf_dump_linfo_json(const struct btf *btf,
 			jsonw_int_field(json_wtr, "line_col",
 					BPF_LINE_INFO_LINE_COL(linfo->line_col));
 	}
+}
+
+static void dotlabel_puts(const char *s)
+{
+	for (; *s; ++s) {
+		switch (*s) {
+		case '\\':
+		case '"':
+		case '{':
+		case '}':
+		case '<':
+		case '>':
+		case '|':
+		case ' ':
+			putchar('\\');
+			fallthrough;
+		default:
+			putchar(*s);
+		}
+	}
+}
+
+static const char *shorten_path(const char *path)
+{
+	const unsigned int MAX_PATH_LEN = 32;
+	size_t len = strlen(path);
+	const char *shortpath;
+
+	if (len <= MAX_PATH_LEN)
+		return path;
+
+	/* Search for last '/' under the MAX_PATH_LEN limit */
+	shortpath = strchr(path + len - MAX_PATH_LEN, '/');
+	if (shortpath) {
+		if (shortpath < path + strlen("..."))
+			/* We removed a very short prefix, e.g. "/w", and we'll
+			 * make the path longer by prefixing with the ellipsis.
+			 * Not worth it, keep initial path.
+			 */
+			return path;
+		return shortpath;
+	}
+
+	/* File base name length is > MAX_PATH_LEN, search for last '/' */
+			shortpath = strrchr(path, '/');
+	if (shortpath)
+		return shortpath;
+
+	return path;
+}
+
+void btf_dump_linfo_dotlabel(const struct btf *btf,
+			     const struct bpf_line_info *linfo, bool linum)
+{
+	const char *line = btf__name_by_offset(btf, linfo->line_off);
+
+	if (!line || !strlen(line))
+		return;
+	line = ltrim(line);
+
+	if (linum) {
+		const char *file = btf__name_by_offset(btf, linfo->file_name_off);
+		const char *shortfile;
+
+		/* More forgiving on file because linum option is
+		 * expected to provide more info than the already
+		 * available src line.
+		 */
+		if (!file)
+			shortfile = "";
+		else
+			shortfile = shorten_path(file);
+
+		printf("; [%s", shortfile > file ? "..." : "");
+		dotlabel_puts(shortfile);
+		printf(" line:%u col:%u]\\l\\\n",
+		       BPF_LINE_INFO_LINE_NUM(linfo->line_col),
+		       BPF_LINE_INFO_LINE_COL(linfo->line_col));
+	}
+
+	printf("; ");
+	dotlabel_puts(line);
+	printf("\\l\\\n");
 }

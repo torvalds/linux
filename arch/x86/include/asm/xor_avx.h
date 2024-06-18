@@ -11,8 +11,6 @@
  * Based on Ingo Molnar and Zach Brown's respective MMX and SSE routines
  */
 
-#ifdef CONFIG_AS_AVX
-
 #include <linux/compiler.h>
 #include <asm/fpu/api.h>
 
@@ -28,7 +26,8 @@
 		BLOCK4(8) \
 		BLOCK4(12)
 
-static void xor_avx_2(unsigned long bytes, unsigned long *p0, unsigned long *p1)
+static void xor_avx_2(unsigned long bytes, unsigned long * __restrict p0,
+		      const unsigned long * __restrict p1)
 {
 	unsigned long lines = bytes >> 9;
 
@@ -54,8 +53,9 @@ do { \
 	kernel_fpu_end();
 }
 
-static void xor_avx_3(unsigned long bytes, unsigned long *p0, unsigned long *p1,
-	unsigned long *p2)
+static void xor_avx_3(unsigned long bytes, unsigned long * __restrict p0,
+		      const unsigned long * __restrict p1,
+		      const unsigned long * __restrict p2)
 {
 	unsigned long lines = bytes >> 9;
 
@@ -84,8 +84,10 @@ do { \
 	kernel_fpu_end();
 }
 
-static void xor_avx_4(unsigned long bytes, unsigned long *p0, unsigned long *p1,
-	unsigned long *p2, unsigned long *p3)
+static void xor_avx_4(unsigned long bytes, unsigned long * __restrict p0,
+		      const unsigned long * __restrict p1,
+		      const unsigned long * __restrict p2,
+		      const unsigned long * __restrict p3)
 {
 	unsigned long lines = bytes >> 9;
 
@@ -117,8 +119,11 @@ do { \
 	kernel_fpu_end();
 }
 
-static void xor_avx_5(unsigned long bytes, unsigned long *p0, unsigned long *p1,
-	unsigned long *p2, unsigned long *p3, unsigned long *p4)
+static void xor_avx_5(unsigned long bytes, unsigned long * __restrict p0,
+	     const unsigned long * __restrict p1,
+	     const unsigned long * __restrict p2,
+	     const unsigned long * __restrict p3,
+	     const unsigned long * __restrict p4)
 {
 	unsigned long lines = bytes >> 9;
 
@@ -170,11 +175,4 @@ do { \
 #define AVX_SELECT(FASTEST) \
 	(boot_cpu_has(X86_FEATURE_AVX) && boot_cpu_has(X86_FEATURE_OSXSAVE) ? &xor_block_avx : FASTEST)
 
-#else
-
-#define AVX_XOR_SPEED {}
-
-#define AVX_SELECT(FASTEST) (FASTEST)
-
-#endif
 #endif

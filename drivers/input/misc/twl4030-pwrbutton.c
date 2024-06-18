@@ -26,6 +26,7 @@
 #include <linux/errno.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/twl.h>
 

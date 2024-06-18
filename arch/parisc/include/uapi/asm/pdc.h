@@ -4,7 +4,7 @@
 
 /*
  *	PDC return values ...
- *	All PDC calls return a subset of these errors. 
+ *	All PDC calls return a subset of these errors.
  */
 
 #define PDC_WARN		  3	/* Call completed with a warning */
@@ -58,8 +58,8 @@
 #define  PDC_MODEL_NVA_SUPPORTED	(0 << 4)
 #define  PDC_MODEL_NVA_SLOW		(1 << 4)
 #define  PDC_MODEL_NVA_UNSUPPORTED	(3 << 4)
-#define PDC_MODEL_GET_BOOT__OP	8	/* returns boot test options	*/
-#define PDC_MODEL_SET_BOOT__OP	9	/* set boot test options	*/
+#define PDC_MODEL_FIRM_TEST_GET	8	/* returns boot test options	*/
+#define PDC_MODEL_FIRM_TEST_SET	9	/* set boot test options	*/
 #define PDC_MODEL_GET_PLATFORM_INFO 10	/* returns platform info	*/
 #define PDC_MODEL_GET_INSTALL_KERNEL 11	/* returns kernel for installation */
 
@@ -165,7 +165,7 @@
 #define PDC_PSW_GET_DEFAULTS	1	/* Return defaults              */
 #define PDC_PSW_SET_DEFAULTS	2	/* Set default                  */
 #define PDC_PSW_ENDIAN_BIT	1	/* set for big endian           */
-#define PDC_PSW_WIDE_BIT	2	/* set for wide mode            */ 
+#define PDC_PSW_WIDE_BIT	2	/* set for wide mode            */
 
 #define PDC_SYSTEM_MAP	22		/* find system modules		*/
 #define PDC_FIND_MODULE 	0
@@ -274,7 +274,7 @@
 #define PDC_PCI_PCI_INT_ROUTE_SIZE	13
 #define PDC_PCI_GET_INT_TBL_SIZE	PDC_PCI_PCI_INT_ROUTE_SIZE
 #define PDC_PCI_PCI_INT_ROUTE		14
-#define PDC_PCI_GET_INT_TBL		PDC_PCI_PCI_INT_ROUTE 
+#define PDC_PCI_GET_INT_TBL		PDC_PCI_PCI_INT_ROUTE
 #define PDC_PCI_READ_MON_TYPE		15
 #define PDC_PCI_WRITE_MON_TYPE		16
 
@@ -345,7 +345,7 @@
 
 /* constants for PDC_CHASSIS */
 #define OSTAT_OFF		0
-#define OSTAT_FLT		1 
+#define OSTAT_FLT		1
 #define OSTAT_TEST		2
 #define OSTAT_INIT		3
 #define OSTAT_SHUT		4
@@ -363,20 +363,25 @@
 
 #if !defined(__ASSEMBLY__)
 
-/* flags of the device_path */
+/* flags for hardware_path */
 #define	PF_AUTOBOOT	0x80
 #define	PF_AUTOSEARCH	0x40
 #define	PF_TIMER	0x0F
 
-struct device_path {		/* page 1-69 */
-	unsigned char flags;	/* flags see above! */
-	unsigned char bc[6];	/* bus converter routing info */
-	unsigned char mod;
-	unsigned int  layers[6];/* device-specific layer-info */
-} __attribute__((aligned(8))) ;
+struct hardware_path {
+	unsigned char flags;	/* see bit definitions below */
+	signed   char bc[6];	/* Bus Converter routing info to a specific */
+				/* I/O adaptor (< 0 means none, > 63 resvd) */
+	signed   char mod;	/* fixed field of specified module */
+};
+
+struct pdc_module_path {	/* page 1-69 */
+	struct hardware_path path;
+	unsigned int layers[6]; /* device-specific info (ctlr #, unit # ...) */
+} __attribute__((aligned(8)));
 
 struct pz_device {
-	struct	device_path dp;	/* see above */
+	struct pdc_module_path dp;	/* see above */
 	/* struct	iomod *hpa; */
 	unsigned int hpa;	/* HPA base address */
 	/* char	*spa; */
@@ -398,10 +403,12 @@ struct zeropage {
 	/* int	(*vec_rendz)(void); */
 	unsigned int vec_rendz;
 	int	vec_pow_fail_flen;
-	int	vec_pad[10];		
-	
+	int	vec_pad0[3];
+	unsigned int vec_toc_hi;
+	int	vec_pad1[6];
+
 	/* [0x040] reserved processor dependent */
-	int	pad0[112];
+	int	pad0[112];              /* in QEMU pad0[0] holds "SeaBIOS\0" */
 
 	/* [0x200] reserved */
 	int	pad1[84];
@@ -465,6 +472,7 @@ struct pdc_model {		/* for PDC_MODEL */
 	unsigned long arch_rev;
 	unsigned long pot_key;
 	unsigned long curr_key;
+	unsigned long width;	/* default of PSW_W bit (1=enabled) */
 };
 
 struct pdc_cache_cf {		/* for PDC_CACHE  (I/D-caches) */
@@ -602,26 +610,17 @@ struct pdc_system_map_addr_info { /* PDC_SYSTEM_MAP/FIND_ADDRESS */
 	unsigned long mod_pgs;
 };
 
+struct pdc_relocate_info_block {   /* PDC_RELOCATE_INFO */
+	unsigned long pdc_size;
+	unsigned long pdc_alignment;
+	unsigned long pdc_address;
+};
+
 struct pdc_initiator { /* PDC_INITIATOR */
 	int host_id;
 	int factor;
 	int width;
 	int mode;
-};
-
-struct hardware_path {
-	char  flags;	/* see bit definitions below */
-	char  bc[6];	/* Bus Converter routing info to a specific */
-			/* I/O adaptor (< 0 means none, > 63 resvd) */
-	char  mod;	/* fixed field of specified module */
-};
-
-/*
- * Device path specifications used by PDC.
- */
-struct pdc_module_path {
-	struct hardware_path path;
-	unsigned int layers[6]; /* device-specific info (ctlr #, unit # ...) */
 };
 
 /* Only used on some pre-PA2.0 boxes */
@@ -688,6 +687,59 @@ struct pdc_hpmc_pim_20 { /* PDC_PIM */
 	unsigned long long requestor_addr;
 	unsigned long long fr[32];
 };
+
+struct pim_cpu_state_cf {
+	union {
+	unsigned int
+		iqv : 1,	/* IIA queue Valid */
+		iqf : 1,	/* IIA queue Failure */
+		ipv : 1,	/* IPRs Valid */
+		grv : 1,	/* GRs Valid */
+		crv : 1,	/* CRs Valid */
+		srv : 1,	/* SRs Valid */
+		trv : 1,	/* CR24 through CR31 valid */
+		pad : 24,	/* reserved */
+		td  : 1;	/* TOC did not cause any damage to the system state */
+	unsigned int val;
+	};
+};
+
+struct pdc_toc_pim_11 {
+	unsigned int gr[32];
+	unsigned int cr[32];
+	unsigned int sr[8];
+	unsigned int iasq_back;
+	unsigned int iaoq_back;
+	unsigned int check_type;
+	struct pim_cpu_state_cf cpu_state;
+};
+
+struct pdc_toc_pim_20 {
+	unsigned long long gr[32];
+	unsigned long long cr[32];
+	unsigned long long sr[8];
+	unsigned long long iasq_back;
+	unsigned long long iaoq_back;
+	unsigned int check_type;
+	struct pim_cpu_state_cf cpu_state;
+};
+
+/* for SpeedyBoot/firm_ctl funtionality */
+struct pdc_firm_test_get_rtn_block {   /* PDC_MODEL/PDC_FIRM_TEST_GET */
+	unsigned long current_tests;   /* u_R_addr Raddr_ints[0]  */
+	unsigned long tests_supported; /* u_R_addr Raddr_ints[1]  */
+	unsigned long default_tests;   /* u_R_addr Raddr_ints[2]  */
+};
+
+#define TORNADO_CPU_ID		0xB
+#define PCXL_CPU_ID		0xD
+#define PCXU_CPU_ID		0xE	/* U and U+ for all but C-class with bug */
+#define VR_CPU_ID		0xF
+#define PCXU_PLUS_CPU_ID	0x10	/* U+ only on C-class with bug */
+#define PCXW_CPU_ID		0x11
+#define PCXW_PLUS_CPU_ID	0x12
+#define PIRANHA_CPU_ID		0x13
+#define MAKO_CPU_ID		0x14
 
 #endif /* !defined(__ASSEMBLY__) */
 

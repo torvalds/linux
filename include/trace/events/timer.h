@@ -46,21 +46,21 @@ DEFINE_EVENT(timer_class, timer_init,
 
 /**
  * timer_start - called when the timer is started
- * @timer:	pointer to struct timer_list
- * @expires:	the timers expiry time
+ * @timer:		pointer to struct timer_list
+ * @bucket_expiry:	the bucket expiry time
  */
 TRACE_EVENT(timer_start,
 
 	TP_PROTO(struct timer_list *timer,
-		unsigned long expires,
-		unsigned int flags),
+		unsigned long bucket_expiry),
 
-	TP_ARGS(timer, expires, flags),
+	TP_ARGS(timer, bucket_expiry),
 
 	TP_STRUCT__entry(
 		__field( void *,	timer		)
 		__field( void *,	function	)
 		__field( unsigned long,	expires		)
+		__field( unsigned long,	bucket_expiry	)
 		__field( unsigned long,	now		)
 		__field( unsigned int,	flags		)
 	),
@@ -68,15 +68,16 @@ TRACE_EVENT(timer_start,
 	TP_fast_assign(
 		__entry->timer		= timer;
 		__entry->function	= timer->function;
-		__entry->expires	= expires;
+		__entry->expires	= timer->expires;
+		__entry->bucket_expiry	= bucket_expiry;
 		__entry->now		= jiffies;
-		__entry->flags		= flags;
+		__entry->flags		= timer->flags;
 	),
 
-	TP_printk("timer=%p function=%ps expires=%lu [timeout=%ld] cpu=%u idx=%u flags=%s",
+	TP_printk("timer=%p function=%ps expires=%lu [timeout=%ld] bucket_expiry=%lu cpu=%u idx=%u flags=%s",
 		  __entry->timer, __entry->function, __entry->expires,
 		  (long)__entry->expires - __entry->now,
-		  __entry->flags & TIMER_CPUMASK,
+		  __entry->bucket_expiry, __entry->flags & TIMER_CPUMASK,
 		  __entry->flags >> TIMER_ARRAYSHIFT,
 		  decode_timer_flags(__entry->flags & TIMER_TRACE_FLAGMASK))
 );
@@ -84,6 +85,7 @@ TRACE_EVENT(timer_start,
 /**
  * timer_expire_entry - called immediately before the timer callback
  * @timer:	pointer to struct timer_list
+ * @baseclk:	value of timer_base::clk when timer expires
  *
  * Allows to determine the timer latency.
  */
@@ -119,7 +121,7 @@ TRACE_EVENT(timer_expire_entry,
  * When used in combination with the timer_expire_entry tracepoint we can
  * determine the runtime of the timer callback function.
  *
- * NOTE: Do NOT derefernce timer in TP_fast_assign. The pointer might
+ * NOTE: Do NOT dereference timer in TP_fast_assign. The pointer might
  * be invalid. We solely track the pointer.
  */
 DEFINE_EVENT(timer_class, timer_expire_exit,
@@ -140,6 +142,26 @@ DEFINE_EVENT(timer_class, timer_cancel,
 	TP_ARGS(timer)
 );
 
+TRACE_EVENT(timer_base_idle,
+
+	TP_PROTO(bool is_idle, unsigned int cpu),
+
+	TP_ARGS(is_idle, cpu),
+
+	TP_STRUCT__entry(
+		__field( bool,		is_idle	)
+		__field( unsigned int,	cpu	)
+	),
+
+	TP_fast_assign(
+		__entry->is_idle	= is_idle;
+		__entry->cpu		= cpu;
+	),
+
+	TP_printk("is_idle=%d cpu=%d",
+		  __entry->is_idle, __entry->cpu)
+);
+
 #define decode_clockid(type)						\
 	__print_symbolic(type,						\
 		{ CLOCK_REALTIME,	"CLOCK_REALTIME"	},	\
@@ -156,7 +178,11 @@ DEFINE_EVENT(timer_class, timer_cancel,
 		{ HRTIMER_MODE_ABS_SOFT,	"ABS|SOFT"	},	\
 		{ HRTIMER_MODE_REL_SOFT,	"REL|SOFT"	},	\
 		{ HRTIMER_MODE_ABS_PINNED_SOFT,	"ABS|PINNED|SOFT" },	\
-		{ HRTIMER_MODE_REL_PINNED_SOFT,	"REL|PINNED|SOFT" })
+		{ HRTIMER_MODE_REL_PINNED_SOFT,	"REL|PINNED|SOFT" },	\
+		{ HRTIMER_MODE_ABS_HARD,	"ABS|HARD" },		\
+		{ HRTIMER_MODE_REL_HARD,	"REL|HARD" },		\
+		{ HRTIMER_MODE_ABS_PINNED_HARD, "ABS|PINNED|HARD" },	\
+		{ HRTIMER_MODE_REL_PINNED_HARD,	"REL|PINNED|HARD" })
 
 /**
  * hrtimer_init - called when the hrtimer is initialized
@@ -190,7 +216,8 @@ TRACE_EVENT(hrtimer_init,
 
 /**
  * hrtimer_start - called when the hrtimer is started
- * @hrtimer: pointer to struct hrtimer
+ * @hrtimer:	pointer to struct hrtimer
+ * @mode:	the hrtimers mode
  */
 TRACE_EVENT(hrtimer_start,
 
@@ -303,7 +330,7 @@ DEFINE_EVENT(hrtimer_class, hrtimer_cancel,
  */
 TRACE_EVENT(itimer_state,
 
-	TP_PROTO(int which, const struct itimerval *const value,
+	TP_PROTO(int which, const struct itimerspec64 *const value,
 		 unsigned long long expires),
 
 	TP_ARGS(which, value, expires),
@@ -312,24 +339,24 @@ TRACE_EVENT(itimer_state,
 		__field(	int,			which		)
 		__field(	unsigned long long,	expires		)
 		__field(	long,			value_sec	)
-		__field(	long,			value_usec	)
+		__field(	long,			value_nsec	)
 		__field(	long,			interval_sec	)
-		__field(	long,			interval_usec	)
+		__field(	long,			interval_nsec	)
 	),
 
 	TP_fast_assign(
 		__entry->which		= which;
 		__entry->expires	= expires;
 		__entry->value_sec	= value->it_value.tv_sec;
-		__entry->value_usec	= value->it_value.tv_usec;
+		__entry->value_nsec	= value->it_value.tv_nsec;
 		__entry->interval_sec	= value->it_interval.tv_sec;
-		__entry->interval_usec	= value->it_interval.tv_usec;
+		__entry->interval_nsec	= value->it_interval.tv_nsec;
 	),
 
-	TP_printk("which=%d expires=%llu it_value=%ld.%ld it_interval=%ld.%ld",
+	TP_printk("which=%d expires=%llu it_value=%ld.%06ld it_interval=%ld.%06ld",
 		  __entry->which, __entry->expires,
-		  __entry->value_sec, __entry->value_usec,
-		  __entry->interval_sec, __entry->interval_usec)
+		  __entry->value_sec, __entry->value_nsec / NSEC_PER_USEC,
+		  __entry->interval_sec, __entry->interval_nsec / NSEC_PER_USEC)
 );
 
 /**
@@ -367,7 +394,9 @@ TRACE_EVENT(itimer_expire,
 		tick_dep_name(POSIX_TIMER)		\
 		tick_dep_name(PERF_EVENTS)		\
 		tick_dep_name(SCHED)			\
-		tick_dep_name_end(CLOCK_UNSTABLE)
+		tick_dep_name(CLOCK_UNSTABLE)		\
+		tick_dep_name(RCU)			\
+		tick_dep_name_end(RCU_EXP)
 
 #undef tick_dep_name
 #undef tick_dep_mask_name

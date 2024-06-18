@@ -482,7 +482,6 @@ struct atl1e_adapter {
 		readl(((a)->hw_addr + reg) + ((offset) << 2)))
 
 extern char atl1e_driver_name[];
-extern char atl1e_driver_version[];
 
 void atl1e_check_options(struct atl1e_adapter *adapter);
 int atl1e_up(struct atl1e_adapter *adapter);

@@ -9,6 +9,7 @@
  * This file handles the architecture-dependent parts of process handling.
  */
 
+#include <linux/cpu.h>
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -37,7 +38,6 @@
 #include <asm/reg.h>
 #include <linux/uaccess.h>
 #include <asm/io.h>
-#include <asm/pgtable.h>
 #include <asm/hwrpb.h>
 #include <asm/fpu.h>
 
@@ -58,12 +58,12 @@ EXPORT_SYMBOL(pm_power_off);
 void arch_cpu_idle(void)
 {
 	wtint(0);
-	local_irq_enable();
 }
 
-void arch_cpu_idle_dead(void)
+void __noreturn arch_cpu_idle_dead(void)
 {
 	wtint(INT_MAX);
+	BUG();
 }
 #endif /* ALPHA_WTINT */
 
@@ -75,7 +75,7 @@ struct halt_info {
 static void
 common_shutdown_1(void *generic_ptr)
 {
-	struct halt_info *how = (struct halt_info *)generic_ptr;
+	struct halt_info *how = generic_ptr;
 	struct percpu_struct *cpup;
 	unsigned long *pflags, flags;
 	int cpuid = smp_processor_id();
@@ -126,7 +126,7 @@ common_shutdown_1(void *generic_ptr)
 	/* Wait for the secondaries to halt. */
 	set_cpu_present(boot_cpuid, false);
 	set_cpu_possible(boot_cpuid, false);
-	while (cpumask_weight(cpu_present_mask))
+	while (!cpumask_empty(cpu_present_mask))
 		barrier();
 #endif
 
@@ -135,7 +135,7 @@ common_shutdown_1(void *generic_ptr)
 #ifdef CONFIG_DUMMY_CONSOLE
 		/* If we've gotten here after SysRq-b, leave interrupt
 		   context before taking over the console. */
-		if (in_interrupt())
+		if (in_hardirq())
 			irq_exit();
 		/* This has the effect of resetting the VGA video origin.  */
 		console_lock();
@@ -226,19 +226,14 @@ flush_thread(void)
 	current_thread_info()->pcb.unique = 0;
 }
 
-void
-release_thread(struct task_struct *dead_task)
-{
-}
-
 /*
  * Copy architecture-specific thread state
  */
-int
-copy_thread(unsigned long clone_flags, unsigned long usp,
-	    unsigned long kthread_arg,
-	    struct task_struct *p)
+int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 {
+	unsigned long clone_flags = args->flags;
+	unsigned long usp = args->stack;
+	unsigned long tls = args->tls;
 	extern void ret_from_fork(void);
 	extern void ret_from_kernel_thread(void);
 
@@ -250,15 +245,17 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 	childstack = ((struct switch_stack *) childregs) - 1;
 	childti->pcb.ksp = (unsigned long) childstack;
 	childti->pcb.flags = 1;	/* set FEN, clear everything else */
+	childti->status |= TS_SAVED_FP | TS_RESTORE_FP;
 
-	if (unlikely(p->flags & PF_KTHREAD)) {
+	if (unlikely(args->fn)) {
 		/* kernel thread */
 		memset(childstack, 0,
 			sizeof(struct switch_stack) + sizeof(struct pt_regs));
 		childstack->r26 = (unsigned long) ret_from_kernel_thread;
-		childstack->r9 = usp;	/* function */
-		childstack->r10 = kthread_arg;
-		childregs->hae = alpha_mv.hae_cache,
+		childstack->r9 = (unsigned long) args->fn;
+		childstack->r10 = (unsigned long) args->fn_arg;
+		childregs->hae = alpha_mv.hae_cache;
+		memset(childti->fp, '\0', sizeof(childti->fp));
 		childti->pcb.usp = 0;
 		return 0;
 	}
@@ -268,7 +265,7 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 	   required for proper operation in the case of a threaded
 	   application calling fork.  */
 	if (clone_flags & CLONE_SETTLS)
-		childti->pcb.unique = regs->r20;
+		childti->pcb.unique = tls;
 	else
 		regs->r20 = 0;	/* OSF/1 has some strange fork() semantics.  */
 	childti->pcb.usp = usp ?: rdusp();
@@ -339,14 +336,11 @@ dump_elf_task(elf_greg_t *dest, struct task_struct *task)
 }
 EXPORT_SYMBOL(dump_elf_task);
 
-int
-dump_elf_task_fp(elf_fpreg_t *dest, struct task_struct *task)
+int elf_core_copy_task_fpregs(struct task_struct *t, elf_fpregset_t *fpu)
 {
-	struct switch_stack *sw = (struct switch_stack *)task_pt_regs(task) - 1;
-	memcpy(dest, sw->fp, 32 * 8);
+	memcpy(fpu, task_thread_info(t)->fp, 32 * 8);
 	return 1;
 }
-EXPORT_SYMBOL(dump_elf_task_fp);
 
 /*
  * Return saved PC of a blocked thread.  This assumes the frame
@@ -378,12 +372,11 @@ thread_saved_pc(struct task_struct *t)
 }
 
 unsigned long
-get_wchan(struct task_struct *p)
+__get_wchan(struct task_struct *p)
 {
 	unsigned long schedule_frame;
 	unsigned long pc;
-	if (!p || p == current || p->state == TASK_RUNNING)
-		return 0;
+
 	/*
 	 * This one depends on the frame size of schedule().  Do a
 	 * "disass schedule" in gdb to find the frame size.  Also, the

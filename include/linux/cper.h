@@ -90,6 +90,29 @@ enum {
 	GUID_INIT(0x667DD791, 0xC6B3, 0x4c27, 0x8A, 0x6B, 0x0F, 0x8E,	\
 		  0x72, 0x2D, 0xEB, 0x41)
 
+/* CXL Event record UUIDs are formatted as GUIDs and reported in section type */
+/*
+ * General Media Event Record
+ * CXL rev 3.0 Section 8.2.9.2.1.1; Table 8-43
+ */
+#define CPER_SEC_CXL_GEN_MEDIA_GUID					\
+	GUID_INIT(0xfbcd0a77, 0xc260, 0x417f,				\
+		  0x85, 0xa9, 0x08, 0x8b, 0x16, 0x21, 0xeb, 0xa6)
+/*
+ * DRAM Event Record
+ * CXL rev 3.0 section 8.2.9.2.1.2; Table 8-44
+ */
+#define CPER_SEC_CXL_DRAM_GUID						\
+	GUID_INIT(0x601dcbb3, 0x9c06, 0x4eab,				\
+		  0xb8, 0xaf, 0x4e, 0x9b, 0xfb, 0x5c, 0x96, 0x24)
+/*
+ * Memory Module Event Record
+ * CXL rev 3.0 section 8.2.9.2.1.3; Table 8-45
+ */
+#define CPER_SEC_CXL_MEM_MODULE_GUID					\
+	GUID_INIT(0xfe927475, 0xdd59, 0x4339,				\
+		  0xa5, 0x86, 0x79, 0xba, 0xb1, 0x13, 0xb7, 0x74)
+
 /*
  * Flags bits definitions for flags in struct cper_record_header
  * If set, the error has been recovered
@@ -230,6 +253,18 @@ enum {
 #define CPER_MEM_VALID_RANK_NUMBER		0x8000
 #define CPER_MEM_VALID_CARD_HANDLE		0x10000
 #define CPER_MEM_VALID_MODULE_HANDLE		0x20000
+#define CPER_MEM_VALID_ROW_EXT			0x40000
+#define CPER_MEM_VALID_BANK_GROUP		0x80000
+#define CPER_MEM_VALID_BANK_ADDRESS		0x100000
+#define CPER_MEM_VALID_CHIP_ID			0x200000
+
+#define CPER_MEM_EXT_ROW_MASK			0x3
+#define CPER_MEM_EXT_ROW_SHIFT			16
+
+#define CPER_MEM_BANK_ADDRESS_MASK		0xff
+#define CPER_MEM_BANK_GROUP_SHIFT		8
+
+#define CPER_MEM_CHIP_ID_SHIFT			5
 
 #define CPER_PCIE_VALID_PORT_TYPE		0x0001
 #define CPER_PCIE_VALID_VERSION			0x0002
@@ -443,7 +478,7 @@ struct cper_sec_mem_err_old {
 	u8	error_type;
 };
 
-/* Memory Error Section (UEFI >= v2.3), UEFI v2.7 sec N.2.5 */
+/* Memory Error Section (UEFI >= v2.3), UEFI v2.8 sec N.2.5 */
 struct cper_sec_mem_err {
 	u64	validation_bits;
 	u64	error_status;
@@ -461,7 +496,7 @@ struct cper_sec_mem_err {
 	u64	responder_id;
 	u64	target_id;
 	u8	error_type;
-	u8	reserved;
+	u8	extended;
 	u16	rank;
 	u16	mem_array_handle;	/* "card handle" in UEFI 2.4 */
 	u16	mem_dev_handle;		/* "module handle" in UEFI 2.4 */
@@ -483,7 +518,15 @@ struct cper_mem_err_compact {
 	u16	rank;
 	u16	mem_array_handle;
 	u16	mem_dev_handle;
+	u8      extended;
 };
+
+static inline u32 cper_get_mem_extension(u64 mem_valid, u8 mem_extended)
+{
+	if (!(mem_valid & CPER_MEM_VALID_ROW_EXT))
+		return 0;
+	return (mem_extended & CPER_MEM_EXT_ROW_MASK) << CPER_MEM_EXT_ROW_SHIFT;
+}
 
 /* PCI Express Error Section, UEFI v2.7 sec N.2.7 */
 struct cper_sec_pcie {
@@ -521,6 +564,15 @@ struct cper_sec_pcie {
 	u8	aer_info[96];
 };
 
+/* Firmware Error Record Reference, UEFI v2.7 sec N.2.10  */
+struct cper_sec_fw_err_rec_ref {
+	u8 record_type;
+	u8 revision;
+	u8 reserved[6];
+	u64 record_identifier;
+	guid_t record_identifier_guid;
+};
+
 /* Reset to default packing */
 #pragma pack()
 
@@ -529,6 +581,7 @@ extern const char *const cper_proc_error_type_strs[4];
 u64 cper_next_record_id(void);
 const char *cper_severity_str(unsigned int);
 const char *cper_mem_err_type_str(unsigned int);
+const char *cper_mem_err_status_str(u64 status);
 void cper_print_bits(const char *prefix, unsigned int bits,
 		     const char * const strs[], unsigned int strs_size);
 void cper_mem_err_pack(const struct cper_sec_mem_err *,
@@ -539,5 +592,13 @@ void cper_print_proc_arm(const char *pfx,
 			 const struct cper_sec_proc_arm *proc);
 void cper_print_proc_ia(const char *pfx,
 			const struct cper_sec_proc_ia *proc);
+int cper_mem_err_location(struct cper_mem_err_compact *mem, char *msg);
+int cper_dimm_err_location(struct cper_mem_err_compact *mem, char *msg);
+
+struct acpi_hest_generic_status;
+void cper_estatus_print(const char *pfx,
+			const struct acpi_hest_generic_status *estatus);
+int cper_estatus_check_header(const struct acpi_hest_generic_status *estatus);
+int cper_estatus_check(const struct acpi_hest_generic_status *estatus);
 
 #endif

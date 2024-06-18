@@ -8,6 +8,7 @@
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/phy/phy.h>
 #include <linux/of.h>
@@ -337,7 +338,6 @@ static int ti_pipe3_power_on(struct phy *x)
 {
 	u32 val;
 	u32 mask;
-	int ret;
 	unsigned long rate;
 	struct ti_pipe3 *phy = phy_get_drvdata(x);
 	bool rx_pending = false;
@@ -355,8 +355,8 @@ static int ti_pipe3_power_on(struct phy *x)
 	rate = rate / 1000000;
 	mask = OMAP_CTRL_PIPE3_PHY_PWRCTL_CLK_FREQ_MASK;
 	val = rate << OMAP_CTRL_PIPE3_PHY_PWRCTL_CLK_FREQ_SHIFT;
-	ret = regmap_update_bits(phy->phy_power_syscon, phy->power_reg,
-				 mask, val);
+	regmap_update_bits(phy->phy_power_syscon, phy->power_reg,
+			   mask, val);
 	/*
 	 * For PCIe, TX and RX must be powered on simultaneously.
 	 * For USB and SATA, TX must be powered on before RX
@@ -697,6 +697,7 @@ static int ti_pipe3_get_sysctrl(struct ti_pipe3 *phy)
 		}
 
 		control_pdev = of_find_device_by_node(control_node);
+		of_node_put(control_node);
 		if (!control_pdev) {
 			dev_err(dev, "Failed to get control device\n");
 			return -EINVAL;
@@ -746,35 +747,28 @@ static int ti_pipe3_get_sysctrl(struct ti_pipe3 *phy)
 
 static int ti_pipe3_get_tx_rx_base(struct ti_pipe3 *phy)
 {
-	struct resource *res;
 	struct device *dev = phy->dev;
 	struct platform_device *pdev = to_platform_device(dev);
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-					   "phy_rx");
-	phy->phy_rx = devm_ioremap_resource(dev, res);
+	phy->phy_rx = devm_platform_ioremap_resource_byname(pdev, "phy_rx");
 	if (IS_ERR(phy->phy_rx))
 		return PTR_ERR(phy->phy_rx);
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-					   "phy_tx");
-	phy->phy_tx = devm_ioremap_resource(dev, res);
+	phy->phy_tx = devm_platform_ioremap_resource_byname(pdev, "phy_tx");
 
 	return PTR_ERR_OR_ZERO(phy->phy_tx);
 }
 
 static int ti_pipe3_get_pll_base(struct ti_pipe3 *phy)
 {
-	struct resource *res;
 	struct device *dev = phy->dev;
 	struct platform_device *pdev = to_platform_device(dev);
 
 	if (phy->mode == PIPE3_MODE_PCIE)
 		return 0;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-					   "pll_ctrl");
-	phy->pll_ctrl_base = devm_ioremap_resource(dev, res);
+	phy->pll_ctrl_base =
+		devm_platform_ioremap_resource_byname(pdev, "pll_ctrl");
 	return PTR_ERR_OR_ZERO(phy->pll_ctrl_base);
 }
 
@@ -785,22 +779,15 @@ static int ti_pipe3_probe(struct platform_device *pdev)
 	struct phy_provider *phy_provider;
 	struct device *dev = &pdev->dev;
 	int ret;
-	const struct of_device_id *match;
-	struct pipe3_data *data;
+	const struct pipe3_data *data;
 
 	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
 		return -ENOMEM;
 
-	match = of_match_device(ti_pipe3_id_table, dev);
-	if (!match)
+	data = device_get_match_data(dev);
+	if (!data)
 		return -EINVAL;
-
-	data = (struct pipe3_data *)match->data;
-	if (!data) {
-		dev_err(dev, "no driver data\n");
-		return -EINVAL;
-	}
 
 	phy->dev = dev;
 	phy->mode = data->mode;
@@ -848,11 +835,15 @@ static int ti_pipe3_probe(struct platform_device *pdev)
 	return PTR_ERR_OR_ZERO(phy_provider);
 }
 
-static int ti_pipe3_remove(struct platform_device *pdev)
+static void ti_pipe3_remove(struct platform_device *pdev)
 {
-	pm_runtime_disable(&pdev->dev);
+	struct ti_pipe3 *phy = platform_get_drvdata(pdev);
 
-	return 0;
+	if (phy->mode == PIPE3_MODE_SATA) {
+		clk_disable_unprepare(phy->refclk);
+		phy->sata_refclk_enabled = false;
+	}
+	pm_runtime_disable(&pdev->dev);
 }
 
 static int ti_pipe3_enable_clocks(struct ti_pipe3 *phy)
@@ -900,18 +891,8 @@ static void ti_pipe3_disable_clocks(struct ti_pipe3 *phy)
 {
 	if (!IS_ERR(phy->wkupclk))
 		clk_disable_unprepare(phy->wkupclk);
-	if (!IS_ERR(phy->refclk)) {
+	if (!IS_ERR(phy->refclk))
 		clk_disable_unprepare(phy->refclk);
-		/*
-		 * SATA refclk needs an additional disable as we left it
-		 * on in probe to avoid Errata i783
-		 */
-		if (phy->sata_refclk_enabled) {
-			clk_disable_unprepare(phy->refclk);
-			phy->sata_refclk_enabled = false;
-		}
-	}
-
 	if (!IS_ERR(phy->div_clk))
 		clk_disable_unprepare(phy->div_clk);
 }
@@ -939,7 +920,7 @@ MODULE_DEVICE_TABLE(of, ti_pipe3_id_table);
 
 static struct platform_driver ti_pipe3_driver = {
 	.probe		= ti_pipe3_probe,
-	.remove		= ti_pipe3_remove,
+	.remove_new	= ti_pipe3_remove,
 	.driver		= {
 		.name	= "ti-pipe3",
 		.of_match_table = ti_pipe3_id_table,

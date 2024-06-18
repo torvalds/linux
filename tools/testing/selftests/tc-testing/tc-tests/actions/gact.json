@@ -6,6 +6,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -30,6 +33,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -54,6 +60,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -78,6 +87,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -102,6 +114,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -126,6 +141,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -150,6 +168,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -175,6 +196,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -199,6 +223,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -223,6 +250,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -252,6 +282,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             "$TC actions add action reclassify index 101",
             "$TC actions add action reclassify index 102",
@@ -273,6 +306,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -298,6 +334,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -323,6 +362,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -348,6 +390,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -373,6 +418,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -398,6 +446,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -422,6 +473,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -448,6 +502,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -473,6 +530,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -497,6 +557,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -521,6 +584,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -544,6 +610,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -568,6 +637,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -584,6 +656,110 @@
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action gact"
+        ]
+    },
+    {
+        "id": "95ad",
+        "name": "Add gact pass action with no_percpu flag",
+        "category": [
+            "actions",
+            "gact"
+        ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC actions flush action gact",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action pass no_percpu",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action gact",
+        "matchPattern": "action order [0-9]*: gact action pass.*no_percpu",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action gact"
+        ]
+    },
+    {
+        "id": "7f52",
+        "name": "Try to flush action which is referenced by filter",
+        "category": [
+            "actions",
+            "gact"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC actions flush action gact",
+                0,
+                1,
+                255
+            ],
+            "$TC qdisc add dev $DEV1 ingress",
+            "$TC actions add action pass index 1",
+            "$TC filter add dev $DEV1 protocol all ingress prio 1 handle 0x1234 matchall action gact index 1"
+        ],
+        "cmdUnderTest": "$TC actions flush action gact",
+        "expExitCode": "1",
+        "verifyCmd": "$TC actions ls action gact",
+        "matchPattern": "total acts 1.*action order [0-9]*: gact action pass.*index 1 ref 2 bind 1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 ingress",
+            [
+                "sleep 1; $TC actions flush action gact",
+                0,
+                1
+            ]
+        ]
+    },
+    {
+        "id": "ae1e",
+        "name": "Try to flush actions when last one is referenced by filter",
+        "category": [
+            "actions",
+            "gact"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC actions flush action gact",
+                0,
+                1,
+                255
+            ],
+            "$TC qdisc add dev $DEV1 ingress",
+	    [
+                "$TC actions add action pass index 1",
+		0,
+		1,
+		255
+	    ],
+            "$TC actions add action reclassify index 2",
+            "$TC actions add action drop index 3",
+            "$TC filter add dev $DEV1 protocol all ingress prio 1 handle 0x1234 matchall action gact index 3"
+        ],
+        "cmdUnderTest": "$TC actions flush action gact",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions ls action gact",
+        "matchPattern": "total acts 1.*action order [0-9]*: gact action drop.*index 3 ref 2 bind 1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 ingress",
+            [
+                "sleep 1; $TC actions flush action gact",
+                0,
+                1
+            ]
         ]
     }
 ]

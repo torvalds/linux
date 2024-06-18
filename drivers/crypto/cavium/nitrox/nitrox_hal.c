@@ -3,6 +3,7 @@
 
 #include "nitrox_dev.h"
 #include "nitrox_csr.h"
+#include "nitrox_hal.h"
 
 #define PLL_REF_CLK 50
 #define MAX_CSR_RETRIES 10
@@ -646,7 +647,7 @@ void nitrox_get_hwinfo(struct nitrox_device *ndev)
 		 ndev->hw.revision_id);
 
 	/* copy partname */
-	strncpy(ndev->hw.partname, name, sizeof(ndev->hw.partname));
+	strscpy(ndev->hw.partname, name, sizeof(ndev->hw.partname));
 }
 
 void enable_pf2vf_mbox_interrupts(struct nitrox_device *ndev)

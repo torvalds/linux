@@ -2,6 +2,16 @@
 #
 # Phy drivers for Broadcom platforms
 #
+menu "PHY drivers for Broadcom platforms"
+
+config PHY_BCM63XX_USBH
+	tristate "BCM63xx USBH PHY driver"
+	depends on BMIPS_GENERIC || COMPILE_TEST
+	select GENERIC_PHY
+	help
+	  Enable this to support the BCM63xx USBH PHY driver.
+	  If unsure, say N.
+
 config PHY_CYGNUS_PCIE
 	tristate "Broadcom Cygnus PCIe PHY driver"
 	depends on OF && (ARCH_BCM_CYGNUS || COMPILE_TEST)
@@ -50,7 +60,7 @@ config PHY_BCM_NS_USB3
 
 config PHY_NS2_PCIE
 	tristate "Broadcom Northstar2 PCIe PHY driver"
-	depends on OF && MDIO_BUS_MUX_BCM_IPROC
+	depends on (OF && MDIO_BUS_MUX_BCM_IPROC) || (COMPILE_TEST && MDIO_BUS)
 	select GENERIC_PHY
 	default ARCH_BCM_IPROC
 	help
@@ -73,7 +83,7 @@ config PHY_NS2_USB_DRD
 config PHY_BRCM_SATA
 	tristate "Broadcom SATA PHY driver"
 	depends on ARCH_BRCMSTB || ARCH_BCM_IPROC || BMIPS_GENERIC || \
-		   ARCH_BCM_63XX || COMPILE_TEST
+		   ARCH_BCMBCA || COMPILE_TEST
 	depends on OF
 	select GENERIC_PHY
 	default ARCH_BCM_IPROC
@@ -83,11 +93,11 @@ config PHY_BRCM_SATA
 
 config PHY_BRCM_USB
 	tristate "Broadcom STB USB PHY driver"
-	depends on ARCH_BRCMSTB
+	depends on ARCH_BCMBCA || ARCH_BRCMSTB || COMPILE_TEST
 	depends on OF
 	select GENERIC_PHY
-	select SOC_BRCMSTB
-	default ARCH_BRCMSTB
+	select SOC_BRCMSTB if ARCH_BRCMSTB
+	default ARCH_BCMBCA || ARCH_BRCMSTB
 	help
 	  Enable this to support the Broadcom STB USB PHY.
 	  This driver is required by the USB XHCI, EHCI and OHCI
@@ -103,3 +113,5 @@ config PHY_BCM_SR_PCIE
 	help
 	  Enable this to support the Broadcom Stingray PCIe PHY
 	  If unsure, say N.
+
+endmenu

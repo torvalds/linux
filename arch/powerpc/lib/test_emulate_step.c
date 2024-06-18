@@ -8,57 +8,50 @@
 #define pr_fmt(fmt) "emulate_step_test: " fmt
 
 #include <linux/ptrace.h>
+#include <asm/cpu_has_feature.h>
 #include <asm/sstep.h>
 #include <asm/ppc-opcode.h>
 #include <asm/code-patching.h>
-
-#define IMM_L(i)		((uintptr_t)(i) & 0xffff)
-
-/*
- * Defined with TEST_ prefix so it does not conflict with other
- * definitions.
- */
-#define TEST_LD(r, base, i)	(PPC_INST_LD | ___PPC_RT(r) |		\
-					___PPC_RA(base) | IMM_L(i))
-#define TEST_LWZ(r, base, i)	(PPC_INST_LWZ | ___PPC_RT(r) |		\
-					___PPC_RA(base) | IMM_L(i))
-#define TEST_LWZX(t, a, b)	(PPC_INST_LWZX | ___PPC_RT(t) |		\
-					___PPC_RA(a) | ___PPC_RB(b))
-#define TEST_STD(r, base, i)	(PPC_INST_STD | ___PPC_RS(r) |		\
-					___PPC_RA(base) | ((i) & 0xfffc))
-#define TEST_LDARX(t, a, b, eh)	(PPC_INST_LDARX | ___PPC_RT(t) |	\
-					___PPC_RA(a) | ___PPC_RB(b) |	\
-					__PPC_EH(eh))
-#define TEST_STDCX(s, a, b)	(PPC_INST_STDCX | ___PPC_RS(s) |	\
-					___PPC_RA(a) | ___PPC_RB(b))
-#define TEST_LFSX(t, a, b)	(PPC_INST_LFSX | ___PPC_RT(t) |		\
-					___PPC_RA(a) | ___PPC_RB(b))
-#define TEST_STFSX(s, a, b)	(PPC_INST_STFSX | ___PPC_RS(s) |	\
-					___PPC_RA(a) | ___PPC_RB(b))
-#define TEST_LFDX(t, a, b)	(PPC_INST_LFDX | ___PPC_RT(t) |		\
-					___PPC_RA(a) | ___PPC_RB(b))
-#define TEST_STFDX(s, a, b)	(PPC_INST_STFDX | ___PPC_RS(s) |	\
-					___PPC_RA(a) | ___PPC_RB(b))
-#define TEST_LVX(t, a, b)	(PPC_INST_LVX | ___PPC_RT(t) |		\
-					___PPC_RA(a) | ___PPC_RB(b))
-#define TEST_STVX(s, a, b)	(PPC_INST_STVX | ___PPC_RS(s) |		\
-					___PPC_RA(a) | ___PPC_RB(b))
-#define TEST_LXVD2X(s, a, b)	(PPC_INST_LXVD2X | VSX_XX1((s), R##a, R##b))
-#define TEST_STXVD2X(s, a, b)	(PPC_INST_STXVD2X | VSX_XX1((s), R##a, R##b))
-#define TEST_ADD(t, a, b)	(PPC_INST_ADD | ___PPC_RT(t) |		\
-					___PPC_RA(a) | ___PPC_RB(b))
-#define TEST_ADD_DOT(t, a, b)	(PPC_INST_ADD | ___PPC_RT(t) |		\
-					___PPC_RA(a) | ___PPC_RB(b) | 0x1)
-#define TEST_ADDC(t, a, b)	(PPC_INST_ADDC | ___PPC_RT(t) |		\
-					___PPC_RA(a) | ___PPC_RB(b))
-#define TEST_ADDC_DOT(t, a, b)	(PPC_INST_ADDC | ___PPC_RT(t) |		\
-					___PPC_RA(a) | ___PPC_RB(b) | 0x1)
+#include <asm/inst.h>
 
 #define MAX_SUBTESTS	16
 
 #define IGNORE_GPR(n)	(0x1UL << (n))
 #define IGNORE_XER	(0x1UL << 32)
 #define IGNORE_CCR	(0x1UL << 33)
+#define NEGATIVE_TEST	(0x1UL << 63)
+
+#define TEST_PLD(r, base, i, pr) \
+	ppc_inst_prefix(PPC_PREFIX_8LS | __PPC_PRFX_R(pr) | IMM_H(i), \
+			PPC_INST_PLD | ___PPC_RT(r) | ___PPC_RA(base) | IMM_L(i))
+
+#define TEST_PLWZ(r, base, i, pr) \
+	ppc_inst_prefix(PPC_PREFIX_MLS | __PPC_PRFX_R(pr) | IMM_H(i), \
+			PPC_RAW_LWZ(r, base, i))
+
+#define TEST_PSTD(r, base, i, pr) \
+	ppc_inst_prefix(PPC_PREFIX_8LS | __PPC_PRFX_R(pr) | IMM_H(i), \
+			PPC_INST_PSTD | ___PPC_RT(r) | ___PPC_RA(base) | IMM_L(i))
+
+#define TEST_PLFS(r, base, i, pr) \
+	ppc_inst_prefix(PPC_PREFIX_MLS | __PPC_PRFX_R(pr) | IMM_H(i), \
+			PPC_INST_LFS | ___PPC_RT(r) | ___PPC_RA(base) | IMM_L(i))
+
+#define TEST_PSTFS(r, base, i, pr) \
+	ppc_inst_prefix(PPC_PREFIX_MLS | __PPC_PRFX_R(pr) | IMM_H(i), \
+			PPC_INST_STFS | ___PPC_RT(r) | ___PPC_RA(base) | IMM_L(i))
+
+#define TEST_PLFD(r, base, i, pr) \
+	ppc_inst_prefix(PPC_PREFIX_MLS | __PPC_PRFX_R(pr) | IMM_H(i), \
+			PPC_INST_LFD | ___PPC_RT(r) | ___PPC_RA(base) | IMM_L(i))
+
+#define TEST_PSTFD(r, base, i, pr) \
+	ppc_inst_prefix(PPC_PREFIX_MLS | __PPC_PRFX_R(pr) | IMM_H(i), \
+			PPC_INST_STFD | ___PPC_RT(r) | ___PPC_RA(base) | IMM_L(i))
+
+#define TEST_PADDI(t, a, i, pr) \
+	ppc_inst_prefix(PPC_PREFIX_MLS | __PPC_PRFX_R(pr) | IMM_H(i), \
+			PPC_RAW_ADDI(t, a, i))
 
 static void __init init_pt_regs(struct pt_regs *regs)
 {
@@ -103,12 +96,35 @@ static void __init test_ld(void)
 	regs.gpr[3] = (unsigned long) &a;
 
 	/* ld r5, 0(r3) */
-	stepped = emulate_step(&regs, TEST_LD(5, 3, 0));
+	stepped = emulate_step(&regs, ppc_inst(PPC_RAW_LD(5, 3, 0)));
 
 	if (stepped == 1 && regs.gpr[5] == a)
 		show_result("ld", "PASS");
 	else
 		show_result("ld", "FAIL");
+}
+
+static void __init test_pld(void)
+{
+	struct pt_regs regs;
+	unsigned long a = 0x23;
+	int stepped = -1;
+
+	if (!cpu_has_feature(CPU_FTR_ARCH_31)) {
+		show_result("pld", "SKIP (!CPU_FTR_ARCH_31)");
+		return;
+	}
+
+	init_pt_regs(&regs);
+	regs.gpr[3] = (unsigned long)&a;
+
+	/* pld r5, 0(r3), 0 */
+	stepped = emulate_step(&regs, TEST_PLD(5, 3, 0, 0));
+
+	if (stepped == 1 && regs.gpr[5] == a)
+		show_result("pld", "PASS");
+	else
+		show_result("pld", "FAIL");
 }
 
 static void __init test_lwz(void)
@@ -121,12 +137,36 @@ static void __init test_lwz(void)
 	regs.gpr[3] = (unsigned long) &a;
 
 	/* lwz r5, 0(r3) */
-	stepped = emulate_step(&regs, TEST_LWZ(5, 3, 0));
+	stepped = emulate_step(&regs, ppc_inst(PPC_RAW_LWZ(5, 3, 0)));
 
 	if (stepped == 1 && regs.gpr[5] == a)
 		show_result("lwz", "PASS");
 	else
 		show_result("lwz", "FAIL");
+}
+
+static void __init test_plwz(void)
+{
+	struct pt_regs regs;
+	unsigned int a = 0x4545;
+	int stepped = -1;
+
+	if (!cpu_has_feature(CPU_FTR_ARCH_31)) {
+		show_result("plwz", "SKIP (!CPU_FTR_ARCH_31)");
+		return;
+	}
+
+	init_pt_regs(&regs);
+	regs.gpr[3] = (unsigned long)&a;
+
+	/* plwz r5, 0(r3), 0 */
+
+	stepped = emulate_step(&regs, TEST_PLWZ(5, 3, 0, 0));
+
+	if (stepped == 1 && regs.gpr[5] == a)
+		show_result("plwz", "PASS");
+	else
+		show_result("plwz", "FAIL");
 }
 
 static void __init test_lwzx(void)
@@ -141,7 +181,7 @@ static void __init test_lwzx(void)
 	regs.gpr[5] = 0x8765;
 
 	/* lwzx r5, r3, r4 */
-	stepped = emulate_step(&regs, TEST_LWZX(5, 3, 4));
+	stepped = emulate_step(&regs, ppc_inst(PPC_RAW_LWZX(5, 3, 4)));
 	if (stepped == 1 && regs.gpr[5] == a[2])
 		show_result("lwzx", "PASS");
 	else
@@ -159,11 +199,34 @@ static void __init test_std(void)
 	regs.gpr[5] = 0x5678;
 
 	/* std r5, 0(r3) */
-	stepped = emulate_step(&regs, TEST_STD(5, 3, 0));
-	if (stepped == 1 || regs.gpr[5] == a)
+	stepped = emulate_step(&regs, ppc_inst(PPC_RAW_STD(5, 3, 0)));
+	if (stepped == 1 && regs.gpr[5] == a)
 		show_result("std", "PASS");
 	else
 		show_result("std", "FAIL");
+}
+
+static void __init test_pstd(void)
+{
+	struct pt_regs regs;
+	unsigned long a = 0x1234;
+	int stepped = -1;
+
+	if (!cpu_has_feature(CPU_FTR_ARCH_31)) {
+		show_result("pstd", "SKIP (!CPU_FTR_ARCH_31)");
+		return;
+	}
+
+	init_pt_regs(&regs);
+	regs.gpr[3] = (unsigned long)&a;
+	regs.gpr[5] = 0x5678;
+
+	/* pstd r5, 0(r3), 0 */
+	stepped = emulate_step(&regs, TEST_PSTD(5, 3, 0, 0));
+	if (stepped == 1 || regs.gpr[5] == a)
+		show_result("pstd", "PASS");
+	else
+		show_result("pstd", "FAIL");
 }
 
 static void __init test_ldarx_stdcx(void)
@@ -184,7 +247,7 @@ static void __init test_ldarx_stdcx(void)
 	regs.gpr[5] = 0x5678;
 
 	/* ldarx r5, r3, r4, 0 */
-	stepped = emulate_step(&regs, TEST_LDARX(5, 3, 4, 0));
+	stepped = emulate_step(&regs, ppc_inst(PPC_RAW_LDARX(5, 3, 4, 0)));
 
 	/*
 	 * Don't touch 'a' here. Touching 'a' can do Load/store
@@ -202,7 +265,7 @@ static void __init test_ldarx_stdcx(void)
 	regs.gpr[5] = 0x9ABC;
 
 	/* stdcx. r5, r3, r4 */
-	stepped = emulate_step(&regs, TEST_STDCX(5, 3, 4));
+	stepped = emulate_step(&regs, ppc_inst(PPC_RAW_STDCX(5, 3, 4)));
 
 	/*
 	 * Two possible scenarios that indicates successful emulation
@@ -242,7 +305,7 @@ static void __init test_lfsx_stfsx(void)
 	regs.gpr[4] = 0;
 
 	/* lfsx frt10, r3, r4 */
-	stepped = emulate_step(&regs, TEST_LFSX(10, 3, 4));
+	stepped = emulate_step(&regs, ppc_inst(PPC_RAW_LFSX(10, 3, 4)));
 
 	if (stepped == 1)
 		show_result("lfsx", "PASS");
@@ -255,12 +318,59 @@ static void __init test_lfsx_stfsx(void)
 	c.a = 678.91;
 
 	/* stfsx frs10, r3, r4 */
-	stepped = emulate_step(&regs, TEST_STFSX(10, 3, 4));
+	stepped = emulate_step(&regs, ppc_inst(PPC_RAW_STFSX(10, 3, 4)));
 
 	if (stepped == 1 && c.b == cached_b)
 		show_result("stfsx", "PASS");
 	else
 		show_result("stfsx", "FAIL");
+}
+
+static void __init test_plfs_pstfs(void)
+{
+	struct pt_regs regs;
+	union {
+		float a;
+		int b;
+	} c;
+	int cached_b;
+	int stepped = -1;
+
+	if (!cpu_has_feature(CPU_FTR_ARCH_31)) {
+		show_result("pld", "SKIP (!CPU_FTR_ARCH_31)");
+		return;
+	}
+
+	init_pt_regs(&regs);
+
+
+	/*** plfs ***/
+
+	c.a = 123.45;
+	cached_b = c.b;
+
+	regs.gpr[3] = (unsigned long)&c.a;
+
+	/* plfs frt10, 0(r3), 0  */
+	stepped = emulate_step(&regs, TEST_PLFS(10, 3, 0, 0));
+
+	if (stepped == 1)
+		show_result("plfs", "PASS");
+	else
+		show_result("plfs", "FAIL");
+
+
+	/*** pstfs ***/
+
+	c.a = 678.91;
+
+	/* pstfs frs10, 0(r3), 0 */
+	stepped = emulate_step(&regs, TEST_PSTFS(10, 3, 0, 0));
+
+	if (stepped == 1 && c.b == cached_b)
+		show_result("pstfs", "PASS");
+	else
+		show_result("pstfs", "FAIL");
 }
 
 static void __init test_lfdx_stfdx(void)
@@ -285,7 +395,7 @@ static void __init test_lfdx_stfdx(void)
 	regs.gpr[4] = 0;
 
 	/* lfdx frt10, r3, r4 */
-	stepped = emulate_step(&regs, TEST_LFDX(10, 3, 4));
+	stepped = emulate_step(&regs, ppc_inst(PPC_RAW_LFDX(10, 3, 4)));
 
 	if (stepped == 1)
 		show_result("lfdx", "PASS");
@@ -298,12 +408,59 @@ static void __init test_lfdx_stfdx(void)
 	c.a = 987654.32;
 
 	/* stfdx frs10, r3, r4 */
-	stepped = emulate_step(&regs, TEST_STFDX(10, 3, 4));
+	stepped = emulate_step(&regs, ppc_inst(PPC_RAW_STFDX(10, 3, 4)));
 
 	if (stepped == 1 && c.b == cached_b)
 		show_result("stfdx", "PASS");
 	else
 		show_result("stfdx", "FAIL");
+}
+
+static void __init test_plfd_pstfd(void)
+{
+	struct pt_regs regs;
+	union {
+		double a;
+		long b;
+	} c;
+	long cached_b;
+	int stepped = -1;
+
+	if (!cpu_has_feature(CPU_FTR_ARCH_31)) {
+		show_result("pld", "SKIP (!CPU_FTR_ARCH_31)");
+		return;
+	}
+
+	init_pt_regs(&regs);
+
+
+	/*** plfd ***/
+
+	c.a = 123456.78;
+	cached_b = c.b;
+
+	regs.gpr[3] = (unsigned long)&c.a;
+
+	/* plfd frt10, 0(r3), 0 */
+	stepped = emulate_step(&regs, TEST_PLFD(10, 3, 0, 0));
+
+	if (stepped == 1)
+		show_result("plfd", "PASS");
+	else
+		show_result("plfd", "FAIL");
+
+
+	/*** pstfd ***/
+
+	c.a = 987654.32;
+
+	/* pstfd frs10, 0(r3), 0 */
+	stepped = emulate_step(&regs, TEST_PSTFD(10, 3, 0, 0));
+
+	if (stepped == 1 && c.b == cached_b)
+		show_result("pstfd", "PASS");
+	else
+		show_result("pstfd", "FAIL");
 }
 #else
 static void __init test_lfsx_stfsx(void)
@@ -312,10 +469,22 @@ static void __init test_lfsx_stfsx(void)
 	show_result("stfsx", "SKIP (CONFIG_PPC_FPU is not set)");
 }
 
+static void __init test_plfs_pstfs(void)
+{
+	show_result("plfs", "SKIP (CONFIG_PPC_FPU is not set)");
+	show_result("pstfs", "SKIP (CONFIG_PPC_FPU is not set)");
+}
+
 static void __init test_lfdx_stfdx(void)
 {
 	show_result("lfdx", "SKIP (CONFIG_PPC_FPU is not set)");
 	show_result("stfdx", "SKIP (CONFIG_PPC_FPU is not set)");
+}
+
+static void __init test_plfd_pstfd(void)
+{
+	show_result("plfd", "SKIP (CONFIG_PPC_FPU is not set)");
+	show_result("pstfd", "SKIP (CONFIG_PPC_FPU is not set)");
 }
 #endif /* CONFIG_PPC_FPU */
 
@@ -344,7 +513,7 @@ static void __init test_lvx_stvx(void)
 	regs.gpr[4] = 0;
 
 	/* lvx vrt10, r3, r4 */
-	stepped = emulate_step(&regs, TEST_LVX(10, 3, 4));
+	stepped = emulate_step(&regs, ppc_inst(PPC_RAW_LVX(10, 3, 4)));
 
 	if (stepped == 1)
 		show_result("lvx", "PASS");
@@ -360,7 +529,7 @@ static void __init test_lvx_stvx(void)
 	c.b[3] = 498532;
 
 	/* stvx vrs10, r3, r4 */
-	stepped = emulate_step(&regs, TEST_STVX(10, 3, 4));
+	stepped = emulate_step(&regs, ppc_inst(PPC_RAW_STVX(10, 3, 4)));
 
 	if (stepped == 1 && cached_b[0] == c.b[0] && cached_b[1] == c.b[1] &&
 	    cached_b[2] == c.b[2] && cached_b[3] == c.b[3])
@@ -401,7 +570,7 @@ static void __init test_lxvd2x_stxvd2x(void)
 	regs.gpr[4] = 0;
 
 	/* lxvd2x vsr39, r3, r4 */
-	stepped = emulate_step(&regs, TEST_LXVD2X(39, 3, 4));
+	stepped = emulate_step(&regs, ppc_inst(PPC_RAW_LXVD2X(39, R3, R4)));
 
 	if (stepped == 1 && cpu_has_feature(CPU_FTR_VSX)) {
 		show_result("lxvd2x", "PASS");
@@ -421,7 +590,7 @@ static void __init test_lxvd2x_stxvd2x(void)
 	c.b[3] = 4;
 
 	/* stxvd2x vsr39, r3, r4 */
-	stepped = emulate_step(&regs, TEST_STXVD2X(39, 3, 4));
+	stepped = emulate_step(&regs, ppc_inst(PPC_RAW_STXVD2X(39, R3, R4)));
 
 	if (stepped == 1 && cached_b[0] == c.b[0] && cached_b[1] == c.b[1] &&
 	    cached_b[2] == c.b[2] && cached_b[3] == c.b[3] &&
@@ -442,28 +611,307 @@ static void __init test_lxvd2x_stxvd2x(void)
 }
 #endif /* CONFIG_VSX */
 
+#ifdef CONFIG_VSX
+static void __init test_lxvp_stxvp(void)
+{
+	struct pt_regs regs;
+	union {
+		vector128 a;
+		u32 b[4];
+	} c[2];
+	u32 cached_b[8];
+	int stepped = -1;
+
+	if (!cpu_has_feature(CPU_FTR_ARCH_31)) {
+		show_result("lxvp", "SKIP (!CPU_FTR_ARCH_31)");
+		show_result("stxvp", "SKIP (!CPU_FTR_ARCH_31)");
+		return;
+	}
+
+	init_pt_regs(&regs);
+
+	/*** lxvp ***/
+
+	cached_b[0] = c[0].b[0] = 18233;
+	cached_b[1] = c[0].b[1] = 34863571;
+	cached_b[2] = c[0].b[2] = 834;
+	cached_b[3] = c[0].b[3] = 6138911;
+	cached_b[4] = c[1].b[0] = 1234;
+	cached_b[5] = c[1].b[1] = 5678;
+	cached_b[6] = c[1].b[2] = 91011;
+	cached_b[7] = c[1].b[3] = 121314;
+
+	regs.gpr[4] = (unsigned long)&c[0].a;
+
+	/*
+	 * lxvp XTp,DQ(RA)
+	 * XTp = 32xTX + 2xTp
+	 * let TX=1 Tp=1 RA=4 DQ=0
+	 */
+	stepped = emulate_step(&regs, ppc_inst(PPC_RAW_LXVP(34, 4, 0)));
+
+	if (stepped == 1 && cpu_has_feature(CPU_FTR_VSX)) {
+		show_result("lxvp", "PASS");
+	} else {
+		if (!cpu_has_feature(CPU_FTR_VSX))
+			show_result("lxvp", "PASS (!CPU_FTR_VSX)");
+		else
+			show_result("lxvp", "FAIL");
+	}
+
+	/*** stxvp ***/
+
+	c[0].b[0] = 21379463;
+	c[0].b[1] = 87;
+	c[0].b[2] = 374234;
+	c[0].b[3] = 4;
+	c[1].b[0] = 90;
+	c[1].b[1] = 122;
+	c[1].b[2] = 555;
+	c[1].b[3] = 32144;
+
+	/*
+	 * stxvp XSp,DQ(RA)
+	 * XSp = 32xSX + 2xSp
+	 * let SX=1 Sp=1 RA=4 DQ=0
+	 */
+	stepped = emulate_step(&regs, ppc_inst(PPC_RAW_STXVP(34, 4, 0)));
+
+	if (stepped == 1 && cached_b[0] == c[0].b[0] && cached_b[1] == c[0].b[1] &&
+	    cached_b[2] == c[0].b[2] && cached_b[3] == c[0].b[3] &&
+	    cached_b[4] == c[1].b[0] && cached_b[5] == c[1].b[1] &&
+	    cached_b[6] == c[1].b[2] && cached_b[7] == c[1].b[3] &&
+	    cpu_has_feature(CPU_FTR_VSX)) {
+		show_result("stxvp", "PASS");
+	} else {
+		if (!cpu_has_feature(CPU_FTR_VSX))
+			show_result("stxvp", "PASS (!CPU_FTR_VSX)");
+		else
+			show_result("stxvp", "FAIL");
+	}
+}
+#else
+static void __init test_lxvp_stxvp(void)
+{
+	show_result("lxvp", "SKIP (CONFIG_VSX is not set)");
+	show_result("stxvp", "SKIP (CONFIG_VSX is not set)");
+}
+#endif /* CONFIG_VSX */
+
+#ifdef CONFIG_VSX
+static void __init test_lxvpx_stxvpx(void)
+{
+	struct pt_regs regs;
+	union {
+		vector128 a;
+		u32 b[4];
+	} c[2];
+	u32 cached_b[8];
+	int stepped = -1;
+
+	if (!cpu_has_feature(CPU_FTR_ARCH_31)) {
+		show_result("lxvpx", "SKIP (!CPU_FTR_ARCH_31)");
+		show_result("stxvpx", "SKIP (!CPU_FTR_ARCH_31)");
+		return;
+	}
+
+	init_pt_regs(&regs);
+
+	/*** lxvpx ***/
+
+	cached_b[0] = c[0].b[0] = 18233;
+	cached_b[1] = c[0].b[1] = 34863571;
+	cached_b[2] = c[0].b[2] = 834;
+	cached_b[3] = c[0].b[3] = 6138911;
+	cached_b[4] = c[1].b[0] = 1234;
+	cached_b[5] = c[1].b[1] = 5678;
+	cached_b[6] = c[1].b[2] = 91011;
+	cached_b[7] = c[1].b[3] = 121314;
+
+	regs.gpr[3] = (unsigned long)&c[0].a;
+	regs.gpr[4] = 0;
+
+	/*
+	 * lxvpx XTp,RA,RB
+	 * XTp = 32xTX + 2xTp
+	 * let TX=1 Tp=1 RA=3 RB=4
+	 */
+	stepped = emulate_step(&regs, ppc_inst(PPC_RAW_LXVPX(34, 3, 4)));
+
+	if (stepped == 1 && cpu_has_feature(CPU_FTR_VSX)) {
+		show_result("lxvpx", "PASS");
+	} else {
+		if (!cpu_has_feature(CPU_FTR_VSX))
+			show_result("lxvpx", "PASS (!CPU_FTR_VSX)");
+		else
+			show_result("lxvpx", "FAIL");
+	}
+
+	/*** stxvpx ***/
+
+	c[0].b[0] = 21379463;
+	c[0].b[1] = 87;
+	c[0].b[2] = 374234;
+	c[0].b[3] = 4;
+	c[1].b[0] = 90;
+	c[1].b[1] = 122;
+	c[1].b[2] = 555;
+	c[1].b[3] = 32144;
+
+	/*
+	 * stxvpx XSp,RA,RB
+	 * XSp = 32xSX + 2xSp
+	 * let SX=1 Sp=1 RA=3 RB=4
+	 */
+	stepped = emulate_step(&regs, ppc_inst(PPC_RAW_STXVPX(34, 3, 4)));
+
+	if (stepped == 1 && cached_b[0] == c[0].b[0] && cached_b[1] == c[0].b[1] &&
+	    cached_b[2] == c[0].b[2] && cached_b[3] == c[0].b[3] &&
+	    cached_b[4] == c[1].b[0] && cached_b[5] == c[1].b[1] &&
+	    cached_b[6] == c[1].b[2] && cached_b[7] == c[1].b[3] &&
+	    cpu_has_feature(CPU_FTR_VSX)) {
+		show_result("stxvpx", "PASS");
+	} else {
+		if (!cpu_has_feature(CPU_FTR_VSX))
+			show_result("stxvpx", "PASS (!CPU_FTR_VSX)");
+		else
+			show_result("stxvpx", "FAIL");
+	}
+}
+#else
+static void __init test_lxvpx_stxvpx(void)
+{
+	show_result("lxvpx", "SKIP (CONFIG_VSX is not set)");
+	show_result("stxvpx", "SKIP (CONFIG_VSX is not set)");
+}
+#endif /* CONFIG_VSX */
+
+#ifdef CONFIG_VSX
+static void __init test_plxvp_pstxvp(void)
+{
+	ppc_inst_t instr;
+	struct pt_regs regs;
+	union {
+		vector128 a;
+		u32 b[4];
+	} c[2];
+	u32 cached_b[8];
+	int stepped = -1;
+
+	if (!cpu_has_feature(CPU_FTR_ARCH_31)) {
+		show_result("plxvp", "SKIP (!CPU_FTR_ARCH_31)");
+		show_result("pstxvp", "SKIP (!CPU_FTR_ARCH_31)");
+		return;
+	}
+
+	/*** plxvp ***/
+
+	cached_b[0] = c[0].b[0] = 18233;
+	cached_b[1] = c[0].b[1] = 34863571;
+	cached_b[2] = c[0].b[2] = 834;
+	cached_b[3] = c[0].b[3] = 6138911;
+	cached_b[4] = c[1].b[0] = 1234;
+	cached_b[5] = c[1].b[1] = 5678;
+	cached_b[6] = c[1].b[2] = 91011;
+	cached_b[7] = c[1].b[3] = 121314;
+
+	init_pt_regs(&regs);
+	regs.gpr[3] = (unsigned long)&c[0].a;
+
+	/*
+	 * plxvp XTp,D(RA),R
+	 * XTp = 32xTX + 2xTp
+	 * let RA=3 R=0 D=d0||d1=0 R=0 Tp=1 TX=1
+	 */
+	instr = ppc_inst_prefix(PPC_RAW_PLXVP_P(34, 0, 3, 0), PPC_RAW_PLXVP_S(34, 0, 3, 0));
+
+	stepped = emulate_step(&regs, instr);
+	if (stepped == 1 && cpu_has_feature(CPU_FTR_VSX)) {
+		show_result("plxvp", "PASS");
+	} else {
+		if (!cpu_has_feature(CPU_FTR_VSX))
+			show_result("plxvp", "PASS (!CPU_FTR_VSX)");
+		else
+			show_result("plxvp", "FAIL");
+	}
+
+	/*** pstxvp ***/
+
+	c[0].b[0] = 21379463;
+	c[0].b[1] = 87;
+	c[0].b[2] = 374234;
+	c[0].b[3] = 4;
+	c[1].b[0] = 90;
+	c[1].b[1] = 122;
+	c[1].b[2] = 555;
+	c[1].b[3] = 32144;
+
+	/*
+	 * pstxvp XSp,D(RA),R
+	 * XSp = 32xSX + 2xSp
+	 * let RA=3 D=d0||d1=0 R=0 Sp=1 SX=1
+	 */
+	instr = ppc_inst_prefix(PPC_RAW_PSTXVP_P(34, 0, 3, 0), PPC_RAW_PSTXVP_S(34, 0, 3, 0));
+
+	stepped = emulate_step(&regs, instr);
+
+	if (stepped == 1 && cached_b[0] == c[0].b[0] && cached_b[1] == c[0].b[1] &&
+	    cached_b[2] == c[0].b[2] && cached_b[3] == c[0].b[3] &&
+	    cached_b[4] == c[1].b[0] && cached_b[5] == c[1].b[1] &&
+	    cached_b[6] == c[1].b[2] && cached_b[7] == c[1].b[3] &&
+	    cpu_has_feature(CPU_FTR_VSX)) {
+		show_result("pstxvp", "PASS");
+	} else {
+		if (!cpu_has_feature(CPU_FTR_VSX))
+			show_result("pstxvp", "PASS (!CPU_FTR_VSX)");
+		else
+			show_result("pstxvp", "FAIL");
+	}
+}
+#else
+static void __init test_plxvp_pstxvp(void)
+{
+	show_result("plxvp", "SKIP (CONFIG_VSX is not set)");
+	show_result("pstxvp", "SKIP (CONFIG_VSX is not set)");
+}
+#endif /* CONFIG_VSX */
+
 static void __init run_tests_load_store(void)
 {
 	test_ld();
+	test_pld();
 	test_lwz();
+	test_plwz();
 	test_lwzx();
 	test_std();
+	test_pstd();
 	test_ldarx_stdcx();
 	test_lfsx_stfsx();
+	test_plfs_pstfs();
 	test_lfdx_stfdx();
+	test_plfd_pstfd();
 	test_lvx_stvx();
 	test_lxvd2x_stxvd2x();
+	test_lxvp_stxvp();
+	test_lxvpx_stxvpx();
+	test_plxvp_pstxvp();
 }
 
 struct compute_test {
 	char *mnemonic;
+	unsigned long cpu_feature;
 	struct {
 		char *descr;
 		unsigned long flags;
-		unsigned int instr;
+		ppc_inst_t instr;
 		struct pt_regs regs;
 	} subtests[MAX_SUBTESTS + 1];
 };
+
+/* Extreme values for si0||si1 (the MLS:D-form 34 bit immediate field) */
+#define SI_MIN BIT(33)
+#define SI_MAX (BIT(33) - 1)
+#define SI_UMAX (BIT(34) - 1)
 
 static struct compute_test compute_tests[] = {
 	{
@@ -471,9 +919,36 @@ static struct compute_test compute_tests[] = {
 		.subtests = {
 			{
 				.descr = "R0 = LONG_MAX",
-				.instr = PPC_INST_NOP,
+				.instr = ppc_inst(PPC_RAW_NOP()),
 				.regs = {
 					.gpr[0] = LONG_MAX,
+				}
+			}
+		}
+	},
+	{
+		.mnemonic = "setb",
+		.cpu_feature = CPU_FTR_ARCH_300,
+		.subtests = {
+			{
+				.descr = "BFA = 1, CR = GT",
+				.instr = ppc_inst(PPC_RAW_SETB(20, 1)),
+				.regs = {
+					.ccr = 0x4000000,
+				}
+			},
+			{
+				.descr = "BFA = 4, CR = LT",
+				.instr = ppc_inst(PPC_RAW_SETB(20, 4)),
+				.regs = {
+					.ccr = 0x8000,
+				}
+			},
+			{
+				.descr = "BFA = 5, CR = EQ",
+				.instr = ppc_inst(PPC_RAW_SETB(20, 5)),
+				.regs = {
+					.ccr = 0x200,
 				}
 			}
 		}
@@ -483,7 +958,7 @@ static struct compute_test compute_tests[] = {
 		.subtests = {
 			{
 				.descr = "RA = LONG_MIN, RB = LONG_MIN",
-				.instr = TEST_ADD(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADD(20, 21, 22)),
 				.regs = {
 					.gpr[21] = LONG_MIN,
 					.gpr[22] = LONG_MIN,
@@ -491,7 +966,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = LONG_MIN, RB = LONG_MAX",
-				.instr = TEST_ADD(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADD(20, 21, 22)),
 				.regs = {
 					.gpr[21] = LONG_MIN,
 					.gpr[22] = LONG_MAX,
@@ -499,7 +974,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = LONG_MAX, RB = LONG_MAX",
-				.instr = TEST_ADD(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADD(20, 21, 22)),
 				.regs = {
 					.gpr[21] = LONG_MAX,
 					.gpr[22] = LONG_MAX,
@@ -507,7 +982,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = ULONG_MAX, RB = ULONG_MAX",
-				.instr = TEST_ADD(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADD(20, 21, 22)),
 				.regs = {
 					.gpr[21] = ULONG_MAX,
 					.gpr[22] = ULONG_MAX,
@@ -515,7 +990,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = ULONG_MAX, RB = 0x1",
-				.instr = TEST_ADD(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADD(20, 21, 22)),
 				.regs = {
 					.gpr[21] = ULONG_MAX,
 					.gpr[22] = 0x1,
@@ -523,7 +998,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = INT_MIN, RB = INT_MIN",
-				.instr = TEST_ADD(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADD(20, 21, 22)),
 				.regs = {
 					.gpr[21] = INT_MIN,
 					.gpr[22] = INT_MIN,
@@ -531,7 +1006,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = INT_MIN, RB = INT_MAX",
-				.instr = TEST_ADD(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADD(20, 21, 22)),
 				.regs = {
 					.gpr[21] = INT_MIN,
 					.gpr[22] = INT_MAX,
@@ -539,7 +1014,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = INT_MAX, RB = INT_MAX",
-				.instr = TEST_ADD(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADD(20, 21, 22)),
 				.regs = {
 					.gpr[21] = INT_MAX,
 					.gpr[22] = INT_MAX,
@@ -547,7 +1022,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = UINT_MAX, RB = UINT_MAX",
-				.instr = TEST_ADD(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADD(20, 21, 22)),
 				.regs = {
 					.gpr[21] = UINT_MAX,
 					.gpr[22] = UINT_MAX,
@@ -555,7 +1030,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = UINT_MAX, RB = 0x1",
-				.instr = TEST_ADD(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADD(20, 21, 22)),
 				.regs = {
 					.gpr[21] = UINT_MAX,
 					.gpr[22] = 0x1,
@@ -569,7 +1044,7 @@ static struct compute_test compute_tests[] = {
 			{
 				.descr = "RA = LONG_MIN, RB = LONG_MIN",
 				.flags = IGNORE_CCR,
-				.instr = TEST_ADD_DOT(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADD_DOT(20, 21, 22)),
 				.regs = {
 					.gpr[21] = LONG_MIN,
 					.gpr[22] = LONG_MIN,
@@ -577,7 +1052,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = LONG_MIN, RB = LONG_MAX",
-				.instr = TEST_ADD_DOT(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADD_DOT(20, 21, 22)),
 				.regs = {
 					.gpr[21] = LONG_MIN,
 					.gpr[22] = LONG_MAX,
@@ -586,7 +1061,7 @@ static struct compute_test compute_tests[] = {
 			{
 				.descr = "RA = LONG_MAX, RB = LONG_MAX",
 				.flags = IGNORE_CCR,
-				.instr = TEST_ADD_DOT(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADD_DOT(20, 21, 22)),
 				.regs = {
 					.gpr[21] = LONG_MAX,
 					.gpr[22] = LONG_MAX,
@@ -594,7 +1069,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = ULONG_MAX, RB = ULONG_MAX",
-				.instr = TEST_ADD_DOT(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADD_DOT(20, 21, 22)),
 				.regs = {
 					.gpr[21] = ULONG_MAX,
 					.gpr[22] = ULONG_MAX,
@@ -602,7 +1077,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = ULONG_MAX, RB = 0x1",
-				.instr = TEST_ADD_DOT(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADD_DOT(20, 21, 22)),
 				.regs = {
 					.gpr[21] = ULONG_MAX,
 					.gpr[22] = 0x1,
@@ -610,7 +1085,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = INT_MIN, RB = INT_MIN",
-				.instr = TEST_ADD_DOT(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADD_DOT(20, 21, 22)),
 				.regs = {
 					.gpr[21] = INT_MIN,
 					.gpr[22] = INT_MIN,
@@ -618,7 +1093,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = INT_MIN, RB = INT_MAX",
-				.instr = TEST_ADD_DOT(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADD_DOT(20, 21, 22)),
 				.regs = {
 					.gpr[21] = INT_MIN,
 					.gpr[22] = INT_MAX,
@@ -626,7 +1101,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = INT_MAX, RB = INT_MAX",
-				.instr = TEST_ADD_DOT(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADD_DOT(20, 21, 22)),
 				.regs = {
 					.gpr[21] = INT_MAX,
 					.gpr[22] = INT_MAX,
@@ -634,7 +1109,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = UINT_MAX, RB = UINT_MAX",
-				.instr = TEST_ADD_DOT(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADD_DOT(20, 21, 22)),
 				.regs = {
 					.gpr[21] = UINT_MAX,
 					.gpr[22] = UINT_MAX,
@@ -642,7 +1117,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = UINT_MAX, RB = 0x1",
-				.instr = TEST_ADD_DOT(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADD_DOT(20, 21, 22)),
 				.regs = {
 					.gpr[21] = UINT_MAX,
 					.gpr[22] = 0x1,
@@ -655,7 +1130,7 @@ static struct compute_test compute_tests[] = {
 		.subtests = {
 			{
 				.descr = "RA = LONG_MIN, RB = LONG_MIN",
-				.instr = TEST_ADDC(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADDC(20, 21, 22)),
 				.regs = {
 					.gpr[21] = LONG_MIN,
 					.gpr[22] = LONG_MIN,
@@ -663,7 +1138,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = LONG_MIN, RB = LONG_MAX",
-				.instr = TEST_ADDC(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADDC(20, 21, 22)),
 				.regs = {
 					.gpr[21] = LONG_MIN,
 					.gpr[22] = LONG_MAX,
@@ -671,7 +1146,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = LONG_MAX, RB = LONG_MAX",
-				.instr = TEST_ADDC(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADDC(20, 21, 22)),
 				.regs = {
 					.gpr[21] = LONG_MAX,
 					.gpr[22] = LONG_MAX,
@@ -679,7 +1154,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = ULONG_MAX, RB = ULONG_MAX",
-				.instr = TEST_ADDC(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADDC(20, 21, 22)),
 				.regs = {
 					.gpr[21] = ULONG_MAX,
 					.gpr[22] = ULONG_MAX,
@@ -687,7 +1162,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = ULONG_MAX, RB = 0x1",
-				.instr = TEST_ADDC(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADDC(20, 21, 22)),
 				.regs = {
 					.gpr[21] = ULONG_MAX,
 					.gpr[22] = 0x1,
@@ -695,7 +1170,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = INT_MIN, RB = INT_MIN",
-				.instr = TEST_ADDC(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADDC(20, 21, 22)),
 				.regs = {
 					.gpr[21] = INT_MIN,
 					.gpr[22] = INT_MIN,
@@ -703,7 +1178,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = INT_MIN, RB = INT_MAX",
-				.instr = TEST_ADDC(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADDC(20, 21, 22)),
 				.regs = {
 					.gpr[21] = INT_MIN,
 					.gpr[22] = INT_MAX,
@@ -711,7 +1186,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = INT_MAX, RB = INT_MAX",
-				.instr = TEST_ADDC(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADDC(20, 21, 22)),
 				.regs = {
 					.gpr[21] = INT_MAX,
 					.gpr[22] = INT_MAX,
@@ -719,7 +1194,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = UINT_MAX, RB = UINT_MAX",
-				.instr = TEST_ADDC(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADDC(20, 21, 22)),
 				.regs = {
 					.gpr[21] = UINT_MAX,
 					.gpr[22] = UINT_MAX,
@@ -727,7 +1202,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = UINT_MAX, RB = 0x1",
-				.instr = TEST_ADDC(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADDC(20, 21, 22)),
 				.regs = {
 					.gpr[21] = UINT_MAX,
 					.gpr[22] = 0x1,
@@ -735,7 +1210,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = LONG_MIN | INT_MIN, RB = LONG_MIN | INT_MIN",
-				.instr = TEST_ADDC(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADDC(20, 21, 22)),
 				.regs = {
 					.gpr[21] = LONG_MIN | (uint)INT_MIN,
 					.gpr[22] = LONG_MIN | (uint)INT_MIN,
@@ -749,7 +1224,7 @@ static struct compute_test compute_tests[] = {
 			{
 				.descr = "RA = LONG_MIN, RB = LONG_MIN",
 				.flags = IGNORE_CCR,
-				.instr = TEST_ADDC_DOT(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADDC_DOT(20, 21, 22)),
 				.regs = {
 					.gpr[21] = LONG_MIN,
 					.gpr[22] = LONG_MIN,
@@ -757,7 +1232,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = LONG_MIN, RB = LONG_MAX",
-				.instr = TEST_ADDC_DOT(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADDC_DOT(20, 21, 22)),
 				.regs = {
 					.gpr[21] = LONG_MIN,
 					.gpr[22] = LONG_MAX,
@@ -766,7 +1241,7 @@ static struct compute_test compute_tests[] = {
 			{
 				.descr = "RA = LONG_MAX, RB = LONG_MAX",
 				.flags = IGNORE_CCR,
-				.instr = TEST_ADDC_DOT(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADDC_DOT(20, 21, 22)),
 				.regs = {
 					.gpr[21] = LONG_MAX,
 					.gpr[22] = LONG_MAX,
@@ -774,7 +1249,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = ULONG_MAX, RB = ULONG_MAX",
-				.instr = TEST_ADDC_DOT(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADDC_DOT(20, 21, 22)),
 				.regs = {
 					.gpr[21] = ULONG_MAX,
 					.gpr[22] = ULONG_MAX,
@@ -782,7 +1257,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = ULONG_MAX, RB = 0x1",
-				.instr = TEST_ADDC_DOT(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADDC_DOT(20, 21, 22)),
 				.regs = {
 					.gpr[21] = ULONG_MAX,
 					.gpr[22] = 0x1,
@@ -790,7 +1265,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = INT_MIN, RB = INT_MIN",
-				.instr = TEST_ADDC_DOT(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADDC_DOT(20, 21, 22)),
 				.regs = {
 					.gpr[21] = INT_MIN,
 					.gpr[22] = INT_MIN,
@@ -798,7 +1273,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = INT_MIN, RB = INT_MAX",
-				.instr = TEST_ADDC_DOT(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADDC_DOT(20, 21, 22)),
 				.regs = {
 					.gpr[21] = INT_MIN,
 					.gpr[22] = INT_MAX,
@@ -806,7 +1281,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = INT_MAX, RB = INT_MAX",
-				.instr = TEST_ADDC_DOT(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADDC_DOT(20, 21, 22)),
 				.regs = {
 					.gpr[21] = INT_MAX,
 					.gpr[22] = INT_MAX,
@@ -814,7 +1289,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = UINT_MAX, RB = UINT_MAX",
-				.instr = TEST_ADDC_DOT(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADDC_DOT(20, 21, 22)),
 				.regs = {
 					.gpr[21] = UINT_MAX,
 					.gpr[22] = UINT_MAX,
@@ -822,7 +1297,7 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = UINT_MAX, RB = 0x1",
-				.instr = TEST_ADDC_DOT(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADDC_DOT(20, 21, 22)),
 				.regs = {
 					.gpr[21] = UINT_MAX,
 					.gpr[22] = 0x1,
@@ -830,10 +1305,291 @@ static struct compute_test compute_tests[] = {
 			},
 			{
 				.descr = "RA = LONG_MIN | INT_MIN, RB = LONG_MIN | INT_MIN",
-				.instr = TEST_ADDC_DOT(20, 21, 22),
+				.instr = ppc_inst(PPC_RAW_ADDC_DOT(20, 21, 22)),
 				.regs = {
 					.gpr[21] = LONG_MIN | (uint)INT_MIN,
 					.gpr[22] = LONG_MIN | (uint)INT_MIN,
+				}
+			}
+		}
+	},
+	{
+		.mnemonic = "divde",
+		.subtests = {
+			{
+				.descr = "RA = LONG_MIN, RB = LONG_MIN",
+				.instr = ppc_inst(PPC_RAW_DIVDE(20, 21, 22)),
+				.regs = {
+					.gpr[21] = LONG_MIN,
+					.gpr[22] = LONG_MIN,
+				}
+			},
+			{
+				.descr = "RA = 1L, RB = 0",
+				.instr = ppc_inst(PPC_RAW_DIVDE(20, 21, 22)),
+				.flags = IGNORE_GPR(20),
+				.regs = {
+					.gpr[21] = 1L,
+					.gpr[22] = 0,
+				}
+			},
+			{
+				.descr = "RA = LONG_MIN, RB = LONG_MAX",
+				.instr = ppc_inst(PPC_RAW_DIVDE(20, 21, 22)),
+				.regs = {
+					.gpr[21] = LONG_MIN,
+					.gpr[22] = LONG_MAX,
+				}
+			}
+		}
+	},
+	{
+		.mnemonic = "divde.",
+		.subtests = {
+			{
+				.descr = "RA = LONG_MIN, RB = LONG_MIN",
+				.instr = ppc_inst(PPC_RAW_DIVDE_DOT(20, 21, 22)),
+				.regs = {
+					.gpr[21] = LONG_MIN,
+					.gpr[22] = LONG_MIN,
+				}
+			},
+			{
+				.descr = "RA = 1L, RB = 0",
+				.instr = ppc_inst(PPC_RAW_DIVDE_DOT(20, 21, 22)),
+				.flags = IGNORE_GPR(20),
+				.regs = {
+					.gpr[21] = 1L,
+					.gpr[22] = 0,
+				}
+			},
+			{
+				.descr = "RA = LONG_MIN, RB = LONG_MAX",
+				.instr = ppc_inst(PPC_RAW_DIVDE_DOT(20, 21, 22)),
+				.regs = {
+					.gpr[21] = LONG_MIN,
+					.gpr[22] = LONG_MAX,
+				}
+			}
+		}
+	},
+	{
+		.mnemonic = "divdeu",
+		.subtests = {
+			{
+				.descr = "RA = LONG_MIN, RB = LONG_MIN",
+				.instr = ppc_inst(PPC_RAW_DIVDEU(20, 21, 22)),
+				.flags = IGNORE_GPR(20),
+				.regs = {
+					.gpr[21] = LONG_MIN,
+					.gpr[22] = LONG_MIN,
+				}
+			},
+			{
+				.descr = "RA = 1L, RB = 0",
+				.instr = ppc_inst(PPC_RAW_DIVDEU(20, 21, 22)),
+				.flags = IGNORE_GPR(20),
+				.regs = {
+					.gpr[21] = 1L,
+					.gpr[22] = 0,
+				}
+			},
+			{
+				.descr = "RA = LONG_MIN, RB = LONG_MAX",
+				.instr = ppc_inst(PPC_RAW_DIVDEU(20, 21, 22)),
+				.regs = {
+					.gpr[21] = LONG_MIN,
+					.gpr[22] = LONG_MAX,
+				}
+			},
+			{
+				.descr = "RA = LONG_MAX - 1, RB = LONG_MAX",
+				.instr = ppc_inst(PPC_RAW_DIVDEU(20, 21, 22)),
+				.regs = {
+					.gpr[21] = LONG_MAX - 1,
+					.gpr[22] = LONG_MAX,
+				}
+			},
+			{
+				.descr = "RA = LONG_MIN + 1, RB = LONG_MIN",
+				.instr = ppc_inst(PPC_RAW_DIVDEU(20, 21, 22)),
+				.flags = IGNORE_GPR(20),
+				.regs = {
+					.gpr[21] = LONG_MIN + 1,
+					.gpr[22] = LONG_MIN,
+				}
+			}
+		}
+	},
+	{
+		.mnemonic = "divdeu.",
+		.subtests = {
+			{
+				.descr = "RA = LONG_MIN, RB = LONG_MIN",
+				.instr = ppc_inst(PPC_RAW_DIVDEU_DOT(20, 21, 22)),
+				.flags = IGNORE_GPR(20),
+				.regs = {
+					.gpr[21] = LONG_MIN,
+					.gpr[22] = LONG_MIN,
+				}
+			},
+			{
+				.descr = "RA = 1L, RB = 0",
+				.instr = ppc_inst(PPC_RAW_DIVDEU_DOT(20, 21, 22)),
+				.flags = IGNORE_GPR(20),
+				.regs = {
+					.gpr[21] = 1L,
+					.gpr[22] = 0,
+				}
+			},
+			{
+				.descr = "RA = LONG_MIN, RB = LONG_MAX",
+				.instr = ppc_inst(PPC_RAW_DIVDEU_DOT(20, 21, 22)),
+				.regs = {
+					.gpr[21] = LONG_MIN,
+					.gpr[22] = LONG_MAX,
+				}
+			},
+			{
+				.descr = "RA = LONG_MAX - 1, RB = LONG_MAX",
+				.instr = ppc_inst(PPC_RAW_DIVDEU_DOT(20, 21, 22)),
+				.regs = {
+					.gpr[21] = LONG_MAX - 1,
+					.gpr[22] = LONG_MAX,
+				}
+			},
+			{
+				.descr = "RA = LONG_MIN + 1, RB = LONG_MIN",
+				.instr = ppc_inst(PPC_RAW_DIVDEU_DOT(20, 21, 22)),
+				.flags = IGNORE_GPR(20),
+				.regs = {
+					.gpr[21] = LONG_MIN + 1,
+					.gpr[22] = LONG_MIN,
+				}
+			}
+		}
+	},
+	{
+		.mnemonic = "paddi",
+		.cpu_feature = CPU_FTR_ARCH_31,
+		.subtests = {
+			{
+				.descr = "RA = LONG_MIN, SI = SI_MIN, R = 0",
+				.instr = TEST_PADDI(21, 22, SI_MIN, 0),
+				.regs = {
+					.gpr[21] = 0,
+					.gpr[22] = LONG_MIN,
+				}
+			},
+			{
+				.descr = "RA = LONG_MIN, SI = SI_MAX, R = 0",
+				.instr = TEST_PADDI(21, 22, SI_MAX, 0),
+				.regs = {
+					.gpr[21] = 0,
+					.gpr[22] = LONG_MIN,
+				}
+			},
+			{
+				.descr = "RA = LONG_MAX, SI = SI_MAX, R = 0",
+				.instr = TEST_PADDI(21, 22, SI_MAX, 0),
+				.regs = {
+					.gpr[21] = 0,
+					.gpr[22] = LONG_MAX,
+				}
+			},
+			{
+				.descr = "RA = ULONG_MAX, SI = SI_UMAX, R = 0",
+				.instr = TEST_PADDI(21, 22, SI_UMAX, 0),
+				.regs = {
+					.gpr[21] = 0,
+					.gpr[22] = ULONG_MAX,
+				}
+			},
+			{
+				.descr = "RA = ULONG_MAX, SI = 0x1, R = 0",
+				.instr = TEST_PADDI(21, 22, 0x1, 0),
+				.regs = {
+					.gpr[21] = 0,
+					.gpr[22] = ULONG_MAX,
+				}
+			},
+			{
+				.descr = "RA = INT_MIN, SI = SI_MIN, R = 0",
+				.instr = TEST_PADDI(21, 22, SI_MIN, 0),
+				.regs = {
+					.gpr[21] = 0,
+					.gpr[22] = INT_MIN,
+				}
+			},
+			{
+				.descr = "RA = INT_MIN, SI = SI_MAX, R = 0",
+				.instr = TEST_PADDI(21, 22, SI_MAX, 0),
+				.regs = {
+					.gpr[21] = 0,
+					.gpr[22] = INT_MIN,
+				}
+			},
+			{
+				.descr = "RA = INT_MAX, SI = SI_MAX, R = 0",
+				.instr = TEST_PADDI(21, 22, SI_MAX, 0),
+				.regs = {
+					.gpr[21] = 0,
+					.gpr[22] = INT_MAX,
+				}
+			},
+			{
+				.descr = "RA = UINT_MAX, SI = 0x1, R = 0",
+				.instr = TEST_PADDI(21, 22, 0x1, 0),
+				.regs = {
+					.gpr[21] = 0,
+					.gpr[22] = UINT_MAX,
+				}
+			},
+			{
+				.descr = "RA = UINT_MAX, SI = SI_MAX, R = 0",
+				.instr = TEST_PADDI(21, 22, SI_MAX, 0),
+				.regs = {
+					.gpr[21] = 0,
+					.gpr[22] = UINT_MAX,
+				}
+			},
+			{
+				.descr = "RA is r0, SI = SI_MIN, R = 0",
+				.instr = TEST_PADDI(21, 0, SI_MIN, 0),
+				.regs = {
+					.gpr[21] = 0x0,
+				}
+			},
+			{
+				.descr = "RA = 0, SI = SI_MIN, R = 0",
+				.instr = TEST_PADDI(21, 22, SI_MIN, 0),
+				.regs = {
+					.gpr[21] = 0x0,
+					.gpr[22] = 0x0,
+				}
+			},
+			{
+				.descr = "RA is r0, SI = 0, R = 1",
+				.instr = TEST_PADDI(21, 0, 0, 1),
+				.regs = {
+					.gpr[21] = 0,
+				}
+			},
+			{
+				.descr = "RA is r0, SI = SI_MIN, R = 1",
+				.instr = TEST_PADDI(21, 0, SI_MIN, 1),
+				.regs = {
+					.gpr[21] = 0,
+				}
+			},
+			/* Invalid instruction form with R = 1 and RA != 0 */
+			{
+				.descr = "RA = R22(0), SI = 0, R = 1",
+				.instr = TEST_PADDI(21, 22, 0, 1),
+				.flags = NEGATIVE_TEST,
+				.regs = {
+					.gpr[21] = 0,
+					.gpr[22] = 0,
 				}
 			}
 		}
@@ -841,36 +1597,44 @@ static struct compute_test compute_tests[] = {
 };
 
 static int __init emulate_compute_instr(struct pt_regs *regs,
-					unsigned int instr)
+					ppc_inst_t instr,
+					bool negative)
 {
+	int analysed;
 	struct instruction_op op;
 
-	if (!regs || !instr)
+	if (!regs || !ppc_inst_val(instr))
 		return -EINVAL;
 
-	if (analyse_instr(&op, regs, instr) != 1 ||
-	    GETTYPE(op.type) != COMPUTE) {
-		pr_info("emulation failed, instruction = 0x%08x\n", instr);
+	/* This is not a return frame regs */
+	regs->nip = patch_site_addr(&patch__exec_instr);
+
+	analysed = analyse_instr(&op, regs, instr);
+	if (analysed != 1 || GETTYPE(op.type) != COMPUTE) {
+		if (negative)
+			return -EFAULT;
+		pr_info("emulation failed, instruction = %08lx\n", ppc_inst_as_ulong(instr));
 		return -EFAULT;
 	}
-
-	emulate_update_regs(regs, &op);
+	if (analysed == 1 && negative)
+		pr_info("negative test failed, instruction = %08lx\n", ppc_inst_as_ulong(instr));
+	if (!negative)
+		emulate_update_regs(regs, &op);
 	return 0;
 }
 
 static int __init execute_compute_instr(struct pt_regs *regs,
-					unsigned int instr)
+					ppc_inst_t instr)
 {
 	extern int exec_instr(struct pt_regs *regs);
-	extern s32 patch__exec_instr;
 
-	if (!regs || !instr)
+	if (!regs || !ppc_inst_val(instr))
 		return -EINVAL;
 
 	/* Patch the NOP with the actual instruction */
 	patch_instruction_site(&patch__exec_instr, instr);
 	if (exec_instr(regs)) {
-		pr_info("execution failed, instruction = 0x%08x\n", instr);
+		pr_info("execution failed, instruction = %08lx\n", ppc_inst_as_ulong(instr));
 		return -EFAULT;
 	}
 
@@ -890,16 +1654,23 @@ static void __init run_tests_compute(void)
 	unsigned long flags;
 	struct compute_test *test;
 	struct pt_regs *regs, exp, got;
-	unsigned int i, j, k, instr;
-	bool ignore_gpr, ignore_xer, ignore_ccr, passed;
+	unsigned int i, j, k;
+	ppc_inst_t instr;
+	bool ignore_gpr, ignore_xer, ignore_ccr, passed, rc, negative;
 
 	for (i = 0; i < ARRAY_SIZE(compute_tests); i++) {
 		test = &compute_tests[i];
+
+		if (test->cpu_feature && !early_cpu_has_feature(test->cpu_feature)) {
+			show_result(test->mnemonic, "SKIP (!CPU_FTR)");
+			continue;
+		}
 
 		for (j = 0; j < MAX_SUBTESTS && test->subtests[j].descr; j++) {
 			instr = test->subtests[j].instr;
 			flags = test->subtests[j].flags;
 			regs = &test->subtests[j].regs;
+			negative = flags & NEGATIVE_TEST;
 			ignore_xer = flags & IGNORE_XER;
 			ignore_ccr = flags & IGNORE_CCR;
 			passed = true;
@@ -914,8 +1685,12 @@ static void __init run_tests_compute(void)
 			exp.msr = MSR_KERNEL;
 			got.msr = MSR_KERNEL;
 
-			if (emulate_compute_instr(&got, instr) ||
-			    execute_compute_instr(&exp, instr)) {
+			rc = emulate_compute_instr(&got, instr, negative) != 0;
+			if (negative) {
+				/* skip executing instruction */
+				passed = rc;
+				goto print;
+			} else if (rc || execute_compute_instr(&exp, instr)) {
 				passed = false;
 				goto print;
 			}

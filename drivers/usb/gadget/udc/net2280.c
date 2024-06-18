@@ -52,6 +52,7 @@
 #include <linux/usb/gadget.h>
 #include <linux/prefetch.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 
 #include <asm/byteorder.h>
 #include <asm/irq.h>
@@ -360,18 +361,16 @@ print_err:
 static int handshake(u32 __iomem *ptr, u32 mask, u32 done, int usec)
 {
 	u32	result;
+	int	ret;
 
-	do {
-		result = readl(ptr);
-		if (result == ~(u32)0)		/* "device unplugged" */
-			return -ENODEV;
-		result &= mask;
-		if (result == done)
-			return 0;
-		udelay(1);
-		usec--;
-	} while (usec > 0);
-	return -ETIMEDOUT;
+	ret = readl_poll_timeout_atomic(ptr, result,
+					((result & mask) == done ||
+					 result == U32_MAX),
+					1, usec);
+	if (result == U32_MAX)		/* device unplugged */
+		return -ENODEV;
+
+	return ret;
 }
 
 static const struct usb_ep_ops net2280_ep_ops;
@@ -933,19 +932,11 @@ static void start_dma(struct net2280_ep *ep, struct net2280_request *req)
 static inline void
 queue_dma(struct net2280_ep *ep, struct net2280_request *req, int valid)
 {
-	struct net2280_dma	*end;
-	dma_addr_t		tmp;
-
 	/* swap new dummy for old, link; fill and maybe activate */
-	end = ep->dummy;
-	ep->dummy = req->td;
-	req->td = end;
+	swap(ep->dummy, req->td);
+	swap(ep->td_dma, req->td_dma);
 
-	tmp = ep->td_dma;
-	ep->td_dma = req->td_dma;
-	req->td_dma = tmp;
-
-	end->dmadesc = cpu_to_le32 (ep->td_dma);
+	req->td->dmadesc = cpu_to_le32 (ep->td_dma);
 
 	fill_dma_desc(ep, req, valid);
 }
@@ -1241,7 +1232,8 @@ static void nuke(struct net2280_ep *ep)
 static int net2280_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 {
 	struct net2280_ep	*ep;
-	struct net2280_request	*req;
+	struct net2280_request	*req = NULL;
+	struct net2280_request	*iter;
 	unsigned long		flags;
 	u32			dmactl;
 	int			stopped;
@@ -1267,11 +1259,13 @@ static int net2280_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 	}
 
 	/* make sure it's still queued on this endpoint */
-	list_for_each_entry(req, &ep->queue, queue) {
-		if (&req->req == _req)
-			break;
+	list_for_each_entry(iter, &ep->queue, queue) {
+		if (&iter->req != _req)
+			continue;
+		req = iter;
+		break;
 	}
-	if (&req->req != _req) {
+	if (!req) {
 		ep->stopped = stopped;
 		spin_unlock_irqrestore(&ep->dev->lock, flags);
 		ep_dbg(ep->dev, "%s: Request mismatch\n", __func__);
@@ -1618,6 +1612,7 @@ static struct usb_ep *net2280_match_ep(struct usb_gadget *_gadget,
 static int net2280_start(struct usb_gadget *_gadget,
 		struct usb_gadget_driver *driver);
 static int net2280_stop(struct usb_gadget *_gadget);
+static void net2280_async_callbacks(struct usb_gadget *_gadget, bool enable);
 
 static const struct usb_gadget_ops net2280_ops = {
 	.get_frame	= net2280_get_frame,
@@ -1626,6 +1621,7 @@ static const struct usb_gadget_ops net2280_ops = {
 	.pullup		= net2280_pullup,
 	.udc_start	= net2280_start,
 	.udc_stop	= net2280_stop,
+	.udc_async_callbacks = net2280_async_callbacks,
 	.match_ep	= net2280_match_ep,
 };
 
@@ -2427,7 +2423,6 @@ static int net2280_start(struct usb_gadget *_gadget,
 		dev->ep[i].irqs = 0;
 
 	/* hook up the driver ... */
-	driver->driver.bus = NULL;
 	dev->driver = driver;
 
 	retval = device_create_file(&dev->pdev->dev, &dev_attr_function);
@@ -2473,7 +2468,7 @@ static void stop_activity(struct net2280 *dev, struct usb_gadget_driver *driver)
 		nuke(&dev->ep[i]);
 
 	/* report disconnect; the driver is already quiesced */
-	if (driver) {
+	if (dev->async_callbacks && driver) {
 		spin_unlock(&dev->lock);
 		driver->disconnect(&dev->gadget);
 		spin_lock(&dev->lock);
@@ -2501,6 +2496,15 @@ static int net2280_stop(struct usb_gadget *_gadget)
 	dev->driver = NULL;
 
 	return 0;
+}
+
+static void net2280_async_callbacks(struct usb_gadget *_gadget, bool enable)
+{
+	struct net2280	*dev = container_of(_gadget, struct net2280, gadget);
+
+	spin_lock_irq(&dev->lock);
+	dev->async_callbacks = enable;
+	spin_unlock_irq(&dev->lock);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -2815,8 +2819,6 @@ static void defect7374_workaround(struct net2280 *dev, struct usb_ctrlrequest r)
 		 * - Wait and try again.
 		 */
 		udelay(DEFECT_7374_PROCESSOR_WAIT_TIME);
-
-		continue;
 	}
 
 
@@ -2861,6 +2863,8 @@ static void ep_clear_seqnum(struct net2280_ep *ep)
 static void handle_stat0_irqs_superspeed(struct net2280 *dev,
 		struct net2280_ep *ep, struct usb_ctrlrequest r)
 {
+	struct net2280_ep *e;
+	u16 status;
 	int tmp = 0;
 
 #define	w_value		le16_to_cpu(r.wValue)
@@ -2868,9 +2872,6 @@ static void handle_stat0_irqs_superspeed(struct net2280 *dev,
 #define	w_length	le16_to_cpu(r.wLength)
 
 	switch (r.bRequest) {
-		struct net2280_ep *e;
-		u16 status;
-
 	case USB_REQ_SET_CONFIGURATION:
 		dev->addressed_state = !w_value;
 		goto usb3_delegate;
@@ -3044,9 +3045,11 @@ usb3_delegate:
 				readl(&ep->cfg->ep_cfg));
 
 		ep->responded = 0;
-		spin_unlock(&dev->lock);
-		tmp = dev->driver->setup(&dev->gadget, &r);
-		spin_lock(&dev->lock);
+		if (dev->async_callbacks) {
+			spin_unlock(&dev->lock);
+			tmp = dev->driver->setup(&dev->gadget, &r);
+			spin_lock(&dev->lock);
+		}
 	}
 do_stall3:
 	if (tmp < 0) {
@@ -3286,9 +3289,11 @@ delegate:
 				w_value, w_index, w_length,
 				readl(&ep->cfg->ep_cfg));
 			ep->responded = 0;
-			spin_unlock(&dev->lock);
-			tmp = dev->driver->setup(&dev->gadget, &u.r);
-			spin_lock(&dev->lock);
+			if (dev->async_callbacks) {
+				spin_unlock(&dev->lock);
+				tmp = dev->driver->setup(&dev->gadget, &u.r);
+				spin_lock(&dev->lock);
+			}
 		}
 
 		/* stall ep0 on error */
@@ -3393,14 +3398,14 @@ __acquires(dev->lock)
 			if (disconnect || reset) {
 				stop_activity(dev, dev->driver);
 				ep0_start(dev);
-				spin_unlock(&dev->lock);
-				if (reset)
-					usb_gadget_udc_reset
-						(&dev->gadget, dev->driver);
-				else
-					(dev->driver->disconnect)
-						(&dev->gadget);
-				spin_lock(&dev->lock);
+				if (dev->async_callbacks) {
+					spin_unlock(&dev->lock);
+					if (reset)
+						usb_gadget_udc_reset(&dev->gadget, dev->driver);
+					else
+						(dev->driver->disconnect)(&dev->gadget);
+					spin_lock(&dev->lock);
+				}
 				return;
 			}
 		}
@@ -3421,12 +3426,12 @@ __acquires(dev->lock)
 		writel(tmp, &dev->regs->irqstat1);
 		spin_unlock(&dev->lock);
 		if (stat & BIT(SUSPEND_REQUEST_INTERRUPT)) {
-			if (dev->driver->suspend)
+			if (dev->async_callbacks && dev->driver->suspend)
 				dev->driver->suspend(&dev->gadget);
 			if (!enable_suspend)
 				stat &= ~BIT(SUSPEND_REQUEST_INTERRUPT);
 		} else {
-			if (dev->driver->resume)
+			if (dev->async_callbacks && dev->driver->resume)
 				dev->driver->resume(&dev->gadget);
 			/* at high speed, note erratum 0133 */
 		}
@@ -3562,7 +3567,7 @@ static irqreturn_t net2280_irq(int irq, void *_dev)
 
 static void gadget_release(struct device *_dev)
 {
-	struct net2280	*dev = dev_get_drvdata(_dev);
+	struct net2280	*dev = container_of(_dev, struct net2280, gadget.dev);
 
 	kfree(dev);
 }
@@ -3573,7 +3578,8 @@ static void net2280_remove(struct pci_dev *pdev)
 {
 	struct net2280		*dev = pci_get_drvdata(pdev);
 
-	usb_del_gadget_udc(&dev->gadget);
+	if (dev->added)
+		usb_del_gadget(&dev->gadget);
 
 	BUG_ON(dev->driver);
 
@@ -3604,6 +3610,7 @@ static void net2280_remove(struct pci_dev *pdev)
 	device_remove_file(&pdev->dev, &dev_attr_registers);
 
 	ep_info(dev, "unbind\n");
+	usb_put_gadget(&dev->gadget);
 }
 
 /* wrap this driver around the specified device, but
@@ -3625,6 +3632,7 @@ static int net2280_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	pci_set_drvdata(pdev, dev);
+	usb_initialize_gadget(&pdev->dev, &dev->gadget, gadget_release);
 	spin_lock_init(&dev->lock);
 	dev->quirks = id->driver_data;
 	dev->pdev = pdev;
@@ -3659,7 +3667,7 @@ static int net2280_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 * 8051 code into the chip, e.g. to turn on PCI PM.
 	 */
 
-	base = ioremap_nocache(resource, len);
+	base = ioremap(resource, len);
 	if (base == NULL) {
 		ep_dbg(dev, "can't map memory\n");
 		retval = -EFAULT;
@@ -3775,15 +3783,17 @@ static int net2280_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (retval)
 		goto done;
 
-	retval = usb_add_gadget_udc_release(&pdev->dev, &dev->gadget,
-			gadget_release);
+	retval = usb_add_gadget(&dev->gadget);
 	if (retval)
 		goto done;
+	dev->added = 1;
 	return 0;
 
 done:
-	if (dev)
+	if (dev) {
 		net2280_remove(pdev);
+		kfree(dev);
+	}
 	return retval;
 }
 
@@ -3857,7 +3867,7 @@ MODULE_DEVICE_TABLE(pci, pci_ids);
 
 /* pci driver glue; this is a "new style" PCI driver module */
 static struct pci_driver net2280_pci_driver = {
-	.name =		(char *) driver_name,
+	.name =		driver_name,
 	.id_table =	pci_ids,
 
 	.probe =	net2280_probe,

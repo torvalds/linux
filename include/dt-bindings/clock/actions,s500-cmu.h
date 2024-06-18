@@ -72,7 +72,14 @@
 #define CLK_NAND		52
 #define CLK_ECC			53
 #define CLK_RMII_REF		54
+#define CLK_GPIO		55
 
-#define CLK_NR_CLKS	       (CLK_RMII_REF + 1)
+/* additional clocks */
+#define CLK_APB			56
+#define CLK_DMAC		57
+#define CLK_NIC			58
+#define CLK_ETHERNET		59
+
+#define CLK_NR_CLKS		(CLK_ETHERNET + 1)
 
 #endif /* __DT_BINDINGS_CLOCK_S500_CMU_H */

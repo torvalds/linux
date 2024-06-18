@@ -1,0 +1,10 @@
+[
+    {
+        "BriefDescription": "Stalls due to FP assists",
+        "EventCode": "0xC3",
+        "EventName": "MACHINE_CLEARS.FP_ASSIST",
+        "PublicDescription": "This event counts the number of times that pipeline stalled due to FP operations needing assists.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x4"
+    }
+]

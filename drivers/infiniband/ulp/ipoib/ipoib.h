@@ -351,10 +351,12 @@ struct ipoib_dev_priv {
 	struct workqueue_struct *wq;
 	struct delayed_work mcast_task;
 	struct work_struct carrier_on_task;
+	struct work_struct reschedule_napi_work;
 	struct work_struct flush_light;
 	struct work_struct flush_normal;
 	struct work_struct flush_heavy;
 	struct work_struct restart_task;
+	struct work_struct tx_timeout_work;
 	struct delayed_work ah_reap_task;
 	struct delayed_work neigh_reap_task;
 	struct ib_device *ca;
@@ -377,8 +379,12 @@ struct ipoib_dev_priv {
 	struct ipoib_rx_buf *rx_ring;
 
 	struct ipoib_tx_buf *tx_ring;
+	/* cyclic ring variables for managing tx_ring, for UD only */
 	unsigned int	     tx_head;
 	unsigned int	     tx_tail;
+	/* cyclic ring variables for counting overall outstanding send WRs */
+	unsigned int	     global_tx_head;
+	unsigned int	     global_tx_tail;
 	struct ib_sge	     tx_sge[MAX_SKB_FRAGS + 1];
 	struct ib_ud_wr      tx_wr;
 	struct ib_wc	     send_wc[MAX_SEND_CQE];
@@ -407,9 +413,9 @@ struct ipoib_dev_priv {
 	struct dentry *path_dentry;
 #endif
 	u64	hca_caps;
+	u64	kernel_caps;
 	struct ipoib_ethtool_st ethtool;
 	unsigned int max_send_sge;
-	bool sm_fullmember_sendonly_support;
 	const struct net_device_ops	*rn_ops;
 };
 
@@ -451,7 +457,7 @@ struct ipoib_neigh {
 	struct list_head    list;
 	struct ipoib_neigh __rcu *hnext;
 	struct rcu_head     rcu;
-	atomic_t	    refcnt;
+	refcount_t	    refcnt;
 	unsigned long       alive;
 };
 
@@ -461,7 +467,7 @@ struct ipoib_neigh {
 void ipoib_neigh_dtor(struct ipoib_neigh *neigh);
 static inline void ipoib_neigh_put(struct ipoib_neigh *neigh)
 {
-	if (atomic_dec_and_test(&neigh->refcnt))
+	if (refcount_dec_and_test(&neigh->refcnt))
 		ipoib_neigh_dtor(neigh);
 }
 struct ipoib_neigh *ipoib_neigh_get(struct net_device *dev, u8 *daddr);
@@ -495,23 +501,25 @@ int ipoib_send(struct net_device *dev, struct sk_buff *skb,
 	       struct ib_ah *address, u32 dqpn);
 void ipoib_reap_ah(struct work_struct *work);
 
+void ipoib_napi_schedule_work(struct work_struct *work);
 struct ipoib_path *__path_find(struct net_device *dev, void *gid);
 void ipoib_mark_paths_invalid(struct net_device *dev);
 void ipoib_flush_paths(struct net_device *dev);
-struct net_device *ipoib_intf_alloc(struct ib_device *hca, u8 port,
+struct net_device *ipoib_intf_alloc(struct ib_device *hca, u32 port,
 				    const char *format);
-int ipoib_intf_init(struct ib_device *hca, u8 port, const char *format,
+int ipoib_intf_init(struct ib_device *hca, u32 port, const char *format,
 		    struct net_device *dev);
 void ipoib_ib_tx_timer_func(struct timer_list *t);
 void ipoib_ib_dev_flush_light(struct work_struct *work);
 void ipoib_ib_dev_flush_normal(struct work_struct *work);
 void ipoib_ib_dev_flush_heavy(struct work_struct *work);
+void ipoib_ib_tx_timeout_work(struct work_struct *work);
 void ipoib_pkey_event(struct work_struct *work);
 void ipoib_ib_dev_cleanup(struct net_device *dev);
 
 int ipoib_ib_dev_open_default(struct net_device *dev);
 int ipoib_ib_dev_open(struct net_device *dev);
-int ipoib_ib_dev_stop(struct net_device *dev);
+void ipoib_ib_dev_stop(struct net_device *dev);
 void ipoib_ib_dev_up(struct net_device *dev);
 void ipoib_ib_dev_down(struct net_device *dev);
 int ipoib_ib_dev_stop_default(struct net_device *dev);
@@ -523,7 +531,7 @@ void ipoib_mcast_send(struct net_device *dev, u8 *daddr, struct sk_buff *skb);
 
 void ipoib_mcast_restart_task(struct work_struct *work);
 void ipoib_mcast_start_thread(struct net_device *dev);
-int ipoib_mcast_stop_thread(struct net_device *dev);
+void ipoib_mcast_stop_thread(struct net_device *dev);
 
 void ipoib_mcast_dev_down(struct net_device *dev);
 void ipoib_mcast_dev_flush(struct net_device *dev);
@@ -673,8 +681,6 @@ void ipoib_cm_skb_too_long(struct net_device *dev, struct sk_buff *skb,
 void ipoib_cm_handle_rx_wc(struct net_device *dev, struct ib_wc *wc);
 void ipoib_cm_handle_tx_wc(struct net_device *dev, struct ib_wc *wc);
 #else
-
-struct ipoib_cm_tx;
 
 #define ipoib_max_conn_qp 0
 
@@ -837,7 +843,5 @@ extern int ipoib_debug_level;
 #endif /* CONFIG_INFINIBAND_IPOIB_DEBUG_DATA */
 
 #define IPOIB_QPN(ha) (be32_to_cpup((__be32 *) ha) & 0xffffff)
-
-extern const char ipoib_driver_version[];
 
 #endif /* _IPOIB_H */

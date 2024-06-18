@@ -13,6 +13,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/spi-fsl-dspi.h>
 #include <linux/spi/flash.h>
+#include <linux/dma-mapping.h>
 #include <asm/mcfsim.h>
 
 /*
@@ -78,6 +79,8 @@ static struct resource dspi_spi0_resource[] = {
 	},
 };
 
+static u64 stmark2_dspi_mask = DMA_BIT_MASK(32);
+
 /* SPI controller, id = bus number */
 static struct platform_device dspi_spi0_device = {
 	.name = "fsl-dspi",
@@ -86,6 +89,8 @@ static struct platform_device dspi_spi0_device = {
 	.resource = dspi_spi0_resource,
 	.dev = {
 		.platform_data = &dspi_spi0_info,
+		.dma_mask = &stmark2_dspi_mask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
 	},
 };
 
@@ -106,7 +111,9 @@ static int __init init_stmark2(void)
 	__raw_writeb(0x00, MCFGPIO_PAR_BE);
 	__raw_writeb(0x00, MCFGPIO_PAR_FBCTL);
 	__raw_writeb(0x00, MCFGPIO_PAR_CS);
-	__raw_writeb(0x00, MCFGPIO_PAR_CANI2C);
+
+	/* CAN pads */
+	__raw_writeb(0x50, MCFGPIO_PAR_CANI2C);
 
 	platform_add_devices(stmark2_devices, ARRAY_SIZE(stmark2_devices));
 
@@ -116,4 +123,4 @@ static int __init init_stmark2(void)
 	return 0;
 }
 
-late_initcall(init_stmark2);
+device_initcall(init_stmark2);

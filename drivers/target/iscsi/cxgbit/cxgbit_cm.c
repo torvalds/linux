@@ -465,7 +465,7 @@ int cxgbit_setup_np(struct iscsi_np *np, struct sockaddr_storage *ksockaddr)
 }
 
 static void
-cxgbit_set_conn_info(struct iscsi_np *np, struct iscsi_conn *conn,
+cxgbit_set_conn_info(struct iscsi_np *np, struct iscsit_conn *conn,
 		     struct cxgbit_sock *csk)
 {
 	conn->login_family = np->np_sockaddr.ss_family;
@@ -473,7 +473,7 @@ cxgbit_set_conn_info(struct iscsi_np *np, struct iscsi_conn *conn,
 	conn->local_sockaddr = csk->com.local_addr;
 }
 
-int cxgbit_accept_np(struct iscsi_np *np, struct iscsi_conn *conn)
+int cxgbit_accept_np(struct iscsi_np *np, struct iscsit_conn *conn)
 {
 	struct cxgbit_np *cnp = np->np_context;
 	struct cxgbit_sock *csk;
@@ -717,7 +717,7 @@ void cxgbit_abort_conn(struct cxgbit_sock *csk)
 
 static void __cxgbit_free_conn(struct cxgbit_sock *csk)
 {
-	struct iscsi_conn *conn = csk->conn;
+	struct iscsit_conn *conn = csk->conn;
 	bool release = false;
 
 	pr_debug("%s: state %d\n",
@@ -751,7 +751,7 @@ static void __cxgbit_free_conn(struct cxgbit_sock *csk)
 		cxgbit_put_csk(csk);
 }
 
-void cxgbit_free_conn(struct iscsi_conn *conn)
+void cxgbit_free_conn(struct iscsit_conn *conn)
 {
 	__cxgbit_free_conn(conn->context);
 }
@@ -836,11 +836,13 @@ static void cxgbit_set_tcp_window(struct cxgbit_sock *csk, struct port_info *pi)
 	csk->rcv_win = CXGBIT_10G_RCV_WIN;
 	if (scale)
 		csk->rcv_win *= scale;
+	csk->rcv_win = min(csk->rcv_win, RCV_BUFSIZ_M << 10);
 
 #define CXGBIT_10G_SND_WIN (256 * 1024)
 	csk->snd_win = CXGBIT_10G_SND_WIN;
 	if (scale)
 		csk->snd_win *= scale;
+	csk->snd_win = min(csk->snd_win, 512U * 1024);
 
 	pr_debug("%s snd_win %d rcv_win %d\n",
 		 __func__, csk->snd_win, csk->rcv_win);
@@ -1065,7 +1067,7 @@ int cxgbit_rx_data_ack(struct cxgbit_sock *csk)
 	if (!skb)
 		return -1;
 
-	credit_dack = RX_DACK_CHANGE_F | RX_DACK_MODE_V(1) |
+	credit_dack = RX_DACK_CHANGE_F | RX_DACK_MODE_V(3) |
 		      RX_CREDITS_V(csk->rx_credits);
 
 	cxgb_mk_rx_data_ack(skb, len, csk->tid, csk->ctrlq_idx,
@@ -1197,11 +1199,10 @@ cxgbit_pass_accept_rpl(struct cxgbit_sock *csk, struct cpl_pass_accept_req *req)
 	if (tcph->ece && tcph->cwr)
 		opt2 |= CCTRL_ECN_V(1);
 
-	opt2 |= RX_COALESCE_V(3);
 	opt2 |= CONG_CNTRL_V(CONG_ALG_NEWRENO);
 
 	opt2 |= T5_ISS_F;
-	rpl5->iss = cpu_to_be32((prandom_u32() & ~7UL) - 1);
+	rpl5->iss = cpu_to_be32((get_random_u32() & ~7UL) - 1);
 
 	opt2 |= T5_OPT_2_VALID_F;
 
@@ -1360,7 +1361,6 @@ cxgbit_pass_accept_req(struct cxgbit_device *cdev, struct sk_buff *skb)
 	cxgbit_sock_reset_wr_list(csk);
 	spin_lock_init(&csk->lock);
 	init_waitqueue_head(&csk->waitq);
-	init_waitqueue_head(&csk->ack_waitq);
 	csk->lock_owner = false;
 
 	if (cxgbit_alloc_csk_skb(csk)) {
@@ -1485,6 +1485,26 @@ u32 cxgbit_send_tx_flowc_wr(struct cxgbit_sock *csk)
 	return flowclen16;
 }
 
+static int
+cxgbit_send_tcb_skb(struct cxgbit_sock *csk, struct sk_buff *skb)
+{
+	spin_lock_bh(&csk->lock);
+	if (unlikely(csk->com.state != CSK_STATE_ESTABLISHED)) {
+		spin_unlock_bh(&csk->lock);
+		pr_err("%s: csk 0x%p, tid %u, state %u\n",
+		       __func__, csk, csk->tid, csk->com.state);
+		__kfree_skb(skb);
+		return -1;
+	}
+
+	cxgbit_get_csk(csk);
+	cxgbit_init_wr_wait(&csk->com.wr_wait);
+	cxgbit_ofld_send(csk->com.cdev, skb);
+	spin_unlock_bh(&csk->lock);
+
+	return 0;
+}
+
 int cxgbit_setup_conn_digest(struct cxgbit_sock *csk)
 {
 	struct sk_buff *skb;
@@ -1510,10 +1530,8 @@ int cxgbit_setup_conn_digest(struct cxgbit_sock *csk)
 				(dcrc ? ULP_CRC_DATA : 0)) << 4);
 	set_wr_txq(skb, CPL_PRIORITY_CONTROL, csk->ctrlq_idx);
 
-	cxgbit_get_csk(csk);
-	cxgbit_init_wr_wait(&csk->com.wr_wait);
-
-	cxgbit_ofld_send(csk->com.cdev, skb);
+	if (cxgbit_send_tcb_skb(csk, skb))
+		return -1;
 
 	ret = cxgbit_wait_for_reply(csk->com.cdev,
 				    &csk->com.wr_wait,
@@ -1545,10 +1563,8 @@ int cxgbit_setup_conn_pgidx(struct cxgbit_sock *csk, u32 pg_idx)
 	req->val = cpu_to_be64(pg_idx << 8);
 	set_wr_txq(skb, CPL_PRIORITY_CONTROL, csk->ctrlq_idx);
 
-	cxgbit_get_csk(csk);
-	cxgbit_init_wr_wait(&csk->com.wr_wait);
-
-	cxgbit_ofld_send(csk->com.cdev, skb);
+	if (cxgbit_send_tcb_skb(csk, skb))
+		return -1;
 
 	ret = cxgbit_wait_for_reply(csk->com.cdev,
 				    &csk->com.wr_wait,
@@ -1630,9 +1646,6 @@ cxgbit_pass_establish(struct cxgbit_device *cdev, struct sk_buff *skb)
 	csk->snd_nxt = snd_isn;
 
 	csk->rcv_nxt = rcv_isn;
-
-	if (csk->rcv_win > (RCV_BUFSIZ_M << 10))
-		csk->rx_credits = (csk->rcv_win - (RCV_BUFSIZ_M << 10));
 
 	csk->snd_wscale = TCPOPT_SND_WSCALE_G(tcp_opt);
 	cxgbit_set_emss(csk, tcp_opt);
@@ -1831,7 +1844,7 @@ static void cxgbit_fw4_ack(struct cxgbit_sock *csk, struct sk_buff *skb)
 
 	while (credits) {
 		struct sk_buff *p = cxgbit_sock_peek_wr(csk);
-		const u32 csum = (__force u32)p->csum;
+		u32 csum;
 
 		if (unlikely(!p)) {
 			pr_err("csk 0x%p,%u, cr %u,%u+%u, empty.\n",
@@ -1840,6 +1853,7 @@ static void cxgbit_fw4_ack(struct cxgbit_sock *csk, struct sk_buff *skb)
 			break;
 		}
 
+		csum = (__force u32)p->csum;
 		if (unlikely(credits < csum)) {
 			pr_warn("csk 0x%p,%u, cr %u,%u+%u, < %u.\n",
 				csk,  csk->tid,
@@ -1870,7 +1884,6 @@ static void cxgbit_fw4_ack(struct cxgbit_sock *csk, struct sk_buff *skb)
 		if (csk->snd_una != snd_una) {
 			csk->snd_una = snd_una;
 			dst_confirm(csk->dst);
-			wake_up(&csk->ack_waitq);
 		}
 	}
 

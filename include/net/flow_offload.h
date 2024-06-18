@@ -3,8 +3,8 @@
 
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/netlink.h>
 #include <net/flow_dissector.h>
-#include <linux/rhashtable.h>
 
 struct flow_match {
 	struct flow_dissector	*dissector;
@@ -32,6 +32,10 @@ struct flow_match_vlan {
 	struct flow_dissector_key_vlan *key, *mask;
 };
 
+struct flow_match_arp {
+	struct flow_dissector_key_arp *key, *mask;
+};
+
 struct flow_match_ipv4_addrs {
 	struct flow_dissector_key_ipv4_addrs *key, *mask;
 };
@@ -48,12 +52,20 @@ struct flow_match_ports {
 	struct flow_dissector_key_ports *key, *mask;
 };
 
+struct flow_match_ports_range {
+	struct flow_dissector_key_ports_range *key, *mask;
+};
+
 struct flow_match_icmp {
 	struct flow_dissector_key_icmp *key, *mask;
 };
 
 struct flow_match_tcp {
 	struct flow_dissector_key_tcp *key, *mask;
+};
+
+struct flow_match_ipsec {
+	struct flow_dissector_key_ipsec *key, *mask;
 };
 
 struct flow_match_mpls {
@@ -66,6 +78,18 @@ struct flow_match_enc_keyid {
 
 struct flow_match_enc_opts {
 	struct flow_dissector_key_enc_opts *key, *mask;
+};
+
+struct flow_match_ct {
+	struct flow_dissector_key_ct *key, *mask;
+};
+
+struct flow_match_pppoe {
+	struct flow_dissector_key_pppoe *key, *mask;
+};
+
+struct flow_match_l2tpv3 {
+	struct flow_dissector_key_l2tpv3 *key, *mask;
 };
 
 struct flow_rule;
@@ -82,6 +106,8 @@ void flow_rule_match_vlan(const struct flow_rule *rule,
 			  struct flow_match_vlan *out);
 void flow_rule_match_cvlan(const struct flow_rule *rule,
 			   struct flow_match_vlan *out);
+void flow_rule_match_arp(const struct flow_rule *rule,
+			 struct flow_match_arp *out);
 void flow_rule_match_ipv4_addrs(const struct flow_rule *rule,
 				struct flow_match_ipv4_addrs *out);
 void flow_rule_match_ipv6_addrs(const struct flow_rule *rule,
@@ -90,8 +116,12 @@ void flow_rule_match_ip(const struct flow_rule *rule,
 			struct flow_match_ip *out);
 void flow_rule_match_ports(const struct flow_rule *rule,
 			   struct flow_match_ports *out);
+void flow_rule_match_ports_range(const struct flow_rule *rule,
+				 struct flow_match_ports_range *out);
 void flow_rule_match_tcp(const struct flow_rule *rule,
 			 struct flow_match_tcp *out);
+void flow_rule_match_ipsec(const struct flow_rule *rule,
+			   struct flow_match_ipsec *out);
 void flow_rule_match_icmp(const struct flow_rule *rule,
 			  struct flow_match_icmp *out);
 void flow_rule_match_mpls(const struct flow_rule *rule,
@@ -110,6 +140,12 @@ void flow_rule_match_enc_keyid(const struct flow_rule *rule,
 			       struct flow_match_enc_keyid *out);
 void flow_rule_match_enc_opts(const struct flow_rule *rule,
 			      struct flow_match_enc_opts *out);
+void flow_rule_match_ct(const struct flow_rule *rule,
+			struct flow_match_ct *out);
+void flow_rule_match_pppoe(const struct flow_rule *rule,
+			   struct flow_match_pppoe *out);
+void flow_rule_match_l2tpv3(const struct flow_rule *rule,
+			    struct flow_match_l2tpv3 *out);
 
 enum flow_action_id {
 	FLOW_ACTION_ACCEPT		= 0,
@@ -130,14 +166,24 @@ enum flow_action_id {
 	FLOW_ACTION_CSUM,
 	FLOW_ACTION_MARK,
 	FLOW_ACTION_PTYPE,
+	FLOW_ACTION_PRIORITY,
+	FLOW_ACTION_RX_QUEUE_MAPPING,
 	FLOW_ACTION_WAKE,
 	FLOW_ACTION_QUEUE,
 	FLOW_ACTION_SAMPLE,
 	FLOW_ACTION_POLICE,
 	FLOW_ACTION_CT,
+	FLOW_ACTION_CT_METADATA,
 	FLOW_ACTION_MPLS_PUSH,
 	FLOW_ACTION_MPLS_POP,
 	FLOW_ACTION_MPLS_MANGLE,
+	FLOW_ACTION_GATE,
+	FLOW_ACTION_PPPOE_PUSH,
+	FLOW_ACTION_JUMP,
+	FLOW_ACTION_PIPE,
+	FLOW_ACTION_VLAN_PUSH_ETH,
+	FLOW_ACTION_VLAN_POP_ETH,
+	FLOW_ACTION_CONTINUE,
 	NUM_FLOW_ACTIONS,
 };
 
@@ -154,10 +200,43 @@ enum flow_action_mangle_base {
 	FLOW_ACT_MANGLE_HDR_TYPE_UDP,
 };
 
+enum flow_action_hw_stats_bit {
+	FLOW_ACTION_HW_STATS_IMMEDIATE_BIT,
+	FLOW_ACTION_HW_STATS_DELAYED_BIT,
+	FLOW_ACTION_HW_STATS_DISABLED_BIT,
+
+	FLOW_ACTION_HW_STATS_NUM_BITS
+};
+
+enum flow_action_hw_stats {
+	FLOW_ACTION_HW_STATS_IMMEDIATE =
+		BIT(FLOW_ACTION_HW_STATS_IMMEDIATE_BIT),
+	FLOW_ACTION_HW_STATS_DELAYED = BIT(FLOW_ACTION_HW_STATS_DELAYED_BIT),
+	FLOW_ACTION_HW_STATS_ANY = FLOW_ACTION_HW_STATS_IMMEDIATE |
+				   FLOW_ACTION_HW_STATS_DELAYED,
+	FLOW_ACTION_HW_STATS_DISABLED =
+		BIT(FLOW_ACTION_HW_STATS_DISABLED_BIT),
+	FLOW_ACTION_HW_STATS_DONT_CARE = BIT(FLOW_ACTION_HW_STATS_NUM_BITS) - 1,
+};
+
 typedef void (*action_destr)(void *priv);
+
+struct flow_action_cookie {
+	u32 cookie_len;
+	u8 cookie[];
+};
+
+struct flow_action_cookie *flow_action_cookie_create(void *data,
+						     unsigned int len,
+						     gfp_t gfp);
+void flow_action_cookie_destroy(struct flow_action_cookie *cookie);
 
 struct flow_action_entry {
 	enum flow_action_id		id;
+	u32				hw_index;
+	unsigned long			cookie;
+	u64				miss_cookie;
+	enum flow_action_hw_stats	hw_stats;
 	action_destr			destructor;
 	void				*destructor_priv;
 	union {
@@ -168,7 +247,12 @@ struct flow_action_entry {
 			__be16		proto;
 			u8		prio;
 		} vlan;
-		struct {				/* FLOW_ACTION_PACKET_EDIT */
+		struct {				/* FLOW_ACTION_VLAN_PUSH_ETH */
+			unsigned char dst[ETH_ALEN];
+			unsigned char src[ETH_ALEN];
+		} vlan_push_eth;
+		struct {				/* FLOW_ACTION_MANGLE */
+							/* FLOW_ACTION_ADD */
 			enum flow_action_mangle_base htype;
 			u32		offset;
 			u32		mask;
@@ -178,6 +262,8 @@ struct flow_action_entry {
 		u32			csum_flags;	/* FLOW_ACTION_CSUM */
 		u32			mark;		/* FLOW_ACTION_MARK */
 		u16                     ptype;          /* FLOW_ACTION_PTYPE */
+		u16			rx_queue;	/* FLOW_ACTION_RX_QUEUE_MAPPING */
+		u32			priority;	/* FLOW_ACTION_PRIORITY */
 		struct {				/* FLOW_ACTION_QUEUE */
 			u32		ctx;
 			u32		index;
@@ -190,13 +276,30 @@ struct flow_action_entry {
 			bool			truncate;
 		} sample;
 		struct {				/* FLOW_ACTION_POLICE */
-			s64			burst;
+			u32			burst;
 			u64			rate_bytes_ps;
+			u64			peakrate_bytes_ps;
+			u32			avrate;
+			u16			overhead;
+			u64			burst_pkt;
+			u64			rate_pkt_ps;
+			u32			mtu;
+			struct {
+				enum flow_action_id	act_id;
+				u32			extval;
+			} exceed, notexceed;
 		} police;
 		struct {				/* FLOW_ACTION_CT */
 			int action;
 			u16 zone;
+			struct nf_flowtable *flow_table;
 		} ct;
+		struct {
+			unsigned long cookie;
+			u32 mark;
+			u32 labels[4];
+			bool orig_dir;
+		} ct_metadata;
 		struct {				/* FLOW_ACTION_MPLS_PUSH */
 			u32		label;
 			__be16		proto;
@@ -213,12 +316,24 @@ struct flow_action_entry {
 			u8		bos;
 			u8		ttl;
 		} mpls_mangle;
+		struct {
+			s32		prio;
+			u64		basetime;
+			u64		cycletime;
+			u64		cycletimeext;
+			u32		num_entries;
+			struct action_gate_entry *entries;
+		} gate;
+		struct {				/* FLOW_ACTION_PPPOE_PUSH */
+			u16		sid;
+		} pppoe;
 	};
+	struct flow_action_cookie *user_cookie; /* user defined action cookie */
 };
 
 struct flow_action {
 	unsigned int			num_entries;
-	struct flow_action_entry 	entries[0];
+	struct flow_action_entry	entries[] __counted_by(num_entries);
 };
 
 static inline bool flow_action_has_entries(const struct flow_action *action)
@@ -227,18 +342,99 @@ static inline bool flow_action_has_entries(const struct flow_action *action)
 }
 
 /**
- * flow_action_has_one_action() - check if exactly one action is present
+ * flow_offload_has_one_action() - check if exactly one action is present
  * @action: tc filter flow offload action
  *
- * Returns true if exactly one action is present.
+ * Return: true if exactly one action is present.
  */
 static inline bool flow_offload_has_one_action(const struct flow_action *action)
 {
 	return action->num_entries == 1;
 }
 
+static inline bool flow_action_is_last_entry(const struct flow_action *action,
+					     const struct flow_action_entry *entry)
+{
+	return entry == &action->entries[action->num_entries - 1];
+}
+
 #define flow_action_for_each(__i, __act, __actions)			\
-        for (__i = 0, __act = &(__actions)->entries[0]; __i < (__actions)->num_entries; __act = &(__actions)->entries[++__i])
+        for (__i = 0, __act = &(__actions)->entries[0];			\
+	     __i < (__actions)->num_entries;				\
+	     __act = &(__actions)->entries[++__i])
+
+static inline bool
+flow_action_mixed_hw_stats_check(const struct flow_action *action,
+				 struct netlink_ext_ack *extack)
+{
+	const struct flow_action_entry *action_entry;
+	u8 last_hw_stats;
+	int i;
+
+	if (flow_offload_has_one_action(action))
+		return true;
+
+	flow_action_for_each(i, action_entry, action) {
+		if (i && action_entry->hw_stats != last_hw_stats) {
+			NL_SET_ERR_MSG_MOD(extack, "Mixing HW stats types for actions is not supported");
+			return false;
+		}
+		last_hw_stats = action_entry->hw_stats;
+	}
+	return true;
+}
+
+static inline const struct flow_action_entry *
+flow_action_first_entry_get(const struct flow_action *action)
+{
+	WARN_ON(!flow_action_has_entries(action));
+	return &action->entries[0];
+}
+
+static inline bool
+__flow_action_hw_stats_check(const struct flow_action *action,
+			     struct netlink_ext_ack *extack,
+			     bool check_allow_bit,
+			     enum flow_action_hw_stats_bit allow_bit)
+{
+	const struct flow_action_entry *action_entry;
+
+	if (!flow_action_has_entries(action))
+		return true;
+	if (!flow_action_mixed_hw_stats_check(action, extack))
+		return false;
+
+	action_entry = flow_action_first_entry_get(action);
+
+	/* Zero is not a legal value for hw_stats, catch anyone passing it */
+	WARN_ON_ONCE(!action_entry->hw_stats);
+
+	if (!check_allow_bit &&
+	    ~action_entry->hw_stats & FLOW_ACTION_HW_STATS_ANY) {
+		NL_SET_ERR_MSG_MOD(extack, "Driver supports only default HW stats type \"any\"");
+		return false;
+	} else if (check_allow_bit &&
+		   !(action_entry->hw_stats & BIT(allow_bit))) {
+		NL_SET_ERR_MSG_MOD(extack, "Driver does not support selected HW stats type");
+		return false;
+	}
+	return true;
+}
+
+static inline bool
+flow_action_hw_stats_check(const struct flow_action *action,
+			   struct netlink_ext_ack *extack,
+			   enum flow_action_hw_stats_bit allow_bit)
+{
+	return __flow_action_hw_stats_check(action, extack, true, allow_bit);
+}
+
+static inline bool
+flow_action_basic_hw_stats_check(const struct flow_action *action,
+				 struct netlink_ext_ack *extack)
+{
+	return __flow_action_hw_stats_check(action, extack, false, 0);
+}
 
 struct flow_rule {
 	struct flow_match	match;
@@ -253,18 +449,86 @@ static inline bool flow_rule_match_key(const struct flow_rule *rule,
 	return dissector_uses_key(rule->match.dissector, key);
 }
 
+/**
+ * flow_rule_is_supp_control_flags() - check for supported control flags
+ * @supp_flags: control flags supported by driver
+ * @ctrl_flags: control flags present in rule
+ * @extack: The netlink extended ACK for reporting errors.
+ *
+ * Return: true if only supported control flags are set, false otherwise.
+ */
+static inline bool flow_rule_is_supp_control_flags(const u32 supp_flags,
+						   const u32 ctrl_flags,
+						   struct netlink_ext_ack *extack)
+{
+	if (likely((ctrl_flags & ~supp_flags) == 0))
+		return true;
+
+	NL_SET_ERR_MSG_FMT_MOD(extack,
+			       "Unsupported match on control.flags %#x",
+			       ctrl_flags);
+
+	return false;
+}
+
+/**
+ * flow_rule_has_control_flags() - check for presence of any control flags
+ * @ctrl_flags: control flags present in rule
+ * @extack: The netlink extended ACK for reporting errors.
+ *
+ * Return: true if control flags are set, false otherwise.
+ */
+static inline bool flow_rule_has_control_flags(const u32 ctrl_flags,
+					       struct netlink_ext_ack *extack)
+{
+	return !flow_rule_is_supp_control_flags(0, ctrl_flags, extack);
+}
+
+/**
+ * flow_rule_match_has_control_flags() - match and check for any control flags
+ * @rule: The flow_rule under evaluation.
+ * @extack: The netlink extended ACK for reporting errors.
+ *
+ * Return: true if control flags are set, false otherwise.
+ */
+static inline bool flow_rule_match_has_control_flags(struct flow_rule *rule,
+						     struct netlink_ext_ack *extack)
+{
+	struct flow_match_control match;
+
+	if (!flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_CONTROL))
+		return false;
+
+	flow_rule_match_control(rule, &match);
+
+	return flow_rule_has_control_flags(match.mask->flags, extack);
+}
+
 struct flow_stats {
 	u64	pkts;
 	u64	bytes;
+	u64	drops;
 	u64	lastused;
+	enum flow_action_hw_stats used_hw_stats;
+	bool used_hw_stats_valid;
 };
 
 static inline void flow_stats_update(struct flow_stats *flow_stats,
-				     u64 bytes, u64 pkts, u64 lastused)
+				     u64 bytes, u64 pkts,
+				     u64 drops, u64 lastused,
+				     enum flow_action_hw_stats used_hw_stats)
 {
 	flow_stats->pkts	+= pkts;
 	flow_stats->bytes	+= bytes;
+	flow_stats->drops	+= drops;
 	flow_stats->lastused	= max_t(u64, flow_stats->lastused, lastused);
+
+	/* The driver should pass value with a maximum of one bit set.
+	 * Passing FLOW_ACTION_HW_STATS_ANY is invalid.
+	 */
+	WARN_ON(used_hw_stats == FLOW_ACTION_HW_STATS_ANY);
+	flow_stats->used_hw_stats |= used_hw_stats;
+	flow_stats->used_hw_stats_valid = true;
 }
 
 enum flow_block_command {
@@ -276,6 +540,8 @@ enum flow_block_binder_type {
 	FLOW_BLOCK_BINDER_TYPE_UNSPEC,
 	FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS,
 	FLOW_BLOCK_BINDER_TYPE_CLSACT_EGRESS,
+	FLOW_BLOCK_BINDER_TYPE_RED_EARLY_DROP,
+	FLOW_BLOCK_BINDER_TYPE_RED_MARK,
 };
 
 struct flow_block {
@@ -294,11 +560,25 @@ struct flow_block_offload {
 	struct list_head cb_list;
 	struct list_head *driver_block_list;
 	struct netlink_ext_ack *extack;
+	struct Qdisc *sch;
+	struct list_head *cb_list_head;
 };
 
 enum tc_setup_type;
 typedef int flow_setup_cb_t(enum tc_setup_type type, void *type_data,
 			    void *cb_priv);
+
+struct flow_block_cb;
+
+struct flow_block_indr {
+	struct list_head		list;
+	struct net_device		*dev;
+	struct Qdisc			*sch;
+	enum flow_block_binder_type	binder_type;
+	void				*data;
+	void				*cb_priv;
+	void				(*cleanup)(struct flow_block_cb *block_cb);
+};
 
 struct flow_block_cb {
 	struct list_head	driver_list;
@@ -307,12 +587,21 @@ struct flow_block_cb {
 	void			*cb_ident;
 	void			*cb_priv;
 	void			(*release)(void *cb_priv);
+	struct flow_block_indr	indr;
 	unsigned int		refcnt;
 };
 
 struct flow_block_cb *flow_block_cb_alloc(flow_setup_cb_t *cb,
 					  void *cb_ident, void *cb_priv,
 					  void (*release)(void *cb_priv));
+struct flow_block_cb *flow_indr_block_cb_alloc(flow_setup_cb_t *cb,
+					       void *cb_ident, void *cb_priv,
+					       void (*release)(void *cb_priv),
+					       struct flow_block_offload *bo,
+					       struct net_device *dev,
+					       struct Qdisc *sch, void *data,
+					       void *indr_cb_priv,
+					       void (*cleanup)(struct flow_block_cb *block_cb));
 void flow_block_cb_free(struct flow_block_cb *block_cb);
 
 struct flow_block_cb *flow_block_cb_lookup(struct flow_block *block,
@@ -331,6 +620,13 @@ static inline void flow_block_cb_add(struct flow_block_cb *block_cb,
 static inline void flow_block_cb_remove(struct flow_block_cb *block_cb,
 					struct flow_block_offload *offload)
 {
+	list_move(&block_cb->list, &offload->cb_list);
+}
+
+static inline void flow_indr_block_cb_remove(struct flow_block_cb *block_cb,
+					     struct flow_block_offload *offload)
+{
+	list_del(&block_cb->indr.list);
 	list_move(&block_cb->list, &offload->cb_list);
 }
 
@@ -360,11 +656,30 @@ struct flow_cls_common_offload {
 struct flow_cls_offload {
 	struct flow_cls_common_offload common;
 	enum flow_cls_command command;
+	bool use_act_stats;
 	unsigned long cookie;
 	struct flow_rule *rule;
 	struct flow_stats stats;
 	u32 classid;
 };
+
+enum offload_act_command  {
+	FLOW_ACT_REPLACE,
+	FLOW_ACT_DESTROY,
+	FLOW_ACT_STATS,
+};
+
+struct flow_offload_action {
+	struct netlink_ext_ack *extack; /* NULL in FLOW_ACT_STATS process*/
+	enum offload_act_command  command;
+	enum flow_action_id id;
+	u32 index;
+	unsigned long cookie;
+	struct flow_stats stats;
+	struct flow_action action;
+};
+
+struct flow_offload_action *offload_action_alloc(unsigned int num_actions);
 
 static inline struct flow_rule *
 flow_cls_offload_flow_rule(struct flow_cls_offload *flow_cmd)
@@ -377,40 +692,18 @@ static inline void flow_block_init(struct flow_block *flow_block)
 	INIT_LIST_HEAD(&flow_block->cb_list);
 }
 
-typedef int flow_indr_block_bind_cb_t(struct net_device *dev, void *cb_priv,
-				      enum tc_setup_type type, void *type_data);
+typedef int flow_indr_block_bind_cb_t(struct net_device *dev, struct Qdisc *sch, void *cb_priv,
+				      enum tc_setup_type type, void *type_data,
+				      void *data,
+				      void (*cleanup)(struct flow_block_cb *block_cb));
 
-typedef void flow_indr_block_ing_cmd_t(struct net_device *dev,
-					flow_indr_block_bind_cb_t *cb,
-					void *cb_priv,
-					enum flow_block_command command);
-
-struct flow_indr_block_ing_entry {
-	flow_indr_block_ing_cmd_t *cb;
-	struct list_head	list;
-};
-
-void flow_indr_add_block_ing_cb(struct flow_indr_block_ing_entry *entry);
-
-void flow_indr_del_block_ing_cb(struct flow_indr_block_ing_entry *entry);
-
-int __flow_indr_block_cb_register(struct net_device *dev, void *cb_priv,
-				  flow_indr_block_bind_cb_t *cb,
-				  void *cb_ident);
-
-void __flow_indr_block_cb_unregister(struct net_device *dev,
-				     flow_indr_block_bind_cb_t *cb,
-				     void *cb_ident);
-
-int flow_indr_block_cb_register(struct net_device *dev, void *cb_priv,
-				flow_indr_block_bind_cb_t *cb, void *cb_ident);
-
-void flow_indr_block_cb_unregister(struct net_device *dev,
-				   flow_indr_block_bind_cb_t *cb,
-				   void *cb_ident);
-
-void flow_indr_block_call(struct net_device *dev,
-			  struct flow_block_offload *bo,
-			  enum flow_block_command command);
+int flow_indr_dev_register(flow_indr_block_bind_cb_t *cb, void *cb_priv);
+void flow_indr_dev_unregister(flow_indr_block_bind_cb_t *cb, void *cb_priv,
+			      void (*release)(void *cb_priv));
+int flow_indr_dev_setup_offload(struct net_device *dev, struct Qdisc *sch,
+				enum tc_setup_type type, void *data,
+				struct flow_block_offload *bo,
+				void (*cleanup)(struct flow_block_cb *block_cb));
+bool flow_indr_dev_exists(void);
 
 #endif /* _NET_FLOW_OFFLOAD_H */

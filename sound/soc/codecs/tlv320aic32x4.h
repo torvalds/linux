@@ -10,9 +10,16 @@
 struct device;
 struct regmap_config;
 
+enum aic32x4_type {
+	AIC32X4_TYPE_AIC32X4 = 0,
+	AIC32X4_TYPE_AIC32X6,
+	AIC32X4_TYPE_TAS2505,
+};
+
 extern const struct regmap_config aic32x4_regmap_config;
-int aic32x4_probe(struct device *dev, struct regmap *regmap);
-int aic32x4_remove(struct device *dev);
+int aic32x4_probe(struct device *dev, struct regmap *regmap,
+		  enum aic32x4_type type);
+void aic32x4_remove(struct device *dev);
 int aic32x4_register_clocks(struct device *dev, const char *mclk_name);
 
 /* tlv320aic32x4 register space (in decimal to match datasheet) */
@@ -88,6 +95,9 @@ int aic32x4_register_clocks(struct device *dev, const char *mclk_name);
 #define	AIC32X4_LOLGAIN		AIC32X4_REG(1, 18)
 #define	AIC32X4_LORGAIN		AIC32X4_REG(1, 19)
 #define AIC32X4_HEADSTART	AIC32X4_REG(1, 20)
+#define TAS2505_SPK		AIC32X4_REG(1, 45)
+#define TAS2505_SPKVOL1		AIC32X4_REG(1, 46)
+#define TAS2505_SPKVOL2		AIC32X4_REG(1, 48)
 #define AIC32X4_MICBIAS		AIC32X4_REG(1, 51)
 #define AIC32X4_LMICPGAPIN	AIC32X4_REG(1, 52)
 #define AIC32X4_LMICPGANIN	AIC32X4_REG(1, 54)
@@ -96,6 +106,8 @@ int aic32x4_register_clocks(struct device *dev, const char *mclk_name);
 #define AIC32X4_FLOATINGINPUT	AIC32X4_REG(1, 58)
 #define AIC32X4_LMICPGAVOL	AIC32X4_REG(1, 59)
 #define AIC32X4_RMICPGAVOL	AIC32X4_REG(1, 60)
+#define TAS2505_REFPOWERUP	AIC32X4_REG(1, 122)
+#define AIC32X4_REFPOWERUP	AIC32X4_REG(1, 123)
 
 /* Bits, masks, and shifts */
 
@@ -205,9 +217,16 @@ int aic32x4_register_clocks(struct device *dev, const char *mclk_name);
 #define AIC32X4_RMICPGANIN_IN1L_10K	0x10
 #define AIC32X4_RMICPGANIN_CM1R_10K	0x40
 
+/* AIC32X4_REFPOWERUP */
+#define AIC32X4_REFPOWERUP_SLOW		0x04
+#define AIC32X4_REFPOWERUP_40MS		0x05
+#define AIC32X4_REFPOWERUP_80MS		0x06
+#define AIC32X4_REFPOWERUP_120MS	0x07
+
 /* Common mask and enable for all of the dividers */
-#define AIC32X4_DIVEN           BIT(7)
-#define AIC32X4_DIV_MASK        GENMASK(6, 0)
+#define AIC32X4_DIVEN			BIT(7)
+#define AIC32X4_DIV_MASK		GENMASK(6, 0)
+#define AIC32X4_DIV_MAX			128
 
 /* Clock Limits */
 #define AIC32X4_MAX_DOSR_FREQ		6200000

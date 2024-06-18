@@ -73,9 +73,9 @@ static void _dump_node(unsigned int lpar_id, u64 n1, u64 n2, u64 n3, u64 n4,
 
 static u64 make_first_field(const char *text, u64 index)
 {
-	u64 n;
+	u64 n = 0;
 
-	strncpy((char *)&n, text, 8);
+	memcpy((char *)&n, text, strnlen(text, sizeof(n)));
 	return PS3_VENDOR_ID_NONE + (n >> 32) + index;
 }
 
@@ -413,7 +413,7 @@ found_dev:
 	return 0;
 }
 
-int ps3_repository_find_devices(enum ps3_bus_type bus_type,
+int __init ps3_repository_find_devices(enum ps3_bus_type bus_type,
 	int (*callback)(const struct ps3_repository_device *repo))
 {
 	int result = 0;
@@ -455,7 +455,7 @@ int ps3_repository_find_devices(enum ps3_bus_type bus_type,
 	return result;
 }
 
-int ps3_repository_find_bus(enum ps3_bus_type bus_type, unsigned int from,
+int __init ps3_repository_find_bus(enum ps3_bus_type bus_type, unsigned int from,
 	unsigned int *bus_index)
 {
 	unsigned int i;
@@ -908,7 +908,7 @@ int ps3_repository_read_boot_dat_size(unsigned int *size)
 	return result;
 }
 
-int ps3_repository_read_vuart_av_port(unsigned int *port)
+int __init ps3_repository_read_vuart_av_port(unsigned int *port)
 {
 	int result;
 	u64 v1 = 0;
@@ -923,7 +923,7 @@ int ps3_repository_read_vuart_av_port(unsigned int *port)
 	return result;
 }
 
-int ps3_repository_read_vuart_sysmgr_port(unsigned int *port)
+int __init ps3_repository_read_vuart_sysmgr_port(unsigned int *port)
 {
 	int result;
 	u64 v1 = 0;
@@ -1005,7 +1005,7 @@ int ps3_repository_read_be_id(u64 node_id, u64 *be_id)
 		be_id, NULL);
 }
 
-int ps3_repository_read_tb_freq(u64 node_id, u64 *tb_freq)
+int __init ps3_repository_read_tb_freq(u64 node_id, u64 *tb_freq)
 {
 	return read_node(PS3_LPAR_ID_PME,
 		make_first_field("be", 0),
@@ -1015,7 +1015,7 @@ int ps3_repository_read_tb_freq(u64 node_id, u64 *tb_freq)
 		tb_freq, NULL);
 }
 
-int ps3_repository_read_be_tb_freq(unsigned int be_index, u64 *tb_freq)
+int __init ps3_repository_read_be_tb_freq(unsigned int be_index, u64 *tb_freq)
 {
 	int result;
 	u64 node_id;
@@ -1178,7 +1178,7 @@ int ps3_repository_delete_highmem_info(unsigned int region_index)
 
 #if defined(DEBUG)
 
-int ps3_repository_dump_resource_info(const struct ps3_repository_device *repo)
+int __init ps3_repository_dump_resource_info(const struct ps3_repository_device *repo)
 {
 	int result = 0;
 	unsigned int res_index;
@@ -1231,7 +1231,7 @@ int ps3_repository_dump_resource_info(const struct ps3_repository_device *repo)
 	return result;
 }
 
-static int dump_stor_dev_info(struct ps3_repository_device *repo)
+static int __init dump_stor_dev_info(struct ps3_repository_device *repo)
 {
 	int result = 0;
 	unsigned int num_regions, region_index;
@@ -1279,7 +1279,7 @@ out:
 	return result;
 }
 
-static int dump_device_info(struct ps3_repository_device *repo,
+static int __init dump_device_info(struct ps3_repository_device *repo,
 	unsigned int num_dev)
 {
 	int result = 0;
@@ -1323,7 +1323,7 @@ static int dump_device_info(struct ps3_repository_device *repo,
 	return result;
 }
 
-int ps3_repository_dump_bus_info(void)
+int __init ps3_repository_dump_bus_info(void)
 {
 	int result = 0;
 	struct ps3_repository_device repo;

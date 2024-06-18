@@ -767,6 +767,38 @@ static const struct pinctrl_pin_desc uniphier_pxs3_pins[] = {
 			     250, UNIPHIER_PIN_PULL_DOWN),
 };
 
+static const unsigned ain1_pins[] = {186, 187, 188, 189};
+static const int ain1_muxvals[] = {0, 0, 0, 0};
+static const unsigned ain1_dat2_pins[] = {237};
+static const int ain1_dat2_muxvals[] = {1};
+static const unsigned ain1_dat4_pins[] = {238, 239};
+static const int ain1_dat4_muxvals[] = {1, 1};
+static const unsigned ain2_pins[] = {243, 244, 245, 246};
+static const int ain2_muxvals[] = {1, 1, 1, 1};
+static const unsigned ain2_dat2_pins[] = {247};
+static const int ain2_dat2_muxvals[] = {1};
+static const unsigned ain2_dat4_pins[] = {248, 249};
+static const int ain2_dat4_muxvals[] = {1, 1};
+static const unsigned aout1_pins[] = {226, 227, 228, 229};
+static const int aout1_muxvals[] = {1, 1, 1, 1};
+static const unsigned aout1_dat2_pins[] = {230};
+static const int aout1_dat2_muxvals[] = {1};
+static const unsigned aout1_dat4_pins[] = {231, 232};
+static const int aout1_dat4_muxvals[] = {1, 1};
+static const unsigned aout2_pins[] = {192, 193, 194, 195};
+static const int aout2_muxvals[] = {0, 0, 0, 0};
+static const unsigned aout2_dat2_pins[] = {196};
+static const int aout2_dat2_muxvals[] = {0};
+static const unsigned aout2_dat4_pins[] = {197, 198};
+static const int aout2_dat4_muxvals[] = {0, 0};
+static const unsigned aout3_pins[] = {199, 200, 201, 202};
+static const int aout3_muxvals[] = {0, 0, 0, 0};
+static const unsigned ainiec1_pins[] = {240};
+static const int ainiec1_muxvals[] = {1};
+static const unsigned aoutiec1_pins[] = {190};
+static const int aoutiec1_muxvals[] = {0};
+static const unsigned aoutiec2_pins[] = {191};
+static const int aoutiec2_muxvals[] = {0};
 static const unsigned int emmc_pins[] = {32, 33, 34, 35, 36, 37, 38};
 static const int emmc_muxvals[] = {0, 0, 0, 0, 0, 0, 0};
 static const unsigned int emmc_dat8_pins[] = {39, 40, 41, 42};
@@ -823,8 +855,12 @@ static const unsigned int uart3_pins[] = {98, 99};
 static const int uart3_muxvals[] = {0, 0};
 static const unsigned int usb0_pins[] = {84, 85};
 static const int usb0_muxvals[] = {0, 0};
+static const unsigned int usb0_device_pins[] = {110};
+static const int usb0_device_muxvals[] = {2};
 static const unsigned int usb1_pins[] = {86, 87};
 static const int usb1_muxvals[] = {0, 0};
+static const unsigned int usb1_device_pins[] = {111};
+static const int usb1_device_muxvals[] = {2};
 static const unsigned int usb2_pins[] = {88, 89};
 static const int usb2_muxvals[] = {0, 0};
 static const unsigned int usb3_pins[] = {90, 91};
@@ -871,6 +907,22 @@ static const unsigned int gpio_range2_pins[] = {
 };
 
 static const struct uniphier_pinctrl_group uniphier_pxs3_groups[] = {
+	UNIPHIER_PINCTRL_GROUP(ain1),
+	UNIPHIER_PINCTRL_GROUP(ain1_dat2),
+	UNIPHIER_PINCTRL_GROUP(ain1_dat4),
+	UNIPHIER_PINCTRL_GROUP(ain2),
+	UNIPHIER_PINCTRL_GROUP(ain2_dat2),
+	UNIPHIER_PINCTRL_GROUP(ain2_dat4),
+	UNIPHIER_PINCTRL_GROUP(aout1),
+	UNIPHIER_PINCTRL_GROUP(aout1_dat2),
+	UNIPHIER_PINCTRL_GROUP(aout1_dat4),
+	UNIPHIER_PINCTRL_GROUP(aout2),
+	UNIPHIER_PINCTRL_GROUP(aout2_dat2),
+	UNIPHIER_PINCTRL_GROUP(aout2_dat4),
+	UNIPHIER_PINCTRL_GROUP(aout3),
+	UNIPHIER_PINCTRL_GROUP(ainiec1),
+	UNIPHIER_PINCTRL_GROUP(aoutiec1),
+	UNIPHIER_PINCTRL_GROUP(aoutiec2),
 	UNIPHIER_PINCTRL_GROUP(emmc),
 	UNIPHIER_PINCTRL_GROUP(emmc_dat8),
 	UNIPHIER_PINCTRL_GROUP(ether_rgmii),
@@ -894,7 +946,9 @@ static const struct uniphier_pinctrl_group uniphier_pxs3_groups[] = {
 	UNIPHIER_PINCTRL_GROUP(uart2),
 	UNIPHIER_PINCTRL_GROUP(uart3),
 	UNIPHIER_PINCTRL_GROUP(usb0),
+	UNIPHIER_PINCTRL_GROUP(usb0_device),
 	UNIPHIER_PINCTRL_GROUP(usb1),
+	UNIPHIER_PINCTRL_GROUP(usb1_device),
 	UNIPHIER_PINCTRL_GROUP(usb2),
 	UNIPHIER_PINCTRL_GROUP(usb3),
 	UNIPHIER_PINCTRL_GROUP_GPIO(gpio_range0),
@@ -902,6 +956,18 @@ static const struct uniphier_pinctrl_group uniphier_pxs3_groups[] = {
 	UNIPHIER_PINCTRL_GROUP_GPIO(gpio_range2),
 };
 
+static const char * const ain1_groups[] = {"ain1", "ain1_dat2",
+					   "ain1_dat4"};
+static const char * const ain2_groups[] = {"ain2", "ain2_dat2",
+					   "ain1_dat4"};
+static const char * const aout1_groups[] = {"aout1", "aout1_dat2",
+					    "aout1_dat4"};
+static const char * const aout2_groups[] = {"aout2", "aout2_dat2",
+					    "aout2_dat4"};
+static const char * const aout3_groups[] = {"aout3"};
+static const char * const ainiec1_groups[] = {"ainiec1"};
+static const char * const aoutiec1_groups[] = {"aoutiec1"};
+static const char * const aoutiec2_groups[] = {"aoutiec2"};
 static const char * const emmc_groups[] = {"emmc", "emmc_dat8"};
 static const char * const ether_rgmii_groups[] = {"ether_rgmii"};
 static const char * const ether_rmii_groups[] = {"ether_rmii"};
@@ -922,12 +988,20 @@ static const char * const uart0_groups[] = {"uart0", "uart0_ctsrts",
 static const char * const uart1_groups[] = {"uart1"};
 static const char * const uart2_groups[] = {"uart2"};
 static const char * const uart3_groups[] = {"uart3"};
-static const char * const usb0_groups[] = {"usb0"};
-static const char * const usb1_groups[] = {"usb1"};
+static const char * const usb0_groups[] = {"usb0", "usb0_device"};
+static const char * const usb1_groups[] = {"usb1", "usb1_device"};
 static const char * const usb2_groups[] = {"usb2"};
 static const char * const usb3_groups[] = {"usb3"};
 
 static const struct uniphier_pinmux_function uniphier_pxs3_functions[] = {
+	UNIPHIER_PINMUX_FUNCTION(ain1),
+	UNIPHIER_PINMUX_FUNCTION(ain2),
+	UNIPHIER_PINMUX_FUNCTION(aout1),
+	UNIPHIER_PINMUX_FUNCTION(aout2),
+	UNIPHIER_PINMUX_FUNCTION(aout3),
+	UNIPHIER_PINMUX_FUNCTION(ainiec1),
+	UNIPHIER_PINMUX_FUNCTION(aoutiec1),
+	UNIPHIER_PINMUX_FUNCTION(aoutiec2),
 	UNIPHIER_PINMUX_FUNCTION(emmc),
 	UNIPHIER_PINMUX_FUNCTION(ether_rgmii),
 	UNIPHIER_PINMUX_FUNCTION(ether_rmii),

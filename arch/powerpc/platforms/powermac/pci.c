@@ -12,11 +12,12 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/irq.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_pci.h>
 
 #include <asm/sections.h>
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/pci-bridge.h>
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>
@@ -849,6 +850,10 @@ static int __init pmac_add_bridge(struct device_node *dev)
 
 	/* Fixup "bus-range" OF property */
 	fixup_bus_range(dev);
+
+	/* create pci_dn's for DT nodes under this PHB */
+	if (IS_ENABLED(CONFIG_PPC64))
+		pci_devs_phb_init_dynamic(hose);
 
 	return 0;
 }

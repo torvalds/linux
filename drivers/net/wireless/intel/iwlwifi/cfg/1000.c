@@ -2,12 +2,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2018 - 2019 Intel Corporation
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
+ * Copyright(c) 2018 - 2020, 2023 Intel Corporation
  *****************************************************************************/
 
 #include <linux/module.h>
@@ -27,11 +22,11 @@
 #define EEPROM_1000_TX_POWER_VERSION	(4)
 #define EEPROM_1000_EEPROM_VERSION	(0x15C)
 
-#define IWL1000_FW_PRE "iwlwifi-1000-"
-#define IWL1000_MODULE_FIRMWARE(api) IWL1000_FW_PRE __stringify(api) ".ucode"
+#define IWL1000_FW_PRE "iwlwifi-1000"
+#define IWL1000_MODULE_FIRMWARE(api) IWL1000_FW_PRE "-" __stringify(api) ".ucode"
 
-#define IWL100_FW_PRE "iwlwifi-100-"
-#define IWL100_MODULE_FIRMWARE(api) IWL100_FW_PRE __stringify(api) ".ucode"
+#define IWL100_FW_PRE "iwlwifi-100"
+#define IWL100_MODULE_FIRMWARE(api) IWL100_FW_PRE "-" __stringify(api) ".ucode"
 
 
 static const struct iwl_base_params iwl1000_base_params = {
@@ -76,9 +71,7 @@ static const struct iwl_eeprom_params iwl1000_eeprom_params = {
 	.nvm_calib_ver = EEPROM_1000_TX_POWER_VERSION,	\
 	.trans.base_params = &iwl1000_base_params,		\
 	.eeprom_params = &iwl1000_eeprom_params,		\
-	.led_mode = IWL_LED_BLINK,				\
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,	\
-	.trans.csr = &iwl_csr_v1
+	.led_mode = IWL_LED_BLINK
 
 const struct iwl_cfg iwl1000_bgn_cfg = {
 	.name = "Intel(R) Centrino(R) Wireless-N 1000 BGN",
@@ -103,9 +96,7 @@ const struct iwl_cfg iwl1000_bg_cfg = {
 	.trans.base_params = &iwl1000_base_params,		\
 	.eeprom_params = &iwl1000_eeprom_params,		\
 	.led_mode = IWL_LED_RF_STATE,				\
-	.rx_with_siso_diversity = true,				\
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,	\
-	.trans.csr = &iwl_csr_v1
+	.rx_with_siso_diversity = true
 
 const struct iwl_cfg iwl100_bgn_cfg = {
 	.name = "Intel(R) Centrino(R) Wireless-N 100 BGN",

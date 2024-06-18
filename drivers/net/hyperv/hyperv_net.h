@@ -15,6 +15,8 @@
 #include <linux/list.h>
 #include <linux/hyperv.h>
 #include <linux/rndis.h>
+#include <linux/jhash.h>
+#include <net/xdp.h>
 
 /* RSS related */
 #define OID_GEN_RECEIVE_SCALE_CAPABILITIES 0x00010203  /* query only */
@@ -73,6 +75,7 @@ struct ndis_recv_scale_cap { /* NDIS_RECEIVE_SCALE_CAPABILITIES */
 #define NDIS_RSS_HASH_SECRET_KEY_MAX_SIZE_REVISION_2   40
 
 #define ITAB_NUM 128
+#define ITAB_NUM_MAX 256
 
 struct ndis_recv_scale_param { /* NDIS_RECEIVE_SCALE_PARAMETERS */
 	struct ndis_obj_header hdr;
@@ -105,9 +108,43 @@ struct ndis_recv_scale_param { /* NDIS_RECEIVE_SCALE_PARAMETERS */
 	u32 processor_masks_entry_size;
 };
 
-/* Fwd declaration */
-struct ndis_tcp_ip_checksum_info;
-struct ndis_pkt_8021q_info;
+struct ndis_tcp_ip_checksum_info {
+	union {
+		struct {
+			u32 is_ipv4:1;
+			u32 is_ipv6:1;
+			u32 tcp_checksum:1;
+			u32 udp_checksum:1;
+			u32 ip_header_checksum:1;
+			u32 reserved:11;
+			u32 tcp_header_offset:10;
+		} transmit;
+		struct {
+			u32 tcp_checksum_failed:1;
+			u32 udp_checksum_failed:1;
+			u32 ip_checksum_failed:1;
+			u32 tcp_checksum_succeeded:1;
+			u32 udp_checksum_succeeded:1;
+			u32 ip_checksum_succeeded:1;
+			u32 loopback:1;
+			u32 tcp_checksum_value_invalid:1;
+			u32 ip_checksum_value_invalid:1;
+		} receive;
+		u32  value;
+	};
+};
+
+struct ndis_pkt_8021q_info {
+	union {
+		struct {
+			u32 pri:3; /* User Priority */
+			u32 cfi:1; /* Canonical Format ID */
+			u32 vlanid:12; /* VLAN ID */
+			u32 reserved:16;
+		};
+		u32 value;
+	};
+};
 
 /*
  * Represent netvsc packet which contains 1 RNDIS and 1 ethernet frame
@@ -130,6 +167,7 @@ struct hv_netvsc_packet {
 	u32 total_bytes;
 	u32 send_buf_index;
 	u32 total_data_buflen;
+	struct hv_dma_range *dma_range;
 };
 
 #define NETVSC_HASH_KEYLEN 40
@@ -141,6 +179,8 @@ struct netvsc_device_info {
 	u32  recv_sections;
 	u32  send_section_size;
 	u32  recv_section_size;
+
+	struct bpf_prog *bprog;
 
 	u8 rss_key[NETVSC_HASH_KEYLEN];
 };
@@ -169,7 +209,6 @@ struct rndis_device {
 
 	u8 hw_mac_adr[ETH_ALEN];
 	u8 rss_key[NETVSC_HASH_KEYLEN];
-	u16 rx_table[ITAB_NUM];
 };
 
 
@@ -190,14 +229,29 @@ int netvsc_send(struct net_device *net,
 		struct hv_netvsc_packet *packet,
 		struct rndis_message *rndis_msg,
 		struct hv_page_buffer *page_buffer,
-		struct sk_buff *skb);
+		struct sk_buff *skb,
+		bool xdp_tx);
 void netvsc_linkstatus_callback(struct net_device *net,
-				struct rndis_message *resp);
+				struct rndis_message *resp,
+				void *data, u32 data_buflen);
 int netvsc_recv_callback(struct net_device *net,
 			 struct netvsc_device *nvdev,
 			 struct netvsc_channel *nvchan);
 void netvsc_channel_cb(void *context);
 int netvsc_poll(struct napi_struct *napi, int budget);
+
+void netvsc_xdp_xmit(struct sk_buff *skb, struct net_device *ndev);
+u32 netvsc_run_xdp(struct net_device *ndev, struct netvsc_channel *nvchan,
+		   struct xdp_buff *xdp);
+unsigned int netvsc_xdp_fraglen(unsigned int len);
+struct bpf_prog *netvsc_xdp_get(struct netvsc_device *nvdev);
+int netvsc_xdp_set(struct net_device *dev, struct bpf_prog *prog,
+		   struct netlink_ext_ack *extack,
+		   struct netvsc_device *nvdev);
+int netvsc_vf_setxdp(struct net_device *vf_netdev, struct bpf_prog *prog);
+int netvsc_bpf(struct net_device *dev, struct netdev_bpf *bpf);
+int netvsc_ndoxdp_xmit(struct net_device *ndev, int n,
+		       struct xdp_frame **frames, u32 flags);
 
 int rndis_set_subchannel(struct net_device *ndev,
 			 struct netvsc_device *nvdev,
@@ -222,7 +276,7 @@ int rndis_filter_receive(struct net_device *ndev,
 int rndis_filter_set_device_mac(struct netvsc_device *ndev,
 				const char *mac);
 
-void netvsc_switch_datapath(struct net_device *nv_dev, bool vf);
+int netvsc_switch_datapath(struct net_device *nv_dev, bool vf);
 
 #define NVSP_INVALID_PROTOCOL_VERSION	((u32)0xFFFFFFFF)
 
@@ -609,7 +663,8 @@ struct nvsp_5_send_indirect_table {
 	/* The number of entries in the send indirection table */
 	u32 count;
 
-	/* The offset of the send indirection table from top of this struct.
+	/* The offset of the send indirection table from the beginning of
+	 * struct nvsp_message.
 	 * The send indirection table tells which channel to put the send
 	 * traffic on. Each entry is a channel number.
 	 */
@@ -822,7 +877,8 @@ struct nvsp_message {
 
 #define NETVSC_SUPPORTED_HW_FEATURES (NETIF_F_RXCSUM | NETIF_F_IP_CSUM | \
 				      NETIF_F_TSO | NETIF_F_IPV6_CSUM | \
-				      NETIF_F_TSO6 | NETIF_F_LRO | NETIF_F_SG)
+				      NETIF_F_TSO6 | NETIF_F_LRO | \
+				      NETIF_F_SG | NETIF_F_RXHASH)
 
 #define VRSS_SEND_TAB_SIZE 16  /* must be power of 2 */
 #define VRSS_CHANNEL_MAX 64
@@ -830,6 +886,32 @@ struct nvsp_message {
 
 #define RNDIS_MAX_PKT_DEFAULT 8
 #define RNDIS_PKT_ALIGN_DEFAULT 8
+
+#define NETVSC_XDP_HDRM 256
+
+#define NETVSC_MIN_OUT_MSG_SIZE (sizeof(struct vmpacket_descriptor) + \
+				 sizeof(struct nvsp_message))
+#define NETVSC_MIN_IN_MSG_SIZE sizeof(struct vmpacket_descriptor)
+
+/* Estimated requestor size:
+ * out_ring_size/min_out_msg_size + in_ring_size/min_in_msg_size
+ */
+static inline u32 netvsc_rqstor_size(unsigned long ringbytes)
+{
+	return ringbytes / NETVSC_MIN_OUT_MSG_SIZE +
+		ringbytes / NETVSC_MIN_IN_MSG_SIZE;
+}
+
+/* XFER PAGE packets can specify a maximum of 375 ranges for NDIS >= 6.0
+ * and a maximum of 64 ranges for NDIS < 6.0 with no RSC; with RSC, this
+ * limit is raised to 562 (= NVSP_RSC_MAX).
+ */
+#define NETVSC_MAX_XFER_PAGE_RANGES NVSP_RSC_MAX
+#define NETVSC_XFER_HEADER_SIZE(rng_cnt) \
+		(offsetof(struct vmtransfer_page_packet_header, ranges) + \
+		(rng_cnt) * sizeof(struct vmtransfer_page_range))
+#define NETVSC_MAX_PKT_SIZE (NETVSC_XFER_HEADER_SIZE(NETVSC_MAX_XFER_PAGE_RANGES) + \
+		sizeof(struct nvsp_message) + (sizeof(u32) * VRSS_SEND_TAB_SIZE))
 
 struct multi_send_data {
 	struct sk_buff *skb; /* skb containing the pkt */
@@ -851,8 +933,10 @@ struct multi_recv_comp {
 #define NVSP_RSC_MAX 562 /* Max #RSC frags in a vmbus xfer page pkt */
 
 struct nvsc_rsc {
-	const struct ndis_pkt_8021q_info *vlan;
-	const struct ndis_tcp_ip_checksum_info *csum_info;
+	struct ndis_pkt_8021q_info vlan;
+	struct ndis_tcp_ip_checksum_info csum_info;
+	u32 hash_info;
+	u8 ppi_flags; /* valid/present bits for the above PPIs */
 	u8 is_last; /* last RNDIS msg in a vmtransfer_page */
 	u32 cnt; /* #fragments in an RSC packet */
 	u32 pktlen; /* Full packet length */
@@ -860,11 +944,25 @@ struct nvsc_rsc {
 	u32 len[NVSP_RSC_MAX];
 };
 
-struct netvsc_stats {
+#define NVSC_RSC_VLAN		BIT(0)	/* valid/present bit for 'vlan' */
+#define NVSC_RSC_CSUM_INFO	BIT(1)	/* valid/present bit for 'csum_info' */
+#define NVSC_RSC_HASH_INFO	BIT(2)	/* valid/present bit for 'hash_info' */
+
+struct netvsc_stats_tx {
+	u64 packets;
+	u64 bytes;
+	u64 xdp_xmit;
+	struct u64_stats_sync syncp;
+};
+
+struct netvsc_stats_rx {
 	u64 packets;
 	u64 bytes;
 	u64 broadcast;
 	u64 multicast;
+	u64 xdp_drop;
+	u64 xdp_redirect;
+	u64 xdp_tx;
 	struct u64_stats_sync syncp;
 };
 
@@ -879,6 +977,7 @@ struct netvsc_ethtool_stats {
 	unsigned long rx_no_memory;
 	unsigned long stop_queue;
 	unsigned long wake_queue;
+	unsigned long vlan_error;
 };
 
 struct netvsc_ethtool_pcpu_stats {
@@ -937,6 +1036,10 @@ struct net_device_context {
 
 	u32 tx_table[VRSS_SEND_TAB_SIZE];
 
+	u16 *rx_table;
+
+	u32 rx_table_sz;
+
 	/* Ethtool settings */
 	u8 duplex;
 	u32 speed;
@@ -952,12 +1055,69 @@ struct net_device_context {
 	u32 vf_alloc;
 	/* Serial number of the VF to team with */
 	u32 vf_serial;
+	/* completion variable to confirm vf association */
+	struct completion vf_add;
+	/* Is the current data path through the VF NIC? */
+	bool  data_path_is_vf;
+
+	/* Used to temporarily save the config info across hibernation */
+	struct netvsc_device_info *saved_netvsc_dev_info;
 };
+
+/* Azure hosts don't support non-TCP port numbers in hashing for fragmented
+ * packets. We can use ethtool to change UDP hash level when necessary.
+ */
+static inline u32 netvsc_get_hash(struct sk_buff *skb,
+				  const struct net_device_context *ndc)
+{
+	struct flow_keys flow;
+	u32 hash, pkt_proto = 0;
+	static u32 hashrnd __read_mostly;
+
+	net_get_random_once(&hashrnd, sizeof(hashrnd));
+
+	if (!skb_flow_dissect_flow_keys(skb, &flow, 0))
+		return 0;
+
+	switch (flow.basic.ip_proto) {
+	case IPPROTO_TCP:
+		if (flow.basic.n_proto == htons(ETH_P_IP))
+			pkt_proto = HV_TCP4_L4HASH;
+		else if (flow.basic.n_proto == htons(ETH_P_IPV6))
+			pkt_proto = HV_TCP6_L4HASH;
+
+		break;
+
+	case IPPROTO_UDP:
+		if (flow.basic.n_proto == htons(ETH_P_IP))
+			pkt_proto = HV_UDP4_L4HASH;
+		else if (flow.basic.n_proto == htons(ETH_P_IPV6))
+			pkt_proto = HV_UDP6_L4HASH;
+
+		break;
+	}
+
+	if (pkt_proto & ndc->l4_hash) {
+		return skb_get_hash(skb);
+	} else {
+		if (flow.basic.n_proto == htons(ETH_P_IP))
+			hash = jhash2((u32 *)&flow.addrs.v4addrs, 2, hashrnd);
+		else if (flow.basic.n_proto == htons(ETH_P_IPV6))
+			hash = jhash2((u32 *)&flow.addrs.v6addrs, 8, hashrnd);
+		else
+			return 0;
+
+		__skb_set_sw_hash(skb, hash, false);
+	}
+
+	return hash;
+}
 
 /* Per channel data */
 struct netvsc_channel {
 	struct vmbus_channel *channel;
 	struct netvsc_device *net_device;
+	void *recv_buf; /* buffer to copy packets out from the receive buffer */
 	const struct vmpacket_descriptor *desc;
 	struct napi_struct napi;
 	struct multi_send_data msd;
@@ -965,8 +1125,12 @@ struct netvsc_channel {
 	atomic_t queue_sends;
 	struct nvsc_rsc rsc;
 
-	struct netvsc_stats tx_stats;
-	struct netvsc_stats rx_stats;
+	struct bpf_prog __rcu *bpf_prog;
+	struct xdp_rxq_info xdp_rxq;
+	bool xdp_flush;
+
+	struct netvsc_stats_tx tx_stats;
+	struct netvsc_stats_rx rx_stats;
 };
 
 /* Per netvsc device */
@@ -980,14 +1144,15 @@ struct netvsc_device {
 	/* Receive buffer allocated by us but manages by NetVSP */
 	void *recv_buf;
 	u32 recv_buf_size; /* allocated bytes */
-	u32 recv_buf_gpadl_handle;
+	struct vmbus_gpadl recv_buf_gpadl_handle;
 	u32 recv_section_cnt;
 	u32 recv_section_size;
 	u32 recv_completion_cnt;
 
 	/* Send buffer allocated by us */
 	void *send_buf;
-	u32 send_buf_gpadl_handle;
+	u32 send_buf_size;
+	struct vmbus_gpadl send_buf_gpadl_handle;
 	u32 send_section_cnt;
 	u32 send_section_size;
 	unsigned long *send_section_map;
@@ -1075,6 +1240,7 @@ struct rndis_set_request {
 	u32 info_buflen;
 	u32 info_buf_offset;
 	u32 dev_vc_handle;
+	u8  info_buf[];
 };
 
 /* Response to NdisSetRequest */
@@ -1185,18 +1351,6 @@ struct rndis_pktinfo_id {
 	u8 ver;
 	u8 flag;
 	u16 pkt_id;
-};
-
-struct ndis_pkt_8021q_info {
-	union {
-		struct {
-			u32 pri:3; /* User Priority */
-			u32 cfi:1; /* Canonical Format ID */
-			u32 vlanid:12; /* VLAN ID */
-			u32 reserved:16;
-		};
-		u32 value;
-	};
 };
 
 struct ndis_object_header {
@@ -1386,32 +1540,6 @@ struct ndis_offload_params {
 	struct {
 		u8 encapsulated_packet_task_offload;
 		u8 encapsulation_types;
-	};
-};
-
-struct ndis_tcp_ip_checksum_info {
-	union {
-		struct {
-			u32 is_ipv4:1;
-			u32 is_ipv6:1;
-			u32 tcp_checksum:1;
-			u32 udp_checksum:1;
-			u32 ip_header_checksum:1;
-			u32 reserved:11;
-			u32 tcp_header_offset:10;
-		} transmit;
-		struct {
-			u32 tcp_checksum_failed:1;
-			u32 udp_checksum_failed:1;
-			u32 ip_checksum_failed:1;
-			u32 tcp_checksum_succeeded:1;
-			u32 udp_checksum_succeeded:1;
-			u32 ip_checksum_succeeded:1;
-			u32 loopback:1;
-			u32 tcp_checksum_value_invalid:1;
-			u32 ip_checksum_value_invalid:1;
-		} receive;
-		u32  value;
 	};
 };
 
@@ -1668,4 +1796,10 @@ struct rndis_message {
 #define TRANSPORT_INFO_IPV6_TCP 0x10
 #define TRANSPORT_INFO_IPV6_UDP 0x20
 
+#define RETRY_US_LO	5000
+#define RETRY_US_HI	10000
+#define RETRY_MAX	2000	/* >10 sec */
+
+void netvsc_dma_unmap(struct hv_device *hv_dev,
+		      struct hv_netvsc_packet *packet);
 #endif /* _HYPERV_NET_H */

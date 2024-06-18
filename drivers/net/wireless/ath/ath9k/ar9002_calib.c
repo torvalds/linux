@@ -19,6 +19,8 @@
 #include "ar9002_phy.h"
 
 #define AR9285_CLCAL_REDO_THRESH    1
+/* AGC & I/Q calibrations time limit, ms */
+#define AR9002_CAL_MAX_TIME		30000
 
 enum ar9002_cal_types {
 	ADC_GAIN_CAL = BIT(0),
@@ -37,9 +39,8 @@ static bool ar9002_hw_is_cal_supported(struct ath_hw *ah,
 		break;
 	case ADC_GAIN_CAL:
 	case ADC_DC_CAL:
-		/* Run ADC Gain Cal for non-CCK & non 2GHz-HT20 only */
-		if (!((IS_CHAN_2GHZ(chan) || IS_CHAN_A_FAST_CLOCK(ah, chan)) &&
-		      IS_CHAN_HT20(chan)))
+		/* Run even/odd ADCs calibrations for HT40 channels only */
+		if (IS_CHAN_HT40(chan))
 			supported = true;
 		break;
 	}
@@ -105,6 +106,14 @@ static bool ar9002_hw_per_calibration(struct ath_hw *ah,
 			} else {
 				ar9002_hw_setup_calibration(ah, currCal);
 			}
+		} else if (time_after(jiffies, ah->cal_start_time +
+				      msecs_to_jiffies(AR9002_CAL_MAX_TIME))) {
+			REG_CLR_BIT(ah, AR_PHY_TIMING_CTRL4(0),
+				    AR_PHY_TIMING_CTRL4_DO_CAL);
+			ath_dbg(ath9k_hw_common(ah), CALIBRATE,
+				"calibration timeout\n");
+			currCal->calState = CAL_WAITING;	/* Try later */
+			iscaldone = true;
 		}
 	} else if (!(caldata->CalValid & currCal->calData->calType)) {
 		ath9k_hw_reset_calibration(ah, currCal);
@@ -650,9 +659,9 @@ static void ar9002_hw_pa_cal(struct ath_hw *ah, bool is_reset)
 
 static void ar9002_hw_olc_temp_compensation(struct ath_hw *ah)
 {
-	if (OLC_FOR_AR9287_10_LATER)
+	if (OLC_FOR_AR9287_10_LATER(ah))
 		ar9287_hw_olc_temp_compensation(ah);
-	else if (OLC_FOR_AR9280_20_LATER)
+	else if (OLC_FOR_AR9280_20_LATER(ah))
 		ar9280_hw_olc_temp_compensation(ah);
 }
 
@@ -663,9 +672,14 @@ static int ar9002_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 	bool nfcal, nfcal_pending = false, percal_pending;
 	int ret;
 
-	nfcal = !!(REG_READ(ah, AR_PHY_AGC_CONTROL) & AR_PHY_AGC_CONTROL_NF);
-	if (ah->caldata)
+	nfcal = !!(REG_READ(ah, AR_PHY_AGC_CONTROL(ah)) & AR_PHY_AGC_CONTROL_NF);
+	if (ah->caldata) {
 		nfcal_pending = test_bit(NFCAL_PENDING, &ah->caldata->cal_flags);
+		if (longcal)		/* Remember to not miss */
+			set_bit(LONGCAL_PENDING, &ah->caldata->cal_flags);
+		else if (test_bit(LONGCAL_PENDING, &ah->caldata->cal_flags))
+			longcal = true;	/* Respin a previous one */
+	}
 
 	percal_pending = (currCal &&
 			  (currCal->calState == CAL_RUNNING ||
@@ -675,9 +689,24 @@ static int ar9002_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 		if (!ar9002_hw_per_calibration(ah, chan, rxchainmask, currCal))
 			return 0;
 
-		ah->cal_list_curr = currCal = currCal->calNext;
-		if (currCal->calState == CAL_WAITING)
-			ath9k_hw_reset_calibration(ah, currCal);
+		/* Looking for next waiting calibration if any */
+		for (currCal = currCal->calNext; currCal != ah->cal_list_curr;
+		     currCal = currCal->calNext) {
+			if (currCal->calState == CAL_WAITING)
+				break;
+		}
+		if (currCal->calState == CAL_WAITING) {
+			percal_pending = true;
+			ah->cal_list_curr = currCal;
+		} else {
+			percal_pending = false;
+			ah->cal_list_curr = ah->cal_list;
+		}
+	}
+
+	/* Do not start a next calibration if the longcal is in action */
+	if (percal_pending && !nfcal && !longcal) {
+		ath9k_hw_reset_calibration(ah, currCal);
 
 		return 0;
 	}
@@ -701,6 +730,9 @@ static int ar9002_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 		}
 
 		if (longcal) {
+			if (ah->caldata)
+				clear_bit(LONGCAL_PENDING,
+					  &ah->caldata->cal_flags);
 			ath9k_hw_start_nfcal(ah, false);
 			/* Do periodic PAOffset Cal */
 			ar9002_hw_pa_cal(ah, false);
@@ -720,11 +752,11 @@ static bool ar9285_hw_cl_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 	if (IS_CHAN_HT20(chan)) {
 		REG_SET_BIT(ah, AR_PHY_CL_CAL_CTL, AR_PHY_PARALLEL_CAL_ENABLE);
 		REG_SET_BIT(ah, AR_PHY_TURBO, AR_PHY_FC_DYN2040_EN);
-		REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL,
+		REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL(ah),
 			    AR_PHY_AGC_CONTROL_FLTR_CAL);
 		REG_CLR_BIT(ah, AR_PHY_TPCRG1, AR_PHY_TPCRG1_PD_CAL_ENABLE);
-		REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_CAL);
-		if (!ath9k_hw_wait(ah, AR_PHY_AGC_CONTROL,
+		REG_SET_BIT(ah, AR_PHY_AGC_CONTROL(ah), AR_PHY_AGC_CONTROL_CAL);
+		if (!ath9k_hw_wait(ah, AR_PHY_AGC_CONTROL(ah),
 				  AR_PHY_AGC_CONTROL_CAL, 0, AH_WAIT_TIMEOUT)) {
 			ath_dbg(common, CALIBRATE,
 				"offset calibration failed to complete in %d ms; noisy environment?\n",
@@ -736,10 +768,10 @@ static bool ar9285_hw_cl_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 		REG_CLR_BIT(ah, AR_PHY_CL_CAL_CTL, AR_PHY_CL_CAL_ENABLE);
 	}
 	REG_CLR_BIT(ah, AR_PHY_ADC_CTL, AR_PHY_ADC_CTL_OFF_PWDADC);
-	REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_FLTR_CAL);
+	REG_SET_BIT(ah, AR_PHY_AGC_CONTROL(ah), AR_PHY_AGC_CONTROL_FLTR_CAL);
 	REG_SET_BIT(ah, AR_PHY_TPCRG1, AR_PHY_TPCRG1_PD_CAL_ENABLE);
-	REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_CAL);
-	if (!ath9k_hw_wait(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_CAL,
+	REG_SET_BIT(ah, AR_PHY_AGC_CONTROL(ah), AR_PHY_AGC_CONTROL_CAL);
+	if (!ath9k_hw_wait(ah, AR_PHY_AGC_CONTROL(ah), AR_PHY_AGC_CONTROL_CAL,
 			  0, AH_WAIT_TIMEOUT)) {
 		ath_dbg(common, CALIBRATE,
 			"offset calibration failed to complete in %d ms; noisy environment?\n",
@@ -749,7 +781,7 @@ static bool ar9285_hw_cl_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 
 	REG_SET_BIT(ah, AR_PHY_ADC_CTL, AR_PHY_ADC_CTL_OFF_PWDADC);
 	REG_CLR_BIT(ah, AR_PHY_CL_CAL_CTL, AR_PHY_CL_CAL_ENABLE);
-	REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_FLTR_CAL);
+	REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL(ah), AR_PHY_AGC_CONTROL_FLTR_CAL);
 
 	return true;
 }
@@ -825,17 +857,17 @@ static bool ar9002_hw_init_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 			if (!AR_SREV_9287_11_OR_LATER(ah))
 				REG_CLR_BIT(ah, AR_PHY_ADC_CTL,
 					    AR_PHY_ADC_CTL_OFF_PWDADC);
-			REG_SET_BIT(ah, AR_PHY_AGC_CONTROL,
+			REG_SET_BIT(ah, AR_PHY_AGC_CONTROL(ah),
 				    AR_PHY_AGC_CONTROL_FLTR_CAL);
 		}
 
 		/* Calibrate the AGC */
-		REG_WRITE(ah, AR_PHY_AGC_CONTROL,
-			  REG_READ(ah, AR_PHY_AGC_CONTROL) |
+		REG_WRITE(ah, AR_PHY_AGC_CONTROL(ah),
+			  REG_READ(ah, AR_PHY_AGC_CONTROL(ah)) |
 			  AR_PHY_AGC_CONTROL_CAL);
 
 		/* Poll for offset calibration complete */
-		if (!ath9k_hw_wait(ah, AR_PHY_AGC_CONTROL,
+		if (!ath9k_hw_wait(ah, AR_PHY_AGC_CONTROL(ah),
 				   AR_PHY_AGC_CONTROL_CAL,
 				   0, AH_WAIT_TIMEOUT)) {
 			ath_dbg(common, CALIBRATE,
@@ -848,7 +880,7 @@ static bool ar9002_hw_init_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 			if (!AR_SREV_9287_11_OR_LATER(ah))
 				REG_SET_BIT(ah, AR_PHY_ADC_CTL,
 					    AR_PHY_ADC_CTL_OFF_PWDADC);
-			REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL,
+			REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL(ah),
 				    AR_PHY_AGC_CONTROL_FLTR_CAL);
 		}
 	}
@@ -857,9 +889,6 @@ static bool ar9002_hw_init_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 	ar9002_hw_pa_cal(ah, true);
 	ath9k_hw_loadnf(ah, chan);
 	ath9k_hw_start_nfcal(ah, true);
-
-	if (ah->caldata)
-		set_bit(NFCAL_PENDING, &ah->caldata->cal_flags);
 
 	ah->cal_list = ah->cal_list_last = ah->cal_list_curr = NULL;
 

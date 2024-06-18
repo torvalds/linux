@@ -61,6 +61,4 @@
 #define CLK_USBD301		367
 #define CLK_SSS			471
 
-#define CLK_NR_CLKS		512
-
 #endif /* _DT_BINDINGS_CLOCK_EXYNOS_5410_H */

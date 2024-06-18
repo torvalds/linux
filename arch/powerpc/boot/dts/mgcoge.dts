@@ -224,14 +224,7 @@
 				reg = <0x11a80 0x40 0x89fc 0x2>;
 				interrupts = <2 8>;
 				interrupt-parent = <&PIC>;
-				gpios = < &cpm2_pio_d 19 0>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-				ds3106@1 {
-					compatible = "gen,spidev";
-					reg = <0>;
-					spi-max-frequency = <8000000>;
-				};
+				cs-gpios = < &cpm2_pio_d 19 0>;
 			};
 
 		};

@@ -42,9 +42,7 @@ dst		.req	x8
 tmp3w		.req	w9
 tmp3		.req	x9
 
-	.weak memset
-ENTRY(__memset)
-ENTRY(memset)
+SYM_FUNC_START(__pi_memset)
 	mov	dst, dstin	/* Preserve return value.  */
 	and	A_lw, val, #255
 	orr	A_lw, A_lw, A_lw, lsl #8
@@ -203,7 +201,10 @@ ENTRY(memset)
 	ands	count, count, zva_bits_x
 	b.ne	.Ltail_maybe_long
 	ret
-ENDPIPROC(memset)
-EXPORT_SYMBOL(memset)
-ENDPROC(__memset)
+SYM_FUNC_END(__pi_memset)
+
+SYM_FUNC_ALIAS(__memset, __pi_memset)
 EXPORT_SYMBOL(__memset)
+
+SYM_FUNC_ALIAS_WEAK(memset, __pi_memset)
+EXPORT_SYMBOL(memset)

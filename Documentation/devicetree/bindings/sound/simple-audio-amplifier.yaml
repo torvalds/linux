@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/simple-audio-amplifier.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Simple Audio Amplifier
+
+maintainers:
+  - Jerome Brunet <jbrunet@baylibre.com>
+
+allOf:
+  - $ref: dai-common.yaml#
+
+properties:
+  compatible:
+    enum:
+      - dioo,dio2125
+      - simple-audio-amplifier
+
+  enable-gpios:
+    maxItems: 1
+
+  VCC-supply:
+    description: >
+      power supply for the device
+
+  sound-name-prefix: true
+
+required:
+  - compatible
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/meson8-gpio.h>
+
+    analog-amplifier {
+        compatible = "simple-audio-amplifier";
+        VCC-supply = <&regulator>;
+        enable-gpios = <&gpio GPIOH_3 0>;
+    };
+
+...

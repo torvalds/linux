@@ -27,8 +27,9 @@ struct jffs2_acl_header {
 
 #ifdef CONFIG_JFFS2_FS_POSIX_ACL
 
-struct posix_acl *jffs2_get_acl(struct inode *inode, int type);
-int jffs2_set_acl(struct inode *inode, struct posix_acl *acl, int type);
+struct posix_acl *jffs2_get_acl(struct inode *inode, int type, bool rcu);
+int jffs2_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
+		  struct posix_acl *acl, int type);
 extern int jffs2_init_acl_pre(struct inode *, struct inode *, umode_t *);
 extern int jffs2_init_acl_post(struct inode *);
 

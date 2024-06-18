@@ -96,7 +96,7 @@ if you use an AWE64 card, you'll see like the following:
     Number of synth devices: 1
     synth 0: [EMU8000]
       type 0x1 : subtype 0x20 : voices 32
-      capabilties : ioctl enabled / load_patch enabled
+      capabilities : ioctl enabled / load_patch enabled
 
     Number of MIDI devices: 3
     midi 0: [Emu8000 Port-0] ALSA port 65:0

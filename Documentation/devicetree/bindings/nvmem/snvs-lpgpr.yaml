@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/nvmem/snvs-lpgpr.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Low Power General Purpose Register found in i.MX Secure Non-Volatile Storage
+
+maintainers:
+  - Oleksij Rempel <o.rempel@pengutronix.de>
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - fsl,imx8mm-snvs-lpgpr
+              - fsl,imx8mn-snvs-lpgpr
+              - fsl,imx8mp-snvs-lpgpr
+              - fsl,imx8mq-snvs-lpgpr
+          - const: fsl,imx7d-snvs-lpgpr
+      - enum:
+          - fsl,imx6q-snvs-lpgpr
+          - fsl,imx6ul-snvs-lpgpr
+          - fsl,imx7d-snvs-lpgpr
+
+required:
+  - compatible
+
+additionalProperties: false
+
+examples:
+  - |
+    snvs@20cc000 {
+        compatible = "fsl,sec-v4.0-mon", "syscon", "simple-mfd";
+        reg = <0x20cc000 0x4000>;
+
+        snvs_lpgpr: snvs-lpgpr {
+            compatible = "fsl,imx6q-snvs-lpgpr";
+        };
+    };

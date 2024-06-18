@@ -6,13 +6,18 @@
  */
 
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/list.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/of.h>
+#include <linux/of_platform.h>
+#include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/slab.h>
+
+#include <soc/tegra/common.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/host1x.h>
@@ -24,6 +29,7 @@
 
 #include "bus.h"
 #include "channel.h"
+#include "context.h"
 #include "debug.h"
 #include "dev.h"
 #include "intr.h"
@@ -34,6 +40,12 @@
 #include "hw/host1x05.h"
 #include "hw/host1x06.h"
 #include "hw/host1x07.h"
+#include "hw/host1x08.h"
+
+void host1x_common_writel(struct host1x *host1x, u32 v, u32 r)
+{
+	writel(v, host1x->common_regs + r);
+}
 
 void host1x_hypervisor_writel(struct host1x *host1x, u32 v, u32 r)
 {
@@ -77,6 +89,11 @@ static const struct host1x_info host1x01_info = {
 	.init = host1x01_init,
 	.sync_offset = 0x3000,
 	.dma_mask = DMA_BIT_MASK(32),
+	.has_wide_gather = false,
+	.has_hypervisor = false,
+	.num_sid_entries = 0,
+	.sid_table = NULL,
+	.reserve_vblank_syncpts = true,
 };
 
 static const struct host1x_info host1x02_info = {
@@ -87,6 +104,11 @@ static const struct host1x_info host1x02_info = {
 	.init = host1x02_init,
 	.sync_offset = 0x3000,
 	.dma_mask = DMA_BIT_MASK(32),
+	.has_wide_gather = false,
+	.has_hypervisor = false,
+	.num_sid_entries = 0,
+	.sid_table = NULL,
+	.reserve_vblank_syncpts = true,
 };
 
 static const struct host1x_info host1x04_info = {
@@ -97,6 +119,11 @@ static const struct host1x_info host1x04_info = {
 	.init = host1x04_init,
 	.sync_offset = 0x2100,
 	.dma_mask = DMA_BIT_MASK(34),
+	.has_wide_gather = false,
+	.has_hypervisor = false,
+	.num_sid_entries = 0,
+	.sid_table = NULL,
+	.reserve_vblank_syncpts = false,
 };
 
 static const struct host1x_info host1x05_info = {
@@ -107,12 +134,23 @@ static const struct host1x_info host1x05_info = {
 	.init = host1x05_init,
 	.sync_offset = 0x2100,
 	.dma_mask = DMA_BIT_MASK(34),
+	.has_wide_gather = false,
+	.has_hypervisor = false,
+	.num_sid_entries = 0,
+	.sid_table = NULL,
+	.reserve_vblank_syncpts = false,
 };
 
 static const struct host1x_sid_entry tegra186_sid_table[] = {
 	{
 		/* VIC */
 		.base = 0x1af0,
+		.offset = 0x30,
+		.limit = 0x34
+	},
+	{
+		/* NVDEC */
+		.base = 0x1b00,
 		.offset = 0x30,
 		.limit = 0x34
 	},
@@ -126,15 +164,30 @@ static const struct host1x_info host1x06_info = {
 	.init = host1x06_init,
 	.sync_offset = 0x0,
 	.dma_mask = DMA_BIT_MASK(40),
+	.has_wide_gather = true,
 	.has_hypervisor = true,
 	.num_sid_entries = ARRAY_SIZE(tegra186_sid_table),
 	.sid_table = tegra186_sid_table,
+	.reserve_vblank_syncpts = false,
+	.skip_reset_assert = true,
 };
 
 static const struct host1x_sid_entry tegra194_sid_table[] = {
 	{
 		/* VIC */
 		.base = 0x1af0,
+		.offset = 0x30,
+		.limit = 0x34
+	},
+	{
+		/* NVDEC */
+		.base = 0x1b00,
+		.offset = 0x30,
+		.limit = 0x34
+	},
+	{
+		/* NVDEC1 */
+		.base = 0x1bc0,
 		.offset = 0x30,
 		.limit = 0x34
 	},
@@ -148,12 +201,91 @@ static const struct host1x_info host1x07_info = {
 	.init = host1x07_init,
 	.sync_offset = 0x0,
 	.dma_mask = DMA_BIT_MASK(40),
+	.has_wide_gather = true,
 	.has_hypervisor = true,
 	.num_sid_entries = ARRAY_SIZE(tegra194_sid_table),
 	.sid_table = tegra194_sid_table,
+	.reserve_vblank_syncpts = false,
+};
+
+/*
+ * Tegra234 has two stream ID protection tables, one for setting stream IDs
+ * through the channel path via SETSTREAMID, and one for setting them via
+ * MMIO. We program each engine's data stream ID in the channel path table
+ * and firmware stream ID in the MMIO path table.
+ */
+static const struct host1x_sid_entry tegra234_sid_table[] = {
+	{
+		/* SE2 MMIO */
+		.base = 0x1658,
+		.offset = 0x90,
+		.limit = 0x90
+	},
+	{
+		/* SE4 MMIO */
+		.base = 0x1660,
+		.offset = 0x90,
+		.limit = 0x90
+	},
+	{
+		/* SE2 channel */
+		.base = 0x1738,
+		.offset = 0x90,
+		.limit = 0x90
+	},
+	{
+		/* SE4 channel */
+		.base = 0x1740,
+		.offset = 0x90,
+		.limit = 0x90
+	},
+	{
+		/* VIC channel */
+		.base = 0x17b8,
+		.offset = 0x30,
+		.limit = 0x30
+	},
+	{
+		/* VIC MMIO */
+		.base = 0x1688,
+		.offset = 0x34,
+		.limit = 0x34
+	},
+	{
+		/* NVDEC channel */
+		.base = 0x17c8,
+		.offset = 0x30,
+		.limit = 0x30,
+	},
+	{
+		/* NVDEC MMIO */
+		.base = 0x1698,
+		.offset = 0x34,
+		.limit = 0x34,
+	},
+};
+
+static const struct host1x_info host1x08_info = {
+	.nb_channels = 63,
+	.nb_pts = 1024,
+	.nb_mlocks = 24,
+	.nb_bases = 0,
+	.init = host1x08_init,
+	.sync_offset = 0x0,
+	.dma_mask = DMA_BIT_MASK(40),
+	.has_wide_gather = true,
+	.has_hypervisor = true,
+	.has_common = true,
+	.num_sid_entries = ARRAY_SIZE(tegra234_sid_table),
+	.sid_table = tegra234_sid_table,
+	.streamid_vm_table = { 0x1004, 128 },
+	.classid_vm_table = { 0x1404, 25 },
+	.mmio_vm_table = { 0x1504, 25 },
+	.reserve_vblank_syncpts = false,
 };
 
 static const struct of_device_id host1x_of_match[] = {
+	{ .compatible = "nvidia,tegra234-host1x", .data = &host1x08_info, },
 	{ .compatible = "nvidia,tegra194-host1x", .data = &host1x07_info, },
 	{ .compatible = "nvidia,tegra186-host1x", .data = &host1x06_info, },
 	{ .compatible = "nvidia,tegra210-host1x", .data = &host1x05_info, },
@@ -165,10 +297,13 @@ static const struct of_device_id host1x_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, host1x_of_match);
 
-static void host1x_setup_sid_table(struct host1x *host)
+static void host1x_setup_virtualization_tables(struct host1x *host)
 {
 	const struct host1x_info *info = host->info;
 	unsigned int i;
+
+	if (!info->has_hypervisor)
+		return;
 
 	for (i = 0; i < info->num_sid_entries; i++) {
 		const struct host1x_sid_entry *entry = &info->sid_table[i];
@@ -176,14 +311,209 @@ static void host1x_setup_sid_table(struct host1x *host)
 		host1x_hypervisor_writel(host, entry->offset, entry->base);
 		host1x_hypervisor_writel(host, entry->limit, entry->base + 4);
 	}
+
+	for (i = 0; i < info->streamid_vm_table.count; i++) {
+		/* Allow access to all stream IDs to all VMs. */
+		host1x_hypervisor_writel(host, 0xff, info->streamid_vm_table.base + 4 * i);
+	}
+
+	for (i = 0; i < info->classid_vm_table.count; i++) {
+		/* Allow access to all classes to all VMs. */
+		host1x_hypervisor_writel(host, 0xff, info->classid_vm_table.base + 4 * i);
+	}
+
+	for (i = 0; i < info->mmio_vm_table.count; i++) {
+		/* Use VM1 (that's us) as originator VMID for engine MMIO accesses. */
+		host1x_hypervisor_writel(host, 0x1, info->mmio_vm_table.base + 4 * i);
+	}
+}
+
+static bool host1x_wants_iommu(struct host1x *host1x)
+{
+	/* Our IOMMU usage policy doesn't currently play well with GART */
+	if (of_machine_is_compatible("nvidia,tegra20"))
+		return false;
+
+	/*
+	 * If we support addressing a maximum of 32 bits of physical memory
+	 * and if the host1x firewall is enabled, there's no need to enable
+	 * IOMMU support. This can happen for example on Tegra20, Tegra30
+	 * and Tegra114.
+	 *
+	 * Tegra124 and later can address up to 34 bits of physical memory and
+	 * many platforms come equipped with more than 2 GiB of system memory,
+	 * which requires crossing the 4 GiB boundary. But there's a catch: on
+	 * SoCs before Tegra186 (i.e. Tegra124 and Tegra210), the host1x can
+	 * only address up to 32 bits of memory in GATHER opcodes, which means
+	 * that command buffers need to either be in the first 2 GiB of system
+	 * memory (which could quickly lead to memory exhaustion), or command
+	 * buffers need to be treated differently from other buffers (which is
+	 * not possible with the current ABI).
+	 *
+	 * A third option is to use the IOMMU in these cases to make sure all
+	 * buffers will be mapped into a 32-bit IOVA space that host1x can
+	 * address. This allows all of the system memory to be used and works
+	 * within the limitations of the host1x on these SoCs.
+	 *
+	 * In summary, default to enable IOMMU on Tegra124 and later. For any
+	 * of the earlier SoCs, only use the IOMMU for additional safety when
+	 * the host1x firewall is disabled.
+	 */
+	if (host1x->info->dma_mask <= DMA_BIT_MASK(32)) {
+		if (IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL))
+			return false;
+	}
+
+	return true;
+}
+
+static struct iommu_domain *host1x_iommu_attach(struct host1x *host)
+{
+	struct iommu_domain *domain = iommu_get_domain_for_dev(host->dev);
+	int err;
+
+#if IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU)
+	if (host->dev->archdata.mapping) {
+		struct dma_iommu_mapping *mapping =
+				to_dma_iommu_mapping(host->dev);
+		arm_iommu_detach_device(host->dev);
+		arm_iommu_release_mapping(mapping);
+
+		domain = iommu_get_domain_for_dev(host->dev);
+	}
+#endif
+
+	/*
+	 * We may not always want to enable IOMMU support (for example if the
+	 * host1x firewall is already enabled and we don't support addressing
+	 * more than 32 bits of physical memory), so check for that first.
+	 *
+	 * Similarly, if host1x is already attached to an IOMMU (via the DMA
+	 * API), don't try to attach again.
+	 */
+	if (!host1x_wants_iommu(host) || domain)
+		return domain;
+
+	host->group = iommu_group_get(host->dev);
+	if (host->group) {
+		struct iommu_domain_geometry *geometry;
+		dma_addr_t start, end;
+		unsigned long order;
+
+		err = iova_cache_get();
+		if (err < 0)
+			goto put_group;
+
+		host->domain = iommu_domain_alloc(&platform_bus_type);
+		if (!host->domain) {
+			err = -ENOMEM;
+			goto put_cache;
+		}
+
+		err = iommu_attach_group(host->domain, host->group);
+		if (err) {
+			if (err == -ENODEV)
+				err = 0;
+
+			goto free_domain;
+		}
+
+		geometry = &host->domain->geometry;
+		start = geometry->aperture_start & host->info->dma_mask;
+		end = geometry->aperture_end & host->info->dma_mask;
+
+		order = __ffs(host->domain->pgsize_bitmap);
+		init_iova_domain(&host->iova, 1UL << order, start >> order);
+		host->iova_end = end;
+
+		domain = host->domain;
+	}
+
+	return domain;
+
+free_domain:
+	iommu_domain_free(host->domain);
+	host->domain = NULL;
+put_cache:
+	iova_cache_put();
+put_group:
+	iommu_group_put(host->group);
+	host->group = NULL;
+
+	return ERR_PTR(err);
+}
+
+static int host1x_iommu_init(struct host1x *host)
+{
+	u64 mask = host->info->dma_mask;
+	struct iommu_domain *domain;
+	int err;
+
+	domain = host1x_iommu_attach(host);
+	if (IS_ERR(domain)) {
+		err = PTR_ERR(domain);
+		dev_err(host->dev, "failed to attach to IOMMU: %d\n", err);
+		return err;
+	}
+
+	/*
+	 * If we're not behind an IOMMU make sure we don't get push buffers
+	 * that are allocated outside of the range addressable by the GATHER
+	 * opcode.
+	 *
+	 * Newer generations of Tegra (Tegra186 and later) support a wide
+	 * variant of the GATHER opcode that allows addressing more bits.
+	 */
+	if (!domain && !host->info->has_wide_gather)
+		mask = DMA_BIT_MASK(32);
+
+	err = dma_coerce_mask_and_coherent(host->dev, mask);
+	if (err < 0) {
+		dev_err(host->dev, "failed to set DMA mask: %d\n", err);
+		return err;
+	}
+
+	return 0;
+}
+
+static void host1x_iommu_exit(struct host1x *host)
+{
+	if (host->domain) {
+		put_iova_domain(&host->iova);
+		iommu_detach_group(host->domain, host->group);
+
+		iommu_domain_free(host->domain);
+		host->domain = NULL;
+
+		iova_cache_put();
+
+		iommu_group_put(host->group);
+		host->group = NULL;
+	}
+}
+
+static int host1x_get_resets(struct host1x *host)
+{
+	int err;
+
+	host->resets[0].id = "mc";
+	host->resets[1].id = "host1x";
+	host->nresets = ARRAY_SIZE(host->resets);
+
+	err = devm_reset_control_bulk_get_optional_exclusive_released(
+				host->dev, host->nresets, host->resets);
+	if (err) {
+		dev_err(host->dev, "failed to get reset: %d\n", err);
+		return err;
+	}
+
+	return 0;
 }
 
 static int host1x_probe(struct platform_device *pdev)
 {
 	struct host1x *host;
-	struct resource *regs, *hv_regs = NULL;
-	int syncpt_irq;
-	int err;
+	int err, i;
 
 	host = devm_kzalloc(&pdev->dev, sizeof(*host), GFP_KERNEL);
 	if (!host)
@@ -192,31 +522,48 @@ static int host1x_probe(struct platform_device *pdev)
 	host->info = of_device_get_match_data(&pdev->dev);
 
 	if (host->info->has_hypervisor) {
-		regs = platform_get_resource_byname(pdev, IORESOURCE_MEM, "vm");
-		if (!regs) {
-			dev_err(&pdev->dev, "failed to get vm registers\n");
-			return -ENXIO;
-		}
+		host->regs = devm_platform_ioremap_resource_byname(pdev, "vm");
+		if (IS_ERR(host->regs))
+			return PTR_ERR(host->regs);
 
-		hv_regs = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						       "hypervisor");
-		if (!hv_regs) {
-			dev_err(&pdev->dev,
-				"failed to get hypervisor registers\n");
-			return -ENXIO;
+		host->hv_regs = devm_platform_ioremap_resource_byname(pdev, "hypervisor");
+		if (IS_ERR(host->hv_regs))
+			return PTR_ERR(host->hv_regs);
+
+		if (host->info->has_common) {
+			host->common_regs = devm_platform_ioremap_resource_byname(pdev, "common");
+			if (IS_ERR(host->common_regs))
+				return PTR_ERR(host->common_regs);
 		}
 	} else {
-		regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		if (!regs) {
-			dev_err(&pdev->dev, "failed to get registers\n");
-			return -ENXIO;
-		}
+		host->regs = devm_platform_ioremap_resource(pdev, 0);
+		if (IS_ERR(host->regs))
+			return PTR_ERR(host->regs);
 	}
 
-	syncpt_irq = platform_get_irq(pdev, 0);
-	if (syncpt_irq < 0) {
-		dev_err(&pdev->dev, "failed to get IRQ: %d\n", syncpt_irq);
-		return syncpt_irq;
+	for (i = 0; i < ARRAY_SIZE(host->syncpt_irqs); i++) {
+		char irq_name[] = "syncptX";
+
+		sprintf(irq_name, "syncpt%d", i);
+
+		err = platform_get_irq_byname_optional(pdev, irq_name);
+		if (err == -ENXIO)
+			break;
+		if (err < 0)
+			return err;
+
+		host->syncpt_irqs[i] = err;
+	}
+
+	host->num_syncpt_irqs = i;
+
+	/* Device tree without irq names */
+	if (i == 0) {
+		host->syncpt_irqs[0] = platform_get_irq(pdev, 0);
+		if (host->syncpt_irqs[0] < 0)
+			return host->syncpt_irqs[0];
+
+		host->num_syncpt_irqs = 1;
 	}
 
 	mutex_init(&host->devices_lock);
@@ -227,17 +574,8 @@ static int host1x_probe(struct platform_device *pdev)
 	/* set common host1x device data */
 	platform_set_drvdata(pdev, host);
 
-	host->regs = devm_ioremap_resource(&pdev->dev, regs);
-	if (IS_ERR(host->regs))
-		return PTR_ERR(host->regs);
-
-	if (host->info->has_hypervisor) {
-		host->hv_regs = devm_ioremap_resource(&pdev->dev, hv_regs);
-		if (IS_ERR(host->hv_regs))
-			return PTR_ERR(host->hv_regs);
-	}
-
-	dma_set_mask_and_coherent(host->dev, host->info->dma_mask);
+	host->dev->dma_parms = &host->dma_parms;
+	dma_set_max_seg_size(host->dev, UINT_MAX);
 
 	if (host->info->init) {
 		err = host->info->init(host);
@@ -255,129 +593,86 @@ static int host1x_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	host->rst = devm_reset_control_get(&pdev->dev, "host1x");
-	if (IS_ERR(host->rst)) {
-		err = PTR_ERR(host->rst);
-		dev_err(&pdev->dev, "failed to get reset: %d\n", err);
+	err = host1x_get_resets(host);
+	if (err)
 		return err;
-	}
-#if IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU)
-	if (host->dev->archdata.mapping) {
-		struct dma_iommu_mapping *mapping =
-				to_dma_iommu_mapping(host->dev);
-		arm_iommu_detach_device(host->dev);
-		arm_iommu_release_mapping(mapping);
-	}
-#endif
-	if (IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL))
-		goto skip_iommu;
 
-	host->group = iommu_group_get(&pdev->dev);
-	if (host->group) {
-		struct iommu_domain_geometry *geometry;
-		u64 mask = dma_get_mask(host->dev);
-		dma_addr_t start, end;
-		unsigned long order;
+	host1x_bo_cache_init(&host->cache);
 
-		err = iova_cache_get();
-		if (err < 0)
-			goto put_group;
-
-		host->domain = iommu_domain_alloc(&platform_bus_type);
-		if (!host->domain) {
-			err = -ENOMEM;
-			goto put_cache;
-		}
-
-		err = iommu_attach_group(host->domain, host->group);
-		if (err) {
-			if (err == -ENODEV) {
-				iommu_domain_free(host->domain);
-				host->domain = NULL;
-				iova_cache_put();
-				iommu_group_put(host->group);
-				host->group = NULL;
-				goto skip_iommu;
-			}
-
-			goto fail_free_domain;
-		}
-
-		geometry = &host->domain->geometry;
-		start = geometry->aperture_start & mask;
-		end = geometry->aperture_end & mask;
-
-		order = __ffs(host->domain->pgsize_bitmap);
-		init_iova_domain(&host->iova, 1UL << order, start >> order);
-		host->iova_end = end;
+	err = host1x_iommu_init(host);
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to setup IOMMU: %d\n", err);
+		goto destroy_cache;
 	}
 
-skip_iommu:
 	err = host1x_channel_list_init(&host->channel_list,
 				       host->info->nb_channels);
 	if (err) {
 		dev_err(&pdev->dev, "failed to initialize channel list\n");
-		goto fail_detach_device;
+		goto iommu_exit;
 	}
 
-	err = clk_prepare_enable(host->clk);
-	if (err < 0) {
-		dev_err(&pdev->dev, "failed to enable clock\n");
-		goto fail_free_channels;
-	}
-
-	err = reset_control_deassert(host->rst);
-	if (err < 0) {
-		dev_err(&pdev->dev, "failed to deassert reset: %d\n", err);
-		goto fail_unprepare_disable;
+	err = host1x_memory_context_list_init(host);
+	if (err) {
+		dev_err(&pdev->dev, "failed to initialize context list\n");
+		goto free_channels;
 	}
 
 	err = host1x_syncpt_init(host);
 	if (err) {
 		dev_err(&pdev->dev, "failed to initialize syncpts\n");
-		goto fail_reset_assert;
+		goto free_contexts;
 	}
 
-	err = host1x_intr_init(host, syncpt_irq);
+	err = host1x_intr_init(host);
 	if (err) {
 		dev_err(&pdev->dev, "failed to initialize interrupts\n");
-		goto fail_deinit_syncpt;
+		goto deinit_syncpt;
 	}
+
+	pm_runtime_enable(&pdev->dev);
+
+	err = devm_tegra_core_dev_init_opp_table_common(&pdev->dev);
+	if (err)
+		goto pm_disable;
+
+	/* the driver's code isn't ready yet for the dynamic RPM */
+	err = pm_runtime_resume_and_get(&pdev->dev);
+	if (err)
+		goto pm_disable;
 
 	host1x_debug_init(host);
 
-	if (host->info->has_hypervisor)
-		host1x_setup_sid_table(host);
-
 	err = host1x_register(host);
 	if (err < 0)
-		goto fail_deinit_intr;
+		goto deinit_debugfs;
+
+	err = devm_of_platform_populate(&pdev->dev);
+	if (err < 0)
+		goto unregister;
 
 	return 0;
 
-fail_deinit_intr:
+unregister:
+	host1x_unregister(host);
+deinit_debugfs:
+	host1x_debug_deinit(host);
+
+	pm_runtime_put_sync_suspend(&pdev->dev);
+pm_disable:
+	pm_runtime_disable(&pdev->dev);
+
 	host1x_intr_deinit(host);
-fail_deinit_syncpt:
+deinit_syncpt:
 	host1x_syncpt_deinit(host);
-fail_reset_assert:
-	reset_control_assert(host->rst);
-fail_unprepare_disable:
-	clk_disable_unprepare(host->clk);
-fail_free_channels:
+free_contexts:
+	host1x_memory_context_list_free(&host->context_list);
+free_channels:
 	host1x_channel_list_free(&host->channel_list);
-fail_detach_device:
-	if (host->group && host->domain) {
-		put_iova_domain(&host->iova);
-		iommu_detach_group(host->domain, host->group);
-	}
-fail_free_domain:
-	if (host->domain)
-		iommu_domain_free(host->domain);
-put_cache:
-	if (host->group)
-		iova_cache_put();
-put_group:
-	iommu_group_put(host->group);
+iommu_exit:
+	host1x_iommu_exit(host);
+destroy_cache:
+	host1x_bo_cache_destroy(&host->cache);
 
 	return err;
 }
@@ -387,26 +682,100 @@ static int host1x_remove(struct platform_device *pdev)
 	struct host1x *host = platform_get_drvdata(pdev);
 
 	host1x_unregister(host);
+	host1x_debug_deinit(host);
+
+	pm_runtime_force_suspend(&pdev->dev);
+
 	host1x_intr_deinit(host);
 	host1x_syncpt_deinit(host);
-	reset_control_assert(host->rst);
-	clk_disable_unprepare(host->clk);
-
-	if (host->domain) {
-		put_iova_domain(&host->iova);
-		iommu_detach_group(host->domain, host->group);
-		iommu_domain_free(host->domain);
-		iova_cache_put();
-		iommu_group_put(host->group);
-	}
+	host1x_memory_context_list_free(&host->context_list);
+	host1x_channel_list_free(&host->channel_list);
+	host1x_iommu_exit(host);
+	host1x_bo_cache_destroy(&host->cache);
 
 	return 0;
 }
+
+static int __maybe_unused host1x_runtime_suspend(struct device *dev)
+{
+	struct host1x *host = dev_get_drvdata(dev);
+	int err;
+
+	host1x_channel_stop_all(host);
+	host1x_intr_stop(host);
+	host1x_syncpt_save(host);
+
+	if (!host->info->skip_reset_assert) {
+		err = reset_control_bulk_assert(host->nresets, host->resets);
+		if (err) {
+			dev_err(dev, "failed to assert reset: %d\n", err);
+			goto resume_host1x;
+		}
+
+		usleep_range(1000, 2000);
+	}
+
+	clk_disable_unprepare(host->clk);
+	reset_control_bulk_release(host->nresets, host->resets);
+
+	return 0;
+
+resume_host1x:
+	host1x_setup_virtualization_tables(host);
+	host1x_syncpt_restore(host);
+	host1x_intr_start(host);
+
+	return err;
+}
+
+static int __maybe_unused host1x_runtime_resume(struct device *dev)
+{
+	struct host1x *host = dev_get_drvdata(dev);
+	int err;
+
+	err = reset_control_bulk_acquire(host->nresets, host->resets);
+	if (err) {
+		dev_err(dev, "failed to acquire reset: %d\n", err);
+		return err;
+	}
+
+	err = clk_prepare_enable(host->clk);
+	if (err) {
+		dev_err(dev, "failed to enable clock: %d\n", err);
+		goto release_reset;
+	}
+
+	err = reset_control_bulk_deassert(host->nresets, host->resets);
+	if (err < 0) {
+		dev_err(dev, "failed to deassert reset: %d\n", err);
+		goto disable_clk;
+	}
+
+	host1x_setup_virtualization_tables(host);
+	host1x_syncpt_restore(host);
+	host1x_intr_start(host);
+
+	return 0;
+
+disable_clk:
+	clk_disable_unprepare(host->clk);
+release_reset:
+	reset_control_bulk_release(host->nresets, host->resets);
+
+	return err;
+}
+
+static const struct dev_pm_ops host1x_pm_ops = {
+	SET_RUNTIME_PM_OPS(host1x_runtime_suspend, host1x_runtime_resume,
+			   NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
+};
 
 static struct platform_driver tegra_host1x_driver = {
 	.driver = {
 		.name = "tegra-host1x",
 		.of_match_table = host1x_of_match,
+		.pm = &host1x_pm_ops,
 	},
 	.probe = host1x_probe,
 	.remove = host1x_remove,
@@ -439,6 +808,19 @@ static void __exit tegra_host1x_exit(void)
 	bus_unregister(&host1x_bus_type);
 }
 module_exit(tegra_host1x_exit);
+
+/**
+ * host1x_get_dma_mask() - query the supported DMA mask for host1x
+ * @host1x: host1x instance
+ *
+ * Note that this returns the supported DMA mask for host1x, which can be
+ * different from the applicable DMA mask under certain circumstances.
+ */
+u64 host1x_get_dma_mask(struct host1x *host1x)
+{
+	return host1x->info->dma_mask;
+}
+EXPORT_SYMBOL(host1x_get_dma_mask);
 
 MODULE_AUTHOR("Thierry Reding <thierry.reding@avionic-design.de>");
 MODULE_AUTHOR("Terje Bergstrom <tbergstrom@nvidia.com>");

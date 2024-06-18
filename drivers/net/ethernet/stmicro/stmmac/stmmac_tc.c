@@ -209,17 +209,11 @@ err_unfill:
 static int tc_delete_knode(struct stmmac_priv *priv,
 			   struct tc_cls_u32_offload *cls)
 {
-	int ret;
-
 	/* Set entry and fragments as not used */
 	tc_unfill_entry(priv, cls);
 
-	ret = stmmac_rxp_config(priv, priv->hw->pcsr, priv->tc_entries,
-			priv->tc_entries_max);
-	if (ret)
-		return ret;
-
-	return 0;
+	return stmmac_rxp_config(priv, priv->hw->pcsr, priv->tc_entries,
+				 priv->tc_entries_max);
 }
 
 static int tc_setup_cls_u32(struct stmmac_priv *priv,
@@ -228,7 +222,7 @@ static int tc_setup_cls_u32(struct stmmac_priv *priv,
 	switch (cls->command) {
 	case TC_CLSU32_REPLACE_KNODE:
 		tc_unfill_entry(priv, cls);
-		/* Fall through */
+		fallthrough;
 	case TC_CLSU32_NEW_KNODE:
 		return tc_config_knode(priv, cls);
 	case TC_CLSU32_DELETE_KNODE:
@@ -238,11 +232,35 @@ static int tc_setup_cls_u32(struct stmmac_priv *priv,
 	}
 }
 
+static int tc_rfs_init(struct stmmac_priv *priv)
+{
+	int i;
+
+	priv->rfs_entries_max[STMMAC_RFS_T_VLAN] = 8;
+	priv->rfs_entries_max[STMMAC_RFS_T_LLDP] = 1;
+	priv->rfs_entries_max[STMMAC_RFS_T_1588] = 1;
+
+	for (i = 0; i < STMMAC_RFS_T_MAX; i++)
+		priv->rfs_entries_total += priv->rfs_entries_max[i];
+
+	priv->rfs_entries = devm_kcalloc(priv->device,
+					 priv->rfs_entries_total,
+					 sizeof(*priv->rfs_entries),
+					 GFP_KERNEL);
+	if (!priv->rfs_entries)
+		return -ENOMEM;
+
+	dev_info(priv->device, "Enabled RFS Flow TC (entries=%d)\n",
+		 priv->rfs_entries_total);
+
+	return 0;
+}
+
 static int tc_init(struct stmmac_priv *priv)
 {
 	struct dma_features *dma_cap = &priv->dma_cap;
 	unsigned int count;
-	int i;
+	int ret, i;
 
 	if (dma_cap->l3l4fnum) {
 		priv->flow_entries_max = dma_cap->l3l4fnum;
@@ -256,8 +274,22 @@ static int tc_init(struct stmmac_priv *priv)
 		for (i = 0; i < priv->flow_entries_max; i++)
 			priv->flow_entries[i].idx = i;
 
-		dev_info(priv->device, "Enabled Flow TC (entries=%d)\n",
+		dev_info(priv->device, "Enabled L3L4 Flow TC (entries=%d)\n",
 			 priv->flow_entries_max);
+	}
+
+	ret = tc_rfs_init(priv);
+	if (ret)
+		return -ENOMEM;
+
+	if (!priv->plat->fpe_cfg) {
+		priv->plat->fpe_cfg = devm_kzalloc(priv->device,
+						   sizeof(*priv->plat->fpe_cfg),
+						   GFP_KERNEL);
+		if (!priv->plat->fpe_cfg)
+			return -ENOMEM;
+	} else {
+		memset(priv->plat->fpe_cfg, 0, sizeof(*priv->plat->fpe_cfg));
 	}
 
 	/* Fail silently as we can still use remaining features, e.g. CBS */
@@ -303,6 +335,7 @@ static int tc_init(struct stmmac_priv *priv)
 
 	dev_info(priv->device, "Enabling HW TC (entries=%d, max_off=%d)\n",
 			priv->tc_entries_max, priv->tc_off_max);
+
 	return 0;
 }
 
@@ -310,10 +343,11 @@ static int tc_setup_cbs(struct stmmac_priv *priv,
 			struct tc_cbs_qopt_offload *qopt)
 {
 	u32 tx_queues_count = priv->plat->tx_queues_to_use;
+	s64 port_transmit_rate_kbps;
 	u32 queue = qopt->queue;
-	u32 ptr, speed_div;
 	u32 mode_to_use;
 	u64 value;
+	u32 ptr;
 	int ret;
 
 	/* Queue 0 is not AVB capable */
@@ -321,8 +355,28 @@ static int tc_setup_cbs(struct stmmac_priv *priv,
 		return -EINVAL;
 	if (!priv->dma_cap.av)
 		return -EOPNOTSUPP;
-	if (priv->speed != SPEED_100 && priv->speed != SPEED_1000)
-		return -EOPNOTSUPP;
+
+	port_transmit_rate_kbps = qopt->idleslope - qopt->sendslope;
+
+	/* Port Transmit Rate and Speed Divider */
+	switch (div_s64(port_transmit_rate_kbps, 1000)) {
+	case SPEED_10000:
+	case SPEED_5000:
+		ptr = 32;
+		break;
+	case SPEED_2500:
+	case SPEED_1000:
+		ptr = 8;
+		break;
+	case SPEED_100:
+		ptr = 4;
+		break;
+	default:
+		netdev_err(priv->dev,
+			   "Invalid portTransmitRate %lld (idleSlope - sendSlope)\n",
+			   port_transmit_rate_kbps);
+		return -EINVAL;
+	}
 
 	mode_to_use = priv->plat->tx_queues_cfg[queue].mode_to_use;
 	if (mode_to_use == MTL_QUEUE_DCB && qopt->enable) {
@@ -332,18 +386,19 @@ static int tc_setup_cbs(struct stmmac_priv *priv,
 
 		priv->plat->tx_queues_cfg[queue].mode_to_use = MTL_QUEUE_AVB;
 	} else if (!qopt->enable) {
-		return stmmac_dma_qmode(priv, priv->ioaddr, queue, MTL_QUEUE_DCB);
+		ret = stmmac_dma_qmode(priv, priv->ioaddr, queue,
+				       MTL_QUEUE_DCB);
+		if (ret)
+			return ret;
+
+		priv->plat->tx_queues_cfg[queue].mode_to_use = MTL_QUEUE_DCB;
 	}
 
-	/* Port Transmit Rate and Speed Divider */
-	ptr = (priv->speed == SPEED_100) ? 4 : 8;
-	speed_div = (priv->speed == SPEED_100) ? 100000 : 1000000;
-
 	/* Final adjustments for HW */
-	value = div_s64(qopt->idleslope * 1024ll * ptr, speed_div);
+	value = div_s64(qopt->idleslope * 1024ll * ptr, port_transmit_rate_kbps);
 	priv->plat->tx_queues_cfg[queue].idle_slope = value & GENMASK(31, 0);
 
-	value = div_s64(-qopt->sendslope * 1024ll * ptr, speed_div);
+	value = div_s64(-qopt->sendslope * 1024ll * ptr, port_transmit_rate_kbps);
 	priv->plat->tx_queues_cfg[queue].send_slope = value & GENMASK(31, 0);
 
 	value = qopt->hicredit * 1024ll * 8;
@@ -369,13 +424,17 @@ static int tc_setup_cbs(struct stmmac_priv *priv,
 
 static int tc_parse_flow_actions(struct stmmac_priv *priv,
 				 struct flow_action *action,
-				 struct stmmac_flow_entry *entry)
+				 struct stmmac_flow_entry *entry,
+				 struct netlink_ext_ack *extack)
 {
 	struct flow_action_entry *act;
 	int i;
 
 	if (!flow_action_has_entries(action))
 		return -EINVAL;
+
+	if (!flow_action_basic_hw_stats_check(action, extack))
+		return -EOPNOTSUPP;
 
 	flow_action_for_each(i, act, action) {
 		switch (act->id) {
@@ -391,6 +450,8 @@ static int tc_parse_flow_actions(struct stmmac_priv *priv,
 	return 0;
 }
 
+#define ETHER_TYPE_FULL_MASK	cpu_to_be16(~0)
+
 static int tc_add_basic_flow(struct stmmac_priv *priv,
 			     struct flow_cls_offload *cls,
 			     struct stmmac_flow_entry *entry)
@@ -404,6 +465,7 @@ static int tc_add_basic_flow(struct stmmac_priv *priv,
 		return -EINVAL;
 
 	flow_rule_match_basic(rule, &match);
+
 	entry->ip_proto = match.key->ip_proto;
 	return 0;
 }
@@ -510,7 +572,7 @@ static struct stmmac_flow_entry *tc_find_flow(struct stmmac_priv *priv,
 	return NULL;
 }
 
-struct {
+static struct {
 	int (*fn)(struct stmmac_priv *priv, struct flow_cls_offload *cls,
 		  struct stmmac_flow_entry *entry);
 } tc_flow_parsers[] = {
@@ -532,16 +594,15 @@ static int tc_add_flow(struct stmmac_priv *priv,
 			return -ENOENT;
 	}
 
-	ret = tc_parse_flow_actions(priv, &rule->action, entry);
+	ret = tc_parse_flow_actions(priv, &rule->action, entry,
+				    cls->common.extack);
 	if (ret)
 		return ret;
 
 	for (i = 0; i < ARRAY_SIZE(tc_flow_parsers); i++) {
 		ret = tc_flow_parsers[i].fn(priv, cls, entry);
-		if (!ret) {
+		if (!ret)
 			entry->in_use = true;
-			continue;
-		}
 	}
 
 	if (!entry->in_use)
@@ -574,17 +635,252 @@ static int tc_del_flow(struct stmmac_priv *priv,
 	return ret;
 }
 
+static struct stmmac_rfs_entry *tc_find_rfs(struct stmmac_priv *priv,
+					    struct flow_cls_offload *cls,
+					    bool get_free)
+{
+	int i;
+
+	for (i = 0; i < priv->rfs_entries_total; i++) {
+		struct stmmac_rfs_entry *entry = &priv->rfs_entries[i];
+
+		if (entry->cookie == cls->cookie)
+			return entry;
+		if (get_free && entry->in_use == false)
+			return entry;
+	}
+
+	return NULL;
+}
+
+#define VLAN_PRIO_FULL_MASK (0x07)
+
+static int tc_add_vlan_flow(struct stmmac_priv *priv,
+			    struct flow_cls_offload *cls)
+{
+	struct stmmac_rfs_entry *entry = tc_find_rfs(priv, cls, false);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(cls);
+	struct flow_dissector *dissector = rule->match.dissector;
+	int tc = tc_classid_to_hwtc(priv->dev, cls->classid);
+	struct flow_match_vlan match;
+
+	if (!entry) {
+		entry = tc_find_rfs(priv, cls, true);
+		if (!entry)
+			return -ENOENT;
+	}
+
+	if (priv->rfs_entries_cnt[STMMAC_RFS_T_VLAN] >=
+	    priv->rfs_entries_max[STMMAC_RFS_T_VLAN])
+		return -ENOENT;
+
+	/* Nothing to do here */
+	if (!dissector_uses_key(dissector, FLOW_DISSECTOR_KEY_VLAN))
+		return -EINVAL;
+
+	if (tc < 0) {
+		netdev_err(priv->dev, "Invalid traffic class\n");
+		return -EINVAL;
+	}
+
+	flow_rule_match_vlan(rule, &match);
+
+	if (match.mask->vlan_priority) {
+		u32 prio;
+
+		if (match.mask->vlan_priority != VLAN_PRIO_FULL_MASK) {
+			netdev_err(priv->dev, "Only full mask is supported for VLAN priority");
+			return -EINVAL;
+		}
+
+		prio = BIT(match.key->vlan_priority);
+		stmmac_rx_queue_prio(priv, priv->hw, prio, tc);
+
+		entry->in_use = true;
+		entry->cookie = cls->cookie;
+		entry->tc = tc;
+		entry->type = STMMAC_RFS_T_VLAN;
+		priv->rfs_entries_cnt[STMMAC_RFS_T_VLAN]++;
+	}
+
+	return 0;
+}
+
+static int tc_del_vlan_flow(struct stmmac_priv *priv,
+			    struct flow_cls_offload *cls)
+{
+	struct stmmac_rfs_entry *entry = tc_find_rfs(priv, cls, false);
+
+	if (!entry || !entry->in_use || entry->type != STMMAC_RFS_T_VLAN)
+		return -ENOENT;
+
+	stmmac_rx_queue_prio(priv, priv->hw, 0, entry->tc);
+
+	entry->in_use = false;
+	entry->cookie = 0;
+	entry->tc = 0;
+	entry->type = 0;
+
+	priv->rfs_entries_cnt[STMMAC_RFS_T_VLAN]--;
+
+	return 0;
+}
+
+static int tc_add_ethtype_flow(struct stmmac_priv *priv,
+			       struct flow_cls_offload *cls)
+{
+	struct stmmac_rfs_entry *entry = tc_find_rfs(priv, cls, false);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(cls);
+	struct flow_dissector *dissector = rule->match.dissector;
+	int tc = tc_classid_to_hwtc(priv->dev, cls->classid);
+	struct flow_match_basic match;
+
+	if (!entry) {
+		entry = tc_find_rfs(priv, cls, true);
+		if (!entry)
+			return -ENOENT;
+	}
+
+	/* Nothing to do here */
+	if (!dissector_uses_key(dissector, FLOW_DISSECTOR_KEY_BASIC))
+		return -EINVAL;
+
+	if (tc < 0) {
+		netdev_err(priv->dev, "Invalid traffic class\n");
+		return -EINVAL;
+	}
+
+	flow_rule_match_basic(rule, &match);
+
+	if (match.mask->n_proto) {
+		u16 etype = ntohs(match.key->n_proto);
+
+		if (match.mask->n_proto != ETHER_TYPE_FULL_MASK) {
+			netdev_err(priv->dev, "Only full mask is supported for EthType filter");
+			return -EINVAL;
+		}
+		switch (etype) {
+		case ETH_P_LLDP:
+			if (priv->rfs_entries_cnt[STMMAC_RFS_T_LLDP] >=
+			    priv->rfs_entries_max[STMMAC_RFS_T_LLDP])
+				return -ENOENT;
+
+			entry->type = STMMAC_RFS_T_LLDP;
+			priv->rfs_entries_cnt[STMMAC_RFS_T_LLDP]++;
+
+			stmmac_rx_queue_routing(priv, priv->hw,
+						PACKET_DCBCPQ, tc);
+			break;
+		case ETH_P_1588:
+			if (priv->rfs_entries_cnt[STMMAC_RFS_T_1588] >=
+			    priv->rfs_entries_max[STMMAC_RFS_T_1588])
+				return -ENOENT;
+
+			entry->type = STMMAC_RFS_T_1588;
+			priv->rfs_entries_cnt[STMMAC_RFS_T_1588]++;
+
+			stmmac_rx_queue_routing(priv, priv->hw,
+						PACKET_PTPQ, tc);
+			break;
+		default:
+			netdev_err(priv->dev, "EthType(0x%x) is not supported", etype);
+			return -EINVAL;
+		}
+
+		entry->in_use = true;
+		entry->cookie = cls->cookie;
+		entry->tc = tc;
+		entry->etype = etype;
+
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
+static int tc_del_ethtype_flow(struct stmmac_priv *priv,
+			       struct flow_cls_offload *cls)
+{
+	struct stmmac_rfs_entry *entry = tc_find_rfs(priv, cls, false);
+
+	if (!entry || !entry->in_use ||
+	    entry->type < STMMAC_RFS_T_LLDP ||
+	    entry->type > STMMAC_RFS_T_1588)
+		return -ENOENT;
+
+	switch (entry->etype) {
+	case ETH_P_LLDP:
+		stmmac_rx_queue_routing(priv, priv->hw,
+					PACKET_DCBCPQ, 0);
+		priv->rfs_entries_cnt[STMMAC_RFS_T_LLDP]--;
+		break;
+	case ETH_P_1588:
+		stmmac_rx_queue_routing(priv, priv->hw,
+					PACKET_PTPQ, 0);
+		priv->rfs_entries_cnt[STMMAC_RFS_T_1588]--;
+		break;
+	default:
+		netdev_err(priv->dev, "EthType(0x%x) is not supported",
+			   entry->etype);
+		return -EINVAL;
+	}
+
+	entry->in_use = false;
+	entry->cookie = 0;
+	entry->tc = 0;
+	entry->etype = 0;
+	entry->type = 0;
+
+	return 0;
+}
+
+static int tc_add_flow_cls(struct stmmac_priv *priv,
+			   struct flow_cls_offload *cls)
+{
+	int ret;
+
+	ret = tc_add_flow(priv, cls);
+	if (!ret)
+		return ret;
+
+	ret = tc_add_ethtype_flow(priv, cls);
+	if (!ret)
+		return ret;
+
+	return tc_add_vlan_flow(priv, cls);
+}
+
+static int tc_del_flow_cls(struct stmmac_priv *priv,
+			   struct flow_cls_offload *cls)
+{
+	int ret;
+
+	ret = tc_del_flow(priv, cls);
+	if (!ret)
+		return ret;
+
+	ret = tc_del_ethtype_flow(priv, cls);
+	if (!ret)
+		return ret;
+
+	return tc_del_vlan_flow(priv, cls);
+}
+
 static int tc_setup_cls(struct stmmac_priv *priv,
 			struct flow_cls_offload *cls)
 {
 	int ret = 0;
 
+	/* When RSS is enabled, the filtering will be bypassed */
+	if (priv->rss.enable)
+		return -EBUSY;
+
 	switch (cls->command) {
 	case FLOW_CLS_REPLACE:
-		ret = tc_add_flow(priv, cls);
+		ret = tc_add_flow_cls(priv, cls);
 		break;
 	case FLOW_CLS_DESTROY:
-		ret = tc_del_flow(priv, cls);
+		ret = tc_del_flow_cls(priv, cls);
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -593,9 +889,333 @@ static int tc_setup_cls(struct stmmac_priv *priv,
 	return ret;
 }
 
+struct timespec64 stmmac_calc_tas_basetime(ktime_t old_base_time,
+					   ktime_t current_time,
+					   u64 cycle_time)
+{
+	struct timespec64 time;
+
+	if (ktime_after(old_base_time, current_time)) {
+		time = ktime_to_timespec64(old_base_time);
+	} else {
+		s64 n;
+		ktime_t base_time;
+
+		n = div64_s64(ktime_sub_ns(current_time, old_base_time),
+			      cycle_time);
+		base_time = ktime_add_ns(old_base_time,
+					 (n + 1) * cycle_time);
+
+		time = ktime_to_timespec64(base_time);
+	}
+
+	return time;
+}
+
+static void tc_taprio_map_maxsdu_txq(struct stmmac_priv *priv,
+				     struct tc_taprio_qopt_offload *qopt)
+{
+	u32 num_tc = qopt->mqprio.qopt.num_tc;
+	u32 offset, count, i, j;
+
+	/* QueueMaxSDU received from the driver corresponds to the Linux traffic
+	 * class. Map queueMaxSDU per Linux traffic class to DWMAC Tx queues.
+	 */
+	for (i = 0; i < num_tc; i++) {
+		if (!qopt->max_sdu[i])
+			continue;
+
+		offset = qopt->mqprio.qopt.offset[i];
+		count = qopt->mqprio.qopt.count[i];
+
+		for (j = offset; j < offset + count; j++)
+			priv->est->max_sdu[j] = qopt->max_sdu[i] + ETH_HLEN - ETH_TLEN;
+	}
+}
+
+static int tc_taprio_configure(struct stmmac_priv *priv,
+			       struct tc_taprio_qopt_offload *qopt)
+{
+	u32 size, wid = priv->dma_cap.estwid, dep = priv->dma_cap.estdep;
+	struct timespec64 time, current_time, qopt_time;
+	ktime_t current_time_ns;
+	bool fpe = false;
+	int i, ret = 0;
+	u64 ctr;
+
+	if (qopt->base_time < 0)
+		return -ERANGE;
+
+	if (!priv->dma_cap.estsel)
+		return -EOPNOTSUPP;
+
+	switch (wid) {
+	case 0x1:
+		wid = 16;
+		break;
+	case 0x2:
+		wid = 20;
+		break;
+	case 0x3:
+		wid = 24;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	switch (dep) {
+	case 0x1:
+		dep = 64;
+		break;
+	case 0x2:
+		dep = 128;
+		break;
+	case 0x3:
+		dep = 256;
+		break;
+	case 0x4:
+		dep = 512;
+		break;
+	case 0x5:
+		dep = 1024;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	if (qopt->cmd == TAPRIO_CMD_DESTROY)
+		goto disable;
+
+	if (qopt->num_entries >= dep)
+		return -EINVAL;
+	if (!qopt->cycle_time)
+		return -ERANGE;
+	if (qopt->cycle_time_extension >= BIT(wid + 7))
+		return -ERANGE;
+
+	if (!priv->est) {
+		priv->est = devm_kzalloc(priv->device, sizeof(*priv->est),
+					 GFP_KERNEL);
+		if (!priv->est)
+			return -ENOMEM;
+
+		mutex_init(&priv->est_lock);
+	} else {
+		mutex_lock(&priv->est_lock);
+		memset(priv->est, 0, sizeof(*priv->est));
+		mutex_unlock(&priv->est_lock);
+	}
+
+	size = qopt->num_entries;
+
+	mutex_lock(&priv->est_lock);
+	priv->est->gcl_size = size;
+	priv->est->enable = qopt->cmd == TAPRIO_CMD_REPLACE;
+	mutex_unlock(&priv->est_lock);
+
+	for (i = 0; i < size; i++) {
+		s64 delta_ns = qopt->entries[i].interval;
+		u32 gates = qopt->entries[i].gate_mask;
+
+		if (delta_ns > GENMASK(wid, 0))
+			return -ERANGE;
+		if (gates > GENMASK(31 - wid, 0))
+			return -ERANGE;
+
+		switch (qopt->entries[i].command) {
+		case TC_TAPRIO_CMD_SET_GATES:
+			if (fpe)
+				return -EINVAL;
+			break;
+		case TC_TAPRIO_CMD_SET_AND_HOLD:
+			gates |= BIT(0);
+			fpe = true;
+			break;
+		case TC_TAPRIO_CMD_SET_AND_RELEASE:
+			gates &= ~BIT(0);
+			fpe = true;
+			break;
+		default:
+			return -EOPNOTSUPP;
+		}
+
+		priv->est->gcl[i] = delta_ns | (gates << wid);
+	}
+
+	mutex_lock(&priv->est_lock);
+	/* Adjust for real system time */
+	priv->ptp_clock_ops.gettime64(&priv->ptp_clock_ops, &current_time);
+	current_time_ns = timespec64_to_ktime(current_time);
+	time = stmmac_calc_tas_basetime(qopt->base_time, current_time_ns,
+					qopt->cycle_time);
+
+	priv->est->btr[0] = (u32)time.tv_nsec;
+	priv->est->btr[1] = (u32)time.tv_sec;
+
+	qopt_time = ktime_to_timespec64(qopt->base_time);
+	priv->est->btr_reserve[0] = (u32)qopt_time.tv_nsec;
+	priv->est->btr_reserve[1] = (u32)qopt_time.tv_sec;
+
+	ctr = qopt->cycle_time;
+	priv->est->ctr[0] = do_div(ctr, NSEC_PER_SEC);
+	priv->est->ctr[1] = (u32)ctr;
+
+	priv->est->ter = qopt->cycle_time_extension;
+
+	tc_taprio_map_maxsdu_txq(priv, qopt);
+
+	if (fpe && !priv->dma_cap.fpesel) {
+		mutex_unlock(&priv->est_lock);
+		return -EOPNOTSUPP;
+	}
+
+	/* Actual FPE register configuration will be done after FPE handshake
+	 * is success.
+	 */
+	priv->plat->fpe_cfg->enable = fpe;
+
+	ret = stmmac_est_configure(priv, priv, priv->est,
+				   priv->plat->clk_ptp_rate);
+	mutex_unlock(&priv->est_lock);
+	if (ret) {
+		netdev_err(priv->dev, "failed to configure EST\n");
+		goto disable;
+	}
+
+	netdev_info(priv->dev, "configured EST\n");
+
+	if (fpe) {
+		stmmac_fpe_handshake(priv, true);
+		netdev_info(priv->dev, "start FPE handshake\n");
+	}
+
+	return 0;
+
+disable:
+	if (priv->est) {
+		mutex_lock(&priv->est_lock);
+		priv->est->enable = false;
+		stmmac_est_configure(priv, priv, priv->est,
+				     priv->plat->clk_ptp_rate);
+		/* Reset taprio status */
+		for (i = 0; i < priv->plat->tx_queues_to_use; i++) {
+			priv->xstats.max_sdu_txq_drop[i] = 0;
+			priv->xstats.mtl_est_txq_hlbf[i] = 0;
+		}
+		mutex_unlock(&priv->est_lock);
+	}
+
+	priv->plat->fpe_cfg->enable = false;
+	stmmac_fpe_configure(priv, priv->ioaddr,
+			     priv->plat->fpe_cfg,
+			     priv->plat->tx_queues_to_use,
+			     priv->plat->rx_queues_to_use,
+			     false);
+	netdev_info(priv->dev, "disabled FPE\n");
+
+	stmmac_fpe_handshake(priv, false);
+	netdev_info(priv->dev, "stop FPE handshake\n");
+
+	return ret;
+}
+
+static void tc_taprio_stats(struct stmmac_priv *priv,
+			    struct tc_taprio_qopt_offload *qopt)
+{
+	u64 window_drops = 0;
+	int i = 0;
+
+	for (i = 0; i < priv->plat->tx_queues_to_use; i++)
+		window_drops += priv->xstats.max_sdu_txq_drop[i] +
+				priv->xstats.mtl_est_txq_hlbf[i];
+	qopt->stats.window_drops = window_drops;
+
+	/* Transmission overrun doesn't happen for stmmac, hence always 0 */
+	qopt->stats.tx_overruns = 0;
+}
+
+static void tc_taprio_queue_stats(struct stmmac_priv *priv,
+				  struct tc_taprio_qopt_offload *qopt)
+{
+	struct tc_taprio_qopt_queue_stats *q_stats = &qopt->queue_stats;
+	int queue = qopt->queue_stats.queue;
+
+	q_stats->stats.window_drops = priv->xstats.max_sdu_txq_drop[queue] +
+				      priv->xstats.mtl_est_txq_hlbf[queue];
+
+	/* Transmission overrun doesn't happen for stmmac, hence always 0 */
+	q_stats->stats.tx_overruns = 0;
+}
+
+static int tc_setup_taprio(struct stmmac_priv *priv,
+			   struct tc_taprio_qopt_offload *qopt)
+{
+	int err = 0;
+
+	switch (qopt->cmd) {
+	case TAPRIO_CMD_REPLACE:
+	case TAPRIO_CMD_DESTROY:
+		err = tc_taprio_configure(priv, qopt);
+		break;
+	case TAPRIO_CMD_STATS:
+		tc_taprio_stats(priv, qopt);
+		break;
+	case TAPRIO_CMD_QUEUE_STATS:
+		tc_taprio_queue_stats(priv, qopt);
+		break;
+	default:
+		err = -EOPNOTSUPP;
+	}
+
+	return err;
+}
+
+static int tc_setup_etf(struct stmmac_priv *priv,
+			struct tc_etf_qopt_offload *qopt)
+{
+	if (!priv->dma_cap.tbssel)
+		return -EOPNOTSUPP;
+	if (qopt->queue >= priv->plat->tx_queues_to_use)
+		return -EINVAL;
+	if (!(priv->dma_conf.tx_queue[qopt->queue].tbs & STMMAC_TBS_AVAIL))
+		return -EINVAL;
+
+	if (qopt->enable)
+		priv->dma_conf.tx_queue[qopt->queue].tbs |= STMMAC_TBS_EN;
+	else
+		priv->dma_conf.tx_queue[qopt->queue].tbs &= ~STMMAC_TBS_EN;
+
+	netdev_info(priv->dev, "%s ETF for Queue %d\n",
+		    qopt->enable ? "enabled" : "disabled", qopt->queue);
+	return 0;
+}
+
+static int tc_query_caps(struct stmmac_priv *priv,
+			 struct tc_query_caps_base *base)
+{
+	switch (base->type) {
+	case TC_SETUP_QDISC_TAPRIO: {
+		struct tc_taprio_caps *caps = base->caps;
+
+		if (!priv->dma_cap.estsel)
+			return -EOPNOTSUPP;
+
+		caps->gate_mask_per_txq = true;
+		caps->supports_queue_max_sdu = true;
+
+		return 0;
+	}
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 const struct stmmac_tc_ops dwmac510_tc_ops = {
 	.init = tc_init,
 	.setup_cls_u32 = tc_setup_cls_u32,
 	.setup_cbs = tc_setup_cbs,
 	.setup_cls = tc_setup_cls,
+	.setup_taprio = tc_setup_taprio,
+	.setup_etf = tc_setup_etf,
+	.query_caps = tc_query_caps,
 };

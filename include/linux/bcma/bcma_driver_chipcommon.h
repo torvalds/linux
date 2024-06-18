@@ -3,7 +3,8 @@
 #define LINUX_BCMA_DRIVER_CC_H_
 
 #include <linux/platform_device.h>
-#include <linux/gpio.h>
+#include <linux/platform_data/brcmnand.h>
+#include <linux/gpio/driver.h>
 
 /** ChipCommon core registers. **/
 #define BCMA_CC_ID			0x0000
@@ -270,6 +271,7 @@
 #define  BCMA_CC_SROM_CONTROL_OP_WRDIS	0x40000000
 #define  BCMA_CC_SROM_CONTROL_OP_WREN	0x60000000
 #define  BCMA_CC_SROM_CONTROL_OTPSEL	0x00000010
+#define  BCMA_CC_SROM_CONTROL_OTP_PRESENT	0x00000020
 #define  BCMA_CC_SROM_CONTROL_LOCK	0x00000008
 #define  BCMA_CC_SROM_CONTROL_SIZE_MASK	0x00000006
 #define  BCMA_CC_SROM_CONTROL_SIZE_1K	0x00000000
@@ -599,6 +601,10 @@ struct bcma_sflash {
 
 #ifdef CONFIG_BCMA_NFLASH
 struct bcma_nflash {
+	/* Must be the fist member for the brcmnand driver to
+	 * de-reference that structure.
+	 */
+	struct brcmnand_platform_data brcmnand_info;
 	bool present;
 	bool boot;		/* This is the flash the SoC boots from */
 };

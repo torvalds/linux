@@ -103,11 +103,11 @@
 			dma-coherent;
 		};
 
-		ehci@40000 {
+		usb@40000 {
 			dma-coherent;
 		};
 
-		ohci@60000 {
+		usb@60000 {
 			dma-coherent;
 		};
 
@@ -119,9 +119,9 @@
 	/*
 	 * The DW APB ICTL intc on MB is connected to CPU intc via a
 	 * DT "invisible" DW APB GPIO block, configured to simply pass thru
-	 * interrupts - setup accordinly in platform init (plat-axs10x/ax10x.c)
+	 * interrupts - setup accordingly in platform init (plat-axs10x/ax10x.c)
 	 *
-	 * So here we mimic a direct connection betwen them, ignoring the
+	 * So here we mimic a direct connection between them, ignoring the
 	 * ABPG GPIO. Thus set "interrupts = <24>" (DW APB GPIO to core)
 	 * instead of "interrupts = <12>" (DW APB ICTL to DW APB GPIO)
 	 *
@@ -129,7 +129,7 @@
 	 * avoid duplicating the MB dtsi file given that IRQ from
 	 * this intc to cpu intc are different for axs101 and axs103
 	 */
-	mb_intc: dw-apb-ictl@e0012000 {
+	mb_intc: interrupt-controller@e0012000 {
 		#interrupt-cells = <1>;
 		compatible = "snps,dw-apb-ictl";
 		reg = < 0x0 0xe0012000 0x0 0x200 >;

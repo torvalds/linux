@@ -168,7 +168,6 @@ static int nxt200x_writereg_multibyte (struct nxt200x_state* state, u8 reg, u8* 
 			break;
 		default:
 			return -EINVAL;
-			break;
 	}
 
 	/* set multi register length */
@@ -190,7 +189,6 @@ static int nxt200x_writereg_multibyte (struct nxt200x_state* state, u8 reg, u8* 
 			break;
 		default:
 			return -EINVAL;
-			break;
 	}
 
 	pr_warn("Error writing multireg register 0x%02X\n", reg);
@@ -216,7 +214,6 @@ static int nxt200x_readreg_multibyte (struct nxt200x_state* state, u8 reg, u8* d
 			/* read the actual data */
 			nxt200x_readbytes(state, reg, data, len);
 			return 0;
-			break;
 		case NXT2004:
 			/* probably not right, but gives correct values */
 			attr = 0x02;
@@ -239,10 +236,8 @@ static int nxt200x_readreg_multibyte (struct nxt200x_state* state, u8 reg, u8* d
 				nxt200x_readbytes(state, 0x36 + i, &data[i], 1);
 			}
 			return 0;
-			break;
 		default:
 			return -EINVAL;
-			break;
 	}
 }
 
@@ -374,7 +369,6 @@ static int nxt200x_writetuner (struct nxt200x_state* state, u8* data)
 			break;
 		default:
 			return -EINVAL;
-			break;
 	}
 	return 0;
 }
@@ -555,7 +549,6 @@ static int nxt200x_setup_frontend_parameters(struct dvb_frontend *fe)
 			break;
 		default:
 			return -EINVAL;
-			break;
 	}
 
 	if (fe->ops.tuner_ops.calc_regs) {
@@ -580,7 +573,6 @@ static int nxt200x_setup_frontend_parameters(struct dvb_frontend *fe)
 			break;
 		default:
 			return -EINVAL;
-			break;
 	}
 	nxt200x_writebytes(state, 0x42, buf, 1);
 
@@ -594,7 +586,6 @@ static int nxt200x_setup_frontend_parameters(struct dvb_frontend *fe)
 			break;
 		default:
 			return -EINVAL;
-			break;
 	}
 	nxt200x_writebytes(state, 0x57, buf, 1);
 
@@ -610,7 +601,6 @@ static int nxt200x_setup_frontend_parameters(struct dvb_frontend *fe)
 			break;
 		default:
 			return -EINVAL;
-			break;
 	}
 
 	/* write sdmx input */
@@ -626,7 +616,6 @@ static int nxt200x_setup_frontend_parameters(struct dvb_frontend *fe)
 				break;
 		default:
 				return -EINVAL;
-				break;
 	}
 	buf[1] = 0x00;
 	switch (state->demod_chip) {
@@ -638,7 +627,6 @@ static int nxt200x_setup_frontend_parameters(struct dvb_frontend *fe)
 			break;
 		default:
 			return -EINVAL;
-			break;
 	}
 
 	/* write adc power lpf fc */
@@ -664,7 +652,6 @@ static int nxt200x_setup_frontend_parameters(struct dvb_frontend *fe)
 			break;
 		default:
 			return -EINVAL;
-			break;
 	}
 
 	/* write kg1 */
@@ -720,7 +707,6 @@ static int nxt200x_setup_frontend_parameters(struct dvb_frontend *fe)
 				break;
 		default:
 				return -EINVAL;
-				break;
 	}
 	nxt200x_writebytes(state, 0x30, buf, 1);
 
@@ -742,7 +728,6 @@ static int nxt200x_setup_frontend_parameters(struct dvb_frontend *fe)
 			break;
 		default:
 			return -EINVAL;
-			break;
 	}
 
 	/* write agc control reg */
@@ -1114,7 +1099,6 @@ static int nxt200x_init(struct dvb_frontend* fe)
 				break;
 			default:
 				return -EINVAL;
-				break;
 		}
 		state->initialised = 1;
 	}
@@ -1232,5 +1216,5 @@ MODULE_DESCRIPTION("NXT200X (ATSC 8VSB & ITU-T J.83 AnnexB 64/256 QAM) Demodulat
 MODULE_AUTHOR("Kirk Lapray, Michael Krufky, Jean-Francois Thibert, and Taylor Jacob");
 MODULE_LICENSE("GPL");
 
-EXPORT_SYMBOL(nxt200x_attach);
+EXPORT_SYMBOL_GPL(nxt200x_attach);
 

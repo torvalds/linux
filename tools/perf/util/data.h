@@ -2,16 +2,27 @@
 #ifndef __PERF_DATA_H
 #define __PERF_DATA_H
 
+#include <stdio.h>
 #include <stdbool.h>
+#include <unistd.h>
+#include <linux/types.h>
 
 enum perf_data_mode {
 	PERF_DATA_MODE_WRITE,
 	PERF_DATA_MODE_READ,
 };
 
+enum perf_dir_version {
+	PERF_DIR_SINGLE_FILE	= 0,
+	PERF_DIR_VERSION	= 1,
+};
+
 struct perf_data_file {
 	char		*path;
-	int		 fd;
+	union {
+		int	 fd;
+		FILE	*fptr;
+	};
 	unsigned long	 size;
 };
 
@@ -21,6 +32,8 @@ struct perf_data {
 	bool			 is_pipe;
 	bool			 is_dir;
 	bool			 force;
+	bool			 use_stdio;
+	bool			 in_place_update;
 	enum perf_data_mode	 mode;
 
 	struct {
@@ -50,15 +63,24 @@ static inline bool perf_data__is_dir(struct perf_data *data)
 	return data->is_dir;
 }
 
+static inline bool perf_data__is_single_file(struct perf_data *data)
+{
+	return data->dir.version == PERF_DIR_SINGLE_FILE;
+}
+
 static inline int perf_data__fd(struct perf_data *data)
 {
+	if (data->use_stdio)
+		return fileno(data->file.fptr);
+
 	return data->file.fd;
 }
 
 int perf_data__open(struct perf_data *data);
 void perf_data__close(struct perf_data *data);
+ssize_t perf_data__read(struct perf_data *data, void *buf, size_t size);
 ssize_t perf_data__write(struct perf_data *data,
-			      void *buf, size_t size);
+			 void *buf, size_t size);
 ssize_t perf_data_file__write(struct perf_data_file *file,
 			      void *buf, size_t size);
 /*
@@ -69,12 +91,17 @@ ssize_t perf_data_file__write(struct perf_data_file *file,
  * Return value is fd of new output.
  */
 int perf_data__switch(struct perf_data *data,
-			   const char *postfix,
-			   size_t pos, bool at_exit, char **new_filepath);
+		      const char *postfix,
+		      size_t pos, bool at_exit, char **new_filepath);
 
 int perf_data__create_dir(struct perf_data *data, int nr);
 int perf_data__open_dir(struct perf_data *data);
 void perf_data__close_dir(struct perf_data *data);
 int perf_data__update_dir(struct perf_data *data);
 unsigned long perf_data__size(struct perf_data *data);
+int perf_data__make_kcore_dir(struct perf_data *data, char *buf, size_t buf_sz);
+bool has_kcore_dir(const char *path);
+char *perf_data__kallsyms_name(struct perf_data *data);
+char *perf_data__guest_kallsyms_name(struct perf_data *data, pid_t machine_pid);
+bool is_perf_data(const char *path);
 #endif /* __PERF_DATA_H */

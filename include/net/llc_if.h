@@ -62,7 +62,8 @@
 #define LLC_STATUS_CONFLICT	7 /* disconnect conn */
 #define LLC_STATUS_RESET_DONE	8 /*  */
 
-int llc_establish_connection(struct sock *sk, u8 *lmac, u8 *dmac, u8 dsap);
+int llc_establish_connection(struct sock *sk, const u8 *lmac, u8 *dmac,
+			     u8 dsap);
 int llc_build_and_send_pkt(struct sock *sk, struct sk_buff *skb);
 int llc_send_disc(struct sock *sk);
 #endif /* LLC_IF_H */

@@ -14,7 +14,7 @@
 #include <linux/init.h>
 #include <linux/wait.h>
 #include <linux/i2c.h>
-#include <asm/prom.h>
+
 #include <asm/machdep.h>
 #include <asm/io.h>
 #include <asm/sections.h>
@@ -468,9 +468,7 @@ static void wf_fcu_lookup_fans(struct wf_fcu_priv *pv)
 			else
 				id = ((*reg) - 0x30) / 2;
 			if (id > 7) {
-				pr_warning("wf_fcu: Can't parse "
-				       "fan ID in device-tree for %pOF\n",
-					   np);
+				pr_warn("wf_fcu: Can't parse fan ID in device-tree for %pOF\n", np);
 				break;
 			}
 			wf_fcu_add_fan(pv, name, type, id);
@@ -516,8 +514,7 @@ static int wf_fcu_init_chip(struct wf_fcu_priv *pv)
 	return 0;
 }
 
-static int wf_fcu_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int wf_fcu_probe(struct i2c_client *client)
 {
 	struct wf_fcu_priv *pv;
 
@@ -562,7 +559,7 @@ static int wf_fcu_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int wf_fcu_remove(struct i2c_client *client)
+static void wf_fcu_remove(struct i2c_client *client)
 {
 	struct wf_fcu_priv *pv = dev_get_drvdata(&client->dev);
 	struct wf_fcu_fan *fan;
@@ -573,7 +570,6 @@ static int wf_fcu_remove(struct i2c_client *client)
 		wf_unregister_control(&fan->ctrl);
 	}
 	kref_put(&pv->ref, wf_fcu_release);
-	return 0;
 }
 
 static const struct i2c_device_id wf_fcu_id[] = {
@@ -582,9 +578,16 @@ static const struct i2c_device_id wf_fcu_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, wf_fcu_id);
 
+static const struct of_device_id wf_fcu_of_id[] = {
+	{ .compatible = "fcu", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, wf_fcu_of_id);
+
 static struct i2c_driver wf_fcu_driver = {
 	.driver = {
 		.name	= "wf_fcu",
+		.of_match_table = wf_fcu_of_id,
 	},
 	.probe		= wf_fcu_probe,
 	.remove		= wf_fcu_remove,

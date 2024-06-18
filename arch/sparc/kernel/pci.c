@@ -20,10 +20,11 @@
 #include <linux/irq.h>
 #include <linux/init.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/of_platform.h>
+#include <linux/pgtable.h>
+#include <linux/platform_device.h>
 
 #include <linux/uaccess.h>
-#include <asm/pgtable.h>
 #include <asm/irq.h>
 #include <asm/prom.h>
 #include <asm/apb.h>
@@ -310,7 +311,7 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	/* We can't actually use the firmware value, we have
 	 * to read what is in the register right now.  One
 	 * reason is that in the case of IDE interfaces the
-	 * firmware can sample the value before the the IDE
+	 * firmware can sample the value before the IDE
 	 * interface is programmed into native mode.
 	 */
 	pci_read_config_dword(dev, PCI_CLASS_REVISION, &class);
@@ -552,9 +553,8 @@ static void pci_of_scan_bus(struct pci_pbm_info *pbm,
 		pci_info(bus, "scan_bus[%pOF] bus no %d\n",
 			 node, bus->number);
 
-	child = NULL;
 	prev_devfn = -1;
-	while ((child = of_get_next_child(node, child)) != NULL) {
+	for_each_child_of_node(node, child) {
 		if (ofpci_verbose)
 			pci_info(bus, "  * %pOF\n", child);
 		reg = of_get_property(child, "reg", &reglen);
@@ -593,7 +593,7 @@ show_pciobppath_attr(struct device * dev, struct device_attribute * attr, char *
 	pdev = to_pci_dev(dev);
 	dp = pdev->dev.of_node;
 
-	return snprintf (buf, PAGE_SIZE, "%pOF\n", dp);
+	return scnprintf(buf, PAGE_SIZE, "%pOF\n", dp);
 }
 
 static DEVICE_ATTR(obppath, S_IRUSR | S_IRGRP | S_IROTH, show_pciobppath_attr, NULL);
@@ -664,11 +664,10 @@ static void pci_claim_bus_resources(struct pci_bus *bus)
 	struct pci_dev *dev;
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
+		struct resource *r;
 		int i;
 
-		for (i = 0; i < PCI_NUM_RESOURCES; i++) {
-			struct resource *r = &dev->resource[i];
-
+		pci_dev_for_each_resource(dev, r, i) {
 			if (r->parent || !r->start || !r->flags)
 				continue;
 
@@ -725,15 +724,14 @@ struct pci_bus *pci_scan_one_pbm(struct pci_pbm_info *pbm,
 
 int pcibios_enable_device(struct pci_dev *dev, int mask)
 {
+	struct resource *res;
 	u16 cmd, oldcmd;
 	int i;
 
 	pci_read_config_word(dev, PCI_COMMAND, &cmd);
 	oldcmd = cmd;
 
-	for (i = 0; i < PCI_NUM_RESOURCES; i++) {
-		struct resource *res = &dev->resource[i];
-
+	pci_dev_for_each_resource(dev, res, i) {
 		/* Only set up the requested stuff */
 		if (!(mask & (1<<i)))
 			continue;
@@ -752,156 +750,15 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 }
 
 /* Platform support for /proc/bus/pci/X/Y mmap()s. */
-
-/* If the user uses a host-bridge as the PCI device, he may use
- * this to perform a raw mmap() of the I/O or MEM space behind
- * that controller.
- *
- * This can be useful for execution of x86 PCI bios initialization code
- * on a PCI card, like the xfree86 int10 stuff does.
- */
-static int __pci_mmap_make_offset_bus(struct pci_dev *pdev, struct vm_area_struct *vma,
-				      enum pci_mmap_state mmap_state)
+int pci_iobar_pfn(struct pci_dev *pdev, int bar, struct vm_area_struct *vma)
 {
 	struct pci_pbm_info *pbm = pdev->dev.archdata.host_controller;
-	unsigned long space_size, user_offset, user_size;
+	resource_size_t ioaddr = pci_resource_start(pdev, bar);
 
-	if (mmap_state == pci_mmap_io) {
-		space_size = resource_size(&pbm->io_space);
-	} else {
-		space_size = resource_size(&pbm->mem_space);
-	}
-
-	/* Make sure the request is in range. */
-	user_offset = vma->vm_pgoff << PAGE_SHIFT;
-	user_size = vma->vm_end - vma->vm_start;
-
-	if (user_offset >= space_size ||
-	    (user_offset + user_size) > space_size)
+	if (!pbm)
 		return -EINVAL;
 
-	if (mmap_state == pci_mmap_io) {
-		vma->vm_pgoff = (pbm->io_space.start +
-				 user_offset) >> PAGE_SHIFT;
-	} else {
-		vma->vm_pgoff = (pbm->mem_space.start +
-				 user_offset) >> PAGE_SHIFT;
-	}
-
-	return 0;
-}
-
-/* Adjust vm_pgoff of VMA such that it is the physical page offset
- * corresponding to the 32-bit pci bus offset for DEV requested by the user.
- *
- * Basically, the user finds the base address for his device which he wishes
- * to mmap.  They read the 32-bit value from the config space base register,
- * add whatever PAGE_SIZE multiple offset they wish, and feed this into the
- * offset parameter of mmap on /proc/bus/pci/XXX for that device.
- *
- * Returns negative error code on failure, zero on success.
- */
-static int __pci_mmap_make_offset(struct pci_dev *pdev,
-				  struct vm_area_struct *vma,
-				  enum pci_mmap_state mmap_state)
-{
-	unsigned long user_paddr, user_size;
-	int i, err;
-
-	/* First compute the physical address in vma->vm_pgoff,
-	 * making sure the user offset is within range in the
-	 * appropriate PCI space.
-	 */
-	err = __pci_mmap_make_offset_bus(pdev, vma, mmap_state);
-	if (err)
-		return err;
-
-	/* If this is a mapping on a host bridge, any address
-	 * is OK.
-	 */
-	if ((pdev->class >> 8) == PCI_CLASS_BRIDGE_HOST)
-		return err;
-
-	/* Otherwise make sure it's in the range for one of the
-	 * device's resources.
-	 */
-	user_paddr = vma->vm_pgoff << PAGE_SHIFT;
-	user_size = vma->vm_end - vma->vm_start;
-
-	for (i = 0; i <= PCI_ROM_RESOURCE; i++) {
-		struct resource *rp = &pdev->resource[i];
-		resource_size_t aligned_end;
-
-		/* Active? */
-		if (!rp->flags)
-			continue;
-
-		/* Same type? */
-		if (i == PCI_ROM_RESOURCE) {
-			if (mmap_state != pci_mmap_mem)
-				continue;
-		} else {
-			if ((mmap_state == pci_mmap_io &&
-			     (rp->flags & IORESOURCE_IO) == 0) ||
-			    (mmap_state == pci_mmap_mem &&
-			     (rp->flags & IORESOURCE_MEM) == 0))
-				continue;
-		}
-
-		/* Align the resource end to the next page address.
-		 * PAGE_SIZE intentionally added instead of (PAGE_SIZE - 1),
-		 * because actually we need the address of the next byte
-		 * after rp->end.
-		 */
-		aligned_end = (rp->end + PAGE_SIZE) & PAGE_MASK;
-
-		if ((rp->start <= user_paddr) &&
-		    (user_paddr + user_size) <= aligned_end)
-			break;
-	}
-
-	if (i > PCI_ROM_RESOURCE)
-		return -EINVAL;
-
-	return 0;
-}
-
-/* Set vm_page_prot of VMA, as appropriate for this architecture, for a pci
- * device mapping.
- */
-static void __pci_mmap_set_pgprot(struct pci_dev *dev, struct vm_area_struct *vma,
-					     enum pci_mmap_state mmap_state)
-{
-	/* Our io_remap_pfn_range takes care of this, do nothing.  */
-}
-
-/* Perform the actual remap of the pages for a PCI device mapping, as appropriate
- * for this architecture.  The region in the process to map is described by vm_start
- * and vm_end members of VMA, the base physical address is found in vm_pgoff.
- * The pci device structure is provided so that architectures may make mapping
- * decisions on a per-device or per-bus basis.
- *
- * Returns a negative error code on failure, zero on success.
- */
-int pci_mmap_page_range(struct pci_dev *dev, int bar,
-			struct vm_area_struct *vma,
-			enum pci_mmap_state mmap_state, int write_combine)
-{
-	int ret;
-
-	ret = __pci_mmap_make_offset(dev, vma, mmap_state);
-	if (ret < 0)
-		return ret;
-
-	__pci_mmap_set_pgprot(dev, vma, mmap_state);
-
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-	ret = io_remap_pfn_range(vma, vma->vm_start,
-				 vma->vm_pgoff,
-				 vma->vm_end - vma->vm_start,
-				 vma->vm_page_prot);
-	if (ret)
-		return ret;
+	vma->vm_pgoff += (ioaddr + pbm->io_space.start) >> PAGE_SHIFT;
 
 	return 0;
 }
@@ -1011,7 +868,7 @@ void pcibios_set_master(struct pci_dev *dev)
 }
 
 #ifdef CONFIG_PCI_IOV
-int pcibios_add_device(struct pci_dev *dev)
+int pcibios_device_add(struct pci_dev *dev)
 {
 	struct pci_dev *pdev;
 

@@ -875,7 +875,7 @@ bnad_set_netdev_perm_addr(struct bnad *bnad)
 
 	ether_addr_copy(netdev->perm_addr, bnad->perm_addr);
 	if (is_zero_ether_addr(netdev->dev_addr))
-		ether_addr_copy(netdev->dev_addr, bnad->perm_addr);
+		eth_hw_addr_set(netdev, bnad->perm_addr);
 }
 
 /* Control Path Handlers */
@@ -1037,8 +1037,7 @@ bnad_cb_ccb_destroy(struct bnad *bnad, struct bna_ccb *ccb)
 static void
 bnad_cb_tx_stall(struct bnad *bnad, struct bna_tx *tx)
 {
-	struct bnad_tx_info *tx_info =
-			(struct bnad_tx_info *)tx->priv;
+	struct bnad_tx_info *tx_info = tx->priv;
 	struct bna_tcb *tcb;
 	u32 txq_id;
 	int i;
@@ -1056,7 +1055,7 @@ bnad_cb_tx_stall(struct bnad *bnad, struct bna_tx *tx)
 static void
 bnad_cb_tx_resume(struct bnad *bnad, struct bna_tx *tx)
 {
-	struct bnad_tx_info *tx_info = (struct bnad_tx_info *)tx->priv;
+	struct bnad_tx_info *tx_info = tx->priv;
 	struct bna_tcb *tcb;
 	u32 txq_id;
 	int i;
@@ -1092,10 +1091,10 @@ bnad_cb_tx_resume(struct bnad *bnad, struct bna_tx *tx)
  * Free all TxQs buffers and then notify TX_E_CLEANUP_DONE to Tx fsm.
  */
 static void
-bnad_tx_cleanup(struct delayed_work *work)
+bnad_tx_cleanup(struct work_struct *work)
 {
 	struct bnad_tx_info *tx_info =
-		container_of(work, struct bnad_tx_info, tx_cleanup_work);
+		container_of(work, struct bnad_tx_info, tx_cleanup_work.work);
 	struct bnad *bnad = NULL;
 	struct bna_tcb *tcb;
 	unsigned long flags;
@@ -1133,7 +1132,7 @@ bnad_tx_cleanup(struct delayed_work *work)
 static void
 bnad_cb_tx_cleanup(struct bnad *bnad, struct bna_tx *tx)
 {
-	struct bnad_tx_info *tx_info = (struct bnad_tx_info *)tx->priv;
+	struct bnad_tx_info *tx_info = tx->priv;
 	struct bna_tcb *tcb;
 	int i;
 
@@ -1149,7 +1148,7 @@ bnad_cb_tx_cleanup(struct bnad *bnad, struct bna_tx *tx)
 static void
 bnad_cb_rx_stall(struct bnad *bnad, struct bna_rx *rx)
 {
-	struct bnad_rx_info *rx_info = (struct bnad_rx_info *)rx->priv;
+	struct bnad_rx_info *rx_info = rx->priv;
 	struct bna_ccb *ccb;
 	struct bnad_rx_ctrl *rx_ctrl;
 	int i;
@@ -1171,7 +1170,7 @@ bnad_cb_rx_stall(struct bnad *bnad, struct bna_rx *rx)
  * Free all RxQs buffers and then notify RX_E_CLEANUP_DONE to Rx fsm.
  */
 static void
-bnad_rx_cleanup(void *work)
+bnad_rx_cleanup(struct work_struct *work)
 {
 	struct bnad_rx_info *rx_info =
 		container_of(work, struct bnad_rx_info, rx_cleanup_work);
@@ -1208,7 +1207,7 @@ bnad_rx_cleanup(void *work)
 static void
 bnad_cb_rx_cleanup(struct bnad *bnad, struct bna_rx *rx)
 {
-	struct bnad_rx_info *rx_info = (struct bnad_rx_info *)rx->priv;
+	struct bnad_rx_info *rx_info = rx->priv;
 	struct bna_ccb *ccb;
 	struct bnad_rx_ctrl *rx_ctrl;
 	int i;
@@ -1231,7 +1230,7 @@ bnad_cb_rx_cleanup(struct bnad *bnad, struct bna_rx *rx)
 static void
 bnad_cb_rx_post(struct bnad *bnad, struct bna_rx *rx)
 {
-	struct bnad_rx_info *rx_info = (struct bnad_rx_info *)rx->priv;
+	struct bnad_rx_info *rx_info = rx->priv;
 	struct bna_ccb *ccb;
 	struct bna_rcb *rcb;
 	struct bnad_rx_ctrl *rx_ctrl;
@@ -1764,7 +1763,7 @@ bnad_dim_timeout(struct timer_list *t)
 		}
 	}
 
-	/* Check for BNAD_CF_DIM_ENABLED, does not eleminate a race */
+	/* Check for BNAD_CF_DIM_ENABLED, does not eliminate a race */
 	if (test_bit(BNAD_RF_DIM_TIMER_RUNNING, &bnad->run_flags))
 		mod_timer(&bnad->dim_timer,
 			  jiffies + msecs_to_jiffies(BNAD_DIM_TIMER_FREQ));
@@ -1881,7 +1880,6 @@ poll_exit:
 	return rcvd;
 }
 
-#define BNAD_NAPI_POLL_QUOTA		64
 static void
 bnad_napi_add(struct bnad *bnad, u32 rx_id)
 {
@@ -1892,7 +1890,7 @@ bnad_napi_add(struct bnad *bnad, u32 rx_id)
 	for (i = 0; i <	bnad->num_rxp_per_rx; i++) {
 		rx_ctrl = &bnad->rx_info[rx_id].rx_ctrl[i];
 		netif_napi_add(bnad->netdev, &rx_ctrl->napi,
-			       bnad_napi_poll_rx, BNAD_NAPI_POLL_QUOTA);
+			       bnad_napi_poll_rx);
 	}
 }
 
@@ -1993,8 +1991,7 @@ bnad_setup_tx(struct bnad *bnad, u32 tx_id)
 	}
 	tx_info->tx = tx;
 
-	INIT_DELAYED_WORK(&tx_info->tx_cleanup_work,
-			(work_func_t)bnad_tx_cleanup);
+	INIT_DELAYED_WORK(&tx_info->tx_cleanup_work, bnad_tx_cleanup);
 
 	/* Register ISR for the Tx object */
 	if (intr_info->intr_type == BNA_INTR_T_MSIX) {
@@ -2250,8 +2247,7 @@ bnad_setup_rx(struct bnad *bnad, u32 rx_id)
 	rx_info->rx = rx;
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 
-	INIT_WORK(&rx_info->rx_cleanup_work,
-			(work_func_t)(bnad_rx_cleanup));
+	INIT_WORK(&rx_info->rx_cleanup_work, bnad_rx_cleanup);
 
 	/*
 	 * Init NAPI, so that state is set to NAPI_STATE_SCHED,
@@ -2504,12 +2500,7 @@ bnad_tso_prepare(struct bnad *bnad, struct sk_buff *skb)
 					   IPPROTO_TCP, 0);
 		BNAD_UPDATE_CTR(bnad, tso4);
 	} else {
-		struct ipv6hdr *ipv6h = ipv6_hdr(skb);
-
-		ipv6h->payload_len = 0;
-		tcp_hdr(skb)->check =
-			~csum_ipv6_magic(&ipv6h->saddr, &ipv6h->daddr, 0,
-					 IPPROTO_TCP, 0);
+		tcp_v6_gso_csum_prep(skb);
 		BNAD_UPDATE_CTR(bnad, tso6);
 	}
 
@@ -2829,8 +2820,7 @@ bnad_txq_wi_prepare(struct bnad *bnad, struct bna_tcb *tcb,
 			BNAD_UPDATE_CTR(bnad, tx_skb_mss_too_long);
 			return -EINVAL;
 		}
-		if (unlikely((gso_size + skb_transport_offset(skb) +
-			      tcp_hdrlen(skb)) >= skb->len)) {
+		if (unlikely((gso_size + skb_tcp_all_headers(skb)) >= skb->len)) {
 			txqent->hdr.wi.opcode = htons(BNA_TXQ_WI_SEND);
 			txqent->hdr.wi.lso_mss = 0;
 			BNAD_UPDATE_CTR(bnad, tx_skb_tso_too_short);
@@ -2878,8 +2868,7 @@ bnad_txq_wi_prepare(struct bnad *bnad, struct bna_tcb *tcb,
 				BNAD_UPDATE_CTR(bnad, tcpcsum_offload);
 
 				if (unlikely(skb_headlen(skb) <
-					    skb_transport_offset(skb) +
-				    tcp_hdrlen(skb))) {
+					    skb_tcp_all_headers(skb))) {
 					BNAD_UPDATE_CTR(bnad, tx_skb_tcp_hdr);
 					return -EINVAL;
 				}
@@ -3254,7 +3243,7 @@ bnad_set_mac_address(struct net_device *netdev, void *addr)
 
 	err = bnad_mac_addr_set_locked(bnad, sa->sa_data);
 	if (!err)
-		ether_addr_copy(netdev->dev_addr, sa->sa_data);
+		eth_hw_addr_set(netdev, sa->sa_data);
 
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 
@@ -3282,12 +3271,12 @@ bnad_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	int err, mtu;
 	struct bnad *bnad = netdev_priv(netdev);
-	u32 rx_count = 0, frame, new_frame;
+	u32 frame, new_frame;
 
 	mutex_lock(&bnad->conf_mutex);
 
 	mtu = netdev->mtu;
-	netdev->mtu = new_mtu;
+	WRITE_ONCE(netdev->mtu, new_mtu);
 
 	frame = BNAD_FRAME_SIZE(mtu);
 	new_frame = BNAD_FRAME_SIZE(new_mtu);
@@ -3298,12 +3287,9 @@ bnad_change_mtu(struct net_device *netdev, int new_mtu)
 		/* only when transition is over 4K */
 		if ((frame <= 4096 && new_frame > 4096) ||
 		    (frame > 4096 && new_frame <= 4096))
-			rx_count = bnad_reinit_rx(bnad);
+			bnad_reinit_rx(bnad);
 	}
 
-	/* rx_count > 0 - new rx created
-	 *	- Linux set err = 0 and return
-	 */
 	err = bnad_mtu_set(bnad, new_frame);
 	if (err)
 		err = -EBUSY;
@@ -3429,7 +3415,7 @@ static const struct net_device_ops bnad_netdev_ops = {
 };
 
 static void
-bnad_netdev_init(struct bnad *bnad, bool using_dac)
+bnad_netdev_init(struct bnad *bnad)
 {
 	struct net_device *netdev = bnad->netdev;
 
@@ -3442,10 +3428,8 @@ bnad_netdev_init(struct bnad *bnad, bool using_dac)
 		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 		NETIF_F_TSO | NETIF_F_TSO6;
 
-	netdev->features |= netdev->hw_features | NETIF_F_HW_VLAN_CTAG_FILTER;
-
-	if (using_dac)
-		netdev->features |= NETIF_F_HIGHDMA;
+	netdev->features |= netdev->hw_features | NETIF_F_HW_VLAN_CTAG_FILTER |
+			    NETIF_F_HIGHDMA;
 
 	netdev->mem_start = bnad->mmio_start;
 	netdev->mem_end = bnad->mmio_start + bnad->mmio_len - 1;
@@ -3477,7 +3461,7 @@ bnad_init(struct bnad *bnad,
 	bnad->pcidev = pdev;
 	bnad->mmio_start = pci_resource_start(pdev, 0);
 	bnad->mmio_len = pci_resource_len(pdev, 0);
-	bnad->bar0 = ioremap_nocache(bnad->mmio_start, bnad->mmio_len);
+	bnad->bar0 = ioremap(bnad->mmio_start, bnad->mmio_len);
 	if (!bnad->bar0) {
 		dev_err(&pdev->dev, "ioremap for bar0 failed\n");
 		return -ENOMEM;
@@ -3523,7 +3507,6 @@ static void
 bnad_uninit(struct bnad *bnad)
 {
 	if (bnad->work_q) {
-		flush_workqueue(bnad->work_q);
 		destroy_workqueue(bnad->work_q);
 		bnad->work_q = NULL;
 	}
@@ -3553,8 +3536,7 @@ bnad_lock_uninit(struct bnad *bnad)
 
 /* PCI Initialization */
 static int
-bnad_pci_init(struct bnad *bnad,
-	      struct pci_dev *pdev, bool *using_dac)
+bnad_pci_init(struct bnad *bnad, struct pci_dev *pdev)
 {
 	int err;
 
@@ -3564,14 +3546,9 @@ bnad_pci_init(struct bnad *bnad,
 	err = pci_request_regions(pdev, BNAD_NAME);
 	if (err)
 		goto disable_device;
-	if (!dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64))) {
-		*using_dac = true;
-	} else {
-		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
-		if (err)
-			goto release_regions;
-		*using_dac = false;
-	}
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (err)
+		goto release_regions;
 	pci_set_master(pdev);
 	return 0;
 
@@ -3594,7 +3571,6 @@ static int
 bnad_pci_probe(struct pci_dev *pdev,
 		const struct pci_device_id *pcidev_id)
 {
-	bool	using_dac;
 	int	err;
 	struct bnad *bnad;
 	struct bna *bna;
@@ -3624,13 +3600,8 @@ bnad_pci_probe(struct pci_dev *pdev,
 	bnad->id = atomic_inc_return(&bna_id) - 1;
 
 	mutex_lock(&bnad->conf_mutex);
-	/*
-	 * PCI initialization
-	 *	Output : using_dac = 1 for 64 bit DMA
-	 *			   = 0 for 32 bit DMA
-	 */
-	using_dac = false;
-	err = bnad_pci_init(bnad, pdev, &using_dac);
+	/* PCI initialization */
+	err = bnad_pci_init(bnad, pdev);
 	if (err)
 		goto unlock_mutex;
 
@@ -3643,7 +3614,7 @@ bnad_pci_probe(struct pci_dev *pdev,
 		goto pci_uninit;
 
 	/* Initialize netdev structure, set up ethtool ops */
-	bnad_netdev_init(bnad, using_dac);
+	bnad_netdev_init(bnad);
 
 	/* Set link to down state */
 	netif_carrier_off(netdev);
@@ -3847,9 +3818,6 @@ bnad_module_init(void)
 {
 	int err;
 
-	pr_info("bna: QLogic BR-series 10G Ethernet driver - version: %s\n",
-		BNAD_VERSION);
-
 	bfa_nw_ioc_auto_recover(bnad_ioc_auto_recover);
 
 	err = pci_register_driver(&bnad_pci_driver);
@@ -3874,6 +3842,5 @@ module_exit(bnad_module_exit);
 MODULE_AUTHOR("Brocade");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("QLogic BR-series 10G PCIe Ethernet driver");
-MODULE_VERSION(BNAD_VERSION);
 MODULE_FIRMWARE(CNA_FW_FILE_CT);
 MODULE_FIRMWARE(CNA_FW_FILE_CT2);

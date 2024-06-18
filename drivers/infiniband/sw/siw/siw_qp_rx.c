@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0 or BSD-3-Clause
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 
 /* Authors: Bernard Metzler <bmt@zurich.ibm.com> */
 /* Copyright (c) 2008-2019, IBM Corporation */
@@ -68,7 +68,7 @@ static int siw_rx_umem(struct siw_rx_stream *srx, struct siw_umem *umem,
 			return -EFAULT;
 		}
 		if (srx->mpa_crc_hd) {
-			if (rx_qp(srx)->kernel_verbs) {
+			if (rdma_is_kernel_res(&rx_qp(srx)->base_qp.res)) {
 				crypto_shash_update(srx->mpa_crc_hd,
 					(u8 *)(dest + pg_off), bytes);
 				kunmap_atomic(dest);
@@ -139,7 +139,8 @@ static int siw_rx_pbl(struct siw_rx_stream *srx, int *pbl_idx,
 			break;
 
 		bytes = min(bytes, len);
-		if (siw_rx_kva(srx, (void *)buf_addr, bytes) == bytes) {
+		if (siw_rx_kva(srx, ib_virt_dma_to_ptr(buf_addr), bytes) ==
+		    bytes) {
 			copied += bytes;
 			offset += bytes;
 			len -= bytes;
@@ -388,7 +389,7 @@ static struct siw_wqe *siw_rqe_get(struct siw_qp *qp)
 				struct siw_rqe *rqe2 = &srq->recvq[off];
 
 				if (!(rqe2->flags & SIW_WQE_VALID)) {
-					srq->armed = 0;
+					srq->armed = false;
 					srq_event = true;
 				}
 			}
@@ -402,6 +403,20 @@ out:
 			siw_srq_event(srq, IB_EVENT_SRQ_LIMIT_REACHED);
 	}
 	return wqe;
+}
+
+static int siw_rx_data(struct siw_mem *mem_p, struct siw_rx_stream *srx,
+		       unsigned int *pbl_idx, u64 addr, int bytes)
+{
+	int rv;
+
+	if (mem_p->mem_obj == NULL)
+		rv = siw_rx_kva(srx, ib_virt_dma_to_ptr(addr), bytes);
+	else if (!mem_p->is_pbl)
+		rv = siw_rx_umem(srx, mem_p->umem, addr, bytes);
+	else
+		rv = siw_rx_pbl(srx, pbl_idx, mem_p, addr, bytes);
+	return rv;
 }
 
 /*
@@ -484,17 +499,8 @@ int siw_proc_send(struct siw_qp *qp)
 			break;
 		}
 		mem_p = *mem;
-		if (mem_p->mem_obj == NULL)
-			rv = siw_rx_kva(srx,
-				(void *)(uintptr_t)(sge->laddr + frx->sge_off),
-				sge_bytes);
-		else if (!mem_p->is_pbl)
-			rv = siw_rx_umem(srx, mem_p->umem,
-					 sge->laddr + frx->sge_off, sge_bytes);
-		else
-			rv = siw_rx_pbl(srx, &frx->pbl_idx, mem_p,
-					sge->laddr + frx->sge_off, sge_bytes);
-
+		rv = siw_rx_data(mem_p, srx, &frx->pbl_idx,
+				 sge->laddr + frx->sge_off, sge_bytes);
 		if (unlikely(rv != sge_bytes)) {
 			wqe->processed += rcvd_bytes;
 
@@ -597,17 +603,8 @@ int siw_proc_write(struct siw_qp *qp)
 		return -EINVAL;
 	}
 
-	if (mem->mem_obj == NULL)
-		rv = siw_rx_kva(srx,
-			(void *)(uintptr_t)(srx->ddp_to + srx->fpdu_part_rcvd),
-			bytes);
-	else if (!mem->is_pbl)
-		rv = siw_rx_umem(srx, mem->umem,
-				 srx->ddp_to + srx->fpdu_part_rcvd, bytes);
-	else
-		rv = siw_rx_pbl(srx, &frx->pbl_idx, mem,
-				srx->ddp_to + srx->fpdu_part_rcvd, bytes);
-
+	rv = siw_rx_data(mem, srx, &frx->pbl_idx,
+			 srx->ddp_to + srx->fpdu_part_rcvd, bytes);
 	if (unlikely(rv != bytes)) {
 		siw_init_terminate(qp, TERM_ERROR_LAYER_DDP,
 				   DDP_ETYPE_CATASTROPHIC,
@@ -679,6 +676,10 @@ static int siw_init_rresp(struct siw_qp *qp, struct siw_rx_stream *srx)
 	}
 	spin_lock_irqsave(&qp->sq_lock, flags);
 
+	if (unlikely(!qp->attrs.irq_size)) {
+		run_sq = 0;
+		goto error_irq;
+	}
 	if (tx_work->wr_status == SIW_WR_IDLE) {
 		/*
 		 * immediately schedule READ response w/o
@@ -711,8 +712,9 @@ static int siw_init_rresp(struct siw_qp *qp, struct siw_rx_stream *srx)
 		/* RRESP now valid as current TX wqe or placed into IRQ */
 		smp_store_mb(resp->flags, SIW_WQE_VALID);
 	} else {
-		pr_warn("siw: [QP %u]: irq %d exceeded %d\n", qp_id(qp),
-			qp->irq_put % qp->attrs.irq_size, qp->attrs.irq_size);
+error_irq:
+		pr_warn("siw: [QP %u]: IRQ exceeded or null, size %d\n",
+			qp_id(qp), qp->attrs.irq_size);
 
 		siw_init_terminate(qp, TERM_ERROR_LAYER_RDMAP,
 				   RDMAP_ETYPE_REMOTE_OPERATION,
@@ -738,6 +740,9 @@ static int siw_orqe_start_rx(struct siw_qp *qp)
 {
 	struct siw_sqe *orqe;
 	struct siw_wqe *wqe = NULL;
+
+	if (unlikely(!qp->attrs.orq_size))
+		return -EPROTO;
 
 	/* make sure ORQ indices are current */
 	smp_mb();
@@ -795,8 +800,8 @@ int siw_proc_rresp(struct siw_qp *qp)
 		 */
 		rv = siw_orqe_start_rx(qp);
 		if (rv) {
-			pr_warn("siw: [QP %u]: ORQ empty at idx %d\n",
-				qp_id(qp), qp->orq_get % qp->attrs.orq_size);
+			pr_warn("siw: [QP %u]: ORQ empty, size %d\n",
+				qp_id(qp), qp->attrs.orq_size);
 			goto error_term;
 		}
 		rv = siw_rresp_check_ntoh(srx, frx);
@@ -840,17 +845,8 @@ int siw_proc_rresp(struct siw_qp *qp)
 	mem_p = *mem;
 
 	bytes = min(srx->fpdu_part_rem, srx->skb_new);
-
-	if (mem_p->mem_obj == NULL)
-		rv = siw_rx_kva(srx,
-			(void *)(uintptr_t)(sge->laddr + wqe->processed),
-			bytes);
-	else if (!mem_p->is_pbl)
-		rv = siw_rx_umem(srx, mem_p->umem, sge->laddr + wqe->processed,
-				 bytes);
-	else
-		rv = siw_rx_pbl(srx, &frx->pbl_idx, mem_p,
-				sge->laddr + wqe->processed, bytes);
+	rv = siw_rx_data(mem_p, srx, &frx->pbl_idx,
+			 sge->laddr + wqe->processed, bytes);
 	if (rv != bytes) {
 		wqe->wc_status = SIW_WC_GENERAL_ERR;
 		rv = -EINVAL;
@@ -870,6 +866,13 @@ error_term:
 	siw_init_terminate(qp, TERM_ERROR_LAYER_DDP, DDP_ETYPE_CATASTROPHIC,
 			   DDP_ECODE_CATASTROPHIC, 0);
 	return rv;
+}
+
+static void siw_update_skb_rcvd(struct siw_rx_stream *srx, u16 length)
+{
+	srx->skb_offset += length;
+	srx->skb_new -= length;
+	srx->skb_copied += length;
 }
 
 int siw_proc_terminate(struct siw_qp *qp)
@@ -916,9 +919,7 @@ int siw_proc_terminate(struct siw_qp *qp)
 		goto out;
 
 	infop += to_copy;
-	srx->skb_offset += to_copy;
-	srx->skb_new -= to_copy;
-	srx->skb_copied += to_copy;
+	siw_update_skb_rcvd(srx, to_copy);
 	srx->fpdu_part_rcvd += to_copy;
 	srx->fpdu_part_rem -= to_copy;
 
@@ -940,9 +941,7 @@ int siw_proc_terminate(struct siw_qp *qp)
 			   term->flag_m ? "valid" : "invalid");
 	}
 out:
-	srx->skb_new -= to_copy;
-	srx->skb_offset += to_copy;
-	srx->skb_copied += to_copy;
+	siw_update_skb_rcvd(srx, to_copy);
 	srx->fpdu_part_rcvd += to_copy;
 	srx->fpdu_part_rem -= to_copy;
 
@@ -952,27 +951,26 @@ out:
 static int siw_get_trailer(struct siw_qp *qp, struct siw_rx_stream *srx)
 {
 	struct sk_buff *skb = srx->skb;
+	int avail = min(srx->skb_new, srx->fpdu_part_rem);
 	u8 *tbuf = (u8 *)&srx->trailer.crc - srx->pad;
 	__wsum crc_in, crc_own = 0;
 
 	siw_dbg_qp(qp, "expected %d, available %d, pad %u\n",
 		   srx->fpdu_part_rem, srx->skb_new, srx->pad);
 
-	if (srx->skb_new < srx->fpdu_part_rem)
+	skb_copy_bits(skb, srx->skb_offset, tbuf, avail);
+
+	siw_update_skb_rcvd(srx, avail);
+	srx->fpdu_part_rem -= avail;
+
+	if (srx->fpdu_part_rem)
 		return -EAGAIN;
-
-	skb_copy_bits(skb, srx->skb_offset, tbuf, srx->fpdu_part_rem);
-
-	if (srx->mpa_crc_hd && srx->pad)
-		crypto_shash_update(srx->mpa_crc_hd, tbuf, srx->pad);
-
-	srx->skb_new -= srx->fpdu_part_rem;
-	srx->skb_offset += srx->fpdu_part_rem;
-	srx->skb_copied += srx->fpdu_part_rem;
 
 	if (!srx->mpa_crc_hd)
 		return 0;
 
+	if (srx->pad)
+		crypto_shash_update(srx->mpa_crc_hd, tbuf, srx->pad);
 	/*
 	 * CRC32 is computed, transmitted and received directly in NBO,
 	 * so there's never a reason to convert byte order.
@@ -1013,12 +1011,8 @@ static int siw_get_hdr(struct siw_rx_stream *srx)
 		skb_copy_bits(skb, srx->skb_offset,
 			      (char *)c_hdr + srx->fpdu_part_rcvd, bytes);
 
+		siw_update_skb_rcvd(srx, bytes);
 		srx->fpdu_part_rcvd += bytes;
-
-		srx->skb_new -= bytes;
-		srx->skb_offset += bytes;
-		srx->skb_copied += bytes;
-
 		if (srx->fpdu_part_rcvd < MIN_DDP_HDR)
 			return -EAGAIN;
 
@@ -1074,19 +1068,17 @@ static int siw_get_hdr(struct siw_rx_stream *srx)
 	 * completely received.
 	 */
 	if (iwarp_pktinfo[opcode].hdr_len > sizeof(struct iwarp_ctrl_tagged)) {
-		bytes = iwarp_pktinfo[opcode].hdr_len - MIN_DDP_HDR;
+		int hdrlen = iwarp_pktinfo[opcode].hdr_len;
 
-		if (srx->skb_new < bytes)
-			return -EAGAIN;
+		bytes = min_t(int, hdrlen - MIN_DDP_HDR, srx->skb_new);
 
 		skb_copy_bits(skb, srx->skb_offset,
 			      (char *)c_hdr + srx->fpdu_part_rcvd, bytes);
 
+		siw_update_skb_rcvd(srx, bytes);
 		srx->fpdu_part_rcvd += bytes;
-
-		srx->skb_new -= bytes;
-		srx->skb_offset += bytes;
-		srx->skb_copied += bytes;
+		if (srx->fpdu_part_rcvd < hdrlen)
+			return -EAGAIN;
 	}
 
 	/*
@@ -1144,10 +1136,11 @@ static int siw_check_tx_fence(struct siw_qp *qp)
 
 	spin_lock_irqsave(&qp->orq_lock, flags);
 
-	rreq = orq_get_current(qp);
-
 	/* free current orq entry */
+	rreq = orq_get_current(qp);
 	WRITE_ONCE(rreq->flags, 0);
+
+	qp->orq_get++;
 
 	if (qp->tx_ctx.orq_fence) {
 		if (unlikely(tx_waiting->wr_status != SIW_WR_QUEUED)) {
@@ -1156,10 +1149,12 @@ static int siw_check_tx_fence(struct siw_qp *qp)
 			rv = -EPROTO;
 			goto out;
 		}
-		/* resume SQ processing */
+		/* resume SQ processing, if possible */
 		if (tx_waiting->sqe.opcode == SIW_OP_READ ||
 		    tx_waiting->sqe.opcode == SIW_OP_READ_LOCAL_INV) {
-			rreq = orq_get_tail(qp);
+
+			/* SQ processing was stopped because of a full ORQ */
+			rreq = orq_get_free(qp);
 			if (unlikely(!rreq)) {
 				pr_warn("siw: [QP %u]: no ORQE\n", qp_id(qp));
 				rv = -EPROTO;
@@ -1172,15 +1167,14 @@ static int siw_check_tx_fence(struct siw_qp *qp)
 			resume_tx = 1;
 
 		} else if (siw_orq_empty(qp)) {
+			/*
+			 * SQ processing was stopped by fenced work request.
+			 * Resume since all previous Read's are now completed.
+			 */
 			qp->tx_ctx.orq_fence = 0;
 			resume_tx = 1;
-		} else {
-			pr_warn("siw: [QP %u]: fence resume: orq idx: %d:%d\n",
-				qp_id(qp), qp->orq_get, qp->orq_put);
-			rv = -EPROTO;
 		}
 	}
-	qp->orq_get++;
 out:
 	spin_unlock_irqrestore(&qp->orq_lock, flags);
 
@@ -1214,7 +1208,7 @@ static int siw_rdmap_complete(struct siw_qp *qp, int error)
 	case RDMAP_SEND_SE:
 	case RDMAP_SEND_SE_INVAL:
 		wqe->rqe.flags |= SIW_WQE_SOLICITED;
-		/* Fall through */
+		fallthrough;
 
 	case RDMAP_SEND:
 	case RDMAP_SEND_INVAL:
@@ -1264,7 +1258,7 @@ static int siw_rdmap_complete(struct siw_qp *qp, int error)
 
 			if (wc_status == SIW_WC_SUCCESS)
 				wc_status = SIW_WC_GENERAL_ERR;
-		} else if (qp->kernel_verbs &&
+		} else if (rdma_is_kernel_res(&qp->base_qp.res) &&
 			   rx_type(wqe) == SIW_OP_READ_LOCAL_INV) {
 			/*
 			 * Handle any STag invalidation request
@@ -1289,11 +1283,13 @@ static int siw_rdmap_complete(struct siw_qp *qp, int error)
 					      wc_status);
 		siw_wqe_put_mem(wqe, SIW_OP_READ);
 
-		if (!error)
+		if (!error) {
 			rv = siw_check_tx_fence(qp);
-		else
-			/* Disable current ORQ eleement */
-			WRITE_ONCE(orq_get_current(qp)->flags, 0);
+		} else {
+			/* Disable current ORQ element */
+			if (qp->attrs.orq_size)
+				WRITE_ONCE(orq_get_current(qp)->flags, 0);
+		}
 		break;
 
 	case RDMAP_RDMA_READ_REQ:
@@ -1385,7 +1381,7 @@ int siw_tcp_rx_data(read_descriptor_t *rd_desc, struct sk_buff *skb,
 			 * DDP segment.
 			 */
 			qp->rx_fpdu->first_ddp_seg = 0;
-			/* Fall through */
+			fallthrough;
 
 		case SIW_GET_DATA_START:
 			/*

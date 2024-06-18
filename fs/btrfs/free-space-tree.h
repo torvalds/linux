@@ -6,7 +6,13 @@
 #ifndef BTRFS_FREE_SPACE_TREE_H
 #define BTRFS_FREE_SPACE_TREE_H
 
+#include <linux/bits.h>
+
 struct btrfs_caching_control;
+struct btrfs_fs_info;
+struct btrfs_path;
+struct btrfs_block_group;
+struct btrfs_trans_handle;
 
 /*
  * The default size for new free space bitmap items. The last bitmap in a block
@@ -16,14 +22,15 @@ struct btrfs_caching_control;
 #define BTRFS_FREE_SPACE_BITMAP_SIZE 256
 #define BTRFS_FREE_SPACE_BITMAP_BITS (BTRFS_FREE_SPACE_BITMAP_SIZE * BITS_PER_BYTE)
 
-void set_free_space_tree_thresholds(struct btrfs_block_group_cache *block_group);
+void set_free_space_tree_thresholds(struct btrfs_block_group *block_group);
 int btrfs_create_free_space_tree(struct btrfs_fs_info *fs_info);
-int btrfs_clear_free_space_tree(struct btrfs_fs_info *fs_info);
+int btrfs_delete_free_space_tree(struct btrfs_fs_info *fs_info);
+int btrfs_rebuild_free_space_tree(struct btrfs_fs_info *fs_info);
 int load_free_space_tree(struct btrfs_caching_control *caching_ctl);
 int add_block_group_free_space(struct btrfs_trans_handle *trans,
-			       struct btrfs_block_group_cache *block_group);
+			       struct btrfs_block_group *block_group);
 int remove_block_group_free_space(struct btrfs_trans_handle *trans,
-				  struct btrfs_block_group_cache *block_group);
+				  struct btrfs_block_group *block_group);
 int add_to_free_space_tree(struct btrfs_trans_handle *trans,
 			   u64 start, u64 size);
 int remove_from_free_space_tree(struct btrfs_trans_handle *trans,
@@ -32,21 +39,21 @@ int remove_from_free_space_tree(struct btrfs_trans_handle *trans,
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 struct btrfs_free_space_info *
 search_free_space_info(struct btrfs_trans_handle *trans,
-		       struct btrfs_block_group_cache *block_group,
+		       struct btrfs_block_group *block_group,
 		       struct btrfs_path *path, int cow);
 int __add_to_free_space_tree(struct btrfs_trans_handle *trans,
-			     struct btrfs_block_group_cache *block_group,
+			     struct btrfs_block_group *block_group,
 			     struct btrfs_path *path, u64 start, u64 size);
 int __remove_from_free_space_tree(struct btrfs_trans_handle *trans,
-				  struct btrfs_block_group_cache *block_group,
+				  struct btrfs_block_group *block_group,
 				  struct btrfs_path *path, u64 start, u64 size);
 int convert_free_space_to_bitmaps(struct btrfs_trans_handle *trans,
-				  struct btrfs_block_group_cache *block_group,
+				  struct btrfs_block_group *block_group,
 				  struct btrfs_path *path);
 int convert_free_space_to_extents(struct btrfs_trans_handle *trans,
-				  struct btrfs_block_group_cache *block_group,
+				  struct btrfs_block_group *block_group,
 				  struct btrfs_path *path);
-int free_space_test_bit(struct btrfs_block_group_cache *block_group,
+int free_space_test_bit(struct btrfs_block_group *block_group,
 			struct btrfs_path *path, u64 offset);
 #endif
 

@@ -1,9 +1,9 @@
-// SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 //
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2018 Intel Corporation. All rights reserved.
+// Copyright(c) 2018 Intel Corporation
 //
 // Author: Liam Girdwood <liam.r.girdwood@linux.intel.com>
 //
@@ -15,8 +15,13 @@
 #include <linux/module.h>
 #include <sound/sof.h>
 #include <sound/sof/xtensa.h>
+#include <sound/soc-acpi.h>
+#include <sound/soc-acpi-intel-match.h>
+#include <sound/intel-dsp-config.h>
 #include "../ops.h"
 #include "shim.h"
+#include "../sof-acpi-dev.h"
+#include "../sof-audio.h"
 
 /* BARs */
 #define BDW_DSP_BAR 0
@@ -37,6 +42,7 @@
 #define MBOX_SIZE       0x1000
 #define MBOX_DUMP_SIZE 0x30
 #define EXCEPT_OFFSET	0x800
+#define EXCEPT_MAX_HDR_SIZE	0x400
 
 /* DSP peripherals */
 #define DMAC0_OFFSET    0xFE000
@@ -69,7 +75,6 @@ static const struct snd_sof_debugfs_map bdw_debugfs[] = {
 
 static void bdw_host_done(struct snd_sof_dev *sdev);
 static void bdw_dsp_done(struct snd_sof_dev *sdev);
-static void bdw_get_reply(struct snd_sof_dev *sdev);
 
 /*
  * DSP Control.
@@ -228,6 +233,11 @@ static void bdw_get_registers(struct snd_sof_dev *sdev,
 	/* note: variable AR register array is not read */
 
 	/* then get panic info */
+	if (xoops->arch_hdr.totalsize > EXCEPT_MAX_HDR_SIZE) {
+		dev_err(sdev->dev, "invalid header size 0x%x. FW oops is bogus\n",
+			xoops->arch_hdr.totalsize);
+		return;
+	}
 	offset += xoops->arch_hdr.totalsize;
 	sof_mailbox_read(sdev, offset, panic_info, sizeof(*panic_info));
 
@@ -241,15 +251,35 @@ static void bdw_dump(struct snd_sof_dev *sdev, u32 flags)
 	struct sof_ipc_dsp_oops_xtensa xoops;
 	struct sof_ipc_panic_info panic_info;
 	u32 stack[BDW_STACK_DUMP_SIZE];
-	u32 status, panic;
+	u32 status, panic, imrx, imrd;
 
 	/* now try generic SOF status messages */
 	status = snd_sof_dsp_read(sdev, BDW_DSP_BAR, SHIM_IPCD);
 	panic = snd_sof_dsp_read(sdev, BDW_DSP_BAR, SHIM_IPCX);
 	bdw_get_registers(sdev, &xoops, &panic_info, stack,
 			  BDW_STACK_DUMP_SIZE);
-	snd_sof_get_status(sdev, status, panic, &xoops, &panic_info, stack,
-			   BDW_STACK_DUMP_SIZE);
+	sof_print_oops_and_stack(sdev, KERN_ERR, status, panic, &xoops,
+				 &panic_info, stack, BDW_STACK_DUMP_SIZE);
+
+	/* provide some context for firmware debug */
+	imrx = snd_sof_dsp_read(sdev, BDW_DSP_BAR, SHIM_IMRX);
+	imrd = snd_sof_dsp_read(sdev, BDW_DSP_BAR, SHIM_IMRD);
+	dev_err(sdev->dev,
+		"error: ipc host -> DSP: pending %s complete %s raw 0x%8.8x\n",
+		(panic & SHIM_IPCX_BUSY) ? "yes" : "no",
+		(panic & SHIM_IPCX_DONE) ? "yes" : "no", panic);
+	dev_err(sdev->dev,
+		"error: mask host: pending %s complete %s raw 0x%8.8x\n",
+		(imrx & SHIM_IMRX_BUSY) ? "yes" : "no",
+		(imrx & SHIM_IMRX_DONE) ? "yes" : "no", imrx);
+	dev_err(sdev->dev,
+		"error: ipc DSP -> host: pending %s complete %s raw 0x%8.8x\n",
+		(status & SHIM_IPCD_BUSY) ? "yes" : "no",
+		(status & SHIM_IPCD_DONE) ? "yes" : "no", status);
+	dev_err(sdev->dev,
+		"error: mask DSP: pending %s complete %s raw 0x%8.8x\n",
+		(imrd & SHIM_IMRD_BUSY) ? "yes" : "no",
+		(imrd & SHIM_IMRD_DONE) ? "yes" : "no", imrd);
 }
 
 /*
@@ -295,8 +325,7 @@ static irqreturn_t bdw_irq_thread(int irq, void *context)
 		 * because the done bit can't be set in cmd_done function
 		 * which is triggered by msg
 		 */
-		bdw_get_reply(sdev);
-		snd_sof_ipc_reply(sdev, ipcx);
+		snd_sof_ipc_process_reply(sdev, ipcx);
 
 		bdw_dsp_done(sdev);
 
@@ -315,8 +344,8 @@ static irqreturn_t bdw_irq_thread(int irq, void *context)
 
 		/* Handle messages from DSP Core */
 		if ((ipcd & SOF_IPC_PANIC_MAGIC_MASK) == SOF_IPC_PANIC_MAGIC) {
-			snd_sof_dsp_panic(sdev, BDW_PANIC_OFFSET(ipcx) +
-					  MBOX_OFFSET);
+			snd_sof_dsp_panic(sdev, BDW_PANIC_OFFSET(ipcx) + MBOX_OFFSET,
+					  true);
 		} else {
 			snd_sof_ipc_msgs_rx(sdev);
 		}
@@ -339,45 +368,6 @@ static int bdw_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 	snd_sof_dsp_write(sdev, BDW_DSP_BAR, SHIM_IPCX, SHIM_IPCX_BUSY);
 
 	return 0;
-}
-
-static void bdw_get_reply(struct snd_sof_dev *sdev)
-{
-	struct snd_sof_ipc_msg *msg = sdev->msg;
-	struct sof_ipc_reply reply;
-	int ret = 0;
-
-	/*
-	 * Sometimes, there is unexpected reply ipc arriving. The reply
-	 * ipc belongs to none of the ipcs sent from driver.
-	 * In this case, the driver must ignore the ipc.
-	 */
-	if (!msg) {
-		dev_warn(sdev->dev, "unexpected ipc interrupt raised!\n");
-		return;
-	}
-
-	/* get reply */
-	sof_mailbox_read(sdev, sdev->host_box.offset, &reply, sizeof(reply));
-
-	if (reply.error < 0) {
-		memcpy(msg->reply_data, &reply, sizeof(reply));
-		ret = reply.error;
-	} else {
-		/* reply correct size ? */
-		if (reply.hdr.size != msg->reply_size) {
-			dev_err(sdev->dev, "error: reply expected %zu got %u bytes\n",
-				msg->reply_size, reply.hdr.size);
-			ret = -EINVAL;
-		}
-
-		/* read the message */
-		if (msg->reply_size > 0)
-			sof_mailbox_read(sdev, sdev->host_box.offset,
-					 msg->reply_data, msg->reply_size);
-	}
-
-	msg->reply_error = ret;
 }
 
 static int bdw_get_mailbox_offset(struct snd_sof_dev *sdev)
@@ -422,9 +412,18 @@ static int bdw_probe(struct snd_sof_dev *sdev)
 	const struct sof_dev_desc *desc = pdata->desc;
 	struct platform_device *pdev =
 		container_of(sdev->dev, struct platform_device, dev);
+	const struct sof_intel_dsp_desc *chip;
 	struct resource *mmio;
 	u32 base, size;
 	int ret;
+
+	chip = get_chip_info(sdev->pdata);
+	if (!chip) {
+		dev_err(sdev->dev, "error: no such device supported\n");
+		return -EIO;
+	}
+
+	sdev->num_cores = chip->cores_num;
 
 	/* LPE base */
 	mmio = platform_get_resource(pdev, IORESOURCE_MEM,
@@ -451,6 +450,7 @@ static int bdw_probe(struct snd_sof_dev *sdev)
 	/* TODO: add offsets */
 	sdev->mmio_bar = BDW_DSP_BAR;
 	sdev->mailbox_bar = BDW_DSP_BAR;
+	sdev->dsp_oops_offset = MBOX_OFFSET;
 
 	/* PCI base */
 	mmio = platform_get_resource(pdev, IORESOURCE_MEM,
@@ -503,24 +503,71 @@ static int bdw_probe(struct snd_sof_dev *sdev)
 		return ret;
 	}
 
-	/* set default mailbox */
-	snd_sof_dsp_mailbox_init(sdev, MBOX_OFFSET, MBOX_SIZE, 0, 0);
+	/* set default mailbox offset for FW ready message */
+	sdev->dsp_box.offset = MBOX_OFFSET;
 
 	return ret;
+}
+
+static struct snd_soc_acpi_mach *bdw_machine_select(struct snd_sof_dev *sdev)
+{
+	struct snd_sof_pdata *sof_pdata = sdev->pdata;
+	const struct sof_dev_desc *desc = sof_pdata->desc;
+	struct snd_soc_acpi_mach *mach;
+
+	mach = snd_soc_acpi_find_machine(desc->machines);
+	if (!mach) {
+		dev_warn(sdev->dev, "warning: No matching ASoC machine driver found\n");
+		return NULL;
+	}
+
+	sof_pdata->tplg_filename = mach->sof_tplg_filename;
+	mach->mach_params.acpi_ipc_irq_index = desc->irqindex_host_ipc;
+
+	return mach;
+}
+
+static void bdw_set_mach_params(struct snd_soc_acpi_mach *mach,
+				struct snd_sof_dev *sdev)
+{
+	struct snd_sof_pdata *pdata = sdev->pdata;
+	const struct sof_dev_desc *desc = pdata->desc;
+	struct snd_soc_acpi_mach_params *mach_params;
+
+	mach_params = &mach->mach_params;
+	mach_params->platform = dev_name(sdev->dev);
+	mach_params->num_dai_drivers = desc->ops->num_drv;
+	mach_params->dai_drivers = desc->ops->drv;
 }
 
 /* Broadwell DAIs */
 static struct snd_soc_dai_driver bdw_dai[] = {
 {
 	.name = "ssp0-port",
+	.playback = {
+		.channels_min = 1,
+		.channels_max = 8,
+	},
+	.capture = {
+		.channels_min = 1,
+		.channels_max = 8,
+	},
 },
 {
 	.name = "ssp1-port",
+	.playback = {
+		.channels_min = 1,
+		.channels_max = 8,
+	},
+	.capture = {
+		.channels_min = 1,
+		.channels_max = 8,
+	},
 },
 };
 
 /* broadwell ops */
-const struct snd_sof_dsp_ops sof_bdw_ops = {
+static const struct snd_sof_dsp_ops sof_bdw_ops = {
 	/*Device init */
 	.probe          = bdw_probe,
 
@@ -528,50 +575,126 @@ const struct snd_sof_dsp_ops sof_bdw_ops = {
 	.run            = bdw_run,
 	.reset          = bdw_reset,
 
-	/* Register IO */
-	.write		= sof_io_write,
-	.read		= sof_io_read,
-	.write64	= sof_io_write64,
-	.read64		= sof_io_read64,
+	/* Register IO uses direct mmio */
 
 	/* Block IO */
 	.block_read	= sof_block_read,
 	.block_write	= sof_block_write,
 
+	/* Mailbox IO */
+	.mailbox_read	= sof_mailbox_read,
+	.mailbox_write	= sof_mailbox_write,
+
 	/* ipc */
 	.send_msg	= bdw_send_msg,
-	.fw_ready	= sof_fw_ready,
 	.get_mailbox_offset = bdw_get_mailbox_offset,
 	.get_window_offset = bdw_get_window_offset,
 
-	.ipc_msg_data	= intel_ipc_msg_data,
-	.ipc_pcm_params	= intel_ipc_pcm_params,
+	.ipc_msg_data	= sof_ipc_msg_data,
+	.set_stream_data_offset = sof_set_stream_data_offset,
+
+	/* machine driver */
+	.machine_select = bdw_machine_select,
+	.machine_register = sof_machine_register,
+	.machine_unregister = sof_machine_unregister,
+	.set_mach_params = bdw_set_mach_params,
 
 	/* debug */
 	.debug_map  = bdw_debugfs,
 	.debug_map_count    = ARRAY_SIZE(bdw_debugfs),
 	.dbg_dump   = bdw_dump,
+	.debugfs_add_region_item = snd_sof_debugfs_add_region_item_iomem,
 
 	/* stream callbacks */
-	.pcm_open	= intel_pcm_open,
-	.pcm_close	= intel_pcm_close,
-
-	/* Module loading */
-	.load_module    = snd_sof_parse_module_memcpy,
+	.pcm_open	= sof_stream_pcm_open,
+	.pcm_close	= sof_stream_pcm_close,
 
 	/*Firmware loading */
 	.load_firmware	= snd_sof_load_firmware_memcpy,
 
 	/* DAI drivers */
 	.drv = bdw_dai,
-	.num_drv = ARRAY_SIZE(bdw_dai)
-};
-EXPORT_SYMBOL(sof_bdw_ops);
+	.num_drv = ARRAY_SIZE(bdw_dai),
 
-const struct sof_intel_dsp_desc bdw_chip_info = {
-	.cores_num = 1,
-	.cores_mask = 1,
+	/* ALSA HW info flags */
+	.hw_info =	SNDRV_PCM_INFO_MMAP |
+			SNDRV_PCM_INFO_MMAP_VALID |
+			SNDRV_PCM_INFO_INTERLEAVED |
+			SNDRV_PCM_INFO_PAUSE |
+			SNDRV_PCM_INFO_BATCH,
+
+	.dsp_arch_ops = &sof_xtensa_arch_ops,
 };
-EXPORT_SYMBOL(bdw_chip_info);
+
+static const struct sof_intel_dsp_desc bdw_chip_info = {
+	.cores_num = 1,
+	.host_managed_cores_mask = 1,
+	.hw_ip_version = SOF_INTEL_BROADWELL,
+};
+
+static const struct sof_dev_desc sof_acpi_broadwell_desc = {
+	.machines = snd_soc_acpi_intel_broadwell_machines,
+	.resindex_lpe_base = 0,
+	.resindex_pcicfg_base = 1,
+	.resindex_imr_base = -1,
+	.irqindex_host_ipc = 0,
+	.chip_info = &bdw_chip_info,
+	.ipc_supported_mask = BIT(SOF_IPC_TYPE_3),
+	.ipc_default = SOF_IPC_TYPE_3,
+	.default_fw_path = {
+		[SOF_IPC_TYPE_3] = "intel/sof",
+	},
+	.default_tplg_path = {
+		[SOF_IPC_TYPE_3] = "intel/sof-tplg",
+	},
+	.default_fw_filename = {
+		[SOF_IPC_TYPE_3] = "sof-bdw.ri",
+	},
+	.nocodec_tplg_filename = "sof-bdw-nocodec.tplg",
+	.ops = &sof_bdw_ops,
+};
+
+static const struct acpi_device_id sof_broadwell_match[] = {
+	{ "INT3438", (unsigned long)&sof_acpi_broadwell_desc },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, sof_broadwell_match);
+
+static int sof_broadwell_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	const struct acpi_device_id *id;
+	const struct sof_dev_desc *desc;
+	int ret;
+
+	id = acpi_match_device(dev->driver->acpi_match_table, dev);
+	if (!id)
+		return -ENODEV;
+
+	ret = snd_intel_acpi_dsp_driver_probe(dev, id->id);
+	if (ret != SND_INTEL_DSP_DRIVER_ANY && ret != SND_INTEL_DSP_DRIVER_SOF) {
+		dev_dbg(dev, "SOF ACPI driver not selected, aborting probe\n");
+		return -ENODEV;
+	}
+
+	desc = (const struct sof_dev_desc *)id->driver_data;
+	return sof_acpi_probe(pdev, desc);
+}
+
+/* acpi_driver definition */
+static struct platform_driver snd_sof_acpi_intel_bdw_driver = {
+	.probe = sof_broadwell_probe,
+	.remove_new = sof_acpi_remove,
+	.driver = {
+		.name = "sof-audio-acpi-intel-bdw",
+		.pm = &sof_acpi_pm,
+		.acpi_match_table = sof_broadwell_match,
+	},
+};
+module_platform_driver(snd_sof_acpi_intel_bdw_driver);
 
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_DESCRIPTION("SOF support for Broadwell platforms");
+MODULE_IMPORT_NS(SND_SOC_SOF_INTEL_HIFI_EP_IPC);
+MODULE_IMPORT_NS(SND_SOC_SOF_XTENSA);
+MODULE_IMPORT_NS(SND_SOC_SOF_ACPI_DEV);

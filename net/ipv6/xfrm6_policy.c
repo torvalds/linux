@@ -33,8 +33,7 @@ static struct dst_entry *xfrm6_dst_lookup(struct net *net, int tos, int oif,
 	int err;
 
 	memset(&fl6, 0, sizeof(fl6));
-	fl6.flowi6_oif = l3mdev_master_ifindex_by_index(net, oif);
-	fl6.flowi6_flags = FLOWI_FLAG_SKIP_NH_OIF;
+	fl6.flowi6_l3mdev = l3mdev_master_ifindex_by_index(net, oif);
 	fl6.flowi6_mark = mark;
 	memcpy(&fl6.daddr, daddr, sizeof(fl6.daddr));
 	if (saddr)
@@ -71,14 +70,14 @@ static int xfrm6_get_saddr(struct net *net, int oif,
 static int xfrm6_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 			  const struct flowi *fl)
 {
-	struct rt6_info *rt = (struct rt6_info *)xdst->route;
+	struct rt6_info *rt = dst_rt6_info(xdst->route);
 
 	xdst->u.dst.dev = dev;
-	dev_hold(dev);
+	netdev_hold(dev, &xdst->u.dst.dev_tracker, GFP_ATOMIC);
 
 	xdst->u.rt6.rt6i_idev = in6_dev_get(dev);
 	if (!xdst->u.rt6.rt6i_idev) {
-		dev_put(dev);
+		netdev_put(dev, &xdst->u.dst.dev_tracker);
 		return -ENODEV;
 	}
 
@@ -90,20 +89,19 @@ static int xfrm6_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 	xdst->u.rt6.rt6i_gateway = rt->rt6i_gateway;
 	xdst->u.rt6.rt6i_dst = rt->rt6i_dst;
 	xdst->u.rt6.rt6i_src = rt->rt6i_src;
-	INIT_LIST_HEAD(&xdst->u.rt6.rt6i_uncached);
 	rt6_uncached_list_add(&xdst->u.rt6);
-	atomic_inc(&dev_net(dev)->ipv6.rt6_stats->fib_rt_uncache);
 
 	return 0;
 }
 
 static void xfrm6_update_pmtu(struct dst_entry *dst, struct sock *sk,
-			      struct sk_buff *skb, u32 mtu)
+			      struct sk_buff *skb, u32 mtu,
+			      bool confirm_neigh)
 {
 	struct xfrm_dst *xdst = (struct xfrm_dst *)dst;
 	struct dst_entry *path = xdst->route;
 
-	path->ops->update_pmtu(path, sk, skb, mtu);
+	path->ops->update_pmtu(path, sk, skb, mtu, confirm_neigh);
 }
 
 static void xfrm6_redirect(struct dst_entry *dst, struct sock *sk,
@@ -119,21 +117,16 @@ static void xfrm6_dst_destroy(struct dst_entry *dst)
 {
 	struct xfrm_dst *xdst = (struct xfrm_dst *)dst;
 
+	dst_destroy_metrics_generic(dst);
+	rt6_uncached_list_del(&xdst->u.rt6);
 	if (likely(xdst->u.rt6.rt6i_idev))
 		in6_dev_put(xdst->u.rt6.rt6i_idev);
-	dst_destroy_metrics_generic(dst);
-	if (xdst->u.rt6.rt6i_uncached_list)
-		rt6_uncached_list_del(&xdst->u.rt6);
 	xfrm_dst_destroy(xdst);
 }
 
-static void xfrm6_dst_ifdown(struct dst_entry *dst, struct net_device *dev,
-			     int unregister)
+static void xfrm6_dst_ifdown(struct dst_entry *dst, struct net_device *dev)
 {
 	struct xfrm_dst *xdst;
-
-	if (!unregister)
-		return;
 
 	xdst = (struct xfrm_dst *)dst;
 	if (xdst->u.rt6.rt6i_idev->dev == dev) {
@@ -191,7 +184,6 @@ static struct ctl_table xfrm6_policy_table[] = {
 		.mode		= 0644,
 		.proc_handler   = proc_dointvec,
 	},
-	{ }
 };
 
 static int __net_init xfrm6_net_sysctl_init(struct net *net)
@@ -208,7 +200,8 @@ static int __net_init xfrm6_net_sysctl_init(struct net *net)
 		table[0].data = &net->xfrm.xfrm6_dst_ops.gc_thresh;
 	}
 
-	hdr = register_net_sysctl(net, "net/ipv6", table);
+	hdr = register_net_sysctl_sz(net, "net/ipv6", table,
+				     ARRAY_SIZE(xfrm6_policy_table));
 	if (!hdr)
 		goto err_reg;
 
@@ -224,7 +217,7 @@ err_alloc:
 
 static void __net_exit xfrm6_net_sysctl_exit(struct net *net)
 {
-	struct ctl_table *table;
+	const struct ctl_table *table;
 
 	if (!net->ipv6.sysctl.xfrm6_hdr)
 		return;
@@ -288,9 +281,13 @@ int __init xfrm6_init(void)
 	if (ret)
 		goto out_state;
 
-	register_pernet_subsys(&xfrm6_net_ops);
+	ret = register_pernet_subsys(&xfrm6_net_ops);
+	if (ret)
+		goto out_protocol;
 out:
 	return ret;
+out_protocol:
+	xfrm6_protocol_fini();
 out_state:
 	xfrm6_state_fini();
 out_policy:

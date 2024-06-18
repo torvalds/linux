@@ -259,7 +259,7 @@ static inline void set_dma_mode(unsigned int dmanr, unsigned int mode)
 	if (!chan)
 		return;
 	/*
-	 * set_dma_mode is only allowed to change endianess, direction,
+	 * set_dma_mode is only allowed to change endianness, direction,
 	 * transfer size, device FIFO width, and coherency settings.
 	 * Make sure anything else is masked off.
 	 */

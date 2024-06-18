@@ -7,13 +7,14 @@
 #include <errno.h>
 #include <stdbool.h>
 
-#include "../../util/header.h"
-#include "../../util/debug.h"
-#include "../../util/pmu.h"
-#include "../../util/auxtrace.h"
-#include "../../util/intel-pt.h"
-#include "../../util/intel-bts.h"
-#include "../../util/evlist.h"
+#include "../../../util/header.h"
+#include "../../../util/debug.h"
+#include "../../../util/pmu.h"
+#include "../../../util/pmus.h"
+#include "../../../util/auxtrace.h"
+#include "../../../util/intel-pt.h"
+#include "../../../util/intel-bts.h"
+#include "../../../util/evlist.h"
 
 static
 struct auxtrace_record *auxtrace_record__init_intel(struct evlist *evlist,
@@ -25,8 +26,8 @@ struct auxtrace_record *auxtrace_record__init_intel(struct evlist *evlist,
 	bool found_pt = false;
 	bool found_bts = false;
 
-	intel_pt_pmu = perf_pmu__find(INTEL_PT_PMU_NAME);
-	intel_bts_pmu = perf_pmu__find(INTEL_BTS_PMU_NAME);
+	intel_pt_pmu = perf_pmus__find(INTEL_PT_PMU_NAME);
+	intel_bts_pmu = perf_pmus__find(INTEL_BTS_PMU_NAME);
 
 	evlist__for_each_entry(evlist, evsel) {
 		if (intel_pt_pmu && evsel->core.attr.type == intel_pt_pmu->type)

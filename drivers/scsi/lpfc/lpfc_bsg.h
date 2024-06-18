@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2019 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2010-2015 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -33,8 +33,6 @@
 #define LPFC_BSG_VENDOR_DIAG_RUN_LOOPBACK	5
 #define LPFC_BSG_VENDOR_GET_MGMT_REV		6
 #define LPFC_BSG_VENDOR_MBOX			7
-#define LPFC_BSG_VENDOR_MENLO_CMD		8
-#define LPFC_BSG_VENDOR_MENLO_DATA		9
 #define LPFC_BSG_VENDOR_DIAG_MODE_END		10
 #define LPFC_BSG_VENDOR_LINK_DIAG_TEST		11
 #define LPFC_BSG_VENDOR_FORCED_LINK_SPEED	14
@@ -43,6 +41,7 @@
 #define LPFC_BSG_VENDOR_RAS_GET_CONFIG		18
 #define LPFC_BSG_VENDOR_RAS_SET_CONFIG		19
 #define LPFC_BSG_VENDOR_GET_TRUNK_INFO		20
+#define LPFC_BSG_VENDOR_GET_CGNBUF_INFO		21
 
 struct set_ct_event {
 	uint32_t command;
@@ -130,16 +129,6 @@ struct dfc_mbox_req {
 	uint32_t extSeqNum;
 };
 
-/* Used for menlo command or menlo data. The xri is only used for menlo data */
-struct menlo_command {
-	uint32_t cmd;
-	uint32_t xri;
-};
-
-struct menlo_response {
-	uint32_t xri; /* return the xri of the iocb exchange */
-};
-
 /*
  * macros and data structures for handling sli-config mailbox command
  * pass-through support, this header file is shared between user and
@@ -225,6 +214,10 @@ struct lpfc_sli_config_hdr {
 	uint32_t reserved5;
 };
 
+#define LPFC_CSF_BOOT_DEV		0x1D
+#define LPFC_CSF_QUERY			0
+#define LPFC_CSF_SAVE			1
+
 struct lpfc_sli_config_emb0_subsys {
 	struct lpfc_sli_config_hdr	sli_config_hdr;
 #define LPFC_MBX_SLI_CONFIG_MAX_MSE     19
@@ -243,6 +236,15 @@ struct lpfc_sli_config_emb0_subsys {
 #define FCOE_OPCODE_ADD_FCF		0x09
 #define FCOE_OPCODE_SET_DPORT_MODE	0x27
 #define FCOE_OPCODE_GET_DPORT_RESULTS	0x28
+	uint32_t timeout;		/* comn_set_feature timeout */
+	uint32_t request_length;	/* comn_set_feature request len */
+	uint32_t version;		/* comn_set_feature version */
+	uint32_t csf_feature;		/* comn_set_feature feature */
+	uint32_t word69;		/* comn_set_feature parameter len */
+	uint32_t word70;		/* comn_set_feature parameter val0 */
+#define lpfc_emb0_subcmnd_csf_p0_SHIFT	0
+#define lpfc_emb0_subcmnd_csf_p0_MASK	0x3
+#define lpfc_emb0_subcmnd_csf_p0_WORD	word70
 };
 
 struct lpfc_sli_config_emb1_subsys {
@@ -261,6 +263,7 @@ struct lpfc_sli_config_emb1_subsys {
 #define COMN_OPCODE_WRITE_OBJECT	0xAC
 #define COMN_OPCODE_READ_OBJECT_LIST	0xAD
 #define COMN_OPCODE_DELETE_OBJECT	0xAE
+#define COMN_OPCODE_SET_FEATURES	0xBF
 #define COMN_OPCODE_GET_CNTL_ADDL_ATTRIBUTES	0x79
 #define COMN_OPCODE_GET_CNTL_ATTRIBUTES	0x20
 	uint32_t timeout;
@@ -370,6 +373,13 @@ struct lpfc_trunk_info {
 
 struct get_trunk_info_req {
 	uint32_t command;
+};
+
+struct get_cgnbuf_info_req {
+	uint32_t command;
+	uint32_t read_size;
+	uint32_t reset;
+#define LPFC_BSG_CGN_RESET_STAT		1
 };
 
 /* driver only */

@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright 2018-2021 Toradex
+ */
+
+&colibri_gpio_keys {
+	status = "okay";
+};
+
+/* Colibri Ethernet */
+&fec1 {
+	status = "okay";
+};
+
+&iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hog0>;
+};
+
+/* Colibri SPI */
+&lpspi2 {
+	cs-gpios = <&lsio_gpio1 0 GPIO_ACTIVE_LOW>,
+		   <&lsio_gpio5 2 GPIO_ACTIVE_LOW>;
+};
+
+/* Colibri UART_B */
+&lpuart0 {
+	status = "okay";
+};
+
+/* Colibri UART_C */
+&lpuart2 {
+	status = "okay";
+};
+
+/* Colibri UART_A */
+&lpuart3 {
+	status = "okay";
+};
+
+/* Colibri SDCard */
+&usdhc2 {
+	status = "okay";
+};

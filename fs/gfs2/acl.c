@@ -21,6 +21,7 @@
 #include "glock.h"
 #include "inode.h"
 #include "meta_io.h"
+#include "quota.h"
 #include "rgrp.h"
 #include "trans.h"
 #include "util.h"
@@ -56,12 +57,15 @@ static struct posix_acl *__gfs2_get_acl(struct inode *inode, int type)
 	return acl;
 }
 
-struct posix_acl *gfs2_get_acl(struct inode *inode, int type)
+struct posix_acl *gfs2_get_acl(struct inode *inode, int type, bool rcu)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder gh;
 	bool need_unlock = false;
 	struct posix_acl *acl;
+
+	if (rcu)
+		return ERR_PTR(-ECHILD);
 
 	if (!gfs2_glock_is_locked_by_me(ip->i_gl)) {
 		int ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED,
@@ -105,8 +109,10 @@ out:
 	return error;
 }
 
-int gfs2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+int gfs2_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
+		 struct posix_acl *acl, int type)
 {
+	struct inode *inode = d_inode(dentry);
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder gh;
 	bool need_unlock = false;
@@ -116,32 +122,34 @@ int gfs2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	if (acl && acl->a_count > GFS2_ACL_MAX_ENTRIES(GFS2_SB(inode)))
 		return -E2BIG;
 
-	ret = gfs2_rsqa_alloc(ip);
+	ret = gfs2_qa_get(ip);
 	if (ret)
 		return ret;
 
 	if (!gfs2_glock_is_locked_by_me(ip->i_gl)) {
 		ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
 		if (ret)
-			return ret;
+			goto out;
 		need_unlock = true;
 	}
 
 	mode = inode->i_mode;
 	if (type == ACL_TYPE_ACCESS && acl) {
-		ret = posix_acl_update_mode(inode, &mode, &acl);
+		ret = posix_acl_update_mode(&nop_mnt_idmap, inode, &mode, &acl);
 		if (ret)
 			goto unlock;
 	}
 
 	ret = __gfs2_set_acl(inode, acl, type);
 	if (!ret && mode != inode->i_mode) {
-		inode->i_ctime = current_time(inode);
+		inode_set_ctime_current(inode);
 		inode->i_mode = mode;
 		mark_inode_dirty(inode);
 	}
 unlock:
 	if (need_unlock)
 		gfs2_glock_dq_uninit(&gh);
+out:
+	gfs2_qa_put(ip);
 	return ret;
 }

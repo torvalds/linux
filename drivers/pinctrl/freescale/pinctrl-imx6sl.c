@@ -8,8 +8,8 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
+#include <linux/platform_device.h>
 #include <linux/pinctrl/pinctrl.h>
 
 #include "pinctrl-imx.h"
@@ -379,6 +379,7 @@ static struct platform_driver imx6sl_pinctrl_driver = {
 	.driver = {
 		.name = "imx6sl-pinctrl",
 		.of_match_table = imx6sl_pinctrl_of_match,
+		.suppress_bind_attrs = true,
 	},
 	.probe = imx6sl_pinctrl_probe,
 };

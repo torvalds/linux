@@ -63,7 +63,7 @@ struct vnic_stats {
 	};
 };
 
-#define VNIC_STAT(m)            { FIELD_SIZEOF(struct opa_vnic_stats, m),   \
+#define VNIC_STAT(m)            { sizeof_field(struct opa_vnic_stats, m),   \
 				  offsetof(struct opa_vnic_stats, m) }
 
 static struct vnic_stats vnic_gstrings_stats[] = {
@@ -124,10 +124,8 @@ static struct vnic_stats vnic_gstrings_stats[] = {
 static void vnic_get_drvinfo(struct net_device *netdev,
 			     struct ethtool_drvinfo *drvinfo)
 {
-	strlcpy(drvinfo->driver, opa_vnic_driver_name, sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, opa_vnic_driver_version,
-		sizeof(drvinfo->version));
-	strlcpy(drvinfo->bus_info, dev_name(netdev->dev.parent),
+	strscpy(drvinfo->driver, opa_vnic_driver_name, sizeof(drvinfo->driver));
+	strscpy(drvinfo->bus_info, dev_name(netdev->dev.parent),
 		sizeof(drvinfo->bus_info));
 }
 

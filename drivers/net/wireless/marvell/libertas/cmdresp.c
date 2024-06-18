@@ -48,7 +48,7 @@ void lbs_mac_event_disconnected(struct lbs_private *priv,
 
 	/* Free Tx and Rx packets */
 	spin_lock_irqsave(&priv->driver_lock, flags);
-	kfree_skb(priv->currenttxskb);
+	dev_kfree_skb_irq(priv->currenttxskb);
 	priv->currenttxskb = NULL;
 	priv->tx_pending_len = 0;
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
@@ -220,9 +220,8 @@ done:
 	return ret;
 }
 
-int lbs_process_event(struct lbs_private *priv, u32 event)
+void lbs_process_event(struct lbs_private *priv, u32 event)
 {
-	int ret = 0;
 	struct cmd_header cmd;
 
 	switch (event) {
@@ -351,6 +350,4 @@ int lbs_process_event(struct lbs_private *priv, u32 event)
 		netdev_alert(priv->dev, "EVENT: unknown event id %d\n", event);
 		break;
 	}
-
-	return ret;
 }

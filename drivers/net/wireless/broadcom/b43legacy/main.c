@@ -391,7 +391,7 @@ void b43legacy_tsf_read(struct b43legacy_wldev *dev, u64 *tsf)
 	 * registers, we should take care of register overflows.
 	 * In theory, the whole tsf read process should be atomic.
 	 * We try to be atomic here, by restaring the read process,
-	 * if any of the high registers changed (overflew).
+	 * if any of the high registers changed (overflowed).
 	 */
 	if (dev->dev->id.revision >= 3) {
 		u32 low;
@@ -591,7 +591,7 @@ static void b43legacy_synchronize_irq(struct b43legacy_wldev *dev)
 }
 
 /* DummyTransmission function, as documented on
- * http://bcm-specs.sipsolutions.net/DummyTransmission
+ * https://bcm-specs.sipsolutions.net/DummyTransmission
  */
 void b43legacy_dummy_transmission(struct b43legacy_wldev *dev)
 {
@@ -1241,7 +1241,7 @@ static void b43legacy_update_templates(struct b43legacy_wl *wl)
 	 * field, but that would probably require resizing and moving of data
 	 * within the beacon template. Simply request a new beacon and let
 	 * mac80211 do the hard work. */
-	beacon = ieee80211_beacon_get(wl->hw, wl->vif);
+	beacon = ieee80211_beacon_get(wl->hw, wl->vif, 0);
 	if (unlikely(!beacon))
 		return;
 
@@ -1275,8 +1275,9 @@ static void handle_irq_ucode_debug(struct b43legacy_wldev *dev)
 }
 
 /* Interrupt handler bottom-half */
-static void b43legacy_interrupt_tasklet(struct b43legacy_wldev *dev)
+static void b43legacy_interrupt_tasklet(struct tasklet_struct *t)
 {
+	struct b43legacy_wldev *dev = from_tasklet(dev, t, isr_tasklet);
 	u32 reason;
 	u32 dma_reason[ARRAY_SIZE(dev->dma_reason)];
 	u32 merged_dma_reason = 0;
@@ -1339,8 +1340,9 @@ static void b43legacy_interrupt_tasklet(struct b43legacy_wldev *dev)
 		handle_irq_beacon(dev);
 	if (reason & B43legacy_IRQ_PMQ)
 		handle_irq_pmq(dev);
-	if (reason & B43legacy_IRQ_TXFIFO_FLUSH_OK)
+	if (reason & B43legacy_IRQ_TXFIFO_FLUSH_OK) {
 		;/*TODO*/
+	}
 	if (reason & B43legacy_IRQ_NOISESAMPLE_OK)
 		handle_irq_noise(dev);
 
@@ -1476,8 +1478,8 @@ static void b43legacy_release_firmware(struct b43legacy_wldev *dev)
 
 static void b43legacy_print_fw_helptext(struct b43legacy_wl *wl)
 {
-	b43legacyerr(wl, "You must go to http://wireless.kernel.org/en/users/"
-		     "Drivers/b43#devicefirmware "
+	b43legacyerr(wl, "You must go to https://wireless.wiki.kernel.org/en/"
+		     "users/Drivers/b43#devicefirmware "
 		     "and download the correct firmware (version 3).\n");
 }
 
@@ -1536,7 +1538,7 @@ static int do_request_fw(struct b43legacy_wldev *dev,
 		size = be32_to_cpu(hdr->size);
 		if (size != (*fw)->size - sizeof(struct b43legacy_fw_header))
 			goto err_format;
-		/* fallthrough */
+		fallthrough;
 	case B43legacy_FW_TYPE_IV:
 		if (hdr->ver != 1)
 			goto err_format;
@@ -1869,7 +1871,7 @@ out:
 }
 
 /* Initialize the GPIOs
- * http://bcm-specs.sipsolutions.net/GPIO
+ * https://bcm-specs.sipsolutions.net/GPIO
  */
 static int b43legacy_gpio_init(struct b43legacy_wldev *dev)
 {
@@ -1959,7 +1961,7 @@ void b43legacy_mac_enable(struct b43legacy_wldev *dev)
 	}
 }
 
-/* http://bcm-specs.sipsolutions.net/SuspendMAC */
+/* https://bcm-specs.sipsolutions.net/SuspendMAC */
 void b43legacy_mac_suspend(struct b43legacy_wldev *dev)
 {
 	int i;
@@ -2075,7 +2077,7 @@ static void b43legacy_rate_memory_init(struct b43legacy_wldev *dev)
 		b43legacy_rate_memory_write(dev, B43legacy_OFDM_RATE_36MB, 1);
 		b43legacy_rate_memory_write(dev, B43legacy_OFDM_RATE_48MB, 1);
 		b43legacy_rate_memory_write(dev, B43legacy_OFDM_RATE_54MB, 1);
-		/* fallthrough */
+		fallthrough;
 	case B43legacy_PHYTYPE_B:
 		b43legacy_rate_memory_write(dev, B43legacy_CCK_RATE_1MB, 0);
 		b43legacy_rate_memory_write(dev, B43legacy_CCK_RATE_2MB, 0);
@@ -2140,7 +2142,7 @@ static void b43legacy_chip_exit(struct b43legacy_wldev *dev)
 }
 
 /* Initialize the chip
- * http://bcm-specs.sipsolutions.net/ChipInit
+ * https://bcm-specs.sipsolutions.net/ChipInit
  */
 static int b43legacy_chip_init(struct b43legacy_wldev *dev)
 {
@@ -2503,7 +2505,8 @@ static void b43legacy_op_tx(struct ieee80211_hw *hw,
 }
 
 static int b43legacy_op_conf_tx(struct ieee80211_hw *hw,
-				struct ieee80211_vif *vif, u16 queue,
+				struct ieee80211_vif *vif,
+				unsigned int link_id, u16 queue,
 				const struct ieee80211_tx_queue_params *params)
 {
 	return 0;
@@ -2579,7 +2582,7 @@ static void b43legacy_put_phy_into_reset(struct b43legacy_wldev *dev)
 static int b43legacy_switch_phymode(struct b43legacy_wl *wl,
 				      unsigned int new_mode)
 {
-	struct b43legacy_wldev *uninitialized_var(up_dev);
+	struct b43legacy_wldev *up_dev;
 	struct b43legacy_wldev *down_dev;
 	int err;
 	bool gmode = false;
@@ -2760,7 +2763,7 @@ static void b43legacy_update_basic_rates(struct b43legacy_wldev *dev, u32 brates
 {
 	struct ieee80211_supported_band *sband =
 		dev->wl->hw->wiphy->bands[NL80211_BAND_2GHZ];
-	struct ieee80211_rate *rate;
+	const struct ieee80211_rate *rate;
 	int i;
 	u16 basic, direct, offset, basic_offset, rateptr;
 
@@ -2804,7 +2807,7 @@ static void b43legacy_update_basic_rates(struct b43legacy_wldev *dev, u32 brates
 static void b43legacy_op_bss_info_changed(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
 				    struct ieee80211_bss_conf *conf,
-				    u32 changed)
+				    u64 changed)
 {
 	struct b43legacy_wl *wl = hw_to_b43legacy_wl(hw);
 	struct b43legacy_wldev *dev;
@@ -2941,7 +2944,7 @@ static void b43legacy_wireless_core_stop(struct b43legacy_wldev *dev)
 			dev_kfree_skb(skb_dequeue(&wl->tx_queue[queue_num]));
 	}
 
-b43legacy_mac_suspend(dev);
+	b43legacy_mac_suspend(dev);
 	free_irq(dev->dev->irq, dev);
 	b43legacydbg(wl, "Wireless interface stopped\n");
 }
@@ -3379,11 +3382,10 @@ static int b43legacy_op_add_interface(struct ieee80211_hw *hw,
 	unsigned long flags;
 	int err = -EOPNOTSUPP;
 
-	/* TODO: allow WDS/AP devices to coexist */
+	/* TODO: allow AP devices to coexist */
 
 	if (vif->type != NL80211_IFTYPE_AP &&
 	    vif->type != NL80211_IFTYPE_STATION &&
-	    vif->type != NL80211_IFTYPE_WDS &&
 	    vif->type != NL80211_IFTYPE_ADHOC)
 		return -EOPNOTSUPP;
 
@@ -3529,7 +3531,12 @@ static int b43legacy_op_get_survey(struct ieee80211_hw *hw, int idx,
 }
 
 static const struct ieee80211_ops b43legacy_hw_ops = {
+	.add_chanctx = ieee80211_emulate_add_chanctx,
+	.remove_chanctx = ieee80211_emulate_remove_chanctx,
+	.change_chanctx = ieee80211_emulate_change_chanctx,
+	.switch_vif_chanctx = ieee80211_emulate_switch_vif_chanctx,
 	.tx			= b43legacy_op_tx,
+	.wake_tx_queue		= ieee80211_handle_wake_tx_queue,
 	.conf_tx		= b43legacy_op_conf_tx,
 	.add_interface		= b43legacy_op_add_interface,
 	.remove_interface	= b43legacy_op_remove_interface,
@@ -3740,9 +3747,7 @@ static int b43legacy_one_core_attach(struct ssb_device *dev,
 	wldev->wl = wl;
 	b43legacy_set_status(wldev, B43legacy_STAT_UNINIT);
 	wldev->bad_frames_preempt = modparam_bad_frames_preempt;
-	tasklet_init(&wldev->isr_tasklet,
-		     (void (*)(unsigned long))b43legacy_interrupt_tasklet,
-		     (unsigned long)wldev);
+	tasklet_setup(&wldev->isr_tasklet, b43legacy_interrupt_tasklet);
 	if (modparam_pio)
 		wldev->__using_pio = true;
 	INIT_LIST_HEAD(&wldev->list);
@@ -3800,13 +3805,11 @@ static int b43legacy_wireless_init(struct ssb_device *dev)
 	/* fill hw info */
 	ieee80211_hw_set(hw, RX_INCLUDES_FCS);
 	ieee80211_hw_set(hw, SIGNAL_DBM);
+	ieee80211_hw_set(hw, MFP_CAPABLE); /* Allow WPA3 in software */
 
 	hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_AP) |
 		BIT(NL80211_IFTYPE_STATION) |
-#ifdef CONFIG_WIRELESS_WDS
-		BIT(NL80211_IFTYPE_WDS) |
-#endif
 		BIT(NL80211_IFTYPE_ADHOC);
 	hw->queues = 1; /* FIXME: hardware has more queues */
 	hw->max_rates = 2;

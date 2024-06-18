@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Marvell Wireless LAN device driver: 802.11n
+ * NXP Wireless LAN device driver: 802.11n
  *
- * Copyright (C) 2011-2014, Marvell International Ltd.
- *
- * This software file (the "File") is distributed by Marvell International
- * Ltd. under the terms of the GNU General Public License Version 2, June 1991
- * (the "License").  You may use, redistribute and/or modify this File in
- * accordance with the terms and conditions of the License, a copy of which
- * is available by writing to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or on the
- * worldwide web at http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
- *
- * THE FILE IS DISTRIBUTED AS-IS, WITHOUT WARRANTY OF ANY KIND, AND THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE
- * ARE EXPRESSLY DISCLAIMED.  The License provides additional details about
- * this warranty disclaimer.
+ * Copyright 2011-2020 NXP
  */
 
 #include "decl.h"
@@ -125,7 +113,7 @@ int mwifiex_ret_11n_delba(struct mwifiex_private *priv,
 					   tx_ba_tbl->ra);
 	} else { /*
 		  * In case of failure, recreate the deleted stream in case
-		  * we initiated the ADDBA
+		  * we initiated the DELBA
 		  */
 		if (!INITIATOR_BIT(del_ba_param_set))
 			return 0;
@@ -404,12 +392,10 @@ mwifiex_cmd_append_11n_tlv(struct mwifiex_private *priv,
 
 		chan_list =
 			(struct mwifiex_ie_types_chan_list_param_set *) *buffer;
-		memset(chan_list, 0,
-		       sizeof(struct mwifiex_ie_types_chan_list_param_set));
+		memset(chan_list, 0, struct_size(chan_list, chan_scan_param, 1));
 		chan_list->header.type = cpu_to_le16(TLV_TYPE_CHANLIST);
-		chan_list->header.len = cpu_to_le16(
-			sizeof(struct mwifiex_ie_types_chan_list_param_set) -
-			sizeof(struct mwifiex_ie_types_header));
+		chan_list->header.len =
+			cpu_to_le16(sizeof(struct mwifiex_chan_scan_param_set));
 		chan_list->chan_scan_param[0].chan_number =
 			bss_desc->bcn_ht_oper->primary_chan;
 		chan_list->chan_scan_param[0].radio_type =
@@ -423,8 +409,8 @@ mwifiex_cmd_append_11n_tlv(struct mwifiex_private *priv,
 					  (bss_desc->bcn_ht_oper->ht_param &
 					  IEEE80211_HT_PARAM_CHA_SEC_OFFSET));
 
-		*buffer += sizeof(struct mwifiex_ie_types_chan_list_param_set);
-		ret_len += sizeof(struct mwifiex_ie_types_chan_list_param_set);
+		*buffer += struct_size(chan_list, chan_scan_param, 1);
+		ret_len += struct_size(chan_list, chan_scan_param, 1);
 	}
 
 	if (bss_desc->bcn_bss_co_2040) {
@@ -657,14 +643,15 @@ int mwifiex_send_delba(struct mwifiex_private *priv, int tid, u8 *peer_mac,
 	uint16_t del_ba_param_set;
 
 	memset(&delba, 0, sizeof(delba));
-	delba.del_ba_param_set = cpu_to_le16(tid << DELBA_TID_POS);
 
-	del_ba_param_set = le16_to_cpu(delba.del_ba_param_set);
+	del_ba_param_set = tid << DELBA_TID_POS;
+
 	if (initiator)
 		del_ba_param_set |= IEEE80211_DELBA_PARAM_INITIATOR_MASK;
 	else
 		del_ba_param_set &= ~IEEE80211_DELBA_PARAM_INITIATOR_MASK;
 
+	delba.del_ba_param_set = cpu_to_le16(del_ba_param_set);
 	memcpy(&delba.peer_mac_addr, peer_mac, ETH_ALEN);
 
 	/* We don't wait for the response of this command */
@@ -889,7 +876,7 @@ mwifiex_send_delba_txbastream_tbl(struct mwifiex_private *priv, u8 tid)
  */
 void mwifiex_update_ampdu_txwinsize(struct mwifiex_adapter *adapter)
 {
-	u8 i;
+	u8 i, j;
 	u32 tx_win_size;
 	struct mwifiex_private *priv;
 
@@ -920,8 +907,8 @@ void mwifiex_update_ampdu_txwinsize(struct mwifiex_adapter *adapter)
 		if (tx_win_size != priv->add_ba_param.tx_win_size) {
 			if (!priv->media_connected)
 				continue;
-			for (i = 0; i < MAX_NUM_TID; i++)
-				mwifiex_send_delba_txbastream_tbl(priv, i);
+			for (j = 0; j < MAX_NUM_TID; j++)
+				mwifiex_send_delba_txbastream_tbl(priv, j);
 		}
 	}
 }

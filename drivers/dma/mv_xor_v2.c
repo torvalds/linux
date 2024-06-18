@@ -135,9 +135,11 @@ struct mv_xor_v2_descriptor {
 /**
  * struct mv_xor_v2_device - implements a xor device
  * @lock: lock for the engine
+ * @clk: reference to the 'core' clock
+ * @reg_clk: reference to the 'reg' clock
  * @dma_base: memory mapped DMA register base
  * @glob_base: memory mapped global register base
- * @irq_tasklet:
+ * @irq_tasklet: tasklet used for IRQ handling call-backs
  * @free_sw_desc: linked list of free SW descriptors
  * @dmadev: dma device
  * @dmachan: dma channel
@@ -146,6 +148,8 @@ struct mv_xor_v2_descriptor {
  * @sw_desq: SW descriptors queue
  * @desc_size: HW descriptor size
  * @npendings: number of pending descriptors (for which tx_submit has
+ * @hw_queue_idx: HW queue index
+ * @irq: The Linux interrupt number
  * been called, but not yet issue_pending)
  */
 struct mv_xor_v2_device {
@@ -164,7 +168,7 @@ struct mv_xor_v2_device {
 	int desc_size;
 	unsigned int npendings;
 	unsigned int hw_queue_idx;
-	struct msi_desc *msi_desc;
+	unsigned int irq;
 };
 
 /**
@@ -309,7 +313,7 @@ mv_xor_v2_tx_submit(struct dma_async_tx_descriptor *tx)
 		"%s sw_desc %p: async_tx %p\n",
 		__func__, sw_desc, &sw_desc->async_tx);
 
-	/* assign coookie */
+	/* assign cookie */
 	spin_lock_bh(&xor_dev->lock);
 	cookie = dma_cookie_assign(tx);
 
@@ -549,9 +553,10 @@ int mv_xor_v2_get_pending_params(struct mv_xor_v2_device *xor_dev,
 /*
  * handle the descriptors after HW process
  */
-static void mv_xor_v2_tasklet(unsigned long data)
+static void mv_xor_v2_tasklet(struct tasklet_struct *t)
 {
-	struct mv_xor_v2_device *xor_dev = (struct mv_xor_v2_device *) data;
+	struct mv_xor_v2_device *xor_dev = from_tasklet(xor_dev, t,
+							irq_tasklet);
 	int pending_ptr, num_of_pending, i;
 	struct mv_xor_v2_sw_desc *next_pending_sw_desc = NULL;
 
@@ -586,14 +591,14 @@ static void mv_xor_v2_tasklet(unsigned long data)
 		dma_run_dependencies(&next_pending_sw_desc->async_tx);
 
 		/* Lock the channel */
-		spin_lock_bh(&xor_dev->lock);
+		spin_lock(&xor_dev->lock);
 
 		/* add the SW descriptor to the free descriptors list */
 		list_add(&next_pending_sw_desc->free_list,
 			 &xor_dev->free_sw_desc);
 
 		/* Release the channel */
-		spin_unlock_bh(&xor_dev->lock);
+		spin_unlock(&xor_dev->lock);
 
 		/* increment the next descriptor */
 		pending_ptr++;
@@ -709,11 +714,9 @@ static int mv_xor_v2_resume(struct platform_device *dev)
 static int mv_xor_v2_probe(struct platform_device *pdev)
 {
 	struct mv_xor_v2_device *xor_dev;
-	struct resource *res;
 	int i, ret = 0;
 	struct dma_device *dma_dev;
 	struct mv_xor_v2_sw_desc *sw_desc;
-	struct msi_desc *msi_desc;
 
 	BUILD_BUG_ON(sizeof(struct mv_xor_v2_descriptor) !=
 		     MV_XOR_V2_EXT_DESC_SIZE);
@@ -722,13 +725,11 @@ static int mv_xor_v2_probe(struct platform_device *pdev)
 	if (!xor_dev)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	xor_dev->dma_base = devm_ioremap_resource(&pdev->dev, res);
+	xor_dev->dma_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(xor_dev->dma_base))
 		return PTR_ERR(xor_dev->dma_base);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	xor_dev->glob_base = devm_ioremap_resource(&pdev->dev, res);
+	xor_dev->glob_base = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(xor_dev->glob_base))
 		return PTR_ERR(xor_dev->glob_base);
 
@@ -738,46 +739,28 @@ static int mv_xor_v2_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	xor_dev->reg_clk = devm_clk_get(&pdev->dev, "reg");
-	if (PTR_ERR(xor_dev->reg_clk) != -ENOENT) {
-		if (!IS_ERR(xor_dev->reg_clk)) {
-			ret = clk_prepare_enable(xor_dev->reg_clk);
-			if (ret)
-				return ret;
-		} else {
-			return PTR_ERR(xor_dev->reg_clk);
-		}
-	}
+	xor_dev->reg_clk = devm_clk_get_optional_enabled(&pdev->dev, "reg");
+	if (IS_ERR(xor_dev->reg_clk))
+		return PTR_ERR(xor_dev->reg_clk);
 
-	xor_dev->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(xor_dev->clk) && PTR_ERR(xor_dev->clk) == -EPROBE_DEFER) {
-		ret = EPROBE_DEFER;
-		goto disable_reg_clk;
-	}
-	if (!IS_ERR(xor_dev->clk)) {
-		ret = clk_prepare_enable(xor_dev->clk);
-		if (ret)
-			goto disable_reg_clk;
-	}
+	xor_dev->clk = devm_clk_get_enabled(&pdev->dev, NULL);
+	if (IS_ERR(xor_dev->clk))
+		return PTR_ERR(xor_dev->clk);
 
-	ret = platform_msi_domain_alloc_irqs(&pdev->dev, 1,
-					     mv_xor_v2_set_msi_msg);
+	ret = platform_device_msi_init_and_alloc_irqs(&pdev->dev, 1,
+						      mv_xor_v2_set_msi_msg);
 	if (ret)
-		goto disable_clk;
+		return ret;
 
-	msi_desc = first_msi_entry(&pdev->dev);
-	if (!msi_desc)
-		goto free_msi_irqs;
-	xor_dev->msi_desc = msi_desc;
+	xor_dev->irq = msi_get_virq(&pdev->dev, 0);
 
-	ret = devm_request_irq(&pdev->dev, msi_desc->irq,
+	ret = devm_request_irq(&pdev->dev, xor_dev->irq,
 			       mv_xor_v2_interrupt_handler, 0,
 			       dev_name(&pdev->dev), xor_dev);
 	if (ret)
 		goto free_msi_irqs;
 
-	tasklet_init(&xor_dev->irq_tasklet, mv_xor_v2_tasklet,
-		     (unsigned long) xor_dev);
+	tasklet_setup(&xor_dev->irq_tasklet, mv_xor_v2_tasklet);
 
 	xor_dev->desc_size = mv_xor_v2_set_desc_size(xor_dev);
 
@@ -868,15 +851,11 @@ free_hw_desq:
 			  xor_dev->desc_size * MV_XOR_V2_DESC_NUM,
 			  xor_dev->hw_desq_virt, xor_dev->hw_desq);
 free_msi_irqs:
-	platform_msi_domain_free_irqs(&pdev->dev);
-disable_clk:
-	clk_disable_unprepare(xor_dev->clk);
-disable_reg_clk:
-	clk_disable_unprepare(xor_dev->reg_clk);
+	platform_device_msi_free_irqs_all(&pdev->dev);
 	return ret;
 }
 
-static int mv_xor_v2_remove(struct platform_device *pdev)
+static void mv_xor_v2_remove(struct platform_device *pdev)
 {
 	struct mv_xor_v2_device *xor_dev = platform_get_drvdata(pdev);
 
@@ -886,15 +865,11 @@ static int mv_xor_v2_remove(struct platform_device *pdev)
 			  xor_dev->desc_size * MV_XOR_V2_DESC_NUM,
 			  xor_dev->hw_desq_virt, xor_dev->hw_desq);
 
-	devm_free_irq(&pdev->dev, xor_dev->msi_desc->irq, xor_dev);
+	devm_free_irq(&pdev->dev, xor_dev->irq, xor_dev);
 
-	platform_msi_domain_free_irqs(&pdev->dev);
+	platform_device_msi_free_irqs_all(&pdev->dev);
 
 	tasklet_kill(&xor_dev->irq_tasklet);
-
-	clk_disable_unprepare(xor_dev->clk);
-
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -909,7 +884,7 @@ static struct platform_driver mv_xor_v2_driver = {
 	.probe		= mv_xor_v2_probe,
 	.suspend	= mv_xor_v2_suspend,
 	.resume		= mv_xor_v2_resume,
-	.remove		= mv_xor_v2_remove,
+	.remove_new	= mv_xor_v2_remove,
 	.driver		= {
 		.name	= "mv_xor_v2",
 		.of_match_table = of_match_ptr(mv_xor_v2_dt_ids),
@@ -919,4 +894,3 @@ static struct platform_driver mv_xor_v2_driver = {
 module_platform_driver(mv_xor_v2_driver);
 
 MODULE_DESCRIPTION("DMA engine driver for Marvell's Version 2 of XOR engine");
-MODULE_LICENSE("GPL");

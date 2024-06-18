@@ -38,7 +38,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/pci.h>
-#include <linux/aer.h>
 #include <linux/mm.h>
 #include <linux/notifier.h>
 #include <linux/kdebug.h>
@@ -154,13 +153,10 @@ csio_dfs_create(struct csio_hw *hw)
 /*
  * csio_dfs_destroy - Destroys per-hw debugfs.
  */
-static int
+static void
 csio_dfs_destroy(struct csio_hw *hw)
 {
-	if (hw->debugfs_root)
-		debugfs_remove_recursive(hw->debugfs_root);
-
-	return 0;
+	debugfs_remove_recursive(hw->debugfs_root);
 }
 
 /*
@@ -525,14 +521,15 @@ static struct csio_hw *csio_hw_alloc(struct pci_dev *pdev)
 		goto err;
 
 	hw->pdev = pdev;
-	strncpy(hw->drv_version, CSIO_DRV_VERSION, 32);
+	strscpy(hw->drv_version, CSIO_DRV_VERSION,
+		sizeof(hw->drv_version));
 
 	/* memory pool/DMA pool allocation */
 	if (csio_resource_alloc(hw))
 		goto err_free_hw;
 
 	/* Get the start address of registers from BAR 0 */
-	hw->regstart = ioremap_nocache(pci_resource_start(pdev, 0),
+	hw->regstart = ioremap(pci_resource_start(pdev, 0),
 				       pci_resource_len(pdev, 0));
 	if (!hw->regstart) {
 		csio_err(hw, "Could not map BAR 0, regstart = %p\n",
@@ -585,7 +582,7 @@ csio_hw_free(struct csio_hw *hw)
  * @hw:		The HW module.
  * @dev:	The device associated with this invocation.
  * @probe:	Called from probe context or not?
- * @os_pln:	Parent lnode if any.
+ * @pln:	Parent lnode if any.
  *
  * Allocates lnode structure via scsi_host_alloc, initializes
  * shost, initializes lnode module and registers with SCSI ML
@@ -1188,9 +1185,6 @@ static struct pci_error_handlers csio_err_handler = {
 
 static struct pci_driver csio_pci_driver = {
 	.name		= KBUILD_MODNAME,
-	.driver		= {
-		.owner	= THIS_MODULE,
-	},
 	.id_table	= csio_pci_tbl,
 	.probe		= csio_probe_one,
 	.remove		= csio_remove_one,
@@ -1257,3 +1251,4 @@ MODULE_DEVICE_TABLE(pci, csio_pci_tbl);
 MODULE_VERSION(CSIO_DRV_VERSION);
 MODULE_FIRMWARE(FW_FNAME_T5);
 MODULE_FIRMWARE(FW_FNAME_T6);
+MODULE_SOFTDEP("pre: cxgb4");

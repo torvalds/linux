@@ -6,7 +6,7 @@
  * Copyright (c) 2007 SUSE Linux Products GmbH
  * Copyright (c) 2007 Tejun Heo <teheo@suse.de>
  *
- * Please see Documentation/filesystems/sysfs.txt for more information.
+ * Please see Documentation/filesystems/sysfs.rst for more information.
  */
 
 #include <linux/fs.h>
@@ -103,7 +103,7 @@ int __init sysfs_init(void)
 	if (IS_ERR(sysfs_root))
 		return PTR_ERR(sysfs_root);
 
-	sysfs_root_kn = sysfs_root->kn;
+	sysfs_root_kn = kernfs_root_to_node(sysfs_root);
 
 	err = register_filesystem(&sysfs_fs_type);
 	if (err) {

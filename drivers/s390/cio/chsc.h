@@ -22,12 +22,18 @@ struct cmg_entry {
 	u32 values[NR_MEASUREMENT_ENTRIES];
 };
 
+#define NR_EXT_MEASUREMENT_ENTRIES 16
+struct cmg_ext_entry {
+	u32 values[NR_EXT_MEASUREMENT_ENTRIES];
+};
+
 struct channel_path_desc_fmt1 {
 	u8 flags;
 	u8 lsn;
 	u8 desc;
 	u8 chpid;
-	u32:24;
+	u32:16;
+	u8 esc;
 	u8 chpp;
 	u32 unused[2];
 	u16 chid;
@@ -90,8 +96,8 @@ struct chsc_scssc_area {
 	u16:16;
 	u32:32;
 	u32:32;
-	u64 summary_indicator_addr;
-	u64 subchannel_indicator_addr;
+	dma64_t summary_indicator_addr;
+	dma64_t subchannel_indicator_addr;
 	u32 ks:4;
 	u32 kc:4;
 	u32:21;
@@ -119,7 +125,7 @@ struct chsc_scpd {
 	u32 zeroes1;
 	struct chsc_header response;
 	u32:32;
-	u8 data[0];
+	u8 data[];
 } __packed __aligned(PAGE_SIZE);
 
 struct chsc_sda_area {
@@ -163,7 +169,8 @@ void chsc_chp_offline(struct chp_id chpid);
 int chsc_get_channel_measurement_chars(struct channel_path *chp);
 int chsc_ssqd(struct subchannel_id schid, struct chsc_ssqd_area *ssqd);
 int chsc_sadc(struct subchannel_id schid, struct chsc_scssc_area *scssc,
-	      u64 summary_indicator_addr, u64 subchannel_indicator_addr);
+	      dma64_t summary_indicator_addr, dma64_t subchannel_indicator_addr,
+	      u8 isc);
 int chsc_sgib(u32 origin);
 int chsc_error_from_response(int response);
 
@@ -204,54 +211,10 @@ struct chsc_scm_info {
 
 int chsc_scm_info(struct chsc_scm_info *scm_area, u64 token);
 
-struct chsc_brinfo_resume_token {
-	u64 t1;
-	u64 t2;
-} __packed;
+int chsc_pnso(struct subchannel_id schid, struct chsc_pnso_area *pnso_area,
+	      u8 oc, struct chsc_pnso_resume_token resume_token, int cnc);
 
-struct chsc_brinfo_naihdr {
-	struct chsc_brinfo_resume_token resume_token;
-	u32:32;
-	u32 instance;
-	u32:24;
-	u8 naids;
-	u32 reserved[3];
-} __packed;
-
-struct chsc_pnso_area {
-	struct chsc_header request;
-	u8:2;
-	u8 m:1;
-	u8:5;
-	u8:2;
-	u8 ssid:2;
-	u8 fmt:4;
-	u16 sch;
-	u8:8;
-	u8 cssid;
-	u16:16;
-	u8 oc;
-	u32:24;
-	struct chsc_brinfo_resume_token resume_token;
-	u32 n:1;
-	u32:31;
-	u32 reserved[3];
-	struct chsc_header response;
-	u32:32;
-	struct chsc_brinfo_naihdr naihdr;
-	union {
-		struct qdio_brinfo_entry_l3_ipv6 l3_ipv6[0];
-		struct qdio_brinfo_entry_l3_ipv4 l3_ipv4[0];
-		struct qdio_brinfo_entry_l2	 l2[0];
-	} entries;
-} __packed __aligned(PAGE_SIZE);
-
-int chsc_pnso_brinfo(struct subchannel_id schid,
-		struct chsc_pnso_area *brinfo_area,
-		struct chsc_brinfo_resume_token resume_token,
-		int cnc);
-
-int __init chsc_get_cssid(int idx);
+int __init chsc_get_cssid_iid(int idx, u8 *cssid, u8 *iid);
 
 #ifdef CONFIG_SCM_BUS
 int scm_update_information(void);

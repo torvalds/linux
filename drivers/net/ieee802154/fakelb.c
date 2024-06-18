@@ -221,7 +221,7 @@ err_slave:
 	return err;
 }
 
-static int fakelb_remove(struct platform_device *pdev)
+static void fakelb_remove(struct platform_device *pdev)
 {
 	struct fakelb_phy *phy, *tmp;
 
@@ -229,14 +229,13 @@ static int fakelb_remove(struct platform_device *pdev)
 	list_for_each_entry_safe(phy, tmp, &fakelb_phys, list)
 		fakelb_del(phy);
 	mutex_unlock(&fakelb_phys_lock);
-	return 0;
 }
 
 static struct platform_device *ieee802154fake_dev;
 
 static struct platform_driver ieee802154fake_driver = {
 	.probe = fakelb_probe,
-	.remove = fakelb_remove,
+	.remove_new = fakelb_remove,
 	.driver = {
 			.name = "ieee802154fakelb",
 	},
@@ -260,4 +259,5 @@ static __exit void fake_remove_module(void)
 
 module_init(fakelb_init_module);
 module_exit(fake_remove_module);
+MODULE_DESCRIPTION("IEEE 802.15.4 loopback driver");
 MODULE_LICENSE("GPL");

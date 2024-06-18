@@ -6,12 +6,17 @@
  * Copyright (C) 2018-2019 Rockwell Collins
  */
 
+#include <linux/ctype.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/err.h>
+#include <linux/property.h>
 #include <linux/spi/spi.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
+#include <linux/util_macros.h>
+#include <asm/unaligned.h>
 #include <dt-bindings/iio/temperature/thermocouple.h>
 /*
  * The MSB of the register value determines whether the following byte will
@@ -23,6 +28,9 @@
 #define MAX31856_CR0_1SHOT         BIT(6)
 #define MAX31856_CR0_OCFAULT       BIT(4)
 #define MAX31856_CR0_OCFAULT_MASK  GENMASK(5, 4)
+#define MAX31856_CR0_FILTER_50HZ   BIT(0)
+#define MAX31856_AVERAGING_MASK    GENMASK(6, 4)
+#define MAX31856_AVERAGING_SHIFT   4
 #define MAX31856_TC_TYPE_MASK      GENMASK(3, 0)
 #define MAX31856_FAULT_OVUV        BIT(1)
 #define MAX31856_FAULT_OPEN        BIT(0)
@@ -49,7 +57,10 @@ static const struct iio_chan_spec max31856_channels[] = {
 	{	/* Thermocouple Temperature */
 		.type = IIO_TEMP,
 		.info_mask_separate =
-			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE) |
+			BIT(IIO_CHAN_INFO_THERMOCOUPLE_TYPE),
+		.info_mask_shared_by_type =
+			BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO)
 	},
 	{	/* Cold Junction Temperature */
 		.type = IIO_TEMP,
@@ -57,12 +68,20 @@ static const struct iio_chan_spec max31856_channels[] = {
 		.modified = 1,
 		.info_mask_separate =
 			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+		.info_mask_shared_by_type =
+			BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO)
 	},
 };
 
 struct max31856_data {
 	struct spi_device *spi;
 	u32 thermocouple_type;
+	bool filter_50hz;
+	int averaging;
+};
+
+static const char max31856_tc_types[] = {
+	'B', 'E', 'J', 'K', 'N', 'R', 'S', 'T'
 };
 
 static int max31856_read(struct max31856_data *data, u8 reg,
@@ -107,6 +126,10 @@ static int max31856_init(struct max31856_data *data)
 
 	reg_cr1_val &= ~MAX31856_TC_TYPE_MASK;
 	reg_cr1_val |= data->thermocouple_type;
+
+	reg_cr1_val &= ~MAX31856_AVERAGING_MASK;
+	reg_cr1_val |= data->averaging << MAX31856_AVERAGING_SHIFT;
+
 	ret = max31856_write(data, MAX31856_CR1_REG, reg_cr1_val);
 	if (ret)
 		return ret;
@@ -122,6 +145,11 @@ static int max31856_init(struct max31856_data *data)
 	/* Set Auto Conversion Mode */
 	reg_cr0_val &= ~MAX31856_CR0_1SHOT;
 	reg_cr0_val |= MAX31856_CR0_AUTOCONVERT;
+
+	if (data->filter_50hz)
+		reg_cr0_val |= MAX31856_CR0_FILTER_50HZ;
+	else
+		reg_cr0_val &= ~MAX31856_CR0_FILTER_50HZ;
 
 	return max31856_write(data, MAX31856_CR0_REG, reg_cr0_val);
 }
@@ -143,7 +171,7 @@ static int max31856_thermocouple_read(struct max31856_data *data,
 		if (ret)
 			return ret;
 		/* Skip last 5 dead bits of LTCBL */
-		*val = (reg_val[0] << 16 | reg_val[1] << 8 | reg_val[2]) >> 5;
+		*val = get_unaligned_be24(&reg_val[0]) >> 5;
 		/* Check 7th bit of LTCBH reg. value for sign*/
 		if (reg_val[0] & 0x80)
 			*val -= 0x80000;
@@ -160,7 +188,7 @@ static int max31856_thermocouple_read(struct max31856_data *data,
 		/* Get Cold Junction Temp. offset register value */
 		offset_cjto = reg_val[0];
 		/* Get CJTH and CJTL value and skip last 2 dead bits of CJTL */
-		*val = (reg_val[1] << 8 | reg_val[2]) >> 2;
+		*val = get_unaligned_be16(&reg_val[1]) >> 2;
 		/* As per datasheet add offset into CJTH and CJTL */
 		*val += offset_cjto;
 		/* Check 7th bit of CJTH reg. value for sign */
@@ -210,12 +238,74 @@ static int max31856_read_raw(struct iio_dev *indio_dev,
 			return IIO_VAL_INT_PLUS_MICRO;
 		}
 		break;
+	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
+		*val = 1 << data->averaging;
+		return IIO_VAL_INT;
+	case IIO_CHAN_INFO_THERMOCOUPLE_TYPE:
+		*val = max31856_tc_types[data->thermocouple_type];
+		return IIO_VAL_CHAR;
 	default:
 		ret = -EINVAL;
 		break;
 	}
 
 	return ret;
+}
+
+static int max31856_write_raw_get_fmt(struct iio_dev *indio_dev,
+				      struct iio_chan_spec const *chan,
+				      long mask)
+{
+	switch (mask) {
+	case IIO_CHAN_INFO_THERMOCOUPLE_TYPE:
+		return IIO_VAL_CHAR;
+	default:
+		return IIO_VAL_INT;
+	}
+}
+
+static int max31856_write_raw(struct iio_dev *indio_dev,
+			      struct iio_chan_spec const *chan,
+			      int val, int val2, long mask)
+{
+	struct max31856_data *data = iio_priv(indio_dev);
+	int msb;
+
+	switch (mask) {
+	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
+		if (val > 16 || val < 1)
+			return -EINVAL;
+		msb = fls(val) - 1;
+		/* Round up to next 2pow if needed */
+		if (BIT(msb) < val)
+			msb++;
+
+		data->averaging = msb;
+		max31856_init(data);
+		break;
+	case IIO_CHAN_INFO_THERMOCOUPLE_TYPE:
+	{
+		int tc_type = -1;
+		int i;
+
+		for (i = 0; i < ARRAY_SIZE(max31856_tc_types); i++) {
+			if (max31856_tc_types[i] == toupper(val)) {
+				tc_type = i;
+				break;
+			}
+		}
+		if (tc_type < 0)
+			return -EINVAL;
+
+		data->thermocouple_type = tc_type;
+		max31856_init(data);
+		break;
+	}
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static ssize_t show_fault(struct device *dev, u8 faultbit, char *buf)
@@ -232,7 +322,7 @@ static ssize_t show_fault(struct device *dev, u8 faultbit, char *buf)
 
 	fault = reg_val & faultbit;
 
-	return sprintf(buf, "%d\n", fault);
+	return sysfs_emit(buf, "%d\n", fault);
 }
 
 static ssize_t show_fault_ovuv(struct device *dev,
@@ -249,12 +339,54 @@ static ssize_t show_fault_oc(struct device *dev,
 	return show_fault(dev, MAX31856_FAULT_OPEN, buf);
 }
 
+static ssize_t show_filter(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct max31856_data *data = iio_priv(indio_dev);
+
+	return sysfs_emit(buf, "%d\n", data->filter_50hz ? 50 : 60);
+}
+
+static ssize_t set_filter(struct device *dev,
+			  struct device_attribute *attr,
+			  const char *buf,
+			  size_t len)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct max31856_data *data = iio_priv(indio_dev);
+	unsigned int freq;
+	int ret;
+
+	ret = kstrtouint(buf, 10, &freq);
+	if (ret)
+		return ret;
+
+	switch (freq) {
+	case 50:
+		data->filter_50hz = true;
+		break;
+	case 60:
+		data->filter_50hz = false;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	max31856_init(data);
+	return len;
+}
+
 static IIO_DEVICE_ATTR(fault_ovuv, 0444, show_fault_ovuv, NULL, 0);
 static IIO_DEVICE_ATTR(fault_oc, 0444, show_fault_oc, NULL, 0);
+static IIO_DEVICE_ATTR(in_temp_filter_notch_center_frequency, 0644,
+		       show_filter, set_filter, 0);
 
 static struct attribute *max31856_attributes[] = {
 	&iio_dev_attr_fault_ovuv.dev_attr.attr,
 	&iio_dev_attr_fault_oc.dev_attr.attr,
+	&iio_dev_attr_in_temp_filter_notch_center_frequency.dev_attr.attr,
 	NULL,
 };
 
@@ -264,6 +396,8 @@ static const struct attribute_group max31856_group = {
 
 static const struct iio_info max31856_info = {
 	.read_raw = max31856_read_raw,
+	.write_raw = max31856_write_raw,
+	.write_raw_get_fmt = max31856_write_raw_get_fmt,
 	.attrs = &max31856_group,
 };
 
@@ -280,6 +414,7 @@ static int max31856_probe(struct spi_device *spi)
 
 	data = iio_priv(indio_dev);
 	data->spi = spi;
+	data->filter_50hz = false;
 
 	spi_set_drvdata(spi, indio_dev);
 
@@ -289,9 +424,7 @@ static int max31856_probe(struct spi_device *spi)
 	indio_dev->channels = max31856_channels;
 	indio_dev->num_channels = ARRAY_SIZE(max31856_channels);
 
-	ret = of_property_read_u32(spi->dev.of_node, "thermocouple-type",
-				   &data->thermocouple_type);
-
+	ret = device_property_read_u32(&spi->dev, "thermocouple-type", &data->thermocouple_type);
 	if (ret) {
 		dev_info(&spi->dev,
 			 "Could not read thermocouple type DT property, configuring as a K-Type\n");

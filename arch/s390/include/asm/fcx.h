@@ -10,6 +10,7 @@
 #define _ASM_S390_FCX_H
 
 #include <linux/types.h>
+#include <asm/dma-types.h>
 
 #define TCW_FORMAT_DEFAULT		0
 #define TCW_TIDAW_FORMAT_DEFAULT	0
@@ -43,16 +44,16 @@ struct tcw {
 	u32 r:1;
 	u32 w:1;
 	u32 :16;
-	u64 output;
-	u64 input;
-	u64 tsb;
-	u64 tccb;
+	dma64_t output;
+	dma64_t input;
+	dma64_t tsb;
+	dma64_t tccb;
 	u32 output_count;
 	u32 input_count;
 	u32 :32;
 	u32 :32;
 	u32 :32;
-	u32 intrg;
+	dma32_t intrg;
 } __attribute__ ((packed, aligned(64)));
 
 #define TIDAW_FLAGS_LAST		(1 << (7 - 0))
@@ -73,7 +74,7 @@ struct tidaw {
 	u32 flags:8;
 	u32 :24;
 	u32 count;
-	u64 addr;
+	dma64_t addr;
 } __attribute__ ((packed, aligned(16)));
 
 /**
@@ -214,7 +215,7 @@ struct dcw_intrg_data {
 	u32 :32;
 	u64 time;
 	u64 prog_id;
-	u8  prog_data[0];
+	u8  prog_data[];
 } __attribute__ ((packed));
 
 #define DCW_FLAGS_CC		(1 << (7 - 1))
@@ -241,7 +242,7 @@ struct dcw {
 	u32 :8;
 	u32 cd_count:8;
 	u32 count;
-	u8 cd[0];
+	u8 cd[];
 } __attribute__ ((packed));
 
 #define TCCB_FORMAT_DEFAULT	0x7f
@@ -286,7 +287,7 @@ struct tccb_tcat {
  */
 struct tccb {
 	struct tccb_tcah tcah;
-	u8 tca[0];
+	u8 tca[];
 } __attribute__ ((packed, aligned(8)));
 
 struct tcw *tcw_get_intrg(struct tcw *tcw);

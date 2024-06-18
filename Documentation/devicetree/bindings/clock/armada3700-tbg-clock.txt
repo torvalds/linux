@@ -1,6 +1,6 @@
 * Time Base Generator Clock bindings for Marvell Armada 37xx SoCs
 
-Marvell Armada 37xx SoCs provde Time Base Generator clocks which are
+Marvell Armada 37xx SoCs provide Time Base Generator clocks which are
 used as parent clocks for the peripheral clocks.
 
 The TBG clock consumer should specify the desired clock by having the

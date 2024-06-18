@@ -107,22 +107,32 @@ file /proc/filesystems.
 struct file_system_type
 -----------------------
 
-This describes the filesystem.  As of kernel 2.6.39, the following
+This describes the filesystem.  The following
 members are defined:
 
 .. code-block:: c
 
-	struct file_system_operations {
+	struct file_system_type {
 		const char *name;
 		int fs_flags;
+		int (*init_fs_context)(struct fs_context *);
+		const struct fs_parameter_spec *parameters;
 		struct dentry *(*mount) (struct file_system_type *, int,
-					 const char *, void *);
+			const char *, void *);
 		void (*kill_sb) (struct super_block *);
 		struct module *owner;
 		struct file_system_type * next;
-		struct list_head fs_supers;
+		struct hlist_head fs_supers;
+
 		struct lock_class_key s_lock_key;
 		struct lock_class_key s_umount_key;
+		struct lock_class_key s_vfs_rename_key;
+		struct lock_class_key s_writers_key[SB_FREEZE_LEVELS];
+
+		struct lock_class_key i_lock_key;
+		struct lock_class_key i_mutex_key;
+		struct lock_class_key invalidate_lock_key;
+		struct lock_class_key i_mutex_dir_key;
 	};
 
 ``name``
@@ -131,6 +141,15 @@ members are defined:
 
 ``fs_flags``
 	various flags (i.e. FS_REQUIRES_DEV, FS_NO_DCACHE, etc.)
+
+``init_fs_context``
+	Initializes 'struct fs_context' ->ops and ->fs_private fields with
+	filesystem-specific data.
+
+``parameters``
+	Pointer to the array of filesystem parameters descriptors
+	'struct fs_parameter_spec'.
+	More info in Documentation/filesystems/mount_api.rst.
 
 ``mount``
 	the method to call when a new instance of this filesystem should
@@ -148,7 +167,11 @@ members are defined:
 ``next``
 	for internal VFS use: you should initialize this to NULL
 
-  s_lock_key, s_umount_key: lockdep-specific
+``fs_supers``
+	for internal VFS use: hlist of filesystem instances (superblocks)
+
+  s_lock_key, s_umount_key, s_vfs_rename_key, s_writers_key,
+  i_lock_key, i_mutex_key, invalidate_lock_key, i_mutex_dir_key: lockdep-specific
 
 The mount() method has the following arguments:
 
@@ -222,33 +245,44 @@ struct super_operations
 -----------------------
 
 This describes how the VFS can manipulate the superblock of your
-filesystem.  As of kernel 2.6.22, the following members are defined:
+filesystem.  The following members are defined:
 
 .. code-block:: c
 
 	struct super_operations {
 		struct inode *(*alloc_inode)(struct super_block *sb);
 		void (*destroy_inode)(struct inode *);
+		void (*free_inode)(struct inode *);
 
 		void (*dirty_inode) (struct inode *, int flags);
-		int (*write_inode) (struct inode *, int);
-		void (*drop_inode) (struct inode *);
-		void (*delete_inode) (struct inode *);
+		int (*write_inode) (struct inode *, struct writeback_control *wbc);
+		int (*drop_inode) (struct inode *);
+		void (*evict_inode) (struct inode *);
 		void (*put_super) (struct super_block *);
 		int (*sync_fs)(struct super_block *sb, int wait);
+		int (*freeze_super) (struct super_block *sb,
+					enum freeze_holder who);
 		int (*freeze_fs) (struct super_block *);
+		int (*thaw_super) (struct super_block *sb,
+					enum freeze_wholder who);
 		int (*unfreeze_fs) (struct super_block *);
 		int (*statfs) (struct dentry *, struct kstatfs *);
 		int (*remount_fs) (struct super_block *, int *, char *);
-		void (*clear_inode) (struct inode *);
 		void (*umount_begin) (struct super_block *);
 
 		int (*show_options)(struct seq_file *, struct dentry *);
+		int (*show_devname)(struct seq_file *, struct dentry *);
+		int (*show_path)(struct seq_file *, struct dentry *);
+		int (*show_stats)(struct seq_file *, struct dentry *);
 
 		ssize_t (*quota_read)(struct super_block *, int, char *, size_t, loff_t);
 		ssize_t (*quota_write)(struct super_block *, int, const char *, size_t, loff_t);
-		int (*nr_cached_objects)(struct super_block *);
-		void (*free_cached_objects)(struct super_block *, int);
+		struct dquot **(*get_dquots)(struct inode *);
+
+		long (*nr_cached_objects)(struct super_block *,
+					struct shrink_control *);
+		long (*free_cached_objects)(struct super_block *,
+					struct shrink_control *);
 	};
 
 All methods are called without any locks being held, unless otherwise
@@ -269,8 +303,19 @@ or bottom half).
 	->alloc_inode was defined and simply undoes anything done by
 	->alloc_inode.
 
+``free_inode``
+	this method is called from RCU callback. If you use call_rcu()
+	in ->destroy_inode to free 'struct inode' memory, then it's
+	better to release memory in this method.
+
 ``dirty_inode``
-	this method is called by the VFS to mark an inode dirty.
+	this method is called by the VFS when an inode is marked dirty.
+	This is specifically for the inode itself being marked dirty,
+	not its data.  If the update needs to be persisted by fdatasync(),
+	then I_DIRTY_DATASYNC will be set in the flags argument.
+	I_DIRTY_TIME will be set in the flags in case lazytime is enabled
+	and struct inode has times updated since the last ->dirty_inode
+	call.
 
 ``write_inode``
 	this method is called when the VFS needs to write an inode to
@@ -290,8 +335,12 @@ or bottom half).
 	practice of using "force_delete" in the put_inode() case, but
 	does not have the races that the "force_delete()" approach had.
 
-``delete_inode``
-	called when the VFS wants to delete an inode
+``evict_inode``
+	called when the VFS wants to evict an inode. Caller does
+	*not* evict the pagecache or inode-associated metadata buffers;
+	the method has to use truncate_inode_pages_final() to get rid
+	of those. Caller makes sure async writeback cannot be running for
+	the inode while (or after) ->evict_inode() is called. Optional.
 
 ``put_super``
 	called when the VFS wishes to free the superblock
@@ -302,14 +351,25 @@ or bottom half).
 	superblock.  The second parameter indicates whether the method
 	should wait until the write out has been completed.  Optional.
 
+``freeze_super``
+	Called instead of ->freeze_fs callback if provided.
+	Main difference is that ->freeze_super is called without taking
+	down_write(&sb->s_umount). If filesystem implements it and wants
+	->freeze_fs to be called too, then it has to call ->freeze_fs
+	explicitly from this callback. Optional.
+
 ``freeze_fs``
 	called when VFS is locking a filesystem and forcing it into a
 	consistent state.  This method is currently used by the Logical
-	Volume Manager (LVM).
+	Volume Manager (LVM) and ioctl(FIFREEZE). Optional.
+
+``thaw_super``
+	called when VFS is unlocking a filesystem and making it writable
+	again after ->freeze_super. Optional.
 
 ``unfreeze_fs``
 	called when VFS is unlocking a filesystem and making it writable
-	again.
+	again after ->freeze_fs. Optional.
 
 ``statfs``
 	called when the VFS needs to get filesystem statistics.
@@ -318,21 +378,36 @@ or bottom half).
 	called when the filesystem is remounted.  This is called with
 	the kernel lock held
 
-``clear_inode``
-	called then the VFS clears the inode.  Optional
-
 ``umount_begin``
 	called when the VFS is unmounting a filesystem.
 
 ``show_options``
-	called by the VFS to show mount options for /proc/<pid>/mounts.
+	called by the VFS to show mount options for /proc/<pid>/mounts
+	and /proc/<pid>/mountinfo.
 	(see "Mount Options" section)
+
+``show_devname``
+	Optional. Called by the VFS to show device name for
+	/proc/<pid>/{mounts,mountinfo,mountstats}. If not provided then
+	'(struct mount).mnt_devname' will be used.
+
+``show_path``
+	Optional. Called by the VFS (for /proc/<pid>/mountinfo) to show
+	the mount root dentry path relative to the filesystem root.
+
+``show_stats``
+	Optional. Called by the VFS (for /proc/<pid>/mountstats) to show
+	filesystem-specific mount statistics.
 
 ``quota_read``
 	called by the VFS to read from filesystem quota file.
 
 ``quota_write``
 	called by the VFS to write to filesystem quota file.
+
+``get_dquots``
+	called by quota to get 'struct dquot' array for a particular inode.
+	Optional.
 
 ``nr_cached_objects``
 	called by the sb cache shrinking function for the filesystem to
@@ -362,7 +437,7 @@ field.  This is a pointer to a "struct inode_operations" which describes
 the methods that can be performed on individual inodes.
 
 
-struct xattr_handlers
+struct xattr_handler
 ---------------------
 
 On filesystems that support extended attributes (xattrs), the s_xattr
@@ -392,7 +467,7 @@ Extended attributes are name:value pairs.
 ``set``
 	Called by the VFS to set the value of a particular extended
 	attribute.  When the new value is NULL, called to remove a
-	particular extended attribute.  This method is called by the the
+	particular extended attribute.  This method is called by the
 	setxattr(2) and removexattr(2) system calls.
 
 When none of the xattr handlers of a filesystem match the specified
@@ -415,28 +490,34 @@ As of kernel 2.6.22, the following members are defined:
 .. code-block:: c
 
 	struct inode_operations {
-		int (*create) (struct inode *,struct dentry *, umode_t, bool);
+		int (*create) (struct mnt_idmap *, struct inode *,struct dentry *, umode_t, bool);
 		struct dentry * (*lookup) (struct inode *,struct dentry *, unsigned int);
 		int (*link) (struct dentry *,struct inode *,struct dentry *);
 		int (*unlink) (struct inode *,struct dentry *);
-		int (*symlink) (struct inode *,struct dentry *,const char *);
-		int (*mkdir) (struct inode *,struct dentry *,umode_t);
+		int (*symlink) (struct mnt_idmap *, struct inode *,struct dentry *,const char *);
+		int (*mkdir) (struct mnt_idmap *, struct inode *,struct dentry *,umode_t);
 		int (*rmdir) (struct inode *,struct dentry *);
-		int (*mknod) (struct inode *,struct dentry *,umode_t,dev_t);
-		int (*rename) (struct inode *, struct dentry *,
+		int (*mknod) (struct mnt_idmap *, struct inode *,struct dentry *,umode_t,dev_t);
+		int (*rename) (struct mnt_idmap *, struct inode *, struct dentry *,
 			       struct inode *, struct dentry *, unsigned int);
 		int (*readlink) (struct dentry *, char __user *,int);
 		const char *(*get_link) (struct dentry *, struct inode *,
 					 struct delayed_call *);
-		int (*permission) (struct inode *, int);
-		int (*get_acl)(struct inode *, int);
-		int (*setattr) (struct dentry *, struct iattr *);
-		int (*getattr) (const struct path *, struct kstat *, u32, unsigned int);
+		int (*permission) (struct mnt_idmap *, struct inode *, int);
+		struct posix_acl * (*get_inode_acl)(struct inode *, int, bool);
+		int (*setattr) (struct mnt_idmap *, struct dentry *, struct iattr *);
+		int (*getattr) (struct mnt_idmap *, const struct path *, struct kstat *, u32, unsigned int);
 		ssize_t (*listxattr) (struct dentry *, char *, size_t);
 		void (*update_time)(struct inode *, struct timespec *, int);
 		int (*atomic_open)(struct inode *, struct dentry *, struct file *,
 				   unsigned open_flag, umode_t create_mode);
-		int (*tmpfile) (struct inode *, struct dentry *, umode_t);
+		int (*tmpfile) (struct mnt_idmap *, struct inode *, struct file *, umode_t);
+		struct posix_acl * (*get_acl)(struct mnt_idmap *, struct dentry *, int);
+	        int (*set_acl)(struct mnt_idmap *, struct dentry *, struct posix_acl *, int);
+		int (*fileattr_set)(struct mnt_idmap *idmap,
+				    struct dentry *dentry, struct fileattr *fa);
+		int (*fileattr_get)(struct dentry *dentry, struct fileattr *fa);
+	        struct offset_ctx *(*get_offset_ctx)(struct inode *inode);
 	};
 
 Again, all methods are called without any locks being held, unless
@@ -582,8 +663,25 @@ otherwise noted.
 ``tmpfile``
 	called in the end of O_TMPFILE open().  Optional, equivalent to
 	atomically creating, opening and unlinking a file in given
-	directory.
+	directory.  On success needs to return with the file already
+	open; this can be done by calling finish_open_simple() right at
+	the end.
 
+``fileattr_get``
+	called on ioctl(FS_IOC_GETFLAGS) and ioctl(FS_IOC_FSGETXATTR) to
+	retrieve miscellaneous file flags and attributes.  Also called
+	before the relevant SET operation to check what is being changed
+	(in this case with i_rwsem locked exclusive).  If unset, then
+	fall back to f_op->ioctl().
+
+``fileattr_set``
+	called on ioctl(FS_IOC_SETFLAGS) and ioctl(FS_IOC_FSSETXATTR) to
+	change miscellaneous file flags and attributes.  Callers hold
+	i_rwsem exclusive.  If unset, then fall back to f_op->ioctl().
+``get_offset_ctx``
+	called to get the offset context for a directory inode. A
+        filesystem must define this operation to use
+        simple_offset_dir_operations.
 
 The Address Space Object
 ========================
@@ -601,9 +699,9 @@ Writeback.
 The first can be used independently to the others.  The VM can try to
 either write dirty pages in order to clean them, or release clean pages
 in order to reuse them.  To do this it can call the ->writepage method
-on dirty pages, and ->releasepage on clean pages with PagePrivate set.
-Clean pages without PagePrivate and with no external references will be
-released without notice being given to the address_space.
+on dirty pages, and ->release_folio on clean folios with the private
+flag set.  Clean pages without PagePrivate and with no external references
+will be released without notice being given to the address_space.
 
 To achieve this functionality, pages need to be placed on an LRU with
 lru_cache_add and mark_page_active needs to be called whenever the page
@@ -637,9 +735,9 @@ by memory-mapping the page.  Data is written into the address space by
 the application, and then written-back to storage typically in whole
 pages, however the address_space has finer control of write sizes.
 
-The read process essentially only requires 'readpage'.  The write
+The read process essentially only requires 'read_folio'.  The write
 process is more complicated and uses write_begin/write_end or
-set_page_dirty to write data into the address_space, and writepage and
+dirty_folio to write data into the address_space, and writepage and
 writepages to writeback data to storage.
 
 Adding and removing pages to/from an address_space is protected by the
@@ -652,7 +750,7 @@ at any point after PG_Dirty is clear.  Once it is known to be safe,
 PG_Writeback is cleared.
 
 Writeback makes use of a writeback_control structure to direct the
-operations.  This gives the the writepage and writepages operations some
+operations.  This gives the writepage and writepages operations some
 information about the nature of and reason for the writeback request,
 and the constraints under which it is being done.  It is also used to
 return information back to the caller about the result of a writepage or
@@ -669,7 +767,7 @@ is an error during writeback, they expect that error to be reported when
 a file sync request is made.  After an error has been reported on one
 request, subsequent requests on the same file descriptor should return
 0, unless further writeback errors have occurred since the previous file
-syncronization.
+synchronization.
 
 Ideally, the kernel would report errors only on file descriptions on
 which writes were done that subsequently failed to be written back.  The
@@ -703,36 +801,32 @@ cache in your filesystem.  The following members are defined:
 
 	struct address_space_operations {
 		int (*writepage)(struct page *page, struct writeback_control *wbc);
-		int (*readpage)(struct file *, struct page *);
+		int (*read_folio)(struct file *, struct folio *);
 		int (*writepages)(struct address_space *, struct writeback_control *);
-		int (*set_page_dirty)(struct page *page);
-		int (*readpages)(struct file *filp, struct address_space *mapping,
-				 struct list_head *pages, unsigned nr_pages);
+		bool (*dirty_folio)(struct address_space *, struct folio *);
+		void (*readahead)(struct readahead_control *);
 		int (*write_begin)(struct file *, struct address_space *mapping,
-				   loff_t pos, unsigned len, unsigned flags,
+				   loff_t pos, unsigned len,
 				struct page **pagep, void **fsdata);
 		int (*write_end)(struct file *, struct address_space *mapping,
 				 loff_t pos, unsigned len, unsigned copied,
 				 struct page *page, void *fsdata);
 		sector_t (*bmap)(struct address_space *, sector_t);
-		void (*invalidatepage) (struct page *, unsigned int, unsigned int);
-		int (*releasepage) (struct page *, int);
-		void (*freepage)(struct page *);
+		void (*invalidate_folio) (struct folio *, size_t start, size_t len);
+		bool (*release_folio)(struct folio *, gfp_t);
+		void (*free_folio)(struct folio *);
 		ssize_t (*direct_IO)(struct kiocb *, struct iov_iter *iter);
-		/* isolate a page for migration */
-		bool (*isolate_page) (struct page *, isolate_mode_t);
-		/* migrate the contents of a page to the specified target */
-		int (*migratepage) (struct page *, struct page *);
-		/* put migration-failed page back to right list */
-		void (*putback_page) (struct page *);
-		int (*launder_page) (struct page *);
+		int (*migrate_folio)(struct mapping *, struct folio *dst,
+				struct folio *src, enum migrate_mode);
+		int (*launder_folio) (struct folio *);
 
-		int (*is_partially_uptodate) (struct page *, unsigned long,
-					      unsigned long);
-		void (*is_dirty_writeback) (struct page *, bool *, bool *);
-		int (*error_remove_page) (struct mapping *mapping, struct page *page);
-		int (*swap_activate)(struct file *);
+		bool (*is_partially_uptodate) (struct folio *, size_t from,
+					       size_t count);
+		void (*is_dirty_writeback)(struct folio *, bool *, bool *);
+		int (*error_remove_folio)(struct mapping *mapping, struct folio *);
+		int (*swap_activate)(struct swap_info_struct *sis, struct file *f, sector_t *span)
 		int (*swap_deactivate)(struct file *);
+		int (*swap_rw)(struct kiocb *iocb, struct iov_iter *iter);
 	};
 
 ``writepage``
@@ -754,39 +848,73 @@ cache in your filesystem.  The following members are defined:
 
 	See the file "Locking" for more details.
 
-``readpage``
-	called by the VM to read a page from backing store.  The page
-	will be Locked when readpage is called, and should be unlocked
-	and marked uptodate once the read completes.  If ->readpage
-	discovers that it needs to unlock the page for some reason, it
-	can do so, and then return AOP_TRUNCATED_PAGE.  In this case,
-	the page will be relocated, relocked and if that all succeeds,
-	->readpage will be called again.
+``read_folio``
+	Called by the page cache to read a folio from the backing store.
+	The 'file' argument supplies authentication information to network
+	filesystems, and is generally not used by block based filesystems.
+	It may be NULL if the caller does not have an open file (eg if
+	the kernel is performing a read for itself rather than on behalf
+	of a userspace process with an open file).
+
+	If the mapping does not support large folios, the folio will
+	contain a single page.	The folio will be locked when read_folio
+	is called.  If the read completes successfully, the folio should
+	be marked uptodate.  The filesystem should unlock the folio
+	once the read has completed, whether it was successful or not.
+	The filesystem does not need to modify the refcount on the folio;
+	the page cache holds a reference count and that will not be
+	released until the folio is unlocked.
+
+	Filesystems may implement ->read_folio() synchronously.
+	In normal operation, folios are read through the ->readahead()
+	method.  Only if this fails, or if the caller needs to wait for
+	the read to complete will the page cache call ->read_folio().
+	Filesystems should not attempt to perform their own readahead
+	in the ->read_folio() operation.
+
+	If the filesystem cannot perform the read at this time, it can
+	unlock the folio, do whatever action it needs to ensure that the
+	read will succeed in the future and return AOP_TRUNCATED_PAGE.
+	In this case, the caller should look up the folio, lock it,
+	and call ->read_folio again.
+
+	Callers may invoke the ->read_folio() method directly, but using
+	read_mapping_folio() will take care of locking, waiting for the
+	read to complete and handle cases such as AOP_TRUNCATED_PAGE.
 
 ``writepages``
 	called by the VM to write out pages associated with the
-	address_space object.  If wbc->sync_mode is WBC_SYNC_ALL, then
+	address_space object.  If wbc->sync_mode is WB_SYNC_ALL, then
 	the writeback_control will specify a range of pages that must be
-	written out.  If it is WBC_SYNC_NONE, then a nr_to_write is
+	written out.  If it is WB_SYNC_NONE, then a nr_to_write is
 	given and that many pages should be written if possible.  If no
 	->writepages is given, then mpage_writepages is used instead.
 	This will choose pages from the address space that are tagged as
 	DIRTY and will pass them to ->writepage.
 
-``set_page_dirty``
-	called by the VM to set a page dirty.  This is particularly
-	needed if an address space attaches private data to a page, and
-	that data needs to be updated when a page is dirtied.  This is
+``dirty_folio``
+	called by the VM to mark a folio as dirty.  This is particularly
+	needed if an address space attaches private data to a folio, and
+	that data needs to be updated when a folio is dirtied.  This is
 	called, for example, when a memory mapped page gets modified.
-	If defined, it should set the PageDirty flag, and the
-	PAGECACHE_TAG_DIRTY tag in the radix tree.
+	If defined, it should set the folio dirty flag, and the
+	PAGECACHE_TAG_DIRTY search mark in i_pages.
 
-``readpages``
-	called by the VM to read pages associated with the address_space
-	object.  This is essentially just a vector version of readpage.
-	Instead of just one page, several pages are requested.
-	readpages is only used for read-ahead, so read errors are
-	ignored.  If anything goes wrong, feel free to give up.
+``readahead``
+	Called by the VM to read pages associated with the address_space
+	object.  The pages are consecutive in the page cache and are
+	locked.  The implementation should decrement the page refcount
+	after starting I/O on each page.  Usually the page will be
+	unlocked by the I/O completion handler.  The set of pages are
+	divided into some sync pages followed by some async pages,
+	rac->ra->async_size gives the number of async pages.  The
+	filesystem should attempt to read all sync pages but may decide
+	to stop once it reaches the async pages.  If it does decide to
+	stop attempting I/O, it can simply return.  The caller will
+	remove the remaining pages from the address space, unlock them
+	and decrement the page refcount.  Set PageUptodate if the I/O
+	completes successfully.  Setting PageError on any page will be
+	ignored; simply unlock the page if an I/O error occurs.
 
 ``write_begin``
 	Called by the generic buffered write code to ask the filesystem
@@ -804,9 +932,6 @@ cache in your filesystem.  The following members are defined:
 	It must be able to cope with short writes (where the length
 	passed to write_begin is greater than the number of bytes copied
 	into the page).
-
-	flags is a field for AOP_FLAG_xxx flags, described in
-	include/linux/fs.h.
 
 	A void * may be returned in fsdata, which then gets passed into
 	write_end.
@@ -834,42 +959,41 @@ cache in your filesystem.  The following members are defined:
 	to find out where the blocks in the file are and uses those
 	addresses directly.
 
-``invalidatepage``
-	If a page has PagePrivate set, then invalidatepage will be
-	called when part or all of the page is to be removed from the
+``invalidate_folio``
+	If a folio has private data, then invalidate_folio will be
+	called when part or all of the folio is to be removed from the
 	address space.  This generally corresponds to either a
 	truncation, punch hole or a complete invalidation of the address
 	space (in the latter case 'offset' will always be 0 and 'length'
-	will be PAGE_SIZE).  Any private data associated with the page
+	will be folio_size()).  Any private data associated with the folio
 	should be updated to reflect this truncation.  If offset is 0
-	and length is PAGE_SIZE, then the private data should be
-	released, because the page must be able to be completely
-	discarded.  This may be done by calling the ->releasepage
+	and length is folio_size(), then the private data should be
+	released, because the folio must be able to be completely
+	discarded.  This may be done by calling the ->release_folio
 	function, but in this case the release MUST succeed.
 
-``releasepage``
-	releasepage is called on PagePrivate pages to indicate that the
-	page should be freed if possible.  ->releasepage should remove
-	any private data from the page and clear the PagePrivate flag.
-	If releasepage() fails for some reason, it must indicate failure
-	with a 0 return value.  releasepage() is used in two distinct
-	though related cases.  The first is when the VM finds a clean
-	page with no active users and wants to make it a free page.  If
-	->releasepage succeeds, the page will be removed from the
-	address_space and become free.
+``release_folio``
+	release_folio is called on folios with private data to tell the
+	filesystem that the folio is about to be freed.  ->release_folio
+	should remove any private data from the folio and clear the
+	private flag.  If release_folio() fails, it should return false.
+	release_folio() is used in two distinct though related cases.
+	The first is when the VM wants to free a clean folio with no
+	active users.  If ->release_folio succeeds, the folio will be
+	removed from the address_space and be freed.
 
 	The second case is when a request has been made to invalidate
-	some or all pages in an address_space.  This can happen through
-	the fadvise(POSIX_FADV_DONTNEED) system call or by the
-	filesystem explicitly requesting it as nfs and 9fs do (when they
+	some or all folios in an address_space.  This can happen
+	through the fadvise(POSIX_FADV_DONTNEED) system call or by the
+	filesystem explicitly requesting it as nfs and 9p do (when they
 	believe the cache may be out of date with storage) by calling
 	invalidate_inode_pages2().  If the filesystem makes such a call,
-	and needs to be certain that all pages are invalidated, then its
-	releasepage will need to ensure this.  Possibly it can clear the
-	PageUptodate bit if it cannot free private data yet.
+	and needs to be certain that all folios are invalidated, then
+	its release_folio will need to ensure this.  Possibly it can
+	clear the uptodate flag if it cannot free private data yet.
 
-``freepage``
-	freepage is called once the page is no longer visible in the
+``free_folio``
+	free_folio is called once the folio is no longer visible in the
 	page cache in order to allow the cleanup of any private data.
 	Since it may be called by the memory reclaimer, it should not
 	assume that the original address_space mapping still exists, and
@@ -881,59 +1005,57 @@ cache in your filesystem.  The following members are defined:
 	data directly between the storage and the application's address
 	space.
 
-``isolate_page``
-	Called by the VM when isolating a movable non-lru page.  If page
-	is successfully isolated, VM marks the page as PG_isolated via
-	__SetPageIsolated.
-
-``migrate_page``
+``migrate_folio``
 	This is used to compact the physical memory usage.  If the VM
-	wants to relocate a page (maybe off a memory card that is
-	signalling imminent failure) it will pass a new page and an old
-	page to this function.  migrate_page should transfer any private
-	data across and update any references that it has to the page.
+	wants to relocate a folio (maybe from a memory device that is
+	signalling imminent failure) it will pass a new folio and an old
+	folio to this function.  migrate_folio should transfer any private
+	data across and update any references that it has to the folio.
 
-``putback_page``
-	Called by the VM when isolated page's migration fails.
-
-``launder_page``
-	Called before freeing a page - it writes back the dirty page.
-	To prevent redirtying the page, it is kept locked during the
+``launder_folio``
+	Called before freeing a folio - it writes back the dirty folio.
+	To prevent redirtying the folio, it is kept locked during the
 	whole operation.
 
 ``is_partially_uptodate``
 	Called by the VM when reading a file through the pagecache when
-	the underlying blocksize != pagesize.  If the required block is
-	up to date then the read can complete without needing the IO to
-	bring the whole page up to date.
+	the underlying blocksize is smaller than the size of the folio.
+	If the required block is up to date then the read can complete
+	without needing I/O to bring the whole page up to date.
 
 ``is_dirty_writeback``
-	Called by the VM when attempting to reclaim a page.  The VM uses
+	Called by the VM when attempting to reclaim a folio.  The VM uses
 	dirty and writeback information to determine if it needs to
 	stall to allow flushers a chance to complete some IO.
-	Ordinarily it can use PageDirty and PageWriteback but some
-	filesystems have more complex state (unstable pages in NFS
+	Ordinarily it can use folio_test_dirty and folio_test_writeback but
+	some filesystems have more complex state (unstable folios in NFS
 	prevent reclaim) or do not set those flags due to locking
 	problems.  This callback allows a filesystem to indicate to the
-	VM if a page should be treated as dirty or writeback for the
+	VM if a folio should be treated as dirty or writeback for the
 	purposes of stalling.
 
-``error_remove_page``
-	normally set to generic_error_remove_page if truncation is ok
+``error_remove_folio``
+	normally set to generic_error_remove_folio if truncation is ok
 	for this address space.  Used for memory failure handling.
 	Setting this implies you deal with pages going away under you,
 	unless you have them locked or reference counts increased.
 
 ``swap_activate``
-	Called when swapon is used on a file to allocate space if
-	necessary and pin the block lookup information in memory.  A
-	return value of zero indicates success, in which case this file
-	can be used to back swapspace.
+
+	Called to prepare the given file for swap.  It should perform
+	any validation and preparation necessary to ensure that writes
+	can be performed with minimal memory allocation.  It should call
+	add_swap_extent(), or the helper iomap_swapfile_activate(), and
+	return the number of extents added.  If IO should be submitted
+	through ->swap_rw(), it should set SWP_FS_OPS, otherwise IO will
+	be submitted directly to the block device ``sis->bdev``.
 
 ``swap_deactivate``
 	Called during swapoff on files where swap_activate was
 	successful.
 
+``swap_rw``
+	Called to read or write swap pages when SWP_FS_OPS is set.
 
 The File Object
 ===============
@@ -958,7 +1080,6 @@ This describes how the VFS can manipulate an open file.  As of kernel
 		ssize_t (*read_iter) (struct kiocb *, struct iov_iter *);
 		ssize_t (*write_iter) (struct kiocb *, struct iov_iter *);
 		int (*iopoll)(struct kiocb *kiocb, bool spin);
-		int (*iterate) (struct file *, struct dir_context *);
 		int (*iterate_shared) (struct file *, struct dir_context *);
 		__poll_t (*poll) (struct file *, struct poll_table_struct *);
 		long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
@@ -970,7 +1091,6 @@ This describes how the VFS can manipulate an open file.  As of kernel
 		int (*fsync) (struct file *, loff_t, loff_t, int datasync);
 		int (*fasync) (int, struct file *, int);
 		int (*lock) (struct file *, int, struct file_lock *);
-		ssize_t (*sendpage) (struct file *, struct page *, int, size_t, loff_t *, int);
 		unsigned long (*get_unmapped_area)(struct file *, unsigned long, unsigned long, unsigned long, unsigned long);
 		int (*check_flags)(int);
 		int (*flock) (struct file *, int, struct file_lock *);
@@ -1011,12 +1131,8 @@ otherwise noted.
 ``iopoll``
 	called when aio wants to poll for completions on HIPRI iocbs
 
-``iterate``
-	called when the VFS needs to read the directory contents
-
 ``iterate_shared``
-	called when the VFS needs to read the directory contents when
-	filesystem supports concurrent dir iterators
+	called when the VFS needs to read the directory contents
 
 ``poll``
 	called by the VFS when a process wants to check if there is
@@ -1101,7 +1217,7 @@ otherwise noted.
 	before any bytes were remapped.  The remap_flags parameter
 	accepts REMAP_FILE_* flags.  If REMAP_FILE_DEDUP is set then the
 	implementation must only remap if the requested file ranges have
-	identical contents.  If REMAP_CAN_SHORTEN is set, the caller is
+	identical contents.  If REMAP_FILE_CAN_SHORTEN is set, the caller is
 	ok with the implementation shortening the request length to
 	satisfy alignment or EOF requirements (or any other reason).
 
@@ -1148,7 +1264,7 @@ defined:
 		char *(*d_dname)(struct dentry *, char *, int);
 		struct vfsmount *(*d_automount)(struct path *);
 		int (*d_manage)(const struct path *, bool);
-		struct dentry *(*d_real)(struct dentry *, const struct inode *);
+		struct dentry *(*d_real)(struct dentry *, enum d_real_type type);
 	};
 
 ``d_revalidate``
@@ -1173,7 +1289,7 @@ defined:
 	return
 	-ECHILD and it will be called again in ref-walk mode.
 
-``_weak_revalidate``
+``d_weak_revalidate``
 	called when the VFS needs to revalidate a "jumped" dentry.  This
 	is called when a path-walk ends at dentry that was not acquired
 	by doing a lookup in the parent directory.  This includes "/",
@@ -1303,16 +1419,14 @@ defined:
 	the dentry being transited from.
 
 ``d_real``
-	overlay/union type filesystems implement this method to return
-	one of the underlying dentries hidden by the overlay.  It is
-	used in two different modes:
+	overlay/union type filesystems implement this method to return one
+	of the underlying dentries of a regular file hidden by the overlay.
 
-	Called from file_dentry() it returns the real dentry matching
-	the inode argument.  The real dentry may be from a lower layer
-	already copied up, but still referenced from the file.  This
-	mode is selected with a non-NULL inode argument.
+	The 'type' argument takes the values D_REAL_DATA or D_REAL_METADATA
+	for returning the real underlying dentry that refers to the inode
+	hosting the file's data or metadata respectively.
 
-	With NULL inode the topmost real underlying dentry is returned.
+	For non-regular files, the 'dentry' argument is returned.
 
 Each dentry has a pointer to its parent dentry, as well as a hash list
 of child dentries.  Child dentries are basically like files in a
@@ -1416,13 +1530,13 @@ Resources
  version.)
 
 Creating Linux virtual filesystems. 2002
-    <http://lwn.net/Articles/13325/>
+    <https://lwn.net/Articles/13325/>
 
 The Linux Virtual File-system Layer by Neil Brown. 1999
     <http://www.cse.unsw.edu.au/~neilb/oss/linux-commentary/vfs.html>
 
 A tour of the Linux VFS by Michael K. Johnson. 1996
-    <http://www.tldp.org/LDP/khg/HyperNews/get/fs/vfstour.html>
+    <https://www.tldp.org/LDP/khg/HyperNews/get/fs/vfstour.html>
 
 A small trail through the Linux kernel by Andries Brouwer. 2001
-    <http://www.win.tue.nl/~aeb/linux/vfs/trail.html>
+    <https://www.win.tue.nl/~aeb/linux/vfs/trail.html>

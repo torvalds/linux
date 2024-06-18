@@ -18,9 +18,6 @@
  * rdi  source
  * rsi  destination
  * edx  len (32bit)
- * ecx  sum (32bit)
- * r8   src_err_ptr (int)
- * r9   dst_err_ptr (int)
  *
  * Output
  * eax  64bit sum. undefined in case of exception.
@@ -31,44 +28,32 @@
 
 	.macro source
 10:
-	_ASM_EXTABLE_UA(10b, .Lbad_source)
+	_ASM_EXTABLE_UA(10b, .Lfault)
 	.endm
 
 	.macro dest
 20:
-	_ASM_EXTABLE_UA(20b, .Lbad_dest)
+	_ASM_EXTABLE_UA(20b, .Lfault)
 	.endm
 
-	/*
-	 * No _ASM_EXTABLE_UA; this is used for intentional prefetch on a
-	 * potentially unmapped kernel address.
-	 */
-	.macro ignore L=.Lignore
-30:
-	_ASM_EXTABLE(30b, \L)
-	.endm
+SYM_FUNC_START(csum_partial_copy_generic)
+	subq  $5*8, %rsp
+	movq  %rbx, 0*8(%rsp)
+	movq  %r12, 1*8(%rsp)
+	movq  %r14, 2*8(%rsp)
+	movq  %r13, 3*8(%rsp)
+	movq  %r15, 4*8(%rsp)
 
-
-ENTRY(csum_partial_copy_generic)
-	cmpl	$3*64, %edx
-	jle	.Lignore
-
-.Lignore:
-	subq  $7*8, %rsp
-	movq  %rbx, 2*8(%rsp)
-	movq  %r12, 3*8(%rsp)
-	movq  %r14, 4*8(%rsp)
-	movq  %r13, 5*8(%rsp)
-	movq  %r15, 6*8(%rsp)
-
-	movq  %r8, (%rsp)
-	movq  %r9, 1*8(%rsp)
-
-	movl  %ecx, %eax
-	movl  %edx, %ecx
-
+	movl  $-1, %eax
 	xorl  %r9d, %r9d
-	movq  %rcx, %r12
+	movl  %edx, %ecx
+	cmpl  $8, %ecx
+	jb    .Lshort
+
+	testb  $7, %sil
+	jne   .Lunaligned
+.Laligned:
+	movl  %ecx, %r12d
 
 	shrq  $6, %r12
 	jz	.Lhandle_tail       /* < 64 */
@@ -99,7 +84,12 @@ ENTRY(csum_partial_copy_generic)
 	source
 	movq  56(%rdi), %r13
 
-	ignore 2f
+30:
+	/*
+	 * No _ASM_EXTABLE_UA; this is used for intentional prefetch on a
+	 * potentially unmapped kernel address.
+	 */
+	_ASM_EXTABLE(30b, 2f)
 	prefetcht0 5*64(%rdi)
 2:
 	adcq  %rbx, %rax
@@ -131,8 +121,6 @@ ENTRY(csum_partial_copy_generic)
 	dest
 	movq %r13, 56(%rsi)
 
-3:
-
 	leaq 64(%rdi), %rdi
 	leaq 64(%rsi), %rsi
 
@@ -142,8 +130,8 @@ ENTRY(csum_partial_copy_generic)
 
 	/* do last up to 56 bytes */
 .Lhandle_tail:
-	/* ecx:	count */
-	movl %ecx, %r10d
+	/* ecx:	count, rcx.63: the end result needs to be rol8 */
+	movq %rcx, %r10
 	andl $63, %ecx
 	shrl $3, %ecx
 	jz	.Lfold
@@ -172,6 +160,7 @@ ENTRY(csum_partial_copy_generic)
 .Lhandle_7:
 	movl %r10d, %ecx
 	andl $7, %ecx
+.L1:				/* .Lshort rejoins the common path here */
 	shrl $1, %ecx
 	jz   .Lhandle_1
 	movl $2, %edx
@@ -203,26 +192,65 @@ ENTRY(csum_partial_copy_generic)
 	adcl %r9d, %eax		/* carry */
 
 .Lende:
-	movq 2*8(%rsp), %rbx
-	movq 3*8(%rsp), %r12
-	movq 4*8(%rsp), %r14
-	movq 5*8(%rsp), %r13
-	movq 6*8(%rsp), %r15
-	addq $7*8, %rsp
-	ret
+	testq %r10, %r10
+	js  .Lwas_odd
+.Lout:
+	movq 0*8(%rsp), %rbx
+	movq 1*8(%rsp), %r12
+	movq 2*8(%rsp), %r14
+	movq 3*8(%rsp), %r13
+	movq 4*8(%rsp), %r15
+	addq $5*8, %rsp
+	RET
+.Lshort:
+	movl %ecx, %r10d
+	jmp  .L1
+.Lunaligned:
+	xorl %ebx, %ebx
+	testb $1, %sil
+	jne  .Lodd
+1:	testb $2, %sil
+	je   2f
+	source
+	movw (%rdi), %bx
+	dest
+	movw %bx, (%rsi)
+	leaq 2(%rdi), %rdi
+	subq $2, %rcx
+	leaq 2(%rsi), %rsi
+	addq %rbx, %rax
+2:	testb $4, %sil
+	je .Laligned
+	source
+	movl (%rdi), %ebx
+	dest
+	movl %ebx, (%rsi)
+	leaq 4(%rdi), %rdi
+	subq $4, %rcx
+	leaq 4(%rsi), %rsi
+	addq %rbx, %rax
+	jmp .Laligned
 
-	/* Exception handlers. Very simple, zeroing is done in the wrappers */
-.Lbad_source:
-	movq (%rsp), %rax
-	testq %rax, %rax
-	jz   .Lende
-	movl $-EFAULT, (%rax)
-	jmp  .Lende
+.Lodd:
+	source
+	movb (%rdi), %bl
+	dest
+	movb %bl, (%rsi)
+	leaq 1(%rdi), %rdi
+	leaq 1(%rsi), %rsi
+	/* decrement, set MSB */
+	leaq -1(%rcx, %rcx), %rcx
+	rorq $1, %rcx
+	shll $8, %ebx
+	addq %rbx, %rax
+	jmp 1b
 
-.Lbad_dest:
-	movq 8(%rsp), %rax
-	testq %rax, %rax
-	jz   .Lende
-	movl $-EFAULT, (%rax)
-	jmp .Lende
-ENDPROC(csum_partial_copy_generic)
+.Lwas_odd:
+	roll $8, %eax
+	jmp .Lout
+
+	/* Exception: just return 0 */
+.Lfault:
+	xorl %eax, %eax
+	jmp  .Lout
+SYM_FUNC_END(csum_partial_copy_generic)

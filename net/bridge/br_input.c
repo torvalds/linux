@@ -17,6 +17,7 @@
 #endif
 #include <linux/neighbour.h>
 #include <net/arp.h>
+#include <net/dsa.h>
 #include <linux/export.h>
 #include <linux/rculist.h>
 #include "br_private.h"
@@ -29,21 +30,24 @@ br_netif_receive_skb(struct net *net, struct sock *sk, struct sk_buff *skb)
 	return netif_receive_skb(skb);
 }
 
-static int br_pass_frame_up(struct sk_buff *skb)
+static int br_pass_frame_up(struct sk_buff *skb, bool promisc)
 {
 	struct net_device *indev, *brdev = BR_INPUT_SKB_CB(skb)->brdev;
 	struct net_bridge *br = netdev_priv(brdev);
 	struct net_bridge_vlan_group *vg;
-	struct pcpu_sw_netstats *brstats = this_cpu_ptr(br->stats);
 
-	u64_stats_update_begin(&brstats->syncp);
-	brstats->rx_packets++;
-	brstats->rx_bytes += skb->len;
-	u64_stats_update_end(&brstats->syncp);
+	dev_sw_netstats_rx_add(brdev, skb->len);
 
 	vg = br_vlan_group_rcu(br);
+
+	/* Reset the offload_fwd_mark because there could be a stacked
+	 * bridge above, and it should not think this bridge it doing
+	 * that bridge's work forwarding out its ports.
+	 */
+	br_switchdev_frame_unmark(skb);
+
 	/* Bridge is just like any other port.  Make sure the
-	 * packet is allowed except in promisc modue when someone
+	 * packet is allowed except in promisc mode when someone
 	 * may be running packet capture.
 	 */
 	if (!(brdev->flags & IFF_PROMISC) &&
@@ -61,6 +65,8 @@ static int br_pass_frame_up(struct sk_buff *skb)
 	br_multicast_count(br, NULL, skb, br_multicast_igmp_type(skb),
 			   BR_MCAST_DIR_TX);
 
+	BR_INPUT_SKB_CB(skb)->promisc = promisc;
+
 	return NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_IN,
 		       dev_net(indev), NULL, skb, indev, NULL,
 		       br_netif_receive_skb);
@@ -72,25 +78,71 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 	struct net_bridge_port *p = br_port_get_rcu(skb->dev);
 	enum br_pkt_type pkt_type = BR_PKT_UNICAST;
 	struct net_bridge_fdb_entry *dst = NULL;
+	struct net_bridge_mcast_port *pmctx;
 	struct net_bridge_mdb_entry *mdst;
 	bool local_rcv, mcast_hit = false;
+	struct net_bridge_mcast *brmctx;
+	struct net_bridge_vlan *vlan;
 	struct net_bridge *br;
+	bool promisc;
 	u16 vid = 0;
+	u8 state;
 
-	if (!p || p->state == BR_STATE_DISABLED)
+	if (!p)
 		goto drop;
 
-	if (!br_allowed_ingress(p->br, nbp_vlan_group_rcu(p), skb, &vid))
+	br = p->br;
+
+	if (br_mst_is_enabled(br)) {
+		state = BR_STATE_FORWARDING;
+	} else {
+		if (p->state == BR_STATE_DISABLED)
+			goto drop;
+
+		state = p->state;
+	}
+
+	brmctx = &p->br->multicast_ctx;
+	pmctx = &p->multicast_ctx;
+	if (!br_allowed_ingress(p->br, nbp_vlan_group_rcu(p), skb, &vid,
+				&state, &vlan))
 		goto out;
+
+	if (p->flags & BR_PORT_LOCKED) {
+		struct net_bridge_fdb_entry *fdb_src =
+			br_fdb_find_rcu(br, eth_hdr(skb)->h_source, vid);
+
+		if (!fdb_src) {
+			/* FDB miss. Create locked FDB entry if MAB is enabled
+			 * and drop the packet.
+			 */
+			if (p->flags & BR_PORT_MAB)
+				br_fdb_update(br, p, eth_hdr(skb)->h_source,
+					      vid, BIT(BR_FDB_LOCKED));
+			goto drop;
+		} else if (READ_ONCE(fdb_src->dst) != p ||
+			   test_bit(BR_FDB_LOCAL, &fdb_src->flags)) {
+			/* FDB mismatch. Drop the packet without roaming. */
+			goto drop;
+		} else if (test_bit(BR_FDB_LOCKED, &fdb_src->flags)) {
+			/* FDB match, but entry is locked. Refresh it and drop
+			 * the packet.
+			 */
+			br_fdb_update(br, p, eth_hdr(skb)->h_source, vid,
+				      BIT(BR_FDB_LOCKED));
+			goto drop;
+		}
+	}
 
 	nbp_switchdev_frame_mark(p, skb);
 
 	/* insert into forwarding database after filtering to avoid spoofing */
-	br = p->br;
 	if (p->flags & BR_LEARNING)
-		br_fdb_update(br, p, eth_hdr(skb)->h_source, vid, false);
+		br_fdb_update(br, p, eth_hdr(skb)->h_source, vid, 0);
 
-	local_rcv = !!(br->dev->flags & IFF_PROMISC);
+	promisc = !!(br->dev->flags & IFF_PROMISC);
+	local_rcv = promisc;
+
 	if (is_multicast_ether_addr(eth_hdr(skb)->h_dest)) {
 		/* by definition the broadcast is also a multicast address */
 		if (is_broadcast_ether_addr(eth_hdr(skb)->h_dest)) {
@@ -98,12 +150,12 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 			local_rcv = true;
 		} else {
 			pkt_type = BR_PKT_MULTICAST;
-			if (br_multicast_rcv(br, p, skb, vid))
+			if (br_multicast_rcv(&brmctx, &pmctx, vlan, skb, vid))
 				goto drop;
 		}
 	}
 
-	if (p->state == BR_STATE_LEARNING)
+	if (state == BR_STATE_LEARNING)
 		goto drop;
 
 	BR_INPUT_SKB_CB(skb)->brdev = br->dev;
@@ -128,22 +180,23 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 
 	switch (pkt_type) {
 	case BR_PKT_MULTICAST:
-		mdst = br_mdb_get(br, skb, vid);
+		mdst = br_mdb_entry_skb_get(brmctx, skb, vid);
 		if ((mdst || BR_INPUT_SKB_CB_MROUTERS_ONLY(skb)) &&
-		    br_multicast_querier_exists(br, eth_hdr(skb))) {
+		    br_multicast_querier_exists(brmctx, eth_hdr(skb), mdst)) {
 			if ((mdst && mdst->host_joined) ||
-			    br_multicast_is_router(br)) {
+			    br_multicast_is_router(brmctx, skb)) {
 				local_rcv = true;
-				br->dev->stats.multicast++;
+				DEV_STATS_INC(br->dev, multicast);
 			}
 			mcast_hit = true;
 		} else {
 			local_rcv = true;
-			br->dev->stats.multicast++;
+			DEV_STATS_INC(br->dev, multicast);
 		}
 		break;
 	case BR_PKT_UNICAST:
 		dst = br_fdb_find_rcu(br, eth_hdr(skb)->h_dest, vid);
+		break;
 	default:
 		break;
 	}
@@ -151,21 +204,21 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 	if (dst) {
 		unsigned long now = jiffies;
 
-		if (dst->is_local)
-			return br_pass_frame_up(skb);
+		if (test_bit(BR_FDB_LOCAL, &dst->flags))
+			return br_pass_frame_up(skb, false);
 
 		if (now != dst->used)
 			dst->used = now;
 		br_forward(dst->dst, skb, local_rcv, false);
 	} else {
 		if (!mcast_hit)
-			br_flood(br, skb, pkt_type, local_rcv, false);
+			br_flood(br, skb, pkt_type, local_rcv, false, vid);
 		else
-			br_multicast_flood(mdst, skb, local_rcv, false);
+			br_multicast_flood(mdst, skb, brmctx, local_rcv, false);
 	}
 
 	if (local_rcv)
-		return br_pass_frame_up(skb);
+		return br_pass_frame_up(skb, promisc);
 
 out:
 	return 0;
@@ -182,9 +235,10 @@ static void __br_handle_local_finish(struct sk_buff *skb)
 
 	/* check if vlan is allowed, to avoid spoofing */
 	if ((p->flags & BR_LEARNING) &&
+	    nbp_state_should_learn(p) &&
 	    !br_opt_get(p->br, BROPT_NO_LL_LEARN) &&
 	    br_should_learn(p, skb, &vid))
-		br_fdb_update(p->br, p, eth_hdr(skb)->h_source, vid, false);
+		br_fdb_update(p->br, p, eth_hdr(skb)->h_source, vid, 0);
 }
 
 /* note: already called with rcu_read_lock */
@@ -249,11 +303,26 @@ frame_finish:
 	return RX_HANDLER_CONSUMED;
 }
 
+/* Return 0 if the frame was not processed otherwise 1
+ * note: already called with rcu_read_lock
+ */
+static int br_process_frame_type(struct net_bridge_port *p,
+				 struct sk_buff *skb)
+{
+	struct br_frame_type *tmp;
+
+	hlist_for_each_entry_rcu(tmp, &p->br->frame_type_list, list)
+		if (unlikely(tmp->type == skb->protocol))
+			return tmp->frame_handler(p, skb);
+
+	return 0;
+}
+
 /*
  * Return NULL if skb is handled
  * note: already called with rcu_read_lock
  */
-rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
+static rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 {
 	struct net_bridge_port *p;
 	struct sk_buff *skb = *pskb;
@@ -270,13 +339,11 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 		return RX_HANDLER_CONSUMED;
 
 	memset(skb->cb, 0, sizeof(struct br_input_skb_cb));
+	br_tc_skb_miss_set(skb, false);
 
 	p = br_port_get_rcu(skb->dev);
-	if (p->flags & BR_VLAN_TUNNEL) {
-		if (br_handle_ingress_vlan_tunnel(skb, p,
-						  nbp_vlan_group_rcu(p)))
-			goto drop;
-	}
+	if (p->flags & BR_VLAN_TUNNEL)
+		br_handle_ingress_vlan_tunnel(skb, p, nbp_vlan_group_rcu(p));
 
 	if (unlikely(is_link_local_ether_addr(dest))) {
 		u16 fwd_mask = p->br->group_fwd_mask_required;
@@ -324,6 +391,8 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 				goto forward;
 		}
 
+		BR_INPUT_SKB_CB(skb)->promisc = false;
+
 		/* The else clause should be hit when nf_hook():
 		 *   - returns < 0 (drop/error)
 		 *   - returns = 0 (stolen/nf_queue)
@@ -338,10 +407,17 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 		}
 	}
 
+	if (unlikely(br_process_frame_type(p, skb)))
+		return RX_HANDLER_PASS;
+
 forward:
+	if (br_mst_is_enabled(p->br))
+		goto defer_stp_filtering;
+
 	switch (p->state) {
 	case BR_STATE_FORWARDING:
 	case BR_STATE_LEARNING:
+defer_stp_filtering:
 		if (ether_addr_equal(p->br->dev->dev_addr, dest))
 			skb->pkt_type = PACKET_HOST;
 
@@ -351,4 +427,40 @@ drop:
 		kfree_skb(skb);
 	}
 	return RX_HANDLER_CONSUMED;
+}
+
+/* This function has no purpose other than to appease the br_port_get_rcu/rtnl
+ * helpers which identify bridged ports according to the rx_handler installed
+ * on them (so there _needs_ to be a bridge rx_handler even if we don't need it
+ * to do anything useful). This bridge won't support traffic to/from the stack,
+ * but only hardware bridging. So return RX_HANDLER_PASS so we don't steal
+ * frames from the ETH_P_XDSA packet_type handler.
+ */
+static rx_handler_result_t br_handle_frame_dummy(struct sk_buff **pskb)
+{
+	return RX_HANDLER_PASS;
+}
+
+rx_handler_func_t *br_get_rx_handler(const struct net_device *dev)
+{
+	if (netdev_uses_dsa(dev))
+		return br_handle_frame_dummy;
+
+	return br_handle_frame;
+}
+
+void br_add_frame(struct net_bridge *br, struct br_frame_type *ft)
+{
+	hlist_add_head_rcu(&ft->list, &br->frame_type_list);
+}
+
+void br_del_frame(struct net_bridge *br, struct br_frame_type *ft)
+{
+	struct br_frame_type *tmp;
+
+	hlist_for_each_entry(tmp, &br->frame_type_list, list)
+		if (ft == tmp) {
+			hlist_del_rcu(&ft->list);
+			return;
+		}
 }

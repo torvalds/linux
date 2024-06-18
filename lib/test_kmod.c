@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR copyleft-next-0.3.1
 /*
  * kmod stress test driver
  *
  * Copyright (C) 2017 Luis R. Rodriguez <mcgrof@kernel.org>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or at your option any
- * later version; or, when distributed separately from the Linux kernel or
- * when incorporated into other software packages, subject to the following
- * license:
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of copyleft-next (version 0.3.1 or later) as published
- * at http://copyleft-next.org/.
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -61,19 +51,21 @@ static int num_test_devs;
 
 /**
  * enum kmod_test_case - linker table test case
- *
- * If you add a  test case, please be sure to review if you need to se
- * @need_mod_put for your tests case.
- *
  * @TEST_KMOD_DRIVER: stress tests request_module()
  * @TEST_KMOD_FS_TYPE: stress tests get_fs_type()
+ *
+ * If you add a  test case, please be sure to review if you need to set
+ * @need_mod_put for your tests case.
  */
 enum kmod_test_case {
+	/* private: */
 	__TEST_KMOD_INVALID = 0,
+	/* public: */
 
 	TEST_KMOD_DRIVER,
 	TEST_KMOD_FS_TYPE,
 
+	/* private: */
 	__TEST_KMOD_MAX,
 };
 
@@ -88,11 +80,12 @@ struct test_config {
 struct kmod_test_device;
 
 /**
- * kmod_test_device_info - thread info
+ * struct kmod_test_device_info - thread info
  *
  * @ret_sync: return value if request_module() is used, sync request for
  * 	@TEST_KMOD_DRIVER
  * @fs_sync: return value of get_fs_type() for @TEST_KMOD_FS_TYPE
+ * @task_sync: kthread's task_struct or %NULL if not running
  * @thread_idx: thread ID
  * @test_dev: test device test is being performed under
  * @need_mod_put: Some tests (get_fs_type() is one) requires putting the module
@@ -111,7 +104,7 @@ struct kmod_test_device_info {
 };
 
 /**
- * kmod_test_device - test device to help test kmod
+ * struct kmod_test_device - test device to help test kmod
  *
  * @dev_idx: unique ID for test device
  * @config: configuration for the test
@@ -119,7 +112,7 @@ struct kmod_test_device_info {
  * @dev: pointer to misc_dev's own struct device
  * @config_mutex: protects configuration of test
  * @trigger_mutex: the test trigger can only be fired once at a time
- * @thread_lock: protects @done count, and the @info per each thread
+ * @thread_mutex: protects @done count, and the @info per each thread
  * @done: number of threads which have completed or failed
  * @test_is_oom: when we run out of memory, use this to halt moving forward
  * @kthreads_done: completion used to signal when all work is done
@@ -204,7 +197,7 @@ static void test_kmod_put_module(struct kmod_test_device_info *info)
 	case TEST_KMOD_DRIVER:
 		break;
 	case TEST_KMOD_FS_TYPE:
-		if (info && info->fs_sync && info->fs_sync->owner)
+		if (info->fs_sync && info->fs_sync->owner)
 			module_put(info->fs_sync->owner);
 		break;
 	default:
@@ -286,7 +279,7 @@ static int tally_work_test(struct kmod_test_device_info *info)
  * If this ran it means *all* tasks were created fine and we
  * are now just collecting results.
  *
- * Only propagate errors, do not override with a subsequent sucess case.
+ * Only propagate errors, do not override with a subsequent success case.
  */
 static void tally_up_work(struct kmod_test_device *test_dev)
 {
@@ -543,7 +536,7 @@ static int trigger_config_run(struct kmod_test_device *test_dev)
 	 * wrong with the setup of the test. If the test setup went fine
 	 * then userspace must just check the result of config->test_result.
 	 * One issue with relying on the return from a call in the kernel
-	 * is if the kernel returns a possitive value using this trigger
+	 * is if the kernel returns a positive value using this trigger
 	 * will not return the value to userspace, it would be lost.
 	 *
 	 * By not relying on capturing the return value of tests we are using
@@ -585,7 +578,7 @@ trigger_config_store(struct device *dev,
 	 * Note: any return > 0 will be treated as success
 	 * and the error value will not be available to userspace.
 	 * Do not rely on trying to send to userspace a test value
-	 * return value as possitive return errors will be lost.
+	 * return value as positive return errors will be lost.
 	 */
 	if (WARN_ON(ret > 0))
 		return -EINVAL;
@@ -745,7 +738,7 @@ static int trigger_config_run_type(struct kmod_test_device *test_dev,
 		break;
 	case TEST_KMOD_FS_TYPE:
 		kfree_const(config->test_fs);
-		config->test_driver = NULL;
+		config->test_fs = NULL;
 		copied = config_copy_test_fs(config, test_str,
 					     strlen(test_str));
 		break;
@@ -877,20 +870,17 @@ static int test_dev_config_update_uint_sync(struct kmod_test_device *test_dev,
 					    int (*test_sync)(struct kmod_test_device *test_dev))
 {
 	int ret;
-	unsigned long new;
+	unsigned int val;
 	unsigned int old_val;
 
-	ret = kstrtoul(buf, 10, &new);
+	ret = kstrtouint(buf, 10, &val);
 	if (ret)
 		return ret;
-
-	if (new > UINT_MAX)
-		return -EINVAL;
 
 	mutex_lock(&test_dev->config_mutex);
 
 	old_val = *config;
-	*(unsigned int *)config = new;
+	*(unsigned int *)config = val;
 
 	ret = test_sync(test_dev);
 	if (ret) {
@@ -914,18 +904,18 @@ static int test_dev_config_update_uint_range(struct kmod_test_device *test_dev,
 					     unsigned int min,
 					     unsigned int max)
 {
+	unsigned int val;
 	int ret;
-	unsigned long new;
 
-	ret = kstrtoul(buf, 10, &new);
+	ret = kstrtouint(buf, 10, &val);
 	if (ret)
 		return ret;
 
-	if (new < min || new > max)
+	if (val < min || val > max)
 		return -EINVAL;
 
 	mutex_lock(&test_dev->config_mutex);
-	*config = new;
+	*config = val;
 	mutex_unlock(&test_dev->config_mutex);
 
 	/* Always return full write size even if we didn't consume all */
@@ -936,18 +926,15 @@ static int test_dev_config_update_int(struct kmod_test_device *test_dev,
 				      const char *buf, size_t size,
 				      int *config)
 {
+	int val;
 	int ret;
-	long new;
 
-	ret = kstrtol(buf, 10, &new);
+	ret = kstrtoint(buf, 10, &val);
 	if (ret)
 		return ret;
 
-	if (new < INT_MIN || new > INT_MAX)
-		return -EINVAL;
-
 	mutex_lock(&test_dev->config_mutex);
-	*config = new;
+	*config = val;
 	mutex_unlock(&test_dev->config_mutex);
 	/* Always return full write size even if we didn't consume all */
 	return size;
@@ -1155,6 +1142,7 @@ static struct kmod_test_device *register_test_dev_kmod(void)
 	if (ret) {
 		pr_err("could not register misc device: %d\n", ret);
 		free_test_dev_kmod(test_dev);
+		test_dev = NULL;
 		goto out;
 	}
 

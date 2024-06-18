@@ -17,18 +17,19 @@
 
 #include <asm/cp15.h>
 #include <asm/cputype.h>
-#include <asm/sections.h>
 #include <asm/cachetype.h>
-#include <asm/fixmap.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/smp_plat.h>
+#include <asm/tcm.h>
 #include <asm/tlb.h>
 #include <asm/highmem.h>
 #include <asm/system_info.h>
 #include <asm/traps.h>
 #include <asm/procinfo.h>
-#include <asm/memory.h>
+#include <asm/page.h>
+#include <asm/pgalloc.h>
+#include <asm/kasan_def.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -37,7 +38,8 @@
 
 #include "fault.h"
 #include "mm.h"
-#include "tcm.h"
+
+extern unsigned long __atags_pointer;
 
 /*
  * empty_zero_page is a special page that is used for
@@ -63,9 +65,6 @@ static unsigned int cachepolicy __initdata = CPOLICY_WRITEBACK;
 static unsigned int ecc_mask __initdata = 0;
 pgprot_t pgprot_user;
 pgprot_t pgprot_kernel;
-pgprot_t pgprot_hyp_device;
-pgprot_t pgprot_s2;
-pgprot_t pgprot_s2_device;
 
 EXPORT_SYMBOL(pgprot_user);
 EXPORT_SYMBOL(pgprot_kernel);
@@ -75,16 +74,7 @@ struct cachepolicy {
 	unsigned int	cr_mask;
 	pmdval_t	pmd;
 	pteval_t	pte;
-	pteval_t	pte_s2;
 };
-
-#ifdef CONFIG_ARM_LPAE
-#define s2_policy(policy)	policy
-#else
-#define s2_policy(policy)	0
-#endif
-
-unsigned long kimage_voffset __ro_after_init;
 
 static struct cachepolicy cache_policies[] __initdata = {
 	{
@@ -92,31 +82,26 @@ static struct cachepolicy cache_policies[] __initdata = {
 		.cr_mask	= CR_W|CR_C,
 		.pmd		= PMD_SECT_UNCACHED,
 		.pte		= L_PTE_MT_UNCACHED,
-		.pte_s2		= s2_policy(L_PTE_S2_MT_UNCACHED),
 	}, {
 		.policy		= "buffered",
 		.cr_mask	= CR_C,
 		.pmd		= PMD_SECT_BUFFERED,
 		.pte		= L_PTE_MT_BUFFERABLE,
-		.pte_s2		= s2_policy(L_PTE_S2_MT_UNCACHED),
 	}, {
 		.policy		= "writethrough",
 		.cr_mask	= 0,
 		.pmd		= PMD_SECT_WT,
 		.pte		= L_PTE_MT_WRITETHROUGH,
-		.pte_s2		= s2_policy(L_PTE_S2_MT_WRITETHROUGH),
 	}, {
 		.policy		= "writeback",
 		.cr_mask	= 0,
 		.pmd		= PMD_SECT_WB,
 		.pte		= L_PTE_MT_WRITEBACK,
-		.pte_s2		= s2_policy(L_PTE_S2_MT_WRITEBACK),
 	}, {
 		.policy		= "writealloc",
 		.cr_mask	= 0,
 		.pmd		= PMD_SECT_WBWA,
 		.pte		= L_PTE_MT_WRITEALLOC,
-		.pte_s2		= s2_policy(L_PTE_S2_MT_WRITEBACK),
 	}
 };
 
@@ -227,12 +212,14 @@ early_param("ecc", early_ecc);
 static int __init early_cachepolicy(char *p)
 {
 	pr_warn("cachepolicy kernel parameter not supported without cp15\n");
+	return 0;
 }
 early_param("cachepolicy", early_cachepolicy);
 
 static int __init noalign_setup(char *__unused)
 {
 	pr_warn("noalign kernel parameter not supported without cp15\n");
+	return 1;
 }
 __setup("noalign", noalign_setup);
 
@@ -246,9 +233,6 @@ static struct mem_type mem_types[] __ro_after_init = {
 	[MT_DEVICE] = {		  /* Strongly ordered / ARMv6 shared device */
 		.prot_pte	= PROT_PTE_DEVICE | L_PTE_MT_DEV_SHARED |
 				  L_PTE_SHARED,
-		.prot_pte_s2	= s2_policy(PROT_PTE_S2_DEVICE) |
-				  s2_policy(L_PTE_S2_MT_DEV_SHARED) |
-				  L_PTE_SHARED,
 		.prot_l1	= PMD_TYPE_TABLE,
 		.prot_sect	= PROT_SECT_DEVICE | PMD_SECT_S,
 		.domain		= DOMAIN_IO,
@@ -259,7 +243,7 @@ static struct mem_type mem_types[] __ro_after_init = {
 		.prot_sect	= PROT_SECT_DEVICE,
 		.domain		= DOMAIN_IO,
 	},
-	[MT_DEVICE_CACHED] = {	  /* ioremap_cached */
+	[MT_DEVICE_CACHED] = {	  /* ioremap_cache */
 		.prot_pte	= PROT_PTE_DEVICE | L_PTE_MT_DEV_CACHED,
 		.prot_l1	= PMD_TYPE_TABLE,
 		.prot_sect	= PROT_SECT_DEVICE | PMD_SECT_WB,
@@ -310,6 +294,17 @@ static struct mem_type mem_types[] __ro_after_init = {
 			     L_PTE_XN,
 		.prot_l1   = PMD_TYPE_TABLE,
 		.prot_sect = PMD_TYPE_SECT | PMD_SECT_AP_WRITE,
+		.domain    = DOMAIN_KERNEL,
+	},
+	[MT_MEMORY_RO] = {
+		.prot_pte  = L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY |
+			     L_PTE_XN | L_PTE_RDONLY,
+		.prot_l1   = PMD_TYPE_TABLE,
+#ifdef CONFIG_ARM_LPAE
+		.prot_sect = PMD_TYPE_SECT | L_PMD_SECT_RDONLY | PMD_SECT_AP2,
+#else
+		.prot_sect = PMD_TYPE_SECT,
+#endif
 		.domain    = DOMAIN_KERNEL,
 	},
 	[MT_ROM] = {
@@ -374,11 +369,7 @@ static pte_t *pte_offset_late_fixmap(pmd_t *dir, unsigned long addr)
 
 static inline pmd_t * __init fixmap_pmd(unsigned long addr)
 {
-	pgd_t *pgd = pgd_offset_k(addr);
-	pud_t *pud = pud_offset(pgd, addr);
-	pmd_t *pmd = pmd_offset(pud, addr);
-
-	return pmd;
+	return pmd_off_k(addr);
 }
 
 void __init early_fixmap_init(void)
@@ -409,13 +400,12 @@ void __set_fixmap(enum fixed_addresses idx, phys_addr_t phys, pgprot_t prot)
 	pte_t *pte = pte_offset_fixmap(pmd_off_k(vaddr), vaddr);
 
 	/* Make sure fixmap region does not exceed available allocation. */
-	BUILD_BUG_ON(FIXADDR_START + (__end_of_fixed_addresses * PAGE_SIZE) >
-		     FIXADDR_END);
+	BUILD_BUG_ON(__fix_to_virt(__end_of_fixed_addresses) < FIXADDR_START);
 	BUG_ON(idx >= __end_of_fixed_addresses);
 
-	/* we only support device mappings until pgprot_kernel has been set */
+	/* We support only device mappings before pgprot_kernel is set. */
 	if (WARN_ON(pgprot_val(prot) != pgprot_val(FIXMAP_PAGE_IO) &&
-		    pgprot_val(pgprot_kernel) == 0))
+		    pgprot_val(prot) && pgprot_val(pgprot_kernel) == 0))
 		return;
 
 	if (pgprot_val(prot))
@@ -426,6 +416,26 @@ void __set_fixmap(enum fixed_addresses idx, phys_addr_t phys, pgprot_t prot)
 	local_flush_tlb_kernel_range(vaddr, vaddr + PAGE_SIZE);
 }
 
+static pgprot_t protection_map[16] __ro_after_init = {
+	[VM_NONE]					= __PAGE_NONE,
+	[VM_READ]					= __PAGE_READONLY,
+	[VM_WRITE]					= __PAGE_COPY,
+	[VM_WRITE | VM_READ]				= __PAGE_COPY,
+	[VM_EXEC]					= __PAGE_READONLY_EXEC,
+	[VM_EXEC | VM_READ]				= __PAGE_READONLY_EXEC,
+	[VM_EXEC | VM_WRITE]				= __PAGE_COPY_EXEC,
+	[VM_EXEC | VM_WRITE | VM_READ]			= __PAGE_COPY_EXEC,
+	[VM_SHARED]					= __PAGE_NONE,
+	[VM_SHARED | VM_READ]				= __PAGE_READONLY,
+	[VM_SHARED | VM_WRITE]				= __PAGE_SHARED,
+	[VM_SHARED | VM_WRITE | VM_READ]		= __PAGE_SHARED,
+	[VM_SHARED | VM_EXEC]				= __PAGE_READONLY_EXEC,
+	[VM_SHARED | VM_EXEC | VM_READ]			= __PAGE_READONLY_EXEC,
+	[VM_SHARED | VM_EXEC | VM_WRITE]		= __PAGE_SHARED_EXEC,
+	[VM_SHARED | VM_EXEC | VM_WRITE | VM_READ]	= __PAGE_SHARED_EXEC
+};
+DECLARE_VM_GET_PAGE_PROT
+
 /*
  * Adjust the PMD section entries according to the CPU in use.
  */
@@ -434,7 +444,6 @@ static void __init build_mem_type_table(void)
 	struct cachepolicy *cp;
 	unsigned int cr = get_cr();
 	pteval_t user_pgprot, kern_pgprot, vecs_pgprot;
-	pteval_t hyp_device_pgprot, s2_pgprot, s2_device_pgprot;
 	int cpu_arch = cpu_architecture();
 	int i;
 
@@ -511,6 +520,7 @@ static void __init build_mem_type_table(void)
 
 			/* Also setup NX memory mapping */
 			mem_types[MT_MEMORY_RW].prot_sect |= PMD_SECT_XN;
+			mem_types[MT_MEMORY_RO].prot_sect |= PMD_SECT_XN;
 		}
 		if (cpu_arch >= CPU_ARCH_ARMv7 && (cr & CR_TRE)) {
 			/*
@@ -558,9 +568,6 @@ static void __init build_mem_type_table(void)
 	 */
 	cp = &cache_policies[cachepolicy];
 	vecs_pgprot = kern_pgprot = user_pgprot = cp->pte;
-	s2_pgprot = cp->pte_s2;
-	hyp_device_pgprot = mem_types[MT_DEVICE].prot_pte;
-	s2_device_pgprot = mem_types[MT_DEVICE].prot_pte_s2;
 
 #ifndef CONFIG_ARM_LPAE
 	/*
@@ -593,6 +600,7 @@ static void __init build_mem_type_table(void)
 		mem_types[MT_ROM].prot_sect |= PMD_SECT_APX|PMD_SECT_AP_WRITE;
 		mem_types[MT_MINICLEAN].prot_sect |= PMD_SECT_APX|PMD_SECT_AP_WRITE;
 		mem_types[MT_CACHECLEAN].prot_sect |= PMD_SECT_APX|PMD_SECT_AP_WRITE;
+		mem_types[MT_MEMORY_RO].prot_sect |= PMD_SECT_APX|PMD_SECT_AP_WRITE;
 #endif
 
 		/*
@@ -604,7 +612,6 @@ static void __init build_mem_type_table(void)
 			user_pgprot |= L_PTE_SHARED;
 			kern_pgprot |= L_PTE_SHARED;
 			vecs_pgprot |= L_PTE_SHARED;
-			s2_pgprot |= L_PTE_SHARED;
 			mem_types[MT_DEVICE_WC].prot_sect |= PMD_SECT_S;
 			mem_types[MT_DEVICE_WC].prot_pte |= L_PTE_SHARED;
 			mem_types[MT_DEVICE_CACHED].prot_sect |= PMD_SECT_S;
@@ -613,6 +620,8 @@ static void __init build_mem_type_table(void)
 			mem_types[MT_MEMORY_RWX].prot_pte |= L_PTE_SHARED;
 			mem_types[MT_MEMORY_RW].prot_sect |= PMD_SECT_S;
 			mem_types[MT_MEMORY_RW].prot_pte |= L_PTE_SHARED;
+			mem_types[MT_MEMORY_RO].prot_sect |= PMD_SECT_S;
+			mem_types[MT_MEMORY_RO].prot_pte |= L_PTE_SHARED;
 			mem_types[MT_MEMORY_DMA_READY].prot_pte |= L_PTE_SHARED;
 			mem_types[MT_MEMORY_RWX_NONCACHED].prot_sect |= PMD_SECT_S;
 			mem_types[MT_MEMORY_RWX_NONCACHED].prot_pte |= L_PTE_SHARED;
@@ -666,9 +675,6 @@ static void __init build_mem_type_table(void)
 	pgprot_user   = __pgprot(L_PTE_PRESENT | L_PTE_YOUNG | user_pgprot);
 	pgprot_kernel = __pgprot(L_PTE_PRESENT | L_PTE_YOUNG |
 				 L_PTE_DIRTY | kern_pgprot);
-	pgprot_s2  = __pgprot(L_PTE_PRESENT | L_PTE_YOUNG | s2_pgprot);
-	pgprot_s2_device  = __pgprot(s2_device_pgprot);
-	pgprot_hyp_device  = __pgprot(hyp_device_pgprot);
 
 	mem_types[MT_LOW_VECTORS].prot_l1 |= ecc_mask;
 	mem_types[MT_HIGH_VECTORS].prot_l1 |= ecc_mask;
@@ -676,6 +682,8 @@ static void __init build_mem_type_table(void)
 	mem_types[MT_MEMORY_RWX].prot_pte |= kern_pgprot;
 	mem_types[MT_MEMORY_RW].prot_sect |= ecc_mask | cp->pmd;
 	mem_types[MT_MEMORY_RW].prot_pte |= kern_pgprot;
+	mem_types[MT_MEMORY_RO].prot_sect |= ecc_mask | cp->pmd;
+	mem_types[MT_MEMORY_RO].prot_pte |= kern_pgprot;
 	mem_types[MT_MEMORY_DMA_READY].prot_pte |= kern_pgprot;
 	mem_types[MT_MEMORY_RWX_NONCACHED].prot_sect |= ecc_mask;
 	mem_types[MT_ROM].prot_sect |= cp->pmd;
@@ -729,11 +737,12 @@ static void __init *early_alloc(unsigned long sz)
 
 static void *__init late_alloc(unsigned long sz)
 {
-	void *ptr = (void *)__get_free_pages(GFP_PGTABLE_KERNEL, get_order(sz));
+	void *ptdesc = pagetable_alloc(GFP_PGTABLE_KERNEL & ~__GFP_HIGHMEM,
+			get_order(sz));
 
-	if (!ptr || !pgtable_pte_page_ctor(virt_to_page(ptr)))
+	if (!ptdesc || !pagetable_pte_ctor(ptdesc))
 		BUG();
-	return ptr;
+	return ptdesc_to_virt(ptdesc);
 }
 
 static pte_t * __init arm_pte_alloc(pmd_t *pmd, unsigned long addr,
@@ -827,12 +836,12 @@ static void __init alloc_init_pmd(pud_t *pud, unsigned long addr,
 	} while (pmd++, addr = next, addr != end);
 }
 
-static void __init alloc_init_pud(pgd_t *pgd, unsigned long addr,
+static void __init alloc_init_pud(p4d_t *p4d, unsigned long addr,
 				  unsigned long end, phys_addr_t phys,
 				  const struct mem_type *type,
 				  void *(*alloc)(unsigned long sz), bool ng)
 {
-	pud_t *pud = pud_offset(pgd, addr);
+	pud_t *pud = pud_offset(p4d, addr);
 	unsigned long next;
 
 	do {
@@ -840,6 +849,21 @@ static void __init alloc_init_pud(pgd_t *pgd, unsigned long addr,
 		alloc_init_pmd(pud, addr, next, phys, type, alloc, ng);
 		phys += next - addr;
 	} while (pud++, addr = next, addr != end);
+}
+
+static void __init alloc_init_p4d(pgd_t *pgd, unsigned long addr,
+				  unsigned long end, phys_addr_t phys,
+				  const struct mem_type *type,
+				  void *(*alloc)(unsigned long sz), bool ng)
+{
+	p4d_t *p4d = p4d_offset(pgd, addr);
+	unsigned long next;
+
+	do {
+		next = p4d_addr_end(addr, end);
+		alloc_init_pud(p4d, addr, next, phys, type, alloc, ng);
+		phys += next - addr;
+	} while (p4d++, addr = next, addr != end);
 }
 
 #ifndef CONFIG_ARM_LPAE
@@ -889,7 +913,8 @@ static void __init create_36bit_mapping(struct mm_struct *mm,
 	pgd = pgd_offset(mm, addr);
 	end = addr + length;
 	do {
-		pud_t *pud = pud_offset(pgd, addr);
+		p4d_t *p4d = p4d_offset(pgd, addr);
+		pud_t *pud = pud_offset(p4d, addr);
 		pmd_t *pmd = pmd_offset(pud, addr);
 		int i;
 
@@ -940,7 +965,7 @@ static void __init __create_mapping(struct mm_struct *mm, struct map_desc *md,
 	do {
 		unsigned long next = pgd_addr_end(addr, end);
 
-		alloc_init_pud(pgd, addr, next, phys, type, alloc, ng);
+		alloc_init_p4d(pgd, addr, next, phys, type, alloc, ng);
 
 		phys += next - addr;
 		addr = next;
@@ -962,7 +987,7 @@ static void __init create_mapping(struct map_desc *md)
 		return;
 	}
 
-	if ((md->type == MT_DEVICE || md->type == MT_ROM) &&
+	if (md->type == MT_DEVICE &&
 	    md->virtual >= PAGE_OFFSET && md->virtual < FIXADDR_START &&
 	    (md->virtual < VMALLOC_START || md->virtual >= VMALLOC_END)) {
 		pr_warn("BUG: mapping for 0x%08llx at 0x%08lx out of vmalloc space\n",
@@ -976,7 +1001,13 @@ void __init create_mapping_late(struct mm_struct *mm, struct map_desc *md,
 				bool ng)
 {
 #ifdef CONFIG_ARM_LPAE
-	pud_t *pud = pud_alloc(mm, pgd_offset(mm, md->virtual), md->virtual);
+	p4d_t *p4d;
+	pud_t *pud;
+
+	p4d = p4d_alloc(mm, pgd_offset(mm, md->virtual), md->virtual);
+	if (WARN_ON(!p4d))
+		return;
+	pud = pud_alloc(mm, p4d, md->virtual);
 	if (WARN_ON(!pud))
 		return;
 	pmd_alloc(mm, pud, 0);
@@ -1130,31 +1161,32 @@ void __init debug_ll_io_init(void)
 }
 #endif
 
-static void * __initdata vmalloc_min =
-	(void *)(VMALLOC_END - (240 << 20) - VMALLOC_OFFSET);
+static unsigned long __initdata vmalloc_size = 240 * SZ_1M;
 
 /*
  * vmalloc=size forces the vmalloc area to be exactly 'size'
  * bytes. This can be used to increase (or decrease) the vmalloc
- * area - the default is 240m.
+ * area - the default is 240MiB.
  */
 static int __init early_vmalloc(char *arg)
 {
 	unsigned long vmalloc_reserve = memparse(arg, NULL);
+	unsigned long vmalloc_max;
 
 	if (vmalloc_reserve < SZ_16M) {
 		vmalloc_reserve = SZ_16M;
-		pr_warn("vmalloc area too small, limiting to %luMB\n",
+		pr_warn("vmalloc area is too small, limiting to %luMiB\n",
 			vmalloc_reserve >> 20);
 	}
 
-	if (vmalloc_reserve > VMALLOC_END - (PAGE_OFFSET + SZ_32M)) {
-		vmalloc_reserve = VMALLOC_END - (PAGE_OFFSET + SZ_32M);
-		pr_warn("vmalloc area is too big, limiting to %luMB\n",
+	vmalloc_max = VMALLOC_END - (PAGE_OFFSET + SZ_32M + VMALLOC_OFFSET);
+	if (vmalloc_reserve > vmalloc_max) {
+		vmalloc_reserve = vmalloc_max;
+		pr_warn("vmalloc area is too big, limiting to %luMiB\n",
 			vmalloc_reserve >> 20);
 	}
 
-	vmalloc_min = (void *)(VMALLOC_END - vmalloc_reserve);
+	vmalloc_size = vmalloc_reserve;
 	return 0;
 }
 early_param("vmalloc", early_vmalloc);
@@ -1163,9 +1195,8 @@ phys_addr_t arm_lowmem_limit __initdata = 0;
 
 void __init adjust_lowmem_bounds(void)
 {
-	phys_addr_t memblock_limit = 0;
-	u64 vmalloc_limit;
-	struct memblock_region *reg;
+	phys_addr_t block_start, block_end, memblock_limit = 0;
+	u64 vmalloc_limit, i;
 	phys_addr_t lowmem_limit = 0;
 
 	/*
@@ -1175,32 +1206,25 @@ void __init adjust_lowmem_bounds(void)
 	 * and may itself be outside the valid range for which phys_addr_t
 	 * and therefore __pa() is defined.
 	 */
-	vmalloc_limit = (u64)(uintptr_t)vmalloc_min - PAGE_OFFSET + PHYS_OFFSET;
+	vmalloc_limit = (u64)VMALLOC_END - vmalloc_size - VMALLOC_OFFSET -
+			PAGE_OFFSET + PHYS_OFFSET;
 
 	/*
 	 * The first usable region must be PMD aligned. Mark its start
 	 * as MEMBLOCK_NOMAP if it isn't
 	 */
-	for_each_memblock(memory, reg) {
-		if (!memblock_is_nomap(reg)) {
-			if (!IS_ALIGNED(reg->base, PMD_SIZE)) {
-				phys_addr_t len;
+	for_each_mem_range(i, &block_start, &block_end) {
+		if (!IS_ALIGNED(block_start, PMD_SIZE)) {
+			phys_addr_t len;
 
-				len = round_up(reg->base, PMD_SIZE) - reg->base;
-				memblock_mark_nomap(reg->base, len);
-			}
-			break;
+			len = round_up(block_start, PMD_SIZE) - block_start;
+			memblock_mark_nomap(block_start, len);
 		}
+		break;
 	}
 
-	for_each_memblock(memory, reg) {
-		phys_addr_t block_start = reg->base;
-		phys_addr_t block_end = reg->base + reg->size;
-
-		if (memblock_is_nomap(reg))
-			continue;
-
-		if (reg->base < vmalloc_limit) {
+	for_each_mem_range(i, &block_start, &block_end) {
+		if (block_start < vmalloc_limit) {
 			if (block_end > lowmem_limit)
 				/*
 				 * Compare as u64 to ensure vmalloc_limit does
@@ -1264,7 +1288,7 @@ void __init adjust_lowmem_bounds(void)
 	memblock_set_current_limit(memblock_limit);
 }
 
-static inline void prepare_page_table(void)
+static __init void prepare_page_table(void)
 {
 	unsigned long addr;
 	phys_addr_t end;
@@ -1272,8 +1296,25 @@ static inline void prepare_page_table(void)
 	/*
 	 * Clear out all the mappings below the kernel image.
 	 */
+#ifdef CONFIG_KASAN
+	/*
+	 * KASan's shadow memory inserts itself between the TASK_SIZE
+	 * and MODULES_VADDR. Do not clear the KASan shadow memory mappings.
+	 */
+	for (addr = 0; addr < KASAN_SHADOW_START; addr += PMD_SIZE)
+		pmd_clear(pmd_off_k(addr));
+	/*
+	 * Skip over the KASan shadow area. KASAN_SHADOW_END is sometimes
+	 * equal to MODULES_VADDR and then we exit the pmd clearing. If we
+	 * are using a thumb-compiled kernel, there there will be 8MB more
+	 * to clear as KASan always offset to 16 MB below MODULES_VADDR.
+	 */
+	for (addr = KASAN_SHADOW_END; addr < MODULES_VADDR; addr += PMD_SIZE)
+		pmd_clear(pmd_off_k(addr));
+#else
 	for (addr = 0; addr < MODULES_VADDR; addr += PMD_SIZE)
 		pmd_clear(pmd_off_k(addr));
+#endif
 
 #ifdef CONFIG_XIP_KERNEL
 	/* The XIP kernel is mapped in the module area -- skip over it */
@@ -1351,6 +1392,15 @@ static void __init devicemaps_init(const struct machine_desc *mdesc)
 	 */
 	for (addr = VMALLOC_START; addr < (FIXADDR_TOP & PMD_MASK); addr += PMD_SIZE)
 		pmd_clear(pmd_off_k(addr));
+
+	if (__atags_pointer) {
+		/* create a read-only mapping of the device tree */
+		map.pfn = __phys_to_pfn(__atags_pointer & SECTION_MASK);
+		map.virtual = FDT_FIXED_BASE;
+		map.length = FDT_FIXED_SIZE;
+		map.type = MT_MEMORY_RO;
+		create_mapping(&map);
+	}
 
 	/*
 	 * Map the kernel if it is XIP.
@@ -1449,71 +1499,135 @@ static void __init kmap_init(void)
 
 static void __init map_lowmem(void)
 {
-	struct memblock_region *reg;
-	phys_addr_t kernel_x_start = round_down(__pa(KERNEL_START), SECTION_SIZE);
-	phys_addr_t kernel_x_end = round_up(__pa(__init_end), SECTION_SIZE);
+	phys_addr_t start, end;
+	u64 i;
 
 	/* Map all the lowmem memory banks. */
-	for_each_memblock(memory, reg) {
-		phys_addr_t start = reg->base;
-		phys_addr_t end = start + reg->size;
+	for_each_mem_range(i, &start, &end) {
 		struct map_desc map;
 
-		if (memblock_is_nomap(reg))
-			continue;
-
+		pr_debug("map lowmem start: 0x%08llx, end: 0x%08llx\n",
+			 (long long)start, (long long)end);
 		if (end > arm_lowmem_limit)
 			end = arm_lowmem_limit;
 		if (start >= end)
 			break;
 
-		if (end < kernel_x_start) {
-			map.pfn = __phys_to_pfn(start);
-			map.virtual = __phys_to_virt(start);
-			map.length = end - start;
-			map.type = MT_MEMORY_RWX;
+		/*
+		 * If our kernel image is in the VMALLOC area we need to remove
+		 * the kernel physical memory from lowmem since the kernel will
+		 * be mapped separately.
+		 *
+		 * The kernel will typically be at the very start of lowmem,
+		 * but any placement relative to memory ranges is possible.
+		 *
+		 * If the memblock contains the kernel, we have to chisel out
+		 * the kernel memory from it and map each part separately. We
+		 * get 6 different theoretical cases:
+		 *
+		 *                            +--------+ +--------+
+		 *  +-- start --+  +--------+ | Kernel | | Kernel |
+		 *  |           |  | Kernel | | case 2 | | case 5 |
+		 *  |           |  | case 1 | +--------+ |        | +--------+
+		 *  |  Memory   |  +--------+            |        | | Kernel |
+		 *  |  range    |  +--------+            |        | | case 6 |
+		 *  |           |  | Kernel | +--------+ |        | +--------+
+		 *  |           |  | case 3 | | Kernel | |        |
+		 *  +-- end ----+  +--------+ | case 4 | |        |
+		 *                            +--------+ +--------+
+		 */
 
-			create_mapping(&map);
-		} else if (start >= kernel_x_end) {
-			map.pfn = __phys_to_pfn(start);
-			map.virtual = __phys_to_virt(start);
-			map.length = end - start;
-			map.type = MT_MEMORY_RW;
+		/* Case 5: kernel covers range, don't map anything, should be rare */
+		if ((start > kernel_sec_start) && (end < kernel_sec_end))
+			break;
 
-			create_mapping(&map);
-		} else {
-			/* This better cover the entire kernel */
-			if (start < kernel_x_start) {
+		/* Cases where the kernel is starting inside the range */
+		if ((kernel_sec_start >= start) && (kernel_sec_start <= end)) {
+			/* Case 6: kernel is embedded in the range, we need two mappings */
+			if ((start < kernel_sec_start) && (end > kernel_sec_end)) {
+				/* Map memory below the kernel */
 				map.pfn = __phys_to_pfn(start);
 				map.virtual = __phys_to_virt(start);
-				map.length = kernel_x_start - start;
+				map.length = kernel_sec_start - start;
 				map.type = MT_MEMORY_RW;
-
 				create_mapping(&map);
-			}
-
-			map.pfn = __phys_to_pfn(kernel_x_start);
-			map.virtual = __phys_to_virt(kernel_x_start);
-			map.length = kernel_x_end - kernel_x_start;
-			map.type = MT_MEMORY_RWX;
-
-			create_mapping(&map);
-
-			if (kernel_x_end < end) {
-				map.pfn = __phys_to_pfn(kernel_x_end);
-				map.virtual = __phys_to_virt(kernel_x_end);
-				map.length = end - kernel_x_end;
+				/* Map memory above the kernel */
+				map.pfn = __phys_to_pfn(kernel_sec_end);
+				map.virtual = __phys_to_virt(kernel_sec_end);
+				map.length = end - kernel_sec_end;
 				map.type = MT_MEMORY_RW;
-
 				create_mapping(&map);
+				break;
 			}
+			/* Case 1: kernel and range start at the same address, should be common */
+			if (kernel_sec_start == start)
+				start = kernel_sec_end;
+			/* Case 3: kernel and range end at the same address, should be rare */
+			if (kernel_sec_end == end)
+				end = kernel_sec_start;
+		} else if ((kernel_sec_start < start) && (kernel_sec_end > start) && (kernel_sec_end < end)) {
+			/* Case 2: kernel ends inside range, starts below it */
+			start = kernel_sec_end;
+		} else if ((kernel_sec_start > start) && (kernel_sec_start < end) && (kernel_sec_end > end)) {
+			/* Case 4: kernel starts inside range, ends above it */
+			end = kernel_sec_start;
 		}
+		map.pfn = __phys_to_pfn(start);
+		map.virtual = __phys_to_virt(start);
+		map.length = end - start;
+		map.type = MT_MEMORY_RW;
+		create_mapping(&map);
 	}
 }
 
+static void __init map_kernel(void)
+{
+	/*
+	 * We use the well known kernel section start and end and split the area in the
+	 * middle like this:
+	 *  .                .
+	 *  | RW memory      |
+	 *  +----------------+ kernel_x_start
+	 *  | Executable     |
+	 *  | kernel memory  |
+	 *  +----------------+ kernel_x_end / kernel_nx_start
+	 *  | Non-executable |
+	 *  | kernel memory  |
+	 *  +----------------+ kernel_nx_end
+	 *  | RW memory      |
+	 *  .                .
+	 *
+	 * Notice that we are dealing with section sized mappings here so all of this
+	 * will be bumped to the closest section boundary. This means that some of the
+	 * non-executable part of the kernel memory is actually mapped as executable.
+	 * This will only persist until we turn on proper memory management later on
+	 * and we remap the whole kernel with page granularity.
+	 */
+	phys_addr_t kernel_x_start = kernel_sec_start;
+	phys_addr_t kernel_x_end = round_up(__pa(__init_end), SECTION_SIZE);
+	phys_addr_t kernel_nx_start = kernel_x_end;
+	phys_addr_t kernel_nx_end = kernel_sec_end;
+	struct map_desc map;
+
+	map.pfn = __phys_to_pfn(kernel_x_start);
+	map.virtual = __phys_to_virt(kernel_x_start);
+	map.length = kernel_x_end - kernel_x_start;
+	map.type = MT_MEMORY_RWX;
+	create_mapping(&map);
+
+	/* If the nx part is small it may end up covered by the tail of the RWX section */
+	if (kernel_x_end == kernel_nx_end)
+		return;
+
+	map.pfn = __phys_to_pfn(kernel_nx_start);
+	map.virtual = __phys_to_virt(kernel_nx_start);
+	map.length = kernel_nx_end - kernel_nx_start;
+	map.type = MT_MEMORY_RW;
+	create_mapping(&map);
+}
+
 #ifdef CONFIG_ARM_PV_FIXUP
-extern unsigned long __atags_pointer;
-typedef void pgtables_remap(long long offset, unsigned long pgd, void *bdata);
+typedef void pgtables_remap(long long offset, unsigned long pgd);
 pgtables_remap lpae_pgtables_remap_asm;
 
 /*
@@ -1526,7 +1640,6 @@ static void __init early_paging_init(const struct machine_desc *mdesc)
 	unsigned long pa_pgd;
 	unsigned int cr, ttbcr;
 	long long offset;
-	void *boot_data;
 
 	if (!mdesc->pv_fixup)
 		return;
@@ -1536,6 +1649,13 @@ static void __init early_paging_init(const struct machine_desc *mdesc)
 		return;
 
 	/*
+	 * Offset the kernel section physical offsets so that the kernel
+	 * mapping will work out later on.
+	 */
+	kernel_sec_start += offset;
+	kernel_sec_end += offset;
+
+	/*
 	 * Get the address of the remap function in the 1:1 identity
 	 * mapping setup by the early page table assembly code.  We
 	 * must get this prior to the pv update.  The following barrier
@@ -1543,7 +1663,6 @@ static void __init early_paging_init(const struct machine_desc *mdesc)
 	 */
 	lpae_pgtables_remap = (pgtables_remap *)(unsigned long)__pa(lpae_pgtables_remap_asm);
 	pa_pgd = __pa(swapper_pg_dir);
-	boot_data = __va(__atags_pointer);
 	barrier();
 
 	pr_info("Switching physical address space to 0x%08llx\n",
@@ -1568,9 +1687,8 @@ static void __init early_paging_init(const struct machine_desc *mdesc)
 	 */
 	cr = get_cr();
 	set_cr(cr & ~(CR_I | CR_C));
-	asm("mrc p15, 0, %0, c2, c0, 2" : "=r" (ttbcr));
-	asm volatile("mcr p15, 0, %0, c2, c0, 2"
-		: : "r" (ttbcr & ~(3 << 8 | 3 << 10)));
+	ttbcr = cpu_get_ttbcr();
+	cpu_set_ttbcr(ttbcr & ~(3 << 8 | 3 << 10));
 	flush_cache_all();
 
 	/*
@@ -1579,10 +1697,10 @@ static void __init early_paging_init(const struct machine_desc *mdesc)
 	 * needs to be assembly.  It's fairly simple, as we're using the
 	 * temporary tables setup by the initial assembly code.
 	 */
-	lpae_pgtables_remap(offset, pa_pgd, boot_data);
+	lpae_pgtables_remap(offset, pa_pgd);
 
 	/* Re-enable the caches and cacheable TLB walks */
-	asm volatile("mcr p15, 0, %0, c2, c0, 2" : : "r" (ttbcr));
+	cpu_set_ttbcr(ttbcr);
 	set_cr(cr);
 }
 
@@ -1644,9 +1762,18 @@ void __init paging_init(const struct machine_desc *mdesc)
 {
 	void *zero_page;
 
+	pr_debug("physical kernel sections: 0x%08llx-0x%08llx\n",
+		 kernel_sec_start, kernel_sec_end);
+
 	prepare_page_table();
 	map_lowmem();
 	memblock_set_current_limit(arm_lowmem_limit);
+	pr_debug("lowmem limit is %08llx\n", (long long)arm_lowmem_limit);
+	/*
+	 * After this point early_alloc(), i.e. the memblock allocator, can
+	 * be used
+	 */
+	map_kernel();
 	dma_contiguous_remap();
 	early_fixmap_shutdown();
 	devicemaps_init(mdesc);
@@ -1661,14 +1788,31 @@ void __init paging_init(const struct machine_desc *mdesc)
 	bootmem_init();
 
 	empty_zero_page = virt_to_page(zero_page);
-	__flush_dcache_page(NULL, empty_zero_page);
-
-	/* Compute the virt/idmap offset, mostly for the sake of KVM */
-	kimage_voffset = (unsigned long)&kimage_voffset - virt_to_idmap(&kimage_voffset);
+	__flush_dcache_folio(NULL, page_folio(empty_zero_page));
 }
 
 void __init early_mm_init(const struct machine_desc *mdesc)
 {
 	build_mem_type_table();
 	early_paging_init(mdesc);
+}
+
+void set_ptes(struct mm_struct *mm, unsigned long addr,
+			      pte_t *ptep, pte_t pteval, unsigned int nr)
+{
+	unsigned long ext = 0;
+
+	if (addr < TASK_SIZE && pte_valid_user(pteval)) {
+		if (!pte_special(pteval))
+			__sync_icache_dcache(pteval);
+		ext |= PTE_EXT_NG;
+	}
+
+	for (;;) {
+		set_pte_ext(ptep, pteval, ext);
+		if (--nr == 0)
+			break;
+		ptep++;
+		pteval = pte_next_pfn(pteval);
+	}
 }

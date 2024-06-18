@@ -66,15 +66,14 @@ static int rpc_proc_show(struct seq_file *seq, void *v) {
 
 static int rpc_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, rpc_proc_show, PDE_DATA(inode));
+	return single_open(file, rpc_proc_show, pde_data(inode));
 }
 
-static const struct file_operations rpc_proc_fops = {
-	.owner = THIS_MODULE,
-	.open = rpc_proc_open,
-	.read  = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
+static const struct proc_ops rpc_proc_ops = {
+	.proc_open	= rpc_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
 };
 
 /*
@@ -84,7 +83,8 @@ void svc_seq_show(struct seq_file *seq, const struct svc_stat *statp)
 {
 	const struct svc_program *prog = statp->program;
 	const struct svc_version *vers;
-	unsigned int i, j;
+	unsigned int i, j, k;
+	unsigned long count;
 
 	seq_printf(seq,
 		"net %u %u %u %u\n",
@@ -105,8 +105,12 @@ void svc_seq_show(struct seq_file *seq, const struct svc_stat *statp)
 		if (!vers)
 			continue;
 		seq_printf(seq, "proc%d %u", i, vers->vs_nproc);
-		for (j = 0; j < vers->vs_nproc; j++)
-			seq_printf(seq, " %u", vers->vs_count[j]);
+		for (j = 0; j < vers->vs_nproc; j++) {
+			count = 0;
+			for_each_possible_cpu(k)
+				count += per_cpu(vers->vs_count[j], k);
+			seq_printf(seq, " %lu", count);
+		}
 		seq_putc(seq, '\n');
 	}
 }
@@ -281,19 +285,19 @@ EXPORT_SYMBOL_GPL(rpc_clnt_show_stats);
  */
 static inline struct proc_dir_entry *
 do_register(struct net *net, const char *name, void *data,
-	    const struct file_operations *fops)
+	    const struct proc_ops *proc_ops)
 {
 	struct sunrpc_net *sn;
 
 	dprintk("RPC:       registering /proc/net/rpc/%s\n", name);
 	sn = net_generic(net, sunrpc_net_id);
-	return proc_create_data(name, 0, sn->proc_net_rpc, fops, data);
+	return proc_create_data(name, 0, sn->proc_net_rpc, proc_ops, data);
 }
 
 struct proc_dir_entry *
 rpc_proc_register(struct net *net, struct rpc_stat *statp)
 {
-	return do_register(net, statp->program->name, statp, &rpc_proc_fops);
+	return do_register(net, statp->program->name, statp, &rpc_proc_ops);
 }
 EXPORT_SYMBOL_GPL(rpc_proc_register);
 
@@ -308,9 +312,9 @@ rpc_proc_unregister(struct net *net, const char *name)
 EXPORT_SYMBOL_GPL(rpc_proc_unregister);
 
 struct proc_dir_entry *
-svc_proc_register(struct net *net, struct svc_stat *statp, const struct file_operations *fops)
+svc_proc_register(struct net *net, struct svc_stat *statp, const struct proc_ops *proc_ops)
 {
-	return do_register(net, statp->program->pg_name, statp, fops);
+	return do_register(net, statp->program->pg_name, net, proc_ops);
 }
 EXPORT_SYMBOL_GPL(svc_proc_register);
 

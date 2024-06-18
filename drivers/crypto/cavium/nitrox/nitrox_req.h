@@ -10,6 +10,8 @@
 #define PENDING_SIG	0xFFFFFFFFFFFFFFFFUL
 #define PRIO 4001
 
+typedef void (*sereq_completion_t)(void *req, int err);
+
 /**
  * struct gphdr - General purpose Header
  * @param0: first parameter.
@@ -147,6 +149,7 @@ struct auth_keys {
 
 union fc_ctx_flags {
 	__be64 f;
+	u64 fu;
 	struct {
 #if defined(__BIG_ENDIAN_BITFIELD)
 		u64 cipher_type	: 4;
@@ -203,12 +206,14 @@ struct nitrox_crypto_ctx {
 		struct flexi_crypto_context *fctx;
 	} u;
 	struct crypto_ctx_hdr *chdr;
+	sereq_completion_t callback;
 };
 
 struct nitrox_kcrypt_request {
 	struct se_crypto_request creq;
 	u8 *src;
 	u8 *dst;
+	u8 *iv_out;
 };
 
 /**
@@ -276,6 +281,7 @@ struct nitrox_rfc4106_rctx {
  *   - packet payload bytes
  */
 union pkt_instr_hdr {
+	__be64 bev;
 	u64 value;
 	struct {
 #if defined(__BIG_ENDIAN_BITFIELD)
@@ -320,6 +326,7 @@ union pkt_instr_hdr {
  * @ctxp: Context pointer. CTXP<63,2:0> must be zero in all cases.
  */
 union pkt_hdr {
+	__be64 bev[2];
 	u64 value[2];
 	struct {
 #if defined(__BIG_ENDIAN_BITFIELD)
@@ -366,6 +373,7 @@ union pkt_hdr {
  *        sglist components at [RPTR] on the remote host.
  */
 union slc_store_info {
+	__be64 bev[2];
 	u64 value[2];
 	struct {
 #if defined(__BIG_ENDIAN_BITFIELD)
@@ -432,7 +440,7 @@ struct aqmq_command_s {
 /**
  * struct ctx_hdr - Book keeping data about the crypto context
  * @pool: Pool used to allocate crypto context
- * @dma: Base DMA address of the cypto context
+ * @dma: Base DMA address of the crypto context
  * @ctx_dma: Actual usable crypto context for NITROX
  */
 struct ctx_hdr {

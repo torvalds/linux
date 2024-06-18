@@ -13,17 +13,16 @@
 #ifdef CPU_M68040_OR_M68060_ONLY
 static inline void copy_page(void *to, void *from)
 {
-  unsigned long tmp;
+	unsigned long tmp;
 
-  __asm__ __volatile__("1:\t"
-		       ".chip 68040\n\t"
-		       "move16 %1@+,%0@+\n\t"
-		       "move16 %1@+,%0@+\n\t"
-		       ".chip 68k\n\t"
-		       "dbra  %2,1b\n\t"
-		       : "=a" (to), "=a" (from), "=d" (tmp)
-		       : "0" (to), "1" (from) , "2" (PAGE_SIZE / 32 - 1)
-		       );
+	__asm__ __volatile__("1:\t"
+			     ".chip 68040\n\t"
+			     "move16 %1@+,%0@+\n\t"
+			     "move16 %1@+,%0@+\n\t"
+			     ".chip 68k\n\t"
+			     "dbra  %2,1b\n\t"
+			     : "=a" (to), "=a" (from), "=d" (tmp)
+			     : "0" (to), "1" (from), "2" (PAGE_SIZE / 32 - 1));
 }
 
 static inline void clear_page(void *page)
@@ -95,23 +94,23 @@ static inline void *__va(unsigned long paddr)
 #define __pa(x) ___pa((unsigned long)(x))
 static inline unsigned long ___pa(unsigned long x)
 {
-     if(x == 0)
-	  return 0;
-     if(x >= PAGE_OFFSET)
-        return (x-PAGE_OFFSET);
-     else
-        return (x+0x2000000);
+	if (x == 0)
+		return 0;
+	if (x >= PAGE_OFFSET)
+		return (x - PAGE_OFFSET);
+	else
+		return (x + 0x2000000);
 }
 
 static inline void *__va(unsigned long x)
 {
-     if(x == 0)
-	  return (void *)0;
+	if (x == 0)
+		return (void *)0;
 
-     if(x < 0x2000000)
-        return (void *)(x+PAGE_OFFSET);
-     else
-        return (void *)(x-0x2000000);
+	if (x < 0x2000000)
+		return (void *)(x + PAGE_OFFSET);
+	else
+		return (void *)(x - 0x2000000);
 }
 #endif	/* CONFIG_SUN3 */
 
@@ -121,30 +120,17 @@ static inline void *__va(unsigned long x)
  * TODO: implement (fast) pfn<->pgdat_idx conversion functions, this makes lots
  * of the shifts unnecessary.
  */
-#define virt_to_pfn(kaddr)	(__pa(kaddr) >> PAGE_SHIFT)
-#define pfn_to_virt(pfn)	__va((pfn) << PAGE_SHIFT)
-
-extern int m68k_virt_to_node_shift;
-
-#ifdef CONFIG_SINGLE_MEMORY_CHUNK
-#define __virt_to_node(addr)	(&pg_data_map[0])
-#else
-extern struct pglist_data *pg_data_table[];
-
-static inline __attribute_const__ int __virt_to_node_shift(void)
+static inline unsigned long virt_to_pfn(const void *kaddr)
 {
-	int shift;
-
-	asm (
-		"1:	moveq	#0,%0\n"
-		m68k_fixup(%c1, 1b)
-		: "=d" (shift)
-		: "i" (m68k_fixup_vnode_shift));
-	return shift;
+	return __pa(kaddr) >> PAGE_SHIFT;
 }
 
-#define __virt_to_node(addr)	(pg_data_table[(unsigned long)(addr) >> __virt_to_node_shift()])
-#endif
+static inline void *pfn_to_virt(unsigned long pfn)
+{
+	return __va(pfn << PAGE_SHIFT);
+}
+
+extern int m68k_virt_to_node_shift;
 
 #define virt_to_page(addr) ({						\
 	pfn_to_page(virt_to_pfn(addr));					\
@@ -153,20 +139,9 @@ static inline __attribute_const__ int __virt_to_node_shift(void)
 	pfn_to_virt(page_to_pfn(page));					\
 })
 
-#define pfn_to_page(pfn) ({						\
-	unsigned long __pfn = (pfn);					\
-	struct pglist_data *pgdat;					\
-	pgdat = __virt_to_node((unsigned long)pfn_to_virt(__pfn));	\
-	pgdat->node_mem_map + (__pfn - pgdat->node_start_pfn);		\
-})
-#define page_to_pfn(_page) ({						\
-	const struct page *__p = (_page);				\
-	struct pglist_data *pgdat;					\
-	pgdat = &pg_data_map[page_to_nid(__p)];				\
-	((__p) - pgdat->node_mem_map) + pgdat->node_start_pfn;		\
-})
+#define ARCH_PFN_OFFSET (m68k_memory[0].addr >> PAGE_SHIFT)
 
-#define virt_addr_valid(kaddr)	((void *)(kaddr) >= (void *)PAGE_OFFSET && (void *)(kaddr) < high_memory)
+#define virt_addr_valid(kaddr)	((unsigned long)(kaddr) >= PAGE_OFFSET && (unsigned long)(kaddr) < (unsigned long)high_memory)
 #define pfn_valid(pfn)		virt_addr_valid(pfn_to_virt(pfn))
 
 #endif /* __ASSEMBLY__ */

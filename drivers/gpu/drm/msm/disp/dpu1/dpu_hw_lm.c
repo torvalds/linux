@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+/*
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
  */
+
+#include <drm/drm_managed.h>
 
 #include "dpu_kms.h"
 #include "dpu_hw_catalog.h"
@@ -24,31 +28,14 @@
 #define LM_BLEND0_FG_ALPHA               0x04
 #define LM_BLEND0_BG_ALPHA               0x08
 
-static struct dpu_lm_cfg *_lm_offset(enum dpu_lm mixer,
-		struct dpu_mdss_cfg *m,
-		void __iomem *addr,
-		struct dpu_hw_blk_reg_map *b)
-{
-	int i;
+#define LM_MISR_CTRL                     0x310
+#define LM_MISR_SIGNATURE                0x314
 
-	for (i = 0; i < m->mixer_count; i++) {
-		if (mixer == m->mixer[i].id) {
-			b->base_off = addr;
-			b->blk_off = m->mixer[i].base;
-			b->length = m->mixer[i].len;
-			b->hwversion = m->hwversion;
-			b->log_mask = DPU_DBG_MASK_LM;
-			return &m->mixer[i];
-		}
-	}
-
-	return ERR_PTR(-ENOMEM);
-}
 
 /**
  * _stage_offset(): returns the relative offset of the blend registers
  * for the stage to be setup
- * @c:     mixer ctx contains the mixer to be programmed
+ * @ctx:     mixer ctx contains the mixer to be programmed
  * @stage: stage index to setup
  */
 static inline int _stage_offset(struct dpu_hw_mixer *ctx, enum dpu_stage stage)
@@ -96,7 +83,17 @@ static void dpu_hw_lm_setup_border_color(struct dpu_hw_mixer *ctx,
 	}
 }
 
-static void dpu_hw_lm_setup_blend_config_sdm845(struct dpu_hw_mixer *ctx,
+static void dpu_hw_lm_setup_misr(struct dpu_hw_mixer *ctx)
+{
+	dpu_hw_setup_misr(&ctx->hw, LM_MISR_CTRL, 0x0);
+}
+
+static int dpu_hw_lm_collect_misr(struct dpu_hw_mixer *ctx, u32 *misr_value)
+{
+	return dpu_hw_collect_misr(&ctx->hw, LM_MISR_CTRL, LM_MISR_SIGNATURE, misr_value);
+}
+
+static void dpu_hw_lm_setup_blend_config_combined_alpha(struct dpu_hw_mixer *ctx,
 	u32 stage, u32 fg_alpha, u32 bg_alpha, u32 blend_op)
 {
 	struct dpu_hw_blk_reg_map *c = &ctx->hw;
@@ -147,51 +144,42 @@ static void dpu_hw_lm_setup_color3(struct dpu_hw_mixer *ctx,
 	DPU_REG_WRITE(c, LM_OP_MODE, op_mode);
 }
 
-static void _setup_mixer_ops(struct dpu_mdss_cfg *m,
-		struct dpu_hw_lm_ops *ops,
+static void _setup_mixer_ops(struct dpu_hw_lm_ops *ops,
 		unsigned long features)
 {
 	ops->setup_mixer_out = dpu_hw_lm_setup_out;
-	if (IS_SDM845_TARGET(m->hwversion) || IS_SDM670_TARGET(m->hwversion))
-		ops->setup_blend_config = dpu_hw_lm_setup_blend_config_sdm845;
+	if (test_bit(DPU_MIXER_COMBINED_ALPHA, &features))
+		ops->setup_blend_config = dpu_hw_lm_setup_blend_config_combined_alpha;
 	else
 		ops->setup_blend_config = dpu_hw_lm_setup_blend_config;
 	ops->setup_alpha_out = dpu_hw_lm_setup_color3;
 	ops->setup_border_color = dpu_hw_lm_setup_border_color;
-};
+	ops->setup_misr = dpu_hw_lm_setup_misr;
+	ops->collect_misr = dpu_hw_lm_collect_misr;
+}
 
-static struct dpu_hw_blk_ops dpu_hw_ops;
-
-struct dpu_hw_mixer *dpu_hw_lm_init(enum dpu_lm idx,
-		void __iomem *addr,
-		struct dpu_mdss_cfg *m)
+struct dpu_hw_mixer *dpu_hw_lm_init(struct drm_device *dev,
+				    const struct dpu_lm_cfg *cfg,
+				    void __iomem *addr)
 {
 	struct dpu_hw_mixer *c;
-	struct dpu_lm_cfg *cfg;
 
-	c = kzalloc(sizeof(*c), GFP_KERNEL);
+	if (cfg->pingpong == PINGPONG_NONE) {
+		DPU_DEBUG("skip mixer %d without pingpong\n", cfg->id);
+		return NULL;
+	}
+
+	c = drmm_kzalloc(dev, sizeof(*c), GFP_KERNEL);
 	if (!c)
 		return ERR_PTR(-ENOMEM);
 
-	cfg = _lm_offset(idx, m, addr, &c->hw);
-	if (IS_ERR_OR_NULL(cfg)) {
-		kfree(c);
-		return ERR_PTR(-EINVAL);
-	}
+	c->hw.blk_addr = addr + cfg->base;
+	c->hw.log_mask = DPU_DBG_MASK_LM;
 
 	/* Assign ops */
-	c->idx = idx;
+	c->idx = cfg->id;
 	c->cap = cfg;
-	_setup_mixer_ops(m, &c->ops, c->cap->features);
-
-	dpu_hw_blk_init(&c->base, DPU_HW_BLK_LM, idx, &dpu_hw_ops);
+	_setup_mixer_ops(&c->ops, c->cap->features);
 
 	return c;
-}
-
-void dpu_hw_lm_destroy(struct dpu_hw_mixer *lm)
-{
-	if (lm)
-		dpu_hw_blk_destroy(&lm->base);
-	kfree(lm);
 }

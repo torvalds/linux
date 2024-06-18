@@ -32,6 +32,7 @@
 #define __FSL_QMAN_H
 
 #include <linux/bitops.h>
+#include <linux/device.h>
 
 /* Hardware constants */
 #define QM_CHANNEL_SWPORTAL0 0
@@ -255,7 +256,7 @@ struct qm_dqrr_entry {
 	__be32 context_b;
 	struct qm_fd fd;
 	u8 __reserved4[32];
-} __packed;
+} __packed __aligned(64);
 #define QM_DQRR_VERB_VBIT		0x80
 #define QM_DQRR_VERB_MASK		0x7f	/* where the verb contains; */
 #define QM_DQRR_VERB_FRAME_DEQUEUE	0x60	/* "this format" */
@@ -288,7 +289,7 @@ union qm_mr_entry {
 		__be32 tag;
 		struct qm_fd fd;
 		u8 __reserved1[32];
-	} __packed ern;
+	} __packed __aligned(64) ern;
 	struct {
 		u8 verb;
 		u8 fqs;		/* Frame Queue Status */
@@ -688,7 +689,8 @@ enum qman_cb_dqrr_result {
 };
 typedef enum qman_cb_dqrr_result (*qman_cb_dqrr)(struct qman_portal *qm,
 					struct qman_fq *fq,
-					const struct qm_dqrr_entry *dqrr);
+					const struct qm_dqrr_entry *dqrr,
+					bool sched_napi);
 
 /*
  * This callback type is used when handling ERNs, FQRNs and FQRLs via MR. They
@@ -913,6 +915,16 @@ u16 qman_affine_channel(int cpu);
  * @cpu: the cpu whose affine portal is the subject of the query
  */
 struct qman_portal *qman_get_affine_portal(int cpu);
+
+/**
+ * qman_start_using_portal - register a device link for the portal user
+ * @p: the portal that will be in use
+ * @dev: the device that will use the portal
+ *
+ * Makes sure that the devices that use the portal are unbound when the
+ * portal is unbound
+ */
+int qman_start_using_portal(struct qman_portal *p, struct device *dev);
 
 /**
  * qman_p_poll_dqrr - process DQRR (fast-path) entries
@@ -1158,6 +1170,15 @@ int qman_delete_cgr(struct qman_cgr *cgr);
  * This will select the proper CPU and run there qman_delete_cgr().
  */
 void qman_delete_cgr_safe(struct qman_cgr *cgr);
+
+/**
+ * qman_update_cgr_safe - Modifies a congestion group object from any CPU
+ * @cgr: the 'cgr' object to modify
+ * @opts: state of the CGR settings
+ *
+ * This will select the proper CPU and modify the CGR settings.
+ */
+int qman_update_cgr_safe(struct qman_cgr *cgr, struct qm_mcc_initcgr *opts);
 
 /**
  * qman_query_cgr_congested - Queries CGR's congestion status

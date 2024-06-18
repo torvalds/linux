@@ -47,8 +47,8 @@ static int hclge_mdio_write(struct mii_bus *bus, int phyid, int regnum,
 	struct hclge_desc desc;
 	int ret;
 
-	if (test_bit(HCLGE_STATE_CMD_DISABLE, &hdev->state))
-		return 0;
+	if (test_bit(HCLGE_COMM_STATE_CMD_DISABLE, &hdev->hw.hw.comm_state))
+		return -EBUSY;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_MDIO_CONFIG, false);
 
@@ -85,8 +85,8 @@ static int hclge_mdio_read(struct mii_bus *bus, int phyid, int regnum)
 	struct hclge_desc desc;
 	int ret;
 
-	if (test_bit(HCLGE_STATE_CMD_DISABLE, &hdev->state))
-		return 0;
+	if (test_bit(HCLGE_COMM_STATE_CMD_DISABLE, &hdev->hw.hw.comm_state))
+		return -EBUSY;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_MDIO_CONFIG, true);
 
@@ -134,7 +134,7 @@ int hclge_mac_mdio_config(struct hclge_dev *hdev)
 			 "no phy device is connected to mdio bus\n");
 		return 0;
 	} else if (hdev->hw.mac.phy_addr >= PHY_MAX_ADDR) {
-		dev_err(&hdev->pdev->dev, "phy_addr(%d) is too large.\n",
+		dev_err(&hdev->pdev->dev, "phy_addr(%u) is too large.\n",
 			hdev->hw.mac.phy_addr);
 		return -EINVAL;
 	}
@@ -155,7 +155,7 @@ int hclge_mac_mdio_config(struct hclge_dev *hdev)
 	ret = mdiobus_register(mdio_bus);
 	if (ret) {
 		dev_err(mdio_bus->parent,
-			"Failed to register MDIO bus ret = %#x\n", ret);
+			"failed to register MDIO bus, ret = %d\n", ret);
 		return ret;
 	}
 
@@ -187,7 +187,7 @@ static void hclge_mac_adjust_link(struct net_device *netdev)
 	speed = netdev->phydev->speed;
 	duplex = netdev->phydev->duplex;
 
-	ret = hclge_cfg_mac_speed_dup(hdev, speed, duplex);
+	ret = hclge_cfg_mac_speed_dup(hdev, speed, duplex, 0);
 	if (ret)
 		netdev_err(netdev, "failed to adjust link.\n");
 
@@ -255,6 +255,8 @@ void hclge_mac_start_phy(struct hclge_dev *hdev)
 	if (!phydev)
 		return;
 
+	phy_loopback(phydev, false);
+
 	phy_start(phydev);
 }
 
@@ -267,4 +269,43 @@ void hclge_mac_stop_phy(struct hclge_dev *hdev)
 		return;
 
 	phy_stop(phydev);
+}
+
+u16 hclge_read_phy_reg(struct hclge_dev *hdev, u16 reg_addr)
+{
+	struct hclge_phy_reg_cmd *req;
+	struct hclge_desc desc;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_PHY_REG, true);
+
+	req = (struct hclge_phy_reg_cmd *)desc.data;
+	req->reg_addr = cpu_to_le16(reg_addr);
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret)
+		dev_err(&hdev->pdev->dev,
+			"failed to read phy reg, ret = %d.\n", ret);
+
+	return le16_to_cpu(req->reg_val);
+}
+
+int hclge_write_phy_reg(struct hclge_dev *hdev, u16 reg_addr, u16 val)
+{
+	struct hclge_phy_reg_cmd *req;
+	struct hclge_desc desc;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_PHY_REG, false);
+
+	req = (struct hclge_phy_reg_cmd *)desc.data;
+	req->reg_addr = cpu_to_le16(reg_addr);
+	req->reg_val = cpu_to_le16(val);
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret)
+		dev_err(&hdev->pdev->dev,
+			"failed to write phy reg, ret = %d.\n", ret);
+
+	return ret;
 }

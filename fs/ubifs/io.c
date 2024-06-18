@@ -194,10 +194,29 @@ int ubifs_is_mapped(const struct ubifs_info *c, int lnum)
 	return err;
 }
 
+static void record_magic_error(struct ubifs_stats_info *stats)
+{
+	if (stats)
+		stats->magic_errors++;
+}
+
+static void record_node_error(struct ubifs_stats_info *stats)
+{
+	if (stats)
+		stats->node_errors++;
+}
+
+static void record_crc_error(struct ubifs_stats_info *stats)
+{
+	if (stats)
+		stats->crc_errors++;
+}
+
 /**
  * ubifs_check_node - check node.
  * @c: UBIFS file-system description object
  * @buf: node to check
+ * @len: node length
  * @lnum: logical eraseblock number
  * @offs: offset within the logical eraseblock
  * @quiet: print no messages
@@ -222,8 +241,8 @@ int ubifs_is_mapped(const struct ubifs_info *c, int lnum)
  * This function returns zero in case of success and %-EUCLEAN in case of bad
  * CRC or magic.
  */
-int ubifs_check_node(const struct ubifs_info *c, const void *buf, int lnum,
-		     int offs, int quiet, int must_chk_crc)
+int ubifs_check_node(const struct ubifs_info *c, const void *buf, int len,
+		     int lnum, int offs, int quiet, int must_chk_crc)
 {
 	int err = -EINVAL, type, node_len;
 	uint32_t crc, node_crc, magic;
@@ -237,6 +256,7 @@ int ubifs_check_node(const struct ubifs_info *c, const void *buf, int lnum,
 		if (!quiet)
 			ubifs_err(c, "bad magic %#08x, expected %#08x",
 				  magic, UBIFS_NODE_MAGIC);
+		record_magic_error(c->stats);
 		err = -EUCLEAN;
 		goto out;
 	}
@@ -245,6 +265,7 @@ int ubifs_check_node(const struct ubifs_info *c, const void *buf, int lnum,
 	if (type < 0 || type >= UBIFS_NODE_TYPES_CNT) {
 		if (!quiet)
 			ubifs_err(c, "bad node type %d", type);
+		record_node_error(c->stats);
 		goto out;
 	}
 
@@ -269,6 +290,7 @@ int ubifs_check_node(const struct ubifs_info *c, const void *buf, int lnum,
 		if (!quiet)
 			ubifs_err(c, "bad CRC: calculated %#08x, read %#08x",
 				  crc, node_crc);
+		record_crc_error(c->stats);
 		err = -EUCLEAN;
 		goto out;
 	}
@@ -281,7 +303,7 @@ out_len:
 out:
 	if (!quiet) {
 		ubifs_err(c, "bad node at LEB %d:%d", lnum, offs);
-		ubifs_dump_node(c, buf);
+		ubifs_dump_node(c, buf, len);
 		dump_stack();
 	}
 	return err;
@@ -307,7 +329,7 @@ void ubifs_pad(const struct ubifs_info *c, void *buf, int pad)
 {
 	uint32_t crc;
 
-	ubifs_assert(c, pad >= 0 && !(pad & 7));
+	ubifs_assert(c, pad >= 0);
 
 	if (pad >= UBIFS_PAD_NODE_SZ) {
 		struct ubifs_ch *ch = buf;
@@ -466,7 +488,7 @@ void ubifs_prep_grp_node(struct ubifs_info *c, void *node, int len, int last)
 }
 
 /**
- * wbuf_timer_callback - write-buffer timer callback function.
+ * wbuf_timer_callback_nolock - write-buffer timer callback function.
  * @timer: timer data (write-buffer descriptor)
  *
  * This function is called when the write-buffer timer expires.
@@ -483,7 +505,7 @@ static enum hrtimer_restart wbuf_timer_callback_nolock(struct hrtimer *timer)
 }
 
 /**
- * new_wbuf_timer - start new write-buffer timer.
+ * new_wbuf_timer_nolock - start new write-buffer timer.
  * @c: UBIFS file-system description object
  * @wbuf: write-buffer descriptor
  */
@@ -509,7 +531,7 @@ static void new_wbuf_timer_nolock(struct ubifs_info *c, struct ubifs_wbuf *wbuf)
 }
 
 /**
- * cancel_wbuf_timer - cancel write-buffer timer.
+ * cancel_wbuf_timer_nolock - cancel write-buffer timer.
  * @wbuf: write-buffer descriptor
  */
 static void cancel_wbuf_timer_nolock(struct ubifs_wbuf *wbuf)
@@ -718,7 +740,7 @@ out_timers:
 int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len)
 {
 	struct ubifs_info *c = wbuf->c;
-	int err, written, n, aligned_len = ALIGN(len, 8);
+	int err, n, written = 0, aligned_len = ALIGN(len, 8);
 
 	dbg_io("%d bytes (%s) to jhead %s wbuf at LEB %d:%d", len,
 	       dbg_ntype(((struct ubifs_ch *)buf)->node_type),
@@ -752,6 +774,10 @@ int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len)
 		 * write-buffer.
 		 */
 		memcpy(wbuf->buf + wbuf->used, buf, len);
+		if (aligned_len > len) {
+			ubifs_assert(c, aligned_len - len < 8);
+			ubifs_pad(c, wbuf->buf + wbuf->used + len, aligned_len - len);
+		}
 
 		if (aligned_len == wbuf->avail) {
 			dbg_io("flush jhead %s wbuf to LEB %d:%d",
@@ -780,8 +806,6 @@ int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len)
 
 		goto exit;
 	}
-
-	written = 0;
 
 	if (wbuf->used) {
 		/*
@@ -830,27 +854,58 @@ int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len)
 	 */
 	n = aligned_len >> c->max_write_shift;
 	if (n) {
-		n <<= c->max_write_shift;
+		int m = n - 1;
+
 		dbg_io("write %d bytes to LEB %d:%d", n, wbuf->lnum,
 		       wbuf->offs);
-		err = ubifs_leb_write(c, wbuf->lnum, buf + written,
-				      wbuf->offs, n);
+
+		if (m) {
+			/* '(n-1)<<c->max_write_shift < len' is always true. */
+			m <<= c->max_write_shift;
+			err = ubifs_leb_write(c, wbuf->lnum, buf + written,
+					      wbuf->offs, m);
+			if (err)
+				goto out;
+			wbuf->offs += m;
+			aligned_len -= m;
+			len -= m;
+			written += m;
+		}
+
+		/*
+		 * The non-written len of buf may be less than 'n' because
+		 * parameter 'len' is not 8 bytes aligned, so here we read
+		 * min(len, n) bytes from buf.
+		 */
+		n = 1 << c->max_write_shift;
+		memcpy(wbuf->buf, buf + written, min(len, n));
+		if (n > len) {
+			ubifs_assert(c, n - len < 8);
+			ubifs_pad(c, wbuf->buf + len, n - len);
+		}
+
+		err = ubifs_leb_write(c, wbuf->lnum, wbuf->buf, wbuf->offs, n);
 		if (err)
 			goto out;
 		wbuf->offs += n;
 		aligned_len -= n;
-		len -= n;
+		len -= min(len, n);
 		written += n;
 	}
 
 	spin_lock(&wbuf->lock);
-	if (aligned_len)
+	if (aligned_len) {
 		/*
 		 * And now we have what's left and what does not take whole
 		 * max. write unit, so write it to the write-buffer and we are
 		 * done.
 		 */
 		memcpy(wbuf->buf, buf + written, len);
+		if (aligned_len > len) {
+			ubifs_assert(c, aligned_len - len < 8);
+			ubifs_pad(c, wbuf->buf + len, aligned_len - len);
+		}
+	}
 
 	if (c->leb_size - wbuf->offs >= c->max_write_size)
 		wbuf->size = c->max_write_size;
@@ -878,7 +933,7 @@ exit:
 out:
 	ubifs_err(c, "cannot write %d bytes to LEB %d:%d, error %d",
 		  len, wbuf->lnum, wbuf->offs, err);
-	ubifs_dump_node(c, buf);
+	ubifs_dump_node(c, buf, written + len);
 	dump_stack();
 	ubifs_dump_leb(c, wbuf->lnum);
 	return err;
@@ -921,7 +976,7 @@ int ubifs_write_node_hmac(struct ubifs_info *c, void *buf, int len, int lnum,
 
 	err = ubifs_leb_write(c, lnum, buf, offs, buf_len);
 	if (err)
-		ubifs_dump_node(c, buf);
+		ubifs_dump_node(c, buf, len);
 
 	return err;
 }
@@ -1004,7 +1059,7 @@ int ubifs_read_node_wbuf(struct ubifs_wbuf *wbuf, void *buf, int type, int len,
 		goto out;
 	}
 
-	err = ubifs_check_node(c, buf, lnum, offs, 0, 0);
+	err = ubifs_check_node(c, buf, len, lnum, offs, 0, 0);
 	if (err) {
 		ubifs_err(c, "expected node type %d", type);
 		return err;
@@ -1020,7 +1075,7 @@ int ubifs_read_node_wbuf(struct ubifs_wbuf *wbuf, void *buf, int type, int len,
 
 out:
 	ubifs_err(c, "bad node at LEB %d:%d", lnum, offs);
-	ubifs_dump_node(c, buf);
+	ubifs_dump_node(c, buf, len);
 	dump_stack();
 	return -EINVAL;
 }
@@ -1034,7 +1089,7 @@ out:
  * @lnum: logical eraseblock number
  * @offs: offset within the logical eraseblock
  *
- * This function reads a node of known type and and length, checks it and
+ * This function reads a node of known type and length, checks it and
  * stores in @buf. Returns zero in case of success, %-EUCLEAN if CRC mismatched
  * and a negative error code in case of failure.
  */
@@ -1060,7 +1115,7 @@ int ubifs_read_node(const struct ubifs_info *c, void *buf, int type, int len,
 		goto out;
 	}
 
-	err = ubifs_check_node(c, buf, lnum, offs, 0, 0);
+	err = ubifs_check_node(c, buf, len, lnum, offs, 0, 0);
 	if (err) {
 		ubifs_errc(c, "expected node type %d", type);
 		return err;
@@ -1078,7 +1133,7 @@ out:
 	ubifs_errc(c, "bad node at LEB %d:%d, LEB mapping status %d", lnum,
 		   offs, ubi_is_mapped(c->ubi, lnum));
 	if (!c->probing) {
-		ubifs_dump_node(c, buf);
+		ubifs_dump_node(c, buf, len);
 		dump_stack();
 	}
 	return -EINVAL;

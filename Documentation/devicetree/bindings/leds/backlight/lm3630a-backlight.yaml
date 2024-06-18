@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: TI LM3630A High-Efficiency Dual-String White LED
 
 maintainers:
-  - Lee Jones <lee.jones@linaro.org>
+  - Lee Jones <lee@kernel.org>
   - Daniel Thompson <daniel.thompson@linaro.org>
   - Jingoo Han <jingoohan1@gmail.com>
 
@@ -28,6 +28,10 @@ properties:
 
   '#size-cells':
     const: 0
+
+  enable-gpios:
+    description: GPIO to use to enable/disable the backlight (HWEN pin).
+    maxItems: 1
 
 required:
   - compatible
@@ -89,6 +93,7 @@ additionalProperties: false
 
 examples:
   - |
+    #include <dt-bindings/gpio/gpio.h>
     i2c {
         #address-cells = <1>;
         #size-cells = <0>;
@@ -96,6 +101,7 @@ examples:
         led-controller@38 {
                 compatible = "ti,lm3630a";
                 reg = <0x38>;
+                enable-gpios = <&gpio2 5 GPIO_ACTIVE_HIGH>;
 
                 #address-cells = <1>;
                 #size-cells = <0>;

@@ -2,14 +2,9 @@
 /******************************************************************************
  *
  * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
- * Copyright (C) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2021 Intel Corporation
  *
  * Portions of this file are derived from the ipw3945 project.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
  *****************************************************************************/
 
 #ifndef __iwl_debug_h__
@@ -27,9 +22,16 @@ static inline bool iwl_have_debug_level(u32 level)
 #endif
 }
 
+enum iwl_err_mode {
+	IWL_ERR_MODE_REGULAR,
+	IWL_ERR_MODE_RFKILL,
+	IWL_ERR_MODE_TRACE_ONLY,
+	IWL_ERR_MODE_RATELIMIT,
+};
+
 struct device;
-void __iwl_err(struct device *dev, bool rfkill_prefix, bool only_trace,
-		const char *fmt, ...) __printf(4, 5);
+void __iwl_err(struct device *dev, enum iwl_err_mode mode, const char *fmt, ...)
+	__printf(3, 4);
 void __iwl_warn(struct device *dev, const char *fmt, ...) __printf(2, 3);
 void __iwl_info(struct device *dev, const char *fmt, ...) __printf(2, 3);
 void __iwl_crit(struct device *dev, const char *fmt, ...) __printf(2, 3);
@@ -38,13 +40,17 @@ void __iwl_crit(struct device *dev, const char *fmt, ...) __printf(2, 3);
 #define CHECK_FOR_NEWLINE(f) BUILD_BUG_ON(f[sizeof(f) - 2] != '\n')
 
 /* No matter what is m (priv, bus, trans), this will work */
-#define IWL_ERR_DEV(d, f, a...)						\
+#define __IWL_ERR_DEV(d, mode, f, a...)					\
 	do {								\
 		CHECK_FOR_NEWLINE(f);					\
-		__iwl_err((d), false, false, f, ## a);			\
+		__iwl_err((d), mode, f, ## a);				\
 	} while (0)
+#define IWL_ERR_DEV(d, f, a...)						\
+	__IWL_ERR_DEV(d, IWL_ERR_MODE_REGULAR, f, ## a)
 #define IWL_ERR(m, f, a...)						\
 	IWL_ERR_DEV((m)->dev, f, ## a)
+#define IWL_ERR_LIMIT(m, f, a...)					\
+	__IWL_ERR_DEV((m)->dev, IWL_ERR_MODE_RATELIMIT, f, ## a)
 #define IWL_WARN(m, f, a...)						\
 	do {								\
 		CHECK_FOR_NEWLINE(f);					\
@@ -139,7 +145,7 @@ do {                                            			\
 /* 0x00000F00 - 0x00000100 */
 #define IWL_DL_POWER		0x00000100
 #define IWL_DL_TEMP		0x00000200
-#define IWL_DL_RPM		0x00000400
+#define IWL_DL_WOWLAN		0x00000400
 #define IWL_DL_SCAN		0x00000800
 /* 0x0000F000 - 0x00001000 */
 #define IWL_DL_ASSOC		0x00001000
@@ -205,7 +211,7 @@ do {                                            			\
 #define IWL_DEBUG_POWER(p, f, a...)	IWL_DEBUG(p, IWL_DL_POWER, f, ## a)
 #define IWL_DEBUG_11H(p, f, a...)	IWL_DEBUG(p, IWL_DL_11H, f, ## a)
 #define IWL_DEBUG_TPT(p, f, a...)	IWL_DEBUG(p, IWL_DL_TPT, f, ## a)
-#define IWL_DEBUG_RPM(p, f, a...)	IWL_DEBUG(p, IWL_DL_RPM, f, ## a)
+#define IWL_DEBUG_WOWLAN(p, f, a...)	IWL_DEBUG(p, IWL_DL_WOWLAN, f, ## a)
 #define IWL_DEBUG_LAR(p, f, a...)	IWL_DEBUG(p, IWL_DL_LAR, f, ## a)
 #define IWL_DEBUG_FW_INFO(p, f, a...)		\
 		IWL_DEBUG(p, IWL_DL_INFO | IWL_DL_FW, f, ## a)

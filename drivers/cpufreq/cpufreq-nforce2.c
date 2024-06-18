@@ -291,7 +291,7 @@ static int nforce2_target(struct cpufreq_policy *policy,
  * nforce2_verify - verifies a new CPUFreq policy
  * @policy: new policy
  */
-static int nforce2_verify(struct cpufreq_policy *policy)
+static int nforce2_verify(struct cpufreq_policy_data *policy)
 {
 	unsigned int fsb_pol_max;
 

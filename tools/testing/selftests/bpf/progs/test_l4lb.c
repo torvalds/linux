@@ -17,11 +17,9 @@
 #include <linux/icmpv6.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 #include "test_iptunnel_common.h"
-#include "bpf_endian.h"
-
-int _version SEC("version") = 1;
+#include <bpf/bpf_endian.h>
 
 static inline __u32 rol32(__u32 word, unsigned int shift)
 {
@@ -450,7 +448,7 @@ static __always_inline int process_packet(void *data, __u64 off, void *data_end,
 	return bpf_redirect(ifindex, 0);
 }
 
-SEC("l4lb-demo")
+SEC("tc")
 int balancer_ingress(struct __sk_buff *ctx)
 {
 	void *data_end = (void *)(long)ctx->data_end;

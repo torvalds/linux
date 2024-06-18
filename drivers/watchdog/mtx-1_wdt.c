@@ -41,8 +41,6 @@
 #include <linux/uaccess.h>
 #include <linux/gpio/consumer.h>
 
-#include <asm/mach-au1x00/au1000.h>
-
 #define MTX1_WDT_INTERVAL	(5 * HZ)
 
 static int ticks = 100 * HZ;
@@ -181,6 +179,7 @@ static const struct file_operations mtx1_wdt_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.unlocked_ioctl	= mtx1_wdt_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= mtx1_wdt_open,
 	.write		= mtx1_wdt_write,
 	.release	= mtx1_wdt_release,
@@ -222,7 +221,7 @@ static int mtx1_wdt_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mtx1_wdt_remove(struct platform_device *pdev)
+static void mtx1_wdt_remove(struct platform_device *pdev)
 {
 	/* FIXME: do we need to lock this test ? */
 	if (mtx1_wdt_device.queue) {
@@ -231,14 +230,12 @@ static int mtx1_wdt_remove(struct platform_device *pdev)
 	}
 
 	misc_deregister(&mtx1_wdt_misc);
-	return 0;
 }
 
 static struct platform_driver mtx1_wdt_driver = {
 	.probe = mtx1_wdt_probe,
-	.remove = mtx1_wdt_remove,
+	.remove_new = mtx1_wdt_remove,
 	.driver.name = "mtx1-wdt",
-	.driver.owner = THIS_MODULE,
 };
 
 module_platform_driver(mtx1_wdt_driver);

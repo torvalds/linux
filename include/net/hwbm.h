@@ -2,6 +2,8 @@
 #ifndef _HWBM_H
 #define _HWBM_H
 
+#include <linux/mutex.h>
+
 struct hwbm_pool {
 	/* Capacity of the pool */
 	int size;
@@ -21,9 +23,13 @@ void hwbm_buf_free(struct hwbm_pool *bm_pool, void *buf);
 int hwbm_pool_refill(struct hwbm_pool *bm_pool, gfp_t gfp);
 int hwbm_pool_add(struct hwbm_pool *bm_pool, unsigned int buf_num);
 #else
-void hwbm_buf_free(struct hwbm_pool *bm_pool, void *buf) {}
-int hwbm_pool_refill(struct hwbm_pool *bm_pool, gfp_t gfp) { return 0; }
-int hwbm_pool_add(struct hwbm_pool *bm_pool, unsigned int buf_num)
+static inline void hwbm_buf_free(struct hwbm_pool *bm_pool, void *buf) {}
+
+static inline int hwbm_pool_refill(struct hwbm_pool *bm_pool, gfp_t gfp)
+{ return 0; }
+
+static inline int hwbm_pool_add(struct hwbm_pool *bm_pool,
+				unsigned int buf_num)
 { return 0; }
 #endif /* CONFIG_HWBM */
 #endif /* _HWBM_H */

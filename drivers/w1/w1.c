@@ -25,12 +25,14 @@
 #include "w1_netlink.h"
 
 #define W1_FAMILY_DEFAULT	0
+#define W1_FAMILY_DS28E04       0x1C /* for crc quirk */
+
 
 static int w1_timeout = 10;
 module_param_named(timeout, w1_timeout, int, 0);
 MODULE_PARM_DESC(timeout, "time in seconds between automatic slave searches");
 
-static int w1_timeout_us = 0;
+static int w1_timeout_us;
 module_param_named(timeout_us, w1_timeout_us, int, 0);
 MODULE_PARM_DESC(timeout_us,
 		 "time in microseconds between automatic slave searches");
@@ -55,11 +57,6 @@ MODULE_PARM_DESC(slave_ttl,
 
 DEFINE_MUTEX(w1_mlock);
 LIST_HEAD(w1_masters);
-
-static int w1_master_match(struct device *dev, struct device_driver *drv)
-{
-	return 1;
-}
 
 static int w1_master_probe(struct device *dev)
 {
@@ -160,7 +157,7 @@ static const struct attribute_group *w1_slave_default_groups[] = {
 	NULL,
 };
 
-static struct w1_family_ops w1_default_fops = {
+static const struct w1_family_ops w1_default_fops = {
 	.groups		= w1_slave_default_groups,
 };
 
@@ -168,11 +165,10 @@ static struct w1_family w1_default_family = {
 	.fops = &w1_default_fops,
 };
 
-static int w1_uevent(struct device *dev, struct kobj_uevent_env *env);
+static int w1_uevent(const struct device *dev, struct kobj_uevent_env *env);
 
-static struct bus_type w1_bus_type = {
+static const struct bus_type w1_bus_type = {
 	.name = "w1",
-	.match = w1_master_match,
 	.uevent = w1_uevent,
 };
 
@@ -299,17 +295,13 @@ static ssize_t w1_master_attribute_show_pointer(struct device *dev, struct devic
 
 static ssize_t w1_master_attribute_show_timeout(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	ssize_t count;
-	count = sprintf(buf, "%d\n", w1_timeout);
-	return count;
+	return sprintf(buf, "%d\n", w1_timeout);
 }
 
 static ssize_t w1_master_attribute_show_timeout_us(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	ssize_t count;
-	count = sprintf(buf, "%d\n", w1_timeout_us);
-	return count;
+	return sprintf(buf, "%d\n", w1_timeout_us);
 }
 
 static ssize_t w1_master_attribute_store_max_slave_count(struct device *dev,
@@ -499,7 +491,7 @@ static ssize_t w1_master_attribute_store_remove(struct device *dev,
 	struct w1_master *md = dev_to_w1_master(dev);
 	struct w1_reg_num rn;
 	struct w1_slave *sl;
-	ssize_t result = count;
+	ssize_t result;
 
 	if (w1_atoreg_num(dev, buf, count, &rn))
 		return -EINVAL;
@@ -575,11 +567,11 @@ void w1_destroy_master_attributes(struct w1_master *master)
 	sysfs_remove_group(&master->dev.kobj, &w1_master_defattr_group);
 }
 
-static int w1_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int w1_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct w1_master *md = NULL;
-	struct w1_slave *sl = NULL;
-	char *event_owner, *name;
+	const struct w1_master *md = NULL;
+	const struct w1_slave *sl = NULL;
+	const char *event_owner, *name;
 	int err = 0;
 
 	if (dev->driver == &w1_master_driver) {
@@ -613,7 +605,7 @@ end:
 
 static int w1_family_notify(unsigned long action, struct w1_slave *sl)
 {
-	struct w1_family_ops *fops;
+	const struct w1_family_ops *fops;
 	int err;
 
 	fops = sl->family->fops;
@@ -700,6 +692,7 @@ static int __w1_attach_slave_device(struct w1_slave *sl)
 		dev_err(&sl->dev,
 			"Device registration [%s] failed. err=%d\n",
 			dev_name(&sl->dev), err);
+		of_node_put(sl->dev.of_node);
 		put_device(&sl->dev);
 		return err;
 	}
@@ -828,49 +821,47 @@ int w1_slave_detach(struct w1_slave *sl)
 
 struct w1_master *w1_search_master_id(u32 id)
 {
-	struct w1_master *dev;
-	int found = 0;
+	struct w1_master *dev = NULL, *iter;
 
 	mutex_lock(&w1_mlock);
-	list_for_each_entry(dev, &w1_masters, w1_master_entry) {
-		if (dev->id == id) {
-			found = 1;
-			atomic_inc(&dev->refcnt);
+	list_for_each_entry(iter, &w1_masters, w1_master_entry) {
+		if (iter->id == id) {
+			dev = iter;
+			atomic_inc(&iter->refcnt);
 			break;
 		}
 	}
 	mutex_unlock(&w1_mlock);
 
-	return (found)?dev:NULL;
+	return dev;
 }
 
 struct w1_slave *w1_search_slave(struct w1_reg_num *id)
 {
 	struct w1_master *dev;
-	struct w1_slave *sl = NULL;
-	int found = 0;
+	struct w1_slave *sl = NULL, *iter;
 
 	mutex_lock(&w1_mlock);
 	list_for_each_entry(dev, &w1_masters, w1_master_entry) {
 		mutex_lock(&dev->list_mutex);
-		list_for_each_entry(sl, &dev->slist, w1_slave_entry) {
-			if (sl->reg_num.family == id->family &&
-					sl->reg_num.id == id->id &&
-					sl->reg_num.crc == id->crc) {
-				found = 1;
+		list_for_each_entry(iter, &dev->slist, w1_slave_entry) {
+			if (iter->reg_num.family == id->family &&
+			    iter->reg_num.id == id->id &&
+			    iter->reg_num.crc == id->crc) {
+				sl = iter;
 				atomic_inc(&dev->refcnt);
-				atomic_inc(&sl->refcnt);
+				atomic_inc(&iter->refcnt);
 				break;
 			}
 		}
 		mutex_unlock(&dev->list_mutex);
 
-		if (found)
+		if (sl)
 			break;
 	}
 	mutex_unlock(&w1_mlock);
 
-	return (found)?sl:NULL;
+	return sl;
 }
 
 void w1_reconnect_slaves(struct w1_family *f, int attach)
@@ -913,11 +904,44 @@ void w1_reconnect_slaves(struct w1_family *f, int attach)
 	mutex_unlock(&w1_mlock);
 }
 
+static int w1_addr_crc_is_valid(struct w1_master *dev, u64 rn)
+{
+	u64 rn_le = cpu_to_le64(rn);
+	struct w1_reg_num *tmp = (struct w1_reg_num *)&rn;
+	u8 crc;
+
+	crc = w1_calc_crc8((u8 *)&rn_le, 7);
+
+	/* quirk:
+	 *   DS28E04 (1w eeprom) has strapping pins to change
+	 *   address, but will not update the crc. So normal rules
+	 *   for consistent w1 addresses are violated. We test
+	 *   with the 7 LSBs of the address forced high.
+	 *
+	 *   (char*)&rn_le = { family, addr_lsb, ..., addr_msb, crc }.
+	 */
+	if (crc != tmp->crc && tmp->family == W1_FAMILY_DS28E04) {
+		u64 corr_le = rn_le;
+
+		((u8 *)&corr_le)[1] |= 0x7f;
+		crc = w1_calc_crc8((u8 *)&corr_le, 7);
+
+		dev_info(&dev->dev, "DS28E04 crc workaround on %02x.%012llx.%02x\n",
+			tmp->family, (unsigned long long)tmp->id, tmp->crc);
+	}
+
+	if (crc != tmp->crc) {
+		dev_dbg(&dev->dev, "w1 addr crc mismatch: %02x.%012llx.%02x != 0x%02x.\n",
+			tmp->family, (unsigned long long)tmp->id, tmp->crc, crc);
+		return 0;
+	}
+	return 1;
+}
+
 void w1_slave_found(struct w1_master *dev, u64 rn)
 {
 	struct w1_slave *sl;
 	struct w1_reg_num *tmp;
-	u64 rn_le = cpu_to_le64(rn);
 
 	atomic_inc(&dev->refcnt);
 
@@ -927,7 +951,7 @@ void w1_slave_found(struct w1_master *dev, u64 rn)
 	if (sl) {
 		set_bit(W1_SLAVE_ACTIVE, &sl->flags);
 	} else {
-		if (rn && tmp->crc == w1_calc_crc8((u8 *)&rn_le, 7))
+		if (rn && w1_addr_crc_is_valid(dev, rn))
 			w1_attach_slave_device(dev, tmp);
 	}
 
@@ -1131,6 +1155,8 @@ int w1_process(void *data)
 	/* remainder if it woke up early */
 	unsigned long jremain = 0;
 
+	atomic_inc(&dev->refcnt);
+
 	for (;;) {
 
 		if (!jremain && dev->search_count) {
@@ -1158,8 +1184,10 @@ int w1_process(void *data)
 		 */
 		mutex_unlock(&dev->list_mutex);
 
-		if (kthread_should_stop())
+		if (kthread_should_stop()) {
+			__set_current_state(TASK_RUNNING);
 			break;
+		}
 
 		/* Only sleep when the search is active. */
 		if (dev->search_count) {
@@ -1224,10 +1252,10 @@ err_out_exit_init:
 
 static void __exit w1_fini(void)
 {
-	struct w1_master *dev;
+	struct w1_master *dev, *n;
 
 	/* Set netlink removal messages and some cleanup */
-	list_for_each_entry(dev, &w1_masters, w1_master_entry)
+	list_for_each_entry_safe(dev, n, &w1_masters, w1_master_entry)
 		__w1_remove_master_device(dev);
 
 	w1_fini_netlink();

@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+
 ================
 bpftool-perf
 ================
@@ -7,55 +9,42 @@ tool for inspection of perf related bpf prog attachments
 
 :Manual section: 8
 
+.. include:: substitutions.rst
+
 SYNOPSIS
 ========
 
-	**bpftool** [*OPTIONS*] **perf** *COMMAND*
+**bpftool** [*OPTIONS*] **perf** *COMMAND*
 
-	*OPTIONS* := { [{ **-j** | **--json** }] [{ **-p** | **--pretty** }] }
+*OPTIONS* := { |COMMON_OPTIONS| }
 
-	*COMMANDS* :=
-	{ **show** | **list** | **help** }
+*COMMANDS* :=
+{ **show** | **list** | **help** }
 
 PERF COMMANDS
 =============
 
-|	**bpftool** **perf { show | list }**
-|	**bpftool** **perf help**
+| **bpftool** **perf** { **show** | **list** }
+| **bpftool** **perf help**
 
 DESCRIPTION
 ===========
-	**bpftool perf { show | list }**
-		  List all raw_tracepoint, tracepoint, kprobe attachment in the system.
+bpftool perf { show | list }
+    List all raw_tracepoint, tracepoint, kprobe attachment in the system.
 
-		  Output will start with process id and file descriptor in that process,
-		  followed by bpf program id, attachment information, and attachment point.
-		  The attachment point for raw_tracepoint/tracepoint is the trace probe name.
-		  The attachment point for k[ret]probe is either symbol name and offset,
-		  or a kernel virtual address.
-		  The attachment point for u[ret]probe is the file name and the file offset.
+    Output will start with process id and file descriptor in that process,
+    followed by bpf program id, attachment information, and attachment point.
+    The attachment point for raw_tracepoint/tracepoint is the trace probe name.
+    The attachment point for k[ret]probe is either symbol name and offset, or a
+    kernel virtual address. The attachment point for u[ret]probe is the file
+    name and the file offset.
 
-	**bpftool perf help**
-		  Print short help message.
+bpftool perf help
+    Print short help message.
 
 OPTIONS
 =======
-	-h, --help
-		  Print short generic help message (similar to **bpftool help**).
-
-	-V, --version
-		  Print version number (similar to **bpftool version**).
-
-	-j, --json
-		  Generate JSON output. For commands that cannot produce JSON, this
-		  option has no effect.
-
-	-p, --pretty
-		  Generate human-readable JSON output. Implies **-j**.
-
-	-d, --debug
-		  Print all logs available from libbpf, including debug-level
-		  information.
+.. include:: common_options.rst
 
 EXAMPLES
 ========
@@ -78,16 +67,3 @@ EXAMPLES
      {"pid":21765,"fd":5,"prog_id":7,"fd_type":"kretprobe","func":"__x64_sys_nanosleep","offset":0}, \
      {"pid":21767,"fd":5,"prog_id":8,"fd_type":"tracepoint","tracepoint":"sys_enter_nanosleep"}, \
      {"pid":21800,"fd":5,"prog_id":9,"fd_type":"uprobe","filename":"/home/yhs/a.out","offset":1159}]
-
-
-SEE ALSO
-========
-	**bpf**\ (2),
-	**bpf-helpers**\ (7),
-	**bpftool**\ (8),
-	**bpftool-prog**\ (8),
-	**bpftool-map**\ (8),
-	**bpftool-cgroup**\ (8),
-	**bpftool-feature**\ (8),
-	**bpftool-net**\ (8),
-	**bpftool-btf**\ (8)

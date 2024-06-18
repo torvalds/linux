@@ -19,8 +19,7 @@
 # Note: This code has to be position independent
 #
 
-.align 2
-.Lep_startup_kdump:
+SYM_CODE_START_LOCAL(startup_kdump)
 	lhi	%r1,2				# mode 2 = esame (dump)
 	sigp	%r1,%r0,SIGP_SET_ARCHITECTURE	# Switch to esame mode
 	sam64					# Switch to 64 bit addressing
@@ -83,19 +82,20 @@
 #
 # Startup of kdump (relocated new kernel)
 #
-.align 2
+	.balign	2
 startup_kdump_relocated:
 	basr	%r13,0
 0:	lpswe	.Lrestart_psw-0b(%r13)		# Start new kernel...
-.align	8
+SYM_CODE_END(startup_kdump)
+	.balign	8
 .Lrestart_psw:
 	.quad	0x0000000080000000,0x0000000000000000 + startup
 #else
-.align 2
-.Lep_startup_kdump:
+SYM_CODE_START_LOCAL(startup_kdump)
 	larl	%r13,startup_kdump_crash
 	lpswe	0(%r13)
-.align 8
+SYM_CODE_END(startup_kdump)
+	.balign	8
 startup_kdump_crash:
 	.quad	0x0002000080000000,0x0000000000000000 + startup_kdump_crash
 #endif /* CONFIG_CRASH_DUMP */

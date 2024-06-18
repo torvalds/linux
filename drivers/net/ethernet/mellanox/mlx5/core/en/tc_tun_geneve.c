@@ -106,12 +106,13 @@ static int mlx5e_gen_ip_tunnel_header_geneve(char buf[],
 	memset(geneveh, 0, sizeof(*geneveh));
 	geneveh->ver = MLX5E_GENEVE_VER;
 	geneveh->opt_len = tun_info->options_len / 4;
-	geneveh->oam = !!(tun_info->key.tun_flags & TUNNEL_OAM);
-	geneveh->critical = !!(tun_info->key.tun_flags & TUNNEL_CRIT_OPT);
+	geneveh->oam = test_bit(IP_TUNNEL_OAM_BIT, tun_info->key.tun_flags);
+	geneveh->critical = test_bit(IP_TUNNEL_CRIT_OPT_BIT,
+				     tun_info->key.tun_flags);
 	mlx5e_tunnel_id_to_vni(tun_info->key.tun_id, geneveh->vni);
 	geneveh->proto_type = htons(ETH_P_TEB);
 
-	if (tun_info->key.tun_flags & TUNNEL_GENEVE_OPT) {
+	if (test_bit(IP_TUNNEL_GENEVE_OPT_BIT, tun_info->key.tun_flags)) {
 		if (!geneveh->opt_len)
 			return -EOPNOTSUPP;
 		ip_tunnel_info_opts_get(geneveh->options, tun_info);
@@ -188,7 +189,7 @@ static int mlx5e_tc_tun_parse_geneve_options(struct mlx5e_priv *priv,
 
 	/* make sure that we're talking about GENEVE options */
 
-	if (enc_opts.key->dst_opt_type != TUNNEL_GENEVE_OPT) {
+	if (enc_opts.key->dst_opt_type != IP_TUNNEL_GENEVE_OPT_BIT) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Matching on GENEVE options: option type is not GENEVE");
 		netdev_warn(priv->netdev,
@@ -226,6 +227,10 @@ static int mlx5e_tc_tun_parse_geneve_options(struct mlx5e_priv *priv,
 	/* we support matching on one option only, so just get it */
 	option_key = (struct geneve_opt *)&enc_opts.key->data[0];
 	option_mask = (struct geneve_opt *)&enc_opts.mask->data[0];
+
+	if (option_mask->opt_class == 0 && option_mask->type == 0 &&
+	    !memchr_inv(option_mask->opt_data, 0, option_mask->length * 4))
+		return 0;
 
 	if (option_key->length > max_tlv_option_data_len) {
 		NL_SET_ERR_MSG_MOD(extack,
@@ -269,6 +274,11 @@ static int mlx5e_tc_tun_parse_geneve_options(struct mlx5e_priv *priv,
 		 geneve_tlv_option_0_data, be32_to_cpu(opt_data_key));
 	MLX5_SET(fte_match_set_misc3, misc_3_c,
 		 geneve_tlv_option_0_data, be32_to_cpu(opt_data_mask));
+	if (MLX5_CAP_ESW_FLOWTABLE_FDB(priv->mdev,
+				       ft_field_support.geneve_tlv_option_0_exist)) {
+		MLX5_SET_TO_ONES(fte_match_set_misc, misc_c, geneve_tlv_option_0_exist);
+		MLX5_SET_TO_ONES(fte_match_set_misc, misc_v, geneve_tlv_option_0_exist);
+	}
 
 	spec->match_criteria_enable |= MLX5_MATCH_MISC_PARAMETERS_3;
 
@@ -301,6 +311,8 @@ static int mlx5e_tc_tun_parse_geneve_params(struct mlx5e_priv *priv,
 		MLX5_SET(fte_match_set_misc, misc_v, geneve_protocol_type, ETH_P_TEB);
 	}
 
+	spec->match_criteria_enable |= MLX5_MATCH_MISC_PARAMETERS;
+
 	return 0;
 }
 
@@ -323,6 +335,13 @@ static int mlx5e_tc_tun_parse_geneve(struct mlx5e_priv *priv,
 	return mlx5e_tc_tun_parse_geneve_options(priv, spec, f);
 }
 
+static bool mlx5e_tc_tun_encap_info_equal_geneve(struct mlx5e_encap_key *a,
+						 struct mlx5e_encap_key *b)
+{
+	return mlx5e_tc_tun_encap_info_equal_options(a, b,
+						     IP_TUNNEL_GENEVE_OPT_BIT);
+}
+
 struct mlx5e_tc_tunnel geneve_tunnel = {
 	.tunnel_type          = MLX5E_TC_TUNNEL_TYPE_GENEVE,
 	.match_level          = MLX5_MATCH_L4,
@@ -332,4 +351,5 @@ struct mlx5e_tc_tunnel geneve_tunnel = {
 	.generate_ip_tun_hdr  = mlx5e_gen_ip_tunnel_header_geneve,
 	.parse_udp_ports      = mlx5e_tc_tun_parse_udp_ports_geneve,
 	.parse_tunnel         = mlx5e_tc_tun_parse_geneve,
+	.encap_info_equal     = mlx5e_tc_tun_encap_info_equal_geneve,
 };

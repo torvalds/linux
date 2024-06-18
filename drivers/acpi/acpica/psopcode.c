@@ -3,7 +3,7 @@
  *
  * Module Name: psopcode - Parser/Interpreter opcode information table
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2023, Intel Corp.
  *
  *****************************************************************************/
 
@@ -408,8 +408,8 @@ const struct acpi_opcode_info acpi_gbl_aml_op_info[AML_NUM_OPCODES] = {
 			 AML_HAS_ARGS | AML_NSOBJECT | AML_NSNODE |
 			 AML_DEFER | AML_FIELD | AML_CREATE),
 /* 4A */ ACPI_OP("Load", ARGP_LOAD_OP, ARGI_LOAD_OP, ACPI_TYPE_ANY,
-			 AML_CLASS_EXECUTE, AML_TYPE_EXEC_1A_1T_0R,
-			 AML_FLAGS_EXEC_1A_1T_0R),
+			 AML_CLASS_EXECUTE, AML_TYPE_EXEC_1A_1T_1R,
+			 AML_FLAGS_EXEC_1A_1T_1R),
 /* 4B */ ACPI_OP("Stall", ARGP_STALL_OP, ARGI_STALL_OP, ACPI_TYPE_ANY,
 			 AML_CLASS_EXECUTE, AML_TYPE_EXEC_1A_0T_0R,
 			 AML_FLAGS_EXEC_1A_0T_0R),
@@ -603,7 +603,7 @@ const struct acpi_opcode_info acpi_gbl_aml_op_info[AML_NUM_OPCODES] = {
 
 /* 7E */ ACPI_OP("Timer", ARGP_TIMER_OP, ARGI_TIMER_OP, ACPI_TYPE_ANY,
 			 AML_CLASS_EXECUTE, AML_TYPE_EXEC_0A_0T_1R,
-			 AML_FLAGS_EXEC_0A_0T_1R),
+			 AML_FLAGS_EXEC_0A_0T_1R | AML_NO_OPERAND_RESOLVE),
 
 /* ACPI 5.0 opcodes */
 

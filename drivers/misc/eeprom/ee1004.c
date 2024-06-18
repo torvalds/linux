@@ -31,19 +31,25 @@
  * over performance.
  */
 
+#define EE1004_MAX_BUSSES		8
 #define EE1004_ADDR_SET_PAGE		0x36
-#define EE1004_EEPROM_SIZE		512
+#define EE1004_NUM_PAGES		2
 #define EE1004_PAGE_SIZE		256
 #define EE1004_PAGE_SHIFT		8
+#define EE1004_EEPROM_SIZE		(EE1004_PAGE_SIZE * EE1004_NUM_PAGES)
 
 /*
  * Mutex protects ee1004_set_page and ee1004_dev_count, and must be held
  * from page selection to end of read.
  */
 static DEFINE_MUTEX(ee1004_bus_lock);
-static struct i2c_client *ee1004_set_page[2];
-static unsigned int ee1004_dev_count;
-static int ee1004_current_page;
+
+static struct ee1004_bus_data {
+	struct i2c_adapter *adap;
+	struct i2c_client *set_page[EE1004_NUM_PAGES];
+	unsigned int dev_count;
+	int current_page;
+} ee1004_bus_data[EE1004_MAX_BUSSES];
 
 static const struct i2c_device_id ee1004_ids[] = {
 	{ "ee1004", 0 },
@@ -53,11 +59,29 @@ MODULE_DEVICE_TABLE(i2c, ee1004_ids);
 
 /*-------------------------------------------------------------------------*/
 
-static int ee1004_get_current_page(void)
+static struct ee1004_bus_data *ee1004_get_bus_data(struct i2c_adapter *adap)
+{
+	int i;
+
+	for (i = 0; i < EE1004_MAX_BUSSES; i++)
+		if (ee1004_bus_data[i].adap == adap)
+			return ee1004_bus_data + i;
+
+	/* If not existent yet, create new entry */
+	for (i = 0; i < EE1004_MAX_BUSSES; i++)
+		if (!ee1004_bus_data[i].adap) {
+			ee1004_bus_data[i].adap = adap;
+			return ee1004_bus_data + i;
+		}
+
+	return NULL;
+}
+
+static int ee1004_get_current_page(struct ee1004_bus_data *bd)
 {
 	int err;
 
-	err = i2c_smbus_read_byte(ee1004_set_page[0]);
+	err = i2c_smbus_read_byte(bd->set_page[0]);
 	if (err == -ENXIO) {
 		/* Nack means page 1 is selected */
 		return 1;
@@ -71,40 +95,62 @@ static int ee1004_get_current_page(void)
 	return 0;
 }
 
+static int ee1004_set_current_page(struct i2c_client *client, int page)
+{
+	struct ee1004_bus_data *bd = i2c_get_clientdata(client);
+	int ret;
+
+	if (page == bd->current_page)
+		return 0;
+
+	/* Data is ignored */
+	ret = i2c_smbus_write_byte(bd->set_page[page], 0x00);
+	/*
+	 * Don't give up just yet. Some memory modules will select the page
+	 * but not ack the command. Check which page is selected now.
+	 */
+	if (ret == -ENXIO && ee1004_get_current_page(bd) == page)
+		ret = 0;
+	if (ret < 0) {
+		dev_err(&client->dev, "Failed to select page %d (%d)\n", page, ret);
+		return ret;
+	}
+
+	dev_dbg(&client->dev, "Selected page %d\n", page);
+	bd->current_page = page;
+
+	return 0;
+}
+
 static ssize_t ee1004_eeprom_read(struct i2c_client *client, char *buf,
 				  unsigned int offset, size_t count)
 {
-	int status;
+	int status, page;
+
+	page = offset >> EE1004_PAGE_SHIFT;
+	offset &= (1 << EE1004_PAGE_SHIFT) - 1;
+
+	status = ee1004_set_current_page(client, page);
+	if (status)
+		return status;
+
+	/* Can't cross page boundaries */
+	if (offset + count > EE1004_PAGE_SIZE)
+		count = EE1004_PAGE_SIZE - offset;
 
 	if (count > I2C_SMBUS_BLOCK_MAX)
 		count = I2C_SMBUS_BLOCK_MAX;
-	/* Can't cross page boundaries */
-	if (unlikely(offset + count > EE1004_PAGE_SIZE))
-		count = EE1004_PAGE_SIZE - offset;
 
-	status = i2c_smbus_read_i2c_block_data_or_emulated(client, offset,
-							   count, buf);
-	dev_dbg(&client->dev, "read %zu@%d --> %d\n", count, offset, status);
-
-	return status;
+	return i2c_smbus_read_i2c_block_data_or_emulated(client, offset, count, buf);
 }
 
-static ssize_t ee1004_read(struct file *filp, struct kobject *kobj,
+static ssize_t eeprom_read(struct file *filp, struct kobject *kobj,
 			   struct bin_attribute *bin_attr,
 			   char *buf, loff_t off, size_t count)
 {
-	struct device *dev = kobj_to_dev(kobj);
-	struct i2c_client *client = to_i2c_client(dev);
+	struct i2c_client *client = kobj_to_i2c_client(kobj);
 	size_t requested = count;
-	int page;
-
-	if (unlikely(!count))
-		return count;
-
-	page = off >> EE1004_PAGE_SHIFT;
-	if (unlikely(page > 1))
-		return 0;
-	off &= (1 << EE1004_PAGE_SHIFT) - 1;
+	int ret = 0;
 
 	/*
 	 * Read data from chip, protecting against concurrent access to
@@ -113,161 +159,123 @@ static ssize_t ee1004_read(struct file *filp, struct kobject *kobj,
 	mutex_lock(&ee1004_bus_lock);
 
 	while (count) {
-		int status;
+		ret = ee1004_eeprom_read(client, buf, off, count);
+		if (ret < 0)
+			goto out;
 
-		/* Select page */
-		if (page != ee1004_current_page) {
-			/* Data is ignored */
-			status = i2c_smbus_write_byte(ee1004_set_page[page],
-						      0x00);
-			if (status == -ENXIO) {
-				/*
-				 * Don't give up just yet. Some memory
-				 * modules will select the page but not
-				 * ack the command. Check which page is
-				 * selected now.
-				 */
-				if (ee1004_get_current_page() == page)
-					status = 0;
-			}
-			if (status < 0) {
-				dev_err(dev, "Failed to select page %d (%d)\n",
-					page, status);
-				mutex_unlock(&ee1004_bus_lock);
-				return status;
-			}
-			dev_dbg(dev, "Selected page %d\n", page);
-			ee1004_current_page = page;
-		}
-
-		status = ee1004_eeprom_read(client, buf, off, count);
-		if (status < 0) {
-			mutex_unlock(&ee1004_bus_lock);
-			return status;
-		}
-		buf += status;
-		off += status;
-		count -= status;
-
-		if (off == EE1004_PAGE_SIZE) {
-			page++;
-			off = 0;
-		}
+		buf += ret;
+		off += ret;
+		count -= ret;
 	}
-
+out:
 	mutex_unlock(&ee1004_bus_lock);
 
-	return requested;
+	return ret < 0 ? ret : requested;
 }
 
-static const struct bin_attribute eeprom_attr = {
-	.attr = {
-		.name = "eeprom",
-		.mode = 0444,
-	},
-	.size = EE1004_EEPROM_SIZE,
-	.read = ee1004_read,
+static BIN_ATTR_RO(eeprom, EE1004_EEPROM_SIZE);
+
+static struct bin_attribute *ee1004_attrs[] = {
+	&bin_attr_eeprom,
+	NULL
 };
 
-static int ee1004_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+BIN_ATTRIBUTE_GROUPS(ee1004);
+
+static void ee1004_probe_temp_sensor(struct i2c_client *client)
 {
+	struct i2c_board_info info = { .type = "jc42" };
+	u8 byte14;
+	int ret;
+
+	/* byte 14, bit 7 is set if temp sensor is present */
+	ret = ee1004_eeprom_read(client, &byte14, 14, 1);
+	if (ret != 1 || !(byte14 & BIT(7)))
+		return;
+
+	info.addr = 0x18 | (client->addr & 7);
+
+	i2c_new_client_device(client->adapter, &info);
+}
+
+static void ee1004_cleanup(int idx, struct ee1004_bus_data *bd)
+{
+	if (--bd->dev_count == 0) {
+		while (--idx >= 0)
+			i2c_unregister_device(bd->set_page[idx]);
+		memset(bd, 0, sizeof(struct ee1004_bus_data));
+	}
+}
+
+static int ee1004_probe(struct i2c_client *client)
+{
+	struct ee1004_bus_data *bd;
 	int err, cnr = 0;
-	const char *slow = NULL;
 
 	/* Make sure we can operate on this adapter */
 	if (!i2c_check_functionality(client->adapter,
-				     I2C_FUNC_SMBUS_READ_BYTE |
-				     I2C_FUNC_SMBUS_READ_I2C_BLOCK)) {
-		if (i2c_check_functionality(client->adapter,
-				     I2C_FUNC_SMBUS_READ_BYTE |
-				     I2C_FUNC_SMBUS_READ_WORD_DATA))
-			slow = "word";
-		else if (i2c_check_functionality(client->adapter,
-				     I2C_FUNC_SMBUS_READ_BYTE |
-				     I2C_FUNC_SMBUS_READ_BYTE_DATA))
-			slow = "byte";
-		else
-			return -EPFNOSUPPORT;
+				     I2C_FUNC_SMBUS_BYTE | I2C_FUNC_SMBUS_READ_I2C_BLOCK) &&
+	    !i2c_check_functionality(client->adapter,
+				     I2C_FUNC_SMBUS_BYTE | I2C_FUNC_SMBUS_READ_BYTE_DATA))
+		return -EPFNOSUPPORT;
+
+	mutex_lock(&ee1004_bus_lock);
+
+	bd = ee1004_get_bus_data(client->adapter);
+	if (!bd) {
+		mutex_unlock(&ee1004_bus_lock);
+		return dev_err_probe(&client->dev, -ENOSPC,
+				     "Only %d busses supported", EE1004_MAX_BUSSES);
 	}
 
-	/* Use 2 dummy devices for page select command */
-	mutex_lock(&ee1004_bus_lock);
-	if (++ee1004_dev_count == 1) {
-		for (cnr = 0; cnr < 2; cnr++) {
-			ee1004_set_page[cnr] = i2c_new_dummy_device(client->adapter,
-						EE1004_ADDR_SET_PAGE + cnr);
-			if (IS_ERR(ee1004_set_page[cnr])) {
-				dev_err(&client->dev,
-					"address 0x%02x unavailable\n",
-					EE1004_ADDR_SET_PAGE + cnr);
-				err = PTR_ERR(ee1004_set_page[cnr]);
+	i2c_set_clientdata(client, bd);
+
+	if (++bd->dev_count == 1) {
+		/* Use 2 dummy devices for page select command */
+		for (cnr = 0; cnr < EE1004_NUM_PAGES; cnr++) {
+			struct i2c_client *cl;
+
+			cl = i2c_new_dummy_device(client->adapter, EE1004_ADDR_SET_PAGE + cnr);
+			if (IS_ERR(cl)) {
+				err = PTR_ERR(cl);
 				goto err_clients;
 			}
+			bd->set_page[cnr] = cl;
 		}
-	} else if (i2c_adapter_id(client->adapter) !=
-		   i2c_adapter_id(ee1004_set_page[0]->adapter)) {
-		dev_err(&client->dev,
-			"Driver only supports devices on a single I2C bus\n");
-		err = -EOPNOTSUPP;
-		goto err_clients;
+
+		/* Remember current page to avoid unneeded page select */
+		err = ee1004_get_current_page(bd);
+		if (err < 0)
+			goto err_clients;
+		dev_dbg(&client->dev, "Currently selected page: %d\n", err);
+		bd->current_page = err;
 	}
 
-	/* Remember current page to avoid unneeded page select */
-	err = ee1004_get_current_page();
-	if (err < 0)
-		goto err_clients;
-	ee1004_current_page = err;
-	dev_dbg(&client->dev, "Currently selected page: %d\n",
-		ee1004_current_page);
-	mutex_unlock(&ee1004_bus_lock);
+	ee1004_probe_temp_sensor(client);
 
-	/* Create the sysfs eeprom file */
-	err = sysfs_create_bin_file(&client->dev.kobj, &eeprom_attr);
-	if (err)
-		goto err_clients_lock;
+	mutex_unlock(&ee1004_bus_lock);
 
 	dev_info(&client->dev,
 		 "%u byte EE1004-compliant SPD EEPROM, read-only\n",
 		 EE1004_EEPROM_SIZE);
-	if (slow)
-		dev_notice(&client->dev,
-			   "Falling back to %s reads, performance will suffer\n",
-			   slow);
 
 	return 0;
 
- err_clients_lock:
-	mutex_lock(&ee1004_bus_lock);
  err_clients:
-	if (--ee1004_dev_count == 0) {
-		for (cnr--; cnr >= 0; cnr--) {
-			i2c_unregister_device(ee1004_set_page[cnr]);
-			ee1004_set_page[cnr] = NULL;
-		}
-	}
+	ee1004_cleanup(cnr, bd);
 	mutex_unlock(&ee1004_bus_lock);
 
 	return err;
 }
 
-static int ee1004_remove(struct i2c_client *client)
+static void ee1004_remove(struct i2c_client *client)
 {
-	int i;
-
-	sysfs_remove_bin_file(&client->dev.kobj, &eeprom_attr);
+	struct ee1004_bus_data *bd = i2c_get_clientdata(client);
 
 	/* Remove page select clients if this is the last device */
 	mutex_lock(&ee1004_bus_lock);
-	if (--ee1004_dev_count == 0) {
-		for (i = 0; i < 2; i++) {
-			i2c_unregister_device(ee1004_set_page[i]);
-			ee1004_set_page[i] = NULL;
-		}
-	}
+	ee1004_cleanup(EE1004_NUM_PAGES, bd);
 	mutex_unlock(&ee1004_bus_lock);
-
-	return 0;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -275,23 +283,13 @@ static int ee1004_remove(struct i2c_client *client)
 static struct i2c_driver ee1004_driver = {
 	.driver = {
 		.name = "ee1004",
+		.dev_groups = ee1004_groups,
 	},
 	.probe = ee1004_probe,
 	.remove = ee1004_remove,
 	.id_table = ee1004_ids,
 };
-
-static int __init ee1004_init(void)
-{
-	return i2c_add_driver(&ee1004_driver);
-}
-module_init(ee1004_init);
-
-static void __exit ee1004_exit(void)
-{
-	i2c_del_driver(&ee1004_driver);
-}
-module_exit(ee1004_exit);
+module_i2c_driver(ee1004_driver);
 
 MODULE_DESCRIPTION("Driver for EE1004-compliant DDR4 SPD EEPROMs");
 MODULE_AUTHOR("Jean Delvare");

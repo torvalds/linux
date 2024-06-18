@@ -89,11 +89,12 @@
 #include <asm/fpu.h>
 #include <asm/fpu_emulator.h>
 #include <asm/inst.h>
+#include <asm/unaligned-emul.h>
 #include <asm/mmu_context.h>
+#include <asm/traps.h>
 #include <linux/uaccess.h>
 
-#define STR(x)	__STR(x)
-#define __STR(x)  #x
+#include "access-helper.h"
 
 enum {
 	UNALIGNED_ACTION_QUIET,
@@ -108,787 +109,14 @@ static u32 unaligned_action;
 #endif
 extern void show_registers(struct pt_regs *regs);
 
-#ifdef __BIG_ENDIAN
-#define     _LoadHW(addr, value, res, type)  \
-do {                                                        \
-		__asm__ __volatile__ (".set\tnoat\n"        \
-			"1:\t"type##_lb("%0", "0(%2)")"\n"  \
-			"2:\t"type##_lbu("$1", "1(%2)")"\n\t"\
-			"sll\t%0, 0x8\n\t"                  \
-			"or\t%0, $1\n\t"                    \
-			"li\t%1, 0\n"                       \
-			"3:\t.set\tat\n\t"                  \
-			".insn\n\t"                         \
-			".section\t.fixup,\"ax\"\n\t"       \
-			"4:\tli\t%1, %3\n\t"                \
-			"j\t3b\n\t"                         \
-			".previous\n\t"                     \
-			".section\t__ex_table,\"a\"\n\t"    \
-			STR(PTR)"\t1b, 4b\n\t"              \
-			STR(PTR)"\t2b, 4b\n\t"              \
-			".previous"                         \
-			: "=&r" (value), "=r" (res)         \
-			: "r" (addr), "i" (-EFAULT));       \
-} while(0)
-
-#ifdef CONFIG_CPU_HAS_LOAD_STORE_LR
-#define     _LoadW(addr, value, res, type)   \
-do {                                                        \
-		__asm__ __volatile__ (                      \
-			"1:\t"type##_lwl("%0", "(%2)")"\n"   \
-			"2:\t"type##_lwr("%0", "3(%2)")"\n\t"\
-			"li\t%1, 0\n"                       \
-			"3:\n\t"                            \
-			".insn\n\t"                         \
-			".section\t.fixup,\"ax\"\n\t"       \
-			"4:\tli\t%1, %3\n\t"                \
-			"j\t3b\n\t"                         \
-			".previous\n\t"                     \
-			".section\t__ex_table,\"a\"\n\t"    \
-			STR(PTR)"\t1b, 4b\n\t"              \
-			STR(PTR)"\t2b, 4b\n\t"              \
-			".previous"                         \
-			: "=&r" (value), "=r" (res)         \
-			: "r" (addr), "i" (-EFAULT));       \
-} while(0)
-
-#else /* !CONFIG_CPU_HAS_LOAD_STORE_LR */
-/* For CPUs without lwl instruction */
-#define     _LoadW(addr, value, res, type) \
-do {                                                        \
-		__asm__ __volatile__ (			    \
-			".set\tpush\n"			    \
-			".set\tnoat\n\t"		    \
-			"1:"type##_lb("%0", "0(%2)")"\n\t"  \
-			"2:"type##_lbu("$1", "1(%2)")"\n\t" \
-			"sll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"3:"type##_lbu("$1", "2(%2)")"\n\t" \
-			"sll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"4:"type##_lbu("$1", "3(%2)")"\n\t" \
-			"sll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"li\t%1, 0\n"			    \
-			".set\tpop\n"			    \
-			"10:\n\t"			    \
-			".insn\n\t"			    \
-			".section\t.fixup,\"ax\"\n\t"	    \
-			"11:\tli\t%1, %3\n\t"		    \
-			"j\t10b\n\t"			    \
-			".previous\n\t"			    \
-			".section\t__ex_table,\"a\"\n\t"    \
-			STR(PTR)"\t1b, 11b\n\t"		    \
-			STR(PTR)"\t2b, 11b\n\t"		    \
-			STR(PTR)"\t3b, 11b\n\t"		    \
-			STR(PTR)"\t4b, 11b\n\t"		    \
-			".previous"			    \
-			: "=&r" (value), "=r" (res)	    \
-			: "r" (addr), "i" (-EFAULT));       \
-} while(0)
-
-#endif /* !CONFIG_CPU_HAS_LOAD_STORE_LR */
-
-#define     _LoadHWU(addr, value, res, type) \
-do {                                                        \
-		__asm__ __volatile__ (                      \
-			".set\tnoat\n"                      \
-			"1:\t"type##_lbu("%0", "0(%2)")"\n" \
-			"2:\t"type##_lbu("$1", "1(%2)")"\n\t"\
-			"sll\t%0, 0x8\n\t"                  \
-			"or\t%0, $1\n\t"                    \
-			"li\t%1, 0\n"                       \
-			"3:\n\t"                            \
-			".insn\n\t"                         \
-			".set\tat\n\t"                      \
-			".section\t.fixup,\"ax\"\n\t"       \
-			"4:\tli\t%1, %3\n\t"                \
-			"j\t3b\n\t"                         \
-			".previous\n\t"                     \
-			".section\t__ex_table,\"a\"\n\t"    \
-			STR(PTR)"\t1b, 4b\n\t"              \
-			STR(PTR)"\t2b, 4b\n\t"              \
-			".previous"                         \
-			: "=&r" (value), "=r" (res)         \
-			: "r" (addr), "i" (-EFAULT));       \
-} while(0)
-
-#ifdef CONFIG_CPU_HAS_LOAD_STORE_LR
-#define     _LoadWU(addr, value, res, type)  \
-do {                                                        \
-		__asm__ __volatile__ (                      \
-			"1:\t"type##_lwl("%0", "(%2)")"\n"  \
-			"2:\t"type##_lwr("%0", "3(%2)")"\n\t"\
-			"dsll\t%0, %0, 32\n\t"              \
-			"dsrl\t%0, %0, 32\n\t"              \
-			"li\t%1, 0\n"                       \
-			"3:\n\t"                            \
-			".insn\n\t"                         \
-			"\t.section\t.fixup,\"ax\"\n\t"     \
-			"4:\tli\t%1, %3\n\t"                \
-			"j\t3b\n\t"                         \
-			".previous\n\t"                     \
-			".section\t__ex_table,\"a\"\n\t"    \
-			STR(PTR)"\t1b, 4b\n\t"              \
-			STR(PTR)"\t2b, 4b\n\t"              \
-			".previous"                         \
-			: "=&r" (value), "=r" (res)         \
-			: "r" (addr), "i" (-EFAULT));       \
-} while(0)
-
-#define     _LoadDW(addr, value, res)  \
-do {                                                        \
-		__asm__ __volatile__ (                      \
-			"1:\tldl\t%0, (%2)\n"               \
-			"2:\tldr\t%0, 7(%2)\n\t"            \
-			"li\t%1, 0\n"                       \
-			"3:\n\t"                            \
-			".insn\n\t"                         \
-			"\t.section\t.fixup,\"ax\"\n\t"     \
-			"4:\tli\t%1, %3\n\t"                \
-			"j\t3b\n\t"                         \
-			".previous\n\t"                     \
-			".section\t__ex_table,\"a\"\n\t"    \
-			STR(PTR)"\t1b, 4b\n\t"              \
-			STR(PTR)"\t2b, 4b\n\t"              \
-			".previous"                         \
-			: "=&r" (value), "=r" (res)         \
-			: "r" (addr), "i" (-EFAULT));       \
-} while(0)
-
-#else /* !CONFIG_CPU_HAS_LOAD_STORE_LR */
-/* For CPUs without lwl and ldl instructions */
-#define	    _LoadWU(addr, value, res, type) \
-do {                                                        \
-		__asm__ __volatile__ (			    \
-			".set\tpush\n\t"		    \
-			".set\tnoat\n\t"		    \
-			"1:"type##_lbu("%0", "0(%2)")"\n\t" \
-			"2:"type##_lbu("$1", "1(%2)")"\n\t" \
-			"sll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"3:"type##_lbu("$1", "2(%2)")"\n\t" \
-			"sll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"4:"type##_lbu("$1", "3(%2)")"\n\t" \
-			"sll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"li\t%1, 0\n"			    \
-			".set\tpop\n"			    \
-			"10:\n\t"			    \
-			".insn\n\t"			    \
-			".section\t.fixup,\"ax\"\n\t"	    \
-			"11:\tli\t%1, %3\n\t"		    \
-			"j\t10b\n\t"			    \
-			".previous\n\t"			    \
-			".section\t__ex_table,\"a\"\n\t"    \
-			STR(PTR)"\t1b, 11b\n\t"		    \
-			STR(PTR)"\t2b, 11b\n\t"		    \
-			STR(PTR)"\t3b, 11b\n\t"		    \
-			STR(PTR)"\t4b, 11b\n\t"		    \
-			".previous"			    \
-			: "=&r" (value), "=r" (res)	    \
-			: "r" (addr), "i" (-EFAULT));       \
-} while(0)
-
-#define     _LoadDW(addr, value, res)  \
-do {                                                        \
-		__asm__ __volatile__ (			    \
-			".set\tpush\n\t"		    \
-			".set\tnoat\n\t"		    \
-			"1:lb\t%0, 0(%2)\n\t"    	    \
-			"2:lbu\t $1, 1(%2)\n\t"   	    \
-			"dsll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"3:lbu\t$1, 2(%2)\n\t"   	    \
-			"dsll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"4:lbu\t$1, 3(%2)\n\t"   	    \
-			"dsll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"5:lbu\t$1, 4(%2)\n\t"   	    \
-			"dsll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"6:lbu\t$1, 5(%2)\n\t"   	    \
-			"dsll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"7:lbu\t$1, 6(%2)\n\t"   	    \
-			"dsll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"8:lbu\t$1, 7(%2)\n\t"   	    \
-			"dsll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"li\t%1, 0\n"			    \
-			".set\tpop\n\t"			    \
-			"10:\n\t"			    \
-			".insn\n\t"			    \
-			".section\t.fixup,\"ax\"\n\t"	    \
-			"11:\tli\t%1, %3\n\t"		    \
-			"j\t10b\n\t"			    \
-			".previous\n\t"			    \
-			".section\t__ex_table,\"a\"\n\t"    \
-			STR(PTR)"\t1b, 11b\n\t"		    \
-			STR(PTR)"\t2b, 11b\n\t"		    \
-			STR(PTR)"\t3b, 11b\n\t"		    \
-			STR(PTR)"\t4b, 11b\n\t"		    \
-			STR(PTR)"\t5b, 11b\n\t"		    \
-			STR(PTR)"\t6b, 11b\n\t"		    \
-			STR(PTR)"\t7b, 11b\n\t"		    \
-			STR(PTR)"\t8b, 11b\n\t"		    \
-			".previous"			    \
-			: "=&r" (value), "=r" (res)	    \
-			: "r" (addr), "i" (-EFAULT));       \
-} while(0)
-
-#endif /* !CONFIG_CPU_HAS_LOAD_STORE_LR */
-
-
-#define     _StoreHW(addr, value, res, type) \
-do {                                                        \
-		__asm__ __volatile__ (                      \
-			".set\tnoat\n"                      \
-			"1:\t"type##_sb("%1", "1(%2)")"\n"  \
-			"srl\t$1, %1, 0x8\n"                \
-			"2:\t"type##_sb("$1", "0(%2)")"\n"  \
-			".set\tat\n\t"                      \
-			"li\t%0, 0\n"                       \
-			"3:\n\t"                            \
-			".insn\n\t"                         \
-			".section\t.fixup,\"ax\"\n\t"       \
-			"4:\tli\t%0, %3\n\t"                \
-			"j\t3b\n\t"                         \
-			".previous\n\t"                     \
-			".section\t__ex_table,\"a\"\n\t"    \
-			STR(PTR)"\t1b, 4b\n\t"              \
-			STR(PTR)"\t2b, 4b\n\t"              \
-			".previous"                         \
-			: "=r" (res)                        \
-			: "r" (value), "r" (addr), "i" (-EFAULT));\
-} while(0)
-
-#ifdef CONFIG_CPU_HAS_LOAD_STORE_LR
-#define     _StoreW(addr, value, res, type)  \
-do {                                                        \
-		__asm__ __volatile__ (                      \
-			"1:\t"type##_swl("%1", "(%2)")"\n"  \
-			"2:\t"type##_swr("%1", "3(%2)")"\n\t"\
-			"li\t%0, 0\n"                       \
-			"3:\n\t"                            \
-			".insn\n\t"                         \
-			".section\t.fixup,\"ax\"\n\t"       \
-			"4:\tli\t%0, %3\n\t"                \
-			"j\t3b\n\t"                         \
-			".previous\n\t"                     \
-			".section\t__ex_table,\"a\"\n\t"    \
-			STR(PTR)"\t1b, 4b\n\t"              \
-			STR(PTR)"\t2b, 4b\n\t"              \
-			".previous"                         \
-		: "=r" (res)                                \
-		: "r" (value), "r" (addr), "i" (-EFAULT));  \
-} while(0)
-
-#define     _StoreDW(addr, value, res) \
-do {                                                        \
-		__asm__ __volatile__ (                      \
-			"1:\tsdl\t%1,(%2)\n"                \
-			"2:\tsdr\t%1, 7(%2)\n\t"            \
-			"li\t%0, 0\n"                       \
-			"3:\n\t"                            \
-			".insn\n\t"                         \
-			".section\t.fixup,\"ax\"\n\t"       \
-			"4:\tli\t%0, %3\n\t"                \
-			"j\t3b\n\t"                         \
-			".previous\n\t"                     \
-			".section\t__ex_table,\"a\"\n\t"    \
-			STR(PTR)"\t1b, 4b\n\t"              \
-			STR(PTR)"\t2b, 4b\n\t"              \
-			".previous"                         \
-		: "=r" (res)                                \
-		: "r" (value), "r" (addr), "i" (-EFAULT));  \
-} while(0)
-
-#else /* !CONFIG_CPU_HAS_LOAD_STORE_LR */
-#define     _StoreW(addr, value, res, type)  \
-do {                                                        \
-		__asm__ __volatile__ (                      \
-			".set\tpush\n\t"		    \
-			".set\tnoat\n\t"		    \
-			"1:"type##_sb("%1", "3(%2)")"\n\t"  \
-			"srl\t$1, %1, 0x8\n\t"		    \
-			"2:"type##_sb("$1", "2(%2)")"\n\t"  \
-			"srl\t$1, $1,  0x8\n\t"		    \
-			"3:"type##_sb("$1", "1(%2)")"\n\t"  \
-			"srl\t$1, $1, 0x8\n\t"		    \
-			"4:"type##_sb("$1", "0(%2)")"\n\t"  \
-			".set\tpop\n\t"			    \
-			"li\t%0, 0\n"			    \
-			"10:\n\t"			    \
-			".insn\n\t"			    \
-			".section\t.fixup,\"ax\"\n\t"	    \
-			"11:\tli\t%0, %3\n\t"		    \
-			"j\t10b\n\t"			    \
-			".previous\n\t"			    \
-			".section\t__ex_table,\"a\"\n\t"    \
-			STR(PTR)"\t1b, 11b\n\t"		    \
-			STR(PTR)"\t2b, 11b\n\t"		    \
-			STR(PTR)"\t3b, 11b\n\t"		    \
-			STR(PTR)"\t4b, 11b\n\t"		    \
-			".previous"			    \
-		: "=&r" (res)			    	    \
-		: "r" (value), "r" (addr), "i" (-EFAULT)    \
-		: "memory");                                \
-} while(0)
-
-#define     _StoreDW(addr, value, res) \
-do {                                                        \
-		__asm__ __volatile__ (                      \
-			".set\tpush\n\t"		    \
-			".set\tnoat\n\t"		    \
-			"1:sb\t%1, 7(%2)\n\t"    	    \
-			"dsrl\t$1, %1, 0x8\n\t"		    \
-			"2:sb\t$1, 6(%2)\n\t"    	    \
-			"dsrl\t$1, $1, 0x8\n\t"		    \
-			"3:sb\t$1, 5(%2)\n\t"    	    \
-			"dsrl\t$1, $1, 0x8\n\t"		    \
-			"4:sb\t$1, 4(%2)\n\t"    	    \
-			"dsrl\t$1, $1, 0x8\n\t"		    \
-			"5:sb\t$1, 3(%2)\n\t"    	    \
-			"dsrl\t$1, $1, 0x8\n\t"		    \
-			"6:sb\t$1, 2(%2)\n\t"    	    \
-			"dsrl\t$1, $1, 0x8\n\t"		    \
-			"7:sb\t$1, 1(%2)\n\t"    	    \
-			"dsrl\t$1, $1, 0x8\n\t"		    \
-			"8:sb\t$1, 0(%2)\n\t"    	    \
-			"dsrl\t$1, $1, 0x8\n\t"		    \
-			".set\tpop\n\t"			    \
-			"li\t%0, 0\n"			    \
-			"10:\n\t"			    \
-			".insn\n\t"			    \
-			".section\t.fixup,\"ax\"\n\t"	    \
-			"11:\tli\t%0, %3\n\t"		    \
-			"j\t10b\n\t"			    \
-			".previous\n\t"			    \
-			".section\t__ex_table,\"a\"\n\t"    \
-			STR(PTR)"\t1b, 11b\n\t"		    \
-			STR(PTR)"\t2b, 11b\n\t"		    \
-			STR(PTR)"\t3b, 11b\n\t"		    \
-			STR(PTR)"\t4b, 11b\n\t"		    \
-			STR(PTR)"\t5b, 11b\n\t"		    \
-			STR(PTR)"\t6b, 11b\n\t"		    \
-			STR(PTR)"\t7b, 11b\n\t"		    \
-			STR(PTR)"\t8b, 11b\n\t"		    \
-			".previous"			    \
-		: "=&r" (res)			    	    \
-		: "r" (value), "r" (addr), "i" (-EFAULT)    \
-		: "memory");                                \
-} while(0)
-
-#endif /* !CONFIG_CPU_HAS_LOAD_STORE_LR */
-
-#else /* __BIG_ENDIAN */
-
-#define     _LoadHW(addr, value, res, type)  \
-do {                                                        \
-		__asm__ __volatile__ (".set\tnoat\n"        \
-			"1:\t"type##_lb("%0", "1(%2)")"\n"  \
-			"2:\t"type##_lbu("$1", "0(%2)")"\n\t"\
-			"sll\t%0, 0x8\n\t"                  \
-			"or\t%0, $1\n\t"                    \
-			"li\t%1, 0\n"                       \
-			"3:\t.set\tat\n\t"                  \
-			".insn\n\t"                         \
-			".section\t.fixup,\"ax\"\n\t"       \
-			"4:\tli\t%1, %3\n\t"                \
-			"j\t3b\n\t"                         \
-			".previous\n\t"                     \
-			".section\t__ex_table,\"a\"\n\t"    \
-			STR(PTR)"\t1b, 4b\n\t"              \
-			STR(PTR)"\t2b, 4b\n\t"              \
-			".previous"                         \
-			: "=&r" (value), "=r" (res)         \
-			: "r" (addr), "i" (-EFAULT));       \
-} while(0)
-
-#ifdef CONFIG_CPU_HAS_LOAD_STORE_LR
-#define     _LoadW(addr, value, res, type)   \
-do {                                                        \
-		__asm__ __volatile__ (                      \
-			"1:\t"type##_lwl("%0", "3(%2)")"\n" \
-			"2:\t"type##_lwr("%0", "(%2)")"\n\t"\
-			"li\t%1, 0\n"                       \
-			"3:\n\t"                            \
-			".insn\n\t"                         \
-			".section\t.fixup,\"ax\"\n\t"       \
-			"4:\tli\t%1, %3\n\t"                \
-			"j\t3b\n\t"                         \
-			".previous\n\t"                     \
-			".section\t__ex_table,\"a\"\n\t"    \
-			STR(PTR)"\t1b, 4b\n\t"              \
-			STR(PTR)"\t2b, 4b\n\t"              \
-			".previous"                         \
-			: "=&r" (value), "=r" (res)         \
-			: "r" (addr), "i" (-EFAULT));       \
-} while(0)
-
-#else  /* !CONFIG_CPU_HAS_LOAD_STORE_LR */
-/* For CPUs without lwl instruction */
-#define     _LoadW(addr, value, res, type) \
-do {                                                        \
-		__asm__ __volatile__ (			    \
-			".set\tpush\n"			    \
-			".set\tnoat\n\t"		    \
-			"1:"type##_lb("%0", "3(%2)")"\n\t"  \
-			"2:"type##_lbu("$1", "2(%2)")"\n\t" \
-			"sll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"3:"type##_lbu("$1", "1(%2)")"\n\t" \
-			"sll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"4:"type##_lbu("$1", "0(%2)")"\n\t" \
-			"sll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"li\t%1, 0\n"			    \
-			".set\tpop\n"			    \
-			"10:\n\t"			    \
-			".insn\n\t"			    \
-			".section\t.fixup,\"ax\"\n\t"	    \
-			"11:\tli\t%1, %3\n\t"		    \
-			"j\t10b\n\t"			    \
-			".previous\n\t"			    \
-			".section\t__ex_table,\"a\"\n\t"    \
-			STR(PTR)"\t1b, 11b\n\t"		    \
-			STR(PTR)"\t2b, 11b\n\t"		    \
-			STR(PTR)"\t3b, 11b\n\t"		    \
-			STR(PTR)"\t4b, 11b\n\t"		    \
-			".previous"			    \
-			: "=&r" (value), "=r" (res)	    \
-			: "r" (addr), "i" (-EFAULT));       \
-} while(0)
-
-#endif /* !CONFIG_CPU_HAS_LOAD_STORE_LR */
-
-
-#define     _LoadHWU(addr, value, res, type) \
-do {                                                        \
-		__asm__ __volatile__ (                      \
-			".set\tnoat\n"                      \
-			"1:\t"type##_lbu("%0", "1(%2)")"\n" \
-			"2:\t"type##_lbu("$1", "0(%2)")"\n\t"\
-			"sll\t%0, 0x8\n\t"                  \
-			"or\t%0, $1\n\t"                    \
-			"li\t%1, 0\n"                       \
-			"3:\n\t"                            \
-			".insn\n\t"                         \
-			".set\tat\n\t"                      \
-			".section\t.fixup,\"ax\"\n\t"       \
-			"4:\tli\t%1, %3\n\t"                \
-			"j\t3b\n\t"                         \
-			".previous\n\t"                     \
-			".section\t__ex_table,\"a\"\n\t"    \
-			STR(PTR)"\t1b, 4b\n\t"              \
-			STR(PTR)"\t2b, 4b\n\t"              \
-			".previous"                         \
-			: "=&r" (value), "=r" (res)         \
-			: "r" (addr), "i" (-EFAULT));       \
-} while(0)
-
-#ifdef CONFIG_CPU_HAS_LOAD_STORE_LR
-#define     _LoadWU(addr, value, res, type)  \
-do {                                                        \
-		__asm__ __volatile__ (                      \
-			"1:\t"type##_lwl("%0", "3(%2)")"\n" \
-			"2:\t"type##_lwr("%0", "(%2)")"\n\t"\
-			"dsll\t%0, %0, 32\n\t"              \
-			"dsrl\t%0, %0, 32\n\t"              \
-			"li\t%1, 0\n"                       \
-			"3:\n\t"                            \
-			".insn\n\t"                         \
-			"\t.section\t.fixup,\"ax\"\n\t"     \
-			"4:\tli\t%1, %3\n\t"                \
-			"j\t3b\n\t"                         \
-			".previous\n\t"                     \
-			".section\t__ex_table,\"a\"\n\t"    \
-			STR(PTR)"\t1b, 4b\n\t"              \
-			STR(PTR)"\t2b, 4b\n\t"              \
-			".previous"                         \
-			: "=&r" (value), "=r" (res)         \
-			: "r" (addr), "i" (-EFAULT));       \
-} while(0)
-
-#define     _LoadDW(addr, value, res)  \
-do {                                                        \
-		__asm__ __volatile__ (                      \
-			"1:\tldl\t%0, 7(%2)\n"              \
-			"2:\tldr\t%0, (%2)\n\t"             \
-			"li\t%1, 0\n"                       \
-			"3:\n\t"                            \
-			".insn\n\t"                         \
-			"\t.section\t.fixup,\"ax\"\n\t"     \
-			"4:\tli\t%1, %3\n\t"                \
-			"j\t3b\n\t"                         \
-			".previous\n\t"                     \
-			".section\t__ex_table,\"a\"\n\t"    \
-			STR(PTR)"\t1b, 4b\n\t"              \
-			STR(PTR)"\t2b, 4b\n\t"              \
-			".previous"                         \
-			: "=&r" (value), "=r" (res)         \
-			: "r" (addr), "i" (-EFAULT));       \
-} while(0)
-
-#else /* !CONFIG_CPU_HAS_LOAD_STORE_LR */
-/* For CPUs without lwl and ldl instructions */
-#define	    _LoadWU(addr, value, res, type) \
-do {                                                        \
-		__asm__ __volatile__ (			    \
-			".set\tpush\n\t"		    \
-			".set\tnoat\n\t"		    \
-			"1:"type##_lbu("%0", "3(%2)")"\n\t" \
-			"2:"type##_lbu("$1", "2(%2)")"\n\t" \
-			"sll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"3:"type##_lbu("$1", "1(%2)")"\n\t" \
-			"sll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"4:"type##_lbu("$1", "0(%2)")"\n\t" \
-			"sll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"li\t%1, 0\n"			    \
-			".set\tpop\n"			    \
-			"10:\n\t"			    \
-			".insn\n\t"			    \
-			".section\t.fixup,\"ax\"\n\t"	    \
-			"11:\tli\t%1, %3\n\t"		    \
-			"j\t10b\n\t"			    \
-			".previous\n\t"			    \
-			".section\t__ex_table,\"a\"\n\t"    \
-			STR(PTR)"\t1b, 11b\n\t"		    \
-			STR(PTR)"\t2b, 11b\n\t"		    \
-			STR(PTR)"\t3b, 11b\n\t"		    \
-			STR(PTR)"\t4b, 11b\n\t"		    \
-			".previous"			    \
-			: "=&r" (value), "=r" (res)	    \
-			: "r" (addr), "i" (-EFAULT));       \
-} while(0)
-
-#define     _LoadDW(addr, value, res)  \
-do {                                                        \
-		__asm__ __volatile__ (			    \
-			".set\tpush\n\t"		    \
-			".set\tnoat\n\t"		    \
-			"1:lb\t%0, 7(%2)\n\t"    	    \
-			"2:lbu\t$1, 6(%2)\n\t"   	    \
-			"dsll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"3:lbu\t$1, 5(%2)\n\t"   	    \
-			"dsll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"4:lbu\t$1, 4(%2)\n\t"   	    \
-			"dsll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"5:lbu\t$1, 3(%2)\n\t"   	    \
-			"dsll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"6:lbu\t$1, 2(%2)\n\t"   	    \
-			"dsll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"7:lbu\t$1, 1(%2)\n\t"   	    \
-			"dsll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"8:lbu\t$1, 0(%2)\n\t"   	    \
-			"dsll\t%0, 0x8\n\t"		    \
-			"or\t%0, $1\n\t"		    \
-			"li\t%1, 0\n"			    \
-			".set\tpop\n\t"			    \
-			"10:\n\t"			    \
-			".insn\n\t"			    \
-			".section\t.fixup,\"ax\"\n\t"	    \
-			"11:\tli\t%1, %3\n\t"		    \
-			"j\t10b\n\t"			    \
-			".previous\n\t"			    \
-			".section\t__ex_table,\"a\"\n\t"    \
-			STR(PTR)"\t1b, 11b\n\t"		    \
-			STR(PTR)"\t2b, 11b\n\t"		    \
-			STR(PTR)"\t3b, 11b\n\t"		    \
-			STR(PTR)"\t4b, 11b\n\t"		    \
-			STR(PTR)"\t5b, 11b\n\t"		    \
-			STR(PTR)"\t6b, 11b\n\t"		    \
-			STR(PTR)"\t7b, 11b\n\t"		    \
-			STR(PTR)"\t8b, 11b\n\t"		    \
-			".previous"			    \
-			: "=&r" (value), "=r" (res)	    \
-			: "r" (addr), "i" (-EFAULT));       \
-} while(0)
-#endif /* !CONFIG_CPU_HAS_LOAD_STORE_LR */
-
-#define     _StoreHW(addr, value, res, type) \
-do {                                                        \
-		__asm__ __volatile__ (                      \
-			".set\tnoat\n"                      \
-			"1:\t"type##_sb("%1", "0(%2)")"\n"  \
-			"srl\t$1,%1, 0x8\n"                 \
-			"2:\t"type##_sb("$1", "1(%2)")"\n"  \
-			".set\tat\n\t"                      \
-			"li\t%0, 0\n"                       \
-			"3:\n\t"                            \
-			".insn\n\t"                         \
-			".section\t.fixup,\"ax\"\n\t"       \
-			"4:\tli\t%0, %3\n\t"                \
-			"j\t3b\n\t"                         \
-			".previous\n\t"                     \
-			".section\t__ex_table,\"a\"\n\t"    \
-			STR(PTR)"\t1b, 4b\n\t"              \
-			STR(PTR)"\t2b, 4b\n\t"              \
-			".previous"                         \
-			: "=r" (res)                        \
-			: "r" (value), "r" (addr), "i" (-EFAULT));\
-} while(0)
-
-#ifdef CONFIG_CPU_HAS_LOAD_STORE_LR
-#define     _StoreW(addr, value, res, type)  \
-do {                                                        \
-		__asm__ __volatile__ (                      \
-			"1:\t"type##_swl("%1", "3(%2)")"\n" \
-			"2:\t"type##_swr("%1", "(%2)")"\n\t"\
-			"li\t%0, 0\n"                       \
-			"3:\n\t"                            \
-			".insn\n\t"                         \
-			".section\t.fixup,\"ax\"\n\t"       \
-			"4:\tli\t%0, %3\n\t"                \
-			"j\t3b\n\t"                         \
-			".previous\n\t"                     \
-			".section\t__ex_table,\"a\"\n\t"    \
-			STR(PTR)"\t1b, 4b\n\t"              \
-			STR(PTR)"\t2b, 4b\n\t"              \
-			".previous"                         \
-		: "=r" (res)                                \
-		: "r" (value), "r" (addr), "i" (-EFAULT));  \
-} while(0)
-
-#define     _StoreDW(addr, value, res) \
-do {                                                        \
-		__asm__ __volatile__ (                      \
-			"1:\tsdl\t%1, 7(%2)\n"              \
-			"2:\tsdr\t%1, (%2)\n\t"             \
-			"li\t%0, 0\n"                       \
-			"3:\n\t"                            \
-			".insn\n\t"                         \
-			".section\t.fixup,\"ax\"\n\t"       \
-			"4:\tli\t%0, %3\n\t"                \
-			"j\t3b\n\t"                         \
-			".previous\n\t"                     \
-			".section\t__ex_table,\"a\"\n\t"    \
-			STR(PTR)"\t1b, 4b\n\t"              \
-			STR(PTR)"\t2b, 4b\n\t"              \
-			".previous"                         \
-		: "=r" (res)                                \
-		: "r" (value), "r" (addr), "i" (-EFAULT));  \
-} while(0)
-
-#else /* !CONFIG_CPU_HAS_LOAD_STORE_LR */
-/* For CPUs without swl and sdl instructions */
-#define     _StoreW(addr, value, res, type)  \
-do {                                                        \
-		__asm__ __volatile__ (                      \
-			".set\tpush\n\t"		    \
-			".set\tnoat\n\t"		    \
-			"1:"type##_sb("%1", "0(%2)")"\n\t"  \
-			"srl\t$1, %1, 0x8\n\t"		    \
-			"2:"type##_sb("$1", "1(%2)")"\n\t"  \
-			"srl\t$1, $1,  0x8\n\t"		    \
-			"3:"type##_sb("$1", "2(%2)")"\n\t"  \
-			"srl\t$1, $1, 0x8\n\t"		    \
-			"4:"type##_sb("$1", "3(%2)")"\n\t"  \
-			".set\tpop\n\t"			    \
-			"li\t%0, 0\n"			    \
-			"10:\n\t"			    \
-			".insn\n\t"			    \
-			".section\t.fixup,\"ax\"\n\t"	    \
-			"11:\tli\t%0, %3\n\t"		    \
-			"j\t10b\n\t"			    \
-			".previous\n\t"			    \
-			".section\t__ex_table,\"a\"\n\t"    \
-			STR(PTR)"\t1b, 11b\n\t"		    \
-			STR(PTR)"\t2b, 11b\n\t"		    \
-			STR(PTR)"\t3b, 11b\n\t"		    \
-			STR(PTR)"\t4b, 11b\n\t"		    \
-			".previous"			    \
-		: "=&r" (res)			    	    \
-		: "r" (value), "r" (addr), "i" (-EFAULT)    \
-		: "memory");                                \
-} while(0)
-
-#define     _StoreDW(addr, value, res) \
-do {                                                        \
-		__asm__ __volatile__ (                      \
-			".set\tpush\n\t"		    \
-			".set\tnoat\n\t"		    \
-			"1:sb\t%1, 0(%2)\n\t"    	    \
-			"dsrl\t$1, %1, 0x8\n\t"		    \
-			"2:sb\t$1, 1(%2)\n\t"    	    \
-			"dsrl\t$1, $1, 0x8\n\t"		    \
-			"3:sb\t$1, 2(%2)\n\t"    	    \
-			"dsrl\t$1, $1, 0x8\n\t"		    \
-			"4:sb\t$1, 3(%2)\n\t"    	    \
-			"dsrl\t$1, $1, 0x8\n\t"		    \
-			"5:sb\t$1, 4(%2)\n\t"    	    \
-			"dsrl\t$1, $1, 0x8\n\t"		    \
-			"6:sb\t$1, 5(%2)\n\t"    	    \
-			"dsrl\t$1, $1, 0x8\n\t"		    \
-			"7:sb\t$1, 6(%2)\n\t"    	    \
-			"dsrl\t$1, $1, 0x8\n\t"		    \
-			"8:sb\t$1, 7(%2)\n\t"    	    \
-			"dsrl\t$1, $1, 0x8\n\t"		    \
-			".set\tpop\n\t"			    \
-			"li\t%0, 0\n"			    \
-			"10:\n\t"			    \
-			".insn\n\t"			    \
-			".section\t.fixup,\"ax\"\n\t"	    \
-			"11:\tli\t%0, %3\n\t"		    \
-			"j\t10b\n\t"			    \
-			".previous\n\t"			    \
-			".section\t__ex_table,\"a\"\n\t"    \
-			STR(PTR)"\t1b, 11b\n\t"		    \
-			STR(PTR)"\t2b, 11b\n\t"		    \
-			STR(PTR)"\t3b, 11b\n\t"		    \
-			STR(PTR)"\t4b, 11b\n\t"		    \
-			STR(PTR)"\t5b, 11b\n\t"		    \
-			STR(PTR)"\t6b, 11b\n\t"		    \
-			STR(PTR)"\t7b, 11b\n\t"		    \
-			STR(PTR)"\t8b, 11b\n\t"		    \
-			".previous"			    \
-		: "=&r" (res)			    	    \
-		: "r" (value), "r" (addr), "i" (-EFAULT)    \
-		: "memory");                                \
-} while(0)
-
-#endif /* !CONFIG_CPU_HAS_LOAD_STORE_LR */
-#endif
-
-#define LoadHWU(addr, value, res)	_LoadHWU(addr, value, res, kernel)
-#define LoadHWUE(addr, value, res)	_LoadHWU(addr, value, res, user)
-#define LoadWU(addr, value, res)	_LoadWU(addr, value, res, kernel)
-#define LoadWUE(addr, value, res)	_LoadWU(addr, value, res, user)
-#define LoadHW(addr, value, res)	_LoadHW(addr, value, res, kernel)
-#define LoadHWE(addr, value, res)	_LoadHW(addr, value, res, user)
-#define LoadW(addr, value, res)		_LoadW(addr, value, res, kernel)
-#define LoadWE(addr, value, res)	_LoadW(addr, value, res, user)
-#define LoadDW(addr, value, res)	_LoadDW(addr, value, res)
-
-#define StoreHW(addr, value, res)	_StoreHW(addr, value, res, kernel)
-#define StoreHWE(addr, value, res)	_StoreHW(addr, value, res, user)
-#define StoreW(addr, value, res)	_StoreW(addr, value, res, kernel)
-#define StoreWE(addr, value, res)	_StoreW(addr, value, res, user)
-#define StoreDW(addr, value, res)	_StoreDW(addr, value, res)
-
 static void emulate_load_store_insn(struct pt_regs *regs,
-	void __user *addr, unsigned int __user *pc)
+	void __user *addr, unsigned int *pc)
 {
 	unsigned long origpc, orig31, value;
 	union mips_instruction insn;
 	unsigned int res;
-#ifdef	CONFIG_EVA
-	mm_segment_t seg;
-#endif
+	bool user = user_mode(regs);
+
 	origpc = (unsigned long)pc;
 	orig31 = regs->regs[31];
 
@@ -897,7 +125,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 	/*
 	 * This load never faults.
 	 */
-	__get_user(insn.word, pc);
+	__get_inst32(&insn.word, pc, user);
 
 	switch (insn.i_format.opcode) {
 		/*
@@ -933,11 +161,52 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		 * The remaining opcodes are the ones that are really of
 		 * interest.
 		 */
+#ifdef CONFIG_MACH_INGENIC
+	case spec2_op:
+		if (insn.mxu_lx_format.func != mxu_lx_op)
+			goto sigbus; /* other MXU instructions we don't care */
+
+		switch (insn.mxu_lx_format.op) {
+		case mxu_lxw_op:
+			if (user && !access_ok(addr, 4))
+				goto sigbus;
+			LoadW(addr, value, res);
+			if (res)
+				goto fault;
+			compute_return_epc(regs);
+			regs->regs[insn.mxu_lx_format.rd] = value;
+			break;
+		case mxu_lxh_op:
+			if (user && !access_ok(addr, 2))
+				goto sigbus;
+			LoadHW(addr, value, res);
+			if (res)
+				goto fault;
+			compute_return_epc(regs);
+			regs->regs[insn.dsp_format.rd] = value;
+			break;
+		case mxu_lxhu_op:
+			if (user && !access_ok(addr, 2))
+				goto sigbus;
+			LoadHWU(addr, value, res);
+			if (res)
+				goto fault;
+			compute_return_epc(regs);
+			regs->regs[insn.dsp_format.rd] = value;
+			break;
+		case mxu_lxb_op:
+		case mxu_lxbu_op:
+			goto sigbus;
+		default:
+			goto sigill;
+		}
+		break;
+#endif
 	case spec3_op:
 		if (insn.dsp_format.func == lx_op) {
 			switch (insn.dsp_format.op) {
 			case lwx_op:
-				if (!access_ok(addr, 4))
+				if (user && !access_ok(addr, 4))
 					goto sigbus;
 				LoadW(addr, value, res);
 				if (res)
@@ -946,7 +215,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 				regs->regs[insn.dsp_format.rd] = value;
 				break;
 			case lhx_op:
-				if (!access_ok(addr, 2))
+				if (user && !access_ok(addr, 2))
 					goto sigbus;
 				LoadHW(addr, value, res);
 				if (res)
@@ -965,94 +234,66 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 			 * memory, so we need to "switch" the address limit to
 			 * user space, so that address check can work properly.
 			 */
-			seg = get_fs();
-			set_fs(USER_DS);
 			switch (insn.spec3_format.func) {
 			case lhe_op:
-				if (!access_ok(addr, 2)) {
-					set_fs(seg);
+				if (!access_ok(addr, 2))
 					goto sigbus;
-				}
 				LoadHWE(addr, value, res);
-				if (res) {
-					set_fs(seg);
+				if (res)
 					goto fault;
-				}
 				compute_return_epc(regs);
 				regs->regs[insn.spec3_format.rt] = value;
 				break;
 			case lwe_op:
-				if (!access_ok(addr, 4)) {
-					set_fs(seg);
+				if (!access_ok(addr, 4))
 					goto sigbus;
-				}
 				LoadWE(addr, value, res);
-				if (res) {
-					set_fs(seg);
+				if (res)
 					goto fault;
-				}
 				compute_return_epc(regs);
 				regs->regs[insn.spec3_format.rt] = value;
 				break;
 			case lhue_op:
-				if (!access_ok(addr, 2)) {
-					set_fs(seg);
+				if (!access_ok(addr, 2))
 					goto sigbus;
-				}
 				LoadHWUE(addr, value, res);
-				if (res) {
-					set_fs(seg);
+				if (res)
 					goto fault;
-				}
 				compute_return_epc(regs);
 				regs->regs[insn.spec3_format.rt] = value;
 				break;
 			case she_op:
-				if (!access_ok(addr, 2)) {
-					set_fs(seg);
+				if (!access_ok(addr, 2))
 					goto sigbus;
-				}
 				compute_return_epc(regs);
 				value = regs->regs[insn.spec3_format.rt];
 				StoreHWE(addr, value, res);
-				if (res) {
-					set_fs(seg);
+				if (res)
 					goto fault;
-				}
 				break;
 			case swe_op:
-				if (!access_ok(addr, 4)) {
-					set_fs(seg);
+				if (!access_ok(addr, 4))
 					goto sigbus;
-				}
 				compute_return_epc(regs);
 				value = regs->regs[insn.spec3_format.rt];
 				StoreWE(addr, value, res);
-				if (res) {
-					set_fs(seg);
+				if (res)
 					goto fault;
-				}
 				break;
 			default:
-				set_fs(seg);
 				goto sigill;
 			}
-			set_fs(seg);
 		}
 #endif
 		break;
 	case lh_op:
-		if (!access_ok(addr, 2))
+		if (user && !access_ok(addr, 2))
 			goto sigbus;
 
-		if (IS_ENABLED(CONFIG_EVA)) {
-			if (uaccess_kernel())
-				LoadHW(addr, value, res);
-			else
-				LoadHWE(addr, value, res);
-		} else {
+		if (IS_ENABLED(CONFIG_EVA) && user)
+			LoadHWE(addr, value, res);
+		else
 			LoadHW(addr, value, res);
-		}
 
 		if (res)
 			goto fault;
@@ -1061,17 +302,13 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		break;
 
 	case lw_op:
-		if (!access_ok(addr, 4))
+		if (user && !access_ok(addr, 4))
 			goto sigbus;
 
-		if (IS_ENABLED(CONFIG_EVA)) {
-			if (uaccess_kernel())
-				LoadW(addr, value, res);
-			else
-				LoadWE(addr, value, res);
-		} else {
+		if (IS_ENABLED(CONFIG_EVA) && user)
+			LoadWE(addr, value, res);
+		else
 			LoadW(addr, value, res);
-		}
 
 		if (res)
 			goto fault;
@@ -1080,17 +317,13 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		break;
 
 	case lhu_op:
-		if (!access_ok(addr, 2))
+		if (user && !access_ok(addr, 2))
 			goto sigbus;
 
-		if (IS_ENABLED(CONFIG_EVA)) {
-			if (uaccess_kernel())
-				LoadHWU(addr, value, res);
-			else
-				LoadHWUE(addr, value, res);
-		} else {
+		if (IS_ENABLED(CONFIG_EVA) && user)
+			LoadHWUE(addr, value, res);
+		else
 			LoadHWU(addr, value, res);
-		}
 
 		if (res)
 			goto fault;
@@ -1107,7 +340,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		 * would blow up, so for now we don't handle unaligned 64-bit
 		 * instructions on 32-bit kernels.
 		 */
-		if (!access_ok(addr, 4))
+		if (user && !access_ok(addr, 4))
 			goto sigbus;
 
 		LoadWU(addr, value, res);
@@ -1130,7 +363,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		 * would blow up, so for now we don't handle unaligned 64-bit
 		 * instructions on 32-bit kernels.
 		 */
-		if (!access_ok(addr, 8))
+		if (user && !access_ok(addr, 8))
 			goto sigbus;
 
 		LoadDW(addr, value, res);
@@ -1145,40 +378,32 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		goto sigill;
 
 	case sh_op:
-		if (!access_ok(addr, 2))
+		if (user && !access_ok(addr, 2))
 			goto sigbus;
 
 		compute_return_epc(regs);
 		value = regs->regs[insn.i_format.rt];
 
-		if (IS_ENABLED(CONFIG_EVA)) {
-			if (uaccess_kernel())
-				StoreHW(addr, value, res);
-			else
-				StoreHWE(addr, value, res);
-		} else {
+		if (IS_ENABLED(CONFIG_EVA) && user)
+			StoreHWE(addr, value, res);
+		else
 			StoreHW(addr, value, res);
-		}
 
 		if (res)
 			goto fault;
 		break;
 
 	case sw_op:
-		if (!access_ok(addr, 4))
+		if (user && !access_ok(addr, 4))
 			goto sigbus;
 
 		compute_return_epc(regs);
 		value = regs->regs[insn.i_format.rt];
 
-		if (IS_ENABLED(CONFIG_EVA)) {
-			if (uaccess_kernel())
-				StoreW(addr, value, res);
-			else
-				StoreWE(addr, value, res);
-		} else {
+		if (IS_ENABLED(CONFIG_EVA) && user)
+			StoreWE(addr, value, res);
+		else
 			StoreW(addr, value, res);
-		}
 
 		if (res)
 			goto fault;
@@ -1193,7 +418,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		 * would blow up, so for now we don't handle unaligned 64-bit
 		 * instructions on 32-bit kernels.
 		 */
-		if (!access_ok(addr, 8))
+		if (user && !access_ok(addr, 8))
 			goto sigbus;
 
 		compute_return_epc(regs);
@@ -1401,6 +626,7 @@ static void emulate_load_store_microMIPS(struct pt_regs *regs,
 	unsigned long origpc, contpc;
 	union mips_instruction insn;
 	struct mm_decoded_insn mminsn;
+	bool user = user_mode(regs);
 
 	origpc = regs->cp0_epc;
 	orig31 = regs->regs[31];
@@ -1464,7 +690,7 @@ static void emulate_load_store_microMIPS(struct pt_regs *regs,
 			if (reg == 31)
 				goto sigbus;
 
-			if (!access_ok(addr, 8))
+			if (user && !access_ok(addr, 8))
 				goto sigbus;
 
 			LoadW(addr, value, res);
@@ -1483,7 +709,7 @@ static void emulate_load_store_microMIPS(struct pt_regs *regs,
 			if (reg == 31)
 				goto sigbus;
 
-			if (!access_ok(addr, 8))
+			if (user && !access_ok(addr, 8))
 				goto sigbus;
 
 			value = regs->regs[reg];
@@ -1503,7 +729,7 @@ static void emulate_load_store_microMIPS(struct pt_regs *regs,
 			if (reg == 31)
 				goto sigbus;
 
-			if (!access_ok(addr, 16))
+			if (user && !access_ok(addr, 16))
 				goto sigbus;
 
 			LoadDW(addr, value, res);
@@ -1526,7 +752,7 @@ static void emulate_load_store_microMIPS(struct pt_regs *regs,
 			if (reg == 31)
 				goto sigbus;
 
-			if (!access_ok(addr, 16))
+			if (user && !access_ok(addr, 16))
 				goto sigbus;
 
 			value = regs->regs[reg];
@@ -1549,10 +775,10 @@ static void emulate_load_store_microMIPS(struct pt_regs *regs,
 			if ((rvar > 9) || !reg)
 				goto sigill;
 			if (reg & 0x10) {
-				if (!access_ok(addr, 4 * (rvar + 1)))
+				if (user && !access_ok(addr, 4 * (rvar + 1)))
 					goto sigbus;
 			} else {
-				if (!access_ok(addr, 4 * rvar))
+				if (user && !access_ok(addr, 4 * rvar))
 					goto sigbus;
 			}
 			if (rvar == 9)
@@ -1585,10 +811,10 @@ static void emulate_load_store_microMIPS(struct pt_regs *regs,
 			if ((rvar > 9) || !reg)
 				goto sigill;
 			if (reg & 0x10) {
-				if (!access_ok(addr, 4 * (rvar + 1)))
+				if (user && !access_ok(addr, 4 * (rvar + 1)))
 					goto sigbus;
 			} else {
-				if (!access_ok(addr, 4 * rvar))
+				if (user && !access_ok(addr, 4 * rvar))
 					goto sigbus;
 			}
 			if (rvar == 9)
@@ -1622,10 +848,10 @@ static void emulate_load_store_microMIPS(struct pt_regs *regs,
 			if ((rvar > 9) || !reg)
 				goto sigill;
 			if (reg & 0x10) {
-				if (!access_ok(addr, 8 * (rvar + 1)))
+				if (user && !access_ok(addr, 8 * (rvar + 1)))
 					goto sigbus;
 			} else {
-				if (!access_ok(addr, 8 * rvar))
+				if (user && !access_ok(addr, 8 * rvar))
 					goto sigbus;
 			}
 			if (rvar == 9)
@@ -1663,10 +889,10 @@ static void emulate_load_store_microMIPS(struct pt_regs *regs,
 			if ((rvar > 9) || !reg)
 				goto sigill;
 			if (reg & 0x10) {
-				if (!access_ok(addr, 8 * (rvar + 1)))
+				if (user && !access_ok(addr, 8 * (rvar + 1)))
 					goto sigbus;
 			} else {
-				if (!access_ok(addr, 8 * rvar))
+				if (user && !access_ok(addr, 8 * rvar))
 					goto sigbus;
 			}
 			if (rvar == 9)
@@ -1785,7 +1011,7 @@ fpu_emul:
 		case mm_lwm16_op:
 			reg = insn.mm16_m_format.rlist;
 			rvar = reg + 1;
-			if (!access_ok(addr, 4 * rvar))
+			if (user && !access_ok(addr, 4 * rvar))
 				goto sigbus;
 
 			for (i = 16; rvar; rvar--, i++) {
@@ -1805,7 +1031,7 @@ fpu_emul:
 		case mm_swm16_op:
 			reg = insn.mm16_m_format.rlist;
 			rvar = reg + 1;
-			if (!access_ok(addr, 4 * rvar))
+			if (user && !access_ok(addr, 4 * rvar))
 				goto sigbus;
 
 			for (i = 16; rvar; rvar--, i++) {
@@ -1859,7 +1085,7 @@ fpu_emul:
 	}
 
 loadHW:
-	if (!access_ok(addr, 2))
+	if (user && !access_ok(addr, 2))
 		goto sigbus;
 
 	LoadHW(addr, value, res);
@@ -1869,7 +1095,7 @@ loadHW:
 	goto success;
 
 loadHWU:
-	if (!access_ok(addr, 2))
+	if (user && !access_ok(addr, 2))
 		goto sigbus;
 
 	LoadHWU(addr, value, res);
@@ -1879,7 +1105,7 @@ loadHWU:
 	goto success;
 
 loadW:
-	if (!access_ok(addr, 4))
+	if (user && !access_ok(addr, 4))
 		goto sigbus;
 
 	LoadW(addr, value, res);
@@ -1897,7 +1123,7 @@ loadWU:
 	 * would blow up, so for now we don't handle unaligned 64-bit
 	 * instructions on 32-bit kernels.
 	 */
-	if (!access_ok(addr, 4))
+	if (user && !access_ok(addr, 4))
 		goto sigbus;
 
 	LoadWU(addr, value, res);
@@ -1919,7 +1145,7 @@ loadDW:
 	 * would blow up, so for now we don't handle unaligned 64-bit
 	 * instructions on 32-bit kernels.
 	 */
-	if (!access_ok(addr, 8))
+	if (user && !access_ok(addr, 8))
 		goto sigbus;
 
 	LoadDW(addr, value, res);
@@ -1933,7 +1159,7 @@ loadDW:
 	goto sigill;
 
 storeHW:
-	if (!access_ok(addr, 2))
+	if (user && !access_ok(addr, 2))
 		goto sigbus;
 
 	value = regs->regs[reg];
@@ -1943,7 +1169,7 @@ storeHW:
 	goto success;
 
 storeW:
-	if (!access_ok(addr, 4))
+	if (user && !access_ok(addr, 4))
 		goto sigbus;
 
 	value = regs->regs[reg];
@@ -1961,7 +1187,7 @@ storeDW:
 	 * would blow up, so for now we don't handle unaligned 64-bit
 	 * instructions on 32-bit kernels.
 	 */
-	if (!access_ok(addr, 8))
+	if (user && !access_ok(addr, 8))
 		goto sigbus;
 
 	value = regs->regs[reg];
@@ -2018,6 +1244,7 @@ static void emulate_load_store_MIPS16e(struct pt_regs *regs, void __user * addr)
 	union mips16e_instruction mips16inst, oldinst;
 	unsigned int opcode;
 	int extended = 0;
+	bool user = user_mode(regs);
 
 	origpc = regs->cp0_epc;
 	orig31 = regs->regs[31];
@@ -2119,7 +1346,7 @@ static void emulate_load_store_MIPS16e(struct pt_regs *regs, void __user * addr)
 		goto sigbus;
 
 	case MIPS16e_lh_op:
-		if (!access_ok(addr, 2))
+		if (user && !access_ok(addr, 2))
 			goto sigbus;
 
 		LoadHW(addr, value, res);
@@ -2130,7 +1357,7 @@ static void emulate_load_store_MIPS16e(struct pt_regs *regs, void __user * addr)
 		break;
 
 	case MIPS16e_lhu_op:
-		if (!access_ok(addr, 2))
+		if (user && !access_ok(addr, 2))
 			goto sigbus;
 
 		LoadHWU(addr, value, res);
@@ -2143,7 +1370,7 @@ static void emulate_load_store_MIPS16e(struct pt_regs *regs, void __user * addr)
 	case MIPS16e_lw_op:
 	case MIPS16e_lwpc_op:
 	case MIPS16e_lwsp_op:
-		if (!access_ok(addr, 4))
+		if (user && !access_ok(addr, 4))
 			goto sigbus;
 
 		LoadW(addr, value, res);
@@ -2162,7 +1389,7 @@ static void emulate_load_store_MIPS16e(struct pt_regs *regs, void __user * addr)
 		 * would blow up, so for now we don't handle unaligned 64-bit
 		 * instructions on 32-bit kernels.
 		 */
-		if (!access_ok(addr, 4))
+		if (user && !access_ok(addr, 4))
 			goto sigbus;
 
 		LoadWU(addr, value, res);
@@ -2186,7 +1413,7 @@ loadDW:
 		 * would blow up, so for now we don't handle unaligned 64-bit
 		 * instructions on 32-bit kernels.
 		 */
-		if (!access_ok(addr, 8))
+		if (user && !access_ok(addr, 8))
 			goto sigbus;
 
 		LoadDW(addr, value, res);
@@ -2201,7 +1428,7 @@ loadDW:
 		goto sigill;
 
 	case MIPS16e_sh_op:
-		if (!access_ok(addr, 2))
+		if (user && !access_ok(addr, 2))
 			goto sigbus;
 
 		MIPS16e_compute_return_epc(regs, &oldinst);
@@ -2214,7 +1441,7 @@ loadDW:
 	case MIPS16e_sw_op:
 	case MIPS16e_swsp_op:
 	case MIPS16e_i8_op:	/* actually - MIPS16e_swrasp_func */
-		if (!access_ok(addr, 4))
+		if (user && !access_ok(addr, 4))
 			goto sigbus;
 
 		MIPS16e_compute_return_epc(regs, &oldinst);
@@ -2234,7 +1461,7 @@ writeDW:
 		 * would blow up, so for now we don't handle unaligned 64-bit
 		 * instructions on 32-bit kernels.
 		 */
-		if (!access_ok(addr, 8))
+		if (user && !access_ok(addr, 8))
 			goto sigbus;
 
 		MIPS16e_compute_return_epc(regs, &oldinst);
@@ -2290,12 +1517,28 @@ sigill:
 asmlinkage void do_ade(struct pt_regs *regs)
 {
 	enum ctx_state prev_state;
-	unsigned int __user *pc;
-	mm_segment_t seg;
+	unsigned int *pc;
 
 	prev_state = exception_enter();
 	perf_sw_event(PERF_COUNT_SW_ALIGNMENT_FAULTS,
 			1, regs, regs->cp0_badvaddr);
+
+#ifdef CONFIG_64BIT
+	/*
+	 * check, if we are hitting space between CPU implemented maximum
+	 * virtual user address and 64bit maximum virtual user address
+	 * and do exception handling to get EFAULTs for get_user/put_user
+	 */
+	if ((regs->cp0_badvaddr >= (1UL << cpu_vmbits)) &&
+	    (regs->cp0_badvaddr < XKSSEG)) {
+		if (fixup_exception(regs)) {
+			current->thread.cp0_baduaddr = regs->cp0_badvaddr;
+			return;
+		}
+		goto sigbus;
+	}
+#endif
+
 	/*
 	 * Did we catch a fault trying to load an instruction?
 	 */
@@ -2326,24 +1569,14 @@ asmlinkage void do_ade(struct pt_regs *regs)
 			show_registers(regs);
 
 		if (cpu_has_mmips) {
-			seg = get_fs();
-			if (!user_mode(regs))
-				set_fs(KERNEL_DS);
 			emulate_load_store_microMIPS(regs,
 				(void __user *)regs->cp0_badvaddr);
-			set_fs(seg);
-
 			return;
 		}
 
 		if (cpu_has_mips16) {
-			seg = get_fs();
-			if (!user_mode(regs))
-				set_fs(KERNEL_DS);
 			emulate_load_store_MIPS16e(regs,
 				(void __user *)regs->cp0_badvaddr);
-			set_fs(seg);
-
 			return;
 		}
 
@@ -2352,13 +1585,9 @@ asmlinkage void do_ade(struct pt_regs *regs)
 
 	if (unaligned_action == UNALIGNED_ACTION_SHOW)
 		show_registers(regs);
-	pc = (unsigned int __user *)exception_epc(regs);
+	pc = (unsigned int *)exception_epc(regs);
 
-	seg = get_fs();
-	if (!user_mode(regs))
-		set_fs(KERNEL_DS);
 	emulate_load_store_insn(regs, (void __user *)regs->cp0_badvaddr, pc);
-	set_fs(seg);
 
 	return;
 

@@ -98,6 +98,7 @@ static int gssp_rpc_create(struct net *net, struct rpc_clnt **_clnt)
 		 * done without the correct namespace:
 		 */
 		.flags		= RPC_CLNT_CREATE_NOPING |
+				  RPC_CLNT_CREATE_CONNECTED |
 				  RPC_CLNT_CREATE_NO_IDLE_TIMEOUT
 	};
 	struct rpc_clnt *clnt;
@@ -160,7 +161,7 @@ static struct rpc_clnt *get_gssp_clnt(struct sunrpc_net *sn)
 	mutex_lock(&sn->gssp_lock);
 	clnt = sn->gssp_clnt;
 	if (clnt)
-		atomic_inc(&clnt->cl_count);
+		refcount_inc(&clnt->cl_count);
 	mutex_unlock(&sn->gssp_lock);
 	return clnt;
 }
@@ -200,7 +201,7 @@ static int gssp_call(struct net *net, struct rpc_message *msg)
 
 static void gssp_free_receive_pages(struct gssx_arg_accept_sec_context *arg)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < arg->npages && arg->pages[i]; i++)
 		__free_page(arg->pages[i]);
@@ -210,20 +211,25 @@ static void gssp_free_receive_pages(struct gssx_arg_accept_sec_context *arg)
 
 static int gssp_alloc_receive_pages(struct gssx_arg_accept_sec_context *arg)
 {
+	unsigned int i;
+
 	arg->npages = DIV_ROUND_UP(NGROUPS_MAX * 4, PAGE_SIZE);
 	arg->pages = kcalloc(arg->npages, sizeof(struct page *), GFP_KERNEL);
-	/*
-	 * XXX: actual pages are allocated by xdr layer in
-	 * xdr_partial_copy_from_skb.
-	 */
 	if (!arg->pages)
 		return -ENOMEM;
+	for (i = 0; i < arg->npages; i++) {
+		arg->pages[i] = alloc_page(GFP_KERNEL);
+		if (!arg->pages[i]) {
+			gssp_free_receive_pages(arg);
+			return -ENOMEM;
+		}
+	}
 	return 0;
 }
 
 static char *gssp_stringify(struct xdr_netobj *netobj)
 {
-	return kstrndup(netobj->data, netobj->len, GFP_KERNEL);
+	return kmemdup_nul(netobj->data, netobj->len, GFP_KERNEL);
 }
 
 static void gssp_hostbased_service(char **principal)

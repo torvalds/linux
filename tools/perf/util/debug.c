@@ -10,6 +10,7 @@
 #include <api/debug.h>
 #include <linux/kernel.h>
 #include <linux/time64.h>
+#include <sys/time.h>
 #ifdef HAVE_BACKTRACE_SUPPORT
 #include <execinfo.h>
 #endif
@@ -18,26 +19,79 @@
 #include "debug.h"
 #include "print_binary.h"
 #include "target.h"
+#include "trace-event.h"
 #include "ui/helpline.h"
 #include "ui/ui.h"
+#include "util/parse-sublevel-options.h"
 
 #include <linux/ctype.h>
 
+#ifdef HAVE_LIBTRACEEVENT
+#include <traceevent/event-parse.h>
+#else
+#define LIBTRACEEVENT_VERSION 0
+#endif
+
 int verbose;
+int debug_kmaps;
+int debug_peo_args;
 bool dump_trace = false, quiet = false;
 int debug_ordered_events;
 static int redirect_to_stderr;
 int debug_data_convert;
+static FILE *_debug_file;
+bool debug_display_time;
+int debug_type_profile;
+
+FILE *debug_file(void)
+{
+	if (!_debug_file) {
+		pr_warning_once("debug_file not set");
+		debug_set_file(stderr);
+	}
+	return _debug_file;
+}
+
+void debug_set_file(FILE *file)
+{
+	_debug_file = file;
+}
+
+void debug_set_display_time(bool set)
+{
+	debug_display_time = set;
+}
+
+static int fprintf_time(FILE *file)
+{
+	struct timeval tod;
+	struct tm ltime;
+	char date[64];
+
+	if (!debug_display_time)
+		return 0;
+
+	if (gettimeofday(&tod, NULL) != 0)
+		return 0;
+
+	if (localtime_r(&tod.tv_sec, &ltime) == NULL)
+		return 0;
+
+	strftime(date, sizeof(date),  "%F %H:%M:%S", &ltime);
+	return fprintf(file, "[%s.%06lu] ", date, (long)tod.tv_usec);
+}
 
 int veprintf(int level, int var, const char *fmt, va_list args)
 {
 	int ret = 0;
 
 	if (var >= level) {
-		if (use_browser >= 1 && !redirect_to_stderr)
+		if (use_browser >= 1 && !redirect_to_stderr) {
 			ui_helpline__vshow(fmt, args);
-		else
-			ret = vfprintf(stderr, fmt, args);
+		} else {
+			ret = fprintf_time(debug_file());
+			ret += vfprintf(debug_file(), fmt, args);
+		}
 	}
 
 	return ret;
@@ -64,9 +118,8 @@ static int veprintf_time(u64 t, const char *fmt, va_list args)
 	nsecs -= secs  * NSEC_PER_SEC;
 	usecs  = nsecs / NSEC_PER_USEC;
 
-	ret = fprintf(stderr, "[%13" PRIu64 ".%06" PRIu64 "] ",
-		      secs, usecs);
-	ret += vfprintf(stderr, fmt, args);
+	ret = fprintf(debug_file(), "[%13" PRIu64 ".%06" PRIu64 "] ", secs, usecs);
+	ret += vfprintf(debug_file(), fmt, args);
 	return ret;
 }
 
@@ -143,7 +196,7 @@ static int trace_event_printer(enum binary_printer_ops op,
 		break;
 	case BINARY_PRINT_CHAR_DATA:
 		printed += color_fprintf(fp, color, "%c",
-			      isprint(ch) ? ch : '.');
+			      isprint(ch) && isascii(ch) ? ch : '.');
 		break;
 	case BINARY_PRINT_CHAR_PAD:
 		printed += color_fprintf(fp, color, " ");
@@ -172,65 +225,54 @@ void trace_event(union perf_event *event)
 		     trace_event_printer, event);
 }
 
-static struct debug_variable {
-	const char *name;
-	int *ptr;
-} debug_variables[] = {
-	{ .name = "verbose",		.ptr = &verbose },
-	{ .name = "ordered-events",	.ptr = &debug_ordered_events},
-	{ .name = "stderr",		.ptr = &redirect_to_stderr},
-	{ .name = "data-convert",	.ptr = &debug_data_convert },
+static struct sublevel_option debug_opts[] = {
+	{ .name = "verbose",		.value_ptr = &verbose },
+	{ .name = "ordered-events",	.value_ptr = &debug_ordered_events},
+	{ .name = "stderr",		.value_ptr = &redirect_to_stderr},
+	{ .name = "data-convert",	.value_ptr = &debug_data_convert },
+	{ .name = "perf-event-open",	.value_ptr = &debug_peo_args },
+	{ .name = "kmaps",		.value_ptr = &debug_kmaps },
+	{ .name = "type-profile",	.value_ptr = &debug_type_profile },
 	{ .name = NULL, }
 };
 
 int perf_debug_option(const char *str)
 {
-	struct debug_variable *var = &debug_variables[0];
-	char *vstr, *s = strdup(str);
-	int v = 1;
+	int ret;
 
-	vstr = strchr(s, '=');
-	if (vstr)
-		*vstr++ = 0;
+	ret = perf_parse_sublevel_options(str, debug_opts);
+	if (ret)
+		return ret;
 
-	while (var->name) {
-		if (!strcmp(s, var->name))
-			break;
-		var++;
-	}
+	/* Allow only verbose value in range (0, 10), otherwise set 0. */
+	verbose = (verbose < 0) || (verbose > 10) ? 0 : verbose;
 
-	if (!var->name) {
-		pr_err("Unknown debug variable name '%s'\n", s);
-		free(s);
-		return -1;
-	}
-
-	if (vstr) {
-		v = atoi(vstr);
-		/*
-		 * Allow only values in range (0, 10),
-		 * otherwise set 0.
-		 */
-		v = (v < 0) || (v > 10) ? 0 : v;
-	}
-
-	if (quiet)
-		v = -1;
-
-	*var->ptr = v;
-	free(s);
+#if LIBTRACEEVENT_VERSION >= MAKE_LIBTRACEEVENT_VERSION(1, 3, 0)
+	if (verbose == 1)
+		tep_set_loglevel(TEP_LOG_INFO);
+	else if (verbose == 2)
+		tep_set_loglevel(TEP_LOG_DEBUG);
+	else if (verbose >= 3)
+		tep_set_loglevel(TEP_LOG_ALL);
+#endif
 	return 0;
 }
 
 int perf_quiet_option(void)
 {
-	struct debug_variable *var = &debug_variables[0];
+	struct sublevel_option *opt = &debug_opts[0];
 
 	/* disable all debug messages */
-	while (var->name) {
-		*var->ptr = -1;
-		var++;
+	while (opt->name) {
+		*opt->value_ptr = -1;
+		opt++;
 	}
+
+	/* For debug variables that are used as bool types, set to 0. */
+	redirect_to_stderr = 0;
+	debug_peo_args = 0;
+	debug_kmaps = 0;
+	debug_type_profile = 0;
 
 	return 0;
 }
@@ -252,6 +294,7 @@ DEBUG_WRAPPER(debug, 1);
 
 void perf_debug_setup(void)
 {
+	debug_set_file(stderr);
 	libapi_set_print(pr_warning_wrapper, pr_warning_wrapper, pr_debug_wrapper);
 }
 

@@ -14,6 +14,7 @@
 #include <linux/ip.h>
 #include <linux/udp.h>
 
+#include <asm/ps3.h>
 #include <asm/io.h>
 #include <asm/udbg.h>
 #include <asm/lv1call.h>
@@ -113,7 +114,7 @@ static int unmap_dma_mem(int bus_id, int dev_id, u64 bus_addr, size_t len)
 	return lv1_free_device_dma_region(bus_id, dev_id, real_bus_addr);
 }
 
-static void gelic_debug_init(void)
+static void __init gelic_debug_init(void)
 {
 	s64 result;
 	u64 v2;

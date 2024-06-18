@@ -30,6 +30,7 @@
 #include <linux/cdev.h>
 #include <linux/device.h>
 #include <linux/fs.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_data/wilco-ec.h>
 #include <linux/platform_device.h>
@@ -42,7 +43,6 @@
 #define DRV_NAME		TELEM_DEV_NAME
 #define TELEM_DEV_NAME_FMT	(TELEM_DEV_NAME "%d")
 static struct class telem_class = {
-	.owner	= THIS_MODULE,
 	.name	= TELEM_CLASS_NAME,
 };
 
@@ -256,7 +256,7 @@ static int telem_open(struct inode *inode, struct file *filp)
 	sess_data->dev_data = dev_data;
 	sess_data->has_msg = false;
 
-	nonseekable_open(inode, filp);
+	stream_open(inode, filp);
 	filp->private_data = sess_data;
 
 	return 0;
@@ -367,13 +367,13 @@ static int telem_device_probe(struct platform_device *pdev)
 	minor = ida_alloc_max(&telem_ida, TELEM_MAX_DEV-1, GFP_KERNEL);
 	if (minor < 0) {
 		error = minor;
-		dev_err(&pdev->dev, "Failed to find minor number: %d", error);
+		dev_err(&pdev->dev, "Failed to find minor number: %d\n", error);
 		return error;
 	}
 
 	dev_data = kzalloc(sizeof(*dev_data), GFP_KERNEL);
 	if (!dev_data) {
-		ida_simple_remove(&telem_ida, minor);
+		ida_free(&telem_ida, minor);
 		return -ENOMEM;
 	}
 
@@ -394,30 +394,35 @@ static int telem_device_probe(struct platform_device *pdev)
 	error = cdev_device_add(&dev_data->cdev, &dev_data->dev);
 	if (error) {
 		put_device(&dev_data->dev);
-		ida_simple_remove(&telem_ida, minor);
+		ida_free(&telem_ida, minor);
 		return error;
 	}
 
 	return 0;
 }
 
-static int telem_device_remove(struct platform_device *pdev)
+static void telem_device_remove(struct platform_device *pdev)
 {
 	struct telem_device_data *dev_data = platform_get_drvdata(pdev);
 
 	cdev_device_del(&dev_data->cdev, &dev_data->dev);
+	ida_free(&telem_ida, MINOR(dev_data->dev.devt));
 	put_device(&dev_data->dev);
-	ida_simple_remove(&telem_ida, MINOR(dev_data->dev.devt));
-
-	return 0;
 }
+
+static const struct platform_device_id telem_id[] = {
+	{ DRV_NAME, 0 },
+	{}
+};
+MODULE_DEVICE_TABLE(platform, telem_id);
 
 static struct platform_driver telem_driver = {
 	.probe = telem_device_probe,
-	.remove = telem_device_remove,
+	.remove_new = telem_device_remove,
 	.driver = {
 		.name = DRV_NAME,
 	},
+	.id_table = telem_id,
 };
 
 static int __init telem_module_init(void)
@@ -427,14 +432,14 @@ static int __init telem_module_init(void)
 
 	ret = class_register(&telem_class);
 	if (ret) {
-		pr_err(DRV_NAME ": Failed registering class: %d", ret);
+		pr_err(DRV_NAME ": Failed registering class: %d\n", ret);
 		return ret;
 	}
 
 	/* Request the kernel for device numbers, starting with minor=0 */
 	ret = alloc_chrdev_region(&dev_num, 0, TELEM_MAX_DEV, TELEM_DEV_NAME);
 	if (ret) {
-		pr_err(DRV_NAME ": Failed allocating dev numbers: %d", ret);
+		pr_err(DRV_NAME ": Failed allocating dev numbers: %d\n", ret);
 		goto destroy_class;
 	}
 	telem_major = MAJOR(dev_num);
@@ -469,4 +474,3 @@ module_exit(telem_module_exit);
 MODULE_AUTHOR("Nick Crews <ncrews@chromium.org>");
 MODULE_DESCRIPTION("Wilco EC telemetry driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:" DRV_NAME);

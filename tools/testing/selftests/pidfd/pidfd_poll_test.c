@@ -3,7 +3,6 @@
 #define _GNU_SOURCE
 #include <errno.h>
 #include <linux/types.h>
-#include <linux/wait.h>
 #include <poll.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -113,5 +112,5 @@ int main(int argc, char **argv)
 	}
 
 	ksft_test_result_pass("pidfd poll test: pass\n");
-	return ksft_exit_pass();
+	ksft_exit_pass();
 }

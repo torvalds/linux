@@ -210,9 +210,7 @@ static int mvebu_gicp_probe(struct platform_device *pdev)
 		gicp->spi_cnt += gicp->spi_ranges[i].count;
 	}
 
-	gicp->spi_bitmap = devm_kcalloc(&pdev->dev,
-				BITS_TO_LONGS(gicp->spi_cnt), sizeof(long),
-				GFP_KERNEL);
+	gicp->spi_bitmap = devm_bitmap_zalloc(&pdev->dev, gicp->spi_cnt, GFP_KERNEL);
 	if (!gicp->spi_bitmap)
 		return -ENOMEM;
 
@@ -223,6 +221,7 @@ static int mvebu_gicp_probe(struct platform_device *pdev)
 	}
 
 	parent_domain = irq_find_host(irq_parent_dn);
+	of_node_put(irq_parent_dn);
 	if (!parent_domain) {
 		dev_err(&pdev->dev, "failed to find parent IRQ domain\n");
 		return -ENODEV;

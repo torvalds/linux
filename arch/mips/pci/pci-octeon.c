@@ -376,7 +376,7 @@ static void octeon_pci_initialize(void)
 	ctl_status.s.timer = 1;
 	cvmx_write_csr(CVMX_NPI_CTL_STATUS, ctl_status.u64);
 
-	/* Deassert PCI reset and advertize PCX Host Mode Device Capability
+	/* Deassert PCI reset and advertise PCX Host Mode Device Capability
 	   (64b) */
 	cvmx_write_csr(CVMX_CIU_SOFT_PRST, 0x4);
 	cvmx_read_csr(CVMX_CIU_SOFT_PRST);
@@ -664,7 +664,7 @@ static int __init octeon_pci_setup(void)
 
 		/* BAR1 movable regions contiguous to cover the swiotlb */
 		octeon_bar1_pci_phys =
-			virt_to_phys(octeon_swiotlb) & ~((1ull << 22) - 1);
+			default_swiotlb_base() & ~((1ull << 22) - 1);
 
 		for (index = 0; index < 32; index++) {
 			union cvmx_pci_bar1_indexx bar1_index;

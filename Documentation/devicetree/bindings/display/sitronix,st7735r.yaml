@@ -1,0 +1,72 @@
+# SPDX-License-Identifier: GPL-2.0-only
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/sitronix,st7735r.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Sitronix ST7735R Display Panels
+
+maintainers:
+  - David Lechner <david@lechnology.com>
+
+description:
+  This binding is for display panels using a Sitronix ST7715R or ST7735R
+  controller in SPI mode.
+
+allOf:
+  - $ref: panel/panel-common.yaml#
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - description:
+          Adafruit 1.8" 160x128 Color TFT LCD (Product ID 358 or 618)
+        items:
+          - enum:
+              - jianda,jd-t18003-t01
+          - const: sitronix,st7735r
+      - description:
+          Okaya 1.44" 128x128 Color TFT LCD (E.g. Renesas YRSK-LCD-PMOD)
+        items:
+          - enum:
+              - okaya,rh128128t
+          - const: sitronix,st7715r
+
+  dc-gpios:
+    maxItems: 1
+    description: Display data/command selection (D/CX)
+
+  backlight: true
+  reg: true
+  spi-max-frequency: true
+  reset-gpios: true
+  rotation: true
+
+required:
+  - compatible
+  - reg
+  - dc-gpios
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    spi {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            display@0{
+                    compatible = "jianda,jd-t18003-t01", "sitronix,st7735r";
+                    reg = <0>;
+                    spi-max-frequency = <32000000>;
+                    dc-gpios = <&gpio 43 GPIO_ACTIVE_HIGH>;
+                    reset-gpios = <&gpio 80 GPIO_ACTIVE_HIGH>;
+                    rotation = <270>;
+                    backlight = <&backlight>;
+            };
+    };
+
+...

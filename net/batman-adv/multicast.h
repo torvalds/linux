@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2014-2019  B.A.T.M.A.N. contributors:
+/* Copyright (C) B.A.T.M.A.N. contributors:
  *
  * Linus Lüssing
  */
@@ -10,31 +10,30 @@
 #include "main.h"
 
 #include <linux/netlink.h>
-#include <linux/seq_file.h>
 #include <linux/skbuff.h>
+#include <linux/types.h>
 
 /**
  * enum batadv_forw_mode - the way a packet should be forwarded as
  */
 enum batadv_forw_mode {
 	/**
-	 * @BATADV_FORW_ALL: forward the packet to all nodes (currently via
-	 *  classic flooding)
+	 * @BATADV_FORW_BCAST: forward the packet to all nodes via a batman-adv
+	 *  broadcast packet
 	 */
-	BATADV_FORW_ALL,
+	BATADV_FORW_BCAST,
 
 	/**
-	 * @BATADV_FORW_SOME: forward the packet to some nodes (currently via
-	 *  a multicast-to-unicast conversion and the BATMAN unicast routing
-	 *  protocol)
+	 * @BATADV_FORW_UCASTS: forward the packet to some nodes via one
+	 *  or more batman-adv unicast packets
 	 */
-	BATADV_FORW_SOME,
+	BATADV_FORW_UCASTS,
 
 	/**
-	 * @BATADV_FORW_SINGLE: forward the packet to a single node (currently
-	 *  via the BATMAN unicast routing protocol)
+	 * @BATADV_FORW_MCAST: forward the packet to some nodes via a
+	 *  batman-adv multicast packet
 	 */
-	BATADV_FORW_SINGLE,
+	BATADV_FORW_MCAST,
 
 	/** @BATADV_FORW_NONE: don't forward, drop it */
 	BATADV_FORW_NONE,
@@ -44,14 +43,12 @@ enum batadv_forw_mode {
 
 enum batadv_forw_mode
 batadv_mcast_forw_mode(struct batadv_priv *bat_priv, struct sk_buff *skb,
-		       struct batadv_orig_node **mcast_single_orig);
+		       unsigned short vid, int *is_routable);
 
 int batadv_mcast_forw_send(struct batadv_priv *bat_priv, struct sk_buff *skb,
-			   unsigned short vid);
+			   unsigned short vid, int is_routable);
 
 void batadv_mcast_init(struct batadv_priv *bat_priv);
-
-int batadv_mcast_flags_seq_print_text(struct seq_file *seq, void *offset);
 
 int batadv_mcast_mesh_info_put(struct sk_buff *msg,
 			       struct batadv_priv *bat_priv);
@@ -62,18 +59,30 @@ void batadv_mcast_free(struct batadv_priv *bat_priv);
 
 void batadv_mcast_purge_orig(struct batadv_orig_node *orig_node);
 
+/* multicast_forw.c */
+
+int batadv_mcast_forw_tracker_tvlv_handler(struct batadv_priv *bat_priv,
+					   struct sk_buff *skb);
+
+unsigned int batadv_mcast_forw_packet_hdrlen(unsigned int num_dests);
+
+bool batadv_mcast_forw_push(struct batadv_priv *bat_priv, struct sk_buff *skb,
+			    unsigned short vid, int is_routable, int count);
+
+int batadv_mcast_forw_mcsend(struct batadv_priv *bat_priv, struct sk_buff *skb);
+
 #else
 
 static inline enum batadv_forw_mode
 batadv_mcast_forw_mode(struct batadv_priv *bat_priv, struct sk_buff *skb,
-		       struct batadv_orig_node **mcast_single_orig)
+		       unsigned short vid, int *is_routable)
 {
-	return BATADV_FORW_ALL;
+	return BATADV_FORW_BCAST;
 }
 
 static inline int
 batadv_mcast_forw_send(struct batadv_priv *bat_priv, struct sk_buff *skb,
-		       unsigned short vid)
+		       unsigned short vid, int is_routable)
 {
 	kfree_skb(skb);
 	return NET_XMIT_DROP;
@@ -102,6 +111,13 @@ static inline void batadv_mcast_free(struct batadv_priv *bat_priv)
 
 static inline void batadv_mcast_purge_orig(struct batadv_orig_node *orig_node)
 {
+}
+
+static inline int batadv_mcast_forw_mcsend(struct batadv_priv *bat_priv,
+					   struct sk_buff *skb)
+{
+	kfree_skb(skb);
+	return NET_XMIT_DROP;
 }
 
 #endif /* CONFIG_BATMAN_ADV_MCAST */

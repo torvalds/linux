@@ -16,7 +16,6 @@
 #include <linux/console.h>
 #include <linux/memblock.h>
 #include <linux/ioport.h>
-#include <linux/blkdev.h>
 
 #include <asm/bootinfo.h>
 #include <asm/mach-rc32434/ddr.h>
@@ -34,11 +33,6 @@ static struct resource ddr_reg[] = {
 	}
 };
 
-void __init prom_free_prom_memory(void)
-{
-	/* No prom memory to free */
-}
-
 static inline int match_tag(char *arg, const char *tag)
 {
 	return strncmp(arg, tag, strlen(tag)) == 0;
@@ -52,7 +46,7 @@ static inline unsigned long tag2ul(char *arg, const char *tag)
 	return simple_strtoul(num, 0, 10);
 }
 
-void __init prom_setup_cmdline(void)
+static void __init prom_setup_cmdline(void)
 {
 	static char cmd_line[COMMAND_LINE_SIZE] __initdata;
 	char *cp, *board;
@@ -110,7 +104,7 @@ void __init prom_init(void)
 	phys_addr_t memsize;
 	phys_addr_t ddrbase;
 
-	ddr = ioremap_nocache(ddr_reg[0].start,
+	ddr = ioremap(ddr_reg[0].start,
 			ddr_reg[0].end - ddr_reg[0].start);
 
 	if (!ddr) {
@@ -126,5 +120,5 @@ void __init prom_init(void)
 
 	/* give all RAM to boot allocator,
 	 * except for the first 0x400 and the last 0x200 bytes */
-	add_memory_region(ddrbase + 0x400, memsize - 0x600, BOOT_MEM_RAM);
+	memblock_add(ddrbase + 0x400, memsize - 0x600);
 }

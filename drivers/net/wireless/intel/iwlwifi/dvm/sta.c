@@ -1,15 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2014, 2022 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
  *****************************************************************************/
 #include <linux/etherdevice.h>
 #include <net/mac80211.h>
@@ -144,7 +139,7 @@ bool iwl_is_ht40_tx_allowed(struct iwl_priv *priv,
 	if (!sta)
 		return true;
 
-	return sta->bandwidth >= IEEE80211_STA_RX_BW_40;
+	return sta->deflink.bandwidth >= IEEE80211_STA_RX_BW_40;
 }
 
 static void iwl_sta_calc_ht_flags(struct iwl_priv *priv,
@@ -152,7 +147,7 @@ static void iwl_sta_calc_ht_flags(struct iwl_priv *priv,
 				  struct iwl_rxon_context *ctx,
 				  __le32 *flags, __le32 *mask)
 {
-	struct ieee80211_sta_ht_cap *sta_ht_inf = &sta->ht_cap;
+	struct ieee80211_sta_ht_cap *sta_ht_inf = &sta->deflink.ht_cap;
 
 	*mask = STA_FLG_RTS_MIMO_PROT_MSK |
 		STA_FLG_MIMO_DIS_MSK |
@@ -166,12 +161,12 @@ static void iwl_sta_calc_ht_flags(struct iwl_priv *priv,
 
 	IWL_DEBUG_INFO(priv, "STA %pM SM PS mode: %s\n",
 			sta->addr,
-			(sta->smps_mode == IEEE80211_SMPS_STATIC) ?
+			(sta->deflink.smps_mode == IEEE80211_SMPS_STATIC) ?
 			"static" :
-			(sta->smps_mode == IEEE80211_SMPS_DYNAMIC) ?
+			(sta->deflink.smps_mode == IEEE80211_SMPS_DYNAMIC) ?
 			"dynamic" : "disabled");
 
-	switch (sta->smps_mode) {
+	switch (sta->deflink.smps_mode) {
 	case IEEE80211_SMPS_STATIC:
 		*flags |= STA_FLG_MIMO_DIS_MSK;
 		break;
@@ -181,7 +176,7 @@ static void iwl_sta_calc_ht_flags(struct iwl_priv *priv,
 	case IEEE80211_SMPS_OFF:
 		break;
 	default:
-		IWL_WARN(priv, "Invalid MIMO PS mode %d\n", sta->smps_mode);
+		IWL_WARN(priv, "Invalid MIMO PS mode %d\n", sta->deflink.smps_mode);
 		break;
 	}
 
@@ -234,7 +229,7 @@ static void iwl_set_ht_add_station(struct iwl_priv *priv, u8 index,
 	priv->stations[index].sta.station_flags |= flags;
 }
 
-/**
+/*
  * iwl_prep_station - Prepare station information for addition
  *
  * should be called with sta_lock held
@@ -323,7 +318,7 @@ u8 iwl_prep_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 
 #define STA_WAIT_TIMEOUT (HZ/2)
 
-/**
+/*
  * iwl_add_station_common -
  */
 int iwl_add_station_common(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
@@ -383,7 +378,7 @@ int iwl_add_station_common(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 	return ret;
 }
 
-/**
+/*
  * iwl_sta_ucode_deactivate - deactivate ucode status for a station
  */
 static void iwl_sta_ucode_deactivate(struct iwl_priv *priv, u8 sta_id)
@@ -451,7 +446,7 @@ static int iwl_send_remove_station(struct iwl_priv *priv,
 	return ret;
 }
 
-/**
+/*
  * iwl_remove_station - Remove driver's knowledge of station.
  */
 int iwl_remove_station(struct iwl_priv *priv, const u8 sta_id,
@@ -601,7 +596,7 @@ static void iwl_sta_fill_lq(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 	link_cmd->sta_id = sta_id;
 }
 
-/**
+/*
  * iwl_clear_ucode_stations - clear ucode station table bits
  *
  * This function clears all the bits in the driver indicating
@@ -636,7 +631,7 @@ void iwl_clear_ucode_stations(struct iwl_priv *priv,
 			       "No active stations found to be cleared\n");
 }
 
-/**
+/*
  * iwl_restore_stations() - Restore driver known stations to device
  *
  * All stations considered active by driver, but not present in ucode, is
@@ -773,7 +768,7 @@ static inline void iwl_dump_lq_cmd(struct iwl_priv *priv,
 }
 #endif
 
-/**
+/*
  * is_lq_table_valid() - Test one aspect of LQ cmd for validity
  *
  * It sometimes happens when a HT rate has been in use and we
@@ -807,7 +802,7 @@ static bool is_lq_table_valid(struct iwl_priv *priv,
 	return true;
 }
 
-/**
+/*
  * iwl_send_lq_cmd() - Send link quality command
  * @init: This command is sent as part of station initialization right
  *        after station has been added.
@@ -1086,6 +1081,7 @@ static int iwlagn_send_sta_key(struct iwl_priv *priv,
 {
 	__le16 key_flags;
 	struct iwl_addsta_cmd sta_cmd;
+	size_t to_copy;
 	int i;
 
 	spin_lock_bh(&priv->sta_lock);
@@ -1105,11 +1101,13 @@ static int iwlagn_send_sta_key(struct iwl_priv *priv,
 		sta_cmd.key.tkip_rx_tsc_byte2 = tkip_iv32;
 		for (i = 0; i < 5; i++)
 			sta_cmd.key.tkip_rx_ttak[i] = cpu_to_le16(tkip_p1k[i]);
-		memcpy(sta_cmd.key.key, keyconf->key, keyconf->keylen);
+		/* keyconf may contain MIC rx/tx keys which iwl does not use */
+		to_copy = min_t(size_t, sizeof(sta_cmd.key.key), keyconf->keylen);
+		memcpy(sta_cmd.key.key, keyconf->key, to_copy);
 		break;
 	case WLAN_CIPHER_SUITE_WEP104:
 		key_flags |= STA_KEY_FLG_KEY_SIZE_MSK;
-		/* fall through */
+		fallthrough;
 	case WLAN_CIPHER_SUITE_WEP40:
 		key_flags |= STA_KEY_FLG_WEP;
 		memcpy(&sta_cmd.key.key[3], keyconf->key, keyconf->keylen);
@@ -1258,7 +1256,7 @@ int iwl_set_dynamic_key(struct iwl_priv *priv,
 	return ret;
 }
 
-/**
+/*
  * iwlagn_alloc_bcast_station - add broadcast station into driver's station table.
  *
  * This adds the broadcast station into the driver's station table
@@ -1298,7 +1296,7 @@ int iwlagn_alloc_bcast_station(struct iwl_priv *priv,
 	return 0;
 }
 
-/**
+/*
  * iwl_update_bcast_station - update broadcast station's LQ command
  *
  * Only used by iwlagn. Placed here to have all bcast station management
@@ -1341,7 +1339,7 @@ int iwl_update_bcast_stations(struct iwl_priv *priv)
 	return ret;
 }
 
-/**
+/*
  * iwl_sta_tx_modify_enable_tid - Enable Tx for this TID in station table
  */
 int iwl_sta_tx_modify_enable_tid(struct iwl_priv *priv, int sta_id, int tid)

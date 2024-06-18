@@ -60,6 +60,11 @@ static struct pci_dev *cdns3_get_second_fun(struct pci_dev *pdev)
 			return NULL;
 	}
 
+	if (func->devfn != PCI_DEV_FN_HOST_DEVICE &&
+	    func->devfn != PCI_DEV_FN_OTG) {
+		return NULL;
+	}
+
 	return func;
 }
 
@@ -159,8 +164,9 @@ static int cdns3_pci_probe(struct pci_dev *pdev,
 		wrap->plat_dev = platform_device_register_full(&plat_info);
 		if (IS_ERR(wrap->plat_dev)) {
 			pci_disable_device(pdev);
+			err = PTR_ERR(wrap->plat_dev);
 			kfree(wrap);
-			return PTR_ERR(wrap->plat_dev);
+			return err;
 		}
 	}
 
@@ -200,4 +206,4 @@ MODULE_DEVICE_TABLE(pci, cdns3_pci_ids);
 
 MODULE_AUTHOR("Pawel Laszczak <pawell@cadence.com>");
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Cadence USBSS PCI wrapperr");
+MODULE_DESCRIPTION("Cadence USBSS PCI wrapper");

@@ -2,9 +2,8 @@
 config DRM_ATMEL_HLCDC
 	tristate "DRM Support for ATMEL HLCDC Display Controller"
 	depends on DRM && OF && COMMON_CLK && MFD_ATMEL_HLCDC && ARM
-	select DRM_GEM_CMA_HELPER
+	select DRM_GEM_DMA_HELPER
 	select DRM_KMS_HELPER
-	select DRM_KMS_CMA_HELPER
 	select DRM_PANEL
 	help
 	  Choose this option if you have an ATMEL SoC with an HLCDC display

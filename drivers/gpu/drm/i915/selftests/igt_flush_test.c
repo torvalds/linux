@@ -4,23 +4,27 @@
  * Copyright © 2018 Intel Corporation
  */
 
-#include "gem/i915_gem_context.h"
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_requests.h"
 
 #include "i915_drv.h"
 #include "i915_selftest.h"
 
 #include "igt_flush_test.h"
 
-int igt_flush_test(struct drm_i915_private *i915, unsigned int flags)
+int igt_flush_test(struct drm_i915_private *i915)
 {
-	int ret = intel_gt_is_wedged(&i915->gt) ? -EIO : 0;
-	int repeat = !!(flags & I915_WAIT_LOCKED);
+	struct intel_gt *gt;
+	unsigned int i;
+	int ret = 0;
 
-	cond_resched();
+	for_each_gt(gt, i915, i) {
+		if (intel_gt_is_wedged(gt))
+			ret = -EIO;
 
-	do {
-		if (i915_gem_wait_for_idle(i915, flags, HZ / 5) == -ETIME) {
+		cond_resched();
+
+		if (intel_gt_wait_for_idle(gt, HZ * 3) == -ETIME) {
 			pr_err("%pS timed out, cancelling all further testing.\n",
 			       __builtin_return_address(0));
 
@@ -28,15 +32,10 @@ int igt_flush_test(struct drm_i915_private *i915, unsigned int flags)
 				  __builtin_return_address(0));
 			GEM_TRACE_DUMP();
 
-			intel_gt_set_wedged(&i915->gt);
-			repeat = 0;
+			intel_gt_set_wedged(gt);
 			ret = -EIO;
 		}
-
-		/* Ensure we also flush after wedging. */
-		if (flags & I915_WAIT_LOCKED)
-			i915_retire_requests(i915);
-	} while (repeat--);
+	}
 
 	return ret;
 }

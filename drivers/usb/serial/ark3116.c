@@ -178,20 +178,18 @@ static int ark3116_port_probe(struct usb_serial_port *port)
 	return 0;
 }
 
-static int ark3116_port_remove(struct usb_serial_port *port)
+static void ark3116_port_remove(struct usb_serial_port *port)
 {
 	struct ark3116_private *priv = usb_get_serial_port_data(port);
 
 	/* device is closed, so URBs and DMA should be down */
 	mutex_destroy(&priv->hw_lock);
 	kfree(priv);
-
-	return 0;
 }
 
 static void ark3116_set_termios(struct tty_struct *tty,
 				struct usb_serial_port *port,
-				struct ktermios *old_termios)
+				const struct ktermios *old_termios)
 {
 	struct usb_serial *serial = port->serial;
 	struct ark3116_private *priv = usb_get_serial_port_data(port);
@@ -202,31 +200,17 @@ static void ark3116_set_termios(struct tty_struct *tty,
 	__u8 lcr, hcr, eval;
 
 	/* set data bit count */
-	switch (cflag & CSIZE) {
-	case CS5:
-		lcr = UART_LCR_WLEN5;
-		break;
-	case CS6:
-		lcr = UART_LCR_WLEN6;
-		break;
-	case CS7:
-		lcr = UART_LCR_WLEN7;
-		break;
-	default:
-	case CS8:
-		lcr = UART_LCR_WLEN8;
-		break;
-	}
+	lcr = UART_LCR_WLEN(tty_get_char_size(cflag));
+
 	if (cflag & CSTOPB)
 		lcr |= UART_LCR_STOP;
 	if (cflag & PARENB)
 		lcr |= UART_LCR_PARITY;
 	if (!(cflag & PARODD))
 		lcr |= UART_LCR_EPAR;
-#ifdef CMSPAR
 	if (cflag & CMSPAR)
 		lcr |= UART_LCR_SPAR;
-#endif
+
 	/* handshake control */
 	hcr = (cflag & CRTSCTS) ? 0x03 : 0x00;
 
@@ -387,18 +371,6 @@ err_free:
 	return result;
 }
 
-static int ark3116_get_serial_info(struct tty_struct *tty,
-			struct serial_struct *ss)
-{
-	struct usb_serial_port *port = tty->driver_data;
-
-	ss->type = PORT_16654;
-	ss->line = port->minor;
-	ss->port = port->port_number;
-	ss->baud_base = 460800;
-	return 0;
-}
-
 static int ark3116_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -461,10 +433,11 @@ static int ark3116_tiocmset(struct tty_struct *tty,
 	return 0;
 }
 
-static void ark3116_break_ctl(struct tty_struct *tty, int break_state)
+static int ark3116_break_ctl(struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct ark3116_private *priv = usb_get_serial_port_data(port);
+	int ret;
 
 	/* LCR is also used for other things: protect access */
 	mutex_lock(&priv->hw_lock);
@@ -474,9 +447,11 @@ static void ark3116_break_ctl(struct tty_struct *tty, int break_state)
 	else
 		priv->lcr &= ~UART_LCR_SBC;
 
-	ark3116_write_reg(port->serial, UART_LCR, priv->lcr);
+	ret = ark3116_write_reg(port->serial, UART_LCR, priv->lcr);
 
 	mutex_unlock(&priv->hw_lock);
+
+	return ret;
 }
 
 static void ark3116_update_msr(struct usb_serial_port *port, __u8 msr)
@@ -635,7 +610,6 @@ static struct usb_serial_driver ark3116_device = {
 	.port_probe =		ark3116_port_probe,
 	.port_remove =		ark3116_port_remove,
 	.set_termios =		ark3116_set_termios,
-	.get_serial =		ark3116_get_serial_info,
 	.tiocmget =		ark3116_tiocmget,
 	.tiocmset =		ark3116_tiocmset,
 	.tiocmiwait =		usb_serial_generic_tiocmiwait,
@@ -719,9 +693,10 @@ MODULE_DESCRIPTION(DRIVER_DESC);
  * hardware bug or something.
  *
  * According to a patch provided here
- * (http://lkml.org/lkml/2009/7/26/56), the ARK3116 can also be used
- * as an IrDA dongle. Since I do not have such a thing, I could not
- * investigate that aspect. However, I can speculate ;-).
+ * https://lore.kernel.org/lkml/200907261419.50702.linux@rainbow-software.org
+ * the ARK3116 can also be used as an IrDA dongle. Since I do not have
+ * such a thing, I could not investigate that aspect. However, I can
+ * speculate ;-).
  *
  * - IrDA encodes data differently than RS232. Most likely, one of
  *   the bits in registers 9..E enables the IR ENDEC (encoder/decoder).

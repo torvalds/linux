@@ -4,7 +4,7 @@
  *
  * Author: Gregory CLEMENT <gregory.clement@bootlin.com>
  *
- * Datasheet: http://www.ti.com/lit/ds/symlink/ads8344.pdf
+ * Datasheet: https://www.ti.com/lit/ds/symlink/ads8344.pdf
  */
 
 #include <linux/delay.h>
@@ -28,20 +28,21 @@ struct ads8344 {
 	 */
 	struct mutex lock;
 
-	u8 tx_buf ____cacheline_aligned;
-	u16 rx_buf;
+	u8 tx_buf __aligned(IIO_DMA_MINALIGN);
+	u8 rx_buf[3];
 };
 
-#define ADS8344_VOLTAGE_CHANNEL(chan, si)				\
+#define ADS8344_VOLTAGE_CHANNEL(chan, addr)				\
 	{								\
 		.type = IIO_VOLTAGE,					\
 		.indexed = 1,						\
 		.channel = chan,					\
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),		\
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),	\
+		.address = addr,					\
 	}
 
-#define ADS8344_VOLTAGE_CHANNEL_DIFF(chan1, chan2, si)			\
+#define ADS8344_VOLTAGE_CHANNEL_DIFF(chan1, chan2, addr)		\
 	{								\
 		.type = IIO_VOLTAGE,					\
 		.indexed = 1,						\
@@ -50,6 +51,7 @@ struct ads8344 {
 		.differential = 1,					\
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),		\
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),	\
+		.address = addr,					\
 	}
 
 static const struct iio_chan_spec ads8344_channels[] = {
@@ -89,11 +91,11 @@ static int ads8344_adc_conversion(struct ads8344 *adc, int channel,
 
 	udelay(9);
 
-	ret = spi_read(spi, &adc->rx_buf, 2);
+	ret = spi_read(spi, adc->rx_buf, sizeof(adc->rx_buf));
 	if (ret)
 		return ret;
 
-	return adc->rx_buf;
+	return adc->rx_buf[0] << 9 | adc->rx_buf[1] << 1 | adc->rx_buf[2] >> 7;
 }
 
 static int ads8344_read_raw(struct iio_dev *iio,
@@ -105,7 +107,7 @@ static int ads8344_read_raw(struct iio_dev *iio,
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 		mutex_lock(&adc->lock);
-		*value = ads8344_adc_conversion(adc, channel->scan_index,
+		*value = ads8344_adc_conversion(adc, channel->address,
 						channel->differential);
 		mutex_unlock(&adc->lock);
 		if (*value < 0)
@@ -131,6 +133,11 @@ static const struct iio_info ads8344_info = {
 	.read_raw = ads8344_read_raw,
 };
 
+static void ads8344_reg_disable(void *data)
+{
+	regulator_disable(data);
+}
+
 static int ads8344_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
@@ -146,8 +153,6 @@ static int ads8344_probe(struct spi_device *spi)
 	mutex_init(&adc->lock);
 
 	indio_dev->name = dev_name(&spi->dev);
-	indio_dev->dev.parent = &spi->dev;
-	indio_dev->dev.of_node = spi->dev.of_node;
 	indio_dev->info = &ads8344_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = ads8344_channels;
@@ -161,26 +166,11 @@ static int ads8344_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	spi_set_drvdata(spi, indio_dev);
-
-	ret = iio_device_register(indio_dev);
-	if (ret) {
-		regulator_disable(adc->reg);
+	ret = devm_add_action_or_reset(&spi->dev, ads8344_reg_disable, adc->reg);
+	if (ret)
 		return ret;
-	}
 
-	return 0;
-}
-
-static int ads8344_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-	struct ads8344 *adc = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	regulator_disable(adc->reg);
-
-	return 0;
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static const struct of_device_id ads8344_of_match[] = {
@@ -195,7 +185,6 @@ static struct spi_driver ads8344_driver = {
 		.of_match_table = ads8344_of_match,
 	},
 	.probe = ads8344_probe,
-	.remove = ads8344_remove,
 };
 module_spi_driver(ads8344_driver);
 

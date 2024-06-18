@@ -15,8 +15,7 @@ struct perf_attr_details {
 	bool trace_fields;
 };
 
-int perf_evsel__fprintf(struct evsel *evsel,
-			struct perf_attr_details *details, FILE *fp);
+int evsel__fprintf(struct evsel *evsel, struct perf_attr_details *details, FILE *fp);
 
 #define EVSEL__PRINT_IP			(1<<0)
 #define EVSEL__PRINT_SYM		(1<<1)
@@ -27,6 +26,7 @@ int perf_evsel__fprintf(struct evsel *evsel,
 #define EVSEL__PRINT_UNKNOWN_AS_ADDR	(1<<6)
 #define EVSEL__PRINT_CALLCHAIN_ARROW	(1<<7)
 #define EVSEL__PRINT_SKIP_IGNORED	(1<<8)
+#define EVSEL__PRINT_DSOFF		(1<<9)
 
 struct addr_location;
 struct perf_event_attr;

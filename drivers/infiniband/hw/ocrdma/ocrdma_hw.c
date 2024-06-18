@@ -1190,7 +1190,6 @@ static void ocrdma_get_attr(struct ocrdma_dev *dev,
 	attr->max_mr = rsp->max_mr;
 	attr->max_mr_size = ((u64)rsp->max_mr_size_hi << 32) |
 			      rsp->max_mr_size_lo;
-	attr->max_fmr = 0;
 	attr->max_pages_per_frmr = rsp->max_pages_per_frmr;
 	attr->max_num_mr_pbl = rsp->max_num_mr_pbl;
 	attr->max_cqe = rsp->max_cq_cqes_per_cq &
@@ -1364,7 +1363,7 @@ static int ocrdma_mbx_get_ctrl_attribs(struct ocrdma_dev *dev)
 		dev->hba_port_num = (hba_attribs->ptpnum_maxdoms_hbast_cv &
 					OCRDMA_HBA_ATTRB_PTNUM_MASK)
 					>> OCRDMA_HBA_ATTRB_PTNUM_SHIFT;
-		strlcpy(dev->model_number,
+		strscpy(dev->model_number,
 			hba_attribs->controller_model_number,
 			sizeof(dev->model_number));
 	}
@@ -1507,7 +1506,6 @@ int ocrdma_mbx_dealloc_pd(struct ocrdma_dev *dev, struct ocrdma_pd *pd)
 static int ocrdma_mbx_alloc_pd_range(struct ocrdma_dev *dev)
 {
 	int status = -ENOMEM;
-	size_t pd_bitmap_size;
 	struct ocrdma_alloc_pd_range *cmd;
 	struct ocrdma_alloc_pd_range_rsp *rsp;
 
@@ -1529,10 +1527,8 @@ static int ocrdma_mbx_alloc_pd_range(struct ocrdma_dev *dev)
 			dev->pd_mgr->pd_dpp_start = rsp->dpp_page_pdid &
 					OCRDMA_ALLOC_PD_RNG_RSP_START_PDID_MASK;
 			dev->pd_mgr->max_dpp_pd = rsp->pd_count;
-			pd_bitmap_size =
-				BITS_TO_LONGS(rsp->pd_count) * sizeof(long);
-			dev->pd_mgr->pd_dpp_bitmap = kzalloc(pd_bitmap_size,
-							     GFP_KERNEL);
+			dev->pd_mgr->pd_dpp_bitmap = bitmap_zalloc(rsp->pd_count,
+								   GFP_KERNEL);
 		}
 		kfree(cmd);
 	}
@@ -1548,9 +1544,8 @@ static int ocrdma_mbx_alloc_pd_range(struct ocrdma_dev *dev)
 		dev->pd_mgr->pd_norm_start = rsp->dpp_page_pdid &
 					OCRDMA_ALLOC_PD_RNG_RSP_START_PDID_MASK;
 		dev->pd_mgr->max_normal_pd = rsp->pd_count;
-		pd_bitmap_size = BITS_TO_LONGS(rsp->pd_count) * sizeof(long);
-		dev->pd_mgr->pd_norm_bitmap = kzalloc(pd_bitmap_size,
-						      GFP_KERNEL);
+		dev->pd_mgr->pd_norm_bitmap = bitmap_zalloc(rsp->pd_count,
+							    GFP_KERNEL);
 	}
 	kfree(cmd);
 
@@ -1612,8 +1607,8 @@ void ocrdma_alloc_pd_pool(struct ocrdma_dev *dev)
 static void ocrdma_free_pd_pool(struct ocrdma_dev *dev)
 {
 	ocrdma_mbx_dealloc_pd_range(dev);
-	kfree(dev->pd_mgr->pd_norm_bitmap);
-	kfree(dev->pd_mgr->pd_dpp_bitmap);
+	bitmap_free(dev->pd_mgr->pd_norm_bitmap);
+	bitmap_free(dev->pd_mgr->pd_dpp_bitmap);
 	kfree(dev->pd_mgr);
 }
 
@@ -1963,6 +1958,7 @@ static int ocrdma_mbx_reg_mr(struct ocrdma_dev *dev, struct ocrdma_hw_mr *hwmr,
 	int i;
 	struct ocrdma_reg_nsmr *cmd;
 	struct ocrdma_reg_nsmr_rsp *rsp;
+	u64 fbo = hwmr->va & (hwmr->pbe_size - 1);
 
 	cmd = ocrdma_init_emb_mqe(OCRDMA_CMD_REGISTER_NSMR, sizeof(*cmd));
 	if (!cmd)
@@ -1988,8 +1984,8 @@ static int ocrdma_mbx_reg_mr(struct ocrdma_dev *dev, struct ocrdma_hw_mr *hwmr,
 					OCRDMA_REG_NSMR_HPAGE_SIZE_SHIFT;
 	cmd->totlen_low = hwmr->len;
 	cmd->totlen_high = upper_32_bits(hwmr->len);
-	cmd->fbo_low = (u32) (hwmr->fbo & 0xffffffff);
-	cmd->fbo_high = (u32) upper_32_bits(hwmr->fbo);
+	cmd->fbo_low = lower_32_bits(fbo);
+	cmd->fbo_high = upper_32_bits(fbo);
 	cmd->va_loaddr = (u32) hwmr->va;
 	cmd->va_hiaddr = (u32) upper_32_bits(hwmr->va);
 

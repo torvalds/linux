@@ -17,6 +17,9 @@
 
 #include <asm/virt.h>
 
+DECLARE_PER_CPU(struct sdei_registered_event *, sdei_active_normal_event);
+DECLARE_PER_CPU(struct sdei_registered_event *, sdei_active_critical_event);
+
 extern unsigned long sdei_exit_mode;
 
 /* Software Delegated Exception entry point from firmware*/
@@ -29,6 +32,9 @@ asmlinkage void __sdei_asm_entry_trampoline(unsigned long event_num,
 						   unsigned long pc,
 						   unsigned long pstate);
 
+/* Abort a running handler. Context is discarded. */
+void __sdei_handler_abort(void);
+
 /*
  * The above entry point does the minimum to call C code. This function does
  * anything else, before calling the driver.
@@ -37,24 +43,11 @@ struct sdei_registered_event;
 asmlinkage unsigned long __sdei_handler(struct pt_regs *regs,
 					struct sdei_registered_event *arg);
 
+unsigned long do_sdei_event(struct pt_regs *regs,
+			    struct sdei_registered_event *arg);
+
 unsigned long sdei_arch_get_entry_point(int conduit);
 #define sdei_arch_get_entry_point(x)	sdei_arch_get_entry_point(x)
-
-struct stack_info;
-
-bool _on_sdei_stack(unsigned long sp, struct stack_info *info);
-static inline bool on_sdei_stack(unsigned long sp,
-				struct stack_info *info)
-{
-	if (!IS_ENABLED(CONFIG_VMAP_STACK))
-		return false;
-	if (!IS_ENABLED(CONFIG_ARM_SDE_INTERFACE))
-		return false;
-	if (in_nmi())
-		return _on_sdei_stack(sp, info);
-
-	return false;
-}
 
 #endif /* __ASSEMBLY__ */
 #endif	/* __ASM_SDEI_H */

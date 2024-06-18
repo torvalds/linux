@@ -10,12 +10,10 @@
 #include <linux/string.h>
 
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/setup.h>
 #include <asm/traps.h>
 #include <asm/sun3xprom.h>
 #include <asm/idprom.h>
-#include <asm/segment.h>
 #include <asm/sun3ints.h>
 #include <asm/openprom.h>
 #include <asm/machines.h>
@@ -32,7 +30,7 @@ struct linux_romvec *romvec;
 e_vector *sun3x_prom_vbr;
 
 /* Handle returning to the prom */
-void sun3x_halt(void)
+static void sun3x_halt(void)
 {
 	unsigned long flags;
 

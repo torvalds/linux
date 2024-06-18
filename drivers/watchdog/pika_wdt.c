@@ -23,8 +23,8 @@
 #include <linux/bitops.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_platform.h>
 
 #define DRV_NAME "PIKA-WDT"
 
@@ -214,6 +214,7 @@ static const struct file_operations pikawdt_fops = {
 	.release	= pikawdt_release,
 	.write		= pikawdt_write,
 	.unlocked_ioctl	= pikawdt_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 };
 
 static struct miscdevice pikawdt_miscdev = {

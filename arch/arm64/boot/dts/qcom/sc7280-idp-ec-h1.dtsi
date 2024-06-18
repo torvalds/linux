@@ -1,0 +1,106 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * sc7280 EC/H1 over SPI (common between IDP2 and CRD)
+ *
+ * Copyright (c) 2021 Qualcomm Innovation Center, Inc. All rights reserved.
+ */
+
+ap_ec_spi: &spi10 {
+	status = "okay";
+
+	pinctrl-0 = <&qup_spi10_data_clk>, <&qup_spi10_cs_gpio_init_high>, <&qup_spi10_cs_gpio>;
+	cs-gpios = <&tlmm 43 GPIO_ACTIVE_LOW>;
+
+	cros_ec: ec@0 {
+		compatible = "google,cros-ec-spi";
+		reg = <0>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <18 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ap_ec_int_l>;
+		spi-max-frequency = <3000000>;
+		wakeup-source;
+
+		cros_ec_pwm: pwm {
+			compatible = "google,cros-ec-pwm";
+			#pwm-cells = <1>;
+		};
+
+		i2c_tunnel: i2c-tunnel {
+			compatible = "google,cros-ec-i2c-tunnel";
+			google,remote-bus = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		typec {
+			compatible = "google,cros-ec-typec";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			usb_c0: connector@0 {
+				compatible = "usb-c-connector";
+				reg = <0>;
+				label = "left";
+				power-role = "dual";
+				data-role = "host";
+				try-power-role = "source";
+			};
+
+			usb_c1: connector@1 {
+				compatible = "usb-c-connector";
+				reg = <1>;
+				label = "right";
+				power-role = "dual";
+				data-role = "host";
+				try-power-role = "source";
+			};
+		};
+	};
+};
+
+#include <arm/cros-ec-keyboard.dtsi>
+#include <arm/cros-ec-sbs.dtsi>
+
+ap_h1_spi: &spi14 {
+	status = "okay";
+
+	pinctrl-0 = <&qup_spi14_data_clk>, <&qup_spi14_cs_gpio_init_high>, <&qup_spi14_cs_gpio>;
+	cs-gpios = <&tlmm 59 GPIO_ACTIVE_LOW>;
+
+	cr50: tpm@0 {
+		compatible = "google,cr50";
+		reg = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&h1_ap_int_odl>;
+		spi-max-frequency = <800000>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <104 IRQ_TYPE_EDGE_RISING>;
+	};
+};
+
+&tlmm {
+	ap_ec_int_l: ap-ec-int-l-state {
+		pins = "gpio18";
+		function = "gpio";
+		bias-pull-up;
+	};
+
+	h1_ap_int_odl: h1-ap-int-odl-state {
+		pins = "gpio104";
+		function = "gpio";
+		bias-pull-up;
+	};
+
+	qup_spi10_cs_gpio_init_high: qup-spi10-cs-gpio-init-high-state {
+		pins = "gpio43";
+		function = "gpio";
+		output-high;
+	};
+
+	qup_spi14_cs_gpio_init_high: qup-spi14-cs-gpio-init-high-state {
+		pins = "gpio59";
+		function = "gpio";
+		output-high;
+	};
+};

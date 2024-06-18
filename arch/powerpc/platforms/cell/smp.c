@@ -21,14 +21,13 @@
 #include <linux/err.h>
 #include <linux/device.h>
 #include <linux/cpu.h>
+#include <linux/pgtable.h>
 
 #include <asm/ptrace.h>
 #include <linux/atomic.h>
 #include <asm/irq.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/smp.h>
 #include <asm/paca.h>
 #include <asm/machdep.h>
@@ -55,6 +54,7 @@ static cpumask_t of_spin_map;
 
 /**
  * smp_startup_cpu() - start the given cpu
+ * @lcpu: Logical CPU ID of the CPU to be started.
  *
  * At boot time, there is nothing to do for primary threads which were
  * started from Open Firmware.  For anything else, call RTAS with the
@@ -78,14 +78,11 @@ static inline int smp_startup_cpu(unsigned int lcpu)
 
 	pcpu = get_hard_smp_processor_id(lcpu);
 
-	/* Fixup atomic count: it exited inside IRQ handler. */
-	task_thread_info(paca_ptrs[lcpu]->__current)->preempt_count	= 0;
-
 	/*
 	 * If the RTAS start-cpu token does not exist then presume the
 	 * cpu is already spinning.
 	 */
-	start_cpu = rtas_token("start-cpu");
+	start_cpu = rtas_function_token(RTAS_FN_START_CPU);
 	if (start_cpu == RTAS_UNKNOWN_SERVICE)
 		return 1;
 
@@ -156,7 +153,7 @@ void __init smp_init_cell(void)
 	cpumask_clear_cpu(boot_cpuid, &of_spin_map);
 
 	/* Non-lpar has additional take/give timebase */
-	if (rtas_token("freeze-time-base") != RTAS_UNKNOWN_SERVICE) {
+	if (rtas_function_token(RTAS_FN_FREEZE_TIME_BASE) != RTAS_UNKNOWN_SERVICE) {
 		smp_ops->give_timebase = rtas_give_timebase;
 		smp_ops->take_timebase = rtas_take_timebase;
 	}

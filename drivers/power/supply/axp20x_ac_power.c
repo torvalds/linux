@@ -13,8 +13,8 @@
 #include <linux/mfd/axp20x.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
 #include <linux/power_supply.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
@@ -22,6 +22,9 @@
 
 #define AXP20X_PWR_STATUS_ACIN_PRESENT	BIT(7)
 #define AXP20X_PWR_STATUS_ACIN_AVAIL	BIT(6)
+
+#define AXP813_ACIN_PATH_SEL		BIT(7)
+#define AXP813_ACIN_PATH_SEL_TO_BIT(x)	(!!(x) << 7)
 
 #define AXP813_VHOLD_MASK		GENMASK(5, 3)
 #define AXP813_VHOLD_UV_TO_BIT(x)	((((x) / 100000) - 40) << 3)
@@ -40,6 +43,9 @@ struct axp20x_ac_power {
 	struct power_supply *supply;
 	struct iio_channel *acin_v;
 	struct iio_channel *acin_i;
+	bool has_acin_path_sel;
+	unsigned int num_irqs;
+	unsigned int irqs[] __counted_by(num_irqs);
 };
 
 static irqreturn_t axp20x_ac_power_irq(int irq, void *devid)
@@ -86,6 +92,17 @@ static int axp20x_ac_power_get_property(struct power_supply *psy,
 			return ret;
 
 		val->intval = !!(reg & AXP20X_PWR_STATUS_ACIN_AVAIL);
+
+		/* ACIN_PATH_SEL disables ACIN even if ACIN_AVAIL is set. */
+		if (val->intval && power->has_acin_path_sel) {
+			ret = regmap_read(power->regmap, AXP813_ACIN_PATH_CTRL,
+					  &reg);
+			if (ret)
+				return ret;
+
+			val->intval = !!(reg & AXP813_ACIN_PATH_SEL);
+		}
+
 		return 0;
 
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
@@ -143,6 +160,11 @@ static int axp813_ac_power_set_property(struct power_supply *psy,
 	struct axp20x_ac_power *power = power_supply_get_drvdata(psy);
 
 	switch (psp) {
+	case POWER_SUPPLY_PROP_ONLINE:
+		return regmap_update_bits(power->regmap, AXP813_ACIN_PATH_CTRL,
+					  AXP813_ACIN_PATH_SEL,
+					  AXP813_ACIN_PATH_SEL_TO_BIT(val->intval));
+
 	case POWER_SUPPLY_PROP_VOLTAGE_MIN:
 		if (val->intval < 4000000 || val->intval > 4700000)
 			return -EINVAL;
@@ -169,7 +191,8 @@ static int axp813_ac_power_set_property(struct power_supply *psy,
 static int axp813_ac_power_prop_writeable(struct power_supply *psy,
 					  enum power_supply_property psp)
 {
-	return psp == POWER_SUPPLY_PROP_VOLTAGE_MIN ||
+	return psp == POWER_SUPPLY_PROP_ONLINE ||
+	       psp == POWER_SUPPLY_PROP_VOLTAGE_MIN ||
 	       psp == POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT;
 }
 
@@ -221,25 +244,79 @@ static const struct power_supply_desc axp813_ac_power_desc = {
 	.set_property = axp813_ac_power_set_property,
 };
 
+static const char * const axp20x_irq_names[] = {
+	"ACIN_PLUGIN",
+	"ACIN_REMOVAL",
+};
+
 struct axp_data {
 	const struct power_supply_desc	*power_desc;
+	const char * const		*irq_names;
+	unsigned int			num_irq_names;
 	bool				acin_adc;
+	bool				acin_path_sel;
 };
 
 static const struct axp_data axp20x_data = {
-	.power_desc = &axp20x_ac_power_desc,
-	.acin_adc = true,
+	.power_desc	= &axp20x_ac_power_desc,
+	.irq_names	= axp20x_irq_names,
+	.num_irq_names	= ARRAY_SIZE(axp20x_irq_names),
+	.acin_adc	= true,
+	.acin_path_sel	= false,
 };
 
 static const struct axp_data axp22x_data = {
-	.power_desc = &axp22x_ac_power_desc,
-	.acin_adc = false,
+	.power_desc	= &axp22x_ac_power_desc,
+	.irq_names	= axp20x_irq_names,
+	.num_irq_names	= ARRAY_SIZE(axp20x_irq_names),
+	.acin_adc	= false,
+	.acin_path_sel	= false,
 };
 
 static const struct axp_data axp813_data = {
-	.power_desc = &axp813_ac_power_desc,
-	.acin_adc = false,
+	.power_desc	= &axp813_ac_power_desc,
+	.irq_names	= axp20x_irq_names,
+	.num_irq_names	= ARRAY_SIZE(axp20x_irq_names),
+	.acin_adc	= false,
+	.acin_path_sel	= true,
 };
+
+#ifdef CONFIG_PM_SLEEP
+static int axp20x_ac_power_suspend(struct device *dev)
+{
+	struct axp20x_ac_power *power = dev_get_drvdata(dev);
+	int i = 0;
+
+	/*
+	 * Allow wake via ACIN_PLUGIN only.
+	 *
+	 * As nested threaded IRQs are not automatically disabled during
+	 * suspend, we must explicitly disable the remainder of the IRQs.
+	 */
+	if (device_may_wakeup(&power->supply->dev))
+		enable_irq_wake(power->irqs[i++]);
+	while (i < power->num_irqs)
+		disable_irq(power->irqs[i++]);
+
+	return 0;
+}
+
+static int axp20x_ac_power_resume(struct device *dev)
+{
+	struct axp20x_ac_power *power = dev_get_drvdata(dev);
+	int i = 0;
+
+	if (device_may_wakeup(&power->supply->dev))
+		disable_irq_wake(power->irqs[i++]);
+	while (i < power->num_irqs)
+		enable_irq(power->irqs[i++]);
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(axp20x_ac_power_pm_ops, axp20x_ac_power_suspend,
+						 axp20x_ac_power_resume);
 
 static int axp20x_ac_power_probe(struct platform_device *pdev)
 {
@@ -247,8 +324,6 @@ static int axp20x_ac_power_probe(struct platform_device *pdev)
 	struct power_supply_config psy_cfg = {};
 	struct axp20x_ac_power *power;
 	const struct axp_data *axp_data;
-	static const char * const irq_names[] = { "ACIN_PLUGIN", "ACIN_REMOVAL",
-		NULL };
 	int i, irq, ret;
 
 	if (!of_device_is_available(pdev->dev.of_node))
@@ -259,11 +334,13 @@ static int axp20x_ac_power_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	power = devm_kzalloc(&pdev->dev, sizeof(*power), GFP_KERNEL);
+	axp_data = of_device_get_match_data(&pdev->dev);
+
+	power = devm_kzalloc(&pdev->dev,
+			     struct_size(power, irqs, axp_data->num_irq_names),
+			     GFP_KERNEL);
 	if (!power)
 		return -ENOMEM;
-
-	axp_data = of_device_get_match_data(&pdev->dev);
 
 	if (axp_data->acin_adc) {
 		power->acin_v = devm_iio_channel_get(&pdev->dev, "acin_v");
@@ -282,6 +359,8 @@ static int axp20x_ac_power_probe(struct platform_device *pdev)
 	}
 
 	power->regmap = dev_get_regmap(pdev->dev.parent, NULL);
+	power->has_acin_path_sel = axp_data->acin_path_sel;
+	power->num_irqs = axp_data->num_irq_names;
 
 	platform_set_drvdata(pdev, power);
 
@@ -295,20 +374,20 @@ static int axp20x_ac_power_probe(struct platform_device *pdev)
 		return PTR_ERR(power->supply);
 
 	/* Request irqs after registering, as irqs may trigger immediately */
-	for (i = 0; irq_names[i]; i++) {
-		irq = platform_get_irq_byname(pdev, irq_names[i]);
-		if (irq < 0) {
-			dev_warn(&pdev->dev, "No IRQ for %s: %d\n",
-				 irq_names[i], irq);
-			continue;
-		}
-		irq = regmap_irq_get_virq(axp20x->regmap_irqc, irq);
-		ret = devm_request_any_context_irq(&pdev->dev, irq,
+	for (i = 0; i < axp_data->num_irq_names; i++) {
+		irq = platform_get_irq_byname(pdev, axp_data->irq_names[i]);
+		if (irq < 0)
+			return irq;
+
+		power->irqs[i] = regmap_irq_get_virq(axp20x->regmap_irqc, irq);
+		ret = devm_request_any_context_irq(&pdev->dev, power->irqs[i],
 						   axp20x_ac_power_irq, 0,
 						   DRVNAME, power);
-		if (ret < 0)
-			dev_warn(&pdev->dev, "Error requesting %s IRQ: %d\n",
-				 irq_names[i], ret);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "Error requesting %s IRQ: %d\n",
+				axp_data->irq_names[i], ret);
+			return ret;
+		}
 	}
 
 	return 0;
@@ -331,8 +410,9 @@ MODULE_DEVICE_TABLE(of, axp20x_ac_power_match);
 static struct platform_driver axp20x_ac_power_driver = {
 	.probe = axp20x_ac_power_probe,
 	.driver = {
-		.name = DRVNAME,
-		.of_match_table = axp20x_ac_power_match,
+		.name		= DRVNAME,
+		.of_match_table	= axp20x_ac_power_match,
+		.pm		= &axp20x_ac_power_pm_ops,
 	},
 };
 

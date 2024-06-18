@@ -110,6 +110,7 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 
 	/* Remember who we are attached to.  */
 	ep->base.sk = sk;
+	ep->base.net = sock_net(sk);
 	sock_hold(ep->base.sk);
 
 	return ep;
@@ -164,7 +165,7 @@ void sctp_endpoint_add_asoc(struct sctp_endpoint *ep,
 
 	/* Increment the backlog value for a TCP-style listening socket. */
 	if (sctp_style(sk, TCP) && sctp_sstate(sk, LISTENING))
-		sk->sk_ack_backlog++;
+		sk_acceptq_added(sk);
 }
 
 /* Free the endpoint structure.  Delay cleanup until
@@ -183,6 +184,18 @@ void sctp_endpoint_free(struct sctp_endpoint *ep)
 }
 
 /* Final destructor for endpoint.  */
+static void sctp_endpoint_destroy_rcu(struct rcu_head *head)
+{
+	struct sctp_endpoint *ep = container_of(head, struct sctp_endpoint, rcu);
+	struct sock *sk = ep->base.sk;
+
+	sctp_sk(sk)->ep = NULL;
+	sock_put(sk);
+
+	kfree(ep);
+	SCTP_DBG_OBJCNT_DEC(ep);
+}
+
 static void sctp_endpoint_destroy(struct sctp_endpoint *ep)
 {
 	struct sock *sk;
@@ -212,18 +225,13 @@ static void sctp_endpoint_destroy(struct sctp_endpoint *ep)
 	if (sctp_sk(sk)->bind_hash)
 		sctp_put_port(sk);
 
-	sctp_sk(sk)->ep = NULL;
-	/* Give up our hold on the sock */
-	sock_put(sk);
-
-	kfree(ep);
-	SCTP_DBG_OBJCNT_DEC(ep);
+	call_rcu(&ep->rcu, sctp_endpoint_destroy_rcu);
 }
 
 /* Hold a reference to an endpoint. */
-void sctp_endpoint_hold(struct sctp_endpoint *ep)
+int sctp_endpoint_hold(struct sctp_endpoint *ep)
 {
-	refcount_inc(&ep->base.refcnt);
+	return refcount_inc_not_zero(&ep->base.refcnt);
 }
 
 /* Release a reference to an endpoint and clean up if there are
@@ -238,12 +246,15 @@ void sctp_endpoint_put(struct sctp_endpoint *ep)
 /* Is this the endpoint we are looking for?  */
 struct sctp_endpoint *sctp_endpoint_is_match(struct sctp_endpoint *ep,
 					       struct net *net,
-					       const union sctp_addr *laddr)
+					       const union sctp_addr *laddr,
+					       int dif, int sdif)
 {
+	int bound_dev_if = READ_ONCE(ep->base.sk->sk_bound_dev_if);
 	struct sctp_endpoint *retval = NULL;
 
-	if ((htons(ep->base.bind_addr.port) == laddr->v4.sin_port) &&
-	    net_eq(sock_net(ep->base.sk), net)) {
+	if (net_eq(ep->base.net, net) &&
+	    sctp_sk_bound_dev_eq(net, bound_dev_if, dif, sdif) &&
+	    (htons(ep->base.bind_addr.port) == laddr->v4.sin_port)) {
 		if (sctp_bind_addr_match(&ep->base.bind_addr, laddr,
 					 sctp_sk(ep->base.sk)))
 			retval = ep;
@@ -290,16 +301,18 @@ out:
 bool sctp_endpoint_is_peeled_off(struct sctp_endpoint *ep,
 				 const union sctp_addr *paddr)
 {
+	int bound_dev_if = READ_ONCE(ep->base.sk->sk_bound_dev_if);
 	struct sctp_sockaddr_entry *addr;
+	struct net *net = ep->base.net;
 	struct sctp_bind_addr *bp;
-	struct net *net = sock_net(ep->base.sk);
 
 	bp = &ep->base.bind_addr;
 	/* This function is called with the socket lock held,
 	 * so the address_list can not change.
 	 */
 	list_for_each_entry(addr, &bp->address_list, list) {
-		if (sctp_has_association(net, &addr->a, paddr))
+		if (sctp_has_association(net, &addr->a, paddr,
+					 bound_dev_if, bound_dev_if))
 			return true;
 	}
 
@@ -383,7 +396,7 @@ normal:
 		if (asoc && sctp_chunk_is_data(chunk))
 			asoc->peer.last_data_from = chunk->transport;
 		else {
-			SCTP_INC_STATS(sock_net(ep->base.sk), SCTP_MIB_INCTRLCHUNKS);
+			SCTP_INC_STATS(ep->base.net, SCTP_MIB_INCTRLCHUNKS);
 			if (asoc)
 				asoc->stats.ictrlchunks++;
 		}

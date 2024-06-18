@@ -1,19 +1,5 @@
-/*
- * Copyright 2012 Cisco Systems, Inc.  All rights reserved.
- *
- * This program is free software; you may redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: GPL-2.0-only
+// Copyright 2012 Cisco Systems, Inc.  All rights reserved.
 
 #include <linux/module.h>
 #include <linux/mempool.h>
@@ -138,7 +124,7 @@ int fnic_get_trace_data(fnic_dbgfs_t *fnic_dbgfs_prt)
 			 * Dump trace buffer entry to memory file
 			 * and increment read index @rd_idx
 			 */
-			len += snprintf(fnic_dbgfs_prt->buffer + len,
+			len += scnprintf(fnic_dbgfs_prt->buffer + len,
 				  (trace_max_pages * PAGE_SIZE * 3) - len,
 				  "%16llu.%09lu %-50s %8x %8x %16llx %16llx "
 				  "%16llx %16llx %16llx\n", (u64)val.tv_sec,
@@ -153,7 +139,7 @@ int fnic_get_trace_data(fnic_dbgfs_t *fnic_dbgfs_prt)
 			if (rd_idx > (fnic_max_trace_entries-1))
 				rd_idx = 0;
 			/*
-			 * Continure dumpping trace buffer entries into
+			 * Continue dumping trace buffer entries into
 			 * memory file till rd_idx reaches write index
 			 */
 			if (rd_idx == wr_idx)
@@ -180,7 +166,7 @@ int fnic_get_trace_data(fnic_dbgfs_t *fnic_dbgfs_prt)
 			 * Dump trace buffer entry to memory file
 			 * and increment read index @rd_idx
 			 */
-			len += snprintf(fnic_dbgfs_prt->buffer + len,
+			len += scnprintf(fnic_dbgfs_prt->buffer + len,
 				  (trace_max_pages * PAGE_SIZE * 3) - len,
 				  "%16llu.%09lu %-50s %8x %8x %16llx %16llx "
 				  "%16llx %16llx %16llx\n", (u64)val.tv_sec,
@@ -189,7 +175,7 @@ int fnic_get_trace_data(fnic_dbgfs_t *fnic_dbgfs_prt)
 				  tbp->data[3], tbp->data[4]);
 			rd_idx++;
 			/*
-			 * Continue dumpping trace buffer entries into
+			 * Continue dumping trace buffer entries into
 			 * memory file till rd_idx reaches write index
 			 */
 			if (rd_idx == wr_idx)
@@ -218,14 +204,15 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 	int len = 0;
 	int buf_size = debug->buf_size;
 	struct timespec64 val1, val2;
+	int i = 0;
 
 	ktime_get_real_ts64(&val1);
-	len = snprintf(debug->debug_buffer + len, buf_size - len,
+	len = scnprintf(debug->debug_buffer + len, buf_size - len,
 		"------------------------------------------\n"
 		 "\t\tTime\n"
 		"------------------------------------------\n");
 
-	len += snprintf(debug->debug_buffer + len, buf_size - len,
+	len += scnprintf(debug->debug_buffer + len, buf_size - len,
 		"Current time :          [%lld:%ld]\n"
 		"Last stats reset time:  [%lld:%09ld]\n"
 		"Last stats read time:   [%lld:%ld]\n"
@@ -243,11 +230,11 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 
 	stats->stats_timestamps.last_read_time = val1;
 
-	len += snprintf(debug->debug_buffer + len, buf_size - len,
+	len += scnprintf(debug->debug_buffer + len, buf_size - len,
 		  "------------------------------------------\n"
 		  "\t\tIO Statistics\n"
 		  "------------------------------------------\n");
-	len += snprintf(debug->debug_buffer + len, buf_size - len,
+	len += scnprintf(debug->debug_buffer + len, buf_size - len,
 		  "Number of Active IOs: %lld\nMaximum Active IOs: %lld\n"
 		  "Number of IOs: %lld\nNumber of IO Completions: %lld\n"
 		  "Number of IO Failures: %lld\nNumber of IO NOT Found: %lld\n"
@@ -280,16 +267,26 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 		  (u64)atomic64_read(&stats->io_stats.io_btw_10000_to_30000_msec),
 		  (u64)atomic64_read(&stats->io_stats.io_greater_than_30000_msec));
 
-	len += snprintf(debug->debug_buffer + len, buf_size - len,
+	len += scnprintf(debug->debug_buffer + len, buf_size - len,
+			"------------------------------------------\n"
+			"\t\tIO Queues and cumulative IOs\n"
+			"------------------------------------------\n");
+
+	for (i = 0; i < FNIC_MQ_MAX_QUEUES; i++) {
+		len += scnprintf(debug->debug_buffer + len, buf_size - len,
+				"Q:%d -> %lld\n", i, (u64)atomic64_read(&stats->io_stats.ios[i]));
+	}
+
+	len += scnprintf(debug->debug_buffer + len, buf_size - len,
 		  "\nCurrent Max IO time : %lld\n",
 		  (u64)atomic64_read(&stats->io_stats.current_max_io_time));
 
-	len += snprintf(debug->debug_buffer + len, buf_size - len,
+	len += scnprintf(debug->debug_buffer + len, buf_size - len,
 		  "\n------------------------------------------\n"
 		  "\t\tAbort Statistics\n"
 		  "------------------------------------------\n");
 
-	len += snprintf(debug->debug_buffer + len, buf_size - len,
+	len += scnprintf(debug->debug_buffer + len, buf_size - len,
 		  "Number of Aborts: %lld\n"
 		  "Number of Abort Failures: %lld\n"
 		  "Number of Abort Driver Timeouts: %lld\n"
@@ -318,12 +315,12 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 		  (u64)atomic64_read(&stats->abts_stats.abort_issued_btw_50_to_60_sec),
 		  (u64)atomic64_read(&stats->abts_stats.abort_issued_greater_than_60_sec));
 
-	len += snprintf(debug->debug_buffer + len, buf_size - len,
+	len += scnprintf(debug->debug_buffer + len, buf_size - len,
 		  "\n------------------------------------------\n"
 		  "\t\tTerminate Statistics\n"
 		  "------------------------------------------\n");
 
-	len += snprintf(debug->debug_buffer + len, buf_size - len,
+	len += scnprintf(debug->debug_buffer + len, buf_size - len,
 		  "Number of Terminates: %lld\n"
 		  "Maximum Terminates: %lld\n"
 		  "Number of Terminate Driver Timeouts: %lld\n"
@@ -337,12 +334,12 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 		  (u64)atomic64_read(&stats->term_stats.terminate_io_not_found),
 		  (u64)atomic64_read(&stats->term_stats.terminate_failures));
 
-	len += snprintf(debug->debug_buffer + len, buf_size - len,
+	len += scnprintf(debug->debug_buffer + len, buf_size - len,
 		  "\n------------------------------------------\n"
 		  "\t\tReset Statistics\n"
 		  "------------------------------------------\n");
 
-	len += snprintf(debug->debug_buffer + len, buf_size - len,
+	len += scnprintf(debug->debug_buffer + len, buf_size - len,
 		  "Number of Device Resets: %lld\n"
 		  "Number of Device Reset Failures: %lld\n"
 		  "Number of Device Reset Aborts: %lld\n"
@@ -368,12 +365,12 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 			  &stats->reset_stats.fnic_reset_completions),
 		  (u64)atomic64_read(&stats->reset_stats.fnic_reset_failures));
 
-	len += snprintf(debug->debug_buffer + len, buf_size - len,
+	len += scnprintf(debug->debug_buffer + len, buf_size - len,
 		  "\n------------------------------------------\n"
 		  "\t\tFirmware Statistics\n"
 		  "------------------------------------------\n");
 
-	len += snprintf(debug->debug_buffer + len, buf_size - len,
+	len += scnprintf(debug->debug_buffer + len, buf_size - len,
 		  "Number of Active FW Requests %lld\n"
 		  "Maximum FW Requests: %lld\n"
 		  "Number of FW out of resources: %lld\n"
@@ -383,12 +380,12 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 		  (u64)atomic64_read(&stats->fw_stats.fw_out_of_resources),
 		  (u64)atomic64_read(&stats->fw_stats.io_fw_errs));
 
-	len += snprintf(debug->debug_buffer + len, buf_size - len,
+	len += scnprintf(debug->debug_buffer + len, buf_size - len,
 		  "\n------------------------------------------\n"
 		  "\t\tVlan Discovery Statistics\n"
 		  "------------------------------------------\n");
 
-	len += snprintf(debug->debug_buffer + len, buf_size - len,
+	len += scnprintf(debug->debug_buffer + len, buf_size - len,
 		  "Number of Vlan Discovery Requests Sent %lld\n"
 		  "Vlan Response Received with no FCF VLAN ID: %lld\n"
 		  "No solicitations recvd after vlan set, expiry count: %lld\n"
@@ -398,7 +395,7 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 		  (u64)atomic64_read(&stats->vlan_stats.sol_expiry_count),
 		  (u64)atomic64_read(&stats->vlan_stats.flogi_rejects));
 
-	len += snprintf(debug->debug_buffer + len, buf_size - len,
+	len += scnprintf(debug->debug_buffer + len, buf_size - len,
 		  "\n------------------------------------------\n"
 		  "\t\tOther Important Statistics\n"
 		  "------------------------------------------\n");
@@ -406,7 +403,7 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 	jiffies_to_timespec64(stats->misc_stats.last_isr_time, &val1);
 	jiffies_to_timespec64(stats->misc_stats.last_ack_time, &val2);
 
-	len += snprintf(debug->debug_buffer + len, buf_size - len,
+	len += scnprintf(debug->debug_buffer + len, buf_size - len,
 		  "Last ISR time: %llu (%8llu.%09lu)\n"
 		  "Last ACK time: %llu (%8llu.%09lu)\n"
 		  "Max ISR jiffies: %llu\n"
@@ -452,7 +449,7 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 		  (u64)atomic64_read(&stats->misc_stats.rport_not_ready),
 		  (u64)atomic64_read(&stats->misc_stats.frame_errors));
 
-	len += snprintf(debug->debug_buffer + len, buf_size - len,
+	len += scnprintf(debug->debug_buffer + len, buf_size - len,
 			"Firmware reported port speed: %llu\n",
 			(u64)atomic64_read(
 				&stats->misc_stats.current_port_speed));
@@ -479,7 +476,7 @@ int fnic_trace_buf_init(void)
 	fnic_max_trace_entries = (trace_max_pages * PAGE_SIZE)/
 					  FNIC_ENTRY_SIZE_BYTES;
 
-	fnic_trace_buf_p = (unsigned long)vzalloc(trace_max_pages * PAGE_SIZE);
+	fnic_trace_buf_p = (unsigned long)vcalloc(trace_max_pages, PAGE_SIZE);
 	if (!fnic_trace_buf_p) {
 		printk(KERN_ERR PFX "Failed to allocate memory "
 				  "for fnic_trace_buf_p\n");
@@ -632,7 +629,7 @@ void fnic_fc_trace_free(void)
  * fnic_fc_ctlr_set_trace_data:
  *       Maintain rd & wr idx accordingly and set data
  * Passed parameters:
- *       host_no: host number accociated with fnic
+ *       host_no: host number associated with fnic
  *       frame_type: send_frame, rece_frame or link event
  *       fc_frame: pointer to fc_frame
  *       frame_len: Length of the fc_frame
@@ -715,13 +712,13 @@ int fnic_fc_trace_set_data(u32 host_no, u8 frame_type,
  * fnic_fc_ctlr_get_trace_data: Copy trace buffer to a memory file
  * Passed parameter:
  *       @fnic_dbgfs_t: pointer to debugfs trace buffer
- *       rdata_flag: 1 => Unformated file
- *                   0 => formated file
+ *       rdata_flag: 1 => Unformatted file
+ *                   0 => formatted file
  * Description:
  *       This routine will copy the trace data to memory file with
  *       proper formatting and also copy to another memory
- *       file without formatting for further procesing.
- * Retrun Value:
+ *       file without formatting for further processing.
+ * Return Value:
  *       Number of bytes that were dumped into fnic_dbgfs_t
  */
 
@@ -742,7 +739,7 @@ int fnic_fc_trace_get_data(fnic_dbgfs_t *fnic_dbgfs_prt, u8 rdata_flag)
 	rd_idx = fc_trace_entries.rd_idx;
 	wr_idx = fc_trace_entries.wr_idx;
 	if (rdata_flag == 0) {
-		len += snprintf(fnic_dbgfs_prt->buffer + len,
+		len += scnprintf(fnic_dbgfs_prt->buffer + len,
 			(fnic_fc_trace_max_pages * PAGE_SIZE * 3) - len,
 			"Time Stamp (UTC)\t\t"
 			"Host No:   F Type:  len:     FCoE_FRAME:\n");
@@ -762,11 +759,11 @@ int fnic_fc_trace_get_data(fnic_dbgfs_t *fnic_dbgfs_prt, u8 rdata_flag)
 		} else {
 			fc_trace = (char *)tdata;
 			for (j = 0; j < FC_TRC_SIZE_BYTES; j++) {
-				len += snprintf(fnic_dbgfs_prt->buffer + len,
+				len += scnprintf(fnic_dbgfs_prt->buffer + len,
 				(fnic_fc_trace_max_pages * PAGE_SIZE * 3)
 				- len, "%02x", fc_trace[j] & 0xff);
 			} /* for loop */
-			len += snprintf(fnic_dbgfs_prt->buffer + len,
+			len += scnprintf(fnic_dbgfs_prt->buffer + len,
 				(fnic_fc_trace_max_pages * PAGE_SIZE * 3) - len,
 				"\n");
 		}
@@ -785,63 +782,56 @@ int fnic_fc_trace_get_data(fnic_dbgfs_t *fnic_dbgfs_prt, u8 rdata_flag)
  *      @fc_trace_hdr_t: pointer to trace data
  *      @fnic_dbgfs_t: pointer to debugfs trace buffer
  *      @orig_len: pointer to len
- *      rdata_flag: 0 => Formated file, 1 => Unformated file
+ *      rdata_flag: 0 => Formatted file, 1 => Unformatted file
  * Description:
  *      This routine will format and copy the passed trace data
- *      for formated file or unformated file accordingly.
+ *      for formatted file or unformatted file accordingly.
  */
 
 void copy_and_format_trace_data(struct fc_trace_hdr *tdata,
 				fnic_dbgfs_t *fnic_dbgfs_prt, int *orig_len,
 				u8 rdata_flag)
 {
-	struct tm tm;
 	int j, i = 1, len;
-	char *fc_trace, *fmt;
 	int ethhdr_len = sizeof(struct ethhdr) - 1;
 	int fcoehdr_len = sizeof(struct fcoe_hdr);
 	int fchdr_len = sizeof(struct fc_frame_header);
 	int max_size = fnic_fc_trace_max_pages * PAGE_SIZE * 3;
+	char *fc_trace;
 
 	tdata->frame_type = tdata->frame_type & 0x7F;
 
 	len = *orig_len;
 
-	time64_to_tm(tdata->time_stamp.tv_sec, 0, &tm);
-
-	fmt = "%02d:%02d:%04ld %02d:%02d:%02d.%09lu ns%8x       %c%8x\t";
-	len += snprintf(fnic_dbgfs_prt->buffer + len,
-		max_size - len,
-		fmt,
-		tm.tm_mon + 1, tm.tm_mday, tm.tm_year + 1900,
-		tm.tm_hour, tm.tm_min, tm.tm_sec,
-		tdata->time_stamp.tv_nsec, tdata->host_no,
-		tdata->frame_type, tdata->frame_len);
+	len += scnprintf(fnic_dbgfs_prt->buffer + len, max_size - len,
+			 "%ptTs.%09lu ns%8x       %c%8x\t",
+			 &tdata->time_stamp.tv_sec, tdata->time_stamp.tv_nsec,
+			 tdata->host_no, tdata->frame_type, tdata->frame_len);
 
 	fc_trace = (char *)FC_TRACE_ADDRESS(tdata);
 
 	for (j = 0; j < min_t(u8, tdata->frame_len,
 		(u8)(FC_TRC_SIZE_BYTES - FC_TRC_HEADER_SIZE)); j++) {
 		if (tdata->frame_type == FNIC_FC_LE) {
-			len += snprintf(fnic_dbgfs_prt->buffer + len,
+			len += scnprintf(fnic_dbgfs_prt->buffer + len,
 				max_size - len, "%c", fc_trace[j]);
 		} else {
-			len += snprintf(fnic_dbgfs_prt->buffer + len,
+			len += scnprintf(fnic_dbgfs_prt->buffer + len,
 				max_size - len, "%02x", fc_trace[j] & 0xff);
-			len += snprintf(fnic_dbgfs_prt->buffer + len,
+			len += scnprintf(fnic_dbgfs_prt->buffer + len,
 				max_size - len, " ");
 			if (j == ethhdr_len ||
 				j == ethhdr_len + fcoehdr_len ||
 				j == ethhdr_len + fcoehdr_len + fchdr_len ||
 				(i > 3 && j%fchdr_len == 0)) {
-				len += snprintf(fnic_dbgfs_prt->buffer
+				len += scnprintf(fnic_dbgfs_prt->buffer
 					+ len, max_size - len,
 					"\n\t\t\t\t\t\t\t\t");
 				i++;
 			}
 		} /* end of else*/
 	} /* End of for loop*/
-	len += snprintf(fnic_dbgfs_prt->buffer + len,
+	len += scnprintf(fnic_dbgfs_prt->buffer + len,
 		max_size - len, "\n");
 	*orig_len = len;
 }

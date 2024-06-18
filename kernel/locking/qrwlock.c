@@ -12,13 +12,13 @@
 #include <linux/percpu.h>
 #include <linux/hardirq.h>
 #include <linux/spinlock.h>
-#include <asm/qrwlock.h>
+#include <trace/events/lock.h>
 
 /**
- * queued_read_lock_slowpath - acquire read lock of a queue rwlock
- * @lock: Pointer to queue rwlock structure
+ * queued_read_lock_slowpath - acquire read lock of a queued rwlock
+ * @lock: Pointer to queued rwlock structure
  */
-void queued_read_lock_slowpath(struct qrwlock *lock)
+void __lockfunc queued_read_lock_slowpath(struct qrwlock *lock)
 {
 	/*
 	 * Readers come here when they cannot get the lock without waiting
@@ -34,6 +34,8 @@ void queued_read_lock_slowpath(struct qrwlock *lock)
 		return;
 	}
 	atomic_sub(_QR_BIAS, &lock->cnts);
+
+	trace_contention_begin(lock, LCB_F_SPIN | LCB_F_READ);
 
 	/*
 	 * Put the reader into the wait queue
@@ -52,32 +54,39 @@ void queued_read_lock_slowpath(struct qrwlock *lock)
 	 * Signal the next one in queue to become queue head
 	 */
 	arch_spin_unlock(&lock->wait_lock);
+
+	trace_contention_end(lock, 0);
 }
 EXPORT_SYMBOL(queued_read_lock_slowpath);
 
 /**
- * queued_write_lock_slowpath - acquire write lock of a queue rwlock
- * @lock : Pointer to queue rwlock structure
+ * queued_write_lock_slowpath - acquire write lock of a queued rwlock
+ * @lock : Pointer to queued rwlock structure
  */
-void queued_write_lock_slowpath(struct qrwlock *lock)
+void __lockfunc queued_write_lock_slowpath(struct qrwlock *lock)
 {
+	int cnts;
+
+	trace_contention_begin(lock, LCB_F_SPIN | LCB_F_WRITE);
+
 	/* Put the writer into the wait queue */
 	arch_spin_lock(&lock->wait_lock);
 
 	/* Try to acquire the lock directly if no reader is present */
-	if (!atomic_read(&lock->cnts) &&
-	    (atomic_cmpxchg_acquire(&lock->cnts, 0, _QW_LOCKED) == 0))
+	if (!(cnts = atomic_read(&lock->cnts)) &&
+	    atomic_try_cmpxchg_acquire(&lock->cnts, &cnts, _QW_LOCKED))
 		goto unlock;
 
 	/* Set the waiting flag to notify readers that a writer is pending */
-	atomic_add(_QW_WAITING, &lock->cnts);
+	atomic_or(_QW_WAITING, &lock->cnts);
 
 	/* When no more readers or writers, set the locked flag */
 	do {
-		atomic_cond_read_acquire(&lock->cnts, VAL == _QW_WAITING);
-	} while (atomic_cmpxchg_relaxed(&lock->cnts, _QW_WAITING,
-					_QW_LOCKED) != _QW_WAITING);
+		cnts = atomic_cond_read_relaxed(&lock->cnts, VAL == _QW_WAITING);
+	} while (!atomic_try_cmpxchg_acquire(&lock->cnts, &cnts, _QW_LOCKED));
 unlock:
 	arch_spin_unlock(&lock->wait_lock);
+
+	trace_contention_end(lock, 0);
 }
 EXPORT_SYMBOL(queued_write_lock_slowpath);

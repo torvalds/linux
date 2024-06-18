@@ -14,7 +14,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 
 #include "dt_idle_states.h"
 
@@ -77,7 +76,7 @@ static int init_state_node(struct cpuidle_state *idle_state,
 	if (err)
 		desc = state_node->name;
 
-	idle_state->flags = 0;
+	idle_state->flags = CPUIDLE_FLAG_RCU_IDLE;
 	if (of_property_read_bool(state_node, "local-timer-stop"))
 		idle_state->flags |= CPUIDLE_FLAG_TIMER_STOP;
 	/*
@@ -85,8 +84,8 @@ static int init_state_node(struct cpuidle_state *idle_state,
 	 *	replace with kstrdup and pointer assignment when name
 	 *	and desc become string pointers
 	 */
-	strncpy(idle_state->name, state_node->name, CPUIDLE_NAME_LEN - 1);
-	strncpy(idle_state->desc, desc, CPUIDLE_DESC_LEN - 1);
+	strscpy(idle_state->name, state_node->name, CPUIDLE_NAME_LEN);
+	strscpy(idle_state->desc, desc, CPUIDLE_DESC_LEN);
 	return 0;
 }
 
@@ -111,8 +110,7 @@ static bool idle_state_valid(struct device_node *state_node, unsigned int idx,
 	for (cpu = cpumask_next(cpumask_first(cpumask), cpumask);
 	     cpu < nr_cpu_ids; cpu = cpumask_next(cpu, cpumask)) {
 		cpu_node = of_cpu_device_node_get(cpu);
-		curr_state_node = of_parse_phandle(cpu_node, "cpu-idle-states",
-						   idx);
+		curr_state_node = of_get_cpu_state_node(cpu_node, idx);
 		if (state_node != curr_state_node)
 			valid = false;
 
@@ -170,7 +168,7 @@ int dt_init_idle_driver(struct cpuidle_driver *drv,
 	cpu_node = of_cpu_device_node_get(cpumask_first(cpumask));
 
 	for (i = 0; ; i++) {
-		state_node = of_parse_phandle(cpu_node, "cpu-idle-states", i);
+		state_node = of_get_cpu_state_node(cpu_node, i);
 		if (!state_node)
 			break;
 
@@ -212,18 +210,15 @@ int dt_init_idle_driver(struct cpuidle_driver *drv,
 	of_node_put(cpu_node);
 	if (err)
 		return err;
-	/*
-	 * Update the driver state count only if some valid DT idle states
-	 * were detected
-	 */
-	if (i)
-		drv->state_count = state_idx;
+
+	/* Set the number of total supported idle states. */
+	drv->state_count = state_idx;
 
 	/*
 	 * Return the number of present and valid DT idle states, which can
 	 * also be 0 on platforms with missing DT idle states or legacy DT
 	 * configuration predating the DT idle states bindings.
 	 */
-	return i;
+	return state_idx - start_idx;
 }
 EXPORT_SYMBOL_GPL(dt_init_idle_driver);

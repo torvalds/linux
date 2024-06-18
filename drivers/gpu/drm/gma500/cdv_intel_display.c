@@ -10,6 +10,7 @@
 #include <linux/i2c.h>
 
 #include <drm/drm_crtc.h>
+#include <drm/drm_modeset_helper_vtables.h>
 
 #include "cdv_device.h"
 #include "framebuffer.h"
@@ -405,6 +406,8 @@ static bool cdv_intel_find_dp_pll(const struct gma_limit_t *limit,
 	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 	struct gma_clock_t clock;
 
+	memset(&clock, 0, sizeof(clock));
+
 	switch (refclk) {
 	case 27000:
 		if (target < 200000) {
@@ -453,7 +456,7 @@ static bool cdv_intel_find_dp_pll(const struct gma_limit_t *limit,
 static bool cdv_intel_pipe_enabled(struct drm_device *dev, int pipe)
 {
 	struct drm_crtc *crtc;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct gma_crtc *gma_crtc = NULL;
 
 	crtc = dev_priv->pipe_to_crtc_mapping[pipe];
@@ -487,7 +490,7 @@ void cdv_disable_sr(struct drm_device *dev)
 
 void cdv_update_wm(struct drm_device *dev, struct drm_crtc *crtc)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 
 	/* Is only one pipe enabled? */
@@ -549,7 +552,7 @@ void cdv_update_wm(struct drm_device *dev, struct drm_crtc *crtc)
 	}
 }
 
-/**
+/*
  * Return the pipe currently connected to the panel fitter,
  * or -1 if the panel fitter is not present or not in use
  */
@@ -572,7 +575,7 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 			       struct drm_framebuffer *old_fb)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 	int pipe = gma_crtc->pipe;
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
@@ -580,15 +583,16 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 	struct gma_clock_t clock;
 	u32 dpll = 0, dspcntr, pipeconf;
 	bool ok;
-	bool is_crt = false, is_lvds = false, is_tv = false;
-	bool is_hdmi = false, is_dp = false;
-	struct drm_mode_config *mode_config = &dev->mode_config;
+	bool is_lvds = false;
+	bool is_dp = false;
+	struct drm_connector_list_iter conn_iter;
 	struct drm_connector *connector;
 	const struct gma_limit_t *limit;
 	u32 ddi_select = 0;
 	bool is_edp = false;
 
-	list_for_each_entry(connector, &mode_config->connector_list, head) {
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
 		struct gma_encoder *gma_encoder =
 					gma_attached_encoder(connector);
 
@@ -601,14 +605,8 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 		case INTEL_OUTPUT_LVDS:
 			is_lvds = true;
 			break;
-		case INTEL_OUTPUT_TVOUT:
-			is_tv = true;
-			break;
 		case INTEL_OUTPUT_ANALOG:
-			is_crt = true;
-			break;
 		case INTEL_OUTPUT_HDMI:
-			is_hdmi = true;
 			break;
 		case INTEL_OUTPUT_DISPLAYPORT:
 			is_dp = true;
@@ -617,10 +615,14 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 			is_edp = true;
 			break;
 		default:
+			drm_connector_list_iter_end(&conn_iter);
 			DRM_ERROR("invalid output type.\n");
 			return 0;
 		}
+
+		break;
 	}
+	drm_connector_list_iter_end(&conn_iter);
 
 	if (dev_priv->dplla_96mhz)
 		/* low-end sku, 96/100 mhz */
@@ -661,12 +663,6 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 	}
 
 	dpll = DPLL_VGA_MODE_DIS;
-	if (is_tv) {
-		/* XXX: just matching BIOS for now */
-/*	dpll |= PLL_REF_INPUT_TVCLKINBC; */
-		dpll |= 3;
-	}
-/*		dpll |= PLL_REF_INPUT_DREFCLK; */
 
 	if (is_dp || is_edp) {
 		cdv_intel_dp_set_m_n(crtc, mode, adjusted_mode);
@@ -839,7 +835,7 @@ static void i8xx_clock(int refclk, struct gma_clock_t *clock)
 static int cdv_intel_crtc_clock_get(struct drm_device *dev,
 				struct drm_crtc *crtc)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 	int pipe = gma_crtc->pipe;
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
@@ -920,7 +916,7 @@ struct drm_display_mode *cdv_intel_crtc_mode_get(struct drm_device *dev,
 {
 	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 	int pipe = gma_crtc->pipe;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct psb_pipe *p = &dev_priv->regs.pipe[pipe];
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	struct drm_display_mode *mode;
@@ -969,14 +965,6 @@ const struct drm_crtc_helper_funcs cdv_intel_helper_funcs = {
 	.prepare = gma_crtc_prepare,
 	.commit = gma_crtc_commit,
 	.disable = gma_crtc_disable,
-};
-
-const struct drm_crtc_funcs cdv_intel_crtc_funcs = {
-	.cursor_set = gma_crtc_cursor_set,
-	.cursor_move = gma_crtc_cursor_move,
-	.gamma_set = gma_crtc_gamma_set,
-	.set_config = gma_crtc_set_config,
-	.destroy = gma_crtc_destroy,
 };
 
 const struct gma_clock_funcs cdv_clock_funcs = {

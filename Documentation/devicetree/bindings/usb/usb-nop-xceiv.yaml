@@ -1,0 +1,73 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/usb/usb-nop-xceiv.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: USB NOP PHY
+
+maintainers:
+  - Rob Herring <robh@kernel.org>
+
+properties:
+  compatible:
+    const: usb-nop-xceiv
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    const: main_clk
+
+  clock-frequency: true
+
+  '#phy-cells':
+    const: 0
+
+  vcc-supply:
+    description: phandle to the regulator that provides power to the PHY.
+
+  power-domains:
+    maxItems: 1
+
+  reset-gpios:
+    maxItems: 1
+
+  vbus-detect-gpio:
+    description: Should specify the GPIO detecting a VBus insertion
+    maxItems: 1
+
+  vbus-supply:
+    description: regulator supplying VBUS. It will be enabled and disabled
+                 dynamically in OTG mode. If the regulator is controlled by a
+                 GPIO line, this should be modeled as a regulator-fixed and
+                 referenced by this supply.
+
+  wakeup-source:
+    description:
+      Specify if the USB phy can detect the remote wakeup signal
+      while the system sleep.
+
+required:
+  - compatible
+  - '#phy-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    hsusb1_phy {
+        compatible = "usb-nop-xceiv";
+        clock-frequency = <19200000>;
+        clocks = <&osc 0>;
+        clock-names = "main_clk";
+        vcc-supply = <&hsusb1_vcc_regulator>;
+        reset-gpios = <&gpio1 7 GPIO_ACTIVE_LOW>;
+        vbus-detect-gpio = <&gpio2 13 GPIO_ACTIVE_HIGH>;
+        vbus-supply = <&vbus_regulator>;
+        #phy-cells = <0>;
+    };
+
+...

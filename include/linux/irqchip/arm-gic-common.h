@@ -7,34 +7,13 @@
 #ifndef __LINUX_IRQCHIP_ARM_GIC_COMMON_H
 #define __LINUX_IRQCHIP_ARM_GIC_COMMON_H
 
-#include <linux/types.h>
-#include <linux/ioport.h>
+#include <linux/irqchip/arm-vgic-info.h>
 
 #define GICD_INT_DEF_PRI		0xa0
 #define GICD_INT_DEF_PRI_X4		((GICD_INT_DEF_PRI << 24) |\
 					(GICD_INT_DEF_PRI << 16) |\
 					(GICD_INT_DEF_PRI << 8) |\
 					GICD_INT_DEF_PRI)
-
-enum gic_type {
-	GIC_V2,
-	GIC_V3,
-};
-
-struct gic_kvm_info {
-	/* GIC type */
-	enum gic_type	type;
-	/* Virtual CPU interface */
-	struct resource vcpu;
-	/* Interrupt number */
-	unsigned int	maint_irq;
-	/* Virtual control interface */
-	struct resource vctrl;
-	/* vlpi support */
-	bool		has_v4;
-};
-
-const struct gic_kvm_info *gic_get_kvm_info(void);
 
 struct irq_domain;
 struct fwnode_handle;

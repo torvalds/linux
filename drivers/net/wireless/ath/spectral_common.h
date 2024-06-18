@@ -37,6 +37,7 @@ enum ath_fft_sample_type {
 	ATH_FFT_SAMPLE_HT20 = 1,
 	ATH_FFT_SAMPLE_HT20_40,
 	ATH_FFT_SAMPLE_ATH10K,
+	ATH_FFT_SAMPLE_ATH11K
 };
 
 struct fft_sample_tlv {
@@ -107,7 +108,22 @@ struct fft_sample_ath10k {
 	u8 avgpwr_db;
 	u8 max_exp;
 
-	u8 data[0];
+	u8 data[];
+} __packed;
+
+struct fft_sample_ath11k {
+	struct fft_sample_tlv tlv;
+	u8 chan_width_mhz;
+	s8 max_index;
+	u8 max_exp;
+	__be16 freq1;
+	__be16 freq2;
+	__be16 max_magnitude;
+	__be16 rssi;
+	__be32 tsf;
+	__be32 noise;
+
+	u8 data[];
 } __packed;
 
 #endif /* SPECTRAL_COMMON_H */

@@ -13,14 +13,9 @@
 #endif /* CONFIG_SPARSEMEM */
 
 #ifdef CONFIG_MEMORY_HOTPLUG
-extern int create_section_mapping(unsigned long start, unsigned long end, int nid);
 extern int remove_section_mapping(unsigned long start, unsigned long end);
-
-#ifdef CONFIG_PPC_BOOK3S_64
-extern int resize_hpt_for_hotplug(unsigned long new_mem_size);
-#else
-static inline int resize_hpt_for_hotplug(unsigned long new_mem_size) { return 0; }
-#endif
+extern int memory_add_physaddr_to_nid(u64 start);
+#define memory_add_physaddr_to_nid memory_add_physaddr_to_nid
 
 #ifdef CONFIG_NUMA
 extern int hot_add_scn_to_nid(unsigned long scn_addr);
@@ -31,6 +26,5 @@ static inline int hot_add_scn_to_nid(unsigned long scn_addr)
 }
 #endif /* CONFIG_NUMA */
 #endif /* CONFIG_MEMORY_HOTPLUG */
-
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_SPARSEMEM_H */

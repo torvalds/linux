@@ -21,9 +21,6 @@
 #define pgd_none(pgd)		(0)
 #define pgd_bad(pgd)		(0)
 #define pgd_clear(pgdp)
-#define kern_addr_valid(addr)	(1)
-#define	pmd_offset(a, b)	((void *)0)
-/* FIXME */
 /*
  * PMD_SHIFT determines the size of the area a second-level page table can map
  * PGDIR_SHIFT determines what a third-level page table entry can map
@@ -42,20 +39,8 @@
 
 #define swapper_pg_dir ((pgd_t *) 0)
 
-#define __swp_type(x)		(0)
-#define __swp_offset(x)		(0)
-#define __swp_entry(typ,off)	((swp_entry_t) { ((typ) | ((off) << 7)) })
-#define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })
-#define __swp_entry_to_pte(x)	((pte_t) { (x).val })
-
 
 typedef pte_t *pte_addr_t;
-
-/*
- * ZERO_PAGE is a global shared page that is always zero: used
- * for zero-mapped memory areas etc..
- */
-#define ZERO_PAGE(vaddr)	(virt_to_page(0))
 
 /*
  * Mark the prot value as uncacheable and unbufferable.
@@ -78,8 +63,6 @@ extern unsigned int kobjsize(const void *objp);
 #define	VMALLOC_END	0xffffffffUL
 
 #define FIRST_USER_ADDRESS      0UL
-
-#include <asm-generic/pgtable.h>
 
 #else 
 

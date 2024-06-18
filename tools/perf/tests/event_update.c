@@ -21,7 +21,7 @@ static int process_event_unit(struct perf_tool *tool __maybe_unused,
 
 	TEST_ASSERT_VAL("wrong id", ev->id == 123);
 	TEST_ASSERT_VAL("wrong id", ev->type == PERF_EVENT_UPDATE__UNIT);
-	TEST_ASSERT_VAL("wrong unit", !strcmp(ev->data, "KRAVA"));
+	TEST_ASSERT_VAL("wrong unit", !strcmp(ev->unit, "KRAVA"));
 	return 0;
 }
 
@@ -31,13 +31,10 @@ static int process_event_scale(struct perf_tool *tool __maybe_unused,
 			       struct machine *machine __maybe_unused)
 {
 	struct perf_record_event_update *ev = (struct perf_record_event_update *)event;
-	struct perf_record_event_update_scale *ev_data;
-
-	ev_data = (struct perf_record_event_update_scale *)ev->data;
 
 	TEST_ASSERT_VAL("wrong id", ev->id == 123);
 	TEST_ASSERT_VAL("wrong id", ev->type == PERF_EVENT_UPDATE__SCALE);
-	TEST_ASSERT_VAL("wrong scale", ev_data->scale == 0.123);
+	TEST_ASSERT_VAL("wrong scale", ev->scale.scale == 0.123);
 	return 0;
 }
 
@@ -56,7 +53,7 @@ static int process_event_name(struct perf_tool *tool,
 
 	TEST_ASSERT_VAL("wrong id", ev->id == 123);
 	TEST_ASSERT_VAL("wrong id", ev->type == PERF_EVENT_UPDATE__NAME);
-	TEST_ASSERT_VAL("wrong name", !strcmp(ev->data, tmp->name));
+	TEST_ASSERT_VAL("wrong name", !strcmp(ev->name, tmp->name));
 	return 0;
 }
 
@@ -66,30 +63,26 @@ static int process_event_cpus(struct perf_tool *tool __maybe_unused,
 			      struct machine *machine __maybe_unused)
 {
 	struct perf_record_event_update *ev = (struct perf_record_event_update *)event;
-	struct perf_record_event_update_cpus *ev_data;
 	struct perf_cpu_map *map;
 
-	ev_data = (struct perf_record_event_update_cpus *) ev->data;
-
-	map = cpu_map__new_data(&ev_data->cpus);
+	map = cpu_map__new_data(&ev->cpus.cpus);
 
 	TEST_ASSERT_VAL("wrong id", ev->id == 123);
 	TEST_ASSERT_VAL("wrong type", ev->type == PERF_EVENT_UPDATE__CPUS);
-	TEST_ASSERT_VAL("wrong cpus", map->nr == 3);
-	TEST_ASSERT_VAL("wrong cpus", map->map[0] == 1);
-	TEST_ASSERT_VAL("wrong cpus", map->map[1] == 2);
-	TEST_ASSERT_VAL("wrong cpus", map->map[2] == 3);
+	TEST_ASSERT_VAL("wrong cpus", perf_cpu_map__nr(map) == 3);
+	TEST_ASSERT_VAL("wrong cpus", perf_cpu_map__cpu(map, 0).cpu == 1);
+	TEST_ASSERT_VAL("wrong cpus", perf_cpu_map__cpu(map, 1).cpu == 2);
+	TEST_ASSERT_VAL("wrong cpus", perf_cpu_map__cpu(map, 2).cpu == 3);
 	perf_cpu_map__put(map);
 	return 0;
 }
 
-int test__event_update(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__event_update(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
-	struct evlist *evlist;
 	struct evsel *evsel;
 	struct event_name tmp;
+	struct evlist *evlist = evlist__new_default();
 
-	evlist = perf_evlist__new_default();
 	TEST_ASSERT_VAL("failed to get evlist", evlist);
 
 	evsel = evlist__first(evlist);
@@ -99,6 +92,7 @@ int test__event_update(struct test *test __maybe_unused, int subtest __maybe_unu
 
 	perf_evlist__id_add(&evlist->core, &evsel->core, 0, 0, 123);
 
+	free((char *)evsel->unit);
 	evsel->unit = strdup("KRAVA");
 
 	TEST_ASSERT_VAL("failed to synthesize attr update unit",
@@ -109,7 +103,7 @@ int test__event_update(struct test *test __maybe_unused, int subtest __maybe_unu
 	TEST_ASSERT_VAL("failed to synthesize attr update scale",
 			!perf_event__synthesize_event_update_scale(NULL, evsel, process_event_scale));
 
-	tmp.name = perf_evsel__name(evsel);
+	tmp.name = evsel__name(evsel);
 
 	TEST_ASSERT_VAL("failed to synthesize attr update name",
 			!perf_event__synthesize_event_update_name(&tmp.tool, evsel, process_event_name));
@@ -119,6 +113,8 @@ int test__event_update(struct test *test __maybe_unused, int subtest __maybe_unu
 	TEST_ASSERT_VAL("failed to synthesize attr update cpus",
 			!perf_event__synthesize_event_update_cpus(&tmp.tool, evsel, process_event_cpus));
 
-	perf_cpu_map__put(evsel->core.own_cpus);
+	evlist__delete(evlist);
 	return 0;
 }
+
+DEFINE_SUITE("Synthesize attr update", event_update);

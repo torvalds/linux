@@ -5,7 +5,9 @@
 
 #include <linux/clk-provider.h>
 #include <linux/io.h>
-#include <linux/of_address.h>
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 
 #include "ccu_common.h"
 #include "ccu_reset.h"
@@ -322,6 +324,7 @@ static struct clk_div_table ths_div_table[] = {
 	{ .val = 1, .div = 2 },
 	{ .val = 2, .div = 4 },
 	{ .val = 3, .div = 6 },
+	{ /* Sentinel */ },
 };
 static SUNXI_CCU_DIV_TABLE_WITH_GATE(ths_clk, "ths", "osc24M",
 				     0x074, 0, 2, ths_div_table, BIT(31), 0);
@@ -431,8 +434,13 @@ static SUNXI_CCU_GATE(usb_ohci2_clk,	"usb-ohci2",	"osc24M",
 static SUNXI_CCU_GATE(usb_ohci3_clk,	"usb-ohci3",	"osc24M",
 		      0x0cc, BIT(19), 0);
 
-static const char * const dram_parents[] = { "pll-ddr", "pll-periph0-2x" };
-static SUNXI_CCU_M_WITH_MUX(dram_clk, "dram", dram_parents,
+/* H3 has broken MDFS hardware, so the mux/divider cannot be changed. */
+static CLK_FIXED_FACTOR_HW(h3_dram_clk, "dram",
+			   &pll_ddr_clk.common.hw,
+			   1, 1, CLK_SET_RATE_PARENT | CLK_IS_CRITICAL);
+
+static const char * const h5_dram_parents[] = { "pll-ddr", "pll-periph0-2x" };
+static SUNXI_CCU_M_WITH_MUX(h5_dram_clk, "dram", h5_dram_parents,
 			    0x0f4, 0, 4, 20, 2, CLK_IS_CRITICAL);
 
 static SUNXI_CCU_GATE(dram_ve_clk,	"dram-ve",	"dram",
@@ -559,6 +567,7 @@ static struct ccu_common *sun8i_h3_ccu_clks[] = {
 	&bus_uart2_clk.common,
 	&bus_uart3_clk.common,
 	&bus_scr0_clk.common,
+	&bus_scr1_clk.common,
 	&bus_ephy_clk.common,
 	&bus_dbg_clk.common,
 	&ths_clk.common,
@@ -588,115 +597,7 @@ static struct ccu_common *sun8i_h3_ccu_clks[] = {
 	&usb_ohci1_clk.common,
 	&usb_ohci2_clk.common,
 	&usb_ohci3_clk.common,
-	&dram_clk.common,
-	&dram_ve_clk.common,
-	&dram_csi_clk.common,
-	&dram_deinterlace_clk.common,
-	&dram_ts_clk.common,
-	&de_clk.common,
-	&tcon_clk.common,
-	&tve_clk.common,
-	&deinterlace_clk.common,
-	&csi_misc_clk.common,
-	&csi_sclk_clk.common,
-	&csi_mclk_clk.common,
-	&ve_clk.common,
-	&ac_dig_clk.common,
-	&avs_clk.common,
-	&hdmi_clk.common,
-	&hdmi_ddc_clk.common,
-	&mbus_clk.common,
-	&gpu_clk.common,
-};
-
-static struct ccu_common *sun50i_h5_ccu_clks[] = {
-	&pll_cpux_clk.common,
-	&pll_audio_base_clk.common,
-	&pll_video_clk.common,
-	&pll_ve_clk.common,
-	&pll_ddr_clk.common,
-	&pll_periph0_clk.common,
-	&pll_gpu_clk.common,
-	&pll_periph1_clk.common,
-	&pll_de_clk.common,
-	&cpux_clk.common,
-	&axi_clk.common,
-	&ahb1_clk.common,
-	&apb1_clk.common,
-	&apb2_clk.common,
-	&ahb2_clk.common,
-	&bus_ce_clk.common,
-	&bus_dma_clk.common,
-	&bus_mmc0_clk.common,
-	&bus_mmc1_clk.common,
-	&bus_mmc2_clk.common,
-	&bus_nand_clk.common,
-	&bus_dram_clk.common,
-	&bus_emac_clk.common,
-	&bus_ts_clk.common,
-	&bus_hstimer_clk.common,
-	&bus_spi0_clk.common,
-	&bus_spi1_clk.common,
-	&bus_otg_clk.common,
-	&bus_ehci0_clk.common,
-	&bus_ehci1_clk.common,
-	&bus_ehci2_clk.common,
-	&bus_ehci3_clk.common,
-	&bus_ohci0_clk.common,
-	&bus_ohci1_clk.common,
-	&bus_ohci2_clk.common,
-	&bus_ohci3_clk.common,
-	&bus_ve_clk.common,
-	&bus_tcon0_clk.common,
-	&bus_tcon1_clk.common,
-	&bus_deinterlace_clk.common,
-	&bus_csi_clk.common,
-	&bus_tve_clk.common,
-	&bus_hdmi_clk.common,
-	&bus_de_clk.common,
-	&bus_gpu_clk.common,
-	&bus_msgbox_clk.common,
-	&bus_spinlock_clk.common,
-	&bus_codec_clk.common,
-	&bus_spdif_clk.common,
-	&bus_pio_clk.common,
-	&bus_ths_clk.common,
-	&bus_i2s0_clk.common,
-	&bus_i2s1_clk.common,
-	&bus_i2s2_clk.common,
-	&bus_i2c0_clk.common,
-	&bus_i2c1_clk.common,
-	&bus_i2c2_clk.common,
-	&bus_uart0_clk.common,
-	&bus_uart1_clk.common,
-	&bus_uart2_clk.common,
-	&bus_uart3_clk.common,
-	&bus_scr0_clk.common,
-	&bus_scr1_clk.common,
-	&bus_ephy_clk.common,
-	&bus_dbg_clk.common,
-	&ths_clk.common,
-	&nand_clk.common,
-	&mmc0_clk.common,
-	&mmc1_clk.common,
-	&mmc2_clk.common,
-	&ts_clk.common,
-	&ce_clk.common,
-	&spi0_clk.common,
-	&spi1_clk.common,
-	&i2s0_clk.common,
-	&i2s1_clk.common,
-	&i2s2_clk.common,
-	&spdif_clk.common,
-	&usb_phy0_clk.common,
-	&usb_phy1_clk.common,
-	&usb_phy2_clk.common,
-	&usb_phy3_clk.common,
-	&usb_ohci0_clk.common,
-	&usb_ohci1_clk.common,
-	&usb_ohci2_clk.common,
-	&usb_ohci3_clk.common,
-	&dram_clk.common,
+	&h5_dram_clk.common,
 	&dram_ve_clk.common,
 	&dram_csi_clk.common,
 	&dram_deinterlace_clk.common,
@@ -836,7 +737,7 @@ static struct clk_hw_onecell_data sun8i_h3_hw_clks = {
 		[CLK_USB_OHCI1]		= &usb_ohci1_clk.common.hw,
 		[CLK_USB_OHCI2]		= &usb_ohci2_clk.common.hw,
 		[CLK_USB_OHCI3]		= &usb_ohci3_clk.common.hw,
-		[CLK_DRAM]		= &dram_clk.common.hw,
+		[CLK_DRAM]		= &h3_dram_clk.hw,
 		[CLK_DRAM_VE]		= &dram_ve_clk.common.hw,
 		[CLK_DRAM_CSI]		= &dram_csi_clk.common.hw,
 		[CLK_DRAM_DEINTERLACE]	= &dram_deinterlace_clk.common.hw,
@@ -952,7 +853,7 @@ static struct clk_hw_onecell_data sun50i_h5_hw_clks = {
 		[CLK_USB_OHCI1]		= &usb_ohci1_clk.common.hw,
 		[CLK_USB_OHCI2]		= &usb_ohci2_clk.common.hw,
 		[CLK_USB_OHCI3]		= &usb_ohci3_clk.common.hw,
-		[CLK_DRAM]		= &dram_clk.common.hw,
+		[CLK_DRAM]		= &h5_dram_clk.common.hw,
 		[CLK_DRAM_VE]		= &dram_ve_clk.common.hw,
 		[CLK_DRAM_CSI]		= &dram_csi_clk.common.hw,
 		[CLK_DRAM_DEINTERLACE]	= &dram_deinterlace_clk.common.hw,
@@ -1113,8 +1014,8 @@ static const struct sunxi_ccu_desc sun8i_h3_ccu_desc = {
 };
 
 static const struct sunxi_ccu_desc sun50i_h5_ccu_desc = {
-	.ccu_clks	= sun50i_h5_ccu_clks,
-	.num_ccu_clks	= ARRAY_SIZE(sun50i_h5_ccu_clks),
+	.ccu_clks	= sun8i_h3_ccu_clks,
+	.num_ccu_clks	= ARRAY_SIZE(sun8i_h3_ccu_clks),
 
 	.hw_clks	= &sun50i_h5_hw_clks,
 
@@ -1136,24 +1037,29 @@ static struct ccu_mux_nb sun8i_h3_cpu_nb = {
 	.bypass_index	= 1, /* index of 24 MHz oscillator */
 };
 
-static void __init sunxi_h3_h5_ccu_init(struct device_node *node,
-					const struct sunxi_ccu_desc *desc)
+static int sun8i_h3_ccu_probe(struct platform_device *pdev)
 {
+	const struct sunxi_ccu_desc *desc;
 	void __iomem *reg;
+	int ret;
 	u32 val;
 
-	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
-	if (IS_ERR(reg)) {
-		pr_err("%pOF: Could not map the clock registers\n", node);
-		return;
-	}
+	desc = of_device_get_match_data(&pdev->dev);
+	if (!desc)
+		return -EINVAL;
+
+	reg = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(reg))
+		return PTR_ERR(reg);
 
 	/* Force the PLL-Audio-1x divider to 1 */
 	val = readl(reg + SUN8I_H3_PLL_AUDIO_REG);
 	val &= ~GENMASK(19, 16);
 	writel(val | (0 << 16), reg + SUN8I_H3_PLL_AUDIO_REG);
 
-	sunxi_ccu_probe(node, reg, desc);
+	ret = devm_sunxi_ccu_probe(&pdev->dev, reg, desc);
+	if (ret)
+		return ret;
 
 	/* Gate then ungate PLL CPU after any rate changes */
 	ccu_pll_notifier_register(&sun8i_h3_pll_cpu_nb);
@@ -1161,18 +1067,32 @@ static void __init sunxi_h3_h5_ccu_init(struct device_node *node,
 	/* Reparent CPU during PLL CPU rate changes */
 	ccu_mux_notifier_register(pll_cpux_clk.common.hw.clk,
 				  &sun8i_h3_cpu_nb);
+
+	return 0;
 }
 
-static void __init sun8i_h3_ccu_setup(struct device_node *node)
-{
-	sunxi_h3_h5_ccu_init(node, &sun8i_h3_ccu_desc);
-}
-CLK_OF_DECLARE(sun8i_h3_ccu, "allwinner,sun8i-h3-ccu",
-	       sun8i_h3_ccu_setup);
+static const struct of_device_id sun8i_h3_ccu_ids[] = {
+	{
+		.compatible = "allwinner,sun8i-h3-ccu",
+		.data = &sun8i_h3_ccu_desc,
+	},
+	{
+		.compatible = "allwinner,sun50i-h5-ccu",
+		.data = &sun50i_h5_ccu_desc,
+	},
+	{ }
+};
+MODULE_DEVICE_TABLE(of, sun8i_h3_ccu_ids);
 
-static void __init sun50i_h5_ccu_setup(struct device_node *node)
-{
-	sunxi_h3_h5_ccu_init(node, &sun50i_h5_ccu_desc);
-}
-CLK_OF_DECLARE(sun50i_h5_ccu, "allwinner,sun50i-h5-ccu",
-	       sun50i_h5_ccu_setup);
+static struct platform_driver sun8i_h3_ccu_driver = {
+	.probe	= sun8i_h3_ccu_probe,
+	.driver	= {
+		.name			= "sun8i-h3-ccu",
+		.suppress_bind_attrs	= true,
+		.of_match_table		= sun8i_h3_ccu_ids,
+	},
+};
+module_platform_driver(sun8i_h3_ccu_driver);
+
+MODULE_IMPORT_NS(SUNXI_CCU);
+MODULE_LICENSE("GPL");

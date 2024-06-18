@@ -181,7 +181,7 @@ static int db8500_regulator_switch_disable(struct regulator_dev *rdev)
 		goto out;
 	}
 
-	info->is_enabled = 0;
+	info->is_enabled = false;
 out:
 	return ret;
 }
@@ -469,19 +469,18 @@ static int db8500_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int db8500_regulator_remove(struct platform_device *pdev)
+static void db8500_regulator_remove(struct platform_device *pdev)
 {
 	ux500_regulator_debug_exit();
-
-	return 0;
 }
 
 static struct platform_driver db8500_regulator_driver = {
 	.driver = {
 		.name = "db8500-prcmu-regulators",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = db8500_regulator_probe,
-	.remove = db8500_regulator_remove,
+	.remove_new = db8500_regulator_remove,
 };
 
 static int __init db8500_regulator_init(void)

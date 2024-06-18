@@ -2,7 +2,7 @@
 /*
  * TI DaVinci CPUFreq platform support.
  *
- * Copyright (C) 2009 Texas Instruments, Inc. http://www.ti.com/
+ * Copyright (C) 2009 Texas Instruments, Inc. https://www.ti.com/
  */
 
 #ifndef _MACH_DAVINCI_CPUFREQ_H
@@ -15,5 +15,11 @@ struct davinci_cpufreq_config {
 	int (*set_voltage)(unsigned int index);
 	int (*init)(void);
 };
+
+#ifdef CONFIG_CPU_FREQ
+int davinci_cpufreq_init(void);
+#else
+static inline int davinci_cpufreq_init(void) { return 0; }
+#endif
 
 #endif /* _MACH_DAVINCI_CPUFREQ_H */

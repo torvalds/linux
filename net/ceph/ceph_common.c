@@ -11,7 +11,7 @@
 #include <linux/module.h>
 #include <linux/mount.h>
 #include <linux/nsproxy.h>
-#include <linux/parser.h>
+#include <linux/fs_parser.h>
 #include <linux/sched.h>
 #include <linux/sched/mm.h>
 #include <linux/seq_file.h>
@@ -176,6 +176,10 @@ int ceph_compare_options(struct ceph_options *new_opt,
 		}
 	}
 
+	ret = ceph_compare_crush_locs(&opt1->crush_locs, &opt2->crush_locs);
+	if (ret)
+		return ret;
+
 	/* any matching mon ip implies a match */
 	for (i = 0; i < opt1->num_mon; i++) {
 		if (ceph_monmap_contains(client->monc.monmap,
@@ -186,42 +190,14 @@ int ceph_compare_options(struct ceph_options *new_opt,
 }
 EXPORT_SYMBOL(ceph_compare_options);
 
-/*
- * kvmalloc() doesn't fall back to the vmalloc allocator unless flags are
- * compatible with (a superset of) GFP_KERNEL.  This is because while the
- * actual pages are allocated with the specified flags, the page table pages
- * are always allocated with GFP_KERNEL.  map_vm_area() doesn't even take
- * flags because GFP_KERNEL is hard-coded in {p4d,pud,pmd,pte}_alloc().
- *
- * ceph_kvmalloc() may be called with GFP_KERNEL, GFP_NOFS or GFP_NOIO.
- */
-void *ceph_kvmalloc(size_t size, gfp_t flags)
-{
-	void *p;
-
-	if ((flags & (__GFP_IO | __GFP_FS)) == (__GFP_IO | __GFP_FS)) {
-		p = kvmalloc(size, flags);
-	} else if ((flags & (__GFP_IO | __GFP_FS)) == __GFP_IO) {
-		unsigned int nofs_flag = memalloc_nofs_save();
-		p = kvmalloc(size, GFP_KERNEL);
-		memalloc_nofs_restore(nofs_flag);
-	} else {
-		unsigned int noio_flag = memalloc_noio_save();
-		p = kvmalloc(size, GFP_KERNEL);
-		memalloc_noio_restore(noio_flag);
-	}
-
-	return p;
-}
-
-static int parse_fsid(const char *str, struct ceph_fsid *fsid)
+int ceph_parse_fsid(const char *str, struct ceph_fsid *fsid)
 {
 	int i = 0;
 	char tmp[3];
 	int err = -EINVAL;
 	int d;
 
-	dout("parse_fsid '%s'\n", str);
+	dout("%s '%s'\n", __func__, str);
 	tmp[2] = 0;
 	while (*str && i < 16) {
 		if (ispunct(*str)) {
@@ -241,71 +217,129 @@ static int parse_fsid(const char *str, struct ceph_fsid *fsid)
 
 	if (i == 16)
 		err = 0;
-	dout("parse_fsid ret %d got fsid %pU\n", err, fsid);
+	dout("%s ret %d got fsid %pU\n", __func__, err, fsid);
 	return err;
 }
+EXPORT_SYMBOL(ceph_parse_fsid);
 
 /*
  * ceph options
  */
 enum {
-	Opt_osdtimeout,
 	Opt_osdkeepalivetimeout,
 	Opt_mount_timeout,
 	Opt_osd_idle_ttl,
 	Opt_osd_request_timeout,
-	Opt_last_int,
 	/* int args above */
 	Opt_fsid,
 	Opt_name,
 	Opt_secret,
 	Opt_key,
 	Opt_ip,
-	Opt_last_string,
+	Opt_crush_location,
+	Opt_read_from_replica,
+	Opt_ms_mode,
 	/* string args above */
 	Opt_share,
-	Opt_noshare,
 	Opt_crc,
-	Opt_nocrc,
 	Opt_cephx_require_signatures,
-	Opt_nocephx_require_signatures,
 	Opt_cephx_sign_messages,
-	Opt_nocephx_sign_messages,
 	Opt_tcp_nodelay,
-	Opt_notcp_nodelay,
 	Opt_abort_on_full,
+	Opt_rxbounce,
 };
 
-static match_table_t opt_tokens = {
-	{Opt_osdtimeout, "osdtimeout=%d"},
-	{Opt_osdkeepalivetimeout, "osdkeepalive=%d"},
-	{Opt_mount_timeout, "mount_timeout=%d"},
-	{Opt_osd_idle_ttl, "osd_idle_ttl=%d"},
-	{Opt_osd_request_timeout, "osd_request_timeout=%d"},
-	/* int args above */
-	{Opt_fsid, "fsid=%s"},
-	{Opt_name, "name=%s"},
-	{Opt_secret, "secret=%s"},
-	{Opt_key, "key=%s"},
-	{Opt_ip, "ip=%s"},
-	/* string args above */
-	{Opt_share, "share"},
-	{Opt_noshare, "noshare"},
-	{Opt_crc, "crc"},
-	{Opt_nocrc, "nocrc"},
-	{Opt_cephx_require_signatures, "cephx_require_signatures"},
-	{Opt_nocephx_require_signatures, "nocephx_require_signatures"},
-	{Opt_cephx_sign_messages, "cephx_sign_messages"},
-	{Opt_nocephx_sign_messages, "nocephx_sign_messages"},
-	{Opt_tcp_nodelay, "tcp_nodelay"},
-	{Opt_notcp_nodelay, "notcp_nodelay"},
-	{Opt_abort_on_full, "abort_on_full"},
-	{-1, NULL}
+enum {
+	Opt_read_from_replica_no,
+	Opt_read_from_replica_balance,
+	Opt_read_from_replica_localize,
 };
+
+static const struct constant_table ceph_param_read_from_replica[] = {
+	{"no",		Opt_read_from_replica_no},
+	{"balance",	Opt_read_from_replica_balance},
+	{"localize",	Opt_read_from_replica_localize},
+	{}
+};
+
+enum ceph_ms_mode {
+	Opt_ms_mode_legacy,
+	Opt_ms_mode_crc,
+	Opt_ms_mode_secure,
+	Opt_ms_mode_prefer_crc,
+	Opt_ms_mode_prefer_secure
+};
+
+static const struct constant_table ceph_param_ms_mode[] = {
+	{"legacy",		Opt_ms_mode_legacy},
+	{"crc",			Opt_ms_mode_crc},
+	{"secure",		Opt_ms_mode_secure},
+	{"prefer-crc",		Opt_ms_mode_prefer_crc},
+	{"prefer-secure",	Opt_ms_mode_prefer_secure},
+	{}
+};
+
+static const struct fs_parameter_spec ceph_parameters[] = {
+	fsparam_flag	("abort_on_full",		Opt_abort_on_full),
+	__fsparam	(NULL, "cephx_require_signatures", Opt_cephx_require_signatures,
+			 fs_param_neg_with_no|fs_param_deprecated, NULL),
+	fsparam_flag_no ("cephx_sign_messages",		Opt_cephx_sign_messages),
+	fsparam_flag_no ("crc",				Opt_crc),
+	fsparam_string	("crush_location",		Opt_crush_location),
+	fsparam_string	("fsid",			Opt_fsid),
+	fsparam_string	("ip",				Opt_ip),
+	fsparam_string	("key",				Opt_key),
+	fsparam_u32	("mount_timeout",		Opt_mount_timeout),
+	fsparam_string	("name",			Opt_name),
+	fsparam_u32	("osd_idle_ttl",		Opt_osd_idle_ttl),
+	fsparam_u32	("osd_request_timeout",		Opt_osd_request_timeout),
+	fsparam_u32	("osdkeepalive",		Opt_osdkeepalivetimeout),
+	fsparam_enum	("read_from_replica",		Opt_read_from_replica,
+			 ceph_param_read_from_replica),
+	fsparam_flag	("rxbounce",			Opt_rxbounce),
+	fsparam_enum	("ms_mode",			Opt_ms_mode,
+			 ceph_param_ms_mode),
+	fsparam_string	("secret",			Opt_secret),
+	fsparam_flag_no ("share",			Opt_share),
+	fsparam_flag_no ("tcp_nodelay",			Opt_tcp_nodelay),
+	{}
+};
+
+struct ceph_options *ceph_alloc_options(void)
+{
+	struct ceph_options *opt;
+
+	opt = kzalloc(sizeof(*opt), GFP_KERNEL);
+	if (!opt)
+		return NULL;
+
+	opt->crush_locs = RB_ROOT;
+	opt->mon_addr = kcalloc(CEPH_MAX_MON, sizeof(*opt->mon_addr),
+				GFP_KERNEL);
+	if (!opt->mon_addr) {
+		kfree(opt);
+		return NULL;
+	}
+
+	opt->flags = CEPH_OPT_DEFAULT;
+	opt->osd_keepalive_timeout = CEPH_OSD_KEEPALIVE_DEFAULT;
+	opt->mount_timeout = CEPH_MOUNT_TIMEOUT_DEFAULT;
+	opt->osd_idle_ttl = CEPH_OSD_IDLE_TTL_DEFAULT;
+	opt->osd_request_timeout = CEPH_OSD_REQUEST_TIMEOUT_DEFAULT;
+	opt->read_from_replica = CEPH_READ_FROM_REPLICA_DEFAULT;
+	opt->con_modes[0] = CEPH_CON_MODE_UNKNOWN;
+	opt->con_modes[1] = CEPH_CON_MODE_UNKNOWN;
+	return opt;
+}
+EXPORT_SYMBOL(ceph_alloc_options);
 
 void ceph_destroy_options(struct ceph_options *opt)
 {
 	dout("destroy_options %p\n", opt);
+	if (!opt)
+		return;
+
+	ceph_clear_crush_locs(&opt->crush_locs);
 	kfree(opt->name);
 	if (opt->key) {
 		ceph_crypto_key_destroy(opt->key);
@@ -317,7 +351,9 @@ void ceph_destroy_options(struct ceph_options *opt)
 EXPORT_SYMBOL(ceph_destroy_options);
 
 /* get secret from key store */
-static int get_secret(struct ceph_crypto_key *dst, const char *name) {
+static int get_secret(struct ceph_crypto_key *dst, const char *name,
+		      struct p_log *log)
+{
 	struct key *ukey;
 	int key_err;
 	int err = 0;
@@ -330,20 +366,20 @@ static int get_secret(struct ceph_crypto_key *dst, const char *name) {
 		key_err = PTR_ERR(ukey);
 		switch (key_err) {
 		case -ENOKEY:
-			pr_warn("ceph: Mount failed due to key not found: %s\n",
-				name);
+			error_plog(log, "Failed due to key not found: %s",
+			       name);
 			break;
 		case -EKEYEXPIRED:
-			pr_warn("ceph: Mount failed due to expired key: %s\n",
-				name);
+			error_plog(log, "Failed due to expired key: %s",
+			       name);
 			break;
 		case -EKEYREVOKED:
-			pr_warn("ceph: Mount failed due to revoked key: %s\n",
-				name);
+			error_plog(log, "Failed due to revoked key: %s",
+			       name);
 			break;
 		default:
-			pr_warn("ceph: Mount failed due to unknown key error %d: %s\n",
-				key_err, name);
+			error_plog(log, "Failed due to key error %d: %s",
+			       key_err, name);
 		}
 		err = -EPERM;
 		goto out;
@@ -361,223 +397,216 @@ out:
 	return err;
 }
 
-struct ceph_options *
-ceph_parse_options(char *options, const char *dev_name,
-			const char *dev_name_end,
-			int (*parse_extra_token)(char *c, void *private),
-			void *private)
+int ceph_parse_mon_ips(const char *buf, size_t len, struct ceph_options *opt,
+		       struct fc_log *l, char delim)
 {
-	struct ceph_options *opt;
-	const char *c;
-	int err = -ENOMEM;
-	substring_t argstr[MAX_OPT_ARGS];
+	struct p_log log = {.prefix = "libceph", .log = l};
+	int ret;
 
-	opt = kzalloc(sizeof(*opt), GFP_KERNEL);
-	if (!opt)
-		return ERR_PTR(-ENOMEM);
-	opt->mon_addr = kcalloc(CEPH_MAX_MON, sizeof(*opt->mon_addr),
-				GFP_KERNEL);
-	if (!opt->mon_addr)
-		goto out;
-
-	dout("parse_options %p options '%s' dev_name '%s'\n", opt, options,
-	     dev_name);
-
-	/* start with defaults */
-	opt->flags = CEPH_OPT_DEFAULT;
-	opt->osd_keepalive_timeout = CEPH_OSD_KEEPALIVE_DEFAULT;
-	opt->mount_timeout = CEPH_MOUNT_TIMEOUT_DEFAULT;
-	opt->osd_idle_ttl = CEPH_OSD_IDLE_TTL_DEFAULT;
-	opt->osd_request_timeout = CEPH_OSD_REQUEST_TIMEOUT_DEFAULT;
-
-	/* get mon ip(s) */
-	/* ip1[:port1][,ip2[:port2]...] */
-	err = ceph_parse_ips(dev_name, dev_name_end, opt->mon_addr,
-			     CEPH_MAX_MON, &opt->num_mon);
-	if (err < 0)
-		goto out;
-
-	/* parse mount options */
-	while ((c = strsep(&options, ",")) != NULL) {
-		int token, intval;
-		if (!*c)
-			continue;
-		err = -EINVAL;
-		token = match_token((char *)c, opt_tokens, argstr);
-		if (token < 0 && parse_extra_token) {
-			/* extra? */
-			err = parse_extra_token((char *)c, private);
-			if (err < 0) {
-				pr_err("bad option at '%s'\n", c);
-				goto out;
-			}
-			continue;
-		}
-		if (token < Opt_last_int) {
-			err = match_int(&argstr[0], &intval);
-			if (err < 0) {
-				pr_err("bad option arg (not int) at '%s'\n", c);
-				goto out;
-			}
-			dout("got int token %d val %d\n", token, intval);
-		} else if (token > Opt_last_int && token < Opt_last_string) {
-			dout("got string token %d val %s\n", token,
-			     argstr[0].from);
-		} else {
-			dout("got token %d\n", token);
-		}
-		switch (token) {
-		case Opt_ip:
-			err = ceph_parse_ips(argstr[0].from,
-					     argstr[0].to,
-					     &opt->my_addr,
-					     1, NULL);
-			if (err < 0)
-				goto out;
-			opt->flags |= CEPH_OPT_MYIP;
-			break;
-
-		case Opt_fsid:
-			err = parse_fsid(argstr[0].from, &opt->fsid);
-			if (err == 0)
-				opt->flags |= CEPH_OPT_FSID;
-			break;
-		case Opt_name:
-			kfree(opt->name);
-			opt->name = kstrndup(argstr[0].from,
-					      argstr[0].to-argstr[0].from,
-					      GFP_KERNEL);
-			if (!opt->name) {
-				err = -ENOMEM;
-				goto out;
-			}
-			break;
-		case Opt_secret:
-			ceph_crypto_key_destroy(opt->key);
-			kfree(opt->key);
-
-		        opt->key = kzalloc(sizeof(*opt->key), GFP_KERNEL);
-			if (!opt->key) {
-				err = -ENOMEM;
-				goto out;
-			}
-			err = ceph_crypto_key_unarmor(opt->key, argstr[0].from);
-			if (err < 0)
-				goto out;
-			break;
-		case Opt_key:
-			ceph_crypto_key_destroy(opt->key);
-			kfree(opt->key);
-
-		        opt->key = kzalloc(sizeof(*opt->key), GFP_KERNEL);
-			if (!opt->key) {
-				err = -ENOMEM;
-				goto out;
-			}
-			err = get_secret(opt->key, argstr[0].from);
-			if (err < 0)
-				goto out;
-			break;
-
-			/* misc */
-		case Opt_osdtimeout:
-			pr_warn("ignoring deprecated osdtimeout option\n");
-			break;
-		case Opt_osdkeepalivetimeout:
-			/* 0 isn't well defined right now, reject it */
-			if (intval < 1 || intval > INT_MAX / 1000) {
-				pr_err("osdkeepalive out of range\n");
-				err = -EINVAL;
-				goto out;
-			}
-			opt->osd_keepalive_timeout =
-					msecs_to_jiffies(intval * 1000);
-			break;
-		case Opt_osd_idle_ttl:
-			/* 0 isn't well defined right now, reject it */
-			if (intval < 1 || intval > INT_MAX / 1000) {
-				pr_err("osd_idle_ttl out of range\n");
-				err = -EINVAL;
-				goto out;
-			}
-			opt->osd_idle_ttl = msecs_to_jiffies(intval * 1000);
-			break;
-		case Opt_mount_timeout:
-			/* 0 is "wait forever" (i.e. infinite timeout) */
-			if (intval < 0 || intval > INT_MAX / 1000) {
-				pr_err("mount_timeout out of range\n");
-				err = -EINVAL;
-				goto out;
-			}
-			opt->mount_timeout = msecs_to_jiffies(intval * 1000);
-			break;
-		case Opt_osd_request_timeout:
-			/* 0 is "wait forever" (i.e. infinite timeout) */
-			if (intval < 0 || intval > INT_MAX / 1000) {
-				pr_err("osd_request_timeout out of range\n");
-				err = -EINVAL;
-				goto out;
-			}
-			opt->osd_request_timeout = msecs_to_jiffies(intval * 1000);
-			break;
-
-		case Opt_share:
-			opt->flags &= ~CEPH_OPT_NOSHARE;
-			break;
-		case Opt_noshare:
-			opt->flags |= CEPH_OPT_NOSHARE;
-			break;
-
-		case Opt_crc:
-			opt->flags &= ~CEPH_OPT_NOCRC;
-			break;
-		case Opt_nocrc:
-			opt->flags |= CEPH_OPT_NOCRC;
-			break;
-
-		case Opt_cephx_require_signatures:
-			opt->flags &= ~CEPH_OPT_NOMSGAUTH;
-			break;
-		case Opt_nocephx_require_signatures:
-			opt->flags |= CEPH_OPT_NOMSGAUTH;
-			break;
-		case Opt_cephx_sign_messages:
-			opt->flags &= ~CEPH_OPT_NOMSGSIGN;
-			break;
-		case Opt_nocephx_sign_messages:
-			opt->flags |= CEPH_OPT_NOMSGSIGN;
-			break;
-
-		case Opt_tcp_nodelay:
-			opt->flags |= CEPH_OPT_TCP_NODELAY;
-			break;
-		case Opt_notcp_nodelay:
-			opt->flags &= ~CEPH_OPT_TCP_NODELAY;
-			break;
-
-		case Opt_abort_on_full:
-			opt->flags |= CEPH_OPT_ABORT_ON_FULL;
-			break;
-
-		default:
-			BUG_ON(token);
-		}
+	/* ip1[:port1][<delim>ip2[:port2]...] */
+	ret = ceph_parse_ips(buf, buf + len, opt->mon_addr, CEPH_MAX_MON,
+			     &opt->num_mon, delim);
+	if (ret) {
+		error_plog(&log, "Failed to parse monitor IPs: %d", ret);
+		return ret;
 	}
 
-	/* success */
-	return opt;
-
-out:
-	ceph_destroy_options(opt);
-	return ERR_PTR(err);
+	return 0;
 }
-EXPORT_SYMBOL(ceph_parse_options);
+EXPORT_SYMBOL(ceph_parse_mon_ips);
+
+int ceph_parse_param(struct fs_parameter *param, struct ceph_options *opt,
+		     struct fc_log *l)
+{
+	struct fs_parse_result result;
+	int token, err;
+	struct p_log log = {.prefix = "libceph", .log = l};
+
+	token = __fs_parse(&log, ceph_parameters, param, &result);
+	dout("%s fs_parse '%s' token %d\n", __func__, param->key, token);
+	if (token < 0)
+		return token;
+
+	switch (token) {
+	case Opt_ip:
+		err = ceph_parse_ips(param->string,
+				     param->string + param->size,
+				     &opt->my_addr, 1, NULL, ',');
+		if (err) {
+			error_plog(&log, "Failed to parse ip: %d", err);
+			return err;
+		}
+		opt->flags |= CEPH_OPT_MYIP;
+		break;
+
+	case Opt_fsid:
+		err = ceph_parse_fsid(param->string, &opt->fsid);
+		if (err) {
+			error_plog(&log, "Failed to parse fsid: %d", err);
+			return err;
+		}
+		opt->flags |= CEPH_OPT_FSID;
+		break;
+	case Opt_name:
+		kfree(opt->name);
+		opt->name = param->string;
+		param->string = NULL;
+		break;
+	case Opt_secret:
+		ceph_crypto_key_destroy(opt->key);
+		kfree(opt->key);
+
+		opt->key = kzalloc(sizeof(*opt->key), GFP_KERNEL);
+		if (!opt->key)
+			return -ENOMEM;
+		err = ceph_crypto_key_unarmor(opt->key, param->string);
+		if (err) {
+			error_plog(&log, "Failed to parse secret: %d", err);
+			return err;
+		}
+		break;
+	case Opt_key:
+		ceph_crypto_key_destroy(opt->key);
+		kfree(opt->key);
+
+		opt->key = kzalloc(sizeof(*opt->key), GFP_KERNEL);
+		if (!opt->key)
+			return -ENOMEM;
+		return get_secret(opt->key, param->string, &log);
+	case Opt_crush_location:
+		ceph_clear_crush_locs(&opt->crush_locs);
+		err = ceph_parse_crush_location(param->string,
+						&opt->crush_locs);
+		if (err) {
+			error_plog(&log, "Failed to parse CRUSH location: %d",
+				   err);
+			return err;
+		}
+		break;
+	case Opt_read_from_replica:
+		switch (result.uint_32) {
+		case Opt_read_from_replica_no:
+			opt->read_from_replica = 0;
+			break;
+		case Opt_read_from_replica_balance:
+			opt->read_from_replica = CEPH_OSD_FLAG_BALANCE_READS;
+			break;
+		case Opt_read_from_replica_localize:
+			opt->read_from_replica = CEPH_OSD_FLAG_LOCALIZE_READS;
+			break;
+		default:
+			BUG();
+		}
+		break;
+	case Opt_ms_mode:
+		switch (result.uint_32) {
+		case Opt_ms_mode_legacy:
+			opt->con_modes[0] = CEPH_CON_MODE_UNKNOWN;
+			opt->con_modes[1] = CEPH_CON_MODE_UNKNOWN;
+			break;
+		case Opt_ms_mode_crc:
+			opt->con_modes[0] = CEPH_CON_MODE_CRC;
+			opt->con_modes[1] = CEPH_CON_MODE_UNKNOWN;
+			break;
+		case Opt_ms_mode_secure:
+			opt->con_modes[0] = CEPH_CON_MODE_SECURE;
+			opt->con_modes[1] = CEPH_CON_MODE_UNKNOWN;
+			break;
+		case Opt_ms_mode_prefer_crc:
+			opt->con_modes[0] = CEPH_CON_MODE_CRC;
+			opt->con_modes[1] = CEPH_CON_MODE_SECURE;
+			break;
+		case Opt_ms_mode_prefer_secure:
+			opt->con_modes[0] = CEPH_CON_MODE_SECURE;
+			opt->con_modes[1] = CEPH_CON_MODE_CRC;
+			break;
+		default:
+			BUG();
+		}
+		break;
+
+	case Opt_osdkeepalivetimeout:
+		/* 0 isn't well defined right now, reject it */
+		if (result.uint_32 < 1 || result.uint_32 > INT_MAX / 1000)
+			goto out_of_range;
+		opt->osd_keepalive_timeout =
+		    msecs_to_jiffies(result.uint_32 * 1000);
+		break;
+	case Opt_osd_idle_ttl:
+		/* 0 isn't well defined right now, reject it */
+		if (result.uint_32 < 1 || result.uint_32 > INT_MAX / 1000)
+			goto out_of_range;
+		opt->osd_idle_ttl = msecs_to_jiffies(result.uint_32 * 1000);
+		break;
+	case Opt_mount_timeout:
+		/* 0 is "wait forever" (i.e. infinite timeout) */
+		if (result.uint_32 > INT_MAX / 1000)
+			goto out_of_range;
+		opt->mount_timeout = msecs_to_jiffies(result.uint_32 * 1000);
+		break;
+	case Opt_osd_request_timeout:
+		/* 0 is "wait forever" (i.e. infinite timeout) */
+		if (result.uint_32 > INT_MAX / 1000)
+			goto out_of_range;
+		opt->osd_request_timeout =
+		    msecs_to_jiffies(result.uint_32 * 1000);
+		break;
+
+	case Opt_share:
+		if (!result.negated)
+			opt->flags &= ~CEPH_OPT_NOSHARE;
+		else
+			opt->flags |= CEPH_OPT_NOSHARE;
+		break;
+	case Opt_crc:
+		if (!result.negated)
+			opt->flags &= ~CEPH_OPT_NOCRC;
+		else
+			opt->flags |= CEPH_OPT_NOCRC;
+		break;
+	case Opt_cephx_require_signatures:
+		if (!result.negated)
+			warn_plog(&log, "Ignoring cephx_require_signatures");
+		else
+			warn_plog(&log, "Ignoring nocephx_require_signatures, use nocephx_sign_messages");
+		break;
+	case Opt_cephx_sign_messages:
+		if (!result.negated)
+			opt->flags &= ~CEPH_OPT_NOMSGSIGN;
+		else
+			opt->flags |= CEPH_OPT_NOMSGSIGN;
+		break;
+	case Opt_tcp_nodelay:
+		if (!result.negated)
+			opt->flags |= CEPH_OPT_TCP_NODELAY;
+		else
+			opt->flags &= ~CEPH_OPT_TCP_NODELAY;
+		break;
+
+	case Opt_abort_on_full:
+		opt->flags |= CEPH_OPT_ABORT_ON_FULL;
+		break;
+	case Opt_rxbounce:
+		opt->flags |= CEPH_OPT_RXBOUNCE;
+		break;
+
+	default:
+		BUG();
+	}
+
+	return 0;
+
+out_of_range:
+	return inval_plog(&log, "%s out of range", param->key);
+}
+EXPORT_SYMBOL(ceph_parse_param);
 
 int ceph_print_client_options(struct seq_file *m, struct ceph_client *client,
 			      bool show_all)
 {
 	struct ceph_options *opt = client->options;
 	size_t pos = m->count;
+	struct rb_node *n;
 
 	if (opt->name) {
 		seq_puts(m, "name=");
@@ -587,20 +616,57 @@ int ceph_print_client_options(struct seq_file *m, struct ceph_client *client,
 	if (opt->key)
 		seq_puts(m, "secret=<hidden>,");
 
+	if (!RB_EMPTY_ROOT(&opt->crush_locs)) {
+		seq_puts(m, "crush_location=");
+		for (n = rb_first(&opt->crush_locs); ; ) {
+			struct crush_loc_node *loc =
+			    rb_entry(n, struct crush_loc_node, cl_node);
+
+			seq_printf(m, "%s:%s", loc->cl_loc.cl_type_name,
+				   loc->cl_loc.cl_name);
+			n = rb_next(n);
+			if (!n)
+				break;
+
+			seq_putc(m, '|');
+		}
+		seq_putc(m, ',');
+	}
+	if (opt->read_from_replica == CEPH_OSD_FLAG_BALANCE_READS) {
+		seq_puts(m, "read_from_replica=balance,");
+	} else if (opt->read_from_replica == CEPH_OSD_FLAG_LOCALIZE_READS) {
+		seq_puts(m, "read_from_replica=localize,");
+	}
+	if (opt->con_modes[0] != CEPH_CON_MODE_UNKNOWN) {
+		if (opt->con_modes[0] == CEPH_CON_MODE_CRC &&
+		    opt->con_modes[1] == CEPH_CON_MODE_UNKNOWN) {
+			seq_puts(m, "ms_mode=crc,");
+		} else if (opt->con_modes[0] == CEPH_CON_MODE_SECURE &&
+			   opt->con_modes[1] == CEPH_CON_MODE_UNKNOWN) {
+			seq_puts(m, "ms_mode=secure,");
+		} else if (opt->con_modes[0] == CEPH_CON_MODE_CRC &&
+			   opt->con_modes[1] == CEPH_CON_MODE_SECURE) {
+			seq_puts(m, "ms_mode=prefer-crc,");
+		} else if (opt->con_modes[0] == CEPH_CON_MODE_SECURE &&
+			   opt->con_modes[1] == CEPH_CON_MODE_CRC) {
+			seq_puts(m, "ms_mode=prefer-secure,");
+		}
+	}
+
 	if (opt->flags & CEPH_OPT_FSID)
 		seq_printf(m, "fsid=%pU,", &opt->fsid);
 	if (opt->flags & CEPH_OPT_NOSHARE)
 		seq_puts(m, "noshare,");
 	if (opt->flags & CEPH_OPT_NOCRC)
 		seq_puts(m, "nocrc,");
-	if (opt->flags & CEPH_OPT_NOMSGAUTH)
-		seq_puts(m, "nocephx_require_signatures,");
 	if (opt->flags & CEPH_OPT_NOMSGSIGN)
 		seq_puts(m, "nocephx_sign_messages,");
 	if ((opt->flags & CEPH_OPT_TCP_NODELAY) == 0)
 		seq_puts(m, "notcp_nodelay,");
 	if (show_all && (opt->flags & CEPH_OPT_ABORT_ON_FULL))
 		seq_puts(m, "abort_on_full,");
+	if (opt->flags & CEPH_OPT_RXBOUNCE)
+		seq_puts(m, "rxbounce,");
 
 	if (opt->mount_timeout != CEPH_MOUNT_TIMEOUT_DEFAULT)
 		seq_printf(m, "mount_timeout=%d,",
@@ -663,7 +729,7 @@ struct ceph_client *ceph_create_client(struct ceph_options *opt, void *private)
 	client->supported_features = CEPH_FEATURES_SUPPORTED_DEFAULT;
 	client->required_features = CEPH_FEATURES_REQUIRED_DEFAULT;
 
-	if (!ceph_test_opt(client, NOMSGAUTH))
+	if (!ceph_test_opt(client, NOMSGSIGN))
 		client->required_features |= CEPH_FEATURE_MSG_AUTH;
 
 	/* msgr */

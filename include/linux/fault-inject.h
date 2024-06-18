@@ -6,6 +6,7 @@
 
 #include <linux/types.h>
 #include <linux/debugfs.h>
+#include <linux/configfs.h>
 #include <linux/ratelimit.h>
 #include <linux/atomic.h>
 
@@ -31,6 +32,10 @@ struct fault_attr {
 	struct dentry *dname;
 };
 
+enum fault_flags {
+	FAULT_NOWARN =	1 << 0,
+};
+
 #define FAULT_ATTR_INITIALIZER {					\
 		.interval = 1,						\
 		.times = ATOMIC_INIT(1),				\
@@ -43,6 +48,7 @@ struct fault_attr {
 
 #define DECLARE_FAULT_ATTR(name) struct fault_attr name = FAULT_ATTR_INITIALIZER
 int setup_fault_attr(struct fault_attr *attr, char *str);
+bool should_fail_ex(struct fault_attr *attr, ssize_t size, int flags);
 bool should_fail(struct fault_attr *attr, ssize_t size);
 
 #ifdef CONFIG_FAULT_INJECTION_DEBUG_FS
@@ -60,9 +66,41 @@ static inline struct dentry *fault_create_debugfs_attr(const char *name,
 
 #endif /* CONFIG_FAULT_INJECTION_DEBUG_FS */
 
+#ifdef CONFIG_FAULT_INJECTION_CONFIGFS
+
+struct fault_config {
+	struct fault_attr attr;
+	struct config_group group;
+};
+
+void fault_config_init(struct fault_config *config, const char *name);
+
+#else /* CONFIG_FAULT_INJECTION_CONFIGFS */
+
+struct fault_config {
+};
+
+static inline void fault_config_init(struct fault_config *config,
+			const char *name)
+{
+}
+
+#endif /* CONFIG_FAULT_INJECTION_CONFIGFS */
+
 #endif /* CONFIG_FAULT_INJECTION */
 
 struct kmem_cache;
+
+bool should_fail_alloc_page(gfp_t gfp_mask, unsigned int order);
+
+#ifdef CONFIG_FAIL_PAGE_ALLOC
+bool __should_fail_alloc_page(gfp_t gfp_mask, unsigned int order);
+#else
+static inline bool __should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
+{
+	return false;
+}
+#endif /* CONFIG_FAIL_PAGE_ALLOC */
 
 int should_failslab(struct kmem_cache *s, gfp_t gfpflags);
 #ifdef CONFIG_FAILSLAB

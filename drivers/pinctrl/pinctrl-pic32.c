@@ -11,12 +11,12 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 #include <linux/platform_device.h>
+#include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
@@ -60,8 +60,8 @@ struct pic32_desc_function {
 
 struct pic32_gpio_bank {
 	void __iomem *reg_base;
+	int instance;
 	struct gpio_chip gpio_chip;
-	struct irq_chip irq_chip;
 	struct clk *clk;
 };
 
@@ -1990,7 +1990,10 @@ static int pic32_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 {
 	struct pic32_gpio_bank *bank = gpiochip_get_data(chip);
 
-	return !!(readl(bank->reg_base + TRIS_REG) & BIT(offset));
+	if (readl(bank->reg_base + TRIS_REG) & BIT(offset))
+		return GPIO_LINE_DIRECTION_IN;
+
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static void pic32_gpio_irq_ack(struct irq_data *data)
@@ -2005,12 +2008,14 @@ static void pic32_gpio_irq_mask(struct irq_data *data)
 	struct pic32_gpio_bank *bank = irqd_to_bank(data);
 
 	writel(BIT(PIC32_CNCON_ON), bank->reg_base + PIC32_CLR(CNCON_REG));
+	gpiochip_disable_irq(&bank->gpio_chip, irqd_to_hwirq(data));
 }
 
 static void pic32_gpio_irq_unmask(struct irq_data *data)
 {
 	struct pic32_gpio_bank *bank = irqd_to_bank(data);
 
+	gpiochip_enable_irq(&bank->gpio_chip, irqd_to_hwirq(data));
 	writel(BIT(PIC32_CNCON_ON), bank->reg_base + PIC32_SET(CNCON_REG));
 }
 
@@ -2027,7 +2032,7 @@ static unsigned int pic32_gpio_irq_startup(struct irq_data *data)
 static int pic32_gpio_irq_set_type(struct irq_data *data, unsigned int type)
 {
 	struct pic32_gpio_bank *bank = irqd_to_bank(data);
-	u32 mask = BIT(data->hwirq);
+	u32 mask = irqd_to_hwirq(data);
 
 	switch (type & IRQ_TYPE_SENSE_MASK) {
 	case IRQ_TYPE_EDGE_RISING:
@@ -2098,7 +2103,7 @@ static void pic32_gpio_irq_handler(struct irq_desc *desc)
 	pending = pic32_gpio_get_pending(gc, stat);
 
 	for_each_set_bit(pin, &pending, BITS_PER_LONG)
-		generic_handle_irq(irq_linear_revmap(gc->irq.domain, pin));
+		generic_handle_domain_irq(gc->irq.domain, pin);
 
 	chained_irq_exit(chip, desc);
 }
@@ -2119,14 +2124,7 @@ static void pic32_gpio_irq_handler(struct irq_desc *desc)
 			.owner = THIS_MODULE,				\
 			.can_sleep = 0,					\
 		},							\
-		.irq_chip = {						\
-			.name = "GPIO" #_bank,				\
-			.irq_startup = pic32_gpio_irq_startup,	\
-			.irq_ack = pic32_gpio_irq_ack,		\
-			.irq_mask = pic32_gpio_irq_mask,		\
-			.irq_unmask = pic32_gpio_irq_unmask,		\
-			.irq_set_type = pic32_gpio_irq_set_type,	\
-		},							\
+		.instance = (_bank),					\
 	}
 
 static struct pic32_gpio_bank pic32_gpio_banks[] = {
@@ -2142,10 +2140,27 @@ static struct pic32_gpio_bank pic32_gpio_banks[] = {
 	GPIO_BANK(9, PINS_PER_BANK),
 };
 
+static void pic32_gpio_irq_print_chip(struct irq_data *data, struct seq_file *p)
+{
+	struct pic32_gpio_bank *bank = irqd_to_bank(data);
+
+	seq_printf(p, "GPIO%d", bank->instance);
+}
+
+static const struct irq_chip pic32_gpio_irq_chip = {
+	.irq_startup = pic32_gpio_irq_startup,
+	.irq_ack = pic32_gpio_irq_ack,
+	.irq_mask = pic32_gpio_irq_mask,
+	.irq_unmask = pic32_gpio_irq_unmask,
+	.irq_set_type = pic32_gpio_irq_set_type,
+	.irq_print_chip = pic32_gpio_irq_print_chip,
+	.flags = IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
+};
+
 static int pic32_pinctrl_probe(struct platform_device *pdev)
 {
 	struct pic32_pinctrl *pctl;
-	struct resource *res;
 	int ret;
 
 	pctl = devm_kzalloc(&pdev->dev, sizeof(*pctl), GFP_KERNEL);
@@ -2154,8 +2169,7 @@ static int pic32_pinctrl_probe(struct platform_device *pdev)
 	pctl->dev = &pdev->dev;
 	dev_set_drvdata(&pdev->dev, pctl);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pctl->reg_base = devm_ioremap_resource(&pdev->dev, res);
+	pctl->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pctl->reg_base))
 		return PTR_ERR(pctl->reg_base);
 
@@ -2202,7 +2216,7 @@ static int pic32_gpio_probe(struct platform_device *pdev)
 	struct pic32_gpio_bank *bank;
 	u32 id;
 	int irq, ret;
-	struct resource *res;
+	struct gpio_irq_chip *girq;
 
 	if (of_property_read_u32(np, "microchip,gpio-bank", &id)) {
 		dev_err(&pdev->dev, "microchip,gpio-bank property not found\n");
@@ -2216,8 +2230,7 @@ static int pic32_gpio_probe(struct platform_device *pdev)
 
 	bank = &pic32_gpio_banks[id];
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	bank->reg_base = devm_ioremap_resource(&pdev->dev, res);
+	bank->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(bank->reg_base))
 		return PTR_ERR(bank->reg_base);
 
@@ -2239,26 +2252,24 @@ static int pic32_gpio_probe(struct platform_device *pdev)
 	}
 
 	bank->gpio_chip.parent = &pdev->dev;
-	bank->gpio_chip.of_node = np;
+
+	girq = &bank->gpio_chip.irq;
+	gpio_irq_chip_set_chip(girq, &pic32_gpio_irq_chip);
+	girq->parent_handler = pic32_gpio_irq_handler;
+	girq->num_parents = 1;
+	girq->parents = devm_kcalloc(&pdev->dev, 1, sizeof(*girq->parents),
+				     GFP_KERNEL);
+	if (!girq->parents)
+		return -ENOMEM;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_level_irq;
+	girq->parents[0] = irq;
 	ret = gpiochip_add_data(&bank->gpio_chip, bank);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to add GPIO chip %u: %d\n",
 			id, ret);
 		return ret;
 	}
-
-	ret = gpiochip_irqchip_add(&bank->gpio_chip, &bank->irq_chip,
-				0, handle_level_irq, IRQ_TYPE_NONE);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to add IRQ chip %u: %d\n",
-			id, ret);
-		gpiochip_remove(&bank->gpio_chip);
-		return ret;
-	}
-
-	gpiochip_set_chained_irqchip(&bank->gpio_chip, &bank->irq_chip,
-				     irq, pic32_gpio_irq_handler);
-
 	return 0;
 }
 

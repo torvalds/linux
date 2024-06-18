@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/ak4642.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: AK4642 I2C transmitter
+
+maintainers:
+  - Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+
+allOf:
+  - $ref: dai-common.yaml#
+
+properties:
+  compatible:
+    enum:
+      - asahi-kasei,ak4642
+      - asahi-kasei,ak4643
+      - asahi-kasei,ak4648
+
+  reg:
+    maxItems: 1
+
+  "#clock-cells":
+    const: 0
+  "#sound-dai-cells":
+    const: 0
+
+  clocks:
+    maxItems: 1
+
+  clock-frequency:
+    description: common clock binding; frequency of MCKO
+
+  clock-output-names:
+    description: common clock name
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        ak4643: codec@12 {
+            compatible = "asahi-kasei,ak4643";
+            #sound-dai-cells = <0>;
+            reg = <0x12>;
+            #clock-cells = <0>;
+            clocks = <&audio_clock>;
+            clock-frequency = <12288000>;
+            clock-output-names = "ak4643_mcko";
+        };
+    };

@@ -166,7 +166,7 @@ static struct max16065_data *max16065_update_device(struct device *dev)
 			  = i2c_smbus_read_byte_data(client, MAX16065_FAULT(i));
 
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 	mutex_unlock(&data->update_lock);
 	return data;
@@ -187,7 +187,7 @@ static ssize_t max16065_alarm_show(struct device *dev,
 		i2c_smbus_write_byte_data(data->client,
 					  MAX16065_FAULT(attr2->nr), val);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", !!val);
+	return sysfs_emit(buf, "%d\n", !!val);
 }
 
 static ssize_t max16065_input_show(struct device *dev,
@@ -200,8 +200,8 @@ static ssize_t max16065_input_show(struct device *dev,
 	if (unlikely(adc < 0))
 		return adc;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n",
-			ADC_TO_MV(adc, data->range[attr->index]));
+	return sysfs_emit(buf, "%d\n",
+			  ADC_TO_MV(adc, data->range[attr->index]));
 }
 
 static ssize_t max16065_current_show(struct device *dev,
@@ -212,8 +212,8 @@ static ssize_t max16065_current_show(struct device *dev,
 	if (unlikely(data->curr_sense < 0))
 		return data->curr_sense;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n",
-			ADC_TO_CURR(data->curr_sense, data->curr_gain));
+	return sysfs_emit(buf, "%d\n",
+			  ADC_TO_CURR(data->curr_sense, data->curr_gain));
 }
 
 static ssize_t max16065_limit_store(struct device *dev,
@@ -249,8 +249,8 @@ static ssize_t max16065_limit_show(struct device *dev,
 	struct sensor_device_attribute_2 *attr2 = to_sensor_dev_attr_2(da);
 	struct max16065_data *data = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n",
-			data->limit[attr2->nr][attr2->index]);
+	return sysfs_emit(buf, "%d\n",
+			  data->limit[attr2->nr][attr2->index]);
 }
 
 /* Construct a sensor_device_attribute structure for each register */
@@ -454,7 +454,7 @@ static struct attribute *max16065_max_attributes[] = {
 static umode_t max16065_basic_is_visible(struct kobject *kobj,
 					 struct attribute *a, int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct max16065_data *data = dev_get_drvdata(dev);
 	int index = n / 4;
 
@@ -466,7 +466,7 @@ static umode_t max16065_basic_is_visible(struct kobject *kobj,
 static umode_t max16065_secondary_is_visible(struct kobject *kobj,
 					     struct attribute *a, int index)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct max16065_data *data = dev_get_drvdata(dev);
 
 	if (index >= data->num_adc)
@@ -493,8 +493,9 @@ static const struct attribute_group max16065_max_group = {
 	.is_visible = max16065_secondary_is_visible,
 };
 
-static int max16065_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static const struct i2c_device_id max16065_id[];
+
+static int max16065_probe(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	struct max16065_data *data;
@@ -504,6 +505,7 @@ static int max16065_probe(struct i2c_client *client,
 	bool have_secondary;		/* true if chip has secondary limits */
 	bool secondary_is_max = false;	/* secondary limits reflect max */
 	int groups = 0;
+	const struct i2c_device_id *id = i2c_match_id(max16065_id, client);
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA
 				     | I2C_FUNC_SMBUS_READ_WORD_DATA))

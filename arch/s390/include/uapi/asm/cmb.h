@@ -31,7 +31,7 @@
 struct cmbdata {
 	__u64 size;
 	__u64 elapsed_time;
- /* basic and exended format: */
+ /* basic and extended format: */
 	__u64 ssch_rsch_count;
 	__u64 sample_count;
 	__u64 device_connect_time;

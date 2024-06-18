@@ -68,9 +68,6 @@ static int init_display(struct fbtft_par *par)
 	mdelay(40);
 	write_reg(par, 0x28, 0x3C);
 
-	/* orientation */
-	write_reg(par, 0x16, 0x60 | (par->bgr << 3));
-
 	return 0;
 }
 
@@ -85,6 +82,31 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 	write_reg(par, 0x08, (ye >> 8) & 0xFF);
 	write_reg(par, 0x09, ye & 0xFF);
 	write_reg(par, 0x22);
+}
+
+#define MEM_Y   BIT(7) /* MY row address order */
+#define MEM_X   BIT(6) /* MX column address order */
+#define MEM_V   BIT(5) /* MV row / column exchange */
+#define MEM_L   BIT(4) /* ML vertical refresh order */
+#define MEM_BGR (3) /* RGB-BGR Order */
+static int set_var(struct fbtft_par *par)
+{
+	switch (par->info->var.rotate) {
+	case 0:
+		write_reg(par, 0x16, MEM_V | MEM_X | (par->bgr << MEM_BGR));
+		break;
+	case 270:
+		write_reg(par, 0x16, par->bgr << MEM_BGR);
+		break;
+	case 180:
+		write_reg(par, 0x16, MEM_V | MEM_Y | (par->bgr << MEM_BGR));
+		break;
+	case 90:
+		write_reg(par, 0x16, MEM_X | MEM_Y | (par->bgr << MEM_BGR));
+		break;
+	}
+
+	return 0;
 }
 
 /*
@@ -144,6 +166,7 @@ static struct fbtft_display display = {
 	.fbtftops = {
 		.init_display = init_display,
 		.set_addr_win = set_addr_win,
+		.set_var = set_var,
 		.set_gamma = set_gamma,
 	},
 };

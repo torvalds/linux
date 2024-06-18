@@ -11,21 +11,22 @@
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
-#ifdef CONFIG_KVM_ARM_HOST
-#include <linux/kvm_host.h>
-#endif
 #include <asm/cacheflush.h>
+#include <asm/kexec-internal.h>
 #include <asm/glue-df.h>
 #include <asm/glue-pf.h>
 #include <asm/mach/arch.h>
 #include <asm/thread_info.h>
-#include <asm/memory.h>
+#include <asm/page.h>
 #include <asm/mpu.h>
 #include <asm/procinfo.h>
 #include <asm/suspend.h>
-#include <asm/vdso_datapage.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <linux/kbuild.h>
+#include <linux/arm-smccc.h>
+
+#include <vdso/datapage.h>
+
 #include "signal.h"
 
 /*
@@ -33,15 +34,6 @@
  */
 #if defined(__APCS_26__)
 #error Sorry, your compiler targets APCS-26 but this kernel requires APCS-32
-#endif
-/*
- * GCC 4.8.0-4.8.2: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=58854
- *	      miscompiles find_get_entry(), and can result in EXT3 and EXT4
- *	      filesystem corruption (possibly other FS too).
- */
-#if defined(GCC_VERSION) && GCC_VERSION >= 40800 && GCC_VERSION < 40803
-#error Your compiler is too buggy; it is known to miscompile kernels
-#error and result in filesystem corruption and oopses.
 #endif
 
 int main(void)
@@ -53,12 +45,10 @@ int main(void)
   BLANK();
   DEFINE(TI_FLAGS,		offsetof(struct thread_info, flags));
   DEFINE(TI_PREEMPT,		offsetof(struct thread_info, preempt_count));
-  DEFINE(TI_ADDR_LIMIT,		offsetof(struct thread_info, addr_limit));
-  DEFINE(TI_TASK,		offsetof(struct thread_info, task));
   DEFINE(TI_CPU,		offsetof(struct thread_info, cpu));
   DEFINE(TI_CPU_DOMAIN,		offsetof(struct thread_info, cpu_domain));
   DEFINE(TI_CPU_SAVE,		offsetof(struct thread_info, cpu_context));
-  DEFINE(TI_USED_CP,		offsetof(struct thread_info, used_cp));
+  DEFINE(TI_ABI_SYSCALL,	offsetof(struct thread_info, abi_syscall));
   DEFINE(TI_TP_VALUE,		offsetof(struct thread_info, tp_value));
   DEFINE(TI_FPSTATE,		offsetof(struct thread_info, fpstate));
 #ifdef CONFIG_VFP
@@ -67,19 +57,13 @@ int main(void)
   DEFINE(VFP_CPU,		offsetof(union vfp_state, hard.cpu));
 #endif
 #endif
+  DEFINE(SOFTIRQ_DISABLE_OFFSET,SOFTIRQ_DISABLE_OFFSET);
 #ifdef CONFIG_ARM_THUMBEE
   DEFINE(TI_THUMBEE_STATE,	offsetof(struct thread_info, thumbee_state));
 #endif
 #ifdef CONFIG_IWMMXT
   DEFINE(TI_IWMMXT_STATE,	offsetof(struct thread_info, fpstate.iwmmxt));
 #endif
-#ifdef CONFIG_CRUNCH
-  DEFINE(TI_CRUNCH_STATE,	offsetof(struct thread_info, crunchstate));
-#endif
-#ifdef CONFIG_STACKPROTECTOR_PER_TASK
-  DEFINE(TI_STACK_CANARY,	offsetof(struct thread_info, stack_canary));
-#endif
-  DEFINE(THREAD_SZ_ORDER,	THREAD_SIZE_ORDER);
   BLANK();
   DEFINE(S_R0,			offsetof(struct pt_regs, ARM_r0));
   DEFINE(S_R1,			offsetof(struct pt_regs, ARM_r1));
@@ -101,7 +85,7 @@ int main(void)
   DEFINE(S_OLD_R0,		offsetof(struct pt_regs, ARM_ORIG_r0));
   DEFINE(PT_REGS_SIZE,		sizeof(struct pt_regs));
   DEFINE(SVC_DACR,		offsetof(struct svc_pt_regs, dacr));
-  DEFINE(SVC_ADDR_LIMIT,	offsetof(struct svc_pt_regs, addr_limit));
+  DEFINE(SVC_TTBCR,		offsetof(struct svc_pt_regs, ttbcr));
   DEFINE(SVC_REGS_SIZE,		sizeof(struct svc_pt_regs));
   BLANK();
   DEFINE(SIGFRAME_RC3_OFFSET,	offsetof(struct sigframe, retcode[3]));
@@ -159,6 +143,8 @@ int main(void)
   DEFINE(SLEEP_SAVE_SP_PHYS,	offsetof(struct sleep_save_sp, save_ptr_stash_phys));
   DEFINE(SLEEP_SAVE_SP_VIRT,	offsetof(struct sleep_save_sp, save_ptr_stash));
 #endif
+  DEFINE(ARM_SMCCC_QUIRK_ID_OFFS,	offsetof(struct arm_smccc_quirk, id));
+  DEFINE(ARM_SMCCC_QUIRK_STATE_OFFS,	offsetof(struct arm_smccc_quirk, state));
   BLANK();
   DEFINE(DMA_BIDIRECTIONAL,	DMA_BIDIRECTIONAL);
   DEFINE(DMA_TO_DEVICE,		DMA_TO_DEVICE);
@@ -166,14 +152,6 @@ int main(void)
   BLANK();
   DEFINE(CACHE_WRITEBACK_ORDER, __CACHE_WRITEBACK_ORDER);
   DEFINE(CACHE_WRITEBACK_GRANULE, __CACHE_WRITEBACK_GRANULE);
-  BLANK();
-#ifdef CONFIG_KVM_ARM_HOST
-  DEFINE(VCPU_GUEST_CTXT,	offsetof(struct kvm_vcpu, arch.ctxt));
-  DEFINE(VCPU_HOST_CTXT,	offsetof(struct kvm_vcpu, arch.host_cpu_context));
-  DEFINE(CPU_CTXT_VFP,		offsetof(struct kvm_cpu_context, vfp));
-  DEFINE(CPU_CTXT_GP_REGS,	offsetof(struct kvm_cpu_context, gp_regs));
-  DEFINE(GP_REGS_USR,		offsetof(struct kvm_regs, usr_regs));
-#endif
   BLANK();
 #ifdef CONFIG_VDSO
   DEFINE(VDSO_DATA_SIZE,	sizeof(union vdso_data_store));
@@ -190,5 +168,9 @@ int main(void)
   DEFINE(MPU_RGN_PRBAR,	offsetof(struct mpu_rgn, prbar));
   DEFINE(MPU_RGN_PRLAR,	offsetof(struct mpu_rgn, prlar));
 #endif
+  DEFINE(KEXEC_START_ADDR,	offsetof(struct kexec_relocate_data, kexec_start_address));
+  DEFINE(KEXEC_INDIR_PAGE,	offsetof(struct kexec_relocate_data, kexec_indirection_page));
+  DEFINE(KEXEC_MACH_TYPE,	offsetof(struct kexec_relocate_data, kexec_mach_type));
+  DEFINE(KEXEC_R2,		offsetof(struct kexec_relocate_data, kexec_r2));
   return 0; 
 }

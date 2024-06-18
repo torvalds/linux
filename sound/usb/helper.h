@@ -7,13 +7,15 @@ unsigned int snd_usb_combine_bytes(unsigned char *bytes, int size);
 void *snd_usb_find_desc(void *descstart, int desclen, void *after, u8 dtype);
 void *snd_usb_find_csint_desc(void *descstart, int desclen, void *after, u8 dsubtype);
 
-int snd_usb_pipe_sanity_check(struct usb_device *dev, unsigned int pipe);
 int snd_usb_ctl_msg(struct usb_device *dev, unsigned int pipe,
 		    __u8 request, __u8 requesttype, __u16 value, __u16 index,
 		    void *data, __u16 size);
 
 unsigned char snd_usb_parse_datainterval(struct snd_usb_audio *chip,
 					 struct usb_host_interface *alts);
+
+struct usb_host_interface *
+snd_usb_get_host_interface(struct snd_usb_audio *chip, int ifnum, int altsetting);
 
 /*
  * retrieve usb_interface descriptor from the host interface

@@ -3,9 +3,9 @@ menuconfig GOOGLE_FIRMWARE
 	bool "Google Firmware Drivers"
 	default n
 	help
-	  These firmware drivers are used by Google's servers.  They are
-	  only useful if you are working directly on one of their
-	  proprietary servers.  If in doubt, say "N".
+	  These firmware drivers are used by Google servers,
+	  Chromebooks and other devices using coreboot firmware.
+	  If in doubt, say "N".
 
 if GOOGLE_FIRMWARE
 
@@ -15,27 +15,34 @@ config GOOGLE_SMI
 	help
 	  Say Y here if you want to enable SMI callbacks for Google
 	  platforms.  This provides an interface for writing to and
-	  clearing the event log.  If EFI_VARS is also enabled this
+	  clearing the event log.  If CONFIG_EFI is also enabled this
 	  driver provides an interface for reading and writing NVRAM
 	  variables.
 
+config GOOGLE_CBMEM
+	tristate "CBMEM entries in sysfs"
+	depends on GOOGLE_COREBOOT_TABLE
+	help
+	  CBMEM is a downwards-growing memory region created by the
+	  Coreboot BIOS containing tagged data structures from the
+	  BIOS.  These data structures expose things like the verified
+	  boot firmware variables, flash layout, firmware event log,
+	  and more.
+
+	  This option enables the cbmem module, which causes the
+	  kernel to search for Coreboot CBMEM entries, and expose the
+	  memory for each entry in sysfs under
+	  /sys/bus/coreboot/devices/cbmem-<id>.
+
 config GOOGLE_COREBOOT_TABLE
 	tristate "Coreboot Table Access"
-	depends on ACPI || OF
+	depends on HAS_IOMEM && (ACPI || OF)
 	help
 	  This option enables the coreboot_table module, which provides other
 	  firmware modules access to the coreboot table. The coreboot table
 	  pointer is accessed through the ACPI "GOOGCB00" object or the
 	  device tree node /firmware/coreboot.
 	  If unsure say N.
-
-config GOOGLE_COREBOOT_TABLE_ACPI
-	tristate
-	select GOOGLE_COREBOOT_TABLE
-
-config GOOGLE_COREBOOT_TABLE_OF
-	tristate
-	select GOOGLE_COREBOOT_TABLE
 
 config GOOGLE_MEMCONSOLE
 	tristate
@@ -52,7 +59,7 @@ config GOOGLE_MEMCONSOLE_X86_LEGACY
 
 config GOOGLE_FRAMEBUFFER_COREBOOT
 	tristate "Coreboot Framebuffer"
-	depends on FB_SIMPLE
+	depends on FB_SIMPLE || DRM_SIMPLEDRM
 	depends on GOOGLE_COREBOOT_TABLE
 	help
 	  This option enables the kernel to search for a framebuffer in

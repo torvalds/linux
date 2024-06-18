@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/power/supply/dlg,da9150-fuel-gauge.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Dialog Semiconductor DA9150 Fuel-Gauge Power Supply
+
+maintainers:
+  - Sebastian Reichel <sre@kernel.org>
+
+allOf:
+  - $ref: power-supply.yaml#
+
+properties:
+  compatible:
+    const: dlg,da9150-fuel-gauge
+
+  dlg,update-interval:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Interval time (milliseconds) between battery level checks.
+
+  dlg,warn-soc-level:
+    $ref: /schemas/types.yaml#/definitions/uint8
+    minimum: 1
+    maximum: 100
+    description: Battery discharge level (%) where warning event raised.
+
+  dlg,crit-soc-level:
+    $ref: /schemas/types.yaml#/definitions/uint8
+    minimum: 1
+    maximum: 100
+    description: |
+      Battery discharge level (%) where critical event raised.
+      This value should be lower than the warning level.
+
+required:
+  - compatible
+
+additionalProperties: false
+
+examples:
+  - |
+    pmic {
+      battery {
+        compatible = "dlg,da9150-fuel-gauge";
+        dlg,update-interval = <10000>;
+        dlg,warn-soc-level = /bits/ 8 <15>;
+        dlg,crit-soc-level = /bits/ 8 <5>;
+      };
+    };

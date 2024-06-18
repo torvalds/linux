@@ -149,7 +149,7 @@ void r8712_free_stainfo(struct _adapter *padapter, struct sta_info *psta)
 	struct	xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct	sta_priv *pstapriv = &padapter->stapriv;
 
-	if (psta == NULL)
+	if (!psta)
 		return;
 	pfree_sta_queue = &pstapriv->free_sta_queue;
 	pstaxmitpriv = &psta->sta_xmitpriv;
@@ -222,7 +222,7 @@ struct sta_info *r8712_get_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 	struct sta_info *psta = NULL;
 	u32	index;
 
-	if (hwaddr == NULL)
+	if (!hwaddr)
 		return NULL;
 	index = wifi_mac_hash(hwaddr);
 	spin_lock_irqsave(&pstapriv->sta_hash_lock, irqL);
@@ -256,7 +256,6 @@ struct sta_info *r8712_get_bcmc_stainfo(struct _adapter *padapter)
 
 	return r8712_get_stainfo(pstapriv, bc_addr);
 }
-
 
 u8 r8712_access_ctrl(struct wlan_acl_pool *pacl_list, u8 *mac_addr)
 {

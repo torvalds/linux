@@ -50,7 +50,7 @@ typedef int (*tracing_map_cmp_fn_t) (void *val_a, void *val_b);
  * an instance of tracing_map_elt, where 'elt' in the latter part of
  * that variable name is short for 'element'.  The purpose of a
  * tracing_map_elt is to hold values specific to the particular
- * 32-bit hashed key it's assocated with.  Things such as the unique
+ * 32-bit hashed key it's associated with.  Things such as the unique
  * set of aggregated sums associated with the 32-bit hashed key, along
  * with a copy of the full key associated with the entry, and which
  * was used to produce the 32-bit hashed key.
@@ -272,10 +272,6 @@ extern u64 tracing_map_read_sum(struct tracing_map_elt *elt, unsigned int i);
 extern u64 tracing_map_read_var(struct tracing_map_elt *elt, unsigned int i);
 extern u64 tracing_map_read_var_once(struct tracing_map_elt *elt, unsigned int i);
 
-extern void tracing_map_set_field_descr(struct tracing_map *map,
-					unsigned int i,
-					unsigned int key_offset,
-					tracing_map_cmp_fn_t cmp_fn);
 extern int
 tracing_map_sort_entries(struct tracing_map *map,
 			 struct tracing_map_sort_key *sort_keys,

@@ -33,6 +33,8 @@ Description:	If running under Xen:
 		Space separated list of supported guest system types. Each type
 		is in the format: <class>-<major>.<minor>-<arch>
 		With:
+
+			======== ============================================
 			<class>: "xen" -- x86: paravirtualized, arm: standard
 				 "hvm" -- x86 only: fully virtualized
 			<major>: major guest interface version
@@ -43,6 +45,7 @@ Description:	If running under Xen:
 				 "x86_64": 64 bit x86 guest
 				 "armv7l": 32 bit arm guest
 				 "aarch64": 64 bit arm guest
+			======== ============================================
 
 What:		/sys/hypervisor/properties/changeset
 Date:		March 2009
@@ -117,3 +120,16 @@ Contact:	xen-devel@lists.xenproject.org
 Description:	If running under Xen:
 		The Xen version is in the format <major>.<minor><extra>
 		This is the <minor> part of it.
+
+What:		/sys/hypervisor/start_flags/*
+Date:		March 2023
+KernelVersion:	6.3.0
+Contact:	xen-devel@lists.xenproject.org
+Description:	If running under Xen:
+		All bits in Xen's start-flags are represented as
+		boolean files, returning '1' if set, '0' otherwise.
+		This takes the place of the defunct /proc/xen/capabilities,
+		which would contain "control_d" on dom0, and be empty
+		otherwise.  This flag is now exposed as "initdomain" in
+		addition to the "privileged" flag; all other possible flags
+		are accessible as "unknownXX".

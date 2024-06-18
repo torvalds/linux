@@ -1,6 +1,2 @@
-ashiftrt.S
-ashldi3.c
-ashlsi3.S
-ashrsi3.S
-lshrsi3.S
+# SPDX-License-Identifier: GPL-2.0-only
 vmlinux.bin.*

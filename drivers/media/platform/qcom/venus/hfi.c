@@ -104,6 +104,9 @@ int hfi_core_deinit(struct venus_core *core, bool blocking)
 		mutex_lock(&core->lock);
 	}
 
+	if (!core->ops)
+		goto unlock;
+
 	ret = core->ops->core_deinit(core);
 
 	if (!ret)
@@ -175,6 +178,8 @@ static int wait_session_msg(struct venus_inst *inst)
 int hfi_session_create(struct venus_inst *inst, const struct hfi_inst_ops *ops)
 {
 	struct venus_core *core = inst->core;
+	bool max;
+	int ret;
 
 	if (!ops)
 		return -EINVAL;
@@ -184,11 +189,25 @@ int hfi_session_create(struct venus_inst *inst, const struct hfi_inst_ops *ops)
 	inst->ops = ops;
 
 	mutex_lock(&core->lock);
-	list_add_tail(&inst->list, &core->instances);
-	atomic_inc(&core->insts_count);
+
+	if (test_bit(0, &inst->core->sys_error)) {
+		ret = -EIO;
+		goto unlock;
+	}
+
+	max = atomic_add_unless(&core->insts_count, 1,
+				core->max_sessions_supported);
+	if (!max) {
+		ret = -EAGAIN;
+	} else {
+		list_add_tail(&inst->list, &core->instances);
+		ret = 0;
+	}
+
+unlock:
 	mutex_unlock(&core->lock);
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(hfi_session_create);
 
@@ -198,8 +217,20 @@ int hfi_session_init(struct venus_inst *inst, u32 pixfmt)
 	const struct hfi_ops *ops = core->ops;
 	int ret;
 
+	/*
+	 * If core shutdown is in progress or if we are in system
+	 * recovery, return an error as during system error recovery
+	 * session_init() can't pass successfully
+	 */
+	mutex_lock(&core->lock);
+	if (!core->ops || test_bit(0, &inst->core->sys_error)) {
+		mutex_unlock(&core->lock);
+		return -EIO;
+	}
+	mutex_unlock(&core->lock);
+
 	if (inst->state != INST_UNINIT)
-		return -EINVAL;
+		return -EALREADY;
 
 	inst->hfi_codec = to_codec_type(pixfmt);
 	reinit_completion(&inst->done);
@@ -241,6 +272,9 @@ int hfi_session_deinit(struct venus_inst *inst)
 	if (inst->state < INST_INIT)
 		return -EINVAL;
 
+	if (test_bit(0, &inst->core->sys_error))
+		goto done;
+
 	reinit_completion(&inst->done);
 
 	ret = ops->session_end(inst);
@@ -251,6 +285,7 @@ int hfi_session_deinit(struct venus_inst *inst)
 	if (ret)
 		return ret;
 
+done:
 	inst->state = INST_UNINIT;
 
 	return 0;
@@ -261,6 +296,9 @@ int hfi_session_start(struct venus_inst *inst)
 {
 	const struct hfi_ops *ops = inst->core->ops;
 	int ret;
+
+	if (test_bit(0, &inst->core->sys_error))
+		return -EIO;
 
 	if (inst->state != INST_LOAD_RESOURCES)
 		return -EINVAL;
@@ -286,6 +324,9 @@ int hfi_session_stop(struct venus_inst *inst)
 	const struct hfi_ops *ops = inst->core->ops;
 	int ret;
 
+	if (test_bit(0, &inst->core->sys_error))
+		return -EIO;
+
 	if (inst->state != INST_START)
 		return -EINVAL;
 
@@ -309,6 +350,9 @@ int hfi_session_continue(struct venus_inst *inst)
 {
 	struct venus_core *core = inst->core;
 
+	if (test_bit(0, &inst->core->sys_error))
+		return -EIO;
+
 	if (core->res->hfi_version == HFI_VERSION_1XX)
 		return 0;
 
@@ -320,6 +364,9 @@ int hfi_session_abort(struct venus_inst *inst)
 {
 	const struct hfi_ops *ops = inst->core->ops;
 	int ret;
+
+	if (test_bit(0, &inst->core->sys_error))
+		return -EIO;
 
 	reinit_completion(&inst->done);
 
@@ -339,6 +386,9 @@ int hfi_session_load_res(struct venus_inst *inst)
 {
 	const struct hfi_ops *ops = inst->core->ops;
 	int ret;
+
+	if (test_bit(0, &inst->core->sys_error))
+		return -EIO;
 
 	if (inst->state != INST_INIT)
 		return -EINVAL;
@@ -363,6 +413,9 @@ int hfi_session_unload_res(struct venus_inst *inst)
 	const struct hfi_ops *ops = inst->core->ops;
 	int ret;
 
+	if (test_bit(0, &inst->core->sys_error))
+		return -EIO;
+
 	if (inst->state != INST_STOP)
 		return -EINVAL;
 
@@ -382,10 +435,13 @@ int hfi_session_unload_res(struct venus_inst *inst)
 }
 EXPORT_SYMBOL_GPL(hfi_session_unload_res);
 
-int hfi_session_flush(struct venus_inst *inst, u32 type)
+int hfi_session_flush(struct venus_inst *inst, u32 type, bool block)
 {
 	const struct hfi_ops *ops = inst->core->ops;
 	int ret;
+
+	if (test_bit(0, &inst->core->sys_error))
+		return -EIO;
 
 	reinit_completion(&inst->done);
 
@@ -393,9 +449,11 @@ int hfi_session_flush(struct venus_inst *inst, u32 type)
 	if (ret)
 		return ret;
 
-	ret = wait_session_msg(inst);
-	if (ret)
-		return ret;
+	if (block) {
+		ret = wait_session_msg(inst);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
@@ -405,6 +463,9 @@ int hfi_session_set_buffers(struct venus_inst *inst, struct hfi_buffer_desc *bd)
 {
 	const struct hfi_ops *ops = inst->core->ops;
 
+	if (test_bit(0, &inst->core->sys_error))
+		return -EIO;
+
 	return ops->session_set_buffers(inst, bd);
 }
 
@@ -413,6 +474,9 @@ int hfi_session_unset_buffers(struct venus_inst *inst,
 {
 	const struct hfi_ops *ops = inst->core->ops;
 	int ret;
+
+	if (test_bit(0, &inst->core->sys_error))
+		return -EIO;
 
 	reinit_completion(&inst->done);
 
@@ -435,6 +499,9 @@ int hfi_session_get_property(struct venus_inst *inst, u32 ptype,
 {
 	const struct hfi_ops *ops = inst->core->ops;
 	int ret;
+
+	if (test_bit(0, &inst->core->sys_error))
+		return -EIO;
 
 	if (inst->state < INST_INIT || inst->state >= INST_STOP)
 		return -EINVAL;
@@ -459,6 +526,9 @@ int hfi_session_set_property(struct venus_inst *inst, u32 ptype, void *pdata)
 {
 	const struct hfi_ops *ops = inst->core->ops;
 
+	if (test_bit(0, &inst->core->sys_error))
+		return -EIO;
+
 	if (inst->state < INST_INIT || inst->state >= INST_STOP)
 		return -EINVAL;
 
@@ -469,6 +539,9 @@ EXPORT_SYMBOL_GPL(hfi_session_set_property);
 int hfi_session_process_buf(struct venus_inst *inst, struct hfi_frame_data *fd)
 {
 	const struct hfi_ops *ops = inst->core->ops;
+
+	if (test_bit(0, &inst->core->sys_error))
+		return -EIO;
 
 	if (fd->buffer_type == HFI_BUFFER_INPUT)
 		return ops->session_etb(inst, fd);
@@ -496,8 +569,6 @@ irqreturn_t hfi_isr(int irq, void *dev)
 
 int hfi_create(struct venus_core *core, const struct hfi_core_ops *ops)
 {
-	int ret;
-
 	if (!ops)
 		return -EINVAL;
 
@@ -506,12 +577,16 @@ int hfi_create(struct venus_core *core, const struct hfi_core_ops *ops)
 	core->state = CORE_UNINIT;
 	init_completion(&core->done);
 	pkt_set_version(core->res->hfi_version);
-	ret = venus_hfi_create(core);
 
-	return ret;
+	return venus_hfi_create(core);
 }
 
 void hfi_destroy(struct venus_core *core)
 {
 	venus_hfi_destroy(core);
+}
+
+void hfi_reinit(struct venus_core *core)
+{
+	venus_hfi_queues_reinit(core);
 }

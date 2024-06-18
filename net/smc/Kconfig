@@ -2,7 +2,8 @@
 config SMC
 	tristate "SMC socket protocol family"
 	depends on INET && INFINIBAND
-	---help---
+	depends on m || ISM != m
+	help
 	  SMC-R provides a "sockets over RDMA" solution making use of
 	  RDMA over Converged Ethernet (RoCE) technology to upgrade
 	  AF_INET TCP connections transparently.
@@ -14,8 +15,21 @@ config SMC
 config SMC_DIAG
 	tristate "SMC: socket monitoring interface"
 	depends on SMC
-	---help---
+	help
 	  Support for SMC socket monitoring interface used by tools such as
 	  smcss.
 
 	  if unsure, say Y.
+
+config SMC_LO
+	bool "SMC intra-OS shortcut with loopback-ism"
+	depends on SMC
+	default n
+	help
+	  SMC_LO enables the creation of an Emulated-ISM device named
+	  loopback-ism in SMC and makes use of it for transferring data
+	  when communication occurs within the same OS. This helps in
+	  convenient testing of SMC-D since loopback-ism is independent
+	  of architecture or hardware.
+
+	  if unsure, say N.

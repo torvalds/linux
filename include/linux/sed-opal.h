@@ -11,7 +11,8 @@
 #define LINUX_OPAL_H
 
 #include <uapi/linux/sed-opal.h>
-#include <linux/kernel.h>
+#include <linux/compiler_types.h>
+#include <linux/types.h>
 
 struct opal_dev;
 
@@ -23,6 +24,9 @@ void free_opal_dev(struct opal_dev *dev);
 bool opal_unlock_from_suspend(struct opal_dev *dev);
 struct opal_dev *init_opal_dev(void *data, sec_send_recv *send_recv);
 int sed_ioctl(struct opal_dev *dev, unsigned int cmd, void __user *ioctl_ptr);
+
+#define	OPAL_AUTH_KEY           "opal-boot-pin"
+#define	OPAL_AUTH_KEY_PREV      "opal-boot-pin-prev"
 
 static inline bool is_sed_ioctl(unsigned int cmd)
 {
@@ -42,6 +46,12 @@ static inline bool is_sed_ioctl(unsigned int cmd)
 	case IOC_OPAL_PSID_REVERT_TPR:
 	case IOC_OPAL_MBR_DONE:
 	case IOC_OPAL_WRITE_SHADOW_MBR:
+	case IOC_OPAL_GENERIC_TABLE_RW:
+	case IOC_OPAL_GET_STATUS:
+	case IOC_OPAL_GET_LR_STATUS:
+	case IOC_OPAL_GET_GEOMETRY:
+	case IOC_OPAL_DISCOVERY:
+	case IOC_OPAL_REVERT_LSP:
 		return true;
 	}
 	return false;

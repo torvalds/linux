@@ -276,8 +276,10 @@ unregisters the partitions in the MTD layer.
     #ifdef MODULE
     static void __exit board_cleanup (void)
     {
-        /* Release resources, unregister device */
-        nand_release (mtd_to_nand(board_mtd));
+        /* Unregister device */
+        WARN_ON(mtd_device_unregister(board_mtd));
+        /* Release resources */
+        nand_cleanup(mtd_to_nand(board_mtd));
 
         /* unmap physical address */
         iounmap(baseaddr);
@@ -968,9 +970,6 @@ which is marked with an [XXX] identifier. See the chapter "Documentation
 hints" for an explanation.
 
 .. kernel-doc:: drivers/mtd/nand/raw/nand_base.c
-   :export:
-
-.. kernel-doc:: drivers/mtd/nand/raw/nand_ecc.c
    :export:
 
 Internal Functions Provided

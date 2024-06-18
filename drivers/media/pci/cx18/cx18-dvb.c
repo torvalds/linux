@@ -22,7 +22,7 @@
 #include <linux/firmware.h>
 #include "mt352.h"
 #include "mt352_priv.h"
-#include "tuner-xc2028.h"
+#include "xc2028.h"
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
@@ -234,7 +234,7 @@ static int dvb_register(struct cx18_stream *stream);
 static int cx18_dvb_start_feed(struct dvb_demux_feed *feed)
 {
 	struct dvb_demux *demux = feed->demux;
-	struct cx18_stream *stream = (struct cx18_stream *) demux->priv;
+	struct cx18_stream *stream = demux->priv;
 	struct cx18 *cx;
 	int ret;
 	u32 v;
@@ -305,7 +305,7 @@ static int cx18_dvb_start_feed(struct dvb_demux_feed *feed)
 static int cx18_dvb_stop_feed(struct dvb_demux_feed *feed)
 {
 	struct dvb_demux *demux = feed->demux;
-	struct cx18_stream *stream = (struct cx18_stream *)demux->priv;
+	struct cx18_stream *stream = demux->priv;
 	struct cx18 *cx;
 	int ret = -EINVAL;
 

@@ -5,18 +5,11 @@
  */
 
 #include <linux/delay.h>
+#include <drm/drm_bridge_connector.h>
+#include <drm/drm_edid.h>
 
+#include "msm_kms.h"
 #include "hdmi.h"
-
-struct hdmi_bridge {
-	struct drm_bridge base;
-	struct hdmi *hdmi;
-};
-#define to_hdmi_bridge(x) container_of(x, struct hdmi_bridge, base)
-
-void msm_hdmi_bridge_destroy(struct drm_bridge *bridge)
-{
-}
 
 static void msm_hdmi_power_on(struct drm_bridge *bridge)
 {
@@ -28,13 +21,9 @@ static void msm_hdmi_power_on(struct drm_bridge *bridge)
 
 	pm_runtime_get_sync(&hdmi->pdev->dev);
 
-	for (i = 0; i < config->pwr_reg_cnt; i++) {
-		ret = regulator_enable(hdmi->pwr_regs[i]);
-		if (ret) {
-			DRM_DEV_ERROR(dev->dev, "failed to enable pwr regulator: %s (%d)\n",
-					config->pwr_reg_names[i], ret);
-		}
-	}
+	ret = regulator_bulk_enable(config->pwr_reg_cnt, hdmi->pwr_regs);
+	if (ret)
+		DRM_DEV_ERROR(dev->dev, "failed to enable pwr regulator: %d\n", ret);
 
 	if (config->pwr_clk_cnt > 0) {
 		DBG("pixclock: %lu", hdmi->pixclock);
@@ -70,15 +59,11 @@ static void power_off(struct drm_bridge *bridge)
 	for (i = 0; i < config->pwr_clk_cnt; i++)
 		clk_disable_unprepare(hdmi->pwr_clks[i]);
 
-	for (i = 0; i < config->pwr_reg_cnt; i++) {
-		ret = regulator_disable(hdmi->pwr_regs[i]);
-		if (ret) {
-			DRM_DEV_ERROR(dev->dev, "failed to disable pwr regulator: %s (%d)\n",
-					config->pwr_reg_names[i], ret);
-		}
-	}
+	ret = regulator_bulk_disable(config->pwr_reg_cnt, hdmi->pwr_regs);
+	if (ret)
+		DRM_DEV_ERROR(dev->dev, "failed to disable pwr regulator: %d\n", ret);
 
-	pm_runtime_put_autosuspend(&hdmi->pdev->dev);
+	pm_runtime_put(&hdmi->pdev->dev);
 }
 
 #define AVI_IFRAME_LINE_NUMBER 1
@@ -167,14 +152,6 @@ static void msm_hdmi_bridge_pre_enable(struct drm_bridge *bridge)
 		msm_hdmi_hdcp_on(hdmi->hdcp_ctrl);
 }
 
-static void msm_hdmi_bridge_enable(struct drm_bridge *bridge)
-{
-}
-
-static void msm_hdmi_bridge_disable(struct drm_bridge *bridge)
-{
-}
-
 static void msm_hdmi_bridge_post_disable(struct drm_bridge *bridge)
 {
 	struct hdmi_bridge *hdmi_bridge = to_hdmi_bridge(bridge);
@@ -259,17 +236,89 @@ static void msm_hdmi_bridge_mode_set(struct drm_bridge *bridge,
 		msm_hdmi_audio_update(hdmi);
 }
 
+static const struct drm_edid *msm_hdmi_bridge_edid_read(struct drm_bridge *bridge,
+							struct drm_connector *connector)
+{
+	struct hdmi_bridge *hdmi_bridge = to_hdmi_bridge(bridge);
+	struct hdmi *hdmi = hdmi_bridge->hdmi;
+	const struct drm_edid *drm_edid;
+	uint32_t hdmi_ctrl;
+
+	hdmi_ctrl = hdmi_read(hdmi, REG_HDMI_CTRL);
+	hdmi_write(hdmi, REG_HDMI_CTRL, hdmi_ctrl | HDMI_CTRL_ENABLE);
+
+	drm_edid = drm_edid_read_ddc(connector, hdmi->i2c);
+
+	hdmi_write(hdmi, REG_HDMI_CTRL, hdmi_ctrl);
+
+	if (drm_edid) {
+		/*
+		 * FIXME: This should use connector->display_info.is_hdmi from a
+		 * path that has read the EDID and called
+		 * drm_edid_connector_update().
+		 */
+		const struct edid *edid = drm_edid_raw(drm_edid);
+
+		hdmi->hdmi_mode = drm_detect_hdmi_monitor(edid);
+	}
+
+	return drm_edid;
+}
+
+static enum drm_mode_status msm_hdmi_bridge_mode_valid(struct drm_bridge *bridge,
+		const struct drm_display_info *info,
+		const struct drm_display_mode *mode)
+{
+	struct hdmi_bridge *hdmi_bridge = to_hdmi_bridge(bridge);
+	struct hdmi *hdmi = hdmi_bridge->hdmi;
+	const struct hdmi_platform_config *config = hdmi->config;
+	struct msm_drm_private *priv = bridge->dev->dev_private;
+	struct msm_kms *kms = priv->kms;
+	long actual, requested;
+
+	requested = 1000 * mode->clock;
+
+	/* for mdp5/apq8074, we manage our own pixel clk (as opposed to
+	 * mdp4/dtv stuff where pixel clk is assigned to mdp/encoder
+	 * instead):
+	 */
+	if (kms->funcs->round_pixclk)
+		actual = kms->funcs->round_pixclk(kms,
+			requested, hdmi_bridge->hdmi->encoder);
+	else if (config->pwr_clk_cnt > 0)
+		actual = clk_round_rate(hdmi->pwr_clks[0], requested);
+	else
+		actual = requested;
+
+	DBG("requested=%ld, actual=%ld", requested, actual);
+
+	if (actual != requested)
+		return MODE_CLOCK_RANGE;
+
+	return 0;
+}
+
 static const struct drm_bridge_funcs msm_hdmi_bridge_funcs = {
-		.pre_enable = msm_hdmi_bridge_pre_enable,
-		.enable = msm_hdmi_bridge_enable,
-		.disable = msm_hdmi_bridge_disable,
-		.post_disable = msm_hdmi_bridge_post_disable,
-		.mode_set = msm_hdmi_bridge_mode_set,
+	.pre_enable = msm_hdmi_bridge_pre_enable,
+	.post_disable = msm_hdmi_bridge_post_disable,
+	.mode_set = msm_hdmi_bridge_mode_set,
+	.mode_valid = msm_hdmi_bridge_mode_valid,
+	.edid_read = msm_hdmi_bridge_edid_read,
+	.detect = msm_hdmi_bridge_detect,
 };
 
+static void
+msm_hdmi_hotplug_work(struct work_struct *work)
+{
+	struct hdmi_bridge *hdmi_bridge =
+		container_of(work, struct hdmi_bridge, hpd_work);
+	struct drm_bridge *bridge = &hdmi_bridge->base;
+
+	drm_bridge_hpd_notify(bridge, drm_bridge_detect(bridge));
+}
 
 /* initialize bridge */
-struct drm_bridge *msm_hdmi_bridge_init(struct hdmi *hdmi)
+int msm_hdmi_bridge_init(struct hdmi *hdmi)
 {
 	struct drm_bridge *bridge = NULL;
 	struct hdmi_bridge *hdmi_bridge;
@@ -277,25 +326,29 @@ struct drm_bridge *msm_hdmi_bridge_init(struct hdmi *hdmi)
 
 	hdmi_bridge = devm_kzalloc(hdmi->dev->dev,
 			sizeof(*hdmi_bridge), GFP_KERNEL);
-	if (!hdmi_bridge) {
-		ret = -ENOMEM;
-		goto fail;
-	}
+	if (!hdmi_bridge)
+		return -ENOMEM;
 
 	hdmi_bridge->hdmi = hdmi;
+	INIT_WORK(&hdmi_bridge->hpd_work, msm_hdmi_hotplug_work);
 
 	bridge = &hdmi_bridge->base;
 	bridge->funcs = &msm_hdmi_bridge_funcs;
+	bridge->ddc = hdmi->i2c;
+	bridge->type = DRM_MODE_CONNECTOR_HDMIA;
+	bridge->ops = DRM_BRIDGE_OP_HPD |
+		DRM_BRIDGE_OP_DETECT |
+		DRM_BRIDGE_OP_EDID;
 
-	ret = drm_bridge_attach(hdmi->encoder, bridge, NULL);
+	ret = devm_drm_bridge_add(hdmi->dev->dev, bridge);
 	if (ret)
-		goto fail;
+		return ret;
 
-	return bridge;
+	ret = drm_bridge_attach(hdmi->encoder, bridge, NULL, DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+	if (ret)
+		return ret;
 
-fail:
-	if (bridge)
-		msm_hdmi_bridge_destroy(bridge);
+	hdmi->bridge = bridge;
 
-	return ERR_PTR(ret);
+	return 0;
 }

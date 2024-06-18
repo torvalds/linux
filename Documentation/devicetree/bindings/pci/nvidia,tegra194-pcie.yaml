@@ -1,0 +1,380 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pci/nvidia,tegra194-pcie.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra194 (and later) PCIe controller (Synopsys DesignWare Core based)
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+  - Vidya Sagar <vidyas@nvidia.com>
+
+description: |
+  This PCIe controller is based on the Synopsys DesignWare PCIe IP and thus
+  inherits all the common properties defined in snps,dw-pcie.yaml. Some of
+  the controller instances are dual mode where in they can work either in
+  Root Port mode or Endpoint mode but one at a time.
+
+  See nvidia,tegra194-pcie-ep.yaml for details on the Endpoint mode device
+  tree bindings.
+
+properties:
+  compatible:
+    enum:
+      - nvidia,tegra194-pcie
+      - nvidia,tegra234-pcie
+
+  reg:
+    minItems: 4
+    items:
+      - description: controller's application logic registers
+      - description: configuration registers
+      - description: iATU and DMA registers. This is where the iATU (internal
+          Address Translation Unit) registers of the PCIe core are made
+          available for software access.
+      - description: aperture where the Root Port's own configuration
+          registers are available.
+      - description: aperture to access the configuration space through ECAM.
+
+  reg-names:
+    minItems: 4
+    items:
+      - const: appl
+      - const: config
+      - const: atu_dma
+      - const: dbi
+      - const: ecam
+
+  interrupts:
+    items:
+      - description: controller interrupt
+      - description: MSI interrupt
+
+  interrupt-names:
+    items:
+      - const: intr
+      - const: msi
+
+  clocks:
+    items:
+      - description: module clock
+
+  clock-names:
+    items:
+      - const: core
+
+  resets:
+    items:
+      - description: APB bus interface reset
+      - description: module reset
+
+  reset-names:
+    items:
+      - const: apb
+      - const: core
+
+  phys:
+    minItems: 1
+    maxItems: 8
+
+  phy-names:
+    minItems: 1
+    items:
+      - const: p2u-0
+      - const: p2u-1
+      - const: p2u-2
+      - const: p2u-3
+      - const: p2u-4
+      - const: p2u-5
+      - const: p2u-6
+      - const: p2u-7
+
+  power-domains:
+    maxItems: 1
+    description: |
+      A phandle to the node that controls power to the respective PCIe
+      controller and a specifier name for the PCIe controller.
+
+      Tegra194 specifiers defined in "include/dt-bindings/power/tegra194-powergate.h"
+      Tegra234 specifiers defined in "include/dt-bindings/power/tegra234-powergate.h"
+
+  interconnects:
+    items:
+      - description: memory read client
+      - description: memory write client
+
+  interconnect-names:
+    items:
+      - const: dma-mem # read
+      - const: write
+
+  dma-coherent: true
+
+  nvidia,bpmp:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    description: |
+      Must contain a pair of phandles to BPMP controller node followed by
+      controller ID. Following are the controller IDs for each controller:
+
+      Tegra194
+
+        0: C0
+        1: C1
+        2: C2
+        3: C3
+        4: C4
+        5: C5
+
+      Tegra234
+
+        0 : C0
+        1 : C1
+        2 : C2
+        3 : C3
+        4 : C4
+        5 : C5
+        6 : C6
+        7 : C7
+        8 : C8
+        9 : C9
+        10: C10
+
+    items:
+      - items:
+          - description: phandle to BPMP controller node
+          - description: PCIe controller ID
+            maximum: 10
+
+  nvidia,update-fc-fixup:
+    description: |
+      This is a boolean property and needs to be present to improve performance
+      when a platform is designed in such a way that it satisfies at least one
+      of the following conditions thereby enabling Root Port to exchange
+      optimum number of FC (Flow Control) credits with downstream devices:
+
+      NOTE: This is applicable only for Tegra194.
+
+        1. If C0/C4/C5 run at x1/x2 link widths (irrespective of speed and MPS)
+        2. If C0/C1/C2/C3/C4/C5 operate at their respective max link widths and
+          a) speed is Gen-2 and MPS is 256B
+          b) speed is >= Gen-3 with any MPS
+
+    $ref: /schemas/types.yaml#/definitions/flag
+
+  nvidia,aspm-cmrt-us:
+    description: Common Mode Restore Time for proper operation of ASPM to be
+      specified in microseconds
+
+  nvidia,aspm-pwr-on-t-us:
+    description: Power On time for proper operation of ASPM to be specified in
+      microseconds
+
+  nvidia,aspm-l0s-entrance-latency-us:
+    description: ASPM L0s entrance latency to be specified in microseconds
+
+  vddio-pex-ctl-supply:
+    description: A phandle to the regulator supply for PCIe side band signals.
+
+  vpcie3v3-supply:
+    description: A phandle to the regulator node that supplies 3.3V to the slot
+      if the platform has one such slot, e.g., x16 slot owned by C5 controller
+      in p2972-0000 platform.
+
+  vpcie12v-supply:
+    description: A phandle to the regulator node that supplies 12V to the slot
+      if the platform has one such slot, e.g., x16 slot owned by C5 controller
+      in p2972-0000 platform.
+
+  nvidia,enable-srns:
+    description: |
+      This boolean property needs to be present if the controller is
+      configured to operate in SRNS (Separate Reference Clocks with No
+      Spread-Spectrum Clocking).  NOTE: This is applicable only for
+      Tegra234.
+
+    $ref: /schemas/types.yaml#/definitions/flag
+
+  nvidia,enable-ext-refclk:
+    description: |
+      This boolean property needs to be present if the controller is
+      configured to use the reference clocking coming in from an external
+      clock source instead of using the internal clock source.
+
+    $ref: /schemas/types.yaml#/definitions/flag
+
+allOf:
+  - $ref: /schemas/pci/snps,dw-pcie.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - nvidia,tegra194-pcie
+    then:
+      properties:
+        reg:
+          maxItems: 4
+        reg-names:
+          maxItems: 4
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - nvidia,tegra234-pcie
+    then:
+      properties:
+        reg:
+          minItems: 5
+        reg-names:
+          minItems: 5
+
+unevaluatedProperties: false
+
+required:
+  - interrupts
+  - interrupt-names
+  - interrupt-map
+  - interrupt-map-mask
+  - clocks
+  - clock-names
+  - resets
+  - reset-names
+  - power-domains
+  - vddio-pex-ctl-supply
+  - num-lanes
+  - phys
+  - phy-names
+  - nvidia,bpmp
+
+examples:
+  - |
+    #include <dt-bindings/clock/tegra194-clock.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/power/tegra194-powergate.h>
+    #include <dt-bindings/reset/tegra194-reset.h>
+
+    bus@0 {
+        #address-cells = <2>;
+        #size-cells = <2>;
+        ranges = <0x0 0x0 0x0 0x8 0x0>;
+
+        pcie@14180000 {
+            compatible = "nvidia,tegra194-pcie";
+            power-domains = <&bpmp TEGRA194_POWER_DOMAIN_PCIEX8B>;
+            reg = <0x0 0x14180000 0x0 0x00020000>, /* appl registers (128K)      */
+                  <0x0 0x38000000 0x0 0x00040000>, /* configuration space (256K) */
+                  <0x0 0x38040000 0x0 0x00040000>, /* iATU_DMA reg space (256K)  */
+                  <0x0 0x38080000 0x0 0x00040000>; /* DBI reg space (256K)       */
+            reg-names = "appl", "config", "atu_dma", "dbi";
+
+            #address-cells = <3>;
+            #size-cells = <2>;
+            device_type = "pci";
+            num-lanes = <8>;
+            linux,pci-domain = <0>;
+
+            pinctrl-names = "default";
+            pinctrl-0 = <&pex_rst_c5_out_state>, <&clkreq_c5_bi_dir_state>;
+
+            clocks = <&bpmp TEGRA194_CLK_PEX0_CORE_0>;
+            clock-names = "core";
+
+            resets = <&bpmp TEGRA194_RESET_PEX0_CORE_0_APB>,
+                     <&bpmp TEGRA194_RESET_PEX0_CORE_0>;
+            reset-names = "apb", "core";
+
+            interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>, /* controller interrupt */
+                         <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>; /* MSI interrupt */
+            interrupt-names = "intr", "msi";
+
+            #interrupt-cells = <1>;
+            interrupt-map-mask = <0 0 0 0>;
+            interrupt-map = <0 0 0 0 &gic GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+
+            nvidia,bpmp = <&bpmp 0>;
+
+            supports-clkreq;
+            nvidia,aspm-cmrt-us = <60>;
+            nvidia,aspm-pwr-on-t-us = <20>;
+            nvidia,aspm-l0s-entrance-latency-us = <3>;
+
+            bus-range = <0x0 0xff>;
+            ranges = <0x81000000 0x0  0x38100000 0x0  0x38100000 0x0 0x00100000>, /* downstream I/O */
+                     <0x82000000 0x0  0x38200000 0x0  0x38200000 0x0 0x01e00000>, /* non-prefetch memory */
+                     <0xc2000000 0x18 0x00000000 0x18 0x00000000 0x4 0x00000000>; /* prefetchable memory */
+
+            vddio-pex-ctl-supply = <&vdd_1v8ao>;
+            vpcie3v3-supply = <&vdd_3v3_pcie>;
+            vpcie12v-supply = <&vdd_12v_pcie>;
+
+            phys = <&p2u_hsio_2>, <&p2u_hsio_3>, <&p2u_hsio_4>,
+                   <&p2u_hsio_5>;
+            phy-names = "p2u-0", "p2u-1", "p2u-2", "p2u-3";
+        };
+    };
+
+  - |
+    #include <dt-bindings/clock/tegra234-clock.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/power/tegra234-powergate.h>
+    #include <dt-bindings/reset/tegra234-reset.h>
+
+    bus@0 {
+        #address-cells = <2>;
+        #size-cells = <2>;
+        ranges = <0x0 0x0 0x0 0x8 0x0>;
+
+        pcie@14160000 {
+            compatible = "nvidia,tegra234-pcie";
+            power-domains = <&bpmp TEGRA234_POWER_DOMAIN_PCIEX4BB>;
+            reg = <0x00 0x14160000 0x0 0x00020000>, /* appl registers (128K)      */
+                  <0x00 0x36000000 0x0 0x00040000>, /* configuration space (256K) */
+                  <0x00 0x36040000 0x0 0x00040000>, /* iATU_DMA reg space (256K)  */
+                  <0x00 0x36080000 0x0 0x00040000>, /* DBI reg space (256K)       */
+                  <0x24 0x30000000 0x0 0x10000000>; /* ECAM (256MB)               */
+            reg-names = "appl", "config", "atu_dma", "dbi", "ecam";
+
+            #address-cells = <3>;
+            #size-cells = <2>;
+            device_type = "pci";
+            num-lanes = <4>;
+            num-viewport = <8>;
+            linux,pci-domain = <4>;
+
+            clocks = <&bpmp TEGRA234_CLK_PEX0_C4_CORE>;
+            clock-names = "core";
+
+            resets = <&bpmp TEGRA234_RESET_PEX0_CORE_4_APB>,
+                     <&bpmp TEGRA234_RESET_PEX0_CORE_4>;
+            reset-names = "apb", "core";
+
+            interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>, /* controller interrupt */
+                         <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>; /* MSI interrupt */
+            interrupt-names = "intr", "msi";
+
+            #interrupt-cells = <1>;
+            interrupt-map-mask = <0 0 0 0>;
+            interrupt-map = <0 0 0 0 &gic GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
+
+            nvidia,bpmp = <&bpmp 4>;
+
+            nvidia,aspm-cmrt-us = <60>;
+            nvidia,aspm-pwr-on-t-us = <20>;
+            nvidia,aspm-l0s-entrance-latency-us = <3>;
+
+            bus-range = <0x0 0xff>;
+            ranges = <0x43000000 0x21 0x40000000 0x21 0x40000000 0x2 0xe8000000>, /* prefetchable */
+                     <0x02000000 0x0  0x40000000 0x24 0x28000000 0x0 0x08000000>, /* non-prefetchable */
+                     <0x01000000 0x0  0x36100000 0x00 0x36100000 0x0 0x00100000>; /* downstream I/O */
+
+            vddio-pex-ctl-supply = <&p3701_vdd_AO_1v8>;
+
+            phys = <&p2u_hsio_4>, <&p2u_hsio_5>, <&p2u_hsio_6>,
+                   <&p2u_hsio_7>;
+            phy-names = "p2u-0", "p2u-1", "p2u-2", "p2u-3";
+        };
+    };

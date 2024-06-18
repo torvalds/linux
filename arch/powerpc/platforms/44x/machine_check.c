@@ -7,10 +7,11 @@
 #include <linux/ptrace.h>
 
 #include <asm/reg.h>
+#include <asm/cacheflush.h>
 
 int machine_check_440A(struct pt_regs *regs)
 {
-	unsigned long reason = regs->dsisr;
+	unsigned long reason = regs->esr;
 
 	printk("Machine check in kernel mode.\n");
 	if (reason & ESR_IMCP){
@@ -47,7 +48,7 @@ int machine_check_440A(struct pt_regs *regs)
 #ifdef CONFIG_PPC_47x
 int machine_check_47x(struct pt_regs *regs)
 {
-	unsigned long reason = regs->dsisr;
+	unsigned long reason = regs->esr;
 	u32 mcsr;
 
 	printk(KERN_ERR "Machine check in kernel mode.\n");

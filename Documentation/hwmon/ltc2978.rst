@@ -3,13 +3,21 @@ Kernel driver ltc2978
 
 Supported chips:
 
+  * Linear Technology LTC2972
+
+    Prefix: 'ltc2972'
+
+    Addresses scanned: -
+
+    Datasheet: https://www.analog.com/en/products/ltc2972.html
+
   * Linear Technology LTC2974
 
     Prefix: 'ltc2974'
 
     Addresses scanned: -
 
-    Datasheet: http://www.linear.com/product/ltc2974
+    Datasheet: https://www.analog.com/en/products/ltc2974
 
   * Linear Technology LTC2975
 
@@ -17,7 +25,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: http://www.linear.com/product/ltc2975
+    Datasheet: https://www.analog.com/en/products/ltc2975
 
   * Linear Technology LTC2977
 
@@ -25,7 +33,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: http://www.linear.com/product/ltc2977
+    Datasheet: https://www.analog.com/en/products/ltc2977
 
   * Linear Technology LTC2978, LTC2978A
 
@@ -33,9 +41,17 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: http://www.linear.com/product/ltc2978
+    Datasheet: https://www.analog.com/en/products/ltc2978
 
-	       http://www.linear.com/product/ltc2978a
+	       https://www.analog.com/en/products/ltc2978a
+
+  * Linear Technology LTC2979
+
+    Prefix: 'ltc2979'
+
+    Addresses scanned: -
+
+    Datasheet: https://www.analog.com/en/products/ltc2979
 
   * Linear Technology LTC2980
 
@@ -43,7 +59,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: http://www.linear.com/product/ltc2980
+    Datasheet: https://www.analog.com/en/products/ltc2980
 
   * Linear Technology LTC3880
 
@@ -51,7 +67,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: http://www.linear.com/product/ltc3880
+    Datasheet: https://www.analog.com/en/products/ltc3880
 
   * Linear Technology LTC3882
 
@@ -59,7 +75,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: http://www.linear.com/product/ltc3882
+    Datasheet: https://www.analog.com/en/products/ltc3882
 
   * Linear Technology LTC3883
 
@@ -67,7 +83,15 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: http://www.linear.com/product/ltc3883
+    Datasheet: https://www.analog.com/en/products/ltc3883
+
+  * Linear Technology LTC3884
+
+    Prefix: 'ltc3884'
+
+    Addresses scanned: -
+
+    Datasheet: https://www.analog.com/en/products/ltc3884
 
   * Linear Technology LTC3886
 
@@ -75,7 +99,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: http://www.linear.com/product/ltc3886
+    Datasheet: https://www.analog.com/en/products/ltc3886
 
   * Linear Technology LTC3887
 
@@ -83,7 +107,23 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: http://www.linear.com/product/ltc3887
+    Datasheet: https://www.analog.com/en/products/ltc3887
+
+  * Linear Technology LTC3889
+
+    Prefix: 'ltc3889'
+
+    Addresses scanned: -
+
+    Datasheet: https://www.analog.com/en/products/ltc3889
+
+  * Linear Technology LTC7880
+
+    Prefix: 'ltc7880'
+
+    Addresses scanned: -
+
+    Datasheet: https://www.analog.com/en/products/ltc7880
 
   * Linear Technology LTM2987
 
@@ -91,15 +131,23 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: http://www.linear.com/product/ltm2987
+    Datasheet: https://www.analog.com/en/products/ltm2987
 
-  * Linear Technology LTM4675
+  * Linear Technology LTM4644
+
+    Prefix: 'ltm4644'
+
+    Addresses scanned: -
+
+    Datasheet: https://www.analog.com/en/products/ltm4644
+
+   * Linear Technology LTM4675
 
     Prefix: 'ltm4675'
 
     Addresses scanned: -
 
-    Datasheet: http://www.linear.com/product/ltm4675
+    Datasheet: https://www.analog.com/en/products/ltm4675
 
   * Linear Technology LTM4676
 
@@ -107,7 +155,31 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: http://www.linear.com/product/ltm4676
+    Datasheet: https://www.analog.com/en/products/ltm4676
+
+  * Linear Technology LTM4677
+
+    Prefix: 'ltm4677'
+
+    Addresses scanned: -
+
+    Datasheet: https://www.analog.com/en/products/ltm4677
+
+  * Linear Technology LTM4678
+
+    Prefix: 'ltm4678'
+
+    Addresses scanned: -
+
+    Datasheet: https://www.analog.com/en/products/ltm4678
+
+  * Analog Devices LTM4680
+
+    Prefix: 'ltm4680'
+
+    Addresses scanned: -
+
+    Datasheet: https://www.analog.com/ltm4680
 
   * Analog Devices LTM4686
 
@@ -115,7 +187,16 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: http://www.analog.com/ltm4686
+    Datasheet: https://www.analog.com/ltm4686
+
+  * Analog Devices LTM4700
+
+    Prefix: 'ltm4700'
+
+    Addresses scanned: -
+
+    Datasheet: https://www.analog.com/ltm4700
+
 
 
 Author: Guenter Roeck <linux@roeck-us.net>
@@ -166,13 +247,13 @@ in1_min			Minimum input voltage.
 
 in1_max			Maximum input voltage.
 
-			LTC2974, LTC2975, LTC2977, LTC2980, LTC2978, and
-			LTM2987 only.
+			LTC2974, LTC2975, LTC2977, LTC2980, LTC2978,
+			LTC2979 and LTM2987 only.
 
 in1_lcrit		Critical minimum input voltage.
 
-			LTC2974, LTC2975, LTC2977, LTC2980, LTC2978, and
-			LTM2987 only.
+			LTC2972, LTC2974, LTC2975, LTC2977, LTC2980, LTC2978,
+			LTC2979 and LTM2987 only.
 
 in1_crit		Critical maximum input voltage.
 
@@ -180,29 +261,34 @@ in1_min_alarm		Input voltage low alarm.
 
 in1_max_alarm		Input voltage high alarm.
 
-			LTC2974, LTC2975, LTC2977, LTC2980, LTC2978, and
-			LTM2987 only.
+			LTC2972, LTC2974, LTC2975, LTC2977, LTC2980, LTC2978,
+			LTC2979 and LTM2987 only.
+
 in1_lcrit_alarm		Input voltage critical low alarm.
 
-			LTC2974, LTC2975, LTC2977, LTC2980, LTC2978, and
-			LTM2987 only.
+			LTC2972, LTC2974, LTC2975, LTC2977, LTC2980, LTC2978,
+			LTC2979 and LTM2987 only.
+
 in1_crit_alarm		Input voltage critical high alarm.
 
 in1_lowest		Lowest input voltage.
 
-			LTC2974, LTC2975, LTC2977, LTC2980, LTC2978, and
-			LTM2987 only.
+			LTC2972, LTC2974, LTC2975, LTC2977, LTC2980, LTC2978,
+			and LTM2987 only.
+
 in1_highest		Highest input voltage.
 
 in1_reset_history	Reset input voltage history.
 
 in[N]_label		"vout[1-8]".
 
+			- LTC2972: N=2-3
 			- LTC2974, LTC2975: N=2-5
-			- LTC2977, LTC2980, LTM2987: N=2-9
+			- LTC2977, LTC2979, LTC2980, LTM2987: N=2-9
 			- LTC2978: N=2-9
-			- LTC3880, LTC3882, LTC23886 LTC3887, LTM4675, LTM4676:
-			  N=2-3
+			- LTC3880, LTC3882, LTC3884, LTC23886 LTC3887, LTC3889,
+			  LTC7880, LTM4644, LTM4675, LTM4676, LTM4677, LTM4678,
+			  LTM4680, LTM4700: N=2-3
 			- LTC3883: N=2
 
 in[N]_input		Measured output voltage.
@@ -225,8 +311,7 @@ in[N]_crit_alarm	Output voltage critical high alarm.
 
 in[N]_lowest		Lowest output voltage.
 
-
-			LTC2974, LTC2975,and LTC2978 only.
+			LTC2972, LTC2974, LTC2975,and LTC2978 only.
 
 in[N]_highest		Highest output voltage.
 
@@ -234,20 +319,24 @@ in[N]_reset_history	Reset output voltage history.
 
 temp[N]_input		Measured temperature.
 
+			- On LTC2972, temp[1-2] report external temperatures,
+			  and temp 3 reports the chip temperature.
 			- On LTC2974 and LTC2975, temp[1-4] report external
 			  temperatures, and temp5 reports the chip temperature.
-			- On LTC2977, LTC2980, LTC2978, and LTM2987, only one
-			  temperature measurement is supported and reports
-			  the chip temperature.
-			- On LTC3880, LTC3882, LTC3887, LTM4675, and LTM4676,
-			  temp1 and temp2 report external temperatures, and
-			  temp3 reports the chip temperature.
+			- On LTC2977, LTC2979, LTC2980, LTC2978, and LTM2987,
+			  only one temperature measurement is supported and
+			  reports the chip temperature.
+			- On LTC3880, LTC3882, LTC3886, LTC3887, LTC3889,
+			  LTM4664, LTM4675, LTM4676, LTM4677, LTM4678, LTM4680,
+			  and LTM4700, temp1 and temp2 report external
+			  temperatures, and temp3 reports the chip temperature.
 			- On LTC3883, temp1 reports an external temperature,
 			  and temp2 reports the chip temperature.
 
-temp[N]_min		Mimimum temperature.
+temp[N]_min		Minimum temperature.
 
-			LTC2974, LCT2977, LTM2980, LTC2978, and LTM2987 only.
+			LTC2972, LTC2974, LCT2977, LTM2980, LTC2978,
+			LTC2979, and LTM2987 only.
 
 temp[N]_max		Maximum temperature.
 
@@ -257,8 +346,8 @@ temp[N]_crit		Critical high temperature.
 
 temp[N]_min_alarm	Temperature low alarm.
 
-			LTC2974, LTC2975, LTC2977, LTM2980, LTC2978, and
-			LTM2987 only.
+			LTC2972, LTC2974, LTC2975, LTC2977, LTM2980, LTC2978,
+			LTC2979, and LTM2987 only.
 
 temp[N]_max_alarm	Temperature high alarm.
 
@@ -269,8 +358,8 @@ temp[N]_crit_alarm	Temperature critical high alarm.
 
 temp[N]_lowest		Lowest measured temperature.
 
-			- LTC2974, LTC2975, LTC2977, LTM2980, LTC2978, and
-			  LTM2987 only.
+			- LTC2972, LTC2974, LTC2975, LTC2977, LTM2980, LTC2978,
+			  LTC2979, and LTM2987 only.
 			- Not supported for chip temperature sensor on LTC2974
 			  and LTC2975.
 
@@ -290,19 +379,22 @@ power1_input		Measured input power.
 
 power[N]_label		"pout[1-4]".
 
+			- LTC2972: N=1-2
 			- LTC2974, LTC2975: N=1-4
-			- LTC2977, LTC2980, LTM2987: Not supported
+			- LTC2977, LTC2979, LTC2980, LTM2987: Not supported
 			- LTC2978: Not supported
-			- LTC3880, LTC3882, LTC3886, LTC3887, LTM4675, LTM4676:
-			  N=1-2
+			- LTC3880, LTC3882, LTC3884, LTC3886, LTC3887, LTC3889,
+			  LTM4664, LTM4675, LTM4676, LTM4677, LTM4678, LTM4680,
+			  LTM4700: N=1-2
 			- LTC3883: N=2
 
 power[N]_input		Measured output power.
 
 curr1_label		"iin".
 
-			LTC3880, LTC3883, LTC3886, LTC3887, LTM4675,
-			and LTM4676 only.
+			LTC3880, LTC3883, LTC3884, LTC3886, LTC3887, LTC3889,
+			LTM4644, LTM4675, LTM4676, LTM4677, LTM4678, LTM4680,
+			and LTM4700 only.
 
 curr1_input		Measured input current.
 
@@ -320,11 +412,13 @@ curr1_reset_history	Reset input current history.
 
 curr[N]_label		"iout[1-4]".
 
+			- LTC2972: N-1-2
 			- LTC2974, LTC2975: N=1-4
-			- LTC2977, LTC2980, LTM2987: not supported
+			- LTC2977, LTC2979, LTC2980, LTM2987: not supported
 			- LTC2978: not supported
-			- LTC3880, LTC3882, LTC3886, LTC3887, LTM4675, LTM4676:
-			  N=2-3
+			- LTC3880, LTC3882, LTC3884, LTC3886, LTC3887, LTC3889,
+			  LTM4664, LTM4675, LTM4676, LTM4677, LTM4678, LTM4680,
+			  LTM4700: N=2-3
 			- LTC3883: N=2
 
 curr[N]_input		Measured output current.
@@ -335,7 +429,7 @@ curr[N]_crit		Critical high output current.
 
 curr[N]_lcrit		Critical low output current.
 
-			LTC2974 and LTC2975 only.
+			LTC2972, LTC2974 and LTC2975 only.
 
 curr[N]_max_alarm	Output current high alarm.
 
@@ -343,11 +437,11 @@ curr[N]_crit_alarm	Output current critical high alarm.
 
 curr[N]_lcrit_alarm	Output current critical low alarm.
 
-			LTC2974 and LTC2975 only.
+			LTC2972, LTC2974 and LTC2975 only.
 
 curr[N]_lowest		Lowest output current.
 
-			LTC2974 and LTC2975 only.
+			LTC2972, LTC2974 and LTC2975 only.
 
 curr[N]_highest		Highest output current.
 

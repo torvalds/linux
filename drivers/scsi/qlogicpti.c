@@ -28,8 +28,9 @@
 #include <linux/jiffies.h>
 #include <linux/dma-mapping.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/platform_device.h>
 #include <linux/firmware.h>
+#include <linux/pgtable.h>
 
 #include <asm/byteorder.h>
 
@@ -37,7 +38,6 @@
 
 #include <asm/dma.h>
 #include <asm/ptrace.h>
-#include <asm/pgtable.h>
 #include <asm/oplib.h>
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -200,15 +200,15 @@ static int qlogicpti_mbox_command(struct qlogicpti *qpti, u_short param[], int f
 	/* Write mailbox command registers. */
 	switch (mbox_param[param[0]] >> 4) {
 	case 6: sbus_writew(param[5], qpti->qregs + MBOX5);
-		/* Fall through */
+		fallthrough;
 	case 5: sbus_writew(param[4], qpti->qregs + MBOX4);
-		/* Fall through */
+		fallthrough;
 	case 4: sbus_writew(param[3], qpti->qregs + MBOX3);
-		/* Fall through */
+		fallthrough;
 	case 3: sbus_writew(param[2], qpti->qregs + MBOX2);
-		/* Fall through */
+		fallthrough;
 	case 2: sbus_writew(param[1], qpti->qregs + MBOX1);
-		/* Fall through */
+		fallthrough;
 	case 1: sbus_writew(param[0], qpti->qregs + MBOX0);
 	}
 
@@ -259,15 +259,15 @@ static int qlogicpti_mbox_command(struct qlogicpti *qpti, u_short param[], int f
 	/* Read back output parameters. */
 	switch (mbox_param[param[0]] & 0xf) {
 	case 6: param[5] = sbus_readw(qpti->qregs + MBOX5);
-		/* Fall through */
+		fallthrough;
 	case 5: param[4] = sbus_readw(qpti->qregs + MBOX4);
-		/* Fall through */
+		fallthrough;
 	case 4: param[3] = sbus_readw(qpti->qregs + MBOX3);
-		/* Fall through */
+		fallthrough;
 	case 3: param[2] = sbus_readw(qpti->qregs + MBOX2);
-		/* Fall through */
+		fallthrough;
 	case 2: param[1] = sbus_readw(qpti->qregs + MBOX1);
-		/* Fall through */
+		fallthrough;
 	case 1: param[0] = sbus_readw(qpti->qregs + MBOX0);
 	}
 
@@ -513,7 +513,7 @@ static int qlogicpti_load_firmware(struct qlogicpti *qpti)
 		       qpti->qpti_id);
 		err = 1;
 		goto out;
-	}		
+	}
 	sbus_writew(SBUS_CTRL_RESET, qpti->qregs + SBUS_CTRL);
 	sbus_writew((DMA_CTRL_CCLEAR | DMA_CTRL_CIRQ), qpti->qregs + CMD_DMA_CTRL);
 	sbus_writew((DMA_CTRL_CCLEAR | DMA_CTRL_CIRQ), qpti->qregs + DATA_DMA_CTRL);
@@ -563,7 +563,7 @@ static int qlogicpti_load_firmware(struct qlogicpti *qpti)
 		       qpti->qpti_id);
 		err = 1;
 		goto out;
-	}		
+	}
 
 	/* Load it up.. */
 	for (i = 0; i < risc_code_length; i++) {
@@ -843,7 +843,7 @@ static int qpti_map_queues(struct qlogicpti *qpti)
 	return 0;
 }
 
-const char *qlogicpti_info(struct Scsi_Host *host)
+static const char *qlogicpti_info(struct Scsi_Host *host)
 {
 	static char buf[80];
 	struct qlogicpti *qpti = (struct qlogicpti *) host->hostdata;
@@ -890,7 +890,7 @@ static inline void cmd_frob(struct Command_Entry *cmd, struct scsi_cmnd *Cmnd,
 		cmd->control_flags |= CFLAG_WRITE;
 	else
 		cmd->control_flags |= CFLAG_READ;
-	cmd->time_out = Cmnd->request->timeout/HZ;
+	cmd->time_out = scsi_cmd_to_rq(Cmnd)->timeout / HZ;
 	memcpy(cmd->cdb, Cmnd->cmnd, Cmnd->cmd_len);
 }
 
@@ -909,7 +909,8 @@ static inline int load_cmd(struct scsi_cmnd *Cmnd, struct Command_Entry *cmd,
 		sg_count = dma_map_sg(&qpti->op->dev, sg,
 				      scsi_sg_count(Cmnd),
 				      Cmnd->sc_data_direction);
-
+		if (!sg_count)
+			return -1;
 		ds = cmd->dataseg;
 		cmd->segment_cnt = sg_count;
 
@@ -1013,15 +1014,14 @@ static int qlogicpti_slave_configure(struct scsi_device *sdev)
  *
  * "This code must fly." -davem
  */
-static int qlogicpti_queuecommand_lck(struct scsi_cmnd *Cmnd, void (*done)(struct scsi_cmnd *))
+static int qlogicpti_queuecommand_lck(struct scsi_cmnd *Cmnd)
 {
+	void (*done)(struct scsi_cmnd *) = scsi_done;
 	struct Scsi_Host *host = Cmnd->device->host;
 	struct qlogicpti *qpti = (struct qlogicpti *) host->hostdata;
 	struct Command_Entry *cmd;
 	u_int out_ptr;
 	int in_ptr;
-
-	Cmnd->scsi_done = done;
 
 	in_ptr = qpti->req_in_ptr;
 	cmd = (struct Command_Entry *) &qpti->req_cpu[in_ptr];
@@ -1136,7 +1136,7 @@ static struct scsi_cmnd *qlogicpti_intr_handler(struct qlogicpti *qpti)
 
 	if (!(sbus_readw(qpti->qregs + SBUS_STAT) & SBUS_STAT_RINT))
 		return NULL;
-		
+
 	in_ptr = sbus_readw(qpti->qregs + MBOX5);
 	sbus_writew(HCCTRL_CRIRQ, qpti->qregs + HCCTRL);
 	if (sbus_readw(qpti->qregs + SBUS_SEMAPHORE) & SBUS_SEMAPHORE_LCK) {
@@ -1214,7 +1214,7 @@ static irqreturn_t qpti_intr(int irq, void *dev_id)
 			struct scsi_cmnd *next;
 
 			next = (struct scsi_cmnd *) dq->host_scribble;
-			dq->scsi_done(dq);
+			scsi_done(dq);
 			dq = next;
 		} while (dq != NULL);
 	}
@@ -1287,7 +1287,7 @@ static int qlogicpti_reset(struct scsi_cmnd *Cmnd)
 	return return_status;
 }
 
-static struct scsi_host_template qpti_template = {
+static const struct scsi_host_template qpti_template = {
 	.module			= THIS_MODULE,
 	.name			= "qlogicpti",
 	.info			= qlogicpti_info,
@@ -1362,9 +1362,8 @@ static int qpti_sbus_probe(struct platform_device *op)
 	fcode = of_get_property(dp, "isp-fcode", NULL);
 	if (fcode && fcode[0])
 		printk("(FCode %s)", fcode);
-	if (of_find_property(dp, "differential", NULL) != NULL)
-		qpti->differential = 1;
-			
+	qpti->differential = of_property_read_bool(dp, "differential");
+
 	printk("\nqlogicpti%d: [%s Wide, using %s interface]\n",
 		qpti->qpti_id,
 		(qpti->ultra ? "Ultra" : "Fast"),
@@ -1410,7 +1409,7 @@ fail_unlink:
 	return -ENODEV;
 }
 
-static int qpti_sbus_remove(struct platform_device *op)
+static void qpti_sbus_remove(struct platform_device *op)
 {
 	struct qlogicpti *qpti = dev_get_drvdata(&op->dev);
 
@@ -1439,8 +1438,6 @@ static int qpti_sbus_remove(struct platform_device *op)
 		of_iounmap(&op->resource[0], qpti->sreg, sizeof(unsigned char));
 
 	scsi_host_put(qpti->qhost);
-
-	return 0;
 }
 
 static const struct of_device_id qpti_match[] = {
@@ -1466,24 +1463,12 @@ static struct platform_driver qpti_sbus_driver = {
 		.of_match_table = qpti_match,
 	},
 	.probe		= qpti_sbus_probe,
-	.remove		= qpti_sbus_remove,
+	.remove_new	= qpti_sbus_remove,
 };
-
-static int __init qpti_init(void)
-{
-	return platform_driver_register(&qpti_sbus_driver);
-}
-
-static void __exit qpti_exit(void)
-{
-	platform_driver_unregister(&qpti_sbus_driver);
-}
+module_platform_driver(qpti_sbus_driver);
 
 MODULE_DESCRIPTION("QlogicISP SBUS driver");
-MODULE_AUTHOR("David S. Miller (davem@davemloft.net)");
+MODULE_AUTHOR("David S. Miller <davem@davemloft.net>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("2.1");
 MODULE_FIRMWARE("qlogic/isp1000.bin");
-
-module_init(qpti_init);
-module_exit(qpti_exit);

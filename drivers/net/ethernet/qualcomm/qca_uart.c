@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 /*
  *   Copyright (c) 2011, 2012, Qualcomm Atheros Communications Inc.
  *   Copyright (c) 2017, I2SE GmbH
- *
- *   Permission to use, copy, modify, and/or distribute this software
- *   for any purpose with or without fee is hereby granted, provided
- *   that the above copyright notice and this permission notice appear
- *   in all copies.
- *
- *   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- *   WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- *   WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
- *   THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR
- *   CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
- *   LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
- *   NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
- *   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 /*   This module implements the Qualcomm Atheros UART protocol for
@@ -32,7 +19,6 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/of_net.h>
 #include <linux/sched.h>
 #include <linux/serdev.h>
@@ -59,9 +45,8 @@ struct qcauart {
 	unsigned char *tx_buffer;
 };
 
-static int
-qca_tty_receive(struct serdev_device *serdev, const unsigned char *data,
-		size_t count)
+static size_t
+qca_tty_receive(struct serdev_device *serdev, const u8 *data, size_t count)
 {
 	struct qcauart *qca = serdev_device_get_drvdata(serdev);
 	struct net_device *netdev = qca->net_dev;
@@ -107,8 +92,8 @@ qca_tty_receive(struct serdev_device *serdev, const unsigned char *data,
 			skb_put(qca->rx_skb, retcode);
 			qca->rx_skb->protocol = eth_type_trans(
 						qca->rx_skb, qca->rx_skb->dev);
-			qca->rx_skb->ip_summed = CHECKSUM_UNNECESSARY;
-			netif_rx_ni(qca->rx_skb);
+			skb_checksum_none_assert(qca->rx_skb);
+			netif_rx(qca->rx_skb);
 			qca->rx_skb = netdev_alloc_skb_ip_align(netdev,
 								netdev->mtu +
 								VLAN_ETH_HLEN);
@@ -167,7 +152,7 @@ static void qca_tty_wakeup(struct serdev_device *serdev)
 	schedule_work(&qca->tx_work);
 }
 
-static struct serdev_device_ops qca_serdev_ops = {
+static const struct serdev_device_ops qca_serdev_ops = {
 	.receive_buf = qca_tty_receive,
 	.write_wakeup = qca_tty_wakeup,
 };
@@ -248,7 +233,7 @@ out:
 	return NETDEV_TX_OK;
 }
 
-static void qcauart_netdev_tx_timeout(struct net_device *dev)
+static void qcauart_netdev_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct qcauart *qca = netdev_priv(dev);
 
@@ -323,7 +308,6 @@ static int qca_uart_probe(struct serdev_device *serdev)
 {
 	struct net_device *qcauart_dev = alloc_etherdev(sizeof(struct qcauart));
 	struct qcauart *qca;
-	const char *mac;
 	u32 speed = 115200;
 	int ret;
 
@@ -348,12 +332,8 @@ static int qca_uart_probe(struct serdev_device *serdev)
 
 	of_property_read_u32(serdev->dev.of_node, "current-speed", &speed);
 
-	mac = of_get_mac_address(serdev->dev.of_node);
-
-	if (!IS_ERR(mac))
-		ether_addr_copy(qca->net_dev->dev_addr, mac);
-
-	if (!is_valid_ether_addr(qca->net_dev->dev_addr)) {
+	ret = of_get_ethdev_address(serdev->dev.of_node, qca->net_dev);
+	if (ret) {
 		eth_hw_addr_random(qca->net_dev);
 		dev_info(&serdev->dev, "Using random MAC address: %pM\n",
 			 qca->net_dev->dev_addr);
@@ -409,7 +389,7 @@ static struct serdev_device_driver qca_uart_driver = {
 	.remove = qca_uart_remove,
 	.driver = {
 		.name = QCAUART_DRV_NAME,
-		.of_match_table = of_match_ptr(qca_uart_of_match),
+		.of_match_table = qca_uart_of_match,
 	},
 };
 
@@ -417,6 +397,6 @@ module_serdev_device_driver(qca_uart_driver);
 
 MODULE_DESCRIPTION("Qualcomm Atheros QCA7000 UART Driver");
 MODULE_AUTHOR("Qualcomm Atheros Communications");
-MODULE_AUTHOR("Stefan Wahren <stefan.wahren@i2se.com>");
+MODULE_AUTHOR("Stefan Wahren <wahrenst@gmx.net>");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(QCAUART_DRV_VERSION);

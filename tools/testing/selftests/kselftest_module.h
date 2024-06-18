@@ -3,6 +3,7 @@
 #define __KSELFTEST_MODULE_H
 
 #include <linux/module.h>
+#include <linux/panic.h>
 
 /*
  * Test framework for writing test modules to be loaded by kselftest.
@@ -11,7 +12,8 @@
 
 #define KSTM_MODULE_GLOBALS()			\
 static unsigned int total_tests __initdata;	\
-static unsigned int failed_tests __initdata
+static unsigned int failed_tests __initdata;	\
+static unsigned int skipped_tests __initdata
 
 #define KSTM_CHECK_ZERO(x) do {						\
 	total_tests++;							\
@@ -21,11 +23,16 @@ static unsigned int failed_tests __initdata
 	}								\
 } while (0)
 
-static inline int kstm_report(unsigned int total_tests, unsigned int failed_tests)
+static inline int kstm_report(unsigned int total_tests, unsigned int failed_tests,
+			      unsigned int skipped_tests)
 {
-	if (failed_tests == 0)
-		pr_info("all %u tests passed\n", total_tests);
-	else
+	if (failed_tests == 0) {
+		if (skipped_tests) {
+			pr_info("skipped %u tests\n", skipped_tests);
+			pr_info("remaining %u tests passed\n", total_tests);
+		} else
+			pr_info("all %u tests passed\n", total_tests);
+	} else
 		pr_warn("failed %u out of %u tests\n", failed_tests, total_tests);
 
 	return failed_tests ? -EINVAL : 0;
@@ -35,8 +42,9 @@ static inline int kstm_report(unsigned int total_tests, unsigned int failed_test
 static int __init __module##_init(void)			\
 {							\
 	pr_info("loaded.\n");				\
+	add_taint(TAINT_TEST, LOCKDEP_STILL_OK);	\
 	selftest();					\
-	return kstm_report(total_tests, failed_tests);	\
+	return kstm_report(total_tests, failed_tests, skipped_tests);	\
 }							\
 static void __exit __module##_exit(void)		\
 {							\
@@ -44,5 +52,7 @@ static void __exit __module##_exit(void)		\
 }							\
 module_init(__module##_init);				\
 module_exit(__module##_exit)
+
+MODULE_INFO(test, "Y");
 
 #endif	/* __KSELFTEST_MODULE_H */

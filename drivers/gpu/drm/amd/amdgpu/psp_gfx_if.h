@@ -31,6 +31,9 @@
 #define GFX_CMD_RESERVED_MASK       0x7FF00000
 #define GFX_CMD_RESPONSE_MASK       0x80000000
 
+/* USBC PD FW version retrieval command */
+#define C2PMSG_CMD_GFX_USB_PD_FW_VER 0x2000000
+
 /* TEE Gfx Command IDs for the register interface.
 *  Command ID must be between 0x00010000 and 0x000F0000.
 */
@@ -44,7 +47,7 @@ enum psp_gfx_crtl_cmd_id
     GFX_CTRL_CMD_ID_DISABLE_INT     = 0x00060000,   /* disable PSP-to-Gfx interrupt */
     GFX_CTRL_CMD_ID_MODE1_RST       = 0x00070000,   /* trigger the Mode 1 reset */
     GFX_CTRL_CMD_ID_GBR_IH_SET      = 0x00080000,   /* set Gbr IH_RB_CNTL registers */
-    GFX_CTRL_CMD_ID_CONSUME_CMD     = 0x000A0000,   /* send interrupt to psp for updating write pointer of vf */
+    GFX_CTRL_CMD_ID_CONSUME_CMD     = 0x00090000,   /* send interrupt to psp for updating write pointer of vf */
     GFX_CTRL_CMD_ID_DESTROY_GPCOM_RING = 0x000C0000, /* destroy GPCOM ring */
 
     GFX_CTRL_CMD_ID_MAX             = 0x000F0000,   /* max command ID */
@@ -80,36 +83,40 @@ struct psp_gfx_ctrl
 */
 #define GFX_FLAG_RESPONSE               0x80000000
 
-/* Gbr IH registers ID */
-enum ih_reg_id {
-	IH_RB		= 0,		// IH_RB_CNTL
-	IH_RB_RNG1	= 1,		// IH_RB_CNTL_RING1
-	IH_RB_RNG2	= 2,		// IH_RB_CNTL_RING2
-};
-
-/* Command to setup Gibraltar IH register */
-struct psp_gfx_cmd_gbr_ih_reg {
-	uint32_t		reg_value;	/* Value to be set to the IH_RB_CNTL... register*/
-	enum ih_reg_id		reg_id;		/* ID of the register */
-};
-
 /* TEE Gfx Command IDs for the ring buffer interface. */
 enum psp_gfx_cmd_id
 {
-    GFX_CMD_ID_LOAD_TA      = 0x00000001,   /* load TA */
-    GFX_CMD_ID_UNLOAD_TA    = 0x00000002,   /* unload TA */
-    GFX_CMD_ID_INVOKE_CMD   = 0x00000003,   /* send command to TA */
-    GFX_CMD_ID_LOAD_ASD     = 0x00000004,   /* load ASD Driver */
-    GFX_CMD_ID_SETUP_TMR    = 0x00000005,   /* setup TMR region */
-    GFX_CMD_ID_LOAD_IP_FW   = 0x00000006,   /* load HW IP FW */
-    GFX_CMD_ID_DESTROY_TMR  = 0x00000007,   /* destroy TMR region */
-    GFX_CMD_ID_SAVE_RESTORE = 0x00000008,   /* save/restore HW IP FW */
-    GFX_CMD_ID_SETUP_VMR    = 0x00000009,   /* setup VMR region */
-    GFX_CMD_ID_DESTROY_VMR  = 0x0000000A,   /* destroy VMR region */
-    GFX_CMD_ID_PROG_REG     = 0x0000000B,   /* program regs */
+    GFX_CMD_ID_LOAD_TA            = 0x00000001,   /* load TA */
+    GFX_CMD_ID_UNLOAD_TA          = 0x00000002,   /* unload TA */
+    GFX_CMD_ID_INVOKE_CMD         = 0x00000003,   /* send command to TA */
+    GFX_CMD_ID_LOAD_ASD           = 0x00000004,   /* load ASD Driver */
+    GFX_CMD_ID_SETUP_TMR          = 0x00000005,   /* setup TMR region */
+    GFX_CMD_ID_LOAD_IP_FW         = 0x00000006,   /* load HW IP FW */
+    GFX_CMD_ID_DESTROY_TMR        = 0x00000007,   /* destroy TMR region */
+    GFX_CMD_ID_SAVE_RESTORE       = 0x00000008,   /* save/restore HW IP FW */
+    GFX_CMD_ID_SETUP_VMR          = 0x00000009,   /* setup VMR region */
+    GFX_CMD_ID_DESTROY_VMR        = 0x0000000A,   /* destroy VMR region */
+    GFX_CMD_ID_PROG_REG           = 0x0000000B,   /* program regs */
+    GFX_CMD_ID_GET_FW_ATTESTATION = 0x0000000F,   /* Query GPUVA of the Fw Attestation DB */
     /* IDs upto 0x1F are reserved for older programs (Raven, Vega 10/12/20) */
-    GFX_CMD_ID_LOAD_TOC     = 0x00000020,   /* Load TOC and obtain TMR size */
-    GFX_CMD_ID_AUTOLOAD_RLC = 0x00000021,   /* Indicates all graphics fw loaded, start RLC autoload */
+    GFX_CMD_ID_LOAD_TOC           = 0x00000020,   /* Load TOC and obtain TMR size */
+    GFX_CMD_ID_AUTOLOAD_RLC       = 0x00000021,   /* Indicates all graphics fw loaded, start RLC autoload */
+    GFX_CMD_ID_BOOT_CFG           = 0x00000022,   /* Boot Config */
+    GFX_CMD_ID_SRIOV_SPATIAL_PART = 0x00000027,   /* Configure spatial partitioning mode */
+};
+
+/* PSP boot config sub-commands */
+enum psp_gfx_boot_config_cmd
+{
+    BOOTCFG_CMD_SET         = 1, /* Set boot configuration settings */
+    BOOTCFG_CMD_GET         = 2, /* Get boot configuration settings */
+    BOOTCFG_CMD_INVALIDATE  = 3  /* Reset current boot configuration settings to VBIOS defaults */
+};
+
+/* PSP boot config bitmask values */
+enum psp_gfx_boot_config
+{
+    BOOT_CONFIG_GECC = 0x1,
 };
 
 /* Command to load Trusted Application binary into PSP OS. */
@@ -178,9 +185,18 @@ struct psp_gfx_cmd_setup_tmr
     uint32_t        buf_phy_addr_lo;       /* bits [31:0] of GPU Virtual address of TMR buffer (must be 4 KB aligned) */
     uint32_t        buf_phy_addr_hi;       /* bits [63:32] of GPU Virtual address of TMR buffer */
     uint32_t        buf_size;              /* buffer size in bytes (must be multiple of 4 KB) */
+    union {
+	struct {
+		uint32_t	sriov_enabled:1; /* whether the device runs under SR-IOV*/
+		uint32_t	virt_phy_addr:1; /* driver passes both virtual and physical address to PSP*/
+		uint32_t	reserved:30;
+	} bitfield;
+	uint32_t        tmr_flags;
+    };
+    uint32_t        system_phy_addr_lo;        /* bits [31:0] of system physical address of TMR buffer (must be 4 KB aligned) */
+    uint32_t        system_phy_addr_hi;        /* bits [63:32] of system physical address of TMR buffer */
 
 };
-
 
 /* FW types for GFX_CMD_ID_LOAD_IP_FW command. Limit 31. */
 enum psp_gfx_fw_type {
@@ -210,7 +226,7 @@ enum psp_gfx_fw_type {
 	GFX_FW_TYPE_UVD1        = 23,   /* UVD1                     VG-20   */
 	GFX_FW_TYPE_TOC         = 24,   /* TOC                      NV-10   */
 	GFX_FW_TYPE_RLC_P                           = 25,   /* RLC P                    NV      */
-	GFX_FW_TYPE_RLX6                            = 26,   /* RLX6                     NV      */
+	GFX_FW_TYPE_RLC_IRAM                        = 26,   /* RLC_IRAM                 NV      */
 	GFX_FW_TYPE_GLOBAL_TAP_DELAYS               = 27,   /* GLOBAL TAP DELAYS        NV      */
 	GFX_FW_TYPE_SE0_TAP_DELAYS                  = 28,   /* SE0 TAP DELAYS           NV      */
 	GFX_FW_TYPE_SE1_TAP_DELAYS                  = 29,   /* SE1 TAP DELAYS           NV      */
@@ -232,7 +248,7 @@ enum psp_gfx_fw_type {
 	GFX_FW_TYPE_ACCUM_CTRL_RAM                  = 45,   /* ACCUM CTRL RAM           NV      */
 	GFX_FW_TYPE_RLCP_CAM                        = 46,   /* RLCP CAM                 NV      */
 	GFX_FW_TYPE_RLC_SPP_CAM_EXT                 = 47,   /* RLC SPP CAM EXT          NV      */
-	GFX_FW_TYPE_RLX6_DRAM_BOOT                  = 48,   /* RLX6 DRAM BOOT           NV      */
+	GFX_FW_TYPE_RLC_DRAM_BOOT                   = 48,   /* RLC DRAM BOOT            NV      */
 	GFX_FW_TYPE_VCN0_RAM                        = 49,   /* VCN_RAM                  NV + RN */
 	GFX_FW_TYPE_VCN1_RAM                        = 50,   /* VCN_RAM                  NV + RN */
 	GFX_FW_TYPE_DMUB                            = 51,   /* DMUB                          RN */
@@ -242,6 +258,46 @@ enum psp_gfx_fw_type {
 	GFX_FW_TYPE_SDMA5                           = 55,   /* SDMA5                    MI      */
 	GFX_FW_TYPE_SDMA6                           = 56,   /* SDMA6                    MI      */
 	GFX_FW_TYPE_SDMA7                           = 57,   /* SDMA7                    MI      */
+	GFX_FW_TYPE_VCN1                            = 58,   /* VCN1                     MI      */
+	GFX_FW_TYPE_CAP                             = 62,   /* CAP_FW                           */
+	GFX_FW_TYPE_SE2_TAP_DELAYS                  = 65,   /* SE2 TAP DELAYS           NV      */
+	GFX_FW_TYPE_SE3_TAP_DELAYS                  = 66,   /* SE3 TAP DELAYS           NV      */
+	GFX_FW_TYPE_REG_LIST                        = 67,   /* REG_LIST                 MI      */
+	GFX_FW_TYPE_IMU_I                           = 68,   /* IMU Instruction FW       SOC21   */
+	GFX_FW_TYPE_IMU_D                           = 69,   /* IMU Data FW              SOC21   */
+	GFX_FW_TYPE_LSDMA                           = 70,   /* LSDMA FW                 SOC21   */
+	GFX_FW_TYPE_SDMA_UCODE_TH0                  = 71,   /* SDMA Thread 0/CTX        SOC21   */
+	GFX_FW_TYPE_SDMA_UCODE_TH1                  = 72,   /* SDMA Thread 1/CTL        SOC21   */
+	GFX_FW_TYPE_PPTABLE                         = 73,   /* PPTABLE                  SOC21   */
+	GFX_FW_TYPE_DISCRETE_USB4                   = 74,   /* dUSB4 FW                 SOC21   */
+	GFX_FW_TYPE_TA                              = 75,   /* SRIOV TA FW UUID         SOC21   */
+	GFX_FW_TYPE_RS64_MES                        = 76,   /* RS64 MES ucode           SOC21   */
+	GFX_FW_TYPE_RS64_MES_STACK                  = 77,   /* RS64 MES stack ucode     SOC21   */
+	GFX_FW_TYPE_RS64_KIQ                        = 78,   /* RS64 KIQ ucode           SOC21   */
+	GFX_FW_TYPE_RS64_KIQ_STACK                  = 79,   /* RS64 KIQ Heap stack      SOC21   */
+	GFX_FW_TYPE_ISP_DATA                        = 80,   /* ISP DATA                 SOC21   */
+	GFX_FW_TYPE_CP_MES_KIQ                      = 81,   /* MES KIQ ucode            SOC21   */
+	GFX_FW_TYPE_MES_KIQ_STACK                   = 82,   /* MES KIQ stack            SOC21   */
+	GFX_FW_TYPE_UMSCH_DATA                      = 83,   /* User Mode Scheduler Data SOC21   */
+	GFX_FW_TYPE_UMSCH_UCODE                     = 84,   /* User Mode Scheduler Ucode SOC21  */
+	GFX_FW_TYPE_UMSCH_CMD_BUFFER                = 85,   /* User Mode Scheduler Command Buffer SOC21 */
+	GFX_FW_TYPE_USB_DP_COMBO_PHY                = 86,   /* USB-Display port Combo   SOC21   */
+	GFX_FW_TYPE_RS64_PFP                        = 87,   /* RS64 PFP                 SOC21   */
+	GFX_FW_TYPE_RS64_ME                         = 88,   /* RS64 ME                  SOC21   */
+	GFX_FW_TYPE_RS64_MEC                        = 89,   /* RS64 MEC                 SOC21   */
+	GFX_FW_TYPE_RS64_PFP_P0_STACK               = 90,   /* RS64 PFP stack P0        SOC21   */
+	GFX_FW_TYPE_RS64_PFP_P1_STACK               = 91,   /* RS64 PFP stack P1        SOC21   */
+	GFX_FW_TYPE_RS64_ME_P0_STACK                = 92,   /* RS64 ME stack P0         SOC21   */
+	GFX_FW_TYPE_RS64_ME_P1_STACK                = 93,   /* RS64 ME stack P1         SOC21   */
+	GFX_FW_TYPE_RS64_MEC_P0_STACK               = 94,   /* RS64 MEC stack P0        SOC21   */
+	GFX_FW_TYPE_RS64_MEC_P1_STACK               = 95,   /* RS64 MEC stack P1        SOC21   */
+	GFX_FW_TYPE_RS64_MEC_P2_STACK               = 96,   /* RS64 MEC stack P2        SOC21   */
+	GFX_FW_TYPE_RS64_MEC_P3_STACK               = 97,   /* RS64 MEC stack P3        SOC21   */
+	GFX_FW_TYPE_VPEC_FW1                        = 100,  /* VPEC FW1 To Save         VPE     */
+	GFX_FW_TYPE_VPEC_FW2                        = 101,  /* VPEC FW2 To Save         VPE     */
+	GFX_FW_TYPE_VPE                             = 102,
+	GFX_FW_TYPE_JPEG_RAM                        = 128,  /**< JPEG Command buffer */
+	GFX_FW_TYPE_P2S_TABLE                       = 129,
 	GFX_FW_TYPE_MAX
 };
 
@@ -279,6 +335,22 @@ struct psp_gfx_cmd_load_toc
     uint32_t        toc_size;               /* FW buffer size in bytes */
 };
 
+/* Dynamic boot configuration */
+struct psp_gfx_cmd_boot_cfg
+{
+    uint32_t                        timestamp;            /* calendar time as number of seconds */
+    enum psp_gfx_boot_config_cmd    sub_cmd;              /* sub-command indicating how to process command data */
+    uint32_t                        boot_config;          /* dynamic boot configuration bitmask */
+    uint32_t                        boot_config_valid;    /* dynamic boot configuration valid bits bitmask */
+};
+
+struct psp_gfx_cmd_sriov_spatial_part {
+	uint32_t mode;
+	uint32_t override_ips;
+	uint32_t override_xcds_avail;
+	uint32_t override_this_aid;
+};
+
 /* All GFX ring buffer commands. */
 union psp_gfx_commands
 {
@@ -291,6 +363,32 @@ union psp_gfx_commands
     struct psp_gfx_cmd_reg_prog       cmd_setup_reg_prog;
     struct psp_gfx_cmd_setup_tmr        cmd_setup_vmr;
     struct psp_gfx_cmd_load_toc         cmd_load_toc;
+    struct psp_gfx_cmd_boot_cfg         boot_cfg;
+    struct psp_gfx_cmd_sriov_spatial_part cmd_spatial_part;
+};
+
+struct psp_gfx_uresp_reserved
+{
+    uint32_t reserved[8];
+};
+
+/* Command-specific response for Fw Attestation Db */
+struct psp_gfx_uresp_fwar_db_info
+{
+    uint32_t fwar_db_addr_lo;
+    uint32_t fwar_db_addr_hi;
+};
+
+/* Command-specific response for boot config. */
+struct psp_gfx_uresp_bootcfg {
+	uint32_t boot_cfg;	/* boot config data */
+};
+
+/* Union of command-specific responses for GPCOM ring. */
+union psp_gfx_uresp {
+	struct psp_gfx_uresp_reserved		reserved;
+	struct psp_gfx_uresp_bootcfg		boot_cfg;
+	struct psp_gfx_uresp_fwar_db_info	fwar_db_info;
 };
 
 /* Structure of GFX Response buffer.
@@ -305,9 +403,11 @@ struct psp_gfx_resp
     uint32_t	fw_addr_hi;	/* +12 bits [63:32] of FW address within TMR (in response to cmd_load_ip_fw command) */
     uint32_t	tmr_size;	/* +16 size of the TMR to be reserved including MM fw and Gfx fw in response to cmd_load_toc command */
 
-    uint32_t	reserved[3];
+    uint32_t	reserved[11];
 
-    /* total 32 bytes */
+    union psp_gfx_uresp uresp;      /* +64 response union containing command-specific responses */
+
+    /* total 96 bytes */
 };
 
 /* Structure of Command buffer pointed by psp_gfx_rb_frame.cmd_buf_addr_hi
@@ -359,6 +459,13 @@ struct psp_gfx_rb_frame
     uint8_t     reserved1[2];       /* +34 reserved, must be 0 */
     uint32_t    reserved2[7];       /* +36 reserved, must be 0 */
                 /* total 64 bytes */
+};
+
+#define PSP_ERR_UNKNOWN_COMMAND 0x00000100
+
+enum tee_error_code {
+    TEE_SUCCESS                         = 0x00000000,
+    TEE_ERROR_NOT_SUPPORTED             = 0xFFFF000A,
 };
 
 #endif /* _PSP_TEE_GFX_IF_H_ */

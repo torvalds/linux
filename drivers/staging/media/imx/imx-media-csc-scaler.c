@@ -25,6 +25,8 @@
 
 #define fh_to_ctx(__fh)	container_of(__fh, struct ipu_csc_scaler_ctx, fh)
 
+#define IMX_CSC_SCALER_NAME "imx-csc-scaler"
+
 enum {
 	V4L2_M2M_SRC = 0,
 	V4L2_M2M_DST = 1,
@@ -150,10 +152,10 @@ err:
 static int ipu_csc_scaler_querycap(struct file *file, void *priv,
 				   struct v4l2_capability *cap)
 {
-	strscpy(cap->driver, "imx-media-csc-scaler", sizeof(cap->driver));
-	strscpy(cap->card, "imx-media-csc-scaler", sizeof(cap->card));
-	strscpy(cap->bus_info, "platform:imx-media-csc-scaler",
-		sizeof(cap->bus_info));
+	strscpy(cap->driver, IMX_CSC_SCALER_NAME, sizeof(cap->driver));
+	strscpy(cap->card, IMX_CSC_SCALER_NAME, sizeof(cap->card));
+	snprintf(cap->bus_info, sizeof(cap->bus_info),
+		 "platform:%s", IMX_CSC_SCALER_NAME);
 
 	return 0;
 }
@@ -164,7 +166,8 @@ static int ipu_csc_scaler_enum_fmt(struct file *file, void *fh,
 	u32 fourcc;
 	int ret;
 
-	ret = imx_media_enum_format(&fourcc, f->index, CS_SEL_ANY);
+	ret = imx_media_enum_pixel_formats(&fourcc, f->index,
+					   PIXFMT_SEL_YUV_RGB, 0);
 	if (ret)
 		return ret;
 
@@ -800,6 +803,7 @@ static int ipu_csc_scaler_release(struct file *file)
 
 	dev_dbg(priv->dev, "Releasing instance %p\n", ctx);
 
+	v4l2_ctrl_handler_free(&ctx->ctrl_hdlr);
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
 	v4l2_fh_del(&ctx->fh);
 	v4l2_fh_exit(&ctx->fh);
@@ -817,7 +821,7 @@ static const struct v4l2_file_operations ipu_csc_scaler_fops = {
 	.mmap		= v4l2_m2m_fop_mmap,
 };
 
-static struct v4l2_m2m_ops m2m_ops = {
+static const struct v4l2_m2m_ops m2m_ops = {
 	.device_run	= device_run,
 	.job_abort	= job_abort,
 };
@@ -849,7 +853,7 @@ int imx_media_csc_scaler_device_register(struct imx_media_video_dev *vdev)
 
 	vfd->v4l2_dev = &priv->md->v4l2_dev;
 
-	ret = video_register_device(vfd, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(vfd, VFL_TYPE_VIDEO, -1);
 	if (ret) {
 		v4l2_err(vfd->v4l2_dev, "Failed to register video device\n");
 		return ret;
@@ -866,11 +870,7 @@ void imx_media_csc_scaler_device_unregister(struct imx_media_video_dev *vdev)
 	struct ipu_csc_scaler_priv *priv = vdev_to_priv(vdev);
 	struct video_device *vfd = priv->vdev.vfd;
 
-	mutex_lock(&priv->mutex);
-
 	video_unregister_device(vfd);
-
-	mutex_unlock(&priv->mutex);
 }
 
 struct imx_media_video_dev *

@@ -11,14 +11,15 @@
 #include <linux/module.h>
 #include <linux/msi.h>
 #include <linux/interrupt.h>
+#include <linux/iommu.h>
 #include <linux/irq.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
 #include <linux/of_irq.h>
 #include <linux/of_pci.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/spinlock.h>
-#include <linux/dma-iommu.h>
 
 #define MSI_IRQS_PER_MSIR	32
 #define MSI_MSIR_OFFSET		4
@@ -194,7 +195,7 @@ static void ls_scfg_msi_irq_handler(struct irq_desc *desc)
 	struct ls_scfg_msir *msir = irq_desc_get_handler_data(desc);
 	struct ls_scfg_msi *msi_data = msir->msi_data;
 	unsigned long val;
-	int pos, size, virq, hwirq;
+	int pos, size, hwirq;
 
 	chained_irq_enter(irq_desc_get_chip(desc), desc);
 
@@ -206,9 +207,7 @@ static void ls_scfg_msi_irq_handler(struct irq_desc *desc)
 	for_each_set_bit_from(pos, &val, size) {
 		hwirq = ((msir->bit_end - pos) << msi_data->cfg->ibs_shift) |
 			msir->srs;
-		virq = irq_find_mapping(msi_data->parent, hwirq);
-		if (virq)
-			generic_handle_irq(virq);
+		generic_handle_domain_irq(msi_data->parent, hwirq);
 	}
 
 	chained_irq_exit(irq_desc_get_chip(desc), desc);
@@ -336,23 +335,19 @@ MODULE_DEVICE_TABLE(of, ls_scfg_msi_id);
 
 static int ls_scfg_msi_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
 	struct ls_scfg_msi *msi_data;
 	struct resource *res;
 	int i, ret;
-
-	match = of_match_device(ls_scfg_msi_id, &pdev->dev);
-	if (!match)
-		return -ENODEV;
 
 	msi_data = devm_kzalloc(&pdev->dev, sizeof(*msi_data), GFP_KERNEL);
 	if (!msi_data)
 		return -ENOMEM;
 
-	msi_data->cfg = (struct ls_scfg_msi_cfg *) match->data;
+	msi_data->cfg = (struct ls_scfg_msi_cfg *)device_get_match_data(&pdev->dev);
+	if (!msi_data->cfg)
+		return -ENODEV;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	msi_data->regs = devm_ioremap_resource(&pdev->dev, res);
+	msi_data->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(msi_data->regs)) {
 		dev_err(&pdev->dev, "failed to initialize 'regs'\n");
 		return PTR_ERR(msi_data->regs);
@@ -364,10 +359,7 @@ static int ls_scfg_msi_probe(struct platform_device *pdev)
 
 	msi_data->irqs_num = MSI_IRQS_PER_MSIR *
 			     (1 << msi_data->cfg->ibs_shift);
-	msi_data->used = devm_kcalloc(&pdev->dev,
-				    BITS_TO_LONGS(msi_data->irqs_num),
-				    sizeof(*msi_data->used),
-				    GFP_KERNEL);
+	msi_data->used = devm_bitmap_zalloc(&pdev->dev, msi_data->irqs_num, GFP_KERNEL);
 	if (!msi_data->used)
 		return -ENOMEM;
 	/*
@@ -406,7 +398,7 @@ static int ls_scfg_msi_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ls_scfg_msi_remove(struct platform_device *pdev)
+static void ls_scfg_msi_remove(struct platform_device *pdev)
 {
 	struct ls_scfg_msi *msi_data = platform_get_drvdata(pdev);
 	int i;
@@ -418,21 +410,18 @@ static int ls_scfg_msi_remove(struct platform_device *pdev)
 	irq_domain_remove(msi_data->parent);
 
 	platform_set_drvdata(pdev, NULL);
-
-	return 0;
 }
 
 static struct platform_driver ls_scfg_msi_driver = {
 	.driver = {
-		.name = "ls-scfg-msi",
-		.of_match_table = ls_scfg_msi_id,
+		.name		= "ls-scfg-msi",
+		.of_match_table	= ls_scfg_msi_id,
 	},
-	.probe = ls_scfg_msi_probe,
-	.remove = ls_scfg_msi_remove,
+	.probe		= ls_scfg_msi_probe,
+	.remove_new	= ls_scfg_msi_remove,
 };
 
 module_platform_driver(ls_scfg_msi_driver);
 
 MODULE_AUTHOR("Minghuan Lian <Minghuan.Lian@nxp.com>");
 MODULE_DESCRIPTION("Freescale Layerscape SCFG MSI controller driver");
-MODULE_LICENSE("GPL v2");

@@ -8,9 +8,9 @@
  * Copyright (C) 2007 by Maciej W. Rozycki
  * Copyright (C) 2011, 2012 MIPS Technologies, Inc.
  */
+#include <linux/export.h>
 #include <asm/asm.h>
 #include <asm/asm-offsets.h>
-#include <asm/export.h>
 #include <asm/regdef.h>
 
 #if LONGSIZE == 4
@@ -52,7 +52,7 @@
 9:		___BUILD_EVA_INSN(insn, reg, addr);	\
 	.endif;						\
 	.section __ex_table,"a";			\
-	PTR	9b, handler;				\
+	PTR_WD	9b, handler;				\
 	.previous
 
 	.macro	f_fill64 dst, offset, val, fixup, mode
@@ -115,7 +115,7 @@
 #endif
 	.set		reorder
 
-#ifdef CONFIG_CPU_HAS_LOAD_STORE_LR
+#ifndef CONFIG_CPU_NO_LOAD_STORE_LR
 	R10KCBARRIER(0(ra))
 #ifdef __MIPSEB__
 	EX(LONG_S_L, a1, (a0), .Lfirst_fixup\@)	/* make word/dword aligned */
@@ -125,7 +125,7 @@
 	PTR_SUBU	a0, t0			/* long align ptr */
 	PTR_ADDU	a2, t0			/* correct size */
 
-#else /* !CONFIG_CPU_HAS_LOAD_STORE_LR */
+#else /* CONFIG_CPU_NO_LOAD_STORE_LR */
 #define STORE_BYTE(N)				\
 	EX(sb, a1, N(a0), .Lbyte_fixup\@);	\
 	.set		noreorder;		\
@@ -150,7 +150,7 @@
 	ori		a0, STORMASK
 	xori		a0, STORMASK
 	PTR_ADDIU	a0, STORSIZE
-#endif /* !CONFIG_CPU_HAS_LOAD_STORE_LR */
+#endif /* CONFIG_CPU_NO_LOAD_STORE_LR */
 1:	ori		t1, a2, 0x3f		/* # of full blocks */
 	xori		t1, 0x3f
 	andi		t0, a2, 0x40-STORSIZE
@@ -185,7 +185,7 @@
 
 	.set		noreorder
 	beqz		a2, 1f
-#ifdef CONFIG_CPU_HAS_LOAD_STORE_LR
+#ifndef CONFIG_CPU_NO_LOAD_STORE_LR
 	 PTR_ADDU	a0, a2			/* What's left */
 	.set		reorder
 	R10KCBARRIER(0(ra))
@@ -194,7 +194,7 @@
 #else
 	EX(LONG_S_L, a1, -1(a0), .Llast_fixup\@)
 #endif
-#else
+#else /* CONFIG_CPU_NO_LOAD_STORE_LR */
 	 PTR_SUBU	t0, $0, a2
 	.set		reorder
 	move		a2, zero		/* No remaining longs */
@@ -211,7 +211,7 @@
 	EX(sb, a1, 6(a0), .Lbyte_fixup\@)
 #endif
 0:
-#endif
+#endif /* CONFIG_CPU_NO_LOAD_STORE_LR */
 1:	move		a2, zero
 	jr		ra
 
@@ -234,7 +234,7 @@
 	.hidden __memset
 	.endif
 
-#ifndef CONFIG_CPU_HAS_LOAD_STORE_LR
+#ifdef CONFIG_CPU_NO_LOAD_STORE_LR
 .Lbyte_fixup\@:
 	/*
 	 * unset_bytes = (#bytes - (#unaligned bytes)) - (-#unaligned bytes remaining + 1) + 1
@@ -243,7 +243,7 @@
 	PTR_SUBU	a2, t0
 	PTR_ADDIU	a2, 1
 	jr		ra
-#endif /* !CONFIG_CPU_HAS_LOAD_STORE_LR */
+#endif /* CONFIG_CPU_NO_LOAD_STORE_LR */
 
 .Lfirst_fixup\@:
 	/* unset_bytes already in a2 */
@@ -314,9 +314,6 @@ EXPORT_SYMBOL(memset)
 #ifndef CONFIG_EVA
 FEXPORT(__bzero)
 EXPORT_SYMBOL(__bzero)
-#else
-FEXPORT(__bzero_kernel)
-EXPORT_SYMBOL(__bzero_kernel)
 #endif
 	__BUILD_BZERO LEGACY_MODE
 

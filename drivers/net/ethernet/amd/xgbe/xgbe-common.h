@@ -898,6 +898,8 @@
 #define PCS_V2_WINDOW_SELECT		0x9064
 #define PCS_V2_RV_WINDOW_DEF		0x1060
 #define PCS_V2_RV_WINDOW_SELECT		0x1064
+#define PCS_V2_YC_WINDOW_DEF		0x18060
+#define PCS_V2_YC_WINDOW_SELECT		0x18064
 
 /* PCS register entry bit positions and sizes */
 #define PCS_V2_WINDOW_DEF_OFFSET_INDEX	6
@@ -1030,8 +1032,8 @@
 #define XP_PROP_0_PORT_ID_WIDTH			8
 #define XP_PROP_0_PORT_MODE_INDEX		8
 #define XP_PROP_0_PORT_MODE_WIDTH		4
-#define XP_PROP_0_PORT_SPEEDS_INDEX		23
-#define XP_PROP_0_PORT_SPEEDS_WIDTH		4
+#define XP_PROP_0_PORT_SPEEDS_INDEX		22
+#define XP_PROP_0_PORT_SPEEDS_WIDTH		5
 #define XP_PROP_1_MAX_RX_DMA_INDEX		24
 #define XP_PROP_1_MAX_RX_DMA_WIDTH		5
 #define XP_PROP_1_MAX_RX_QUEUES_INDEX		8
@@ -1279,8 +1281,32 @@
 #define MDIO_PMA_10GBR_FECCTRL		0x00ab
 #endif
 
+#ifndef MDIO_PMA_RX_CTRL1
+#define MDIO_PMA_RX_CTRL1		0x8051
+#endif
+
+#ifndef MDIO_PMA_RX_LSTS
+#define MDIO_PMA_RX_LSTS		0x018020
+#endif
+
+#ifndef MDIO_PMA_RX_EQ_CTRL4
+#define MDIO_PMA_RX_EQ_CTRL4		0x0001805C
+#endif
+
+#ifndef MDIO_PMA_MP_MISC_STS
+#define MDIO_PMA_MP_MISC_STS		0x0078
+#endif
+
+#ifndef MDIO_PMA_PHY_RX_EQ_CEU
+#define MDIO_PMA_PHY_RX_EQ_CEU		0x1800E
+#endif
+
 #ifndef MDIO_PCS_DIG_CTRL
 #define MDIO_PCS_DIG_CTRL		0x8000
+#endif
+
+#ifndef MDIO_PCS_DIGITAL_STAT
+#define MDIO_PCS_DIGITAL_STAT		0x8010
 #endif
 
 #ifndef MDIO_AN_XNP
@@ -1323,6 +1349,10 @@
 #define MDIO_VEND2_PMA_CDR_CONTROL	0x8056
 #endif
 
+#ifndef MDIO_VEND2_PMA_MISC_CTRL0
+#define MDIO_VEND2_PMA_MISC_CTRL0	0x8090
+#endif
+
 #ifndef MDIO_CTRL1_SPEED1G
 #define MDIO_CTRL1_SPEED1G		(MDIO_CTRL1_SPEED10G & ~BMCR_SPEED100)
 #endif
@@ -1358,6 +1388,8 @@
 #define XGBE_KR_TRAINING_ENABLE		BIT(1)
 
 #define XGBE_PCS_CL37_BP		BIT(12)
+#define XGBE_PCS_PSEQ_STATE_MASK	0x1c
+#define XGBE_PCS_PSEQ_STATE_POWER_GOOD	0x10
 
 #define XGBE_AN_CL37_INT_CMPLT		BIT(0)
 #define XGBE_AN_CL37_INT_MASK		0x01
@@ -1374,6 +1406,36 @@
 #define XGBE_PMA_CDR_TRACK_EN_MASK	0x01
 #define XGBE_PMA_CDR_TRACK_EN_OFF	0x00
 #define XGBE_PMA_CDR_TRACK_EN_ON	0x01
+
+#define XGBE_PMA_RX_RST_0_MASK		BIT(4)
+#define XGBE_PMA_RX_RST_0_RESET_ON	0x10
+#define XGBE_PMA_RX_RST_0_RESET_OFF	0x00
+
+#define XGBE_PMA_RX_SIG_DET_0_MASK	BIT(4)
+#define XGBE_PMA_RX_SIG_DET_0_ENABLE	BIT(4)
+#define XGBE_PMA_RX_SIG_DET_0_DISABLE	0x0000
+
+#define XGBE_PMA_RX_VALID_0_MASK	BIT(12)
+#define XGBE_PMA_RX_VALID_0_ENABLE	BIT(12)
+#define XGBE_PMA_RX_VALID_0_DISABLE	0x0000
+
+#define XGBE_PMA_RX_AD_REQ_MASK		BIT(12)
+#define XGBE_PMA_RX_AD_REQ_ENABLE	BIT(12)
+#define XGBE_PMA_RX_AD_REQ_DISABLE	0x0000
+
+#define XGBE_PMA_RX_ADPT_ACK_MASK	BIT(12)
+#define XGBE_PMA_RX_ADPT_ACK		BIT(12)
+
+#define XGBE_PMA_CFF_UPDTM1_VLD		BIT(8)
+#define XGBE_PMA_CFF_UPDT0_VLD		BIT(9)
+#define XGBE_PMA_CFF_UPDT1_VLD		BIT(10)
+#define XGBE_PMA_CFF_UPDT_MASK		(XGBE_PMA_CFF_UPDTM1_VLD |\
+					 XGBE_PMA_CFF_UPDT0_VLD | \
+					 XGBE_PMA_CFF_UPDT1_VLD)
+
+#define XGBE_PMA_PLL_CTRL_MASK		BIT(15)
+#define XGBE_PMA_PLL_CTRL_ENABLE	BIT(15)
+#define XGBE_PMA_PLL_CTRL_DISABLE	0x0000
 
 /* Bit setting and getting macros
  *  The get macro will extract the current bit field value from within
@@ -1675,20 +1737,21 @@ do {									\
 } while (0)
 
 /* Macros for building, reading or writing register values or bits
- * using MDIO.  Different from above because of the use of standardized
- * Linux include values.  No shifting is performed with the bit
- * operations, everything works on mask values.
+ * using MDIO.
  */
+
+#define XGBE_ADDR_C45 BIT(30)
+
 #define XMDIO_READ(_pdata, _mmd, _reg)					\
 	((_pdata)->hw_if.read_mmd_regs((_pdata), 0,			\
-		MII_ADDR_C45 | (_mmd << 16) | ((_reg) & 0xffff)))
+		XGBE_ADDR_C45 | (_mmd << 16) | ((_reg) & 0xffff)))
 
 #define XMDIO_READ_BITS(_pdata, _mmd, _reg, _mask)			\
 	(XMDIO_READ((_pdata), _mmd, _reg) & _mask)
 
 #define XMDIO_WRITE(_pdata, _mmd, _reg, _val)				\
 	((_pdata)->hw_if.write_mmd_regs((_pdata), 0,			\
-		MII_ADDR_C45 | (_mmd << 16) | ((_reg) & 0xffff), (_val)))
+		XGBE_ADDR_C45 | (_mmd << 16) | ((_reg) & 0xffff), (_val)))
 
 #define XMDIO_WRITE_BITS(_pdata, _mmd, _reg, _mask, _val)		\
 do {									\

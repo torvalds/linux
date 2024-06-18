@@ -5,7 +5,7 @@ Description:
 		/sys/kernel/profiling is the runtime equivalent
 		of the boot-time profile= option.
 
-		You can get the same effect running:
+		You can get the same effect running::
 
 			echo 2 > /sys/kernel/profiling
 

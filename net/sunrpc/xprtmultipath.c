@@ -7,17 +7,19 @@
  * Trond Myklebust <trond.myklebust@primarydata.com>
  *
  */
+#include <linux/atomic.h>
 #include <linux/types.h>
 #include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/rcupdate.h>
 #include <linux/rculist.h>
 #include <linux/slab.h>
-#include <asm/cmpxchg.h>
 #include <linux/spinlock.h>
 #include <linux/sunrpc/xprt.h>
 #include <linux/sunrpc/addr.h>
 #include <linux/sunrpc/xprtmultipath.h>
+
+#include "sysfs.h"
 
 typedef struct rpc_xprt *(*xprt_switch_find_xprt_t)(struct rpc_xprt_switch *xps,
 		const struct rpc_xprt *cur);
@@ -25,6 +27,7 @@ typedef struct rpc_xprt *(*xprt_switch_find_xprt_t)(struct rpc_xprt_switch *xps,
 static const struct rpc_xprt_iter_ops rpc_xprt_iter_singular;
 static const struct rpc_xprt_iter_ops rpc_xprt_iter_roundrobin;
 static const struct rpc_xprt_iter_ops rpc_xprt_iter_listall;
+static const struct rpc_xprt_iter_ops rpc_xprt_iter_listoffline;
 
 static void xprt_switch_add_xprt_locked(struct rpc_xprt_switch *xps,
 		struct rpc_xprt *xprt)
@@ -55,14 +58,16 @@ void rpc_xprt_switch_add_xprt(struct rpc_xprt_switch *xps,
 	if (xps->xps_net == xprt->xprt_net || xps->xps_net == NULL)
 		xprt_switch_add_xprt_locked(xps, xprt);
 	spin_unlock(&xps->xps_lock);
+	rpc_sysfs_xprt_setup(xps, xprt, GFP_KERNEL);
 }
 
 static void xprt_switch_remove_xprt_locked(struct rpc_xprt_switch *xps,
-		struct rpc_xprt *xprt)
+		struct rpc_xprt *xprt, bool offline)
 {
 	if (unlikely(xprt == NULL))
 		return;
-	xps->xps_nactive--;
+	if (!test_bit(XPRT_OFFLINE, &xprt->state) && offline)
+		xps->xps_nactive--;
 	xps->xps_nxprts--;
 	if (xps->xps_nxprts == 0)
 		xps->xps_net = NULL;
@@ -74,16 +79,41 @@ static void xprt_switch_remove_xprt_locked(struct rpc_xprt_switch *xps,
  * rpc_xprt_switch_remove_xprt - Removes an rpc_xprt from a rpc_xprt_switch
  * @xps: pointer to struct rpc_xprt_switch
  * @xprt: pointer to struct rpc_xprt
+ * @offline: indicates if the xprt that's being removed is in an offline state
  *
  * Removes xprt from the list of struct rpc_xprt in xps.
  */
 void rpc_xprt_switch_remove_xprt(struct rpc_xprt_switch *xps,
-		struct rpc_xprt *xprt)
+		struct rpc_xprt *xprt, bool offline)
 {
 	spin_lock(&xps->xps_lock);
-	xprt_switch_remove_xprt_locked(xps, xprt);
+	xprt_switch_remove_xprt_locked(xps, xprt, offline);
 	spin_unlock(&xps->xps_lock);
 	xprt_put(xprt);
+}
+
+static DEFINE_IDA(rpc_xprtswitch_ids);
+
+void xprt_multipath_cleanup_ids(void)
+{
+	ida_destroy(&rpc_xprtswitch_ids);
+}
+
+static int xprt_switch_alloc_id(struct rpc_xprt_switch *xps, gfp_t gfp_flags)
+{
+	int id;
+
+	id = ida_alloc(&rpc_xprtswitch_ids, gfp_flags);
+	if (id < 0)
+		return id;
+
+	xps->xps_id = id;
+	return 0;
+}
+
+static void xprt_switch_free_id(struct rpc_xprt_switch *xps)
+{
+	ida_free(&rpc_xprtswitch_ids, xps->xps_id);
 }
 
 /**
@@ -103,12 +133,16 @@ struct rpc_xprt_switch *xprt_switch_alloc(struct rpc_xprt *xprt,
 	if (xps != NULL) {
 		spin_lock_init(&xps->xps_lock);
 		kref_init(&xps->xps_kref);
+		xprt_switch_alloc_id(xps, gfp_flags);
 		xps->xps_nxprts = xps->xps_nactive = 0;
 		atomic_long_set(&xps->xps_queuelen, 0);
 		xps->xps_net = NULL;
 		INIT_LIST_HEAD(&xps->xps_xprt_list);
 		xps->xps_iter_ops = &rpc_xprt_iter_singular;
+		rpc_sysfs_xprt_switch_setup(xps, xprt, gfp_flags);
 		xprt_switch_add_xprt_locked(xps, xprt);
+		xps->xps_nunique_destaddr_xprts = 1;
+		rpc_sysfs_xprt_setup(xps, xprt, gfp_flags);
 	}
 
 	return xps;
@@ -122,7 +156,7 @@ static void xprt_switch_free_entries(struct rpc_xprt_switch *xps)
 
 		xprt = list_first_entry(&xps->xps_xprt_list,
 				struct rpc_xprt, xprt_switch);
-		xprt_switch_remove_xprt_locked(xps, xprt);
+		xprt_switch_remove_xprt_locked(xps, xprt, true);
 		spin_unlock(&xps->xps_lock);
 		xprt_put(xprt);
 		spin_lock(&xps->xps_lock);
@@ -136,6 +170,8 @@ static void xprt_switch_free(struct kref *kref)
 			struct rpc_xprt_switch, xps_kref);
 
 	xprt_switch_free_entries(xps);
+	rpc_sysfs_xprt_switch_destroy(xps);
+	xprt_switch_free_id(xps);
 	kfree_rcu(xps, xps_rcu);
 }
 
@@ -198,7 +234,8 @@ void xprt_iter_default_rewind(struct rpc_xprt_iter *xpi)
 static
 bool xprt_is_active(const struct rpc_xprt *xprt)
 {
-	return kref_read(&xprt->kref) != 0;
+	return (kref_read(&xprt->kref) != 0 &&
+		!test_bit(XPRT_OFFLINE, &xprt->state));
 }
 
 static
@@ -208,6 +245,18 @@ struct rpc_xprt *xprt_switch_find_first_entry(struct list_head *head)
 
 	list_for_each_entry_rcu(pos, head, xprt_switch) {
 		if (xprt_is_active(pos))
+			return pos;
+	}
+	return NULL;
+}
+
+static
+struct rpc_xprt *xprt_switch_find_first_entry_offline(struct list_head *head)
+{
+	struct rpc_xprt *pos;
+
+	list_for_each_entry_rcu(pos, head, xprt_switch) {
+		if (!xprt_is_active(pos))
 			return pos;
 	}
 	return NULL;
@@ -224,8 +273,9 @@ struct rpc_xprt *xprt_iter_first_entry(struct rpc_xprt_iter *xpi)
 }
 
 static
-struct rpc_xprt *xprt_switch_find_current_entry(struct list_head *head,
-		const struct rpc_xprt *cur)
+struct rpc_xprt *_xprt_switch_find_current_entry(struct list_head *head,
+						 const struct rpc_xprt *cur,
+						 bool find_active)
 {
 	struct rpc_xprt *pos;
 	bool found = false;
@@ -233,14 +283,25 @@ struct rpc_xprt *xprt_switch_find_current_entry(struct list_head *head,
 	list_for_each_entry_rcu(pos, head, xprt_switch) {
 		if (cur == pos)
 			found = true;
-		if (found && xprt_is_active(pos))
+		if (found && ((find_active && xprt_is_active(pos)) ||
+			      (!find_active && !xprt_is_active(pos))))
 			return pos;
 	}
 	return NULL;
 }
 
 static
-struct rpc_xprt *xprt_iter_current_entry(struct rpc_xprt_iter *xpi)
+struct rpc_xprt *xprt_switch_find_current_entry(struct list_head *head,
+						const struct rpc_xprt *cur)
+{
+	return _xprt_switch_find_current_entry(head, cur, true);
+}
+
+static
+struct rpc_xprt * _xprt_iter_current_entry(struct rpc_xprt_iter *xpi,
+		struct rpc_xprt *first_entry(struct list_head *head),
+		struct rpc_xprt *current_entry(struct list_head *head,
+					       const struct rpc_xprt *cur))
 {
 	struct rpc_xprt_switch *xps = rcu_dereference(xpi->xpi_xpswitch);
 	struct list_head *head;
@@ -249,12 +310,35 @@ struct rpc_xprt *xprt_iter_current_entry(struct rpc_xprt_iter *xpi)
 		return NULL;
 	head = &xps->xps_xprt_list;
 	if (xpi->xpi_cursor == NULL || xps->xps_nxprts < 2)
-		return xprt_switch_find_first_entry(head);
-	return xprt_switch_find_current_entry(head, xpi->xpi_cursor);
+		return first_entry(head);
+	return current_entry(head, xpi->xpi_cursor);
 }
 
-bool rpc_xprt_switch_has_addr(struct rpc_xprt_switch *xps,
-			      const struct sockaddr *sap)
+static
+struct rpc_xprt *xprt_iter_current_entry(struct rpc_xprt_iter *xpi)
+{
+	return _xprt_iter_current_entry(xpi, xprt_switch_find_first_entry,
+			xprt_switch_find_current_entry);
+}
+
+static
+struct rpc_xprt *xprt_switch_find_current_entry_offline(struct list_head *head,
+		const struct rpc_xprt *cur)
+{
+	return _xprt_switch_find_current_entry(head, cur, false);
+}
+
+static
+struct rpc_xprt *xprt_iter_current_entry_offline(struct rpc_xprt_iter *xpi)
+{
+	return _xprt_iter_current_entry(xpi,
+			xprt_switch_find_first_entry_offline,
+			xprt_switch_find_current_entry_offline);
+}
+
+static
+bool __rpc_xprt_switch_has_addr(struct rpc_xprt_switch *xps,
+				const struct sockaddr *sap)
 {
 	struct list_head *head;
 	struct rpc_xprt *pos;
@@ -273,9 +357,21 @@ bool rpc_xprt_switch_has_addr(struct rpc_xprt_switch *xps,
 	return false;
 }
 
+bool rpc_xprt_switch_has_addr(struct rpc_xprt_switch *xps,
+			      const struct sockaddr *sap)
+{
+	bool res;
+
+	rcu_read_lock();
+	res = __rpc_xprt_switch_has_addr(xps, sap);
+	rcu_read_unlock();
+
+	return res;
+}
+
 static
 struct rpc_xprt *xprt_switch_find_next_entry(struct list_head *head,
-		const struct rpc_xprt *cur)
+		const struct rpc_xprt *cur, bool check_active)
 {
 	struct rpc_xprt *pos, *prev = NULL;
 	bool found = false;
@@ -283,7 +379,12 @@ struct rpc_xprt *xprt_switch_find_next_entry(struct list_head *head,
 	list_for_each_entry_rcu(pos, head, xprt_switch) {
 		if (cur == prev)
 			found = true;
-		if (found && xprt_is_active(pos))
+		/* for request to return active transports return only
+		 * active, for request to return offline transports
+		 * return only offline
+		 */
+		if (found && ((check_active && xprt_is_active(pos)) ||
+			      (!check_active && !xprt_is_active(pos))))
 			return pos;
 		prev = pos;
 	}
@@ -320,7 +421,7 @@ struct rpc_xprt *__xprt_switch_find_next_entry_roundrobin(struct list_head *head
 {
 	struct rpc_xprt *ret;
 
-	ret = xprt_switch_find_next_entry(head, cur);
+	ret = xprt_switch_find_next_entry(head, cur, true);
 	if (ret != NULL)
 		return ret;
 	return xprt_switch_find_first_entry(head);
@@ -362,7 +463,14 @@ static
 struct rpc_xprt *xprt_switch_find_next_entry_all(struct rpc_xprt_switch *xps,
 		const struct rpc_xprt *cur)
 {
-	return xprt_switch_find_next_entry(&xps->xps_xprt_list, cur);
+	return xprt_switch_find_next_entry(&xps->xps_xprt_list, cur, true);
+}
+
+static
+struct rpc_xprt *xprt_switch_find_next_entry_offline(struct rpc_xprt_switch *xps,
+		const struct rpc_xprt *cur)
+{
+	return xprt_switch_find_next_entry(&xps->xps_xprt_list, cur, false);
 }
 
 static
@@ -372,6 +480,13 @@ struct rpc_xprt *xprt_iter_next_entry_all(struct rpc_xprt_iter *xpi)
 			xprt_switch_find_next_entry_all);
 }
 
+static
+struct rpc_xprt *xprt_iter_next_entry_offline(struct rpc_xprt_iter *xpi)
+{
+	return xprt_iter_next_entry_multiple(xpi,
+			xprt_switch_find_next_entry_offline);
+}
+
 /*
  * xprt_iter_rewind - Resets the xprt iterator
  * @xpi: pointer to rpc_xprt_iter
@@ -379,7 +494,6 @@ struct rpc_xprt *xprt_iter_next_entry_all(struct rpc_xprt_iter *xpi)
  * Resets xpi to ensure that it points to the first entry in the list
  * of transports.
  */
-static
 void xprt_iter_rewind(struct rpc_xprt_iter *xpi)
 {
 	rcu_read_lock();
@@ -423,6 +537,12 @@ void xprt_iter_init_listall(struct rpc_xprt_iter *xpi,
 		struct rpc_xprt_switch *xps)
 {
 	__xprt_iter_init(xpi, xps, &rpc_xprt_iter_listall);
+}
+
+void xprt_iter_init_listoffline(struct rpc_xprt_iter *xpi,
+		struct rpc_xprt_switch *xps)
+{
+	__xprt_iter_init(xpi, xps, &rpc_xprt_iter_listoffline);
 }
 
 /**
@@ -538,4 +658,11 @@ const struct rpc_xprt_iter_ops rpc_xprt_iter_listall = {
 	.xpi_rewind = xprt_iter_default_rewind,
 	.xpi_xprt = xprt_iter_current_entry,
 	.xpi_next = xprt_iter_next_entry_all,
+};
+
+static
+const struct rpc_xprt_iter_ops rpc_xprt_iter_listoffline = {
+	.xpi_rewind = xprt_iter_default_rewind,
+	.xpi_xprt = xprt_iter_current_entry_offline,
+	.xpi_next = xprt_iter_next_entry_offline,
 };

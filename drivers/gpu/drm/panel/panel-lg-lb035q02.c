@@ -134,19 +134,18 @@ static const struct drm_display_mode lb035q02_mode = {
 	.vsync_start = 240 + 4,
 	.vsync_end = 240 + 4 + 2,
 	.vtotal = 240 + 4 + 2 + 18,
-	.vrefresh = 60,
 	.type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED,
 	.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 	.width_mm = 70,
 	.height_mm = 53,
 };
 
-static int lb035q02_get_modes(struct drm_panel *panel)
+static int lb035q02_get_modes(struct drm_panel *panel,
+			      struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(panel->drm, &lb035q02_mode);
+	mode = drm_mode_duplicate(connector->dev, &lb035q02_mode);
 	if (!mode)
 		return -ENOMEM;
 
@@ -196,21 +195,20 @@ static int lb035q02_probe(struct spi_device *spi)
 	if (ret < 0)
 		return ret;
 
-	drm_panel_init(&lcd->panel);
-	lcd->panel.dev = &lcd->spi->dev;
-	lcd->panel.funcs = &lb035q02_funcs;
+	drm_panel_init(&lcd->panel, &lcd->spi->dev, &lb035q02_funcs,
+		       DRM_MODE_CONNECTOR_DPI);
 
-	return drm_panel_add(&lcd->panel);
+	drm_panel_add(&lcd->panel);
+
+	return 0;
 }
 
-static int lb035q02_remove(struct spi_device *spi)
+static void lb035q02_remove(struct spi_device *spi)
 {
 	struct lb035q02_device *lcd = spi_get_drvdata(spi);
 
 	drm_panel_remove(&lcd->panel);
 	drm_panel_disable(&lcd->panel);
-
-	return 0;
 }
 
 static const struct of_device_id lb035q02_of_match[] = {
@@ -220,9 +218,17 @@ static const struct of_device_id lb035q02_of_match[] = {
 
 MODULE_DEVICE_TABLE(of, lb035q02_of_match);
 
+static const struct spi_device_id lb035q02_ids[] = {
+	{ "lb035q02", 0 },
+	{ /* sentinel */ }
+};
+
+MODULE_DEVICE_TABLE(spi, lb035q02_ids);
+
 static struct spi_driver lb035q02_driver = {
 	.probe		= lb035q02_probe,
 	.remove		= lb035q02_remove,
+	.id_table	= lb035q02_ids,
 	.driver		= {
 		.name	= "panel-lg-lb035q02",
 		.of_match_table = lb035q02_of_match,
@@ -231,7 +237,6 @@ static struct spi_driver lb035q02_driver = {
 
 module_spi_driver(lb035q02_driver);
 
-MODULE_ALIAS("spi:lgphilips,lb035q02");
 MODULE_AUTHOR("Tomi Valkeinen <tomi.valkeinen@ti.com>");
 MODULE_DESCRIPTION("LG.Philips LB035Q02 LCD Panel driver");
 MODULE_LICENSE("GPL");

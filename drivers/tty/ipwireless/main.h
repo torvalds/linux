@@ -49,9 +49,6 @@ struct ipw_dev {
 
 	void __iomem *common_memory;
 
-	/* Reference to attribute memory, containing CIS data */
-	void *attribute_memory;
-
 	/* Hardware context */
 	struct ipw_hardware *hardware;
 	/* Network layer context */

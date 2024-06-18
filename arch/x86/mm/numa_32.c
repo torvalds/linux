@@ -24,42 +24,10 @@
 
 #include <linux/memblock.h>
 #include <linux/init.h>
+#include <linux/vmalloc.h>
+#include <asm/pgtable_areas.h>
 
 #include "numa_internal.h"
-
-#ifdef CONFIG_DISCONTIGMEM
-/*
- * 4) physnode_map     - the mapping between a pfn and owning node
- * physnode_map keeps track of the physical memory layout of a generic
- * numa node on a 64Mb break (each element of the array will
- * represent 64Mb of memory and will be marked by the node id.  so,
- * if the first gig is on node 0, and the second gig is on node 1
- * physnode_map will contain:
- *
- *     physnode_map[0-15] = 0;
- *     physnode_map[16-31] = 1;
- *     physnode_map[32- ] = -1;
- */
-s8 physnode_map[MAX_SECTIONS] __read_mostly = { [0 ... (MAX_SECTIONS - 1)] = -1};
-EXPORT_SYMBOL(physnode_map);
-
-void memory_present(int nid, unsigned long start, unsigned long end)
-{
-	unsigned long pfn;
-
-	printk(KERN_INFO "Node: %d, start_pfn: %lx, end_pfn: %lx\n",
-			nid, start, end);
-	printk(KERN_DEBUG "  Setting physnode_map array to node %d for pfns:\n", nid);
-	printk(KERN_DEBUG "  ");
-	start = round_down(start, PAGES_PER_SECTION);
-	end = round_up(end, PAGES_PER_SECTION);
-	for (pfn = start; pfn < end; pfn += PAGES_PER_SECTION) {
-		physnode_map[pfn / PAGES_PER_SECTION] = nid;
-		printk(KERN_CONT "%lx ", pfn);
-	}
-	printk(KERN_CONT "\n");
-}
-#endif
 
 extern unsigned long highend_pfn, highstart_pfn;
 

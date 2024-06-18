@@ -136,7 +136,7 @@ static void inftl_remove_dev(struct mtd_blktrans_dev *dev)
 int inftl_read_oob(struct mtd_info *mtd, loff_t offs, size_t len,
 		   size_t *retlen, uint8_t *buf)
 {
-	struct mtd_oob_ops ops;
+	struct mtd_oob_ops ops = { };
 	int res;
 
 	ops.mode = MTD_OPS_PLACE_OOB;
@@ -156,7 +156,7 @@ int inftl_read_oob(struct mtd_info *mtd, loff_t offs, size_t len,
 int inftl_write_oob(struct mtd_info *mtd, loff_t offs, size_t len,
 		    size_t *retlen, uint8_t *buf)
 {
-	struct mtd_oob_ops ops;
+	struct mtd_oob_ops ops = { };
 	int res;
 
 	ops.mode = MTD_OPS_PLACE_OOB;
@@ -176,7 +176,7 @@ int inftl_write_oob(struct mtd_info *mtd, loff_t offs, size_t len,
 static int inftl_write(struct mtd_info *mtd, loff_t offs, size_t len,
 		       size_t *retlen, uint8_t *buf, uint8_t *oob)
 {
-	struct mtd_oob_ops ops;
+	struct mtd_oob_ops ops = { };
 	int res;
 
 	ops.mode = MTD_OPS_PLACE_OOB;
@@ -356,7 +356,7 @@ static u16 INFTL_foldchain(struct INFTLrecord *inftl, unsigned thisVUC, unsigned
 	 * Newest unit in chain now contains data from _all_ older units.
 	 * So go through and erase each unit in chain, oldest first. (This
 	 * is important, by doing oldest first if we crash/reboot then it
-	 * it is relatively simple to clean up the mess).
+	 * is relatively simple to clean up the mess).
 	 */
 	pr_debug("INFTL: want to erase virtual chain %d\n", thisVUC);
 
@@ -937,18 +937,7 @@ static struct mtd_blktrans_ops inftl_tr = {
 	.owner		= THIS_MODULE,
 };
 
-static int __init init_inftl(void)
-{
-	return register_mtd_blktrans(&inftl_tr);
-}
-
-static void __exit cleanup_inftl(void)
-{
-	deregister_mtd_blktrans(&inftl_tr);
-}
-
-module_init(init_inftl);
-module_exit(cleanup_inftl);
+module_mtd_blktrans(inftl_tr);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Greg Ungerer <gerg@snapgear.com>, David Woodhouse <dwmw2@infradead.org>, Fabrice Bellard <fabrice.bellard@netgem.com> et al.");

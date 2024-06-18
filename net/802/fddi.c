@@ -175,4 +175,5 @@ struct net_device *alloc_fddidev(int sizeof_priv)
 }
 EXPORT_SYMBOL(alloc_fddidev);
 
+MODULE_DESCRIPTION("Core routines for FDDI network devices");
 MODULE_LICENSE("GPL");

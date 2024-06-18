@@ -68,7 +68,6 @@ struct icn8505_touch_data {
 struct icn8505_data {
 	struct i2c_client *client;
 	struct input_dev *input;
-	struct gpio_desc *wake_gpio;
 	struct touchscreen_properties prop;
 	char firmware_name[32];
 };
@@ -288,7 +287,7 @@ static int icn8505_upload_fw(struct icn8505_data *icn8505)
 	 * we may need it at resume. Having loaded it once will make the
 	 * firmware class code cache it at suspend/resume.
 	 */
-	error = request_firmware(&fw, icn8505->firmware_name, dev);
+	error = firmware_request_platform(&fw, icn8505->firmware_name, dev);
 	if (error) {
 		dev_err(dev, "Firmware request error %d\n", error);
 		return error;
@@ -364,32 +363,20 @@ static irqreturn_t icn8505_irq(int irq, void *dev_id)
 
 static int icn8505_probe_acpi(struct icn8505_data *icn8505, struct device *dev)
 {
-	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-	const char *subsys = "unknown";
-	struct acpi_device *adev;
-	union acpi_object *obj;
-	acpi_status status;
+	const char *subsys;
+	int error;
 
-	adev = ACPI_COMPANION(dev);
-	if (!adev)
-		return -ENODEV;
-
-	status = acpi_evaluate_object(adev->handle, "_SUB", NULL, &buffer);
-	if (ACPI_SUCCESS(status)) {
-		obj = buffer.pointer;
-		if (obj->type == ACPI_TYPE_STRING)
-			subsys = obj->string.pointer;
-		else
-			dev_warn(dev, "Warning ACPI _SUB did not return a string\n");
-	} else {
-		dev_warn(dev, "Warning ACPI _SUB failed: %#x\n", status);
-		buffer.pointer = NULL;
-	}
+	subsys = acpi_get_subsystem_id(ACPI_HANDLE(dev));
+	error = PTR_ERR_OR_ZERO(subsys);
+	if (error == -ENODATA)
+		subsys = "unknown";
+	else if (error)
+		return error;
 
 	snprintf(icn8505->firmware_name, sizeof(icn8505->firmware_name),
 		 "chipone/icn8505-%s.fw", subsys);
 
-	kfree(buffer.pointer);
+	kfree_const(subsys);
 	return 0;
 }
 
@@ -472,7 +459,7 @@ static int icn8505_probe(struct i2c_client *client)
 	return 0;
 }
 
-static int __maybe_unused icn8505_suspend(struct device *dev)
+static int icn8505_suspend(struct device *dev)
 {
 	struct icn8505_data *icn8505 = i2c_get_clientdata(to_i2c_client(dev));
 
@@ -483,7 +470,7 @@ static int __maybe_unused icn8505_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused icn8505_resume(struct device *dev)
+static int icn8505_resume(struct device *dev)
 {
 	struct icn8505_data *icn8505 = i2c_get_clientdata(to_i2c_client(dev));
 	int error;
@@ -496,7 +483,7 @@ static int __maybe_unused icn8505_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(icn8505_pm_ops, icn8505_suspend, icn8505_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(icn8505_pm_ops, icn8505_suspend, icn8505_resume);
 
 static const struct acpi_device_id icn8505_acpi_match[] = {
 	{ "CHPN0001" },
@@ -507,10 +494,10 @@ MODULE_DEVICE_TABLE(acpi, icn8505_acpi_match);
 static struct i2c_driver icn8505_driver = {
 	.driver = {
 		.name	= "chipone_icn8505",
-		.pm	= &icn8505_pm_ops,
+		.pm	= pm_sleep_ptr(&icn8505_pm_ops),
 		.acpi_match_table = icn8505_acpi_match,
 	},
-	.probe_new = icn8505_probe,
+	.probe = icn8505_probe,
 };
 
 module_i2c_driver(icn8505_driver);

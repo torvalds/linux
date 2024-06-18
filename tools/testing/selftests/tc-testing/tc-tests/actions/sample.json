@@ -6,6 +6,9 @@
             "actions",
             "sample"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action sample",
@@ -30,6 +33,9 @@
             "actions",
             "sample"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action sample",
@@ -54,6 +60,9 @@
             "actions",
             "sample"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action sample",
@@ -78,6 +87,9 @@
             "actions",
             "sample"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action sample",
@@ -102,6 +114,9 @@
             "actions",
             "sample"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action sample",
@@ -126,6 +141,9 @@
             "actions",
             "sample"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action sample",
@@ -150,6 +168,9 @@
             "actions",
             "sample"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action sample",
@@ -174,6 +195,9 @@
             "actions",
             "sample"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action sample",
@@ -196,6 +220,9 @@
             "actions",
             "sample"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action sample",
@@ -218,6 +245,9 @@
             "actions",
             "sample"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action sample",
@@ -240,6 +270,9 @@
             "actions",
             "sample"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action sample",
@@ -262,6 +295,9 @@
             "actions",
             "sample"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action sample",
@@ -284,6 +320,9 @@
             "actions",
             "sample"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action sample",
@@ -308,6 +347,9 @@
             "actions",
             "sample"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action sample",
@@ -332,6 +374,9 @@
             "actions",
             "sample"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action sample",
@@ -356,6 +401,9 @@
             "actions",
             "sample"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action sample",
@@ -380,6 +428,9 @@
             "actions",
             "sample"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action sample",
@@ -402,6 +453,9 @@
             "actions",
             "sample"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action sample",
@@ -424,6 +478,9 @@
             "actions",
             "sample"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action sample",
@@ -446,6 +503,9 @@
             "actions",
             "sample"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action sample",
@@ -468,6 +528,9 @@
             "actions",
             "sample"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action sample",
@@ -492,6 +555,9 @@
             "actions",
             "sample"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action sample",
@@ -516,6 +582,9 @@
             "actions",
             "sample"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action sample",
@@ -541,6 +610,9 @@
             "actions",
             "sample"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action sample",
@@ -566,6 +638,9 @@
             "actions",
             "sample"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action sample",
@@ -591,6 +666,9 @@
             "actions",
             "sample"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action sample",
@@ -616,6 +694,9 @@
             "actions",
             "sample"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action sample",
@@ -629,6 +710,62 @@
         "expExitCode": "255",
         "verifyCmd": "$TC actions list action sample",
         "matchPattern": "action order [0-9]+: sample rate 1/1024 group 4 pass.*index 90",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action sample"
+        ]
+    },
+    {
+        "id": "3872",
+        "name": "Delete sample action with valid index",
+        "category": [
+            "actions",
+            "sample"
+        ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC actions flush action sample",
+                0,
+                1,
+                255
+            ],
+	    "$TC actions add action sample rate 10 group 1 index 20"
+        ],
+        "cmdUnderTest": "$TC actions del action sample index 20",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action sample index 20",
+        "matchPattern": "action order [0-9]+: sample rate 1/10 group 1.*index 20 ref",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action sample"
+        ]
+    },
+    {
+        "id": "a394",
+        "name": "Delete sample action with invalid index",
+        "category": [
+            "actions",
+            "sample"
+        ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC actions flush action sample",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action sample rate 10 group 1 index 20"
+        ],
+        "cmdUnderTest": "$TC actions del action sample index 10",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action sample index 20",
+        "matchPattern": "action order [0-9]+: sample rate 1/10 group 1.*index 20 ref",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action sample"

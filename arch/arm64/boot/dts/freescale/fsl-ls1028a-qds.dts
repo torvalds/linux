@@ -23,6 +23,9 @@
 		gpio2 = &gpio3;
 		serial0 = &duart0;
 		serial1 = &duart1;
+		mmc0 = &esdhc;
+		mmc1 = &esdhc1;
+		rtc1 = &ftm_alarm1;
 	};
 
 	chosen {
@@ -90,7 +93,7 @@
 		compatible = "mdio-mux-multiplexer";
 		mux-controls = <&mux 0>;
 		mdio-parent-bus = <&enetc_mdio_pf3>;
-		#address-cells=<1>;
+		#address-cells = <1>;
 		#size-cells = <0>;
 
 		/* on-board RGMII PHY */
@@ -104,6 +107,123 @@
 				reg = <5>;
 			};
 		};
+
+		mdio_slot1: mdio@4 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <4>;
+		};
+
+		mdio_slot2: mdio@5 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <5>;
+		};
+
+		mdio_slot3: mdio@6 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <6>;
+		};
+
+		mdio_slot4: mdio@7 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <7>;
+		};
+	};
+};
+
+&can0 {
+	status = "okay";
+};
+
+&can1 {
+	status = "okay";
+};
+
+&dspi0 {
+	bus-num = <0>;
+	status = "okay";
+
+	flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		spi-cpol;
+		spi-cpha;
+		reg = <0>;
+		spi-max-frequency = <10000000>;
+	};
+
+	flash@1 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		spi-cpol;
+		spi-cpha;
+		reg = <1>;
+		spi-max-frequency = <10000000>;
+	};
+
+	flash@2 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		spi-cpol;
+		spi-cpha;
+		reg = <2>;
+		spi-max-frequency = <10000000>;
+	};
+};
+
+&dspi1 {
+	bus-num = <1>;
+	status = "okay";
+
+	flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		spi-cpol;
+		spi-cpha;
+		reg = <0>;
+		spi-max-frequency = <10000000>;
+	};
+
+	flash@1 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		spi-cpol;
+		spi-cpha;
+		reg = <1>;
+		spi-max-frequency = <10000000>;
+	};
+
+	flash@2 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		spi-cpol;
+		spi-cpha;
+		reg = <2>;
+		spi-max-frequency = <10000000>;
+	};
+};
+
+&dspi2 {
+	bus-num = <2>;
+	status = "okay";
+
+	flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		spi-cpol;
+		spi-cpha;
+		reg = <0>;
+		spi-max-frequency = <10000000>;
 	};
 };
 
@@ -115,6 +235,16 @@
 	status = "okay";
 };
 
+&enetc_port1 {
+	phy-handle = <&qds_phy1>;
+	phy-mode = "rgmii-id";
+	status = "okay";
+};
+
+&enetc_port2 {
+	status = "okay";
+};
+
 &esdhc {
 	status = "okay";
 };
@@ -123,11 +253,30 @@
 	status = "okay";
 };
 
+&fspi {
+	status = "okay";
+
+	mt35xu02g0: flash@0 {
+		compatible = "jedec,spi-nor";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		spi-max-frequency = <50000000>;
+		/* The following setting enables 1-1-8 (CMD-ADDR-DATA) mode */
+		spi-rx-bus-width = <8>; /* 8 SPI Rx lines */
+		spi-tx-bus-width = <1>; /* 1 SPI Tx line */
+		reg = <0>;
+	};
+};
+
+&ftm_alarm1 {
+	status = "okay";
+};
+
 &i2c0 {
 	status = "okay";
 
 	i2c-mux@77 {
-		compatible = "nxp,pca9847";
+		compatible = "nxp,pca9547";
 		reg = <0x77>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -161,11 +310,6 @@
 				vcc-supply = <&sb_3v3>;
 			};
 
-			rtc@51 {
-				compatible = "nxp,pcf2129";
-				reg = <0x51>;
-			};
-
 			eeprom@56 {
 				compatible = "atmel,24c512";
 				reg = <0x56>;
@@ -194,8 +338,6 @@
 	};
 
 	fpga@66 {
-		#address-cells = <1>;
-		#size-cells = <0>;
 		compatible = "fsl,ls1028aqds-fpga", "fsl,fpga-qixis-i2c",
 			     "simple-mfd";
 		reg = <0x66>;
@@ -209,9 +351,26 @@
 
 };
 
-&enetc_port1 {
-	phy-handle = <&qds_phy1>;
-	phy-connection-type = "rgmii-id";
+&i2c1 {
+	status = "okay";
+
+	rtc@51 {
+		compatible = "nxp,pcf2129";
+		reg = <0x51>;
+	};
+};
+
+&lpuart0 {
+	status = "okay";
+};
+
+&lpuart1 {
+	status = "okay";
+};
+
+&mscc_felix_port4 {
+	ethernet = <&enetc_port2>;
+	status = "okay";
 };
 
 &sai1 {
@@ -219,5 +378,15 @@
 };
 
 &sata {
+	status = "okay";
+};
+
+&usb0 {
+	dr_mode = "host";
+	status = "okay";
+};
+
+&usb1 {
+	dr_mode = "host";
 	status = "okay";
 };

@@ -50,6 +50,7 @@
 #define FALCON_DMATRFCMD_IDLE			(1 << 1)
 #define FALCON_DMATRFCMD_IMEM			(1 << 4)
 #define FALCON_DMATRFCMD_SIZE_256B		(6 << 8)
+#define FALCON_DMATRFCMD_DMACTX(v)		(((v) & 0x7) << 12)
 
 #define FALCON_DMATRFFBOFFS			0x0000111c
 
@@ -74,15 +75,6 @@ struct falcon_fw_os_header_v1 {
 	u32 data_size;
 };
 
-struct falcon;
-
-struct falcon_ops {
-	void *(*alloc)(struct falcon *falcon, size_t size,
-		       dma_addr_t *paddr);
-	void (*free)(struct falcon *falcon, size_t size,
-		     dma_addr_t paddr, void *vaddr);
-};
-
 struct falcon_firmware_section {
 	unsigned long offset;
 	size_t size;
@@ -93,8 +85,9 @@ struct falcon_firmware {
 	const struct firmware *firmware;
 
 	/* Raw firmware data */
-	dma_addr_t paddr;
-	void *vaddr;
+	dma_addr_t iova;
+	dma_addr_t phys;
+	void *virt;
 	size_t size;
 
 	/* Parsed firmware information */
@@ -107,8 +100,6 @@ struct falcon {
 	/* Set by falcon client */
 	struct device *dev;
 	void __iomem *regs;
-	const struct falcon_ops *ops;
-	void *data;
 
 	struct falcon_firmware firmware;
 };

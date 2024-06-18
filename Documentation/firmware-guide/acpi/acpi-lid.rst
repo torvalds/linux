@@ -19,9 +19,9 @@ report the "current" state of the lid as either "opened" or "closed".
 
 For most platforms, both the _LID method and the lid notifications are
 reliable. However, there are exceptions. In order to work with these
-exceptional buggy platforms, special restrictions and expections should be
+exceptional buggy platforms, special restrictions and exceptions should be
 taken into account. This document describes the restrictions and the
-expections of the Linux ACPI lid device driver.
+exceptions of the Linux ACPI lid device driver.
 
 
 Restrictions of the returning value of the _LID control method
@@ -34,7 +34,7 @@ state upon the last _LID evaluation. There won't be difference when the
 _LID control method is evaluated during the runtime, the problem is its
 initial returning value. When the AML tables implement this control method
 with cached value, the initial returning value is likely not reliable.
-There are platforms always retun "closed" as initial lid state.
+There are platforms always return "closed" as initial lid state.
 
 Restrictions of the lid state change notifications
 ==================================================
@@ -46,7 +46,7 @@ state is changed to "closed". The "closed" notification is normally used to
 trigger some system power saving operations on Windows. Since it is fully
 tested, it is reliable from all AML tables.
 
-Expections for the userspace users of the ACPI lid device driver
+Exceptions for the userspace users of the ACPI lid device driver
 ================================================================
 
 The ACPI button driver exports the lid state to the userspace via the
@@ -100,7 +100,7 @@ use the following kernel parameter:
 C. button.lid_init_state=ignore:
    When this option is specified, the ACPI button driver never reports the
    initial lid state and there is a compensation mechanism implemented to
-   ensure that the reliable "closed" notifications can always be delievered
+   ensure that the reliable "closed" notifications can always be delivered
    to the userspace by always pairing "closed" input events with complement
    "opened" input events. But there is still no guarantee that the "opened"
    notifications can be delivered to the userspace when the lid is actually

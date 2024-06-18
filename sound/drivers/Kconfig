@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config SND_MPU401_UART
-        tristate
-        select SND_RAWMIDI
+	tristate
+	select SND_RAWMIDI
 
 config SND_OPL3_LIB
 	tristate
@@ -90,23 +90,41 @@ config SND_DUMMY
 	  will be called snd-dummy.
 
 config SND_ALOOP
-        tristate "Generic loopback driver (PCM)"
-        select SND_PCM
-        help
-          Say 'Y' or 'M' to include support for the PCM loopback device.
+	tristate "Generic loopback driver (PCM)"
+	select SND_PCM
+	select SND_TIMER
+	help
+	  Say 'Y' or 'M' to include support for the PCM loopback device.
 	  This module returns played samples back to the user space using
 	  the standard ALSA PCM device. The devices are routed 0->1 and
-          1->0, where first number is the playback PCM device and second
+	  1->0, where first number is the playback PCM device and second
 	  number is the capture device. Module creates two PCM devices and
 	  configured number of substreams (see the pcm_substreams module
-          parameter).
+	  parameter).
 
-	  The loopback device allows time sychronization with an external
+	  The loopback device allows time synchronization with an external
 	  timing source using the time shift universal control (+-20%
 	  of system time).
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-aloop.
+
+config SND_PCMTEST
+	tristate "Virtual PCM test driver"
+	depends on DEBUG_FS
+	select SND_PCM
+	help
+	  Say 'Y' or 'M' to include support for the Virtual PCM test driver.
+	  This driver is aimed at extended testing of the userspace applications
+	  which use the ALSA API, as well as the PCM middle layer testing.
+
+	  It can generate random or pattern-based data into the capture stream,
+	  check the playback stream for containing the selected pattern, inject
+	  time delays during capture/playback, redefine the RESET ioctl operation
+	  to perform the PCM middle layer testing and inject errors during the
+	  PCM callbacks. It supports both interleaved and non-interleaved access
+	  modes. You can find the corresponding selftest in the 'alsa'
+	  selftests folder.
 
 config SND_VIRMIDI
 	tristate "Virtual MIDI soundcard"
@@ -127,6 +145,7 @@ config SND_VIRMIDI
 
 config SND_MTPAV
 	tristate "MOTU MidiTimePiece AV multiport MIDI"
+	depends on HAS_IOPORT
 	select SND_RAWMIDI
 	help
 	  To use a MOTU MidiTimePiece AV multiport MIDI adapter
@@ -142,15 +161,16 @@ config SND_MTS64
 	select SND_RAWMIDI
 	help
 	  The ESI Miditerminal 4140 is a 4 In 4 Out MIDI Interface with 
-          additional SMPTE Timecode capabilities for the parallel port.
+	  additional SMPTE Timecode capabilities for the parallel port.
 
 	  Say 'Y' to include support for this device.
 
 	  To compile this driver as a module, chose 'M' here: the module 
-          will be called snd-mts64.
+	  will be called snd-mts64.
 
 config SND_SERIAL_U16550
 	tristate "UART16550 serial MIDI driver"
+	depends on HAS_IOPORT
 	select SND_RAWMIDI
 	help
 	  To include support for MIDI serial port interfaces, say Y here
@@ -164,8 +184,27 @@ config SND_SERIAL_U16550
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-serial-u16550.
 
+config SND_SERIAL_GENERIC
+	tristate "Generic serial MIDI driver"
+	depends on SERIAL_DEV_BUS
+	depends on OF
+	select SND_RAWMIDI
+	help
+	  To include support for mapping generic serial devices as raw
+	  ALSA MIDI devices, say Y here. The driver only supports setting
+	  the serial port to standard baudrates. To attain the standard MIDI
+	  baudrate of 31.25 kBaud, configure the clock of the underlying serial
+	  device so that a requested 38.4 kBaud will result in the standard speed.
+
+	  Use this devicetree binding to configure serial port mapping
+	  <file:Documentation/devicetree/bindings/sound/serial-midi.yaml>
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-serial-generic.
+
 config SND_MPU401
 	tristate "Generic MPU-401 UART driver"
+	depends on HAS_IOPORT
 	select SND_MPU401_UART
 	help
 	  Say Y here to include support for MIDI ports compatible with
@@ -184,18 +223,6 @@ config SND_PORTMAN2X4
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-portman2x4.
-
-config SND_ML403_AC97CR
-	tristate "Xilinx ML403 AC97 Controller Reference"
-	depends on XILINX_VIRTEX
-	select SND_AC97_CODEC
-	help
-	  Say Y here to include support for the
-	  opb_ac97_controller_ref_v1_00_a ip core found in Xilinx's ML403
-	  reference design.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-ml403_ac97cr.
 
 config SND_AC97_POWER_SAVE
 	bool "AC97 Power-Saving Mode"

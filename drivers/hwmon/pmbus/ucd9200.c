@@ -7,7 +7,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/slab.h>
@@ -71,8 +71,7 @@ static const struct of_device_id __maybe_unused ucd9200_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, ucd9200_of_match);
 
-static int ucd9200_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int ucd9200_probe(struct i2c_client *client)
 {
 	u8 block_buffer[I2C_SMBUS_BLOCK_MAX + 1];
 	struct pmbus_driver_info *info;
@@ -104,14 +103,14 @@ static int ucd9200_probe(struct i2c_client *client,
 	}
 
 	if (client->dev.of_node)
-		chip = (enum chips)of_device_get_match_data(&client->dev);
+		chip = (uintptr_t)of_device_get_match_data(&client->dev);
 	else
-		chip = id->driver_data;
+		chip = mid->driver_data;
 
-	if (chip != ucd9200 && chip != mid->driver_data)
+	if (chip != ucd9200 && strcmp(client->name, mid->name) != 0)
 		dev_notice(&client->dev,
 			   "Device mismatch: Configured %s, detected %s\n",
-			   id->name, mid->name);
+			   client->name, mid->name);
 
 	info = devm_kzalloc(&client->dev, sizeof(struct pmbus_driver_info),
 			    GFP_KERNEL);
@@ -149,7 +148,7 @@ static int ucd9200_probe(struct i2c_client *client,
 	 * This only affects the READ_IOUT and READ_TEMPERATURE2 registers.
 	 * READ_IOUT will return the sum of currents of all phases of a rail,
 	 * and READ_TEMPERATURE2 will return the maximum temperature detected
-	 * for the the phases of the rail.
+	 * for the phases of the rail.
 	 */
 	for (i = 0; i < info->pages; i++) {
 		/*
@@ -192,7 +191,7 @@ static int ucd9200_probe(struct i2c_client *client,
 	if (mid->driver_data == ucd9240)
 		info->func[0] |= PMBUS_HAVE_FAN12 | PMBUS_HAVE_STATUS_FAN12;
 
-	return pmbus_do_probe(client, mid, info);
+	return pmbus_do_probe(client, info);
 }
 
 /* This is the driver that will be inserted */
@@ -202,7 +201,6 @@ static struct i2c_driver ucd9200_driver = {
 		.of_match_table = of_match_ptr(ucd9200_of_match),
 	},
 	.probe = ucd9200_probe,
-	.remove = pmbus_do_remove,
 	.id_table = ucd9200_id,
 };
 
@@ -211,3 +209,4 @@ module_i2c_driver(ucd9200_driver);
 MODULE_AUTHOR("Guenter Roeck");
 MODULE_DESCRIPTION("PMBus driver for TI UCD922x, UCD924x");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(PMBUS);

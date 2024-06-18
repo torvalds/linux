@@ -8,8 +8,10 @@
 struct tcf_mirred {
 	struct tc_action	common;
 	int			tcfm_eaction;
+	u32                     tcfm_blockid;
 	bool			tcfm_mac_header_xmit;
 	struct net_device __rcu	*tcfm_dev;
+	netdevice_tracker	tcfm_dev_tracker;
 	struct list_head	tcfm_list;
 };
 #define to_mirred(a) ((struct tcf_mirred *)a)

@@ -44,7 +44,7 @@
 /* Default supported priorities for VPP allocation */
 #define MLX4_DEFAULT_QOS_PRIO (0)
 
-/* Derived from FW feature definition, 0 is the default vport fo all QPs */
+/* Derived from FW feature definition, 0 is the default vport for all QPs */
 #define MLX4_VPP_DEFAULT_VPORT (0)
 
 struct mlx4_vport_qos_param {
@@ -98,7 +98,7 @@ int mlx4_SET_PORT_SCHEDULER(struct mlx4_dev *dev, u8 port, u8 *tc_tx_bw,
 int mlx4_ALLOCATE_VPP_get(struct mlx4_dev *dev, u8 port,
 			  u16 *available_vpp, u8 *vpp_p_up);
 /**
- * mlx4_ALLOCATE_VPP_set - Distribution of VPPs among differnt priorities.
+ * mlx4_ALLOCATE_VPP_set - Distribution of VPPs among different priorities.
  * The total number of VPPs assigned to all for a port must not exceed
  * the value reported by available_vpp in mlx4_ALLOCATE_VPP_get.
  * VPP allocation is allowed only after the port type has been set,
@@ -113,7 +113,7 @@ int mlx4_ALLOCATE_VPP_get(struct mlx4_dev *dev, u8 port,
 int mlx4_ALLOCATE_VPP_set(struct mlx4_dev *dev, u8 port, u8 *vpp_p_up);
 
 /**
- * mlx4_SET_VPORT_QOS_get - Query QoS proporties of a Vport.
+ * mlx4_SET_VPORT_QOS_get - Query QoS properties of a Vport.
  * Each priority allowed for the Vport is assigned with a share of the BW,
  * and a BW limitation. This commands query the current QoS values.
  *
@@ -128,14 +128,14 @@ int mlx4_SET_VPORT_QOS_get(struct mlx4_dev *dev, u8 port, u8 vport,
 			   struct mlx4_vport_qos_param *out_param);
 
 /**
- * mlx4_SET_VPORT_QOS_set - Set QoS proporties of a Vport.
+ * mlx4_SET_VPORT_QOS_set - Set QoS properties of a Vport.
  * QoS parameters can be modified at any time, but must be initialized
  * before any QP is associated with the VPort.
  *
  * @dev: mlx4_dev.
  * @port: Physical port number.
  * @vport: Vport id.
- * @out_param: Array of mlx4_vport_qos_param which holds the requested values.
+ * @in_param: Array of mlx4_vport_qos_param which holds the requested values.
  *
  * Returns 0 on success or a negative mlx4_core errno code.
  **/

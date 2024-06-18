@@ -142,7 +142,7 @@ il4965_rs_dbgfs_set_mcs(struct il_lq_sta *lq_sta, u32 * rate_n_flags, int idx)
 }
 #endif
 
-/**
+/*
  * The following tables contain the expected throughput metrics for all rates
  *
  *	1, 2, 5.5, 11, 6, 9, 12, 18, 24, 36, 48, 54, 60 MBits
@@ -393,7 +393,7 @@ il4965_get_expected_tpt(struct il_scale_tbl_info *tbl, int rs_idx)
 	return 0;
 }
 
-/**
+/*
  * il4965_rs_collect_tx_data - Update the success/failure sliding win
  *
  * We keep a sliding win of the last 62 packets transmitted
@@ -620,18 +620,18 @@ il4965_rs_toggle_antenna(u32 valid_ant, u32 *rate_n_flags,
 	return 1;
 }
 
-/**
+/*
  * Green-field mode is valid if the station supports it and
  * there are no non-GF stations present in the BSS.
  */
 static bool
 il4965_rs_use_green(struct il_priv *il, struct ieee80211_sta *sta)
 {
-	return (sta->ht_cap.cap & IEEE80211_HT_CAP_GRN_FLD) &&
+	return (sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_GRN_FLD) &&
 	       !il->ht.non_gf_sta_present;
 }
 
-/**
+/*
  * il4965_rs_get_supported_rates - get the available rates
  *
  * if management frame or broadcast frame only return
@@ -970,7 +970,7 @@ il4965_rs_tx_status(void *il_r, struct ieee80211_supported_band *sband,
 	lq_sta->last_rate_n_flags = tx_rate;
 done:
 	/* See if there's a better rate or modulation mode to try. */
-	if (sta->supp_rates[sband->band])
+	if (sta->deflink.supp_rates[sband->band])
 		il4965_rs_rate_scale_perform(il, skb, sta, lq_sta);
 }
 
@@ -1164,10 +1164,10 @@ il4965_rs_switch_to_mimo2(struct il_priv *il, struct il_lq_sta *lq_sta,
 	s32 rate;
 	s8 is_green = lq_sta->is_green;
 
-	if (!conf_is_ht(conf) || !sta->ht_cap.ht_supported)
+	if (!conf_is_ht(conf) || !sta->deflink.ht_cap.ht_supported)
 		return -1;
 
-	if (sta->smps_mode == IEEE80211_SMPS_STATIC)
+	if (sta->deflink.smps_mode == IEEE80211_SMPS_STATIC)
 		return -1;
 
 	/* Need both Tx chains/antennas to support MIMO */
@@ -1182,7 +1182,7 @@ il4965_rs_switch_to_mimo2(struct il_priv *il, struct il_lq_sta *lq_sta,
 	tbl->max_search = IL_MAX_SEARCH;
 	rate_mask = lq_sta->active_mimo2_rate;
 
-	if (il_is_ht40_tx_allowed(il, &sta->ht_cap))
+	if (il_is_ht40_tx_allowed(il, &sta->deflink.ht_cap))
 		tbl->is_ht40 = 1;
 	else
 		tbl->is_ht40 = 0;
@@ -1217,7 +1217,7 @@ il4965_rs_switch_to_siso(struct il_priv *il, struct il_lq_sta *lq_sta,
 	u8 is_green = lq_sta->is_green;
 	s32 rate;
 
-	if (!conf_is_ht(conf) || !sta->ht_cap.ht_supported)
+	if (!conf_is_ht(conf) || !sta->deflink.ht_cap.ht_supported)
 		return -1;
 
 	D_RATE("LQ: try to switch to SISO\n");
@@ -1228,7 +1228,7 @@ il4965_rs_switch_to_siso(struct il_priv *il, struct il_lq_sta *lq_sta,
 	tbl->max_search = IL_MAX_SEARCH;
 	rate_mask = lq_sta->active_siso_rate;
 
-	if (il_is_ht40_tx_allowed(il, &sta->ht_cap))
+	if (il_is_ht40_tx_allowed(il, &sta->deflink.ht_cap))
 		tbl->is_ht40 = 1;
 	else
 		tbl->is_ht40 = 0;
@@ -1384,7 +1384,7 @@ il4965_rs_move_siso_to_other(struct il_priv *il, struct il_lq_sta *lq_sta,
 	struct il_scale_tbl_info *search_tbl =
 	    &(lq_sta->lq_info[(1 - lq_sta->active_tbl)]);
 	struct il_rate_scale_data *win = &(tbl->win[idx]);
-	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
+	struct ieee80211_sta_ht_cap *ht_cap = &sta->deflink.ht_cap;
 	u32 sz =
 	    (sizeof(struct il_scale_tbl_info) -
 	     (sizeof(struct il_rate_scale_data) * RATE_COUNT));
@@ -1507,7 +1507,7 @@ il4965_rs_move_mimo2_to_other(struct il_priv *il, struct il_lq_sta *lq_sta,
 	struct il_scale_tbl_info *search_tbl =
 	    &(lq_sta->lq_info[(1 - lq_sta->active_tbl)]);
 	struct il_rate_scale_data *win = &(tbl->win[idx]);
-	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
+	struct ieee80211_sta_ht_cap *ht_cap = &sta->deflink.ht_cap;
 	u32 sz =
 	    (sizeof(struct il_scale_tbl_info) -
 	     (sizeof(struct il_rate_scale_data) * RATE_COUNT));
@@ -1749,7 +1749,7 @@ il4965_rs_rate_scale_perform(struct il_priv *il, struct sk_buff *skb,
 	u8 done_search = 0;
 	u16 high_low;
 	s32 sr;
-	u8 tid = MAX_TID_COUNT;
+	u8 tid;
 	struct il_tid_data *tid_data;
 
 	D_RATE("rate scale calculate new rate for skb\n");
@@ -1760,7 +1760,7 @@ il4965_rs_rate_scale_perform(struct il_priv *il, struct sk_buff *skb,
 	    (info->flags & IEEE80211_TX_CTL_NO_ACK))
 		return;
 
-	lq_sta->supp_rates = sta->supp_rates[lq_sta->band];
+	lq_sta->supp_rates = sta->deflink.supp_rates[lq_sta->band];
 
 	tid = il4965_rs_tl_add_packet(lq_sta, hdr);
 	if (tid != MAX_TID_COUNT && (lq_sta->tx_agg_tid_en & (1 << tid))) {
@@ -2114,7 +2114,7 @@ out:
 	lq_sta->last_txrate_idx = i;
 }
 
-/**
+/*
  * il4965_rs_initialize_lq - Initialize a station's hardware rate table
  *
  * The uCode's station table contains a table of fallback rates
@@ -2271,7 +2271,7 @@ il4965_rs_rate_init(struct il_priv *il, struct ieee80211_sta *sta, u8 sta_id)
 	int i, j;
 	struct ieee80211_hw *hw = il->hw;
 	struct ieee80211_conf *conf = &il->hw->conf;
-	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
+	struct ieee80211_sta_ht_cap *ht_cap = &sta->deflink.ht_cap;
 	struct il_station_priv *sta_priv;
 	struct il_lq_sta *lq_sta;
 	struct ieee80211_supported_band *sband;
@@ -2288,7 +2288,7 @@ il4965_rs_rate_init(struct il_priv *il, struct ieee80211_sta *sta, u8 sta_id)
 						       win[i]);
 
 	lq_sta->flush_timer = 0;
-	lq_sta->supp_rates = sta->supp_rates[sband->band];
+	lq_sta->supp_rates = sta->deflink.supp_rates[sband->band];
 	for (j = 0; j < LQ_SIZE; j++)
 		for (i = 0; i < RATE_COUNT; i++)
 			il4965_rs_rate_scale_clear_win(&lq_sta->lq_info[j].
@@ -2403,7 +2403,7 @@ il4965_rs_fill_link_cmd(struct il_priv *il, struct il_lq_sta *lq_sta,
 		/* Repeat initial/next rate.
 		 * For legacy IL_NUMBER_TRY == 1, this loop will not execute.
 		 * For HT IL_HT_NUMBER_TRY == 3, this executes twice. */
-		while (repeat_rate > 0 && idx < LINK_QUAL_MAX_RETRY_NUM) {
+		while (repeat_rate > 0 && idx < (LINK_QUAL_MAX_RETRY_NUM - 1)) {
 			if (is_legacy(tbl_type.lq_type)) {
 				if (ant_toggle_cnt < NUM_TRY_BEFORE_ANT_TOGGLE)
 					ant_toggle_cnt++;
@@ -2474,7 +2474,7 @@ il4965_rs_fill_link_cmd(struct il_priv *il, struct il_lq_sta *lq_sta,
 }
 
 static void *
-il4965_rs_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
+il4965_rs_alloc(struct ieee80211_hw *hw)
 {
 	return hw->priv;
 }

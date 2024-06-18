@@ -17,12 +17,12 @@ static unsigned int nft_nat_do_chain(void *priv, struct sk_buff *skb,
 	switch (state->pf) {
 #ifdef CONFIG_NF_TABLES_IPV4
 	case NFPROTO_IPV4:
-		nft_set_pktinfo_ipv4(&pkt, skb);
+		nft_set_pktinfo_ipv4(&pkt);
 		break;
 #endif
 #ifdef CONFIG_NF_TABLES_IPV6
 	case NFPROTO_IPV6:
-		nft_set_pktinfo_ipv6(&pkt, skb);
+		nft_set_pktinfo_ipv6(&pkt);
 		break;
 #endif
 	default:
@@ -89,6 +89,7 @@ static const struct nft_chain_type nft_chain_nat_inet = {
 	.name		= "nat",
 	.type		= NFT_CHAIN_T_NAT,
 	.family		= NFPROTO_INET,
+	.owner		= THIS_MODULE,
 	.hook_mask	= (1 << NF_INET_PRE_ROUTING) |
 			  (1 << NF_INET_LOCAL_IN) |
 			  (1 << NF_INET_LOCAL_OUT) |
@@ -136,6 +137,7 @@ module_init(nft_chain_nat_init);
 module_exit(nft_chain_nat_exit);
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("nftables network address translation support");
 #ifdef CONFIG_NF_TABLES_IPV4
 MODULE_ALIAS_NFT_CHAIN(AF_INET, "nat");
 #endif

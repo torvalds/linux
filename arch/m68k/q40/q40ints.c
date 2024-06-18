@@ -17,11 +17,14 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 
+#include <asm/machdep.h>
 #include <asm/ptrace.h>
 #include <asm/traps.h>
 
 #include <asm/q40_master.h>
 #include <asm/q40ints.h>
+
+#include "q40.h"
 
 /*
  * Q40 IRQs are defined as follows:
@@ -31,7 +34,7 @@
  *            33   : frame int (50/200 Hz periodic timer)
  *            34   : sample int (10/20 KHz periodic timer)
  *
-*/
+ */
 
 static void q40_irq_handler(unsigned int, struct pt_regs *fp);
 static void q40_irq_enable(struct irq_data *data);
@@ -129,8 +132,6 @@ void q40_mksound(unsigned int hz, unsigned int ticks)
 
 static irqreturn_t q40_timer_int(int irq, void *dev_id)
 {
-	irq_handler_t timer_routine = dev_id;
-
 	ql_ticks = ql_ticks ? 0 : 1;
 	if (sound_ticks) {
 		unsigned char sval=(sound_ticks & 1) ? 128-SVOL : 128+SVOL;
@@ -143,19 +144,20 @@ static irqreturn_t q40_timer_int(int irq, void *dev_id)
 		unsigned long flags;
 
 		local_irq_save(flags);
-		timer_routine(0, NULL);
+		legacy_timer_tick(1);
+		timer_heartbeat();
 		local_irq_restore(flags);
 	}
 	return IRQ_HANDLED;
 }
 
-void q40_sched_init (irq_handler_t timer_routine)
+void q40_sched_init (void)
 {
 	int timer_irq;
 
 	timer_irq = Q40_IRQ_FRAME;
 
-	if (request_irq(timer_irq, q40_timer_int, 0, "timer", timer_routine))
+	if (request_irq(timer_irq, q40_timer_int, 0, "timer", NULL))
 		panic("Couldn't register timer int");
 
 	master_outb(-1, FRAME_CLEAR_REG);
@@ -201,8 +203,8 @@ static int ccleirq=60;    /* ISA dev IRQs*/
 #define DEBUG_Q40INT
 /*#define IP_USE_DISABLE *//* would be nice, but crashes ???? */
 
-static int mext_disabled=0;  /* ext irq disabled by master chip? */
-static int aliased_irq=0;  /* how many times inside handler ?*/
+static int mext_disabled;	/* ext irq disabled by master chip? */
+static int aliased_irq;		/* how many times inside handler ?*/
 
 
 /* got interrupt, dispatch to ISA or keyboard/timer IRQs */

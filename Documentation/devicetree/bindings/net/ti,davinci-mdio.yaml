@@ -1,0 +1,80 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/ti,davinci-mdio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI SoC Davinci/Keystone2 MDIO Controller
+
+maintainers:
+  - Grygorii Strashko <grygorii.strashko@ti.com>
+
+description:
+  TI SoC Davinci/Keystone2 MDIO Controller
+
+allOf:
+  - $ref: mdio.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - const: ti,davinci_mdio
+      - items:
+          - const: ti,keystone_mdio
+          - const: ti,davinci_mdio
+      - items:
+          - const: ti,cpsw-mdio
+          - const: ti,davinci_mdio
+      - items:
+          - const: ti,am4372-mdio
+          - const: ti,cpsw-mdio
+          - const: ti,davinci_mdio
+
+  reg:
+    maxItems: 1
+
+  bus_freq:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 2500000
+    description: MDIO Bus frequency
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: fck
+
+  ti,hwmods:
+    description: TI hwmod name
+    deprecated: true
+    $ref: /schemas/types.yaml#/definitions/string-array
+    items:
+      const: davinci_mdio
+
+if:
+  properties:
+    compatible:
+      contains:
+        const: ti,davinci_mdio
+then:
+  required:
+    - bus_freq
+
+required:
+  - compatible
+  - reg
+  - "#address-cells"
+  - "#size-cells"
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    davinci_mdio: mdio@4a101000 {
+         compatible = "ti,davinci_mdio";
+         #address-cells = <1>;
+         #size-cells = <0>;
+         reg = <0x4a101000 0x1000>;
+         bus_freq = <1000000>;
+    };

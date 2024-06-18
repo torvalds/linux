@@ -5,8 +5,6 @@
  * Copyright (c) 2006-2016 Herbert Xu <herbert@gondor.apana.org.au>
  */
 
-#include <crypto/algapi.h>
-#include <crypto/cbc.h>
 #include <crypto/internal/skcipher.h>
 #include <linux/err.h>
 #include <linux/init.h>
@@ -14,66 +12,154 @@
 #include <linux/log2.h>
 #include <linux/module.h>
 
-static inline void crypto_cbc_encrypt_one(struct crypto_skcipher *tfm,
-					  const u8 *src, u8 *dst)
+static int crypto_cbc_encrypt_segment(struct crypto_lskcipher *tfm,
+				      const u8 *src, u8 *dst, unsigned nbytes,
+				      u8 *iv)
 {
-	crypto_cipher_encrypt_one(skcipher_cipher_simple(tfm), dst, src);
-}
+	unsigned int bsize = crypto_lskcipher_blocksize(tfm);
 
-static int crypto_cbc_encrypt(struct skcipher_request *req)
-{
-	return crypto_cbc_encrypt_walk(req, crypto_cbc_encrypt_one);
-}
-
-static inline void crypto_cbc_decrypt_one(struct crypto_skcipher *tfm,
-					  const u8 *src, u8 *dst)
-{
-	crypto_cipher_decrypt_one(skcipher_cipher_simple(tfm), dst, src);
-}
-
-static int crypto_cbc_decrypt(struct skcipher_request *req)
-{
-	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
-	struct skcipher_walk walk;
-	int err;
-
-	err = skcipher_walk_virt(&walk, req, false);
-
-	while (walk.nbytes) {
-		err = crypto_cbc_decrypt_blocks(&walk, tfm,
-						crypto_cbc_decrypt_one);
-		err = skcipher_walk_done(&walk, err);
+	for (; nbytes >= bsize; src += bsize, dst += bsize, nbytes -= bsize) {
+		crypto_xor(iv, src, bsize);
+		crypto_lskcipher_encrypt(tfm, iv, dst, bsize, NULL);
+		memcpy(iv, dst, bsize);
 	}
 
-	return err;
+	return nbytes;
+}
+
+static int crypto_cbc_encrypt_inplace(struct crypto_lskcipher *tfm,
+				      u8 *src, unsigned nbytes, u8 *oiv)
+{
+	unsigned int bsize = crypto_lskcipher_blocksize(tfm);
+	u8 *iv = oiv;
+
+	if (nbytes < bsize)
+		goto out;
+
+	do {
+		crypto_xor(src, iv, bsize);
+		crypto_lskcipher_encrypt(tfm, src, src, bsize, NULL);
+		iv = src;
+
+		src += bsize;
+	} while ((nbytes -= bsize) >= bsize);
+
+	memcpy(oiv, iv, bsize);
+
+out:
+	return nbytes;
+}
+
+static int crypto_cbc_encrypt(struct crypto_lskcipher *tfm, const u8 *src,
+			      u8 *dst, unsigned len, u8 *iv, u32 flags)
+{
+	struct crypto_lskcipher **ctx = crypto_lskcipher_ctx(tfm);
+	bool final = flags & CRYPTO_LSKCIPHER_FLAG_FINAL;
+	struct crypto_lskcipher *cipher = *ctx;
+	int rem;
+
+	if (src == dst)
+		rem = crypto_cbc_encrypt_inplace(cipher, dst, len, iv);
+	else
+		rem = crypto_cbc_encrypt_segment(cipher, src, dst, len, iv);
+
+	return rem && final ? -EINVAL : rem;
+}
+
+static int crypto_cbc_decrypt_segment(struct crypto_lskcipher *tfm,
+				      const u8 *src, u8 *dst, unsigned nbytes,
+				      u8 *oiv)
+{
+	unsigned int bsize = crypto_lskcipher_blocksize(tfm);
+	const u8 *iv = oiv;
+
+	if (nbytes < bsize)
+		goto out;
+
+	do {
+		crypto_lskcipher_decrypt(tfm, src, dst, bsize, NULL);
+		crypto_xor(dst, iv, bsize);
+		iv = src;
+
+		src += bsize;
+		dst += bsize;
+	} while ((nbytes -= bsize) >= bsize);
+
+	memcpy(oiv, iv, bsize);
+
+out:
+	return nbytes;
+}
+
+static int crypto_cbc_decrypt_inplace(struct crypto_lskcipher *tfm,
+				      u8 *src, unsigned nbytes, u8 *iv)
+{
+	unsigned int bsize = crypto_lskcipher_blocksize(tfm);
+	u8 last_iv[MAX_CIPHER_BLOCKSIZE];
+
+	if (nbytes < bsize)
+		goto out;
+
+	/* Start of the last block. */
+	src += nbytes - (nbytes & (bsize - 1)) - bsize;
+	memcpy(last_iv, src, bsize);
+
+	for (;;) {
+		crypto_lskcipher_decrypt(tfm, src, src, bsize, NULL);
+		if ((nbytes -= bsize) < bsize)
+			break;
+		crypto_xor(src, src - bsize, bsize);
+		src -= bsize;
+	}
+
+	crypto_xor(src, iv, bsize);
+	memcpy(iv, last_iv, bsize);
+
+out:
+	return nbytes;
+}
+
+static int crypto_cbc_decrypt(struct crypto_lskcipher *tfm, const u8 *src,
+			      u8 *dst, unsigned len, u8 *iv, u32 flags)
+{
+	struct crypto_lskcipher **ctx = crypto_lskcipher_ctx(tfm);
+	bool final = flags & CRYPTO_LSKCIPHER_FLAG_FINAL;
+	struct crypto_lskcipher *cipher = *ctx;
+	int rem;
+
+	if (src == dst)
+		rem = crypto_cbc_decrypt_inplace(cipher, dst, len, iv);
+	else
+		rem = crypto_cbc_decrypt_segment(cipher, src, dst, len, iv);
+
+	return rem && final ? -EINVAL : rem;
 }
 
 static int crypto_cbc_create(struct crypto_template *tmpl, struct rtattr **tb)
 {
-	struct skcipher_instance *inst;
-	struct crypto_alg *alg;
+	struct lskcipher_instance *inst;
 	int err;
 
-	inst = skcipher_alloc_instance_simple(tmpl, tb, &alg);
+	inst = lskcipher_alloc_instance_simple(tmpl, tb);
 	if (IS_ERR(inst))
 		return PTR_ERR(inst);
 
 	err = -EINVAL;
-	if (!is_power_of_2(alg->cra_blocksize))
+	if (!is_power_of_2(inst->alg.co.base.cra_blocksize))
+		goto out_free_inst;
+
+	if (inst->alg.co.statesize)
 		goto out_free_inst;
 
 	inst->alg.encrypt = crypto_cbc_encrypt;
 	inst->alg.decrypt = crypto_cbc_decrypt;
 
-	err = skcipher_register_instance(tmpl, inst);
-	if (err)
-		goto out_free_inst;
-	goto out_put_alg;
-
+	err = lskcipher_register_instance(tmpl, inst);
+	if (err) {
 out_free_inst:
-	inst->free(inst);
-out_put_alg:
-	crypto_mod_put(alg);
+		inst->free(inst);
+	}
+
 	return err;
 }
 

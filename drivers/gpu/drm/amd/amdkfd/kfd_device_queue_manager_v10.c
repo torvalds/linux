@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
- * Copyright 2018 Advanced Micro Devices, Inc.
+ * Copyright 2018-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -31,7 +32,7 @@ static int update_qpd_v10(struct device_queue_manager *dqm,
 static void init_sdma_vm_v10(struct device_queue_manager *dqm, struct queue *q,
 			    struct qcm_process_device *qpd);
 
-void device_queue_manager_init_v10_navi10(
+void device_queue_manager_init_v10(
 	struct device_queue_manager_asic_ops *asic_ops)
 {
 	asic_ops->update_qpd = update_qpd_v10;
@@ -58,17 +59,9 @@ static int update_qpd_v10(struct device_queue_manager *dqm,
 	/* check if sh_mem_config register already configured */
 	if (qpd->sh_mem_config == 0) {
 		qpd->sh_mem_config =
-				SH_MEM_ALIGNMENT_MODE_UNALIGNED <<
-					SH_MEM_CONFIG__ALIGNMENT_MODE__SHIFT;
-#if 0
-		/* TODO:
-		 *    This shouldn't be an issue with Navi10.  Verify.
-		 */
-		if (vega10_noretry)
-			qpd->sh_mem_config |=
-				1 << SH_MEM_CONFIG__RETRY_DISABLE__SHIFT;
-#endif
-
+			(SH_MEM_ALIGNMENT_MODE_UNALIGNED <<
+				SH_MEM_CONFIG__ALIGNMENT_MODE__SHIFT) |
+			(3 << SH_MEM_CONFIG__INITIAL_INST_PREFETCH__SHIFT);
 		qpd->sh_mem_ape1_limit = 0;
 		qpd->sh_mem_ape1_base = 0;
 	}

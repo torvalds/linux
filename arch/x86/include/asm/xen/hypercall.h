@@ -38,11 +38,11 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#include <linux/pgtable.h>
 
 #include <trace/events/xen.h>
 
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/smap.h>
 #include <asm/nospec-branch.h>
 
@@ -82,7 +82,7 @@ struct xen_dm_op_buf;
  *     - clobber the rest
  *
  * The result certainly isn't pretty, and it really shows up cpp's
- * weakness as as macro language.  Sorry.  (But let's just give thanks
+ * weakness as a macro language.  Sorry.  (But let's just give thanks
  * there aren't more than 5 arguments...)
  */
 
@@ -248,6 +248,7 @@ privcmd_call(unsigned int call,
 	return res;
 }
 
+#ifdef CONFIG_XEN_PV
 static inline int
 HYPERVISOR_set_trap_table(struct trap_info *table)
 {
@@ -280,41 +281,13 @@ HYPERVISOR_callback_op(int cmd, void *arg)
 	return _hypercall2(int, callback_op, cmd, arg);
 }
 
-static inline int
-HYPERVISOR_sched_op(int cmd, void *arg)
-{
-	return _hypercall2(int, sched_op, cmd, arg);
-}
-
-static inline long
-HYPERVISOR_set_timer_op(u64 timeout)
-{
-	unsigned long timeout_hi = (unsigned long)(timeout>>32);
-	unsigned long timeout_lo = (unsigned long)timeout;
-	return _hypercall2(long, set_timer_op, timeout_lo, timeout_hi);
-}
-
-static inline int
-HYPERVISOR_mca(struct xen_mc *mc_op)
-{
-	mc_op->interface_version = XEN_MCA_INTERFACE_VERSION;
-	return _hypercall1(int, mca, mc_op);
-}
-
-static inline int
-HYPERVISOR_platform_op(struct xen_platform_op *op)
-{
-	op->interface_version = XENPF_INTERFACE_VERSION;
-	return _hypercall1(int, platform_op, op);
-}
-
-static inline int
+static __always_inline int
 HYPERVISOR_set_debugreg(int reg, unsigned long value)
 {
 	return _hypercall2(int, set_debugreg, reg, value);
 }
 
-static inline unsigned long
+static __always_inline unsigned long
 HYPERVISOR_get_debugreg(int reg)
 {
 	return _hypercall1(unsigned long, get_debugreg, reg);
@@ -323,127 +296,20 @@ HYPERVISOR_get_debugreg(int reg)
 static inline int
 HYPERVISOR_update_descriptor(u64 ma, u64 desc)
 {
-	if (sizeof(u64) == sizeof(long))
-		return _hypercall2(int, update_descriptor, ma, desc);
-	return _hypercall4(int, update_descriptor, ma, ma>>32, desc, desc>>32);
-}
-
-static inline long
-HYPERVISOR_memory_op(unsigned int cmd, void *arg)
-{
-	return _hypercall2(long, memory_op, cmd, arg);
-}
-
-static inline int
-HYPERVISOR_multicall(void *call_list, uint32_t nr_calls)
-{
-	return _hypercall2(int, multicall, call_list, nr_calls);
+	return _hypercall2(int, update_descriptor, ma, desc);
 }
 
 static inline int
 HYPERVISOR_update_va_mapping(unsigned long va, pte_t new_val,
 			     unsigned long flags)
 {
-	if (sizeof(new_val) == sizeof(long))
-		return _hypercall3(int, update_va_mapping, va,
-				   new_val.pte, flags);
-	else
-		return _hypercall4(int, update_va_mapping, va,
-				   new_val.pte, new_val.pte >> 32, flags);
+	return _hypercall3(int, update_va_mapping, va, new_val.pte, flags);
 }
 
-static inline int
-HYPERVISOR_event_channel_op(int cmd, void *arg)
-{
-	return _hypercall2(int, event_channel_op, cmd, arg);
-}
-
-static inline int
-HYPERVISOR_xen_version(int cmd, void *arg)
-{
-	return _hypercall2(int, xen_version, cmd, arg);
-}
-
-static inline int
-HYPERVISOR_console_io(int cmd, int count, char *str)
-{
-	return _hypercall3(int, console_io, cmd, count, str);
-}
-
-static inline int
-HYPERVISOR_physdev_op(int cmd, void *arg)
-{
-	return _hypercall2(int, physdev_op, cmd, arg);
-}
-
-static inline int
-HYPERVISOR_grant_table_op(unsigned int cmd, void *uop, unsigned int count)
-{
-	return _hypercall3(int, grant_table_op, cmd, uop, count);
-}
-
-static inline int
-HYPERVISOR_vm_assist(unsigned int cmd, unsigned int type)
-{
-	return _hypercall2(int, vm_assist, cmd, type);
-}
-
-static inline int
-HYPERVISOR_vcpu_op(int cmd, int vcpuid, void *extra_args)
-{
-	return _hypercall3(int, vcpu_op, cmd, vcpuid, extra_args);
-}
-
-#ifdef CONFIG_X86_64
 static inline int
 HYPERVISOR_set_segment_base(int reg, unsigned long value)
 {
 	return _hypercall2(int, set_segment_base, reg, value);
-}
-#endif
-
-static inline int
-HYPERVISOR_suspend(unsigned long start_info_mfn)
-{
-	struct sched_shutdown r = { .reason = SHUTDOWN_suspend };
-
-	/*
-	 * For a PV guest the tools require that the start_info mfn be
-	 * present in rdx/edx when the hypercall is made. Per the
-	 * hypercall calling convention this is the third hypercall
-	 * argument, which is start_info_mfn here.
-	 */
-	return _hypercall3(int, sched_op, SCHEDOP_shutdown, &r, start_info_mfn);
-}
-
-static inline unsigned long __must_check
-HYPERVISOR_hvm_op(int op, void *arg)
-{
-       return _hypercall2(unsigned long, hvm_op, op, arg);
-}
-
-static inline int
-HYPERVISOR_tmem_op(
-	struct tmem_op *op)
-{
-	return _hypercall1(int, tmem_op, op);
-}
-
-static inline int
-HYPERVISOR_xenpmu_op(unsigned int op, void *arg)
-{
-	return _hypercall2(int, xenpmu_op, op, arg);
-}
-
-static inline int
-HYPERVISOR_dm_op(
-	domid_t dom, unsigned int nr_bufs, struct xen_dm_op_buf *bufs)
-{
-	int ret;
-	__xen_stac();
-	ret = _hypercall3(int, dm_op, dom, nr_bufs, bufs);
-	__xen_clac();
-	return ret;
 }
 
 static inline void
@@ -461,16 +327,10 @@ MULTI_update_va_mapping(struct multicall_entry *mcl, unsigned long va,
 {
 	mcl->op = __HYPERVISOR_update_va_mapping;
 	mcl->args[0] = va;
-	if (sizeof(new_val) == sizeof(long)) {
-		mcl->args[1] = new_val.pte;
-		mcl->args[2] = flags;
-	} else {
-		mcl->args[1] = new_val.pte;
-		mcl->args[2] = new_val.pte >> 32;
-		mcl->args[3] = flags;
-	}
+	mcl->args[1] = new_val.pte;
+	mcl->args[2] = flags;
 
-	trace_xen_mc_entry(mcl, sizeof(new_val) == sizeof(long) ? 3 : 4);
+	trace_xen_mc_entry(mcl, 3);
 }
 
 static inline void
@@ -478,19 +338,10 @@ MULTI_update_descriptor(struct multicall_entry *mcl, u64 maddr,
 			struct desc_struct desc)
 {
 	mcl->op = __HYPERVISOR_update_descriptor;
-	if (sizeof(maddr) == sizeof(long)) {
-		mcl->args[0] = maddr;
-		mcl->args[1] = *(unsigned long *)&desc;
-	} else {
-		u32 *p = (u32 *)&desc;
+	mcl->args[0] = maddr;
+	mcl->args[1] = *(unsigned long *)&desc;
 
-		mcl->args[0] = maddr;
-		mcl->args[1] = maddr >> 32;
-		mcl->args[2] = *p++;
-		mcl->args[3] = *p;
-	}
-
-	trace_xen_mc_entry(mcl, sizeof(maddr) == sizeof(long) ? 2 : 4);
+	trace_xen_mc_entry(mcl, 2);
 }
 
 static inline void
@@ -528,6 +379,126 @@ MULTI_stack_switch(struct multicall_entry *mcl,
 	mcl->args[1] = esp;
 
 	trace_xen_mc_entry(mcl, 2);
+}
+#endif
+
+static __always_inline int
+HYPERVISOR_sched_op(int cmd, void *arg)
+{
+	return _hypercall2(int, sched_op, cmd, arg);
+}
+
+static inline long
+HYPERVISOR_set_timer_op(u64 timeout)
+{
+	unsigned long timeout_hi = (unsigned long)(timeout>>32);
+	unsigned long timeout_lo = (unsigned long)timeout;
+	return _hypercall2(long, set_timer_op, timeout_lo, timeout_hi);
+}
+
+static inline int
+HYPERVISOR_mca(struct xen_mc *mc_op)
+{
+	mc_op->interface_version = XEN_MCA_INTERFACE_VERSION;
+	return _hypercall1(int, mca, mc_op);
+}
+
+static inline int
+HYPERVISOR_platform_op(struct xen_platform_op *op)
+{
+	op->interface_version = XENPF_INTERFACE_VERSION;
+	return _hypercall1(int, platform_op, op);
+}
+
+static inline long
+HYPERVISOR_memory_op(unsigned int cmd, void *arg)
+{
+	return _hypercall2(long, memory_op, cmd, arg);
+}
+
+static inline int
+HYPERVISOR_multicall(void *call_list, uint32_t nr_calls)
+{
+	return _hypercall2(int, multicall, call_list, nr_calls);
+}
+
+static inline int
+HYPERVISOR_event_channel_op(int cmd, void *arg)
+{
+	return _hypercall2(int, event_channel_op, cmd, arg);
+}
+
+static __always_inline int
+HYPERVISOR_xen_version(int cmd, void *arg)
+{
+	return _hypercall2(int, xen_version, cmd, arg);
+}
+
+static inline int
+HYPERVISOR_console_io(int cmd, int count, char *str)
+{
+	return _hypercall3(int, console_io, cmd, count, str);
+}
+
+static inline int
+HYPERVISOR_physdev_op(int cmd, void *arg)
+{
+	return _hypercall2(int, physdev_op, cmd, arg);
+}
+
+static inline int
+HYPERVISOR_grant_table_op(unsigned int cmd, void *uop, unsigned int count)
+{
+	return _hypercall3(int, grant_table_op, cmd, uop, count);
+}
+
+static inline int
+HYPERVISOR_vm_assist(unsigned int cmd, unsigned int type)
+{
+	return _hypercall2(int, vm_assist, cmd, type);
+}
+
+static inline int
+HYPERVISOR_vcpu_op(int cmd, int vcpuid, void *extra_args)
+{
+	return _hypercall3(int, vcpu_op, cmd, vcpuid, extra_args);
+}
+
+static inline int
+HYPERVISOR_suspend(unsigned long start_info_mfn)
+{
+	struct sched_shutdown r = { .reason = SHUTDOWN_suspend };
+
+	/*
+	 * For a PV guest the tools require that the start_info mfn be
+	 * present in rdx/edx when the hypercall is made. Per the
+	 * hypercall calling convention this is the third hypercall
+	 * argument, which is start_info_mfn here.
+	 */
+	return _hypercall3(int, sched_op, SCHEDOP_shutdown, &r, start_info_mfn);
+}
+
+static inline unsigned long __must_check
+HYPERVISOR_hvm_op(int op, void *arg)
+{
+       return _hypercall2(unsigned long, hvm_op, op, arg);
+}
+
+static inline int
+HYPERVISOR_xenpmu_op(unsigned int op, void *arg)
+{
+	return _hypercall2(int, xenpmu_op, op, arg);
+}
+
+static inline int
+HYPERVISOR_dm_op(
+	domid_t dom, unsigned int nr_bufs, struct xen_dm_op_buf *bufs)
+{
+	int ret;
+	__xen_stac();
+	ret = _hypercall3(int, dm_op, dom, nr_bufs, bufs);
+	__xen_clac();
+	return ret;
 }
 
 #endif /* _ASM_X86_XEN_HYPERCALL_H */

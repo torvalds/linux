@@ -135,7 +135,7 @@ single project which, although still considered experimental, is fit
 for use. Please feel free to add projects that have been the victims
 of my ignorance.
 
-- http://www.thinkwiki.org/wiki/HDAPS
+- https://www.thinkwiki.org/wiki/HDAPS
 
   See this page for information about Linux support of the hard disk
   active protection system as implemented in IBM/Lenovo Thinkpads.

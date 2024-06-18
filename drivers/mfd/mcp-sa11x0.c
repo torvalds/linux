@@ -214,8 +214,7 @@ static int mcp_sa11x0_probe(struct platform_device *dev)
 	 * rate.  This is the period for 3 64-bit frames.  Always
 	 * round this time up.
 	 */
-	mcp->rw_timeout = (64 * 3 * 1000000 + mcp->sclk_rate - 1) /
-			  mcp->sclk_rate;
+	mcp->rw_timeout = DIV_ROUND_UP(64 * 3 * 1000000, mcp->sclk_rate);
 
 	ret = mcp_host_add(mcp, data->codec_pdata);
 	if (ret == 0)
@@ -233,7 +232,7 @@ static int mcp_sa11x0_probe(struct platform_device *dev)
 	return ret;
 }
 
-static int mcp_sa11x0_remove(struct platform_device *dev)
+static void mcp_sa11x0_remove(struct platform_device *dev)
 {
 	struct mcp *mcp = platform_get_drvdata(dev);
 	struct mcp_sa11x0 *m = priv(mcp);
@@ -252,11 +251,8 @@ static int mcp_sa11x0_remove(struct platform_device *dev)
 	mcp_host_free(mcp);
 	release_mem_region(mem1->start, resource_size(mem1));
 	release_mem_region(mem0->start, resource_size(mem0));
-
-	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int mcp_sa11x0_suspend(struct device *dev)
 {
 	struct mcp_sa11x0 *m = priv(dev_get_drvdata(dev));
@@ -278,25 +274,22 @@ static int mcp_sa11x0_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops mcp_sa11x0_pm_ops = {
-#ifdef CONFIG_PM_SLEEP
 	.suspend = mcp_sa11x0_suspend,
 	.freeze = mcp_sa11x0_suspend,
 	.poweroff = mcp_sa11x0_suspend,
 	.resume_noirq = mcp_sa11x0_resume,
 	.thaw_noirq = mcp_sa11x0_resume,
 	.restore_noirq = mcp_sa11x0_resume,
-#endif
 };
 
 static struct platform_driver mcp_sa11x0_driver = {
 	.probe		= mcp_sa11x0_probe,
-	.remove		= mcp_sa11x0_remove,
+	.remove_new	= mcp_sa11x0_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
-		.pm	= &mcp_sa11x0_pm_ops,
+		.pm	= pm_sleep_ptr(&mcp_sa11x0_pm_ops),
 	},
 };
 

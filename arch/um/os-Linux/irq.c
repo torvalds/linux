@@ -45,10 +45,10 @@ int os_epoll_triggered(int index, int events)
  * access to the right includes/defines for EPOLL constants.
  */
 
-int os_event_mask(int irq_type)
+int os_event_mask(enum um_irq_type irq_type)
 {
 	if (irq_type == IRQ_READ)
-		return EPOLLIN | EPOLLPRI;
+		return EPOLLIN | EPOLLPRI | EPOLLERR | EPOLLHUP | EPOLLRDHUP;
 	if (irq_type == IRQ_WRITE)
 		return EPOLLOUT;
 	return 0;
@@ -127,12 +127,10 @@ int os_mod_epoll_fd(int events, int fd, void *data)
 int os_del_epoll_fd(int fd)
 {
 	struct epoll_event event;
-	int result;
 	/* This is quiet as we use this as IO ON/OFF - so it is often
 	 * invoked on a non-existent fd
 	 */
-	result = epoll_ctl(epollfd, EPOLL_CTL_DEL, fd, &event);
-	return result;
+	return epoll_ctl(epollfd, EPOLL_CTL_DEL, fd, &event);
 }
 
 void os_set_ioignore(void)

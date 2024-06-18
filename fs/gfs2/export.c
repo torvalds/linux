@@ -66,7 +66,7 @@ struct get_name_filldir {
 	char *name;
 };
 
-static int get_name_filldir(struct dir_context *ctx, const char *name,
+static bool get_name_filldir(struct dir_context *ctx, const char *name,
 			    int length, loff_t offset, u64 inum,
 			    unsigned int type)
 {
@@ -74,12 +74,12 @@ static int get_name_filldir(struct dir_context *ctx, const char *name,
 		container_of(ctx, struct get_name_filldir, ctx);
 
 	if (inum != gnfd->inum.no_addr)
-		return 0;
+		return true;
 
 	memcpy(gnfd->name, name, length);
 	gnfd->name[length] = 0;
 
-	return 1;
+	return false;
 }
 
 static int gfs2_get_name(struct dentry *parent, char *name,
@@ -134,10 +134,10 @@ static struct dentry *gfs2_get_dentry(struct super_block *sb,
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	struct inode *inode;
 
-	inode = gfs2_lookup_by_inum(sdp, inum->no_addr, &inum->no_formal_ino,
+	if (!inum->no_formal_ino)
+		return ERR_PTR(-ESTALE);
+	inode = gfs2_lookup_by_inum(sdp, inum->no_addr, inum->no_formal_ino,
 				    GFS2_BLKST_DINODE);
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
 	return d_obtain_alias(inode);
 }
 
@@ -190,5 +190,6 @@ const struct export_operations gfs2_export_ops = {
 	.fh_to_parent = gfs2_fh_to_parent,
 	.get_name = gfs2_get_name,
 	.get_parent = gfs2_get_parent,
+	.flags = EXPORT_OP_ASYNC_LOCK,
 };
 

@@ -9,7 +9,6 @@
 #include <linux/module.h>
 #include <sound/soc.h>
 #include <sound/jack.h>
-#include <linux/gpio.h>
 #include "../../codecs/max98090.h"
 
 static struct snd_soc_jack mt8173_max98090_jack;
@@ -52,8 +51,8 @@ static const struct snd_kcontrol_new mt8173_max98090_controls[] = {
 static int mt8173_max98090_hw_params(struct snd_pcm_substream *substream,
 				     struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 
 	return snd_soc_dai_set_sysclk(codec_dai, 0, params_rate(params) * 256,
 				      SND_SOC_CLOCK_IN);
@@ -67,13 +66,13 @@ static int mt8173_max98090_init(struct snd_soc_pcm_runtime *runtime)
 {
 	int ret;
 	struct snd_soc_card *card = runtime->card;
-	struct snd_soc_component *component = runtime->codec_dai->component;
+	struct snd_soc_component *component = snd_soc_rtd_to_codec(runtime, 0)->component;
 
 	/* enable jack detection */
-	ret = snd_soc_card_jack_new(card, "Headphone", SND_JACK_HEADPHONE,
-				    &mt8173_max98090_jack,
-				    mt8173_max98090_jack_pins,
-				    ARRAY_SIZE(mt8173_max98090_jack_pins));
+	ret = snd_soc_card_jack_new_pins(card, "Headphone", SND_JACK_HEADSET,
+					 &mt8173_max98090_jack,
+					 mt8173_max98090_jack_pins,
+					 ARRAY_SIZE(mt8173_max98090_jack_pins));
 	if (ret) {
 		dev_err(card->dev, "Can't create a new Jack %d\n", ret);
 		return ret;
@@ -167,7 +166,8 @@ static int mt8173_max98090_dev_probe(struct platform_device *pdev)
 	if (!codec_node) {
 		dev_err(&pdev->dev,
 			"Property 'audio-codec' missing or invalid\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto put_platform_node;
 	}
 	for_each_card_prelinks(card, i, dai_link) {
 		if (dai_link->codecs->name)
@@ -177,9 +177,11 @@ static int mt8173_max98090_dev_probe(struct platform_device *pdev)
 	card->dev = &pdev->dev;
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
-	if (ret)
-		dev_err(&pdev->dev, "%s snd_soc_register_card fail %d\n",
-			__func__, ret);
+
+	of_node_put(codec_node);
+
+put_platform_node:
+	of_node_put(platform_node);
 	return ret;
 }
 
@@ -193,9 +195,7 @@ static struct platform_driver mt8173_max98090_driver = {
 	.driver = {
 		   .name = "mt8173-max98090",
 		   .of_match_table = mt8173_max98090_dt_match,
-#ifdef CONFIG_PM
 		   .pm = &snd_soc_pm_ops,
-#endif
 	},
 	.probe = mt8173_max98090_dev_probe,
 };

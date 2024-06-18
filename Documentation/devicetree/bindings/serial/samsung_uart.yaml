@@ -1,0 +1,165 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/serial/samsung_uart.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung S3C, S5P, Exynos, and S5L (Apple SoC) SoC UART Controller
+
+maintainers:
+  - Krzysztof Kozlowski <krzk@kernel.org>
+  - Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+
+description: |+
+  Each Samsung UART should have an alias correctly numbered in the "aliases"
+  node, according to serialN format, where N is the port number (non-negative
+  decimal integer) as specified by User's Manual of respective SoC.
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - apple,s5l-uart
+          - axis,artpec8-uart
+          - google,gs101-uart
+          - samsung,s3c6400-uart
+          - samsung,s5pv210-uart
+          - samsung,exynos4210-uart
+          - samsung,exynos5433-uart
+          - samsung,exynos850-uart
+      - items:
+          - enum:
+              - samsung,exynos7-uart
+              - tesla,fsd-uart
+          - const: samsung,exynos4210-uart
+      - items:
+          - enum:
+              - samsung,exynos7885-uart
+          - const: samsung,exynos5433-uart
+      - items:
+          - enum:
+              - samsung,exynosautov9-uart
+              - samsung,exynosautov920-uart
+          - const: samsung,exynos850-uart
+
+  reg:
+    maxItems: 1
+
+  reg-io-width:
+    description: |
+      The size (in bytes) of the IO accesses that should be performed
+      on the device.
+    enum: [ 1, 4 ]
+
+  clocks:
+    minItems: 2
+    maxItems: 5
+
+  clock-names:
+    description: N = 0 is allowed for SoCs without internal baud clock mux.
+    minItems: 2
+    items:
+      - const: uart
+      - pattern: '^clk_uart_baud[0-3]$'
+      - pattern: '^clk_uart_baud[0-3]$'
+      - pattern: '^clk_uart_baud[0-3]$'
+      - pattern: '^clk_uart_baud[0-3]$'
+
+  dmas:
+    items:
+      - description: DMA controller phandle and request line for RX
+      - description: DMA controller phandle and request line for TX
+
+  dma-names:
+    items:
+      - const: rx
+      - const: tx
+
+  interrupts:
+    description: RX interrupt and optionally TX interrupt.
+    minItems: 1
+    maxItems: 2
+
+  power-domains:
+    maxItems: 1
+
+  samsung,uart-fifosize:
+    description: The fifo size supported by the UART channel.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [16, 64, 256]
+
+required:
+  - compatible
+  - clocks
+  - clock-names
+  - interrupts
+  - reg
+
+allOf:
+  - $ref: serial.yaml#
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - samsung,s5pv210-uart
+    then:
+      properties:
+        clocks:
+          minItems: 2
+          maxItems: 3
+        clock-names:
+          minItems: 2
+          items:
+            - const: uart
+            - pattern: '^clk_uart_baud[0-1]$'
+            - pattern: '^clk_uart_baud[0-1]$'
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - apple,s5l-uart
+              - axis,artpec8-uart
+              - samsung,exynos4210-uart
+              - samsung,exynos5433-uart
+    then:
+      properties:
+        clocks:
+          maxItems: 2
+        clock-names:
+          items:
+            - const: uart
+            - const: clk_uart_baud0
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - google,gs101-uart
+    then:
+      required:
+        - samsung,uart-fifosize
+      properties:
+        reg-io-width: false
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/samsung,s3c64xx-clock.h>
+
+    uart0: serial@7f005000 {
+        compatible = "samsung,s3c6400-uart";
+        reg = <0x7f005000 0x100>;
+        interrupt-parent = <&vic1>;
+        interrupts = <5>;
+        clock-names = "uart", "clk_uart_baud2",
+                      "clk_uart_baud3";
+        clocks = <&clocks PCLK_UART0>, <&clocks PCLK_UART0>,
+                 <&clocks SCLK_UART>;
+        samsung,uart-fifosize = <16>;
+    };

@@ -19,7 +19,6 @@ int x25_forward_call(struct x25_address *dest_addr, struct x25_neigh *from,
 {
 	struct x25_route *rt;
 	struct x25_neigh *neigh_new = NULL;
-	struct list_head *entry;
 	struct x25_forward *x25_frwd, *new_frwd;
 	struct sk_buff *skbn;
 	short same_lci = 0;
@@ -46,8 +45,7 @@ int x25_forward_call(struct x25_address *dest_addr, struct x25_neigh *from,
 	 * established LCI? It shouldn't happen, just in case..
 	 */
 	read_lock_bh(&x25_forward_list_lock);
-	list_for_each(entry, &x25_forward_list) {
-		x25_frwd = list_entry(entry, struct x25_forward, node);
+	list_for_each_entry(x25_frwd, &x25_forward_list, node) {
 		if (x25_frwd->lci == lci) {
 			pr_warn("call request for lci which is already registered!, transmitting but not registering new pair\n");
 			same_lci = 1;
@@ -92,15 +90,13 @@ out_no_route:
 int x25_forward_data(int lci, struct x25_neigh *from, struct sk_buff *skb) {
 
 	struct x25_forward *frwd;
-	struct list_head *entry;
 	struct net_device *peer = NULL;
 	struct x25_neigh *nb;
 	struct sk_buff *skbn;
 	int rc = 0;
 
 	read_lock_bh(&x25_forward_list_lock);
-	list_for_each(entry, &x25_forward_list) {
-		frwd = list_entry(entry, struct x25_forward, node);
+	list_for_each_entry(frwd, &x25_forward_list, node) {
 		if (frwd->lci == lci) {
 			/* The call is established, either side can send */
 			if (from->dev == frwd->dev1) {
@@ -131,13 +127,11 @@ out:
 
 void x25_clear_forward_by_lci(unsigned int lci)
 {
-	struct x25_forward *fwd;
-	struct list_head *entry, *tmp;
+	struct x25_forward *fwd, *tmp;
 
 	write_lock_bh(&x25_forward_list_lock);
 
-	list_for_each_safe(entry, tmp, &x25_forward_list) {
-		fwd = list_entry(entry, struct x25_forward, node);
+	list_for_each_entry_safe(fwd, tmp, &x25_forward_list, node) {
 		if (fwd->lci == lci) {
 			list_del(&fwd->node);
 			kfree(fwd);
@@ -149,13 +143,11 @@ void x25_clear_forward_by_lci(unsigned int lci)
 
 void x25_clear_forward_by_dev(struct net_device *dev)
 {
-	struct x25_forward *fwd;
-	struct list_head *entry, *tmp;
+	struct x25_forward *fwd, *tmp;
 
 	write_lock_bh(&x25_forward_list_lock);
 
-	list_for_each_safe(entry, tmp, &x25_forward_list) {
-		fwd = list_entry(entry, struct x25_forward, node);
+	list_for_each_entry_safe(fwd, tmp, &x25_forward_list, node) {
 		if ((fwd->dev1 == dev) || (fwd->dev2 == dev)){
 			list_del(&fwd->node);
 			kfree(fwd);

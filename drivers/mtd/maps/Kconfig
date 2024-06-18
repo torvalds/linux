@@ -75,6 +75,17 @@ config MTD_PHYSMAP_OF
 	  physically into the CPU's memory. The mapping description here is
 	  taken from OF device tree.
 
+config MTD_PHYSMAP_BT1_ROM
+	bool "Baikal-T1 Boot ROMs OF-based physical memory map handling"
+	depends on MTD_PHYSMAP_OF
+	depends on MIPS_BAIKAL_T1 || COMPILE_TEST
+	select MTD_COMPLEX_MAPPINGS
+	select MULTIPLEXER
+	select MUX_MMIO
+	help
+	  This provides some extra DT physmap parsing for the Baikal-T1
+	  platforms, some detection and setting up ROMs-specific accessors.
+
 config MTD_PHYSMAP_VERSATILE
 	bool "ARM Versatile OF-based physical memory map handling"
 	depends on MTD_PHYSMAP_OF
@@ -96,6 +107,17 @@ config MTD_PHYSMAP_GEMINI
 	  platforms, some detection and setting up parallel mode on the
 	  external interface.
 
+config MTD_PHYSMAP_IXP4XX
+	bool "Intel IXP4xx OF-based physical memory map handling"
+	depends on MTD_PHYSMAP_OF
+	depends on ARM
+	select MTD_COMPLEX_MAPPINGS
+	select MTD_CFI_BE_BYTE_SWAP if CPU_BIG_ENDIAN
+	default ARCH_IXP4XX
+	help
+	  This provides some extra DT physmap parsing for the Intel IXP4xx
+	  platforms, some elaborate endianness handling in particular.
+
 config MTD_PHYSMAP_GPIO_ADDR
 	bool "GPIO-assisted Flash Chip Support"
 	depends on MTD_PHYSMAP
@@ -104,29 +126,6 @@ config MTD_PHYSMAP_GPIO_ADDR
 	help
 	  Extend the physmap driver to allow flashes to be partially
 	  physically addressed and assisted by GPIOs.
-
-config MTD_PMC_MSP_EVM
-	tristate "CFI Flash device mapped on PMC-Sierra MSP"
-	depends on PMC_MSP && MTD_CFI
-	help
-	  This provides a 'mapping' driver which supports the way
-	  in which user-programmable flash chips are connected on the
-	  PMC-Sierra MSP eval/demo boards.
-
-choice
-	prompt "Maximum mappable memory available for flash IO"
-	depends on MTD_PMC_MSP_EVM
-	default MSP_FLASH_MAP_LIMIT_32M
-
-config MSP_FLASH_MAP_LIMIT_32M
-	bool "32M"
-
-endchoice
-
-config MSP_FLASH_MAP_LIMIT
-	hex
-	default "0x02000000"
-	depends on MSP_FLASH_MAP_LIMIT_32M
 
 config MTD_SUN_UFLASH
 	tristate "Sun Microsystems userflash support"
@@ -299,16 +298,7 @@ config MTD_DC21285
 	help
 	  This provides a driver for the flash accessed using Intel's
 	  21285 bridge used with Intel's StrongARM processors. More info at
-	  <http://www.intel.com/design/bridge/docs/21285_documentation.htm>.
-
-config MTD_IXP4XX
-	tristate "CFI Flash device mapped on Intel IXP4xx based systems"
-	depends on MTD_CFI && MTD_COMPLEX_MAPPINGS && ARCH_IXP4XX
-	help
-	  This enables MTD access to flash devices on platforms based
-	  on Intel's IXP4xx family of network processors such as the
-	  IXDP425 and Coyote. If you have an IXP4xx based board and
-	  would like to use the flash chips on it, say 'Y'.
+	  <https://www.intel.com/design/bridge/docs/21285_documentation.htm>.
 
 config MTD_IMPA7
 	tristate "JEDEC Flash device mapped on impA7"
@@ -350,19 +340,6 @@ config MTD_UCLINUX
 	depends on (MTD_RAM=y || MTD_ROM=y) && (!MMU || COLDFIRE)
 	help
 	  Map driver to support image based filesystems for uClinux.
-
-config MTD_INTEL_VR_NOR
-	tristate "NOR flash on Intel Vermilion Range Expansion Bus CS0"
-	depends on PCI
-	help
-	  Map driver for a NOR flash bank located on the Expansion Bus of the
-	  Intel Vermilion Range chipset.
-
-config MTD_RBTX4939
-	tristate "Map driver for RBTX4939 board"
-	depends on TOSHIBA_RBTX4939 && MTD_CFI && MTD_COMPLEX_MAPPINGS
-	help
-	  Map driver for NOR flash chips on RBTX4939 board.
 
 config MTD_PLATRAM
 	tristate "Map driver for platform device RAM (mtd-ram)"

@@ -1,0 +1,64 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/usb/usb.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Generic USB Controller
+
+maintainers:
+  - Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+
+select: false
+
+properties:
+  $nodename:
+    pattern: "^usb(@.*)?"
+
+  phys:
+    description:
+      List of all the USB PHYs on this HCD
+
+  phy-names:
+    description:
+      Name specifier for the USB PHY
+
+  usb-phy:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      maxItems: 1
+    description:
+      List of all the USB PHYs on this HCD to be accepted by the legacy USB
+      Physical Layer subsystem.
+    deprecated: true
+
+  phy_type:
+    description:
+      Tells USB controllers that we want to configure the core to support a
+      UTMI+ PHY with an 8- or 16-bit interface if UTMI+ is selected, UTMI+ low
+      pin interface if ULPI is specified, Serial core/PHY interconnect if
+      serial is specified and High-Speed Inter-Chip feature if HSIC is
+      selected. In case this isn't passed via DT, USB controllers should
+      default to HW capability.
+    $ref: /schemas/types.yaml#/definitions/string
+    enum: [utmi, utmi_wide, ulpi, serial, hsic]
+
+  maximum-speed:
+    description:
+      Tells USB controllers we want to work up to a certain speed. In case this
+      isn't passed via DT, USB controllers should default to their maximum HW
+      capability.
+    $ref: /schemas/types.yaml#/definitions/string
+    enum:
+      - low-speed
+      - full-speed
+      - high-speed
+      - super-speed
+      - super-speed-plus
+      - super-speed-plus-gen2x1
+      - super-speed-plus-gen1x2
+      - super-speed-plus-gen2x2
+
+additionalProperties: true
+
+...

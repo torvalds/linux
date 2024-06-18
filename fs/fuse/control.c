@@ -120,7 +120,7 @@ static ssize_t fuse_conn_max_background_write(struct file *file,
 					      const char __user *buf,
 					      size_t count, loff_t *ppos)
 {
-	unsigned uninitialized_var(val);
+	unsigned val;
 	ssize_t ret;
 
 	ret = fuse_conn_limit_write(file, buf, count, ppos, &val,
@@ -162,7 +162,7 @@ static ssize_t fuse_conn_congestion_threshold_write(struct file *file,
 						    const char __user *buf,
 						    size_t count, loff_t *ppos)
 {
-	unsigned uninitialized_var(val);
+	unsigned val;
 	struct fuse_conn *fc;
 	ssize_t ret;
 
@@ -174,18 +174,7 @@ static ssize_t fuse_conn_congestion_threshold_write(struct file *file,
 	if (!fc)
 		goto out;
 
-	spin_lock(&fc->bg_lock);
-	fc->congestion_threshold = val;
-	if (fc->sb) {
-		if (fc->num_background < fc->congestion_threshold) {
-			clear_bdi_congested(fc->sb->s_bdi, BLK_RW_SYNC);
-			clear_bdi_congested(fc->sb->s_bdi, BLK_RW_ASYNC);
-		} else {
-			set_bdi_congested(fc->sb->s_bdi, BLK_RW_SYNC);
-			set_bdi_congested(fc->sb->s_bdi, BLK_RW_ASYNC);
-		}
-	}
-	spin_unlock(&fc->bg_lock);
+	WRITE_ONCE(fc->congestion_threshold, val);
 	fuse_conn_put(fc);
 out:
 	return ret;
@@ -242,7 +231,7 @@ static struct dentry *fuse_ctl_add_dentry(struct dentry *parent,
 	inode->i_mode = mode;
 	inode->i_uid = fc->user_id;
 	inode->i_gid = fc->group_id;
-	inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
+	simple_inode_init_ts(inode);
 	/* setting ->i_op to NULL is not allowed */
 	if (iop)
 		inode->i_op = iop;
@@ -265,7 +254,7 @@ int fuse_ctl_add_conn(struct fuse_conn *fc)
 	struct dentry *parent;
 	char name[32];
 
-	if (!fuse_control_sb)
+	if (!fuse_control_sb || fc->no_control)
 		return 0;
 
 	parent = fuse_control_sb->s_root;
@@ -303,7 +292,7 @@ void fuse_ctl_remove_conn(struct fuse_conn *fc)
 {
 	int i;
 
-	if (!fuse_control_sb)
+	if (!fuse_control_sb || fc->no_control)
 		return;
 
 	for (i = fc->ctl_ndents - 1; i >= 0; i--) {
@@ -318,7 +307,7 @@ void fuse_ctl_remove_conn(struct fuse_conn *fc)
 	drop_nlink(d_inode(fuse_control_sb->s_root));
 }
 
-static int fuse_ctl_fill_super(struct super_block *sb, struct fs_context *fctx)
+static int fuse_ctl_fill_super(struct super_block *sb, struct fs_context *fsc)
 {
 	static const struct tree_descr empty_descr = {""};
 	struct fuse_conn *fc;
@@ -344,18 +333,18 @@ static int fuse_ctl_fill_super(struct super_block *sb, struct fs_context *fctx)
 	return 0;
 }
 
-static int fuse_ctl_get_tree(struct fs_context *fc)
+static int fuse_ctl_get_tree(struct fs_context *fsc)
 {
-	return get_tree_single(fc, fuse_ctl_fill_super);
+	return get_tree_single(fsc, fuse_ctl_fill_super);
 }
 
 static const struct fs_context_operations fuse_ctl_context_ops = {
 	.get_tree	= fuse_ctl_get_tree,
 };
 
-static int fuse_ctl_init_fs_context(struct fs_context *fc)
+static int fuse_ctl_init_fs_context(struct fs_context *fsc)
 {
-	fc->ops = &fuse_ctl_context_ops;
+	fsc->ops = &fuse_ctl_context_ops;
 	return 0;
 }
 

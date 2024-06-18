@@ -103,13 +103,15 @@ struct f01_basic_properties {
 #define RMI_F01_CTRL0_CONFIGURED_BIT	BIT(7)
 
 /**
- * @ctrl0 - see the bit definitions above.
- * @doze_interval - controls the interval between checks for finger presence
- * when the touch sensor is in doze mode, in units of 10ms.
- * @wakeup_threshold - controls the capacitance threshold at which the touch
- * sensor will decide to wake up from that low power state.
- * @doze_holdoff - controls how long the touch sensor waits after the last
- * finger lifts before entering the doze state, in units of 100ms.
+ * struct f01_device_control - controls basic sensor functions
+ *
+ * @ctrl0: see the bit definitions above.
+ * @doze_interval: controls the interval between checks for finger presence
+ *	when the touch sensor is in doze mode, in units of 10ms.
+ * @wakeup_threshold: controls the capacitance threshold at which the touch
+ *	sensor will decide to wake up from that low power state.
+ * @doze_holdoff: controls how long the touch sensor waits after the last
+ *	finger lifts before entering the doze state, in units of 100ms.
  */
 struct f01_device_control {
 	u8 ctrl0;
@@ -265,8 +267,7 @@ static ssize_t rmi_driver_manufacturer_id_show(struct device *dev,
 	struct rmi_driver_data *data = dev_get_drvdata(dev);
 	struct f01_data *f01 = dev_get_drvdata(&data->f01_container->dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n",
-			 f01->properties.manufacturer_id);
+	return sysfs_emit(buf, "%d\n", f01->properties.manufacturer_id);
 }
 
 static DEVICE_ATTR(manufacturer_id, 0444,
@@ -278,7 +279,7 @@ static ssize_t rmi_driver_dom_show(struct device *dev,
 	struct rmi_driver_data *data = dev_get_drvdata(dev);
 	struct f01_data *f01 = dev_get_drvdata(&data->f01_container->dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%s\n", f01->properties.dom);
+	return sysfs_emit(buf, "%s\n", f01->properties.dom);
 }
 
 static DEVICE_ATTR(date_of_manufacture, 0444, rmi_driver_dom_show, NULL);
@@ -290,7 +291,7 @@ static ssize_t rmi_driver_product_id_show(struct device *dev,
 	struct rmi_driver_data *data = dev_get_drvdata(dev);
 	struct f01_data *f01 = dev_get_drvdata(&data->f01_container->dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%s\n", f01->properties.product_id);
+	return sysfs_emit(buf, "%s\n", f01->properties.product_id);
 }
 
 static DEVICE_ATTR(product_id, 0444, rmi_driver_product_id_show, NULL);
@@ -302,7 +303,7 @@ static ssize_t rmi_driver_firmware_id_show(struct device *dev,
 	struct rmi_driver_data *data = dev_get_drvdata(dev);
 	struct f01_data *f01 = dev_get_drvdata(&data->f01_container->dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", f01->properties.firmware_id);
+	return sysfs_emit(buf, "%d\n", f01->properties.firmware_id);
 }
 
 static DEVICE_ATTR(firmware_id, 0444, rmi_driver_firmware_id_show, NULL);
@@ -316,8 +317,8 @@ static ssize_t rmi_driver_package_id_show(struct device *dev,
 
 	u32 package_id = f01->properties.package_id;
 
-	return scnprintf(buf, PAGE_SIZE, "%04x.%04x\n",
-			 package_id & 0xffff, (package_id >> 16) & 0xffff);
+	return sysfs_emit(buf, "%04x.%04x\n",
+			  package_id & 0xffff, (package_id >> 16) & 0xffff);
 }
 
 static DEVICE_ATTR(package_id, 0444, rmi_driver_package_id_show, NULL);

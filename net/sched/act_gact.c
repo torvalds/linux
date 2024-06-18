@@ -18,15 +18,15 @@
 #include <net/pkt_cls.h>
 #include <linux/tc_act/tc_gact.h>
 #include <net/tc_act/tc_gact.h>
+#include <net/tc_wrapper.h>
 
-static unsigned int gact_net_id;
 static struct tc_action_ops act_gact_ops;
 
 #ifdef CONFIG_GACT_PROB
 static int gact_net_rand(struct tcf_gact *gact)
 {
 	smp_rmb(); /* coupled with smp_wmb() in tcf_gact_init() */
-	if (prandom_u32() % gact->tcfg_pval)
+	if (get_random_u32_below(gact->tcfg_pval))
 		return gact->tcf_action;
 	return gact->tcfg_paction;
 }
@@ -52,10 +52,11 @@ static const struct nla_policy gact_policy[TCA_GACT_MAX + 1] = {
 
 static int tcf_gact_init(struct net *net, struct nlattr *nla,
 			 struct nlattr *est, struct tc_action **a,
-			 int ovr, int bind, bool rtnl_held,
-			 struct tcf_proto *tp, struct netlink_ext_ack *extack)
+			 struct tcf_proto *tp, u32 flags,
+			 struct netlink_ext_ack *extack)
 {
-	struct tc_action_net *tn = net_generic(net, gact_net_id);
+	struct tc_action_net *tn = net_generic(net, act_gact_ops.net_id);
+	bool bind = flags & TCA_ACT_FLAGS_BIND;
 	struct nlattr *tb[TCA_GACT_MAX + 1];
 	struct tcf_chain *goto_ch = NULL;
 	struct tc_gact *parm;
@@ -98,8 +99,8 @@ static int tcf_gact_init(struct net *net, struct nlattr *nla,
 
 	err = tcf_idr_check_alloc(tn, &index, a, bind);
 	if (!err) {
-		ret = tcf_idr_create(tn, index, est, a,
-				     &act_gact_ops, bind, true);
+		ret = tcf_idr_create_from_flags(tn, index, est, a,
+						&act_gact_ops, bind, flags);
 		if (ret) {
 			tcf_idr_cleanup(tn, index);
 			return ret;
@@ -107,8 +108,8 @@ static int tcf_gact_init(struct net *net, struct nlattr *nla,
 		ret = ACT_P_CREATED;
 	} else if (err > 0) {
 		if (bind)/* dont override defaults */
-			return 0;
-		if (!ovr) {
+			return ACT_P_BOUND;
+		if (!(flags & TCA_ACT_FLAGS_REPLACE)) {
 			tcf_idr_release(*a, bind);
 			return -EEXIST;
 		}
@@ -139,16 +140,15 @@ static int tcf_gact_init(struct net *net, struct nlattr *nla,
 	if (goto_ch)
 		tcf_chain_put_by_act(goto_ch);
 
-	if (ret == ACT_P_CREATED)
-		tcf_idr_insert(tn, *a);
 	return ret;
 release_idr:
 	tcf_idr_release(*a, bind);
 	return err;
 }
 
-static int tcf_gact_act(struct sk_buff *skb, const struct tc_action *a,
-			struct tcf_result *res)
+TC_INDIRECT_SCOPE int tcf_gact_act(struct sk_buff *skb,
+				   const struct tc_action *a,
+				   struct tcf_result *res)
 {
 	struct tcf_gact *gact = to_gact(a);
 	int action = READ_ONCE(gact->tcf_action);
@@ -161,31 +161,24 @@ static int tcf_gact_act(struct sk_buff *skb, const struct tc_action *a,
 		action = gact_rand[ptype](gact);
 	}
 #endif
-	bstats_cpu_update(this_cpu_ptr(gact->common.cpu_bstats), skb);
+	tcf_action_update_bstats(&gact->common, skb);
 	if (action == TC_ACT_SHOT)
-		qstats_drop_inc(this_cpu_ptr(gact->common.cpu_qstats));
+		tcf_action_inc_drop_qstats(&gact->common);
 
 	tcf_lastuse_update(&gact->tcf_tm);
 
 	return action;
 }
 
-static void tcf_gact_stats_update(struct tc_action *a, u64 bytes, u32 packets,
-				  u64 lastuse, bool hw)
+static void tcf_gact_stats_update(struct tc_action *a, u64 bytes, u64 packets,
+				  u64 drops, u64 lastuse, bool hw)
 {
 	struct tcf_gact *gact = to_gact(a);
 	int action = READ_ONCE(gact->tcf_action);
 	struct tcf_t *tm = &gact->tcf_tm;
 
-	_bstats_cpu_update(this_cpu_ptr(gact->common.cpu_bstats), bytes,
-			   packets);
-	if (action == TC_ACT_SHOT)
-		this_cpu_ptr(gact->common.cpu_qstats)->drops += packets;
-
-	if (hw)
-		_bstats_cpu_update(this_cpu_ptr(gact->common.cpu_bstats_hw),
-				   bytes, packets);
-
+	tcf_action_update_stats(a, bytes, packets,
+				action == TC_ACT_SHOT ? packets : drops, hw);
 	tm->lastuse = max_t(u64, tm->lastuse, lastuse);
 }
 
@@ -230,23 +223,6 @@ nla_put_failure:
 	return -1;
 }
 
-static int tcf_gact_walker(struct net *net, struct sk_buff *skb,
-			   struct netlink_callback *cb, int type,
-			   const struct tc_action_ops *ops,
-			   struct netlink_ext_ack *extack)
-{
-	struct tc_action_net *tn = net_generic(net, gact_net_id);
-
-	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
-}
-
-static int tcf_gact_search(struct net *net, struct tc_action **a, u32 index)
-{
-	struct tc_action_net *tn = net_generic(net, gact_net_id);
-
-	return tcf_idr_search(tn, a, index);
-}
-
 static size_t tcf_gact_get_fill_size(const struct tc_action *act)
 {
 	size_t sz = nla_total_size(sizeof(struct tc_gact)); /* TCA_GACT_PARMS */
@@ -260,6 +236,54 @@ static size_t tcf_gact_get_fill_size(const struct tc_action *act)
 	return sz;
 }
 
+static int tcf_gact_offload_act_setup(struct tc_action *act, void *entry_data,
+				      u32 *index_inc, bool bind,
+				      struct netlink_ext_ack *extack)
+{
+	if (bind) {
+		struct flow_action_entry *entry = entry_data;
+
+		if (is_tcf_gact_ok(act)) {
+			entry->id = FLOW_ACTION_ACCEPT;
+		} else if (is_tcf_gact_shot(act)) {
+			entry->id = FLOW_ACTION_DROP;
+		} else if (is_tcf_gact_trap(act)) {
+			entry->id = FLOW_ACTION_TRAP;
+		} else if (is_tcf_gact_goto_chain(act)) {
+			entry->id = FLOW_ACTION_GOTO;
+			entry->chain_index = tcf_gact_goto_chain_index(act);
+		} else if (is_tcf_gact_continue(act)) {
+			NL_SET_ERR_MSG_MOD(extack, "Offload of \"continue\" action is not supported");
+			return -EOPNOTSUPP;
+		} else if (is_tcf_gact_reclassify(act)) {
+			NL_SET_ERR_MSG_MOD(extack, "Offload of \"reclassify\" action is not supported");
+			return -EOPNOTSUPP;
+		} else if (is_tcf_gact_pipe(act)) {
+			NL_SET_ERR_MSG_MOD(extack, "Offload of \"pipe\" action is not supported");
+			return -EOPNOTSUPP;
+		} else {
+			NL_SET_ERR_MSG_MOD(extack, "Unsupported generic action offload");
+			return -EOPNOTSUPP;
+		}
+		*index_inc = 1;
+	} else {
+		struct flow_offload_action *fl_action = entry_data;
+
+		if (is_tcf_gact_ok(act))
+			fl_action->id = FLOW_ACTION_ACCEPT;
+		else if (is_tcf_gact_shot(act))
+			fl_action->id = FLOW_ACTION_DROP;
+		else if (is_tcf_gact_trap(act))
+			fl_action->id = FLOW_ACTION_TRAP;
+		else if (is_tcf_gact_goto_chain(act))
+			fl_action->id = FLOW_ACTION_GOTO;
+		else
+			return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 static struct tc_action_ops act_gact_ops = {
 	.kind		=	"gact",
 	.id		=	TCA_ID_GACT,
@@ -268,28 +292,28 @@ static struct tc_action_ops act_gact_ops = {
 	.stats_update	=	tcf_gact_stats_update,
 	.dump		=	tcf_gact_dump,
 	.init		=	tcf_gact_init,
-	.walk		=	tcf_gact_walker,
-	.lookup		=	tcf_gact_search,
 	.get_fill_size	=	tcf_gact_get_fill_size,
+	.offload_act_setup =	tcf_gact_offload_act_setup,
 	.size		=	sizeof(struct tcf_gact),
 };
+MODULE_ALIAS_NET_ACT("gact");
 
 static __net_init int gact_init_net(struct net *net)
 {
-	struct tc_action_net *tn = net_generic(net, gact_net_id);
+	struct tc_action_net *tn = net_generic(net, act_gact_ops.net_id);
 
 	return tc_action_net_init(net, tn, &act_gact_ops);
 }
 
 static void __net_exit gact_exit_net(struct list_head *net_list)
 {
-	tc_action_net_exit(net_list, gact_net_id);
+	tc_action_net_exit(net_list, act_gact_ops.net_id);
 }
 
 static struct pernet_operations gact_net_ops = {
 	.init = gact_init_net,
 	.exit_batch = gact_exit_net,
-	.id   = &gact_net_id,
+	.id   = &act_gact_ops.net_id,
 	.size = sizeof(struct tc_action_net),
 };
 

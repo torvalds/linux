@@ -23,7 +23,6 @@ LINECOMMENT	"//".*\n
 #include "srcpos.h"
 #include "dtc-parser.tab.h"
 
-YYLTYPE yylloc;
 extern bool treesource_error;
 
 /* CAUTION: this will stop working if we ever use yyless() or yyunput() */
@@ -58,7 +57,7 @@ static void PRINTF(1, 2) lexical_error(const char *fmt, ...);
 			push_input_file(name);
 		}
 
-<*>^"#"(line)?[ \t]+[0-9]+[ \t]+{STRING}([ \t]+[0-9]+)? {
+<*>^"#"(line)?[ \t]+[0-9]+[ \t]+{STRING}([ \t]+[0-9]+)* {
 			char *line, *fnstart, *fnend;
 			struct data fn;
 			/* skip text before line # */
@@ -201,7 +200,7 @@ static void PRINTF(1, 2) lexical_error(const char *fmt, ...);
 			return DT_LABEL_REF;
 		}
 
-<*>"&{/"{PATHCHAR}*\}	{	/* new-style path reference */
+<*>"&{"{PATHCHAR}*\}	{	/* new-style path reference */
 			yytext[yyleng-1] = '\0';
 			DPRINT("Ref: %s\n", yytext+2);
 			yylval.labelref = xstrdup(yytext+2);

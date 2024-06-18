@@ -6,7 +6,6 @@
 config SENSORS_OCC_P8_I2C
 	tristate "POWER8 OCC through I2C"
 	depends on I2C
-	depends on ARM || ARM64 || COMPILE_TEST
 	select SENSORS_OCC
 	help
 	 This option enables support for monitoring sensors provided by the
@@ -21,7 +20,6 @@ config SENSORS_OCC_P8_I2C
 config SENSORS_OCC_P9_SBE
 	tristate "POWER9 OCC through SBE"
 	depends on FSI_OCC
-	depends on ARM || ARM64 || COMPILE_TEST
 	select SENSORS_OCC
 	help
 	 This option enables support for monitoring sensors provided by the

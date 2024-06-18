@@ -8,7 +8,7 @@
  * The below thunking functions are only used after ExitBootServices()
  * has been called. This simplifies things considerably as compared with
  * the early EFI thunking because we can leave all the kernel state
- * intact (GDT, IDT, etc) and simply invoke the the 32-bit EFI runtime
+ * intact (GDT, IDT, etc) and simply invoke the 32-bit EFI runtime
  * services from __KERNEL32_CS. This means we can continue to service
  * interrupts across an EFI mixed mode call.
  *
@@ -20,20 +20,34 @@
  */
 
 #include <linux/linkage.h>
+#include <linux/objtool.h>
 #include <asm/page_types.h>
 #include <asm/segment.h>
 
 	.text
 	.code64
-ENTRY(efi64_thunk)
+SYM_FUNC_START(__efi64_thunk)
+STACK_FRAME_NON_STANDARD __efi64_thunk
 	push	%rbp
 	push	%rbx
 
 	/*
 	 * Switch to 1:1 mapped 32-bit stack pointer.
 	 */
-	movq	%rsp, efi_saved_sp(%rip)
-	movq	efi_scratch(%rip), %rsp
+	movq	%rsp, %rax
+	movq	efi_mixed_mode_stack_pa(%rip), %rsp
+	push	%rax
+
+	/*
+	 * Copy args passed via the stack
+	 */
+	subq	$0x24, %rsp
+	movq	0x18(%rax), %rbp
+	movq	0x20(%rax), %rbx
+	movq	0x28(%rax), %rax
+	movl	%ebp, 0x18(%rsp)
+	movl	%ebx, 0x1c(%rsp)
+	movl	%eax, 0x20(%rsp)
 
 	/*
 	 * Calculate the physical address of the kernel text.
@@ -41,113 +55,44 @@ ENTRY(efi64_thunk)
 	movq	$__START_KERNEL_map, %rax
 	subq	phys_base(%rip), %rax
 
-	/*
-	 * Push some physical addresses onto the stack. This is easier
-	 * to do now in a code64 section while the assembler can address
-	 * 64-bit values. Note that all the addresses on the stack are
-	 * 32-bit.
-	 */
-	subq	$16, %rsp
-	leaq	efi_exit32(%rip), %rbx
+	leaq	1f(%rip), %rbp
+	leaq	2f(%rip), %rbx
+	subq	%rax, %rbp
 	subq	%rax, %rbx
-	movl	%ebx, 8(%rsp)
 
-	leaq	__efi64_thunk(%rip), %rbx
-	subq	%rax, %rbx
-	call	*%rbx
-
-	movq	efi_saved_sp(%rip), %rsp
-	pop	%rbx
-	pop	%rbp
-	retq
-ENDPROC(efi64_thunk)
-
-/*
- * We run this function from the 1:1 mapping.
- *
- * This function must be invoked with a 1:1 mapped stack.
- */
-ENTRY(__efi64_thunk)
-	movl	%ds, %eax
-	push	%rax
-	movl	%es, %eax
-	push	%rax
-	movl	%ss, %eax
-	push	%rax
-
-	subq	$32, %rsp
-	movl	%esi, 0x0(%rsp)
-	movl	%edx, 0x4(%rsp)
-	movl	%ecx, 0x8(%rsp)
-	movq	%r8, %rsi
-	movl	%esi, 0xc(%rsp)
-	movq	%r9, %rsi
-	movl	%esi,  0x10(%rsp)
-
-	leaq	1f(%rip), %rbx
-	movq	%rbx, func_rt_ptr(%rip)
+	movl	%ebx, 0x0(%rsp)		/* return address */
+	movl	%esi, 0x4(%rsp)
+	movl	%edx, 0x8(%rsp)
+	movl	%ecx, 0xc(%rsp)
+	movl	%r8d, 0x10(%rsp)
+	movl	%r9d, 0x14(%rsp)
 
 	/* Switch to 32-bit descriptor */
 	pushq	$__KERNEL32_CS
-	leaq	efi_enter32(%rip), %rax
-	pushq	%rax
+	pushq	%rdi			/* EFI runtime service address */
 	lretq
 
-1:	addq	$32, %rsp
+	// This return instruction is not needed for correctness, as it will
+	// never be reached. It only exists to make objtool happy, which will
+	// otherwise complain about unreachable instructions in the callers.
+	RET
+SYM_FUNC_END(__efi64_thunk)
 
+	.section ".rodata", "a", @progbits
+	.balign	16
+SYM_DATA_START(__efi64_thunk_ret_tramp)
+1:	movq	0x20(%rsp), %rsp
 	pop	%rbx
-	movl	%ebx, %ss
-	pop	%rbx
-	movl	%ebx, %es
-	pop	%rbx
-	movl	%ebx, %ds
-
-	/*
-	 * Convert 32-bit status code into 64-bit.
-	 */
-	test	%rax, %rax
-	jz	1f
-	movl	%eax, %ecx
-	andl	$0x0fffffff, %ecx
-	andl	$0xf0000000, %eax
-	shl	$32, %rax
-	or	%rcx, %rax
-1:
+	pop	%rbp
 	ret
-ENDPROC(__efi64_thunk)
-
-ENTRY(efi_exit32)
-	movq	func_rt_ptr(%rip), %rax
-	push	%rax
-	mov	%rdi, %rax
-	ret
-ENDPROC(efi_exit32)
+	int3
 
 	.code32
-/*
- * EFI service pointer must be in %edi.
- *
- * The stack should represent the 32-bit calling convention.
- */
-ENTRY(efi_enter32)
-	movl	$__KERNEL_DS, %eax
-	movl	%eax, %ds
-	movl	%eax, %es
-	movl	%eax, %ss
-
-	call	*%edi
-
-	/* We must preserve return value */
-	movl	%eax, %edi
-
-	movl	72(%esp), %eax
-	pushl	$__KERNEL_CS
-	pushl	%eax
-
+2:	pushl	$__KERNEL_CS
+	pushl	%ebp
 	lret
-ENDPROC(efi_enter32)
+SYM_DATA_END(__efi64_thunk_ret_tramp)
 
-	.data
-	.balign	8
-func_rt_ptr:		.quad 0
-efi_saved_sp:		.quad 0
+	.bss
+	.balign 8
+SYM_DATA(efi_mixed_mode_stack_pa, .quad 0)

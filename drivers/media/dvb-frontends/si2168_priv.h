@@ -18,7 +18,6 @@
 #define SI2168_A30_FIRMWARE "dvb-demod-si2168-a30-01.fw"
 #define SI2168_B40_FIRMWARE "dvb-demod-si2168-b40-01.fw"
 #define SI2168_D60_FIRMWARE "dvb-demod-si2168-d60-01.fw"
-#define SI2168_B40_FIRMWARE_FALLBACK "dvb-demod-si2168-02.fw"
 
 /* state struct */
 struct si2168_dev {
@@ -34,12 +33,13 @@ struct si2168_dev {
 	unsigned int chip_id;
 	unsigned int version;
 	const char *firmware_name;
-	bool active;
-	bool warm;
 	u8 ts_mode;
-	bool ts_clock_inv;
-	bool ts_clock_gapped;
-	bool spectral_inversion;
+	unsigned int active:1;
+	unsigned int warm:1;
+	unsigned int initialized:1;
+	unsigned int ts_clock_inv:1;
+	unsigned int ts_clock_gapped:1;
+	unsigned int spectral_inversion:1;
 };
 
 /* firmware command struct */

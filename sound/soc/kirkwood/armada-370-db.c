@@ -18,8 +18,8 @@
 static int a370db_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 	unsigned int freq;
 
 	switch (params_rate(params)) {
@@ -134,7 +134,7 @@ static int a370db_probe(struct platform_device *pdev)
 	return devm_snd_soc_register_card(card->dev, card);
 }
 
-static const struct of_device_id a370db_dt_ids[] = {
+static const struct of_device_id a370db_dt_ids[] __maybe_unused = {
 	{ .compatible = "marvell,a370db-audio" },
 	{ },
 };

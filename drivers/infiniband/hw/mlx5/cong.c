@@ -38,6 +38,7 @@
 enum mlx5_ib_cong_node_type {
 	MLX5_IB_RROCE_ECN_RP = 1,
 	MLX5_IB_RROCE_ECN_NP = 2,
+	MLX5_IB_RROCE_GENERAL = 3,
 };
 
 static const char * const mlx5_ib_dbg_cc_name[] = {
@@ -47,6 +48,7 @@ static const char * const mlx5_ib_dbg_cc_name[] = {
 	"rp_byte_reset",
 	"rp_threshold",
 	"rp_ai_rate",
+	"rp_max_rate",
 	"rp_hai_rate",
 	"rp_min_dec_fac",
 	"rp_min_rate",
@@ -56,9 +58,12 @@ static const char * const mlx5_ib_dbg_cc_name[] = {
 	"rp_rate_reduce_monitor_period",
 	"rp_initial_alpha_value",
 	"rp_gd",
+	"np_min_time_between_cnps",
 	"np_cnp_dscp",
 	"np_cnp_prio_mode",
 	"np_cnp_prio",
+	"rtt_resp_dscp_valid",
+	"rtt_resp_dscp",
 };
 
 #define MLX5_IB_RP_CLAMP_TGT_RATE_ATTR			BIT(1)
@@ -66,6 +71,7 @@ static const char * const mlx5_ib_dbg_cc_name[] = {
 #define MLX5_IB_RP_TIME_RESET_ATTR			BIT(3)
 #define MLX5_IB_RP_BYTE_RESET_ATTR			BIT(4)
 #define MLX5_IB_RP_THRESHOLD_ATTR			BIT(5)
+#define MLX5_IB_RP_MAX_RATE_ATTR			BIT(6)
 #define MLX5_IB_RP_AI_RATE_ATTR				BIT(7)
 #define MLX5_IB_RP_HAI_RATE_ATTR			BIT(8)
 #define MLX5_IB_RP_MIN_DEC_FAC_ATTR			BIT(9)
@@ -77,17 +83,22 @@ static const char * const mlx5_ib_dbg_cc_name[] = {
 #define MLX5_IB_RP_INITIAL_ALPHA_VALUE_ATTR		BIT(15)
 #define MLX5_IB_RP_GD_ATTR				BIT(16)
 
+#define MLX5_IB_NP_MIN_TIME_BETWEEN_CNPS_ATTR		BIT(2)
 #define MLX5_IB_NP_CNP_DSCP_ATTR			BIT(3)
 #define MLX5_IB_NP_CNP_PRIO_MODE_ATTR			BIT(4)
+
+#define MLX5_IB_GENERAL_RTT_RESP_DSCP_ATTR		BIT(0)
 
 static enum mlx5_ib_cong_node_type
 mlx5_ib_param_to_node(enum mlx5_ib_dbg_cc_types param_offset)
 {
-	if (param_offset >= MLX5_IB_DBG_CC_RP_CLAMP_TGT_RATE &&
-	    param_offset <= MLX5_IB_DBG_CC_RP_GD)
+	if (param_offset <= MLX5_IB_DBG_CC_RP_GD)
 		return MLX5_IB_RROCE_ECN_RP;
-	else
+
+	if (param_offset <= MLX5_IB_DBG_CC_NP_CNP_PRIO)
 		return MLX5_IB_RROCE_ECN_NP;
+
+	return MLX5_IB_RROCE_GENERAL;
 }
 
 static u32 mlx5_get_cc_param_val(void *field, int offset)
@@ -111,6 +122,9 @@ static u32 mlx5_get_cc_param_val(void *field, int offset)
 	case MLX5_IB_DBG_CC_RP_AI_RATE:
 		return MLX5_GET(cong_control_r_roce_ecn_rp, field,
 				rpg_ai_rate);
+	case MLX5_IB_DBG_CC_RP_MAX_RATE:
+		return MLX5_GET(cong_control_r_roce_ecn_rp, field,
+				rpg_max_rate);
 	case MLX5_IB_DBG_CC_RP_HAI_RATE:
 		return MLX5_GET(cong_control_r_roce_ecn_rp, field,
 				rpg_hai_rate);
@@ -138,6 +152,9 @@ static u32 mlx5_get_cc_param_val(void *field, int offset)
 	case MLX5_IB_DBG_CC_RP_GD:
 		return MLX5_GET(cong_control_r_roce_ecn_rp, field,
 				rpg_gd);
+	case MLX5_IB_DBG_CC_NP_MIN_TIME_BETWEEN_CNPS:
+		return MLX5_GET(cong_control_r_roce_ecn_np, field,
+				min_time_between_cnps);
 	case MLX5_IB_DBG_CC_NP_CNP_DSCP:
 		return MLX5_GET(cong_control_r_roce_ecn_np, field,
 				cnp_dscp);
@@ -147,6 +164,12 @@ static u32 mlx5_get_cc_param_val(void *field, int offset)
 	case MLX5_IB_DBG_CC_NP_CNP_PRIO:
 		return MLX5_GET(cong_control_r_roce_ecn_np, field,
 				cnp_802p_prio);
+	case MLX5_IB_DBG_CC_GENERAL_RTT_RESP_DSCP_VALID:
+		return MLX5_GET(cong_control_r_roce_general, field,
+				rtt_resp_dscp_valid);
+	case MLX5_IB_DBG_CC_GENERAL_RTT_RESP_DSCP:
+		return MLX5_GET(cong_control_r_roce_general, field,
+				rtt_resp_dscp);
 	default:
 		return 0;
 	}
@@ -185,6 +208,11 @@ static void mlx5_ib_set_cc_param_mask_val(void *field, int offset,
 		*attr_mask |= MLX5_IB_RP_AI_RATE_ATTR;
 		MLX5_SET(cong_control_r_roce_ecn_rp, field,
 			 rpg_ai_rate, var);
+		break;
+	case MLX5_IB_DBG_CC_RP_MAX_RATE:
+		*attr_mask |= MLX5_IB_RP_MAX_RATE_ATTR;
+		MLX5_SET(cong_control_r_roce_ecn_rp, field,
+			 rpg_max_rate, var);
 		break;
 	case MLX5_IB_DBG_CC_RP_HAI_RATE:
 		*attr_mask |= MLX5_IB_RP_HAI_RATE_ATTR;
@@ -231,6 +259,11 @@ static void mlx5_ib_set_cc_param_mask_val(void *field, int offset,
 		MLX5_SET(cong_control_r_roce_ecn_rp, field,
 			 rpg_gd, var);
 		break;
+	case MLX5_IB_DBG_CC_NP_MIN_TIME_BETWEEN_CNPS:
+		*attr_mask |= MLX5_IB_NP_MIN_TIME_BETWEEN_CNPS_ATTR;
+		MLX5_SET(cong_control_r_roce_ecn_np, field,
+			 min_time_between_cnps, var);
+		break;
 	case MLX5_IB_DBG_CC_NP_CNP_DSCP:
 		*attr_mask |= MLX5_IB_NP_CNP_DSCP_ATTR;
 		MLX5_SET(cong_control_r_roce_ecn_np, field, cnp_dscp, var);
@@ -244,10 +277,19 @@ static void mlx5_ib_set_cc_param_mask_val(void *field, int offset,
 		MLX5_SET(cong_control_r_roce_ecn_np, field, cnp_prio_mode, 0);
 		MLX5_SET(cong_control_r_roce_ecn_np, field, cnp_802p_prio, var);
 		break;
+	case MLX5_IB_DBG_CC_GENERAL_RTT_RESP_DSCP_VALID:
+		*attr_mask |= MLX5_IB_GENERAL_RTT_RESP_DSCP_ATTR;
+		MLX5_SET(cong_control_r_roce_general, field, rtt_resp_dscp_valid, var);
+		break;
+	case MLX5_IB_DBG_CC_GENERAL_RTT_RESP_DSCP:
+		*attr_mask |= MLX5_IB_GENERAL_RTT_RESP_DSCP_ATTR;
+		MLX5_SET(cong_control_r_roce_general, field, rtt_resp_dscp_valid, 1);
+		MLX5_SET(cong_control_r_roce_general, field, rtt_resp_dscp, var);
+		break;
 	}
 }
 
-static int mlx5_ib_get_cc_params(struct mlx5_ib_dev *dev, u8 port_num,
+static int mlx5_ib_get_cc_params(struct mlx5_ib_dev *dev, u32 port_num,
 				 int offset, u32 *var)
 {
 	int outlen = MLX5_ST_SZ_BYTES(query_cong_params_out);
@@ -270,7 +312,7 @@ static int mlx5_ib_get_cc_params(struct mlx5_ib_dev *dev, u8 port_num,
 
 	node = mlx5_ib_param_to_node(offset);
 
-	err = mlx5_cmd_query_cong_params(mdev, node, out, outlen);
+	err = mlx5_cmd_query_cong_params(mdev, node, out);
 	if (err)
 		goto free;
 
@@ -284,7 +326,7 @@ alloc_err:
 	return err;
 }
 
-static int mlx5_ib_set_cc_params(struct mlx5_ib_dev *dev, u8 port_num,
+static int mlx5_ib_set_cc_params(struct mlx5_ib_dev *dev, u32 port_num,
 				 int offset, u32 var)
 {
 	int inlen = MLX5_ST_SZ_BYTES(modify_cong_params_in);
@@ -319,7 +361,7 @@ static int mlx5_ib_set_cc_params(struct mlx5_ib_dev *dev, u8 port_num,
 	MLX5_SET(field_select_r_roce_rp, field, field_select_r_roce_rp,
 		 attr_mask);
 
-	err = mlx5_cmd_modify_cong_params(mdev, in, inlen);
+	err = mlx5_cmd_exec_in(dev->mdev, modify_cong_params, in);
 	kvfree(in);
 alloc_err:
 	mlx5_ib_put_native_port_mdev(dev, port_num + 1);
@@ -377,7 +419,7 @@ static const struct file_operations dbg_cc_fops = {
 	.read	= get_param,
 };
 
-void mlx5_ib_cleanup_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num)
+void mlx5_ib_cleanup_cong_debugfs(struct mlx5_ib_dev *dev, u32 port_num)
 {
 	if (!mlx5_debugfs_root ||
 	    !dev->port[port_num].dbg_cc_params ||
@@ -389,7 +431,7 @@ void mlx5_ib_cleanup_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num)
 	dev->port[port_num].dbg_cc_params = NULL;
 }
 
-void mlx5_ib_init_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num)
+void mlx5_ib_init_cong_debugfs(struct mlx5_ib_dev *dev, u32 port_num)
 {
 	struct mlx5_ib_dbg_cc_params *dbg_cc_params;
 	struct mlx5_core_dev *mdev;
@@ -413,10 +455,15 @@ void mlx5_ib_init_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num)
 
 	dev->port[port_num].dbg_cc_params = dbg_cc_params;
 
-	dbg_cc_params->root = debugfs_create_dir("cc_params",
-						 mdev->priv.dbg_root);
+	dbg_cc_params->root = debugfs_create_dir("cc_params", mlx5_debugfs_get_dev_root(mdev));
 
 	for (i = 0; i < MLX5_IB_DBG_CC_MAX; i++) {
+		if ((i == MLX5_IB_DBG_CC_GENERAL_RTT_RESP_DSCP_VALID ||
+		     i == MLX5_IB_DBG_CC_GENERAL_RTT_RESP_DSCP))
+			if (!MLX5_CAP_GEN(mdev, roce) ||
+			    !MLX5_CAP_ROCE(mdev, roce_cc_general))
+				continue;
+
 		dbg_cc_params->params[i].offset = i;
 		dbg_cc_params->params[i].dev = dev;
 		dbg_cc_params->params[i].port_num = port_num;

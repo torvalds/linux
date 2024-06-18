@@ -14,21 +14,13 @@
 
 #include <linux/compiler.h>
 #include <linux/stringify.h>
+
+#include <asm/bootparam.h>
 #include <asm/ptrace.h>
 #include <asm/types.h>
 #include <asm/regs.h>
 
-/* Assertions. */
-
-#if (XCHAL_HAVE_WINDOWED != 1)
-# error Linux requires the Xtensa Windowed Registers Option.
-#endif
-
-/* Xtensa ABI requires stack alignment to be at least 16 */
-
-#define STACK_ALIGN (XCHAL_DATA_WIDTH > 16 ? XCHAL_DATA_WIDTH : 16)
-
-#define ARCH_SLAB_MINALIGN STACK_ALIGN
+#define ARCH_SLAB_MINALIGN XTENSA_STACK_ALIGNMENT
 
 /*
  * User space process size: 1 GB.
@@ -105,7 +97,17 @@
 #define WSBITS  (XCHAL_NUM_AREGS / 4)      /* width of WINDOWSTART in bits */
 #define WBBITS  (XCHAL_NUM_AREGS_LOG2 - 2) /* width of WINDOWBASE in bits */
 
+#if defined(__XTENSA_WINDOWED_ABI__)
+#define KERNEL_PS_WOE_MASK PS_WOE_MASK
+#elif defined(__XTENSA_CALL0_ABI__)
+#define KERNEL_PS_WOE_MASK 0
+#else
+#error Unsupported xtensa ABI
+#endif
+
 #ifndef __ASSEMBLY__
+
+#if defined(__XTENSA_WINDOWED_ABI__)
 
 /* Build a valid return address for the specified call winsize.
  * winsize must be 1 (call4), 2 (call8), or 3 (call12)
@@ -113,9 +115,25 @@
 #define MAKE_RA_FOR_CALL(ra,ws)   (((ra) & 0x3fffffff) | (ws) << 30)
 
 /* Convert return address to a valid pc
- * Note: We assume that the stack pointer is in the same 1GB ranges as the ra
+ * Note: 'text' is the address within the same 1GB range as the ra
  */
-#define MAKE_PC_FROM_RA(ra,sp)    (((ra) & 0x3fffffff) | ((sp) & 0xc0000000))
+#define MAKE_PC_FROM_RA(ra, text) (((ra) & 0x3fffffff) | ((unsigned long)(text) & 0xc0000000))
+
+#elif defined(__XTENSA_CALL0_ABI__)
+
+/* Build a valid return address for the specified call winsize.
+ * winsize must be 1 (call4), 2 (call8), or 3 (call12)
+ */
+#define MAKE_RA_FOR_CALL(ra, ws)   (ra)
+
+/* Convert return address to a valid pc
+ * Note: 'text' is not used as 'ra' is always the full address
+ */
+#define MAKE_PC_FROM_RA(ra, text)  (ra)
+
+#else
+#error Unsupported Xtensa ABI
+#endif
 
 /* Spill slot location for the register reg in the spill area under the stack
  * pointer sp. reg must be in the range [0..4).
@@ -132,23 +150,12 @@
  */
 #define SPILL_SLOT_CALL12(sp, reg) (*(((unsigned long *)(sp)) - 16 + (reg)))
 
-typedef struct {
-	unsigned long seg;
-} mm_segment_t;
-
 struct thread_struct {
 
 	/* kernel's return address and stack pointer for context switching */
 	unsigned long ra; /* kernel's a0: return address and window call size */
 	unsigned long sp; /* kernel's a1: stack pointer */
 
-	mm_segment_t current_ds;    /* see uaccess.h for example uses */
-
-	/* struct xtensa_cpuinfo info; */
-
-	unsigned long bad_vaddr; /* last user fault */
-	unsigned long bad_uaddr; /* last kernel fault accessing user space */
-	unsigned long error_code;
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	struct perf_event *ptrace_bp[XCHAL_NUM_IBREAK];
 	struct perf_event *ptrace_wp[XCHAL_NUM_DBREAK];
@@ -166,11 +173,6 @@ struct thread_struct {
 {									\
 	ra:		0, 						\
 	sp:		sizeof(init_stack) + (long) &init_stack,	\
-	current_ds:	{0},						\
-	/*info:		{0}, */						\
-	bad_vaddr:	0,						\
-	bad_uaddr:	0,						\
-	error_code:	0,						\
 }
 
 
@@ -195,26 +197,30 @@ struct thread_struct {
 /* Clearing a0 terminates the backtrace. */
 #define start_thread(regs, new_pc, new_sp) \
 	do { \
+		unsigned long syscall = (regs)->syscall; \
+		unsigned long current_aregs[16]; \
+		memcpy(current_aregs, (regs)->areg, sizeof(current_aregs)); \
 		memset((regs), 0, sizeof(*(regs))); \
 		(regs)->pc = (new_pc); \
 		(regs)->ps = USER_PS_VALUE; \
+		memcpy((regs)->areg, current_aregs, sizeof(current_aregs)); \
 		(regs)->areg[1] = (new_sp); \
 		(regs)->areg[0] = 0; \
 		(regs)->wmask = 1; \
 		(regs)->depc = 0; \
 		(regs)->windowbase = 0; \
 		(regs)->windowstart = 1; \
-		(regs)->syscall = NO_SYSCALL; \
+		(regs)->syscall = syscall; \
 	} while (0)
 
 /* Forward declaration */
 struct task_struct;
 struct mm_struct;
 
-/* Free all resources held by a thread. */
-#define release_thread(thread) do { } while(0)
+extern unsigned long __get_wchan(struct task_struct *p);
 
-extern unsigned long get_wchan(struct task_struct *p);
+void init_arch(bp_tag_t *bp_start);
+void do_notify_resume(struct pt_regs *regs);
 
 #define KSTK_EIP(tsk)		(task_pt_regs(tsk)->pc)
 #define KSTK_ESP(tsk)		(task_pt_regs(tsk)->areg[1])
@@ -225,8 +231,8 @@ extern unsigned long get_wchan(struct task_struct *p);
 
 #define xtensa_set_sr(x, sr) \
 	({ \
-	 unsigned int v = (unsigned int)(x); \
-	 __asm__ __volatile__ ("wsr %0, "__stringify(sr) :: "a"(v)); \
+	 __asm__ __volatile__ ("wsr %0, "__stringify(sr) :: \
+			       "a"((unsigned int)(x))); \
 	 })
 
 #define xtensa_get_sr(sr) \
@@ -236,9 +242,12 @@ extern unsigned long get_wchan(struct task_struct *p);
 	 v; \
 	 })
 
-#ifndef XCHAL_HAVE_EXTERN_REGS
-#define XCHAL_HAVE_EXTERN_REGS 0
-#endif
+#define xtensa_xsr(x, sr) \
+	({ \
+	 unsigned int __v__ = (unsigned int)(x); \
+	 __asm__ __volatile__ ("xsr %0, " __stringify(sr) : "+a"(__v__)); \
+	 __v__; \
+	 })
 
 #if XCHAL_HAVE_EXTERN_REGS
 

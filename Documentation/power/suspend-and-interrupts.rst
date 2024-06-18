@@ -67,7 +67,7 @@ That may involve turning on a special signal handling logic within the platform
 during system sleep so as to trigger a system wakeup when needed.  For example,
 the platform may include a dedicated interrupt controller used specifically for
 handling system wakeup events.  Then, if a given interrupt line is supposed to
-wake up the system from sleep sates, the corresponding input of that interrupt
+wake up the system from sleep states, the corresponding input of that interrupt
 controller needs to be enabled to receive signals from the line in question.
 After wakeup, it generally is better to disable that input to prevent the
 dedicated controller from triggering interrupts unnecessarily.
@@ -78,7 +78,7 @@ handling the given IRQ as a system wakeup interrupt line and disable_irq_wake()
 turns that logic off.
 
 Calling enable_irq_wake() causes suspend_device_irqs() to treat the given IRQ
-in a special way.  Namely, the IRQ remains enabled, by on the first interrupt
+in a special way.  Namely, the IRQ remains enabled, but on the first interrupt
 it will be disabled, marked as pending and "suspended" so that it will be
 re-enabled by resume_device_irqs() during the subsequent system resume.  Also
 the PM core is notified about the event which causes the system suspend in

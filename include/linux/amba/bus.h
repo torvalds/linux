@@ -65,19 +65,33 @@ struct amba_device {
 	struct device		dev;
 	struct resource		res;
 	struct clk		*pclk;
+	struct device_dma_parameters dma_parms;
 	unsigned int		periphid;
+	struct mutex		periphid_lock;
 	unsigned int		cid;
 	struct amba_cs_uci_id	uci;
 	unsigned int		irq[AMBA_NR_IRQS];
-	char			*driver_override;
+	/*
+	 * Driver name to force a match.  Do not set directly, because core
+	 * frees it.  Use driver_set_override() to set or clear it.
+	 */
+	const char		*driver_override;
 };
 
 struct amba_driver {
 	struct device_driver	drv;
 	int			(*probe)(struct amba_device *, const struct amba_id *);
-	int			(*remove)(struct amba_device *);
+	void			(*remove)(struct amba_device *);
 	void			(*shutdown)(struct amba_device *);
 	const struct amba_id	*id_table;
+	/*
+	 * For most device drivers, no need to care about this flag as long as
+	 * all DMAs are handled through the kernel DMA API. For some special
+	 * ones, for example VFIO drivers, they know how to manage the DMA
+	 * themselves and set this flag so that the IOMMU layer will allow them
+	 * to setup and manage their own I/O address space.
+	 */
+	bool driver_managed_dma;
 };
 
 /*
@@ -89,69 +103,42 @@ enum amba_vendor {
 	AMBA_VENDOR_ST = 0x80,
 	AMBA_VENDOR_QCOM = 0x51,
 	AMBA_VENDOR_LSI = 0xb6,
-	AMBA_VENDOR_LINUX = 0xfe,	/* This value is not official */
 };
-
-/* This is used to generate pseudo-ID for AMBA device */
-#define AMBA_LINUX_ID(conf, rev, part) \
-	(((conf) & 0xff) << 24 | ((rev) & 0xf) << 20 | \
-	AMBA_VENDOR_LINUX << 12 | ((part) & 0xfff))
 
 extern struct bus_type amba_bustype;
 
-#define to_amba_device(d)	container_of(d, struct amba_device, dev)
+#define to_amba_device(d)	container_of_const(d, struct amba_device, dev)
 
 #define amba_get_drvdata(d)	dev_get_drvdata(&d->dev)
 #define amba_set_drvdata(d,p)	dev_set_drvdata(&d->dev, p)
 
-int amba_driver_register(struct amba_driver *);
+/*
+ * use a macro to avoid include chaining to get THIS_MODULE
+ */
+#define amba_driver_register(drv) \
+	__amba_driver_register(drv, THIS_MODULE)
+
+#ifdef CONFIG_ARM_AMBA
+int __amba_driver_register(struct amba_driver *, struct module *);
 void amba_driver_unregister(struct amba_driver *);
+#else
+static inline int __amba_driver_register(struct amba_driver *drv,
+					 struct module *owner)
+{
+	return -EINVAL;
+}
+static inline void amba_driver_unregister(struct amba_driver *drv)
+{
+}
+#endif
+
 struct amba_device *amba_device_alloc(const char *, resource_size_t, size_t);
 void amba_device_put(struct amba_device *);
 int amba_device_add(struct amba_device *, struct resource *);
 int amba_device_register(struct amba_device *, struct resource *);
-struct amba_device *amba_apb_device_add(struct device *parent, const char *name,
-					resource_size_t base, size_t size,
-					int irq1, int irq2, void *pdata,
-					unsigned int periphid);
-struct amba_device *amba_ahb_device_add(struct device *parent, const char *name,
-					resource_size_t base, size_t size,
-					int irq1, int irq2, void *pdata,
-					unsigned int periphid);
-struct amba_device *
-amba_apb_device_add_res(struct device *parent, const char *name,
-			resource_size_t base, size_t size, int irq1,
-			int irq2, void *pdata, unsigned int periphid,
-			struct resource *resbase);
-struct amba_device *
-amba_ahb_device_add_res(struct device *parent, const char *name,
-			resource_size_t base, size_t size, int irq1,
-			int irq2, void *pdata, unsigned int periphid,
-			struct resource *resbase);
 void amba_device_unregister(struct amba_device *);
-struct amba_device *amba_find_device(const char *, struct device *, unsigned int, unsigned int);
 int amba_request_regions(struct amba_device *, const char *);
 void amba_release_regions(struct amba_device *);
-
-static inline int amba_pclk_enable(struct amba_device *dev)
-{
-	return clk_enable(dev->pclk);
-}
-
-static inline void amba_pclk_disable(struct amba_device *dev)
-{
-	clk_disable(dev->pclk);
-}
-
-static inline int amba_pclk_prepare(struct amba_device *dev)
-{
-	return clk_prepare(dev->pclk);
-}
-
-static inline void amba_pclk_unprepare(struct amba_device *dev)
-{
-	clk_unprepare(dev->pclk);
-}
 
 /* Some drivers don't use the struct amba_device */
 #define AMBA_CONFIG_BITS(a) (((a) >> 24) & 0xff)

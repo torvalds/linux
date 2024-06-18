@@ -12,7 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
@@ -23,6 +23,11 @@
 #define BCM2835_I2C_FIFO	0x10
 #define BCM2835_I2C_DIV		0x14
 #define BCM2835_I2C_DEL		0x18
+/*
+ * 16-bit field for the number of SCL cycles to wait after rising SCL
+ * before deciding the slave is not responding. 0 disables the
+ * timeout detection.
+ */
 #define BCM2835_I2C_CLKT	0x1c
 
 #define BCM2835_I2C_C_READ	BIT(0)
@@ -58,6 +63,7 @@ struct bcm2835_i2c_dev {
 	struct i2c_adapter adapter;
 	struct completion completion;
 	struct i2c_msg *curr_msg;
+	struct clk *bus_clk;
 	int num_msgs;
 	u32 msg_err;
 	u8 *msg_buf;
@@ -364,7 +370,6 @@ static int bcm2835_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 	if (!time_left) {
 		bcm2835_i2c_writel(i2c_dev, BCM2835_I2C_C,
 				   BCM2835_I2C_C_CLEAR);
-		dev_err(i2c_dev->dev, "i2c transfer timed out\n");
 		return -ETIMEDOUT;
 	}
 
@@ -391,7 +396,7 @@ static const struct i2c_algorithm bcm2835_i2c_algo = {
 
 /*
  * The BCM2835 was reported to have problems with clock stretching:
- * http://www.advamation.com/knowhow/raspberrypi/rpi-i2c-bug.html
+ * https://www.advamation.com/knowhow/raspberrypi/rpi-i2c-bug.html
  * https://www.raspberrypi.org/forums/viewtopic.php?p=146272
  */
 static const struct i2c_adapter_quirks bcm2835_i2c_quirks = {
@@ -401,10 +406,8 @@ static const struct i2c_adapter_quirks bcm2835_i2c_quirks = {
 static int bcm2835_i2c_probe(struct platform_device *pdev)
 {
 	struct bcm2835_i2c_dev *i2c_dev;
-	struct resource *mem, *irq;
 	int ret;
 	struct i2c_adapter *adap;
-	struct clk *bus_clk;
 	struct clk *mclk;
 	u32 bus_clk_rate;
 
@@ -415,57 +418,51 @@ static int bcm2835_i2c_probe(struct platform_device *pdev)
 	i2c_dev->dev = &pdev->dev;
 	init_completion(&i2c_dev->completion);
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	i2c_dev->regs = devm_ioremap_resource(&pdev->dev, mem);
+	i2c_dev->regs = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(i2c_dev->regs))
 		return PTR_ERR(i2c_dev->regs);
 
 	mclk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(mclk)) {
-		if (PTR_ERR(mclk) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Could not get clock\n");
-		return PTR_ERR(mclk);
-	}
+	if (IS_ERR(mclk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(mclk),
+				     "Could not get clock\n");
 
-	bus_clk = bcm2835_i2c_register_div(&pdev->dev, mclk, i2c_dev);
+	i2c_dev->bus_clk = bcm2835_i2c_register_div(&pdev->dev, mclk, i2c_dev);
 
-	if (IS_ERR(bus_clk)) {
-		dev_err(&pdev->dev, "Could not register clock\n");
-		return PTR_ERR(bus_clk);
-	}
+	if (IS_ERR(i2c_dev->bus_clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(i2c_dev->bus_clk),
+				     "Could not register clock\n");
 
 	ret = of_property_read_u32(pdev->dev.of_node, "clock-frequency",
 				   &bus_clk_rate);
 	if (ret < 0) {
 		dev_warn(&pdev->dev,
 			 "Could not read clock-frequency property\n");
-		bus_clk_rate = 100000;
+		bus_clk_rate = I2C_MAX_STANDARD_MODE_FREQ;
 	}
 
-	ret = clk_set_rate_exclusive(bus_clk, bus_clk_rate);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not set clock frequency\n");
-		return ret;
-	}
+	ret = clk_set_rate_exclusive(i2c_dev->bus_clk, bus_clk_rate);
+	if (ret < 0)
+		return dev_err_probe(&pdev->dev, ret,
+				     "Could not set clock frequency\n");
 
-	ret = clk_prepare_enable(bus_clk);
+	ret = clk_prepare_enable(i2c_dev->bus_clk);
 	if (ret) {
 		dev_err(&pdev->dev, "Couldn't prepare clock");
-		return ret;
+		goto err_put_exclusive_rate;
 	}
 
-	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!irq) {
-		dev_err(&pdev->dev, "No IRQ resource\n");
-		return -ENODEV;
+	i2c_dev->irq = platform_get_irq(pdev, 0);
+	if (i2c_dev->irq < 0) {
+		ret = i2c_dev->irq;
+		goto err_disable_unprepare_clk;
 	}
-	i2c_dev->irq = irq->start;
 
 	ret = request_irq(i2c_dev->irq, bcm2835_i2c_isr, IRQF_SHARED,
 			  dev_name(&pdev->dev), i2c_dev);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not request IRQ\n");
-		return -ENODEV;
+		goto err_disable_unprepare_clk;
 	}
 
 	adap = &i2c_dev->adapter;
@@ -479,27 +476,39 @@ static int bcm2835_i2c_probe(struct platform_device *pdev)
 	adap->dev.of_node = pdev->dev.of_node;
 	adap->quirks = of_device_get_match_data(&pdev->dev);
 
+	/*
+	 * Disable the hardware clock stretching timeout. SMBUS
+	 * specifies a limit for how long the device can stretch the
+	 * clock, but core I2C doesn't.
+	 */
+	bcm2835_i2c_writel(i2c_dev, BCM2835_I2C_CLKT, 0);
 	bcm2835_i2c_writel(i2c_dev, BCM2835_I2C_C, 0);
 
 	ret = i2c_add_adapter(adap);
 	if (ret)
-		free_irq(i2c_dev->irq, i2c_dev);
+		goto err_free_irq;
+
+	return 0;
+
+err_free_irq:
+	free_irq(i2c_dev->irq, i2c_dev);
+err_disable_unprepare_clk:
+	clk_disable_unprepare(i2c_dev->bus_clk);
+err_put_exclusive_rate:
+	clk_rate_exclusive_put(i2c_dev->bus_clk);
 
 	return ret;
 }
 
-static int bcm2835_i2c_remove(struct platform_device *pdev)
+static void bcm2835_i2c_remove(struct platform_device *pdev)
 {
 	struct bcm2835_i2c_dev *i2c_dev = platform_get_drvdata(pdev);
-	struct clk *bus_clk = devm_clk_get(i2c_dev->dev, "div");
 
-	clk_rate_exclusive_put(bus_clk);
-	clk_disable_unprepare(bus_clk);
+	clk_rate_exclusive_put(i2c_dev->bus_clk);
+	clk_disable_unprepare(i2c_dev->bus_clk);
 
 	free_irq(i2c_dev->irq, i2c_dev);
 	i2c_del_adapter(&i2c_dev->adapter);
-
-	return 0;
 }
 
 static const struct of_device_id bcm2835_i2c_of_match[] = {
@@ -511,7 +520,7 @@ MODULE_DEVICE_TABLE(of, bcm2835_i2c_of_match);
 
 static struct platform_driver bcm2835_i2c_driver = {
 	.probe		= bcm2835_i2c_probe,
-	.remove		= bcm2835_i2c_remove,
+	.remove_new	= bcm2835_i2c_remove,
 	.driver		= {
 		.name	= "i2c-bcm2835",
 		.of_match_table = bcm2835_i2c_of_match,

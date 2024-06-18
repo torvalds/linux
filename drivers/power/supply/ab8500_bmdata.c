@@ -2,398 +2,78 @@
 #include <linux/export.h>
 #include <linux/power_supply.h>
 #include <linux/of.h>
-#include <linux/mfd/abx500.h>
-#include <linux/mfd/abx500/ab8500.h>
-#include <linux/mfd/abx500/ab8500-bm.h>
 
-/*
- * These are the defined batteries that uses a NTC and ID resistor placed
- * inside of the battery pack.
- * Note that the res_to_temp table must be strictly sorted by falling resistance
- * values to work.
- */
-const struct abx500_res_to_temp ab8500_temp_tbl_a_thermistor[] = {
-	{-5, 53407},
-	{ 0, 48594},
-	{ 5, 43804},
-	{10, 39188},
-	{15, 34870},
-	{20, 30933},
-	{25, 27422},
-	{30, 24347},
-	{35, 21694},
-	{40, 19431},
-	{45, 17517},
-	{50, 15908},
-	{55, 14561},
-	{60, 13437},
-	{65, 12500},
-};
-EXPORT_SYMBOL(ab8500_temp_tbl_a_thermistor);
+#include "ab8500-bm.h"
 
-const int ab8500_temp_tbl_a_size = ARRAY_SIZE(ab8500_temp_tbl_a_thermistor);
-EXPORT_SYMBOL(ab8500_temp_tbl_a_size);
+/* Default: under this temperature, charging is stopped */
+#define AB8500_TEMP_UNDER	3
+/* Default: between this temp and AB8500_TEMP_UNDER charging is reduced */
+#define AB8500_TEMP_LOW		8
+/* Default: between this temp and AB8500_TEMP_OVER charging is reduced */
+#define AB8500_TEMP_HIGH	43
+/* Default: over this temp, charging is stopped */
+#define AB8500_TEMP_OVER	48
+/* Default: temperature hysteresis */
+#define AB8500_TEMP_HYSTERESIS	3
 
-const struct abx500_res_to_temp ab8500_temp_tbl_b_thermistor[] = {
-	{-5, 200000},
-	{ 0, 159024},
-	{ 5, 151921},
-	{10, 144300},
-	{15, 136424},
-	{20, 128565},
-	{25, 120978},
-	{30, 113875},
-	{35, 107397},
-	{40, 101629},
-	{45,  96592},
-	{50,  92253},
-	{55,  88569},
-	{60,  85461},
-	{65,  82869},
-};
-EXPORT_SYMBOL(ab8500_temp_tbl_b_thermistor);
-
-const int ab8500_temp_tbl_b_size = ARRAY_SIZE(ab8500_temp_tbl_b_thermistor);
-EXPORT_SYMBOL(ab8500_temp_tbl_b_size);
-
-static const struct abx500_v_to_cap cap_tbl_a_thermistor[] = {
-	{4171,	100},
-	{4114,	 95},
-	{4009,	 83},
-	{3947,	 74},
-	{3907,	 67},
-	{3863,	 59},
-	{3830,	 56},
-	{3813,	 53},
-	{3791,	 46},
-	{3771,	 33},
-	{3754,	 25},
-	{3735,	 20},
-	{3717,	 17},
-	{3681,	 13},
-	{3664,	  8},
-	{3651,	  6},
-	{3635,	  5},
-	{3560,	  3},
-	{3408,    1},
-	{3247,	  0},
-};
-
-static const struct abx500_v_to_cap cap_tbl_b_thermistor[] = {
-	{4161,	100},
-	{4124,	 98},
-	{4044,	 90},
-	{4003,	 85},
-	{3966,	 80},
-	{3933,	 75},
-	{3888,	 67},
-	{3849,	 60},
-	{3813,	 55},
-	{3787,	 47},
-	{3772,	 30},
-	{3751,	 25},
-	{3718,	 20},
-	{3681,	 16},
-	{3660,	 14},
-	{3589,	 10},
-	{3546,	  7},
-	{3495,	  4},
-	{3404,	  2},
-	{3250,	  0},
-};
-
-static const struct abx500_v_to_cap cap_tbl[] = {
-	{4186,	100},
-	{4163,	 99},
-	{4114,	 95},
-	{4068,	 90},
-	{3990,	 80},
-	{3926,	 70},
-	{3898,	 65},
-	{3866,	 60},
-	{3833,	 55},
-	{3812,	 50},
-	{3787,	 40},
-	{3768,	 30},
-	{3747,	 25},
-	{3730,	 20},
-	{3705,	 15},
-	{3699,	 14},
-	{3684,	 12},
-	{3672,	  9},
-	{3657,	  7},
-	{3638,	  6},
-	{3556,	  4},
-	{3424,	  2},
-	{3317,	  1},
-	{3094,	  0},
-};
-
-/*
- * Note that the res_to_temp table must be strictly sorted by falling
- * resistance values to work.
- */
-static const struct abx500_res_to_temp temp_tbl[] = {
-	{-5, 214834},
-	{ 0, 162943},
-	{ 5, 124820},
-	{10,  96520},
-	{15,  75306},
-	{20,  59254},
-	{25,  47000},
-	{30,  37566},
-	{35,  30245},
-	{40,  24520},
-	{45,  20010},
-	{50,  16432},
-	{55,  13576},
-	{60,  11280},
-	{65,   9425},
+static struct power_supply_battery_ocv_table ocv_cap_tbl[] = {
+	{ .ocv = 4186000, .capacity = 100},
+	{ .ocv = 4163000, .capacity = 99},
+	{ .ocv = 4114000, .capacity = 95},
+	{ .ocv = 4068000, .capacity = 90},
+	{ .ocv = 3990000, .capacity = 80},
+	{ .ocv = 3926000, .capacity = 70},
+	{ .ocv = 3898000, .capacity = 65},
+	{ .ocv = 3866000, .capacity = 60},
+	{ .ocv = 3833000, .capacity = 55},
+	{ .ocv = 3812000, .capacity = 50},
+	{ .ocv = 3787000, .capacity = 40},
+	{ .ocv = 3768000, .capacity = 30},
+	{ .ocv = 3747000, .capacity = 25},
+	{ .ocv = 3730000, .capacity = 20},
+	{ .ocv = 3705000, .capacity = 15},
+	{ .ocv = 3699000, .capacity = 14},
+	{ .ocv = 3684000, .capacity = 12},
+	{ .ocv = 3672000, .capacity = 9},
+	{ .ocv = 3657000, .capacity = 7},
+	{ .ocv = 3638000, .capacity = 6},
+	{ .ocv = 3556000, .capacity = 4},
+	{ .ocv = 3424000, .capacity = 2},
+	{ .ocv = 3317000, .capacity = 1},
+	{ .ocv = 3094000, .capacity = 0},
 };
 
 /*
  * Note that the batres_vs_temp table must be strictly sorted by falling
- * temperature values to work.
+ * temperature values to work. Factory resistance is 300 mOhm and the
+ * resistance values to the right are percentages of 300 mOhm.
  */
-static const struct batres_vs_temp temp_to_batres_tbl_thermistor[] = {
-	{ 40, 120},
-	{ 30, 135},
-	{ 20, 165},
-	{ 10, 230},
-	{ 00, 325},
-	{-10, 445},
-	{-20, 595},
+static struct power_supply_resistance_temp_table temp_to_batres_tbl_thermistor[] = {
+	{ .temp = 40, .resistance = 40 /* 120 mOhm */ },
+	{ .temp = 30, .resistance = 45 /* 135 mOhm */ },
+	{ .temp = 20, .resistance = 55 /* 165 mOhm */ },
+	{ .temp = 10, .resistance = 77 /* 230 mOhm */ },
+	{ .temp = 00, .resistance = 108 /* 325 mOhm */ },
+	{ .temp = -10, .resistance = 158 /* 445 mOhm */ },
+	{ .temp = -20, .resistance = 198 /* 595 mOhm */ },
 };
 
-/*
- * Note that the batres_vs_temp table must be strictly sorted by falling
- * temperature values to work.
- */
-static const struct batres_vs_temp temp_to_batres_tbl_ext_thermistor[] = {
-	{ 60, 300},
-	{ 30, 300},
-	{ 20, 300},
-	{ 10, 300},
-	{ 00, 300},
-	{-10, 300},
-	{-20, 300},
+static struct power_supply_maintenance_charge_table ab8500_maint_charg_table[] = {
+	{
+		/* Maintenance charging phase A, 60 hours */
+		.charge_current_max_ua = 400000,
+		.charge_voltage_max_uv = 4050000,
+		.charge_safety_timer_minutes = 60*60,
+	},
+	{
+		/* Maintenance charging phase B, 200 hours */
+		.charge_current_max_ua = 400000,
+		.charge_voltage_max_uv = 4000000,
+		.charge_safety_timer_minutes = 200*60,
+	}
 };
 
-/* battery resistance table for LI ION 9100 battery */
-static const struct batres_vs_temp temp_to_batres_tbl_9100[] = {
-	{ 60, 180},
-	{ 30, 180},
-	{ 20, 180},
-	{ 10, 180},
-	{ 00, 180},
-	{-10, 180},
-	{-20, 180},
-};
-
-static struct abx500_battery_type bat_type_thermistor[] = {
-	[BATTERY_UNKNOWN] = {
-		/* First element always represent the UNKNOWN battery */
-		.name = POWER_SUPPLY_TECHNOLOGY_UNKNOWN,
-		.resis_high = 0,
-		.resis_low = 0,
-		.battery_resistance = 300,
-		.charge_full_design = 612,
-		.nominal_voltage = 3700,
-		.termination_vol = 4050,
-		.termination_curr = 200,
-		.recharge_cap = 95,
-		.normal_cur_lvl = 400,
-		.normal_vol_lvl = 4100,
-		.maint_a_cur_lvl = 400,
-		.maint_a_vol_lvl = 4050,
-		.maint_a_chg_timer_h = 60,
-		.maint_b_cur_lvl = 400,
-		.maint_b_vol_lvl = 4000,
-		.maint_b_chg_timer_h = 200,
-		.low_high_cur_lvl = 300,
-		.low_high_vol_lvl = 4000,
-		.n_temp_tbl_elements = ARRAY_SIZE(temp_tbl),
-		.r_to_t_tbl = temp_tbl,
-		.n_v_cap_tbl_elements = ARRAY_SIZE(cap_tbl),
-		.v_to_cap_tbl = cap_tbl,
-		.n_batres_tbl_elements = ARRAY_SIZE(temp_to_batres_tbl_thermistor),
-		.batres_tbl = temp_to_batres_tbl_thermistor,
-	},
-	{
-		.name = POWER_SUPPLY_TECHNOLOGY_LIPO,
-		.resis_high = 53407,
-		.resis_low = 12500,
-		.battery_resistance = 300,
-		.charge_full_design = 900,
-		.nominal_voltage = 3600,
-		.termination_vol = 4150,
-		.termination_curr = 80,
-		.recharge_cap = 95,
-		.normal_cur_lvl = 700,
-		.normal_vol_lvl = 4200,
-		.maint_a_cur_lvl = 600,
-		.maint_a_vol_lvl = 4150,
-		.maint_a_chg_timer_h = 60,
-		.maint_b_cur_lvl = 600,
-		.maint_b_vol_lvl = 4100,
-		.maint_b_chg_timer_h = 200,
-		.low_high_cur_lvl = 300,
-		.low_high_vol_lvl = 4000,
-		.n_temp_tbl_elements = ARRAY_SIZE(ab8500_temp_tbl_a_thermistor),
-		.r_to_t_tbl = ab8500_temp_tbl_a_thermistor,
-		.n_v_cap_tbl_elements = ARRAY_SIZE(cap_tbl_a_thermistor),
-		.v_to_cap_tbl = cap_tbl_a_thermistor,
-		.n_batres_tbl_elements = ARRAY_SIZE(temp_to_batres_tbl_thermistor),
-		.batres_tbl = temp_to_batres_tbl_thermistor,
-
-	},
-	{
-		.name = POWER_SUPPLY_TECHNOLOGY_LIPO,
-		.resis_high = 200000,
-		.resis_low = 82869,
-		.battery_resistance = 300,
-		.charge_full_design = 900,
-		.nominal_voltage = 3600,
-		.termination_vol = 4150,
-		.termination_curr = 80,
-		.recharge_cap = 95,
-		.normal_cur_lvl = 700,
-		.normal_vol_lvl = 4200,
-		.maint_a_cur_lvl = 600,
-		.maint_a_vol_lvl = 4150,
-		.maint_a_chg_timer_h = 60,
-		.maint_b_cur_lvl = 600,
-		.maint_b_vol_lvl = 4100,
-		.maint_b_chg_timer_h = 200,
-		.low_high_cur_lvl = 300,
-		.low_high_vol_lvl = 4000,
-		.n_temp_tbl_elements = ARRAY_SIZE(ab8500_temp_tbl_b_thermistor),
-		.r_to_t_tbl = ab8500_temp_tbl_b_thermistor,
-		.n_v_cap_tbl_elements = ARRAY_SIZE(cap_tbl_b_thermistor),
-		.v_to_cap_tbl = cap_tbl_b_thermistor,
-		.n_batres_tbl_elements = ARRAY_SIZE(temp_to_batres_tbl_thermistor),
-		.batres_tbl = temp_to_batres_tbl_thermistor,
-	},
-};
-
-static struct abx500_battery_type bat_type_ext_thermistor[] = {
-	[BATTERY_UNKNOWN] = {
-		/* First element always represent the UNKNOWN battery */
-		.name = POWER_SUPPLY_TECHNOLOGY_UNKNOWN,
-		.resis_high = 0,
-		.resis_low = 0,
-		.battery_resistance = 300,
-		.charge_full_design = 612,
-		.nominal_voltage = 3700,
-		.termination_vol = 4050,
-		.termination_curr = 200,
-		.recharge_cap = 95,
-		.normal_cur_lvl = 400,
-		.normal_vol_lvl = 4100,
-		.maint_a_cur_lvl = 400,
-		.maint_a_vol_lvl = 4050,
-		.maint_a_chg_timer_h = 60,
-		.maint_b_cur_lvl = 400,
-		.maint_b_vol_lvl = 4000,
-		.maint_b_chg_timer_h = 200,
-		.low_high_cur_lvl = 300,
-		.low_high_vol_lvl = 4000,
-		.n_temp_tbl_elements = ARRAY_SIZE(temp_tbl),
-		.r_to_t_tbl = temp_tbl,
-		.n_v_cap_tbl_elements = ARRAY_SIZE(cap_tbl),
-		.v_to_cap_tbl = cap_tbl,
-		.n_batres_tbl_elements = ARRAY_SIZE(temp_to_batres_tbl_thermistor),
-		.batres_tbl = temp_to_batres_tbl_thermistor,
-	},
-/*
- * These are the batteries that doesn't have an internal NTC resistor to measure
- * its temperature. The temperature in this case is measure with a NTC placed
- * near the battery but on the PCB.
- */
-	{
-		.name = POWER_SUPPLY_TECHNOLOGY_LIPO,
-		.resis_high = 76000,
-		.resis_low = 53000,
-		.battery_resistance = 300,
-		.charge_full_design = 900,
-		.nominal_voltage = 3700,
-		.termination_vol = 4150,
-		.termination_curr = 100,
-		.recharge_cap = 95,
-		.normal_cur_lvl = 700,
-		.normal_vol_lvl = 4200,
-		.maint_a_cur_lvl = 600,
-		.maint_a_vol_lvl = 4150,
-		.maint_a_chg_timer_h = 60,
-		.maint_b_cur_lvl = 600,
-		.maint_b_vol_lvl = 4100,
-		.maint_b_chg_timer_h = 200,
-		.low_high_cur_lvl = 300,
-		.low_high_vol_lvl = 4000,
-		.n_temp_tbl_elements = ARRAY_SIZE(temp_tbl),
-		.r_to_t_tbl = temp_tbl,
-		.n_v_cap_tbl_elements = ARRAY_SIZE(cap_tbl),
-		.v_to_cap_tbl = cap_tbl,
-		.n_batres_tbl_elements = ARRAY_SIZE(temp_to_batres_tbl_thermistor),
-		.batres_tbl = temp_to_batres_tbl_thermistor,
-	},
-	{
-		.name = POWER_SUPPLY_TECHNOLOGY_LION,
-		.resis_high = 30000,
-		.resis_low = 10000,
-		.battery_resistance = 300,
-		.charge_full_design = 950,
-		.nominal_voltage = 3700,
-		.termination_vol = 4150,
-		.termination_curr = 100,
-		.recharge_cap = 95,
-		.normal_cur_lvl = 700,
-		.normal_vol_lvl = 4200,
-		.maint_a_cur_lvl = 600,
-		.maint_a_vol_lvl = 4150,
-		.maint_a_chg_timer_h = 60,
-		.maint_b_cur_lvl = 600,
-		.maint_b_vol_lvl = 4100,
-		.maint_b_chg_timer_h = 200,
-		.low_high_cur_lvl = 300,
-		.low_high_vol_lvl = 4000,
-		.n_temp_tbl_elements = ARRAY_SIZE(temp_tbl),
-		.r_to_t_tbl = temp_tbl,
-		.n_v_cap_tbl_elements = ARRAY_SIZE(cap_tbl),
-		.v_to_cap_tbl = cap_tbl,
-		.n_batres_tbl_elements = ARRAY_SIZE(temp_to_batres_tbl_thermistor),
-		.batres_tbl = temp_to_batres_tbl_thermistor,
-	},
-	{
-		.name = POWER_SUPPLY_TECHNOLOGY_LION,
-		.resis_high = 95000,
-		.resis_low = 76001,
-		.battery_resistance = 300,
-		.charge_full_design = 950,
-		.nominal_voltage = 3700,
-		.termination_vol = 4150,
-		.termination_curr = 100,
-		.recharge_cap = 95,
-		.normal_cur_lvl = 700,
-		.normal_vol_lvl = 4200,
-		.maint_a_cur_lvl = 600,
-		.maint_a_vol_lvl = 4150,
-		.maint_a_chg_timer_h = 60,
-		.maint_b_cur_lvl = 600,
-		.maint_b_vol_lvl = 4100,
-		.maint_b_chg_timer_h = 200,
-		.low_high_cur_lvl = 300,
-		.low_high_vol_lvl = 4000,
-		.n_temp_tbl_elements = ARRAY_SIZE(temp_tbl),
-		.r_to_t_tbl = temp_tbl,
-		.n_v_cap_tbl_elements = ARRAY_SIZE(cap_tbl),
-		.v_to_cap_tbl = cap_tbl,
-		.n_batres_tbl_elements = ARRAY_SIZE(temp_to_batres_tbl_thermistor),
-		.batres_tbl = temp_to_batres_tbl_thermistor,
-	},
-};
-
-static const struct abx500_bm_capacity_levels cap_levels = {
+static const struct ab8500_bm_capacity_levels cap_levels = {
 	.critical	= 2,
 	.low		= 10,
 	.normal		= 70,
@@ -401,7 +81,7 @@ static const struct abx500_bm_capacity_levels cap_levels = {
 	.full		= 100,
 };
 
-static const struct abx500_fg_parameters fg = {
+static const struct ab8500_fg_parameters fg = {
 	.recovery_sleep_timer = 10,
 	.recovery_total_time = 100,
 	.init_timer = 1,
@@ -410,8 +90,8 @@ static const struct abx500_fg_parameters fg = {
 	.high_curr_time = 60,
 	.accu_charging = 30,
 	.accu_high_curr = 30,
-	.high_curr_threshold = 50,
-	.lowbat_threshold = 3100,
+	.high_curr_threshold_ua = 50000,
+	.lowbat_threshold_uv = 3100000,
 	.battok_falling_th_sel0 = 2860,
 	.battok_raising_th_sel1 = 2860,
 	.maint_thres = 95,
@@ -423,122 +103,139 @@ static const struct abx500_fg_parameters fg = {
 	.pcut_debounce_time = 2,
 };
 
-static const struct abx500_maxim_parameters ab8500_maxi_params = {
+static const struct ab8500_maxim_parameters ab8500_maxi_params = {
 	.ena_maxi = true,
-	.chg_curr = 910,
+	.chg_curr_ua = 910000,
 	.wait_cycles = 10,
-	.charger_curr_step = 100,
+	.charger_curr_step_ua = 100000,
 };
 
-static const struct abx500_bm_charger_parameters chg = {
-	.usb_volt_max		= 5500,
-	.usb_curr_max		= 1500,
-	.ac_volt_max		= 7500,
-	.ac_curr_max		= 1500,
+static const struct ab8500_bm_charger_parameters chg = {
+	.usb_volt_max_uv	= 5500000,
+	.usb_curr_max_ua	= 1500000,
+	.ac_volt_max_uv		= 7500000,
+	.ac_curr_max_ua		= 1500000,
 };
 
-/*
- * This array maps the raw hex value to charger output current used by the
- * AB8500 values
- */
-static int ab8500_charge_output_curr_map[] = {
-        100,    200,    300,    400,    500,    600,    700,    800,
-        900,    1000,   1100,   1200,   1300,   1400,   1500,   1500,
-};
-
-/*
- * This array maps the raw hex value to charger input current used by the
- * AB8500 values
- */
-static int ab8500_charge_input_curr_map[] = {
-        50,     98,     193,    290,    380,    450,    500,    600,
-        700,    800,    900,    1000,   1100,   1300,   1400,   1500,
-};
-
-struct abx500_bm_data ab8500_bm_data = {
-	.temp_under             = 3,
-	.temp_low               = 8,
-	.temp_high              = 43,
-	.temp_over              = 48,
+/* This is referenced directly in the charger code */
+struct ab8500_bm_data ab8500_bm_data = {
 	.main_safety_tmr_h      = 4,
 	.temp_interval_chg      = 20,
 	.temp_interval_nochg    = 120,
 	.usb_safety_tmr_h       = 4,
 	.bkup_bat_v             = BUP_VCH_SEL_2P6V,
 	.bkup_bat_i             = BUP_ICH_SEL_150UA,
-	.no_maintenance         = false,
 	.capacity_scaling       = false,
-	.adc_therm              = ABx500_ADC_THERM_BATCTRL,
 	.chg_unknown_bat        = false,
 	.enable_overshoot       = false,
 	.fg_res                 = 100,
 	.cap_levels             = &cap_levels,
-	.bat_type               = bat_type_thermistor,
-	.n_btypes               = ARRAY_SIZE(bat_type_thermistor),
-	.batt_id                = 0,
 	.interval_charging      = 5,
 	.interval_not_charging  = 120,
-	.temp_hysteresis        = 3,
-	.gnd_lift_resistance    = 34,
-	.chg_output_curr        = ab8500_charge_output_curr_map,
-	.n_chg_out_curr         = ARRAY_SIZE(ab8500_charge_output_curr_map),
 	.maxi                   = &ab8500_maxi_params,
 	.chg_params             = &chg,
 	.fg_params              = &fg,
-        .chg_input_curr         = ab8500_charge_input_curr_map,
-        .n_chg_in_curr          = ARRAY_SIZE(ab8500_charge_input_curr_map),
 };
 
-int ab8500_bm_of_probe(struct device *dev,
-		       struct device_node *np,
-		       struct abx500_bm_data *bm)
+int ab8500_bm_of_probe(struct power_supply *psy,
+		       struct ab8500_bm_data *bm)
 {
-	const struct batres_vs_temp *tmp_batres_tbl;
-	struct device_node *battery_node;
-	const char *btech;
-	int i;
+	struct power_supply_battery_info *bi;
+	struct device *dev = &psy->dev;
+	int ret;
 
-	/* get phandle to 'battery-info' node */
-	battery_node = of_parse_phandle(np, "battery", 0);
-	if (!battery_node) {
-		dev_err(dev, "battery node or reference missing\n");
-		return -EINVAL;
+	ret = power_supply_get_battery_info(psy, &bm->bi);
+	if (ret) {
+		dev_err(dev, "cannot retrieve battery info\n");
+		return ret;
+	}
+	bi = bm->bi;
+
+	/* Fill in defaults for any data missing from the device tree */
+	if (bi->charge_full_design_uah < 0)
+		/* The default capacity is 612 mAh for unknown batteries */
+		bi->charge_full_design_uah = 612000;
+
+	/*
+	 * All of these voltages need to be specified or we will simply
+	 * fall back to safe defaults.
+	 */
+	if ((bi->voltage_min_design_uv < 0) ||
+	    (bi->voltage_max_design_uv < 0)) {
+		/* Nominal voltage is 3.7V for unknown batteries */
+		bi->voltage_min_design_uv = 3700000;
+		/* Termination voltage 4.05V */
+		bi->voltage_max_design_uv = 4050000;
 	}
 
-	btech = of_get_property(battery_node, "stericsson,battery-type", NULL);
-	if (!btech) {
-		dev_warn(dev, "missing property battery-name/type\n");
-		of_node_put(battery_node);
-		return -EINVAL;
+	if (bi->constant_charge_current_max_ua < 0)
+		bi->constant_charge_current_max_ua = 400000;
+
+	if (bi->constant_charge_voltage_max_uv < 0)
+		bi->constant_charge_voltage_max_uv = 4100000;
+
+	if (bi->charge_term_current_ua)
+		/* Charging stops when we drop below this current */
+		bi->charge_term_current_ua = 200000;
+
+	if (!bi->maintenance_charge || !bi->maintenance_charge_size) {
+		bi->maintenance_charge = ab8500_maint_charg_table;
+		bi->maintenance_charge_size = ARRAY_SIZE(ab8500_maint_charg_table);
 	}
 
-	if (strncmp(btech, "LION", 4) == 0) {
-		bm->no_maintenance  = true;
-		bm->chg_unknown_bat = true;
-		bm->bat_type[BATTERY_UNKNOWN].charge_full_design = 2600;
-		bm->bat_type[BATTERY_UNKNOWN].termination_vol    = 4150;
-		bm->bat_type[BATTERY_UNKNOWN].recharge_cap       = 95;
-		bm->bat_type[BATTERY_UNKNOWN].normal_cur_lvl     = 520;
-		bm->bat_type[BATTERY_UNKNOWN].normal_vol_lvl     = 4200;
+	if (bi->alert_low_temp_charge_current_ua < 0 ||
+	    bi->alert_low_temp_charge_voltage_uv < 0)
+	{
+		bi->alert_low_temp_charge_current_ua = 300000;
+		bi->alert_low_temp_charge_voltage_uv = 4000000;
+	}
+	if (bi->alert_high_temp_charge_current_ua < 0 ||
+	    bi->alert_high_temp_charge_voltage_uv < 0)
+	{
+		bi->alert_high_temp_charge_current_ua = 300000;
+		bi->alert_high_temp_charge_voltage_uv = 4000000;
 	}
 
-	if (of_property_read_bool(battery_node, "thermistor-on-batctrl")) {
-		if (strncmp(btech, "LION", 4) == 0)
-			tmp_batres_tbl = temp_to_batres_tbl_9100;
-		else
-			tmp_batres_tbl = temp_to_batres_tbl_thermistor;
-	} else {
-		bm->n_btypes   = 4;
-		bm->bat_type   = bat_type_ext_thermistor;
-		bm->adc_therm  = ABx500_ADC_THERM_BATTEMP;
-		tmp_batres_tbl = temp_to_batres_tbl_ext_thermistor;
+	/*
+	 * Internal resistance and factory resistance are tightly coupled
+	 * so both MUST be defined or we fall back to defaults.
+	 */
+	if ((bi->factory_internal_resistance_uohm < 0) ||
+	    !bi->resist_table) {
+		bi->factory_internal_resistance_uohm = 300000;
+		bi->resist_table = temp_to_batres_tbl_thermistor;
+		bi->resist_table_size = ARRAY_SIZE(temp_to_batres_tbl_thermistor);
 	}
 
-	/* select the battery resolution table */
-	for (i = 0; i < bm->n_btypes; ++i)
-		bm->bat_type[i].batres_tbl = tmp_batres_tbl;
+	/* The default battery is emulated by a resistor at 7K */
+	if (bi->bti_resistance_ohm < 0 ||
+	    bi->bti_resistance_tolerance < 0) {
+		bi->bti_resistance_ohm = 7000;
+		bi->bti_resistance_tolerance = 20;
+	}
 
-	of_node_put(battery_node);
+	if (!bi->ocv_table[0]) {
+		/* Default capacity table at say 25 degrees Celsius */
+		bi->ocv_temp[0] = 25;
+		bi->ocv_table[0] = ocv_cap_tbl;
+		bi->ocv_table_size[0] = ARRAY_SIZE(ocv_cap_tbl);
+	}
+
+	if (bi->temp_min == INT_MIN)
+		bi->temp_min = AB8500_TEMP_UNDER;
+	if (bi->temp_max == INT_MAX)
+		bi->temp_max = AB8500_TEMP_OVER;
+	if (bi->temp_alert_min == INT_MIN)
+		bi->temp_alert_min = AB8500_TEMP_LOW;
+	if (bi->temp_alert_max == INT_MAX)
+		bi->temp_alert_max = AB8500_TEMP_HIGH;
+	bm->temp_hysteresis = AB8500_TEMP_HYSTERESIS;
 
 	return 0;
+}
+
+void ab8500_bm_of_remove(struct power_supply *psy,
+			 struct ab8500_bm_data *bm)
+{
+	power_supply_put_battery_info(psy, bm->bi);
 }

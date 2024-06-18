@@ -14,6 +14,7 @@
 
 #include <unistd.h>
 #include <stdlib.h>
+#include <dirent.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <errno.h>
@@ -58,6 +59,10 @@ static const char * const iio_chan_type_name_spec[] = {
 	[IIO_POSITIONRELATIVE] = "positionrelative",
 	[IIO_PHASE] = "phase",
 	[IIO_MASSCONCENTRATION] = "massconcentration",
+	[IIO_DELTA_ANGL] = "deltaangl",
+	[IIO_DELTA_VELOCITY] = "deltavelocity",
+	[IIO_COLORTEMP] = "colortemp",
+	[IIO_CHROMATICITY] = "chromaticity",
 };
 
 static const char * const iio_ev_type_text[] = {
@@ -67,12 +72,16 @@ static const char * const iio_ev_type_text[] = {
 	[IIO_EV_TYPE_THRESH_ADAPTIVE] = "thresh_adaptive",
 	[IIO_EV_TYPE_MAG_ADAPTIVE] = "mag_adaptive",
 	[IIO_EV_TYPE_CHANGE] = "change",
+	[IIO_EV_TYPE_MAG_REFERENCED] = "mag_referenced",
+	[IIO_EV_TYPE_GESTURE] = "gesture",
 };
 
 static const char * const iio_ev_dir_text[] = {
 	[IIO_EV_DIR_EITHER] = "either",
 	[IIO_EV_DIR_RISING] = "rising",
-	[IIO_EV_DIR_FALLING] = "falling"
+	[IIO_EV_DIR_FALLING] = "falling",
+	[IIO_EV_DIR_SINGLETAP] = "singletap",
+	[IIO_EV_DIR_DOUBLETAP] = "doubletap",
 };
 
 static const char * const iio_modifier_names[] = {
@@ -96,6 +105,8 @@ static const char * const iio_modifier_names[] = {
 	[IIO_MOD_LIGHT_GREEN] = "green",
 	[IIO_MOD_LIGHT_BLUE] = "blue",
 	[IIO_MOD_LIGHT_UV] = "uv",
+	[IIO_MOD_LIGHT_UVA] = "uva",
+	[IIO_MOD_LIGHT_UVB] = "uvb",
 	[IIO_MOD_LIGHT_DUV] = "duv",
 	[IIO_MOD_QUATERNION] = "quaternion",
 	[IIO_MOD_TEMP_AMBIENT] = "ambient",
@@ -119,6 +130,13 @@ static const char * const iio_modifier_names[] = {
 	[IIO_MOD_PM2P5] = "pm2p5",
 	[IIO_MOD_PM4] = "pm4",
 	[IIO_MOD_PM10] = "pm10",
+	[IIO_MOD_O2] = "o2",
+	[IIO_MOD_LINEAR_X] = "linear_x",
+	[IIO_MOD_LINEAR_Y] = "linear_y",
+	[IIO_MOD_LINEAR_Z] = "linear_z",
+	[IIO_MOD_PITCH] = "pitch",
+	[IIO_MOD_YAW] = "yaw",
+	[IIO_MOD_ROLL] = "roll",
 };
 
 static bool event_is_known(struct iio_event_data *event)
@@ -161,6 +179,10 @@ static bool event_is_known(struct iio_event_data *event)
 	case IIO_POSITIONRELATIVE:
 	case IIO_PHASE:
 	case IIO_MASSCONCENTRATION:
+	case IIO_DELTA_ANGL:
+	case IIO_DELTA_VELOCITY:
+	case IIO_COLORTEMP:
+	case IIO_CHROMATICITY:
 		break;
 	default:
 		return false;
@@ -211,6 +233,7 @@ static bool event_is_known(struct iio_event_data *event)
 	case IIO_MOD_PM2P5:
 	case IIO_MOD_PM4:
 	case IIO_MOD_PM10:
+	case IIO_MOD_O2:
 		break;
 	default:
 		return false;
@@ -223,6 +246,7 @@ static bool event_is_known(struct iio_event_data *event)
 	case IIO_EV_TYPE_THRESH_ADAPTIVE:
 	case IIO_EV_TYPE_MAG_ADAPTIVE:
 	case IIO_EV_TYPE_CHANGE:
+	case IIO_EV_TYPE_GESTURE:
 		break;
 	default:
 		return false;
@@ -232,6 +256,8 @@ static bool event_is_known(struct iio_event_data *event)
 	case IIO_EV_DIR_EITHER:
 	case IIO_EV_DIR_RISING:
 	case IIO_EV_DIR_FALLING:
+	case IIO_EV_DIR_SINGLETAP:
+	case IIO_EV_DIR_DOUBLETAP:
 	case IIO_EV_DIR_NONE:
 		break;
 	default:
@@ -276,29 +302,81 @@ static void print_event(struct iio_event_data *event)
 		printf(", direction: %s", iio_ev_dir_text[dir]);
 
 	printf("\n");
+	fflush(stdout);
+}
+
+/* Enable or disable events in sysfs if the knob is available */
+static void enable_events(char *dev_dir, int enable)
+{
+	const struct dirent *ent;
+	char evdir[256];
+	int ret;
+	DIR *dp;
+
+	snprintf(evdir, sizeof(evdir), FORMAT_EVENTS_DIR, dev_dir);
+	evdir[sizeof(evdir)-1] = '\0';
+
+	dp = opendir(evdir);
+	if (!dp) {
+		fprintf(stderr, "Enabling/disabling events: can't open %s\n",
+			evdir);
+		return;
+	}
+
+	while (ent = readdir(dp), ent) {
+		if (iioutils_check_suffix(ent->d_name, "_en")) {
+			printf("%sabling: %s\n",
+			       enable ? "En" : "Dis",
+			       ent->d_name);
+			ret = write_sysfs_int(ent->d_name, evdir,
+					      enable);
+			if (ret < 0)
+				fprintf(stderr, "Failed to enable/disable %s\n",
+					ent->d_name);
+		}
+	}
+
+	if (closedir(dp) == -1) {
+		perror("Enabling/disabling channels: "
+		       "Failed to close directory");
+		return;
+	}
 }
 
 int main(int argc, char **argv)
 {
 	struct iio_event_data event;
 	const char *device_name;
+	char *dev_dir_name = NULL;
 	char *chrdev_name;
 	int ret;
 	int dev_num;
 	int fd, event_fd;
+	bool all_events = false;
 
-	if (argc <= 1) {
-		fprintf(stderr, "Usage: %s <device_name>\n", argv[0]);
+	if (argc == 2) {
+		device_name = argv[1];
+	} else if (argc == 3) {
+		device_name = argv[2];
+		if (!strcmp(argv[1], "-a"))
+			all_events = true;
+	} else {
+		fprintf(stderr,
+			"Usage: iio_event_monitor [options] <device_name>\n"
+			"Listen and display events from IIO devices\n"
+			"  -a         Auto-activate all available events\n");
 		return -1;
 	}
-
-	device_name = argv[1];
 
 	dev_num = find_type_by_name(device_name, "iio:device");
 	if (dev_num >= 0) {
 		printf("Found IIO device with name %s with device number %d\n",
 		       device_name, dev_num);
 		ret = asprintf(&chrdev_name, "/dev/iio:device%d", dev_num);
+		if (ret < 0)
+			return -ENOMEM;
+		/* Look up sysfs dir as well if we can */
+		ret = asprintf(&dev_dir_name, "%siio:device%d", iio_dir, dev_num);
 		if (ret < 0)
 			return -ENOMEM;
 	} else {
@@ -310,6 +388,9 @@ int main(int argc, char **argv)
 		if (!chrdev_name)
 			return -ENOMEM;
 	}
+
+	if (all_events && dev_dir_name)
+		enable_events(dev_dir_name, 1);
 
 	fd = open(chrdev_name, 0);
 	if (fd == -1) {
@@ -363,6 +444,10 @@ int main(int argc, char **argv)
 		perror("Failed to close event file");
 
 error_free_chrdev_name:
+	/* Disable events after use */
+	if (all_events && dev_dir_name)
+		enable_events(dev_dir_name, 0);
+
 	free(chrdev_name);
 
 	return ret;

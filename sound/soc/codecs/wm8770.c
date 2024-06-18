@@ -7,11 +7,11 @@
  * Author: Dimitris Papastamos <dp@opensource.wolfsonmicro.com>
  */
 
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/of_device.h>
 #include <linux/pm.h>
 #include <linux/spi/spi.h>
 #include <linux/regmap.h>
@@ -447,7 +447,7 @@ static int wm8770_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/* Only need to set MCLK/LRCLK ratio if we're master */
-	if (snd_soc_component_read32(component, WM8770_MSTRCTRL) & 0x100) {
+	if (snd_soc_component_read(component, WM8770_MSTRCTRL) & 0x100) {
 		for (; i < ARRAY_SIZE(mclk_ratios); ++i) {
 			ratio = wm8770->sysclk / params_rate(params);
 			if (ratio == mclk_ratios[i])
@@ -472,7 +472,7 @@ static int wm8770_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int wm8770_mute(struct snd_soc_dai *dai, int mute)
+static int wm8770_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component;
 
@@ -538,10 +538,11 @@ static int wm8770_set_bias_level(struct snd_soc_component *component,
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
 static const struct snd_soc_dai_ops wm8770_dai_ops = {
-	.digital_mute = wm8770_mute,
+	.mute_stream = wm8770_mute,
 	.hw_params = wm8770_hw_params,
 	.set_fmt = wm8770_set_fmt,
 	.set_sysclk = wm8770_set_sysclk,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8770_dai = {
@@ -561,7 +562,7 @@ static struct snd_soc_dai_driver wm8770_dai = {
 		.formats = WM8770_FORMATS
 	},
 	.ops = &wm8770_dai_ops,
-	.symmetric_rates = 1
+	.symmetric_rate = 1
 };
 
 static int wm8770_probe(struct snd_soc_component *component)
@@ -616,7 +617,6 @@ static const struct snd_soc_component_driver soc_component_dev_wm8770 = {
 	.num_dapm_routes	= ARRAY_SIZE(wm8770_intercon),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct of_device_id wm8770_of_match[] = {
@@ -632,7 +632,7 @@ static const struct regmap_config wm8770_regmap = {
 
 	.reg_defaults = wm8770_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8770_reg_defaults),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 
 	.volatile_reg = wm8770_volatile_reg,
 };

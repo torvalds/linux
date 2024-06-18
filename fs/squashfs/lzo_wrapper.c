@@ -9,7 +9,7 @@
  */
 
 #include <linux/mutex.h>
-#include <linux/buffer_head.h>
+#include <linux/bio.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/lzo.h>
@@ -63,21 +63,24 @@ static void lzo_free(void *strm)
 
 
 static int lzo_uncompress(struct squashfs_sb_info *msblk, void *strm,
-	struct buffer_head **bh, int b, int offset, int length,
+	struct bio *bio, int offset, int length,
 	struct squashfs_page_actor *output)
 {
+	struct bvec_iter_all iter_all = {};
+	struct bio_vec *bvec = bvec_init_iter_all(&iter_all);
 	struct squashfs_lzo *stream = strm;
 	void *buff = stream->input, *data;
-	int avail, i, bytes = length, res;
+	int bytes = length, res;
 	size_t out_len = output->length;
 
-	for (i = 0; i < b; i++) {
-		avail = min(bytes, msblk->devblksize - offset);
-		memcpy(buff, bh[i]->b_data + offset, avail);
+	while (bio_next_segment(bio, &iter_all)) {
+		int avail = min(bytes, ((int)bvec->bv_len) - offset);
+
+		data = bvec_virt(bvec);
+		memcpy(buff, data + offset, avail);
 		buff += avail;
 		bytes -= avail;
 		offset = 0;
-		put_bh(bh[i]);
 	}
 
 	res = lzo1x_decompress_safe(stream->input, (size_t)length,
@@ -90,10 +93,12 @@ static int lzo_uncompress(struct squashfs_sb_info *msblk, void *strm,
 	buff = stream->output;
 	while (data) {
 		if (bytes <= PAGE_SIZE) {
-			memcpy(data, buff, bytes);
+			if (!IS_ERR(data))
+				memcpy(data, buff, bytes);
 			break;
 		} else {
-			memcpy(data, buff, PAGE_SIZE);
+			if (!IS_ERR(data))
+				memcpy(data, buff, PAGE_SIZE);
 			buff += PAGE_SIZE;
 			bytes -= PAGE_SIZE;
 			data = squashfs_next_page(output);
@@ -113,5 +118,6 @@ const struct squashfs_decompressor squashfs_lzo_comp_ops = {
 	.decompress = lzo_uncompress,
 	.id = LZO_COMPRESSION,
 	.name = "lzo",
+	.alloc_buffer = 0,
 	.supported = 1
 };

@@ -203,12 +203,17 @@ static const unsigned long cw1200_ttl[] = {
 };
 
 static const struct ieee80211_ops cw1200_ops = {
+	.add_chanctx = ieee80211_emulate_add_chanctx,
+	.remove_chanctx = ieee80211_emulate_remove_chanctx,
+	.change_chanctx = ieee80211_emulate_change_chanctx,
+	.switch_vif_chanctx = ieee80211_emulate_switch_vif_chanctx,
 	.start			= cw1200_start,
 	.stop			= cw1200_stop,
 	.add_interface		= cw1200_add_interface,
 	.remove_interface	= cw1200_remove_interface,
 	.change_interface	= cw1200_change_interface,
 	.tx			= cw1200_tx,
+	.wake_tx_queue		= ieee80211_handle_wake_tx_queue,
 	.hw_scan		= cw1200_hw_scan,
 	.set_tim		= cw1200_set_tim,
 	.sta_notify		= cw1200_sta_notify,
@@ -381,6 +386,7 @@ static struct ieee80211_hw *cw1200_init_common(const u8 *macaddr,
 				    CW1200_LINK_ID_MAX,
 				    cw1200_skb_dtor,
 				    priv)) {
+		destroy_workqueue(priv->workqueue);
 		ieee80211_free_hw(hw);
 		return NULL;
 	}
@@ -392,6 +398,7 @@ static struct ieee80211_hw *cw1200_init_common(const u8 *macaddr,
 			for (; i > 0; i--)
 				cw1200_queue_deinit(&priv->tx_queue[i - 1]);
 			cw1200_queue_stats_deinit(&priv->tx_queue_stats);
+			destroy_workqueue(priv->workqueue);
 			ieee80211_free_hw(hw);
 			return NULL;
 		}

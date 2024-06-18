@@ -33,9 +33,6 @@
 
 void reqsk_queue_alloc(struct request_sock_queue *queue)
 {
-	spin_lock_init(&queue->rskq_lock);
-
-	spin_lock_init(&queue->fastopenq.lock);
 	queue->fastopenq.rskq_rst_head = NULL;
 	queue->fastopenq.rskq_rst_tail = NULL;
 	queue->fastopenq.qlen = 0;
@@ -96,7 +93,7 @@ void reqsk_fastopen_remove(struct sock *sk, struct request_sock *req,
 
 	fastopenq = &inet_csk(lsk)->icsk_accept_queue.fastopenq;
 
-	tcp_sk(sk)->fastopen_rsk = NULL;
+	RCU_INIT_POINTER(tcp_sk(sk)->fastopen_rsk, NULL);
 	spin_lock_bh(&fastopenq->lock);
 	fastopenq->qlen--;
 	tcp_rsk(req)->tfo_listener = false;

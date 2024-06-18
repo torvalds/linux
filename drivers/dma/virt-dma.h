@@ -31,9 +31,9 @@ struct virt_dma_chan {
 	struct list_head desc_submitted;
 	struct list_head desc_issued;
 	struct list_head desc_completed;
+	struct list_head desc_terminated;
 
 	struct virt_dma_desc *cyclic;
-	struct virt_dma_desc *vd_terminated;
 };
 
 static inline struct virt_dma_chan *to_virt_chan(struct dma_chan *chan)
@@ -81,6 +81,8 @@ static inline struct dma_async_tx_descriptor *vchan_tx_prep(struct virt_dma_chan
  */
 static inline bool vchan_issue_pending(struct virt_dma_chan *vc)
 {
+	lockdep_assert_held(&vc->lock);
+
 	list_splice_tail_init(&vc->desc_submitted, &vc->desc_issued);
 	return !list_empty(&vc->desc_issued);
 }
@@ -95,6 +97,8 @@ static inline void vchan_cookie_complete(struct virt_dma_desc *vd)
 {
 	struct virt_dma_chan *vc = to_virt_chan(vd->tx.chan);
 	dma_cookie_t cookie;
+
+	lockdep_assert_held(&vc->lock);
 
 	cookie = vd->tx.cookie;
 	dma_cookie_complete(&vd->tx);
@@ -113,10 +117,15 @@ static inline void vchan_vdesc_fini(struct virt_dma_desc *vd)
 {
 	struct virt_dma_chan *vc = to_virt_chan(vd->tx.chan);
 
-	if (dmaengine_desc_test_reuse(&vd->tx))
+	if (dmaengine_desc_test_reuse(&vd->tx)) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&vc->lock, flags);
 		list_add(&vd->node, &vc->desc_allocated);
-	else
+		spin_unlock_irqrestore(&vc->lock, flags);
+	} else {
 		vc->desc_free(vd);
+	}
 }
 
 /**
@@ -141,11 +150,10 @@ static inline void vchan_terminate_vdesc(struct virt_dma_desc *vd)
 {
 	struct virt_dma_chan *vc = to_virt_chan(vd->tx.chan);
 
-	/* free up stuck descriptor */
-	if (vc->vd_terminated)
-		vchan_vdesc_fini(vc->vd_terminated);
+	lockdep_assert_held(&vc->lock);
 
-	vc->vd_terminated = vd;
+	list_add_tail(&vd->node, &vc->desc_terminated);
+
 	if (vc->cyclic == vd)
 		vc->cyclic = NULL;
 }
@@ -158,6 +166,8 @@ static inline void vchan_terminate_vdesc(struct virt_dma_desc *vd)
  */
 static inline struct virt_dma_desc *vchan_next_desc(struct virt_dma_chan *vc)
 {
+	lockdep_assert_held(&vc->lock);
+
 	return list_first_entry_or_null(&vc->desc_issued,
 					struct virt_dma_desc, node);
 }
@@ -175,10 +185,13 @@ static inline struct virt_dma_desc *vchan_next_desc(struct virt_dma_chan *vc)
 static inline void vchan_get_all_descriptors(struct virt_dma_chan *vc,
 	struct list_head *head)
 {
+	lockdep_assert_held(&vc->lock);
+
 	list_splice_tail_init(&vc->desc_allocated, head);
 	list_splice_tail_init(&vc->desc_submitted, head);
 	list_splice_tail_init(&vc->desc_issued, head);
 	list_splice_tail_init(&vc->desc_completed, head);
+	list_splice_tail_init(&vc->desc_terminated, head);
 }
 
 static inline void vchan_free_chan_resources(struct virt_dma_chan *vc)
@@ -207,16 +220,18 @@ static inline void vchan_free_chan_resources(struct virt_dma_chan *vc)
  */
 static inline void vchan_synchronize(struct virt_dma_chan *vc)
 {
+	LIST_HEAD(head);
 	unsigned long flags;
 
 	tasklet_kill(&vc->task);
 
 	spin_lock_irqsave(&vc->lock, flags);
-	if (vc->vd_terminated) {
-		vchan_vdesc_fini(vc->vd_terminated);
-		vc->vd_terminated = NULL;
-	}
+
+	list_splice_tail_init(&vc->desc_terminated, &head);
+
 	spin_unlock_irqrestore(&vc->lock, flags);
+
+	vchan_dma_desc_free_list(vc, &head);
 }
 
 #endif

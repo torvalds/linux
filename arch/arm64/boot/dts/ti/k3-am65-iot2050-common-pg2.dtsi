@@ -1,0 +1,40 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (c) Siemens AG, 2021-2023
+ *
+ * Authors:
+ *   Chao Zeng <chao.zeng@siemens.com>
+ *   Jan Kiszka <jan.kiszka@siemens.com>
+ *
+ * Common bits of the IOT2050 Basic and Advanced variants, PG2
+ */
+
+&mcu_r5fss0 {
+	/* lock-step mode not supported on PG2 boards */
+	ti,cluster-mode = <0>;
+};
+
+&main_pmx0 {
+	cp2102n_reset_pin_default: cp2102n-reset-default-pins {
+		pinctrl-single,pins = <
+			/* (AF12) GPIO1_24, used as cp2102 reset */
+			AM65X_IOPAD(0x01e0, PIN_OUTPUT, 7)
+		>;
+	};
+};
+
+&main_gpio1 {
+	pinctrl-names = "default";
+	pinctrl-0 =
+		<&main_pcie_enable_pins_default>,
+		<&cp2102n_reset_pin_default>;
+	gpio-line-names =
+		"", "", "", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "", "", "",
+		"", "", "", "", "CP2102N-RESET";
+};
+
+&dss {
+	/* Workaround needed to get DP clock of 154Mhz */
+	assigned-clocks = <&k3_clks 67 0>;
+};

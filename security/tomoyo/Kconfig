@@ -6,13 +6,11 @@ config SECURITY_TOMOYO
 	select SECURITYFS
 	select SECURITY_PATH
 	select SECURITY_NETWORK
-	select SRCU
-	select BUILD_BIN2C
 	default n
 	help
 	  This selects TOMOYO Linux, pathname-based access control.
 	  Required userspace tools and further information may be
-	  found at <http://tomoyo.sourceforge.jp/>.
+	  found at <https://tomoyo.sourceforge.net/>.
 	  If you are unsure how to answer this question, answer N.
 
 config SECURITY_TOMOYO_MAX_ACCEPT_ENTRY
@@ -43,7 +41,7 @@ config SECURITY_TOMOYO_OMIT_USERSPACE_LOADER
 	bool "Activate without calling userspace policy loader."
 	default n
 	depends on SECURITY_TOMOYO
-	---help---
+	help
 	  Say Y here if you want to activate access control as soon as built-in
 	  policy was loaded. This option will be useful for systems where
 	  operations which can lead to the hijacking of the boot sequence are
@@ -60,7 +58,7 @@ config SECURITY_TOMOYO_POLICY_LOADER
 	default "/sbin/tomoyo-init"
 	depends on SECURITY_TOMOYO
 	depends on !SECURITY_TOMOYO_OMIT_USERSPACE_LOADER
-	---help---
+	help
 	  This is the default pathname of policy loader which is called before
 	  activation. You can override this setting via TOMOYO_loader= kernel
 	  command line option.
@@ -70,7 +68,7 @@ config SECURITY_TOMOYO_ACTIVATION_TRIGGER
 	default "/sbin/init"
 	depends on SECURITY_TOMOYO
 	depends on !SECURITY_TOMOYO_OMIT_USERSPACE_LOADER
-	---help---
+	help
 	  This is the default pathname of activation trigger.
 	  You can override this setting via TOMOYO_trigger= kernel command line
 	  option. For example, if you pass init=/bin/systemd option, you may

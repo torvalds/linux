@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef CONTROL_H
 #define CONTROL_H
 
@@ -8,6 +9,9 @@ void control_init(const char *control_host, const char *control_port,
 void control_cleanup(void);
 void control_writeln(const char *str);
 char *control_readln(void);
+unsigned long control_readulong(void);
 void control_expectln(const char *str);
+bool control_cmpln(char *line, const char *str, bool fail);
+void control_writeulong(unsigned long value);
 
 #endif /* CONTROL_H */

@@ -16,9 +16,10 @@
 		     "google,bob-rev7", "google,bob-rev6",
 		     "google,bob-rev5", "google,bob-rev4",
 		     "google,bob", "google,gru", "rockchip,rk3399";
+	chassis-type = "convertible";
 
 	edp_panel: edp-panel {
-		compatible = "boe,nv101wxmn51", "simple-panel";
+		compatible = "boe,nv101wxmn51";
 		backlight = <&backlight>;
 		power-supply = <&pp3300_disp>;
 
@@ -68,6 +69,16 @@
 
 &spi0 {
 	status = "okay";
+
+	tpm@0 {
+		compatible = "google,cr50";
+		reg = <0>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <5 IRQ_TYPE_EDGE_RISING>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&h1_int_od_l>;
+		spi-max-frequency = <800000>;
+	};
 };
 
 &pinctrl {
@@ -76,4 +87,9 @@
 			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
+};
+
+&wlan_host_wake_l {
+	/* Kevin has an external pull up, but Bob does not. */
+	rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_up>;
 };

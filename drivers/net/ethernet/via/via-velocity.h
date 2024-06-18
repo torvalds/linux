@@ -23,7 +23,6 @@
 #define VELOCITY_VERSION       "1.15"
 
 #define VELOCITY_IO_SIZE	256
-#define VELOCITY_NAPI_WEIGHT	64
 
 #define PKT_BUF_SZ          1540
 
@@ -939,7 +938,7 @@ enum  velocity_owner {
 #define IMR_MASK_VALUE      0x0013FB0FUL	/* initial value of IMR
 						   ignore MIBFI,RACEI to
 						   reduce intr. frequency
-						   NOTE.... do not enable NoBuf int mask at driver driver
+						   NOTE.... do not enable NoBuf int mask at driver
 						      when (1) NoBuf -> RxThreshold = SF
 							   (2) OK    -> RxThreshold = original value
 						 */
@@ -1286,50 +1285,6 @@ struct velocity_context {
     velocity_mii_read((p),MII_PHYSID1,((u16 *) &id)+1);\
     (id);})
 
-/*
- * Inline debug routine
- */
-
-
-enum velocity_msg_level {
-	MSG_LEVEL_ERR = 0,	//Errors that will cause abnormal operation.
-	MSG_LEVEL_NOTICE = 1,	//Some errors need users to be notified.
-	MSG_LEVEL_INFO = 2,	//Normal message.
-	MSG_LEVEL_VERBOSE = 3,	//Will report all trival errors.
-	MSG_LEVEL_DEBUG = 4	//Only for debug purpose.
-};
-
-#ifdef VELOCITY_DEBUG
-#define ASSERT(x) { \
-	if (!(x)) { \
-		printk(KERN_ERR "assertion %s failed: file %s line %d\n", #x,\
-			__func__, __LINE__);\
-		BUG(); \
-	}\
-}
-#define VELOCITY_DBG(p,args...) printk(p, ##args)
-#else
-#define ASSERT(x)
-#define VELOCITY_DBG(x)
-#endif
-
-#define VELOCITY_PRT(l, p, args...) do {if (l<=msglevel) printk( p ,##args);} while (0)
-
-#define VELOCITY_PRT_CAMMASK(p,t) {\
-	int i;\
-	if ((t)==VELOCITY_MULTICAST_CAM) {\
-        	for (i=0;i<(MCAM_SIZE/8);i++)\
-			printk("%02X",(p)->mCAMmask[i]);\
-	}\
-	else {\
-		for (i=0;i<(VCAM_SIZE/8);i++)\
-			printk("%02X",(p)->vCAMmask[i]);\
-	}\
-	printk("\n");\
-}
-
-
-
 #define     VELOCITY_WOL_MAGIC             0x00000000UL
 #define     VELOCITY_WOL_PHY               0x00000001UL
 #define     VELOCITY_WOL_ARP               0x00000002UL
@@ -1428,7 +1383,7 @@ struct velocity_info {
 	struct device *dev;
 	struct pci_dev *pdev;
 	struct net_device *netdev;
-	int no_eeprom;
+	bool no_eeprom;
 
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	u8 ip_addr[4];
@@ -1483,6 +1438,7 @@ struct velocity_info {
 	struct velocity_context context;
 
 	u32 ticks;
+	u32 ethtool_ops_nesting;
 
 	u8 rev_id;
 

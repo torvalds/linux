@@ -2,7 +2,7 @@
 /*
  * dts file for Hisilicon HiKey970 Development Board
  *
- * Copyright (C) 2016, Hisilicon Ltd.
+ * Copyright (C) 2016, HiSilicon Ltd.
  * Copyright (C) 2018, Linaro Ltd.
  *
  */
@@ -12,6 +12,7 @@
 
 #include "hi3670.dtsi"
 #include "hikey970-pinctrl.dtsi"
+#include "hikey970-pmic.dtsi"
 
 / {
 	model = "HiKey970";
@@ -37,23 +38,6 @@
 		device_type = "memory";
 		/* expect bootloader to fill in this region */
 		reg = <0x0 0x0 0x0 0x0>;
-	};
-
-	sd_1v8: regulator-1v8 {
-		compatible = "regulator-fixed";
-		regulator-name = "fixed-1.8V";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		regulator-always-on;
-	};
-
-	sd_3v3: regulator-3v3 {
-		compatible = "regulator-fixed";
-		regulator-name = "fixed-3.3V";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-boot-on;
-		regulator-always-on;
 	};
 
 	wlan_en: wlan-en-1-8v {
@@ -402,8 +386,8 @@
 	pinctrl-0 = <&sd_pmx_func
 		     &sd_clk_cfg_func
 		     &sd_cfg_func>;
-	vmmc-supply = <&sd_3v3>;
-	vqmmc-supply = <&sd_1v8>;
+	vmmc-supply = <&ldo16>;
+	vqmmc-supply = <&ldo9>;
 	status = "okay";
 };
 
@@ -418,7 +402,7 @@
 		     &sdio_cfg_func>;
 	/* WL_EN */
 	vmmc-supply = <&wlan_en>;
-	status = "ok";
+	status = "okay";
 
 	wlcore: wlcore@2 {
 		compatible = "ti,wl1837";

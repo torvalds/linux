@@ -15,6 +15,7 @@
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/pm.h>
 #include <linux/bitops.h>
 
@@ -193,8 +194,26 @@ static bool tmp006_check_identification(struct i2c_client *client)
 	return mid == TMP006_MANUFACTURER_MAGIC && did == TMP006_DEVICE_MAGIC;
 }
 
-static int tmp006_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int tmp006_power(struct device *dev, bool up)
+{
+	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
+	struct tmp006_data *data = iio_priv(indio_dev);
+
+	if (up)
+		data->config |= TMP006_CONFIG_MOD_MASK;
+	else
+		data->config &= ~TMP006_CONFIG_MOD_MASK;
+
+	return i2c_smbus_write_word_swapped(data->client, TMP006_CONFIG,
+		data->config);
+}
+
+static void tmp006_powerdown_cleanup(void *dev)
+{
+	tmp006_power(dev, false);
+}
+
+static int tmp006_probe(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev;
 	struct tmp006_data *data;
@@ -216,7 +235,6 @@ static int tmp006_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->name = dev_name(&client->dev);
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &tmp006_info;
@@ -229,42 +247,37 @@ static int tmp006_probe(struct i2c_client *client,
 		return ret;
 	data->config = ret;
 
-	return iio_device_register(indio_dev);
+	if ((ret & TMP006_CONFIG_MOD_MASK) != TMP006_CONFIG_MOD_MASK) {
+		ret = tmp006_power(&client->dev, true);
+		if (ret < 0)
+			return ret;
+	}
+
+	ret = devm_add_action_or_reset(&client->dev, tmp006_powerdown_cleanup,
+				       &client->dev);
+	if (ret < 0)
+		return ret;
+
+	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
-static int tmp006_powerdown(struct tmp006_data *data)
-{
-	return i2c_smbus_write_word_swapped(data->client, TMP006_CONFIG,
-		data->config & ~TMP006_CONFIG_MOD_MASK);
-}
-
-static int tmp006_remove(struct i2c_client *client)
-{
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-
-	iio_device_unregister(indio_dev);
-	tmp006_powerdown(iio_priv(indio_dev));
-
-	return 0;
-}
-
-#ifdef CONFIG_PM_SLEEP
 static int tmp006_suspend(struct device *dev)
 {
-	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
-	return tmp006_powerdown(iio_priv(indio_dev));
+	return tmp006_power(dev, false);
 }
 
 static int tmp006_resume(struct device *dev)
 {
-	struct tmp006_data *data = iio_priv(i2c_get_clientdata(
-		to_i2c_client(dev)));
-	return i2c_smbus_write_word_swapped(data->client, TMP006_CONFIG,
-		data->config | TMP006_CONFIG_MOD_MASK);
+	return tmp006_power(dev, true);
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(tmp006_pm_ops, tmp006_suspend, tmp006_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(tmp006_pm_ops, tmp006_suspend, tmp006_resume);
+
+static const struct of_device_id tmp006_of_match[] = {
+	{ .compatible = "ti,tmp006" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, tmp006_of_match);
 
 static const struct i2c_device_id tmp006_id[] = {
 	{ "tmp006", 0 },
@@ -275,10 +288,10 @@ MODULE_DEVICE_TABLE(i2c, tmp006_id);
 static struct i2c_driver tmp006_driver = {
 	.driver = {
 		.name	= "tmp006",
-		.pm	= &tmp006_pm_ops,
+		.of_match_table = tmp006_of_match,
+		.pm	= pm_sleep_ptr(&tmp006_pm_ops),
 	},
 	.probe = tmp006_probe,
-	.remove = tmp006_remove,
 	.id_table = tmp006_id,
 };
 module_i2c_driver(tmp006_driver);

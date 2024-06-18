@@ -25,8 +25,8 @@ files can be found in mm/swap.c.
 Currently, these files are in /proc/sys/vm:
 
 - admin_reserve_kbytes
-- block_dump
 - compact_memory
+- compaction_proactiveness
 - compact_unevictable_allowed
 - dirty_background_bytes
 - dirty_background_ratio
@@ -37,11 +37,13 @@ Currently, these files are in /proc/sys/vm:
 - dirty_writeback_centisecs
 - drop_caches
 - extfrag_threshold
+- highmem_is_dirtyable
 - hugetlb_shm_group
 - laptop_mode
 - legacy_va_layout
 - lowmem_reserve_ratio
 - max_map_count
+- mem_profiling         (only if CONFIG_MEM_ALLOC_PROFILING=y)
 - memory_failure_early_kill
 - memory_failure_recovery
 - min_free_kbytes
@@ -61,8 +63,9 @@ Currently, these files are in /proc/sys/vm:
 - overcommit_memory
 - overcommit_ratio
 - page-cluster
+- page_lock_unfairness
 - panic_on_oom
-- percpu_pagelist_fraction
+- percpu_pagelist_high_fraction
 - stat_interval
 - stat_refresh
 - numa_stat
@@ -104,13 +107,6 @@ On x86_64 this is about 128MB.
 Changing this takes effect whenever an application requests memory.
 
 
-block_dump
-==========
-
-block_dump enables block I/O debugging when set to a nonzero value. More
-information on block I/O debugging is in Documentation/admin-guide/laptops/laptop-mode.rst.
-
-
 compact_memory
 ==============
 
@@ -119,6 +115,22 @@ all zones are compacted such that free memory is available in contiguous
 blocks where possible. This can be important for example in the allocation of
 huge pages although processes will also directly compact memory as required.
 
+compaction_proactiveness
+========================
+
+This tunable takes a value in the range [0, 100] with a default value of
+20. This tunable determines how aggressively compaction is done in the
+background. Write of a non zero value to this tunable will immediately
+trigger the proactive compaction. Setting it to 0 disables proactive compaction.
+
+Note that compaction has a non-trivial system-wide impact as pages
+belonging to different processes are moved around, which could also lead
+to latency spikes in unsuspecting applications. The kernel employs
+various heuristics to avoid wasting CPU cycles if it detects that
+proactive compaction is not being effective.
+
+Be careful when setting it to extreme values like 100, as that may
+cause excessive background compaction activity.
 
 compact_unevictable_allowed
 ===========================
@@ -128,6 +140,9 @@ allowed to examine the unevictable lru (mlocked pages) for pages to compact.
 This should be used on systems where stalls for minor page faults are an
 acceptable trade for large contiguous free memory.  Set to 0 to prevent
 compaction from moving pages that are unevictable.  Default value is 1.
+On CONFIG_PREEMPT_RT the default value is 0 in order to avoid a page fault, due
+to compaction, which would block the task from becoming active until the fault
+is resolved.
 
 
 dirty_background_bytes
@@ -342,7 +357,7 @@ The lowmem_reserve_ratio is an array. You can see them by reading this file::
 
 But, these values are not used directly. The kernel calculates # of protection
 pages for each zones from them. These are shown as array of protection pages
-in /proc/zoneinfo like followings. (This is an example of x86-64 box).
+in /proc/zoneinfo like the following. (This is an example of x86-64 box).
 Each zone has an array of protection pages like this::
 
   Node 0, zone      DMA
@@ -408,7 +423,22 @@ While most applications need less than a thousand maps, certain
 programs, particularly malloc debuggers, may consume lots of them,
 e.g., up to one or two maps per allocation.
 
-The default value is 65536.
+The default value is 65530.
+
+
+mem_profiling
+==============
+
+Enable memory profiling (when CONFIG_MEM_ALLOC_PROFILING=y)
+
+1: Enable memory profiling.
+
+0: Disable memory profiling.
+
+Enabling memory profiling introduces a small performance overhead for all
+memory allocations.
+
+The default value depends on CONFIG_MEM_ALLOC_PROFILING_ENABLED_BY_DEFAULT.
 
 
 memory_failure_early_kill:
@@ -419,7 +449,7 @@ a 2bit error in a memory module) is detected in the background by hardware
 that cannot be handled by the kernel. In some cases (like the page
 still having a valid copy on disk) the kernel will handle the failure
 transparently without affecting any applications. But if there is
-no other uptodate copy of the data it will kill to prevent any data
+no other up-to-date copy of the data it will kill to prevent any data
 corruptions from propagating.
 
 1: Kill all processes that have the corrupted and not reloadable page mapped
@@ -548,6 +578,43 @@ Change the minimum size of the hugepage pool.
 See Documentation/admin-guide/mm/hugetlbpage.rst
 
 
+hugetlb_optimize_vmemmap
+========================
+
+This knob is not available when the size of 'struct page' (a structure defined
+in include/linux/mm_types.h) is not power of two (an unusual system config could
+result in this).
+
+Enable (set to 1) or disable (set to 0) HugeTLB Vmemmap Optimization (HVO).
+
+Once enabled, the vmemmap pages of subsequent allocation of HugeTLB pages from
+buddy allocator will be optimized (7 pages per 2MB HugeTLB page and 4095 pages
+per 1GB HugeTLB page), whereas already allocated HugeTLB pages will not be
+optimized.  When those optimized HugeTLB pages are freed from the HugeTLB pool
+to the buddy allocator, the vmemmap pages representing that range needs to be
+remapped again and the vmemmap pages discarded earlier need to be rellocated
+again.  If your use case is that HugeTLB pages are allocated 'on the fly' (e.g.
+never explicitly allocating HugeTLB pages with 'nr_hugepages' but only set
+'nr_overcommit_hugepages', those overcommitted HugeTLB pages are allocated 'on
+the fly') instead of being pulled from the HugeTLB pool, you should weigh the
+benefits of memory savings against the more overhead (~2x slower than before)
+of allocation or freeing HugeTLB pages between the HugeTLB pool and the buddy
+allocator.  Another behavior to note is that if the system is under heavy memory
+pressure, it could prevent the user from freeing HugeTLB pages from the HugeTLB
+pool to the buddy allocator since the allocation of vmemmap pages could be
+failed, you have to retry later if your system encounter this situation.
+
+Once disabled, the vmemmap pages of subsequent allocation of HugeTLB pages from
+buddy allocator will not be optimized meaning the extra overhead at allocation
+time from buddy allocator disappears, whereas already optimized HugeTLB pages
+will not be affected.  If you want to make sure there are no optimized HugeTLB
+pages, you can set "nr_hugepages" to 0 first and then disable this.  Note that
+writing 0 to nr_hugepages will make any "in use" HugeTLB pages become surplus
+pages.  So, those surplus pages are still optimized until they are no longer
+in use.  You would need to wait for those surplus pages to be released before
+there are no optimized pages in the system.
+
+
 nr_hugepages_mempolicy
 ======================
 
@@ -580,7 +647,7 @@ trimming of allocations is initiated.
 
 The default value is 1.
 
-See Documentation/nommu-mmap.txt for more information.
+See Documentation/admin-guide/mm/nommu-mmap.rst for more information.
 
 
 numa_zonelist_order
@@ -691,8 +758,8 @@ overcommit_memory
 
 This value contains a flag that enables memory overcommitment.
 
-When this flag is 0, the kernel attempts to estimate the amount
-of free memory left when userspace requests more memory.
+When this flag is 0, the kernel compares the userspace memory request
+size against total memory plus swap and rejects obvious overcommits.
 
 When this flag is 1, the kernel pretends there is always enough
 memory until it actually runs out.
@@ -707,7 +774,7 @@ and don't use much of it.
 
 The default value is 0.
 
-See Documentation/vm/overcommit-accounting.rst and
+See Documentation/mm/overcommit-accounting.rst and
 mm/util.c::__vm_enough_memory() for more information.
 
 
@@ -741,6 +808,14 @@ extra faults and I/O delays for following faults if they would have been part of
 that consecutive pages readahead would have brought in.
 
 
+page_lock_unfairness
+====================
+
+This value determines the number of times that the page lock can be
+stolen from under a waiter. After the lock is stolen the number of times
+specified in this file (default is 5), the "fair lock handoff" semantics
+will apply, and the waiter will only be awakened if the lock can be taken.
+
 panic_on_oom
 ============
 
@@ -770,22 +845,24 @@ panic_on_oom=2+kdump gives you very strong tool to investigate
 why oom happens. You can get snapshot.
 
 
-percpu_pagelist_fraction
-========================
+percpu_pagelist_high_fraction
+=============================
 
-This is the fraction of pages at most (high mark pcp->high) in each zone that
-are allocated for each per cpu page list.  The min value for this is 8.  It
-means that we don't allow more than 1/8th of pages in each zone to be
-allocated in any single per_cpu_pagelist.  This entry only changes the value
-of hot per cpu pagelists.  User can specify a number like 100 to allocate
-1/100th of each zone to each per cpu page list.
+This is the fraction of pages in each zone that are can be stored to
+per-cpu page lists. It is an upper boundary that is divided depending
+on the number of online CPUs. The min value for this is 8 which means
+that we do not allow more than 1/8th of pages in each zone to be stored
+on per-cpu page lists. This entry only changes the value of hot per-cpu
+page lists. A user can specify a number like 100 to allocate 1/100th of
+each zone between per-cpu lists.
 
-The batch value of each per cpu pagelist is also updated as a result.  It is
-set to pcp->high/4.  The upper limit of batch is (PAGE_SHIFT * 8)
+The batch value of each per-cpu page list remains the same regardless of
+the value of the high fraction so allocation latencies are unaffected.
 
-The initial value is zero.  Kernel does not use this value at boot time to set
-the high water marks for each per cpu page list.  If the user writes '0' to this
-sysctl, it will revert to this default behavior.
+The initial value is zero. Kernel uses this value to set the high pcp->high
+mark based on the low watermark for the zone and the number of local
+online CPUs.  If the user writes '0' to this sysctl, it will revert to
+this default behavior.
 
 
 stat_interval
@@ -828,25 +905,46 @@ tooling to work, you can do::
 swappiness
 ==========
 
-This control is used to define how aggressive the kernel will swap
-memory pages.  Higher values will increase aggressiveness, lower values
-decrease the amount of swap.  A value of 0 instructs the kernel not to
-initiate swap until the amount of free and file-backed pages is less
-than the high water mark in a zone.
+This control is used to define the rough relative IO cost of swapping
+and filesystem paging, as a value between 0 and 200. At 100, the VM
+assumes equal IO cost and will thus apply memory pressure to the page
+cache and swap-backed pages equally; lower values signify more
+expensive swap IO, higher values indicates cheaper.
+
+Keep in mind that filesystem IO patterns under memory pressure tend to
+be more efficient than swap's random IO. An optimal value will require
+experimentation and will also be workload-dependent.
 
 The default value is 60.
+
+For in-memory swap, like zram or zswap, as well as hybrid setups that
+have swap on faster devices than the filesystem, values beyond 100 can
+be considered. For example, if the random IO against the swap device
+is on average 2x faster than IO from the filesystem, swappiness should
+be 133 (x + 2x = 200, 2x = 133.33).
+
+At 0, the kernel will not initiate swap until the amount of free and
+file-backed pages is less than the high watermark in a zone.
 
 
 unprivileged_userfaultfd
 ========================
 
-This flag controls whether unprivileged users can use the userfaultfd
-system calls.  Set this to 1 to allow unprivileged users to use the
-userfaultfd system calls, or set this to 0 to restrict userfaultfd to only
-privileged users (with SYS_CAP_PTRACE capability).
+This flag controls the mode in which unprivileged users can use the
+userfaultfd system calls. Set this to 0 to restrict unprivileged users
+to handle page faults in user mode only. In this case, users without
+SYS_CAP_PTRACE must pass UFFD_USER_MODE_ONLY in order for userfaultfd to
+succeed. Prohibiting use of userfaultfd for handling faults from kernel
+mode may make certain vulnerabilities more difficult to exploit.
 
-The default value is 1.
+Set this to 1 to allow unprivileged users to use the userfaultfd system
+calls without any restrictions.
 
+The default value is 0.
+
+Another way to control permissions for userfaultfd is to use
+/dev/userfaultfd instead of userfaultfd(2). See
+Documentation/admin-guide/mm/userfaultfd.rst.
 
 user_reserve_kbytes
 ===================
@@ -898,12 +996,12 @@ allocations, THP and hugetlbfs pages.
 
 To make it sensible with respect to the watermark_scale_factor
 parameter, the unit is in fractions of 10,000. The default value of
-15,000 on !DISCONTIGMEM configurations means that up to 150% of the high
-watermark will be reclaimed in the event of a pageblock being mixed due
-to fragmentation. The level of reclaim is determined by the number of
-fragmentation events that occurred in the recent past. If this value is
-smaller than a pageblock then a pageblocks worth of pages will be reclaimed
-(e.g.  2MB on 64-bit x86). A boost factor of 0 will disable the feature.
+15,000 means that up to 150% of the high watermark will be reclaimed in the
+event of a pageblock being mixed due to fragmentation. The level of reclaim
+is determined by the number of fragmentation events that occurred in the
+recent past. If this value is smaller than a pageblock then a pageblocks
+worth of pages will be reclaimed (e.g.  2MB on 64-bit x86). A boost factor
+of 0 will disable the feature.
 
 
 watermark_scale_factor
@@ -915,7 +1013,7 @@ how much memory needs to be free before kswapd goes back to sleep.
 
 The unit is in fractions of 10,000. The default value of 10 means the
 distances between watermarks are 0.1% of the available memory in the
-node/system. The maximum value is 1000, or 10% of memory.
+node/system. The maximum value is 3000, or 30% of memory.
 
 A high rate of threads entering direct reclaim (allocstall) or kswapd
 going to sleep prematurely (kswapd_low_wmark_hit_quickly) can indicate
@@ -945,11 +1043,11 @@ that benefit from having their data cached, zone_reclaim_mode should be
 left disabled as the caching effect is likely to be more important than
 data locality.
 
-zone_reclaim may be enabled if it's known that the workload is partitioned
-such that each partition fits within a NUMA node and that accessing remote
-memory would cause a measurable performance reduction.  The page allocator
-will then reclaim easily reusable pages (those page cache pages that are
-currently not used) before allocating off node pages.
+Consider enabling one or more zone_reclaim mode bits if it's known that the
+workload is partitioned such that each partition fits within a NUMA node
+and that accessing remote memory would cause a measurable performance
+reduction.  The page allocator will take additional actions before
+allocating off node pages.
 
 Allowing zone reclaim to write out pages stops processes that are
 writing large amounts of data from dirtying pages on other nodes. Zone

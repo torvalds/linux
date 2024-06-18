@@ -34,6 +34,7 @@
  * Declare the space requirements for NFS arguments and replies as
  * number of 32bit-words
  */
+#define NFS_pagepad_sz		(1) /* Page padding */
 #define NFS_fhandle_sz		(8)
 #define NFS_sattr_sz		(8)
 #define NFS_filename_sz		(1+(NFS2_MAXNAMLEN>>2))
@@ -56,11 +57,11 @@
 
 #define NFS_attrstat_sz		(1+NFS_fattr_sz)
 #define NFS_diropres_sz		(1+NFS_fhandle_sz+NFS_fattr_sz)
-#define NFS_readlinkres_sz	(2+1)
-#define NFS_readres_sz		(1+NFS_fattr_sz+1+1)
+#define NFS_readlinkres_sz	(2+NFS_pagepad_sz)
+#define NFS_readres_sz		(1+NFS_fattr_sz+1+NFS_pagepad_sz)
 #define NFS_writeres_sz         (NFS_attrstat_sz)
 #define NFS_stat_sz		(1)
-#define NFS_readdirres_sz	(1+1)
+#define NFS_readdirres_sz	(1+NFS_pagepad_sz)
 #define NFS_statfsres_sz	(1+NFS_info_sz)
 
 static int nfs_stat_to_errno(enum nfs_stat);
@@ -209,9 +210,9 @@ static int decode_fhandle(struct xdr_stream *xdr, struct nfs_fh *fh)
  *		unsigned int useconds;
  *	};
  */
-static __be32 *xdr_encode_time(__be32 *p, const struct timespec *timep)
+static __be32 *xdr_encode_time(__be32 *p, const struct timespec64 *timep)
 {
-	*p++ = cpu_to_be32(timep->tv_sec);
+	*p++ = cpu_to_be32((u32)timep->tv_sec);
 	if (timep->tv_nsec != 0)
 		*p++ = cpu_to_be32(timep->tv_nsec / NSEC_PER_USEC);
 	else
@@ -227,14 +228,14 @@ static __be32 *xdr_encode_time(__be32 *p, const struct timespec *timep)
  * Illustrated" by Brent Callaghan, Addison-Wesley, ISBN 0-201-32750-5.
  */
 static __be32 *xdr_encode_current_server_time(__be32 *p,
-					      const struct timespec *timep)
+					      const struct timespec64 *timep)
 {
 	*p++ = cpu_to_be32(timep->tv_sec);
 	*p++ = cpu_to_be32(1000000);
 	return p;
 }
 
-static __be32 *xdr_decode_time(__be32 *p, struct timespec *timep)
+static __be32 *xdr_decode_time(__be32 *p, struct timespec64 *timep)
 {
 	timep->tv_sec = be32_to_cpup(p++);
 	timep->tv_nsec = be32_to_cpup(p++) * NSEC_PER_USEC;
@@ -339,7 +340,6 @@ static __be32 *xdr_time_not_set(__be32 *p)
 static void encode_sattr(struct xdr_stream *xdr, const struct iattr *attr,
 		struct user_namespace *userns)
 {
-	struct timespec ts;
 	__be32 *p;
 
 	p = xdr_reserve_space(xdr, NFS_sattr_sz << 2);
@@ -361,21 +361,17 @@ static void encode_sattr(struct xdr_stream *xdr, const struct iattr *attr,
 	else
 		*p++ = cpu_to_be32(NFS2_SATTR_NOT_SET);
 
-	if (attr->ia_valid & ATTR_ATIME_SET) {
-		ts = timespec64_to_timespec(attr->ia_atime);
-		p = xdr_encode_time(p, &ts);
-	} else if (attr->ia_valid & ATTR_ATIME) {
-		ts = timespec64_to_timespec(attr->ia_atime);
-		p = xdr_encode_current_server_time(p, &ts);
-	} else
+	if (attr->ia_valid & ATTR_ATIME_SET)
+		p = xdr_encode_time(p, &attr->ia_atime);
+	else if (attr->ia_valid & ATTR_ATIME)
+		p = xdr_encode_current_server_time(p, &attr->ia_atime);
+	else
 		p = xdr_time_not_set(p);
-	if (attr->ia_valid & ATTR_MTIME_SET) {
-		ts = timespec64_to_timespec(attr->ia_atime);
-		xdr_encode_time(p, &ts);
-	} else if (attr->ia_valid & ATTR_MTIME) {
-		ts = timespec64_to_timespec(attr->ia_mtime);
-		xdr_encode_current_server_time(p, &ts);
-	} else
+	if (attr->ia_valid & ATTR_MTIME_SET)
+		xdr_encode_time(p, &attr->ia_mtime);
+	else if (attr->ia_valid & ATTR_MTIME)
+		xdr_encode_current_server_time(p, &attr->ia_mtime);
+	else
 		xdr_time_not_set(p);
 }
 
@@ -597,8 +593,8 @@ static void nfs2_xdr_enc_readlinkargs(struct rpc_rqst *req,
 	const struct nfs_readlinkargs *args = data;
 
 	encode_fhandle(xdr, args->fh);
-	rpc_prepare_reply_pages(req, args->pages, args->pgbase,
-				args->pglen, NFS_readlinkres_sz);
+	rpc_prepare_reply_pages(req, args->pages, args->pgbase, args->pglen,
+				NFS_readlinkres_sz - NFS_pagepad_sz);
 }
 
 /*
@@ -633,8 +629,8 @@ static void nfs2_xdr_enc_readargs(struct rpc_rqst *req,
 	const struct nfs_pgio_args *args = data;
 
 	encode_readargs(xdr, args);
-	rpc_prepare_reply_pages(req, args->pages, args->pgbase,
-				args->count, NFS_readres_sz);
+	rpc_prepare_reply_pages(req, args->pages, args->pgbase, args->count,
+				NFS_readres_sz - NFS_pagepad_sz);
 	req->rq_rcv_buf.flags |= XDRBUF_READ;
 }
 
@@ -791,8 +787,8 @@ static void nfs2_xdr_enc_readdirargs(struct rpc_rqst *req,
 	const struct nfs_readdirargs *args = data;
 
 	encode_readdirargs(xdr, args);
-	rpc_prepare_reply_pages(req, args->pages, 0,
-				args->count, NFS_readdirres_sz);
+	rpc_prepare_reply_pages(req, args->pages, 0, args->count,
+				NFS_readdirres_sz - NFS_pagepad_sz);
 }
 
 /*
@@ -953,13 +949,12 @@ int nfs2_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
 
 	error = decode_filename_inline(xdr, &entry->name, &entry->len);
 	if (unlikely(error))
-		return error;
+		return error == -ENAMETOOLONG ? -ENAMETOOLONG : -EAGAIN;
 
 	/*
 	 * The type (size and byte order) of nfscookie isn't defined in
 	 * RFC 1094.  This implementation assumes that it's an XDR uint32.
 	 */
-	entry->prev_cookie = entry->cookie;
 	p = xdr_inline_decode(xdr, 4);
 	if (unlikely(!p))
 		return -EAGAIN;

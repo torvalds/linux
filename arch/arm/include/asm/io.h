@@ -23,7 +23,7 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <asm/byteorder.h>
-#include <asm/memory.h>
+#include <asm/page.h>
 #include <asm-generic/pci_iomap.h>
 
 /*
@@ -138,11 +138,10 @@ extern void __iomem *__arm_ioremap_caller(phys_addr_t, size_t, unsigned int,
 	void *);
 extern void __iomem *__arm_ioremap_pfn(unsigned long, unsigned long, size_t, unsigned int);
 extern void __iomem *__arm_ioremap_exec(phys_addr_t, size_t, bool cached);
-extern void __iounmap(volatile void __iomem *addr);
+void __arm_iomem_set_ro(void __iomem *ptr, size_t size);
 
 extern void __iomem * (*arch_ioremap_caller)(phys_addr_t, size_t,
 	unsigned int, void *);
-extern void (*arch_iounmap)(volatile void __iomem *);
 
 /*
  * Bad read/write accesses...
@@ -173,13 +172,16 @@ static inline void __iomem *__typesafe_io(unsigned long addr)
 #define PCI_IO_VIRT_BASE	0xfee00000
 #define PCI_IOBASE		((void __iomem *)PCI_IO_VIRT_BASE)
 
-#if defined(CONFIG_PCI)
+#if defined(CONFIG_PCI) || IS_ENABLED(CONFIG_PCMCIA)
 void pci_ioremap_set_mem_type(int mem_type);
 #else
 static inline void pci_ioremap_set_mem_type(int mem_type) {}
 #endif
 
-extern int pci_ioremap_io(unsigned int offset, phys_addr_t phys_addr);
+struct resource;
+
+#define pci_remap_iospace pci_remap_iospace
+int pci_remap_iospace(const struct resource *res, phys_addr_t phys_addr);
 
 /*
  * PCI configuration space mapping function.
@@ -196,32 +198,13 @@ void __iomem *pci_remap_cfgspace(resource_size_t res_cookie, size_t size);
  */
 #ifdef CONFIG_NEED_MACH_IO_H
 #include <mach/io.h>
-#elif defined(CONFIG_PCI)
-#define IO_SPACE_LIMIT	((resource_size_t)0xfffff)
-#define __io(a)		__typesafe_io(PCI_IO_VIRT_BASE + ((a) & IO_SPACE_LIMIT))
 #else
-#define __io(a)		__typesafe_io((a) & IO_SPACE_LIMIT)
-#endif
-
-/*
- * This is the limit of PC card/PCI/ISA IO space, which is by default
- * 64K if we have PC card, PCI or ISA support.  Otherwise, default to
- * zero to prevent ISA/PCI drivers claiming IO space (and potentially
- * oopsing.)
- *
- * Only set this larger if you really need inb() et.al. to operate over
- * a larger address space.  Note that SOC_COMMON ioremaps each sockets
- * IO space area, and so inb() et.al. must be defined to operate as per
- * readb() et.al. on such platforms.
- */
-#ifndef IO_SPACE_LIMIT
-#if defined(CONFIG_PCMCIA_SOC_COMMON) || defined(CONFIG_PCMCIA_SOC_COMMON_MODULE)
-#define IO_SPACE_LIMIT ((resource_size_t)0xffffffff)
-#elif defined(CONFIG_PCI) || defined(CONFIG_ISA) || defined(CONFIG_PCCARD)
-#define IO_SPACE_LIMIT ((resource_size_t)0xffff)
+#if IS_ENABLED(CONFIG_PCMCIA) || defined(CONFIG_PCI)
+#define IO_SPACE_LIMIT	((resource_size_t)0xfffff)
 #else
 #define IO_SPACE_LIMIT ((resource_size_t)0)
 #endif
+#define __io(a)		__typesafe_io(PCI_IO_VIRT_BASE + ((a) & IO_SPACE_LIMIT))
 #endif
 
 /*
@@ -356,7 +339,6 @@ static inline void memcpy_toio(volatile void __iomem *to, const void *from,
  *
  * Function		Memory type	Cacheability	Cache hint
  * ioremap()		Device		n/a		n/a
- * ioremap_nocache()	Device		n/a		n/a
  * ioremap_cache()	Normal		Writeback	Read allocate
  * ioremap_wc()		Normal		Non-cacheable	n/a
  * ioremap_wt()		Normal		Non-cacheable	n/a
@@ -367,13 +349,6 @@ static inline void memcpy_toio(volatile void __iomem *to, const void *from,
  * - number, order and size of accesses are maintained
  * - unaligned accesses are "unpredictable"
  * - writes may be delayed before they hit the endpoint device
- *
- * ioremap_nocache() is the same as ioremap() as there are too many device
- * drivers using this for device registers, and documentation which tells
- * people to use it for such for this to be any different.  This is not a
- * safe fallback for memory-like mappings, or memory regions where the
- * compiler may generate unaligned accesses - eg, via inlining its own
- * memcpy.
  *
  * All normal memory mappings have the following properties:
  * - reads can be repeated with no side effects
@@ -392,7 +367,6 @@ static inline void memcpy_toio(volatile void __iomem *to, const void *from,
  */
 void __iomem *ioremap(resource_size_t res_cookie, size_t size);
 #define ioremap ioremap
-#define ioremap_nocache ioremap
 
 /*
  * Do not use ioremap_cache for mapping memory. Use memremap instead.
@@ -400,17 +374,11 @@ void __iomem *ioremap(resource_size_t res_cookie, size_t size);
 void __iomem *ioremap_cache(resource_size_t res_cookie, size_t size);
 #define ioremap_cache ioremap_cache
 
-/*
- * Do not use ioremap_cached in new code. Provided for the benefit of
- * the pxa2xx-flash MTD driver only.
- */
-void __iomem *ioremap_cached(resource_size_t res_cookie, size_t size);
-
 void __iomem *ioremap_wc(resource_size_t res_cookie, size_t size);
 #define ioremap_wc ioremap_wc
 #define ioremap_wt ioremap_wc
 
-void iounmap(volatile void __iomem *iomem_cookie);
+void iounmap(volatile void __iomem *io_addr);
 #define iounmap iounmap
 
 void *arch_memremap_wb(phys_addr_t phys_addr, size_t size);
@@ -439,24 +407,15 @@ struct pci_dev;
 #define pci_iounmap pci_iounmap
 extern void pci_iounmap(struct pci_dev *dev, void __iomem *addr);
 
-/*
- * Convert a physical pointer to a virtual kernel pointer for /dev/mem
- * access
- */
-#define xlate_dev_mem_ptr(p)	__va(p)
-
-/*
- * Convert a virtual cached pointer to an uncached pointer
- */
-#define xlate_dev_kmem_ptr(p)	p
-
 #include <asm-generic/io.h>
 
 #ifdef CONFIG_MMU
 #define ARCH_HAS_VALID_PHYS_ADDR_RANGE
 extern int valid_phys_addr_range(phys_addr_t addr, size_t size);
 extern int valid_mmap_phys_addr_range(unsigned long pfn, size_t size);
-extern int devmem_is_allowed(unsigned long pfn);
+extern bool arch_memremap_can_ram_remap(resource_size_t offset, size_t size,
+					unsigned long flags);
+#define arch_memremap_can_ram_remap arch_memremap_can_ram_remap
 #endif
 
 /*

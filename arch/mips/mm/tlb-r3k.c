@@ -17,17 +17,16 @@
 #include <linux/mm.h>
 
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/mmu_context.h>
 #include <asm/tlbmisc.h>
 #include <asm/isadep.h>
 #include <asm/io.h>
 #include <asm/bootinfo.h>
 #include <asm/cpu.h>
+#include <asm/setup.h>
+#include <asm/tlbex.h>
 
 #undef DEBUG_TLB
-
-extern void build_tlb_refill_handler(void);
 
 /* CP0 hazard avoidance. */
 #define BARRIER				\
@@ -36,8 +35,6 @@ extern void build_tlb_refill_handler(void);
 		".set	noreorder\n\t"	\
 		"nop\n\t"		\
 		".set	pop\n\t")
-
-int r3k_have_wired_reg;			/* Should be in cpu_data? */
 
 /* TLB operations. */
 static void local_flush_tlb_from(int entry)
@@ -63,7 +60,7 @@ void local_flush_tlb_all(void)
 	printk("[tlball]");
 #endif
 	local_irq_save(flags);
-	local_flush_tlb_from(r3k_have_wired_reg ? read_c0_wired() : 8);
+	local_flush_tlb_from(8);
 	local_irq_restore(flags);
 }
 
@@ -186,7 +183,7 @@ void __update_tlb(struct vm_area_struct *vma, unsigned long address, pte_t pte)
 	int idx, pid;
 
 	/*
-	 * Handle debugger faulting in for debugee.
+	 * Handle debugger faulting in for debuggee.
 	 */
 	if (current->active_mm != vma->vm_mm)
 		return;
@@ -225,34 +222,7 @@ void add_wired_entry(unsigned long entrylo0, unsigned long entrylo1,
 	unsigned long old_ctx;
 	static unsigned long wired = 0;
 
-	if (r3k_have_wired_reg) {			/* TX39XX */
-		unsigned long old_pagemask;
-		unsigned long w;
-
-#ifdef DEBUG_TLB
-		printk("[tlbwired<entry lo0 %8x, hi %8x\n, pagemask %8x>]\n",
-		       entrylo0, entryhi, pagemask);
-#endif
-
-		local_irq_save(flags);
-		/* Save old context and create impossible VPN2 value */
-		old_ctx = read_c0_entryhi() & asid_mask;
-		old_pagemask = read_c0_pagemask();
-		w = read_c0_wired();
-		write_c0_wired(w + 1);
-		write_c0_index(w << 8);
-		write_c0_pagemask(pagemask);
-		write_c0_entryhi(entryhi);
-		write_c0_entrylo0(entrylo0);
-		BARRIER;
-		tlb_write_indexed();
-
-		write_c0_entryhi(old_ctx);
-		write_c0_pagemask(old_pagemask);
-		local_flush_tlb_all();
-		local_irq_restore(flags);
-
-	} else if (wired < 8) {
+	if (wired < 8) {
 #ifdef DEBUG_TLB
 		printk("[tlbwired<entry lo0 %8x, hi %8x\n>]\n",
 		       entrylo0, entryhi);
@@ -273,13 +243,6 @@ void add_wired_entry(unsigned long entrylo0, unsigned long entrylo1,
 
 void tlb_init(void)
 {
-	switch (current_cpu_type()) {
-	case CPU_TX3922:
-	case CPU_TX3927:
-		r3k_have_wired_reg = 1;
-		write_c0_wired(0);		/* Set to 8 on reset... */
-		break;
-	}
 	local_flush_tlb_from(0);
 	build_tlb_refill_handler();
 }

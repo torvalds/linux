@@ -21,11 +21,13 @@
 
 #include <linux/timer.h>
 #include <linux/spinlock.h>
+#include <net/net_trackers.h>
 #include <uapi/linux/if_eql.h>
 
 typedef struct slave {
 	struct list_head	list;
 	struct net_device	*dev;
+	netdevice_tracker	dev_tracker;
 	long			priority;
 	long			priority_bps;
 	long			priority_Bps;

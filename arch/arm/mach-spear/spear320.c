@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/arm/mach-spear3xx/spear320.c
  *
@@ -5,10 +6,6 @@
  *
  * Copyright (C) 2009-2012 ST Microelectronics
  * Viresh Kumar <vireshk@kernel.org>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 #define pr_fmt(fmt) "SPEAr320: " fmt
@@ -20,7 +17,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include "generic.h"
-#include <mach/spear.h>
+#include "spear.h"
 
 #define SPEAR320_UART1_BASE		UL(0xA3000000)
 #define SPEAR320_UART2_BASE		UL(0xA4000000)
@@ -195,14 +192,12 @@ static struct pl022_ssp_controller spear320_ssp_data[] = {
 		.dma_filter = pl08x_filter_id,
 		.dma_tx_param = "ssp1_tx",
 		.dma_rx_param = "ssp1_rx",
-		.num_chipselect = 2,
 	}, {
 		.bus_id = 2,
 		.enable_dma = 1,
 		.dma_filter = pl08x_filter_id,
 		.dma_tx_param = "ssp2_tx",
 		.dma_rx_param = "ssp2_rx",
-		.num_chipselect = 2,
 	}
 };
 

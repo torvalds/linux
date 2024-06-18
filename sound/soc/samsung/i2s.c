@@ -13,8 +13,6 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
-#include <linux/of_gpio.h>
 #include <linux/pm_runtime.h>
 
 #include <sound/soc.h>
@@ -50,6 +48,10 @@ struct samsung_i2s_dai_data {
 	u32 quirks;
 	unsigned int pcm_rates;
 	const struct samsung_i2s_variant_regs *i2s_variant_regs;
+	void (*fixup_early)(struct snd_pcm_substream *substream,
+					struct snd_soc_dai *dai);
+	void (*fixup_late)(struct snd_pcm_substream *substream,
+					struct snd_soc_dai *dai);
 };
 
 struct i2s_dai {
@@ -111,6 +113,10 @@ struct samsung_i2s_priv {
 	u32 suspend_i2spsr;
 
 	const struct samsung_i2s_variant_regs *variant_regs;
+	void (*fixup_early)(struct snd_pcm_substream *substream,
+						struct snd_soc_dai *dai);
+	void (*fixup_late)(struct snd_pcm_substream *substream,
+						struct snd_soc_dai *dai);
 	u32 quirks;
 
 	/* The clock provider's data */
@@ -671,11 +677,11 @@ static int i2s_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_BC_FC:
 		tmp |= mod_slave;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_BP_FP:
 		/*
 		 * Set default source clock in Master mode, only when the
 		 * CLK_I2S_RCLK_SRC clock is not exposed so we ensure any
@@ -733,7 +739,7 @@ static int i2s_hw_params(struct snd_pcm_substream *substream,
 	switch (params_channels(params)) {
 	case 6:
 		val |= MOD_DC2_EN;
-		/* Fall through */
+		fallthrough;
 	case 4:
 		val |= MOD_DC1_EN;
 		break;
@@ -931,8 +937,8 @@ static int i2s_trigger(struct snd_pcm_substream *substream,
 {
 	struct samsung_i2s_priv *priv = snd_soc_dai_get_drvdata(dai);
 	int capture = (substream->stream == SNDRV_PCM_STREAM_CAPTURE);
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct i2s_dai *i2s = to_info(rtd->cpu_dai);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct i2s_dai *i2s = to_info(snd_soc_rtd_to_cpu(rtd, 0));
 	unsigned long flags;
 
 	switch (cmd) {
@@ -940,12 +946,19 @@ static int i2s_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		pm_runtime_get_sync(dai->dev);
+
+		if (priv->fixup_early)
+			priv->fixup_early(substream, dai);
+
 		spin_lock_irqsave(&priv->lock, flags);
 
 		if (config_setup(i2s)) {
 			spin_unlock_irqrestore(&priv->lock, flags);
 			return -EINVAL;
 		}
+
+		if (priv->fixup_late)
+			priv->fixup_late(substream, dai);
 
 		if (capture)
 			i2s_rxctrl(i2s, 1);
@@ -1024,14 +1037,14 @@ i2s_delay(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 }
 
 #ifdef CONFIG_PM
-static int i2s_suspend(struct snd_soc_dai *dai)
+static int i2s_suspend(struct snd_soc_component *component)
 {
-	return pm_runtime_force_suspend(dai->dev);
+	return pm_runtime_force_suspend(component->dev);
 }
 
-static int i2s_resume(struct snd_soc_dai *dai)
+static int i2s_resume(struct snd_soc_component *component)
 {
-	return pm_runtime_force_resume(dai->dev);
+	return pm_runtime_force_resume(component->dev);
 }
 #else
 #define i2s_suspend NULL
@@ -1105,6 +1118,8 @@ static int samsung_i2s_dai_remove(struct snd_soc_dai *dai)
 }
 
 static const struct snd_soc_dai_ops samsung_i2s_dai_ops = {
+	.probe = samsung_i2s_dai_probe,
+	.remove = samsung_i2s_dai_remove,
 	.trigger = i2s_trigger,
 	.hw_params = i2s_hw_params,
 	.set_fmt = i2s_set_fmt,
@@ -1140,6 +1155,11 @@ static const struct snd_soc_component_driver samsung_i2s_component = {
 
 	.dapm_routes = samsung_i2s_dapm_routes,
 	.num_dapm_routes = ARRAY_SIZE(samsung_i2s_dapm_routes),
+
+	.suspend = i2s_suspend,
+	.resume = i2s_resume,
+
+	.legacy_dai_naming = 1,
 };
 
 #define SAMSUNG_I2S_FMTS (SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_S16_LE | \
@@ -1153,11 +1173,10 @@ static int i2s_alloc_dais(struct samsung_i2s_priv *priv,
 	static const char *stream_names[] = { "Primary Playback",
 					      "Secondary Playback" };
 	struct snd_soc_dai_driver *dai_drv;
-	struct i2s_dai *dai;
 	int i;
 
 	priv->dai = devm_kcalloc(&priv->pdev->dev, num_dais,
-				     sizeof(*dai), GFP_KERNEL);
+				     sizeof(struct i2s_dai), GFP_KERNEL);
 	if (!priv->dai)
 		return -ENOMEM;
 
@@ -1169,12 +1188,7 @@ static int i2s_alloc_dais(struct samsung_i2s_priv *priv,
 	for (i = 0; i < num_dais; i++) {
 		dai_drv = &priv->dai_drv[i];
 
-		dai_drv->probe = samsung_i2s_dai_probe;
-		dai_drv->remove = samsung_i2s_dai_remove;
-		dai_drv->suspend = i2s_suspend;
-		dai_drv->resume = i2s_resume;
-
-		dai_drv->symmetric_rates = 1;
+		dai_drv->symmetric_rate = 1;
 		dai_drv->ops = &samsung_i2s_dai_ops;
 
 		dai_drv->playback.channels_min = 1;
@@ -1211,8 +1225,7 @@ static int i2s_runtime_suspend(struct device *dev)
 	priv->suspend_i2scon = readl(priv->addr + I2SCON);
 	priv->suspend_i2spsr = readl(priv->addr + I2SPSR);
 
-	if (priv->op_clk)
-		clk_disable_unprepare(priv->op_clk);
+	clk_disable_unprepare(priv->op_clk);
 	clk_disable_unprepare(priv->clk);
 
 	return 0;
@@ -1273,7 +1286,7 @@ static int i2s_register_clock_provider(struct samsung_i2s_priv *priv)
 	int ret, i;
 
 	/* Register the clock provider only if it's expected in the DTB */
-	if (!of_find_property(dev->of_node, "#clock-cells", NULL))
+	if (!of_property_present(dev->of_node, "#clock-cells"))
 		return 0;
 
 	/* Get the RCLKSRC mux clock parent clock names */
@@ -1350,6 +1363,10 @@ static int i2s_create_secondary_device(struct samsung_i2s_priv *priv)
 		return -ENOMEM;
 
 	pdev_sec->driver_override = kstrdup("samsung-i2s", GFP_KERNEL);
+	if (!pdev_sec->driver_override) {
+		platform_device_put(pdev_sec);
+		return -ENOMEM;
+	}
 
 	ret = platform_device_add(pdev_sec);
 	if (ret < 0) {
@@ -1405,6 +1422,8 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 
 	if (np) {
 		priv->quirks = i2s_dai_data->quirks;
+		priv->fixup_early = i2s_dai_data->fixup_early;
+		priv->fixup_late = i2s_dai_data->fixup_late;
 	} else {
 		if (!i2s_pdata) {
 			dev_err(&pdev->dev, "Missing platform data\n");
@@ -1442,8 +1461,7 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 		}
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->addr = devm_ioremap_resource(&pdev->dev, res);
+	priv->addr = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(priv->addr))
 		return PTR_ERR(priv->addr);
 
@@ -1539,13 +1557,13 @@ err_disable_clk:
 	return ret;
 }
 
-static int samsung_i2s_remove(struct platform_device *pdev)
+static void samsung_i2s_remove(struct platform_device *pdev)
 {
 	struct samsung_i2s_priv *priv = dev_get_drvdata(&pdev->dev);
 
 	/* The secondary device has no driver data assigned */
 	if (!priv)
-		return 0;
+		return;
 
 	pm_runtime_get_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
@@ -1555,8 +1573,31 @@ static int samsung_i2s_remove(struct platform_device *pdev)
 	clk_disable_unprepare(priv->clk);
 
 	pm_runtime_put_noidle(&pdev->dev);
+}
 
-	return 0;
+static void fsd_i2s_fixup_early(struct snd_pcm_substream *substream,
+		struct snd_soc_dai *dai)
+{
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct i2s_dai *i2s = to_info(snd_soc_rtd_to_cpu(rtd, 0));
+	struct i2s_dai *other = get_other_dai(i2s);
+
+	if (!is_opened(other)) {
+		i2s_set_sysclk(dai, SAMSUNG_I2S_CDCLK, 0, SND_SOC_CLOCK_OUT);
+		i2s_set_sysclk(dai, SAMSUNG_I2S_OPCLK, 0, MOD_OPCLK_PCLK);
+	}
+}
+
+static void fsd_i2s_fixup_late(struct snd_pcm_substream *substream,
+		struct snd_soc_dai *dai)
+{
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct samsung_i2s_priv *priv = snd_soc_dai_get_drvdata(dai);
+	struct i2s_dai *i2s = to_info(snd_soc_rtd_to_cpu(rtd, 0));
+	struct i2s_dai *other = get_other_dai(i2s);
+
+	if (!is_opened(other))
+		writel(PSR_PSVAL(2) | PSR_PSREN, priv->addr + I2SPSR);
 }
 
 static const struct samsung_i2s_variant_regs i2sv3_regs = {
@@ -1621,31 +1662,39 @@ static const struct samsung_i2s_dai_data i2sv3_dai_type = {
 	.i2s_variant_regs = &i2sv3_regs,
 };
 
-static const struct samsung_i2s_dai_data i2sv5_dai_type = {
+static const struct samsung_i2s_dai_data i2sv5_dai_type __maybe_unused = {
 	.quirks = QUIRK_PRI_6CHAN | QUIRK_SEC_DAI | QUIRK_NEED_RSTCLR |
 			QUIRK_SUPPORTS_IDMA,
 	.pcm_rates = SNDRV_PCM_RATE_8000_96000,
 	.i2s_variant_regs = &i2sv3_regs,
 };
 
-static const struct samsung_i2s_dai_data i2sv6_dai_type = {
+static const struct samsung_i2s_dai_data i2sv6_dai_type __maybe_unused = {
 	.quirks = QUIRK_PRI_6CHAN | QUIRK_SEC_DAI | QUIRK_NEED_RSTCLR |
 			QUIRK_SUPPORTS_TDM | QUIRK_SUPPORTS_IDMA,
 	.pcm_rates = SNDRV_PCM_RATE_8000_96000,
 	.i2s_variant_regs = &i2sv6_regs,
 };
 
-static const struct samsung_i2s_dai_data i2sv7_dai_type = {
+static const struct samsung_i2s_dai_data i2sv7_dai_type __maybe_unused = {
 	.quirks = QUIRK_PRI_6CHAN | QUIRK_SEC_DAI | QUIRK_NEED_RSTCLR |
 			QUIRK_SUPPORTS_TDM,
 	.pcm_rates = SNDRV_PCM_RATE_8000_192000,
 	.i2s_variant_regs = &i2sv7_regs,
 };
 
-static const struct samsung_i2s_dai_data i2sv5_dai_type_i2s1 = {
+static const struct samsung_i2s_dai_data i2sv5_dai_type_i2s1 __maybe_unused = {
 	.quirks = QUIRK_PRI_6CHAN | QUIRK_NEED_RSTCLR,
 	.pcm_rates = SNDRV_PCM_RATE_8000_96000,
 	.i2s_variant_regs = &i2sv5_i2s1_regs,
+};
+
+static const struct samsung_i2s_dai_data fsd_dai_type __maybe_unused = {
+	.quirks = QUIRK_SEC_DAI | QUIRK_NEED_RSTCLR | QUIRK_SUPPORTS_TDM,
+	.pcm_rates = SNDRV_PCM_RATE_8000_192000,
+	.i2s_variant_regs = &i2sv7_regs,
+	.fixup_early = fsd_i2s_fixup_early,
+	.fixup_late = fsd_i2s_fixup_late,
 };
 
 static const struct platform_device_id samsung_i2s_driver_ids[] = {
@@ -1674,6 +1723,9 @@ static const struct of_device_id exynos_i2s_match[] = {
 	}, {
 		.compatible = "samsung,exynos7-i2s1",
 		.data = &i2sv5_dai_type_i2s1,
+	}, {
+		.compatible = "tesla,fsd-i2s",
+		.data = &fsd_dai_type,
 	},
 	{},
 };
@@ -1689,7 +1741,7 @@ static const struct dev_pm_ops samsung_i2s_pm = {
 
 static struct platform_driver samsung_i2s_driver = {
 	.probe  = samsung_i2s_probe,
-	.remove = samsung_i2s_remove,
+	.remove_new = samsung_i2s_remove,
 	.id_table = samsung_i2s_driver_ids,
 	.driver = {
 		.name = "samsung-i2s",
@@ -1703,5 +1755,4 @@ module_platform_driver(samsung_i2s_driver);
 /* Module information */
 MODULE_AUTHOR("Jaswinder Singh, <jassisinghbrar@gmail.com>");
 MODULE_DESCRIPTION("Samsung I2S Interface");
-MODULE_ALIAS("platform:samsung-i2s");
 MODULE_LICENSE("GPL");

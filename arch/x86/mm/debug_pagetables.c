@@ -3,11 +3,11 @@
 #include <linux/efi.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 
 static int ptdump_show(struct seq_file *m, void *v)
 {
-	ptdump_walk_pgd_level_debugfs(m, NULL, false);
+	ptdump_walk_pgd_level_debugfs(m, &init_mm, false);
 	return 0;
 }
 
@@ -15,24 +15,18 @@ DEFINE_SHOW_ATTRIBUTE(ptdump);
 
 static int ptdump_curknl_show(struct seq_file *m, void *v)
 {
-	if (current->mm->pgd) {
-		down_read(&current->mm->mmap_sem);
-		ptdump_walk_pgd_level_debugfs(m, current->mm->pgd, false);
-		up_read(&current->mm->mmap_sem);
-	}
+	if (current->mm->pgd)
+		ptdump_walk_pgd_level_debugfs(m, current->mm, false);
 	return 0;
 }
 
 DEFINE_SHOW_ATTRIBUTE(ptdump_curknl);
 
-#ifdef CONFIG_PAGE_TABLE_ISOLATION
+#ifdef CONFIG_MITIGATION_PAGE_TABLE_ISOLATION
 static int ptdump_curusr_show(struct seq_file *m, void *v)
 {
-	if (current->mm->pgd) {
-		down_read(&current->mm->mmap_sem);
-		ptdump_walk_pgd_level_debugfs(m, current->mm->pgd, true);
-		up_read(&current->mm->mmap_sem);
-	}
+	if (current->mm->pgd)
+		ptdump_walk_pgd_level_debugfs(m, current->mm, true);
 	return 0;
 }
 
@@ -43,7 +37,7 @@ DEFINE_SHOW_ATTRIBUTE(ptdump_curusr);
 static int ptdump_efi_show(struct seq_file *m, void *v)
 {
 	if (efi_mm.pgd)
-		ptdump_walk_pgd_level_debugfs(m, efi_mm.pgd, false);
+		ptdump_walk_pgd_level_debugfs(m, &efi_mm, false);
 	return 0;
 }
 
@@ -60,7 +54,7 @@ static int __init pt_dump_debug_init(void)
 	debugfs_create_file("current_kernel", 0400, dir, NULL,
 			    &ptdump_curknl_fops);
 
-#ifdef CONFIG_PAGE_TABLE_ISOLATION
+#ifdef CONFIG_MITIGATION_PAGE_TABLE_ISOLATION
 	debugfs_create_file("current_user", 0400, dir, NULL,
 			    &ptdump_curusr_fops);
 #endif
@@ -77,6 +71,5 @@ static void __exit pt_dump_debug_exit(void)
 
 module_init(pt_dump_debug_init);
 module_exit(pt_dump_debug_exit);
-MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Arjan van de Ven <arjan@linux.intel.com>");
 MODULE_DESCRIPTION("Kernel debugging helper that dumps pagetables");

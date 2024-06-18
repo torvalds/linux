@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/watchdog/arm-smc-wdt.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ARM Secure Monitor Call based watchdog
+
+maintainers:
+  - Julius Werner <jwerner@chromium.org>
+
+allOf:
+  - $ref: watchdog.yaml#
+
+properties:
+  compatible:
+    enum:
+      - arm,smc-wdt
+
+  arm,smc-id:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      The ATF smc function id used by the firmware.
+      Defaults to 0x82003D06 if unset.
+
+required:
+  - compatible
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    watchdog {
+        compatible = "arm,smc-wdt";
+        arm,smc-id = <0x82003D06>;
+        timeout-sec = <15>;
+    };
+
+...

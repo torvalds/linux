@@ -1,48 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright(c) 2017 - 2018 Intel Corporation.
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * BSD LICENSE
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
+ * Copyright(c) 2017 - 2020 Intel Corporation.
  */
 
 /*
@@ -53,6 +11,7 @@
 #include <linux/if_vlan.h>
 
 #include "vnic.h"
+#include "netdev.h"
 
 #define HFI_TX_TIMEOUT_MS 1000
 
@@ -62,114 +21,6 @@
 
 static DEFINE_SPINLOCK(vport_cntr_lock);
 
-static int setup_vnic_ctxt(struct hfi1_devdata *dd, struct hfi1_ctxtdata *uctxt)
-{
-	unsigned int rcvctrl_ops = 0;
-	int ret;
-
-	uctxt->do_interrupt = &handle_receive_interrupt;
-
-	/* Now allocate the RcvHdr queue and eager buffers. */
-	ret = hfi1_create_rcvhdrq(dd, uctxt);
-	if (ret)
-		goto done;
-
-	ret = hfi1_setup_eagerbufs(uctxt);
-	if (ret)
-		goto done;
-
-	if (uctxt->rcvhdrtail_kvaddr)
-		clear_rcvhdrtail(uctxt);
-
-	rcvctrl_ops = HFI1_RCVCTRL_CTXT_ENB;
-	rcvctrl_ops |= HFI1_RCVCTRL_INTRAVAIL_ENB;
-
-	if (!HFI1_CAP_KGET_MASK(uctxt->flags, MULTI_PKT_EGR))
-		rcvctrl_ops |= HFI1_RCVCTRL_ONE_PKT_EGR_ENB;
-	if (HFI1_CAP_KGET_MASK(uctxt->flags, NODROP_EGR_FULL))
-		rcvctrl_ops |= HFI1_RCVCTRL_NO_EGR_DROP_ENB;
-	if (HFI1_CAP_KGET_MASK(uctxt->flags, NODROP_RHQ_FULL))
-		rcvctrl_ops |= HFI1_RCVCTRL_NO_RHQ_DROP_ENB;
-	if (HFI1_CAP_KGET_MASK(uctxt->flags, DMA_RTAIL))
-		rcvctrl_ops |= HFI1_RCVCTRL_TAILUPD_ENB;
-
-	hfi1_rcvctrl(uctxt->dd, rcvctrl_ops, uctxt);
-done:
-	return ret;
-}
-
-static int allocate_vnic_ctxt(struct hfi1_devdata *dd,
-			      struct hfi1_ctxtdata **vnic_ctxt)
-{
-	struct hfi1_ctxtdata *uctxt;
-	int ret;
-
-	if (dd->flags & HFI1_FROZEN)
-		return -EIO;
-
-	ret = hfi1_create_ctxtdata(dd->pport, dd->node, &uctxt);
-	if (ret < 0) {
-		dd_dev_err(dd, "Unable to create ctxtdata, failing open\n");
-		return -ENOMEM;
-	}
-
-	uctxt->flags = HFI1_CAP_KGET(MULTI_PKT_EGR) |
-			HFI1_CAP_KGET(NODROP_RHQ_FULL) |
-			HFI1_CAP_KGET(NODROP_EGR_FULL) |
-			HFI1_CAP_KGET(DMA_RTAIL);
-	uctxt->seq_cnt = 1;
-	uctxt->is_vnic = true;
-
-	msix_request_rcd_irq(uctxt);
-
-	hfi1_stats.sps_ctxts++;
-	dd_dev_dbg(dd, "created vnic context %d\n", uctxt->ctxt);
-	*vnic_ctxt = uctxt;
-
-	return 0;
-}
-
-static void deallocate_vnic_ctxt(struct hfi1_devdata *dd,
-				 struct hfi1_ctxtdata *uctxt)
-{
-	dd_dev_dbg(dd, "closing vnic context %d\n", uctxt->ctxt);
-	flush_wc();
-
-	/*
-	 * Disable receive context and interrupt available, reset all
-	 * RcvCtxtCtrl bits to default values.
-	 */
-	hfi1_rcvctrl(dd, HFI1_RCVCTRL_CTXT_DIS |
-		     HFI1_RCVCTRL_TIDFLOW_DIS |
-		     HFI1_RCVCTRL_INTRAVAIL_DIS |
-		     HFI1_RCVCTRL_ONE_PKT_EGR_DIS |
-		     HFI1_RCVCTRL_NO_RHQ_DROP_DIS |
-		     HFI1_RCVCTRL_NO_EGR_DROP_DIS, uctxt);
-
-	/* msix_intr will always be > 0, only clean up if this is true */
-	if (uctxt->msix_intr)
-		msix_free_irq(dd, uctxt->msix_intr);
-
-	uctxt->event_flags = 0;
-
-	hfi1_clear_tids(uctxt);
-	hfi1_clear_ctxt_pkey(dd, uctxt);
-
-	hfi1_stats.sps_ctxts--;
-
-	hfi1_free_ctxt(uctxt);
-}
-
-void hfi1_vnic_setup(struct hfi1_devdata *dd)
-{
-	xa_init(&dd->vnic.vesws);
-}
-
-void hfi1_vnic_cleanup(struct hfi1_devdata *dd)
-{
-	WARN_ON(!xa_empty(&dd->vnic.vesws));
-}
-
 #define SUM_GRP_COUNTERS(stats, qstats, x_grp) do {            \
 		u64 *src64, *dst64;                            \
 		for (src64 = &qstats->x_grp.unicast,           \
@@ -178,6 +29,9 @@ void hfi1_vnic_cleanup(struct hfi1_devdata *dd)
 			*dst64++ += *src64++;                  \
 		}                                              \
 	} while (0)
+
+#define VNIC_MASK (0xFF)
+#define VNIC_ID(val) ((1ull << 24) | ((val) & VNIC_MASK))
 
 /* hfi1_vnic_update_stats - update statistics */
 static void hfi1_vnic_update_stats(struct hfi1_vnic_vport_info *vinfo,
@@ -454,71 +308,25 @@ static inline int hfi1_vnic_decap_skb(struct hfi1_vnic_rx_queue *rxq,
 	return rc;
 }
 
-static inline struct sk_buff *hfi1_vnic_get_skb(struct hfi1_vnic_rx_queue *rxq)
+static struct hfi1_vnic_vport_info *get_vnic_port(struct hfi1_devdata *dd,
+						  int vesw_id)
 {
-	unsigned char *pad_info;
-	struct sk_buff *skb;
+	int vnic_id = VNIC_ID(vesw_id);
 
-	skb = skb_dequeue(&rxq->skbq);
-	if (unlikely(!skb))
+	return hfi1_netdev_get_data(dd, vnic_id);
+}
+
+static struct hfi1_vnic_vport_info *get_first_vnic_port(struct hfi1_devdata *dd)
+{
+	struct hfi1_vnic_vport_info *vinfo;
+	int next_id = VNIC_ID(0);
+
+	vinfo = hfi1_netdev_get_first_data(dd, &next_id);
+
+	if (next_id > VNIC_ID(VNIC_MASK))
 		return NULL;
 
-	/* remove tail padding and icrc */
-	pad_info = skb->data + skb->len - 1;
-	skb_trim(skb, (skb->len - OPA_VNIC_ICRC_TAIL_LEN -
-		       ((*pad_info) & 0x7)));
-
-	return skb;
-}
-
-/* hfi1_vnic_handle_rx - handle skb receive */
-static void hfi1_vnic_handle_rx(struct hfi1_vnic_rx_queue *rxq,
-				int *work_done, int work_to_do)
-{
-	struct hfi1_vnic_vport_info *vinfo = rxq->vinfo;
-	struct sk_buff *skb;
-	int rc;
-
-	while (1) {
-		if (*work_done >= work_to_do)
-			break;
-
-		skb = hfi1_vnic_get_skb(rxq);
-		if (unlikely(!skb))
-			break;
-
-		rc = hfi1_vnic_decap_skb(rxq, skb);
-		/* update rx counters */
-		hfi1_vnic_update_rx_counters(vinfo, rxq->idx, skb, rc);
-		if (unlikely(rc)) {
-			dev_kfree_skb_any(skb);
-			continue;
-		}
-
-		skb_checksum_none_assert(skb);
-		skb->protocol = eth_type_trans(skb, rxq->netdev);
-
-		napi_gro_receive(&rxq->napi, skb);
-		(*work_done)++;
-	}
-}
-
-/* hfi1_vnic_napi - napi receive polling callback function */
-static int hfi1_vnic_napi(struct napi_struct *napi, int budget)
-{
-	struct hfi1_vnic_rx_queue *rxq = container_of(napi,
-					      struct hfi1_vnic_rx_queue, napi);
-	struct hfi1_vnic_vport_info *vinfo = rxq->vinfo;
-	int work_done = 0;
-
-	v_dbg("napi %d budget %d\n", rxq->idx, budget);
-	hfi1_vnic_handle_rx(rxq, &work_done, budget);
-
-	v_dbg("napi %d work_done %d\n", rxq->idx, work_done);
-	if (work_done < budget)
-		napi_complete(napi);
-
-	return work_done;
+	return vinfo;
 }
 
 void hfi1_vnic_bypass_rcv(struct hfi1_packet *packet)
@@ -527,13 +335,14 @@ void hfi1_vnic_bypass_rcv(struct hfi1_packet *packet)
 	struct hfi1_vnic_vport_info *vinfo = NULL;
 	struct hfi1_vnic_rx_queue *rxq;
 	struct sk_buff *skb;
-	int l4_type, vesw_id = -1;
+	int l4_type, vesw_id = -1, rc;
 	u8 q_idx;
+	unsigned char *pad_info;
 
 	l4_type = hfi1_16B_get_l4(packet->ebuf);
 	if (likely(l4_type == OPA_16B_L4_ETHR)) {
 		vesw_id = HFI1_VNIC_GET_VESWID(packet->ebuf);
-		vinfo = xa_load(&dd->vnic.vesws, vesw_id);
+		vinfo = get_vnic_port(dd, vesw_id);
 
 		/*
 		 * In case of invalid vesw id, count the error on
@@ -541,10 +350,8 @@ void hfi1_vnic_bypass_rcv(struct hfi1_packet *packet)
 		 */
 		if (unlikely(!vinfo)) {
 			struct hfi1_vnic_vport_info *vinfo_tmp;
-			unsigned long index = 0;
 
-			vinfo_tmp = xa_find(&dd->vnic.vesws, &index, ULONG_MAX,
-					XA_PRESENT);
+			vinfo_tmp = get_first_vnic_port(dd);
 			if (vinfo_tmp) {
 				spin_lock(&vport_cntr_lock);
 				vinfo_tmp->stats[0].netstats.rx_nohandler++;
@@ -563,12 +370,6 @@ void hfi1_vnic_bypass_rcv(struct hfi1_packet *packet)
 	rxq = &vinfo->rxq[q_idx];
 	if (unlikely(!netif_oper_up(vinfo->netdev))) {
 		vinfo->stats[q_idx].rx_drop_state++;
-		skb_queue_purge(&rxq->skbq);
-		return;
-	}
-
-	if (unlikely(skb_queue_len(&rxq->skbq) > HFI1_VNIC_RCV_Q_SIZE)) {
-		vinfo->stats[q_idx].netstats.rx_fifo_errors++;
 		return;
 	}
 
@@ -580,62 +381,65 @@ void hfi1_vnic_bypass_rcv(struct hfi1_packet *packet)
 
 	memcpy(skb->data, packet->ebuf, packet->tlen);
 	skb_put(skb, packet->tlen);
-	skb_queue_tail(&rxq->skbq, skb);
 
-	if (napi_schedule_prep(&rxq->napi)) {
-		v_dbg("napi %d scheduling\n", q_idx);
-		__napi_schedule(&rxq->napi);
+	pad_info = skb->data + skb->len - 1;
+	skb_trim(skb, (skb->len - OPA_VNIC_ICRC_TAIL_LEN -
+		       ((*pad_info) & 0x7)));
+
+	rc = hfi1_vnic_decap_skb(rxq, skb);
+
+	/* update rx counters */
+	hfi1_vnic_update_rx_counters(vinfo, rxq->idx, skb, rc);
+	if (unlikely(rc)) {
+		dev_kfree_skb_any(skb);
+		return;
 	}
+
+	skb_checksum_none_assert(skb);
+	skb->protocol = eth_type_trans(skb, rxq->netdev);
+
+	napi_gro_receive(&rxq->napi, skb);
 }
 
 static int hfi1_vnic_up(struct hfi1_vnic_vport_info *vinfo)
 {
 	struct hfi1_devdata *dd = vinfo->dd;
 	struct net_device *netdev = vinfo->netdev;
-	int i, rc;
+	int rc;
 
 	/* ensure virtual eth switch id is valid */
 	if (!vinfo->vesw_id)
 		return -EINVAL;
 
-	rc = xa_insert(&dd->vnic.vesws, vinfo->vesw_id, vinfo, GFP_KERNEL);
+	rc = hfi1_netdev_add_data(dd, VNIC_ID(vinfo->vesw_id), vinfo);
 	if (rc < 0)
 		return rc;
 
-	for (i = 0; i < vinfo->num_rx_q; i++) {
-		struct hfi1_vnic_rx_queue *rxq = &vinfo->rxq[i];
-
-		skb_queue_head_init(&rxq->skbq);
-		napi_enable(&rxq->napi);
-	}
+	rc = hfi1_netdev_rx_init(dd);
+	if (rc)
+		goto err_remove;
 
 	netif_carrier_on(netdev);
 	netif_tx_start_all_queues(netdev);
 	set_bit(HFI1_VNIC_UP, &vinfo->flags);
 
 	return 0;
+
+err_remove:
+	hfi1_netdev_remove_data(dd, VNIC_ID(vinfo->vesw_id));
+	return rc;
 }
 
 static void hfi1_vnic_down(struct hfi1_vnic_vport_info *vinfo)
 {
 	struct hfi1_devdata *dd = vinfo->dd;
-	u8 i;
 
 	clear_bit(HFI1_VNIC_UP, &vinfo->flags);
 	netif_carrier_off(vinfo->netdev);
 	netif_tx_disable(vinfo->netdev);
-	xa_erase(&dd->vnic.vesws, vinfo->vesw_id);
+	hfi1_netdev_remove_data(dd, VNIC_ID(vinfo->vesw_id));
 
-	/* ensure irqs see the change */
-	msix_vnic_synchronize_irq(dd);
-
-	/* remove unread skbs */
-	for (i = 0; i < vinfo->num_rx_q; i++) {
-		struct hfi1_vnic_rx_queue *rxq = &vinfo->rxq[i];
-
-		napi_disable(&rxq->napi);
-		skb_queue_purge(&rxq->skbq);
-	}
+	hfi1_netdev_rx_destroy(dd);
 }
 
 static int hfi1_netdev_open(struct net_device *netdev)
@@ -660,70 +464,31 @@ static int hfi1_netdev_close(struct net_device *netdev)
 	return 0;
 }
 
-static int hfi1_vnic_allot_ctxt(struct hfi1_devdata *dd,
-				struct hfi1_ctxtdata **vnic_ctxt)
-{
-	int rc;
-
-	rc = allocate_vnic_ctxt(dd, vnic_ctxt);
-	if (rc) {
-		dd_dev_err(dd, "vnic ctxt alloc failed %d\n", rc);
-		return rc;
-	}
-
-	rc = setup_vnic_ctxt(dd, *vnic_ctxt);
-	if (rc) {
-		dd_dev_err(dd, "vnic ctxt setup failed %d\n", rc);
-		deallocate_vnic_ctxt(dd, *vnic_ctxt);
-		*vnic_ctxt = NULL;
-	}
-
-	return rc;
-}
-
 static int hfi1_vnic_init(struct hfi1_vnic_vport_info *vinfo)
 {
 	struct hfi1_devdata *dd = vinfo->dd;
-	int i, rc = 0;
+	int rc = 0;
 
 	mutex_lock(&hfi1_mutex);
-	if (!dd->vnic.num_vports) {
+	if (!dd->vnic_num_vports) {
 		rc = hfi1_vnic_txreq_init(dd);
 		if (rc)
 			goto txreq_fail;
 	}
 
-	for (i = dd->vnic.num_ctxt; i < vinfo->num_rx_q; i++) {
-		rc = hfi1_vnic_allot_ctxt(dd, &dd->vnic.ctxt[i]);
-		if (rc)
-			break;
-		hfi1_rcd_get(dd->vnic.ctxt[i]);
-		dd->vnic.ctxt[i]->vnic_q_idx = i;
-	}
-
-	if (i < vinfo->num_rx_q) {
-		/*
-		 * If required amount of contexts is not
-		 * allocated successfully then remaining contexts
-		 * are released.
-		 */
-		while (i-- > dd->vnic.num_ctxt) {
-			deallocate_vnic_ctxt(dd, dd->vnic.ctxt[i]);
-			hfi1_rcd_put(dd->vnic.ctxt[i]);
-			dd->vnic.ctxt[i] = NULL;
-		}
+	rc = hfi1_netdev_rx_init(dd);
+	if (rc) {
+		dd_dev_err(dd, "Unable to initialize netdev contexts\n");
 		goto alloc_fail;
 	}
 
-	if (dd->vnic.num_ctxt != i) {
-		dd->vnic.num_ctxt = i;
-		hfi1_init_vnic_rsm(dd);
-	}
+	hfi1_init_vnic_rsm(dd);
 
-	dd->vnic.num_vports++;
+	dd->vnic_num_vports++;
 	hfi1_vnic_sdma_init(vinfo);
+
 alloc_fail:
-	if (!dd->vnic.num_vports)
+	if (!dd->vnic_num_vports)
 		hfi1_vnic_txreq_deinit(dd);
 txreq_fail:
 	mutex_unlock(&hfi1_mutex);
@@ -733,20 +498,14 @@ txreq_fail:
 static void hfi1_vnic_deinit(struct hfi1_vnic_vport_info *vinfo)
 {
 	struct hfi1_devdata *dd = vinfo->dd;
-	int i;
 
 	mutex_lock(&hfi1_mutex);
-	if (--dd->vnic.num_vports == 0) {
-		for (i = 0; i < dd->vnic.num_ctxt; i++) {
-			deallocate_vnic_ctxt(dd, dd->vnic.ctxt[i]);
-			hfi1_rcd_put(dd->vnic.ctxt[i]);
-			dd->vnic.ctxt[i] = NULL;
-		}
+	if (--dd->vnic_num_vports == 0) {
 		hfi1_deinit_vnic_rsm(dd);
-		dd->vnic.num_ctxt = 0;
 		hfi1_vnic_txreq_deinit(dd);
 	}
 	mutex_unlock(&hfi1_mutex);
+	hfi1_netdev_rx_destroy(dd);
 }
 
 static void hfi1_vnic_set_vesw_id(struct net_device *netdev, int id)
@@ -792,7 +551,7 @@ static void hfi1_vnic_free_rn(struct net_device *netdev)
 }
 
 struct net_device *hfi1_vnic_alloc_rn(struct ib_device *device,
-				      u8 port_num,
+				      u32 port_num,
 				      enum rdma_netdev_t type,
 				      const char *name,
 				      unsigned char name_assign_type,
@@ -804,7 +563,7 @@ struct net_device *hfi1_vnic_alloc_rn(struct ib_device *device,
 	struct rdma_netdev *rn;
 	int i, size, rc;
 
-	if (!dd->num_vnic_contexts)
+	if (!dd->num_netdev_contexts)
 		return ERR_PTR(-ENOMEM);
 
 	if (!port_num || (port_num > dd->num_pports))
@@ -815,15 +574,16 @@ struct net_device *hfi1_vnic_alloc_rn(struct ib_device *device,
 
 	size = sizeof(struct opa_vnic_rdma_netdev) + sizeof(*vinfo);
 	netdev = alloc_netdev_mqs(size, name, name_assign_type, setup,
-				  dd->num_sdma, dd->num_vnic_contexts);
+				  chip_sdma_engines(dd),
+				  dd->num_netdev_contexts);
 	if (!netdev)
 		return ERR_PTR(-ENOMEM);
 
 	rn = netdev_priv(netdev);
 	vinfo = opa_vnic_dev_priv(netdev);
 	vinfo->dd = dd;
-	vinfo->num_tx_q = dd->num_sdma;
-	vinfo->num_rx_q = dd->num_vnic_contexts;
+	vinfo->num_tx_q = chip_sdma_engines(dd);
+	vinfo->num_rx_q = dd->num_netdev_contexts;
 	vinfo->netdev = netdev;
 	rn->free_rdma_netdev = hfi1_vnic_free_rn;
 	rn->set_id = hfi1_vnic_set_vesw_id;
@@ -841,7 +601,6 @@ struct net_device *hfi1_vnic_alloc_rn(struct ib_device *device,
 		rxq->idx = i;
 		rxq->vinfo = vinfo;
 		rxq->netdev = netdev;
-		netif_napi_add(netdev, &rxq->napi, hfi1_vnic_napi, 64);
 	}
 
 	rc = hfi1_vnic_init(vinfo);

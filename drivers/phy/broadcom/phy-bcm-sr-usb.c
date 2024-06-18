@@ -5,6 +5,7 @@
 
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/phy/phy.h>
@@ -16,8 +17,6 @@ enum bcm_usb_phy_version {
 };
 
 enum bcm_usb_phy_reg {
-	PLL_NDIV_FRAC,
-	PLL_NDIV_INT,
 	PLL_CTRL,
 	PHY_CTRL,
 	PHY_PLL_CTRL,
@@ -31,18 +30,11 @@ static const u8 bcm_usb_combo_phy_ss[] = {
 };
 
 static const u8 bcm_usb_combo_phy_hs[] = {
-	[PLL_NDIV_FRAC]	= 0x04,
-	[PLL_NDIV_INT]	= 0x08,
 	[PLL_CTRL]	= 0x0c,
 	[PHY_CTRL]	= 0x10,
 };
 
-#define HSPLL_NDIV_INT_VAL	0x13
-#define HSPLL_NDIV_FRAC_VAL	0x1005
-
 static const u8 bcm_usb_hs_phy[] = {
-	[PLL_NDIV_FRAC]	= 0x0,
-	[PLL_NDIV_INT]	= 0x4,
 	[PLL_CTRL]	= 0x8,
 	[PHY_CTRL]	= 0xc,
 };
@@ -52,7 +44,6 @@ enum pll_ctrl_bits {
 	SSPLL_SUSPEND_EN,
 	PLL_SEQ_START,
 	PLL_LOCK,
-	PLL_PDIV,
 };
 
 static const u8 u3pll_ctrl[] = {
@@ -66,29 +57,17 @@ static const u8 u3pll_ctrl[] = {
 #define HSPLL_PDIV_VAL		0x1
 
 static const u8 u2pll_ctrl[] = {
-	[PLL_PDIV]	= 1,
 	[PLL_RESETB]	= 5,
 	[PLL_LOCK]	= 6,
 };
 
 enum bcm_usb_phy_ctrl_bits {
 	CORERDY,
-	AFE_LDO_PWRDWNB,
-	AFE_PLL_PWRDWNB,
-	AFE_BG_PWRDWNB,
-	PHY_ISO,
 	PHY_RESETB,
 	PHY_PCTL,
 };
 
 #define PHY_PCTL_MASK	0xffff
-/*
- * 0x0806 of PCTL_VAL has below bits set
- * BIT-8 : refclk divider 1
- * BIT-3:2: device mode; mode is not effect
- * BIT-1: soft reset active low
- */
-#define HSPHY_PCTL_VAL	0x0806
 #define SSPHY_PCTL_VAL	0x0006
 
 static const u8 u3phy_ctrl[] = {
@@ -98,10 +77,6 @@ static const u8 u3phy_ctrl[] = {
 
 static const u8 u2phy_ctrl[] = {
 	[CORERDY]		= 0,
-	[AFE_LDO_PWRDWNB]	= 1,
-	[AFE_PLL_PWRDWNB]	= 2,
-	[AFE_BG_PWRDWNB]	= 3,
-	[PHY_ISO]		= 4,
 	[PHY_RESETB]		= 5,
 	[PHY_PCTL]		= 6,
 };
@@ -135,19 +110,15 @@ static inline void bcm_usb_reg32_setbits(void __iomem *addr, uint32_t set)
 
 static int bcm_usb_pll_lock_check(void __iomem *addr, u32 bit)
 {
-	int retry;
-	u32 rd_data;
+	u32 data;
+	int ret;
 
-	retry = PLL_LOCK_RETRY_COUNT;
-	do {
-		rd_data = readl(addr);
-		if (rd_data & bit)
-			return 0;
-		udelay(1);
-	} while (--retry > 0);
+	ret = readl_poll_timeout_atomic(addr, data, (data & bit), 1,
+					PLL_LOCK_RETRY_COUNT);
+	if (ret)
+		pr_err("%s: FAIL\n", __func__);
 
-	pr_err("%s: FAIL\n", __func__);
-	return -ETIMEDOUT;
+	return ret;
 }
 
 static int bcm_usb_ss_phy_init(struct bcm_usb_phy_cfg *phy_cfg)
@@ -186,38 +157,13 @@ static int bcm_usb_hs_phy_init(struct bcm_usb_phy_cfg *phy_cfg)
 	int ret = 0;
 	void __iomem *regs = phy_cfg->regs;
 	const u8 *offset;
-	u32 rd_data;
 
 	offset = phy_cfg->offset;
 
-	writel(HSPLL_NDIV_INT_VAL, regs + offset[PLL_NDIV_INT]);
-	writel(HSPLL_NDIV_FRAC_VAL, regs + offset[PLL_NDIV_FRAC]);
-
-	rd_data = readl(regs + offset[PLL_CTRL]);
-	rd_data &= ~(HSPLL_PDIV_MASK << u2pll_ctrl[PLL_PDIV]);
-	rd_data |= (HSPLL_PDIV_VAL << u2pll_ctrl[PLL_PDIV]);
-	writel(rd_data, regs + offset[PLL_CTRL]);
-
-	/* Set Core Ready high */
-	bcm_usb_reg32_setbits(regs + offset[PHY_CTRL],
-			      BIT(u2phy_ctrl[CORERDY]));
-
-	/* Maximum timeout for Core Ready done */
-	msleep(30);
-
+	bcm_usb_reg32_clrbits(regs + offset[PLL_CTRL],
+			      BIT(u2pll_ctrl[PLL_RESETB]));
 	bcm_usb_reg32_setbits(regs + offset[PLL_CTRL],
 			      BIT(u2pll_ctrl[PLL_RESETB]));
-	bcm_usb_reg32_setbits(regs + offset[PHY_CTRL],
-			      BIT(u2phy_ctrl[PHY_RESETB]));
-
-
-	rd_data = readl(regs + offset[PHY_CTRL]);
-	rd_data &= ~(PHY_PCTL_MASK << u2phy_ctrl[PHY_PCTL]);
-	rd_data |= (HSPHY_PCTL_VAL << u2phy_ctrl[PHY_PCTL]);
-	writel(rd_data, regs + offset[PHY_CTRL]);
-
-	/* Maximum timeout for PLL reset done */
-	msleep(30);
 
 	ret = bcm_usb_pll_lock_check(regs + offset[PLL_CTRL],
 				     BIT(u2pll_ctrl[PLL_LOCK]));
@@ -256,14 +202,14 @@ static int bcm_usb_phy_init(struct phy *phy)
 	return ret;
 }
 
-static struct phy_ops sr_phy_ops = {
+static const struct phy_ops sr_phy_ops = {
 	.init		= bcm_usb_phy_init,
 	.reset		= bcm_usb_phy_reset,
 	.owner		= THIS_MODULE,
 };
 
 static struct phy *bcm_usb_phy_xlate(struct device *dev,
-				     struct of_phandle_args *args)
+				     const struct of_phandle_args *args)
 {
 	struct bcm_usb_phy_cfg *phy_cfg;
 	int phy_idx;
@@ -354,20 +300,18 @@ static int bcm_usb_phy_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *dn = dev->of_node;
 	const struct of_device_id *of_id;
-	struct resource *res;
 	void __iomem *regs;
 	int ret;
 	enum bcm_usb_phy_version version;
 	struct phy_provider *phy_provider;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	regs = devm_ioremap_resource(dev, res);
+	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
 	of_id = of_match_node(bcm_usb_phy_of_match, dn);
 	if (of_id)
-		version = (enum bcm_usb_phy_version)of_id->data;
+		version = (uintptr_t)of_id->data;
 	else
 		return -ENODEV;
 

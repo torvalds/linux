@@ -2,6 +2,15 @@
 #
 # Allwinner sunXi SoC drivers
 #
+
+config SUNXI_MBUS
+	bool
+	default ARCH_SUNXI
+	depends on ARM || ARM64
+	help
+	  Say y to enable the fixups needed to support the Allwinner
+	  MBUS DMA quirks.
+
 config SUNXI_SRAM
 	bool
 	default ARCH_SUNXI

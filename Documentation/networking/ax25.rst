@@ -1,0 +1,16 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+=====
+AX.25
+=====
+
+To use the amateur radio protocols within Linux you will need to get a
+suitable copy of the AX.25 Utilities. More detailed information about
+AX.25, NET/ROM and ROSE, associated programs and utilities can be
+found on https://linux-ax25.in-berlin.de.
+
+There is a mailing list for discussing Linux amateur radio matters
+called linux-hams@vger.kernel.org. To subscribe to it, send a message to
+majordomo@vger.kernel.org with the words "subscribe linux-hams" in the body
+of the message, the subject field is ignored.  You don't need to be
+subscribed to post but of course that means you might miss an answer.

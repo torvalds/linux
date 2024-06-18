@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /* Signature verification with an asymmetric key
  *
- * See Documentation/crypto/asymmetric-keys.txt
+ * See Documentation/crypto/asymmetric-keys.rst
  *
  * Copyright (C) 2012 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -35,7 +35,7 @@ void public_key_signature_free(struct public_key_signature *sig)
 EXPORT_SYMBOL_GPL(public_key_signature_free);
 
 /**
- * query_asymmetric_key - Get information about an aymmetric key.
+ * query_asymmetric_key - Get information about an asymmetric key.
  * @params: Various parameters.
  * @info: Where to put the information.
  */

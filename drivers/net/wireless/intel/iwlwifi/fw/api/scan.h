@@ -1,74 +1,33 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
-
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
+/*
+ * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
+ * Copyright (C) 2016-2017 Intel Deutschland GmbH
+ */
 #ifndef __iwl_fw_api_scan_h__
 #define __iwl_fw_api_scan_h__
 
 /* Scan Commands, Responses, Notifications */
 
+/**
+ * enum iwl_scan_subcmd_ids - scan commands
+ */
+enum iwl_scan_subcmd_ids {
+	/**
+	 * @CHANNEL_SURVEY_NOTIF: &struct iwl_umac_scan_channel_survey_notif
+	 */
+	CHANNEL_SURVEY_NOTIF = 0xFB,
+	/**
+	 * @OFFLOAD_MATCH_INFO_NOTIF: &struct iwl_scan_offload_match_info
+	 */
+	OFFLOAD_MATCH_INFO_NOTIF = 0xFC,
+};
+
 /* Max number of IEs for direct SSID scans in a command */
 #define PROBE_OPTION_MAX		20
+
+#define SCAN_SHORT_SSID_MAX_SIZE        8
+#define SCAN_BSSID_MAX_SIZE             16
 
 /**
  * struct iwl_ssid_ie - directed scan network information element
@@ -92,6 +51,7 @@ struct iwl_ssid_ie {
 #define IWL_SCAN_MAX_BLACKLIST_LEN	64
 #define IWL_SCAN_SHORT_BLACKLIST_LEN	16
 #define IWL_SCAN_MAX_PROFILES		11
+#define IWL_SCAN_MAX_PROFILES_V2	8
 #define SCAN_OFFLOAD_PROBE_REQ_SIZE	512
 #define SCAN_NUM_BAND_PROBE_DATA_V_1	2
 #define SCAN_NUM_BAND_PROBE_DATA_V_2	3
@@ -106,6 +66,8 @@ struct iwl_ssid_ie {
 #define IWL_FAST_SCHED_SCAN_ITERATIONS 3
 #define IWL_MAX_SCHED_SCAN_PLANS 2
 
+#define IWL_MAX_NUM_NOISE_RESULTS 22
+
 enum scan_framework_client {
 	SCAN_CLIENT_SCHED_SCAN		= BIT(0),
 	SCAN_CLIENT_NETDETECT		= BIT(1),
@@ -113,12 +75,12 @@ enum scan_framework_client {
 };
 
 /**
- * struct iwl_scan_offload_blacklist - SCAN_OFFLOAD_BLACKLIST_S
+ * struct iwl_scan_offload_blocklist - SCAN_OFFLOAD_BLACKLIST_S
  * @ssid:		MAC address to filter out
  * @reported_rssi:	AP rssi reported to the host
  * @client_bitmap: clients ignore this entry  - enum scan_framework_client
  */
-struct iwl_scan_offload_blacklist {
+struct iwl_scan_offload_blocklist {
 	u8 ssid[ETH_ALEN];
 	u8 reported_rssi;
 	u8 client_bitmap;
@@ -134,6 +96,16 @@ enum iwl_scan_offload_band_selection {
 	IWL_SCAN_OFFLOAD_SELECT_2_4	= 0x4,
 	IWL_SCAN_OFFLOAD_SELECT_5_2	= 0x8,
 	IWL_SCAN_OFFLOAD_SELECT_ANY	= 0xc,
+};
+
+enum iwl_scan_offload_auth_alg {
+	IWL_AUTH_ALGO_UNSUPPORTED  = 0x00,
+	IWL_AUTH_ALGO_NONE         = 0x01,
+	IWL_AUTH_ALGO_PSK          = 0x02,
+	IWL_AUTH_ALGO_8021X        = 0x04,
+	IWL_AUTH_ALGO_SAE          = 0x08,
+	IWL_AUTH_ALGO_8021X_SHA384 = 0x10,
+	IWL_AUTH_ALGO_OWE          = 0x20,
 };
 
 /**
@@ -157,9 +129,8 @@ struct iwl_scan_offload_profile {
 } __packed;
 
 /**
- * struct iwl_scan_offload_profile_cfg - SCAN_OFFLOAD_PROFILES_CFG_API_S_VER_1
- * @profiles:		profiles to search for match
- * @blacklist_len:	length of blacklist
+ * struct iwl_scan_offload_profile_cfg_data
+ * @blocklist_len:	length of blocklist
  * @num_profiles:	num of profiles in the list
  * @match_notify:	clients waiting for match found notification
  * @pass_match:		clients waiting for the results
@@ -167,9 +138,8 @@ struct iwl_scan_offload_profile {
  * @any_beacon_notify:	clients waiting for match notification without match
  * @reserved:		reserved
  */
-struct iwl_scan_offload_profile_cfg {
-	struct iwl_scan_offload_profile profiles[IWL_SCAN_MAX_PROFILES];
-	u8 blacklist_len;
+struct iwl_scan_offload_profile_cfg_data {
+	u8 blocklist_len;
 	u8 num_profiles;
 	u8 match_notify;
 	u8 pass_match;
@@ -177,6 +147,26 @@ struct iwl_scan_offload_profile_cfg {
 	u8 any_beacon_notify;
 	u8 reserved[2];
 } __packed;
+
+/**
+ * struct iwl_scan_offload_profile_cfg
+ * @profiles:	profiles to search for match
+ * @data:	the rest of the data for profile_cfg
+ */
+struct iwl_scan_offload_profile_cfg_v1 {
+	struct iwl_scan_offload_profile profiles[IWL_SCAN_MAX_PROFILES];
+	struct iwl_scan_offload_profile_cfg_data data;
+} __packed; /* SCAN_OFFLOAD_PROFILES_CFG_API_S_VER_1-2*/
+
+/**
+ * struct iwl_scan_offload_profile_cfg
+ * @profiles:	profiles to search for match
+ * @data:	the rest of the data for profile_cfg
+ */
+struct iwl_scan_offload_profile_cfg {
+	struct iwl_scan_offload_profile profiles[IWL_SCAN_MAX_PROFILES_V2];
+	struct iwl_scan_offload_profile_cfg_data data;
+} __packed; /* SCAN_OFFLOAD_PROFILES_CFG_API_S_VER_3*/
 
 /**
  * struct iwl_scan_schedule_lmac - schedule of scan offload
@@ -237,7 +227,7 @@ struct iwl_scan_channel_cfg_lmac {
 	__le32 iter_interval;
 } __packed;
 
-/*
+/**
  * struct iwl_scan_probe_segment - PROBE_SEGMENT_API_S_VER_1
  * @offset: offset in the data block
  * @len: length of the segment
@@ -247,7 +237,8 @@ struct iwl_scan_probe_segment {
 	__le16 len;
 } __packed;
 
-/* iwl_scan_probe_req - PROBE_REQUEST_FRAME_API_S_VER_2
+/**
+ * struct iwl_scan_probe_req_v1 - PROBE_REQUEST_FRAME_API_S_VER_2
  * @mac_header: first (and common) part of the probe
  * @band_data: band specific data
  * @common_data: last (and common) part of the probe
@@ -260,7 +251,8 @@ struct iwl_scan_probe_req_v1 {
 	u8 buf[SCAN_OFFLOAD_PROBE_REQ_SIZE];
 } __packed;
 
-/* iwl_scan_probe_req - PROBE_REQUEST_FRAME_API_S_VER_v2
+/**
+ * struct iwl_scan_probe_req - PROBE_REQUEST_FRAME_API_S_VER_v2
  * @mac_header: first (and common) part of the probe
  * @band_data: band specific data
  * @common_data: last (and common) part of the probe
@@ -278,9 +270,13 @@ enum iwl_scan_channel_flags {
 	IWL_SCAN_CHANNEL_FLAG_EBS_ACCURATE	= BIT(1),
 	IWL_SCAN_CHANNEL_FLAG_CACHE_ADD		= BIT(2),
 	IWL_SCAN_CHANNEL_FLAG_EBS_FRAG		= BIT(3),
+	IWL_SCAN_CHANNEL_FLAG_FORCE_EBS         = BIT(4),
+	IWL_SCAN_CHANNEL_FLAG_ENABLE_CHAN_ORDER = BIT(5),
+	IWL_SCAN_CHANNEL_FLAG_6G_PSC_NO_FILTER  = BIT(6),
 };
 
-/* struct iwl_scan_channel_opt - CHANNEL_OPTIMIZATION_API_S
+/**
+ * struct iwl_scan_channel_opt - CHANNEL_OPTIMIZATION_API_S
  * @flags: enum iwl_scan_channel_flags
  * @non_ebs_ratio: defines the ratio of number of scan iterations where EBS is
  *	involved.
@@ -505,6 +501,11 @@ enum iwl_channel_flags {
 	IWL_CHANNEL_FLAG_PRE_SCAN_PASSIVE2ACTIVE	= BIT(3),
 };
 
+enum iwl_uhb_chan_cfg_flags {
+	IWL_UHB_CHAN_CFG_FLAG_UNSOLICITED_PROBE_RES = BIT(24),
+	IWL_UHB_CHAN_CFG_FLAG_PSC_CHAN_NO_LISTEN    = BIT(25),
+	IWL_UHB_CHAN_CFG_FLAG_FORCE_PASSIVE         = BIT(26),
+};
 /**
  * struct iwl_scan_dwell
  * @active:		default dwell time for active scan
@@ -520,7 +521,7 @@ struct iwl_scan_dwell {
 } __packed;
 
 /**
- * struct iwl_scan_config
+ * struct iwl_scan_config_v1 - scan configuration command
  * @flags:			enum scan_config_flags
  * @tx_chains:			valid_tx antenna - ANT_* definitions
  * @rx_chains:			valid_rx antenna - ANT_* definitions
@@ -552,7 +553,22 @@ struct iwl_scan_config_v1 {
 #define SCAN_LB_LMAC_IDX 0
 #define SCAN_HB_LMAC_IDX 1
 
-struct iwl_scan_config {
+/**
+ * struct iwl_scan_config_v2 - scan configuration command
+ * @flags:			enum scan_config_flags
+ * @tx_chains:			valid_tx antenna - ANT_* definitions
+ * @rx_chains:			valid_rx antenna - ANT_* definitions
+ * @legacy_rates:		default legacy rates - enum scan_config_rates
+ * @out_of_channel_time:	default max out of serving channel time
+ * @suspend_time:		default max suspend time
+ * @dwell:			dwells for the scan
+ * @mac_addr:			default mac address to be used in probes
+ * @bcast_sta_id:		the index of the station in the fw
+ * @channel_flags:		default channel flags - enum iwl_channel_flags
+ *				scan_config_channel_flag
+ * @channel_array:		default supported channels
+ */
+struct iwl_scan_config_v2 {
 	__le32 flags;
 	__le32 tx_chains;
 	__le32 rx_chains;
@@ -564,7 +580,26 @@ struct iwl_scan_config {
 	u8 bcast_sta_id;
 	u8 channel_flags;
 	u8 channel_array[];
-} __packed; /* SCAN_CONFIG_DB_CMD_API_S_3 */
+} __packed; /* SCAN_CONFIG_DB_CMD_API_S_2 */
+
+/**
+ * struct iwl_scan_config - scan configuration command
+ * @enable_cam_mode: whether to enable CAM mode.
+ * @enable_promiscouos_mode: whether to enable promiscouos mode
+ * @bcast_sta_id: the index of the station in the fw. Deprecated starting with
+ *     API version 5.
+ * @reserved: reserved
+ * @tx_chains: valid_tx antenna - ANT_* definitions
+ * @rx_chains: valid_rx antenna - ANT_* definitions
+ */
+struct iwl_scan_config {
+	u8 enable_cam_mode;
+	u8 enable_promiscouos_mode;
+	u8 bcast_sta_id;
+	u8 reserved;
+	__le32 tx_chains;
+	__le32 rx_chains;
+} __packed; /* SCAN_CONFIG_DB_CMD_API_S_5 */
 
 /**
  * enum iwl_umac_scan_flags - UMAC scan flags
@@ -613,10 +648,83 @@ enum iwl_umac_scan_general_flags {
  *	notification per channel or not.
  * @IWL_UMAC_SCAN_GEN_FLAGS2_ALLOW_CHNL_REORDER: Whether to allow channel
  *	reorder optimization or not.
+ * @IWL_UMAC_SCAN_GEN_FLAGS2_COLLECT_CHANNEL_STATS: Enable channel statistics
+ *	collection when #IWL_UMAC_SCAN_GEN_FLAGS_V2_FORCE_PASSIVE is set.
  */
 enum iwl_umac_scan_general_flags2 {
 	IWL_UMAC_SCAN_GEN_FLAGS2_NOTIF_PER_CHNL		= BIT(0),
 	IWL_UMAC_SCAN_GEN_FLAGS2_ALLOW_CHNL_REORDER	= BIT(1),
+	IWL_UMAC_SCAN_GEN_FLAGS2_COLLECT_CHANNEL_STATS	= BIT(3),
+};
+
+/**
+ * enum iwl_umac_scan_general_flags_v2 - UMAC scan general flags version 2
+ *
+ * The FW flags were reordered and hence the driver introduce version 2
+ *
+ * @IWL_UMAC_SCAN_GEN_FLAGS_V2_PERIODIC: periodic or scheduled
+ * @IWL_UMAC_SCAN_GEN_FLAGS_V2_PASS_ALL: pass all probe responses and beacons
+ *                                       during scan iterations
+ * @IWL_UMAC_SCAN_GEN_FLAGS_V2_NTFY_ITER_COMPLETE: send complete notification
+ *      on every iteration instead of only once after the last iteration
+ * @IWL_UMAC_SCAN_GEN_FLAGS_V2_FRAGMENTED_LMAC1: fragmented scan LMAC1
+ * @IWL_UMAC_SCAN_GEN_FLAGS_V2_FRAGMENTED_LMAC2: fragmented scan LMAC2
+ * @IWL_UMAC_SCAN_GEN_FLAGS_V2_MATCH: does this scan check for profile matching
+ * @IWL_UMAC_SCAN_GEN_FLAGS_V2_USE_ALL_RX_CHAINS: use all valid chains for RX
+ * @IWL_UMAC_SCAN_GEN_FLAGS_V2_ADAPTIVE_DWELL: works with adaptive dwell
+ *                                             for active channel
+ * @IWL_UMAC_SCAN_GEN_FLAGS_V2_PREEMPTIVE: can be preempted by other requests
+ * @IWL_UMAC_SCAN_GEN_FLAGS_V2_NTF_START: send notification of scan start
+ * @IWL_UMAC_SCAN_GEN_FLAGS_V2_MULTI_SSID: matching on multiple SSIDs
+ * @IWL_UMAC_SCAN_GEN_FLAGS_V2_FORCE_PASSIVE: all the channels scanned
+ *                                           as passive
+ * @IWL_UMAC_SCAN_GEN_FLAGS_V2_TRIGGER_UHB_SCAN: at the end of 2.4GHz and
+ *		5.2Ghz bands scan, trigger scan on 6GHz band to discover
+ *		the reported collocated APs
+ * @IWL_UMAC_SCAN_GEN_FLAGS_V2_6GHZ_PASSIVE_SCAN: at the end of 2.4GHz and 5GHz
+ *      bands scan, if not APs were discovered, allow scan to conitnue and scan
+ *      6GHz PSC channels in order to discover country information.
+ * @IWL_UMAC_SCAN_GEN_FLAGS_V2_6GHZ_PASSIVE_SCAN_FILTER_IN: in case
+ *      &IWL_UMAC_SCAN_GEN_FLAGS_V2_6GHZ_PASSIVE_SCAN is enabled and scan is
+ *      activated over 6GHz PSC channels, filter in beacons and probe responses.
+ * @IWL_UMAC_SCAN_GEN_FLAGS_V2_OCE: if set, send probe requests in a minimum
+ *      rate of 5.5Mpbs, filter in broadcast probe responses and set the max
+ *      channel time indication field in the FILS request parameters element
+ *      (if included by the driver in the probe request IEs).
+ */
+enum iwl_umac_scan_general_flags_v2 {
+	IWL_UMAC_SCAN_GEN_FLAGS_V2_PERIODIC             = BIT(0),
+	IWL_UMAC_SCAN_GEN_FLAGS_V2_PASS_ALL             = BIT(1),
+	IWL_UMAC_SCAN_GEN_FLAGS_V2_NTFY_ITER_COMPLETE   = BIT(2),
+	IWL_UMAC_SCAN_GEN_FLAGS_V2_FRAGMENTED_LMAC1     = BIT(3),
+	IWL_UMAC_SCAN_GEN_FLAGS_V2_FRAGMENTED_LMAC2     = BIT(4),
+	IWL_UMAC_SCAN_GEN_FLAGS_V2_MATCH                = BIT(5),
+	IWL_UMAC_SCAN_GEN_FLAGS_V2_USE_ALL_RX_CHAINS    = BIT(6),
+	IWL_UMAC_SCAN_GEN_FLAGS_V2_ADAPTIVE_DWELL       = BIT(7),
+	IWL_UMAC_SCAN_GEN_FLAGS_V2_PREEMPTIVE           = BIT(8),
+	IWL_UMAC_SCAN_GEN_FLAGS_V2_NTF_START            = BIT(9),
+	IWL_UMAC_SCAN_GEN_FLAGS_V2_MULTI_SSID           = BIT(10),
+	IWL_UMAC_SCAN_GEN_FLAGS_V2_FORCE_PASSIVE        = BIT(11),
+	IWL_UMAC_SCAN_GEN_FLAGS_V2_TRIGGER_UHB_SCAN     = BIT(12),
+	IWL_UMAC_SCAN_GEN_FLAGS_V2_6GHZ_PASSIVE_SCAN    = BIT(13),
+	IWL_UMAC_SCAN_GEN_FLAGS_V2_6GHZ_PASSIVE_SCAN_FILTER_IN = BIT(14),
+	IWL_UMAC_SCAN_GEN_FLAGS_V2_OCE                  = BIT(15),
+};
+
+/**
+ * enum iwl_umac_scan_general_params_flags2 - UMAC scan general flags2
+ *
+ * @IWL_UMAC_SCAN_GEN_PARAMS_FLAGS2_RESPECT_P2P_GO_LB: scan event scheduling
+ *     should be aware of a P2P GO operation on the 2GHz band.
+ * @IWL_UMAC_SCAN_GEN_PARAMS_FLAGS2_RESPECT_P2P_GO_HB: scan event scheduling
+ *     should be aware of a P2P GO operation on the 5GHz or 6GHz band.
+ * @IWL_UMAC_SCAN_GEN_PARAMS_FLAGS2_DONT_TOGGLE_ANT: don't toggle between
+ *     valid antennas, and use the same antenna as in previous scan
+ */
+enum iwl_umac_scan_general_params_flags2 {
+	IWL_UMAC_SCAN_GEN_PARAMS_FLAGS2_RESPECT_P2P_GO_LB = BIT(0),
+	IWL_UMAC_SCAN_GEN_PARAMS_FLAGS2_RESPECT_P2P_GO_HB = BIT(1),
+	IWL_UMAC_SCAN_GEN_PARAMS_FLAGS2_DONT_TOGGLE_ANT   = BIT(2),
 };
 
 /**
@@ -628,8 +736,10 @@ enum iwl_umac_scan_general_flags2 {
  * @iter_interval:	interval between two scan iterations on one channel.
  */
 struct  iwl_scan_channel_cfg_umac {
+#define IWL_CHAN_CFG_FLAGS_BAND_POS 30
 	__le32 flags;
-	/* Both versions are of the same size, so use a union without adjusting
+
+	/* All versions are of the same size, so use a union without adjusting
 	 * the command size later
 	 */
 	union {
@@ -637,13 +747,22 @@ struct  iwl_scan_channel_cfg_umac {
 			u8 channel_num;
 			u8 iter_count;
 			__le16 iter_interval;
-		} v1;  /* SCAN_CHANNEL_CFG_S_VER1 */
+		} v1;  /* SCAN_CHANNEL_CONFIG_API_S_VER_1 */
 		struct {
 			u8 channel_num;
 			u8 band;
 			u8 iter_count;
 			u8 iter_interval;
-		 } v2; /* SCAN_CHANNEL_CFG_S_VER2 */
+		 } v2; /* SCAN_CHANNEL_CONFIG_API_S_VER_2
+			* SCAN_CHANNEL_CONFIG_API_S_VER_3
+			* SCAN_CHANNEL_CONFIG_API_S_VER_4
+			*/
+		struct {
+			u8 channel_num;
+			u8 psd_20;
+			u8 iter_count;
+			u8 iter_interval;
+		} v5;  /* SCAN_CHANNEL_CONFIG_API_S_VER_5 */
 	};
 } __packed;
 
@@ -813,6 +932,197 @@ struct iwl_scan_req_umac {
 #define IWL_SCAN_REQ_UMAC_SIZE_V1 36
 
 /**
+ * struct iwl_scan_probe_params_v3
+ * @preq: scan probe request params
+ * @ssid_num: number of valid SSIDs in direct scan array
+ * @short_ssid_num: number of valid short SSIDs in short ssid array
+ * @bssid_num: number of valid bssid in bssids array
+ * @reserved: reserved
+ * @direct_scan: list of ssids
+ * @short_ssid: array of short ssids
+ * @bssid_array: array of bssids
+ */
+struct iwl_scan_probe_params_v3 {
+	struct iwl_scan_probe_req preq;
+	u8 ssid_num;
+	u8 short_ssid_num;
+	u8 bssid_num;
+	u8 reserved;
+	struct iwl_ssid_ie direct_scan[PROBE_OPTION_MAX];
+	__le32 short_ssid[SCAN_SHORT_SSID_MAX_SIZE];
+	u8 bssid_array[SCAN_BSSID_MAX_SIZE][ETH_ALEN];
+} __packed; /* SCAN_PROBE_PARAMS_API_S_VER_3 */
+
+/**
+ * struct iwl_scan_probe_params_v4
+ * @preq: scan probe request params
+ * @short_ssid_num: number of valid short SSIDs in short ssid array
+ * @bssid_num: number of valid bssid in bssids array
+ * @reserved: reserved
+ * @direct_scan: list of ssids
+ * @short_ssid: array of short ssids
+ * @bssid_array: array of bssids
+ */
+struct iwl_scan_probe_params_v4 {
+	struct iwl_scan_probe_req preq;
+	u8 short_ssid_num;
+	u8 bssid_num;
+	__le16 reserved;
+	struct iwl_ssid_ie direct_scan[PROBE_OPTION_MAX];
+	__le32 short_ssid[SCAN_SHORT_SSID_MAX_SIZE];
+	u8 bssid_array[SCAN_BSSID_MAX_SIZE][ETH_ALEN];
+} __packed; /* SCAN_PROBE_PARAMS_API_S_VER_4 */
+
+#define SCAN_MAX_NUM_CHANS_V3 67
+
+/**
+ * struct iwl_scan_channel_params_v4
+ * @flags: channel flags &enum iwl_scan_channel_flags
+ * @count: num of channels in scan request
+ * @num_of_aps_override: override the number of APs the FW uses to calculate
+ *	dwell time when adaptive dwell is used
+ * @reserved: for future use and alignment
+ * @channel_config: array of explicit channel configurations
+ *                  for 2.4Ghz and 5.2Ghz bands
+ * @adwell_ch_override_bitmap: when using adaptive dwell, override the number
+ *	of APs value with &num_of_aps_override for the channel.
+ *	To cast channel to index, use &iwl_mvm_scan_ch_and_band_to_idx
+ */
+struct iwl_scan_channel_params_v4 {
+	u8 flags;
+	u8 count;
+	u8 num_of_aps_override;
+	u8 reserved;
+	struct iwl_scan_channel_cfg_umac channel_config[SCAN_MAX_NUM_CHANS_V3];
+	u8 adwell_ch_override_bitmap[16];
+} __packed; /* SCAN_CHANNEL_PARAMS_API_S_VER_4 also
+	       SCAN_CHANNEL_PARAMS_API_S_VER_5 */
+
+/**
+ * struct iwl_scan_channel_params_v7
+ * @flags: channel flags &enum iwl_scan_channel_flags
+ * @count: num of channels in scan request
+ * @n_aps_override: override the number of APs the FW uses to calculate dwell
+ *	time when adaptive dwell is used.
+ *	Channel k will use n_aps_override[i] when BIT(20 + i) is set in
+ *	channel_config[k].flags
+ * @channel_config: array of explicit channel configurations
+ *                  for 2.4Ghz and 5.2Ghz bands
+ */
+struct iwl_scan_channel_params_v7 {
+	u8 flags;
+	u8 count;
+	u8 n_aps_override[2];
+	struct iwl_scan_channel_cfg_umac channel_config[SCAN_MAX_NUM_CHANS_V3];
+} __packed; /* SCAN_CHANNEL_PARAMS_API_S_VER_6 */
+
+/**
+ * struct iwl_scan_general_params_v11
+ * @flags: &enum iwl_umac_scan_general_flags_v2
+ * @reserved: reserved for future
+ * @scan_start_mac_or_link_id: report the scan start TSF time according to this
+ *     mac (up to verion 11) or link (starting with version 12) TSF
+ * @active_dwell: dwell time for active scan per LMAC
+ * @adwell_default_2g: adaptive dwell default number of APs
+ *                        for 2.4GHz channel
+ * @adwell_default_5g: adaptive dwell default number of APs
+ *                        for 5GHz channels
+ * @adwell_default_social_chn: adaptive dwell default number of
+ *                             APs per social channel
+ * @flags2: for version 11 see &enum iwl_umac_scan_general_params_flags2.
+ *     Otherwise reserved.
+ * @adwell_max_budget: the maximal number of TUs that adaptive dwell
+ *                     can add to the total scan time
+ * @max_out_of_time: max out of serving channel time, per LMAC
+ * @suspend_time: max suspend time, per LMAC
+ * @scan_priority: priority of the request
+ * @passive_dwell: continues dwell time for passive channel
+ *                 (without adaptive dwell)
+ * @num_of_fragments: number of fragments needed for full fragmented
+ *                    scan coverage.
+ */
+struct iwl_scan_general_params_v11 {
+	__le16 flags;
+	u8 reserved;
+	u8 scan_start_mac_or_link_id;
+	u8 active_dwell[SCAN_TWO_LMACS];
+	u8 adwell_default_2g;
+	u8 adwell_default_5g;
+	u8 adwell_default_social_chn;
+	u8 flags2;
+	__le16 adwell_max_budget;
+	__le32 max_out_of_time[SCAN_TWO_LMACS];
+	__le32 suspend_time[SCAN_TWO_LMACS];
+	__le32 scan_priority;
+	u8 passive_dwell[SCAN_TWO_LMACS];
+	u8 num_of_fragments[SCAN_TWO_LMACS];
+} __packed; /* SCAN_GENERAL_PARAMS_API_S_VER_12, *_VER_11  and *_VER_10 */
+
+/**
+ * struct iwl_scan_periodic_parms_v1
+ * @schedule: can scheduling parameter
+ * @delay: initial delay of the periodic scan in seconds
+ * @reserved: reserved for future
+ */
+struct iwl_scan_periodic_parms_v1 {
+	struct iwl_scan_umac_schedule schedule[IWL_MAX_SCHED_SCAN_PLANS];
+	__le16 delay;
+	__le16 reserved;
+} __packed; /* SCAN_PERIODIC_PARAMS_API_S_VER_1 */
+
+/**
+ * struct iwl_scan_req_params_v12
+ * @general_params: &struct iwl_scan_general_params_v11
+ * @channel_params: &struct iwl_scan_channel_params_v4
+ * @periodic_params: &struct iwl_scan_periodic_parms_v1
+ * @probe_params: &struct iwl_scan_probe_params_v3
+ */
+struct iwl_scan_req_params_v12 {
+	struct iwl_scan_general_params_v11 general_params;
+	struct iwl_scan_channel_params_v4 channel_params;
+	struct iwl_scan_periodic_parms_v1 periodic_params;
+	struct iwl_scan_probe_params_v3 probe_params;
+} __packed; /* SCAN_REQUEST_PARAMS_API_S_VER_12 */
+
+/**
+ * struct iwl_scan_req_params_v16
+ * @general_params: &struct iwl_scan_general_params_v11
+ * @channel_params: &struct iwl_scan_channel_params_v7
+ * @periodic_params: &struct iwl_scan_periodic_parms_v1
+ * @probe_params: &struct iwl_scan_probe_params_v4
+ */
+struct iwl_scan_req_params_v17 {
+	struct iwl_scan_general_params_v11 general_params;
+	struct iwl_scan_channel_params_v7 channel_params;
+	struct iwl_scan_periodic_parms_v1 periodic_params;
+	struct iwl_scan_probe_params_v4 probe_params;
+} __packed; /* SCAN_REQUEST_PARAMS_API_S_VER_17 - 14 */
+
+/**
+ * struct iwl_scan_req_umac_v12
+ * @uid: scan id, &enum iwl_umac_scan_uid_offsets
+ * @ooc_priority: out of channel priority - &enum iwl_scan_priority
+ * @scan_params: scan parameters
+ */
+struct iwl_scan_req_umac_v12 {
+	__le32 uid;
+	__le32 ooc_priority;
+	struct iwl_scan_req_params_v12 scan_params;
+} __packed; /* SCAN_REQUEST_CMD_UMAC_API_S_VER_12 */
+
+/**
+ * struct iwl_scan_req_umac_v16
+ * @uid: scan id, &enum iwl_umac_scan_uid_offsets
+ * @ooc_priority: out of channel priority - &enum iwl_scan_priority
+ * @scan_params: scan parameters
+ */
+struct iwl_scan_req_umac_v17 {
+	__le32 uid;
+	__le32 ooc_priority;
+	struct iwl_scan_req_params_v17 scan_params;
+} __packed; /* SCAN_REQUEST_CMD_UMAC_API_S_VER_17 - 14 */
+
+/**
  * struct iwl_umac_scan_abort
  * @uid: scan id, &enum iwl_umac_scan_uid_offsets
  * @flags: reserved
@@ -886,7 +1196,7 @@ struct iwl_scan_offload_profiles_query_v1 {
 	u8 resume_while_scanning;
 	u8 self_recovery;
 	__le16 reserved;
-	struct iwl_scan_offload_profile_match_v1 matches[IWL_SCAN_MAX_PROFILES];
+	struct iwl_scan_offload_profile_match_v1 matches[];
 } __packed; /* SCAN_OFFLOAD_PROFILES_QUERY_RSP_S_VER_2 */
 
 /**
@@ -909,7 +1219,7 @@ struct iwl_scan_offload_profile_match {
 } __packed; /* SCAN_OFFLOAD_PROFILE_MATCH_RESULTS_S_VER_2 */
 
 /**
- * struct iwl_scan_offload_profiles_query - match results query response
+ * struct iwl_scan_offload_match_info - match results information
  * @matched_profiles: bitmap of matched profiles, referencing the
  *	matches passed in the scan offload request
  * @last_scan_age: age of the last offloaded scan
@@ -921,7 +1231,7 @@ struct iwl_scan_offload_profile_match {
  * @reserved: reserved
  * @matches: array of match information, one for each match
  */
-struct iwl_scan_offload_profiles_query {
+struct iwl_scan_offload_match_info {
 	__le32 matched_profiles;
 	__le32 last_scan_age;
 	__le32 n_scans_done;
@@ -930,8 +1240,10 @@ struct iwl_scan_offload_profiles_query {
 	u8 resume_while_scanning;
 	u8 self_recovery;
 	__le16 reserved;
-	struct iwl_scan_offload_profile_match matches[IWL_SCAN_MAX_PROFILES];
-} __packed; /* SCAN_OFFLOAD_PROFILES_QUERY_RSP_S_VER_3 */
+	struct iwl_scan_offload_profile_match matches[];
+} __packed; /* SCAN_OFFLOAD_PROFILES_QUERY_RSP_S_VER_3 and
+	     * SCAN_OFFLOAD_MATCH_INFO_NOTIFICATION_S_VER_1
+	     */
 
 /**
  * struct iwl_umac_scan_iter_complete_notif - notifies end of scanning iteration
@@ -954,5 +1266,27 @@ struct iwl_umac_scan_iter_complete_notif {
 	__le64 start_tsf;
 	struct iwl_scan_results_notif results[];
 } __packed; /* SCAN_ITER_COMPLETE_NTF_UMAC_API_S_VER_2 */
+
+/**
+ * struct iwl_umac_scan_channel_survey_notif - data for survey
+ * @channel: the channel scanned
+ * @band: band of channel
+ * @noise: noise floor measurements in negative dBm, invalid 0xff
+ * @reserved: for future use and alignment
+ * @active_time: time in ms the radio was turned on (on the channel)
+ * @busy_time: time in ms the channel was sensed busy, 0 for a clean channel
+ * @tx_time: time the radio spent transmitting data
+ * @rx_time: time the radio spent receiving data
+ */
+struct iwl_umac_scan_channel_survey_notif {
+	__le32 channel;
+	__le32 band;
+	u8 noise[IWL_MAX_NUM_NOISE_RESULTS];
+	u8 reserved[2];
+	__le32 active_time;
+	__le32 busy_time;
+	__le32 tx_time;
+	__le32 rx_time;
+} __packed; /* SCAN_CHANNEL_SURVEY_NTF_API_S_VER_1 */
 
 #endif /* __iwl_fw_api_scan_h__ */

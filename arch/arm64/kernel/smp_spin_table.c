@@ -19,7 +19,7 @@
 #include <asm/smp_plat.h>
 
 extern void secondary_holding_pen(void);
-volatile unsigned long __section(.mmuoff.data.read)
+volatile unsigned long __section(".mmuoff.data.read")
 secondary_holding_pen_release = INVALID_HWID;
 
 static phys_addr_t cpu_release_addr[NR_CPUS];
@@ -36,7 +36,7 @@ static void write_pen_release(u64 val)
 	unsigned long size = sizeof(secondary_holding_pen_release);
 
 	secondary_holding_pen_release = val;
-	__flush_dcache_area(start, size);
+	dcache_clean_inval_poc((unsigned long)start, (unsigned long)start + size);
 }
 
 
@@ -66,6 +66,7 @@ static int smp_spin_table_cpu_init(unsigned int cpu)
 static int smp_spin_table_cpu_prepare(unsigned int cpu)
 {
 	__le64 __iomem *release_addr;
+	phys_addr_t pa_holding_pen = __pa_symbol(secondary_holding_pen);
 
 	if (!cpu_release_addr[cpu])
 		return -ENODEV;
@@ -83,14 +84,15 @@ static int smp_spin_table_cpu_prepare(unsigned int cpu)
 
 	/*
 	 * We write the release address as LE regardless of the native
-	 * endianess of the kernel. Therefore, any boot-loaders that
+	 * endianness of the kernel. Therefore, any boot-loaders that
 	 * read this address need to convert this address to the
-	 * boot-loader's endianess before jumping. This is mandated by
+	 * boot-loader's endianness before jumping. This is mandated by
 	 * the boot protocol.
 	 */
-	writeq_relaxed(__pa_symbol(secondary_holding_pen), release_addr);
-	__flush_dcache_area((__force void *)release_addr,
-			    sizeof(*release_addr));
+	writeq_relaxed(pa_holding_pen, release_addr);
+	dcache_clean_inval_poc((__force unsigned long)release_addr,
+			    (__force unsigned long)release_addr +
+				    sizeof(*release_addr));
 
 	/*
 	 * Send an event to wake up the secondary CPU.

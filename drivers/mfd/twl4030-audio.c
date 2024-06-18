@@ -258,12 +258,10 @@ static int twl4030_audio_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int twl4030_audio_remove(struct platform_device *pdev)
+static void twl4030_audio_remove(struct platform_device *pdev)
 {
 	mfd_remove_devices(&pdev->dev);
 	twl4030_audio_dev = NULL;
-
-	return 0;
 }
 
 static const struct of_device_id twl4030_audio_of_match[] = {
@@ -278,12 +276,11 @@ static struct platform_driver twl4030_audio_driver = {
 		.of_match_table = twl4030_audio_of_match,
 	},
 	.probe		= twl4030_audio_probe,
-	.remove		= twl4030_audio_remove,
+	.remove_new	= twl4030_audio_remove,
 };
 
 module_platform_driver(twl4030_audio_driver);
 
 MODULE_AUTHOR("Peter Ujfalusi <peter.ujfalusi@ti.com>");
 MODULE_DESCRIPTION("TWL4030 audio block MFD driver");
-MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:twl4030-audio");

@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/fs/9p/vfs_addr.c
- *
  * This file contians vfs address (mmap) ops for 9P2000.
  *
  *  Copyright (C) 2005 by Eric Van Hensbergen <ericvh@gmail.com>
@@ -14,323 +12,146 @@
 #include <linux/file.h>
 #include <linux/stat.h>
 #include <linux/string.h>
-#include <linux/inet.h>
 #include <linux/pagemap.h>
-#include <linux/idr.h>
 #include <linux/sched.h>
+#include <linux/swap.h>
 #include <linux/uio.h>
-#include <linux/bvec.h>
+#include <linux/netfs.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
+#include <trace/events/netfs.h>
 
 #include "v9fs.h"
 #include "v9fs_vfs.h"
 #include "cache.h"
 #include "fid.h"
 
-/**
- * v9fs_fid_readpage - read an entire page in from 9P
- *
- * @fid: fid being read
- * @page: structure to page
- *
+/*
+ * Writeback calls this when it finds a folio that needs uploading.  This isn't
+ * called if writeback only has copy-to-cache to deal with.
  */
-static int v9fs_fid_readpage(void *data, struct page *page)
+static void v9fs_begin_writeback(struct netfs_io_request *wreq)
 {
-	struct p9_fid *fid = data;
-	struct inode *inode = page->mapping->host;
-	struct bio_vec bvec = {.bv_page = page, .bv_len = PAGE_SIZE};
-	struct iov_iter to;
-	int retval, err;
+	struct p9_fid *fid;
 
-	p9_debug(P9_DEBUG_VFS, "\n");
-
-	BUG_ON(!PageLocked(page));
-
-	retval = v9fs_readpage_from_fscache(inode, page);
-	if (retval == 0)
-		return retval;
-
-	iov_iter_bvec(&to, READ, &bvec, 1, PAGE_SIZE);
-
-	retval = p9_client_read(fid, page_offset(page), &to, &err);
-	if (err) {
-		v9fs_uncache_page(inode, page);
-		retval = err;
-		goto done;
+	fid = v9fs_fid_find_inode(wreq->inode, true, INVALID_UID, true);
+	if (!fid) {
+		WARN_ONCE(1, "folio expected an open fid inode->i_ino=%lx\n",
+			  wreq->inode->i_ino);
+		return;
 	}
 
-	zero_user(page, retval, PAGE_SIZE - retval);
-	flush_dcache_page(page);
-	SetPageUptodate(page);
-
-	v9fs_readpage_to_fscache(inode, page);
-	retval = 0;
-
-done:
-	unlock_page(page);
-	return retval;
+	wreq->wsize = fid->clnt->msize - P9_IOHDRSZ;
+	if (fid->iounit)
+		wreq->wsize = min(wreq->wsize, fid->iounit);
+	wreq->netfs_priv = fid;
+	wreq->io_streams[0].avail = true;
 }
 
-/**
- * v9fs_vfs_readpage - read an entire page in from 9P
- *
- * @filp: file being read
- * @page: structure to page
- *
+/*
+ * Issue a subrequest to write to the server.
  */
-
-static int v9fs_vfs_readpage(struct file *filp, struct page *page)
+static void v9fs_issue_write(struct netfs_io_subrequest *subreq)
 {
-	return v9fs_fid_readpage(filp->private_data, page);
-}
-
-/**
- * v9fs_vfs_readpages - read a set of pages from 9P
- *
- * @filp: file being read
- * @mapping: the address space
- * @pages: list of pages to read
- * @nr_pages: count of pages to read
- *
- */
-
-static int v9fs_vfs_readpages(struct file *filp, struct address_space *mapping,
-			     struct list_head *pages, unsigned nr_pages)
-{
-	int ret = 0;
-	struct inode *inode;
-
-	inode = mapping->host;
-	p9_debug(P9_DEBUG_VFS, "inode: %p file: %p\n", inode, filp);
-
-	ret = v9fs_readpages_from_fscache(inode, mapping, pages, &nr_pages);
-	if (ret == 0)
-		return ret;
-
-	ret = read_cache_pages(mapping, pages, v9fs_fid_readpage,
-			filp->private_data);
-	p9_debug(P9_DEBUG_VFS, "  = %d\n", ret);
-	return ret;
-}
-
-/**
- * v9fs_release_page - release the private state associated with a page
- *
- * Returns 1 if the page can be released, false otherwise.
- */
-
-static int v9fs_release_page(struct page *page, gfp_t gfp)
-{
-	if (PagePrivate(page))
-		return 0;
-	return v9fs_fscache_release_page(page, gfp);
-}
-
-/**
- * v9fs_invalidate_page - Invalidate a page completely or partially
- *
- * @page: structure to page
- * @offset: offset in the page
- */
-
-static void v9fs_invalidate_page(struct page *page, unsigned int offset,
-				 unsigned int length)
-{
-	/*
-	 * If called with zero offset, we should release
-	 * the private state assocated with the page
-	 */
-	if (offset == 0 && length == PAGE_SIZE)
-		v9fs_fscache_invalidate_page(page);
-}
-
-static int v9fs_vfs_writepage_locked(struct page *page)
-{
-	struct inode *inode = page->mapping->host;
-	struct v9fs_inode *v9inode = V9FS_I(inode);
-	loff_t size = i_size_read(inode);
-	struct iov_iter from;
-	struct bio_vec bvec;
+	struct p9_fid *fid = subreq->rreq->netfs_priv;
 	int err, len;
 
-	if (page->index == size >> PAGE_SHIFT)
-		len = size & ~PAGE_MASK;
-	else
-		len = PAGE_SIZE;
-
-	bvec.bv_page = page;
-	bvec.bv_offset = 0;
-	bvec.bv_len = len;
-	iov_iter_bvec(&from, WRITE, &bvec, 1, len);
-
-	/* We should have writeback_fid always set */
-	BUG_ON(!v9inode->writeback_fid);
-
-	set_page_writeback(page);
-
-	p9_client_write(v9inode->writeback_fid, page_offset(page), &from, &err);
-
-	end_page_writeback(page);
-	return err;
-}
-
-static int v9fs_vfs_writepage(struct page *page, struct writeback_control *wbc)
-{
-	int retval;
-
-	p9_debug(P9_DEBUG_VFS, "page %p\n", page);
-
-	retval = v9fs_vfs_writepage_locked(page);
-	if (retval < 0) {
-		if (retval == -EAGAIN) {
-			redirty_page_for_writepage(wbc, page);
-			retval = 0;
-		} else {
-			SetPageError(page);
-			mapping_set_error(page->mapping, retval);
-		}
-	} else
-		retval = 0;
-
-	unlock_page(page);
-	return retval;
+	len = p9_client_write(fid, subreq->start, &subreq->io_iter, &err);
+	netfs_write_subrequest_terminated(subreq, len ?: err, false);
 }
 
 /**
- * v9fs_launder_page - Writeback a dirty page
- * Returns 0 on success.
+ * v9fs_issue_read - Issue a read from 9P
+ * @subreq: The read to make
  */
-
-static int v9fs_launder_page(struct page *page)
+static void v9fs_issue_read(struct netfs_io_subrequest *subreq)
 {
-	int retval;
-	struct inode *inode = page->mapping->host;
+	struct netfs_io_request *rreq = subreq->rreq;
+	struct p9_fid *fid = rreq->netfs_priv;
+	int total, err;
 
-	v9fs_fscache_wait_on_page_write(inode, page);
-	if (clear_page_dirty_for_io(page)) {
-		retval = v9fs_vfs_writepage_locked(page);
-		if (retval)
-			return retval;
-	}
-	return 0;
+	total = p9_client_read(fid, subreq->start + subreq->transferred,
+			       &subreq->io_iter, &err);
+
+	/* if we just extended the file size, any portion not in
+	 * cache won't be on server and is zeroes */
+	__set_bit(NETFS_SREQ_CLEAR_TAIL, &subreq->flags);
+
+	netfs_subreq_terminated(subreq, err ?: total, false);
 }
 
 /**
- * v9fs_direct_IO - 9P address space operation for direct I/O
- * @iocb: target I/O control block
- *
- * The presence of v9fs_direct_IO() in the address space ops vector
- * allowes open() O_DIRECT flags which would have failed otherwise.
- *
- * In the non-cached mode, we shunt off direct read and write requests before
- * the VFS gets them, so this method should never be called.
- *
- * Direct IO is not 'yet' supported in the cached mode. Hence when
- * this routine is called through generic_file_aio_read(), the read/write fails
- * with an error.
- *
+ * v9fs_init_request - Initialise a request
+ * @rreq: The read request
+ * @file: The file being read from
  */
-static ssize_t
-v9fs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
+static int v9fs_init_request(struct netfs_io_request *rreq, struct file *file)
 {
-	struct file *file = iocb->ki_filp;
-	loff_t pos = iocb->ki_pos;
-	ssize_t n;
-	int err = 0;
-	if (iov_iter_rw(iter) == WRITE) {
-		n = p9_client_write(file->private_data, pos, iter, &err);
-		if (n) {
-			struct inode *inode = file_inode(file);
-			loff_t i_size = i_size_read(inode);
-			if (pos + n > i_size)
-				inode_add_bytes(inode, pos + n - i_size);
-		}
+	struct p9_fid *fid;
+	bool writing = (rreq->origin == NETFS_READ_FOR_WRITE ||
+			rreq->origin == NETFS_WRITETHROUGH ||
+			rreq->origin == NETFS_UNBUFFERED_WRITE ||
+			rreq->origin == NETFS_DIO_WRITE);
+
+	if (rreq->origin == NETFS_WRITEBACK)
+		return 0; /* We don't get the write handle until we find we
+			   * have actually dirty data and not just
+			   * copy-to-cache data.
+			   */
+
+	if (file) {
+		fid = file->private_data;
+		if (!fid)
+			goto no_fid;
+		p9_fid_get(fid);
 	} else {
-		n = p9_client_read(file->private_data, pos, iter, &err);
+		fid = v9fs_fid_find_inode(rreq->inode, writing, INVALID_UID, true);
+		if (!fid)
+			goto no_fid;
 	}
-	return n ? n : err;
+
+	rreq->wsize = fid->clnt->msize - P9_IOHDRSZ;
+	if (fid->iounit)
+		rreq->wsize = min(rreq->wsize, fid->iounit);
+
+	/* we might need to read from a fid that was opened write-only
+	 * for read-modify-write of page cache, use the writeback fid
+	 * for that */
+	WARN_ON(rreq->origin == NETFS_READ_FOR_WRITE && !(fid->mode & P9_ORDWR));
+	rreq->netfs_priv = fid;
+	return 0;
+
+no_fid:
+	WARN_ONCE(1, "folio expected an open fid inode->i_ino=%lx\n",
+		  rreq->inode->i_ino);
+	return -EINVAL;
 }
 
-static int v9fs_write_begin(struct file *filp, struct address_space *mapping,
-			    loff_t pos, unsigned len, unsigned flags,
-			    struct page **pagep, void **fsdata)
+/**
+ * v9fs_free_request - Cleanup request initialized by v9fs_init_rreq
+ * @rreq: The I/O request to clean up
+ */
+static void v9fs_free_request(struct netfs_io_request *rreq)
 {
-	int retval = 0;
-	struct page *page;
-	struct v9fs_inode *v9inode;
-	pgoff_t index = pos >> PAGE_SHIFT;
-	struct inode *inode = mapping->host;
+	struct p9_fid *fid = rreq->netfs_priv;
 
-
-	p9_debug(P9_DEBUG_VFS, "filp %p, mapping %p\n", filp, mapping);
-
-	v9inode = V9FS_I(inode);
-start:
-	page = grab_cache_page_write_begin(mapping, index, flags);
-	if (!page) {
-		retval = -ENOMEM;
-		goto out;
-	}
-	BUG_ON(!v9inode->writeback_fid);
-	if (PageUptodate(page))
-		goto out;
-
-	if (len == PAGE_SIZE)
-		goto out;
-
-	retval = v9fs_fid_readpage(v9inode->writeback_fid, page);
-	put_page(page);
-	if (!retval)
-		goto start;
-out:
-	*pagep = page;
-	return retval;
+	p9_fid_put(fid);
 }
 
-static int v9fs_write_end(struct file *filp, struct address_space *mapping,
-			  loff_t pos, unsigned len, unsigned copied,
-			  struct page *page, void *fsdata)
-{
-	loff_t last_pos = pos + copied;
-	struct inode *inode = page->mapping->host;
-
-	p9_debug(P9_DEBUG_VFS, "filp %p, mapping %p\n", filp, mapping);
-
-	if (!PageUptodate(page)) {
-		if (unlikely(copied < len)) {
-			copied = 0;
-			goto out;
-		} else if (len == PAGE_SIZE) {
-			SetPageUptodate(page);
-		}
-	}
-	/*
-	 * No need to use i_size_read() here, the i_size
-	 * cannot change under us because we hold the i_mutex.
-	 */
-	if (last_pos > inode->i_size) {
-		inode_add_bytes(inode, last_pos - inode->i_size);
-		i_size_write(inode, last_pos);
-	}
-	set_page_dirty(page);
-out:
-	unlock_page(page);
-	put_page(page);
-
-	return copied;
-}
-
+const struct netfs_request_ops v9fs_req_ops = {
+	.init_request		= v9fs_init_request,
+	.free_request		= v9fs_free_request,
+	.issue_read		= v9fs_issue_read,
+	.begin_writeback	= v9fs_begin_writeback,
+	.issue_write		= v9fs_issue_write,
+};
 
 const struct address_space_operations v9fs_addr_operations = {
-	.readpage = v9fs_vfs_readpage,
-	.readpages = v9fs_vfs_readpages,
-	.set_page_dirty = __set_page_dirty_nobuffers,
-	.writepage = v9fs_vfs_writepage,
-	.write_begin = v9fs_write_begin,
-	.write_end = v9fs_write_end,
-	.releasepage = v9fs_release_page,
-	.invalidatepage = v9fs_invalidate_page,
-	.launder_page = v9fs_launder_page,
-	.direct_IO = v9fs_direct_IO,
+	.read_folio		= netfs_read_folio,
+	.readahead		= netfs_readahead,
+	.dirty_folio		= netfs_dirty_folio,
+	.release_folio		= netfs_release_folio,
+	.invalidate_folio	= netfs_invalidate_folio,
+	.direct_IO		= noop_direct_IO,
+	.writepages		= netfs_writepages,
 };

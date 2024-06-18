@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/phy/intel,keembay-phy-usb.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Intel Keem Bay USB PHY
+
+maintainers:
+  - Wan Ahmad Zainie <wan.ahmad.zainie.wan.mohamad@intel.com>
+
+properties:
+  compatible:
+    const: intel,keembay-usb-phy
+
+  reg:
+    items:
+      - description: USB APB CPR (clock, power, reset) register
+      - description: USB APB slave register
+
+  reg-names:
+    items:
+      - const: cpr-apb-base
+      - const: slv-apb-base
+
+  '#phy-cells':
+    const: 0
+
+required:
+  - compatible
+  - reg
+  - '#phy-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    usb-phy@20400000 {
+          compatible = "intel,keembay-usb-phy";
+          reg = <0x20400000 0x1c>,
+                <0x20480000 0xd0>;
+          reg-names = "cpr-apb-base", "slv-apb-base";
+          #phy-cells = <0>;
+    };

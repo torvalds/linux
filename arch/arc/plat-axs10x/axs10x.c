@@ -6,7 +6,6 @@
  */
 
 #include <linux/of_fdt.h>
-#include <linux/of_platform.h>
 #include <linux/libfdt.h>
 
 #include <asm/asm-offsets.h>
@@ -50,7 +49,7 @@ static void __init axs10x_enable_gpio_intc_wire(void)
 	 * Current implementation of "irq-dw-apb-ictl" driver doesn't work well
 	 * with stacked INTCs. In particular problem happens if its master INTC
 	 * not yet instantiated. See discussion here -
-	 * https://lkml.org/lkml/2015/3/4/755
+	 * https://lore.kernel.org/lkml/54F6FE2C.7020309@synopsys.com
 	 *
 	 * So setup the first gpio block as a passive pass thru and hide it from
 	 * DT hardware topology - connect MB intc directly to cpu intc

@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <string.h>
 #include <getopt.h>
+#include <sys/utsname.h>
 
 #include "helpers/helpers.h"
 #include "helpers/sysfs.h"
@@ -30,6 +31,7 @@ int cmd_info(int argc, char **argv)
 	extern char *optarg;
 	extern int optind, opterr, optopt;
 	unsigned int cpu;
+	struct utsname uts;
 
 	union {
 		struct {
@@ -38,6 +40,13 @@ int cmd_info(int argc, char **argv)
 		int params;
 	} params = {};
 	int ret = 0;
+
+	ret = uname(&uts);
+	if (!ret && (!strcmp(uts.machine, "ppc64le") ||
+		     !strcmp(uts.machine, "ppc64"))) {
+		fprintf(stderr, _("Subcommand not supported on POWER.\n"));
+		return ret;
+	}
 
 	setlocale(LC_ALL, "");
 	textdomain(PACKAGE);
@@ -53,14 +62,14 @@ int cmd_info(int argc, char **argv)
 		default:
 			print_wrong_arg_exit();
 		}
-	};
+	}
 
 	if (!params.params)
 		params.params = 0x7;
 
-	/* Default is: show output of CPU 0 only */
+	/* Default is: show output of base_cpu only */
 	if (bitmask_isallclear(cpus_chosen))
-		bitmask_setbit(cpus_chosen, 0);
+		bitmask_setbit(cpus_chosen, base_cpu);
 
 	/* Add more per cpu options here */
 	if (!params.perf_bias)
@@ -92,7 +101,7 @@ int cmd_info(int argc, char **argv)
 		}
 
 		if (params.perf_bias) {
-			ret = msr_intel_get_perf_bias(cpu);
+			ret = cpupower_intel_get_perf_bias(cpu);
 			if (ret < 0) {
 				fprintf(stderr,
 			_("Could not read perf-bias value[%d]\n"), ret);

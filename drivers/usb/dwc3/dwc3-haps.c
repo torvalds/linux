@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * dwc3-haps.c - Synopsys HAPS PCI Specific glue layer
  *
  * Copyright (C) 2018 Synopsys, Inc.
@@ -31,6 +31,10 @@ static const struct property_entry initial_properties[] = {
 	PROPERTY_ENTRY_BOOL("snps,dis_enblslpm_quirk"),
 	PROPERTY_ENTRY_BOOL("linux,sysdev_is_parent"),
 	{ },
+};
+
+static const struct software_node dwc3_haps_swnode = {
+	.properties = initial_properties,
 };
 
 static int dwc3_haps_probe(struct pci_dev *pci,
@@ -77,7 +81,7 @@ static int dwc3_haps_probe(struct pci_dev *pci,
 	dwc->pci = pci;
 	dwc->dwc3->dev.parent = dev;
 
-	ret = platform_device_add_properties(dwc->dwc3, initial_properties);
+	ret = device_add_software_node(&dwc->dwc3->dev, &dwc3_haps_swnode);
 	if (ret)
 		goto err;
 
@@ -91,6 +95,7 @@ static int dwc3_haps_probe(struct pci_dev *pci,
 
 	return 0;
 err:
+	device_remove_software_node(&dwc->dwc3->dev);
 	platform_device_put(dwc->dwc3);
 	return ret;
 }
@@ -99,6 +104,7 @@ static void dwc3_haps_remove(struct pci_dev *pci)
 {
 	struct dwc3_haps *dwc = pci_get_drvdata(pci);
 
+	device_remove_software_node(&dwc->dwc3->dev);
 	platform_device_unregister(dwc->dwc3);
 }
 

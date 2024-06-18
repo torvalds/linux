@@ -1,34 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
  * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *	   Redistribution and use in source and binary forms, with or
- *	   without modification, are permitted provided that the following
- *	   conditions are met:
- *
- *		- Redistributions of source code must retain the above
- *		  copyright notice, this list of conditions and the following
- *		  disclaimer.
- *
- *		- Redistributions in binary form must reproduce the above
- *		  copyright notice, this list of conditions and the following
- *		  disclaimer in the documentation and/or other materials
- *		  provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 
 #include "rxe.h"
@@ -41,22 +14,60 @@ void rxe_init_av(struct rdma_ah_attr *attr, struct rxe_av *av)
 	memcpy(av->dmac, attr->roce.dmac, ETH_ALEN);
 }
 
-int rxe_av_chk_attr(struct rxe_dev *rxe, struct rdma_ah_attr *attr)
+static int chk_attr(void *obj, struct rdma_ah_attr *attr, bool obj_is_ah)
 {
+	const struct ib_global_route *grh = rdma_ah_read_grh(attr);
 	struct rxe_port *port;
+	struct rxe_dev *rxe;
+	struct rxe_qp *qp;
+	struct rxe_ah *ah;
+	int type;
+
+	if (obj_is_ah) {
+		ah = obj;
+		rxe = to_rdev(ah->ibah.device);
+	} else {
+		qp = obj;
+		rxe = to_rdev(qp->ibqp.device);
+	}
 
 	port = &rxe->port;
 
 	if (rdma_ah_get_ah_flags(attr) & IB_AH_GRH) {
-		u8 sgid_index = rdma_ah_read_grh(attr)->sgid_index;
+		if (grh->sgid_index > port->attr.gid_tbl_len) {
+			if (obj_is_ah)
+				rxe_dbg_ah(ah, "invalid sgid index = %d\n",
+						grh->sgid_index);
+			else
+				rxe_dbg_qp(qp, "invalid sgid index = %d\n",
+						grh->sgid_index);
+			return -EINVAL;
+		}
 
-		if (sgid_index > port->attr.gid_tbl_len) {
-			pr_warn("invalid sgid index = %d\n", sgid_index);
+		type = rdma_gid_attr_network_type(grh->sgid_attr);
+		if (type < RDMA_NETWORK_IPV4 ||
+		    type > RDMA_NETWORK_IPV6) {
+			if (obj_is_ah)
+				rxe_dbg_ah(ah, "invalid network type for rdma_rxe = %d\n",
+						type);
+			else
+				rxe_dbg_qp(qp, "invalid network type for rdma_rxe = %d\n",
+						type);
 			return -EINVAL;
 		}
 	}
 
 	return 0;
+}
+
+int rxe_av_chk_attr(struct rxe_qp *qp, struct rdma_ah_attr *attr)
+{
+	return chk_attr(qp, attr, false);
+}
+
+int rxe_ah_chk_attr(struct rxe_ah *ah, struct rdma_ah_attr *attr)
+{
+	return chk_attr(ah, attr, true);
 }
 
 void rxe_av_from_attr(u8 port_num, struct rxe_av *av,
@@ -92,20 +103,71 @@ void rxe_av_to_attr(struct rxe_av *av, struct rdma_ah_attr *attr)
 void rxe_av_fill_ip_info(struct rxe_av *av, struct rdma_ah_attr *attr)
 {
 	const struct ib_gid_attr *sgid_attr = attr->grh.sgid_attr;
+	int ibtype;
+	int type;
 
 	rdma_gid2ip((struct sockaddr *)&av->sgid_addr, &sgid_attr->gid);
 	rdma_gid2ip((struct sockaddr *)&av->dgid_addr,
 		    &rdma_ah_read_grh(attr)->dgid);
-	av->network_type = rdma_gid_attr_network_type(sgid_attr);
+
+	ibtype = rdma_gid_attr_network_type(sgid_attr);
+
+	switch (ibtype) {
+	case RDMA_NETWORK_IPV4:
+		type = RXE_NETWORK_TYPE_IPV4;
+		break;
+	case RDMA_NETWORK_IPV6:
+		type = RXE_NETWORK_TYPE_IPV6;
+		break;
+	default:
+		/* not reached - checked in rxe_av_chk_attr */
+		type = 0;
+		break;
+	}
+
+	av->network_type = type;
 }
 
-struct rxe_av *rxe_get_av(struct rxe_pkt_info *pkt)
+struct rxe_av *rxe_get_av(struct rxe_pkt_info *pkt, struct rxe_ah **ahp)
 {
+	struct rxe_ah *ah;
+	u32 ah_num;
+
+	if (ahp)
+		*ahp = NULL;
+
 	if (!pkt || !pkt->qp)
 		return NULL;
 
 	if (qp_type(pkt->qp) == IB_QPT_RC || qp_type(pkt->qp) == IB_QPT_UC)
 		return &pkt->qp->pri_av;
 
-	return (pkt->wqe) ? &pkt->wqe->av : NULL;
+	if (!pkt->wqe)
+		return NULL;
+
+	ah_num = pkt->wqe->wr.wr.ud.ah_num;
+	if (ah_num) {
+		/* only new user provider or kernel client */
+		ah = rxe_pool_get_index(&pkt->rxe->ah_pool, ah_num);
+		if (!ah) {
+			rxe_dbg_qp(pkt->qp, "Unable to find AH matching ah_num\n");
+			return NULL;
+		}
+
+		if (rxe_ah_pd(ah) != pkt->qp->pd) {
+			rxe_dbg_qp(pkt->qp, "PDs don't match for AH and QP\n");
+			rxe_put(ah);
+			return NULL;
+		}
+
+		if (ahp)
+			*ahp = ah;
+		else
+			rxe_put(ah);
+
+		return &ah->av;
+	}
+
+	/* only old user provider for UD sends*/
+	return &pkt->wqe->wr.wr.ud.av;
 }

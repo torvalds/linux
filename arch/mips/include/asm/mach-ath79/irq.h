@@ -27,6 +27,6 @@
 #define ATH79_IP3_IRQ_COUNT     3
 #define ATH79_IP3_IRQ(_x)       (ATH79_IP3_IRQ_BASE + (_x))
 
-#include_next <irq.h>
+#include <asm/mach-generic/irq.h>
 
 #endif /* __ASM_MACH_ATH79_IRQ_H */

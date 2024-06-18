@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2018 Mellanox Technologies */
+/* Copyright (c) 2018-2021, Mellanox Technologies inc.  All rights reserved. */
 
 #ifndef __LIB_MLX5_EQ_H__
 #define __LIB_MLX5_EQ_H__
@@ -22,22 +22,23 @@ struct mlx5_cq_table {
 };
 
 struct mlx5_eq {
+	struct mlx5_frag_buf_ctrl fbc;
+	struct mlx5_frag_buf    frag_buf;
 	struct mlx5_core_dev    *dev;
 	struct mlx5_cq_table    cq_table;
 	__be32 __iomem	        *doorbell;
 	u32                     cons_index;
-	struct mlx5_frag_buf    buf;
-	int                     size;
 	unsigned int            vecidx;
 	unsigned int            irqn;
 	u8                      eqn;
-	int                     nent;
 	struct mlx5_rsc_debug   *dbg;
+	struct mlx5_irq         *irq;
 };
 
 struct mlx5_eq_async {
 	struct mlx5_eq          core;
 	struct notifier_block   irq_nb;
+	spinlock_t              lock; /* To avoid irq EQ handle races with resiliency flows */
 };
 
 struct mlx5_eq_comp {
@@ -47,16 +48,21 @@ struct mlx5_eq_comp {
 	struct list_head        list;
 };
 
+static inline u32 eq_get_size(struct mlx5_eq *eq)
+{
+	return eq->fbc.sz_m1 + 1;
+}
+
 static inline struct mlx5_eqe *get_eqe(struct mlx5_eq *eq, u32 entry)
 {
-	return mlx5_buf_offset(&eq->buf, entry * MLX5_EQE_SIZE);
+	return mlx5_frag_buf_get_wqe(&eq->fbc, entry);
 }
 
 static inline struct mlx5_eqe *next_eqe_sw(struct mlx5_eq *eq)
 {
-	struct mlx5_eqe *eqe = get_eqe(eq, eq->cons_index & (eq->nent - 1));
+	struct mlx5_eqe *eqe = get_eqe(eq, eq->cons_index & eq->fbc.sz_m1);
 
-	return ((eqe->owner & 1) ^ !!(eq->cons_index & eq->nent)) ? NULL : eqe;
+	return (eqe->owner ^ (eq->cons_index >> eq->fbc.log_sz)) & 1 ? NULL : eqe;
 }
 
 static inline void eq_update_ci(struct mlx5_eq *eq, int arm)
@@ -78,10 +84,10 @@ int mlx5_eq_add_cq(struct mlx5_eq *eq, struct mlx5_core_cq *cq);
 void mlx5_eq_del_cq(struct mlx5_eq *eq, struct mlx5_core_cq *cq);
 struct mlx5_eq_comp *mlx5_eqn2comp_eq(struct mlx5_core_dev *dev, int eqn);
 struct mlx5_eq *mlx5_get_async_eq(struct mlx5_core_dev *dev);
-void mlx5_cq_tasklet_cb(unsigned long data);
-struct cpumask *mlx5_eq_comp_cpumask(struct mlx5_core_dev *dev, int ix);
+void mlx5_cq_tasklet_cb(struct tasklet_struct *t);
 
 u32 mlx5_eq_poll_irq_disabled(struct mlx5_eq_comp *eq);
+void mlx5_cmd_eq_recover(struct mlx5_core_dev *dev);
 void mlx5_eq_synchronize_async_irq(struct mlx5_core_dev *dev);
 void mlx5_eq_synchronize_cmd_irq(struct mlx5_core_dev *dev);
 
@@ -96,5 +102,7 @@ void mlx5_core_eq_free_irqs(struct mlx5_core_dev *dev);
 #ifdef CONFIG_RFS_ACCEL
 struct cpu_rmap *mlx5_eq_table_get_rmap(struct mlx5_core_dev *dev);
 #endif
+
+int mlx5_comp_irqn_get(struct mlx5_core_dev *dev, int vector, unsigned int *irqn);
 
 #endif

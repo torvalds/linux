@@ -180,7 +180,7 @@
 #define user_ld(reg, addr)		kernel_lw(reg, addr)
 #else
 #define user_sd(reg, addr)		kernel_sd(reg, addr)
-#define user_ld(reg, addr)		kernel_sd(reg, addr)
+#define user_ld(reg, addr)		kernel_ld(reg, addr)
 #endif /* CONFIG_32BIT */
 
 #endif /* CONFIG_EVA */

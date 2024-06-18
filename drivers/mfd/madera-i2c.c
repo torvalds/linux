@@ -10,30 +10,22 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/regmap.h>
 
 #include <linux/mfd/madera/core.h>
 
 #include "madera.h"
 
-static int madera_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int madera_i2c_probe(struct i2c_client *i2c)
 {
 	struct madera *madera;
 	const struct regmap_config *regmap_16bit_config = NULL;
 	const struct regmap_config *regmap_32bit_config = NULL;
-	const void *of_data;
 	unsigned long type;
 	const char *name;
 	int ret;
 
-	of_data = of_device_get_match_data(&i2c->dev);
-	if (of_data)
-		type = (unsigned long)of_data;
-	else
-		type = id->driver_data;
-
+	type = (uintptr_t)i2c_get_match_data(i2c);
 	switch (type) {
 	case CS47L15:
 		if (IS_ENABLED(CONFIG_MFD_CS47L15)) {
@@ -88,7 +80,6 @@ static int madera_i2c_probe(struct i2c_client *i2c,
 	if (!madera)
 		return -ENOMEM;
 
-
 	madera->regmap = devm_regmap_init_i2c(i2c, regmap_16bit_config);
 	if (IS_ERR(madera->regmap)) {
 		ret = PTR_ERR(madera->regmap);
@@ -113,13 +104,11 @@ static int madera_i2c_probe(struct i2c_client *i2c,
 	return madera_dev_init(madera);
 }
 
-static int madera_i2c_remove(struct i2c_client *i2c)
+static void madera_i2c_remove(struct i2c_client *i2c)
 {
 	struct madera *madera = dev_get_drvdata(&i2c->dev);
 
 	madera_dev_exit(madera);
-
-	return 0;
 }
 
 static const struct i2c_device_id madera_i2c_id[] = {

@@ -30,12 +30,12 @@ struct tda827x_config
 
 
 /**
- * Attach a tda827x tuner to the supplied frontend structure.
+ * tda827x_attach() - Attach a tda827x tuner to the supplied frontend structure
  *
- * @param fe Frontend to attach to.
- * @param addr i2c address of the tuner.
- * @param i2c i2c adapter to use.
- * @param cfg optional callback function pointers.
+ * @fe: Frontend to attach to.
+ * @addr: i2c address of the tuner.
+ * @i2c: i2c adapter to use.
+ * @cfg: optional callback function pointers.
  * @return FE pointer on success, NULL on failure.
  */
 #if IS_REACHABLE(CONFIG_MEDIA_TUNER_TDA827X)

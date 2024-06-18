@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Implement primitive realloc(3) functionality.
  *
  * Author: Mark A. Greer <mgreer@mvista.com>
  *
- * 2006 (c) MontaVista, Software, Inc.  This file is licensed under
- * the terms of the GNU General Public License version 2.  This program
- * is licensed "as is" without any warranty of any kind, whether express
- * or implied.
+ * 2006 (c) MontaVista, Software, Inc.
  */
 
 #include <stddef.h>
@@ -114,8 +112,11 @@ static void *simple_realloc(void *ptr, unsigned long size)
 		return ptr;
 
 	new = simple_malloc(size);
-	memcpy(new, ptr, p->size);
-	simple_free(ptr);
+	if (new) {
+		memcpy(new, ptr, p->size);
+		simple_free(ptr);
+	}
+
 	return new;
 }
 

@@ -10,6 +10,24 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <syscall.h>
+
+#include <asm/msr-index.h>
+#include <asm/prctl.h>
+
+#include <linux/kvm_para.h>
+#include <linux/stringify.h>
+
+#include "kvm_util.h"
+#include "ucall_common.h"
+
+extern bool host_cpu_is_intel;
+extern bool host_cpu_is_amd;
+
+/* Forced emulation prefix, used to invoke the emulator unconditionally. */
+#define KVM_FEP "ud2; .byte 'k', 'v', 'm';"
+
+#define NMI_VECTOR		0x02
 
 #define X86_EFLAGS_FIXED	 (1u << 1)
 
@@ -25,6 +43,7 @@
 #define X86_CR4_OSFXSR		(1ul << 9)
 #define X86_CR4_OSXMMEXCPT	(1ul << 10)
 #define X86_CR4_UMIP		(1ul << 11)
+#define X86_CR4_LA57		(1ul << 12)
 #define X86_CR4_VMXE		(1ul << 13)
 #define X86_CR4_SMXE		(1ul << 14)
 #define X86_CR4_FSGSBASE	(1ul << 16)
@@ -34,30 +53,340 @@
 #define X86_CR4_SMAP		(1ul << 21)
 #define X86_CR4_PKE		(1ul << 22)
 
-/* The enum values match the intruction encoding of each register */
-enum x86_register {
-	RAX = 0,
-	RCX,
-	RDX,
-	RBX,
-	RSP,
-	RBP,
-	RSI,
-	RDI,
-	R8,
-	R9,
-	R10,
-	R11,
-	R12,
-	R13,
-	R14,
-	R15,
+struct xstate_header {
+	u64				xstate_bv;
+	u64				xcomp_bv;
+	u64				reserved[6];
+} __attribute__((packed));
+
+struct xstate {
+	u8				i387[512];
+	struct xstate_header		header;
+	u8				extended_state_area[0];
+} __attribute__ ((packed, aligned (64)));
+
+#define XFEATURE_MASK_FP		BIT_ULL(0)
+#define XFEATURE_MASK_SSE		BIT_ULL(1)
+#define XFEATURE_MASK_YMM		BIT_ULL(2)
+#define XFEATURE_MASK_BNDREGS		BIT_ULL(3)
+#define XFEATURE_MASK_BNDCSR		BIT_ULL(4)
+#define XFEATURE_MASK_OPMASK		BIT_ULL(5)
+#define XFEATURE_MASK_ZMM_Hi256		BIT_ULL(6)
+#define XFEATURE_MASK_Hi16_ZMM		BIT_ULL(7)
+#define XFEATURE_MASK_PT		BIT_ULL(8)
+#define XFEATURE_MASK_PKRU		BIT_ULL(9)
+#define XFEATURE_MASK_PASID		BIT_ULL(10)
+#define XFEATURE_MASK_CET_USER		BIT_ULL(11)
+#define XFEATURE_MASK_CET_KERNEL	BIT_ULL(12)
+#define XFEATURE_MASK_LBR		BIT_ULL(15)
+#define XFEATURE_MASK_XTILE_CFG		BIT_ULL(17)
+#define XFEATURE_MASK_XTILE_DATA	BIT_ULL(18)
+
+#define XFEATURE_MASK_AVX512		(XFEATURE_MASK_OPMASK | \
+					 XFEATURE_MASK_ZMM_Hi256 | \
+					 XFEATURE_MASK_Hi16_ZMM)
+#define XFEATURE_MASK_XTILE		(XFEATURE_MASK_XTILE_DATA | \
+					 XFEATURE_MASK_XTILE_CFG)
+
+/* Note, these are ordered alphabetically to match kvm_cpuid_entry2.  Eww. */
+enum cpuid_output_regs {
+	KVM_CPUID_EAX,
+	KVM_CPUID_EBX,
+	KVM_CPUID_ECX,
+	KVM_CPUID_EDX
+};
+
+/*
+ * Pack the information into a 64-bit value so that each X86_FEATURE_XXX can be
+ * passed by value with no overhead.
+ */
+struct kvm_x86_cpu_feature {
+	u32	function;
+	u16	index;
+	u8	reg;
+	u8	bit;
+};
+#define	KVM_X86_CPU_FEATURE(fn, idx, gpr, __bit)				\
+({										\
+	struct kvm_x86_cpu_feature feature = {					\
+		.function = fn,							\
+		.index = idx,							\
+		.reg = KVM_CPUID_##gpr,						\
+		.bit = __bit,							\
+	};									\
+										\
+	kvm_static_assert((fn & 0xc0000000) == 0 ||				\
+			  (fn & 0xc0000000) == 0x40000000 ||			\
+			  (fn & 0xc0000000) == 0x80000000 ||			\
+			  (fn & 0xc0000000) == 0xc0000000);			\
+	kvm_static_assert(idx < BIT(sizeof(feature.index) * BITS_PER_BYTE));	\
+	feature;								\
+})
+
+/*
+ * Basic Leafs, a.k.a. Intel defined
+ */
+#define	X86_FEATURE_MWAIT		KVM_X86_CPU_FEATURE(0x1, 0, ECX, 3)
+#define	X86_FEATURE_VMX			KVM_X86_CPU_FEATURE(0x1, 0, ECX, 5)
+#define	X86_FEATURE_SMX			KVM_X86_CPU_FEATURE(0x1, 0, ECX, 6)
+#define	X86_FEATURE_PDCM		KVM_X86_CPU_FEATURE(0x1, 0, ECX, 15)
+#define	X86_FEATURE_PCID		KVM_X86_CPU_FEATURE(0x1, 0, ECX, 17)
+#define X86_FEATURE_X2APIC		KVM_X86_CPU_FEATURE(0x1, 0, ECX, 21)
+#define	X86_FEATURE_MOVBE		KVM_X86_CPU_FEATURE(0x1, 0, ECX, 22)
+#define	X86_FEATURE_TSC_DEADLINE_TIMER	KVM_X86_CPU_FEATURE(0x1, 0, ECX, 24)
+#define	X86_FEATURE_XSAVE		KVM_X86_CPU_FEATURE(0x1, 0, ECX, 26)
+#define	X86_FEATURE_OSXSAVE		KVM_X86_CPU_FEATURE(0x1, 0, ECX, 27)
+#define	X86_FEATURE_RDRAND		KVM_X86_CPU_FEATURE(0x1, 0, ECX, 30)
+#define	X86_FEATURE_HYPERVISOR		KVM_X86_CPU_FEATURE(0x1, 0, ECX, 31)
+#define X86_FEATURE_PAE			KVM_X86_CPU_FEATURE(0x1, 0, EDX, 6)
+#define	X86_FEATURE_MCE			KVM_X86_CPU_FEATURE(0x1, 0, EDX, 7)
+#define	X86_FEATURE_APIC		KVM_X86_CPU_FEATURE(0x1, 0, EDX, 9)
+#define	X86_FEATURE_CLFLUSH		KVM_X86_CPU_FEATURE(0x1, 0, EDX, 19)
+#define	X86_FEATURE_XMM			KVM_X86_CPU_FEATURE(0x1, 0, EDX, 25)
+#define	X86_FEATURE_XMM2		KVM_X86_CPU_FEATURE(0x1, 0, EDX, 26)
+#define	X86_FEATURE_FSGSBASE		KVM_X86_CPU_FEATURE(0x7, 0, EBX, 0)
+#define	X86_FEATURE_TSC_ADJUST		KVM_X86_CPU_FEATURE(0x7, 0, EBX, 1)
+#define	X86_FEATURE_SGX			KVM_X86_CPU_FEATURE(0x7, 0, EBX, 2)
+#define	X86_FEATURE_HLE			KVM_X86_CPU_FEATURE(0x7, 0, EBX, 4)
+#define	X86_FEATURE_SMEP	        KVM_X86_CPU_FEATURE(0x7, 0, EBX, 7)
+#define	X86_FEATURE_INVPCID		KVM_X86_CPU_FEATURE(0x7, 0, EBX, 10)
+#define	X86_FEATURE_RTM			KVM_X86_CPU_FEATURE(0x7, 0, EBX, 11)
+#define	X86_FEATURE_MPX			KVM_X86_CPU_FEATURE(0x7, 0, EBX, 14)
+#define	X86_FEATURE_SMAP		KVM_X86_CPU_FEATURE(0x7, 0, EBX, 20)
+#define	X86_FEATURE_PCOMMIT		KVM_X86_CPU_FEATURE(0x7, 0, EBX, 22)
+#define	X86_FEATURE_CLFLUSHOPT		KVM_X86_CPU_FEATURE(0x7, 0, EBX, 23)
+#define	X86_FEATURE_CLWB		KVM_X86_CPU_FEATURE(0x7, 0, EBX, 24)
+#define	X86_FEATURE_UMIP		KVM_X86_CPU_FEATURE(0x7, 0, ECX, 2)
+#define	X86_FEATURE_PKU			KVM_X86_CPU_FEATURE(0x7, 0, ECX, 3)
+#define	X86_FEATURE_OSPKE		KVM_X86_CPU_FEATURE(0x7, 0, ECX, 4)
+#define	X86_FEATURE_LA57		KVM_X86_CPU_FEATURE(0x7, 0, ECX, 16)
+#define	X86_FEATURE_RDPID		KVM_X86_CPU_FEATURE(0x7, 0, ECX, 22)
+#define	X86_FEATURE_SGX_LC		KVM_X86_CPU_FEATURE(0x7, 0, ECX, 30)
+#define	X86_FEATURE_SHSTK		KVM_X86_CPU_FEATURE(0x7, 0, ECX, 7)
+#define	X86_FEATURE_IBT			KVM_X86_CPU_FEATURE(0x7, 0, EDX, 20)
+#define	X86_FEATURE_AMX_TILE		KVM_X86_CPU_FEATURE(0x7, 0, EDX, 24)
+#define	X86_FEATURE_SPEC_CTRL		KVM_X86_CPU_FEATURE(0x7, 0, EDX, 26)
+#define	X86_FEATURE_ARCH_CAPABILITIES	KVM_X86_CPU_FEATURE(0x7, 0, EDX, 29)
+#define	X86_FEATURE_PKS			KVM_X86_CPU_FEATURE(0x7, 0, ECX, 31)
+#define	X86_FEATURE_XTILECFG		KVM_X86_CPU_FEATURE(0xD, 0, EAX, 17)
+#define	X86_FEATURE_XTILEDATA		KVM_X86_CPU_FEATURE(0xD, 0, EAX, 18)
+#define	X86_FEATURE_XSAVES		KVM_X86_CPU_FEATURE(0xD, 1, EAX, 3)
+#define	X86_FEATURE_XFD			KVM_X86_CPU_FEATURE(0xD, 1, EAX, 4)
+#define X86_FEATURE_XTILEDATA_XFD	KVM_X86_CPU_FEATURE(0xD, 18, ECX, 2)
+
+/*
+ * Extended Leafs, a.k.a. AMD defined
+ */
+#define	X86_FEATURE_SVM			KVM_X86_CPU_FEATURE(0x80000001, 0, ECX, 2)
+#define	X86_FEATURE_NX			KVM_X86_CPU_FEATURE(0x80000001, 0, EDX, 20)
+#define	X86_FEATURE_GBPAGES		KVM_X86_CPU_FEATURE(0x80000001, 0, EDX, 26)
+#define	X86_FEATURE_RDTSCP		KVM_X86_CPU_FEATURE(0x80000001, 0, EDX, 27)
+#define	X86_FEATURE_LM			KVM_X86_CPU_FEATURE(0x80000001, 0, EDX, 29)
+#define	X86_FEATURE_INVTSC		KVM_X86_CPU_FEATURE(0x80000007, 0, EDX, 8)
+#define	X86_FEATURE_RDPRU		KVM_X86_CPU_FEATURE(0x80000008, 0, EBX, 4)
+#define	X86_FEATURE_AMD_IBPB		KVM_X86_CPU_FEATURE(0x80000008, 0, EBX, 12)
+#define	X86_FEATURE_NPT			KVM_X86_CPU_FEATURE(0x8000000A, 0, EDX, 0)
+#define	X86_FEATURE_LBRV		KVM_X86_CPU_FEATURE(0x8000000A, 0, EDX, 1)
+#define	X86_FEATURE_NRIPS		KVM_X86_CPU_FEATURE(0x8000000A, 0, EDX, 3)
+#define X86_FEATURE_TSCRATEMSR          KVM_X86_CPU_FEATURE(0x8000000A, 0, EDX, 4)
+#define X86_FEATURE_PAUSEFILTER         KVM_X86_CPU_FEATURE(0x8000000A, 0, EDX, 10)
+#define X86_FEATURE_PFTHRESHOLD         KVM_X86_CPU_FEATURE(0x8000000A, 0, EDX, 12)
+#define	X86_FEATURE_VGIF		KVM_X86_CPU_FEATURE(0x8000000A, 0, EDX, 16)
+#define X86_FEATURE_SEV			KVM_X86_CPU_FEATURE(0x8000001F, 0, EAX, 1)
+#define X86_FEATURE_SEV_ES		KVM_X86_CPU_FEATURE(0x8000001F, 0, EAX, 3)
+
+/*
+ * KVM defined paravirt features.
+ */
+#define X86_FEATURE_KVM_CLOCKSOURCE	KVM_X86_CPU_FEATURE(0x40000001, 0, EAX, 0)
+#define X86_FEATURE_KVM_NOP_IO_DELAY	KVM_X86_CPU_FEATURE(0x40000001, 0, EAX, 1)
+#define X86_FEATURE_KVM_MMU_OP		KVM_X86_CPU_FEATURE(0x40000001, 0, EAX, 2)
+#define X86_FEATURE_KVM_CLOCKSOURCE2	KVM_X86_CPU_FEATURE(0x40000001, 0, EAX, 3)
+#define X86_FEATURE_KVM_ASYNC_PF	KVM_X86_CPU_FEATURE(0x40000001, 0, EAX, 4)
+#define X86_FEATURE_KVM_STEAL_TIME	KVM_X86_CPU_FEATURE(0x40000001, 0, EAX, 5)
+#define X86_FEATURE_KVM_PV_EOI		KVM_X86_CPU_FEATURE(0x40000001, 0, EAX, 6)
+#define X86_FEATURE_KVM_PV_UNHALT	KVM_X86_CPU_FEATURE(0x40000001, 0, EAX, 7)
+/* Bit 8 apparently isn't used?!?! */
+#define X86_FEATURE_KVM_PV_TLB_FLUSH	KVM_X86_CPU_FEATURE(0x40000001, 0, EAX, 9)
+#define X86_FEATURE_KVM_ASYNC_PF_VMEXIT	KVM_X86_CPU_FEATURE(0x40000001, 0, EAX, 10)
+#define X86_FEATURE_KVM_PV_SEND_IPI	KVM_X86_CPU_FEATURE(0x40000001, 0, EAX, 11)
+#define X86_FEATURE_KVM_POLL_CONTROL	KVM_X86_CPU_FEATURE(0x40000001, 0, EAX, 12)
+#define X86_FEATURE_KVM_PV_SCHED_YIELD	KVM_X86_CPU_FEATURE(0x40000001, 0, EAX, 13)
+#define X86_FEATURE_KVM_ASYNC_PF_INT	KVM_X86_CPU_FEATURE(0x40000001, 0, EAX, 14)
+#define X86_FEATURE_KVM_MSI_EXT_DEST_ID	KVM_X86_CPU_FEATURE(0x40000001, 0, EAX, 15)
+#define X86_FEATURE_KVM_HC_MAP_GPA_RANGE	KVM_X86_CPU_FEATURE(0x40000001, 0, EAX, 16)
+#define X86_FEATURE_KVM_MIGRATION_CONTROL	KVM_X86_CPU_FEATURE(0x40000001, 0, EAX, 17)
+
+/*
+ * Same idea as X86_FEATURE_XXX, but X86_PROPERTY_XXX retrieves a multi-bit
+ * value/property as opposed to a single-bit feature.  Again, pack the info
+ * into a 64-bit value to pass by value with no overhead.
+ */
+struct kvm_x86_cpu_property {
+	u32	function;
+	u8	index;
+	u8	reg;
+	u8	lo_bit;
+	u8	hi_bit;
+};
+#define	KVM_X86_CPU_PROPERTY(fn, idx, gpr, low_bit, high_bit)			\
+({										\
+	struct kvm_x86_cpu_property property = {				\
+		.function = fn,							\
+		.index = idx,							\
+		.reg = KVM_CPUID_##gpr,						\
+		.lo_bit = low_bit,						\
+		.hi_bit = high_bit,						\
+	};									\
+										\
+	kvm_static_assert(low_bit < high_bit);					\
+	kvm_static_assert((fn & 0xc0000000) == 0 ||				\
+			  (fn & 0xc0000000) == 0x40000000 ||			\
+			  (fn & 0xc0000000) == 0x80000000 ||			\
+			  (fn & 0xc0000000) == 0xc0000000);			\
+	kvm_static_assert(idx < BIT(sizeof(property.index) * BITS_PER_BYTE));	\
+	property;								\
+})
+
+#define X86_PROPERTY_MAX_BASIC_LEAF		KVM_X86_CPU_PROPERTY(0, 0, EAX, 0, 31)
+#define X86_PROPERTY_PMU_VERSION		KVM_X86_CPU_PROPERTY(0xa, 0, EAX, 0, 7)
+#define X86_PROPERTY_PMU_NR_GP_COUNTERS		KVM_X86_CPU_PROPERTY(0xa, 0, EAX, 8, 15)
+#define X86_PROPERTY_PMU_GP_COUNTERS_BIT_WIDTH	KVM_X86_CPU_PROPERTY(0xa, 0, EAX, 16, 23)
+#define X86_PROPERTY_PMU_EBX_BIT_VECTOR_LENGTH	KVM_X86_CPU_PROPERTY(0xa, 0, EAX, 24, 31)
+#define X86_PROPERTY_PMU_EVENTS_MASK		KVM_X86_CPU_PROPERTY(0xa, 0, EBX, 0, 7)
+#define X86_PROPERTY_PMU_FIXED_COUNTERS_BITMASK	KVM_X86_CPU_PROPERTY(0xa, 0, ECX, 0, 31)
+#define X86_PROPERTY_PMU_NR_FIXED_COUNTERS	KVM_X86_CPU_PROPERTY(0xa, 0, EDX, 0, 4)
+#define X86_PROPERTY_PMU_FIXED_COUNTERS_BIT_WIDTH	KVM_X86_CPU_PROPERTY(0xa, 0, EDX, 5, 12)
+
+#define X86_PROPERTY_SUPPORTED_XCR0_LO		KVM_X86_CPU_PROPERTY(0xd,  0, EAX,  0, 31)
+#define X86_PROPERTY_XSTATE_MAX_SIZE_XCR0	KVM_X86_CPU_PROPERTY(0xd,  0, EBX,  0, 31)
+#define X86_PROPERTY_XSTATE_MAX_SIZE		KVM_X86_CPU_PROPERTY(0xd,  0, ECX,  0, 31)
+#define X86_PROPERTY_SUPPORTED_XCR0_HI		KVM_X86_CPU_PROPERTY(0xd,  0, EDX,  0, 31)
+
+#define X86_PROPERTY_XSTATE_TILE_SIZE		KVM_X86_CPU_PROPERTY(0xd, 18, EAX,  0, 31)
+#define X86_PROPERTY_XSTATE_TILE_OFFSET		KVM_X86_CPU_PROPERTY(0xd, 18, EBX,  0, 31)
+#define X86_PROPERTY_AMX_MAX_PALETTE_TABLES	KVM_X86_CPU_PROPERTY(0x1d, 0, EAX,  0, 31)
+#define X86_PROPERTY_AMX_TOTAL_TILE_BYTES	KVM_X86_CPU_PROPERTY(0x1d, 1, EAX,  0, 15)
+#define X86_PROPERTY_AMX_BYTES_PER_TILE		KVM_X86_CPU_PROPERTY(0x1d, 1, EAX, 16, 31)
+#define X86_PROPERTY_AMX_BYTES_PER_ROW		KVM_X86_CPU_PROPERTY(0x1d, 1, EBX, 0,  15)
+#define X86_PROPERTY_AMX_NR_TILE_REGS		KVM_X86_CPU_PROPERTY(0x1d, 1, EBX, 16, 31)
+#define X86_PROPERTY_AMX_MAX_ROWS		KVM_X86_CPU_PROPERTY(0x1d, 1, ECX, 0,  15)
+
+#define X86_PROPERTY_MAX_KVM_LEAF		KVM_X86_CPU_PROPERTY(0x40000000, 0, EAX, 0, 31)
+
+#define X86_PROPERTY_MAX_EXT_LEAF		KVM_X86_CPU_PROPERTY(0x80000000, 0, EAX, 0, 31)
+#define X86_PROPERTY_MAX_PHY_ADDR		KVM_X86_CPU_PROPERTY(0x80000008, 0, EAX, 0, 7)
+#define X86_PROPERTY_MAX_VIRT_ADDR		KVM_X86_CPU_PROPERTY(0x80000008, 0, EAX, 8, 15)
+#define X86_PROPERTY_SEV_C_BIT			KVM_X86_CPU_PROPERTY(0x8000001F, 0, EBX, 0, 5)
+#define X86_PROPERTY_PHYS_ADDR_REDUCTION	KVM_X86_CPU_PROPERTY(0x8000001F, 0, EBX, 6, 11)
+
+#define X86_PROPERTY_MAX_CENTAUR_LEAF		KVM_X86_CPU_PROPERTY(0xC0000000, 0, EAX, 0, 31)
+
+/*
+ * Intel's architectural PMU events are bizarre.  They have a "feature" bit
+ * that indicates the feature is _not_ supported, and a property that states
+ * the length of the bit mask of unsupported features.  A feature is supported
+ * if the size of the bit mask is larger than the "unavailable" bit, and said
+ * bit is not set.  Fixed counters also bizarre enumeration, but inverted from
+ * arch events for general purpose counters.  Fixed counters are supported if a
+ * feature flag is set **OR** the total number of fixed counters is greater
+ * than index of the counter.
+ *
+ * Wrap the events for general purpose and fixed counters to simplify checking
+ * whether or not a given architectural event is supported.
+ */
+struct kvm_x86_pmu_feature {
+	struct kvm_x86_cpu_feature f;
+};
+#define	KVM_X86_PMU_FEATURE(__reg, __bit)				\
+({									\
+	struct kvm_x86_pmu_feature feature = {				\
+		.f = KVM_X86_CPU_FEATURE(0xa, 0, __reg, __bit),		\
+	};								\
+									\
+	kvm_static_assert(KVM_CPUID_##__reg == KVM_CPUID_EBX ||		\
+			  KVM_CPUID_##__reg == KVM_CPUID_ECX);		\
+	feature;							\
+})
+
+#define X86_PMU_FEATURE_CPU_CYCLES			KVM_X86_PMU_FEATURE(EBX, 0)
+#define X86_PMU_FEATURE_INSNS_RETIRED			KVM_X86_PMU_FEATURE(EBX, 1)
+#define X86_PMU_FEATURE_REFERENCE_CYCLES		KVM_X86_PMU_FEATURE(EBX, 2)
+#define X86_PMU_FEATURE_LLC_REFERENCES			KVM_X86_PMU_FEATURE(EBX, 3)
+#define X86_PMU_FEATURE_LLC_MISSES			KVM_X86_PMU_FEATURE(EBX, 4)
+#define X86_PMU_FEATURE_BRANCH_INSNS_RETIRED		KVM_X86_PMU_FEATURE(EBX, 5)
+#define X86_PMU_FEATURE_BRANCHES_MISPREDICTED		KVM_X86_PMU_FEATURE(EBX, 6)
+#define X86_PMU_FEATURE_TOPDOWN_SLOTS			KVM_X86_PMU_FEATURE(EBX, 7)
+
+#define X86_PMU_FEATURE_INSNS_RETIRED_FIXED		KVM_X86_PMU_FEATURE(ECX, 0)
+#define X86_PMU_FEATURE_CPU_CYCLES_FIXED		KVM_X86_PMU_FEATURE(ECX, 1)
+#define X86_PMU_FEATURE_REFERENCE_TSC_CYCLES_FIXED	KVM_X86_PMU_FEATURE(ECX, 2)
+#define X86_PMU_FEATURE_TOPDOWN_SLOTS_FIXED		KVM_X86_PMU_FEATURE(ECX, 3)
+
+static inline unsigned int x86_family(unsigned int eax)
+{
+	unsigned int x86;
+
+	x86 = (eax >> 8) & 0xf;
+
+	if (x86 == 0xf)
+		x86 += (eax >> 20) & 0xff;
+
+	return x86;
+}
+
+static inline unsigned int x86_model(unsigned int eax)
+{
+	return ((eax >> 12) & 0xf0) | ((eax >> 4) & 0x0f);
+}
+
+/* Page table bitfield declarations */
+#define PTE_PRESENT_MASK        BIT_ULL(0)
+#define PTE_WRITABLE_MASK       BIT_ULL(1)
+#define PTE_USER_MASK           BIT_ULL(2)
+#define PTE_ACCESSED_MASK       BIT_ULL(5)
+#define PTE_DIRTY_MASK          BIT_ULL(6)
+#define PTE_LARGE_MASK          BIT_ULL(7)
+#define PTE_GLOBAL_MASK         BIT_ULL(8)
+#define PTE_NX_MASK             BIT_ULL(63)
+
+#define PHYSICAL_PAGE_MASK      GENMASK_ULL(51, 12)
+
+#define PAGE_SHIFT		12
+#define PAGE_SIZE		(1ULL << PAGE_SHIFT)
+#define PAGE_MASK		(~(PAGE_SIZE-1) & PHYSICAL_PAGE_MASK)
+
+#define HUGEPAGE_SHIFT(x)	(PAGE_SHIFT + (((x) - 1) * 9))
+#define HUGEPAGE_SIZE(x)	(1UL << HUGEPAGE_SHIFT(x))
+#define HUGEPAGE_MASK(x)	(~(HUGEPAGE_SIZE(x) - 1) & PHYSICAL_PAGE_MASK)
+
+#define PTE_GET_PA(pte)		((pte) & PHYSICAL_PAGE_MASK)
+#define PTE_GET_PFN(pte)        (PTE_GET_PA(pte) >> PAGE_SHIFT)
+
+/* General Registers in 64-Bit Mode */
+struct gpr64_regs {
+	u64 rax;
+	u64 rcx;
+	u64 rdx;
+	u64 rbx;
+	u64 rsp;
+	u64 rbp;
+	u64 rsi;
+	u64 rdi;
+	u64 r8;
+	u64 r9;
+	u64 r10;
+	u64 r11;
+	u64 r12;
+	u64 r13;
+	u64 r14;
+	u64 r15;
 };
 
 struct desc64 {
 	uint16_t limit0;
 	uint16_t base0;
-	unsigned base1:8, s:1, type:4, dpl:2, p:1;
+	unsigned base1:8, type:4, s:1, dpl:2, p:1;
 	unsigned limit1:4, avl:1, l:1, db:1, g:1, base2:8;
 	uint32_t base3;
 	uint32_t zero1;
@@ -68,6 +397,21 @@ struct desc_ptr {
 	uint64_t address;
 } __attribute__((packed));
 
+struct kvm_x86_state {
+	struct kvm_xsave *xsave;
+	struct kvm_vcpu_events events;
+	struct kvm_mp_state mp_state;
+	struct kvm_regs regs;
+	struct kvm_xcrs xcrs;
+	struct kvm_sregs sregs;
+	struct kvm_debugregs debugregs;
+	union {
+		struct kvm_nested_state nested;
+		char nested_[16384];
+	};
+	struct kvm_msrs msrs;
+};
+
 static inline uint64_t get_desc64_base(const struct desc64 *desc)
 {
 	return ((uint64_t)desc->base3 << 32) |
@@ -77,13 +421,16 @@ static inline uint64_t get_desc64_base(const struct desc64 *desc)
 static inline uint64_t rdtsc(void)
 {
 	uint32_t eax, edx;
-
+	uint64_t tsc_val;
 	/*
 	 * The lfence is to wait (on Intel CPUs) until all previous
-	 * instructions have been executed.
+	 * instructions have been executed. If software requires RDTSC to be
+	 * executed prior to execution of any subsequent instruction, it can
+	 * execute LFENCE immediately after RDTSC
 	 */
-	__asm__ __volatile__("lfence; rdtsc" : "=a"(eax), "=d"(edx));
-	return ((uint64_t)edx) << 32 | eax;
+	__asm__ __volatile__("lfence; rdtsc; lfence" : "=a"(eax), "=d"(edx));
+	tsc_val = ((uint64_t)edx) << 32 | eax;
+	return tsc_val;
 }
 
 static inline uint64_t rdtscp(uint32_t *aux)
@@ -218,115 +565,770 @@ static inline void set_cr4(uint64_t val)
 	__asm__ __volatile__("mov %0, %%cr4" : : "r" (val) : "memory");
 }
 
-static inline uint64_t get_gdt_base(void)
+static inline u64 xgetbv(u32 index)
+{
+	u32 eax, edx;
+
+	__asm__ __volatile__("xgetbv;"
+		     : "=a" (eax), "=d" (edx)
+		     : "c" (index));
+	return eax | ((u64)edx << 32);
+}
+
+static inline void xsetbv(u32 index, u64 value)
+{
+	u32 eax = value;
+	u32 edx = value >> 32;
+
+	__asm__ __volatile__("xsetbv" :: "a" (eax), "d" (edx), "c" (index));
+}
+
+static inline void wrpkru(u32 pkru)
+{
+	/* Note, ECX and EDX are architecturally required to be '0'. */
+	asm volatile(".byte 0x0f,0x01,0xef\n\t"
+		     : : "a" (pkru), "c"(0), "d"(0));
+}
+
+static inline struct desc_ptr get_gdt(void)
 {
 	struct desc_ptr gdt;
 	__asm__ __volatile__("sgdt %[gdt]"
 			     : /* output */ [gdt]"=m"(gdt));
-	return gdt.address;
+	return gdt;
 }
 
-static inline uint64_t get_idt_base(void)
+static inline struct desc_ptr get_idt(void)
 {
 	struct desc_ptr idt;
 	__asm__ __volatile__("sidt %[idt]"
 			     : /* output */ [idt]"=m"(idt));
-	return idt.address;
+	return idt;
 }
 
-#define SET_XMM(__var, __xmm) \
-	asm volatile("movq %0, %%"#__xmm : : "r"(__var) : #__xmm)
-
-static inline void set_xmm(int n, unsigned long val)
+static inline void outl(uint16_t port, uint32_t value)
 {
-	switch (n) {
+	__asm__ __volatile__("outl %%eax, %%dx" : : "d"(port), "a"(value));
+}
+
+static inline void __cpuid(uint32_t function, uint32_t index,
+			   uint32_t *eax, uint32_t *ebx,
+			   uint32_t *ecx, uint32_t *edx)
+{
+	*eax = function;
+	*ecx = index;
+
+	asm volatile("cpuid"
+	    : "=a" (*eax),
+	      "=b" (*ebx),
+	      "=c" (*ecx),
+	      "=d" (*edx)
+	    : "0" (*eax), "2" (*ecx)
+	    : "memory");
+}
+
+static inline void cpuid(uint32_t function,
+			 uint32_t *eax, uint32_t *ebx,
+			 uint32_t *ecx, uint32_t *edx)
+{
+	return __cpuid(function, 0, eax, ebx, ecx, edx);
+}
+
+static inline uint32_t this_cpu_fms(void)
+{
+	uint32_t eax, ebx, ecx, edx;
+
+	cpuid(1, &eax, &ebx, &ecx, &edx);
+	return eax;
+}
+
+static inline uint32_t this_cpu_family(void)
+{
+	return x86_family(this_cpu_fms());
+}
+
+static inline uint32_t this_cpu_model(void)
+{
+	return x86_model(this_cpu_fms());
+}
+
+static inline bool this_cpu_vendor_string_is(const char *vendor)
+{
+	const uint32_t *chunk = (const uint32_t *)vendor;
+	uint32_t eax, ebx, ecx, edx;
+
+	cpuid(0, &eax, &ebx, &ecx, &edx);
+	return (ebx == chunk[0] && edx == chunk[1] && ecx == chunk[2]);
+}
+
+static inline bool this_cpu_is_intel(void)
+{
+	return this_cpu_vendor_string_is("GenuineIntel");
+}
+
+/*
+ * Exclude early K5 samples with a vendor string of "AMDisbetter!"
+ */
+static inline bool this_cpu_is_amd(void)
+{
+	return this_cpu_vendor_string_is("AuthenticAMD");
+}
+
+static inline uint32_t __this_cpu_has(uint32_t function, uint32_t index,
+				      uint8_t reg, uint8_t lo, uint8_t hi)
+{
+	uint32_t gprs[4];
+
+	__cpuid(function, index,
+		&gprs[KVM_CPUID_EAX], &gprs[KVM_CPUID_EBX],
+		&gprs[KVM_CPUID_ECX], &gprs[KVM_CPUID_EDX]);
+
+	return (gprs[reg] & GENMASK(hi, lo)) >> lo;
+}
+
+static inline bool this_cpu_has(struct kvm_x86_cpu_feature feature)
+{
+	return __this_cpu_has(feature.function, feature.index,
+			      feature.reg, feature.bit, feature.bit);
+}
+
+static inline uint32_t this_cpu_property(struct kvm_x86_cpu_property property)
+{
+	return __this_cpu_has(property.function, property.index,
+			      property.reg, property.lo_bit, property.hi_bit);
+}
+
+static __always_inline bool this_cpu_has_p(struct kvm_x86_cpu_property property)
+{
+	uint32_t max_leaf;
+
+	switch (property.function & 0xc0000000) {
 	case 0:
-		SET_XMM(val, xmm0);
+		max_leaf = this_cpu_property(X86_PROPERTY_MAX_BASIC_LEAF);
+		break;
+	case 0x40000000:
+		max_leaf = this_cpu_property(X86_PROPERTY_MAX_KVM_LEAF);
+		break;
+	case 0x80000000:
+		max_leaf = this_cpu_property(X86_PROPERTY_MAX_EXT_LEAF);
+		break;
+	case 0xc0000000:
+		max_leaf = this_cpu_property(X86_PROPERTY_MAX_CENTAUR_LEAF);
+	}
+	return max_leaf >= property.function;
+}
+
+static inline bool this_pmu_has(struct kvm_x86_pmu_feature feature)
+{
+	uint32_t nr_bits;
+
+	if (feature.f.reg == KVM_CPUID_EBX) {
+		nr_bits = this_cpu_property(X86_PROPERTY_PMU_EBX_BIT_VECTOR_LENGTH);
+		return nr_bits > feature.f.bit && !this_cpu_has(feature.f);
+	}
+
+	GUEST_ASSERT(feature.f.reg == KVM_CPUID_ECX);
+	nr_bits = this_cpu_property(X86_PROPERTY_PMU_NR_FIXED_COUNTERS);
+	return nr_bits > feature.f.bit || this_cpu_has(feature.f);
+}
+
+static __always_inline uint64_t this_cpu_supported_xcr0(void)
+{
+	if (!this_cpu_has_p(X86_PROPERTY_SUPPORTED_XCR0_LO))
+		return 0;
+
+	return this_cpu_property(X86_PROPERTY_SUPPORTED_XCR0_LO) |
+	       ((uint64_t)this_cpu_property(X86_PROPERTY_SUPPORTED_XCR0_HI) << 32);
+}
+
+typedef u32		__attribute__((vector_size(16))) sse128_t;
+#define __sse128_u	union { sse128_t vec; u64 as_u64[2]; u32 as_u32[4]; }
+#define sse128_lo(x)	({ __sse128_u t; t.vec = x; t.as_u64[0]; })
+#define sse128_hi(x)	({ __sse128_u t; t.vec = x; t.as_u64[1]; })
+
+static inline void read_sse_reg(int reg, sse128_t *data)
+{
+	switch (reg) {
+	case 0:
+		asm("movdqa %%xmm0, %0" : "=m"(*data));
 		break;
 	case 1:
-		SET_XMM(val, xmm1);
+		asm("movdqa %%xmm1, %0" : "=m"(*data));
 		break;
 	case 2:
-		SET_XMM(val, xmm2);
+		asm("movdqa %%xmm2, %0" : "=m"(*data));
 		break;
 	case 3:
-		SET_XMM(val, xmm3);
+		asm("movdqa %%xmm3, %0" : "=m"(*data));
 		break;
 	case 4:
-		SET_XMM(val, xmm4);
+		asm("movdqa %%xmm4, %0" : "=m"(*data));
 		break;
 	case 5:
-		SET_XMM(val, xmm5);
+		asm("movdqa %%xmm5, %0" : "=m"(*data));
 		break;
 	case 6:
-		SET_XMM(val, xmm6);
+		asm("movdqa %%xmm6, %0" : "=m"(*data));
 		break;
 	case 7:
-		SET_XMM(val, xmm7);
+		asm("movdqa %%xmm7, %0" : "=m"(*data));
 		break;
+	default:
+		BUG();
 	}
 }
 
-typedef unsigned long v1di __attribute__ ((vector_size (8)));
-static inline unsigned long get_xmm(int n)
+static inline void write_sse_reg(int reg, const sse128_t *data)
 {
-	assert(n >= 0 && n <= 7);
-
-	register v1di xmm0 __asm__("%xmm0");
-	register v1di xmm1 __asm__("%xmm1");
-	register v1di xmm2 __asm__("%xmm2");
-	register v1di xmm3 __asm__("%xmm3");
-	register v1di xmm4 __asm__("%xmm4");
-	register v1di xmm5 __asm__("%xmm5");
-	register v1di xmm6 __asm__("%xmm6");
-	register v1di xmm7 __asm__("%xmm7");
-	switch (n) {
+	switch (reg) {
 	case 0:
-		return (unsigned long)xmm0;
+		asm("movdqa %0, %%xmm0" : : "m"(*data));
+		break;
 	case 1:
-		return (unsigned long)xmm1;
+		asm("movdqa %0, %%xmm1" : : "m"(*data));
+		break;
 	case 2:
-		return (unsigned long)xmm2;
+		asm("movdqa %0, %%xmm2" : : "m"(*data));
+		break;
 	case 3:
-		return (unsigned long)xmm3;
+		asm("movdqa %0, %%xmm3" : : "m"(*data));
+		break;
 	case 4:
-		return (unsigned long)xmm4;
+		asm("movdqa %0, %%xmm4" : : "m"(*data));
+		break;
 	case 5:
-		return (unsigned long)xmm5;
+		asm("movdqa %0, %%xmm5" : : "m"(*data));
+		break;
 	case 6:
-		return (unsigned long)xmm6;
+		asm("movdqa %0, %%xmm6" : : "m"(*data));
+		break;
 	case 7:
-		return (unsigned long)xmm7;
+		asm("movdqa %0, %%xmm7" : : "m"(*data));
+		break;
+	default:
+		BUG();
 	}
+}
+
+static inline void cpu_relax(void)
+{
+	asm volatile("rep; nop" ::: "memory");
+}
+
+#define ud2()			\
+	__asm__ __volatile__(	\
+		"ud2\n"	\
+		)
+
+#define hlt()			\
+	__asm__ __volatile__(	\
+		"hlt\n"	\
+		)
+
+struct kvm_x86_state *vcpu_save_state(struct kvm_vcpu *vcpu);
+void vcpu_load_state(struct kvm_vcpu *vcpu, struct kvm_x86_state *state);
+void kvm_x86_state_cleanup(struct kvm_x86_state *state);
+
+const struct kvm_msr_list *kvm_get_msr_index_list(void);
+const struct kvm_msr_list *kvm_get_feature_msr_index_list(void);
+bool kvm_msr_is_in_save_restore_list(uint32_t msr_index);
+uint64_t kvm_get_feature_msr(uint64_t msr_index);
+
+static inline void vcpu_msrs_get(struct kvm_vcpu *vcpu,
+				 struct kvm_msrs *msrs)
+{
+	int r = __vcpu_ioctl(vcpu, KVM_GET_MSRS, msrs);
+
+	TEST_ASSERT(r == msrs->nmsrs,
+		    "KVM_GET_MSRS failed, r: %i (failed on MSR %x)",
+		    r, r < 0 || r >= msrs->nmsrs ? -1 : msrs->entries[r].index);
+}
+static inline void vcpu_msrs_set(struct kvm_vcpu *vcpu, struct kvm_msrs *msrs)
+{
+	int r = __vcpu_ioctl(vcpu, KVM_SET_MSRS, msrs);
+
+	TEST_ASSERT(r == msrs->nmsrs,
+		    "KVM_SET_MSRS failed, r: %i (failed on MSR %x)",
+		    r, r < 0 || r >= msrs->nmsrs ? -1 : msrs->entries[r].index);
+}
+static inline void vcpu_debugregs_get(struct kvm_vcpu *vcpu,
+				      struct kvm_debugregs *debugregs)
+{
+	vcpu_ioctl(vcpu, KVM_GET_DEBUGREGS, debugregs);
+}
+static inline void vcpu_debugregs_set(struct kvm_vcpu *vcpu,
+				      struct kvm_debugregs *debugregs)
+{
+	vcpu_ioctl(vcpu, KVM_SET_DEBUGREGS, debugregs);
+}
+static inline void vcpu_xsave_get(struct kvm_vcpu *vcpu,
+				  struct kvm_xsave *xsave)
+{
+	vcpu_ioctl(vcpu, KVM_GET_XSAVE, xsave);
+}
+static inline void vcpu_xsave2_get(struct kvm_vcpu *vcpu,
+				   struct kvm_xsave *xsave)
+{
+	vcpu_ioctl(vcpu, KVM_GET_XSAVE2, xsave);
+}
+static inline void vcpu_xsave_set(struct kvm_vcpu *vcpu,
+				  struct kvm_xsave *xsave)
+{
+	vcpu_ioctl(vcpu, KVM_SET_XSAVE, xsave);
+}
+static inline void vcpu_xcrs_get(struct kvm_vcpu *vcpu,
+				 struct kvm_xcrs *xcrs)
+{
+	vcpu_ioctl(vcpu, KVM_GET_XCRS, xcrs);
+}
+static inline void vcpu_xcrs_set(struct kvm_vcpu *vcpu, struct kvm_xcrs *xcrs)
+{
+	vcpu_ioctl(vcpu, KVM_SET_XCRS, xcrs);
+}
+
+const struct kvm_cpuid_entry2 *get_cpuid_entry(const struct kvm_cpuid2 *cpuid,
+					       uint32_t function, uint32_t index);
+const struct kvm_cpuid2 *kvm_get_supported_cpuid(void);
+const struct kvm_cpuid2 *kvm_get_supported_hv_cpuid(void);
+const struct kvm_cpuid2 *vcpu_get_supported_hv_cpuid(struct kvm_vcpu *vcpu);
+
+static inline uint32_t kvm_cpu_fms(void)
+{
+	return get_cpuid_entry(kvm_get_supported_cpuid(), 0x1, 0)->eax;
+}
+
+static inline uint32_t kvm_cpu_family(void)
+{
+	return x86_family(kvm_cpu_fms());
+}
+
+static inline uint32_t kvm_cpu_model(void)
+{
+	return x86_model(kvm_cpu_fms());
+}
+
+bool kvm_cpuid_has(const struct kvm_cpuid2 *cpuid,
+		   struct kvm_x86_cpu_feature feature);
+
+static inline bool kvm_cpu_has(struct kvm_x86_cpu_feature feature)
+{
+	return kvm_cpuid_has(kvm_get_supported_cpuid(), feature);
+}
+
+uint32_t kvm_cpuid_property(const struct kvm_cpuid2 *cpuid,
+			    struct kvm_x86_cpu_property property);
+
+static inline uint32_t kvm_cpu_property(struct kvm_x86_cpu_property property)
+{
+	return kvm_cpuid_property(kvm_get_supported_cpuid(), property);
+}
+
+static __always_inline bool kvm_cpu_has_p(struct kvm_x86_cpu_property property)
+{
+	uint32_t max_leaf;
+
+	switch (property.function & 0xc0000000) {
+	case 0:
+		max_leaf = kvm_cpu_property(X86_PROPERTY_MAX_BASIC_LEAF);
+		break;
+	case 0x40000000:
+		max_leaf = kvm_cpu_property(X86_PROPERTY_MAX_KVM_LEAF);
+		break;
+	case 0x80000000:
+		max_leaf = kvm_cpu_property(X86_PROPERTY_MAX_EXT_LEAF);
+		break;
+	case 0xc0000000:
+		max_leaf = kvm_cpu_property(X86_PROPERTY_MAX_CENTAUR_LEAF);
+	}
+	return max_leaf >= property.function;
+}
+
+static inline bool kvm_pmu_has(struct kvm_x86_pmu_feature feature)
+{
+	uint32_t nr_bits;
+
+	if (feature.f.reg == KVM_CPUID_EBX) {
+		nr_bits = kvm_cpu_property(X86_PROPERTY_PMU_EBX_BIT_VECTOR_LENGTH);
+		return nr_bits > feature.f.bit && !kvm_cpu_has(feature.f);
+	}
+
+	TEST_ASSERT_EQ(feature.f.reg, KVM_CPUID_ECX);
+	nr_bits = kvm_cpu_property(X86_PROPERTY_PMU_NR_FIXED_COUNTERS);
+	return nr_bits > feature.f.bit || kvm_cpu_has(feature.f);
+}
+
+static __always_inline uint64_t kvm_cpu_supported_xcr0(void)
+{
+	if (!kvm_cpu_has_p(X86_PROPERTY_SUPPORTED_XCR0_LO))
+		return 0;
+
+	return kvm_cpu_property(X86_PROPERTY_SUPPORTED_XCR0_LO) |
+	       ((uint64_t)kvm_cpu_property(X86_PROPERTY_SUPPORTED_XCR0_HI) << 32);
+}
+
+static inline size_t kvm_cpuid2_size(int nr_entries)
+{
+	return sizeof(struct kvm_cpuid2) +
+	       sizeof(struct kvm_cpuid_entry2) * nr_entries;
+}
+
+/*
+ * Allocate a "struct kvm_cpuid2* instance, with the 0-length arrary of
+ * entries sized to hold @nr_entries.  The caller is responsible for freeing
+ * the struct.
+ */
+static inline struct kvm_cpuid2 *allocate_kvm_cpuid2(int nr_entries)
+{
+	struct kvm_cpuid2 *cpuid;
+
+	cpuid = malloc(kvm_cpuid2_size(nr_entries));
+	TEST_ASSERT(cpuid, "-ENOMEM when allocating kvm_cpuid2");
+
+	cpuid->nent = nr_entries;
+
+	return cpuid;
+}
+
+void vcpu_init_cpuid(struct kvm_vcpu *vcpu, const struct kvm_cpuid2 *cpuid);
+void vcpu_set_hv_cpuid(struct kvm_vcpu *vcpu);
+
+static inline struct kvm_cpuid_entry2 *__vcpu_get_cpuid_entry(struct kvm_vcpu *vcpu,
+							      uint32_t function,
+							      uint32_t index)
+{
+	return (struct kvm_cpuid_entry2 *)get_cpuid_entry(vcpu->cpuid,
+							  function, index);
+}
+
+static inline struct kvm_cpuid_entry2 *vcpu_get_cpuid_entry(struct kvm_vcpu *vcpu,
+							    uint32_t function)
+{
+	return __vcpu_get_cpuid_entry(vcpu, function, 0);
+}
+
+static inline int __vcpu_set_cpuid(struct kvm_vcpu *vcpu)
+{
+	int r;
+
+	TEST_ASSERT(vcpu->cpuid, "Must do vcpu_init_cpuid() first");
+	r = __vcpu_ioctl(vcpu, KVM_SET_CPUID2, vcpu->cpuid);
+	if (r)
+		return r;
+
+	/* On success, refresh the cache to pick up adjustments made by KVM. */
+	vcpu_ioctl(vcpu, KVM_GET_CPUID2, vcpu->cpuid);
 	return 0;
 }
 
-bool is_intel_cpu(void);
-
-struct kvm_x86_state;
-struct kvm_x86_state *vcpu_save_state(struct kvm_vm *vm, uint32_t vcpuid);
-void vcpu_load_state(struct kvm_vm *vm, uint32_t vcpuid,
-		     struct kvm_x86_state *state);
-
-struct kvm_cpuid2 *kvm_get_supported_cpuid(void);
-void vcpu_set_cpuid(struct kvm_vm *vm, uint32_t vcpuid,
-		    struct kvm_cpuid2 *cpuid);
-
-struct kvm_cpuid_entry2 *
-kvm_get_supported_cpuid_index(uint32_t function, uint32_t index);
-
-static inline struct kvm_cpuid_entry2 *
-kvm_get_supported_cpuid_entry(uint32_t function)
+static inline void vcpu_set_cpuid(struct kvm_vcpu *vcpu)
 {
-	return kvm_get_supported_cpuid_index(function, 0);
+	TEST_ASSERT(vcpu->cpuid, "Must do vcpu_init_cpuid() first");
+	vcpu_ioctl(vcpu, KVM_SET_CPUID2, vcpu->cpuid);
+
+	/* Refresh the cache to pick up adjustments made by KVM. */
+	vcpu_ioctl(vcpu, KVM_GET_CPUID2, vcpu->cpuid);
 }
 
-uint64_t vcpu_get_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index);
-void vcpu_set_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index,
-	  	  uint64_t msr_value);
+void vcpu_set_cpuid_property(struct kvm_vcpu *vcpu,
+			     struct kvm_x86_cpu_property property,
+			     uint32_t value);
+void vcpu_set_cpuid_maxphyaddr(struct kvm_vcpu *vcpu, uint8_t maxphyaddr);
 
-uint32_t kvm_get_cpuid_max(void);
+void vcpu_clear_cpuid_entry(struct kvm_vcpu *vcpu, uint32_t function);
+
+static inline bool vcpu_cpuid_has(struct kvm_vcpu *vcpu,
+				  struct kvm_x86_cpu_feature feature)
+{
+	struct kvm_cpuid_entry2 *entry;
+
+	entry = __vcpu_get_cpuid_entry(vcpu, feature.function, feature.index);
+	return *((&entry->eax) + feature.reg) & BIT(feature.bit);
+}
+
+void vcpu_set_or_clear_cpuid_feature(struct kvm_vcpu *vcpu,
+				     struct kvm_x86_cpu_feature feature,
+				     bool set);
+
+static inline void vcpu_set_cpuid_feature(struct kvm_vcpu *vcpu,
+					  struct kvm_x86_cpu_feature feature)
+{
+	vcpu_set_or_clear_cpuid_feature(vcpu, feature, true);
+
+}
+
+static inline void vcpu_clear_cpuid_feature(struct kvm_vcpu *vcpu,
+					    struct kvm_x86_cpu_feature feature)
+{
+	vcpu_set_or_clear_cpuid_feature(vcpu, feature, false);
+}
+
+uint64_t vcpu_get_msr(struct kvm_vcpu *vcpu, uint64_t msr_index);
+int _vcpu_set_msr(struct kvm_vcpu *vcpu, uint64_t msr_index, uint64_t msr_value);
+
+/*
+ * Assert on an MSR access(es) and pretty print the MSR name when possible.
+ * Note, the caller provides the stringified name so that the name of macro is
+ * printed, not the value the macro resolves to (due to macro expansion).
+ */
+#define TEST_ASSERT_MSR(cond, fmt, msr, str, args...)				\
+do {										\
+	if (__builtin_constant_p(msr)) {					\
+		TEST_ASSERT(cond, fmt, str, args);				\
+	} else if (!(cond)) {							\
+		char buf[16];							\
+										\
+		snprintf(buf, sizeof(buf), "MSR 0x%x", msr);			\
+		TEST_ASSERT(cond, fmt, buf, args);				\
+	}									\
+} while (0)
+
+/*
+ * Returns true if KVM should return the last written value when reading an MSR
+ * from userspace, e.g. the MSR isn't a command MSR, doesn't emulate state that
+ * is changing, etc.  This is NOT an exhaustive list!  The intent is to filter
+ * out MSRs that are not durable _and_ that a selftest wants to write.
+ */
+static inline bool is_durable_msr(uint32_t msr)
+{
+	return msr != MSR_IA32_TSC;
+}
+
+#define vcpu_set_msr(vcpu, msr, val)							\
+do {											\
+	uint64_t r, v = val;								\
+											\
+	TEST_ASSERT_MSR(_vcpu_set_msr(vcpu, msr, v) == 1,				\
+			"KVM_SET_MSRS failed on %s, value = 0x%lx", msr, #msr, v);	\
+	if (!is_durable_msr(msr))							\
+		break;									\
+	r = vcpu_get_msr(vcpu, msr);							\
+	TEST_ASSERT_MSR(r == v, "Set %s to '0x%lx', got back '0x%lx'", msr, #msr, v, r);\
+} while (0)
+
 void kvm_get_cpu_address_width(unsigned int *pa_bits, unsigned int *va_bits);
+void kvm_init_vm_address_properties(struct kvm_vm *vm);
+bool vm_is_unrestricted_guest(struct kvm_vm *vm);
+
+struct ex_regs {
+	uint64_t rax, rcx, rdx, rbx;
+	uint64_t rbp, rsi, rdi;
+	uint64_t r8, r9, r10, r11;
+	uint64_t r12, r13, r14, r15;
+	uint64_t vector;
+	uint64_t error_code;
+	uint64_t rip;
+	uint64_t cs;
+	uint64_t rflags;
+};
+
+struct idt_entry {
+	uint16_t offset0;
+	uint16_t selector;
+	uint16_t ist : 3;
+	uint16_t : 5;
+	uint16_t type : 4;
+	uint16_t : 1;
+	uint16_t dpl : 2;
+	uint16_t p : 1;
+	uint16_t offset1;
+	uint32_t offset2; uint32_t reserved;
+};
+
+void vm_install_exception_handler(struct kvm_vm *vm, int vector,
+			void (*handler)(struct ex_regs *));
+
+/* If a toddler were to say "abracadabra". */
+#define KVM_EXCEPTION_MAGIC 0xabacadabaULL
+
+/*
+ * KVM selftest exception fixup uses registers to coordinate with the exception
+ * handler, versus the kernel's in-memory tables and KVM-Unit-Tests's in-memory
+ * per-CPU data.  Using only registers avoids having to map memory into the
+ * guest, doesn't require a valid, stable GS.base, and reduces the risk of
+ * for recursive faults when accessing memory in the handler.  The downside to
+ * using registers is that it restricts what registers can be used by the actual
+ * instruction.  But, selftests are 64-bit only, making register* pressure a
+ * minor concern.  Use r9-r11 as they are volatile, i.e. don't need to be saved
+ * by the callee, and except for r11 are not implicit parameters to any
+ * instructions.  Ideally, fixup would use r8-r10 and thus avoid implicit
+ * parameters entirely, but Hyper-V's hypercall ABI uses r8 and testing Hyper-V
+ * is higher priority than testing non-faulting SYSCALL/SYSRET.
+ *
+ * Note, the fixup handler deliberately does not handle #DE, i.e. the vector
+ * is guaranteed to be non-zero on fault.
+ *
+ * REGISTER INPUTS:
+ * r9  = MAGIC
+ * r10 = RIP
+ * r11 = new RIP on fault
+ *
+ * REGISTER OUTPUTS:
+ * r9  = exception vector (non-zero)
+ * r10 = error code
+ */
+#define __KVM_ASM_SAFE(insn, fep)				\
+	"mov $" __stringify(KVM_EXCEPTION_MAGIC) ", %%r9\n\t"	\
+	"lea 1f(%%rip), %%r10\n\t"				\
+	"lea 2f(%%rip), %%r11\n\t"				\
+	fep "1: " insn "\n\t"					\
+	"xor %%r9, %%r9\n\t"					\
+	"2:\n\t"						\
+	"mov  %%r9b, %[vector]\n\t"				\
+	"mov  %%r10, %[error_code]\n\t"
+
+#define KVM_ASM_SAFE(insn) __KVM_ASM_SAFE(insn, "")
+#define KVM_ASM_SAFE_FEP(insn) __KVM_ASM_SAFE(insn, KVM_FEP)
+
+#define KVM_ASM_SAFE_OUTPUTS(v, ec)	[vector] "=qm"(v), [error_code] "=rm"(ec)
+#define KVM_ASM_SAFE_CLOBBERS	"r9", "r10", "r11"
+
+#define kvm_asm_safe(insn, inputs...)					\
+({									\
+	uint64_t ign_error_code;					\
+	uint8_t vector;							\
+									\
+	asm volatile(KVM_ASM_SAFE(insn)					\
+		     : KVM_ASM_SAFE_OUTPUTS(vector, ign_error_code)	\
+		     : inputs						\
+		     : KVM_ASM_SAFE_CLOBBERS);				\
+	vector;								\
+})
+
+#define kvm_asm_safe_ec(insn, error_code, inputs...)			\
+({									\
+	uint8_t vector;							\
+									\
+	asm volatile(KVM_ASM_SAFE(insn)					\
+		     : KVM_ASM_SAFE_OUTPUTS(vector, error_code)		\
+		     : inputs						\
+		     : KVM_ASM_SAFE_CLOBBERS);				\
+	vector;								\
+})
+
+#define kvm_asm_safe_fep(insn, inputs...)				\
+({									\
+	uint64_t ign_error_code;					\
+	uint8_t vector;							\
+									\
+	asm volatile(KVM_ASM_SAFE(insn)					\
+		     : KVM_ASM_SAFE_OUTPUTS(vector, ign_error_code)	\
+		     : inputs						\
+		     : KVM_ASM_SAFE_CLOBBERS);				\
+	vector;								\
+})
+
+#define kvm_asm_safe_ec_fep(insn, error_code, inputs...)		\
+({									\
+	uint8_t vector;							\
+									\
+	asm volatile(KVM_ASM_SAFE_FEP(insn)				\
+		     : KVM_ASM_SAFE_OUTPUTS(vector, error_code)		\
+		     : inputs						\
+		     : KVM_ASM_SAFE_CLOBBERS);				\
+	vector;								\
+})
+
+#define BUILD_READ_U64_SAFE_HELPER(insn, _fep, _FEP)			\
+static inline uint8_t insn##_safe ##_fep(uint32_t idx, uint64_t *val)	\
+{									\
+	uint64_t error_code;						\
+	uint8_t vector;							\
+	uint32_t a, d;							\
+									\
+	asm volatile(KVM_ASM_SAFE##_FEP(#insn)				\
+		     : "=a"(a), "=d"(d),				\
+		       KVM_ASM_SAFE_OUTPUTS(vector, error_code)		\
+		     : "c"(idx)						\
+		     : KVM_ASM_SAFE_CLOBBERS);				\
+									\
+	*val = (uint64_t)a | ((uint64_t)d << 32);			\
+	return vector;							\
+}
+
+/*
+ * Generate {insn}_safe() and {insn}_safe_fep() helpers for instructions that
+ * use ECX as in input index, and EDX:EAX as a 64-bit output.
+ */
+#define BUILD_READ_U64_SAFE_HELPERS(insn)				\
+	BUILD_READ_U64_SAFE_HELPER(insn, , )				\
+	BUILD_READ_U64_SAFE_HELPER(insn, _fep, _FEP)			\
+
+BUILD_READ_U64_SAFE_HELPERS(rdmsr)
+BUILD_READ_U64_SAFE_HELPERS(rdpmc)
+BUILD_READ_U64_SAFE_HELPERS(xgetbv)
+
+static inline uint8_t wrmsr_safe(uint32_t msr, uint64_t val)
+{
+	return kvm_asm_safe("wrmsr", "a"(val & -1u), "d"(val >> 32), "c"(msr));
+}
+
+static inline uint8_t xsetbv_safe(uint32_t index, uint64_t value)
+{
+	u32 eax = value;
+	u32 edx = value >> 32;
+
+	return kvm_asm_safe("xsetbv", "a" (eax), "d" (edx), "c" (index));
+}
+
+bool kvm_is_tdp_enabled(void);
+
+static inline bool kvm_is_pmu_enabled(void)
+{
+	return get_kvm_param_bool("enable_pmu");
+}
+
+static inline bool kvm_is_forced_emulation_enabled(void)
+{
+	return !!get_kvm_param_integer("force_emulation_prefix");
+}
+
+uint64_t *__vm_get_page_table_entry(struct kvm_vm *vm, uint64_t vaddr,
+				    int *level);
+uint64_t *vm_get_page_table_entry(struct kvm_vm *vm, uint64_t vaddr);
+
+uint64_t kvm_hypercall(uint64_t nr, uint64_t a0, uint64_t a1, uint64_t a2,
+		       uint64_t a3);
+uint64_t __xen_hypercall(uint64_t nr, uint64_t a0, void *a1);
+void xen_hypercall(uint64_t nr, uint64_t a0, void *a1);
+
+static inline uint64_t __kvm_hypercall_map_gpa_range(uint64_t gpa,
+						     uint64_t size, uint64_t flags)
+{
+	return kvm_hypercall(KVM_HC_MAP_GPA_RANGE, gpa, size >> PAGE_SHIFT, flags, 0);
+}
+
+static inline void kvm_hypercall_map_gpa_range(uint64_t gpa, uint64_t size,
+					       uint64_t flags)
+{
+	uint64_t ret = __kvm_hypercall_map_gpa_range(gpa, size, flags);
+
+	GUEST_ASSERT(!ret);
+}
+
+void __vm_xsave_require_permission(uint64_t xfeature, const char *name);
+
+#define vm_xsave_require_permission(xfeature)	\
+	__vm_xsave_require_permission(xfeature, #xfeature)
+
+enum pg_level {
+	PG_LEVEL_NONE,
+	PG_LEVEL_4K,
+	PG_LEVEL_2M,
+	PG_LEVEL_1G,
+	PG_LEVEL_512G,
+	PG_LEVEL_NUM
+};
+
+#define PG_LEVEL_SHIFT(_level) ((_level - 1) * 9 + 12)
+#define PG_LEVEL_SIZE(_level) (1ull << PG_LEVEL_SHIFT(_level))
+
+#define PG_SIZE_4K PG_LEVEL_SIZE(PG_LEVEL_4K)
+#define PG_SIZE_2M PG_LEVEL_SIZE(PG_LEVEL_2M)
+#define PG_SIZE_1G PG_LEVEL_SIZE(PG_LEVEL_1G)
+
+void __virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr, int level);
+void virt_map_level(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
+		    uint64_t nr_bytes, int level);
 
 /*
  * Basic CPU control in CR0
@@ -343,756 +1345,28 @@ void kvm_get_cpu_address_width(unsigned int *pa_bits, unsigned int *va_bits);
 #define X86_CR0_CD          (1UL<<30) /* Cache Disable */
 #define X86_CR0_PG          (1UL<<31) /* Paging */
 
-/*
- * CPU model specific register (MSR) numbers.
- */
-
-/* x86-64 specific MSRs */
-#define MSR_EFER		0xc0000080 /* extended feature register */
-#define MSR_STAR		0xc0000081 /* legacy mode SYSCALL target */
-#define MSR_LSTAR		0xc0000082 /* long mode SYSCALL target */
-#define MSR_CSTAR		0xc0000083 /* compat mode SYSCALL target */
-#define MSR_SYSCALL_MASK	0xc0000084 /* EFLAGS mask for syscall */
-#define MSR_FS_BASE		0xc0000100 /* 64bit FS base */
-#define MSR_GS_BASE		0xc0000101 /* 64bit GS base */
-#define MSR_KERNEL_GS_BASE	0xc0000102 /* SwapGS GS shadow */
-#define MSR_TSC_AUX		0xc0000103 /* Auxiliary TSC */
-
-/* EFER bits: */
-#define EFER_SCE		(1<<0)  /* SYSCALL/SYSRET */
-#define EFER_LME		(1<<8)  /* Long mode enable */
-#define EFER_LMA		(1<<10) /* Long mode active (read-only) */
-#define EFER_NX			(1<<11) /* No execute enable */
-#define EFER_SVME		(1<<12) /* Enable virtualization */
-#define EFER_LMSLE		(1<<13) /* Long Mode Segment Limit Enable */
-#define EFER_FFXSR		(1<<14) /* Enable Fast FXSAVE/FXRSTOR */
-
-/* Intel MSRs. Some also available on other CPUs */
-
-#define MSR_PPIN_CTL			0x0000004e
-#define MSR_PPIN			0x0000004f
-
-#define MSR_IA32_PERFCTR0		0x000000c1
-#define MSR_IA32_PERFCTR1		0x000000c2
-#define MSR_FSB_FREQ			0x000000cd
-#define MSR_PLATFORM_INFO		0x000000ce
-#define MSR_PLATFORM_INFO_CPUID_FAULT_BIT	31
-#define MSR_PLATFORM_INFO_CPUID_FAULT		BIT_ULL(MSR_PLATFORM_INFO_CPUID_FAULT_BIT)
-
-#define MSR_PKG_CST_CONFIG_CONTROL	0x000000e2
-#define NHM_C3_AUTO_DEMOTE		(1UL << 25)
-#define NHM_C1_AUTO_DEMOTE		(1UL << 26)
-#define ATM_LNC_C6_AUTO_DEMOTE		(1UL << 25)
-#define SNB_C1_AUTO_UNDEMOTE		(1UL << 27)
-#define SNB_C3_AUTO_UNDEMOTE		(1UL << 28)
-
-#define MSR_MTRRcap			0x000000fe
-#define MSR_IA32_BBL_CR_CTL		0x00000119
-#define MSR_IA32_BBL_CR_CTL3		0x0000011e
-
-#define MSR_IA32_SYSENTER_CS		0x00000174
-#define MSR_IA32_SYSENTER_ESP		0x00000175
-#define MSR_IA32_SYSENTER_EIP		0x00000176
-
-#define MSR_IA32_MCG_CAP		0x00000179
-#define MSR_IA32_MCG_STATUS		0x0000017a
-#define MSR_IA32_MCG_CTL		0x0000017b
-#define MSR_IA32_MCG_EXT_CTL		0x000004d0
-
-#define MSR_OFFCORE_RSP_0		0x000001a6
-#define MSR_OFFCORE_RSP_1		0x000001a7
-#define MSR_TURBO_RATIO_LIMIT		0x000001ad
-#define MSR_TURBO_RATIO_LIMIT1		0x000001ae
-#define MSR_TURBO_RATIO_LIMIT2		0x000001af
-
-#define MSR_LBR_SELECT			0x000001c8
-#define MSR_LBR_TOS			0x000001c9
-#define MSR_LBR_NHM_FROM		0x00000680
-#define MSR_LBR_NHM_TO			0x000006c0
-#define MSR_LBR_CORE_FROM		0x00000040
-#define MSR_LBR_CORE_TO			0x00000060
-
-#define MSR_LBR_INFO_0			0x00000dc0 /* ... 0xddf for _31 */
-#define LBR_INFO_MISPRED		BIT_ULL(63)
-#define LBR_INFO_IN_TX			BIT_ULL(62)
-#define LBR_INFO_ABORT			BIT_ULL(61)
-#define LBR_INFO_CYCLES			0xffff
-
-#define MSR_IA32_PEBS_ENABLE		0x000003f1
-#define MSR_IA32_DS_AREA		0x00000600
-#define MSR_IA32_PERF_CAPABILITIES	0x00000345
-#define MSR_PEBS_LD_LAT_THRESHOLD	0x000003f6
-
-#define MSR_IA32_RTIT_CTL		0x00000570
-#define MSR_IA32_RTIT_STATUS		0x00000571
-#define MSR_IA32_RTIT_ADDR0_A		0x00000580
-#define MSR_IA32_RTIT_ADDR0_B		0x00000581
-#define MSR_IA32_RTIT_ADDR1_A		0x00000582
-#define MSR_IA32_RTIT_ADDR1_B		0x00000583
-#define MSR_IA32_RTIT_ADDR2_A		0x00000584
-#define MSR_IA32_RTIT_ADDR2_B		0x00000585
-#define MSR_IA32_RTIT_ADDR3_A		0x00000586
-#define MSR_IA32_RTIT_ADDR3_B		0x00000587
-#define MSR_IA32_RTIT_CR3_MATCH		0x00000572
-#define MSR_IA32_RTIT_OUTPUT_BASE	0x00000560
-#define MSR_IA32_RTIT_OUTPUT_MASK	0x00000561
-
-#define MSR_MTRRfix64K_00000		0x00000250
-#define MSR_MTRRfix16K_80000		0x00000258
-#define MSR_MTRRfix16K_A0000		0x00000259
-#define MSR_MTRRfix4K_C0000		0x00000268
-#define MSR_MTRRfix4K_C8000		0x00000269
-#define MSR_MTRRfix4K_D0000		0x0000026a
-#define MSR_MTRRfix4K_D8000		0x0000026b
-#define MSR_MTRRfix4K_E0000		0x0000026c
-#define MSR_MTRRfix4K_E8000		0x0000026d
-#define MSR_MTRRfix4K_F0000		0x0000026e
-#define MSR_MTRRfix4K_F8000		0x0000026f
-#define MSR_MTRRdefType			0x000002ff
-
-#define MSR_IA32_CR_PAT			0x00000277
-
-#define MSR_IA32_DEBUGCTLMSR		0x000001d9
-#define MSR_IA32_LASTBRANCHFROMIP	0x000001db
-#define MSR_IA32_LASTBRANCHTOIP		0x000001dc
-#define MSR_IA32_LASTINTFROMIP		0x000001dd
-#define MSR_IA32_LASTINTTOIP		0x000001de
-
-/* DEBUGCTLMSR bits (others vary by model): */
-#define DEBUGCTLMSR_LBR			(1UL <<  0) /* last branch recording */
-#define DEBUGCTLMSR_BTF_SHIFT		1
-#define DEBUGCTLMSR_BTF			(1UL <<  1) /* single-step on branches */
-#define DEBUGCTLMSR_TR			(1UL <<  6)
-#define DEBUGCTLMSR_BTS			(1UL <<  7)
-#define DEBUGCTLMSR_BTINT		(1UL <<  8)
-#define DEBUGCTLMSR_BTS_OFF_OS		(1UL <<  9)
-#define DEBUGCTLMSR_BTS_OFF_USR		(1UL << 10)
-#define DEBUGCTLMSR_FREEZE_LBRS_ON_PMI	(1UL << 11)
-#define DEBUGCTLMSR_FREEZE_IN_SMM_BIT	14
-#define DEBUGCTLMSR_FREEZE_IN_SMM	(1UL << DEBUGCTLMSR_FREEZE_IN_SMM_BIT)
-
-#define MSR_PEBS_FRONTEND		0x000003f7
-
-#define MSR_IA32_POWER_CTL		0x000001fc
-
-#define MSR_IA32_MC0_CTL		0x00000400
-#define MSR_IA32_MC0_STATUS		0x00000401
-#define MSR_IA32_MC0_ADDR		0x00000402
-#define MSR_IA32_MC0_MISC		0x00000403
-
-/* C-state Residency Counters */
-#define MSR_PKG_C3_RESIDENCY		0x000003f8
-#define MSR_PKG_C6_RESIDENCY		0x000003f9
-#define MSR_ATOM_PKG_C6_RESIDENCY	0x000003fa
-#define MSR_PKG_C7_RESIDENCY		0x000003fa
-#define MSR_CORE_C3_RESIDENCY		0x000003fc
-#define MSR_CORE_C6_RESIDENCY		0x000003fd
-#define MSR_CORE_C7_RESIDENCY		0x000003fe
-#define MSR_KNL_CORE_C6_RESIDENCY	0x000003ff
-#define MSR_PKG_C2_RESIDENCY		0x0000060d
-#define MSR_PKG_C8_RESIDENCY		0x00000630
-#define MSR_PKG_C9_RESIDENCY		0x00000631
-#define MSR_PKG_C10_RESIDENCY		0x00000632
-
-/* Interrupt Response Limit */
-#define MSR_PKGC3_IRTL			0x0000060a
-#define MSR_PKGC6_IRTL			0x0000060b
-#define MSR_PKGC7_IRTL			0x0000060c
-#define MSR_PKGC8_IRTL			0x00000633
-#define MSR_PKGC9_IRTL			0x00000634
-#define MSR_PKGC10_IRTL			0x00000635
-
-/* Run Time Average Power Limiting (RAPL) Interface */
-
-#define MSR_RAPL_POWER_UNIT		0x00000606
-
-#define MSR_PKG_POWER_LIMIT		0x00000610
-#define MSR_PKG_ENERGY_STATUS		0x00000611
-#define MSR_PKG_PERF_STATUS		0x00000613
-#define MSR_PKG_POWER_INFO		0x00000614
-
-#define MSR_DRAM_POWER_LIMIT		0x00000618
-#define MSR_DRAM_ENERGY_STATUS		0x00000619
-#define MSR_DRAM_PERF_STATUS		0x0000061b
-#define MSR_DRAM_POWER_INFO		0x0000061c
-
-#define MSR_PP0_POWER_LIMIT		0x00000638
-#define MSR_PP0_ENERGY_STATUS		0x00000639
-#define MSR_PP0_POLICY			0x0000063a
-#define MSR_PP0_PERF_STATUS		0x0000063b
-
-#define MSR_PP1_POWER_LIMIT		0x00000640
-#define MSR_PP1_ENERGY_STATUS		0x00000641
-#define MSR_PP1_POLICY			0x00000642
-
-/* Config TDP MSRs */
-#define MSR_CONFIG_TDP_NOMINAL		0x00000648
-#define MSR_CONFIG_TDP_LEVEL_1		0x00000649
-#define MSR_CONFIG_TDP_LEVEL_2		0x0000064A
-#define MSR_CONFIG_TDP_CONTROL		0x0000064B
-#define MSR_TURBO_ACTIVATION_RATIO	0x0000064C
-
-#define MSR_PLATFORM_ENERGY_STATUS	0x0000064D
-
-#define MSR_PKG_WEIGHTED_CORE_C0_RES	0x00000658
-#define MSR_PKG_ANY_CORE_C0_RES		0x00000659
-#define MSR_PKG_ANY_GFXE_C0_RES		0x0000065A
-#define MSR_PKG_BOTH_CORE_GFXE_C0_RES	0x0000065B
-
-#define MSR_CORE_C1_RES			0x00000660
-#define MSR_MODULE_C6_RES_MS		0x00000664
-
-#define MSR_CC6_DEMOTION_POLICY_CONFIG	0x00000668
-#define MSR_MC6_DEMOTION_POLICY_CONFIG	0x00000669
-
-#define MSR_ATOM_CORE_RATIOS		0x0000066a
-#define MSR_ATOM_CORE_VIDS		0x0000066b
-#define MSR_ATOM_CORE_TURBO_RATIOS	0x0000066c
-#define MSR_ATOM_CORE_TURBO_VIDS	0x0000066d
-
-
-#define MSR_CORE_PERF_LIMIT_REASONS	0x00000690
-#define MSR_GFX_PERF_LIMIT_REASONS	0x000006B0
-#define MSR_RING_PERF_LIMIT_REASONS	0x000006B1
-
-/* Hardware P state interface */
-#define MSR_PPERF			0x0000064e
-#define MSR_PERF_LIMIT_REASONS		0x0000064f
-#define MSR_PM_ENABLE			0x00000770
-#define MSR_HWP_CAPABILITIES		0x00000771
-#define MSR_HWP_REQUEST_PKG		0x00000772
-#define MSR_HWP_INTERRUPT		0x00000773
-#define MSR_HWP_REQUEST			0x00000774
-#define MSR_HWP_STATUS			0x00000777
-
-/* CPUID.6.EAX */
-#define HWP_BASE_BIT			(1<<7)
-#define HWP_NOTIFICATIONS_BIT		(1<<8)
-#define HWP_ACTIVITY_WINDOW_BIT		(1<<9)
-#define HWP_ENERGY_PERF_PREFERENCE_BIT	(1<<10)
-#define HWP_PACKAGE_LEVEL_REQUEST_BIT	(1<<11)
-
-/* IA32_HWP_CAPABILITIES */
-#define HWP_HIGHEST_PERF(x)		(((x) >> 0) & 0xff)
-#define HWP_GUARANTEED_PERF(x)		(((x) >> 8) & 0xff)
-#define HWP_MOSTEFFICIENT_PERF(x)	(((x) >> 16) & 0xff)
-#define HWP_LOWEST_PERF(x)		(((x) >> 24) & 0xff)
-
-/* IA32_HWP_REQUEST */
-#define HWP_MIN_PERF(x)			(x & 0xff)
-#define HWP_MAX_PERF(x)			((x & 0xff) << 8)
-#define HWP_DESIRED_PERF(x)		((x & 0xff) << 16)
-#define HWP_ENERGY_PERF_PREFERENCE(x)	(((unsigned long long) x & 0xff) << 24)
-#define HWP_EPP_PERFORMANCE		0x00
-#define HWP_EPP_BALANCE_PERFORMANCE	0x80
-#define HWP_EPP_BALANCE_POWERSAVE	0xC0
-#define HWP_EPP_POWERSAVE		0xFF
-#define HWP_ACTIVITY_WINDOW(x)		((unsigned long long)(x & 0xff3) << 32)
-#define HWP_PACKAGE_CONTROL(x)		((unsigned long long)(x & 0x1) << 42)
-
-/* IA32_HWP_STATUS */
-#define HWP_GUARANTEED_CHANGE(x)	(x & 0x1)
-#define HWP_EXCURSION_TO_MINIMUM(x)	(x & 0x4)
-
-/* IA32_HWP_INTERRUPT */
-#define HWP_CHANGE_TO_GUARANTEED_INT(x)	(x & 0x1)
-#define HWP_EXCURSION_TO_MINIMUM_INT(x)	(x & 0x2)
-
-#define MSR_AMD64_MC0_MASK		0xc0010044
-
-#define MSR_IA32_MCx_CTL(x)		(MSR_IA32_MC0_CTL + 4*(x))
-#define MSR_IA32_MCx_STATUS(x)		(MSR_IA32_MC0_STATUS + 4*(x))
-#define MSR_IA32_MCx_ADDR(x)		(MSR_IA32_MC0_ADDR + 4*(x))
-#define MSR_IA32_MCx_MISC(x)		(MSR_IA32_MC0_MISC + 4*(x))
-
-#define MSR_AMD64_MCx_MASK(x)		(MSR_AMD64_MC0_MASK + (x))
-
-/* These are consecutive and not in the normal 4er MCE bank block */
-#define MSR_IA32_MC0_CTL2		0x00000280
-#define MSR_IA32_MCx_CTL2(x)		(MSR_IA32_MC0_CTL2 + (x))
-
-#define MSR_P6_PERFCTR0			0x000000c1
-#define MSR_P6_PERFCTR1			0x000000c2
-#define MSR_P6_EVNTSEL0			0x00000186
-#define MSR_P6_EVNTSEL1			0x00000187
-
-#define MSR_KNC_PERFCTR0               0x00000020
-#define MSR_KNC_PERFCTR1               0x00000021
-#define MSR_KNC_EVNTSEL0               0x00000028
-#define MSR_KNC_EVNTSEL1               0x00000029
-
-/* Alternative perfctr range with full access. */
-#define MSR_IA32_PMC0			0x000004c1
-
-/* AMD64 MSRs. Not complete. See the architecture manual for a more
-   complete list. */
-
-#define MSR_AMD64_PATCH_LEVEL		0x0000008b
-#define MSR_AMD64_TSC_RATIO		0xc0000104
-#define MSR_AMD64_NB_CFG		0xc001001f
-#define MSR_AMD64_PATCH_LOADER		0xc0010020
-#define MSR_AMD64_OSVW_ID_LENGTH	0xc0010140
-#define MSR_AMD64_OSVW_STATUS		0xc0010141
-#define MSR_AMD64_LS_CFG		0xc0011020
-#define MSR_AMD64_DC_CFG		0xc0011022
-#define MSR_AMD64_BU_CFG2		0xc001102a
-#define MSR_AMD64_IBSFETCHCTL		0xc0011030
-#define MSR_AMD64_IBSFETCHLINAD		0xc0011031
-#define MSR_AMD64_IBSFETCHPHYSAD	0xc0011032
-#define MSR_AMD64_IBSFETCH_REG_COUNT	3
-#define MSR_AMD64_IBSFETCH_REG_MASK	((1UL<<MSR_AMD64_IBSFETCH_REG_COUNT)-1)
-#define MSR_AMD64_IBSOPCTL		0xc0011033
-#define MSR_AMD64_IBSOPRIP		0xc0011034
-#define MSR_AMD64_IBSOPDATA		0xc0011035
-#define MSR_AMD64_IBSOPDATA2		0xc0011036
-#define MSR_AMD64_IBSOPDATA3		0xc0011037
-#define MSR_AMD64_IBSDCLINAD		0xc0011038
-#define MSR_AMD64_IBSDCPHYSAD		0xc0011039
-#define MSR_AMD64_IBSOP_REG_COUNT	7
-#define MSR_AMD64_IBSOP_REG_MASK	((1UL<<MSR_AMD64_IBSOP_REG_COUNT)-1)
-#define MSR_AMD64_IBSCTL		0xc001103a
-#define MSR_AMD64_IBSBRTARGET		0xc001103b
-#define MSR_AMD64_IBSOPDATA4		0xc001103d
-#define MSR_AMD64_IBS_REG_COUNT_MAX	8 /* includes MSR_AMD64_IBSBRTARGET */
-#define MSR_AMD64_SEV			0xc0010131
-#define MSR_AMD64_SEV_ENABLED_BIT	0
-#define MSR_AMD64_SEV_ENABLED		BIT_ULL(MSR_AMD64_SEV_ENABLED_BIT)
-
-/* Fam 17h MSRs */
-#define MSR_F17H_IRPERF			0xc00000e9
-
-/* Fam 16h MSRs */
-#define MSR_F16H_L2I_PERF_CTL		0xc0010230
-#define MSR_F16H_L2I_PERF_CTR		0xc0010231
-#define MSR_F16H_DR1_ADDR_MASK		0xc0011019
-#define MSR_F16H_DR2_ADDR_MASK		0xc001101a
-#define MSR_F16H_DR3_ADDR_MASK		0xc001101b
-#define MSR_F16H_DR0_ADDR_MASK		0xc0011027
-
-/* Fam 15h MSRs */
-#define MSR_F15H_PERF_CTL		0xc0010200
-#define MSR_F15H_PERF_CTR		0xc0010201
-#define MSR_F15H_NB_PERF_CTL		0xc0010240
-#define MSR_F15H_NB_PERF_CTR		0xc0010241
-#define MSR_F15H_PTSC			0xc0010280
-#define MSR_F15H_IC_CFG			0xc0011021
-
-/* Fam 10h MSRs */
-#define MSR_FAM10H_MMIO_CONF_BASE	0xc0010058
-#define FAM10H_MMIO_CONF_ENABLE		(1<<0)
-#define FAM10H_MMIO_CONF_BUSRANGE_MASK	0xf
-#define FAM10H_MMIO_CONF_BUSRANGE_SHIFT 2
-#define FAM10H_MMIO_CONF_BASE_MASK	0xfffffffULL
-#define FAM10H_MMIO_CONF_BASE_SHIFT	20
-#define MSR_FAM10H_NODE_ID		0xc001100c
-#define MSR_F10H_DECFG			0xc0011029
-#define MSR_F10H_DECFG_LFENCE_SERIALIZE_BIT	1
-#define MSR_F10H_DECFG_LFENCE_SERIALIZE		BIT_ULL(MSR_F10H_DECFG_LFENCE_SERIALIZE_BIT)
-
-/* K8 MSRs */
-#define MSR_K8_TOP_MEM1			0xc001001a
-#define MSR_K8_TOP_MEM2			0xc001001d
-#define MSR_K8_SYSCFG			0xc0010010
-#define MSR_K8_SYSCFG_MEM_ENCRYPT_BIT	23
-#define MSR_K8_SYSCFG_MEM_ENCRYPT	BIT_ULL(MSR_K8_SYSCFG_MEM_ENCRYPT_BIT)
-#define MSR_K8_INT_PENDING_MSG		0xc0010055
-/* C1E active bits in int pending message */
-#define K8_INTP_C1E_ACTIVE_MASK		0x18000000
-#define MSR_K8_TSEG_ADDR		0xc0010112
-#define MSR_K8_TSEG_MASK		0xc0010113
-#define K8_MTRRFIXRANGE_DRAM_ENABLE	0x00040000 /* MtrrFixDramEn bit    */
-#define K8_MTRRFIXRANGE_DRAM_MODIFY	0x00080000 /* MtrrFixDramModEn bit */
-#define K8_MTRR_RDMEM_WRMEM_MASK	0x18181818 /* Mask: RdMem|WrMem    */
-
-/* K7 MSRs */
-#define MSR_K7_EVNTSEL0			0xc0010000
-#define MSR_K7_PERFCTR0			0xc0010004
-#define MSR_K7_EVNTSEL1			0xc0010001
-#define MSR_K7_PERFCTR1			0xc0010005
-#define MSR_K7_EVNTSEL2			0xc0010002
-#define MSR_K7_PERFCTR2			0xc0010006
-#define MSR_K7_EVNTSEL3			0xc0010003
-#define MSR_K7_PERFCTR3			0xc0010007
-#define MSR_K7_CLK_CTL			0xc001001b
-#define MSR_K7_HWCR			0xc0010015
-#define MSR_K7_HWCR_SMMLOCK_BIT		0
-#define MSR_K7_HWCR_SMMLOCK		BIT_ULL(MSR_K7_HWCR_SMMLOCK_BIT)
-#define MSR_K7_FID_VID_CTL		0xc0010041
-#define MSR_K7_FID_VID_STATUS		0xc0010042
-
-/* K6 MSRs */
-#define MSR_K6_WHCR			0xc0000082
-#define MSR_K6_UWCCR			0xc0000085
-#define MSR_K6_EPMR			0xc0000086
-#define MSR_K6_PSOR			0xc0000087
-#define MSR_K6_PFIR			0xc0000088
-
-/* Centaur-Hauls/IDT defined MSRs. */
-#define MSR_IDT_FCR1			0x00000107
-#define MSR_IDT_FCR2			0x00000108
-#define MSR_IDT_FCR3			0x00000109
-#define MSR_IDT_FCR4			0x0000010a
-
-#define MSR_IDT_MCR0			0x00000110
-#define MSR_IDT_MCR1			0x00000111
-#define MSR_IDT_MCR2			0x00000112
-#define MSR_IDT_MCR3			0x00000113
-#define MSR_IDT_MCR4			0x00000114
-#define MSR_IDT_MCR5			0x00000115
-#define MSR_IDT_MCR6			0x00000116
-#define MSR_IDT_MCR7			0x00000117
-#define MSR_IDT_MCR_CTRL		0x00000120
-
-/* VIA Cyrix defined MSRs*/
-#define MSR_VIA_FCR			0x00001107
-#define MSR_VIA_LONGHAUL		0x0000110a
-#define MSR_VIA_RNG			0x0000110b
-#define MSR_VIA_BCR2			0x00001147
-
-/* Transmeta defined MSRs */
-#define MSR_TMTA_LONGRUN_CTRL		0x80868010
-#define MSR_TMTA_LONGRUN_FLAGS		0x80868011
-#define MSR_TMTA_LRTI_READOUT		0x80868018
-#define MSR_TMTA_LRTI_VOLT_MHZ		0x8086801a
-
-/* Intel defined MSRs. */
-#define MSR_IA32_P5_MC_ADDR		0x00000000
-#define MSR_IA32_P5_MC_TYPE		0x00000001
-#define MSR_IA32_TSC			0x00000010
-#define MSR_IA32_PLATFORM_ID		0x00000017
-#define MSR_IA32_EBL_CR_POWERON		0x0000002a
-#define MSR_EBC_FREQUENCY_ID		0x0000002c
-#define MSR_SMI_COUNT			0x00000034
-#define MSR_IA32_FEATURE_CONTROL        0x0000003a
-#define MSR_IA32_TSC_ADJUST             0x0000003b
-#define MSR_IA32_BNDCFGS		0x00000d90
-
-#define MSR_IA32_BNDCFGS_RSVD		0x00000ffc
-
-#define MSR_IA32_XSS			0x00000da0
-
-#define FEATURE_CONTROL_LOCKED				(1<<0)
-#define FEATURE_CONTROL_VMXON_ENABLED_INSIDE_SMX	(1<<1)
-#define FEATURE_CONTROL_VMXON_ENABLED_OUTSIDE_SMX	(1<<2)
-#define FEATURE_CONTROL_LMCE				(1<<20)
-
-#define MSR_IA32_APICBASE		0x0000001b
-#define MSR_IA32_APICBASE_BSP		(1<<8)
-#define MSR_IA32_APICBASE_ENABLE	(1<<11)
-#define MSR_IA32_APICBASE_BASE		(0xfffff<<12)
-
-#define APIC_BASE_MSR	0x800
-#define X2APIC_ENABLE	(1UL << 10)
-#define	APIC_ICR	0x300
-#define		APIC_DEST_SELF		0x40000
-#define		APIC_DEST_ALLINC	0x80000
-#define		APIC_DEST_ALLBUT	0xC0000
-#define		APIC_ICR_RR_MASK	0x30000
-#define		APIC_ICR_RR_INVALID	0x00000
-#define		APIC_ICR_RR_INPROG	0x10000
-#define		APIC_ICR_RR_VALID	0x20000
-#define		APIC_INT_LEVELTRIG	0x08000
-#define		APIC_INT_ASSERT		0x04000
-#define		APIC_ICR_BUSY		0x01000
-#define		APIC_DEST_LOGICAL	0x00800
-#define		APIC_DEST_PHYSICAL	0x00000
-#define		APIC_DM_FIXED		0x00000
-#define		APIC_DM_FIXED_MASK	0x00700
-#define		APIC_DM_LOWEST		0x00100
-#define		APIC_DM_SMI		0x00200
-#define		APIC_DM_REMRD		0x00300
-#define		APIC_DM_NMI		0x00400
-#define		APIC_DM_INIT		0x00500
-#define		APIC_DM_STARTUP		0x00600
-#define		APIC_DM_EXTINT		0x00700
-#define		APIC_VECTOR_MASK	0x000FF
-#define	APIC_ICR2	0x310
-
-#define MSR_IA32_TSCDEADLINE		0x000006e0
-
-#define MSR_IA32_UCODE_WRITE		0x00000079
-#define MSR_IA32_UCODE_REV		0x0000008b
-
-#define MSR_IA32_SMM_MONITOR_CTL	0x0000009b
-#define MSR_IA32_SMBASE			0x0000009e
-
-#define MSR_IA32_PERF_STATUS		0x00000198
-#define MSR_IA32_PERF_CTL		0x00000199
-#define INTEL_PERF_CTL_MASK		0xffff
-#define MSR_AMD_PSTATE_DEF_BASE		0xc0010064
-#define MSR_AMD_PERF_STATUS		0xc0010063
-#define MSR_AMD_PERF_CTL		0xc0010062
-
-#define MSR_IA32_MPERF			0x000000e7
-#define MSR_IA32_APERF			0x000000e8
-
-#define MSR_IA32_THERM_CONTROL		0x0000019a
-#define MSR_IA32_THERM_INTERRUPT	0x0000019b
-
-#define THERM_INT_HIGH_ENABLE		(1 << 0)
-#define THERM_INT_LOW_ENABLE		(1 << 1)
-#define THERM_INT_PLN_ENABLE		(1 << 24)
-
-#define MSR_IA32_THERM_STATUS		0x0000019c
-
-#define THERM_STATUS_PROCHOT		(1 << 0)
-#define THERM_STATUS_POWER_LIMIT	(1 << 10)
-
-#define MSR_THERM2_CTL			0x0000019d
-
-#define MSR_THERM2_CTL_TM_SELECT	(1ULL << 16)
-
-#define MSR_IA32_MISC_ENABLE		0x000001a0
-
-#define MSR_IA32_TEMPERATURE_TARGET	0x000001a2
-
-#define MSR_MISC_FEATURE_CONTROL	0x000001a4
-#define MSR_MISC_PWR_MGMT		0x000001aa
-
-#define MSR_IA32_ENERGY_PERF_BIAS	0x000001b0
-#define ENERGY_PERF_BIAS_PERFORMANCE		0
-#define ENERGY_PERF_BIAS_BALANCE_PERFORMANCE	4
-#define ENERGY_PERF_BIAS_NORMAL			6
-#define ENERGY_PERF_BIAS_BALANCE_POWERSAVE	8
-#define ENERGY_PERF_BIAS_POWERSAVE		15
-
-#define MSR_IA32_PACKAGE_THERM_STATUS		0x000001b1
-
-#define PACKAGE_THERM_STATUS_PROCHOT		(1 << 0)
-#define PACKAGE_THERM_STATUS_POWER_LIMIT	(1 << 10)
-
-#define MSR_IA32_PACKAGE_THERM_INTERRUPT	0x000001b2
-
-#define PACKAGE_THERM_INT_HIGH_ENABLE		(1 << 0)
-#define PACKAGE_THERM_INT_LOW_ENABLE		(1 << 1)
-#define PACKAGE_THERM_INT_PLN_ENABLE		(1 << 24)
-
-/* Thermal Thresholds Support */
-#define THERM_INT_THRESHOLD0_ENABLE    (1 << 15)
-#define THERM_SHIFT_THRESHOLD0        8
-#define THERM_MASK_THRESHOLD0          (0x7f << THERM_SHIFT_THRESHOLD0)
-#define THERM_INT_THRESHOLD1_ENABLE    (1 << 23)
-#define THERM_SHIFT_THRESHOLD1        16
-#define THERM_MASK_THRESHOLD1          (0x7f << THERM_SHIFT_THRESHOLD1)
-#define THERM_STATUS_THRESHOLD0        (1 << 6)
-#define THERM_LOG_THRESHOLD0           (1 << 7)
-#define THERM_STATUS_THRESHOLD1        (1 << 8)
-#define THERM_LOG_THRESHOLD1           (1 << 9)
-
-/* MISC_ENABLE bits: architectural */
-#define MSR_IA32_MISC_ENABLE_FAST_STRING_BIT		0
-#define MSR_IA32_MISC_ENABLE_FAST_STRING		(1ULL << MSR_IA32_MISC_ENABLE_FAST_STRING_BIT)
-#define MSR_IA32_MISC_ENABLE_TCC_BIT			1
-#define MSR_IA32_MISC_ENABLE_TCC			(1ULL << MSR_IA32_MISC_ENABLE_TCC_BIT)
-#define MSR_IA32_MISC_ENABLE_EMON_BIT			7
-#define MSR_IA32_MISC_ENABLE_EMON			(1ULL << MSR_IA32_MISC_ENABLE_EMON_BIT)
-#define MSR_IA32_MISC_ENABLE_BTS_UNAVAIL_BIT		11
-#define MSR_IA32_MISC_ENABLE_BTS_UNAVAIL		(1ULL << MSR_IA32_MISC_ENABLE_BTS_UNAVAIL_BIT)
-#define MSR_IA32_MISC_ENABLE_PEBS_UNAVAIL_BIT		12
-#define MSR_IA32_MISC_ENABLE_PEBS_UNAVAIL		(1ULL << MSR_IA32_MISC_ENABLE_PEBS_UNAVAIL_BIT)
-#define MSR_IA32_MISC_ENABLE_ENHANCED_SPEEDSTEP_BIT	16
-#define MSR_IA32_MISC_ENABLE_ENHANCED_SPEEDSTEP		(1ULL << MSR_IA32_MISC_ENABLE_ENHANCED_SPEEDSTEP_BIT)
-#define MSR_IA32_MISC_ENABLE_MWAIT_BIT			18
-#define MSR_IA32_MISC_ENABLE_MWAIT			(1ULL << MSR_IA32_MISC_ENABLE_MWAIT_BIT)
-#define MSR_IA32_MISC_ENABLE_LIMIT_CPUID_BIT		22
-#define MSR_IA32_MISC_ENABLE_LIMIT_CPUID		(1ULL << MSR_IA32_MISC_ENABLE_LIMIT_CPUID_BIT)
-#define MSR_IA32_MISC_ENABLE_XTPR_DISABLE_BIT		23
-#define MSR_IA32_MISC_ENABLE_XTPR_DISABLE		(1ULL << MSR_IA32_MISC_ENABLE_XTPR_DISABLE_BIT)
-#define MSR_IA32_MISC_ENABLE_XD_DISABLE_BIT		34
-#define MSR_IA32_MISC_ENABLE_XD_DISABLE			(1ULL << MSR_IA32_MISC_ENABLE_XD_DISABLE_BIT)
-
-/* MISC_ENABLE bits: model-specific, meaning may vary from core to core */
-#define MSR_IA32_MISC_ENABLE_X87_COMPAT_BIT		2
-#define MSR_IA32_MISC_ENABLE_X87_COMPAT			(1ULL << MSR_IA32_MISC_ENABLE_X87_COMPAT_BIT)
-#define MSR_IA32_MISC_ENABLE_TM1_BIT			3
-#define MSR_IA32_MISC_ENABLE_TM1			(1ULL << MSR_IA32_MISC_ENABLE_TM1_BIT)
-#define MSR_IA32_MISC_ENABLE_SPLIT_LOCK_DISABLE_BIT	4
-#define MSR_IA32_MISC_ENABLE_SPLIT_LOCK_DISABLE		(1ULL << MSR_IA32_MISC_ENABLE_SPLIT_LOCK_DISABLE_BIT)
-#define MSR_IA32_MISC_ENABLE_L3CACHE_DISABLE_BIT	6
-#define MSR_IA32_MISC_ENABLE_L3CACHE_DISABLE		(1ULL << MSR_IA32_MISC_ENABLE_L3CACHE_DISABLE_BIT)
-#define MSR_IA32_MISC_ENABLE_SUPPRESS_LOCK_BIT		8
-#define MSR_IA32_MISC_ENABLE_SUPPRESS_LOCK		(1ULL << MSR_IA32_MISC_ENABLE_SUPPRESS_LOCK_BIT)
-#define MSR_IA32_MISC_ENABLE_PREFETCH_DISABLE_BIT	9
-#define MSR_IA32_MISC_ENABLE_PREFETCH_DISABLE		(1ULL << MSR_IA32_MISC_ENABLE_PREFETCH_DISABLE_BIT)
-#define MSR_IA32_MISC_ENABLE_FERR_BIT			10
-#define MSR_IA32_MISC_ENABLE_FERR			(1ULL << MSR_IA32_MISC_ENABLE_FERR_BIT)
-#define MSR_IA32_MISC_ENABLE_FERR_MULTIPLEX_BIT		10
-#define MSR_IA32_MISC_ENABLE_FERR_MULTIPLEX		(1ULL << MSR_IA32_MISC_ENABLE_FERR_MULTIPLEX_BIT)
-#define MSR_IA32_MISC_ENABLE_TM2_BIT			13
-#define MSR_IA32_MISC_ENABLE_TM2			(1ULL << MSR_IA32_MISC_ENABLE_TM2_BIT)
-#define MSR_IA32_MISC_ENABLE_ADJ_PREF_DISABLE_BIT	19
-#define MSR_IA32_MISC_ENABLE_ADJ_PREF_DISABLE		(1ULL << MSR_IA32_MISC_ENABLE_ADJ_PREF_DISABLE_BIT)
-#define MSR_IA32_MISC_ENABLE_SPEEDSTEP_LOCK_BIT		20
-#define MSR_IA32_MISC_ENABLE_SPEEDSTEP_LOCK		(1ULL << MSR_IA32_MISC_ENABLE_SPEEDSTEP_LOCK_BIT)
-#define MSR_IA32_MISC_ENABLE_L1D_CONTEXT_BIT		24
-#define MSR_IA32_MISC_ENABLE_L1D_CONTEXT		(1ULL << MSR_IA32_MISC_ENABLE_L1D_CONTEXT_BIT)
-#define MSR_IA32_MISC_ENABLE_DCU_PREF_DISABLE_BIT	37
-#define MSR_IA32_MISC_ENABLE_DCU_PREF_DISABLE		(1ULL << MSR_IA32_MISC_ENABLE_DCU_PREF_DISABLE_BIT)
-#define MSR_IA32_MISC_ENABLE_TURBO_DISABLE_BIT		38
-#define MSR_IA32_MISC_ENABLE_TURBO_DISABLE		(1ULL << MSR_IA32_MISC_ENABLE_TURBO_DISABLE_BIT)
-#define MSR_IA32_MISC_ENABLE_IP_PREF_DISABLE_BIT	39
-#define MSR_IA32_MISC_ENABLE_IP_PREF_DISABLE		(1ULL << MSR_IA32_MISC_ENABLE_IP_PREF_DISABLE_BIT)
-
-/* MISC_FEATURES_ENABLES non-architectural features */
-#define MSR_MISC_FEATURES_ENABLES	0x00000140
-
-#define MSR_MISC_FEATURES_ENABLES_CPUID_FAULT_BIT	0
-#define MSR_MISC_FEATURES_ENABLES_CPUID_FAULT		BIT_ULL(MSR_MISC_FEATURES_ENABLES_CPUID_FAULT_BIT)
-#define MSR_MISC_FEATURES_ENABLES_RING3MWAIT_BIT	1
-
-#define MSR_IA32_TSC_DEADLINE		0x000006E0
-
-/* P4/Xeon+ specific */
-#define MSR_IA32_MCG_EAX		0x00000180
-#define MSR_IA32_MCG_EBX		0x00000181
-#define MSR_IA32_MCG_ECX		0x00000182
-#define MSR_IA32_MCG_EDX		0x00000183
-#define MSR_IA32_MCG_ESI		0x00000184
-#define MSR_IA32_MCG_EDI		0x00000185
-#define MSR_IA32_MCG_EBP		0x00000186
-#define MSR_IA32_MCG_ESP		0x00000187
-#define MSR_IA32_MCG_EFLAGS		0x00000188
-#define MSR_IA32_MCG_EIP		0x00000189
-#define MSR_IA32_MCG_RESERVED		0x0000018a
-
-/* Pentium IV performance counter MSRs */
-#define MSR_P4_BPU_PERFCTR0		0x00000300
-#define MSR_P4_BPU_PERFCTR1		0x00000301
-#define MSR_P4_BPU_PERFCTR2		0x00000302
-#define MSR_P4_BPU_PERFCTR3		0x00000303
-#define MSR_P4_MS_PERFCTR0		0x00000304
-#define MSR_P4_MS_PERFCTR1		0x00000305
-#define MSR_P4_MS_PERFCTR2		0x00000306
-#define MSR_P4_MS_PERFCTR3		0x00000307
-#define MSR_P4_FLAME_PERFCTR0		0x00000308
-#define MSR_P4_FLAME_PERFCTR1		0x00000309
-#define MSR_P4_FLAME_PERFCTR2		0x0000030a
-#define MSR_P4_FLAME_PERFCTR3		0x0000030b
-#define MSR_P4_IQ_PERFCTR0		0x0000030c
-#define MSR_P4_IQ_PERFCTR1		0x0000030d
-#define MSR_P4_IQ_PERFCTR2		0x0000030e
-#define MSR_P4_IQ_PERFCTR3		0x0000030f
-#define MSR_P4_IQ_PERFCTR4		0x00000310
-#define MSR_P4_IQ_PERFCTR5		0x00000311
-#define MSR_P4_BPU_CCCR0		0x00000360
-#define MSR_P4_BPU_CCCR1		0x00000361
-#define MSR_P4_BPU_CCCR2		0x00000362
-#define MSR_P4_BPU_CCCR3		0x00000363
-#define MSR_P4_MS_CCCR0			0x00000364
-#define MSR_P4_MS_CCCR1			0x00000365
-#define MSR_P4_MS_CCCR2			0x00000366
-#define MSR_P4_MS_CCCR3			0x00000367
-#define MSR_P4_FLAME_CCCR0		0x00000368
-#define MSR_P4_FLAME_CCCR1		0x00000369
-#define MSR_P4_FLAME_CCCR2		0x0000036a
-#define MSR_P4_FLAME_CCCR3		0x0000036b
-#define MSR_P4_IQ_CCCR0			0x0000036c
-#define MSR_P4_IQ_CCCR1			0x0000036d
-#define MSR_P4_IQ_CCCR2			0x0000036e
-#define MSR_P4_IQ_CCCR3			0x0000036f
-#define MSR_P4_IQ_CCCR4			0x00000370
-#define MSR_P4_IQ_CCCR5			0x00000371
-#define MSR_P4_ALF_ESCR0		0x000003ca
-#define MSR_P4_ALF_ESCR1		0x000003cb
-#define MSR_P4_BPU_ESCR0		0x000003b2
-#define MSR_P4_BPU_ESCR1		0x000003b3
-#define MSR_P4_BSU_ESCR0		0x000003a0
-#define MSR_P4_BSU_ESCR1		0x000003a1
-#define MSR_P4_CRU_ESCR0		0x000003b8
-#define MSR_P4_CRU_ESCR1		0x000003b9
-#define MSR_P4_CRU_ESCR2		0x000003cc
-#define MSR_P4_CRU_ESCR3		0x000003cd
-#define MSR_P4_CRU_ESCR4		0x000003e0
-#define MSR_P4_CRU_ESCR5		0x000003e1
-#define MSR_P4_DAC_ESCR0		0x000003a8
-#define MSR_P4_DAC_ESCR1		0x000003a9
-#define MSR_P4_FIRM_ESCR0		0x000003a4
-#define MSR_P4_FIRM_ESCR1		0x000003a5
-#define MSR_P4_FLAME_ESCR0		0x000003a6
-#define MSR_P4_FLAME_ESCR1		0x000003a7
-#define MSR_P4_FSB_ESCR0		0x000003a2
-#define MSR_P4_FSB_ESCR1		0x000003a3
-#define MSR_P4_IQ_ESCR0			0x000003ba
-#define MSR_P4_IQ_ESCR1			0x000003bb
-#define MSR_P4_IS_ESCR0			0x000003b4
-#define MSR_P4_IS_ESCR1			0x000003b5
-#define MSR_P4_ITLB_ESCR0		0x000003b6
-#define MSR_P4_ITLB_ESCR1		0x000003b7
-#define MSR_P4_IX_ESCR0			0x000003c8
-#define MSR_P4_IX_ESCR1			0x000003c9
-#define MSR_P4_MOB_ESCR0		0x000003aa
-#define MSR_P4_MOB_ESCR1		0x000003ab
-#define MSR_P4_MS_ESCR0			0x000003c0
-#define MSR_P4_MS_ESCR1			0x000003c1
-#define MSR_P4_PMH_ESCR0		0x000003ac
-#define MSR_P4_PMH_ESCR1		0x000003ad
-#define MSR_P4_RAT_ESCR0		0x000003bc
-#define MSR_P4_RAT_ESCR1		0x000003bd
-#define MSR_P4_SAAT_ESCR0		0x000003ae
-#define MSR_P4_SAAT_ESCR1		0x000003af
-#define MSR_P4_SSU_ESCR0		0x000003be
-#define MSR_P4_SSU_ESCR1		0x000003bf /* guess: not in manual */
-
-#define MSR_P4_TBPU_ESCR0		0x000003c2
-#define MSR_P4_TBPU_ESCR1		0x000003c3
-#define MSR_P4_TC_ESCR0			0x000003c4
-#define MSR_P4_TC_ESCR1			0x000003c5
-#define MSR_P4_U2L_ESCR0		0x000003b0
-#define MSR_P4_U2L_ESCR1		0x000003b1
-
-#define MSR_P4_PEBS_MATRIX_VERT		0x000003f2
-
-/* Intel Core-based CPU performance counters */
-#define MSR_CORE_PERF_FIXED_CTR0	0x00000309
-#define MSR_CORE_PERF_FIXED_CTR1	0x0000030a
-#define MSR_CORE_PERF_FIXED_CTR2	0x0000030b
-#define MSR_CORE_PERF_FIXED_CTR_CTRL	0x0000038d
-#define MSR_CORE_PERF_GLOBAL_STATUS	0x0000038e
-#define MSR_CORE_PERF_GLOBAL_CTRL	0x0000038f
-#define MSR_CORE_PERF_GLOBAL_OVF_CTRL	0x00000390
-
-/* Geode defined MSRs */
-#define MSR_GEODE_BUSCONT_CONF0		0x00001900
-
-/* Intel VT MSRs */
-#define MSR_IA32_VMX_BASIC              0x00000480
-#define MSR_IA32_VMX_PINBASED_CTLS      0x00000481
-#define MSR_IA32_VMX_PROCBASED_CTLS     0x00000482
-#define MSR_IA32_VMX_EXIT_CTLS          0x00000483
-#define MSR_IA32_VMX_ENTRY_CTLS         0x00000484
-#define MSR_IA32_VMX_MISC               0x00000485
-#define MSR_IA32_VMX_CR0_FIXED0         0x00000486
-#define MSR_IA32_VMX_CR0_FIXED1         0x00000487
-#define MSR_IA32_VMX_CR4_FIXED0         0x00000488
-#define MSR_IA32_VMX_CR4_FIXED1         0x00000489
-#define MSR_IA32_VMX_VMCS_ENUM          0x0000048a
-#define MSR_IA32_VMX_PROCBASED_CTLS2    0x0000048b
-#define MSR_IA32_VMX_EPT_VPID_CAP       0x0000048c
-#define MSR_IA32_VMX_TRUE_PINBASED_CTLS  0x0000048d
-#define MSR_IA32_VMX_TRUE_PROCBASED_CTLS 0x0000048e
-#define MSR_IA32_VMX_TRUE_EXIT_CTLS      0x0000048f
-#define MSR_IA32_VMX_TRUE_ENTRY_CTLS     0x00000490
-#define MSR_IA32_VMX_VMFUNC             0x00000491
-
-/* VMX_BASIC bits and bitmasks */
-#define VMX_BASIC_VMCS_SIZE_SHIFT	32
-#define VMX_BASIC_TRUE_CTLS		(1ULL << 55)
-#define VMX_BASIC_64		0x0001000000000000LLU
-#define VMX_BASIC_MEM_TYPE_SHIFT	50
-#define VMX_BASIC_MEM_TYPE_MASK	0x003c000000000000LLU
-#define VMX_BASIC_MEM_TYPE_WB	6LLU
-#define VMX_BASIC_INOUT		0x0040000000000000LLU
-
-/* VMX_EPT_VPID_CAP bits */
-#define VMX_EPT_VPID_CAP_AD_BITS	(1ULL << 21)
-
-/* MSR_IA32_VMX_MISC bits */
-#define MSR_IA32_VMX_MISC_VMWRITE_SHADOW_RO_FIELDS (1ULL << 29)
-#define MSR_IA32_VMX_MISC_PREEMPTION_TIMER_SCALE   0x1F
-/* AMD-V MSRs */
-
-#define MSR_VM_CR                       0xc0010114
-#define MSR_VM_IGNNE                    0xc0010115
-#define MSR_VM_HSAVE_PA                 0xc0010117
+#define PFERR_PRESENT_BIT 0
+#define PFERR_WRITE_BIT 1
+#define PFERR_USER_BIT 2
+#define PFERR_RSVD_BIT 3
+#define PFERR_FETCH_BIT 4
+#define PFERR_PK_BIT 5
+#define PFERR_SGX_BIT 15
+#define PFERR_GUEST_FINAL_BIT 32
+#define PFERR_GUEST_PAGE_BIT 33
+#define PFERR_IMPLICIT_ACCESS_BIT 48
+
+#define PFERR_PRESENT_MASK	BIT(PFERR_PRESENT_BIT)
+#define PFERR_WRITE_MASK	BIT(PFERR_WRITE_BIT)
+#define PFERR_USER_MASK		BIT(PFERR_USER_BIT)
+#define PFERR_RSVD_MASK		BIT(PFERR_RSVD_BIT)
+#define PFERR_FETCH_MASK	BIT(PFERR_FETCH_BIT)
+#define PFERR_PK_MASK		BIT(PFERR_PK_BIT)
+#define PFERR_SGX_MASK		BIT(PFERR_SGX_BIT)
+#define PFERR_GUEST_FINAL_MASK	BIT_ULL(PFERR_GUEST_FINAL_BIT)
+#define PFERR_GUEST_PAGE_MASK	BIT_ULL(PFERR_GUEST_PAGE_BIT)
+#define PFERR_IMPLICIT_ACCESS	BIT_ULL(PFERR_IMPLICIT_ACCESS_BIT)
+
+bool sys_clocksource_is_based_on_tsc(void);
 
 #endif /* SELFTEST_KVM_PROCESSOR_H */

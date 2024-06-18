@@ -22,7 +22,7 @@ Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description:	(RW) Used in conjunction with @addr_idx.  Specifies
 		characteristics about the address comparator being configure,
 		for example the access type, the kind of instruction to trace,
-		processor contect ID to trigger on, etc.  Individual fields in
+		processor context ID to trigger on, etc.  Individual fields in
 		the access type register may vary on the version of the trace
 		entity.
 
@@ -31,7 +31,7 @@ Date:		November 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description:	(RW) Used in conjunction with @addr_idx.  Specifies the range of
-		addresses to trigger on.  Inclusion or exclusion is specificed
+		addresses to trigger on.  Inclusion or exclusion is specified
 		in the corresponding access type register.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/addr_single
@@ -146,28 +146,28 @@ What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/nr_addr_cmp
 Date:		November 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
-Description: 	(R) Provides the number of address comparators pairs accessible
+Description: 	(Read) Provides the number of address comparators pairs accessible
 		on a trace unit, as specified by bit 3:0 of register ETMCCR.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/nr_cntr
 Date:		November 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
-Description: 	(R) Provides the number of counters accessible on a trace unit,
+Description: 	(Read) Provides the number of counters accessible on a trace unit,
 		as specified by bit 15:13 of register ETMCCR.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/nr_ctxid_cmp
 Date:		November 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
-Description: 	(R) Provides the number of context ID comparator available on a
+Description: 	(Read) Provides the number of context ID comparator available on a
 		trace unit, as specified by bit 25:24 of register ETMCCR.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/reset
 Date:		November 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
-Description: 	(W) Cancels all configuration on a trace unit and set it back
+Description: 	(Write) Cancels all configuration on a trace unit and set it back
 		to its boot configuration.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/seq_12_event
@@ -216,7 +216,7 @@ What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/curr_seq_state
 Date:		November 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
-Description: 	(R) Holds the current state of the sequencer.
+Description: 	(Read) Holds the current state of the sequencer.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/sync_freq
 Date:		November 2014
@@ -236,7 +236,7 @@ What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/traceid
 Date:		November 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
-Description: 	(RW) Holds the trace ID that will appear in the trace stream
+Description: 	(RO) Holds the trace ID that will appear in the trace stream
 		coming from this trace entity.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/trigger_event
@@ -304,19 +304,19 @@ What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/mgmt/etmtsscr
 Date:		September 2015
 KernelVersion:	4.4
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
-Description: 	(RO) Print the content of the ETM Trace Start/Stop Conrol
+Description: 	(RO) Print the content of the ETM Trace Start/Stop Control
 		register (0x018). The value is read directly from the HW.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/mgmt/etmtecr1
 Date:		September 2015
 KernelVersion:	4.4
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
-Description: 	(RO) Print the content of the ETM Enable Conrol #1
+Description: 	(RO) Print the content of the ETM Enable Control #1
 		register (0x024). The value is read directly from the HW.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/mgmt/etmtecr2
 Date:		September 2015
 KernelVersion:	4.4
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
-Description: 	(RO) Print the content of the ETM Enable Conrol #2
+Description: 	(RO) Print the content of the ETM Enable Control #2
 		register (0x01c). The value is read directly from the HW.

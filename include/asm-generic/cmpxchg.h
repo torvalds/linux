@@ -14,16 +14,14 @@
 #include <linux/types.h>
 #include <linux/irqflags.h>
 
-#ifndef xchg
-
 /*
  * This function doesn't exist, so you'll get a linker error if
  * something tries to do an invalidly-sized xchg().
  */
-extern void __xchg_called_with_bad_pointer(void);
+extern void __generic_xchg_called_with_bad_pointer(void);
 
 static inline
-unsigned long __xchg(unsigned long x, volatile void *ptr, int size)
+unsigned long __generic_xchg(unsigned long x, volatile void *ptr, int size)
 {
 	unsigned long ret, flags;
 
@@ -34,7 +32,7 @@ unsigned long __xchg(unsigned long x, volatile void *ptr, int size)
 #else
 		local_irq_save(flags);
 		ret = *(volatile u8 *)ptr;
-		*(volatile u8 *)ptr = x;
+		*(volatile u8 *)ptr = (x & 0xffu);
 		local_irq_restore(flags);
 		return ret;
 #endif /* __xchg_u8 */
@@ -45,7 +43,7 @@ unsigned long __xchg(unsigned long x, volatile void *ptr, int size)
 #else
 		local_irq_save(flags);
 		ret = *(volatile u16 *)ptr;
-		*(volatile u16 *)ptr = x;
+		*(volatile u16 *)ptr = (x & 0xffffu);
 		local_irq_restore(flags);
 		return ret;
 #endif /* __xchg_u16 */
@@ -56,7 +54,7 @@ unsigned long __xchg(unsigned long x, volatile void *ptr, int size)
 #else
 		local_irq_save(flags);
 		ret = *(volatile u32 *)ptr;
-		*(volatile u32 *)ptr = x;
+		*(volatile u32 *)ptr = (x & 0xffffffffu);
 		local_irq_restore(flags);
 		return ret;
 #endif /* __xchg_u32 */
@@ -75,35 +73,43 @@ unsigned long __xchg(unsigned long x, volatile void *ptr, int size)
 #endif /* CONFIG_64BIT */
 
 	default:
-		__xchg_called_with_bad_pointer();
+		__generic_xchg_called_with_bad_pointer();
 		return x;
 	}
 }
 
-#define xchg(ptr, x) ({							\
-	((__typeof__(*(ptr)))						\
-		__xchg((unsigned long)(x), (ptr), sizeof(*(ptr))));	\
+#define generic_xchg(ptr, x) ({							\
+	((__typeof__(*(ptr)))							\
+		__generic_xchg((unsigned long)(x), (ptr), sizeof(*(ptr))));	\
 })
-
-#endif /* xchg */
 
 /*
  * Atomic compare and exchange.
  */
 #include <asm-generic/cmpxchg-local.h>
 
-#ifndef cmpxchg_local
-#define cmpxchg_local(ptr, o, n) ({					       \
-	((__typeof__(*(ptr)))__cmpxchg_local_generic((ptr), (unsigned long)(o),\
-			(unsigned long)(n), sizeof(*(ptr))));		       \
+#define generic_cmpxchg_local(ptr, o, n) ({					\
+	((__typeof__(*(ptr)))__generic_cmpxchg_local((ptr), (unsigned long)(o),	\
+			(unsigned long)(n), sizeof(*(ptr))));			\
 })
+
+#define generic_cmpxchg64_local(ptr, o, n) \
+	__generic_cmpxchg64_local((ptr), (o), (n))
+
+
+#ifndef arch_xchg
+#define arch_xchg		generic_xchg
 #endif
 
-#ifndef cmpxchg64_local
-#define cmpxchg64_local(ptr, o, n) __cmpxchg64_local_generic((ptr), (o), (n))
+#ifndef arch_cmpxchg_local
+#define arch_cmpxchg_local	generic_cmpxchg_local
 #endif
 
-#define cmpxchg(ptr, o, n)	cmpxchg_local((ptr), (o), (n))
-#define cmpxchg64(ptr, o, n)	cmpxchg64_local((ptr), (o), (n))
+#ifndef arch_cmpxchg64_local
+#define arch_cmpxchg64_local	generic_cmpxchg64_local
+#endif
+
+#define arch_cmpxchg		arch_cmpxchg_local
+#define arch_cmpxchg64		arch_cmpxchg64_local
 
 #endif /* __ASM_GENERIC_CMPXCHG_H */

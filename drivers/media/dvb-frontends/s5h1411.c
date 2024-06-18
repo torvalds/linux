@@ -150,7 +150,7 @@ static struct vsb_snr_tab {
 	{  0x35b, 235, },
 	{  0x353, 230, },
 	{  0x349, 225, },
-	{  0x340, 320, },
+	{  0x340, 220, },
 	{  0x337, 215, },
 	{  0x327, 210, },
 	{  0x31b, 205, },
@@ -398,7 +398,7 @@ static int s5h1411_set_if_freq(struct dvb_frontend *fe, int KHz)
 	default:
 		dprintk("%s(%d KHz) Invalid, defaulting to 5380\n",
 			__func__, KHz);
-		/* fall through */
+		fallthrough;
 	case 5380:
 	case 44000:
 		s5h1411_writereg(state, S5H1411_I2C_TOP_ADDR, 0x38, 0x1be4);
@@ -900,7 +900,7 @@ error:
 	kfree(state);
 	return NULL;
 }
-EXPORT_SYMBOL(s5h1411_attach);
+EXPORT_SYMBOL_GPL(s5h1411_attach);
 
 static const struct dvb_frontend_ops s5h1411_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },

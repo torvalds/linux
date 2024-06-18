@@ -590,7 +590,7 @@ static int adt7411_detect(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	strlcpy(info->type, "adt7411", I2C_NAME_SIZE);
+	strscpy(info->type, "adt7411", I2C_NAME_SIZE);
 
 	return 0;
 }
@@ -636,7 +636,7 @@ static int adt7411_init_device(struct adt7411_data *data)
 	return i2c_smbus_write_byte_data(data->client, ADT7411_REG_CFG1, val);
 }
 
-static const struct hwmon_channel_info *adt7411_info[] = {
+static const struct hwmon_channel_info * const adt7411_info[] = {
 	HWMON_CHANNEL_INFO(in,
 			   HWMON_I_INPUT | HWMON_I_MIN | HWMON_I_MAX | HWMON_I_ALARM,
 			   HWMON_I_INPUT | HWMON_I_MIN | HWMON_I_MAX | HWMON_I_ALARM,
@@ -666,8 +666,7 @@ static const struct hwmon_chip_info adt7411_chip_info = {
 	.info = adt7411_info,
 };
 
-static int adt7411_probe(struct i2c_client *client,
-				   const struct i2c_device_id *id)
+static int adt7411_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct adt7411_data *data;
@@ -698,7 +697,7 @@ static int adt7411_probe(struct i2c_client *client,
 }
 
 static const struct i2c_device_id adt7411_id[] = {
-	{ "adt7411", 0 },
+	{ "adt7411" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adt7411_id);
@@ -707,7 +706,7 @@ static struct i2c_driver adt7411_driver = {
 	.driver		= {
 		.name		= "adt7411",
 	},
-	.probe  = adt7411_probe,
+	.probe = adt7411_probe,
 	.id_table = adt7411_id,
 	.detect = adt7411_detect,
 	.address_list = normal_i2c,
@@ -716,7 +715,6 @@ static struct i2c_driver adt7411_driver = {
 
 module_i2c_driver(adt7411_driver);
 
-MODULE_AUTHOR("Sascha Hauer <s.hauer@pengutronix.de> and "
-	"Wolfram Sang <w.sang@pengutronix.de>");
+MODULE_AUTHOR("Sascha Hauer, Wolfram Sang <kernel@pengutronix.de>");
 MODULE_DESCRIPTION("ADT7411 driver");
 MODULE_LICENSE("GPL v2");

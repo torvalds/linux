@@ -1,0 +1,214 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree Source for the Eagle V3M Function expansion board.
+ *
+ * Copyright (C) 2024 Niklas Söderlund <niklas.soderlund@ragnatech.se>
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	/* CN4 */
+	/* Eagle: SW18 set to OFF */
+	cvbs-in-cn4 {
+		compatible = "composite-video-connector";
+		label = "CVBS IN CN4";
+
+		port {
+			cvbs_con: endpoint {
+				remote-endpoint = <&adv7482_ain7>;
+			};
+		};
+	};
+
+	/* CN2 */
+	/* Eagle: SW35 set 5, 6 and 8 to OFF */
+	hdmi-in-cn2 {
+		compatible = "hdmi-connector";
+		label = "HDMI IN CN2";
+		type = "a";
+
+		port {
+			hdmi_in_con2: endpoint {
+				remote-endpoint = <&adv7612_in>;
+			};
+		};
+	};
+
+	/* CN3 */
+	/* Eagle: SW18 set to OFF */
+	hdmi-in-cn3 {
+		compatible = "hdmi-connector";
+		label = "HDMI IN CN3";
+		type = "a";
+
+		port {
+			hdmi_in_con: endpoint {
+				remote-endpoint = <&adv7482_hdmi>;
+			};
+		};
+	};
+};
+
+/* Disconnect MAX9286 GMSL I2C. */
+&i2c3 {
+	status = "disabled";
+};
+
+/* Connect expansion board I2C. */
+&i2c0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	gpio@27 {
+		compatible = "onnn,pca9654";
+		reg = <0x27>;
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		vin0_adv7612_en {
+			gpio-hog;
+			gpios = <3 GPIO_ACTIVE_LOW>;
+			output-high;
+			line-name = "VIN0_ADV7612_ENn";
+		};
+	};
+
+	hdmi-decoder@4c {
+		compatible = "adi,adv7612";
+		reg = <0x4c>, <0x50>, <0x52>, <0x54>, <0x56>, <0x58>;
+		reg-names = "main", "afe", "rep", "edid", "hdmi", "cp";
+		interrupt-parent = <&gpio3>;
+		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
+		default-input = <0>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				adv7612_in: endpoint {
+					remote-endpoint = <&hdmi_in_con2>;
+				};
+			};
+
+			port@2 {
+				reg = <2>;
+
+				adv7612_out: endpoint {
+					remote-endpoint = <&vin0_in>;
+				};
+			};
+		};
+	};
+
+	video-receiver@70 {
+		compatible = "adi,adv7482";
+		reg = <0x70 0x71 0x72 0x73 0x74 0x75
+		       0x60 0x61 0x62 0x63 0x64 0x65>;
+		reg-names = "main", "dpll", "cp", "hdmi", "edid", "repeater",
+			    "infoframe", "cbus", "cec", "sdp", "txa", "txb" ;
+		interrupt-parent = <&gpio3>;
+		interrupts = <03 IRQ_TYPE_LEVEL_LOW>, <04 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-names = "intrq1", "intrq2";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@7 {
+				reg = <7>;
+
+				adv7482_ain7: endpoint {
+					remote-endpoint = <&cvbs_con>;
+				};
+			};
+
+			port@8 {
+				reg = <8>;
+
+				adv7482_hdmi: endpoint {
+					remote-endpoint = <&hdmi_in_con>;
+				};
+			};
+
+			port@a {
+				reg = <10>;
+
+				adv7482_txa: endpoint {
+					clock-lanes = <0>;
+					data-lanes = <1 2 3 4>;
+					remote-endpoint = <&csi40_in>;
+				};
+			};
+		};
+	};
+
+};
+
+&csi40 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+
+			csi40_in: endpoint {
+				clock-lanes = <0>;
+				data-lanes = <1 2 3 4>;
+				remote-endpoint = <&adv7482_txa>;
+			};
+		};
+	};
+};
+
+&pfc {
+	vin0_pins_parallel: vin0 {
+		groups = "vin0_data12", "vin0_sync", "vin0_clk", "vin0_clkenb";
+		function = "vin0";
+	};
+};
+
+&vin0 {
+	status = "okay";
+
+	pinctrl-0 = <&vin0_pins_parallel>;
+	pinctrl-names = "default";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+
+			vin0_in: endpoint {
+				pclk-sample = <0>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				remote-endpoint = <&adv7612_out>;
+			};
+		};
+	};
+};
+
+&vin1 {
+	status = "okay";
+};
+
+&vin2 {
+	status = "okay";
+};
+
+&vin3 {
+	status = "okay";
+};

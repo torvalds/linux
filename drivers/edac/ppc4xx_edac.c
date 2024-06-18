@@ -11,6 +11,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/types.h>
 
@@ -177,11 +178,6 @@ struct ppc4xx_ecc_status {
 	u32 wmirq;
 };
 
-/* Function Prototypes */
-
-static int ppc4xx_edac_probe(struct platform_device *device);
-static int ppc4xx_edac_remove(struct platform_device *device);
-
 /* Global Variables */
 
 /*
@@ -195,15 +191,6 @@ static const struct of_device_id ppc4xx_edac_match[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ppc4xx_edac_match);
-
-static struct platform_driver ppc4xx_edac_driver = {
-	.probe			= ppc4xx_edac_probe,
-	.remove			= ppc4xx_edac_remove,
-	.driver = {
-		.name = PPC4XX_EDAC_MODULE_NAME,
-		.of_match_table = ppc4xx_edac_match,
-	},
-};
 
 /*
  * TODO: The row and channel parameters likely need to be dynamically
@@ -1058,7 +1045,7 @@ static int ppc4xx_edac_mc_init(struct mem_ctl_info *mci,
 	/* Initialize strings */
 
 	mci->mod_name		= PPC4XX_EDAC_MODULE_NAME;
-	mci->ctl_name		= ppc4xx_edac_match->compatible,
+	mci->ctl_name		= ppc4xx_edac_match->compatible;
 	mci->dev_name		= np->full_name;
 
 	/* Initialize callbacks */
@@ -1342,8 +1329,7 @@ static int ppc4xx_edac_probe(struct platform_device *op)
  *
  * Unconditionally returns 0.
  */
-static int
-ppc4xx_edac_remove(struct platform_device *op)
+static void ppc4xx_edac_remove(struct platform_device *op)
 {
 	struct mem_ctl_info *mci = dev_get_drvdata(&op->dev);
 	struct ppc4xx_edac_pdata *pdata = mci->pvt_info;
@@ -1357,8 +1343,6 @@ ppc4xx_edac_remove(struct platform_device *op)
 
 	edac_mc_del_mc(mci->pdev);
 	edac_mc_free(mci);
-
-	return 0;
 }
 
 /**
@@ -1389,6 +1373,15 @@ ppc4xx_edac_opstate_init(void)
 			     EDAC_OPSTATE_INT_STR :
 			     EDAC_OPSTATE_UNKNOWN_STR)));
 }
+
+static struct platform_driver ppc4xx_edac_driver = {
+	.probe			= ppc4xx_edac_probe,
+	.remove_new		= ppc4xx_edac_remove,
+	.driver = {
+		.name = PPC4XX_EDAC_MODULE_NAME,
+		.of_match_table = ppc4xx_edac_match,
+	},
+};
 
 /**
  * ppc4xx_edac_init - driver/module insertion entry point

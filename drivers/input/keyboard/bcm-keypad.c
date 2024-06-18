@@ -1,15 +1,5 @@
-/*
- * Copyright (C) 2014 Broadcom Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0-only
+// Copyright (C) 2014 Broadcom Corporation
 
 #include <linux/bitops.h>
 #include <linux/clk.h>
@@ -183,8 +173,7 @@ static void bcm_kp_stop(const struct bcm_kp *kp)
 	writel(0xFFFFFFFF, kp->base + KPICR0_OFFSET);
 	writel(0xFFFFFFFF, kp->base + KPICR1_OFFSET);
 
-	if (kp->clk)
-		clk_disable_unprepare(kp->clk);
+	clk_disable_unprepare(kp->clk);
 }
 
 static int bcm_kp_open(struct input_dev *dev)
@@ -318,7 +307,6 @@ static int bcm_kp_probe(struct platform_device *pdev)
 {
 	struct bcm_kp *kp;
 	struct input_dev *input_dev;
-	struct resource *res;
 	int error;
 
 	kp = devm_kzalloc(&pdev->dev, sizeof(*kp), GFP_KERNEL);
@@ -364,29 +352,16 @@ static int bcm_kp_probe(struct platform_device *pdev)
 		return error;
 	}
 
-	/* Get the KEYPAD base address */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "Missing keypad base address resource\n");
-		return -ENODEV;
-	}
-
-	kp->base = devm_ioremap_resource(&pdev->dev, res);
+	kp->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(kp->base))
 		return PTR_ERR(kp->base);
 
 	/* Enable clock */
-	kp->clk = devm_clk_get(&pdev->dev, "peri_clk");
+	kp->clk = devm_clk_get_optional(&pdev->dev, "peri_clk");
 	if (IS_ERR(kp->clk)) {
-		error = PTR_ERR(kp->clk);
-		if (error != -ENOENT) {
-			if (error != -EPROBE_DEFER)
-				dev_err(&pdev->dev, "Failed to get clock\n");
-			return error;
-		}
-		dev_dbg(&pdev->dev,
-			"No clock specified. Assuming it's enabled\n");
-		kp->clk = NULL;
+		return dev_err_probe(&pdev->dev, PTR_ERR(kp->clk), "Failed to get clock\n");
+	} else if (!kp->clk) {
+		dev_dbg(&pdev->dev, "No clock specified. Assuming it's enabled\n");
 	} else {
 		unsigned int desired_rate;
 		long actual_rate;
@@ -443,7 +418,7 @@ static struct platform_driver bcm_kp_device_driver = {
 	.probe		= bcm_kp_probe,
 	.driver		= {
 		.name	= "bcm-keypad",
-		.of_match_table = of_match_ptr(bcm_kp_of_match),
+		.of_match_table = bcm_kp_of_match,
 	}
 };
 

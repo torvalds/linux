@@ -2,7 +2,7 @@
 /*
  * CPU frequency scaling for DaVinci
  *
- * Copyright (C) 2009 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2009 Texas Instruments Incorporated - https://www.ti.com/
  *
  * Based on linux/arch/arm/plat-omap/cpu-omap.c. Original Copyright follows:
  *
@@ -95,7 +95,7 @@ static int davinci_cpu_init(struct cpufreq_policy *policy)
 }
 
 static struct cpufreq_driver davinci_driver = {
-	.flags		= CPUFREQ_STICKY | CPUFREQ_NEED_INITIAL_FREQ_CHECK,
+	.flags		= CPUFREQ_NEED_INITIAL_FREQ_CHECK,
 	.verify		= cpufreq_generic_frequency_table_verify,
 	.target_index	= davinci_target,
 	.get		= cpufreq_generic_get,
@@ -131,21 +131,21 @@ static int __init davinci_cpufreq_probe(struct platform_device *pdev)
 	return cpufreq_register_driver(&davinci_driver);
 }
 
-static int __exit davinci_cpufreq_remove(struct platform_device *pdev)
+static void __exit davinci_cpufreq_remove(struct platform_device *pdev)
 {
+	cpufreq_unregister_driver(&davinci_driver);
+
 	clk_put(cpufreq.armclk);
 
 	if (cpufreq.asyncclk)
 		clk_put(cpufreq.asyncclk);
-
-	return cpufreq_unregister_driver(&davinci_driver);
 }
 
 static struct platform_driver davinci_cpufreq_driver = {
 	.driver = {
 		.name	 = "cpufreq-davinci",
 	},
-	.remove = __exit_p(davinci_cpufreq_remove),
+	.remove_new = __exit_p(davinci_cpufreq_remove),
 };
 
 int __init davinci_cpufreq_init(void)

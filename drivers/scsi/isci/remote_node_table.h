@@ -61,7 +61,7 @@
 /**
  *
  *
- * Remote node sets are sets of remote node index in the remtoe node table The
+ * Remote node sets are sets of remote node index in the remote node table. The
  * SCU hardware requires that STP remote node entries take three consecutive
  * remote node index so the table is arranged in sets of three. The bits are
  * used as 0111 0111 to make a byte and the bits define the set of three remote

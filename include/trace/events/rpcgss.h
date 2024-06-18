@@ -8,14 +8,26 @@
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM rpcgss
 
-#if !defined(_TRACE_RPCRDMA_H) || defined(TRACE_HEADER_MULTI_READ)
+#if !defined(_TRACE_RPCGSS_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_RPCGSS_H
 
 #include <linux/tracepoint.h>
 
+#include <trace/misc/sunrpc.h>
+
 /**
  ** GSS-API related trace events
  **/
+
+TRACE_DEFINE_ENUM(RPC_GSS_SVC_NONE);
+TRACE_DEFINE_ENUM(RPC_GSS_SVC_INTEGRITY);
+TRACE_DEFINE_ENUM(RPC_GSS_SVC_PRIVACY);
+
+#define show_gss_service(x)						\
+	__print_symbolic(x,						\
+		{ RPC_GSS_SVC_NONE,		"none" },		\
+		{ RPC_GSS_SVC_INTEGRITY,	"integrity" },		\
+		{ RPC_GSS_SVC_PRIVACY,		"privacy" })
 
 TRACE_DEFINE_ENUM(GSS_S_BAD_MECH);
 TRACE_DEFINE_ENUM(GSS_S_BAD_NAME);
@@ -89,7 +101,7 @@ DECLARE_EVENT_CLASS(rpcgss_gssapi_event,
 		__entry->maj_stat = maj_stat;
 	),
 
-	TP_printk("task:%u@%u maj_stat=%s",
+	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER " maj_stat=%s",
 		__entry->task_id, __entry->client_id,
 		__entry->maj_stat == 0 ?
 		"GSS_S_COMPLETE" : show_gss_status(__entry->maj_stat))
@@ -126,6 +138,202 @@ DEFINE_GSSAPI_EVENT(verify_mic);
 DEFINE_GSSAPI_EVENT(wrap);
 DEFINE_GSSAPI_EVENT(unwrap);
 
+DECLARE_EVENT_CLASS(rpcgss_ctx_class,
+	TP_PROTO(
+		const struct gss_cred *gc
+	),
+
+	TP_ARGS(gc),
+
+	TP_STRUCT__entry(
+		__field(const void *, cred)
+		__field(unsigned long, service)
+		__string(principal, gc->gc_principal)
+	),
+
+	TP_fast_assign(
+		__entry->cred = gc;
+		__entry->service = gc->gc_service;
+		__assign_str(principal);
+	),
+
+	TP_printk("cred=%p service=%s principal='%s'",
+		__entry->cred, show_gss_service(__entry->service),
+		__get_str(principal))
+);
+
+#define DEFINE_CTX_EVENT(name)						\
+	DEFINE_EVENT(rpcgss_ctx_class, rpcgss_ctx_##name,		\
+			TP_PROTO(					\
+				const struct gss_cred *gc		\
+			),						\
+			TP_ARGS(gc))
+
+DEFINE_CTX_EVENT(init);
+DEFINE_CTX_EVENT(destroy);
+
+DECLARE_EVENT_CLASS(rpcgss_svc_gssapi_class,
+	TP_PROTO(
+		const struct svc_rqst *rqstp,
+		u32 maj_stat
+	),
+
+	TP_ARGS(rqstp, maj_stat),
+
+	TP_STRUCT__entry(
+		__field(u32, xid)
+		__field(u32, maj_stat)
+		__string(addr, rqstp->rq_xprt->xpt_remotebuf)
+	),
+
+	TP_fast_assign(
+		__entry->xid = __be32_to_cpu(rqstp->rq_xid);
+		__entry->maj_stat = maj_stat;
+		__assign_str(addr);
+	),
+
+	TP_printk("addr=%s xid=0x%08x maj_stat=%s",
+		__get_str(addr), __entry->xid,
+		__entry->maj_stat == 0 ?
+		"GSS_S_COMPLETE" : show_gss_status(__entry->maj_stat))
+);
+
+#define DEFINE_SVC_GSSAPI_EVENT(name)					\
+	DEFINE_EVENT(rpcgss_svc_gssapi_class, rpcgss_svc_##name,	\
+			TP_PROTO(					\
+				const struct svc_rqst *rqstp,		\
+				u32 maj_stat				\
+			),						\
+			TP_ARGS(rqstp, maj_stat))
+
+DEFINE_SVC_GSSAPI_EVENT(wrap);
+DEFINE_SVC_GSSAPI_EVENT(unwrap);
+DEFINE_SVC_GSSAPI_EVENT(mic);
+DEFINE_SVC_GSSAPI_EVENT(get_mic);
+
+TRACE_EVENT(rpcgss_svc_wrap_failed,
+	TP_PROTO(
+		const struct svc_rqst *rqstp
+	),
+
+	TP_ARGS(rqstp),
+
+	TP_STRUCT__entry(
+		__field(u32, xid)
+		__string(addr, rqstp->rq_xprt->xpt_remotebuf)
+	),
+
+	TP_fast_assign(
+		__entry->xid = be32_to_cpu(rqstp->rq_xid);
+		__assign_str(addr);
+	),
+
+	TP_printk("addr=%s xid=0x%08x", __get_str(addr), __entry->xid)
+);
+
+TRACE_EVENT(rpcgss_svc_unwrap_failed,
+	TP_PROTO(
+		const struct svc_rqst *rqstp
+	),
+
+	TP_ARGS(rqstp),
+
+	TP_STRUCT__entry(
+		__field(u32, xid)
+		__string(addr, rqstp->rq_xprt->xpt_remotebuf)
+	),
+
+	TP_fast_assign(
+		__entry->xid = be32_to_cpu(rqstp->rq_xid);
+		__assign_str(addr);
+	),
+
+	TP_printk("addr=%s xid=0x%08x", __get_str(addr), __entry->xid)
+);
+
+TRACE_EVENT(rpcgss_svc_seqno_bad,
+	TP_PROTO(
+		const struct svc_rqst *rqstp,
+		u32 expected,
+		u32 received
+	),
+
+	TP_ARGS(rqstp, expected, received),
+
+	TP_STRUCT__entry(
+		__field(u32, expected)
+		__field(u32, received)
+		__field(u32, xid)
+		__string(addr, rqstp->rq_xprt->xpt_remotebuf)
+	),
+
+	TP_fast_assign(
+		__entry->expected = expected;
+		__entry->received = received;
+		__entry->xid = __be32_to_cpu(rqstp->rq_xid);
+		__assign_str(addr);
+	),
+
+	TP_printk("addr=%s xid=0x%08x expected seqno %u, received seqno %u",
+		__get_str(addr), __entry->xid,
+		__entry->expected, __entry->received)
+);
+
+TRACE_EVENT(rpcgss_svc_accept_upcall,
+	TP_PROTO(
+		const struct svc_rqst *rqstp,
+		u32 major_status,
+		u32 minor_status
+	),
+
+	TP_ARGS(rqstp, major_status, minor_status),
+
+	TP_STRUCT__entry(
+		__field(u32, minor_status)
+		__field(unsigned long, major_status)
+		__field(u32, xid)
+		__string(addr, rqstp->rq_xprt->xpt_remotebuf)
+	),
+
+	TP_fast_assign(
+		__entry->minor_status = minor_status;
+		__entry->major_status = major_status;
+		__entry->xid = be32_to_cpu(rqstp->rq_xid);
+		__assign_str(addr);
+	),
+
+	TP_printk("addr=%s xid=0x%08x major_status=%s (0x%08lx) minor_status=%u",
+		__get_str(addr), __entry->xid,
+		(__entry->major_status == 0) ? "GSS_S_COMPLETE" :
+			show_gss_status(__entry->major_status),
+		__entry->major_status, __entry->minor_status
+	)
+);
+
+TRACE_EVENT(rpcgss_svc_authenticate,
+	TP_PROTO(
+		const struct svc_rqst *rqstp,
+		const struct rpc_gss_wire_cred *gc
+	),
+
+	TP_ARGS(rqstp, gc),
+
+	TP_STRUCT__entry(
+		__field(u32, seqno)
+		__field(u32, xid)
+		__string(addr, rqstp->rq_xprt->xpt_remotebuf)
+	),
+
+	TP_fast_assign(
+		__entry->xid = be32_to_cpu(rqstp->rq_xid);
+		__entry->seqno = gc->gc_seq;
+		__assign_str(addr);
+	),
+
+	TP_printk("addr=%s xid=0x%08x seqno=%u", __get_str(addr),
+		__entry->xid, __entry->seqno)
+);
+
 
 /**
  ** GSS auth unwrap failures
@@ -148,7 +356,8 @@ TRACE_EVENT(rpcgss_unwrap_failed,
 		__entry->client_id = task->tk_client->cl_clid;
 	),
 
-	TP_printk("task:%u@%u", __entry->task_id, __entry->client_id)
+	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER,
+		__entry->task_id, __entry->client_id)
 );
 
 TRACE_EVENT(rpcgss_bad_seqno,
@@ -174,7 +383,8 @@ TRACE_EVENT(rpcgss_bad_seqno,
 		__entry->received = received;
 	),
 
-	TP_printk("task:%u@%u expected seqno %u, received seqno %u",
+	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER
+		  " expected seqno %u, received seqno %u",
 		__entry->task_id, __entry->client_id,
 		__entry->expected, __entry->received)
 );
@@ -202,7 +412,7 @@ TRACE_EVENT(rpcgss_seqno,
 		__entry->seqno = rqst->rq_seqno;
 	),
 
-	TP_printk("task:%u@%u xid=0x%08x seqno=%u",
+	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER " xid=0x%08x seqno=%u",
 		__entry->task_id, __entry->client_id,
 		__entry->xid, __entry->seqno)
 );
@@ -234,10 +444,107 @@ TRACE_EVENT(rpcgss_need_reencode,
 		__entry->ret = ret;
 	),
 
-	TP_printk("task:%u@%u xid=0x%08x rq_seqno=%u seq_xmit=%u reencode %sneeded",
+	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER
+		  " xid=0x%08x rq_seqno=%u seq_xmit=%u reencode %sneeded",
 		__entry->task_id, __entry->client_id,
 		__entry->xid, __entry->seqno, __entry->seq_xmit,
 		__entry->ret ? "" : "un")
+);
+
+TRACE_EVENT(rpcgss_update_slack,
+	TP_PROTO(
+		const struct rpc_task *task,
+		const struct rpc_auth *auth
+	),
+
+	TP_ARGS(task, auth),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, task_id)
+		__field(unsigned int, client_id)
+		__field(u32, xid)
+		__field(const void *, auth)
+		__field(unsigned int, rslack)
+		__field(unsigned int, ralign)
+		__field(unsigned int, verfsize)
+	),
+
+	TP_fast_assign(
+		__entry->task_id = task->tk_pid;
+		__entry->client_id = task->tk_client->cl_clid;
+		__entry->xid = be32_to_cpu(task->tk_rqstp->rq_xid);
+		__entry->auth = auth;
+		__entry->rslack = auth->au_rslack;
+		__entry->ralign = auth->au_ralign;
+		__entry->verfsize = auth->au_verfsize;
+	),
+
+	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER
+		  " xid=0x%08x auth=%p rslack=%u ralign=%u verfsize=%u\n",
+		__entry->task_id, __entry->client_id, __entry->xid,
+		__entry->auth, __entry->rslack, __entry->ralign,
+		__entry->verfsize)
+);
+
+DECLARE_EVENT_CLASS(rpcgss_svc_seqno_class,
+	TP_PROTO(
+		const struct svc_rqst *rqstp,
+		u32 seqno
+	),
+
+	TP_ARGS(rqstp, seqno),
+
+	TP_STRUCT__entry(
+		__field(u32, xid)
+		__field(u32, seqno)
+	),
+
+	TP_fast_assign(
+		__entry->xid = be32_to_cpu(rqstp->rq_xid);
+		__entry->seqno = seqno;
+	),
+
+	TP_printk("xid=0x%08x seqno=%u",
+		__entry->xid, __entry->seqno)
+);
+
+#define DEFINE_SVC_SEQNO_EVENT(name)					\
+	DEFINE_EVENT(rpcgss_svc_seqno_class, rpcgss_svc_seqno_##name,	\
+			TP_PROTO(					\
+				const struct svc_rqst *rqstp,		\
+				u32 seqno				\
+			),						\
+			TP_ARGS(rqstp, seqno))
+
+DEFINE_SVC_SEQNO_EVENT(large);
+DEFINE_SVC_SEQNO_EVENT(seen);
+
+TRACE_EVENT(rpcgss_svc_seqno_low,
+	TP_PROTO(
+		const struct svc_rqst *rqstp,
+		u32 seqno,
+		u32 min,
+		u32 max
+	),
+
+	TP_ARGS(rqstp, seqno, min, max),
+
+	TP_STRUCT__entry(
+		__field(u32, xid)
+		__field(u32, seqno)
+		__field(u32, min)
+		__field(u32, max)
+	),
+
+	TP_fast_assign(
+		__entry->xid = be32_to_cpu(rqstp->rq_xid);
+		__entry->seqno = seqno;
+		__entry->min = min;
+		__entry->max = max;
+	),
+
+	TP_printk("xid=0x%08x seqno=%u window=[%u..%u]",
+		__entry->xid, __entry->seqno, __entry->min, __entry->max)
 );
 
 /**
@@ -256,7 +563,7 @@ TRACE_EVENT(rpcgss_upcall_msg,
 	),
 
 	TP_fast_assign(
-		__assign_str(msg, buf)
+		__assign_str(msg);
 	),
 
 	TP_printk("msg='%s'", __get_str(msg))
@@ -286,6 +593,7 @@ TRACE_EVENT(rpcgss_upcall_result,
 
 TRACE_EVENT(rpcgss_context,
 	TP_PROTO(
+		u32 window_size,
 		unsigned long expiry,
 		unsigned long now,
 		unsigned int timeout,
@@ -293,27 +601,29 @@ TRACE_EVENT(rpcgss_context,
 		const u8 *data
 	),
 
-	TP_ARGS(expiry, now, timeout, len, data),
+	TP_ARGS(window_size, expiry, now, timeout, len, data),
 
 	TP_STRUCT__entry(
 		__field(unsigned long, expiry)
 		__field(unsigned long, now)
 		__field(unsigned int, timeout)
+		__field(u32, window_size)
 		__field(int, len)
-		__string(acceptor, data)
+		__string_len(acceptor, data, len)
 	),
 
 	TP_fast_assign(
 		__entry->expiry = expiry;
 		__entry->now = now;
 		__entry->timeout = timeout;
+		__entry->window_size = window_size;
 		__entry->len = len;
-		strncpy(__get_str(acceptor), data, len);
+		__assign_str(acceptor);
 	),
 
-	TP_printk("gc_expiry=%lu now=%lu timeout=%u acceptor=%.*s",
-		__entry->expiry, __entry->now, __entry->timeout,
-		__entry->len, __get_str(acceptor))
+	TP_printk("win_size=%u expiry=%lu now=%lu timeout=%u acceptor=%.*s",
+		__entry->window_size, __entry->expiry, __entry->now,
+		__entry->timeout, __entry->len, __get_str(acceptor))
 );
 
 
@@ -355,6 +665,23 @@ TRACE_EVENT(rpcgss_createauth,
 		show_pseudoflavor(__entry->flavor), __entry->error)
 );
 
+TRACE_EVENT(rpcgss_oid_to_mech,
+	TP_PROTO(
+		const char *oid
+	),
+
+	TP_ARGS(oid),
+
+	TP_STRUCT__entry(
+		__string(oid, oid)
+	),
+
+	TP_fast_assign(
+		__assign_str(oid);
+	),
+
+	TP_printk("mech for oid %s was not found", __get_str(oid))
+);
 
 #endif	/* _TRACE_RPCGSS_H */
 

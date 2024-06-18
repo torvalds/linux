@@ -1,0 +1,90 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interrupt-controller/fsl,irqsteer.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale IRQSTEER Interrupt Multiplexer
+
+maintainers:
+  - Lucas Stach <l.stach@pengutronix.de>
+
+properties:
+  compatible:
+    oneOf:
+      - const: fsl,imx-irqsteer
+      - items:
+          - const: fsl,imx8m-irqsteer
+          - const: fsl,imx-irqsteer
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    description: |
+      should contain the up to 8 parent interrupt lines used to multiplex
+      the input interrupts. They should be specified sequentially from
+      output 0 to 7.
+    items:
+      - description: output interrupt 0
+      - description: output interrupt 1
+      - description: output interrupt 2
+      - description: output interrupt 3
+      - description: output interrupt 4
+      - description: output interrupt 5
+      - description: output interrupt 6
+      - description: output interrupt 7
+    minItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    const: ipg
+
+  interrupt-controller: true
+
+  "#interrupt-cells":
+    const: 1
+
+  fsl,channel:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      u32 value representing the output channel that all input IRQs should be
+      steered into.
+
+  fsl,num-irqs:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      u32 value representing the number of input interrupts of this channel,
+      should be multiple of 32 input interrupts and up to 512 interrupts.
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - interrupt-controller
+  - "#interrupt-cells"
+  - fsl,channel
+  - fsl,num-irqs
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/imx8mq-clock.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    interrupt-controller@32e2d000 {
+        compatible = "fsl,imx-irqsteer";
+        reg = <0x32e2d000 0x1000>;
+        interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&clk IMX8MQ_CLK_DISP_APB_ROOT>;
+        clock-names = "ipg";
+        fsl,channel = <0>;
+        fsl,num-irqs = <64>;
+        interrupt-controller;
+        #interrupt-cells = <1>;
+    };

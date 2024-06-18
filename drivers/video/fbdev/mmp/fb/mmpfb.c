@@ -90,8 +90,6 @@ static int var_to_pixfmt(struct fb_var_screeninfo *var)
 			else
 				return PIXFMT_BGR888UNPACK;
 		}
-
-		/* fall through */
 	}
 
 	return -EINVAL;
@@ -454,16 +452,14 @@ static int mmpfb_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops mmpfb_ops = {
+static const struct fb_ops mmpfb_ops = {
 	.owner		= THIS_MODULE,
+	FB_DEFAULT_IOMEM_OPS,
 	.fb_blank	= mmpfb_blank,
 	.fb_check_var	= mmpfb_check_var,
 	.fb_set_par	= mmpfb_set_par,
 	.fb_setcolreg	= mmpfb_setcolreg,
 	.fb_pan_display	= mmpfb_pan_display,
-	.fb_fillrect	= cfb_fillrect,
-	.fb_copyarea	= cfb_copyarea,
-	.fb_imageblit	= cfb_imageblit,
 };
 
 static int modes_setup(struct mmpfb_info *fbi)
@@ -504,7 +500,7 @@ static int fb_info_setup(struct fb_info *info,
 {
 	int ret = 0;
 	/* Initialise static fb parameters.*/
-	info->flags = FBINFO_DEFAULT | FBINFO_PARTIAL_PAN_OK |
+	info->flags = FBINFO_PARTIAL_PAN_OK |
 		FBINFO_HWACCEL_XPAN | FBINFO_HWACCEL_YPAN;
 	info->node = -1;
 	strcpy(info->fix.id, fbi->name);
@@ -522,7 +518,7 @@ static int fb_info_setup(struct fb_info *info,
 		info->var.bits_per_pixel / 8;
 	info->fbops = &mmpfb_ops;
 	info->pseudo_palette = fbi->pseudo_palette;
-	info->screen_base = fbi->fb_start;
+	info->screen_buffer = fbi->fb_start;
 	info->screen_size = fbi->fb_size;
 
 	/* For FB framework: Allocate color map and Register framebuffer*/
@@ -631,13 +627,6 @@ static int mmpfb_probe(struct platform_device *pdev)
 
 	dev_info(fbi->dev, "loaded to /dev/fb%d <%s>.\n",
 		info->node, info->fix.id);
-
-#ifdef CONFIG_LOGO
-	if (fbi->fb_start) {
-		fb_prepare_logo(info, 0);
-		fb_show_logo(info, 0);
-	}
-#endif
 
 	return 0;
 

@@ -209,23 +209,29 @@ static irqreturn_t kxsd9_trigger_handler(int irq, void *p)
 	const struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct kxsd9_state *st = iio_priv(indio_dev);
+	/*
+	 * Ensure correct positioning and alignment of timestamp.
+	 * No need to zero initialize as all elements written.
+	 */
+	struct {
+		__be16 chan[4];
+		s64 ts __aligned(8);
+	} hw_values;
 	int ret;
-	/* 4 * 16bit values AND timestamp */
-	__be16 hw_values[8];
 
 	ret = regmap_bulk_read(st->map,
 			       KXSD9_REG_X,
-			       &hw_values,
-			       8);
+			       hw_values.chan,
+			       sizeof(hw_values.chan));
 	if (ret) {
-		dev_err(st->dev,
-			"error reading data\n");
-		return ret;
+		dev_err(st->dev, "error reading data: %d\n", ret);
+		goto out;
 	}
 
 	iio_push_to_buffers_with_timestamp(indio_dev,
-					   hw_values,
+					   &hw_values,
 					   iio_get_time_ns(indio_dev));
+out:
 	iio_trigger_notify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
@@ -252,8 +258,6 @@ static int kxsd9_buffer_postdisable(struct iio_dev *indio_dev)
 
 static const struct iio_buffer_setup_ops kxsd9_buffer_setup_ops = {
 	.preenable = kxsd9_buffer_preenable,
-	.postenable = iio_triggered_buffer_postenable,
-	.predisable = iio_triggered_buffer_predisable,
 	.postdisable = kxsd9_buffer_postdisable,
 };
 
@@ -411,13 +415,12 @@ int kxsd9_common_probe(struct device *dev,
 	indio_dev->channels = kxsd9_channels;
 	indio_dev->num_channels = ARRAY_SIZE(kxsd9_channels);
 	indio_dev->name = name;
-	indio_dev->dev.parent = dev;
 	indio_dev->info = &kxsd9_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->available_scan_masks = kxsd9_scan_masks;
 
 	/* Read the mounting matrix, if present */
-	ret = iio_read_mount_matrix(dev, "mount-matrix", &st->orientation);
+	ret = iio_read_mount_matrix(dev, &st->orientation);
 	if (ret)
 		return ret;
 
@@ -473,9 +476,9 @@ err_power_down:
 
 	return ret;
 }
-EXPORT_SYMBOL(kxsd9_common_probe);
+EXPORT_SYMBOL_NS(kxsd9_common_probe, IIO_KXSD9);
 
-int kxsd9_common_remove(struct device *dev)
+void kxsd9_common_remove(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct kxsd9_state *st = iio_priv(indio_dev);
@@ -486,12 +489,9 @@ int kxsd9_common_remove(struct device *dev)
 	pm_runtime_put_noidle(dev);
 	pm_runtime_disable(dev);
 	kxsd9_power_down(st);
-
-	return 0;
 }
-EXPORT_SYMBOL(kxsd9_common_remove);
+EXPORT_SYMBOL_NS(kxsd9_common_remove, IIO_KXSD9);
 
-#ifdef CONFIG_PM
 static int kxsd9_runtime_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
@@ -507,15 +507,9 @@ static int kxsd9_runtime_resume(struct device *dev)
 
 	return kxsd9_power_up(st);
 }
-#endif /* CONFIG_PM */
 
-const struct dev_pm_ops kxsd9_dev_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
-	SET_RUNTIME_PM_OPS(kxsd9_runtime_suspend,
-			   kxsd9_runtime_resume, NULL)
-};
-EXPORT_SYMBOL(kxsd9_dev_pm_ops);
+EXPORT_NS_RUNTIME_DEV_PM_OPS(kxsd9_dev_pm_ops, kxsd9_runtime_suspend,
+			     kxsd9_runtime_resume, NULL, IIO_KXSD9);
 
 MODULE_AUTHOR("Jonathan Cameron <jic23@kernel.org>");
 MODULE_DESCRIPTION("Kionix KXSD9 driver");

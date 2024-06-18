@@ -25,7 +25,6 @@
  * 1) Add mechanism to deal with reverse congestion.
  */
 
-#include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/math64.h>
 #include <net/tcp.h>
@@ -198,10 +197,10 @@ static void tcpnv_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 	}
 
 	if (ca->cwnd_growth_factor < 0) {
-		cnt = tp->snd_cwnd << -ca->cwnd_growth_factor;
+		cnt = tcp_snd_cwnd(tp) << -ca->cwnd_growth_factor;
 		tcp_cong_avoid_ai(tp, cnt, acked);
 	} else {
-		cnt = max(4U, tp->snd_cwnd >> ca->cwnd_growth_factor);
+		cnt = max(4U, tcp_snd_cwnd(tp) >> ca->cwnd_growth_factor);
 		tcp_cong_avoid_ai(tp, cnt, acked);
 	}
 }
@@ -210,7 +209,7 @@ static u32 tcpnv_recalc_ssthresh(struct sock *sk)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 
-	return max((tp->snd_cwnd * nv_loss_dec_factor) >> 10, 2U);
+	return max((tcp_snd_cwnd(tp) * nv_loss_dec_factor) >> 10, 2U);
 }
 
 static void tcpnv_state(struct sock *sk, u8 new_state)
@@ -258,7 +257,7 @@ static void tcpnv_acked(struct sock *sk, const struct ack_sample *sample)
 		return;
 
 	/* Stop cwnd growth if we were in catch up mode */
-	if (ca->nv_catchup && tp->snd_cwnd >= nv_min_cwnd) {
+	if (ca->nv_catchup && tcp_snd_cwnd(tp) >= nv_min_cwnd) {
 		ca->nv_catchup = 0;
 		ca->nv_allow_cwnd_growth = 0;
 	}
@@ -372,7 +371,7 @@ static void tcpnv_acked(struct sock *sk, const struct ack_sample *sample)
 		 * if cwnd < max_win, grow cwnd
 		 * else leave the same
 		 */
-		if (tp->snd_cwnd > max_win) {
+		if (tcp_snd_cwnd(tp) > max_win) {
 			/* there is congestion, check that it is ok
 			 * to make a CA decision
 			 * 1. We should have at least nv_dec_eval_min_calls
@@ -399,20 +398,20 @@ static void tcpnv_acked(struct sock *sk, const struct ack_sample *sample)
 			ca->nv_allow_cwnd_growth = 0;
 			tp->snd_ssthresh =
 				(nv_ssthresh_factor * max_win) >> 3;
-			if (tp->snd_cwnd - max_win > 2) {
+			if (tcp_snd_cwnd(tp) - max_win > 2) {
 				/* gap > 2, we do exponential cwnd decrease */
 				int dec;
 
-				dec = max(2U, ((tp->snd_cwnd - max_win) *
+				dec = max(2U, ((tcp_snd_cwnd(tp) - max_win) *
 					       nv_cong_dec_mult) >> 7);
-				tp->snd_cwnd -= dec;
+				tcp_snd_cwnd_set(tp, tcp_snd_cwnd(tp) - dec);
 			} else if (nv_cong_dec_mult > 0) {
-				tp->snd_cwnd = max_win;
+				tcp_snd_cwnd_set(tp, max_win);
 			}
 			if (ca->cwnd_growth_factor > 0)
 				ca->cwnd_growth_factor = 0;
 			ca->nv_no_cong_cnt = 0;
-		} else if (tp->snd_cwnd <= max_win - nv_pad_buffer) {
+		} else if (tcp_snd_cwnd(tp) <= max_win - nv_pad_buffer) {
 			/* There is no congestion, grow cwnd if allowed*/
 			if (ca->nv_eval_call_cnt < nv_inc_eval_min_calls)
 				return;
@@ -445,8 +444,8 @@ static void tcpnv_acked(struct sock *sk, const struct ack_sample *sample)
 		 * (it wasn't before, if it is now is because nv
 		 *  decreased it).
 		 */
-		if (tp->snd_cwnd < nv_min_cwnd)
-			tp->snd_cwnd = nv_min_cwnd;
+		if (tcp_snd_cwnd(tp) < nv_min_cwnd)
+			tcp_snd_cwnd_set(tp, nv_min_cwnd);
 	}
 }
 

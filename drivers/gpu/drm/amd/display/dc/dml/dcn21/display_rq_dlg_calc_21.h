@@ -26,7 +26,7 @@
 #ifndef __DML21_DISPLAY_RQ_DLG_CALC_H__
 #define __DML21_DISPLAY_RQ_DLG_CALC_H__
 
-#include "../dml_common_defs.h"
+#include "dm_services.h"
 #include "../display_rq_dlg_helpers.h"
 
 struct display_mode_lib;
@@ -44,7 +44,7 @@ struct display_mode_lib;
 void dml21_rq_dlg_get_rq_reg(
 		struct display_mode_lib *mode_lib,
 		display_rq_regs_st *rq_regs,
-		const display_pipe_params_st pipe_param);
+		const display_pipe_params_st *pipe_param);
 
 // Function: dml_rq_dlg_get_dlg_reg
 //   Calculate and return DLG and TTU register struct given the system setting
@@ -61,7 +61,7 @@ void dml21_rq_dlg_get_dlg_reg(
 		struct display_mode_lib *mode_lib,
 		display_dlg_regs_st *dlg_regs,
 		display_ttu_regs_st *ttu_regs,
-		display_e2e_pipe_params_st *e2e_pipe_param,
+		const display_e2e_pipe_params_st *e2e_pipe_param,
 		const unsigned int num_pipes,
 		const unsigned int pipe_idx,
 		const bool cstate_en,

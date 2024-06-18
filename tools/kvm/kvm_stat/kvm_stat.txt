@@ -49,7 +49,7 @@ INTERACTIVE COMMANDS
 
 *r*::	reset stats
 
-*s*::   set update interval
+*s*::   set delay between refreshs
 
 *x*::	toggle reporting of stats for child trace events
  ::     *Note*: The stats for the parents summarize the respective child trace
@@ -64,37 +64,56 @@ OPTIONS
 --batch::
 	run in batch mode for one second
 
--l::
---log::
-	run in logging mode (like vmstat)
-
--t::
---tracepoints::
-	retrieve statistics from tracepoints
+-c::
+--csv::
+        log in csv format. Requires option -l/--log or -L/--log-to-file.
+        When used with option -L/--log-to-file, the header is only ever
+        written to start of file to preserve the format.
 
 -d::
 --debugfs::
 	retrieve statistics from debugfs
 
+-f<fields>::
+--fields=<fields>::
+        fields to display (regex), "-f help" for a list of available events
+
+-g<guest>::
+--guest=<guest_name>::
+        limit statistics to one virtual machine (guest name)
+
+-h::
+--help::
+        show help message
+
 -i::
 --debugfs-include-past::
 	include all available data on past events for debugfs
+
+-l::
+--log::
+        run in logging mode (like vmstat)
+
+
+-L<file>::
+--log-to-file=<file>::
+        like -l/--log, but logging to a file. Appends to existing files.
 
 -p<pid>::
 --pid=<pid>::
 	limit statistics to one virtual machine (pid)
 
--g<guest>::
---guest=<guest_name>::
-	limit statistics to one virtual machine (guest name)
+-s::
+--set-delay::
+        set delay between refreshs (value range: 0.1-25.5 secs)
 
--f<fields>::
---fields=<fields>::
-	fields to display (regex), "-f help" for a list of available events
+-t::
+--tracepoints::
+        retrieve statistics from tracepoints
 
--h::
---help::
-	show help message
+-z::
+--skip-zero-records::
+        omit records with all zeros in logging mode
 
 SEE ALSO
 --------

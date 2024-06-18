@@ -8,9 +8,19 @@
  *  Changes:
  *  Fixes:
  */
+#define pr_fmt(fmt) "UDPLite6: " fmt
+
 #include <linux/export.h>
 #include <linux/proc_fs.h>
 #include "udp_impl.h"
+
+static int udplitev6_sk_init(struct sock *sk)
+{
+	udpv6_init_sock(sk);
+	pr_warn_once("UDP-Lite is deprecated and scheduled to be removed in 2025, "
+		     "please contact the netdev mailing list\n");
+	return 0;
+}
 
 static int udplitev6_rcv(struct sk_buff *skb)
 {
@@ -38,7 +48,7 @@ struct proto udplitev6_prot = {
 	.connect	   = ip6_datagram_connect,
 	.disconnect	   = udp_disconnect,
 	.ioctl		   = udp_ioctl,
-	.init		   = udplite_sk_init,
+	.init		   = udplitev6_sk_init,
 	.destroy	   = udpv6_destroy_sock,
 	.setsockopt	   = udpv6_setsockopt,
 	.getsockopt	   = udpv6_getsockopt,
@@ -48,14 +58,16 @@ struct proto udplitev6_prot = {
 	.unhash		   = udp_lib_unhash,
 	.rehash		   = udp_v6_rehash,
 	.get_port	   = udp_v6_get_port,
+
 	.memory_allocated  = &udp_memory_allocated,
+	.per_cpu_fw_alloc  = &udp_memory_per_cpu_fw_alloc,
+
 	.sysctl_mem	   = sysctl_udp_mem,
+	.sysctl_wmem_offset = offsetof(struct net, ipv4.sysctl_udp_wmem_min),
+	.sysctl_rmem_offset = offsetof(struct net, ipv4.sysctl_udp_rmem_min),
 	.obj_size	   = sizeof(struct udp6_sock),
+	.ipv6_pinfo_offset = offsetof(struct udp6_sock, inet6),
 	.h.udp_table	   = &udplite_table,
-#ifdef CONFIG_COMPAT
-	.compat_setsockopt = compat_udpv6_setsockopt,
-	.compat_getsockopt = compat_udpv6_getsockopt,
-#endif
 };
 
 static struct inet_protosw udplite6_protosw = {

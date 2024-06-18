@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="113.611mm" height="86.6873mm" version="1.1" viewBox="0 0 113.611 86.6873" xmlns="http://www.w3.org/2000/svg" xmlns:cc="http://creativecommons.org/ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+ <defs>
+  <marker id="marker3667" overflow="visible" orient="auto">
+   <path transform="scale(-.6)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill="#28a4ff" fill-rule="evenodd" stroke="#28a4ff" stroke-linejoin="round" stroke-width=".625"/>
+  </marker>
+  <marker id="marker3517" overflow="visible" orient="auto">
+   <path transform="scale(-.6)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill-rule="evenodd" stroke="#000" stroke-linejoin="round" stroke-width=".625"/>
+  </marker>
+  <marker id="marker3373" overflow="visible" orient="auto">
+   <path transform="scale(-.6)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill-rule="evenodd" stroke="#000" stroke-linejoin="round" stroke-width=".625"/>
+  </marker>
+  <marker id="marker3199" overflow="visible" orient="auto">
+   <path transform="scale(-.6)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill="#28a4ff" fill-rule="evenodd" stroke="#28a4ff" stroke-linejoin="round" stroke-width=".625"/>
+  </marker>
+  <marker id="marker3037" overflow="visible" orient="auto">
+   <path transform="scale(-.6)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill="#28a4ff" fill-rule="evenodd" stroke="#28a4ff" stroke-linejoin="round" stroke-width=".625"/>
+  </marker>
+  <marker id="marker2779" overflow="visible" orient="auto">
+   <path transform="scale(-.6)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill="#28a4ff" fill-rule="evenodd" stroke="#28a4ff" stroke-linejoin="round" stroke-width=".625"/>
+  </marker>
+  <marker id="marker2477" overflow="visible" orient="auto">
+   <path transform="scale(.6) rotate(180) translate(0)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill="#28a4ff" fill-rule="evenodd" stroke="#28a4ff" stroke-linejoin="round" stroke-width=".625"/>
+  </marker>
+  <marker id="marker2074" overflow="visible" orient="auto">
+   <path transform="scale(.6) rotate(180) translate(0)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill-rule="evenodd" stroke="#000" stroke-linejoin="round" stroke-width=".625"/>
+  </marker>
+  <marker id="marker1964" overflow="visible" orient="auto">
+   <path transform="scale(.6) rotate(180) translate(0)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill-rule="evenodd" stroke="#000" stroke-linejoin="round" stroke-width=".625"/>
+  </marker>
+  <marker id="marker1856" overflow="visible" orient="auto">
+   <path transform="scale(.6) rotate(180) translate(0)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill-rule="evenodd" stroke="#000" stroke-linejoin="round" stroke-width=".625"/>
+  </marker>
+  <marker id="Arrow2Mend" overflow="visible" orient="auto">
+   <path transform="scale(.6) rotate(180) translate(0)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill-rule="evenodd" stroke="#000" stroke-linejoin="round" stroke-width=".625"/>
+  </marker>
+  <filter id="filter1204" x="-4.19953e-6" y="-5.60084e-6" width="1.00001" height="1.00001" color-interpolation-filters="sRGB">
+   <feGaussianBlur stdDeviation="0.00018829868"/>
+  </filter>
+  <marker id="marker2074-3" overflow="visible" orient="auto">
+   <path transform="scale(-.6)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill="#28a4ff" fill-rule="evenodd" stroke="#28a4ff" stroke-linejoin="round" stroke-width=".625"/>
+  </marker>
+  <filter id="filter1204-6" x="-4.19953e-6" y="-5.60084e-6" width="1.00001" height="1.00001" color-interpolation-filters="sRGB">
+   <feGaussianBlur stdDeviation="0.00018829868"/>
+  </filter>
+  <filter id="filter1204-6-9" x="-4.19953e-6" y="-5.60084e-6" width="1.00001" height="1.00001" color-interpolation-filters="sRGB">
+   <feGaussianBlur stdDeviation="0.00018829868"/>
+  </filter>
+  <filter id="filter1204-6-2" x="-4.19953e-6" y="-5.60084e-6" width="1.00001" height="1.00001" color-interpolation-filters="sRGB">
+   <feGaussianBlur stdDeviation="0.00018829868"/>
+  </filter>
+  <filter id="filter1204-6-2-9" x="-4.19953e-6" y="-5.60084e-6" width="1.00001" height="1.00001" color-interpolation-filters="sRGB">
+   <feGaussianBlur stdDeviation="0.00018829868"/>
+  </filter>
+  <filter id="filter1204-6-2-9-4" x="-4.19953e-6" y="-5.60084e-6" width="1.00001" height="1.00001" color-interpolation-filters="sRGB">
+   <feGaussianBlur stdDeviation="0.00018829868"/>
+  </filter>
+  <filter id="filter1204-6-2-9-1" x="-4.19953e-6" y="-5.60084e-6" width="1.00001" height="1.00001" color-interpolation-filters="sRGB">
+   <feGaussianBlur stdDeviation="0.00018829868"/>
+  </filter>
+  <filter id="filter1204-6-2-9-1-3" x="-4.19953e-6" y="-5.60084e-6" width="1.00001" height="1.00001" color-interpolation-filters="sRGB">
+   <feGaussianBlur stdDeviation="0.00018829868"/>
+  </filter>
+  <filter id="filter1204-6-2-9-1-3-1" x="-4.19953e-6" y="-5.60084e-6" width="1.00001" height="1.00001" color-interpolation-filters="sRGB">
+   <feGaussianBlur stdDeviation="0.00018829868"/>
+  </filter>
+ </defs>
+ <metadata>
+  <rdf:RDF>
+   <cc:Work rdf:about="">
+    <dc:format>image/svg+xml</dc:format>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:title/>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <g transform="translate(-49.0277 -104.823)">
+  <g>
+   <path d="m130.534 165.429h-71.1816v-17.5315" fill="none" marker-end="url(#marker2477)" stroke="#28a4ff" stroke-width=".6"/>
+   <path d="m145.034 122.959v-11.5914h-43.1215" fill="none" marker-end="url(#marker3037)" stroke="#28a4ff" stroke-width=".6"/>
+   <rect x="130.679" y="122.933" width="28.2965" height="45.2319" rx="0" ry="0" fill="#e5e5e5" stroke="#717171" stroke-linecap="square" stroke-width=".499999"/>
+   <path d="m102.044 116.236h23.3126l-0.13388 18.8185h19.9383v3.66603" fill="none" marker-end="url(#marker3199)" stroke="#28a4ff" stroke-width=".6"/>
+   <path d="m59.5006 138.391v-24.2517h20.6338" fill="none" marker-end="url(#marker2779)" stroke="#28a4ff" stroke-width=".6"/>
+   <rect x="78.1389" y="126.411" width="28.0037" height="35.0443" rx="0" ry="0" fill="#e5e5e5" stroke="#717171" stroke-linecap="square" stroke-width=".5"/>
+  </g>
+  <g fill="#ffcb35" stroke="#000" stroke-linecap="square">
+   <ellipse cx="92.1408" cy="114.239" rx="10.8866" ry="4.39308" stroke-width=".5"/>
+   <ellipse cx="92.1408" cy="134.185" rx="10.8866" ry="4.39308" stroke-width=".499999"/>
+   <ellipse cx="92.1408" cy="152.199" rx="10.8866" ry="4.39308" stroke-width=".499999"/>
+  </g>
+  <g fill="#28a4ff" stroke="#000" stroke-linecap="square" stroke-width=".499999">
+   <ellipse cx="144.827" cy="143.316" rx="10.8866" ry="4.39308"/>
+   <ellipse cx="144.827" cy="159.143" rx="10.8866" ry="4.39308"/>
+   <ellipse cx="59.4364" cy="142.823" rx="7.36455" ry="4.39308"/>
+   <ellipse cx="144.827" cy="129.196" rx="10.8866" ry="4.39308"/>
+   <ellipse cx="143.077" cy="180.53" rx="10.8866" ry="4.39308"/>
+  </g>
+  <ellipse cx="110.386" cy="180.53" rx="10.8866" ry="4.39308" fill="#ffcb35" stroke="#000" stroke-linecap="square" stroke-width=".499999"/>
+  <text x="110.90907" y="179.42688" font-size="3.175px" xml:space="preserve"><tspan x="110.90907" y="179.42688" dy="0.60000002" text-align="center" text-anchor="middle">Accessible</tspan><tspan x="110.90907" y="183.39563"><tspan font-size="3.175px" text-align="center" text-anchor="middle">for S</tspan>W</tspan></text>
+  <text x="143.5869" y="179.52795" xml:space="preserve"><tspan x="143.5869" y="179.52795" dy="1 0 0 0 0 0" font-family="sans-serif" font-size="2.82222px" text-align="center" text-anchor="middle" style="font-variant-caps:normal;font-variant-east-asian:normal;font-variant-ligatures:normal;font-variant-numeric:normal">Inaccessible</tspan><tspan x="143.5869" y="183.36786" font-size="3.175px"><tspan font-size="3.175px" text-align="center" text-anchor="middle">for S</tspan>W</tspan></text>
+  <g font-size="3.175px">
+   <text x="91.95018" y="115.29005" xml:space="preserve"><tspan x="91.95018" y="115.29005" font-size="3.175px"><tspan font-size="3.175px" text-align="center" text-anchor="middle">Ready</tspan></tspan></text>
+   <text x="145.25127" y="130.49019" xml:space="preserve"><tspan x="145.25127" y="130.49019" font-size="3.175px"><tspan font-size="3.175px" text-align="center" text-anchor="middle">TX OK</tspan></tspan></text>
+   <text x="145.31845" y="144.43121" xml:space="preserve"><tspan x="145.31845" y="144.43121" font-size="3.175px"><tspan font-size="3.175px" text-align="center" text-anchor="middle">Aborted</tspan></tspan></text>
+   <text x="145.40399" y="160.36035" xml:space="preserve"><tspan x="145.40399" y="160.36035" font-size="3.175px"><tspan font-size="3.175px" text-align="center" text-anchor="middle">TX failed</tspan></tspan></text>
+   <text x="91.823967" y="133.53941" text-align="center" text-anchor="middle" style="line-height:0.9" xml:space="preserve"><tspan x="91.823967" y="133.53941" text-align="center"><tspan font-size="3.175px" text-align="center" text-anchor="middle">TX in</tspan></tspan><tspan x="91.823967" y="136.39691" text-align="center">progress</tspan></text>
+   <text x="91.648918" y="151.84813" text-align="center" text-anchor="middle" style="line-height:0.9" xml:space="preserve"><tspan x="91.648918" y="151.84813" text-align="center"><tspan font-size="3.175px" text-align="center" text-anchor="middle">Abort in</tspan></tspan><tspan x="91.648918" y="154.70563" text-align="center">progress</tspan></text>
+   <text x="59.456043" y="143.91658" xml:space="preserve"><tspan x="59.456043" y="143.91658" font-size="3.175px"><tspan font-size="3.175px" text-align="center" text-anchor="middle">Empty</tspan></tspan></text>
+  </g>
+  <g fill="none">
+   <g stroke="#000">
+    <rect x="52.3943" y="171.63" width="106.581" height="16.601" rx="0" ry="0" stroke-linecap="square" stroke-width=".499999"/>
+    <g stroke-width=".6">
+     <path d="m106.383 159.046h26.4967" marker-end="url(#Arrow2Mend)"/>
+     <path d="m103.138 152.268h41.5564v-3.92426" marker-end="url(#marker1856)"/>
+     <path d="m106.38 129.354h17.7785"/>
+     <path d="m125.818 129.359h7.2418" marker-end="url(#marker1964)"/>
+    </g>
+    <path d="m124.169 129.354a0.959514 0.97091 0 0 1 0.47587-0.84557 0.959514 0.97091 0 0 1 0.96164-3e-3 0.959514 0.97091 0 0 1 0.48149 0.84231" stroke-linecap="square" stroke-width=".600001"/>
+    <path d="m55.7026 180.832h34.8131" marker-end="url(#marker2074)" stroke-width=".6"/>
+   </g>
+   <g>
+    <path d="m55.6464 185.744h34.8131" marker-end="url(#marker2074-3)" stroke="#28a4ff" stroke-width=".600001"/>
+    <g stroke-width=".6">
+     <path d="m94.0487 129.889v-10.6493" marker-end="url(#marker3373)" stroke="#000"/>
+     <path d="m89.7534 118.621v10.662" marker-end="url(#marker3517)" stroke="#000"/>
+     <path d="m92.119 138.812v7.9718" marker-end="url(#marker3667)" stroke="#28a4ff"/>
+    </g>
+   </g>
+  </g>
+  <text transform="matrix(.264583 0 0 .264583 91.8919 139.964)" x="26.959213" y="9.11724" fill="#2aa1ff" filter="url(#filter1204-6-2-9-1-3-1)" font-size="12px" stroke-width="3.77953" text-align="center" text-anchor="middle" style="line-height:1.1" xml:space="preserve"><tspan x="26.959213" y="9.11724" text-align="center">Set</tspan><tspan x="26.959213" y="22.31724" text-align="center">abort</tspan></text>
+  <text transform="translate(49.0277 104.823)" x="57.620724" y="16.855087" filter="url(#filter1204)" font-size="3.175px" text-align="center" text-anchor="middle" style="line-height:1.1" xml:space="preserve"><tspan x="57.620724" y="16.855087" text-align="center">Transmission</tspan><tspan x="57.620724" y="20.347588" text-align="center">unsuccessful</tspan></text>
+  <g font-size="12px" stroke-width="3.77953" text-anchor="middle">
+   <text transform="matrix(.264583 0 0 .264583 68.5988 118.913)" x="38.824219" y="9.1171875" filter="url(#filter1204)" text-align="center" style="line-height:1.1" xml:space="preserve"><tspan x="38.824219" y="9.1171875" text-align="center">Transmission</tspan><tspan x="38.824219" y="22.317188" text-align="center">starts</tspan></text>
+   <text transform="matrix(.264583 0 0 .264583 106.802 130.509)" x="38.824219" y="9.1171875" filter="url(#filter1204)" text-align="center" style="line-height:1.1" xml:space="preserve"><tspan x="38.824219" y="9.1171875" text-align="center">Transmission</tspan><tspan x="38.824219" y="22.317188" text-align="center">successful</tspan></text>
+   <text transform="matrix(.264583 0 0 .264583 107.77 145.476)" x="38.824219" y="9.1171875" filter="url(#filter1204)" text-align="center" style="line-height:1.1" xml:space="preserve"><tspan x="38.824219" y="9.1171875" text-align="center">Transmission</tspan><tspan x="38.824219" y="22.317188" text-align="center">sborted</tspan></text>
+  </g>
+  <g stroke-width="3.77953" text-anchor="middle">
+   <text transform="matrix(.264583 0 0 .264583 107.574 155.948)" x="38.824219" y="9.1171875" filter="url(#filter1204)" font-size="10.6667px" text-align="center" style="line-height:1.1" xml:space="preserve"><tspan x="38.824219" y="9.1171875" text-align="center">Retransmit</tspan><tspan x="38.824219" y="20.850557" text-align="center">limit reached or</tspan><tspan x="38.824219" y="32.583927" text-align="center">node went bus off</tspan><tspan x="38.824219" y="44.317299" text-align="center"/></text>
+   <text transform="matrix(.264583 0 0 .264583 60.7127 177.384)" x="38.824539" y="9.1173134" filter="url(#filter1204-6)" font-size="12px" text-align="center" style="line-height:1.1" xml:space="preserve"><tspan x="38.824539" y="9.1173134" font-size="12px" stroke-width="3.77953" text-align="center" text-anchor="middle">Transmission result</tspan></text>
+   <text transform="matrix(.264583 0 0 .264583 45.6885 173.226)" x="57.727047" y="9.11724" filter="url(#filter1204-6-9)" font-size="12px" text-align="center" style="line-height:1.1" xml:space="preserve"><tspan x="57.727047" y="9.11724" font-size="12px" stroke-width="3.77953" text-align="center" text-anchor="middle">Legend:</tspan></text>
+  </g>
+  <g fill="#2aa1ff" font-size="12px" stroke-width="3.77953" text-anchor="middle">
+   <text transform="matrix(.264583 0 0 .264583 57.0045 182.079)" x="57.727047" y="9.11724" filter="url(#filter1204-6-2)" text-align="center" style="line-height:1.1" xml:space="preserve"><tspan x="57.727047" y="9.11724" fill="#2aa1ff" font-size="12px" stroke-width="3.77953" text-align="center" text-anchor="middle">SW command</tspan></text>
+   <text transform="matrix(.264583 0 0 .264583 57.7865 110.104)" x="40.822609" y="9.11724" filter="url(#filter1204-6-2-9)" text-align="center" style="line-height:1.1" xml:space="preserve"><tspan x="40.822609" y="9.11724" fill="#2aa1ff" font-size="12px" stroke-width="3.77953" text-align="center" text-anchor="middle">Set ready</tspan></text>
+   <text transform="matrix(.264583 0 0 .264583 116.893 107.491)" x="28.049065" y="9.1172523" filter="url(#filter1204-6-2-9-4)" text-align="center" style="line-height:1.1" xml:space="preserve"><tspan x="28.049065" y="9.1172523" fill="#2aa1ff" font-size="12px" stroke-width="3.77953" text-align="center" text-anchor="middle">Set ready</tspan></text>
+   <text transform="matrix(.264583 0 0 .264583 87.5687 166.324)" x="28.049065" y="9.1172523" filter="url(#filter1204-6-2-9-1)" text-align="center" style="line-height:1.1" xml:space="preserve"><tspan x="28.049065" y="9.1172523" fill="#2aa1ff" font-size="12px" stroke-width="3.77953" text-align="center" text-anchor="middle">Set empty</tspan></text>
+   <text transform="matrix(.264583 0 0 .264583 106.53 113.074)" x="30.228771" y="8.9063139" filter="url(#filter1204-6-2-9-1-3)" text-align="center" style="line-height:1.1" xml:space="preserve"><tspan x="30.228771" y="8.9063139" fill="#2aa1ff" font-size="12px" stroke-width="3.77953" text-align="center" text-anchor="middle">Set abort</tspan></text>
+  </g>
+ </g>
+</svg>

@@ -146,7 +146,11 @@ static int rsnd_mix_init(struct rsnd_mod *mod,
 			 struct rsnd_dai_stream *io,
 			 struct rsnd_priv *priv)
 {
-	rsnd_mod_power_on(mod);
+	int ret;
+
+	ret = rsnd_mod_power_on(mod);
+	if (ret < 0)
+		return ret;
 
 	rsnd_mix_activation(mod);
 
@@ -250,6 +254,19 @@ static int rsnd_mix_pcm_new(struct rsnd_mod *mod,
 	return ret;
 }
 
+#ifdef CONFIG_DEBUG_FS
+static void rsnd_mix_debug_info(struct seq_file *m,
+				struct rsnd_dai_stream *io,
+				struct rsnd_mod *mod)
+{
+	rsnd_debugfs_mod_reg_show(m, mod, RSND_BASE_SCU,
+				  0xd00 + rsnd_mod_id(mod) * 0x40, 0x30);
+}
+#define DEBUG_INFO .debug_info = rsnd_mix_debug_info
+#else
+#define DEBUG_INFO
+#endif
+
 static struct rsnd_mod_ops rsnd_mix_ops = {
 	.name		= MIX_NAME,
 	.probe		= rsnd_mix_probe_,
@@ -257,6 +274,7 @@ static struct rsnd_mod_ops rsnd_mix_ops = {
 	.quit		= rsnd_mix_quit,
 	.pcm_new	= rsnd_mix_pcm_new,
 	.get_status	= rsnd_mod_get_status,
+	DEBUG_INFO
 };
 
 struct rsnd_mod *rsnd_mix_mod_get(struct rsnd_priv *priv, int id)
@@ -276,10 +294,6 @@ int rsnd_mix_probe(struct rsnd_priv *priv)
 	struct clk *clk;
 	char name[MIX_NAME_SIZE];
 	int i, nr, ret;
-
-	/* This driver doesn't support Gen1 at this point */
-	if (rsnd_is_gen1(priv))
-		return 0;
 
 	node = rsnd_mix_of_node(priv);
 	if (!node)

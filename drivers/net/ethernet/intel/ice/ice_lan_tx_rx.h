@@ -40,64 +40,125 @@ union ice_32byte_rx_desc {
 	} wb; /* writeback */
 };
 
-struct ice_rx_ptype_decoded {
-	u32 ptype:10;
-	u32 known:1;
-	u32 outer_ip:1;
-	u32 outer_ip_ver:2;
-	u32 outer_frag:1;
-	u32 tunnel_type:3;
-	u32 tunnel_end_prot:2;
-	u32 tunnel_end_frag:1;
-	u32 inner_prot:4;
-	u32 payload_layer:3;
+struct ice_fltr_desc {
+	__le64 qidx_compq_space_stat;
+	__le64 dtype_cmd_vsi_fdid;
 };
 
-enum ice_rx_ptype_outer_ip {
-	ICE_RX_PTYPE_OUTER_L2	= 0,
-	ICE_RX_PTYPE_OUTER_IP	= 1,
-};
+#define ICE_FXD_FLTR_QW0_QINDEX_S	0
+#define ICE_FXD_FLTR_QW0_QINDEX_M	(0x7FFULL << ICE_FXD_FLTR_QW0_QINDEX_S)
+#define ICE_FXD_FLTR_QW0_COMP_Q_S	11
+#define ICE_FXD_FLTR_QW0_COMP_Q_M	BIT_ULL(ICE_FXD_FLTR_QW0_COMP_Q_S)
+#define ICE_FXD_FLTR_QW0_COMP_Q_ZERO	0x0ULL
 
-enum ice_rx_ptype_outer_ip_ver {
-	ICE_RX_PTYPE_OUTER_NONE	= 0,
-	ICE_RX_PTYPE_OUTER_IPV4	= 1,
-	ICE_RX_PTYPE_OUTER_IPV6	= 2,
-};
+#define ICE_FXD_FLTR_QW0_COMP_REPORT_S	12
+#define ICE_FXD_FLTR_QW0_COMP_REPORT_M	\
+				(0x3ULL << ICE_FXD_FLTR_QW0_COMP_REPORT_S)
+#define ICE_FXD_FLTR_QW0_COMP_REPORT_SW_FAIL	0x1ULL
+#define ICE_FXD_FLTR_QW0_COMP_REPORT_SW		0x2ULL
 
-enum ice_rx_ptype_outer_fragmented {
-	ICE_RX_PTYPE_NOT_FRAG	= 0,
-	ICE_RX_PTYPE_FRAG	= 1,
-};
+#define ICE_FXD_FLTR_QW0_FD_SPACE_S	14
+#define ICE_FXD_FLTR_QW0_FD_SPACE_M	(0x3ULL << ICE_FXD_FLTR_QW0_FD_SPACE_S)
+#define ICE_FXD_FLTR_QW0_FD_SPACE_GUAR_BEST		0x2ULL
 
-enum ice_rx_ptype_tunnel_type {
-	ICE_RX_PTYPE_TUNNEL_NONE		= 0,
-	ICE_RX_PTYPE_TUNNEL_IP_IP		= 1,
-	ICE_RX_PTYPE_TUNNEL_IP_GRENAT		= 2,
-	ICE_RX_PTYPE_TUNNEL_IP_GRENAT_MAC	= 3,
-	ICE_RX_PTYPE_TUNNEL_IP_GRENAT_MAC_VLAN	= 4,
-};
+#define ICE_FXD_FLTR_QW0_STAT_CNT_S	16
+#define ICE_FXD_FLTR_QW0_STAT_CNT_M	\
+				(0x1FFFULL << ICE_FXD_FLTR_QW0_STAT_CNT_S)
+#define ICE_FXD_FLTR_QW0_STAT_ENA_S	29
+#define ICE_FXD_FLTR_QW0_STAT_ENA_M	(0x3ULL << ICE_FXD_FLTR_QW0_STAT_ENA_S)
+#define ICE_FXD_FLTR_QW0_STAT_ENA_PKTS		0x1ULL
 
-enum ice_rx_ptype_tunnel_end_prot {
-	ICE_RX_PTYPE_TUNNEL_END_NONE	= 0,
-	ICE_RX_PTYPE_TUNNEL_END_IPV4	= 1,
-	ICE_RX_PTYPE_TUNNEL_END_IPV6	= 2,
-};
+#define ICE_FXD_FLTR_QW0_EVICT_ENA_S	31
+#define ICE_FXD_FLTR_QW0_EVICT_ENA_M	BIT_ULL(ICE_FXD_FLTR_QW0_EVICT_ENA_S)
+#define ICE_FXD_FLTR_QW0_EVICT_ENA_FALSE	0x0ULL
+#define ICE_FXD_FLTR_QW0_EVICT_ENA_TRUE		0x1ULL
 
-enum ice_rx_ptype_inner_prot {
-	ICE_RX_PTYPE_INNER_PROT_NONE		= 0,
-	ICE_RX_PTYPE_INNER_PROT_UDP		= 1,
-	ICE_RX_PTYPE_INNER_PROT_TCP		= 2,
-	ICE_RX_PTYPE_INNER_PROT_SCTP		= 3,
-	ICE_RX_PTYPE_INNER_PROT_ICMP		= 4,
-	ICE_RX_PTYPE_INNER_PROT_TIMESYNC	= 5,
-};
+#define ICE_FXD_FLTR_QW0_TO_Q_S		32
+#define ICE_FXD_FLTR_QW0_TO_Q_M		(0x7ULL << ICE_FXD_FLTR_QW0_TO_Q_S)
+#define ICE_FXD_FLTR_QW0_TO_Q_EQUALS_QINDEX	0x0ULL
 
-enum ice_rx_ptype_payload_layer {
-	ICE_RX_PTYPE_PAYLOAD_LAYER_NONE	= 0,
-	ICE_RX_PTYPE_PAYLOAD_LAYER_PAY2	= 1,
-	ICE_RX_PTYPE_PAYLOAD_LAYER_PAY3	= 2,
-	ICE_RX_PTYPE_PAYLOAD_LAYER_PAY4	= 3,
-};
+#define ICE_FXD_FLTR_QW0_TO_Q_PRI_S	35
+#define ICE_FXD_FLTR_QW0_TO_Q_PRI_M	(0x7ULL << ICE_FXD_FLTR_QW0_TO_Q_PRI_S)
+#define ICE_FXD_FLTR_QW0_TO_Q_PRIO1	0x1ULL
+
+#define ICE_FXD_FLTR_QW0_DPU_RECIPE_S	38
+#define ICE_FXD_FLTR_QW0_DPU_RECIPE_M	\
+			(0x3ULL << ICE_FXD_FLTR_QW0_DPU_RECIPE_S)
+#define ICE_FXD_FLTR_QW0_DPU_RECIPE_DFLT	0x0ULL
+
+#define ICE_FXD_FLTR_QW0_DROP_S		40
+#define ICE_FXD_FLTR_QW0_DROP_M		BIT_ULL(ICE_FXD_FLTR_QW0_DROP_S)
+#define ICE_FXD_FLTR_QW0_DROP_NO	0x0ULL
+#define ICE_FXD_FLTR_QW0_DROP_YES	0x1ULL
+
+#define ICE_FXD_FLTR_QW0_FLEX_PRI_S	41
+#define ICE_FXD_FLTR_QW0_FLEX_PRI_M	(0x7ULL << ICE_FXD_FLTR_QW0_FLEX_PRI_S)
+#define ICE_FXD_FLTR_QW0_FLEX_PRI_NONE	0x0ULL
+
+#define ICE_FXD_FLTR_QW0_FLEX_MDID_S	44
+#define ICE_FXD_FLTR_QW0_FLEX_MDID_M	(0xFULL << ICE_FXD_FLTR_QW0_FLEX_MDID_S)
+#define ICE_FXD_FLTR_QW0_FLEX_MDID0	0x0ULL
+
+#define ICE_FXD_FLTR_QW0_FLEX_VAL_S	48
+#define ICE_FXD_FLTR_QW0_FLEX_VAL_M	\
+				(0xFFFFULL << ICE_FXD_FLTR_QW0_FLEX_VAL_S)
+#define ICE_FXD_FLTR_QW0_FLEX_VAL0	0x0ULL
+
+#define ICE_FXD_FLTR_QW1_DTYPE_S	0
+#define ICE_FXD_FLTR_QW1_DTYPE_M	(0xFULL << ICE_FXD_FLTR_QW1_DTYPE_S)
+#define ICE_FXD_FLTR_QW1_PCMD_S		4
+#define ICE_FXD_FLTR_QW1_PCMD_M		BIT_ULL(ICE_FXD_FLTR_QW1_PCMD_S)
+#define ICE_FXD_FLTR_QW1_PCMD_ADD	0x0ULL
+#define ICE_FXD_FLTR_QW1_PCMD_REMOVE	0x1ULL
+
+#define ICE_FXD_FLTR_QW1_PROF_PRI_S	5
+#define ICE_FXD_FLTR_QW1_PROF_PRI_M	(0x7ULL << ICE_FXD_FLTR_QW1_PROF_PRI_S)
+#define ICE_FXD_FLTR_QW1_PROF_PRIO_ZERO	0x0ULL
+
+#define ICE_FXD_FLTR_QW1_PROF_S		8
+#define ICE_FXD_FLTR_QW1_PROF_M		(0x3FULL << ICE_FXD_FLTR_QW1_PROF_S)
+#define ICE_FXD_FLTR_QW1_PROF_ZERO	0x0ULL
+
+#define ICE_FXD_FLTR_QW1_FD_VSI_S	14
+#define ICE_FXD_FLTR_QW1_FD_VSI_M	(0x3FFULL << ICE_FXD_FLTR_QW1_FD_VSI_S)
+#define ICE_FXD_FLTR_QW1_SWAP_S		24
+#define ICE_FXD_FLTR_QW1_SWAP_M		BIT_ULL(ICE_FXD_FLTR_QW1_SWAP_S)
+#define ICE_FXD_FLTR_QW1_SWAP_NOT_SET	0x0ULL
+#define ICE_FXD_FLTR_QW1_SWAP_SET	0x1ULL
+
+#define ICE_FXD_FLTR_QW1_FDID_PRI_S	25
+#define ICE_FXD_FLTR_QW1_FDID_PRI_M	(0x7ULL << ICE_FXD_FLTR_QW1_FDID_PRI_S)
+#define ICE_FXD_FLTR_QW1_FDID_PRI_ONE	0x1ULL
+#define ICE_FXD_FLTR_QW1_FDID_PRI_THREE	0x3ULL
+
+#define ICE_FXD_FLTR_QW1_FDID_MDID_S	28
+#define ICE_FXD_FLTR_QW1_FDID_MDID_M	(0xFULL << ICE_FXD_FLTR_QW1_FDID_MDID_S)
+#define ICE_FXD_FLTR_QW1_FDID_MDID_FD	0x05ULL
+
+#define ICE_FXD_FLTR_QW1_FDID_S		32
+#define ICE_FXD_FLTR_QW1_FDID_M		\
+			(0xFFFFFFFFULL << ICE_FXD_FLTR_QW1_FDID_S)
+#define ICE_FXD_FLTR_QW1_FDID_ZERO	0x0ULL
+
+/* definition for FD filter programming status descriptor WB format */
+#define ICE_FXD_FLTR_WB_QW1_DD_S	0
+#define ICE_FXD_FLTR_WB_QW1_DD_M	(0x1ULL << ICE_FXD_FLTR_WB_QW1_DD_S)
+#define ICE_FXD_FLTR_WB_QW1_DD_YES	0x1ULL
+
+#define ICE_FXD_FLTR_WB_QW1_PROG_ID_S	1
+#define ICE_FXD_FLTR_WB_QW1_PROG_ID_M	\
+				(0x3ULL << ICE_FXD_FLTR_WB_QW1_PROG_ID_S)
+#define ICE_FXD_FLTR_WB_QW1_PROG_ADD	0x0ULL
+#define ICE_FXD_FLTR_WB_QW1_PROG_DEL	0x1ULL
+
+#define ICE_FXD_FLTR_WB_QW1_FAIL_S	4
+#define ICE_FXD_FLTR_WB_QW1_FAIL_M	(0x1ULL << ICE_FXD_FLTR_WB_QW1_FAIL_S)
+#define ICE_FXD_FLTR_WB_QW1_FAIL_YES	0x1ULL
+
+#define ICE_FXD_FLTR_WB_QW1_FAIL_PROF_S	5
+#define ICE_FXD_FLTR_WB_QW1_FAIL_PROF_M	\
+				(0x1ULL << ICE_FXD_FLTR_WB_QW1_FAIL_PROF_S)
+#define ICE_FXD_FLTR_WB_QW1_FAIL_PROF_YES	0x1ULL
 
 /* Rx Flex Descriptor
  * This descriptor is used instead of the legacy version descriptor when
@@ -182,6 +243,46 @@ struct ice_32b_rx_flex_desc_nic {
 	} flex_ts;
 };
 
+/* Rx Flex Descriptor NIC Profile
+ * RxDID Profile ID 6
+ * Flex-field 0: RSS hash lower 16-bits
+ * Flex-field 1: RSS hash upper 16-bits
+ * Flex-field 2: Flow ID lower 16-bits
+ * Flex-field 3: Source VSI
+ * Flex-field 4: reserved, VLAN ID taken from L2Tag
+ */
+struct ice_32b_rx_flex_desc_nic_2 {
+	/* Qword 0 */
+	u8 rxdid;
+	u8 mir_id_umb_cast;
+	__le16 ptype_flexi_flags0;
+	__le16 pkt_len;
+	__le16 hdr_len_sph_flex_flags1;
+
+	/* Qword 1 */
+	__le16 status_error0;
+	__le16 l2tag1;
+	__le32 rss_hash;
+
+	/* Qword 2 */
+	__le16 status_error1;
+	u8 flexi_flags2;
+	u8 ts_low;
+	__le16 l2tag2_1st;
+	__le16 l2tag2_2nd;
+
+	/* Qword 3 */
+	__le16 flow_id;
+	__le16 src_vsi;
+	union {
+		struct {
+			__le16 rsvd;
+			__le16 flow_id_ipv6;
+		} flex;
+		__le32 ts_high;
+	} flex_ts;
+};
+
 /* Receive Flex Descriptor profile IDs: There are a total
  * of 64 profiles where profile IDs 0/1 are for legacy; and
  * profiles 2-63 are flex profiles that can be programmed
@@ -199,6 +300,14 @@ enum ice_rxdid {
 /* Receive Flex Descriptor Rx opcode values */
 #define ICE_RX_OPC_MDID		0x01
 
+/* Receive Descriptor MDID values that access packet flags */
+enum ice_flex_mdid_pkt_flags {
+	ICE_RX_MDID_PKT_FLAGS_15_0	= 20,
+	ICE_RX_MDID_PKT_FLAGS_31_16,
+	ICE_RX_MDID_PKT_FLAGS_47_32,
+	ICE_RX_MDID_PKT_FLAGS_63_48,
+};
+
 /* Receive Descriptor MDID values */
 enum ice_flex_rx_mdid {
 	ICE_RX_MDID_FLOW_ID_LOWER	= 5,
@@ -211,7 +320,7 @@ enum ice_flex_rx_mdid {
 /* Rx/Tx Flag64 packet flag bits */
 enum ice_flg64_bits {
 	ICE_FLG_PKT_DSI		= 0,
-	ICE_FLG_EVLAN_x8100	= 15,
+	ICE_FLG_EVLAN_x8100	= 14,
 	ICE_FLG_EVLAN_x9100,
 	ICE_FLG_VLAN_x8100,
 	ICE_FLG_TNL_MAC		= 22,
@@ -252,6 +361,14 @@ enum ice_rx_flex_desc_status_error_0_bits {
 	ICE_RX_FLEX_DESC_STATUS0_XTRMD0_VALID_S,
 	ICE_RX_FLEX_DESC_STATUS0_XTRMD1_VALID_S,
 	ICE_RX_FLEX_DESC_STATUS0_LAST /* this entry must be last!!! */
+};
+
+enum ice_rx_flex_desc_status_error_1_bits {
+	/* Note: These are predefined bit offsets */
+	ICE_RX_FLEX_DESC_STATUS1_NAT_S = 4,
+	 /* [10:5] reserved */
+	ICE_RX_FLEX_DESC_STATUS1_L2TAG2P_S = 11,
+	ICE_RX_FLEX_DESC_STATUS1_LAST /* this entry must be last!!! */
 };
 
 #define ICE_RXQ_CTX_SIZE_DWORDS		8
@@ -302,7 +419,7 @@ struct ice_ctx_ele {
 
 #define ICE_CTX_STORE(_struct, _ele, _width, _lsb) {	\
 	.offset = offsetof(struct _struct, _ele),	\
-	.size_of = FIELD_SIZEOF(struct _struct, _ele),	\
+	.size_of = sizeof_field(struct _struct, _ele),	\
 	.width = _width,				\
 	.lsb = _lsb,					\
 }
@@ -332,6 +449,7 @@ struct ice_tx_desc {
 enum ice_tx_desc_dtype_value {
 	ICE_TX_DESC_DTYPE_DATA		= 0x0,
 	ICE_TX_DESC_DTYPE_CTX		= 0x1,
+	ICE_TX_DESC_DTYPE_FLTR_PROG	= 0x8,
 	/* DESC_DONE - HW has completed write-back of descriptor */
 	ICE_TX_DESC_DTYPE_DESC_DONE	= 0xF,
 };
@@ -343,12 +461,14 @@ enum ice_tx_desc_cmd_bits {
 	ICE_TX_DESC_CMD_EOP			= 0x0001,
 	ICE_TX_DESC_CMD_RS			= 0x0002,
 	ICE_TX_DESC_CMD_IL2TAG1			= 0x0008,
+	ICE_TX_DESC_CMD_DUMMY			= 0x0010,
 	ICE_TX_DESC_CMD_IIPT_IPV6		= 0x0020,
 	ICE_TX_DESC_CMD_IIPT_IPV4		= 0x0040,
 	ICE_TX_DESC_CMD_IIPT_IPV4_CSUM		= 0x0060,
 	ICE_TX_DESC_CMD_L4T_EOFT_TCP		= 0x0100,
 	ICE_TX_DESC_CMD_L4T_EOFT_SCTP		= 0x0200,
 	ICE_TX_DESC_CMD_L4T_EOFT_UDP		= 0x0300,
+	ICE_TX_DESC_CMD_RE			= 0x0400,
 };
 
 #define ICE_TXD_QW1_OFFSET_S	16
@@ -392,6 +512,10 @@ struct ice_tx_ctx_desc {
 			(0x3FFFFULL << ICE_TXD_CTX_QW1_TSO_LEN_S)
 
 #define ICE_TXD_CTX_QW1_MSS_S	50
+#define ICE_TXD_CTX_MIN_MSS	64
+
+#define ICE_TXD_CTX_QW1_VSI_S	50
+#define ICE_TXD_CTX_QW1_VSI_M	(0x3FFULL << ICE_TXD_CTX_QW1_VSI_S)
 
 enum ice_tx_ctx_desc_cmd_bits {
 	ICE_TX_CTX_DESC_TSO		= 0x01,
@@ -404,6 +528,25 @@ enum ice_tx_ctx_desc_cmd_bits {
 	ICE_TX_CTX_DESC_SWTCH_VSI	= 0x30,
 	ICE_TX_CTX_DESC_RESERVED	= 0x40
 };
+
+enum ice_tx_ctx_desc_eipt_offload {
+	ICE_TX_CTX_EIPT_NONE		= 0x0,
+	ICE_TX_CTX_EIPT_IPV6		= 0x1,
+	ICE_TX_CTX_EIPT_IPV4_NO_CSUM	= 0x2,
+	ICE_TX_CTX_EIPT_IPV4		= 0x3
+};
+
+#define ICE_TXD_CTX_QW0_EIPLEN_S	2
+
+#define ICE_TXD_CTX_QW0_L4TUNT_S	9
+
+#define ICE_TXD_CTX_UDP_TUNNELING	BIT_ULL(ICE_TXD_CTX_QW0_L4TUNT_S)
+#define ICE_TXD_CTX_GRE_TUNNELING	(0x2ULL << ICE_TXD_CTX_QW0_L4TUNT_S)
+
+#define ICE_TXD_CTX_QW0_NATLEN_S	12
+
+#define ICE_TXD_CTX_QW0_L4T_CS_S	23
+#define ICE_TXD_CTX_QW0_L4T_CS_M	BIT_ULL(ICE_TXD_CTX_QW0_L4T_CS_S)
 
 #define ICE_LAN_TXQ_MAX_QGRPS	127
 #define ICE_LAN_TXQ_MAX_QDIS	1023
@@ -447,51 +590,7 @@ struct ice_tlan_ctx {
 	u8 drop_ena;
 	u8 cache_prof_idx;
 	u8 pkt_shaper_prof_idx;
-	u8 int_q_state;	/* width not needed - internal do not write */
+	u8 int_q_state;	/* width not needed - internal - DO NOT WRITE!!! */
 };
-
-/* macro to make the table lines short */
-#define ICE_PTT(PTYPE, OUTER_IP, OUTER_IP_VER, OUTER_FRAG, T, TE, TEF, I, PL)\
-	{	PTYPE, \
-		1, \
-		ICE_RX_PTYPE_OUTER_##OUTER_IP, \
-		ICE_RX_PTYPE_OUTER_##OUTER_IP_VER, \
-		ICE_RX_PTYPE_##OUTER_FRAG, \
-		ICE_RX_PTYPE_TUNNEL_##T, \
-		ICE_RX_PTYPE_TUNNEL_END_##TE, \
-		ICE_RX_PTYPE_##TEF, \
-		ICE_RX_PTYPE_INNER_PROT_##I, \
-		ICE_RX_PTYPE_PAYLOAD_LAYER_##PL }
-
-#define ICE_PTT_UNUSED_ENTRY(PTYPE) { PTYPE, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
-
-/* shorter macros makes the table fit but are terse */
-#define ICE_RX_PTYPE_NOF		ICE_RX_PTYPE_NOT_FRAG
-
-/* Lookup table mapping the HW PTYPE to the bit field for decoding */
-static const struct ice_rx_ptype_decoded ice_ptype_lkup[] = {
-	/* L2 Packet types */
-	ICE_PTT_UNUSED_ENTRY(0),
-	ICE_PTT(1, L2, NONE, NOF, NONE, NONE, NOF, NONE, PAY2),
-	ICE_PTT(2, L2, NONE, NOF, NONE, NONE, NOF, NONE, NONE),
-};
-
-static inline struct ice_rx_ptype_decoded ice_decode_rx_desc_ptype(u16 ptype)
-{
-	return ice_ptype_lkup[ptype];
-}
-
-#define ICE_LINK_SPEED_UNKNOWN		0
-#define ICE_LINK_SPEED_10MBPS		10
-#define ICE_LINK_SPEED_100MBPS		100
-#define ICE_LINK_SPEED_1000MBPS		1000
-#define ICE_LINK_SPEED_2500MBPS		2500
-#define ICE_LINK_SPEED_5000MBPS		5000
-#define ICE_LINK_SPEED_10000MBPS	10000
-#define ICE_LINK_SPEED_20000MBPS	20000
-#define ICE_LINK_SPEED_25000MBPS	25000
-#define ICE_LINK_SPEED_40000MBPS	40000
-#define ICE_LINK_SPEED_50000MBPS	50000
-#define ICE_LINK_SPEED_100000MBPS	100000
 
 #endif /* _ICE_LAN_TX_RX_H_ */

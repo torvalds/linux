@@ -27,7 +27,6 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Sébastien Hinderer <Sebastien.Hinderer@ens-lyon.org>");
 MODULE_DESCRIPTION("A power_off handler for Iris devices from EuroBraille");
-MODULE_SUPPORTED_DEVICE("Eurobraille/Iris");
 
 static bool force;
 
@@ -63,11 +62,10 @@ static int iris_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int iris_remove(struct platform_device *pdev)
+static void iris_remove(struct platform_device *pdev)
 {
 	pm_power_off = old_pm_power_off;
 	printk(KERN_INFO "Iris power_off handler uninstalled.\n");
-	return 0;
 }
 
 static struct platform_driver iris_driver = {
@@ -75,7 +73,7 @@ static struct platform_driver iris_driver = {
 		.name   = "iris",
 	},
 	.probe          = iris_probe,
-	.remove         = iris_remove,
+	.remove_new     = iris_remove,
 };
 
 static struct resource iris_resources[] = {

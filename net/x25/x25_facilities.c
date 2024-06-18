@@ -98,7 +98,7 @@ int x25_parse_facilities(struct sk_buff *skb, struct x25_facilities *facilities,
 					*vc_fac_mask |= X25_MASK_REVERSE;
 					break;
 				}
-				/*fall through */
+				fallthrough;
 			case X25_FAC_THROUGHPUT:
 				facilities->throughput = p[1];
 				*vc_fac_mask |= X25_MASK_THROUGHPUT;
@@ -282,7 +282,7 @@ int x25_negotiate_facilities(struct sk_buff *skb, struct sock *sk,
 	 *	They want reverse charging, we won't accept it.
 	 */
 	if ((theirs.reverse & 0x01 ) && (ours->reverse & 0x01)) {
-		SOCK_DEBUG(sk, "X.25: rejecting reverse charging request\n");
+		net_dbg_ratelimited("X.25: rejecting reverse charging request\n");
 		return -1;
 	}
 
@@ -294,11 +294,11 @@ int x25_negotiate_facilities(struct sk_buff *skb, struct sock *sk,
 		int ours_in  = ours->throughput & 0x0f;
 		int ours_out = ours->throughput & 0xf0;
 		if (!ours_in || theirs_in < ours_in) {
-			SOCK_DEBUG(sk, "X.25: inbound throughput negotiated\n");
+			net_dbg_ratelimited("X.25: inbound throughput negotiated\n");
 			new->throughput = (new->throughput & 0xf0) | theirs_in;
 		}
 		if (!ours_out || theirs_out < ours_out) {
-			SOCK_DEBUG(sk,
+			net_dbg_ratelimited(
 				"X.25: outbound throughput negotiated\n");
 			new->throughput = (new->throughput & 0x0f) | theirs_out;
 		}
@@ -306,22 +306,22 @@ int x25_negotiate_facilities(struct sk_buff *skb, struct sock *sk,
 
 	if (theirs.pacsize_in && theirs.pacsize_out) {
 		if (theirs.pacsize_in < ours->pacsize_in) {
-			SOCK_DEBUG(sk, "X.25: packet size inwards negotiated down\n");
+			net_dbg_ratelimited("X.25: packet size inwards negotiated down\n");
 			new->pacsize_in = theirs.pacsize_in;
 		}
 		if (theirs.pacsize_out < ours->pacsize_out) {
-			SOCK_DEBUG(sk, "X.25: packet size outwards negotiated down\n");
+			net_dbg_ratelimited("X.25: packet size outwards negotiated down\n");
 			new->pacsize_out = theirs.pacsize_out;
 		}
 	}
 
 	if (theirs.winsize_in && theirs.winsize_out) {
 		if (theirs.winsize_in < ours->winsize_in) {
-			SOCK_DEBUG(sk, "X.25: window size inwards negotiated down\n");
+			net_dbg_ratelimited("X.25: window size inwards negotiated down\n");
 			new->winsize_in = theirs.winsize_in;
 		}
 		if (theirs.winsize_out < ours->winsize_out) {
-			SOCK_DEBUG(sk, "X.25: window size outwards negotiated down\n");
+			net_dbg_ratelimited("X.25: window size outwards negotiated down\n");
 			new->winsize_out = theirs.winsize_out;
 		}
 	}

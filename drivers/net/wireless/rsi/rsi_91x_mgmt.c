@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2014 Redpine Signals Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -276,7 +276,7 @@ static void rsi_set_default_parameters(struct rsi_common *common)
 	common->channel_width = BW_20MHZ;
 	common->rts_threshold = IEEE80211_MAX_RTS_THRESHOLD;
 	common->channel = 1;
-	common->min_rate = 0xffff;
+	memset(&common->rate_config, 0, sizeof(common->rate_config));
 	common->fsm_state = FSM_CARD_NOT_READY;
 	common->iface_down = true;
 	common->endpoint = EP_2GHZ_20MHZ;
@@ -477,7 +477,6 @@ static int rsi_load_radio_caps(struct rsi_common *common)
  * @common: Pointer to the driver private structure.
  * @msg: Pointer to received packet.
  * @msg_len: Length of the received packet.
- * @type: Type of received packet.
  *
  * Return: 0 on success, -1 on failure.
  */
@@ -528,6 +527,8 @@ static int rsi_mgmt_pkt_to_core(struct rsi_common *common,
  * @bssid: bssid.
  * @qos_enable: Qos is enabled.
  * @aid: Aid (unique for all STA).
+ * @sta_id: station id.
+ * @vif: Pointer to the ieee80211_vif structure.
  *
  * Return: status: 0 on success, corresponding negative error code on failure.
  */
@@ -603,6 +604,7 @@ int rsi_hal_send_sta_notify_frame(struct rsi_common *common, enum opmode opmode,
  * @ssn: ssn.
  * @buf_size: buffer size.
  * @event: notification about station connection.
+ * @sta_id: station id.
  *
  * Return: 0 on success, corresponding negative error code on failure.
  */
@@ -699,7 +701,10 @@ static int rsi_program_bb_rf(struct rsi_common *common)
 /**
  * rsi_set_vap_capabilities() - This function send vap capability to firmware.
  * @common: Pointer to the driver private structure.
- * @opmode: Operating mode of device.
+ * @mode: Operating mode of device.
+ * @mac_addr: MAC address
+ * @vap_id: Rate information - offset and mask
+ * @vap_status: VAP status - ADD, DELETE or UPDATE
  *
  * Return: 0 on success, corresponding negative error code on failure.
  */
@@ -780,6 +785,8 @@ int rsi_set_vap_capabilities(struct rsi_common *common,
  * @key_type: Type of key: GROUP/PAIRWISE.
  * @key_id: Key index.
  * @cipher: Type of cipher used.
+ * @sta_id: Station id.
+ * @vif: Pointer to the ieee80211_vif structure.
  *
  * Return: 0 on success, -1 on failure.
  */
@@ -1045,6 +1052,7 @@ static int rsi_send_reset_mac(struct rsi_common *common)
 /**
  * rsi_band_check() - This function programs the band
  * @common: Pointer to the driver private structure.
+ * @curchan: Pointer to the current channel structure.
  *
  * Return: 0 on success, corresponding error code on failure.
  */
@@ -1119,6 +1127,9 @@ int rsi_set_channel(struct rsi_common *common,
 	rsi_dbg(MGMT_TX_ZONE,
 		"%s: Sending scan req frame\n", __func__);
 
+	if (!channel)
+		return 0;
+
 	skb = dev_alloc_skb(frame_len);
 	if (!skb) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
@@ -1126,10 +1137,6 @@ int rsi_set_channel(struct rsi_common *common,
 		return -ENOMEM;
 	}
 
-	if (!channel) {
-		dev_kfree_skb(skb);
-		return 0;
-	}
 	memset(skb->data, 0, frame_len);
 	chan_cfg = (struct rsi_chan_config *)skb->data;
 
@@ -1165,7 +1172,6 @@ int rsi_set_channel(struct rsi_common *common,
  * rsi_send_radio_params_update() - This function sends the radio
  *				parameters update to device
  * @common: Pointer to the driver private structure.
- * @channel: Channel value to be set.
  *
  * Return: 0 on success, corresponding error code on failure.
  */
@@ -1289,6 +1295,9 @@ static bool rsi_map_rates(u16 rate, int *offset)
  * rsi_send_auto_rate_request() - This function is to set rates for connection
  *				  and send autorate request to firmware.
  * @common: Pointer to the driver private structure.
+ * @sta: mac80211 station.
+ * @sta_id: station id.
+ * @vif: Pointer to the ieee80211_vif structure.
  *
  * Return: 0 on success, corresponding error code on failure.
  */
@@ -1304,7 +1313,7 @@ static int rsi_send_auto_rate_request(struct rsi_common *common,
 	u8 band = hw->conf.chandef.chan->band;
 	u8 num_supported_rates = 0;
 	u8 rate_table_offset, rate_offset = 0;
-	u32 rate_bitmap;
+	u32 rate_bitmap, configured_rates;
 	u16 *selected_rates, min_rate;
 	bool is_ht = false, is_sgi = false;
 	u16 frame_len = sizeof(struct rsi_auto_rate);
@@ -1347,12 +1356,16 @@ static int rsi_send_auto_rate_request(struct rsi_common *common,
 		is_ht = common->vif_info[0].is_ht;
 		is_sgi = common->vif_info[0].sgi;
 	} else {
-		rate_bitmap = sta->supp_rates[band];
-		is_ht = sta->ht_cap.ht_supported;
-		if ((sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_20) ||
-		    (sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_40))
+		rate_bitmap = sta->deflink.supp_rates[band];
+		is_ht = sta->deflink.ht_cap.ht_supported;
+		if ((sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SGI_20) ||
+		    (sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SGI_40))
 			is_sgi = true;
 	}
+
+	/* Limit to any rates administratively configured by cfg80211 */
+	configured_rates = common->rate_config[band].configured_mask ?: 0xffffffff;
+	rate_bitmap &= configured_rates;
 
 	if (band == NL80211_BAND_2GHZ) {
 		if ((rate_bitmap == 0) && (is_ht))
@@ -1379,10 +1392,13 @@ static int rsi_send_auto_rate_request(struct rsi_common *common,
 	num_supported_rates = jj;
 
 	if (is_ht) {
-		for (ii = 0; ii < ARRAY_SIZE(mcs); ii++)
-			selected_rates[jj++] = mcs[ii];
-		num_supported_rates += ARRAY_SIZE(mcs);
-		rate_offset += ARRAY_SIZE(mcs);
+		for (ii = 0; ii < ARRAY_SIZE(mcs); ii++) {
+			if (configured_rates & BIT(ii + ARRAY_SIZE(rsi_rates))) {
+				selected_rates[jj++] = mcs[ii];
+				num_supported_rates++;
+				rate_offset++;
+			}
+		}
 	}
 
 	sort(selected_rates, jj, sizeof(u16), &rsi_compare, NULL);
@@ -1439,10 +1455,15 @@ static int rsi_send_auto_rate_request(struct rsi_common *common,
  *			     help of sta notify params by sending an internal
  *			     management frame to firmware.
  * @common: Pointer to the driver private structure.
+ * @opmode: Operating mode of device.
  * @status: Bss status type.
- * @bssid: Bssid.
+ * @addr: Address of the register.
  * @qos_enable: Qos is enabled.
  * @aid: Aid (unique for all STAs).
+ * @sta: mac80211 station.
+ * @sta_id: station id.
+ * @assoc_cap: capabilities.
+ * @vif: Pointer to the ieee80211_vif structure.
  *
  * Return: None.
  */
@@ -1467,7 +1488,7 @@ void rsi_inform_bss_status(struct rsi_common *common,
 					      qos_enable,
 					      aid, sta_id,
 					      vif);
-		if (common->min_rate == 0xffff)
+		if (!common->rate_config[common->band].fixed_enabled)
 			rsi_send_auto_rate_request(common, sta, sta_id, vif);
 		if (opmode == RSI_OPMODE_STA &&
 		    !(assoc_cap & WLAN_CAPABILITY_PRIVACY) &&
@@ -1532,12 +1553,12 @@ static int rsi_eeprom_read(struct rsi_common *common)
 }
 
 /**
- * This function sends a frame to block/unblock
- * data queues in the firmware
+ * rsi_send_block_unblock_frame() - This function sends a frame to block/unblock
+ *                                  data queues in the firmware
  *
- * @param common Pointer to the driver private structure.
- * @param block event - block if true, unblock if false
- * @return 0 on success, -1 on failure.
+ * @common: Pointer to the driver private structure.
+ * @block_event: Event block if true, unblock if false
+ * returns 0 on success, -1 on failure.
  */
 int rsi_send_block_unblock_frame(struct rsi_common *common, bool block_event)
 {
@@ -1581,7 +1602,7 @@ int rsi_send_block_unblock_frame(struct rsi_common *common, bool block_event)
  * @common: Pointer to the driver private structure.
  * @rx_filter_word: Flags of filter packets
  *
- * @Return: 0 on success, -1 on failure.
+ * Returns 0 on success, -1 on failure.
  */
 int rsi_send_rx_filter_frame(struct rsi_common *common, u16 rx_filter_word)
 {
@@ -1613,7 +1634,6 @@ int rsi_send_ps_request(struct rsi_hw *adapter, bool enable,
 			struct ieee80211_vif *vif)
 {
 	struct rsi_common *common = adapter->priv;
-	struct ieee80211_bss_conf *bss = &vif->bss_conf;
 	struct rsi_request_ps *ps;
 	struct rsi_ps_info *ps_info;
 	struct sk_buff *skb;
@@ -1647,7 +1667,7 @@ int rsi_send_ps_request(struct rsi_hw *adapter, bool enable,
 	ps->ps_sleep.sleep_duration =
 		cpu_to_le32(ps_info->deep_sleep_wakeup_period);
 
-	if (bss->assoc)
+	if (vif->cfg.assoc)
 		ps->ps_sleep.connected_sleep = RSI_CONNECTED_SLEEP;
 	else
 		ps->ps_sleep.connected_sleep = RSI_DEEP_SLEEP;
@@ -1756,6 +1776,7 @@ static int rsi_send_beacon(struct rsi_common *common)
 		skb_pull(skb, (64 - dword_align_bytes));
 	if (rsi_prepare_beacon(common, skb)) {
 		rsi_dbg(ERR_ZONE, "Failed to prepare beacon\n");
+		dev_kfree_skb(skb);
 		return -EINVAL;
 	}
 	skb_queue_tail(&common->tx_queue[MGMT_BEACON_Q], skb);
@@ -1787,8 +1808,7 @@ int rsi_send_wowlan_request(struct rsi_common *common, u16 flags,
 			RSI_WIFI_MGMT_Q);
 	cmd_frame->desc.desc_dword0.frame_type = WOWLAN_CONFIG_PARAMS;
 	cmd_frame->host_sleep_status = sleep_status;
-	if (common->secinfo.security_enable &&
-	    common->secinfo.gtk_cipher)
+	if (common->secinfo.gtk_cipher)
 		flags |= RSI_WOW_GTK_REKEY;
 	if (sleep_status)
 		cmd_frame->wow_flags = flags;
@@ -2056,6 +2076,9 @@ static int rsi_handle_ta_confirm_type(struct rsi_common *common,
 				if (common->reinit_hw) {
 					complete(&common->wlan_init_completion);
 				} else {
+					if (common->bt_defer_attach)
+						rsi_attach_bt(common);
+
 					return rsi_mac80211_attach(common);
 				}
 			}

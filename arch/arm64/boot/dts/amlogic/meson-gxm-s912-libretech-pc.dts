@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (c) 2019 BayLibre SAS. All rights reserved.
+ * Author: Jerome Brunet <jbrunet@baylibre.com>
+ */
+
+/dts-v1/;
+
+#include "meson-gxm.dtsi"
+#include "meson-gx-libretech-pc.dtsi"
+
+/ {
+	compatible = "libretech,aml-s912-pc", "amlogic,s912",
+		     "amlogic,meson-gxm";
+	model = "Libre Computer AML-S912-PC";
+
+	typec2_vbus: regulator-typec2-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "TYPEC2_VBUS";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&vcc5v>;
+
+		gpio = <&gpio GPIODV_1 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+};
+
+&pinctrl_periphs {
+	/*
+	 * Make sure the irq pin of the TYPE C controller is not driven
+	 * by the SoC.
+	 */
+	fusb302_irq_pins: fusb302_irq {
+		mux {
+			groups = "GPIODV_0";
+			function = "gpio_periphs";
+			bias-pull-up;
+			output-disable;
+		};
+	};
+};
+
+&i2c_C {
+	fusb302@22 {
+		compatible = "fcs,fusb302";
+		reg = <0x22>;
+
+		pinctrl-0 = <&fusb302_irq_pins>;
+		pinctrl-names = "default";
+		interrupt-parent = <&gpio_intc>;
+		interrupts = <59 IRQ_TYPE_LEVEL_LOW>;
+
+		vbus-supply = <&typec2_vbus>;
+
+		status = "okay";
+
+		connector {
+			compatible = "usb-c-connector";
+		};
+	};
+};
+
+&usb2_phy2 {
+	phy-supply = <&typec2_vbus>;
+};

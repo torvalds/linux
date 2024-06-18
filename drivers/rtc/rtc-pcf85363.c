@@ -15,7 +15,6 @@
 #include <linux/errno.h>
 #include <linux/bcd.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/regmap.h>
 
 /*
@@ -101,6 +100,10 @@
 #define PIN_IO_INTA_OUT	2
 #define PIN_IO_INTA_HIZ	3
 
+#define OSC_CAP_SEL	GENMASK(1, 0)
+#define OSC_CAP_6000	0x01
+#define OSC_CAP_12500	0x02
+
 #define STOP_EN_STOP	BIT(0)
 
 #define RESET_CPR	0xa4
@@ -116,6 +119,32 @@ struct pcf85x63_config {
 	struct regmap_config regmap;
 	unsigned int num_nvram;
 };
+
+static int pcf85363_load_capacitance(struct pcf85363 *pcf85363, struct device_node *node)
+{
+	u32 load = 7000;
+	u8 value = 0;
+
+	of_property_read_u32(node, "quartz-load-femtofarads", &load);
+
+	switch (load) {
+	default:
+		dev_warn(&pcf85363->rtc->dev, "Unknown quartz-load-femtofarads value: %d. Assuming 7000",
+			 load);
+		fallthrough;
+	case 7000:
+		break;
+	case 6000:
+		value = OSC_CAP_6000;
+		break;
+	case 12500:
+		value = OSC_CAP_12500;
+		break;
+	}
+
+	return regmap_update_bits(pcf85363->regmap, CTRL_OSCILLATOR,
+				  OSC_CAP_SEL, value);
+}
 
 static int pcf85363_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
@@ -285,11 +314,6 @@ static irqreturn_t pcf85363_rtc_handle_irq(int irq, void *dev_id)
 static const struct rtc_class_ops rtc_ops = {
 	.read_time	= pcf85363_rtc_read_time,
 	.set_time	= pcf85363_rtc_set_time,
-};
-
-static const struct rtc_class_ops rtc_ops_alarm = {
-	.read_time	= pcf85363_rtc_read_time,
-	.set_time	= pcf85363_rtc_set_time,
 	.read_alarm	= pcf85363_rtc_read_alarm,
 	.set_alarm	= pcf85363_rtc_set_alarm,
 	.alarm_irq_enable = pcf85363_rtc_alarm_irq_enable,
@@ -355,8 +379,7 @@ static const struct pcf85x63_config pcf_85363_config = {
 	.num_nvram = 2
 };
 
-static int pcf85363_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int pcf85363_probe(struct i2c_client *client)
 {
 	struct pcf85363 *pcf85363;
 	const struct pcf85x63_config *config = &pcf_85363_config;
@@ -378,7 +401,8 @@ static int pcf85363_probe(struct i2c_client *client,
 			.reg_write = pcf85363_nvram_write,
 		},
 	};
-	int ret, i;
+	int ret, i, err;
+	bool wakeup_source;
 
 	if (data)
 		config = data;
@@ -400,35 +424,57 @@ static int pcf85363_probe(struct i2c_client *client,
 	if (IS_ERR(pcf85363->rtc))
 		return PTR_ERR(pcf85363->rtc);
 
+	err = pcf85363_load_capacitance(pcf85363, client->dev.of_node);
+	if (err < 0)
+		dev_warn(&client->dev, "failed to set xtal load capacitance: %d",
+			 err);
+
 	pcf85363->rtc->ops = &rtc_ops;
 	pcf85363->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	pcf85363->rtc->range_max = RTC_TIMESTAMP_END_2099;
 
-	if (client->irq > 0) {
+	wakeup_source = device_property_read_bool(&client->dev,
+						  "wakeup-source");
+	if (client->irq > 0 || wakeup_source) {
 		regmap_write(pcf85363->regmap, CTRL_FLAGS, 0);
 		regmap_update_bits(pcf85363->regmap, CTRL_PIN_IO,
-				   PIN_IO_INTA_OUT, PIN_IO_INTAPM);
-		ret = devm_request_threaded_irq(&client->dev, client->irq,
-						NULL, pcf85363_rtc_handle_irq,
-						IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-						"pcf85363", client);
-		if (ret)
-			dev_warn(&client->dev, "unable to request IRQ, alarms disabled\n");
-		else
-			pcf85363->rtc->ops = &rtc_ops_alarm;
+				   PIN_IO_INTAPM, PIN_IO_INTA_OUT);
 	}
 
-	ret = rtc_register_device(pcf85363->rtc);
+	if (client->irq > 0) {
+		unsigned long irqflags = IRQF_TRIGGER_LOW;
+
+		if (dev_fwnode(&client->dev))
+			irqflags = 0;
+		ret = devm_request_threaded_irq(&client->dev, client->irq,
+						NULL, pcf85363_rtc_handle_irq,
+						irqflags | IRQF_ONESHOT,
+						"pcf85363", client);
+		if (ret) {
+			dev_warn(&client->dev,
+				 "unable to request IRQ, alarms disabled\n");
+			client->irq = 0;
+		}
+	}
+
+	if (client->irq > 0 || wakeup_source) {
+		device_init_wakeup(&client->dev, true);
+		set_bit(RTC_FEATURE_ALARM, pcf85363->rtc->features);
+	} else {
+		clear_bit(RTC_FEATURE_ALARM, pcf85363->rtc->features);
+	}
+
+	ret = devm_rtc_register_device(pcf85363->rtc);
 
 	for (i = 0; i < config->num_nvram; i++) {
 		nvmem_cfg[i].priv = pcf85363;
-		rtc_nvmem_register(pcf85363->rtc, &nvmem_cfg[i]);
+		devm_rtc_nvmem_register(pcf85363->rtc, &nvmem_cfg[i]);
 	}
 
 	return ret;
 }
 
-static const struct of_device_id dev_ids[] = {
+static const __maybe_unused struct of_device_id dev_ids[] = {
 	{ .compatible = "nxp,pcf85263", .data = &pcf_85263_config },
 	{ .compatible = "nxp,pcf85363", .data = &pcf_85363_config },
 	{ /* sentinel */ }
@@ -440,7 +486,7 @@ static struct i2c_driver pcf85363_driver = {
 		.name	= "pcf85363",
 		.of_match_table = of_match_ptr(dev_ids),
 	},
-	.probe	= pcf85363_probe,
+	.probe = pcf85363_probe,
 };
 
 module_i2c_driver(pcf85363_driver);

@@ -28,7 +28,7 @@ struct latency_info {
 static struct latency_info li;
 static struct dentry *dir;
 
-static int show_latency(struct seq_file *m, void *v)
+static int oct_ilm_show(struct seq_file *m, void *v)
 {
 	u64 cpuclk, avg, max, min;
 	struct latency_info curr_li = li;
@@ -43,18 +43,7 @@ static int show_latency(struct seq_file *m, void *v)
 		   curr_li.interrupt_cnt, avg, max, min);
 	return 0;
 }
-
-static int oct_ilm_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, show_latency, NULL);
-}
-
-static const struct file_operations oct_ilm_ops = {
-	.open = oct_ilm_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(oct_ilm);
 
 static int reset_statistics(void *data, u64 value)
 {
@@ -62,12 +51,12 @@ static int reset_statistics(void *data, u64 value)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(reset_statistics_ops, NULL, reset_statistics, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(reset_statistics_ops, NULL, reset_statistics, "%llu\n");
 
 static void init_debugfs(void)
 {
 	dir = debugfs_create_dir("oct_ilm", 0);
-	debugfs_create_file("statistics", 0222, dir, NULL, &oct_ilm_ops);
+	debugfs_create_file("statistics", 0222, dir, NULL, &oct_ilm_fops);
 	debugfs_create_file("reset", 0222, dir, NULL, &reset_statistics_ops);
 }
 

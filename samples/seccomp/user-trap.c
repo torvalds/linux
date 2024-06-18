@@ -33,6 +33,7 @@ static int send_fd(int sock, int fd)
 {
 	struct msghdr msg = {};
 	struct cmsghdr *cmsg;
+	int *fd_ptr;
 	char buf[CMSG_SPACE(sizeof(int))] = {0}, c = 'c';
 	struct iovec io = {
 		.iov_base = &c,
@@ -47,7 +48,8 @@ static int send_fd(int sock, int fd)
 	cmsg->cmsg_level = SOL_SOCKET;
 	cmsg->cmsg_type = SCM_RIGHTS;
 	cmsg->cmsg_len = CMSG_LEN(sizeof(int));
-	*((int *)CMSG_DATA(cmsg)) = fd;
+	fd_ptr = (int *)CMSG_DATA(cmsg);
+	*fd_ptr = fd;
 	msg.msg_controllen = cmsg->cmsg_len;
 
 	if (sendmsg(sock, &msg, 0) < 0) {
@@ -62,6 +64,7 @@ static int recv_fd(int sock)
 {
 	struct msghdr msg = {};
 	struct cmsghdr *cmsg;
+	int *fd_ptr;
 	char buf[CMSG_SPACE(sizeof(int))] = {0}, c = 'c';
 	struct iovec io = {
 		.iov_base = &c,
@@ -79,8 +82,9 @@ static int recv_fd(int sock)
 	}
 
 	cmsg = CMSG_FIRSTHDR(&msg);
+	fd_ptr = (int *)CMSG_DATA(cmsg);
 
-	return *((int *)CMSG_DATA(cmsg));
+	return *fd_ptr;
 }
 
 static int user_trap_syscall(int nr, unsigned int flags)
@@ -298,14 +302,14 @@ int main(void)
 		req = malloc(sizes.seccomp_notif);
 		if (!req)
 			goto out_close;
-		memset(req, 0, sizeof(*req));
 
 		resp = malloc(sizes.seccomp_notif_resp);
 		if (!resp)
 			goto out_req;
-		memset(resp, 0, sizeof(*resp));
+		memset(resp, 0, sizes.seccomp_notif_resp);
 
 		while (1) {
+			memset(req, 0, sizes.seccomp_notif);
 			if (ioctl(listener, SECCOMP_IOCTL_NOTIF_RECV, req)) {
 				perror("ioctl recv");
 				goto out_resp;

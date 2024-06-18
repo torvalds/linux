@@ -269,7 +269,7 @@ void ubifs_add_to_cat(struct ubifs_info *c, struct ubifs_lprops *lprops,
 			break;
 		/* No more room on heap so make it un-categorized */
 		cat = LPROPS_UNCAT;
-		/* Fall through */
+		fallthrough;
 	case LPROPS_UNCAT:
 		list_add(&lprops->list, &c->uncat_list);
 		break;
@@ -313,7 +313,7 @@ static void ubifs_remove_from_cat(struct ubifs_info *c,
 	case LPROPS_FREEABLE:
 		c->freeable_cnt -= 1;
 		ubifs_assert(c, c->freeable_cnt >= 0);
-		/* Fall through */
+		fallthrough;
 	case LPROPS_UNCAT:
 	case LPROPS_EMPTY:
 	case LPROPS_FRDI_IDX:
@@ -1014,8 +1014,9 @@ out:
  */
 static int scan_check_cb(struct ubifs_info *c,
 			 const struct ubifs_lprops *lp, int in_tree,
-			 struct ubifs_lp_stats *lst)
+			 void *arg)
 {
+	struct ubifs_lp_stats *lst = arg;
 	struct ubifs_scan_leb *sleb;
 	struct ubifs_scan_node *snod;
 	int cat, lnum = lp->lnum, is_idx = 0, used = 0, free, dirty, ret;
@@ -1095,7 +1096,7 @@ static int scan_check_cb(struct ubifs_info *c,
 		return LPT_SCAN_CONTINUE;
 	}
 
-	buf = __vmalloc(c->leb_size, GFP_NOFS, PAGE_KERNEL);
+	buf = __vmalloc(c->leb_size, GFP_NOFS);
 	if (!buf)
 		return -ENOMEM;
 
@@ -1269,8 +1270,7 @@ int dbg_check_lprops(struct ubifs_info *c)
 
 	memset(&lst, 0, sizeof(struct ubifs_lp_stats));
 	err = ubifs_lpt_scan_nolock(c, c->main_first, c->leb_cnt - 1,
-				    (ubifs_lpt_scan_callback)scan_check_cb,
-				    &lst);
+				    scan_check_cb, &lst);
 	if (err && err != -ENOSPC)
 		goto out;
 

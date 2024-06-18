@@ -1,20 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Texas Instruments' Palmas Power Button Input Driver
  *
  * Copyright (C) 2012-2014 Texas Instruments Incorporated - http://www.ti.com/
  *	Girish S Ghongdemath
  *	Nishanth Menon
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
+#include <linux/bitfield.h>
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
@@ -115,8 +108,8 @@ static void palmas_pwron_params_ofinit(struct device *dev,
 	struct device_node *np;
 	u32 val;
 	int i, error;
-	u8 lpk_times[] = { 6, 8, 10, 12 };
-	int pwr_on_deb_ms[] = { 15, 100, 500, 1000 };
+	static const u8 lpk_times[] = { 6, 8, 10, 12 };
+	static const int pwr_on_deb_ms[] = { 15, 100, 500, 1000 };
 
 	memset(config, 0, sizeof(*config));
 
@@ -192,8 +185,8 @@ static int palmas_pwron_probe(struct platform_device *pdev)
 	 * Setup default hardware shutdown option (long key press)
 	 * and debounce.
 	 */
-	val = config.long_press_time_val << __ffs(PALMAS_LPK_TIME_MASK);
-	val |= config.pwron_debounce_val << __ffs(PALMAS_PWRON_DEBOUNCE_MASK);
+	val = FIELD_PREP(PALMAS_LPK_TIME_MASK, config.long_press_time_val) |
+	      FIELD_PREP(PALMAS_PWRON_DEBOUNCE_MASK, config.pwron_debounce_val);
 	error = palmas_update_bits(palmas, PALMAS_PMU_CONTROL_BASE,
 				   PALMAS_LONG_PRESS_KEY,
 				   PALMAS_LPK_TIME_MASK |
@@ -210,6 +203,11 @@ static int palmas_pwron_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&pwron->input_work, palmas_power_button_work);
 
 	pwron->irq = platform_get_irq(pdev, 0);
+	if (pwron->irq < 0) {
+		error = pwron->irq;
+		goto err_free_input;
+	}
+
 	error = request_threaded_irq(pwron->irq, NULL, pwron_irq,
 				     IRQF_TRIGGER_HIGH |
 					IRQF_TRIGGER_LOW |
@@ -247,7 +245,7 @@ err_free_mem:
  *
  * Return: 0
  */
-static int palmas_pwron_remove(struct platform_device *pdev)
+static void palmas_pwron_remove(struct platform_device *pdev)
 {
 	struct palmas_pwron *pwron = platform_get_drvdata(pdev);
 
@@ -256,8 +254,6 @@ static int palmas_pwron_remove(struct platform_device *pdev)
 
 	input_unregister_device(pwron->input_dev);
 	kfree(pwron);
-
-	return 0;
 }
 
 /**
@@ -268,7 +264,7 @@ static int palmas_pwron_remove(struct platform_device *pdev)
  *
  * Return: 0
  */
-static int __maybe_unused palmas_pwron_suspend(struct device *dev)
+static int palmas_pwron_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct palmas_pwron *pwron = platform_get_drvdata(pdev);
@@ -289,7 +285,7 @@ static int __maybe_unused palmas_pwron_suspend(struct device *dev)
  *
  * Return: 0
  */
-static int __maybe_unused palmas_pwron_resume(struct device *dev)
+static int palmas_pwron_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct palmas_pwron *pwron = platform_get_drvdata(pdev);
@@ -300,8 +296,8 @@ static int __maybe_unused palmas_pwron_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(palmas_pwron_pm,
-			 palmas_pwron_suspend, palmas_pwron_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(palmas_pwron_pm,
+				palmas_pwron_suspend, palmas_pwron_resume);
 
 #ifdef CONFIG_OF
 static const struct of_device_id of_palmas_pwr_match[] = {
@@ -314,11 +310,11 @@ MODULE_DEVICE_TABLE(of, of_palmas_pwr_match);
 
 static struct platform_driver palmas_pwron_driver = {
 	.probe	= palmas_pwron_probe,
-	.remove	= palmas_pwron_remove,
+	.remove_new = palmas_pwron_remove,
 	.driver	= {
 		.name	= "palmas_pwrbutton",
 		.of_match_table = of_match_ptr(of_palmas_pwr_match),
-		.pm	= &palmas_pwron_pm,
+		.pm	= pm_sleep_ptr(&palmas_pwron_pm),
 	},
 };
 module_platform_driver(palmas_pwron_driver);

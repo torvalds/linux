@@ -11,11 +11,11 @@
  * Actually, the following platforms have DIO support:
  *
  * TS-5500:
- *   Documentation: http://wiki.embeddedarm.com/wiki/TS-5500
+ *   Documentation: https://docs.embeddedts.com/TS-5500
  *   Blocks: DIO1, DIO2 and LCD port.
  *
  * TS-5600:
- *   Documentation: http://wiki.embeddedarm.com/wiki/TS-5600
+ *   Documentation: https://docs.embeddedts.com/TS-5600
  *   Blocks: LCD port (identical to TS-5500 LCD).
  */
 
@@ -317,22 +317,19 @@ static int ts5500_dio_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	const char *name = dev_name(dev);
 	struct ts5500_priv *priv;
-	struct resource *res;
 	unsigned long flags;
 	int ret;
 
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res) {
-		dev_err(dev, "missing IRQ resource\n");
-		return -EINVAL;
-	}
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0)
+		return ret;
 
 	priv = devm_kzalloc(dev, sizeof(struct ts5500_priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, priv);
-	priv->hwirq = res->start;
+	priv->hwirq = ret;
 	spin_lock_init(&priv->lock);
 
 	priv->gpio_chip.owner = THIS_MODULE;
@@ -415,13 +412,11 @@ static int ts5500_dio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ts5500_dio_remove(struct platform_device *pdev)
+static void ts5500_dio_remove(struct platform_device *pdev)
 {
 	struct ts5500_priv *priv = platform_get_drvdata(pdev);
 
 	ts5500_disable_irq(priv);
-
-	return 0;
 }
 
 static const struct platform_device_id ts5500_dio_ids[] = {
@@ -438,7 +433,7 @@ static struct platform_driver ts5500_dio_driver = {
 		.name = "ts5500-dio",
 	},
 	.probe = ts5500_dio_probe,
-	.remove = ts5500_dio_remove,
+	.remove_new = ts5500_dio_remove,
 	.id_table = ts5500_dio_ids,
 };
 

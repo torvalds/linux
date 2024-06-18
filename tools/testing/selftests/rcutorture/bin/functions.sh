@@ -12,7 +12,7 @@
 # Returns 1 if the specified boot-parameter string tells rcutorture to
 # test CPU-hotplug operations.
 bootparam_hotplug_cpu () {
-	echo "$1" | grep -q "rcutorture\.onoff_"
+	echo "$1" | grep -q "torture\.onoff_"
 }
 
 # checkarg --argname argtype $# arg mustmatch cannotmatch
@@ -45,7 +45,7 @@ checkarg () {
 configfrag_boot_params () {
 	if test -r "$2.boot"
 	then
-		echo $1 `grep -v '^#' "$2.boot" | tr '\012' ' '`
+		echo `grep -v '^#' "$2.boot" | tr '\012' ' '` $1
 	else
 		echo $1
 	fi
@@ -108,6 +108,39 @@ configfrag_hotplug_cpu () {
 	grep -q '^CONFIG_HOTPLUG_CPU=y$' "$1"
 }
 
+# get_starttime
+#
+# Returns a cookie identifying the current time.
+get_starttime () {
+	awk 'BEGIN { print systime() }' < /dev/null
+}
+
+# get_starttime_duration starttime
+#
+# Given the return value from get_starttime, compute a human-readable
+# string denoting the time since get_starttime.
+get_starttime_duration () {
+	awk -v starttime=$1 '
+	BEGIN {
+		ts = systime() - starttime; 
+		tm = int(ts / 60);
+		th = int(ts / 3600);
+		td = int(ts / 86400);
+		d = td;
+		h = th - td * 24;
+		m = tm - th * 60;
+		s = ts - tm * 60;
+		if (d >= 1)
+			printf "%dd %d:%02d:%02d\n", d, h, m, s
+		else if (h >= 1)
+			printf "%d:%02d:%02d\n", h, m, s
+		else if (m >= 1)
+			printf "%d:%02d.0\n", m, s
+		else
+			print s " seconds"
+	}' < /dev/null
+}
+
 # identify_boot_image qemu-cmd
 #
 # Returns the relative path to the kernel build image.  This will be
@@ -125,6 +158,9 @@ identify_boot_image () {
 			;;
 		qemu-system-aarch64)
 			echo arch/arm64/boot/Image
+			;;
+		qemu-system-s390x)
+			echo arch/s390/boot/bzImage
 			;;
 		*)
 			echo vmlinux
@@ -151,6 +187,9 @@ identify_qemu () {
 	elif echo $u | grep -q aarch64
 	then
 		echo qemu-system-aarch64
+	elif echo $u | grep -q 'IBM S/390'
+	then
+		echo qemu-system-s390x
 	elif uname -a | grep -q ppc64
 	then
 		echo qemu-system-ppc64
@@ -169,6 +208,8 @@ identify_qemu () {
 # Output arguments for the qemu "-append" string based on CPU type
 # and the TORTURE_QEMU_INTERACTIVE environment variable.
 identify_qemu_append () {
+	echo debug_boot_weak_hash
+	echo panic=-1
 	local console=ttyS0
 	case "$1" in
 	qemu-system-x86_64|qemu-system-i386)
@@ -209,15 +250,12 @@ identify_qemu_args () {
 		echo -machine virt,gic-version=host -cpu host
 		;;
 	qemu-system-ppc64)
-		echo -enable-kvm -M pseries -nodefaults
+		echo -M pseries -nodefaults
 		echo -device spapr-vscsi
 		if test -n "$TORTURE_QEMU_INTERACTIVE" -a -n "$TORTURE_QEMU_MAC"
 		then
 			echo -device spapr-vlan,netdev=net0,mac=$TORTURE_QEMU_MAC
 			echo -netdev bridge,br=br0,id=net0
-		elif test -n "$TORTURE_QEMU_INTERACTIVE"
-		then
-			echo -net nic -net user
 		fi
 		;;
 	esac
@@ -234,7 +272,7 @@ identify_qemu_args () {
 # Returns the number of virtual CPUs available to the aggregate of the
 # guest OSes.
 identify_qemu_vcpus () {
-	lscpu | grep '^CPU(s):' | sed -e 's/CPU(s)://'
+	getconf _NPROCESSORS_ONLN
 }
 
 # print_bug
@@ -269,9 +307,56 @@ specify_qemu_cpus () {
 			echo $2 -smp $3
 			;;
 		qemu-system-ppc64)
-			nt="`lscpu | grep '^NUMA node0' | sed -e 's/^[^,]*,\([0-9]*\),.*$/\1/'`"
+			nt="`lscpu | sed -n 's/^Thread(s) per core:\s*//p'`"
 			echo $2 -smp cores=`expr \( $3 + $nt - 1 \) / $nt`,threads=$nt
 			;;
 		esac
 	fi
+}
+
+# specify_qemu_net qemu-args
+#
+# Appends a string containing "-net none" to qemu-args, unless the incoming
+# qemu-args already contains "-smp" or unless the TORTURE_QEMU_INTERACTIVE
+# environment variable is set, in which case the string that is be added is
+# instead "-net nic -net user".
+specify_qemu_net () {
+	if echo $1 | grep -q -e -net
+	then
+		echo $1
+	elif test -n "$TORTURE_QEMU_INTERACTIVE"
+	then
+		echo $1 -net nic -net user
+	else
+		echo $1 -net none
+	fi
+}
+
+# Extract the ftrace output from the console log output
+# The ftrace output in the original logs look like:
+# Dumping ftrace buffer:
+# ---------------------------------
+# [...]
+# ---------------------------------
+extract_ftrace_from_console() {
+	awk < "$1" '
+
+	/Dumping ftrace buffer:/ {
+		buffer_count++
+		print "Ftrace dump " buffer_count ":"
+		capture = 1
+		next
+	}
+
+	/---------------------------------/ {
+		if(capture == 1) {
+			capture = 2
+			next
+		} else if(capture == 2) {
+			capture = 0
+			print ""
+		}
+	}
+
+	capture == 2'
 }

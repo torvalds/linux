@@ -20,8 +20,9 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <asm/time.h>
-#include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/mpc52xx.h>
 
@@ -78,7 +79,7 @@ static struct irq_chip media5200_irq_chip = {
 static void media5200_irq_cascade(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
-	int sub_virq, val;
+	int val;
 	u32 status, enable;
 
 	/* Mask off the cascaded IRQ */
@@ -92,11 +93,10 @@ static void media5200_irq_cascade(struct irq_desc *desc)
 	enable = in_be32(media5200_irq.regs + MEDIA5200_IRQ_STATUS);
 	val = ffs((status & enable) >> MEDIA5200_IRQ_SHIFT);
 	if (val) {
-		sub_virq = irq_linear_revmap(media5200_irq.irqhost, val - 1);
-		/* pr_debug("%s: virq=%i s=%.8x e=%.8x hwirq=%i subvirq=%i\n",
-		 *          __func__, virq, status, enable, val - 1, sub_virq);
+		generic_handle_domain_irq(media5200_irq.irqhost, val - 1);
+		/* pr_debug("%s: virq=%i s=%.8x e=%.8x hwirq=%i\n",
+		 *          __func__, virq, status, enable, val - 1);
 		 */
-		generic_handle_irq(sub_virq);
 	}
 
 	/* Processing done; can reenable the cascade now */
@@ -174,6 +174,8 @@ static void __init media5200_init_irq(void)
 		goto out;
 	pr_debug("%s: allocated irqhost\n", __func__);
 
+	of_node_put(fpga_np);
+
 	irq_set_handler_data(cascade_virq, &media5200_irq);
 	irq_set_chained_handler(cascade_virq, media5200_irq_cascade);
 
@@ -181,6 +183,7 @@ static void __init media5200_init_irq(void)
 
  out:
 	pr_err("Could not find Media5200 FPGA; PCI interrupts will not work\n");
+	of_node_put(fpga_np);
 }
 
 /*
@@ -201,8 +204,6 @@ static void __init media5200_setup_arch(void)
 
 	/* Some mpc5200 & mpc5200b related configuration */
 	mpc5200_setup_xlb_arbiter();
-
-	mpc52xx_setup_pci();
 
 	np = of_find_matching_node(NULL, mpc5200_gpio_ids);
 	gpio = of_iomap(np, 0);
@@ -226,27 +227,13 @@ static void __init media5200_setup_arch(void)
 
 }
 
-/* list of the supported boards */
-static const char * const board[] __initconst = {
-	"fsl,media5200",
-	NULL
-};
-
-/*
- * Called very early, MMU is off, device-tree isn't unflattened
- */
-static int __init media5200_probe(void)
-{
-	return of_device_compatible_match(of_root, board);
-}
-
 define_machine(media5200_platform) {
 	.name		= "media5200-platform",
-	.probe		= media5200_probe,
+	.compatible	= "fsl,media5200",
 	.setup_arch	= media5200_setup_arch,
+	.discover_phbs	= mpc52xx_setup_pci,
 	.init		= mpc52xx_declare_of_platform_devices,
 	.init_IRQ	= media5200_init_irq,
 	.get_irq	= mpc52xx_get_irq,
 	.restart	= mpc52xx_restart,
-	.calibrate_decr	= generic_calibrate_decr,
 };

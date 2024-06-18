@@ -11,12 +11,13 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_blend.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_framebuffer.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
-#include <drm/drm_plane_helper.h>
 #include <drm/drm_print.h>
 
 #include "malidp_hw.h"
@@ -66,14 +67,6 @@
 
 /* readahead for partial-frame prefetch */
 #define MALIDP_MMU_PREFETCH_READAHEAD		8
-
-static void malidp_de_plane_destroy(struct drm_plane *plane)
-{
-	struct malidp_plane *mp = to_malidp_plane(plane);
-
-	drm_plane_cleanup(plane);
-	kfree(mp);
-}
 
 /*
  * Replicate what the default ->reset hook does: free the state pointer and
@@ -150,7 +143,7 @@ bool malidp_format_mod_supported(struct drm_device *drm,
 {
 	const struct drm_format_info *info;
 	const u64 *modifiers;
-	struct malidp_drm *malidp = drm->dev_private;
+	struct malidp_drm *malidp = drm_to_malidp(drm);
 	const struct malidp_hw_regmap *map = &malidp->dev->hw->map;
 
 	if (WARN_ON(modifier == DRM_FORMAT_MOD_INVALID))
@@ -165,7 +158,7 @@ bool malidp_format_mod_supported(struct drm_device *drm,
 		return !malidp_hw_format_is_afbc_only(format);
 	}
 
-	if ((modifier >> 56) != DRM_FORMAT_MOD_VENDOR_ARM) {
+	if (!fourcc_mod_is_vendor(modifier, ARM)) {
 		DRM_ERROR("Unknown modifier (not Arm)\n");
 		return false;
 	}
@@ -259,7 +252,6 @@ static bool malidp_format_mod_supported_per_plane(struct drm_plane *plane,
 static const struct drm_plane_funcs malidp_de_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
-	.destroy = malidp_de_plane_destroy,
 	.reset = malidp_plane_reset,
 	.atomic_duplicate_state = malidp_duplicate_plane_state,
 	.atomic_destroy_state = malidp_destroy_plane_state,
@@ -310,17 +302,13 @@ static int malidp_se_check_scaling(struct malidp_plane *mp,
 
 static u32 malidp_get_pgsize_bitmap(struct malidp_plane *mp)
 {
-	u32 pgsize_bitmap = 0;
+	struct iommu_domain *mmu_dom;
 
-	if (iommu_present(&platform_bus_type)) {
-		struct iommu_domain *mmu_dom =
-			iommu_get_domain_for_dev(mp->base.dev->dev);
+	mmu_dom = iommu_get_domain_for_dev(mp->base.dev->dev);
+	if (mmu_dom)
+		return mmu_dom->pgsize_bitmap;
 
-		if (mmu_dom)
-			pgsize_bitmap = mmu_dom->pgsize_bitmap;
-	}
-
-	return pgsize_bitmap;
+	return 0;
 }
 
 /*
@@ -336,33 +324,33 @@ static bool malidp_check_pages_threshold(struct malidp_plane_state *ms,
 
 	for (i = 0; i < ms->n_planes; i++) {
 		struct drm_gem_object *obj;
-		struct drm_gem_cma_object *cma_obj;
+		struct drm_gem_dma_object *dma_obj;
 		struct sg_table *sgt;
 		struct scatterlist *sgl;
 
 		obj = drm_gem_fb_get_obj(ms->base.fb, i);
-		cma_obj = to_drm_gem_cma_obj(obj);
+		dma_obj = to_drm_gem_dma_obj(obj);
 
-		if (cma_obj->sgt)
-			sgt = cma_obj->sgt;
+		if (dma_obj->sgt)
+			sgt = dma_obj->sgt;
 		else
-			sgt = obj->dev->driver->gem_prime_get_sg_table(obj);
+			sgt = obj->funcs->get_sg_table(obj);
 
-		if (!sgt)
+		if (IS_ERR(sgt))
 			return false;
 
 		sgl = sgt->sgl;
 
 		while (sgl) {
 			if (sgl->length < pgsize) {
-				if (!cma_obj->sgt)
+				if (!dma_obj->sgt)
 					kfree(sgt);
 				return false;
 			}
 
 			sgl = sg_next(sgl);
 		}
-		if (!cma_obj->sgt)
+		if (!dma_obj->sgt)
 			kfree(sgt);
 	}
 
@@ -502,20 +490,22 @@ static void malidp_de_prefetch_settings(struct malidp_plane *mp,
 }
 
 static int malidp_de_plane_check(struct drm_plane *plane,
-				 struct drm_plane_state *state)
+				 struct drm_atomic_state *state)
 {
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
+										 plane);
 	struct malidp_plane *mp = to_malidp_plane(plane);
-	struct malidp_plane_state *ms = to_malidp_plane_state(state);
-	bool rotated = state->rotation & MALIDP_ROTATED_MASK;
+	struct malidp_plane_state *ms = to_malidp_plane_state(new_plane_state);
+	bool rotated = new_plane_state->rotation & MALIDP_ROTATED_MASK;
 	struct drm_framebuffer *fb;
-	u16 pixel_alpha = state->pixel_blend_mode;
+	u16 pixel_alpha = new_plane_state->pixel_blend_mode;
 	int i, ret;
 	unsigned int block_w, block_h;
 
-	if (!state->crtc || !state->fb)
+	if (!new_plane_state->crtc || WARN_ON(!new_plane_state->fb))
 		return 0;
 
-	fb = state->fb;
+	fb = new_plane_state->fb;
 
 	ms->format = malidp_hw_get_format_id(&mp->hwdev->hw->map,
 					     mp->layer->id, fb->format->format,
@@ -541,15 +531,15 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 		DRM_DEBUG_KMS("Buffer width/height needs to be a multiple of tile sizes");
 		return -EINVAL;
 	}
-	if ((state->src_x >> 16) % block_w || (state->src_y >> 16) % block_h) {
+	if ((new_plane_state->src_x >> 16) % block_w || (new_plane_state->src_y >> 16) % block_h) {
 		DRM_DEBUG_KMS("Plane src_x/src_y needs to be a multiple of tile sizes");
 		return -EINVAL;
 	}
 
-	if ((state->crtc_w > mp->hwdev->max_line_size) ||
-	    (state->crtc_h > mp->hwdev->max_line_size) ||
-	    (state->crtc_w < mp->hwdev->min_line_size) ||
-	    (state->crtc_h < mp->hwdev->min_line_size))
+	if ((new_plane_state->crtc_w > mp->hwdev->max_line_size) ||
+	    (new_plane_state->crtc_h > mp->hwdev->max_line_size) ||
+	    (new_plane_state->crtc_w < mp->hwdev->min_line_size) ||
+	    (new_plane_state->crtc_h < mp->hwdev->min_line_size))
 		return -EINVAL;
 
 	/*
@@ -559,15 +549,15 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 	 */
 	if (ms->n_planes == 3 &&
 	    !(mp->hwdev->hw->features & MALIDP_DEVICE_LV_HAS_3_STRIDES) &&
-	    (state->fb->pitches[1] != state->fb->pitches[2]))
+	    (new_plane_state->fb->pitches[1] != new_plane_state->fb->pitches[2]))
 		return -EINVAL;
 
-	ret = malidp_se_check_scaling(mp, state);
+	ret = malidp_se_check_scaling(mp, new_plane_state);
 	if (ret)
 		return ret;
 
 	/* validate the rotation constraints for each layer */
-	if (state->rotation != DRM_MODE_ROTATE_0) {
+	if (new_plane_state->rotation != DRM_MODE_ROTATE_0) {
 		if (mp->layer->rot == ROTATE_NONE)
 			return -EINVAL;
 		if ((mp->layer->rot == ROTATE_COMPRESSED) && !(fb->modifier))
@@ -588,11 +578,11 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 	}
 
 	ms->rotmem_size = 0;
-	if (state->rotation & MALIDP_ROTATED_MASK) {
+	if (new_plane_state->rotation & MALIDP_ROTATED_MASK) {
 		int val;
 
-		val = mp->hwdev->hw->rotmem_required(mp->hwdev, state->crtc_w,
-						     state->crtc_h,
+		val = mp->hwdev->hw->rotmem_required(mp->hwdev, new_plane_state->crtc_w,
+						     new_plane_state->crtc_h,
 						     fb->format->format,
 						     !!(fb->modifier));
 		if (val < 0)
@@ -602,7 +592,7 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 	}
 
 	/* HW can't support plane + pixel blending */
-	if ((state->alpha != DRM_BLEND_ALPHA_OPAQUE) &&
+	if ((new_plane_state->alpha != DRM_BLEND_ALPHA_OPAQUE) &&
 	    (pixel_alpha != DRM_MODE_BLEND_PIXEL_NONE) &&
 	    fb->format->has_alpha)
 		return -EINVAL;
@@ -715,7 +705,7 @@ static void malidp_set_plane_base_addr(struct drm_framebuffer *fb,
 				       struct malidp_plane *mp,
 				       int plane_index)
 {
-	dma_addr_t paddr;
+	dma_addr_t dma_addr;
 	u16 ptr;
 	struct drm_plane *plane = &mp->base;
 	bool afbc = fb->modifier ? true : false;
@@ -723,27 +713,27 @@ static void malidp_set_plane_base_addr(struct drm_framebuffer *fb,
 	ptr = mp->layer->ptr + (plane_index << 4);
 
 	/*
-	 * drm_fb_cma_get_gem_addr() alters the physical base address of the
+	 * drm_fb_dma_get_gem_addr() alters the physical base address of the
 	 * framebuffer as per the plane's src_x, src_y co-ordinates (ie to
 	 * take care of source cropping).
 	 * For AFBC, this is not needed as the cropping is handled by _AD_CROP_H
 	 * and _AD_CROP_V registers.
 	 */
 	if (!afbc) {
-		paddr = drm_fb_cma_get_gem_addr(fb, plane->state,
-						plane_index);
+		dma_addr = drm_fb_dma_get_gem_addr(fb, plane->state,
+						   plane_index);
 	} else {
-		struct drm_gem_cma_object *obj;
+		struct drm_gem_dma_object *obj;
 
-		obj = drm_fb_cma_get_gem_obj(fb, plane_index);
+		obj = drm_fb_dma_get_gem_obj(fb, plane_index);
 
 		if (WARN_ON(!obj))
 			return;
-		paddr = obj->paddr;
+		dma_addr = obj->dma_addr;
 	}
 
-	malidp_hw_write(mp->hwdev, lower_32_bits(paddr), ptr);
-	malidp_hw_write(mp->hwdev, upper_32_bits(paddr), ptr + 4);
+	malidp_hw_write(mp->hwdev, lower_32_bits(dma_addr), ptr);
+	malidp_hw_write(mp->hwdev, upper_32_bits(dma_addr), ptr + 4);
 }
 
 static void malidp_de_set_plane_afbc(struct drm_plane *plane)
@@ -789,13 +779,16 @@ static void malidp_de_set_plane_afbc(struct drm_plane *plane)
 }
 
 static void malidp_de_plane_update(struct drm_plane *plane,
-				   struct drm_plane_state *old_state)
+				   struct drm_atomic_state *state)
 {
+	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
+									   plane);
 	struct malidp_plane *mp;
 	struct malidp_plane_state *ms = to_malidp_plane_state(plane->state);
-	struct drm_plane_state *state = plane->state;
-	u16 pixel_alpha = state->pixel_blend_mode;
-	u8 plane_alpha = state->alpha >> 8;
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
+									   plane);
+	u16 pixel_alpha = new_state->pixel_blend_mode;
+	u8 plane_alpha = new_state->alpha >> 8;
 	u32 src_w, src_h, dest_w, dest_h, val;
 	int i;
 	struct drm_framebuffer *fb = plane->state->fb;
@@ -811,12 +804,12 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 		src_h = fb->height;
 	} else {
 		/* convert src values from Q16 fixed point to integer */
-		src_w = state->src_w >> 16;
-		src_h = state->src_h >> 16;
+		src_w = new_state->src_w >> 16;
+		src_h = new_state->src_h >> 16;
 	}
 
-	dest_w = state->crtc_w;
-	dest_h = state->crtc_h;
+	dest_w = new_state->crtc_w;
+	dest_h = new_state->crtc_h;
 
 	val = malidp_hw_read(mp->hwdev, mp->layer->base);
 	val = (val & ~LAYER_FORMAT_MASK) | ms->format;
@@ -828,7 +821,7 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 	malidp_de_set_mmu_control(mp, ms);
 
 	malidp_de_set_plane_pitches(mp, ms->n_planes,
-				    state->fb->pitches);
+				    new_state->fb->pitches);
 
 	if ((plane->state->color_encoding != old_state->color_encoding) ||
 	    (plane->state->color_range != old_state->color_range))
@@ -841,8 +834,8 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 	malidp_hw_write(mp->hwdev, LAYER_H_VAL(dest_w) | LAYER_V_VAL(dest_h),
 			mp->layer->base + MALIDP_LAYER_COMP_SIZE);
 
-	malidp_hw_write(mp->hwdev, LAYER_H_VAL(state->crtc_x) |
-			LAYER_V_VAL(state->crtc_y),
+	malidp_hw_write(mp->hwdev, LAYER_H_VAL(new_state->crtc_x) |
+			LAYER_V_VAL(new_state->crtc_y),
 			mp->layer->base + MALIDP_LAYER_OFFSET);
 
 	if (mp->layer->id == DE_SMART) {
@@ -864,19 +857,19 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 	val &= ~LAYER_ROT_MASK;
 
 	/* setup the rotation and axis flip bits */
-	if (state->rotation & DRM_MODE_ROTATE_MASK)
+	if (new_state->rotation & DRM_MODE_ROTATE_MASK)
 		val |= ilog2(plane->state->rotation & DRM_MODE_ROTATE_MASK) <<
 		       LAYER_ROT_OFFSET;
-	if (state->rotation & DRM_MODE_REFLECT_X)
+	if (new_state->rotation & DRM_MODE_REFLECT_X)
 		val |= LAYER_H_FLIP;
-	if (state->rotation & DRM_MODE_REFLECT_Y)
+	if (new_state->rotation & DRM_MODE_REFLECT_Y)
 		val |= LAYER_V_FLIP;
 
 	val &= ~(LAYER_COMP_MASK | LAYER_PMUL_ENABLE | LAYER_ALPHA(0xff));
 
-	if (state->alpha != DRM_BLEND_ALPHA_OPAQUE) {
+	if (new_state->alpha != DRM_BLEND_ALPHA_OPAQUE) {
 		val |= LAYER_COMP_PLANE;
-	} else if (state->fb->format->has_alpha) {
+	} else if (new_state->fb->format->has_alpha) {
 		/* We only care about blend mode if the format has alpha */
 		switch (pixel_alpha) {
 		case DRM_MODE_BLEND_PREMULTI:
@@ -890,9 +883,9 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 	val |= LAYER_ALPHA(plane_alpha);
 
 	val &= ~LAYER_FLOWCFG(LAYER_FLOWCFG_MASK);
-	if (state->crtc) {
+	if (new_state->crtc) {
 		struct malidp_crtc_state *m =
-			to_malidp_crtc_state(state->crtc->state);
+			to_malidp_crtc_state(new_state->crtc->state);
 
 		if (m->scaler_config.scale_enable &&
 		    m->scaler_config.plane_src_id == mp->layer->id)
@@ -907,7 +900,7 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 }
 
 static void malidp_de_plane_disable(struct drm_plane *plane,
-				    struct drm_plane_state *state)
+				    struct drm_atomic_state *state)
 {
 	struct malidp_plane *mp = to_malidp_plane(plane);
 
@@ -922,13 +915,18 @@ static const struct drm_plane_helper_funcs malidp_de_plane_helper_funcs = {
 	.atomic_disable = malidp_de_plane_disable,
 };
 
+static const uint64_t linear_only_modifiers[] = {
+	DRM_FORMAT_MOD_LINEAR,
+	DRM_FORMAT_MOD_INVALID
+};
+
 int malidp_de_planes_init(struct drm_device *drm)
 {
-	struct malidp_drm *malidp = drm->dev_private;
+	struct malidp_drm *malidp = drm_to_malidp(drm);
 	const struct malidp_hw_regmap *map = &malidp->dev->hw->map;
 	struct malidp_plane *plane = NULL;
 	enum drm_plane_type plane_type;
-	unsigned long crtcs = 1 << drm->mode_config.num_crtc;
+	unsigned long crtcs = BIT(drm->mode_config.num_crtc);
 	unsigned long flags = DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_90 | DRM_MODE_ROTATE_180 |
 			      DRM_MODE_ROTATE_270 | DRM_MODE_REFLECT_X | DRM_MODE_REFLECT_Y;
 	unsigned int blend_caps = BIT(DRM_MODE_BLEND_PIXEL_NONE) |
@@ -965,12 +963,6 @@ int malidp_de_planes_init(struct drm_device *drm)
 	for (i = 0; i < map->n_layers; i++) {
 		u8 id = map->layers[i].id;
 
-		plane = kzalloc(sizeof(*plane), GFP_KERNEL);
-		if (!plane) {
-			ret = -ENOMEM;
-			goto cleanup;
-		}
-
 		/* build the list of DRM supported formats based on the map */
 		for (n = 0, j = 0;  j < map->n_pixel_formats; j++) {
 			if ((map->pixel_formats[j].layer & id) == id)
@@ -983,13 +975,14 @@ int malidp_de_planes_init(struct drm_device *drm)
 		/*
 		 * All the layers except smart layer supports AFBC modifiers.
 		 */
-		ret = drm_universal_plane_init(drm, &plane->base, crtcs,
-				&malidp_de_plane_funcs, formats, n,
-				(id == DE_SMART) ? NULL : modifiers, plane_type,
-				NULL);
-
-		if (ret < 0)
+		plane = drmm_universal_plane_alloc(drm, struct malidp_plane, base,
+						   crtcs, &malidp_de_plane_funcs, formats, n,
+						   (id == DE_SMART) ? linear_only_modifiers :
+						   modifiers, plane_type, NULL);
+		if (IS_ERR(plane)) {
+			ret = PTR_ERR(plane);
 			goto cleanup;
+		}
 
 		drm_plane_helper_add(&plane->base,
 				     &malidp_de_plane_helper_funcs);

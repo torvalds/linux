@@ -130,15 +130,7 @@ static const struct v4l2_ctrl_ops dw9807_vcm_ctrl_ops = {
 
 static int dw9807_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
-	int rval;
-
-	rval = pm_runtime_get_sync(sd->dev);
-	if (rval < 0) {
-		pm_runtime_put_noidle(sd->dev);
-		return rval;
-	}
-
-	return 0;
+	return pm_runtime_resume_and_get(sd->dev);
 }
 
 static int dw9807_close(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
@@ -224,7 +216,7 @@ err_cleanup:
 	return rval;
 }
 
-static int dw9807_remove(struct i2c_client *client)
+static void dw9807_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct dw9807_device *dw9807_dev = sd_to_dw9807_vcm(sd);
@@ -232,8 +224,6 @@ static int dw9807_remove(struct i2c_client *client)
 	pm_runtime_disable(&client->dev);
 
 	dw9807_subdev_cleanup(dw9807_dev);
-
-	return 0;
 }
 
 /*
@@ -303,6 +293,8 @@ static int  __maybe_unused dw9807_vcm_resume(struct device *dev)
 
 static const struct of_device_id dw9807_of_table[] = {
 	{ .compatible = "dongwoon,dw9807-vcm" },
+	/* Compatibility for older firmware, NEVER USE THIS IN FIRMWARE! */
+	{ .compatible = "dongwoon,dw9807" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, dw9807_of_table);
@@ -318,12 +310,12 @@ static struct i2c_driver dw9807_i2c_driver = {
 		.pm = &dw9807_pm_ops,
 		.of_match_table = dw9807_of_table,
 	},
-	.probe_new = dw9807_probe,
+	.probe = dw9807_probe,
 	.remove = dw9807_remove,
 };
 
 module_i2c_driver(dw9807_i2c_driver);
 
-MODULE_AUTHOR("Chiang, Alan <alanx.chiang@intel.com>");
+MODULE_AUTHOR("Chiang, Alan");
 MODULE_DESCRIPTION("DW9807 VCM driver");
 MODULE_LICENSE("GPL v2");

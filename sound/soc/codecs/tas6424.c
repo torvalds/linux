@@ -2,7 +2,7 @@
 /*
  * ALSA SoC Texas Instruments TAS6424 Quad-Channel Audio Amplifier
  *
- * Copyright (C) 2016-2017 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2016-2017 Texas Instruments Incorporated - https://www.ti.com/
  *	Author: Andreas Dannenberg <dannenberg@ti.com>
  *	Andrew F. Davis <afd@ti.com>
  */
@@ -11,7 +11,6 @@
 #include <linux/errno.h>
 #include <linux/device.h>
 #include <linux/i2c.h>
-#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/regulator/consumer.h>
@@ -160,11 +159,11 @@ static int tas6424_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	dev_dbg(component->dev, "%s() fmt=0x%0x\n", __func__, fmt);
 
 	/* clock masters */
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBC_CFC:
 		break;
 	default:
-		dev_err(component->dev, "Invalid DAI master/slave interface\n");
+		dev_err(component->dev, "Invalid DAI clocking\n");
 		return -EINVAL;
 	}
 
@@ -252,7 +251,7 @@ static int tas6424_set_dai_tdm_slot(struct snd_soc_dai *dai,
 	return 0;
 }
 
-static int tas6424_mute(struct snd_soc_dai *dai, int mute)
+static int tas6424_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	struct tas6424_data *tas6424 = snd_soc_component_get_drvdata(component);
@@ -375,14 +374,14 @@ static struct snd_soc_component_driver soc_codec_dev_tas6424 = {
 	.num_dapm_routes	= ARRAY_SIZE(tas6424_audio_map),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct snd_soc_dai_ops tas6424_speaker_dai_ops = {
 	.hw_params	= tas6424_hw_params,
 	.set_fmt	= tas6424_set_dai_fmt,
 	.set_tdm_slot	= tas6424_set_dai_tdm_slot,
-	.digital_mute	= tas6424_mute,
+	.mute_stream	= tas6424_mute,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver tas6424_dai[] = {
@@ -681,8 +680,7 @@ static const struct of_device_id tas6424_of_ids[] = {
 MODULE_DEVICE_TABLE(of, tas6424_of_ids);
 #endif
 
-static int tas6424_i2c_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int tas6424_i2c_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct tas6424_data *tas6424;
@@ -756,7 +754,7 @@ static int tas6424_i2c_probe(struct i2c_client *client,
 				 TAS6424_RESET, TAS6424_RESET);
 	if (ret) {
 		dev_err(dev, "unable to reset device: %d\n", ret);
-		return ret;
+		goto disable_regs;
 	}
 
 	INIT_DELAYED_WORK(&tas6424->fault_check_work, tas6424_fault_check_work);
@@ -765,13 +763,17 @@ static int tas6424_i2c_probe(struct i2c_client *client,
 				     tas6424_dai, ARRAY_SIZE(tas6424_dai));
 	if (ret < 0) {
 		dev_err(dev, "unable to register codec: %d\n", ret);
-		return ret;
+		goto disable_regs;
 	}
 
 	return 0;
+
+disable_regs:
+	regulator_bulk_disable(ARRAY_SIZE(tas6424->supplies), tas6424->supplies);
+	return ret;
 }
 
-static int tas6424_i2c_remove(struct i2c_client *client)
+static void tas6424_i2c_remove(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct tas6424_data *tas6424 = dev_get_drvdata(dev);
@@ -785,16 +787,12 @@ static int tas6424_i2c_remove(struct i2c_client *client)
 
 	ret = regulator_bulk_disable(ARRAY_SIZE(tas6424->supplies),
 				     tas6424->supplies);
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(dev, "unable to disable supplies: %d\n", ret);
-		return ret;
-	}
-
-	return 0;
 }
 
 static const struct i2c_device_id tas6424_i2c_ids[] = {
-	{ "tas6424", 0 },
+	{ "tas6424" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tas6424_i2c_ids);

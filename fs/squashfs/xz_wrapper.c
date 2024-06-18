@@ -10,7 +10,7 @@
 
 
 #include <linux/mutex.h>
-#include <linux/buffer_head.h>
+#include <linux/bio.h>
 #include <linux/slab.h>
 #include <linux/xz.h>
 #include <linux/bitops.h>
@@ -117,11 +117,12 @@ static void squashfs_xz_free(void *strm)
 
 
 static int squashfs_xz_uncompress(struct squashfs_sb_info *msblk, void *strm,
-	struct buffer_head **bh, int b, int offset, int length,
+	struct bio *bio, int offset, int length,
 	struct squashfs_page_actor *output)
 {
-	enum xz_ret xz_err;
-	int avail, total = 0, k = 0;
+	struct bvec_iter_all iter_all = {};
+	struct bio_vec *bvec = bvec_init_iter_all(&iter_all);
+	int total = 0, error = 0;
 	struct squashfs_xz *stream = strm;
 
 	xz_dec_reset(stream->state);
@@ -130,12 +131,28 @@ static int squashfs_xz_uncompress(struct squashfs_sb_info *msblk, void *strm,
 	stream->buf.out_pos = 0;
 	stream->buf.out_size = PAGE_SIZE;
 	stream->buf.out = squashfs_first_page(output);
+	if (IS_ERR(stream->buf.out)) {
+		error = PTR_ERR(stream->buf.out);
+		goto finish;
+	}
 
-	do {
-		if (stream->buf.in_pos == stream->buf.in_size && k < b) {
-			avail = min(length, msblk->devblksize - offset);
+	for (;;) {
+		enum xz_ret xz_err;
+
+		if (stream->buf.in_pos == stream->buf.in_size) {
+			const void *data;
+			int avail;
+
+			if (!bio_next_segment(bio, &iter_all)) {
+				/* XZ_STREAM_END must be reached. */
+				error = -EIO;
+				break;
+			}
+
+			avail = min(length, ((int)bvec->bv_len) - offset);
+			data = bvec_virt(bvec);
 			length -= avail;
-			stream->buf.in = bh[k]->b_data + offset;
+			stream->buf.in = data + offset;
 			stream->buf.in_size = avail;
 			stream->buf.in_pos = 0;
 			offset = 0;
@@ -143,30 +160,28 @@ static int squashfs_xz_uncompress(struct squashfs_sb_info *msblk, void *strm,
 
 		if (stream->buf.out_pos == stream->buf.out_size) {
 			stream->buf.out = squashfs_next_page(output);
-			if (stream->buf.out != NULL) {
+			if (IS_ERR(stream->buf.out)) {
+				error = PTR_ERR(stream->buf.out);
+				break;
+			} else if (stream->buf.out != NULL) {
 				stream->buf.out_pos = 0;
 				total += PAGE_SIZE;
 			}
 		}
 
 		xz_err = xz_dec_run(stream->state, &stream->buf);
+		if (xz_err == XZ_STREAM_END)
+			break;
+		if (xz_err != XZ_OK) {
+			error = -EIO;
+			break;
+		}
+	}
 
-		if (stream->buf.in_pos == stream->buf.in_size && k < b)
-			put_bh(bh[k++]);
-	} while (xz_err == XZ_OK);
-
+finish:
 	squashfs_finish_page(output);
 
-	if (xz_err != XZ_STREAM_END || k < b)
-		goto out;
-
-	return total + stream->buf.out_pos;
-
-out:
-	for (; k < b; k++)
-		put_bh(bh[k]);
-
-	return -EIO;
+	return error ? error : total + stream->buf.out_pos;
 }
 
 const struct squashfs_decompressor squashfs_xz_comp_ops = {
@@ -176,5 +191,6 @@ const struct squashfs_decompressor squashfs_xz_comp_ops = {
 	.decompress = squashfs_xz_uncompress,
 	.id = XZ_COMPRESSION,
 	.name = "xz",
+	.alloc_buffer = 1,
 	.supported = 1
 };

@@ -103,7 +103,7 @@ uint32_t cvmx_helper_qlm_jtag_shift(int qlm, int bits, uint32_t data)
 /**
  * Shift long sequences of zeros into the QLM JTAG chain. It is
  * common to need to shift more than 32 bits of zeros into the
- * chain. This function is a convience wrapper around
+ * chain. This function is a convenience wrapper around
  * cvmx_helper_qlm_jtag_shift() to shift more than 32 bits of
  * zeros at a time.
  *

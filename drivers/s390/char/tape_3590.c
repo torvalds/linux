@@ -761,7 +761,7 @@ tape_3590_done(struct tape_device *device, struct tape_request *request)
  * This function is called, when error recovery was successful
  */
 static inline int
-tape_3590_erp_succeded(struct tape_device *device, struct tape_request *request)
+tape_3590_erp_succeeded(struct tape_device *device, struct tape_request *request)
 {
 	DBF_EVENT(3, "Error Recovery successful for %s\n",
 		  tape_op_verbose[request->op]);
@@ -831,7 +831,7 @@ tape_3590_erp_basic(struct tape_device *device, struct tape_request *request,
 	case SENSE_BRA_PER:
 		return tape_3590_erp_failed(device, request, irb, rc);
 	case SENSE_BRA_CONT:
-		return tape_3590_erp_succeded(device, request);
+		return tape_3590_erp_succeeded(device, request);
 	case SENSE_BRA_RE:
 		return tape_3590_erp_retry(device, request, irb);
 	case SENSE_BRA_DRE:
@@ -1651,7 +1651,6 @@ static struct ccw_driver tape_3590_driver = {
 	.remove = tape_generic_remove,
 	.set_offline = tape_generic_offline,
 	.set_online = tape_3590_online,
-	.freeze = tape_generic_pm_suspend,
 	.int_class = IRQIO_TAP,
 };
 

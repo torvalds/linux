@@ -9,6 +9,7 @@
 
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/of_graph.h>
 #include <linux/regulator/consumer.h>
@@ -16,13 +17,9 @@
 #include <video/mipi_display.h>
 
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc.h>
-#include <drm/drm_fb_helper.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_of.h>
-#include <drm/drm_panel.h>
 #include <drm/drm_print.h>
-#include <drm/drm_probe_helper.h>
 
 #define FLD_MASK(start, end)    (((1 << ((start) - (end) + 1)) - 1) << (end))
 #define FLD_VAL(val, start, end) (((val) << (end)) & FLD_MASK(start, end))
@@ -45,10 +42,10 @@
 
 /* Video path registers */
 #define VP_CTRL			0x0450 /* Video Path Control */
-#define VP_CTRL_MSF(v)		FLD_VAL(v, 0, 0) /* Magic square in RGB666 */
-#define VP_CTRL_VTGEN(v)	FLD_VAL(v, 4, 4) /* Use chip clock for timing */
-#define VP_CTRL_EVTMODE(v)	FLD_VAL(v, 5, 5) /* Event mode */
-#define VP_CTRL_RGB888(v)	FLD_VAL(v, 8, 8) /* RGB888 mode */
+#define VP_CTRL_MSF		BIT(0) /* Magic square in RGB666 */
+#define VP_CTRL_VTGEN		BIT(4) /* Use chip clock for timing */
+#define VP_CTRL_EVTMODE		BIT(5) /* Event mode */
+#define VP_CTRL_RGB888		BIT(8) /* RGB888 mode */
 #define VP_CTRL_VSDELAY(v)	FLD_VAL(v, 31, 20) /* VSYNC delay */
 #define VP_CTRL_HSPOL		BIT(17) /* Polarity of HSYNC signal */
 #define VP_CTRL_DEPOL		BIT(18) /* Polarity of DE signal */
@@ -152,10 +149,9 @@ static const char * const tc358764_supplies[] = {
 struct tc358764 {
 	struct device *dev;
 	struct drm_bridge bridge;
-	struct drm_connector connector;
+	struct drm_bridge *next_bridge;
 	struct regulator_bulk_data supplies[ARRAY_SIZE(tc358764_supplies)];
 	struct gpio_desc *gpio_reset;
-	struct drm_panel *panel;
 	int error;
 };
 
@@ -180,7 +176,7 @@ static void tc358764_read(struct tc358764 *ctx, u16 addr, u32 *val)
 	if (ret >= 0)
 		le32_to_cpus(val);
 
-	dev_dbg(ctx->dev, "read: %d, addr: %d\n", addr, *val);
+	dev_dbg(ctx->dev, "read: addr=0x%04x data=0x%08x\n", addr, *val);
 }
 
 static void tc358764_write(struct tc358764 *ctx, u16 addr, u32 val)
@@ -207,12 +203,6 @@ static void tc358764_write(struct tc358764 *ctx, u16 addr, u32 val)
 static inline struct tc358764 *bridge_to_tc358764(struct drm_bridge *bridge)
 {
 	return container_of(bridge, struct tc358764, bridge);
-}
-
-static inline
-struct tc358764 *connector_to_tc358764(struct drm_connector *connector)
-{
-	return container_of(connector, struct tc358764, connector);
 }
 
 static int tc358764_init(struct tc358764 *ctx)
@@ -243,8 +233,8 @@ static int tc358764_init(struct tc358764 *ctx)
 	tc358764_write(ctx, DSI_STARTDSI, DSI_RX_START);
 
 	/* configure video path */
-	tc358764_write(ctx, VP_CTRL, VP_CTRL_VSDELAY(15) | VP_CTRL_RGB888(1) |
-		       VP_CTRL_EVTMODE(1) | VP_CTRL_HSPOL | VP_CTRL_VSPOL);
+	tc358764_write(ctx, VP_CTRL, VP_CTRL_VSDELAY(15) | VP_CTRL_RGB888 |
+		       VP_CTRL_EVTMODE | VP_CTRL_HSPOL | VP_CTRL_VSPOL);
 
 	/* reset PHY */
 	tc358764_write(ctx, LV_PHY0, LV_PHY0_RST(1) |
@@ -277,43 +267,11 @@ static void tc358764_reset(struct tc358764 *ctx)
 	usleep_range(1000, 2000);
 }
 
-static int tc358764_get_modes(struct drm_connector *connector)
-{
-	struct tc358764 *ctx = connector_to_tc358764(connector);
-
-	return drm_panel_get_modes(ctx->panel);
-}
-
-static const
-struct drm_connector_helper_funcs tc358764_connector_helper_funcs = {
-	.get_modes = tc358764_get_modes,
-};
-
-static const struct drm_connector_funcs tc358764_connector_funcs = {
-	.fill_modes = drm_helper_probe_single_connector_modes,
-	.destroy = drm_connector_cleanup,
-	.reset = drm_atomic_helper_connector_reset,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
-};
-
-static void tc358764_disable(struct drm_bridge *bridge)
-{
-	struct tc358764 *ctx = bridge_to_tc358764(bridge);
-	int ret = drm_panel_disable(bridge_to_tc358764(bridge)->panel);
-
-	if (ret < 0)
-		dev_err(ctx->dev, "error disabling panel (%d)\n", ret);
-}
-
 static void tc358764_post_disable(struct drm_bridge *bridge)
 {
 	struct tc358764 *ctx = bridge_to_tc358764(bridge);
 	int ret;
 
-	ret = drm_panel_unprepare(ctx->panel);
-	if (ret < 0)
-		dev_err(ctx->dev, "error unpreparing panel (%d)\n", ret);
 	tc358764_reset(ctx);
 	usleep_range(10000, 15000);
 	ret = regulator_bulk_disable(ARRAY_SIZE(ctx->supplies), ctx->supplies);
@@ -334,71 +292,25 @@ static void tc358764_pre_enable(struct drm_bridge *bridge)
 	ret = tc358764_init(ctx);
 	if (ret < 0)
 		dev_err(ctx->dev, "error initializing bridge (%d)\n", ret);
-	ret = drm_panel_prepare(ctx->panel);
-	if (ret < 0)
-		dev_err(ctx->dev, "error preparing panel (%d)\n", ret);
 }
 
-static void tc358764_enable(struct drm_bridge *bridge)
+static int tc358764_attach(struct drm_bridge *bridge,
+			   enum drm_bridge_attach_flags flags)
 {
 	struct tc358764 *ctx = bridge_to_tc358764(bridge);
-	int ret = drm_panel_enable(ctx->panel);
 
-	if (ret < 0)
-		dev_err(ctx->dev, "error enabling panel (%d)\n", ret);
-}
-
-static int tc358764_attach(struct drm_bridge *bridge)
-{
-	struct tc358764 *ctx = bridge_to_tc358764(bridge);
-	struct drm_device *drm = bridge->dev;
-	int ret;
-
-	ctx->connector.polled = DRM_CONNECTOR_POLL_HPD;
-	ret = drm_connector_init(drm, &ctx->connector,
-				 &tc358764_connector_funcs,
-				 DRM_MODE_CONNECTOR_LVDS);
-	if (ret) {
-		DRM_ERROR("Failed to initialize connector\n");
-		return ret;
-	}
-
-	drm_connector_helper_add(&ctx->connector,
-				 &tc358764_connector_helper_funcs);
-	drm_connector_attach_encoder(&ctx->connector, bridge->encoder);
-	drm_panel_attach(ctx->panel, &ctx->connector);
-	ctx->connector.funcs->reset(&ctx->connector);
-	drm_fb_helper_add_one_connector(drm->fb_helper, &ctx->connector);
-	drm_connector_register(&ctx->connector);
-
-	return 0;
-}
-
-static void tc358764_detach(struct drm_bridge *bridge)
-{
-	struct tc358764 *ctx = bridge_to_tc358764(bridge);
-	struct drm_device *drm = bridge->dev;
-
-	drm_connector_unregister(&ctx->connector);
-	drm_fb_helper_remove_one_connector(drm->fb_helper, &ctx->connector);
-	drm_panel_detach(ctx->panel);
-	ctx->panel = NULL;
-	drm_connector_put(&ctx->connector);
+	return drm_bridge_attach(bridge->encoder, ctx->next_bridge, bridge, flags);
 }
 
 static const struct drm_bridge_funcs tc358764_bridge_funcs = {
-	.disable = tc358764_disable,
 	.post_disable = tc358764_post_disable,
-	.enable = tc358764_enable,
 	.pre_enable = tc358764_pre_enable,
 	.attach = tc358764_attach,
-	.detach = tc358764_detach,
 };
 
 static int tc358764_parse_dt(struct tc358764 *ctx)
 {
 	struct device *dev = ctx->dev;
-	int ret;
 
 	ctx->gpio_reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->gpio_reset)) {
@@ -406,12 +318,11 @@ static int tc358764_parse_dt(struct tc358764 *ctx)
 		return PTR_ERR(ctx->gpio_reset);
 	}
 
-	ret = drm_of_find_panel_or_bridge(ctx->dev->of_node, 1, 0, &ctx->panel,
-					  NULL);
-	if (ret && ret != -EPROBE_DEFER)
-		dev_err(dev, "cannot find panel (%d)\n", ret);
+	ctx->next_bridge = devm_drm_of_get_bridge(dev, dev->of_node, 1, 0);
+	if (IS_ERR(ctx->next_bridge))
+		return PTR_ERR(ctx->next_bridge);
 
-	return ret;
+	return 0;
 }
 
 static int tc358764_configure_regulators(struct tc358764 *ctx)
@@ -458,6 +369,7 @@ static int tc358764_probe(struct mipi_dsi_device *dsi)
 
 	ctx->bridge.funcs = &tc358764_bridge_funcs;
 	ctx->bridge.of_node = dev->of_node;
+	ctx->bridge.pre_enable_prev_first = true;
 
 	drm_bridge_add(&ctx->bridge);
 
@@ -470,14 +382,12 @@ static int tc358764_probe(struct mipi_dsi_device *dsi)
 	return ret;
 }
 
-static int tc358764_remove(struct mipi_dsi_device *dsi)
+static void tc358764_remove(struct mipi_dsi_device *dsi)
 {
 	struct tc358764 *ctx = mipi_dsi_get_drvdata(dsi);
 
 	mipi_dsi_detach(dsi);
 	drm_bridge_remove(&ctx->bridge);
-
-	return 0;
 }
 
 static const struct of_device_id tc358764_of_match[] = {
@@ -491,7 +401,6 @@ static struct mipi_dsi_driver tc358764_driver = {
 	.remove = tc358764_remove,
 	.driver = {
 		.name = "tc358764",
-		.owner = THIS_MODULE,
 		.of_match_table = tc358764_of_match,
 	},
 };

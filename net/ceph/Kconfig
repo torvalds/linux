@@ -5,6 +5,9 @@ config CEPH_LIB
 	select LIBCRC32C
 	select CRYPTO_AES
 	select CRYPTO_CBC
+	select CRYPTO_GCM
+	select CRYPTO_HMAC
+	select CRYPTO_SHA256
 	select CRYPTO
 	select KEYS
 	default n
@@ -13,7 +16,7 @@ config CEPH_LIB
 	  common functionality to both the Ceph filesystem and
 	  to the rados block device (rbd).
 
-	  More information at http://ceph.newdream.net/.
+	  More information at https://ceph.io/.
 
 	  If unsure, say N.
 
@@ -39,6 +42,6 @@ config CEPH_LIB_USE_DNS_RESOLVER
 	  be resolved using the CONFIG_DNS_RESOLVER facility.
 
 	  For information on how to use CONFIG_DNS_RESOLVER consult
-	  Documentation/networking/dns_resolver.txt
+	  Documentation/networking/dns_resolver.rst
 
 	  If unsure, say N.

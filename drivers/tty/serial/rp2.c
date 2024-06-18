@@ -178,7 +178,6 @@ struct rp2_card;
 struct rp2_uart_port {
 	struct uart_port		port;
 	int				idx;
-	int				ignore_rx;
 	struct rp2_card			*card;
 	void __iomem			*asic_base;
 	void __iomem			*base;
@@ -195,7 +194,6 @@ struct rp2_card {
 	void __iomem			*bar0;
 	void __iomem			*bar1;
 	spinlock_t			card_lock;
-	struct completion		fw_loaded;
 };
 
 #define RP_ID(prod) PCI_VDEVICE(RP, (prod))
@@ -277,9 +275,9 @@ static unsigned int rp2_uart_tx_empty(struct uart_port *port)
 	 * But the TXEMPTY bit doesn't seem to work unless the TX IRQ is
 	 * enabled.
 	 */
-	spin_lock_irqsave(&up->port.lock, flags);
+	uart_port_lock_irqsave(&up->port, &flags);
 	tx_fifo_bytes = readw(up->base + RP2_TX_FIFO_COUNT);
-	spin_unlock_irqrestore(&up->port.lock, flags);
+	uart_port_unlock_irqrestore(&up->port, flags);
 
 	return tx_fifo_bytes ? 0 : TIOCSER_TEMT;
 }
@@ -324,10 +322,10 @@ static void rp2_uart_break_ctl(struct uart_port *port, int break_state)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	rp2_rmw(port_to_up(port), RP2_TXRX_CTL, RP2_TXRX_CTL_BREAK_m,
 		break_state ? RP2_TXRX_CTL_BREAK_m : 0);
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static void rp2_uart_enable_ms(struct uart_port *port)
@@ -371,9 +369,8 @@ static void __rp2_uart_set_termios(struct rp2_uart_port *up,
 	       up->ucode + RP2_RX_SWFLOW);
 }
 
-static void rp2_uart_set_termios(struct uart_port *port,
-				 struct ktermios *new,
-				 struct ktermios *old)
+static void rp2_uart_set_termios(struct uart_port *port, struct ktermios *new,
+				 const struct ktermios *old)
 {
 	struct rp2_uart_port *up = port_to_up(port);
 	unsigned long flags;
@@ -385,7 +382,7 @@ static void rp2_uart_set_termios(struct uart_port *port,
 	if (tty_termios_baud_rate(new))
 		tty_termios_encode_baud_rate(new, baud, baud);
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	/* ignore all characters if CREAD is not set */
 	port->ignore_status_mask = (new->c_cflag & CREAD) ? 0 : RP2_DUMMY_READ;
@@ -393,7 +390,7 @@ static void rp2_uart_set_termios(struct uart_port *port,
 	__rp2_uart_set_termios(up, new->c_cflag, new->c_iflag, baud_div);
 	uart_update_timeout(port, new->c_cflag, baud);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static void rp2_rx_chars(struct rp2_uart_port *up)
@@ -403,14 +400,14 @@ static void rp2_rx_chars(struct rp2_uart_port *up)
 
 	for (; bytes != 0; bytes--) {
 		u32 byte = readw(up->base + RP2_DATA_BYTE) | RP2_DUMMY_READ;
-		char ch = byte & 0xff;
+		u8 ch = byte & 0xff;
 
 		if (likely(!(byte & RP2_DATA_BYTE_EXCEPTION_MASK))) {
 			if (!uart_handle_sysrq_char(&up->port, ch))
 				uart_insert_char(&up->port, byte, 0, ch,
 						 TTY_NORMAL);
 		} else {
-			char flag = TTY_NORMAL;
+			u8 flag = TTY_NORMAL;
 
 			if (byte & RP2_DATA_BYTE_BREAK_m)
 				flag = TTY_BREAK;
@@ -424,46 +421,25 @@ static void rp2_rx_chars(struct rp2_uart_port *up)
 		up->port.icount.rx++;
 	}
 
-	spin_unlock(&up->port.lock);
 	tty_flip_buffer_push(port);
-	spin_lock(&up->port.lock);
 }
 
 static void rp2_tx_chars(struct rp2_uart_port *up)
 {
-	u16 max_tx = FIFO_SIZE - readw(up->base + RP2_TX_FIFO_COUNT);
-	struct circ_buf *xmit = &up->port.state->xmit;
+	u8 ch;
 
-	if (uart_tx_stopped(&up->port)) {
-		rp2_uart_stop_tx(&up->port);
-		return;
-	}
-
-	for (; max_tx != 0; max_tx--) {
-		if (up->port.x_char) {
-			writeb(up->port.x_char, up->base + RP2_DATA_BYTE);
-			up->port.x_char = 0;
-			up->port.icount.tx++;
-			continue;
-		}
-		if (uart_circ_empty(xmit)) {
-			rp2_uart_stop_tx(&up->port);
-			break;
-		}
-		writeb(xmit->buf[xmit->tail], up->base + RP2_DATA_BYTE);
-		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
-		up->port.icount.tx++;
-	}
-
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
-		uart_write_wakeup(&up->port);
+	uart_port_tx_limited(&up->port, ch,
+		FIFO_SIZE - readw(up->base + RP2_TX_FIFO_COUNT),
+		true,
+		writeb(ch, up->base + RP2_DATA_BYTE),
+		({}));
 }
 
 static void rp2_ch_interrupt(struct rp2_uart_port *up)
 {
 	u32 status;
 
-	spin_lock(&up->port.lock);
+	uart_port_lock(&up->port);
 
 	/*
 	 * The IRQ status bits are clear-on-write.  Other status bits in
@@ -479,7 +455,7 @@ static void rp2_ch_interrupt(struct rp2_uart_port *up)
 	if (status & RP2_CHAN_STAT_MS_CHANGED_MASK)
 		wake_up_interruptible(&up->port.state->port.delta_msr_wait);
 
-	spin_unlock(&up->port.lock);
+	uart_port_unlock(&up->port);
 }
 
 static int rp2_asic_interrupt(struct rp2_card *card, unsigned int asic_id)
@@ -539,10 +515,10 @@ static void rp2_uart_shutdown(struct uart_port *port)
 
 	rp2_uart_break_ctl(port, 0);
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	rp2_mask_ch_irq(up, up->idx, 0);
 	rp2_rmw(up, RP2_CHAN_STAT, 0, 0);
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static const char *rp2_uart_type(struct uart_port *port)
@@ -664,17 +640,10 @@ static void rp2_remove_ports(struct rp2_card *card)
 	card->initialized_ports = 0;
 }
 
-static void rp2_fw_cb(const struct firmware *fw, void *context)
+static int rp2_load_firmware(struct rp2_card *card, const struct firmware *fw)
 {
-	struct rp2_card *card = context;
 	resource_size_t phys_base;
-	int i, rc = -ENOENT;
-
-	if (!fw) {
-		dev_err(&card->pdev->dev, "cannot find '%s' firmware image\n",
-			RP2_FW_NAME);
-		goto no_fw;
-	}
+	int i, rc = 0;
 
 	phys_base = pci_resource_start(card->pdev, 1);
 
@@ -720,23 +689,13 @@ static void rp2_fw_cb(const struct firmware *fw, void *context)
 		card->initialized_ports++;
 	}
 
-	release_firmware(fw);
-no_fw:
-	/*
-	 * rp2_fw_cb() is called from a workqueue long after rp2_probe()
-	 * has already returned success.  So if something failed here,
-	 * we'll just leave the now-dormant device in place until somebody
-	 * unbinds it.
-	 */
-	if (rc)
-		dev_warn(&card->pdev->dev, "driver initialization failed\n");
-
-	complete(&card->fw_loaded);
+	return rc;
 }
 
 static int rp2_probe(struct pci_dev *pdev,
 				   const struct pci_device_id *id)
 {
+	const struct firmware *fw;
 	struct rp2_card *card;
 	struct rp2_uart_port *ports;
 	void __iomem * const *bars;
@@ -747,7 +706,6 @@ static int rp2_probe(struct pci_dev *pdev,
 		return -ENOMEM;
 	pci_set_drvdata(pdev, card);
 	spin_lock_init(&card->card_lock);
-	init_completion(&card->fw_loaded);
 
 	rc = pcim_enable_device(pdev);
 	if (rc)
@@ -780,21 +738,23 @@ static int rp2_probe(struct pci_dev *pdev,
 		return -ENOMEM;
 	card->ports = ports;
 
+	rc = request_firmware(&fw, RP2_FW_NAME, &pdev->dev);
+	if (rc < 0) {
+		dev_err(&pdev->dev, "cannot find '%s' firmware image\n",
+			RP2_FW_NAME);
+		return rc;
+	}
+
+	rc = rp2_load_firmware(card, fw);
+
+	release_firmware(fw);
+	if (rc < 0)
+		return rc;
+
 	rc = devm_request_irq(&pdev->dev, pdev->irq, rp2_uart_interrupt,
 			      IRQF_SHARED, DRV_NAME, card);
 	if (rc)
 		return rc;
-
-	/*
-	 * Only catastrophic errors (e.g. ENOMEM) are reported here.
-	 * If the FW image is missing, we'll find out in rp2_fw_cb()
-	 * and print an error message.
-	 */
-	rc = request_firmware_nowait(THIS_MODULE, 1, RP2_FW_NAME, &pdev->dev,
-				     GFP_KERNEL, card, rp2_fw_cb);
-	if (rc)
-		return rc;
-	dev_dbg(&pdev->dev, "waiting for firmware blob...\n");
 
 	return 0;
 }
@@ -803,7 +763,6 @@ static void rp2_remove(struct pci_dev *pdev)
 {
 	struct rp2_card *card = pci_get_drvdata(pdev);
 
-	wait_for_completion(&card->fw_loaded);
 	rp2_remove_ports(card);
 }
 

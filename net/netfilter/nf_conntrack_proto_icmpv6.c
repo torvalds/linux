@@ -24,6 +24,8 @@
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <net/netfilter/nf_log.h>
 
+#include "nf_internals.h"
+
 static const unsigned int nf_ct_icmpv6_timeout = 30*HZ;
 
 bool icmpv6_pkt_to_tuple(const struct sk_buff *skb,
@@ -60,7 +62,9 @@ static const u_int8_t noct_valid_new[] = {
 	[NDISC_ROUTER_ADVERTISEMENT - 130] = 1,
 	[NDISC_NEIGHBOUR_SOLICITATION - 130] = 1,
 	[NDISC_NEIGHBOUR_ADVERTISEMENT - 130] = 1,
-	[ICMPV6_MLD2_REPORT - 130] = 1
+	[ICMPV6_MLD2_REPORT - 130] = 1,
+	[ICMPV6_MRDISC_ADV - 130] = 1,
+	[ICMPV6_MRDISC_SOL - 130] = 1
 };
 
 bool nf_conntrack_invert_icmpv6_tuple(struct nf_conntrack_tuple *tuple,
@@ -124,8 +128,57 @@ static void icmpv6_error_log(const struct sk_buff *skb,
 			     const struct nf_hook_state *state,
 			     const char *msg)
 {
-	nf_l4proto_log_invalid(skb, state->net, state->pf,
-			       IPPROTO_ICMPV6, "%s", msg);
+	nf_l4proto_log_invalid(skb, state, IPPROTO_ICMPV6, "%s", msg);
+}
+
+static noinline_for_stack int
+nf_conntrack_icmpv6_redirect(struct nf_conn *tmpl, struct sk_buff *skb,
+			     unsigned int dataoff,
+			     const struct nf_hook_state *state)
+{
+	u8 hl = ipv6_hdr(skb)->hop_limit;
+	union nf_inet_addr outer_daddr;
+	union {
+		struct nd_opt_hdr nd_opt;
+		struct rd_msg rd_msg;
+	} tmp;
+	const struct nd_opt_hdr *nd_opt;
+	const struct rd_msg *rd_msg;
+
+	rd_msg = skb_header_pointer(skb, dataoff, sizeof(*rd_msg), &tmp.rd_msg);
+	if (!rd_msg) {
+		icmpv6_error_log(skb, state, "short redirect");
+		return -NF_ACCEPT;
+	}
+
+	if (rd_msg->icmph.icmp6_code != 0)
+		return NF_ACCEPT;
+
+	if (hl != 255 || !(ipv6_addr_type(&ipv6_hdr(skb)->saddr) & IPV6_ADDR_LINKLOCAL)) {
+		icmpv6_error_log(skb, state, "invalid saddr or hoplimit for redirect");
+		return -NF_ACCEPT;
+	}
+
+	dataoff += sizeof(*rd_msg);
+
+	/* warning: rd_msg no longer usable after this call */
+	nd_opt = skb_header_pointer(skb, dataoff, sizeof(*nd_opt), &tmp.nd_opt);
+	if (!nd_opt || nd_opt->nd_opt_len == 0) {
+		icmpv6_error_log(skb, state, "redirect without options");
+		return -NF_ACCEPT;
+	}
+
+	/* We could call ndisc_parse_options(), but it would need
+	 * skb_linearize() and a bit more work.
+	 */
+	if (nd_opt->nd_opt_type != ND_OPT_REDIRECT_HDR)
+		return NF_ACCEPT;
+
+	memcpy(&outer_daddr.ip6, &ipv6_hdr(skb)->daddr,
+	       sizeof(outer_daddr.ip6));
+	dataoff += 8;
+	return nf_conntrack_inet_error(tmpl, skb, dataoff, state,
+				       IPPROTO_ICMPV6, &outer_daddr);
 }
 
 int nf_conntrack_icmpv6_error(struct nf_conn *tmpl,
@@ -157,6 +210,9 @@ int nf_conntrack_icmpv6_error(struct nf_conn *tmpl,
 		nf_ct_set(skb, NULL, IP_CT_UNTRACKED);
 		return NF_ACCEPT;
 	}
+
+	if (icmp6h->icmp6_type == NDISC_REDIRECT)
+		return nf_conntrack_icmpv6_redirect(tmpl, skb, dataoff, state);
 
 	/* is not error message ? */
 	if (icmp6h->icmp6_type >= 128)
@@ -193,21 +249,33 @@ static const struct nla_policy icmpv6_nla_policy[CTA_PROTO_MAX+1] = {
 };
 
 static int icmpv6_nlattr_to_tuple(struct nlattr *tb[],
-				struct nf_conntrack_tuple *tuple)
+				struct nf_conntrack_tuple *tuple,
+				u_int32_t flags)
 {
-	if (!tb[CTA_PROTO_ICMPV6_TYPE] ||
-	    !tb[CTA_PROTO_ICMPV6_CODE] ||
-	    !tb[CTA_PROTO_ICMPV6_ID])
-		return -EINVAL;
+	if (flags & CTA_FILTER_FLAG(CTA_PROTO_ICMPV6_TYPE)) {
+		if (!tb[CTA_PROTO_ICMPV6_TYPE])
+			return -EINVAL;
 
-	tuple->dst.u.icmp.type = nla_get_u8(tb[CTA_PROTO_ICMPV6_TYPE]);
-	tuple->dst.u.icmp.code = nla_get_u8(tb[CTA_PROTO_ICMPV6_CODE]);
-	tuple->src.u.icmp.id = nla_get_be16(tb[CTA_PROTO_ICMPV6_ID]);
+		tuple->dst.u.icmp.type = nla_get_u8(tb[CTA_PROTO_ICMPV6_TYPE]);
+		if (tuple->dst.u.icmp.type < 128 ||
+		    tuple->dst.u.icmp.type - 128 >= sizeof(invmap) ||
+		    !invmap[tuple->dst.u.icmp.type - 128])
+			return -EINVAL;
+	}
 
-	if (tuple->dst.u.icmp.type < 128 ||
-	    tuple->dst.u.icmp.type - 128 >= sizeof(invmap) ||
-	    !invmap[tuple->dst.u.icmp.type - 128])
-		return -EINVAL;
+	if (flags & CTA_FILTER_FLAG(CTA_PROTO_ICMPV6_CODE)) {
+		if (!tb[CTA_PROTO_ICMPV6_CODE])
+			return -EINVAL;
+
+		tuple->dst.u.icmp.code = nla_get_u8(tb[CTA_PROTO_ICMPV6_CODE]);
+	}
+
+	if (flags & CTA_FILTER_FLAG(CTA_PROTO_ICMPV6_ID)) {
+		if (!tb[CTA_PROTO_ICMPV6_ID])
+			return -EINVAL;
+
+		tuple->src.u.icmp.id = nla_get_be16(tb[CTA_PROTO_ICMPV6_ID]);
+	}
 
 	return 0;
 }

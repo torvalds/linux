@@ -21,16 +21,18 @@
 #include <linux/cpuhotplug.h>
 #include <linux/workqueue.h>
 #include <linux/proc_fs.h>
+#include <linux/pgtable.h>
+#include <linux/debugfs.h>
+
 #include <asm/processor.h>
 #include <asm/mmu.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
-#include <asm/machdep.h>
+#include <asm/setup.h>
 #include <asm/mmu_context.h>
 #include <asm/iommu.h>
 #include <asm/tlb.h>
-#include <asm/prom.h>
 #include <asm/cputable.h>
+#include <asm/papr-sysparm.h>
 #include <asm/udbg.h>
 #include <asm/smp.h>
 #include <asm/trace.h>
@@ -38,8 +40,8 @@
 #include <asm/plpar_wrappers.h>
 #include <asm/kexec.h>
 #include <asm/fadump.h>
-#include <asm/asm-prototypes.h>
-#include <asm/debugfs.h>
+#include <asm/dtl.h>
+#include <asm/vphn.h>
 
 #include "pseries.h"
 
@@ -56,6 +58,7 @@ EXPORT_SYMBOL(plpar_hcall);
 EXPORT_SYMBOL(plpar_hcall9);
 EXPORT_SYMBOL(plpar_hcall_norets);
 
+#ifdef CONFIG_PPC_64S_HASH_MMU
 /*
  * H_BLOCK_REMOVE supported block size for this page size in segment who's base
  * page size is that page size.
@@ -64,6 +67,7 @@ EXPORT_SYMBOL(plpar_hcall_norets);
  * page size.
  */
 static int hblkrm_size[MMU_PAGE_COUNT][MMU_PAGE_COUNT] __ro_after_init;
+#endif
 
 /*
  * Due to the involved complexity, and that the current hypervisor is only
@@ -188,9 +192,9 @@ static void free_dtl_buffers(unsigned long *time_limit)
 			continue;
 		kmem_cache_free(dtl_cache, pp->dispatch_log);
 		pp->dtl_ridx = 0;
-		pp->dispatch_log = 0;
-		pp->dispatch_log_end = 0;
-		pp->dtl_curr = 0;
+		pp->dispatch_log = NULL;
+		pp->dispatch_log_end = NULL;
+		pp->dtl_curr = NULL;
 
 		if (time_limit && time_after(jiffies, *time_limit)) {
 			cond_resched();
@@ -219,7 +223,7 @@ static void destroy_cpu_associativity(void)
 {
 	kfree(vcpu_associativity);
 	kfree(pcpu_associativity);
-	vcpu_associativity = pcpu_associativity = 0;
+	vcpu_associativity = pcpu_associativity = NULL;
 }
 
 static __be32 *__get_cpu_associativity(int cpu, __be32 *cpu_assoc, int flag)
@@ -260,7 +264,7 @@ static int cpu_relative_dispatch_distance(int last_disp_cpu, int cur_disp_cpu)
 	if (!last_disp_cpu_assoc || !cur_disp_cpu_assoc)
 		return -EIO;
 
-	return cpu_distance(last_disp_cpu_assoc, cur_disp_cpu_assoc);
+	return cpu_relative_distance(last_disp_cpu_assoc, cur_disp_cpu_assoc);
 }
 
 static int cpu_home_node_dispatch_distance(int disp_cpu)
@@ -280,7 +284,7 @@ static int cpu_home_node_dispatch_distance(int disp_cpu)
 	if (!disp_cpu_assoc || !vcpu_assoc)
 		return -EIO;
 
-	return cpu_distance(disp_cpu_assoc, vcpu_assoc);
+	return cpu_relative_distance(disp_cpu_assoc, vcpu_assoc);
 }
 
 static void update_vcpu_disp_stat(int disp_cpu)
@@ -522,8 +526,10 @@ static ssize_t vcpudispatch_stats_write(struct file *file, const char __user *p,
 
 	if (cmd) {
 		rc = init_cpu_associativity();
-		if (rc)
+		if (rc) {
+			destroy_cpu_associativity();
 			goto out;
+		}
 
 		for_each_possible_cpu(cpu) {
 			disp = per_cpu_ptr(&vcpu_disp_data, cpu);
@@ -582,12 +588,12 @@ static int vcpudispatch_stats_open(struct inode *inode, struct file *file)
 	return single_open(file, vcpudispatch_stats_display, NULL);
 }
 
-static const struct file_operations vcpudispatch_stats_proc_ops = {
-	.open		= vcpudispatch_stats_open,
-	.read		= seq_read,
-	.write		= vcpudispatch_stats_write,
-	.llseek		= seq_lseek,
-	.release	= single_release,
+static const struct proc_ops vcpudispatch_stats_proc_ops = {
+	.proc_open	= vcpudispatch_stats_open,
+	.proc_read	= seq_read,
+	.proc_write	= vcpudispatch_stats_write,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
 };
 
 static ssize_t vcpudispatch_stats_freq_write(struct file *file,
@@ -626,17 +632,17 @@ static int vcpudispatch_stats_freq_open(struct inode *inode, struct file *file)
 	return single_open(file, vcpudispatch_stats_freq_display, NULL);
 }
 
-static const struct file_operations vcpudispatch_stats_freq_proc_ops = {
-	.open		= vcpudispatch_stats_freq_open,
-	.read		= seq_read,
-	.write		= vcpudispatch_stats_freq_write,
-	.llseek		= seq_lseek,
-	.release	= single_release,
+static const struct proc_ops vcpudispatch_stats_freq_proc_ops = {
+	.proc_open	= vcpudispatch_stats_freq_open,
+	.proc_read	= seq_read,
+	.proc_write	= vcpudispatch_stats_freq_write,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
 };
 
 static int __init vcpudispatch_stats_procfs_init(void)
 {
-	if (!lppaca_shared_proc(get_lppaca()))
+	if (!lppaca_shared_proc())
 		return 0;
 
 	if (!proc_create("powerpc/vcpudispatch_stats", 0600, NULL,
@@ -650,6 +656,21 @@ static int __init vcpudispatch_stats_procfs_init(void)
 }
 
 machine_device_initcall(pseries, vcpudispatch_stats_procfs_init);
+
+#ifdef CONFIG_PARAVIRT_TIME_ACCOUNTING
+u64 pseries_paravirt_steal_clock(int cpu)
+{
+	struct lppaca *lppaca = &lppaca_of(cpu);
+
+	/*
+	 * VPA steal time counters are reported at TB frequency. Hence do a
+	 * conversion to ns before returning
+	 */
+	return tb_to_ns(be64_to_cpu(READ_ONCE(lppaca->enqueue_dispatch_tb)) +
+			be64_to_cpu(READ_ONCE(lppaca->ready_enqueue_tb)));
+}
+#endif
+
 #endif /* CONFIG_PPC_SPLPAR */
 
 void vpa_init(int cpu)
@@ -679,7 +700,7 @@ void vpa_init(int cpu)
 		return;
 	}
 
-#ifdef CONFIG_PPC_BOOK3S_64
+#ifdef CONFIG_PPC_64S_HASH_MMU
 	/*
 	 * PAPR says this feature is SLB-Buffer but firmware never
 	 * reports that.  All SPLPAR support SLB shadow buffer.
@@ -692,7 +713,7 @@ void vpa_init(int cpu)
 			       "cpu %d (hw %d) of area %lx failed with %ld\n",
 			       cpu, hwcpu, addr, ret);
 	}
-#endif /* CONFIG_PPC_BOOK3S_64 */
+#endif /* CONFIG_PPC_64S_HASH_MMU */
 
 	/*
 	 * Register dispatch trace log, if one has been allocated.
@@ -701,6 +722,36 @@ void vpa_init(int cpu)
 }
 
 #ifdef CONFIG_PPC_BOOK3S_64
+
+static int __init pseries_lpar_register_process_table(unsigned long base,
+			unsigned long page_size, unsigned long table_size)
+{
+	long rc;
+	unsigned long flags = 0;
+
+	if (table_size)
+		flags |= PROC_TABLE_NEW;
+	if (radix_enabled()) {
+		flags |= PROC_TABLE_RADIX;
+		if (mmu_has_feature(MMU_FTR_GTSE))
+			flags |= PROC_TABLE_GTSE;
+	} else
+		flags |= PROC_TABLE_HPT_SLB;
+	for (;;) {
+		rc = plpar_hcall_norets(H_REGISTER_PROC_TBL, flags, base,
+					page_size, table_size);
+		if (!H_IS_LONG_BUSY(rc))
+			break;
+		mdelay(get_longbusy_msecs(rc));
+	}
+	if (rc != H_SUCCESS) {
+		pr_err("Failed to register process table (rc=%ld)\n", rc);
+		BUG();
+	}
+	return rc;
+}
+
+#ifdef CONFIG_PPC_64S_HASH_MMU
 
 static long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 				     unsigned long vpn, unsigned long pa,
@@ -774,7 +825,7 @@ static long pSeries_lpar_hpte_remove(unsigned long hpte_group)
 
 		/* don't remove a bolted entry */
 		lpar_rc = plpar_pte_remove(H_ANDCOND, hpte_group + slot_offset,
-					   (0x1UL << 4), &dummy1, &dummy2);
+					   HPTE_V_BOLTED, &dummy1, &dummy2);
 		if (lpar_rc == H_SUCCESS)
 			return i;
 
@@ -792,7 +843,8 @@ static long pSeries_lpar_hpte_remove(unsigned long hpte_group)
 	return -1;
 }
 
-static void manual_hpte_clear_all(void)
+/* Called during kexec sequence with MMU off */
+static notrace void manual_hpte_clear_all(void)
 {
 	unsigned long size_bytes = 1UL << ppc64_pft_size;
 	unsigned long hpte_count = size_bytes >> 4;
@@ -825,7 +877,8 @@ static void manual_hpte_clear_all(void)
 	}
 }
 
-static int hcall_hpte_clear_all(void)
+/* Called during kexec sequence with MMU off */
+static notrace int hcall_hpte_clear_all(void)
 {
 	int rc;
 
@@ -836,7 +889,8 @@ static int hcall_hpte_clear_all(void)
 	return rc;
 }
 
-static void pseries_hpte_clear_all(void)
+/* Called during kexec sequence with MMU off */
+static notrace void pseries_hpte_clear_all(void)
 {
 	int rc;
 
@@ -878,7 +932,8 @@ static long pSeries_lpar_hpte_updatepp(unsigned long slot,
 
 	want_v = hpte_encode_avpn(vpn, psize, ssize);
 
-	flags = (newpp & 7) | H_AVPN;
+	flags = (newpp & (HPTE_R_PP | HPTE_R_N | HPTE_R_KEY_LO)) | H_AVPN;
+	flags |= (newpp & HPTE_R_KEY_HI) >> 48;
 	if (mmu_has_feature(MMU_FTR_KERNEL_RO))
 		/* Move pp0 into bit 8 (IBM 55) */
 		flags |= (newpp & HPTE_R_PP0) >> 55;
@@ -938,11 +993,19 @@ static long pSeries_lpar_hpte_find(unsigned long vpn, int psize, int ssize)
 	hash = hpt_hash(vpn, mmu_psize_defs[psize].shift, ssize);
 	want_v = hpte_encode_avpn(vpn, psize, ssize);
 
-	/* Bolted entries are always in the primary group */
+	/*
+	 * We try to keep bolted entries always in primary hash
+	 * But in some case we can find them in secondary too.
+	 */
 	hpte_group = (hash & htab_hash_mask) * HPTES_PER_GROUP;
 	slot = __pSeries_lpar_hpte_find(want_v, hpte_group);
-	if (slot < 0)
-		return -1;
+	if (slot < 0) {
+		/* Try in secondary */
+		hpte_group = (~hash & htab_hash_mask) * HPTES_PER_GROUP;
+		slot = __pSeries_lpar_hpte_find(want_v, hpte_group);
+		if (slot < 0)
+			return -1;
+	}
 	return hpte_group + slot;
 }
 
@@ -959,10 +1022,12 @@ static void pSeries_lpar_hpte_updateboltedpp(unsigned long newpp,
 	slot = pSeries_lpar_hpte_find(vpn, psize, ssize);
 	BUG_ON(slot == -1);
 
-	flags = newpp & 7;
+	flags = newpp & (HPTE_R_PP | HPTE_R_N);
 	if (mmu_has_feature(MMU_FTR_KERNEL_RO))
 		/* Move pp0 into bit 8 (IBM 55) */
 		flags |= (newpp & HPTE_R_PP0) >> 55;
+
+	flags |= ((newpp & HPTE_R_KEY_HI) >> 48) | (newpp & HPTE_R_KEY_LO);
 
 	lpar_rc = plpar_pte_protect(flags, slot, 0);
 
@@ -1404,8 +1469,6 @@ static inline void __init check_lp_set_hblkrm(unsigned int lp,
 	}
 }
 
-#define SPLPAR_TLB_BIC_TOKEN		50
-
 /*
  * The size of the TLB Block Invalidate Characteristics is variable. But at the
  * maximum it will be the number of possible page sizes *2 + 10 bytes.
@@ -1416,39 +1479,24 @@ static inline void __init check_lp_set_hblkrm(unsigned int lp,
 
 void __init pseries_lpar_read_hblkrm_characteristics(void)
 {
-	unsigned char local_buffer[SPLPAR_TLB_BIC_MAXLENGTH];
-	int call_status, len, idx, bpsize;
+	static struct papr_sysparm_buf buf __initdata;
+	int len, idx, bpsize;
 
-	spin_lock(&rtas_data_buf_lock);
-	memset(rtas_data_buf, 0, RTAS_DATA_BUF_SIZE);
-	call_status = rtas_call(rtas_token("ibm,get-system-parameter"), 3, 1,
-				NULL,
-				SPLPAR_TLB_BIC_TOKEN,
-				__pa(rtas_data_buf),
-				RTAS_DATA_BUF_SIZE);
-	memcpy(local_buffer, rtas_data_buf, SPLPAR_TLB_BIC_MAXLENGTH);
-	local_buffer[SPLPAR_TLB_BIC_MAXLENGTH - 1] = '\0';
-	spin_unlock(&rtas_data_buf_lock);
-
-	if (call_status != 0) {
-		pr_warn("%s %s Error calling get-system-parameter (0x%x)\n",
-			__FILE__, __func__, call_status);
+	if (!firmware_has_feature(FW_FEATURE_BLOCK_REMOVE))
 		return;
-	}
 
-	/*
-	 * The first two (2) bytes of the data in the buffer are the length of
-	 * the returned data, not counting these first two (2) bytes.
-	 */
-	len = be16_to_cpu(*((u16 *)local_buffer)) + 2;
+	if (papr_sysparm_get(PAPR_SYSPARM_TLB_BLOCK_INVALIDATE_ATTRS, &buf))
+		return;
+
+	len = be16_to_cpu(buf.len);
 	if (len > SPLPAR_TLB_BIC_MAXLENGTH) {
 		pr_warn("%s too large returned buffer %d", __func__, len);
 		return;
 	}
 
-	idx = 2;
+	idx = 0;
 	while (idx < len) {
-		u8 block_shift = local_buffer[idx++];
+		u8 block_shift = buf.val[idx++];
 		u32 block_size;
 		unsigned int npsize;
 
@@ -1457,9 +1505,9 @@ void __init pseries_lpar_read_hblkrm_characteristics(void)
 
 		block_size = 1 << block_shift;
 
-		for (npsize = local_buffer[idx++];
+		for (npsize = buf.val[idx++];
 		     npsize > 0 && idx < len; npsize--)
-			check_lp_set_hblkrm((unsigned int) local_buffer[idx++],
+			check_lp_set_hblkrm((unsigned int)buf.val[idx++],
 					    block_size);
 	}
 
@@ -1609,7 +1657,7 @@ static int pseries_lpar_resize_hpt(unsigned long shift)
 		}
 		msleep(delay);
 		rc = plpar_resize_hpt_prepare(0, shift);
-	};
+	}
 
 	switch (rc) {
 	case H_SUCCESS:
@@ -1653,32 +1701,6 @@ static int pseries_lpar_resize_hpt(unsigned long shift)
 	return 0;
 }
 
-static int pseries_lpar_register_process_table(unsigned long base,
-			unsigned long page_size, unsigned long table_size)
-{
-	long rc;
-	unsigned long flags = 0;
-
-	if (table_size)
-		flags |= PROC_TABLE_NEW;
-	if (radix_enabled())
-		flags |= PROC_TABLE_RADIX | PROC_TABLE_GTSE;
-	else
-		flags |= PROC_TABLE_HPT_SLB;
-	for (;;) {
-		rc = plpar_hcall_norets(H_REGISTER_PROC_TBL, flags, base,
-					page_size, table_size);
-		if (!H_IS_LONG_BUSY(rc))
-			break;
-		mdelay(get_longbusy_msecs(rc));
-	}
-	if (rc != H_SUCCESS) {
-		pr_err("Failed to register process table (rc=%ld)\n", rc);
-		BUG();
-	}
-	return rc;
-}
-
 void __init hpte_init_pseries(void)
 {
 	mmu_hash_ops.hpte_invalidate	 = pSeries_lpar_hpte_invalidate;
@@ -1701,14 +1723,17 @@ void __init hpte_init_pseries(void)
 	if (cpu_has_feature(CPU_FTR_ARCH_300))
 		pseries_lpar_register_process_table(0, 0, 0);
 }
+#endif /* CONFIG_PPC_64S_HASH_MMU */
 
-void radix_init_pseries(void)
+#ifdef CONFIG_PPC_RADIX_MMU
+void __init radix_init_pseries(void)
 {
 	pr_info("Using radix MMU under hypervisor\n");
 
 	pseries_lpar_register_process_table(__pa(process_tb),
 						0, PRTB_SIZE_SHIFT - 12);
 }
+#endif
 
 #ifdef CONFIG_PPC_SMLPAR
 #define CMO_FREE_HINT_DEFAULT 1
@@ -1802,30 +1827,28 @@ void hcall_tracepoint_unregfunc(void)
 #endif
 
 /*
- * Since the tracing code might execute hcalls we need to guard against
- * recursion. One example of this are spinlocks calling H_YIELD on
- * shared processor partitions.
+ * Keep track of hcall tracing depth and prevent recursion. Warn if any is
+ * detected because it may indicate a problem. This will not catch all
+ * problems with tracing code making hcalls, because the tracing might have
+ * been invoked from a non-hcall, so the first hcall could recurse into it
+ * without warning here, but this better than nothing.
+ *
+ * Hcalls with specific problems being traced should use the _notrace
+ * plpar_hcall variants.
  */
 static DEFINE_PER_CPU(unsigned int, hcall_trace_depth);
 
 
-void __trace_hcall_entry(unsigned long opcode, unsigned long *args)
+notrace void __trace_hcall_entry(unsigned long opcode, unsigned long *args)
 {
 	unsigned long flags;
 	unsigned int *depth;
-
-	/*
-	 * We cannot call tracepoints inside RCU idle regions which
-	 * means we must not trace H_CEDE.
-	 */
-	if (opcode == H_CEDE)
-		return;
 
 	local_irq_save(flags);
 
 	depth = this_cpu_ptr(&hcall_trace_depth);
 
-	if (*depth)
+	if (WARN_ON_ONCE(*depth))
 		goto out;
 
 	(*depth)++;
@@ -1837,19 +1860,16 @@ out:
 	local_irq_restore(flags);
 }
 
-void __trace_hcall_exit(long opcode, long retval, unsigned long *retbuf)
+notrace void __trace_hcall_exit(long opcode, long retval, unsigned long *retbuf)
 {
 	unsigned long flags;
 	unsigned int *depth;
-
-	if (opcode == H_CEDE)
-		return;
 
 	local_irq_save(flags);
 
 	depth = this_cpu_ptr(&hcall_trace_depth);
 
-	if (*depth)
+	if (*depth) /* Don't warn again on the way out */
 		goto out;
 
 	(*depth)++;
@@ -1866,10 +1886,10 @@ out:
  * h_get_mpp
  * H_GET_MPP hcall returns info in 7 parms
  */
-int h_get_mpp(struct hvcall_mpp_data *mpp_data)
+long h_get_mpp(struct hvcall_mpp_data *mpp_data)
 {
-	int rc;
-	unsigned long retbuf[PLPAR_HCALL9_BUFSIZE];
+	unsigned long retbuf[PLPAR_HCALL9_BUFSIZE] = {0};
+	long rc;
 
 	rc = plpar_hcall9(H_GET_MPP, retbuf);
 
@@ -1906,7 +1926,8 @@ int h_get_mpp_x(struct hvcall_mpp_x_data *mpp_x_data)
 	return rc;
 }
 
-static unsigned long vsid_unscramble(unsigned long vsid, int ssize)
+#ifdef CONFIG_PPC_64S_HASH_MMU
+static unsigned long __init vsid_unscramble(unsigned long vsid, int ssize)
 {
 	unsigned long protovsid;
 	unsigned long va_bits = VA_BITS;
@@ -1966,6 +1987,7 @@ static int __init reserve_vrma_context_id(void)
 	return 0;
 }
 machine_device_initcall(pseries, reserve_vrma_context_id);
+#endif
 
 #ifdef CONFIG_DEBUG_FS
 /* debugfs file interface for vpa data */
@@ -1989,30 +2011,17 @@ static int __init vpa_debugfs_init(void)
 {
 	char name[16];
 	long i;
-	static struct dentry *vpa_dir;
+	struct dentry *vpa_dir;
 
 	if (!firmware_has_feature(FW_FEATURE_SPLPAR))
 		return 0;
 
-	vpa_dir = debugfs_create_dir("vpa", powerpc_debugfs_root);
-	if (!vpa_dir) {
-		pr_warn("%s: can't create vpa root dir\n", __func__);
-		return -ENOMEM;
-	}
+	vpa_dir = debugfs_create_dir("vpa", arch_debugfs_dir);
 
 	/* set up the per-cpu vpa file*/
 	for_each_possible_cpu(i) {
-		struct dentry *d;
-
 		sprintf(name, "cpu-%ld", i);
-
-		d = debugfs_create_file(name, 0400, vpa_dir, (void *)i,
-					&vpa_fops);
-		if (!d) {
-			pr_warn("%s: can't create per-cpu vpa file\n",
-					__func__);
-			return -ENOMEM;
-		}
+		debugfs_create_file(name, 0400, vpa_dir, (void *)i, &vpa_fops);
 	}
 
 	return 0;

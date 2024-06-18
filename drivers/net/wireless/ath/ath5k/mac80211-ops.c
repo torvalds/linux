@@ -250,7 +250,7 @@ unlock:
 
 static void
 ath5k_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		       struct ieee80211_bss_conf *bss_conf, u32 changes)
+		       struct ieee80211_bss_conf *bss_conf, u64 changes)
 {
 	struct ath5k_vif *avf = (void *)vif->drv_priv;
 	struct ath5k_hw *ah = hw->priv;
@@ -278,9 +278,9 @@ ath5k_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	}
 
 	if (changes & BSS_CHANGED_ASSOC) {
-		avf->assoc = bss_conf->assoc;
-		if (bss_conf->assoc)
-			ah->assoc = bss_conf->assoc;
+		avf->assoc = vif->cfg.assoc;
+		if (vif->cfg.assoc)
+			ah->assoc = vif->cfg.assoc;
 		else
 			ah->assoc = ath5k_any_vif_assoc(ah);
 
@@ -288,11 +288,11 @@ ath5k_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			ath5k_set_beacon_filter(hw, ah->assoc);
 		ath5k_hw_set_ledstate(ah, ah->assoc ?
 			AR5K_LED_ASSOC : AR5K_LED_INIT);
-		if (bss_conf->assoc) {
+		if (vif->cfg.assoc) {
 			ATH5K_DBG(ah, ATH5K_DEBUG_ANY,
 				  "Bss Info ASSOC %d, bssid: %pM\n",
-				  bss_conf->aid, common->curbssid);
-			common->curaid = bss_conf->aid;
+				  vif->cfg.aid, common->curbssid);
+			common->curaid = vif->cfg.aid;
 			ath5k_hw_set_bssid(ah);
 			/* Once ANI is available you would start it here */
 		}
@@ -382,7 +382,6 @@ ath5k_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 	mfilt[1] = multicast >> 32;
 
 	/* Only deal with supported flags */
-	changed_flags &= SUPPORTED_FIF_FLAGS;
 	*new_flags &= SUPPORTED_FIF_FLAGS;
 
 	/* If HW detects any phy or radar errors, leave those filters on.
@@ -410,7 +409,7 @@ ath5k_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 	/* FIF_CONTROL doc says we should only pass on control frames for this
 	 * station. This needs testing. I believe right now this
 	 * enables *all* control frames, which is OK.. but
-	 * but we should see if we can improve on granularity */
+	 * we should see if we can improve on granularity */
 	if (*new_flags & FIF_CONTROL)
 		rfilt |= AR5K_RX_FILTER_CONTROL;
 
@@ -433,6 +432,7 @@ ath5k_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 	case NL80211_IFTYPE_STATION:
 		if (ah->assoc)
 			rfilt |= AR5K_RX_FILTER_BEACON;
+		break;
 	default:
 		break;
 	}
@@ -521,7 +521,7 @@ ath5k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		}
 		break;
 	case DISABLE_KEY:
-		ath_key_delete(common, key);
+		ath_key_delete(common, key->hw_key_idx);
 		break;
 	default:
 		ret = -EINVAL;
@@ -571,7 +571,8 @@ ath5k_get_stats(struct ieee80211_hw *hw,
 
 
 static int
-ath5k_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u16 queue,
+ath5k_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+	      unsigned int link_id, u16 queue,
 	      const struct ieee80211_tx_queue_params *params)
 {
 	struct ath5k_hw *ah = hw->priv;
@@ -778,7 +779,12 @@ static int ath5k_set_ringparam(struct ieee80211_hw *hw, u32 tx, u32 rx)
 
 
 const struct ieee80211_ops ath5k_hw_ops = {
+	.add_chanctx = ieee80211_emulate_add_chanctx,
+	.remove_chanctx = ieee80211_emulate_remove_chanctx,
+	.change_chanctx = ieee80211_emulate_change_chanctx,
+	.switch_vif_chanctx = ieee80211_emulate_switch_vif_chanctx,
 	.tx			= ath5k_tx,
+	.wake_tx_queue		= ieee80211_handle_wake_tx_queue,
 	.start			= ath5k_start,
 	.stop			= ath5k_stop,
 	.add_interface		= ath5k_add_interface,

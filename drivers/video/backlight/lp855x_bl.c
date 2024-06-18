@@ -5,6 +5,7 @@
  *			Copyright (C) 2011 Texas Instruments
  */
 
+#include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
@@ -70,6 +71,7 @@ struct lp855x {
 	struct device *dev;
 	struct lp855x_platform_data *pdata;
 	struct pwm_device *pwm;
+	bool needs_pwm_init;
 	struct regulator *supply;	/* regulator for VDD input */
 	struct regulator *enable;	/* regulator for EN/VDDIO input */
 };
@@ -170,22 +172,6 @@ static int lp855x_configure(struct lp855x *lp)
 	int i, ret;
 	struct lp855x_platform_data *pd = lp->pdata;
 
-	switch (lp->chip_id) {
-	case LP8550:
-	case LP8551:
-	case LP8552:
-	case LP8553:
-	case LP8556:
-		lp->cfg = &lp855x_dev_cfg;
-		break;
-	case LP8555:
-	case LP8557:
-		lp->cfg = &lp8557_dev_cfg;
-		break;
-	default:
-		return -EINVAL;
-	}
-
 	if (lp->cfg->pre_init_device) {
 		ret = lp->cfg->pre_init_device(lp);
 		if (ret) {
@@ -231,32 +217,24 @@ err:
 	return ret;
 }
 
-static void lp855x_pwm_ctrl(struct lp855x *lp, int br, int max_br)
+static int lp855x_pwm_ctrl(struct lp855x *lp, int br, int max_br)
 {
-	unsigned int period = lp->pdata->period_ns;
-	unsigned int duty = br * period / max_br;
-	struct pwm_device *pwm;
+	struct pwm_state state;
 
-	/* request pwm device with the consumer name */
-	if (!lp->pwm) {
-		pwm = devm_pwm_get(lp->dev, lp->chipname);
-		if (IS_ERR(pwm))
-			return;
-
-		lp->pwm = pwm;
-
-		/*
-		 * FIXME: pwm_apply_args() should be removed when switching to
-		 * the atomic PWM API.
-		 */
-		pwm_apply_args(pwm);
+	if (lp->needs_pwm_init) {
+		pwm_init_state(lp->pwm, &state);
+		/* Legacy platform data compatibility */
+		if (lp->pdata->period_ns > 0)
+			state.period = lp->pdata->period_ns;
+		lp->needs_pwm_init = false;
+	} else {
+		pwm_get_state(lp->pwm, &state);
 	}
 
-	pwm_config(lp->pwm, duty, period);
-	if (duty)
-		pwm_enable(lp->pwm);
-	else
-		pwm_disable(lp->pwm);
+	state.duty_cycle = div_u64(br * state.period, max_br);
+	state.enabled = state.duty_cycle;
+
+	return pwm_apply_might_sleep(lp->pwm, &state);
 }
 
 static int lp855x_bl_update_status(struct backlight_device *bl)
@@ -268,11 +246,12 @@ static int lp855x_bl_update_status(struct backlight_device *bl)
 		brightness = 0;
 
 	if (lp->mode == PWM_BASED)
-		lp855x_pwm_ctrl(lp, brightness, bl->props.max_brightness);
+		return lp855x_pwm_ctrl(lp, brightness,
+				      bl->props.max_brightness);
 	else if (lp->mode == REGISTER_BASED)
-		lp855x_write_byte(lp, lp->cfg->reg_brightness, (u8)brightness);
-
-	return 0;
+		return lp855x_write_byte(lp, lp->cfg->reg_brightness,
+					(u8)brightness);
+	return -EINVAL;
 }
 
 static const struct backlight_ops lp855x_bl_ops = {
@@ -346,7 +325,7 @@ static int lp855x_parse_dt(struct lp855x *lp)
 {
 	struct device *dev = lp->dev;
 	struct device_node *node = dev->of_node;
-	struct lp855x_platform_data *pdata;
+	struct lp855x_platform_data *pdata = lp->pdata;
 	int rom_length;
 
 	if (!node) {
@@ -354,13 +333,10 @@ static int lp855x_parse_dt(struct lp855x *lp)
 		return -EINVAL;
 	}
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata)
-		return -ENOMEM;
-
 	of_property_read_string(node, "bl-name", &pdata->name);
 	of_property_read_u8(node, "dev-ctrl", &pdata->device_control);
 	of_property_read_u8(node, "init-brt", &pdata->initial_brightness);
+	/* Deprecated, specify period in pwms property instead */
 	of_property_read_u32(node, "pwm-period", &pdata->period_ns);
 
 	/* Fill ROM platform data if defined */
@@ -384,8 +360,6 @@ static int lp855x_parse_dt(struct lp855x *lp)
 		pdata->rom_data = &rom[0];
 	}
 
-	lp->pdata = pdata;
-
 	return 0;
 }
 #else
@@ -395,59 +369,129 @@ static int lp855x_parse_dt(struct lp855x *lp)
 }
 #endif
 
-static int lp855x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
+static int lp855x_parse_acpi(struct lp855x *lp)
 {
+	int ret;
+
+	/*
+	 * On ACPI the device has already been initialized by the firmware
+	 * and is in register mode, so we can read back the settings from
+	 * the registers.
+	 */
+	ret = i2c_smbus_read_byte_data(lp->client, lp->cfg->reg_brightness);
+	if (ret < 0)
+		return ret;
+
+	lp->pdata->initial_brightness = ret;
+
+	ret = i2c_smbus_read_byte_data(lp->client, lp->cfg->reg_devicectrl);
+	if (ret < 0)
+		return ret;
+
+	lp->pdata->device_control = ret;
+	return 0;
+}
+
+static int lp855x_probe(struct i2c_client *cl)
+{
+	const struct i2c_device_id *id = i2c_client_get_device_id(cl);
+	const struct acpi_device_id *acpi_id = NULL;
+	struct device *dev = &cl->dev;
 	struct lp855x *lp;
 	int ret;
 
 	if (!i2c_check_functionality(cl->adapter, I2C_FUNC_SMBUS_I2C_BLOCK))
 		return -EIO;
 
-	lp = devm_kzalloc(&cl->dev, sizeof(struct lp855x), GFP_KERNEL);
+	lp = devm_kzalloc(dev, sizeof(struct lp855x), GFP_KERNEL);
 	if (!lp)
 		return -ENOMEM;
 
 	lp->client = cl;
-	lp->dev = &cl->dev;
-	lp->chipname = id->name;
-	lp->chip_id = id->driver_data;
-	lp->pdata = dev_get_platdata(&cl->dev);
+	lp->dev = dev;
+	lp->pdata = dev_get_platdata(dev);
 
-	if (!lp->pdata) {
-		ret = lp855x_parse_dt(lp);
-		if (ret < 0)
-			return ret;
+	if (id) {
+		lp->chipname = id->name;
+		lp->chip_id = id->driver_data;
+	} else {
+		acpi_id = acpi_match_device(dev->driver->acpi_match_table, dev);
+		if (!acpi_id)
+			return -ENODEV;
+
+		lp->chipname = acpi_id->id;
+		lp->chip_id = acpi_id->driver_data;
 	}
 
-	if (lp->pdata->period_ns > 0)
-		lp->mode = PWM_BASED;
-	else
-		lp->mode = REGISTER_BASED;
+	switch (lp->chip_id) {
+	case LP8550:
+	case LP8551:
+	case LP8552:
+	case LP8553:
+	case LP8556:
+		lp->cfg = &lp855x_dev_cfg;
+		break;
+	case LP8555:
+	case LP8557:
+		lp->cfg = &lp8557_dev_cfg;
+		break;
+	default:
+		return -EINVAL;
+	}
 
-	lp->supply = devm_regulator_get(lp->dev, "power");
+	if (!lp->pdata) {
+		lp->pdata = devm_kzalloc(dev, sizeof(*lp->pdata), GFP_KERNEL);
+		if (!lp->pdata)
+			return -ENOMEM;
+
+		if (id) {
+			ret = lp855x_parse_dt(lp);
+			if (ret < 0)
+				return ret;
+		} else {
+			ret = lp855x_parse_acpi(lp);
+			if (ret < 0)
+				return ret;
+		}
+	}
+
+	lp->supply = devm_regulator_get(dev, "power");
 	if (IS_ERR(lp->supply)) {
 		if (PTR_ERR(lp->supply) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
 		lp->supply = NULL;
 	}
 
-	lp->enable = devm_regulator_get_optional(lp->dev, "enable");
+	lp->enable = devm_regulator_get_optional(dev, "enable");
 	if (IS_ERR(lp->enable)) {
 		ret = PTR_ERR(lp->enable);
-		if (ret == -ENODEV) {
+		if (ret == -ENODEV)
 			lp->enable = NULL;
-		} else {
-			if (ret != -EPROBE_DEFER)
-				dev_err(lp->dev, "error getting enable regulator: %d\n",
-					ret);
-			return ret;
-		}
+		else
+			return dev_err_probe(dev, ret, "getting enable regulator\n");
+	}
+
+	lp->pwm = devm_pwm_get(lp->dev, lp->chipname);
+	if (IS_ERR(lp->pwm)) {
+		ret = PTR_ERR(lp->pwm);
+		if (ret == -ENODEV || ret == -EINVAL)
+			lp->pwm = NULL;
+		else
+			return dev_err_probe(dev, ret, "getting PWM\n");
+
+		lp->needs_pwm_init = false;
+		lp->mode = REGISTER_BASED;
+		dev_dbg(dev, "mode: register based\n");
+	} else {
+		lp->needs_pwm_init = true;
+		lp->mode = PWM_BASED;
+		dev_dbg(dev, "mode: PWM based\n");
 	}
 
 	if (lp->supply) {
 		ret = regulator_enable(lp->supply);
 		if (ret < 0) {
-			dev_err(&cl->dev, "failed to enable supply: %d\n", ret);
+			dev_err(dev, "failed to enable supply: %d\n", ret);
 			return ret;
 		}
 	}
@@ -455,8 +499,8 @@ static int lp855x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 	if (lp->enable) {
 		ret = regulator_enable(lp->enable);
 		if (ret < 0) {
-			dev_err(lp->dev, "failed to enable vddio: %d\n", ret);
-			return ret;
+			dev_err(dev, "failed to enable vddio: %d\n", ret);
+			goto disable_supply;
 		}
 
 		/*
@@ -470,41 +514,50 @@ static int lp855x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 
 	ret = lp855x_configure(lp);
 	if (ret) {
-		dev_err(lp->dev, "device config err: %d", ret);
-		return ret;
+		dev_err(dev, "device config err: %d", ret);
+		goto disable_vddio;
 	}
 
 	ret = lp855x_backlight_register(lp);
 	if (ret) {
-		dev_err(lp->dev,
-			"failed to register backlight. err: %d\n", ret);
-		return ret;
+		dev_err(dev, "failed to register backlight. err: %d\n", ret);
+		goto disable_vddio;
 	}
 
-	ret = sysfs_create_group(&lp->dev->kobj, &lp855x_attr_group);
+	ret = sysfs_create_group(&dev->kobj, &lp855x_attr_group);
 	if (ret) {
-		dev_err(lp->dev, "failed to register sysfs. err: %d\n", ret);
-		return ret;
+		dev_err(dev, "failed to register sysfs. err: %d\n", ret);
+		goto disable_vddio;
 	}
 
 	backlight_update_status(lp->bl);
+
 	return 0;
+
+disable_vddio:
+	if (lp->enable)
+		regulator_disable(lp->enable);
+disable_supply:
+	if (lp->supply)
+		regulator_disable(lp->supply);
+
+	return ret;
 }
 
-static int lp855x_remove(struct i2c_client *cl)
+static void lp855x_remove(struct i2c_client *cl)
 {
 	struct lp855x *lp = i2c_get_clientdata(cl);
 
 	lp->bl->props.brightness = 0;
 	backlight_update_status(lp->bl);
+	if (lp->enable)
+		regulator_disable(lp->enable);
 	if (lp->supply)
 		regulator_disable(lp->supply);
 	sysfs_remove_group(&lp->dev->kobj, &lp855x_attr_group);
-
-	return 0;
 }
 
-static const struct of_device_id lp855x_dt_ids[] = {
+static const struct of_device_id lp855x_dt_ids[] __maybe_unused = {
 	{ .compatible = "ti,lp8550", },
 	{ .compatible = "ti,lp8551", },
 	{ .compatible = "ti,lp8552", },
@@ -528,10 +581,20 @@ static const struct i2c_device_id lp855x_ids[] = {
 };
 MODULE_DEVICE_TABLE(i2c, lp855x_ids);
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id lp855x_acpi_match[] = {
+	/* Xiaomi specific HID used for the LP8556 on the Mi Pad 2 */
+	{ "XMCC0001", LP8556 },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, lp855x_acpi_match);
+#endif
+
 static struct i2c_driver lp855x_driver = {
 	.driver = {
 		   .name = "lp855x",
 		   .of_match_table = of_match_ptr(lp855x_dt_ids),
+		   .acpi_match_table = ACPI_PTR(lp855x_acpi_match),
 		   },
 	.probe = lp855x_probe,
 	.remove = lp855x_remove,

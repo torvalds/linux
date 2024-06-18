@@ -26,6 +26,7 @@ static const struct usb_device_id mt7601u_device_table[] = {
 	{ USB_DEVICE(0x2717, 0x4106) },
 	{ USB_DEVICE(0x2955, 0x0001) },
 	{ USB_DEVICE(0x2955, 0x1001) },
+	{ USB_DEVICE(0x2955, 0x1003) },
 	{ USB_DEVICE(0x2a5f, 0x1000) },
 	{ USB_DEVICE(0x7392, 0x7710) },
 	{ 0, }
@@ -364,6 +365,7 @@ static int mt7601u_resume(struct usb_interface *usb_intf)
 
 MODULE_DEVICE_TABLE(usb, mt7601u_device_table);
 MODULE_FIRMWARE(MT7601U_FIRMWARE);
+MODULE_DESCRIPTION("MediaTek MT7601U USB Wireless LAN driver");
 MODULE_LICENSE("GPL");
 
 static struct usb_driver mt7601u_driver = {

@@ -21,9 +21,8 @@ static void nfs3_prepare_get_acl(struct posix_acl **p)
 {
 	struct posix_acl *sentinel = uncached_acl_sentinel(current);
 
-	if (cmpxchg(p, ACL_NOT_CACHED, sentinel) != ACL_NOT_CACHED) {
-		/* Not the first reader or sentinel already in place. */
-	}
+	/* If the ACL isn't being read yet, set our sentinel. */
+	cmpxchg(p, ACL_NOT_CACHED, sentinel);
 }
 
 static void nfs3_complete_get_acl(struct posix_acl **p, struct posix_acl *acl)
@@ -44,7 +43,7 @@ static void nfs3_abort_get_acl(struct posix_acl **p)
 	cmpxchg(p, sentinel, ACL_NOT_CACHED);
 }
 
-struct posix_acl *nfs3_get_acl(struct inode *inode, int type)
+struct posix_acl *nfs3_get_acl(struct inode *inode, int type, bool rcu)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
 	struct page *pages[NFSACL_MAXPAGES] = { };
@@ -62,10 +61,13 @@ struct posix_acl *nfs3_get_acl(struct inode *inode, int type)
 	};
 	int status, count;
 
+	if (rcu)
+		return ERR_PTR(-ECHILD);
+
 	if (!nfs_server_capable(inode, NFS_CAP_ACLS))
 		return ERR_PTR(-EOPNOTSUPP);
 
-	status = nfs_revalidate_inode(server, inode);
+	status = nfs_revalidate_inode(inode, NFS_INO_INVALID_CHANGE);
 	if (status < 0)
 		return ERR_PTR(status);
 
@@ -108,9 +110,10 @@ struct posix_acl *nfs3_get_acl(struct inode *inode, int type)
 		case -EPROTONOSUPPORT:
 			dprintk("NFS_V3_ACL extension not supported; disabling\n");
 			server->caps &= ~NFS_CAP_ACLS;
-			/* fall through */
+			fallthrough;
 		case -ENOTSUPP:
 			status = -EOPNOTSUPP;
+			goto getout;
 		default:
 			goto getout;
 	}
@@ -228,7 +231,7 @@ static int __nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
 			dprintk("NFS_V3_ACL SETACL RPC not supported"
 					"(will not retry)\n");
 			server->caps &= ~NFS_CAP_ACLS;
-			/* fall through */
+			fallthrough;
 		case -ENOTSUPP:
 			status = -EOPNOTSUPP;
 	}
@@ -251,46 +254,50 @@ int nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
 
 }
 
-int nfs3_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+int nfs3_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
+		 struct posix_acl *acl, int type)
 {
-	struct posix_acl *alloc = NULL, *dfacl = NULL;
+	struct posix_acl *orig = acl, *dfacl = NULL, *alloc;
+	struct inode *inode = d_inode(dentry);
 	int status;
 
 	if (S_ISDIR(inode->i_mode)) {
 		switch(type) {
 		case ACL_TYPE_ACCESS:
-			alloc = dfacl = get_acl(inode, ACL_TYPE_DEFAULT);
+			alloc = get_inode_acl(inode, ACL_TYPE_DEFAULT);
 			if (IS_ERR(alloc))
 				goto fail;
+			dfacl = alloc;
 			break;
 
 		case ACL_TYPE_DEFAULT:
-			dfacl = acl;
-			alloc = acl = get_acl(inode, ACL_TYPE_ACCESS);
+			alloc = get_inode_acl(inode, ACL_TYPE_ACCESS);
 			if (IS_ERR(alloc))
 				goto fail;
+			dfacl = acl;
+			acl = alloc;
 			break;
 		}
 	}
 
 	if (acl == NULL) {
-		alloc = acl = posix_acl_from_mode(inode->i_mode, GFP_KERNEL);
+		alloc = posix_acl_from_mode(inode->i_mode, GFP_KERNEL);
 		if (IS_ERR(alloc))
 			goto fail;
+		acl = alloc;
 	}
 	status = __nfs3_proc_setacls(inode, acl, dfacl);
-	posix_acl_release(alloc);
+out:
+	if (acl != orig)
+		posix_acl_release(acl);
+	if (dfacl != orig)
+		posix_acl_release(dfacl);
 	return status;
 
 fail:
-	return PTR_ERR(alloc);
+	status = PTR_ERR(alloc);
+	goto out;
 }
-
-const struct xattr_handler *nfs3_xattr_handlers[] = {
-	&posix_acl_access_xattr_handler,
-	&posix_acl_default_xattr_handler,
-	NULL,
-};
 
 static int
 nfs3_list_one_acl(struct inode *inode, int type, const char *name, void *data,
@@ -299,7 +306,7 @@ nfs3_list_one_acl(struct inode *inode, int type, const char *name, void *data,
 	struct posix_acl *acl;
 	char *p = data + *result;
 
-	acl = get_acl(inode, type);
+	acl = get_inode_acl(inode, type);
 	if (IS_ERR_OR_NULL(acl))
 		return 0;
 

@@ -9,7 +9,7 @@
 #include <linux/module.h>
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <asm/proc-fns.h>
@@ -102,13 +102,11 @@ static struct cpufreq_driver kirkwood_cpufreq_driver = {
 static int kirkwood_cpufreq_probe(struct platform_device *pdev)
 {
 	struct device_node *np;
-	struct resource *res;
 	int err;
 
 	priv.dev = &pdev->dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv.base = devm_ioremap_resource(&pdev->dev, res);
+	priv.base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv.base))
 		return PTR_ERR(priv.base);
 
@@ -180,20 +178,18 @@ out_node:
 	return err;
 }
 
-static int kirkwood_cpufreq_remove(struct platform_device *pdev)
+static void kirkwood_cpufreq_remove(struct platform_device *pdev)
 {
 	cpufreq_unregister_driver(&kirkwood_cpufreq_driver);
 
 	clk_disable_unprepare(priv.powersave_clk);
 	clk_disable_unprepare(priv.ddr_clk);
 	clk_disable_unprepare(priv.cpu_clk);
-
-	return 0;
 }
 
 static struct platform_driver kirkwood_cpufreq_platform_driver = {
 	.probe = kirkwood_cpufreq_probe,
-	.remove = kirkwood_cpufreq_remove,
+	.remove_new = kirkwood_cpufreq_remove,
 	.driver = {
 		.name = "kirkwood-cpufreq",
 	},

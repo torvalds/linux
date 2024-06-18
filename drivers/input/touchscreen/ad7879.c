@@ -306,7 +306,7 @@ static int __maybe_unused ad7879_suspend(struct device *dev)
 
 	mutex_lock(&ts->input->mutex);
 
-	if (!ts->suspended && !ts->disabled && ts->input->users)
+	if (!ts->suspended && !ts->disabled && input_device_enabled(ts->input))
 		__ad7879_disable(ts);
 
 	ts->suspended = true;
@@ -322,7 +322,7 @@ static int __maybe_unused ad7879_resume(struct device *dev)
 
 	mutex_lock(&ts->input->mutex);
 
-	if (ts->suspended && !ts->disabled && ts->input->users)
+	if (ts->suspended && !ts->disabled && input_device_enabled(ts->input))
 		__ad7879_enable(ts);
 
 	ts->suspended = false;
@@ -339,7 +339,7 @@ static void ad7879_toggle(struct ad7879 *ts, bool disable)
 {
 	mutex_lock(&ts->input->mutex);
 
-	if (!ts->suspended && ts->input->users != 0) {
+	if (!ts->suspended && input_device_enabled(ts->input)) {
 
 		if (disable) {
 			if (ts->disabled)
@@ -390,6 +390,12 @@ static struct attribute *ad7879_attributes[] = {
 static const struct attribute_group ad7879_attr_group = {
 	.attrs = ad7879_attributes,
 };
+
+const struct attribute_group *ad7879_groups[] = {
+	&ad7879_attr_group,
+	NULL
+};
+EXPORT_SYMBOL_GPL(ad7879_groups);
 
 #ifdef CONFIG_GPIOLIB
 static int ad7879_gpio_direction_input(struct gpio_chip *chip,
@@ -611,10 +617,6 @@ int ad7879_probe(struct device *dev, struct regmap *regmap,
 	}
 
 	__ad7879_disable(ts);
-
-	err = devm_device_add_group(dev, &ad7879_attr_group);
-	if (err)
-		return err;
 
 	err = ad7879_gpio_add(ts);
 	if (err)

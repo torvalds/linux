@@ -8,7 +8,7 @@
 
 #include <linux/module.h>
 #include <linux/i2c.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/of_regulator.h>
@@ -25,6 +25,7 @@ struct sy8824_config {
 	unsigned int vsel_min;
 	unsigned int vsel_step;
 	unsigned int vsel_count;
+	const struct regmap_config *config;
 };
 
 struct sy8824_device_info {
@@ -110,10 +111,18 @@ static int sy8824_regulator_register(struct sy8824_device_info *di,
 static const struct regmap_config sy8824_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
+	.num_reg_defaults_raw = 1,
+	.cache_type = REGCACHE_FLAT,
 };
 
-static int sy8824_i2c_probe(struct i2c_client *client,
-			    const struct i2c_device_id *id)
+static const struct regmap_config sy20276_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.num_reg_defaults_raw = 2,
+	.cache_type = REGCACHE_FLAT,
+};
+
+static int sy8824_i2c_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *np = dev->of_node;
@@ -133,9 +142,9 @@ static int sy8824_i2c_probe(struct i2c_client *client,
 	}
 
 	di->dev = dev;
-	di->cfg = of_device_get_match_data(dev);
+	di->cfg = i2c_get_match_data(client);
 
-	regmap = devm_regmap_init_i2c(client, &sy8824_regmap_config);
+	regmap = devm_regmap_init_i2c(client, di->cfg->config);
 	if (IS_ERR(regmap)) {
 		dev_err(dev, "Failed to allocate regmap!\n");
 		return PTR_ERR(regmap);
@@ -161,6 +170,7 @@ static const struct sy8824_config sy8824c_cfg = {
 	.vsel_min = 762500,
 	.vsel_step = 12500,
 	.vsel_count = 64,
+	.config = &sy8824_regmap_config,
 };
 
 static const struct sy8824_config sy8824e_cfg = {
@@ -170,6 +180,7 @@ static const struct sy8824_config sy8824e_cfg = {
 	.vsel_min = 700000,
 	.vsel_step = 12500,
 	.vsel_count = 64,
+	.config = &sy8824_regmap_config,
 };
 
 static const struct sy8824_config sy20276_cfg = {
@@ -179,6 +190,7 @@ static const struct sy8824_config sy20276_cfg = {
 	.vsel_min = 600000,
 	.vsel_step = 10000,
 	.vsel_count = 128,
+	.config = &sy20276_regmap_config,
 };
 
 static const struct sy8824_config sy20278_cfg = {
@@ -188,39 +200,29 @@ static const struct sy8824_config sy20278_cfg = {
 	.vsel_min = 762500,
 	.vsel_step = 12500,
 	.vsel_count = 64,
+	.config = &sy20276_regmap_config,
 };
 
 static const struct of_device_id sy8824_dt_ids[] = {
-	{
-		.compatible = "silergy,sy8824c",
-		.data = &sy8824c_cfg
-	},
-	{
-		.compatible = "silergy,sy8824e",
-		.data = &sy8824e_cfg
-	},
-	{
-		.compatible = "silergy,sy20276",
-		.data = &sy20276_cfg
-	},
-	{
-		.compatible = "silergy,sy20278",
-		.data = &sy20278_cfg
-	},
+	{ .compatible = "silergy,sy8824c", .data = &sy8824c_cfg },
+	{ .compatible = "silergy,sy8824e", .data = &sy8824e_cfg },
+	{ .compatible = "silergy,sy20276", .data = &sy20276_cfg },
+	{ .compatible = "silergy,sy20278", .data = &sy20278_cfg },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, sy8824_dt_ids);
 
 static const struct i2c_device_id sy8824_id[] = {
-	{ "sy8824", },
-	{ },
+	{ "sy8824", (kernel_ulong_t)&sy8824c_cfg },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, sy8824_id);
 
 static struct i2c_driver sy8824_regulator_driver = {
 	.driver = {
 		.name = "sy8824-regulator",
-		.of_match_table = of_match_ptr(sy8824_dt_ids),
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.of_match_table = sy8824_dt_ids,
 	},
 	.probe = sy8824_i2c_probe,
 	.id_table = sy8824_id,

@@ -27,8 +27,7 @@
 
 #define NISLANDS_MAX_SMC_PERFORMANCE_LEVELS_PER_SWSTATE 16
 
-struct PP_NIslands_Dpm2PerfLevel
-{
+struct PP_NIslands_Dpm2PerfLevel {
     uint8_t     MaxPS;
     uint8_t     TgtAct;
     uint8_t     MaxPS_StepInc;
@@ -44,8 +43,7 @@ struct PP_NIslands_Dpm2PerfLevel
 
 typedef struct PP_NIslands_Dpm2PerfLevel PP_NIslands_Dpm2PerfLevel;
 
-struct PP_NIslands_DPM2Parameters
-{
+struct PP_NIslands_DPM2Parameters {
     uint32_t    TDPLimit;
     uint32_t    NearTDPLimit;
     uint32_t    SafePowerLimit;
@@ -53,8 +51,7 @@ struct PP_NIslands_DPM2Parameters
 };
 typedef struct PP_NIslands_DPM2Parameters PP_NIslands_DPM2Parameters;
 
-struct NISLANDS_SMC_SCLK_VALUE
-{
+struct NISLANDS_SMC_SCLK_VALUE {
     uint32_t        vCG_SPLL_FUNC_CNTL;
     uint32_t        vCG_SPLL_FUNC_CNTL_2;
     uint32_t        vCG_SPLL_FUNC_CNTL_3;
@@ -66,8 +63,7 @@ struct NISLANDS_SMC_SCLK_VALUE
 
 typedef struct NISLANDS_SMC_SCLK_VALUE NISLANDS_SMC_SCLK_VALUE;
 
-struct NISLANDS_SMC_MCLK_VALUE
-{
+struct NISLANDS_SMC_MCLK_VALUE {
     uint32_t        vMPLL_FUNC_CNTL;
     uint32_t        vMPLL_FUNC_CNTL_1;
     uint32_t        vMPLL_FUNC_CNTL_2;
@@ -84,8 +80,7 @@ struct NISLANDS_SMC_MCLK_VALUE
 
 typedef struct NISLANDS_SMC_MCLK_VALUE NISLANDS_SMC_MCLK_VALUE;
 
-struct NISLANDS_SMC_VOLTAGE_VALUE
-{
+struct NISLANDS_SMC_VOLTAGE_VALUE {
     uint16_t             value;
     uint8_t              index;
     uint8_t              padding;
@@ -93,8 +88,7 @@ struct NISLANDS_SMC_VOLTAGE_VALUE
 
 typedef struct NISLANDS_SMC_VOLTAGE_VALUE NISLANDS_SMC_VOLTAGE_VALUE;
 
-struct NISLANDS_SMC_HW_PERFORMANCE_LEVEL
-{
+struct NISLANDS_SMC_HW_PERFORMANCE_LEVEL {
     uint8_t                     arbValue;
     uint8_t                     ACIndex;
     uint8_t                     displayWatermark;
@@ -132,24 +126,30 @@ struct NISLANDS_SMC_HW_PERFORMANCE_LEVEL
 
 typedef struct NISLANDS_SMC_HW_PERFORMANCE_LEVEL NISLANDS_SMC_HW_PERFORMANCE_LEVEL;
 
-struct NISLANDS_SMC_SWSTATE
-{
-    uint8_t                             flags;
-    uint8_t                             levelCount;
-    uint8_t                             padding2;
-    uint8_t                             padding3;
-    NISLANDS_SMC_HW_PERFORMANCE_LEVEL   levels[1];
+struct NISLANDS_SMC_SWSTATE {
+	uint8_t                             flags;
+	uint8_t                             levelCount;
+	uint8_t                             padding2;
+	uint8_t                             padding3;
+	NISLANDS_SMC_HW_PERFORMANCE_LEVEL   levels[];
 };
 
 typedef struct NISLANDS_SMC_SWSTATE NISLANDS_SMC_SWSTATE;
+
+struct NISLANDS_SMC_SWSTATE_SINGLE {
+	uint8_t                             flags;
+	uint8_t                             levelCount;
+	uint8_t                             padding2;
+	uint8_t                             padding3;
+	NISLANDS_SMC_HW_PERFORMANCE_LEVEL   level;
+};
 
 #define NISLANDS_SMC_VOLTAGEMASK_VDDC  0
 #define NISLANDS_SMC_VOLTAGEMASK_MVDD  1
 #define NISLANDS_SMC_VOLTAGEMASK_VDDCI 2
 #define NISLANDS_SMC_VOLTAGEMASK_MAX   4
 
-struct NISLANDS_SMC_VOLTAGEMASKTABLE
-{
+struct NISLANDS_SMC_VOLTAGEMASKTABLE {
     uint8_t  highMask[NISLANDS_SMC_VOLTAGEMASK_MAX];
     uint32_t lowMask[NISLANDS_SMC_VOLTAGEMASK_MAX];
 };
@@ -158,21 +158,20 @@ typedef struct NISLANDS_SMC_VOLTAGEMASKTABLE NISLANDS_SMC_VOLTAGEMASKTABLE;
 
 #define NISLANDS_MAX_NO_VREG_STEPS 32
 
-struct NISLANDS_SMC_STATETABLE
-{
-    uint8_t                             thermalProtectType;
-    uint8_t                             systemFlags;
-    uint8_t                             maxVDDCIndexInPPTable;
-    uint8_t                             extraFlags;
-    uint8_t                             highSMIO[NISLANDS_MAX_NO_VREG_STEPS];
-    uint32_t                            lowSMIO[NISLANDS_MAX_NO_VREG_STEPS];
-    NISLANDS_SMC_VOLTAGEMASKTABLE       voltageMaskTable;
-    PP_NIslands_DPM2Parameters          dpm2Params;
-    NISLANDS_SMC_SWSTATE                initialState;
-    NISLANDS_SMC_SWSTATE                ACPIState;
-    NISLANDS_SMC_SWSTATE                ULVState;
-    NISLANDS_SMC_SWSTATE                driverState;
-    NISLANDS_SMC_HW_PERFORMANCE_LEVEL   dpmLevels[NISLANDS_MAX_SMC_PERFORMANCE_LEVELS_PER_SWSTATE - 1];
+struct NISLANDS_SMC_STATETABLE {
+	uint8_t                             thermalProtectType;
+	uint8_t                             systemFlags;
+	uint8_t                             maxVDDCIndexInPPTable;
+	uint8_t                             extraFlags;
+	uint8_t                             highSMIO[NISLANDS_MAX_NO_VREG_STEPS];
+	uint32_t                            lowSMIO[NISLANDS_MAX_NO_VREG_STEPS];
+	NISLANDS_SMC_VOLTAGEMASKTABLE       voltageMaskTable;
+	PP_NIslands_DPM2Parameters          dpm2Params;
+	struct NISLANDS_SMC_SWSTATE_SINGLE  initialState;
+	struct NISLANDS_SMC_SWSTATE_SINGLE  ACPIState;
+	struct NISLANDS_SMC_SWSTATE_SINGLE  ULVState;
+	NISLANDS_SMC_SWSTATE                driverState;
+	NISLANDS_SMC_HW_PERFORMANCE_LEVEL   dpmLevels[NISLANDS_MAX_SMC_PERFORMANCE_LEVELS_PER_SWSTATE];
 };
 
 typedef struct NISLANDS_SMC_STATETABLE NISLANDS_SMC_STATETABLE;
@@ -195,8 +194,7 @@ typedef struct NISLANDS_SMC_STATETABLE NISLANDS_SMC_STATETABLE;
 #define SMC_NISLANDS_LKGE_LUT_NUM_OF_VOLT_ENTRIES 16
 #define SMC_NISLANDS_BIF_LUT_NUM_OF_ENTRIES 4
 
-struct SMC_NISLANDS_MC_TPP_CAC_TABLE
-{
+struct SMC_NISLANDS_MC_TPP_CAC_TABLE {
     uint32_t    tpp[SMC_NISLANDS_MC_TPP_CAC_NUM_OF_ENTRIES];
     uint32_t    cacValue[SMC_NISLANDS_MC_TPP_CAC_NUM_OF_ENTRIES];
 };
@@ -204,8 +202,7 @@ struct SMC_NISLANDS_MC_TPP_CAC_TABLE
 typedef struct SMC_NISLANDS_MC_TPP_CAC_TABLE SMC_NISLANDS_MC_TPP_CAC_TABLE;
 
 
-struct PP_NIslands_CACTABLES
-{
+struct PP_NIslands_CACTABLES {
     uint32_t                cac_bif_lut[SMC_NISLANDS_BIF_LUT_NUM_OF_ENTRIES];
     uint32_t                cac_lkge_lut[SMC_NISLANDS_LKGE_LUT_NUM_OF_TEMP_ENTRIES][SMC_NISLANDS_LKGE_LUT_NUM_OF_VOLT_ENTRIES];
 
@@ -249,8 +246,7 @@ typedef struct PP_NIslands_CACTABLES PP_NIslands_CACTABLES;
 #define SMC_NISLANDS_MC_REGISTER_ARRAY_SIZE 32
 #define SMC_NISLANDS_MC_REGISTER_ARRAY_SET_COUNT 20
 
-struct SMC_NIslands_MCRegisterAddress
-{
+struct SMC_NIslands_MCRegisterAddress {
     uint16_t s0;
     uint16_t s1;
 };
@@ -258,15 +254,13 @@ struct SMC_NIslands_MCRegisterAddress
 typedef struct SMC_NIslands_MCRegisterAddress SMC_NIslands_MCRegisterAddress;
 
 
-struct SMC_NIslands_MCRegisterSet
-{
+struct SMC_NIslands_MCRegisterSet {
     uint32_t value[SMC_NISLANDS_MC_REGISTER_ARRAY_SIZE];
 };
 
 typedef struct SMC_NIslands_MCRegisterSet SMC_NIslands_MCRegisterSet;
 
-struct SMC_NIslands_MCRegisters
-{
+struct SMC_NIslands_MCRegisters {
     uint8_t                             last;
     uint8_t                             reserved[3];
     SMC_NIslands_MCRegisterAddress      address[SMC_NISLANDS_MC_REGISTER_ARRAY_SIZE];
@@ -275,8 +269,7 @@ struct SMC_NIslands_MCRegisters
 
 typedef struct SMC_NIslands_MCRegisters SMC_NIslands_MCRegisters;
 
-struct SMC_NIslands_MCArbDramTimingRegisterSet
-{
+struct SMC_NIslands_MCArbDramTimingRegisterSet {
     uint32_t mc_arb_dram_timing;
     uint32_t mc_arb_dram_timing2;
     uint8_t  mc_arb_rfsh_rate;
@@ -285,8 +278,7 @@ struct SMC_NIslands_MCArbDramTimingRegisterSet
 
 typedef struct SMC_NIslands_MCArbDramTimingRegisterSet SMC_NIslands_MCArbDramTimingRegisterSet;
 
-struct SMC_NIslands_MCArbDramTimingRegisters
-{
+struct SMC_NIslands_MCArbDramTimingRegisters {
     uint8_t                                     arb_current;
     uint8_t                                     reserved[3];
     SMC_NIslands_MCArbDramTimingRegisterSet     data[20];
@@ -294,8 +286,7 @@ struct SMC_NIslands_MCArbDramTimingRegisters
 
 typedef struct SMC_NIslands_MCArbDramTimingRegisters SMC_NIslands_MCArbDramTimingRegisters;
 
-struct SMC_NISLANDS_SPLL_DIV_TABLE
-{
+struct SMC_NISLANDS_SPLL_DIV_TABLE {
     uint32_t    freq[256];
     uint32_t    ss[256];
 };

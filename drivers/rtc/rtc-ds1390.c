@@ -213,11 +213,17 @@ static int ds1390_probe(struct spi_device *spi)
 	return res;
 }
 
-static const struct of_device_id ds1390_of_match[] = {
+static const struct of_device_id ds1390_of_match[] __maybe_unused = {
 	{ .compatible = "dallas,ds1390" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, ds1390_of_match);
+
+static const struct spi_device_id ds1390_spi_ids[] = {
+	{ .name = "ds1390" },
+	{}
+};
+MODULE_DEVICE_TABLE(spi, ds1390_spi_ids);
 
 static struct spi_driver ds1390_driver = {
 	.driver = {
@@ -225,6 +231,7 @@ static struct spi_driver ds1390_driver = {
 		.of_match_table = of_match_ptr(ds1390_of_match),
 	},
 	.probe	= ds1390_probe,
+	.id_table = ds1390_spi_ids,
 };
 
 module_spi_driver(ds1390_driver);

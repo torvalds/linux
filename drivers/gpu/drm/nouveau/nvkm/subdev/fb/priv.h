@@ -6,6 +6,9 @@
 #include <subdev/therm.h>
 struct nvkm_bios;
 
+int r535_fb_new(const struct nvkm_fb_func *,
+		struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_fb **);
+
 struct nvkm_fb_func {
 	void *(*dtor)(struct nvkm_fb *);
 	u32 (*tags)(struct nvkm_fb *);
@@ -15,6 +18,19 @@ struct nvkm_fb_func {
 	int (*init_page)(struct nvkm_fb *);
 	void (*init_unkn)(struct nvkm_fb *);
 	void (*intr)(struct nvkm_fb *);
+
+	struct nvkm_fb_func_sysmem {
+		void (*flush_page_init)(struct nvkm_fb *);
+	} sysmem;
+
+	struct nvkm_fb_func_vidmem {
+		u64 (*size)(struct nvkm_fb *);
+	} vidmem;
+
+	struct {
+		bool (*scrub_required)(struct nvkm_fb *);
+		int (*scrub)(struct nvkm_fb *);
+	} vpr;
 
 	struct {
 		int regions;
@@ -32,10 +48,10 @@ struct nvkm_fb_func {
 	const struct nvkm_therm_clkgate_pack *clkgate_pack;
 };
 
-void nvkm_fb_ctor(const struct nvkm_fb_func *, struct nvkm_device *device,
-		  int index, struct nvkm_fb *);
+int nvkm_fb_ctor(const struct nvkm_fb_func *, struct nvkm_device *device,
+		 enum nvkm_subdev_type type, int inst, struct nvkm_fb *);
 int nvkm_fb_new_(const struct nvkm_fb_func *, struct nvkm_device *device,
-		 int index, struct nvkm_fb **);
+		 enum nvkm_subdev_type type, int inst, struct nvkm_fb **);
 int nvkm_fb_bios_memtype(struct nvkm_bios *);
 
 void nv10_fb_tile_init(struct nvkm_fb *, int i, u32 addr, u32 size,
@@ -67,9 +83,19 @@ void nv46_fb_tile_init(struct nvkm_fb *, int i, u32 addr, u32 size,
 
 int gf100_fb_oneinit(struct nvkm_fb *);
 int gf100_fb_init_page(struct nvkm_fb *);
+void gf100_fb_sysmem_flush_page_init(struct nvkm_fb *);
 
 int gm200_fb_init_page(struct nvkm_fb *);
 
 void gp100_fb_init_remapper(struct nvkm_fb *);
 void gp100_fb_init_unkn(struct nvkm_fb *);
+
+int gp102_fb_oneinit(struct nvkm_fb *);
+u64 gp102_fb_vidmem_size(struct nvkm_fb *);
+bool gp102_fb_vpr_scrub_required(struct nvkm_fb *);
+int gp102_fb_vpr_scrub(struct nvkm_fb *);
+
+int gv100_fb_init_page(struct nvkm_fb *);
+
+bool tu102_fb_vpr_scrub_required(struct nvkm_fb *);
 #endif

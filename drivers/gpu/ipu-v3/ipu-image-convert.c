@@ -7,7 +7,10 @@
 
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
+#include <linux/math.h>
+
 #include <video/imx-ipu-image-convert.h>
+
 #include "ipu-prv.h"
 
 /*
@@ -137,6 +140,17 @@ struct ipu_image_convert_ctx;
 struct ipu_image_convert_chan;
 struct ipu_image_convert_priv;
 
+enum eof_irq_mask {
+	EOF_IRQ_IN      = BIT(0),
+	EOF_IRQ_ROT_IN  = BIT(1),
+	EOF_IRQ_OUT     = BIT(2),
+	EOF_IRQ_ROT_OUT = BIT(3),
+};
+
+#define EOF_IRQ_COMPLETE (EOF_IRQ_IN | EOF_IRQ_OUT)
+#define EOF_IRQ_ROT_COMPLETE (EOF_IRQ_IN | EOF_IRQ_OUT |	\
+			      EOF_IRQ_ROT_IN | EOF_IRQ_ROT_OUT)
+
 struct ipu_image_convert_ctx {
 	struct ipu_image_convert_chan *chan;
 
@@ -173,6 +187,9 @@ struct ipu_image_convert_ctx {
 	/* where to place converted tile in dest image */
 	unsigned int out_tile_map[MAX_TILES];
 
+	/* mask of completed EOF irqs at every tile conversion */
+	enum eof_irq_mask eof_mask;
+
 	struct list_head list;
 };
 
@@ -189,6 +206,8 @@ struct ipu_image_convert_chan {
 	struct ipuv3_channel *rotation_out_chan;
 
 	/* the IPU end-of-frame irqs */
+	int in_eof_irq;
+	int rot_in_eof_irq;
 	int out_eof_irq;
 	int rot_out_eof_irq;
 
@@ -527,7 +546,7 @@ static void find_best_seam(struct ipu_image_convert_ctx *ctx,
 		unsigned int in_pos;
 		unsigned int in_pos_aligned;
 		unsigned int in_pos_rounded;
-		unsigned int abs_diff;
+		unsigned int diff;
 
 		/*
 		 * Tiles in the right row / bottom column may not be allowed to
@@ -559,15 +578,11 @@ static void find_best_seam(struct ipu_image_convert_ctx *ctx,
 		    (in_edge - in_pos_rounded) % in_burst)
 			continue;
 
-		if (in_pos < in_pos_aligned)
-			abs_diff = in_pos_aligned - in_pos;
-		else
-			abs_diff = in_pos - in_pos_aligned;
-
-		if (abs_diff < min_diff) {
+		diff = abs_diff(in_pos, in_pos_aligned);
+		if (diff < min_diff) {
 			in_seam = in_pos_rounded;
 			out_seam = out_pos;
-			min_diff = abs_diff;
+			min_diff = diff;
 		}
 	}
 
@@ -974,7 +989,7 @@ static int calc_tile_offsets_planar(struct ipu_image_convert_ctx *ctx,
 	const struct ipu_image_pixfmt *fmt = image->fmt;
 	unsigned int row, col, tile = 0;
 	u32 H, top, y_stride, uv_stride;
-	u32 uv_row_off, uv_col_off, uv_off, u_off, v_off, tmp;
+	u32 uv_row_off, uv_col_off, uv_off, u_off, v_off;
 	u32 y_row_off, y_col_off, y_off;
 	u32 y_size, uv_size;
 
@@ -1005,11 +1020,8 @@ static int calc_tile_offsets_planar(struct ipu_image_convert_ctx *ctx,
 
 			u_off = y_size - y_off + uv_off;
 			v_off = (fmt->uv_packed) ? 0 : u_off + uv_size;
-			if (fmt->uv_swapped) {
-				tmp = u_off;
-				u_off = v_off;
-				v_off = tmp;
-			}
+			if (fmt->uv_swapped)
+				swap(u_off, v_off);
 
 			image->tile[tile].offset = y_off;
 			image->tile[tile].u_off = u_off;
@@ -1380,6 +1392,9 @@ static int convert_start(struct ipu_image_convert_run *run, unsigned int tile)
 	dev_dbg(priv->ipu->dev, "%s: task %u: starting ctx %p run %p tile %u -> %u\n",
 		__func__, chan->ic_task, ctx, run, tile, dst_tile);
 
+	/* clear EOF irq mask */
+	ctx->eof_mask = 0;
+
 	if (ipu_rot_mode_is_irt(ctx->rot_mode)) {
 		/* swap width/height for resizer */
 		dest_width = d_image->tile[dst_tile].height;
@@ -1615,7 +1630,7 @@ static bool ic_settings_changed(struct ipu_image_convert_ctx *ctx)
 }
 
 /* hold irqlock when calling */
-static irqreturn_t do_irq(struct ipu_image_convert_run *run)
+static irqreturn_t do_tile_complete(struct ipu_image_convert_run *run)
 {
 	struct ipu_image_convert_ctx *ctx = run->ctx;
 	struct ipu_image_convert_chan *chan = ctx->chan;
@@ -1700,6 +1715,7 @@ static irqreturn_t do_irq(struct ipu_image_convert_run *run)
 		ctx->cur_buf_num ^= 1;
 	}
 
+	ctx->eof_mask = 0; /* clear EOF irq mask for next tile */
 	ctx->next_tile++;
 	return IRQ_HANDLED;
 done:
@@ -1709,45 +1725,15 @@ done:
 	return IRQ_WAKE_THREAD;
 }
 
-static irqreturn_t norotate_irq(int irq, void *data)
-{
-	struct ipu_image_convert_chan *chan = data;
-	struct ipu_image_convert_ctx *ctx;
-	struct ipu_image_convert_run *run;
-	unsigned long flags;
-	irqreturn_t ret;
-
-	spin_lock_irqsave(&chan->irqlock, flags);
-
-	/* get current run and its context */
-	run = chan->current_run;
-	if (!run) {
-		ret = IRQ_NONE;
-		goto out;
-	}
-
-	ctx = run->ctx;
-
-	if (ipu_rot_mode_is_irt(ctx->rot_mode)) {
-		/* this is a rotation operation, just ignore */
-		spin_unlock_irqrestore(&chan->irqlock, flags);
-		return IRQ_HANDLED;
-	}
-
-	ret = do_irq(run);
-out:
-	spin_unlock_irqrestore(&chan->irqlock, flags);
-	return ret;
-}
-
-static irqreturn_t rotate_irq(int irq, void *data)
+static irqreturn_t eof_irq(int irq, void *data)
 {
 	struct ipu_image_convert_chan *chan = data;
 	struct ipu_image_convert_priv *priv = chan->priv;
 	struct ipu_image_convert_ctx *ctx;
 	struct ipu_image_convert_run *run;
+	irqreturn_t ret = IRQ_HANDLED;
+	bool tile_complete = false;
 	unsigned long flags;
-	irqreturn_t ret;
 
 	spin_lock_irqsave(&chan->irqlock, flags);
 
@@ -1760,14 +1746,33 @@ static irqreturn_t rotate_irq(int irq, void *data)
 
 	ctx = run->ctx;
 
-	if (!ipu_rot_mode_is_irt(ctx->rot_mode)) {
-		/* this was NOT a rotation operation, shouldn't happen */
-		dev_err(priv->ipu->dev, "Unexpected rotation interrupt\n");
-		spin_unlock_irqrestore(&chan->irqlock, flags);
-		return IRQ_HANDLED;
+	if (irq == chan->in_eof_irq) {
+		ctx->eof_mask |= EOF_IRQ_IN;
+	} else if (irq == chan->out_eof_irq) {
+		ctx->eof_mask |= EOF_IRQ_OUT;
+	} else if (irq == chan->rot_in_eof_irq ||
+		   irq == chan->rot_out_eof_irq) {
+		if (!ipu_rot_mode_is_irt(ctx->rot_mode)) {
+			/* this was NOT a rotation op, shouldn't happen */
+			dev_err(priv->ipu->dev,
+				"Unexpected rotation interrupt\n");
+			goto out;
+		}
+		ctx->eof_mask |= (irq == chan->rot_in_eof_irq) ?
+			EOF_IRQ_ROT_IN : EOF_IRQ_ROT_OUT;
+	} else {
+		dev_err(priv->ipu->dev, "Received unknown irq %d\n", irq);
+		ret = IRQ_NONE;
+		goto out;
 	}
 
-	ret = do_irq(run);
+	if (ipu_rot_mode_is_irt(ctx->rot_mode))
+		tile_complete =	(ctx->eof_mask == EOF_IRQ_ROT_COMPLETE);
+	else
+		tile_complete = (ctx->eof_mask == EOF_IRQ_COMPLETE);
+
+	if (tile_complete)
+		ret = do_tile_complete(run);
 out:
 	spin_unlock_irqrestore(&chan->irqlock, flags);
 	return ret;
@@ -1801,6 +1806,10 @@ static void force_abort(struct ipu_image_convert_ctx *ctx)
 
 static void release_ipu_resources(struct ipu_image_convert_chan *chan)
 {
+	if (chan->in_eof_irq >= 0)
+		free_irq(chan->in_eof_irq, chan);
+	if (chan->rot_in_eof_irq >= 0)
+		free_irq(chan->rot_in_eof_irq, chan);
 	if (chan->out_eof_irq >= 0)
 		free_irq(chan->out_eof_irq, chan);
 	if (chan->rot_out_eof_irq >= 0)
@@ -1819,7 +1828,27 @@ static void release_ipu_resources(struct ipu_image_convert_chan *chan)
 
 	chan->in_chan = chan->out_chan = chan->rotation_in_chan =
 		chan->rotation_out_chan = NULL;
-	chan->out_eof_irq = chan->rot_out_eof_irq = -1;
+	chan->in_eof_irq = -1;
+	chan->rot_in_eof_irq = -1;
+	chan->out_eof_irq = -1;
+	chan->rot_out_eof_irq = -1;
+}
+
+static int get_eof_irq(struct ipu_image_convert_chan *chan,
+		       struct ipuv3_channel *channel)
+{
+	struct ipu_image_convert_priv *priv = chan->priv;
+	int ret, irq;
+
+	irq = ipu_idmac_channel_irq(priv->ipu, channel, IPU_IRQ_EOF);
+
+	ret = request_threaded_irq(irq, eof_irq, do_bh, 0, "ipu-ic", chan);
+	if (ret < 0) {
+		dev_err(priv->ipu->dev, "could not acquire irq %d\n", irq);
+		return ret;
+	}
+
+	return irq;
 }
 
 static int get_ipu_resources(struct ipu_image_convert_chan *chan)
@@ -1855,31 +1884,33 @@ static int get_ipu_resources(struct ipu_image_convert_chan *chan)
 	}
 
 	/* acquire the EOF interrupts */
-	chan->out_eof_irq = ipu_idmac_channel_irq(priv->ipu,
-						  chan->out_chan,
-						  IPU_IRQ_EOF);
-
-	ret = request_threaded_irq(chan->out_eof_irq, norotate_irq, do_bh,
-				   0, "ipu-ic", chan);
+	ret = get_eof_irq(chan, chan->in_chan);
 	if (ret < 0) {
-		dev_err(priv->ipu->dev, "could not acquire irq %d\n",
-			 chan->out_eof_irq);
+		chan->in_eof_irq = -1;
+		goto err;
+	}
+	chan->in_eof_irq = ret;
+
+	ret = get_eof_irq(chan, chan->rotation_in_chan);
+	if (ret < 0) {
+		chan->rot_in_eof_irq = -1;
+		goto err;
+	}
+	chan->rot_in_eof_irq = ret;
+
+	ret = get_eof_irq(chan, chan->out_chan);
+	if (ret < 0) {
 		chan->out_eof_irq = -1;
 		goto err;
 	}
+	chan->out_eof_irq = ret;
 
-	chan->rot_out_eof_irq = ipu_idmac_channel_irq(priv->ipu,
-						     chan->rotation_out_chan,
-						     IPU_IRQ_EOF);
-
-	ret = request_threaded_irq(chan->rot_out_eof_irq, rotate_irq, do_bh,
-				   0, "ipu-ic", chan);
+	ret = get_eof_irq(chan, chan->rotation_out_chan);
 	if (ret < 0) {
-		dev_err(priv->ipu->dev, "could not acquire irq %d\n",
-			chan->rot_out_eof_irq);
 		chan->rot_out_eof_irq = -1;
 		goto err;
 	}
+	chan->rot_out_eof_irq = ret;
 
 	return 0;
 err:
@@ -2458,6 +2489,8 @@ int ipu_image_convert_init(struct ipu_soc *ipu, struct device *dev)
 		chan->ic_task = i;
 		chan->priv = priv;
 		chan->dma_ch = &image_convert_dma_chan[i];
+		chan->in_eof_irq = -1;
+		chan->rot_in_eof_irq = -1;
 		chan->out_eof_irq = -1;
 		chan->rot_out_eof_irq = -1;
 

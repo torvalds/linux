@@ -64,10 +64,10 @@
 #define MLXCPLD_LED_BLINK_6HZ		83 /* ~83 msec off/on */
 
 /**
- * mlxcpld_param - LED access parameters:
- * @offset - offset for LED access in CPLD device
- * @mask - mask for LED access in CPLD device
- * @base_color - base color code for LED
+ * struct mlxcpld_param - LED access parameters:
+ * @offset: offset for LED access in CPLD device
+ * @mask: mask for LED access in CPLD device
+ * @base_color: base color code for LED
 **/
 struct mlxcpld_param {
 	u8 offset;
@@ -76,9 +76,9 @@ struct mlxcpld_param {
 };
 
 /**
- * mlxcpld_led_priv - LED private data:
- * @cled - LED class device instance
- * @param - LED CPLD access parameters
+ * struct mlxcpld_led_priv - LED private data:
+ * @cdev: LED class device instance
+ * @param: LED CPLD access parameters
 **/
 struct mlxcpld_led_priv {
 	struct led_classdev cdev;
@@ -88,12 +88,12 @@ struct mlxcpld_led_priv {
 #define cdev_to_priv(c)		container_of(c, struct mlxcpld_led_priv, cdev)
 
 /**
- * mlxcpld_led_profile - system LED profile (defined per system class):
- * @offset - offset for LED access in CPLD device
- * @mask - mask for LED access in CPLD device
- * @base_color - base color code
- * @brightness - default brightness setting (on/off)
- * @name - LED name
+ * struct mlxcpld_led_profile - system LED profile (defined per system class):
+ * @offset: offset for LED access in CPLD device
+ * @mask: mask for LED access in CPLD device
+ * @base_color: base color code
+ * @brightness: default brightness setting (on/off)
+ * @name: LED name
 **/
 struct mlxcpld_led_profile {
 	u8 offset;
@@ -104,12 +104,12 @@ struct mlxcpld_led_profile {
 };
 
 /**
- * mlxcpld_led_pdata - system LED private data
- * @pdev - platform device pointer
- * @pled - LED class device instance
- * @profile - system configuration profile
- * @num_led_instances - number of LED instances
- * @lock - device access lock
+ * struct mlxcpld_led_pdata - system LED private data
+ * @pdev: platform device pointer
+ * @pled: LED class device instance
+ * @profile: system configuration profile
+ * @num_led_instances: number of LED instances
+ * @lock: device access lock
 **/
 struct mlxcpld_led_pdata {
 	struct platform_device *pdev;

@@ -16,6 +16,11 @@
 #define CurrentEL_EL1		(1 << 2)
 #define CurrentEL_EL2		(2 << 2)
 
+#define INIT_PSTATE_EL1 \
+	(PSR_D_BIT | PSR_A_BIT | PSR_I_BIT | PSR_F_BIT | PSR_MODE_EL1h)
+#define INIT_PSTATE_EL2 \
+	(PSR_D_BIT | PSR_A_BIT | PSR_I_BIT | PSR_F_BIT | PSR_MODE_EL2h)
+
 /*
  * PMR values used to mask/unmask interrupts.
  *
@@ -27,14 +32,27 @@
  *
  * Some code sections either automatically switch back to PSR.I or explicitly
  * require to not use priority masking. If bit GIC_PRIO_PSR_I_SET is included
- * in the  the priority mask, it indicates that PSR.I should be set and
+ * in the priority mask, it indicates that PSR.I should be set and
  * interrupt disabling temporarily does not rely on IRQ priorities.
  */
 #define GIC_PRIO_IRQON			0xe0
-#define GIC_PRIO_IRQOFF			(GIC_PRIO_IRQON & ~0x80)
+#define __GIC_PRIO_IRQOFF		(GIC_PRIO_IRQON & ~0x80)
+#define __GIC_PRIO_IRQOFF_NS		0xa0
 #define GIC_PRIO_PSR_I_SET		(1 << 4)
 
+#define GIC_PRIO_IRQOFF							\
+	({								\
+		extern struct static_key_false gic_nonsecure_priorities;\
+		u8 __prio = __GIC_PRIO_IRQOFF;				\
+									\
+		if (static_branch_unlikely(&gic_nonsecure_priorities))	\
+			__prio = __GIC_PRIO_IRQOFF_NS;			\
+									\
+		__prio;							\
+	})
+
 /* Additional SPSR bits not exposed in the UABI */
+#define PSR_MODE_THREAD_BIT	(1 << 0)
 #define PSR_IL_BIT		(1 << 20)
 
 /* AArch32-specific ptrace requests */
@@ -62,6 +80,7 @@
 #define PSR_AA32_I_BIT		0x00000080
 #define PSR_AA32_A_BIT		0x00000100
 #define PSR_AA32_E_BIT		0x00000200
+#define PSR_AA32_PAN_BIT	0x00400000
 #define PSR_AA32_SSBS_BIT	0x00800000
 #define PSR_AA32_DIT_BIT	0x01000000
 #define PSR_AA32_Q_BIT		0x08000000
@@ -174,11 +193,14 @@ struct pt_regs {
 	s32 syscallno;
 	u32 unused2;
 #endif
-
-	u64 orig_addr_limit;
-	/* Only valid when ARM64_HAS_IRQ_PRIO_MASKING is enabled. */
+	u64 sdei_ttbr1;
+	/* Only valid when ARM64_HAS_GIC_PRIO_MASKING is enabled. */
 	u64 pmr_save;
 	u64 stackframe[2];
+
+	/* Only valid for some EL1 exceptions. */
+	u64 lockdep_hardirqs;
+	u64 exit_rcu;
 };
 
 static inline bool in_syscall(struct pt_regs const *regs)
@@ -298,7 +320,17 @@ static inline unsigned long kernel_stack_pointer(struct pt_regs *regs)
 
 static inline unsigned long regs_return_value(struct pt_regs *regs)
 {
-	return regs->regs[0];
+	unsigned long val = regs->regs[0];
+
+	/*
+	 * Audit currently uses regs_return_value() instead of
+	 * syscall_get_return_value(). Apply the same sign-extension here until
+	 * audit is updated to use syscall_get_return_value().
+	 */
+	if (compat_user_mode(regs))
+		val = sign_extend64(val, 31);
+
+	return val;
 }
 
 static inline void regs_set_return_value(struct pt_regs *regs, unsigned long rc)

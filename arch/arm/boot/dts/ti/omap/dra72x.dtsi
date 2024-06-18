@@ -1,0 +1,110 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (C) 2014 Texas Instruments Incorporated - https://www.ti.com/
+ *
+ * Based on "omap4.dtsi"
+ */
+
+#include "dra7.dtsi"
+
+/ {
+	compatible = "ti,dra722", "ti,dra72", "ti,dra7";
+
+	aliases {
+		rproc0 = &ipu1;
+		rproc1 = &ipu2;
+		rproc2 = &dsp1;
+	};
+
+	pmu {
+		compatible = "arm,cortex-a15-pmu";
+		interrupt-parent = <&wakeupgen>;
+		interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>;
+	};
+};
+
+&l4_per2 {
+	target-module@5b000 {			/* 0x4845b000, ap 59 46.0 */
+		compatible = "ti,sysc-omap4", "ti,sysc";
+		reg = <0x5b000 0x4>,
+		      <0x5b010 0x4>;
+		reg-names = "rev", "sysc";
+		ti,sysc-midle = <SYSC_IDLE_FORCE>,
+				<SYSC_IDLE_NO>;
+		ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+				<SYSC_IDLE_NO>;
+		clocks = <&cam_clkctrl DRA7_CAM_VIP2_CLKCTRL 0>;
+		clock-names = "fck";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0x5b000 0x1000>;
+
+		cal: cal@0 {
+			compatible = "ti,dra72-cal";
+			reg = <0x0000 0x400>,
+			      <0x0800 0x40>,
+			      <0x0900 0x40>;
+			reg-names = "cal_top",
+				    "cal_rx_core0",
+				    "cal_rx_core1";
+			interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>;
+			ti,camerrx-control = <&scm_conf 0xE94>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				csi2_0: port@0 {
+					reg = <0>;
+				};
+				csi2_1: port@1 {
+					reg = <1>;
+				};
+			};
+		};
+	};
+};
+
+&dss {
+	reg = <0 0x80>,
+	      <0x4054 0x4>,
+	      <0x4300 0x20>;
+	reg-names = "dss", "pll1_clkctrl", "pll1";
+
+	clocks = <&dss_clkctrl DRA7_DSS_DSS_CORE_CLKCTRL 8>,
+		 <&dss_clkctrl DRA7_DSS_DSS_CORE_CLKCTRL 12>;
+	clock-names = "fck", "video1_clk";
+};
+
+&mailbox5 {
+	mbox_ipu1_ipc3x: mbox-ipu1-ipc3x {
+		ti,mbox-tx = <6 2 2>;
+		ti,mbox-rx = <4 2 2>;
+		status = "disabled";
+	};
+	mbox_dsp1_ipc3x: mbox-dsp1-ipc3x {
+		ti,mbox-tx = <5 2 2>;
+		ti,mbox-rx = <1 2 2>;
+		status = "disabled";
+	};
+};
+
+&mailbox6 {
+	mbox_ipu2_ipc3x: mbox-ipu2-ipc3x {
+		ti,mbox-tx = <6 2 2>;
+		ti,mbox-rx = <4 2 2>;
+		status = "disabled";
+	};
+};
+
+&pcie1_rc {
+	compatible = "ti,dra726-pcie-rc", "ti,dra7-pcie";
+};
+
+&pcie1_ep {
+	compatible = "ti,dra726-pcie-ep", "ti,dra7-pcie-ep";
+};
+
+&pcie2_rc {
+	compatible = "ti,dra726-pcie-rc", "ti,dra7-pcie";
+};

@@ -1,0 +1,416 @@
+[
+    {
+        "id": "abdc",
+        "name": "Reference pedit action object in filter",
+        "category": [
+            "infra",
+            "pedit"
+        ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+        "setup": [
+            "$TC qdisc add dev $DUMMY ingress",
+            "$TC action add action pedit munge offset 0 u8 clear index 1"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ip matchall action pedit index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC filter get dev $DUMMY parent ffff: handle 1 prio 1 protocol ip matchall",
+        "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY ingress"
+        ]
+    },
+    {
+        "id": "7a70",
+        "name": "Reference mpls action object in filter",
+        "category": [
+            "infra",
+            "mpls"
+        ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+        "setup": [
+            "$TC qdisc add dev $DUMMY ingress",
+            "$TC action add action mpls pop protocol ipv4 index 1"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ip matchall action mpls index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC filter get dev $DUMMY parent ffff: handle 1 prio 1 protocol ip matchall",
+        "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY ingress"
+        ]
+    },
+    {
+        "id": "d241",
+        "name": "Reference bpf action object in filter",
+        "category": [
+            "infra",
+            "bpf"
+        ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+        "setup": [
+            "$TC qdisc add dev $DUMMY ingress",
+            "$TC action add action bpf bytecode '4,40 0 0 12,21 0 1 2048,6 0 0 262144,6 0 0 0' index 1"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ip matchall action bpf index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC filter get dev $DUMMY parent ffff: handle 1 prio 1 protocol ip matchall",
+        "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY ingress"
+        ]
+    },
+    {
+        "id": "383a",
+        "name": "Reference connmark action object in filter",
+        "category": [
+            "infra",
+            "connmark"
+        ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+        "setup": [
+            "$TC qdisc add dev $DUMMY ingress",
+            "$TC actions add action connmark"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ip matchall action connmark index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC filter get dev $DUMMY parent ffff: handle 1 prio 1 protocol ip matchall",
+        "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY ingress"
+        ]
+    },
+    {
+        "id": "c619",
+        "name": "Reference csum action object in filter",
+        "category": [
+            "infra",
+            "csum"
+        ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+        "setup": [
+            "$TC qdisc add dev $DUMMY ingress",
+            "$TC actions add action csum ip4h index 1"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ip matchall action csum index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC filter get dev $DUMMY parent ffff: handle 1 prio 1 protocol ip matchall",
+        "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY ingress"
+        ]
+    },
+    {
+        "id": "a93d",
+        "name": "Reference ct action object in filter",
+        "category": [
+            "infra",
+            "ct"
+        ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+        "setup": [
+            "$TC qdisc add dev $DUMMY ingress",
+            "$TC actions add action ct index 1"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ip matchall action ct index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC filter get dev $DUMMY parent ffff: handle 1 prio 1 protocol ip matchall",
+        "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY ingress"
+        ]
+    },
+    {
+        "id": "8bb5",
+        "name": "Reference ctinfo action object in filter",
+        "category": [
+            "infra",
+            "ctinfo"
+        ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+        "setup": [
+            "$TC qdisc add dev $DUMMY ingress",
+            "$TC action add action ctinfo index 1"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ip matchall action ctinfo index 10",
+        "expExitCode": "0",
+        "verifyCmd": "$TC filter get dev $DUMMY parent ffff: handle 1 prio 1 protocol ip matchall",
+        "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY ingress"
+        ]
+    },
+    {
+        "id": "2241",
+        "name": "Reference gact action object in filter",
+        "category": [
+            "infra",
+            "gact"
+        ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+        "setup": [
+            "$TC qdisc add dev $DUMMY ingress",
+            "$TC actions add action pass index 1"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ip matchall action gact index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC filter get dev $DUMMY parent ffff: handle 1 prio 1 protocol ip matchall",
+        "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY ingress"
+        ]
+    },
+    {
+        "id": "35e9",
+        "name": "Reference gate action object in filter",
+        "category": [
+            "infra",
+            "gate"
+        ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+        "setup": [
+            "$TC qdisc add dev $DUMMY ingress",
+            "$TC action add action gate priority 1 sched-entry close 100000000ns index 1"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ip matchall action gate index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC filter get dev $DUMMY parent ffff: handle 1 prio 1 protocol ip matchall",
+        "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY ingress"
+        ]
+    },
+    {
+        "id": "b22e",
+        "name": "Reference ife action object in filter",
+        "category": [
+            "infra",
+            "ife"
+        ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+        "setup": [
+            "$TC qdisc add dev $DUMMY ingress",
+            "$TC actions add action ife encode allow mark pass index 1"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ip matchall action ife index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC filter get dev $DUMMY parent ffff: handle 1 prio 1 protocol ip matchall",
+        "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY ingress"
+        ]
+    },
+    {
+        "id": "ef74",
+        "name": "Reference mirred action object in filter",
+        "category": [
+            "infra",
+            "mirred"
+        ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+        "setup": [
+            "$TC qdisc add dev $DUMMY ingress",
+            "$TC actions add action mirred egress mirror index 1 dev lo"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ip matchall action mirred index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC filter get dev $DUMMY parent ffff: handle 1 prio 1 protocol ip matchall",
+        "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY ingress"
+        ]
+    },
+    {
+        "id": "2c81",
+        "name": "Reference nat action object in filter",
+        "category": [
+            "infra",
+            "nat"
+        ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+        "setup": [
+            "$TC qdisc add dev $DUMMY ingress",
+            "$TC actions add action nat ingress 192.168.1.1 200.200.200.1"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ip matchall action nat index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC filter get dev $DUMMY parent ffff: handle 1 prio 1 protocol ip matchall",
+        "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY ingress"
+        ]
+    },
+    {
+        "id": "ac9d",
+        "name": "Reference police action object in filter",
+        "category": [
+            "infra",
+            "police"
+        ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+        "setup": [
+            "$TC qdisc add dev $DUMMY ingress",
+            "$TC actions add action police rate 1kbit burst 10k index 1"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ip matchall action police index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC filter get dev $DUMMY parent ffff: handle 1 prio 1 protocol ip matchall",
+        "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY ingress"
+        ]
+    },
+    {
+        "id": "68be",
+        "name": "Reference sample action object in filter",
+        "category": [
+            "infra",
+            "sample"
+        ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+        "setup": [
+            "$TC qdisc add dev $DUMMY ingress",
+            "$TC actions add action sample rate 10 group 1 index 1"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ip matchall action sample index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC filter get dev $DUMMY parent ffff: handle 1 prio 1 protocol ip matchall",
+        "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY ingress"
+        ]
+    },
+    {
+        "id": "cf01",
+        "name": "Reference skbedit action object in filter",
+        "category": [
+            "infra",
+            "skbedit"
+        ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+        "setup": [
+            "$TC qdisc add dev $DUMMY ingress",
+            "$TC actions add action skbedit mark 1"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ip matchall action skbedit index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC filter get dev $DUMMY parent ffff: handle 1 prio 1 protocol ip matchall",
+        "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY ingress"
+        ]
+    },
+    {
+        "id": "c109",
+        "name": "Reference skbmod action object in filter",
+        "category": [
+            "infra",
+            "skbmod"
+        ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+        "setup": [
+            "$TC qdisc add dev $DUMMY ingress",
+            "$TC actions add action skbmod set dmac 11:22:33:44:55:66 index 1"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ip matchall action skbmod index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC filter get dev $DUMMY parent ffff: handle 1 prio 1 protocol ip matchall",
+        "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY ingress"
+        ]
+    },
+    {
+        "id": "4abc",
+        "name": "Reference tunnel_key action object in filter",
+        "category": [
+            "infra",
+            "tunnel_key"
+        ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+        "setup": [
+            "$TC qdisc add dev $DUMMY ingress",
+            "$TC actions add action tunnel_key set src_ip 10.10.10.1 dst_ip 20.20.20.2 id 1 index 1"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ip matchall action tunnel_key index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC filter get dev $DUMMY parent ffff: handle 1 prio 1 protocol ip matchall",
+        "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY ingress"
+        ]
+    },
+    {
+        "id": "dadd",
+        "name": "Reference vlan action object in filter",
+        "category": [
+            "infra",
+            "tunnel_key"
+        ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
+        "setup": [
+            "$TC qdisc add dev $DUMMY ingress",
+            "$TC actions add action vlan pop pipe index 1"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ip matchall action vlan index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC filter get dev $DUMMY parent ffff: handle 1 prio 1 protocol ip matchall",
+        "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY ingress"
+        ]
+    }
+]

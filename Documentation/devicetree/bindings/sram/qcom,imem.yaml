@@ -1,0 +1,80 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sram/qcom,imem.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm IMEM memory region
+
+maintainers:
+  - Bjorn Andersson <bjorn.andersson@linaro.org>
+
+description:
+  Qualcomm IMEM is dedicated memory region for various debug features and DMA
+  transactions.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - qcom,apq8064-imem
+          - qcom,msm8226-imem
+          - qcom,msm8974-imem
+          - qcom,qcs404-imem
+          - qcom,qdu1000-imem
+          - qcom,sc7180-imem
+          - qcom,sc7280-imem
+          - qcom,sdm630-imem
+          - qcom,sdm845-imem
+          - qcom,sdx55-imem
+          - qcom,sdx65-imem
+          - qcom,sm6375-imem
+          - qcom,sm8450-imem
+      - const: syscon
+      - const: simple-mfd
+
+  reg:
+    maxItems: 1
+
+  ranges: true
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 1
+
+  reboot-mode:
+    $ref: /schemas/power/reset/syscon-reboot-mode.yaml#
+
+patternProperties:
+  "^pil-reloc@[0-9a-f]+$":
+    $ref: /schemas/remoteproc/qcom,pil-info.yaml#
+    description: Peripheral image loader relocation region
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        sram@146bf000 {
+            compatible = "qcom,sdm845-imem", "syscon", "simple-mfd";
+            reg = <0 0x146bf000 0 0x1000>;
+            ranges = <0 0 0x146bf000 0x1000>;
+
+            #address-cells = <1>;
+            #size-cells = <1>;
+
+            pil-reloc@94c {
+                compatible = "qcom,pil-reloc-info";
+                reg = <0x94c 0xc8>;
+            };
+        };
+    };

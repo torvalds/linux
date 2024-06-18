@@ -1,0 +1,69 @@
+[
+    {
+        "BriefDescription": "Counts the total number of BACLEARS due to all branch types including conditional and unconditional jumps, returns, and indirect branches.",
+        "EventCode": "0xe6",
+        "EventName": "BACLEARS.ANY",
+        "PublicDescription": "Counts the total number of BACLEARS, which occur when the Branch Target Buffer (BTB) prediction or lack thereof, was corrected by a later branch predictor in the frontend.  Includes BACLEARS due to all branch types including conditional and unconditional jumps, returns, and indirect branches.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts the number of BACLEARS due to a conditional jump.",
+        "EventCode": "0xe6",
+        "EventName": "BACLEARS.COND",
+        "SampleAfterValue": "200003",
+        "UMask": "0x10"
+    },
+    {
+        "BriefDescription": "Counts the number of BACLEARS due to an indirect branch.",
+        "EventCode": "0xe6",
+        "EventName": "BACLEARS.INDIRECT",
+        "SampleAfterValue": "200003",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "Counts the number of BACLEARS due to a return branch.",
+        "EventCode": "0xe6",
+        "EventName": "BACLEARS.RETURN",
+        "SampleAfterValue": "200003",
+        "UMask": "0x8"
+    },
+    {
+        "BriefDescription": "Counts the number of BACLEARS due to a direct, unconditional jump.",
+        "EventCode": "0xe6",
+        "EventName": "BACLEARS.UNCOND",
+        "SampleAfterValue": "200003",
+        "UMask": "0x4"
+    },
+    {
+        "BriefDescription": "Counts the number of times a decode restriction reduces the decode throughput due to wrong instruction length prediction.",
+        "EventCode": "0xe9",
+        "EventName": "DECODE_RESTRICTION.PREDECODE_WRONG",
+        "SampleAfterValue": "200003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts the number of requests to the instruction cache for one or more bytes of a cache line.",
+        "EventCode": "0x80",
+        "EventName": "ICACHE.ACCESSES",
+        "PublicDescription": "Counts the total number of requests to the instruction cache.  The event only counts new cache line accesses, so that multiple back to back fetches to the exact same cache line or byte chunk count as one.  Specifically, the event counts when accesses from sequential code crosses the cache line boundary, or when a branch target is moved to a new line or to a non-sequential byte chunk of the same line.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x3"
+    },
+    {
+        "BriefDescription": "Counts the number of instruction cache hits.",
+        "EventCode": "0x80",
+        "EventName": "ICACHE.HIT",
+        "PublicDescription": "Counts the number of requests that hit in the instruction cache.  The event only counts new cache line accesses, so that multiple back to back fetches to the exact same cache line and byte chunk count as one.  Specifically, the event counts when accesses from sequential code crosses the cache line boundary, or when a branch target is moved to a new line or to a non-sequential byte chunk of the same line.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts the number of instruction cache misses.",
+        "EventCode": "0x80",
+        "EventName": "ICACHE.MISSES",
+        "PublicDescription": "Counts the number of missed requests to the instruction cache.  The event only counts new cache line accesses, so that multiple back to back fetches to the exact same cache line and byte chunk count as one.  Specifically, the event counts when accesses from sequential code crosses the cache line boundary, or when a branch target is moved to a new line or to a non-sequential byte chunk of the same line.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x2"
+    }
+]

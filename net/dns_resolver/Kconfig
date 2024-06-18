@@ -4,7 +4,7 @@
 #
 config DNS_RESOLVER
 	tristate "DNS Resolver support"
-	depends on NET && KEYS
+	depends on KEYS
 	help
 	  Saying Y here will include support for the DNS Resolver key type
 	  which can be used to make upcalls to perform DNS lookups in
@@ -19,10 +19,10 @@ config DNS_RESOLVER
 	  SMB2 later.  DNS Resolver is supported by the userspace upcall
 	  helper "/sbin/dns.resolver" via /etc/request-key.conf.
 
-	  See <file:Documentation/networking/dns_resolver.txt> for further
+	  See <file:Documentation/networking/dns_resolver.rst> for further
 	  information.
 
 	  To compile this as a module, choose M here: the module will be called
-	  dnsresolver.
+	  dns_resolver.
 
 	  If unsure, say N.

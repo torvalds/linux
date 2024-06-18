@@ -45,9 +45,9 @@ nv31_bus_intr(struct nvkm_bus *bus)
 		u32 addr = nvkm_rd32(device, 0x009084);
 		u32 data = nvkm_rd32(device, 0x009088);
 
-		nvkm_error(subdev, "MMIO %s of %08x FAULT at %06x\n",
-			   (addr & 0x00000002) ? "write" : "read", data,
-			   (addr & 0x00fffffc));
+		nvkm_error_ratelimited(subdev, "MMIO %s of %08x FAULT at %06x\n",
+				       (addr & 0x00000002) ? "write" : "read", data,
+				       (addr & 0x00fffffc));
 
 		stat &= ~0x00000008;
 		nvkm_wr32(device, 0x001100, 0x00000008);
@@ -82,7 +82,8 @@ nv31_bus = {
 };
 
 int
-nv31_bus_new(struct nvkm_device *device, int index, struct nvkm_bus **pbus)
+nv31_bus_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	     struct nvkm_bus **pbus)
 {
-	return nvkm_bus_new_(&nv31_bus, device, index, pbus);
+	return nvkm_bus_new_(&nv31_bus, device, type, inst, pbus);
 }

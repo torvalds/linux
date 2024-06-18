@@ -9,9 +9,7 @@
  */
 #include <linux/io.h>
 #include <linux/kernel.h>
-#include <linux/of_address.h>
-#include <linux/of_irq.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <soc/fsl/qe/qe_tdm.h>
 
 static int set_tdm_framer(const char *tdm_framer_type)
@@ -169,10 +167,10 @@ void ucc_tdm_init(struct ucc_tdm *utdm, struct ucc_tdm_info *ut_info)
 				    &siram[siram_entry_id * 32 + 0x200 +  i]);
 	}
 
-	setbits16(&siram[(siram_entry_id * 32) + (utdm->num_of_ts - 1)],
-		  SIR_LAST);
-	setbits16(&siram[(siram_entry_id * 32) + 0x200 + (utdm->num_of_ts - 1)],
-		  SIR_LAST);
+	qe_setbits_be16(&siram[(siram_entry_id * 32) + (utdm->num_of_ts - 1)],
+			SIR_LAST);
+	qe_setbits_be16(&siram[(siram_entry_id * 32) + 0x200 + (utdm->num_of_ts - 1)],
+			SIR_LAST);
 
 	/* Set SIxMR register */
 	sixmr = SIMR_SAD(siram_entry_id);

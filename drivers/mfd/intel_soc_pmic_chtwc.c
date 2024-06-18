@@ -10,6 +10,7 @@
 
 #include <linux/acpi.h>
 #include <linux/delay.h>
+#include <linux/dmi.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
@@ -41,11 +42,11 @@ enum {
 	CHT_WC_CRIT_IRQ = 7,
 };
 
-static struct resource cht_wc_pwrsrc_resources[] = {
+static const struct resource cht_wc_pwrsrc_resources[] = {
 	DEFINE_RES_IRQ(CHT_WC_PWRSRC_IRQ),
 };
 
-static struct resource cht_wc_ext_charger_resources[] = {
+static const struct resource cht_wc_ext_charger_resources[] = {
 	DEFINE_RES_IRQ(CHT_WC_EXT_CHGR_IRQ),
 };
 
@@ -134,31 +135,81 @@ static const struct regmap_irq_chip cht_wc_regmap_irq_chip = {
 	.num_regs = 1,
 };
 
+static const struct dmi_system_id cht_wc_model_dmi_ids[] = {
+	{
+		/* GPD win / GPD pocket mini laptops */
+		.driver_data = (void *)(long)INTEL_CHT_WC_GPD_WIN_POCKET,
+		/*
+		 * This DMI match may not seem unique, but it is. In the 67000+
+		 * DMI decode dumps from linux-hardware.org only 116 have
+		 * board_vendor set to "AMI Corporation" and of those 116 only
+		 * the GPD win's and pocket's board_name is "Default string".
+		 */
+		.matches = {
+			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "AMI Corporation"),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "Default string"),
+			DMI_EXACT_MATCH(DMI_BOARD_SERIAL, "Default string"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "Default string"),
+		},
+	}, {
+		/* Xiaomi Mi Pad 2 */
+		.driver_data = (void *)(long)INTEL_CHT_WC_XIAOMI_MIPAD2,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Xiaomi Inc"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Mipad2"),
+		},
+	}, {
+		/* Lenovo Yoga Book X90F / X90L */
+		.driver_data = (void *)(long)INTEL_CHT_WC_LENOVO_YOGABOOK1,
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "CHERRYVIEW D1 PLATFORM"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "YETI-11"),
+		},
+	}, {
+		/* Lenovo Yoga Book X91F / X91L */
+		.driver_data = (void *)(long)INTEL_CHT_WC_LENOVO_YOGABOOK1,
+		.matches = {
+			/* Non exact match to match F + L versions */
+			DMI_MATCH(DMI_PRODUCT_NAME, "Lenovo YB1-X91"),
+		},
+	}, {
+		/* Lenovo Yoga Tab 3 Pro YT3-X90F */
+		.driver_data = (void *)(long)INTEL_CHT_WC_LENOVO_YT3_X90,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "CHERRYVIEW D1 PLATFORM"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Blade3-10A-001"),
+		},
+	},
+	{ }
+};
+
 static int cht_wc_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
+	const struct dmi_system_id *id;
 	struct intel_soc_pmic *pmic;
 	acpi_status status;
 	unsigned long long hrv;
 	int ret;
 
 	status = acpi_evaluate_integer(ACPI_HANDLE(dev), "_HRV", NULL, &hrv);
-	if (ACPI_FAILURE(status)) {
-		dev_err(dev, "Failed to get PMIC hardware revision\n");
-		return -ENODEV;
-	}
-	if (hrv != CHT_WC_HRV) {
-		dev_err(dev, "Invalid PMIC hardware revision: %llu\n", hrv);
-		return -ENODEV;
-	}
-	if (client->irq < 0) {
-		dev_err(dev, "Invalid IRQ\n");
-		return -EINVAL;
-	}
+	if (ACPI_FAILURE(status))
+		return dev_err_probe(dev, -ENODEV, "Failed to get PMIC hardware revision\n");
+	if (hrv != CHT_WC_HRV)
+		return dev_err_probe(dev, -ENODEV, "Invalid PMIC hardware revision: %llu\n", hrv);
+
+	if (client->irq < 0)
+		return dev_err_probe(dev, -EINVAL, "Invalid IRQ\n");
 
 	pmic = devm_kzalloc(dev, sizeof(*pmic), GFP_KERNEL);
 	if (!pmic)
 		return -ENOMEM;
+
+	id = dmi_first_match(cht_wc_model_dmi_ids);
+	if (id)
+		pmic->cht_wc_model = (long)id->driver_data;
 
 	pmic->irq = client->irq;
 	pmic->dev = dev;
@@ -187,7 +238,7 @@ static void cht_wc_shutdown(struct i2c_client *client)
 	disable_irq(pmic->irq);
 }
 
-static int __maybe_unused cht_wc_suspend(struct device *dev)
+static int cht_wc_suspend(struct device *dev)
 {
 	struct intel_soc_pmic *pmic = dev_get_drvdata(dev);
 
@@ -196,7 +247,7 @@ static int __maybe_unused cht_wc_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused cht_wc_resume(struct device *dev)
+static int cht_wc_resume(struct device *dev)
 {
 	struct intel_soc_pmic *pmic = dev_get_drvdata(dev);
 
@@ -204,7 +255,7 @@ static int __maybe_unused cht_wc_resume(struct device *dev)
 
 	return 0;
 }
-static SIMPLE_DEV_PM_OPS(cht_wc_pm_ops, cht_wc_suspend, cht_wc_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(cht_wc_pm_ops, cht_wc_suspend, cht_wc_resume);
 
 static const struct i2c_device_id cht_wc_i2c_id[] = {
 	{ }
@@ -218,10 +269,10 @@ static const struct acpi_device_id cht_wc_acpi_ids[] = {
 static struct i2c_driver cht_wc_driver = {
 	.driver	= {
 		.name	= "CHT Whiskey Cove PMIC",
-		.pm     = &cht_wc_pm_ops,
+		.pm     = pm_sleep_ptr(&cht_wc_pm_ops),
 		.acpi_match_table = cht_wc_acpi_ids,
 	},
-	.probe_new = cht_wc_probe,
+	.probe = cht_wc_probe,
 	.shutdown = cht_wc_shutdown,
 	.id_table = cht_wc_i2c_id,
 };

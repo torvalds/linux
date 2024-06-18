@@ -4,7 +4,12 @@
 #ifndef __SOUNDWIRE_H
 #define __SOUNDWIRE_H
 
+#include <linux/bug.h>
+#include <linux/lockdep_types.h>
+#include <linux/irq.h>
+#include <linux/irqdomain.h>
 #include <linux/mod_devicetable.h>
+#include <linux/bitfield.h>
 
 struct sdw_bus;
 struct sdw_slave;
@@ -38,10 +43,8 @@ struct sdw_slave;
 #define SDW_FRAME_CTRL_BITS		48
 #define SDW_MAX_DEVICES			11
 
-#define SDW_VALID_PORT_RANGE(n)		((n) <= 14 && (n) >= 1)
-
-#define SDW_DAI_ID_RANGE_START		100
-#define SDW_DAI_ID_RANGE_END		200
+#define SDW_MAX_PORTS			15
+#define SDW_VALID_PORT_RANGE(n)		((n) < SDW_MAX_PORTS && (n) >= 1)
 
 enum {
 	SDW_PORT_DIRN_SINK = 0,
@@ -83,6 +86,21 @@ enum sdw_slave_status {
 };
 
 /**
+ * enum sdw_clk_stop_type: clock stop operations
+ *
+ * @SDW_CLK_PRE_PREPARE: pre clock stop prepare
+ * @SDW_CLK_POST_PREPARE: post clock stop prepare
+ * @SDW_CLK_PRE_DEPREPARE: pre clock stop de-prepare
+ * @SDW_CLK_POST_DEPREPARE: post clock stop de-prepare
+ */
+enum sdw_clk_stop_type {
+	SDW_CLK_PRE_PREPARE = 0,
+	SDW_CLK_POST_PREPARE,
+	SDW_CLK_PRE_DEPREPARE,
+	SDW_CLK_POST_DEPREPARE,
+};
+
+/**
  * enum sdw_command_response - Command response as defined by SDW spec
  * @SDW_CMD_OK: cmd was successful
  * @SDW_CMD_IGNORED: cmd was ignored
@@ -109,6 +127,12 @@ enum sdw_dpn_grouping {
 	SDW_BLK_GRP_CNT_2 = 1,
 	SDW_BLK_GRP_CNT_3 = 2,
 	SDW_BLK_GRP_CNT_4 = 3,
+};
+
+/* block packing mode enum */
+enum sdw_dpn_pkg_mode {
+	SDW_BLK_PKG_PER_PORT = 0,
+	SDW_BLK_PKG_PER_CHANNEL = 1
 };
 
 /**
@@ -140,19 +164,19 @@ enum sdw_data_direction {
  *
  * @SDW_PORT_DATA_MODE_NORMAL: Normal data mode where audio data is received
  * and transmitted.
+ * @SDW_PORT_DATA_MODE_PRBS: Test mode which uses a PRBS generator to produce
+ * a pseudo random data pattern that is transferred
+ * @SDW_PORT_DATA_MODE_STATIC_0: Simple test mode which uses static value of
+ * logic 0. The encoding will result in no signal transitions
  * @SDW_PORT_DATA_MODE_STATIC_1: Simple test mode which uses static value of
  * logic 1. The encoding will result in signal transitions at every bitslot
  * owned by this Port
- * @SDW_PORT_DATA_MODE_STATIC_0: Simple test mode which uses static value of
- * logic 0. The encoding will result in no signal transitions
- * @SDW_PORT_DATA_MODE_PRBS: Test mode which uses a PRBS generator to produce
- * a pseudo random data pattern that is transferred
  */
 enum sdw_port_data_mode {
 	SDW_PORT_DATA_MODE_NORMAL = 0,
-	SDW_PORT_DATA_MODE_STATIC_1 = 1,
+	SDW_PORT_DATA_MODE_PRBS = 1,
 	SDW_PORT_DATA_MODE_STATIC_0 = 2,
-	SDW_PORT_DATA_MODE_PRBS = 3,
+	SDW_PORT_DATA_MODE_STATIC_1 = 3,
 };
 
 /*
@@ -211,6 +235,7 @@ enum sdw_clk_stop_mode {
  * @BRA_flow_controlled: Slave implementation results in an OK_NotReady
  * response
  * @simple_ch_prep_sm: If channel prepare sequence is required
+ * @ch_prep_timeout: Port-specific timeout value, in milliseconds
  * @imp_def_interrupts: If set, each bit corresponds to support for
  * implementation-defined interrupts
  *
@@ -225,6 +250,7 @@ struct sdw_dp0_prop {
 	u32 *words;
 	bool BRA_flow_controlled;
 	bool simple_ch_prep_sm;
+	u32 ch_prep_timeout;
 	bool imp_def_interrupts;
 };
 
@@ -279,14 +305,15 @@ struct sdw_dpn_audio_mode {
  * implementation-defined interrupts
  * @max_ch: Maximum channels supported
  * @min_ch: Minimum channels supported
- * @num_ch: Number of discrete channels supported
- * @ch: Discrete channels supported
+ * @num_channels: Number of discrete channels supported
+ * @channels: Discrete channels supported
  * @num_ch_combinations: Number of channel combinations supported
  * @ch_combinations: Channel combinations supported
  * @modes: SDW mode supported
  * @max_async_buffer: Number of samples that this port can buffer in
  * asynchronous modes
  * @block_pack_mode: Type of block port mode supported
+ * @read_only_wordlength: Read Only wordlength field in DPN_BlockCtrl1 register
  * @port_encoding: Payload Channel Sample encoding schemes supported
  * @audio_modes: Audio modes supported
  */
@@ -303,13 +330,14 @@ struct sdw_dpn_prop {
 	u32 imp_def_interrupts;
 	u32 max_ch;
 	u32 min_ch;
-	u32 num_ch;
-	u32 *ch;
+	u32 num_channels;
+	u32 *channels;
 	u32 num_ch_combinations;
 	u32 *ch_combinations;
 	u32 modes;
 	u32 max_async_buffer;
 	bool block_pack_mode;
+	bool read_only_wordlength;
 	u32 port_encoding;
 	struct sdw_dpn_audio_mode *audio_modes;
 };
@@ -341,6 +369,12 @@ struct sdw_dpn_prop {
  * @dp0_prop: Data Port 0 properties
  * @src_dpn_prop: Source Data Port N properties
  * @sink_dpn_prop: Sink Data Port N properties
+ * @scp_int1_mask: SCP_INT1_MASK desired settings
+ * @quirks: bitmask identifying deltas from the MIPI specification
+ * @clock_reg_supported: the Peripheral implements the clock base and scale
+ * registers introduced with the SoundWire 1.2 specification. SDCA devices
+ * do not need to set this boolean property as the registers are required.
+ * @use_domain_irq: call actual IRQ handler on slave, as well as callback
  */
 struct sdw_slave_prop {
 	u32 mipi_revision;
@@ -362,7 +396,13 @@ struct sdw_slave_prop {
 	struct sdw_dp0_prop *dp0_prop;
 	struct sdw_dpn_prop *src_dpn_prop;
 	struct sdw_dpn_prop *sink_dpn_prop;
+	u8 scp_int1_mask;
+	u32 quirks;
+	bool clock_reg_supported;
+	bool use_domain_irq;
 };
+
+#define SDW_SLAVE_QUIRKS_INVALID_INITIAL_PARITY	BIT(0)
 
 /**
  * struct sdw_master_prop - Master properties
@@ -381,6 +421,7 @@ struct sdw_slave_prop {
  * command
  * @mclk_freq: clock reference passed to SoundWire Master, in Hz.
  * @hw_disabled: if true, the Master is not functional, typically due to pin-mux
+ * @quirks: bitmask identifying optional behavior beyond the scope of the MIPI specification
  */
 struct sdw_master_prop {
 	u32 revision;
@@ -397,7 +438,28 @@ struct sdw_master_prop {
 	u32 err_threshold;
 	u32 mclk_freq;
 	bool hw_disabled;
+	u64 quirks;
 };
+
+/* Definitions for Master quirks */
+
+/*
+ * In a number of platforms bus clashes are reported after a hardware
+ * reset but without any explanations or evidence of a real problem.
+ * The following quirk will discard all initial bus clash interrupts
+ * but will leave the detection on should real bus clashes happen
+ */
+#define SDW_MASTER_QUIRKS_CLEAR_INITIAL_CLASH	BIT(0)
+
+/*
+ * Some Slave devices have known issues with incorrect parity errors
+ * reported after a hardware reset. However during integration unexplained
+ * parity errors can be reported by Slave devices, possibly due to electrical
+ * issues at the Master level.
+ * The following quirk will discard all initial parity errors but will leave
+ * the detection on should real parity errors happen.
+ */
+#define SDW_MASTER_QUIRKS_CLEAR_INITIAL_PARITY	BIT(1)
 
 int sdw_master_read_prop(struct sdw_bus *bus);
 int sdw_slave_read_prop(struct sdw_slave *slave);
@@ -406,12 +468,13 @@ int sdw_slave_read_prop(struct sdw_slave *slave);
  * SDW Slave Structures and APIs
  */
 
+#define SDW_IGNORED_UNIQUE_ID 0xFF
+
 /**
  * struct sdw_slave_id - Slave ID
  * @mfg_id: MIPI Manufacturer ID
  * @part_id: Device Part ID
- * @class_id: MIPI Class ID, unused now.
- * Currently a placeholder in MIPI SoundWire Spec
+ * @class_id: MIPI Class ID (defined starting with SoundWire 1.2 spec)
  * @unique_id: Device unique ID
  * @sdw_version: SDW version implemented
  *
@@ -421,16 +484,52 @@ struct sdw_slave_id {
 	__u16 mfg_id;
 	__u16 part_id;
 	__u8 class_id;
-	__u8 unique_id:4;
+	__u8 unique_id;
 	__u8 sdw_version:4;
 };
 
+struct sdw_extended_slave_id {
+	int link_id;
+	struct sdw_slave_id id;
+};
+
+/*
+ * Helper macros to extract the MIPI-defined IDs
+ *
+ * Spec definition
+ *   Register		Bit	Contents
+ *   DevId_0 [7:4]	47:44	sdw_version
+ *   DevId_0 [3:0]	43:40	unique_id
+ *   DevId_1		39:32	mfg_id [15:8]
+ *   DevId_2		31:24	mfg_id [7:0]
+ *   DevId_3		23:16	part_id [15:8]
+ *   DevId_4		15:08	part_id [7:0]
+ *   DevId_5		07:00	class_id
+ *
+ * The MIPI DisCo for SoundWire defines in addition the link_id as bits 51:48
+ */
+#define SDW_DISCO_LINK_ID_MASK	GENMASK_ULL(51, 48)
+#define SDW_VERSION_MASK	GENMASK_ULL(47, 44)
+#define SDW_UNIQUE_ID_MASK	GENMASK_ULL(43, 40)
+#define SDW_MFG_ID_MASK		GENMASK_ULL(39, 24)
+#define SDW_PART_ID_MASK	GENMASK_ULL(23, 8)
+#define SDW_CLASS_ID_MASK	GENMASK_ULL(7, 0)
+
+#define SDW_DISCO_LINK_ID(addr)	FIELD_GET(SDW_DISCO_LINK_ID_MASK, addr)
+#define SDW_VERSION(addr)	FIELD_GET(SDW_VERSION_MASK, addr)
+#define SDW_UNIQUE_ID(addr)	FIELD_GET(SDW_UNIQUE_ID_MASK, addr)
+#define SDW_MFG_ID(addr)	FIELD_GET(SDW_MFG_ID_MASK, addr)
+#define SDW_PART_ID(addr)	FIELD_GET(SDW_PART_ID_MASK, addr)
+#define SDW_CLASS_ID(addr)	FIELD_GET(SDW_CLASS_ID_MASK, addr)
+
 /**
  * struct sdw_slave_intr_status - Slave interrupt status
+ * @sdca_cascade: set if the Slave device reports an SDCA interrupt
  * @control_port: control port status
  * @port: data port status
  */
 struct sdw_slave_intr_status {
+	bool sdca_cascade;
 	u8 control_port;
 	u8 port[15];
 };
@@ -443,21 +542,6 @@ struct sdw_slave_intr_status {
 enum sdw_reg_bank {
 	SDW_BANK0,
 	SDW_BANK1,
-};
-
-/**
- * struct sdw_bus_conf: Bus configuration
- *
- * @clk_freq: Clock frequency, in Hz
- * @num_rows: Number of rows in frame
- * @num_cols: Number of columns in frame
- * @bank: Next register bank
- */
-struct sdw_bus_conf {
-	unsigned int clk_freq;
-	unsigned int num_rows;
-	unsigned int num_cols;
-	unsigned int bank;
 };
 
 /**
@@ -482,13 +566,15 @@ struct sdw_prepare_ch {
  * enum sdw_port_prep_ops: Prepare operations for Data Port
  *
  * @SDW_OPS_PORT_PRE_PREP: Pre prepare operation for the Port
- * @SDW_OPS_PORT_PREP: Prepare operation for the Port
+ * @SDW_OPS_PORT_PRE_DEPREP: Pre deprepare operation for the Port
  * @SDW_OPS_PORT_POST_PREP: Post prepare operation for the Port
+ * @SDW_OPS_PORT_POST_DEPREP: Post deprepare operation for the Port
  */
 enum sdw_port_prep_ops {
 	SDW_OPS_PORT_PRE_PREP = 0,
-	SDW_OPS_PORT_PREP = 1,
-	SDW_OPS_PORT_POST_PREP = 2,
+	SDW_OPS_PORT_PRE_DEPREP,
+	SDW_OPS_PORT_POST_PREP,
+	SDW_OPS_PORT_POST_DEPREP,
 };
 
 /**
@@ -502,6 +588,10 @@ enum sdw_port_prep_ops {
  * @bandwidth: Current bandwidth
  * @col: Active columns
  * @row: Active rows
+ * @s_data_mode: NORMAL, STATIC or PRBS mode for all Slave ports
+ * @m_data_mode: NORMAL, STATIC or PRBS mode for all Master ports. The value
+ * should be the same to detect transmission issues, but can be different to
+ * test the interrupt reports
  */
 struct sdw_bus_params {
 	enum sdw_reg_bank curr_bank;
@@ -511,6 +601,8 @@ struct sdw_bus_params {
 	unsigned int bandwidth;
 	unsigned int col;
 	unsigned int row;
+	int s_data_mode;
+	int m_data_mode;
 };
 
 /**
@@ -522,6 +614,7 @@ struct sdw_bus_params {
  * @update_status: Update Slave status
  * @bus_config: Update the bus config for Slave
  * @port_prep: Prepare the port with parameters
+ * @clk_stop: handle imp-def sequences before and after prepare and de-prepare
  */
 struct sdw_slave_ops {
 	int (*read_prop)(struct sdw_slave *sdw);
@@ -534,37 +627,81 @@ struct sdw_slave_ops {
 	int (*port_prep)(struct sdw_slave *slave,
 			 struct sdw_prepare_ch *prepare_ch,
 			 enum sdw_port_prep_ops pre_ops);
+	int (*clk_stop)(struct sdw_slave *slave,
+			enum sdw_clk_stop_mode mode,
+			enum sdw_clk_stop_type type);
+
 };
 
 /**
  * struct sdw_slave - SoundWire Slave
  * @id: MIPI device ID
  * @dev: Linux device
+ * @irq: IRQ number
  * @status: Status reported by the Slave
  * @bus: Bus handle
- * @ops: Slave callback ops
  * @prop: Slave properties
  * @debugfs: Slave debugfs
  * @node: node for bus list
  * @port_ready: Port ready completion flag for each Slave port
- * @dev_num: Device Number assigned by Bus
+ * @m_port_map: static Master port map for each Slave port
+ * @dev_num: Current Device Number, values can be 0 or dev_num_sticky
+ * @dev_num_sticky: one-time static Device Number assigned by Bus
+ * @probed: boolean tracking driver state
+ * @enumeration_complete: completion utility to control potential races
+ * on startup between device enumeration and read/write access to the
+ * Slave device
+ * @initialization_complete: completion utility to control potential races
+ * on startup between device enumeration and settings being restored
+ * @unattach_request: mask field to keep track why the Slave re-attached and
+ * was re-initialized. This is useful to deal with potential race conditions
+ * between the Master suspending and the codec resuming, and make sure that
+ * when the Master triggered a reset the Slave is properly enumerated and
+ * initialized
+ * @first_interrupt_done: status flag tracking if the interrupt handling
+ * for a Slave happens for the first time after enumeration
+ * @is_mockup_device: status flag used to squelch errors in the command/control
+ * protocol for SoundWire mockup devices
+ * @sdw_dev_lock: mutex used to protect callbacks/remove races
  */
 struct sdw_slave {
 	struct sdw_slave_id id;
 	struct device dev;
+	int irq;
 	enum sdw_slave_status status;
 	struct sdw_bus *bus;
-	const struct sdw_slave_ops *ops;
 	struct sdw_slave_prop prop;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs;
 #endif
 	struct list_head node;
-	struct completion *port_ready;
+	struct completion port_ready[SDW_MAX_PORTS];
+	unsigned int m_port_map[SDW_MAX_PORTS];
 	u16 dev_num;
+	u16 dev_num_sticky;
+	bool probed;
+	struct completion enumeration_complete;
+	struct completion initialization_complete;
+	u32 unattach_request;
+	bool first_interrupt_done;
+	bool is_mockup_device;
+	struct mutex sdw_dev_lock; /* protect callbacks/remove races */
 };
 
 #define dev_to_sdw_dev(_dev) container_of(_dev, struct sdw_slave, dev)
+
+/**
+ * struct sdw_master_device - SoundWire 'Master Device' representation
+ * @dev: Linux device for this Master
+ * @bus: Bus handle shortcut
+ */
+struct sdw_master_device {
+	struct device dev;
+	struct sdw_bus *bus;
+};
+
+#define dev_to_sdw_master_device(d)	\
+	container_of(d, struct sdw_master_device, dev)
 
 struct sdw_driver {
 	const char *name;
@@ -580,9 +717,13 @@ struct sdw_driver {
 	struct device_driver driver;
 };
 
-#define SDW_SLAVE_ENTRY(_mfg_id, _part_id, _drv_data) \
-	{ .mfg_id = (_mfg_id), .part_id = (_part_id), \
+#define SDW_SLAVE_ENTRY_EXT(_mfg_id, _part_id, _version, _c_id, _drv_data) \
+	{ .mfg_id = (_mfg_id), .part_id = (_part_id),		\
+	  .sdw_version = (_version), .class_id = (_c_id),	\
 	  .driver_data = (unsigned long)(_drv_data) }
+
+#define SDW_SLAVE_ENTRY(_mfg_id, _part_id, _drv_data)	\
+	SDW_SLAVE_ENTRY_EXT((_mfg_id), (_part_id), 0, 0, (_drv_data))
 
 int sdw_handle_slave_status(struct sdw_bus *bus,
 			enum sdw_slave_status status[]);
@@ -695,34 +836,46 @@ struct sdw_defer {
 /**
  * struct sdw_master_ops - Master driver ops
  * @read_prop: Read Master properties
+ * @override_adr: Override value read from firmware (quirk for buggy firmware)
  * @xfer_msg: Transfer message callback
- * @xfer_msg_defer: Defer version of transfer message callback
- * @reset_page_addr: Reset the SCP page address registers
+ * @xfer_msg_defer: Defer version of transfer message callback. The message is handled with the
+ * bus struct @sdw_defer
  * @set_bus_conf: Set the bus configuration
  * @pre_bank_switch: Callback for pre bank switch
  * @post_bank_switch: Callback for post bank switch
+ * @read_ping_status: Read status from PING frames, reported with two bits per Device.
+ * Bits 31:24 are reserved.
+ * @get_device_num: Callback for vendor-specific device_number allocation
+ * @put_device_num: Callback for vendor-specific device_number release
+ * @new_peripheral_assigned: Callback to handle enumeration of new peripheral.
  */
 struct sdw_master_ops {
 	int (*read_prop)(struct sdw_bus *bus);
-
+	u64 (*override_adr)
+			(struct sdw_bus *bus, u64 addr);
 	enum sdw_command_response (*xfer_msg)
 			(struct sdw_bus *bus, struct sdw_msg *msg);
 	enum sdw_command_response (*xfer_msg_defer)
-			(struct sdw_bus *bus, struct sdw_msg *msg,
-			struct sdw_defer *defer);
-	enum sdw_command_response (*reset_page_addr)
-			(struct sdw_bus *bus, unsigned int dev_num);
+			(struct sdw_bus *bus);
 	int (*set_bus_conf)(struct sdw_bus *bus,
 			struct sdw_bus_params *params);
 	int (*pre_bank_switch)(struct sdw_bus *bus);
 	int (*post_bank_switch)(struct sdw_bus *bus);
-
+	u32 (*read_ping_status)(struct sdw_bus *bus);
+	int (*get_device_num)(struct sdw_bus *bus, struct sdw_slave *slave);
+	void (*put_device_num)(struct sdw_bus *bus, struct sdw_slave *slave);
+	void (*new_peripheral_assigned)(struct sdw_bus *bus,
+					struct sdw_slave *slave,
+					int dev_num);
 };
 
 /**
  * struct sdw_bus - SoundWire bus
- * @dev: Master linux device
- * @link_id: Link id number, can be 0 to N, unique for each Master
+ * @dev: Shortcut to &bus->md->dev to avoid changing the entire code.
+ * @md: Master device
+ * @controller_id: system-unique controller ID. If set to -1, the bus @id will be used.
+ * @link_id: Link id number, can be 0 to N, unique for each Controller
+ * @id: bus system-wide unique id
  * @slaves: list of Slaves on this bus
  * @assigned: Bitmap for Slave device numbers.
  * Bit set implies used number, bit clear implies unused number.
@@ -733,41 +886,60 @@ struct sdw_master_ops {
  * @port_ops: Master port callback ops
  * @params: Current bus parameters
  * @prop: Master properties
+ * @vendor_specific_prop: pointer to non-standard properties
  * @m_rt_list: List of Master instance of all stream(s) running on Bus. This
  * is used to compute and program bus bandwidth, clock, frame shape,
  * transport and port parameters
  * @debugfs: Bus debugfs
+ * @domain: IRQ domain
  * @defer_msg: Defer message
  * @clk_stop_timeout: Clock stop timeout computed
  * @bank_switch_timeout: Bank switch timeout computed
  * @multi_link: Store bus property that indicates if multi links
  * are supported. This flag is populated by drivers after reading
  * appropriate firmware (ACPI/DT).
+ * @hw_sync_min_links: Number of links used by a stream above which
+ * hardware-based synchronization is required. This value is only
+ * meaningful if multi_link is set. If set to 1, hardware-based
+ * synchronization will be used even if a stream only uses a single
+ * SoundWire segment.
  */
 struct sdw_bus {
 	struct device *dev;
+	struct sdw_master_device *md;
+	int controller_id;
 	unsigned int link_id;
+	int id;
 	struct list_head slaves;
 	DECLARE_BITMAP(assigned, SDW_MAX_DEVICES);
 	struct mutex bus_lock;
+	struct lock_class_key bus_lock_key;
 	struct mutex msg_lock;
+	struct lock_class_key msg_lock_key;
 	int (*compute_params)(struct sdw_bus *bus);
 	const struct sdw_master_ops *ops;
 	const struct sdw_master_port_ops *port_ops;
 	struct sdw_bus_params params;
 	struct sdw_master_prop prop;
+	void *vendor_specific_prop;
 	struct list_head m_rt_list;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs;
 #endif
+	struct irq_chip irq_chip;
+	struct irq_domain *domain;
 	struct sdw_defer defer_msg;
 	unsigned int clk_stop_timeout;
 	u32 bank_switch_timeout;
 	bool multi_link;
+	int hw_sync_min_links;
 };
 
-int sdw_add_bus_master(struct sdw_bus *bus);
-void sdw_delete_bus_master(struct sdw_bus *bus);
+int sdw_bus_master_add(struct sdw_bus *bus, struct device *parent,
+		       struct fwnode_handle *fwnode);
+void sdw_bus_master_delete(struct sdw_bus *bus);
+
+void sdw_show_ping_status(struct sdw_bus *bus, bool sync_delay);
 
 /**
  * sdw_port_config: Master or Slave Port configuration
@@ -854,30 +1026,131 @@ struct sdw_stream_runtime {
 
 struct sdw_stream_runtime *sdw_alloc_stream(const char *stream_name);
 void sdw_release_stream(struct sdw_stream_runtime *stream);
+
+int sdw_compute_params(struct sdw_bus *bus);
+
 int sdw_stream_add_master(struct sdw_bus *bus,
 		struct sdw_stream_config *stream_config,
-		struct sdw_port_config *port_config,
-		unsigned int num_ports,
-		struct sdw_stream_runtime *stream);
-int sdw_stream_add_slave(struct sdw_slave *slave,
-		struct sdw_stream_config *stream_config,
-		struct sdw_port_config *port_config,
+		const struct sdw_port_config *port_config,
 		unsigned int num_ports,
 		struct sdw_stream_runtime *stream);
 int sdw_stream_remove_master(struct sdw_bus *bus,
 		struct sdw_stream_runtime *stream);
-int sdw_stream_remove_slave(struct sdw_slave *slave,
-		struct sdw_stream_runtime *stream);
+int sdw_startup_stream(void *sdw_substream);
 int sdw_prepare_stream(struct sdw_stream_runtime *stream);
 int sdw_enable_stream(struct sdw_stream_runtime *stream);
 int sdw_disable_stream(struct sdw_stream_runtime *stream);
 int sdw_deprepare_stream(struct sdw_stream_runtime *stream);
+void sdw_shutdown_stream(void *sdw_substream);
+int sdw_bus_prep_clk_stop(struct sdw_bus *bus);
+int sdw_bus_clk_stop(struct sdw_bus *bus);
+int sdw_bus_exit_clk_stop(struct sdw_bus *bus);
+
+int sdw_compare_devid(struct sdw_slave *slave, struct sdw_slave_id id);
+void sdw_extract_slave_id(struct sdw_bus *bus, u64 addr, struct sdw_slave_id *id);
+
+#if IS_ENABLED(CONFIG_SOUNDWIRE)
+
+int sdw_stream_add_slave(struct sdw_slave *slave,
+			 struct sdw_stream_config *stream_config,
+			 const struct sdw_port_config *port_config,
+			 unsigned int num_ports,
+			 struct sdw_stream_runtime *stream);
+int sdw_stream_remove_slave(struct sdw_slave *slave,
+			    struct sdw_stream_runtime *stream);
 
 /* messaging and data APIs */
-
 int sdw_read(struct sdw_slave *slave, u32 addr);
 int sdw_write(struct sdw_slave *slave, u32 addr, u8 value);
+int sdw_write_no_pm(struct sdw_slave *slave, u32 addr, u8 value);
+int sdw_read_no_pm(struct sdw_slave *slave, u32 addr);
 int sdw_nread(struct sdw_slave *slave, u32 addr, size_t count, u8 *val);
-int sdw_nwrite(struct sdw_slave *slave, u32 addr, size_t count, u8 *val);
+int sdw_nread_no_pm(struct sdw_slave *slave, u32 addr, size_t count, u8 *val);
+int sdw_nwrite(struct sdw_slave *slave, u32 addr, size_t count, const u8 *val);
+int sdw_nwrite_no_pm(struct sdw_slave *slave, u32 addr, size_t count, const u8 *val);
+int sdw_update(struct sdw_slave *slave, u32 addr, u8 mask, u8 val);
+int sdw_update_no_pm(struct sdw_slave *slave, u32 addr, u8 mask, u8 val);
+
+#else
+
+static inline int sdw_stream_add_slave(struct sdw_slave *slave,
+				       struct sdw_stream_config *stream_config,
+				       const struct sdw_port_config *port_config,
+				       unsigned int num_ports,
+				       struct sdw_stream_runtime *stream)
+{
+	WARN_ONCE(1, "SoundWire API is disabled");
+	return -EINVAL;
+}
+
+static inline int sdw_stream_remove_slave(struct sdw_slave *slave,
+					  struct sdw_stream_runtime *stream)
+{
+	WARN_ONCE(1, "SoundWire API is disabled");
+	return -EINVAL;
+}
+
+/* messaging and data APIs */
+static inline int sdw_read(struct sdw_slave *slave, u32 addr)
+{
+	WARN_ONCE(1, "SoundWire API is disabled");
+	return -EINVAL;
+}
+
+static inline int sdw_write(struct sdw_slave *slave, u32 addr, u8 value)
+{
+	WARN_ONCE(1, "SoundWire API is disabled");
+	return -EINVAL;
+}
+
+static inline int sdw_write_no_pm(struct sdw_slave *slave, u32 addr, u8 value)
+{
+	WARN_ONCE(1, "SoundWire API is disabled");
+	return -EINVAL;
+}
+
+static inline int sdw_read_no_pm(struct sdw_slave *slave, u32 addr)
+{
+	WARN_ONCE(1, "SoundWire API is disabled");
+	return -EINVAL;
+}
+
+static inline int sdw_nread(struct sdw_slave *slave, u32 addr, size_t count, u8 *val)
+{
+	WARN_ONCE(1, "SoundWire API is disabled");
+	return -EINVAL;
+}
+
+static inline int sdw_nread_no_pm(struct sdw_slave *slave, u32 addr, size_t count, u8 *val)
+{
+	WARN_ONCE(1, "SoundWire API is disabled");
+	return -EINVAL;
+}
+
+static inline int sdw_nwrite(struct sdw_slave *slave, u32 addr, size_t count, const u8 *val)
+{
+	WARN_ONCE(1, "SoundWire API is disabled");
+	return -EINVAL;
+}
+
+static inline int sdw_nwrite_no_pm(struct sdw_slave *slave, u32 addr, size_t count, const u8 *val)
+{
+	WARN_ONCE(1, "SoundWire API is disabled");
+	return -EINVAL;
+}
+
+static inline int sdw_update(struct sdw_slave *slave, u32 addr, u8 mask, u8 val)
+{
+	WARN_ONCE(1, "SoundWire API is disabled");
+	return -EINVAL;
+}
+
+static inline int sdw_update_no_pm(struct sdw_slave *slave, u32 addr, u8 mask, u8 val)
+{
+	WARN_ONCE(1, "SoundWire API is disabled");
+	return -EINVAL;
+}
+
+#endif /* CONFIG_SOUNDWIRE */
 
 #endif /* __SOUNDWIRE_H */

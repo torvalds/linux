@@ -122,7 +122,6 @@ struct red_stats {
 	u32		forced_drop;	/* Forced drops, qavg > max_thresh */
 	u32		forced_mark;	/* Forced marks, qavg > max_thresh */
 	u32		pdrop;          /* Drops due to queue limits */
-	u32		other;          /* Drops due to drop() calls */
 };
 
 struct red_parms {
@@ -168,15 +167,63 @@ static inline void red_set_vars(struct red_vars *v)
 	v->qcount	= -1;
 }
 
-static inline bool red_check_params(u32 qth_min, u32 qth_max, u8 Wlog)
+static inline bool red_check_params(u32 qth_min, u32 qth_max, u8 Wlog,
+				    u8 Scell_log, u8 *stab)
 {
-	if (fls(qth_min) + Wlog > 32)
+	if (fls(qth_min) + Wlog >= 32)
 		return false;
-	if (fls(qth_max) + Wlog > 32)
+	if (fls(qth_max) + Wlog >= 32)
+		return false;
+	if (Scell_log >= 32)
 		return false;
 	if (qth_max < qth_min)
 		return false;
+	if (stab) {
+		int i;
+
+		for (i = 0; i < RED_STAB_SIZE; i++)
+			if (stab[i] >= 32)
+				return false;
+	}
 	return true;
+}
+
+static inline int red_get_flags(unsigned char qopt_flags,
+				unsigned char historic_mask,
+				struct nlattr *flags_attr,
+				unsigned char supported_mask,
+				struct nla_bitfield32 *p_flags,
+				unsigned char *p_userbits,
+				struct netlink_ext_ack *extack)
+{
+	struct nla_bitfield32 flags;
+
+	if (qopt_flags && flags_attr) {
+		NL_SET_ERR_MSG_MOD(extack, "flags should be passed either through qopt, or through a dedicated attribute");
+		return -EINVAL;
+	}
+
+	if (flags_attr) {
+		flags = nla_get_bitfield32(flags_attr);
+	} else {
+		flags.selector = historic_mask;
+		flags.value = qopt_flags & historic_mask;
+	}
+
+	*p_flags = flags;
+	*p_userbits = qopt_flags & ~historic_mask;
+	return 0;
+}
+
+static inline int red_validate_flags(unsigned char flags,
+				     struct netlink_ext_ack *extack)
+{
+	if ((flags & TC_RED_NODROP) && !(flags & TC_RED_ECN)) {
+		NL_SET_ERR_MSG_MOD(extack, "nodrop mode is only meaningful with ECN");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static inline void red_set_parms(struct red_parms *p,
@@ -186,10 +233,10 @@ static inline void red_set_parms(struct red_parms *p,
 	int delta = qth_max - qth_min;
 	u32 max_p_delta;
 
-	p->qth_min	= qth_min << Wlog;
-	p->qth_max	= qth_max << Wlog;
-	p->Wlog		= Wlog;
-	p->Plog		= Plog;
+	WRITE_ONCE(p->qth_min, qth_min << Wlog);
+	WRITE_ONCE(p->qth_max, qth_max << Wlog);
+	WRITE_ONCE(p->Wlog, Wlog);
+	WRITE_ONCE(p->Plog, Plog);
 	if (delta <= 0)
 		delta = 1;
 	p->qth_delta	= delta;
@@ -197,7 +244,7 @@ static inline void red_set_parms(struct red_parms *p,
 		max_P = red_maxp(Plog);
 		max_P *= delta; /* max_P = (qth_max - qth_min)/2^Plog */
 	}
-	p->max_P = max_P;
+	WRITE_ONCE(p->max_P, max_P);
 	max_p_delta = max_P / delta;
 	max_p_delta = max(max_p_delta, 1U);
 	p->max_P_reciprocal  = reciprocal_value(max_p_delta);
@@ -210,7 +257,7 @@ static inline void red_set_parms(struct red_parms *p,
 	p->target_min = qth_min + 2*delta;
 	p->target_max = qth_min + 3*delta;
 
-	p->Scell_log	= Scell_log;
+	WRITE_ONCE(p->Scell_log, Scell_log);
 	p->Scell_max	= (255 << Scell_log);
 
 	if (stab)
@@ -247,7 +294,7 @@ static inline unsigned long red_calc_qavg_from_idle_time(const struct red_parms 
 	int  shift;
 
 	/*
-	 * The problem: ideally, average length queue recalcultion should
+	 * The problem: ideally, average length queue recalculation should
 	 * be done over constant clock intervals. This is too expensive, so
 	 * that the calculation is driven by outgoing packets.
 	 * When the queue is idle we have to model this clock by hand.
@@ -316,7 +363,7 @@ static inline unsigned long red_calc_qavg(const struct red_parms *p,
 
 static inline u32 red_random(const struct red_parms *p)
 {
-	return reciprocal_divide(prandom_u32(), p->max_P_reciprocal);
+	return reciprocal_divide(get_random_u32(), p->max_P_reciprocal);
 }
 
 static inline int red_mark_probability(const struct red_parms *p,

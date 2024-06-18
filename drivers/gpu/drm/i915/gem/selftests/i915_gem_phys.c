@@ -25,15 +25,22 @@ static int mock_phys_object(void *arg)
 		goto out;
 	}
 
-	mutex_lock(&i915->drm.struct_mutex);
+	i915_gem_object_lock(obj, NULL);
+	if (!i915_gem_object_has_struct_page(obj)) {
+		i915_gem_object_unlock(obj);
+		err = -EINVAL;
+		pr_err("shmem has no struct page\n");
+		goto out_obj;
+	}
+
 	err = i915_gem_object_attach_phys(obj, PAGE_SIZE);
-	mutex_unlock(&i915->drm.struct_mutex);
+	i915_gem_object_unlock(obj);
 	if (err) {
 		pr_err("i915_gem_object_attach_phys failed, err=%d\n", err);
 		goto out_obj;
 	}
 
-	if (obj->ops != &i915_gem_phys_ops) {
+	if (i915_gem_object_has_struct_page(obj)) {
 		pr_err("i915_gem_object_attach_phys did not create a phys object\n");
 		err = -EINVAL;
 		goto out_obj;
@@ -46,7 +53,7 @@ static int mock_phys_object(void *arg)
 	}
 
 	/* Make the object dirty so that put_pages must do copy back the data */
-	i915_gem_object_lock(obj);
+	i915_gem_object_lock(obj, NULL);
 	err = i915_gem_object_set_to_gtt_domain(obj, true);
 	i915_gem_object_unlock(obj);
 	if (err) {
@@ -75,6 +82,6 @@ int i915_gem_phys_mock_selftests(void)
 
 	err = i915_subtests(tests, i915);
 
-	drm_dev_put(&i915->drm);
+	mock_destroy_device(i915);
 	return err;
 }

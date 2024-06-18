@@ -12,12 +12,12 @@
  * Author: Stephen Chivers <schivers@csc.com>
  */
 
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 
 #include <asm/i8259.h>
 #include <asm/pci-bridge.h>
 #include <asm/mpic.h>
-#include <asm/prom.h>
 #include <mm/mmu_decl.h>
 #include <asm/udbg.h>
 
@@ -154,17 +154,19 @@ static const struct of_device_id mvme5100_of_bus_ids[] __initconst = {
  */
 static void __init mvme5100_setup_arch(void)
 {
-	struct device_node *np;
-
 	if (ppc_md.progress)
 		ppc_md.progress("mvme5100_setup_arch()", 0);
-
-	for_each_compatible_node(np, "pci", "hawk-pci")
-		mvme5100_add_bridge(np);
 
 	restart = ioremap(BOARD_MODRST_REG, 4);
 }
 
+static void __init mvme5100_setup_pci(void)
+{
+	struct device_node *np;
+
+	for_each_compatible_node(np, "pci", "hawk-pci")
+		mvme5100_add_bridge(np);
+}
 
 static void mvme5100_show_cpuinfo(struct seq_file *m)
 {
@@ -184,14 +186,6 @@ static void __noreturn mvme5100_restart(char *cmd)
 		;
 }
 
-/*
- * Called very early, device-tree isn't unflattened
- */
-static int __init mvme5100_probe(void)
-{
-	return of_machine_is_compatible("MVME5100");
-}
-
 static int __init probe_of_platform_devices(void)
 {
 
@@ -203,12 +197,12 @@ machine_device_initcall(mvme5100, probe_of_platform_devices);
 
 define_machine(mvme5100) {
 	.name			= "MVME5100",
-	.probe			= mvme5100_probe,
+	.compatible		= "MVME5100",
 	.setup_arch		= mvme5100_setup_arch,
+	.discover_phbs		= mvme5100_setup_pci,
 	.init_IRQ		= mvme5100_pic_init,
 	.show_cpuinfo		= mvme5100_show_cpuinfo,
 	.get_irq		= mpic_get_irq,
 	.restart		= mvme5100_restart,
-	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
 };

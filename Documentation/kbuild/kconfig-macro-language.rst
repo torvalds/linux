@@ -44,7 +44,7 @@ intermediate::
             def_bool y
 
 Then, Kconfig moves onto the evaluation stage to resolve inter-symbol
-dependency as explained in kconfig-language.txt.
+dependency as explained in kconfig-language.rst.
 
 
 Variables
@@ -97,7 +97,7 @@ Like Make, Kconfig provides several built-in functions. Every function takes a
 particular number of arguments.
 
 In Make, every built-in function takes at least one argument. Kconfig allows
-zero argument for built-in functions, such as $(fileno), $(lineno). You could
+zero argument for built-in functions, such as $(filename), $(lineno). You could
 consider those as "built-in variable", but it is just a matter of how we call
 it after all. Let's say "built-in function" here to refer to natively supported
 functionality.

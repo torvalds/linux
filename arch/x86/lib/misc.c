@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <asm/misc.h>
+
 /*
  * Count the digits of @val including a possible sign.
  *
@@ -6,7 +8,7 @@
  */
 int num_digits(int val)
 {
-	int m = 10;
+	long long m = 10;
 	int d = 1;
 
 	if (val < 0) {

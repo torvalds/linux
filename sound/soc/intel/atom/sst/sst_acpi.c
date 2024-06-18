@@ -15,12 +15,12 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/firmware.h>
-#include <linux/pm_runtime.h>
 #include <linux/pm_qos.h>
 #include <linux/dmi.h>
 #include <linux/acpi.h>
 #include <asm/platform_sst_audio.h>
 #include <sound/core.h>
+#include <sound/intel-dsp-config.h>
 #include <sound/soc.h>
 #include <sound/compress_driver.h>
 #include <acpi/acbuffer.h>
@@ -31,7 +31,6 @@
 #include <sound/soc-acpi.h>
 #include <sound/soc-acpi-intel-match.h>
 #include "../sst-mfld-platform.h"
-#include "../../common/sst-dsp.h"
 #include "../../common/soc-intel-quirks.h"
 #include "sst.h"
 
@@ -165,7 +164,7 @@ static int sst_platform_get_resources(struct intel_sst_drv *ctx)
 	ctx->iram_base = rsrc->start + ctx->pdata->res_info->iram_offset;
 	ctx->iram_end =  ctx->iram_base + ctx->pdata->res_info->iram_size - 1;
 	dev_info(ctx->dev, "IRAM base: %#x", ctx->iram_base);
-	ctx->iram = devm_ioremap_nocache(ctx->dev, ctx->iram_base,
+	ctx->iram = devm_ioremap(ctx->dev, ctx->iram_base,
 					 ctx->pdata->res_info->iram_size);
 	if (!ctx->iram) {
 		dev_err(ctx->dev, "unable to map IRAM\n");
@@ -175,7 +174,7 @@ static int sst_platform_get_resources(struct intel_sst_drv *ctx)
 	ctx->dram_base = rsrc->start + ctx->pdata->res_info->dram_offset;
 	ctx->dram_end = ctx->dram_base + ctx->pdata->res_info->dram_size - 1;
 	dev_info(ctx->dev, "DRAM base: %#x", ctx->dram_base);
-	ctx->dram = devm_ioremap_nocache(ctx->dev, ctx->dram_base,
+	ctx->dram = devm_ioremap(ctx->dev, ctx->dram_base,
 					 ctx->pdata->res_info->dram_size);
 	if (!ctx->dram) {
 		dev_err(ctx->dev, "unable to map DRAM\n");
@@ -184,7 +183,7 @@ static int sst_platform_get_resources(struct intel_sst_drv *ctx)
 
 	ctx->shim_phy_add = rsrc->start + ctx->pdata->res_info->shim_offset;
 	dev_info(ctx->dev, "SHIM base: %#x", ctx->shim_phy_add);
-	ctx->shim = devm_ioremap_nocache(ctx->dev, ctx->shim_phy_add,
+	ctx->shim = devm_ioremap(ctx->dev, ctx->shim_phy_add,
 					ctx->pdata->res_info->shim_size);
 	if (!ctx->shim) {
 		dev_err(ctx->dev, "unable to map SHIM\n");
@@ -197,7 +196,7 @@ static int sst_platform_get_resources(struct intel_sst_drv *ctx)
 	/* Get mailbox addr */
 	ctx->mailbox_add = rsrc->start + ctx->pdata->res_info->mbox_offset;
 	dev_info(ctx->dev, "Mailbox base: %#x", ctx->mailbox_add);
-	ctx->mailbox = devm_ioremap_nocache(ctx->dev, ctx->mailbox_add,
+	ctx->mailbox = devm_ioremap(ctx->dev, ctx->mailbox_add,
 					    ctx->pdata->res_info->mbox_size);
 	if (!ctx->mailbox) {
 		dev_err(ctx->dev, "unable to map mailbox\n");
@@ -216,7 +215,7 @@ static int sst_platform_get_resources(struct intel_sst_drv *ctx)
 	ctx->ddr_base = rsrc->start;
 	ctx->ddr_end = rsrc->end;
 	dev_info(ctx->dev, "DDR base: %#x", ctx->ddr_base);
-	ctx->ddr = devm_ioremap_nocache(ctx->dev, ctx->ddr_base,
+	ctx->ddr = devm_ioremap(ctx->dev, ctx->ddr_base,
 					resource_size(rsrc));
 	if (!ctx->ddr) {
 		dev_err(ctx->dev, "unable to map DDR\n");
@@ -247,6 +246,13 @@ static int sst_acpi_probe(struct platform_device *pdev)
 	id = acpi_match_device(dev->driver->acpi_match_table, dev);
 	if (!id)
 		return -ENODEV;
+
+	ret = snd_intel_acpi_dsp_driver_probe(dev, id->id);
+	if (ret != SND_INTEL_DSP_DRIVER_ANY && ret != SND_INTEL_DSP_DRIVER_SST) {
+		dev_dbg(dev, "SST ACPI driver not selected, aborting probe\n");
+		return -ENODEV;
+	}
+
 	dev_dbg(dev, "for %s\n", id->id);
 
 	mach = (struct snd_soc_acpi_mach *)id->driver_data;
@@ -321,21 +327,20 @@ static int sst_acpi_probe(struct platform_device *pdev)
 }
 
 /**
-* intel_sst_remove - remove function
+* sst_acpi_remove - remove function
 *
 * @pdev:	platform device structure
 *
 * This function is called by OS when a device is unloaded
 * This frees the interrupt etc
 */
-static int sst_acpi_remove(struct platform_device *pdev)
+static void sst_acpi_remove(struct platform_device *pdev)
 {
 	struct intel_sst_drv *ctx;
 
 	ctx = platform_get_drvdata(pdev);
 	sst_context_cleanup(ctx);
 	platform_set_drvdata(pdev, NULL);
-	return 0;
 }
 
 static const struct acpi_device_id sst_acpi_ids[] = {
@@ -353,7 +358,7 @@ static struct platform_driver sst_acpi_driver = {
 		.pm			= &intel_sst_pm,
 	},
 	.probe	= sst_acpi_probe,
-	.remove	= sst_acpi_remove,
+	.remove_new = sst_acpi_remove,
 };
 
 module_platform_driver(sst_acpi_driver);

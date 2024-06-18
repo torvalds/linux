@@ -17,7 +17,6 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 
 #define INTC_IRQPIN_MAX 8 /* maximum 8 interrupts per driver instance */
@@ -71,8 +70,7 @@ struct intc_irqpin_priv {
 };
 
 struct intc_irqpin_config {
-	unsigned int irlm_bit;
-	unsigned needs_irlm:1;
+	int irlm_bit;		/* -1 if non-existent */
 };
 
 static unsigned long intc_irqpin_read32(void __iomem *iomem)
@@ -349,11 +347,10 @@ static const struct irq_domain_ops intc_irqpin_irq_domain_ops = {
 
 static const struct intc_irqpin_config intc_irqpin_irlm_r8a777x = {
 	.irlm_bit = 23, /* ICR0.IRLM0 */
-	.needs_irlm = 1,
 };
 
 static const struct intc_irqpin_config intc_irqpin_rmobile = {
-	.needs_irlm = 0,
+	.irlm_bit = -1,
 };
 
 static const struct of_device_id intc_irqpin_dt_ids[] = {
@@ -377,7 +374,6 @@ static int intc_irqpin_probe(struct platform_device *pdev)
 	struct intc_irqpin_priv *p;
 	struct intc_irqpin_iomem *i;
 	struct resource *io[INTC_IRQPIN_REG_NR];
-	struct resource *irq;
 	struct irq_chip *irq_chip;
 	void (*enable_fn)(struct irq_data *d);
 	void (*disable_fn)(struct irq_data *d);
@@ -420,12 +416,14 @@ static int intc_irqpin_probe(struct platform_device *pdev)
 
 	/* allow any number of IRQs between 1 and INTC_IRQPIN_MAX */
 	for (k = 0; k < INTC_IRQPIN_MAX; k++) {
-		irq = platform_get_resource(pdev, IORESOURCE_IRQ, k);
-		if (!irq)
+		ret = platform_get_irq_optional(pdev, k);
+		if (ret == -ENXIO)
 			break;
+		if (ret < 0)
+			goto err0;
 
 		p->irq[k].p = p;
-		p->irq[k].requested_irq = irq->start;
+		p->irq[k].requested_irq = ret;
 	}
 
 	nirqs = k;
@@ -460,8 +458,8 @@ static int intc_irqpin_probe(struct platform_device *pdev)
 			goto err0;
 		}
 
-		i->iomem = devm_ioremap_nocache(dev, io[k]->start,
-						resource_size(io[k]));
+		i->iomem = devm_ioremap(dev, io[k]->start,
+					resource_size(io[k]));
 		if (!i->iomem) {
 			dev_err(dev, "failed to remap IOMEM\n");
 			ret = -ENXIO;
@@ -470,7 +468,7 @@ static int intc_irqpin_probe(struct platform_device *pdev)
 	}
 
 	/* configure "individual IRQ mode" where needed */
-	if (config && config->needs_irlm) {
+	if (config && config->irlm_bit >= 0) {
 		if (io[INTC_IRQPIN_REG_IRLM])
 			intc_irqpin_read_modify_write(p, INTC_IRQPIN_REG_IRLM,
 						      config->irlm_bit, 1, 1);
@@ -509,7 +507,6 @@ static int intc_irqpin_probe(struct platform_device *pdev)
 
 	irq_chip = &p->irq_chip;
 	irq_chip->name = "intc-irqpin";
-	irq_chip->parent_device = dev;
 	irq_chip->irq_mask = disable_fn;
 	irq_chip->irq_unmask = enable_fn;
 	irq_chip->irq_set_type = intc_irqpin_irq_set_type;
@@ -523,6 +520,8 @@ static int intc_irqpin_probe(struct platform_device *pdev)
 		dev_err(dev, "cannot initialize irq domain\n");
 		goto err0;
 	}
+
+	irq_domain_set_pm_device(p->irq_domain, dev);
 
 	if (p->shared_irqs) {
 		/* request one shared interrupt */
@@ -562,14 +561,13 @@ err0:
 	return ret;
 }
 
-static int intc_irqpin_remove(struct platform_device *pdev)
+static void intc_irqpin_remove(struct platform_device *pdev)
 {
 	struct intc_irqpin_priv *p = platform_get_drvdata(pdev);
 
 	irq_domain_remove(p->irq_domain);
 	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-	return 0;
 }
 
 static int __maybe_unused intc_irqpin_suspend(struct device *dev)
@@ -586,11 +584,11 @@ static SIMPLE_DEV_PM_OPS(intc_irqpin_pm_ops, intc_irqpin_suspend, NULL);
 
 static struct platform_driver intc_irqpin_device_driver = {
 	.probe		= intc_irqpin_probe,
-	.remove		= intc_irqpin_remove,
+	.remove_new	= intc_irqpin_remove,
 	.driver		= {
-		.name	= "renesas_intc_irqpin",
-		.of_match_table = intc_irqpin_dt_ids,
-		.pm	= &intc_irqpin_pm_ops,
+		.name		= "renesas_intc_irqpin",
+		.of_match_table	= intc_irqpin_dt_ids,
+		.pm		= &intc_irqpin_pm_ops,
 	}
 };
 
@@ -608,4 +606,3 @@ module_exit(intc_irqpin_exit);
 
 MODULE_AUTHOR("Magnus Damm");
 MODULE_DESCRIPTION("Renesas INTC External IRQ Pin Driver");
-MODULE_LICENSE("GPL v2");

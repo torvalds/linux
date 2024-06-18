@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 
 #define PT_TOTAL_GPIO 8
+#define PT_TOTAL_GPIO_EX 24
 
 /* PCI-E MMIO register offsets */
 #define PT_DIRECTION_REG   0x00
@@ -35,19 +36,19 @@ static int pt_gpio_request(struct gpio_chip *gc, unsigned offset)
 
 	dev_dbg(gc->parent, "pt_gpio_request offset=%x\n", offset);
 
-	spin_lock_irqsave(&gc->bgpio_lock, flags);
+	raw_spin_lock_irqsave(&gc->bgpio_lock, flags);
 
 	using_pins = readl(pt_gpio->reg_base + PT_SYNC_REG);
 	if (using_pins & BIT(offset)) {
 		dev_warn(gc->parent, "PT GPIO pin %x reconfigured\n",
 			 offset);
-		spin_unlock_irqrestore(&gc->bgpio_lock, flags);
+		raw_spin_unlock_irqrestore(&gc->bgpio_lock, flags);
 		return -EINVAL;
 	}
 
 	writel(using_pins | BIT(offset), pt_gpio->reg_base + PT_SYNC_REG);
 
-	spin_unlock_irqrestore(&gc->bgpio_lock, flags);
+	raw_spin_unlock_irqrestore(&gc->bgpio_lock, flags);
 
 	return 0;
 }
@@ -58,13 +59,13 @@ static void pt_gpio_free(struct gpio_chip *gc, unsigned offset)
 	unsigned long flags;
 	u32 using_pins;
 
-	spin_lock_irqsave(&gc->bgpio_lock, flags);
+	raw_spin_lock_irqsave(&gc->bgpio_lock, flags);
 
 	using_pins = readl(pt_gpio->reg_base + PT_SYNC_REG);
 	using_pins &= ~BIT(offset);
 	writel(using_pins, pt_gpio->reg_base + PT_SYNC_REG);
 
-	spin_unlock_irqrestore(&gc->bgpio_lock, flags);
+	raw_spin_unlock_irqrestore(&gc->bgpio_lock, flags);
 
 	dev_dbg(gc->parent, "pt_gpio_free offset=%x\n", offset);
 }
@@ -72,12 +73,10 @@ static void pt_gpio_free(struct gpio_chip *gc, unsigned offset)
 static int pt_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct acpi_device *acpi_dev;
-	acpi_handle handle = ACPI_HANDLE(dev);
 	struct pt_gpio_chip *pt_gpio;
 	int ret = 0;
 
-	if (acpi_bus_get_device(handle, &acpi_dev)) {
+	if (!ACPI_COMPANION(dev)) {
 		dev_err(dev, "PT GPIO device node not found\n");
 		return -ENODEV;
 	}
@@ -105,10 +104,8 @@ static int pt_gpio_probe(struct platform_device *pdev)
 	pt_gpio->gc.owner            = THIS_MODULE;
 	pt_gpio->gc.request          = pt_gpio_request;
 	pt_gpio->gc.free             = pt_gpio_free;
-	pt_gpio->gc.ngpio            = PT_TOTAL_GPIO;
-#if defined(CONFIG_OF_GPIO)
-	pt_gpio->gc.of_node          = dev->of_node;
-#endif
+	pt_gpio->gc.ngpio            = (uintptr_t)device_get_match_data(dev);
+
 	ret = gpiochip_add_data(&pt_gpio->gc, pt_gpio);
 	if (ret) {
 		dev_err(dev, "Failed to register GPIO lib\n");
@@ -125,18 +122,17 @@ static int pt_gpio_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int pt_gpio_remove(struct platform_device *pdev)
+static void pt_gpio_remove(struct platform_device *pdev)
 {
 	struct pt_gpio_chip *pt_gpio = platform_get_drvdata(pdev);
 
 	gpiochip_remove(&pt_gpio->gc);
-
-	return 0;
 }
 
 static const struct acpi_device_id pt_gpio_acpi_match[] = {
-	{ "AMDF030", 0 },
-	{ "AMDIF030", 0 },
+	{ "AMDF030", PT_TOTAL_GPIO },
+	{ "AMDIF030", PT_TOTAL_GPIO },
+	{ "AMDIF031", PT_TOTAL_GPIO_EX },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, pt_gpio_acpi_match);
@@ -147,7 +143,7 @@ static struct platform_driver pt_gpio_driver = {
 		.acpi_match_table = ACPI_PTR(pt_gpio_acpi_match),
 	},
 	.probe = pt_gpio_probe,
-	.remove = pt_gpio_remove,
+	.remove_new = pt_gpio_remove,
 };
 
 module_platform_driver(pt_gpio_driver);

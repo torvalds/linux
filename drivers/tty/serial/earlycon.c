@@ -56,7 +56,6 @@ static void __init earlycon_init(struct earlycon_device *device,
 				 const char *name)
 {
 	struct console *earlycon = device->con;
-	struct uart_port *port = &device->port;
 	const char *s;
 	size_t len;
 
@@ -68,8 +67,14 @@ static void __init earlycon_init(struct earlycon_device *device,
 	if (*s)
 		earlycon->index = simple_strtoul(s, NULL, 10);
 	len = s - name;
-	strlcpy(earlycon->name, name, min(len + 1, sizeof(earlycon->name)));
+	strscpy(earlycon->name, name, min(len + 1, sizeof(earlycon->name)));
 	earlycon->data = &early_console_dev;
+}
+
+static void __init earlycon_print_info(struct earlycon_device *device)
+{
+	struct console *earlycon = device->con;
+	struct uart_port *port = &device->port;
 
 	if (port->iotype == UPIO_MEM || port->iotype == UPIO_MEM16 ||
 	    port->iotype == UPIO_MEM32 || port->iotype == UPIO_MEM32BE)
@@ -115,10 +120,16 @@ static int __init parse_options(struct earlycon_device *device, char *options)
 	}
 
 	if (options) {
+		char *uartclk;
+
 		device->baud = simple_strtoul(options, NULL, 0);
+		uartclk = strchr(options, ',');
+		if (uartclk && kstrtouint(uartclk + 1, 0, &port->uartclk) < 0)
+			pr_warn("[%s] unsupported earlycon uart clkrate option\n",
+				options);
 		length = min(strcspn(options, " ") + 1,
 			     (size_t)(sizeof(device->options)));
-		strlcpy(device->options, options, length);
+		strscpy(device->options, options, length);
 	}
 
 	return 0;
@@ -134,12 +145,14 @@ static int __init register_earlycon(char *buf, const struct earlycon_id *match)
 		buf = NULL;
 
 	spin_lock_init(&port->lock);
-	port->uartclk = BASE_BAUD * 16;
+	if (!port->uartclk)
+		port->uartclk = BASE_BAUD * 16;
 	if (port->mapbase)
 		port->membase = earlycon_map(port->mapbase, 64);
 
 	earlycon_init(&early_console_dev, match->name);
 	err = match->setup(&early_console_dev, buf);
+	earlycon_print_info(&early_console_dev);
 	if (err < 0)
 		return err;
 	if (!early_console_dev.con->write)
@@ -169,20 +182,24 @@ static int __init register_earlycon(char *buf, const struct earlycon_id *match)
  */
 int __init setup_earlycon(char *buf)
 {
-	const struct earlycon_id **p_match;
+	const struct earlycon_id *match;
+	bool empty_compatible = true;
 
 	if (!buf || !buf[0])
 		return -EINVAL;
 
-	if (early_con.flags & CON_ENABLED)
+	if (console_is_registered(&early_con))
 		return -EALREADY;
 
-	for (p_match = __earlycon_table; p_match < __earlycon_table_end;
-	     p_match++) {
-		const struct earlycon_id *match = *p_match;
+again:
+	for (match = __earlycon_table; match < __earlycon_table_end; match++) {
 		size_t len = strlen(match->name);
 
 		if (strncmp(buf, match->name, len))
+			continue;
+
+		/* prefer entries with empty compatible */
+		if (empty_compatible && *match->compatible)
 			continue;
 
 		if (buf[len]) {
@@ -193,6 +210,11 @@ int __init setup_earlycon(char *buf)
 			buf = NULL;
 
 		return register_earlycon(buf, match);
+	}
+
+	if (empty_compatible) {
+		empty_compatible = false;
+		goto again;
 	}
 
 	return -ENOENT;
@@ -237,6 +259,9 @@ int __init of_setup_earlycon(const struct earlycon_id *match,
 	const __be32 *val;
 	bool big_endian;
 	u64 addr;
+
+	if (console_is_registered(&early_con))
+		return -EALREADY;
 
 	spin_lock_init(&port->lock);
 	port->iotype = UPIO_MEM;
@@ -286,11 +311,12 @@ int __init of_setup_earlycon(const struct earlycon_id *match,
 
 	if (options) {
 		early_console_dev.baud = simple_strtoul(options, NULL, 0);
-		strlcpy(early_console_dev.options, options,
+		strscpy(early_console_dev.options, options,
 			sizeof(early_console_dev.options));
 	}
 	earlycon_init(&early_console_dev, match->name);
 	err = match->setup(&early_console_dev, options);
+	earlycon_print_info(&early_console_dev);
 	if (err < 0)
 		return err;
 	if (!early_console_dev.con->write)

@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * pxa910 clock framework source file
  *
  * Copyright (C) 2012 Marvell
  * Chao Xie <xiechao.mail@gmail.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 #include <linux/module.h>
@@ -46,6 +43,8 @@
 #define APMU_CCIC0	0x50
 #define APMU_DFC	0x60
 #define MPMU_UART_PLL	0x14
+
+#define NR_CLKS		200
 
 struct pxa910_clk_unit {
 	struct mmp_clk_unit unit;
@@ -299,7 +298,7 @@ static void __init pxa910_clk_init(struct device_node *np)
 		goto unmap_apbc_region;
 	}
 
-	mmp_clk_init(np, &pxa_unit->unit, PXA910_NR_CLKS);
+	mmp_clk_init(np, &pxa_unit->unit, NR_CLKS);
 
 	pxa910_pll_init(pxa_unit);
 

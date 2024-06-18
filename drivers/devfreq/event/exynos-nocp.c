@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * exynos-nocp.c - EXYNOS NoC (Network On Chip) Probe support
+ * exynos-nocp.c - Exynos NoC (Network On Chip) Probe support
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  * Author : Chanwoo Choi <cw00.choi@samsung.com>
@@ -214,8 +214,7 @@ static int exynos_nocp_parse_dt(struct platform_device *pdev,
 		nocp->clk = NULL;
 
 	/* Maps the memory mapped IO to control nocp register */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(dev, res);
+	base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
@@ -276,18 +275,16 @@ static int exynos_nocp_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int exynos_nocp_remove(struct platform_device *pdev)
+static void exynos_nocp_remove(struct platform_device *pdev)
 {
 	struct exynos_nocp *nocp = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(nocp->clk);
-
-	return 0;
 }
 
 static struct platform_driver exynos_nocp_driver = {
 	.probe	= exynos_nocp_probe,
-	.remove	= exynos_nocp_remove,
+	.remove_new = exynos_nocp_remove,
 	.driver = {
 		.name	= "exynos-nocp",
 		.of_match_table = exynos_nocp_id_match,

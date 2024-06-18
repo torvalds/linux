@@ -19,13 +19,15 @@
 #include <linux/errno.h>
 #include <linux/ptrace.h>
 #include <linux/personality.h>
-#include <linux/tracehook.h>
+#include <linux/resume_user_mode.h>
 #include <linux/sched/task_stack.h>
 
 #include <asm/ucontext.h>
 #include <linux/uaccess.h>
 #include <asm/cacheflush.h>
 #include <asm/coprocessor.h>
+#include <asm/processor.h>
+#include <asm/syscall.h>
 #include <asm/unistd.h>
 
 extern struct task_struct *coproc_owners[];
@@ -45,12 +47,13 @@ struct rt_sigframe
 	unsigned int window[4];
 };
 
-/* 
+#if defined(USER_SUPPORT_WINDOWED)
+/*
  * Flush register windows stored in pt_regs to stack.
  * Returns 1 for errors.
  */
 
-int
+static int
 flush_window_regs_user(struct pt_regs *regs)
 {
 	const unsigned long ws = regs->windowstart;
@@ -121,6 +124,13 @@ flush_window_regs_user(struct pt_regs *regs)
 errout:
 	return err;
 }
+#else
+static int
+flush_window_regs_user(struct pt_regs *regs)
+{
+	return 0;
+}
+#endif
 
 /*
  * Note: We don't copy double exception 'regs', we have to finish double exc. 
@@ -154,8 +164,7 @@ setup_sigcontext(struct rt_sigframe __user *frame, struct pt_regs *regs)
 		return err;
 
 #if XTENSA_HAVE_COPROCESSORS
-	coprocessor_flush_all(ti);
-	coprocessor_release_all(ti);
+	coprocessor_flush_release_all(ti);
 	err |= __copy_to_user(&frame->xtregs.cp, &ti->xtregs_cp,
 			      sizeof (frame->xtregs.cp));
 #endif
@@ -236,9 +245,9 @@ restore_sigcontext(struct pt_regs *regs, struct rt_sigframe __user *frame)
  * Do a signal return; undo the signal stack.
  */
 
-asmlinkage long xtensa_rt_sigreturn(long a0, long a1, long a2, long a3,
-				    long a4, long a5, struct pt_regs *regs)
+asmlinkage long xtensa_rt_sigreturn(void)
 {
+	struct pt_regs *regs = current_pt_regs();
 	struct rt_sigframe __user *frame;
 	sigset_t set;
 	int ret;
@@ -336,7 +345,19 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set,
 	struct rt_sigframe *frame;
 	int err = 0, sig = ksig->sig;
 	unsigned long sp, ra, tp, ps;
+	unsigned long handler = (unsigned long)ksig->ka.sa.sa_handler;
+	unsigned long handler_fdpic_GOT = 0;
 	unsigned int base;
+	bool fdpic = IS_ENABLED(CONFIG_BINFMT_ELF_FDPIC) &&
+		(current->personality & FDPIC_FUNCPTRS);
+
+	if (fdpic) {
+		unsigned long __user *fdpic_func_desc =
+			(unsigned long __user *)handler;
+		if (__get_user(handler, &fdpic_func_desc[0]) ||
+		    __get_user(handler_fdpic_GOT, &fdpic_func_desc[1]))
+			return -EFAULT;
+	}
 
 	sp = regs->areg[1];
 
@@ -366,20 +387,26 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set,
 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
 
 	if (ksig->ka.sa.sa_flags & SA_RESTORER) {
-		ra = (unsigned long)ksig->ka.sa.sa_restorer;
+		if (fdpic) {
+			unsigned long __user *fdpic_func_desc =
+				(unsigned long __user *)ksig->ka.sa.sa_restorer;
+
+			err |= __get_user(ra, fdpic_func_desc);
+		} else {
+			ra = (unsigned long)ksig->ka.sa.sa_restorer;
+		}
 	} else {
 
 		/* Create sys_rt_sigreturn syscall in stack frame */
 
 		err |= gen_return_code(frame->retcode);
-
-		if (err) {
-			return -EFAULT;
-		}
 		ra = (unsigned long) frame->retcode;
 	}
 
-	/* 
+	if (err)
+		return -EFAULT;
+
+	/*
 	 * Create signal handler execution context.
 	 * Return context not modified until this point.
 	 */
@@ -387,8 +414,7 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set,
 	/* Set up registers for signal handler; preserve the threadptr */
 	tp = regs->threadptr;
 	ps = regs->ps;
-	start_thread(regs, (unsigned long) ksig->ka.sa.sa_handler,
-		     (unsigned long) frame);
+	start_thread(regs, handler, (unsigned long)frame);
 
 	/* Set up a stack frame for a call4 if userspace uses windowed ABI */
 	if (ps & PS_WOE_MASK) {
@@ -406,6 +432,8 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set,
 	regs->areg[base + 4] = (unsigned long) &frame->uc;
 	regs->threadptr = tp;
 	regs->ps = ps;
+	if (fdpic)
+		regs->areg[base + 11] = handler_fdpic_GOT;
 
 	pr_debug("SIG rt deliver (%s:%d): signal=%d sp=%p pc=%08lx\n",
 		 current->comm, current->pid, sig, frame, regs->pc);
@@ -448,7 +476,7 @@ static void do_signal(struct pt_regs *regs)
 						regs->areg[2] = -EINTR;
 						break;
 					}
-					/* fallthrough */
+					fallthrough;
 				case -ERESTARTNOINTR:
 					regs->areg[2] = regs->syscall;
 					regs->pc -= 3;
@@ -465,7 +493,7 @@ static void do_signal(struct pt_regs *regs)
 		/* Set up the stack frame */
 		ret = setup_frame(&ksig, sigmask_to_save(), regs);
 		signal_setup_done(ret, &ksig, 0);
-		if (current->ptrace & PT_SINGLESTEP)
+		if (test_thread_flag(TIF_SINGLESTEP))
 			task_pt_regs(current)->icountlevel = 1;
 
 		return;
@@ -491,16 +519,17 @@ static void do_signal(struct pt_regs *regs)
 	/* If there's no signal to deliver, we just restore the saved mask.  */
 	restore_saved_sigmask();
 
-	if (current->ptrace & PT_SINGLESTEP)
+	if (test_thread_flag(TIF_SINGLESTEP))
 		task_pt_regs(current)->icountlevel = 1;
 	return;
 }
 
 void do_notify_resume(struct pt_regs *regs)
 {
-	if (test_thread_flag(TIF_SIGPENDING))
+	if (test_thread_flag(TIF_SIGPENDING) ||
+	    test_thread_flag(TIF_NOTIFY_SIGNAL))
 		do_signal(regs);
 
-	if (test_and_clear_thread_flag(TIF_NOTIFY_RESUME))
-		tracehook_notify_resume(regs);
+	if (test_thread_flag(TIF_NOTIFY_RESUME))
+		resume_user_mode_work(regs);
 }

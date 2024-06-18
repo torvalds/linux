@@ -23,8 +23,9 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/hardirq.h>
-#include <linux/of_device.h>
-#include <asm/prom.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+
 #include <asm/machdep.h>
 #include <asm/irq.h>
 #include <asm/pmac_feature.h>
@@ -119,9 +120,9 @@ static int cpu_750fx_cpu_speed(int low_speed)
 
 		/* tweak L2 for high voltage */
 		if (has_cpu_l2lve) {
-			hid2 = mfspr(SPRN_HID2);
+			hid2 = mfspr(SPRN_HID2_750FX);
 			hid2 &= ~0x2000;
-			mtspr(SPRN_HID2, hid2);
+			mtspr(SPRN_HID2_750FX, hid2);
 		}
 	}
 #ifdef CONFIG_PPC_BOOK3S_32
@@ -130,9 +131,9 @@ static int cpu_750fx_cpu_speed(int low_speed)
 	if (low_speed == 1) {
 		/* tweak L2 for low voltage */
 		if (has_cpu_l2lve) {
-			hid2 = mfspr(SPRN_HID2);
+			hid2 = mfspr(SPRN_HID2_750FX);
 			hid2 |= 0x2000;
-			mtspr(SPRN_HID2, hid2);
+			mtspr(SPRN_HID2_750FX, hid2);
 		}
 
 		/* ramping down, set voltage last */
@@ -378,10 +379,9 @@ static int pmac_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 static u32 read_gpio(struct device_node *np)
 {
-	const u32 *reg = of_get_property(np, "reg", NULL);
-	u32 offset;
+	u64 offset;
 
-	if (reg == NULL)
+	if (of_property_read_reg(np, 0, &offset, NULL) < 0)
 		return 0;
 	/* That works for all keylargos but shall be fixed properly
 	 * some day... The problem is that it seems we can't rely
@@ -389,7 +389,6 @@ static u32 read_gpio(struct device_node *np)
 	 * relative to the base of KeyLargo or to the base of the
 	 * GPIO space, and the device-tree doesn't help.
 	 */
-	offset = *reg;
 	if (offset < KEYLARGO_GPIO_LEVELS0)
 		offset += KEYLARGO_GPIO_LEVELS0;
 	return offset;
@@ -439,8 +438,7 @@ static struct cpufreq_driver pmac_cpufreq_driver = {
 	.init		= pmac_cpufreq_cpu_init,
 	.suspend	= pmac_cpufreq_suspend,
 	.resume		= pmac_cpufreq_resume,
-	.flags		= CPUFREQ_PM_NO_WARN |
-			  CPUFREQ_NO_AUTO_DYNAMIC_SWITCHING,
+	.flags		= CPUFREQ_NO_AUTO_DYNAMIC_SWITCHING,
 	.attr		= cpufreq_generic_attr,
 	.name		= "powermac",
 };
@@ -470,6 +468,10 @@ static int pmac_cpufreq_init_MacRISC3(struct device_node *cpunode)
 		frequency_gpio = read_gpio(freq_gpio_np);
 	if (slew_done_gpio_np)
 		slew_done_gpio = read_gpio(slew_done_gpio_np);
+
+	of_node_put(volt_gpio_np);
+	of_node_put(freq_gpio_np);
+	of_node_put(slew_done_gpio_np);
 
 	/* If we use the frequency GPIOs, calculate the min/max speeds based
 	 * on the bus frequencies
@@ -543,7 +545,7 @@ static int pmac_cpufreq_init_7447A(struct device_node *cpunode)
 {
 	struct device_node *volt_gpio_np;
 
-	if (of_get_property(cpunode, "dynamic-power-step", NULL) == NULL)
+	if (!of_property_read_bool(cpunode, "dynamic-power-step"))
 		return 1;
 
 	volt_gpio_np = of_find_node_by_name(NULL, "cpu-vcore-select");
@@ -573,7 +575,7 @@ static int pmac_cpufreq_init_750FX(struct device_node *cpunode)
 	u32 pvr;
 	const u32 *value;
 
-	if (of_get_property(cpunode, "dynamic-power-step", NULL) == NULL)
+	if (!of_property_read_bool(cpunode, "dynamic-power-step"))
 		return 1;
 
 	hi_freq = cur_freq;
@@ -629,7 +631,7 @@ static int __init pmac_cpufreq_setup(void)
 
 	/*  Check for 7447A based MacRISC3 */
 	if (of_machine_is_compatible("MacRISC3") &&
-	    of_get_property(cpunode, "dynamic-power-step", NULL) &&
+	    of_property_read_bool(cpunode, "dynamic-power-step") &&
 	    PVR_VER(mfspr(SPRN_PVR)) == 0x8003) {
 		pmac_cpufreq_init_7447A(cpunode);
 

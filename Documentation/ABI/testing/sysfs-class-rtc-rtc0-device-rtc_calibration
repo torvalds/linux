@@ -7,6 +7,7 @@ Description:    Attribute for calibrating ST-Ericsson AB8500 Real Time Clock
                 calibrate the AB8500.s 32KHz Real Time Clock.
                 Every 60 seconds the AB8500 will correct the RTC's value
                 by adding to it the value of this attribute.
+
                 The range of the attribute is -127 to +127 in units of
                 30.5 micro-seconds (half-parts-per-million of the 32KHz clock)
 Users:          The /vendor/st-ericsson/base_utilities/core/rtc_calibration

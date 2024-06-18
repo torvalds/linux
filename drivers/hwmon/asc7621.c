@@ -77,7 +77,7 @@ struct asc7621_data {
 	struct i2c_client client;
 	struct device *class_dev;
 	struct mutex update_lock;
-	int valid;		/* !=0 if following fields are valid */
+	bool valid;		/* true if following fields are valid */
 	unsigned long last_high_reading;	/* In jiffies */
 	unsigned long last_low_reading;		/* In jiffies */
 	/*
@@ -1032,7 +1032,7 @@ static struct asc7621_data *asc7621_update_device(struct device *dev)
 		data->last_low_reading = jiffies;
 	}			/* last_reading */
 
-	data->valid = 1;
+	data->valid = true;
 
 	mutex_unlock(&data->update_lock);
 
@@ -1087,7 +1087,7 @@ static void asc7621_init_client(struct i2c_client *client)
 }
 
 static int
-asc7621_probe(struct i2c_client *client, const struct i2c_device_id *id)
+asc7621_probe(struct i2c_client *client)
 {
 	struct asc7621_data *data;
 	int i, err;
@@ -1153,7 +1153,7 @@ static int asc7621_detect(struct i2c_client *client,
 
 		if (company == asc7621_chips[chip_index].company_id &&
 		    verstep == asc7621_chips[chip_index].verstep_id) {
-			strlcpy(info->type, asc7621_chips[chip_index].name,
+			strscpy(info->type, asc7621_chips[chip_index].name,
 				I2C_NAME_SIZE);
 
 			dev_info(&adapter->dev, "Matched %s at 0x%02x\n",
@@ -1165,7 +1165,7 @@ static int asc7621_detect(struct i2c_client *client,
 	return -ENODEV;
 }
 
-static int asc7621_remove(struct i2c_client *client)
+static void asc7621_remove(struct i2c_client *client)
 {
 	struct asc7621_data *data = i2c_get_clientdata(client);
 	int i;
@@ -1176,8 +1176,6 @@ static int asc7621_remove(struct i2c_client *client)
 		device_remove_file(&client->dev,
 				   &(asc7621_params[i].sda.dev_attr));
 	}
-
-	return 0;
 }
 
 static const struct i2c_device_id asc7621_id[] = {

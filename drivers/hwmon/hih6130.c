@@ -150,7 +150,7 @@ out:
 }
 
 /**
- * hih6130_show_temperature() - show temperature measurement value in sysfs
+ * hih6130_temperature_show() - show temperature measurement value in sysfs
  * @dev: device
  * @attr: device attribute
  * @buf: sysfs buffer (PAGE_SIZE) where measurement values are written to
@@ -172,7 +172,7 @@ static ssize_t hih6130_temperature_show(struct device *dev,
 }
 
 /**
- * hih6130_show_humidity() - show humidity measurement value in sysfs
+ * hih6130_humidity_show() - show humidity measurement value in sysfs
  * @dev: device
  * @attr: device attribute
  * @buf: sysfs buffer (PAGE_SIZE) where measurement values are written to
@@ -204,8 +204,7 @@ static struct attribute *hih6130_attrs[] = {
 
 ATTRIBUTE_GROUPS(hih6130);
 
-static int hih6130_probe(struct i2c_client *client,
-				   const struct i2c_device_id *id)
+static int hih6130_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct hih6130 *hih6130;
@@ -234,7 +233,7 @@ static int hih6130_probe(struct i2c_client *client,
 
 /* Device ID table */
 static const struct i2c_device_id hih6130_id[] = {
-	{ "hih6130", 0 },
+	{ "hih6130" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, hih6130_id);

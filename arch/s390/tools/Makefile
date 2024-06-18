@@ -10,8 +10,8 @@ PHONY += kapi
 
 kapi:	$(kapi-hdrs-y)
 
-hostprogs-y		    += gen_facilities
-hostprogs-y		    += gen_opcode_table
+hostprogs		    += gen_facilities
+hostprogs		    += gen_opcode_table
 
 HOSTCFLAGS_gen_facilities.o += $(LINUXINCLUDE)
 
@@ -25,3 +25,8 @@ $(kapi)/facility-defs.h: $(obj)/gen_facilities FORCE
 
 $(kapi)/dis-defs.h: $(obj)/gen_opcode_table FORCE
 	$(call filechk,dis-defs.h)
+
+hostprogs	+= relocs
+PHONY		+= relocs
+relocs: $(obj)/relocs
+	@:

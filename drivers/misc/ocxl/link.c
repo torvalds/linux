@@ -2,10 +2,14 @@
 // Copyright 2017 IBM Corp.
 #include <linux/sched/mm.h>
 #include <linux/mutex.h>
+#include <linux/mm.h>
 #include <linux/mm_types.h>
 #include <linux/mmu_context.h>
+#include <linux/mmu_notifier.h>
+#include <linux/irqdomain.h>
 #include <asm/copro.h>
 #include <asm/pnv-ocxl.h>
+#include <asm/xive.h>
 #include <misc/ocxl.h>
 #include "ocxl_internal.h"
 #include "trace.h"
@@ -32,6 +36,7 @@
 
 #define SPA_PE_VALID		0x80000000
 
+struct ocxl_link;
 
 struct pe_data {
 	struct mm_struct *mm;
@@ -40,6 +45,8 @@ struct pe_data {
 	/* opaque pointer to be passed to the above callback */
 	void *xsl_err_data;
 	struct rcu_head rcu;
+	struct ocxl_link *link;
+	struct mmu_notifier mmu_notifier;
 };
 
 struct spa {
@@ -82,11 +89,13 @@ struct ocxl_link {
 	int domain;
 	int bus;
 	int dev;
+	void __iomem *arva;     /* ATSD register virtual address */
+	spinlock_t atsd_lock;   /* to serialize shootdowns */
 	atomic_t irq_available;
 	struct spa *spa;
 	void *platform_data;
 };
-static struct list_head links_list = LIST_HEAD_INIT(links_list);
+static LIST_HEAD(links_list);
 static DEFINE_MUTEX(links_list_lock);
 
 enum xsl_response {
@@ -179,7 +188,7 @@ ack:
 
 static irqreturn_t xsl_fault_handler(int irq, void *data)
 {
-	struct ocxl_link *link = (struct ocxl_link *) data;
+	struct ocxl_link *link = data;
 	struct spa *spa = link->spa;
 	u64 dsisr, dar, pe_handle;
 	struct pe_data *pe_data;
@@ -387,6 +396,7 @@ static int alloc_link(struct pci_dev *dev, int PE_mask, struct ocxl_link **out_l
 	link->bus = dev->bus->number;
 	link->dev = PCI_SLOT(dev->devfn);
 	atomic_set(&link->irq_available, MAX_IRQ_PER_LINK);
+	spin_lock_init(&link->atsd_lock);
 
 	rc = alloc_spa(dev, link);
 	if (rc)
@@ -401,6 +411,13 @@ static int alloc_link(struct pci_dev *dev, int PE_mask, struct ocxl_link **out_l
 				&link->platform_data);
 	if (rc)
 		goto err_xsl_irq;
+
+	/* if link->arva is not defeined, MMIO registers are not used to
+	 * generate TLB invalidate. PowerBus snooping is enabled.
+	 * Otherwise, PowerBus snooping is disabled. TLB Invalidates are
+	 * initiated using MMIO registers.
+	 */
+	pnv_ocxl_map_lpar(dev, mfspr(SPRN_LPID), 0, &link->arva);
 
 	*out_link = link;
 	return 0;
@@ -453,6 +470,11 @@ static void release_xsl(struct kref *ref)
 {
 	struct ocxl_link *link = container_of(ref, struct ocxl_link, ref);
 
+	if (link->arva) {
+		pnv_ocxl_unmap_lpar(link->arva);
+		link->arva = NULL;
+	}
+
 	list_del(&link->list);
 	/* call platform code before releasing data */
 	pnv_ocxl_spa_release(link->platform_data);
@@ -461,13 +483,34 @@ static void release_xsl(struct kref *ref)
 
 void ocxl_link_release(struct pci_dev *dev, void *link_handle)
 {
-	struct ocxl_link *link = (struct ocxl_link *) link_handle;
+	struct ocxl_link *link = link_handle;
 
 	mutex_lock(&links_list_lock);
 	kref_put(&link->ref, release_xsl);
 	mutex_unlock(&links_list_lock);
 }
 EXPORT_SYMBOL_GPL(ocxl_link_release);
+
+static void arch_invalidate_secondary_tlbs(struct mmu_notifier *mn,
+					struct mm_struct *mm,
+					unsigned long start, unsigned long end)
+{
+	struct pe_data *pe_data = container_of(mn, struct pe_data, mmu_notifier);
+	struct ocxl_link *link = pe_data->link;
+	unsigned long addr, pid, page_size = PAGE_SIZE;
+
+	pid = mm->context.id;
+	trace_ocxl_mmu_notifier_range(start, end, pid);
+
+	spin_lock(&link->atsd_lock);
+	for (addr = start; addr < end; addr += page_size)
+		pnv_ocxl_tlb_invalidate(link->arva, pid, addr, page_size);
+	spin_unlock(&link->atsd_lock);
+}
+
+static const struct mmu_notifier_ops ocxl_mmu_notifier_ops = {
+	.arch_invalidate_secondary_tlbs = arch_invalidate_secondary_tlbs,
+};
 
 static u64 calculate_cfg_state(bool kernel)
 {
@@ -493,11 +536,11 @@ static u64 calculate_cfg_state(bool kernel)
 }
 
 int ocxl_link_add_pe(void *link_handle, int pasid, u32 pidr, u32 tidr,
-		u64 amr, struct mm_struct *mm,
+		u64 amr, u16 bdf, struct mm_struct *mm,
 		void (*xsl_err_cb)(void *data, u64 addr, u64 dsisr),
 		void *xsl_err_data)
 {
-	struct ocxl_link *link = (struct ocxl_link *) link_handle;
+	struct ocxl_link *link = link_handle;
 	struct spa *spa = link->spa;
 	struct ocxl_process_element *pe;
 	int pe_handle, rc = 0;
@@ -525,9 +568,13 @@ int ocxl_link_add_pe(void *link_handle, int pasid, u32 pidr, u32 tidr,
 	pe_data->mm = mm;
 	pe_data->xsl_err_cb = xsl_err_cb;
 	pe_data->xsl_err_data = xsl_err_data;
+	pe_data->link = link;
+	pe_data->mmu_notifier.ops = &ocxl_mmu_notifier_ops;
 
 	memset(pe, 0, sizeof(struct ocxl_process_element));
 	pe->config_state = cpu_to_be64(calculate_cfg_state(pidr == 0));
+	pe->pasid = cpu_to_be32(pasid << (31 - 19));
+	pe->bdf = cpu_to_be16(bdf);
 	pe->lpid = cpu_to_be32(mfspr(SPRN_LPID));
 	pe->pid = cpu_to_be32(pidr);
 	pe->tid = cpu_to_be32(tidr);
@@ -539,8 +586,17 @@ int ocxl_link_add_pe(void *link_handle, int pasid, u32 pidr, u32 tidr,
 	 * by the nest MMU. If we have a kernel context, TLBIs are
 	 * already global.
 	 */
-	if (mm)
+	if (mm) {
 		mm_context_add_copro(mm);
+		if (link->arva) {
+			/* Use MMIO registers for the TLB Invalidate
+			 * operations.
+			 */
+			trace_ocxl_init_mmu_notifier(pasid, mm->context.id);
+			mmu_notifier_register(&pe_data->mmu_notifier, mm);
+		}
+	}
+
 	/*
 	 * Barrier is to make sure PE is visible in the SPA before it
 	 * is used by the device. It also helps with the global TLBI
@@ -574,7 +630,7 @@ EXPORT_SYMBOL_GPL(ocxl_link_add_pe);
 
 int ocxl_link_update_pe(void *link_handle, int pasid, __u16 tid)
 {
-	struct ocxl_link *link = (struct ocxl_link *) link_handle;
+	struct ocxl_link *link = link_handle;
 	struct spa *spa = link->spa;
 	struct ocxl_process_element *pe;
 	int pe_handle, rc;
@@ -610,7 +666,7 @@ int ocxl_link_update_pe(void *link_handle, int pasid, __u16 tid)
 
 int ocxl_link_remove_pe(void *link_handle, int pasid)
 {
-	struct ocxl_link *link = (struct ocxl_link *) link_handle;
+	struct ocxl_link *link = link_handle;
 	struct spa *spa = link->spa;
 	struct ocxl_process_element *pe;
 	struct pe_data *pe_data;
@@ -671,6 +727,18 @@ int ocxl_link_remove_pe(void *link_handle, int pasid)
 		WARN(1, "Couldn't find pe data when removing PE\n");
 	} else {
 		if (pe_data->mm) {
+			if (link->arva) {
+				trace_ocxl_release_mmu_notifier(pasid,
+								pe_data->mm->context.id);
+				mmu_notifier_unregister(&pe_data->mmu_notifier,
+							pe_data->mm);
+				spin_lock(&link->atsd_lock);
+				pnv_ocxl_tlb_invalidate(link->arva,
+							pe_data->mm->context.id,
+							0ull,
+							PAGE_SIZE);
+				spin_unlock(&link->atsd_lock);
+			}
 			mm_context_remove_copro(pe_data->mm);
 			mmdrop(pe_data->mm);
 		}
@@ -682,32 +750,30 @@ unlock:
 }
 EXPORT_SYMBOL_GPL(ocxl_link_remove_pe);
 
-int ocxl_link_irq_alloc(void *link_handle, int *hw_irq, u64 *trigger_addr)
+int ocxl_link_irq_alloc(void *link_handle, int *hw_irq)
 {
-	struct ocxl_link *link = (struct ocxl_link *) link_handle;
-	int rc, irq;
-	u64 addr;
+	struct ocxl_link *link = link_handle;
+	int irq;
 
 	if (atomic_dec_if_positive(&link->irq_available) < 0)
 		return -ENOSPC;
 
-	rc = pnv_ocxl_alloc_xive_irq(&irq, &addr);
-	if (rc) {
+	irq = xive_native_alloc_irq();
+	if (!irq) {
 		atomic_inc(&link->irq_available);
-		return rc;
+		return -ENXIO;
 	}
 
 	*hw_irq = irq;
-	*trigger_addr = addr;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ocxl_link_irq_alloc);
 
 void ocxl_link_free_irq(void *link_handle, int hw_irq)
 {
-	struct ocxl_link *link = (struct ocxl_link *) link_handle;
+	struct ocxl_link *link = link_handle;
 
-	pnv_ocxl_free_xive_irq(hw_irq);
+	xive_native_free_irq(hw_irq);
 	atomic_inc(&link->irq_available);
 }
 EXPORT_SYMBOL_GPL(ocxl_link_free_irq);

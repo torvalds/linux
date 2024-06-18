@@ -11,13 +11,12 @@
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_platform.h>
 #include <linux/crash_dump.h>
+#include <linux/debugfs.h>
 #include <asm/opal.h>
 #include <asm/io.h>
 #include <asm/imc-pmu.h>
 #include <asm/cputhreads.h>
-#include <asm/debugfs.h>
 
 static struct dentry *imc_debugfs_parent;
 
@@ -35,11 +34,10 @@ static int imc_mem_set(void *data, u64 val)
 }
 DEFINE_DEBUGFS_ATTRIBUTE(fops_imc_x64, imc_mem_get, imc_mem_set, "0x%016llx\n");
 
-static struct dentry *imc_debugfs_create_x64(const char *name, umode_t mode,
-					     struct dentry *parent, u64  *value)
+static void imc_debugfs_create_x64(const char *name, umode_t mode,
+				   struct dentry *parent, u64  *value)
 {
-	return debugfs_create_file_unsafe(name, mode, parent,
-					  value, &fops_imc_x64);
+	debugfs_create_file_unsafe(name, mode, parent, value, &fops_imc_x64);
 }
 
 /*
@@ -57,14 +55,7 @@ static void export_imc_mode_and_cmd(struct device_node *node,
 	u32 cb_offset;
 	struct imc_mem_info *ptr = pmu_ptr->mem_info;
 
-	imc_debugfs_parent = debugfs_create_dir("imc", powerpc_debugfs_root);
-
-	/*
-	 * Return here, either because 'imc' directory already exists,
-	 * Or failed to create a new one.
-	 */
-	if (!imc_debugfs_parent)
-		return;
+	imc_debugfs_parent = debugfs_create_dir("imc", arch_debugfs_dir);
 
 	if (of_property_read_u32(node, "cb_offset", &cb_offset))
 		cb_offset = IMC_CNTL_BLK_OFFSET;
@@ -73,21 +64,15 @@ static void export_imc_mode_and_cmd(struct device_node *node,
 		loc = (u64)(ptr->vbase) + cb_offset;
 		imc_mode_addr = (u64 *)(loc + IMC_CNTL_BLK_MODE_OFFSET);
 		sprintf(mode, "imc_mode_%d", (u32)(ptr->id));
-		if (!imc_debugfs_create_x64(mode, 0600, imc_debugfs_parent,
-					    imc_mode_addr))
-			goto err;
+		imc_debugfs_create_x64(mode, 0600, imc_debugfs_parent,
+				       imc_mode_addr);
 
 		imc_cmd_addr = (u64 *)(loc + IMC_CNTL_BLK_CMD_OFFSET);
 		sprintf(cmd, "imc_cmd_%d", (u32)(ptr->id));
-		if (!imc_debugfs_create_x64(cmd, 0600, imc_debugfs_parent,
-					    imc_cmd_addr))
-			goto err;
+		imc_debugfs_create_x64(cmd, 0600, imc_debugfs_parent,
+				       imc_cmd_addr);
 		ptr++;
 	}
-	return;
-
-err:
-	debugfs_remove_recursive(imc_debugfs_parent);
 }
 
 /*
@@ -135,7 +120,6 @@ static int imc_get_mem_addr_nest(struct device_node *node,
 	}
 
 	pmu_ptr->imc_counter_mmaped = true;
-	export_imc_mode_and_cmd(node, pmu_ptr);
 	kfree(base_addr_arr);
 	kfree(chipid_arr);
 	return 0;
@@ -151,7 +135,7 @@ error:
  *		    and domain as the inputs.
  * Allocates memory for the struct imc_pmu, sets up its domain, size and offsets
  */
-static int imc_pmu_create(struct device_node *parent, int pmu_index, int domain)
+static struct imc_pmu *imc_pmu_create(struct device_node *parent, int pmu_index, int domain)
 {
 	int ret = 0;
 	struct imc_pmu *pmu_ptr;
@@ -159,27 +143,23 @@ static int imc_pmu_create(struct device_node *parent, int pmu_index, int domain)
 
 	/* Return for unknown domain */
 	if (domain < 0)
-		return -EINVAL;
+		return NULL;
 
 	/* memory for pmu */
 	pmu_ptr = kzalloc(sizeof(*pmu_ptr), GFP_KERNEL);
 	if (!pmu_ptr)
-		return -ENOMEM;
+		return NULL;
 
 	/* Set the domain */
 	pmu_ptr->domain = domain;
 
 	ret = of_property_read_u32(parent, "size", &pmu_ptr->counter_mem_size);
-	if (ret) {
-		ret = -EINVAL;
+	if (ret)
 		goto free_pmu;
-	}
 
 	if (!of_property_read_u32(parent, "offset", &offset)) {
-		if (imc_get_mem_addr_nest(parent, pmu_ptr, offset)) {
-			ret = -EINVAL;
+		if (imc_get_mem_addr_nest(parent, pmu_ptr, offset))
 			goto free_pmu;
-		}
 	}
 
 	/* Function to register IMC pmu */
@@ -190,14 +170,14 @@ static int imc_pmu_create(struct device_node *parent, int pmu_index, int domain)
 		if (pmu_ptr->domain == IMC_DOMAIN_NEST)
 			kfree(pmu_ptr->mem_info);
 		kfree(pmu_ptr);
-		return ret;
+		return NULL;
 	}
 
-	return 0;
+	return pmu_ptr;
 
 free_pmu:
 	kfree(pmu_ptr);
-	return ret;
+	return NULL;
 }
 
 static void disable_nest_pmu_counters(void)
@@ -205,7 +185,7 @@ static void disable_nest_pmu_counters(void)
 	int nid, cpu;
 	const struct cpumask *l_cpumask;
 
-	get_online_cpus();
+	cpus_read_lock();
 	for_each_node_with_cpus(nid) {
 		l_cpumask = cpumask_of_node(nid);
 		cpu = cpumask_first_and(l_cpumask, cpu_online_mask);
@@ -214,25 +194,25 @@ static void disable_nest_pmu_counters(void)
 		opal_imc_counters_stop(OPAL_IMC_COUNTERS_NEST,
 				       get_hard_smp_processor_id(cpu));
 	}
-	put_online_cpus();
+	cpus_read_unlock();
 }
 
 static void disable_core_pmu_counters(void)
 {
-	cpumask_t cores_map;
 	int cpu, rc;
 
-	get_online_cpus();
+	cpus_read_lock();
 	/* Disable the IMC Core functions */
-	cores_map = cpu_online_cores_map();
-	for_each_cpu(cpu, &cores_map) {
+	for_each_online_cpu(cpu) {
+		if (cpu_first_thread_sibling(cpu) != cpu)
+			continue;
 		rc = opal_imc_counters_stop(OPAL_IMC_COUNTERS_CORE,
 					    get_hard_smp_processor_id(cpu));
 		if (rc)
 			pr_err("%s: Failed to stop Core (cpu = %d)\n",
-				__FUNCTION__, cpu);
+				__func__, cpu);
 	}
-	put_online_cpus();
+	cpus_read_unlock();
 }
 
 int get_max_nest_dev(void)
@@ -254,6 +234,7 @@ int get_max_nest_dev(void)
 static int opal_imc_counters_probe(struct platform_device *pdev)
 {
 	struct device_node *imc_dev = pdev->dev.of_node;
+	struct imc_pmu *pmu;
 	int pmu_count = 0, domain;
 	bool core_imc_reg = false, thread_imc_reg = false;
 	u32 type;
@@ -269,6 +250,7 @@ static int opal_imc_counters_probe(struct platform_device *pdev)
 	}
 
 	for_each_compatible_node(imc_dev, NULL, IMC_DTB_UNIT_COMPAT) {
+		pmu = NULL;
 		if (of_property_read_u32(imc_dev, "type", &type)) {
 			pr_warn("IMC Device without type property\n");
 			continue;
@@ -293,19 +275,19 @@ static int opal_imc_counters_probe(struct platform_device *pdev)
 			break;
 		}
 
-		if (!imc_pmu_create(imc_dev, pmu_count, domain)) {
-			if (domain == IMC_DOMAIN_NEST)
+		pmu = imc_pmu_create(imc_dev, pmu_count, domain);
+		if (pmu != NULL) {
+			if (domain == IMC_DOMAIN_NEST) {
+				if (!imc_debugfs_parent)
+					export_imc_mode_and_cmd(imc_dev, pmu);
 				pmu_count++;
+			}
 			if (domain == IMC_DOMAIN_CORE)
 				core_imc_reg = true;
 			if (domain == IMC_DOMAIN_THREAD)
 				thread_imc_reg = true;
 		}
 	}
-
-	/* If none of the nest units are registered, remove debugfs interface */
-	if (pmu_count == 0)
-		debugfs_remove_recursive(imc_debugfs_parent);
 
 	/* If core imc is not registered, unregister thread-imc */
 	if (!core_imc_reg && thread_imc_reg)

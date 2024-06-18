@@ -27,7 +27,7 @@ void nvme_fault_inject_init(struct nvme_fault_inject *fault_inj,
 
 	/* create debugfs directory and attribute */
 	parent = debugfs_create_dir(dev_name, NULL);
-	if (!parent) {
+	if (IS_ERR(parent)) {
 		pr_warn("%s: failed to create debugfs directory\n", dev_name);
 		return;
 	}
@@ -56,7 +56,7 @@ void nvme_fault_inject_fini(struct nvme_fault_inject *fault_inject)
 
 void nvme_should_fail(struct request *req)
 {
-	struct gendisk *disk = req->rq_disk;
+	struct gendisk *disk = req->q->disk;
 	struct nvme_fault_inject *fault_inject = NULL;
 	u16 status;
 

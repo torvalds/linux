@@ -86,10 +86,6 @@ static const unsigned int SW1_table[] = {
 
 #define SW2_table SW1_table
 
-static const unsigned int SW3_table[] = {
-	4000000, 4500000, 5000000, 5500000,
-};
-
 struct pcap_regulator {
 	const u8 reg;
 	const u8 en;
@@ -255,6 +251,7 @@ static int pcap_regulator_probe(struct platform_device *pdev)
 static struct platform_driver pcap_regulator_driver = {
 	.driver = {
 		.name	= "pcap-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe	= pcap_regulator_probe,
 };

@@ -14,6 +14,8 @@
 #include <linux/spi/spi.h>
 #include <uapi/linux/sched/types.h>
 
+#include "cros_ec.h"
+
 /* The header byte, which follows the preamble */
 #define EC_MSG_HEADER			0xec
 
@@ -102,13 +104,7 @@ static void debug_packet(struct device *dev, const char *name, u8 *ptr,
 			 int len)
 {
 #ifdef DEBUG
-	int i;
-
-	dev_dbg(dev, "%s: ", name);
-	for (i = 0; i < len; i++)
-		pr_cont(" %02x", ptr[i]);
-
-	pr_cont("\n");
+	dev_dbg(dev, "%s: %*ph\n", name, len, ptr);
 #endif
 }
 
@@ -125,7 +121,8 @@ static int terminate_request(struct cros_ec_device *ec_dev)
 	 */
 	spi_message_init(&msg);
 	memset(&trans, 0, sizeof(trans));
-	trans.delay_usecs = ec_spi->end_of_msg_delay;
+	trans.delay.value = ec_spi->end_of_msg_delay;
+	trans.delay.unit = SPI_DELAY_UNIT_USECS;
 	spi_message_add_tail(&trans, &msg);
 
 	ret = spi_sync_locked(ec_spi->spi, &msg);
@@ -145,6 +142,10 @@ static int terminate_request(struct cros_ec_device *ec_dev)
  * receive_n_bytes - receive n bytes from the EC.
  *
  * Assumes buf is a pointer into the ec_dev->din buffer
+ *
+ * @ec_dev: ChromeOS EC device.
+ * @buf: Pointer to the buffer receiving the data.
+ * @n: Number of bytes received.
  */
 static int receive_n_bytes(struct cros_ec_device *ec_dev, u8 *buf, int n)
 {
@@ -153,7 +154,8 @@ static int receive_n_bytes(struct cros_ec_device *ec_dev, u8 *buf, int n)
 	struct spi_message msg;
 	int ret;
 
-	BUG_ON(buf - ec_dev->din + n > ec_dev->din_size);
+	if (buf - ec_dev->din + n > ec_dev->din_size)
+		return -EINVAL;
 
 	memset(&trans, 0, sizeof(trans));
 	trans.cs_change = 1;
@@ -190,7 +192,8 @@ static int cros_ec_spi_receive_packet(struct cros_ec_device *ec_dev,
 	unsigned long deadline;
 	int todo;
 
-	BUG_ON(ec_dev->din_size < EC_MSG_PREAMBLE_COUNT);
+	if (ec_dev->din_size < EC_MSG_PREAMBLE_COUNT)
+		return -EINVAL;
 
 	/* Receive data until we see the header byte */
 	deadline = jiffies + msecs_to_jiffies(EC_MSG_DEADLINE_MS);
@@ -230,7 +233,6 @@ static int cros_ec_spi_receive_packet(struct cros_ec_device *ec_dev,
 	 * start of our buffer
 	 */
 	todo = end - ++ptr;
-	BUG_ON(todo < 0 || todo > ec_dev->din_size);
 	todo = min(todo, need_len);
 	memmove(ec_dev->din, ptr, todo);
 	ptr = ec_dev->din + todo;
@@ -298,7 +300,8 @@ static int cros_ec_spi_receive_response(struct cros_ec_device *ec_dev,
 	unsigned long deadline;
 	int todo;
 
-	BUG_ON(ec_dev->din_size < EC_MSG_PREAMBLE_COUNT);
+	if (ec_dev->din_size < EC_MSG_PREAMBLE_COUNT)
+		return -EINVAL;
 
 	/* Receive data until we see the header byte */
 	deadline = jiffies + msecs_to_jiffies(EC_MSG_DEADLINE_MS);
@@ -338,7 +341,6 @@ static int cros_ec_spi_receive_response(struct cros_ec_device *ec_dev,
 	 * start of our buffer
 	 */
 	todo = end - ++ptr;
-	BUG_ON(todo < 0 || todo > ec_dev->din_size);
 	todo = min(todo, need_len);
 	memmove(ec_dev->din, ptr, todo);
 	ptr = ec_dev->din + todo;
@@ -394,6 +396,8 @@ static int do_cros_ec_pkt_xfer_spi(struct cros_ec_device *ec_dev,
 	unsigned long delay;
 
 	len = cros_ec_prepare_tx(ec_dev, ec_msg);
+	if (len < 0)
+		return len;
 	dev_dbg(ec_dev->dev, "prepared, len=%d\n", len);
 
 	/* If it's too soon to do another transaction, wait */
@@ -405,7 +409,7 @@ static int do_cros_ec_pkt_xfer_spi(struct cros_ec_device *ec_dev,
 	if (!rx_buf)
 		return -ENOMEM;
 
-	spi_bus_lock(ec_spi->spi->master);
+	spi_bus_lock(ec_spi->spi->controller);
 
 	/*
 	 * Leave a gap between CS assertion and clocking of data to allow the
@@ -414,7 +418,8 @@ static int do_cros_ec_pkt_xfer_spi(struct cros_ec_device *ec_dev,
 	spi_message_init(&msg);
 	if (ec_spi->start_of_msg_delay) {
 		memset(&trans_delay, 0, sizeof(trans_delay));
-		trans_delay.delay_usecs = ec_spi->start_of_msg_delay;
+		trans_delay.delay.value = ec_spi->start_of_msg_delay;
+		trans_delay.delay.unit = SPI_DELAY_UNIT_USECS;
 		spi_message_add_tail(&trans_delay, &msg);
 	}
 
@@ -464,7 +469,7 @@ static int do_cros_ec_pkt_xfer_spi(struct cros_ec_device *ec_dev,
 
 	final_ret = terminate_request(ec_dev);
 
-	spi_bus_unlock(ec_spi->spi->master);
+	spi_bus_unlock(ec_spi->spi->controller);
 
 	if (!ret)
 		ret = final_ret;
@@ -536,6 +541,8 @@ static int do_cros_ec_cmd_xfer_spi(struct cros_ec_device *ec_dev,
 	unsigned long delay;
 
 	len = cros_ec_prepare_tx(ec_dev, ec_msg);
+	if (len < 0)
+		return len;
 	dev_dbg(ec_dev->dev, "prepared, len=%d\n", len);
 
 	/* If it's too soon to do another transaction, wait */
@@ -547,7 +554,7 @@ static int do_cros_ec_cmd_xfer_spi(struct cros_ec_device *ec_dev,
 	if (!rx_buf)
 		return -ENOMEM;
 
-	spi_bus_lock(ec_spi->spi->master);
+	spi_bus_lock(ec_spi->spi->controller);
 
 	/* Transmit phase - send our message */
 	debug_packet(ec_dev->dev, "out", ec_dev->dout, len);
@@ -583,7 +590,7 @@ static int do_cros_ec_cmd_xfer_spi(struct cros_ec_device *ec_dev,
 
 	final_ret = terminate_request(ec_dev);
 
-	spi_bus_unlock(ec_spi->spi->master);
+	spi_bus_unlock(ec_spi->spi->controller);
 
 	if (!ret)
 		ret = final_ret;
@@ -705,9 +712,6 @@ static void cros_ec_spi_high_pri_release(void *worker)
 static int cros_ec_spi_devm_high_pri_alloc(struct device *dev,
 					   struct cros_ec_spi *ec_spi)
 {
-	struct sched_param sched_priority = {
-		.sched_priority = MAX_RT_PRIO / 2,
-	};
 	int err;
 
 	ec_spi->high_pri_worker =
@@ -724,11 +728,9 @@ static int cros_ec_spi_devm_high_pri_alloc(struct device *dev,
 	if (err)
 		return err;
 
-	err = sched_setscheduler_nocheck(ec_spi->high_pri_worker->task,
-					 SCHED_FIFO, &sched_priority);
-	if (err)
-		dev_err(dev, "Can't set cros_ec high pri priority: %d\n", err);
-	return err;
+	sched_set_fifo(ec_spi->high_pri_worker->task);
+
+	return 0;
 }
 
 static int cros_ec_spi_probe(struct spi_device *spi)
@@ -738,8 +740,6 @@ static int cros_ec_spi_probe(struct spi_device *spi)
 	struct cros_ec_spi *ec_spi;
 	int err;
 
-	spi->bits_per_word = 8;
-	spi->mode = SPI_MODE_0;
 	spi->rt = true;
 	err = spi_setup(spi);
 	if (err < 0)
@@ -785,11 +785,11 @@ static int cros_ec_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int cros_ec_spi_remove(struct spi_device *spi)
+static void cros_ec_spi_remove(struct spi_device *spi)
 {
 	struct cros_ec_device *ec_dev = spi_get_drvdata(spi);
 
-	return cros_ec_unregister(ec_dev);
+	cros_ec_unregister(ec_dev);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -828,6 +828,7 @@ static struct spi_driver cros_ec_driver_spi = {
 		.name	= "cros-ec-spi",
 		.of_match_table = cros_ec_spi_of_match,
 		.pm	= &cros_ec_spi_pm_ops,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe		= cros_ec_spi_probe,
 	.remove		= cros_ec_spi_remove,

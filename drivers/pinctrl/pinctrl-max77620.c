@@ -10,14 +10,16 @@
  */
 
 #include <linux/mfd/max77620.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of.h>
+#include <linux/platform_device.h>
+#include <linux/property.h>
+#include <linux/regmap.h>
+
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinmux.h>
-#include <linux/platform_device.h>
-#include <linux/regmap.h>
 
 #include "core.h"
 #include "pinconf.h"
@@ -86,7 +88,6 @@ struct max77620_pingroup {
 
 struct max77620_pin_info {
 	enum max77620_pin_ppdrv drv_type;
-	int pull_config;
 };
 
 struct max77620_fps_config {
@@ -102,7 +103,6 @@ struct max77620_pctrl_info {
 	struct device *dev;
 	struct pinctrl_dev *pctl;
 	struct regmap *rmap;
-	int pins_current_opt[MAX77620_GPIO_NR];
 	const struct max77620_pin_function *functions;
 	unsigned int num_functions;
 	const struct max77620_pingroup *pin_groups;
@@ -551,12 +551,13 @@ static int max77620_pinctrl_probe(struct platform_device *pdev)
 	struct max77620_pctrl_info *mpci;
 	int i;
 
+	device_set_node(&pdev->dev, dev_fwnode(pdev->dev.parent));
+
 	mpci = devm_kzalloc(&pdev->dev, sizeof(*mpci), GFP_KERNEL);
 	if (!mpci)
 		return -ENOMEM;
 
 	mpci->dev = &pdev->dev;
-	mpci->dev->of_node = pdev->dev.parent->of_node;
 	mpci->rmap = max77620->rmap;
 
 	mpci->pins = max77620_pins_desc;
@@ -665,5 +666,4 @@ module_platform_driver(max77620_pinctrl_driver);
 MODULE_DESCRIPTION("MAX77620/MAX20024 pin control driver");
 MODULE_AUTHOR("Chaitanya Bandi<bandik@nvidia.com>");
 MODULE_AUTHOR("Laxman Dewangan<ldewangan@nvidia.com>");
-MODULE_ALIAS("platform:max77620-pinctrl");
 MODULE_LICENSE("GPL v2");

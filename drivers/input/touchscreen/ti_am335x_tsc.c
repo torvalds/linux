@@ -25,7 +25,6 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/sort.h>
 #include <linux/pm_wakeirq.h>
 
@@ -126,12 +125,13 @@ static int titsc_config_wires(struct titsc *ts_dev)
 static void titsc_step_config(struct titsc *ts_dev)
 {
 	unsigned int	config;
-	int i;
+	int i, n;
 	int end_step, first_step, tsc_steps;
 	u32 stepenable;
 
 	config = STEPCONFIG_MODE_HWSYNC |
-			STEPCONFIG_AVG_16 | ts_dev->bit_xp;
+			STEPCONFIG_AVG_16 | ts_dev->bit_xp |
+			STEPCONFIG_INM_ADCREFM;
 	switch (ts_dev->wires) {
 	case 4:
 		config |= STEPCONFIG_INP(ts_dev->inp_yp) | ts_dev->bit_xn;
@@ -150,12 +150,13 @@ static void titsc_step_config(struct titsc *ts_dev)
 	first_step = TOTAL_STEPS - tsc_steps;
 	/* Steps 16 to 16-coordinate_readouts is for X */
 	end_step = first_step + tsc_steps;
+	n = 0;
 	for (i = end_step - ts_dev->coordinate_readouts; i < end_step; i++) {
 		titsc_writel(ts_dev, REG_STEPCONFIG(i), config);
-		titsc_writel(ts_dev, REG_STEPDELAY(i), STEPCONFIG_OPENDLY);
+		titsc_writel(ts_dev, REG_STEPDELAY(i),
+			     n++ == 0 ? STEPCONFIG_OPENDLY : 0);
 	}
 
-	config = 0;
 	config = STEPCONFIG_MODE_HWSYNC |
 			STEPCONFIG_AVG_16 | ts_dev->bit_yn |
 			STEPCONFIG_INM_ADCREFM;
@@ -174,9 +175,11 @@ static void titsc_step_config(struct titsc *ts_dev)
 
 	/* 1 ... coordinate_readouts is for Y */
 	end_step = first_step + ts_dev->coordinate_readouts;
+	n = 0;
 	for (i = first_step; i < end_step; i++) {
 		titsc_writel(ts_dev, REG_STEPCONFIG(i), config);
-		titsc_writel(ts_dev, REG_STEPDELAY(i), STEPCONFIG_OPENDLY);
+		titsc_writel(ts_dev, REG_STEPDELAY(i),
+			     n++ == 0 ? STEPCONFIG_OPENDLY : 0);
 	}
 
 	/* Make CHARGECONFIG same as IDLECONFIG */
@@ -195,7 +198,10 @@ static void titsc_step_config(struct titsc *ts_dev)
 			STEPCONFIG_OPENDLY);
 
 	end_step++;
-	config |= STEPCONFIG_INP(ts_dev->inp_yn);
+	config = STEPCONFIG_MODE_HWSYNC |
+			STEPCONFIG_AVG_16 | ts_dev->bit_yp |
+			ts_dev->bit_xn | STEPCONFIG_INM_ADCREFM |
+			STEPCONFIG_INP(ts_dev->inp_yn);
 	titsc_writel(ts_dev, REG_STEPCONFIG(end_step), config);
 	titsc_writel(ts_dev, REG_STEPDELAY(end_step),
 			STEPCONFIG_OPENDLY);
@@ -310,7 +316,7 @@ static irqreturn_t titsc_irq(int irq, void *dev)
 			/*
 			 * Calculate pressure using formula
 			 * Resistance(touch) = x plate resistance *
-			 * x postion/4096 * ((z2 / z1) - 1)
+			 * x position/4096 * ((z2 / z1) - 1)
 			 */
 			z = z1 - z2;
 			z *= x;
@@ -484,7 +490,7 @@ err_free_mem:
 	return err;
 }
 
-static int titsc_remove(struct platform_device *pdev)
+static void titsc_remove(struct platform_device *pdev)
 {
 	struct titsc *ts_dev = platform_get_drvdata(pdev);
 	u32 steps;
@@ -501,10 +507,9 @@ static int titsc_remove(struct platform_device *pdev)
 	input_unregister_device(ts_dev->input);
 
 	kfree(ts_dev);
-	return 0;
 }
 
-static int __maybe_unused titsc_suspend(struct device *dev)
+static int titsc_suspend(struct device *dev)
 {
 	struct titsc *ts_dev = dev_get_drvdata(dev);
 	unsigned int idle;
@@ -519,7 +524,7 @@ static int __maybe_unused titsc_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused titsc_resume(struct device *dev)
+static int titsc_resume(struct device *dev)
 {
 	struct titsc *ts_dev = dev_get_drvdata(dev);
 
@@ -535,7 +540,7 @@ static int __maybe_unused titsc_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(titsc_pm_ops, titsc_suspend, titsc_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(titsc_pm_ops, titsc_suspend, titsc_resume);
 
 static const struct of_device_id ti_tsc_dt_ids[] = {
 	{ .compatible = "ti,am3359-tsc", },
@@ -545,10 +550,10 @@ MODULE_DEVICE_TABLE(of, ti_tsc_dt_ids);
 
 static struct platform_driver ti_tsc_driver = {
 	.probe	= titsc_probe,
-	.remove	= titsc_remove,
+	.remove_new = titsc_remove,
 	.driver	= {
 		.name   = "TI-am335x-tsc",
-		.pm	= &titsc_pm_ops,
+		.pm	= pm_sleep_ptr(&titsc_pm_ops),
 		.of_match_table = ti_tsc_dt_ids,
 	},
 };

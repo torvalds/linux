@@ -29,11 +29,11 @@
  *
  */
 
+#include <crypto/algapi.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <asm/byteorder.h>
-#include <linux/crypto.h>
 #include <linux/types.h>
 
 #define ANUBIS_MIN_KEY_SIZE	16
@@ -464,7 +464,6 @@ static int anubis_setkey(struct crypto_tfm *tfm, const u8 *in_key,
 {
 	struct anubis_ctx *ctx = crypto_tfm_ctx(tfm);
 	const __be32 *key = (const __be32 *)in_key;
-	u32 *flags = &tfm->crt_flags;
 	int N, R, i, r;
 	u32 kappa[ANUBIS_MAX_N];
 	u32 inter[ANUBIS_MAX_N];
@@ -474,7 +473,6 @@ static int anubis_setkey(struct crypto_tfm *tfm, const u8 *in_key,
 		case 32: case 36: case 40:
 			break;
 		default:
-			*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
 			return -EINVAL;
 	}
 

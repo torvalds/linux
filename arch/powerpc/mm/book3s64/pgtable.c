@@ -6,18 +6,31 @@
 #include <linux/sched.h>
 #include <linux/mm_types.h>
 #include <linux/memblock.h>
+#include <linux/memremap.h>
+#include <linux/pkeys.h>
+#include <linux/debugfs.h>
+#include <linux/proc_fs.h>
 #include <misc/cxl-base.h>
 
-#include <asm/debugfs.h>
 #include <asm/pgalloc.h>
 #include <asm/tlb.h>
 #include <asm/trace.h>
 #include <asm/powernv.h>
 #include <asm/firmware.h>
 #include <asm/ultravisor.h>
+#include <asm/kexec.h>
 
 #include <mm/mmu_decl.h>
 #include <trace/events/thp.h>
+
+#include "internal.h"
+
+struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
+EXPORT_SYMBOL_GPL(mmu_psize_defs);
+
+#ifdef CONFIG_SPARSEMEM_VMEMMAP
+int mmu_vmemmap_psize = MMU_PAGE_4K;
+#endif
 
 unsigned long __pmd_frag_nr;
 EXPORT_SYMBOL(__pmd_frag_nr);
@@ -52,11 +65,39 @@ int pmdp_set_access_flags(struct vm_area_struct *vma, unsigned long address,
 	return changed;
 }
 
+int pudp_set_access_flags(struct vm_area_struct *vma, unsigned long address,
+			  pud_t *pudp, pud_t entry, int dirty)
+{
+	int changed;
+#ifdef CONFIG_DEBUG_VM
+	WARN_ON(!pud_devmap(*pudp));
+	assert_spin_locked(pud_lockptr(vma->vm_mm, pudp));
+#endif
+	changed = !pud_same(*(pudp), entry);
+	if (changed) {
+		/*
+		 * We can use MMU_PAGE_1G here, because only radix
+		 * path look at the psize.
+		 */
+		__ptep_set_access_flags(vma, pudp_ptep(pudp),
+					pud_pte(entry), address, MMU_PAGE_1G);
+	}
+	return changed;
+}
+
+
 int pmdp_test_and_clear_young(struct vm_area_struct *vma,
 			      unsigned long address, pmd_t *pmdp)
 {
 	return __pmdp_test_and_clear_young(vma->vm_mm, address, pmdp);
 }
+
+int pudp_test_and_clear_young(struct vm_area_struct *vma,
+			      unsigned long address, pud_t *pudp)
+{
+	return __pudp_test_and_clear_young(vma->vm_mm, address, pudp);
+}
+
 /*
  * set a new huge pmd. We should not be called for updating
  * an existing pmd entry. That should go via pmd_hugepage_update.
@@ -72,30 +113,52 @@ void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 
 	WARN_ON(pte_hw_valid(pmd_pte(*pmdp)) && !pte_protnone(pmd_pte(*pmdp)));
 	assert_spin_locked(pmd_lockptr(mm, pmdp));
-	WARN_ON(!(pmd_large(pmd)));
+	WARN_ON(!(pmd_leaf(pmd)));
 #endif
 	trace_hugepage_set_pmd(addr, pmd_val(pmd));
 	return set_pte_at(mm, addr, pmdp_ptep(pmdp), pmd_pte(pmd));
 }
 
-static void do_nothing(void *unused)
+void set_pud_at(struct mm_struct *mm, unsigned long addr,
+		pud_t *pudp, pud_t pud)
 {
+#ifdef CONFIG_DEBUG_VM
+	/*
+	 * Make sure hardware valid bit is not set. We don't do
+	 * tlb flush for this update.
+	 */
 
+	WARN_ON(pte_hw_valid(pud_pte(*pudp)));
+	assert_spin_locked(pud_lockptr(mm, pudp));
+	WARN_ON(!(pud_leaf(pud)));
+#endif
+	trace_hugepage_set_pud(addr, pud_val(pud));
+	return set_pte_at(mm, addr, pudp_ptep(pudp), pud_pte(pud));
 }
+
+static void do_serialize(void *arg)
+{
+	/* We've taken the IPI, so try to trim the mask while here */
+	if (radix_enabled()) {
+		struct mm_struct *mm = arg;
+		exit_lazy_flush_tlb(mm, false);
+	}
+}
+
 /*
- * Serialize against find_current_mm_pte which does lock-less
+ * Serialize against __find_linux_pte() which does lock-less
  * lookup in page tables with local interrupts disabled. For huge pages
  * it casts pmd_t to pte_t. Since format of pte_t is different from
  * pmd_t we want to prevent transit from pmd pointing to page table
  * to pmd pointing to huge page (and back) while interrupts are disabled.
  * We clear pmd to possibly replace it with page table pointer in
  * different code paths. So make sure we wait for the parallel
- * find_current_mm_pte to finish.
+ * __find_linux_pte() to finish.
  */
 void serialize_against_pte_lookup(struct mm_struct *mm)
 {
 	smp_mb();
-	smp_call_function_many(mm_cpumask(mm), do_nothing, NULL, 1);
+	smp_call_function_many(mm_cpumask(mm), do_serialize, mm, 1);
 }
 
 /*
@@ -107,17 +170,47 @@ pmd_t pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
 {
 	unsigned long old_pmd;
 
+	VM_WARN_ON_ONCE(!pmd_present(*pmdp));
 	old_pmd = pmd_hugepage_update(vma->vm_mm, address, pmdp, _PAGE_PRESENT, _PAGE_INVALID);
 	flush_pmd_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
-	/*
-	 * This ensures that generic code that rely on IRQ disabling
-	 * to prevent a parallel THP split work as expected.
-	 *
-	 * Marking the entry with _PAGE_INVALID && ~_PAGE_PRESENT requires
-	 * a special case check in pmd_access_permitted.
-	 */
-	serialize_against_pte_lookup(vma->vm_mm);
 	return __pmd(old_pmd);
+}
+
+pmd_t pmdp_huge_get_and_clear_full(struct vm_area_struct *vma,
+				   unsigned long addr, pmd_t *pmdp, int full)
+{
+	pmd_t pmd;
+	VM_BUG_ON(addr & ~HPAGE_PMD_MASK);
+	VM_BUG_ON((pmd_present(*pmdp) && !pmd_trans_huge(*pmdp) &&
+		   !pmd_devmap(*pmdp)) || !pmd_present(*pmdp));
+	pmd = pmdp_huge_get_and_clear(vma->vm_mm, addr, pmdp);
+	/*
+	 * if it not a fullmm flush, then we can possibly end up converting
+	 * this PMD pte entry to a regular level 0 PTE by a parallel page fault.
+	 * Make sure we flush the tlb in this case.
+	 */
+	if (!full)
+		flush_pmd_tlb_range(vma, addr, addr + HPAGE_PMD_SIZE);
+	return pmd;
+}
+
+pud_t pudp_huge_get_and_clear_full(struct vm_area_struct *vma,
+				   unsigned long addr, pud_t *pudp, int full)
+{
+	pud_t pud;
+
+	VM_BUG_ON(addr & ~HPAGE_PMD_MASK);
+	VM_BUG_ON((pud_present(*pudp) && !pud_devmap(*pudp)) ||
+		  !pud_present(*pudp));
+	pud = pudp_huge_get_and_clear(vma->vm_mm, addr, pudp);
+	/*
+	 * if it not a fullmm flush, then we can possibly end up converting
+	 * this PMD pte entry to a regular level 0 PTE by a parallel page fault.
+	 * Make sure we flush the tlb in this case.
+	 */
+	if (!full)
+		flush_pud_tlb_range(vma, addr, addr + HPAGE_PUD_SIZE);
+	return pud;
 }
 
 static pmd_t pmd_set_protbits(pmd_t pmd, pgprot_t pgprot)
@@ -125,12 +218,32 @@ static pmd_t pmd_set_protbits(pmd_t pmd, pgprot_t pgprot)
 	return __pmd(pmd_val(pmd) | pgprot_val(pgprot));
 }
 
+static pud_t pud_set_protbits(pud_t pud, pgprot_t pgprot)
+{
+	return __pud(pud_val(pud) | pgprot_val(pgprot));
+}
+
+/*
+ * At some point we should be able to get rid of
+ * pmd_mkhuge() and mk_huge_pmd() when we update all the
+ * other archs to mark the pmd huge in pfn_pmd()
+ */
 pmd_t pfn_pmd(unsigned long pfn, pgprot_t pgprot)
 {
 	unsigned long pmdv;
 
 	pmdv = (pfn << PAGE_SHIFT) & PTE_RPN_MASK;
-	return pmd_set_protbits(__pmd(pmdv), pgprot);
+
+	return __pmd_mkhuge(pmd_set_protbits(__pmd(pmdv), pgprot));
+}
+
+pud_t pfn_pud(unsigned long pfn, pgprot_t pgprot)
+{
+	unsigned long pudv;
+
+	pudv = (pfn << PAGE_SHIFT) & PTE_RPN_MASK;
+
+	return __pud_mkhuge(pud_set_protbits(__pud(pudv), pgprot));
 }
 
 pmd_t mk_pmd(struct page *page, pgprot_t pgprot)
@@ -146,37 +259,27 @@ pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
 	pmdv &= _HPAGE_CHG_MASK;
 	return pmd_set_protbits(__pmd(pmdv), newprot);
 }
-
-/*
- * This is called at the end of handling a user page fault, when the
- * fault has been handled by updating a HUGE PMD entry in the linux page tables.
- * We use it to preload an HPTE into the hash table corresponding to
- * the updated linux HUGE PMD entry.
- */
-void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
-			  pmd_t *pmd)
-{
-	if (radix_enabled())
-		prefetch((void *)addr);
-}
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
-/* For use by kexec */
-void mmu_cleanup_all(void)
+/* For use by kexec, called with MMU off */
+notrace void mmu_cleanup_all(void)
 {
 	if (radix_enabled())
 		radix__mmu_cleanup_all();
 	else if (mmu_hash_ops.hpte_clear_all)
 		mmu_hash_ops.hpte_clear_all();
+
+	reset_sprs();
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
-int __meminit create_section_mapping(unsigned long start, unsigned long end, int nid)
+int __meminit create_section_mapping(unsigned long start, unsigned long end,
+				     int nid, pgprot_t prot)
 {
 	if (radix_enabled())
-		return radix__create_section_mapping(start, end, nid);
+		return radix__create_section_mapping(start, end, nid, prot);
 
-	return hash__create_section_mapping(start, end, nid);
+	return hash__create_section_mapping(start, end, nid, prot);
 }
 
 int __meminit remove_section_mapping(unsigned long start, unsigned long end)
@@ -193,17 +296,12 @@ void __init mmu_partition_table_init(void)
 	unsigned long patb_size = 1UL << PATB_SIZE_SHIFT;
 	unsigned long ptcr;
 
-	BUILD_BUG_ON_MSG((PATB_SIZE_SHIFT > 36), "Partition table size too large.");
 	/* Initialize the Partition Table with no entries */
 	partition_tb = memblock_alloc(patb_size, patb_size);
 	if (!partition_tb)
 		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
 		      __func__, patb_size, patb_size);
 
-	/*
-	 * update partition table control register,
-	 * 64 K size.
-	 */
 	ptcr = __pa(partition_tb) | (PATB_SIZE_SHIFT - 12);
 	set_ptcr_when_no_uv(ptcr);
 	powernv_set_nmmu_ptcr(ptcr);
@@ -288,22 +386,22 @@ static pmd_t *get_pmd_from_cache(struct mm_struct *mm)
 static pmd_t *__alloc_for_pmdcache(struct mm_struct *mm)
 {
 	void *ret = NULL;
-	struct page *page;
+	struct ptdesc *ptdesc;
 	gfp_t gfp = GFP_KERNEL_ACCOUNT | __GFP_ZERO;
 
 	if (mm == &init_mm)
 		gfp &= ~__GFP_ACCOUNT;
-	page = alloc_page(gfp);
-	if (!page)
+	ptdesc = pagetable_alloc(gfp, 0);
+	if (!ptdesc)
 		return NULL;
-	if (!pgtable_pmd_page_ctor(page)) {
-		__free_pages(page, 0);
+	if (!pagetable_pmd_ctor(ptdesc)) {
+		pagetable_free(ptdesc);
 		return NULL;
 	}
 
-	atomic_set(&page->pt_frag_refcount, 1);
+	atomic_set(&ptdesc->pt_frag_refcount, 1);
 
-	ret = page_address(page);
+	ret = ptdesc_address(ptdesc);
 	/*
 	 * if we support only one fragment just return the
 	 * allocated page.
@@ -313,12 +411,12 @@ static pmd_t *__alloc_for_pmdcache(struct mm_struct *mm)
 
 	spin_lock(&mm->page_table_lock);
 	/*
-	 * If we find pgtable_page set, we return
-	 * the allocated page with single fragement
+	 * If we find ptdesc_page set, we return
+	 * the allocated page with single fragment
 	 * count.
 	 */
 	if (likely(!mm->context.pmd_frag)) {
-		atomic_set(&page->pt_frag_refcount, PMD_FRAG_NR);
+		atomic_set(&ptdesc->pt_frag_refcount, PMD_FRAG_NR);
 		mm->context.pmd_frag = ret + PMD_FRAG_SIZE;
 	}
 	spin_unlock(&mm->page_table_lock);
@@ -339,12 +437,15 @@ pmd_t *pmd_fragment_alloc(struct mm_struct *mm, unsigned long vmaddr)
 
 void pmd_fragment_free(unsigned long *pmd)
 {
-	struct page *page = virt_to_page(pmd);
+	struct ptdesc *ptdesc = virt_to_ptdesc(pmd);
 
-	BUG_ON(atomic_read(&page->pt_frag_refcount) <= 0);
-	if (atomic_dec_and_test(&page->pt_frag_refcount)) {
-		pgtable_pmd_page_dtor(page);
-		__free_page(page);
+	if (pagetable_is_reserved(ptdesc))
+		return free_reserved_ptdesc(ptdesc);
+
+	BUG_ON(atomic_read(&ptdesc->pt_frag_refcount) <= 0);
+	if (atomic_dec_and_test(&ptdesc->pt_frag_refcount)) {
+		pagetable_pmd_dtor(ptdesc);
+		pagetable_free(ptdesc);
 	}
 }
 
@@ -358,7 +459,7 @@ static inline void pgtable_free(void *table, int index)
 		pmd_fragment_free(table);
 		break;
 	case PUD_INDEX:
-		kmem_cache_free(PGT_CACHE(PUD_CACHE_INDEX), table);
+		__pud_free(table);
 		break;
 #if defined(CONFIG_PPC_4K_PAGES) && defined(CONFIG_HUGETLB_PAGE)
 		/* 16M hugepd directory at pud level */
@@ -378,7 +479,6 @@ static inline void pgtable_free(void *table, int index)
 	}
 }
 
-#ifdef CONFIG_SMP
 void pgtable_free_tlb(struct mmu_gather *tlb, void *table, int index)
 {
 	unsigned long pgf = (unsigned long)table;
@@ -395,12 +495,6 @@ void __tlb_remove_table(void *_table)
 
 	return pgtable_free(table, index);
 }
-#else
-void pgtable_free_tlb(struct mmu_gather *tlb, void *table, int index)
-{
-	return pgtable_free(table, index);
-}
-#endif
 
 #ifdef CONFIG_PROC_FS
 atomic_long_t direct_pages_count[MMU_PAGE_COUNT];
@@ -449,6 +543,7 @@ void ptep_modify_prot_commit(struct vm_area_struct *vma, unsigned long addr,
 	set_pte_at(vma->vm_mm, addr, ptep, pte);
 }
 
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
 /*
  * For hash translation mode, we use the deposited table to store hash slot
  * information and they are stored at PTRS_PER_PMD offset from related pmd
@@ -470,6 +565,7 @@ int pmd_move_must_withdraw(struct spinlock *new_pmd_ptl,
 
 	return true;
 }
+#endif
 
 /*
  * Does the CPU support tlbie?
@@ -510,9 +606,50 @@ static int __init pgtable_debugfs_setup(void)
 	 * invalidated as expected.
 	 */
 	debugfs_create_bool("tlbie_enabled", 0600,
-			powerpc_debugfs_root,
+			arch_debugfs_dir,
 			&tlbie_enabled);
 
 	return 0;
 }
 arch_initcall(pgtable_debugfs_setup);
+
+#if defined(CONFIG_ZONE_DEVICE) && defined(CONFIG_ARCH_HAS_MEMREMAP_COMPAT_ALIGN)
+/*
+ * Override the generic version in mm/memremap.c.
+ *
+ * With hash translation, the direct-map range is mapped with just one
+ * page size selected by htab_init_page_sizes(). Consult
+ * mmu_psize_defs[] to determine the minimum page size alignment.
+*/
+unsigned long memremap_compat_align(void)
+{
+	if (!radix_enabled()) {
+		unsigned int shift = mmu_psize_defs[mmu_linear_psize].shift;
+		return max(SUBSECTION_SIZE, 1UL << shift);
+	}
+
+	return SUBSECTION_SIZE;
+}
+EXPORT_SYMBOL_GPL(memremap_compat_align);
+#endif
+
+pgprot_t vm_get_page_prot(unsigned long vm_flags)
+{
+	unsigned long prot;
+
+	/* Radix supports execute-only, but protection_map maps X -> RX */
+	if (!radix_enabled() && ((vm_flags & VM_ACCESS_FLAGS) == VM_EXEC))
+		vm_flags |= VM_READ;
+
+	prot = pgprot_val(protection_map[vm_flags & (VM_ACCESS_FLAGS | VM_SHARED)]);
+
+	if (vm_flags & VM_SAO)
+		prot |= _PAGE_SAO;
+
+#ifdef CONFIG_PPC_MEM_KEYS
+	prot |= vmflag_to_pte_pkey_bits(vm_flags);
+#endif
+
+	return __pgprot(prot);
+}
+EXPORT_SYMBOL(vm_get_page_prot);

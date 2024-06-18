@@ -1,3 +1,7 @@
+.. raw:: latex
+
+	\kerneldocCJKoff
+
 NOTE:
 This is a version of Documentation/process/howto.rst translated into korean
 This document is maintained by Minchan Kim <minchan@kernel.org>
@@ -10,6 +14,10 @@ a fork. So if you have any comments or updates for this file please
 try to update the original English file first.
 
 ----------------------------------
+
+.. raw:: latex
+
+	\kerneldocCJKon
 
 이 문서는
 Documentation/process/howto.rst
@@ -54,7 +62,7 @@ Documentation/process/howto.rst
  - "Practical C Programming" by Steve Oualline [O'Reilly]
  - "C:  A Reference Manual" by Harbison and Steele [Prentice Hall]
 
-커널은 GNU C와 GNU 툴체인을 사용하여 작성되었다. 이 툴들은 ISO C89 표준을
+커널은 GNU C와 GNU 툴체인을 사용하여 작성되었다. 이 툴들은 ISO C11 표준을
 따르는 반면 표준에 있지 않은 많은 확장기능도 가지고 있다. 커널은 표준 C
 라이브러리와는 관계없이 freestanding C 환경이어서 C 표준의 일부는
 지원되지 않는다. 임의의 long long 나누기나 floating point는 지원되지 않는다.
@@ -116,7 +124,7 @@ mtk.manpages@gmail.com의 메인테이너에게 보낼 것을 권장한다.
     메인테이너들은 이 규칙을 따르는 패치들만을 받아들일 것이고 많은 사람들이
     그 패치가 올바른 스타일일 경우만 코드를 검토할 것이다.
 
-  :ref:`Documentation/process/submitting-patches.rst <submittingpatches>` 와 :ref:`Documentation/process/submitting-drivers.rst <submittingdrivers>`
+  :ref:`Documentation/process/submitting-patches.rst <submittingpatches>`
     이 파일들은 성공적으로 패치를 만들고 보내는 법을 다음의 내용들로
     굉장히 상세히 설명하고 있다(그러나 다음으로 한정되진 않는다).
 
@@ -149,7 +157,7 @@ mtk.manpages@gmail.com의 메인테이너에게 보낼 것을 권장한다.
     리눅스로 전향하는 사람들에게는 매우 중요하다.
 
 
-  :ref:`Documentation/admin-guide/security-bugs.rst <securitybugs>`
+  :ref:`Documentation/process/security-bugs.rst <securitybugs>`
     여러분들이 리눅스 커널의 보안 문제를 발견했다고 생각한다면 이 문서에
     나온 단계에 따라서 커널 개발자들에게 알리고 그 문제를 해결할 수 있도록
     도와 달라.
@@ -240,21 +248,21 @@ ReST 마크업을 사용하는 문서들은 Documentation/output 에 생성된�
 서브시스템에 특화된 커널 브랜치들로 구성된다. 몇몇 다른 메인
 브랜치들은 다음과 같다.
 
-  - main 4.x 커널 트리
-  - 4.x.y - 안정된 커널 트리
-  - 서브시스템을 위한 커널 트리들과 패치들
-  - 4.x - 통합 테스트를 위한 next 커널 트리
+  - 리누스의 메인라인 트리
+  - 여러 메이저 넘버를 갖는 다양한 안정된 커널 트리들
+  - 서브시스템을 위한 커널 트리들
+  - 통합 테스트를 위한 linux-next 커널 트리
 
-4.x 커널 트리
+메인라인 트리
 ~~~~~~~~~~~~~
 
-4.x 커널들은 Linus Torvalds가 관리하며 https://kernel.org 의
-pub/linux/kernel/v4.x/ 디렉토리에서 참조될 수 있다.개발 프로세스는 다음과 같다.
+메인라인 트리는 Linus Torvalds가 관리하며 https://kernel.org  또는 소스
+저장소에서 참조될 수 있다.개발 프로세스는 다음과 같다.
 
   - 새로운 커널이 배포되자마자 2주의 시간이 주어진다. 이 기간동은
     메인테이너들은 큰 diff들을 Linus에게 제출할 수 있다. 대개 이 패치들은
-    몇 주 동안 -next 커널내에 이미 있었던 것들이다. 큰 변경들을 제출하는 데
-    선호되는 방법은  git(커널의 소스 관리 툴, 더 많은 정보들은
+    몇 주 동안 linux-next 커널내에 이미 있었던 것들이다. 큰 변경들을 제출하는
+    데 선호되는 방법은  git(커널의 소스 관리 툴, 더 많은 정보들은
     https://git-scm.com/ 에서 참조할 수 있다)를 사용하는 것이지만 순수한
     패치파일의 형식으로 보내는 것도 무관하다.
   - 2주 후에 -rc1 커널이 릴리즈되며 여기서부터의 주안점은 새로운 커널을
@@ -281,28 +289,26 @@ Andrew Morton의 글이 있다.
         버그의 상황에 따라 배포되는 것이지 미리정해 놓은 시간에 따라
         배포되는 것은 아니기 때문이다."*
 
-4.x.y - 안정 커널 트리
-~~~~~~~~~~~~~~~~~~~~~~
+여러 메이저 넘버를 갖는 다양한 안정된 커널 트리들
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-3 자리 숫자로 이루어진 버젼의 커널들은 -stable 커널들이다. 그것들은 4.x
-커널에서 발견된 큰 회귀들이나 보안 문제들 중 비교적 작고 중요한 수정들을
-포함한다.
+세개의 버젼 넘버로 이루어진 버젼의 커널들은 -stable 커널들이다. 그것들은 해당
+메이저 메인라인 릴리즈에서 발견된 큰 회귀들이나 보안 문제들 중 비교적 작고
+중요한 수정들을 포함한다.  주요 stable 시리즈 릴리즈는 세번째 버젼 넘버를
+증가시키며 앞의 두 버젼 넘버는 그대로 유지한다.
 
 이것은 가장 최근의 안정적인 커널을 원하는 사용자에게 추천되는 브랜치이며,
 개발/실험적 버젼을 테스트하는 것을 돕고자 하는 사용자들과는 별로 관련이 없다.
 
-어떤 4.x.y 커널도 사용할 수 없다면 그때는 가장 높은 숫자의 4.x
-커널이 현재의 안정 커널이다.
-
-4.x.y는 "stable" 팀<stable@vger.kernel.org>에 의해 관리되며 거의 매번 격주로
-배포된다.
+-stable 트리들은 "stable" 팀<stable@vger.kernel.org>에 의해 관리되며 거의 매번
+격주로 배포된다.
 
 커널 트리 문서들 내의 :ref:`Documentation/process/stable-kernel-rules.rst <stable_kernel_rules>`
 파일은 어떤 종류의 변경들이 -stable 트리로 들어왔는지와
 배포 프로세스가 어떻게 진행되는지를 설명한다.
 
-서브시스템 커널 트리들과 패치들
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+서브시스템 커널 트리들
+~~~~~~~~~~~~~~~~~~~~~~
 
 다양한 커널 서브시스템의 메인테이너들 --- 그리고 많은 커널 서브시스템 개발자들
 --- 은 그들의 현재 개발 상태를 소스 저장소로 노출한다. 이를 통해 다른 사람들도
@@ -319,35 +325,30 @@ Andrew Morton의 글이 있다.
 제안된 패치는 서브시스템 트리에 커밋되기 전에 메일링 리스트를 통해
 리뷰된다(아래의 관련 섹션을 참고하기 바란다). 일부 커널 서브시스템의 경우, 이
 리뷰 프로세스는 patchwork라는 도구를 통해 추적된다. patchwork은 등록된 패치와
-패치에 대한 코멘트, 패치의 버전을 볼 수 있는 웹 인터페이스를 제공하고,
+패치에 대한 코멘트, 패치의 버젼을 볼 수 있는 웹 인터페이스를 제공하고,
 메인테이너는 패치를 리뷰 중, 리뷰 통과, 또는 반려됨으로 표시할 수 있다.
-대부분의 이러한 patchwork 사이트는 https://patchwork.kernel.org/ 또는
-http://patchwork.ozlabs.org/ 에 나열되어 있다.
+대부분의 이러한 patchwork 사이트는 https://patchwork.kernel.org/ 에 나열되어
+있다.
 
-4.x - 통합 테스트를 위한 next 커널 트리
----------------------------------------
-서브시스템 트리들의 변경사항들은 mainline 4.x 트리로 들어오기 전에 통합
-테스트를 거쳐야 한다. 이런 목적으로, 모든 서브시스템 트리의 변경사항을 거의
-매일 받아가는 특수한 테스트 저장소가 존재한다:
+통합 테스트를 위한 linux-next 커널 트리
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-       https://git.kernel.org/?p=linux/kernel/git/sfr/linux-next.git
+서브시스템 트리들의 변경사항들은 mainline 트리로 들어오기 전에 통합 테스트를
+거쳐야 한다. 이런 목적으로, 모든 서브시스템 트리의 변경사항을 거의 매일
+받아가는 특수한 테스트 저장소가 존재한다:
 
-이런 식으로, -next 커널을 통해 다음 머지 기간에 메인라인 커널에 어떤 변경이
-가해질 것인지 간략히 알 수 있다. 모험심 강한 테스터라면 -next 커널에서 테스트를
-수행하는 것도 좋을 것이다.
+       https://git.kernel.org/?p=linux/kernel/git/next/linux-next.git
+
+이런 식으로, linux-next 커널을 통해 다음 머지 기간에 메인라인 커널에 어떤
+변경이 가해질 것인지 간략히 알 수 있다. 모험심 강한 테스터라면 linux-next
+커널에서 테스트를 수행하는 것도 좋을 것이다.
 
 
 버그 보고
 ---------
 
-https://bugzilla.kernel.org 는 리눅스 커널 개발자들이 커널의 버그를 추적하는
-곳이다. 사용자들은 발견한 모든 버그들을 보고하기 위하여 이 툴을 사용할 것을
-권장한다.  kernel bugzilla를 사용하는 자세한 방법은 다음을 참조하라.
-
-    https://bugzilla.kernel.org/page.cgi?id=faq.html
-
-메인 커널 소스 디렉토리에 있는 :ref:`admin-guide/reporting-bugs.rst <reportingbugs>`
-파일은 커널 버그라고 생각되는 것을 보고하는 방법에 관한 좋은 템플릿이며 문제를
+메인 커널 소스 디렉토리에 있는 'Documentation/admin-guide/reporting-issues.rst'
+파일은 커널 버그라고 생각되는 것을 어떻게 보고하면 되는지, 그리고 문제를
 추적하기 위해서 커널 개발자들이 필요로 하는 정보가 무엇들인지를 상세히 설명하고
 있다.
 
@@ -363,8 +364,14 @@ https://bugzilla.kernel.org 는 리눅스 커널 개발자들이 커널의 버�
 점수를 얻을 수 있는 가장 좋은 방법중의 하나이다. 왜냐하면 많은 사람들은
 다른 사람들의 버그들을 수정하기 위하여 시간을 낭비하지 않기 때문이다.
 
-이미 보고된 버그 리포트들을 가지고 작업하기 위해서 https://bugzilla.kernel.org
-를 참조하라.
+이미 보고된 버그 리포트들을 가지고 작업하기 위해서는 여러분이 관심있는
+서브시스템을 찾아라. 해당 서브시스템의 버그들이 어디로 리포트 되는지
+MAINTAINERS 파일을 체크하라; 그건 대부분 메일링 리스트이고, 가끔은 버그 추적
+시스템이다. 그 장소에 있는 최근 버그 리포트 기록들을 검색하고 여러분이 보기에
+적합하다 싶은 것을 도와라. 여러분은 버그 리포트를 위해
+https://bugzilla.kernel.org 를 체크하고자 할 수도 있다; 소수의 커널
+서브시스템들만이 버그 신고와 추적을 위해 해당 시스템을 실제로 사용하고 있지만,
+전체 커널의 버그들이 그곳에 정리된다.
 
 
 메일링 리스트들
@@ -379,7 +386,7 @@ https://bugzilla.kernel.org 는 리눅스 커널 개발자들이 커널의 버�
 웹상의 많은 다른 곳에도 메일링 리스트의 아카이브들이 있다.
 이러한 아카이브들을 찾으려면 검색 엔진을 사용하라. 예를 들어:
 
-      http://dir.gmane.org/gmane.linux.kernel
+      https://lore.kernel.org/lkml/
 
 여러분이 새로운 문제에 관해 리스트에 올리기 전에 말하고 싶은 주제에 관한
 것을 아카이브에서 먼저 찾아보기를 강력히 권장한다. 이미 상세하게 토론된 많은
@@ -584,7 +591,7 @@ Pat이라는 이름을 가진 여자가 있을 수도 있는 것이다. 리눅�
 
    "The Perfect Patch"
 
-    http://www.ozlabs.org/~akpm/stuff/tpp.txt
+    https://www.ozlabs.org/~akpm/stuff/tpp.txt
 
 
 이 모든 것을 하는 것은 매우 어려운 일이다. 완벽히 소화하는 데는 적어도 몇년이

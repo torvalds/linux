@@ -5,9 +5,6 @@
 #
 
 asflags-y := -ansi
-ccflags-y := -Werror
-
-extra-y     := head_$(BITS).o
 
 # Undefine sparc when processing vmlinux.lds - it is used
 # And teach CPP we are doing $(BITS) builds (for this case)
@@ -22,6 +19,7 @@ CFLAGS_REMOVE_perf_event.o := -pg
 CFLAGS_REMOVE_pcr.o := -pg
 endif
 
+obj-y                   := head_$(BITS).o
 obj-$(CONFIG_SPARC64)   += urtt_fill.o
 obj-$(CONFIG_SPARC32)   += entry.o wof.o wuf.o
 obj-$(CONFIG_SPARC32)   += etrap_32.o
@@ -33,6 +31,7 @@ obj-y                   += irq_$(BITS).o
 obj-$(CONFIG_SPARC32)   += sun4m_irq.o sun4d_irq.o
 
 obj-y                   += process_$(BITS).o
+obj-y                   += process.o
 obj-y                   += signal_$(BITS).o
 obj-y                   += sigutil_$(BITS).o
 obj-$(CONFIG_SPARC32)   += ioport.o
@@ -86,11 +85,12 @@ obj-$(CONFIG_SPARC64_SMP) += hvtramp.o
 obj-y                     += auxio_$(BITS).o
 obj-$(CONFIG_SUN_PM)      += apc.o pmc.o
 
+obj-y                     += termios.o
+
 obj-$(CONFIG_MODULES)     += module.o
 obj-$(CONFIG_MODULES)     += sparc_ksyms.o
 obj-$(CONFIG_SPARC_LED)   += led.o
 obj-$(CONFIG_KGDB)        += kgdb_$(BITS).o
-
 
 obj-$(CONFIG_DYNAMIC_FTRACE) += ftrace.o
 obj-$(CONFIG_FUNCTION_GRAPH_TRACER) += ftrace.o
@@ -102,6 +102,7 @@ obj-$(CONFIG_SPARC64_PCI)    += pci.o pci_common.o psycho_common.o
 obj-$(CONFIG_SPARC64_PCI)    += pci_psycho.o pci_sabre.o pci_schizo.o
 obj-$(CONFIG_SPARC64_PCI)    += pci_sun4v.o pci_sun4v_asm.o pci_fire.o
 obj-$(CONFIG_SPARC64_PCI_MSI) += pci_msi.o
+
 
 obj-$(CONFIG_COMPAT)         += sys32.o sys_sparc32.o signal32.o
 

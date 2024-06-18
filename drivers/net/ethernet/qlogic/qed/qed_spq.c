@@ -1,33 +1,7 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 /* QLogic qed NIC Driver
  * Copyright (c) 2015-2017  QLogic Corporation
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and /or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Copyright (c) 2019-2020 Marvell International Ltd.
  */
 
 #include <linux/types.h>
@@ -46,6 +20,7 @@
 #include "qed_cxt.h"
 #include "qed_dev_api.h"
 #include "qed_hsi.h"
+#include "qed_iro_hsi.h"
 #include "qed_hw.h"
 #include "qed_int.h"
 #include "qed_iscsi.h"
@@ -57,8 +32,8 @@
 #include "qed_rdma.h"
 
 /***************************************************************************
-* Structures & Definitions
-***************************************************************************/
+ * Structures & Definitions
+ ***************************************************************************/
 
 #define SPQ_HIGH_PRI_RESERVE_DEFAULT    (1)
 
@@ -68,8 +43,8 @@
 #define SPQ_BLOCK_SLEEP_MS              (5)
 
 /***************************************************************************
-* Blocking Imp. (BLOCK/EBLOCK mode)
-***************************************************************************/
+ * Blocking Imp. (BLOCK/EBLOCK mode)
+ ***************************************************************************/
 static void qed_spq_blocking_cb(struct qed_hwfn *p_hwfn,
 				void *cookie,
 				union event_ring_data *data, u8 fw_return_code)
@@ -160,19 +135,26 @@ static int qed_spq_block(struct qed_hwfn *p_hwfn,
 		return 0;
 	}
 err:
-	DP_NOTICE(p_hwfn,
-		  "Ramrod is stuck [CID %08x cmd %02x protocol %02x echo %04x]\n",
-		  le32_to_cpu(p_ent->elem.hdr.cid),
-		  p_ent->elem.hdr.cmd_id,
-		  p_ent->elem.hdr.protocol_id,
-		  le16_to_cpu(p_ent->elem.hdr.echo));
+	p_ptt = qed_ptt_acquire(p_hwfn);
+	if (!p_ptt)
+		return -EBUSY;
+	qed_hw_err_notify(p_hwfn, p_ptt, QED_HW_ERR_RAMROD_FAIL,
+			  "Ramrod is stuck [CID %08x %s:%02x %s:%02x echo %04x]\n",
+			  le32_to_cpu(p_ent->elem.hdr.cid),
+			  qed_get_ramrod_cmd_id_str(p_ent->elem.hdr.protocol_id,
+						    p_ent->elem.hdr.cmd_id),
+			  p_ent->elem.hdr.cmd_id,
+			  qed_get_protocol_type_str(p_ent->elem.hdr.protocol_id),
+						    p_ent->elem.hdr.protocol_id,
+			  le16_to_cpu(p_ent->elem.hdr.echo));
+	qed_ptt_release(p_hwfn, p_ptt);
 
 	return -EBUSY;
 }
 
 /***************************************************************************
-* SPQ entries inner API
-***************************************************************************/
+ * SPQ entries inner API
+ ***************************************************************************/
 static int qed_spq_fill_entry(struct qed_hwfn *p_hwfn,
 			      struct qed_spq_entry *p_ent)
 {
@@ -191,13 +173,16 @@ static int qed_spq_fill_entry(struct qed_hwfn *p_hwfn,
 		return -EINVAL;
 	}
 
-	DP_VERBOSE(p_hwfn, QED_MSG_SPQ,
-		   "Ramrod header: [CID 0x%08x CMD 0x%02x protocol 0x%02x] Data pointer: [%08x:%08x] Completion Mode: %s\n",
+	DP_VERBOSE(p_hwfn,
+		   QED_MSG_SPQ,
+		   "Ramrod hdr: [CID 0x%08x %s:0x%02x %s:0x%02x] Data ptr: [%08x:%08x] Cmpltion Mode: %s\n",
 		   p_ent->elem.hdr.cid,
+		   qed_get_ramrod_cmd_id_str(p_ent->elem.hdr.protocol_id,
+					     p_ent->elem.hdr.cmd_id),
 		   p_ent->elem.hdr.cmd_id,
-		   p_ent->elem.hdr.protocol_id,
-		   p_ent->elem.data_ptr.hi,
-		   p_ent->elem.data_ptr.lo,
+		   qed_get_protocol_type_str(p_ent->elem.hdr.protocol_id),
+					     p_ent->elem.hdr.protocol_id,
+		   p_ent->elem.data_ptr.hi, p_ent->elem.data_ptr.lo,
 		   D_TRINE(p_ent->comp_mode, QED_SPQ_MODE_EBLOCK,
 			   QED_SPQ_MODE_BLOCK, "MODE_EBLOCK", "MODE_BLOCK",
 			   "MODE_CB"));
@@ -206,12 +191,12 @@ static int qed_spq_fill_entry(struct qed_hwfn *p_hwfn,
 }
 
 /***************************************************************************
-* HSI access
-***************************************************************************/
+ * HSI access
+ ***************************************************************************/
 static void qed_spq_hw_initialize(struct qed_hwfn *p_hwfn,
 				  struct qed_spq *p_spq)
 {
-	struct e4_core_conn_context *p_cxt;
+	struct core_conn_context *p_cxt;
 	struct qed_cxt_info cxt_info;
 	u16 physical_q;
 	int rc;
@@ -229,23 +214,20 @@ static void qed_spq_hw_initialize(struct qed_hwfn *p_hwfn,
 	p_cxt = cxt_info.p_cxt;
 
 	SET_FIELD(p_cxt->xstorm_ag_context.flags10,
-		  E4_XSTORM_CORE_CONN_AG_CTX_DQ_CF_EN, 1);
+		  XSTORM_CORE_CONN_AG_CTX_DQ_CF_EN, 1);
 	SET_FIELD(p_cxt->xstorm_ag_context.flags1,
-		  E4_XSTORM_CORE_CONN_AG_CTX_DQ_CF_ACTIVE, 1);
+		  XSTORM_CORE_CONN_AG_CTX_DQ_CF_ACTIVE, 1);
 	SET_FIELD(p_cxt->xstorm_ag_context.flags9,
-		  E4_XSTORM_CORE_CONN_AG_CTX_CONSOLID_PROD_CF_EN, 1);
+		  XSTORM_CORE_CONN_AG_CTX_CONSOLID_PROD_CF_EN, 1);
 
 	/* QM physical queue */
 	physical_q = qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_LB);
 	p_cxt->xstorm_ag_context.physical_q0 = cpu_to_le16(physical_q);
 
-	p_cxt->xstorm_st_context.spq_base_lo =
+	p_cxt->xstorm_st_context.spq_base_addr.lo =
 		DMA_LO_LE(p_spq->chain.p_phys_addr);
-	p_cxt->xstorm_st_context.spq_base_hi =
+	p_cxt->xstorm_st_context.spq_base_addr.hi =
 		DMA_HI_LE(p_spq->chain.p_phys_addr);
-
-	DMA_REGPAIR_LE(p_cxt->xstorm_st_context.consolid_base_addr,
-		       p_hwfn->p_consq->chain.p_phys_addr);
 }
 
 static int qed_spq_hw_post(struct qed_hwfn *p_hwfn,
@@ -287,16 +269,24 @@ static int qed_spq_hw_post(struct qed_hwfn *p_hwfn,
 }
 
 /***************************************************************************
-* Asynchronous events
-***************************************************************************/
+ * Asynchronous events
+ ***************************************************************************/
 static int
 qed_async_event_completion(struct qed_hwfn *p_hwfn,
 			   struct event_ring_entry *p_eqe)
 {
 	qed_spq_async_comp_cb cb;
 
-	if (!p_hwfn->p_spq || (p_eqe->protocol_id >= MAX_PROTOCOL_TYPE))
+	if (!p_hwfn->p_spq)
 		return -EINVAL;
+
+	if (p_eqe->protocol_id >= MAX_PROTOCOL_TYPE) {
+		DP_ERR(p_hwfn, "Wrong protocol: %s:%d\n",
+		       qed_get_protocol_type_str(p_eqe->protocol_id),
+		       p_eqe->protocol_id);
+
+		return -EINVAL;
+	}
 
 	cb = p_hwfn->p_spq->async_comp_cb[p_eqe->protocol_id];
 	if (cb) {
@@ -304,8 +294,10 @@ qed_async_event_completion(struct qed_hwfn *p_hwfn,
 			  &p_eqe->data, p_eqe->fw_return_code);
 	} else {
 		DP_NOTICE(p_hwfn,
-			  "Unknown Async completion for protocol: %d\n",
+			  "Unknown Async completion for %s:%d\n",
+			  qed_get_protocol_type_str(p_eqe->protocol_id),
 			  p_eqe->protocol_id);
+
 		return -EINVAL;
 	}
 }
@@ -333,12 +325,12 @@ qed_spq_unregister_async_cb(struct qed_hwfn *p_hwfn,
 }
 
 /***************************************************************************
-* EQ API
-***************************************************************************/
+ * EQ API
+ ***************************************************************************/
 void qed_eq_prod_update(struct qed_hwfn *p_hwfn, u16 prod)
 {
-	u32 addr = GTT_BAR0_MAP_REG_USDM_RAM +
-		   USTORM_EQE_CONS_OFFSET(p_hwfn->rel_pf_id);
+	u32 addr = GET_GTT_REG_ADDR(GTT_BAR0_MAP_REG_USDM_RAM,
+				    USTORM_EQE_CONS, p_hwfn->rel_pf_id);
 
 	REG_WR16(p_hwfn, addr, prod);
 }
@@ -404,22 +396,26 @@ int qed_eq_completion(struct qed_hwfn *p_hwfn, void *cookie)
 
 int qed_eq_alloc(struct qed_hwfn *p_hwfn, u16 num_elem)
 {
+	struct qed_chain_init_params params = {
+		.mode		= QED_CHAIN_MODE_PBL,
+		.intended_use	= QED_CHAIN_USE_TO_PRODUCE,
+		.cnt_type	= QED_CHAIN_CNT_TYPE_U16,
+		.num_elems	= num_elem,
+		.elem_size	= sizeof(union event_ring_element),
+	};
 	struct qed_eq *p_eq;
+	int ret;
 
 	/* Allocate EQ struct */
 	p_eq = kzalloc(sizeof(*p_eq), GFP_KERNEL);
 	if (!p_eq)
 		return -ENOMEM;
 
-	/* Allocate and initialize EQ chain*/
-	if (qed_chain_alloc(p_hwfn->cdev,
-			    QED_CHAIN_USE_TO_PRODUCE,
-			    QED_CHAIN_MODE_PBL,
-			    QED_CHAIN_CNT_TYPE_U16,
-			    num_elem,
-			    sizeof(union event_ring_element),
-			    &p_eq->chain, NULL))
+	ret = qed_chain_alloc(p_hwfn->cdev, &p_eq->chain, &params);
+	if (ret) {
+		DP_NOTICE(p_hwfn, "Failed to allocate EQ chain\n");
 		goto eq_allocate_fail;
+	}
 
 	/* register EQ completion on the SP SB */
 	qed_int_register_cb(p_hwfn, qed_eq_completion,
@@ -430,7 +426,8 @@ int qed_eq_alloc(struct qed_hwfn *p_hwfn, u16 num_elem)
 
 eq_allocate_fail:
 	kfree(p_eq);
-	return -ENOMEM;
+
+	return ret;
 }
 
 void qed_eq_setup(struct qed_hwfn *p_hwfn)
@@ -450,8 +447,8 @@ void qed_eq_free(struct qed_hwfn *p_hwfn)
 }
 
 /***************************************************************************
-* CQE API - manipulate EQ functionality
-***************************************************************************/
+ * CQE API - manipulate EQ functionality
+ ***************************************************************************/
 static int qed_cqe_completion(struct qed_hwfn *p_hwfn,
 			      struct eth_slow_path_rx_cqe *cqe,
 			      enum protocol_type protocol)
@@ -481,8 +478,8 @@ int qed_eth_cqe_completion(struct qed_hwfn *p_hwfn,
 }
 
 /***************************************************************************
-* Slow hwfn Queue (spq)
-***************************************************************************/
+ * Slow hwfn Queue (spq)
+ ***************************************************************************/
 void qed_spq_setup(struct qed_hwfn *p_hwfn)
 {
 	struct qed_spq *p_spq = p_hwfn->p_spq;
@@ -551,33 +548,40 @@ void qed_spq_setup(struct qed_hwfn *p_hwfn)
 
 int qed_spq_alloc(struct qed_hwfn *p_hwfn)
 {
+	struct qed_chain_init_params params = {
+		.mode		= QED_CHAIN_MODE_SINGLE,
+		.intended_use	= QED_CHAIN_USE_TO_PRODUCE,
+		.cnt_type	= QED_CHAIN_CNT_TYPE_U16,
+		.elem_size	= sizeof(struct slow_path_element),
+	};
+	struct qed_dev *cdev = p_hwfn->cdev;
 	struct qed_spq_entry *p_virt = NULL;
 	struct qed_spq *p_spq = NULL;
 	dma_addr_t p_phys = 0;
 	u32 capacity;
+	int ret;
 
 	/* SPQ struct */
-	p_spq = kzalloc(sizeof(struct qed_spq), GFP_KERNEL);
+	p_spq = kzalloc(sizeof(*p_spq), GFP_KERNEL);
 	if (!p_spq)
 		return -ENOMEM;
 
-	/* SPQ ring  */
-	if (qed_chain_alloc(p_hwfn->cdev,
-			    QED_CHAIN_USE_TO_PRODUCE,
-			    QED_CHAIN_MODE_SINGLE,
-			    QED_CHAIN_CNT_TYPE_U16,
-			    0,   /* N/A when the mode is SINGLE */
-			    sizeof(struct slow_path_element),
-			    &p_spq->chain, NULL))
-		goto spq_allocate_fail;
+	/* SPQ ring */
+	ret = qed_chain_alloc(cdev, &p_spq->chain, &params);
+	if (ret) {
+		DP_NOTICE(p_hwfn, "Failed to allocate SPQ chain\n");
+		goto spq_chain_alloc_fail;
+	}
 
 	/* allocate and fill the SPQ elements (incl. ramrod data list) */
 	capacity = qed_chain_get_capacity(&p_spq->chain);
-	p_virt = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
+	ret = -ENOMEM;
+
+	p_virt = dma_alloc_coherent(&cdev->pdev->dev,
 				    capacity * sizeof(struct qed_spq_entry),
 				    &p_phys, GFP_KERNEL);
 	if (!p_virt)
-		goto spq_allocate_fail;
+		goto spq_alloc_fail;
 
 	p_spq->p_virt = p_virt;
 	p_spq->p_phys = p_phys;
@@ -585,10 +589,12 @@ int qed_spq_alloc(struct qed_hwfn *p_hwfn)
 
 	return 0;
 
-spq_allocate_fail:
-	qed_chain_free(p_hwfn->cdev, &p_spq->chain);
+spq_alloc_fail:
+	qed_chain_free(cdev, &p_spq->chain);
+spq_chain_alloc_fail:
 	kfree(p_spq);
-	return -ENOMEM;
+
+	return ret;
 }
 
 void qed_spq_free(struct qed_hwfn *p_hwfn)
@@ -664,18 +670,18 @@ void qed_spq_return_entry(struct qed_hwfn *p_hwfn, struct qed_spq_entry *p_ent)
 }
 
 /**
- * @brief qed_spq_add_entry - adds a new entry to the pending
- *        list. Should be used while lock is being held.
+ * qed_spq_add_entry() - Add a new entry to the pending list.
+ *                       Should be used while lock is being held.
  *
- * Addes an entry to the pending list is there is room (en empty
+ * @p_hwfn: HW device data.
+ * @p_ent: An entry to add.
+ * @priority: Desired priority.
+ *
+ * Adds an entry to the pending list is there is room (an empty
  * element is available in the free_pool), or else places the
  * entry in the unlimited_pending pool.
  *
- * @param p_hwfn
- * @param p_ent
- * @param priority
- *
- * @return int
+ * Return: zero on success, -EINVAL on invalid @priority.
  */
 static int qed_spq_add_entry(struct qed_hwfn *p_hwfn,
 			     struct qed_spq_entry *p_ent,
@@ -684,7 +690,6 @@ static int qed_spq_add_entry(struct qed_hwfn *p_hwfn,
 	struct qed_spq *p_spq = p_hwfn->p_spq;
 
 	if (p_ent->queue == &p_spq->unlimited_pending) {
-
 		if (list_empty(&p_spq->free_pool)) {
 			list_add_tail(&p_ent->list, &p_spq->unlimited_pending);
 			p_spq->unlimited_pending_count++;
@@ -733,8 +738,8 @@ static int qed_spq_add_entry(struct qed_hwfn *p_hwfn,
 }
 
 /***************************************************************************
-* Accessor
-***************************************************************************/
+ * Accessor
+ ***************************************************************************/
 u32 qed_spq_get_cid(struct qed_hwfn *p_hwfn)
 {
 	if (!p_hwfn->p_spq)
@@ -743,8 +748,8 @@ u32 qed_spq_get_cid(struct qed_hwfn *p_hwfn)
 }
 
 /***************************************************************************
-* Posting new Ramrods
-***************************************************************************/
+ * Posting new Ramrods
+ ***************************************************************************/
 static int qed_spq_post_list(struct qed_hwfn *p_hwfn,
 			     struct list_head *head, u32 keep_reserve)
 {
@@ -841,8 +846,12 @@ int qed_spq_post(struct qed_hwfn *p_hwfn,
 	if (p_hwfn->cdev->recov_in_prog) {
 		DP_VERBOSE(p_hwfn,
 			   QED_MSG_SPQ,
-			   "Recovery is in progress. Skip spq post [cmd %02x protocol %02x]\n",
-			   p_ent->elem.hdr.cmd_id, p_ent->elem.hdr.protocol_id);
+			   "Recovery is in progress. Skip spq post [%s:%02x %s:%02x]\n",
+			   qed_get_ramrod_cmd_id_str(p_ent->elem.hdr.protocol_id,
+						     p_ent->elem.hdr.cmd_id),
+			   p_ent->elem.hdr.cmd_id,
+			   qed_get_protocol_type_str(p_ent->elem.hdr.protocol_id),
+			   p_ent->elem.hdr.protocol_id);
 
 		/* Let the flow complete w/o any error handling */
 		qed_spq_recov_set_ret_code(p_ent, fw_return_code);
@@ -989,30 +998,40 @@ int qed_spq_completion(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
+#define QED_SPQ_CONSQ_ELEM_SIZE		0x80
+
 int qed_consq_alloc(struct qed_hwfn *p_hwfn)
 {
+	struct qed_chain_init_params params = {
+		.mode		= QED_CHAIN_MODE_PBL,
+		.intended_use	= QED_CHAIN_USE_TO_PRODUCE,
+		.cnt_type	= QED_CHAIN_CNT_TYPE_U16,
+		.num_elems	= QED_CHAIN_PAGE_SIZE / QED_SPQ_CONSQ_ELEM_SIZE,
+		.elem_size	= QED_SPQ_CONSQ_ELEM_SIZE,
+	};
 	struct qed_consq *p_consq;
+	int ret;
 
 	/* Allocate ConsQ struct */
 	p_consq = kzalloc(sizeof(*p_consq), GFP_KERNEL);
 	if (!p_consq)
 		return -ENOMEM;
 
-	/* Allocate and initialize EQ chain*/
-	if (qed_chain_alloc(p_hwfn->cdev,
-			    QED_CHAIN_USE_TO_PRODUCE,
-			    QED_CHAIN_MODE_PBL,
-			    QED_CHAIN_CNT_TYPE_U16,
-			    QED_CHAIN_PAGE_SIZE / 0x80,
-			    0x80, &p_consq->chain, NULL))
-		goto consq_allocate_fail;
+	/* Allocate and initialize ConsQ chain */
+	ret = qed_chain_alloc(p_hwfn->cdev, &p_consq->chain, &params);
+	if (ret) {
+		DP_NOTICE(p_hwfn, "Failed to allocate ConsQ chain");
+		goto consq_alloc_fail;
+	}
 
 	p_hwfn->p_consq = p_consq;
+
 	return 0;
 
-consq_allocate_fail:
+consq_alloc_fail:
 	kfree(p_consq);
-	return -ENOMEM;
+
+	return ret;
 }
 
 void qed_consq_setup(struct qed_hwfn *p_hwfn)

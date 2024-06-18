@@ -2,61 +2,13 @@
 #include <test_progs.h>
 #include "cgroup_helpers.h"
 
-static int prog_attach(struct bpf_object *obj, int cgroup_fd, const char *title)
-{
-	enum bpf_attach_type attach_type;
-	enum bpf_prog_type prog_type;
-	struct bpf_program *prog;
-	int err;
+#include "sockopt_multi.skel.h"
 
-	err = libbpf_prog_type_by_name(title, &prog_type, &attach_type);
-	if (err) {
-		log_err("Failed to deduct types for %s BPF program", title);
-		return -1;
-	}
-
-	prog = bpf_object__find_program_by_title(obj, title);
-	if (!prog) {
-		log_err("Failed to find %s BPF program", title);
-		return -1;
-	}
-
-	err = bpf_prog_attach(bpf_program__fd(prog), cgroup_fd,
-			      attach_type, BPF_F_ALLOW_MULTI);
-	if (err) {
-		log_err("Failed to attach %s BPF program", title);
-		return -1;
-	}
-
-	return 0;
-}
-
-static int prog_detach(struct bpf_object *obj, int cgroup_fd, const char *title)
-{
-	enum bpf_attach_type attach_type;
-	enum bpf_prog_type prog_type;
-	struct bpf_program *prog;
-	int err;
-
-	err = libbpf_prog_type_by_name(title, &prog_type, &attach_type);
-	if (err)
-		return -1;
-
-	prog = bpf_object__find_program_by_title(obj, title);
-	if (!prog)
-		return -1;
-
-	err = bpf_prog_detach2(bpf_program__fd(prog), cgroup_fd,
-			       attach_type);
-	if (err)
-		return -1;
-
-	return 0;
-}
-
-static int run_getsockopt_test(struct bpf_object *obj, int cg_parent,
+static int run_getsockopt_test(struct sockopt_multi *obj, int cg_parent,
 			       int cg_child, int sock_fd)
 {
+	struct bpf_link *link_parent = NULL;
+	struct bpf_link *link_child = NULL;
 	socklen_t optlen;
 	__u8 buf;
 	int err;
@@ -89,8 +41,9 @@ static int run_getsockopt_test(struct bpf_object *obj, int cg_parent,
 	 * - child:  0x80 -> 0x90
 	 */
 
-	err = prog_attach(obj, cg_child, "cgroup/getsockopt/child");
-	if (err)
+	link_child = bpf_program__attach_cgroup(obj->progs._getsockopt_child,
+						cg_child);
+	if (!ASSERT_OK_PTR(link_child, "cg-attach-getsockopt_child"))
 		goto detach;
 
 	buf = 0x00;
@@ -113,8 +66,9 @@ static int run_getsockopt_test(struct bpf_object *obj, int cg_parent,
 	 * - parent: 0x90 -> 0xA0
 	 */
 
-	err = prog_attach(obj, cg_parent, "cgroup/getsockopt/parent");
-	if (err)
+	link_parent = bpf_program__attach_cgroup(obj->progs._getsockopt_parent,
+						 cg_parent);
+	if (!ASSERT_OK_PTR(link_parent, "cg-attach-getsockopt_parent"))
 		goto detach;
 
 	buf = 0x00;
@@ -138,7 +92,8 @@ static int run_getsockopt_test(struct bpf_object *obj, int cg_parent,
 	 */
 
 	buf = 0x40;
-	if (setsockopt(sock_fd, SOL_IP, IP_TOS, &buf, 1) < 0) {
+	err = setsockopt(sock_fd, SOL_IP, IP_TOS, &buf, 1);
+	if (err < 0) {
 		log_err("Failed to call setsockopt(IP_TOS)");
 		goto detach;
 	}
@@ -156,11 +111,8 @@ static int run_getsockopt_test(struct bpf_object *obj, int cg_parent,
 	 * - parent: unexpected 0x40, EPERM
 	 */
 
-	err = prog_detach(obj, cg_child, "cgroup/getsockopt/child");
-	if (err) {
-		log_err("Failed to detach child program");
-		goto detach;
-	}
+	bpf_link__destroy(link_child);
+	link_child = NULL;
 
 	buf = 0x00;
 	optlen = 1;
@@ -197,15 +149,17 @@ static int run_getsockopt_test(struct bpf_object *obj, int cg_parent,
 	}
 
 detach:
-	prog_detach(obj, cg_child, "cgroup/getsockopt/child");
-	prog_detach(obj, cg_parent, "cgroup/getsockopt/parent");
+	bpf_link__destroy(link_child);
+	bpf_link__destroy(link_parent);
 
 	return err;
 }
 
-static int run_setsockopt_test(struct bpf_object *obj, int cg_parent,
+static int run_setsockopt_test(struct sockopt_multi *obj, int cg_parent,
 			       int cg_child, int sock_fd)
 {
+	struct bpf_link *link_parent = NULL;
+	struct bpf_link *link_child = NULL;
 	socklen_t optlen;
 	__u8 buf;
 	int err;
@@ -235,8 +189,9 @@ static int run_setsockopt_test(struct bpf_object *obj, int cg_parent,
 
 	/* Attach child program and make sure it adds 0x10. */
 
-	err = prog_attach(obj, cg_child, "cgroup/setsockopt");
-	if (err)
+	link_child = bpf_program__attach_cgroup(obj->progs._setsockopt,
+						cg_child);
+	if (!ASSERT_OK_PTR(link_child, "cg-attach-setsockopt_child"))
 		goto detach;
 
 	buf = 0x80;
@@ -262,8 +217,9 @@ static int run_setsockopt_test(struct bpf_object *obj, int cg_parent,
 
 	/* Attach parent program and make sure it adds another 0x10. */
 
-	err = prog_attach(obj, cg_parent, "cgroup/setsockopt");
-	if (err)
+	link_parent = bpf_program__attach_cgroup(obj->progs._setsockopt,
+						 cg_parent);
+	if (!ASSERT_OK_PTR(link_parent, "cg-attach-setsockopt_parent"))
 		goto detach;
 
 	buf = 0x80;
@@ -288,45 +244,42 @@ static int run_setsockopt_test(struct bpf_object *obj, int cg_parent,
 	}
 
 detach:
-	prog_detach(obj, cg_child, "cgroup/setsockopt");
-	prog_detach(obj, cg_parent, "cgroup/setsockopt");
+	bpf_link__destroy(link_child);
+	bpf_link__destroy(link_parent);
 
 	return err;
 }
 
 void test_sockopt_multi(void)
 {
-	struct bpf_prog_load_attr attr = {
-		.file = "./sockopt_multi.o",
-	};
 	int cg_parent = -1, cg_child = -1;
-	struct bpf_object *obj = NULL;
+	struct sockopt_multi *obj = NULL;
 	int sock_fd = -1;
-	int err = -1;
-	int ignored;
 
 	cg_parent = test__join_cgroup("/parent");
-	if (CHECK_FAIL(cg_parent < 0))
+	if (!ASSERT_GE(cg_parent, 0, "join_cgroup /parent"))
 		goto out;
 
 	cg_child = test__join_cgroup("/parent/child");
-	if (CHECK_FAIL(cg_child < 0))
+	if (!ASSERT_GE(cg_child, 0, "join_cgroup /parent/child"))
 		goto out;
 
-	err = bpf_prog_load_xattr(&attr, &obj, &ignored);
-	if (CHECK_FAIL(err))
+	obj = sockopt_multi__open_and_load();
+	if (!ASSERT_OK_PTR(obj, "skel-load"))
 		goto out;
+
+	obj->bss->page_size = sysconf(_SC_PAGESIZE);
 
 	sock_fd = socket(AF_INET, SOCK_STREAM, 0);
-	if (CHECK_FAIL(sock_fd < 0))
+	if (!ASSERT_GE(sock_fd, 0, "socket"))
 		goto out;
 
-	CHECK_FAIL(run_getsockopt_test(obj, cg_parent, cg_child, sock_fd));
-	CHECK_FAIL(run_setsockopt_test(obj, cg_parent, cg_child, sock_fd));
+	ASSERT_OK(run_getsockopt_test(obj, cg_parent, cg_child, sock_fd), "getsockopt_test");
+	ASSERT_OK(run_setsockopt_test(obj, cg_parent, cg_child, sock_fd), "setsockopt_test");
 
 out:
 	close(sock_fd);
-	bpf_object__close(obj);
+	sockopt_multi__destroy(obj);
 	close(cg_child);
 	close(cg_parent);
 }

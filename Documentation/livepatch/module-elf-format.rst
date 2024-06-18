@@ -1,21 +1,14 @@
 ===========================
-Livepatch module Elf format
+Livepatch module ELF format
 ===========================
 
-This document outlines the Elf format requirements that livepatch modules must follow.
+This document outlines the ELF format requirements that livepatch modules must follow.
 
 
 .. Table of Contents
 
-   1. Background and motivation
-   2. Livepatch modinfo field
-   3. Livepatch relocation sections
-      3.1 Livepatch relocation section format
-   4. Livepatch symbols
-      4.1 A livepatch module's symbol table
-      4.2 Livepatch symbol format
-   5. Architecture-specific sections
-   6. Symbol table and Elf section access
+.. contents:: :local:
+
 
 1. Background and motivation
 ============================
@@ -27,17 +20,17 @@ code. So, instead of duplicating code and re-implementing what the module
 loader can already do, livepatch leverages existing code in the module
 loader to perform the all the arch-specific relocation work. Specifically,
 livepatch reuses the apply_relocate_add() function in the module loader to
-write relocations. The patch module Elf format described in this document
+write relocations. The patch module ELF format described in this document
 enables livepatch to be able to do this. The hope is that this will make
 livepatch more easily portable to other architectures and reduce the amount
 of arch-specific code required to port livepatch to a particular
 architecture.
 
 Since apply_relocate_add() requires access to a module's section header
-table, symbol table, and relocation section indices, Elf information is
+table, symbol table, and relocation section indices, ELF information is
 preserved for livepatch modules (see section 5). Livepatch manages its own
 relocation sections and symbols, which are described in this document. The
-Elf constants used to mark livepatch symbols and relocation sections were
+ELF constants used to mark livepatch symbols and relocation sections were
 selected from OS-specific ranges according to the definitions from glibc.
 
 Why does livepatch need to write its own relocations?
@@ -50,7 +43,7 @@ reject the livepatch module. Furthermore, we cannot apply relocations that
 affect modules not yet loaded at patch module load time (e.g. a patch to a
 driver that is not loaded). Formerly, livepatch solved this problem by
 embedding special "dynrela" (dynamic rela) sections in the resulting patch
-module Elf output. Using these dynrela sections, livepatch could resolve
+module ELF output. Using these dynrela sections, livepatch could resolve
 symbols while taking into account its scope and what module the symbol
 belongs to, and then manually apply the dynamic relocations. However this
 approach required livepatch to supply arch-specific code in order to write
@@ -87,7 +80,7 @@ Example:
 3. Livepatch relocation sections
 ================================
 
-A livepatch module manages its own Elf relocation sections to apply
+A livepatch module manages its own ELF relocation sections to apply
 relocations to modules as well as to the kernel (vmlinux) at the
 appropriate time. For example, if a patch module patches a driver that is
 not currently loaded, livepatch will apply the corresponding livepatch
@@ -102,7 +95,7 @@ also possible for a livepatch module to have no livepatch relocation
 sections, as in the case of the sample livepatch module (see
 samples/livepatch).
 
-Since Elf information is preserved for livepatch modules (see Section 5), a
+Since ELF information is preserved for livepatch modules (see Section 5), a
 livepatch relocation section can be applied simply by passing in the
 appropriate section index to apply_relocate_add(), which then uses it to
 access the relocation section and apply the relocations.
@@ -217,11 +210,11 @@ module->symtab.
 =====================================
 Normally, a stripped down copy of a module's symbol table (containing only
 "core" symbols) is made available through module->symtab (See layout_symtab()
-in kernel/module.c). For livepatch modules, the symbol table copied into memory
-on module load must be exactly the same as the symbol table produced when the
-patch module was compiled. This is because the relocations in each livepatch
-relocation section refer to their respective symbols with their symbol indices,
-and the original symbol indices (and thus the symtab ordering) must be
+in kernel/module/kallsyms.c). For livepatch modules, the symbol table copied
+into memory on module load must be exactly the same as the symbol table produced
+when the patch module was compiled. This is because the relocations in each
+livepatch relocation section refer to their respective symbols with their symbol
+indices, and the original symbol indices (and thus the symtab ordering) must be
 preserved in order for apply_relocate_add() to find the right symbol.
 
 For example, take this particular rela from a livepatch module:::
@@ -298,29 +291,12 @@ Examples:
   Note that the 'Ndx' (Section index) for these symbols is SHN_LIVEPATCH (0xff20).
   "OS" means OS-specific.
 
-5. Architecture-specific sections
-=================================
-Architectures may override arch_klp_init_object_loaded() to perform
-additional arch-specific tasks when a target module loads, such as applying
-arch-specific sections. On x86 for example, we must apply per-object
-.altinstructions and .parainstructions sections when a target module loads.
-These sections must be prefixed with ".klp.arch.$objname." so that they can
-be easily identified when iterating through a patch module's Elf sections
-(See arch/x86/kernel/livepatch.c for a complete example).
-
-6. Symbol table and Elf section access
+5. Symbol table and ELF section access
 ======================================
 A livepatch module's symbol table is accessible through module->symtab.
 
 Since apply_relocate_add() requires access to a module's section headers,
-symbol table, and relocation section indices, Elf information is preserved for
+symbol table, and relocation section indices, ELF information is preserved for
 livepatch modules and is made accessible by the module loader through
-module->klp_info, which is a klp_modinfo struct. When a livepatch module loads,
-this struct is filled in by the module loader. Its fields are documented below::
-
-	struct klp_modinfo {
-		Elf_Ehdr hdr; /* Elf header */
-		Elf_Shdr *sechdrs; /* Section header table */
-		char *secstrings; /* String table for the section headers */
-		unsigned int symndx; /* The symbol table section index */
-	};
+module->klp_info, which is a :c:type:`klp_modinfo` struct. When a livepatch module
+loads, this struct is filled in by the module loader.

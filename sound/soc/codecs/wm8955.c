@@ -619,7 +619,7 @@ static int wm8955_hw_params(struct snd_pcm_substream *substream,
 	/* If the chip is clocked then disable the clocks and force a
 	 * reconfiguration, otherwise DAPM will power up the
 	 * clocks for us later. */
-	ret = snd_soc_component_read32(component, WM8955_POWER_MANAGEMENT_1);
+	ret = snd_soc_component_read(component, WM8955_POWER_MANAGEMENT_1);
 	if (ret < 0)
 		return ret;
 	if (ret & WM8955_DIGENB) {
@@ -683,7 +683,7 @@ static int wm8955_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_B:
 		aif |= WM8955_LRP;
-		/* fall through */
+		fallthrough;
 	case SND_SOC_DAIFMT_DSP_A:
 		aif |= 0x3;
 		break;
@@ -745,7 +745,7 @@ static int wm8955_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 }
 
 
-static int wm8955_digital_mute(struct snd_soc_dai *codec_dai, int mute)
+static int wm8955_mute(struct snd_soc_dai *codec_dai, int mute, int direction)
 {
 	struct snd_soc_component *component = codec_dai->component;
 	int val;
@@ -848,7 +848,8 @@ static const struct snd_soc_dai_ops wm8955_dai_ops = {
 	.set_sysclk = wm8955_set_sysclk,
 	.set_fmt = wm8955_set_fmt,
 	.hw_params = wm8955_hw_params,
-	.digital_mute = wm8955_digital_mute,
+	.mute_stream = wm8955_mute,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8955_dai = {
@@ -951,7 +952,6 @@ static const struct snd_soc_component_driver soc_component_dev_wm8955 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config wm8955_regmap = {
@@ -962,13 +962,12 @@ static const struct regmap_config wm8955_regmap = {
 	.volatile_reg = wm8955_volatile,
 	.writeable_reg = wm8955_writeable,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = wm8955_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8955_reg_defaults),
 };
 
-static int wm8955_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int wm8955_i2c_probe(struct i2c_client *i2c)
 {
 	struct wm8955_priv *wm8955;
 	int ret;
@@ -995,7 +994,7 @@ static int wm8955_i2c_probe(struct i2c_client *i2c,
 }
 
 static const struct i2c_device_id wm8955_i2c_id[] = {
-	{ "wm8955", 0 },
+	{ "wm8955" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm8955_i2c_id);
@@ -1004,7 +1003,7 @@ static struct i2c_driver wm8955_i2c_driver = {
 	.driver = {
 		.name = "wm8955",
 	},
-	.probe =    wm8955_i2c_probe,
+	.probe = wm8955_i2c_probe,
 	.id_table = wm8955_i2c_id,
 };
 

@@ -25,6 +25,7 @@ static int jffs2_trusted_getxattr(const struct xattr_handler *handler,
 }
 
 static int jffs2_trusted_setxattr(const struct xattr_handler *handler,
+				  struct mnt_idmap *idmap,
 				  struct dentry *unused, struct inode *inode,
 				  const char *name, const void *buffer,
 				  size_t size, int flags)

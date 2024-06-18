@@ -32,30 +32,26 @@
 		typeof(b) _b = b;\
 		_a < _b ? _a : _b; })
 
-typedef enum {
-	NORMAL = 1,
-	MAIN_HEADING,
-	MAIN_MENU_BOX,
-	MAIN_MENU_FORE,
-	MAIN_MENU_BACK,
-	MAIN_MENU_GREY,
-	MAIN_MENU_HEADING,
-	SCROLLWIN_TEXT,
-	SCROLLWIN_HEADING,
-	SCROLLWIN_BOX,
-	DIALOG_TEXT,
-	DIALOG_MENU_FORE,
-	DIALOG_MENU_BACK,
-	DIALOG_BOX,
-	INPUT_BOX,
-	INPUT_HEADING,
-	INPUT_TEXT,
-	INPUT_FIELD,
-	FUNCTION_TEXT,
-	FUNCTION_HIGHLIGHT,
-	ATTR_MAX
-} attributes_t;
-extern attributes_t attributes[];
+extern int attr_normal;
+extern int attr_main_heading;
+extern int attr_main_menu_box;
+extern int attr_main_menu_fore;
+extern int attr_main_menu_back;
+extern int attr_main_menu_grey;
+extern int attr_main_menu_heading;
+extern int attr_scrollwin_text;
+extern int attr_scrollwin_heading;
+extern int attr_scrollwin_box;
+extern int attr_dialog_text;
+extern int attr_dialog_menu_fore;
+extern int attr_dialog_menu_back;
+extern int attr_dialog_box;
+extern int attr_input_box;
+extern int attr_input_heading;
+extern int attr_input_text;
+extern int attr_input_field;
+extern int attr_function_text;
+extern int attr_function_highlight;
 
 typedef enum {
 	F_HELP = 1,
@@ -71,13 +67,10 @@ typedef enum {
 
 void set_colors(void);
 
+typedef int (*extra_key_cb_fn)(int, size_t, size_t, void *);
+
 /* this changes the windows attributes !!! */
-void print_in_middle(WINDOW *win,
-		int starty,
-		int startx,
-		int width,
-		const char *string,
-		chtype color);
+void print_in_middle(WINDOW *win, int y, int width, const char *str, int attrs);
 int get_line_length(const char *line);
 int get_line_no(const char *text);
 const char *get_line(const char *text, int line_no);
@@ -87,6 +80,9 @@ int dialog_inputbox(WINDOW *main_window,
 		const char *title, const char *prompt,
 		const char *init, char **resultp, int *result_len);
 void refresh_all_windows(WINDOW *main_window);
+int show_scroll_win_ext(WINDOW *main_window, const char *title, char *text,
+			int *vscroll, int *hscroll,
+			extra_key_cb_fn extra_key_cb, void *data);
 void show_scroll_win(WINDOW *main_window,
 		const char *title,
 		const char *text);

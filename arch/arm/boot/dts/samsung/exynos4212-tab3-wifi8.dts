@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Samsung's Exynos4212 based Galaxy Tab 3 8.0 WiFi board device tree
+ * source
+ *
+ * Copyright (c) 2013 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ */
+
+/dts-v1/;
+#include "exynos4212-tab3.dtsi"
+
+/ {
+	model = "Samsung Galaxy Tab 3 8.0 WiFi (SM-T310) based on Exynos4212";
+	compatible = "samsung,t310", "samsung,tab3", "samsung,exynos4212", "samsung,exynos4";
+	chassis-type = "tablet";
+};
+
+&i2c_lightsensor {
+	status = "okay";
+
+	lightsensor@10 {
+		compatible = "capella,cm3323";
+		reg = <0x10>;
+	};
+};

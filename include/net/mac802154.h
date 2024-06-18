@@ -111,9 +111,6 @@ struct ieee802154_hw {
  *	promiscuous mode setting.
  *
  * @IEEE802154_HW_RX_OMIT_CKSUM: Indicates that receiver omits FCS.
- *
- * @IEEE802154_HW_RX_DROP_BAD_CKSUM: Indicates that receiver will not filter
- *	frames with bad checksum.
  */
 enum ieee802154_hw_flags {
 	IEEE802154_HW_TX_OMIT_CKSUM	= BIT(0),
@@ -123,7 +120,6 @@ enum ieee802154_hw_flags {
 	IEEE802154_HW_AFILT		= BIT(4),
 	IEEE802154_HW_PROMISCUOUS	= BIT(5),
 	IEEE802154_HW_RX_OMIT_CKSUM	= BIT(6),
-	IEEE802154_HW_RX_DROP_BAD_CKSUM	= BIT(7),
 };
 
 /* Indicates that receiver omits FCS and xmitter will add FCS on it's own. */
@@ -460,21 +456,6 @@ void ieee802154_unregister_hw(struct ieee802154_hw *hw);
  */
 void ieee802154_rx_irqsafe(struct ieee802154_hw *hw, struct sk_buff *skb,
 			   u8 lqi);
-/**
- * ieee802154_wake_queue - wake ieee802154 queue
- * @hw: pointer as obtained from ieee802154_alloc_hw().
- *
- * Drivers should use this function instead of netif_wake_queue.
- */
-void ieee802154_wake_queue(struct ieee802154_hw *hw);
-
-/**
- * ieee802154_stop_queue - stop ieee802154 queue
- * @hw: pointer as obtained from ieee802154_alloc_hw().
- *
- * Drivers should use this function instead of netif_stop_queue.
- */
-void ieee802154_stop_queue(struct ieee802154_hw *hw);
 
 /**
  * ieee802154_xmit_complete - frame transmission complete
@@ -485,5 +466,24 @@ void ieee802154_stop_queue(struct ieee802154_hw *hw);
  */
 void ieee802154_xmit_complete(struct ieee802154_hw *hw, struct sk_buff *skb,
 			      bool ifs_handling);
+
+/**
+ * ieee802154_xmit_error - offloaded frame transmission failed
+ *
+ * @hw: pointer as obtained from ieee802154_alloc_hw().
+ * @skb: buffer for transmission
+ * @reason: error code
+ */
+void ieee802154_xmit_error(struct ieee802154_hw *hw, struct sk_buff *skb,
+			   int reason);
+
+/**
+ * ieee802154_xmit_hw_error - frame could not be offloaded to the transmitter
+ *                            because of a hardware error (bus error, timeout, etc)
+ *
+ * @hw: pointer as obtained from ieee802154_alloc_hw().
+ * @skb: buffer for transmission
+ */
+void ieee802154_xmit_hw_error(struct ieee802154_hw *hw, struct sk_buff *skb);
 
 #endif /* NET_MAC802154_H */

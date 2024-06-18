@@ -23,14 +23,7 @@
 #ifndef __MMHUB_V9_4_H__
 #define __MMHUB_V9_4_H__
 
-u64 mmhub_v9_4_get_fb_location(struct amdgpu_device *adev);
-int mmhub_v9_4_gart_enable(struct amdgpu_device *adev);
-void mmhub_v9_4_gart_disable(struct amdgpu_device *adev);
-void mmhub_v9_4_set_fault_enable_default(struct amdgpu_device *adev,
-					 bool value);
-void mmhub_v9_4_init(struct amdgpu_device *adev);
-int mmhub_v9_4_set_clockgating(struct amdgpu_device *adev,
-			       enum amd_clockgating_state state);
-void mmhub_v9_4_get_clockgating(struct amdgpu_device *adev, u32 *flags);
+extern const struct amdgpu_mmhub_funcs mmhub_v9_4_funcs;
+extern struct amdgpu_mmhub_ras mmhub_v9_4_ras;
 
 #endif

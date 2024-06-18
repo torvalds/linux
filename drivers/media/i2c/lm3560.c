@@ -391,8 +391,7 @@ static int lm3560_init_device(struct lm3560_flash *flash)
 	return rval;
 }
 
-static int lm3560_probe(struct i2c_client *client,
-			const struct i2c_device_id *devid)
+static int lm3560_probe(struct i2c_client *client)
 {
 	struct lm3560_flash *flash;
 	struct lm3560_platform_data *pdata = dev_get_platdata(&client->dev);
@@ -443,7 +442,7 @@ static int lm3560_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int lm3560_remove(struct i2c_client *client)
+static void lm3560_remove(struct i2c_client *client)
 {
 	struct lm3560_flash *flash = i2c_get_clientdata(client);
 	unsigned int i;
@@ -453,8 +452,6 @@ static int lm3560_remove(struct i2c_client *client)
 		v4l2_ctrl_handler_free(&flash->ctrls_led[i]);
 		media_entity_cleanup(&flash->subdev_led[i].entity);
 	}
-
-	return 0;
 }
 
 static const struct i2c_device_id lm3560_id_table[] = {

@@ -17,6 +17,7 @@
 #include <asm/byteorder.h>
 #include <asm/barrier.h>
 
+#include "hinic_hw_dev.h"
 #include "hinic_hw_csr.h"
 #include "hinic_hw_if.h"
 #include "hinic_hw_eqs.h"
@@ -105,7 +106,7 @@ enum eq_arm_state {
  * @aeqs: pointer to Async eqs of the chip
  * @event: aeq event to register callback for it
  * @handle: private data will be used by the callback
- * @hw_handler: callback function
+ * @hwe_handler: callback function
  **/
 void hinic_aeq_register_hw_cb(struct hinic_aeqs *aeqs,
 			      enum hinic_aeq_type event, void *handle,
@@ -187,8 +188,9 @@ static u8 eq_cons_idx_checksum_set(u32 val)
 /**
  * eq_update_ci - update the HW cons idx of event queue
  * @eq: the event queue to update the cons idx for
+ * @arm_state: the arm bit value of eq's interrupt
  **/
-static void eq_update_ci(struct hinic_eq *eq)
+static void eq_update_ci(struct hinic_eq *eq, u32 arm_state)
 {
 	u32 val, addr = EQ_CONS_IDX_REG_ADDR(eq);
 
@@ -202,7 +204,7 @@ static void eq_update_ci(struct hinic_eq *eq)
 
 	val |= HINIC_EQ_CI_SET(eq->cons_idx, IDX)    |
 	       HINIC_EQ_CI_SET(eq->wrapped, WRAPPED) |
-	       HINIC_EQ_CI_SET(EQ_ARMED, INT_ARMED);
+	       HINIC_EQ_CI_SET(arm_state, INT_ARMED);
 
 	val |= HINIC_EQ_CI_SET(eq_cons_idx_checksum_set(val), XOR_CHKSUM);
 
@@ -235,6 +237,8 @@ static void aeq_irq_handler(struct hinic_eq *eq)
 		if (HINIC_EQ_ELEM_DESC_GET(aeqe_desc, WRAPPED) == eq->wrapped)
 			break;
 
+		dma_rmb();
+
 		event = HINIC_EQ_ELEM_DESC_GET(aeqe_desc, TYPE);
 		if (event >= HINIC_MAX_AEQ_EVENTS) {
 			dev_err(&pdev->dev, "Unknown AEQ Event %d\n", event);
@@ -250,8 +254,8 @@ static void aeq_irq_handler(struct hinic_eq *eq)
 					    HINIC_EQE_ENABLED,
 					    HINIC_EQE_ENABLED |
 					    HINIC_EQE_RUNNING);
-			if ((eqe_state == HINIC_EQE_ENABLED) &&
-			    (hwe_cb->hwe_handler))
+			if (eqe_state == HINIC_EQE_ENABLED &&
+			    hwe_cb->hwe_handler)
 				hwe_cb->hwe_handler(hwe_cb->handle,
 						    aeqe_curr->data, size);
 			else
@@ -295,7 +299,7 @@ static void ceq_event_handler(struct hinic_ceqs *ceqs, u32 ceqe)
 			    HINIC_EQE_ENABLED,
 			    HINIC_EQE_ENABLED | HINIC_EQE_RUNNING);
 
-	if ((eqe_state == HINIC_EQE_ENABLED) && (ceq_cb->handler))
+	if (eqe_state == HINIC_EQE_ENABLED && ceq_cb->handler)
 		ceq_cb->handler(ceq_cb->handle, CEQE_DATA(ceqe));
 	else
 		dev_err(&pdev->dev, "Unhandled CEQ Event %d\n", event);
@@ -347,7 +351,7 @@ static void eq_irq_handler(void *data)
 	else if (eq->type == HINIC_CEQ)
 		ceq_irq_handler(eq);
 
-	eq_update_ci(eq);
+	eq_update_ci(eq, EQ_ARMED);
 }
 
 /**
@@ -365,11 +369,11 @@ static void eq_irq_work(struct work_struct *work)
 
 /**
  * ceq_tasklet - the tasklet of the EQ that received the event
- * @ceq_data: the eq
+ * @t: the tasklet struct pointer
  **/
-static void ceq_tasklet(unsigned long ceq_data)
+static void ceq_tasklet(struct tasklet_struct *t)
 {
-	struct hinic_eq *ceq = (struct hinic_eq *)ceq_data;
+	struct hinic_eq *ceq = from_tasklet(ceq, t, ceq_tasklet);
 
 	eq_irq_handler(ceq);
 }
@@ -414,11 +418,11 @@ static irqreturn_t ceq_interrupt(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void set_ctrl0(struct hinic_eq *eq)
+static u32 get_ctrl0_val(struct hinic_eq *eq, u32 addr)
 {
 	struct msix_entry *msix_entry = &eq->msix_entry;
 	enum hinic_eq_type type = eq->type;
-	u32 addr, val, ctrl0;
+	u32 val, ctrl0;
 
 	if (type == HINIC_AEQ) {
 		/* RMW Ctrl0 */
@@ -438,9 +442,7 @@ static void set_ctrl0(struct hinic_eq *eq)
 			HINIC_AEQ_CTRL_0_SET(EQ_INT_MODE_ARMED, INT_MODE);
 
 		val |= ctrl0;
-
-		hinic_hwif_write_reg(eq->hwif, addr, val);
-	} else if (type == HINIC_CEQ) {
+	} else {
 		/* RMW Ctrl0 */
 		addr = HINIC_CSR_CEQ_CTRL_0_ADDR(eq->q_id);
 
@@ -460,16 +462,28 @@ static void set_ctrl0(struct hinic_eq *eq)
 			HINIC_CEQ_CTRL_0_SET(EQ_INT_MODE_ARMED, INTR_MODE);
 
 		val |= ctrl0;
-
-		hinic_hwif_write_reg(eq->hwif, addr, val);
 	}
+	return val;
 }
 
-static void set_ctrl1(struct hinic_eq *eq)
+static void set_ctrl0(struct hinic_eq *eq)
 {
+	u32 val, addr;
+
+	if (eq->type == HINIC_AEQ)
+		addr = HINIC_CSR_AEQ_CTRL_0_ADDR(eq->q_id);
+	else
+		addr = HINIC_CSR_CEQ_CTRL_0_ADDR(eq->q_id);
+
+	val = get_ctrl0_val(eq, addr);
+
+	hinic_hwif_write_reg(eq->hwif, addr, val);
+}
+
+static u32 get_ctrl1_val(struct hinic_eq *eq, u32 addr)
+{
+	u32 page_size_val, elem_size, val, ctrl1;
 	enum hinic_eq_type type = eq->type;
-	u32 page_size_val, elem_size;
-	u32 addr, val, ctrl1;
 
 	if (type == HINIC_AEQ) {
 		/* RMW Ctrl1 */
@@ -489,9 +503,7 @@ static void set_ctrl1(struct hinic_eq *eq)
 			HINIC_AEQ_CTRL_1_SET(page_size_val, PAGE_SIZE);
 
 		val |= ctrl1;
-
-		hinic_hwif_write_reg(eq->hwif, addr, val);
-	} else if (type == HINIC_CEQ) {
+	} else {
 		/* RMW Ctrl1 */
 		addr = HINIC_CSR_CEQ_CTRL_1_ADDR(eq->q_id);
 
@@ -506,19 +518,70 @@ static void set_ctrl1(struct hinic_eq *eq)
 			HINIC_CEQ_CTRL_1_SET(page_size_val, PAGE_SIZE);
 
 		val |= ctrl1;
-
-		hinic_hwif_write_reg(eq->hwif, addr, val);
 	}
+	return val;
+}
+
+static void set_ctrl1(struct hinic_eq *eq)
+{
+	u32 addr, val;
+
+	if (eq->type == HINIC_AEQ)
+		addr = HINIC_CSR_AEQ_CTRL_1_ADDR(eq->q_id);
+	else
+		addr = HINIC_CSR_CEQ_CTRL_1_ADDR(eq->q_id);
+
+	val = get_ctrl1_val(eq, addr);
+
+	hinic_hwif_write_reg(eq->hwif, addr, val);
+}
+
+static int set_ceq_ctrl_reg(struct hinic_eq *eq)
+{
+	struct hinic_ceq_ctrl_reg ceq_ctrl = {0};
+	struct hinic_hwdev *hwdev = eq->hwdev;
+	u16 out_size = sizeof(ceq_ctrl);
+	u16 in_size = sizeof(ceq_ctrl);
+	struct hinic_pfhwdev *pfhwdev;
+	u32 addr;
+	int err;
+
+	pfhwdev = container_of(hwdev, struct hinic_pfhwdev, hwdev);
+
+	addr = HINIC_CSR_CEQ_CTRL_0_ADDR(eq->q_id);
+	ceq_ctrl.ctrl0 = get_ctrl0_val(eq, addr);
+	addr = HINIC_CSR_CEQ_CTRL_1_ADDR(eq->q_id);
+	ceq_ctrl.ctrl1 = get_ctrl1_val(eq, addr);
+
+	ceq_ctrl.func_id = HINIC_HWIF_FUNC_IDX(hwdev->hwif);
+	ceq_ctrl.q_id = eq->q_id;
+
+	err = hinic_msg_to_mgmt(&pfhwdev->pf_to_mgmt, HINIC_MOD_COMM,
+				HINIC_COMM_CMD_CEQ_CTRL_REG_WR_BY_UP,
+				&ceq_ctrl, in_size,
+				&ceq_ctrl, &out_size, HINIC_MGMT_MSG_SYNC);
+	if (err || !out_size || ceq_ctrl.status) {
+		dev_err(&hwdev->hwif->pdev->dev,
+			"Failed to set ceq %d ctrl reg, err: %d status: 0x%x, out_size: 0x%x\n",
+			eq->q_id, err, ceq_ctrl.status, out_size);
+		return -EFAULT;
+	}
+
+	return 0;
 }
 
 /**
  * set_eq_ctrls - setting eq's ctrl registers
  * @eq: the Event Queue for setting
  **/
-static void set_eq_ctrls(struct hinic_eq *eq)
+static int set_eq_ctrls(struct hinic_eq *eq)
 {
+	if (HINIC_IS_VF(eq->hwif) && eq->type == HINIC_CEQ)
+		return set_ceq_ctrl_reg(eq);
+
 	set_ctrl0(eq);
 	set_ctrl1(eq);
+	return 0;
 }
 
 /**
@@ -568,16 +631,15 @@ static int alloc_eq_pages(struct hinic_eq *eq)
 	struct hinic_hwif *hwif = eq->hwif;
 	struct pci_dev *pdev = hwif->pdev;
 	u32 init_val, addr, val;
-	size_t addr_size;
 	int err, pg;
 
-	addr_size = eq->num_pages * sizeof(*eq->dma_addr);
-	eq->dma_addr = devm_kzalloc(&pdev->dev, addr_size, GFP_KERNEL);
+	eq->dma_addr = devm_kcalloc(&pdev->dev, eq->num_pages,
+				    sizeof(*eq->dma_addr), GFP_KERNEL);
 	if (!eq->dma_addr)
 		return -ENOMEM;
 
-	addr_size = eq->num_pages * sizeof(*eq->virt_addr);
-	eq->virt_addr = devm_kzalloc(&pdev->dev, addr_size, GFP_KERNEL);
+	eq->virt_addr = devm_kcalloc(&pdev->dev, eq->num_pages,
+				     sizeof(*eq->virt_addr), GFP_KERNEL);
 	if (!eq->virt_addr) {
 		err = -ENOMEM;
 		goto err_virt_addr_alloc;
@@ -701,8 +763,13 @@ static int init_eq(struct hinic_eq *eq, struct hinic_hwif *hwif,
 		return -EINVAL;
 	}
 
-	set_eq_ctrls(eq);
-	eq_update_ci(eq);
+	err = set_eq_ctrls(eq);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to set eq ctrls\n");
+		return err;
+	}
+
+	eq_update_ci(eq, EQ_ARMED);
 
 	err = alloc_eq_pages(eq);
 	if (err) {
@@ -715,8 +782,7 @@ static int init_eq(struct hinic_eq *eq, struct hinic_hwif *hwif,
 
 		INIT_WORK(&aeq_work->work, eq_irq_work);
 	} else if (type == HINIC_CEQ) {
-		tasklet_init(&eq->ceq_tasklet, ceq_tasklet,
-			     (unsigned long)eq);
+		tasklet_setup(&eq->ceq_tasklet, ceq_tasklet);
 	}
 
 	/* set the attributes of the msix entry */
@@ -727,12 +793,15 @@ static int init_eq(struct hinic_eq *eq, struct hinic_hwif *hwif,
 			    HINIC_EQ_MSIX_LLI_CREDIT_LIMIT_DEFAULT,
 			    HINIC_EQ_MSIX_RESEND_TIMER_DEFAULT);
 
-	if (type == HINIC_AEQ)
-		err = request_irq(entry.vector, aeq_interrupt, 0,
-				  "hinic_aeq", eq);
-	else if (type == HINIC_CEQ)
-		err = request_irq(entry.vector, ceq_interrupt, 0,
-				  "hinic_ceq", eq);
+	if (type == HINIC_AEQ) {
+		snprintf(eq->irq_name, sizeof(eq->irq_name), "hinic_aeq%d@pci:%s", eq->q_id,
+			 pci_name(pdev));
+		err = request_irq(entry.vector, aeq_interrupt, 0, eq->irq_name, eq);
+	} else if (type == HINIC_CEQ) {
+		snprintf(eq->irq_name, sizeof(eq->irq_name), "hinic_ceq%d@pci:%s", eq->q_id,
+			 pci_name(pdev));
+		err = request_irq(entry.vector, ceq_interrupt, 0, eq->irq_name, eq);
+	}
 
 	if (err) {
 		dev_err(&pdev->dev, "Failed to request irq for the EQ\n");
@@ -752,17 +821,27 @@ err_req_irq:
  **/
 static void remove_eq(struct hinic_eq *eq)
 {
-	struct msix_entry *entry = &eq->msix_entry;
-
-	free_irq(entry->vector, eq);
+	hinic_set_msix_state(eq->hwif, eq->msix_entry.entry,
+			     HINIC_MSIX_DISABLE);
+	free_irq(eq->msix_entry.vector, eq);
 
 	if (eq->type == HINIC_AEQ) {
 		struct hinic_eq_work *aeq_work = &eq->aeq_work;
 
 		cancel_work_sync(&aeq_work->work);
+		/* clear aeq_len to avoid hw access host memory */
+		hinic_hwif_write_reg(eq->hwif,
+				     HINIC_CSR_AEQ_CTRL_1_ADDR(eq->q_id), 0);
 	} else if (eq->type == HINIC_CEQ) {
 		tasklet_kill(&eq->ceq_tasklet);
+		/* clear ceq_len to avoid hw access host memory */
+		hinic_hwif_write_reg(eq->hwif,
+				     HINIC_CSR_CEQ_CTRL_1_ADDR(eq->q_id), 0);
 	}
+
+	/* update cons_idx to avoid invalid interrupt */
+	eq->cons_idx = hinic_hwif_read_reg(eq->hwif, EQ_PROD_IDX_REG_ADDR(eq));
+	eq_update_ci(eq, EQ_NOT_ARMED);
 
 	free_eq_pages(eq);
 }
@@ -847,6 +926,7 @@ int hinic_ceqs_init(struct hinic_ceqs *ceqs, struct hinic_hwif *hwif,
 	ceqs->num_ceqs = num_ceqs;
 
 	for (q_id = 0; q_id < num_ceqs; q_id++) {
+		ceqs->ceq[q_id].hwdev = ceqs->hwdev;
 		err = init_eq(&ceqs->ceq[q_id], hwif, HINIC_CEQ, q_id, q_len,
 			      page_size, msix_entries[q_id]);
 		if (err) {
@@ -874,4 +954,43 @@ void hinic_ceqs_free(struct hinic_ceqs *ceqs)
 
 	for (q_id = 0; q_id < ceqs->num_ceqs; q_id++)
 		remove_eq(&ceqs->ceq[q_id]);
+}
+
+void hinic_dump_ceq_info(struct hinic_hwdev *hwdev)
+{
+	struct hinic_eq *eq = NULL;
+	u32 addr, ci, pi;
+	int q_id;
+
+	for (q_id = 0; q_id < hwdev->func_to_io.ceqs.num_ceqs; q_id++) {
+		eq = &hwdev->func_to_io.ceqs.ceq[q_id];
+		addr = EQ_CONS_IDX_REG_ADDR(eq);
+		ci = hinic_hwif_read_reg(hwdev->hwif, addr);
+		addr = EQ_PROD_IDX_REG_ADDR(eq);
+		pi = hinic_hwif_read_reg(hwdev->hwif, addr);
+		dev_err(&hwdev->hwif->pdev->dev, "Ceq id: %d, ci: 0x%08x, sw_ci: 0x%08x, pi: 0x%x, tasklet_state: 0x%lx, wrap: %d, ceqe: 0x%x\n",
+			q_id, ci, eq->cons_idx, pi,
+			eq->ceq_tasklet.state,
+			eq->wrapped, be32_to_cpu(*(__be32 *)(GET_CURR_CEQ_ELEM(eq))));
+	}
+}
+
+void hinic_dump_aeq_info(struct hinic_hwdev *hwdev)
+{
+	struct hinic_aeq_elem *aeqe_pos = NULL;
+	struct hinic_eq *eq = NULL;
+	u32 addr, ci, pi;
+	int q_id;
+
+	for (q_id = 0; q_id < hwdev->aeqs.num_aeqs; q_id++) {
+		eq = &hwdev->aeqs.aeq[q_id];
+		addr = EQ_CONS_IDX_REG_ADDR(eq);
+		ci = hinic_hwif_read_reg(hwdev->hwif, addr);
+		addr = EQ_PROD_IDX_REG_ADDR(eq);
+		pi = hinic_hwif_read_reg(hwdev->hwif, addr);
+		aeqe_pos = GET_CURR_AEQ_ELEM(eq);
+		dev_err(&hwdev->hwif->pdev->dev, "Aeq id: %d, ci: 0x%08x, pi: 0x%x, work_state: 0x%x, wrap: %d, desc: 0x%x\n",
+			q_id, ci, pi, work_busy(&eq->aeq_work.work),
+			eq->wrapped, be32_to_cpu(aeqe_pos->desc));
+	}
 }

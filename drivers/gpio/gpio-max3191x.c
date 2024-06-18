@@ -31,6 +31,7 @@
  */
 
 #include <linux/bitmap.h>
+#include <linux/bitops.h>
 #include <linux/crc8.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
@@ -94,7 +95,7 @@ DECLARE_CRC8_TABLE(max3191x_crc8);
 
 static int max3191x_get_direction(struct gpio_chip *gpio, unsigned int offset)
 {
-	return 1; /* always in */
+	return GPIO_LINE_DIRECTION_IN; /* always in */
 }
 
 static int max3191x_direction_input(struct gpio_chip *gpio, unsigned int offset)
@@ -232,16 +233,20 @@ static int max3191x_get_multiple(struct gpio_chip *gpio, unsigned long *mask,
 				 unsigned long *bits)
 {
 	struct max3191x_chip *max3191x = gpiochip_get_data(gpio);
-	int ret, bit = 0, wordlen = max3191x_wordlen(max3191x);
+	const unsigned int wordlen = max3191x_wordlen(max3191x);
+	int ret;
+	unsigned long bit;
+	unsigned long gpio_mask;
+	unsigned long in;
 
 	mutex_lock(&max3191x->lock);
 	ret = max3191x_readout_locked(max3191x);
 	if (ret)
 		goto out_unlock;
 
-	while ((bit = find_next_bit(mask, gpio->ngpio, bit)) != gpio->ngpio) {
+	bitmap_zero(bits, gpio->ngpio);
+	for_each_set_clump8(bit, gpio_mask, mask, gpio->ngpio) {
 		unsigned int chipnum = bit / MAX3191X_NGPIO;
-		unsigned long in, shift, index;
 
 		if (max3191x_chip_is_faulting(max3191x, chipnum)) {
 			ret = -EIO;
@@ -249,12 +254,8 @@ static int max3191x_get_multiple(struct gpio_chip *gpio, unsigned long *mask,
 		}
 
 		in = ((u8 *)max3191x->xfer.rx_buf)[chipnum * wordlen];
-		shift = round_down(bit % BITS_PER_LONG, MAX3191X_NGPIO);
-		index = bit / BITS_PER_LONG;
-		bits[index] &= ~(mask[index] & (0xff << shift));
-		bits[index] |= mask[index] & (in << shift); /* copy bits */
-
-		bit = (chipnum + 1) * MAX3191X_NGPIO; /* go to next chip */
+		in &= gpio_mask;
+		bitmap_set_value8(bits, in, bit);
 	}
 
 out_unlock:
@@ -325,7 +326,7 @@ static void gpiod_set_array_single_value_cansleep(unsigned int ndescs,
 		bitmap_zero(values, ndescs);
 
 	gpiod_set_array_value_cansleep(ndescs, desc, info, values);
-	kfree(values);
+	bitmap_free(values);
 }
 
 static struct gpio_descs *devm_gpiod_get_array_optional_count(
@@ -442,14 +443,12 @@ static int max3191x_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int max3191x_remove(struct spi_device *spi)
+static void max3191x_remove(struct spi_device *spi)
 {
 	struct max3191x_chip *max3191x = spi_get_drvdata(spi);
 
 	gpiochip_remove(&max3191x->gpio);
 	mutex_destroy(&max3191x->lock);
-
-	return 0;
 }
 
 static int __init max3191x_register_driver(struct spi_driver *sdrv)
@@ -458,7 +457,6 @@ static int __init max3191x_register_driver(struct spi_driver *sdrv)
 	return spi_register_driver(sdrv);
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id max3191x_of_id[] = {
 	{ .compatible = "maxim,max31910" },
 	{ .compatible = "maxim,max31911" },
@@ -469,7 +467,6 @@ static const struct of_device_id max3191x_of_id[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(of, max3191x_of_id);
-#endif
 
 static const struct spi_device_id max3191x_spi_id[] = {
 	{ "max31910" },
@@ -485,7 +482,7 @@ MODULE_DEVICE_TABLE(spi, max3191x_spi_id);
 static struct spi_driver max3191x_driver = {
 	.driver = {
 		.name		= "max3191x",
-		.of_match_table	= of_match_ptr(max3191x_of_id),
+		.of_match_table	= max3191x_of_id,
 	},
 	.probe	  = max3191x_probe,
 	.remove	  = max3191x_remove,

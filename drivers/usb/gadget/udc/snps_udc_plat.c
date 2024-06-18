@@ -8,7 +8,6 @@
 #include <linux/extcon.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/phy/phy.h>
 #include <linux/module.h>
@@ -112,10 +111,9 @@ static int udc_plat_probe(struct platform_device *pdev)
 	spin_lock_init(&udc->lock);
 	udc->dev = dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	udc->virt_addr = devm_ioremap_resource(dev, res);
-	if (IS_ERR(udc->regs))
-		return PTR_ERR(udc->regs);
+	udc->virt_addr = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
+	if (IS_ERR(udc->virt_addr))
+		return PTR_ERR(udc->virt_addr);
 
 	/* udc csr registers base */
 	udc->csr = udc->virt_addr + UDC_CSR_ADDR;
@@ -158,7 +156,7 @@ static int udc_plat_probe(struct platform_device *pdev)
 	}
 
 	/* Register for extcon if supported */
-	if (of_get_property(dev->of_node, "extcon", NULL)) {
+	if (of_property_present(dev->of_node, "extcon")) {
 		udc->edev = extcon_get_edev_by_phandle(dev, 0);
 		if (IS_ERR(udc->edev)) {
 			if (PTR_ERR(udc->edev) == -EPROBE_DEFER)
@@ -225,7 +223,7 @@ exit_phy:
 	return ret;
 }
 
-static int udc_plat_remove(struct platform_device *pdev)
+static void udc_plat_remove(struct platform_device *pdev)
 {
 	struct udc *dev;
 
@@ -234,7 +232,7 @@ static int udc_plat_remove(struct platform_device *pdev)
 	usb_del_gadget_udc(&dev->gadget);
 	/* gadget driver must not be registered */
 	if (WARN_ON(dev->driver))
-		return 0;
+		return;
 
 	/* dma pool cleanup */
 	free_dma_pools(dev);
@@ -243,18 +241,11 @@ static int udc_plat_remove(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, NULL);
 
-	if (dev->drd_wq) {
-		flush_workqueue(dev->drd_wq);
-		destroy_workqueue(dev->drd_wq);
-	}
-
 	phy_power_off(dev->udc_phy);
 	phy_exit(dev->udc_phy);
 	extcon_unregister_notifier(dev->edev, EXTCON_USB, &dev->nb);
 
 	dev_info(&pdev->dev, "Synopsys UDC platform driver removed\n");
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -308,7 +299,6 @@ static const struct dev_pm_ops udc_plat_pm_ops = {
 };
 #endif
 
-#if defined(CONFIG_OF)
 static const struct of_device_id of_udc_match[] = {
 	{ .compatible = "brcm,ns2-udc", },
 	{ .compatible = "brcm,cygnus-udc", },
@@ -316,14 +306,13 @@ static const struct of_device_id of_udc_match[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(of, of_udc_match);
-#endif
 
 static struct platform_driver udc_plat_driver = {
 	.probe		= udc_plat_probe,
-	.remove		= udc_plat_remove,
+	.remove_new	= udc_plat_remove,
 	.driver		= {
 		.name	= "snps-udc-plat",
-		.of_match_table = of_match_ptr(of_udc_match),
+		.of_match_table = of_udc_match,
 #ifdef CONFIG_PM_SLEEP
 		.pm	= &udc_plat_pm_ops,
 #endif

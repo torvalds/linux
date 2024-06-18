@@ -16,15 +16,23 @@ Available fault injection capabilities
 
   injects page allocation failures. (alloc_pages(), get_free_pages(), ...)
 
+- fail_usercopy
+
+  injects failures in user memory access functions. (copy_from_user(), get_user(), ...)
+
 - fail_futex
 
   injects futex deadlock and uaddr fault errors.
+
+- fail_sunrpc
+
+  injects kernel RPC client and server failures.
 
 - fail_make_request
 
   injects disk IO errors on devices permitted by setting
   /sys/block/<device>/make-it-fail or
-  /sys/block/<device>/<partition>/make-it-fail. (generic_make_request())
+  /sys/block/<device>/<partition>/make-it-fail. (submit_bio_noacct())
 
 - fail_mmc_request
 
@@ -44,6 +52,14 @@ Available fault injection capabilities
   status code is NVME_SC_INVALID_OPCODE with no retry. The status code and
   retry flag can be set via the debugfs.
 
+- Null test block driver fault injection
+
+  inject IO timeouts by setting config items under
+  /sys/kernel/config/nullb/<disk>/timeout_inject,
+  inject requeue requests by setting config items under
+  /sys/kernel/config/nullb/<disk>/requeue_inject, and
+  inject init_hctx() errors by setting config items under
+  /sys/kernel/config/nullb/<disk>/init_hctx_fault_inject.
 
 Configure fault-injection capabilities behavior
 -----------------------------------------------
@@ -74,8 +90,8 @@ configuration of fault-injection capabilities.
 
 - /sys/kernel/debug/fail*/times:
 
-	specifies how many times failures may happen at most.
-	A value of -1 means "no limit".
+	specifies how many times failures may happen at most. A value of -1
+	means "no limit".
 
 - /sys/kernel/debug/fail*/space:
 
@@ -122,16 +138,16 @@ configuration of fault-injection capabilities.
 
 	Format: { 'Y' | 'N' }
 
-	default is 'N', setting it to 'Y' won't inject failures into
-	highmem/user allocations.
+	default is 'Y', setting it to 'N' will also inject failures into
+	highmem/user allocations (__GFP_HIGHMEM allocations).
 
 - /sys/kernel/debug/failslab/ignore-gfp-wait:
 - /sys/kernel/debug/fail_page_alloc/ignore-gfp-wait:
 
 	Format: { 'Y' | 'N' }
 
-	default is 'N', setting it to 'Y' will inject failures
-	only into non-sleep allocations (GFP_ATOMIC allocations).
+	default is 'Y', setting it to 'N' will also inject failures
+	into allocations that can sleep (__GFP_DIRECT_RECLAIM allocations).
 
 - /sys/kernel/debug/fail_page_alloc/min-order:
 
@@ -144,6 +160,27 @@ configuration of fault-injection capabilities.
 
 	default is 'N', setting it to 'Y' will disable failure injections
 	when dealing with private (address space) futexes.
+
+- /sys/kernel/debug/fail_sunrpc/ignore-client-disconnect:
+
+	Format: { 'Y' | 'N' }
+
+	default is 'N', setting it to 'Y' will disable disconnect
+	injection on the RPC client.
+
+- /sys/kernel/debug/fail_sunrpc/ignore-server-disconnect:
+
+	Format: { 'Y' | 'N' }
+
+	default is 'N', setting it to 'Y' will disable disconnect
+	injection on the RPC server.
+
+- /sys/kernel/debug/fail_sunrpc/ignore-cache-wait:
+
+	Format: { 'Y' | 'N' }
+
+	default is 'N', setting it to 'Y' will disable cache wait
+	injection on the RPC server.
 
 - /sys/kernel/debug/fail_function/inject:
 
@@ -163,11 +200,13 @@ configuration of fault-injection capabilities.
 	- ERRNO: retval must be -1 to -MAX_ERRNO (-4096).
 	- ERR_NULL: retval must be 0 or -1 to -MAX_ERRNO (-4096).
 
-- /sys/kernel/debug/fail_function/<functiuon-name>/retval:
+- /sys/kernel/debug/fail_function/<function-name>/retval:
 
-	specifies the "error" return value to inject to the given
-	function for given function. This will be created when
-	user specifies new injection entry.
+	specifies the "error" return value to inject to the given function.
+	This will be created when the user specifies a new injection entry.
+	Note that this file only accepts unsigned values. So, if you want to
+	use a negative errno, you better use 'printf' instead of 'echo', e.g.:
+	$ printf %#x -12 > retval
 
 Boot option
 ^^^^^^^^^^^
@@ -177,6 +216,7 @@ use the boot option::
 
 	failslab=
 	fail_page_alloc=
+	fail_usercopy=
 	fail_make_request=
 	fail_futex=
 	mmc_core.fail_request=<interval>,<probability>,<space>,<times>
@@ -198,6 +238,71 @@ proc entries
 
 	This feature is intended for systematic testing of faults in a single
 	system call. See an example below.
+
+
+Error Injectable Functions
+--------------------------
+
+This part is for the kernel developers considering to add a function to
+ALLOW_ERROR_INJECTION() macro.
+
+Requirements for the Error Injectable Functions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Since the function-level error injection forcibly changes the code path
+and returns an error even if the input and conditions are proper, this can
+cause unexpected kernel crash if you allow error injection on the function
+which is NOT error injectable. Thus, you (and reviewers) must ensure;
+
+- The function returns an error code if it fails, and the callers must check
+  it correctly (need to recover from it).
+
+- The function does not execute any code which can change any state before
+  the first error return. The state includes global or local, or input
+  variable. For example, clear output address storage (e.g. `*ret = NULL`),
+  increments/decrements counter, set a flag, preempt/irq disable or get
+  a lock (if those are recovered before returning error, that will be OK.)
+
+The first requirement is important, and it will result in that the release
+(free objects) functions are usually harder to inject errors than allocate
+functions. If errors of such release functions are not correctly handled
+it will cause a memory leak easily (the caller will confuse that the object
+has been released or corrupted.)
+
+The second one is for the caller which expects the function should always
+does something. Thus if the function error injection skips whole of the
+function, the expectation is betrayed and causes an unexpected error.
+
+Type of the Error Injectable Functions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Each error injectable functions will have the error type specified by the
+ALLOW_ERROR_INJECTION() macro. You have to choose it carefully if you add
+a new error injectable function. If the wrong error type is chosen, the
+kernel may crash because it may not be able to handle the error.
+There are 4 types of errors defined in include/asm-generic/error-injection.h
+
+EI_ETYPE_NULL
+  This function will return `NULL` if it fails. e.g. return an allocateed
+  object address.
+
+EI_ETYPE_ERRNO
+  This function will return an `-errno` error code if it fails. e.g. return
+  -EINVAL if the input is wrong. This will include the functions which will
+  return an address which encodes `-errno` by ERR_PTR() macro.
+
+EI_ETYPE_ERRNO_NULL
+  This function will return an `-errno` or `NULL` if it fails. If the caller
+  of this function checks the return value with IS_ERR_OR_NULL() macro, this
+  type will be appropriate.
+
+EI_ETYPE_TRUE
+  This function will return `true` (non-zero positive value) if it fails.
+
+If you specifies a wrong type, for example, EI_TYPE_ERRNO for the function
+which returns an allocated object, it may cause a problem because the returned
+value is not an object address and the caller can not access to the address.
+
 
 How to add new fault injection capability
 -----------------------------------------
@@ -222,7 +327,7 @@ How to add new fault injection capability
 
 - debugfs entries
 
-  failslab, fail_page_alloc, and fail_make_request use this way.
+  failslab, fail_page_alloc, fail_usercopy, and fail_make_request use this way.
   Helper functions:
 
 	fault_create_debugfs_attr(name, parent, attr);
@@ -253,7 +358,7 @@ Application Examples
     echo -1 > /sys/kernel/debug/$FAILTYPE/times
     echo 0 > /sys/kernel/debug/$FAILTYPE/space
     echo 2 > /sys/kernel/debug/$FAILTYPE/verbose
-    echo 1 > /sys/kernel/debug/$FAILTYPE/ignore-gfp-wait
+    echo Y > /sys/kernel/debug/$FAILTYPE/ignore-gfp-wait
 
     faulty_system()
     {
@@ -307,8 +412,8 @@ Application Examples
     echo -1 > /sys/kernel/debug/$FAILTYPE/times
     echo 0 > /sys/kernel/debug/$FAILTYPE/space
     echo 2 > /sys/kernel/debug/$FAILTYPE/verbose
-    echo 1 > /sys/kernel/debug/$FAILTYPE/ignore-gfp-wait
-    echo 1 > /sys/kernel/debug/$FAILTYPE/ignore-gfp-highmem
+    echo Y > /sys/kernel/debug/$FAILTYPE/ignore-gfp-wait
+    echo Y > /sys/kernel/debug/$FAILTYPE/ignore-gfp-highmem
     echo 10 > /sys/kernel/debug/$FAILTYPE/stacktrace-depth
 
     trap "echo 0 > /sys/kernel/debug/$FAILTYPE/probability" SIGINT SIGTERM EXIT
@@ -331,7 +436,7 @@ Application Examples
     FAILTYPE=fail_function
     FAILFUNC=open_ctree
     echo $FAILFUNC > /sys/kernel/debug/$FAILTYPE/inject
-    echo -12 > /sys/kernel/debug/$FAILTYPE/$FAILFUNC/retval
+    printf %#x -12 > /sys/kernel/debug/$FAILTYPE/$FAILFUNC/retval
     echo N > /sys/kernel/debug/$FAILTYPE/task-filter
     echo 100 > /sys/kernel/debug/$FAILTYPE/probability
     echo 0 > /sys/kernel/debug/$FAILTYPE/interval

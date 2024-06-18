@@ -231,7 +231,7 @@ struct baycom_state {
 #if 0
 static inline void append_crc_ccitt(unsigned char *buffer, int len)
 {
- 	unsigned int crc = 0xffff;
+	unsigned int crc = 0xffff;
 
 	for (;len>0;len--)
 		crc = (crc >> 8) ^ crc_ccitt_table[(crc ^ *buffer++) & 0xff];
@@ -390,7 +390,7 @@ static void encode_hdlc(struct baycom_state *bc)
 		for (j = 0; j < 8; j++)
 			if (unlikely(!(notbitstream & (0x1f0 << j)))) {
 				bitstream &= ~(0x100 << j);
- 				bitbuf = (bitbuf & (((2 << j) << numbit) - 1)) |
+				bitbuf = (bitbuf & (((2 << j) << numbit) - 1)) |
 					((bitbuf & ~(((2 << j) << numbit) - 1)) << 1);
 				numbit++;
 				notbitstream = ~bitstream;
@@ -438,7 +438,7 @@ static int transmit(struct baycom_state *bc, int cnt, unsigned char stat)
 			if ((--bc->hdlctx.slotcnt) > 0)
 				return 0;
 			bc->hdlctx.slotcnt = bc->ch_params.slottime;
-			if ((prandom_u32() % 256) > bc->ch_params.ppersist)
+			if (get_random_u8() > bc->ch_params.ppersist)
 				return 0;
 		}
 	}
@@ -500,7 +500,7 @@ static int transmit(struct baycom_state *bc, int cnt, unsigned char stat)
 				}
 				break;
 			}
-			/* fall through */
+			fallthrough;
 
 		default:
 			if (bc->hdlctx.calibrate <= 0)
@@ -623,16 +623,10 @@ static int receive(struct net_device *dev, int cnt)
 
 /* --------------------------------------------------------------------- */
 
-#ifdef __i386__
-#include <asm/msr.h>
 #define GETTICK(x)						\
 ({								\
-	if (boot_cpu_has(X86_FEATURE_TSC))			\
-		x = (unsigned int)rdtsc();			\
+	x = (unsigned int)get_cycles();				\
 })
-#else /* __i386__ */
-#define GETTICK(x)
-#endif /* __i386__ */
 
 static void epp_bh(struct work_struct *work)
 {
@@ -758,7 +752,7 @@ static void epp_bh(struct work_struct *work)
  * ===================== network driver interface =========================
  */
 
-static int baycom_send_packet(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t baycom_send_packet(struct sk_buff *skb, struct net_device *dev)
 {
 	struct baycom_state *bc = netdev_priv(dev);
 
@@ -791,7 +785,7 @@ static int baycom_set_mac_address(struct net_device *dev, void *addr)
 	struct sockaddr *sa = (struct sockaddr *)addr;
 
 	/* addr is an AX.25 shifted ASCII mac address */
-	memcpy(dev->dev_addr, sa->sa_data, dev->addr_len); 
+	dev_addr_set(dev, sa->sa_data);
 	return 0;                                         
 }
 
@@ -982,10 +976,10 @@ static int baycom_setmode(struct baycom_state *bc, const char *modestr)
 		bc->cfg.extmodem = 0;
 	if (strstr(modestr,"extmodem"))
 		bc->cfg.extmodem = 1;
-	if (strstr(modestr,"noloopback"))
-		bc->cfg.loopback = 0;
 	if (strstr(modestr,"loopback"))
 		bc->cfg.loopback = 1;
+	if (strstr(modestr, "noloopback"))
+		bc->cfg.loopback = 0;
 	if ((cp = strstr(modestr,"fclk="))) {
 		bc->cfg.fclk = simple_strtoul(cp+5, NULL, 0);
 		if (bc->cfg.fclk < 1000000)
@@ -1005,7 +999,8 @@ static int baycom_setmode(struct baycom_state *bc, const char *modestr)
 
 /* --------------------------------------------------------------------- */
 
-static int baycom_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+static int baycom_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
+				 void __user *data, int cmd)
 {
 	struct baycom_state *bc = netdev_priv(dev);
 	struct hdlcdrv_ioctl hi;
@@ -1013,7 +1008,7 @@ static int baycom_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	if (cmd != SIOCDEVPRIVATE)
 		return -ENOIOCTLCMD;
 
-	if (copy_from_user(&hi, ifr->ifr_data, sizeof(hi)))
+	if (copy_from_user(&hi, data, sizeof(hi)))
 		return -EFAULT;
 	switch (hi.cmd) {
 	default:
@@ -1079,7 +1074,7 @@ static int baycom_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		return 0;
 
 	case HDLCDRVCTL_DRIVERNAME:
-		strncpy(hi.data.drivername, "baycom_epp", sizeof(hi.data.drivername));
+		strscpy_pad(hi.data.drivername, "baycom_epp", sizeof(hi.data.drivername));
 		break;
 		
 	case HDLCDRVCTL_GETMODE:
@@ -1096,7 +1091,7 @@ static int baycom_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		return baycom_setmode(bc, hi.data.modename);
 
 	case HDLCDRVCTL_MODELIST:
-		strncpy(hi.data.modename, "intclk,extclk,intmodem,extmodem,divider=x",
+		strscpy_pad(hi.data.modename, "intclk,extclk,intmodem,extmodem,divider=x",
 			sizeof(hi.data.modename));
 		break;
 
@@ -1104,7 +1099,7 @@ static int baycom_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		return HDLCDRV_PARMASK_IOBASE;
 
 	}
-	if (copy_to_user(ifr->ifr_data, &hi, sizeof(hi)))
+	if (copy_to_user(data, &hi, sizeof(hi)))
 		return -EFAULT;
 	return 0;
 }
@@ -1114,7 +1109,7 @@ static int baycom_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 static const struct net_device_ops baycom_netdev_ops = {
 	.ndo_open	     = epp_open,
 	.ndo_stop	     = epp_close,
-	.ndo_do_ioctl	     = baycom_ioctl,
+	.ndo_siocdevprivate  = baycom_siocdevprivate,
 	.ndo_start_xmit      = baycom_send_packet,
 	.ndo_set_mac_address = baycom_set_mac_address,
 };
@@ -1158,7 +1153,7 @@ static void baycom_probe(struct net_device *dev)
 	dev->mtu = AX25_DEF_PACLEN;        /* eth_mtu is the default */
 	dev->addr_len = AX25_ADDR_LEN;     /* sizeof an ax.25 address */
 	memcpy(dev->broadcast, &ax25_bcast, AX25_ADDR_LEN);
-	memcpy(dev->dev_addr, &null_ax25_address, AX25_ADDR_LEN);
+	dev_addr_set(dev, (u8 *)&null_ax25_address);
 	dev->tx_queue_len = 16;
 
 	/* New style flags */

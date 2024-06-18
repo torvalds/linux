@@ -48,20 +48,8 @@ static unsigned int help(struct sk_buff *skb,
 	exp->dir = IP_CT_DIR_REPLY;
 	exp->expectfn = nf_nat_follow_master;
 
-	/* Try to get same port: if not, try to change it. */
-	for (port = ntohs(exp->saved_proto.tcp.port); port != 0; port++) {
-		int ret;
-
-		exp->tuple.dst.u.tcp.port = htons(port);
-		ret = nf_ct_expect_related(exp, 0);
-		if (ret == 0)
-			break;
-		else if (ret != -EBUSY) {
-			port = 0;
-			break;
-		}
-	}
-
+	port = nf_nat_exp_find_port(exp,
+				    ntohs(exp->saved_proto.tcp.port));
 	if (port == 0) {
 		nf_ct_helper_log(skb, ct, "all ports in use");
 		return NF_DROP;

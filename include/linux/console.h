@@ -15,7 +15,10 @@
 #define _LINUX_CONSOLE_H_ 1
 
 #include <linux/atomic.h>
+#include <linux/bits.h>
+#include <linux/rculist.h>
 #include <linux/types.h>
+#include <linux/vesa.h>
 
 struct vc_data;
 struct console_font_op;
@@ -24,76 +27,101 @@ struct module;
 struct tty_struct;
 struct notifier_block;
 
-/*
- * this is what the terminal answers to a ESC-Z or csi0c query.
- */
-#define VT100ID "\033[?1;2c"
-#define VT102ID "\033[?6c"
-
 enum con_scroll {
 	SM_UP,
 	SM_DOWN,
 };
 
+enum vc_intensity;
+
 /**
  * struct consw - callbacks for consoles
  *
+ * @owner:      the module to get references of when this console is used
+ * @con_startup: set up the console and return its name (like VGA, EGA, ...)
+ * @con_init:   initialize the console on @vc. @init is true for the very first
+ *		call on this @vc.
+ * @con_deinit: deinitialize the console from @vc.
+ * @con_clear:  erase @count characters at [@x, @y] on @vc. @count >= 1.
+ * @con_putc:   emit one character with attributes @ca to [@x, @y] on @vc.
+ *		(optional -- @con_putcs would be called instead)
+ * @con_putcs:  emit @count characters with attributes @s to [@x, @y] on @vc.
+ * @con_cursor: enable/disable cursor depending on @enable
  * @con_scroll: move lines from @top to @bottom in direction @dir by @lines.
  *		Return true if no generic handling should be done.
  *		Invoked by csi_M and printing to the console.
- * @con_set_palette: sets the palette of the console to @table (optional)
+ * @con_switch: notifier about the console switch; it is supposed to return
+ *		true if a redraw is needed.
+ * @con_blank:  blank/unblank the console. The target mode is passed in @blank.
+ *		@mode_switch is set if changing from/to text/graphics. The hook
+ *		is supposed to return true if a redraw is needed.
+ * @con_font_set: set console @vc font to @font with height @vpitch. @flags can
+ *		be %KD_FONT_FLAG_DONT_RECALC. (optional)
+ * @con_font_get: fetch the current font on @vc of height @vpitch into @font.
+ *		(optional)
+ * @con_font_default: set default font on @vc. @name can be %NULL or font name
+ *		to search for. @font can be filled back. (optional)
+ * @con_resize:	resize the @vc console to @width x @height. @from_user is true
+ *		when this change comes from the user space.
+ * @con_set_palette: sets the palette of the console @vc to @table (optional)
  * @con_scrolldelta: the contents of the console should be scrolled by @lines.
  *		     Invoked by user. (optional)
+ * @con_set_origin: set origin (see &vc_data::vc_origin) of the @vc. If not
+ *		provided or returns false, the origin is set to
+ *		@vc->vc_screenbuf. (optional)
+ * @con_save_screen: save screen content into @vc->vc_screenbuf. Called e.g.
+ *		upon entering graphics. (optional)
+ * @con_build_attr: build attributes based on @color, @intensity and other
+ *		parameters. The result is used for both normal and erase
+ *		characters. (optional)
+ * @con_invert_region: invert a region of length @count on @vc starting at @p.
+ *		(optional)
+ * @con_debug_enter: prepare the console for the debugger. This includes, but
+ *		is not limited to, unblanking the console, loading an
+ *		appropriate palette, and allowing debugger generated output.
+ *		(optional)
+ * @con_debug_leave: restore the console to its pre-debug state as closely as
+ *		possible. (optional)
  */
 struct consw {
 	struct module *owner;
 	const char *(*con_startup)(void);
-	void	(*con_init)(struct vc_data *vc, int init);
+	void	(*con_init)(struct vc_data *vc, bool init);
 	void	(*con_deinit)(struct vc_data *vc);
-	void	(*con_clear)(struct vc_data *vc, int sy, int sx, int height,
-			int width);
-	void	(*con_putc)(struct vc_data *vc, int c, int ypos, int xpos);
-	void	(*con_putcs)(struct vc_data *vc, const unsigned short *s,
-			int count, int ypos, int xpos);
-	void	(*con_cursor)(struct vc_data *vc, int mode);
+	void	(*con_clear)(struct vc_data *vc, unsigned int y,
+			     unsigned int x, unsigned int count);
+	void	(*con_putc)(struct vc_data *vc, u16 ca, unsigned int y,
+			    unsigned int x);
+	void	(*con_putcs)(struct vc_data *vc, const u16 *s,
+			     unsigned int count, unsigned int ypos,
+			     unsigned int xpos);
+	void	(*con_cursor)(struct vc_data *vc, bool enable);
 	bool	(*con_scroll)(struct vc_data *vc, unsigned int top,
 			unsigned int bottom, enum con_scroll dir,
 			unsigned int lines);
-	int	(*con_switch)(struct vc_data *vc);
-	int	(*con_blank)(struct vc_data *vc, int blank, int mode_switch);
-	int	(*con_font_set)(struct vc_data *vc, struct console_font *font,
-			unsigned int flags);
-	int	(*con_font_get)(struct vc_data *vc, struct console_font *font);
+	bool	(*con_switch)(struct vc_data *vc);
+	bool	(*con_blank)(struct vc_data *vc, enum vesa_blank_mode blank,
+			     bool mode_switch);
+	int	(*con_font_set)(struct vc_data *vc,
+				const struct console_font *font,
+				unsigned int vpitch, unsigned int flags);
+	int	(*con_font_get)(struct vc_data *vc, struct console_font *font,
+			unsigned int vpitch);
 	int	(*con_font_default)(struct vc_data *vc,
-			struct console_font *font, char *name);
-	int	(*con_font_copy)(struct vc_data *vc, int con);
+			struct console_font *font, const char *name);
 	int     (*con_resize)(struct vc_data *vc, unsigned int width,
-			unsigned int height, unsigned int user);
+			      unsigned int height, bool from_user);
 	void	(*con_set_palette)(struct vc_data *vc,
 			const unsigned char *table);
 	void	(*con_scrolldelta)(struct vc_data *vc, int lines);
-	int	(*con_set_origin)(struct vc_data *vc);
+	bool	(*con_set_origin)(struct vc_data *vc);
 	void	(*con_save_screen)(struct vc_data *vc);
-	u8	(*con_build_attr)(struct vc_data *vc, u8 color, u8 intensity,
-			u8 blink, u8 underline, u8 reverse, u8 italic);
+	u8	(*con_build_attr)(struct vc_data *vc, u8 color,
+			enum vc_intensity intensity,
+			bool blink, bool underline, bool reverse, bool italic);
 	void	(*con_invert_region)(struct vc_data *vc, u16 *p, int count);
-	u16    *(*con_screen_pos)(struct vc_data *vc, int offset);
-	unsigned long (*con_getxy)(struct vc_data *vc, unsigned long position,
-			int *px, int *py);
-	/*
-	 * Flush the video console driver's scrollback buffer
-	 */
-	void	(*con_flush_scrollback)(struct vc_data *vc);
-	/*
-	 * Prepare the console for the debugger.  This includes, but is not
-	 * limited to, unblanking the console, loading an appropriate
-	 * palette, and allowing debugger generated output.
-	 */
-	int	(*con_debug_enter)(struct vc_data *vc);
-	/*
-	 * Restore the console to its pre-debug state as closely as possible.
-	 */
-	int	(*con_debug_leave)(struct vc_data *vc);
+	void	(*con_debug_enter)(struct vc_data *vc);
+	void	(*con_debug_leave)(struct vc_data *vc);
 };
 
 extern const struct consw *conswitchp;
@@ -101,67 +129,362 @@ extern const struct consw *conswitchp;
 extern const struct consw dummy_con;	/* dummy console buffer */
 extern const struct consw vga_con;	/* VGA text console */
 extern const struct consw newport_con;	/* SGI Newport console  */
-extern const struct consw prom_con;	/* SPARC PROM console */
+
+struct screen_info;
+#ifdef CONFIG_VGA_CONSOLE
+void vgacon_register_screen(struct screen_info *si);
+#else
+static inline void vgacon_register_screen(struct screen_info *si) { }
+#endif
 
 int con_is_bound(const struct consw *csw);
 int do_unregister_con_driver(const struct consw *csw);
 int do_take_over_console(const struct consw *sw, int first, int last, int deflt);
 void give_up_console(const struct consw *sw);
-#ifdef CONFIG_HW_CONSOLE
-int con_debug_enter(struct vc_data *vc);
-int con_debug_leave(void);
+#ifdef CONFIG_VT
+void con_debug_enter(struct vc_data *vc);
+void con_debug_leave(void);
 #else
-static inline int con_debug_enter(struct vc_data *vc)
-{
-	return 0;
-}
-static inline int con_debug_leave(void)
-{
-	return 0;
-}
+static inline void con_debug_enter(struct vc_data *vc) { }
+static inline void con_debug_leave(void) { }
 #endif
-
-/* cursor */
-#define CM_DRAW     (1)
-#define CM_ERASE    (2)
-#define CM_MOVE     (3)
 
 /*
  * The interface for a console, or any other device that wants to capture
  * console messages (printer driver?)
- *
- * If a console driver is marked CON_BOOT then it will be auto-unregistered
- * when the first real console is registered.  This is for early-printk drivers.
  */
 
-#define CON_PRINTBUFFER	(1)
-#define CON_CONSDEV	(2) /* Last on the command line */
-#define CON_ENABLED	(4)
-#define CON_BOOT	(8)
-#define CON_ANYTIME	(16) /* Safe to call when cpu is offline */
-#define CON_BRL		(32) /* Used for a braille device */
-#define CON_EXTENDED	(64) /* Use the extended output format a la /dev/kmsg */
+/**
+ * enum cons_flags - General console flags
+ * @CON_PRINTBUFFER:	Used by newly registered consoles to avoid duplicate
+ *			output of messages that were already shown by boot
+ *			consoles or read by userspace via syslog() syscall.
+ * @CON_CONSDEV:	Indicates that the console driver is backing
+ *			/dev/console.
+ * @CON_ENABLED:	Indicates if a console is allowed to print records. If
+ *			false, the console also will not advance to later
+ *			records.
+ * @CON_BOOT:		Marks the console driver as early console driver which
+ *			is used during boot before the real driver becomes
+ *			available. It will be automatically unregistered
+ *			when the real console driver is registered unless
+ *			"keep_bootcon" parameter is used.
+ * @CON_ANYTIME:	A misnomed historical flag which tells the core code
+ *			that the legacy @console::write callback can be invoked
+ *			on a CPU which is marked OFFLINE. That is misleading as
+ *			it suggests that there is no contextual limit for
+ *			invoking the callback. The original motivation was
+ *			readiness of the per-CPU areas.
+ * @CON_BRL:		Indicates a braille device which is exempt from
+ *			receiving the printk spam for obvious reasons.
+ * @CON_EXTENDED:	The console supports the extended output format of
+ *			/dev/kmesg which requires a larger output buffer.
+ * @CON_SUSPENDED:	Indicates if a console is suspended. If true, the
+ *			printing callbacks must not be called.
+ * @CON_NBCON:		Console can operate outside of the legacy style console_lock
+ *			constraints.
+ */
+enum cons_flags {
+	CON_PRINTBUFFER		= BIT(0),
+	CON_CONSDEV		= BIT(1),
+	CON_ENABLED		= BIT(2),
+	CON_BOOT		= BIT(3),
+	CON_ANYTIME		= BIT(4),
+	CON_BRL			= BIT(5),
+	CON_EXTENDED		= BIT(6),
+	CON_SUSPENDED		= BIT(7),
+	CON_NBCON		= BIT(8),
+};
 
-struct console {
-	char	name[16];
-	void	(*write)(struct console *, const char *, unsigned);
-	int	(*read)(struct console *, char *, unsigned);
-	struct tty_driver *(*device)(struct console *, int *);
-	void	(*unblank)(void);
-	int	(*setup)(struct console *, char *);
-	int	(*match)(struct console *, char *name, int idx, char *options);
-	short	flags;
-	short	index;
-	int	cflag;
-	void	*data;
-	struct	 console *next;
+/**
+ * struct nbcon_state - console state for nbcon consoles
+ * @atom:	Compound of the state fields for atomic operations
+ *
+ * @req_prio:		The priority of a handover request
+ * @prio:		The priority of the current owner
+ * @unsafe:		Console is busy in a non takeover region
+ * @unsafe_takeover:	A hostile takeover in an unsafe state happened in the
+ *			past. The console cannot be safe until re-initialized.
+ * @cpu:		The CPU on which the owner runs
+ *
+ * To be used for reading and preparing of the value stored in the nbcon
+ * state variable @console::nbcon_state.
+ *
+ * The @prio and @req_prio fields are particularly important to allow
+ * spin-waiting to timeout and give up without the risk of a waiter being
+ * assigned the lock after giving up.
+ */
+struct nbcon_state {
+	union {
+		unsigned int	atom;
+		struct {
+			unsigned int prio		:  2;
+			unsigned int req_prio		:  2;
+			unsigned int unsafe		:  1;
+			unsigned int unsafe_takeover	:  1;
+			unsigned int cpu		: 24;
+		};
+	};
 };
 
 /*
- * for_each_console() allows you to iterate on each console
+ * The nbcon_state struct is used to easily create and interpret values that
+ * are stored in the @console::nbcon_state variable. Ensure this struct stays
+ * within the size boundaries of the atomic variable's underlying type in
+ * order to avoid any accidental truncation.
  */
-#define for_each_console(con) \
-	for (con = console_drivers; con != NULL; con = con->next)
+static_assert(sizeof(struct nbcon_state) <= sizeof(int));
+
+/**
+ * enum nbcon_prio - console owner priority for nbcon consoles
+ * @NBCON_PRIO_NONE:		Unused
+ * @NBCON_PRIO_NORMAL:		Normal (non-emergency) usage
+ * @NBCON_PRIO_EMERGENCY:	Emergency output (WARN/OOPS...)
+ * @NBCON_PRIO_PANIC:		Panic output
+ * @NBCON_PRIO_MAX:		The number of priority levels
+ *
+ * A higher priority context can takeover the console when it is
+ * in the safe state. The final attempt to flush consoles in panic()
+ * can be allowed to do so even in an unsafe state (Hope and pray).
+ */
+enum nbcon_prio {
+	NBCON_PRIO_NONE = 0,
+	NBCON_PRIO_NORMAL,
+	NBCON_PRIO_EMERGENCY,
+	NBCON_PRIO_PANIC,
+	NBCON_PRIO_MAX,
+};
+
+struct console;
+struct printk_buffers;
+
+/**
+ * struct nbcon_context - Context for console acquire/release
+ * @console:			The associated console
+ * @spinwait_max_us:		Limit for spin-wait acquire
+ * @prio:			Priority of the context
+ * @allow_unsafe_takeover:	Allow performing takeover even if unsafe. Can
+ *				be used only with NBCON_PRIO_PANIC @prio. It
+ *				might cause a system freeze when the console
+ *				is used later.
+ * @backlog:			Ringbuffer has pending records
+ * @pbufs:			Pointer to the text buffer for this context
+ * @seq:			The sequence number to print for this context
+ */
+struct nbcon_context {
+	/* members set by caller */
+	struct console		*console;
+	unsigned int		spinwait_max_us;
+	enum nbcon_prio		prio;
+	unsigned int		allow_unsafe_takeover	: 1;
+
+	/* members set by emit */
+	unsigned int		backlog			: 1;
+
+	/* members set by acquire */
+	struct printk_buffers	*pbufs;
+	u64			seq;
+};
+
+/**
+ * struct nbcon_write_context - Context handed to the nbcon write callbacks
+ * @ctxt:		The core console context
+ * @outbuf:		Pointer to the text buffer for output
+ * @len:		Length to write
+ * @unsafe_takeover:	If a hostile takeover in an unsafe state has occurred
+ */
+struct nbcon_write_context {
+	struct nbcon_context	__private ctxt;
+	char			*outbuf;
+	unsigned int		len;
+	bool			unsafe_takeover;
+};
+
+/**
+ * struct console - The console descriptor structure
+ * @name:		The name of the console driver
+ * @write:		Write callback to output messages (Optional)
+ * @read:		Read callback for console input (Optional)
+ * @device:		The underlying TTY device driver (Optional)
+ * @unblank:		Callback to unblank the console (Optional)
+ * @setup:		Callback for initializing the console (Optional)
+ * @exit:		Callback for teardown of the console (Optional)
+ * @match:		Callback for matching a console (Optional)
+ * @flags:		Console flags. See enum cons_flags
+ * @index:		Console index, e.g. port number
+ * @cflag:		TTY control mode flags
+ * @ispeed:		TTY input speed
+ * @ospeed:		TTY output speed
+ * @seq:		Sequence number of the next ringbuffer record to print
+ * @dropped:		Number of unreported dropped ringbuffer records
+ * @data:		Driver private data
+ * @node:		hlist node for the console list
+ *
+ * @write_atomic:	Write callback for atomic context
+ * @nbcon_state:	State for nbcon consoles
+ * @nbcon_seq:		Sequence number of the next record for nbcon to print
+ * @pbufs:		Pointer to nbcon private buffer
+ */
+struct console {
+	char			name[16];
+	void			(*write)(struct console *co, const char *s, unsigned int count);
+	int			(*read)(struct console *co, char *s, unsigned int count);
+	struct tty_driver	*(*device)(struct console *co, int *index);
+	void			(*unblank)(void);
+	int			(*setup)(struct console *co, char *options);
+	int			(*exit)(struct console *co);
+	int			(*match)(struct console *co, char *name, int idx, char *options);
+	short			flags;
+	short			index;
+	int			cflag;
+	uint			ispeed;
+	uint			ospeed;
+	u64			seq;
+	unsigned long		dropped;
+	void			*data;
+	struct hlist_node	node;
+
+	/* nbcon console specific members */
+	bool			(*write_atomic)(struct console *con,
+						struct nbcon_write_context *wctxt);
+	atomic_t		__private nbcon_state;
+	atomic_long_t		__private nbcon_seq;
+	struct printk_buffers	*pbufs;
+};
+
+#ifdef CONFIG_LOCKDEP
+extern void lockdep_assert_console_list_lock_held(void);
+#else
+static inline void lockdep_assert_console_list_lock_held(void)
+{
+}
+#endif
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+extern bool console_srcu_read_lock_is_held(void);
+#else
+static inline bool console_srcu_read_lock_is_held(void)
+{
+	return 1;
+}
+#endif
+
+extern int console_srcu_read_lock(void);
+extern void console_srcu_read_unlock(int cookie);
+
+extern void console_list_lock(void) __acquires(console_mutex);
+extern void console_list_unlock(void) __releases(console_mutex);
+
+extern struct hlist_head console_list;
+
+/**
+ * console_srcu_read_flags - Locklessly read the console flags
+ * @con:	struct console pointer of console to read flags from
+ *
+ * This function provides the necessary READ_ONCE() and data_race()
+ * notation for locklessly reading the console flags. The READ_ONCE()
+ * in this function matches the WRITE_ONCE() when @flags are modified
+ * for registered consoles with console_srcu_write_flags().
+ *
+ * Only use this function to read console flags when locklessly
+ * iterating the console list via srcu.
+ *
+ * Context: Any context.
+ */
+static inline short console_srcu_read_flags(const struct console *con)
+{
+	WARN_ON_ONCE(!console_srcu_read_lock_is_held());
+
+	/*
+	 * Locklessly reading console->flags provides a consistent
+	 * read value because there is at most one CPU modifying
+	 * console->flags and that CPU is using only read-modify-write
+	 * operations to do so.
+	 */
+	return data_race(READ_ONCE(con->flags));
+}
+
+/**
+ * console_srcu_write_flags - Write flags for a registered console
+ * @con:	struct console pointer of console to write flags to
+ * @flags:	new flags value to write
+ *
+ * Only use this function to write flags for registered consoles. It
+ * requires holding the console_list_lock.
+ *
+ * Context: Any context.
+ */
+static inline void console_srcu_write_flags(struct console *con, short flags)
+{
+	lockdep_assert_console_list_lock_held();
+
+	/* This matches the READ_ONCE() in console_srcu_read_flags(). */
+	WRITE_ONCE(con->flags, flags);
+}
+
+/* Variant of console_is_registered() when the console_list_lock is held. */
+static inline bool console_is_registered_locked(const struct console *con)
+{
+	lockdep_assert_console_list_lock_held();
+	return !hlist_unhashed(&con->node);
+}
+
+/*
+ * console_is_registered - Check if the console is registered
+ * @con:	struct console pointer of console to check
+ *
+ * Context: Process context. May sleep while acquiring console list lock.
+ * Return: true if the console is in the console list, otherwise false.
+ *
+ * If false is returned for a console that was previously registered, it
+ * can be assumed that the console's unregistration is fully completed,
+ * including the exit() callback after console list removal.
+ */
+static inline bool console_is_registered(const struct console *con)
+{
+	bool ret;
+
+	console_list_lock();
+	ret = console_is_registered_locked(con);
+	console_list_unlock();
+	return ret;
+}
+
+/**
+ * for_each_console_srcu() - Iterator over registered consoles
+ * @con:	struct console pointer used as loop cursor
+ *
+ * Although SRCU guarantees the console list will be consistent, the
+ * struct console fields may be updated by other CPUs while iterating.
+ *
+ * Requires console_srcu_read_lock to be held. Can be invoked from
+ * any context.
+ */
+#define for_each_console_srcu(con)					\
+	hlist_for_each_entry_srcu(con, &console_list, node,		\
+				  console_srcu_read_lock_is_held())
+
+/**
+ * for_each_console() - Iterator over registered consoles
+ * @con:	struct console pointer used as loop cursor
+ *
+ * The console list and the &console.flags are immutable while iterating.
+ *
+ * Requires console_list_lock to be held.
+ */
+#define for_each_console(con)						\
+	lockdep_assert_console_list_lock_held();			\
+	hlist_for_each_entry(con, &console_list, node)
+
+#ifdef CONFIG_PRINTK
+extern bool nbcon_can_proceed(struct nbcon_write_context *wctxt);
+extern bool nbcon_enter_unsafe(struct nbcon_write_context *wctxt);
+extern bool nbcon_exit_unsafe(struct nbcon_write_context *wctxt);
+#else
+static inline bool nbcon_can_proceed(struct nbcon_write_context *wctxt) { return false; }
+static inline bool nbcon_enter_unsafe(struct nbcon_write_context *wctxt) { return false; }
+static inline bool nbcon_exit_unsafe(struct nbcon_write_context *wctxt) { return false; }
+#endif
 
 extern int console_set_on_cmdline;
 extern struct console *early_console;
@@ -171,10 +494,10 @@ enum con_flush_mode {
 	CONSOLE_REPLAY_ALL,
 };
 
-extern int add_preferred_console(char *name, int idx, char *options);
+extern int add_preferred_console(const char *name, const short idx, char *options);
+extern void console_force_preferred_locked(struct console *con);
 extern void register_console(struct console *);
 extern int unregister_console(struct console *);
-extern struct console *console_drivers;
 extern void console_lock(void);
 extern int console_trylock(void);
 extern void console_unlock(void);
@@ -201,7 +524,6 @@ extern void suspend_console(void);
 extern void resume_console(void);
 
 int mda_console_init(void);
-void prom_con_init(void);
 
 void vcs_make_sysfs(int index);
 void vcs_remove_sysfs(int index);
@@ -215,18 +537,6 @@ void vcs_remove_sysfs(int index);
  * WARN_CONSOLE_UNLOCKED() for debugging purposes.
  */
 extern atomic_t ignore_console_lock_warning;
-
-/* VESA Blanking Levels */
-#define VESA_NO_BLANKING        0
-#define VESA_VSYNC_SUSPEND      1
-#define VESA_HSYNC_SUSPEND      2
-#define VESA_POWERDOWN          3
-
-#ifdef CONFIG_VGA_CONSOLE
-extern bool vgacon_text_force(void);
-#else
-static inline bool vgacon_text_force(void) { return false; }
-#endif
 
 extern void console_init(void);
 

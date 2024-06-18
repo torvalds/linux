@@ -33,6 +33,7 @@
 #include <linux/etherdevice.h>
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/mlx5_ifc.h>
+#include <linux/mlx5/mpfs.h>
 #include <linux/mlx5/eswitch.h>
 #include "mlx5_core.h"
 #include "lib/mpfs.h"
@@ -40,8 +41,7 @@
 /* HW L2 Table (MPFS) management */
 static int set_l2table_entry_cmd(struct mlx5_core_dev *dev, u32 index, u8 *mac)
 {
-	u32 in[MLX5_ST_SZ_DW(set_l2_table_entry_in)]   = {0};
-	u32 out[MLX5_ST_SZ_DW(set_l2_table_entry_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(set_l2_table_entry_in)] = {};
 	u8 *in_mac_addr;
 
 	MLX5_SET(set_l2_table_entry_in, in, opcode, MLX5_CMD_OP_SET_L2_TABLE_ENTRY);
@@ -50,17 +50,16 @@ static int set_l2table_entry_cmd(struct mlx5_core_dev *dev, u32 index, u8 *mac)
 	in_mac_addr = MLX5_ADDR_OF(set_l2_table_entry_in, in, mac_address);
 	ether_addr_copy(&in_mac_addr[2], mac);
 
-	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	return mlx5_cmd_exec_in(dev, set_l2_table_entry, in);
 }
 
 static int del_l2table_entry_cmd(struct mlx5_core_dev *dev, u32 index)
 {
-	u32 in[MLX5_ST_SZ_DW(delete_l2_table_entry_in)]   = {0};
-	u32 out[MLX5_ST_SZ_DW(delete_l2_table_entry_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(delete_l2_table_entry_in)] = {};
 
 	MLX5_SET(delete_l2_table_entry_in, in, opcode, MLX5_CMD_OP_DELETE_L2_TABLE_ENTRY);
 	MLX5_SET(delete_l2_table_entry_in, in, table_index, index);
-	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	return mlx5_cmd_exec_in(dev, delete_l2_table_entry, in);
 }
 
 /* UC L2 table hash node */
@@ -100,7 +99,7 @@ int mlx5_mpfs_init(struct mlx5_core_dev *dev)
 	int l2table_size = 1 << MLX5_CAP_GEN(dev, log_max_l2_table);
 	struct mlx5_mpfs *mpfs;
 
-	if (!MLX5_ESWITCH_MANAGER(dev))
+	if (!MLX5_ESWITCH_MANAGER(dev) || l2table_size == 1)
 		return 0;
 
 	mpfs = kzalloc(sizeof(*mpfs), GFP_KERNEL);
@@ -123,7 +122,7 @@ void mlx5_mpfs_cleanup(struct mlx5_core_dev *dev)
 {
 	struct mlx5_mpfs *mpfs = dev->priv.mpfs;
 
-	if (!MLX5_ESWITCH_MANAGER(dev))
+	if (!mpfs)
 		return;
 
 	WARN_ON(!hlist_empty(mpfs->hash));
@@ -138,7 +137,7 @@ int mlx5_mpfs_add_mac(struct mlx5_core_dev *dev, u8 *mac)
 	int err = 0;
 	u32 index;
 
-	if (!MLX5_ESWITCH_MANAGER(dev))
+	if (!mpfs)
 		return 0;
 
 	mutex_lock(&mpfs->lock);
@@ -177,6 +176,7 @@ out:
 	mutex_unlock(&mpfs->lock);
 	return err;
 }
+EXPORT_SYMBOL(mlx5_mpfs_add_mac);
 
 int mlx5_mpfs_del_mac(struct mlx5_core_dev *dev, u8 *mac)
 {
@@ -185,7 +185,7 @@ int mlx5_mpfs_del_mac(struct mlx5_core_dev *dev, u8 *mac)
 	int err = 0;
 	u32 index;
 
-	if (!MLX5_ESWITCH_MANAGER(dev))
+	if (!mpfs)
 		return 0;
 
 	mutex_lock(&mpfs->lock);
@@ -208,3 +208,4 @@ unlock:
 	mutex_unlock(&mpfs->lock);
 	return err;
 }
+EXPORT_SYMBOL(mlx5_mpfs_del_mac);

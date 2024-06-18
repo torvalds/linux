@@ -12,10 +12,12 @@
 #include <drm/drm_device.h>
 #include <drm/drm_simple_kms_helper.h>
 
+struct drm_format_conv_state;
 struct drm_rect;
-struct spi_device;
 struct gpio_desc;
+struct iosys_map;
 struct regulator;
+struct spi_device;
 
 /**
  * struct mipi_dbi - MIPI DBI interface
@@ -95,11 +97,6 @@ struct mipi_dbi_dev {
 	struct drm_display_mode mode;
 
 	/**
-	 * @enabled: Pipeline is enabled
-	 */
-	bool enabled;
-
-	/**
 	 * @tx_buf: Buffer used for transfer (copy clip rect area)
 	 */
 	u16 *tx_buf;
@@ -110,19 +107,44 @@ struct mipi_dbi_dev {
 	unsigned int rotation;
 
 	/**
+	 * @left_offset: Horizontal offset of the display relative to the
+	 *               controller's driver array
+	 */
+	unsigned int left_offset;
+
+	/**
+	 * @top_offset: Vertical offset of the display relative to the
+	 *              controller's driver array
+	 */
+	unsigned int top_offset;
+
+	/**
 	 * @backlight: backlight device (optional)
 	 */
 	struct backlight_device *backlight;
 
 	/**
-	 * @regulator: power regulator (optional)
+	 * @regulator: power regulator (Vdd) (optional)
 	 */
 	struct regulator *regulator;
+
+	/**
+	 * @io_regulator: I/O power regulator (Vddi) (optional)
+	 */
+	struct regulator *io_regulator;
 
 	/**
 	 * @dbi: MIPI DBI interface
 	 */
 	struct mipi_dbi dbi;
+
+	/**
+	 * @driver_private: Driver private data.
+	 *                  Necessary for drivers with private data since devm_drm_dev_alloc()
+	 *                  can't allocate structures that embed a structure which then again
+	 *                  embeds drm_device.
+	 */
+	void *driver_private;
 };
 
 static inline struct mipi_dbi_dev *drm_to_mipi_dbi_dev(struct drm_device *drm)
@@ -140,13 +162,23 @@ int mipi_dbi_dev_init_with_formats(struct mipi_dbi_dev *dbidev,
 int mipi_dbi_dev_init(struct mipi_dbi_dev *dbidev,
 		      const struct drm_simple_display_pipe_funcs *funcs,
 		      const struct drm_display_mode *mode, unsigned int rotation);
-void mipi_dbi_release(struct drm_device *drm);
+enum drm_mode_status mipi_dbi_pipe_mode_valid(struct drm_simple_display_pipe *pipe,
+					      const struct drm_display_mode *mode);
 void mipi_dbi_pipe_update(struct drm_simple_display_pipe *pipe,
 			  struct drm_plane_state *old_state);
 void mipi_dbi_enable_flush(struct mipi_dbi_dev *dbidev,
 			   struct drm_crtc_state *crtc_state,
 			   struct drm_plane_state *plan_state);
 void mipi_dbi_pipe_disable(struct drm_simple_display_pipe *pipe);
+int mipi_dbi_pipe_begin_fb_access(struct drm_simple_display_pipe *pipe,
+				  struct drm_plane_state *plane_state);
+void mipi_dbi_pipe_end_fb_access(struct drm_simple_display_pipe *pipe,
+				 struct drm_plane_state *plane_state);
+void mipi_dbi_pipe_reset_plane(struct drm_simple_display_pipe *pipe);
+struct drm_plane_state *mipi_dbi_pipe_duplicate_plane_state(struct drm_simple_display_pipe *pipe);
+void mipi_dbi_pipe_destroy_plane_state(struct drm_simple_display_pipe *pipe,
+				       struct drm_plane_state *plane_state);
+
 void mipi_dbi_hw_reset(struct mipi_dbi *dbi);
 bool mipi_dbi_display_is_on(struct mipi_dbi *dbi);
 int mipi_dbi_poweron_reset(struct mipi_dbi_dev *dbidev);
@@ -158,14 +190,17 @@ int mipi_dbi_spi_transfer(struct spi_device *spi, u32 speed_hz,
 
 int mipi_dbi_command_read(struct mipi_dbi *dbi, u8 cmd, u8 *val);
 int mipi_dbi_command_buf(struct mipi_dbi *dbi, u8 cmd, u8 *data, size_t len);
-int mipi_dbi_command_stackbuf(struct mipi_dbi *dbi, u8 cmd, u8 *data, size_t len);
-int mipi_dbi_buf_copy(void *dst, struct drm_framebuffer *fb,
-		      struct drm_rect *clip, bool swap);
+int mipi_dbi_command_stackbuf(struct mipi_dbi *dbi, u8 cmd, const u8 *data,
+			      size_t len);
+int mipi_dbi_buf_copy(void *dst, struct iosys_map *src, struct drm_framebuffer *fb,
+		      struct drm_rect *clip, bool swap,
+		      struct drm_format_conv_state *fmtcnv_state);
+
 /**
  * mipi_dbi_command - MIPI DCS command with optional parameter(s)
  * @dbi: MIPI DBI structure
  * @cmd: Command
- * @seq...: Optional parameter(s)
+ * @seq: Optional parameter(s)
  *
  * Send MIPI DCS command to the controller. Use mipi_dbi_command_read() for
  * get/read.
@@ -175,14 +210,40 @@ int mipi_dbi_buf_copy(void *dst, struct drm_framebuffer *fb,
  */
 #define mipi_dbi_command(dbi, cmd, seq...) \
 ({ \
-	u8 d[] = { seq }; \
-	mipi_dbi_command_stackbuf(dbi, cmd, d, ARRAY_SIZE(d)); \
+	const u8 d[] = { seq }; \
+	struct device *dev = &(dbi)->spi->dev;	\
+	int ret; \
+	ret = mipi_dbi_command_stackbuf(dbi, cmd, d, ARRAY_SIZE(d)); \
+	if (ret) \
+		dev_err_ratelimited(dev, "error %d when sending command %#02x\n", ret, cmd); \
+	ret; \
 })
 
 #ifdef CONFIG_DEBUG_FS
-int mipi_dbi_debugfs_init(struct drm_minor *minor);
+void mipi_dbi_debugfs_init(struct drm_minor *minor);
 #else
-#define mipi_dbi_debugfs_init		NULL
+static inline void mipi_dbi_debugfs_init(struct drm_minor *minor) {}
 #endif
+
+/**
+ * DRM_MIPI_DBI_SIMPLE_DISPLAY_PIPE_FUNCS - Initializes struct drm_simple_display_pipe_funcs
+ *                                          for MIPI-DBI devices
+ * @enable_: Enable-callback implementation
+ *
+ * This macro initializes struct drm_simple_display_pipe_funcs with default
+ * values for MIPI-DBI-based devices. The only callback that depends on the
+ * hardware is @enable, for which the driver has to provide an implementation.
+ * MIPI-based drivers are encouraged to use this macro for initialization.
+ */
+#define DRM_MIPI_DBI_SIMPLE_DISPLAY_PIPE_FUNCS(enable_) \
+	.mode_valid = mipi_dbi_pipe_mode_valid, \
+	.enable = (enable_), \
+	.disable = mipi_dbi_pipe_disable, \
+	.update = mipi_dbi_pipe_update, \
+	.begin_fb_access = mipi_dbi_pipe_begin_fb_access, \
+	.end_fb_access = mipi_dbi_pipe_end_fb_access, \
+	.reset_plane = mipi_dbi_pipe_reset_plane, \
+	.duplicate_plane_state = mipi_dbi_pipe_duplicate_plane_state, \
+	.destroy_plane_state = mipi_dbi_pipe_destroy_plane_state
 
 #endif /* __LINUX_MIPI_DBI_H */

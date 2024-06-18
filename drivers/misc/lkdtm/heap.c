@@ -4,7 +4,9 @@
  * page allocation and slab allocations.
  */
 #include "lkdtm.h"
+#include <linux/kfence.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 #include <linux/sched.h>
 
 static struct kmem_cache *double_free_cache;
@@ -12,22 +14,56 @@ static struct kmem_cache *a_cache;
 static struct kmem_cache *b_cache;
 
 /*
+ * Using volatile here means the compiler cannot ever make assumptions
+ * about this value. This means compile-time length checks involving
+ * this variable cannot be performed; only run-time checks.
+ */
+static volatile int __offset = 1;
+
+/*
+ * If there aren't guard pages, it's likely that a consecutive allocation will
+ * let us overflow into the second allocation without overwriting something real.
+ *
+ * This should always be caught because there is an unconditional unmapped
+ * page after vmap allocations.
+ */
+static void lkdtm_VMALLOC_LINEAR_OVERFLOW(void)
+{
+	char *one, *two;
+
+	one = vzalloc(PAGE_SIZE);
+	OPTIMIZER_HIDE_VAR(one);
+	two = vzalloc(PAGE_SIZE);
+
+	pr_info("Attempting vmalloc linear overflow ...\n");
+	memset(one, 0xAA, PAGE_SIZE + __offset);
+
+	vfree(two);
+	vfree(one);
+}
+
+/*
  * This tries to stay within the next largest power-of-2 kmalloc cache
  * to avoid actually overwriting anything important if it's not detected
  * correctly.
+ *
+ * This should get caught by either memory tagging, KASan, or by using
+ * CONFIG_SLUB_DEBUG=y and slab_debug=ZF (or CONFIG_SLUB_DEBUG_ON=y).
  */
-void lkdtm_OVERWRITE_ALLOCATION(void)
+static void lkdtm_SLAB_LINEAR_OVERFLOW(void)
 {
 	size_t len = 1020;
 	u32 *data = kmalloc(len, GFP_KERNEL);
 	if (!data)
 		return;
 
+	pr_info("Attempting slab linear overflow ...\n");
+	OPTIMIZER_HIDE_VAR(data);
 	data[1024 / sizeof(u32)] = 0x12345678;
 	kfree(data);
 }
 
-void lkdtm_WRITE_AFTER_FREE(void)
+static void lkdtm_WRITE_AFTER_FREE(void)
 {
 	int *base, *again;
 	size_t len = 1024;
@@ -53,16 +89,17 @@ void lkdtm_WRITE_AFTER_FREE(void)
 		pr_info("Hmm, didn't get the same memory range.\n");
 }
 
-void lkdtm_READ_AFTER_FREE(void)
+static void lkdtm_READ_AFTER_FREE(void)
 {
 	int *base, *val, saw;
 	size_t len = 1024;
 	/*
-	 * The slub allocator uses the first word to store the free
-	 * pointer in some configurations. Use the middle of the
-	 * allocation to avoid running into the freelist
+	 * The slub allocator will use the either the first word or
+	 * the middle of the allocation to store the free pointer,
+	 * depending on configurations. Store in the second word to
+	 * avoid running into the freelist.
 	 */
-	size_t offset = (len / sizeof(*base)) / 2;
+	size_t offset = sizeof(*base);
 
 	base = kmalloc(len, GFP_KERNEL);
 	if (!base) {
@@ -88,14 +125,73 @@ void lkdtm_READ_AFTER_FREE(void)
 	if (saw != *val) {
 		/* Good! Poisoning happened, so declare a win. */
 		pr_info("Memory correctly poisoned (%x)\n", saw);
-		BUG();
+	} else {
+		pr_err("FAIL: Memory was not poisoned!\n");
+		pr_expected_config_param(CONFIG_INIT_ON_FREE_DEFAULT_ON, "init_on_free");
 	}
-	pr_info("Memory was not poisoned\n");
 
 	kfree(val);
 }
 
-void lkdtm_WRITE_BUDDY_AFTER_FREE(void)
+static void lkdtm_KFENCE_READ_AFTER_FREE(void)
+{
+	int *base, val, saw;
+	unsigned long timeout, resched_after;
+	size_t len = 1024;
+	/*
+	 * The slub allocator will use the either the first word or
+	 * the middle of the allocation to store the free pointer,
+	 * depending on configurations. Store in the second word to
+	 * avoid running into the freelist.
+	 */
+	size_t offset = sizeof(*base);
+
+	/*
+	 * 100x the sample interval should be more than enough to ensure we get
+	 * a KFENCE allocation eventually.
+	 */
+	timeout = jiffies + msecs_to_jiffies(100 * kfence_sample_interval);
+	/*
+	 * Especially for non-preemption kernels, ensure the allocation-gate
+	 * timer can catch up: after @resched_after, every failed allocation
+	 * attempt yields, to ensure the allocation-gate timer is scheduled.
+	 */
+	resched_after = jiffies + msecs_to_jiffies(kfence_sample_interval);
+	do {
+		base = kmalloc(len, GFP_KERNEL);
+		if (!base) {
+			pr_err("FAIL: Unable to allocate kfence memory!\n");
+			return;
+		}
+
+		if (is_kfence_address(base)) {
+			val = 0x12345678;
+			base[offset] = val;
+			pr_info("Value in memory before free: %x\n", base[offset]);
+
+			kfree(base);
+
+			pr_info("Attempting bad read from freed memory\n");
+			saw = base[offset];
+			if (saw != val) {
+				/* Good! Poisoning happened, so declare a win. */
+				pr_info("Memory correctly poisoned (%x)\n", saw);
+			} else {
+				pr_err("FAIL: Memory was not poisoned!\n");
+				pr_expected_config_param(CONFIG_INIT_ON_FREE_DEFAULT_ON, "init_on_free");
+			}
+			return;
+		}
+
+		kfree(base);
+		if (time_after(jiffies, resched_after))
+			cond_resched();
+	} while (time_before(jiffies, timeout));
+
+	pr_err("FAIL: kfence memory never allocated!\n");
+}
+
+static void lkdtm_WRITE_BUDDY_AFTER_FREE(void)
 {
 	unsigned long p = __get_free_page(GFP_KERNEL);
 	if (!p) {
@@ -115,7 +211,7 @@ void lkdtm_WRITE_BUDDY_AFTER_FREE(void)
 	schedule();
 }
 
-void lkdtm_READ_BUDDY_AFTER_FREE(void)
+static void lkdtm_READ_BUDDY_AFTER_FREE(void)
 {
 	unsigned long p = __get_free_page(GFP_KERNEL);
 	int saw, *val;
@@ -144,14 +240,80 @@ void lkdtm_READ_BUDDY_AFTER_FREE(void)
 	if (saw != *val) {
 		/* Good! Poisoning happened, so declare a win. */
 		pr_info("Memory correctly poisoned (%x)\n", saw);
-		BUG();
+	} else {
+		pr_err("FAIL: Buddy page was not poisoned!\n");
+		pr_expected_config_param(CONFIG_INIT_ON_FREE_DEFAULT_ON, "init_on_free");
 	}
-	pr_info("Buddy page was not poisoned\n");
 
 	kfree(val);
 }
 
-void lkdtm_SLAB_FREE_DOUBLE(void)
+static void lkdtm_SLAB_INIT_ON_ALLOC(void)
+{
+	u8 *first;
+	u8 *val;
+
+	first = kmalloc(512, GFP_KERNEL);
+	if (!first) {
+		pr_info("Unable to allocate 512 bytes the first time.\n");
+		return;
+	}
+
+	memset(first, 0xAB, 512);
+	kfree(first);
+
+	val = kmalloc(512, GFP_KERNEL);
+	if (!val) {
+		pr_info("Unable to allocate 512 bytes the second time.\n");
+		return;
+	}
+	if (val != first) {
+		pr_warn("Reallocation missed clobbered memory.\n");
+	}
+
+	if (memchr(val, 0xAB, 512) == NULL) {
+		pr_info("Memory appears initialized (%x, no earlier values)\n", *val);
+	} else {
+		pr_err("FAIL: Slab was not initialized\n");
+		pr_expected_config_param(CONFIG_INIT_ON_ALLOC_DEFAULT_ON, "init_on_alloc");
+	}
+	kfree(val);
+}
+
+static void lkdtm_BUDDY_INIT_ON_ALLOC(void)
+{
+	u8 *first;
+	u8 *val;
+
+	first = (u8 *)__get_free_page(GFP_KERNEL);
+	if (!first) {
+		pr_info("Unable to allocate first free page\n");
+		return;
+	}
+
+	memset(first, 0xAB, PAGE_SIZE);
+	free_page((unsigned long)first);
+
+	val = (u8 *)__get_free_page(GFP_KERNEL);
+	if (!val) {
+		pr_info("Unable to allocate second free page\n");
+		return;
+	}
+
+	if (val != first) {
+		pr_warn("Reallocation missed clobbered memory.\n");
+	}
+
+	if (memchr(val, 0xAB, PAGE_SIZE) == NULL) {
+		pr_info("Memory appears initialized (%x, no earlier values)\n", *val);
+	} else {
+		pr_err("FAIL: Slab was not initialized\n");
+		pr_expected_config_param(CONFIG_INIT_ON_ALLOC_DEFAULT_ON, "init_on_alloc");
+	}
+	free_page((unsigned long)val);
+}
+
+static void lkdtm_SLAB_FREE_DOUBLE(void)
 {
 	int *val;
 
@@ -168,7 +330,7 @@ void lkdtm_SLAB_FREE_DOUBLE(void)
 	kmem_cache_free(double_free_cache, val);
 }
 
-void lkdtm_SLAB_FREE_CROSS(void)
+static void lkdtm_SLAB_FREE_CROSS(void)
 {
 	int *val;
 
@@ -184,7 +346,7 @@ void lkdtm_SLAB_FREE_CROSS(void)
 	kmem_cache_free(b_cache, val);
 }
 
-void lkdtm_SLAB_FREE_PAGE(void)
+static void lkdtm_SLAB_FREE_PAGE(void)
 {
 	unsigned long p = __get_free_page(GFP_KERNEL);
 
@@ -218,3 +380,23 @@ void __exit lkdtm_heap_exit(void)
 	kmem_cache_destroy(a_cache);
 	kmem_cache_destroy(b_cache);
 }
+
+static struct crashtype crashtypes[] = {
+	CRASHTYPE(SLAB_LINEAR_OVERFLOW),
+	CRASHTYPE(VMALLOC_LINEAR_OVERFLOW),
+	CRASHTYPE(WRITE_AFTER_FREE),
+	CRASHTYPE(READ_AFTER_FREE),
+	CRASHTYPE(KFENCE_READ_AFTER_FREE),
+	CRASHTYPE(WRITE_BUDDY_AFTER_FREE),
+	CRASHTYPE(READ_BUDDY_AFTER_FREE),
+	CRASHTYPE(SLAB_INIT_ON_ALLOC),
+	CRASHTYPE(BUDDY_INIT_ON_ALLOC),
+	CRASHTYPE(SLAB_FREE_DOUBLE),
+	CRASHTYPE(SLAB_FREE_CROSS),
+	CRASHTYPE(SLAB_FREE_PAGE),
+};
+
+struct crashtype_category heap_crashtypes = {
+	.crashtypes = crashtypes,
+	.len	    = ARRAY_SIZE(crashtypes),
+};

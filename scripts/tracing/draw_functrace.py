@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # SPDX-License-Identifier: GPL-2.0-only
 
 """
@@ -8,16 +8,16 @@ This script parses a trace provided by the function tracer in
 kernel/trace/trace_functions.c
 The resulted trace is processed into a tree to produce a more human
 view of the call stack by drawing textual but hierarchical tree of
-calls. Only the functions's names and the the call time are provided.
+calls. Only the functions's names and the call time are provided.
 
 Usage:
 	Be sure that you have CONFIG_FUNCTION_TRACER
-	# mount -t debugfs nodev /sys/kernel/debug
-	# echo function > /sys/kernel/debug/tracing/current_tracer
-	$ cat /sys/kernel/debug/tracing/trace_pipe > ~/raw_trace_func
+	# mount -t tracefs nodev /sys/kernel/tracing
+	# echo function > /sys/kernel/tracing/current_tracer
+	$ cat /sys/kernel/tracing/trace_pipe > ~/raw_trace_func
 	Wait some times but not too much, the script is a bit slow.
 	Break the pipe (Ctrl + Z)
-	$ scripts/draw_functrace.py < raw_trace_func > draw_functrace
+	$ scripts/tracing/draw_functrace.py < ~/raw_trace_func > draw_functrace
 	Then you have your drawn trace in draw_functrace
 """
 
@@ -103,10 +103,10 @@ def parseLine(line):
 	line = line.strip()
 	if line.startswith("#"):
 		raise CommentLineException
-	m = re.match("[^]]+?\\] +([0-9.]+): (\\w+) <-(\\w+)", line)
+	m = re.match("[^]]+?\\] +([a-z.]+) +([0-9.]+): (\\w+) <-(\\w+)", line)
 	if m is None:
 		raise BrokenLineException
-	return (m.group(1), m.group(2), m.group(3))
+	return (m.group(2), m.group(3), m.group(4))
 
 
 def main():

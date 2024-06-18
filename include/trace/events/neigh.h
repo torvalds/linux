@@ -30,7 +30,7 @@ TRACE_EVENT(neigh_create,
 
 	TP_STRUCT__entry(
 		__field(u32, family)
-		__dynamic_array(char,  dev,   IFNAMSIZ )
+		__string(dev, dev ? dev->name : "NULL")
 		__field(int, entries)
 		__field(u8, created)
 		__field(u8, gc_exempt)
@@ -39,15 +39,13 @@ TRACE_EVENT(neigh_create,
 	),
 
 	TP_fast_assign(
-		struct in6_addr *pin6;
 		__be32 *p32;
 
 		__entry->family = tbl->family;
-		__assign_str(dev, (dev ? dev->name : "NULL"));
+		__assign_str(dev);
 		__entry->entries = atomic_read(&tbl->gc_entries);
 		__entry->created = n != NULL;
 		__entry->gc_exempt = exempt_from_gc;
-		pin6 = (struct in6_addr *)__entry->primary_key6;
 		p32 = (__be32 *)__entry->primary_key4;
 
 		if (tbl->family == AF_INET)
@@ -57,6 +55,8 @@ TRACE_EVENT(neigh_create,
 
 #if IS_ENABLED(CONFIG_IPV6)
 		if (tbl->family == AF_INET6) {
+			struct in6_addr *pin6;
+
 			pin6 = (struct in6_addr *)__entry->primary_key6;
 			*pin6 = *(struct in6_addr *)pkey;
 		}
@@ -103,7 +103,7 @@ TRACE_EVENT(neigh_update,
 		__be32 *p32;
 
 		__entry->family = n->tbl->family;
-		__assign_str(dev, (n->dev ? n->dev->name : "NULL"));
+		__assign_str(dev);
 		__entry->lladdr_len = lladdr_len;
 		memcpy(__entry->lladdr, n->ha, lladdr_len);
 		__entry->flags = n->flags;
@@ -180,7 +180,7 @@ DECLARE_EVENT_CLASS(neigh__update,
 		__be32 *p32;
 
 		__entry->family = n->tbl->family;
-		__assign_str(dev, (n->dev ? n->dev->name : "NULL"));
+		__assign_str(dev);
 		__entry->lladdr_len = lladdr_len;
 		memcpy(__entry->lladdr, n->ha, lladdr_len);
 		__entry->flags = n->flags;

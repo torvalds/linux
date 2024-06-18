@@ -107,6 +107,7 @@ u32 octeon_droq_check_hw_for_pkts(struct octeon_droq *droq)
 
 	return last_count;
 }
+EXPORT_SYMBOL_GPL(octeon_droq_check_hw_for_pkts);
 
 static void octeon_droq_compute_max_packet_bufs(struct octeon_droq *droq)
 {
@@ -216,6 +217,7 @@ int octeon_delete_droq(struct octeon_device *oct, u32 q_no)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(octeon_delete_droq);
 
 int octeon_init_droq(struct octeon_device *oct,
 		     u32 q_no,
@@ -280,13 +282,10 @@ int octeon_init_droq(struct octeon_device *oct,
 	dev_dbg(&oct->pci_dev->dev, "droq[%d]: num_desc: %d\n", q_no,
 		droq->max_count);
 
-	droq->recv_buf_list = (struct octeon_recv_buffer *)
-	      vzalloc_node(array_size(droq->max_count, OCT_DROQ_RECVBUF_SIZE),
-			   numa_node);
+	droq->recv_buf_list = vzalloc_node(array_size(droq->max_count, OCT_DROQ_RECVBUF_SIZE),
+					   numa_node);
 	if (!droq->recv_buf_list)
-		droq->recv_buf_list = (struct octeon_recv_buffer *)
-		      vzalloc(array_size(droq->max_count,
-					 OCT_DROQ_RECVBUF_SIZE));
+		droq->recv_buf_list = vzalloc(array_size(droq->max_count, OCT_DROQ_RECVBUF_SIZE));
 	if (!droq->recv_buf_list) {
 		dev_err(&oct->pci_dev->dev, "Output queue recv buf list alloc failed\n");
 		goto init_droq_fail;
@@ -776,8 +775,9 @@ octeon_droq_process_packets(struct octeon_device *oct,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(octeon_droq_process_packets);
 
-/**
+/*
  * Utility function to poll for packets. check_hw_for_packets must be
  * called before calling this routine.
  */
@@ -924,6 +924,7 @@ int octeon_unregister_droq_ops(struct octeon_device *oct, u32 q_no)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(octeon_unregister_droq_ops);
 
 int octeon_create_droq(struct octeon_device *oct,
 		       u32 q_no, u32 num_descs,

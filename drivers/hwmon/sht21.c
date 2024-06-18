@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2010 Urs Fleisch <urs.fleisch@sensirion.com>
  *
- * Data sheet available at http://www.sensirion.com/file/datasheet_sht21
+ * Data sheet available at https://www.sensirion.com/file/datasheet_sht21
  */
 
 #include <linux/module.h>
@@ -41,7 +41,7 @@ struct sht21 {
 	unsigned long last_update;
 	int temperature;
 	int humidity;
-	char valid;
+	bool valid;
 	char eic[18];
 };
 
@@ -105,7 +105,7 @@ static int sht21_update_measurements(struct device *dev)
 			goto out;
 		sht21->humidity = sht21_rh_ticks_to_per_cent_mille(ret);
 		sht21->last_update = jiffies;
-		sht21->valid = 1;
+		sht21->valid = true;
 	}
 out:
 	mutex_unlock(&sht21->lock);
@@ -114,7 +114,7 @@ out:
 }
 
 /**
- * sht21_show_temperature() - show temperature measurement value in sysfs
+ * sht21_temperature_show() - show temperature measurement value in sysfs
  * @dev: device
  * @attr: device attribute
  * @buf: sysfs buffer (PAGE_SIZE) where measurement values are written to
@@ -136,7 +136,7 @@ static ssize_t sht21_temperature_show(struct device *dev,
 }
 
 /**
- * sht21_show_humidity() - show humidity measurement value in sysfs
+ * sht21_humidity_show() - show humidity measurement value in sysfs
  * @dev: device
  * @attr: device attribute
  * @buf: sysfs buffer (PAGE_SIZE) where measurement values are written to
@@ -250,8 +250,7 @@ static struct attribute *sht21_attrs[] = {
 
 ATTRIBUTE_GROUPS(sht21);
 
-static int sht21_probe(struct i2c_client *client,
-	const struct i2c_device_id *id)
+static int sht21_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device *hwmon_dev;
@@ -279,7 +278,7 @@ static int sht21_probe(struct i2c_client *client,
 
 /* Device ID table */
 static const struct i2c_device_id sht21_id[] = {
-	{ "sht21", 0 },
+	{ "sht21" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, sht21_id);

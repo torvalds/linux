@@ -234,7 +234,7 @@ static long sc1200wdt_ioctl(struct file *file, unsigned int cmd,
 			return -EINVAL;
 		timeout = new_timeout;
 		sc1200wdt_write_data(WDTO, timeout);
-		/* fall through - and return the new timeout */
+		fallthrough;	/* and return the new timeout */
 
 	case WDIOC_GETTIMEOUT:
 		return put_user(timeout * 60, p);
@@ -307,6 +307,7 @@ static const struct file_operations sc1200wdt_fops = {
 	.llseek		= no_llseek,
 	.write		= sc1200wdt_write,
 	.unlocked_ioctl = sc1200wdt_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= sc1200wdt_open,
 	.release	= sc1200wdt_release,
 };

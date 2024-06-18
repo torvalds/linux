@@ -27,7 +27,7 @@
 
 /**************************************************************************
  * PID (Proportional-Integral-Derivative) controller is commonly used in
- * linear control system, consider the the process.
+ * linear control system, consider the process.
  * G(s) = U(s)/E(s)
  * kp = proportional gain
  * ki = integral gain
@@ -54,7 +54,6 @@ static double xk_1, xk_2; /* input temperature x[k-#] */
  */
 int init_thermal_controller(void)
 {
-	int ret = 0;
 
 	/* init pid params */
 	p_param.ts = ticktime;
@@ -65,7 +64,7 @@ int init_thermal_controller(void)
 
 	p_param.t_target = target_temp_user;
 
-	return ret;
+	return 0;
 }
 
 void controller_reset(void)

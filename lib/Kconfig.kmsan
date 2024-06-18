@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config HAVE_ARCH_KMSAN
+	bool
+
+config HAVE_KMSAN_COMPILER
+	# Clang versions <14.0.0 also support -fsanitize=kernel-memory, but not
+	# all the features necessary to build the kernel with KMSAN.
+	depends on CC_IS_CLANG && CLANG_VERSION >= 140000
+	def_bool $(cc-option,-fsanitize=kernel-memory -mllvm -msan-disable-checks=1)
+
+config KMSAN
+	bool "KMSAN: detector of uninitialized values use"
+	depends on HAVE_ARCH_KMSAN && HAVE_KMSAN_COMPILER
+	depends on DEBUG_KERNEL && !KASAN && !KCSAN
+	depends on !PREEMPT_RT
+	select STACKDEPOT
+	select STACKDEPOT_ALWAYS_INIT
+	help
+	  KernelMemorySanitizer (KMSAN) is a dynamic detector of uses of
+	  uninitialized values in the kernel. It is based on compiler
+	  instrumentation provided by Clang and thus requires Clang to build.
+
+	  An important note is that KMSAN is not intended for production use,
+	  because it drastically increases kernel memory footprint and slows
+	  the whole system down.
+
+	  See <file:Documentation/dev-tools/kmsan.rst> for more details.
+
+if KMSAN
+
+config HAVE_KMSAN_PARAM_RETVAL
+	# -fsanitize-memory-param-retval is supported only by Clang >= 14.
+	depends on HAVE_KMSAN_COMPILER
+	def_bool $(cc-option,-fsanitize=kernel-memory -fsanitize-memory-param-retval)
+
+config KMSAN_CHECK_PARAM_RETVAL
+	bool "Check for uninitialized values passed to and returned from functions"
+	default y
+	depends on HAVE_KMSAN_PARAM_RETVAL
+	help
+	  If the compiler supports -fsanitize-memory-param-retval, KMSAN will
+	  eagerly check every function parameter passed by value and every
+	  function return value.
+
+	  Disabling KMSAN_CHECK_PARAM_RETVAL will result in tracking shadow for
+	  function parameters and return values across function borders. This
+	  is a more relaxed mode, but it generates more instrumentation code and
+	  may potentially report errors in corner cases when non-instrumented
+	  functions call instrumented ones.
+
+config KMSAN_KUNIT_TEST
+	tristate "KMSAN integration test suite" if !KUNIT_ALL_TESTS
+	default KUNIT_ALL_TESTS
+	depends on TRACEPOINTS && KUNIT
+	help
+	  Test suite for KMSAN, testing various error detection scenarios,
+	  and checking that reports are correctly output to console.
+
+	  Say Y here if you want the test to be built into the kernel and run
+	  during boot; say M if you want the test to build as a module; say N
+	  if you are unsure.
+
+endif

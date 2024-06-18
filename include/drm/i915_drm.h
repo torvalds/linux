@@ -26,8 +26,7 @@
 #ifndef _I915_DRM_H_
 #define _I915_DRM_H_
 
-#include <drm/i915_pciids.h>
-#include <uapi/drm/i915_drm.h>
+#include <linux/types.h>
 
 /* For use by IPS driver */
 unsigned long i915_read_mch_val(void);
@@ -43,7 +42,7 @@ extern struct resource intel_graphics_stolen_res;
  * The Bridge device's PCI config space has information about the
  * fb aperture size and the amount of pre-reserved memory.
  * This is all handled in the intel-gtt.ko module. i915.ko only
- * cares about the vga bit for the vga rbiter.
+ * cares about the vga bit for the vga arbiter.
  */
 #define INTEL_GMCH_CTRL		0x52
 #define INTEL_GMCH_VGA_DISABLE  (1 << 1)
@@ -99,23 +98,5 @@ extern struct resource intel_graphics_stolen_res;
 #define INTEL_GEN11_BSM_DW0	0xc0
 #define INTEL_GEN11_BSM_DW1	0xc4
 #define   INTEL_BSM_MASK	(-(1u << 20))
-
-enum port {
-	PORT_NONE = -1,
-
-	PORT_A = 0,
-	PORT_B,
-	PORT_C,
-	PORT_D,
-	PORT_E,
-	PORT_F,
-	PORT_G,
-	PORT_H,
-	PORT_I,
-
-	I915_MAX_PORTS
-};
-
-#define port_name(p) ((p) + 'A')
 
 #endif				/* _I915_DRM_H_ */

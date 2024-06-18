@@ -5,16 +5,16 @@
  *
  * Author: Anton Blanchard <anton@au.ibm.com>
  */
+#include <linux/export.h>
 #include <asm/processor.h>
 #include <asm/ppc_asm.h>
-#include <asm/export.h>
 #include <asm/feature-fixups.h>
 
 /* Note: This code relies on -mminimal-toc */
 
 _GLOBAL(__arch_hweight8)
 BEGIN_FTR_SECTION
-	b __sw_hweight8
+	b CFUNC(__sw_hweight8)
 	nop
 	nop
 FTR_SECTION_ELSE
@@ -26,7 +26,7 @@ EXPORT_SYMBOL(__arch_hweight8)
 
 _GLOBAL(__arch_hweight16)
 BEGIN_FTR_SECTION
-	b __sw_hweight16
+	b CFUNC(__sw_hweight16)
 	nop
 	nop
 	nop
@@ -49,7 +49,7 @@ EXPORT_SYMBOL(__arch_hweight16)
 
 _GLOBAL(__arch_hweight32)
 BEGIN_FTR_SECTION
-	b __sw_hweight32
+	b CFUNC(__sw_hweight32)
 	nop
 	nop
 	nop
@@ -75,7 +75,7 @@ EXPORT_SYMBOL(__arch_hweight32)
 
 _GLOBAL(__arch_hweight64)
 BEGIN_FTR_SECTION
-	b __sw_hweight64
+	b CFUNC(__sw_hweight64)
 	nop
 	nop
 	nop

@@ -8,6 +8,7 @@ config NFSD
 	select SUNRPC
 	select EXPORTFS
 	select NFS_ACL_SUPPORT if NFSD_V2_ACL
+	select NFS_ACL_SUPPORT if NFSD_V3_ACL
 	depends on MULTIUSER
 	help
 	  Choose Y here if you want to allow other computers to access
@@ -26,28 +27,29 @@ config NFSD
 
 	  Below you can choose which versions of the NFS protocol are
 	  available to clients mounting the NFS server on this system.
-	  Support for NFS version 2 (RFC 1094) is always available when
+	  Support for NFS version 3 (RFC 1813) is always available when
 	  CONFIG_NFSD is selected.
 
 	  If unsure, say N.
 
-config NFSD_V2_ACL
-	bool
+config NFSD_V2
+	bool "NFS server support for NFS version 2 (DEPRECATED)"
 	depends on NFSD
-
-config NFSD_V3
-	bool "NFS server support for NFS version 3"
-	depends on NFSD
+	default n
 	help
-	  This option enables support in your system's NFS server for
-	  version 3 of the NFS protocol (RFC 1813).
+	  NFSv2 (RFC 1094) was the first publicly-released version of NFS.
+	  Unless you are hosting ancient (1990's era) NFS clients, you don't
+	  need this.
 
-	  If unsure, say Y.
+	  If unsure, say N.
+
+config NFSD_V2_ACL
+	bool "NFS server support for the NFSv2 ACL protocol extension"
+	depends on NFSD_V2
 
 config NFSD_V3_ACL
 	bool "NFS server support for the NFSv3 ACL protocol extension"
-	depends on NFSD_V3
-	select NFSD_V2_ACL
+	depends on NFSD
 	help
 	  Solaris NFS servers support an auxiliary NFSv3 ACL protocol that
 	  never became an official part of the NFS version 3 protocol.
@@ -70,11 +72,13 @@ config NFSD_V3_ACL
 config NFSD_V4
 	bool "NFS server support for NFS version 4"
 	depends on NFSD && PROC_FS
-	select NFSD_V3
 	select FS_POSIX_ACL
-	select SUNRPC_GSS
+	select RPCSEC_GSS_KRB5
 	select CRYPTO
+	select CRYPTO_MD5
+	select CRYPTO_SHA256
 	select GRACE_PERIOD
+	select NFS_V4_2_SSC_HELPER if NFS_V4_2
 	help
 	  This option enables support in your system's NFS server for
 	  version 4 of the NFS protocol (RFC 3530).
@@ -96,7 +100,7 @@ config NFSD_BLOCKLAYOUT
 	help
 	  This option enables support for the exporting pNFS block layouts
 	  in the kernel's NFS server. The pNFS block layout enables NFS
-	  clients to directly perform I/O to block devices accesible to both
+	  clients to directly perform I/O to block devices accessible to both
 	  the server and the clients.  See RFC 5663 for more details.
 
 	  If unsure, say N.
@@ -106,11 +110,10 @@ config NFSD_SCSILAYOUT
 	depends on NFSD_V4 && BLOCK
 	select NFSD_PNFS
 	select EXPORTFS_BLOCK_OPS
-	select BLK_SCSI_REQUEST
 	help
 	  This option enables support for the exporting pNFS SCSI layouts
 	  in the kernel's NFS server. The pNFS SCSI layout enables NFS
-	  clients to directly perform I/O to SCSI devices accesible to both
+	  clients to directly perform I/O to SCSI devices accessible to both
 	  the server and the clients.  See draft-ietf-nfsv4-scsi-layout for
 	  more details.
 
@@ -124,12 +127,22 @@ config NFSD_FLEXFILELAYOUT
 	  This option enables support for the exporting pNFS Flex File
 	  layouts in the kernel's NFS server. The pNFS Flex File  layout
 	  enables NFS clients to directly perform I/O to NFSv3 devices
-	  accesible to both the server and the clients.  See
+	  accessible to both the server and the clients.  See
 	  draft-ietf-nfsv4-flex-files for more details.
 
 	  Warning, this server implements the bare minimum functionality
 	  to be a flex file server - it is for testing the client,
 	  not for use in production.
+
+	  If unsure, say N.
+
+config NFSD_V4_2_INTER_SSC
+	bool "NFSv4.2 inter server to server COPY"
+	depends on NFSD_V4 && NFS_V4_2
+	help
+	  This option enables support for NFSv4.2 inter server to
+	  server copy where the destination server calls the NFSv4.2
+	  client to read the data to copy from the source server.
 
 	  If unsure, say N.
 
@@ -146,12 +159,18 @@ config NFSD_V4_SECURITY_LABEL
 	If you do not wish to enable fine-grained security labels SELinux or
 	Smack policies on NFSv4 files, say N.
 
-config NFSD_FAULT_INJECTION
-	bool "NFS server manual fault injection"
-	depends on NFSD_V4 && DEBUG_KERNEL && DEBUG_FS && BROKEN
+config NFSD_LEGACY_CLIENT_TRACKING
+	bool "Support legacy NFSv4 client tracking methods (DEPRECATED)"
+	depends on NFSD_V4
+	default n
 	help
-	  This option enables support for manually injecting faults
-	  into the NFS server.  This is intended to be used for
-	  testing error recovery on the NFS client.
+	  The NFSv4 server needs to store a small amount of information on
+	  stable storage in order to handle state recovery after reboot. Most
+	  modern deployments upcall to a userland daemon for this (nfsdcld),
+	  but older NFS servers may store information directly in a
+	  recoverydir, or spawn a process directly using a usermodehelper
+	  upcall.
 
-	  If unsure, say N.
+	  These legacy client tracking methods have proven to be probelmatic
+	  and will be removed in the future. Say Y here if you need support
+	  for them in the interim.

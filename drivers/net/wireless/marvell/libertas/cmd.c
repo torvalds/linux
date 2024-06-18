@@ -150,10 +150,9 @@ int lbs_update_hw_spec(struct lbs_private *priv)
 		memmove(priv->current_addr, cmd.permanentaddr, ETH_ALEN);
 
 	if (!priv->copied_hwaddr) {
-		memcpy(priv->dev->dev_addr, priv->current_addr, ETH_ALEN);
+		eth_hw_addr_set(priv->dev, priv->current_addr);
 		if (priv->mesh_dev)
-			memcpy(priv->mesh_dev->dev_addr,
-				priv->current_addr, ETH_ALEN);
+			eth_hw_addr_set(priv->mesh_dev, priv->current_addr);
 		priv->copied_hwaddr = 1;
 	}
 
@@ -1133,7 +1132,7 @@ int lbs_allocate_cmd_buffer(struct lbs_private *priv)
 		if (!cmdarray[i].cmdbuf) {
 			lbs_deb_host("ALLOC_CMD_BUF: ptempvirtualaddr is NULL\n");
 			ret = -1;
-			goto done;
+			goto free_cmd_array;
 		}
 	}
 
@@ -1141,8 +1140,17 @@ int lbs_allocate_cmd_buffer(struct lbs_private *priv)
 		init_waitqueue_head(&cmdarray[i].cmdwait_q);
 		lbs_cleanup_and_insert_cmd(priv, &cmdarray[i]);
 	}
-	ret = 0;
+	return 0;
 
+free_cmd_array:
+	for (i = 0; i < LBS_NUM_CMD_BUFFERS; i++) {
+		if (cmdarray[i].cmdbuf) {
+			kfree(cmdarray[i].cmdbuf);
+			cmdarray[i].cmdbuf = NULL;
+		}
+	}
+	kfree(priv->cmd_array);
+	priv->cmd_array = NULL;
 done:
 	return ret;
 }

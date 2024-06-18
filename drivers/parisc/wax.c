@@ -4,7 +4,7 @@
  *
  *	(c) Copyright 2000 The Puffin Group Inc.
  *
- *	by Helge Deller <deller@gmx.de>
+ *	(c) 2000-2023 by Helge Deller <deller@gmx.de>
  */
 
 #include <linux/errno.h>
@@ -68,7 +68,6 @@ static int __init wax_init_chip(struct parisc_device *dev)
 {
 	struct gsc_asic *wax;
 	struct parisc_device *parent;
-	struct gsc_irq gsc_irq;
 	int ret;
 
 	wax = kzalloc(sizeof(*wax), GFP_KERNEL);
@@ -85,7 +84,7 @@ static int __init wax_init_chip(struct parisc_device *dev)
 	wax_init_irq(wax);
 
 	/* the IRQ wax should use */
-	dev->irq = gsc_claim_irq(&gsc_irq, WAX_GSC_IRQ);
+	dev->irq = gsc_claim_irq(&wax->gsc_irq, WAX_GSC_IRQ);
 	if (dev->irq < 0) {
 		printk(KERN_ERR "%s(): cannot get GSC irq\n",
 				__func__);
@@ -93,9 +92,9 @@ static int __init wax_init_chip(struct parisc_device *dev)
 		return -EBUSY;
 	}
 
-	wax->eim = ((u32) gsc_irq.txn_addr) | gsc_irq.txn_data;
+	wax->eim = ((u32) wax->gsc_irq.txn_addr) | wax->gsc_irq.txn_data;
 
-	ret = request_irq(gsc_irq.irq, gsc_asic_intr, 0, "wax", wax);
+	ret = request_irq(wax->gsc_irq.irq, gsc_asic_intr, 0, "wax", wax);
 	if (ret < 0) {
 		kfree(wax);
 		return ret;
@@ -122,14 +121,20 @@ static int __init wax_init_chip(struct parisc_device *dev)
 }
 
 static const struct parisc_device_id wax_tbl[] __initconst = {
-  	{ HPHW_BA, HVERSION_REV_ANY_ID, HVERSION_ANY_ID, 0x0008e },
+	{ HPHW_BA, HVERSION_REV_ANY_ID, HVERSION_ANY_ID, 0x0008e },
 	{ 0, }
 };
 
 MODULE_DEVICE_TABLE(parisc, wax_tbl);
 
-struct parisc_driver wax_driver __refdata = {
+static struct parisc_driver wax_driver __refdata = {
 	.name =		"wax",
 	.id_table =	wax_tbl,
 	.probe =	wax_init_chip,
 };
+
+static int __init wax_init(void)
+{
+	return register_parisc_driver(&wax_driver);
+}
+arch_initcall(wax_init);

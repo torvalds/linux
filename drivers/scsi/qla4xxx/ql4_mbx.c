@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * QLogic iSCSI HBA Driver
  * Copyright (c)  2003-2013 QLogic Corporation
- *
- * See LICENSE.qla4xxx for copyright and licensing details.
  */
 
 #include <linux/ctype.h>
@@ -45,9 +44,9 @@ void qla4xxx_process_mbox_intr(struct scsi_qla_host *ha, int out_count)
 }
 
 /**
- * qla4xxx_is_intr_poll_mode – Are we allowed to poll for interrupts?
+ * qla4xxx_is_intr_poll_mode - Are we allowed to poll for interrupts?
  * @ha: Pointer to host adapter structure.
- * @ret: 1=polling mode, 0=non-polling mode
+ * returns: 1=polling mode, 0=non-polling mode
  **/
 static int qla4xxx_is_intr_poll_mode(struct scsi_qla_host *ha)
 {
@@ -640,17 +639,14 @@ int qla4xxx_initialize_fw_cb(struct scsi_qla_host * ha)
 
 	if (qla4xxx_get_ifcb(ha, &mbox_cmd[0], &mbox_sts[0], init_fw_cb_dma) !=
 	    QLA_SUCCESS) {
-		dma_free_coherent(&ha->pdev->dev,
-				  sizeof(struct addr_ctrl_blk),
-				  init_fw_cb, init_fw_cb_dma);
 		goto exit_init_fw_cb;
 	}
 
 	/* Fill in the request and response queue information. */
 	init_fw_cb->rqq_consumer_idx = cpu_to_le16(ha->request_out);
 	init_fw_cb->compq_producer_idx = cpu_to_le16(ha->response_in);
-	init_fw_cb->rqq_len = __constant_cpu_to_le16(REQUEST_QUEUE_DEPTH);
-	init_fw_cb->compq_len = __constant_cpu_to_le16(RESPONSE_QUEUE_DEPTH);
+	init_fw_cb->rqq_len = cpu_to_le16(REQUEST_QUEUE_DEPTH);
+	init_fw_cb->compq_len = cpu_to_le16(RESPONSE_QUEUE_DEPTH);
 	init_fw_cb->rqq_addr_lo = cpu_to_le32(LSDW(ha->request_dma));
 	init_fw_cb->rqq_addr_hi = cpu_to_le32(MSDW(ha->request_dma));
 	init_fw_cb->compq_addr_lo = cpu_to_le32(LSDW(ha->response_dma));
@@ -660,20 +656,20 @@ int qla4xxx_initialize_fw_cb(struct scsi_qla_host * ha)
 
 	/* Set up required options. */
 	init_fw_cb->fw_options |=
-		__constant_cpu_to_le16(FWOPT_SESSION_MODE |
-				       FWOPT_INITIATOR_MODE);
+		cpu_to_le16(FWOPT_SESSION_MODE |
+			    FWOPT_INITIATOR_MODE);
 
 	if (is_qla80XX(ha))
 		init_fw_cb->fw_options |=
-		    __constant_cpu_to_le16(FWOPT_ENABLE_CRBDB);
+		    cpu_to_le16(FWOPT_ENABLE_CRBDB);
 
-	init_fw_cb->fw_options &= __constant_cpu_to_le16(~FWOPT_TARGET_MODE);
+	init_fw_cb->fw_options &= cpu_to_le16(~FWOPT_TARGET_MODE);
 
 	init_fw_cb->add_fw_options = 0;
 	init_fw_cb->add_fw_options |=
-			__constant_cpu_to_le16(ADFWOPT_SERIALIZE_TASK_MGMT);
+			cpu_to_le16(ADFWOPT_SERIALIZE_TASK_MGMT);
 	init_fw_cb->add_fw_options |=
-			__constant_cpu_to_le16(ADFWOPT_AUTOCONN_DISABLE);
+			cpu_to_le16(ADFWOPT_AUTOCONN_DISABLE);
 
 	if (qla4xxx_set_ifcb(ha, &mbox_cmd[0], &mbox_sts[0], init_fw_cb_dma)
 		!= QLA_SUCCESS) {
@@ -813,7 +809,7 @@ int qla4xxx_get_firmware_status(struct scsi_qla_host * ha)
 	return QLA_SUCCESS;
 }
 
-/**
+/*
  * qla4xxx_get_fwddb_entry - retrieves firmware ddb entry
  * @ha: Pointer to host adapter structure.
  * @fw_ddb_index: Firmware's device database index
@@ -937,7 +933,7 @@ int qla4xxx_conn_open(struct scsi_qla_host *ha, uint16_t fw_ddb_index)
 }
 
 /**
- * qla4xxx_set_fwddb_entry - sets a ddb entry.
+ * qla4xxx_set_ddb_entry - sets a ddb entry.
  * @ha: Pointer to host adapter structure.
  * @fw_ddb_index: Firmware's device database index
  * @fw_ddb_entry_dma: dma address of ddb entry
@@ -1262,8 +1258,7 @@ int qla4xxx_reset_lun(struct scsi_qla_host * ha, struct ddb_entry * ddb_entry,
 /**
  * qla4xxx_reset_target - issues target Reset
  * @ha: Pointer to host adapter structure.
- * @db_entry: Pointer to device database entry
- * @un_entry: Pointer to lun entry structure
+ * @ddb_entry: Pointer to device database entry
  *
  * This routine performs a TARGET RESET on the specified target.
  * The caller must ensure that the ddb_entry pointers
@@ -1616,9 +1611,9 @@ int qla4xxx_get_chap(struct scsi_qla_host *ha, char *username, char *password,
 		goto exit_get_chap;
 	}
 
-	strlcpy(password, chap_table->secret, QL4_CHAP_MAX_SECRET_LEN);
-	strlcpy(username, chap_table->name, QL4_CHAP_MAX_NAME_LEN);
-	chap_table->cookie = __constant_cpu_to_le16(CHAP_VALID_COOKIE);
+	strscpy(password, chap_table->secret, QL4_CHAP_MAX_SECRET_LEN);
+	strscpy(username, chap_table->name, QL4_CHAP_MAX_NAME_LEN);
+	chap_table->cookie = cpu_to_le16(CHAP_VALID_COOKIE);
 
 exit_get_chap:
 	dma_pool_free(ha->chap_dma_pool, chap_table, chap_dma);
@@ -1646,6 +1641,7 @@ int qla4xxx_set_chap(struct scsi_qla_host *ha, char *username, char *password,
 	struct ql4_chap_table *chap_table;
 	uint32_t chap_size = 0;
 	dma_addr_t chap_dma;
+	ssize_t secret_len;
 
 	chap_table = dma_pool_zalloc(ha->chap_dma_pool, GFP_KERNEL, &chap_dma);
 	if (chap_table == NULL) {
@@ -1657,10 +1653,14 @@ int qla4xxx_set_chap(struct scsi_qla_host *ha, char *username, char *password,
 		chap_table->flags |= BIT_6; /* peer */
 	else
 		chap_table->flags |= BIT_7; /* local */
-	chap_table->secret_len = strlen(password);
-	strncpy(chap_table->secret, password, MAX_CHAP_SECRET_LEN - 1);
-	strncpy(chap_table->name, username, MAX_CHAP_NAME_LEN - 1);
-	chap_table->cookie = __constant_cpu_to_le16(CHAP_VALID_COOKIE);
+
+	secret_len = strscpy(chap_table->secret, password,
+			     sizeof(chap_table->secret));
+	if (secret_len < MIN_CHAP_SECRET_LEN)
+		goto cleanup_chap_table;
+	chap_table->secret_len = (uint8_t)secret_len;
+	strscpy(chap_table->name, username, sizeof(chap_table->name));
+	chap_table->cookie = cpu_to_le16(CHAP_VALID_COOKIE);
 
 	if (is_qla40XX(ha)) {
 		chap_size = MAX_CHAP_ENTRIES_40XX * sizeof(*chap_table);
@@ -1684,6 +1684,8 @@ int qla4xxx_set_chap(struct scsi_qla_host *ha, char *username, char *password,
 		memcpy((struct ql4_chap_table *)ha->chap_list + idx,
 		       chap_table, sizeof(struct ql4_chap_table));
 	}
+
+cleanup_chap_table:
 	dma_pool_free(ha->chap_dma_pool, chap_table, chap_dma);
 	if (rval != QLA_SUCCESS)
 		ret =  -EINVAL;
@@ -1726,7 +1728,7 @@ int qla4xxx_get_uni_chap_at_index(struct scsi_qla_host *ha, char *username,
 
 	mutex_lock(&ha->chap_sem);
 	chap_table = (struct ql4_chap_table *)ha->chap_list + chap_index;
-	if (chap_table->cookie != __constant_cpu_to_le16(CHAP_VALID_COOKIE)) {
+	if (chap_table->cookie != cpu_to_le16(CHAP_VALID_COOKIE)) {
 		rval = QLA_ERROR;
 		goto exit_unlock_uni_chap;
 	}
@@ -1737,8 +1739,8 @@ int qla4xxx_get_uni_chap_at_index(struct scsi_qla_host *ha, char *username,
 		goto exit_unlock_uni_chap;
 	}
 
-	strlcpy(password, chap_table->secret, MAX_CHAP_SECRET_LEN);
-	strlcpy(username, chap_table->name, MAX_CHAP_NAME_LEN);
+	strscpy(password, chap_table->secret, MAX_CHAP_SECRET_LEN);
+	strscpy(username, chap_table->name, MAX_CHAP_NAME_LEN);
 
 	rval = QLA_SUCCESS;
 
@@ -1789,7 +1791,7 @@ int qla4xxx_get_chap_index(struct scsi_qla_host *ha, char *username,
 	for (i = 0; i < max_chap_entries; i++) {
 		chap_table = (struct ql4_chap_table *)ha->chap_list + i;
 		if (chap_table->cookie !=
-		    __constant_cpu_to_le16(CHAP_VALID_COOKIE)) {
+		    cpu_to_le16(CHAP_VALID_COOKIE)) {
 			if (i > MAX_RESRV_CHAP_IDX && free_index == -1)
 				free_index = i;
 			continue;
@@ -2110,18 +2112,18 @@ int qla4xxx_set_param_ddbentry(struct scsi_qla_host *ha,
 
 	if (conn->max_recv_dlength)
 		fw_ddb_entry->iscsi_max_rcv_data_seg_len =
-		  __constant_cpu_to_le16((conn->max_recv_dlength / BYTE_UNITS));
+		  cpu_to_le16((conn->max_recv_dlength / BYTE_UNITS));
 
 	if (sess->max_r2t)
 		fw_ddb_entry->iscsi_max_outsnd_r2t = cpu_to_le16(sess->max_r2t);
 
 	if (sess->first_burst)
 		fw_ddb_entry->iscsi_first_burst_len =
-		       __constant_cpu_to_le16((sess->first_burst / BYTE_UNITS));
+		       cpu_to_le16((sess->first_burst / BYTE_UNITS));
 
 	if (sess->max_burst)
 		fw_ddb_entry->iscsi_max_burst_len =
-			__constant_cpu_to_le16((sess->max_burst / BYTE_UNITS));
+			cpu_to_le16((sess->max_burst / BYTE_UNITS));
 
 	if (sess->time2wait)
 		fw_ddb_entry->iscsi_def_time2wait =
@@ -2286,8 +2288,8 @@ int qla4_8xxx_set_param(struct scsi_qla_host *ha, int param)
 	mbox_cmd[0] = MBOX_CMD_SET_PARAM;
 	if (param == SET_DRVR_VERSION) {
 		mbox_cmd[1] = SET_DRVR_VERSION;
-		strncpy((char *)&mbox_cmd[2], QLA4XXX_DRIVER_VERSION,
-			MAX_DRVR_VER_LEN - 1);
+		strscpy((char *)&mbox_cmd[2], QLA4XXX_DRIVER_VERSION,
+			MAX_DRVR_VER_LEN);
 	} else {
 		ql4_printk(KERN_ERR, ha, "%s: invalid parameter 0x%x\n",
 			   __func__, param);

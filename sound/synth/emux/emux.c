@@ -85,26 +85,25 @@ int snd_emux_register(struct snd_emux *emu, struct snd_card *card, int index, ch
 		return -EINVAL;
 
 	emu->card = card;
-	emu->name = kstrdup(name, GFP_KERNEL);
+	emu->name = kstrdup_const(name, GFP_KERNEL);
 	emu->voices = kcalloc(emu->max_voices, sizeof(struct snd_emux_voice),
 			      GFP_KERNEL);
-	if (emu->voices == NULL)
+	if (emu->name == NULL || emu->voices == NULL)
 		return -ENOMEM;
 
 	/* create soundfont list */
 	memset(&sf_cb, 0, sizeof(sf_cb));
 	sf_cb.private_data = emu;
-	if (emu->ops.sample_new)
-		sf_cb.sample_new = sf_sample_new;
-	if (emu->ops.sample_free)
-		sf_cb.sample_free = sf_sample_free;
+	sf_cb.sample_new = sf_sample_new;
+	sf_cb.sample_free = sf_sample_free;
 	if (emu->ops.sample_reset)
 		sf_cb.sample_reset = sf_sample_reset;
 	emu->sflist = snd_sf_new(&sf_cb, emu->memhdr);
 	if (emu->sflist == NULL)
 		return -ENOMEM;
 
-	if ((err = snd_emux_init_hwdep(emu)) < 0)
+	err = snd_emux_init_hwdep(emu);
+	if (err < 0)
 		return err;
 
 	snd_emux_init_voices(emu);
@@ -125,15 +124,10 @@ EXPORT_SYMBOL(snd_emux_register);
  */
 int snd_emux_free(struct snd_emux *emu)
 {
-	unsigned long flags;
-
 	if (! emu)
 		return -EINVAL;
 
-	spin_lock_irqsave(&emu->voice_lock, flags);
-	if (emu->timer_active)
-		del_timer(&emu->tlist);
-	spin_unlock_irqrestore(&emu->voice_lock, flags);
+	timer_shutdown_sync(&emu->tlist);
 
 	snd_emux_proc_free(emu);
 	snd_emux_delete_virmidi(emu);
@@ -144,7 +138,7 @@ int snd_emux_free(struct snd_emux *emu)
 	snd_emux_delete_hwdep(emu);
 	snd_sf_free(emu->sflist);
 	kfree(emu->voices);
-	kfree(emu->name);
+	kfree_const(emu->name);
 	kfree(emu);
 	return 0;
 }

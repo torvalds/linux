@@ -70,8 +70,6 @@ int main(int argc, char *argv[])
 
 	/* struct task_struct */
 	DEFINE(TS_THREAD_INFO, offsetof(struct task_struct, stack));
-#ifdef CONFIG_MMU
-	DEFINE(TASK_STATE, offsetof(struct task_struct, state));
 	DEFINE(TASK_FLAGS, offsetof(struct task_struct, flags));
 	DEFINE(TASK_PTRACE, offsetof(struct task_struct, ptrace));
 	DEFINE(TASK_BLOCKED, offsetof(struct task_struct, blocked));
@@ -84,12 +82,10 @@ int main(int argc, char *argv[])
 
 	DEFINE(PGDIR, offsetof(struct thread_struct, pgdir));
 	BLANK();
-#endif
 
 	/* struct thread_info */
 	DEFINE(TI_TASK, offsetof(struct thread_info, task));
 	DEFINE(TI_FLAGS, offsetof(struct thread_info, flags));
-	DEFINE(TI_ADDR_LIMIT, offsetof(struct thread_info, addr_limit));
 	DEFINE(TI_CPU_CONTEXT, offsetof(struct thread_info, cpu_context));
 	DEFINE(TI_PREEMPT_COUNT, offsetof(struct thread_info, preempt_count));
 	BLANK();
@@ -122,6 +118,13 @@ int main(int argc, char *argv[])
 	DEFINE(CC_EAR, offsetof(struct cpu_context, ear));
 	DEFINE(CC_ESR, offsetof(struct cpu_context, esr));
 	DEFINE(CC_FSR, offsetof(struct cpu_context, fsr));
+	BLANK();
+
+	/* struct cpuinfo */
+	DEFINE(CI_DCS, offsetof(struct cpuinfo, dcache_size));
+	DEFINE(CI_DCL, offsetof(struct cpuinfo, dcache_line_length));
+	DEFINE(CI_ICS, offsetof(struct cpuinfo, icache_size));
+	DEFINE(CI_ICL, offsetof(struct cpuinfo, icache_line_length));
 	BLANK();
 
 	return 0;

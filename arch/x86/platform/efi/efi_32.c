@@ -24,13 +24,39 @@
 #include <linux/types.h>
 #include <linux/ioport.h>
 #include <linux/efi.h>
+#include <linux/pgtable.h>
 
 #include <asm/io.h>
 #include <asm/desc.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
+#include <asm/set_memory.h>
 #include <asm/tlbflush.h>
 #include <asm/efi.h>
+
+void __init efi_map_region(efi_memory_desc_t *md)
+{
+	u64 start_pfn, end_pfn, end;
+	unsigned long size;
+	void *va;
+
+	start_pfn	= PFN_DOWN(md->phys_addr);
+	size		= md->num_pages << PAGE_SHIFT;
+	end		= md->phys_addr + size;
+	end_pfn 	= PFN_UP(end);
+
+	if (pfn_range_is_mapped(start_pfn, end_pfn)) {
+		va = __va(md->phys_addr);
+
+		if (!(md->attribute & EFI_MEMORY_WB))
+			set_memory_uc((unsigned long)va, md->num_pages);
+	} else {
+		va = ioremap_cache(md->phys_addr, size);
+	}
+
+	md->virt_addr = (unsigned long)va;
+	if (!va)
+		pr_err("ioremap of 0x%llX failed!\n", md->phys_addr);
+}
 
 /*
  * To make EFI call EFI runtime service in physical addressing mode we need
@@ -49,7 +75,7 @@ void efi_sync_low_kernel_mappings(void) {}
 void __init efi_dump_pagetable(void)
 {
 #ifdef CONFIG_EFI_PGT_DUMP
-	ptdump_walk_pgd_level(NULL, swapper_pg_dir);
+	ptdump_walk_pgd_level(NULL, &init_mm);
 #endif
 }
 
@@ -58,17 +84,22 @@ int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
 	return 0;
 }
 
-void __init efi_map_region(efi_memory_desc_t *md)
-{
-	old_map_region(md);
-}
-
 void __init efi_map_region_fixed(efi_memory_desc_t *md) {}
 void __init parse_efi_setup(u64 phys_addr, u32 data_len) {}
 
-pgd_t * __init efi_call_phys_prolog(void)
+efi_status_t efi_call_svam(efi_runtime_services_t * const *,
+			   u32, u32, u32, void *, u32);
+
+efi_status_t __init efi_set_virtual_address_map(unsigned long memory_map_size,
+						unsigned long descriptor_size,
+						u32 descriptor_version,
+						efi_memory_desc_t *virtual_map,
+						unsigned long systab_phys)
 {
+	const efi_system_table_t *systab = (efi_system_table_t *)systab_phys;
 	struct desc_ptr gdt_descr;
+	efi_status_t status;
+	unsigned long flags;
 	pgd_t *save_pgd;
 
 	/* Current pgd is swapper_pg_dir, we'll restore it later: */
@@ -80,18 +111,44 @@ pgd_t * __init efi_call_phys_prolog(void)
 	gdt_descr.size = GDT_SIZE - 1;
 	load_gdt(&gdt_descr);
 
-	return save_pgd;
-}
+	/* Disable interrupts around EFI calls: */
+	local_irq_save(flags);
+	status = efi_call_svam(&systab->runtime,
+			       memory_map_size, descriptor_size,
+			       descriptor_version, virtual_map,
+			       __pa(&efi.runtime));
+	local_irq_restore(flags);
 
-void __init efi_call_phys_epilog(pgd_t *save_pgd)
-{
 	load_fixmap_gdt(0);
 	load_cr3(save_pgd);
 	__flush_tlb_all();
+
+	return status;
 }
 
 void __init efi_runtime_update_mappings(void)
 {
-	if (__supported_pte_mask & _PAGE_NX)
-		runtime_code_page_mkexec();
+	if (__supported_pte_mask & _PAGE_NX) {
+		efi_memory_desc_t *md;
+
+		/* Make EFI runtime service code area executable */
+		for_each_efi_memory_desc(md) {
+			if (md->type != EFI_RUNTIME_SERVICES_CODE)
+				continue;
+
+			set_memory_x(md->virt_addr, md->num_pages);
+		}
+	}
+}
+
+void arch_efi_call_virt_setup(void)
+{
+	efi_fpu_begin();
+	firmware_restrict_branch_speculation_start();
+}
+
+void arch_efi_call_virt_teardown(void)
+{
+	firmware_restrict_branch_speculation_end();
+	efi_fpu_end();
 }

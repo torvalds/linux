@@ -68,7 +68,8 @@ MODULE_PARM_DESC(audio_debug, "enable debug messages [analog audio]");
 #define AUD_INT_MCHG_IRQ        (1 << 21)
 #define GP_COUNT_CONTROL_RESET	0x3
 
-static int cx23885_alsa_dma_init(struct cx23885_audio_dev *chip, int nr_pages)
+static int cx23885_alsa_dma_init(struct cx23885_audio_dev *chip,
+				 unsigned long nr_pages)
 {
 	struct cx23885_audio_buffer *buf = chip->buf;
 	struct page *pg;
@@ -76,11 +77,11 @@ static int cx23885_alsa_dma_init(struct cx23885_audio_dev *chip, int nr_pages)
 
 	buf->vaddr = vmalloc_32(nr_pages << PAGE_SHIFT);
 	if (NULL == buf->vaddr) {
-		dprintk(1, "vmalloc_32(%d pages) failed\n", nr_pages);
+		dprintk(1, "vmalloc_32(%lu pages) failed\n", nr_pages);
 		return -ENOMEM;
 	}
 
-	dprintk(1, "vmalloc is at addr %p, size=%d\n",
+	dprintk(1, "vmalloc is at addr %p, size=%lu\n",
 		buf->vaddr, nr_pages << PAGE_SHIFT);
 
 	memset(buf->vaddr, 0, nr_pages << PAGE_SHIFT);
@@ -113,7 +114,7 @@ static int cx23885_alsa_dma_map(struct cx23885_audio_dev *dev)
 	struct cx23885_audio_buffer *buf = dev->buf;
 
 	buf->sglen = dma_map_sg(&dev->pci->dev, buf->sglist,
-			buf->nr_pages, PCI_DMA_FROMDEVICE);
+			buf->nr_pages, DMA_FROM_DEVICE);
 
 	if (0 == buf->sglen) {
 		pr_warn("%s: cx23885_alsa_map_sg failed\n", __func__);
@@ -129,7 +130,7 @@ static int cx23885_alsa_dma_unmap(struct cx23885_audio_dev *dev)
 	if (!buf->sglen)
 		return 0;
 
-	dma_unmap_sg(&dev->pci->dev, buf->sglist, buf->sglen, PCI_DMA_FROMDEVICE);
+	dma_unmap_sg(&dev->pci->dev, buf->sglist, buf->nr_pages, DMA_FROM_DEVICE);
 	buf->sglen = 0;
 	return 0;
 }
@@ -265,7 +266,7 @@ static int dsp_buffer_free(struct cx23885_audio_dev *chip)
 	cx23885_alsa_dma_unmap(chip);
 	cx23885_alsa_dma_free(chip->buf);
 	risc = &chip->buf->risc;
-	pci_free_consistent(chip->pci, risc->size, risc->cpu, risc->dma);
+	dma_free_coherent(&chip->pci->dev, risc->size, risc->cpu, risc->dma);
 	kfree(chip->buf);
 
 	chip->buf = NULL;
@@ -495,7 +496,6 @@ static struct page *snd_cx23885_page(struct snd_pcm_substream *substream,
 static const struct snd_pcm_ops snd_cx23885_pcm_ops = {
 	.open = snd_cx23885_pcm_open,
 	.close = snd_cx23885_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = snd_cx23885_hw_params,
 	.hw_free = snd_cx23885_hw_free,
 	.prepare = snd_cx23885_prepare,
@@ -550,7 +550,7 @@ struct cx23885_audio_dev *cx23885_audio_register(struct cx23885_dev *dev)
 			   SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
 			THIS_MODULE, sizeof(struct cx23885_audio_dev), &card);
 	if (err < 0)
-		goto error;
+		goto error_msg;
 
 	chip = (struct cx23885_audio_dev *) card->private_data;
 	chip->dev = dev;
@@ -576,6 +576,7 @@ struct cx23885_audio_dev *cx23885_audio_register(struct cx23885_dev *dev)
 
 error:
 	snd_card_free(card);
+error_msg:
 	pr_err("%s(): Failed to register analog audio adapter\n",
 	       __func__);
 

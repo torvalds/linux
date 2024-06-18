@@ -105,11 +105,6 @@ enum {
 	SRP_CMD_ACA = 0x4,
 
 	SRPT_DEF_SG_TABLESIZE = 128,
-	/*
-	 * An experimentally determined value that avoids that QP creation
-	 * fails due to "swiotlb buffer is full" on systems using the swiotlb.
-	 */
-	SRPT_MAX_SG_PER_WQE = 16,
 
 	MIN_SRPT_SQ_SIZE = 16,
 	DEF_SRPT_SQ_SIZE = 4096,
@@ -261,9 +256,12 @@ enum rdma_ch_state {
  * @rdma_cm:	   See below.
  * @rdma_cm.cm_id: RDMA CM ID associated with the channel.
  * @cq:            IB completion queue for this channel.
+ * @cq_size:	   Number of CQEs in @cq.
  * @zw_cqe:	   Zero-length write CQE.
  * @rcu:           RCU head.
  * @kref:	   kref for this channel.
+ * @closed:	   Completion object that will be signaled as soon as a new
+ *		   channel object with the same identity can be created.
  * @rq_size:       IB receive queue size.
  * @max_rsp_size:  Maximum size of an RSP response message in bytes.
  * @sq_wr_avail:   number of work requests available in the send queue.
@@ -303,9 +301,11 @@ struct srpt_rdma_ch {
 		} rdma_cm;
 	};
 	struct ib_cq		*cq;
+	u32			cq_size;
 	struct ib_cqe		zw_cqe;
 	struct rcu_head		rcu;
 	struct kref		kref;
+	struct completion	*closed;
 	int			rq_size;
 	u32			max_rsp_size;
 	atomic_t		sq_wr_avail;
@@ -347,7 +347,7 @@ struct srpt_nexus {
 };
 
 /**
- * struct srpt_port_attib - attributes for SRPT port
+ * struct srpt_port_attrib - attributes for SRPT port
  * @srp_max_rdma_size: Maximum size of SRP RDMA transfers for new connections.
  * @srp_max_rsp_size: Maximum size of SRP response messages in bytes.
  * @srp_sq_size: Shared receive queue (SRQ) size.
@@ -361,24 +361,54 @@ struct srpt_port_attrib {
 };
 
 /**
- * struct srpt_port - information associated by SRPT with a single IB port
+ * struct srpt_tpg - information about a single "target portal group"
+ * @entry:	Entry in @sport_id->tpg_list.
+ * @sport_id:	Port name this TPG is associated with.
+ * @tpg:	LIO TPG data structure.
+ *
+ * Zero or more target portal groups are associated with each port name
+ * (srpt_port_id). With each TPG an ACL list is associated.
+ */
+struct srpt_tpg {
+	struct list_head	entry;
+	struct srpt_port_id	*sport_id;
+	struct se_portal_group	tpg;
+};
+
+/**
+ * struct srpt_port_id - LIO RDMA port information
+ * @mutex:	Protects @tpg_list changes.
+ * @tpg_list:	TPGs associated with the RDMA port name.
+ * @wwn:	WWN associated with the RDMA port name.
+ * @name:	ASCII representation of the port name.
+ *
+ * Multiple sysfs directories can be associated with a single RDMA port. This
+ * data structure represents a single (port, name) pair.
+ */
+struct srpt_port_id {
+	struct mutex		mutex;
+	struct list_head	tpg_list;
+	struct se_wwn		wwn;
+	char			name[64];
+};
+
+/**
+ * struct srpt_port - SRPT RDMA port information
  * @sdev:      backpointer to the HCA information.
  * @mad_agent: per-port management datagram processing information.
  * @enabled:   Whether or not this target port is enabled.
- * @port_guid: ASCII representation of Port GUID
- * @port_gid:  ASCII representation of Port GID
  * @port:      one-based port number.
  * @sm_lid:    cached value of the port's sm_lid.
  * @lid:       cached value of the port's lid.
  * @gid:       cached value of the port's gid.
- * @port_acl_lock spinlock for port_acl_list:
  * @work:      work structure for refreshing the aforementioned cached values.
- * @port_guid_tpg: TPG associated with target port GUID.
- * @port_guid_wwn: WWN associated with target port GUID.
- * @port_gid_tpg:  TPG associated with target port GID.
- * @port_gid_wwn:  WWN associated with target port GID.
+ * @guid_name: port name in GUID format.
+ * @guid_id:   LIO target port information for the port name in GUID format.
+ * @gid_name:  port name in GID format.
+ * @gid_id:    LIO target port information for the port name in GID format.
  * @port_attrib:   Port attributes that can be accessed through configfs.
- * @ch_releaseQ:   Enables waiting for removal from nexus_list.
+ * @refcount:	   Number of objects associated with this port.
+ * @freed_channels: Completion that will be signaled once @refcount becomes 0.
  * @mutex:	   Protects nexus_list.
  * @nexus_list:	   Nexus list. See also srpt_nexus.entry.
  */
@@ -386,25 +416,25 @@ struct srpt_port {
 	struct srpt_device	*sdev;
 	struct ib_mad_agent	*mad_agent;
 	bool			enabled;
-	u8			port_guid[24];
-	u8			port_gid[64];
 	u8			port;
 	u32			sm_lid;
 	u32			lid;
 	union ib_gid		gid;
 	struct work_struct	work;
-	struct se_portal_group	port_guid_tpg;
-	struct se_wwn		port_guid_wwn;
-	struct se_portal_group	port_gid_tpg;
-	struct se_wwn		port_gid_wwn;
+	char			guid_name[64];
+	struct srpt_port_id	*guid_id;
+	char			gid_name[64];
+	struct srpt_port_id	*gid_id;
 	struct srpt_port_attrib port_attrib;
-	wait_queue_head_t	ch_releaseQ;
+	atomic_t		refcount;
+	struct completion	*freed_channels;
 	struct mutex		mutex;
 	struct list_head	nexus_list;
 };
 
 /**
  * struct srpt_device - information associated by SRPT with a single HCA
+ * @refcnt:	   Reference count for this device.
  * @device:        Backpointer to the struct ib_device managed by the IB core.
  * @pd:            IB protection domain.
  * @lkey:          L_Key (local key) with write access to all local memory.
@@ -420,6 +450,7 @@ struct srpt_port {
  * @port:          Information about the ports owned by this HCA.
  */
 struct srpt_device {
+	struct kref		refcnt;
 	struct ib_device	*device;
 	struct ib_pd		*pd;
 	u32			lkey;

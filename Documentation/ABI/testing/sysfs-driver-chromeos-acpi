@@ -1,0 +1,152 @@
+What:		/sys/bus/platform/devices/GGL0001:*/BINF.2
+		/sys/bus/platform/devices/GOOG0016:*/BINF.2
+Date:		May 2022
+KernelVersion:	5.19
+Description:
+		Returns active EC firmware of current boot (boolean).
+
+		== ===============================
+		0  Read only (recovery) firmware.
+		1  Rewritable firmware.
+		== ===============================
+
+What:		/sys/bus/platform/devices/GGL0001:*/BINF.3
+		/sys/bus/platform/devices/GOOG0016:*/BINF.3
+Date:		May 2022
+KernelVersion:	5.19
+Description:
+		Returns main firmware type for current boot (integer).
+
+		== =====================================
+		0  Recovery.
+		1  Normal.
+		2  Developer.
+		3  Netboot (factory installation only).
+		== =====================================
+
+What:		/sys/bus/platform/devices/GGL0001:*/CHSW
+		/sys/bus/platform/devices/GOOG0016:*/CHSW
+Date:		May 2022
+KernelVersion:	5.19
+Description:
+		Returns switch position for Chrome OS specific hardware
+		switches when the firmware is booted (integer).
+
+		==== ===========================================
+		0    No changes.
+		2    Recovery button was pressed.
+		4    Recovery button was pressed (EC firmware).
+		32   Developer switch was enabled.
+		512  Firmware write protection was disabled.
+		==== ===========================================
+
+What:		/sys/bus/platform/devices/GGL0001:*/FMAP
+		/sys/bus/platform/devices/GOOG0016:*/FMAP
+Date:		May 2022
+KernelVersion:	5.19
+Description:
+		Returns physical memory address of the start of the main
+		processor firmware flashmap.
+
+What:		/sys/bus/platform/devices/GGL0001:*/FRID
+		/sys/bus/platform/devices/GOOG0016:*/FRID
+Date:		May 2022
+KernelVersion:	5.19
+Description:
+		Returns firmware version for the read-only portion of the
+		main processor firmware.
+
+What:		/sys/bus/platform/devices/GGL0001:*/FWID
+		/sys/bus/platform/devices/GOOG0016:*/FWID
+Date:		May 2022
+KernelVersion:	5.19
+Description:
+		Returns firmware version for the rewritable portion of the
+		main processor firmware.
+
+What:		/sys/bus/platform/devices/GGL0001:*/GPIO.X/GPIO.0
+		/sys/bus/platform/devices/GOOG0016:*/GPIO.X/GPIO.0
+Date:		May 2022
+KernelVersion:	5.19
+Description:
+		Returns type of the GPIO signal for the Chrome OS specific
+		GPIO assignments (integer).
+
+		=========== ==================================
+		1           Recovery button.
+		2           Developer mode switch.
+		3           Firmware write protection switch.
+		256 to 511  Debug header GPIO 0 to GPIO 255.
+		=========== ==================================
+
+What:		/sys/bus/platform/devices/GGL0001:*/GPIO.X/GPIO.1
+		/sys/bus/platform/devices/GOOG0016:*/GPIO.X/GPIO.1
+Date:		May 2022
+KernelVersion:	5.19
+Description:
+		Returns signal attributes of the GPIO signal (integer bitfield).
+
+		== =======================
+		0  Signal is active low.
+		1  Signal is active high.
+		== =======================
+
+What:		/sys/bus/platform/devices/GGL0001:*/GPIO.X/GPIO.2
+		/sys/bus/platform/devices/GOOG0016:*/GPIO.X/GPIO.2
+Date:		May 2022
+KernelVersion:	5.19
+Description:
+		Returns the GPIO number on the specified GPIO
+		controller.
+
+What:		/sys/bus/platform/devices/GGL0001:*/GPIO.X/GPIO.3
+		/sys/bus/platform/devices/GOOG0016:*/GPIO.X/GPIO.3
+Date:		May 2022
+KernelVersion:	5.19
+Description:
+		Returns name of the GPIO controller.
+
+What:		/sys/bus/platform/devices/GGL0001:*/HWID
+		/sys/bus/platform/devices/GOOG0016:*/HWID
+Date:		May 2022
+KernelVersion:	5.19
+Description:
+		Returns hardware ID for the Chromebook.
+
+What:		/sys/bus/platform/devices/GGL0001:*/MECK
+		/sys/bus/platform/devices/GOOG0016:*/MECK
+Date:		May 2022
+KernelVersion:	5.19
+Description:
+		Returns the SHA-1 or SHA-256 hash that is read out of the
+		Management Engine extended registers during boot. The hash
+		is exported via ACPI so the OS can verify that the Management
+		Engine firmware has not changed. If Management Engine is not
+		present, or if the firmware was unable to read the extended registers, this buffer size can be zero.
+
+What:		/sys/bus/platform/devices/GGL0001:*/VBNV.0
+		/sys/bus/platform/devices/GOOG0016:*/VBNV.0
+Date:		May 2022
+KernelVersion:	5.19
+Description:
+		Returns offset in CMOS bank 0 of the verified boot non-volatile
+		storage block, counting from the first writable CMOS byte
+		(that is, 'offset = 0' is the byte following the 14 bytes of
+		clock data).
+
+What:		/sys/bus/platform/devices/GGL0001:*/VBNV.1
+		/sys/bus/platform/devices/GOOG0016:*/VBNV.1
+Date:		May 2022
+KernelVersion:	5.19
+Description:
+		Return the size in bytes of the verified boot non-volatile
+		storage block.
+
+What:		/sys/bus/platform/devices/GGL0001:*/VDAT
+		/sys/bus/platform/devices/GOOG0016:*/VDAT
+Date:		May 2022
+KernelVersion:	5.19
+Description:
+		Returns the verified boot data block shared between the
+		firmware verification step and the kernel verification step
+		(hex dump).

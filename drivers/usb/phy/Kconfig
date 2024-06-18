@@ -28,22 +28,6 @@ config FSL_USB2_OTG
 	help
 	  Enable this to support Freescale USB OTG transceiver.
 
-config ISP1301_OMAP
-	tristate "Philips ISP1301 with OMAP OTG"
-	depends on I2C && ARCH_OMAP_OTG
-	depends on USB
-	depends on USB_GADGET || !USB_GADGET # if USB_GADGET=m, this can't be 'y'
-	select USB_PHY
-	help
-	  If you say yes here you get support for the Philips ISP1301
-	  USB-On-The-Go transceiver working with the OMAP OTG controller.
-	  The ISP1301 is a full speed USB  transceiver which is used in
-	  products including H2, H3, and H4 development boards for Texas
-	  Instruments OMAP processors.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called phy-isp1301-omap.
-
 config KEYSTONE_USB_PHY
 	tristate "Keystone USB PHY Driver"
 	depends on ARCH_KEYSTONE || COMPILE_TEST
@@ -92,12 +76,16 @@ config USB_GPIO_VBUS
 	tristate "GPIO based peripheral-only VBUS sensing 'transceiver'"
 	depends on GPIOLIB || COMPILE_TEST
 	depends on USB_GADGET || !USB_GADGET # if USB_GADGET=m, this can't be 'y'
+	depends on !USB_CONN_GPIO
 	select USB_PHY
 	help
 	  Provides simple GPIO VBUS sensing for controllers with an
 	  internal transceiver via the usb_phy interface, and
 	  optionally control of a D+ pullup GPIO as well as a VBUS
-	  current limit regulator.
+	  current limit regulator. This driver is for devices that do
+	  NOT support role switch. OTG devices that can do role switch
+	  (master/peripheral) shall use the USB based connection
+	  detection driver USB_CONN_GPIO.
 
 config OMAP_OTG
 	tristate "OMAP USB OTG controller driver"
@@ -144,7 +132,7 @@ config USB_MV_OTG
 	depends on USB_GADGET || !USB_GADGET # if USB_GADGET=m, this can't be 'y'
 	select USB_PHY
 	help
-	  Say Y here if you want to build Marvell USB OTG transciever
+	  Say Y here if you want to build Marvell USB OTG transceiver
 	  driver in kernel (including PXA and MMP series). This driver
 	  implements role switch between EHCI host driver and gadget driver.
 
@@ -162,7 +150,7 @@ config USB_MXS_PHY
 
 config USB_TEGRA_PHY
 	tristate "NVIDIA Tegra USB PHY Driver"
-	depends on ARCH_TEGRA
+	depends on ARCH_TEGRA || COMPILE_TEST
 	select USB_COMMON
 	select USB_PHY
 	select USB_ULPI
@@ -172,7 +160,7 @@ config USB_TEGRA_PHY
 
 config USB_ULPI
 	bool "Generic ULPI Transceiver Driver"
-	depends on ARM || ARM64
+	depends on ARM || ARM64 || COMPILE_TEST
 	select USB_ULPI_VIEWPORT
 	help
 	  Enable this to support ULPI connected USB OTG transceivers which

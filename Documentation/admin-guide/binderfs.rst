@@ -33,6 +33,12 @@ max
   a per-instance limit. If ``max=<count>`` is set then only ``<count>`` number
   of binder devices can be allocated in this binderfs instance.
 
+stats
+  Using ``stats=global`` enables global binder statistics.
+  ``stats=global`` is only available for a binderfs instance mounted in the
+  initial user namespace. An attempt to use the option to mount a binderfs
+  instance in another user namespace will return a permission error.
+
 Allocating binder Devices
 -------------------------
 
@@ -64,5 +70,18 @@ Deleting binder Devices
 Binderfs binder devices can be deleted via `unlink() <unlink_>`_.  This means
 that the `rm() <rm_>`_ tool can be used to delete them. Note that the
 ``binder-control`` device cannot be deleted since this would make the binderfs
-instance unuseable.  The ``binder-control`` device will be deleted when the
+instance unusable.  The ``binder-control`` device will be deleted when the
 binderfs instance is unmounted and all references to it have been dropped.
+
+Binder features
+---------------
+
+Assuming an instance of binderfs has been mounted at ``/dev/binderfs``, the
+features supported by the binder driver can be located under
+``/dev/binderfs/features/``. The presence of individual files can be tested
+to determine whether a particular feature is supported by the driver.
+
+Example::
+
+        cat /dev/binderfs/features/oneway_spam_detection
+        1

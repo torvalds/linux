@@ -330,7 +330,6 @@ static void i82975x_check(struct mem_ctl_info *mci)
 {
 	struct i82975x_error_info info;
 
-	edac_dbg(1, "MC%d\n", mci->mc_idx);
 	i82975x_get_error_info(mci, &info);
 	i82975x_process_error_info(mci, &info, 1);
 }
@@ -485,7 +484,7 @@ static int i82975x_probe1(struct pci_dev *pdev, int dev_idx)
 		goto fail0;
 	}
 	mchbar &= 0xffffc000;	/* bits 31:14 used for 16K window */
-	mch_window = ioremap_nocache(mchbar, 0x1000);
+	mch_window = ioremap(mchbar, 0x1000);
 	if (!mch_window) {
 		edac_dbg(3, "error ioremapping MCHBAR!\n");
 		goto fail0;

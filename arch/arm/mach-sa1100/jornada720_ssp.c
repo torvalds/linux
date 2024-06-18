@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  *  arch/arm/mac-sa1100/jornada720_ssp.c
  *
  *  Copyright (C) 2006/2007 Kristoffer Ericson <Kristoffer.Ericson@gmail.com>
@@ -26,6 +26,7 @@ static unsigned long jornada_ssp_flags;
 
 /**
  * jornada_ssp_reverse - reverses input byte
+ * @byte: input byte to reverse
  *
  * we need to reverse all data we receive from the mcu due to its physical location
  * returns : 01110111 -> 11101110
@@ -46,6 +47,7 @@ EXPORT_SYMBOL(jornada_ssp_reverse);
 
 /**
  * jornada_ssp_byte - waits for ready ssp bus and sends byte
+ * @byte: input byte to transmit
  *
  * waits for fifo buffer to clear and then transmits, if it doesn't then we will
  * timeout after <timeout> rounds. Needs mcu running before its called.
@@ -77,6 +79,7 @@ EXPORT_SYMBOL(jornada_ssp_byte);
 
 /**
  * jornada_ssp_inout - decide if input is command or trading byte
+ * @byte: input byte to send (may be %TXDUMMY)
  *
  * returns : (jornada_ssp_byte(byte)) on success
  *         : %-ETIMEDOUT on timeout failure
@@ -175,18 +178,17 @@ static int jornada_ssp_probe(struct platform_device *dev)
 	return 0;
 };
 
-static int jornada_ssp_remove(struct platform_device *dev)
+static void jornada_ssp_remove(struct platform_device *dev)
 {
 	/* Note that this doesn't actually remove the driver, since theres nothing to remove
 	 * It just makes sure everything is turned off */
 	GPSR = GPIO_GPIO25;
 	ssp_exit();
-	return 0;
 };
 
 struct platform_driver jornadassp_driver = {
 	.probe	= jornada_ssp_probe,
-	.remove	= jornada_ssp_remove,
+	.remove_new = jornada_ssp_remove,
 	.driver	= {
 		.name	= "jornada_ssp",
 	},

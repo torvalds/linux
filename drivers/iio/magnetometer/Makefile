@@ -4,6 +4,7 @@
 #
 
 # When adding new entries keep the list in alphabetical order
+obj-$(CONFIG_AF8133J)	+= af8133j.o
 obj-$(CONFIG_AK8974)	+= ak8974.o
 obj-$(CONFIG_AK8975)	+= ak8975.o
 obj-$(CONFIG_BMC150_MAGN) += bmc150_magn.o
@@ -28,3 +29,7 @@ obj-$(CONFIG_SENSORS_HMC5843_SPI)	+= hmc5843_spi.o
 obj-$(CONFIG_SENSORS_RM3100)		+= rm3100-core.o
 obj-$(CONFIG_SENSORS_RM3100_I2C)	+= rm3100-i2c.o
 obj-$(CONFIG_SENSORS_RM3100_SPI)	+= rm3100-spi.o
+
+obj-$(CONFIG_TI_TMAG5273)		+= tmag5273.o
+
+obj-$(CONFIG_YAMAHA_YAS530)		+= yamaha-yas530.o

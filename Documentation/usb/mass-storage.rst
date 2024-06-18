@@ -150,7 +150,7 @@ Module parameters
   - bcdDevice     -- USB Device version (BCD) (16 bit integer)
   - iManufacturer -- USB Manufacturer string (string)
   - iProduct      -- USB Product string (string)
-  - iSerialNumber -- SerialNumber string (sting)
+  - iSerialNumber -- SerialNumber string (string)
 
 sysfs entries
 =============
@@ -180,6 +180,15 @@ sysfs entries
 
     Reflects the state of nofua flag for given logical unit.  It can
     be read and written.
+
+  - forced_eject
+
+    When written into, it causes the backing file to be forcibly
+    detached from the LUN, regardless of whether the host has allowed
+    it.  The content doesn't matter, any non-zero number of bytes
+    written will result in ejection.
+
+    Can not be read.
 
   Other then those, as usual, the values of module parameters can be
   read from /sys/module/g_mass_storage/parameters/* files.

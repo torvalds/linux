@@ -1,58 +1,22 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2013 - 2018 Intel Corporation. */
 
-#include "i40e_status.h"
-#include "i40e_type.h"
+#include <linux/delay.h>
+#include "i40e_alloc.h"
 #include "i40e_register.h"
-#include "i40e_adminq.h"
 #include "i40e_prototype.h"
 
 static void i40e_resume_aq(struct i40e_hw *hw);
 
 /**
- *  i40e_adminq_init_regs - Initialize AdminQ registers
- *  @hw: pointer to the hardware structure
- *
- *  This assumes the alloc_asq and alloc_arq functions have already been called
- **/
-static void i40e_adminq_init_regs(struct i40e_hw *hw)
-{
-	/* set head and tail registers in our local struct */
-	if (i40e_is_vf(hw)) {
-		hw->aq.asq.tail = I40E_VF_ATQT1;
-		hw->aq.asq.head = I40E_VF_ATQH1;
-		hw->aq.asq.len  = I40E_VF_ATQLEN1;
-		hw->aq.asq.bal  = I40E_VF_ATQBAL1;
-		hw->aq.asq.bah  = I40E_VF_ATQBAH1;
-		hw->aq.arq.tail = I40E_VF_ARQT1;
-		hw->aq.arq.head = I40E_VF_ARQH1;
-		hw->aq.arq.len  = I40E_VF_ARQLEN1;
-		hw->aq.arq.bal  = I40E_VF_ARQBAL1;
-		hw->aq.arq.bah  = I40E_VF_ARQBAH1;
-	} else {
-		hw->aq.asq.tail = I40E_PF_ATQT;
-		hw->aq.asq.head = I40E_PF_ATQH;
-		hw->aq.asq.len  = I40E_PF_ATQLEN;
-		hw->aq.asq.bal  = I40E_PF_ATQBAL;
-		hw->aq.asq.bah  = I40E_PF_ATQBAH;
-		hw->aq.arq.tail = I40E_PF_ARQT;
-		hw->aq.arq.head = I40E_PF_ARQH;
-		hw->aq.arq.len  = I40E_PF_ARQLEN;
-		hw->aq.arq.bal  = I40E_PF_ARQBAL;
-		hw->aq.arq.bah  = I40E_PF_ARQBAH;
-	}
-}
-
-/**
  *  i40e_alloc_adminq_asq_ring - Allocate Admin Queue send rings
  *  @hw: pointer to the hardware structure
  **/
-static i40e_status i40e_alloc_adminq_asq_ring(struct i40e_hw *hw)
+static int i40e_alloc_adminq_asq_ring(struct i40e_hw *hw)
 {
-	i40e_status ret_code;
+	int ret_code;
 
 	ret_code = i40e_allocate_dma_mem(hw, &hw->aq.asq.desc_buf,
-					 i40e_mem_atq_ring,
 					 (hw->aq.num_asq_entries *
 					 sizeof(struct i40e_aq_desc)),
 					 I40E_ADMINQ_DESC_ALIGNMENT);
@@ -74,12 +38,11 @@ static i40e_status i40e_alloc_adminq_asq_ring(struct i40e_hw *hw)
  *  i40e_alloc_adminq_arq_ring - Allocate Admin Queue receive rings
  *  @hw: pointer to the hardware structure
  **/
-static i40e_status i40e_alloc_adminq_arq_ring(struct i40e_hw *hw)
+static int i40e_alloc_adminq_arq_ring(struct i40e_hw *hw)
 {
-	i40e_status ret_code;
+	int ret_code;
 
 	ret_code = i40e_allocate_dma_mem(hw, &hw->aq.arq.desc_buf,
-					 i40e_mem_arq_ring,
 					 (hw->aq.num_arq_entries *
 					 sizeof(struct i40e_aq_desc)),
 					 I40E_ADMINQ_DESC_ALIGNMENT);
@@ -115,11 +78,11 @@ static void i40e_free_adminq_arq(struct i40e_hw *hw)
  *  i40e_alloc_arq_bufs - Allocate pre-posted buffers for the receive queue
  *  @hw: pointer to the hardware structure
  **/
-static i40e_status i40e_alloc_arq_bufs(struct i40e_hw *hw)
+static int i40e_alloc_arq_bufs(struct i40e_hw *hw)
 {
-	i40e_status ret_code;
 	struct i40e_aq_desc *desc;
 	struct i40e_dma_mem *bi;
+	int ret_code;
 	int i;
 
 	/* We'll be allocating the buffer info memory first, then we can
@@ -137,7 +100,6 @@ static i40e_status i40e_alloc_arq_bufs(struct i40e_hw *hw)
 	for (i = 0; i < hw->aq.num_arq_entries; i++) {
 		bi = &hw->aq.arq.r.arq_bi[i];
 		ret_code = i40e_allocate_dma_mem(hw, bi,
-						 i40e_mem_arq_buf,
 						 hw->aq.arq_buf_size,
 						 I40E_ADMINQ_DESC_ALIGNMENT);
 		if (ret_code)
@@ -182,10 +144,10 @@ unwind_alloc_arq_bufs:
  *  i40e_alloc_asq_bufs - Allocate empty buffer structs for the send queue
  *  @hw: pointer to the hardware structure
  **/
-static i40e_status i40e_alloc_asq_bufs(struct i40e_hw *hw)
+static int i40e_alloc_asq_bufs(struct i40e_hw *hw)
 {
-	i40e_status ret_code;
 	struct i40e_dma_mem *bi;
+	int ret_code;
 	int i;
 
 	/* No mapped memory needed yet, just the buffer info structures */
@@ -199,7 +161,6 @@ static i40e_status i40e_alloc_asq_bufs(struct i40e_hw *hw)
 	for (i = 0; i < hw->aq.num_asq_entries; i++) {
 		bi = &hw->aq.asq.r.asq_bi[i];
 		ret_code = i40e_allocate_dma_mem(hw, bi,
-						 i40e_mem_asq_buf,
 						 hw->aq.asq_buf_size,
 						 I40E_ADMINQ_DESC_ALIGNMENT);
 		if (ret_code)
@@ -266,25 +227,25 @@ static void i40e_free_asq_bufs(struct i40e_hw *hw)
  *
  *  Configure base address and length registers for the transmit queue
  **/
-static i40e_status i40e_config_asq_regs(struct i40e_hw *hw)
+static int i40e_config_asq_regs(struct i40e_hw *hw)
 {
-	i40e_status ret_code = 0;
+	int ret_code = 0;
 	u32 reg = 0;
 
 	/* Clear Head and Tail */
-	wr32(hw, hw->aq.asq.head, 0);
-	wr32(hw, hw->aq.asq.tail, 0);
+	wr32(hw, I40E_PF_ATQH, 0);
+	wr32(hw, I40E_PF_ATQT, 0);
 
 	/* set starting point */
-	wr32(hw, hw->aq.asq.len, (hw->aq.num_asq_entries |
+	wr32(hw, I40E_PF_ATQLEN, (hw->aq.num_asq_entries |
 				  I40E_PF_ATQLEN_ATQENABLE_MASK));
-	wr32(hw, hw->aq.asq.bal, lower_32_bits(hw->aq.asq.desc_buf.pa));
-	wr32(hw, hw->aq.asq.bah, upper_32_bits(hw->aq.asq.desc_buf.pa));
+	wr32(hw, I40E_PF_ATQBAL, lower_32_bits(hw->aq.asq.desc_buf.pa));
+	wr32(hw, I40E_PF_ATQBAH, upper_32_bits(hw->aq.asq.desc_buf.pa));
 
 	/* Check one register to verify that config was applied */
-	reg = rd32(hw, hw->aq.asq.bal);
+	reg = rd32(hw, I40E_PF_ATQBAL);
 	if (reg != lower_32_bits(hw->aq.asq.desc_buf.pa))
-		ret_code = I40E_ERR_ADMIN_QUEUE_ERROR;
+		ret_code = -EIO;
 
 	return ret_code;
 }
@@ -295,28 +256,28 @@ static i40e_status i40e_config_asq_regs(struct i40e_hw *hw)
  *
  * Configure base address and length registers for the receive (event queue)
  **/
-static i40e_status i40e_config_arq_regs(struct i40e_hw *hw)
+static int i40e_config_arq_regs(struct i40e_hw *hw)
 {
-	i40e_status ret_code = 0;
+	int ret_code = 0;
 	u32 reg = 0;
 
 	/* Clear Head and Tail */
-	wr32(hw, hw->aq.arq.head, 0);
-	wr32(hw, hw->aq.arq.tail, 0);
+	wr32(hw, I40E_PF_ARQH, 0);
+	wr32(hw, I40E_PF_ARQT, 0);
 
 	/* set starting point */
-	wr32(hw, hw->aq.arq.len, (hw->aq.num_arq_entries |
+	wr32(hw, I40E_PF_ARQLEN, (hw->aq.num_arq_entries |
 				  I40E_PF_ARQLEN_ARQENABLE_MASK));
-	wr32(hw, hw->aq.arq.bal, lower_32_bits(hw->aq.arq.desc_buf.pa));
-	wr32(hw, hw->aq.arq.bah, upper_32_bits(hw->aq.arq.desc_buf.pa));
+	wr32(hw, I40E_PF_ARQBAL, lower_32_bits(hw->aq.arq.desc_buf.pa));
+	wr32(hw, I40E_PF_ARQBAH, upper_32_bits(hw->aq.arq.desc_buf.pa));
 
 	/* Update tail in the HW to post pre-allocated buffers */
-	wr32(hw, hw->aq.arq.tail, hw->aq.num_arq_entries - 1);
+	wr32(hw, I40E_PF_ARQT, hw->aq.num_arq_entries - 1);
 
 	/* Check one register to verify that config was applied */
-	reg = rd32(hw, hw->aq.arq.bal);
+	reg = rd32(hw, I40E_PF_ARQBAL);
 	if (reg != lower_32_bits(hw->aq.arq.desc_buf.pa))
-		ret_code = I40E_ERR_ADMIN_QUEUE_ERROR;
+		ret_code = -EIO;
 
 	return ret_code;
 }
@@ -334,20 +295,20 @@ static i40e_status i40e_config_arq_regs(struct i40e_hw *hw)
  *  Do *NOT* hold the lock when calling this as the memory allocation routines
  *  called are not going to be atomic context safe
  **/
-static i40e_status i40e_init_asq(struct i40e_hw *hw)
+static int i40e_init_asq(struct i40e_hw *hw)
 {
-	i40e_status ret_code = 0;
+	int ret_code = 0;
 
 	if (hw->aq.asq.count > 0) {
 		/* queue already initialized */
-		ret_code = I40E_ERR_NOT_READY;
+		ret_code = -EBUSY;
 		goto init_adminq_exit;
 	}
 
 	/* verify input for valid configuration */
 	if ((hw->aq.num_asq_entries == 0) ||
 	    (hw->aq.asq_buf_size == 0)) {
-		ret_code = I40E_ERR_CONFIG;
+		ret_code = -EIO;
 		goto init_adminq_exit;
 	}
 
@@ -393,20 +354,20 @@ init_adminq_exit:
  *  Do *NOT* hold the lock when calling this as the memory allocation routines
  *  called are not going to be atomic context safe
  **/
-static i40e_status i40e_init_arq(struct i40e_hw *hw)
+static int i40e_init_arq(struct i40e_hw *hw)
 {
-	i40e_status ret_code = 0;
+	int ret_code = 0;
 
 	if (hw->aq.arq.count > 0) {
 		/* queue already initialized */
-		ret_code = I40E_ERR_NOT_READY;
+		ret_code = -EBUSY;
 		goto init_adminq_exit;
 	}
 
 	/* verify input for valid configuration */
 	if ((hw->aq.num_arq_entries == 0) ||
 	    (hw->aq.arq_buf_size == 0)) {
-		ret_code = I40E_ERR_CONFIG;
+		ret_code = -EIO;
 		goto init_adminq_exit;
 	}
 
@@ -445,23 +406,23 @@ init_adminq_exit:
  *
  *  The main shutdown routine for the Admin Send Queue
  **/
-static i40e_status i40e_shutdown_asq(struct i40e_hw *hw)
+static int i40e_shutdown_asq(struct i40e_hw *hw)
 {
-	i40e_status ret_code = 0;
+	int ret_code = 0;
 
 	mutex_lock(&hw->aq.asq_mutex);
 
 	if (hw->aq.asq.count == 0) {
-		ret_code = I40E_ERR_NOT_READY;
+		ret_code = -EBUSY;
 		goto shutdown_asq_out;
 	}
 
 	/* Stop firmware AdminQ processing */
-	wr32(hw, hw->aq.asq.head, 0);
-	wr32(hw, hw->aq.asq.tail, 0);
-	wr32(hw, hw->aq.asq.len, 0);
-	wr32(hw, hw->aq.asq.bal, 0);
-	wr32(hw, hw->aq.asq.bah, 0);
+	wr32(hw, I40E_PF_ATQH, 0);
+	wr32(hw, I40E_PF_ATQT, 0);
+	wr32(hw, I40E_PF_ATQLEN, 0);
+	wr32(hw, I40E_PF_ATQBAL, 0);
+	wr32(hw, I40E_PF_ATQBAH, 0);
 
 	hw->aq.asq.count = 0; /* to indicate uninitialized queue */
 
@@ -479,23 +440,23 @@ shutdown_asq_out:
  *
  *  The main shutdown routine for the Admin Receive Queue
  **/
-static i40e_status i40e_shutdown_arq(struct i40e_hw *hw)
+static int i40e_shutdown_arq(struct i40e_hw *hw)
 {
-	i40e_status ret_code = 0;
+	int ret_code = 0;
 
 	mutex_lock(&hw->aq.arq_mutex);
 
 	if (hw->aq.arq.count == 0) {
-		ret_code = I40E_ERR_NOT_READY;
+		ret_code = -EBUSY;
 		goto shutdown_arq_out;
 	}
 
 	/* Stop firmware AdminQ processing */
-	wr32(hw, hw->aq.arq.head, 0);
-	wr32(hw, hw->aq.arq.tail, 0);
-	wr32(hw, hw->aq.arq.len, 0);
-	wr32(hw, hw->aq.arq.bal, 0);
-	wr32(hw, hw->aq.arq.bah, 0);
+	wr32(hw, I40E_PF_ARQH, 0);
+	wr32(hw, I40E_PF_ARQT, 0);
+	wr32(hw, I40E_PF_ARQLEN, 0);
+	wr32(hw, I40E_PF_ARQBAL, 0);
+	wr32(hw, I40E_PF_ARQBAH, 0);
 
 	hw->aq.arq.count = 0; /* to indicate uninitialized queue */
 
@@ -505,6 +466,98 @@ static i40e_status i40e_shutdown_arq(struct i40e_hw *hw)
 shutdown_arq_out:
 	mutex_unlock(&hw->aq.arq_mutex);
 	return ret_code;
+}
+
+/**
+ *  i40e_set_hw_caps - set HW flags
+ *  @hw: pointer to the hardware structure
+ **/
+static void i40e_set_hw_caps(struct i40e_hw *hw)
+{
+	bitmap_zero(hw->caps, I40E_HW_CAPS_NBITS);
+
+	switch (hw->mac.type) {
+	case I40E_MAC_XL710:
+		if (i40e_is_aq_api_ver_ge(hw, 1,
+					  I40E_MINOR_VER_GET_LINK_INFO_XL710)) {
+			set_bit(I40E_HW_CAP_AQ_PHY_ACCESS, hw->caps);
+			set_bit(I40E_HW_CAP_FW_LLDP_STOPPABLE, hw->caps);
+			/* The ability to RX (not drop) 802.1ad frames */
+			set_bit(I40E_HW_CAP_802_1AD, hw->caps);
+		}
+		if (i40e_is_aq_api_ver_ge(hw, 1, 5)) {
+			/* Supported in FW API version higher than 1.4 */
+			set_bit(I40E_HW_CAP_GENEVE_OFFLOAD, hw->caps);
+		}
+		if (i40e_is_fw_ver_lt(hw, 4, 33)) {
+			set_bit(I40E_HW_CAP_RESTART_AUTONEG, hw->caps);
+			/* No DCB support  for FW < v4.33 */
+			set_bit(I40E_HW_CAP_NO_DCB_SUPPORT, hw->caps);
+		}
+		if (i40e_is_fw_ver_lt(hw, 4, 3)) {
+			/* Disable FW LLDP if FW < v4.3 */
+			set_bit(I40E_HW_CAP_STOP_FW_LLDP, hw->caps);
+		}
+		if (i40e_is_fw_ver_ge(hw, 4, 40)) {
+			/* Use the FW Set LLDP MIB API if FW >= v4.40 */
+			set_bit(I40E_HW_CAP_USE_SET_LLDP_MIB, hw->caps);
+		}
+		if (i40e_is_fw_ver_ge(hw, 6, 0)) {
+			/* Enable PTP L4 if FW > v6.0 */
+			set_bit(I40E_HW_CAP_PTP_L4, hw->caps);
+		}
+		break;
+	case I40E_MAC_X722:
+		set_bit(I40E_HW_CAP_AQ_SRCTL_ACCESS_ENABLE, hw->caps);
+		set_bit(I40E_HW_CAP_NVM_READ_REQUIRES_LOCK, hw->caps);
+		set_bit(I40E_HW_CAP_RSS_AQ, hw->caps);
+		set_bit(I40E_HW_CAP_128_QP_RSS, hw->caps);
+		set_bit(I40E_HW_CAP_ATR_EVICT, hw->caps);
+		set_bit(I40E_HW_CAP_WB_ON_ITR, hw->caps);
+		set_bit(I40E_HW_CAP_MULTI_TCP_UDP_RSS_PCTYPE, hw->caps);
+		set_bit(I40E_HW_CAP_NO_PCI_LINK_CHECK, hw->caps);
+		set_bit(I40E_HW_CAP_USE_SET_LLDP_MIB, hw->caps);
+		set_bit(I40E_HW_CAP_GENEVE_OFFLOAD, hw->caps);
+		set_bit(I40E_HW_CAP_PTP_L4, hw->caps);
+		set_bit(I40E_HW_CAP_WOL_MC_MAGIC_PKT_WAKE, hw->caps);
+		set_bit(I40E_HW_CAP_OUTER_UDP_CSUM, hw->caps);
+
+		if (rd32(hw, I40E_GLQF_FDEVICTENA(1)) !=
+		    I40E_FDEVICT_PCTYPE_DEFAULT) {
+			hw_warn(hw, "FD EVICT PCTYPES are not right, disable FD HW EVICT\n");
+			clear_bit(I40E_HW_CAP_ATR_EVICT, hw->caps);
+		}
+
+		if (i40e_is_aq_api_ver_ge(hw, 1,
+					  I40E_MINOR_VER_FW_LLDP_STOPPABLE_X722))
+			set_bit(I40E_HW_CAP_FW_LLDP_STOPPABLE, hw->caps);
+
+		if (i40e_is_aq_api_ver_ge(hw, 1,
+					  I40E_MINOR_VER_GET_LINK_INFO_X722))
+			set_bit(I40E_HW_CAP_AQ_PHY_ACCESS, hw->caps);
+
+		if (i40e_is_aq_api_ver_ge(hw, 1,
+					  I40E_MINOR_VER_FW_REQUEST_FEC_X722))
+			set_bit(I40E_HW_CAP_X722_FEC_REQUEST, hw->caps);
+
+		fallthrough;
+	default:
+		break;
+	}
+
+	/* Newer versions of firmware require lock when reading the NVM */
+	if (i40e_is_aq_api_ver_ge(hw, 1, 5))
+		set_bit(I40E_HW_CAP_NVM_READ_REQUIRES_LOCK, hw->caps);
+
+	/* The ability to RX (not drop) 802.1ad frames was added in API 1.7 */
+	if (i40e_is_aq_api_ver_ge(hw, 1, 7))
+		set_bit(I40E_HW_CAP_802_1AD, hw->caps);
+
+	if (i40e_is_aq_api_ver_ge(hw, 1, 8))
+		set_bit(I40E_HW_CAP_FW_LLDP_PERSISTENT, hw->caps);
+
+	if (i40e_is_aq_api_ver_ge(hw, 1, 9))
+		set_bit(I40E_HW_CAP_AQ_PHY_ACCESS_EXTENDED, hw->caps);
 }
 
 /**
@@ -518,24 +571,21 @@ shutdown_arq_out:
  *     - hw->aq.arq_buf_size
  *     - hw->aq.asq_buf_size
  **/
-i40e_status i40e_init_adminq(struct i40e_hw *hw)
+int i40e_init_adminq(struct i40e_hw *hw)
 {
 	u16 cfg_ptr, oem_hi, oem_lo;
 	u16 eetrack_lo, eetrack_hi;
-	i40e_status ret_code;
 	int retry = 0;
+	int ret_code;
 
 	/* verify input for valid configuration */
 	if ((hw->aq.num_arq_entries == 0) ||
 	    (hw->aq.num_asq_entries == 0) ||
 	    (hw->aq.arq_buf_size == 0) ||
 	    (hw->aq.asq_buf_size == 0)) {
-		ret_code = I40E_ERR_CONFIG;
+		ret_code = -EIO;
 		goto init_adminq_exit;
 	}
-
-	/* Set up register offsets */
-	i40e_adminq_init_regs(hw);
 
 	/* setup ASQ command write back timeout */
 	hw->aq.asq_cmd_timeout = I40E_ASQ_CMD_TIMEOUT;
@@ -562,14 +612,19 @@ i40e_status i40e_init_adminq(struct i40e_hw *hw)
 							&hw->aq.api_maj_ver,
 							&hw->aq.api_min_ver,
 							NULL);
-		if (ret_code != I40E_ERR_ADMIN_QUEUE_TIMEOUT)
+		if (ret_code != -EIO)
 			break;
 		retry++;
 		msleep(100);
 		i40e_resume_aq(hw);
 	} while (retry < 10);
-	if (ret_code != I40E_SUCCESS)
+	if (ret_code != 0)
 		goto init_adminq_free_arq;
+
+	/* Some features were introduced in different FW API version
+	 * for different MAC type.
+	 */
+	i40e_set_hw_caps(hw);
 
 	/* get the NVM version info */
 	i40e_read_nvm_word(hw, I40E_SR_NVM_DEV_STARTER_VERSION,
@@ -584,39 +639,8 @@ i40e_status i40e_init_adminq(struct i40e_hw *hw)
 			   &oem_lo);
 	hw->nvm.oem_ver = ((u32)oem_hi << 16) | oem_lo;
 
-	if (hw->mac.type == I40E_MAC_XL710 &&
-	    hw->aq.api_maj_ver == I40E_FW_API_VERSION_MAJOR &&
-	    hw->aq.api_min_ver >= I40E_MINOR_VER_GET_LINK_INFO_XL710) {
-		hw->flags |= I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE;
-		hw->flags |= I40E_HW_FLAG_FW_LLDP_STOPPABLE;
-	}
-	if (hw->mac.type == I40E_MAC_X722 &&
-	    hw->aq.api_maj_ver == I40E_FW_API_VERSION_MAJOR &&
-	    hw->aq.api_min_ver >= I40E_MINOR_VER_FW_LLDP_STOPPABLE_X722) {
-		hw->flags |= I40E_HW_FLAG_FW_LLDP_STOPPABLE;
-	}
-
-	/* Newer versions of firmware require lock when reading the NVM */
-	if (hw->aq.api_maj_ver > 1 ||
-	    (hw->aq.api_maj_ver == 1 &&
-	     hw->aq.api_min_ver >= 5))
-		hw->flags |= I40E_HW_FLAG_NVM_READ_REQUIRES_LOCK;
-
-	/* The ability to RX (not drop) 802.1ad frames was added in API 1.7 */
-	if (hw->aq.api_maj_ver > 1 ||
-	    (hw->aq.api_maj_ver == 1 &&
-	     hw->aq.api_min_ver >= 7))
-		hw->flags |= I40E_HW_FLAG_802_1AD_CAPABLE;
-
-	if (hw->aq.api_maj_ver > 1 ||
-	    (hw->aq.api_maj_ver == 1 &&
-	     hw->aq.api_min_ver >= 8)) {
-		hw->flags |= I40E_HW_FLAG_FW_LLDP_PERSISTENT;
-		hw->flags |= I40E_HW_FLAG_DROP_MODE;
-	}
-
-	if (hw->aq.api_maj_ver > I40E_FW_API_VERSION_MAJOR) {
-		ret_code = I40E_ERR_FIRMWARE_API_VERSION;
+	if (i40e_is_aq_api_ver_ge(hw, I40E_FW_API_VERSION_MAJOR + 1, 0)) {
+		ret_code = -EIO;
 		goto init_adminq_free_arq;
 	}
 
@@ -644,10 +668,8 @@ init_adminq_exit:
  *  i40e_shutdown_adminq - shutdown routine for the Admin Queue
  *  @hw: pointer to the hardware structure
  **/
-i40e_status i40e_shutdown_adminq(struct i40e_hw *hw)
+void i40e_shutdown_adminq(struct i40e_hw *hw)
 {
-	i40e_status ret_code = 0;
-
 	if (i40e_check_asq_alive(hw))
 		i40e_aq_queue_shutdown(hw, true);
 
@@ -656,8 +678,6 @@ i40e_status i40e_shutdown_adminq(struct i40e_hw *hw)
 
 	if (hw->nvm_buff.va)
 		i40e_free_virt_mem(hw, &hw->nvm_buff);
-
-	return ret_code;
 }
 
 /**
@@ -676,9 +696,9 @@ static u16 i40e_clean_asq(struct i40e_hw *hw)
 
 	desc = I40E_ADMINQ_DESC(*asq, ntc);
 	details = I40E_ADMINQ_DETAILS(*asq, ntc);
-	while (rd32(hw, hw->aq.asq.head) != ntc) {
+	while (rd32(hw, I40E_PF_ATQH) != ntc) {
 		i40e_debug(hw, I40E_DEBUG_AQ_COMMAND,
-			   "ntc %d head %d.\n", ntc, rd32(hw, hw->aq.asq.head));
+			   "ntc %d head %d.\n", ntc, rd32(hw, I40E_PF_ATQH));
 
 		if (details->callback) {
 			I40E_ADMINQ_CALLBACK cb_func =
@@ -712,51 +732,52 @@ static bool i40e_asq_done(struct i40e_hw *hw)
 	/* AQ designers suggest use of head for better
 	 * timing reliability than DD bit
 	 */
-	return rd32(hw, hw->aq.asq.head) == hw->aq.asq.next_to_use;
+	return rd32(hw, I40E_PF_ATQH) == hw->aq.asq.next_to_use;
 
 }
 
 /**
- *  i40e_asq_send_command - send command to Admin Queue
+ *  i40e_asq_send_command_atomic_exec - send command to Admin Queue
  *  @hw: pointer to the hw struct
  *  @desc: prefilled descriptor describing the command (non DMA mem)
  *  @buff: buffer to use for indirect commands
  *  @buff_size: size of buffer for indirect commands
  *  @cmd_details: pointer to command details structure
+ *  @is_atomic_context: is the function called in an atomic context?
  *
  *  This is the main send command driver routine for the Admin Queue send
  *  queue.  It runs the queue, cleans the queue, etc
  **/
-i40e_status i40e_asq_send_command(struct i40e_hw *hw,
-				struct i40e_aq_desc *desc,
-				void *buff, /* can be NULL */
-				u16  buff_size,
-				struct i40e_asq_cmd_details *cmd_details)
+static int
+i40e_asq_send_command_atomic_exec(struct i40e_hw *hw,
+				  struct i40e_aq_desc *desc,
+				  void *buff, /* can be NULL */
+				  u16  buff_size,
+				  struct i40e_asq_cmd_details *cmd_details,
+				  bool is_atomic_context)
 {
-	i40e_status status = 0;
 	struct i40e_dma_mem *dma_buff = NULL;
 	struct i40e_asq_cmd_details *details;
 	struct i40e_aq_desc *desc_on_ring;
 	bool cmd_completed = false;
 	u16  retval = 0;
+	int status = 0;
 	u32  val = 0;
-
-	mutex_lock(&hw->aq.asq_mutex);
 
 	if (hw->aq.asq.count == 0) {
 		i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
 			   "AQTX: Admin queue not initialized.\n");
-		status = I40E_ERR_QUEUE_EMPTY;
+		status = -EIO;
 		goto asq_send_command_error;
 	}
 
 	hw->aq.asq_last_status = I40E_AQ_RC_OK;
 
-	val = rd32(hw, hw->aq.asq.head);
+	val = rd32(hw, I40E_PF_ATQH);
 	if (val >= hw->aq.num_asq_entries) {
 		i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
 			   "AQTX: head overrun at %d\n", val);
-		status = I40E_ERR_ADMIN_QUEUE_FULL;
+		status = -ENOSPC;
 		goto asq_send_command_error;
 	}
 
@@ -787,7 +808,7 @@ i40e_status i40e_asq_send_command(struct i40e_hw *hw,
 			   I40E_DEBUG_AQ_MESSAGE,
 			   "AQTX: Invalid buffer size: %d.\n",
 			   buff_size);
-		status = I40E_ERR_INVALID_SIZE;
+		status = -EINVAL;
 		goto asq_send_command_error;
 	}
 
@@ -795,7 +816,7 @@ i40e_status i40e_asq_send_command(struct i40e_hw *hw,
 		i40e_debug(hw,
 			   I40E_DEBUG_AQ_MESSAGE,
 			   "AQTX: Async flag not set along with postpone flag");
-		status = I40E_ERR_PARAM;
+		status = -EINVAL;
 		goto asq_send_command_error;
 	}
 
@@ -810,7 +831,7 @@ i40e_status i40e_asq_send_command(struct i40e_hw *hw,
 		i40e_debug(hw,
 			   I40E_DEBUG_AQ_MESSAGE,
 			   "AQTX: Error queue is full.\n");
-		status = I40E_ERR_ADMIN_QUEUE_FULL;
+		status = -ENOSPC;
 		goto asq_send_command_error;
 	}
 
@@ -844,7 +865,7 @@ i40e_status i40e_asq_send_command(struct i40e_hw *hw,
 	if (hw->aq.asq.next_to_use == hw->aq.asq.count)
 		hw->aq.asq.next_to_use = 0;
 	if (!details->postpone)
-		wr32(hw, hw->aq.asq.tail, hw->aq.asq.next_to_use);
+		wr32(hw, I40E_PF_ATQT, hw->aq.asq.next_to_use);
 
 	/* if cmd_details are not defined or async flag is not set,
 	 * we need to wait for desc write back
@@ -858,7 +879,12 @@ i40e_status i40e_asq_send_command(struct i40e_hw *hw,
 			 */
 			if (i40e_asq_done(hw))
 				break;
-			udelay(50);
+
+			if (is_atomic_context)
+				udelay(50);
+			else
+				usleep_range(40, 60);
+
 			total_delay += 50;
 		} while (total_delay < hw->aq.asq_cmd_timeout);
 	}
@@ -882,9 +908,9 @@ i40e_status i40e_asq_send_command(struct i40e_hw *hw,
 		if ((enum i40e_admin_queue_err)retval == I40E_AQ_RC_OK)
 			status = 0;
 		else if ((enum i40e_admin_queue_err)retval == I40E_AQ_RC_EBUSY)
-			status = I40E_ERR_NOT_READY;
+			status = -EBUSY;
 		else
-			status = I40E_ERR_ADMIN_QUEUE_ERROR;
+			status = -EIO;
 		hw->aq.asq_last_status = (enum i40e_admin_queue_err)retval;
 	}
 
@@ -899,20 +925,105 @@ i40e_status i40e_asq_send_command(struct i40e_hw *hw,
 	/* update the error if time out occurred */
 	if ((!cmd_completed) &&
 	    (!details->async && !details->postpone)) {
-		if (rd32(hw, hw->aq.asq.len) & I40E_GL_ATQLEN_ATQCRIT_MASK) {
+		if (rd32(hw, I40E_PF_ATQLEN) & I40E_GL_ATQLEN_ATQCRIT_MASK) {
 			i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
 				   "AQTX: AQ Critical error.\n");
-			status = I40E_ERR_ADMIN_QUEUE_CRITICAL_ERROR;
+			status = -EIO;
 		} else {
 			i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
 				   "AQTX: Writeback timeout.\n");
-			status = I40E_ERR_ADMIN_QUEUE_TIMEOUT;
+			status = -EIO;
 		}
 	}
 
 asq_send_command_error:
+	return status;
+}
+
+/**
+ *  i40e_asq_send_command_atomic - send command to Admin Queue
+ *  @hw: pointer to the hw struct
+ *  @desc: prefilled descriptor describing the command (non DMA mem)
+ *  @buff: buffer to use for indirect commands
+ *  @buff_size: size of buffer for indirect commands
+ *  @cmd_details: pointer to command details structure
+ *  @is_atomic_context: is the function called in an atomic context?
+ *
+ *  Acquires the lock and calls the main send command execution
+ *  routine.
+ **/
+int
+i40e_asq_send_command_atomic(struct i40e_hw *hw,
+			     struct i40e_aq_desc *desc,
+			     void *buff, /* can be NULL */
+			     u16  buff_size,
+			     struct i40e_asq_cmd_details *cmd_details,
+			     bool is_atomic_context)
+{
+	int status;
+
+	mutex_lock(&hw->aq.asq_mutex);
+	status = i40e_asq_send_command_atomic_exec(hw, desc, buff, buff_size,
+						   cmd_details,
+						   is_atomic_context);
+
 	mutex_unlock(&hw->aq.asq_mutex);
 	return status;
+}
+
+int
+i40e_asq_send_command(struct i40e_hw *hw, struct i40e_aq_desc *desc,
+		      void *buff, /* can be NULL */ u16  buff_size,
+		      struct i40e_asq_cmd_details *cmd_details)
+{
+	return i40e_asq_send_command_atomic(hw, desc, buff, buff_size,
+					    cmd_details, false);
+}
+
+/**
+ *  i40e_asq_send_command_atomic_v2 - send command to Admin Queue
+ *  @hw: pointer to the hw struct
+ *  @desc: prefilled descriptor describing the command (non DMA mem)
+ *  @buff: buffer to use for indirect commands
+ *  @buff_size: size of buffer for indirect commands
+ *  @cmd_details: pointer to command details structure
+ *  @is_atomic_context: is the function called in an atomic context?
+ *  @aq_status: pointer to Admin Queue status return value
+ *
+ *  Acquires the lock and calls the main send command execution
+ *  routine. Returns the last Admin Queue status in aq_status
+ *  to avoid race conditions in access to hw->aq.asq_last_status.
+ **/
+int
+i40e_asq_send_command_atomic_v2(struct i40e_hw *hw,
+				struct i40e_aq_desc *desc,
+				void *buff, /* can be NULL */
+				u16  buff_size,
+				struct i40e_asq_cmd_details *cmd_details,
+				bool is_atomic_context,
+				enum i40e_admin_queue_err *aq_status)
+{
+	int status;
+
+	mutex_lock(&hw->aq.asq_mutex);
+	status = i40e_asq_send_command_atomic_exec(hw, desc, buff,
+						   buff_size,
+						   cmd_details,
+						   is_atomic_context);
+	if (aq_status)
+		*aq_status = hw->aq.asq_last_status;
+	mutex_unlock(&hw->aq.asq_mutex);
+	return status;
+}
+
+int
+i40e_asq_send_command_v2(struct i40e_hw *hw, struct i40e_aq_desc *desc,
+			 void *buff, /* can be NULL */ u16  buff_size,
+			 struct i40e_asq_cmd_details *cmd_details,
+			 enum i40e_admin_queue_err *aq_status)
+{
+	return i40e_asq_send_command_atomic_v2(hw, desc, buff, buff_size,
+					       cmd_details, true, aq_status);
 }
 
 /**
@@ -941,14 +1052,14 @@ void i40e_fill_default_direct_cmd_desc(struct i40e_aq_desc *desc,
  *  the contents through e.  It can also return how many events are
  *  left to process through 'pending'
  **/
-i40e_status i40e_clean_arq_element(struct i40e_hw *hw,
-					     struct i40e_arq_event_info *e,
-					     u16 *pending)
+int i40e_clean_arq_element(struct i40e_hw *hw,
+			   struct i40e_arq_event_info *e,
+			   u16 *pending)
 {
-	i40e_status ret_code = 0;
 	u16 ntc = hw->aq.arq.next_to_clean;
 	struct i40e_aq_desc *desc;
 	struct i40e_dma_mem *bi;
+	int ret_code = 0;
 	u16 desc_idx;
 	u16 datalen;
 	u16 flags;
@@ -963,15 +1074,15 @@ i40e_status i40e_clean_arq_element(struct i40e_hw *hw,
 	if (hw->aq.arq.count == 0) {
 		i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
 			   "AQRX: Admin queue not initialized.\n");
-		ret_code = I40E_ERR_QUEUE_EMPTY;
+		ret_code = -EIO;
 		goto clean_arq_element_err;
 	}
 
 	/* set next_to_use to head */
-	ntu = rd32(hw, hw->aq.arq.head) & I40E_PF_ARQH_ARQH_MASK;
+	ntu = rd32(hw, I40E_PF_ARQH) & I40E_PF_ARQH_ARQH_MASK;
 	if (ntu == ntc) {
 		/* nothing to do - shouldn't need to update ring's values */
-		ret_code = I40E_ERR_ADMIN_QUEUE_NO_WORK;
+		ret_code = -EALREADY;
 		goto clean_arq_element_out;
 	}
 
@@ -983,7 +1094,7 @@ i40e_status i40e_clean_arq_element(struct i40e_hw *hw,
 		(enum i40e_admin_queue_err)le16_to_cpu(desc->retval);
 	flags = le16_to_cpu(desc->flags);
 	if (flags & I40E_AQ_FLAG_ERR) {
-		ret_code = I40E_ERR_ADMIN_QUEUE_ERROR;
+		ret_code = -EIO;
 		i40e_debug(hw,
 			   I40E_DEBUG_AQ_MESSAGE,
 			   "AQRX: Event received with error 0x%X.\n",
@@ -1016,7 +1127,7 @@ i40e_status i40e_clean_arq_element(struct i40e_hw *hw,
 	desc->params.external.addr_low = cpu_to_le32(lower_32_bits(bi->pa));
 
 	/* set tail = the last cleaned desc index. */
-	wr32(hw, hw->aq.arq.tail, ntc);
+	wr32(hw, I40E_PF_ARQT, ntc);
 	/* ntc is updated to tail + 1 */
 	ntc++;
 	if (ntc == hw->aq.num_arq_entries)

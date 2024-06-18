@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: GPL-2.0+
+config VIDEO_VISL
+	tristate "Virtual Stateless Decoder Driver (visl)"
+	depends on VIDEO_DEV
+	select FONT_SUPPORT
+	select FONT_8x16
+	select VIDEOBUF2_VMALLOC
+	select V4L2_MEM2MEM_DEV
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_TPG
+	help
+
+	  A virtual stateless decoder device for uAPI development purposes.
+
+	  A userspace implementation can use visl to run a decoding loop even
+	  when no hardware is available or when the kernel uAPI for the codec
+	  has not been upstreamed yet. This can reveal bugs at an early stage.
+
+	  When in doubt, say N.
+
+config VISL_DEBUGFS
+	bool "Enable debugfs for visl"
+	depends on VIDEO_VISL
+	depends on DEBUG_FS
+
+	help
+	  Choose Y to dump the bitstream buffers through debugfs.
+	  When in doubt, say N.

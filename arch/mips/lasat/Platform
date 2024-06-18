@@ -1,7 +1,0 @@
-#
-# LASAT platforms
-#
-platform-$(CONFIG_LASAT)	+= lasat/
-cflags-$(CONFIG_LASAT)		+=					\
-		-I$(srctree)/arch/mips/include/asm/mach-lasat
-load-$(CONFIG_LASAT)		+= 0xffffffff80000000

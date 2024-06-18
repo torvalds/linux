@@ -10,6 +10,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/hugetlb.h>
+#include <linux/memremap.h>
 #include <linux/memcontrol.h>
 #include <linux/mmu_notifier.h>
 #include <linux/page_idle.h>
@@ -21,6 +22,21 @@
 #define KPMMASK (KPMSIZE - 1)
 #define KPMBITS (KPMSIZE * BITS_PER_BYTE)
 
+static inline unsigned long get_max_dump_pfn(void)
+{
+#ifdef CONFIG_SPARSEMEM
+	/*
+	 * The memmap of early sections is completely populated and marked
+	 * online even if max_pfn does not fall on a section boundary -
+	 * pfn_to_online_page() will succeed on all pages. Allow inspecting
+	 * these memmaps.
+	 */
+	return round_up(max_pfn, PAGES_PER_SECTION);
+#else
+	return max_pfn;
+#endif
+}
+
 /* /proc/kpagecount - an array exposing page counts
  *
  * Each entry is a u64 representing the corresponding
@@ -29,6 +45,7 @@
 static ssize_t kpagecount_read(struct file *file, char __user *buf,
 			     size_t count, loff_t *ppos)
 {
+	const unsigned long max_dump_pfn = get_max_dump_pfn();
 	u64 __user *out = (u64 __user *)buf;
 	struct page *ppage;
 	unsigned long src = *ppos;
@@ -37,16 +54,20 @@ static ssize_t kpagecount_read(struct file *file, char __user *buf,
 	u64 pcount;
 
 	pfn = src / KPMSIZE;
-	count = min_t(size_t, count, (max_pfn * KPMSIZE) - src);
 	if (src & KPMMASK || count & KPMMASK)
 		return -EINVAL;
+	if (src >= max_dump_pfn * KPMSIZE)
+		return 0;
+	count = min_t(unsigned long, count, (max_dump_pfn * KPMSIZE) - src);
 
 	while (count > 0) {
-		if (pfn_valid(pfn))
-			ppage = pfn_to_page(pfn);
-		else
-			ppage = NULL;
-		if (!ppage || PageSlab(ppage) || page_has_type(ppage))
+		/*
+		 * TODO: ZONE_DEVICE support requires to identify
+		 * memmaps that were actually initialized.
+		 */
+		ppage = pfn_to_online_page(pfn);
+
+		if (!ppage)
 			pcount = 0;
 		else
 			pcount = page_mapcount(ppage);
@@ -69,9 +90,10 @@ static ssize_t kpagecount_read(struct file *file, char __user *buf,
 	return ret;
 }
 
-static const struct file_operations proc_kpagecount_operations = {
-	.llseek = mem_lseek,
-	.read = kpagecount_read,
+static const struct proc_ops kpagecount_proc_ops = {
+	.proc_flags	= PROC_ENTRY_PERMANENT,
+	.proc_lseek	= mem_lseek,
+	.proc_read	= kpagecount_read,
 };
 
 /* /proc/kpageflags - an array exposing page flags
@@ -85,10 +107,13 @@ static inline u64 kpf_copy_bit(u64 kflags, int ubit, int kbit)
 	return ((kflags >> kbit) & 1) << ubit;
 }
 
-u64 stable_page_flags(struct page *page)
+u64 stable_page_flags(const struct page *page)
 {
-	u64 k;
-	u64 u;
+	const struct folio *folio;
+	unsigned long k;
+	unsigned long mapping;
+	bool is_anon;
+	u64 u = 0;
 
 	/*
 	 * pseudo flag: KPF_NOPAGE
@@ -96,56 +121,50 @@ u64 stable_page_flags(struct page *page)
 	 */
 	if (!page)
 		return 1 << KPF_NOPAGE;
+	folio = page_folio(page);
 
-	k = page->flags;
-	u = 0;
+	k = folio->flags;
+	mapping = (unsigned long)folio->mapping;
+	is_anon = mapping & PAGE_MAPPING_ANON;
 
 	/*
 	 * pseudo flags for the well known (anonymous) memory mapped pages
-	 *
-	 * Note that page->_mapcount is overloaded in SLOB/SLUB/SLQB, so the
-	 * simple test in page_mapped() is not enough.
 	 */
-	if (!PageSlab(page) && page_mapped(page))
+	if (page_mapped(page))
 		u |= 1 << KPF_MMAP;
-	if (PageAnon(page))
+	if (is_anon) {
 		u |= 1 << KPF_ANON;
-	if (PageKsm(page))
-		u |= 1 << KPF_KSM;
+		if (mapping & PAGE_MAPPING_KSM)
+			u |= 1 << KPF_KSM;
+	}
 
 	/*
 	 * compound pages: export both head/tail info
 	 * they together define a compound page's start/end pos and order
 	 */
-	if (PageHead(page))
-		u |= 1 << KPF_COMPOUND_HEAD;
-	if (PageTail(page))
+	if (page == &folio->page)
+		u |= kpf_copy_bit(k, KPF_COMPOUND_HEAD, PG_head);
+	else
 		u |= 1 << KPF_COMPOUND_TAIL;
-	if (PageHuge(page))
+	if (folio_test_hugetlb(folio))
 		u |= 1 << KPF_HUGE;
 	/*
-	 * PageTransCompound can be true for non-huge compound pages (slab
-	 * pages or pages allocated by drivers with __GFP_COMP) because it
-	 * just checks PG_head/PG_tail, so we need to check PageLRU/PageAnon
+	 * We need to check PageLRU/PageAnon
 	 * to make sure a given page is a thp, not a non-huge compound page.
 	 */
-	else if (PageTransCompound(page)) {
-		struct page *head = compound_head(page);
-
-		if (PageLRU(head) || PageAnon(head))
+	else if (folio_test_large(folio)) {
+		if ((k & (1 << PG_lru)) || is_anon)
 			u |= 1 << KPF_THP;
-		else if (is_huge_zero_page(head)) {
+		else if (is_huge_zero_folio(folio)) {
 			u |= 1 << KPF_ZERO_PAGE;
 			u |= 1 << KPF_THP;
 		}
 	} else if (is_zero_pfn(page_to_pfn(page)))
 		u |= 1 << KPF_ZERO_PAGE;
 
-
 	/*
-	 * Caveats on high order pages: page->_refcount will only be set
-	 * -1 on the head page; SLUB/SLQB do the same for PG_slab;
-	 * SLOB won't set PG_slab at all on compound pages.
+	 * Caveats on high order pages: PG_buddy and PG_slab will only be set
+	 * on the head page.
 	 */
 	if (PageBuddy(page))
 		u |= 1 << KPF_BUDDY;
@@ -156,16 +175,17 @@ u64 stable_page_flags(struct page *page)
 		u |= 1 << KPF_OFFLINE;
 	if (PageTable(page))
 		u |= 1 << KPF_PGTABLE;
-
-	if (page_is_idle(page))
-		u |= 1 << KPF_IDLE;
-
-	u |= kpf_copy_bit(k, KPF_LOCKED,	PG_locked);
-
-	u |= kpf_copy_bit(k, KPF_SLAB,		PG_slab);
-	if (PageTail(page) && PageSlab(compound_head(page)))
+	if (folio_test_slab(folio))
 		u |= 1 << KPF_SLAB;
 
+#if defined(CONFIG_PAGE_IDLE_FLAG) && defined(CONFIG_64BIT)
+	u |= kpf_copy_bit(k, KPF_IDLE,          PG_idle);
+#else
+	if (folio_test_idle(folio))
+		u |= 1 << KPF_IDLE;
+#endif
+
+	u |= kpf_copy_bit(k, KPF_LOCKED,	PG_locked);
 	u |= kpf_copy_bit(k, KPF_ERROR,		PG_error);
 	u |= kpf_copy_bit(k, KPF_DIRTY,		PG_dirty);
 	u |= kpf_copy_bit(k, KPF_UPTODATE,	PG_uptodate);
@@ -176,7 +196,8 @@ u64 stable_page_flags(struct page *page)
 	u |= kpf_copy_bit(k, KPF_ACTIVE,	PG_active);
 	u |= kpf_copy_bit(k, KPF_RECLAIM,	PG_reclaim);
 
-	if (PageSwapCache(page))
+#define SWAPCACHE ((1 << PG_swapbacked) | (1 << PG_swapcache))
+	if ((k & SWAPCACHE) == SWAPCACHE)
 		u |= 1 << KPF_SWAPCACHE;
 	u |= kpf_copy_bit(k, KPF_SWAPBACKED,	PG_swapbacked);
 
@@ -184,7 +205,10 @@ u64 stable_page_flags(struct page *page)
 	u |= kpf_copy_bit(k, KPF_MLOCKED,	PG_mlocked);
 
 #ifdef CONFIG_MEMORY_FAILURE
-	u |= kpf_copy_bit(k, KPF_HWPOISON,	PG_hwpoison);
+	if (u & (1 << KPF_HUGE))
+		u |= kpf_copy_bit(k, KPF_HWPOISON,	PG_hwpoison);
+	else
+		u |= kpf_copy_bit(page->flags, KPF_HWPOISON,	PG_hwpoison);
 #endif
 
 #ifdef CONFIG_ARCH_USES_PG_UNCACHED
@@ -197,6 +221,10 @@ u64 stable_page_flags(struct page *page)
 	u |= kpf_copy_bit(k, KPF_PRIVATE_2,	PG_private_2);
 	u |= kpf_copy_bit(k, KPF_OWNER_PRIVATE,	PG_owner_priv_1);
 	u |= kpf_copy_bit(k, KPF_ARCH,		PG_arch_1);
+#ifdef CONFIG_ARCH_USES_PG_ARCH_X
+	u |= kpf_copy_bit(k, KPF_ARCH_2,	PG_arch_2);
+	u |= kpf_copy_bit(k, KPF_ARCH_3,	PG_arch_3);
+#endif
 
 	return u;
 };
@@ -204,24 +232,27 @@ u64 stable_page_flags(struct page *page)
 static ssize_t kpageflags_read(struct file *file, char __user *buf,
 			     size_t count, loff_t *ppos)
 {
+	const unsigned long max_dump_pfn = get_max_dump_pfn();
 	u64 __user *out = (u64 __user *)buf;
-	struct page *ppage;
 	unsigned long src = *ppos;
 	unsigned long pfn;
 	ssize_t ret = 0;
 
 	pfn = src / KPMSIZE;
-	count = min_t(unsigned long, count, (max_pfn * KPMSIZE) - src);
 	if (src & KPMMASK || count & KPMMASK)
 		return -EINVAL;
+	if (src >= max_dump_pfn * KPMSIZE)
+		return 0;
+	count = min_t(unsigned long, count, (max_dump_pfn * KPMSIZE) - src);
 
 	while (count > 0) {
-		if (pfn_valid(pfn))
-			ppage = pfn_to_page(pfn);
-		else
-			ppage = NULL;
+		/*
+		 * TODO: ZONE_DEVICE support requires to identify
+		 * memmaps that were actually initialized.
+		 */
+		struct page *page = pfn_to_online_page(pfn);
 
-		if (put_user(stable_page_flags(ppage), out)) {
+		if (put_user(stable_page_flags(page), out)) {
 			ret = -EFAULT;
 			break;
 		}
@@ -239,15 +270,17 @@ static ssize_t kpageflags_read(struct file *file, char __user *buf,
 	return ret;
 }
 
-static const struct file_operations proc_kpageflags_operations = {
-	.llseek = mem_lseek,
-	.read = kpageflags_read,
+static const struct proc_ops kpageflags_proc_ops = {
+	.proc_flags	= PROC_ENTRY_PERMANENT,
+	.proc_lseek	= mem_lseek,
+	.proc_read	= kpageflags_read,
 };
 
 #ifdef CONFIG_MEMCG
 static ssize_t kpagecgroup_read(struct file *file, char __user *buf,
 				size_t count, loff_t *ppos)
 {
+	const unsigned long max_dump_pfn = get_max_dump_pfn();
 	u64 __user *out = (u64 __user *)buf;
 	struct page *ppage;
 	unsigned long src = *ppos;
@@ -256,15 +289,18 @@ static ssize_t kpagecgroup_read(struct file *file, char __user *buf,
 	u64 ino;
 
 	pfn = src / KPMSIZE;
-	count = min_t(unsigned long, count, (max_pfn * KPMSIZE) - src);
 	if (src & KPMMASK || count & KPMMASK)
 		return -EINVAL;
+	if (src >= max_dump_pfn * KPMSIZE)
+		return 0;
+	count = min_t(unsigned long, count, (max_dump_pfn * KPMSIZE) - src);
 
 	while (count > 0) {
-		if (pfn_valid(pfn))
-			ppage = pfn_to_page(pfn);
-		else
-			ppage = NULL;
+		/*
+		 * TODO: ZONE_DEVICE support requires to identify
+		 * memmaps that were actually initialized.
+		 */
+		ppage = pfn_to_online_page(pfn);
 
 		if (ppage)
 			ino = page_cgroup_ino(ppage);
@@ -289,18 +325,19 @@ static ssize_t kpagecgroup_read(struct file *file, char __user *buf,
 	return ret;
 }
 
-static const struct file_operations proc_kpagecgroup_operations = {
-	.llseek = mem_lseek,
-	.read = kpagecgroup_read,
+static const struct proc_ops kpagecgroup_proc_ops = {
+	.proc_flags	= PROC_ENTRY_PERMANENT,
+	.proc_lseek	= mem_lseek,
+	.proc_read	= kpagecgroup_read,
 };
 #endif /* CONFIG_MEMCG */
 
 static int __init proc_page_init(void)
 {
-	proc_create("kpagecount", S_IRUSR, NULL, &proc_kpagecount_operations);
-	proc_create("kpageflags", S_IRUSR, NULL, &proc_kpageflags_operations);
+	proc_create("kpagecount", S_IRUSR, NULL, &kpagecount_proc_ops);
+	proc_create("kpageflags", S_IRUSR, NULL, &kpageflags_proc_ops);
 #ifdef CONFIG_MEMCG
-	proc_create("kpagecgroup", S_IRUSR, NULL, &proc_kpagecgroup_operations);
+	proc_create("kpagecgroup", S_IRUSR, NULL, &kpagecgroup_proc_ops);
 #endif
 	return 0;
 }

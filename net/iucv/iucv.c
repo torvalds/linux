@@ -67,37 +67,48 @@ static int iucv_bus_match(struct device *dev, struct device_driver *drv)
 	return 0;
 }
 
-enum iucv_pm_states {
-	IUCV_PM_INITIAL = 0,
-	IUCV_PM_FREEZING = 1,
-	IUCV_PM_THAWING = 2,
-	IUCV_PM_RESTORING = 3,
-};
-static enum iucv_pm_states iucv_pm_state;
-
-static int iucv_pm_prepare(struct device *);
-static void iucv_pm_complete(struct device *);
-static int iucv_pm_freeze(struct device *);
-static int iucv_pm_thaw(struct device *);
-static int iucv_pm_restore(struct device *);
-
-static const struct dev_pm_ops iucv_pm_ops = {
-	.prepare = iucv_pm_prepare,
-	.complete = iucv_pm_complete,
-	.freeze = iucv_pm_freeze,
-	.thaw = iucv_pm_thaw,
-	.restore = iucv_pm_restore,
-};
-
-struct bus_type iucv_bus = {
+const struct bus_type iucv_bus = {
 	.name = "iucv",
 	.match = iucv_bus_match,
-	.pm = &iucv_pm_ops,
 };
 EXPORT_SYMBOL(iucv_bus);
 
-struct device *iucv_root;
-EXPORT_SYMBOL(iucv_root);
+static struct device *iucv_root;
+
+static void iucv_release_device(struct device *device)
+{
+	kfree(device);
+}
+
+struct device *iucv_alloc_device(const struct attribute_group **attrs,
+				 struct device_driver *driver,
+				 void *priv, const char *fmt, ...)
+{
+	struct device *dev;
+	va_list vargs;
+	int rc;
+
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev)
+		goto out_error;
+	va_start(vargs, fmt);
+	rc = dev_set_name(dev, fmt, vargs);
+	va_end(vargs);
+	if (rc)
+		goto out_error;
+	dev->bus = &iucv_bus;
+	dev->parent = iucv_root;
+	dev->driver = driver;
+	dev->groups = attrs;
+	dev->release = iucv_release_device;
+	dev_set_drvdata(dev, priv);
+	return dev;
+
+out_error:
+	kfree(dev);
+	return NULL;
+}
+EXPORT_SYMBOL(iucv_alloc_device);
 
 static int iucv_available;
 
@@ -106,7 +117,7 @@ struct iucv_irq_data {
 	u16 ippathid;
 	u8  ipflags1;
 	u8  iptype;
-	u32 res2[8];
+	u32 res2[9];
 };
 
 struct iucv_irq_list {
@@ -128,7 +139,7 @@ static LIST_HEAD(iucv_task_queue);
  * The tasklet for fast delivery of iucv interrupts.
  */
 static void iucv_tasklet_fn(unsigned long);
-static DECLARE_TASKLET(iucv_tasklet, iucv_tasklet_fn,0);
+static DECLARE_TASKLET_OLD(iucv_tasklet, iucv_tasklet_fn);
 
 /*
  * Queue of interrupt buffers for delivery via a work queue
@@ -179,7 +190,7 @@ static char iucv_error_pathid[16] = "INVALID PATHID";
 static LIST_HEAD(iucv_handler_list);
 
 /*
- * iucv_path_table: an array of iucv_path structures.
+ * iucv_path_table: array of pointers to iucv_path structures.
  */
 static struct iucv_path **iucv_path_table;
 static unsigned long iucv_max_pathid;
@@ -233,7 +244,7 @@ struct iucv_cmd_dpl {
 	u8  iprmmsg[8];
 	u32 ipsrccls;
 	u32 ipmsgtag;
-	u32 ipbfadr2;
+	dma32_t ipbfadr2;
 	u32 ipbfln2f;
 	u32 res;
 } __attribute__ ((packed,aligned(8)));
@@ -249,11 +260,11 @@ struct iucv_cmd_db {
 	u8  iprcode;
 	u32 ipmsgid;
 	u32 iptrgcls;
-	u32 ipbfadr1;
+	dma32_t ipbfadr1;
 	u32 ipbfln1f;
 	u32 ipsrccls;
 	u32 ipmsgtag;
-	u32 ipbfadr2;
+	dma32_t ipbfadr2;
 	u32 ipbfln2f;
 	u32 res;
 } __attribute__ ((packed,aligned(8)));
@@ -299,8 +310,8 @@ static union iucv_param *iucv_param[NR_CPUS];
 static union iucv_param *iucv_param_irq[NR_CPUS];
 
 /**
- * iucv_call_b2f0
- * @code: identifier of IUCV call to CP.
+ * __iucv_call_b2f0
+ * @command: identifier of IUCV call to CP.
  * @parm: pointer to a struct iucv_parm block
  *
  * Calls CP to execute IUCV commands.
@@ -309,19 +320,20 @@ static union iucv_param *iucv_param_irq[NR_CPUS];
  */
 static inline int __iucv_call_b2f0(int command, union iucv_param *parm)
 {
-	register unsigned long reg0 asm ("0");
-	register unsigned long reg1 asm ("1");
-	int ccode;
+	unsigned long reg1 = virt_to_phys(parm);
+	int cc;
 
-	reg0 = command;
-	reg1 = (unsigned long)parm;
 	asm volatile(
-		"	.long 0xb2f01000\n"
-		"	ipm	%0\n"
-		"	srl	%0,28\n"
-		: "=d" (ccode), "=m" (*parm), "+d" (reg0), "+a" (reg1)
-		:  "m" (*parm) : "cc");
-	return ccode;
+		"	lgr	0,%[reg0]\n"
+		"	lgr	1,%[reg1]\n"
+		"	.long	0xb2f01000\n"
+		"	ipm	%[cc]\n"
+		"	srl	%[cc],28\n"
+		: [cc] "=&d" (cc), "+m" (*parm)
+		: [reg0] "d" ((unsigned long)command),
+		  [reg1] "d" (reg1)
+		: "cc", "0", "1");
+	return cc;
 }
 
 static inline int iucv_call_b2f0(int command, union iucv_param *parm)
@@ -332,7 +344,7 @@ static inline int iucv_call_b2f0(int command, union iucv_param *parm)
 	return ccode == 1 ? parm->ctrl.iprcode : ccode;
 }
 
-/**
+/*
  * iucv_query_maxconn
  *
  * Determines the maximum number of connections that may be established.
@@ -342,19 +354,21 @@ static inline int iucv_call_b2f0(int command, union iucv_param *parm)
  */
 static int __iucv_query_maxconn(void *param, unsigned long *max_pathid)
 {
-	register unsigned long reg0 asm ("0");
-	register unsigned long reg1 asm ("1");
-	int ccode;
+	unsigned long reg1 = virt_to_phys(param);
+	int cc;
 
-	reg0 = IUCV_QUERY;
-	reg1 = (unsigned long) param;
 	asm volatile (
+		"	lghi	0,%[cmd]\n"
+		"	lgr	1,%[reg1]\n"
 		"	.long	0xb2f01000\n"
-		"	ipm	%0\n"
-		"	srl	%0,28\n"
-		: "=d" (ccode), "+d" (reg0), "+d" (reg1) : : "cc");
+		"	ipm	%[cc]\n"
+		"	srl	%[cc],28\n"
+		"	lgr	%[reg1],1\n"
+		: [cc] "=&d" (cc), [reg1] "+&d" (reg1)
+		: [cmd] "K" (IUCV_QUERY)
+		: "cc", "0", "1");
 	*max_pathid = reg1;
-	return ccode;
+	return cc;
 }
 
 static int iucv_query_maxconn(void)
@@ -435,31 +449,6 @@ static void iucv_block_cpu(void *data)
 }
 
 /**
- * iucv_block_cpu_almost
- * @data: unused
- *
- * Allow connection-severed interrupts only on this cpu.
- */
-static void iucv_block_cpu_almost(void *data)
-{
-	int cpu = smp_processor_id();
-	union iucv_param *parm;
-
-	/* Allow iucv control interrupts only */
-	parm = iucv_param_irq[cpu];
-	memset(parm, 0, sizeof(union iucv_param));
-	parm->set_mask.ipmask = 0x08;
-	iucv_call_b2f0(IUCV_SETMASK, parm);
-	/* Allow iucv-severed interrupt only */
-	memset(parm, 0, sizeof(union iucv_param));
-	parm->set_mask.ipmask = 0x20;
-	iucv_call_b2f0(IUCV_SETCONTROLMASK, parm);
-
-	/* Clear indication that iucv interrupts are allowed for this cpu. */
-	cpumask_clear_cpu(cpu, &iucv_irq_cpumask);
-}
-
-/**
  * iucv_declare_cpu
  * @data: unused
  *
@@ -477,7 +466,7 @@ static void iucv_declare_cpu(void *data)
 	/* Declare interrupt buffer. */
 	parm = iucv_param_irq[cpu];
 	memset(parm, 0, sizeof(union iucv_param));
-	parm->db.ipbfadr1 = virt_to_phys(iucv_irq_data[cpu]);
+	parm->db.ipbfadr1 = virt_to_dma32(iucv_irq_data[cpu]);
 	rc = iucv_call_b2f0(IUCV_DECLARE_BUFFER, parm);
 	if (rc) {
 		char *err = "Unknown";
@@ -539,8 +528,8 @@ static void iucv_retrieve_cpu(void *data)
 	cpumask_clear_cpu(cpu, &iucv_buffer_cpumask);
 }
 
-/**
- * iucv_setmask_smp
+/*
+ * iucv_setmask_mp
  *
  * Allow iucv interrupts on all cpus.
  */
@@ -548,24 +537,24 @@ static void iucv_setmask_mp(void)
 {
 	int cpu;
 
-	get_online_cpus();
+	cpus_read_lock();
 	for_each_online_cpu(cpu)
 		/* Enable all cpus with a declared buffer. */
 		if (cpumask_test_cpu(cpu, &iucv_buffer_cpumask) &&
 		    !cpumask_test_cpu(cpu, &iucv_irq_cpumask))
 			smp_call_function_single(cpu, iucv_allow_cpu,
 						 NULL, 1);
-	put_online_cpus();
+	cpus_read_unlock();
 }
 
-/**
+/*
  * iucv_setmask_up
  *
  * Allow iucv interrupts on a single cpu.
  */
 static void iucv_setmask_up(void)
 {
-	cpumask_t cpumask;
+	static cpumask_t cpumask;
 	int cpu;
 
 	/* Disable all cpu but the first in cpu_irq_cpumask. */
@@ -575,7 +564,7 @@ static void iucv_setmask_up(void)
 		smp_call_function_single(cpu, iucv_block_cpu, NULL, 1);
 }
 
-/**
+/*
  * iucv_enable
  *
  * This function makes iucv ready for use. It allocates the pathid
@@ -588,9 +577,9 @@ static int iucv_enable(void)
 	size_t alloc_size;
 	int cpu, rc;
 
-	get_online_cpus();
+	cpus_read_lock();
 	rc = -ENOMEM;
-	alloc_size = iucv_max_pathid * sizeof(struct iucv_path);
+	alloc_size = iucv_max_pathid * sizeof(*iucv_path_table);
 	iucv_path_table = kzalloc(alloc_size, GFP_KERNEL);
 	if (!iucv_path_table)
 		goto out;
@@ -601,16 +590,16 @@ static int iucv_enable(void)
 	if (cpumask_empty(&iucv_buffer_cpumask))
 		/* No cpu could declare an iucv buffer. */
 		goto out;
-	put_online_cpus();
+	cpus_read_unlock();
 	return 0;
 out:
 	kfree(iucv_path_table);
 	iucv_path_table = NULL;
-	put_online_cpus();
+	cpus_read_unlock();
 	return rc;
 }
 
-/**
+/*
  * iucv_disable
  *
  * This function shuts down iucv. It disables iucv interrupts, retrieves
@@ -619,11 +608,11 @@ out:
  */
 static void iucv_disable(void)
 {
-	get_online_cpus();
+	cpus_read_lock();
 	on_each_cpu(iucv_retrieve_cpu, NULL, 1);
 	kfree(iucv_path_table);
 	iucv_path_table = NULL;
-	put_online_cpus();
+	cpus_read_unlock();
 }
 
 static int iucv_cpu_dead(unsigned int cpu)
@@ -673,23 +662,33 @@ static int iucv_cpu_online(unsigned int cpu)
 
 static int iucv_cpu_down_prep(unsigned int cpu)
 {
-	cpumask_t cpumask;
+	cpumask_var_t cpumask;
+	int ret = 0;
 
 	if (!iucv_path_table)
 		return 0;
 
-	cpumask_copy(&cpumask, &iucv_buffer_cpumask);
-	cpumask_clear_cpu(cpu, &cpumask);
-	if (cpumask_empty(&cpumask))
+	if (!alloc_cpumask_var(&cpumask, GFP_KERNEL))
+		return -ENOMEM;
+
+	cpumask_copy(cpumask, &iucv_buffer_cpumask);
+	cpumask_clear_cpu(cpu, cpumask);
+	if (cpumask_empty(cpumask)) {
 		/* Can't offline last IUCV enabled cpu. */
-		return -EINVAL;
+		ret = -EINVAL;
+		goto __free_cpumask;
+	}
 
 	iucv_retrieve_cpu(NULL);
 	if (!cpumask_empty(&iucv_irq_cpumask))
-		return 0;
+		goto __free_cpumask;
+
 	smp_call_function_single(cpumask_first(&iucv_buffer_cpumask),
 				 iucv_allow_cpu, NULL, 1);
-	return 0;
+
+__free_cpumask:
+	free_cpumask_var(cpumask);
+	return ret;
 }
 
 /**
@@ -832,7 +831,7 @@ static int iucv_reboot_event(struct notifier_block *this,
 	if (cpumask_empty(&iucv_irq_cpumask))
 		return NOTIFY_DONE;
 
-	get_online_cpus();
+	cpus_read_lock();
 	on_each_cpu_mask(&iucv_irq_cpumask, iucv_block_cpu, NULL, 1);
 	preempt_disable();
 	for (i = 0; i < iucv_max_pathid; i++) {
@@ -840,7 +839,7 @@ static int iucv_reboot_event(struct notifier_block *this,
 			iucv_sever_pathid(i, NULL);
 	}
 	preempt_enable();
-	put_online_cpus();
+	cpus_read_unlock();
 	iucv_disable();
 	return NOTIFY_DONE;
 }
@@ -1126,8 +1125,7 @@ static int iucv_message_receive_iprmdata(struct iucv_path *path,
 		size = (size < 8) ? size : 8;
 		for (array = buffer; size > 0; array++) {
 			copy = min_t(size_t, size, array->length);
-			memcpy((u8 *)(addr_t) array->address,
-				rmmsg, copy);
+			memcpy(dma32_to_virt(array->address), rmmsg, copy);
 			rmmsg += copy;
 			size -= copy;
 		}
@@ -1164,13 +1162,12 @@ int __iucv_message_receive(struct iucv_path *path, struct iucv_message *msg,
 	if (msg->flags & IUCV_IPRMDATA)
 		return iucv_message_receive_iprmdata(path, msg, flags,
 						     buffer, size, residual);
-	 if (cpumask_empty(&iucv_buffer_cpumask)) {
-		rc = -EIO;
-		goto out;
-	}
+	if (cpumask_empty(&iucv_buffer_cpumask))
+		return -EIO;
+
 	parm = iucv_param[smp_processor_id()];
 	memset(parm, 0, sizeof(union iucv_param));
-	parm->db.ipbfadr1 = (u32)(addr_t) buffer;
+	parm->db.ipbfadr1 = virt_to_dma32(buffer);
 	parm->db.ipbfln1f = (u32) size;
 	parm->db.ipmsgid = msg->id;
 	parm->db.ippathid = path->pathid;
@@ -1183,7 +1180,6 @@ int __iucv_message_receive(struct iucv_path *path, struct iucv_message *msg,
 		if (residual)
 			*residual = parm->db.ipbfln1f;
 	}
-out:
 	return rc;
 }
 EXPORT_SYMBOL(__iucv_message_receive);
@@ -1289,7 +1285,7 @@ int iucv_message_reply(struct iucv_path *path, struct iucv_message *msg,
 		parm->dpl.iptrgcls = msg->class;
 		memcpy(parm->dpl.iprmmsg, reply, min_t(size_t, size, 8));
 	} else {
-		parm->db.ipbfadr1 = (u32)(addr_t) reply;
+		parm->db.ipbfadr1 = virt_to_dma32(reply);
 		parm->db.ipbfln1f = (u32) size;
 		parm->db.ippathid = path->pathid;
 		parm->db.ipflags1 = flags;
@@ -1341,7 +1337,7 @@ int __iucv_message_send(struct iucv_path *path, struct iucv_message *msg,
 		parm->dpl.ipmsgtag = msg->tag;
 		memcpy(parm->dpl.iprmmsg, buffer, 8);
 	} else {
-		parm->db.ipbfadr1 = (u32)(addr_t) buffer;
+		parm->db.ipbfadr1 = virt_to_dma32(buffer);
 		parm->db.ipbfln1f = (u32) size;
 		parm->db.ippathid = path->pathid;
 		parm->db.ipflags1 = flags | IUCV_IPNORPY;
@@ -1395,8 +1391,9 @@ EXPORT_SYMBOL(iucv_message_send);
  * @srccls: source class of message
  * @buffer: address of send buffer or address of struct iucv_array
  * @size: length of send buffer
- * @ansbuf: address of answer buffer or address of struct iucv_array
+ * @answer: address of answer buffer or address of struct iucv_array
  * @asize: size of reply buffer
+ * @residual: ignored
  *
  * This function transmits data to another application. Data to be
  * transmitted is in a buffer. The receiver of the send is expected to
@@ -1425,7 +1422,7 @@ int iucv_message_send2way(struct iucv_path *path, struct iucv_message *msg,
 		parm->dpl.iptrgcls = msg->class;
 		parm->dpl.ipsrccls = srccls;
 		parm->dpl.ipmsgtag = msg->tag;
-		parm->dpl.ipbfadr2 = (u32)(addr_t) answer;
+		parm->dpl.ipbfadr2 = virt_to_dma32(answer);
 		parm->dpl.ipbfln2f = (u32) asize;
 		memcpy(parm->dpl.iprmmsg, buffer, 8);
 	} else {
@@ -1434,9 +1431,9 @@ int iucv_message_send2way(struct iucv_path *path, struct iucv_message *msg,
 		parm->db.iptrgcls = msg->class;
 		parm->db.ipsrccls = srccls;
 		parm->db.ipmsgtag = msg->tag;
-		parm->db.ipbfadr1 = (u32)(addr_t) buffer;
+		parm->db.ipbfadr1 = virt_to_dma32(buffer);
 		parm->db.ipbfln1f = (u32) size;
-		parm->db.ipbfadr2 = (u32)(addr_t) answer;
+		parm->db.ipbfadr2 = virt_to_dma32(answer);
 		parm->db.ipbfln2f = (u32) asize;
 	}
 	rc = iucv_call_b2f0(IUCV_SEND, parm);
@@ -1448,13 +1445,6 @@ out:
 }
 EXPORT_SYMBOL(iucv_message_send2way);
 
-/**
- * iucv_path_pending
- * @data: Pointer to external interrupt buffer
- *
- * Process connection pending work item. Called from tasklet while holding
- * iucv_table_lock.
- */
 struct iucv_path_pending {
 	u16 ippathid;
 	u8  ipflags1;
@@ -1468,6 +1458,13 @@ struct iucv_path_pending {
 	u8  res4[3];
 } __packed;
 
+/**
+ * iucv_path_pending
+ * @data: Pointer to external interrupt buffer
+ *
+ * Process connection pending work item. Called from tasklet while holding
+ * iucv_table_lock.
+ */
 static void iucv_path_pending(struct iucv_irq_data *data)
 {
 	struct iucv_path_pending *ipp = (void *) data;
@@ -1509,13 +1506,6 @@ out_sever:
 	iucv_sever_pathid(ipp->ippathid, error);
 }
 
-/**
- * iucv_path_complete
- * @data: Pointer to external interrupt buffer
- *
- * Process connection complete work item. Called from tasklet while holding
- * iucv_table_lock.
- */
 struct iucv_path_complete {
 	u16 ippathid;
 	u8  ipflags1;
@@ -1529,6 +1519,13 @@ struct iucv_path_complete {
 	u8  res4[3];
 } __packed;
 
+/**
+ * iucv_path_complete
+ * @data: Pointer to external interrupt buffer
+ *
+ * Process connection complete work item. Called from tasklet while holding
+ * iucv_table_lock.
+ */
 static void iucv_path_complete(struct iucv_irq_data *data)
 {
 	struct iucv_path_complete *ipc = (void *) data;
@@ -1540,13 +1537,6 @@ static void iucv_path_complete(struct iucv_irq_data *data)
 		path->handler->path_complete(path, ipc->ipuser);
 }
 
-/**
- * iucv_path_severed
- * @data: Pointer to external interrupt buffer
- *
- * Process connection severed work item. Called from tasklet while holding
- * iucv_table_lock.
- */
 struct iucv_path_severed {
 	u16 ippathid;
 	u8  res1;
@@ -1559,6 +1549,13 @@ struct iucv_path_severed {
 	u8  res5[3];
 } __packed;
 
+/**
+ * iucv_path_severed
+ * @data: Pointer to external interrupt buffer
+ *
+ * Process connection severed work item. Called from tasklet while holding
+ * iucv_table_lock.
+ */
 static void iucv_path_severed(struct iucv_irq_data *data)
 {
 	struct iucv_path_severed *ips = (void *) data;
@@ -1576,13 +1573,6 @@ static void iucv_path_severed(struct iucv_irq_data *data)
 	}
 }
 
-/**
- * iucv_path_quiesced
- * @data: Pointer to external interrupt buffer
- *
- * Process connection quiesced work item. Called from tasklet while holding
- * iucv_table_lock.
- */
 struct iucv_path_quiesced {
 	u16 ippathid;
 	u8  res1;
@@ -1595,6 +1585,13 @@ struct iucv_path_quiesced {
 	u8  res5[3];
 } __packed;
 
+/**
+ * iucv_path_quiesced
+ * @data: Pointer to external interrupt buffer
+ *
+ * Process connection quiesced work item. Called from tasklet while holding
+ * iucv_table_lock.
+ */
 static void iucv_path_quiesced(struct iucv_irq_data *data)
 {
 	struct iucv_path_quiesced *ipq = (void *) data;
@@ -1604,13 +1601,6 @@ static void iucv_path_quiesced(struct iucv_irq_data *data)
 		path->handler->path_quiesced(path, ipq->ipuser);
 }
 
-/**
- * iucv_path_resumed
- * @data: Pointer to external interrupt buffer
- *
- * Process connection resumed work item. Called from tasklet while holding
- * iucv_table_lock.
- */
 struct iucv_path_resumed {
 	u16 ippathid;
 	u8  res1;
@@ -1623,6 +1613,13 @@ struct iucv_path_resumed {
 	u8  res5[3];
 } __packed;
 
+/**
+ * iucv_path_resumed
+ * @data: Pointer to external interrupt buffer
+ *
+ * Process connection resumed work item. Called from tasklet while holding
+ * iucv_table_lock.
+ */
 static void iucv_path_resumed(struct iucv_irq_data *data)
 {
 	struct iucv_path_resumed *ipr = (void *) data;
@@ -1632,13 +1629,6 @@ static void iucv_path_resumed(struct iucv_irq_data *data)
 		path->handler->path_resumed(path, ipr->ipuser);
 }
 
-/**
- * iucv_message_complete
- * @data: Pointer to external interrupt buffer
- *
- * Process message complete work item. Called from tasklet while holding
- * iucv_table_lock.
- */
 struct iucv_message_complete {
 	u16 ippathid;
 	u8  ipflags1;
@@ -1654,6 +1644,13 @@ struct iucv_message_complete {
 	u8  res2[3];
 } __packed;
 
+/**
+ * iucv_message_complete
+ * @data: Pointer to external interrupt buffer
+ *
+ * Process message complete work item. Called from tasklet while holding
+ * iucv_table_lock.
+ */
 static void iucv_message_complete(struct iucv_irq_data *data)
 {
 	struct iucv_message_complete *imc = (void *) data;
@@ -1672,6 +1669,28 @@ static void iucv_message_complete(struct iucv_irq_data *data)
 	}
 }
 
+struct iucv_message_pending {
+	u16 ippathid;
+	u8  ipflags1;
+	u8  iptype;
+	u32 ipmsgid;
+	u32 iptrgcls;
+	struct {
+		union {
+			u32 iprmmsg1_u32;
+			u8  iprmmsg1[4];
+		} ln1msg1;
+		union {
+			u32 ipbfln1f;
+			u8  iprmmsg2[4];
+		} ln1msg2;
+	} rmmsg;
+	u32 res1[3];
+	u32 ipbfln2f;
+	u8  ippollfg;
+	u8  res2[3];
+} __packed;
+
 /**
  * iucv_message_pending
  * @data: Pointer to external interrupt buffer
@@ -1679,26 +1698,6 @@ static void iucv_message_complete(struct iucv_irq_data *data)
  * Process message pending work item. Called from tasklet while holding
  * iucv_table_lock.
  */
-struct iucv_message_pending {
-	u16 ippathid;
-	u8  ipflags1;
-	u8  iptype;
-	u32 ipmsgid;
-	u32 iptrgcls;
-	union {
-		u32 iprmmsg1_u32;
-		u8  iprmmsg1[4];
-	} ln1msg1;
-	union {
-		u32 ipbfln1f;
-		u8  iprmmsg2[4];
-	} ln1msg2;
-	u32 res1[3];
-	u32 ipbfln2f;
-	u8  ippollfg;
-	u8  res2[3];
-} __packed;
-
 static void iucv_message_pending(struct iucv_irq_data *data)
 {
 	struct iucv_message_pending *imp = (void *) data;
@@ -1710,16 +1709,16 @@ static void iucv_message_pending(struct iucv_irq_data *data)
 		msg.id = imp->ipmsgid;
 		msg.class = imp->iptrgcls;
 		if (imp->ipflags1 & IUCV_IPRMDATA) {
-			memcpy(msg.rmmsg, imp->ln1msg1.iprmmsg1, 8);
+			memcpy(msg.rmmsg, &imp->rmmsg, 8);
 			msg.length = 8;
 		} else
-			msg.length = imp->ln1msg2.ipbfln1f;
+			msg.length = imp->rmmsg.ln1msg2.ipbfln1f;
 		msg.reply_size = imp->ipbfln2f;
 		path->handler->message_pending(path, &msg);
 	}
 }
 
-/**
+/*
  * iucv_tasklet_fn:
  *
  * This tasklet loops over the queue of irq buffers created by
@@ -1763,7 +1762,7 @@ static void iucv_tasklet_fn(unsigned long ignored)
 	spin_unlock(&iucv_table_lock);
 }
 
-/**
+/*
  * iucv_work_fn:
  *
  * This work function loops over the queue of path pending irq blocks
@@ -1794,9 +1793,8 @@ static void iucv_work_fn(struct work_struct *work)
 	spin_unlock_bh(&iucv_table_lock);
 }
 
-/**
+/*
  * iucv_external_interrupt
- * @code: irq code
  *
  * Handles external interrupts coming in from CP.
  * Places the interrupt buffer on a queue and schedules iucv_tasklet_fn().
@@ -1834,146 +1832,6 @@ static void iucv_external_interrupt(struct ext_code ext_code,
 	spin_unlock(&iucv_queue_lock);
 }
 
-static int iucv_pm_prepare(struct device *dev)
-{
-	int rc = 0;
-
-#ifdef CONFIG_PM_DEBUG
-	printk(KERN_INFO "iucv_pm_prepare\n");
-#endif
-	if (dev->driver && dev->driver->pm && dev->driver->pm->prepare)
-		rc = dev->driver->pm->prepare(dev);
-	return rc;
-}
-
-static void iucv_pm_complete(struct device *dev)
-{
-#ifdef CONFIG_PM_DEBUG
-	printk(KERN_INFO "iucv_pm_complete\n");
-#endif
-	if (dev->driver && dev->driver->pm && dev->driver->pm->complete)
-		dev->driver->pm->complete(dev);
-}
-
-/**
- * iucv_path_table_empty() - determine if iucv path table is empty
- *
- * Returns 0 if there are still iucv pathes defined
- *	   1 if there are no iucv pathes defined
- */
-static int iucv_path_table_empty(void)
-{
-	int i;
-
-	for (i = 0; i < iucv_max_pathid; i++) {
-		if (iucv_path_table[i])
-			return 0;
-	}
-	return 1;
-}
-
-/**
- * iucv_pm_freeze() - Freeze PM callback
- * @dev:	iucv-based device
- *
- * disable iucv interrupts
- * invoke callback function of the iucv-based driver
- * shut down iucv, if no iucv-pathes are established anymore
- */
-static int iucv_pm_freeze(struct device *dev)
-{
-	int cpu;
-	struct iucv_irq_list *p, *n;
-	int rc = 0;
-
-#ifdef CONFIG_PM_DEBUG
-	printk(KERN_WARNING "iucv_pm_freeze\n");
-#endif
-	if (iucv_pm_state != IUCV_PM_FREEZING) {
-		for_each_cpu(cpu, &iucv_irq_cpumask)
-			smp_call_function_single(cpu, iucv_block_cpu_almost,
-						 NULL, 1);
-		cancel_work_sync(&iucv_work);
-		list_for_each_entry_safe(p, n, &iucv_work_queue, list) {
-			list_del_init(&p->list);
-			iucv_sever_pathid(p->data.ippathid,
-					  iucv_error_no_listener);
-			kfree(p);
-		}
-	}
-	iucv_pm_state = IUCV_PM_FREEZING;
-	if (dev->driver && dev->driver->pm && dev->driver->pm->freeze)
-		rc = dev->driver->pm->freeze(dev);
-	if (iucv_path_table_empty())
-		iucv_disable();
-	return rc;
-}
-
-/**
- * iucv_pm_thaw() - Thaw PM callback
- * @dev:	iucv-based device
- *
- * make iucv ready for use again: allocate path table, declare interrupt buffers
- *				  and enable iucv interrupts
- * invoke callback function of the iucv-based driver
- */
-static int iucv_pm_thaw(struct device *dev)
-{
-	int rc = 0;
-
-#ifdef CONFIG_PM_DEBUG
-	printk(KERN_WARNING "iucv_pm_thaw\n");
-#endif
-	iucv_pm_state = IUCV_PM_THAWING;
-	if (!iucv_path_table) {
-		rc = iucv_enable();
-		if (rc)
-			goto out;
-	}
-	if (cpumask_empty(&iucv_irq_cpumask)) {
-		if (iucv_nonsmp_handler)
-			/* enable interrupts on one cpu */
-			iucv_allow_cpu(NULL);
-		else
-			/* enable interrupts on all cpus */
-			iucv_setmask_mp();
-	}
-	if (dev->driver && dev->driver->pm && dev->driver->pm->thaw)
-		rc = dev->driver->pm->thaw(dev);
-out:
-	return rc;
-}
-
-/**
- * iucv_pm_restore() - Restore PM callback
- * @dev:	iucv-based device
- *
- * make iucv ready for use again: allocate path table, declare interrupt buffers
- *				  and enable iucv interrupts
- * invoke callback function of the iucv-based driver
- */
-static int iucv_pm_restore(struct device *dev)
-{
-	int rc = 0;
-
-#ifdef CONFIG_PM_DEBUG
-	printk(KERN_WARNING "iucv_pm_restore %p\n", iucv_path_table);
-#endif
-	if ((iucv_pm_state != IUCV_PM_RESTORING) && iucv_path_table)
-		pr_warn("Suspending Linux did not completely close all IUCV connections\n");
-	iucv_pm_state = IUCV_PM_RESTORING;
-	if (cpumask_empty(&iucv_irq_cpumask)) {
-		rc = iucv_query_maxconn();
-		rc = iucv_enable();
-		if (rc)
-			goto out;
-	}
-	if (dev->driver && dev->driver->pm && dev->driver->pm->restore)
-		rc = dev->driver->pm->restore(dev);
-out:
-	return rc;
-}
-
 struct iucv_interface iucv_if = {
 	.message_receive = iucv_message_receive,
 	.__message_receive = __iucv_message_receive,
@@ -2009,7 +1867,7 @@ static int __init iucv_init(void)
 		rc = -EPROTONOSUPPORT;
 		goto out;
 	}
-	ctl_set_bit(0, 1);
+	system_ctl_set_bit(0, CR0_IUCV_BIT);
 	rc = iucv_query_maxconn();
 	if (rc)
 		goto out_ctl;
@@ -2057,7 +1915,7 @@ out_dev:
 out_int:
 	unregister_external_irq(EXT_IRQ_IUCV, iucv_external_interrupt);
 out_ctl:
-	ctl_clear_bit(0, 1);
+	system_ctl_clear_bit(0, 1);
 out:
 	return rc;
 }
@@ -2089,6 +1947,6 @@ static void __exit iucv_exit(void)
 subsys_initcall(iucv_init);
 module_exit(iucv_exit);
 
-MODULE_AUTHOR("(C) 2001 IBM Corp. by Fritz Elfert (felfert@millenux.com)");
+MODULE_AUTHOR("(C) 2001 IBM Corp. by Fritz Elfert <felfert@millenux.com>");
 MODULE_DESCRIPTION("Linux for S/390 IUCV lowlevel driver");
 MODULE_LICENSE("GPL");

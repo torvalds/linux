@@ -1,0 +1,77 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/nvidia,tegra210-mvc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Tegra210 MVC
+
+description: |
+  The Master Volume Control (MVC) provides gain or attenuation to a digital
+  signal path. It can be used in input or output signal path for per-stream
+  volume control or it can be used as master volume control. The MVC block
+  has one input and one output. The input digital stream can be mono or
+  multi-channel (up to 7.1 channels) stream. An independent mute control is
+  also included in the MVC block.
+
+maintainers:
+  - Jon Hunter <jonathanh@nvidia.com>
+  - Mohan Kumar <mkumard@nvidia.com>
+  - Sameer Pujar <spujar@nvidia.com>
+
+allOf:
+  - $ref: dai-common.yaml#
+
+properties:
+  $nodename:
+    pattern: "^mvc@[0-9a-f]*$"
+
+  compatible:
+    oneOf:
+      - const: nvidia,tegra210-mvc
+      - items:
+          - enum:
+              - nvidia,tegra234-mvc
+              - nvidia,tegra194-mvc
+              - nvidia,tegra186-mvc
+          - const: nvidia,tegra210-mvc
+
+  reg:
+    maxItems: 1
+
+  sound-name-prefix:
+    pattern: "^MVC[1-9]$"
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+    properties:
+      port@0:
+        $ref: audio-graph-port.yaml#
+        unevaluatedProperties: false
+        description: |
+          MVC ACIF (Audio Client Interface) input port. This is connected
+          to corresponding ACIF output port on AHUB (Audio Hub).
+
+      port@1:
+        $ref: audio-graph-port.yaml#
+        unevaluatedProperties: false
+        description: |
+          MVC ACIF output port. This is connected to corresponding ACIF
+          input port on AHUB.
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+
+    mvc@702da000 {
+        compatible = "nvidia,tegra210-mvc";
+        reg = <0x702da000 0x200>;
+        sound-name-prefix = "MVC1";
+    };
+
+...

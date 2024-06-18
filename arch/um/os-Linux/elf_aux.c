@@ -2,7 +2,7 @@
 /*
  *  arch/um/kernel/elf_aux.c
  *
- *  Scan the Elf auxiliary vector provided by the host to extract
+ *  Scan the ELF auxiliary vector provided by the host to extract
  *  information about vsyscall-page, etc.
  *
  *  Copyright (C) 2004 Fujitsu Siemens Computers GmbH
@@ -13,6 +13,7 @@
 #include <init.h>
 #include <elf_user.h>
 #include <mem_user.h>
+#include "internal.h"
 
 typedef Elf32_auxv_t elf_auxv_t;
 

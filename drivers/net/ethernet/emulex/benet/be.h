@@ -33,7 +33,6 @@
 #include "be_hw.h"
 #include "be_roce.h"
 
-#define DRV_VER			"12.0.0.0"
 #define DRV_NAME		"be2net"
 #define BE_NAME			"Emulex BladeEngine2"
 #define BE3_NAME		"Emulex BladeEngine3"
@@ -102,8 +101,7 @@
 #define MAX_ROCE_EQS		5
 #define MAX_MSIX_VECTORS	32
 #define MIN_MSIX_VECTORS	1
-#define BE_NAPI_WEIGHT		64
-#define MAX_RX_POST		BE_NAPI_WEIGHT /* Frags posted at a time */
+#define MAX_RX_POST		NAPI_POLL_WEIGHT /* Frags posted at a time */
 #define RX_FRAGS_REFILL_WM	(RX_Q_LEN - MAX_RX_POST)
 #define MAX_NUM_POST_ERX_DB	255u
 
@@ -655,8 +653,6 @@ struct be_adapter {
 	u8 hba_port_num;
 	u16 pvid;
 	__be16 vxlan_port;		/* offloaded vxlan port num */
-	int vxlan_port_count;		/* active vxlan port count */
-	struct list_head vxlan_port_list;	/* vxlan port list */
 	struct phy_info phy;
 	u8 wol_cap;
 	bool wol_en;
@@ -680,9 +676,6 @@ struct be_adapter {
 struct be_cmd_work {
 	struct work_struct work;
 	struct be_adapter *adapter;
-	union {
-		__be16 vxlan_port;
-	} info;
 };
 
 #define be_physfn(adapter)		(!adapter->virtfn)

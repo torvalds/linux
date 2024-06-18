@@ -145,7 +145,7 @@ DECLARE_EVENT_CLASS(tipc_skb_class,
 	),
 
 	TP_fast_assign(
-		__assign_str(header, header);
+		__assign_str(header);
 		tipc_skb_dump(skb, more, __get_str(buf));
 	),
 
@@ -172,7 +172,7 @@ DECLARE_EVENT_CLASS(tipc_list_class,
 	),
 
 	TP_fast_assign(
-		__assign_str(header, header);
+		__assign_str(header);
 		tipc_list_dump(list, more, __get_str(buf));
 	),
 
@@ -200,7 +200,7 @@ DECLARE_EVENT_CLASS(tipc_sk_class,
 	),
 
 	TP_fast_assign(
-		__assign_str(header, header);
+		__assign_str(header);
 		__entry->portid = tipc_sock_get_portid(sk);
 		tipc_sk_dump(sk, dqueues, __get_str(buf));
 		if (skb)
@@ -254,8 +254,8 @@ DECLARE_EVENT_CLASS(tipc_link_class,
 	),
 
 	TP_fast_assign(
-		__assign_str(header, header);
-		tipc_link_name_ext(l, __entry->name);
+		__assign_str(header);
+		memcpy(__entry->name, tipc_link_name(l), TIPC_MAX_LINK_NAME);
 		tipc_link_dump(l, dqueues, __get_str(buf));
 	),
 
@@ -295,12 +295,14 @@ DECLARE_EVENT_CLASS(tipc_link_transmq_class,
 	),
 
 	TP_fast_assign(
-		tipc_link_name_ext(r, __entry->name);
+		memcpy(__entry->name, tipc_link_name(r), TIPC_MAX_LINK_NAME);
 		__entry->from = f;
 		__entry->to = t;
 		__entry->len = skb_queue_len(tq);
-		__entry->fseqno = msg_seqno(buf_msg(skb_peek(tq)));
-		__entry->lseqno = msg_seqno(buf_msg(skb_peek_tail(tq)));
+		__entry->fseqno = __entry->len ?
+				  msg_seqno(buf_msg(skb_peek(tq))) : 0;
+		__entry->lseqno = __entry->len ?
+				  msg_seqno(buf_msg(skb_peek_tail(tq))) : 0;
 	),
 
 	TP_printk("<%s> retrans req: [%u-%u] transmq: %u [%u-%u]\n",
@@ -308,15 +310,16 @@ DECLARE_EVENT_CLASS(tipc_link_transmq_class,
 		  __entry->len, __entry->fseqno, __entry->lseqno)
 );
 
-DEFINE_EVENT(tipc_link_transmq_class, tipc_link_retrans,
+DEFINE_EVENT_CONDITION(tipc_link_transmq_class, tipc_link_retrans,
 	TP_PROTO(struct tipc_link *r, u16 f, u16 t, struct sk_buff_head *tq),
-	TP_ARGS(r, f, t, tq)
+	TP_ARGS(r, f, t, tq),
+	TP_CONDITION(less_eq(f, t))
 );
 
 DEFINE_EVENT_PRINT(tipc_link_transmq_class, tipc_link_bc_ack,
 	TP_PROTO(struct tipc_link *r, u16 f, u16 t, struct sk_buff_head *tq),
 	TP_ARGS(r, f, t, tq),
-	TP_printk("<%s> acked: [%u-%u] transmq: %u [%u-%u]\n",
+	TP_printk("<%s> acked: %u gap: %u transmq: %u [%u-%u]\n",
 		  __entry->name, __entry->from, __entry->to,
 		  __entry->len, __entry->fseqno, __entry->lseqno)
 );
@@ -334,7 +337,7 @@ DECLARE_EVENT_CLASS(tipc_node_class,
 	),
 
 	TP_fast_assign(
-		__assign_str(header, header);
+		__assign_str(header);
 		__entry->addr = tipc_node_get_addr(n);
 		tipc_node_dump(n, more, __get_str(buf));
 	),
@@ -371,7 +374,7 @@ DECLARE_EVENT_CLASS(tipc_fsm_class,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, name);
+		__assign_str(name);
 		__entry->os = os;
 		__entry->ns = ns;
 		__entry->evt = evt;
@@ -406,8 +409,8 @@ TRACE_EVENT(tipc_l2_device_event,
 	),
 
 	TP_fast_assign(
-		__assign_str(dev_name, dev->name);
-		__assign_str(b_name, b->name);
+		__assign_str(dev_name);
+		__assign_str(b_name);
 		__entry->evt = evt;
 		__entry->b_up = test_bit(0, &b->up);
 		__entry->carrier = netif_carrier_ok(dev);

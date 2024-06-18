@@ -1,34 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
  * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *	- Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
- *	  disclaimer.
- *
- *	- Redistributions in binary form must retailuce the above
- *	  copyright notice, this list of conditions and the following
- *	  disclaimer in the documentation and/or other materials
- *	  provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 
 #include <linux/vmalloc.h>
@@ -45,12 +18,15 @@ int do_mmap_info(struct rxe_dev *rxe, struct mminfo __user *outbuf,
 
 	if (outbuf) {
 		ip = rxe_create_mmap_info(rxe, buf_size, udata, buf);
-		if (!ip)
+		if (IS_ERR(ip)) {
+			err = PTR_ERR(ip);
 			goto err1;
+		}
 
-		err = copy_to_user(outbuf, &ip->info, sizeof(ip->info));
-		if (err)
+		if (copy_to_user(outbuf, &ip->info, sizeof(ip->info))) {
+			err = -EFAULT;
 			goto err2;
+		}
 
 		spin_lock_bh(&rxe->pending_lock);
 		list_add(&ip->pending_mmaps, &rxe->pending_mmaps);
@@ -64,7 +40,7 @@ int do_mmap_info(struct rxe_dev *rxe, struct mminfo __user *outbuf,
 err2:
 	kfree(ip);
 err1:
-	return -EINVAL;
+	return err;
 }
 
 inline void rxe_queue_reset(struct rxe_queue *q)
@@ -76,9 +52,8 @@ inline void rxe_queue_reset(struct rxe_queue *q)
 	memset(q->buf->data, 0, q->buf_size - sizeof(struct rxe_queue_buf));
 }
 
-struct rxe_queue *rxe_queue_init(struct rxe_dev *rxe,
-				 int *num_elem,
-				 unsigned int elem_size)
+struct rxe_queue *rxe_queue_init(struct rxe_dev *rxe, int *num_elem,
+			unsigned int elem_size, enum queue_type type)
 {
 	struct rxe_queue *q;
 	size_t buf_size;
@@ -86,13 +61,14 @@ struct rxe_queue *rxe_queue_init(struct rxe_dev *rxe,
 
 	/* num_elem == 0 is allowed, but uninteresting */
 	if (*num_elem < 0)
-		goto err1;
+		return NULL;
 
-	q = kmalloc(sizeof(*q), GFP_KERNEL);
+	q = kzalloc(sizeof(*q), GFP_KERNEL);
 	if (!q)
-		goto err1;
+		return NULL;
 
 	q->rxe = rxe;
+	q->type = type;
 
 	/* used in resize, only need to copy used part of queue */
 	q->elem_size = elem_size;
@@ -124,7 +100,6 @@ struct rxe_queue *rxe_queue_init(struct rxe_dev *rxe,
 
 err2:
 	kfree(q);
-err1:
 	return NULL;
 }
 
@@ -135,16 +110,35 @@ err1:
 static int resize_finish(struct rxe_queue *q, struct rxe_queue *new_q,
 			 unsigned int num_elem)
 {
-	if (!queue_empty(q) && (num_elem < queue_count(q)))
+	enum queue_type type = q->type;
+	u32 new_prod;
+	u32 prod;
+	u32 cons;
+
+	if (!queue_empty(q, q->type) && (num_elem < queue_count(q, type)))
 		return -EINVAL;
 
-	while (!queue_empty(q)) {
-		memcpy(producer_addr(new_q), consumer_addr(q),
-		       new_q->elem_size);
-		advance_producer(new_q);
-		advance_consumer(q);
+	new_prod = queue_get_producer(new_q, type);
+	prod = queue_get_producer(q, type);
+	cons = queue_get_consumer(q, type);
+
+	while ((prod - cons) & q->index_mask) {
+		memcpy(queue_addr_from_index(new_q, new_prod),
+		       queue_addr_from_index(q, cons), new_q->elem_size);
+		new_prod = queue_next_index(new_q, new_prod);
+		cons = queue_next_index(q, cons);
 	}
 
+	new_q->buf->producer_index = new_prod;
+	q->buf->consumer_index = cons;
+
+	/* update private index copies */
+	if (type == QUEUE_TYPE_TO_CLIENT)
+		new_q->index = new_q->buf->producer_index;
+	else
+		q->index = q->buf->consumer_index;
+
+	/* exchange rxe_queue headers */
 	swap(*q, *new_q);
 
 	return 0;
@@ -158,9 +152,10 @@ int rxe_queue_resize(struct rxe_queue *q, unsigned int *num_elem_p,
 	struct rxe_queue *new_q;
 	unsigned int num_elem = *num_elem_p;
 	int err;
-	unsigned long flags = 0, flags1;
+	unsigned long producer_flags;
+	unsigned long consumer_flags;
 
-	new_q = rxe_queue_init(q->rxe, &num_elem, elem_size);
+	new_q = rxe_queue_init(q->rxe, &num_elem, elem_size, q->type);
 	if (!new_q)
 		return -ENOMEM;
 
@@ -172,17 +167,17 @@ int rxe_queue_resize(struct rxe_queue *q, unsigned int *num_elem_p,
 		goto err1;
 	}
 
-	spin_lock_irqsave(consumer_lock, flags1);
+	spin_lock_irqsave(consumer_lock, consumer_flags);
 
 	if (producer_lock) {
-		spin_lock_irqsave(producer_lock, flags);
+		spin_lock_irqsave(producer_lock, producer_flags);
 		err = resize_finish(q, new_q, num_elem);
-		spin_unlock_irqrestore(producer_lock, flags);
+		spin_unlock_irqrestore(producer_lock, producer_flags);
 	} else {
 		err = resize_finish(q, new_q, num_elem);
 	}
 
-	spin_unlock_irqrestore(consumer_lock, flags1);
+	spin_unlock_irqrestore(consumer_lock, consumer_flags);
 
 	rxe_queue_cleanup(new_q);	/* new/old dep on err */
 	if (err)

@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menu "HID-BPF support"
+
+config HID_BPF
+	bool "HID-BPF support"
+	depends on BPF
+	depends on BPF_SYSCALL
+	depends on DYNAMIC_FTRACE_WITH_DIRECT_CALLS
+	help
+	This option allows to support eBPF programs on the HID subsystem.
+	eBPF programs can fix HID devices in a lighter way than a full
+	kernel patch and allow a lot more flexibility.
+
+	For documentation, see Documentation/hid/hid-bpf.rst
+
+endmenu

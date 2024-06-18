@@ -1,0 +1,148 @@
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
+/*
+ * Qualcomm SM6350 interconnect IDs
+ *
+ * Copyright (C) 2022 Luca Weiss <luca.weiss@fairphone.com>
+ */
+
+#ifndef __DT_BINDINGS_INTERCONNECT_QCOM_SM6350_H
+#define __DT_BINDINGS_INTERCONNECT_QCOM_SM6350_H
+
+#define MASTER_A1NOC_CFG		0
+#define MASTER_QUP_0			1
+#define MASTER_EMMC			2
+#define MASTER_UFS_MEM			3
+#define A1NOC_SNOC_SLV			4
+#define SLAVE_SERVICE_A1NOC		5
+
+#define MASTER_A2NOC_CFG		0
+#define MASTER_QDSS_BAM			1
+#define MASTER_QUP_1			2
+#define MASTER_CRYPTO_CORE_0		3
+#define MASTER_IPA			4
+#define MASTER_QDSS_ETR			5
+#define MASTER_SDCC_2			6
+#define MASTER_USB3			7
+#define A2NOC_SNOC_SLV			8
+#define SLAVE_SERVICE_A2NOC		9
+
+#define MASTER_CAMNOC_HF0_UNCOMP	0
+#define MASTER_CAMNOC_ICP_UNCOMP	1
+#define MASTER_CAMNOC_SF_UNCOMP		2
+#define MASTER_QUP_CORE_0		3
+#define MASTER_QUP_CORE_1		4
+#define MASTER_LLCC			5
+#define SLAVE_CAMNOC_UNCOMP		6
+#define SLAVE_QUP_CORE_0		7
+#define SLAVE_QUP_CORE_1		8
+#define SLAVE_EBI_CH0			9
+
+#define MASTER_NPU			0
+#define MASTER_NPU_PROC			1
+#define SLAVE_CDSP_GEM_NOC		2
+
+#define SNOC_CNOC_MAS			0
+#define MASTER_QDSS_DAP			1
+#define SLAVE_A1NOC_CFG			2
+#define SLAVE_A2NOC_CFG			3
+#define SLAVE_AHB2PHY			4
+#define SLAVE_AHB2PHY_2			5
+#define SLAVE_AOSS			6
+#define SLAVE_BOOT_ROM			7
+#define SLAVE_CAMERA_CFG		8
+#define SLAVE_CAMERA_NRT_THROTTLE_CFG	9
+#define SLAVE_CAMERA_RT_THROTTLE_CFG	10
+#define SLAVE_CLK_CTL			11
+#define SLAVE_RBCPR_CX_CFG		12
+#define SLAVE_RBCPR_MX_CFG		13
+#define SLAVE_CRYPTO_0_CFG		14
+#define SLAVE_DCC_CFG			15
+#define SLAVE_CNOC_DDRSS		16
+#define SLAVE_DISPLAY_CFG		17
+#define SLAVE_DISPLAY_THROTTLE_CFG	18
+#define SLAVE_EMMC_CFG			19
+#define SLAVE_GLM			20
+#define SLAVE_GRAPHICS_3D_CFG		21
+#define SLAVE_IMEM_CFG			22
+#define SLAVE_IPA_CFG			23
+#define SLAVE_CNOC_MNOC_CFG		24
+#define SLAVE_CNOC_MSS			25
+#define SLAVE_NPU_CFG			26
+#define SLAVE_PDM			27
+#define SLAVE_PIMEM_CFG			28
+#define SLAVE_PRNG			29
+#define SLAVE_QDSS_CFG			30
+#define SLAVE_QM_CFG			31
+#define SLAVE_QM_MPU_CFG		32
+#define SLAVE_QUP_0			33
+#define SLAVE_QUP_1			34
+#define SLAVE_SDCC_2			35
+#define SLAVE_SECURITY			36
+#define SLAVE_SNOC_CFG			37
+#define SLAVE_TCSR			38
+#define SLAVE_UFS_MEM_CFG		39
+#define SLAVE_USB3			40
+#define SLAVE_VENUS_CFG			41
+#define SLAVE_VENUS_THROTTLE_CFG	42
+#define SLAVE_VSENSE_CTRL_CFG		43
+#define SLAVE_SERVICE_CNOC		44
+
+#define MASTER_CNOC_DC_NOC		0
+#define SLAVE_GEM_NOC_CFG		1
+#define SLAVE_LLCC_CFG			2
+
+#define MASTER_AMPSS_M0			0
+#define MASTER_SYS_TCU			1
+#define MASTER_GEM_NOC_CFG		2
+#define MASTER_COMPUTE_NOC		3
+#define MASTER_MNOC_HF_MEM_NOC		4
+#define MASTER_MNOC_SF_MEM_NOC		5
+#define MASTER_SNOC_GC_MEM_NOC		6
+#define MASTER_SNOC_SF_MEM_NOC		7
+#define MASTER_GRAPHICS_3D		8
+#define SLAVE_MCDMA_MS_MPU_CFG		9
+#define SLAVE_MSS_PROC_MS_MPU_CFG	10
+#define SLAVE_GEM_NOC_SNOC		11
+#define SLAVE_LLCC			12
+#define SLAVE_SERVICE_GEM_NOC		13
+
+#define MASTER_CNOC_MNOC_CFG		0
+#define MASTER_VIDEO_P0			1
+#define MASTER_VIDEO_PROC		2
+#define MASTER_CAMNOC_HF		3
+#define MASTER_CAMNOC_ICP		4
+#define MASTER_CAMNOC_SF		5
+#define MASTER_MDP_PORT0		6
+#define SLAVE_MNOC_HF_MEM_NOC		7
+#define SLAVE_MNOC_SF_MEM_NOC		8
+#define SLAVE_SERVICE_MNOC		9
+
+#define MASTER_NPU_SYS			0
+#define MASTER_NPU_NOC_CFG		1
+#define SLAVE_NPU_CAL_DP0		2
+#define SLAVE_NPU_CP			3
+#define SLAVE_NPU_INT_DMA_BWMON_CFG	4
+#define SLAVE_NPU_DPM			5
+#define SLAVE_ISENSE_CFG		6
+#define SLAVE_NPU_LLM_CFG		7
+#define SLAVE_NPU_TCM			8
+#define SLAVE_NPU_COMPUTE_NOC		9
+#define SLAVE_SERVICE_NPU_NOC		10
+
+#define MASTER_SNOC_CFG			0
+#define A1NOC_SNOC_MAS			1
+#define A2NOC_SNOC_MAS			2
+#define MASTER_GEM_NOC_SNOC		3
+#define MASTER_PIMEM			4
+#define MASTER_GIC			5
+#define SLAVE_APPSS			6
+#define SNOC_CNOC_SLV			7
+#define SLAVE_SNOC_GEM_NOC_GC		8
+#define SLAVE_SNOC_GEM_NOC_SF		9
+#define SLAVE_OCIMEM			10
+#define SLAVE_PIMEM			11
+#define SLAVE_SERVICE_SNOC		12
+#define SLAVE_QDSS_STM			13
+#define SLAVE_TCU			14
+
+#endif

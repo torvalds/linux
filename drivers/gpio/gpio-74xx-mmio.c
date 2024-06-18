@@ -5,15 +5,17 @@
  *  Copyright (C) 2014 Alexander Shiyan <shc_work@mail.ru>
  */
 
+#include <linux/bits.h>
 #include <linux/err.h>
-#include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/gpio/driver.h>
+#include <linux/mod_devicetable.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 
-#define MMIO_74XX_DIR_IN	(0 << 8)
-#define MMIO_74XX_DIR_OUT	(1 << 8)
-#define MMIO_74XX_BIT_CNT(x)	((x) & 0xff)
+#define MMIO_74XX_DIR_IN	BIT(8)
+#define MMIO_74XX_DIR_OUT	BIT(9)
+#define MMIO_74XX_BIT_CNT(x)	((x) & GENMASK(7, 0))
 
 struct mmio_74xx_gpio_priv {
 	struct gpio_chip	gc;
@@ -77,14 +79,20 @@ static int mmio_74xx_get_direction(struct gpio_chip *gc, unsigned offset)
 {
 	struct mmio_74xx_gpio_priv *priv = gpiochip_get_data(gc);
 
-	return !(priv->flags & MMIO_74XX_DIR_OUT);
+	if (priv->flags & MMIO_74XX_DIR_OUT)
+		return GPIO_LINE_DIRECTION_OUT;
+
+	return  GPIO_LINE_DIRECTION_IN;
 }
 
 static int mmio_74xx_dir_in(struct gpio_chip *gc, unsigned int gpio)
 {
 	struct mmio_74xx_gpio_priv *priv = gpiochip_get_data(gc);
 
-	return (priv->flags & MMIO_74XX_DIR_OUT) ? -ENOTSUPP : 0;
+	if (priv->flags & MMIO_74XX_DIR_IN)
+		return 0;
+
+	return -ENOTSUPP;
 }
 
 static int mmio_74xx_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
@@ -109,7 +117,7 @@ static int mmio_74xx_gpio_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->flags = (uintptr_t)of_device_get_match_data(&pdev->dev);
+	priv->flags = (uintptr_t)device_get_match_data(&pdev->dev);
 
 	dat = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dat))
@@ -126,8 +134,6 @@ static int mmio_74xx_gpio_probe(struct platform_device *pdev)
 	priv->gc.get_direction = mmio_74xx_get_direction;
 	priv->gc.ngpio = MMIO_74XX_BIT_CNT(priv->flags);
 	priv->gc.owner = THIS_MODULE;
-
-	platform_set_drvdata(pdev, priv);
 
 	return devm_gpiochip_add_data(&pdev->dev, &priv->gc, priv);
 }

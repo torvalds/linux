@@ -14,7 +14,7 @@
 /**
  * struct it913x_platform_data - Platform data for the it913x driver
  * @regmap: af9033 demod driver regmap.
- * @dvb_frontend: af9033 demod driver DVB frontend.
+ * @fe: af9033 demod driver DVB frontend.
  * @role: Chip role, single or dual configuration.
  */
 

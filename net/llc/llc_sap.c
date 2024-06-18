@@ -37,6 +37,7 @@ static int llc_mac_header_len(unsigned short devtype)
 
 /**
  *	llc_alloc_frame - allocates sk_buff for frame
+ *	@sk:  socket to allocate frame to
  *	@dev: network device this skb will be sent over
  *	@type: pdu type to allocate
  *	@data_size: data size to allocate
@@ -197,29 +198,22 @@ out:
  *	After executing actions of the event, upper layer will be indicated
  *	if needed(on receiving an UI frame). sk can be null for the
  *	datalink_proto case.
+ *
+ *	This function always consumes a reference to the skb.
  */
 static void llc_sap_state_process(struct llc_sap *sap, struct sk_buff *skb)
 {
 	struct llc_sap_state_ev *ev = llc_sap_ev(skb);
 
-	/*
-	 * We have to hold the skb, because llc_sap_next_state
-	 * will kfree it in the sending path and we need to
-	 * look at the skb->cb, where we encode llc_sap_state_ev.
-	 */
-	skb_get(skb);
 	ev->ind_cfm_flag = 0;
 	llc_sap_next_state(sap, skb);
-	if (ev->ind_cfm_flag == LLC_IND) {
-		if (skb->sk->sk_state == TCP_LISTEN)
-			kfree_skb(skb);
-		else {
-			llc_save_primitive(skb->sk, skb, ev->prim);
 
-			/* queue skb to the user. */
-			if (sock_queue_rcv_skb(skb->sk, skb))
-				kfree_skb(skb);
-		}
+	if (ev->ind_cfm_flag == LLC_IND && skb->sk->sk_state != TCP_LISTEN) {
+		llc_save_primitive(skb->sk, skb, ev->prim);
+
+		/* queue skb to the user. */
+		if (sock_queue_rcv_skb(skb->sk, skb) == 0)
+			return;
 	}
 	kfree_skb(skb);
 }
@@ -280,6 +274,7 @@ void llc_build_and_send_xid_pkt(struct llc_sap *sap, struct sk_buff *skb,
  *	llc_sap_rcv - sends received pdus to the sap state machine
  *	@sap: current sap component structure.
  *	@skb: received frame.
+ *	@sk:  socket to associate to frame
  *
  *	Sends received pdus to the sap state machine.
  */
@@ -299,25 +294,29 @@ static void llc_sap_rcv(struct llc_sap *sap, struct sk_buff *skb,
 
 static inline bool llc_dgram_match(const struct llc_sap *sap,
 				   const struct llc_addr *laddr,
-				   const struct sock *sk)
+				   const struct sock *sk,
+				   const struct net *net)
 {
      struct llc_sock *llc = llc_sk(sk);
 
      return sk->sk_type == SOCK_DGRAM &&
-	  llc->laddr.lsap == laddr->lsap &&
-	  ether_addr_equal(llc->laddr.mac, laddr->mac);
+	     net_eq(sock_net(sk), net) &&
+	     llc->laddr.lsap == laddr->lsap &&
+	     ether_addr_equal(llc->laddr.mac, laddr->mac);
 }
 
 /**
  *	llc_lookup_dgram - Finds dgram socket for the local sap/mac
  *	@sap: SAP
  *	@laddr: address of local LLC (MAC + SAP)
+ *	@net: netns to look up a socket in
  *
  *	Search socket list of the SAP and finds connection using the local
  *	mac, and local sap. Returns pointer for socket found, %NULL otherwise.
  */
 static struct sock *llc_lookup_dgram(struct llc_sap *sap,
-				     const struct llc_addr *laddr)
+				     const struct llc_addr *laddr,
+				     const struct net *net)
 {
 	struct sock *rc;
 	struct hlist_nulls_node *node;
@@ -327,12 +326,12 @@ static struct sock *llc_lookup_dgram(struct llc_sap *sap,
 	rcu_read_lock_bh();
 again:
 	sk_nulls_for_each_rcu(rc, node, laddr_hb) {
-		if (llc_dgram_match(sap, laddr, rc)) {
+		if (llc_dgram_match(sap, laddr, rc, net)) {
 			/* Extra checks required by SLAB_TYPESAFE_BY_RCU */
 			if (unlikely(!refcount_inc_not_zero(&rc->sk_refcnt)))
 				goto again;
 			if (unlikely(llc_sk(rc)->sap != sap ||
-				     !llc_dgram_match(sap, laddr, rc))) {
+				     !llc_dgram_match(sap, laddr, rc, net))) {
 				sock_put(rc);
 				continue;
 			}
@@ -386,6 +385,7 @@ static void llc_do_mcast(struct llc_sap *sap, struct sk_buff *skb,
  * 	llc_sap_mcast - Deliver multicast PDU's to all matching datagram sockets.
  *	@sap: SAP
  *	@laddr: address of local LLC (MAC + SAP)
+ *	@skb: PDU to deliver
  *
  *	Search socket list of the SAP and finds connections with same sap.
  *	Deliver clone to each.
@@ -433,7 +433,7 @@ void llc_sap_handler(struct llc_sap *sap, struct sk_buff *skb)
 		llc_sap_mcast(sap, &laddr, skb);
 		kfree_skb(skb);
 	} else {
-		struct sock *sk = llc_lookup_dgram(sap, &laddr);
+		struct sock *sk = llc_lookup_dgram(sap, &laddr, dev_net(skb->dev));
 		if (sk) {
 			llc_sap_rcv(sap, skb, sk);
 			sock_put(sk);

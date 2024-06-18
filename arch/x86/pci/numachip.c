@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
  * Numascale NumaConnect-specific PCI code
  *
  * Copyright (C) 2012 Numascale AS. All rights reserved.
@@ -15,6 +12,7 @@
 
 #include <linux/pci.h>
 #include <asm/pci_x86.h>
+#include <asm/numachip/numachip.h>
 
 static u8 limit __read_mostly;
 

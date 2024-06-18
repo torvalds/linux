@@ -13,100 +13,7 @@ phandle arguments (so called PM domain specifiers) of length specified by the
 
 ==PM domain providers==
 
-Required properties:
- - #power-domain-cells : Number of cells in a PM domain specifier;
-   Typically 0 for nodes representing a single PM domain and 1 for nodes
-   providing multiple PM domains (e.g. power controllers), but can be any value
-   as specified by device tree binding documentation of particular provider.
-
-Optional properties:
- - power-domains : A phandle and PM domain specifier as defined by bindings of
-                   the power controller specified by phandle.
-   Some power domains might be powered from another power domain (or have
-   other hardware specific dependencies). For representing such dependency
-   a standard PM domain consumer binding is used. When provided, all domains
-   created by the given provider should be subdomains of the domain
-   specified by this binding. More details about power domain specifier are
-   available in the next section.
-
-- domain-idle-states : A phandle of an idle-state that shall be soaked into a
-                generic domain power state. The idle state definitions are
-                compatible with domain-idle-state specified in [1]. phandles
-                that are not compatible with domain-idle-state will be
-                ignored.
-  The domain-idle-state property reflects the idle state of this PM domain and
-  not the idle states of the devices or sub-domains in the PM domain. Devices
-  and sub-domains have their own idle-states independent of the parent
-  domain's idle states. In the absence of this property, the domain would be
-  considered as capable of being powered-on or powered-off.
-
-- operating-points-v2 : Phandles to the OPP tables of power domains provided by
-  a power domain provider. If the provider provides a single power domain only
-  or all the power domains provided by the provider have identical OPP tables,
-  then this shall contain a single phandle. Refer to ../opp/opp.txt for more
-  information.
-
-Example:
-
-	power: power-controller@12340000 {
-		compatible = "foo,power-controller";
-		reg = <0x12340000 0x1000>;
-		#power-domain-cells = <1>;
-	};
-
-The node above defines a power controller that is a PM domain provider and
-expects one cell as its phandle argument.
-
-Example 2:
-
-	parent: power-controller@12340000 {
-		compatible = "foo,power-controller";
-		reg = <0x12340000 0x1000>;
-		#power-domain-cells = <1>;
-	};
-
-	child: power-controller@12341000 {
-		compatible = "foo,power-controller";
-		reg = <0x12341000 0x1000>;
-		power-domains = <&parent 0>;
-		#power-domain-cells = <1>;
-	};
-
-The nodes above define two power controllers: 'parent' and 'child'.
-Domains created by the 'child' power controller are subdomains of '0' power
-domain provided by the 'parent' power controller.
-
-Example 3:
-	parent: power-controller@12340000 {
-		compatible = "foo,power-controller";
-		reg = <0x12340000 0x1000>;
-		#power-domain-cells = <0>;
-		domain-idle-states = <&DOMAIN_RET>, <&DOMAIN_PWR_DN>;
-	};
-
-	child: power-controller@12341000 {
-		compatible = "foo,power-controller";
-		reg = <0x12341000 0x1000>;
-		power-domains = <&parent>;
-		#power-domain-cells = <0>;
-		domain-idle-states = <&DOMAIN_PWR_DN>;
-	};
-
-	DOMAIN_RET: state@0 {
-		compatible = "domain-idle-state";
-		reg = <0x0>;
-		entry-latency-us = <1000>;
-		exit-latency-us = <2000>;
-		min-residency-us = <10000>;
-	};
-
-	DOMAIN_PWR_DN: state@1 {
-		compatible = "domain-idle-state";
-		reg = <0x1>;
-		entry-latency-us = <5000>;
-		exit-latency-us = <8000>;
-		min-residency-us = <7000>;
-	};
+See power-domain.yaml.
 
 ==PM domain consumers==
 
@@ -202,4 +109,4 @@ Example:
 		required-opps = <&domain1_opp_1>;
 	};
 
-[1]. Documentation/devicetree/bindings/power/domain-idle-state.txt
+[1]. Documentation/devicetree/bindings/power/domain-idle-state.yaml

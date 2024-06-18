@@ -128,20 +128,20 @@ static void sifive_spi_init(struct sifive_spi *spi)
 }
 
 static int
-sifive_spi_prepare_message(struct spi_master *master, struct spi_message *msg)
+sifive_spi_prepare_message(struct spi_controller *host, struct spi_message *msg)
 {
-	struct sifive_spi *spi = spi_master_get_devdata(master);
+	struct sifive_spi *spi = spi_controller_get_devdata(host);
 	struct spi_device *device = msg->spi;
 
 	/* Update the chip select polarity */
 	if (device->mode & SPI_CS_HIGH)
-		spi->cs_inactive &= ~BIT(device->chip_select);
+		spi->cs_inactive &= ~BIT(spi_get_chipselect(device, 0));
 	else
-		spi->cs_inactive |= BIT(device->chip_select);
+		spi->cs_inactive |= BIT(spi_get_chipselect(device, 0));
 	sifive_spi_write(spi, SIFIVE_SPI_REG_CSDEF, spi->cs_inactive);
 
 	/* Select the correct device */
-	sifive_spi_write(spi, SIFIVE_SPI_REG_CSID, device->chip_select);
+	sifive_spi_write(spi, SIFIVE_SPI_REG_CSID, spi_get_chipselect(device, 0));
 
 	/* Set clock mode */
 	sifive_spi_write(spi, SIFIVE_SPI_REG_SCKMODE,
@@ -152,7 +152,7 @@ sifive_spi_prepare_message(struct spi_master *master, struct spi_message *msg)
 
 static void sifive_spi_set_cs(struct spi_device *device, bool is_high)
 {
-	struct sifive_spi *spi = spi_master_get_devdata(device->master);
+	struct sifive_spi *spi = spi_controller_get_devdata(device->controller);
 
 	/* Reverse polarity is handled by SCMR/CPOL. Not inverted CS. */
 	if (device->mode & SPI_CS_HIGH)
@@ -252,10 +252,10 @@ static void sifive_spi_rx(struct sifive_spi *spi, u8 *rx_ptr)
 }
 
 static int
-sifive_spi_transfer_one(struct spi_master *master, struct spi_device *device,
+sifive_spi_transfer_one(struct spi_controller *host, struct spi_device *device,
 			struct spi_transfer *t)
 {
-	struct sifive_spi *spi = spi_master_get_devdata(master);
+	struct sifive_spi *spi = spi_controller_get_devdata(host);
 	int poll = sifive_spi_prep_transfer(spi, device, t);
 	const u8 *tx_ptr = t->tx_buf;
 	u8 *rx_ptr = t->rx_buf;
@@ -294,35 +294,35 @@ static int sifive_spi_probe(struct platform_device *pdev)
 	struct sifive_spi *spi;
 	int ret, irq, num_cs;
 	u32 cs_bits, max_bits_per_word;
-	struct spi_master *master;
+	struct spi_controller *host;
 
-	master = spi_alloc_master(&pdev->dev, sizeof(struct sifive_spi));
-	if (!master) {
+	host = spi_alloc_host(&pdev->dev, sizeof(struct sifive_spi));
+	if (!host) {
 		dev_err(&pdev->dev, "out of memory\n");
 		return -ENOMEM;
 	}
 
-	spi = spi_master_get_devdata(master);
+	spi = spi_controller_get_devdata(host);
 	init_completion(&spi->done);
-	platform_set_drvdata(pdev, master);
+	platform_set_drvdata(pdev, host);
 
 	spi->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(spi->regs)) {
 		ret = PTR_ERR(spi->regs);
-		goto put_master;
+		goto put_host;
 	}
 
 	spi->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(spi->clk)) {
 		dev_err(&pdev->dev, "Unable to find bus clock\n");
 		ret = PTR_ERR(spi->clk);
-		goto put_master;
+		goto put_host;
 	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		ret = irq;
-		goto put_master;
+		goto put_host;
 	}
 
 	/* Optional parameters */
@@ -339,14 +339,14 @@ static int sifive_spi_probe(struct platform_device *pdev)
 	if (!ret && max_bits_per_word < 8) {
 		dev_err(&pdev->dev, "Only 8bit SPI words supported by the driver\n");
 		ret = -EINVAL;
-		goto put_master;
+		goto put_host;
 	}
 
 	/* Spin up the bus clock before hitting registers */
 	ret = clk_prepare_enable(spi->clk);
 	if (ret) {
 		dev_err(&pdev->dev, "Unable to enable bus clock\n");
-		goto put_master;
+		goto put_host;
 	}
 
 	/* probe the number of CS lines */
@@ -357,35 +357,35 @@ static int sifive_spi_probe(struct platform_device *pdev)
 	if (!cs_bits) {
 		dev_err(&pdev->dev, "Could not auto probe CS lines\n");
 		ret = -EINVAL;
-		goto put_master;
+		goto disable_clk;
 	}
 
 	num_cs = ilog2(cs_bits) + 1;
 	if (num_cs > SIFIVE_SPI_MAX_CS) {
-		dev_err(&pdev->dev, "Invalid number of spi slaves\n");
+		dev_err(&pdev->dev, "Invalid number of spi targets\n");
 		ret = -EINVAL;
-		goto put_master;
+		goto disable_clk;
 	}
 
-	/* Define our master */
-	master->dev.of_node = pdev->dev.of_node;
-	master->bus_num = pdev->id;
-	master->num_chipselect = num_cs;
-	master->mode_bits = SPI_CPHA | SPI_CPOL
+	/* Define our host */
+	host->dev.of_node = pdev->dev.of_node;
+	host->bus_num = pdev->id;
+	host->num_chipselect = num_cs;
+	host->mode_bits = SPI_CPHA | SPI_CPOL
 			  | SPI_CS_HIGH | SPI_LSB_FIRST
 			  | SPI_TX_DUAL | SPI_TX_QUAD
 			  | SPI_RX_DUAL | SPI_RX_QUAD;
 	/* TODO: add driver support for bits_per_word < 8
 	 * we need to "left-align" the bits (unless SPI_LSB_FIRST)
 	 */
-	master->bits_per_word_mask = SPI_BPW_MASK(8);
-	master->flags = SPI_CONTROLLER_MUST_TX | SPI_MASTER_GPIO_SS;
-	master->prepare_message = sifive_spi_prepare_message;
-	master->set_cs = sifive_spi_set_cs;
-	master->transfer_one = sifive_spi_transfer_one;
+	host->bits_per_word_mask = SPI_BPW_MASK(8);
+	host->flags = SPI_CONTROLLER_MUST_TX | SPI_CONTROLLER_GPIO_SS;
+	host->prepare_message = sifive_spi_prepare_message;
+	host->set_cs = sifive_spi_set_cs;
+	host->transfer_one = sifive_spi_transfer_one;
 
 	pdev->dev.dma_mask = NULL;
-	/* Configure the SPI master hardware */
+	/* Configure the SPI host hardware */
 	sifive_spi_init(spi);
 
 	/* Register for SPI Interrupt */
@@ -393,36 +393,75 @@ static int sifive_spi_probe(struct platform_device *pdev)
 			       dev_name(&pdev->dev), spi);
 	if (ret) {
 		dev_err(&pdev->dev, "Unable to bind to interrupt\n");
-		goto put_master;
+		goto disable_clk;
 	}
 
 	dev_info(&pdev->dev, "mapped; irq=%d, cs=%d\n",
-		 irq, master->num_chipselect);
+		 irq, host->num_chipselect);
 
-	ret = devm_spi_register_master(&pdev->dev, master);
+	ret = devm_spi_register_controller(&pdev->dev, host);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "spi_register_master failed\n");
-		goto put_master;
+		dev_err(&pdev->dev, "spi_register_host failed\n");
+		goto disable_clk;
 	}
 
 	return 0;
 
-put_master:
-	spi_master_put(master);
+disable_clk:
+	clk_disable_unprepare(spi->clk);
+put_host:
+	spi_controller_put(host);
 
 	return ret;
 }
 
-static int sifive_spi_remove(struct platform_device *pdev)
+static void sifive_spi_remove(struct platform_device *pdev)
 {
-	struct spi_master *master = platform_get_drvdata(pdev);
-	struct sifive_spi *spi = spi_master_get_devdata(master);
+	struct spi_controller *host = platform_get_drvdata(pdev);
+	struct sifive_spi *spi = spi_controller_get_devdata(host);
+
+	/* Disable all the interrupts just in case */
+	sifive_spi_write(spi, SIFIVE_SPI_REG_IE, 0);
+	clk_disable_unprepare(spi->clk);
+}
+
+static int sifive_spi_suspend(struct device *dev)
+{
+	struct spi_controller *host = dev_get_drvdata(dev);
+	struct sifive_spi *spi = spi_controller_get_devdata(host);
+	int ret;
+
+	ret = spi_controller_suspend(host);
+	if (ret)
+		return ret;
 
 	/* Disable all the interrupts just in case */
 	sifive_spi_write(spi, SIFIVE_SPI_REG_IE, 0);
 
-	return 0;
+	clk_disable_unprepare(spi->clk);
+
+	return ret;
 }
+
+static int sifive_spi_resume(struct device *dev)
+{
+	struct spi_controller *host = dev_get_drvdata(dev);
+	struct sifive_spi *spi = spi_controller_get_devdata(host);
+	int ret;
+
+	ret = clk_prepare_enable(spi->clk);
+	if (ret)
+		return ret;
+	ret = spi_controller_resume(host);
+	if (ret)
+		clk_disable_unprepare(spi->clk);
+
+	return ret;
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(sifive_spi_pm_ops,
+				sifive_spi_suspend, sifive_spi_resume);
+
 
 static const struct of_device_id sifive_spi_of_match[] = {
 	{ .compatible = "sifive,spi0", },
@@ -432,9 +471,10 @@ MODULE_DEVICE_TABLE(of, sifive_spi_of_match);
 
 static struct platform_driver sifive_spi_driver = {
 	.probe = sifive_spi_probe,
-	.remove = sifive_spi_remove,
+	.remove_new = sifive_spi_remove,
 	.driver = {
 		.name = SIFIVE_SPI_DRIVER_NAME,
+		.pm = &sifive_spi_pm_ops,
 		.of_match_table = sifive_spi_of_match,
 	},
 };

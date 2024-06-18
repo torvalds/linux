@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
-/* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
- *
+/*
  * dlmcommon.h
  *
  * Copyright (C) 2004 Oracle.  All rights reserved.
@@ -17,10 +15,7 @@
 
 #define DLM_LOCKID_NAME_MAX    32
 
-#define DLM_DOMAIN_NAME_MAX_LEN    255
 #define DLM_LOCK_RES_OWNER_UNKNOWN     O2NM_MAX_NODES
-#define DLM_THREAD_SHUFFLE_INTERVAL    5     // flush everything every 5 passes
-#define DLM_THREAD_MS                  200   // flush at least every 200 ms
 
 #define DLM_HASH_SIZE_DEFAULT	(1 << 17)
 #if DLM_HASH_SIZE_DEFAULT < PAGE_SIZE
@@ -564,7 +559,7 @@ struct dlm_migratable_lockres
 	// 48 bytes
 	u8 lvb[DLM_LVB_LEN];
 	// 112 bytes
-	struct dlm_migratable_lock ml[0];  // 16 bytes each, begins at byte 112
+	struct dlm_migratable_lock ml[];  // 16 bytes each, begins at byte 112
 };
 #define DLM_MIG_LOCKRES_MAX_LEN  \
 	(sizeof(struct dlm_migratable_lockres) + \
@@ -601,7 +596,7 @@ struct dlm_convert_lock
 
 	u8 name[O2NM_MAX_NAME_LEN];
 
-	s8 lvb[0];
+	s8 lvb[];
 };
 #define DLM_CONVERT_LOCK_MAX_LEN  (sizeof(struct dlm_convert_lock)+DLM_LVB_LEN)
 
@@ -616,7 +611,7 @@ struct dlm_unlock_lock
 
 	u8 name[O2NM_MAX_NAME_LEN];
 
-	s8 lvb[0];
+	s8 lvb[];
 };
 #define DLM_UNLOCK_LOCK_MAX_LEN  (sizeof(struct dlm_unlock_lock)+DLM_LVB_LEN)
 
@@ -632,7 +627,7 @@ struct dlm_proxy_ast
 
 	u8 name[O2NM_MAX_NAME_LEN];
 
-	s8 lvb[0];
+	s8 lvb[];
 };
 #define DLM_PROXY_AST_MAX_LEN  (sizeof(struct dlm_proxy_ast)+DLM_LVB_LEN)
 
@@ -687,10 +682,6 @@ struct dlm_begin_reco
 	__be16 pad1;
 	__be32 pad2;
 };
-
-
-#define BITS_PER_BYTE 8
-#define BITS_TO_BYTES(bits) (((bits)+BITS_PER_BYTE-1)/BITS_PER_BYTE)
 
 struct dlm_query_join_request
 {
@@ -906,7 +897,6 @@ void __dlm_lockres_grab_inflight_worker(struct dlm_ctxt *dlm,
 		struct dlm_lock_resource *res);
 
 void dlm_queue_ast(struct dlm_ctxt *dlm, struct dlm_lock *lock);
-void dlm_queue_bast(struct dlm_ctxt *dlm, struct dlm_lock *lock);
 void __dlm_queue_ast(struct dlm_ctxt *dlm, struct dlm_lock *lock);
 void __dlm_queue_bast(struct dlm_ctxt *dlm, struct dlm_lock *lock);
 void dlm_do_local_ast(struct dlm_ctxt *dlm,
@@ -1104,7 +1094,7 @@ static inline enum dlm_status dlm_err_to_dlm_status(int err)
 static inline void dlm_node_iter_init(unsigned long *map,
 				      struct dlm_node_iter *iter)
 {
-	memcpy(iter->node_map, map, sizeof(iter->node_map));
+	bitmap_copy(iter->node_map, map, O2NM_MAX_NODES);
 	iter->curnode = -1;
 }
 

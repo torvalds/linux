@@ -48,7 +48,7 @@ flush_disable_75x:
 
 	/* Stop DST streams */
 BEGIN_FTR_SECTION
-	DSSALL
+	PPC_DSSALL
 	sync
 END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 
@@ -184,6 +184,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 
 	mtlr	r10
 	blr
+_ASM_NOKPROBE_SYMBOL(flush_disable_75x)
 
 /* This code is for 745x processors */
 flush_disable_745x:
@@ -196,7 +197,7 @@ flush_disable_745x:
 	isync
 
 	/* Stop prefetch streams */
-	DSSALL
+	PPC_DSSALL
 	sync
 
 	/* Disable L2 prefetching */
@@ -351,4 +352,5 @@ END_FTR_SECTION_IFSET(CPU_FTR_L3CR)
 	mtmsr	r11		/* restore DR and EE */
 	isync
 	blr
+_ASM_NOKPROBE_SYMBOL(flush_disable_745x)
 #endif	/* CONFIG_PPC_BOOK3S_32 */

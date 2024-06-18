@@ -24,7 +24,8 @@
 #include <linux/kernel.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/spinlock.h>
@@ -127,18 +128,11 @@ static int alt_fpga_bridge_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct altera_hps2fpga_data *priv;
-	const struct of_device_id *of_id;
 	struct fpga_bridge *br;
 	u32 enable;
 	int ret;
 
-	of_id = of_match_device(altera_fpga_of_match, dev);
-	if (!of_id) {
-		dev_err(dev, "failed to match device\n");
-		return -ENODEV;
-	}
-
-	priv = (struct altera_hps2fpga_data *)of_id->data;
+	priv = (struct altera_hps2fpga_data *)device_get_match_data(dev);
 
 	priv->bridge_reset = of_reset_control_get_exclusive_by_index(dev->of_node,
 								     0);
@@ -180,18 +174,14 @@ static int alt_fpga_bridge_probe(struct platform_device *pdev)
 		}
 	}
 
-	br = devm_fpga_bridge_create(dev, priv->name,
-				     &altera_hps2fpga_br_ops, priv);
-	if (!br) {
-		ret = -ENOMEM;
+	br = fpga_bridge_register(dev, priv->name,
+				  &altera_hps2fpga_br_ops, priv);
+	if (IS_ERR(br)) {
+		ret = PTR_ERR(br);
 		goto err;
 	}
 
 	platform_set_drvdata(pdev, br);
-
-	ret = fpga_bridge_register(br);
-	if (ret)
-		goto err;
 
 	return 0;
 
@@ -201,7 +191,7 @@ err:
 	return ret;
 }
 
-static int alt_fpga_bridge_remove(struct platform_device *pdev)
+static void alt_fpga_bridge_remove(struct platform_device *pdev)
 {
 	struct fpga_bridge *bridge = platform_get_drvdata(pdev);
 	struct altera_hps2fpga_data *priv = bridge->priv;
@@ -209,15 +199,13 @@ static int alt_fpga_bridge_remove(struct platform_device *pdev)
 	fpga_bridge_unregister(bridge);
 
 	clk_disable_unprepare(priv->clk);
-
-	return 0;
 }
 
 MODULE_DEVICE_TABLE(of, altera_fpga_of_match);
 
 static struct platform_driver alt_fpga_bridge_driver = {
 	.probe = alt_fpga_bridge_probe,
-	.remove = alt_fpga_bridge_remove,
+	.remove_new = alt_fpga_bridge_remove,
 	.driver = {
 		.name	= "altera_hps2fpga_bridge",
 		.of_match_table = of_match_ptr(altera_fpga_of_match),

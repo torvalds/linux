@@ -5,6 +5,7 @@
 #if !defined(_TRACE_SCHED_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_SCHED_H
 
+#include <linux/kthread.h>
 #include <linux/sched/numa_balancing.h>
 #include <linux/tracepoint.h>
 #include <linux/binfmts.h>
@@ -51,6 +52,89 @@ TRACE_EVENT(sched_kthread_stop_ret,
 	TP_printk("ret=%d", __entry->ret)
 );
 
+/**
+ * sched_kthread_work_queue_work - called when a work gets queued
+ * @worker:	pointer to the kthread_worker
+ * @work:	pointer to struct kthread_work
+ *
+ * This event occurs when a work is queued immediately or once a
+ * delayed work is actually queued (ie: once the delay has been
+ * reached).
+ */
+TRACE_EVENT(sched_kthread_work_queue_work,
+
+	TP_PROTO(struct kthread_worker *worker,
+		 struct kthread_work *work),
+
+	TP_ARGS(worker, work),
+
+	TP_STRUCT__entry(
+		__field( void *,	work	)
+		__field( void *,	function)
+		__field( void *,	worker)
+	),
+
+	TP_fast_assign(
+		__entry->work		= work;
+		__entry->function	= work->func;
+		__entry->worker		= worker;
+	),
+
+	TP_printk("work struct=%p function=%ps worker=%p",
+		  __entry->work, __entry->function, __entry->worker)
+);
+
+/**
+ * sched_kthread_work_execute_start - called immediately before the work callback
+ * @work:	pointer to struct kthread_work
+ *
+ * Allows to track kthread work execution.
+ */
+TRACE_EVENT(sched_kthread_work_execute_start,
+
+	TP_PROTO(struct kthread_work *work),
+
+	TP_ARGS(work),
+
+	TP_STRUCT__entry(
+		__field( void *,	work	)
+		__field( void *,	function)
+	),
+
+	TP_fast_assign(
+		__entry->work		= work;
+		__entry->function	= work->func;
+	),
+
+	TP_printk("work struct %p: function %ps", __entry->work, __entry->function)
+);
+
+/**
+ * sched_kthread_work_execute_end - called immediately after the work callback
+ * @work:	pointer to struct work_struct
+ * @function:   pointer to worker function
+ *
+ * Allows to track workqueue execution.
+ */
+TRACE_EVENT(sched_kthread_work_execute_end,
+
+	TP_PROTO(struct kthread_work *work, kthread_work_func_t function),
+
+	TP_ARGS(work, function),
+
+	TP_STRUCT__entry(
+		__field( void *,	work	)
+		__field( void *,	function)
+	),
+
+	TP_fast_assign(
+		__entry->work		= work;
+		__entry->function	= function;
+	),
+
+	TP_printk("work struct %p: function %ps", __entry->work, __entry->function)
+);
+
 /*
  * Tracepoint for waking up a task:
  */
@@ -64,7 +148,6 @@ DECLARE_EVENT_CLASS(sched_wakeup_template,
 		__array(	char,	comm,	TASK_COMM_LEN	)
 		__field(	pid_t,	pid			)
 		__field(	int,	prio			)
-		__field(	int,	success			)
 		__field(	int,	target_cpu		)
 	),
 
@@ -72,7 +155,6 @@ DECLARE_EVENT_CLASS(sched_wakeup_template,
 		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
 		__entry->pid		= p->pid;
 		__entry->prio		= p->prio; /* XXX SCHED_DEADLINE */
-		__entry->success	= 1; /* rudiment, kill when possible */
 		__entry->target_cpu	= task_cpu(p);
 	),
 
@@ -90,8 +172,8 @@ DEFINE_EVENT(sched_wakeup_template, sched_waking,
 	     TP_ARGS(p));
 
 /*
- * Tracepoint called when the task is actually woken; p->state == TASK_RUNNNG.
- * It it not always called from the waking context.
+ * Tracepoint called when the task is actually woken; p->state == TASK_RUNNING.
+ * It is not always called from the waking context.
  */
 DEFINE_EVENT(sched_wakeup_template, sched_wakeup,
 	     TP_PROTO(struct task_struct *p),
@@ -105,7 +187,9 @@ DEFINE_EVENT(sched_wakeup_template, sched_wakeup_new,
 	     TP_ARGS(p));
 
 #ifdef CREATE_TRACE_POINTS
-static inline long __trace_sched_switch_state(bool preempt, struct task_struct *p)
+static inline long __trace_sched_switch_state(bool preempt,
+					      unsigned int prev_state,
+					      struct task_struct *p)
 {
 	unsigned int state;
 
@@ -126,7 +210,7 @@ static inline long __trace_sched_switch_state(bool preempt, struct task_struct *
 	 * it for left shift operation to get the correct task->state
 	 * mapping.
 	 */
-	state = task_state_index(p);
+	state = __task_state_index(prev_state, p->exit_state);
 
 	return state ? (1 << (state - 1)) : state;
 }
@@ -139,9 +223,10 @@ TRACE_EVENT(sched_switch,
 
 	TP_PROTO(bool preempt,
 		 struct task_struct *prev,
-		 struct task_struct *next),
+		 struct task_struct *next,
+		 unsigned int prev_state),
 
-	TP_ARGS(preempt, prev, next),
+	TP_ARGS(preempt, prev, next, prev_state),
 
 	TP_STRUCT__entry(
 		__array(	char,	prev_comm,	TASK_COMM_LEN	)
@@ -157,7 +242,7 @@ TRACE_EVENT(sched_switch,
 		memcpy(__entry->next_comm, next->comm, TASK_COMM_LEN);
 		__entry->prev_pid	= prev->pid;
 		__entry->prev_prio	= prev->prio;
-		__entry->prev_state	= __trace_sched_switch_state(preempt, prev);
+		__entry->prev_state	= __trace_sched_switch_state(preempt, prev_state, prev);
 		memcpy(__entry->prev_comm, prev->comm, TASK_COMM_LEN);
 		__entry->next_pid	= next->pid;
 		__entry->next_prio	= next->prio;
@@ -282,7 +367,7 @@ TRACE_EVENT(sched_process_wait,
 );
 
 /*
- * Tracepoint for do_fork:
+ * Tracepoint for kernel_clone:
  */
 TRACE_EVENT(sched_process_fork,
 
@@ -326,7 +411,7 @@ TRACE_EVENT(sched_process_exec,
 	),
 
 	TP_fast_assign(
-		__assign_str(filename, bprm->filename);
+		__assign_str(filename);
 		__entry->pid		= p->pid;
 		__entry->old_pid	= old_pid;
 	),
@@ -335,6 +420,41 @@ TRACE_EVENT(sched_process_exec,
 		  __entry->pid, __entry->old_pid)
 );
 
+/**
+ * sched_prepare_exec - called before setting up new exec
+ * @task:	pointer to the current task
+ * @bprm:	pointer to linux_binprm used for new exec
+ *
+ * Called before flushing the old exec, where @task is still unchanged, but at
+ * the point of no return during switching to the new exec. At the point it is
+ * called the exec will either succeed, or on failure terminate the task. Also
+ * see the "sched_process_exec" tracepoint, which is called right after @task
+ * has successfully switched to the new exec.
+ */
+TRACE_EVENT(sched_prepare_exec,
+
+	TP_PROTO(struct task_struct *task, struct linux_binprm *bprm),
+
+	TP_ARGS(task, bprm),
+
+	TP_STRUCT__entry(
+		__string(	interp,		bprm->interp	)
+		__string(	filename,	bprm->filename	)
+		__field(	pid_t,		pid		)
+		__string(	comm,		task->comm	)
+	),
+
+	TP_fast_assign(
+		__assign_str(interp);
+		__assign_str(filename);
+		__entry->pid = task->pid;
+		__assign_str(comm);
+	),
+
+	TP_printk("interp=%s filename=%s pid=%d comm=%s",
+		  __get_str(interp), __get_str(filename),
+		  __entry->pid, __get_str(comm))
+);
 
 #ifdef CONFIG_SCHEDSTATS
 #define DEFINE_EVENT_SCHEDSTAT DEFINE_EVENT
@@ -408,33 +528,30 @@ DEFINE_EVENT_SCHEDSTAT(sched_stat_template, sched_stat_blocked,
  */
 DECLARE_EVENT_CLASS(sched_stat_runtime,
 
-	TP_PROTO(struct task_struct *tsk, u64 runtime, u64 vruntime),
+	TP_PROTO(struct task_struct *tsk, u64 runtime),
 
-	TP_ARGS(tsk, __perf_count(runtime), vruntime),
+	TP_ARGS(tsk, __perf_count(runtime)),
 
 	TP_STRUCT__entry(
 		__array( char,	comm,	TASK_COMM_LEN	)
 		__field( pid_t,	pid			)
 		__field( u64,	runtime			)
-		__field( u64,	vruntime			)
 	),
 
 	TP_fast_assign(
 		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
 		__entry->pid		= tsk->pid;
 		__entry->runtime	= runtime;
-		__entry->vruntime	= vruntime;
 	),
 
-	TP_printk("comm=%s pid=%d runtime=%Lu [ns] vruntime=%Lu [ns]",
+	TP_printk("comm=%s pid=%d runtime=%Lu [ns]",
 			__entry->comm, __entry->pid,
-			(unsigned long long)__entry->runtime,
-			(unsigned long long)__entry->vruntime)
+			(unsigned long long)__entry->runtime)
 );
 
 DEFINE_EVENT(sched_stat_runtime, sched_stat_runtime,
-	     TP_PROTO(struct task_struct *tsk, u64 runtime, u64 vruntime),
-	     TP_ARGS(tsk, runtime, vruntime));
+	     TP_PROTO(struct task_struct *tsk, u64 runtime),
+	     TP_ARGS(tsk, runtime));
 
 /*
  * Tracepoint for showing priority inheritance modifying a tasks
@@ -487,7 +604,11 @@ TRACE_EVENT(sched_process_hang,
 );
 #endif /* CONFIG_DETECT_HUNG_TASK */
 
-DECLARE_EVENT_CLASS(sched_move_task_template,
+/*
+ * Tracks migration of tasks from one runqueue to another. Can be used to
+ * detect if automatic NUMA balancing is bouncing between nodes.
+ */
+TRACE_EVENT(sched_move_numa,
 
 	TP_PROTO(struct task_struct *tsk, int src_cpu, int dst_cpu),
 
@@ -519,23 +640,7 @@ DECLARE_EVENT_CLASS(sched_move_task_template,
 			__entry->dst_cpu, __entry->dst_nid)
 );
 
-/*
- * Tracks migration of tasks from one runqueue to another. Can be used to
- * detect if automatic NUMA balancing is bouncing between nodes
- */
-DEFINE_EVENT(sched_move_task_template, sched_move_numa,
-	TP_PROTO(struct task_struct *tsk, int src_cpu, int dst_cpu),
-
-	TP_ARGS(tsk, src_cpu, dst_cpu)
-);
-
-DEFINE_EVENT(sched_move_task_template, sched_stick_numa,
-	TP_PROTO(struct task_struct *tsk, int src_cpu, int dst_cpu),
-
-	TP_ARGS(tsk, src_cpu, dst_cpu)
-);
-
-TRACE_EVENT(sched_swap_numa,
+DECLARE_EVENT_CLASS(sched_numa_pair_template,
 
 	TP_PROTO(struct task_struct *src_tsk, int src_cpu,
 		 struct task_struct *dst_tsk, int dst_cpu),
@@ -561,11 +666,11 @@ TRACE_EVENT(sched_swap_numa,
 		__entry->src_ngid	= task_numa_group_id(src_tsk);
 		__entry->src_cpu	= src_cpu;
 		__entry->src_nid	= cpu_to_node(src_cpu);
-		__entry->dst_pid	= task_pid_nr(dst_tsk);
-		__entry->dst_tgid	= task_tgid_nr(dst_tsk);
-		__entry->dst_ngid	= task_numa_group_id(dst_tsk);
+		__entry->dst_pid	= dst_tsk ? task_pid_nr(dst_tsk) : 0;
+		__entry->dst_tgid	= dst_tsk ? task_tgid_nr(dst_tsk) : 0;
+		__entry->dst_ngid	= dst_tsk ? task_numa_group_id(dst_tsk) : 0;
 		__entry->dst_cpu	= dst_cpu;
-		__entry->dst_nid	= cpu_to_node(dst_cpu);
+		__entry->dst_nid	= dst_cpu >= 0 ? cpu_to_node(dst_cpu) : -1;
 	),
 
 	TP_printk("src_pid=%d src_tgid=%d src_ngid=%d src_cpu=%d src_nid=%d dst_pid=%d dst_tgid=%d dst_ngid=%d dst_cpu=%d dst_nid=%d",
@@ -574,6 +679,75 @@ TRACE_EVENT(sched_swap_numa,
 			__entry->dst_pid, __entry->dst_tgid, __entry->dst_ngid,
 			__entry->dst_cpu, __entry->dst_nid)
 );
+
+DEFINE_EVENT(sched_numa_pair_template, sched_stick_numa,
+
+	TP_PROTO(struct task_struct *src_tsk, int src_cpu,
+		 struct task_struct *dst_tsk, int dst_cpu),
+
+	TP_ARGS(src_tsk, src_cpu, dst_tsk, dst_cpu)
+);
+
+DEFINE_EVENT(sched_numa_pair_template, sched_swap_numa,
+
+	TP_PROTO(struct task_struct *src_tsk, int src_cpu,
+		 struct task_struct *dst_tsk, int dst_cpu),
+
+	TP_ARGS(src_tsk, src_cpu, dst_tsk, dst_cpu)
+);
+
+#ifdef CONFIG_NUMA_BALANCING
+#define NUMAB_SKIP_REASON					\
+	EM( NUMAB_SKIP_UNSUITABLE,		"unsuitable" )	\
+	EM( NUMAB_SKIP_SHARED_RO,		"shared_ro" )	\
+	EM( NUMAB_SKIP_INACCESSIBLE,		"inaccessible" )	\
+	EM( NUMAB_SKIP_SCAN_DELAY,		"scan_delay" )	\
+	EM( NUMAB_SKIP_PID_INACTIVE,		"pid_inactive" )	\
+	EM( NUMAB_SKIP_IGNORE_PID,		"ignore_pid_inactive" )		\
+	EMe(NUMAB_SKIP_SEQ_COMPLETED,		"seq_completed" )
+
+/* Redefine for export. */
+#undef EM
+#undef EMe
+#define EM(a, b)	TRACE_DEFINE_ENUM(a);
+#define EMe(a, b)	TRACE_DEFINE_ENUM(a);
+
+NUMAB_SKIP_REASON
+
+/* Redefine for symbolic printing. */
+#undef EM
+#undef EMe
+#define EM(a, b)	{ a, b },
+#define EMe(a, b)	{ a, b }
+
+TRACE_EVENT(sched_skip_vma_numa,
+
+	TP_PROTO(struct mm_struct *mm, struct vm_area_struct *vma,
+		 enum numa_vmaskip_reason reason),
+
+	TP_ARGS(mm, vma, reason),
+
+	TP_STRUCT__entry(
+		__field(unsigned long, numa_scan_offset)
+		__field(unsigned long, vm_start)
+		__field(unsigned long, vm_end)
+		__field(enum numa_vmaskip_reason, reason)
+	),
+
+	TP_fast_assign(
+		__entry->numa_scan_offset	= mm->numa_scan_offset;
+		__entry->vm_start		= vma->vm_start;
+		__entry->vm_end			= vma->vm_end;
+		__entry->reason			= reason;
+	),
+
+	TP_printk("numa_scan_offset=%lX vm_start=%lX vm_end=%lX reason=%s",
+		  __entry->numa_scan_offset,
+		  __entry->vm_start,
+		  __entry->vm_end,
+		  __print_symbolic(__entry->reason, NUMAB_SKIP_REASON))
+);
+#endif /* CONFIG_NUMA_BALANCING */
 
 /*
  * Tracepoint for waking a polling cpu without an IPI.
@@ -613,6 +787,10 @@ DECLARE_TRACE(pelt_dl_tp,
 	TP_PROTO(struct rq *rq),
 	TP_ARGS(rq));
 
+DECLARE_TRACE(pelt_hw_tp,
+	TP_PROTO(struct rq *rq),
+	TP_ARGS(rq));
+
 DECLARE_TRACE(pelt_irq_tp,
 	TP_PROTO(struct rq *rq),
 	TP_ARGS(rq));
@@ -621,9 +799,30 @@ DECLARE_TRACE(pelt_se_tp,
 	TP_PROTO(struct sched_entity *se),
 	TP_ARGS(se));
 
+DECLARE_TRACE(sched_cpu_capacity_tp,
+	TP_PROTO(struct rq *rq),
+	TP_ARGS(rq));
+
 DECLARE_TRACE(sched_overutilized_tp,
 	TP_PROTO(struct root_domain *rd, bool overutilized),
 	TP_ARGS(rd, overutilized));
+
+DECLARE_TRACE(sched_util_est_cfs_tp,
+	TP_PROTO(struct cfs_rq *cfs_rq),
+	TP_ARGS(cfs_rq));
+
+DECLARE_TRACE(sched_util_est_se_tp,
+	TP_PROTO(struct sched_entity *se),
+	TP_ARGS(se));
+
+DECLARE_TRACE(sched_update_nr_running_tp,
+	TP_PROTO(struct rq *rq, int change),
+	TP_ARGS(rq, change));
+
+DECLARE_TRACE(sched_compute_energy_tp,
+	TP_PROTO(struct task_struct *p, int dst_cpu, unsigned long energy,
+		 unsigned long max_util, unsigned long busy_time),
+	TP_ARGS(p, dst_cpu, energy, max_util, busy_time));
 
 #endif /* _TRACE_SCHED_H */
 

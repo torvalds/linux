@@ -23,7 +23,7 @@ void fsstack_copy_inode_size(struct inode *dst, struct inode *src)
 
 	/*
 	 * But on 32-bit, we ought to make an effort to keep the two halves of
-	 * i_blocks in sync despite SMP or PREEMPT - though stat's
+	 * i_blocks in sync despite SMP or PREEMPTION - though stat's
 	 * generic_fillattr() doesn't bother, and we won't be applying quotas
 	 * (where i_blocks does become important) at the upper level.
 	 *
@@ -38,14 +38,14 @@ void fsstack_copy_inode_size(struct inode *dst, struct inode *src)
 		spin_unlock(&src->i_lock);
 
 	/*
-	 * If CONFIG_SMP or CONFIG_PREEMPT on 32-bit, it's vital for
+	 * If CONFIG_SMP or CONFIG_PREEMPTION on 32-bit, it's vital for
 	 * fsstack_copy_inode_size() to hold some lock around
 	 * i_size_write(), otherwise i_size_read() may spin forever (see
 	 * include/linux/fs.h).  We don't necessarily hold i_mutex when this
 	 * is called, so take i_lock for that case.
 	 *
 	 * And if on 32-bit, continue our effort to keep the two halves of
-	 * i_blocks in sync despite SMP or PREEMPT: use i_lock  for that case
+	 * i_blocks in sync despite SMP or PREEMPTION: use i_lock for that case
 	 * too, and do both at once by combining the tests.
 	 *
 	 * There is none of this locking overhead in the 64-bit case.
@@ -66,9 +66,9 @@ void fsstack_copy_attr_all(struct inode *dest, const struct inode *src)
 	dest->i_uid = src->i_uid;
 	dest->i_gid = src->i_gid;
 	dest->i_rdev = src->i_rdev;
-	dest->i_atime = src->i_atime;
-	dest->i_mtime = src->i_mtime;
-	dest->i_ctime = src->i_ctime;
+	inode_set_atime_to_ts(dest, inode_get_atime(src));
+	inode_set_mtime_to_ts(dest, inode_get_mtime(src));
+	inode_set_ctime_to_ts(dest, inode_get_ctime(src));
 	dest->i_blkbits = src->i_blkbits;
 	dest->i_flags = src->i_flags;
 	set_nlink(dest, src->i_nlink);

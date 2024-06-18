@@ -14,7 +14,7 @@
 #include <linux/kdebug.h>
 #include <linux/syscalls.h>
 #include <linux/signal.h>
-#include <linux/tracehook.h>
+#include <linux/ptrace.h>
 #include <asm/traps.h>
 #include <asm/vm_fault.h>
 #include <asm/syscall.h>
@@ -27,10 +27,6 @@
 
 #define TRAP_SYSCALL	1
 #define TRAP_DEBUG	0xdb
-
-void __init trap_init(void)
-{
-}
 
 #ifdef CONFIG_GENERIC_BUG
 /* Maybe should resemble arch/sh/kernel/traps.c ?? */
@@ -79,7 +75,7 @@ static const char *ex_name(int ex)
 }
 
 static void do_show_stack(struct task_struct *task, unsigned long *fp,
-			  unsigned long ip)
+			  unsigned long ip, const char *loglvl)
 {
 	int kstack_depth_to_print = 24;
 	unsigned long offset, size;
@@ -93,9 +89,8 @@ static void do_show_stack(struct task_struct *task, unsigned long *fp,
 	if (task == NULL)
 		task = current;
 
-	printk(KERN_INFO "CPU#%d, %s/%d, Call Trace:\n",
-	       raw_smp_processor_id(), task->comm,
-	       task_pid_nr(task));
+	printk("%sCPU#%d, %s/%d, Call Trace:\n", loglvl, raw_smp_processor_id(),
+		task->comm, task_pid_nr(task));
 
 	if (fp == NULL) {
 		if (task == current) {
@@ -108,7 +103,7 @@ static void do_show_stack(struct task_struct *task, unsigned long *fp,
 	}
 
 	if ((((unsigned long) fp) & 0x3) || ((unsigned long) fp < 0x1000)) {
-		printk(KERN_INFO "-- Corrupt frame pointer %p\n", fp);
+		printk("%s-- Corrupt frame pointer %p\n", loglvl, fp);
 		return;
 	}
 
@@ -125,8 +120,7 @@ static void do_show_stack(struct task_struct *task, unsigned long *fp,
 
 		name = kallsyms_lookup(ip, &size, &offset, &modname, tmpstr);
 
-		printk(KERN_INFO "[%p] 0x%lx: %s + 0x%lx", fp, ip, name,
-			offset);
+		printk("%s[%p] 0x%lx: %s + 0x%lx", loglvl, fp, ip, name, offset);
 		if (((unsigned long) fp < low) || (high < (unsigned long) fp))
 			printk(KERN_CONT " (FP out of bounds!)");
 		if (modname)
@@ -136,8 +130,7 @@ static void do_show_stack(struct task_struct *task, unsigned long *fp,
 		newfp = (unsigned long *) *fp;
 
 		if (((unsigned long) newfp) & 0x3) {
-			printk(KERN_INFO "-- Corrupt frame pointer %p\n",
-				newfp);
+			printk("%s-- Corrupt frame pointer %p\n", loglvl, newfp);
 			break;
 		}
 
@@ -147,7 +140,7 @@ static void do_show_stack(struct task_struct *task, unsigned long *fp,
 						+ 8);
 
 			if (regs->syscall_nr != -1) {
-				printk(KERN_INFO "-- trap0 -- syscall_nr: %ld",
+				printk("%s-- trap0 -- syscall_nr: %ld", loglvl,
 					regs->syscall_nr);
 				printk(KERN_CONT "  psp: %lx  elr: %lx\n",
 					 pt_psp(regs), pt_elr(regs));
@@ -155,7 +148,7 @@ static void do_show_stack(struct task_struct *task, unsigned long *fp,
 			} else {
 				/* really want to see more ... */
 				kstack_depth_to_print += 6;
-				printk(KERN_INFO "-- %s (0x%lx)  badva: %lx\n",
+				printk("%s-- %s (0x%lx)  badva: %lx\n", loglvl,
 					ex_name(pt_cause(regs)), pt_cause(regs),
 					pt_badva(regs));
 			}
@@ -178,10 +171,10 @@ static void do_show_stack(struct task_struct *task, unsigned long *fp,
 	}
 }
 
-void show_stack(struct task_struct *task, unsigned long *fp)
+void show_stack(struct task_struct *task, unsigned long *fp, const char *loglvl)
 {
 	/* Saved link reg is one word above FP */
-	do_show_stack(task, fp, 0);
+	do_show_stack(task, fp, 0, loglvl);
 }
 
 int die(const char *str, struct pt_regs *regs, long err)
@@ -207,7 +200,7 @@ int die(const char *str, struct pt_regs *regs, long err)
 
 	print_modules();
 	show_regs(regs);
-	do_show_stack(current, &regs->r30, pt_elr(regs));
+	do_show_stack(current, &regs->r30, pt_elr(regs), KERN_EMERG);
 
 	bust_spinlocks(0);
 	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
@@ -221,7 +214,7 @@ int die(const char *str, struct pt_regs *regs, long err)
 		panic("Fatal exception");
 
 	oops_exit();
-	do_exit(err);
+	make_task_dead(err);
 	return 0;
 }
 
@@ -288,6 +281,7 @@ static void cache_error(struct pt_regs *regs)
 /*
  * General exception handler
  */
+void do_genex(struct pt_regs *regs);
 void do_genex(struct pt_regs *regs)
 {
 	/*
@@ -338,13 +332,7 @@ void do_genex(struct pt_regs *regs)
 	}
 }
 
-/* Indirect system call dispatch */
-long sys_syscall(void)
-{
-	printk(KERN_ERR "sys_syscall invoked!\n");
-	return -ENOSYS;
-}
-
+void do_trap0(struct pt_regs *regs);
 void do_trap0(struct pt_regs *regs)
 {
 	syscall_fn syscall;
@@ -355,7 +343,7 @@ void do_trap0(struct pt_regs *regs)
 
 		/* allow strace to catch syscall args  */
 		if (unlikely(test_thread_flag(TIF_SYSCALL_TRACE) &&
-			tracehook_report_syscall_entry(regs)))
+			ptrace_report_syscall_entry(regs)))
 			return;  /*  return -ENOSYS somewhere?  */
 
 		/* Interrupts should be re-enabled for syscall processing */
@@ -393,7 +381,7 @@ void do_trap0(struct pt_regs *regs)
 
 		/* allow strace to get the syscall return state  */
 		if (unlikely(test_thread_flag(TIF_SYSCALL_TRACE)))
-			tracehook_report_syscall_exit(regs, 0);
+			ptrace_report_syscall_exit(regs, 0);
 
 		break;
 	case TRAP_DEBUG:
@@ -422,6 +410,7 @@ void do_trap0(struct pt_regs *regs)
 /*
  * Machine check exception handler
  */
+void do_machcheck(struct pt_regs *regs);
 void do_machcheck(struct pt_regs *regs)
 {
 	/* Halt and catch fire */
@@ -432,6 +421,7 @@ void do_machcheck(struct pt_regs *regs)
  * Treat this like the old 0xdb trap.
  */
 
+void do_debug_exception(struct pt_regs *regs);
 void do_debug_exception(struct pt_regs *regs)
 {
 	regs->hvmer.vmest &= ~HVM_VMEST_CAUSE_MSK;

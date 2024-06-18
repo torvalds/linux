@@ -111,44 +111,40 @@ enum rtl8192e_h2c_cmd {
 	(u32)(((_len) >> 7) + ((_len) & 0x7F ? 1 : 0))
 
 #define SET_H2CCMD_PWRMODE_PARM_MODE(__ph2ccmd, __val)			\
-	SET_BITS_TO_LE_1BYTE(__ph2ccmd, 0, 8, __val)
+	*(u8 *)__ph2ccmd = __val;
 #define SET_H2CCMD_PWRMODE_PARM_RLBM(__cmd, __val)			\
-	SET_BITS_TO_LE_1BYTE((__cmd)+1, 0, 4, __val)
+	u8p_replace_bits(__cmd + 1, __val, GENMASK(3, 0))
 #define SET_H2CCMD_PWRMODE_PARM_SMART_PS(__cmd, __val)		\
-	SET_BITS_TO_LE_1BYTE((__cmd)+1, 4, 4, __val)
+	u8p_replace_bits(__cmd + 1, __val, GENMASK(7, 4))
 #define SET_H2CCMD_PWRMODE_PARM_AWAKE_INTERVAL(__cmd, __val)	\
-	SET_BITS_TO_LE_1BYTE((__cmd)+2, 0, 8, __val)
+	*(u8 *)(__cmd + 2) = __val;
 #define SET_H2CCMD_PWRMODE_PARM_ALL_QUEUE_UAPSD(__cmd, __val)	\
-	SET_BITS_TO_LE_1BYTE((__cmd)+3, 0, 8, __val)
+	*(u8 *)(__cmd + 3) = __val;
 #define SET_H2CCMD_PWRMODE_PARM_PWR_STATE(__cmd, __val)		\
-	SET_BITS_TO_LE_1BYTE((__cmd)+4, 0, 8, __val)
+	*(u8 *)(__cmd + 4) = __val;
 #define SET_H2CCMD_PWRMODE_PARM_BYTE5(__cmd, __val)		\
-	SET_BITS_TO_LE_1BYTE((__cmd) + 5, 0, 8, __val)
-#define GET_92E_H2CCMD_PWRMODE_PARM_MODE(__cmd)			\
-	LE_BITS_TO_1BYTE(__cmd, 0, 8)
+	*(u8 *)(__cmd + 5) = __val;
 
-#define SET_H2CCMD_JOINBSSRPT_PARM_OPMODE(__ph2ccmd, __val)		\
-	SET_BITS_TO_LE_1BYTE(__ph2ccmd, 0, 8, __val)
 #define SET_H2CCMD_RSVDPAGE_LOC_PROBE_RSP(__ph2ccmd, __val)		\
-	SET_BITS_TO_LE_1BYTE(__ph2ccmd, 0, 8, __val)
+	*(u8 *)__ph2ccmd = __val;
 #define SET_H2CCMD_RSVDPAGE_LOC_PSPOLL(__ph2ccmd, __val)		\
-	SET_BITS_TO_LE_1BYTE((__ph2ccmd)+1, 0, 8, __val)
+	*(u8 *)(__ph2ccmd + 1) = __val;
 #define SET_H2CCMD_RSVDPAGE_LOC_NULL_DATA(__ph2ccmd, __val)		\
-	SET_BITS_TO_LE_1BYTE((__ph2ccmd)+2, 0, 8, __val)
+	*(u8 *)(__ph2ccmd + 2) = __val;
 #define SET_H2CCMD_RSVDPAGE_LOC_QOS_NULL_DATA(__ph2ccmd, __val)		\
-	SET_BITS_TO_LE_1BYTE((__ph2ccmd) + 3, 0, 8, __val)
+	*(u8 *)(__ph2ccmd + 3) = __val;
 #define SET_H2CCMD_RSVDPAGE_LOC_BT_QOS_NULL_DATA(__ph2ccmd, __val)	\
-	SET_BITS_TO_LE_1BYTE((__ph2ccmd) + 4, 0, 8, __val)
+	*(u8 *)(__ph2ccmd + 4) = __val;
 
 /* _MEDIA_STATUS_RPT_PARM_CMD1 */
 #define SET_H2CCMD_MSRRPT_PARM_OPMODE(__cmd, __val)		\
-	SET_BITS_TO_LE_1BYTE(__cmd, 0, 1, __val)
+	u8p_replace_bits(__cmd, __val, BIT(0))
 #define SET_H2CCMD_MSRRPT_PARM_MACID_IND(__cmd, __val)		\
-	SET_BITS_TO_LE_1BYTE(__cmd, 1, 1, __val)
+	u8p_replace_bits(__cmd, __val, BIT(1))
 #define SET_H2CCMD_MSRRPT_PARM_MACID(__cmd, __val)		\
-	SET_BITS_TO_LE_1BYTE(__cmd+1, 0, 8, __val)
+	*(u8 *)(__ph2ccmd + 1) = __val;
 #define SET_H2CCMD_MSRRPT_PARM_MACID_END(__cmd, __val)		\
-	SET_BITS_TO_LE_1BYTE(__cmd+2, 0, 8, __val)
+	*(u8 *)(__ph2ccmd + 2) = __val;
 
 int rtl92ee_download_fw(struct ieee80211_hw *hw, bool buse_wake_on_wlan_fw);
 void rtl92ee_fill_h2c_cmd(struct ieee80211_hw *hw, u8 element_id,

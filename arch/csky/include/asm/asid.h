@@ -37,7 +37,7 @@ void asid_new_context(struct asid_info *info, atomic64_t *pasid,
  * Check the ASID is still valid for the context. If not generate a new ASID.
  *
  * @pasid: Pointer to the current ASID batch
- * @cpu: current CPU ID. Must have been acquired throught get_cpu()
+ * @cpu: current CPU ID. Must have been acquired through get_cpu()
  */
 static inline void asid_check_context(struct asid_info *info,
 				      atomic64_t *pasid, unsigned int cpu,

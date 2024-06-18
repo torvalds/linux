@@ -8,8 +8,7 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
-#include <linux/of_irq.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/pm_runtime.h>
 #include <linux/power_supply.h>
 #include <linux/i2c.h>
@@ -193,6 +192,7 @@ static const int rt9455_voreg_values[] = {
 	4450000, 4450000, 4450000, 4450000, 4450000, 4450000, 4450000, 4450000
 };
 
+#if IS_ENABLED(CONFIG_USB_PHY)
 /*
  * When the charger is in boost mode, REG02[7:2] represent boost output
  * voltage.
@@ -208,6 +208,7 @@ static const int rt9455_boost_voltage_values[] = {
 	5600000, 5600000, 5600000, 5600000, 5600000, 5600000, 5600000, 5600000,
 	5600000, 5600000, 5600000, 5600000, 5600000, 5600000, 5600000, 5600000,
 };
+#endif
 
 /* REG07[3:0] (VMREG) in uV */
 static const int rt9455_vmreg_values[] = {
@@ -1581,8 +1582,7 @@ static const struct regmap_config rt9455_regmap_config = {
 	.cache_type	= REGCACHE_RBTREE,
 };
 
-static int rt9455_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int rt9455_probe(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	struct device *dev = &client->dev;
@@ -1698,7 +1698,7 @@ put_usb_notifier:
 	return ret;
 }
 
-static int rt9455_remove(struct i2c_client *client)
+static void rt9455_remove(struct i2c_client *client)
 {
 	int ret;
 	struct rt9455_info *info = i2c_get_clientdata(client);
@@ -1715,8 +1715,6 @@ static int rt9455_remove(struct i2c_client *client)
 	cancel_delayed_work_sync(&info->pwr_rdy_work);
 	cancel_delayed_work_sync(&info->max_charging_time_work);
 	cancel_delayed_work_sync(&info->batt_presence_work);
-
-	return ret;
 }
 
 static const struct i2c_device_id rt9455_i2c_id_table[] = {
@@ -1725,17 +1723,19 @@ static const struct i2c_device_id rt9455_i2c_id_table[] = {
 };
 MODULE_DEVICE_TABLE(i2c, rt9455_i2c_id_table);
 
-static const struct of_device_id rt9455_of_match[] = {
+static const struct of_device_id rt9455_of_match[] __maybe_unused = {
 	{ .compatible = "richtek,rt9455", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, rt9455_of_match);
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id rt9455_i2c_acpi_match[] = {
 	{ "RT945500", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, rt9455_i2c_acpi_match);
+#endif
 
 static struct i2c_driver rt9455_driver = {
 	.probe		= rt9455_probe,

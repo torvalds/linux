@@ -3,6 +3,7 @@
 #define __NVKM_DEVICE_PRIV_H__
 #include <core/device.h>
 
+#include <subdev/acr.h>
 #include <subdev/bar.h>
 #include <subdev/bios.h>
 #include <subdev/bus.h>
@@ -14,7 +15,6 @@
 #include <subdev/gpio.h>
 #include <subdev/gsp.h>
 #include <subdev/i2c.h>
-#include <subdev/ibus.h>
 #include <subdev/iccsense.h>
 #include <subdev/instmem.h>
 #include <subdev/ltc.h>
@@ -23,11 +23,12 @@
 #include <subdev/mxm.h>
 #include <subdev/pci.h>
 #include <subdev/pmu.h>
+#include <subdev/privring.h>
 #include <subdev/therm.h>
 #include <subdev/timer.h>
 #include <subdev/top.h>
+#include <subdev/vfn.h>
 #include <subdev/volt.h>
-#include <subdev/secboot.h>
 
 #include <engine/bsp.h>
 #include <engine/ce.h>
@@ -42,6 +43,8 @@
 #include <engine/msvld.h>
 #include <engine/nvenc.h>
 #include <engine/nvdec.h>
+#include <engine/nvjpg.h>
+#include <engine/ofa.h>
 #include <engine/pm.h>
 #include <engine/sec.h>
 #include <engine/sec2.h>

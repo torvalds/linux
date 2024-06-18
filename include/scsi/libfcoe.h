@@ -14,6 +14,7 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/workqueue.h>
+#include <linux/local_lock.h>
 #include <linux/random.h>
 #include <scsi/fc/fc_fcoe.h>
 #include <scsi/libfc.h>
@@ -156,7 +157,9 @@ struct fcoe_ctlr {
 
 /**
  * fcoe_ctlr_priv() - Return the private data from a fcoe_ctlr
- * @cltr: The fcoe_ctlr whose private data will be returned
+ * @ctlr: The fcoe_ctlr whose private data will be returned
+ *
+ * Returns: pointer to the private data
  */
 static inline void *fcoe_ctlr_priv(const struct fcoe_ctlr *ctlr)
 {
@@ -173,7 +176,6 @@ static inline void *fcoe_ctlr_priv(const struct fcoe_ctlr *ctlr)
  * struct fcoe_fcf - Fibre-Channel Forwarder
  * @list:	 list linkage
  * @event_work:  Work for FC Transport actions queue
- * @event:       The event to be processed
  * @fip:         The controller that the FCF was discovered on
  * @fcf_dev:     The associated fcoe_fcf_device instance
  * @time:	 system time (jiffies) when an advertisement was last received
@@ -187,6 +189,7 @@ static inline void *fcoe_ctlr_priv(const struct fcoe_ctlr *ctlr)
  * @flogi_sent:	 current FLOGI sent to this FCF
  * @flags:	 flags received from advertisement
  * @fka_period:	 keep-alive period, in jiffies
+ * @fd_flags:	 no need for FKA from ENode
  *
  * A Fibre-Channel Forwarder (FCF) is the entity on the Ethernet that
  * passes FCoE frames on to an FC fabric.  This structure represents
@@ -221,6 +224,7 @@ struct fcoe_fcf {
 
 /**
  * struct fcoe_rport - VN2VN remote port
+ * @rdata:	libfc remote port private data
  * @time:	time of create or last beacon packet received from node
  * @fcoe_len:	max FCoE frame size, not including VLAN or Ethernet headers
  * @flags:	flags from probe or claim
@@ -249,7 +253,8 @@ int fcoe_ctlr_recv_flogi(struct fcoe_ctlr *, struct fc_lport *,
 			 struct fc_frame *);
 
 /* libfcoe funcs */
-u64 fcoe_wwn_from_mac(unsigned char mac[], unsigned int, unsigned int);
+u64 fcoe_wwn_from_mac(unsigned char mac[ETH_ALEN], unsigned int scheme,
+		      unsigned int port);
 int fcoe_libfc_config(struct fc_lport *, struct fcoe_ctlr *,
 		      const struct libfc_function_template *, int init_fcp);
 u32 fcoe_fc_crc(struct fc_frame *fp);
@@ -264,8 +269,10 @@ void fcoe_get_lesb(struct fc_lport *, struct fc_els_lesb *);
 void fcoe_ctlr_get_lesb(struct fcoe_ctlr_device *ctlr_dev);
 
 /**
- * is_fip_mode() - returns true if FIP mode selected.
+ * is_fip_mode() - test if FIP mode selected.
  * @fip:	FCoE controller.
+ *
+ * Returns: %true if FIP mode is selected
  */
 static inline bool is_fip_mode(struct fcoe_ctlr *fip)
 {
@@ -316,9 +323,10 @@ struct fcoe_transport {
  * @kthread:	    The thread context (used by bnx2fc)
  * @work:	    The work item (used by fcoe)
  * @fcoe_rx_list:   The queue of pending packets to process
- * @page:	    The memory page for calculating frame trailer CRCs
+ * @crc_eof_page:   The memory page for calculating frame trailer CRCs
  * @crc_eof_offset: The offset into the CRC page pointing to available
  *		    memory for a new trailer
+ * @lock:	    local lock for members of this struct
  */
 struct fcoe_percpu_s {
 	struct task_struct *kthread;
@@ -326,6 +334,7 @@ struct fcoe_percpu_s {
 	struct sk_buff_head fcoe_rx_list;
 	struct page *crc_eof_page;
 	int crc_eof_offset;
+	local_lock_t lock;
 };
 
 /**
@@ -340,7 +349,8 @@ struct fcoe_percpu_s {
  * @timer:		       The queue timer
  * @destroy_work:	       Handle for work context
  *			       (to prevent RTNL deadlocks)
- * @data_srt_addr:	       Source address for data
+ * @data_src_addr:	       Source address for data
+ * @get_netdev:                function that returns a &net_device from @lport
  *
  * An instance of this structure is to be allocated along with the
  * Scsi_Host and libfc fc_lport structures.
@@ -361,6 +371,8 @@ struct fcoe_port {
 /**
  * fcoe_get_netdev() - Return the net device associated with a local port
  * @lport: The local port to get the net device from
+ *
+ * Returns: the &net_device associated with this @lport
  */
 static inline struct net_device *fcoe_get_netdev(const struct fc_lport *lport)
 {
@@ -380,8 +392,10 @@ void fcoe_fcf_get_selected(struct fcoe_fcf_device *);
 void fcoe_ctlr_set_fip_mode(struct fcoe_ctlr_device *);
 
 /**
- * struct netdev_list
- * A mapping from netdevice to fcoe_transport
+ * struct fcoe_netdev_mapping - A mapping from &net_device to &fcoe_transport
+ * @list: list linkage of the mappings
+ * @netdev: the &net_device
+ * @ft: the fcoe_transport associated with @netdev
  */
 struct fcoe_netdev_mapping {
 	struct list_head list;
@@ -394,10 +408,8 @@ int fcoe_transport_attach(struct fcoe_transport *ft);
 int fcoe_transport_detach(struct fcoe_transport *ft);
 
 /* sysfs store handler for ctrl_control interface */
-ssize_t fcoe_ctlr_create_store(struct bus_type *bus,
-			       const char *buf, size_t count);
-ssize_t fcoe_ctlr_destroy_store(struct bus_type *bus,
-				const char *buf, size_t count);
+ssize_t fcoe_ctlr_create_store(const char *buf, size_t count);
+ssize_t fcoe_ctlr_destroy_store(const char *buf, size_t count);
 
 #endif /* _LIBFCOE_H */
 

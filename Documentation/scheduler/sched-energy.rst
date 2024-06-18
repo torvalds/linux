@@ -82,7 +82,7 @@ through the arch_scale_cpu_capacity() callback.
 The rest of platform knowledge used by EAS is directly read from the Energy
 Model (EM) framework. The EM of a platform is composed of a power cost table
 per 'performance domain' in the system (see Documentation/power/energy-model.rst
-for futher details about performance domains).
+for further details about performance domains).
 
 The scheduler manages references to the EM objects in the topology code when the
 scheduling domains are built, or re-built. For each root domain (rd), the
@@ -281,7 +281,7 @@ mechanism called 'over-utilization'.
 From a general standpoint, the use-cases where EAS can help the most are those
 involving a light/medium CPU utilization. Whenever long CPU-bound tasks are
 being run, they will require all of the available CPU capacity, and there isn't
-much that can be done by the scheduler to save energy without severly harming
+much that can be done by the scheduler to save energy without severely harming
 throughput. In order to avoid hurting performance with EAS, CPUs are flagged as
 'over-utilized' as soon as they are used at more than 80% of their compute
 capacity. As long as no CPUs are over-utilized in a root domain, load balancing
@@ -328,19 +328,11 @@ section lists these dependencies and provides hints as to how they can be met.
 
 As mentioned in the introduction, EAS is only supported on platforms with
 asymmetric CPU topologies for now. This requirement is checked at run-time by
-looking for the presence of the SD_ASYM_CPUCAPACITY flag when the scheduling
+looking for the presence of the SD_ASYM_CPUCAPACITY_FULL flag when the scheduling
 domains are built.
 
-The flag is set/cleared automatically by the scheduler topology code whenever
-there are CPUs with different capacities in a root domain. The capacities of
-CPUs are provided by arch-specific code through the arch_scale_cpu_capacity()
-callback. As an example, arm and arm64 share an implementation of this callback
-which uses a combination of CPUFreq data and device-tree bindings to compute the
-capacity of CPUs (see drivers/base/arch_topology.c for more details).
-
-So, in order to use EAS on your platform your architecture must implement the
-arch_scale_cpu_capacity() callback, and some of the CPUs must have a lower
-capacity than others.
+See Documentation/scheduler/sched-capacity.rst for requirements to be met for this
+flag to be set in the sched_domain hierarchy.
 
 Please note that EAS is not fundamentally incompatible with SMP, but no
 significant savings on SMP platforms have been observed yet. This restriction
@@ -358,36 +350,18 @@ independent EM framework in Documentation/power/energy-model.rst.
 Please also note that the scheduling domains need to be re-built after the
 EM has been registered in order to start EAS.
 
+EAS uses the EM to make a forecasting decision on energy usage and thus it is
+more focused on the difference when checking possible options for task
+placement. For EAS it doesn't matter whether the EM power values are expressed
+in milli-Watts or in an 'abstract scale'.
+
 
 6.3 - Energy Model complexity
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The task wake-up path is very latency-sensitive. When the EM of a platform is
-too complex (too many CPUs, too many performance domains, too many performance
-states, ...), the cost of using it in the wake-up path can become prohibitive.
-The energy-aware wake-up algorithm has a complexity of:
-
-	C = Nd * (Nc + Ns)
-
-with: Nd the number of performance domains; Nc the number of CPUs; and Ns the
-total number of OPPs (ex: for two perf. domains with 4 OPPs each, Ns = 8).
-
-A complexity check is performed at the root domain level, when scheduling
-domains are built. EAS will not start on a root domain if its C happens to be
-higher than the completely arbitrary EM_MAX_COMPLEXITY threshold (2048 at the
-time of writing).
-
-If you really want to use EAS but the complexity of your platform's Energy
-Model is too high to be used with a single root domain, you're left with only
-two possible options:
-
-    1. split your system into separate, smaller, root domains using exclusive
-       cpusets and enable EAS locally on each of them. This option has the
-       benefit to work out of the box but the drawback of preventing load
-       balance between root domains, which can result in an unbalanced system
-       overall;
-    2. submit patches to reduce the complexity of the EAS wake-up algorithm,
-       hence enabling it to cope with larger EMs in reasonable time.
+EAS does not impose any complexity limit on the number of PDs/OPPs/CPUs but
+restricts the number of CPUs to EM_MAX_NUM_CPUS to prevent overflows during
+the energy estimation.
 
 
 6.4 - Schedutil governor

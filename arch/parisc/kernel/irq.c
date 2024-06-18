@@ -15,15 +15,14 @@
 #include <linux/kernel_stat.h>
 #include <linux/seq_file.h>
 #include <linux/types.h>
+#include <linux/sched/task_stack.h>
 #include <asm/io.h>
 
+#include <asm/softirq_stack.h>
 #include <asm/smp.h>
 #include <asm/ldcw.h>
 
 #undef PARISC_IRQ_CR16_COUNTS
-
-extern irqreturn_t timer_interrupt(int, void *);
-extern irqreturn_t ipi_interrupt(int, void *);
 
 #define EIEM_MASK(irq)       (1UL<<(CPU_IRQ_MAX - irq))
 
@@ -103,27 +102,11 @@ int cpu_check_affinity(struct irq_data *d, const struct cpumask *dest)
 	if (irqd_is_per_cpu(d))
 		return -EINVAL;
 
-	/* whatever mask they set, we just allow one CPU */
-	cpu_dest = cpumask_next_and(d->irq & (num_online_cpus()-1),
-					dest, cpu_online_mask);
+	cpu_dest = cpumask_first_and(dest, cpu_online_mask);
 	if (cpu_dest >= nr_cpu_ids)
-		cpu_dest = cpumask_first_and(dest, cpu_online_mask);
+		cpu_dest = cpumask_first(cpu_online_mask);
 
 	return cpu_dest;
-}
-
-static int cpu_set_affinity_irq(struct irq_data *d, const struct cpumask *dest,
-				bool force)
-{
-	int cpu_dest;
-
-	cpu_dest = cpu_check_affinity(d, dest);
-	if (cpu_dest < 0)
-		return -1;
-
-	cpumask_copy(irq_data_get_affinity_mask(d), dest);
-
-	return 0;
 }
 #endif
 
@@ -133,9 +116,6 @@ static struct irq_chip cpu_interrupt_type = {
 	.irq_unmask		= cpu_unmask_irq,
 	.irq_ack		= cpu_ack_irq,
 	.irq_eoi		= cpu_eoi_irq,
-#ifdef CONFIG_SMP
-	.irq_set_affinity	= cpu_set_affinity_irq,
-#endif
 	/* XXX: Needs to be written.  We managed without it so far, but
 	 * we really ought to write it.
 	 */
@@ -216,12 +196,9 @@ int show_interrupts(struct seq_file *p, void *v)
 		if (!action)
 			goto skip;
 		seq_printf(p, "%3d: ", i);
-#ifdef CONFIG_SMP
+
 		for_each_online_cpu(j)
-			seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
-#else
-		seq_printf(p, "%10u ", kstat_irqs(i));
-#endif
+			seq_printf(p, "%10u ", irq_desc_kstat_cpu(desc, j));
 
 		seq_printf(p, " %14s", irq_desc_get_chip(desc)->name);
 #ifndef PARISC_IRQ_CR16_COUNTS
@@ -335,7 +312,7 @@ unsigned long txn_affinity_addr(unsigned int irq, int cpu)
 {
 #ifdef CONFIG_SMP
 	struct irq_data *d = irq_get_irq_data(irq);
-	cpumask_copy(irq_data_get_affinity_mask(d), cpumask_of(cpu));
+	irq_data_update_affinity(d, cpumask_of(cpu));
 #endif
 
 	return per_cpu(cpu_data, cpu).txn_addr;
@@ -376,7 +353,11 @@ static inline int eirr_to_irq(unsigned long eirr)
 /*
  * IRQ STACK - used for irq handler
  */
+#ifdef CONFIG_64BIT
+#define IRQ_STACK_SIZE      (4096 << 4) /* 64k irq stack size */
+#else
 #define IRQ_STACK_SIZE      (4096 << 3) /* 32k irq stack size */
+#endif
 
 union irq_stack_union {
 	unsigned long stack[IRQ_STACK_SIZE/sizeof(unsigned long)];
@@ -384,7 +365,7 @@ union irq_stack_union {
 	volatile unsigned int lock[1];
 };
 
-DEFINE_PER_CPU(union irq_stack_union, irq_stack_union) = {
+static DEFINE_PER_CPU(union irq_stack_union, irq_stack_union) = {
 		.slock = { 1,1,1,1 },
 	};
 #endif
@@ -397,8 +378,7 @@ static inline void stack_overflow_check(struct pt_regs *regs)
 #ifdef CONFIG_DEBUG_STACKOVERFLOW
 	#define STACK_MARGIN	(256*6)
 
-	/* Our stack starts directly behind the thread_info struct. */
-	unsigned long stack_start = (unsigned long) current_thread_info();
+	unsigned long stack_start = (unsigned long) task_stack_page(current);
 	unsigned long sp = regs->gr[30];
 	unsigned long stack_usage;
 	unsigned int *last_usage;
@@ -474,7 +454,7 @@ static void execute_on_irq_stack(void *func, unsigned long param1)
 	union_ptr = &per_cpu(irq_stack_union, smp_processor_id());
 	irq_stack = (unsigned long) &union_ptr->stack;
 	irq_stack = ALIGN(irq_stack + sizeof(irq_stack_union.slock),
-			 64); /* align for stack frame usage */
+			FRAME_ALIGN); /* align for stack frame usage */
 
 	/* We may be called recursive. If we are already using the irq stack,
 	 * just continue to use it. Use spinlocks to serialize
@@ -497,14 +477,16 @@ static void execute_on_irq_stack(void *func, unsigned long param1)
 	*irq_stack_in_use = 1;
 }
 
+#ifdef CONFIG_SOFTIRQ_ON_OWN_STACK
 void do_softirq_own_stack(void)
 {
 	execute_on_irq_stack(__do_softirq, 0);
 }
+#endif
 #endif /* CONFIG_IRQSTACKS */
 
 /* ONLY called from entry.S:intr_extint() */
-void do_cpu_irq_mask(struct pt_regs *regs)
+asmlinkage void do_cpu_irq_mask(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs;
 	unsigned long eirr_val;
@@ -516,7 +498,7 @@ void do_cpu_irq_mask(struct pt_regs *regs)
 
 	old_regs = set_irq_regs(regs);
 	local_irq_disable();
-	irq_enter();
+	irq_enter_rcu();
 
 	eirr_val = mfctl(23) & cpu_eiem & per_cpu(local_ack_eiem, cpu);
 	if (!eirr_val)
@@ -551,7 +533,7 @@ void do_cpu_irq_mask(struct pt_regs *regs)
 #endif /* CONFIG_IRQSTACKS */
 
  out:
-	irq_exit();
+	irq_exit_rcu();
 	set_irq_regs(old_regs);
 	return;
 
@@ -560,37 +542,27 @@ void do_cpu_irq_mask(struct pt_regs *regs)
 	goto out;
 }
 
-static struct irqaction timer_action = {
-	.handler = timer_interrupt,
-	.name = "timer",
-	.flags = IRQF_TIMER | IRQF_PERCPU | IRQF_IRQPOLL,
-};
-
-#ifdef CONFIG_SMP
-static struct irqaction ipi_action = {
-	.handler = ipi_interrupt,
-	.name = "IPI",
-	.flags = IRQF_PERCPU,
-};
-#endif
-
 static void claim_cpu_irqs(void)
 {
+	unsigned long flags = IRQF_TIMER | IRQF_PERCPU | IRQF_IRQPOLL;
 	int i;
+
 	for (i = CPU_IRQ_BASE; i <= CPU_IRQ_MAX; i++) {
 		irq_set_chip_and_handler(i, &cpu_interrupt_type,
 					 handle_percpu_irq);
 	}
 
 	irq_set_handler(TIMER_IRQ, handle_percpu_irq);
-	setup_irq(TIMER_IRQ, &timer_action);
+	if (request_irq(TIMER_IRQ, timer_interrupt, flags, "timer", NULL))
+		pr_err("Failed to register timer interrupt\n");
 #ifdef CONFIG_SMP
 	irq_set_handler(IPI_IRQ, handle_percpu_irq);
-	setup_irq(IPI_IRQ, &ipi_action);
+	if (request_irq(IPI_IRQ, ipi_interrupt, IRQF_PERCPU, "IPI", NULL))
+		pr_err("Failed to register IPI interrupt\n");
 #endif
 }
 
-void __init init_IRQ(void)
+void init_IRQ(void)
 {
 	local_irq_disable();	/* PARANOID - should already be disabled */
 	mtctl(~0UL, 23);	/* EIRR : clear all pending external intr */

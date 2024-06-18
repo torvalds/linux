@@ -17,30 +17,26 @@ struct sg_table *msm_gem_prime_get_sg_table(struct drm_gem_object *obj)
 	int npages = obj->size >> PAGE_SHIFT;
 
 	if (WARN_ON(!msm_obj->pages))  /* should have already pinned! */
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
-	return drm_prime_pages_to_sg(msm_obj->pages, npages);
+	return drm_prime_pages_to_sg(obj->dev, msm_obj->pages, npages);
 }
 
-void *msm_gem_prime_vmap(struct drm_gem_object *obj)
+int msm_gem_prime_vmap(struct drm_gem_object *obj, struct iosys_map *map)
 {
-	return msm_gem_get_vaddr(obj);
+	void *vaddr;
+
+	vaddr = msm_gem_get_vaddr_locked(obj);
+	if (IS_ERR(vaddr))
+		return PTR_ERR(vaddr);
+	iosys_map_set_vaddr(map, vaddr);
+
+	return 0;
 }
 
-void msm_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
+void msm_gem_prime_vunmap(struct drm_gem_object *obj, struct iosys_map *map)
 {
-	msm_gem_put_vaddr(obj);
-}
-
-int msm_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
-{
-	int ret;
-
-	ret = drm_gem_mmap_obj(obj, obj->size, vma);
-	if (ret < 0)
-		return ret;
-
-	return msm_gem_mmap_obj(vma->vm_private_data, vma);
+	msm_gem_put_vaddr_locked(obj);
 }
 
 struct drm_gem_object *msm_gem_prime_import_sg_table(struct drm_device *dev,
@@ -51,13 +47,23 @@ struct drm_gem_object *msm_gem_prime_import_sg_table(struct drm_device *dev,
 
 int msm_gem_prime_pin(struct drm_gem_object *obj)
 {
-	if (!obj->import_attach)
-		msm_gem_get_pages(obj);
-	return 0;
+	struct page **pages;
+	int ret = 0;
+
+	if (obj->import_attach)
+		return 0;
+
+	pages = msm_gem_pin_pages_locked(obj);
+	if (IS_ERR(pages))
+		ret = PTR_ERR(pages);
+
+	return ret;
 }
 
 void msm_gem_prime_unpin(struct drm_gem_object *obj)
 {
-	if (!obj->import_attach)
-		msm_gem_put_pages(obj);
+	if (obj->import_attach)
+		return;
+
+	msm_gem_unpin_pages_locked(obj);
 }

@@ -5,7 +5,7 @@
  * Copyright 2012 Philippe Retornaz, philippe.retornaz@epfl.ch
  *
  * Initial development of this code was funded by
- * Phytec Messtechnik GmbH, http://www.phytec.de
+ * Phytec Messtechnik GmbH, https://www.phytec.de
  */
 #include <linux/module.h>
 #include <linux/device.h>
@@ -181,15 +181,14 @@ static int mc13783_set_fmt(struct snd_soc_dai *dai, unsigned int fmt,
 	}
 
 	/* DAI clock master masks */
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
 		val |= AUDIO_C_CLK_EN;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		val |= AUDIO_CSM;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFS:
-	case SND_SOC_DAIFMT_CBS_CFM:
+	default:
 		return -EINVAL;
 	}
 
@@ -217,11 +216,11 @@ static int mc13783_set_fmt_sync(struct snd_soc_dai *dai, unsigned int fmt)
 		return ret;
 
 	/*
-	 * In synchronous mode force the voice codec into slave mode
+	 * In synchronous mode force the voice codec into consumer mode
 	 * so that the clock / framesync from the stereo DAC is used
 	 */
-	fmt &= ~SND_SOC_DAIFMT_MASTER_MASK;
-	fmt |= SND_SOC_DAIFMT_CBS_CFS;
+	fmt &= ~SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK;
+	fmt |= SND_SOC_DAIFMT_CBC_CFC;
 	ret = mc13783_set_fmt(dai, fmt, MC13783_AUDIO_CODEC);
 
 	return ret;
@@ -712,7 +711,7 @@ static struct snd_soc_dai_driver mc13783_dai_sync[] = {
 			.formats = MC13783_FORMATS,
 		},
 		.ops = &mc13783_ops_sync,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	}
 };
 
@@ -728,7 +727,6 @@ static const struct snd_soc_component_driver soc_component_dev_mc13783 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static int __init mc13783_codec_probe(struct platform_device *pdev)
@@ -778,16 +776,10 @@ static int __init mc13783_codec_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int mc13783_codec_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static struct platform_driver mc13783_codec_driver = {
 	.driver = {
 		.name	= "mc13783-codec",
 	},
-	.remove = mc13783_codec_remove,
 };
 module_platform_driver_probe(mc13783_codec_driver, mc13783_codec_probe);
 

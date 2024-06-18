@@ -7,10 +7,12 @@
 #define _SCSI_SCSI_H
 
 #include <linux/types.h>
-#include <linux/scatterlist.h>
-#include <linux/kernel.h>
+
+#include <asm/param.h>
+
 #include <scsi/scsi_common.h>
 #include <scsi/scsi_proto.h>
+#include <scsi/scsi_status.h>
 
 struct scsi_cmnd;
 
@@ -29,32 +31,6 @@ enum scsi_timeouts {
  * possible channels, (target) ids, or luns on a given shost.
  */
 #define SCAN_WILD_CARD	~0
-
-/** scsi_status_is_good - check the status return.
- *
- * @status: the status passed up from the driver (including host and
- *          driver components)
- *
- * This returns true for known good conditions that may be treated as
- * command completed normally
- */
-static inline int scsi_status_is_good(int status)
-{
-	/*
-	 * FIXME: bit0 is listed as reserved in SCSI-2, but is
-	 * significant in SCSI-3.  For now, we follow the SCSI-2
-	 * behaviour and ignore reserved bits.
-	 */
-	status &= 0xfe;
-	return ((status == SAM_STAT_GOOD) ||
-		(status == SAM_STAT_CONDITION_MET) ||
-		/* Next two "intermediate" statuses are obsolete in SAM-4 */
-		(status == SAM_STAT_INTERMEDIATE) ||
-		(status == SAM_STAT_INTERMEDIATE_CONDITION_MET) ||
-		/* FIXME: this is obsolete in SAM-3 */
-		(status == SAM_STAT_COMMAND_TERMINATED));
-}
-
 
 /*
  * standard mode-select header prepended to all mode-select commands
@@ -88,106 +64,46 @@ static inline int scsi_is_wlun(u64 lun)
 	return (lun & 0xff00) == SCSI_W_LUN_BASE;
 }
 
+/**
+ * scsi_status_is_check_condition - check the status return.
+ *
+ * @status: the status passed up from the driver (including host and
+ *          driver components)
+ *
+ * Returns: %true if the status code is SAM_STAT_CHECK_CONDITION.
+ */
+static inline int scsi_status_is_check_condition(int status)
+{
+	if (status < 0)
+		return false;
+	status &= 0xfe;
+	return status == SAM_STAT_CHECK_CONDITION;
+}
 
 /*
- *  MESSAGE CODES
+ *  Extended message codes.
  */
-
-#define COMMAND_COMPLETE    0x00
-#define EXTENDED_MESSAGE    0x01
 #define     EXTENDED_MODIFY_DATA_POINTER    0x00
 #define     EXTENDED_SDTR                   0x01
 #define     EXTENDED_EXTENDED_IDENTIFY      0x02    /* SCSI-I only */
 #define     EXTENDED_WDTR                   0x03
 #define     EXTENDED_PPR                    0x04
 #define     EXTENDED_MODIFY_BIDI_DATA_PTR   0x05
-#define SAVE_POINTERS       0x02
-#define RESTORE_POINTERS    0x03
-#define DISCONNECT          0x04
-#define INITIATOR_ERROR     0x05
-#define ABORT_TASK_SET      0x06
-#define MESSAGE_REJECT      0x07
-#define NOP                 0x08
-#define MSG_PARITY_ERROR    0x09
-#define LINKED_CMD_COMPLETE 0x0a
-#define LINKED_FLG_CMD_COMPLETE 0x0b
-#define TARGET_RESET        0x0c
-#define ABORT_TASK          0x0d
-#define CLEAR_TASK_SET      0x0e
-#define INITIATE_RECOVERY   0x0f            /* SCSI-II only */
-#define RELEASE_RECOVERY    0x10            /* SCSI-II only */
-#define CLEAR_ACA           0x16
-#define LOGICAL_UNIT_RESET  0x17
-#define SIMPLE_QUEUE_TAG    0x20
-#define HEAD_OF_QUEUE_TAG   0x21
-#define ORDERED_QUEUE_TAG   0x22
-#define IGNORE_WIDE_RESIDUE 0x23
-#define ACA                 0x24
-#define QAS_REQUEST         0x55
-
-/* Old SCSI2 names, don't use in new code */
-#define BUS_DEVICE_RESET    TARGET_RESET
-#define ABORT               ABORT_TASK_SET
-
-/*
- * Host byte codes
- */
-
-#define DID_OK          0x00	/* NO error                                */
-#define DID_NO_CONNECT  0x01	/* Couldn't connect before timeout period  */
-#define DID_BUS_BUSY    0x02	/* BUS stayed busy through time out period */
-#define DID_TIME_OUT    0x03	/* TIMED OUT for other reason              */
-#define DID_BAD_TARGET  0x04	/* BAD target.                             */
-#define DID_ABORT       0x05	/* Told to abort for some other reason     */
-#define DID_PARITY      0x06	/* Parity error                            */
-#define DID_ERROR       0x07	/* Internal error                          */
-#define DID_RESET       0x08	/* Reset by somebody.                      */
-#define DID_BAD_INTR    0x09	/* Got an interrupt we weren't expecting.  */
-#define DID_PASSTHROUGH 0x0a	/* Force command past mid-layer            */
-#define DID_SOFT_ERROR  0x0b	/* The low level driver just wish a retry  */
-#define DID_IMM_RETRY   0x0c	/* Retry without decrementing retry count  */
-#define DID_REQUEUE	0x0d	/* Requeue command (no immediate retry) also
-				 * without decrementing the retry count	   */
-#define DID_TRANSPORT_DISRUPTED 0x0e /* Transport error disrupted execution
-				      * and the driver blocked the port to
-				      * recover the link. Transport class will
-				      * retry or fail IO */
-#define DID_TRANSPORT_FAILFAST	0x0f /* Transport class fastfailed the io */
-#define DID_TARGET_FAILURE 0x10 /* Permanent target failure, do not retry on
-				 * other paths */
-#define DID_NEXUS_FAILURE 0x11  /* Permanent nexus failure, retry on other
-				 * paths might yield different results */
-#define DID_ALLOC_FAILURE 0x12  /* Space allocation on the device failed */
-#define DID_MEDIUM_ERROR  0x13  /* Medium error */
-#define DRIVER_OK       0x00	/* Driver status                           */
-
-/*
- *  These indicate the error that occurred, and what is available.
- */
-
-#define DRIVER_BUSY         0x01
-#define DRIVER_SOFT         0x02
-#define DRIVER_MEDIA        0x03
-#define DRIVER_ERROR        0x04
-
-#define DRIVER_INVALID      0x05
-#define DRIVER_TIMEOUT      0x06
-#define DRIVER_HARD         0x07
-#define DRIVER_SENSE	    0x08
 
 /*
  * Internal return values.
  */
-
-#define NEEDS_RETRY     0x2001
-#define SUCCESS         0x2002
-#define FAILED          0x2003
-#define QUEUED          0x2004
-#define SOFT_ERROR      0x2005
-#define ADD_TO_MLQUEUE  0x2006
-#define TIMEOUT_ERROR   0x2007
-#define SCSI_RETURN_NOT_HANDLED   0x2008
-#define FAST_IO_FAIL	0x2009
+enum scsi_disposition {
+	NEEDS_RETRY		= 0x2001,
+	SUCCESS			= 0x2002,
+	FAILED			= 0x2003,
+	QUEUED			= 0x2004,
+	SOFT_ERROR		= 0x2005,
+	ADD_TO_MLQUEUE		= 0x2006,
+	TIMEOUT_ERROR		= 0x2007,
+	SCSI_RETURN_NOT_HANDLED	= 0x2008,
+	FAST_IO_FAIL		= 0x2009,
+};
 
 /*
  * Midlevel queue return values.
@@ -203,14 +119,11 @@ static inline int scsi_is_wlun(u64 lun)
  *  These are set by:
  *
  *      status byte = set from target device
- *      msg_byte    = return status from host adapter itself.
+ *      msg_byte    (unused)
  *      host_byte   = set by low-level driver to indicate status.
- *      driver_byte = set by mid-level.
  */
-#define status_byte(result) (((result) >> 1) & 0x7f)
-#define msg_byte(result)    (((result) >> 8) & 0xff)
+#define status_byte(result) (result & 0xff)
 #define host_byte(result)   (((result) >> 16) & 0xff)
-#define driver_byte(result) (((result) >> 24) & 0xff)
 
 #define sense_class(sense)  (((sense) >> 4) & 0x7)
 #define sense_error(sense)  ((sense) & 0xf)
@@ -245,6 +158,9 @@ static inline int scsi_is_wlun(u64 lun)
 #define SCSI_3          4        /* SPC */
 #define SCSI_SPC_2      5
 #define SCSI_SPC_3      6
+#define SCSI_SPC_4	7
+#define SCSI_SPC_5	8
+#define SCSI_SPC_6	14
 
 /*
  * INQ PERIPHERAL QUALIFIERS
@@ -273,5 +189,37 @@ static inline int scsi_is_wlun(u64 lun)
 
 /* Used to obtain the PCI location of a device */
 #define SCSI_IOCTL_GET_PCI		0x5387
+
+/**
+ * scsi_status_is_good - check the status return.
+ *
+ * @status: the status passed up from the driver (including host and
+ *          driver components)
+ *
+ * Returns: %true for known good conditions that may be treated as
+ * command completed normally
+ */
+static inline bool scsi_status_is_good(int status)
+{
+	if (status < 0)
+		return false;
+
+	if (host_byte(status) == DID_NO_CONNECT)
+		return false;
+
+	/*
+	 * FIXME: bit0 is listed as reserved in SCSI-2, but is
+	 * significant in SCSI-3.  For now, we follow the SCSI-2
+	 * behaviour and ignore reserved bits.
+	 */
+	status &= 0xfe;
+	return ((status == SAM_STAT_GOOD) ||
+		(status == SAM_STAT_CONDITION_MET) ||
+		/* Next two "intermediate" statuses are obsolete in SAM-4 */
+		(status == SAM_STAT_INTERMEDIATE) ||
+		(status == SAM_STAT_INTERMEDIATE_CONDITION_MET) ||
+		/* FIXME: this is obsolete in SAM-3 */
+		(status == SAM_STAT_COMMAND_TERMINATED));
+}
 
 #endif /* _SCSI_SCSI_H */

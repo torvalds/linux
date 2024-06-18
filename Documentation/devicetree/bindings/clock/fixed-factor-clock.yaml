@@ -4,16 +4,24 @@
 $id: http://devicetree.org/schemas/clock/fixed-factor-clock.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Binding for simple fixed factor rate clock sources
+title: Simple fixed factor rate clock sources
 
 maintainers:
   - Michael Turquette <mturquette@baylibre.com>
   - Stephen Boyd <sboyd@kernel.org>
 
 properties:
+  $nodename:
+    anyOf:
+      - description:
+          If the frequency is fixed, the preferred name is 'clock-<freq>' with
+          <freq> being the output frequency.
+        pattern: "^clock-([0-9]+|[0-9a-z-]+)$"
+      - description: Any name allowed
+        deprecated: true
+
   compatible:
     enum:
-      - allwinner,sun4i-a10-pll3-2x-clk
       - fixed-factor-clock
 
   "#clock-cells":
@@ -24,9 +32,8 @@ properties:
 
   clock-div:
     description: Fixed divider
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - minimum: 1
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 1
 
   clock-mult:
     description: Fixed multiplier

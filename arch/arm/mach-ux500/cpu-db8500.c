@@ -26,9 +26,6 @@
 #include <asm/mach/map.h>
 #include <asm/mach/arch.h>
 
-#include "db8500-regs.h"
-#include "pm_domains.h"
-
 static int __init ux500_l2x0_unlock(void)
 {
 	int i;
@@ -84,6 +81,7 @@ static void __init ux500_init_irq(void)
 	struct resource r;
 
 	irqchip_init();
+	prcmu_early_init();
 	np = of_find_compatible_node(NULL, NULL, "stericsson,db8500-prcmu");
 	of_address_to_resource(np, 0, &r);
 	of_node_put(np);
@@ -91,7 +89,6 @@ static void __init ux500_init_irq(void)
 		pr_err("could not find PRCMU base resource\n");
 		return;
 	}
-	prcmu_early_init(r.start, r.end-r.start);
 	ux500_pm_init(r.start, r.end-r.start);
 
 	/* Unlock before init */
@@ -116,9 +113,6 @@ static const struct of_device_id u8500_local_bus_nodes[] = {
 
 static void __init u8500_init_machine(void)
 {
-	/* Initialize ux500 power domains */
-	ux500_pm_domains_init();
-
 	of_platform_populate(NULL, u8500_local_bus_nodes,
 			     NULL, NULL);
 }

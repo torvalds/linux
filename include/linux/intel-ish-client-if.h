@@ -8,10 +8,16 @@
 #ifndef _INTEL_ISH_CLIENT_IF_H_
 #define _INTEL_ISH_CLIENT_IF_H_
 
+#include <linux/device.h>
+#include <linux/mod_devicetable.h>
+
 struct ishtp_cl_device;
 struct ishtp_device;
 struct ishtp_cl;
 struct ishtp_fw_client;
+
+typedef __printf(2, 3) void (*ishtp_print_log)(struct ishtp_device *dev,
+					       const char *format, ...);
 
 /* Client state */
 enum cl_state {
@@ -34,9 +40,9 @@ enum cl_state {
 struct ishtp_cl_driver {
 	struct device_driver driver;
 	const char *name;
-	const guid_t *guid;
+	const struct ishtp_device_id *id;
 	int (*probe)(struct ishtp_cl_device *dev);
-	int (*remove)(struct ishtp_cl_device *dev);
+	void (*remove)(struct ishtp_cl_device *dev);
 	int (*reset)(struct ishtp_cl_device *dev);
 	const struct dev_pm_ops *pm;
 };
@@ -75,8 +81,10 @@ int ishtp_register_event_cb(struct ishtp_cl_device *device,
 
 /* Get the device * from ishtp device instance */
 struct device *ishtp_device(struct ishtp_cl_device *cl_device);
+/* wait for IPC resume */
+bool ishtp_wait_resume(struct ishtp_device *dev);
 /* Trace interface for clients */
-void *ishtp_trace_callback(struct ishtp_cl_device *cl_device);
+ishtp_print_log ishtp_trace_callback(struct ishtp_cl_device *cl_device);
 /* Get device pointer of PCI device for DMA acces */
 struct device *ishtp_get_pci_device(struct ishtp_cl_device *cl_device);
 
@@ -86,6 +94,9 @@ int ishtp_cl_link(struct ishtp_cl *cl);
 void ishtp_cl_unlink(struct ishtp_cl *cl);
 int ishtp_cl_disconnect(struct ishtp_cl *cl);
 int ishtp_cl_connect(struct ishtp_cl *cl);
+int ishtp_cl_establish_connection(struct ishtp_cl *cl, const guid_t *uuid,
+				  int tx_size, int rx_size, bool reset);
+void ishtp_cl_destroy_connection(struct ishtp_cl *cl, bool reset);
 int ishtp_cl_send(struct ishtp_cl *cl, uint8_t *buf, size_t length);
 int ishtp_cl_flush_queues(struct ishtp_cl *cl);
 int ishtp_cl_io_rb_recycle(struct ishtp_cl_rb *rb);

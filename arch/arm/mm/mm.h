@@ -2,8 +2,7 @@
 #ifdef CONFIG_MMU
 #include <linux/list.h>
 #include <linux/vmalloc.h>
-
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 
 /* the upper-most page table pointer */
 extern pmd_t *top_pmd;
@@ -36,11 +35,6 @@ static inline pte_t get_top_pte(unsigned long va)
 	return *ptep;
 }
 
-static inline pmd_t *pmd_off_k(unsigned long virt)
-{
-	return pmd_offset(pud_offset(pgd_offset_k(virt), virt), virt);
-}
-
 struct mem_type {
 	pteval_t prot_pte;
 	pteval_t prot_pte_s2;
@@ -51,7 +45,7 @@ struct mem_type {
 
 const struct mem_type *get_mem_type(unsigned int type);
 
-extern void __flush_dcache_page(struct address_space *mapping, struct page *page);
+void __flush_dcache_folio(struct address_space *mapping, struct folio *folio);
 
 /*
  * ARM specific vm_struct->flags bits.
@@ -94,6 +88,10 @@ extern phys_addr_t arm_lowmem_limit;
 
 void __init bootmem_init(void);
 void arm_mm_memblock_reserve(void);
+#ifdef CONFIG_CMA_AREAS
 void dma_contiguous_remap(void);
+#else
+static inline void dma_contiguous_remap(void) { }
+#endif
 
 unsigned long __clear_cr(unsigned long mask);

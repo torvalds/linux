@@ -1,4 +1,5 @@
-What:		security/evm
+What:		/sys/kernel/security/evm
+What:		/sys/kernel/security/*/evm
 Date:		March 2011
 Contact:	Mimi Zohar <zohar@us.ibm.com>
 Description:
@@ -17,33 +18,68 @@ Description:
 		echoing a value to <securityfs>/evm made up of the
 		following bits:
 
+		===	  ==================================================
 		Bit	  Effect
+		===	  ==================================================
 		0	  Enable HMAC validation and creation
 		1	  Enable digital signature validation
 		2	  Permit modification of EVM-protected metadata at
 			  runtime. Not supported if HMAC validation and
-			  creation is enabled.
+			  creation is enabled (deprecated).
 		31	  Disable further runtime modification of EVM policy
+		===	  ==================================================
 
-		For example:
+		For example::
 
-		echo 1 ><securityfs>/evm
+		  echo 1 ><securityfs>/evm
 
 		will enable HMAC validation and creation
 
-		echo 0x80000003 ><securityfs>/evm
+		::
+
+		  echo 0x80000003 ><securityfs>/evm
 
 		will enable HMAC and digital signature validation and
 		HMAC creation and disable all further modification of policy.
 
-		echo 0x80000006 ><securityfs>/evm
+		::
+
+		  echo 0x80000006 ><securityfs>/evm
 
 		will enable digital signature validation, permit
 		modification of EVM-protected metadata and
-		disable all further modification of policy
+		disable all further modification of policy. This option is now
+		deprecated in favor of::
 
-		Note that once a key has been loaded, it will no longer be
-		possible to enable metadata modification.
+		  echo 0x80000002 ><securityfs>/evm
+
+		as the outstanding issues that prevent the usage of EVM portable
+		signatures have been solved.
+
+		Echoing a value is additive, the new value is added to the
+		existing initialization flags.
+
+		For example, after::
+
+		  echo 2 ><securityfs>/evm
+
+		another echo can be performed::
+
+		  echo 1 ><securityfs>/evm
+
+		and the resulting value will be 3.
+
+		Note that once an HMAC key has been loaded, it will no longer
+		be possible to enable metadata modification. Signaling that an
+		HMAC key has been loaded will clear the corresponding flag.
+		For example, if the current value is 6 (2 and 4 set)::
+
+		  echo 1 ><securityfs>/evm
+
+		will set the new value to 3 (4 cleared).
+
+		Loading an HMAC key is the only way to disable metadata
+		modification.
 
 		Until key loading has been signaled EVM can not create
 		or validate the 'security.evm' xattr, but returns
@@ -58,14 +94,14 @@ Description:
 		core/ima-setup) have support for loading keys at boot
 		time.
 
-What:		security/integrity/evm/evm_xattrs
+What:		/sys/kernel/security/*/evm/evm_xattrs
 Date:		April 2018
 Contact:	Matthew Garrett <mjg59@google.com>
 Description:
 		Shows the set of extended attributes used to calculate or
 		validate the EVM signature, and allows additional attributes
 		to be added at runtime. Any signatures generated after
-		additional attributes are added (and on files posessing those
+		additional attributes are added (and on files possessing those
 		additional attributes) will only be valid if the same
 		additional attributes are configured on system boot. Writing
 		a single period (.) will lock the xattr list from any further

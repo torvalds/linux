@@ -12,7 +12,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/remoteproc.h>
 #include <linux/remoteproc/st_slim_rproc.h>
@@ -174,7 +173,7 @@ static int slim_rproc_stop(struct rproc *rproc)
 	return 0;
 }
 
-static void *slim_rproc_da_to_va(struct rproc *rproc, u64 da, int len)
+static void *slim_rproc_da_to_va(struct rproc *rproc, u64 da, size_t len, bool *is_iomem)
 {
 	struct st_slim_rproc *slim_rproc = rproc->priv;
 	void *va = NULL;
@@ -191,7 +190,7 @@ static void *slim_rproc_da_to_va(struct rproc *rproc, u64 da, int len)
 		}
 	}
 
-	dev_dbg(&rproc->dev, "da = 0x%llx len = 0x%x va = 0x%pK\n",
+	dev_dbg(&rproc->dev, "da = 0x%llx len = 0x%zx va = 0x%pK\n",
 		da, len, va);
 
 	return va;
@@ -216,7 +215,7 @@ static const struct rproc_ops slim_rproc_ops = {
  * obtains and enables any clocks required by the SLIM core and also
  * ioremaps the various IO.
  *
- * Returns st_slim_rproc pointer or PTR_ERR() on error.
+ * Return: st_slim_rproc pointer or PTR_ERR() on error.
  */
 
 struct st_slim_rproc *st_slim_rproc_alloc(struct platform_device *pdev,

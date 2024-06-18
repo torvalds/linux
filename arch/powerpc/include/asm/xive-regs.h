@@ -37,8 +37,17 @@
 #define XIVE_ESB_SET_PQ_10	0xe00 /* Load */
 #define XIVE_ESB_SET_PQ_11	0xf00 /* Load */
 
+/*
+ * Load-after-store ordering
+ *
+ * Adding this offset to the load address will enforce
+ * load-after-store ordering. This is required to use StoreEOI.
+ */
+#define XIVE_ESB_LD_ST_MO	0x40 /* Load-after-store ordering */
+
 #define XIVE_ESB_VAL_P		0x2
 #define XIVE_ESB_VAL_Q		0x1
+#define XIVE_ESB_INVALID	0xFF
 
 /*
  * Thread Management (aka "TM") registers
@@ -71,10 +80,13 @@
 #define   TM_QW0W2_VU		PPC_BIT32(0)
 #define   TM_QW0W2_LOGIC_SERV	PPC_BITMASK32(1,31) // XX 2,31 ?
 #define   TM_QW1W2_VO		PPC_BIT32(0)
+#define   TM_QW1W2_HO           PPC_BIT32(1) /* P10 XIVE2 */
 #define   TM_QW1W2_OS_CAM	PPC_BITMASK32(8,31)
 #define   TM_QW2W2_VP		PPC_BIT32(0)
+#define   TM_QW2W2_HP           PPC_BIT32(1) /* P10 XIVE2 */
 #define   TM_QW2W2_POOL_CAM	PPC_BITMASK32(8,31)
 #define   TM_QW3W2_VT		PPC_BIT32(0)
+#define   TM_QW3W2_HT           PPC_BIT32(1) /* P10 XIVE2 */
 #define   TM_QW3W2_LP		PPC_BIT32(6)
 #define   TM_QW3W2_LE		PPC_BIT32(7)
 #define   TM_QW3W2_T		PPC_BIT32(31)

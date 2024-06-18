@@ -175,5 +175,25 @@ _ge-abspath = $(if $(is-executable),$(1))
 define get-executable-or-default
 $(if $($(1)),$(call _ge_attempt,$($(1)),$(1)),$(call _ge_attempt,$(2)))
 endef
-_ge_attempt = $(if $(get-executable),$(get-executable),$(call _gea_err,$(2)))
+_ge_attempt = $(or $(get-executable),$(call _gea_err,$(2)))
 _gea_err  = $(if $(1),$(error Please set '$(1)' appropriately))
+
+# version-ge3
+#
+# Usage $(call version-ge3,2.6.4,$(FLEX_VERSION))
+#
+# To compare if a 3 component version is greater or equal to another, first use
+# was to check the flex version to see if we can use compiler warnings as
+# errors for one of the cases flex generates code C compilers complains about.
+
+version-ge3 = $(shell echo "$(1).$(2)" | awk -F'.' '{ printf("%d\n", (10000000 * $$1 + 10000 * $$2 + $$3) >= (10000000 * $$4 + 10000 * $$5 + $$6)) }')
+
+# version-lt3
+#
+# Usage $(call version-lt3,2.6.2,$(FLEX_VERSION))
+#
+# To compare if a 3 component version is less thjan another, first use was to
+# check the flex version to see if we can use compiler warnings as errors for
+# one of the cases flex generates code C compilers complains about.
+
+version-lt3 = $(shell echo "$(1).$(2)" | awk -F'.' '{ printf("%d\n", (10000000 * $$1 + 10000 * $$2 + $$3) < (10000000 * $$4 + 10000 * $$5 + $$6)) }')

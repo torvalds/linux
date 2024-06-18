@@ -23,6 +23,7 @@ PTP hardware clock infrastructure for Linux
   + Ancillary clock features
     - Time stamp external events
     - Period output signals configurable from user space
+    - Low Pass Filter (LPF) access from user space
     - Synchronization of the Linux system time via the PPS subsystem
 
 PTP hardware clock kernel API
@@ -72,6 +73,22 @@ Writing clock drivers
    class driver, since the lock may also be needed by the clock
    driver's interrupt service routine.
 
+PTP hardware clock requirements for '.adjphase'
+-----------------------------------------------
+
+   The 'struct ptp_clock_info' interface has a '.adjphase' function.
+   This function has a set of requirements from the PHC in order to be
+   implemented.
+
+     * The PHC implements a servo algorithm internally that is used to
+       correct the offset passed in the '.adjphase' call.
+     * When other PTP adjustment functions are called, the PHC servo
+       algorithm is disabled.
+
+   **NOTE:** '.adjphase' is not a simple time adjustment functionality
+   that 'jumps' the PHC clock time based on the provided offset. It
+   should correct the offset provided using an internal algorithm.
+
 Supported hardware
 ==================
 
@@ -94,3 +111,27 @@ Supported hardware
 
      - Auxiliary Slave/Master Mode Snapshot (optional interrupt)
      - Target Time (optional interrupt)
+
+   * Renesas (IDT) ClockMatrix™
+
+     - Up to 4 independent PHC channels
+     - Integrated low pass filter (LPF), access via .adjPhase (compliant to ITU-T G.8273.2)
+     - Programmable output periodic signals
+     - Programmable inputs can time stamp external triggers
+     - Driver and/or hardware configuration through firmware (idtcm.bin)
+          - LPF settings (bandwidth, phase limiting, automatic holdover, physical layer assist (per ITU-T G.8273.2))
+          - Programmable output PTP clocks, any frequency up to 1GHz (to other PHY/MAC time stampers, refclk to ASSPs/SoCs/FPGAs)
+          - Lock to GNSS input, automatic switching between GNSS and user-space PHC control (optional)
+
+   * NVIDIA Mellanox
+
+     - GPIO
+          - Certain variants of ConnectX-6 Dx and later products support one
+            GPIO which can time stamp external triggers and one GPIO to produce
+            periodic signals.
+          - Certain variants of ConnectX-5 and older products support one GPIO,
+            configured to either time stamp external triggers or produce
+            periodic signals.
+     - PHC instances
+          - All ConnectX devices have a free-running counter
+          - ConnectX-6 Dx and later devices have a UTC format counter

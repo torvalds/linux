@@ -66,7 +66,7 @@ static void timing_setup(struct ata_port *ap, struct ata_device *adev, int offse
 
 	if (peer) {
 		/* This may be over conservative */
-		if (peer->dma_mode) {
+		if (ata_dma_enabled(peer)) {
 			ata_timing_compute(peer, peer->dma_mode, &apeer, T, UT);
 			ata_timing_merge(&apeer, &at, &at, ATA_TIMING_8BIT);
 		}
@@ -167,7 +167,6 @@ static int amd_cable_detect(struct ata_port *ap)
 /**
  *	amd_fifo_setup		-	set the PIO FIFO for ATA/ATAPI
  *	@ap: ATA interface
- *	@adev: ATA device
  *
  *	Set the PCI fifo for this device according to the devices present
  *	on the bus at this point in time. We need to turn the post write buffer
@@ -265,8 +264,8 @@ static void amd133_set_dmamode(struct ata_port *ap, struct ata_device *adev)
  * cached during driver attach and are consulted to select transfer
  * mode.
  */
-static unsigned long nv_mode_filter(struct ata_device *dev,
-				    unsigned long xfer_mask)
+static unsigned int nv_mode_filter(struct ata_device *dev,
+				   unsigned int xfer_mask)
 {
 	static const unsigned int udma_mask_map[] =
 		{ ATA_UDMA2, ATA_UDMA1, ATA_UDMA0, 0,
@@ -275,7 +274,7 @@ static unsigned long nv_mode_filter(struct ata_device *dev,
 	char acpi_str[32] = "";
 	u32 saved_udma, udma;
 	const struct ata_acpi_gtm *gtm;
-	unsigned long bios_limit = 0, acpi_limit = 0, limit;
+	unsigned int bios_limit = 0, acpi_limit = 0, limit;
 
 	/* find out what BIOS configured */
 	udma = saved_udma = (unsigned long)ap->host->private_data;
@@ -311,17 +310,18 @@ static unsigned long nv_mode_filter(struct ata_device *dev,
 	   cable detection result */
 	limit |= ata_pack_xfermask(ATA_PIO4, ATA_MWDMA2, ATA_UDMA2);
 
-	ata_port_dbg(ap, "nv_mode_filter: 0x%lx&0x%lx->0x%lx, "
-			"BIOS=0x%lx (0x%x) ACPI=0x%lx%s\n",
-			xfer_mask, limit, xfer_mask & limit, bios_limit,
-			saved_udma, acpi_limit, acpi_str);
+	ata_port_dbg(ap,
+		     "nv_mode_filter: 0x%x&0x%x->0x%x, BIOS=0x%x (0x%x) ACPI=0x%x%s\n",
+		     xfer_mask, limit, xfer_mask & limit, bios_limit,
+		     saved_udma, acpi_limit, acpi_str);
 
 	return xfer_mask & limit;
 }
 
 /**
- *	nv_probe_init	-	cable detection
- *	@lin: ATA link
+ *	nv_pre_reset	-	cable detection
+ *	@link: ATA link
+ *	@deadline: deadline jiffies for the operation
  *
  *	Perform cable detection. The BIOS stores this in PCI config
  *	space for us.
@@ -388,7 +388,7 @@ static void nv_host_stop(struct ata_host *host)
 	pci_write_config_dword(to_pci_dev(host->dev), 0x60, udma);
 }
 
-static struct scsi_host_template amd_sht = {
+static const struct scsi_host_template amd_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 

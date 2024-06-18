@@ -6,7 +6,7 @@ source "virt/kvm/Kconfig"
 
 menuconfig VIRTUALIZATION
 	bool "Virtualization"
-	---help---
+	help
 	  Say Y here to get to see options for using your Linux host to run
 	  other operating systems inside virtual machines (guests).
 	  This option alone does not add any kernel code.
@@ -17,61 +17,27 @@ if VIRTUALIZATION
 
 config KVM
 	tristate "Kernel-based Virtual Machine (KVM) support"
-	depends on HAVE_KVM
+	depends on CPU_SUPPORTS_VZ
 	depends on MIPS_FP_SUPPORT
 	select EXPORT_UASM
-	select PREEMPT_NOTIFIERS
+	select KVM_COMMON
 	select KVM_GENERIC_DIRTYLOG_READ_PROTECT
 	select HAVE_KVM_VCPU_ASYNC_IOCTL
 	select KVM_MMIO
-	select MMU_NOTIFIER
-	select SRCU
-	---help---
+	select KVM_GENERIC_MMU_NOTIFIER
+	select KVM_GENERIC_HARDWARE_ENABLING
+	select HAVE_KVM_READONLY_MEM
+	help
 	  Support for hosting Guest kernels.
-
-choice
-	prompt "Virtualization mode"
-	depends on KVM
-	default KVM_MIPS_TE
-
-config KVM_MIPS_TE
-	bool "Trap & Emulate"
-	---help---
-	  Use trap and emulate to virtualize 32-bit guests in user mode. This
-	  does not require any special hardware Virtualization support beyond
-	  standard MIPS32/64 r2 or later, but it does require the guest kernel
-	  to be configured with CONFIG_KVM_GUEST=y so that it resides in the
-	  user address segment.
-
-config KVM_MIPS_VZ
-	bool "MIPS Virtualization (VZ) ASE"
-	---help---
-	  Use the MIPS Virtualization (VZ) ASE to virtualize guests. This
-	  supports running unmodified guest kernels (with CONFIG_KVM_GUEST=n),
-	  but requires hardware support.
-
-endchoice
-
-config KVM_MIPS_DYN_TRANS
-	bool "KVM/MIPS: Dynamic binary translation to reduce traps"
-	depends on KVM_MIPS_TE
-	default y
-	---help---
-	  When running in Trap & Emulate mode patch privileged
-	  instructions to reduce the number of traps.
-
-	  If unsure, say Y.
 
 config KVM_MIPS_DEBUG_COP0_COUNTERS
 	bool "Maintain counters for COP0 accesses"
 	depends on KVM
-	---help---
+	help
 	  Maintain statistics for Guest COP0 accesses.
 	  A histogram of COP0 accesses is printed when the VM is
 	  shutdown.
 
 	  If unsure, say N.
-
-source "drivers/vhost/Kconfig"
 
 endif # VIRTUALIZATION

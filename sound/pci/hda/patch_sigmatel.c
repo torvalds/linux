@@ -209,6 +209,7 @@ struct sigmatel_spec {
 
 	/* beep widgets */
 	hda_nid_t anabeep_nid;
+	bool beep_power_on;
 
 	/* SPDIF-out mux */
 	const char * const *spdif_labels;
@@ -320,15 +321,18 @@ static void stac_gpio_set(struct hda_codec *codec, unsigned int mask,
 }
 
 /* hook for controlling mic-mute LED GPIO */
-static void stac_capture_led_update(struct hda_codec *codec)
+static int stac_capture_led_update(struct led_classdev *led_cdev,
+				   enum led_brightness brightness)
 {
+	struct hda_codec *codec = dev_to_hda_codec(led_cdev->dev->parent);
 	struct sigmatel_spec *spec = codec->spec;
 
-	if (spec->gen.micmute_led.led_value)
+	if (brightness)
 		spec->gpio_data |= spec->mic_mute_led_gpio;
 	else
 		spec->gpio_data &= ~spec->mic_mute_led_gpio;
 	stac_gpio_set(codec, spec->gpio_mask, spec->gpio_dir, spec->gpio_data);
+	return 0;
 }
 
 static int stac_vrefout_set(struct hda_codec *codec,
@@ -366,10 +370,9 @@ static unsigned int stac_vref_led_power_filter(struct hda_codec *codec,
 }
 
 /* update mute-LED accoring to the master switch */
-static void stac_update_led_status(struct hda_codec *codec, int enabled)
+static void stac_update_led_status(struct hda_codec *codec, bool muted)
 {
 	struct sigmatel_spec *spec = codec->spec;
-	int muted = !enabled;
 
 	if (!spec->gpio_led)
 		return;
@@ -393,9 +396,13 @@ static void stac_update_led_status(struct hda_codec *codec, int enabled)
 }
 
 /* vmaster hook to update mute LED */
-static void stac_vmaster_hook(void *private_data, int val)
+static int stac_vmaster_hook(struct led_classdev *led_cdev,
+			     enum led_brightness brightness)
 {
-	stac_update_led_status(private_data, val);
+	struct hda_codec *codec = dev_to_hda_codec(led_cdev->dev->parent);
+
+	stac_update_led_status(codec, brightness);
+	return 0;
 }
 
 /* automute hook to handle GPIO mute and EAPD updates */
@@ -795,7 +802,7 @@ static int find_mute_led_cfg(struct hda_codec *codec, int default_polarity)
 static bool has_builtin_speaker(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
-	hda_nid_t *nid_pin;
+	const hda_nid_t *nid_pin;
 	int nids, i;
 
 	if (spec->gen.autocfg.line_out_type == AUTO_PIN_SPEAKER_OUT) {
@@ -825,14 +832,14 @@ static int stac_auto_create_beep_ctls(struct hda_codec *codec,
 	struct sigmatel_spec *spec = codec->spec;
 	u32 caps = query_amp_caps(codec, nid, HDA_OUTPUT);
 	struct snd_kcontrol_new *knew;
-	static struct snd_kcontrol_new abeep_mute_ctl =
+	static const struct snd_kcontrol_new abeep_mute_ctl =
 		HDA_CODEC_MUTE(NULL, 0, 0, 0);
-	static struct snd_kcontrol_new dbeep_mute_ctl =
+	static const struct snd_kcontrol_new dbeep_mute_ctl =
 		HDA_CODEC_MUTE_BEEP(NULL, 0, 0, 0);
-	static struct snd_kcontrol_new beep_vol_ctl =
+	static const struct snd_kcontrol_new beep_vol_ctl =
 		HDA_CODEC_VOLUME(NULL, 0, 0, 0);
 
-	/* check for mute support for the the amp */
+	/* check for mute support for the amp */
 	if ((caps & AC_AMPCAP_MUTE) >> AC_AMPCAP_MUTE_SHIFT) {
 		const struct snd_kcontrol_new *temp;
 		if (spec->anabeep_nid == nid)
@@ -1700,6 +1707,7 @@ static const struct snd_pci_quirk stac925x_fixup_tbl[] = {
 };
 
 static const struct hda_pintbl ref92hd73xx_pin_configs[] = {
+	// Port A-H
 	{ 0x0a, 0x02214030 },
 	{ 0x0b, 0x02a19040 },
 	{ 0x0c, 0x01a19020 },
@@ -1708,9 +1716,12 @@ static const struct hda_pintbl ref92hd73xx_pin_configs[] = {
 	{ 0x0f, 0x01014010 },
 	{ 0x10, 0x01014020 },
 	{ 0x11, 0x01014030 },
+	// CD in
 	{ 0x12, 0x02319040 },
+	// Digial Mic ins
 	{ 0x13, 0x90a000f0 },
 	{ 0x14, 0x90a000f0 },
+	// Digital outs
 	{ 0x22, 0x01452050 },
 	{ 0x23, 0x01452050 },
 	{}
@@ -1751,6 +1762,7 @@ static const struct hda_pintbl alienware_m17x_pin_configs[] = {
 };
 
 static const struct hda_pintbl intel_dg45id_pin_configs[] = {
+	// Analog outputs
 	{ 0x0a, 0x02214230 },
 	{ 0x0b, 0x02A19240 },
 	{ 0x0c, 0x01013214 },
@@ -1758,6 +1770,9 @@ static const struct hda_pintbl intel_dg45id_pin_configs[] = {
 	{ 0x0e, 0x01A19250 },
 	{ 0x0f, 0x01011212 },
 	{ 0x10, 0x01016211 },
+	// Digital output
+	{ 0x22, 0x01451380 },
+	{ 0x23, 0x40f000f0 },
 	{}
 };
 
@@ -1948,6 +1963,8 @@ static const struct snd_pci_quirk stac92hd73xx_fixup_tbl[] = {
 				"DFI LanParty", STAC_92HD73XX_REF),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DFI, 0x3101,
 				"DFI LanParty", STAC_92HD73XX_REF),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x5001,
+				"Intel DP45SG", STAC_92HD73XX_INTEL),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x5002,
 				"Intel DG45ID", STAC_92HD73XX_INTEL),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x5003,
@@ -2137,10 +2154,8 @@ static void stac92hd83xxx_fixup_hp_mic_led(struct hda_codec *codec,
 
 	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
 		spec->mic_mute_led_gpio = 0x08; /* GPIO3 */
-#ifdef CONFIG_PM
 		/* resetting controller clears GPIO, so we need to keep on */
 		codec->core.power_caps &= ~AC_PWRST_CLKSTOP;
-#endif
 	}
 }
 
@@ -2182,7 +2197,7 @@ static void hp_envy_ts_fixup_dac_bind(struct hda_codec *codec,
 					    int action)
 {
 	struct sigmatel_spec *spec = codec->spec;
-	static hda_nid_t preferred_pairs[] = {
+	static const hda_nid_t preferred_pairs[] = {
 		0xd, 0x13,
 		0
 	};
@@ -3129,7 +3144,7 @@ static void fixup_hp_headphone(struct hda_codec *codec, hda_nid_t pin)
 	unsigned int pin_cfg = snd_hda_codec_get_pincfg(codec, pin);
 
 	/* It was changed in the BIOS to just satisfy MS DTM.
-	 * Lets turn it back into slaved HP
+	 * Lets turn it back into follower HP
 	 */
 	pin_cfg = (pin_cfg & (~AC_DEFCFG_DEVICE)) |
 		(AC_JACK_HP_OUT << AC_DEFCFG_DEVICE_SHIFT);
@@ -4271,6 +4286,9 @@ static int stac_parse_auto_config(struct hda_codec *codec)
 
 	spec->gen.automute_hook = stac_update_outputs;
 
+	if (spec->gpio_led)
+		snd_hda_gen_add_mute_led_cdev(codec, stac_vmaster_hook);
+
 	err = snd_hda_gen_parse_auto_config(codec, &spec->gen.autocfg);
 	if (err < 0)
 		return err;
@@ -4301,6 +4319,8 @@ static int stac_parse_auto_config(struct hda_codec *codec)
 		if (codec->beep) {
 			/* IDT/STAC codecs have linear beep tone parameter */
 			codec->beep->linear_tone = spec->linear_tone_beep;
+			/* keep power up while beep is enabled */
+			codec->beep->keep_power_at_enable = 1;
 			/* if no beep switch is available, make its own one */
 			caps = query_amp_caps(codec, nid, HDA_OUTPUT);
 			if (!(caps & AC_AMPCAP_MUTE)) {
@@ -4311,9 +4331,6 @@ static int stac_parse_auto_config(struct hda_codec *codec)
 		}
 	}
 #endif
-
-	if (spec->gpio_led)
-		spec->gen.vmaster_mute.hook = stac_vmaster_hook;
 
 	if (spec->aloopback_ctl &&
 	    snd_hda_get_bool_hint(codec, "loopback") == 1) {
@@ -4374,18 +4391,6 @@ static int stac_init(struct hda_codec *codec)
 	return 0;
 }
 
-static void stac_shutup(struct hda_codec *codec)
-{
-	struct sigmatel_spec *spec = codec->spec;
-
-	snd_hda_shutup_pins(codec);
-
-	if (spec->eapd_mask)
-		stac_gpio_set(codec, spec->gpio_mask,
-				spec->gpio_dir, spec->gpio_data &
-				~spec->eapd_mask);
-}
-
 #define stac_free	snd_hda_gen_free
 
 #ifdef CONFIG_SND_PROC_FS
@@ -4435,15 +4440,19 @@ static void stac927x_proc_hook(struct snd_info_buffer *buffer,
 #define stac927x_proc_hook	NULL
 #endif
 
-#ifdef CONFIG_PM
 static int stac_suspend(struct hda_codec *codec)
 {
-	stac_shutup(codec);
+	struct sigmatel_spec *spec = codec->spec;
+
+	snd_hda_shutup_pins(codec);
+
+	if (spec->eapd_mask)
+		stac_gpio_set(codec, spec->gpio_mask,
+				spec->gpio_dir, spec->gpio_data &
+				~spec->eapd_mask);
+
 	return 0;
 }
-#else
-#define stac_suspend		NULL
-#endif /* CONFIG_PM */
 
 static const struct hda_codec_ops stac_patch_ops = {
 	.build_controls = snd_hda_gen_build_controls,
@@ -4451,10 +4460,7 @@ static const struct hda_codec_ops stac_patch_ops = {
 	.init = stac_init,
 	.free = stac_free,
 	.unsol_event = snd_hda_jack_unsol_event,
-#ifdef CONFIG_PM
 	.suspend = stac_suspend,
-#endif
-	.reboot_notify = stac_shutup,
 };
 
 static int alloc_stac_spec(struct hda_codec *codec)
@@ -4636,7 +4642,7 @@ static void stac_setup_gpio(struct hda_codec *codec)
 		spec->gpio_dir |= spec->mic_mute_led_gpio;
 		spec->mic_enabled = 0;
 		spec->gpio_data |= spec->mic_mute_led_gpio;
-		snd_hda_gen_add_micmute_led(codec, stac_capture_led_update);
+		snd_hda_gen_add_micmute_led_cdev(codec, stac_capture_led_update);
 	}
 }
 
@@ -4908,7 +4914,7 @@ static int patch_stac927x(struct hda_codec *codec)
 	 * The below flag enables the longer delay (see get_response
 	 * in hda_intel.c).
 	 */
-	codec->bus->needs_damn_long_delay = 1;
+	codec->bus->core.needs_damn_long_delay = 1;
 
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PROBE);
 

@@ -43,14 +43,6 @@ static inline __wsum ip6_compute_pseudo(struct sk_buff *skb, int proto)
 					    skb->len, proto, 0));
 }
 
-static inline __wsum ip6_gro_compute_pseudo(struct sk_buff *skb, int proto)
-{
-	const struct ipv6hdr *iph = skb_gro_network_header(skb);
-
-	return ~csum_unfold(csum_ipv6_magic(&iph->saddr, &iph->daddr,
-					    skb_gro_len(skb), proto, 0));
-}
-
 static __inline__ __sum16 tcp_v6_check(int len,
 				   const struct in6_addr *saddr,
 				   const struct in6_addr *daddr,
@@ -65,25 +57,19 @@ static inline void __tcp_v6_send_check(struct sk_buff *skb,
 {
 	struct tcphdr *th = tcp_hdr(skb);
 
-	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		th->check = ~tcp_v6_check(skb->len, saddr, daddr, 0);
-		skb->csum_start = skb_transport_header(skb) - skb->head;
-		skb->csum_offset = offsetof(struct tcphdr, check);
-	} else {
-		th->check = tcp_v6_check(skb->len, saddr, daddr,
-					 csum_partial(th, th->doff << 2,
-						      skb->csum));
-	}
+	th->check = ~tcp_v6_check(skb->len, saddr, daddr, 0);
+	skb->csum_start = skb_transport_header(skb) - skb->head;
+	skb->csum_offset = offsetof(struct tcphdr, check);
 }
 
-#if IS_ENABLED(CONFIG_IPV6)
-static inline void tcp_v6_send_check(struct sock *sk, struct sk_buff *skb)
+static inline void tcp_v6_gso_csum_prep(struct sk_buff *skb)
 {
-	struct ipv6_pinfo *np = inet6_sk(sk);
+	struct ipv6hdr *ipv6h = ipv6_hdr(skb);
+	struct tcphdr *th = tcp_hdr(skb);
 
-	__tcp_v6_send_check(skb, &np->saddr, &sk->sk_v6_daddr);
+	ipv6h->payload_len = 0;
+	th->check = ~tcp_v6_check(0, &ipv6h->saddr, &ipv6h->daddr, 0);
 }
-#endif
 
 static inline __sum16 udp_v6_check(int len,
 				   const struct in6_addr *saddr,

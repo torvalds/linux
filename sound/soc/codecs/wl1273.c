@@ -183,7 +183,7 @@ static int snd_wl1273_set_audio_route(struct snd_kcontrol *kcontrol,
 		return 0;
 
 	/* Do not allow changes while stream is running */
-	if (snd_soc_component_is_active(component))
+	if (snd_soc_component_active(component))
 		return -EPERM;
 
 	if (ucontrol->value.enumerated.item[0] >=  ARRAY_SIZE(wl1273_audio_route))
@@ -311,7 +311,6 @@ static int wl1273_startup(struct snd_pcm_substream *substream,
 		break;
 	default:
 		return -EINVAL;
-		break;
 	}
 
 	return 0;
@@ -415,13 +414,13 @@ int wl1273_get_format(struct snd_soc_component *component, unsigned int *fmt)
 	case WL1273_MODE_FM_TX:
 		*fmt =	SND_SOC_DAIFMT_I2S |
 			SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBM_CFM;
+			SND_SOC_DAIFMT_CBP_CFP;
 
 		break;
 	case WL1273_MODE_BT:
 		*fmt =	SND_SOC_DAIFMT_DSP_A |
 			SND_SOC_DAIFMT_IB_NF |
-			SND_SOC_DAIFMT_CBM_CFM;
+			SND_SOC_DAIFMT_CBP_CFP;
 
 		break;
 	default:
@@ -476,7 +475,6 @@ static const struct snd_soc_component_driver soc_component_dev_wl1273 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static int wl1273_platform_probe(struct platform_device *pdev)
@@ -486,11 +484,6 @@ static int wl1273_platform_probe(struct platform_device *pdev)
 				      &wl1273_dai, 1);
 }
 
-static int wl1273_platform_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 MODULE_ALIAS("platform:wl1273-codec");
 
 static struct platform_driver wl1273_platform_driver = {
@@ -498,7 +491,6 @@ static struct platform_driver wl1273_platform_driver = {
 		.name	= "wl1273-codec",
 	},
 	.probe		= wl1273_platform_probe,
-	.remove		= wl1273_platform_remove,
 };
 
 module_platform_driver(wl1273_platform_driver);

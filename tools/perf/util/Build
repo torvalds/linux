@@ -1,4 +1,10 @@
+include $(srctree)/tools/scripts/Makefile.include
+include $(srctree)/tools/scripts/utilities.mak
+
+perf-y += arm64-frame-pointer-unwind-support.o
+perf-y += addr_location.o
 perf-y += annotate.o
+perf-y += block-info.o
 perf-y += block-range.o
 perf-y += build-id.o
 perf-y += cacheline.o
@@ -6,24 +12,28 @@ perf-y += config.o
 perf-y += copyfile.o
 perf-y += ctype.o
 perf-y += db-export.o
+perf-y += disasm.o
 perf-y += env.o
 perf-y += event.o
 perf-y += evlist.o
+perf-y += sideband_evlist.o
 perf-y += evsel.o
 perf-y += evsel_fprintf.o
 perf-y += perf_event_attr_fprintf.o
 perf-y += evswitch.o
 perf-y += find_bit.o
 perf-y += get_current_dir_name.o
-perf-y += kallsyms.o
 perf-y += levenshtein.o
-perf-y += llvm-utils.o
 perf-y += mmap.o
 perf-y += memswap.o
 perf-y += parse-events.o
+perf-y += print-events.o
+perf-y += tracepoint.o
 perf-y += perf_regs.o
+perf-y += perf-regs-arch/
 perf-y += path.o
 perf-y += print_binary.o
+perf-y += print_insn.o
 perf-y += rlimit.o
 perf-y += argv_split.o
 perf-y += rbtree.o
@@ -41,6 +51,7 @@ perf-y += dso.o
 perf-y += dsos.o
 perf-y += symbol.o
 perf-y += symbol_fprintf.o
+perf-y += map_symbol.o
 perf-y += color.o
 perf-y += color_config.o
 perf-y += metricgroup.o
@@ -48,33 +59,39 @@ perf-y += header.o
 perf-y += callchain.o
 perf-y += values.o
 perf-y += debug.o
+perf-y += fncache.o
 perf-y += machine.o
 perf-y += map.o
+perf-y += maps.o
 perf-y += pstack.o
 perf-y += session.o
 perf-y += sample-raw.o
 perf-y += s390-sample-raw.o
+perf-y += amd-sample-raw.o
 perf-$(CONFIG_TRACE) += syscalltbl.o
 perf-y += ordered-events.o
 perf-y += namespaces.o
 perf-y += comm.o
 perf-y += thread.o
+perf-y += threads.o
 perf-y += thread_map.o
-perf-y += trace-event-parse.o
 perf-y += parse-events-flex.o
 perf-y += parse-events-bison.o
 perf-y += pmu.o
+perf-y += pmus.o
 perf-y += pmu-flex.o
 perf-y += pmu-bison.o
-perf-y += trace-event-read.o
-perf-y += trace-event-info.o
-perf-y += trace-event-scripting.o
-perf-y += trace-event.o
 perf-y += svghelper.o
+perf-$(CONFIG_LIBTRACEEVENT) += trace-event-info.o
+perf-y += trace-event-scripting.o
+perf-$(CONFIG_LIBTRACEEVENT) += trace-event.o
+perf-$(CONFIG_LIBTRACEEVENT) += trace-event-parse.o
+perf-$(CONFIG_LIBTRACEEVENT) += trace-event-read.o
 perf-y += sort.o
 perf-y += hist.o
 perf-y += util.o
 perf-y += cpumap.o
+perf-y += affinity.o
 perf-y += cputopo.o
 perf-y += cgroup.o
 perf-y += target.o
@@ -85,6 +102,7 @@ perf-y += counts.o
 perf-y += stat.o
 perf-y += stat-shadow.o
 perf-y += stat-display.o
+perf-y += perf_api_probe.o
 perf-y += record.o
 perf-y += srcline.o
 perf-y += srccode.o
@@ -95,38 +113,80 @@ perf-y += cloexec.o
 perf-y += call-path.o
 perf-y += rwsem.o
 perf-y += thread-stack.o
+perf-y += spark.o
+perf-y += topdown.o
+perf-y += iostat.o
+perf-y += stream.o
 perf-$(CONFIG_AUXTRACE) += auxtrace.o
 perf-$(CONFIG_AUXTRACE) += intel-pt-decoder/
 perf-$(CONFIG_AUXTRACE) += intel-pt.o
 perf-$(CONFIG_AUXTRACE) += intel-bts.o
 perf-$(CONFIG_AUXTRACE) += arm-spe.o
-perf-$(CONFIG_AUXTRACE) += arm-spe-pkt-decoder.o
+perf-$(CONFIG_AUXTRACE) += arm-spe-decoder/
+perf-$(CONFIG_AUXTRACE) += hisi-ptt.o
+perf-$(CONFIG_AUXTRACE) += hisi-ptt-decoder/
 perf-$(CONFIG_AUXTRACE) += s390-cpumsf.o
 
 ifdef CONFIG_LIBOPENCSD
 perf-$(CONFIG_AUXTRACE) += cs-etm.o
 perf-$(CONFIG_AUXTRACE) += cs-etm-decoder/
 endif
+perf-$(CONFIG_AUXTRACE) += cs-etm-base.o
 
 perf-y += parse-branch-options.o
 perf-y += dump-insn.o
 perf-y += parse-regs-options.o
+perf-y += parse-sublevel-options.o
 perf-y += term.o
 perf-y += help-unknown-cmd.o
+perf-y += dlfilter.o
 perf-y += mem-events.o
+perf-y += mem-info.o
 perf-y += vsprintf.o
 perf-y += units.o
 perf-y += time-utils.o
+perf-y += expr-flex.o
 perf-y += expr-bison.o
+perf-y += expr.o
 perf-y += branch.o
 perf-y += mem2node.o
+perf-y += clockid.o
+perf-y += list_sort.o
+perf-y += mutex.o
+perf-y += sharded_mutex.o
 
-perf-$(CONFIG_LIBBPF) += bpf-loader.o
 perf-$(CONFIG_LIBBPF) += bpf_map.o
-perf-$(CONFIG_BPF_PROLOGUE) += bpf-prologue.o
+perf-$(CONFIG_PERF_BPF_SKEL) += bpf_counter.o
+perf-$(CONFIG_PERF_BPF_SKEL) += bpf_counter_cgroup.o
+perf-$(CONFIG_PERF_BPF_SKEL) += bpf_ftrace.o
+perf-$(CONFIG_PERF_BPF_SKEL) += bpf_off_cpu.o
+perf-$(CONFIG_PERF_BPF_SKEL) += bpf-filter.o
+perf-$(CONFIG_PERF_BPF_SKEL) += bpf-filter-flex.o
+perf-$(CONFIG_PERF_BPF_SKEL) += bpf-filter-bison.o
+
+ifeq ($(CONFIG_LIBTRACEEVENT),y)
+  perf-$(CONFIG_PERF_BPF_SKEL) += bpf_lock_contention.o
+endif
+
+ifeq ($(CONFIG_LIBTRACEEVENT),y)
+  perf-$(CONFIG_PERF_BPF_SKEL) += bpf_kwork.o
+  perf-$(CONFIG_PERF_BPF_SKEL) += bpf_kwork_top.o
+endif
+
 perf-$(CONFIG_LIBELF) += symbol-elf.o
 perf-$(CONFIG_LIBELF) += probe-file.o
 perf-$(CONFIG_LIBELF) += probe-event.o
+
+ifdef CONFIG_LIBBPF_DYNAMIC
+  hashmap := 1
+endif
+ifndef CONFIG_LIBBPF
+  hashmap := 1
+endif
+
+ifdef hashmap
+perf-y += hashmap.o
+endif
 
 ifndef CONFIG_LIBELF
 perf-y += symbol-minimal.o
@@ -139,6 +199,8 @@ endif
 perf-$(CONFIG_DWARF) += probe-finder.o
 perf-$(CONFIG_DWARF) += dwarf-aux.o
 perf-$(CONFIG_DWARF) += dwarf-regs.o
+perf-$(CONFIG_DWARF) += debuginfo.o
+perf-$(CONFIG_DWARF) += annotate-data.o
 
 perf-$(CONFIG_LIBDW_DWARF_UNWIND) += unwind-libdw.o
 perf-$(CONFIG_LOCAL_LIBUNWIND)    += unwind-libunwind-local.o
@@ -146,7 +208,11 @@ perf-$(CONFIG_LIBUNWIND)          += unwind-libunwind.o
 perf-$(CONFIG_LIBUNWIND_X86)      += libunwind/x86_32.o
 perf-$(CONFIG_LIBUNWIND_AARCH64)  += libunwind/arm64.o
 
-perf-$(CONFIG_LIBBABELTRACE) += data-convert-bt.o
+ifeq ($(CONFIG_LIBTRACEEVENT),y)
+  perf-$(CONFIG_LIBBABELTRACE) += data-convert-bt.o
+endif
+
+perf-y += data-convert-json.o
 
 perf-y += scripting-engines/
 
@@ -156,6 +222,8 @@ perf-$(CONFIG_ZSTD) += zstd.o
 
 perf-$(CONFIG_LIBCAP) += cap.o
 
+perf-$(CONFIG_CXX_DEMANGLE) += demangle-cxx.o
+perf-y += demangle-ocaml.o
 perf-y += demangle-java.o
 perf-y += demangle-rust.o
 
@@ -168,55 +236,124 @@ endif
 perf-y += perf-hooks.o
 
 perf-$(CONFIG_LIBBPF) += bpf-event.o
+perf-$(CONFIG_LIBBPF) += bpf-utils.o
 
-perf-$(CONFIG_CXX) += c++/
+perf-$(CONFIG_LIBPFM4) += pfm.o
 
 CFLAGS_config.o   += -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
-CFLAGS_llvm-utils.o += -DPERF_INCLUDE_DIR="BUILD_STR($(perf_include_dir_SQ))"
 
 # avoid compiler warnings in 32-bit mode
 CFLAGS_genelf_debug.o  += -Wno-packed
 
-$(OUTPUT)util/parse-events-flex.c: util/parse-events.l $(OUTPUT)util/parse-events-bison.c
+$(OUTPUT)util/parse-events-flex.c $(OUTPUT)util/parse-events-flex.h: util/parse-events.l $(OUTPUT)util/parse-events-bison.c
 	$(call rule_mkdir)
-	$(Q)$(call echo-cmd,flex)$(FLEX) -o $@ --header-file=$(OUTPUT)util/parse-events-flex.h $(PARSER_DEBUG_FLEX) util/parse-events.l
+	$(Q)$(call echo-cmd,flex)$(FLEX) -o $(OUTPUT)util/parse-events-flex.c \
+		--header-file=$(OUTPUT)util/parse-events-flex.h $(PARSER_DEBUG_FLEX) $<
 
-$(OUTPUT)util/parse-events-bison.c: util/parse-events.y
+$(OUTPUT)util/parse-events-bison.c $(OUTPUT)util/parse-events-bison.h: util/parse-events.y
 	$(call rule_mkdir)
-	$(Q)$(call echo-cmd,bison)$(BISON) -v util/parse-events.y -d $(PARSER_DEBUG_BISON) -o $@ -p parse_events_
+	$(Q)$(call echo-cmd,bison)$(BISON) -v $< -d $(PARSER_DEBUG_BISON) $(BISON_FILE_PREFIX_MAP) $(BISON_FALLBACK_FLAGS) \
+		-o $(OUTPUT)util/parse-events-bison.c -p parse_events_
 
-$(OUTPUT)util/expr-bison.c: util/expr.y
+$(OUTPUT)util/expr-flex.c $(OUTPUT)util/expr-flex.h: util/expr.l $(OUTPUT)util/expr-bison.c
 	$(call rule_mkdir)
-	$(Q)$(call echo-cmd,bison)$(BISON) -v util/expr.y -d $(PARSER_DEBUG_BISON) -o $@ -p expr__
+	$(Q)$(call echo-cmd,flex)$(FLEX) -o $(OUTPUT)util/expr-flex.c \
+		--header-file=$(OUTPUT)util/expr-flex.h $(PARSER_DEBUG_FLEX) $<
 
-$(OUTPUT)util/pmu-flex.c: util/pmu.l $(OUTPUT)util/pmu-bison.c
+$(OUTPUT)util/expr-bison.c $(OUTPUT)util/expr-bison.h: util/expr.y
 	$(call rule_mkdir)
-	$(Q)$(call echo-cmd,flex)$(FLEX) -o $@ --header-file=$(OUTPUT)util/pmu-flex.h util/pmu.l
+	$(Q)$(call echo-cmd,bison)$(BISON) -v $< -d $(PARSER_DEBUG_BISON) $(BISON_FILE_PREFIX_MAP) \
+		-o $(OUTPUT)util/expr-bison.c -p expr_
 
-$(OUTPUT)util/pmu-bison.c: util/pmu.y
+$(OUTPUT)util/pmu-flex.c $(OUTPUT)util/pmu-flex.h: util/pmu.l $(OUTPUT)util/pmu-bison.c
 	$(call rule_mkdir)
-	$(Q)$(call echo-cmd,bison)$(BISON) -v util/pmu.y -d -o $@ -p perf_pmu_
+	$(Q)$(call echo-cmd,flex)$(FLEX) -o $(OUTPUT)util/pmu-flex.c \
+		--header-file=$(OUTPUT)util/pmu-flex.h $(PARSER_DEBUG_FLEX) $<
 
-CFLAGS_parse-events-flex.o  += -w
-CFLAGS_pmu-flex.o           += -w
-CFLAGS_parse-events-bison.o += -DYYENABLE_NLS=0 -w
-CFLAGS_pmu-bison.o          += -DYYENABLE_NLS=0 -DYYLTYPE_IS_TRIVIAL=0 -w
-CFLAGS_expr-bison.o         += -DYYENABLE_NLS=0 -DYYLTYPE_IS_TRIVIAL=0 -w
+$(OUTPUT)util/pmu-bison.c $(OUTPUT)util/pmu-bison.h: util/pmu.y
+	$(call rule_mkdir)
+	$(Q)$(call echo-cmd,bison)$(BISON) -v $< -d $(PARSER_DEBUG_BISON) $(BISON_FILE_PREFIX_MAP) \
+		-o $(OUTPUT)util/pmu-bison.c -p perf_pmu_
+
+$(OUTPUT)util/bpf-filter-flex.c $(OUTPUT)util/bpf-filter-flex.h: util/bpf-filter.l $(OUTPUT)util/bpf-filter-bison.c
+	$(call rule_mkdir)
+	$(Q)$(call echo-cmd,flex)$(FLEX) -o $(OUTPUT)util/bpf-filter-flex.c \
+		--header-file=$(OUTPUT)util/bpf-filter-flex.h $(PARSER_DEBUG_FLEX) $<
+
+$(OUTPUT)util/bpf-filter-bison.c $(OUTPUT)util/bpf-filter-bison.h: util/bpf-filter.y
+	$(call rule_mkdir)
+	$(Q)$(call echo-cmd,bison)$(BISON) -v $< -d $(PARSER_DEBUG_BISON) $(BISON_FILE_PREFIX_MAP) \
+		-o $(OUTPUT)util/bpf-filter-bison.c -p perf_bpf_filter_
+
+FLEX_VERSION := $(shell $(FLEX) --version | cut -d' ' -f2)
+
+FLEX_GE_260 := $(call version-ge3,$(FLEX_VERSION),2.6.0)
+ifeq ($(FLEX_GE_260),1)
+  flex_flags := -Wno-redundant-decls -Wno-switch-default -Wno-unused-function -Wno-misleading-indentation
+
+  # Some newer clang and gcc version complain about this
+  # util/parse-events-bison.c:1317:9: error: variable 'parse_events_nerrs' set but not used [-Werror,-Wunused-but-set-variable]
+  #  int yynerrs = 0;
+
+  flex_flags += -Wno-unused-but-set-variable
+
+  FLEX_LT_262 := $(call version-lt3,$(FLEX_VERSION),2.6.2)
+  ifeq ($(FLEX_LT_262),1)
+    flex_flags += -Wno-sign-compare
+  endif
+else
+  flex_flags := -w
+endif
+
+# Some newer clang and gcc version complain about this
+# util/parse-events-bison.c:1317:9: error: variable 'parse_events_nerrs' set but not used [-Werror,-Wunused-but-set-variable]
+#  int yynerrs = 0;
+
+bison_flags := -DYYENABLE_NLS=0 -Wno-unused-but-set-variable
+
+# Old clangs don't grok -Wno-unused-but-set-variable, remove it
+ifeq ($(CC_NO_CLANG), 0)
+  CLANG_VERSION := $(shell $(CLANG) --version | head -1 | sed 's/.*clang version \([[:digit:]]\+.[[:digit:]]\+.[[:digit:]]\+\).*/\1/g')
+  ifeq ($(call version-lt3,$(CLANG_VERSION),13.0.0),1)
+    bison_flags := $(subst -Wno-unused-but-set-variable,,$(bison_flags))
+    flex_flags := $(subst -Wno-unused-but-set-variable,,$(flex_flags))
+  endif
+endif
+
+BISON_GE_382 := $(shell expr $(shell $(BISON) --version | grep bison | sed -e 's/.\+ \([0-9]\+\).\([0-9]\+\).\([0-9]\+\)/\1\2\3/g') \>\= 382)
+ifeq ($(BISON_GE_382),1)
+  bison_flags += -Wno-switch-enum
+else
+  bison_flags += -w
+endif
+
+BISON_LT_381 := $(shell expr $(shell $(BISON) --version | grep bison | sed -e 's/.\+ \([0-9]\+\).\([0-9]\+\).\([0-9]\+\)/\1\2\3/g') \< 381)
+ifeq ($(BISON_LT_381),1)
+  bison_flags += -DYYNOMEM=YYABORT
+endif
+
+CFLAGS_parse-events-flex.o  += $(flex_flags) -Wno-unused-label
+CFLAGS_pmu-flex.o           += $(flex_flags)
+CFLAGS_expr-flex.o          += $(flex_flags)
+CFLAGS_bpf-filter-flex.o    += $(flex_flags)
+
+CFLAGS_parse-events-bison.o += $(bison_flags)
+CFLAGS_pmu-bison.o          += -DYYLTYPE_IS_TRIVIAL=0 $(bison_flags)
+CFLAGS_expr-bison.o         += -DYYLTYPE_IS_TRIVIAL=0 $(bison_flags)
+CFLAGS_bpf-filter-bison.o   += -DYYLTYPE_IS_TRIVIAL=0 $(bison_flags)
 
 $(OUTPUT)util/parse-events.o: $(OUTPUT)util/parse-events-flex.c $(OUTPUT)util/parse-events-bison.c
 $(OUTPUT)util/pmu.o: $(OUTPUT)util/pmu-flex.c $(OUTPUT)util/pmu-bison.c
+$(OUTPUT)util/expr.o: $(OUTPUT)util/expr-flex.c $(OUTPUT)util/expr-bison.c
+$(OUTPUT)util/bpf-filter.o: $(OUTPUT)util/bpf-filter-flex.c $(OUTPUT)util/bpf-filter-bison.c
 
 CFLAGS_bitmap.o        += -Wno-unused-parameter -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
 CFLAGS_find_bit.o      += -Wno-unused-parameter -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
 CFLAGS_rbtree.o        += -Wno-unused-parameter -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
 CFLAGS_libstring.o     += -Wno-unused-parameter -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
 CFLAGS_hweight.o       += -Wno-unused-parameter -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
-CFLAGS_parse-events.o  += -Wno-redundant-decls
 CFLAGS_header.o        += -include $(OUTPUT)PERF-VERSION-FILE
-
-$(OUTPUT)util/kallsyms.o: ../lib/symbol/kallsyms.c FORCE
-	$(call rule_mkdir)
-	$(call if_changed_dep,cc_o_c)
+CFLAGS_arm-spe.o       += -I$(srctree)/tools/arch/arm64/include/ -I$(OUTPUT)arch/arm64/include/generated/
 
 $(OUTPUT)util/argv_split.o: ../lib/argv_split.c FORCE
 	$(call rule_mkdir)
@@ -249,3 +386,21 @@ $(OUTPUT)util/hweight.o: ../lib/hweight.c FORCE
 $(OUTPUT)util/vsprintf.o: ../lib/vsprintf.c FORCE
 	$(call rule_mkdir)
 	$(call if_changed_dep,cc_o_c)
+
+$(OUTPUT)util/list_sort.o: ../lib/list_sort.c FORCE
+	$(call rule_mkdir)
+	$(call if_changed_dep,cc_o_c)
+
+ifdef SHELLCHECK
+  SHELL_TESTS := generate-cmdlist.sh
+  TEST_LOGS := $(SHELL_TESTS:%=%.shellcheck_log)
+else
+  SHELL_TESTS :=
+  TEST_LOGS :=
+endif
+
+$(OUTPUT)%.shellcheck_log: %
+	$(call rule_mkdir)
+	$(Q)$(call echo-cmd,test)shellcheck -a -S warning "$<" > $@ || (cat $@ && rm $@ && false)
+
+perf-y += $(TEST_LOGS)

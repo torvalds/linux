@@ -11,7 +11,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
-#include <linux/platform_data/dma-imx.h>
+#include <linux/dma/imx-dma.h>
 #include <linux/pm_runtime.h>
 #include <sound/dmaengine_pcm.h>
 #include <sound/pcm_params.h>
@@ -19,12 +19,17 @@
 #include "fsl_asrc.h"
 
 #define IDEAL_RATIO_DECIMAL_DEPTH 26
+#define DIVIDER_NUM  64
+#define INIT_RETRY_NUM 50
 
 #define pair_err(fmt, ...) \
-	dev_err(&asrc_priv->pdev->dev, "Pair %c: " fmt, 'A' + index, ##__VA_ARGS__)
+	dev_err(&asrc->pdev->dev, "Pair %c: " fmt, 'A' + index, ##__VA_ARGS__)
 
 #define pair_dbg(fmt, ...) \
-	dev_dbg(&asrc_priv->pdev->dev, "Pair %c: " fmt, 'A' + index, ##__VA_ARGS__)
+	dev_dbg(&asrc->pdev->dev, "Pair %c: " fmt, 'A' + index, ##__VA_ARGS__)
+
+#define pair_warn(fmt, ...) \
+	dev_warn(&asrc->pdev->dev, "Pair %c: " fmt, 'A' + index, ##__VA_ARGS__)
 
 /* Corresponding to process_option */
 static unsigned int supported_asrc_rate[] = {
@@ -37,42 +42,131 @@ static struct snd_pcm_hw_constraint_list fsl_asrc_rate_constraints = {
 	.list = supported_asrc_rate,
 };
 
-/**
+/*
  * The following tables map the relationship between asrc_inclk/asrc_outclk in
  * fsl_asrc.h and the registers of ASRCSR
  */
-static unsigned char input_clk_map_imx35[] = {
+static unsigned char input_clk_map_imx35[ASRC_CLK_MAP_LEN] = {
 	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf,
+	3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+	3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 };
 
-static unsigned char output_clk_map_imx35[] = {
+static unsigned char output_clk_map_imx35[ASRC_CLK_MAP_LEN] = {
 	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf,
+	3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+	3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 };
 
 /* i.MX53 uses the same map for input and output */
-static unsigned char input_clk_map_imx53[] = {
+static unsigned char input_clk_map_imx53[ASRC_CLK_MAP_LEN] = {
 /*	0x0  0x1  0x2  0x3  0x4  0x5  0x6  0x7  0x8  0x9  0xa  0xb  0xc  0xd  0xe  0xf */
 	0x0, 0x1, 0x2, 0x7, 0x4, 0x5, 0x6, 0x3, 0x8, 0x9, 0xa, 0xb, 0xc, 0xf, 0xe, 0xd,
+	0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7,
+	0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7,
 };
 
-static unsigned char output_clk_map_imx53[] = {
+static unsigned char output_clk_map_imx53[ASRC_CLK_MAP_LEN] = {
 /*	0x0  0x1  0x2  0x3  0x4  0x5  0x6  0x7  0x8  0x9  0xa  0xb  0xc  0xd  0xe  0xf */
 	0x8, 0x9, 0xa, 0x7, 0xc, 0x5, 0x6, 0xb, 0x0, 0x1, 0x2, 0x3, 0x4, 0xf, 0xe, 0xd,
+	0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7,
+	0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7,
 };
 
-static unsigned char *clk_map[2];
+/*
+ * i.MX8QM/i.MX8QXP uses the same map for input and output.
+ * clk_map_imx8qm[0] is for i.MX8QM asrc0
+ * clk_map_imx8qm[1] is for i.MX8QM asrc1
+ * clk_map_imx8qxp[0] is for i.MX8QXP asrc0
+ * clk_map_imx8qxp[1] is for i.MX8QXP asrc1
+ */
+static unsigned char clk_map_imx8qm[2][ASRC_CLK_MAP_LEN] = {
+	{
+	0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0x0,
+	0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf,
+	0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf,
+	},
+	{
+	0xf, 0xf, 0xf, 0xf, 0xf, 0x7, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0x0,
+	0x0, 0x1, 0x2, 0x3, 0xb, 0xc, 0xf, 0xf, 0xd, 0xe, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf,
+	0x4, 0x5, 0x6, 0xf, 0x8, 0x9, 0xa, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf,
+	},
+};
+
+static unsigned char clk_map_imx8qxp[2][ASRC_CLK_MAP_LEN] = {
+	{
+	0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0x0,
+	0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0xf, 0x7, 0x8, 0x9, 0xa, 0xb, 0xc, 0xf, 0xf,
+	0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf,
+	},
+	{
+	0xf, 0xf, 0xf, 0xf, 0xf, 0x7, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0x0,
+	0x0, 0x1, 0x2, 0x3, 0x7, 0x8, 0xf, 0xf, 0x9, 0xa, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf,
+	0xf, 0xf, 0x6, 0xf, 0xf, 0xf, 0xa, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf,
+	},
+};
+
+/*
+ * According to RM, the divider range is 1 ~ 8,
+ * prescaler is power of 2 from 1 ~ 128.
+ */
+static int asrc_clk_divider[DIVIDER_NUM] = {
+	1,  2,  4,  8,  16,  32,  64,  128,  /* divider = 1 */
+	2,  4,  8, 16,  32,  64, 128,  256,  /* divider = 2 */
+	3,  6, 12, 24,  48,  96, 192,  384,  /* divider = 3 */
+	4,  8, 16, 32,  64, 128, 256,  512,  /* divider = 4 */
+	5, 10, 20, 40,  80, 160, 320,  640,  /* divider = 5 */
+	6, 12, 24, 48,  96, 192, 384,  768,  /* divider = 6 */
+	7, 14, 28, 56, 112, 224, 448,  896,  /* divider = 7 */
+	8, 16, 32, 64, 128, 256, 512, 1024,  /* divider = 8 */
+};
+
+/*
+ * Check if the divider is available for internal ratio mode
+ */
+static bool fsl_asrc_divider_avail(int clk_rate, int rate, int *div)
+{
+	u32 rem, i;
+	u64 n;
+
+	if (div)
+		*div = 0;
+
+	if (clk_rate == 0 || rate == 0)
+		return false;
+
+	n = clk_rate;
+	rem = do_div(n, rate);
+
+	if (div)
+		*div = n;
+
+	if (rem != 0)
+		return false;
+
+	for (i = 0; i < DIVIDER_NUM; i++) {
+		if (n == asrc_clk_divider[i])
+			break;
+	}
+
+	if (i == DIVIDER_NUM)
+		return false;
+
+	return true;
+}
 
 /**
- * Select the pre-processing and post-processing options
+ * fsl_asrc_sel_proc - Select the pre-processing and post-processing options
+ * @inrate: input sample rate
+ * @outrate: output sample rate
+ * @pre_proc: return value for pre-processing option
+ * @post_proc: return value for post-processing option
+ *
  * Make sure to exclude following unsupported cases before
  * calling this function:
  * 1) inrate > 8.125 * outrate
  * 2) inrate > 16.125 * outrate
  *
- * inrate: input sample rate
- * outrate: output sample rate
- * pre_proc: return value for pre-processing option
- * post_proc: return value for post-processing option
  */
 static void fsl_asrc_sel_proc(int inrate, int outrate,
 			     int *pre_proc, int *post_proc)
@@ -109,7 +203,9 @@ static void fsl_asrc_sel_proc(int inrate, int outrate,
 }
 
 /**
- * Request ASRC pair
+ * fsl_asrc_request_pair - Request ASRC pair
+ * @channels: number of channels
+ * @pair: pointer to pair
  *
  * It assigns pair by the order of A->C->B because allocation of pair B,
  * within range [ANCA, ANCA+ANCB-1], depends on the channels of pair A
@@ -118,15 +214,15 @@ static void fsl_asrc_sel_proc(int inrate, int outrate,
 static int fsl_asrc_request_pair(int channels, struct fsl_asrc_pair *pair)
 {
 	enum asrc_pair_index index = ASRC_INVALID_PAIR;
-	struct fsl_asrc *asrc_priv = pair->asrc_priv;
-	struct device *dev = &asrc_priv->pdev->dev;
+	struct fsl_asrc *asrc = pair->asrc;
+	struct device *dev = &asrc->pdev->dev;
 	unsigned long lock_flags;
 	int i, ret = 0;
 
-	spin_lock_irqsave(&asrc_priv->lock, lock_flags);
+	spin_lock_irqsave(&asrc->lock, lock_flags);
 
 	for (i = ASRC_PAIR_A; i < ASRC_PAIR_MAX_NUM; i++) {
-		if (asrc_priv->pair[i] != NULL)
+		if (asrc->pair[i] != NULL)
 			continue;
 
 		index = i;
@@ -138,54 +234,58 @@ static int fsl_asrc_request_pair(int channels, struct fsl_asrc_pair *pair)
 	if (index == ASRC_INVALID_PAIR) {
 		dev_err(dev, "all pairs are busy now\n");
 		ret = -EBUSY;
-	} else if (asrc_priv->channel_avail < channels) {
+	} else if (asrc->channel_avail < channels) {
 		dev_err(dev, "can't afford required channels: %d\n", channels);
 		ret = -EINVAL;
 	} else {
-		asrc_priv->channel_avail -= channels;
-		asrc_priv->pair[index] = pair;
+		asrc->channel_avail -= channels;
+		asrc->pair[index] = pair;
 		pair->channels = channels;
 		pair->index = index;
 	}
 
-	spin_unlock_irqrestore(&asrc_priv->lock, lock_flags);
+	spin_unlock_irqrestore(&asrc->lock, lock_flags);
 
 	return ret;
 }
 
 /**
- * Release ASRC pair
+ * fsl_asrc_release_pair - Release ASRC pair
+ * @pair: pair to release
  *
- * It clears the resource from asrc_priv and releases the occupied channels.
+ * It clears the resource from asrc and releases the occupied channels.
  */
 static void fsl_asrc_release_pair(struct fsl_asrc_pair *pair)
 {
-	struct fsl_asrc *asrc_priv = pair->asrc_priv;
+	struct fsl_asrc *asrc = pair->asrc;
 	enum asrc_pair_index index = pair->index;
 	unsigned long lock_flags;
 
 	/* Make sure the pair is disabled */
-	regmap_update_bits(asrc_priv->regmap, REG_ASRCTR,
+	regmap_update_bits(asrc->regmap, REG_ASRCTR,
 			   ASRCTR_ASRCEi_MASK(index), 0);
 
-	spin_lock_irqsave(&asrc_priv->lock, lock_flags);
+	spin_lock_irqsave(&asrc->lock, lock_flags);
 
-	asrc_priv->channel_avail += pair->channels;
-	asrc_priv->pair[index] = NULL;
+	asrc->channel_avail += pair->channels;
+	asrc->pair[index] = NULL;
 	pair->error = 0;
 
-	spin_unlock_irqrestore(&asrc_priv->lock, lock_flags);
+	spin_unlock_irqrestore(&asrc->lock, lock_flags);
 }
 
 /**
- * Configure input and output thresholds
+ * fsl_asrc_set_watermarks- configure input and output thresholds
+ * @pair: pointer to pair
+ * @in: input threshold
+ * @out: output threshold
  */
 static void fsl_asrc_set_watermarks(struct fsl_asrc_pair *pair, u32 in, u32 out)
 {
-	struct fsl_asrc *asrc_priv = pair->asrc_priv;
+	struct fsl_asrc *asrc = pair->asrc;
 	enum asrc_pair_index index = pair->index;
 
-	regmap_update_bits(asrc_priv->regmap, REG_ASRMCR(index),
+	regmap_update_bits(asrc->regmap, REG_ASRMCR(index),
 			   ASRMCRi_EXTTHRSHi_MASK |
 			   ASRMCRi_INFIFO_THRESHOLD_MASK |
 			   ASRMCRi_OUTFIFO_THRESHOLD_MASK,
@@ -195,7 +295,9 @@ static void fsl_asrc_set_watermarks(struct fsl_asrc_pair *pair, u32 in, u32 out)
 }
 
 /**
- * Calculate the total divisor between asrck clock rate and sample rate
+ * fsl_asrc_cal_asrck_divisor - Calculate the total divisor between asrck clock rate and sample rate
+ * @pair: pointer to pair
+ * @div: divider
  *
  * It follows the formula clk_rate = samplerate * (2 ^ prescaler) * divider
  */
@@ -211,14 +313,17 @@ static u32 fsl_asrc_cal_asrck_divisor(struct fsl_asrc_pair *pair, u32 div)
 }
 
 /**
- * Calculate and set the ratio for Ideal Ratio mode only
+ * fsl_asrc_set_ideal_ratio - Calculate and set the ratio for Ideal Ratio mode only
+ * @pair: pointer to pair
+ * @inrate: input rate
+ * @outrate: output rate
  *
  * The ratio is a 32-bit fixed point value with 26 fractional bits.
  */
 static int fsl_asrc_set_ideal_ratio(struct fsl_asrc_pair *pair,
 				    int inrate, int outrate)
 {
-	struct fsl_asrc *asrc_priv = pair->asrc_priv;
+	struct fsl_asrc *asrc = pair->asrc;
 	enum asrc_pair_index index = pair->index;
 	unsigned long ratio;
 	int i;
@@ -247,30 +352,44 @@ static int fsl_asrc_set_ideal_ratio(struct fsl_asrc_pair *pair,
 			break;
 	}
 
-	regmap_write(asrc_priv->regmap, REG_ASRIDRL(index), ratio);
-	regmap_write(asrc_priv->regmap, REG_ASRIDRH(index), ratio >> 24);
+	regmap_write(asrc->regmap, REG_ASRIDRL(index), ratio);
+	regmap_write(asrc->regmap, REG_ASRIDRH(index), ratio >> 24);
 
 	return 0;
 }
 
 /**
- * Configure the assigned ASRC pair
+ * fsl_asrc_config_pair - Configure the assigned ASRC pair
+ * @pair: pointer to pair
+ * @use_ideal_rate: boolean configuration
  *
  * It configures those ASRC registers according to a configuration instance
  * of struct asrc_config which includes in/output sample rate, width, channel
  * and clock settings.
+ *
+ * Note:
+ * The ideal ratio configuration can work with a flexible clock rate setting.
+ * Using IDEAL_RATIO_RATE gives a faster converting speed but overloads ASRC.
+ * For a regular audio playback, the clock rate should not be slower than an
+ * clock rate aligning with the output sample rate; For a use case requiring
+ * faster conversion, set use_ideal_rate to have the faster speed.
  */
-static int fsl_asrc_config_pair(struct fsl_asrc_pair *pair)
+static int fsl_asrc_config_pair(struct fsl_asrc_pair *pair, bool use_ideal_rate)
 {
-	struct asrc_config *config = pair->config;
-	struct fsl_asrc *asrc_priv = pair->asrc_priv;
+	struct fsl_asrc_pair_priv *pair_priv = pair->private;
+	struct asrc_config *config = pair_priv->config;
+	struct fsl_asrc *asrc = pair->asrc;
+	struct fsl_asrc_priv *asrc_priv = asrc->private;
 	enum asrc_pair_index index = pair->index;
+	enum asrc_word_width input_word_width;
+	enum asrc_word_width output_word_width;
 	u32 inrate, outrate, indiv, outdiv;
 	u32 clk_index[2], div[2];
+	u64 clk_rate;
 	int in, out, channels;
 	int pre_proc, post_proc;
 	struct clk *clk;
-	bool ideal;
+	bool ideal, div_avail;
 
 	if (!config) {
 		pair_err("invalid pair config\n");
@@ -283,9 +402,32 @@ static int fsl_asrc_config_pair(struct fsl_asrc_pair *pair)
 		return -EINVAL;
 	}
 
-	/* Validate output width */
-	if (config->output_word_width == ASRC_WIDTH_8_BIT) {
-		pair_err("does not support 8bit width output\n");
+	switch (snd_pcm_format_width(config->input_format)) {
+	case 8:
+		input_word_width = ASRC_WIDTH_8_BIT;
+		break;
+	case 16:
+		input_word_width = ASRC_WIDTH_16_BIT;
+		break;
+	case 24:
+		input_word_width = ASRC_WIDTH_24_BIT;
+		break;
+	default:
+		pair_err("does not support this input format, %d\n",
+			 config->input_format);
+		return -EINVAL;
+	}
+
+	switch (snd_pcm_format_width(config->output_format)) {
+	case 16:
+		output_word_width = ASRC_WIDTH_16_BIT;
+		break;
+	case 24:
+		output_word_width = ASRC_WIDTH_24_BIT;
+		break;
+	default:
+		pair_err("does not support this output format, %d\n",
+			 config->output_format);
 		return -EINVAL;
 	}
 
@@ -320,52 +462,65 @@ static int fsl_asrc_config_pair(struct fsl_asrc_pair *pair)
 	}
 
 	/* Validate input and output clock sources */
-	clk_index[IN] = clk_map[IN][config->inclk];
-	clk_index[OUT] = clk_map[OUT][config->outclk];
+	clk_index[IN] = asrc_priv->clk_map[IN][config->inclk];
+	clk_index[OUT] = asrc_priv->clk_map[OUT][config->outclk];
 
 	/* We only have output clock for ideal ratio mode */
 	clk = asrc_priv->asrck_clk[clk_index[ideal ? OUT : IN]];
 
-	div[IN] = clk_get_rate(clk) / inrate;
-	if (div[IN] == 0) {
+	clk_rate = clk_get_rate(clk);
+	div_avail = fsl_asrc_divider_avail(clk_rate, inrate, &div[IN]);
+
+	/*
+	 * The divider range is [1, 1024], defined by the hardware. For non-
+	 * ideal ratio configuration, clock rate has to be strictly aligned
+	 * with the sample rate. For ideal ratio configuration, clock rates
+	 * only result in different converting speeds. So remainder does not
+	 * matter, as long as we keep the divider within its valid range.
+	 */
+	if (div[IN] == 0 || (!ideal && !div_avail)) {
 		pair_err("failed to support input sample rate %dHz by asrck_%x\n",
 				inrate, clk_index[ideal ? OUT : IN]);
 		return -EINVAL;
 	}
 
+	div[IN] = min_t(u32, 1024, div[IN]);
+
 	clk = asrc_priv->asrck_clk[clk_index[OUT]];
-
-	/* Use fixed output rate for Ideal Ratio mode (INCLK_NONE) */
-	if (ideal)
-		div[OUT] = clk_get_rate(clk) / IDEAL_RATIO_RATE;
+	clk_rate = clk_get_rate(clk);
+	if (ideal && use_ideal_rate)
+		div_avail = fsl_asrc_divider_avail(clk_rate, IDEAL_RATIO_RATE, &div[OUT]);
 	else
-		div[OUT] = clk_get_rate(clk) / outrate;
+		div_avail = fsl_asrc_divider_avail(clk_rate, outrate, &div[OUT]);
 
-	if (div[OUT] == 0) {
+	/* Output divider has the same limitation as the input one */
+	if (div[OUT] == 0 || (!ideal && !div_avail)) {
 		pair_err("failed to support output sample rate %dHz by asrck_%x\n",
 				outrate, clk_index[OUT]);
 		return -EINVAL;
 	}
 
+	div[OUT] = min_t(u32, 1024, div[OUT]);
+
 	/* Set the channel number */
 	channels = config->channel_num;
 
-	if (asrc_priv->channel_bits < 4)
+	if (asrc_priv->soc->channel_bits < 4)
 		channels /= 2;
 
 	/* Update channels for current pair */
-	regmap_update_bits(asrc_priv->regmap, REG_ASRCNCR,
-			   ASRCNCR_ANCi_MASK(index, asrc_priv->channel_bits),
-			   ASRCNCR_ANCi(index, channels, asrc_priv->channel_bits));
+	regmap_update_bits(asrc->regmap, REG_ASRCNCR,
+			   ASRCNCR_ANCi_MASK(index, asrc_priv->soc->channel_bits),
+			   ASRCNCR_ANCi(index, channels, asrc_priv->soc->channel_bits));
 
 	/* Default setting: Automatic selection for processing mode */
-	regmap_update_bits(asrc_priv->regmap, REG_ASRCTR,
+	regmap_update_bits(asrc->regmap, REG_ASRCTR,
 			   ASRCTR_ATSi_MASK(index), ASRCTR_ATS(index));
-	regmap_update_bits(asrc_priv->regmap, REG_ASRCTR,
+	regmap_update_bits(asrc->regmap, REG_ASRCTR,
 			   ASRCTR_USRi_MASK(index), 0);
 
 	/* Set the input and output clock sources */
-	regmap_update_bits(asrc_priv->regmap, REG_ASRCSR,
+	regmap_update_bits(asrc->regmap, REG_ASRCSR,
 			   ASRCSR_AICSi_MASK(index) | ASRCSR_AOCSi_MASK(index),
 			   ASRCSR_AICS(index, clk_index[IN]) |
 			   ASRCSR_AOCS(index, clk_index[OUT]));
@@ -375,19 +530,19 @@ static int fsl_asrc_config_pair(struct fsl_asrc_pair *pair)
 	outdiv = fsl_asrc_cal_asrck_divisor(pair, div[OUT]);
 
 	/* Suppose indiv and outdiv includes prescaler, so add its MASK too */
-	regmap_update_bits(asrc_priv->regmap, REG_ASRCDR(index),
+	regmap_update_bits(asrc->regmap, REG_ASRCDR(index),
 			   ASRCDRi_AOCPi_MASK(index) | ASRCDRi_AICPi_MASK(index) |
 			   ASRCDRi_AOCDi_MASK(index) | ASRCDRi_AICDi_MASK(index),
 			   ASRCDRi_AOCP(index, outdiv) | ASRCDRi_AICP(index, indiv));
 
 	/* Implement word_width configurations */
-	regmap_update_bits(asrc_priv->regmap, REG_ASRMCR1(index),
+	regmap_update_bits(asrc->regmap, REG_ASRMCR1(index),
 			   ASRMCR1i_OW16_MASK | ASRMCR1i_IWD_MASK,
-			   ASRMCR1i_OW16(config->output_word_width) |
-			   ASRMCR1i_IWD(config->input_word_width));
+			   ASRMCR1i_OW16(output_word_width) |
+			   ASRMCR1i_IWD(input_word_width));
 
 	/* Enable BUFFER STALL */
-	regmap_update_bits(asrc_priv->regmap, REG_ASRMCR(index),
+	regmap_update_bits(asrc->regmap, REG_ASRMCR(index),
 			   ASRMCRi_BUFSTALLi_MASK, ASRMCRi_BUFSTALLi);
 
 	/* Set default thresholds for input and output FIFO */
@@ -399,18 +554,18 @@ static int fsl_asrc_config_pair(struct fsl_asrc_pair *pair)
 		return 0;
 
 	/* Clear ASTSx bit to use Ideal Ratio mode */
-	regmap_update_bits(asrc_priv->regmap, REG_ASRCTR,
+	regmap_update_bits(asrc->regmap, REG_ASRCTR,
 			   ASRCTR_ATSi_MASK(index), 0);
 
 	/* Enable Ideal Ratio mode */
-	regmap_update_bits(asrc_priv->regmap, REG_ASRCTR,
+	regmap_update_bits(asrc->regmap, REG_ASRCTR,
 			   ASRCTR_IDRi_MASK(index) | ASRCTR_USRi_MASK(index),
 			   ASRCTR_IDR(index) | ASRCTR_USR(index));
 
 	fsl_asrc_sel_proc(inrate, outrate, &pre_proc, &post_proc);
 
 	/* Apply configurations for pre- and post-processing */
-	regmap_update_bits(asrc_priv->regmap, REG_ASRCFG,
+	regmap_update_bits(asrc->regmap, REG_ASRCFG,
 			   ASRCFG_PREMODi_MASK(index) |	ASRCFG_POSTMODi_MASK(index),
 			   ASRCFG_PREMOD(index, pre_proc) |
 			   ASRCFG_POSTMOD(index, post_proc));
@@ -419,71 +574,80 @@ static int fsl_asrc_config_pair(struct fsl_asrc_pair *pair)
 }
 
 /**
- * Start the assigned ASRC pair
+ * fsl_asrc_start_pair - Start the assigned ASRC pair
+ * @pair: pointer to pair
  *
  * It enables the assigned pair and makes it stopped at the stall level.
  */
 static void fsl_asrc_start_pair(struct fsl_asrc_pair *pair)
 {
-	struct fsl_asrc *asrc_priv = pair->asrc_priv;
+	struct fsl_asrc *asrc = pair->asrc;
 	enum asrc_pair_index index = pair->index;
-	int reg, retry = 10, i;
+	int reg, retry = INIT_RETRY_NUM, i;
 
 	/* Enable the current pair */
-	regmap_update_bits(asrc_priv->regmap, REG_ASRCTR,
+	regmap_update_bits(asrc->regmap, REG_ASRCTR,
 			   ASRCTR_ASRCEi_MASK(index), ASRCTR_ASRCE(index));
 
 	/* Wait for status of initialization */
 	do {
 		udelay(5);
-		regmap_read(asrc_priv->regmap, REG_ASRCFG, &reg);
+		regmap_read(asrc->regmap, REG_ASRCFG, &reg);
 		reg &= ASRCFG_INIRQi_MASK(index);
 	} while (!reg && --retry);
 
+	/* NOTE: Doesn't treat initialization timeout as an error */
+	if (!retry)
+		pair_warn("initialization isn't finished\n");
+
 	/* Make the input fifo to ASRC STALL level */
-	regmap_read(asrc_priv->regmap, REG_ASRCNCR, &reg);
+	regmap_read(asrc->regmap, REG_ASRCNCR, &reg);
 	for (i = 0; i < pair->channels * 4; i++)
-		regmap_write(asrc_priv->regmap, REG_ASRDI(index), 0);
+		regmap_write(asrc->regmap, REG_ASRDI(index), 0);
 
 	/* Enable overload interrupt */
-	regmap_write(asrc_priv->regmap, REG_ASRIER, ASRIER_AOLIE);
+	regmap_write(asrc->regmap, REG_ASRIER, ASRIER_AOLIE);
 }
 
 /**
- * Stop the assigned ASRC pair
+ * fsl_asrc_stop_pair - Stop the assigned ASRC pair
+ * @pair: pointer to pair
  */
 static void fsl_asrc_stop_pair(struct fsl_asrc_pair *pair)
 {
-	struct fsl_asrc *asrc_priv = pair->asrc_priv;
+	struct fsl_asrc *asrc = pair->asrc;
 	enum asrc_pair_index index = pair->index;
 
 	/* Stop the current pair */
-	regmap_update_bits(asrc_priv->regmap, REG_ASRCTR,
+	regmap_update_bits(asrc->regmap, REG_ASRCTR,
 			   ASRCTR_ASRCEi_MASK(index), 0);
 }
 
 /**
- * Get DMA channel according to the pair and direction.
+ * fsl_asrc_get_dma_channel- Get DMA channel according to the pair and direction.
+ * @pair: pointer to pair
+ * @dir: DMA direction
  */
-struct dma_chan *fsl_asrc_get_dma_channel(struct fsl_asrc_pair *pair, bool dir)
+static struct dma_chan *fsl_asrc_get_dma_channel(struct fsl_asrc_pair *pair,
+						 bool dir)
 {
-	struct fsl_asrc *asrc_priv = pair->asrc_priv;
+	struct fsl_asrc *asrc = pair->asrc;
 	enum asrc_pair_index index = pair->index;
 	char name[4];
 
 	sprintf(name, "%cx%c", dir == IN ? 'r' : 't', index + 'a');
 
-	return dma_request_slave_channel(&asrc_priv->pdev->dev, name);
+	return dma_request_slave_channel(&asrc->pdev->dev, name);
 }
-EXPORT_SYMBOL_GPL(fsl_asrc_get_dma_channel);
 
 static int fsl_asrc_dai_startup(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
-	struct fsl_asrc *asrc_priv = snd_soc_dai_get_drvdata(dai);
+	struct fsl_asrc *asrc = snd_soc_dai_get_drvdata(dai);
+	struct fsl_asrc_priv *asrc_priv = asrc->private;
 
 	/* Odd channel number is not valid for older ASRC (channel_bits==3) */
-	if (asrc_priv->channel_bits == 3)
+	if (asrc_priv->soc->channel_bits == 3)
 		snd_pcm_hw_constraint_step(substream->runtime, 0,
 					   SNDRV_PCM_HW_PARAM_CHANNELS, 2);
 
@@ -492,18 +656,57 @@ static int fsl_asrc_dai_startup(struct snd_pcm_substream *substream,
 			SNDRV_PCM_HW_PARAM_RATE, &fsl_asrc_rate_constraints);
 }
 
+/* Select proper clock source for internal ratio mode */
+static void fsl_asrc_select_clk(struct fsl_asrc_priv *asrc_priv,
+				struct fsl_asrc_pair *pair,
+				int in_rate,
+				int out_rate)
+{
+	struct fsl_asrc_pair_priv *pair_priv = pair->private;
+	struct asrc_config *config = pair_priv->config;
+	int rate[2], select_clk[2]; /* Array size 2 means IN and OUT */
+	int clk_rate, clk_index;
+	int i, j;
+
+	rate[IN] = in_rate;
+	rate[OUT] = out_rate;
+
+	/* Select proper clock source for internal ratio mode */
+	for (j = 0; j < 2; j++) {
+		for (i = 0; i < ASRC_CLK_MAP_LEN; i++) {
+			clk_index = asrc_priv->clk_map[j][i];
+			clk_rate = clk_get_rate(asrc_priv->asrck_clk[clk_index]);
+			/* Only match a perfect clock source with no remainder */
+			if (fsl_asrc_divider_avail(clk_rate, rate[j], NULL))
+				break;
+		}
+
+		select_clk[j] = i;
+	}
+
+	/* Switch to ideal ratio mode if there is no proper clock source */
+	if (select_clk[IN] == ASRC_CLK_MAP_LEN || select_clk[OUT] == ASRC_CLK_MAP_LEN) {
+		select_clk[IN] = INCLK_NONE;
+		select_clk[OUT] = OUTCLK_ASRCK1_CLK;
+	}
+
+	config->inclk = select_clk[IN];
+	config->outclk = select_clk[OUT];
+}
+
 static int fsl_asrc_dai_hw_params(struct snd_pcm_substream *substream,
 				  struct snd_pcm_hw_params *params,
 				  struct snd_soc_dai *dai)
 {
-	struct fsl_asrc *asrc_priv = snd_soc_dai_get_drvdata(dai);
-	int width = params_width(params);
+	struct fsl_asrc *asrc = snd_soc_dai_get_drvdata(dai);
+	struct fsl_asrc_priv *asrc_priv = asrc->private;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct fsl_asrc_pair *pair = runtime->private_data;
+	struct fsl_asrc_pair_priv *pair_priv = pair->private;
 	unsigned int channels = params_channels(params);
 	unsigned int rate = params_rate(params);
 	struct asrc_config config;
-	int word_width, ret;
+	int ret;
 
 	ret = fsl_asrc_request_pair(channels, pair);
 	if (ret) {
@@ -511,36 +714,28 @@ static int fsl_asrc_dai_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	pair->config = &config;
-
-	if (width == 16)
-		width = ASRC_WIDTH_16_BIT;
-	else
-		width = ASRC_WIDTH_24_BIT;
-
-	if (asrc_priv->asrc_width == 16)
-		word_width = ASRC_WIDTH_16_BIT;
-	else
-		word_width = ASRC_WIDTH_24_BIT;
+	pair_priv->config = &config;
 
 	config.pair = pair->index;
 	config.channel_num = channels;
-	config.inclk = INCLK_NONE;
-	config.outclk = OUTCLK_ASRCK1_CLK;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		config.input_word_width   = width;
-		config.output_word_width  = word_width;
+		config.input_format   = params_format(params);
+		config.output_format  = asrc->asrc_format;
 		config.input_sample_rate  = rate;
-		config.output_sample_rate = asrc_priv->asrc_rate;
+		config.output_sample_rate = asrc->asrc_rate;
 	} else {
-		config.input_word_width   = word_width;
-		config.output_word_width  = width;
-		config.input_sample_rate  = asrc_priv->asrc_rate;
+		config.input_format   = asrc->asrc_format;
+		config.output_format  = params_format(params);
+		config.input_sample_rate  = asrc->asrc_rate;
 		config.output_sample_rate = rate;
 	}
 
-	ret = fsl_asrc_config_pair(pair);
+	fsl_asrc_select_clk(asrc_priv, pair,
+			    config.input_sample_rate,
+			    config.output_sample_rate);
+
+	ret = fsl_asrc_config_pair(pair, false);
 	if (ret) {
 		dev_err(dai->dev, "fail to config asrc pair\n");
 		return ret;
@@ -585,29 +780,29 @@ static int fsl_asrc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	return 0;
 }
 
-static const struct snd_soc_dai_ops fsl_asrc_dai_ops = {
-	.startup      = fsl_asrc_dai_startup,
-	.hw_params    = fsl_asrc_dai_hw_params,
-	.hw_free      = fsl_asrc_dai_hw_free,
-	.trigger      = fsl_asrc_dai_trigger,
-};
-
 static int fsl_asrc_dai_probe(struct snd_soc_dai *dai)
 {
-	struct fsl_asrc *asrc_priv = snd_soc_dai_get_drvdata(dai);
+	struct fsl_asrc *asrc = snd_soc_dai_get_drvdata(dai);
 
-	snd_soc_dai_init_dma_data(dai, &asrc_priv->dma_params_tx,
-				  &asrc_priv->dma_params_rx);
+	snd_soc_dai_init_dma_data(dai, &asrc->dma_params_tx,
+				  &asrc->dma_params_rx);
 
 	return 0;
 }
 
+static const struct snd_soc_dai_ops fsl_asrc_dai_ops = {
+	.probe		= fsl_asrc_dai_probe,
+	.startup	= fsl_asrc_dai_startup,
+	.hw_params	= fsl_asrc_dai_hw_params,
+	.hw_free	= fsl_asrc_dai_hw_free,
+	.trigger	= fsl_asrc_dai_trigger,
+};
+
 #define FSL_ASRC_FORMATS	(SNDRV_PCM_FMTBIT_S24_LE | \
 				 SNDRV_PCM_FMTBIT_S16_LE | \
-				 SNDRV_PCM_FMTBIT_S20_3LE)
+				 SNDRV_PCM_FMTBIT_S24_3LE)
 
 static struct snd_soc_dai_driver fsl_asrc_dai = {
-	.probe = fsl_asrc_dai_probe,
 	.playback = {
 		.stream_name = "ASRC-Playback",
 		.channels_min = 1,
@@ -615,7 +810,8 @@ static struct snd_soc_dai_driver fsl_asrc_dai = {
 		.rate_min = 5512,
 		.rate_max = 192000,
 		.rates = SNDRV_PCM_RATE_KNOT,
-		.formats = FSL_ASRC_FORMATS,
+		.formats = FSL_ASRC_FORMATS |
+			   SNDRV_PCM_FMTBIT_S8,
 	},
 	.capture = {
 		.stream_name = "ASRC-Capture",
@@ -773,48 +969,56 @@ static const struct regmap_config fsl_asrc_regmap_config = {
 };
 
 /**
- * Initialize ASRC registers with a default configurations
+ * fsl_asrc_init - Initialize ASRC registers with a default configuration
+ * @asrc: ASRC context
  */
-static int fsl_asrc_init(struct fsl_asrc *asrc_priv)
+static int fsl_asrc_init(struct fsl_asrc *asrc)
 {
+	unsigned long ipg_rate;
+
 	/* Halt ASRC internal FP when input FIFO needs data for pair A, B, C */
-	regmap_write(asrc_priv->regmap, REG_ASRCTR, ASRCTR_ASRCEN);
+	regmap_write(asrc->regmap, REG_ASRCTR, ASRCTR_ASRCEN);
 
 	/* Disable interrupt by default */
-	regmap_write(asrc_priv->regmap, REG_ASRIER, 0x0);
+	regmap_write(asrc->regmap, REG_ASRIER, 0x0);
 
 	/* Apply recommended settings for parameters from Reference Manual */
-	regmap_write(asrc_priv->regmap, REG_ASRPM1, 0x7fffff);
-	regmap_write(asrc_priv->regmap, REG_ASRPM2, 0x255555);
-	regmap_write(asrc_priv->regmap, REG_ASRPM3, 0xff7280);
-	regmap_write(asrc_priv->regmap, REG_ASRPM4, 0xff7280);
-	regmap_write(asrc_priv->regmap, REG_ASRPM5, 0xff7280);
+	regmap_write(asrc->regmap, REG_ASRPM1, 0x7fffff);
+	regmap_write(asrc->regmap, REG_ASRPM2, 0x255555);
+	regmap_write(asrc->regmap, REG_ASRPM3, 0xff7280);
+	regmap_write(asrc->regmap, REG_ASRPM4, 0xff7280);
+	regmap_write(asrc->regmap, REG_ASRPM5, 0xff7280);
 
 	/* Base address for task queue FIFO. Set to 0x7C */
-	regmap_update_bits(asrc_priv->regmap, REG_ASRTFR1,
+	regmap_update_bits(asrc->regmap, REG_ASRTFR1,
 			   ASRTFR1_TF_BASE_MASK, ASRTFR1_TF_BASE(0xfc));
 
-	/* Set the processing clock for 76KHz to 133M */
-	regmap_write(asrc_priv->regmap, REG_ASR76K, 0x06D6);
-
-	/* Set the processing clock for 56KHz to 133M */
-	return regmap_write(asrc_priv->regmap, REG_ASR56K, 0x0947);
+	/*
+	 * Set the period of the 76KHz and 56KHz sampling clocks based on
+	 * the ASRC processing clock.
+	 * On iMX6, ipg_clk = 133MHz, REG_ASR76K = 0x06D6, REG_ASR56K = 0x0947
+	 */
+	ipg_rate = clk_get_rate(asrc->ipg_clk);
+	regmap_write(asrc->regmap, REG_ASR76K, ipg_rate / 76000);
+	return regmap_write(asrc->regmap, REG_ASR56K, ipg_rate / 56000);
 }
 
 /**
- * Interrupt handler for ASRC
+ * fsl_asrc_isr- Interrupt handler for ASRC
+ * @irq: irq number
+ * @dev_id: ASRC context
  */
 static irqreturn_t fsl_asrc_isr(int irq, void *dev_id)
 {
-	struct fsl_asrc *asrc_priv = (struct fsl_asrc *)dev_id;
-	struct device *dev = &asrc_priv->pdev->dev;
+	struct fsl_asrc *asrc = (struct fsl_asrc *)dev_id;
+	struct device *dev = &asrc->pdev->dev;
 	enum asrc_pair_index index;
 	u32 status;
 
-	regmap_read(asrc_priv->regmap, REG_ASRSTR, &status);
+	regmap_read(asrc->regmap, REG_ASRSTR, &status);
 
 	/* Clean overload error */
-	regmap_write(asrc_priv->regmap, REG_ASRSTR, ASRSTR_AOLE);
+	regmap_write(asrc->regmap, REG_ASRSTR, ASRSTR_AOLE);
 
 	/*
 	 * We here use dev_dbg() for all exceptions because ASRC itself does
@@ -822,31 +1026,31 @@ static irqreturn_t fsl_asrc_isr(int irq, void *dev_id)
 	 * interrupt would result a ridged conversion.
 	 */
 	for (index = ASRC_PAIR_A; index < ASRC_PAIR_MAX_NUM; index++) {
-		if (!asrc_priv->pair[index])
+		if (!asrc->pair[index])
 			continue;
 
 		if (status & ASRSTR_ATQOL) {
-			asrc_priv->pair[index]->error |= ASRC_TASK_Q_OVERLOAD;
+			asrc->pair[index]->error |= ASRC_TASK_Q_OVERLOAD;
 			dev_dbg(dev, "ASRC Task Queue FIFO overload\n");
 		}
 
 		if (status & ASRSTR_AOOL(index)) {
-			asrc_priv->pair[index]->error |= ASRC_OUTPUT_TASK_OVERLOAD;
+			asrc->pair[index]->error |= ASRC_OUTPUT_TASK_OVERLOAD;
 			pair_dbg("Output Task Overload\n");
 		}
 
 		if (status & ASRSTR_AIOL(index)) {
-			asrc_priv->pair[index]->error |= ASRC_INPUT_TASK_OVERLOAD;
+			asrc->pair[index]->error |= ASRC_INPUT_TASK_OVERLOAD;
 			pair_dbg("Input Task Overload\n");
 		}
 
 		if (status & ASRSTR_AODO(index)) {
-			asrc_priv->pair[index]->error |= ASRC_OUTPUT_BUFFER_OVERFLOW;
+			asrc->pair[index]->error |= ASRC_OUTPUT_BUFFER_OVERFLOW;
 			pair_dbg("Output Data Buffer has overflowed\n");
 		}
 
 		if (status & ASRSTR_AIDU(index)) {
-			asrc_priv->pair[index]->error |= ASRC_INPUT_BUFFER_UNDERRUN;
+			asrc->pair[index]->error |= ASRC_INPUT_BUFFER_UNDERRUN;
 			pair_dbg("Input Data Buffer has underflowed\n");
 		}
 	}
@@ -854,34 +1058,49 @@ static irqreturn_t fsl_asrc_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static int fsl_asrc_get_fifo_addr(u8 dir, enum asrc_pair_index index)
+{
+	return REG_ASRDx(dir, index);
+}
+
+static int fsl_asrc_runtime_resume(struct device *dev);
+static int fsl_asrc_runtime_suspend(struct device *dev);
+
 static int fsl_asrc_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	struct fsl_asrc *asrc_priv;
+	struct fsl_asrc_priv *asrc_priv;
+	struct fsl_asrc *asrc;
 	struct resource *res;
 	void __iomem *regs;
 	int irq, ret, i;
+	u32 asrc_fmt = 0;
+	u32 map_idx;
 	char tmp[16];
+	u32 width;
+
+	asrc = devm_kzalloc(&pdev->dev, sizeof(*asrc), GFP_KERNEL);
+	if (!asrc)
+		return -ENOMEM;
 
 	asrc_priv = devm_kzalloc(&pdev->dev, sizeof(*asrc_priv), GFP_KERNEL);
 	if (!asrc_priv)
 		return -ENOMEM;
 
-	asrc_priv->pdev = pdev;
+	asrc->pdev = pdev;
+	asrc->private = asrc_priv;
 
 	/* Get the addresses and IRQ */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	regs = devm_ioremap_resource(&pdev->dev, res);
+	regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
-	asrc_priv->paddr = res->start;
+	asrc->paddr = res->start;
 
-	asrc_priv->regmap = devm_regmap_init_mmio_clk(&pdev->dev, "mem", regs,
-						      &fsl_asrc_regmap_config);
-	if (IS_ERR(asrc_priv->regmap)) {
+	asrc->regmap = devm_regmap_init_mmio(&pdev->dev, regs, &fsl_asrc_regmap_config);
+	if (IS_ERR(asrc->regmap)) {
 		dev_err(&pdev->dev, "failed to init regmap\n");
-		return PTR_ERR(asrc_priv->regmap);
+		return PTR_ERR(asrc->regmap);
 	}
 
 	irq = platform_get_irq(pdev, 0);
@@ -889,26 +1108,26 @@ static int fsl_asrc_probe(struct platform_device *pdev)
 		return irq;
 
 	ret = devm_request_irq(&pdev->dev, irq, fsl_asrc_isr, 0,
-			       dev_name(&pdev->dev), asrc_priv);
+			       dev_name(&pdev->dev), asrc);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to claim irq %u: %d\n", irq, ret);
 		return ret;
 	}
 
-	asrc_priv->mem_clk = devm_clk_get(&pdev->dev, "mem");
-	if (IS_ERR(asrc_priv->mem_clk)) {
+	asrc->mem_clk = devm_clk_get(&pdev->dev, "mem");
+	if (IS_ERR(asrc->mem_clk)) {
 		dev_err(&pdev->dev, "failed to get mem clock\n");
-		return PTR_ERR(asrc_priv->mem_clk);
+		return PTR_ERR(asrc->mem_clk);
 	}
 
-	asrc_priv->ipg_clk = devm_clk_get(&pdev->dev, "ipg");
-	if (IS_ERR(asrc_priv->ipg_clk)) {
+	asrc->ipg_clk = devm_clk_get(&pdev->dev, "ipg");
+	if (IS_ERR(asrc->ipg_clk)) {
 		dev_err(&pdev->dev, "failed to get ipg clock\n");
-		return PTR_ERR(asrc_priv->ipg_clk);
+		return PTR_ERR(asrc->ipg_clk);
 	}
 
-	asrc_priv->spba_clk = devm_clk_get(&pdev->dev, "spba");
-	if (IS_ERR(asrc_priv->spba_clk))
+	asrc->spba_clk = devm_clk_get(&pdev->dev, "spba");
+	if (IS_ERR(asrc->spba_clk))
 		dev_warn(&pdev->dev, "failed to get spba clock\n");
 
 	for (i = 0; i < ASRC_CLK_MAX_NUM; i++) {
@@ -920,71 +1139,142 @@ static int fsl_asrc_probe(struct platform_device *pdev)
 		}
 	}
 
+	asrc_priv->soc = of_device_get_match_data(&pdev->dev);
+	asrc->use_edma = asrc_priv->soc->use_edma;
+	asrc->get_dma_channel = fsl_asrc_get_dma_channel;
+	asrc->request_pair = fsl_asrc_request_pair;
+	asrc->release_pair = fsl_asrc_release_pair;
+	asrc->get_fifo_addr = fsl_asrc_get_fifo_addr;
+	asrc->pair_priv_size = sizeof(struct fsl_asrc_pair_priv);
+
 	if (of_device_is_compatible(np, "fsl,imx35-asrc")) {
-		asrc_priv->channel_bits = 3;
-		clk_map[IN] = input_clk_map_imx35;
-		clk_map[OUT] = output_clk_map_imx35;
-	} else {
-		asrc_priv->channel_bits = 4;
-		clk_map[IN] = input_clk_map_imx53;
-		clk_map[OUT] = output_clk_map_imx53;
+		asrc_priv->clk_map[IN] = input_clk_map_imx35;
+		asrc_priv->clk_map[OUT] = output_clk_map_imx35;
+	} else if (of_device_is_compatible(np, "fsl,imx53-asrc")) {
+		asrc_priv->clk_map[IN] = input_clk_map_imx53;
+		asrc_priv->clk_map[OUT] = output_clk_map_imx53;
+	} else if (of_device_is_compatible(np, "fsl,imx8qm-asrc") ||
+		   of_device_is_compatible(np, "fsl,imx8qxp-asrc")) {
+		ret = of_property_read_u32(np, "fsl,asrc-clk-map", &map_idx);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to get clk map index\n");
+			return ret;
+		}
+
+		if (map_idx > 1) {
+			dev_err(&pdev->dev, "unsupported clk map index\n");
+			return -EINVAL;
+		}
+		if (of_device_is_compatible(np, "fsl,imx8qm-asrc")) {
+			asrc_priv->clk_map[IN] = clk_map_imx8qm[map_idx];
+			asrc_priv->clk_map[OUT] = clk_map_imx8qm[map_idx];
+		} else {
+			asrc_priv->clk_map[IN] = clk_map_imx8qxp[map_idx];
+			asrc_priv->clk_map[OUT] = clk_map_imx8qxp[map_idx];
+		}
 	}
 
-	ret = fsl_asrc_init(asrc_priv);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to init asrc %d\n", ret);
-		return ret;
-	}
-
-	asrc_priv->channel_avail = 10;
+	asrc->channel_avail = 10;
 
 	ret = of_property_read_u32(np, "fsl,asrc-rate",
-				   &asrc_priv->asrc_rate);
+				   &asrc->asrc_rate);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to get output rate\n");
 		return ret;
 	}
 
-	ret = of_property_read_u32(np, "fsl,asrc-width",
-				   &asrc_priv->asrc_width);
+	ret = of_property_read_u32(np, "fsl,asrc-format", &asrc_fmt);
+	asrc->asrc_format = (__force snd_pcm_format_t)asrc_fmt;
 	if (ret) {
-		dev_err(&pdev->dev, "failed to get output width\n");
-		return ret;
+		ret = of_property_read_u32(np, "fsl,asrc-width", &width);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to decide output format\n");
+			return ret;
+		}
+
+		switch (width) {
+		case 16:
+			asrc->asrc_format = SNDRV_PCM_FORMAT_S16_LE;
+			break;
+		case 24:
+			asrc->asrc_format = SNDRV_PCM_FORMAT_S24_LE;
+			break;
+		default:
+			dev_warn(&pdev->dev,
+				 "unsupported width, use default S24_LE\n");
+			asrc->asrc_format = SNDRV_PCM_FORMAT_S24_LE;
+			break;
+		}
 	}
 
-	if (asrc_priv->asrc_width != 16 && asrc_priv->asrc_width != 24) {
-		dev_warn(&pdev->dev, "unsupported width, switching to 24bit\n");
-		asrc_priv->asrc_width = 24;
+	if (!(FSL_ASRC_FORMATS & pcm_format_to_bits(asrc->asrc_format))) {
+		dev_warn(&pdev->dev, "unsupported width, use default S24_LE\n");
+		asrc->asrc_format = SNDRV_PCM_FORMAT_S24_LE;
 	}
 
-	platform_set_drvdata(pdev, asrc_priv);
+	platform_set_drvdata(pdev, asrc);
+	spin_lock_init(&asrc->lock);
 	pm_runtime_enable(&pdev->dev);
-	spin_lock_init(&asrc_priv->lock);
+	if (!pm_runtime_enabled(&pdev->dev)) {
+		ret = fsl_asrc_runtime_resume(&pdev->dev);
+		if (ret)
+			goto err_pm_disable;
+	}
+
+	ret = pm_runtime_resume_and_get(&pdev->dev);
+	if (ret < 0)
+		goto err_pm_get_sync;
+
+	ret = fsl_asrc_init(asrc);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to init asrc %d\n", ret);
+		goto err_pm_get_sync;
+	}
+
+	ret = pm_runtime_put_sync(&pdev->dev);
+	if (ret < 0 && ret != -ENOSYS)
+		goto err_pm_get_sync;
 
 	ret = devm_snd_soc_register_component(&pdev->dev, &fsl_asrc_component,
 					      &fsl_asrc_dai, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register ASoC DAI\n");
-		return ret;
+		goto err_pm_get_sync;
 	}
 
 	return 0;
+
+err_pm_get_sync:
+	if (!pm_runtime_status_suspended(&pdev->dev))
+		fsl_asrc_runtime_suspend(&pdev->dev);
+err_pm_disable:
+	pm_runtime_disable(&pdev->dev);
+	return ret;
 }
 
-#ifdef CONFIG_PM
+static void fsl_asrc_remove(struct platform_device *pdev)
+{
+	pm_runtime_disable(&pdev->dev);
+	if (!pm_runtime_status_suspended(&pdev->dev))
+		fsl_asrc_runtime_suspend(&pdev->dev);
+}
+
 static int fsl_asrc_runtime_resume(struct device *dev)
 {
-	struct fsl_asrc *asrc_priv = dev_get_drvdata(dev);
+	struct fsl_asrc *asrc = dev_get_drvdata(dev);
+	struct fsl_asrc_priv *asrc_priv = asrc->private;
+	int reg, retry = INIT_RETRY_NUM;
 	int i, ret;
+	u32 asrctr;
 
-	ret = clk_prepare_enable(asrc_priv->mem_clk);
+	ret = clk_prepare_enable(asrc->mem_clk);
 	if (ret)
 		return ret;
-	ret = clk_prepare_enable(asrc_priv->ipg_clk);
+	ret = clk_prepare_enable(asrc->ipg_clk);
 	if (ret)
 		goto disable_mem_clk;
-	if (!IS_ERR(asrc_priv->spba_clk)) {
-		ret = clk_prepare_enable(asrc_priv->spba_clk);
+	if (!IS_ERR(asrc->spba_clk)) {
+		ret = clk_prepare_enable(asrc->spba_clk);
 		if (ret)
 			goto disable_ipg_clk;
 	}
@@ -994,90 +1284,115 @@ static int fsl_asrc_runtime_resume(struct device *dev)
 			goto disable_asrck_clk;
 	}
 
+	/* Stop all pairs provisionally */
+	regmap_read(asrc->regmap, REG_ASRCTR, &asrctr);
+	regmap_update_bits(asrc->regmap, REG_ASRCTR,
+			   ASRCTR_ASRCEi_ALL_MASK, 0);
+
+	/* Restore all registers */
+	regcache_cache_only(asrc->regmap, false);
+	regcache_mark_dirty(asrc->regmap);
+	regcache_sync(asrc->regmap);
+
+	regmap_update_bits(asrc->regmap, REG_ASRCFG,
+			   ASRCFG_NDPRi_ALL_MASK | ASRCFG_POSTMODi_ALL_MASK |
+			   ASRCFG_PREMODi_ALL_MASK, asrc_priv->regcache_cfg);
+
+	/* Restart enabled pairs */
+	regmap_update_bits(asrc->regmap, REG_ASRCTR,
+			   ASRCTR_ASRCEi_ALL_MASK, asrctr);
+
+	/* Wait for status of initialization for all enabled pairs */
+	do {
+		udelay(5);
+		regmap_read(asrc->regmap, REG_ASRCFG, &reg);
+		reg = (reg >> ASRCFG_INIRQi_SHIFT(0)) & 0x7;
+	} while ((reg != ((asrctr >> ASRCTR_ASRCEi_SHIFT(0)) & 0x7)) && --retry);
+
+	/*
+	 * NOTE: Doesn't treat initialization timeout as an error
+	 * Some of the pairs may success, then still can continue.
+	 */
+	if (!retry) {
+		for (i = ASRC_PAIR_A; i < ASRC_PAIR_MAX_NUM; i++) {
+			if ((asrctr & ASRCTR_ASRCEi_MASK(i)) && !(reg & (1 << i)))
+				dev_warn(dev, "Pair %c initialization isn't finished\n", 'A' + i);
+		}
+	}
+
 	return 0;
 
 disable_asrck_clk:
 	for (i--; i >= 0; i--)
 		clk_disable_unprepare(asrc_priv->asrck_clk[i]);
-	if (!IS_ERR(asrc_priv->spba_clk))
-		clk_disable_unprepare(asrc_priv->spba_clk);
+	if (!IS_ERR(asrc->spba_clk))
+		clk_disable_unprepare(asrc->spba_clk);
 disable_ipg_clk:
-	clk_disable_unprepare(asrc_priv->ipg_clk);
+	clk_disable_unprepare(asrc->ipg_clk);
 disable_mem_clk:
-	clk_disable_unprepare(asrc_priv->mem_clk);
+	clk_disable_unprepare(asrc->mem_clk);
 	return ret;
 }
 
 static int fsl_asrc_runtime_suspend(struct device *dev)
 {
-	struct fsl_asrc *asrc_priv = dev_get_drvdata(dev);
+	struct fsl_asrc *asrc = dev_get_drvdata(dev);
+	struct fsl_asrc_priv *asrc_priv = asrc->private;
 	int i;
+
+	regmap_read(asrc->regmap, REG_ASRCFG,
+		    &asrc_priv->regcache_cfg);
+
+	regcache_cache_only(asrc->regmap, true);
 
 	for (i = 0; i < ASRC_CLK_MAX_NUM; i++)
 		clk_disable_unprepare(asrc_priv->asrck_clk[i]);
-	if (!IS_ERR(asrc_priv->spba_clk))
-		clk_disable_unprepare(asrc_priv->spba_clk);
-	clk_disable_unprepare(asrc_priv->ipg_clk);
-	clk_disable_unprepare(asrc_priv->mem_clk);
+	if (!IS_ERR(asrc->spba_clk))
+		clk_disable_unprepare(asrc->spba_clk);
+	clk_disable_unprepare(asrc->ipg_clk);
+	clk_disable_unprepare(asrc->mem_clk);
 
 	return 0;
 }
-#endif /* CONFIG_PM */
-
-#ifdef CONFIG_PM_SLEEP
-static int fsl_asrc_suspend(struct device *dev)
-{
-	struct fsl_asrc *asrc_priv = dev_get_drvdata(dev);
-
-	regmap_read(asrc_priv->regmap, REG_ASRCFG,
-		    &asrc_priv->regcache_cfg);
-
-	regcache_cache_only(asrc_priv->regmap, true);
-	regcache_mark_dirty(asrc_priv->regmap);
-
-	return 0;
-}
-
-static int fsl_asrc_resume(struct device *dev)
-{
-	struct fsl_asrc *asrc_priv = dev_get_drvdata(dev);
-	u32 asrctr;
-
-	/* Stop all pairs provisionally */
-	regmap_read(asrc_priv->regmap, REG_ASRCTR, &asrctr);
-	regmap_update_bits(asrc_priv->regmap, REG_ASRCTR,
-			   ASRCTR_ASRCEi_ALL_MASK, 0);
-
-	/* Restore all registers */
-	regcache_cache_only(asrc_priv->regmap, false);
-	regcache_sync(asrc_priv->regmap);
-
-	regmap_update_bits(asrc_priv->regmap, REG_ASRCFG,
-			   ASRCFG_NDPRi_ALL_MASK | ASRCFG_POSTMODi_ALL_MASK |
-			   ASRCFG_PREMODi_ALL_MASK, asrc_priv->regcache_cfg);
-
-	/* Restart enabled pairs */
-	regmap_update_bits(asrc_priv->regmap, REG_ASRCTR,
-			   ASRCTR_ASRCEi_ALL_MASK, asrctr);
-
-	return 0;
-}
-#endif /* CONFIG_PM_SLEEP */
 
 static const struct dev_pm_ops fsl_asrc_pm = {
 	SET_RUNTIME_PM_OPS(fsl_asrc_runtime_suspend, fsl_asrc_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(fsl_asrc_suspend, fsl_asrc_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
+};
+
+static const struct fsl_asrc_soc_data fsl_asrc_imx35_data = {
+	.use_edma = false,
+	.channel_bits = 3,
+};
+
+static const struct fsl_asrc_soc_data fsl_asrc_imx53_data = {
+	.use_edma = false,
+	.channel_bits = 4,
+};
+
+static const struct fsl_asrc_soc_data fsl_asrc_imx8qm_data = {
+	.use_edma = true,
+	.channel_bits = 4,
+};
+
+static const struct fsl_asrc_soc_data fsl_asrc_imx8qxp_data = {
+	.use_edma = true,
+	.channel_bits = 4,
 };
 
 static const struct of_device_id fsl_asrc_ids[] = {
-	{ .compatible = "fsl,imx35-asrc", },
-	{ .compatible = "fsl,imx53-asrc", },
+	{ .compatible = "fsl,imx35-asrc", .data = &fsl_asrc_imx35_data },
+	{ .compatible = "fsl,imx53-asrc", .data = &fsl_asrc_imx53_data },
+	{ .compatible = "fsl,imx8qm-asrc", .data = &fsl_asrc_imx8qm_data },
+	{ .compatible = "fsl,imx8qxp-asrc", .data = &fsl_asrc_imx8qxp_data },
 	{}
 };
 MODULE_DEVICE_TABLE(of, fsl_asrc_ids);
 
 static struct platform_driver fsl_asrc_driver = {
 	.probe = fsl_asrc_probe,
+	.remove_new = fsl_asrc_remove,
 	.driver = {
 		.name = "fsl-asrc",
 		.of_match_table = fsl_asrc_ids,

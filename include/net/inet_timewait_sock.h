@@ -65,15 +65,16 @@ struct inet_timewait_sock {
 	/* these three are in inet_sock */
 	__be16			tw_sport;
 	/* And these are ours. */
-	unsigned int		tw_kill		: 1,
-				tw_transparent  : 1,
+	unsigned int		tw_transparent  : 1,
 				tw_flowlabel	: 20,
+				tw_usec_ts	: 1,
 				tw_pad		: 2,	/* 2 bits hole */
 				tw_tos		: 8;
 	u32			tw_txhash;
 	u32			tw_priority;
 	struct timer_list	tw_timer;
 	struct inet_bind_bucket	*tw_tb;
+	struct inet_bind2_bucket	*tw_tb2;
 };
 #define tw_tclass tw_tos
 
@@ -110,7 +111,7 @@ static inline void inet_twsk_reschedule(struct inet_timewait_sock *tw, int timeo
 
 void inet_twsk_deschedule_put(struct inet_timewait_sock *tw);
 
-void inet_twsk_purge(struct inet_hashinfo *hashinfo, int family);
+void inet_twsk_purge(struct inet_hashinfo *hashinfo);
 
 static inline
 struct net *twsk_net(const struct inet_timewait_sock *twsk)

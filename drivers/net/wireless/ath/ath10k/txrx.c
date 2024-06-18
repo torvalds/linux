@@ -43,6 +43,7 @@ out:
 int ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 			 const struct htt_tx_done *tx_done)
 {
+	struct ieee80211_tx_status status;
 	struct ath10k *ar = htt->ar;
 	struct device *dev = ar->dev;
 	struct ieee80211_tx_info *info;
@@ -50,6 +51,7 @@ int ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 	struct ath10k_skb_cb *skb_cb;
 	struct ath10k_txq *artxq;
 	struct sk_buff *msdu;
+	u8 flags;
 
 	ath10k_dbg(ar, ATH10K_DBG_HTT,
 		   "htt tx completion msdu_id %u status %d\n",
@@ -78,15 +80,16 @@ int ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 		artxq->num_fw_queued--;
 	}
 
+	flags = skb_cb->flags;
 	ath10k_htt_tx_free_msdu_id(htt, tx_done->msdu_id);
 	ath10k_htt_tx_dec_pending(htt);
-	if (htt->num_pending_tx == 0)
-		wake_up(&htt->empty_tx_wq);
 	spin_unlock_bh(&htt->tx_lock);
 
+	rcu_read_lock();
 	if (txq && txq->sta && skb_cb->airtime_est)
 		ieee80211_sta_register_airtime(txq->sta, txq->tid,
 					       skb_cb->airtime_est, 0);
+	rcu_read_unlock();
 
 	if (ar->bus_param.dev_type != ATH10K_DEV_TYPE_HL)
 		dma_unmap_single(dev, skb_cb->paddr, msdu->len, DMA_TO_DEVICE);
@@ -95,20 +98,25 @@ int ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 
 	info = IEEE80211_SKB_CB(msdu);
 	memset(&info->status, 0, sizeof(info->status));
+	info->status.rates[0].idx = -1;
+
 	trace_ath10k_txrx_tx_unref(ar, tx_done->msdu_id);
 
-	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK))
+	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK) &&
+	    !(flags & ATH10K_SKB_F_NOACK_TID))
 		info->flags |= IEEE80211_TX_STAT_ACK;
 
 	if (tx_done->status == HTT_TX_COMPL_STATE_NOACK)
 		info->flags &= ~IEEE80211_TX_STAT_ACK;
 
 	if ((tx_done->status == HTT_TX_COMPL_STATE_ACK) &&
-	    (info->flags & IEEE80211_TX_CTL_NO_ACK))
+	    ((info->flags & IEEE80211_TX_CTL_NO_ACK) ||
+	    (flags & ATH10K_SKB_F_NOACK_TID)))
 		info->flags |= IEEE80211_TX_STAT_NOACK_TRANSMITTED;
 
 	if (tx_done->status == HTT_TX_COMPL_STATE_DISCARD) {
-		if (info->flags & IEEE80211_TX_CTL_NO_ACK)
+		if ((info->flags & IEEE80211_TX_CTL_NO_ACK) ||
+		    (flags & ATH10K_SKB_F_NOACK_TID))
 			info->flags &= ~IEEE80211_TX_STAT_NOACK_TRANSMITTED;
 		else
 			info->flags &= ~IEEE80211_TX_STAT_ACK;
@@ -118,10 +126,22 @@ int ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 	    tx_done->ack_rssi != ATH10K_INVALID_RSSI) {
 		info->status.ack_signal = ATH10K_DEFAULT_NOISE_FLOOR +
 						tx_done->ack_rssi;
-		info->status.is_valid_ack_signal = true;
+		info->status.flags |= IEEE80211_TX_STATUS_ACK_SIGNAL_VALID;
 	}
 
-	ieee80211_tx_status(htt->ar->hw, msdu);
+	memset(&status, 0, sizeof(status));
+	status.skb = msdu;
+	status.info = info;
+
+	rcu_read_lock();
+
+	if (txq)
+		status.sta = txq->sta;
+
+	ieee80211_tx_status_ext(htt->ar->hw, &status);
+
+	rcu_read_unlock();
+
 	/* we do not own the msdu anymore */
 
 	return 0;
@@ -202,7 +222,7 @@ void ath10k_peer_map_event(struct ath10k_htt *htt,
 
 	if (ev->peer_id >= ATH10K_MAX_NUM_PEER_IDS) {
 		ath10k_warn(ar,
-			    "received htt peer map event with idx out of bounds: %hu\n",
+			    "received htt peer map event with idx out of bounds: %u\n",
 			    ev->peer_id);
 		return;
 	}
@@ -238,7 +258,7 @@ void ath10k_peer_unmap_event(struct ath10k_htt *htt,
 
 	if (ev->peer_id >= ATH10K_MAX_NUM_PEER_IDS) {
 		ath10k_warn(ar,
-			    "received htt peer unmap event with idx out of bounds: %hu\n",
+			    "received htt peer unmap event with idx out of bounds: %u\n",
 			    ev->peer_id);
 		return;
 	}

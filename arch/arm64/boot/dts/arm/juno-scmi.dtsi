@@ -1,0 +1,223 @@
+/ {
+	etf@20010000 {
+		power-domains = <&scmi_devpd 8>;
+	};
+
+	tpiu@20030000 {
+		power-domains = <&scmi_devpd 8>;
+	};
+
+	funnel@20040000 {
+		power-domains = <&scmi_devpd 8>;
+	};
+
+	etr@20070000 {
+		power-domains = <&scmi_devpd 8>;
+	};
+
+	stm@20100000 {
+		power-domains = <&scmi_devpd 8>;
+	};
+
+	replicator@20120000 {
+		power-domains = <&scmi_devpd 8>;
+	};
+
+	funnel@220c0000 {
+		power-domains = <&scmi_devpd 8>;
+	};
+
+	funnel@230c0000 {
+		power-domains = <&scmi_devpd 8>;
+	};
+
+	hdlcd@7ff50000 {
+		clocks = <&scmi_clk 3>;
+	};
+
+	hdlcd@7ff60000 {
+		clocks = <&scmi_clk 3>;
+	};
+
+	/delete-node/ scpi;
+
+	firmware {
+		scmi {
+			compatible = "arm,scmi";
+			mbox-names = "tx", "rx";
+			mboxes = <&mailbox 0 0 &mailbox 0 1>;
+			shmem = <&cpu_scp_lpri0 &cpu_scp_lpri1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			scmi_devpd: protocol@11 {
+				reg = <0x11>;
+				#power-domain-cells = <1>;
+			};
+
+			scmi_dvfs: protocol@13 {
+				reg = <0x13>;
+				#clock-cells = <1>;
+				mbox-names = "tx", "rx";
+				mboxes = <&mailbox 1 0 &mailbox 1 1>;
+				shmem = <&cpu_scp_hpri0 &cpu_scp_hpri1>;
+			};
+
+			scmi_clk: protocol@14 {
+				reg = <0x14>;
+				#clock-cells = <1>;
+			};
+
+			scmi_sensors0: protocol@15 {
+				reg = <0x15>;
+				#thermal-sensor-cells = <1>;
+			};
+		};
+	};
+
+	thermal-zones {
+		pmic-thermal {
+			thermal-sensors = <&scmi_sensors0 0>;
+		};
+
+		soc-thermal {
+			thermal-sensors = <&scmi_sensors0 3>;
+		};
+
+		big-cl-thermal {
+			thermal-sensors = <&scmi_sensors0 21>;
+		};
+
+		little-cl-thermal {
+			thermal-sensors = <&scmi_sensors0 22>;
+		};
+
+		gpu0-thermal {
+			thermal-sensors = <&scmi_sensors0 23>;
+		};
+
+		gpu1-thermal {
+			thermal-sensors = <&scmi_sensors0 24>;
+		};
+	};
+
+};
+
+&A53_0 {
+	clocks = <&scmi_dvfs 1>;
+};
+&A53_1 {
+	clocks = <&scmi_dvfs 1>;
+};
+&A53_2 {
+	clocks = <&scmi_dvfs 1>;
+};
+&A53_3 {
+	clocks = <&scmi_dvfs 1>;
+};
+
+&cpu_debug0 {
+	power-domains = <&scmi_devpd 8>;
+};
+&cpu_debug1 {
+	power-domains = <&scmi_devpd 8>;
+};
+&cpu_debug2 {
+	power-domains = <&scmi_devpd 8>;
+};
+&cpu_debug3 {
+	power-domains = <&scmi_devpd 8>;
+};
+&cpu_debug4 {
+	power-domains = <&scmi_devpd 8>;
+};
+&cpu_debug5 {
+	power-domains = <&scmi_devpd 8>;
+};
+
+&etm0 {
+	power-domains = <&scmi_devpd 8>;
+};
+&etm1 {
+	power-domains = <&scmi_devpd 8>;
+};
+&etm2 {
+	power-domains = <&scmi_devpd 8>;
+};
+&etm3 {
+	power-domains = <&scmi_devpd 8>;
+};
+&etm4 {
+	power-domains = <&scmi_devpd 8>;
+};
+&etm5 {
+	power-domains = <&scmi_devpd 8>;
+};
+
+&cti0 {
+	power-domains = <&scmi_devpd 8>;
+};
+&cti1 {
+	power-domains = <&scmi_devpd 8>;
+};
+&cti2 {
+	power-domains = <&scmi_devpd 8>;
+};
+&cti3 {
+	power-domains = <&scmi_devpd 8>;
+};
+&cti4 {
+	power-domains = <&scmi_devpd 8>;
+};
+&cti5 {
+	power-domains = <&scmi_devpd 8>;
+};
+&cti_sys0 {
+	power-domains = <&scmi_devpd 8>;
+};
+&cti_sys1 {
+	power-domains = <&scmi_devpd 8>;
+};
+
+&gpu {
+	clocks = <&scmi_dvfs 2>;
+	power-domains = <&scmi_devpd 9>;
+};
+
+&mailbox {
+	compatible = "arm,mhu-doorbell", "arm,primecell";
+	#mbox-cells = <2>;
+};
+
+&smmu_etr {
+	power-domains = <&scmi_devpd 8>;
+};
+
+&smmu_gpu {
+	power-domains = <&scmi_devpd 9>;
+};
+
+&sram {
+	/delete-node/ scp-sram@0;
+	/delete-node/ scp-sram@200;
+
+	cpu_scp_lpri0: scp-sram@0 {
+		compatible = "arm,scmi-shmem";
+		reg = <0x0 0x80>;
+	};
+
+	cpu_scp_lpri1: scp-sram@80 {
+		compatible = "arm,scmi-shmem";
+		reg = <0x80 0x80>;
+	};
+
+	cpu_scp_hpri0: scp-sram@100 {
+		compatible = "arm,scmi-shmem";
+		reg = <0x100 0x80>;
+	};
+
+	cpu_scp_hpri1: scp-sram@180 {
+		compatible = "arm,scmi-shmem";
+		reg = <0x180 0x80>;
+	};
+};

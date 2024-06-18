@@ -380,13 +380,12 @@ int bnx2x_vfpf_acquire(struct bnx2x *bp, u8 tx_count, u8 rx_count)
 	bp->igu_base_sb = bp->acquire_resp.resc.hw_sbs[0].hw_sb_id;
 	bp->vlan_credit = bp->acquire_resp.resc.num_vlan_filters;
 
-	strlcpy(bp->fw_ver, bp->acquire_resp.pfdev_info.fw_ver,
+	strscpy(bp->fw_ver, bp->acquire_resp.pfdev_info.fw_ver,
 		sizeof(bp->fw_ver));
 
 	if (is_valid_ether_addr(bp->acquire_resp.resc.current_mac_addr))
-		memcpy(bp->dev->dev_addr,
-		       bp->acquire_resp.resc.current_mac_addr,
-		       ETH_ALEN);
+		eth_hw_addr_set(bp->dev,
+				bp->acquire_resp.resc.current_mac_addr);
 
 out:
 	bnx2x_vfpf_finalize(bp, &req->first_tlv);
@@ -530,13 +529,16 @@ void bnx2x_vfpf_close_vf(struct bnx2x *bp)
 	bnx2x_vfpf_finalize(bp, &req->first_tlv);
 
 free_irq:
-	/* Disable HW interrupts, NAPI */
-	bnx2x_netif_stop(bp, 0);
-	/* Delete all NAPI objects */
-	bnx2x_del_all_napi(bp);
+	if (!bp->nic_stopped) {
+		/* Disable HW interrupts, NAPI */
+		bnx2x_netif_stop(bp, 0);
+		/* Delete all NAPI objects */
+		bnx2x_del_all_napi(bp);
 
-	/* Release IRQs */
-	bnx2x_free_irq(bp);
+		/* Release IRQs */
+		bnx2x_free_irq(bp);
+		bp->nic_stopped = true;
+	}
 }
 
 static void bnx2x_leading_vfq_init(struct bnx2x *bp, struct bnx2x_virtf *vf,
@@ -722,7 +724,7 @@ out:
 }
 
 /* request pf to add a mac for the vf */
-int bnx2x_vfpf_config_mac(struct bnx2x *bp, u8 *addr, u8 vf_qid, bool set)
+int bnx2x_vfpf_config_mac(struct bnx2x *bp, const u8 *addr, u8 vf_qid, bool set)
 {
 	struct vfpf_set_q_filters_tlv *req = &bp->vf2pf_mbox->req.set_q_filters;
 	struct pfvf_general_resp_tlv *resp = &bp->vf2pf_mbox->resp.general_resp;
@@ -767,7 +769,7 @@ int bnx2x_vfpf_config_mac(struct bnx2x *bp, u8 *addr, u8 vf_qid, bool set)
 		   "vfpf SET MAC failed. Check bulletin board for new posts\n");
 
 		/* copy mac from bulletin to device */
-		memcpy(bp->dev->dev_addr, bulletin.mac, ETH_ALEN);
+		eth_hw_addr_set(bp->dev, bulletin.mac);
 
 		/* check if bulletin board was updated */
 		if (bnx2x_sample_bulletin(bp) == PFVF_BULLETIN_UPDATED) {
@@ -2106,6 +2108,18 @@ static void bnx2x_vf_mbx_request(struct bnx2x *bp, struct bnx2x_virtf *vf,
 				  struct bnx2x_vf_mbx *mbx)
 {
 	int i;
+
+	if (vf->state == VF_LOST) {
+		/* Just ack the FW and return if VFs are lost
+		 * in case of parity error. VFs are supposed to be timedout
+		 * on waiting for PF response.
+		 */
+		DP(BNX2X_MSG_IOV,
+		   "VF 0x%x lost, not handling the request\n", vf->abs_vfid);
+
+		storm_memset_vf_mbx_ack(bp, vf->abs_vfid);
+		return;
+	}
 
 	/* check if tlv type is known */
 	if (bnx2x_tlv_supported(mbx->first_tlv.tl.type)) {

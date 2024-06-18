@@ -3,7 +3,7 @@ Kernel Mode Setting (KMS)
 =========================
 
 Drivers must initialize the mode setting core by calling
-:c:func:`drm_mode_config_init()` on the DRM device. The function
+drmm_mode_config_init() on the DRM device. The function
 initializes the :c:type:`struct drm_device <drm_device>`
 mode_config field and never fails. Once done, mode configuration must
 be setup by initializing the following fields.
@@ -66,11 +66,11 @@ Composition Properties`_ and related chapters.
 For the output routing the first step is encoders (represented by
 :c:type:`struct drm_encoder <drm_encoder>`, see `Encoder Abstraction`_). Those
 are really just internal artifacts of the helper libraries used to implement KMS
-drivers. Besides that they make it unecessarily more complicated for userspace
+drivers. Besides that they make it unnecessarily more complicated for userspace
 to figure out which connections between a CRTC and a connector are possible, and
 what kind of cloning is supported, they serve no purpose in the userspace API.
 Unfortunately encoders have been exposed to userspace, hence can't remove them
-at this point.  Futhermore the exposed restrictions are often wrongly set by
+at this point.  Furthermore the exposed restrictions are often wrongly set by
 drivers, and in many cases not powerful enough to express the real restrictions.
 A CRTC can be connected to multiple encoders, and for an active CRTC there must
 be at least one encoder.
@@ -159,6 +159,8 @@ KMS Core Structures and Functions
 .. kernel-doc:: drivers/gpu/drm/drm_mode_config.c
    :export:
 
+.. _kms_base_object_abstraction:
+
 Modeset Base Object Abstraction
 ===============================
 
@@ -181,8 +183,7 @@ Setting`_). The somewhat surprising part here is that properties are not
 directly instantiated on each object, but free-standing mode objects themselves,
 represented by :c:type:`struct drm_property <drm_property>`, which only specify
 the type and value range of a property. Any given property can be attached
-multiple times to different objects using :c:func:`drm_object_attach_property()
-<drm_object_attach_property>`.
+multiple times to different objects using drm_object_attach_property().
 
 .. kernel-doc:: include/drm/drm_mode_object.h
    :internal:
@@ -259,8 +260,9 @@ Taken all together there's two consequences for the atomic design:
   drm_crtc_state <drm_crtc_state>` for CRTCs and :c:type:`struct
   drm_connector_state <drm_connector_state>` for connectors. These are the only
   objects with userspace-visible and settable state. For internal state drivers
-  can subclass these structures through embeddeding, or add entirely new state
-  structures for their globally shared hardware functions.
+  can subclass these structures through embedding, or add entirely new state
+  structures for their globally shared hardware functions, see :c:type:`struct
+  drm_private_state<drm_private_state>`.
 
 - An atomic update is assembled and validated as an entirely free-standing pile
   of structures within the :c:type:`drm_atomic_state <drm_atomic_state>`
@@ -268,6 +270,14 @@ Taken all together there's two consequences for the atomic design:
   structure; see the next chapter.  Only when a state is committed is it applied
   to the driver and modeset objects. This way rolling back an update boils down
   to releasing memory and unreferencing objects like framebuffers.
+
+Locking of atomic state structures is internally using :c:type:`struct
+drm_modeset_lock <drm_modeset_lock>`. As a general rule the locking shouldn't be
+exposed to drivers, instead the right locks should be automatically acquired by
+any function that duplicates or peeks into a state, like e.g.
+drm_atomic_get_crtc_state().  Locking only protects the software data
+structure, ordering of committing state changes to hardware is sequenced using
+:c:type:`struct drm_crtc_commit <drm_crtc_commit>`.
 
 Read on in this chapter, and also in :ref:`drm_atomic_helper` for more detailed
 coverage of specific topics.
@@ -311,6 +321,15 @@ CRTC Functions Reference
 .. kernel-doc:: drivers/gpu/drm/drm_crtc.c
    :export:
 
+Color Management Functions Reference
+------------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_color_mgmt.c
+   :export:
+
+.. kernel-doc:: include/drm/drm_color_mgmt.h
+   :internal:
+
 Frame Buffer Abstraction
 ========================
 
@@ -341,6 +360,8 @@ Format Functions Reference
 .. kernel-doc:: drivers/gpu/drm/drm_fourcc.c
    :export:
 
+.. _kms_dumb_buffer_objects:
+
 Dumb Buffer Objects
 ===================
 
@@ -360,6 +381,36 @@ Plane Functions Reference
    :internal:
 
 .. kernel-doc:: drivers/gpu/drm/drm_plane.c
+   :export:
+
+Plane Composition Functions Reference
+-------------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_blend.c
+   :export:
+
+Plane Damage Tracking Functions Reference
+-----------------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_damage_helper.c
+   :export:
+
+.. kernel-doc:: include/drm/drm_damage_helper.h
+   :internal:
+
+Plane Panic Feature
+-------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_panic.c
+   :doc: overview
+
+Plane Panic Functions Reference
+-------------------------------
+
+.. kernel-doc:: include/drm/drm_panic.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_panic.c
    :export:
 
 Display Modes Function Reference
@@ -391,6 +442,9 @@ Writeback Connectors
 
 .. kernel-doc:: drivers/gpu/drm/drm_writeback.c
   :doc: overview
+
+.. kernel-doc:: include/drm/drm_writeback.h
+  :internal:
 
 .. kernel-doc:: drivers/gpu/drm/drm_writeback.c
   :export:
@@ -425,6 +479,45 @@ KMS Locking
 KMS Properties
 ==============
 
+This section of the documentation is primarily aimed at user-space developers.
+For the driver APIs, see the other sections.
+
+Requirements
+------------
+
+KMS drivers might need to add extra properties to support new features. Each
+new property introduced in a driver needs to meet a few requirements, in
+addition to the one mentioned above:
+
+* It must be standardized, documenting:
+
+  * The full, exact, name string;
+  * If the property is an enum, all the valid value name strings;
+  * What values are accepted, and what these values mean;
+  * What the property does and how it can be used;
+  * How the property might interact with other, existing properties.
+
+* It must provide a generic helper in the core code to register that
+  property on the object it attaches to.
+
+* Its content must be decoded by the core and provided in the object's
+  associated state structure. That includes anything drivers might want
+  to precompute, like struct drm_clip_rect for planes.
+
+* Its initial state must match the behavior prior to the property
+  introduction. This might be a fixed value matching what the hardware
+  does, or it may be inherited from the state the firmware left the
+  system in during boot.
+
+* An IGT test must be submitted where reasonable.
+
+For historical reasons, non-standard, driver-specific properties exist. If a KMS
+driver wants to add support for one of those properties, the requirements for
+new properties apply where possible. Additionally, the documented behavior must
+match the de facto semantics of the existing property to ensure compatibility.
+Developers of the driver that first added the property should help with those
+tasks and must ACK the documented behavior if possible.
+
 Property Types and Blob Property Support
 ----------------------------------------
 
@@ -436,6 +529,8 @@ Property Types and Blob Property Support
 
 .. kernel-doc:: drivers/gpu/drm/drm_property.c
    :export:
+
+.. _standard_connector_properties:
 
 Standard Connector Properties
 -----------------------------
@@ -449,35 +544,45 @@ HDMI Specific Connector Properties
 .. kernel-doc:: drivers/gpu/drm/drm_connector.c
    :doc: HDMI connector properties
 
+Analog TV Specific Connector Properties
+---------------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_connector.c
+   :doc: Analog TV Connector Properties
+
+Standard CRTC Properties
+------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_crtc.c
+   :doc: standard CRTC properties
+
+Standard Plane Properties
+-------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_plane.c
+   :doc: standard plane properties
+
+.. _plane_composition_properties:
+
 Plane Composition Properties
 ----------------------------
 
 .. kernel-doc:: drivers/gpu/drm/drm_blend.c
    :doc: overview
 
-.. kernel-doc:: drivers/gpu/drm/drm_blend.c
-   :export:
+.. _damage_tracking_properties:
 
-FB_DAMAGE_CLIPS
-~~~~~~~~~~~~~~~
+Damage Tracking Properties
+--------------------------
 
-.. kernel-doc:: drivers/gpu/drm/drm_damage_helper.c
-   :doc: overview
-
-.. kernel-doc:: drivers/gpu/drm/drm_damage_helper.c
-   :export:
-
-.. kernel-doc:: include/drm/drm_damage_helper.h
-   :internal:
+.. kernel-doc:: drivers/gpu/drm/drm_plane.c
+   :doc: damage tracking
 
 Color Management Properties
 ---------------------------
 
 .. kernel-doc:: drivers/gpu/drm/drm_color_mgmt.c
    :doc: overview
-
-.. kernel-doc:: drivers/gpu/drm/drm_color_mgmt.c
-   :export:
 
 Tile Group Property
 -------------------
@@ -497,6 +602,12 @@ Variable Refresh Properties
 
 .. kernel-doc:: drivers/gpu/drm/drm_connector.c
    :doc: Variable refresh properties
+
+Cursor Hotspot Properties
+---------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_plane.c
+   :doc: hotspot properties
 
 Existing KMS Properties
 -----------------------
@@ -522,4 +633,19 @@ Vertical Blanking and Interrupt Handling Functions Reference
    :internal:
 
 .. kernel-doc:: drivers/gpu/drm/drm_vblank.c
+   :export:
+
+Vertical Blank Work
+===================
+
+.. kernel-doc:: drivers/gpu/drm/drm_vblank_work.c
+   :doc: vblank works
+
+Vertical Blank Work Functions Reference
+---------------------------------------
+
+.. kernel-doc:: include/drm/drm_vblank_work.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_vblank_work.c
    :export:

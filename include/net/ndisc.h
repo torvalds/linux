@@ -41,6 +41,7 @@ enum {
 	ND_OPT_DNSSL = 31,		/* RFC6106 */
 	ND_OPT_6CO = 34,		/* RFC6775 */
 	ND_OPT_CAPTIVE_PORTAL = 37,	/* RFC7710 */
+	ND_OPT_PREF64 = 38,		/* RFC8781 */
 	__ND_OPT_MAX
 };
 
@@ -80,12 +81,12 @@ extern struct neigh_table nd_tbl;
 struct nd_msg {
         struct icmp6hdr	icmph;
         struct in6_addr	target;
-	__u8		opt[0];
+	__u8		opt[];
 };
 
 struct rs_msg {
 	struct icmp6hdr	icmph;
-	__u8		opt[0];
+	__u8		opt[];
 };
 
 struct ra_msg {
@@ -98,7 +99,7 @@ struct rd_msg {
 	struct icmp6hdr icmph;
 	struct in6_addr	target;
 	struct in6_addr	dest;
-	__u8		opt[0];
+	__u8		opt[];
 };
 
 struct nd_opt_hdr {
@@ -136,7 +137,7 @@ struct ndisc_options *ndisc_parse_options(const struct net_device *dev,
 					  u8 *opt, int opt_len,
 					  struct ndisc_options *ndopts);
 
-void __ndisc_fill_addr_option(struct sk_buff *skb, int type, void *data,
+void __ndisc_fill_addr_option(struct sk_buff *skb, int type, const void *data,
 			      int data_len, int pad);
 
 #define NDISC_OPS_REDIRECT_DATA_SPACE	2
@@ -394,11 +395,11 @@ static inline struct neighbour *__ipv6_neigh_lookup(struct net_device *dev, cons
 {
 	struct neighbour *n;
 
-	rcu_read_lock_bh();
+	rcu_read_lock();
 	n = __ipv6_neigh_lookup_noref(dev, pkey);
 	if (n && !refcount_inc_not_zero(&n->refcnt))
 		n = NULL;
-	rcu_read_unlock_bh();
+	rcu_read_unlock();
 
 	return n;
 }
@@ -408,16 +409,10 @@ static inline void __ipv6_confirm_neigh(struct net_device *dev,
 {
 	struct neighbour *n;
 
-	rcu_read_lock_bh();
+	rcu_read_lock();
 	n = __ipv6_neigh_lookup_noref(dev, pkey);
-	if (n) {
-		unsigned long now = jiffies;
-
-		/* avoid dirtying neighbour */
-		if (n->confirmed != now)
-			n->confirmed = now;
-	}
-	rcu_read_unlock_bh();
+	neigh_confirm(n);
+	rcu_read_unlock();
 }
 
 static inline void __ipv6_confirm_neigh_stub(struct net_device *dev,
@@ -425,16 +420,10 @@ static inline void __ipv6_confirm_neigh_stub(struct net_device *dev,
 {
 	struct neighbour *n;
 
-	rcu_read_lock_bh();
+	rcu_read_lock();
 	n = __ipv6_neigh_lookup_noref_stub(dev, pkey);
-	if (n) {
-		unsigned long now = jiffies;
-
-		/* avoid dirtying neighbour */
-		if (n->confirmed != now)
-			n->confirmed = now;
-	}
-	rcu_read_unlock_bh();
+	neigh_confirm(n);
+	rcu_read_unlock();
 }
 
 /* uses ipv6_stub and is meant for use outside of IPv6 core */
@@ -456,11 +445,16 @@ int ndisc_late_init(void);
 void ndisc_late_cleanup(void);
 void ndisc_cleanup(void);
 
-int ndisc_rcv(struct sk_buff *skb);
+enum skb_drop_reason ndisc_rcv(struct sk_buff *skb);
 
+struct sk_buff *ndisc_ns_create(struct net_device *dev, const struct in6_addr *solicit,
+				const struct in6_addr *saddr, u64 nonce);
 void ndisc_send_ns(struct net_device *dev, const struct in6_addr *solicit,
 		   const struct in6_addr *daddr, const struct in6_addr *saddr,
 		   u64 nonce);
+
+void ndisc_send_skb(struct sk_buff *skb, const struct in6_addr *daddr,
+		    const struct in6_addr *saddr);
 
 void ndisc_send_rs(struct net_device *dev,
 		   const struct in6_addr *saddr, const struct in6_addr *daddr);
@@ -486,17 +480,14 @@ int igmp6_late_init(void);
 void igmp6_cleanup(void);
 void igmp6_late_cleanup(void);
 
-int igmp6_event_query(struct sk_buff *skb);
+void igmp6_event_query(struct sk_buff *skb);
 
-int igmp6_event_report(struct sk_buff *skb);
+void igmp6_event_report(struct sk_buff *skb);
 
 
 #ifdef CONFIG_SYSCTL
 int ndisc_ifinfo_sysctl_change(struct ctl_table *ctl, int write,
-			       void __user *buffer, size_t *lenp, loff_t *ppos);
-int ndisc_ifinfo_sysctl_strategy(struct ctl_table *ctl,
-				 void __user *oldval, size_t __user *oldlenp,
-				 void __user *newval, size_t newlen);
+			       void *buffer, size_t *lenp, loff_t *ppos);
 #endif
 
 void inet6_ifinfo_notify(int event, struct inet6_dev *idev);

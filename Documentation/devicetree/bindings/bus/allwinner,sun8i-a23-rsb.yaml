@@ -4,11 +4,11 @@
 $id: http://devicetree.org/schemas/bus/allwinner,sun8i-a23-rsb.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A23 RSB Device Tree Bindings
+title: Allwinner A23 RSB
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
-  - Maxime Ripard <maxime.ripard@bootlin.com>
+  - Maxime Ripard <mripard@kernel.org>
 
 properties:
   "#address-cells":
@@ -21,8 +21,10 @@ properties:
     oneOf:
       - const: allwinner,sun8i-a23-rsb
       - items:
-        - const: allwinner,sun8i-a83t-rsb
-        - const: allwinner,sun8i-a23-rsb
+          - enum:
+              - allwinner,sun8i-a83t-rsb
+              - allwinner,sun50i-h616-rsb
+          - const: allwinner,sun8i-a23-rsb
 
   reg:
     maxItems: 1
@@ -43,6 +45,7 @@ properties:
 patternProperties:
   "^.*@[0-9a-fA-F]+$":
     type: object
+    additionalProperties: true
     properties:
       reg:
         maxItems: 1
@@ -70,7 +73,6 @@ examples:
         #size-cells = <0>;
 
         pmic@3e3 {
-            compatible = "...";
             reg = <0x3e3>;
 
             /* ... */

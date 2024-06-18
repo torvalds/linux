@@ -1,0 +1,128 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/memory-controllers/exynos-srom.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung Exynos SoC SROM Controller driver
+
+maintainers:
+  - Krzysztof Kozlowski <krzk@kernel.org>
+
+description: |+
+  The SROM controller can be used to attach external peripherals. In this case
+  extra properties, describing the bus behind it, should be specified.
+
+properties:
+  compatible:
+    items:
+      - const: samsung,exynos4210-srom
+
+  reg:
+    maxItems: 1
+
+  "#address-cells":
+    const: 2
+
+  "#size-cells":
+    const: 1
+
+  ranges:
+    minItems: 1
+    maxItems: 4
+    description: |
+      Reflects the memory layout with four integer values per bank. Format:
+      <bank-number> 0 <parent address of bank> <size>
+      Up to four banks are supported.
+
+patternProperties:
+  "^.*@[0-3],[a-f0-9]+$":
+    type: object
+    additionalProperties: true
+    description:
+      The actual device nodes should be added as subnodes to the SROMc node.
+      These subnodes, in addition to regular device specification, should
+      contain the following properties, describing configuration
+      of the relevant SROM bank.
+
+    properties:
+      reg:
+        description:
+          Bank number, base address (relative to start of the bank) and size
+          of the memory mapped for the device. Note that base address will be
+          typically 0 as this is the start of the bank.
+        maxItems: 1
+
+      reg-io-width:
+        enum: [1, 2]
+        description:
+          Data width in bytes (1 or 2). If omitted, default of 1 is used.
+
+      samsung,srom-page-mode:
+        description:
+          If page mode is set, 4 data page mode will be configured,
+          else normal (1 data) page mode will be set.
+        type: boolean
+
+      samsung,srom-timing:
+        $ref: /schemas/types.yaml#/definitions/uint32-array
+        items:
+          minItems: 6
+          maxItems: 6
+        description: |
+          Array of 6 integers, specifying bank timings in the following order:
+          Tacp, Tcah, Tcoh, Tacc, Tcos, Tacs.
+          Each value is specified in cycles and has the following meaning
+          and valid range:
+          Tacp: Page mode access cycle at Page mode (0 - 15)
+          Tcah: Address holding time after CSn (0 - 15)
+          Tcoh: Chip selection hold on OEn (0 - 15)
+          Tacc: Access cycle (0 - 31, the actual time is N + 1)
+          Tcos: Chip selection set-up before OEn (0 - 15)
+          Tacs: Address set-up before CSn (0 - 15)
+
+    required:
+      - reg
+      - samsung,srom-timing
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    // Example: basic definition, no banks are configured
+    memory-controller@12560000 {
+        compatible = "samsung,exynos4210-srom";
+        reg = <0x12560000 0x14>;
+    };
+
+  - |
+    // Example: SROMc with SMSC911x ethernet chip on bank 3
+    memory-controller@12570000 {
+        #address-cells = <2>;
+        #size-cells = <1>;
+        ranges = <0 0 0x04000000 0x20000   // Bank0
+                  1 0 0x05000000 0x20000   // Bank1
+                  2 0 0x06000000 0x20000   // Bank2
+                  3 0 0x07000000 0x20000>; // Bank3
+
+        compatible = "samsung,exynos4210-srom";
+        reg = <0x12570000 0x14>;
+
+        ethernet@3,0 {
+            compatible = "smsc,lan9115";
+            reg = <3 0 0x10000>;     // Bank 3, offset = 0
+            phy-mode = "mii";
+            interrupt-parent = <&gpx0>;
+            interrupts = <5 8>;
+            reg-io-width = <2>;
+            smsc,irq-push-pull;
+            smsc,force-internal-phy;
+
+            samsung,srom-page-mode;
+            samsung,srom-timing = <9 12 1 9 1 1>;
+        };
+    };

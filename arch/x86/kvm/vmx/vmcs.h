@@ -11,6 +11,8 @@
 
 #include "capabilities.h"
 
+#define ROL16(val, n) ((u16)(((u16)(val) << (n)) | ((u16)(val) >> (16 - (n)))))
+
 struct vmcs_hdr {
 	u32 revision_id:31;
 	u32 shadow_vmcs:1;
@@ -19,7 +21,7 @@ struct vmcs_hdr {
 struct vmcs {
 	struct vmcs_hdr hdr;
 	u32 abort;
-	char data[0];
+	char data[];
 };
 
 DECLARE_PER_CPU(struct vmcs *, current_vmcs);
@@ -48,6 +50,7 @@ struct vmcs_controls_shadow {
 	u32 pin;
 	u32 exec;
 	u32 secondary_exec;
+	u64 tertiary_exec;
 };
 
 /*
@@ -72,11 +75,24 @@ struct loaded_vmcs {
 	struct vmcs_controls_shadow controls_shadow;
 };
 
+static __always_inline bool is_intr_type(u32 intr_info, u32 type)
+{
+	const u32 mask = INTR_INFO_VALID_MASK | INTR_INFO_INTR_TYPE_MASK;
+
+	return (intr_info & mask) == (INTR_INFO_VALID_MASK | type);
+}
+
+static inline bool is_intr_type_n(u32 intr_info, u32 type, u8 vector)
+{
+	const u32 mask = INTR_INFO_VALID_MASK | INTR_INFO_INTR_TYPE_MASK |
+			 INTR_INFO_VECTOR_MASK;
+
+	return (intr_info & mask) == (INTR_INFO_VALID_MASK | type | vector);
+}
+
 static inline bool is_exception_n(u32 intr_info, u8 vector)
 {
-	return (intr_info & (INTR_INFO_INTR_TYPE_MASK | INTR_INFO_VECTOR_MASK |
-			     INTR_INFO_VALID_MASK)) ==
-		(INTR_TYPE_HARD_EXCEPTION | vector | INTR_INFO_VALID_MASK);
+	return is_intr_type_n(intr_info, INTR_TYPE_HARD_EXCEPTION, vector);
 }
 
 static inline bool is_debug(u32 intr_info)
@@ -87,6 +103,11 @@ static inline bool is_debug(u32 intr_info)
 static inline bool is_breakpoint(u32 intr_info)
 {
 	return is_exception_n(intr_info, BP_VECTOR);
+}
+
+static inline bool is_double_fault(u32 intr_info)
+{
+	return is_exception_n(intr_info, DF_VECTOR);
 }
 
 static inline bool is_page_fault(u32 intr_info)
@@ -104,30 +125,47 @@ static inline bool is_gp_fault(u32 intr_info)
 	return is_exception_n(intr_info, GP_VECTOR);
 }
 
+static inline bool is_alignment_check(u32 intr_info)
+{
+	return is_exception_n(intr_info, AC_VECTOR);
+}
+
 static inline bool is_machine_check(u32 intr_info)
 {
-	return (intr_info & (INTR_INFO_INTR_TYPE_MASK | INTR_INFO_VECTOR_MASK |
-			     INTR_INFO_VALID_MASK)) ==
-		(INTR_TYPE_HARD_EXCEPTION | MC_VECTOR | INTR_INFO_VALID_MASK);
+	return is_exception_n(intr_info, MC_VECTOR);
+}
+
+static inline bool is_nm_fault(u32 intr_info)
+{
+	return is_exception_n(intr_info, NM_VECTOR);
+}
+
+static inline bool is_ve_fault(u32 intr_info)
+{
+	return is_exception_n(intr_info, VE_VECTOR);
 }
 
 /* Undocumented: icebp/int1 */
 static inline bool is_icebp(u32 intr_info)
 {
-	return (intr_info & (INTR_INFO_INTR_TYPE_MASK | INTR_INFO_VALID_MASK))
-		== (INTR_TYPE_PRIV_SW_EXCEPTION | INTR_INFO_VALID_MASK);
+	return is_intr_type(intr_info, INTR_TYPE_PRIV_SW_EXCEPTION);
 }
 
-static inline bool is_nmi(u32 intr_info)
+static __always_inline bool is_nmi(u32 intr_info)
 {
-	return (intr_info & (INTR_INFO_INTR_TYPE_MASK | INTR_INFO_VALID_MASK))
-		== (INTR_TYPE_NMI_INTR | INTR_INFO_VALID_MASK);
+	return is_intr_type(intr_info, INTR_TYPE_NMI_INTR);
 }
 
 static inline bool is_external_intr(u32 intr_info)
 {
-	return (intr_info & (INTR_INFO_VALID_MASK | INTR_INFO_INTR_TYPE_MASK))
-		== (INTR_INFO_VALID_MASK | INTR_TYPE_EXT_INTR);
+	return is_intr_type(intr_info, INTR_TYPE_EXT_INTR);
+}
+
+static inline bool is_exception_with_error_code(u32 intr_info)
+{
+	const u32 mask = INTR_INFO_VALID_MASK | INTR_INFO_DELIVER_CODE_MASK;
+
+	return (intr_info & mask) == mask;
 }
 
 enum vmcs_field_width {
@@ -147,6 +185,14 @@ static inline int vmcs_field_width(unsigned long field)
 static inline int vmcs_field_readonly(unsigned long field)
 {
 	return (((field >> 10) & 0x3) == 1);
+}
+
+#define VMCS_FIELD_INDEX_SHIFT		(1)
+#define VMCS_FIELD_INDEX_MASK		GENMASK(9, 1)
+
+static inline unsigned int vmcs_field_index(unsigned long field)
+{
+	return (field & VMCS_FIELD_INDEX_MASK) >> VMCS_FIELD_INDEX_SHIFT;
 }
 
 #endif /* __KVM_X86_VMX_VMCS_H */

@@ -206,7 +206,7 @@ static int cx20442_write(struct snd_soc_component *component, unsigned int reg,
  */
 
 /* Modem init: echo off, digital speaker off, quiet off, voice mode */
-static const char *v253_init = "ate0m0q0+fclass=8\r";
+static const char v253_init[] = "ate0m0q0+fclass=8\r";
 
 /* Line discipline .open() */
 static int v253_open(struct tty_struct *tty)
@@ -252,15 +252,14 @@ static void v253_close(struct tty_struct *tty)
 }
 
 /* Line discipline .hangup() */
-static int v253_hangup(struct tty_struct *tty)
+static void v253_hangup(struct tty_struct *tty)
 {
 	v253_close(tty);
-	return 0;
 }
 
 /* Line discipline .receive_buf() */
-static void v253_receive(struct tty_struct *tty,
-				const unsigned char *cp, char *fp, int count)
+static void v253_receive(struct tty_struct *tty, const u8 *cp, const u8 *fp,
+			 size_t count)
 {
 	struct snd_soc_component *component = tty->disc_data;
 	struct cx20442_priv *cx20442;
@@ -279,20 +278,13 @@ static void v253_receive(struct tty_struct *tty,
 	}
 }
 
-/* Line discipline .write_wakeup() */
-static void v253_wakeup(struct tty_struct *tty)
-{
-}
-
 struct tty_ldisc_ops v253_ops = {
-	.magic = TTY_LDISC_MAGIC,
 	.name = "cx20442",
 	.owner = THIS_MODULE,
 	.open = v253_open,
 	.close = v253_close,
 	.hangup = v253_hangup,
 	.receive_buf = v253_receive,
-	.write_wakeup = v253_wakeup,
 };
 EXPORT_SYMBOL_GPL(v253_ops);
 
@@ -419,7 +411,6 @@ static const struct snd_soc_component_driver cx20442_component_dev = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static int cx20442_platform_probe(struct platform_device *pdev)

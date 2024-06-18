@@ -88,15 +88,15 @@ device_initcall(swarm_pata_init);
 #define sb1250_dev_struct(num) \
 	static struct resource sb1250_res##num = {		\
 		.name = "SB1250 MAC " __stringify(num),		\
-		.flags = IORESOURCE_MEM,		\
-		.start = A_MAC_CHANNEL_BASE(num),	\
-		.end = A_MAC_CHANNEL_BASE(num + 1) -1,	\
+		.flags = IORESOURCE_MEM,			\
+		.start = A_MAC_CHANNEL_BASE(num),		\
+		.end = A_MAC_CHANNEL_BASE(num + 1) - 1,		\
 	};\
 	static struct platform_device sb1250_dev##num = {	\
-		.name = "sb1250-mac",			\
-	.id = num,					\
-	.resource = &sb1250_res##num,			\
-	.num_resources = 1,				\
+		.name = "sb1250-mac",				\
+		.id = num,					\
+		.resource = &sb1250_res##num,			\
+		.num_resources = 1,				\
 	}
 
 sb1250_dev_struct(0);

@@ -2,7 +2,7 @@
 /*
  * CPU idle for DaVinci SoCs
  *
- * Copyright (C) 2009 Texas Instruments Incorporated. http://www.ti.com/
+ * Copyright (C) 2009 Texas Instruments Incorporated. https://www.ti.com/
  *
  * Derived from Marvell Kirkwood CPU idle code
  * (arch/arm/mach-kirkwood/cpuidle.c)
@@ -44,8 +44,8 @@ static void davinci_save_ddr_power(int enter, bool pdown)
 }
 
 /* Actual code that puts the SoC in different idle states */
-static int davinci_enter_idle(struct cpuidle_device *dev,
-			      struct cpuidle_driver *drv, int index)
+static __cpuidle int davinci_enter_idle(struct cpuidle_device *dev,
+					struct cpuidle_driver *drv, int index)
 {
 	davinci_save_ddr_power(1, ddr2_pdown);
 	cpu_do_idle();

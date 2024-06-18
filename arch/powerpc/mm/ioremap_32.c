@@ -22,6 +22,13 @@ __ioremap_caller(phys_addr_t addr, unsigned long size, pgprot_t prot, void *call
 	int err;
 
 	/*
+	 * If the address lies within the first 16 MB, assume it's in ISA
+	 * memory space
+	 */
+	if (addr < SZ_16M)
+		addr += _ISA_MEM_BASE;
+
+	/*
 	 * Choose an address to map it to.
 	 * Once the vmalloc system is running, we use it.
 	 * Before then, we use space going down from IOREMAP_TOP
@@ -30,13 +37,6 @@ __ioremap_caller(phys_addr_t addr, unsigned long size, pgprot_t prot, void *call
 	p = addr & PAGE_MASK;
 	offset = addr & ~PAGE_MASK;
 	size = PAGE_ALIGN(addr + size) - p;
-
-	/*
-	 * If the address lies within the first 16 MB, assume it's in ISA
-	 * memory space
-	 */
-	if (p < 16 * 1024 * 1024)
-		p += _ISA_MEM_BASE;
 
 #ifndef CONFIG_CRASH_DUMP
 	/*
@@ -63,16 +63,17 @@ __ioremap_caller(phys_addr_t addr, unsigned long size, pgprot_t prot, void *call
 		return (void __iomem *)v + offset;
 
 	if (slab_is_available())
-		return do_ioremap(p, offset, size, prot, caller);
+		return generic_ioremap_prot(addr, size, prot);
 
 	/*
 	 * Should check if it is a candidate for a BAT mapping
 	 */
+	pr_warn("ioremap() called early from %pS. Use early_ioremap() instead\n", caller);
 
-	err = early_ioremap_range(ioremap_bot - size, p, size, prot);
+	err = early_ioremap_range(ioremap_bot - size - PAGE_SIZE, p, size, prot);
 	if (err)
 		return NULL;
-	ioremap_bot -= size;
+	ioremap_bot -= size + PAGE_SIZE;
 
 	return (void __iomem *)ioremap_bot + offset;
 }
@@ -86,7 +87,6 @@ void iounmap(volatile void __iomem *addr)
 	if (v_block_mapped((unsigned long)addr))
 		return;
 
-	if (addr > high_memory && (unsigned long)addr < ioremap_bot)
-		vunmap((void *)(PAGE_MASK & (unsigned long)addr));
+	generic_iounmap(addr);
 }
 EXPORT_SYMBOL(iounmap);

@@ -172,7 +172,7 @@ int __init bcma_host_soc_register(struct bcma_soc *soc)
 	/* iomap only first core. We have to read some register on this core
 	 * to scan the bus.
 	 */
-	bus->mmio = ioremap_nocache(BCMA_ADDR_BASE, BCMA_CORE_SIZE * 1);
+	bus->mmio = ioremap(BCMA_ADDR_BASE, BCMA_CORE_SIZE * 1);
 	if (!bus->mmio)
 		return -ENOMEM;
 
@@ -240,15 +240,13 @@ err_unmap_mmio:
 	return err;
 }
 
-static int bcma_host_soc_remove(struct platform_device *pdev)
+static void bcma_host_soc_remove(struct platform_device *pdev)
 {
 	struct bcma_bus *bus = platform_get_drvdata(pdev);
 
 	bcma_bus_unregister(bus);
 	iounmap(bus->mmio);
 	platform_set_drvdata(pdev, NULL);
-
-	return 0;
 }
 
 static const struct of_device_id bcma_host_soc_of_match[] = {
@@ -263,7 +261,7 @@ static struct platform_driver bcma_host_soc_driver = {
 		.of_match_table = bcma_host_soc_of_match,
 	},
 	.probe		= bcma_host_soc_probe,
-	.remove		= bcma_host_soc_remove,
+	.remove_new	= bcma_host_soc_remove,
 };
 
 int __init bcma_host_soc_register_driver(void)

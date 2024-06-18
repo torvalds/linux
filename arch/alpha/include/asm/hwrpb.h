@@ -152,7 +152,7 @@ struct memdesc_struct {
 	unsigned long chksum;
 	unsigned long optional_pa;
 	unsigned long numclusters;
-	struct memclust_struct cluster[0];
+	struct memclust_struct cluster[];
 };
 
 struct dsr_struct {

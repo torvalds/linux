@@ -1,0 +1,124 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (C) 2021 Sebastian Reichel
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/power/supply/bq24257.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Bq24250, bq24251 and bq24257 Li-Ion Charger
+
+maintainers:
+  - Sebastian Reichel <sre@kernel.org>
+
+allOf:
+  - $ref: power-supply.yaml#
+
+properties:
+  compatible:
+    enum:
+      - ti,bq24250
+      - ti,bq24251
+      - ti,bq24257
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  ti,battery-regulation-voltage:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: maximum charging voltage in uV
+
+  ti,charge-current:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: maximum charging current in uA
+
+  ti,termination-current:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      charge will be terminated when current in constant-voltage phase
+      drops below this value (in uA)
+
+  pg-gpios:
+    description: |
+      GPIO used for connecting the bq2425x device PG (Power Good) pin.
+      This pin is not available on all devices however it should be used if
+      possible as this is the recommended way to obtain the charger's input PG
+      state. If this pin is not specified a software-based approach for PG
+      detection is used.
+    maxItems: 1
+
+  ti,current-limit:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      The maximum current to be drawn from the charger's input (in uA).
+      If this property is not specified, the input limit current is set
+      automatically using USB D+/D- signal based charger type detection.
+      If the hardware does not support the D+/D- based detection, a default
+      of 500,000 is used (=500mA) instead.
+
+  ti,ovp-voltage:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      Configures the over voltage protection voltage (in uV).
+      If not specified a default of 6,5000,000 (=6.5V) is used.
+
+  ti,in-dpm-voltage:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      Configures the threshold input voltage for the dynamic power path management (in uV).
+      If not specified a default of 4,360,000 (=4.36V) is used.
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - ti,battery-regulation-voltage
+  - ti,charge-current
+  - ti,termination-current
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      charger@6a {
+        compatible = "ti,bq24257";
+        reg = <0x6a>;
+        interrupt-parent = <&gpio1>;
+        interrupts = <16 IRQ_TYPE_EDGE_BOTH>;
+
+        pg-gpios = <&gpio1 28 GPIO_ACTIVE_HIGH>;
+
+        ti,battery-regulation-voltage = <4200000>;
+        ti,charge-current = <1000000>;
+        ti,termination-current = <50000>;
+      };
+    };
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      charger@6a {
+        compatible = "ti,bq24250";
+        reg = <0x6a>;
+        interrupt-parent = <&gpio1>;
+        interrupts = <16 IRQ_TYPE_EDGE_BOTH>;
+
+        ti,battery-regulation-voltage = <4200000>;
+        ti,charge-current = <500000>;
+        ti,termination-current = <50000>;
+        ti,current-limit = <900000>;
+        ti,ovp-voltage = <9500000>;
+        ti,in-dpm-voltage = <4440000>;
+      };
+    };

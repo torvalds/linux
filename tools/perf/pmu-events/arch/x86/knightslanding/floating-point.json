@@ -1,0 +1,26 @@
+[
+    {
+        "BriefDescription": "Counts the number of floating operations retired that required microcode assists",
+        "EventCode": "0xC3",
+        "EventName": "MACHINE_CLEARS.FP_ASSIST",
+        "PublicDescription": "This event counts the number of times that the pipeline stalled due to FP operations needing assists.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x4"
+    },
+    {
+        "BriefDescription": "Counts the number of packed SSE, AVX, AVX2, AVX-512 micro-ops (both floating point and integer) except for loads (memory-to-register mov-type micro-ops), packed byte and word multiplies.",
+        "EventCode": "0xC2",
+        "EventName": "UOPS_RETIRED.PACKED_SIMD",
+        "PublicDescription": "The length of the packed operation (128bits, 256bits or 512bits) is not taken into account when updating the counter; all count the same (+1). \r\nMask (k) registers are ignored. For example: a micro-op operating with a mask that only enables one element or even zero elements will still trigger this counter (+1)\r\nThis event is defined at the micro-op level and not instruction level. Most instructions are implemented with one micro-op but not all.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x40"
+    },
+    {
+        "BriefDescription": "Counts the number of scalar SSE, AVX, AVX2, AVX-512 micro-ops except for loads (memory-to-register mov-type micro ops), division, sqrt.",
+        "EventCode": "0xC2",
+        "EventName": "UOPS_RETIRED.SCALAR_SIMD",
+        "PublicDescription": "This event is defined at the micro-op level and not instruction level. Most instructions are implemented with one micro-op but not all.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x20"
+    }
+]

@@ -1103,7 +1103,7 @@ vortex_adbdma_setbuffers(vortex_t * vortex, int adbdma,
 		hwwrite(vortex->mmio,
 			VORTEX_ADBDMA_BUFBASE + (adbdma << 4) + 0xc,
 			snd_pcm_sgbuf_get_addr(dma->substream, psize * 3));
-		/* fall through */
+		fallthrough;
 		/* 3 pages */
 	case 3:
 		dma->cfg0 |= 0x12000000;
@@ -1111,14 +1111,14 @@ vortex_adbdma_setbuffers(vortex_t * vortex, int adbdma,
 		hwwrite(vortex->mmio,
 			VORTEX_ADBDMA_BUFBASE + (adbdma << 4) + 0x8,
 			snd_pcm_sgbuf_get_addr(dma->substream, psize * 2));
-		/* fall through */
+		fallthrough;
 		/* 2 pages */
 	case 2:
 		dma->cfg0 |= 0x88000000 | 0x44000000 | 0x10000000 | (psize - 1);
 		hwwrite(vortex->mmio,
 			VORTEX_ADBDMA_BUFBASE + (adbdma << 4) + 0x4,
 			snd_pcm_sgbuf_get_addr(dma->substream, psize));
-		/* fall through */
+		fallthrough;
 		/* 1 page */
 	case 1:
 		dma->cfg0 |= 0x80000000 | 0x40000000 | ((psize - 1) << 0xc);
@@ -1195,7 +1195,7 @@ static int vortex_adbdma_bufshift(vortex_t * vortex, int adbdma)
 				VORTEX_ADBDMA_BUFBASE + (((adbdma << 2) + pp) << 2),
 				snd_pcm_sgbuf_get_addr(dma->substream,
 				dma->period_bytes * p));
-			/* Force write thru cache. */
+			/* Force write through cache. */
 			hwread(vortex->mmio, VORTEX_ADBDMA_BUFBASE +
 			       (((adbdma << 2) + pp) << 2));
 		}
@@ -1237,7 +1237,7 @@ static void vortex_adbdma_resetup(vortex_t *vortex, int adbdma) {
 			VORTEX_ADBDMA_BUFBASE + (((adbdma << 2) + pp) << 2),
 			snd_pcm_sgbuf_get_addr(dma->substream,
 					       dma->period_bytes * p));
-		/* Force write thru cache. */
+		/* Force write through cache. */
 		hwread(vortex->mmio, VORTEX_ADBDMA_BUFBASE + (((adbdma << 2)+pp) << 2));
 	}
 }
@@ -1381,20 +1381,20 @@ vortex_wtdma_setbuffers(vortex_t * vortex, int wtdma,
 		dma->cfg1 |= 0x88000000 | 0x44000000 | 0x30000000 | (psize-1);
 		hwwrite(vortex->mmio, VORTEX_WTDMA_BUFBASE + (wtdma << 4) + 0xc,
 			snd_pcm_sgbuf_get_addr(dma->substream, psize * 3));
-		/* fall through */
+		fallthrough;
 		/* 3 pages */
 	case 3:
 		dma->cfg0 |= 0x12000000;
 		dma->cfg1 |= 0x80000000 | 0x40000000 | ((psize-1) << 0xc);
 		hwwrite(vortex->mmio, VORTEX_WTDMA_BUFBASE + (wtdma << 4)  + 0x8,
 			snd_pcm_sgbuf_get_addr(dma->substream, psize * 2));
-		/* fall through */
+		fallthrough;
 		/* 2 pages */
 	case 2:
 		dma->cfg0 |= 0x88000000 | 0x44000000 | 0x10000000 | (psize-1);
 		hwwrite(vortex->mmio, VORTEX_WTDMA_BUFBASE + (wtdma << 4) + 0x4,
 			snd_pcm_sgbuf_get_addr(dma->substream, psize));
-		/* fall through */
+		fallthrough;
 		/* 1 page */
 	case 1:
 		dma->cfg0 |= 0x80000000 | 0x40000000 | ((psize-1) << 0xc);
@@ -1466,7 +1466,7 @@ static int vortex_wtdma_bufshift(vortex_t * vortex, int wtdma)
 				(((wtdma << 2) + pp) << 2),
 				snd_pcm_sgbuf_get_addr(dma->substream,
 						       dma->period_bytes * p));
-			/* Force write thru cache. */
+			/* Force write through cache. */
 			hwread(vortex->mmio, VORTEX_WTDMA_BUFBASE +
 			       (((wtdma << 2) + pp) << 2));
 		}
@@ -1854,7 +1854,7 @@ vortex_connection_mixin_mix(vortex_t * vortex, int en, unsigned char mixin,
 		vortex_mix_disableinput(vortex, mix, mixin, a);
 }
 
-// Connect absolut address to mixin.
+// Connect absolute address to mixin.
 static void
 vortex_connection_adb_mixin(vortex_t * vortex, int en,
 			    unsigned char channel, unsigned char source,
@@ -1880,7 +1880,7 @@ vortex_connection_src_src_adbdma(vortex_t * vortex, int en,
 			ADB_DMA(adbdma));
 }
 
-// mix to absolut address.
+// mix to absolute address.
 static void
 vortex_connection_mix_adb(vortex_t * vortex, int en, unsigned char ch,
 			  unsigned char mix, unsigned char dest)
@@ -1989,7 +1989,7 @@ vortex_connect_codecrec(vortex_t * vortex, int en, unsigned char mixin0,
 // Higher level ADB audio path (de)allocator.
 
 /* Resource manager */
-static int resnum[VORTEX_RESOURCE_LAST] =
+static const int resnum[VORTEX_RESOURCE_LAST] =
     { NR_ADB, NR_SRC, NR_MIXIN, NR_MIXOUT, NR_A3D };
 /*
  Checkout/Checkin resource of given type. 
@@ -1998,7 +1998,7 @@ static int resnum[VORTEX_RESOURCE_LAST] =
  out: Mean checkout if != 0. Else mean Checkin resource.
  restype: Indicates type of resource to be checked in or out.
 */
-static char
+static int
 vortex_adb_checkinout(vortex_t * vortex, int resmap[], int out, int restype)
 {
 	int i, qty = resnum[restype], resinuse = 0;
@@ -2120,9 +2120,9 @@ vortex_adb_allocroute(vortex_t *vortex, int dma, int nr_ch, int dir,
 				      VORTEX_RESOURCE_DMA);
 	} else {
 		en = 1;
-		if ((dma =
-		     vortex_adb_checkinout(vortex, NULL, en,
-					   VORTEX_RESOURCE_DMA)) < 0)
+		dma = vortex_adb_checkinout(vortex, NULL, en,
+					    VORTEX_RESOURCE_DMA);
+		if (dma < 0)
 			return -EBUSY;
 	}
 
@@ -2140,18 +2140,20 @@ vortex_adb_allocroute(vortex_t *vortex, int dma, int nr_ch, int dir,
 		/* Get SRC and MIXER hardware resources. */
 		if (stream->type != VORTEX_PCM_SPDIF) {
 			for (i = 0; i < nr_ch; i++) {
-				if ((src[i] = vortex_adb_checkinout(vortex,
-							   stream->resources, en,
-							   VORTEX_RESOURCE_SRC)) < 0) {
+				src[i] = vortex_adb_checkinout(vortex,
+							       stream->resources, en,
+							       VORTEX_RESOURCE_SRC);
+				if (src[i] < 0) {
 					memset(stream->resources, 0,
 					       sizeof(stream->resources));
 					return -EBUSY;
 				}
 				if (stream->type != VORTEX_PCM_A3D) {
-					if ((mix[i] = vortex_adb_checkinout(vortex,
-								   stream->resources,
-								   en,
-								   VORTEX_RESOURCE_MIXIN)) < 0) {
+					mix[i] = vortex_adb_checkinout(vortex,
+								       stream->resources,
+								       en,
+								       VORTEX_RESOURCE_MIXIN);
+					if (mix[i] < 0) {
 						memset(stream->resources,
 						       0,
 						       sizeof(stream->resources));
@@ -2162,10 +2164,10 @@ vortex_adb_allocroute(vortex_t *vortex, int dma, int nr_ch, int dir,
 		}
 #ifndef CHIP_AU8820
 		if (stream->type == VORTEX_PCM_A3D) {
-			if ((a3d =
-			     vortex_adb_checkinout(vortex,
-						   stream->resources, en,
-						   VORTEX_RESOURCE_A3D)) < 0) {
+			a3d = vortex_adb_checkinout(vortex,
+						    stream->resources, en,
+						    VORTEX_RESOURCE_A3D);
+			if (a3d < 0) {
 				memset(stream->resources, 0,
 				       sizeof(stream->resources));
 				dev_err(vortex->card->dev,
@@ -2278,19 +2280,18 @@ vortex_adb_allocroute(vortex_t *vortex, int dma, int nr_ch, int dir,
 
 		/* Get SRC and MIXER hardware resources. */
 		for (i = 0; i < nr_ch; i++) {
-			if ((mix[i] =
-			     vortex_adb_checkinout(vortex,
-						   stream->resources, en,
-						   VORTEX_RESOURCE_MIXOUT))
-			    < 0) {
+			mix[i] = vortex_adb_checkinout(vortex,
+						       stream->resources, en,
+						       VORTEX_RESOURCE_MIXOUT);
+			if (mix[i] < 0) {
 				memset(stream->resources, 0,
 				       sizeof(stream->resources));
 				return -EBUSY;
 			}
-			if ((src[i] =
-			     vortex_adb_checkinout(vortex,
-						   stream->resources, en,
-						   VORTEX_RESOURCE_SRC)) < 0) {
+			src[i] = vortex_adb_checkinout(vortex,
+						       stream->resources, en,
+						       VORTEX_RESOURCE_SRC);
+			if (src[i] < 0) {
 				memset(stream->resources, 0,
 				       sizeof(stream->resources));
 				return -EBUSY;

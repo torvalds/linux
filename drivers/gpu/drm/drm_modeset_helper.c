@@ -23,6 +23,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_modeset_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_print.h>
@@ -99,45 +100,16 @@ EXPORT_SYMBOL(drm_helper_mode_fill_fb_struct);
  * This is the minimal list of formats that seem to be safe for modeset use
  * with all current DRM drivers.  Most hardware can actually support more
  * formats than this and drivers may specify a more accurate list when
- * creating the primary plane.  However drivers that still call
- * drm_plane_init() will use this minimal format list as the default.
+ * creating the primary plane.
  */
 static const uint32_t safe_modeset_formats[] = {
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_ARGB8888,
 };
 
-static struct drm_plane *create_primary_plane(struct drm_device *dev)
-{
-	struct drm_plane *primary;
-	int ret;
-
-	primary = kzalloc(sizeof(*primary), GFP_KERNEL);
-	if (primary == NULL) {
-		DRM_DEBUG_KMS("Failed to allocate primary plane\n");
-		return NULL;
-	}
-
-	/*
-	 * Remove the format_default field from drm_plane when dropping
-	 * this helper.
-	 */
-	primary->format_default = true;
-
-	/* possible_crtc's will be filled in later by crtc_init */
-	ret = drm_universal_plane_init(dev, primary, 0,
-				       &drm_primary_helper_funcs,
-				       safe_modeset_formats,
-				       ARRAY_SIZE(safe_modeset_formats),
-				       NULL,
-				       DRM_PLANE_TYPE_PRIMARY, NULL);
-	if (ret) {
-		kfree(primary);
-		primary = NULL;
-	}
-
-	return primary;
-}
+static const struct drm_plane_funcs primary_plane_funcs = {
+	DRM_PLANE_NON_ATOMIC_FUNCS,
+};
 
 /**
  * drm_crtc_init - Legacy CRTC initialization function
@@ -170,10 +142,33 @@ int drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 		  const struct drm_crtc_funcs *funcs)
 {
 	struct drm_plane *primary;
+	int ret;
 
-	primary = create_primary_plane(dev);
-	return drm_crtc_init_with_planes(dev, crtc, primary, NULL, funcs,
-					 NULL);
+	/* possible_crtc's will be filled in later by crtc_init */
+	primary = __drm_universal_plane_alloc(dev, sizeof(*primary), 0, 0,
+					      &primary_plane_funcs,
+					      safe_modeset_formats,
+					      ARRAY_SIZE(safe_modeset_formats),
+					      NULL, DRM_PLANE_TYPE_PRIMARY, NULL);
+	if (IS_ERR(primary))
+		return PTR_ERR(primary);
+
+	/*
+	 * Remove the format_default field from drm_plane when dropping
+	 * this helper.
+	 */
+	primary->format_default = true;
+
+	ret = drm_crtc_init_with_planes(dev, crtc, primary, NULL, funcs, NULL);
+	if (ret)
+		goto err_drm_plane_cleanup;
+
+	return 0;
+
+err_drm_plane_cleanup:
+	drm_plane_cleanup(primary);
+	kfree(primary);
+	return ret;
 }
 EXPORT_SYMBOL(drm_crtc_init);
 
@@ -198,13 +193,22 @@ int drm_mode_config_helper_suspend(struct drm_device *dev)
 
 	if (!dev)
 		return 0;
+	/*
+	 * Don't disable polling if it was never initialized
+	 */
+	if (dev->mode_config.poll_enabled)
+		drm_kms_helper_poll_disable(dev);
 
-	drm_kms_helper_poll_disable(dev);
 	drm_fb_helper_set_suspend_unlocked(dev->fb_helper, 1);
 	state = drm_atomic_helper_suspend(dev);
 	if (IS_ERR(state)) {
 		drm_fb_helper_set_suspend_unlocked(dev->fb_helper, 0);
-		drm_kms_helper_poll_enable(dev);
+		/*
+		 * Don't enable polling if it was never initialized
+		 */
+		if (dev->mode_config.poll_enabled)
+			drm_kms_helper_poll_enable(dev);
+
 		return PTR_ERR(state);
 	}
 
@@ -244,7 +248,11 @@ int drm_mode_config_helper_resume(struct drm_device *dev)
 	dev->mode_config.suspend_state = NULL;
 
 	drm_fb_helper_set_suspend_unlocked(dev->fb_helper, 0);
-	drm_kms_helper_poll_enable(dev);
+	/*
+	 * Don't enable polling if it is not initialized
+	 */
+	if (dev->mode_config.poll_enabled)
+		drm_kms_helper_poll_enable(dev);
 
 	return ret;
 }

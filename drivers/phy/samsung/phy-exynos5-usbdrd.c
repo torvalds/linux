@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Samsung EXYNOS5 SoC series USB DRD PHY driver
+ * Samsung Exynos5 SoC series USB DRD PHY driver
  *
  * Phy provider for USB 3.0 DRD controller on Exynos5 SoC series
  *
@@ -14,8 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
+#include <linux/iopoll.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
@@ -31,9 +30,10 @@
 #define EXYNOS5_FSEL_19MHZ2		0x3
 #define EXYNOS5_FSEL_20MHZ		0x4
 #define EXYNOS5_FSEL_24MHZ		0x5
+#define EXYNOS5_FSEL_26MHZ		0x82
 #define EXYNOS5_FSEL_50MHZ		0x7
 
-/* EXYNOS5: USB 3.0 DRD PHY registers */
+/* Exynos5: USB 3.0 DRD PHY registers */
 #define EXYNOS5_DRD_LINKSYSTEM			0x04
 
 #define LINKSYSTEM_FLADJ_MASK			(0x3f << 1)
@@ -145,6 +145,34 @@
 #define LANE0_TX_DEBUG_RXDET_MEAS_TIME_62M5		(0x20 << 4)
 #define LANE0_TX_DEBUG_RXDET_MEAS_TIME_96M_100M		(0x40 << 4)
 
+/* Exynos850: USB DRD PHY registers */
+#define EXYNOS850_DRD_LINKCTRL			0x04
+#define LINKCTRL_BUS_FILTER_BYPASS(_x)		((_x) << 4)
+#define LINKCTRL_FORCE_QACT			BIT(8)
+
+#define EXYNOS850_DRD_CLKRST			0x20
+#define CLKRST_LINK_SW_RST			BIT(0)
+#define CLKRST_PORT_RST				BIT(1)
+#define CLKRST_PHY_SW_RST			BIT(3)
+
+#define EXYNOS850_DRD_UTMI			0x50
+#define UTMI_FORCE_SLEEP			BIT(0)
+#define UTMI_FORCE_SUSPEND			BIT(1)
+#define UTMI_DM_PULLDOWN			BIT(2)
+#define UTMI_DP_PULLDOWN			BIT(3)
+#define UTMI_FORCE_BVALID			BIT(4)
+#define UTMI_FORCE_VBUSVALID			BIT(5)
+
+#define EXYNOS850_DRD_HSP			0x54
+#define HSP_COMMONONN				BIT(8)
+#define HSP_EN_UTMISUSPEND			BIT(9)
+#define HSP_VBUSVLDEXT				BIT(12)
+#define HSP_VBUSVLDEXTSEL			BIT(13)
+#define HSP_FSV_OUT_EN				BIT(24)
+
+#define EXYNOS850_DRD_HSP_TEST			0x5c
+#define HSP_TEST_SIDDQ				BIT(24)
+
 #define KHZ	1000
 #define MHZ	(KHZ * KHZ)
 
@@ -166,6 +194,7 @@ struct exynos5_usbdrd_phy_config {
 
 struct exynos5_usbdrd_phy_drvdata {
 	const struct exynos5_usbdrd_phy_config *phy_cfg;
+	const struct phy_ops *phy_ops;
 	u32 pmu_offset_usbdrd0_phy;
 	u32 pmu_offset_usbdrd1_phy;
 	bool has_common_clk_gate;
@@ -180,14 +209,14 @@ struct exynos5_usbdrd_phy_drvdata {
  * @utmiclk: clock for utmi+ phy
  * @itpclk: clock for ITP generation
  * @drv_data: pointer to SoC level driver data structure
- * @phys[]: array for 'EXYNOS5_DRDPHYS_NUM' number of PHY
+ * @phys: array for 'EXYNOS5_DRDPHYS_NUM' number of PHY
  *	    instances each with its 'phy' and 'phy_cfg'.
  * @extrefclk: frequency select settings when using 'separate
  *	       reference clocks' for SS and HS operations
  * @ref_clk: reference clock to PHY block from which PHY's
  *	     operational clocks are derived
- * vbus: VBUS regulator for phy
- * vbus_boost: Boost regulator for VBUS present on few Exynos boards
+ * @vbus: VBUS regulator for phy
+ * @vbus_boost: Boost regulator for VBUS present on few Exynos boards
  */
 struct exynos5_usbdrd_phy {
 	struct device *dev;
@@ -243,6 +272,9 @@ static unsigned int exynos5_rate_to_clk(unsigned long rate, u32 *reg)
 		break;
 	case 24 * MHZ:
 		*reg = EXYNOS5_FSEL_24MHZ;
+		break;
+	case 26 * MHZ:
+		*reg = EXYNOS5_FSEL_26MHZ;
 		break;
 	case 50 * MHZ:
 		*reg = EXYNOS5_FSEL_50MHZ;
@@ -556,41 +588,25 @@ static int exynos5_usbdrd_phy_power_off(struct phy *phy)
 static int crport_handshake(struct exynos5_usbdrd_phy *phy_drd,
 			    u32 val, u32 cmd)
 {
-	u32 usec = 100;
 	unsigned int result;
+	int err;
 
 	writel(val | cmd, phy_drd->reg_phy + EXYNOS5_DRD_PHYREG0);
 
-	do {
-		result = readl(phy_drd->reg_phy + EXYNOS5_DRD_PHYREG1);
-		if (result & PHYREG1_CR_ACK)
-			break;
-
-		udelay(1);
-	} while (usec-- > 0);
-
-	if (!usec) {
-		dev_err(phy_drd->dev,
-			"CRPORT handshake timeout1 (0x%08x)\n", val);
-		return -ETIME;
+	err = readl_poll_timeout(phy_drd->reg_phy + EXYNOS5_DRD_PHYREG1,
+				 result, (result & PHYREG1_CR_ACK), 1, 100);
+	if (err == -ETIMEDOUT) {
+		dev_err(phy_drd->dev, "CRPORT handshake timeout1 (0x%08x)\n", val);
+		return err;
 	}
-
-	usec = 100;
 
 	writel(val, phy_drd->reg_phy + EXYNOS5_DRD_PHYREG0);
 
-	do {
-		result = readl(phy_drd->reg_phy + EXYNOS5_DRD_PHYREG1);
-		if (!(result & PHYREG1_CR_ACK))
-			break;
-
-		udelay(1);
-	} while (usec-- > 0);
-
-	if (!usec) {
-		dev_err(phy_drd->dev,
-			"CRPORT handshake timeout2 (0x%08x)\n", val);
-		return -ETIME;
+	err = readl_poll_timeout(phy_drd->reg_phy + EXYNOS5_DRD_PHYREG1,
+				 result, !(result & PHYREG1_CR_ACK), 1, 100);
+	if (err == -ETIMEDOUT) {
+		dev_err(phy_drd->dev, "CRPORT handshake timeout2 (0x%08x)\n", val);
+		return err;
 	}
 
 	return 0;
@@ -699,7 +715,7 @@ static int exynos5420_usbdrd_phy_calibrate(struct exynos5_usbdrd_phy *phy_drd)
 }
 
 static struct phy *exynos5_usbdrd_phy_xlate(struct device *dev,
-					struct of_phandle_args *args)
+					const struct of_phandle_args *args)
 {
 	struct exynos5_usbdrd_phy *phy_drd = dev_get_drvdata(dev);
 
@@ -714,7 +730,9 @@ static int exynos5_usbdrd_phy_calibrate(struct phy *phy)
 	struct phy_usb_instance *inst = phy_get_drvdata(phy);
 	struct exynos5_usbdrd_phy *phy_drd = to_usbdrd_phy(inst);
 
-	return exynos5420_usbdrd_phy_calibrate(phy_drd);
+	if (inst->phy_cfg->id == EXYNOS5_DRDPHY_UTMI)
+		return exynos5420_usbdrd_phy_calibrate(phy_drd);
+	return 0;
 }
 
 static const struct phy_ops exynos5_usbdrd_phy_ops = {
@@ -723,6 +741,129 @@ static const struct phy_ops exynos5_usbdrd_phy_ops = {
 	.power_on	= exynos5_usbdrd_phy_power_on,
 	.power_off	= exynos5_usbdrd_phy_power_off,
 	.calibrate	= exynos5_usbdrd_phy_calibrate,
+	.owner		= THIS_MODULE,
+};
+
+static void exynos850_usbdrd_utmi_init(struct exynos5_usbdrd_phy *phy_drd)
+{
+	void __iomem *regs_base = phy_drd->reg_phy;
+	u32 reg;
+
+	/*
+	 * Disable HWACG (hardware auto clock gating control). This will force
+	 * QACTIVE signal in Q-Channel interface to HIGH level, to make sure
+	 * the PHY clock is not gated by the hardware.
+	 */
+	reg = readl(regs_base + EXYNOS850_DRD_LINKCTRL);
+	reg |= LINKCTRL_FORCE_QACT;
+	writel(reg, regs_base + EXYNOS850_DRD_LINKCTRL);
+
+	/* Start PHY Reset (POR=high) */
+	reg = readl(regs_base + EXYNOS850_DRD_CLKRST);
+	reg |= CLKRST_PHY_SW_RST;
+	writel(reg, regs_base + EXYNOS850_DRD_CLKRST);
+
+	/* Enable UTMI+ */
+	reg = readl(regs_base + EXYNOS850_DRD_UTMI);
+	reg &= ~(UTMI_FORCE_SUSPEND | UTMI_FORCE_SLEEP | UTMI_DP_PULLDOWN |
+		 UTMI_DM_PULLDOWN);
+	writel(reg, regs_base + EXYNOS850_DRD_UTMI);
+
+	/* Set PHY clock and control HS PHY */
+	reg = readl(regs_base + EXYNOS850_DRD_HSP);
+	reg |= HSP_EN_UTMISUSPEND | HSP_COMMONONN;
+	writel(reg, regs_base + EXYNOS850_DRD_HSP);
+
+	/* Set VBUS Valid and D+ pull-up control by VBUS pad usage */
+	reg = readl(regs_base + EXYNOS850_DRD_LINKCTRL);
+	reg |= LINKCTRL_BUS_FILTER_BYPASS(0xf);
+	writel(reg, regs_base + EXYNOS850_DRD_LINKCTRL);
+
+	reg = readl(regs_base + EXYNOS850_DRD_UTMI);
+	reg |= UTMI_FORCE_BVALID | UTMI_FORCE_VBUSVALID;
+	writel(reg, regs_base + EXYNOS850_DRD_UTMI);
+
+	reg = readl(regs_base + EXYNOS850_DRD_HSP);
+	reg |= HSP_VBUSVLDEXT | HSP_VBUSVLDEXTSEL;
+	writel(reg, regs_base + EXYNOS850_DRD_HSP);
+
+	/* Power up PHY analog blocks */
+	reg = readl(regs_base + EXYNOS850_DRD_HSP_TEST);
+	reg &= ~HSP_TEST_SIDDQ;
+	writel(reg, regs_base + EXYNOS850_DRD_HSP_TEST);
+
+	/* Finish PHY reset (POR=low) */
+	udelay(10); /* required before doing POR=low */
+	reg = readl(regs_base + EXYNOS850_DRD_CLKRST);
+	reg &= ~(CLKRST_PHY_SW_RST | CLKRST_PORT_RST);
+	writel(reg, regs_base + EXYNOS850_DRD_CLKRST);
+	udelay(75); /* required after POR=low for guaranteed PHY clock */
+
+	/* Disable single ended signal out */
+	reg = readl(regs_base + EXYNOS850_DRD_HSP);
+	reg &= ~HSP_FSV_OUT_EN;
+	writel(reg, regs_base + EXYNOS850_DRD_HSP);
+}
+
+static int exynos850_usbdrd_phy_init(struct phy *phy)
+{
+	struct phy_usb_instance *inst = phy_get_drvdata(phy);
+	struct exynos5_usbdrd_phy *phy_drd = to_usbdrd_phy(inst);
+	int ret;
+
+	ret = clk_prepare_enable(phy_drd->clk);
+	if (ret)
+		return ret;
+
+	/* UTMI or PIPE3 specific init */
+	inst->phy_cfg->phy_init(phy_drd);
+
+	clk_disable_unprepare(phy_drd->clk);
+
+	return 0;
+}
+
+static int exynos850_usbdrd_phy_exit(struct phy *phy)
+{
+	struct phy_usb_instance *inst = phy_get_drvdata(phy);
+	struct exynos5_usbdrd_phy *phy_drd = to_usbdrd_phy(inst);
+	void __iomem *regs_base = phy_drd->reg_phy;
+	u32 reg;
+	int ret;
+
+	ret = clk_prepare_enable(phy_drd->clk);
+	if (ret)
+		return ret;
+
+	/* Set PHY clock and control HS PHY */
+	reg = readl(regs_base + EXYNOS850_DRD_UTMI);
+	reg &= ~(UTMI_DP_PULLDOWN | UTMI_DM_PULLDOWN);
+	reg |= UTMI_FORCE_SUSPEND | UTMI_FORCE_SLEEP;
+	writel(reg, regs_base + EXYNOS850_DRD_UTMI);
+
+	/* Power down PHY analog blocks */
+	reg = readl(regs_base + EXYNOS850_DRD_HSP_TEST);
+	reg |= HSP_TEST_SIDDQ;
+	writel(reg, regs_base + EXYNOS850_DRD_HSP_TEST);
+
+	/* Link reset */
+	reg = readl(regs_base + EXYNOS850_DRD_CLKRST);
+	reg |= CLKRST_LINK_SW_RST;
+	writel(reg, regs_base + EXYNOS850_DRD_CLKRST);
+	udelay(10); /* required before doing POR=low */
+	reg &= ~CLKRST_LINK_SW_RST;
+	writel(reg, regs_base + EXYNOS850_DRD_CLKRST);
+
+	clk_disable_unprepare(phy_drd->clk);
+
+	return 0;
+}
+
+static const struct phy_ops exynos850_usbdrd_phy_ops = {
+	.init		= exynos850_usbdrd_phy_init,
+	.exit		= exynos850_usbdrd_phy_exit,
+	.power_on	= exynos5_usbdrd_phy_power_on,
+	.power_off	= exynos5_usbdrd_phy_power_off,
 	.owner		= THIS_MODULE,
 };
 
@@ -792,8 +933,17 @@ static const struct exynos5_usbdrd_phy_config phy_cfg_exynos5[] = {
 	},
 };
 
+static const struct exynos5_usbdrd_phy_config phy_cfg_exynos850[] = {
+	{
+		.id		= EXYNOS5_DRDPHY_UTMI,
+		.phy_isol	= exynos5_usbdrd_phy_isol,
+		.phy_init	= exynos850_usbdrd_utmi_init,
+	},
+};
+
 static const struct exynos5_usbdrd_phy_drvdata exynos5420_usbdrd_phy = {
 	.phy_cfg		= phy_cfg_exynos5,
+	.phy_ops		= &exynos5_usbdrd_phy_ops,
 	.pmu_offset_usbdrd0_phy	= EXYNOS5_USBDRD_PHY_CONTROL,
 	.pmu_offset_usbdrd1_phy	= EXYNOS5420_USBDRD1_PHY_CONTROL,
 	.has_common_clk_gate	= true,
@@ -801,12 +951,14 @@ static const struct exynos5_usbdrd_phy_drvdata exynos5420_usbdrd_phy = {
 
 static const struct exynos5_usbdrd_phy_drvdata exynos5250_usbdrd_phy = {
 	.phy_cfg		= phy_cfg_exynos5,
+	.phy_ops		= &exynos5_usbdrd_phy_ops,
 	.pmu_offset_usbdrd0_phy	= EXYNOS5_USBDRD_PHY_CONTROL,
 	.has_common_clk_gate	= true,
 };
 
 static const struct exynos5_usbdrd_phy_drvdata exynos5433_usbdrd_phy = {
 	.phy_cfg		= phy_cfg_exynos5,
+	.phy_ops		= &exynos5_usbdrd_phy_ops,
 	.pmu_offset_usbdrd0_phy	= EXYNOS5_USBDRD_PHY_CONTROL,
 	.pmu_offset_usbdrd1_phy	= EXYNOS5433_USBHOST30_PHY_CONTROL,
 	.has_common_clk_gate	= false,
@@ -814,8 +966,16 @@ static const struct exynos5_usbdrd_phy_drvdata exynos5433_usbdrd_phy = {
 
 static const struct exynos5_usbdrd_phy_drvdata exynos7_usbdrd_phy = {
 	.phy_cfg		= phy_cfg_exynos5,
+	.phy_ops		= &exynos5_usbdrd_phy_ops,
 	.pmu_offset_usbdrd0_phy	= EXYNOS5_USBDRD_PHY_CONTROL,
 	.has_common_clk_gate	= false,
+};
+
+static const struct exynos5_usbdrd_phy_drvdata exynos850_usbdrd_phy = {
+	.phy_cfg		= phy_cfg_exynos850,
+	.phy_ops		= &exynos850_usbdrd_phy_ops,
+	.pmu_offset_usbdrd0_phy	= EXYNOS5_USBDRD_PHY_CONTROL,
+	.has_common_clk_gate	= true,
 };
 
 static const struct of_device_id exynos5_usbdrd_phy_of_match[] = {
@@ -831,6 +991,9 @@ static const struct of_device_id exynos5_usbdrd_phy_of_match[] = {
 	}, {
 		.compatible = "samsung,exynos7-usbdrd-phy",
 		.data = &exynos7_usbdrd_phy
+	}, {
+		.compatible = "samsung,exynos850-usbdrd-phy",
+		.data = &exynos850_usbdrd_phy
 	},
 	{ },
 };
@@ -842,7 +1005,6 @@ static int exynos5_usbdrd_phy_probe(struct platform_device *pdev)
 	struct device_node *node = dev->of_node;
 	struct exynos5_usbdrd_phy *phy_drd;
 	struct phy_provider *phy_provider;
-	struct resource *res;
 	const struct exynos5_usbdrd_phy_drvdata *drv_data;
 	struct regmap *reg_pmu;
 	u32 pmu_offset;
@@ -856,8 +1018,7 @@ static int exynos5_usbdrd_phy_probe(struct platform_device *pdev)
 	dev_set_drvdata(dev, phy_drd);
 	phy_drd->dev = dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	phy_drd->reg_phy = devm_ioremap_resource(dev, res);
+	phy_drd->reg_phy = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(phy_drd->reg_phy))
 		return PTR_ERR(phy_drd->reg_phy);
 
@@ -923,8 +1084,8 @@ static int exynos5_usbdrd_phy_probe(struct platform_device *pdev)
 	dev_vdbg(dev, "Creating usbdrd_phy phy\n");
 
 	for (i = 0; i < EXYNOS5_DRDPHYS_NUM; i++) {
-		struct phy *phy = devm_phy_create(dev, NULL,
-						  &exynos5_usbdrd_phy_ops);
+		struct phy *phy = devm_phy_create(dev, NULL, drv_data->phy_ops);
+
 		if (IS_ERR(phy)) {
 			dev_err(dev, "Failed to create usbdrd_phy phy\n");
 			return PTR_ERR(phy);
@@ -958,7 +1119,7 @@ static struct platform_driver exynos5_usb3drd_phy = {
 };
 
 module_platform_driver(exynos5_usb3drd_phy);
-MODULE_DESCRIPTION("Samsung EXYNOS5 SoCs USB 3.0 DRD controller PHY driver");
+MODULE_DESCRIPTION("Samsung Exynos5 SoCs USB 3.0 DRD controller PHY driver");
 MODULE_AUTHOR("Vivek Gautam <gautam.vivek@samsung.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:exynos5_usb3drd_phy");

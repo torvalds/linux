@@ -827,7 +827,7 @@ static int check_buf_params(struct cs_hsi_iface *hi,
 	return r;
 }
 
-/**
+/*
  * Block until pending data transfers have completed.
  */
 static int cs_hsi_data_sync(struct cs_hsi_iface *hi)
@@ -850,7 +850,7 @@ static int cs_hsi_data_sync(struct cs_hsi_iface *hi)
 			r = -ERESTARTSYS;
 			goto out;
 		}
-		/**
+		/*
 		 * prepare_to_wait must be called with hi->lock held
 		 * so that callbacks can check for waitqueue_active()
 		 */
@@ -965,14 +965,13 @@ static int cs_hsi_buf_config(struct cs_hsi_iface *hi,
 
 	if (old_state != hi->iface_state) {
 		if (hi->iface_state == CS_STATE_CONFIGURED) {
-			pm_qos_add_request(&hi->pm_qos_req,
-				PM_QOS_CPU_DMA_LATENCY,
+			cpu_latency_qos_add_request(&hi->pm_qos_req,
 				CS_QOS_LATENCY_FOR_DATA_USEC);
 			local_bh_disable();
 			cs_hsi_read_on_data(hi);
 			local_bh_enable();
 		} else if (old_state == CS_STATE_CONFIGURED) {
-			pm_qos_remove_request(&hi->pm_qos_req);
+			cpu_latency_qos_remove_request(&hi->pm_qos_req);
 		}
 	}
 	return r;
@@ -1075,8 +1074,8 @@ static void cs_hsi_stop(struct cs_hsi_iface *hi)
 	WARN_ON(!cs_state_idle(hi->control_state));
 	WARN_ON(!cs_state_idle(hi->data_state));
 
-	if (pm_qos_request_active(&hi->pm_qos_req))
-		pm_qos_remove_request(&hi->pm_qos_req);
+	if (cpu_latency_qos_request_active(&hi->pm_qos_req))
+		cpu_latency_qos_remove_request(&hi->pm_qos_req);
 
 	spin_lock_bh(&hi->lock);
 	cs_hsi_free_data(hi);
@@ -1090,7 +1089,7 @@ static vm_fault_t cs_char_vma_fault(struct vm_fault *vmf)
 	struct cs_char *csdata = vmf->vma->vm_private_data;
 	struct page *page;
 
-	page = virt_to_page(csdata->mmap_base);
+	page = virt_to_page((void *)csdata->mmap_base);
 	get_page(page);
 	vmf->page = page;
 
@@ -1265,7 +1264,7 @@ static int cs_char_mmap(struct file *file, struct vm_area_struct *vma)
 	if (vma_pages(vma) != 1)
 		return -EINVAL;
 
-	vma->vm_flags |= VM_IO | VM_DONTDUMP | VM_DONTEXPAND;
+	vm_flags_set(vma, VM_IO | VM_DONTDUMP | VM_DONTEXPAND);
 	vma->vm_ops = &cs_char_vm_ops;
 	vma->vm_private_data = file->private_data;
 

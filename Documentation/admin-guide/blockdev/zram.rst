@@ -1,15 +1,15 @@
 ========================================
-zram: Compressed RAM based block devices
+zram: Compressed RAM-based block devices
 ========================================
 
 Introduction
 ============
 
-The zram module creates RAM based block devices named /dev/zram<id>
+The zram module creates RAM-based block devices named /dev/zram<id>
 (<id> = 0, 1, ...). Pages written to these disks are compressed and stored
 in memory itself. These disks allow very fast I/O and compression provides
-good amounts of memory savings. Some of the usecases include /tmp storage,
-use as swap disks, various caches under /var and maybe many more :)
+good amounts of memory savings. Some of the use cases include /tmp storage,
+use as swap disks, various caches under /var and maybe many more. :)
 
 Statistics for individual zram devices are exported through sysfs nodes at
 /sys/block/zram<id>/
@@ -43,17 +43,17 @@ The list of possible return codes:
 
 ========  =============================================================
 -EBUSY	  an attempt to modify an attribute that cannot be changed once
-	  the device has been initialised. Please reset device first;
+	  the device has been initialised. Please reset device first.
 -ENOMEM	  zram was not able to allocate enough memory to fulfil your
-	  needs;
+	  needs.
 -EINVAL	  invalid input has been provided.
 ========  =============================================================
 
-If you use 'echo', the returned value that is changed by 'echo' utility,
+If you use 'echo', the returned value is set by the 'echo' utility,
 and, in general case, something like::
 
 	echo 3 > /sys/block/zram0/max_comp_streams
-	if [ $? -ne 0 ];
+	if [ $? -ne 0 ]; then
 		handle_error
 	fi
 
@@ -65,7 +65,8 @@ should suffice.
 ::
 
 	modprobe zram num_devices=4
-	This creates 4 devices: /dev/zram{0,1,2,3}
+
+This creates 4 devices: /dev/zram{0,1,2,3}
 
 num_devices parameter is optional and tells zram how many devices should be
 pre-created. Default: 1.
@@ -73,12 +74,12 @@ pre-created. Default: 1.
 2) Set max number of compression streams
 ========================================
 
-Regardless the value passed to this attribute, ZRAM will always
-allocate multiple compression streams - one per online CPUs - thus
+Regardless of the value passed to this attribute, ZRAM will always
+allocate multiple compression streams - one per online CPU - thus
 allowing several concurrent compression operations. The number of
 allocated compression streams goes down when some of the CPUs
 become offline. There is no single-compression-stream mode anymore,
-unless you are running a UP system or has only 1 CPU online.
+unless you are running a UP system or have only 1 CPU online.
 
 To find out how many streams are currently available::
 
@@ -89,7 +90,7 @@ To find out how many streams are currently available::
 
 Using comp_algorithm device attribute one can see available and
 currently selected (shown in square brackets) compression algorithms,
-change selected compression algorithm (once the device is initialised
+or change the selected compression algorithm (once the device is initialised
 there is no way to change compression algorithm).
 
 Examples::
@@ -167,9 +168,9 @@ Examples::
 zram provides a control interface, which enables dynamic (on-demand) device
 addition and removal.
 
-In order to add a new /dev/zramX device, perform read operation on hot_add
-attribute. This will return either new device's device id (meaning that you
-can use /dev/zram<id>) or error code.
+In order to add a new /dev/zramX device, perform a read operation on the hot_add
+attribute. This will return either the new device's device id (meaning that you
+can use /dev/zram<id>) or an error code.
 
 Example::
 
@@ -186,8 +187,8 @@ execute::
 
 Per-device statistics are exported as various nodes under /sys/block/zram<id>/
 
-A brief description of exported device attributes. For more details please
-read Documentation/ABI/testing/sysfs-block-zram.
+A brief description of exported device attributes follows. For more details
+please read Documentation/ABI/testing/sysfs-block-zram.
 
 ======================  ======  ===============================================
 Name            	access            description
@@ -245,13 +246,11 @@ whitespace:
 
 File /sys/block/zram<id>/mm_stat
 
-The stat file represents device's mm statistics. It consists of a single
+The mm_stat file represents the device's mm statistics. It consists of a single
 line of text and contains the following stats separated by whitespace:
 
  ================ =============================================================
  orig_data_size   uncompressed size of data stored in this disk.
-		  This excludes same-element-filled pages (same_pages) since
-		  no memory is allocated for them.
                   Unit: bytes
  compr_data_size  compressed size of data stored in this disk
  mem_used_total   the amount of memory allocated for this disk. This
@@ -261,17 +260,18 @@ line of text and contains the following stats separated by whitespace:
                   Unit: bytes
  mem_limit        the maximum amount of memory ZRAM can use to store
                   the compressed data
- mem_used_max     the maximum amount of memory zram have consumed to
+ mem_used_max     the maximum amount of memory zram has consumed to
                   store the data
  same_pages       the number of same element filled pages written to this disk.
                   No memory is allocated for such pages.
  pages_compacted  the number of pages freed during compaction
  huge_pages	  the number of incompressible pages
+ huge_pages_since the number of incompressible pages since zram set up
  ================ =============================================================
 
 File /sys/block/zram<id>/bd_stat
 
-The stat file represents device's backing device statistics. It consists of
+The bd_stat file represents a device's backing device statistics. It consists of
 a single line of text and contains the following stats separated by whitespace:
 
  ============== =============================================================
@@ -315,10 +315,10 @@ To use the feature, admin should set up backing device via::
 
 	echo /dev/sda5 > /sys/block/zramX/backing_dev
 
-before disksize setting. It supports only partition at this moment.
-If admin want to use incompressible page writeback, they could do via::
+before disksize setting. It supports only partitions at this moment.
+If admin wants to use incompressible page writeback, they could do it via::
 
-	echo huge > /sys/block/zramX/write
+	echo huge > /sys/block/zramX/writeback
 
 To use idle page writeback, first, user need to declare zram pages
 as idle::
@@ -326,14 +326,37 @@ as idle::
 	echo all > /sys/block/zramX/idle
 
 From now on, any pages on zram are idle pages. The idle mark
-will be removed until someone request access of the block.
+will be removed until someone requests access of the block.
 IOW, unless there is access request, those pages are still idle pages.
+Additionally, when CONFIG_ZRAM_TRACK_ENTRY_ACTIME is enabled pages can be
+marked as idle based on how long (in seconds) it's been since they were
+last accessed::
+
+        echo 86400 > /sys/block/zramX/idle
+
+In this example all pages which haven't been accessed in more than 86400
+seconds (one day) will be marked idle.
 
 Admin can request writeback of those idle pages at right timing via::
 
 	echo idle > /sys/block/zramX/writeback
 
-With the command, zram writeback idle pages from memory to the storage.
+With the command, zram will writeback idle pages from memory to the storage.
+
+Additionally, if a user choose to writeback only huge and idle pages
+this can be accomplished with::
+
+        echo huge_idle > /sys/block/zramX/writeback
+
+If a user chooses to writeback only incompressible pages (pages that none of
+algorithms can compress) this can be accomplished with::
+
+	echo incompressible > /sys/block/zramX/writeback
+
+If an admin wants to write a specific page in zram device to the backing device,
+they could write a page index into the interface::
+
+	echo "page_index=1251" > /sys/block/zramX/writeback
 
 If there are lots of write IO with flash device, potentially, it has
 flash wearout problem so that admin needs to design write limitation
@@ -341,18 +364,18 @@ to guarantee storage health for entire product life.
 
 To overcome the concern, zram supports "writeback_limit" feature.
 The "writeback_limit_enable"'s default value is 0 so that it doesn't limit
-any writeback. IOW, if admin want to apply writeback budget, he should
+any writeback. IOW, if admin wants to apply writeback budget, they should
 enable writeback_limit_enable via::
 
 	$ echo 1 > /sys/block/zramX/writeback_limit_enable
 
 Once writeback_limit_enable is set, zram doesn't allow any writeback
-until admin set the budget via /sys/block/zramX/writeback_limit.
+until admin sets the budget via /sys/block/zramX/writeback_limit.
 
 (If admin doesn't enable writeback_limit_enable, writeback_limit's value
-assigned via /sys/block/zramX/writeback_limit is meaninless.)
+assigned via /sys/block/zramX/writeback_limit is meaningless.)
 
-If admin want to limit writeback as per-day 400M, he could do it
+If admin wants to limit writeback as per-day 400M, they could do it
 like below::
 
 	$ MB_SHIFT=20
@@ -361,27 +384,113 @@ like below::
 		/sys/block/zram0/writeback_limit.
 	$ echo 1 > /sys/block/zram0/writeback_limit_enable
 
-If admin want to allow further write again once the bugdet is exausted,
-he could do it like below::
+If admins want to allow further write again once the budget is exhausted,
+they could do it like below::
 
 	$ echo $((400<<MB_SHIFT>>4K_SHIFT)) > \
 		/sys/block/zram0/writeback_limit
 
-If admin want to see remaining writeback budget since he set::
+If an admin wants to see the remaining writeback budget since last set::
 
 	$ cat /sys/block/zramX/writeback_limit
 
-If admin want to disable writeback limit, he could do::
+If an admin wants to disable writeback limit, they could do::
 
 	$ echo 0 > /sys/block/zramX/writeback_limit_enable
 
-The writeback_limit count will reset whenever you reset zram(e.g.,
+The writeback_limit count will reset whenever you reset zram (e.g.,
 system reboot, echo 1 > /sys/block/zramX/reset) so keeping how many of
 writeback happened until you reset the zram to allocate extra writeback
 budget in next setting is user's job.
 
-If admin want to measure writeback count in a certain period, he could
+If admin wants to measure writeback count in a certain period, they could
 know it via /sys/block/zram0/bd_stat's 3rd column.
+
+recompression
+-------------
+
+With CONFIG_ZRAM_MULTI_COMP, zram can recompress pages using alternative
+(secondary) compression algorithms. The basic idea is that alternative
+compression algorithm can provide better compression ratio at a price of
+(potentially) slower compression/decompression speeds. Alternative compression
+algorithm can, for example, be more successful compressing huge pages (those
+that default algorithm failed to compress). Another application is idle pages
+recompression - pages that are cold and sit in the memory can be recompressed
+using more effective algorithm and, hence, reduce zsmalloc memory usage.
+
+With CONFIG_ZRAM_MULTI_COMP, zram supports up to 4 compression algorithms:
+one primary and up to 3 secondary ones. Primary zram compressor is explained
+in "3) Select compression algorithm", secondary algorithms are configured
+using recomp_algorithm device attribute.
+
+Example:::
+
+	#show supported recompression algorithms
+	cat /sys/block/zramX/recomp_algorithm
+	#1: lzo lzo-rle lz4 lz4hc [zstd]
+	#2: lzo lzo-rle lz4 [lz4hc] zstd
+
+Alternative compression algorithms are sorted by priority. In the example
+above, zstd is used as the first alternative algorithm, which has priority
+of 1, while lz4hc is configured as a compression algorithm with priority 2.
+Alternative compression algorithm's priority is provided during algorithms
+configuration:::
+
+	#select zstd recompression algorithm, priority 1
+	echo "algo=zstd priority=1" > /sys/block/zramX/recomp_algorithm
+
+	#select deflate recompression algorithm, priority 2
+	echo "algo=deflate priority=2" > /sys/block/zramX/recomp_algorithm
+
+Another device attribute that CONFIG_ZRAM_MULTI_COMP enables is recompress,
+which controls recompression.
+
+Examples:::
+
+	#IDLE pages recompression is activated by `idle` mode
+	echo "type=idle" > /sys/block/zramX/recompress
+
+	#HUGE pages recompression is activated by `huge` mode
+	echo "type=huge" > /sys/block/zram0/recompress
+
+	#HUGE_IDLE pages recompression is activated by `huge_idle` mode
+	echo "type=huge_idle" > /sys/block/zramX/recompress
+
+The number of idle pages can be significant, so user-space can pass a size
+threshold (in bytes) to the recompress knob: zram will recompress only pages
+of equal or greater size:::
+
+	#recompress all pages larger than 3000 bytes
+	echo "threshold=3000" > /sys/block/zramX/recompress
+
+	#recompress idle pages larger than 2000 bytes
+	echo "type=idle threshold=2000" > /sys/block/zramX/recompress
+
+It is also possible to limit the number of pages zram re-compression will
+attempt to recompress:::
+
+	echo "type=huge_idle max_pages=42" > /sys/block/zramX/recompress
+
+Recompression of idle pages requires memory tracking.
+
+During re-compression for every page, that matches re-compression criteria,
+ZRAM iterates the list of registered alternative compression algorithms in
+order of their priorities. ZRAM stops either when re-compression was
+successful (re-compressed object is smaller in size than the original one)
+and matches re-compression criteria (e.g. size threshold) or when there are
+no secondary algorithms left to try. If none of the secondary algorithms can
+successfully re-compressed the page such a page is marked as incompressible,
+so ZRAM will not attempt to re-compress it in the future.
+
+This re-compression behaviour, when it iterates through the list of
+registered compression algorithms, increases our chances of finding the
+algorithm that successfully compresses a particular page. Sometimes, however,
+it is convenient (and sometimes even necessary) to limit recompression to
+only one particular algorithm so that it will not try any other algorithms.
+This can be achieved by providing a algo=NAME parameter:::
+
+	#use zstd algorithm only (if registered)
+	echo "type=huge algo=zstd" > /sys/block/zramX/recompress
 
 memory tracking
 ===============
@@ -393,9 +502,11 @@ pages of the process with*pagemap.
 If you enable the feature, you could see block state via
 /sys/kernel/debug/zram/zram0/block_state". The output is as follows::
 
-	  300    75.033841 .wh.
-	  301    63.806904 s...
-	  302    63.806919 ..hi
+	  300    75.033841 .wh...
+	  301    63.806904 s.....
+	  302    63.806919 ..hi..
+	  303    62.801919 ....r.
+	  304   146.781902 ..hi.n
 
 First column
 	zram's block index.
@@ -412,6 +523,10 @@ Third column
 		huge page
 	i:
 		idle page
+	r:
+		recompressed page (secondary compression algorithm)
+	n:
+		none (including secondary) of algorithms could compress it
 
 First line of above example says 300th block is accessed at 75.033841sec
 and the block's state is huge so it is written back to the backing

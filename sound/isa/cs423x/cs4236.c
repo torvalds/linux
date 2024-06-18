@@ -18,40 +18,6 @@
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Cirrus Logic CS4232-9");
-MODULE_SUPPORTED_DEVICE("{{Turtle Beach,TBS-2000},"
-		"{Turtle Beach,Tropez Plus},"
-		"{SIC CrystalWave 32},"
-		"{Hewlett Packard,Omnibook 5500},"
-		"{TerraTec,Maestro 32/96},"
-		"{Philips,PCA70PS}},"
-		"{{Crystal Semiconductors,CS4235},"
-		"{Crystal Semiconductors,CS4236},"
-		"{Crystal Semiconductors,CS4237},"
-		"{Crystal Semiconductors,CS4238},"
-		"{Crystal Semiconductors,CS4239},"
-		"{Acer,AW37},"
-		"{Acer,AW35/Pro},"
-		"{Crystal,3D},"
-		"{Crystal Computer,TidalWave128},"
-		"{Dell,Optiplex GX1},"
-		"{Dell,Workstation 400 sound},"
-		"{EliteGroup,P5TX-LA sound},"
-		"{Gallant,SC-70P},"
-		"{Gateway,E1000 Onboard CS4236B},"
-		"{Genius,Sound Maker 3DJ},"
-		"{Hewlett Packard,HP6330 sound},"
-		"{IBM,PC 300PL sound},"
-		"{IBM,Aptiva 2137 E24},"
-		"{IBM,IntelliStation M Pro},"
-		"{Intel,Marlin Spike Mobo CS4235},"
-		"{Intel PR440FX Onboard},"
-		"{Guillemot,MaxiSound 16 PnP},"
-		"{NewClear,3D},"
-		"{TerraTec,AudioSystem EWS64L/XL},"
-		"{Typhoon Soundsystem,CS4236B},"
-		"{Turtle Beach,Malibu},"
-		"{Unknown,Digital PC 5000 Onboard}}");
-
 MODULE_ALIAS("snd_cs4232");
 
 #define IDENT "CS4232+"
@@ -110,7 +76,6 @@ static int pnp_registered;
 
 struct snd_card_cs4236 {
 	struct snd_wss *chip;
-	struct resource *res_sb_port;
 #ifdef CONFIG_PNP
 	struct pnp_dev *wss;
 	struct pnp_dev *ctrl;
@@ -278,7 +243,8 @@ static int snd_cs423x_pnp_init_mpu(int dev, struct pnp_dev *pdev)
 	} else {
 		mpu_port[dev] = pnp_port_start(pdev, 0);
 		if (mpu_irq[dev] >= 0 &&
-		    pnp_irq_valid(pdev, 0) && pnp_irq(pdev, 0) >= 0) {
+		    pnp_irq_valid(pdev, 0) &&
+		    pnp_irq(pdev, 0) != (resource_size_t)-1) {
 			mpu_irq[dev] = pnp_irq(pdev, 0);
 		} else {
 			mpu_irq[dev] = -1;	/* disable interrupt */
@@ -342,24 +308,16 @@ static int snd_card_cs423x_pnpc(int dev, struct snd_card_cs4236 *acard,
 #define is_isapnp_selected(dev)		0
 #endif
 
-static void snd_card_cs4236_free(struct snd_card *card)
-{
-	struct snd_card_cs4236 *acard = card->private_data;
-
-	release_and_free_resource(acard->res_sb_port);
-}
-
 static int snd_cs423x_card_new(struct device *pdev, int dev,
 			       struct snd_card **cardp)
 {
 	struct snd_card *card;
 	int err;
 
-	err = snd_card_new(pdev, index[dev], id[dev], THIS_MODULE,
-			   sizeof(struct snd_card_cs4236), &card);
+	err = snd_devm_card_new(pdev, index[dev], id[dev], THIS_MODULE,
+				sizeof(struct snd_card_cs4236), &card);
 	if (err < 0)
 		return err;
-	card->private_free = snd_card_cs4236_free;
 	*cardp = card;
 	return 0;
 }
@@ -372,11 +330,13 @@ static int snd_cs423x_probe(struct snd_card *card, int dev)
 	int err;
 
 	acard = card->private_data;
-	if (sb_port[dev] > 0 && sb_port[dev] != SNDRV_AUTO_PORT)
-		if ((acard->res_sb_port = request_region(sb_port[dev], 16, IDENT " SB")) == NULL) {
+	if (sb_port[dev] > 0 && sb_port[dev] != SNDRV_AUTO_PORT) {
+		if (!devm_request_region(card->dev, sb_port[dev], 16,
+					 IDENT " SB")) {
 			printk(KERN_ERR IDENT ": unable to register SB port at 0x%lx\n", sb_port[dev]);
 			return -EBUSY;
 		}
+	}
 
 	err = snd_cs4236_create(card, port[dev], cport[dev],
 			     irq[dev],
@@ -404,17 +364,17 @@ static int snd_cs423x_probe(struct snd_card *card, int dev)
 		if (err < 0)
 			return err;
 	}
-	strlcpy(card->driver, chip->pcm->name, sizeof(card->driver));
-	strlcpy(card->shortname, chip->pcm->name, sizeof(card->shortname));
+	strscpy(card->driver, chip->pcm->name, sizeof(card->driver));
+	strscpy(card->shortname, chip->pcm->name, sizeof(card->shortname));
 	if (dma2[dev] < 0)
-		snprintf(card->longname, sizeof(card->longname),
-			 "%s at 0x%lx, irq %i, dma %i",
-			 chip->pcm->name, chip->port, irq[dev], dma1[dev]);
+		scnprintf(card->longname, sizeof(card->longname),
+			  "%s at 0x%lx, irq %i, dma %i",
+			  chip->pcm->name, chip->port, irq[dev], dma1[dev]);
 	else
-		snprintf(card->longname, sizeof(card->longname),
-			 "%s at 0x%lx, irq %i, dma %i&%d",
-			 chip->pcm->name, chip->port, irq[dev], dma1[dev],
-			 dma2[dev]);
+		scnprintf(card->longname, sizeof(card->longname),
+			  "%s at 0x%lx, irq %i, dma %i&%d",
+			  chip->pcm->name, chip->port, irq[dev], dma1[dev],
+			  dma2[dev]);
 
 	err = snd_wss_timer(chip, 0);
 	if (err < 0)
@@ -426,7 +386,8 @@ static int snd_cs423x_probe(struct snd_card *card, int dev)
 				    OPL3_HW_OPL3_CS, 0, &opl3) < 0) {
 			printk(KERN_WARNING IDENT ": OPL3 not detected\n");
 		} else {
-			if ((err = snd_opl3_hwdep_new(opl3, 0, 1, NULL)) < 0)
+			err = snd_opl3_hwdep_new(opl3, 0, 1, NULL);
+			if (err < 0)
 				return err;
 		}
 	}
@@ -477,19 +438,10 @@ static int snd_cs423x_isa_probe(struct device *pdev,
 	err = snd_cs423x_card_new(pdev, dev, &card);
 	if (err < 0)
 		return err;
-	if ((err = snd_cs423x_probe(card, dev)) < 0) {
-		snd_card_free(card);
+	err = snd_cs423x_probe(card, dev);
+	if (err < 0)
 		return err;
-	}
-
 	dev_set_drvdata(pdev, card);
-	return 0;
-}
-
-static int snd_cs423x_isa_remove(struct device *pdev,
-				 unsigned int dev)
-{
-	snd_card_free(dev_get_drvdata(pdev));
 	return 0;
 }
 
@@ -525,7 +477,6 @@ static int snd_cs423x_isa_resume(struct device *dev, unsigned int n)
 static struct isa_driver cs423x_isa_driver = {
 	.match		= snd_cs423x_isa_match,
 	.probe		= snd_cs423x_isa_probe,
-	.remove		= snd_cs423x_isa_remove,
 #ifdef CONFIG_PM
 	.suspend	= snd_cs423x_isa_suspend,
 	.resume		= snd_cs423x_isa_resume,
@@ -543,7 +494,7 @@ static int snd_cs423x_pnpbios_detect(struct pnp_dev *pdev,
 	static int dev;
 	int err;
 	struct snd_card *card;
-	struct pnp_dev *cdev;
+	struct pnp_dev *cdev, *iter;
 	char cid[PNP_ID_LEN];
 
 	if (pnp_device_is_isapnp(pdev))
@@ -559,9 +510,11 @@ static int snd_cs423x_pnpbios_detect(struct pnp_dev *pdev,
 	strcpy(cid, pdev->id[0].id);
 	cid[5] = '1';
 	cdev = NULL;
-	list_for_each_entry(cdev, &(pdev->protocol->devices), protocol_list) {
-		if (!strcmp(cdev->id[0].id, cid))
+	list_for_each_entry(iter, &(pdev->protocol->devices), protocol_list) {
+		if (!strcmp(iter->id[0].id, cid)) {
+			cdev = iter;
 			break;
+		}
 	}
 	err = snd_cs423x_card_new(&pdev->dev, dev, &card);
 	if (err < 0)
@@ -569,21 +522,14 @@ static int snd_cs423x_pnpbios_detect(struct pnp_dev *pdev,
 	err = snd_card_cs423x_pnp(dev, card->private_data, pdev, cdev);
 	if (err < 0) {
 		printk(KERN_ERR "PnP BIOS detection failed for " IDENT "\n");
-		snd_card_free(card);
 		return err;
 	}
-	if ((err = snd_cs423x_probe(card, dev)) < 0) {
-		snd_card_free(card);
+	err = snd_cs423x_probe(card, dev);
+	if (err < 0)
 		return err;
-	}
 	pnp_set_drvdata(pdev, card);
 	dev++;
 	return 0;
-}
-
-static void snd_cs423x_pnp_remove(struct pnp_dev *pdev)
-{
-	snd_card_free(pnp_get_drvdata(pdev));
 }
 
 #ifdef CONFIG_PM
@@ -602,7 +548,6 @@ static struct pnp_driver cs423x_pnp_driver = {
 	.name = "cs423x-pnpbios",
 	.id_table = snd_cs423x_pnpbiosids,
 	.probe = snd_cs423x_pnpbios_detect,
-	.remove = snd_cs423x_pnp_remove,
 #ifdef CONFIG_PM
 	.suspend	= snd_cs423x_pnp_suspend,
 	.resume		= snd_cs423x_pnp_resume,
@@ -626,25 +571,18 @@ static int snd_cs423x_pnpc_detect(struct pnp_card_link *pcard,
 	res = snd_cs423x_card_new(&pcard->card->dev, dev, &card);
 	if (res < 0)
 		return res;
-	if ((res = snd_card_cs423x_pnpc(dev, card->private_data, pcard, pid)) < 0) {
+	res = snd_card_cs423x_pnpc(dev, card->private_data, pcard, pid);
+	if (res < 0) {
 		printk(KERN_ERR "isapnp detection failed and probing for " IDENT
 		       " is not supported\n");
-		snd_card_free(card);
 		return res;
 	}
-	if ((res = snd_cs423x_probe(card, dev)) < 0) {
-		snd_card_free(card);
+	res = snd_cs423x_probe(card, dev);
+	if (res < 0)
 		return res;
-	}
 	pnp_set_card_drvdata(pcard, card);
 	dev++;
 	return 0;
-}
-
-static void snd_cs423x_pnpc_remove(struct pnp_card_link *pcard)
-{
-	snd_card_free(pnp_get_card_drvdata(pcard));
-	pnp_set_card_drvdata(pcard, NULL);
 }
 
 #ifdef CONFIG_PM
@@ -664,7 +602,6 @@ static struct pnp_card_driver cs423x_pnpc_driver = {
 	.name = CS423X_ISAPNP_DRIVER,
 	.id_table = snd_cs423x_pnpids,
 	.probe = snd_cs423x_pnpc_detect,
-	.remove = snd_cs423x_pnpc_remove,
 #ifdef CONFIG_PM
 	.suspend	= snd_cs423x_pnpc_suspend,
 	.resume		= snd_cs423x_pnpc_resume,

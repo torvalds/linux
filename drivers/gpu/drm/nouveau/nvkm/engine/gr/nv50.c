@@ -86,7 +86,7 @@ nv50_gr_chan = {
 };
 
 int
-nv50_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
+nv50_gr_chan_new(struct nvkm_gr *base, struct nvkm_chan *fifoch,
 		 const struct nvkm_oclass *oclass, struct nvkm_object **pobject)
 {
 	struct nv50_gr *gr = nv50_gr(base);
@@ -622,7 +622,7 @@ nv50_gr_intr(struct nvkm_gr *base)
 	struct nv50_gr *gr = nv50_gr(base);
 	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	struct nvkm_fifo_chan *chan;
+	struct nvkm_chan *chan;
 	u32 stat = nvkm_rd32(device, 0x400100);
 	u32 inst = nvkm_rd32(device, 0x40032c) & 0x0fffffff;
 	u32 addr = nvkm_rd32(device, 0x400704);
@@ -637,10 +637,10 @@ nv50_gr_intr(struct nvkm_gr *base)
 	char msg[128];
 	int chid = -1;
 
-	chan = nvkm_fifo_chan_inst(device->fifo, (u64)inst << 12, &flags);
+	chan = nvkm_chan_get_inst(&gr->base.engine, (u64)inst << 12, &flags);
 	if (chan)  {
-		name = chan->object.client->name;
-		chid = chan->chid;
+		name = chan->name;
+		chid = chan->id;
 	}
 
 	if (show & 0x00100000) {
@@ -672,7 +672,7 @@ nv50_gr_intr(struct nvkm_gr *base)
 	if (nvkm_rd32(device, 0x400824) & (1 << 31))
 		nvkm_wr32(device, 0x400824, nvkm_rd32(device, 0x400824) & ~(1 << 31));
 
-	nvkm_fifo_chan_put(device->fifo, flags, &chan);
+	nvkm_chan_put(&chan, flags);
 }
 
 int
@@ -761,7 +761,7 @@ nv50_gr_init(struct nvkm_gr *base)
 
 int
 nv50_gr_new_(const struct nvkm_gr_func *func, struct nvkm_device *device,
-	     int index, struct nvkm_gr **pgr)
+	     enum nvkm_subdev_type type, int inst, struct nvkm_gr **pgr)
 {
 	struct nv50_gr *gr;
 
@@ -770,7 +770,7 @@ nv50_gr_new_(const struct nvkm_gr_func *func, struct nvkm_device *device,
 	spin_lock_init(&gr->lock);
 	*pgr = &gr->base;
 
-	return nvkm_gr_ctor(func, device, index, true, &gr->base);
+	return nvkm_gr_ctor(func, device, type, inst, true, &gr->base);
 }
 
 static const struct nvkm_gr_func
@@ -790,7 +790,7 @@ nv50_gr = {
 };
 
 int
-nv50_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
+nv50_gr_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_gr **pgr)
 {
-	return nv50_gr_new_(&nv50_gr, device, index, pgr);
+	return nv50_gr_new_(&nv50_gr, device, type, inst, pgr);
 }

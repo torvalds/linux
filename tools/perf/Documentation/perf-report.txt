@@ -27,7 +27,7 @@ OPTIONS
 
 -q::
 --quiet::
-	Do not show any message.  (Suppress -v)
+	Do not show any warnings or messages.  (Suppress -v)
 
 -n::
 --show-nr-samples::
@@ -73,7 +73,7 @@ OPTIONS
 	Sort histogram entries by given key(s) - multiple keys can be specified
 	in CSV format.  Following sort keys are available:
 	pid, comm, dso, symbol, parent, cpu, socket, srcline, weight,
-	local_weight, cgroup_id.
+	local_weight, cgroup_id, addr.
 
 	Each key has following meaning:
 
@@ -95,6 +95,7 @@ OPTIONS
 	abort cost. This is the global weight.
 	- local_weight: Local weight version of the weight above.
 	- cgroup_id: ID derived from cgroup namespace device and inode numbers.
+	- cgroup: cgroup pathname in the cgroupfs.
 	- transaction: Transaction abort flags.
 	- overhead: Overhead percentage of sample
 	- overhead_sys: Overhead percentage of sample running in system mode
@@ -107,6 +108,22 @@ OPTIONS
 	- period: Raw number of event count of sample
 	- time: Separate the samples by time stamp with the resolution specified by
 	--time-quantum (default 100ms). Specify with overhead and before it.
+	- code_page_size: the code page size of sampled code address (ip)
+	- ins_lat: Instruction latency in core cycles. This is the global instruction
+	  latency
+	- local_ins_lat: Local instruction latency version
+	- p_stage_cyc: On powerpc, this presents the number of cycles spent in a
+	  pipeline stage. And currently supported only on powerpc.
+	- addr: (Full) virtual address of the sampled instruction
+	- retire_lat: On X86, this reports pipeline stall of this instruction compared
+	  to the previous instruction in cycles. And currently supported only on X86
+	- simd: Flags describing a SIMD operation. "e" for empty Arm SVE predicate. "p" for partial Arm SVE predicate
+	- type: Data type of sample memory access.
+	- typeoff: Offset in the data type of sample memory access.
+	- symoff: Offset in the symbol.
+	- weight1: Average value of event specific weight (1st field of weight_struct).
+	- weight2: Average value of event specific weight (2nd field of weight_struct).
+	- weight3: Average value of event specific weight (3rd field of weight_struct).
 
 	By default, comm, dso and symbol keys are used.
 	(i.e. --sort comm,dso,symbol)
@@ -138,7 +155,7 @@ OPTIONS
 
 	If the --mem-mode option is used, the following sort keys are also available
 	(incompatible with --branch-stack):
-	symbol_daddr, dso_daddr, locked, tlb, mem, snoop, dcacheline.
+	symbol_daddr, dso_daddr, locked, tlb, mem, snoop, dcacheline, blocked.
 
 	- symbol_daddr: name of data symbol being executed on at the time of sample
 	- dso_daddr: name of library or module containing the data being executed
@@ -149,9 +166,12 @@ OPTIONS
 	- snoop: type of snoop (if any) for the data at the time of the sample
 	- dcacheline: the cacheline the data address is on at the time of the sample
 	- phys_daddr: physical address of data being executed on at the time of sample
+	- data_page_size: the data page size of data being executed on at the time of sample
+	- blocked: reason of blocked load access for the data at the time of the sample
 
 	And the default sort keys are changed to local_weight, mem, sym, dso,
-	symbol_daddr, dso_daddr, snoop, tlb, locked, see '--mem-mode'.
+	symbol_daddr, dso_daddr, snoop, tlb, locked, blocked, local_ins_lat,
+	see '--mem-mode'.
 
 	If the data file has tracepoint event(s), following (dynamic) sort keys
 	are also available:
@@ -181,7 +201,11 @@ OPTIONS
 --fields=::
 	Specify output field - multiple keys can be specified in CSV format.
 	Following fields are available:
-	overhead, overhead_sys, overhead_us, overhead_children, sample and period.
+	overhead, overhead_sys, overhead_us, overhead_children, sample, period,
+	weight1, weight2, weight3, ins_lat, p_stage_cyc and retire_lat.  The
+	last 3 names are alias for the corresponding weights.  When the weight
+	fields are used, they will show the average value of the weight.
+
 	Also it can contain any sort key(s).
 
 	By default, every sort keys not specified in -F will be appended
@@ -215,6 +239,9 @@ OPTIONS
 -D::
 --dump-raw-trace::
         Dump raw trace in ASCII.
+
+--disable-order::
+	Disable raw trace ordering.
 
 -g::
 --call-graph=<print_type,threshold[,print_limit],order,sort_key[,branch],value>::
@@ -364,12 +391,26 @@ OPTIONS
 	This allows to examine the path the program took to each sample.
 	The data collection must have used -b (or -j) and -g.
 
+--addr2line=<path>::
+        Path to addr2line binary.
+
 --objdump=<path>::
         Path to objdump binary.
+
+--prefix=PREFIX::
+--prefix-strip=N::
+	Remove first N entries from source file path names in executables
+	and add PREFIX. This allows to display source code compiled on systems
+	with different file system layout.
 
 --group::
 	Show event group information together. It forces group output also
 	if there are no groups defined in data file.
+
+--group-sort-idx::
+	Sort the output by the event at the index n in group. If n is invalid,
+	sort by the first event. It can support multiple groups with different
+	amount of events. WARNING: This should be used on grouped events.
 
 --demangle::
 	Demangle symbol names to human readable form. It's enabled by default,
@@ -453,7 +494,7 @@ OPTIONS
 	but probably we'll make the default not to show the switch-on/off events
         on the --group mode and if there is only one event besides the off/on ones,
 	go straight to the histogram browser, just like 'perf report' with no events
-	explicitely specified does.
+	explicitly specified does.
 
 --itrace::
 	Options for decoding instruction tracing data. The options are:
@@ -476,6 +517,17 @@ include::itrace.txt[]
 	This option extends the perf report to show reference callgraphs,
 	which collected by reference event, in no callgraph event.
 
+--stitch-lbr::
+	Show callgraph with stitched LBRs, which may have more complete
+	callgraph. The perf.data file must have been obtained using
+	perf record --call-graph lbr.
+	Disabled by default. In common cases with call stack overflows,
+	it can recreate better call stacks than the default lbr call stack
+	output. But this approach is not foolproof. There can be cases
+	where it creates incorrect call stacks from incorrect matches.
+	The known limitations include exception handing such as
+	setjmp/longjmp will have calls/returns not match.
+
 --socket-filter::
 	Only report the samples on the processor socket that match with this filter
 
@@ -486,8 +538,35 @@ include::itrace.txt[]
 --raw-trace::
 	When displaying traceevent output, do not use print fmt or plugins.
 
+-H::
 --hierarchy::
-	Enable hierarchical output.
+	Enable hierarchical output.  In the hierarchy mode, each sort key groups
+	samples based on the criteria and then sub-divide it using the lower
+	level sort key.
+
+	For example:
+	In normal output:
+
+	  perf report -s dso,sym
+	  # Overhead  Shared Object      Symbol
+	      50.00%  [kernel.kallsyms]  [k] kfunc1
+	      20.00%  perf               [.] foo
+	      15.00%  [kernel.kallsyms]  [k] kfunc2
+	      10.00%  perf               [.] bar
+	       5.00%  libc.so            [.] libcall
+
+	In hierarchy output:
+
+	  perf report -s dso,sym --hierarchy
+	  #   Overhead  Shared Object / Symbol
+	      65.00%    [kernel.kallsyms]
+	        50.00%    [k] kfunc1
+	        15.00%    [k] kfunc2
+	      30.00%    perf
+	        20.00%    [.] foo
+	        10.00%    [.] bar
+	       5.00%    libc.so
+	         5.00%    [.] libcall
 
 --inline::
 	If a callgraph address belongs to an inlined function, the inline stack
@@ -525,8 +604,23 @@ include::itrace.txt[]
 	Configure time quantum for time sort key. Default 100ms.
 	Accepts s, us, ms, ns units.
 
+--total-cycles::
+	When --total-cycles is specified, it supports sorting for all blocks by
+	'Sampled Cycles%'. This is useful to concentrate on the globally hottest
+	blocks. In output, there are some new columns:
+
+	'Sampled Cycles%' - block sampled cycles aggregation / total sampled cycles
+	'Sampled Cycles'  - block sampled cycles aggregation
+	'Avg Cycles%'     - block average sampled cycles / sum of total block average
+			    sampled cycles
+	'Avg Cycles'      - block average sampled cycles
+
+--skip-empty::
+	Do not print 0 results in the --stat output.
+
 include::callchain-overhead-calculation.txt[]
 
 SEE ALSO
 --------
-linkperf:perf-stat[1], linkperf:perf-annotate[1], linkperf:perf-record[1]
+linkperf:perf-stat[1], linkperf:perf-annotate[1], linkperf:perf-record[1],
+linkperf:perf-intel-pt[1]

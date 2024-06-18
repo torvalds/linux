@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2012 (C), Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
  *
  * arch/arm/mach-orion5x/board-dt.c
  *
  * Flattened Device Tree board initialization
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 #include <linux/kernel.h>
@@ -62,6 +59,9 @@ static void __init orion5x_dt_init(void)
 
 	if (of_machine_is_compatible("maxtor,shared-storage-2"))
 		mss2_init();
+
+	if (of_machine_is_compatible("lacie,d2-network"))
+		d2net_init();
 
 	of_platform_default_populate(NULL, orion5x_auxdata_lookup, NULL);
 }

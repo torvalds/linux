@@ -70,7 +70,7 @@
 #include <linux/module.h>
 #include <linux/bitops.h>
 
-#include <stdarg.h>
+#include <linux/stdarg.h>
 
 #include <linux/uaccess.h>
 
@@ -101,7 +101,7 @@ static struct inode *ufs_nfs_get_inode(struct super_block *sb, u64 ino, u32 gene
 	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
 	struct inode *inode;
 
-	if (ino < UFS_ROOTINO || ino > uspi->s_ncg * uspi->s_ipg)
+	if (ino < UFS_ROOTINO || ino > (u64)uspi->s_ncg * uspi->s_ipg)
 		return ERR_PTR(-ESTALE);
 
 	inode = ufs_iget(sb, ino);
@@ -128,16 +128,16 @@ static struct dentry *ufs_fh_to_parent(struct super_block *sb, struct fid *fid,
 
 static struct dentry *ufs_get_parent(struct dentry *child)
 {
-	struct qstr dot_dot = QSTR_INIT("..", 2);
 	ino_t ino;
 
-	ino = ufs_inode_by_name(d_inode(child), &dot_dot);
+	ino = ufs_inode_by_name(d_inode(child), &dotdot_name);
 	if (!ino)
 		return ERR_PTR(-ENOENT);
 	return d_obtain_alias(ufs_iget(child->d_sb, ino));
 }
 
 static const struct export_operations ufs_export_ops = {
+	.encode_fh = generic_encode_ino32_fh,
 	.fh_to_dentry	= ufs_fh_to_dentry,
 	.fh_to_parent	= ufs_fh_to_parent,
 	.get_parent	= ufs_get_parent,
@@ -1431,8 +1431,7 @@ static int ufs_statfs(struct dentry *dentry, struct kstatfs *buf)
 		? (buf->f_bfree - uspi->s_root_blocks) : 0;
 	buf->f_files = uspi->s_ncg * uspi->s_ipg;
 	buf->f_namelen = UFS_MAXNAMLEN;
-	buf->f_fsid.val[0] = (u32)id;
-	buf->f_fsid.val[1] = (u32)(id >> 32);
+	buf->f_fsid = u64_to_fsid(id);
 
 	mutex_unlock(&UFS_SB(sb)->s_lock);
 
@@ -1445,7 +1444,7 @@ static struct inode *ufs_alloc_inode(struct super_block *sb)
 {
 	struct ufs_inode_info *ei;
 
-	ei = kmem_cache_alloc(ufs_inode_cachep, GFP_NOFS);
+	ei = alloc_inode_sb(sb, ufs_inode_cachep, GFP_NOFS);
 	if (!ei)
 		return NULL;
 
@@ -1471,8 +1470,7 @@ static int __init init_inodecache(void)
 {
 	ufs_inode_cachep = kmem_cache_create_usercopy("ufs_inode_cache",
 				sizeof(struct ufs_inode_info), 0,
-				(SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|
-					SLAB_ACCOUNT),
+				(SLAB_RECLAIM_ACCOUNT | SLAB_ACCOUNT),
 				offsetof(struct ufs_inode_info, i_u1.i_symlink),
 				sizeof_field(struct ufs_inode_info,
 					i_u1.i_symlink),

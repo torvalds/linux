@@ -11,6 +11,7 @@
 #include <linux/fs.h>
 #include <linux/interrupt.h>
 #include <linux/miscdevice.h>
+#include <linux/hw_random.h>
 #include <linux/delay.h>
 #include <linux/uaccess.h>
 #include <init.h>
@@ -18,100 +19,45 @@
 #include <os.h>
 
 /*
- * core module and version information
+ * core module information
  */
-#define RNG_VERSION "1.0.0"
 #define RNG_MODULE_NAME "hw_random"
-
-#define RNG_MISCDEV_MINOR		183 /* official */
 
 /* Changed at init time, in the non-modular case, and at module load
  * time, in the module case.  Presumably, the module subsystem
  * protects against a module being loaded twice at the same time.
  */
 static int random_fd = -1;
-static DECLARE_WAIT_QUEUE_HEAD(host_read_wait);
+static struct hwrng hwrng;
+static DECLARE_COMPLETION(have_data);
 
-static int rng_dev_open (struct inode *inode, struct file *filp)
+static int rng_dev_read(struct hwrng *rng, void *buf, size_t max, bool block)
 {
-	/* enforce read-only access to this chrdev */
-	if ((filp->f_mode & FMODE_READ) == 0)
-		return -EINVAL;
-	if ((filp->f_mode & FMODE_WRITE) != 0)
-		return -EINVAL;
+	int ret;
 
-	return 0;
-}
-
-static atomic_t host_sleep_count = ATOMIC_INIT(0);
-
-static ssize_t rng_dev_read (struct file *filp, char __user *buf, size_t size,
-			     loff_t *offp)
-{
-	u32 data;
-	int n, ret = 0, have_data;
-
-	while (size) {
-		n = os_read_file(random_fd, &data, sizeof(data));
-		if (n > 0) {
-			have_data = n;
-			while (have_data && size) {
-				if (put_user((u8) data, buf++)) {
-					ret = ret ? : -EFAULT;
-					break;
-				}
-				size--;
-				ret++;
-				have_data--;
-				data >>= 8;
-			}
-		}
-		else if (n == -EAGAIN) {
-			DECLARE_WAITQUEUE(wait, current);
-
-			if (filp->f_flags & O_NONBLOCK)
-				return ret ? : -EAGAIN;
-
-			atomic_inc(&host_sleep_count);
+	for (;;) {
+		ret = os_read_file(random_fd, buf, max);
+		if (block && ret == -EAGAIN) {
 			add_sigio_fd(random_fd);
 
-			add_wait_queue(&host_read_wait, &wait);
-			set_current_state(TASK_INTERRUPTIBLE);
+			ret = wait_for_completion_killable(&have_data);
 
-			schedule();
-			remove_wait_queue(&host_read_wait, &wait);
+			ignore_sigio_fd(random_fd);
+			deactivate_fd(random_fd, RANDOM_IRQ);
 
-			if (atomic_dec_and_test(&host_sleep_count)) {
-				ignore_sigio_fd(random_fd);
-				deactivate_fd(random_fd, RANDOM_IRQ);
-			}
+			if (ret < 0)
+				break;
+		} else {
+			break;
 		}
-		else
-			return n;
-
-		if (signal_pending (current))
-			return ret ? : -ERESTARTSYS;
 	}
-	return ret;
+
+	return ret != -EAGAIN ? ret : 0;
 }
-
-static const struct file_operations rng_chrdev_ops = {
-	.owner		= THIS_MODULE,
-	.open		= rng_dev_open,
-	.read		= rng_dev_read,
-	.llseek		= noop_llseek,
-};
-
-/* rng_init shouldn't be called more than once at boot time */
-static struct miscdevice rng_miscdev = {
-	RNG_MISCDEV_MINOR,
-	RNG_MODULE_NAME,
-	&rng_chrdev_ops,
-};
 
 static irqreturn_t random_interrupt(int irq, void *data)
 {
-	wake_up(&host_read_wait);
+	complete(&have_data);
 
 	return IRQ_HANDLED;
 }
@@ -128,18 +74,18 @@ static int __init rng_init (void)
 		goto out;
 
 	random_fd = err;
-
 	err = um_request_irq(RANDOM_IRQ, random_fd, IRQ_READ, random_interrupt,
 			     0, "random", NULL);
-	if (err)
+	if (err < 0)
 		goto err_out_cleanup_hw;
 
-	sigio_broken(random_fd, 1);
+	sigio_broken(random_fd);
+	hwrng.name = RNG_MODULE_NAME;
+	hwrng.read = rng_dev_read;
 
-	err = misc_register (&rng_miscdev);
+	err = hwrng_register(&hwrng);
 	if (err) {
-		printk (KERN_ERR RNG_MODULE_NAME ": misc device register "
-			"failed\n");
+		pr_err(RNG_MODULE_NAME " registering failed (%d)\n", err);
 		goto err_out_cleanup_hw;
 	}
 out:
@@ -163,8 +109,8 @@ static void cleanup(void)
 
 static void __exit rng_cleanup(void)
 {
+	hwrng_unregister(&hwrng);
 	os_close_file(random_fd);
-	misc_deregister (&rng_miscdev);
 }
 
 module_init (rng_init);

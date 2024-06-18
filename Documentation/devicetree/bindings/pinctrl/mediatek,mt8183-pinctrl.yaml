@@ -1,0 +1,237 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/mediatek,mt8183-pinctrl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MediaTek MT8183 Pin Controller
+
+maintainers:
+  - Sean Wang <sean.wang@kernel.org>
+
+description:
+  The MediaTek's MT8183 Pin controller is used to control SoC pins.
+
+properties:
+  compatible:
+    const: mediatek,mt8183-pinctrl
+
+  reg:
+    minItems: 10
+    maxItems: 10
+
+  reg-names:
+    items:
+      - const: iocfg0
+      - const: iocfg1
+      - const: iocfg2
+      - const: iocfg3
+      - const: iocfg4
+      - const: iocfg5
+      - const: iocfg6
+      - const: iocfg7
+      - const: iocfg8
+      - const: eint
+
+  gpio-controller: true
+
+  "#gpio-cells":
+    const: 2
+    description:
+      Number of cells in GPIO specifier. Since the generic GPIO binding is used,
+      the amount of cells must be specified as 2. See the below mentioned gpio
+      binding representation for description of particular cells.
+
+  gpio-ranges:
+    minItems: 1
+    maxItems: 5
+    description:
+      GPIO valid number range.
+
+  interrupt-controller: true
+
+  interrupts:
+    maxItems: 1
+
+  "#interrupt-cells":
+    const: 2
+
+allOf:
+  - $ref: pinctrl.yaml#
+
+required:
+  - compatible
+  - reg
+  - gpio-controller
+  - "#gpio-cells"
+  - gpio-ranges
+
+patternProperties:
+  '-pins(-[a-z]+)?$':
+    type: object
+    additionalProperties: false
+    patternProperties:
+      '^pins':
+        type: object
+        additionalProperties: false
+        description:
+          A pinctrl node should contain at least one subnodes representing the
+          pinctrl groups available on the machine. Each subnode will list the
+          pins it needs, and how they should be configured, with regard to muxer
+          configuration, pullups, drive strength, input enable/disable and input
+          schmitt.
+        $ref: /schemas/pinctrl/pincfg-node.yaml
+
+        properties:
+          pinmux:
+            description:
+              Integer array, represents gpio pin number and mux setting.
+              Supported pin number and mux varies for different SoCs, and are
+              defined as macros in <soc>-pinfunc.h directly.
+
+          bias-disable: true
+
+          bias-pull-up: true
+
+          bias-pull-down: true
+
+          input-enable: true
+
+          input-disable: true
+
+          output-low: true
+
+          output-high: true
+
+          input-schmitt-enable: true
+
+          input-schmitt-disable: true
+
+          drive-strength:
+            enum: [2, 4, 6, 8, 10, 12, 14, 16]
+
+          drive-strength-microamp:
+            enum: [125, 250, 500, 1000]
+
+          mediatek,drive-strength-adv:
+            deprecated: true
+            description: |
+              DEPRECATED: Please use drive-strength-microamp instead.
+              Describe the specific driving setup property.
+              For I2C pins, the existing generic driving setup can only support
+              2/4/6/8/10/12/14/16mA driving. But in specific driving setup, they
+              can support 0.125/0.25/0.5/1mA adjustment. If we enable specific
+              driving setup, the existing generic setup will be disabled.
+              The specific driving setup is controlled by E1E0EN.
+              When E1=0/E0=0, the strength is 0.125mA.
+              When E1=0/E0=1, the strength is 0.25mA.
+              When E1=1/E0=0, the strength is 0.5mA.
+              When E1=1/E0=1, the strength is 1mA.
+              EN is used to enable or disable the specific driving setup.
+              Valid arguments are described as below:
+              0: (E1, E0, EN) = (0, 0, 0)
+              1: (E1, E0, EN) = (0, 0, 1)
+              2: (E1, E0, EN) = (0, 1, 0)
+              3: (E1, E0, EN) = (0, 1, 1)
+              4: (E1, E0, EN) = (1, 0, 0)
+              5: (E1, E0, EN) = (1, 0, 1)
+              6: (E1, E0, EN) = (1, 1, 0)
+              7: (E1, E0, EN) = (1, 1, 1)
+              So the valid arguments are from 0 to 7.
+            $ref: /schemas/types.yaml#/definitions/uint32
+            enum: [0, 1, 2, 3, 4, 5, 6, 7]
+
+          mediatek,pull-up-adv:
+            description: |
+              Pull up settings for 2 pull resistors, R0 and R1. User can
+              configure those special pins. Valid arguments are described as
+              below:
+              0: (R1, R0) = (0, 0) which means R1 disabled and R0 disabled.
+              1: (R1, R0) = (0, 1) which means R1 disabled and R0 enabled.
+              2: (R1, R0) = (1, 0) which means R1 enabled and R0 disabled.
+              3: (R1, R0) = (1, 1) which means R1 enabled and R0 enabled.
+            $ref: /schemas/types.yaml#/definitions/uint32
+            enum: [0, 1, 2, 3]
+
+          mediatek,pull-down-adv:
+            description: |
+              Pull down settings for 2 pull resistors, R0 and R1. User can
+              configure those special pins. Valid arguments are described as
+              below:
+              0: (R1, R0) = (0, 0) which means R1 disabled and R0 disabled.
+              1: (R1, R0) = (0, 1) which means R1 disabled and R0 enabled.
+              2: (R1, R0) = (1, 0) which means R1 enabled and R0 disabled.
+              3: (R1, R0) = (1, 1) which means R1 enabled and R0 enabled.
+            $ref: /schemas/types.yaml#/definitions/uint32
+            enum: [0, 1, 2, 3]
+
+          mediatek,tdsel:
+            description:
+              An integer describing the steps for output level shifter duty
+              cycle when asserted (high pulse width adjustment). Valid arguments
+              are from 0 to 15.
+            $ref: /schemas/types.yaml#/definitions/uint32
+
+          mediatek,rdsel:
+            description:
+              An integer describing the steps for input level shifter duty cycle
+              when asserted (high pulse width adjustment). Valid arguments are
+              from 0 to 63.
+            $ref: /schemas/types.yaml#/definitions/uint32
+
+        required:
+          - pinmux
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/pinctrl/mt8183-pinfunc.h>
+
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        pio: pinctrl@10005000 {
+          compatible = "mediatek,mt8183-pinctrl";
+          reg = <0 0x10005000 0 0x1000>,
+                <0 0x11f20000 0 0x1000>,
+                <0 0x11e80000 0 0x1000>,
+                <0 0x11e70000 0 0x1000>,
+                <0 0x11e90000 0 0x1000>,
+                <0 0x11d30000 0 0x1000>,
+                <0 0x11d20000 0 0x1000>,
+                <0 0x11c50000 0 0x1000>,
+                <0 0x11f30000 0 0x1000>,
+                <0 0x1000b000 0 0x1000>;
+          reg-names = "iocfg0", "iocfg1", "iocfg2",
+                "iocfg3", "iocfg4", "iocfg5",
+                "iocfg6", "iocfg7", "iocfg8",
+                "eint";
+          gpio-controller;
+          #gpio-cells = <2>;
+          gpio-ranges = <&pio 0 0 192>;
+          interrupt-controller;
+          interrupts = <GIC_SPI 177 IRQ_TYPE_LEVEL_HIGH>;
+          #interrupt-cells = <2>;
+
+          i2c0_pins_a: i2c0-pins {
+            pins1 {
+              pinmux = <PINMUX_GPIO48__FUNC_SCL5>,
+                <PINMUX_GPIO49__FUNC_SDA5>;
+              mediatek,pull-up-adv = <3>;
+              drive-strength-microamp = <1000>;
+            };
+          };
+
+          i2c1_pins_a: i2c1-pins {
+            pins {
+              pinmux = <PINMUX_GPIO50__FUNC_SCL3>,
+                <PINMUX_GPIO51__FUNC_SDA3>;
+              mediatek,pull-down-adv = <2>;
+            };
+          };
+        };
+    };

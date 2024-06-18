@@ -11,7 +11,6 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/cpufeature.h>
-#include <crypto/sha.h>
 #include <crypto/sha3.h>
 #include <asm/cpacf.h>
 
@@ -148,7 +147,7 @@ static void __exit fini(void)
 	crypto_unregister_shash(&sha3_384_alg);
 }
 
-module_cpu_feature_match(MSA, init);
+module_cpu_feature_match(S390_CPU_FEATURE_MSA, init);
 module_exit(fini);
 
 MODULE_LICENSE("GPL");

@@ -5,6 +5,7 @@
  * Copyright (C) 2010-2011 Christopher Yeoh <cyeoh@au1.ibm.com>, IBM Corp.
  */
 
+#include <linux/compat.h>
 #include <linux/mm.h>
 #include <linux/uio.h>
 #include <linux/sched.h>
@@ -13,10 +14,6 @@
 #include <linux/ptrace.h>
 #include <linux/slab.h>
 #include <linux/syscalls.h>
-
-#ifdef CONFIG_COMPAT
-#include <linux/compat.h>
-#endif
 
 /**
  * process_vm_rw_pages - read/write pages from task specified
@@ -42,12 +39,11 @@ static int process_vm_rw_pages(struct page **pages,
 		if (copy > len)
 			copy = len;
 
-		if (vm_write) {
+		if (vm_write)
 			copied = copy_page_from_iter(page, offset, copy, iter);
-			set_page_dirty_lock(page);
-		} else {
+		else
 			copied = copy_page_to_iter(page, offset, copy, iter);
-		}
+
 		len -= copied;
 		if (copied < copy && iov_iter_count(iter))
 			return -EFAULT;
@@ -57,7 +53,10 @@ static int process_vm_rw_pages(struct page **pages,
 }
 
 /* Maximum number of pages kmalloc'd to hold struct page's during copy */
-#define PVM_MAX_KMALLOC_PAGES (PAGE_SIZE * 2)
+#define PVM_MAX_KMALLOC_PAGES 2
+
+/* Maximum number of pages that can be stored at a time */
+#define PVM_MAX_USER_PAGES (PVM_MAX_KMALLOC_PAGES * PAGE_SIZE / sizeof(struct page *))
 
 /**
  * process_vm_rw_single_vec - read/write pages from task specified
@@ -83,8 +82,6 @@ static int process_vm_rw_single_vec(unsigned long addr,
 	unsigned long start_offset = addr - pa;
 	unsigned long nr_pages;
 	ssize_t rc = 0;
-	unsigned long max_pages_per_loop = PVM_MAX_KMALLOC_PAGES
-		/ sizeof(struct pages *);
 	unsigned int flags = 0;
 
 	/* Work out address and page range required */
@@ -96,7 +93,7 @@ static int process_vm_rw_single_vec(unsigned long addr,
 		flags |= FOLL_WRITE;
 
 	while (!rc && nr_pages && iov_iter_count(iter)) {
-		int pages = min(nr_pages, max_pages_per_loop);
+		int pinned_pages = min_t(unsigned long, nr_pages, PVM_MAX_USER_PAGES);
 		int locked = 1;
 		size_t bytes;
 
@@ -105,15 +102,16 @@ static int process_vm_rw_single_vec(unsigned long addr,
 		 * access remotely because task/mm might not
 		 * current/current->mm
 		 */
-		down_read(&mm->mmap_sem);
-		pages = get_user_pages_remote(task, mm, pa, pages, flags,
-					      process_pages, NULL, &locked);
+		mmap_read_lock(mm);
+		pinned_pages = pin_user_pages_remote(mm, pa, pinned_pages,
+						     flags, process_pages,
+						     &locked);
 		if (locked)
-			up_read(&mm->mmap_sem);
-		if (pages <= 0)
+			mmap_read_unlock(mm);
+		if (pinned_pages <= 0)
 			return -EFAULT;
 
-		bytes = pages * PAGE_SIZE - start_offset;
+		bytes = pinned_pages * PAGE_SIZE - start_offset;
 		if (bytes > len)
 			bytes = len;
 
@@ -122,10 +120,12 @@ static int process_vm_rw_single_vec(unsigned long addr,
 					 vm_write);
 		len -= bytes;
 		start_offset = 0;
-		nr_pages -= pages;
-		pa += pages * PAGE_SIZE;
-		while (pages)
-			put_page(process_pages[--pages]);
+		nr_pages -= pinned_pages;
+		pa += pinned_pages * PAGE_SIZE;
+
+		/* If vm_write is set, the pages need to be made dirty: */
+		unpin_user_pages_dirty_lock(process_pages, pinned_pages,
+					    vm_write);
 	}
 
 	return rc;
@@ -172,7 +172,7 @@ static ssize_t process_vm_rw_core(pid_t pid, struct iov_iter *iter,
 		iov_len = rvec[i].iov_len;
 		if (iov_len > 0) {
 			nr_pages_iov = ((unsigned long)rvec[i].iov_base
-					+ iov_len)
+					+ iov_len - 1)
 				/ PAGE_SIZE - (unsigned long)rvec[i].iov_base
 				/ PAGE_SIZE + 1;
 			nr_pages = max(nr_pages, nr_pages_iov);
@@ -185,8 +185,8 @@ static ssize_t process_vm_rw_core(pid_t pid, struct iov_iter *iter,
 	if (nr_pages > PVM_MAX_PP_ARRAY_COUNT) {
 		/* For reliability don't try to kmalloc more than
 		   2 pages worth */
-		process_pages = kmalloc(min_t(size_t, PVM_MAX_KMALLOC_PAGES,
-					      sizeof(struct pages *)*nr_pages),
+		process_pages = kmalloc(min_t(size_t, PVM_MAX_KMALLOC_PAGES * PAGE_SIZE,
+					      sizeof(struct page *)*nr_pages),
 					GFP_KERNEL);
 
 		if (!process_pages)
@@ -204,7 +204,7 @@ static ssize_t process_vm_rw_core(pid_t pid, struct iov_iter *iter,
 	if (!mm || IS_ERR(mm)) {
 		rc = IS_ERR(mm) ? PTR_ERR(mm) : -ESRCH;
 		/*
-		 * Explicitly map EACCES to EPERM as EPERM is a more a
+		 * Explicitly map EACCES to EPERM as EPERM is a more
 		 * appropriate error code for process_vw_readv/writev
 		 */
 		if (rc == -EACCES)
@@ -261,10 +261,10 @@ static ssize_t process_vm_rw(pid_t pid,
 	struct iovec iovstack_l[UIO_FASTIOV];
 	struct iovec iovstack_r[UIO_FASTIOV];
 	struct iovec *iov_l = iovstack_l;
-	struct iovec *iov_r = iovstack_r;
+	struct iovec *iov_r;
 	struct iov_iter iter;
 	ssize_t rc;
-	int dir = vm_write ? WRITE : READ;
+	int dir = vm_write ? ITER_SOURCE : ITER_DEST;
 
 	if (flags != 0)
 		return -EINVAL;
@@ -274,20 +274,18 @@ static ssize_t process_vm_rw(pid_t pid,
 	if (rc < 0)
 		return rc;
 	if (!iov_iter_count(&iter))
-		goto free_iovecs;
-
-	rc = rw_copy_check_uvector(CHECK_IOVEC_ONLY, rvec, riovcnt, UIO_FASTIOV,
-				   iovstack_r, &iov_r);
-	if (rc <= 0)
-		goto free_iovecs;
-
+		goto free_iov_l;
+	iov_r = iovec_from_user(rvec, riovcnt, UIO_FASTIOV, iovstack_r,
+				in_compat_syscall());
+	if (IS_ERR(iov_r)) {
+		rc = PTR_ERR(iov_r);
+		goto free_iov_l;
+	}
 	rc = process_vm_rw_core(pid, &iter, iov_r, riovcnt, flags, vm_write);
-
-free_iovecs:
 	if (iov_r != iovstack_r)
 		kfree(iov_r);
+free_iov_l:
 	kfree(iov_l);
-
 	return rc;
 }
 
@@ -305,68 +303,3 @@ SYSCALL_DEFINE6(process_vm_writev, pid_t, pid,
 {
 	return process_vm_rw(pid, lvec, liovcnt, rvec, riovcnt, flags, 1);
 }
-
-#ifdef CONFIG_COMPAT
-
-static ssize_t
-compat_process_vm_rw(compat_pid_t pid,
-		     const struct compat_iovec __user *lvec,
-		     unsigned long liovcnt,
-		     const struct compat_iovec __user *rvec,
-		     unsigned long riovcnt,
-		     unsigned long flags, int vm_write)
-{
-	struct iovec iovstack_l[UIO_FASTIOV];
-	struct iovec iovstack_r[UIO_FASTIOV];
-	struct iovec *iov_l = iovstack_l;
-	struct iovec *iov_r = iovstack_r;
-	struct iov_iter iter;
-	ssize_t rc = -EFAULT;
-	int dir = vm_write ? WRITE : READ;
-
-	if (flags != 0)
-		return -EINVAL;
-
-	rc = compat_import_iovec(dir, lvec, liovcnt, UIO_FASTIOV, &iov_l, &iter);
-	if (rc < 0)
-		return rc;
-	if (!iov_iter_count(&iter))
-		goto free_iovecs;
-	rc = compat_rw_copy_check_uvector(CHECK_IOVEC_ONLY, rvec, riovcnt,
-					  UIO_FASTIOV, iovstack_r,
-					  &iov_r);
-	if (rc <= 0)
-		goto free_iovecs;
-
-	rc = process_vm_rw_core(pid, &iter, iov_r, riovcnt, flags, vm_write);
-
-free_iovecs:
-	if (iov_r != iovstack_r)
-		kfree(iov_r);
-	kfree(iov_l);
-	return rc;
-}
-
-COMPAT_SYSCALL_DEFINE6(process_vm_readv, compat_pid_t, pid,
-		       const struct compat_iovec __user *, lvec,
-		       compat_ulong_t, liovcnt,
-		       const struct compat_iovec __user *, rvec,
-		       compat_ulong_t, riovcnt,
-		       compat_ulong_t, flags)
-{
-	return compat_process_vm_rw(pid, lvec, liovcnt, rvec,
-				    riovcnt, flags, 0);
-}
-
-COMPAT_SYSCALL_DEFINE6(process_vm_writev, compat_pid_t, pid,
-		       const struct compat_iovec __user *, lvec,
-		       compat_ulong_t, liovcnt,
-		       const struct compat_iovec __user *, rvec,
-		       compat_ulong_t, riovcnt,
-		       compat_ulong_t, flags)
-{
-	return compat_process_vm_rw(pid, lvec, liovcnt, rvec,
-				    riovcnt, flags, 1);
-}
-
-#endif

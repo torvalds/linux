@@ -14,7 +14,7 @@
 #include <linux/iio/triggered_buffer.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/kernel.h>
-#include <linux/mfd/cros_ec.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_data/cros_ec_commands.h>
 #include <linux/platform_data/cros_ec_proto.h>
@@ -146,8 +146,11 @@ static int cros_ec_light_prox_write(struct iio_dev *indio_dev,
 		break;
 	case IIO_CHAN_INFO_CALIBSCALE:
 		st->core.param.cmd = MOTIONSENSE_CMD_SENSOR_RANGE;
-		st->core.param.sensor_range.data = (val << 16) | (val2 / 100);
+		st->core.curr_range = (val << 16) | (val2 / 100);
+		st->core.param.sensor_range.data = st->core.curr_range;
 		ret = cros_ec_motion_send_host_cmd(&st->core, 0);
+		if (ret == 0)
+			st->core.range_updated = true;
 		break;
 	default:
 		ret = cros_ec_sensors_core_write(&st->core, chan, val, val2,
@@ -169,35 +172,27 @@ static const struct iio_info cros_ec_light_prox_info = {
 static int cros_ec_light_prox_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct cros_ec_dev *ec_dev = dev_get_drvdata(dev->parent);
 	struct iio_dev *indio_dev;
 	struct cros_ec_light_prox_state *state;
 	struct iio_chan_spec *channel;
 	int ret;
 
-	if (!ec_dev || !ec_dev->ec_dev) {
-		dev_warn(dev, "No CROS EC device found.\n");
-		return -EINVAL;
-	}
-
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*state));
 	if (!indio_dev)
 		return -ENOMEM;
 
-	ret = cros_ec_sensors_core_init(pdev, indio_dev, true);
+	ret = cros_ec_sensors_core_init(pdev, indio_dev, true,
+					cros_ec_sensors_capture);
 	if (ret)
 		return ret;
 
 	indio_dev->info = &cros_ec_light_prox_info;
 	state = iio_priv(indio_dev);
-	state->core.type = state->core.resp->info.type;
-	state->core.loc = state->core.resp->info.location;
 	channel = state->channels;
 
 	/* Common part */
 	channel->info_mask_shared_by_all =
-		BIT(IIO_CHAN_INFO_SAMP_FREQ) |
-		BIT(IIO_CHAN_INFO_FREQUENCY);
+		BIT(IIO_CHAN_INFO_SAMP_FREQ);
 	channel->info_mask_shared_by_all_available =
 		BIT(IIO_CHAN_INFO_SAMP_FREQ);
 	channel->scan_type.realbits = CROS_EC_SENSOR_BITS;
@@ -243,12 +238,8 @@ static int cros_ec_light_prox_probe(struct platform_device *pdev)
 
 	state->core.read_ec_sensors_data = cros_ec_sensors_read_cmd;
 
-	ret = devm_iio_triggered_buffer_setup(dev, indio_dev, NULL,
-					      cros_ec_sensors_capture, NULL);
-	if (ret)
-		return ret;
-
-	return devm_iio_device_register(dev, indio_dev);
+	return cros_ec_sensors_core_register(dev, indio_dev,
+					     cros_ec_sensors_push_data);
 }
 
 static const struct platform_device_id cros_ec_light_prox_ids[] = {

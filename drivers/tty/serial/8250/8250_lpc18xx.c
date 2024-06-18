@@ -32,7 +32,7 @@ struct lpc18xx_uart_data {
 	int line;
 };
 
-static int lpc18xx_rs485_config(struct uart_port *port,
+static int lpc18xx_rs485_config(struct uart_port *port, struct ktermios *termios,
 				struct serial_rs485 *rs485)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
@@ -40,24 +40,12 @@ static int lpc18xx_rs485_config(struct uart_port *port,
 	u32 rs485_dly_reg = 0;
 	unsigned baud_clk;
 
-	if (rs485->flags & SER_RS485_ENABLED)
-		memset(rs485->padding, 0, sizeof(rs485->padding));
-	else
-		memset(rs485, 0, sizeof(*rs485));
-
-	rs485->flags &= SER_RS485_ENABLED | SER_RS485_RTS_ON_SEND |
-			SER_RS485_RTS_AFTER_SEND;
-
 	if (rs485->flags & SER_RS485_ENABLED) {
 		rs485_ctrl_reg |= LPC18XX_UART_RS485CTRL_NMMEN |
 				  LPC18XX_UART_RS485CTRL_DCTRL;
 
-		if (rs485->flags & SER_RS485_RTS_ON_SEND) {
+		if (rs485->flags & SER_RS485_RTS_ON_SEND)
 			rs485_ctrl_reg |= LPC18XX_UART_RS485CTRL_OINV;
-			rs485->flags &= ~SER_RS485_RTS_AFTER_SEND;
-		} else {
-			rs485->flags |= SER_RS485_RTS_AFTER_SEND;
-		}
 	}
 
 	if (rs485->delay_rts_after_send) {
@@ -73,13 +61,8 @@ static int lpc18xx_rs485_config(struct uart_port *port,
 						/ baud_clk;
 	}
 
-	/* Delay RTS before send not supported */
-	rs485->delay_rts_before_send = 0;
-
 	serial_out(up, LPC18XX_UART_RS485CTRL, rs485_ctrl_reg);
 	serial_out(up, LPC18XX_UART_RS485DLY, rs485_dly_reg);
-
-	port->rs485 = *rs485;
 
 	return 0;
 }
@@ -98,16 +81,18 @@ static void lpc18xx_uart_serial_out(struct uart_port *p, int offset, int value)
 	writel(value, p->membase + offset);
 }
 
+static const struct serial_rs485 lpc18xx_rs485_supported = {
+	.flags = SER_RS485_ENABLED | SER_RS485_RTS_ON_SEND | SER_RS485_RTS_AFTER_SEND,
+	.delay_rts_after_send = 1,
+	/* Delay RTS before send is not supported */
+};
+
 static int lpc18xx_serial_probe(struct platform_device *pdev)
 {
 	struct lpc18xx_uart_data *data;
 	struct uart_8250_port uart;
 	struct resource *res;
-	int irq, ret;
-
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
-		return irq;
+	int ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -150,25 +135,26 @@ static int lpc18xx_serial_probe(struct platform_device *pdev)
 		goto dis_clk_reg;
 	}
 
-	ret = of_alias_get_id(pdev->dev.of_node, "serial");
-	if (ret >= 0)
-		uart.port.line = ret;
-
 	data->dma.rx_param = data;
 	data->dma.tx_param = data;
 
 	spin_lock_init(&uart.port.lock);
 	uart.port.dev = &pdev->dev;
-	uart.port.irq = irq;
-	uart.port.iotype = UPIO_MEM32;
 	uart.port.mapbase = res->start;
-	uart.port.regshift = 2;
 	uart.port.type = PORT_16550A;
 	uart.port.flags = UPF_FIXED_PORT | UPF_FIXED_TYPE | UPF_SKIP_TEST;
 	uart.port.uartclk = clk_get_rate(data->clk_uart);
 	uart.port.private_data = data;
 	uart.port.rs485_config = lpc18xx_rs485_config;
+	uart.port.rs485_supported = lpc18xx_rs485_supported;
 	uart.port.serial_out = lpc18xx_uart_serial_out;
+
+	ret = uart_read_port_properties(&uart.port);
+	if (ret)
+		goto dis_uart_clk;
+
+	uart.port.iotype = UPIO_MEM32;
+	uart.port.regshift = 2;
 
 	uart.dma = &data->dma;
 	uart.dma->rxconf.src_maxburst = 1;
@@ -192,15 +178,13 @@ dis_clk_reg:
 	return ret;
 }
 
-static int lpc18xx_serial_remove(struct platform_device *pdev)
+static void lpc18xx_serial_remove(struct platform_device *pdev)
 {
 	struct lpc18xx_uart_data *data = platform_get_drvdata(pdev);
 
 	serial8250_unregister_port(data->line);
 	clk_disable_unprepare(data->clk_uart);
 	clk_disable_unprepare(data->clk_reg);
-
-	return 0;
 }
 
 static const struct of_device_id lpc18xx_serial_match[] = {
@@ -211,7 +195,7 @@ MODULE_DEVICE_TABLE(of, lpc18xx_serial_match);
 
 static struct platform_driver lpc18xx_serial_driver = {
 	.probe  = lpc18xx_serial_probe,
-	.remove = lpc18xx_serial_remove,
+	.remove_new = lpc18xx_serial_remove,
 	.driver = {
 		.name = "lpc18xx-uart",
 		.of_match_table = lpc18xx_serial_match,

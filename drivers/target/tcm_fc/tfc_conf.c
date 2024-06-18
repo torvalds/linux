@@ -398,15 +398,6 @@ static u16 ft_get_tag(struct se_portal_group *se_tpg)
 	return ft_tpg(se_tpg)->index;
 }
 
-static int ft_check_false(struct se_portal_group *se_tpg)
-{
-	return 0;
-}
-
-static void ft_set_default_node_attr(struct se_node_acl *se_nacl)
-{
-}
-
 static u32 ft_tpg_get_inst_index(struct se_portal_group *se_tpg)
 {
 	return ft_tpg(se_tpg)->index;
@@ -418,10 +409,6 @@ static const struct target_core_fabric_ops ft_fabric_ops = {
 	.node_acl_size =		sizeof(struct ft_node_acl),
 	.tpg_get_wwn =			ft_get_fabric_wwn,
 	.tpg_get_tag =			ft_get_tag,
-	.tpg_check_demo_mode =		ft_check_false,
-	.tpg_check_demo_mode_cache =	ft_check_false,
-	.tpg_check_demo_mode_write_protect = ft_check_false,
-	.tpg_check_prod_mode_write_protect = ft_check_false,
 	.tpg_get_inst_index =		ft_tpg_get_inst_index,
 	.check_stop_free =		ft_check_stop_free,
 	.release_cmd =			ft_release_cmd,
@@ -429,8 +416,6 @@ static const struct target_core_fabric_ops ft_fabric_ops = {
 	.sess_get_index =		ft_sess_get_index,
 	.sess_get_initiator_sid =	NULL,
 	.write_pending =		ft_write_pending,
-	.set_default_node_attributes =	ft_set_default_node_attr,
-	.get_cmd_state =		ft_get_cmd_state,
 	.queue_data_in =		ft_queue_data_in,
 	.queue_status =			ft_queue_status,
 	.queue_tm_rsp =			ft_queue_tm_resp,
@@ -447,6 +432,9 @@ static const struct target_core_fabric_ops ft_fabric_ops = {
 
 	.tfc_wwn_attrs			= ft_wwn_attrs,
 	.tfc_tpg_nacl_base_attrs	= ft_nacl_base_attrs,
+
+	.default_submit_type		= TARGET_DIRECT_SUBMIT,
+	.direct_submit_supp		= 1,
 };
 
 static struct notifier_block ft_notifier = {

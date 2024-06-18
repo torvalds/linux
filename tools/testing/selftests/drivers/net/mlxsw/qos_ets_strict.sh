@@ -130,34 +130,48 @@ switch_create()
 
 	ip link set dev $swp3 up
 	mtu_set $swp3 10000
-	ethtool -s $swp3 speed 1000 autoneg off
+	tc qdisc replace dev $swp3 root handle 101: tbf rate 1gbit \
+		burst 128K limit 1G
 
 	vlan_create $swp1 111
 	vlan_create $swp2 222
 	vlan_create $swp3 111
 	vlan_create $swp3 222
 
-	ip link add name br111 up type bridge vlan_filtering 0
+	ip link add name br111 type bridge vlan_filtering 0
+	ip link set dev br111 addrgenmode none
+	ip link set dev br111 up
 	ip link set dev $swp1.111 master br111
 	ip link set dev $swp3.111 master br111
 
-	ip link add name br222 up type bridge vlan_filtering 0
+	ip link add name br222 type bridge vlan_filtering 0
+	ip link set dev br222 addrgenmode none
+	ip link set dev br222 up
 	ip link set dev $swp2.222 master br222
 	ip link set dev $swp3.222 master br222
 
 	# Make sure that ingress quotas are smaller than egress so that there is
 	# room for both streams of traffic to be admitted to shared buffer.
+	devlink_pool_size_thtype_save 0
 	devlink_pool_size_thtype_set 0 dynamic 10000000
+	devlink_pool_size_thtype_save 4
 	devlink_pool_size_thtype_set 4 dynamic 10000000
 
+	devlink_port_pool_th_save $swp1 0
 	devlink_port_pool_th_set $swp1 0 6
+	devlink_tc_bind_pool_th_save $swp1 1 ingress
 	devlink_tc_bind_pool_th_set $swp1 1 ingress 0 6
 
+	devlink_port_pool_th_save $swp2 0
 	devlink_port_pool_th_set $swp2 0 6
+	devlink_tc_bind_pool_th_save $swp2 2 ingress
 	devlink_tc_bind_pool_th_set $swp2 2 ingress 0 6
 
+	devlink_tc_bind_pool_th_save $swp3 1 egress
 	devlink_tc_bind_pool_th_set $swp3 1 egress 4 7
+	devlink_tc_bind_pool_th_save $swp3 2 egress
 	devlink_tc_bind_pool_th_set $swp3 2 egress 4 7
+	devlink_port_pool_th_save $swp3 4
 	devlink_port_pool_th_set $swp3 4 7
 }
 
@@ -184,7 +198,7 @@ switch_destroy()
 	vlan_destroy $swp2 222
 	vlan_destroy $swp1 111
 
-	ethtool -s $swp3 autoneg on
+	tc qdisc del dev $swp3 root handle 101:
 	mtu_restore $swp3
 	ip link set dev $swp3 down
 	lldptool -T -i $swp3 -V ETS-CFG up2tc=0:0,1:0,2:0,3:0,4:0,5:0,6:0,7:0

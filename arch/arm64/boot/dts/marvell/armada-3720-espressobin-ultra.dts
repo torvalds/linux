@@ -1,0 +1,197 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Device Tree file for ESPRESSObin-Ultra board.
+ * Copyright (C) 2019 Globalscale technologies, Inc.
+ *
+ * Jason Hung <jhung@globalscaletechnologies.com>
+ */
+
+/dts-v1/;
+
+#include "armada-3720-espressobin.dtsi"
+
+/ {
+	model = "Globalscale Marvell ESPRESSOBin Ultra Board";
+	compatible = "globalscale,espressobin-ultra", "globalscale,espressobin",
+		     "marvell,armada3720", "marvell,armada3700";
+
+	aliases {
+		/* ethernet1 is WAN port */
+		ethernet1 = &switch0port5;
+		ethernet2 = &switch0port1;
+		ethernet3 = &switch0port2;
+		ethernet4 = &switch0port3;
+		ethernet5 = &switch0port4;
+	};
+
+	/delete-node/ regulator;
+
+	reg_usb3_vbus: usb3-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "usb3-vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&gpionb 19 GPIO_ACTIVE_HIGH>;
+	};
+
+	usb3_phy: usb3-phy {
+		compatible = "usb-nop-xceiv";
+		vcc-supply = <&reg_usb3_vbus>;
+	};
+
+	gpio-leds {
+		pinctrl-names = "default";
+		compatible = "gpio-leds";
+		/* No assigned functions to the LEDs by default */
+		led1 {
+			label = "ebin-ultra:blue:led1";
+			gpios = <&gpionb 11 GPIO_ACTIVE_LOW>;
+		};
+		led2 {
+			label = "ebin-ultra:green:led2";
+			gpios = <&gpionb 12 GPIO_ACTIVE_LOW>;
+		};
+		led3 {
+			label = "ebin-ultra:red:led3";
+			gpios = <&gpionb 13 GPIO_ACTIVE_LOW>;
+		};
+		led4 {
+			label = "ebin-ultra:yellow:led4";
+			gpios = <&gpionb 14 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&sdhci0 {
+	status = "okay";
+};
+
+&sdhci1 {
+	/delete-property/ vqmmc-supply;
+	status = "disabled";
+};
+
+&spi0 {
+	flash@0 {
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "firmware";
+				reg = <0x0 0x3e0000>;
+			};
+			partition@3e0000 {
+				label = "hw-info";
+				reg = <0x3e0000 0x10000>;
+				read-only;
+			};
+			partition@3f0000 {
+				label = "u-boot-env";
+				reg = <0x3f0000 0x10000>;
+			};
+		};
+	};
+};
+
+&i2c0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_pins>;
+
+	clock-frequency = <100000>;
+
+	rtc@51 {
+		compatible = "nxp,pcf8563";
+		reg = <0x51>;
+	};
+};
+
+&usb3 {
+	usb-phy = <&usb3_phy>;
+};
+
+&mdio {
+	/* Switch is @3, not @1 */
+	/delete-node/ ethernet-switch@1;
+	extphy: ethernet-phy@1 {
+		reg = <1>;
+
+		reset-gpios = <&gpionb 2 GPIO_ACTIVE_LOW>;
+	};
+
+	switch0: ethernet-switch@3 {
+		compatible = "marvell,mv88e6085";
+		reg = <3>;
+
+		reset-gpios = <&gpiosb 23 GPIO_ACTIVE_LOW>;
+		dsa,member = <0 0>;
+
+		ethernet-ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			switch0port0: ethernet-port@0 {
+				reg = <0>;
+				label = "cpu";
+				ethernet = <&eth0>;
+				phy-mode = "rgmii-id";
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+				};
+			};
+
+			switch0port1: ethernet-port@1 {
+				reg = <1>;
+				label = "lan0";
+				phy-handle = <&switch0phy0>;
+			};
+
+			switch0port2: ethernet-port@2 {
+				reg = <2>;
+				label = "lan1";
+				phy-handle = <&switch0phy1>;
+			};
+
+			switch0port3: ethernet-port@3 {
+				reg = <3>;
+				label = "lan2";
+				phy-handle = <&switch0phy2>;
+			};
+
+			switch0port4: ethernet-port@4 {
+				reg = <4>;
+				label = "lan3";
+				phy-handle = <&switch0phy3>;
+			};
+
+			switch0port5: ethernet-port@5 {
+				reg = <5>;
+				label = "wan";
+				phy-handle = <&extphy>;
+				phy-mode = "sgmii";
+			};
+		};
+
+		mdio {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			switch0phy0: ethernet-phy@11 {
+				reg = <0x11>;
+			};
+			switch0phy1: ethernet-phy@12 {
+				reg = <0x12>;
+			};
+			switch0phy2: ethernet-phy@13 {
+				reg = <0x13>;
+			};
+			switch0phy3: ethernet-phy@14 {
+				reg = <0x14>;
+			};
+		};
+	};
+};

@@ -41,6 +41,7 @@
 #include "idmap.h"
 #include "nfsd.h"
 #include "netns.h"
+#include "vfs.h"
 
 /*
  * Turn off idmapping when using AUTH_SYS.
@@ -82,8 +83,8 @@ ent_init(struct cache_head *cnew, struct cache_head *citm)
 	new->id = itm->id;
 	new->type = itm->type;
 
-	strlcpy(new->name, itm->name, sizeof(new->name));
-	strlcpy(new->authname, itm->authname, sizeof(new->authname));
+	strscpy(new->name, itm->name, sizeof(new->name));
+	strscpy(new->authname, itm->authname, sizeof(new->authname));
 }
 
 static void
@@ -120,6 +121,12 @@ idtoname_hash(struct ent *ent)
 		hash ^= 1;
 
 	return hash;
+}
+
+static int
+idtoname_upcall(struct cache_detail *cd, struct cache_head *h)
+{
+	return sunrpc_cache_pipe_upcall_timeout(cd, h);
 }
 
 static void
@@ -162,7 +169,7 @@ idtoname_show(struct seq_file *m, struct cache_detail *cd, struct cache_head *h)
 			ent->id);
 	if (test_bit(CACHE_VALID, &h->flags))
 		seq_printf(m, " %s", ent->name);
-	seq_printf(m, "\n");
+	seq_putc(m, '\n');
 	return 0;
 }
 
@@ -184,6 +191,7 @@ static const struct cache_detail idtoname_cache_template = {
 	.hash_size	= ENT_HASHMAX,
 	.name		= "nfs4.idtoname",
 	.cache_put	= ent_put,
+	.cache_upcall	= idtoname_upcall,
 	.cache_request	= idtoname_request,
 	.cache_parse	= idtoname_parse,
 	.cache_show	= idtoname_show,
@@ -232,8 +240,8 @@ idtoname_parse(struct cache_detail *cd, char *buf, int buflen)
 		goto out;
 
 	/* expiry */
-	ent.h.expiry_time = get_expiry(&buf);
-	if (ent.h.expiry_time == 0)
+	error = get_expiry(&buf, &ent.h.expiry_time);
+	if (error)
 		goto out;
 
 	error = -ENOMEM;
@@ -295,6 +303,12 @@ nametoid_hash(struct ent *ent)
 	return hash_str(ent->name, ENT_HASHBITS);
 }
 
+static int
+nametoid_upcall(struct cache_detail *cd, struct cache_head *h)
+{
+	return sunrpc_cache_pipe_upcall_timeout(cd, h);
+}
+
 static void
 nametoid_request(struct cache_detail *cd, struct cache_head *ch, char **bpp,
     int *blen)
@@ -333,7 +347,7 @@ nametoid_show(struct seq_file *m, struct cache_detail *cd, struct cache_head *h)
 			ent->name);
 	if (test_bit(CACHE_VALID, &h->flags))
 		seq_printf(m, " %u", ent->id);
-	seq_printf(m, "\n");
+	seq_putc(m, '\n');
 	return 0;
 }
 
@@ -347,6 +361,7 @@ static const struct cache_detail nametoid_cache_template = {
 	.hash_size	= ENT_HASHMAX,
 	.name		= "nfs4.nametoid",
 	.cache_put	= ent_put,
+	.cache_upcall	= nametoid_upcall,
 	.cache_request	= nametoid_request,
 	.cache_parse	= nametoid_parse,
 	.cache_show	= nametoid_show,
@@ -393,8 +408,8 @@ nametoid_parse(struct cache_detail *cd, char *buf, int buflen)
 	memcpy(ent.name, buf1, sizeof(ent.name));
 
 	/* expiry */
-	ent.h.expiry_time = get_expiry(&buf);
-	if (ent.h.expiry_time == 0)
+	error = get_expiry(&buf, &ent.h.expiry_time);
+	if (error)
 		goto out;
 
 	/* ID */
@@ -534,7 +549,7 @@ idmap_name_to_id(struct svc_rqst *rqstp, int type, const char *name, u32 namelen
 		return nfserr_badowner;
 	memcpy(key.name, name, namelen);
 	key.name[namelen] = '\0';
-	strlcpy(key.authname, rqst_authname(rqstp), sizeof(key.authname));
+	strscpy(key.authname, rqst_authname(rqstp), sizeof(key.authname));
 	ret = idmap_lookup(rqstp, nametoid_lookup, &key, nn->nametoid_cache, &item);
 	if (ret == -ENOENT)
 		return nfserr_badowner;
@@ -570,7 +585,7 @@ static __be32 idmap_id_to_name(struct xdr_stream *xdr,
 	int ret;
 	struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
 
-	strlcpy(key.authname, rqst_authname(rqstp), sizeof(key.authname));
+	strscpy(key.authname, rqst_authname(rqstp), sizeof(key.authname));
 	ret = idmap_lookup(rqstp, idtoname_lookup, &key, nn->idtoname_cache, &item);
 	if (ret == -ENOENT)
 		return encode_ascii_id(xdr, id);

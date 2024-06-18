@@ -148,7 +148,8 @@ static inline struct net_device *bpq_get_ax25_dev(struct net_device *dev)
 {
 	struct bpqdev *bpq;
 
-	list_for_each_entry_rcu(bpq, &bpq_devices, bpq_list) {
+	list_for_each_entry_rcu(bpq, &bpq_devices, bpq_list,
+				lockdep_rtnl_is_held()) {
 		if (bpq->ethdev == dev)
 			return bpq->axdev;
 	}
@@ -301,7 +302,7 @@ static int bpq_set_mac_address(struct net_device *dev, void *addr)
 {
     struct sockaddr *sa = (struct sockaddr *)addr;
 
-    memcpy(dev->dev_addr, sa->sa_data, dev->addr_len);
+    dev_addr_set(dev, sa->sa_data);
 
     return 0;
 }
@@ -313,9 +314,10 @@ static int bpq_set_mac_address(struct net_device *dev, void *addr)
  *					source ethernet address (broadcast
  *					or multicast: accept all)
  */
-static int bpq_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+static int bpq_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
+			      void __user *data, int cmd)
 {
-	struct bpq_ethaddr __user *ethaddr = ifr->ifr_data;
+	struct bpq_ethaddr __user *ethaddr = data;
 	struct bpqdev *bpq = netdev_priv(dev);
 	struct bpq_req req;
 
@@ -324,7 +326,7 @@ static int bpq_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 	switch (cmd) {
 		case SIOCSBPQETHOPT:
-			if (copy_from_user(&req, ifr->ifr_data, sizeof(struct bpq_req)))
+			if (copy_from_user(&req, data, sizeof(struct bpq_req)))
 				return -EFAULT;
 			switch (req.cmd) {
 				case SIOCGBPQETHPARAM:
@@ -367,7 +369,7 @@ static int bpq_close(struct net_device *dev)
 
 /* ------------------------------------------------------------------------ */
 
-
+#ifdef CONFIG_PROC_FS
 /*
  *	Proc filesystem
  */
@@ -439,7 +441,7 @@ static const struct seq_operations bpq_seqops = {
 	.stop = bpq_seq_stop,
 	.show = bpq_seq_show,
 };
-
+#endif
 /* ------------------------------------------------------------------------ */
 
 static const struct net_device_ops bpq_netdev_ops = {
@@ -447,16 +449,13 @@ static const struct net_device_ops bpq_netdev_ops = {
 	.ndo_stop	     = bpq_close,
 	.ndo_start_xmit	     = bpq_xmit,
 	.ndo_set_mac_address = bpq_set_mac_address,
-	.ndo_do_ioctl	     = bpq_ioctl,
+	.ndo_siocdevprivate  = bpq_siocdevprivate,
 };
 
 static void bpq_setup(struct net_device *dev)
 {
 	dev->netdev_ops	     = &bpq_netdev_ops;
 	dev->needs_free_netdev = true;
-
-	memcpy(dev->broadcast, &ax25_bcast, AX25_ADDR_LEN);
-	memcpy(dev->dev_addr,  &ax25_defaddr, AX25_ADDR_LEN);
 
 	dev->flags      = 0;
 	dev->features	= NETIF_F_LLTX;	/* Allow recursion */
@@ -470,6 +469,8 @@ static void bpq_setup(struct net_device *dev)
 	dev->mtu             = AX25_DEF_PACLEN;
 	dev->addr_len        = AX25_ADDR_LEN;
 
+	memcpy(dev->broadcast, &ax25_bcast, AX25_ADDR_LEN);
+	dev_addr_set(dev, (u8 *)&ax25_defaddr);
 }
 
 /*
@@ -532,7 +533,7 @@ static int bpq_device_event(struct notifier_block *this,
 	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;
 
-	if (!dev_is_ethdev(dev))
+	if (!dev_is_ethdev(dev) && !bpq_get_ax25_dev(dev))
 		return NOTIFY_DONE;
 
 	switch (event) {

@@ -1,4 +1,3 @@
-
 clear_trace() { # reset trace output
     echo > trace
 }
@@ -46,6 +45,9 @@ reset_events_filter() { # reset all current setting filters
 }
 
 reset_ftrace_filter() { # reset all triggers in set_ftrace_filter
+    if [ ! -f set_ftrace_filter ]; then
+      return 0
+    fi
     echo > set_ftrace_filter
     grep -v '^#' set_ftrace_filter | while read t; do
 	tr=`echo $t | cut -d: -f2`
@@ -81,6 +83,27 @@ clear_synthetic_events() { # reset all current synthetic events
     done
 }
 
+clear_dynamic_events() { # reset all current dynamic events
+    again=1
+    stop=1
+    # loop mulitple times as some events require other to be removed first
+    while [ $again -eq 1 ]; do
+	stop=$((stop+1))
+	# Prevent infinite loops
+	if [ $stop -gt 10 ]; then
+	    break;
+	fi
+	again=2
+	grep -v '^#' dynamic_events|
+	while read line; do
+	    del=`echo $line | sed -e 's/^.\([^ ]*\).*/-\1/'`
+	    if ! echo "$del" >> dynamic_events; then
+		again=1
+	    fi
+	done
+    done
+}
+
 initialize_ftrace() { # Reset ftrace to initial-state
 # As the initial state, ftrace will be set to nop tracer,
 # no events, no triggers, no filters, no function filters,
@@ -91,17 +114,57 @@ initialize_ftrace() { # Reset ftrace to initial-state
     reset_events_filter
     reset_ftrace_filter
     disable_events
+    clear_dynamic_events
     [ -f set_event_pid ] && echo > set_event_pid
     [ -f set_ftrace_pid ] && echo > set_ftrace_pid
-    [ -f set_ftrace_filter ] && echo | tee set_ftrace_*
+    [ -f set_ftrace_notrace ] && echo > set_ftrace_notrace
     [ -f set_graph_function ] && echo | tee set_graph_*
     [ -f stack_trace_filter ] && echo > stack_trace_filter
     [ -f kprobe_events ] && echo > kprobe_events
     [ -f uprobe_events ] && echo > uprobe_events
     [ -f synthetic_events ] && echo > synthetic_events
     [ -f snapshot ] && echo 0 > snapshot
+
+# Stop tracing while reading the trace file by default, to prevent
+# the test results while checking it and to avoid taking a long time
+# to check the result.
+    [ -f options/pause-on-trace ] && echo 1 > options/pause-on-trace
+
     clear_trace
     enable_tracing
+}
+
+finish_ftrace() {
+    initialize_ftrace
+# And recover it to default.
+    [ -f options/pause-on-trace ] && echo 0 > options/pause-on-trace
+}
+
+check_requires() { # Check required files and tracers
+    for i in "$@" ; do
+	p=${i%:program}
+        r=${i%:README}
+        t=${i%:tracer}
+	if [ $p != $i ]; then
+	    if ! which $p ; then
+                echo "Required program $p is not found."
+                exit_unresolved
+	    fi
+        elif [ $t != $i ]; then
+            if ! grep -wq $t available_tracers ; then
+                echo "Required tracer $t is not configured."
+                exit_unsupported
+            fi
+        elif [ "$r" != "$i" ]; then
+            if ! grep -Fq "$r" README ; then
+                echo "Required feature pattern \"$r\" is not in README."
+                exit_unsupported
+            fi
+        elif [ ! -e $i ]; then
+            echo "Required feature interface $i doesn't exist."
+            exit_unsupported
+        fi
+    done
 }
 
 LOCALHOST=127.0.0.1
@@ -110,12 +173,21 @@ yield() {
     ping $LOCALHOST -c 1 || sleep .001 || usleep 1 || sleep 1
 }
 
+# The fork function in the kernel was renamed from "_do_fork" to
+# "kernel_fork". As older tests should still work with older kernels
+# as well as newer kernels, check which version of fork is used on this
+# kernel so that the tests can use the fork function for the running kernel.
+FUNCTION_FORK=`(if grep '\bkernel_clone\b' /proc/kallsyms > /dev/null; then
+                echo kernel_clone; else echo '_do_fork'; fi)`
+
+# Since probe event command may include backslash, explicitly use printf "%s"
+# to NOT interpret it.
 ftrace_errlog_check() { # err-prefix command-with-error-pos-by-^ command-file
-    pos=$(echo -n "${2%^*}" | wc -c) # error position
-    command=$(echo "$2" | tr -d ^)
+    pos=$(printf "%s" "${2%^*}" | wc -c) # error position
+    command=$(printf "%s" "$2" | tr -d ^)
     echo "Test command: $command"
     echo > error_log
-    (! echo "$command" >> "$3" ) 2> /dev/null
+    (! printf "%s" "$command" >> "$3" ) 2> /dev/null
     grep "$1: error:" -A 3 error_log
     N=$(tail -n 1 error_log | wc -c)
     # "  Command: " and "^\n" => 13

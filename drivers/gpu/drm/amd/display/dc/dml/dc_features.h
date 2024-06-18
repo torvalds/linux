@@ -29,7 +29,14 @@
 #define DC__PRESENT 1
 #define DC__PRESENT__1 1
 #define DC__NUM_DPP 4
-#define DC__VOLTAGE_STATES 7
+
+/**
+ * @DC__VOLTAGE_STATES:
+ *
+ * Define the maximum amount of states supported by the ASIC. Every ASIC has a
+ * specific number of states; this macro defines the maximum number of states.
+ */
+#define DC__VOLTAGE_STATES 40
 #define DC__NUM_DPP__4 1
 #define DC__NUM_DPP__0_PRESENT 1
 #define DC__NUM_DPP__1_PRESENT 1

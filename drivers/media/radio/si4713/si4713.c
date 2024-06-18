@@ -14,7 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
@@ -86,7 +86,7 @@ MODULE_VERSION("0.0.1");
 #define check_command_failed(status)	(!(status & SI4713_CTS) || \
 					(status & SI4713_ERR))
 /* mute definition */
-#define set_mute(p)	((p & 1) | ((p & 1) << 1));
+#define set_mute(p)	(((p) & 1) | (((p) & 1) << 1))
 
 #ifdef DEBUG
 #define DBG_BUFFER(device, message, buffer, size)			\
@@ -1157,7 +1157,7 @@ static int si4713_s_ctrl(struct v4l2_ctrl *ctrl)
 			 * V4L2_CID_TUNE_POWER_LEVEL. */
 			if (force)
 				break;
-			/* fall through */
+			fallthrough;
 		case V4L2_CID_TUNE_POWER_LEVEL:
 			ret = si4713_tx_tune_power(sdev,
 				sdev->tune_pwr_level->val, sdev->tune_ant_cap->val);
@@ -1623,7 +1623,7 @@ exit:
 }
 
 /* si4713_remove - remove the device */
-static int si4713_remove(struct i2c_client *client)
+static void si4713_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct si4713_device *sdev = to_si4713_device(sd);
@@ -1635,8 +1635,6 @@ static int si4713_remove(struct i2c_client *client)
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
-
-	return 0;
 }
 
 /* si4713_i2c_driver - i2c driver interface */
@@ -1659,7 +1657,7 @@ static struct i2c_driver si4713_i2c_driver = {
 		.name	= "si4713",
 		.of_match_table = of_match_ptr(si4713_of_match),
 	},
-	.probe_new	= si4713_probe,
+	.probe		= si4713_probe,
 	.remove         = si4713_remove,
 	.id_table       = si4713_id,
 };

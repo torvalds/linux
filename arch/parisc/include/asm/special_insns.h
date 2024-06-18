@@ -2,35 +2,45 @@
 #ifndef __PARISC_SPECIAL_INSNS_H
 #define __PARISC_SPECIAL_INSNS_H
 
-#define lpa(va)	({			\
-	unsigned long pa;		\
-	__asm__ __volatile__(		\
-		"copy %%r0,%0\n\t"	\
-		"lpa %%r0(%1),%0"	\
-		: "=r" (pa)		\
-		: "r" (va)		\
-		: "memory"		\
-	);				\
-	pa;				\
+#define lpa(va)	({					\
+	unsigned long pa;				\
+	__asm__ __volatile__(				\
+		"copy %%r0,%0\n"			\
+		"8:\tlpa %%r0(%1),%0\n"			\
+		"9:\n"					\
+		ASM_EXCEPTIONTABLE_ENTRY(8b, 9b,	\
+				"or %%r0,%%r0,%%r0")	\
+		: "=&r" (pa)				\
+		: "r" (va)				\
+		: "memory"				\
+	);						\
+	pa;						\
 })
 
-#define lpa_user(va)	({		\
-	unsigned long pa;		\
-	__asm__ __volatile__(		\
-		"copy %%r0,%0\n\t"	\
-		"lpa %%r0(%%sr3,%1),%0"	\
-		: "=r" (pa)		\
-		: "r" (va)		\
-		: "memory"		\
-	);				\
-	pa;				\
+#define lpa_user(va)	({				\
+	unsigned long pa;				\
+	__asm__ __volatile__(				\
+		"copy %%r0,%0\n"			\
+		"8:\tlpa %%r0(%%sr3,%1),%0\n"		\
+		"9:\n"					\
+		ASM_EXCEPTIONTABLE_ENTRY(8b, 9b,	\
+				"or %%r0,%%r0,%%r0")	\
+		: "=&r" (pa)				\
+		: "r" (va)				\
+		: "memory"				\
+	);						\
+	pa;						\
 })
+
+#define CR_EIEM 15	/* External Interrupt Enable Mask */
+#define CR_CR16 16	/* CR16 Interval Timer */
+#define CR_EIRR 23	/* External Interrupt Request Register */
 
 #define mfctl(reg)	({		\
 	unsigned long cr;		\
 	__asm__ __volatile__(		\
-		"mfctl " #reg ",%0" :	\
-		 "=r" (cr)		\
+		"mfctl %1,%0" :		\
+		 "=r" (cr) : "i" (reg)	\
 	);				\
 	cr;				\
 })
@@ -40,19 +50,14 @@
 		: /* no outputs */ \
 		: "r" (gr), "i" (cr) : "memory")
 
-/* these are here to de-mystefy the calling code, and to provide hooks */
-/* which I needed for debugging EIEM problems -PB */
-#define get_eiem() mfctl(15)
-static inline void set_eiem(unsigned long val)
-{
-	mtctl(val, 15);
-}
+#define get_eiem()	mfctl(CR_EIEM)
+#define set_eiem(val)	mtctl(val, CR_EIEM)
 
 #define mfsp(reg)	({		\
 	unsigned long cr;		\
 	__asm__ __volatile__(		\
-		"mfsp " #reg ",%0" :	\
-		 "=r" (cr)		\
+		"mfsp %%sr%1,%0"	\
+		: "=r" (cr) : "i"(reg)	\
 	);				\
 	cr;				\
 })

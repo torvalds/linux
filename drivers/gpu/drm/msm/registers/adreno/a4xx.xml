@@ -1,0 +1,2409 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<database xmlns="http://nouveau.freedesktop.org/"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
+<import file="freedreno_copyright.xml"/>
+<import file="adreno/adreno_common.xml"/>
+<import file="adreno/adreno_pm4.xml"/>
+
+<enum name="a4xx_color_fmt">
+	<value name="RB4_A8_UNORM" value="0x01"/>
+	<value name="RB4_R8_UNORM" value="0x02"/>
+	<value name="RB4_R8_SNORM" value="0x03"/>
+	<value name="RB4_R8_UINT" value="0x04"/>
+	<value name="RB4_R8_SINT" value="0x05"/>
+
+	<value name="RB4_R4G4B4A4_UNORM" value="0x08"/>
+	<value name="RB4_R5G5B5A1_UNORM" value="0x0a"/>
+	<value name="RB4_R5G6B5_UNORM" value="0x0e"/>
+	<value name="RB4_R8G8_UNORM" value="0x0f"/>
+	<value name="RB4_R8G8_SNORM" value="0x10"/>
+	<value name="RB4_R8G8_UINT" value="0x11"/>
+	<value name="RB4_R8G8_SINT" value="0x12"/>
+	<value name="RB4_R16_UNORM" value="0x13"/>
+	<value name="RB4_R16_SNORM" value="0x14"/>
+	<value name="RB4_R16_FLOAT" value="0x15"/>
+	<value name="RB4_R16_UINT" value="0x16"/>
+	<value name="RB4_R16_SINT" value="0x17"/>
+
+	<value name="RB4_R8G8B8_UNORM" value="0x19"/>
+
+	<value name="RB4_R8G8B8A8_UNORM" value="0x1a"/>
+	<value name="RB4_R8G8B8A8_SNORM" value="0x1c"/>
+	<value name="RB4_R8G8B8A8_UINT" value="0x1d"/>
+	<value name="RB4_R8G8B8A8_SINT" value="0x1e"/>
+	<value name="RB4_R10G10B10A2_UNORM" value="0x1f"/>
+	<value name="RB4_R10G10B10A2_UINT" value="0x22"/>
+	<value name="RB4_R11G11B10_FLOAT" value="0x27"/>
+	<value name="RB4_R16G16_UNORM" value="0x28"/>
+	<value name="RB4_R16G16_SNORM" value="0x29"/>
+	<value name="RB4_R16G16_FLOAT" value="0x2a"/>
+	<value name="RB4_R16G16_UINT" value="0x2b"/>
+	<value name="RB4_R16G16_SINT" value="0x2c"/>
+	<value name="RB4_R32_FLOAT" value="0x2d"/>
+	<value name="RB4_R32_UINT" value="0x2e"/>
+	<value name="RB4_R32_SINT" value="0x2f"/>
+
+	<value name="RB4_R16G16B16A16_UNORM" value="0x34"/>
+	<value name="RB4_R16G16B16A16_SNORM" value="0x35"/>
+	<value name="RB4_R16G16B16A16_FLOAT" value="0x36"/>
+	<value name="RB4_R16G16B16A16_UINT" value="0x37"/>
+	<value name="RB4_R16G16B16A16_SINT" value="0x38"/>
+	<value name="RB4_R32G32_FLOAT" value="0x39"/>
+	<value name="RB4_R32G32_UINT" value="0x3a"/>
+	<value name="RB4_R32G32_SINT" value="0x3b"/>
+
+	<value name="RB4_R32G32B32A32_FLOAT" value="0x3c"/>
+	<value name="RB4_R32G32B32A32_UINT" value="0x3d"/>
+	<value name="RB4_R32G32B32A32_SINT" value="0x3e"/>
+
+	<value name="RB4_NONE" value="0xff"/>
+</enum>
+
+<enum name="a4xx_tile_mode">
+	<value name="TILE4_LINEAR" value="0"/>
+	<value name="TILE4_2" value="2"/>
+	<value name="TILE4_3" value="3"/>
+</enum>
+
+<enum name="a4xx_vtx_fmt" prefix="chipset">
+	<!-- hmm, shifted one compared to a3xx?!?  -->
+	<value name="VFMT4_32_FLOAT" value="0x1"/>
+	<value name="VFMT4_32_32_FLOAT" value="0x2"/>
+	<value name="VFMT4_32_32_32_FLOAT" value="0x3"/>
+	<value name="VFMT4_32_32_32_32_FLOAT" value="0x4"/>
+
+	<value name="VFMT4_16_FLOAT" value="0x5"/>
+	<value name="VFMT4_16_16_FLOAT" value="0x6"/>
+	<value name="VFMT4_16_16_16_FLOAT" value="0x7"/>
+	<value name="VFMT4_16_16_16_16_FLOAT" value="0x8"/>
+
+	<value name="VFMT4_32_FIXED" value="0x9"/>
+	<value name="VFMT4_32_32_FIXED" value="0xa"/>
+	<value name="VFMT4_32_32_32_FIXED" value="0xb"/>
+	<value name="VFMT4_32_32_32_32_FIXED" value="0xc"/>
+
+	<value name="VFMT4_11_11_10_FLOAT" value="0xd"/>
+
+	<!-- beyond here it does not appear to be shifted -->
+	<value name="VFMT4_16_SINT" value="0x10"/>
+	<value name="VFMT4_16_16_SINT" value="0x11"/>
+	<value name="VFMT4_16_16_16_SINT" value="0x12"/>
+	<value name="VFMT4_16_16_16_16_SINT" value="0x13"/>
+	<value name="VFMT4_16_UINT" value="0x14"/>
+	<value name="VFMT4_16_16_UINT" value="0x15"/>
+	<value name="VFMT4_16_16_16_UINT" value="0x16"/>
+	<value name="VFMT4_16_16_16_16_UINT" value="0x17"/>
+	<value name="VFMT4_16_SNORM" value="0x18"/>
+	<value name="VFMT4_16_16_SNORM" value="0x19"/>
+	<value name="VFMT4_16_16_16_SNORM" value="0x1a"/>
+	<value name="VFMT4_16_16_16_16_SNORM" value="0x1b"/>
+	<value name="VFMT4_16_UNORM" value="0x1c"/>
+	<value name="VFMT4_16_16_UNORM" value="0x1d"/>
+	<value name="VFMT4_16_16_16_UNORM" value="0x1e"/>
+	<value name="VFMT4_16_16_16_16_UNORM" value="0x1f"/>
+
+	<value name="VFMT4_32_UINT" value="0x20"/>
+	<value name="VFMT4_32_32_UINT" value="0x21"/>
+	<value name="VFMT4_32_32_32_UINT" value="0x22"/>
+	<value name="VFMT4_32_32_32_32_UINT" value="0x23"/>
+	<value name="VFMT4_32_SINT" value="0x24"/>
+	<value name="VFMT4_32_32_SINT" value="0x25"/>
+	<value name="VFMT4_32_32_32_SINT" value="0x26"/>
+	<value name="VFMT4_32_32_32_32_SINT" value="0x27"/>
+
+	<value name="VFMT4_8_UINT" value="0x28"/>
+	<value name="VFMT4_8_8_UINT" value="0x29"/>
+	<value name="VFMT4_8_8_8_UINT" value="0x2a"/>
+	<value name="VFMT4_8_8_8_8_UINT" value="0x2b"/>
+	<value name="VFMT4_8_UNORM" value="0x2c"/>
+	<value name="VFMT4_8_8_UNORM" value="0x2d"/>
+	<value name="VFMT4_8_8_8_UNORM" value="0x2e"/>
+	<value name="VFMT4_8_8_8_8_UNORM" value="0x2f"/>
+	<value name="VFMT4_8_SINT" value="0x30"/>
+	<value name="VFMT4_8_8_SINT" value="0x31"/>
+	<value name="VFMT4_8_8_8_SINT" value="0x32"/>
+	<value name="VFMT4_8_8_8_8_SINT" value="0x33"/>
+	<value name="VFMT4_8_SNORM" value="0x34"/>
+	<value name="VFMT4_8_8_SNORM" value="0x35"/>
+	<value name="VFMT4_8_8_8_SNORM" value="0x36"/>
+	<value name="VFMT4_8_8_8_8_SNORM" value="0x37"/>
+
+	<value name="VFMT4_10_10_10_2_UINT" value="0x38"/>
+	<value name="VFMT4_10_10_10_2_UNORM" value="0x39"/>
+	<value name="VFMT4_10_10_10_2_SINT" value="0x3a"/>
+	<value name="VFMT4_10_10_10_2_SNORM" value="0x3b"/>
+	<value name="VFMT4_2_10_10_10_UINT" value="0x3c"/>
+	<value name="VFMT4_2_10_10_10_UNORM" value="0x3d"/>
+	<value name="VFMT4_2_10_10_10_SINT" value="0x3e"/>
+	<value name="VFMT4_2_10_10_10_SNORM" value="0x3f"/>
+
+	<value name="VFMT4_NONE" value="0xff"/>
+</enum>
+
+<enum name="a4xx_tex_fmt">
+	<!-- 0x00 .. 0x02 -->
+
+	<!-- 8-bit formats -->
+	<value name="TFMT4_A8_UNORM" value="0x03"/>
+	<value name="TFMT4_8_UNORM"  value="0x04"/>
+	<value name="TFMT4_8_SNORM"  value="0x05"/>
+	<value name="TFMT4_8_UINT"   value="0x06"/>
+	<value name="TFMT4_8_SINT"   value="0x07"/>
+
+	<!-- 16-bit formats -->
+	<value name="TFMT4_4_4_4_4_UNORM" value="0x08"/>
+	<value name="TFMT4_5_5_5_1_UNORM" value="0x09"/>
+	<!-- 0x0a -->
+	<value name="TFMT4_5_6_5_UNORM"   value="0x0b"/>
+
+	<!-- 0x0c -->
+
+	<value name="TFMT4_L8_A8_UNORM" value="0x0d"/>
+	<value name="TFMT4_8_8_UNORM"   value="0x0e"/>
+	<value name="TFMT4_8_8_SNORM"   value="0x0f"/>
+	<value name="TFMT4_8_8_UINT"    value="0x10"/>
+	<value name="TFMT4_8_8_SINT"    value="0x11"/>
+
+	<value name="TFMT4_16_UNORM" value="0x12"/>
+	<value name="TFMT4_16_SNORM" value="0x13"/>
+	<value name="TFMT4_16_FLOAT" value="0x14"/>
+	<value name="TFMT4_16_UINT"  value="0x15"/>
+	<value name="TFMT4_16_SINT"  value="0x16"/>
+
+	<!-- 0x17 .. 0x1b -->
+
+	<!-- 32-bit formats -->
+	<value name="TFMT4_8_8_8_8_UNORM" value="0x1c"/>
+	<value name="TFMT4_8_8_8_8_SNORM" value="0x1d"/>
+	<value name="TFMT4_8_8_8_8_UINT"  value="0x1e"/>
+	<value name="TFMT4_8_8_8_8_SINT"  value="0x1f"/>
+
+	<value name="TFMT4_9_9_9_E5_FLOAT"   value="0x20"/>
+	<value name="TFMT4_10_10_10_2_UNORM" value="0x21"/>
+	<value name="TFMT4_10_10_10_2_UINT"  value="0x22"/>
+	<!-- 0x23 .. 0x24 -->
+	<value name="TFMT4_11_11_10_FLOAT"   value="0x25"/>
+
+	<value name="TFMT4_16_16_UNORM" value="0x26"/>
+	<value name="TFMT4_16_16_SNORM" value="0x27"/>
+	<value name="TFMT4_16_16_FLOAT" value="0x28"/>
+	<value name="TFMT4_16_16_UINT"  value="0x29"/>
+	<value name="TFMT4_16_16_SINT"  value="0x2a"/>
+
+	<value name="TFMT4_32_FLOAT" value="0x2b"/>
+	<value name="TFMT4_32_UINT"  value="0x2c"/>
+	<value name="TFMT4_32_SINT"  value="0x2d"/>
+
+	<!-- 0x2e .. 0x32 -->
+
+	<!-- 64-bit formats -->
+	<value name="TFMT4_16_16_16_16_UNORM" value="0x33"/>
+	<value name="TFMT4_16_16_16_16_SNORM" value="0x34"/>
+	<value name="TFMT4_16_16_16_16_FLOAT" value="0x35"/>
+	<value name="TFMT4_16_16_16_16_UINT"  value="0x36"/>
+	<value name="TFMT4_16_16_16_16_SINT"  value="0x37"/>
+
+	<value name="TFMT4_32_32_FLOAT" value="0x38"/>
+	<value name="TFMT4_32_32_UINT"  value="0x39"/>
+	<value name="TFMT4_32_32_SINT"  value="0x3a"/>
+
+	<!-- 96-bit formats -->
+	<value name="TFMT4_32_32_32_FLOAT" value="0x3b"/>
+	<value name="TFMT4_32_32_32_UINT"  value="0x3c"/>
+	<value name="TFMT4_32_32_32_SINT"  value="0x3d"/>
+
+	<!-- 0x3e -->
+
+	<!-- 128-bit formats -->
+	<value name="TFMT4_32_32_32_32_FLOAT" value="0x3f"/>
+	<value name="TFMT4_32_32_32_32_UINT"  value="0x40"/>
+	<value name="TFMT4_32_32_32_32_SINT"  value="0x41"/>
+
+	<!-- 0x42 .. 0x46 -->
+	<value name="TFMT4_X8Z24_UNORM" value="0x47"/>
+	<!-- 0x48 .. 0x55 -->
+
+	<!-- compressed formats -->
+	<value name="TFMT4_DXT1"                  value="0x56"/>
+	<value name="TFMT4_DXT3"                  value="0x57"/>
+	<value name="TFMT4_DXT5"                  value="0x58"/>
+	<!-- 0x59 -->
+	<value name="TFMT4_RGTC1_UNORM"           value="0x5a"/>
+	<value name="TFMT4_RGTC1_SNORM"           value="0x5b"/>
+	<!-- 0x5c .. 0x5d -->
+	<value name="TFMT4_RGTC2_UNORM"           value="0x5e"/>
+	<value name="TFMT4_RGTC2_SNORM"           value="0x5f"/>
+	<!-- 0x60 -->
+	<value name="TFMT4_BPTC_UFLOAT"           value="0x61"/>
+	<value name="TFMT4_BPTC_FLOAT"            value="0x62"/>
+	<value name="TFMT4_BPTC"                  value="0x63"/>
+	<value name="TFMT4_ATC_RGB"               value="0x64"/>
+	<value name="TFMT4_ATC_RGBA_EXPLICIT"     value="0x65"/>
+	<value name="TFMT4_ATC_RGBA_INTERPOLATED" value="0x66"/>
+	<value name="TFMT4_ETC2_RG11_UNORM"       value="0x67"/>
+	<value name="TFMT4_ETC2_RG11_SNORM"       value="0x68"/>
+	<value name="TFMT4_ETC2_R11_UNORM"        value="0x69"/>
+	<value name="TFMT4_ETC2_R11_SNORM"        value="0x6a"/>
+	<value name="TFMT4_ETC1"                  value="0x6b"/>
+	<value name="TFMT4_ETC2_RGB8"             value="0x6c"/>
+	<value name="TFMT4_ETC2_RGBA8"            value="0x6d"/>
+	<value name="TFMT4_ETC2_RGB8A1"           value="0x6e"/>
+	<value name="TFMT4_ASTC_4x4"              value="0x6f"/>
+	<value name="TFMT4_ASTC_5x4"              value="0x70"/>
+	<value name="TFMT4_ASTC_5x5"              value="0x71"/>
+	<value name="TFMT4_ASTC_6x5"              value="0x72"/>
+	<value name="TFMT4_ASTC_6x6"              value="0x73"/>
+	<value name="TFMT4_ASTC_8x5"              value="0x74"/>
+	<value name="TFMT4_ASTC_8x6"              value="0x75"/>
+	<value name="TFMT4_ASTC_8x8"              value="0x76"/>
+	<value name="TFMT4_ASTC_10x5"             value="0x77"/>
+	<value name="TFMT4_ASTC_10x6"             value="0x78"/>
+	<value name="TFMT4_ASTC_10x8"             value="0x79"/>
+	<value name="TFMT4_ASTC_10x10"            value="0x7a"/>
+	<value name="TFMT4_ASTC_12x10"            value="0x7b"/>
+	<value name="TFMT4_ASTC_12x12"            value="0x7c"/>
+	<!-- 0x7d .. 0x7f -->
+
+	<value name="TFMT4_NONE"                  value="0xff"/>
+</enum>
+
+<enum name="a4xx_depth_format">
+	<value name="DEPTH4_NONE" value="0"/>
+	<value name="DEPTH4_16" value="1"/>
+	<value name="DEPTH4_24_8" value="2"/>
+	<value name="DEPTH4_32" value="3"/>
+</enum>
+
+<!--
+NOTE counters extracted from test-perf log with the following awful
+script:
+##################
+#!/bin/bash
+
+log=$1
+
+grep -F "counter
+countable
+group" $log | grep -v gl > shortlist.txt
+
+countable=""
+IFS=$'\n'; for line in $(cat shortlist.txt); do
+	# parse ######### group[$n]: $name
+	l=${line########### group}
+	if [ $l != $line ];  then
+		group=`echo $line | awk '{print $3}'`
+		echo "Group: $group"
+		continue
+	fi
+	# parse #########   counter[$n]: $name
+	l=${line###########   counter}
+	if [ $l != $line ]; then
+		countable=`echo $line | awk '{print $3}'`
+		#echo "  Countable: $countable"
+		continue
+	fi
+	# parse 		countable:
+	l=${line##		countable:}
+	if [ $l != $line ]; then
+		val=`echo $line | awk '{print $2}'`
+		echo "<value value=\"$val\" name=\"$countable\"/>"
+	fi
+
+done
+##################
+ -->
+<enum name="a4xx_ccu_perfcounter_select">
+	<value value="0" name="CCU_BUSY_CYCLES"/>
+	<value value="2" name="CCU_RB_DEPTH_RETURN_STALL"/>
+	<value value="3" name="CCU_RB_COLOR_RETURN_STALL"/>
+	<value value="6" name="CCU_DEPTH_BLOCKS"/>
+	<value value="7" name="CCU_COLOR_BLOCKS"/>
+	<value value="8" name="CCU_DEPTH_BLOCK_HIT"/>
+	<value value="9" name="CCU_COLOR_BLOCK_HIT"/>
+	<value value="10" name="CCU_DEPTH_FLAG1_COUNT"/>
+	<value value="11" name="CCU_DEPTH_FLAG2_COUNT"/>
+	<value value="12" name="CCU_DEPTH_FLAG3_COUNT"/>
+	<value value="13" name="CCU_DEPTH_FLAG4_COUNT"/>
+	<value value="14" name="CCU_COLOR_FLAG1_COUNT"/>
+	<value value="15" name="CCU_COLOR_FLAG2_COUNT"/>
+	<value value="16" name="CCU_COLOR_FLAG3_COUNT"/>
+	<value value="17" name="CCU_COLOR_FLAG4_COUNT"/>
+	<value value="18" name="CCU_PARTIAL_BLOCK_READ"/>
+</enum>
+
+<!--
+NOTE other than CP_ALWAYS_COUNT (which is the only one we use so far),
+on a3xx the countable #'s from AMD_performance_monitor disagreed with
+TRM.  All these #'s for a4xx come from AMD_performance_monitor, so
+perhaps they should be taken with a grain of salt
+-->
+<enum name="a4xx_cp_perfcounter_select">
+	<!-- first ctr at least seems same as a3xx, so we can measure freq -->
+	<value value="0" name="CP_ALWAYS_COUNT"/>
+	<value value="1" name="CP_BUSY"/>
+	<value value="2" name="CP_PFP_IDLE"/>
+	<value value="3" name="CP_PFP_BUSY_WORKING"/>
+	<value value="4" name="CP_PFP_STALL_CYCLES_ANY"/>
+	<value value="5" name="CP_PFP_STARVE_CYCLES_ANY"/>
+	<value value="6" name="CP_PFP_STARVED_PER_LOAD_ADDR"/>
+	<value value="7" name="CP_PFP_STALLED_PER_STORE_ADDR"/>
+	<value value="8" name="CP_PFP_PC_PROFILE"/>
+	<value value="9" name="CP_PFP_MATCH_PM4_PKT_PROFILE"/>
+	<value value="10" name="CP_PFP_COND_INDIRECT_DISCARDED"/>
+	<value value="11" name="CP_LONG_RESUMPTIONS"/>
+	<value value="12" name="CP_RESUME_CYCLES"/>
+	<value value="13" name="CP_RESUME_TO_BOUNDARY_CYCLES"/>
+	<value value="14" name="CP_LONG_PREEMPTIONS"/>
+	<value value="15" name="CP_PREEMPT_CYCLES"/>
+	<value value="16" name="CP_PREEMPT_TO_BOUNDARY_CYCLES"/>
+	<value value="17" name="CP_ME_FIFO_EMPTY_PFP_IDLE"/>
+	<value value="18" name="CP_ME_FIFO_EMPTY_PFP_BUSY"/>
+	<value value="19" name="CP_ME_FIFO_NOT_EMPTY_NOT_FULL"/>
+	<value value="20" name="CP_ME_FIFO_FULL_ME_BUSY"/>
+	<value value="21" name="CP_ME_FIFO_FULL_ME_NON_WORKING"/>
+	<value value="22" name="CP_ME_WAITING_FOR_PACKETS"/>
+	<value value="23" name="CP_ME_BUSY_WORKING"/>
+	<value value="24" name="CP_ME_STARVE_CYCLES_ANY"/>
+	<value value="25" name="CP_ME_STARVE_CYCLES_PER_PROFILE"/>
+	<value value="26" name="CP_ME_STALL_CYCLES_PER_PROFILE"/>
+	<value value="27" name="CP_ME_PC_PROFILE"/>
+	<value value="28" name="CP_RCIU_FIFO_EMPTY"/>
+	<value value="29" name="CP_RCIU_FIFO_NOT_EMPTY_NOT_FULL"/>
+	<value value="30" name="CP_RCIU_FIFO_FULL"/>
+	<value value="31" name="CP_RCIU_FIFO_FULL_NO_CONTEXT"/>
+	<value value="32" name="CP_RCIU_FIFO_FULL_AHB_MASTER"/>
+	<value value="33" name="CP_RCIU_FIFO_FULL_OTHER"/>
+	<value value="34" name="CP_AHB_IDLE"/>
+	<value value="35" name="CP_AHB_STALL_ON_GRANT_NO_SPLIT"/>
+	<value value="36" name="CP_AHB_STALL_ON_GRANT_SPLIT"/>
+	<value value="37" name="CP_AHB_STALL_ON_GRANT_SPLIT_PROFILE"/>
+	<value value="38" name="CP_AHB_BUSY_WORKING"/>
+	<value value="39" name="CP_AHB_BUSY_STALL_ON_HRDY"/>
+	<value value="40" name="CP_AHB_BUSY_STALL_ON_HRDY_PROFILE"/>
+</enum>
+
+<enum name="a4xx_gras_ras_perfcounter_select">
+	<value value="0" name="RAS_SUPER_TILES"/>
+	<value value="1" name="RAS_8X8_TILES"/>
+	<value value="2" name="RAS_4X4_TILES"/>
+	<value value="3" name="RAS_BUSY_CYCLES"/>
+	<value value="4" name="RAS_STALL_CYCLES_BY_RB"/>
+	<value value="5" name="RAS_STALL_CYCLES_BY_VSC"/>
+	<value value="6" name="RAS_STARVE_CYCLES_BY_TSE"/>
+	<value value="7" name="RAS_SUPERTILE_CYCLES"/>
+	<value value="8" name="RAS_TILE_CYCLES"/>
+	<value value="9" name="RAS_FULLY_COVERED_SUPER_TILES"/>
+	<value value="10" name="RAS_FULLY_COVERED_8X8_TILES"/>
+	<value value="11" name="RAS_4X4_PRIM"/>
+	<value value="12" name="RAS_8X4_4X8_PRIM"/>
+	<value value="13" name="RAS_8X8_PRIM"/>
+</enum>
+
+<enum name="a4xx_gras_tse_perfcounter_select">
+	<value value="0" name="TSE_INPUT_PRIM"/>
+	<value value="1" name="TSE_INPUT_NULL_PRIM"/>
+	<value value="2" name="TSE_TRIVAL_REJ_PRIM"/>
+	<value value="3" name="TSE_CLIPPED_PRIM"/>
+	<value value="4" name="TSE_NEW_PRIM"/>
+	<value value="5" name="TSE_ZERO_AREA_PRIM"/>
+	<value value="6" name="TSE_FACENESS_CULLED_PRIM"/>
+	<value value="7" name="TSE_ZERO_PIXEL_PRIM"/>
+	<value value="8" name="TSE_OUTPUT_NULL_PRIM"/>
+	<value value="9" name="TSE_OUTPUT_VISIBLE_PRIM"/>
+	<value value="10" name="TSE_PRE_CLIP_PRIM"/>
+	<value value="11" name="TSE_POST_CLIP_PRIM"/>
+	<value value="12" name="TSE_BUSY_CYCLES"/>
+	<value value="13" name="TSE_PC_STARVE"/>
+	<value value="14" name="TSE_RAS_STALL"/>
+	<value value="15" name="TSE_STALL_BARYPLANE_FIFO_FULL"/>
+	<value value="16" name="TSE_STALL_ZPLANE_FIFO_FULL"/>
+</enum>
+
+<enum name="a4xx_hlsq_perfcounter_select">
+	<value value="0" name="HLSQ_SP_VS_STAGE_CONSTANT"/>
+	<value value="1" name="HLSQ_SP_VS_STAGE_INSTRUCTIONS"/>
+	<value value="2" name="HLSQ_SP_FS_STAGE_CONSTANT"/>
+	<value value="3" name="HLSQ_SP_FS_STAGE_INSTRUCTIONS"/>
+	<value value="4" name="HLSQ_TP_STATE"/>
+	<value value="5" name="HLSQ_QUADS"/>
+	<value value="6" name="HLSQ_PIXELS"/>
+	<value value="7" name="HLSQ_VERTICES"/>
+	<value value="13" name="HLSQ_SP_VS_STAGE_DATA_BYTES"/>
+	<value value="14" name="HLSQ_SP_FS_STAGE_DATA_BYTES"/>
+	<value value="15" name="HLSQ_BUSY_CYCLES"/>
+	<value value="16" name="HLSQ_STALL_CYCLES_SP_STATE"/>
+	<value value="17" name="HLSQ_STALL_CYCLES_SP_VS_STAGE"/>
+	<value value="18" name="HLSQ_STALL_CYCLES_SP_FS_STAGE"/>
+	<value value="19" name="HLSQ_STALL_CYCLES_UCHE"/>
+	<value value="20" name="HLSQ_RBBM_LOAD_CYCLES"/>
+	<value value="21" name="HLSQ_DI_TO_VS_START_SP"/>
+	<value value="22" name="HLSQ_DI_TO_FS_START_SP"/>
+	<value value="23" name="HLSQ_VS_STAGE_START_TO_DONE_SP"/>
+	<value value="24" name="HLSQ_FS_STAGE_START_TO_DONE_SP"/>
+	<value value="25" name="HLSQ_SP_STATE_COPY_CYCLES_VS_STAGE"/>
+	<value value="26" name="HLSQ_SP_STATE_COPY_CYCLES_FS_STAGE"/>
+	<value value="27" name="HLSQ_UCHE_LATENCY_CYCLES"/>
+	<value value="28" name="HLSQ_UCHE_LATENCY_COUNT"/>
+	<value value="29" name="HLSQ_STARVE_CYCLES_VFD"/>
+</enum>
+
+<enum name="a4xx_pc_perfcounter_select">
+	<value value="0" name="PC_VIS_STREAMS_LOADED"/>
+	<value value="2" name="PC_VPC_PRIMITIVES"/>
+	<value value="3" name="PC_DEAD_PRIM"/>
+	<value value="4" name="PC_LIVE_PRIM"/>
+	<value value="5" name="PC_DEAD_DRAWCALLS"/>
+	<value value="6" name="PC_LIVE_DRAWCALLS"/>
+	<value value="7" name="PC_VERTEX_MISSES"/>
+	<value value="9" name="PC_STALL_CYCLES_VFD"/>
+	<value value="10" name="PC_STALL_CYCLES_TSE"/>
+	<value value="11" name="PC_STALL_CYCLES_UCHE"/>
+	<value value="12" name="PC_WORKING_CYCLES"/>
+	<value value="13" name="PC_IA_VERTICES"/>
+	<value value="14" name="PC_GS_PRIMITIVES"/>
+	<value value="15" name="PC_HS_INVOCATIONS"/>
+	<value value="16" name="PC_DS_INVOCATIONS"/>
+	<value value="17" name="PC_DS_PRIMITIVES"/>
+	<value value="20" name="PC_STARVE_CYCLES_FOR_INDEX"/>
+	<value value="21" name="PC_STARVE_CYCLES_FOR_TESS_FACTOR"/>
+	<value value="22" name="PC_STARVE_CYCLES_FOR_VIZ_STREAM"/>
+	<value value="23" name="PC_STALL_CYCLES_TESS"/>
+	<value value="24" name="PC_STARVE_CYCLES_FOR_POSITION"/>
+	<value value="25" name="PC_MODE0_DRAWCALL"/>
+	<value value="26" name="PC_MODE1_DRAWCALL"/>
+	<value value="27" name="PC_MODE2_DRAWCALL"/>
+	<value value="28" name="PC_MODE3_DRAWCALL"/>
+	<value value="29" name="PC_MODE4_DRAWCALL"/>
+	<value value="30" name="PC_PREDICATED_DEAD_DRAWCALL"/>
+	<value value="31" name="PC_STALL_CYCLES_BY_TSE_ONLY"/>
+	<value value="32" name="PC_STALL_CYCLES_BY_VPC_ONLY"/>
+	<value value="33" name="PC_VPC_POS_DATA_TRANSACTION"/>
+	<value value="34" name="PC_BUSY_CYCLES"/>
+	<value value="35" name="PC_STARVE_CYCLES_DI"/>
+	<value value="36" name="PC_STALL_CYCLES_VPC"/>
+	<value value="37" name="TESS_WORKING_CYCLES"/>
+	<value value="38" name="TESS_NUM_CYCLES_SETUP_WORKING"/>
+	<value value="39" name="TESS_NUM_CYCLES_PTGEN_WORKING"/>
+	<value value="40" name="TESS_NUM_CYCLES_CONNGEN_WORKING"/>
+	<value value="41" name="TESS_BUSY_CYCLES"/>
+	<value value="42" name="TESS_STARVE_CYCLES_PC"/>
+	<value value="43" name="TESS_STALL_CYCLES_PC"/>
+</enum>
+
+<enum name="a4xx_pwr_perfcounter_select">
+	<!-- NOTE not actually used.. see RBBM_RBBM_CTL.RESET_PWR_CTR0/1 -->
+	<value value="0" name="PWR_CORE_CLOCK_CYCLES"/>
+	<value value="1" name="PWR_BUSY_CLOCK_CYCLES"/>
+</enum>
+
+<enum name="a4xx_rb_perfcounter_select">
+	<value value="0" name="RB_BUSY_CYCLES"/>
+	<value value="1" name="RB_BUSY_CYCLES_BINNING"/>
+	<value value="2" name="RB_BUSY_CYCLES_RENDERING"/>
+	<value value="3" name="RB_BUSY_CYCLES_RESOLVE"/>
+	<value value="4" name="RB_STARVE_CYCLES_BY_SP"/>
+	<value value="5" name="RB_STARVE_CYCLES_BY_RAS"/>
+	<value value="6" name="RB_STARVE_CYCLES_BY_MARB"/>
+	<value value="7" name="RB_STALL_CYCLES_BY_MARB"/>
+	<value value="8" name="RB_STALL_CYCLES_BY_HLSQ"/>
+	<value value="9" name="RB_RB_RB_MARB_DATA"/>
+	<value value="10" name="RB_SP_RB_QUAD"/>
+	<value value="11" name="RB_RAS_RB_Z_QUADS"/>
+	<value value="12" name="RB_GMEM_CH0_READ"/>
+	<value value="13" name="RB_GMEM_CH1_READ"/>
+	<value value="14" name="RB_GMEM_CH0_WRITE"/>
+	<value value="15" name="RB_GMEM_CH1_WRITE"/>
+	<value value="16" name="RB_CP_CONTEXT_DONE"/>
+	<value value="17" name="RB_CP_CACHE_FLUSH"/>
+	<value value="18" name="RB_CP_ZPASS_DONE"/>
+	<value value="19" name="RB_STALL_FIFO0_FULL"/>
+	<value value="20" name="RB_STALL_FIFO1_FULL"/>
+	<value value="21" name="RB_STALL_FIFO2_FULL"/>
+	<value value="22" name="RB_STALL_FIFO3_FULL"/>
+	<value value="23" name="RB_RB_HLSQ_TRANSACTIONS"/>
+	<value value="24" name="RB_Z_READ"/>
+	<value value="25" name="RB_Z_WRITE"/>
+	<value value="26" name="RB_C_READ"/>
+	<value value="27" name="RB_C_WRITE"/>
+	<value value="28" name="RB_C_READ_LATENCY"/>
+	<value value="29" name="RB_Z_READ_LATENCY"/>
+	<value value="30" name="RB_STALL_BY_UCHE"/>
+	<value value="31" name="RB_MARB_UCHE_TRANSACTIONS"/>
+	<value value="32" name="RB_CACHE_STALL_MISS"/>
+	<value value="33" name="RB_CACHE_STALL_FIFO_FULL"/>
+	<value value="34" name="RB_8BIT_BLENDER_UNITS_ACTIVE"/>
+	<value value="35" name="RB_16BIT_BLENDER_UNITS_ACTIVE"/>
+	<value value="36" name="RB_SAMPLER_UNITS_ACTIVE"/>
+	<value value="38" name="RB_TOTAL_PASS"/>
+	<value value="39" name="RB_Z_PASS"/>
+	<value value="40" name="RB_Z_FAIL"/>
+	<value value="41" name="RB_S_FAIL"/>
+	<value value="42" name="RB_POWER0"/>
+	<value value="43" name="RB_POWER1"/>
+	<value value="44" name="RB_POWER2"/>
+	<value value="45" name="RB_POWER3"/>
+	<value value="46" name="RB_POWER4"/>
+	<value value="47" name="RB_POWER5"/>
+	<value value="48" name="RB_POWER6"/>
+	<value value="49" name="RB_POWER7"/>
+</enum>
+
+<enum name="a4xx_rbbm_perfcounter_select">
+	<value value="0" name="RBBM_ALWAYS_ON"/>
+	<value value="1" name="RBBM_VBIF_BUSY"/>
+	<value value="2" name="RBBM_TSE_BUSY"/>
+	<value value="3" name="RBBM_RAS_BUSY"/>
+	<value value="4" name="RBBM_PC_DCALL_BUSY"/>
+	<value value="5" name="RBBM_PC_VSD_BUSY"/>
+	<value value="6" name="RBBM_VFD_BUSY"/>
+	<value value="7" name="RBBM_VPC_BUSY"/>
+	<value value="8" name="RBBM_UCHE_BUSY"/>
+	<value value="9" name="RBBM_VSC_BUSY"/>
+	<value value="10" name="RBBM_HLSQ_BUSY"/>
+	<value value="11" name="RBBM_ANY_RB_BUSY"/>
+	<value value="12" name="RBBM_ANY_TPL1_BUSY"/>
+	<value value="13" name="RBBM_ANY_SP_BUSY"/>
+	<value value="14" name="RBBM_ANY_MARB_BUSY"/>
+	<value value="15" name="RBBM_ANY_ARB_BUSY"/>
+	<value value="16" name="RBBM_AHB_STATUS_BUSY"/>
+	<value value="17" name="RBBM_AHB_STATUS_STALLED"/>
+	<value value="18" name="RBBM_AHB_STATUS_TXFR"/>
+	<value value="19" name="RBBM_AHB_STATUS_TXFR_SPLIT"/>
+	<value value="20" name="RBBM_AHB_STATUS_TXFR_ERROR"/>
+	<value value="21" name="RBBM_AHB_STATUS_LONG_STALL"/>
+	<value value="22" name="RBBM_STATUS_MASKED"/>
+	<value value="23" name="RBBM_CP_BUSY_GFX_CORE_IDLE"/>
+	<value value="24" name="RBBM_TESS_BUSY"/>
+	<value value="25" name="RBBM_COM_BUSY"/>
+	<value value="32" name="RBBM_DCOM_BUSY"/>
+	<value value="33" name="RBBM_ANY_CCU_BUSY"/>
+	<value value="34" name="RBBM_DPM_BUSY"/>
+</enum>
+
+<enum name="a4xx_sp_perfcounter_select">
+	<value value="0" name="SP_LM_LOAD_INSTRUCTIONS"/>
+	<value value="1" name="SP_LM_STORE_INSTRUCTIONS"/>
+	<value value="2" name="SP_LM_ATOMICS"/>
+	<value value="3" name="SP_GM_LOAD_INSTRUCTIONS"/>
+	<value value="4" name="SP_GM_STORE_INSTRUCTIONS"/>
+	<value value="5" name="SP_GM_ATOMICS"/>
+	<value value="6" name="SP_VS_STAGE_TEX_INSTRUCTIONS"/>
+	<value value="7" name="SP_VS_STAGE_CFLOW_INSTRUCTIONS"/>
+	<value value="8" name="SP_VS_STAGE_EFU_INSTRUCTIONS"/>
+	<value value="9" name="SP_VS_STAGE_FULL_ALU_INSTRUCTIONS"/>
+	<value value="10" name="SP_VS_STAGE_HALF_ALU_INSTRUCTIONS"/>
+	<value value="11" name="SP_FS_STAGE_TEX_INSTRUCTIONS"/>
+	<value value="12" name="SP_FS_STAGE_CFLOW_INSTRUCTIONS"/>
+	<value value="13" name="SP_FS_STAGE_EFU_INSTRUCTIONS"/>
+	<value value="14" name="SP_FS_STAGE_FULL_ALU_INSTRUCTIONS"/>
+	<value value="15" name="SP_FS_STAGE_HALF_ALU_INSTRUCTIONS"/>
+	<value value="17" name="SP_VS_INSTRUCTIONS"/>
+	<value value="18" name="SP_FS_INSTRUCTIONS"/>
+	<value value="19" name="SP_ADDR_LOCK_COUNT"/>
+	<value value="20" name="SP_UCHE_READ_TRANS"/>
+	<value value="21" name="SP_UCHE_WRITE_TRANS"/>
+	<value value="22" name="SP_EXPORT_VPC_TRANS"/>
+	<value value="23" name="SP_EXPORT_RB_TRANS"/>
+	<value value="24" name="SP_PIXELS_KILLED"/>
+	<value value="25" name="SP_ICL1_REQUESTS"/>
+	<value value="26" name="SP_ICL1_MISSES"/>
+	<value value="27" name="SP_ICL0_REQUESTS"/>
+	<value value="28" name="SP_ICL0_MISSES"/>
+	<value value="29" name="SP_ALU_WORKING_CYCLES"/>
+	<value value="30" name="SP_EFU_WORKING_CYCLES"/>
+	<value value="31" name="SP_STALL_CYCLES_BY_VPC"/>
+	<value value="32" name="SP_STALL_CYCLES_BY_TP"/>
+	<value value="33" name="SP_STALL_CYCLES_BY_UCHE"/>
+	<value value="34" name="SP_STALL_CYCLES_BY_RB"/>
+	<value value="35" name="SP_BUSY_CYCLES"/>
+	<value value="36" name="SP_HS_INSTRUCTIONS"/>
+	<value value="37" name="SP_DS_INSTRUCTIONS"/>
+	<value value="38" name="SP_GS_INSTRUCTIONS"/>
+	<value value="39" name="SP_CS_INSTRUCTIONS"/>
+	<value value="40" name="SP_SCHEDULER_NON_WORKING"/>
+	<value value="41" name="SP_WAVE_CONTEXTS"/>
+	<value value="42" name="SP_WAVE_CONTEXT_CYCLES"/>
+	<value value="43" name="SP_POWER0"/>
+	<value value="44" name="SP_POWER1"/>
+	<value value="45" name="SP_POWER2"/>
+	<value value="46" name="SP_POWER3"/>
+	<value value="47" name="SP_POWER4"/>
+	<value value="48" name="SP_POWER5"/>
+	<value value="49" name="SP_POWER6"/>
+	<value value="50" name="SP_POWER7"/>
+	<value value="51" name="SP_POWER8"/>
+	<value value="52" name="SP_POWER9"/>
+	<value value="53" name="SP_POWER10"/>
+	<value value="54" name="SP_POWER11"/>
+	<value value="55" name="SP_POWER12"/>
+	<value value="56" name="SP_POWER13"/>
+	<value value="57" name="SP_POWER14"/>
+	<value value="58" name="SP_POWER15"/>
+</enum>
+
+<enum name="a4xx_tp_perfcounter_select">
+	<value value="0" name="TP_L1_REQUESTS"/>
+	<value value="1" name="TP_L1_MISSES"/>
+	<value value="8" name="TP_QUADS_OFFSET"/>
+	<value value="9" name="TP_QUAD_SHADOW"/>
+	<value value="10" name="TP_QUADS_ARRAY"/>
+	<value value="11" name="TP_QUADS_GRADIENT"/>
+	<value value="12" name="TP_QUADS_1D2D"/>
+	<value value="13" name="TP_QUADS_3DCUBE"/>
+	<value value="16" name="TP_BUSY_CYCLES"/>
+	<value value="17" name="TP_STALL_CYCLES_BY_ARB"/>
+	<value value="20" name="TP_STATE_CACHE_REQUESTS"/>
+	<value value="21" name="TP_STATE_CACHE_MISSES"/>
+	<value value="22" name="TP_POWER0"/>
+	<value value="23" name="TP_POWER1"/>
+	<value value="24" name="TP_POWER2"/>
+	<value value="25" name="TP_POWER3"/>
+	<value value="26" name="TP_POWER4"/>
+	<value value="27" name="TP_POWER5"/>
+	<value value="28" name="TP_POWER6"/>
+	<value value="29" name="TP_POWER7"/>
+</enum>
+
+<enum name="a4xx_uche_perfcounter_select">
+	<value value="0" name="UCHE_VBIF_READ_BEATS_TP"/>
+	<value value="1" name="UCHE_VBIF_READ_BEATS_VFD"/>
+	<value value="2" name="UCHE_VBIF_READ_BEATS_HLSQ"/>
+	<value value="3" name="UCHE_VBIF_READ_BEATS_MARB"/>
+	<value value="4" name="UCHE_VBIF_READ_BEATS_SP"/>
+	<value value="5" name="UCHE_READ_REQUESTS_TP"/>
+	<value value="6" name="UCHE_READ_REQUESTS_VFD"/>
+	<value value="7" name="UCHE_READ_REQUESTS_HLSQ"/>
+	<value value="8" name="UCHE_READ_REQUESTS_MARB"/>
+	<value value="9" name="UCHE_READ_REQUESTS_SP"/>
+	<value value="10" name="UCHE_WRITE_REQUESTS_MARB"/>
+	<value value="11" name="UCHE_WRITE_REQUESTS_SP"/>
+	<value value="12" name="UCHE_TAG_CHECK_FAILS"/>
+	<value value="13" name="UCHE_EVICTS"/>
+	<value value="14" name="UCHE_FLUSHES"/>
+	<value value="15" name="UCHE_VBIF_LATENCY_CYCLES"/>
+	<value value="16" name="UCHE_VBIF_LATENCY_SAMPLES"/>
+	<value value="17" name="UCHE_BUSY_CYCLES"/>
+	<value value="18" name="UCHE_VBIF_READ_BEATS_PC"/>
+	<value value="19" name="UCHE_READ_REQUESTS_PC"/>
+	<value value="20" name="UCHE_WRITE_REQUESTS_VPC"/>
+	<value value="21" name="UCHE_STALL_BY_VBIF"/>
+	<value value="22" name="UCHE_WRITE_REQUESTS_VSC"/>
+	<value value="23" name="UCHE_POWER0"/>
+	<value value="24" name="UCHE_POWER1"/>
+	<value value="25" name="UCHE_POWER2"/>
+	<value value="26" name="UCHE_POWER3"/>
+	<value value="27" name="UCHE_POWER4"/>
+	<value value="28" name="UCHE_POWER5"/>
+	<value value="29" name="UCHE_POWER6"/>
+	<value value="30" name="UCHE_POWER7"/>
+</enum>
+
+<enum name="a4xx_vbif_perfcounter_select">
+	<value value="0" name="AXI_READ_REQUESTS_ID_0"/>
+	<value value="1" name="AXI_READ_REQUESTS_ID_1"/>
+	<value value="2" name="AXI_READ_REQUESTS_ID_2"/>
+	<value value="3" name="AXI_READ_REQUESTS_ID_3"/>
+	<value value="4" name="AXI_READ_REQUESTS_ID_4"/>
+	<value value="5" name="AXI_READ_REQUESTS_ID_5"/>
+	<value value="6" name="AXI_READ_REQUESTS_ID_6"/>
+	<value value="7" name="AXI_READ_REQUESTS_ID_7"/>
+	<value value="8" name="AXI_READ_REQUESTS_ID_8"/>
+	<value value="9" name="AXI_READ_REQUESTS_ID_9"/>
+	<value value="10" name="AXI_READ_REQUESTS_ID_10"/>
+	<value value="11" name="AXI_READ_REQUESTS_ID_11"/>
+	<value value="12" name="AXI_READ_REQUESTS_ID_12"/>
+	<value value="13" name="AXI_READ_REQUESTS_ID_13"/>
+	<value value="14" name="AXI_READ_REQUESTS_ID_14"/>
+	<value value="15" name="AXI_READ_REQUESTS_ID_15"/>
+	<value value="16" name="AXI0_READ_REQUESTS_TOTAL"/>
+	<value value="17" name="AXI1_READ_REQUESTS_TOTAL"/>
+	<value value="18" name="AXI2_READ_REQUESTS_TOTAL"/>
+	<value value="19" name="AXI3_READ_REQUESTS_TOTAL"/>
+	<value value="20" name="AXI_READ_REQUESTS_TOTAL"/>
+	<value value="21" name="AXI_WRITE_REQUESTS_ID_0"/>
+	<value value="22" name="AXI_WRITE_REQUESTS_ID_1"/>
+	<value value="23" name="AXI_WRITE_REQUESTS_ID_2"/>
+	<value value="24" name="AXI_WRITE_REQUESTS_ID_3"/>
+	<value value="25" name="AXI_WRITE_REQUESTS_ID_4"/>
+	<value value="26" name="AXI_WRITE_REQUESTS_ID_5"/>
+	<value value="27" name="AXI_WRITE_REQUESTS_ID_6"/>
+	<value value="28" name="AXI_WRITE_REQUESTS_ID_7"/>
+	<value value="29" name="AXI_WRITE_REQUESTS_ID_8"/>
+	<value value="30" name="AXI_WRITE_REQUESTS_ID_9"/>
+	<value value="31" name="AXI_WRITE_REQUESTS_ID_10"/>
+	<value value="32" name="AXI_WRITE_REQUESTS_ID_11"/>
+	<value value="33" name="AXI_WRITE_REQUESTS_ID_12"/>
+	<value value="34" name="AXI_WRITE_REQUESTS_ID_13"/>
+	<value value="35" name="AXI_WRITE_REQUESTS_ID_14"/>
+	<value value="36" name="AXI_WRITE_REQUESTS_ID_15"/>
+	<value value="37" name="AXI0_WRITE_REQUESTS_TOTAL"/>
+	<value value="38" name="AXI1_WRITE_REQUESTS_TOTAL"/>
+	<value value="39" name="AXI2_WRITE_REQUESTS_TOTAL"/>
+	<value value="40" name="AXI3_WRITE_REQUESTS_TOTAL"/>
+	<value value="41" name="AXI_WRITE_REQUESTS_TOTAL"/>
+	<value value="42" name="AXI_TOTAL_REQUESTS"/>
+	<value value="43" name="AXI_READ_DATA_BEATS_ID_0"/>
+	<value value="44" name="AXI_READ_DATA_BEATS_ID_1"/>
+	<value value="45" name="AXI_READ_DATA_BEATS_ID_2"/>
+	<value value="46" name="AXI_READ_DATA_BEATS_ID_3"/>
+	<value value="47" name="AXI_READ_DATA_BEATS_ID_4"/>
+	<value value="48" name="AXI_READ_DATA_BEATS_ID_5"/>
+	<value value="49" name="AXI_READ_DATA_BEATS_ID_6"/>
+	<value value="50" name="AXI_READ_DATA_BEATS_ID_7"/>
+	<value value="51" name="AXI_READ_DATA_BEATS_ID_8"/>
+	<value value="52" name="AXI_READ_DATA_BEATS_ID_9"/>
+	<value value="53" name="AXI_READ_DATA_BEATS_ID_10"/>
+	<value value="54" name="AXI_READ_DATA_BEATS_ID_11"/>
+	<value value="55" name="AXI_READ_DATA_BEATS_ID_12"/>
+	<value value="56" name="AXI_READ_DATA_BEATS_ID_13"/>
+	<value value="57" name="AXI_READ_DATA_BEATS_ID_14"/>
+	<value value="58" name="AXI_READ_DATA_BEATS_ID_15"/>
+	<value value="59" name="AXI0_READ_DATA_BEATS_TOTAL"/>
+	<value value="60" name="AXI1_READ_DATA_BEATS_TOTAL"/>
+	<value value="61" name="AXI2_READ_DATA_BEATS_TOTAL"/>
+	<value value="62" name="AXI3_READ_DATA_BEATS_TOTAL"/>
+	<value value="63" name="AXI_READ_DATA_BEATS_TOTAL"/>
+	<value value="64" name="AXI_WRITE_DATA_BEATS_ID_0"/>
+	<value value="65" name="AXI_WRITE_DATA_BEATS_ID_1"/>
+	<value value="66" name="AXI_WRITE_DATA_BEATS_ID_2"/>
+	<value value="67" name="AXI_WRITE_DATA_BEATS_ID_3"/>
+	<value value="68" name="AXI_WRITE_DATA_BEATS_ID_4"/>
+	<value value="69" name="AXI_WRITE_DATA_BEATS_ID_5"/>
+	<value value="70" name="AXI_WRITE_DATA_BEATS_ID_6"/>
+	<value value="71" name="AXI_WRITE_DATA_BEATS_ID_7"/>
+	<value value="72" name="AXI_WRITE_DATA_BEATS_ID_8"/>
+	<value value="73" name="AXI_WRITE_DATA_BEATS_ID_9"/>
+	<value value="74" name="AXI_WRITE_DATA_BEATS_ID_10"/>
+	<value value="75" name="AXI_WRITE_DATA_BEATS_ID_11"/>
+	<value value="76" name="AXI_WRITE_DATA_BEATS_ID_12"/>
+	<value value="77" name="AXI_WRITE_DATA_BEATS_ID_13"/>
+	<value value="78" name="AXI_WRITE_DATA_BEATS_ID_14"/>
+	<value value="79" name="AXI_WRITE_DATA_BEATS_ID_15"/>
+	<value value="80" name="AXI0_WRITE_DATA_BEATS_TOTAL"/>
+	<value value="81" name="AXI1_WRITE_DATA_BEATS_TOTAL"/>
+	<value value="82" name="AXI2_WRITE_DATA_BEATS_TOTAL"/>
+	<value value="83" name="AXI3_WRITE_DATA_BEATS_TOTAL"/>
+	<value value="84" name="AXI_WRITE_DATA_BEATS_TOTAL"/>
+	<value value="85" name="AXI_DATA_BEATS_TOTAL"/>
+	<value value="86" name="CYCLES_HELD_OFF_ID_0"/>
+	<value value="87" name="CYCLES_HELD_OFF_ID_1"/>
+	<value value="88" name="CYCLES_HELD_OFF_ID_2"/>
+	<value value="89" name="CYCLES_HELD_OFF_ID_3"/>
+	<value value="90" name="CYCLES_HELD_OFF_ID_4"/>
+	<value value="91" name="CYCLES_HELD_OFF_ID_5"/>
+	<value value="92" name="CYCLES_HELD_OFF_ID_6"/>
+	<value value="93" name="CYCLES_HELD_OFF_ID_7"/>
+	<value value="94" name="CYCLES_HELD_OFF_ID_8"/>
+	<value value="95" name="CYCLES_HELD_OFF_ID_9"/>
+	<value value="96" name="CYCLES_HELD_OFF_ID_10"/>
+	<value value="97" name="CYCLES_HELD_OFF_ID_11"/>
+	<value value="98" name="CYCLES_HELD_OFF_ID_12"/>
+	<value value="99" name="CYCLES_HELD_OFF_ID_13"/>
+	<value value="100" name="CYCLES_HELD_OFF_ID_14"/>
+	<value value="101" name="CYCLES_HELD_OFF_ID_15"/>
+	<value value="102" name="AXI_READ_REQUEST_HELD_OFF"/>
+	<value value="103" name="AXI_WRITE_REQUEST_HELD_OFF"/>
+	<value value="104" name="AXI_REQUEST_HELD_OFF"/>
+	<value value="105" name="AXI_WRITE_DATA_HELD_OFF"/>
+	<value value="106" name="OCMEM_AXI_READ_REQUEST_HELD_OFF"/>
+	<value value="107" name="OCMEM_AXI_WRITE_REQUEST_HELD_OFF"/>
+	<value value="108" name="OCMEM_AXI_REQUEST_HELD_OFF"/>
+	<value value="109" name="OCMEM_AXI_WRITE_DATA_HELD_OFF"/>
+	<value value="110" name="ELAPSED_CYCLES_DDR"/>
+	<value value="111" name="ELAPSED_CYCLES_OCMEM"/>
+</enum>
+
+<enum name="a4xx_vfd_perfcounter_select">
+	<value value="0" name="VFD_UCHE_BYTE_FETCHED"/>
+	<value value="1" name="VFD_UCHE_TRANS"/>
+	<value value="3" name="VFD_FETCH_INSTRUCTIONS"/>
+	<value value="5" name="VFD_BUSY_CYCLES"/>
+	<value value="6" name="VFD_STALL_CYCLES_UCHE"/>
+	<value value="7" name="VFD_STALL_CYCLES_HLSQ"/>
+	<value value="8" name="VFD_STALL_CYCLES_VPC_BYPASS"/>
+	<value value="9" name="VFD_STALL_CYCLES_VPC_ALLOC"/>
+	<value value="13" name="VFD_MODE_0_FIBERS"/>
+	<value value="14" name="VFD_MODE_1_FIBERS"/>
+	<value value="15" name="VFD_MODE_2_FIBERS"/>
+	<value value="16" name="VFD_MODE_3_FIBERS"/>
+	<value value="17" name="VFD_MODE_4_FIBERS"/>
+	<value value="18" name="VFD_BFIFO_STALL"/>
+	<value value="19" name="VFD_NUM_VERTICES_TOTAL"/>
+	<value value="20" name="VFD_PACKER_FULL"/>
+	<value value="21" name="VFD_UCHE_REQUEST_FIFO_FULL"/>
+	<value value="22" name="VFD_STARVE_CYCLES_PC"/>
+	<value value="23" name="VFD_STARVE_CYCLES_UCHE"/>
+</enum>
+
+<enum name="a4xx_vpc_perfcounter_select">
+	<value value="2" name="VPC_SP_LM_COMPONENTS"/>
+	<value value="3" name="VPC_SP0_LM_BYTES"/>
+	<value value="4" name="VPC_SP1_LM_BYTES"/>
+	<value value="5" name="VPC_SP2_LM_BYTES"/>
+	<value value="6" name="VPC_SP3_LM_BYTES"/>
+	<value value="7" name="VPC_WORKING_CYCLES"/>
+	<value value="8" name="VPC_STALL_CYCLES_LM"/>
+	<value value="9" name="VPC_STARVE_CYCLES_RAS"/>
+	<value value="10" name="VPC_STREAMOUT_CYCLES"/>
+	<value value="12" name="VPC_UCHE_TRANSACTIONS"/>
+	<value value="13" name="VPC_STALL_CYCLES_UCHE"/>
+	<value value="14" name="VPC_BUSY_CYCLES"/>
+	<value value="15" name="VPC_STARVE_CYCLES_SP"/>
+</enum>
+
+<enum name="a4xx_vsc_perfcounter_select">
+	<value value="0" name="VSC_BUSY_CYCLES"/>
+	<value value="1" name="VSC_WORKING_CYCLES"/>
+	<value value="2" name="VSC_STALL_CYCLES_UCHE"/>
+	<value value="3" name="VSC_STARVE_CYCLES_RAS"/>
+	<value value="4" name="VSC_EOT_NUM"/>
+</enum>
+
+<domain name="A4XX" width="32">
+	<!-- RB registers -->
+	<reg32 offset="0x0cc0" name="RB_GMEM_BASE_ADDR"/>
+	<reg32 offset="0x0cc7" name="RB_PERFCTR_RB_SEL_0" type="a4xx_rb_perfcounter_select"/>
+	<reg32 offset="0x0cc8" name="RB_PERFCTR_RB_SEL_1" type="a4xx_rb_perfcounter_select"/>
+	<reg32 offset="0x0cc9" name="RB_PERFCTR_RB_SEL_2" type="a4xx_rb_perfcounter_select"/>
+	<reg32 offset="0x0cca" name="RB_PERFCTR_RB_SEL_3" type="a4xx_rb_perfcounter_select"/>
+	<reg32 offset="0x0ccb" name="RB_PERFCTR_RB_SEL_4" type="a4xx_rb_perfcounter_select"/>
+	<reg32 offset="0x0ccc" name="RB_PERFCTR_RB_SEL_5" type="a4xx_rb_perfcounter_select"/>
+	<reg32 offset="0x0ccd" name="RB_PERFCTR_RB_SEL_6" type="a4xx_rb_perfcounter_select"/>
+	<reg32 offset="0x0cce" name="RB_PERFCTR_RB_SEL_7" type="a4xx_rb_perfcounter_select"/>
+	<reg32 offset="0x0ccf" name="RB_PERFCTR_CCU_SEL_0" type="a4xx_ccu_perfcounter_select"/>
+	<reg32 offset="0x0cd0" name="RB_PERFCTR_CCU_SEL_1" type="a4xx_ccu_perfcounter_select"/>
+	<reg32 offset="0x0cd1" name="RB_PERFCTR_CCU_SEL_2" type="a4xx_ccu_perfcounter_select"/>
+	<reg32 offset="0x0cd2" name="RB_PERFCTR_CCU_SEL_3" type="a4xx_ccu_perfcounter_select"/>
+	<reg32 offset="0x0ce0" name="RB_FRAME_BUFFER_DIMENSION">
+		<bitfield name="WIDTH" low="0" high="13" type="uint"/>
+		<bitfield name="HEIGHT" low="16" high="29" type="uint"/>
+	</reg32>
+	<reg32 offset="0x20cc" name="RB_CLEAR_COLOR_DW0"/>
+	<reg32 offset="0x20cd" name="RB_CLEAR_COLOR_DW1"/>
+	<reg32 offset="0x20ce" name="RB_CLEAR_COLOR_DW2"/>
+	<reg32 offset="0x20cf" name="RB_CLEAR_COLOR_DW3"/>
+	<reg32 offset="0x20a0" name="RB_MODE_CONTROL">
+		<!--
+		for non-bypass mode, these are bin width/height..  although
+		possibly bigger bitfields to hold entire width/height for
+		gmem-bypass??  Either way, it appears to need to be multiple
+		of 32..
+		-->
+		<bitfield name="WIDTH" low="0" high="5" shr="5" type="uint"/>
+		<bitfield name="HEIGHT" low="8" high="13" shr="5" type="uint"/>
+		<bitfield name="ENABLE_GMEM" pos="16" type="boolean"/>
+	</reg32>
+	<reg32 offset="0x20a1" name="RB_RENDER_CONTROL">
+		<bitfield name="BINNING_PASS" pos="0" type="boolean"/>
+		<!-- nearly everything has bit3 set.. -->
+		<!-- bit5 set on resolve and tiling pass -->
+		<bitfield name="DISABLE_COLOR_PIPE" pos="5" type="boolean"/>
+	</reg32>
+	<reg32 offset="0x20a2" name="RB_MSAA_CONTROL">
+		<bitfield name="DISABLE" pos="12" type="boolean"/>
+		<bitfield name="SAMPLES" low="13" high="15" type="uint"/>
+	</reg32>
+	<reg32 offset="0x20a3" name="RB_RENDER_CONTROL2">
+		<bitfield name="COORD_MASK" low="0" high="3" type="hex"/>
+		<bitfield name="SAMPLEMASK" pos="4" type="boolean"/>
+		<bitfield name="FACENESS" pos="5" type="boolean"/>
+		<bitfield name="SAMPLEID" pos="6" type="boolean"/>
+		<bitfield name="MSAA_SAMPLES" low="7" high="9" type="uint"/>
+		<bitfield name="SAMPLEID_HR" pos="11" type="boolean"/>
+		<bitfield name="IJ_PERSP_PIXEL" pos="12" type="boolean"/>
+		<!-- the 2 below are just educated guesses -->
+		<bitfield name="IJ_PERSP_CENTROID" pos="13" type="boolean"/>
+		<bitfield name="IJ_PERSP_SAMPLE" pos="14" type="boolean"/>
+		<!-- needs to be enabled to get nopersp values,
+		     perhaps other cases too? -->
+		<bitfield name="SIZE" pos="15" type="boolean"/>
+	</reg32>
+	<array offset="0x20a4" name="RB_MRT" stride="5" length="8">
+		<reg32 offset="0x0" name="CONTROL">
+			<bitfield name="READ_DEST_ENABLE" pos="3" type="boolean"/>
+			<!-- both these bits seem to get set when enabling GL_BLEND.. -->
+			<bitfield name="BLEND" pos="4" type="boolean"/>
+			<bitfield name="BLEND2" pos="5" type="boolean"/>
+			<bitfield name="ROP_ENABLE" pos="6" type="boolean"/>
+			<bitfield name="ROP_CODE" low="8" high="11" type="a3xx_rop_code"/>
+			<bitfield name="COMPONENT_ENABLE" low="24" high="27" type="hex"/>
+		</reg32>
+		<reg32 offset="0x1" name="BUF_INFO">
+			<bitfield name="COLOR_FORMAT" low="0" high="5" type="a4xx_color_fmt"/>
+			<!--
+			    guestimate position of COLOR_TILE_MODE..  this works out if
+			    common value is 2, like on a3xx..
+			 -->
+			<bitfield name="COLOR_TILE_MODE" low="6" high="7" type="a4xx_tile_mode"/>
+			<bitfield name="DITHER_MODE" low="9" high="10" type="adreno_rb_dither_mode"/>
+			<bitfield name="COLOR_SWAP" low="11" high="12" type="a3xx_color_swap"/>
+			<bitfield name="COLOR_SRGB" pos="13" type="boolean"/>
+			<!-- note: possibly some # of lsb's aren't there: -->
+			<doc>
+				Pitch (actually, appears to be pitch in bytes, so really is a stride)
+				in GMEM, so pitch of the current tile.
+			</doc>
+			<bitfield name="COLOR_BUF_PITCH" low="14" high="31" shr="4" type="uint"/>
+		</reg32>
+		<reg32 offset="0x2" name="BASE"/>
+		<reg32 offset="0x3" name="CONTROL3">
+			<!-- probably missing some lsb's.. and guessing upper size -->
+			<!-- pitch * cpp * msaa: -->
+			<bitfield name="STRIDE" low="3" high="25" type="uint"/>
+		</reg32>
+		<reg32 offset="0x4" name="BLEND_CONTROL">
+			<bitfield name="RGB_SRC_FACTOR" low="0" high="4" type="adreno_rb_blend_factor"/>
+			<bitfield name="RGB_BLEND_OPCODE" low="5" high="7" type="a3xx_rb_blend_opcode"/>
+			<bitfield name="RGB_DEST_FACTOR" low="8" high="12" type="adreno_rb_blend_factor"/>
+			<bitfield name="ALPHA_SRC_FACTOR" low="16" high="20" type="adreno_rb_blend_factor"/>
+			<bitfield name="ALPHA_BLEND_OPCODE" low="21" high="23" type="a3xx_rb_blend_opcode"/>
+			<bitfield name="ALPHA_DEST_FACTOR" low="24" high="28" type="adreno_rb_blend_factor"/>
+		</reg32>
+	</array>
+
+	<reg32 offset="0x20f0" name="RB_BLEND_RED">
+		<bitfield name="UINT" low="0" high="7" type="hex"/>
+		<bitfield name="SINT" low="8" high="15" type="hex"/>
+		<bitfield name="FLOAT" low="16" high="31" type="float"/>
+	</reg32>
+	<reg32 offset="0x20f1" name="RB_BLEND_RED_F32" type="float"/>
+
+	<reg32 offset="0x20f2" name="RB_BLEND_GREEN">
+		<bitfield name="UINT" low="0" high="7" type="hex"/>
+		<bitfield name="SINT" low="8" high="15" type="hex"/>
+		<bitfield name="FLOAT" low="16" high="31" type="float"/>
+	</reg32>
+	<reg32 offset="0x20f3" name="RB_BLEND_GREEN_F32" type="float"/>
+
+	<reg32 offset="0x20f4" name="RB_BLEND_BLUE">
+		<bitfield name="UINT" low="0" high="7" type="hex"/>
+		<bitfield name="SINT" low="8" high="15" type="hex"/>
+		<bitfield name="FLOAT" low="16" high="31" type="float"/>
+	</reg32>
+	<reg32 offset="0x20f5" name="RB_BLEND_BLUE_F32" type="float"/>
+
+	<reg32 offset="0x20f6" name="RB_BLEND_ALPHA">
+		<bitfield name="UINT" low="0" high="7" type="hex"/>
+		<bitfield name="SINT" low="8" high="15" type="hex"/>
+		<bitfield name="FLOAT" low="16" high="31" type="float"/>
+	</reg32>
+	<reg32 offset="0x20f7" name="RB_BLEND_ALPHA_F32" type="float"/>
+
+	<reg32 offset="0x20f8" name="RB_ALPHA_CONTROL">
+		<bitfield name="ALPHA_REF" low="0" high="7" type="hex"/>
+		<bitfield name="ALPHA_TEST" pos="8" type="boolean"/>
+		<bitfield name="ALPHA_TEST_FUNC" low="9" high="11" type="adreno_compare_func"/>
+	</reg32>
+	<reg32 offset="0x20f9" name="RB_FS_OUTPUT">
+		<!-- per-mrt enable bit -->
+		<bitfield name="ENABLE_BLEND" low="0" high="7"/>
+		<bitfield name="INDEPENDENT_BLEND" pos="8" type="boolean"/>
+		<!-- a guess? -->
+		<bitfield name="SAMPLE_MASK" low="16" high="31"/>
+	</reg32>
+	<reg32 offset="0x20fa" name="RB_SAMPLE_COUNT_CONTROL">
+		<bitfield name="COPY" pos="1" type="boolean"/>
+		<bitfield name="ADDR" low="2" high="31" shr="2"/>
+	</reg32>
+	<!-- always 00000000 for binning pass, else 0000000f: -->
+	<reg32 offset="0x20fb" name="RB_RENDER_COMPONENTS">
+		<bitfield name="RT0" low="0" high="3"/>
+		<bitfield name="RT1" low="4" high="7"/>
+		<bitfield name="RT2" low="8" high="11"/>
+		<bitfield name="RT3" low="12" high="15"/>
+		<bitfield name="RT4" low="16" high="19"/>
+		<bitfield name="RT5" low="20" high="23"/>
+		<bitfield name="RT6" low="24" high="27"/>
+		<bitfield name="RT7" low="28" high="31"/>
+	</reg32>
+
+	<reg32 offset="0x20fc" name="RB_COPY_CONTROL">
+		<!-- not sure # of bits -->
+		<bitfield name="MSAA_RESOLVE" low="0" high="1" type="a3xx_msaa_samples"/>
+		<bitfield name="MODE" low="4" high="6" type="adreno_rb_copy_control_mode"/>
+		<bitfield name="FASTCLEAR" low="8" high="11" type="hex"/>
+		<bitfield name="GMEM_BASE" low="14" high="31" shr="14" type="hex"/>
+	</reg32>
+	<reg32 offset="0x20fd" name="RB_COPY_DEST_BASE">
+		<bitfield name="BASE" low="5" high="31" shr="5" type="hex"/>
+	</reg32>
+	<reg32 offset="0x20fe" name="RB_COPY_DEST_PITCH">
+		<doc>actually, appears to be pitch in bytes, so really is a stride</doc>
+		<!-- not actually sure about max pitch... -->
+		<bitfield name="PITCH" low="0" high="31" shr="5" type="uint"/>
+	</reg32>
+	<reg32 offset="0x20ff" name="RB_COPY_DEST_INFO">
+		<bitfield name="FORMAT" low="2" high="7" type="a4xx_color_fmt"/>
+		<bitfield name="SWAP" low="8" high="9" type="a3xx_color_swap"/>
+		<bitfield name="DITHER_MODE" low="10" high="11" type="adreno_rb_dither_mode"/>
+		<bitfield name="COMPONENT_ENABLE" low="14" high="17" type="hex"/>
+		<bitfield name="ENDIAN" low="18" high="20" type="adreno_rb_surface_endian"/>
+		<bitfield name="TILE" low="24" high="25" type="a4xx_tile_mode"/>
+	</reg32>
+	<reg32 offset="0x2100" name="RB_FS_OUTPUT_REG">
+		<!-- bit0 set except for binning pass.. -->
+		<bitfield name="MRT" low="0" high="3" type="uint"/>
+		<bitfield name="FRAG_WRITES_Z" pos="5" type="boolean"/>
+	</reg32>
+	<reg32 offset="0x2101" name="RB_DEPTH_CONTROL">
+		<!--
+			guessing that this matches a2xx with the stencil fields
+			moved out into RB_STENCIL_CONTROL?
+		 -->
+		<bitfield name="FRAG_WRITES_Z" pos="0" type="boolean"/>
+		<bitfield name="Z_TEST_ENABLE" pos="1" type="boolean"/>
+		<bitfield name="Z_WRITE_ENABLE" pos="2" type="boolean"/>
+		<bitfield name="ZFUNC" low="4" high="6" type="adreno_compare_func"/>
+		<bitfield name="Z_CLAMP_ENABLE" pos="7" type="boolean"/>
+		<bitfield name="EARLY_Z_DISABLE" pos="16" type="boolean"/>
+		<bitfield name="FORCE_FRAGZ_TO_FS" pos="17" type="boolean"/>
+		<doc>Z_READ_ENABLE bit is set for zfunc other than GL_ALWAYS or GL_NEVER</doc>
+		<bitfield name="Z_READ_ENABLE" pos="31" type="boolean"/>
+	</reg32>
+	<reg32 offset="0x2102" name="RB_DEPTH_CLEAR"/>
+	<reg32 offset="0x2103" name="RB_DEPTH_INFO">
+		<bitfield name="DEPTH_FORMAT" low="0" high="1" type="a4xx_depth_format"/>
+		<doc>
+			DEPTH_BASE is offset in GMEM to depth/stencil buffer, ie
+			bin_w * bin_h / 1024 (possible rounded up to multiple of
+			something??  ie. 39 becomes 40, 78 becomes 80.. 75 becomes
+			80.. so maybe it needs to be multiple of 8??
+		</doc>
+		<bitfield name="DEPTH_BASE" low="12" high="31" shr="12" type="hex"/>
+	</reg32>
+	<reg32 offset="0x2104" name="RB_DEPTH_PITCH" shr="5" type="uint">
+		<doc>stride of depth/stencil buffer</doc>
+	</reg32>
+	<reg32 offset="0x2105" name="RB_DEPTH_PITCH2" shr="5" type="uint">
+		<doc>???</doc>
+	</reg32>
+	<reg32 offset="0x2106" name="RB_STENCIL_CONTROL">
+		<bitfield name="STENCIL_ENABLE" pos="0" type="boolean"/>
+		<bitfield name="STENCIL_ENABLE_BF" pos="1" type="boolean"/>
+		<!--
+			set for stencil operations that require read from stencil
+			buffer, but not for example for stencil clear (which does
+			not require read).. so guessing this is analogous to
+			READ_DEST_ENABLE for color buffer..
+		 -->
+		<bitfield name="STENCIL_READ" pos="2" type="boolean"/>
+		<bitfield name="FUNC" low="8" high="10" type="adreno_compare_func"/>
+		<bitfield name="FAIL" low="11" high="13" type="adreno_stencil_op"/>
+		<bitfield name="ZPASS" low="14" high="16" type="adreno_stencil_op"/>
+		<bitfield name="ZFAIL" low="17" high="19" type="adreno_stencil_op"/>
+		<bitfield name="FUNC_BF" low="20" high="22" type="adreno_compare_func"/>
+		<bitfield name="FAIL_BF" low="23" high="25" type="adreno_stencil_op"/>
+		<bitfield name="ZPASS_BF" low="26" high="28" type="adreno_stencil_op"/>
+		<bitfield name="ZFAIL_BF" low="29" high="31" type="adreno_stencil_op"/>
+	</reg32>
+	<reg32 offset="0x2107" name="RB_STENCIL_CONTROL2">
+		<!--
+		This seems to be set by blob if there is a stencil buffer
+		at all in GMEM, regardless of whether it is enabled for
+		a particular draw (ie. RB_STENCIL_CONTROL).  Not really
+		sure if that is required or just a quirk of the blob
+		-->
+		<bitfield name="STENCIL_BUFFER" pos="0" type="boolean"/>
+	</reg32>
+	<reg32 offset="0x2108" name="RB_STENCIL_INFO">
+		<bitfield name="SEPARATE_STENCIL" pos="0" type="boolean"/>
+		<doc>Base address for stencil when not using interleaved depth/stencil</doc>
+		<bitfield name="STENCIL_BASE" low="12" high="31" shr="12" type="hex"/>
+	</reg32>
+	<reg32 offset="0x2109" name="RB_STENCIL_PITCH" shr="5" type="uint">
+		<doc>pitch of stencil buffer when not using interleaved depth/stencil</doc>
+	</reg32>
+
+	<reg32 offset="0x210b" name="RB_STENCILREFMASK" type="adreno_rb_stencilrefmask"/>
+	<reg32 offset="0x210c" name="RB_STENCILREFMASK_BF" type="adreno_rb_stencilrefmask"/>
+	<reg32 offset="0x210d" name="RB_BIN_OFFSET" type="adreno_reg_xy"/>
+	<array offset="0x2120" name="RB_VPORT_Z_CLAMP" stride="2" length="16">
+		<reg32 offset="0x0" name="MIN"/>
+		<reg32 offset="0x1" name="MAX"/>
+	</array>
+
+	<!-- RBBM registers -->
+	<reg32 offset="0x0000" name="RBBM_HW_VERSION"/>
+	<reg32 offset="0x0002" name="RBBM_HW_CONFIGURATION"/>
+	<array offset="0x4" name="RBBM_CLOCK_CTL_TP" stride="1" length="4">
+		<reg32 offset="0x0" name="REG"/>
+	</array>
+	<array offset="0x8" name="RBBM_CLOCK_CTL2_TP" stride="1" length="4">
+		<reg32 offset="0x0" name="REG"/>
+	</array>
+	<array offset="0xc" name="RBBM_CLOCK_HYST_TP" stride="1" length="4">
+		<reg32 offset="0x0" name="REG"/>
+	</array>
+	<array offset="0x10" name="RBBM_CLOCK_DELAY_TP" stride="1" length="4">
+		<reg32 offset="0x0" name="REG"/>
+	</array>
+	<reg32 offset="0x0014" name="RBBM_CLOCK_CTL_UCHE "/>
+	<reg32 offset="0x0015" name="RBBM_CLOCK_CTL2_UCHE"/>
+	<reg32 offset="0x0016" name="RBBM_CLOCK_CTL3_UCHE"/>
+	<reg32 offset="0x0017" name="RBBM_CLOCK_CTL4_UCHE"/>
+	<reg32 offset="0x0018" name="RBBM_CLOCK_HYST_UCHE"/>
+	<reg32 offset="0x0019" name="RBBM_CLOCK_DELAY_UCHE"/>
+	<reg32 offset="0x001a" name="RBBM_CLOCK_MODE_GPC"/>
+	<reg32 offset="0x001b" name="RBBM_CLOCK_DELAY_GPC"/>
+	<reg32 offset="0x001c" name="RBBM_CLOCK_HYST_GPC"/>
+	<reg32 offset="0x001d" name="RBBM_CLOCK_CTL_TSE_RAS_RBBM"/>
+	<reg32 offset="0x001e" name="RBBM_CLOCK_HYST_TSE_RAS_RBBM"/>
+	<reg32 offset="0x001f" name="RBBM_CLOCK_DELAY_TSE_RAS_RBBM"/>
+	<reg32 offset="0x0020" name="RBBM_CLOCK_CTL"/>
+	<reg32 offset="0x0021" name="RBBM_SP_HYST_CNT"/>
+	<reg32 offset="0x0022" name="RBBM_SW_RESET_CMD"/>
+	<reg32 offset="0x0023" name="RBBM_AHB_CTL0"/>
+	<reg32 offset="0x0024" name="RBBM_AHB_CTL1"/>
+	<reg32 offset="0x0025" name="RBBM_AHB_CMD"/>
+	<reg32 offset="0x0026" name="RBBM_RB_SUB_BLOCK_SEL_CTL"/>
+	<reg32 offset="0x0028" name="RBBM_RAM_ACC_63_32"/>
+	<reg32 offset="0x002b" name="RBBM_WAIT_IDLE_CLOCKS_CTL"/>
+	<reg32 offset="0x002f" name="RBBM_INTERFACE_HANG_INT_CTL"/>
+	<reg32 offset="0x0034" name="RBBM_INTERFACE_HANG_MASK_CTL4"/>
+	<reg32 offset="0x0036" name="RBBM_INT_CLEAR_CMD"/>
+	<reg32 offset="0x0037" name="RBBM_INT_0_MASK"/>
+	<reg32 offset="0x003e" name="RBBM_RBBM_CTL"/>
+	<reg32 offset="0x003f" name="RBBM_AHB_DEBUG_CTL"/>
+	<reg32 offset="0x0041" name="RBBM_VBIF_DEBUG_CTL"/>
+	<reg32 offset="0x0042" name="RBBM_CLOCK_CTL2"/>
+	<reg32 offset="0x0045" name="RBBM_BLOCK_SW_RESET_CMD"/>
+	<reg32 offset="0x0047" name="RBBM_RESET_CYCLES"/>
+	<reg32 offset="0x0049" name="RBBM_EXT_TRACE_BUS_CTL"/>
+	<reg32 offset="0x004a" name="RBBM_CFG_DEBBUS_SEL_A"/>
+	<reg32 offset="0x004b" name="RBBM_CFG_DEBBUS_SEL_B"/>
+	<reg32 offset="0x004c" name="RBBM_CFG_DEBBUS_SEL_C"/>
+	<reg32 offset="0x004d" name="RBBM_CFG_DEBBUS_SEL_D"/>
+	<reg32 offset="0x0098" name="RBBM_POWER_CNTL_IP">
+		<bitfield name="SW_COLLAPSE" pos="0" type="boolean"/>
+		<bitfield name="SP_TP_PWR_ON" pos="20" type="boolean"/>
+	</reg32>
+	<reg32 offset="0x009c" name="RBBM_PERFCTR_CP_0_LO"/>
+	<reg32 offset="0x009d" name="RBBM_PERFCTR_CP_0_HI"/>
+	<reg32 offset="0x009e" name="RBBM_PERFCTR_CP_1_LO"/>
+	<reg32 offset="0x009f" name="RBBM_PERFCTR_CP_1_HI"/>
+	<reg32 offset="0x00a0" name="RBBM_PERFCTR_CP_2_LO"/>
+	<reg32 offset="0x00a1" name="RBBM_PERFCTR_CP_2_HI"/>
+	<reg32 offset="0x00a2" name="RBBM_PERFCTR_CP_3_LO"/>
+	<reg32 offset="0x00a3" name="RBBM_PERFCTR_CP_3_HI"/>
+	<reg32 offset="0x00a4" name="RBBM_PERFCTR_CP_4_LO"/>
+	<reg32 offset="0x00a5" name="RBBM_PERFCTR_CP_4_HI"/>
+	<reg32 offset="0x00a6" name="RBBM_PERFCTR_CP_5_LO"/>
+	<reg32 offset="0x00a7" name="RBBM_PERFCTR_CP_5_HI"/>
+	<reg32 offset="0x00a8" name="RBBM_PERFCTR_CP_6_LO"/>
+	<reg32 offset="0x00a9" name="RBBM_PERFCTR_CP_6_HI"/>
+	<reg32 offset="0x00aa" name="RBBM_PERFCTR_CP_7_LO"/>
+	<reg32 offset="0x00ab" name="RBBM_PERFCTR_CP_7_HI"/>
+	<reg32 offset="0x00ac" name="RBBM_PERFCTR_RBBM_0_LO"/>
+	<reg32 offset="0x00ad" name="RBBM_PERFCTR_RBBM_0_HI"/>
+	<reg32 offset="0x00ae" name="RBBM_PERFCTR_RBBM_1_LO"/>
+	<reg32 offset="0x00af" name="RBBM_PERFCTR_RBBM_1_HI"/>
+	<reg32 offset="0x00b0" name="RBBM_PERFCTR_RBBM_2_LO"/>
+	<reg32 offset="0x00b1" name="RBBM_PERFCTR_RBBM_2_HI"/>
+	<reg32 offset="0x00b2" name="RBBM_PERFCTR_RBBM_3_LO"/>
+	<reg32 offset="0x00b3" name="RBBM_PERFCTR_RBBM_3_HI"/>
+	<reg32 offset="0x00b4" name="RBBM_PERFCTR_PC_0_LO"/>
+	<reg32 offset="0x00b5" name="RBBM_PERFCTR_PC_0_HI"/>
+	<reg32 offset="0x00b6" name="RBBM_PERFCTR_PC_1_LO"/>
+	<reg32 offset="0x00b7" name="RBBM_PERFCTR_PC_1_HI"/>
+	<reg32 offset="0x00b8" name="RBBM_PERFCTR_PC_2_LO"/>
+	<reg32 offset="0x00b9" name="RBBM_PERFCTR_PC_2_HI"/>
+	<reg32 offset="0x00ba" name="RBBM_PERFCTR_PC_3_LO"/>
+	<reg32 offset="0x00bb" name="RBBM_PERFCTR_PC_3_HI"/>
+	<reg32 offset="0x00bc" name="RBBM_PERFCTR_PC_4_LO"/>
+	<reg32 offset="0x00bd" name="RBBM_PERFCTR_PC_4_HI"/>
+	<reg32 offset="0x00be" name="RBBM_PERFCTR_PC_5_LO"/>
+	<reg32 offset="0x00bf" name="RBBM_PERFCTR_PC_5_HI"/>
+	<reg32 offset="0x00c0" name="RBBM_PERFCTR_PC_6_LO"/>
+	<reg32 offset="0x00c1" name="RBBM_PERFCTR_PC_6_HI"/>
+	<reg32 offset="0x00c2" name="RBBM_PERFCTR_PC_7_LO"/>
+	<reg32 offset="0x00c3" name="RBBM_PERFCTR_PC_7_HI"/>
+	<reg32 offset="0x00c4" name="RBBM_PERFCTR_VFD_0_LO"/>
+	<reg32 offset="0x00c5" name="RBBM_PERFCTR_VFD_0_HI"/>
+	<reg32 offset="0x00c6" name="RBBM_PERFCTR_VFD_1_LO"/>
+	<reg32 offset="0x00c7" name="RBBM_PERFCTR_VFD_1_HI"/>
+	<reg32 offset="0x00c8" name="RBBM_PERFCTR_VFD_2_LO"/>
+	<reg32 offset="0x00c9" name="RBBM_PERFCTR_VFD_2_HI"/>
+	<reg32 offset="0x00ca" name="RBBM_PERFCTR_VFD_3_LO"/>
+	<reg32 offset="0x00cb" name="RBBM_PERFCTR_VFD_3_HI"/>
+	<reg32 offset="0x00cc" name="RBBM_PERFCTR_VFD_4_LO"/>
+	<reg32 offset="0x00cd" name="RBBM_PERFCTR_VFD_4_HI"/>
+	<reg32 offset="0x00ce" name="RBBM_PERFCTR_VFD_5_LO"/>
+	<reg32 offset="0x00cf" name="RBBM_PERFCTR_VFD_5_HI"/>
+	<reg32 offset="0x00d0" name="RBBM_PERFCTR_VFD_6_LO"/>
+	<reg32 offset="0x00d1" name="RBBM_PERFCTR_VFD_6_HI"/>
+	<reg32 offset="0x00d2" name="RBBM_PERFCTR_VFD_7_LO"/>
+	<reg32 offset="0x00d3" name="RBBM_PERFCTR_VFD_7_HI"/>
+	<reg32 offset="0x00d4" name="RBBM_PERFCTR_HLSQ_0_LO"/>
+	<reg32 offset="0x00d5" name="RBBM_PERFCTR_HLSQ_0_HI"/>
+	<reg32 offset="0x00d6" name="RBBM_PERFCTR_HLSQ_1_LO"/>
+	<reg32 offset="0x00d7" name="RBBM_PERFCTR_HLSQ_1_HI"/>
+	<reg32 offset="0x00d8" name="RBBM_PERFCTR_HLSQ_2_LO"/>
+	<reg32 offset="0x00d9" name="RBBM_PERFCTR_HLSQ_2_HI"/>
+	<reg32 offset="0x00da" name="RBBM_PERFCTR_HLSQ_3_LO"/>
+	<reg32 offset="0x00db" name="RBBM_PERFCTR_HLSQ_3_HI"/>
+	<reg32 offset="0x00dc" name="RBBM_PERFCTR_HLSQ_4_LO"/>
+	<reg32 offset="0x00dd" name="RBBM_PERFCTR_HLSQ_4_HI"/>
+	<reg32 offset="0x00de" name="RBBM_PERFCTR_HLSQ_5_LO"/>
+	<reg32 offset="0x00df" name="RBBM_PERFCTR_HLSQ_5_HI"/>
+	<reg32 offset="0x00e0" name="RBBM_PERFCTR_HLSQ_6_LO"/>
+	<reg32 offset="0x00e1" name="RBBM_PERFCTR_HLSQ_6_HI"/>
+	<reg32 offset="0x00e2" name="RBBM_PERFCTR_HLSQ_7_LO"/>
+	<reg32 offset="0x00e3" name="RBBM_PERFCTR_HLSQ_7_HI"/>
+	<reg32 offset="0x00e4" name="RBBM_PERFCTR_VPC_0_LO"/>
+	<reg32 offset="0x00e5" name="RBBM_PERFCTR_VPC_0_HI"/>
+	<reg32 offset="0x00e6" name="RBBM_PERFCTR_VPC_1_LO"/>
+	<reg32 offset="0x00e7" name="RBBM_PERFCTR_VPC_1_HI"/>
+	<reg32 offset="0x00e8" name="RBBM_PERFCTR_VPC_2_LO"/>
+	<reg32 offset="0x00e9" name="RBBM_PERFCTR_VPC_2_HI"/>
+	<reg32 offset="0x00ea" name="RBBM_PERFCTR_VPC_3_LO"/>
+	<reg32 offset="0x00eb" name="RBBM_PERFCTR_VPC_3_HI"/>
+	<reg32 offset="0x00ec" name="RBBM_PERFCTR_CCU_0_LO"/>
+	<reg32 offset="0x00ed" name="RBBM_PERFCTR_CCU_0_HI"/>
+	<reg32 offset="0x00ee" name="RBBM_PERFCTR_CCU_1_LO"/>
+	<reg32 offset="0x00ef" name="RBBM_PERFCTR_CCU_1_HI"/>
+	<reg32 offset="0x00f0" name="RBBM_PERFCTR_CCU_2_LO"/>
+	<reg32 offset="0x00f1" name="RBBM_PERFCTR_CCU_2_HI"/>
+	<reg32 offset="0x00f2" name="RBBM_PERFCTR_CCU_3_LO"/>
+	<reg32 offset="0x00f3" name="RBBM_PERFCTR_CCU_3_HI"/>
+	<reg32 offset="0x00f4" name="RBBM_PERFCTR_TSE_0_LO"/>
+	<reg32 offset="0x00f5" name="RBBM_PERFCTR_TSE_0_HI"/>
+	<reg32 offset="0x00f6" name="RBBM_PERFCTR_TSE_1_LO"/>
+	<reg32 offset="0x00f7" name="RBBM_PERFCTR_TSE_1_HI"/>
+	<reg32 offset="0x00f8" name="RBBM_PERFCTR_TSE_2_LO"/>
+	<reg32 offset="0x00f9" name="RBBM_PERFCTR_TSE_2_HI"/>
+	<reg32 offset="0x00fa" name="RBBM_PERFCTR_TSE_3_LO"/>
+	<reg32 offset="0x00fb" name="RBBM_PERFCTR_TSE_3_HI"/>
+	<reg32 offset="0x00fc" name="RBBM_PERFCTR_RAS_0_LO"/>
+	<reg32 offset="0x00fd" name="RBBM_PERFCTR_RAS_0_HI"/>
+	<reg32 offset="0x00fe" name="RBBM_PERFCTR_RAS_1_LO"/>
+	<reg32 offset="0x00ff" name="RBBM_PERFCTR_RAS_1_HI"/>
+	<reg32 offset="0x0100" name="RBBM_PERFCTR_RAS_2_LO"/>
+	<reg32 offset="0x0101" name="RBBM_PERFCTR_RAS_2_HI"/>
+	<reg32 offset="0x0102" name="RBBM_PERFCTR_RAS_3_LO"/>
+	<reg32 offset="0x0103" name="RBBM_PERFCTR_RAS_3_HI"/>
+	<reg32 offset="0x0104" name="RBBM_PERFCTR_UCHE_0_LO"/>
+	<reg32 offset="0x0105" name="RBBM_PERFCTR_UCHE_0_HI"/>
+	<reg32 offset="0x0106" name="RBBM_PERFCTR_UCHE_1_LO"/>
+	<reg32 offset="0x0107" name="RBBM_PERFCTR_UCHE_1_HI"/>
+	<reg32 offset="0x0108" name="RBBM_PERFCTR_UCHE_2_LO"/>
+	<reg32 offset="0x0109" name="RBBM_PERFCTR_UCHE_2_HI"/>
+	<reg32 offset="0x010a" name="RBBM_PERFCTR_UCHE_3_LO"/>
+	<reg32 offset="0x010b" name="RBBM_PERFCTR_UCHE_3_HI"/>
+	<reg32 offset="0x010c" name="RBBM_PERFCTR_UCHE_4_LO"/>
+	<reg32 offset="0x010d" name="RBBM_PERFCTR_UCHE_4_HI"/>
+	<reg32 offset="0x010e" name="RBBM_PERFCTR_UCHE_5_LO"/>
+	<reg32 offset="0x010f" name="RBBM_PERFCTR_UCHE_5_HI"/>
+	<reg32 offset="0x0110" name="RBBM_PERFCTR_UCHE_6_LO"/>
+	<reg32 offset="0x0111" name="RBBM_PERFCTR_UCHE_6_HI"/>
+	<reg32 offset="0x0112" name="RBBM_PERFCTR_UCHE_7_LO"/>
+	<reg32 offset="0x0113" name="RBBM_PERFCTR_UCHE_7_HI"/>
+	<reg32 offset="0x0114" name="RBBM_PERFCTR_TP_0_LO"/>
+	<reg32 offset="0x0115" name="RBBM_PERFCTR_TP_0_HI"/>
+	<reg32 offset="0x0116" name="RBBM_PERFCTR_TP_1_LO"/>
+	<reg32 offset="0x0117" name="RBBM_PERFCTR_TP_1_HI"/>
+	<reg32 offset="0x0118" name="RBBM_PERFCTR_TP_2_LO"/>
+	<reg32 offset="0x0119" name="RBBM_PERFCTR_TP_2_HI"/>
+	<reg32 offset="0x011a" name="RBBM_PERFCTR_TP_3_LO"/>
+	<reg32 offset="0x011b" name="RBBM_PERFCTR_TP_3_HI"/>
+	<reg32 offset="0x011c" name="RBBM_PERFCTR_TP_4_LO"/>
+	<reg32 offset="0x011d" name="RBBM_PERFCTR_TP_4_HI"/>
+	<reg32 offset="0x011e" name="RBBM_PERFCTR_TP_5_LO"/>
+	<reg32 offset="0x011f" name="RBBM_PERFCTR_TP_5_HI"/>
+	<reg32 offset="0x0120" name="RBBM_PERFCTR_TP_6_LO"/>
+	<reg32 offset="0x0121" name="RBBM_PERFCTR_TP_6_HI"/>
+	<reg32 offset="0x0122" name="RBBM_PERFCTR_TP_7_LO"/>
+	<reg32 offset="0x0123" name="RBBM_PERFCTR_TP_7_HI"/>
+	<reg32 offset="0x0124" name="RBBM_PERFCTR_SP_0_LO"/>
+	<reg32 offset="0x0125" name="RBBM_PERFCTR_SP_0_HI"/>
+	<reg32 offset="0x0126" name="RBBM_PERFCTR_SP_1_LO"/>
+	<reg32 offset="0x0127" name="RBBM_PERFCTR_SP_1_HI"/>
+	<reg32 offset="0x0128" name="RBBM_PERFCTR_SP_2_LO"/>
+	<reg32 offset="0x0129" name="RBBM_PERFCTR_SP_2_HI"/>
+	<reg32 offset="0x012a" name="RBBM_PERFCTR_SP_3_LO"/>
+	<reg32 offset="0x012b" name="RBBM_PERFCTR_SP_3_HI"/>
+	<reg32 offset="0x012c" name="RBBM_PERFCTR_SP_4_LO"/>
+	<reg32 offset="0x012d" name="RBBM_PERFCTR_SP_4_HI"/>
+	<reg32 offset="0x012e" name="RBBM_PERFCTR_SP_5_LO"/>
+	<reg32 offset="0x012f" name="RBBM_PERFCTR_SP_5_HI"/>
+	<reg32 offset="0x0130" name="RBBM_PERFCTR_SP_6_LO"/>
+	<reg32 offset="0x0131" name="RBBM_PERFCTR_SP_6_HI"/>
+	<reg32 offset="0x0132" name="RBBM_PERFCTR_SP_7_LO"/>
+	<reg32 offset="0x0133" name="RBBM_PERFCTR_SP_7_HI"/>
+	<reg32 offset="0x0134" name="RBBM_PERFCTR_SP_8_LO"/>
+	<reg32 offset="0x0135" name="RBBM_PERFCTR_SP_8_HI"/>
+	<reg32 offset="0x0136" name="RBBM_PERFCTR_SP_9_LO"/>
+	<reg32 offset="0x0137" name="RBBM_PERFCTR_SP_9_HI"/>
+	<reg32 offset="0x0138" name="RBBM_PERFCTR_SP_10_LO"/>
+	<reg32 offset="0x0139" name="RBBM_PERFCTR_SP_10_HI"/>
+	<reg32 offset="0x013a" name="RBBM_PERFCTR_SP_11_LO"/>
+	<reg32 offset="0x013b" name="RBBM_PERFCTR_SP_11_HI"/>
+	<reg32 offset="0x013c" name="RBBM_PERFCTR_RB_0_LO"/>
+	<reg32 offset="0x013d" name="RBBM_PERFCTR_RB_0_HI"/>
+	<reg32 offset="0x013e" name="RBBM_PERFCTR_RB_1_LO"/>
+	<reg32 offset="0x013f" name="RBBM_PERFCTR_RB_1_HI"/>
+	<reg32 offset="0x0140" name="RBBM_PERFCTR_RB_2_LO"/>
+	<reg32 offset="0x0141" name="RBBM_PERFCTR_RB_2_HI"/>
+	<reg32 offset="0x0142" name="RBBM_PERFCTR_RB_3_LO"/>
+	<reg32 offset="0x0143" name="RBBM_PERFCTR_RB_3_HI"/>
+	<reg32 offset="0x0144" name="RBBM_PERFCTR_RB_4_LO"/>
+	<reg32 offset="0x0145" name="RBBM_PERFCTR_RB_4_HI"/>
+	<reg32 offset="0x0146" name="RBBM_PERFCTR_RB_5_LO"/>
+	<reg32 offset="0x0147" name="RBBM_PERFCTR_RB_5_HI"/>
+	<reg32 offset="0x0148" name="RBBM_PERFCTR_RB_6_LO"/>
+	<reg32 offset="0x0149" name="RBBM_PERFCTR_RB_6_HI"/>
+	<reg32 offset="0x014a" name="RBBM_PERFCTR_RB_7_LO"/>
+	<reg32 offset="0x014b" name="RBBM_PERFCTR_RB_7_HI"/>
+	<reg32 offset="0x014c" name="RBBM_PERFCTR_VSC_0_LO"/>
+	<reg32 offset="0x014d" name="RBBM_PERFCTR_VSC_0_HI"/>
+	<reg32 offset="0x014e" name="RBBM_PERFCTR_VSC_1_LO"/>
+	<reg32 offset="0x014f" name="RBBM_PERFCTR_VSC_1_HI"/>
+	<reg32 offset="0x0166" name="RBBM_PERFCTR_PWR_0_LO"/>
+	<reg32 offset="0x0167" name="RBBM_PERFCTR_PWR_0_HI"/>
+	<reg32 offset="0x0168" name="RBBM_PERFCTR_PWR_1_LO"/>
+	<reg32 offset="0x0169" name="RBBM_PERFCTR_PWR_1_HI"/>
+	<reg32 offset="0x016e" name="RBBM_ALWAYSON_COUNTER_LO"/>
+	<reg32 offset="0x016f" name="RBBM_ALWAYSON_COUNTER_HI"/>
+	<array offset="0x0068" name="RBBM_CLOCK_CTL_SP" stride="1" length="4">
+		<reg32 offset="0x0" name="REG"/>
+	</array>
+	<array offset="0x006c" name="RBBM_CLOCK_CTL2_SP" stride="1" length="4">
+		<reg32 offset="0x0" name="REG"/>
+	</array>
+	<array offset="0x0070" name="RBBM_CLOCK_HYST_SP" stride="1" length="4">
+		<reg32 offset="0x0" name="REG"/>
+	</array>
+	<array offset="0x0074" name="RBBM_CLOCK_DELAY_SP" stride="1" length="4">
+		<reg32 offset="0x0" name="REG"/>
+	</array>
+	<array offset="0x0078" name="RBBM_CLOCK_CTL_RB" stride="1" length="4">
+		<reg32 offset="0x0" name="REG"/>
+	</array>
+	<array offset="0x007c" name="RBBM_CLOCK_CTL2_RB" stride="1" length="4">
+		<reg32 offset="0x0" name="REG"/>
+	</array>
+	<array offset="0x0082" name="RBBM_CLOCK_CTL_MARB_CCU" stride="1" length="4">
+		<reg32 offset="0x0" name="REG"/>
+	</array>
+	<array offset="0x0086" name="RBBM_CLOCK_HYST_RB_MARB_CCU" stride="1" length="4">
+		<reg32 offset="0x0" name="REG"/>
+	</array>
+	<reg32 offset="0x0080" name="RBBM_CLOCK_HYST_COM_DCOM"/>
+	<reg32 offset="0x0081" name="RBBM_CLOCK_CTL_COM_DCOM"/>
+	<reg32 offset="0x008a" name="RBBM_CLOCK_CTL_HLSQ"/>
+	<reg32 offset="0x008b" name="RBBM_CLOCK_HYST_HLSQ"/>
+	<reg32 offset="0x008c" name="RBBM_CLOCK_DELAY_HLSQ"/>
+	<bitset name="A4XX_CGC_HLSQ">
+		<bitfield name="EARLY_CYC" low="20" high="22" type="uint"/>
+	</bitset>
+	<reg32 offset="0x008d" name="RBBM_CLOCK_DELAY_COM_DCOM"/>
+	<array offset="0x008e" name="RBBM_CLOCK_DELAY_RB_MARB_CCU_L1" stride="1" length="4">
+		<reg32 offset="0x0" name="REG"/>
+	</array>
+	<bitset name="A4XX_INT0">
+		<bitfield name="RBBM_GPU_IDLE" pos="0" type="boolean"/>
+		<bitfield name="RBBM_AHB_ERROR" pos="1" type="boolean"/>
+		<bitfield name="RBBM_REG_TIMEOUT" pos="2" type="boolean"/>
+		<bitfield name="RBBM_ME_MS_TIMEOUT" pos="3" type="boolean"/>
+		<bitfield name="RBBM_PFP_MS_TIMEOUT" pos="4" type="boolean"/>
+		<bitfield name="RBBM_ATB_BUS_OVERFLOW" pos="5" type="boolean"/>
+		<bitfield name="VFD_ERROR" pos="6" type="boolean"/>
+		<bitfield name="CP_SW_INT" pos="7" type="boolean"/>
+		<bitfield name="CP_T0_PACKET_IN_IB" pos="8" type="boolean"/>
+		<bitfield name="CP_OPCODE_ERROR" pos="9" type="boolean"/>
+		<bitfield name="CP_RESERVED_BIT_ERROR" pos="10" type="boolean"/>
+		<bitfield name="CP_HW_FAULT" pos="11" type="boolean"/>
+		<bitfield name="CP_DMA" pos="12" type="boolean"/>
+		<bitfield name="CP_IB2_INT" pos="13" type="boolean"/>
+		<bitfield name="CP_IB1_INT" pos="14" type="boolean"/>
+		<bitfield name="CP_RB_INT" pos="15" type="boolean"/>
+		<bitfield name="CP_REG_PROTECT_FAULT" pos="16" type="boolean"/>
+		<bitfield name="CP_RB_DONE_TS" pos="17" type="boolean"/>
+		<bitfield name="CP_VS_DONE_TS" pos="18" type="boolean"/>
+		<bitfield name="CP_PS_DONE_TS" pos="19" type="boolean"/>
+		<bitfield name="CACHE_FLUSH_TS" pos="20" type="boolean"/>
+		<bitfield name="CP_AHB_ERROR_HALT" pos="21" type="boolean"/>
+		<bitfield name="MISC_HANG_DETECT" pos="24" type="boolean"/>
+		<bitfield name="UCHE_OOB_ACCESS" pos="25" type="boolean"/>
+	</bitset>
+
+	<reg32 offset="0x0099" name="RBBM_SP_REGFILE_SLEEP_CNTL_0"/>
+	<reg32 offset="0x009a" name="RBBM_SP_REGFILE_SLEEP_CNTL_1"/>
+	<reg32 offset="0x0170" name="RBBM_PERFCTR_CTL"/>
+	<reg32 offset="0x0171" name="RBBM_PERFCTR_LOAD_CMD0"/>
+	<reg32 offset="0x0172" name="RBBM_PERFCTR_LOAD_CMD1"/>
+	<reg32 offset="0x0173" name="RBBM_PERFCTR_LOAD_CMD2"/>
+	<reg32 offset="0x0174" name="RBBM_PERFCTR_LOAD_VALUE_LO"/>
+	<reg32 offset="0x0175" name="RBBM_PERFCTR_LOAD_VALUE_HI"/>
+	<reg32 offset="0x0176" name="RBBM_PERFCTR_RBBM_SEL_0" type="a4xx_rbbm_perfcounter_select"/>
+	<reg32 offset="0x0177" name="RBBM_PERFCTR_RBBM_SEL_1" type="a4xx_rbbm_perfcounter_select"/>
+	<reg32 offset="0x0178" name="RBBM_PERFCTR_RBBM_SEL_2" type="a4xx_rbbm_perfcounter_select"/>
+	<reg32 offset="0x0179" name="RBBM_PERFCTR_RBBM_SEL_3" type="a4xx_rbbm_perfcounter_select"/>
+	<reg32 offset="0x017a" name="RBBM_GPU_BUSY_MASKED"/>
+	<reg32 offset="0x017d" name="RBBM_INT_0_STATUS"/>
+	<reg32 offset="0x0182" name="RBBM_CLOCK_STATUS"/>
+	<reg32 offset="0x0189" name="RBBM_AHB_STATUS"/>
+	<reg32 offset="0x018c" name="RBBM_AHB_ME_SPLIT_STATUS"/>
+	<reg32 offset="0x018d" name="RBBM_AHB_PFP_SPLIT_STATUS"/>
+	<reg32 offset="0x018f" name="RBBM_AHB_ERROR_STATUS"/>
+	<reg32 offset="0x0191" name="RBBM_STATUS">
+		<bitfield name="HI_BUSY" pos="0" type="boolean"/>
+		<bitfield name="CP_ME_BUSY" pos="1" type="boolean"/>
+		<bitfield name="CP_PFP_BUSY" pos="2" type="boolean"/>
+		<bitfield name="CP_NRT_BUSY" pos="14" type="boolean"/>
+		<bitfield name="VBIF_BUSY" pos="15" type="boolean"/>
+		<bitfield name="TSE_BUSY" pos="16" type="boolean"/>
+		<bitfield name="RAS_BUSY" pos="17" type="boolean"/>
+		<bitfield name="RB_BUSY" pos="18" type="boolean"/>
+		<bitfield name="PC_DCALL_BUSY" pos="19" type="boolean"/>
+		<bitfield name="PC_VSD_BUSY" pos="20" type="boolean"/>
+		<bitfield name="VFD_BUSY" pos="21" type="boolean"/>
+		<bitfield name="VPC_BUSY" pos="22" type="boolean"/>
+		<bitfield name="UCHE_BUSY" pos="23" type="boolean"/>
+		<bitfield name="SP_BUSY" pos="24" type="boolean"/>
+		<bitfield name="TPL1_BUSY" pos="25" type="boolean"/>
+		<bitfield name="MARB_BUSY" pos="26" type="boolean"/>
+		<bitfield name="VSC_BUSY" pos="27" type="boolean"/>
+		<bitfield name="ARB_BUSY" pos="28" type="boolean"/>
+		<bitfield name="HLSQ_BUSY" pos="29" type="boolean"/>
+		<bitfield name="GPU_BUSY_NOHC" pos="30" type="boolean"/>
+		<bitfield name="GPU_BUSY" pos="31" type="boolean"/>
+	</reg32>
+	<reg32 offset="0x019f" name="RBBM_INTERFACE_RRDY_STATUS5"/>
+	<reg32 offset="0x01b0" name="RBBM_POWER_STATUS">
+		<bitfield name="SP_TP_PWR_ON" pos="20" type="boolean"/>
+	</reg32>
+	<reg32 offset="0x01b8" name="RBBM_WAIT_IDLE_CLOCKS_CTL2"/>
+
+	<!-- CP registers -->
+	<reg32 offset="0x0228" name="CP_SCRATCH_UMASK"/>
+	<reg32 offset="0x0229" name="CP_SCRATCH_ADDR"/>
+	<reg32 offset="0x0200" name="CP_RB_BASE"/>
+	<reg32 offset="0x0201" name="CP_RB_CNTL"/>
+	<reg32 offset="0x0205" name="CP_RB_WPTR"/>
+	<reg32 offset="0x0203" name="CP_RB_RPTR_ADDR"/>
+	<reg32 offset="0x0204" name="CP_RB_RPTR"/>
+	<reg32 offset="0x0206" name="CP_IB1_BASE"/>
+	<reg32 offset="0x0207" name="CP_IB1_BUFSZ"/>
+	<reg32 offset="0x0208" name="CP_IB2_BASE"/>
+	<reg32 offset="0x0209" name="CP_IB2_BUFSZ"/>
+	<reg32 offset="0x020c" name="CP_ME_NRT_ADDR"/>
+	<reg32 offset="0x020d" name="CP_ME_NRT_DATA"/>
+	<reg32 offset="0x0217" name="CP_ME_RB_DONE_DATA"/>
+	<reg32 offset="0x0219" name="CP_QUEUE_THRESH2"/>
+	<reg32 offset="0x021b" name="CP_MERCIU_SIZE"/>
+	<reg32 offset="0x021c" name="CP_ROQ_ADDR"/>
+	<reg32 offset="0x021d" name="CP_ROQ_DATA"/>
+	<reg32 offset="0x021e" name="CP_MEQ_ADDR"/>
+	<reg32 offset="0x021f" name="CP_MEQ_DATA"/>
+	<reg32 offset="0x0220" name="CP_MERCIU_ADDR"/>
+	<reg32 offset="0x0221" name="CP_MERCIU_DATA"/>
+	<reg32 offset="0x0222" name="CP_MERCIU_DATA2"/>
+	<reg32 offset="0x0223" name="CP_PFP_UCODE_ADDR"/>
+	<reg32 offset="0x0224" name="CP_PFP_UCODE_DATA"/>
+	<reg32 offset="0x0225" name="CP_ME_RAM_WADDR"/>
+	<reg32 offset="0x0226" name="CP_ME_RAM_RADDR"/>
+	<reg32 offset="0x0227" name="CP_ME_RAM_DATA"/>
+	<reg32 offset="0x022a" name="CP_PREEMPT"/>
+	<reg32 offset="0x022c" name="CP_CNTL"/>
+	<reg32 offset="0x022d" name="CP_ME_CNTL"/>
+	<reg32 offset="0x022e" name="CP_DEBUG"/>
+	<reg32 offset="0x0231" name="CP_DEBUG_ECO_CONTROL"/>
+	<reg32 offset="0x0232" name="CP_DRAW_STATE_ADDR"/>
+	<array offset="0x0240" name="CP_PROTECT" stride="1" length="16">
+		<reg32 offset="0x0" name="REG" type="adreno_cp_protect"/>
+	</array>
+	<reg32 offset="0x0250" name="CP_PROTECT_CTRL"/>
+	<reg32 offset="0x04c0" name="CP_ST_BASE"/>
+	<reg32 offset="0x04ce" name="CP_STQ_AVAIL"/>
+	<reg32 offset="0x04d0" name="CP_MERCIU_STAT"/>
+	<reg32 offset="0x04d2" name="CP_WFI_PEND_CTR"/>
+	<reg32 offset="0x04d8" name="CP_HW_FAULT"/>
+	<reg32 offset="0x04da" name="CP_PROTECT_STATUS"/>
+	<reg32 offset="0x04dd" name="CP_EVENTS_IN_FLIGHT"/>
+	<reg32 offset="0x0500" name="CP_PERFCTR_CP_SEL_0" type="a4xx_cp_perfcounter_select"/>
+	<reg32 offset="0x0501" name="CP_PERFCTR_CP_SEL_1" type="a4xx_cp_perfcounter_select"/>
+	<reg32 offset="0x0502" name="CP_PERFCTR_CP_SEL_2" type="a4xx_cp_perfcounter_select"/>
+	<reg32 offset="0x0503" name="CP_PERFCTR_CP_SEL_3" type="a4xx_cp_perfcounter_select"/>
+	<reg32 offset="0x0504" name="CP_PERFCTR_CP_SEL_4" type="a4xx_cp_perfcounter_select"/>
+	<reg32 offset="0x0505" name="CP_PERFCTR_CP_SEL_5" type="a4xx_cp_perfcounter_select"/>
+	<reg32 offset="0x0506" name="CP_PERFCTR_CP_SEL_6" type="a4xx_cp_perfcounter_select"/>
+	<reg32 offset="0x0507" name="CP_PERFCTR_CP_SEL_7" type="a4xx_cp_perfcounter_select"/>
+	<reg32 offset="0x050b" name="CP_PERFCOMBINER_SELECT"/>
+	<array offset="0x0578" name="CP_SCRATCH" stride="1" length="23">
+		<reg32 offset="0x0" name="REG"/>
+	</array>
+
+
+	<!-- SP registers -->
+	<reg32 offset="0x0ec0" name="SP_VS_STATUS"/>
+	<reg32 offset="0x0ec3" name="SP_MODE_CONTROL"/>
+
+	<reg32 offset="0x0ec4" name="SP_PERFCTR_SP_SEL_0" type="a4xx_sp_perfcounter_select"/>
+	<reg32 offset="0x0ec5" name="SP_PERFCTR_SP_SEL_1" type="a4xx_sp_perfcounter_select"/>
+	<reg32 offset="0x0ec6" name="SP_PERFCTR_SP_SEL_2" type="a4xx_sp_perfcounter_select"/>
+	<reg32 offset="0x0ec7" name="SP_PERFCTR_SP_SEL_3" type="a4xx_sp_perfcounter_select"/>
+	<reg32 offset="0x0ec8" name="SP_PERFCTR_SP_SEL_4" type="a4xx_sp_perfcounter_select"/>
+	<reg32 offset="0x0ec9" name="SP_PERFCTR_SP_SEL_5" type="a4xx_sp_perfcounter_select"/>
+	<reg32 offset="0x0eca" name="SP_PERFCTR_SP_SEL_6" type="a4xx_sp_perfcounter_select"/>
+	<reg32 offset="0x0ecb" name="SP_PERFCTR_SP_SEL_7" type="a4xx_sp_perfcounter_select"/>
+	<reg32 offset="0x0ecc" name="SP_PERFCTR_SP_SEL_8" type="a4xx_sp_perfcounter_select"/>
+	<reg32 offset="0x0ecd" name="SP_PERFCTR_SP_SEL_9" type="a4xx_sp_perfcounter_select"/>
+	<reg32 offset="0x0ece" name="SP_PERFCTR_SP_SEL_10" type="a4xx_sp_perfcounter_select"/>
+	<reg32 offset="0x0ecf" name="SP_PERFCTR_SP_SEL_11" type="a4xx_sp_perfcounter_select"/>
+
+	<reg32 offset="0x22c0" name="SP_SP_CTRL_REG">
+		<bitfield name="BINNING_PASS" pos="19" type="boolean"/>
+	</reg32>
+	<reg32 offset="0x22c1" name="SP_INSTR_CACHE_CTRL">
+		<!-- set when VS in buffer mode: -->
+		<bitfield name="VS_BUFFER" pos="7" type="boolean"/>
+		<!-- set when FS in buffer mode: -->
+		<bitfield name="FS_BUFFER" pos="8" type="boolean"/>
+		<!-- set when both VS or FS in buffer mode: -->
+		<bitfield name="INSTR_BUFFER" pos="10" type="boolean"/>
+		<!-- TODO other bits probably matter when other stages active? -->
+	</reg32>
+
+	<bitset name="a4xx_sp_vs_fs_ctrl_reg0" inline="yes">
+		<!--
+			NOTE that SP_{VS,FS}_CTRL_REG1 are different, but so far REG0
+			appears to be the same..
+		-->
+		<bitfield name="THREADMODE" pos="0" type="a3xx_threadmode"/>
+		<!-- VARYING bit only for FS.. think it controls emitting (ei) flag? -->
+		<bitfield name="VARYING" pos="1" type="boolean"/>
+		<!-- maybe CACHEINVALID is two bits?? -->
+		<bitfield name="CACHEINVALID" pos="2" type="boolean"/>
+		<doc>
+			The full/half register footprint is in units of four components,
+			so if r0.x is used, that counts as all of r0.[xyzw] as used.
+			There are separate full/half register footprint values as the
+			full and half registers are independent (not overlapping).
+			Presumably the thread scheduler hardware allocates the full/half
+			register names from the actual physical register file and
+			handles the register renaming.
+		</doc>
+		<bitfield name="HALFREGFOOTPRINT" low="4" high="9" type="uint"/>
+		<bitfield name="FULLREGFOOTPRINT" low="10" high="15" type="uint"/>
+		<!-- maybe INOUTREGOVERLAP is a bitflag? -->
+		<bitfield name="INOUTREGOVERLAP" low="18" high="19" type="uint"/>
+		<bitfield name="THREADSIZE" pos="20" type="a3xx_threadsize"/>
+		<bitfield name="SUPERTHREADMODE" pos="21" type="boolean"/>
+		<bitfield name="PIXLODENABLE" pos="22" type="boolean"/>
+	</bitset>
+
+	<reg32 offset="0x22c4" name="SP_VS_CTRL_REG0" type="a4xx_sp_vs_fs_ctrl_reg0"/>
+	<reg32 offset="0x22c5" name="SP_VS_CTRL_REG1">
+		<bitfield name="CONSTLENGTH" low="0" high="7" type="uint"/>
+		<bitfield name="INITIALOUTSTANDING" low="24" high="30" type="uint"/>
+	</reg32>
+	<reg32 offset="0x22c6" name="SP_VS_PARAM_REG">
+		<bitfield name="POSREGID" low="0" high="7" type="a3xx_regid"/>
+		<bitfield name="PSIZEREGID" low="8" high="15" type="a3xx_regid"/>
+		<bitfield name="TOTALVSOUTVAR" low="20" high="31" type="uint"/>
+	</reg32>
+	<array offset="0x22c7" name="SP_VS_OUT" stride="1" length="16">
+		<reg32 offset="0x0" name="REG">
+			<bitfield name="A_REGID" low="0" high="8" type="a3xx_regid"/>
+			<bitfield name="A_COMPMASK" low="9" high="12" type="hex"/>
+			<bitfield name="B_REGID" low="16" high="24" type="a3xx_regid"/>
+			<bitfield name="B_COMPMASK" low="25" high="28" type="hex"/>
+		</reg32>
+	</array>
+	<array offset="0x22d8" name="SP_VS_VPC_DST" stride="1" length="8">
+		<reg32 offset="0x0" name="REG">
+			<doc>
+				These seem to be offsets for storage of the varyings.
+				Always seems to start from 8, possibly loc 0 and 4
+				are for gl_Position and gl_PointSize?
+			</doc>
+			<bitfield name="OUTLOC0" low="0" high="7" type="uint"/>
+			<bitfield name="OUTLOC1" low="8" high="15" type="uint"/>
+			<bitfield name="OUTLOC2" low="16" high="23" type="uint"/>
+			<bitfield name="OUTLOC3" low="24" high="31" type="uint"/>
+		</reg32>
+	</array>
+
+	<reg32 offset="0x22e0" name="SP_VS_OBJ_OFFSET_REG">
+		<!-- always 00000000: -->
+		<doc>
+			From register spec:
+			SP_FS_OBJ_OFFSET_REG.CONSTOBJECTSTARTOFFSET [16:24]: Constant object
+			start offset in on chip RAM,
+			128bit aligned
+		</doc>
+		<bitfield name="CONSTOBJECTOFFSET" low="16" high="24" type="uint"/>
+		<bitfield name="SHADEROBJOFFSET" low="25" high="31" type="uint"/>
+	</reg32>
+	<reg32 offset="0x22e1" name="SP_VS_OBJ_START"/>
+	<reg32 offset="0x22e2" name="SP_VS_PVT_MEM_PARAM"/>
+	<reg32 offset="0x22e3" name="SP_VS_PVT_MEM_ADDR"/>
+	<reg32 offset="0x22e5" name="SP_VS_LENGTH_REG" type="uint"/>
+	<reg32 offset="0x22e8" name="SP_FS_CTRL_REG0" type="a4xx_sp_vs_fs_ctrl_reg0"/>
+	<reg32 offset="0x22e9" name="SP_FS_CTRL_REG1">
+		<bitfield name="CONSTLENGTH" low="0" high="7" type="uint"/>
+		<bitfield name="FACENESS" pos="19" type="boolean"/>
+		<bitfield name="VARYING" pos="20" type="boolean"/>
+		<bitfield name="FRAGCOORD" pos="21" type="boolean"/>
+	</reg32>
+	<reg32 offset="0x22ea" name="SP_FS_OBJ_OFFSET_REG">
+		<bitfield name="CONSTOBJECTOFFSET" low="16" high="24" type="uint"/>
+		<bitfield name="SHADEROBJOFFSET" low="25" high="31" type="uint"/>
+	</reg32>
+	<reg32 offset="0x22eb" name="SP_FS_OBJ_START"/>
+	<reg32 offset="0x22ec" name="SP_FS_PVT_MEM_PARAM"/>
+	<reg32 offset="0x22ed" name="SP_FS_PVT_MEM_ADDR"/>
+	<reg32 offset="0x22ef" name="SP_FS_LENGTH_REG" type="uint"/>
+	<reg32 offset="0x22f0" name="SP_FS_OUTPUT_REG">
+		<bitfield name="MRT" low="0" high="3" type="uint"/>
+		<bitfield name="DEPTH_ENABLE" pos="7" type="boolean"/>
+		<!-- TODO double check.. for now assume same as a3xx -->
+		<bitfield name="DEPTH_REGID" low="8" high="15" type="a3xx_regid"/>
+		<bitfield name="SAMPLEMASK_REGID" low="24" high="31" type="a3xx_regid"/>
+	</reg32>
+	<array offset="0x22f1" name="SP_FS_MRT" stride="1" length="8">
+		<reg32 offset="0x0" name="REG">
+			<bitfield name="REGID" low="0" high="7" type="a3xx_regid"/>
+			<bitfield name="HALF_PRECISION" pos="8" type="boolean"/>
+			<bitfield name="COLOR_SINT" pos="10" type="boolean"/>
+			<bitfield name="COLOR_UINT" pos="11" type="boolean"/>
+			<bitfield name="MRTFORMAT" low="12" high="17" type="a4xx_color_fmt"/>
+			<bitfield name="COLOR_SRGB" pos="18" type="boolean"/>
+		</reg32>
+	</array>
+	<reg32 offset="0x2300" name="SP_CS_CTRL_REG0" type="a4xx_sp_vs_fs_ctrl_reg0"/>
+	<reg32 offset="0x2301" name="SP_CS_OBJ_OFFSET_REG"/>
+	<reg32 offset="0x2302" name="SP_CS_OBJ_START"/>
+	<reg32 offset="0x2303" name="SP_CS_PVT_MEM_PARAM"/>
+	<reg32 offset="0x2304" name="SP_CS_PVT_MEM_ADDR"/>
+	<reg32 offset="0x2305" name="SP_CS_PVT_MEM_SIZE"/>
+	<reg32 offset="0x2306" name="SP_CS_LENGTH_REG" type="uint"/>
+	<reg32 offset="0x230d" name="SP_HS_OBJ_OFFSET_REG">
+		<bitfield name="CONSTOBJECTOFFSET" low="16" high="24" type="uint"/>
+		<bitfield name="SHADEROBJOFFSET" low="25" high="31" type="uint"/>
+	</reg32>
+	<reg32 offset="0x230e" name="SP_HS_OBJ_START"/>
+	<reg32 offset="0x230f" name="SP_HS_PVT_MEM_PARAM"/>
+	<reg32 offset="0x2310" name="SP_HS_PVT_MEM_ADDR"/>
+	<reg32 offset="0x2312" name="SP_HS_LENGTH_REG" type="uint"/>
+
+	<reg32 offset="0x231a" name="SP_DS_PARAM_REG">
+		<bitfield name="POSREGID" low="0" high="7" type="a3xx_regid"/>
+		<bitfield name="TOTALGSOUTVAR" low="20" high="31" type="uint"/>
+	</reg32>
+	<array offset="0x231b" name="SP_DS_OUT" stride="1" length="16">
+		<reg32 offset="0x0" name="REG">
+			<bitfield name="A_REGID" low="0" high="8" type="a3xx_regid"/>
+			<bitfield name="A_COMPMASK" low="9" high="12" type="hex"/>
+			<bitfield name="B_REGID" low="16" high="24" type="a3xx_regid"/>
+			<bitfield name="B_COMPMASK" low="25" high="28" type="hex"/>
+		</reg32>
+	</array>
+	<array offset="0x232c" name="SP_DS_VPC_DST" stride="1" length="8">
+		<reg32 offset="0x0" name="REG">
+			<doc>
+				These seem to be offsets for storage of the varyings.
+				Always seems to start from 8, possibly loc 0 and 4
+				are for gl_Position and gl_PointSize?
+			</doc>
+			<bitfield name="OUTLOC0" low="0" high="7" type="uint"/>
+			<bitfield name="OUTLOC1" low="8" high="15" type="uint"/>
+			<bitfield name="OUTLOC2" low="16" high="23" type="uint"/>
+			<bitfield name="OUTLOC3" low="24" high="31" type="uint"/>
+		</reg32>
+	</array>
+	<reg32 offset="0x2334" name="SP_DS_OBJ_OFFSET_REG">
+		<bitfield name="CONSTOBJECTOFFSET" low="16" high="24" type="uint"/>
+		<bitfield name="SHADEROBJOFFSET" low="25" high="31" type="uint"/>
+	</reg32>
+	<reg32 offset="0x2335" name="SP_DS_OBJ_START"/>
+	<reg32 offset="0x2336" name="SP_DS_PVT_MEM_PARAM"/>
+	<reg32 offset="0x2337" name="SP_DS_PVT_MEM_ADDR"/>
+	<reg32 offset="0x2339" name="SP_DS_LENGTH_REG" type="uint"/>
+
+	<reg32 offset="0x2341" name="SP_GS_PARAM_REG">
+		<bitfield name="POSREGID" low="0" high="7" type="a3xx_regid"/>
+		<bitfield name="PRIMREGID" low="8" high="15" type="a3xx_regid"/>
+		<bitfield name="TOTALGSOUTVAR" low="20" high="31" type="uint"/>
+	</reg32>
+	<array offset="0x2342" name="SP_GS_OUT" stride="1" length="16">
+		<reg32 offset="0x0" name="REG">
+			<bitfield name="A_REGID" low="0" high="8" type="a3xx_regid"/>
+			<bitfield name="A_COMPMASK" low="9" high="12" type="hex"/>
+			<bitfield name="B_REGID" low="16" high="24" type="a3xx_regid"/>
+			<bitfield name="B_COMPMASK" low="25" high="28" type="hex"/>
+		</reg32>
+	</array>
+	<array offset="0x2353" name="SP_GS_VPC_DST" stride="1" length="8">
+		<reg32 offset="0x0" name="REG">
+			<doc>
+				These seem to be offsets for storage of the varyings.
+				Always seems to start from 8, possibly loc 0 and 4
+				are for gl_Position and gl_PointSize?
+			</doc>
+			<bitfield name="OUTLOC0" low="0" high="7" type="uint"/>
+			<bitfield name="OUTLOC1" low="8" high="15" type="uint"/>
+			<bitfield name="OUTLOC2" low="16" high="23" type="uint"/>
+			<bitfield name="OUTLOC3" low="24" high="31" type="uint"/>
+		</reg32>
+	</array>
+	<reg32 offset="0x235b" name="SP_GS_OBJ_OFFSET_REG">
+		<bitfield name="CONSTOBJECTOFFSET" low="16" high="24" type="uint"/>
+		<bitfield name="SHADEROBJOFFSET" low="25" high="31" type="uint"/>
+	</reg32>
+	<reg32 offset="0x235c" name="SP_GS_OBJ_START"/>
+	<reg32 offset="0x235d" name="SP_GS_PVT_MEM_PARAM"/>
+	<reg32 offset="0x235e" name="SP_GS_PVT_MEM_ADDR"/>
+	<reg32 offset="0x2360" name="SP_GS_LENGTH_REG" type="uint"/>
+
+	<!-- VPC registers -->
+	<reg32 offset="0x0e60" name="VPC_DEBUG_RAM_SEL"/>
+	<reg32 offset="0x0e61" name="VPC_DEBUG_RAM_READ"/>
+	<reg32 offset="0x0e64" name="VPC_DEBUG_ECO_CONTROL"/>
+	<reg32 offset="0x0e65" name="VPC_PERFCTR_VPC_SEL_0" type="a4xx_vpc_perfcounter_select"/>
+	<reg32 offset="0x0e66" name="VPC_PERFCTR_VPC_SEL_1" type="a4xx_vpc_perfcounter_select"/>
+	<reg32 offset="0x0e67" name="VPC_PERFCTR_VPC_SEL_2" type="a4xx_vpc_perfcounter_select"/>
+	<reg32 offset="0x0e68" name="VPC_PERFCTR_VPC_SEL_3" type="a4xx_vpc_perfcounter_select"/>
+	<reg32 offset="0x2140" name="VPC_ATTR">
+		<bitfield name="TOTALATTR" low="0" high="8" type="uint"/>
+		<!-- PSIZE bit set if gl_PointSize written: -->
+		<bitfield name="PSIZE" pos="9" type="boolean"/>
+		<bitfield name="THRDASSIGN" low="12" high="13" type="uint"/>
+		<bitfield name="ENABLE" pos="25" type="boolean"/>
+	</reg32>
+	<reg32 offset="0x2141" name="VPC_PACK">
+		<bitfield name="NUMBYPASSVAR" low="0" high="7" type="uint"/>
+		<bitfield name="NUMFPNONPOSVAR" low="8" high="15" type="uint"/>
+		<bitfield name="NUMNONPOSVSVAR" low="16" high="23" type="uint"/>
+	</reg32>
+	<array offset="0x2142" name="VPC_VARYING_INTERP" stride="1" length="8">
+		<reg32 offset="0x0" name="MODE"/>
+	</array>
+	<array offset="0x214a" name="VPC_VARYING_PS_REPL" stride="1" length="8">
+		<reg32 offset="0x0" name="MODE"/>
+	</array>
+
+	<reg32 offset="0x216e" name="VPC_SO_FLUSH_WADDR_3"/>
+
+	<!-- VSC registers -->
+	<reg32 offset="0x0c00" name="VSC_BIN_SIZE">
+		<bitfield name="WIDTH" low="0" high="4" shr="5" type="uint"/>
+		<bitfield name="HEIGHT" low="5" high="9" shr="5" type="uint"/>
+	</reg32>
+	<reg32 offset="0x0c01" name="VSC_SIZE_ADDRESS"/>
+	<reg32 offset="0x0c02" name="VSC_SIZE_ADDRESS2"/>
+	<reg32 offset="0x0c03" name="VSC_DEBUG_ECO_CONTROL"/>
+	<array offset="0x0c08" name="VSC_PIPE_CONFIG" stride="1" length="8">
+		<reg32 offset="0x0" name="REG">
+			<doc>
+				Configures the mapping between VSC_PIPE buffer and
+				bin, X/Y specify the bin index in the horiz/vert
+				direction (0,0 is upper left, 0,1 is leftmost bin
+				on second row, and so on).  W/H specify the number
+				of bins assigned to this VSC_PIPE in the horiz/vert
+				dimension.
+			</doc>
+			<bitfield name="X" low="0" high="9" type="uint"/>
+			<bitfield name="Y" low="10" high="19" type="uint"/>
+			<bitfield name="W" low="20" high="23" type="uint"/>
+			<bitfield name="H" low="24" high="27" type="uint"/>
+		</reg32>
+	</array>
+	<array offset="0x0c10" name="VSC_PIPE_DATA_ADDRESS" stride="1" length="8">
+		<reg32 offset="0x0" name="REG"/>
+	</array>
+	<array offset="0x0c18" name="VSC_PIPE_DATA_LENGTH" stride="1" length="8">
+		<reg32 offset="0x0" name="REG"/>
+	</array>
+	<reg32 offset="0x0c41" name="VSC_PIPE_PARTIAL_POSN_1"/>
+	<reg32 offset="0x0c50" name="VSC_PERFCTR_VSC_SEL_0" type="a4xx_vsc_perfcounter_select"/>
+	<reg32 offset="0x0c51" name="VSC_PERFCTR_VSC_SEL_1" type="a4xx_vsc_perfcounter_select"/>
+
+	<!-- VFD registers -->
+	<reg32 offset="0x0e40" name="VFD_DEBUG_CONTROL"/>
+	<reg32 offset="0x0e43" name="VFD_PERFCTR_VFD_SEL_0" type="a4xx_vfd_perfcounter_select"/>
+	<reg32 offset="0x0e44" name="VFD_PERFCTR_VFD_SEL_1" type="a4xx_vfd_perfcounter_select"/>
+	<reg32 offset="0x0e45" name="VFD_PERFCTR_VFD_SEL_2" type="a4xx_vfd_perfcounter_select"/>
+	<reg32 offset="0x0e46" name="VFD_PERFCTR_VFD_SEL_3" type="a4xx_vfd_perfcounter_select"/>
+	<reg32 offset="0x0e47" name="VFD_PERFCTR_VFD_SEL_4" type="a4xx_vfd_perfcounter_select"/>
+	<reg32 offset="0x0e48" name="VFD_PERFCTR_VFD_SEL_5" type="a4xx_vfd_perfcounter_select"/>
+	<reg32 offset="0x0e49" name="VFD_PERFCTR_VFD_SEL_6" type="a4xx_vfd_perfcounter_select"/>
+	<reg32 offset="0x0e4a" name="VFD_PERFCTR_VFD_SEL_7" type="a4xx_vfd_perfcounter_select"/>
+	<reg32 offset="0x21d0" name="VGT_CL_INITIATOR"/>
+	<reg32 offset="0x21d9" name="VGT_EVENT_INITIATOR"/>
+	<reg32 offset="0x2200" name="VFD_CONTROL_0">
+		<doc>
+			TOTALATTRTOVS is # of attributes to vertex shader, in register
+			slots (ie. vec4+vec3 -> 7)
+		</doc>
+		<bitfield name="TOTALATTRTOVS" low="0" high="7" type="uint"/>
+		<doc>
+		BYPASSATTROVS seems to count varyings that are just directly
+		assigned from attributes (ie, "vFoo = aFoo;")
+		</doc>
+		<bitfield name="BYPASSATTROVS" low="9" high="16" type="uint"/>
+		<doc>STRMDECINSTRCNT is # of VFD_DECODE_INSTR registers valid</doc>
+		<bitfield name="STRMDECINSTRCNT" low="20" high="25" type="uint"/>
+		<doc>STRMFETCHINSTRCNT is # of VFD_FETCH_INSTR registers valid</doc>
+		<bitfield name="STRMFETCHINSTRCNT" low="26" high="31" type="uint"/>
+	</reg32>
+	<reg32 offset="0x2201" name="VFD_CONTROL_1">
+		<doc>MAXSTORAGE could be # of attributes/vbo's</doc>
+		<bitfield name="MAXSTORAGE" low="0" high="15" type="uint"/>
+		<bitfield name="REGID4VTX" low="16" high="23" type="a3xx_regid"/>
+		<bitfield name="REGID4INST" low="24" high="31" type="a3xx_regid"/>
+	</reg32>
+	<reg32 offset="0x2202" name="VFD_CONTROL_2"/>
+	<reg32 offset="0x2203" name="VFD_CONTROL_3">
+		<bitfield name="REGID_VTXCNT" low="8" high="15" type="a3xx_regid"/>
+		<bitfield name="REGID_TESSX" low="16" high="23" type="a3xx_regid"/>
+		<bitfield name="REGID_TESSY" low="24" high="31" type="a3xx_regid"/>
+	</reg32>
+	<reg32 offset="0x2204" name="VFD_CONTROL_4"/>
+	<reg32 offset="0x2208" name="VFD_INDEX_OFFSET"/>
+	<array offset="0x220a" name="VFD_FETCH" stride="4" length="32">
+		<reg32 offset="0x0" name="INSTR_0">
+			<bitfield name="FETCHSIZE" low="0" high="6" type="uint"/>
+			<bitfield name="BUFSTRIDE" low="7" high="16" type="uint"/>
+			<bitfield name="SWITCHNEXT" pos="19" type="boolean"/>
+			<bitfield name="INSTANCED" pos="20" type="boolean"/>
+		</reg32>
+		<reg32 offset="0x1" name="INSTR_1"/>
+		<reg32 offset="0x2" name="INSTR_2">
+			<bitfield name="SIZE" low="0" high="31"/>
+		</reg32>
+		<reg32 offset="0x3" name="INSTR_3">
+			<!-- might well be bigger.. -->
+			<bitfield name="STEPRATE" low="0" high="8" type="uint"/>
+		</reg32>
+	</array>
+	<array offset="0x228a" name="VFD_DECODE" stride="1" length="32">
+		<reg32 offset="0x0" name="INSTR">
+			<bitfield name="WRITEMASK" low="0" high="3" type="hex"/>
+			<!-- not sure if this is a bit flag and another flag above it, or?? -->
+			<bitfield name="CONSTFILL" pos="4" type="boolean"/>
+			<bitfield name="FORMAT" low="6" high="11" type="a4xx_vtx_fmt"/>
+			<bitfield name="REGID" low="12" high="19" type="a3xx_regid"/>
+			<bitfield name="INT" pos="20" type="boolean"/>
+			<doc>SHIFTCNT appears to be size, ie. FLOAT_32_32_32 is 12, and BYTE_8 is 1</doc>
+			<bitfield name="SWAP" low="22" high="23" type="a3xx_color_swap"/>
+			<bitfield name="SHIFTCNT" low="24" high="28" type="uint"/>
+			<bitfield name="LASTCOMPVALID" pos="29" type="boolean"/>
+			<bitfield name="SWITCHNEXT" pos="30" type="boolean"/>
+		</reg32>
+	</array>
+
+	<!-- TPL1 registers -->
+	<reg32 offset="0x0f00" name="TPL1_DEBUG_ECO_CONTROL"/>
+	<!-- always 0000003a: -->
+	<reg32 offset="0x0f03" name="TPL1_TP_MODE_CONTROL"/>
+	<reg32 offset="0x0f04" name="TPL1_PERFCTR_TP_SEL_0" type="a4xx_tp_perfcounter_select"/>
+	<reg32 offset="0x0f05" name="TPL1_PERFCTR_TP_SEL_1" type="a4xx_tp_perfcounter_select"/>
+	<reg32 offset="0x0f06" name="TPL1_PERFCTR_TP_SEL_2" type="a4xx_tp_perfcounter_select"/>
+	<reg32 offset="0x0f07" name="TPL1_PERFCTR_TP_SEL_3" type="a4xx_tp_perfcounter_select"/>
+	<reg32 offset="0x0f08" name="TPL1_PERFCTR_TP_SEL_4" type="a4xx_tp_perfcounter_select"/>
+	<reg32 offset="0x0f09" name="TPL1_PERFCTR_TP_SEL_5" type="a4xx_tp_perfcounter_select"/>
+	<reg32 offset="0x0f0a" name="TPL1_PERFCTR_TP_SEL_6" type="a4xx_tp_perfcounter_select"/>
+	<reg32 offset="0x0f0b" name="TPL1_PERFCTR_TP_SEL_7" type="a4xx_tp_perfcounter_select"/>
+	<reg32 offset="0x2380" name="TPL1_TP_TEX_OFFSET"/>
+	<reg32 offset="0x2381" name="TPL1_TP_TEX_COUNT">
+		<bitfield name="VS" low="0" high="7" type="uint"/>
+		<bitfield name="HS" low="8" high="15" type="uint"/>
+		<bitfield name="DS" low="16" high="23" type="uint"/>
+		<bitfield name="GS" low="24" high="31" type="uint"/>
+	</reg32>
+	<reg32 offset="0x2384" name="TPL1_TP_VS_BORDER_COLOR_BASE_ADDR"/>
+	<reg32 offset="0x2387" name="TPL1_TP_HS_BORDER_COLOR_BASE_ADDR"/>
+	<reg32 offset="0x238a" name="TPL1_TP_DS_BORDER_COLOR_BASE_ADDR"/>
+	<reg32 offset="0x238d" name="TPL1_TP_GS_BORDER_COLOR_BASE_ADDR"/>
+	<reg32 offset="0x23a0" name="TPL1_TP_FS_TEX_COUNT">
+		<bitfield name="FS" low="0" high="7" type="uint"/>
+		<bitfield name="CS" low="8" high="15" type="uint"/>
+	</reg32>
+	<reg32 offset="0x23a1" name="TPL1_TP_FS_BORDER_COLOR_BASE_ADDR"/>
+	<reg32 offset="0x23a4" name="TPL1_TP_CS_BORDER_COLOR_BASE_ADDR"/>
+	<reg32 offset="0x23a5" name="TPL1_TP_CS_SAMPLER_BASE_ADDR"/>
+	<reg32 offset="0x23a6" name="TPL1_TP_CS_TEXMEMOBJ_BASE_ADDR"/>
+
+	<!-- GRAS registers -->
+	<reg32 offset="0x0c80" name="GRAS_TSE_STATUS"/>
+	<reg32 offset="0x0c81" name="GRAS_DEBUG_ECO_CONTROL"/>
+	<reg32 offset="0x0c88" name="GRAS_PERFCTR_TSE_SEL_0" type="a4xx_gras_tse_perfcounter_select"/>
+	<reg32 offset="0x0c89" name="GRAS_PERFCTR_TSE_SEL_1" type="a4xx_gras_tse_perfcounter_select"/>
+	<reg32 offset="0x0c8a" name="GRAS_PERFCTR_TSE_SEL_2" type="a4xx_gras_tse_perfcounter_select"/>
+	<reg32 offset="0x0c8b" name="GRAS_PERFCTR_TSE_SEL_3" type="a4xx_gras_tse_perfcounter_select"/>
+	<reg32 offset="0x0c8c" name="GRAS_PERFCTR_RAS_SEL_0" type="a4xx_gras_ras_perfcounter_select"/>
+	<reg32 offset="0x0c8d" name="GRAS_PERFCTR_RAS_SEL_1" type="a4xx_gras_ras_perfcounter_select"/>
+	<reg32 offset="0x0c8e" name="GRAS_PERFCTR_RAS_SEL_2" type="a4xx_gras_ras_perfcounter_select"/>
+	<reg32 offset="0x0c8f" name="GRAS_PERFCTR_RAS_SEL_3" type="a4xx_gras_ras_perfcounter_select"/>
+	<reg32 offset="0x2000" name="GRAS_CL_CLIP_CNTL">
+		<bitfield name="CLIP_DISABLE" pos="15" type="boolean"/>
+		<bitfield name="ZNEAR_CLIP_DISABLE" pos="16" type="boolean"/>
+		<bitfield name="ZFAR_CLIP_DISABLE" pos="17" type="boolean"/>
+		<bitfield name="ZERO_GB_SCALE_Z" pos="22" type="boolean"/>
+	</reg32>
+	<reg32 offset="0x2003" name="GRAS_CNTL">
+		<bitfield name="IJ_PERSP" pos="0" type="boolean"/>
+		<bitfield name="IJ_LINEAR" pos="1" type="boolean"/>
+	</reg32>
+	<reg32 offset="0x2004" name="GRAS_CL_GB_CLIP_ADJ">
+		<bitfield name="HORZ" low="0" high="9" type="uint"/>
+		<bitfield name="VERT" low="10" high="19" type="uint"/>
+	</reg32>
+	<reg32 offset="0x2008" name="GRAS_CL_VPORT_XOFFSET_0" type="float"/>
+	<reg32 offset="0x2009" name="GRAS_CL_VPORT_XSCALE_0" type="float"/>
+	<reg32 offset="0x200a" name="GRAS_CL_VPORT_YOFFSET_0" type="float"/>
+	<reg32 offset="0x200b" name="GRAS_CL_VPORT_YSCALE_0" type="float"/>
+	<reg32 offset="0x200c" name="GRAS_CL_VPORT_ZOFFSET_0" type="float"/>
+	<reg32 offset="0x200d" name="GRAS_CL_VPORT_ZSCALE_0" type="float"/>
+	<reg32 offset="0x2070" name="GRAS_SU_POINT_MINMAX">
+		<bitfield name="MIN" low="0" high="15" type="ufixed" radix="4"/>
+		<bitfield name="MAX" low="16" high="31" type="ufixed" radix="4"/>
+	</reg32>
+	<reg32 offset="0x2071" name="GRAS_SU_POINT_SIZE" type="fixed" radix="4"/>
+	<reg32 offset="0x2073" name="GRAS_ALPHA_CONTROL">
+		<bitfield name="ALPHA_TEST_ENABLE" pos="2" type="boolean"/>
+		<bitfield name="FORCE_FRAGZ_TO_FS" pos="3" type="boolean"/>
+	</reg32>
+	<reg32 offset="0x2074" name="GRAS_SU_POLY_OFFSET_SCALE" type="float"/>
+	<reg32 offset="0x2075" name="GRAS_SU_POLY_OFFSET_OFFSET" type="float"/>
+	<reg32 offset="0x2076" name="GRAS_SU_POLY_OFFSET_CLAMP" type="float"/>
+	<reg32 offset="0x2077" name="GRAS_DEPTH_CONTROL">
+		<!-- guestimating that this is GRAS based on addr -->
+		<bitfield name="FORMAT" low="0" high="1" type="a4xx_depth_format"/>
+	</reg32>
+	<reg32 offset="0x2078" name="GRAS_SU_MODE_CONTROL">
+		<bitfield name="CULL_FRONT" pos="0" type="boolean"/>
+		<bitfield name="CULL_BACK" pos="1" type="boolean"/>
+		<bitfield name="FRONT_CW" pos="2" type="boolean"/>
+		<bitfield name="LINEHALFWIDTH" low="3" high="10" radix="2" type="fixed"/>
+		<bitfield name="POLY_OFFSET" pos="11" type="boolean"/>
+		<bitfield name="MSAA_ENABLE" pos="13" type="boolean"/>
+		<!-- bit20 set whenever RENDER_MODE = RB_RENDERING_PASS -->
+		<bitfield name="RENDERING_PASS" pos="20" type="boolean"/>
+	</reg32>
+	<reg32 offset="0x207b" name="GRAS_SC_CONTROL">
+		<!-- complete wild-ass-guess for sizes of these bitfields.. -->
+		<bitfield name="RENDER_MODE" low="2" high="3" type="a3xx_render_mode"/>
+		<bitfield name="MSAA_SAMPLES" low="7" high="9" type="uint"/>
+		<bitfield name="MSAA_DISABLE" pos="11" type="boolean"/>
+		<bitfield name="RASTER_MODE" low="12" high="15"/>
+	</reg32>
+	<reg32 offset="0x207c" name="GRAS_SC_SCREEN_SCISSOR_TL" type="adreno_reg_xy"/>
+	<reg32 offset="0x207d" name="GRAS_SC_SCREEN_SCISSOR_BR" type="adreno_reg_xy"/>
+	<reg32 offset="0x209c" name="GRAS_SC_WINDOW_SCISSOR_BR" type="adreno_reg_xy"/>
+	<reg32 offset="0x209d" name="GRAS_SC_WINDOW_SCISSOR_TL" type="adreno_reg_xy"/>
+	<reg32 offset="0x209e" name="GRAS_SC_EXTENT_WINDOW_BR" type="adreno_reg_xy"/>
+	<reg32 offset="0x209f" name="GRAS_SC_EXTENT_WINDOW_TL" type="adreno_reg_xy"/>
+
+	<!-- UCHE registers -->
+	<reg32 offset="0x0e80" name="UCHE_CACHE_MODE_CONTROL"/>
+	<reg32 offset="0x0e83" name="UCHE_TRAP_BASE_LO"/>
+	<reg32 offset="0x0e84" name="UCHE_TRAP_BASE_HI"/>
+	<reg32 offset="0x0e88" name="UCHE_CACHE_STATUS"/>
+	<reg32 offset="0x0e8a" name="UCHE_INVALIDATE0"/>
+	<reg32 offset="0x0e8b" name="UCHE_INVALIDATE1"/>
+	<reg32 offset="0x0e8c" name="UCHE_CACHE_WAYS_VFD"/>
+	<reg32 offset="0x0e8e" name="UCHE_PERFCTR_UCHE_SEL_0" type="a4xx_uche_perfcounter_select"/>
+	<reg32 offset="0x0e8f" name="UCHE_PERFCTR_UCHE_SEL_1" type="a4xx_uche_perfcounter_select"/>
+	<reg32 offset="0x0e90" name="UCHE_PERFCTR_UCHE_SEL_2" type="a4xx_uche_perfcounter_select"/>
+	<reg32 offset="0x0e91" name="UCHE_PERFCTR_UCHE_SEL_3" type="a4xx_uche_perfcounter_select"/>
+	<reg32 offset="0x0e92" name="UCHE_PERFCTR_UCHE_SEL_4" type="a4xx_uche_perfcounter_select"/>
+	<reg32 offset="0x0e93" name="UCHE_PERFCTR_UCHE_SEL_5" type="a4xx_uche_perfcounter_select"/>
+	<reg32 offset="0x0e94" name="UCHE_PERFCTR_UCHE_SEL_6" type="a4xx_uche_perfcounter_select"/>
+	<reg32 offset="0x0e95" name="UCHE_PERFCTR_UCHE_SEL_7" type="a4xx_uche_perfcounter_select"/>
+
+	<!-- HLSQ registers -->
+	<reg32 offset="0x0e00" name="HLSQ_TIMEOUT_THRESHOLD"/>
+	<reg32 offset="0x0e04" name="HLSQ_DEBUG_ECO_CONTROL"/>
+	<!-- always 00000000: -->
+	<reg32 offset="0x0e05" name="HLSQ_MODE_CONTROL"/>
+	<reg32 offset="0x0e0e" name="HLSQ_PERF_PIPE_MASK"/>
+	<reg32 offset="0x0e06" name="HLSQ_PERFCTR_HLSQ_SEL_0" type="a4xx_hlsq_perfcounter_select"/>
+	<reg32 offset="0x0e07" name="HLSQ_PERFCTR_HLSQ_SEL_1" type="a4xx_hlsq_perfcounter_select"/>
+	<reg32 offset="0x0e08" name="HLSQ_PERFCTR_HLSQ_SEL_2" type="a4xx_hlsq_perfcounter_select"/>
+	<reg32 offset="0x0e09" name="HLSQ_PERFCTR_HLSQ_SEL_3" type="a4xx_hlsq_perfcounter_select"/>
+	<reg32 offset="0x0e0a" name="HLSQ_PERFCTR_HLSQ_SEL_4" type="a4xx_hlsq_perfcounter_select"/>
+	<reg32 offset="0x0e0b" name="HLSQ_PERFCTR_HLSQ_SEL_5" type="a4xx_hlsq_perfcounter_select"/>
+	<reg32 offset="0x0e0c" name="HLSQ_PERFCTR_HLSQ_SEL_6" type="a4xx_hlsq_perfcounter_select"/>
+	<reg32 offset="0x0e0d" name="HLSQ_PERFCTR_HLSQ_SEL_7" type="a4xx_hlsq_perfcounter_select"/>
+	<reg32 offset="0x23c0" name="HLSQ_CONTROL_0_REG">
+		<!-- I guess same as a3xx, but so far only seen 08000050 -->
+		<bitfield name="FSTHREADSIZE" pos="4" type="a3xx_threadsize"/>
+		<bitfield name="FSSUPERTHREADENABLE" pos="6" type="boolean"/>
+		<bitfield name="SPSHADERRESTART" pos="9" type="boolean"/>
+		<bitfield name="RESERVED2" pos="10" type="boolean"/>
+		<bitfield name="CHUNKDISABLE" pos="26" type="boolean"/>
+		<bitfield name="CONSTMODE" pos="27" type="uint"/>
+		<bitfield name="LAZYUPDATEDISABLE" pos="28" type="boolean"/>
+		<bitfield name="SPCONSTFULLUPDATE" pos="29" type="boolean"/>
+		<bitfield name="TPFULLUPDATE" pos="30" type="boolean"/>
+		<bitfield name="SINGLECONTEXT" pos="31" type="boolean"/>
+	</reg32>
+	<reg32 offset="0x23c1" name="HLSQ_CONTROL_1_REG">
+		<bitfield name="VSTHREADSIZE" pos="6" type="a3xx_threadsize"/>
+		<bitfield name="VSSUPERTHREADENABLE" pos="8" type="boolean"/>
+		<bitfield name="RESERVED1" pos="9" type="boolean"/>
+		<bitfield name="COORDREGID" low="16" high="23" type="a3xx_regid"/>
+		<!-- set if gl_FragCoord.[zw] used in frag shader: -->
+		<bitfield name="ZWCOORDREGID" low="24" high="31" type="a3xx_regid"/>
+	</reg32>
+	<reg32 offset="0x23c2" name="HLSQ_CONTROL_2_REG">
+		<bitfield name="PRIMALLOCTHRESHOLD" low="26" high="31" type="uint"/>
+		<bitfield name="FACEREGID" low="2" high="9" type="a3xx_regid"/>
+		<bitfield name="SAMPLEID_REGID" low="10" high="17" type="a3xx_regid"/>
+		<bitfield name="SAMPLEMASK_REGID" low="18" high="25" type="a3xx_regid"/>
+	</reg32>
+	<reg32 offset="0x23c3" name="HLSQ_CONTROL_3_REG">
+		<!-- register loaded with position (bary.f) -->
+		<bitfield name="IJ_PERSP_PIXEL" low="0" high="7" type="a3xx_regid"/>
+		<bitfield name="IJ_LINEAR_PIXEL" low="8" high="15" type="a3xx_regid"/>
+		<bitfield name="IJ_PERSP_CENTROID" low="16" high="23" type="a3xx_regid"/>
+		<bitfield name="IJ_LINEAR_CENTROID" low="24" high="31" type="a3xx_regid"/>
+	</reg32>
+	<!-- 0x23c4 3 regids, lowest one goes to 0 when *not* per-sample shading -->
+	<reg32 offset="0x23c4" name="HLSQ_CONTROL_4_REG">
+		<bitfield name="IJ_PERSP_SAMPLE" low="0" high="7" type="a3xx_regid"/>
+		<bitfield name="IJ_LINEAR_SAMPLE" low="8" high="15" type="a3xx_regid"/>
+	</reg32>
+
+	<bitset name="a4xx_xs_control_reg" inline="yes">
+		<bitfield name="CONSTLENGTH" low="0" high="7" type="uint"/>
+		<bitfield name="CONSTOBJECTOFFSET" low="8" high="14" type="uint"/>
+		<bitfield name="SSBO_ENABLE" pos="15" type="boolean"/>
+		<bitfield name="ENABLED" pos="16" type="boolean"/>
+		<bitfield name="SHADEROBJOFFSET" low="17" high="23" type="uint"/>
+		<bitfield name="INSTRLENGTH" low="24" high="31" type="uint"/>
+	</bitset>
+	<reg32 offset="0x23c5" name="HLSQ_VS_CONTROL_REG" type="a4xx_xs_control_reg"/>
+	<reg32 offset="0x23c6" name="HLSQ_FS_CONTROL_REG" type="a4xx_xs_control_reg"/>
+	<reg32 offset="0x23c7" name="HLSQ_HS_CONTROL_REG" type="a4xx_xs_control_reg"/>
+	<reg32 offset="0x23c8" name="HLSQ_DS_CONTROL_REG" type="a4xx_xs_control_reg"/>
+	<reg32 offset="0x23c9" name="HLSQ_GS_CONTROL_REG" type="a4xx_xs_control_reg"/>
+	<reg32 offset="0x23ca" name="HLSQ_CS_CONTROL_REG" type="a4xx_xs_control_reg"/>
+	<reg32 offset="0x23cd" name="HLSQ_CL_NDRANGE_0">
+		<bitfield name="KERNELDIM" low="0" high="1" type="uint"/>
+		<!-- localsize is value minus one: -->
+		<bitfield name="LOCALSIZEX" low="2" high="11" type="uint"/>
+		<bitfield name="LOCALSIZEY" low="12" high="21" type="uint"/>
+		<bitfield name="LOCALSIZEZ" low="22" high="31" type="uint"/>
+	</reg32>
+	<reg32 offset="0x23ce" name="HLSQ_CL_NDRANGE_1">
+		<bitfield name="SIZE_X" low="0" high="31" type="uint"/>
+	</reg32>
+	<reg32 offset="0x23cf" name="HLSQ_CL_NDRANGE_2"/>
+	<reg32 offset="0x23d0" name="HLSQ_CL_NDRANGE_3">
+		<bitfield name="SIZE_Y" low="0" high="31" type="uint"/>
+	</reg32>
+	<reg32 offset="0x23d1" name="HLSQ_CL_NDRANGE_4"/>
+	<reg32 offset="0x23d2" name="HLSQ_CL_NDRANGE_5">
+		<bitfield name="SIZE_Z" low="0" high="31" type="uint"/>
+	</reg32>
+	<reg32 offset="0x23d3" name="HLSQ_CL_NDRANGE_6"/>
+	<reg32 offset="0x23d4" name="HLSQ_CL_CONTROL_0">
+		<bitfield name="WGIDCONSTID" low="0" high="11" type="a3xx_regid"/>
+		<bitfield name="KERNELDIMCONSTID" low="12" high="23" type="a3xx_regid"/>
+		<bitfield name="LOCALIDREGID" low="24" high="31" type="a3xx_regid"/>
+	</reg32>
+	<reg32 offset="0x23d5" name="HLSQ_CL_CONTROL_1">
+		<!-- GLOBALSIZECONSTID? "kernel size" -->
+		<bitfield name="UNK0CONSTID" low="0" high="11" type="a3xx_regid"/>
+		<bitfield name="WORKGROUPSIZECONSTID" low="12" high="23" type="a3xx_regid"/>
+	</reg32>
+	<reg32 offset="0x23d6" name="HLSQ_CL_KERNEL_CONST">
+		<!-- GLOBALOFFSETCONSTID -->
+		<bitfield name="UNK0CONSTID" low="0" high="11" type="a3xx_regid"/>
+		<bitfield name="NUMWGCONSTID" low="12" high="23" type="a3xx_regid"/>
+	</reg32>
+	<reg32 offset="0x23d7" name="HLSQ_CL_KERNEL_GROUP_X"/>
+	<reg32 offset="0x23d8" name="HLSQ_CL_KERNEL_GROUP_Y"/>
+	<reg32 offset="0x23d9" name="HLSQ_CL_KERNEL_GROUP_Z"/>
+	<reg32 offset="0x23da" name="HLSQ_CL_WG_OFFSET">
+		<!-- WGOFFSETCONSTID -->
+		<bitfield name="UNK0CONSTID" low="0" high="11" type="a3xx_regid"/>
+	</reg32>
+	<reg32 offset="0x23db" name="HLSQ_UPDATE_CONTROL"/>
+
+	<!-- PC registers -->
+	<reg32 offset="0x0d00" name="PC_BINNING_COMMAND">
+		<bitfield name="BINNING_ENABLE" pos="0" type="boolean"/>
+	</reg32>
+	<reg32 offset="0x0d08" name="PC_TESSFACTOR_ADDR"/>
+	<reg32 offset="0x0d0c" name="PC_DRAWCALL_SETUP_OVERRIDE"/>
+	<reg32 offset="0x0d10" name="PC_PERFCTR_PC_SEL_0" type="a4xx_pc_perfcounter_select"/>
+	<reg32 offset="0x0d11" name="PC_PERFCTR_PC_SEL_1" type="a4xx_pc_perfcounter_select"/>
+	<reg32 offset="0x0d12" name="PC_PERFCTR_PC_SEL_2" type="a4xx_pc_perfcounter_select"/>
+	<reg32 offset="0x0d13" name="PC_PERFCTR_PC_SEL_3" type="a4xx_pc_perfcounter_select"/>
+	<reg32 offset="0x0d14" name="PC_PERFCTR_PC_SEL_4" type="a4xx_pc_perfcounter_select"/>
+	<reg32 offset="0x0d15" name="PC_PERFCTR_PC_SEL_5" type="a4xx_pc_perfcounter_select"/>
+	<reg32 offset="0x0d16" name="PC_PERFCTR_PC_SEL_6" type="a4xx_pc_perfcounter_select"/>
+	<reg32 offset="0x0d17" name="PC_PERFCTR_PC_SEL_7" type="a4xx_pc_perfcounter_select"/>
+	<reg32 offset="0x21c0" name="PC_BIN_BASE"/>
+	<reg32 offset="0x21c2" name="PC_VSTREAM_CONTROL">
+		<doc>SIZE is current pipe width * height (in tiles)</doc>
+		<bitfield name="SIZE" low="16" high="21" type="uint"/>
+		<doc>
+			N is some sort of slot # between 0..(SIZE-1).  In case
+			multiple tiles use same pipe, each tile gets unique slot #
+		</doc>
+		<bitfield name="N" low="22" high="26" type="uint"/>
+	</reg32>
+	<reg32 offset="0x21c4" name="PC_PRIM_VTX_CNTL">
+		<!-- bit0 set if there is >= 1 varying (actually used by FS) -->
+		<bitfield name="VAROUT" low="0" high="3" type="uint">
+			<doc>in groups of 4x vec4, blob only uses values
+			0, 1, 2, 4, 6, 8</doc>
+		</bitfield>
+		<bitfield name="PRIMITIVE_RESTART" pos="20" type="boolean"/>
+		<bitfield name="PROVOKING_VTX_LAST" pos="25" type="boolean"/>
+		<!-- PSIZE bit set if gl_PointSize written: -->
+		<bitfield name="PSIZE" pos="26" type="boolean"/>
+	</reg32>
+	<reg32 offset="0x21c5" name="PC_PRIM_VTX_CNTL2">
+		<bitfield name="POLYMODE_FRONT_PTYPE" low="0" high="2" type="adreno_pa_su_sc_draw"/>
+		<bitfield name="POLYMODE_BACK_PTYPE" low="3" high="5" type="adreno_pa_su_sc_draw"/>
+		<bitfield name="POLYMODE_ENABLE" pos="6" type="boolean"/>
+	</reg32>
+	<reg32 offset="0x21c6" name="PC_RESTART_INDEX"/>
+	<reg32 offset="0x21e5" name="PC_GS_PARAM">
+		<bitfield name="MAX_VERTICES" low="0" high="9" type="uint"/><!-- +1, i.e. max is 1024 -->
+		<bitfield name="INVOCATIONS" low="11" high="15" type="uint"/><!-- +1, i.e. max is 32 -->
+		<bitfield name="PRIMTYPE" low="23" high="24" type="adreno_pa_su_sc_draw"/>
+		<bitfield name="LAYER" pos="31" type="boolean"/>
+	</reg32>
+	<reg32 offset="0x21e7" name="PC_HS_PARAM">
+		<bitfield name="VERTICES_OUT" low="0" high="5" type="uint"/>
+		<bitfield name="SPACING" low="21" high="22" type="a4xx_tess_spacing"/>
+		<bitfield name="CW" pos="23" type="boolean"/>
+		<bitfield name="CONNECTED" pos="24" type="boolean"/>
+	</reg32>
+
+	<!-- VBIF registers -->
+	<reg32 offset="0x3000" name="VBIF_VERSION"/>
+	<reg32 offset="0x3001" name="VBIF_CLKON">
+		<bitfield name="FORCE_ON_TESTBUS" pos="0" type="boolean"/>
+	</reg32>
+	<reg32 offset="0x301c" name="VBIF_ABIT_SORT"/>
+	<reg32 offset="0x301d" name="VBIF_ABIT_SORT_CONF"/>
+	<reg32 offset="0x302a" name="VBIF_GATE_OFF_WRREQ_EN"/>
+	<reg32 offset="0x302c" name="VBIF_IN_RD_LIM_CONF0"/>
+	<reg32 offset="0x302d" name="VBIF_IN_RD_LIM_CONF1"/>
+	<reg32 offset="0x3030" name="VBIF_IN_WR_LIM_CONF0"/>
+	<reg32 offset="0x3031" name="VBIF_IN_WR_LIM_CONF1"/>
+	<reg32 offset="0x3049" name="VBIF_ROUND_ROBIN_QOS_ARB"/>
+	<reg32 offset="0x30c0" name="VBIF_PERF_CNT_EN0"/>
+	<reg32 offset="0x30c1" name="VBIF_PERF_CNT_EN1"/>
+	<reg32 offset="0x30c2" name="VBIF_PERF_CNT_EN2"/>
+	<reg32 offset="0x30c3" name="VBIF_PERF_CNT_EN3"/>
+	<reg32 offset="0x30d0" name="VBIF_PERF_CNT_SEL0" type="a4xx_vbif_perfcounter_select"/>
+	<reg32 offset="0x30d1" name="VBIF_PERF_CNT_SEL1" type="a4xx_vbif_perfcounter_select"/>
+	<reg32 offset="0x30d2" name="VBIF_PERF_CNT_SEL2" type="a4xx_vbif_perfcounter_select"/>
+	<reg32 offset="0x30d3" name="VBIF_PERF_CNT_SEL3" type="a4xx_vbif_perfcounter_select"/>
+	<reg32 offset="0x30d8" name="VBIF_PERF_CNT_LOW0"/>
+	<reg32 offset="0x30d9" name="VBIF_PERF_CNT_LOW1"/>
+	<reg32 offset="0x30da" name="VBIF_PERF_CNT_LOW2"/>
+	<reg32 offset="0x30db" name="VBIF_PERF_CNT_LOW3"/>
+	<reg32 offset="0x30e0" name="VBIF_PERF_CNT_HIGH0"/>
+	<reg32 offset="0x30e1" name="VBIF_PERF_CNT_HIGH1"/>
+	<reg32 offset="0x30e2" name="VBIF_PERF_CNT_HIGH2"/>
+	<reg32 offset="0x30e3" name="VBIF_PERF_CNT_HIGH3"/>
+	<reg32 offset="0x3100" name="VBIF_PERF_PWR_CNT_EN0"/>
+	<reg32 offset="0x3101" name="VBIF_PERF_PWR_CNT_EN1"/>
+	<reg32 offset="0x3102" name="VBIF_PERF_PWR_CNT_EN2"/>
+
+	<!--
+	Unknown registers:
+	(mostly related to DX11 features not used yet, I guess?)
+	-->
+
+	<!-- always 00000006: -->
+	<reg32 offset="0x0cc5" name="UNKNOWN_0CC5"/>
+
+	<!-- always 00000000: -->
+	<reg32 offset="0x0cc6" name="UNKNOWN_0CC6"/>
+
+	<!-- always 00000001: -->
+	<reg32 offset="0x0d01" name="UNKNOWN_0D01"/>
+
+	<!-- always 00000000: -->
+	<reg32 offset="0x0e42" name="UNKNOWN_0E42"/>
+
+	<!-- always 00040000: -->
+	<reg32 offset="0x0ec2" name="UNKNOWN_0EC2"/>
+
+	<!-- always 00000000: -->
+	<reg32 offset="0x2001" name="UNKNOWN_2001"/>
+
+	<!-- always 00000000: -->
+	<reg32 offset="0x209b" name="UNKNOWN_209B"/>
+
+	<!-- always 00000000: -->
+	<reg32 offset="0x20ef" name="UNKNOWN_20EF"/>
+
+	<!-- always 00000000: -->
+	<reg32 offset="0x2152" name="UNKNOWN_2152"/>
+
+	<!-- always 00000000: -->
+	<reg32 offset="0x2153" name="UNKNOWN_2153"/>
+
+	<!-- always 00000000: -->
+	<reg32 offset="0x2154" name="UNKNOWN_2154"/>
+
+	<!-- always 00000000: -->
+	<reg32 offset="0x2155" name="UNKNOWN_2155"/>
+
+	<!-- always 00000000: -->
+	<reg32 offset="0x2156" name="UNKNOWN_2156"/>
+
+	<!-- always 00000000: -->
+	<reg32 offset="0x2157" name="UNKNOWN_2157"/>
+
+	<!-- always 0000000b: -->
+	<reg32 offset="0x21c3" name="UNKNOWN_21C3"/>
+
+	<!-- always 00000001: -->
+	<reg32 offset="0x21e6" name="UNKNOWN_21E6"/>
+
+	<!-- always 00000000: -->
+	<reg32 offset="0x2209" name="UNKNOWN_2209"/>
+
+	<!-- always 00000000: -->
+	<reg32 offset="0x22d7" name="UNKNOWN_22D7"/>
+
+        <!-- always 00fcfc00: -->
+        <reg32 offset="0x2352" name="UNKNOWN_2352"/>
+
+</domain>
+
+
+<domain name="A4XX_TEX_SAMP" width="32">
+	<doc>Texture sampler dwords</doc>
+	<enum name="a4xx_tex_filter">
+		<value name="A4XX_TEX_NEAREST" value="0"/>
+		<value name="A4XX_TEX_LINEAR" value="1"/>
+		<value name="A4XX_TEX_ANISO" value="2"/>
+	</enum>
+	<enum name="a4xx_tex_clamp">
+		<value name="A4XX_TEX_REPEAT" value="0"/>
+		<value name="A4XX_TEX_CLAMP_TO_EDGE" value="1"/>
+		<value name="A4XX_TEX_MIRROR_REPEAT" value="2"/>
+		<value name="A4XX_TEX_CLAMP_TO_BORDER" value="3"/>
+		<value name="A4XX_TEX_MIRROR_CLAMP" value="4"/>
+	</enum>
+	<enum name="a4xx_tex_aniso">
+		<value name="A4XX_TEX_ANISO_1" value="0"/>
+		<value name="A4XX_TEX_ANISO_2" value="1"/>
+		<value name="A4XX_TEX_ANISO_4" value="2"/>
+		<value name="A4XX_TEX_ANISO_8" value="3"/>
+		<value name="A4XX_TEX_ANISO_16" value="4"/>
+	</enum>
+	<reg32 offset="0" name="0">
+		<bitfield name="MIPFILTER_LINEAR_NEAR" pos="0" type="boolean"/>
+		<bitfield name="XY_MAG" low="1" high="2" type="a4xx_tex_filter"/>
+		<bitfield name="XY_MIN" low="3" high="4" type="a4xx_tex_filter"/>
+		<bitfield name="WRAP_S" low="5" high="7" type="a4xx_tex_clamp"/>
+		<bitfield name="WRAP_T" low="8" high="10" type="a4xx_tex_clamp"/>
+		<bitfield name="WRAP_R" low="11" high="13" type="a4xx_tex_clamp"/>
+		<bitfield name="ANISO" low="14" high="16" type="a4xx_tex_aniso"/>
+		<bitfield name="LOD_BIAS" low="19" high="31" type="fixed" radix="8"/><!-- no idea how many bits for real -->
+	</reg32>
+	<reg32 offset="1" name="1">
+		<bitfield name="COMPARE_FUNC" low="1" high="3" type="adreno_compare_func"/>
+		<bitfield name="CUBEMAPSEAMLESSFILTOFF" pos="4" type="boolean"/>
+		<bitfield name="UNNORM_COORDS" pos="5" type="boolean"/>
+		<bitfield name="MIPFILTER_LINEAR_FAR" pos="6" type="boolean"/>
+		<bitfield name="MAX_LOD" low="8" high="19" type="ufixed" radix="8"/>
+		<bitfield name="MIN_LOD" low="20" high="31" type="ufixed" radix="8"/>
+	</reg32>
+</domain>
+
+<domain name="A4XX_TEX_CONST" width="32">
+	<doc>Texture constant dwords</doc>
+	<enum name="a4xx_tex_swiz">
+		<!-- same as a2xx? -->
+		<value name="A4XX_TEX_X" value="0"/>
+		<value name="A4XX_TEX_Y" value="1"/>
+		<value name="A4XX_TEX_Z" value="2"/>
+		<value name="A4XX_TEX_W" value="3"/>
+		<value name="A4XX_TEX_ZERO" value="4"/>
+		<value name="A4XX_TEX_ONE" value="5"/>
+	</enum>
+	<enum name="a4xx_tex_type">
+		<value name="A4XX_TEX_1D" value="0"/>
+		<value name="A4XX_TEX_2D" value="1"/>
+		<value name="A4XX_TEX_CUBE" value="2"/>
+		<value name="A4XX_TEX_3D" value="3"/>
+		<value name="A4XX_TEX_BUFFER" value="4"/>
+	</enum>
+	<reg32 offset="0" name="0">
+		<bitfield name="TILED" pos="0" type="boolean"/>
+		<bitfield name="SRGB" pos="2" type="boolean"/>
+		<bitfield name="SWIZ_X" low="4" high="6" type="a4xx_tex_swiz"/>
+		<bitfield name="SWIZ_Y" low="7" high="9" type="a4xx_tex_swiz"/>
+		<bitfield name="SWIZ_Z" low="10" high="12" type="a4xx_tex_swiz"/>
+		<bitfield name="SWIZ_W" low="13" high="15" type="a4xx_tex_swiz"/>
+		<bitfield name="MIPLVLS" low="16" high="19" type="uint"/>
+		<bitfield name="FMT" low="22" high="28" type="a4xx_tex_fmt"/>
+		<bitfield name="TYPE" low="29" high="31" type="a4xx_tex_type"/>
+	</reg32>
+	<reg32 offset="1" name="1">
+		<bitfield name="HEIGHT" low="0" high="14" type="uint"/>
+		<bitfield name="WIDTH" low="15" high="29" type="uint"/>
+	</reg32>
+	<reg32 offset="2" name="2">
+		<!-- minimum pitch (for mipmap levels): log2(pitchalign / 32) -->
+		<bitfield name="PITCHALIGN" low="0" high="3" type="uint"/>
+		<bitfield name="BUFFER" pos="6" type="boolean"/>
+		<doc>Pitch in bytes (so actually stride)</doc>
+		<bitfield name="PITCH" low="9" high="29" type="uint"/>
+		<bitfield name="SWAP" low="30" high="31" type="a3xx_color_swap"/>
+	</reg32>
+	<reg32 offset="3" name="3">
+		<bitfield name="LAYERSZ" low="0" high="13" shr="12" type="uint"/>
+		<bitfield name="DEPTH" low="18" high="30" type="uint"/>
+	</reg32>
+	<reg32 offset="4" name="4">
+		<!--
+		like a3xx we seem to have two LAYERSZ's.. although this one
+		seems too small to be useful, and when it overflows blob just
+		sets it to zero..
+		 -->
+		<bitfield name="LAYERSZ" low="0" high="3" shr="12" type="uint"/>
+		<bitfield name="BASE" low="5" high="31" shr="5"/>
+	</reg32>
+	<reg32 offset="5" name="5"/>
+	<reg32 offset="6" name="6"/>
+	<reg32 offset="7" name="7"/>
+</domain>
+
+<domain name="A4XX_SSBO_0" width="32">
+	<reg32 offset="0" name="0">
+		<bitfield name="BASE" low="5" high="31" shr="5"/>
+	</reg32>
+	<reg32 offset="1" name="1">
+		<doc>Pitch in bytes (so actually stride)</doc>
+		<bitfield name="PITCH" low="0" high="21" type="uint"/>
+	</reg32>
+	<reg32 offset="2" name="2">
+		<bitfield name="ARRAY_PITCH" low="12" high="25" shr="12" type="uint"/>
+	</reg32>
+	<reg32 offset="3" name="3">
+		<!-- bytes per pixel: -->
+		<bitfield name="CPP" low="0" high="5" type="uint"/>
+	</reg32>
+</domain>
+
+<domain name="A4XX_SSBO_1" width="32">
+	<reg32 offset="0" name="0">
+		<bitfield name="CPP" low="0" high="4" type="uint"/>
+		<bitfield name="FMT" low="8" high="15" type="a4xx_color_fmt"/>
+		<bitfield name="WIDTH" low="16" high="31" type="uint"/>
+	</reg32>
+	<reg32 offset="1" name="1">
+		<bitfield name="HEIGHT" low="0" high="15" type="uint"/>
+		<bitfield name="DEPTH" low="16" high="31" type="uint"/>
+	</reg32>
+</domain>
+
+</database>

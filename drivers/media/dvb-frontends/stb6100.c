@@ -110,7 +110,7 @@ static const struct stb6100_regmask stb6100_template[] = {
 /*
  * Currently unused. Some boards might need it in the future
  */
-static inline void stb6100_normalise_regs(u8 regs[])
+static __always_unused inline void stb6100_normalise_regs(u8 regs[])
 {
 	int i;
 
@@ -557,7 +557,7 @@ static void stb6100_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-EXPORT_SYMBOL(stb6100_attach);
+EXPORT_SYMBOL_GPL(stb6100_attach);
 MODULE_PARM_DESC(verbose, "Set Verbosity level");
 
 MODULE_AUTHOR("Manu Abraham");

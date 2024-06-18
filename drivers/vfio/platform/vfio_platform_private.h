@@ -9,6 +9,7 @@
 
 #include <linux/types.h>
 #include <linux/interrupt.h>
+#include <linux/vfio.h>
 
 #define VFIO_PLATFORM_OFFSET_SHIFT   40
 #define VFIO_PLATFORM_OFFSET_MASK (((u64)(1) << VFIO_PLATFORM_OFFSET_SHIFT) - 1)
@@ -42,13 +43,12 @@ struct vfio_platform_region {
 };
 
 struct vfio_platform_device {
+	struct vfio_device		vdev;
 	struct vfio_platform_region	*regions;
 	u32				num_regions;
 	struct vfio_platform_irq	*irqs;
 	u32				num_irqs;
-	int				refcnt;
 	struct mutex			igate;
-	struct module			*parent_module;
 	const char			*compat;
 	const char			*acpihid;
 	struct module			*reset_module;
@@ -78,22 +78,32 @@ struct vfio_platform_reset_node {
 	vfio_platform_reset_fn_t of_reset;
 };
 
-extern int vfio_platform_probe_common(struct vfio_platform_device *vdev,
-				      struct device *dev);
-extern struct vfio_platform_device *vfio_platform_remove_common
-				     (struct device *dev);
+int vfio_platform_init_common(struct vfio_platform_device *vdev);
+void vfio_platform_release_common(struct vfio_platform_device *vdev);
 
-extern int vfio_platform_irq_init(struct vfio_platform_device *vdev);
-extern void vfio_platform_irq_cleanup(struct vfio_platform_device *vdev);
+int vfio_platform_open_device(struct vfio_device *core_vdev);
+void vfio_platform_close_device(struct vfio_device *core_vdev);
+long vfio_platform_ioctl(struct vfio_device *core_vdev,
+			 unsigned int cmd, unsigned long arg);
+ssize_t vfio_platform_read(struct vfio_device *core_vdev,
+			   char __user *buf, size_t count,
+			   loff_t *ppos);
+ssize_t vfio_platform_write(struct vfio_device *core_vdev,
+			    const char __user *buf,
+			    size_t count, loff_t *ppos);
+int vfio_platform_mmap(struct vfio_device *core_vdev,
+		       struct vm_area_struct *vma);
 
-extern int vfio_platform_set_irqs_ioctl(struct vfio_platform_device *vdev,
-					uint32_t flags, unsigned index,
-					unsigned start, unsigned count,
-					void *data);
+int vfio_platform_irq_init(struct vfio_platform_device *vdev);
+void vfio_platform_irq_cleanup(struct vfio_platform_device *vdev);
 
-extern void __vfio_platform_register_reset(struct vfio_platform_reset_node *n);
-extern void vfio_platform_unregister_reset(const char *compat,
-					   vfio_platform_reset_fn_t fn);
+int vfio_platform_set_irqs_ioctl(struct vfio_platform_device *vdev,
+				 uint32_t flags, unsigned index,
+				 unsigned start, unsigned count, void *data);
+
+void __vfio_platform_register_reset(struct vfio_platform_reset_node *n);
+void vfio_platform_unregister_reset(const char *compat,
+				    vfio_platform_reset_fn_t fn);
 #define vfio_platform_register_reset(__compat, __reset)		\
 static struct vfio_platform_reset_node __reset ## _node = {	\
 	.owner = THIS_MODULE,					\

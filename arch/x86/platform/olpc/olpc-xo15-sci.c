@@ -27,7 +27,7 @@ static bool				lid_wake_on_close;
  * wake-on-close. This is implemented as standard by the XO-1.5 DSDT.
  *
  * We provide here a sysfs attribute that will additionally enable
- * wake-on-close behavior. This is useful (e.g.) when we oportunistically
+ * wake-on-close behavior. This is useful (e.g.) when we opportunistically
  * suspend with the display running; if the lid is then closed, we want to
  * wake up to turn the display off.
  *
@@ -39,7 +39,7 @@ static int set_lid_wake_behavior(bool wake_on_close)
 
 	status = acpi_execute_simple_method(NULL, "\\_SB.PCI0.LID.LIDW", wake_on_close);
 	if (ACPI_FAILURE(status)) {
-		pr_warning(PFX "failed to set lid behavior\n");
+		pr_warn(PFX "failed to set lid behavior\n");
 		return 1;
 	}
 
@@ -75,7 +75,7 @@ static struct kobj_attribute lid_wake_on_close_attr =
 
 static void battery_status_changed(void)
 {
-	struct power_supply *psy = power_supply_get_by_name("olpc-battery");
+	struct power_supply *psy = power_supply_get_by_name("olpc_battery");
 
 	if (psy) {
 		power_supply_changed(psy);
@@ -85,7 +85,7 @@ static void battery_status_changed(void)
 
 static void ac_status_changed(void)
 {
-	struct power_supply *psy = power_supply_get_by_name("olpc-ac");
+	struct power_supply *psy = power_supply_get_by_name("olpc_ac");
 
 	if (psy) {
 		power_supply_changed(psy);
@@ -183,13 +183,12 @@ err_sysfs:
 	return r;
 }
 
-static int xo15_sci_remove(struct acpi_device *device)
+static void xo15_sci_remove(struct acpi_device *device)
 {
 	acpi_disable_gpe(NULL, xo15_sci_gpe);
 	acpi_remove_gpe_handler(NULL, xo15_sci_gpe, xo15_sci_gpe_handler);
 	cancel_work_sync(&sci_work);
 	sysfs_remove_file(&device->dev.kobj, &lid_wake_on_close_attr.attr);
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

@@ -3,36 +3,6 @@
  * core.c - DesignWare HS OTG Controller common routines
  *
  * Copyright (C) 2004-2013 Synopsys, Inc.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. The names of the above-listed copyright holders may not be used
- *    to endorse or promote products derived from this software without
- *    specific prior written permission.
- *
- * ALTERNATIVELY, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") as published by the Free Software
- * Foundation; either version 2 of the License, or (at your option) any
- * later version.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
- * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /*
@@ -131,54 +101,26 @@ int dwc2_restore_global_registers(struct dwc2_hsotg *hsotg)
  * dwc2_exit_partial_power_down() - Exit controller from Partial Power Down.
  *
  * @hsotg: Programming view of the DWC_otg controller
+ * @rem_wakeup: indicates whether resume is initiated by Reset.
  * @restore: Controller registers need to be restored
  */
-int dwc2_exit_partial_power_down(struct dwc2_hsotg *hsotg, bool restore)
+int dwc2_exit_partial_power_down(struct dwc2_hsotg *hsotg, int rem_wakeup,
+				 bool restore)
 {
-	u32 pcgcctl;
-	int ret = 0;
+	struct dwc2_gregs_backup *gr;
 
-	if (hsotg->params.power_down != DWC2_POWER_DOWN_PARAM_PARTIAL)
-		return -ENOTSUPP;
+	gr = &hsotg->gr_backup;
 
-	pcgcctl = dwc2_readl(hsotg, PCGCTL);
-	pcgcctl &= ~PCGCTL_STOPPCLK;
-	dwc2_writel(hsotg, pcgcctl, PCGCTL);
-
-	pcgcctl = dwc2_readl(hsotg, PCGCTL);
-	pcgcctl &= ~PCGCTL_PWRCLMP;
-	dwc2_writel(hsotg, pcgcctl, PCGCTL);
-
-	pcgcctl = dwc2_readl(hsotg, PCGCTL);
-	pcgcctl &= ~PCGCTL_RSTPDWNMODULE;
-	dwc2_writel(hsotg, pcgcctl, PCGCTL);
-
-	udelay(100);
-	if (restore) {
-		ret = dwc2_restore_global_registers(hsotg);
-		if (ret) {
-			dev_err(hsotg->dev, "%s: failed to restore registers\n",
-				__func__);
-			return ret;
-		}
-		if (dwc2_is_host_mode(hsotg)) {
-			ret = dwc2_restore_host_registers(hsotg);
-			if (ret) {
-				dev_err(hsotg->dev, "%s: failed to restore host registers\n",
-					__func__);
-				return ret;
-			}
-		} else {
-			ret = dwc2_restore_device_registers(hsotg, 0);
-			if (ret) {
-				dev_err(hsotg->dev, "%s: failed to restore device registers\n",
-					__func__);
-				return ret;
-			}
-		}
-	}
-
-	return ret;
+	/*
+	 * Restore host or device regisers with the same mode core enterted
+	 * to partial power down by checking "GOTGCTL_CURMODE_HOST" backup
+	 * value of the "gotgctl" register.
+	 */
+	if (gr->gotgctl & GOTGCTL_CURMODE_HOST)
+		return dwc2_host_exit_partial_power_down(hsotg, rem_wakeup,
+							 restore);
+	else
+		return dwc2_gadget_exit_partial_power_down(hsotg, restore);
 }
 
 /**
@@ -188,57 +130,10 @@ int dwc2_exit_partial_power_down(struct dwc2_hsotg *hsotg, bool restore)
  */
 int dwc2_enter_partial_power_down(struct dwc2_hsotg *hsotg)
 {
-	u32 pcgcctl;
-	int ret = 0;
-
-	if (!hsotg->params.power_down)
-		return -ENOTSUPP;
-
-	/* Backup all registers */
-	ret = dwc2_backup_global_registers(hsotg);
-	if (ret) {
-		dev_err(hsotg->dev, "%s: failed to backup global registers\n",
-			__func__);
-		return ret;
-	}
-
-	if (dwc2_is_host_mode(hsotg)) {
-		ret = dwc2_backup_host_registers(hsotg);
-		if (ret) {
-			dev_err(hsotg->dev, "%s: failed to backup host registers\n",
-				__func__);
-			return ret;
-		}
-	} else {
-		ret = dwc2_backup_device_registers(hsotg);
-		if (ret) {
-			dev_err(hsotg->dev, "%s: failed to backup device registers\n",
-				__func__);
-			return ret;
-		}
-	}
-
-	/*
-	 * Clear any pending interrupts since dwc2 will not be able to
-	 * clear them after entering partial_power_down.
-	 */
-	dwc2_writel(hsotg, 0xffffffff, GINTSTS);
-
-	/* Put the controller in low power state */
-	pcgcctl = dwc2_readl(hsotg, PCGCTL);
-
-	pcgcctl |= PCGCTL_PWRCLMP;
-	dwc2_writel(hsotg, pcgcctl, PCGCTL);
-	ndelay(20);
-
-	pcgcctl |= PCGCTL_RSTPDWNMODULE;
-	dwc2_writel(hsotg, pcgcctl, PCGCTL);
-	ndelay(20);
-
-	pcgcctl |= PCGCTL_STOPPCLK;
-	dwc2_writel(hsotg, pcgcctl, PCGCTL);
-
-	return ret;
+	if (dwc2_is_host_mode(hsotg))
+		return dwc2_host_enter_partial_power_down(hsotg);
+	else
+		return dwc2_gadget_enter_partial_power_down(hsotg);
 }
 
 /**
@@ -354,6 +249,11 @@ void dwc2_hib_restore_common(struct dwc2_hsotg *hsotg, int rem_wakeup,
 	dwc2_writel(hsotg, gpwrdn, GPWRDN);
 	udelay(10);
 
+	/* Reset ULPI latch */
+	gpwrdn = dwc2_readl(hsotg, GPWRDN);
+	gpwrdn &= ~GPWRDN_ULPI_LATCH_EN_DURING_HIB_ENTRY;
+	dwc2_writel(hsotg, gpwrdn, GPWRDN);
+
 	/* Disable PMU interrupt */
 	gpwrdn = dwc2_readl(hsotg, GPWRDN);
 	gpwrdn &= ~GPWRDN_PMUINTSEL;
@@ -370,10 +270,16 @@ void dwc2_hib_restore_common(struct dwc2_hsotg *hsotg, int rem_wakeup,
 	if (dwc2_hsotg_wait_bit_set(hsotg, GINTSTS, GINTSTS_RESTOREDONE,
 				    20000)) {
 		dev_dbg(hsotg->dev,
-			"%s: Restore Done wan't generated here\n",
+			"%s: Restore Done wasn't generated here\n",
 			__func__);
 	} else {
 		dev_dbg(hsotg->dev, "restore done  generated here\n");
+
+		/*
+		 * To avoid restore done interrupt storm after restore is
+		 * generated clear GINTSTS_RESTOREDONE bit.
+		 */
+		dwc2_writel(hsotg, GINTSTS_RESTOREDONE, GINTSTS);
 	}
 }
 
@@ -460,9 +366,6 @@ static bool dwc2_iddig_filter_enabled(struct dwc2_hsotg *hsotg)
  */
 int dwc2_enter_hibernation(struct dwc2_hsotg *hsotg, int is_host)
 {
-	if (hsotg->params.power_down != DWC2_POWER_DOWN_PARAM_HIBERNATION)
-		return -ENOTSUPP;
-
 	if (is_host)
 		return dwc2_host_enter_hibernation(hsotg);
 	else
@@ -524,11 +427,42 @@ int dwc2_core_reset(struct dwc2_hsotg *hsotg, bool skip_wait)
 	greset |= GRSTCTL_CSFTRST;
 	dwc2_writel(hsotg, greset, GRSTCTL);
 
-	if (dwc2_hsotg_wait_bit_clear(hsotg, GRSTCTL, GRSTCTL_CSFTRST, 50)) {
-		dev_warn(hsotg->dev, "%s: HANG! Soft Reset timeout GRSTCTL GRSTCTL_CSFTRST\n",
-			 __func__);
-		return -EBUSY;
+	if ((hsotg->hw_params.snpsid & DWC2_CORE_REV_MASK) <
+		(DWC2_CORE_REV_4_20a & DWC2_CORE_REV_MASK)) {
+		if (dwc2_hsotg_wait_bit_clear(hsotg, GRSTCTL,
+					      GRSTCTL_CSFTRST, 10000)) {
+			dev_warn(hsotg->dev, "%s: HANG! Soft Reset timeout GRSTCTL_CSFTRST\n",
+				 __func__);
+			return -EBUSY;
+		}
+	} else {
+		if (dwc2_hsotg_wait_bit_set(hsotg, GRSTCTL,
+					    GRSTCTL_CSFTRST_DONE, 10000)) {
+			dev_warn(hsotg->dev, "%s: HANG! Soft Reset timeout GRSTCTL_CSFTRST_DONE\n",
+				 __func__);
+			return -EBUSY;
+		}
+		greset = dwc2_readl(hsotg, GRSTCTL);
+		greset &= ~GRSTCTL_CSFTRST;
+		greset |= GRSTCTL_CSFTRST_DONE;
+		dwc2_writel(hsotg, greset, GRSTCTL);
 	}
+
+	/*
+	 * Switching from device mode to host mode by disconnecting
+	 * device cable core enters and exits form hibernation.
+	 * However, the fifo map remains not cleared. It results
+	 * to a WARNING (WARNING: CPU: 5 PID: 0 at drivers/usb/dwc2/
+	 * gadget.c:307 dwc2_hsotg_init_fifo+0x12/0x152 [dwc2])
+	 * if in host mode we disconnect the micro a to b host
+	 * cable. Because core reset occurs.
+	 * To avoid the WARNING, fifo_map should be cleared
+	 * in dwc2_core_reset() function by taking into account configs.
+	 * fifo_map must be cleared only if driver is configured in
+	 * "CONFIG_USB_DWC2_PERIPHERAL" or "CONFIG_USB_DWC2_DUAL_ROLE"
+	 * mode.
+	 */
+	dwc2_clear_fifo_map(hsotg);
 
 	/* Wait for AHB master IDLE state */
 	if (dwc2_hsotg_wait_bit_set(hsotg, GRSTCTL, GRSTCTL_AHBIDLE, 10000)) {
@@ -1046,6 +980,41 @@ void dwc2_init_fs_ls_pclk_sel(struct dwc2_hsotg *hsotg)
 	dwc2_writel(hsotg, hcfg, HCFG);
 }
 
+static void dwc2_set_clock_switch_timer(struct dwc2_hsotg *hsotg)
+{
+	u32 grstctl, gsnpsid, val = 0;
+
+	gsnpsid = dwc2_readl(hsotg, GSNPSID);
+
+	/*
+	 * Applicable only to HSOTG core v5.00a or higher.
+	 * Not applicable to HS/FS IOT devices.
+	 */
+	if ((gsnpsid & ~DWC2_CORE_REV_MASK) != DWC2_OTG_ID ||
+	    gsnpsid < DWC2_CORE_REV_5_00a)
+		return;
+
+	if ((hsotg->hw_params.hs_phy_type == GHWCFG2_HS_PHY_TYPE_UTMI &&
+	     hsotg->hw_params.fs_phy_type == GHWCFG2_FS_PHY_TYPE_NOT_SUPPORTED) ||
+	    (hsotg->hw_params.hs_phy_type == GHWCFG2_HS_PHY_TYPE_ULPI &&
+	     hsotg->hw_params.fs_phy_type == GHWCFG2_FS_PHY_TYPE_NOT_SUPPORTED) ||
+	    (hsotg->hw_params.hs_phy_type == GHWCFG2_HS_PHY_TYPE_NOT_SUPPORTED &&
+	     hsotg->hw_params.fs_phy_type != GHWCFG2_FS_PHY_TYPE_NOT_SUPPORTED)) {
+		val = GRSTCTL_CLOCK_SWITH_TIMER_VALUE_DIS;
+	}
+
+	if (hsotg->params.speed == DWC2_SPEED_PARAM_LOW &&
+	    hsotg->hw_params.hs_phy_type != GHWCFG2_HS_PHY_TYPE_NOT_SUPPORTED &&
+	    hsotg->hw_params.fs_phy_type != GHWCFG2_FS_PHY_TYPE_NOT_SUPPORTED) {
+		val = GRSTCTL_CLOCK_SWITH_TIMER_VALUE_147;
+	}
+
+	grstctl = dwc2_readl(hsotg, GRSTCTL);
+	grstctl &= ~GRSTCTL_CLOCK_SWITH_TIMER_MASK;
+	grstctl |= GRSTCTL_CLOCK_SWITH_TIMER(val);
+	dwc2_writel(hsotg, grstctl, GRSTCTL);
+}
+
 static int dwc2_fs_phy_init(struct dwc2_hsotg *hsotg, bool select_phy)
 {
 	u32 usbcfg, ggpio, i2cctl;
@@ -1062,6 +1031,8 @@ static int dwc2_fs_phy_init(struct dwc2_hsotg *hsotg, bool select_phy)
 		if (!(usbcfg & GUSBCFG_PHYSEL)) {
 			usbcfg |= GUSBCFG_PHYSEL;
 			dwc2_writel(hsotg, usbcfg, GUSBCFG);
+
+			dwc2_set_clock_switch_timer(hsotg);
 
 			/* Reset after a PHY select */
 			retval = dwc2_core_reset(hsotg, false);
@@ -1152,15 +1123,6 @@ static int dwc2_hs_phy_init(struct dwc2_hsotg *hsotg, bool select_phy)
 		usbcfg &= ~(GUSBCFG_ULPI_UTMI_SEL | GUSBCFG_PHYIF16);
 		if (hsotg->params.phy_utmi_width == 16)
 			usbcfg |= GUSBCFG_PHYIF16;
-
-		/* Set turnaround time */
-		if (dwc2_is_device_mode(hsotg)) {
-			usbcfg &= ~GUSBCFG_USBTRDTIM_MASK;
-			if (hsotg->params.phy_utmi_width == 16)
-				usbcfg |= 5 << GUSBCFG_USBTRDTIM_SHIFT;
-			else
-				usbcfg |= 9 << GUSBCFG_USBTRDTIM_SHIFT;
-		}
 		break;
 	default:
 		dev_err(hsotg->dev, "FS PHY selected at HS!\n");
@@ -1182,9 +1144,28 @@ static int dwc2_hs_phy_init(struct dwc2_hsotg *hsotg, bool select_phy)
 	return retval;
 }
 
+static void dwc2_set_turnaround_time(struct dwc2_hsotg *hsotg)
+{
+	u32 usbcfg;
+
+	if (hsotg->params.phy_type != DWC2_PHY_TYPE_PARAM_UTMI)
+		return;
+
+	usbcfg = dwc2_readl(hsotg, GUSBCFG);
+
+	usbcfg &= ~GUSBCFG_USBTRDTIM_MASK;
+	if (hsotg->params.phy_utmi_width == 16)
+		usbcfg |= 5 << GUSBCFG_USBTRDTIM_SHIFT;
+	else
+		usbcfg |= 9 << GUSBCFG_USBTRDTIM_SHIFT;
+
+	dwc2_writel(hsotg, usbcfg, GUSBCFG);
+}
+
 int dwc2_phy_init(struct dwc2_hsotg *hsotg, bool select_phy)
 {
 	u32 usbcfg;
+	u32 otgctl;
 	int retval = 0;
 
 	if ((hsotg->params.speed == DWC2_SPEED_PARAM_FULL ||
@@ -1199,6 +1180,9 @@ int dwc2_phy_init(struct dwc2_hsotg *hsotg, bool select_phy)
 		retval = dwc2_hs_phy_init(hsotg, select_phy);
 		if (retval)
 			return retval;
+
+		if (dwc2_is_device_mode(hsotg))
+			dwc2_set_turnaround_time(hsotg);
 	}
 
 	if (hsotg->hw_params.hs_phy_type == GHWCFG2_HS_PHY_TYPE_ULPI &&
@@ -1214,6 +1198,14 @@ int dwc2_phy_init(struct dwc2_hsotg *hsotg, bool select_phy)
 		usbcfg &= ~GUSBCFG_ULPI_FS_LS;
 		usbcfg &= ~GUSBCFG_ULPI_CLK_SUSP_M;
 		dwc2_writel(hsotg, usbcfg, GUSBCFG);
+	}
+
+	if (!hsotg->params.activate_ingenic_overcurrent_detection) {
+		if (dwc2_is_host_mode(hsotg)) {
+			otgctl = readl(hsotg->regs + GOTGCTL);
+			otgctl |= GOTGCTL_VBVALOEN | GOTGCTL_VBVALOVAL;
+			writel(otgctl, hsotg->regs + GOTGCTL);
+		}
 	}
 
 	return retval;

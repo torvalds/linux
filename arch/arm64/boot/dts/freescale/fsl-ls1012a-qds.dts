@@ -13,6 +13,11 @@
 	model = "LS1012A QDS Board";
 	compatible = "fsl,ls1012a-qds", "fsl,ls1012a";
 
+	aliases {
+		mmc0 = &esdhc0;
+		mmc1 = &esdhc1;
+	};
+
 	sys_mclk: clock-mclk {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -64,7 +69,7 @@
 	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "n25q128a11", "jedec,spi-nor";
+		compatible = "micron,n25q128a11", "jedec,spi-nor";
 		reg = <0>;
 		spi-max-frequency = <10000000>;
 	};
@@ -105,7 +110,7 @@
 &i2c0 {
 	status = "okay";
 
-	pca9547@77 {
+	i2c-mux@77 {
 		compatible = "nxp,pca9547";
 		reg = <0x77>;
 		#address-cells = <1>;
@@ -125,6 +130,21 @@
 				clocks = <&sys_mclk>;
 			};
 		};
+	};
+};
+
+&qspi {
+	status = "okay";
+
+	s25fs512s0: flash@0 {
+		compatible = "jedec,spi-nor";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		spi-max-frequency = <50000000>;
+		m25p,fast-read;
+		reg = <0>;
+		spi-rx-bus-width = <2>;
+		spi-tx-bus-width = <2>;
 	};
 };
 

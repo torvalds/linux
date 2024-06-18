@@ -1022,13 +1022,13 @@ int anybuss_start_init(struct anybuss_client *client,
 	};
 
 	switch (cfg->offl_mode) {
-	case AB_OFFL_MODE_CLEAR:
+	case FIELDBUS_DEV_OFFL_MODE_CLEAR:
 		op_mode = 0;
 		break;
-	case AB_OFFL_MODE_FREEZE:
+	case FIELDBUS_DEV_OFFL_MODE_FREEZE:
 		op_mode = OP_MODE_FBFC;
 		break;
-	case AB_OFFL_MODE_SET:
+	case FIELDBUS_DEV_OFFL_MODE_SET:
 		op_mode = OP_MODE_FBS;
 		break;
 	default:
@@ -1183,22 +1183,19 @@ static int anybus_bus_probe(struct device *dev)
 	struct anybuss_client *adev =
 		to_anybuss_client(dev);
 
-	if (!adrv->probe)
-		return -ENODEV;
 	return adrv->probe(adev);
 }
 
-static int anybus_bus_remove(struct device *dev)
+static void anybus_bus_remove(struct device *dev)
 {
 	struct anybuss_client_driver *adrv =
 		to_anybuss_client_driver(dev->driver);
 
 	if (adrv->remove)
-		return adrv->remove(to_anybuss_client(dev));
-	return 0;
+		adrv->remove(to_anybuss_client(dev));
 }
 
-static struct bus_type anybus_bus = {
+static const struct bus_type anybus_bus = {
 	.name		= "anybuss",
 	.match		= anybus_bus_match,
 	.probe		= anybus_bus_probe,
@@ -1207,6 +1204,9 @@ static struct bus_type anybus_bus = {
 
 int anybuss_client_driver_register(struct anybuss_client_driver *drv)
 {
+	if (!drv->probe)
+		return -ENODEV;
+
 	drv->driver.bus = &anybus_bus;
 	return driver_register(&drv->driver);
 }
@@ -1318,11 +1318,11 @@ anybuss_host_common_probe(struct device *dev,
 	}
 	/*
 	 * startup sequence:
-	 *   perform dummy IND_AB read to prevent false 'init done' irq
+	 *   a) perform dummy IND_AB read to prevent false 'init done' irq
 	 *     (already done by test_dpram() above)
-	 *   release reset
-	 *   wait for first interrupt
-	 *   interrupt came in: ready to go !
+	 *   b) release reset
+	 *   c) wait for first interrupt
+	 *   d) interrupt came in: ready to go !
 	 */
 	reset_deassert(cd);
 	if (!wait_for_completion_timeout(&cd->card_boot, TIMEOUT)) {
@@ -1384,7 +1384,7 @@ anybuss_host_common_probe(struct device *dev,
 		goto err_device;
 	return cd;
 err_device:
-	device_unregister(&cd->client->dev);
+	put_device(&cd->client->dev);
 err_kthread:
 	kthread_stop(cd->qthread);
 err_reset:
@@ -1406,32 +1406,26 @@ void anybuss_host_common_remove(struct anybuss_host *host)
 }
 EXPORT_SYMBOL_GPL(anybuss_host_common_remove);
 
-static void host_release(struct device *dev, void *res)
+static void host_release(void *res)
 {
-	struct anybuss_host **dr = res;
-
-	anybuss_host_common_remove(*dr);
+	anybuss_host_common_remove(res);
 }
 
 struct anybuss_host * __must_check
 devm_anybuss_host_common_probe(struct device *dev,
 			       const struct anybuss_ops *ops)
 {
-	struct anybuss_host **dr;
 	struct anybuss_host *host;
-
-	dr = devres_alloc(host_release, sizeof(struct anybuss_host *),
-			  GFP_KERNEL);
-	if (!dr)
-		return ERR_PTR(-ENOMEM);
+	int ret;
 
 	host = anybuss_host_common_probe(dev, ops);
-	if (IS_ERR(host)) {
-		devres_free(dr);
+	if (IS_ERR(host))
 		return host;
-	}
-	*dr = host;
-	devres_add(dev, dr);
+
+	ret = devm_add_action_or_reset(dev, host_release, host);
+	if (ret)
+		return ERR_PTR(ret);
+
 	return host;
 }
 EXPORT_SYMBOL_GPL(devm_anybuss_host_common_probe);

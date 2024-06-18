@@ -9,6 +9,7 @@
 #ifndef _INDUSTRIAL_IO_SYSFS_H_
 #define _INDUSTRIAL_IO_SYSFS_H_
 
+struct iio_buffer;
 struct iio_chan_spec;
 
 /**
@@ -17,12 +18,14 @@ struct iio_chan_spec;
  * @address:	associated register address
  * @l:		list head for maintaining list of dynamically created attrs
  * @c:		specification for the underlying channel
+ * @buffer:	the IIO buffer to which this attribute belongs to (if any)
  */
 struct iio_dev_attr {
 	struct device_attribute dev_attr;
 	u64 address;
 	struct list_head l;
 	struct iio_chan_spec const *c;
+	struct iio_buffer *buffer;
 };
 
 #define to_iio_dev_attr(_dev_attr)				\
@@ -93,6 +96,17 @@ struct iio_const_attr {
 	struct iio_const_attr iio_const_attr_##_vname			\
 	= { .string = _string,						\
 	    .dev_attr = __ATTR(_name, S_IRUGO, iio_read_const_attr, NULL)}
+
+#define IIO_STATIC_CONST_DEVICE_ATTR(_name, _string)				\
+	static ssize_t iio_const_dev_attr_show_##_name(			\
+					struct device *dev,		\
+					struct device_attribute *attr,	\
+					char *buf)			\
+	{								\
+		return sysfs_emit(buf, "%s\n", _string);		\
+	}								\
+	static IIO_DEVICE_ATTR(_name, 0444,				\
+			       iio_const_dev_attr_show_##_name, NULL, 0)
 
 /* Generic attributes of onetype or another */
 

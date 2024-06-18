@@ -10,15 +10,39 @@
 #include <linux/clk-provider.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/slab.h>
 
 #include <dt-bindings/clock/exynos5433.h>
 
 #include "clk.h"
 #include "clk-cpu.h"
+#include "clk-exynos-arm64.h"
 #include "clk-pll.h"
+
+/* NOTE: Must be equal to the last clock ID increased by one */
+#define CLKS_NR_TOP			(CLK_SCLK_HDMI_SPDIF_DISP + 1)
+#define CLKS_NR_CPIF			(CLK_SCLK_UFS_MPHY + 1)
+#define CLKS_NR_MIF			(CLK_SCLK_BUS_PLL_ATLAS + 1)
+#define CLKS_NR_PERIC			(CLK_DIV_SCLK_SC_IN + 1)
+#define CLKS_NR_PERIS			(CLK_SCLK_OTP_CON + 1)
+#define CLKS_NR_FSYS			(CLK_PCIE + 1)
+#define CLKS_NR_G2D			(CLK_PCLK_SMMU_G2D + 1)
+#define CLKS_NR_DISP			(CLK_PHYCLK_MIPIDPHY0_RXCLKESC0_PHY + 1)
+#define CLKS_NR_AUD			(CLK_SCLK_AUD_I2S + 1)
+#define CLKS_NR_BUSX			(CLK_ACLK_BUS2RTND_400 + 1)
+#define CLKS_NR_G3D			(CLK_SCLK_HPM_G3D + 1)
+#define CLKS_NR_GSCL			(CLK_PCLK_SMMU_GSCL2 + 1)
+#define CLKS_NR_APOLLO			(CLK_SCLK_APOLLO + 1)
+#define CLKS_NR_ATLAS			(CLK_SCLK_ATLAS + 1)
+#define CLKS_NR_MSCL			(CLK_SCLK_JPEG + 1)
+#define CLKS_NR_MFC			(CLK_PCLK_SMMU_MFC_0 + 1)
+#define CLKS_NR_HEVC			(CLK_PCLK_SMMU_HEVC_0 + 1)
+#define CLKS_NR_ISP			(CLK_SCLK_PIXELASYNCM_ISPC + 1)
+#define CLKS_NR_CAM0			(CLK_SCLK_PIXELASYNCS_LITE_C_INIT + 1)
+#define CLKS_NR_CAM1			(CLK_SCLK_ISP_CA5 + 1)
+#define CLKS_NR_IMEM			(CLK_PCLK_SLIMSSS + 1)
 
 /*
  * Register offset definitions for CMU_TOP
@@ -797,7 +821,7 @@ static const struct samsung_cmu_info top_cmu_info __initconst = {
 	.nr_fixed_clks		= ARRAY_SIZE(top_fixed_clks),
 	.fixed_factor_clks	= top_fixed_factor_clks,
 	.nr_fixed_factor_clks	= ARRAY_SIZE(top_fixed_factor_clks),
-	.nr_clk_ids		= TOP_NR_CLK,
+	.nr_clk_ids		= CLKS_NR_TOP,
 	.clk_regs		= top_clk_regs,
 	.nr_clk_regs		= ARRAY_SIZE(top_clk_regs),
 	.suspend_regs		= top_suspend_regs,
@@ -876,7 +900,7 @@ static const struct samsung_cmu_info cpif_cmu_info __initconst = {
 	.nr_div_clks		= ARRAY_SIZE(cpif_div_clks),
 	.gate_clks		= cpif_gate_clks,
 	.nr_gate_clks		= ARRAY_SIZE(cpif_gate_clks),
-	.nr_clk_ids		= CPIF_NR_CLK,
+	.nr_clk_ids		= CLKS_NR_CPIF,
 	.clk_regs		= cpif_clk_regs,
 	.nr_clk_regs		= ARRAY_SIZE(cpif_clk_regs),
 	.suspend_regs		= cpif_suspend_regs,
@@ -1530,7 +1554,7 @@ static const struct samsung_cmu_info mif_cmu_info __initconst = {
 	.nr_gate_clks		= ARRAY_SIZE(mif_gate_clks),
 	.fixed_factor_clks	= mif_fixed_factor_clks,
 	.nr_fixed_factor_clks	= ARRAY_SIZE(mif_fixed_factor_clks),
-	.nr_clk_ids		= MIF_NR_CLK,
+	.nr_clk_ids		= CLKS_NR_MIF,
 	.clk_regs		= mif_clk_regs,
 	.nr_clk_regs		= ARRAY_SIZE(mif_clk_regs),
 };
@@ -1705,7 +1729,8 @@ static const struct samsung_gate_clock peric_gate_clks[] __initconst = {
 	GATE(CLK_SCLK_PCM1, "sclk_pcm1", "sclk_pcm1_peric",
 			ENABLE_SCLK_PERIC, 7, CLK_SET_RATE_PARENT, 0),
 	GATE(CLK_SCLK_I2S1, "sclk_i2s1", "sclk_i2s1_peric",
-			ENABLE_SCLK_PERIC, 6, CLK_SET_RATE_PARENT, 0),
+			ENABLE_SCLK_PERIC, 6,
+			CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_SCLK_SPI2, "sclk_spi2", "sclk_spi2_peric", ENABLE_SCLK_PERIC,
 			5, CLK_SET_RATE_PARENT, 0),
 	GATE(CLK_SCLK_SPI1, "sclk_spi1", "sclk_spi1_peric", ENABLE_SCLK_PERIC,
@@ -1728,7 +1753,7 @@ static const struct samsung_cmu_info peric_cmu_info __initconst = {
 	.nr_div_clks		= ARRAY_SIZE(peric_div_clks),
 	.gate_clks		= peric_gate_clks,
 	.nr_gate_clks		= ARRAY_SIZE(peric_gate_clks),
-	.nr_clk_ids		= PERIC_NR_CLK,
+	.nr_clk_ids		= CLKS_NR_PERIC,
 	.clk_regs		= peric_clk_regs,
 	.nr_clk_regs		= ARRAY_SIZE(peric_clk_regs),
 	.suspend_regs		= peric_suspend_regs,
@@ -1922,7 +1947,7 @@ static const struct samsung_gate_clock peris_gate_clks[] __initconst = {
 static const struct samsung_cmu_info peris_cmu_info __initconst = {
 	.gate_clks		= peris_gate_clks,
 	.nr_gate_clks		= ARRAY_SIZE(peris_gate_clks),
-	.nr_clk_ids		= PERIS_NR_CLK,
+	.nr_clk_ids		= CLKS_NR_PERIS,
 	.clk_regs		= peris_clk_regs,
 	.nr_clk_regs		= ARRAY_SIZE(peris_clk_regs),
 };
@@ -2334,7 +2359,7 @@ static const struct samsung_cmu_info fsys_cmu_info __initconst = {
 	.nr_gate_clks		= ARRAY_SIZE(fsys_gate_clks),
 	.fixed_clks		= fsys_fixed_clks,
 	.nr_fixed_clks		= ARRAY_SIZE(fsys_fixed_clks),
-	.nr_clk_ids		= FSYS_NR_CLK,
+	.nr_clk_ids		= CLKS_NR_FSYS,
 	.clk_regs		= fsys_clk_regs,
 	.nr_clk_regs		= ARRAY_SIZE(fsys_clk_regs),
 	.suspend_regs		= fsys_suspend_regs,
@@ -2457,7 +2482,7 @@ static const struct samsung_cmu_info g2d_cmu_info __initconst = {
 	.nr_div_clks		= ARRAY_SIZE(g2d_div_clks),
 	.gate_clks		= g2d_gate_clks,
 	.nr_gate_clks		= ARRAY_SIZE(g2d_gate_clks),
-	.nr_clk_ids		= G2D_NR_CLK,
+	.nr_clk_ids		= CLKS_NR_G2D,
 	.clk_regs		= g2d_clk_regs,
 	.nr_clk_regs		= ARRAY_SIZE(g2d_clk_regs),
 	.suspend_regs		= g2d_suspend_regs,
@@ -2885,7 +2910,7 @@ static const struct samsung_cmu_info disp_cmu_info __initconst = {
 	.nr_fixed_clks		= ARRAY_SIZE(disp_fixed_clks),
 	.fixed_factor_clks	= disp_fixed_factor_clks,
 	.nr_fixed_factor_clks	= ARRAY_SIZE(disp_fixed_factor_clks),
-	.nr_clk_ids		= DISP_NR_CLK,
+	.nr_clk_ids		= CLKS_NR_DISP,
 	.clk_regs		= disp_clk_regs,
 	.nr_clk_regs		= ARRAY_SIZE(disp_clk_regs),
 	.suspend_regs		= disp_suspend_regs,
@@ -3055,7 +3080,7 @@ static const struct samsung_cmu_info aud_cmu_info __initconst = {
 	.nr_gate_clks		= ARRAY_SIZE(aud_gate_clks),
 	.fixed_clks		= aud_fixed_clks,
 	.nr_fixed_clks		= ARRAY_SIZE(aud_fixed_clks),
-	.nr_clk_ids		= AUD_NR_CLK,
+	.nr_clk_ids		= CLKS_NR_AUD,
 	.clk_regs		= aud_clk_regs,
 	.nr_clk_regs		= ARRAY_SIZE(aud_clk_regs),
 	.suspend_regs		= aud_suspend_regs,
@@ -3187,7 +3212,7 @@ static const struct samsung_gate_clock bus2_gate_clks[] __initconst = {
 	.nr_div_clks		= ARRAY_SIZE(bus##id##_div_clks),	\
 	.gate_clks		= bus##id##_gate_clks,			\
 	.nr_gate_clks		= ARRAY_SIZE(bus##id##_gate_clks),	\
-	.nr_clk_ids		= BUSx_NR_CLK
+	.nr_clk_ids		= CLKS_NR_BUSX
 
 static const struct samsung_cmu_info bus0_cmu_info __initconst = {
 	CMU_BUS_INFO_CLKS(0),
@@ -3338,7 +3363,7 @@ static const struct samsung_cmu_info g3d_cmu_info __initconst = {
 	.nr_div_clks		= ARRAY_SIZE(g3d_div_clks),
 	.gate_clks		= g3d_gate_clks,
 	.nr_gate_clks		= ARRAY_SIZE(g3d_gate_clks),
-	.nr_clk_ids		= G3D_NR_CLK,
+	.nr_clk_ids		= CLKS_NR_G3D,
 	.clk_regs		= g3d_clk_regs,
 	.nr_clk_regs		= ARRAY_SIZE(g3d_clk_regs),
 	.suspend_regs		= g3d_suspend_regs,
@@ -3481,7 +3506,7 @@ static const struct samsung_cmu_info gscl_cmu_info __initconst = {
 	.nr_mux_clks		= ARRAY_SIZE(gscl_mux_clks),
 	.gate_clks		= gscl_gate_clks,
 	.nr_gate_clks		= ARRAY_SIZE(gscl_gate_clks),
-	.nr_clk_ids		= GSCL_NR_CLK,
+	.nr_clk_ids		= CLKS_NR_GSCL,
 	.clk_regs		= gscl_clk_regs,
 	.nr_clk_regs		= ARRAY_SIZE(gscl_clk_regs),
 	.suspend_regs		= gscl_suspend_regs,
@@ -3673,41 +3698,31 @@ static const struct exynos_cpuclk_cfg_data exynos5433_apolloclk_d[] __initconst 
 	{  0 },
 };
 
+static const struct samsung_cpu_clock apollo_cpu_clks[] __initconst = {
+	CPU_CLK(CLK_SCLK_APOLLO, "apolloclk", CLK_MOUT_APOLLO_PLL,
+		CLK_MOUT_BUS_PLL_APOLLO_USER, 0, 0x0,
+		CPUCLK_LAYOUT_E5433, exynos5433_apolloclk_d),
+};
+
+static const struct samsung_cmu_info apollo_cmu_info __initconst = {
+	.pll_clks	= apollo_pll_clks,
+	.nr_pll_clks	= ARRAY_SIZE(apollo_pll_clks),
+	.mux_clks	= apollo_mux_clks,
+	.nr_mux_clks	= ARRAY_SIZE(apollo_mux_clks),
+	.div_clks	= apollo_div_clks,
+	.nr_div_clks	= ARRAY_SIZE(apollo_div_clks),
+	.gate_clks	= apollo_gate_clks,
+	.nr_gate_clks	= ARRAY_SIZE(apollo_gate_clks),
+	.cpu_clks	= apollo_cpu_clks,
+	.nr_cpu_clks	= ARRAY_SIZE(apollo_cpu_clks),
+	.nr_clk_ids	= CLKS_NR_APOLLO,
+	.clk_regs	= apollo_clk_regs,
+	.nr_clk_regs	= ARRAY_SIZE(apollo_clk_regs),
+};
+
 static void __init exynos5433_cmu_apollo_init(struct device_node *np)
 {
-	void __iomem *reg_base;
-	struct samsung_clk_provider *ctx;
-
-	reg_base = of_iomap(np, 0);
-	if (!reg_base) {
-		panic("%s: failed to map registers\n", __func__);
-		return;
-	}
-
-	ctx = samsung_clk_init(np, reg_base, APOLLO_NR_CLK);
-	if (!ctx) {
-		panic("%s: unable to allocate ctx\n", __func__);
-		return;
-	}
-
-	samsung_clk_register_pll(ctx, apollo_pll_clks,
-				 ARRAY_SIZE(apollo_pll_clks), reg_base);
-	samsung_clk_register_mux(ctx, apollo_mux_clks,
-				 ARRAY_SIZE(apollo_mux_clks));
-	samsung_clk_register_div(ctx, apollo_div_clks,
-				 ARRAY_SIZE(apollo_div_clks));
-	samsung_clk_register_gate(ctx, apollo_gate_clks,
-				  ARRAY_SIZE(apollo_gate_clks));
-
-	exynos_register_cpu_clock(ctx, CLK_SCLK_APOLLO, "apolloclk",
-		mout_apollo_p[0], mout_apollo_p[1], 0x200,
-		exynos5433_apolloclk_d, ARRAY_SIZE(exynos5433_apolloclk_d),
-		CLK_CPU_HAS_E5433_REGS_LAYOUT);
-
-	samsung_clk_sleep_init(reg_base, apollo_clk_regs,
-			       ARRAY_SIZE(apollo_clk_regs));
-
-	samsung_clk_of_add_provider(np, ctx);
+	samsung_cmu_register_one(np, &apollo_cmu_info);
 }
 CLK_OF_DECLARE(exynos5433_cmu_apollo, "samsung,exynos5433-cmu-apollo",
 		exynos5433_cmu_apollo_init);
@@ -3927,41 +3942,31 @@ static const struct exynos_cpuclk_cfg_data exynos5433_atlasclk_d[] __initconst =
 	{  0 },
 };
 
+static const struct samsung_cpu_clock atlas_cpu_clks[] __initconst = {
+	CPU_CLK(CLK_SCLK_ATLAS, "atlasclk", CLK_MOUT_ATLAS_PLL,
+		CLK_MOUT_BUS_PLL_ATLAS_USER, 0, 0x0,
+		CPUCLK_LAYOUT_E5433, exynos5433_atlasclk_d),
+};
+
+static const struct samsung_cmu_info atlas_cmu_info __initconst = {
+	.pll_clks	= atlas_pll_clks,
+	.nr_pll_clks	= ARRAY_SIZE(atlas_pll_clks),
+	.mux_clks	= atlas_mux_clks,
+	.nr_mux_clks	= ARRAY_SIZE(atlas_mux_clks),
+	.div_clks	= atlas_div_clks,
+	.nr_div_clks	= ARRAY_SIZE(atlas_div_clks),
+	.gate_clks	= atlas_gate_clks,
+	.nr_gate_clks	= ARRAY_SIZE(atlas_gate_clks),
+	.cpu_clks	= atlas_cpu_clks,
+	.nr_cpu_clks	= ARRAY_SIZE(atlas_cpu_clks),
+	.nr_clk_ids	= CLKS_NR_ATLAS,
+	.clk_regs	= atlas_clk_regs,
+	.nr_clk_regs	= ARRAY_SIZE(atlas_clk_regs),
+};
+
 static void __init exynos5433_cmu_atlas_init(struct device_node *np)
 {
-	void __iomem *reg_base;
-	struct samsung_clk_provider *ctx;
-
-	reg_base = of_iomap(np, 0);
-	if (!reg_base) {
-		panic("%s: failed to map registers\n", __func__);
-		return;
-	}
-
-	ctx = samsung_clk_init(np, reg_base, ATLAS_NR_CLK);
-	if (!ctx) {
-		panic("%s: unable to allocate ctx\n", __func__);
-		return;
-	}
-
-	samsung_clk_register_pll(ctx, atlas_pll_clks,
-				 ARRAY_SIZE(atlas_pll_clks), reg_base);
-	samsung_clk_register_mux(ctx, atlas_mux_clks,
-				 ARRAY_SIZE(atlas_mux_clks));
-	samsung_clk_register_div(ctx, atlas_div_clks,
-				 ARRAY_SIZE(atlas_div_clks));
-	samsung_clk_register_gate(ctx, atlas_gate_clks,
-				  ARRAY_SIZE(atlas_gate_clks));
-
-	exynos_register_cpu_clock(ctx, CLK_SCLK_ATLAS, "atlasclk",
-		mout_atlas_p[0], mout_atlas_p[1], 0x200,
-		exynos5433_atlasclk_d, ARRAY_SIZE(exynos5433_atlasclk_d),
-		CLK_CPU_HAS_E5433_REGS_LAYOUT);
-
-	samsung_clk_sleep_init(reg_base, atlas_clk_regs,
-			       ARRAY_SIZE(atlas_clk_regs));
-
-	samsung_clk_of_add_provider(np, ctx);
+	samsung_cmu_register_one(np, &atlas_cmu_info);
 }
 CLK_OF_DECLARE(exynos5433_cmu_atlas, "samsung,exynos5433-cmu-atlas",
 		exynos5433_cmu_atlas_init);
@@ -4128,7 +4133,7 @@ static const struct samsung_cmu_info mscl_cmu_info __initconst = {
 	.nr_div_clks		= ARRAY_SIZE(mscl_div_clks),
 	.gate_clks		= mscl_gate_clks,
 	.nr_gate_clks		= ARRAY_SIZE(mscl_gate_clks),
-	.nr_clk_ids		= MSCL_NR_CLK,
+	.nr_clk_ids		= CLKS_NR_MSCL,
 	.clk_regs		= mscl_clk_regs,
 	.nr_clk_regs		= ARRAY_SIZE(mscl_clk_regs),
 	.suspend_regs		= mscl_suspend_regs,
@@ -4236,7 +4241,7 @@ static const struct samsung_cmu_info mfc_cmu_info __initconst = {
 	.nr_div_clks		= ARRAY_SIZE(mfc_div_clks),
 	.gate_clks		= mfc_gate_clks,
 	.nr_gate_clks		= ARRAY_SIZE(mfc_gate_clks),
-	.nr_clk_ids		= MFC_NR_CLK,
+	.nr_clk_ids		= CLKS_NR_MFC,
 	.clk_regs		= mfc_clk_regs,
 	.nr_clk_regs		= ARRAY_SIZE(mfc_clk_regs),
 	.suspend_regs		= mfc_suspend_regs,
@@ -4346,7 +4351,7 @@ static const struct samsung_cmu_info hevc_cmu_info __initconst = {
 	.nr_div_clks		= ARRAY_SIZE(hevc_div_clks),
 	.gate_clks		= hevc_gate_clks,
 	.nr_gate_clks		= ARRAY_SIZE(hevc_gate_clks),
-	.nr_clk_ids		= HEVC_NR_CLK,
+	.nr_clk_ids		= CLKS_NR_HEVC,
 	.clk_regs		= hevc_clk_regs,
 	.nr_clk_regs		= ARRAY_SIZE(hevc_clk_regs),
 	.suspend_regs		= hevc_suspend_regs,
@@ -4599,7 +4604,7 @@ static const struct samsung_cmu_info isp_cmu_info __initconst = {
 	.nr_div_clks		= ARRAY_SIZE(isp_div_clks),
 	.gate_clks		= isp_gate_clks,
 	.nr_gate_clks		= ARRAY_SIZE(isp_gate_clks),
-	.nr_clk_ids		= ISP_NR_CLK,
+	.nr_clk_ids		= CLKS_NR_ISP,
 	.clk_regs		= isp_clk_regs,
 	.nr_clk_regs		= ARRAY_SIZE(isp_clk_regs),
 	.suspend_regs		= isp_suspend_regs,
@@ -5081,7 +5086,7 @@ static const struct samsung_cmu_info cam0_cmu_info __initconst = {
 	.nr_gate_clks		= ARRAY_SIZE(cam0_gate_clks),
 	.fixed_clks		= cam0_fixed_clks,
 	.nr_fixed_clks		= ARRAY_SIZE(cam0_fixed_clks),
-	.nr_clk_ids		= CAM0_NR_CLK,
+	.nr_clk_ids		= CLKS_NR_CAM0,
 	.clk_regs		= cam0_clk_regs,
 	.nr_clk_regs		= ARRAY_SIZE(cam0_clk_regs),
 	.suspend_regs		= cam0_suspend_regs,
@@ -5456,7 +5461,7 @@ static const struct samsung_cmu_info cam1_cmu_info __initconst = {
 	.nr_gate_clks		= ARRAY_SIZE(cam1_gate_clks),
 	.fixed_clks		= cam1_fixed_clks,
 	.nr_fixed_clks		= ARRAY_SIZE(cam1_fixed_clks),
-	.nr_clk_ids		= CAM1_NR_CLK,
+	.nr_clk_ids		= CLKS_NR_CAM1,
 	.clk_regs		= cam1_clk_regs,
 	.nr_clk_regs		= ARRAY_SIZE(cam1_clk_regs),
 	.suspend_regs		= cam1_suspend_regs,
@@ -5488,159 +5493,15 @@ static const struct samsung_gate_clock imem_gate_clks[] __initconst = {
 static const struct samsung_cmu_info imem_cmu_info __initconst = {
 	.gate_clks		= imem_gate_clks,
 	.nr_gate_clks		= ARRAY_SIZE(imem_gate_clks),
-	.nr_clk_ids		= IMEM_NR_CLK,
+	.nr_clk_ids		= CLKS_NR_IMEM,
 	.clk_regs		= imem_clk_regs,
 	.nr_clk_regs		= ARRAY_SIZE(imem_clk_regs),
 	.clk_name		= "aclk_imem_200",
 };
 
-struct exynos5433_cmu_data {
-	struct samsung_clk_reg_dump *clk_save;
-	unsigned int nr_clk_save;
-	const struct samsung_clk_reg_dump *clk_suspend;
-	unsigned int nr_clk_suspend;
-
-	struct clk *clk;
-	struct clk **pclks;
-	int nr_pclks;
-
-	/* must be the last entry */
-	struct samsung_clk_provider ctx;
-};
-
-static int __maybe_unused exynos5433_cmu_suspend(struct device *dev)
-{
-	struct exynos5433_cmu_data *data = dev_get_drvdata(dev);
-	int i;
-
-	samsung_clk_save(data->ctx.reg_base, data->clk_save,
-			 data->nr_clk_save);
-
-	for (i = 0; i < data->nr_pclks; i++)
-		clk_prepare_enable(data->pclks[i]);
-
-	/* for suspend some registers have to be set to certain values */
-	samsung_clk_restore(data->ctx.reg_base, data->clk_suspend,
-			    data->nr_clk_suspend);
-
-	for (i = 0; i < data->nr_pclks; i++)
-		clk_disable_unprepare(data->pclks[i]);
-
-	clk_disable_unprepare(data->clk);
-
-	return 0;
-}
-
-static int __maybe_unused exynos5433_cmu_resume(struct device *dev)
-{
-	struct exynos5433_cmu_data *data = dev_get_drvdata(dev);
-	int i;
-
-	clk_prepare_enable(data->clk);
-
-	for (i = 0; i < data->nr_pclks; i++)
-		clk_prepare_enable(data->pclks[i]);
-
-	samsung_clk_restore(data->ctx.reg_base, data->clk_save,
-			    data->nr_clk_save);
-
-	for (i = 0; i < data->nr_pclks; i++)
-		clk_disable_unprepare(data->pclks[i]);
-
-	return 0;
-}
-
 static int __init exynos5433_cmu_probe(struct platform_device *pdev)
 {
-	const struct samsung_cmu_info *info;
-	struct exynos5433_cmu_data *data;
-	struct samsung_clk_provider *ctx;
-	struct device *dev = &pdev->dev;
-	struct resource *res;
-	void __iomem *reg_base;
-	int i;
-
-	info = of_device_get_match_data(dev);
-
-	data = devm_kzalloc(dev,
-			    struct_size(data, ctx.clk_data.hws, info->nr_clk_ids),
-			    GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
-	ctx = &data->ctx;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	reg_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(reg_base))
-		return PTR_ERR(reg_base);
-
-	for (i = 0; i < info->nr_clk_ids; ++i)
-		ctx->clk_data.hws[i] = ERR_PTR(-ENOENT);
-
-	ctx->clk_data.num = info->nr_clk_ids;
-	ctx->reg_base = reg_base;
-	ctx->dev = dev;
-	spin_lock_init(&ctx->lock);
-
-	data->clk_save = samsung_clk_alloc_reg_dump(info->clk_regs,
-						    info->nr_clk_regs);
-	data->nr_clk_save = info->nr_clk_regs;
-	data->clk_suspend = info->suspend_regs;
-	data->nr_clk_suspend = info->nr_suspend_regs;
-	data->nr_pclks = of_clk_get_parent_count(dev->of_node);
-
-	if (data->nr_pclks > 0) {
-		data->pclks = devm_kcalloc(dev, sizeof(struct clk *),
-					   data->nr_pclks, GFP_KERNEL);
-
-		for (i = 0; i < data->nr_pclks; i++) {
-			struct clk *clk = of_clk_get(dev->of_node, i);
-
-			if (IS_ERR(clk))
-				return PTR_ERR(clk);
-			data->pclks[i] = clk;
-		}
-	}
-
-	if (info->clk_name)
-		data->clk = clk_get(dev, info->clk_name);
-	clk_prepare_enable(data->clk);
-
-	platform_set_drvdata(pdev, data);
-
-	/*
-	 * Enable runtime PM here to allow the clock core using runtime PM
-	 * for the registered clocks. Additionally, we increase the runtime
-	 * PM usage count before registering the clocks, to prevent the
-	 * clock core from runtime suspending the device.
-	 */
-	pm_runtime_get_noresume(dev);
-	pm_runtime_set_active(dev);
-	pm_runtime_enable(dev);
-
-	if (info->pll_clks)
-		samsung_clk_register_pll(ctx, info->pll_clks, info->nr_pll_clks,
-					 reg_base);
-	if (info->mux_clks)
-		samsung_clk_register_mux(ctx, info->mux_clks,
-					 info->nr_mux_clks);
-	if (info->div_clks)
-		samsung_clk_register_div(ctx, info->div_clks,
-					 info->nr_div_clks);
-	if (info->gate_clks)
-		samsung_clk_register_gate(ctx, info->gate_clks,
-					  info->nr_gate_clks);
-	if (info->fixed_clks)
-		samsung_clk_register_fixed_rate(ctx, info->fixed_clks,
-						info->nr_fixed_clks);
-	if (info->fixed_factor_clks)
-		samsung_clk_register_fixed_factor(ctx, info->fixed_factor_clks,
-						  info->nr_fixed_factor_clks);
-
-	samsung_clk_of_add_provider(dev->of_node, ctx);
-	pm_runtime_put_sync(dev);
-
-	return 0;
+	return exynos_arm64_register_cmu_pm(pdev, false);
 }
 
 static const struct of_device_id exynos5433_cmu_of_match[] = {
@@ -5688,7 +5549,7 @@ static const struct of_device_id exynos5433_cmu_of_match[] = {
 };
 
 static const struct dev_pm_ops exynos5433_cmu_pm_ops = {
-	SET_RUNTIME_PM_OPS(exynos5433_cmu_suspend, exynos5433_cmu_resume,
+	SET_RUNTIME_PM_OPS(exynos_arm64_cmu_suspend, exynos_arm64_cmu_resume,
 			   NULL)
 	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
 				     pm_runtime_force_resume)

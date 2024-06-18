@@ -106,6 +106,7 @@ bool cm_helper_convert_to_custom_float(
 		bool fixpoint);
 
 bool cm_helper_translate_curve_to_hw_format(
+		struct dc_context *ctx,
 		const struct dc_transfer_func *output_tf,
 		struct pwl_params *lut_params, bool fixpoint);
 
@@ -113,5 +114,7 @@ bool cm_helper_translate_curve_to_degamma_hw_format(
 				const struct dc_transfer_func *output_tf,
 				struct pwl_params *lut_params);
 
-
+void cm_helper_read_color_matrices(struct dc_context *ctx,
+				   uint16_t *regval,
+				   const struct color_matrices_reg *reg);
 #endif

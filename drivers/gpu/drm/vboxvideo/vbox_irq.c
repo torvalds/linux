@@ -10,7 +10,8 @@
  */
 
 #include <linux/pci.h>
-#include <drm/drm_irq.h>
+
+#include <drm/drm_drv.h>
 #include <drm/drm_probe_helper.h>
 
 #include "vbox_drv.h"
@@ -31,10 +32,10 @@ void vbox_report_hotplug(struct vbox_private *vbox)
 	schedule_work(&vbox->hotplug_work);
 }
 
-irqreturn_t vbox_irq_handler(int irq, void *arg)
+static irqreturn_t vbox_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = (struct drm_device *)arg;
-	struct vbox_private *vbox = (struct vbox_private *)dev->dev_private;
+	struct vbox_private *vbox = to_vbox_dev(dev);
 	u32 host_flags = vbox_get_flags(vbox);
 
 	if (!(host_flags & HGSMIHOSTFLAGS_IRQ))
@@ -170,14 +171,21 @@ static void vbox_hotplug_worker(struct work_struct *work)
 
 int vbox_irq_init(struct vbox_private *vbox)
 {
+	struct drm_device *dev = &vbox->ddev;
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
+
 	INIT_WORK(&vbox->hotplug_work, vbox_hotplug_worker);
 	vbox_update_mode_hints(vbox);
 
-	return drm_irq_install(&vbox->ddev, vbox->ddev.pdev->irq);
+	/* PCI devices require shared interrupts. */
+	return request_irq(pdev->irq, vbox_irq_handler, IRQF_SHARED, dev->driver->name, dev);
 }
 
 void vbox_irq_fini(struct vbox_private *vbox)
 {
-	drm_irq_uninstall(&vbox->ddev);
+	struct drm_device *dev = &vbox->ddev;
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
+
+	free_irq(pdev->irq, dev);
 	flush_work(&vbox->hotplug_work);
 }

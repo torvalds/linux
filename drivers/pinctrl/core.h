@@ -9,12 +9,22 @@
  */
 
 #include <linux/kref.h>
+#include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/radix-tree.h>
-#include <linux/pinctrl/pinconf.h>
+#include <linux/types.h>
+
 #include <linux/pinctrl/machine.h>
 
+struct dentry;
+struct device;
+struct device_node;
+struct module;
+
+struct pinctrl;
+struct pinctrl_desc;
 struct pinctrl_gpio_range;
+struct pinctrl_state;
 
 /**
  * struct pinctrl_dev - pin control class device
@@ -101,8 +111,8 @@ struct pinctrl_state {
  * @func: the function selector to program
  */
 struct pinctrl_setting_mux {
-	unsigned group;
-	unsigned func;
+	unsigned int group;
+	unsigned int func;
 };
 
 /**
@@ -114,9 +124,9 @@ struct pinctrl_setting_mux {
  * @num_configs: the number of entries in array @configs
  */
 struct pinctrl_setting_configs {
-	unsigned group_or_pin;
+	unsigned int group_or_pin;
 	unsigned long *configs;
-	unsigned num_configs;
+	unsigned int num_configs;
 };
 
 /**
@@ -163,7 +173,7 @@ struct pin_desc {
 	void *drv_data;
 	/* These fields only added when supporting pinmux drivers */
 #ifdef CONFIG_PINMUX
-	unsigned mux_usecount;
+	unsigned int mux_usecount;
 	const char *mux_owner;
 	const struct pinctrl_setting_mux *mux_setting;
 	const char *gpio_owner;
@@ -179,24 +189,29 @@ struct pin_desc {
 struct pinctrl_maps {
 	struct list_head node;
 	const struct pinctrl_map *maps;
-	unsigned num_maps;
+	unsigned int num_maps;
 };
 
 #ifdef CONFIG_GENERIC_PINCTRL_GROUPS
 
+#include <linux/pinctrl/pinctrl.h>
+
 /**
  * struct group_desc - generic pin group descriptor
- * @name: name of the pin group
- * @pins: array of pins that belong to the group
- * @num_pins: number of pins in the group
+ * @grp: generic data of the pin group (name and pins)
  * @data: pin controller driver specific data
  */
 struct group_desc {
-	const char *name;
-	int *pins;
-	int num_pins;
+	struct pingroup grp;
 	void *data;
 };
+
+/* Convenience macro to define a generic pin group descriptor */
+#define PINCTRL_GROUP_DESC(_name, _pins, _num_pins, _data)	\
+(struct group_desc) {						\
+	.grp = PINCTRL_PINGROUP(_name, _pins, _num_pins),	\
+	.data = _data,						\
+}
 
 int pinctrl_generic_get_group_count(struct pinctrl_dev *pctldev);
 
@@ -212,7 +227,7 @@ struct group_desc *pinctrl_generic_get_group(struct pinctrl_dev *pctldev,
 					     unsigned int group_selector);
 
 int pinctrl_generic_add_group(struct pinctrl_dev *pctldev, const char *name,
-			      int *gpins, int ngpins, void *data);
+			      const unsigned int *pins, int num_pins, void *data);
 
 int pinctrl_generic_remove_group(struct pinctrl_dev *pctldev,
 				 unsigned int group_selector);
@@ -222,7 +237,7 @@ int pinctrl_generic_remove_group(struct pinctrl_dev *pctldev,
 struct pinctrl_dev *get_pinctrl_dev_from_devname(const char *dev_name);
 struct pinctrl_dev *get_pinctrl_dev_from_of_node(struct device_node *np);
 int pin_get_from_name(struct pinctrl_dev *pctldev, const char *name);
-const char *pin_get_name(struct pinctrl_dev *pctldev, const unsigned pin);
+const char *pin_get_name(struct pinctrl_dev *pctldev, const unsigned int pin);
 int pinctrl_get_group_selector(struct pinctrl_dev *pctldev,
 			       const char *pin_group);
 
@@ -236,18 +251,14 @@ extern struct pinctrl_gpio_range *
 pinctrl_find_gpio_range_from_pin_nolock(struct pinctrl_dev *pctldev,
 					unsigned int pin);
 
-int pinctrl_register_map(const struct pinctrl_map *maps, unsigned num_maps,
-			 bool dup);
-void pinctrl_unregister_map(const struct pinctrl_map *map);
-
 extern int pinctrl_force_sleep(struct pinctrl_dev *pctldev);
 extern int pinctrl_force_default(struct pinctrl_dev *pctldev);
 
 extern struct mutex pinctrl_maps_mutex;
 extern struct list_head pinctrl_maps;
 
-#define for_each_maps(_maps_node_, _i_, _map_) \
-	list_for_each_entry(_maps_node_, &pinctrl_maps, node) \
-		for (_i_ = 0, _map_ = &_maps_node_->maps[_i_]; \
-			_i_ < _maps_node_->num_maps; \
-			_i_++, _map_ = &_maps_node_->maps[_i_])
+#define for_each_pin_map(_maps_node_, _map_)						\
+	list_for_each_entry(_maps_node_, &pinctrl_maps, node)				\
+		for (unsigned int __i = 0;						\
+		     __i < _maps_node_->num_maps && (_map_ = &_maps_node_->maps[__i]);	\
+		     __i++)

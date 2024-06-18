@@ -42,14 +42,10 @@
 struct ds1685_priv {
 	struct rtc_device *dev;
 	void __iomem *regs;
+	void __iomem *data;
 	u32 regstep;
-	resource_size_t baseaddr;
-	size_t size;
 	int irq_num;
 	bool bcd_mode;
-	bool no_irq;
-	bool uie_unsupported;
-	bool alloc_io_resources;
 	u8 (*read)(struct ds1685_priv *, int);
 	void (*write)(struct ds1685_priv *, int, u8);
 	void (*prepare_poweroff)(void);
@@ -74,12 +70,13 @@ struct ds1685_rtc_platform_data {
 	const bool bcd_mode;
 	const bool no_irq;
 	const bool uie_unsupported;
-	const bool alloc_io_resources;
-	u8 (*plat_read)(struct ds1685_priv *, int);
-	void (*plat_write)(struct ds1685_priv *, int, u8);
 	void (*plat_prepare_poweroff)(void);
 	void (*plat_wake_alarm)(void);
 	void (*plat_post_ram_clear)(void);
+	enum {
+		ds1685_reg_direct,
+		ds1685_reg_indirect
+	} access_type;
 };
 
 

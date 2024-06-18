@@ -46,7 +46,7 @@
 			clock-names = "stmmaceth";
 		};
 
-		ehci@40000 {
+		usb@40000 {
 			compatible = "generic-ehci";
 			reg = < 0x40000 0x100 >;
 			interrupts = < 8 >;
@@ -113,7 +113,7 @@
 	/*
 	 * Embedded Vision subsystem UIO mappings; only relevant for EV VDK
 	 *
-	 * This node is intentionally put outside of MB above becase
+	 * This node is intentionally put outside of MB above because
 	 * it maps areas outside of MB's 0xez-0xfz.
 	 */
 	uio_ev: uio@d0000000 {

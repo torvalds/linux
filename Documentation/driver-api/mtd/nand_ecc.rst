@@ -5,7 +5,7 @@ NAND Error-correction Code
 Introduction
 ============
 
-Having looked at the linux mtd/nand driver and more specific at nand_ecc.c
+Having looked at the linux mtd/nand Hamming software ECC engine driver
 I felt there was room for optimisation. I bashed the code for a few hours
 performing tricks like table lookup removing superfluous code etc.
 After that the speed was increased by 35-40%.
@@ -462,7 +462,7 @@ statements is reduced. This is also reflected in the assembly code.
 Analysis 3
 ==========
 
-Very weird. Guess it has to do with caching or instruction parallellism
+Very weird. Guess it has to do with caching or instruction parallelism
 or so. I also tried on an eeePC (Celeron, clocked at 900 Mhz). Interesting
 observation was that this one is only 30% slower (according to time)
 executing the code as my 3Ghz D920 processor.

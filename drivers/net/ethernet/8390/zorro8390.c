@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Amiga Linux/m68k and Linux/PPC Zorro NS8390 Ethernet Driver
  *
@@ -6,12 +7,6 @@
  *  ---------------------------------------------------------------------------
  *
  *  This program is based on all the other NE2000 drivers for Linux
- *
- *  ---------------------------------------------------------------------------
- *
- *  This file is subject to the terms and conditions of the GNU General Public
- *  License.  See the file COPYING in the main directory of the Linux
- *  distribution for more details.
  *
  *  ---------------------------------------------------------------------------
  *
@@ -364,8 +359,7 @@ static int zorro8390_init(struct net_device *dev, unsigned long board,
 	if (i)
 		return i;
 
-	for (i = 0; i < ETH_ALEN; i++)
-		dev->dev_addr[i] = SA_prom[i];
+	eth_hw_addr_set(dev, SA_prom);
 
 	pr_debug("Found ethernet address: %pM\n", dev->dev_addr);
 
@@ -449,4 +443,5 @@ static void __exit zorro8390_cleanup_module(void)
 module_init(zorro8390_init_module);
 module_exit(zorro8390_cleanup_module);
 
+MODULE_DESCRIPTION("Zorro NS8390-based ethernet driver");
 MODULE_LICENSE("GPL");

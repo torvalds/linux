@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016 Intel Corporation
+ * Copyright © 2016-2019 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,9 +32,14 @@
 
 #include <linux/types.h>
 
-#include <drm/i915_drm.h>
-
+struct drm_edid;
 struct drm_i915_private;
+struct intel_bios_encoder_data;
+struct intel_crtc_state;
+struct intel_encoder;
+struct intel_panel;
+enum aux_ch;
+enum port;
 
 enum intel_backlight_type {
 	INTEL_BACKLIGHT_PMIC,
@@ -228,18 +233,54 @@ struct mipi_pps_data {
 } __packed;
 
 void intel_bios_init(struct drm_i915_private *dev_priv);
+void intel_bios_init_panel_early(struct drm_i915_private *dev_priv,
+				 struct intel_panel *panel,
+				 const struct intel_bios_encoder_data *devdata);
+void intel_bios_init_panel_late(struct drm_i915_private *dev_priv,
+				struct intel_panel *panel,
+				const struct intel_bios_encoder_data *devdata,
+				const struct drm_edid *drm_edid);
+void intel_bios_fini_panel(struct intel_panel *panel);
 void intel_bios_driver_remove(struct drm_i915_private *dev_priv);
-bool intel_bios_is_valid_vbt(const void *buf, size_t size);
+bool intel_bios_is_valid_vbt(struct drm_i915_private *i915,
+			     const void *buf, size_t size);
 bool intel_bios_is_tv_present(struct drm_i915_private *dev_priv);
 bool intel_bios_is_lvds_present(struct drm_i915_private *dev_priv, u8 *i2c_pin);
 bool intel_bios_is_port_present(struct drm_i915_private *dev_priv, enum port port);
-bool intel_bios_is_port_edp(struct drm_i915_private *dev_priv, enum port port);
-bool intel_bios_is_port_dp_dual_mode(struct drm_i915_private *dev_priv, enum port port);
 bool intel_bios_is_dsi_present(struct drm_i915_private *dev_priv, enum port *port);
-bool intel_bios_is_port_hpd_inverted(const struct drm_i915_private *i915,
-				     enum port port);
-bool intel_bios_is_lspcon_present(const struct drm_i915_private *i915,
-				  enum port port);
-enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *dev_priv, enum port port);
+bool intel_bios_get_dsc_params(struct intel_encoder *encoder,
+			       struct intel_crtc_state *crtc_state,
+			       int dsc_max_bpc);
+
+const struct intel_bios_encoder_data *
+intel_bios_encoder_data_lookup(struct drm_i915_private *i915, enum port port);
+
+bool intel_bios_encoder_supports_dvi(const struct intel_bios_encoder_data *devdata);
+bool intel_bios_encoder_supports_hdmi(const struct intel_bios_encoder_data *devdata);
+bool intel_bios_encoder_supports_dp(const struct intel_bios_encoder_data *devdata);
+bool intel_bios_encoder_supports_edp(const struct intel_bios_encoder_data *devdata);
+bool intel_bios_encoder_supports_typec_usb(const struct intel_bios_encoder_data *devdata);
+bool intel_bios_encoder_supports_tbt(const struct intel_bios_encoder_data *devdata);
+bool intel_bios_encoder_supports_dsi(const struct intel_bios_encoder_data *devdata);
+bool intel_bios_encoder_supports_dp_dual_mode(const struct intel_bios_encoder_data *devdata);
+bool intel_bios_encoder_is_lspcon(const struct intel_bios_encoder_data *devdata);
+bool intel_bios_encoder_lane_reversal(const struct intel_bios_encoder_data *devdata);
+bool intel_bios_encoder_hpd_invert(const struct intel_bios_encoder_data *devdata);
+enum port intel_bios_encoder_port(const struct intel_bios_encoder_data *devdata);
+enum aux_ch intel_bios_dp_aux_ch(const struct intel_bios_encoder_data *devdata);
+int intel_bios_dp_boost_level(const struct intel_bios_encoder_data *devdata);
+int intel_bios_dp_max_lane_count(const struct intel_bios_encoder_data *devdata);
+int intel_bios_dp_max_link_rate(const struct intel_bios_encoder_data *devdata);
+bool intel_bios_dp_has_shared_aux_ch(const struct intel_bios_encoder_data *devdata);
+int intel_bios_hdmi_boost_level(const struct intel_bios_encoder_data *devdata);
+int intel_bios_hdmi_ddc_pin(const struct intel_bios_encoder_data *devdata);
+int intel_bios_hdmi_level_shift(const struct intel_bios_encoder_data *devdata);
+int intel_bios_hdmi_max_tmds_clock(const struct intel_bios_encoder_data *devdata);
+
+void intel_bios_for_each_encoder(struct drm_i915_private *i915,
+				 void (*func)(struct drm_i915_private *i915,
+					      const struct intel_bios_encoder_data *devdata));
+
+void intel_bios_debugfs_register(struct drm_i915_private *i915);
 
 #endif /* _INTEL_BIOS_H_ */

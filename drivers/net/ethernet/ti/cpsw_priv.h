@@ -6,6 +6,9 @@
 #ifndef DRIVERS_NET_ETHERNET_TI_CPSW_PRIV_H_
 #define DRIVERS_NET_ETHERNET_TI_CPSW_PRIV_H_
 
+#include <net/xdp.h>
+#include <uapi/linux/bpf.h>
+
 #include "davinci_cpdma.h"
 
 #define CPSW_DEBUG	(NETIF_MSG_HW		| NETIF_MSG_WOL		| \
@@ -54,6 +57,7 @@ do {								\
 
 #define HOST_PORT_NUM		0
 #define CPSW_ALE_PORTS_NUM	3
+#define CPSW_SLAVE_PORTS_NUM	2
 #define SLIVER_SIZE		0x40
 
 #define CPSW1_HOST_PORT_OFFSET	0x028
@@ -65,6 +69,7 @@ do {								\
 #define CPSW1_CPTS_OFFSET	0x500
 #define CPSW1_ALE_OFFSET	0x600
 #define CPSW1_SLIVER_OFFSET	0x700
+#define CPSW1_WR_OFFSET		0x900
 
 #define CPSW2_HOST_PORT_OFFSET	0x108
 #define CPSW2_SLAVE_OFFSET	0x200
@@ -76,6 +81,7 @@ do {								\
 #define CPSW2_ALE_OFFSET	0xd00
 #define CPSW2_SLIVER_OFFSET	0xd80
 #define CPSW2_BD_OFFSET		0x2000
+#define CPSW2_WR_OFFSET		0x1200
 
 #define CPDMA_RXTHRESH		0x0c0
 #define CPDMA_RXFREE		0x0e0
@@ -84,9 +90,9 @@ do {								\
 #define CPDMA_TXCP		0x40
 #define CPDMA_RXCP		0x60
 
-#define CPSW_POLL_WEIGHT	64
 #define CPSW_RX_VLAN_ENCAP_HDR_SIZE		4
-#define CPSW_MIN_PACKET_SIZE	(VLAN_ETH_ZLEN)
+#define CPSW_MIN_PACKET_SIZE_VLAN	(VLAN_ETH_ZLEN)
+#define CPSW_MIN_PACKET_SIZE	(ETH_ZLEN)
 #define CPSW_MAX_PACKET_SIZE	(VLAN_ETH_FRAME_LEN +\
 				 ETH_FCS_LEN +\
 				 CPSW_RX_VLAN_ENCAP_HDR_SIZE)
@@ -113,12 +119,14 @@ do {								\
 #define IRQ_NUM			2
 #define CPSW_MAX_QUEUES		8
 #define CPSW_CPDMA_DESCS_POOL_SIZE_DEFAULT 256
+#define CPSW_ALE_AGEOUT_DEFAULT		10 /* sec */
 #define CPSW_FIFO_QUEUE_TYPE_SHIFT	16
 #define CPSW_FIFO_SHAPE_EN_SHIFT	16
 #define CPSW_FIFO_RATE_EN_SHIFT		20
 #define CPSW_TC_NUM			4
 #define CPSW_FIFO_SHAPERS_NUM		(CPSW_TC_NUM - 1)
 #define CPSW_PCT_MASK			0x7f
+#define CPSW_BD_RAM_SIZE		0x2000
 
 #define CPSW_RX_VLAN_ENCAP_HDR_PRIO_SHIFT	29
 #define CPSW_RX_VLAN_ENCAP_HDR_PRIO_MSK		GENMASK(2, 0)
@@ -275,10 +283,11 @@ struct cpsw_slave_data {
 	struct device_node *slave_node;
 	struct device_node *phy_node;
 	char		phy_id[MII_BUS_ID_SIZE];
-	int		phy_if;
+	phy_interface_t	phy_if;
 	u8		mac_addr[ETH_ALEN];
 	u16		dual_emac_res_vlan;	/* Reserved VLAN for DualEMAC */
 	struct phy	*ifphy;
+	bool		disabled;
 };
 
 struct cpsw_platform_data {
@@ -286,9 +295,8 @@ struct cpsw_platform_data {
 	u32	ss_reg_ofs;	/* Subsystem control register offset */
 	u32	channels;	/* number of cpdma channels (symmetric) */
 	u32	slaves;		/* number of slave cpgmac ports */
-	u32	active_slave; /* time stamping, ethtool and SIOCGMIIPHY slave */
-	u32	ale_entries;	/* ale table size */
-	u32	bd_ram_size;  /*buffer descriptor ram size */
+	u32	active_slave;/* time stamping, ethtool and SIOCGMIIPHY slave */
+	u32	bd_ram_size;	/*buffer descriptor ram size */
 	u32	mac_control;	/* Mac control register */
 	u16	default_vlan;	/* Def VLAN for ALE lookup in VLAN aware mode*/
 	bool	dual_emac;	/* Enable Dual EMAC mode */
@@ -343,11 +351,22 @@ struct cpsw_common {
 	bool				rx_irq_disabled;
 	bool				tx_irq_disabled;
 	u32 irqs_table[IRQ_NUM];
+	int misc_irq;
 	struct cpts			*cpts;
+	struct devlink *devlink;
 	int				rx_ch_num, tx_ch_num;
 	int				speed;
 	int				usage_count;
 	struct page_pool		*page_pool[CPSW_MAX_QUEUES];
+	u8 br_members;
+	struct net_device *hw_bridge_dev;
+	bool ale_bypass;
+	u8 base_mac[ETH_ALEN];
+};
+
+struct cpsw_ale_ratelimit {
+	unsigned long cookie;
+	u64 rate_packet_ps;
 };
 
 struct cpsw_priv {
@@ -368,19 +387,17 @@ struct cpsw_priv {
 
 	u32 emac_port;
 	struct cpsw_common *cpsw;
+	int offload_fwd_mark;
+	u32 tx_packet_min;
+	struct cpsw_ale_ratelimit ale_bc_ratelimit;
+	struct cpsw_ale_ratelimit ale_mc_ratelimit;
 };
 
 #define ndev_to_cpsw(ndev) (((struct cpsw_priv *)netdev_priv(ndev))->cpsw)
 #define napi_to_cpsw(napi)	container_of(napi, struct cpsw_common, napi)
 
-#define cpsw_slave_index(cpsw, priv)				\
-		((cpsw->data.dual_emac) ? priv->emac_port :	\
-		cpsw->data.active_slave)
-
-static inline int cpsw_get_slave_port(u32 slave_num)
-{
-	return slave_num + 1;
-}
+extern int (*cpsw_slave_index)(struct cpsw_common *cpsw,
+			       struct cpsw_priv *priv);
 
 struct addr_sync_ctx {
 	struct net_device *ndev;
@@ -388,6 +405,34 @@ struct addr_sync_ctx {
 	int consumed;		/* number of address instances */
 	int flush;		/* flush flag */
 };
+
+#define CPSW_XMETA_OFFSET	ALIGN(sizeof(struct xdp_frame), sizeof(long))
+
+#define CPSW_XDP_CONSUMED		1
+#define CPSW_XDP_PASS			0
+
+struct __aligned(sizeof(long)) cpsw_meta_xdp {
+	struct net_device *ndev;
+	int ch;
+};
+
+/* The buf includes headroom compatible with both skb and xdpf */
+#define CPSW_HEADROOM_NA (max(XDP_PACKET_HEADROOM, NET_SKB_PAD) + NET_IP_ALIGN)
+
+static inline int cpsw_is_xdpf_handle(void *handle)
+{
+	return (unsigned long)handle & BIT(0);
+}
+
+static inline void *cpsw_xdpf_to_handle(struct xdp_frame *xdpf)
+{
+	return (void *)((unsigned long)xdpf | BIT(0));
+}
+
+static inline struct xdp_frame *cpsw_handle_to_xdpf(void *handle)
+{
+	return (struct xdp_frame *)((unsigned long)handle & ~BIT(0));
+}
 
 int cpsw_init_common(struct cpsw_common *cpsw, void __iomem *ss_regs,
 		     int ale_ageout, phys_addr_t desc_mem_phys,
@@ -399,12 +444,41 @@ void cpsw_intr_disable(struct cpsw_common *cpsw);
 void cpsw_tx_handler(void *token, int len, int status);
 int cpsw_create_xdp_rxqs(struct cpsw_common *cpsw);
 void cpsw_destroy_xdp_rxqs(struct cpsw_common *cpsw);
+int cpsw_ndo_bpf(struct net_device *ndev, struct netdev_bpf *bpf);
+int cpsw_xdp_tx_frame(struct cpsw_priv *priv, struct xdp_frame *xdpf,
+		      struct page *page, int port);
+int cpsw_run_xdp(struct cpsw_priv *priv, int ch, struct xdp_buff *xdp,
+		 struct page *page, int port, int *len);
+irqreturn_t cpsw_tx_interrupt(int irq, void *dev_id);
+irqreturn_t cpsw_rx_interrupt(int irq, void *dev_id);
+irqreturn_t cpsw_misc_interrupt(int irq, void *dev_id);
+int cpsw_tx_mq_poll(struct napi_struct *napi_tx, int budget);
+int cpsw_tx_poll(struct napi_struct *napi_tx, int budget);
+int cpsw_rx_mq_poll(struct napi_struct *napi_rx, int budget);
+int cpsw_rx_poll(struct napi_struct *napi_rx, int budget);
+void cpsw_rx_vlan_encap(struct sk_buff *skb);
+void soft_reset(const char *module, void __iomem *reg);
+void cpsw_set_slave_mac(struct cpsw_slave *slave, struct cpsw_priv *priv);
+void cpsw_ndo_tx_timeout(struct net_device *ndev, unsigned int txqueue);
+int cpsw_need_resplit(struct cpsw_common *cpsw);
+int cpsw_ndo_ioctl(struct net_device *dev, struct ifreq *req, int cmd);
+int cpsw_ndo_set_tx_maxrate(struct net_device *ndev, int queue, u32 rate);
+int cpsw_ndo_setup_tc(struct net_device *ndev, enum tc_setup_type type,
+		      void *type_data);
+bool cpsw_shp_is_off(struct cpsw_priv *priv);
+void cpsw_cbs_resume(struct cpsw_slave *slave, struct cpsw_priv *priv);
+void cpsw_mqprio_resume(struct cpsw_slave *slave, struct cpsw_priv *priv);
+void cpsw_qos_clsflower_resume(struct cpsw_priv *priv);
 
 /* ethtool */
 u32 cpsw_get_msglevel(struct net_device *ndev);
 void cpsw_set_msglevel(struct net_device *ndev, u32 value);
-int cpsw_get_coalesce(struct net_device *ndev, struct ethtool_coalesce *coal);
-int cpsw_set_coalesce(struct net_device *ndev, struct ethtool_coalesce *coal);
+int cpsw_get_coalesce(struct net_device *ndev, struct ethtool_coalesce *coal,
+		      struct kernel_ethtool_coalesce *kernel_coal,
+		      struct netlink_ext_ack *extack);
+int cpsw_set_coalesce(struct net_device *ndev, struct ethtool_coalesce *coal,
+		      struct kernel_ethtool_coalesce *kernel_coal,
+		      struct netlink_ext_ack *extack);
 int cpsw_get_sset_count(struct net_device *ndev, int sset);
 void cpsw_get_strings(struct net_device *ndev, u32 stringset, u8 *data);
 void cpsw_get_ethtool_stats(struct net_device *ndev,
@@ -422,13 +496,17 @@ int cpsw_get_link_ksettings(struct net_device *ndev,
 			    struct ethtool_link_ksettings *ecmd);
 int cpsw_set_link_ksettings(struct net_device *ndev,
 			    const struct ethtool_link_ksettings *ecmd);
-int cpsw_get_eee(struct net_device *ndev, struct ethtool_eee *edata);
-int cpsw_set_eee(struct net_device *ndev, struct ethtool_eee *edata);
+int cpsw_get_eee(struct net_device *ndev, struct ethtool_keee *edata);
+int cpsw_set_eee(struct net_device *ndev, struct ethtool_keee *edata);
 int cpsw_nway_reset(struct net_device *ndev);
 void cpsw_get_ringparam(struct net_device *ndev,
-			struct ethtool_ringparam *ering);
+			struct ethtool_ringparam *ering,
+			struct kernel_ethtool_ringparam *kernel_ering,
+			struct netlink_ext_ack *extack);
 int cpsw_set_ringparam(struct net_device *ndev,
-		       struct ethtool_ringparam *ering);
+		       struct ethtool_ringparam *ering,
+		       struct kernel_ethtool_ringparam *kernel_ering,
+		       struct netlink_ext_ack *extack);
 int cpsw_set_channels_common(struct net_device *ndev,
 			     struct ethtool_channels *chs,
 			     cpdma_handler_fn rx_handler);

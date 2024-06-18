@@ -20,11 +20,9 @@
 #include <linux/binfmts.h>
 #include <linux/compat.h>
 #include <linux/bitops.h>
-#include <linux/tracehook.h>
 
 #include <linux/uaccess.h>
 #include <asm/ptrace.h>
-#include <asm/pgtable.h>
 #include <asm/psrcompat.h>
 #include <asm/fpumacro.h>
 #include <asm/visasm.h>
@@ -299,6 +297,7 @@ static void flush_signal_insns(unsigned long address)
 	unsigned long pstate, paddr;
 	pte_t *ptep, pte;
 	pgd_t *pgdp;
+	p4d_t *p4dp;
 	pud_t *pudp;
 	pmd_t *pmdp;
 
@@ -318,7 +317,10 @@ static void flush_signal_insns(unsigned long address)
 	pgdp = pgd_offset(current->mm, address);
 	if (pgd_none(*pgdp))
 		goto out_irqs_on;
-	pudp = pud_offset(pgdp, address);
+	p4dp = p4d_offset(pgdp, address);
+	if (p4d_none(*p4dp))
+		goto out_irqs_on;
+	pudp = pud_offset(p4dp, address);
 	if (pud_none(*pudp))
 		goto out_irqs_on;
 	pmdp = pmd_offset(pudp, address);
@@ -326,6 +328,8 @@ static void flush_signal_insns(unsigned long address)
 		goto out_irqs_on;
 
 	ptep = pte_offset_map(pmdp, address);
+	if (!ptep)
+		goto out_irqs_on;
 	pte = *ptep;
 	if (!pte_present(pte))
 		goto out_unmap;
@@ -432,9 +436,9 @@ static int setup_frame32(struct ksignal *ksig, struct pt_regs *regs,
 			      (_COMPAT_NSIG_WORDS - 1) * sizeof(unsigned int));
 
 	if (!wsaved) {
-		err |= copy_in_user((u32 __user *)sf,
-				    (u32 __user *)(regs->u_regs[UREG_FP]),
-				    sizeof(struct reg_window32));
+		err |= raw_copy_in_user((u32 __user *)sf,
+					(u32 __user *)(regs->u_regs[UREG_FP]),
+					sizeof(struct reg_window32));
 	} else {
 		struct reg_window *rp;
 
@@ -564,9 +568,9 @@ static int setup_rt_frame32(struct ksignal *ksig, struct pt_regs *regs,
 	err |= put_compat_sigset(&sf->mask, oldset, sizeof(compat_sigset_t));
 
 	if (!wsaved) {
-		err |= copy_in_user((u32 __user *)sf,
-				    (u32 __user *)(regs->u_regs[UREG_FP]),
-				    sizeof(struct reg_window32));
+		err |= raw_copy_in_user((u32 __user *)sf,
+					(u32 __user *)(regs->u_regs[UREG_FP]),
+					sizeof(struct reg_window32));
 	} else {
 		struct reg_window *rp;
 
@@ -643,7 +647,7 @@ static inline void syscall_restart32(unsigned long orig_i0, struct pt_regs *regs
 	case ERESTARTSYS:
 		if (!(sa->sa_flags & SA_RESTART))
 			goto no_system_call_restart;
-		/* fallthrough */
+		fallthrough;
 	case ERESTARTNOINTR:
 		regs->u_regs[UREG_I0] = orig_i0;
 		regs->tpc -= 4;
@@ -683,7 +687,7 @@ void do_signal32(struct pt_regs * regs)
 				regs->tpc -= 4;
 				regs->tnpc -= 4;
 				pt_regs_clear_syscall(regs);
-				/* fall through */
+				fallthrough;
 			case ERESTART_RESTARTBLOCK:
 				regs->u_regs[UREG_G1] = __NR_restart_syscall;
 				regs->tpc -= 4;
@@ -742,3 +746,41 @@ asmlinkage int do_sys32_sigstack(u32 u_ssptr, u32 u_ossptr, unsigned long sp)
 out:
 	return ret;
 }
+
+/*
+ * Compile-time assertions for siginfo_t offsets. Check NSIG* as well, as
+ * changes likely come with new fields that should be added below.
+ */
+static_assert(NSIGILL	== 11);
+static_assert(NSIGFPE	== 15);
+static_assert(NSIGSEGV	== 10);
+static_assert(NSIGBUS	== 5);
+static_assert(NSIGTRAP	== 6);
+static_assert(NSIGCHLD	== 6);
+static_assert(NSIGSYS	== 2);
+static_assert(sizeof(compat_siginfo_t) == 128);
+static_assert(__alignof__(compat_siginfo_t) == 4);
+static_assert(offsetof(compat_siginfo_t, si_signo)	== 0x00);
+static_assert(offsetof(compat_siginfo_t, si_errno)	== 0x04);
+static_assert(offsetof(compat_siginfo_t, si_code)	== 0x08);
+static_assert(offsetof(compat_siginfo_t, si_pid)	== 0x0c);
+static_assert(offsetof(compat_siginfo_t, si_uid)	== 0x10);
+static_assert(offsetof(compat_siginfo_t, si_tid)	== 0x0c);
+static_assert(offsetof(compat_siginfo_t, si_overrun)	== 0x10);
+static_assert(offsetof(compat_siginfo_t, si_status)	== 0x14);
+static_assert(offsetof(compat_siginfo_t, si_utime)	== 0x18);
+static_assert(offsetof(compat_siginfo_t, si_stime)	== 0x1c);
+static_assert(offsetof(compat_siginfo_t, si_value)	== 0x14);
+static_assert(offsetof(compat_siginfo_t, si_int)	== 0x14);
+static_assert(offsetof(compat_siginfo_t, si_ptr)	== 0x14);
+static_assert(offsetof(compat_siginfo_t, si_addr)	== 0x0c);
+static_assert(offsetof(compat_siginfo_t, si_trapno)	== 0x10);
+static_assert(offsetof(compat_siginfo_t, si_addr_lsb)	== 0x10);
+static_assert(offsetof(compat_siginfo_t, si_lower)	== 0x14);
+static_assert(offsetof(compat_siginfo_t, si_upper)	== 0x18);
+static_assert(offsetof(compat_siginfo_t, si_pkey)	== 0x14);
+static_assert(offsetof(compat_siginfo_t, si_perf_data)	== 0x10);
+static_assert(offsetof(compat_siginfo_t, si_perf_type)	== 0x14);
+static_assert(offsetof(compat_siginfo_t, si_perf_flags)	== 0x18);
+static_assert(offsetof(compat_siginfo_t, si_band)	== 0x0c);
+static_assert(offsetof(compat_siginfo_t, si_fd)		== 0x10);

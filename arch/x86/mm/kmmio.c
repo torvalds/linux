@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Support for MMIO probes.
- * Benfit many code from kprobes
+ * Benefit many code from kprobes
  * (C) 2002 Louis Zhuang <louis.zhuang@intel.com>.
  *     2007 Alexander Eichner
  *     2008 Pekka Paalanen <pq@iki.fi>
@@ -62,7 +62,13 @@ struct kmmio_context {
 	int active;
 };
 
-static DEFINE_SPINLOCK(kmmio_lock);
+/*
+ * The kmmio_lock is taken in int3 context, which is treated as NMI context.
+ * This causes lockdep to complain about it bein in both NMI and normal
+ * context. Hide it from lockdep, as it should not have any other locks
+ * taken under it, and this is only enabled for debugging mmio anyway.
+ */
+static arch_spinlock_t kmmio_lock = __ARCH_SPIN_LOCK_UNLOCKED;
 
 /* Protected by kmmio_lock */
 unsigned int kmmio_count;
@@ -130,7 +136,7 @@ static void clear_pmd_presence(pmd_t *pmd, bool clear, pmdval_t *old)
 	pmdval_t v = pmd_val(*pmd);
 	if (clear) {
 		*old = v;
-		new_pmd = pmd_mknotpresent(*pmd);
+		new_pmd = pmd_mkinvalid(*pmd);
 	} else {
 		/* Presume this has been called with clear==true previously */
 		new_pmd = __pmd(*old);
@@ -173,7 +179,7 @@ static int clear_page_presence(struct kmmio_fault_page *f, bool clear)
 		return -1;
 	}
 
-	__flush_tlb_one_kernel(f->addr);
+	flush_tlb_one_kernel(f->addr);
 	return 0;
 }
 
@@ -193,8 +199,8 @@ static int arm_kmmio_fault_page(struct kmmio_fault_page *f)
 	int ret;
 	WARN_ONCE(f->armed, KERN_ERR pr_fmt("kmmio page already armed.\n"));
 	if (f->armed) {
-		pr_warning("double-arm: addr 0x%08lx, ref %d, old %d\n",
-			   f->addr, f->count, !!f->old_presence);
+		pr_warn("double-arm: addr 0x%08lx, ref %d, old %d\n",
+			f->addr, f->count, !!f->old_presence);
 	}
 	ret = clear_page_presence(f, true);
 	WARN_ONCE(ret < 0, KERN_ERR pr_fmt("arming at 0x%08lx failed.\n"),
@@ -240,15 +246,14 @@ int kmmio_handler(struct pt_regs *regs, unsigned long addr)
 	page_base &= page_level_mask(l);
 
 	/*
-	 * Preemption is now disabled to prevent process switch during
-	 * single stepping. We can only handle one active kmmio trace
+	 * Hold the RCU read lock over single stepping to avoid looking
+	 * up the probe and kmmio_fault_page again. The rcu_read_lock_sched()
+	 * also disables preemption and prevents process switch during
+	 * the single stepping. We can only handle one active kmmio trace
 	 * per cpu, so ensure that we finish it before something else
-	 * gets to run. We also hold the RCU read lock over single
-	 * stepping to avoid looking up the probe and kmmio_fault_page
-	 * again.
+	 * gets to run.
 	 */
-	preempt_disable();
-	rcu_read_lock();
+	rcu_read_lock_sched_notrace();
 
 	faultpage = get_kmmio_fault_page(page_base);
 	if (!faultpage) {
@@ -260,7 +265,7 @@ int kmmio_handler(struct pt_regs *regs, unsigned long addr)
 		goto no_kmmio;
 	}
 
-	ctx = &get_cpu_var(kmmio_ctx);
+	ctx = this_cpu_ptr(&kmmio_ctx);
 	if (ctx->active) {
 		if (page_base == ctx->addr) {
 			/*
@@ -285,7 +290,7 @@ int kmmio_handler(struct pt_regs *regs, unsigned long addr)
 			pr_emerg("previous hit was at 0x%08lx.\n", ctx->addr);
 			disarm_kmmio_fault_page(faultpage);
 		}
-		goto no_kmmio_ctx;
+		goto no_kmmio;
 	}
 	ctx->active++;
 
@@ -314,14 +319,10 @@ int kmmio_handler(struct pt_regs *regs, unsigned long addr)
 	 * the user should drop to single cpu before tracing.
 	 */
 
-	put_cpu_var(kmmio_ctx);
 	return 1; /* fault handled */
 
-no_kmmio_ctx:
-	put_cpu_var(kmmio_ctx);
 no_kmmio:
-	rcu_read_unlock();
-	preempt_enable_no_resched();
+	rcu_read_unlock_sched_notrace();
 	return ret;
 }
 
@@ -333,7 +334,7 @@ no_kmmio:
 static int post_kmmio_handler(unsigned long condition, struct pt_regs *regs)
 {
 	int ret = 0;
-	struct kmmio_context *ctx = &get_cpu_var(kmmio_ctx);
+	struct kmmio_context *ctx = this_cpu_ptr(&kmmio_ctx);
 
 	if (!ctx->active) {
 		/*
@@ -341,8 +342,7 @@ static int post_kmmio_handler(unsigned long condition, struct pt_regs *regs)
 		 * something external causing them (f.e. using a debugger while
 		 * mmio tracing enabled), or erroneous behaviour
 		 */
-		pr_warning("unexpected debug trap on CPU %d.\n",
-			   smp_processor_id());
+		pr_warn("unexpected debug trap on CPU %d.\n", smp_processor_id());
 		goto out;
 	}
 
@@ -350,10 +350,10 @@ static int post_kmmio_handler(unsigned long condition, struct pt_regs *regs)
 		ctx->probe->post_handler(ctx->probe, condition, regs);
 
 	/* Prevent racing against release_kmmio_fault_page(). */
-	spin_lock(&kmmio_lock);
+	arch_spin_lock(&kmmio_lock);
 	if (ctx->fpage->count)
 		arm_kmmio_fault_page(ctx->fpage);
-	spin_unlock(&kmmio_lock);
+	arch_spin_unlock(&kmmio_lock);
 
 	regs->flags &= ~X86_EFLAGS_TF;
 	regs->flags |= ctx->saved_flags;
@@ -361,8 +361,7 @@ static int post_kmmio_handler(unsigned long condition, struct pt_regs *regs)
 	/* These were acquired in kmmio_handler(). */
 	ctx->active--;
 	BUG_ON(ctx->active);
-	rcu_read_unlock();
-	preempt_enable_no_resched();
+	rcu_read_unlock_sched_notrace();
 
 	/*
 	 * if somebody else is singlestepping across a probe point, flags
@@ -372,7 +371,6 @@ static int post_kmmio_handler(unsigned long condition, struct pt_regs *regs)
 	if (!(regs->flags & X86_EFLAGS_TF))
 		ret = 1;
 out:
-	put_cpu_var(kmmio_ctx);
 	return ret;
 }
 
@@ -445,7 +443,8 @@ int register_kmmio_probe(struct kmmio_probe *p)
 	unsigned int l;
 	pte_t *pte;
 
-	spin_lock_irqsave(&kmmio_lock, flags);
+	local_irq_save(flags);
+	arch_spin_lock(&kmmio_lock);
 	if (get_kmmio_probe(addr)) {
 		ret = -EEXIST;
 		goto out;
@@ -465,7 +464,9 @@ int register_kmmio_probe(struct kmmio_probe *p)
 		size += page_level_size(l);
 	}
 out:
-	spin_unlock_irqrestore(&kmmio_lock, flags);
+	arch_spin_unlock(&kmmio_lock);
+	local_irq_restore(flags);
+
 	/*
 	 * XXX: What should I do here?
 	 * Here was a call to global_flush_tlb(), but it does not exist
@@ -499,7 +500,8 @@ static void remove_kmmio_fault_pages(struct rcu_head *head)
 	struct kmmio_fault_page **prevp = &dr->release_list;
 	unsigned long flags;
 
-	spin_lock_irqsave(&kmmio_lock, flags);
+	local_irq_save(flags);
+	arch_spin_lock(&kmmio_lock);
 	while (f) {
 		if (!f->count) {
 			list_del_rcu(&f->list);
@@ -511,7 +513,8 @@ static void remove_kmmio_fault_pages(struct rcu_head *head)
 		}
 		f = *prevp;
 	}
-	spin_unlock_irqrestore(&kmmio_lock, flags);
+	arch_spin_unlock(&kmmio_lock);
+	local_irq_restore(flags);
 
 	/* This is the real RCU destroy call. */
 	call_rcu(&dr->rcu, rcu_free_kmmio_fault_pages);
@@ -545,14 +548,16 @@ void unregister_kmmio_probe(struct kmmio_probe *p)
 	if (!pte)
 		return;
 
-	spin_lock_irqsave(&kmmio_lock, flags);
+	local_irq_save(flags);
+	arch_spin_lock(&kmmio_lock);
 	while (size < size_lim) {
 		release_kmmio_fault_page(addr + size, &release_list);
 		size += page_level_size(l);
 	}
 	list_del_rcu(&p->list);
 	kmmio_count--;
-	spin_unlock_irqrestore(&kmmio_lock, flags);
+	arch_spin_unlock(&kmmio_lock);
+	local_irq_restore(flags);
 
 	if (!release_list)
 		return;

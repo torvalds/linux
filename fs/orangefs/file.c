@@ -14,6 +14,7 @@
 #include "orangefs-kernel.h"
 #include "orangefs-bufmap.h"
 #include <linux/fs.h>
+#include <linux/filelock.h>
 #include <linux/pagemap.h>
 
 static int flush_racache(struct inode *inode)
@@ -46,8 +47,9 @@ static int flush_racache(struct inode *inode)
  * Post and wait for the I/O upcall to finish
  */
 ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct inode *inode,
-    loff_t *offset, struct iov_iter *iter, size_t total_size,
-    loff_t readahead_size, struct orangefs_write_range *wr, int *index_return)
+	loff_t *offset, struct iov_iter *iter, size_t total_size,
+	loff_t readahead_size, struct orangefs_write_range *wr,
+	int *index_return, struct file *file)
 {
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	struct orangefs_khandle *handle = &orangefs_inode->refn.khandle;
@@ -55,6 +57,8 @@ ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct inode *inode,
 	int buffer_index;
 	ssize_t ret;
 	size_t copy_amount;
+	int open_for_read;
+	int open_for_write;
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_FILE_IO);
 	if (!new_op)
@@ -90,6 +94,38 @@ populate_shared_memory:
 		new_op->upcall.uid = from_kuid(&init_user_ns, wr->uid);
 		new_op->upcall.gid = from_kgid(&init_user_ns, wr->gid);
 	}
+	/*
+	 * Orangefs has no open, and orangefs checks file permissions
+	 * on each file access. Posix requires that file permissions
+	 * be checked on open and nowhere else. Orangefs-through-the-kernel
+	 * needs to seem posix compliant.
+	 *
+	 * The VFS opens files, even if the filesystem provides no
+	 * method. We can see if a file was successfully opened for
+	 * read and or for write by looking at file->f_mode.
+	 *
+	 * When writes are flowing from the page cache, file is no
+	 * longer available. We can trust the VFS to have checked
+	 * file->f_mode before writing to the page cache.
+	 *
+	 * The mode of a file might change between when it is opened
+	 * and IO commences, or it might be created with an arbitrary mode.
+	 *
+	 * We'll make sure we don't hit EACCES during the IO stage by
+	 * using UID 0. Some of the time we have access without changing
+	 * to UID 0 - how to check?
+	 */
+	if (file) {
+		open_for_write = file->f_mode & FMODE_WRITE;
+		open_for_read = file->f_mode & FMODE_READ;
+	} else {
+		open_for_write = 1;
+		open_for_read = 0; /* not relevant? */
+	}
+	if ((type == ORANGEFS_IO_WRITE) && open_for_write)
+		new_op->upcall.uid = 0;
+	if ((type == ORANGEFS_IO_READ) && open_for_read)
+		new_op->upcall.uid = 0;
 
 	gossip_debug(GOSSIP_FILE_DEBUG,
 		     "%s(%pU): offset: %llu total_size: %zd\n",
@@ -213,21 +249,7 @@ populate_shared_memory:
 		 *       or it can pointers to struct page's
 		 */
 
-		/*
-		 * When reading, readahead_size will only be zero when
-		 * we're doing O_DIRECT, otherwise we got here from
-		 * orangefs_readpage.
-		 *
-		 * If we got here from orangefs_readpage we want to
-		 * copy either a page or the whole file into the io
-		 * vector, whichever is smaller.
-		 */
-		if (readahead_size)
-			copy_amount =
-				min(new_op->downcall.resp.io.amt_complete,
-					(__s64)PAGE_SIZE);
-		else
-			copy_amount = new_op->downcall.resp.io.amt_complete;
+		copy_amount = new_op->downcall.resp.io.amt_complete;
 
 		ret = orangefs_bufmap_copy_to_iovec(iter, buffer_index,
 			copy_amount);
@@ -248,19 +270,10 @@ populate_shared_memory:
 
 out:
 	if (buffer_index >= 0) {
-		if ((readahead_size) && (type == ORANGEFS_IO_READ)) {
-			/* readpage */
-			*index_return = buffer_index;
-			gossip_debug(GOSSIP_FILE_DEBUG,
-				"%s: hold on to buffer_index :%d:\n",
-				__func__, buffer_index);
-		} else {
-			/* O_DIRECT */
-			orangefs_bufmap_put(buffer_index);
-			gossip_debug(GOSSIP_FILE_DEBUG,
-				"%s(%pU): PUT buffer_index %d\n",
-				__func__, handle, buffer_index);
-		}
+		orangefs_bufmap_put(buffer_index);
+		gossip_debug(GOSSIP_FILE_DEBUG,
+			"%s(%pU): PUT buffer_index %d\n",
+			__func__, handle, buffer_index);
 	}
 	op_release(new_op);
 	return ret;
@@ -311,22 +324,7 @@ static ssize_t orangefs_file_read_iter(struct kiocb *iocb,
     struct iov_iter *iter)
 {
 	int ret;
-	struct orangefs_read_options *ro;
-
 	orangefs_stats.reads++;
-
-	/*
-	 * Remember how they set "count" in read(2) or pread(2) or whatever -
-	 * users can use count as a knob to control orangefs io size and later
-	 * we can try to help them fill as many pages as possible in readpage.
-	 */
-	if (!iocb->ki_filp->private_data) {
-		iocb->ki_filp->private_data = kmalloc(sizeof *ro, GFP_KERNEL);
-		if (!iocb->ki_filp->private_data)
-			return(ENOMEM);
-		ro = iocb->ki_filp->private_data;
-		ro->blksiz = iter->count;
-	}
 
 	down_read(&file_inode(iocb->ki_filp)->i_rwsem);
 	ret = orangefs_revalidate_mapping(file_inode(iocb->ki_filp));
@@ -336,6 +334,26 @@ static ssize_t orangefs_file_read_iter(struct kiocb *iocb,
 	ret = generic_file_read_iter(iocb, iter);
 out:
 	up_read(&file_inode(iocb->ki_filp)->i_rwsem);
+	return ret;
+}
+
+static ssize_t orangefs_file_splice_read(struct file *in, loff_t *ppos,
+					 struct pipe_inode_info *pipe,
+					 size_t len, unsigned int flags)
+{
+	struct inode *inode = file_inode(in);
+	ssize_t ret;
+
+	orangefs_stats.reads++;
+
+	down_read(&inode->i_rwsem);
+	ret = orangefs_revalidate_mapping(inode);
+	if (ret)
+		goto out;
+
+	ret = filemap_splice_read(in, ppos, pipe, len, flags);
+out:
+	up_read(&inode->i_rwsem);
 	return ret;
 }
 
@@ -352,84 +370,6 @@ static ssize_t orangefs_file_write_iter(struct kiocb *iocb,
 	}
 
 	ret = generic_file_write_iter(iocb, iter);
-	return ret;
-}
-
-static int orangefs_getflags(struct inode *inode, unsigned long *uval)
-{
-	__u64 val = 0;
-	int ret;
-
-	ret = orangefs_inode_getxattr(inode,
-				      "user.pvfs2.meta_hint",
-				      &val, sizeof(val));
-	if (ret < 0 && ret != -ENODATA)
-		return ret;
-	else if (ret == -ENODATA)
-		val = 0;
-	*uval = val;
-	return 0;
-}
-
-/*
- * Perform a miscellaneous operation on a file.
- */
-static long orangefs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
-{
-	struct inode *inode = file_inode(file);
-	int ret = -ENOTTY;
-	__u64 val = 0;
-	unsigned long uval;
-
-	gossip_debug(GOSSIP_FILE_DEBUG,
-		     "orangefs_ioctl: called with cmd %d\n",
-		     cmd);
-
-	/*
-	 * we understand some general ioctls on files, such as the immutable
-	 * and append flags
-	 */
-	if (cmd == FS_IOC_GETFLAGS) {
-		ret = orangefs_getflags(inode, &uval);
-		if (ret)
-			return ret;
-		gossip_debug(GOSSIP_FILE_DEBUG,
-			     "orangefs_ioctl: FS_IOC_GETFLAGS: %llu\n",
-			     (unsigned long long)uval);
-		return put_user(uval, (int __user *)arg);
-	} else if (cmd == FS_IOC_SETFLAGS) {
-		unsigned long old_uval;
-
-		ret = 0;
-		if (get_user(uval, (int __user *)arg))
-			return -EFAULT;
-		/*
-		 * ORANGEFS_MIRROR_FL is set internally when the mirroring mode
-		 * is turned on for a file. The user is not allowed to turn
-		 * on this bit, but the bit is present if the user first gets
-		 * the flags and then updates the flags with some new
-		 * settings. So, we ignore it in the following edit. bligon.
-		 */
-		if ((uval & ~ORANGEFS_MIRROR_FL) &
-		    (~(FS_IMMUTABLE_FL | FS_APPEND_FL | FS_NOATIME_FL))) {
-			gossip_err("orangefs_ioctl: the FS_IOC_SETFLAGS only supports setting one of FS_IMMUTABLE_FL|FS_APPEND_FL|FS_NOATIME_FL\n");
-			return -EINVAL;
-		}
-		ret = orangefs_getflags(inode, &old_uval);
-		if (ret)
-			return ret;
-		ret = vfs_ioc_setflags_prepare(inode, old_uval, uval);
-		if (ret)
-			return ret;
-		val = uval;
-		gossip_debug(GOSSIP_FILE_DEBUG,
-			     "orangefs_ioctl: FS_IOC_SETFLAGS: %llu\n",
-			     (unsigned long long)val);
-		ret = orangefs_inode_setxattr(inode,
-					      "user.pvfs2.meta_hint",
-					      &val, sizeof(val), 0);
-	}
-
 	return ret;
 }
 
@@ -467,14 +407,10 @@ static int orangefs_file_mmap(struct file *file, struct vm_area_struct *vma)
 		return ret;
 
 	gossip_debug(GOSSIP_FILE_DEBUG,
-		     "orangefs_file_mmap: called on %s\n",
-		     (file ?
-			(char *)file->f_path.dentry->d_name.name :
-			(char *)"Unknown"));
+		     "orangefs_file_mmap: called on %pD\n", file);
 
 	/* set the sequential readahead hint */
-	vma->vm_flags |= VM_SEQ_READ;
-	vma->vm_flags &= ~VM_RAND_READ;
+	vm_flags_mod(vma, VM_SEQ_READ, VM_RAND_READ);
 
 	file_accessed(file);
 	vma->vm_ops = &orangefs_file_vm_ops;
@@ -500,9 +436,7 @@ static int orangefs_file_release(struct inode *inode, struct file *file)
 	 * readahead cache (if any); this forces an expensive refresh of
 	 * data for the next caller of mmap (or 'get_block' accesses)
 	 */
-	if (file_inode(file) &&
-	    file_inode(file)->i_mapping &&
-	    mapping_nrpages(&file_inode(file)->i_data)) {
+	if (mapping_nrpages(file->f_mapping)) {
 		if (orangefs_features & ORANGEFS_FEATURE_READAHEAD) {
 			gossip_debug(GOSSIP_INODE_DEBUG,
 			    "calling flush_racache on %pU\n",
@@ -615,12 +549,6 @@ static int orangefs_lock(struct file *filp, int cmd, struct file_lock *fl)
 	return rc;
 }
 
-static int orangefs_file_open(struct inode * inode, struct file *file)
-{
-	file->private_data = NULL;
-	return generic_file_open(inode, file);
-}
-
 static int orangefs_flush(struct file *file, fl_owner_t id)
 {
 	/*
@@ -631,18 +559,7 @@ static int orangefs_flush(struct file *file, fl_owner_t id)
 	 * on an explicit fsync call.  This duplicates historical OrangeFS
 	 * behavior.
 	 */
-	struct inode *inode = file->f_mapping->host;
 	int r;
-
-	kfree(file->private_data);
-	file->private_data = NULL;
-
-	if (inode->i_state & I_DIRTY_TIME) {
-		spin_lock(&inode->i_lock);
-		inode->i_state &= ~I_DIRTY_TIME;
-		spin_unlock(&inode->i_lock);
-		mark_inode_dirty_sync(inode);
-	}
 
 	r = filemap_write_and_wait_range(file->f_mapping, 0, LLONG_MAX);
 	if (r > 0)
@@ -657,9 +574,10 @@ const struct file_operations orangefs_file_operations = {
 	.read_iter	= orangefs_file_read_iter,
 	.write_iter	= orangefs_file_write_iter,
 	.lock		= orangefs_lock,
-	.unlocked_ioctl	= orangefs_ioctl,
 	.mmap		= orangefs_file_mmap,
-	.open		= orangefs_file_open,
+	.open		= generic_file_open,
+	.splice_read    = orangefs_file_splice_read,
+	.splice_write   = iter_file_splice_write,
 	.flush		= orangefs_flush,
 	.release	= orangefs_file_release,
 	.fsync		= orangefs_fsync,

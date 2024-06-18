@@ -1,15 +1,5 @@
-/*
- * Copyright (C) 2014-2015 Broadcom Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
+/* Copyright (C) 2014-2015 Broadcom Corporation */
 #ifndef __CYGNUS_SSP_H__
 #define __CYGNUS_SSP_H__
 
@@ -127,8 +117,6 @@ struct cygnus_audio {
 	unsigned long vco_rate;
 };
 
-extern int cygnus_ssp_get_mode(struct snd_soc_dai *cpu_dai);
-extern int cygnus_ssp_add_pll_tweak_controls(struct snd_soc_pcm_runtime *rtd);
 extern int cygnus_ssp_set_custom_fsync_width(struct snd_soc_dai *cpu_dai,
 						int len);
 extern int cygnus_soc_platform_register(struct device *dev,

@@ -17,7 +17,10 @@
 #include <linux/mtd/rawnand.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/reset.h>
+
+#include <soc/tegra/common.h>
 
 #define COMMAND					0x00
 #define   COMMAND_GO				BIT(31)
@@ -467,7 +470,9 @@ static int tegra_nand_exec_op(struct nand_chip *chip,
 			      const struct nand_operation *op,
 			      bool check_only)
 {
-	tegra_nand_select_target(chip, op->cs);
+	if (!check_only)
+		tegra_nand_select_target(chip, op->cs);
+
 	return nand_op_parser_exec_op(chip, &tegra_nand_op_parser, op,
 				      check_only);
 }
@@ -477,7 +482,7 @@ static void tegra_nand_hw_ecc(struct tegra_nand_controller *ctrl,
 {
 	struct tegra_nand_chip *nand = to_tegra_chip(chip);
 
-	if (chip->ecc.algo == NAND_ECC_BCH && enable)
+	if (chip->ecc.algo == NAND_ECC_ALGO_BCH && enable)
 		writel_relaxed(nand->bch_config, ctrl->regs + BCH_CONFIG);
 	else
 		writel_relaxed(0, ctrl->regs + BCH_CONFIG);
@@ -811,8 +816,8 @@ static void tegra_nand_setup_timing(struct tegra_nand_controller *ctrl,
 	writel_relaxed(reg, ctrl->regs + TIMING_2);
 }
 
-static int tegra_nand_setup_data_interface(struct nand_chip *chip, int csline,
-					const struct nand_data_interface *conf)
+static int tegra_nand_setup_interface(struct nand_chip *chip, int csline,
+				      const struct nand_interface_config *conf)
 {
 	struct tegra_nand_controller *ctrl = to_tegra_ctrl(chip->controller);
 	const struct nand_sdr_timings *timings;
@@ -838,7 +843,10 @@ static int tegra_nand_get_strength(struct nand_chip *chip, const int *strength,
 				   int strength_len, int bits_per_step,
 				   int oobsize)
 {
-	bool maximize = chip->ecc.options & NAND_ECC_MAXIMIZE;
+	struct nand_device *base = mtd_to_nanddev(nand_to_mtd(chip));
+	const struct nand_ecc_props *requirements =
+		nanddev_get_ecc_requirements(base);
+	bool maximize = base->ecc.user_conf.flags & NAND_ECC_MAXIMIZE_STRENGTH;
 	int i;
 
 	/*
@@ -853,7 +861,7 @@ static int tegra_nand_get_strength(struct nand_chip *chip, const int *strength,
 		} else {
 			strength_sel = strength[i];
 
-			if (strength_sel < chip->base.eccreq.strength)
+			if (strength_sel < requirements->strength)
 				continue;
 		}
 
@@ -875,7 +883,7 @@ static int tegra_nand_select_strength(struct nand_chip *chip, int oobsize)
 	int strength_len, bits_per_step;
 
 	switch (chip->ecc.algo) {
-	case NAND_ECC_RS:
+	case NAND_ECC_ALGO_RS:
 		bits_per_step = BITS_PER_STEP_RS;
 		if (chip->options & NAND_IS_BOOT_MEDIUM) {
 			strength = rs_strength_bootable;
@@ -885,7 +893,7 @@ static int tegra_nand_select_strength(struct nand_chip *chip, int oobsize)
 			strength_len = ARRAY_SIZE(rs_strength);
 		}
 		break;
-	case NAND_ECC_BCH:
+	case NAND_ECC_ALGO_BCH:
 		bits_per_step = BITS_PER_STEP_BCH;
 		if (chip->options & NAND_IS_BOOT_MEDIUM) {
 			strength = bch_strength_bootable;
@@ -906,6 +914,8 @@ static int tegra_nand_select_strength(struct nand_chip *chip, int oobsize)
 static int tegra_nand_attach_chip(struct nand_chip *chip)
 {
 	struct tegra_nand_controller *ctrl = to_tegra_ctrl(chip->controller);
+	const struct nand_ecc_props *requirements =
+		nanddev_get_ecc_requirements(&chip->base);
 	struct tegra_nand_chip *nand = to_tegra_chip(chip);
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	int bits_per_step;
@@ -914,12 +924,12 @@ static int tegra_nand_attach_chip(struct nand_chip *chip)
 	if (chip->bbt_options & NAND_BBT_USE_FLASH)
 		chip->bbt_options |= NAND_BBT_NO_OOB;
 
-	chip->ecc.mode = NAND_ECC_HW;
+	chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_ON_HOST;
 	chip->ecc.size = 512;
 	chip->ecc.steps = mtd->writesize / chip->ecc.size;
-	if (chip->base.eccreq.step_size != 512) {
+	if (requirements->step_size != 512) {
 		dev_err(ctrl->dev, "Unsupported step size %d\n",
-			chip->base.eccreq.step_size);
+			requirements->step_size);
 		return -EINVAL;
 	}
 
@@ -933,14 +943,14 @@ static int tegra_nand_attach_chip(struct nand_chip *chip)
 	if (chip->options & NAND_BUSWIDTH_16)
 		nand->config |= CONFIG_BUS_WIDTH_16;
 
-	if (chip->ecc.algo == NAND_ECC_UNKNOWN) {
+	if (chip->ecc.algo == NAND_ECC_ALGO_UNKNOWN) {
 		if (mtd->writesize < 2048)
-			chip->ecc.algo = NAND_ECC_RS;
+			chip->ecc.algo = NAND_ECC_ALGO_RS;
 		else
-			chip->ecc.algo = NAND_ECC_BCH;
+			chip->ecc.algo = NAND_ECC_ALGO_BCH;
 	}
 
-	if (chip->ecc.algo == NAND_ECC_BCH && mtd->writesize < 2048) {
+	if (chip->ecc.algo == NAND_ECC_ALGO_BCH && mtd->writesize < 2048) {
 		dev_err(ctrl->dev, "BCH supports 2K or 4K page size only\n");
 		return -EINVAL;
 	}
@@ -950,7 +960,7 @@ static int tegra_nand_attach_chip(struct nand_chip *chip)
 		if (ret < 0) {
 			dev_err(ctrl->dev,
 				"No valid strength found, minimum %d\n",
-				chip->base.eccreq.strength);
+				requirements->strength);
 			return ret;
 		}
 
@@ -961,7 +971,7 @@ static int tegra_nand_attach_chip(struct nand_chip *chip)
 			   CONFIG_SKIP_SPARE_SIZE_4;
 
 	switch (chip->ecc.algo) {
-	case NAND_ECC_RS:
+	case NAND_ECC_ALGO_RS:
 		bits_per_step = BITS_PER_STEP_RS * chip->ecc.strength;
 		mtd_set_ooblayout(mtd, &tegra_nand_oob_rs_ops);
 		nand->config_ecc |= CONFIG_HW_ECC | CONFIG_ECC_SEL |
@@ -982,7 +992,7 @@ static int tegra_nand_attach_chip(struct nand_chip *chip)
 			return -EINVAL;
 		}
 		break;
-	case NAND_ECC_BCH:
+	case NAND_ECC_ALGO_BCH:
 		bits_per_step = BITS_PER_STEP_BCH * chip->ecc.strength;
 		mtd_set_ooblayout(mtd, &tegra_nand_oob_bch_ops);
 		nand->bch_config = BCH_ENABLE;
@@ -1011,7 +1021,7 @@ static int tegra_nand_attach_chip(struct nand_chip *chip)
 	}
 
 	dev_info(ctrl->dev, "Using %s with strength %d per 512 byte step\n",
-		 chip->ecc.algo == NAND_ECC_BCH ? "BCH" : "RS",
+		 chip->ecc.algo == NAND_ECC_ALGO_BCH ? "BCH" : "RS",
 		 chip->ecc.strength);
 
 	chip->ecc.bytes = DIV_ROUND_UP(bits_per_step, BITS_PER_BYTE);
@@ -1051,7 +1061,7 @@ static int tegra_nand_attach_chip(struct nand_chip *chip)
 static const struct nand_controller_ops tegra_nand_controller_ops = {
 	.attach_chip = &tegra_nand_attach_chip,
 	.exec_op = tegra_nand_exec_op,
-	.setup_data_interface = tegra_nand_setup_data_interface,
+	.setup_interface = tegra_nand_setup_interface,
 };
 
 static int tegra_nand_chips_init(struct device *dev,
@@ -1113,7 +1123,7 @@ static int tegra_nand_chips_init(struct device *dev,
 	if (!mtd->name)
 		mtd->name = "tegra_nand";
 
-	chip->options = NAND_NO_SUBPAGE_WRITE | NAND_USE_BOUNCE_BUFFER;
+	chip->options = NAND_NO_SUBPAGE_WRITE | NAND_USES_DMA;
 
 	ret = nand_scan(chip, 1);
 	if (ret)
@@ -1137,7 +1147,6 @@ static int tegra_nand_probe(struct platform_device *pdev)
 {
 	struct reset_control *rst;
 	struct tegra_nand_controller *ctrl;
-	struct resource *res;
 	int err = 0;
 
 	ctrl = devm_kzalloc(&pdev->dev, sizeof(*ctrl), GFP_KERNEL);
@@ -1145,11 +1154,11 @@ static int tegra_nand_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ctrl->dev = &pdev->dev;
+	platform_set_drvdata(pdev, ctrl);
 	nand_controller_init(&ctrl->controller);
 	ctrl->controller.ops = &tegra_nand_controller_ops;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ctrl->regs = devm_ioremap_resource(&pdev->dev, res);
+	ctrl->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ctrl->regs))
 		return PTR_ERR(ctrl->regs);
 
@@ -1161,14 +1170,23 @@ static int tegra_nand_probe(struct platform_device *pdev)
 	if (IS_ERR(ctrl->clk))
 		return PTR_ERR(ctrl->clk);
 
-	err = clk_prepare_enable(ctrl->clk);
+	err = devm_tegra_core_dev_init_opp_table_common(&pdev->dev);
 	if (err)
 		return err;
+
+	/*
+	 * This driver doesn't support active power management yet,
+	 * so we will simply keep device resumed.
+	 */
+	pm_runtime_enable(&pdev->dev);
+	err = pm_runtime_resume_and_get(&pdev->dev);
+	if (err)
+		goto err_dis_pm;
 
 	err = reset_control_reset(rst);
 	if (err) {
 		dev_err(ctrl->dev, "Failed to reset HW: %d\n", err);
-		goto err_disable_clk;
+		goto err_put_pm;
 	}
 
 	writel_relaxed(HWSTATUS_CMD_DEFAULT, ctrl->regs + HWSTATUS_CMD);
@@ -1179,45 +1197,74 @@ static int tegra_nand_probe(struct platform_device *pdev)
 	init_completion(&ctrl->dma_complete);
 
 	ctrl->irq = platform_get_irq(pdev, 0);
+	if (ctrl->irq < 0) {
+		err = ctrl->irq;
+		goto err_put_pm;
+	}
 	err = devm_request_irq(&pdev->dev, ctrl->irq, tegra_nand_irq, 0,
 			       dev_name(&pdev->dev), ctrl);
 	if (err) {
 		dev_err(ctrl->dev, "Failed to get IRQ: %d\n", err);
-		goto err_disable_clk;
+		goto err_put_pm;
 	}
 
 	writel_relaxed(DMA_MST_CTRL_IS_DONE, ctrl->regs + DMA_MST_CTRL);
 
 	err = tegra_nand_chips_init(ctrl->dev, ctrl);
 	if (err)
-		goto err_disable_clk;
-
-	platform_set_drvdata(pdev, ctrl);
+		goto err_put_pm;
 
 	return 0;
 
-err_disable_clk:
-	clk_disable_unprepare(ctrl->clk);
+err_put_pm:
+	pm_runtime_put_sync_suspend(ctrl->dev);
+	pm_runtime_force_suspend(ctrl->dev);
+err_dis_pm:
+	pm_runtime_disable(&pdev->dev);
 	return err;
 }
 
-static int tegra_nand_remove(struct platform_device *pdev)
+static void tegra_nand_remove(struct platform_device *pdev)
 {
 	struct tegra_nand_controller *ctrl = platform_get_drvdata(pdev);
 	struct nand_chip *chip = ctrl->chip;
 	struct mtd_info *mtd = nand_to_mtd(chip);
-	int ret;
 
-	ret = mtd_device_unregister(mtd);
-	if (ret)
-		return ret;
+	WARN_ON(mtd_device_unregister(mtd));
 
 	nand_cleanup(chip);
+
+	pm_runtime_put_sync_suspend(ctrl->dev);
+	pm_runtime_force_suspend(ctrl->dev);
+}
+
+static int __maybe_unused tegra_nand_runtime_resume(struct device *dev)
+{
+	struct tegra_nand_controller *ctrl = dev_get_drvdata(dev);
+	int err;
+
+	err = clk_prepare_enable(ctrl->clk);
+	if (err) {
+		dev_err(dev, "Failed to enable clock: %d\n", err);
+		return err;
+	}
+
+	return 0;
+}
+
+static int __maybe_unused tegra_nand_runtime_suspend(struct device *dev)
+{
+	struct tegra_nand_controller *ctrl = dev_get_drvdata(dev);
 
 	clk_disable_unprepare(ctrl->clk);
 
 	return 0;
 }
+
+static const struct dev_pm_ops tegra_nand_pm = {
+	SET_RUNTIME_PM_OPS(tegra_nand_runtime_suspend, tegra_nand_runtime_resume,
+			   NULL)
+};
 
 static const struct of_device_id tegra_nand_of_match[] = {
 	{ .compatible = "nvidia,tegra20-nand" },
@@ -1229,9 +1276,10 @@ static struct platform_driver tegra_nand_driver = {
 	.driver = {
 		.name = "tegra-nand",
 		.of_match_table = tegra_nand_of_match,
+		.pm = &tegra_nand_pm,
 	},
 	.probe = tegra_nand_probe,
-	.remove = tegra_nand_remove,
+	.remove_new = tegra_nand_remove,
 };
 module_platform_driver(tegra_nand_driver);
 

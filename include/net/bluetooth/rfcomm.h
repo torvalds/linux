@@ -34,7 +34,6 @@
 #define RFCOMM_DEFAULT_MTU	127
 #define RFCOMM_DEFAULT_CREDITS	7
 
-#define RFCOMM_MAX_L2CAP_MTU	1013
 #define RFCOMM_MAX_CREDITS	40
 
 #define RFCOMM_SKB_HEAD_RESERVE	8
@@ -356,7 +355,7 @@ struct rfcomm_dev_info {
 
 struct rfcomm_dev_list_req {
 	u16      dev_num;
-	struct   rfcomm_dev_info dev_info[0];
+	struct   rfcomm_dev_info dev_info[];
 };
 
 int  rfcomm_dev_ioctl(struct sock *sk, unsigned int cmd, void __user *arg);

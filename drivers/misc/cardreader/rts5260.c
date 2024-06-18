@@ -26,21 +26,17 @@ static u8 rts5260_get_ic_version(struct rtsx_pcr *pcr)
 
 static void rts5260_fill_driving(struct rtsx_pcr *pcr, u8 voltage)
 {
-	u8 driving_3v3[6][3] = {
-		{0x94, 0x94, 0x94},
-		{0x11, 0x11, 0x18},
-		{0x55, 0x55, 0x5C},
-		{0x94, 0x94, 0x94},
-		{0x94, 0x94, 0x94},
-		{0xFF, 0xFF, 0xFF},
+	u8 driving_3v3[4][3] = {
+		{0x11, 0x11, 0x11},
+		{0x22, 0x22, 0x22},
+		{0x55, 0x55, 0x55},
+		{0x33, 0x33, 0x33},
 	};
-	u8 driving_1v8[6][3] = {
-		{0x9A, 0x89, 0x89},
-		{0xC4, 0xC4, 0xC4},
-		{0x3C, 0x3C, 0x3C},
+	u8 driving_1v8[4][3] = {
+		{0x35, 0x33, 0x33},
+		{0x8A, 0x88, 0x88},
+		{0xBD, 0xBB, 0xBB},
 		{0x9B, 0x99, 0x99},
-		{0x9A, 0x89, 0x89},
-		{0xFE, 0xFE, 0xFE},
 	};
 	u8 (*driving)[3], drive_sel;
 
@@ -58,15 +54,16 @@ static void rts5260_fill_driving(struct rtsx_pcr *pcr, u8 voltage)
 	rtsx_pci_write_register(pcr, SD30_CMD_DRIVE_SEL,
 			 0xFF, driving[drive_sel][1]);
 
-	rtsx_pci_write_register(pcr, SD30_CMD_DRIVE_SEL,
+	rtsx_pci_write_register(pcr, SD30_DAT_DRIVE_SEL,
 			 0xFF, driving[drive_sel][2]);
 }
 
 static void rtsx_base_fetch_vendor_settings(struct rtsx_pcr *pcr)
 {
+	struct pci_dev *pdev = pcr->pci;
 	u32 reg;
 
-	rtsx_pci_read_config_dword(pcr, PCR_SETTING_REG1, &reg);
+	pci_read_config_dword(pdev, PCR_SETTING_REG1, &reg);
 	pcr_dbg(pcr, "Cfg 0x%x: 0x%x\n", PCR_SETTING_REG1, reg);
 
 	if (!rtsx_vendor_setting_valid(reg)) {
@@ -79,26 +76,13 @@ static void rtsx_base_fetch_vendor_settings(struct rtsx_pcr *pcr)
 	pcr->card_drive_sel &= 0x3F;
 	pcr->card_drive_sel |= rtsx_reg_to_card_drive_sel(reg);
 
-	rtsx_pci_read_config_dword(pcr, PCR_SETTING_REG2, &reg);
+	pci_read_config_dword(pdev, PCR_SETTING_REG2, &reg);
 	pcr_dbg(pcr, "Cfg 0x%x: 0x%x\n", PCR_SETTING_REG2, reg);
+	if (rtsx_check_mmc_support(reg))
+		pcr->extra_caps |= EXTRA_CAPS_NO_MMC;
 	pcr->sd30_drive_sel_3v3 = rtsx_reg_to_sd30_drive_sel_3v3(reg);
 	if (rtsx_reg_check_reverse_socket(reg))
 		pcr->flags |= PCR_REVERSE_SOCKET;
-}
-
-static void rtsx_base_force_power_down(struct rtsx_pcr *pcr, u8 pm_state)
-{
-	/* Set relink_time to 0 */
-	rtsx_pci_write_register(pcr, AUTOLOAD_CFG_BASE + 1, MASK_8_BIT_DEF, 0);
-	rtsx_pci_write_register(pcr, AUTOLOAD_CFG_BASE + 2, MASK_8_BIT_DEF, 0);
-	rtsx_pci_write_register(pcr, AUTOLOAD_CFG_BASE + 3,
-				RELINK_TIME_MASK, 0);
-
-	if (pm_state == HOST_ENTER_S3)
-		rtsx_pci_write_register(pcr, pcr->reg_pm_ctrl3,
-					D3_DELINK_MODE_EN, D3_DELINK_MODE_EN);
-
-	rtsx_pci_write_register(pcr, FPDCTL, ALL_POWER_DOWN, ALL_POWER_DOWN);
 }
 
 static int rtsx_base_enable_auto_blink(struct rtsx_pcr *pcr)
@@ -191,7 +175,6 @@ static int sd_set_sample_push_timing_sd30(struct rtsx_pcr *pcr)
 
 static int rts5260_card_power_on(struct rtsx_pcr *pcr, int card)
 {
-	int err = 0;
 	struct rtsx_cr_option *option = &pcr->option;
 
 	if (option->ocp_en)
@@ -231,7 +214,7 @@ static int rts5260_card_power_on(struct rtsx_pcr *pcr, int card)
 
 	rtsx_pci_write_register(pcr, REG_PRE_RW_MODE, EN_INFINITE_MODE, 0);
 
-	return err;
+	return 0;
 }
 
 static int rts5260_switch_output_voltage(struct rtsx_pcr *pcr, u8 voltage)
@@ -498,42 +481,13 @@ static void rts5260_pwr_saving_setting(struct rtsx_pcr *pcr)
 static void rts5260_init_from_cfg(struct rtsx_pcr *pcr)
 {
 	struct rtsx_cr_option *option = &pcr->option;
-	u32 lval;
-
-	rtsx_pci_read_config_dword(pcr, PCR_ASPM_SETTING_5260, &lval);
-
-	if (lval & ASPM_L1_1_EN_MASK)
-		rtsx_set_dev_flag(pcr, ASPM_L1_1_EN);
-
-	if (lval & ASPM_L1_2_EN_MASK)
-		rtsx_set_dev_flag(pcr, ASPM_L1_2_EN);
-
-	if (lval & PM_L1_1_EN_MASK)
-		rtsx_set_dev_flag(pcr, PM_L1_1_EN);
-
-	if (lval & PM_L1_2_EN_MASK)
-		rtsx_set_dev_flag(pcr, PM_L1_2_EN);
 
 	rts5260_pwr_saving_setting(pcr);
 
 	if (option->ltr_en) {
-		u16 val;
-
-		pcie_capability_read_word(pcr->pci, PCI_EXP_DEVCTL2, &val);
-		if (val & PCI_EXP_DEVCTL2_LTR_EN) {
-			option->ltr_enabled = true;
-			option->ltr_active = true;
+		if (option->ltr_enabled)
 			rtsx_set_ltr_latency(pcr, option->ltr_active_latency);
-		} else {
-			option->ltr_enabled = false;
-		}
 	}
-
-	if (rtsx_check_dev_flag(pcr, ASPM_L1_1_EN | ASPM_L1_2_EN
-				| PM_L1_1_EN | PM_L1_2_EN))
-		option->force_clkreq_0 = false;
-	else
-		option->force_clkreq_0 = true;
 }
 
 static int rts5260_extra_init_hw(struct rtsx_pcr *pcr)
@@ -568,31 +522,9 @@ static int rts5260_extra_init_hw(struct rtsx_pcr *pcr)
 		rtsx_pci_write_register(pcr, PETXCFG,
 				 FORCE_CLKREQ_DELINK_MASK, FORCE_CLKREQ_HIGH);
 
+	rtsx_pci_write_register(pcr, pcr->reg_pm_ctrl3, 0x10, 0x00);
+
 	return 0;
-}
-
-static void rts5260_set_aspm(struct rtsx_pcr *pcr, bool enable)
-{
-	struct rtsx_cr_option *option = &pcr->option;
-	u8 val = 0;
-
-	if (pcr->aspm_enabled == enable)
-		return;
-
-	if (option->dev_aspm_mode == DEV_ASPM_DYNAMIC) {
-		if (enable)
-			val = pcr->aspm_en;
-		rtsx_pci_update_cfg_byte(pcr, pcr->pcie_cap + PCI_EXP_LNKCTL,
-					 ASPM_MASK_NEG, val);
-	} else if (option->dev_aspm_mode == DEV_ASPM_BACKDOOR) {
-		u8 mask = FORCE_ASPM_VAL_MASK | FORCE_ASPM_CTL0;
-
-		if (!enable)
-			val = FORCE_ASPM_CTL0;
-		rtsx_pci_write_register(pcr, ASPM_FORCE_CTL, mask, val);
-	}
-
-	pcr->aspm_enabled = enable;
 }
 
 static void rts5260_set_l1off_cfg_sub_d0(struct rtsx_pcr *pcr, int active)
@@ -638,9 +570,7 @@ static const struct pcr_ops rts5260_pcr_ops = {
 	.card_power_on = rts5260_card_power_on,
 	.card_power_off = rts5260_card_power_off,
 	.switch_output_voltage = rts5260_switch_output_voltage,
-	.force_power_down = rtsx_base_force_power_down,
 	.stop_cmd = rts5260_stop_cmd,
-	.set_aspm = rts5260_set_aspm,
 	.set_l1off_cfg_sub_d0 = rts5260_set_l1off_cfg_sub_d0,
 	.enable_ocp = rts5260_enable_ocp,
 	.disable_ocp = rts5260_disable_ocp,
@@ -663,7 +593,8 @@ void rts5260_init_params(struct rtsx_pcr *pcr)
 	pcr->sd30_drive_sel_1v8 = CFG_DRIVER_TYPE_B;
 	pcr->sd30_drive_sel_3v3 = CFG_DRIVER_TYPE_B;
 	pcr->aspm_en = ASPM_L1_EN;
-	pcr->tx_initial_phase = SET_CLOCK_PHASE(1, 29, 16);
+	pcr->aspm_mode = ASPM_MODE_REG;
+	pcr->tx_initial_phase = SET_CLOCK_PHASE(27, 29, 11);
 	pcr->rx_initial_phase = SET_CLOCK_PHASE(24, 6, 5);
 
 	pcr->ic_version = rts5260_get_ic_version(pcr);
@@ -684,7 +615,6 @@ void rts5260_init_params(struct rtsx_pcr *pcr)
 	option->ltr_active_latency = LTR_ACTIVE_LATENCY_DEF;
 	option->ltr_idle_latency = LTR_IDLE_LATENCY_DEF;
 	option->ltr_l1off_latency = LTR_L1OFF_LATENCY_DEF;
-	option->dev_aspm_mode = DEV_ASPM_DYNAMIC;
 	option->l1_snooze_delay = L1_SNOOZE_DELAY_DEF;
 	option->ltr_l1off_sspwrgate = LTR_L1OFF_SSPWRGATE_5250_DEF;
 	option->ltr_l1off_snooze_sspwrgate =

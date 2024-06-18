@@ -18,6 +18,23 @@
 
 /**
  * kvm_s390_real_to_abs - convert guest real address to guest absolute address
+ * @prefix - guest prefix
+ * @gra - guest real address
+ *
+ * Returns the guest absolute address that corresponds to the passed guest real
+ * address @gra of by applying the given prefix.
+ */
+static inline unsigned long _kvm_s390_real_to_abs(u32 prefix, unsigned long gra)
+{
+	if (gra < 2 * PAGE_SIZE)
+		gra += prefix;
+	else if (gra >= prefix && gra < prefix + 2 * PAGE_SIZE)
+		gra -= prefix;
+	return gra;
+}
+
+/**
+ * kvm_s390_real_to_abs - convert guest real address to guest absolute address
  * @vcpu - guest virtual cpu
  * @gra - guest real address
  *
@@ -27,13 +44,30 @@
 static inline unsigned long kvm_s390_real_to_abs(struct kvm_vcpu *vcpu,
 						 unsigned long gra)
 {
-	unsigned long prefix  = kvm_s390_get_prefix(vcpu);
+	return _kvm_s390_real_to_abs(kvm_s390_get_prefix(vcpu), gra);
+}
 
-	if (gra < 2 * PAGE_SIZE)
-		gra += prefix;
-	else if (gra >= prefix && gra < prefix + 2 * PAGE_SIZE)
-		gra -= prefix;
-	return gra;
+/**
+ * _kvm_s390_logical_to_effective - convert guest logical to effective address
+ * @psw: psw of the guest
+ * @ga: guest logical address
+ *
+ * Convert a guest logical address to an effective address by applying the
+ * rules of the addressing mode defined by bits 31 and 32 of the given PSW
+ * (extendended/basic addressing mode).
+ *
+ * Depending on the addressing mode, the upper 40 bits (24 bit addressing
+ * mode), 33 bits (31 bit addressing mode) or no bits (64 bit addressing
+ * mode) of @ga will be zeroed and the remaining bits will be returned.
+ */
+static inline unsigned long _kvm_s390_logical_to_effective(psw_t *psw,
+							   unsigned long ga)
+{
+	if (psw_bits(*psw).eaba == PSW_BITS_AMODE_64BIT)
+		return ga;
+	if (psw_bits(*psw).eaba == PSW_BITS_AMODE_31BIT)
+		return ga & ((1UL << 31) - 1);
+	return ga & ((1UL << 24) - 1);
 }
 
 /**
@@ -52,13 +86,7 @@ static inline unsigned long kvm_s390_real_to_abs(struct kvm_vcpu *vcpu,
 static inline unsigned long kvm_s390_logical_to_effective(struct kvm_vcpu *vcpu,
 							  unsigned long ga)
 {
-	psw_t *psw = &vcpu->arch.sie_block->gpsw;
-
-	if (psw_bits(*psw).eaba == PSW_BITS_AMODE_64BIT)
-		return ga;
-	if (psw_bits(*psw).eaba == PSW_BITS_AMODE_31BIT)
-		return ga & ((1UL << 31) - 1);
-	return ga & ((1UL << 24) - 1);
+	return _kvm_s390_logical_to_effective(&vcpu->arch.sie_block->gpsw, ga);
 }
 
 /*
@@ -158,24 +186,37 @@ enum gacc_mode {
 	GACC_IFETCH,
 };
 
-int guest_translate_address(struct kvm_vcpu *vcpu, unsigned long gva,
-			    u8 ar, unsigned long *gpa, enum gacc_mode mode);
-int check_gva_range(struct kvm_vcpu *vcpu, unsigned long gva, u8 ar,
-		    unsigned long length, enum gacc_mode mode);
+int guest_translate_address_with_key(struct kvm_vcpu *vcpu, unsigned long gva, u8 ar,
+				     unsigned long *gpa, enum gacc_mode mode,
+				     u8 access_key);
 
-int access_guest(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar, void *data,
-		 unsigned long len, enum gacc_mode mode);
+int check_gva_range(struct kvm_vcpu *vcpu, unsigned long gva, u8 ar,
+		    unsigned long length, enum gacc_mode mode, u8 access_key);
+
+int check_gpa_range(struct kvm *kvm, unsigned long gpa, unsigned long length,
+		    enum gacc_mode mode, u8 access_key);
+
+int access_guest_abs_with_key(struct kvm *kvm, gpa_t gpa, void *data,
+			      unsigned long len, enum gacc_mode mode, u8 access_key);
+
+int access_guest_with_key(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar,
+			  void *data, unsigned long len, enum gacc_mode mode,
+			  u8 access_key);
 
 int access_guest_real(struct kvm_vcpu *vcpu, unsigned long gra,
 		      void *data, unsigned long len, enum gacc_mode mode);
 
+int cmpxchg_guest_abs_with_key(struct kvm *kvm, gpa_t gpa, int len, __uint128_t *old,
+			       __uint128_t new, u8 access_key, bool *success);
+
 /**
- * write_guest - copy data from kernel space to guest space
+ * write_guest_with_key - copy data from kernel space to guest space
  * @vcpu: virtual cpu
  * @ga: guest address
  * @ar: access register
  * @data: source address in kernel space
  * @len: number of bytes to copy
+ * @access_key: access key the storage key needs to match
  *
  * Copy @len bytes from @data (kernel space) to @ga (guest address).
  * In order to copy data to guest space the PSW of the vcpu is inspected:
@@ -186,8 +227,8 @@ int access_guest_real(struct kvm_vcpu *vcpu, unsigned long gra,
  * The addressing mode of the PSW is also inspected, so that address wrap
  * around is taken into account for 24-, 31- and 64-bit addressing mode,
  * if the to be copied data crosses page boundaries in guest address space.
- * In addition also low address and DAT protection are inspected before
- * copying any data (key protection is currently not implemented).
+ * In addition low address, DAT and key protection checks are performed before
+ * copying any data.
  *
  * This function modifies the 'struct kvm_s390_pgm_info pgm' member of @vcpu.
  * In case of an access exception (e.g. protection exception) pgm will contain
@@ -215,10 +256,53 @@ int access_guest_real(struct kvm_vcpu *vcpu, unsigned long gra,
  *	 if data has been changed in guest space in case of an exception.
  */
 static inline __must_check
+int write_guest_with_key(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar,
+			 void *data, unsigned long len, u8 access_key)
+{
+	return access_guest_with_key(vcpu, ga, ar, data, len, GACC_STORE,
+				     access_key);
+}
+
+/**
+ * write_guest - copy data from kernel space to guest space
+ * @vcpu: virtual cpu
+ * @ga: guest address
+ * @ar: access register
+ * @data: source address in kernel space
+ * @len: number of bytes to copy
+ *
+ * The behaviour of write_guest is identical to write_guest_with_key, except
+ * that the PSW access key is used instead of an explicit argument.
+ */
+static inline __must_check
 int write_guest(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar, void *data,
 		unsigned long len)
 {
-	return access_guest(vcpu, ga, ar, data, len, GACC_STORE);
+	u8 access_key = psw_bits(vcpu->arch.sie_block->gpsw).key;
+
+	return write_guest_with_key(vcpu, ga, ar, data, len, access_key);
+}
+
+/**
+ * read_guest_with_key - copy data from guest space to kernel space
+ * @vcpu: virtual cpu
+ * @ga: guest address
+ * @ar: access register
+ * @data: destination address in kernel space
+ * @len: number of bytes to copy
+ * @access_key: access key the storage key needs to match
+ *
+ * Copy @len bytes from @ga (guest address) to @data (kernel space).
+ *
+ * The behaviour of read_guest_with_key is identical to write_guest_with_key,
+ * except that data will be copied from guest space to kernel space.
+ */
+static inline __must_check
+int read_guest_with_key(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar,
+			void *data, unsigned long len, u8 access_key)
+{
+	return access_guest_with_key(vcpu, ga, ar, data, len, GACC_FETCH,
+				     access_key);
 }
 
 /**
@@ -231,14 +315,16 @@ int write_guest(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar, void *data,
  *
  * Copy @len bytes from @ga (guest address) to @data (kernel space).
  *
- * The behaviour of read_guest is identical to write_guest, except that
- * data will be copied from guest space to kernel space.
+ * The behaviour of read_guest is identical to read_guest_with_key, except
+ * that the PSW access key is used instead of an explicit argument.
  */
 static inline __must_check
 int read_guest(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar, void *data,
 	       unsigned long len)
 {
-	return access_guest(vcpu, ga, ar, data, len, GACC_FETCH);
+	u8 access_key = psw_bits(vcpu->arch.sie_block->gpsw).key;
+
+	return read_guest_with_key(vcpu, ga, ar, data, len, access_key);
 }
 
 /**
@@ -259,7 +345,10 @@ static inline __must_check
 int read_guest_instr(struct kvm_vcpu *vcpu, unsigned long ga, void *data,
 		     unsigned long len)
 {
-	return access_guest(vcpu, ga, 0, data, len, GACC_IFETCH);
+	u8 access_key = psw_bits(vcpu->arch.sie_block->gpsw).key;
+
+	return access_guest_with_key(vcpu, ga, 0, data, len, GACC_IFETCH,
+				     access_key);
 }
 
 /**
@@ -354,12 +443,16 @@ int read_guest_real(struct kvm_vcpu *vcpu, unsigned long gra, void *data,
 	return access_guest_real(vcpu, gra, data, len, 0);
 }
 
-void ipte_lock(struct kvm_vcpu *vcpu);
-void ipte_unlock(struct kvm_vcpu *vcpu);
-int ipte_lock_held(struct kvm_vcpu *vcpu);
+void ipte_lock(struct kvm *kvm);
+void ipte_unlock(struct kvm *kvm);
+int ipte_lock_held(struct kvm *kvm);
 int kvm_s390_check_low_addr_prot_real(struct kvm_vcpu *vcpu, unsigned long gra);
 
+/* MVPG PEI indication bits */
+#define PEI_DAT_PROT 2
+#define PEI_NOT_PTE 4
+
 int kvm_s390_shadow_fault(struct kvm_vcpu *vcpu, struct gmap *shadow,
-			  unsigned long saddr);
+			  unsigned long saddr, unsigned long *datptr);
 
 #endif /* __KVM_S390_GACCESS_H */

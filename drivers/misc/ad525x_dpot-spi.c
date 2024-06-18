@@ -90,9 +90,9 @@ static int ad_dpot_spi_probe(struct spi_device *spi)
 			     spi_get_device_id(spi)->name);
 }
 
-static int ad_dpot_spi_remove(struct spi_device *spi)
+static void ad_dpot_spi_remove(struct spi_device *spi)
 {
-	return ad_dpot_remove(&spi->dev);
+	ad_dpot_remove(&spi->dev);
 }
 
 static const struct spi_device_id ad_dpot_spi_id[] = {

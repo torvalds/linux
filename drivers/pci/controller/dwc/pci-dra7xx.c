@@ -2,11 +2,12 @@
 /*
  * pcie-dra7xx - PCIe controller driver for TI DRA7xx SoCs
  *
- * Copyright (C) 2013-2014 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2013-2014 Texas Instruments Incorporated - https://www.ti.com
  *
  * Authors: Kishon Vijay Abraham I <kishon@ti.com>
  */
 
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
@@ -14,8 +15,8 @@
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/of_device.h>
+#include <linux/module.h>
+#include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/of_pci.h>
 #include <linux/pci.h>
@@ -73,8 +74,6 @@
 #define	LINK_UP						BIT(16)
 #define	DRA7XX_CPU_TO_BUS_ADDR				0x0FFFFFFF
 
-#define EXP_CAP_ID_OFFSET				0x70
-
 #define	PCIECTRL_TI_CONF_INTX_ASSERT			0x0124
 #define	PCIECTRL_TI_CONF_INTX_DEASSERT			0x0128
 
@@ -91,8 +90,8 @@ struct dra7xx_pcie {
 	void __iomem		*base;		/* DT ti_conf */
 	int			phy_count;	/* DT phy-names count */
 	struct phy		**phy;
-	int			link_gen;
 	struct irq_domain	*irq_domain;
+	struct clk              *clk;
 	enum dw_pcie_device_mode mode;
 };
 
@@ -142,31 +141,10 @@ static int dra7xx_pcie_establish_link(struct dw_pcie *pci)
 	struct dra7xx_pcie *dra7xx = to_dra7xx_pcie(pci);
 	struct device *dev = pci->dev;
 	u32 reg;
-	u32 exp_cap_off = EXP_CAP_ID_OFFSET;
 
 	if (dw_pcie_link_up(pci)) {
 		dev_err(dev, "link is already up\n");
 		return 0;
-	}
-
-	if (dra7xx->link_gen == 1) {
-		dw_pcie_read(pci->dbi_base + exp_cap_off + PCI_EXP_LNKCAP,
-			     4, &reg);
-		if ((reg & PCI_EXP_LNKCAP_SLS) != PCI_EXP_LNKCAP_SLS_2_5GB) {
-			reg &= ~((u32)PCI_EXP_LNKCAP_SLS);
-			reg |= PCI_EXP_LNKCAP_SLS_2_5GB;
-			dw_pcie_write(pci->dbi_base + exp_cap_off +
-				      PCI_EXP_LNKCAP, 4, reg);
-		}
-
-		dw_pcie_read(pci->dbi_base + exp_cap_off + PCI_EXP_LNKCTL2,
-			     2, &reg);
-		if ((reg & PCI_EXP_LNKCAP_SLS) != PCI_EXP_LNKCAP_SLS_2_5GB) {
-			reg &= ~((u32)PCI_EXP_LNKCAP_SLS);
-			reg |= PCI_EXP_LNKCAP_SLS_2_5GB;
-			dw_pcie_write(pci->dbi_base + exp_cap_off +
-				      PCI_EXP_LNKCTL2, 2, reg);
-		}
 	}
 
 	reg = dra7xx_pcie_readl(dra7xx, PCIECTRL_DRA7XX_CONF_DEVICE_CMD);
@@ -200,24 +178,15 @@ static void dra7xx_pcie_enable_interrupts(struct dra7xx_pcie *dra7xx)
 	dra7xx_pcie_enable_msi_interrupts(dra7xx);
 }
 
-static int dra7xx_pcie_host_init(struct pcie_port *pp)
+static int dra7xx_pcie_host_init(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct dra7xx_pcie *dra7xx = to_dra7xx_pcie(pci);
 
-	dw_pcie_setup_rc(pp);
-
-	dra7xx_pcie_establish_link(pci);
-	dw_pcie_wait_for_link(pci);
-	dw_pcie_msi_init(pp);
 	dra7xx_pcie_enable_interrupts(dra7xx);
 
 	return 0;
 }
-
-static const struct dw_pcie_host_ops dra7xx_pcie_host_ops = {
-	.host_init = dra7xx_pcie_host_init,
-};
 
 static int dra7xx_pcie_intx_map(struct irq_domain *domain, unsigned int irq,
 				irq_hw_number_t hwirq)
@@ -233,59 +202,87 @@ static const struct irq_domain_ops intx_domain_ops = {
 	.xlate = pci_irqd_intx_xlate,
 };
 
-static int dra7xx_pcie_init_irq_domain(struct pcie_port *pp)
+static int dra7xx_pcie_handle_msi(struct dw_pcie_rp *pp, int index)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
-	struct device *dev = pci->dev;
-	struct dra7xx_pcie *dra7xx = to_dra7xx_pcie(pci);
-	struct device_node *node = dev->of_node;
-	struct device_node *pcie_intc_node =  of_get_next_child(node, NULL);
+	unsigned long val;
+	int pos;
 
-	if (!pcie_intc_node) {
-		dev_err(dev, "No PCIe Intc node found\n");
-		return -ENODEV;
+	val = dw_pcie_readl_dbi(pci, PCIE_MSI_INTR0_STATUS +
+				   (index * MSI_REG_CTRL_BLOCK_SIZE));
+	if (!val)
+		return 0;
+
+	pos = find_first_bit(&val, MAX_MSI_IRQS_PER_CTRL);
+	while (pos != MAX_MSI_IRQS_PER_CTRL) {
+		generic_handle_domain_irq(pp->irq_domain,
+					  (index * MAX_MSI_IRQS_PER_CTRL) + pos);
+		pos++;
+		pos = find_next_bit(&val, MAX_MSI_IRQS_PER_CTRL, pos);
 	}
 
-	dra7xx->irq_domain = irq_domain_add_linear(pcie_intc_node, PCI_NUM_INTX,
-						   &intx_domain_ops, pp);
-	of_node_put(pcie_intc_node);
-	if (!dra7xx->irq_domain) {
-		dev_err(dev, "Failed to get a INTx IRQ domain\n");
-		return -ENODEV;
-	}
-
-	return 0;
+	return 1;
 }
 
-static irqreturn_t dra7xx_pcie_msi_irq_handler(int irq, void *arg)
+static void dra7xx_pcie_handle_msi_irq(struct dw_pcie_rp *pp)
 {
-	struct dra7xx_pcie *dra7xx = arg;
-	struct dw_pcie *pci = dra7xx->pci;
-	struct pcie_port *pp = &pci->pp;
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+	int ret, i, count, num_ctrls;
+
+	num_ctrls = pp->num_vectors / MAX_MSI_IRQS_PER_CTRL;
+
+	/**
+	 * Need to make sure all MSI status bits read 0 before exiting.
+	 * Else, new MSI IRQs are not registered by the wrapper. Have an
+	 * upperbound for the loop and exit the IRQ in case of IRQ flood
+	 * to avoid locking up system in interrupt context.
+	 */
+	count = 0;
+	do {
+		ret = 0;
+
+		for (i = 0; i < num_ctrls; i++)
+			ret |= dra7xx_pcie_handle_msi(pp, i);
+		count++;
+	} while (ret && count <= 1000);
+
+	if (count > 1000)
+		dev_warn_ratelimited(pci->dev,
+				     "Too many MSI IRQs to handle\n");
+}
+
+static void dra7xx_pcie_msi_irq_handler(struct irq_desc *desc)
+{
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	struct dra7xx_pcie *dra7xx;
+	struct dw_pcie_rp *pp;
+	struct dw_pcie *pci;
 	unsigned long reg;
-	u32 virq, bit;
+	u32 bit;
+
+	chained_irq_enter(chip, desc);
+
+	pp = irq_desc_get_handler_data(desc);
+	pci = to_dw_pcie_from_pp(pp);
+	dra7xx = to_dra7xx_pcie(pci);
 
 	reg = dra7xx_pcie_readl(dra7xx, PCIECTRL_DRA7XX_CONF_IRQSTATUS_MSI);
+	dra7xx_pcie_writel(dra7xx, PCIECTRL_DRA7XX_CONF_IRQSTATUS_MSI, reg);
 
 	switch (reg) {
 	case MSI:
-		dw_handle_msi_irq(pp);
+		dra7xx_pcie_handle_msi_irq(pp);
 		break;
 	case INTA:
 	case INTB:
 	case INTC:
 	case INTD:
-		for_each_set_bit(bit, &reg, PCI_NUM_INTX) {
-			virq = irq_find_mapping(dra7xx->irq_domain, bit);
-			if (virq)
-				generic_handle_irq(virq);
-		}
+		for_each_set_bit(bit, &reg, PCI_NUM_INTX)
+			generic_handle_domain_irq(dra7xx->irq_domain, bit);
 		break;
 	}
 
-	dra7xx_pcie_writel(dra7xx, PCIECTRL_DRA7XX_CONF_IRQSTATUS_MSI, reg);
-
-	return IRQ_HANDLED;
+	chained_irq_exit(chip, desc);
 }
 
 static irqreturn_t dra7xx_pcie_irq_handler(int irq, void *arg)
@@ -347,19 +344,49 @@ static irqreturn_t dra7xx_pcie_irq_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
+static int dra7xx_pcie_init_irq_domain(struct dw_pcie_rp *pp)
+{
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+	struct device *dev = pci->dev;
+	struct dra7xx_pcie *dra7xx = to_dra7xx_pcie(pci);
+	struct device_node *node = dev->of_node;
+	struct device_node *pcie_intc_node =  of_get_next_child(node, NULL);
+
+	if (!pcie_intc_node) {
+		dev_err(dev, "No PCIe Intc node found\n");
+		return -ENODEV;
+	}
+
+	irq_set_chained_handler_and_data(pp->irq, dra7xx_pcie_msi_irq_handler,
+					 pp);
+	dra7xx->irq_domain = irq_domain_add_linear(pcie_intc_node, PCI_NUM_INTX,
+						   &intx_domain_ops, pp);
+	of_node_put(pcie_intc_node);
+	if (!dra7xx->irq_domain) {
+		dev_err(dev, "Failed to get a INTx IRQ domain\n");
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
+static const struct dw_pcie_host_ops dra7xx_pcie_host_ops = {
+	.init = dra7xx_pcie_host_init,
+};
+
 static void dra7xx_pcie_ep_init(struct dw_pcie_ep *ep)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 	struct dra7xx_pcie *dra7xx = to_dra7xx_pcie(pci);
 	enum pci_barno bar;
 
-	for (bar = BAR_0; bar <= BAR_5; bar++)
+	for (bar = 0; bar < PCI_STD_NUM_BARS; bar++)
 		dw_pcie_ep_reset_bar(pci, bar);
 
 	dra7xx_pcie_enable_wrapper_interrupts(dra7xx);
 }
 
-static void dra7xx_pcie_raise_legacy_irq(struct dra7xx_pcie *dra7xx)
+static void dra7xx_pcie_raise_intx_irq(struct dra7xx_pcie *dra7xx)
 {
 	dra7xx_pcie_writel(dra7xx, PCIECTRL_TI_CONF_INTX_ASSERT, 0x1);
 	mdelay(1);
@@ -377,16 +404,16 @@ static void dra7xx_pcie_raise_msi_irq(struct dra7xx_pcie *dra7xx,
 }
 
 static int dra7xx_pcie_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
-				 enum pci_epc_irq_type type, u16 interrupt_num)
+				 unsigned int type, u16 interrupt_num)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 	struct dra7xx_pcie *dra7xx = to_dra7xx_pcie(pci);
 
 	switch (type) {
-	case PCI_EPC_IRQ_LEGACY:
-		dra7xx_pcie_raise_legacy_irq(dra7xx);
+	case PCI_IRQ_INTX:
+		dra7xx_pcie_raise_intx_irq(dra7xx);
 		break;
-	case PCI_EPC_IRQ_MSI:
+	case PCI_IRQ_MSI:
 		dra7xx_pcie_raise_msi_irq(dra7xx, interrupt_num);
 		break;
 	default:
@@ -409,39 +436,30 @@ dra7xx_pcie_get_features(struct dw_pcie_ep *ep)
 }
 
 static const struct dw_pcie_ep_ops pcie_ep_ops = {
-	.ep_init = dra7xx_pcie_ep_init,
+	.init = dra7xx_pcie_ep_init,
 	.raise_irq = dra7xx_pcie_raise_irq,
 	.get_features = dra7xx_pcie_get_features,
 };
 
-static int __init dra7xx_add_pcie_ep(struct dra7xx_pcie *dra7xx,
-				     struct platform_device *pdev)
+static int dra7xx_add_pcie_ep(struct dra7xx_pcie *dra7xx,
+			      struct platform_device *pdev)
 {
 	int ret;
 	struct dw_pcie_ep *ep;
-	struct resource *res;
 	struct device *dev = &pdev->dev;
 	struct dw_pcie *pci = dra7xx->pci;
 
 	ep = &pci->ep;
 	ep->ops = &pcie_ep_ops;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ep_dbics");
-	pci->dbi_base = devm_ioremap_resource(dev, res);
+	pci->dbi_base = devm_platform_ioremap_resource_byname(pdev, "ep_dbics");
 	if (IS_ERR(pci->dbi_base))
 		return PTR_ERR(pci->dbi_base);
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ep_dbics2");
-	pci->dbi_base2 = devm_ioremap_resource(dev, res);
+	pci->dbi_base2 =
+		devm_platform_ioremap_resource_byname(pdev, "ep_dbics2");
 	if (IS_ERR(pci->dbi_base2))
 		return PTR_ERR(pci->dbi_base2);
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "addr_space");
-	if (!res)
-		return -EINVAL;
-
-	ep->phys_base = res->start;
-	ep->addr_size = resource_size(res);
 
 	ret = dw_pcie_ep_init(ep);
 	if (ret) {
@@ -449,38 +467,38 @@ static int __init dra7xx_add_pcie_ep(struct dra7xx_pcie *dra7xx,
 		return ret;
 	}
 
+	ret = dw_pcie_ep_init_registers(ep);
+	if (ret) {
+		dev_err(dev, "Failed to initialize DWC endpoint registers\n");
+		dw_pcie_ep_deinit(ep);
+		return ret;
+	}
+
+	dw_pcie_ep_init_notify(ep);
+
 	return 0;
 }
 
-static int __init dra7xx_add_pcie_port(struct dra7xx_pcie *dra7xx,
-				       struct platform_device *pdev)
+static int dra7xx_add_pcie_port(struct dra7xx_pcie *dra7xx,
+				struct platform_device *pdev)
 {
 	int ret;
 	struct dw_pcie *pci = dra7xx->pci;
-	struct pcie_port *pp = &pci->pp;
+	struct dw_pcie_rp *pp = &pci->pp;
 	struct device *dev = pci->dev;
-	struct resource *res;
 
 	pp->irq = platform_get_irq(pdev, 1);
-	if (pp->irq < 0) {
-		dev_err(dev, "missing IRQ resource\n");
+	if (pp->irq < 0)
 		return pp->irq;
-	}
 
-	ret = devm_request_irq(dev, pp->irq, dra7xx_pcie_msi_irq_handler,
-			       IRQF_SHARED | IRQF_NO_THREAD,
-			       "dra7-pcie-msi",	dra7xx);
-	if (ret) {
-		dev_err(dev, "failed to request irq\n");
-		return ret;
-	}
+	/* MSI IRQ is muxed */
+	pp->msi_irq[0] = -ENODEV;
 
 	ret = dra7xx_pcie_init_irq_domain(pp);
 	if (ret < 0)
 		return ret;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "rc_dbics");
-	pci->dbi_base = devm_ioremap_resource(dev, res);
+	pci->dbi_base = devm_platform_ioremap_resource_byname(pdev, "rc_dbics");
 	if (IS_ERR(pci->dbi_base))
 		return PTR_ERR(pci->dbi_base);
 
@@ -600,6 +618,7 @@ static const struct of_device_id of_dra7xx_pcie_match[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, of_dra7xx_pcie_match);
 
 /*
  * dra7xx_pcie_unaligned_memaccess: workaround for AM572x/AM571x Errata i870
@@ -671,7 +690,7 @@ static int dra7xx_pcie_configure_two_lane(struct device *dev,
 	return 0;
 }
 
-static int __init dra7xx_pcie_probe(struct platform_device *pdev)
+static int dra7xx_pcie_probe(struct platform_device *pdev)
 {
 	u32 reg;
 	int ret;
@@ -681,23 +700,20 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 	struct phy **phy;
 	struct device_link **link;
 	void __iomem *base;
-	struct resource *res;
 	struct dw_pcie *pci;
 	struct dra7xx_pcie *dra7xx;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	char name[10];
 	struct gpio_desc *reset;
-	const struct of_device_id *match;
 	const struct dra7xx_pcie_of_data *data;
 	enum dw_pcie_device_mode mode;
 	u32 b1co_mode_sel_mask;
 
-	match = of_match_device(of_match_ptr(of_dra7xx_pcie_match), dev);
-	if (!match)
+	data = of_device_get_match_data(dev);
+	if (!data)
 		return -EINVAL;
 
-	data = (struct dra7xx_pcie_of_data *)match->data;
 	mode = (enum dw_pcie_device_mode)data->mode;
 	b1co_mode_sel_mask = data->b1co_mode_sel_mask;
 
@@ -713,15 +729,12 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 	pci->ops = &dw_pcie_ops;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "missing IRQ resource: %d\n", irq);
+	if (irq < 0)
 		return irq;
-	}
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ti_conf");
-	base = devm_ioremap_nocache(dev, res->start, resource_size(res));
-	if (!base)
-		return -ENOMEM;
+	base = devm_platform_ioremap_resource_byname(pdev, "ti_conf");
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 
 	phy_count = of_property_count_strings(np, "phy-names");
 	if (phy_count < 0) {
@@ -736,6 +749,15 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 	link = devm_kcalloc(dev, phy_count, sizeof(*link), GFP_KERNEL);
 	if (!link)
 		return -ENOMEM;
+
+	dra7xx->clk = devm_clk_get_optional(dev, NULL);
+	if (IS_ERR(dra7xx->clk))
+		return dev_err_probe(dev, PTR_ERR(dra7xx->clk),
+				     "clock request failed");
+
+	ret = clk_prepare_enable(dra7xx->clk);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < phy_count; i++) {
 		snprintf(name, sizeof(name), "pcie-phy%d", i);
@@ -787,10 +809,6 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 	reg &= ~LTSSM_EN;
 	dra7xx_pcie_writel(dra7xx, PCIECTRL_DRA7XX_CONF_DEVICE_CMD, reg);
 
-	dra7xx->link_gen = of_pci_get_max_link_speed(np);
-	if (dra7xx->link_gen < 0 || dra7xx->link_gen > 2)
-		dra7xx->link_gen = 2;
-
 	switch (mode) {
 	case DW_PCIE_RC_TYPE:
 		if (!IS_ENABLED(CONFIG_PCI_DRA7XX_HOST)) {
@@ -831,7 +849,7 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 	}
 	dra7xx->mode = mode;
 
-	ret = devm_request_irq(dev, irq, dra7xx_pcie_irq_handler,
+	ret = devm_request_threaded_irq(dev, irq, NULL, dra7xx_pcie_irq_handler,
 			       IRQF_SHARED, "dra7xx-pcie-main", dra7xx);
 	if (ret) {
 		dev_err(dev, "failed to request irq\n");
@@ -841,9 +859,8 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 	return 0;
 
 err_gpio:
-	pm_runtime_put(dev);
-
 err_get_sync:
+	pm_runtime_put(dev);
 	pm_runtime_disable(dev);
 	dra7xx_pcie_disable_phy(dra7xx);
 
@@ -854,7 +871,6 @@ err_link:
 	return ret;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int dra7xx_pcie_suspend(struct device *dev)
 {
 	struct dra7xx_pcie *dra7xx = dev_get_drvdata(dev);
@@ -911,7 +927,6 @@ static int dra7xx_pcie_resume_noirq(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static void dra7xx_pcie_shutdown(struct platform_device *pdev)
 {
@@ -927,15 +942,18 @@ static void dra7xx_pcie_shutdown(struct platform_device *pdev)
 
 	pm_runtime_disable(dev);
 	dra7xx_pcie_disable_phy(dra7xx);
+
+	clk_disable_unprepare(dra7xx->clk);
 }
 
 static const struct dev_pm_ops dra7xx_pcie_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(dra7xx_pcie_suspend, dra7xx_pcie_resume)
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(dra7xx_pcie_suspend_noirq,
-				      dra7xx_pcie_resume_noirq)
+	SYSTEM_SLEEP_PM_OPS(dra7xx_pcie_suspend, dra7xx_pcie_resume)
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(dra7xx_pcie_suspend_noirq,
+				  dra7xx_pcie_resume_noirq)
 };
 
 static struct platform_driver dra7xx_pcie_driver = {
+	.probe = dra7xx_pcie_probe,
 	.driver = {
 		.name	= "dra7-pcie",
 		.of_match_table = of_dra7xx_pcie_match,
@@ -944,4 +962,8 @@ static struct platform_driver dra7xx_pcie_driver = {
 	},
 	.shutdown = dra7xx_pcie_shutdown,
 };
-builtin_platform_driver_probe(dra7xx_pcie_driver, dra7xx_pcie_probe);
+module_platform_driver(dra7xx_pcie_driver);
+
+MODULE_AUTHOR("Kishon Vijay Abraham I <kishon@ti.com>");
+MODULE_DESCRIPTION("PCIe controller driver for TI DRA7xx SoCs");
+MODULE_LICENSE("GPL v2");

@@ -209,6 +209,7 @@
 #define CLK_ACLK400_MCUISP	395 /* Exynos4x12 only */
 #define CLK_MOUT_HDMI		396
 #define CLK_MOUT_MIXER		397
+#define CLK_MOUT_VPLLSRC	398
 
 /* gate clocks - ppmu */
 #define CLK_PPMULEFT		400
@@ -236,9 +237,7 @@
 #define CLK_DIV_C2C		458 /* Exynos4x12 only */
 #define CLK_DIV_GDL		459
 #define CLK_DIV_GDR		460
-
-/* must be greater than maximal clock id */
-#define CLK_NR_CLKS		461
+#define CLK_DIV_CORE2		461
 
 /* Exynos4x12 ISP clocks */
 #define CLK_ISP_FIMC_ISP		 1
@@ -272,7 +271,5 @@
 #define CLK_ISP_DIV_ISP1		28
 #define CLK_ISP_DIV_MCUISP0		29
 #define CLK_ISP_DIV_MCUISP1		30
-
-#define CLK_NR_ISP_CLKS			31
 
 #endif /* _DT_BINDINGS_CLOCK_EXYNOS_4_H */

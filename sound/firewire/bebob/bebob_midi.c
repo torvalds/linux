@@ -17,7 +17,7 @@ static int midi_open(struct snd_rawmidi_substream *substream)
 		return err;
 
 	mutex_lock(&bebob->mutex);
-	err = snd_bebob_stream_reserve_duplex(bebob, 0);
+	err = snd_bebob_stream_reserve_duplex(bebob, 0, 0, 0);
 	if (err >= 0) {
 		++bebob->substreams_counter;
 		err = snd_bebob_stream_start_duplex(bebob);
@@ -84,9 +84,9 @@ static void set_midi_substream_names(struct snd_bebob *bebob,
 	struct snd_rawmidi_substream *subs;
 
 	list_for_each_entry(subs, &str->substreams, list) {
-		snprintf(subs->name, sizeof(subs->name),
-			 "%s MIDI %d",
-			 bebob->card->shortname, subs->number + 1);
+		scnprintf(subs->name, sizeof(subs->name),
+			  "%s MIDI %d",
+			  bebob->card->shortname, subs->number + 1);
 	}
 }
 

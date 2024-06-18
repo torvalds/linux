@@ -8,15 +8,18 @@
 
 /* kernel only definitions */
 
+struct xfs_buf;
+struct xfs_mount;
+
 /* buf log item flags */
-#define	XFS_BLI_HOLD		0x01
-#define	XFS_BLI_DIRTY		0x02
-#define	XFS_BLI_STALE		0x04
-#define	XFS_BLI_LOGGED		0x08
-#define	XFS_BLI_INODE_ALLOC_BUF	0x10
-#define XFS_BLI_STALE_INODE	0x20
-#define	XFS_BLI_INODE_BUF	0x40
-#define	XFS_BLI_ORDERED		0x80
+#define	XFS_BLI_HOLD		(1u << 0)
+#define	XFS_BLI_DIRTY		(1u << 1)
+#define	XFS_BLI_STALE		(1u << 2)
+#define	XFS_BLI_LOGGED		(1u << 3)
+#define	XFS_BLI_INODE_ALLOC_BUF	(1u << 4)
+#define XFS_BLI_STALE_INODE	(1u << 5)
+#define	XFS_BLI_INODE_BUF	(1u << 6)
+#define	XFS_BLI_ORDERED		(1u << 7)
 
 #define XFS_BLI_FLAGS \
 	{ XFS_BLI_HOLD,		"HOLD" }, \
@@ -27,11 +30,6 @@
 	{ XFS_BLI_STALE_INODE,	"STALE_INODE" }, \
 	{ XFS_BLI_INODE_BUF,	"INODE_BUF" }, \
 	{ XFS_BLI_ORDERED,	"ORDERED" }
-
-
-struct xfs_buf;
-struct xfs_mount;
-struct xfs_buf_log_item;
 
 /*
  * This is the in core log item structure used to track information
@@ -50,18 +48,27 @@ struct xfs_buf_log_item {
 };
 
 int	xfs_buf_item_init(struct xfs_buf *, struct xfs_mount *);
+void	xfs_buf_item_done(struct xfs_buf *bp);
 void	xfs_buf_item_relse(struct xfs_buf *);
 bool	xfs_buf_item_put(struct xfs_buf_log_item *);
 void	xfs_buf_item_log(struct xfs_buf_log_item *, uint, uint);
 bool	xfs_buf_item_dirty_format(struct xfs_buf_log_item *);
-void	xfs_buf_attach_iodone(struct xfs_buf *,
-			      void(*)(struct xfs_buf *, struct xfs_log_item *),
-			      struct xfs_log_item *);
-void	xfs_buf_iodone_callbacks(struct xfs_buf *);
-void	xfs_buf_iodone(struct xfs_buf *, struct xfs_log_item *);
-bool	xfs_buf_resubmit_failed_buffers(struct xfs_buf *,
-					struct list_head *);
+void	xfs_buf_inode_iodone(struct xfs_buf *);
+void	xfs_buf_inode_io_fail(struct xfs_buf *bp);
+#ifdef CONFIG_XFS_QUOTA
+void	xfs_buf_dquot_iodone(struct xfs_buf *);
+void	xfs_buf_dquot_io_fail(struct xfs_buf *bp);
+#else
+static inline void xfs_buf_dquot_iodone(struct xfs_buf *bp)
+{
+}
+static inline void xfs_buf_dquot_io_fail(struct xfs_buf *bp)
+{
+}
+#endif /* CONFIG_XFS_QUOTA */
+void	xfs_buf_iodone(struct xfs_buf *);
+bool	xfs_buf_log_check_iovec(struct xfs_log_iovec *iovec);
 
-extern kmem_zone_t	*xfs_buf_item_zone;
+extern struct kmem_cache	*xfs_buf_item_cache;
 
 #endif	/* __XFS_BUF_ITEM_H__ */

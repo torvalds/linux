@@ -19,14 +19,17 @@
 enum OID {
 	OID_id_dsa_with_sha1,		/* 1.2.840.10030.4.3 */
 	OID_id_dsa,			/* 1.2.840.10040.4.1 */
-	OID_id_ecdsa_with_sha1,		/* 1.2.840.10045.4.1 */
 	OID_id_ecPublicKey,		/* 1.2.840.10045.2.1 */
+	OID_id_prime192v1,		/* 1.2.840.10045.3.1.1 */
+	OID_id_prime256v1,		/* 1.2.840.10045.3.1.7 */
+	OID_id_ecdsa_with_sha1,		/* 1.2.840.10045.4.1 */
+	OID_id_ecdsa_with_sha224,	/* 1.2.840.10045.4.3.1 */
+	OID_id_ecdsa_with_sha256,	/* 1.2.840.10045.4.3.2 */
+	OID_id_ecdsa_with_sha384,	/* 1.2.840.10045.4.3.3 */
+	OID_id_ecdsa_with_sha512,	/* 1.2.840.10045.4.3.4 */
 
 	/* PKCS#1 {iso(1) member-body(2) us(840) rsadsi(113549) pkcs(1) pkcs-1(1)} */
 	OID_rsaEncryption,		/* 1.2.840.113549.1.1.1 */
-	OID_md2WithRSAEncryption,	/* 1.2.840.113549.1.1.2 */
-	OID_md3WithRSAEncryption,	/* 1.2.840.113549.1.1.3 */
-	OID_md4WithRSAEncryption,	/* 1.2.840.113549.1.1.4 */
 	OID_sha1WithRSAEncryption,	/* 1.2.840.113549.1.1.5 */
 	OID_sha256WithRSAEncryption,	/* 1.2.840.113549.1.1.11 */
 	OID_sha384WithRSAEncryption,	/* 1.2.840.113549.1.1.12 */
@@ -43,10 +46,9 @@ enum OID {
 	OID_smimeCapabilites,		/* 1.2.840.113549.1.9.15 */
 	OID_smimeAuthenticatedAttrs,	/* 1.2.840.113549.1.9.16.2.11 */
 
-	/* {iso(1) member-body(2) us(840) rsadsi(113549) digestAlgorithm(2)} */
-	OID_md2,			/* 1.2.840.113549.2.2 */
-	OID_md4,			/* 1.2.840.113549.2.4 */
-	OID_md5,			/* 1.2.840.113549.2.5 */
+	OID_mskrb5,			/* 1.2.840.48018.1.2.2 */
+	OID_krb5,			/* 1.2.840.113554.1.2.2 */
+	OID_krb5u2u,			/* 1.2.840.113554.1.2.2.3 */
 
 	/* Microsoft Authenticode & Software Publishing */
 	OID_msIndirectData,		/* 1.3.6.1.4.1.311.2.1.4 */
@@ -56,8 +58,18 @@ enum OID {
 	OID_msIndividualSPKeyPurpose,	/* 1.3.6.1.4.1.311.2.1.21 */
 	OID_msOutlookExpress,		/* 1.3.6.1.4.1.311.16.4 */
 
+	OID_ntlmssp,			/* 1.3.6.1.4.1.311.2.2.10 */
+	OID_negoex,			/* 1.3.6.1.4.1.311.2.2.30 */
+
+	OID_spnego,			/* 1.3.6.1.5.5.2 */
+
+	OID_IAKerb,			/* 1.3.6.1.5.2.5 */
+	OID_PKU2U,			/* 1.3.5.1.5.2.7 */
+	OID_Scram,			/* 1.3.6.1.5.5.14 */
 	OID_certAuthInfoAccess,		/* 1.3.6.1.5.5.7.1.1 */
 	OID_sha1,			/* 1.3.14.3.2.26 */
+	OID_id_ansip384r1,		/* 1.3.132.0.34 */
+	OID_id_ansip521r1,		/* 1.3.132.0.35 */
 	OID_sha256,			/* 2.16.840.1.101.3.4.2.1 */
 	OID_sha384,			/* 2.16.840.1.101.3.4.2.2 */
 	OID_sha512,			/* 2.16.840.1.101.3.4.2.3 */
@@ -89,6 +101,10 @@ enum OID {
 	OID_authorityKeyIdentifier,	/* 2.5.29.35 */
 	OID_extKeyUsage,		/* 2.5.29.37 */
 
+	/* Heimdal mechanisms */
+	OID_NetlogonMechanism,		/* 1.2.752.43.14.2 */
+	OID_appleLocalKdcSupported,	/* 1.2.752.43.14.3 */
+
 	/* EC-RDSA */
 	OID_gostCPSignA,		/* 1.2.643.2.2.35.1 */
 	OID_gostCPSignB,		/* 1.2.643.2.2.35.2 */
@@ -107,10 +123,33 @@ enum OID {
 	OID_gostTC26Sign512B,		/* 1.2.643.7.1.2.1.2.2 */
 	OID_gostTC26Sign512C,		/* 1.2.643.7.1.2.1.2.3 */
 
+	/* OSCCA */
+	OID_sm2,			/* 1.2.156.10197.1.301 */
+	OID_sm3,			/* 1.2.156.10197.1.401 */
+	OID_SM2_with_SM3,		/* 1.2.156.10197.1.501 */
+	OID_sm3WithRSAEncryption,	/* 1.2.156.10197.1.504 */
+
+	/* TCG defined OIDS for TPM based keys */
+	OID_TPMLoadableKey,		/* 2.23.133.10.1.3 */
+	OID_TPMImportableKey,		/* 2.23.133.10.1.4 */
+	OID_TPMSealedData,		/* 2.23.133.10.1.5 */
+
+	/* CSOR FIPS-202 SHA-3 */
+	OID_sha3_256,                           /* 2.16.840.1.101.3.4.2.8 */
+	OID_sha3_384,                           /* 2.16.840.1.101.3.4.2.9 */
+	OID_sha3_512,                           /* 2.16.840.1.101.3.4.2.10 */
+	OID_id_ecdsa_with_sha3_256,             /* 2.16.840.1.101.3.4.3.10 */
+	OID_id_ecdsa_with_sha3_384,             /* 2.16.840.1.101.3.4.3.11 */
+	OID_id_ecdsa_with_sha3_512,             /* 2.16.840.1.101.3.4.3.12 */
+	OID_id_rsassa_pkcs1_v1_5_with_sha3_256, /* 2.16.840.1.101.3.4.3.14 */
+	OID_id_rsassa_pkcs1_v1_5_with_sha3_384, /* 2.16.840.1.101.3.4.3.15 */
+	OID_id_rsassa_pkcs1_v1_5_with_sha3_512, /* 2.16.840.1.101.3.4.3.16 */
+
 	OID__NR
 };
 
 extern enum OID look_up_OID(const void *data, size_t datasize);
+extern int parse_OID(const void *data, size_t datasize, enum OID *oid);
 extern int sprint_oid(const void *, size_t, char *, size_t);
 extern int sprint_OID(enum OID, char *, size_t);
 

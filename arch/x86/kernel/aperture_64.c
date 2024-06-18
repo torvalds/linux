@@ -36,7 +36,7 @@
 /*
  * Using 512M as goal, in case kexec will load kernel_big
  * that will do the on-position decompress, and could overlap with
- * with the gart aperture that is used.
+ * the gart aperture that is used.
  * Sequence:
  * kernel_small
  * ==> kexec (with kdump trigger path or gart still enabled)
@@ -73,12 +73,23 @@ static int gart_mem_pfn_is_ram(unsigned long pfn)
 		      (pfn >= aperture_pfn_start + aperture_page_count));
 }
 
+#ifdef CONFIG_PROC_VMCORE
+static bool gart_oldmem_pfn_is_ram(struct vmcore_cb *cb, unsigned long pfn)
+{
+	return !!gart_mem_pfn_is_ram(pfn);
+}
+
+static struct vmcore_cb gart_vmcore_cb = {
+	.pfn_is_ram = gart_oldmem_pfn_is_ram,
+};
+#endif
+
 static void __init exclude_from_core(u64 aper_base, u32 aper_order)
 {
 	aperture_pfn_start = aper_base >> PAGE_SHIFT;
 	aperture_page_count = (32 * 1024 * 1024) << aper_order >> PAGE_SHIFT;
 #ifdef CONFIG_PROC_VMCORE
-	WARN_ON(register_oldmem_pfn_is_ram(&gart_mem_pfn_is_ram));
+	register_vmcore_cb(&gart_vmcore_cb);
 #endif
 #ifdef CONFIG_PROC_KCORE
 	WARN_ON(register_mem_pfn_is_ram(&gart_mem_pfn_is_ram));
@@ -109,14 +120,13 @@ static u32 __init allocate_aperture(void)
 	 * memory. Unfortunately we cannot move it up because that would
 	 * make the IOMMU useless.
 	 */
-	addr = memblock_find_in_range(GART_MIN_ADDR, GART_MAX_ADDR,
-				      aper_size, aper_size);
+	addr = memblock_phys_alloc_range(aper_size, aper_size,
+					 GART_MIN_ADDR, GART_MAX_ADDR);
 	if (!addr) {
 		pr_err("Cannot allocate aperture memory hole [mem %#010lx-%#010lx] (%uKB)\n",
 		       addr, addr + aper_size - 1, aper_size >> 10);
 		return 0;
 	}
-	memblock_reserve(addr, aper_size);
 	pr_info("Mapping aperture over RAM [mem %#010lx-%#010lx] (%uKB)\n",
 		addr, addr + aper_size - 1, aper_size >> 10);
 	register_nosave_region(addr >> PAGE_SHIFT,
@@ -249,10 +259,9 @@ static u32 __init search_agp_bridge(u32 *order, int *valid_agp)
 							order);
 				}
 
-				/* No multi-function device? */
 				type = read_pci_config_byte(bus, slot, func,
 							       PCI_HEADER_TYPE);
-				if (!(type & 0x80))
+				if (!(type & PCI_HEADER_TYPE_MFD))
 					break;
 			}
 		}
@@ -382,7 +391,7 @@ void __init early_gart_iommu_check(void)
 
 static int __initdata printed_gart_size_msg;
 
-int __init gart_iommu_hole_init(void)
+void __init gart_iommu_hole_init(void)
 {
 	u32 agp_aper_base = 0, agp_aper_order = 0;
 	u32 aper_size, aper_alloc = 0, aper_order = 0, last_aper_order = 0;
@@ -391,11 +400,11 @@ int __init gart_iommu_hole_init(void)
 	int i, node;
 
 	if (!amd_gart_present())
-		return -ENODEV;
+		return;
 
 	if (gart_iommu_aperture_disabled || !fix_aperture ||
 	    !early_pci_allowed())
-		return -ENODEV;
+		return;
 
 	pr_info("Checking aperture...\n");
 
@@ -481,10 +490,8 @@ out:
 			 * and fixed up the northbridge
 			 */
 			exclude_from_core(last_aper_base, last_aper_order);
-
-			return 1;
 		}
-		return 0;
+		return;
 	}
 
 	if (!fallback_aper_force) {
@@ -517,7 +524,7 @@ out:
 			panic("Not enough memory for aperture");
 		}
 	} else {
-		return 0;
+		return;
 	}
 
 	/*
@@ -551,6 +558,4 @@ out:
 	}
 
 	set_up_gart_resume(aper_order, aper_alloc);
-
-	return 1;
 }

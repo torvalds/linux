@@ -35,12 +35,6 @@
 #define MAX_SCATTER_ENTRIES_PER_REQ      16
 #define MAX_SCATTER_REQ_TRANSFER_SIZE    (32 * 1024)
 
-#define MANUFACTURER_ID_AR6003_BASE        0x300
-#define MANUFACTURER_ID_AR6004_BASE        0x400
-    /* SDIO manufacturer ID and Codes */
-#define MANUFACTURER_ID_ATH6KL_BASE_MASK     0xFF00
-#define MANUFACTURER_CODE                  0x271	/* Atheros */
-
 /* Mailbox address in SDIO address space */
 #define HIF_MBOX_BASE_ADDR                 0x800
 #define HIF_MBOX_WIDTH                     0x800
@@ -98,7 +92,7 @@ struct bus_request {
  *     emode - This indicates the whether the command is to be executed in a
  *             blocking or non-blocking fashion (HIF_SYNCHRONOUS/
  *             HIF_ASYNCHRONOUS). The read/write data paths in HTC have been
- *             implemented using the asynchronous mode allowing the the bus
+ *             implemented using the asynchronous mode allowing the bus
  *             driver to indicate the completion of operation through the
  *             registered callback routine. The requirement primarily comes
  *             from the contexts these operations get called from (a driver's
@@ -199,7 +193,7 @@ struct hif_scatter_req {
 
 	u32 scat_q_depth;
 
-	struct hif_scatter_item scat_list[0];
+	struct hif_scatter_item scat_list[];
 };
 
 struct ath6kl_irq_proc_registers {

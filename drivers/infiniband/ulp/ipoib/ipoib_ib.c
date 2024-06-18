@@ -407,9 +407,11 @@ static void ipoib_ib_handle_tx_wc(struct net_device *dev, struct ib_wc *wc)
 	dev_kfree_skb_any(tx_req->skb);
 
 	++priv->tx_tail;
+	++priv->global_tx_tail;
 
 	if (unlikely(netif_queue_stopped(dev) &&
-		     ((priv->tx_head - priv->tx_tail) <= ipoib_sendq_size >> 1) &&
+		     ((priv->global_tx_head - priv->global_tx_tail) <=
+		      ipoib_sendq_size >> 1) &&
 		     test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags)))
 		netif_wake_queue(dev);
 
@@ -486,7 +488,7 @@ poll_more:
 		if (unlikely(ib_req_notify_cq(priv->recv_cq,
 					      IB_CQ_NEXT_COMP |
 					      IB_CQ_REPORT_MISSED_EVENTS)) &&
-		    napi_reschedule(napi))
+		    napi_schedule(napi))
 			goto poll_more;
 	}
 
@@ -516,7 +518,7 @@ poll_more:
 		napi_complete(napi);
 		if (unlikely(ib_req_notify_cq(priv->send_cq, IB_CQ_NEXT_COMP |
 					      IB_CQ_REPORT_MISSED_EVENTS)) &&
-		    napi_reschedule(napi))
+		    napi_schedule(napi))
 			goto poll_more;
 	}
 	return n < 0 ? 0 : n;
@@ -529,11 +531,35 @@ void ipoib_ib_rx_completion(struct ib_cq *cq, void *ctx_ptr)
 	napi_schedule(&priv->recv_napi);
 }
 
+/* The function will force napi_schedule */
+void ipoib_napi_schedule_work(struct work_struct *work)
+{
+	struct ipoib_dev_priv *priv =
+		container_of(work, struct ipoib_dev_priv, reschedule_napi_work);
+	bool ret;
+
+	do {
+		ret = napi_schedule(&priv->send_napi);
+		if (!ret)
+			msleep(3);
+	} while (!ret && netif_queue_stopped(priv->dev) &&
+		 test_bit(IPOIB_FLAG_INITIALIZED, &priv->flags));
+}
+
 void ipoib_ib_tx_completion(struct ib_cq *cq, void *ctx_ptr)
 {
 	struct ipoib_dev_priv *priv = ctx_ptr;
+	bool ret;
 
-	napi_schedule(&priv->send_napi);
+	ret = napi_schedule(&priv->send_napi);
+	/*
+	 * if the queue is closed the driver must be able to schedule napi,
+	 * otherwise we can end with closed queue forever, because no new
+	 * packets to send and napi callback might not get new event after
+	 * its re-arm of the napi.
+	 */
+	if (!ret && netif_queue_stopped(priv->dev))
+		schedule_work(&priv->reschedule_napi_work);
 }
 
 static inline int post_send(struct ipoib_dev_priv *priv,
@@ -571,7 +597,7 @@ int ipoib_send(struct net_device *dev, struct sk_buff *skb,
 	unsigned int usable_sge = priv->max_send_sge - !!skb_headlen(skb);
 
 	if (skb_is_gso(skb)) {
-		hlen = skb_transport_offset(skb) + tcp_hdrlen(skb);
+		hlen = skb_tcp_all_headers(skb);
 		phead = skb->data;
 		if (unlikely(!skb_pull(skb, hlen))) {
 			ipoib_warn(priv, "linear data too small\n");
@@ -634,7 +660,8 @@ int ipoib_send(struct net_device *dev, struct sk_buff *skb,
 	else
 		priv->tx_wr.wr.send_flags &= ~IB_SEND_IP_CSUM;
 	/* increase the tx_head after send success, but use it for queue state */
-	if (priv->tx_head - priv->tx_tail == ipoib_sendq_size - 1) {
+	if ((priv->global_tx_head - priv->global_tx_tail) ==
+	    ipoib_sendq_size - 1) {
 		ipoib_dbg(priv, "TX ring full, stopping kernel net queue\n");
 		netif_stop_queue(dev);
 	}
@@ -662,17 +689,17 @@ int ipoib_send(struct net_device *dev, struct sk_buff *skb,
 
 		rc = priv->tx_head;
 		++priv->tx_head;
+		++priv->global_tx_head;
 	}
 	return rc;
 }
 
-static void __ipoib_reap_ah(struct net_device *dev)
+static void ipoib_reap_dead_ahs(struct ipoib_dev_priv *priv)
 {
-	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	struct ipoib_ah *ah, *tah;
 	unsigned long flags;
 
-	netif_tx_lock_bh(dev);
+	netif_tx_lock_bh(priv->dev);
 	spin_lock_irqsave(&priv->lock, flags);
 
 	list_for_each_entry_safe(ah, tah, &priv->dead_ahs, list)
@@ -683,37 +710,37 @@ static void __ipoib_reap_ah(struct net_device *dev)
 		}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
-	netif_tx_unlock_bh(dev);
+	netif_tx_unlock_bh(priv->dev);
 }
 
 void ipoib_reap_ah(struct work_struct *work)
 {
 	struct ipoib_dev_priv *priv =
 		container_of(work, struct ipoib_dev_priv, ah_reap_task.work);
-	struct net_device *dev = priv->dev;
 
-	__ipoib_reap_ah(dev);
+	ipoib_reap_dead_ahs(priv);
 
 	if (!test_bit(IPOIB_STOP_REAPER, &priv->flags))
 		queue_delayed_work(priv->wq, &priv->ah_reap_task,
 				   round_jiffies_relative(HZ));
 }
 
-static void ipoib_flush_ah(struct net_device *dev)
+static void ipoib_start_ah_reaper(struct ipoib_dev_priv *priv)
 {
-	struct ipoib_dev_priv *priv = ipoib_priv(dev);
-
-	cancel_delayed_work(&priv->ah_reap_task);
-	flush_workqueue(priv->wq);
-	ipoib_reap_ah(&priv->ah_reap_task.work);
+	clear_bit(IPOIB_STOP_REAPER, &priv->flags);
+	queue_delayed_work(priv->wq, &priv->ah_reap_task,
+			   round_jiffies_relative(HZ));
 }
 
-static void ipoib_stop_ah(struct net_device *dev)
+static void ipoib_stop_ah_reaper(struct ipoib_dev_priv *priv)
 {
-	struct ipoib_dev_priv *priv = ipoib_priv(dev);
-
 	set_bit(IPOIB_STOP_REAPER, &priv->flags);
-	ipoib_flush_ah(dev);
+	cancel_delayed_work(&priv->ah_reap_task);
+	/*
+	 * After ipoib_stop_ah_reaper() we always go through
+	 * ipoib_reap_dead_ahs() which ensures the work is really stopped and
+	 * does a final flush out of the dead_ah's list
+	 */
 }
 
 static int recvs_pending(struct net_device *dev)
@@ -807,6 +834,7 @@ int ipoib_ib_dev_stop_default(struct net_device *dev)
 				ipoib_dma_unmap_tx(priv, tx_req);
 				dev_kfree_skb_any(tx_req->skb);
 				++priv->tx_tail;
+				++priv->global_tx_tail;
 			}
 
 			for (i = 0; i < ipoib_recvq_size; ++i) {
@@ -837,18 +865,6 @@ timeout:
 		ipoib_warn(priv, "Failed to modify QP to RESET state\n");
 
 	ib_req_notify_cq(priv->recv_cq, IB_CQ_NEXT_COMP);
-
-	return 0;
-}
-
-int ipoib_ib_dev_stop(struct net_device *dev)
-{
-	struct ipoib_dev_priv *priv = ipoib_priv(dev);
-
-	priv->rn_ops->ndo_stop(dev);
-
-	clear_bit(IPOIB_FLAG_INITIALIZED, &priv->flags);
-	ipoib_flush_ah(dev);
 
 	return 0;
 }
@@ -896,10 +912,7 @@ int ipoib_ib_dev_open(struct net_device *dev)
 		return -1;
 	}
 
-	clear_bit(IPOIB_STOP_REAPER, &priv->flags);
-	queue_delayed_work(priv->wq, &priv->ah_reap_task,
-			   round_jiffies_relative(HZ));
-
+	ipoib_start_ah_reaper(priv);
 	if (priv->rn_ops->ndo_open(dev)) {
 		pr_warn("%s: Failed to open dev\n", dev->name);
 		goto dev_stop;
@@ -910,11 +923,18 @@ int ipoib_ib_dev_open(struct net_device *dev)
 	return 0;
 
 dev_stop:
-	set_bit(IPOIB_STOP_REAPER, &priv->flags);
-	cancel_delayed_work(&priv->ah_reap_task);
-	set_bit(IPOIB_FLAG_INITIALIZED, &priv->flags);
-	ipoib_ib_dev_stop(dev);
+	ipoib_stop_ah_reaper(priv);
 	return -1;
+}
+
+void ipoib_ib_dev_stop(struct net_device *dev)
+{
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
+
+	priv->rn_ops->ndo_stop(dev);
+
+	clear_bit(IPOIB_FLAG_INITIALIZED, &priv->flags);
+	ipoib_stop_ah_reaper(priv);
 }
 
 void ipoib_pkey_dev_check_presence(struct net_device *dev)
@@ -1061,13 +1081,11 @@ static bool ipoib_dev_addr_changed_valid(struct ipoib_dev_priv *priv)
 {
 	union ib_gid search_gid;
 	union ib_gid gid0;
-	union ib_gid *netdev_gid;
 	int err;
 	u16 index;
-	u8 port;
+	u32 port;
 	bool ret = false;
 
-	netdev_gid = (union ib_gid *)(priv->dev->dev_addr + 4);
 	if (rdma_query_gid(priv->ca, priv->port, 0, &gid0))
 		return false;
 
@@ -1077,7 +1095,8 @@ static bool ipoib_dev_addr_changed_valid(struct ipoib_dev_priv *priv)
 	 * to do it later
 	 */
 	priv->local_gid.global.subnet_prefix = gid0.global.subnet_prefix;
-	netdev_gid->global.subnet_prefix = gid0.global.subnet_prefix;
+	dev_addr_mod(priv->dev, 4, (u8 *)&gid0.global.subnet_prefix,
+		     sizeof(gid0.global.subnet_prefix));
 	search_gid.global.subnet_prefix = gid0.global.subnet_prefix;
 
 	search_gid.global.interface_id = priv->local_gid.global.interface_id;
@@ -1114,7 +1133,7 @@ static bool ipoib_dev_addr_changed_valid(struct ipoib_dev_priv *priv)
 	 * if he sets the device address back to be based on GID index 0,
 	 * he no longer wishs to control it.
 	 *
-	 * If the user doesn't control the the device address,
+	 * If the user doesn't control the device address,
 	 * IPOIB_FLAG_DEV_ADDR_SET is set and ib_find_gid failed it means
 	 * the port GUID has changed and GID at index 0 has changed
 	 * so we need to change priv->local_gid and priv->dev->dev_addr
@@ -1139,8 +1158,8 @@ static bool ipoib_dev_addr_changed_valid(struct ipoib_dev_priv *priv)
 			if (!test_bit(IPOIB_FLAG_DEV_ADDR_CTRL, &priv->flags)) {
 				memcpy(&priv->local_gid, &gid0,
 				       sizeof(priv->local_gid));
-				memcpy(priv->dev->dev_addr + 4, &gid0,
-				       sizeof(priv->local_gid));
+				dev_addr_mod(priv->dev, 4, (u8 *)&gid0,
+					     sizeof(priv->local_gid));
 				ret = true;
 			}
 		}
@@ -1227,7 +1246,7 @@ static void __ipoib_ib_dev_flush(struct ipoib_dev_priv *priv,
 		ipoib_mcast_dev_flush(dev);
 		if (oper_up)
 			set_bit(IPOIB_FLAG_OPER_UP, &priv->flags);
-		ipoib_flush_ah(dev);
+		ipoib_reap_dead_ahs(priv);
 	}
 
 	if (level >= IPOIB_FLUSH_NORMAL)
@@ -1302,7 +1321,7 @@ void ipoib_ib_dev_cleanup(struct net_device *dev)
 	 * the neighbor garbage collection is stopped and reaped.
 	 * That should all be done now, so make a final ah flush.
 	 */
-	ipoib_stop_ah(dev);
+	ipoib_reap_dead_ahs(priv);
 
 	clear_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
 

@@ -20,7 +20,7 @@
 #include <linux/iio/types.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 
@@ -166,27 +166,21 @@ static int lego_ev3_battery_probe(struct platform_device *pdev)
 
 	batt->iio_v = devm_iio_channel_get(dev, "voltage");
 	err = PTR_ERR_OR_ZERO(batt->iio_v);
-	if (err) {
-		if (err != -EPROBE_DEFER)
-			dev_err(dev, "Failed to get voltage iio channel\n");
-		return err;
-	}
+	if (err)
+		return dev_err_probe(dev, err,
+				     "Failed to get voltage iio channel\n");
 
 	batt->iio_i = devm_iio_channel_get(dev, "current");
 	err = PTR_ERR_OR_ZERO(batt->iio_i);
-	if (err) {
-		if (err != -EPROBE_DEFER)
-			dev_err(dev, "Failed to get current iio channel\n");
-		return err;
-	}
+	if (err)
+		return dev_err_probe(dev, err,
+				     "Failed to get current iio channel\n");
 
 	batt->rechargeable_gpio = devm_gpiod_get(dev, "rechargeable", GPIOD_IN);
 	err = PTR_ERR_OR_ZERO(batt->rechargeable_gpio);
-	if (err) {
-		if (err != -EPROBE_DEFER)
-			dev_err(dev, "Failed to get rechargeable gpio\n");
-		return err;
-	}
+	if (err)
+		return dev_err_probe(dev, err,
+				     "Failed to get rechargeable gpio\n");
 
 	/*
 	 * The rechargeable battery indication switch cannot be changed without

@@ -11,7 +11,6 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/rtc.h>
 
@@ -74,7 +73,7 @@ struct armada38x_rtc {
 	int		    irq;
 	bool		    initialized;
 	struct value_to_freq *val_to_freq;
-	struct armada38x_rtc_data *data;
+	const struct armada38x_rtc_data *data;
 };
 
 #define ALARM1	0
@@ -458,14 +457,6 @@ static const struct rtc_class_ops armada38x_rtc_ops = {
 	.set_offset = armada38x_rtc_set_offset,
 };
 
-static const struct rtc_class_ops armada38x_rtc_ops_noirq = {
-	.read_time = armada38x_rtc_read_time,
-	.set_time = armada38x_rtc_set_time,
-	.read_alarm = armada38x_rtc_read_alarm,
-	.read_offset = armada38x_rtc_read_offset,
-	.set_offset = armada38x_rtc_set_offset,
-};
-
 static const struct armada38x_rtc_data armada38x_data = {
 	.update_mbus_timing = rtc_update_38x_mbus_timing_params,
 	.read_rtc_reg = read_rtc_register_38x_wa,
@@ -482,7 +473,6 @@ static const struct armada38x_rtc_data armada8k_data = {
 	.alarm = ALARM2,
 };
 
-#ifdef CONFIG_OF
 static const struct of_device_id armada38x_rtc_of_match_table[] = {
 	{
 		.compatible = "marvell,armada-380-rtc",
@@ -495,22 +485,17 @@ static const struct of_device_id armada38x_rtc_of_match_table[] = {
 	{}
 };
 MODULE_DEVICE_TABLE(of, armada38x_rtc_of_match_table);
-#endif
 
 static __init int armada38x_rtc_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	struct armada38x_rtc *rtc;
-	const struct of_device_id *match;
-
-	match = of_match_device(armada38x_rtc_of_match_table, &pdev->dev);
-	if (!match)
-		return -ENODEV;
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(struct armada38x_rtc),
 			    GFP_KERNEL);
 	if (!rtc)
 		return -ENOMEM;
+
+	rtc->data = of_device_get_match_data(&pdev->dev);
 
 	rtc->val_to_freq = devm_kcalloc(&pdev->dev, SAMPLE_NR,
 				sizeof(struct value_to_freq), GFP_KERNEL);
@@ -519,12 +504,10 @@ static __init int armada38x_rtc_probe(struct platform_device *pdev)
 
 	spin_lock_init(&rtc->lock);
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "rtc");
-	rtc->regs = devm_ioremap_resource(&pdev->dev, res);
+	rtc->regs = devm_platform_ioremap_resource_byname(pdev, "rtc");
 	if (IS_ERR(rtc->regs))
 		return PTR_ERR(rtc->regs);
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "rtc-soc");
-	rtc->regs_soc = devm_ioremap_resource(&pdev->dev, res);
+	rtc->regs_soc = devm_platform_ioremap_resource_byname(pdev, "rtc-soc");
 	if (IS_ERR(rtc->regs_soc))
 		return PTR_ERR(rtc->regs_soc);
 
@@ -543,24 +526,18 @@ static __init int armada38x_rtc_probe(struct platform_device *pdev)
 	}
 	platform_set_drvdata(pdev, rtc);
 
-	if (rtc->irq != -1) {
+	if (rtc->irq != -1)
 		device_init_wakeup(&pdev->dev, 1);
-		rtc->rtc_dev->ops = &armada38x_rtc_ops;
-	} else {
-		/*
-		 * If there is no interrupt available then we can't
-		 * use the alarm
-		 */
-		rtc->rtc_dev->ops = &armada38x_rtc_ops_noirq;
-	}
-	rtc->data = (struct armada38x_rtc_data *)match->data;
+	else
+		clear_bit(RTC_FEATURE_ALARM, rtc->rtc_dev->features);
 
 	/* Update RTC-MBUS bridge timing parameters */
 	rtc->data->update_mbus_timing(rtc);
 
+	rtc->rtc_dev->ops = &armada38x_rtc_ops;
 	rtc->rtc_dev->range_max = U32_MAX;
 
-	return rtc_register_device(rtc->rtc_dev);
+	return devm_rtc_register_device(rtc->rtc_dev);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -597,7 +574,7 @@ static struct platform_driver armada38x_rtc_driver = {
 	.driver		= {
 		.name	= "armada38x-rtc",
 		.pm	= &armada38x_rtc_pm_ops,
-		.of_match_table = of_match_ptr(armada38x_rtc_of_match_table),
+		.of_match_table = armada38x_rtc_of_match_table,
 	},
 };
 

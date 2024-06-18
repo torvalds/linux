@@ -11,12 +11,12 @@
 #include <linux/errno.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
-#include <linux/gpio.h>
 #include <linux/export.h>
 #include <linux/platform_data/usb-omap.h>
 
 #include <linux/usb/musb.h>
 
+#include "usb-tusb6010.h"
 #include "gpmc.h"
 
 static u8		async_cs, sync_cs;
@@ -97,7 +97,7 @@ static int tusb_set_sync_mode(unsigned sysclk_ps)
 }
 
 /* tusb driver calls this when it changes the chip's clocking */
-int tusb6010_platform_retime(unsigned is_refclk)
+static int tusb6010_platform_retime(unsigned is_refclk)
 {
 	static const char	error[] =
 		KERN_ERR "tusb6010 %s retime error %d\n";
@@ -121,7 +121,6 @@ int tusb6010_platform_retime(unsigned is_refclk)
 done:
 	return status;
 }
-EXPORT_SYMBOL_GPL(tusb6010_platform_retime);
 
 static struct resource tusb_resources[] = {
 	/* Order is significant!  The start/end fields
@@ -132,10 +131,6 @@ static struct resource tusb_resources[] = {
 	},
 	{ /* Synchronous access */
 		.flags	= IORESOURCE_MEM,
-	},
-	{ /* IRQ */
-		.name	= "mc",
-		.flags	= IORESOURCE_IRQ,
 	},
 };
 
@@ -154,11 +149,10 @@ static struct platform_device tusb_device = {
 
 
 /* this may be called only from board-*.c setup code */
-int __init
-tusb6010_setup_interface(struct musb_hdrc_platform_data *data,
-		unsigned ps_refclk, unsigned waitpin,
-		unsigned async, unsigned sync,
-		unsigned irq, unsigned dmachan)
+int __init tusb6010_setup_interface(struct musb_hdrc_platform_data *data,
+		unsigned int ps_refclk, unsigned int waitpin,
+		unsigned int async, unsigned int sync,
+		unsigned int dmachan)
 {
 	int		status;
 	static char	error[] __initdata =
@@ -193,14 +187,6 @@ tusb6010_setup_interface(struct musb_hdrc_platform_data *data,
 	status = gpmc_cs_program_settings(sync_cs, &tusb_sync);
 	if (status < 0)
 		return status;
-
-	/* IRQ */
-	status = gpio_request_one(irq, GPIOF_IN, "TUSB6010 irq");
-	if (status < 0) {
-		printk(error, 3, status);
-		return status;
-	}
-	tusb_resources[2].start = gpio_to_irq(irq);
 
 	/* set up memory timings ... can speed them up later */
 	if (!ps_refclk) {

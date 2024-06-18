@@ -126,6 +126,7 @@ out:
 }
 
 /**
+ * powernv_flash_read
  * @mtd: the device
  * @from: the offset to read from
  * @len: the number of bytes to read
@@ -142,6 +143,7 @@ static int powernv_flash_read(struct mtd_info *mtd, loff_t from, size_t len,
 }
 
 /**
+ * powernv_flash_write
  * @mtd: the device
  * @to: the offset to write to
  * @len: the number of bytes to write
@@ -158,6 +160,7 @@ static int powernv_flash_write(struct mtd_info *mtd, loff_t to, size_t len,
 }
 
 /**
+ * powernv_flash_erase
  * @mtd: the device
  * @erase: the erase info
  * Returns 0 if erase successful or -ERRNO if an error occurred
@@ -176,7 +179,7 @@ static int powernv_flash_erase(struct mtd_info *mtd, struct erase_info *erase)
 
 /**
  * powernv_flash_set_driver_info - Fill the mtd_info structure and docg3
- * structure @pdev: The platform device
+ * @dev: The device structure
  * @mtd: The structure to fill
  */
 static int powernv_flash_set_driver_info(struct device *dev,
@@ -262,12 +265,12 @@ static int powernv_flash_probe(struct platform_device *pdev)
  *
  * Returns 0
  */
-static int powernv_flash_release(struct platform_device *pdev)
+static void powernv_flash_release(struct platform_device *pdev)
 {
 	struct powernv_flash *data = dev_get_drvdata(&(pdev->dev));
 
 	/* All resources should be freed automatically */
-	return mtd_device_unregister(&(data->mtd));
+	WARN_ON(mtd_device_unregister(&data->mtd));
 }
 
 static const struct of_device_id powernv_flash_match[] = {
@@ -280,7 +283,7 @@ static struct platform_driver powernv_flash_driver = {
 		.name		= "powernv_flash",
 		.of_match_table	= powernv_flash_match,
 	},
-	.remove		= powernv_flash_release,
+	.remove_new	= powernv_flash_release,
 	.probe		= powernv_flash_probe,
 };
 

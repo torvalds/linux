@@ -1,0 +1,105 @@
+# SPDX-License-Identifier: (GPL-2.0+ OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/marvell,mmp-sspa.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvel SSPA Digital Audio Interface
+
+maintainers:
+  - Lubomir Rintel <lkundrak@v3.sk>
+
+allOf:
+  - $ref: dai-common.yaml#
+
+properties:
+  $nodename:
+    pattern: "^audio-controller(@.*)?$"
+
+  compatible:
+    const: marvell,mmp-sspa
+
+  reg:
+    items:
+      - description: RX block
+      - description: TX block
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: Clock for the Audio block
+      - description: I2S bit clock
+
+  clock-names:
+    items:
+      - const: audio
+      - const: bitclk
+
+  power-domains:
+    maxItems: 1
+
+  '#sound-dai-cells':
+    const: 0
+
+  dmas:
+    items:
+      - description: TX DMA Channel
+      - description: RX DMA Channel
+
+  dma-names:
+    items:
+      - const: tx
+      - const: rx
+
+  port:
+    $ref: audio-graph-port.yaml#
+    unevaluatedProperties: false
+
+    properties:
+      endpoint:
+        type: object
+        additionalProperties: true
+
+        properties:
+          dai-format:
+            const: i2s
+
+required:
+  - "#sound-dai-cells"
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - dmas
+  - dma-names
+  - port
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/marvell,mmp2.h>
+
+    audio-controller@d42a0c00 {
+      compatible = "marvell,mmp-sspa";
+      reg = <0xd42a0c00 0x30>,
+            <0xd42a0c80 0x30>;
+      interrupts = <2>;
+      clock-names = "audio", "bitclk";
+      clocks = <&soc_clocks 127>,
+               <&audio_clk 1>;
+      #sound-dai-cells = <0>;
+      dmas = <&adma0 0>, <&adma0 1>;
+      dma-names = "tx", "rx";
+      port {
+        endpoint {
+          remote-endpoint = <&rt5631_0>;
+          dai-format = "i2s";
+        };
+      };
+    };
+
+...

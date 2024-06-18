@@ -6,17 +6,16 @@
  *
  * Author: David Dajun Chen <dchen@diasemi.com>
  */
-#include <linux/module.h>
 #include <linux/fs.h>
-#include <linux/uaccess.h>
-#include <linux/platform_device.h>
 #include <linux/gpio/driver.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/syscalls.h>
-#include <linux/seq_file.h>
+#include <linux/uaccess.h>
 
 #include <linux/mfd/da9052/da9052.h>
-#include <linux/mfd/da9052/reg.h>
 #include <linux/mfd/da9052/pdata.h>
+#include <linux/mfd/da9052/reg.h>
 
 #define DA9052_INPUT				1
 #define DA9052_OUTPUT_OPENDRAIN		2
@@ -196,7 +195,6 @@ static int da9052_gpio_probe(struct platform_device *pdev)
 {
 	struct da9052_gpio *gpio;
 	struct da9052_pdata *pdata;
-	int ret;
 
 	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
@@ -209,15 +207,7 @@ static int da9052_gpio_probe(struct platform_device *pdev)
 	if (pdata && pdata->gpio_base)
 		gpio->gp.base = pdata->gpio_base;
 
-	ret = devm_gpiochip_add_data(&pdev->dev, &gpio->gp, gpio);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not register gpiochip, %d\n", ret);
-		return ret;
-	}
-
-	platform_set_drvdata(pdev, gpio);
-
-	return 0;
+	return devm_gpiochip_add_data(&pdev->dev, &gpio->gp, gpio);
 }
 
 static struct platform_driver da9052_gpio_driver = {

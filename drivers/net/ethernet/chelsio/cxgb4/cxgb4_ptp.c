@@ -194,16 +194,20 @@ int cxgb4_ptp_redirect_rx_packet(struct adapter *adapter, struct port_info *pi)
 }
 
 /**
+ * cxgb4_ptp_adjfine - Adjust frequency of PHC cycle counter
  * @ptp: ptp clock structure
- * @ppb: Desired frequency change in parts per billion
+ * @scaled_ppm: Desired frequency in scaled parts per billion
  *
- * Adjust the frequency of the PHC cycle counter by the indicated ppb from
+ * Adjust the frequency of the PHC cycle counter by the indicated amount from
  * the base frequency.
+ *
+ * Scaled parts per million is ppm with a 16-bit binary fractional field.
  */
-static int cxgb4_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
+static int cxgb4_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 {
 	struct adapter *adapter = (struct adapter *)container_of(ptp,
 				   struct adapter, ptp_clock_info);
+	s32 ppb = scaled_ppm_to_ppb(scaled_ppm);
 	struct fw_ptp_cmd c;
 	int err;
 
@@ -229,7 +233,7 @@ static int cxgb4_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 
 /**
  * cxgb4_ptp_fineadjtime - Shift the time of the hardware clock
- * @ptp: ptp clock structure
+ * @adapter: board private structure
  * @delta: Desired change in nanoseconds
  *
  * Adjust the timer by resetting the timecounter structure.
@@ -246,6 +250,9 @@ static int  cxgb4_ptp_fineadjtime(struct adapter *adapter, s64 delta)
 			     FW_PTP_CMD_PORTID_V(0));
 	c.retval_len16 = cpu_to_be32(FW_CMD_LEN16_V(sizeof(c) / 16));
 	c.u.ts.sc = FW_PTP_SC_ADJ_FTIME;
+	c.u.ts.sign = (delta < 0) ? 1 : 0;
+	if (delta < 0)
+		delta = -delta;
 	c.u.ts.tm = cpu_to_be64(delta);
 
 	err = t4_wr_mbox(adapter, adapter->mbox, &c, sizeof(c), NULL);
@@ -308,32 +315,17 @@ static int cxgb4_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
  */
 static int cxgb4_ptp_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
 {
-	struct adapter *adapter = (struct adapter *)container_of(ptp,
-				   struct adapter, ptp_clock_info);
-	struct fw_ptp_cmd c;
+	struct adapter *adapter = container_of(ptp, struct adapter,
+					       ptp_clock_info);
 	u64 ns;
-	int err;
 
-	memset(&c, 0, sizeof(c));
-	c.op_to_portid = cpu_to_be32(FW_CMD_OP_V(FW_PTP_CMD) |
-				     FW_CMD_REQUEST_F |
-				     FW_CMD_READ_F |
-				     FW_PTP_CMD_PORTID_V(0));
-	c.retval_len16 = cpu_to_be32(FW_CMD_LEN16_V(sizeof(c) / 16));
-	c.u.ts.sc = FW_PTP_SC_GET_TIME;
-
-	err = t4_wr_mbox(adapter, adapter->mbox, &c, sizeof(c), &c);
-	if (err < 0) {
-		dev_err(adapter->pdev_dev,
-			"PTP: %s error %d\n", __func__, -err);
-		return err;
-	}
+	ns = t4_read_reg(adapter, T5_PORT_REG(0, MAC_PORT_PTP_SUM_LO_A));
+	ns |= (u64)t4_read_reg(adapter,
+			       T5_PORT_REG(0, MAC_PORT_PTP_SUM_HI_A)) << 32;
 
 	/* convert to timespec*/
-	ns = be64_to_cpu(c.u.ts.tm);
 	*ts = ns_to_timespec64(ns);
-
-	return err;
+	return 0;
 }
 
 /**
@@ -415,7 +407,7 @@ static const struct ptp_clock_info cxgb4_ptp_clock_info = {
 	.n_ext_ts       = 0,
 	.n_per_out      = 0,
 	.pps            = 0,
-	.adjfreq        = cxgb4_ptp_adjfreq,
+	.adjfine        = cxgb4_ptp_adjfine,
 	.adjtime        = cxgb4_ptp_adjtime,
 	.gettime64      = cxgb4_ptp_gettime,
 	.settime64      = cxgb4_ptp_settime,
@@ -457,7 +449,7 @@ void cxgb4_ptp_init(struct adapter *adapter)
 }
 
 /**
- * cxgb4_ptp_remove - disable PTP device and stop the overflow check
+ * cxgb4_ptp_stop - disable PTP device and stop the overflow check
  * @adapter: board private structure
  *
  * Stop the PTP support.

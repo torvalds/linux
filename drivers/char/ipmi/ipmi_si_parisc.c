@@ -29,9 +29,9 @@ static int __init ipmi_parisc_probe(struct parisc_device *dev)
 	return ipmi_si_add_smi(&io);
 }
 
-static int __exit ipmi_parisc_remove(struct parisc_device *dev)
+static void __exit ipmi_parisc_remove(struct parisc_device *dev)
 {
-	return ipmi_si_remove_by_dev(&dev->dev);
+	ipmi_si_remove_by_dev(&dev->dev);
 }
 
 static const struct parisc_device_id ipmi_parisc_tbl[] __initconst = {

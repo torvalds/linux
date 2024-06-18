@@ -1,0 +1,2 @@
+counter_example-y += counter_example.o
+counter_watch_events-y += counter_watch_events.o

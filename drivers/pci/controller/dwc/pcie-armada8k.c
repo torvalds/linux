@@ -21,7 +21,6 @@
 #include <linux/platform_device.h>
 #include <linux/resource.h>
 #include <linux/of_pci.h>
-#include <linux/of_irq.h>
 
 #include "pcie-designware.h"
 
@@ -154,10 +153,22 @@ static int armada8k_pcie_link_up(struct dw_pcie *pci)
 	return 0;
 }
 
-static void armada8k_pcie_establish_link(struct armada8k_pcie *pcie)
+static int armada8k_pcie_start_link(struct dw_pcie *pci)
 {
-	struct dw_pcie *pci = pcie->pci;
 	u32 reg;
+
+	/* Start LTSSM */
+	reg = dw_pcie_readl_dbi(pci, PCIE_GLOBAL_CONTROL_REG);
+	reg |= PCIE_APP_LTSSM_EN;
+	dw_pcie_writel_dbi(pci, PCIE_GLOBAL_CONTROL_REG, reg);
+
+	return 0;
+}
+
+static int armada8k_pcie_host_init(struct dw_pcie_rp *pp)
+{
+	u32 reg;
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 
 	if (!dw_pcie_link_up(pci)) {
 		/* Disable LTSSM state machine to enable configuration */
@@ -193,26 +204,6 @@ static void armada8k_pcie_establish_link(struct armada8k_pcie *pcie)
 	       PCIE_INT_C_ASSERT_MASK | PCIE_INT_D_ASSERT_MASK;
 	dw_pcie_writel_dbi(pci, PCIE_GLOBAL_INT_MASK1_REG, reg);
 
-	if (!dw_pcie_link_up(pci)) {
-		/* Configuration done. Start LTSSM */
-		reg = dw_pcie_readl_dbi(pci, PCIE_GLOBAL_CONTROL_REG);
-		reg |= PCIE_APP_LTSSM_EN;
-		dw_pcie_writel_dbi(pci, PCIE_GLOBAL_CONTROL_REG, reg);
-	}
-
-	/* Wait until the link becomes active again */
-	if (dw_pcie_wait_for_link(pci))
-		dev_err(pci->dev, "Link not up after reconfiguration\n");
-}
-
-static int armada8k_pcie_host_init(struct pcie_port *pp)
-{
-	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
-	struct armada8k_pcie *pcie = to_armada8k_pcie(pci);
-
-	dw_pcie_setup_rc(pp);
-	armada8k_pcie_establish_link(pcie);
-
 	return 0;
 }
 
@@ -234,24 +225,22 @@ static irqreturn_t armada8k_pcie_irq_handler(int irq, void *arg)
 }
 
 static const struct dw_pcie_host_ops armada8k_pcie_host_ops = {
-	.host_init = armada8k_pcie_host_init,
+	.init = armada8k_pcie_host_init,
 };
 
 static int armada8k_add_pcie_port(struct armada8k_pcie *pcie,
 				  struct platform_device *pdev)
 {
 	struct dw_pcie *pci = pcie->pci;
-	struct pcie_port *pp = &pci->pp;
+	struct dw_pcie_rp *pp = &pci->pp;
 	struct device *dev = &pdev->dev;
 	int ret;
 
 	pp->ops = &armada8k_pcie_host_ops;
 
 	pp->irq = platform_get_irq(pdev, 0);
-	if (pp->irq < 0) {
-		dev_err(dev, "failed to get irq for port\n");
+	if (pp->irq < 0)
 		return pp->irq;
-	}
 
 	ret = devm_request_irq(dev, pp->irq, armada8k_pcie_irq_handler,
 			       IRQF_SHARED, "armada8k-pcie", pcie);
@@ -271,6 +260,7 @@ static int armada8k_add_pcie_port(struct armada8k_pcie *pcie,
 
 static const struct dw_pcie_ops dw_pcie_ops = {
 	.link_up = armada8k_pcie_link_up,
+	.start_link = armada8k_pcie_start_link,
 };
 
 static int armada8k_pcie_probe(struct platform_device *pdev)
@@ -317,7 +307,6 @@ static int armada8k_pcie_probe(struct platform_device *pdev)
 	base = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ctrl");
 	pci->dbi_base = devm_pci_remap_cfg_resource(dev, base);
 	if (IS_ERR(pci->dbi_base)) {
-		dev_err(dev, "couldn't remap regs base %p\n", base);
 		ret = PTR_ERR(pci->dbi_base);
 		goto fail_clkreg;
 	}
@@ -353,7 +342,7 @@ static struct platform_driver armada8k_pcie_driver = {
 	.probe		= armada8k_pcie_probe,
 	.driver = {
 		.name	= "armada8k-pcie",
-		.of_match_table = of_match_ptr(armada8k_pcie_of_match),
+		.of_match_table = armada8k_pcie_of_match,
 		.suppress_bind_attrs = true,
 	},
 };

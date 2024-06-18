@@ -70,8 +70,6 @@ struct snd_tscm {
 	struct mutex mutex;
 	spinlock_t lock;
 
-	bool registered;
-	struct delayed_work dwork;
 	const struct snd_tscm_spec *spec;
 
 	struct fw_iso_resources tx_resources;
@@ -99,6 +97,7 @@ struct snd_tscm {
 	unsigned int push_pos;
 
 	struct amdtp_domain domain;
+	bool need_long_tx_init_skip;
 };
 
 #define TSCM_ADDR_BASE			0xffff00000000ull
@@ -168,7 +167,9 @@ int snd_tscm_stream_get_clock(struct snd_tscm *tscm,
 int snd_tscm_stream_init_duplex(struct snd_tscm *tscm);
 void snd_tscm_stream_update_duplex(struct snd_tscm *tscm);
 void snd_tscm_stream_destroy_duplex(struct snd_tscm *tscm);
-int snd_tscm_stream_reserve_duplex(struct snd_tscm *tscm, unsigned int rate);
+int snd_tscm_stream_reserve_duplex(struct snd_tscm *tscm, unsigned int rate,
+				   unsigned int frames_per_period,
+				   unsigned int frames_per_buffer);
 int snd_tscm_stream_start_duplex(struct snd_tscm *tscm, unsigned int rate);
 void snd_tscm_stream_stop_duplex(struct snd_tscm *tscm);
 

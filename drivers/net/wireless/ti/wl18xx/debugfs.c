@@ -264,11 +264,9 @@ static ssize_t radar_detection_write(struct file *file,
 	if (unlikely(wl->state != WLCORE_STATE_ON))
 		goto out;
 
-	ret = pm_runtime_get_sync(wl->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+	ret = pm_runtime_resume_and_get(wl->dev);
+	if (ret < 0)
 		goto out;
-	}
 
 	ret = wl18xx_cmd_radar_detection_debug(wl, channel);
 	if (ret < 0)
@@ -306,11 +304,9 @@ static ssize_t dynamic_fw_traces_write(struct file *file,
 	if (unlikely(wl->state != WLCORE_STATE_ON))
 		goto out;
 
-	ret = pm_runtime_get_sync(wl->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+	ret = pm_runtime_resume_and_get(wl->dev);
+	if (ret < 0)
 		goto out;
-	}
 
 	ret = wl18xx_acx_dynamic_fw_traces(wl);
 	if (ret < 0)
@@ -368,11 +364,9 @@ static ssize_t radar_debug_mode_write(struct file *file,
 	if (unlikely(wl->state != WLCORE_STATE_ON))
 		goto out;
 
-	ret = pm_runtime_get_sync(wl->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+	ret = pm_runtime_resume_and_get(wl->dev);
+	if (ret < 0)
 		goto out;
-	}
 
 	wl12xx_for_each_wlvif_ap(wl, wlvif) {
 		wlcore_cmd_generic_cfg(wl, wlvif,

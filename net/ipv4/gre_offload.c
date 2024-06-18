@@ -10,17 +10,19 @@
 #include <linux/init.h>
 #include <net/protocol.h>
 #include <net/gre.h>
+#include <net/gro.h>
+#include <net/gso.h>
 
 static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 				       netdev_features_t features)
 {
 	int tnl_hlen = skb_inner_mac_header(skb) - skb_transport_header(skb);
+	bool need_csum, offload_csum, gso_partial, need_ipsec;
 	struct sk_buff *segs = ERR_PTR(-EINVAL);
 	u16 mac_offset = skb->mac_header;
 	__be16 protocol = skb->protocol;
 	u16 mac_len = skb->mac_len;
 	int gre_offset, outer_hlen;
-	bool need_csum, gso_partial;
 
 	if (!skb->encapsulation)
 		goto out;
@@ -44,6 +46,13 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 	skb->encap_hdr_csum = need_csum;
 
 	features &= skb->dev->hw_enc_features;
+	if (need_csum)
+		features &= ~NETIF_F_SCTP_CRC;
+
+	need_ipsec = skb_dst(skb) && dst_xfrm(skb_dst(skb));
+	/* Try to offload checksum if possible */
+	offload_csum = !!(need_csum && !need_ipsec &&
+			  (skb->dev->features & NETIF_F_HW_CSUM));
 
 	/* segment inner packet. */
 	segs = skb_mac_gso_segment(skb, features);
@@ -98,7 +107,13 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 		}
 
 		*(pcsum + 1) = 0;
-		*pcsum = gso_make_checksum(skb, 0);
+		if (skb->encapsulation || !offload_csum) {
+			*pcsum = gso_make_checksum(skb, 0);
+		} else {
+			skb->ip_summed = CHECKSUM_PARTIAL;
+			skb->csum_start = skb_transport_header(skb) - skb->head;
+			skb->csum_offset = sizeof(*greh);
+		}
 	} while ((skb = skb->next));
 out:
 	return segs;
@@ -123,12 +138,9 @@ static struct sk_buff *gre_gro_receive(struct list_head *head,
 
 	off = skb_gro_offset(skb);
 	hlen = off + sizeof(*greh);
-	greh = skb_gro_header_fast(skb, off);
-	if (skb_gro_header_hard(skb, hlen)) {
-		greh = skb_gro_header_slow(skb, hlen, off);
-		if (unlikely(!greh))
-			goto out;
-	}
+	greh = skb_gro_header(skb, hlen, off);
+	if (unlikely(!greh))
+		goto out;
 
 	/* Only support version 0 and K (key), C (csum) flags. Note that
 	 * although the support for the S (seq#) flag can be added easily
@@ -149,10 +161,9 @@ static struct sk_buff *gre_gro_receive(struct list_head *head,
 
 	type = greh->protocol;
 
-	rcu_read_lock();
 	ptype = gro_find_receive_by_type(type);
 	if (!ptype)
-		goto out_unlock;
+		goto out;
 
 	grehlen = GRE_HEADER_SECTION;
 
@@ -163,18 +174,18 @@ static struct sk_buff *gre_gro_receive(struct list_head *head,
 		grehlen += GRE_HEADER_SECTION;
 
 	hlen = off + grehlen;
-	if (skb_gro_header_hard(skb, hlen)) {
+	if (!skb_gro_may_pull(skb, hlen)) {
 		greh = skb_gro_header_slow(skb, hlen, off);
 		if (unlikely(!greh))
-			goto out_unlock;
+			goto out;
 	}
 
 	/* Don't bother verifying checksum if we're going to flush anyway. */
 	if ((greh->flags & GRE_CSUM) && !NAPI_GRO_CB(skb)->flush) {
 		if (skb_gro_checksum_simple_validate(skb))
-			goto out_unlock;
+			goto out;
 
-		skb_gro_checksum_try_convert(skb, IPPROTO_GRE, 0,
+		skb_gro_checksum_try_convert(skb, IPPROTO_GRE,
 					     null_compute_pseudo);
 	}
 
@@ -216,8 +227,6 @@ static struct sk_buff *gre_gro_receive(struct list_head *head,
 	pp = call_gro_receive(ptype->callbacks.gro_receive, head, skb);
 	flush = 0;
 
-out_unlock:
-	rcu_read_unlock();
 out:
 	skb_gro_flush_final(skb, pp, flush);
 
@@ -242,12 +251,9 @@ static int gre_gro_complete(struct sk_buff *skb, int nhoff)
 	if (greh->flags & GRE_CSUM)
 		grehlen += GRE_HEADER_SECTION;
 
-	rcu_read_lock();
 	ptype = gro_find_complete_by_type(type);
 	if (ptype)
 		err = ptype->callbacks.gro_complete(skb, nhoff + grehlen);
-
-	rcu_read_unlock();
 
 	skb_set_inner_mac_header(skb, nhoff + grehlen);
 

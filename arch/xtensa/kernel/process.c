@@ -37,7 +37,6 @@
 #include <linux/slab.h>
 #include <linux/rcupdate.h>
 
-#include <asm/pgtable.h>
 #include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/processor.h>
@@ -48,6 +47,8 @@
 #include <asm/asm-offsets.h>
 #include <asm/regs.h>
 #include <asm/hw_breakpoint.h>
+#include <asm/sections.h>
+#include <asm/traps.h>
 
 extern void ret_from_fork(void);
 extern void ret_from_kernel_thread(void);
@@ -64,52 +65,114 @@ EXPORT_SYMBOL(__stack_chk_guard);
 
 #if XTENSA_HAVE_COPROCESSORS
 
-void coprocessor_release_all(struct thread_info *ti)
+void local_coprocessors_flush_release_all(void)
 {
-	unsigned long cpenable;
+	struct thread_info **coprocessor_owner;
+	struct thread_info *unique_owner[XCHAL_CP_MAX];
+	int n = 0;
+	int i, j;
+
+	coprocessor_owner = this_cpu_ptr(&exc_table)->coprocessor_owner;
+	xtensa_set_sr(XCHAL_CP_MASK, cpenable);
+
+	for (i = 0; i < XCHAL_CP_MAX; i++) {
+		struct thread_info *ti = coprocessor_owner[i];
+
+		if (ti) {
+			coprocessor_flush(ti, i);
+
+			for (j = 0; j < n; j++)
+				if (unique_owner[j] == ti)
+					break;
+			if (j == n)
+				unique_owner[n++] = ti;
+
+			coprocessor_owner[i] = NULL;
+		}
+	}
+	for (i = 0; i < n; i++) {
+		/* pairs with memw (1) in fast_coprocessor and memw in switch_to */
+		smp_wmb();
+		unique_owner[i]->cpenable = 0;
+	}
+	xtensa_set_sr(0, cpenable);
+}
+
+static void local_coprocessor_release_all(void *info)
+{
+	struct thread_info *ti = info;
+	struct thread_info **coprocessor_owner;
 	int i;
 
-	/* Make sure we don't switch tasks during this operation. */
-
-	preempt_disable();
+	coprocessor_owner = this_cpu_ptr(&exc_table)->coprocessor_owner;
 
 	/* Walk through all cp owners and release it for the requested one. */
 
-	cpenable = ti->cpenable;
-
 	for (i = 0; i < XCHAL_CP_MAX; i++) {
-		if (coprocessor_owner[i] == ti) {
-			coprocessor_owner[i] = 0;
-			cpenable &= ~(1 << i);
-		}
+		if (coprocessor_owner[i] == ti)
+			coprocessor_owner[i] = NULL;
 	}
-
-	ti->cpenable = cpenable;
+	/* pairs with memw (1) in fast_coprocessor and memw in switch_to */
+	smp_wmb();
+	ti->cpenable = 0;
 	if (ti == current_thread_info())
 		xtensa_set_sr(0, cpenable);
+}
 
-	preempt_enable();
+void coprocessor_release_all(struct thread_info *ti)
+{
+	if (ti->cpenable) {
+		/* pairs with memw (2) in fast_coprocessor */
+		smp_rmb();
+		smp_call_function_single(ti->cp_owner_cpu,
+					 local_coprocessor_release_all,
+					 ti, true);
+	}
+}
+
+static void local_coprocessor_flush_all(void *info)
+{
+	struct thread_info *ti = info;
+	struct thread_info **coprocessor_owner;
+	unsigned long old_cpenable;
+	int i;
+
+	coprocessor_owner = this_cpu_ptr(&exc_table)->coprocessor_owner;
+	old_cpenable = xtensa_xsr(ti->cpenable, cpenable);
+
+	for (i = 0; i < XCHAL_CP_MAX; i++) {
+		if (coprocessor_owner[i] == ti)
+			coprocessor_flush(ti, i);
+	}
+	xtensa_set_sr(old_cpenable, cpenable);
 }
 
 void coprocessor_flush_all(struct thread_info *ti)
 {
-	unsigned long cpenable, old_cpenable;
-	int i;
-
-	preempt_disable();
-
-	old_cpenable = xtensa_get_sr(cpenable);
-	cpenable = ti->cpenable;
-	xtensa_set_sr(cpenable, cpenable);
-
-	for (i = 0; i < XCHAL_CP_MAX; i++) {
-		if ((cpenable & 1) != 0 && coprocessor_owner[i] == ti)
-			coprocessor_flush(ti, i);
-		cpenable >>= 1;
+	if (ti->cpenable) {
+		/* pairs with memw (2) in fast_coprocessor */
+		smp_rmb();
+		smp_call_function_single(ti->cp_owner_cpu,
+					 local_coprocessor_flush_all,
+					 ti, true);
 	}
-	xtensa_set_sr(old_cpenable, cpenable);
+}
 
-	preempt_enable();
+static void local_coprocessor_flush_release_all(void *info)
+{
+	local_coprocessor_flush_all(info);
+	local_coprocessor_release_all(info);
+}
+
+void coprocessor_flush_release_all(struct thread_info *ti)
+{
+	if (ti->cpenable) {
+		/* pairs with memw (2) in fast_coprocessor */
+		smp_rmb();
+		smp_call_function_single(ti->cp_owner_cpu,
+					 local_coprocessor_flush_release_all,
+					 ti, true);
+	}
 }
 
 #endif
@@ -121,6 +184,7 @@ void coprocessor_flush_all(struct thread_info *ti)
 void arch_cpu_idle(void)
 {
 	platform_idle();
+	raw_local_irq_disable();
 }
 
 /*
@@ -141,8 +205,7 @@ void flush_thread(void)
 {
 #if XTENSA_HAVE_COPROCESSORS
 	struct thread_info *ti = current_thread_info();
-	coprocessor_flush_all(ti);
-	coprocessor_release_all(ti);
+	coprocessor_flush_release_all(ti);
 #endif
 	flush_ptrace_hw_breakpoint(current);
 }
@@ -202,22 +265,31 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
  * involved.  Much simpler to just not copy those live frames across.
  */
 
-int copy_thread(unsigned long clone_flags, unsigned long usp_thread_fn,
-		unsigned long thread_fn_arg, struct task_struct *p)
+int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 {
+	unsigned long clone_flags = args->flags;
+	unsigned long usp_thread_fn = args->stack;
+	unsigned long tls = args->tls;
 	struct pt_regs *childregs = task_pt_regs(p);
 
 #if (XTENSA_HAVE_COPROCESSORS || XTENSA_HAVE_IO_PORTS)
 	struct thread_info *ti;
 #endif
 
+#if defined(__XTENSA_WINDOWED_ABI__)
 	/* Create a call4 dummy-frame: a0 = 0, a1 = childregs. */
 	SPILL_SLOT(childregs, 1) = (unsigned long)childregs;
 	SPILL_SLOT(childregs, 0) = 0;
 
 	p->thread.sp = (unsigned long)childregs;
+#elif defined(__XTENSA_CALL0_ABI__)
+	/* Reserve 16 bytes for the _switch_to stack frame. */
+	p->thread.sp = (unsigned long)childregs - 16;
+#else
+#error Unsupported Xtensa ABI
+#endif
 
-	if (!(p->flags & PF_KTHREAD)) {
+	if (!args->fn) {
 		struct pt_regs *regs = current_pt_regs();
 		unsigned long usp = usp_thread_fn ?
 			usp_thread_fn : regs->areg[1];
@@ -225,10 +297,6 @@ int copy_thread(unsigned long clone_flags, unsigned long usp_thread_fn,
 		p->thread.ra = MAKE_RA_FOR_CALL(
 				(unsigned long)ret_from_fork, 0x1);
 
-		/* This does not copy all the regs.
-		 * In a bout of brilliance or madness,
-		 * ARs beyond a0-a15 exist past the end of the struct.
-		 */
 		*childregs = *regs;
 		childregs->areg[1] = usp;
 		childregs->areg[2] = 0;
@@ -258,24 +326,33 @@ int copy_thread(unsigned long clone_flags, unsigned long usp_thread_fn,
 			childregs->wmask = 1;
 			childregs->windowstart = 1;
 			childregs->windowbase = 0;
-		} else {
-			int len = childregs->wmask & ~0xf;
-			memcpy(&childregs->areg[XCHAL_NUM_AREGS - len/4],
-			       &regs->areg[XCHAL_NUM_AREGS - len/4], len);
 		}
 
-		/* The thread pointer is passed in the '4th argument' (= a5) */
 		if (clone_flags & CLONE_SETTLS)
-			childregs->threadptr = childregs->areg[5];
+			childregs->threadptr = tls;
 	} else {
 		p->thread.ra = MAKE_RA_FOR_CALL(
 				(unsigned long)ret_from_kernel_thread, 1);
 
-		/* pass parameters to ret_from_kernel_thread:
-		 * a2 = thread_fn, a3 = thread_fn arg
+		/* pass parameters to ret_from_kernel_thread: */
+#if defined(__XTENSA_WINDOWED_ABI__)
+		/*
+		 * a2 = thread_fn, a3 = thread_fn arg.
+		 * Window underflow will load registers from the
+		 * spill slots on the stack on return from _switch_to.
 		 */
-		SPILL_SLOT(childregs, 3) = thread_fn_arg;
-		SPILL_SLOT(childregs, 2) = usp_thread_fn;
+		SPILL_SLOT(childregs, 2) = (unsigned long)args->fn;
+		SPILL_SLOT(childregs, 3) = (unsigned long)args->fn_arg;
+#elif defined(__XTENSA_CALL0_ABI__)
+		/*
+		 * a12 = thread_fn, a13 = thread_fn arg.
+		 * _switch_to epilogue will load registers from the stack.
+		 */
+		((unsigned long *)p->thread.sp)[0] = (unsigned long)args->fn;
+		((unsigned long *)p->thread.sp)[1] = (unsigned long)args->fn_arg;
+#else
+#error Unsupported Xtensa ABI
+#endif
 
 		/* Childregs are only used when we're going to userspace
 		 * in which case start_thread will set them up.
@@ -297,17 +374,14 @@ int copy_thread(unsigned long clone_flags, unsigned long usp_thread_fn,
  * These bracket the sleeping functions..
  */
 
-unsigned long get_wchan(struct task_struct *p)
+unsigned long __get_wchan(struct task_struct *p)
 {
 	unsigned long sp, pc;
 	unsigned long stack_page = (unsigned long) task_stack_page(p);
 	int count = 0;
 
-	if (!p || p == current || p->state == TASK_RUNNING)
-		return 0;
-
 	sp = p->thread.sp;
-	pc = MAKE_PC_FROM_RA(p->thread.ra, p->thread.sp);
+	pc = MAKE_PC_FROM_RA(p->thread.ra, _text);
 
 	do {
 		if (sp < stack_page + sizeof(struct task_struct) ||
@@ -319,7 +393,7 @@ unsigned long get_wchan(struct task_struct *p)
 
 		/* Stack layout: sp-4: ra, sp-3: sp' */
 
-		pc = MAKE_PC_FROM_RA(SPILL_SLOT(sp, 0), sp);
+		pc = MAKE_PC_FROM_RA(SPILL_SLOT(sp, 0), _text);
 		sp = SPILL_SLOT(sp, 1);
 	} while (count++ < 16);
 	return 0;

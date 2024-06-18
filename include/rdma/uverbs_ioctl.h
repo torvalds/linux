@@ -1,33 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
  * Copyright (c) 2017, Mellanox Technologies inc.  All rights reserved.
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 
 #ifndef _UVERBS_IOCTL_
@@ -51,6 +24,7 @@ enum uverbs_attr_type {
 	UVERBS_ATTR_TYPE_PTR_OUT,
 	UVERBS_ATTR_TYPE_IDR,
 	UVERBS_ATTR_TYPE_FD,
+	UVERBS_ATTR_TYPE_RAW_FD,
 	UVERBS_ATTR_TYPE_ENUM_IN,
 	UVERBS_ATTR_TYPE_IDRS_ARRAY,
 };
@@ -173,7 +147,7 @@ enum uapi_radix_data {
 	UVERBS_API_OBJ_KEY_BITS = 5,
 	UVERBS_API_OBJ_KEY_SHIFT =
 		UVERBS_API_METHOD_KEY_BITS + UVERBS_API_METHOD_KEY_SHIFT,
-	UVERBS_API_OBJ_KEY_NUM_CORE = 24,
+	UVERBS_API_OBJ_KEY_NUM_CORE = 20,
 	UVERBS_API_OBJ_KEY_NUM_DRIVER =
 		(1 << UVERBS_API_OBJ_KEY_BITS) - UVERBS_API_OBJ_KEY_NUM_CORE,
 	UVERBS_API_OBJ_KEY_MASK = GENMASK(31, UVERBS_API_OBJ_KEY_SHIFT),
@@ -420,9 +394,9 @@ struct uapi_definition {
 		.scope = UAPI_SCOPE_OBJECT,                                    \
 		.needs_fn_offset =                                             \
 			offsetof(struct ib_device_ops, ibdev_fn) +             \
-			BUILD_BUG_ON_ZERO(                                     \
-			    sizeof(((struct ib_device_ops *)0)->ibdev_fn) !=   \
-			    sizeof(void *)),				       \
+			BUILD_BUG_ON_ZERO(sizeof_field(struct ib_device_ops,   \
+						       ibdev_fn) !=            \
+					  sizeof(void *)),                     \
 	}
 
 /*
@@ -435,9 +409,9 @@ struct uapi_definition {
 		.scope = UAPI_SCOPE_METHOD,                                    \
 		.needs_fn_offset =                                             \
 			offsetof(struct ib_device_ops, ibdev_fn) +             \
-			BUILD_BUG_ON_ZERO(                                     \
-			    sizeof(((struct ib_device_ops *)0)->ibdev_fn) !=   \
-			    sizeof(void *)),                                   \
+			BUILD_BUG_ON_ZERO(sizeof_field(struct ib_device_ops,   \
+						       ibdev_fn) !=            \
+					  sizeof(void *)),                     \
 	}
 
 /* Call a function to determine if the entire object is supported or not */
@@ -462,8 +436,10 @@ struct uapi_definition {
 	},								       \
 		##__VA_ARGS__
 #define UAPI_DEF_CHAIN_OBJ_TREE_NAMED(_object_enum, ...)                       \
-	UAPI_DEF_CHAIN_OBJ_TREE(_object_enum, &UVERBS_OBJECT(_object_enum),    \
-				##__VA_ARGS__)
+	UAPI_DEF_CHAIN_OBJ_TREE(_object_enum,				       \
+		PTR_IF(IS_ENABLED(CONFIG_INFINIBAND_USER_ACCESS),	       \
+		       &UVERBS_OBJECT(_object_enum)),			       \
+		##__VA_ARGS__)
 
 /*
  * =======================================
@@ -491,8 +467,7 @@ struct uapi_definition {
  */
 #define UVERBS_ATTR_STRUCT(_type, _last)                                       \
 	.zero_trailing = 1,                                                    \
-	UVERBS_ATTR_SIZE(((uintptr_t)(&((_type *)0)->_last + 1)),              \
-			 sizeof(_type))
+	UVERBS_ATTR_SIZE(offsetofend(_type, _last), sizeof(_type))
 /*
  * Specifies at least min_len bytes must be passed in, but the amount can be
  * larger, up to the protocol maximum size. No check for zeroing is done.
@@ -548,6 +523,11 @@ struct uapi_definition {
 			  .u.obj.obj_type = _fd_type,                          \
 			  .u.obj.access = _access,                             \
 			  __VA_ARGS__ } })
+
+#define UVERBS_ATTR_RAW_FD(_attr_id, ...)                                      \
+	(&(const struct uverbs_attr_def){                                      \
+		.id = (_attr_id),                                              \
+		.attr = { .type = UVERBS_ATTR_TYPE_RAW_FD, __VA_ARGS__ } })
 
 #define UVERBS_ATTR_PTR_IN(_attr_id, _type, ...)                               \
 	(&(const struct uverbs_attr_def){                                      \
@@ -649,11 +629,14 @@ struct uverbs_attr {
 };
 
 struct uverbs_attr_bundle {
-	struct ib_udata driver_udata;
-	struct ib_udata ucore;
-	struct ib_uverbs_file *ufile;
-	struct ib_ucontext *context;
-	DECLARE_BITMAP(attr_present, UVERBS_API_ATTR_BKEY_LEN);
+	struct_group_tagged(uverbs_attr_bundle_hdr, hdr,
+		struct ib_udata driver_udata;
+		struct ib_udata ucore;
+		struct ib_uverbs_file *ufile;
+		struct ib_ucontext *context;
+		struct ib_uobject *uobject;
+		DECLARE_BITMAP(attr_present, UVERBS_API_ATTR_BKEY_LEN);
+	);
 	struct uverbs_attr attrs[];
 };
 
@@ -674,12 +657,15 @@ static inline bool uverbs_attr_is_valid(const struct uverbs_attr_bundle *attrs_b
  * 'ucontext'.
  *
  */
-#define rdma_udata_to_drv_context(udata, drv_dev_struct, member)               \
-	(udata ? container_of(container_of(udata, struct uverbs_attr_bundle,   \
-					   driver_udata)                       \
-				      ->context,                               \
-			      drv_dev_struct, member) :                        \
-		 (drv_dev_struct *)NULL)
+static inline struct uverbs_attr_bundle *
+rdma_udata_to_uverbs_attr_bundle(struct ib_udata *udata)
+{
+	return container_of(udata, struct uverbs_attr_bundle, driver_udata);
+}
+
+#define rdma_udata_to_drv_context(udata, drv_dev_struct, member)                \
+	(udata ? container_of(rdma_udata_to_uverbs_attr_bundle(udata)->context, \
+			      drv_dev_struct, member) : (drv_dev_struct *)NULL)
 
 #define IS_UVERBS_COPY_ERR(_ret)		((_ret) && (_ret) != -ENOENT)
 
@@ -736,6 +722,9 @@ uverbs_attr_get_len(const struct uverbs_attr_bundle *attrs_bundle, u16 idx)
 
 	return attr->ptr_attr.len;
 }
+
+void uverbs_finalize_uobj_create(const struct uverbs_attr_bundle *attrs_bundle,
+				 u16 idx);
 
 /*
  * uverbs_attr_ptr_get_array_size() - Get array size pointer by a ptr
@@ -886,9 +875,24 @@ static inline __malloc void *uverbs_zalloc(struct uverbs_attr_bundle *bundle,
 {
 	return _uverbs_alloc(bundle, size, GFP_KERNEL | __GFP_ZERO);
 }
-int _uverbs_get_const(s64 *to, const struct uverbs_attr_bundle *attrs_bundle,
-		      size_t idx, s64 lower_bound, u64 upper_bound,
-		      s64 *def_val);
+
+static inline __malloc void *uverbs_kcalloc(struct uverbs_attr_bundle *bundle,
+					    size_t n, size_t size)
+{
+	size_t bytes;
+
+	if (unlikely(check_mul_overflow(n, size, &bytes)))
+		return ERR_PTR(-EOVERFLOW);
+	return uverbs_zalloc(bundle, bytes);
+}
+
+int _uverbs_get_const_signed(s64 *to,
+			     const struct uverbs_attr_bundle *attrs_bundle,
+			     size_t idx, s64 lower_bound, u64 upper_bound,
+			     s64 *def_val);
+int _uverbs_get_const_unsigned(u64 *to,
+			       const struct uverbs_attr_bundle *attrs_bundle,
+			       size_t idx, u64 upper_bound, u64 *def_val);
 int uverbs_copy_to_struct_or_zero(const struct uverbs_attr_bundle *bundle,
 				  size_t idx, const void *from, size_t size);
 #else
@@ -932,27 +936,84 @@ uverbs_copy_to_struct_or_zero(const struct uverbs_attr_bundle *bundle,
 {
 	return -EINVAL;
 }
+static inline int
+_uverbs_get_const_signed(s64 *to,
+			 const struct uverbs_attr_bundle *attrs_bundle,
+			 size_t idx, s64 lower_bound, u64 upper_bound,
+			 s64 *def_val)
+{
+	return -EINVAL;
+}
+static inline int
+_uverbs_get_const_unsigned(u64 *to,
+			   const struct uverbs_attr_bundle *attrs_bundle,
+			   size_t idx, u64 upper_bound, u64 *def_val)
+{
+	return -EINVAL;
+}
 #endif
 
-#define uverbs_get_const(_to, _attrs_bundle, _idx)                             \
+#define uverbs_get_const_signed(_to, _attrs_bundle, _idx)                      \
 	({                                                                     \
 		s64 _val;                                                      \
-		int _ret = _uverbs_get_const(&_val, _attrs_bundle, _idx,       \
-					     type_min(typeof(*_to)),           \
-					     type_max(typeof(*_to)), NULL);    \
-		(*_to) = _val;                                                 \
+		int _ret =                                                     \
+			_uverbs_get_const_signed(&_val, _attrs_bundle, _idx,   \
+					  type_min(typeof(*(_to))),            \
+					  type_max(typeof(*(_to))), NULL);     \
+		(*(_to)) = _val;                                               \
 		_ret;                                                          \
 	})
 
-#define uverbs_get_const_default(_to, _attrs_bundle, _idx, _default)           \
+#define uverbs_get_const_unsigned(_to, _attrs_bundle, _idx)                    \
+	({                                                                     \
+		u64 _val;                                                      \
+		int _ret =                                                     \
+			_uverbs_get_const_unsigned(&_val, _attrs_bundle, _idx, \
+					  type_max(typeof(*(_to))), NULL);     \
+		(*(_to)) = _val;                                               \
+		_ret;                                                          \
+	})
+
+#define uverbs_get_const_default_signed(_to, _attrs_bundle, _idx, _default)    \
 	({                                                                     \
 		s64 _val;                                                      \
 		s64 _def_val = _default;                                       \
 		int _ret =                                                     \
-			_uverbs_get_const(&_val, _attrs_bundle, _idx,          \
-					  type_min(typeof(*_to)),              \
-					  type_max(typeof(*_to)), &_def_val);  \
-		(*_to) = _val;                                                 \
+			_uverbs_get_const_signed(&_val, _attrs_bundle, _idx,   \
+				type_min(typeof(*(_to))),                      \
+				type_max(typeof(*(_to))), &_def_val);          \
+		(*(_to)) = _val;                                               \
 		_ret;                                                          \
 	})
+
+#define uverbs_get_const_default_unsigned(_to, _attrs_bundle, _idx, _default)  \
+	({                                                                     \
+		u64 _val;                                                      \
+		u64 _def_val = _default;                                       \
+		int _ret =                                                     \
+			_uverbs_get_const_unsigned(&_val, _attrs_bundle, _idx, \
+				type_max(typeof(*(_to))), &_def_val);          \
+		(*(_to)) = _val;                                               \
+		_ret;                                                          \
+	})
+
+#define uverbs_get_const(_to, _attrs_bundle, _idx)                             \
+	(is_signed_type(typeof(*(_to))) ?                                      \
+		 uverbs_get_const_signed(_to, _attrs_bundle, _idx) :           \
+		 uverbs_get_const_unsigned(_to, _attrs_bundle, _idx))          \
+
+#define uverbs_get_const_default(_to, _attrs_bundle, _idx, _default)           \
+	(is_signed_type(typeof(*(_to))) ?                                      \
+		 uverbs_get_const_default_signed(_to, _attrs_bundle, _idx,     \
+						  _default) :                  \
+		 uverbs_get_const_default_unsigned(_to, _attrs_bundle, _idx,   \
+						    _default))
+
+static inline int
+uverbs_get_raw_fd(int *to, const struct uverbs_attr_bundle *attrs_bundle,
+		  size_t idx)
+{
+	return uverbs_get_const_signed(to, attrs_bundle, idx);
+}
+
 #endif

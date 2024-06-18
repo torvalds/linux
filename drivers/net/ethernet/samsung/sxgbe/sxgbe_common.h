@@ -329,7 +329,7 @@ struct sxgbe_core_ops {
 	/* Set power management mode (e.g. magic frame) */
 	void (*pmt)(void __iomem *ioaddr, unsigned long mode);
 	/* Set/Get Unicast MAC addresses */
-	void (*set_umac_addr)(void __iomem *ioaddr, unsigned char *addr,
+	void (*set_umac_addr)(void __iomem *ioaddr, const unsigned char *addr,
 			      unsigned int reg_n);
 	void (*get_umac_addr)(void __iomem *ioaddr, unsigned char *addr,
 			      unsigned int reg_n);
@@ -503,7 +503,6 @@ struct sxgbe_priv_data {
 	bool tx_path_in_lpi_mode;
 	int lpi_irq;
 	int eee_enabled;
-	int eee_active;
 	int tx_lpi_timer;
 };
 
@@ -511,7 +510,7 @@ struct sxgbe_priv_data {
 struct sxgbe_priv_data *sxgbe_drv_probe(struct device *device,
 					struct sxgbe_plat_data *plat_dat,
 					void __iomem *addr);
-int sxgbe_drv_remove(struct net_device *ndev);
+void sxgbe_drv_remove(struct net_device *ndev);
 void sxgbe_set_ethtool_ops(struct net_device *netdev);
 int sxgbe_mdio_unregister(struct net_device *ndev);
 int sxgbe_mdio_register(struct net_device *ndev);

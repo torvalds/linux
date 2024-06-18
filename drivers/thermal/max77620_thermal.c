@@ -33,7 +33,7 @@ struct max77620_therm_info {
 /**
  * max77620_thermal_read_temp: Read PMIC die temperatue.
  * @data:	Device specific data.
- * temp:	Temperature in millidegrees Celsius
+ * @temp:	Temperature in millidegrees Celsius
  *
  * The actual temperature of PMIC die is not available from PMIC.
  * PMIC only tells the status if it has crossed or not the threshold level
@@ -44,17 +44,15 @@ struct max77620_therm_info {
  * Return 0 on success otherwise error number to show reason of failure.
  */
 
-static int max77620_thermal_read_temp(void *data, int *temp)
+static int max77620_thermal_read_temp(struct thermal_zone_device *tz, int *temp)
 {
-	struct max77620_therm_info *mtherm = data;
+	struct max77620_therm_info *mtherm = thermal_zone_device_priv(tz);
 	unsigned int val;
 	int ret;
 
 	ret = regmap_read(mtherm->rmap, MAX77620_REG_STATLBT, &val);
-	if (ret < 0) {
-		dev_err(mtherm->dev, "Failed to read STATLBT: %d\n", ret);
+	if (ret < 0)
 		return ret;
-	}
 
 	if (val & MAX77620_IRQ_TJALRM2_MASK)
 		*temp = MAX77620_TJALARM2_TEMP;
@@ -66,7 +64,7 @@ static int max77620_thermal_read_temp(void *data, int *temp)
 	return 0;
 }
 
-static const struct thermal_zone_of_device_ops max77620_thermal_ops = {
+static const struct thermal_zone_device_ops max77620_thermal_ops = {
 	.get_temp = max77620_thermal_read_temp,
 };
 
@@ -114,14 +112,10 @@ static int max77620_thermal_probe(struct platform_device *pdev)
 	 */
 	device_set_of_node_from_dev(&pdev->dev, pdev->dev.parent);
 
-	mtherm->tz_device = devm_thermal_zone_of_sensor_register(&pdev->dev, 0,
+	mtherm->tz_device = devm_thermal_of_zone_register(&pdev->dev, 0,
 				mtherm, &max77620_thermal_ops);
-	if (IS_ERR(mtherm->tz_device)) {
-		ret = PTR_ERR(mtherm->tz_device);
-		dev_err(&pdev->dev, "Failed to register thermal zone: %d\n",
-			ret);
-		return ret;
-	}
+	if (IS_ERR(mtherm->tz_device))
+		return PTR_ERR(mtherm->tz_device);
 
 	ret = devm_request_threaded_irq(&pdev->dev, mtherm->irq_tjalarm1, NULL,
 					max77620_thermal_irq,
@@ -140,8 +134,6 @@ static int max77620_thermal_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to request irq2: %d\n", ret);
 		return ret;
 	}
-
-	platform_set_drvdata(pdev, mtherm);
 
 	return 0;
 }

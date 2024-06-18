@@ -28,6 +28,11 @@ detected by a software parsing TRX header.
 Required properties:
 - compatible : (required) must be "brcm,trx"
 
+Optional properties:
+
+- brcm,trx-magic: TRX magic, if it is different from the default magic
+		  0x30524448 as a u32.
+
 Example:
 
 flash@0 {

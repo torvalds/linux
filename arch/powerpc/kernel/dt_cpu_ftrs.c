@@ -10,6 +10,7 @@
 #include <linux/jump_label.h>
 #include <linux/libfdt.h>
 #include <linux/memblock.h>
+#include <linux/of_fdt.h>
 #include <linux/printk.h>
 #include <linux/sched.h>
 #include <linux/string.h>
@@ -17,15 +18,14 @@
 
 #include <asm/cputable.h>
 #include <asm/dt_cpu_ftrs.h>
+#include <asm/mce.h>
 #include <asm/mmu.h>
-#include <asm/oprofile_impl.h>
-#include <asm/prom.h>
 #include <asm/setup.h>
 
 
 /* Device-tree visible constants follow */
-#define ISA_V2_07B      2070
 #define ISA_V3_0B       3000
+#define ISA_V3_1        3100
 
 #define USABLE_PR               (1U << 0)
 #define USABLE_OS               (1U << 1)
@@ -64,44 +64,25 @@ struct dt_cpu_feature {
  * Set up the base CPU
  */
 
-extern long __machine_check_early_realmode_p8(struct pt_regs *regs);
-extern long __machine_check_early_realmode_p9(struct pt_regs *regs);
-
 static int hv_mode;
 
 static struct {
 	u64	lpcr;
-	u64	lpcr_clear;
 	u64	hfscr;
 	u64	fscr;
+	u64	pcr;
 } system_registers;
 
 static void (*init_pmu_registers)(void);
 
 static void __restore_cpu_cpufeatures(void)
 {
-	u64 lpcr;
-
-	/*
-	 * LPCR is restored by the power on engine already. It can be changed
-	 * after early init e.g., by radix enable, and we have no unified API
-	 * for saving and restoring such SPRs.
-	 *
-	 * This ->restore hook should really be removed from idle and register
-	 * restore moved directly into the idle restore code, because this code
-	 * doesn't know how idle is implemented or what it needs restored here.
-	 *
-	 * The best we can do to accommodate secondary boot and idle restore
-	 * for now is "or" LPCR with existing.
-	 */
-	lpcr = mfspr(SPRN_LPCR);
-	lpcr |= system_registers.lpcr;
-	lpcr &= ~system_registers.lpcr_clear;
-	mtspr(SPRN_LPCR, lpcr);
+	mtspr(SPRN_LPCR, system_registers.lpcr);
 	if (hv_mode) {
 		mtspr(SPRN_LPID, 0);
+		mtspr(SPRN_AMOR, ~0);
 		mtspr(SPRN_HFSCR, system_registers.hfscr);
-		mtspr(SPRN_PCR, PCR_MASK);
+		mtspr(SPRN_PCR, system_registers.pcr);
 	}
 	mtspr(SPRN_FSCR, system_registers.fscr);
 
@@ -121,8 +102,6 @@ static struct cpu_spec __initdata base_cpu_spec = {
 	.dcache_bsize		= 32, /* cache info init.             */
 	.num_pmcs		= 0,
 	.pmc_type		= PPC_PMC_DEFAULT,
-	.oprofile_cpu_type	= NULL,
-	.oprofile_type		= PPC_OPROFILE_INVALID,
 	.cpu_setup		= NULL,
 	.cpu_restore		= __restore_cpu_cpufeatures,
 	.machine_check_early	= NULL,
@@ -139,7 +118,6 @@ static void __init cpufeatures_setup_cpu(void)
 	/* Initialize the base environment -- clear FSCR/HFSCR.  */
 	hv_mode = !!(mfmsr() & MSR_HV);
 	if (hv_mode) {
-		/* CPU_FTR_HVMODE is used early in PACA setup */
 		cur_cpu_spec->cpu_features |= CPU_FTR_HVMODE;
 		mtspr(SPRN_HFSCR, 0);
 	}
@@ -238,6 +216,7 @@ static int __init feat_enable_hv(struct dt_cpu_feature *f)
 	}
 
 	mtspr(SPRN_LPID, 0);
+	mtspr(SPRN_AMOR, ~0);
 
 	lpcr = mfspr(SPRN_LPCR);
 	lpcr &=  ~LPCR_LPES0; /* HV external interrupts */
@@ -275,13 +254,6 @@ static int __init feat_enable_idle_nap(struct dt_cpu_feature *f)
 	return 1;
 }
 
-static int __init feat_enable_align_dsisr(struct dt_cpu_feature *f)
-{
-	cur_cpu_spec->cpu_features &= ~CPU_FTR_NODSISRALIGN;
-
-	return 1;
-}
-
 static int __init feat_enable_idle_stop(struct dt_cpu_feature *f)
 {
 	u64 lpcr;
@@ -299,6 +271,9 @@ static int __init feat_enable_idle_stop(struct dt_cpu_feature *f)
 static int __init feat_enable_mmu_hash(struct dt_cpu_feature *f)
 {
 	u64 lpcr;
+
+	if (!IS_ENABLED(CONFIG_PPC_64S_HASH_MMU))
+		return 0;
 
 	lpcr = mfspr(SPRN_LPCR);
 	lpcr &= ~LPCR_ISL;
@@ -319,7 +294,9 @@ static int __init feat_enable_mmu_hash_v3(struct dt_cpu_feature *f)
 {
 	u64 lpcr;
 
-	system_registers.lpcr_clear |= (LPCR_ISL | LPCR_UPRT | LPCR_HR);
+	if (!IS_ENABLED(CONFIG_PPC_64S_HASH_MMU))
+		return 0;
+
 	lpcr = mfspr(SPRN_LPCR);
 	lpcr &= ~(LPCR_ISL | LPCR_UPRT | LPCR_HR);
 	mtspr(SPRN_LPCR, lpcr);
@@ -333,19 +310,28 @@ static int __init feat_enable_mmu_hash_v3(struct dt_cpu_feature *f)
 
 static int __init feat_enable_mmu_radix(struct dt_cpu_feature *f)
 {
-#ifdef CONFIG_PPC_RADIX_MMU
+	if (!IS_ENABLED(CONFIG_PPC_RADIX_MMU))
+		return 0;
+
+	cur_cpu_spec->mmu_features |= MMU_FTR_KERNEL_RO;
 	cur_cpu_spec->mmu_features |= MMU_FTR_TYPE_RADIX;
-	cur_cpu_spec->mmu_features |= MMU_FTRS_HASH_BASE;
+	cur_cpu_spec->mmu_features |= MMU_FTR_GTSE;
 	cur_cpu_spec->cpu_user_features |= PPC_FEATURE_HAS_MMU;
 
 	return 1;
-#endif
-	return 0;
 }
 
 static int __init feat_enable_dscr(struct dt_cpu_feature *f)
 {
 	u64 lpcr;
+
+	/*
+	 * Linux relies on FSCR[DSCR] being clear, so that we can take the
+	 * facility unavailable interrupt and track the task's usage of DSCR.
+	 * See facility_unavailable_exception().
+	 * Clear the bit here so that feat_enable() doesn't set it.
+	 */
+	f->fscr_bit_nr = -1;
 
 	feat_enable(f);
 
@@ -357,7 +343,7 @@ static int __init feat_enable_dscr(struct dt_cpu_feature *f)
 	return 1;
 }
 
-static void hfscr_pmu_enable(void)
+static void __init hfscr_pmu_enable(void)
 {
 	u64 hfscr = mfspr(SPRN_HFSCR);
 	hfscr |= PPC_BIT(60);
@@ -372,7 +358,7 @@ static void init_pmu_power8(void)
 	}
 
 	mtspr(SPRN_MMCRA, 0);
-	mtspr(SPRN_MMCR0, 0);
+	mtspr(SPRN_MMCR0, MMCR0_FC);
 	mtspr(SPRN_MMCR1, 0);
 	mtspr(SPRN_MMCR2, 0);
 	mtspr(SPRN_MMCRS, 0);
@@ -400,7 +386,6 @@ static int __init feat_enable_pmu_power8(struct dt_cpu_feature *f)
 
 	cur_cpu_spec->num_pmcs		= 6;
 	cur_cpu_spec->pmc_type		= PPC_PMC_IBM;
-	cur_cpu_spec->oprofile_cpu_type	= "ppc64/power8";
 
 	return 1;
 }
@@ -411,7 +396,7 @@ static void init_pmu_power9(void)
 		mtspr(SPRN_MMCRC, 0);
 
 	mtspr(SPRN_MMCRA, 0);
-	mtspr(SPRN_MMCR0, 0);
+	mtspr(SPRN_MMCR0, MMCR0_FC);
 	mtspr(SPRN_MMCR1, 0);
 	mtspr(SPRN_MMCR2, 0);
 }
@@ -436,7 +421,47 @@ static int __init feat_enable_pmu_power9(struct dt_cpu_feature *f)
 
 	cur_cpu_spec->num_pmcs		= 6;
 	cur_cpu_spec->pmc_type		= PPC_PMC_IBM;
-	cur_cpu_spec->oprofile_cpu_type	= "ppc64/power9";
+
+	return 1;
+}
+
+static void init_pmu_power10(void)
+{
+	init_pmu_power9();
+
+	mtspr(SPRN_MMCR3, 0);
+	mtspr(SPRN_MMCRA, MMCRA_BHRB_DISABLE);
+	mtspr(SPRN_MMCR0, MMCR0_FC | MMCR0_PMCCEXT);
+}
+
+static int __init feat_enable_pmu_power10(struct dt_cpu_feature *f)
+{
+	hfscr_pmu_enable();
+
+	init_pmu_power10();
+	init_pmu_registers = init_pmu_power10;
+
+	cur_cpu_spec->cpu_features |= CPU_FTR_MMCRA;
+	cur_cpu_spec->cpu_user_features |= PPC_FEATURE_PSERIES_PERFMON_COMPAT;
+
+	cur_cpu_spec->num_pmcs          = 6;
+	cur_cpu_spec->pmc_type          = PPC_PMC_IBM;
+
+	return 1;
+}
+
+static int __init feat_enable_mce_power10(struct dt_cpu_feature *f)
+{
+	cur_cpu_spec->platform = "power10";
+	cur_cpu_spec->machine_check_early = __machine_check_early_realmode_p10;
+
+	return 1;
+}
+
+static int __init feat_enable_mce_power11(struct dt_cpu_feature *f)
+{
+	cur_cpu_spec->platform = "power11";
+	cur_cpu_spec->machine_check_early = __machine_check_early_realmode_p10;
 
 	return 1;
 }
@@ -553,6 +578,18 @@ static int __init feat_enable_large_ci(struct dt_cpu_feature *f)
 	return 1;
 }
 
+static int __init feat_enable_mma(struct dt_cpu_feature *f)
+{
+	u64 pcr;
+
+	feat_enable(f);
+	pcr = mfspr(SPRN_PCR);
+	pcr &= ~PCR_MMA_DIS;
+	mtspr(SPRN_PCR, pcr);
+
+	return 1;
+}
+
 struct dt_cpu_feature_match {
 	const char *name;
 	int (*enable)(struct dt_cpu_feature *f);
@@ -566,6 +603,7 @@ static struct dt_cpu_feature_match __initdata
 	{"little-endian", feat_enable_le, CPU_FTR_REAL_LE},
 	{"smt", feat_enable_smt, 0},
 	{"interrupt-facilities", feat_enable, 0},
+	{"system-call-vectored", feat_enable, 0},
 	{"timer-facilities", feat_enable, 0},
 	{"timer-facilities-v3", feat_enable, 0},
 	{"debug-facilities", feat_enable, 0},
@@ -588,7 +626,7 @@ static struct dt_cpu_feature_match __initdata
 	{"tm-suspend-hypervisor-assist", feat_enable, CPU_FTR_P9_TM_HV_ASSIST},
 	{"tm-suspend-xer-so-bug", feat_enable, CPU_FTR_P9_TM_XER_SO_BUG},
 	{"idle-nap", feat_enable_idle_nap, 0},
-	{"alignment-interrupt-dsisr", feat_enable_align_dsisr, 0},
+	/* alignment-interrupt-dsisr ignored */
 	{"idle-stop", feat_enable_idle_stop, 0},
 	{"machine-check-power8", feat_enable_mce_power8, 0},
 	{"performance-monitor-power8", feat_enable_pmu_power8, 0},
@@ -617,7 +655,11 @@ static struct dt_cpu_feature_match __initdata
 	{"group-start-register", feat_enable, 0},
 	{"pc-relative-addressing", feat_enable, 0},
 	{"machine-check-power9", feat_enable_mce_power9, 0},
+	{"machine-check-power10", feat_enable_mce_power10, 0},
+	{"machine-check-power11", feat_enable_mce_power11, 0},
 	{"performance-monitor-power9", feat_enable_pmu_power9, 0},
+	{"performance-monitor-power10", feat_enable_pmu_power10, 0},
+	{"performance-monitor-power11", feat_enable_pmu_power10, 0},
 	{"event-based-branch-v3", feat_enable, 0},
 	{"random-number-generator", feat_enable, 0},
 	{"system-call-vectored", feat_disable, 0},
@@ -626,6 +668,9 @@ static struct dt_cpu_feature_match __initdata
 	{"vector-binary128", feat_enable, 0},
 	{"vector-binary16", feat_enable, 0},
 	{"wait-v3", feat_enable, 0},
+	{"prefix-instructions", feat_enable, 0},
+	{"matrix-multiply-assist", feat_enable_mma, 0},
+	{"debug-facilities-v31", feat_enable, CPU_FTR_DAWR1},
 };
 
 static bool __initdata using_dt_cpu_ftrs;
@@ -651,9 +696,14 @@ static void __init cpufeatures_setup_start(u32 isa)
 {
 	pr_info("setup for ISA %d\n", isa);
 
-	if (isa >= 3000) {
+	if (isa >= ISA_V3_0B) {
 		cur_cpu_spec->cpu_features |= CPU_FTR_ARCH_300;
 		cur_cpu_spec->cpu_user_features2 |= PPC_FEATURE2_ARCH_3_00;
+	}
+
+	if (isa >= ISA_V3_1) {
+		cur_cpu_spec->cpu_features |= CPU_FTR_ARCH_31;
+		cur_cpu_spec->cpu_user_features2 |= PPC_FEATURE2_ARCH_3_1;
 	}
 }
 
@@ -727,30 +777,33 @@ static __init void cpufeatures_cpu_quirks(void)
 	/*
 	 * Not all quirks can be derived from the cpufeatures device tree.
 	 */
-	if ((version & 0xffffefff) == 0x004e0200)
-		; /* DD2.0 has no feature flag */
-	else if ((version & 0xffffefff) == 0x004e0201)
+	if ((version & 0xffffefff) == 0x004e0200) {
+		/* DD2.0 has no feature flag */
+		cur_cpu_spec->cpu_features |= CPU_FTR_P9_RADIX_PREFETCH_BUG;
+		cur_cpu_spec->cpu_features &= ~(CPU_FTR_DAWR);
+	} else if ((version & 0xffffefff) == 0x004e0201) {
 		cur_cpu_spec->cpu_features |= CPU_FTR_POWER9_DD2_1;
-	else if ((version & 0xffffefff) == 0x004e0202) {
+		cur_cpu_spec->cpu_features |= CPU_FTR_P9_RADIX_PREFETCH_BUG;
+		cur_cpu_spec->cpu_features &= ~(CPU_FTR_DAWR);
+	} else if ((version & 0xffffefff) == 0x004e0202) {
 		cur_cpu_spec->cpu_features |= CPU_FTR_P9_TM_HV_ASSIST;
 		cur_cpu_spec->cpu_features |= CPU_FTR_P9_TM_XER_SO_BUG;
 		cur_cpu_spec->cpu_features |= CPU_FTR_POWER9_DD2_1;
-	} else if ((version & 0xffff0000) == 0x004e0000)
+		cur_cpu_spec->cpu_features &= ~(CPU_FTR_DAWR);
+	} else if ((version & 0xffffefff) == 0x004e0203) {
+		cur_cpu_spec->cpu_features |= CPU_FTR_P9_TM_HV_ASSIST;
+		cur_cpu_spec->cpu_features |= CPU_FTR_P9_TM_XER_SO_BUG;
+		cur_cpu_spec->cpu_features |= CPU_FTR_POWER9_DD2_1;
+	} else if ((version & 0xffff0000) == 0x004e0000) {
 		/* DD2.1 and up have DD2_1 */
 		cur_cpu_spec->cpu_features |= CPU_FTR_POWER9_DD2_1;
+	}
 
 	if ((version & 0xffff0000) == 0x004e0000) {
-		cur_cpu_spec->cpu_features &= ~(CPU_FTR_DAWR);
 		cur_cpu_spec->cpu_features |= CPU_FTR_P9_TIDR;
 	}
 
 	update_tlbie_feature_flag(version);
-	/*
-	 * PKEY was not in the initial base or feature node
-	 * specification, but it should become optional in the next
-	 * cpu feature version sequence.
-	 */
-	cur_cpu_spec->cpu_features |= CPU_FTR_PKEY;
 }
 
 static void __init cpufeatures_setup_finished(void)
@@ -768,6 +821,7 @@ static void __init cpufeatures_setup_finished(void)
 	system_registers.lpcr = mfspr(SPRN_LPCR);
 	system_registers.hfscr = mfspr(SPRN_HFSCR);
 	system_registers.fscr = mfspr(SPRN_FSCR);
+	system_registers.pcr = mfspr(SPRN_PCR);
 
 	pr_info("final cpu/mmu features = 0x%016lx 0x%08x\n",
 		cur_cpu_spec->cpu_features, cur_cpu_spec->mmu_features);
@@ -1055,14 +1109,14 @@ static int __init dt_cpu_ftrs_scan_callback(unsigned long node, const char
 
 	prop = of_get_flat_dt_prop(node, "display-name", NULL);
 	if (prop && strlen((char *)prop) != 0) {
-		strlcpy(dt_cpu_name, (char *)prop, sizeof(dt_cpu_name));
+		strscpy(dt_cpu_name, (char *)prop, sizeof(dt_cpu_name));
 		cur_cpu_spec->cpu_name = dt_cpu_name;
 	}
 
 	cpufeatures_setup_finished();
 
-	memblock_free(__pa(dt_cpu_features),
-			sizeof(struct dt_cpu_feature)*nr_dt_cpu_features);
+	memblock_free(dt_cpu_features,
+		      sizeof(struct dt_cpu_feature) * nr_dt_cpu_features);
 
 	return 0;
 }

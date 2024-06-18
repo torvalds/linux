@@ -286,7 +286,7 @@ const struct attribute_group *rio_dev_groups[] = {
 	NULL,
 };
 
-static ssize_t scan_store(struct bus_type *bus, const char *buf, size_t count)
+static ssize_t scan_store(const struct bus_type *bus, const char *buf, size_t count)
 {
 	long val;
 	int rc;

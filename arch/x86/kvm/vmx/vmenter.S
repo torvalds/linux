@@ -4,6 +4,10 @@
 #include <asm/bitsperlong.h>
 #include <asm/kvm_vcpu_regs.h>
 #include <asm/nospec-branch.h>
+#include <asm/percpu.h>
+#include <asm/segment.h>
+#include "kvm-asm-offsets.h"
+#include "run_flags.h"
 
 #define WORD_SIZE (BITS_PER_LONG / 8)
 
@@ -27,81 +31,52 @@
 #define VCPU_R15	__VCPU_REGS_R15 * WORD_SIZE
 #endif
 
-	.text
+.macro VMX_DO_EVENT_IRQOFF call_insn call_target
+	/*
+	 * Unconditionally create a stack frame, getting the correct RSP on the
+	 * stack (for x86-64) would take two instructions anyways, and RBP can
+	 * be used to restore RSP to make objtool happy (see below).
+	 */
+	push %_ASM_BP
+	mov %_ASM_SP, %_ASM_BP
 
-/**
- * vmx_vmenter - VM-Enter the current loaded VMCS
- *
- * %RFLAGS.ZF:	!VMCS.LAUNCHED, i.e. controls VMLAUNCH vs. VMRESUME
- *
- * Returns:
- *	%RFLAGS.CF is set on VM-Fail Invalid
- *	%RFLAGS.ZF is set on VM-Fail Valid
- *	%RFLAGS.{CF,ZF} are cleared on VM-Success, i.e. VM-Exit
- *
- * Note that VMRESUME/VMLAUNCH fall-through and return directly if
- * they VM-Fail, whereas a successful VM-Enter + VM-Exit will jump
- * to vmx_vmexit.
- */
-ENTRY(vmx_vmenter)
-	/* EFLAGS.ZF is set if VMCS.LAUNCHED == 0 */
-	je 2f
-
-1:	vmresume
-	ret
-
-2:	vmlaunch
-	ret
-
-3:	cmpb $0, kvm_rebooting
-	je 4f
-	ret
-4:	ud2
-
-	.pushsection .fixup, "ax"
-5:	jmp 3b
-	.popsection
-
-	_ASM_EXTABLE(1b, 5b)
-	_ASM_EXTABLE(2b, 5b)
-
-ENDPROC(vmx_vmenter)
-
-/**
- * vmx_vmexit - Handle a VMX VM-Exit
- *
- * Returns:
- *	%RFLAGS.{CF,ZF} are cleared on VM-Success, i.e. VM-Exit
- *
- * This is vmx_vmenter's partner in crime.  On a VM-Exit, control will jump
- * here after hardware loads the host's state, i.e. this is the destination
- * referred to by VMCS.HOST_RIP.
- */
-ENTRY(vmx_vmexit)
-#ifdef CONFIG_RETPOLINE
-	ALTERNATIVE "jmp .Lvmexit_skip_rsb", "", X86_FEATURE_RETPOLINE
-	/* Preserve guest's RAX, it's used to stuff the RSB. */
-	push %_ASM_AX
-
-	/* IMPORTANT: Stuff the RSB immediately after VM-Exit, before RET! */
-	FILL_RETURN_BUFFER %_ASM_AX, RSB_CLEAR_LOOPS, X86_FEATURE_RETPOLINE
-
-	pop %_ASM_AX
-.Lvmexit_skip_rsb:
+#ifdef CONFIG_X86_64
+	/*
+	 * Align RSP to a 16-byte boundary (to emulate CPU behavior) before
+	 * creating the synthetic interrupt stack frame for the IRQ/NMI.
+	 */
+	and  $-16, %rsp
+	push $__KERNEL_DS
+	push %rbp
 #endif
-	ret
-ENDPROC(vmx_vmexit)
+	pushf
+	push $__KERNEL_CS
+	\call_insn \call_target
+
+	/*
+	 * "Restore" RSP from RBP, even though IRET has already unwound RSP to
+	 * the correct value.  objtool doesn't know the callee will IRET and,
+	 * without the explicit restore, thinks the stack is getting walloped.
+	 * Using an unwind hint is problematic due to x86-64's dynamic alignment.
+	 */
+	mov %_ASM_BP, %_ASM_SP
+	pop %_ASM_BP
+	RET
+.endm
+
+.section .noinstr.text, "ax"
 
 /**
  * __vmx_vcpu_run - Run a vCPU via a transition to VMX guest mode
- * @vmx:	struct vcpu_vmx * (forwarded to vmx_update_host_rsp)
+ * @vmx:	struct vcpu_vmx *
  * @regs:	unsigned long * (to guest registers)
- * @launched:	%true if the VMCS has been launched
+ * @flags:	VMX_RUN_VMRESUME:	use VMRESUME instead of VMLAUNCH
+ *		VMX_RUN_SAVE_SPEC_CTRL: save guest SPEC_CTRL into vmx->spec_ctrl
  *
  * Returns:
  *	0 on VM-Exit, 1 on VM-Fail
  */
-ENTRY(__vmx_vcpu_run)
+SYM_FUNC_START(__vmx_vcpu_run)
 	push %_ASM_BP
 	mov  %_ASM_SP, %_ASM_BP
 #ifdef CONFIG_X86_64
@@ -115,32 +90,64 @@ ENTRY(__vmx_vcpu_run)
 #endif
 	push %_ASM_BX
 
+	/* Save @vmx for SPEC_CTRL handling */
+	push %_ASM_ARG1
+
+	/* Save @flags for SPEC_CTRL handling */
+	push %_ASM_ARG3
+
 	/*
 	 * Save @regs, _ASM_ARG2 may be modified by vmx_update_host_rsp() and
 	 * @regs is needed after VM-Exit to save the guest's register values.
 	 */
 	push %_ASM_ARG2
 
-	/* Copy @launched to BL, _ASM_ARG3 is volatile. */
-	mov %_ASM_ARG3B, %bl
+	/* Copy @flags to EBX, _ASM_ARG3 is volatile. */
+	mov %_ASM_ARG3L, %ebx
 
-	/* Adjust RSP to account for the CALL to vmx_vmenter(). */
-	lea -WORD_SIZE(%_ASM_SP), %_ASM_ARG2
+	lea (%_ASM_SP), %_ASM_ARG2
 	call vmx_update_host_rsp
+
+	ALTERNATIVE "jmp .Lspec_ctrl_done", "", X86_FEATURE_MSR_SPEC_CTRL
+
+	/*
+	 * SPEC_CTRL handling: if the guest's SPEC_CTRL value differs from the
+	 * host's, write the MSR.
+	 *
+	 * IMPORTANT: To avoid RSB underflow attacks and any other nastiness,
+	 * there must not be any returns or indirect branches between this code
+	 * and vmentry.
+	 */
+	mov 2*WORD_SIZE(%_ASM_SP), %_ASM_DI
+	movl VMX_spec_ctrl(%_ASM_DI), %edi
+	movl PER_CPU_VAR(x86_spec_ctrl_current), %esi
+	cmp %edi, %esi
+	je .Lspec_ctrl_done
+	mov $MSR_IA32_SPEC_CTRL, %ecx
+	xor %edx, %edx
+	mov %edi, %eax
+	wrmsr
+
+.Lspec_ctrl_done:
+
+	/*
+	 * Since vmentry is serializing on affected CPUs, there's no need for
+	 * an LFENCE to stop speculation from skipping the wrmsr.
+	 */
 
 	/* Load @regs to RAX. */
 	mov (%_ASM_SP), %_ASM_AX
 
 	/* Check if vmlaunch or vmresume is needed */
-	cmpb $0, %bl
+	bt   $VMX_RUN_VMRESUME_SHIFT, %ebx
 
 	/* Load guest registers.  Don't clobber flags. */
-	mov VCPU_RBX(%_ASM_AX), %_ASM_BX
 	mov VCPU_RCX(%_ASM_AX), %_ASM_CX
 	mov VCPU_RDX(%_ASM_AX), %_ASM_DX
+	mov VCPU_RBX(%_ASM_AX), %_ASM_BX
+	mov VCPU_RBP(%_ASM_AX), %_ASM_BP
 	mov VCPU_RSI(%_ASM_AX), %_ASM_SI
 	mov VCPU_RDI(%_ASM_AX), %_ASM_DI
-	mov VCPU_RBP(%_ASM_AX), %_ASM_BP
 #ifdef CONFIG_X86_64
 	mov VCPU_R8 (%_ASM_AX),  %r8
 	mov VCPU_R9 (%_ASM_AX),  %r9
@@ -154,11 +161,40 @@ ENTRY(__vmx_vcpu_run)
 	/* Load guest RAX.  This kills the @regs pointer! */
 	mov VCPU_RAX(%_ASM_AX), %_ASM_AX
 
-	/* Enter guest mode */
-	call vmx_vmenter
+	/* Clobbers EFLAGS.ZF */
+	CLEAR_CPU_BUFFERS
 
-	/* Jump on VM-Fail. */
-	jbe 2f
+	/* Check EFLAGS.CF from the VMX_RUN_VMRESUME bit test above. */
+	jnc .Lvmlaunch
+
+	/*
+	 * After a successful VMRESUME/VMLAUNCH, control flow "magically"
+	 * resumes below at 'vmx_vmexit' due to the VMCS HOST_RIP setting.
+	 * So this isn't a typical function and objtool needs to be told to
+	 * save the unwind state here and restore it below.
+	 */
+	UNWIND_HINT_SAVE
+
+/*
+ * If VMRESUME/VMLAUNCH and corresponding vmexit succeed, execution resumes at
+ * the 'vmx_vmexit' label below.
+ */
+.Lvmresume:
+	vmresume
+	jmp .Lvmfail
+
+.Lvmlaunch:
+	vmlaunch
+	jmp .Lvmfail
+
+	_ASM_EXTABLE(.Lvmresume, .Lfixup)
+	_ASM_EXTABLE(.Lvmlaunch, .Lfixup)
+
+SYM_INNER_LABEL_ALIGN(vmx_vmexit, SYM_L_GLOBAL)
+
+	/* Restore unwind state from before the VMRESUME/VMLAUNCH. */
+	UNWIND_HINT_RESTORE
+	ENDBR
 
 	/* Temporarily save guest's RAX. */
 	push %_ASM_AX
@@ -167,13 +203,13 @@ ENTRY(__vmx_vcpu_run)
 	mov WORD_SIZE(%_ASM_SP), %_ASM_AX
 
 	/* Save all guest registers, including RAX from the stack */
-	__ASM_SIZE(pop) VCPU_RAX(%_ASM_AX)
-	mov %_ASM_BX,   VCPU_RBX(%_ASM_AX)
-	mov %_ASM_CX,   VCPU_RCX(%_ASM_AX)
-	mov %_ASM_DX,   VCPU_RDX(%_ASM_AX)
-	mov %_ASM_SI,   VCPU_RSI(%_ASM_AX)
-	mov %_ASM_DI,   VCPU_RDI(%_ASM_AX)
-	mov %_ASM_BP,   VCPU_RBP(%_ASM_AX)
+	pop           VCPU_RAX(%_ASM_AX)
+	mov %_ASM_CX, VCPU_RCX(%_ASM_AX)
+	mov %_ASM_DX, VCPU_RDX(%_ASM_AX)
+	mov %_ASM_BX, VCPU_RBX(%_ASM_AX)
+	mov %_ASM_BP, VCPU_RBP(%_ASM_AX)
+	mov %_ASM_SI, VCPU_RSI(%_ASM_AX)
+	mov %_ASM_DI, VCPU_RDI(%_ASM_AX)
 #ifdef CONFIG_X86_64
 	mov %r8,  VCPU_R8 (%_ASM_AX)
 	mov %r9,  VCPU_R9 (%_ASM_AX)
@@ -185,24 +221,29 @@ ENTRY(__vmx_vcpu_run)
 	mov %r15, VCPU_R15(%_ASM_AX)
 #endif
 
-	/* Clear RAX to indicate VM-Exit (as opposed to VM-Fail). */
-	xor %eax, %eax
+	/* Clear return value to indicate VM-Exit (as opposed to VM-Fail). */
+	xor %ebx, %ebx
+
+.Lclear_regs:
+	/* Discard @regs.  The register is irrelevant, it just can't be RBX. */
+	pop %_ASM_AX
 
 	/*
-	 * Clear all general purpose registers except RSP and RAX to prevent
+	 * Clear all general purpose registers except RSP and RBX to prevent
 	 * speculative use of the guest's values, even those that are reloaded
 	 * via the stack.  In theory, an L1 cache miss when restoring registers
 	 * could lead to speculative execution with the guest's values.
 	 * Zeroing XORs are dirt cheap, i.e. the extra paranoia is essentially
-	 * free.  RSP and RAX are exempt as RSP is restored by hardware during
-	 * VM-Exit and RAX is explicitly loaded with 0 or 1 to return VM-Fail.
+	 * free.  RSP and RBX are exempt as RSP is restored by hardware during
+	 * VM-Exit and RBX is explicitly loaded with 0 or 1 to hold the return
+	 * value.
 	 */
-1:	xor %ebx, %ebx
+	xor %eax, %eax
 	xor %ecx, %ecx
 	xor %edx, %edx
+	xor %ebp, %ebp
 	xor %esi, %esi
 	xor %edi, %edi
-	xor %ebp, %ebp
 #ifdef CONFIG_X86_64
 	xor %r8d,  %r8d
 	xor %r9d,  %r9d
@@ -214,10 +255,32 @@ ENTRY(__vmx_vcpu_run)
 	xor %r15d, %r15d
 #endif
 
-	/* "POP" @regs. */
-	add $WORD_SIZE, %_ASM_SP
-	pop %_ASM_BX
+	/*
+	 * IMPORTANT: RSB filling and SPEC_CTRL handling must be done before
+	 * the first unbalanced RET after vmexit!
+	 *
+	 * For retpoline or IBRS, RSB filling is needed to prevent poisoned RSB
+	 * entries and (in some cases) RSB underflow.
+	 *
+	 * eIBRS has its own protection against poisoned RSB, so it doesn't
+	 * need the RSB filling sequence.  But it does need to be enabled, and a
+	 * single call to retire, before the first unbalanced RET.
+	 */
 
+	FILL_RETURN_BUFFER %_ASM_CX, RSB_CLEAR_LOOPS, X86_FEATURE_RSB_VMEXIT,\
+			   X86_FEATURE_RSB_VMEXIT_LITE
+
+	pop %_ASM_ARG2	/* @flags */
+	pop %_ASM_ARG1	/* @vmx */
+
+	call vmx_spec_ctrl_restore_host
+
+	CLEAR_BRANCH_HISTORY_VMEXIT
+
+	/* Put return value in AX */
+	mov %_ASM_BX, %_ASM_AX
+
+	pop %_ASM_BX
 #ifdef CONFIG_X86_64
 	pop %r12
 	pop %r13
@@ -228,9 +291,77 @@ ENTRY(__vmx_vcpu_run)
 	pop %edi
 #endif
 	pop %_ASM_BP
-	ret
+	RET
 
-	/* VM-Fail.  Out-of-line to avoid a taken Jcc after VM-Exit. */
-2:	mov $1, %eax
-	jmp 1b
-ENDPROC(__vmx_vcpu_run)
+.Lfixup:
+	cmpb $0, _ASM_RIP(kvm_rebooting)
+	jne .Lvmfail
+	ud2
+.Lvmfail:
+	/* VM-Fail: set return value to 1 */
+	mov $1, %_ASM_BX
+	jmp .Lclear_regs
+
+SYM_FUNC_END(__vmx_vcpu_run)
+
+SYM_FUNC_START(vmx_do_nmi_irqoff)
+	VMX_DO_EVENT_IRQOFF call asm_exc_nmi_kvm_vmx
+SYM_FUNC_END(vmx_do_nmi_irqoff)
+
+#ifndef CONFIG_CC_HAS_ASM_GOTO_OUTPUT
+
+/**
+ * vmread_error_trampoline - Trampoline from inline asm to vmread_error()
+ * @field:	VMCS field encoding that failed
+ * @fault:	%true if the VMREAD faulted, %false if it failed
+ *
+ * Save and restore volatile registers across a call to vmread_error().  Note,
+ * all parameters are passed on the stack.
+ */
+SYM_FUNC_START(vmread_error_trampoline)
+	push %_ASM_BP
+	mov  %_ASM_SP, %_ASM_BP
+
+	push %_ASM_AX
+	push %_ASM_CX
+	push %_ASM_DX
+#ifdef CONFIG_X86_64
+	push %rdi
+	push %rsi
+	push %r8
+	push %r9
+	push %r10
+	push %r11
+#endif
+
+	/* Load @field and @fault to arg1 and arg2 respectively. */
+	mov 3*WORD_SIZE(%_ASM_BP), %_ASM_ARG2
+	mov 2*WORD_SIZE(%_ASM_BP), %_ASM_ARG1
+
+	call vmread_error_trampoline2
+
+	/* Zero out @fault, which will be popped into the result register. */
+	_ASM_MOV $0, 3*WORD_SIZE(%_ASM_BP)
+
+#ifdef CONFIG_X86_64
+	pop %r11
+	pop %r10
+	pop %r9
+	pop %r8
+	pop %rsi
+	pop %rdi
+#endif
+	pop %_ASM_DX
+	pop %_ASM_CX
+	pop %_ASM_AX
+	pop %_ASM_BP
+
+	RET
+SYM_FUNC_END(vmread_error_trampoline)
+#endif
+
+.section .text, "ax"
+
+SYM_FUNC_START(vmx_do_interrupt_irqoff)
+	VMX_DO_EVENT_IRQOFF CALL_NOSPEC _ASM_ARG1
+SYM_FUNC_END(vmx_do_interrupt_irqoff)

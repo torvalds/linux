@@ -4,10 +4,10 @@
 /*
  * Word-at-a-time interfaces for PowerPC.
  */
-
-#include <linux/kernel.h>
+#include <linux/bitops.h>
+#include <linux/wordpart.h>
 #include <asm/asm-compat.h>
-#include <asm/ppc_asm.h>
+#include <asm/extable.h>
 
 #ifdef __BIG_ENDIAN__
 
@@ -34,7 +34,7 @@ static inline long find_zero(unsigned long mask)
 	return leading_zero_bits >> 3;
 }
 
-static inline bool has_zero(unsigned long val, unsigned long *data, const struct word_at_a_time *c)
+static inline unsigned long has_zero(unsigned long val, unsigned long *data, const struct word_at_a_time *c)
 {
 	unsigned long rhs = val | c->low_bits;
 	*data = rhs;

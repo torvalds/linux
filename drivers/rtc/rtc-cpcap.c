@@ -56,14 +56,14 @@ static void cpcap2rtc_time(struct rtc_time *rtc, struct cpcap_time *cpcap)
 	tod = (cpcap->tod1 & TOD1_MASK) | ((cpcap->tod2 & TOD2_MASK) << 8);
 	time = tod + ((cpcap->day & DAY_MASK) * SECS_PER_DAY);
 
-	rtc_time_to_tm(time, rtc);
+	rtc_time64_to_tm(time, rtc);
 }
 
 static void rtc2cpcap_time(struct cpcap_time *cpcap, struct rtc_time *rtc)
 {
 	unsigned long time;
 
-	rtc_tm_to_time(rtc, &time);
+	time = rtc_tm_to_time64(rtc);
 
 	cpcap->day = time / SECS_PER_DAY;
 	time %= SECS_PER_DAY;
@@ -256,11 +256,12 @@ static int cpcap_rtc_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	platform_set_drvdata(pdev, rtc);
-	rtc->rtc_dev = devm_rtc_device_register(dev, "cpcap_rtc",
-						&cpcap_rtc_ops, THIS_MODULE);
-
+	rtc->rtc_dev = devm_rtc_allocate_device(dev);
 	if (IS_ERR(rtc->rtc_dev))
 		return PTR_ERR(rtc->rtc_dev);
+
+	rtc->rtc_dev->ops = &cpcap_rtc_ops;
+	rtc->rtc_dev->range_max = (timeu64_t) (DAY_MASK + 1) * SECS_PER_DAY - 1;
 
 	err = cpcap_get_vendor(dev, rtc->regmap, &rtc->vendor);
 	if (err)
@@ -268,7 +269,8 @@ static int cpcap_rtc_probe(struct platform_device *pdev)
 
 	rtc->alarm_irq = platform_get_irq(pdev, 0);
 	err = devm_request_threaded_irq(dev, rtc->alarm_irq, NULL,
-					cpcap_rtc_alarm_irq, IRQF_TRIGGER_NONE,
+					cpcap_rtc_alarm_irq,
+					IRQF_TRIGGER_NONE | IRQF_ONESHOT,
 					"rtc_alarm", rtc);
 	if (err) {
 		dev_err(dev, "Could not request alarm irq: %d\n", err);
@@ -284,7 +286,8 @@ static int cpcap_rtc_probe(struct platform_device *pdev)
 	 */
 	rtc->update_irq = platform_get_irq(pdev, 1);
 	err = devm_request_threaded_irq(dev, rtc->update_irq, NULL,
-					cpcap_rtc_update_irq, IRQF_TRIGGER_NONE,
+					cpcap_rtc_update_irq,
+					IRQF_TRIGGER_NONE | IRQF_ONESHOT,
 					"rtc_1hz", rtc);
 	if (err) {
 		dev_err(dev, "Could not request update irq: %d\n", err);
@@ -298,7 +301,7 @@ static int cpcap_rtc_probe(struct platform_device *pdev)
 		/* ignore error and continue without wakeup support */
 	}
 
-	return 0;
+	return devm_rtc_register_device(rtc->rtc_dev);
 }
 
 static const struct of_device_id cpcap_rtc_of_match[] = {

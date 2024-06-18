@@ -8,7 +8,7 @@
 #include <asm/asm.h>
 
 /* void *memset(void *, int, size_t) */
-ENTRY(memset)
+SYM_FUNC_START(__memset)
 	move t0, a0  /* Preserve return value */
 
 	/* Defer to byte-oriented fill for small sizes */
@@ -109,4 +109,5 @@ ENTRY(memset)
 	bltu t0, a3, 5b
 6:
 	ret
-END(memset)
+SYM_FUNC_END(__memset)
+SYM_FUNC_ALIAS_WEAK(memset, __memset)

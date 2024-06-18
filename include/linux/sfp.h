@@ -275,68 +275,96 @@ struct sfp_diag {
 	__be16 cal_v_offset;
 } __packed;
 
+/* SFF8024 defined constants */
+enum {
+	SFF8024_ID_UNK			= 0x00,
+	SFF8024_ID_SFF_8472		= 0x02,
+	SFF8024_ID_SFP			= 0x03,
+	SFF8024_ID_DWDM_SFP		= 0x0b,
+	SFF8024_ID_QSFP_8438		= 0x0c,
+	SFF8024_ID_QSFP_8436_8636	= 0x0d,
+	SFF8024_ID_QSFP28_8636		= 0x11,
+
+	SFF8024_ENCODING_UNSPEC		= 0x00,
+	SFF8024_ENCODING_8B10B		= 0x01,
+	SFF8024_ENCODING_4B5B		= 0x02,
+	SFF8024_ENCODING_NRZ		= 0x03,
+	SFF8024_ENCODING_8472_MANCHESTER= 0x04,
+	SFF8024_ENCODING_8472_SONET	= 0x05,
+	SFF8024_ENCODING_8472_64B66B	= 0x06,
+	SFF8024_ENCODING_8436_MANCHESTER= 0x06,
+	SFF8024_ENCODING_8436_SONET	= 0x04,
+	SFF8024_ENCODING_8436_64B66B	= 0x05,
+	SFF8024_ENCODING_256B257B	= 0x07,
+	SFF8024_ENCODING_PAM4		= 0x08,
+
+	SFF8024_CONNECTOR_UNSPEC	= 0x00,
+	/* codes 01-05 not supportable on SFP, but some modules have single SC */
+	SFF8024_CONNECTOR_SC		= 0x01,
+	SFF8024_CONNECTOR_FIBERJACK	= 0x06,
+	SFF8024_CONNECTOR_LC		= 0x07,
+	SFF8024_CONNECTOR_MT_RJ		= 0x08,
+	SFF8024_CONNECTOR_MU		= 0x09,
+	SFF8024_CONNECTOR_SG		= 0x0a,
+	SFF8024_CONNECTOR_OPTICAL_PIGTAIL= 0x0b,
+	SFF8024_CONNECTOR_MPO_1X12	= 0x0c,
+	SFF8024_CONNECTOR_MPO_2X16	= 0x0d,
+	SFF8024_CONNECTOR_HSSDC_II	= 0x20,
+	SFF8024_CONNECTOR_COPPER_PIGTAIL= 0x21,
+	SFF8024_CONNECTOR_RJ45		= 0x22,
+	SFF8024_CONNECTOR_NOSEPARATE	= 0x23,
+	SFF8024_CONNECTOR_MXC_2X16	= 0x24,
+
+	SFF8024_ECC_UNSPEC		= 0x00,
+	SFF8024_ECC_100G_25GAUI_C2M_AOC	= 0x01,
+	SFF8024_ECC_100GBASE_SR4_25GBASE_SR = 0x02,
+	SFF8024_ECC_100GBASE_LR4_25GBASE_LR = 0x03,
+	SFF8024_ECC_100GBASE_ER4_25GBASE_ER = 0x04,
+	SFF8024_ECC_100GBASE_SR10	= 0x05,
+	SFF8024_ECC_100GBASE_CR4	= 0x0b,
+	SFF8024_ECC_25GBASE_CR_S	= 0x0c,
+	SFF8024_ECC_25GBASE_CR_N	= 0x0d,
+	SFF8024_ECC_10GBASE_T_SFI	= 0x16,
+	SFF8024_ECC_10GBASE_T_SR	= 0x1c,
+	SFF8024_ECC_5GBASE_T		= 0x1d,
+	SFF8024_ECC_2_5GBASE_T		= 0x1e,
+};
+
 /* SFP EEPROM registers */
 enum {
-	SFP_PHYS_ID			= 0x00,
-	SFP_PHYS_EXT_ID			= 0x01,
-	SFP_CONNECTOR			= 0x02,
-	SFP_COMPLIANCE			= 0x03,
-	SFP_ENCODING			= 0x0b,
-	SFP_BR_NOMINAL			= 0x0c,
-	SFP_RATE_ID			= 0x0d,
-	SFP_LINK_LEN_SM_KM		= 0x0e,
-	SFP_LINK_LEN_SM_100M		= 0x0f,
-	SFP_LINK_LEN_50UM_OM2_10M	= 0x10,
-	SFP_LINK_LEN_62_5UM_OM1_10M	= 0x11,
-	SFP_LINK_LEN_COPPER_1M		= 0x12,
-	SFP_LINK_LEN_50UM_OM4_10M	= 0x12,
-	SFP_LINK_LEN_50UM_OM3_10M	= 0x13,
-	SFP_VENDOR_NAME			= 0x14,
-	SFP_VENDOR_OUI			= 0x25,
-	SFP_VENDOR_PN			= 0x28,
-	SFP_VENDOR_REV			= 0x38,
-	SFP_OPTICAL_WAVELENGTH_MSB	= 0x3c,
-	SFP_OPTICAL_WAVELENGTH_LSB	= 0x3d,
-	SFP_CABLE_SPEC			= 0x3c,
-	SFP_CC_BASE			= 0x3f,
-	SFP_OPTIONS			= 0x40,	/* 2 bytes, MSB, LSB */
-	SFP_BR_MAX			= 0x42,
-	SFP_BR_MIN			= 0x43,
-	SFP_VENDOR_SN			= 0x44,
-	SFP_DATECODE			= 0x54,
-	SFP_DIAGMON			= 0x5c,
-	SFP_ENHOPTS			= 0x5d,
-	SFP_SFF8472_COMPLIANCE		= 0x5e,
-	SFP_CC_EXT			= 0x5f,
+	SFP_PHYS_ID			= 0,
 
-	SFP_PHYS_ID_SFF			= 0x02,
-	SFP_PHYS_ID_SFP			= 0x03,
+	SFP_PHYS_EXT_ID			= 1,
 	SFP_PHYS_EXT_ID_SFP		= 0x04,
-	SFP_CONNECTOR_UNSPEC		= 0x00,
-	/* codes 01-05 not supportable on SFP, but some modules have single SC */
-	SFP_CONNECTOR_SC		= 0x01,
-	SFP_CONNECTOR_FIBERJACK		= 0x06,
-	SFP_CONNECTOR_LC		= 0x07,
-	SFP_CONNECTOR_MT_RJ		= 0x08,
-	SFP_CONNECTOR_MU		= 0x09,
-	SFP_CONNECTOR_SG		= 0x0a,
-	SFP_CONNECTOR_OPTICAL_PIGTAIL	= 0x0b,
-	SFP_CONNECTOR_MPO_1X12		= 0x0c,
-	SFP_CONNECTOR_MPO_2X16		= 0x0d,
-	SFP_CONNECTOR_HSSDC_II		= 0x20,
-	SFP_CONNECTOR_COPPER_PIGTAIL	= 0x21,
-	SFP_CONNECTOR_RJ45		= 0x22,
-	SFP_CONNECTOR_NOSEPARATE	= 0x23,
-	SFP_CONNECTOR_MXC_2X16		= 0x24,
-	SFP_ENCODING_UNSPEC		= 0x00,
-	SFP_ENCODING_8B10B		= 0x01,
-	SFP_ENCODING_4B5B		= 0x02,
-	SFP_ENCODING_NRZ		= 0x03,
-	SFP_ENCODING_8472_MANCHESTER	= 0x04,
-	SFP_ENCODING_8472_SONET		= 0x05,
-	SFP_ENCODING_8472_64B66B	= 0x06,
-	SFP_ENCODING_256B257B		= 0x07,
-	SFP_ENCODING_PAM4		= 0x08,
+
+	SFP_CONNECTOR			= 2,
+	SFP_COMPLIANCE			= 3,
+	SFP_ENCODING			= 11,
+	SFP_BR_NOMINAL			= 12,
+	SFP_RATE_ID			= 13,
+	SFF_RID_8079			= 0x01,
+	SFF_RID_8431_RX_ONLY		= 0x02,
+	SFF_RID_8431_TX_ONLY		= 0x04,
+	SFF_RID_8431			= 0x06,
+	SFF_RID_10G8G			= 0x0e,
+
+	SFP_LINK_LEN_SM_KM		= 14,
+	SFP_LINK_LEN_SM_100M		= 15,
+	SFP_LINK_LEN_50UM_OM2_10M	= 16,
+	SFP_LINK_LEN_62_5UM_OM1_10M	= 17,
+	SFP_LINK_LEN_COPPER_1M		= 18,
+	SFP_LINK_LEN_50UM_OM4_10M	= 18,
+	SFP_LINK_LEN_50UM_OM3_10M	= 19,
+	SFP_VENDOR_NAME			= 20,
+	SFP_VENDOR_OUI			= 37,
+	SFP_VENDOR_PN			= 40,
+	SFP_VENDOR_REV			= 56,
+	SFP_OPTICAL_WAVELENGTH_MSB	= 60,
+	SFP_OPTICAL_WAVELENGTH_LSB	= 61,
+	SFP_CABLE_SPEC			= 60,
+	SFP_CC_BASE			= 63,
+
+	SFP_OPTIONS			= 64,	/* 2 bytes, MSB, LSB */
 	SFP_OPTIONS_HIGH_POWER_LEVEL	= BIT(13),
 	SFP_OPTIONS_PAGING_A2		= BIT(12),
 	SFP_OPTIONS_RETIMER		= BIT(11),
@@ -350,11 +378,20 @@ enum {
 	SFP_OPTIONS_TX_FAULT		= BIT(3),
 	SFP_OPTIONS_LOS_INVERTED	= BIT(2),
 	SFP_OPTIONS_LOS_NORMAL		= BIT(1),
+
+	SFP_BR_MAX			= 66,
+	SFP_BR_MIN			= 67,
+	SFP_VENDOR_SN			= 68,
+	SFP_DATECODE			= 84,
+
+	SFP_DIAGMON			= 92,
 	SFP_DIAGMON_DDM			= BIT(6),
 	SFP_DIAGMON_INT_CAL		= BIT(5),
 	SFP_DIAGMON_EXT_CAL		= BIT(4),
 	SFP_DIAGMON_RXPWR_AVG		= BIT(3),
 	SFP_DIAGMON_ADDRMODE		= BIT(2),
+
+	SFP_ENHOPTS			= 93,
 	SFP_ENHOPTS_ALARMWARN		= BIT(7),
 	SFP_ENHOPTS_SOFT_TX_DISABLE	= BIT(6),
 	SFP_ENHOPTS_SOFT_TX_FAULT	= BIT(5),
@@ -362,6 +399,8 @@ enum {
 	SFP_ENHOPTS_SOFT_RATE_SELECT	= BIT(3),
 	SFP_ENHOPTS_APP_SELECT_SFF8079	= BIT(2),
 	SFP_ENHOPTS_SOFT_RATE_SFF8431	= BIT(1),
+
+	SFP_SFF8472_COMPLIANCE		= 94,
 	SFP_SFF8472_COMPLIANCE_NONE	= 0x00,
 	SFP_SFF8472_COMPLIANCE_REV9_3	= 0x01,
 	SFP_SFF8472_COMPLIANCE_REV9_5	= 0x02,
@@ -371,64 +410,71 @@ enum {
 	SFP_SFF8472_COMPLIANCE_REV11_3	= 0x06,
 	SFP_SFF8472_COMPLIANCE_REV11_4	= 0x07,
 	SFP_SFF8472_COMPLIANCE_REV12_0	= 0x08,
+
+	SFP_CC_EXT			= 95,
 };
 
 /* SFP Diagnostics */
 enum {
 	/* Alarm and warnings stored MSB at lower address then LSB */
-	SFP_TEMP_HIGH_ALARM		= 0x00,
-	SFP_TEMP_LOW_ALARM		= 0x02,
-	SFP_TEMP_HIGH_WARN		= 0x04,
-	SFP_TEMP_LOW_WARN		= 0x06,
-	SFP_VOLT_HIGH_ALARM		= 0x08,
-	SFP_VOLT_LOW_ALARM		= 0x0a,
-	SFP_VOLT_HIGH_WARN		= 0x0c,
-	SFP_VOLT_LOW_WARN		= 0x0e,
-	SFP_BIAS_HIGH_ALARM		= 0x10,
-	SFP_BIAS_LOW_ALARM		= 0x12,
-	SFP_BIAS_HIGH_WARN		= 0x14,
-	SFP_BIAS_LOW_WARN		= 0x16,
-	SFP_TXPWR_HIGH_ALARM		= 0x18,
-	SFP_TXPWR_LOW_ALARM		= 0x1a,
-	SFP_TXPWR_HIGH_WARN		= 0x1c,
-	SFP_TXPWR_LOW_WARN		= 0x1e,
-	SFP_RXPWR_HIGH_ALARM		= 0x20,
-	SFP_RXPWR_LOW_ALARM		= 0x22,
-	SFP_RXPWR_HIGH_WARN		= 0x24,
-	SFP_RXPWR_LOW_WARN		= 0x26,
-	SFP_LASER_TEMP_HIGH_ALARM	= 0x28,
-	SFP_LASER_TEMP_LOW_ALARM	= 0x2a,
-	SFP_LASER_TEMP_HIGH_WARN	= 0x2c,
-	SFP_LASER_TEMP_LOW_WARN		= 0x2e,
-	SFP_TEC_CUR_HIGH_ALARM		= 0x30,
-	SFP_TEC_CUR_LOW_ALARM		= 0x32,
-	SFP_TEC_CUR_HIGH_WARN		= 0x34,
-	SFP_TEC_CUR_LOW_WARN		= 0x36,
-	SFP_CAL_RXPWR4			= 0x38,
-	SFP_CAL_RXPWR3			= 0x3c,
-	SFP_CAL_RXPWR2			= 0x40,
-	SFP_CAL_RXPWR1			= 0x44,
-	SFP_CAL_RXPWR0			= 0x48,
-	SFP_CAL_TXI_SLOPE		= 0x4c,
-	SFP_CAL_TXI_OFFSET		= 0x4e,
-	SFP_CAL_TXPWR_SLOPE		= 0x50,
-	SFP_CAL_TXPWR_OFFSET		= 0x52,
-	SFP_CAL_T_SLOPE			= 0x54,
-	SFP_CAL_T_OFFSET		= 0x56,
-	SFP_CAL_V_SLOPE			= 0x58,
-	SFP_CAL_V_OFFSET		= 0x5a,
-	SFP_CHKSUM			= 0x5f,
+	SFP_TEMP_HIGH_ALARM		= 0,
+	SFP_TEMP_LOW_ALARM		= 2,
+	SFP_TEMP_HIGH_WARN		= 4,
+	SFP_TEMP_LOW_WARN		= 6,
+	SFP_VOLT_HIGH_ALARM		= 8,
+	SFP_VOLT_LOW_ALARM		= 10,
+	SFP_VOLT_HIGH_WARN		= 12,
+	SFP_VOLT_LOW_WARN		= 14,
+	SFP_BIAS_HIGH_ALARM		= 16,
+	SFP_BIAS_LOW_ALARM		= 18,
+	SFP_BIAS_HIGH_WARN		= 20,
+	SFP_BIAS_LOW_WARN		= 22,
+	SFP_TXPWR_HIGH_ALARM		= 24,
+	SFP_TXPWR_LOW_ALARM		= 26,
+	SFP_TXPWR_HIGH_WARN		= 28,
+	SFP_TXPWR_LOW_WARN		= 30,
+	SFP_RXPWR_HIGH_ALARM		= 32,
+	SFP_RXPWR_LOW_ALARM		= 34,
+	SFP_RXPWR_HIGH_WARN		= 36,
+	SFP_RXPWR_LOW_WARN		= 38,
+	SFP_LASER_TEMP_HIGH_ALARM	= 40,
+	SFP_LASER_TEMP_LOW_ALARM	= 42,
+	SFP_LASER_TEMP_HIGH_WARN	= 44,
+	SFP_LASER_TEMP_LOW_WARN		= 46,
+	SFP_TEC_CUR_HIGH_ALARM		= 48,
+	SFP_TEC_CUR_LOW_ALARM		= 50,
+	SFP_TEC_CUR_HIGH_WARN		= 52,
+	SFP_TEC_CUR_LOW_WARN		= 54,
+	SFP_CAL_RXPWR4			= 56,
+	SFP_CAL_RXPWR3			= 60,
+	SFP_CAL_RXPWR2			= 64,
+	SFP_CAL_RXPWR1			= 68,
+	SFP_CAL_RXPWR0			= 72,
+	SFP_CAL_TXI_SLOPE		= 76,
+	SFP_CAL_TXI_OFFSET		= 78,
+	SFP_CAL_TXPWR_SLOPE		= 80,
+	SFP_CAL_TXPWR_OFFSET		= 82,
+	SFP_CAL_T_SLOPE			= 84,
+	SFP_CAL_T_OFFSET		= 86,
+	SFP_CAL_V_SLOPE			= 88,
+	SFP_CAL_V_OFFSET		= 90,
+	SFP_CHKSUM			= 95,
 
-	SFP_TEMP			= 0x60,
-	SFP_VCC				= 0x62,
-	SFP_TX_BIAS			= 0x64,
-	SFP_TX_POWER			= 0x66,
-	SFP_RX_POWER			= 0x68,
-	SFP_LASER_TEMP			= 0x6a,
-	SFP_TEC_CUR			= 0x6c,
+	SFP_TEMP			= 96,
+	SFP_VCC				= 98,
+	SFP_TX_BIAS			= 100,
+	SFP_TX_POWER			= 102,
+	SFP_RX_POWER			= 104,
+	SFP_LASER_TEMP			= 106,
+	SFP_TEC_CUR			= 108,
 
-	SFP_STATUS			= 0x6e,
-	SFP_ALARM0			= 0x70,
+	SFP_STATUS			= 110,
+	SFP_STATUS_TX_DISABLE		= BIT(7),
+	SFP_STATUS_TX_DISABLE_FORCE	= BIT(6),
+	SFP_STATUS_RS0_SELECT		= BIT(3),
+	SFP_STATUS_TX_FAULT		= BIT(2),
+	SFP_STATUS_RX_LOS		= BIT(1),
+	SFP_ALARM0			= 112,
 	SFP_ALARM0_TEMP_HIGH		= BIT(7),
 	SFP_ALARM0_TEMP_LOW		= BIT(6),
 	SFP_ALARM0_VCC_HIGH		= BIT(5),
@@ -438,11 +484,11 @@ enum {
 	SFP_ALARM0_TXPWR_HIGH		= BIT(1),
 	SFP_ALARM0_TXPWR_LOW		= BIT(0),
 
-	SFP_ALARM1			= 0x71,
+	SFP_ALARM1			= 113,
 	SFP_ALARM1_RXPWR_HIGH		= BIT(7),
 	SFP_ALARM1_RXPWR_LOW		= BIT(6),
 
-	SFP_WARN0			= 0x74,
+	SFP_WARN0			= 116,
 	SFP_WARN0_TEMP_HIGH		= BIT(7),
 	SFP_WARN0_TEMP_LOW		= BIT(6),
 	SFP_WARN0_VCC_HIGH		= BIT(5),
@@ -452,13 +498,16 @@ enum {
 	SFP_WARN0_TXPWR_HIGH		= BIT(1),
 	SFP_WARN0_TXPWR_LOW		= BIT(0),
 
-	SFP_WARN1			= 0x75,
+	SFP_WARN1			= 117,
 	SFP_WARN1_RXPWR_HIGH		= BIT(7),
 	SFP_WARN1_RXPWR_LOW		= BIT(6),
 
-	SFP_EXT_STATUS			= 0x76,
-	SFP_VSL				= 0x78,
-	SFP_PAGE			= 0x7f,
+	SFP_EXT_STATUS			= 118,
+	SFP_EXT_STATUS_RS1_SELECT	= BIT(3),
+	SFP_EXT_STATUS_PWRLVL_SELECT	= BIT(0),
+
+	SFP_VSL				= 120,
+	SFP_PAGE			= 127,
 };
 
 struct fwnode_handle;
@@ -475,6 +524,8 @@ struct sfp_bus;
  * @module_insert: called after a module has been detected to determine
  *   whether the module is supported for the upstream device.
  * @module_remove: called after the module has been removed.
+ * @module_start: called after the PHY probe step
+ * @module_stop: called before the PHY is removed
  * @link_down: called when the link is non-operational for whatever
  *   reason.
  * @link_up: called when the link is operational.
@@ -488,6 +539,8 @@ struct sfp_upstream_ops {
 	void (*detach)(void *priv, struct sfp_bus *bus);
 	int (*module_insert)(void *priv, const struct sfp_eeprom_id *id);
 	void (*module_remove)(void *priv);
+	int (*module_start)(void *priv);
+	void (*module_stop)(void *priv);
 	void (*link_down)(void *priv);
 	void (*link_up)(void *priv);
 	int (*connect_phy)(void *priv, struct phy_device *);
@@ -497,21 +550,26 @@ struct sfp_upstream_ops {
 #if IS_ENABLED(CONFIG_SFP)
 int sfp_parse_port(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 		   unsigned long *support);
+bool sfp_may_have_phy(struct sfp_bus *bus, const struct sfp_eeprom_id *id);
 void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
-		       unsigned long *support);
+		       unsigned long *support, unsigned long *interfaces);
 phy_interface_t sfp_select_interface(struct sfp_bus *bus,
-				     const struct sfp_eeprom_id *id,
-				     unsigned long *link_modes);
+				     const unsigned long *link_modes);
 
 int sfp_get_module_info(struct sfp_bus *bus, struct ethtool_modinfo *modinfo);
 int sfp_get_module_eeprom(struct sfp_bus *bus, struct ethtool_eeprom *ee,
 			  u8 *data);
+int sfp_get_module_eeprom_by_page(struct sfp_bus *bus,
+				  const struct ethtool_module_eeprom *page,
+				  struct netlink_ext_ack *extack);
 void sfp_upstream_start(struct sfp_bus *bus);
 void sfp_upstream_stop(struct sfp_bus *bus);
-struct sfp_bus *sfp_register_upstream(struct fwnode_handle *fwnode,
-				      void *upstream,
-				      const struct sfp_upstream_ops *ops);
-void sfp_unregister_upstream(struct sfp_bus *bus);
+void sfp_upstream_set_signal_rate(struct sfp_bus *bus, unsigned int rate_kbd);
+void sfp_bus_put(struct sfp_bus *bus);
+struct sfp_bus *sfp_bus_find_fwnode(const struct fwnode_handle *fwnode);
+int sfp_bus_add_upstream(struct sfp_bus *bus, void *upstream,
+			 const struct sfp_upstream_ops *ops);
+void sfp_bus_del_upstream(struct sfp_bus *bus);
 #else
 static inline int sfp_parse_port(struct sfp_bus *bus,
 				 const struct sfp_eeprom_id *id,
@@ -520,15 +578,21 @@ static inline int sfp_parse_port(struct sfp_bus *bus,
 	return PORT_OTHER;
 }
 
+static inline bool sfp_may_have_phy(struct sfp_bus *bus,
+				    const struct sfp_eeprom_id *id)
+{
+	return false;
+}
+
 static inline void sfp_parse_support(struct sfp_bus *bus,
 				     const struct sfp_eeprom_id *id,
-				     unsigned long *support)
+				     unsigned long *support,
+				     unsigned long *interfaces)
 {
 }
 
 static inline phy_interface_t sfp_select_interface(struct sfp_bus *bus,
-						   const struct sfp_eeprom_id *id,
-						   unsigned long *link_modes)
+						const unsigned long *link_modes)
 {
 	return PHY_INTERFACE_MODE_NA;
 }
@@ -545,6 +609,13 @@ static inline int sfp_get_module_eeprom(struct sfp_bus *bus,
 	return -EOPNOTSUPP;
 }
 
+static inline int sfp_get_module_eeprom_by_page(struct sfp_bus *bus,
+						const struct ethtool_module_eeprom *page,
+						struct netlink_ext_ack *extack)
+{
+	return -EOPNOTSUPP;
+}
+
 static inline void sfp_upstream_start(struct sfp_bus *bus)
 {
 }
@@ -553,14 +624,28 @@ static inline void sfp_upstream_stop(struct sfp_bus *bus)
 {
 }
 
-static inline struct sfp_bus *sfp_register_upstream(
-	struct fwnode_handle *fwnode, void *upstream,
-	const struct sfp_upstream_ops *ops)
+static inline void sfp_upstream_set_signal_rate(struct sfp_bus *bus,
+						unsigned int rate_kbd)
 {
-	return (struct sfp_bus *)-1;
 }
 
-static inline void sfp_unregister_upstream(struct sfp_bus *bus)
+static inline void sfp_bus_put(struct sfp_bus *bus)
+{
+}
+
+static inline struct sfp_bus *
+sfp_bus_find_fwnode(const struct fwnode_handle *fwnode)
+{
+	return NULL;
+}
+
+static inline int sfp_bus_add_upstream(struct sfp_bus *bus, void *upstream,
+				       const struct sfp_upstream_ops *ops)
+{
+	return 0;
+}
+
+static inline void sfp_bus_del_upstream(struct sfp_bus *bus)
 {
 }
 #endif

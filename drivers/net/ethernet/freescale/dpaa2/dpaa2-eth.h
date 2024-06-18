@@ -1,14 +1,18 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause) */
 /* Copyright 2014-2016 Freescale Semiconductor Inc.
- * Copyright 2016 NXP
+ * Copyright 2016-2022 NXP
  */
 
 #ifndef __DPAA2_ETH_H
 #define __DPAA2_ETH_H
 
+#include <linux/dcbnl.h>
 #include <linux/netdevice.h>
 #include <linux/if_vlan.h>
 #include <linux/fsl/mc.h>
+#include <linux/net_tstamp.h>
+#include <net/devlink.h>
+#include <net/xdp.h>
 
 #include <soc/fsl/dpaa2-io.h>
 #include <soc/fsl/dpaa2-fd.h>
@@ -17,6 +21,7 @@
 
 #include "dpaa2-eth-trace.h"
 #include "dpaa2-eth-debugfs.h"
+#include "dpaa2-mac.h"
 
 #define DPAA2_WRIOP_VERSION(x, y, z) ((x) << 10 | (y) << 5 | (z) << 0)
 
@@ -35,26 +40,54 @@
 /* Convert L3 MTU to L2 MFL */
 #define DPAA2_ETH_L2_MAX_FRM(mtu)	((mtu) + VLAN_ETH_HLEN)
 
-/* Set the taildrop threshold (in bytes) to allow the enqueue of several jumbo
- * frames in the Rx queues (length of the current frame is not
- * taken into account when making the taildrop decision)
+/* Set the taildrop threshold (in bytes) to allow the enqueue of a large
+ * enough number of jumbo frames in the Rx queues (length of the current
+ * frame is not taken into account when making the taildrop decision)
  */
-#define DPAA2_ETH_TAILDROP_THRESH	(64 * 1024)
+#define DPAA2_ETH_FQ_TAILDROP_THRESH	(1024 * 1024)
+
+/* Maximum burst size value for Tx shaping */
+#define DPAA2_ETH_MAX_BURST_SIZE	0xF7FF
 
 /* Maximum number of Tx confirmation frames to be processed
  * in a single NAPI call
  */
 #define DPAA2_ETH_TXCONF_PER_NAPI	256
 
-/* Buffer quota per queue. Must be large enough such that for minimum sized
- * frames taildrop kicks in before the bpool gets depleted, so we compute
- * how many 64B frames fit inside the taildrop threshold and add a margin
- * to accommodate the buffer refill delay.
+/* Maximum number of Tx frames to be processed in a single NAPI
+ * call when AF_XDP is running. Bind it to DPAA2_ETH_TXCONF_PER_NAPI
+ * to maximize the throughput.
  */
-#define DPAA2_ETH_MAX_FRAMES_PER_QUEUE	(DPAA2_ETH_TAILDROP_THRESH / 64)
-#define DPAA2_ETH_NUM_BUFS		(DPAA2_ETH_MAX_FRAMES_PER_QUEUE + 256)
+#define DPAA2_ETH_TX_ZC_PER_NAPI	DPAA2_ETH_TXCONF_PER_NAPI
+
+/* Buffer qouta per channel. We want to keep in check number of ingress frames
+ * in flight: for small sized frames, congestion group taildrop may kick in
+ * first; for large sizes, Rx FQ taildrop threshold will ensure only a
+ * reasonable number of frames will be pending at any given time.
+ * Ingress frame drop due to buffer pool depletion should be a corner case only
+ */
+#define DPAA2_ETH_NUM_BUFS		1280
 #define DPAA2_ETH_REFILL_THRESH \
 	(DPAA2_ETH_NUM_BUFS - DPAA2_ETH_BUFS_PER_CMD)
+
+/* Congestion group taildrop threshold: number of frames allowed to accumulate
+ * at any moment in a group of Rx queues belonging to the same traffic class.
+ * Choose value such that we don't risk depleting the buffer pool before the
+ * taildrop kicks in
+ */
+#define DPAA2_ETH_CG_TAILDROP_THRESH(priv)				\
+	(1024 * dpaa2_eth_queue_count(priv) / dpaa2_eth_tc_count(priv))
+
+/* Congestion group notification threshold: when this many frames accumulate
+ * on the Rx queues belonging to the same TC, the MAC is instructed to send
+ * PFC frames for that TC.
+ * When number of pending frames drops below exit threshold transmission of
+ * PFC frames is stopped.
+ */
+#define DPAA2_ETH_CN_THRESH_ENTRY(priv) \
+	(DPAA2_ETH_CG_TAILDROP_THRESH(priv) / 2)
+#define DPAA2_ETH_CN_THRESH_EXIT(priv) \
+	(DPAA2_ETH_CN_THRESH_ENTRY(priv) * 3 / 4)
 
 /* Maximum number of buffers that can be acquired/released through a single
  * QBMan command
@@ -83,6 +116,14 @@
 #define DPAA2_ETH_RX_BUF_ALIGN_REV1	256
 #define DPAA2_ETH_RX_BUF_ALIGN		64
 
+/* The firmware allows assigning multiple buffer pools to a single DPNI -
+ * maximum 8 DPBP objects. By default, only the first DPBP (idx 0) is used for
+ * all queues. Thus, when enabling AF_XDP we must accommodate up to 9 DPBPs
+ * object: the default and 8 other distinct buffer pools, one for each queue.
+ */
+#define DPAA2_ETH_DEFAULT_BP_IDX	0
+#define DPAA2_ETH_MAX_BPS		9
+
 /* We are accommodating a skb backpointer and some S/G info
  * in the frame's software annotation. The hardware
  * options are either 0 or 64, so we choose the latter.
@@ -96,6 +137,8 @@ enum dpaa2_eth_swa_type {
 	DPAA2_ETH_SWA_SINGLE,
 	DPAA2_ETH_SWA_SG,
 	DPAA2_ETH_SWA_XDP,
+	DPAA2_ETH_SWA_XSK,
+	DPAA2_ETH_SWA_SW_TSO,
 };
 
 /* Must keep this struct smaller than DPAA2_ETH_SWA_SIZE */
@@ -104,6 +147,7 @@ struct dpaa2_eth_swa {
 	union {
 		struct {
 			struct sk_buff *skb;
+			int sgt_size;
 		} single;
 		struct {
 			struct sk_buff *skb;
@@ -115,6 +159,16 @@ struct dpaa2_eth_swa {
 			int dma_size;
 			struct xdp_frame *xdpf;
 		} xdp;
+		struct {
+			struct xdp_buff *xdp_buff;
+			int sgt_size;
+		} xsk;
+		struct {
+			struct sk_buff *skb;
+			int num_sg;
+			int sgt_size;
+			int is_last_fd;
+		} tso;
 	};
 };
 
@@ -155,6 +209,49 @@ struct dpaa2_fas {
  */
 #define DPAA2_TS_OFFSET			0x8
 
+/* Frame annotation parse results */
+struct dpaa2_fapr {
+	/* 64-bit word 1 */
+	__le32 faf_lo;
+	__le16 faf_ext;
+	__le16 nxt_hdr;
+	/* 64-bit word 2 */
+	__le64 faf_hi;
+	/* 64-bit word 3 */
+	u8 last_ethertype_offset;
+	u8 vlan_tci_offset_n;
+	u8 vlan_tci_offset_1;
+	u8 llc_snap_offset;
+	u8 eth_offset;
+	u8 ip1_pid_offset;
+	u8 shim_offset_2;
+	u8 shim_offset_1;
+	/* 64-bit word 4 */
+	u8 l5_offset;
+	u8 l4_offset;
+	u8 gre_offset;
+	u8 l3_offset_n;
+	u8 l3_offset_1;
+	u8 mpls_offset_n;
+	u8 mpls_offset_1;
+	u8 pppoe_offset;
+	/* 64-bit word 5 */
+	__le16 running_sum;
+	__le16 gross_running_sum;
+	u8 ipv6_frag_offset;
+	u8 nxt_hdr_offset;
+	u8 routing_hdr_offset_2;
+	u8 routing_hdr_offset_1;
+	/* 64-bit word 6 */
+	u8 reserved[5]; /* Soft-parsing context */
+	u8 ip_proto_offset_n;
+	u8 nxt_hdr_frag_offset;
+	u8 parse_error_code;
+};
+
+#define DPAA2_FAPR_OFFSET		0x10
+#define DPAA2_FAPR_SIZE			sizeof((struct dpaa2_fapr))
+
 /* Frame annotation egress action descriptor */
 #define DPAA2_FAEAD_OFFSET		0x58
 
@@ -168,6 +265,24 @@ struct dpaa2_faead {
 #define DPAA2_FAEAD_UPDV		0x00001000
 #define DPAA2_FAEAD_EBDDV		0x00002000
 #define DPAA2_FAEAD_UPD			0x00000010
+
+struct ptp_tstamp {
+	u16 sec_msb;
+	u32 sec_lsb;
+	u32 nsec;
+};
+
+static inline void ns_to_ptp_tstamp(struct ptp_tstamp *tstamp, u64 ns)
+{
+	u64 sec, nsec;
+
+	sec = ns;
+	nsec = do_div(sec, 1000000000);
+
+	tstamp->sec_lsb = sec & 0xFFFFFFFF;
+	tstamp->sec_msb = (sec >> 32) & 0xFFFF;
+	tstamp->nsec = nsec;
+}
 
 /* Accessors for the hardware annotation fields that we use */
 static inline void *dpaa2_get_hwa(void *buf_addr, bool swa)
@@ -183,6 +298,11 @@ static inline struct dpaa2_fas *dpaa2_get_fas(void *buf_addr, bool swa)
 static inline __le64 *dpaa2_get_ts(void *buf_addr, bool swa)
 {
 	return dpaa2_get_hwa(buf_addr, swa) + DPAA2_TS_OFFSET;
+}
+
+static inline struct dpaa2_fapr *dpaa2_get_fapr(void *buf_addr, bool swa)
+{
+	return dpaa2_get_hwa(buf_addr, swa) + DPAA2_FAPR_OFFSET;
 }
 
 static inline struct dpaa2_faead *dpaa2_get_faead(void *buf_addr, bool swa)
@@ -245,6 +365,14 @@ static inline struct dpaa2_faead *dpaa2_get_faead(void *buf_addr, bool swa)
  */
 #define DPAA2_ETH_ENQUEUE_RETRIES	10
 
+/* Number of times to retry DPIO portal operations while waiting
+ * for portal to finish executing current command and become
+ * available. We want to avoid being stuck in a while loop in case
+ * hardware becomes unresponsive, but not give up too easily if
+ * the portal really is busy for valid reasons
+ */
+#define DPAA2_ETH_SWP_BUSY_RETRIES	1000
+
 /* Driver statistics, other than those in struct rtnl_link_stats64.
  * These are usually collected per-CPU and aggregated by ethtool.
  */
@@ -253,9 +381,13 @@ struct dpaa2_eth_drv_stats {
 	__u64	tx_conf_bytes;
 	__u64	tx_sg_frames;
 	__u64	tx_sg_bytes;
-	__u64	tx_reallocs;
+	__u64	tx_tso_frames;
+	__u64	tx_tso_bytes;
 	__u64	rx_sg_frames;
 	__u64	rx_sg_bytes;
+	/* Linear skbs sent as a S/G FD due to insufficient headroom */
+	__u64	tx_converted_sg_frames;
+	__u64	tx_converted_sg_bytes;
 	/* Enqueues retried due to portal busy */
 	__u64	tx_portal_busy;
 };
@@ -279,14 +411,24 @@ struct dpaa2_eth_ch_stats {
 	__u64 xdp_tx;
 	__u64 xdp_tx_err;
 	__u64 xdp_redirect;
+	/* Must be last, does not show up in ethtool stats */
+	__u64 frames;
+	__u64 frames_per_cdan;
+	__u64 bytes_per_cdan;
 };
+
+#define DPAA2_ETH_CH_STATS	7
 
 /* Maximum number of queues associated with a DPNI */
 #define DPAA2_ETH_MAX_TCS		8
-#define DPAA2_ETH_MAX_RX_QUEUES		16
+#define DPAA2_ETH_MAX_RX_QUEUES_PER_TC	16
+#define DPAA2_ETH_MAX_RX_QUEUES		\
+	(DPAA2_ETH_MAX_RX_QUEUES_PER_TC * DPAA2_ETH_MAX_TCS)
 #define DPAA2_ETH_MAX_TX_QUEUES		16
+#define DPAA2_ETH_MAX_RX_ERR_QUEUES	1
 #define DPAA2_ETH_MAX_QUEUES		(DPAA2_ETH_MAX_RX_QUEUES + \
-					DPAA2_ETH_MAX_TX_QUEUES)
+					DPAA2_ETH_MAX_TX_QUEUES + \
+					DPAA2_ETH_MAX_RX_ERR_QUEUES)
 #define DPAA2_ETH_MAX_NETDEV_QUEUES	\
 	(DPAA2_ETH_MAX_TX_QUEUES * DPAA2_ETH_MAX_TCS)
 
@@ -295,9 +437,22 @@ struct dpaa2_eth_ch_stats {
 enum dpaa2_eth_fq_type {
 	DPAA2_RX_FQ = 0,
 	DPAA2_TX_CONF_FQ,
+	DPAA2_RX_ERR_FQ
 };
 
 struct dpaa2_eth_priv;
+struct dpaa2_eth_channel;
+struct dpaa2_eth_fq;
+
+struct dpaa2_eth_xdp_fds {
+	struct dpaa2_fd fds[DEV_MAP_BULK_SIZE];
+	ssize_t num;
+};
+
+typedef void dpaa2_eth_consume_cb_t(struct dpaa2_eth_priv *priv,
+				    struct dpaa2_eth_channel *ch,
+				    const struct dpaa2_fd *fd,
+				    struct dpaa2_eth_fq *fq);
 
 struct dpaa2_eth_fq {
 	u32 fqid;
@@ -311,18 +466,21 @@ struct dpaa2_eth_fq {
 	struct dpaa2_eth_channel *channel;
 	enum dpaa2_eth_fq_type type;
 
-	void (*consume)(struct dpaa2_eth_priv *priv,
-			struct dpaa2_eth_channel *ch,
-			const struct dpaa2_fd *fd,
-			struct dpaa2_eth_fq *fq);
+	dpaa2_eth_consume_cb_t *consume;
 	struct dpaa2_eth_fq_stats stats;
+
+	struct dpaa2_eth_xdp_fds xdp_redirect_fds;
+	struct dpaa2_eth_xdp_fds xdp_tx_fds;
 };
 
 struct dpaa2_eth_ch_xdp {
 	struct bpf_prog *prog;
-	u64 drop_bufs[DPAA2_ETH_BUFS_PER_CMD];
-	int drop_cnt;
 	unsigned int res;
+};
+
+struct dpaa2_eth_bp {
+	struct fsl_mc_device *dev;
+	int bpid;
 };
 
 struct dpaa2_eth_channel {
@@ -339,6 +497,15 @@ struct dpaa2_eth_channel {
 	struct dpaa2_eth_ch_xdp xdp;
 	struct xdp_rxq_info xdp_rxq;
 	struct list_head *rx_list;
+
+	/* Buffers to be recycled back in the buffer pool */
+	u64 recycled_bufs[DPAA2_ETH_BUFS_PER_CMD];
+	int recycled_bufs_cnt;
+
+	bool xsk_zc;
+	int xsk_tx_pkts_sent;
+	struct xsk_buff_pool *xsk_pool;
+	struct dpaa2_eth_bp *bp;
 };
 
 struct dpaa2_eth_dist_fields {
@@ -354,6 +521,30 @@ struct dpaa2_eth_cls_rule {
 	u8 in_use;
 };
 
+#define DPAA2_ETH_SGT_CACHE_SIZE	256
+struct dpaa2_eth_sgt_cache {
+	void *buf[DPAA2_ETH_SGT_CACHE_SIZE];
+	u16 count;
+};
+
+struct dpaa2_eth_trap_item {
+	void *trap_ctx;
+};
+
+struct dpaa2_eth_trap_data {
+	struct dpaa2_eth_trap_item *trap_items_arr;
+	struct dpaa2_eth_priv *priv;
+};
+
+#define DPAA2_ETH_SG_ENTRIES_MAX	(PAGE_SIZE / sizeof(struct scatterlist))
+
+#define DPAA2_ETH_DEFAULT_COPYBREAK	512
+
+#define DPAA2_ETH_ENQUEUE_MAX_FDS	256
+struct dpaa2_eth_fds {
+	struct dpaa2_fd array[DPAA2_ETH_ENQUEUE_MAX_FDS];
+};
+
 /* Driver private data */
 struct dpaa2_eth_priv {
 	struct net_device *net_dev;
@@ -362,22 +553,31 @@ struct dpaa2_eth_priv {
 	struct dpaa2_eth_fq fq[DPAA2_ETH_MAX_QUEUES];
 	int (*enqueue)(struct dpaa2_eth_priv *priv,
 		       struct dpaa2_eth_fq *fq,
-		       struct dpaa2_fd *fd, u8 prio);
+		       struct dpaa2_fd *fd, u8 prio,
+		       u32 num_frames,
+		       int *frames_enqueued);
 
 	u8 num_channels;
 	struct dpaa2_eth_channel *channel[DPAA2_ETH_MAX_DPCONS];
-
+	struct dpaa2_eth_sgt_cache __percpu *sgt_cache;
+	unsigned long features;
 	struct dpni_attr dpni_attrs;
 	u16 dpni_ver_major;
 	u16 dpni_ver_minor;
 	u16 tx_data_offset;
-
-	struct fsl_mc_device *dpbp_dev;
-	u16 bpid;
+	void __iomem *onestep_reg_base;
+	u8 ptp_correction_off;
+	void (*dpaa2_set_onestep_params_cb)(struct dpaa2_eth_priv *priv,
+					    u32 offset, u8 udp);
+	u16 rx_buf_size;
 	struct iommu_domain *iommu_domain;
 
-	bool tx_tstamp; /* Tx timestamping enabled */
-	bool rx_tstamp; /* Rx timestamping enabled */
+	enum hwtstamp_tx_types tx_tstamp_type;	/* Tx timestamping type */
+	bool rx_tstamp;				/* Rx timestamping enabled */
+
+	/* Buffer pool management */
+	struct dpaa2_eth_bp *bp[DPAA2_ETH_MAX_BPS];
+	int num_bps;
 
 	u16 tx_qdid;
 	struct fsl_mc_io *mc_io;
@@ -392,7 +592,8 @@ struct dpaa2_eth_priv {
 	struct dpaa2_eth_drv_stats __percpu *percpu_extras;
 
 	u16 mc_token;
-	u8 rx_td_enabled;
+	u8 rx_fqtd_enabled;
+	u8 rx_cgtd_enabled;
 
 	struct dpni_link_state link_state;
 	bool do_link_poll;
@@ -403,11 +604,46 @@ struct dpaa2_eth_priv {
 	u64 rx_cls_fields;
 	struct dpaa2_eth_cls_rule *cls_rules;
 	u8 rx_cls_enabled;
+	u8 vlan_cls_enabled;
+	u8 pfc_enabled;
+#ifdef CONFIG_FSL_DPAA2_ETH_DCB
+	u8 dcbx_mode;
+	struct ieee_pfc pfc;
+#endif
 	struct bpf_prog *xdp_prog;
 #ifdef CONFIG_DEBUG_FS
 	struct dpaa2_debugfs dbg;
 #endif
+
+	struct dpaa2_mac *mac;
+	/* Serializes changes to priv->mac */
+	struct mutex		mac_lock;
+	struct workqueue_struct	*dpaa2_ptp_wq;
+	struct work_struct	tx_onestep_tstamp;
+	struct sk_buff_head	tx_skbs;
+	/* The one-step timestamping configuration on hardware
+	 * registers could only be done when no one-step
+	 * timestamping frames are in flight. So we use a mutex
+	 * lock here to make sure the lock is released by last
+	 * one-step timestamping packet through TX confirmation
+	 * queue before transmit current packet.
+	 */
+	struct mutex		onestep_tstamp_lock;
+	struct devlink *devlink;
+	struct dpaa2_eth_trap_data *trap_data;
+	struct devlink_port devlink_port;
+
+	u32 rx_copybreak;
+
+	struct dpaa2_eth_fds __percpu *fd;
 };
+
+struct dpaa2_eth_devlink_priv {
+	struct dpaa2_eth_priv *dpaa2_priv;
+};
+
+#define TX_TSTAMP		0x1
+#define TX_TSTAMP_ONESTEP_SYNC	0x2
 
 #define DPAA2_RXH_SUPPORTED	(RXH_L2DA | RXH_VLAN | RXH_L3_PROTO \
 				| RXH_IP_SRC | RXH_IP_DST | RXH_L4_B_0_1 \
@@ -425,6 +661,7 @@ struct dpaa2_eth_priv {
 
 extern const struct ethtool_ops dpaa2_ethtool_ops;
 extern int dpaa2_phc_index;
+extern struct ptp_qoriq *dpaa2_ptp;
 
 static inline int dpaa2_eth_cmp_dpni_ver(struct dpaa2_eth_priv *priv,
 					 u16 ver_major, u16 ver_minor)
@@ -477,17 +714,33 @@ enum dpaa2_eth_rx_dist {
 #define DPAA2_ETH_DIST_L4DST		BIT(8)
 #define DPAA2_ETH_DIST_ALL		(~0ULL)
 
+#define DPNI_PTP_ONESTEP_VER_MAJOR 8
+#define DPNI_PTP_ONESTEP_VER_MINOR 2
+#define DPAA2_ETH_FEATURE_ONESTEP_CFG_DIRECT BIT(0)
+#define DPAA2_PTP_SINGLE_STEP_ENABLE	BIT(31)
+#define DPAA2_PTP_SINGLE_STEP_CH	BIT(7)
+#define DPAA2_PTP_SINGLE_CORRECTION_OFF(v) ((v) << 8)
+
 #define DPNI_PAUSE_VER_MAJOR		7
 #define DPNI_PAUSE_VER_MINOR		13
 #define dpaa2_eth_has_pause_support(priv)			\
 	(dpaa2_eth_cmp_dpni_ver((priv), DPNI_PAUSE_VER_MAJOR,	\
 				DPNI_PAUSE_VER_MINOR) >= 0)
 
-static inline
-unsigned int dpaa2_eth_needed_headroom(struct dpaa2_eth_priv *priv,
-				       struct sk_buff *skb)
+static inline bool dpaa2_eth_tx_pause_enabled(u64 link_options)
 {
-	unsigned int headroom = DPAA2_ETH_SWA_SIZE;
+	return !!(link_options & DPNI_LINK_OPT_PAUSE) ^
+	       !!(link_options & DPNI_LINK_OPT_ASYM_PAUSE);
+}
+
+static inline bool dpaa2_eth_rx_pause_enabled(u64 link_options)
+{
+	return !!(link_options & DPNI_LINK_OPT_PAUSE);
+}
+
+static inline unsigned int dpaa2_eth_needed_headroom(struct sk_buff *skb)
+{
+	unsigned int headroom = DPAA2_ETH_SWA_SIZE + DPAA2_ETH_TX_BUF_ALIGN;
 
 	/* If we don't have an skb (e.g. XDP buffer), we only need space for
 	 * the software annotation area
@@ -502,7 +755,7 @@ unsigned int dpaa2_eth_needed_headroom(struct dpaa2_eth_priv *priv,
 		return 0;
 
 	/* If we have Tx timestamping, need 128B hardware annotation */
-	if (priv->tx_tstamp && skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)
+	if (skb->cb[0])
 		headroom += DPAA2_ETH_TX_HWA_SIZE;
 
 	return headroom;
@@ -516,10 +769,93 @@ static inline unsigned int dpaa2_eth_rx_head_room(struct dpaa2_eth_priv *priv)
 	return priv->tx_data_offset - DPAA2_ETH_RX_HWA_SIZE;
 }
 
+static inline bool dpaa2_eth_is_type_phy(struct dpaa2_eth_priv *priv)
+{
+	lockdep_assert_held(&priv->mac_lock);
+
+	return dpaa2_mac_is_type_phy(priv->mac);
+}
+
+static inline bool dpaa2_eth_has_mac(struct dpaa2_eth_priv *priv)
+{
+	lockdep_assert_held(&priv->mac_lock);
+
+	return priv->mac ? true : false;
+}
+
 int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags);
 int dpaa2_eth_set_cls(struct net_device *net_dev, u64 key);
 int dpaa2_eth_cls_key_size(u64 key);
 int dpaa2_eth_cls_fld_off(int prot, int field);
 void dpaa2_eth_cls_trim_rule(void *key_mem, u64 fields);
+
+void dpaa2_eth_set_rx_taildrop(struct dpaa2_eth_priv *priv,
+			       bool tx_pause, bool pfc);
+
+extern const struct dcbnl_rtnl_ops dpaa2_eth_dcbnl_ops;
+
+int dpaa2_eth_dl_alloc(struct dpaa2_eth_priv *priv);
+void dpaa2_eth_dl_free(struct dpaa2_eth_priv *priv);
+
+void dpaa2_eth_dl_register(struct dpaa2_eth_priv *priv);
+void dpaa2_eth_dl_unregister(struct dpaa2_eth_priv *priv);
+
+int dpaa2_eth_dl_port_add(struct dpaa2_eth_priv *priv);
+void dpaa2_eth_dl_port_del(struct dpaa2_eth_priv *priv);
+
+int dpaa2_eth_dl_traps_register(struct dpaa2_eth_priv *priv);
+void dpaa2_eth_dl_traps_unregister(struct dpaa2_eth_priv *priv);
+
+struct dpaa2_eth_trap_item *dpaa2_eth_dl_get_trap(struct dpaa2_eth_priv *priv,
+						  struct dpaa2_fapr *fapr);
+
+struct dpaa2_eth_bp *dpaa2_eth_allocate_dpbp(struct dpaa2_eth_priv *priv);
+void dpaa2_eth_free_dpbp(struct dpaa2_eth_priv *priv, struct dpaa2_eth_bp *bp);
+
+struct sk_buff *dpaa2_eth_alloc_skb(struct dpaa2_eth_priv *priv,
+				    struct dpaa2_eth_channel *ch,
+				    const struct dpaa2_fd *fd, u32 fd_length,
+				    void *fd_vaddr);
+
+void dpaa2_eth_receive_skb(struct dpaa2_eth_priv *priv,
+			   struct dpaa2_eth_channel *ch,
+			   const struct dpaa2_fd *fd, void *vaddr,
+			   struct dpaa2_eth_fq *fq,
+			   struct rtnl_link_stats64 *percpu_stats,
+			   struct sk_buff *skb);
+
+void dpaa2_eth_rx(struct dpaa2_eth_priv *priv,
+		  struct dpaa2_eth_channel *ch,
+		  const struct dpaa2_fd *fd,
+		  struct dpaa2_eth_fq *fq);
+
+struct dpaa2_eth_bp *dpaa2_eth_allocate_dpbp(struct dpaa2_eth_priv *priv);
+void dpaa2_eth_free_dpbp(struct dpaa2_eth_priv *priv,
+			 struct dpaa2_eth_bp *bp);
+
+void *dpaa2_iova_to_virt(struct iommu_domain *domain, dma_addr_t iova_addr);
+void dpaa2_eth_recycle_buf(struct dpaa2_eth_priv *priv,
+			   struct dpaa2_eth_channel *ch,
+			   dma_addr_t addr);
+
+void dpaa2_eth_xdp_enqueue(struct dpaa2_eth_priv *priv,
+			   struct dpaa2_eth_channel *ch,
+			   struct dpaa2_fd *fd,
+			   void *buf_start, u16 queue_id);
+
+int dpaa2_xsk_wakeup(struct net_device *dev, u32 qid, u32 flags);
+int dpaa2_xsk_setup_pool(struct net_device *dev, struct xsk_buff_pool *pool, u16 qid);
+
+void dpaa2_eth_free_tx_fd(struct dpaa2_eth_priv *priv,
+			  struct dpaa2_eth_channel *ch,
+			  struct dpaa2_eth_fq *fq,
+			  const struct dpaa2_fd *fd, bool in_napi);
+bool dpaa2_xsk_tx(struct dpaa2_eth_priv *priv,
+		  struct dpaa2_eth_channel *ch);
+
+/* SGT (Scatter-Gather Table) cache management */
+void *dpaa2_eth_sgt_get(struct dpaa2_eth_priv *priv);
+
+void dpaa2_eth_sgt_recycle(struct dpaa2_eth_priv *priv, void *sgt_buf);
 
 #endif	/* __DPAA2_H */

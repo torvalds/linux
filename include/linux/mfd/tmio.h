@@ -55,7 +55,12 @@
  */
 #define TMIO_MMC_HAS_IDLE_WAIT		BIT(4)
 
-/* BIT(5) is unused */
+/*
+ * Use the busy timeout feature. Probably all TMIO versions support it. Yet,
+ * we don't have documentation for old variants, so we enable only known good
+ * variants with this flag. Can be removed once all variants are known good.
+ */
+#define TMIO_MMC_USE_BUSY_TIMEOUT	BIT(5)
 
 /*
  * Some controllers have CMD12 automatically
@@ -79,14 +84,6 @@
 /* Some controllers have a CBSY bit */
 #define TMIO_MMC_HAVE_CBSY		BIT(11)
 
-/* Some controllers that support HS400 use 4 taps while others use 8. */
-#define TMIO_MMC_HAVE_4TAP_HS400	BIT(13)
-
-int tmio_core_mmc_enable(void __iomem *cnf, int shift, unsigned long base);
-int tmio_core_mmc_resume(void __iomem *cnf, int shift, unsigned long base);
-void tmio_core_mmc_pwr(void __iomem *cnf, int shift, int state);
-void tmio_core_mmc_clk_div(void __iomem *cnf, int shift, int state);
-
 struct dma_chan;
 
 /*
@@ -100,7 +97,6 @@ struct tmio_mmc_data {
 	unsigned long			capabilities2;
 	unsigned long			flags;
 	u32				ocr_mask;	/* available voltages */
-	int				alignment_shift;
 	dma_addr_t			dma_rx_offset;
 	unsigned int			max_blk_count;
 	unsigned short			max_segs;

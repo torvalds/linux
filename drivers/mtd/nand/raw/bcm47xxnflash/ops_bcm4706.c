@@ -14,7 +14,7 @@
 #include <linux/bcma/bcma.h>
 
 /* Broadcom uses 1'000'000 but it seems to be too many. Tests on WNDR4500 has
- * shown ~1000 retries as maxiumum. */
+ * shown ~1000 retries as maximum. */
 #define NFLASH_READY_RETRIES		10000
 
 #define NFLASH_SECTOR_SIZE		512
@@ -391,7 +391,8 @@ int bcm47xxnflash_ops_bcm4706_init(struct bcm47xxnflash *b47n)
 
 	nand_chip->legacy.chip_delay = 50;
 	b47n->nand_chip.bbt_options = NAND_BBT_USE_FLASH;
-	b47n->nand_chip.ecc.mode = NAND_ECC_NONE; /* TODO: implement ECC */
+	/* TODO: implement ECC */
+	b47n->nand_chip.ecc.engine_type = NAND_ECC_ENGINE_TYPE_NONE;
 
 	/* Enable NAND flash access */
 	bcma_cc_set32(b47n->cc, BCMA_CC_4706_FLASHSCFG,

@@ -3,7 +3,7 @@
  *
  * Name: actbl3.h - ACPI Table Definitions
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2023, Intel Corp.
  *
  *****************************************************************************/
 
@@ -33,13 +33,13 @@
 #define ACPI_SIG_TCPA           "TCPA"	/* Trusted Computing Platform Alliance table */
 #define ACPI_SIG_TPM2           "TPM2"	/* Trusted Platform Module 2.0 H/W interface table */
 #define ACPI_SIG_UEFI           "UEFI"	/* Uefi Boot Optimization Table */
-#define ACPI_SIG_VRTC           "VRTC"	/* Virtual Real Time Clock Table */
+#define ACPI_SIG_VIOT           "VIOT"	/* Virtual I/O Translation Table */
 #define ACPI_SIG_WAET           "WAET"	/* Windows ACPI Emulated devices Table */
 #define ACPI_SIG_WDAT           "WDAT"	/* Watchdog Action Table */
 #define ACPI_SIG_WDDT           "WDDT"	/* Watchdog Timer Description Table */
 #define ACPI_SIG_WDRT           "WDRT"	/* Watchdog Resource Table */
 #define ACPI_SIG_WPBT           "WPBT"	/* Windows Platform Binary Table */
-#define ACPI_SIG_WSMT           "WSMT"	/* Windows SMM Security Migrations Table */
+#define ACPI_SIG_WSMT           "WSMT"	/* Windows SMM Security Mitigations Table */
 #define ACPI_SIG_XENV           "XENV"	/* Xen Environment table */
 #define ACPI_SIG_XXXX           "XXXX"	/* Intermediate AML header for ASL/ASL+ converter */
 
@@ -86,7 +86,7 @@ struct acpi_table_slic {
 struct acpi_table_slit {
 	struct acpi_table_header header;	/* Common ACPI table header */
 	u64 locality_count;
-	u8 entry[1];		/* Real size = localities^2 */
+	u8 entry[];				/* Real size = localities^2 */
 };
 
 /*******************************************************************************
@@ -191,7 +191,9 @@ enum acpi_srat_type {
 	ACPI_SRAT_TYPE_GICC_AFFINITY = 3,
 	ACPI_SRAT_TYPE_GIC_ITS_AFFINITY = 4,	/* ACPI 6.2 */
 	ACPI_SRAT_TYPE_GENERIC_AFFINITY = 5,	/* ACPI 6.3 */
-	ACPI_SRAT_TYPE_RESERVED = 6	/* 5 and greater are reserved */
+	ACPI_SRAT_TYPE_GENERIC_PORT_AFFINITY = 6,	/* ACPI 6.4 */
+	ACPI_SRAT_TYPE_RINTC_AFFINITY = 7,	/* ACPI 6.6 */
+	ACPI_SRAT_TYPE_RESERVED = 8	/* 8 and greater are reserved */
 };
 
 /*
@@ -272,21 +274,43 @@ struct acpi_srat_gic_its_affinity {
 	u32 its_id;
 };
 
-/* 5: Generic Initiator Affinity Structure (ACPI 6.3) */
+/*
+ * Common structure for SRAT subtable types:
+ * 5: ACPI_SRAT_TYPE_GENERIC_AFFINITY
+ * 6: ACPI_SRAT_TYPE_GENERIC_PORT_AFFINITY
+ */
+
+#define ACPI_SRAT_DEVICE_HANDLE_SIZE	16
 
 struct acpi_srat_generic_affinity {
 	struct acpi_subtable_header header;
 	u8 reserved;
 	u8 device_handle_type;
 	u32 proximity_domain;
-	u8 device_handle[16];
+	u8 device_handle[ACPI_SRAT_DEVICE_HANDLE_SIZE];
 	u32 flags;
 	u32 reserved1;
 };
 
 /* Flags for struct acpi_srat_generic_affinity */
 
-#define ACPI_SRAT_GENERIC_AFFINITY_ENABLED (1)	/* 00: Use affinity structure */
+#define ACPI_SRAT_GENERIC_AFFINITY_ENABLED     (1)	/* 00: Use affinity structure */
+#define ACPI_SRAT_ARCHITECTURAL_TRANSACTIONS   (1<<1)	/* ACPI 6.4 */
+
+/* 7: RINTC Affinity Structure(ACPI 6.6) */
+
+struct acpi_srat_rintc_affinity {
+	struct acpi_subtable_header header;
+	u16 reserved;
+	u32 proximity_domain;
+	u32 acpi_processor_uid;
+	u32 flags;
+	u32 clock_domain;
+};
+
+/* Flags for struct acpi_srat_rintc_affinity */
+
+#define ACPI_SRAT_RINTC_ENABLED     (1)	/* 00: Use affinity structure */
 
 /*******************************************************************************
  *
@@ -415,6 +439,13 @@ struct acpi_table_tpm2 {
 	/* Platform-specific data follows */
 };
 
+/* Optional trailer for revision 4 holding platform-specific data */
+struct acpi_tpm2_phy {
+	u8  start_method_specific[12];
+	u32 log_area_minimum_length;
+	u64 log_area_start_address;
+};
+
 /* Values for start_method above */
 
 #define ACPI_TPM2_NOT_ALLOWED                       0
@@ -430,6 +461,7 @@ struct acpi_table_tpm2 {
 #define ACPI_TPM2_RESERVED10                        10
 #define ACPI_TPM2_COMMAND_BUFFER_WITH_ARM_SMC       11	/* V1.2 Rev 8 */
 #define ACPI_TPM2_RESERVED                          12
+#define ACPI_TPM2_COMMAND_BUFFER_WITH_PLUTON        13
 
 /* Optional trailer appears after any start_method subtables */
 
@@ -479,24 +511,68 @@ struct acpi_table_uefi {
 
 /*******************************************************************************
  *
- * VRTC - Virtual Real Time Clock Table
+ * VIOT - Virtual I/O Translation Table
  *        Version 1
- *
- * Conforms to "Simple Firmware Interface Specification",
- * Draft 0.8.2, Oct 19, 2010
- * NOTE: The ACPI VRTC is equivalent to The SFI MRTC table.
  *
  ******************************************************************************/
 
-struct acpi_table_vrtc {
+struct acpi_table_viot {
 	struct acpi_table_header header;	/* Common ACPI table header */
+	u16 node_count;
+	u16 node_offset;
+	u8 reserved[8];
 };
 
-/* VRTC entry */
+/* VIOT subtable header */
 
-struct acpi_vrtc_entry {
-	struct acpi_generic_address physical_address;
-	u32 irq;
+struct acpi_viot_header {
+	u8 type;
+	u8 reserved;
+	u16 length;
+};
+
+/* Values for Type field above */
+
+enum acpi_viot_node_type {
+	ACPI_VIOT_NODE_PCI_RANGE = 0x01,
+	ACPI_VIOT_NODE_MMIO = 0x02,
+	ACPI_VIOT_NODE_VIRTIO_IOMMU_PCI = 0x03,
+	ACPI_VIOT_NODE_VIRTIO_IOMMU_MMIO = 0x04,
+	ACPI_VIOT_RESERVED = 0x05
+};
+
+/* VIOT subtables */
+
+struct acpi_viot_pci_range {
+	struct acpi_viot_header header;
+	u32 endpoint_start;
+	u16 segment_start;
+	u16 segment_end;
+	u16 bdf_start;
+	u16 bdf_end;
+	u16 output_node;
+	u8 reserved[6];
+};
+
+struct acpi_viot_mmio {
+	struct acpi_viot_header header;
+	u32 endpoint;
+	u64 base_address;
+	u16 output_node;
+	u8 reserved[6];
+};
+
+struct acpi_viot_virtio_iommu_pci {
+	struct acpi_viot_header header;
+	u16 segment;
+	u16 bdf;
+	u8 reserved[8];
+};
+
+struct acpi_viot_virtio_iommu_mmio {
+	struct acpi_viot_header header;
+	u8 reserved[4];
+	u64 base_address;
 };
 
 /*******************************************************************************
@@ -671,12 +747,16 @@ struct acpi_table_wpbt {
 	u16 arguments_length;
 };
 
+struct acpi_wpbt_unicode {
+	u16 *unicode_string;
+};
+
 /*******************************************************************************
  *
- * WSMT - Windows SMM Security Migrations Table
+ * WSMT - Windows SMM Security Mitigations Table
  *        Version 1
  *
- * Conforms to "Windows SMM Security Migrations Table",
+ * Conforms to "Windows SMM Security Mitigations Table",
  * Version 1.0, April 18, 2016
  *
  ******************************************************************************/

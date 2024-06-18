@@ -807,7 +807,7 @@ void ath6kl_cfg80211_connect_event(struct ath6kl_vif *vif, u16 channel,
 		cfg80211_put_bss(ar->wiphy, bss);
 	} else if (vif->sme_state == SME_CONNECTED) {
 		struct cfg80211_roam_info roam_info = {
-			.bss = bss,
+			.links[0].bss = bss,
 			.req_ie = assoc_req_ie,
 			.req_ie_len = assoc_req_len,
 			.resp_ie = assoc_resp_ie,
@@ -1118,13 +1118,13 @@ void ath6kl_cfg80211_ch_switch_notify(struct ath6kl_vif *vif, int freq,
 				 ath6kl_band_2ghz.ht_cap.ht_supported) ?
 					NL80211_CHAN_HT20 : NL80211_CHAN_NO_HT);
 
-	mutex_lock(&vif->wdev.mtx);
-	cfg80211_ch_switch_notify(vif->ndev, &chandef);
-	mutex_unlock(&vif->wdev.mtx);
+	wiphy_lock(vif->ar->wiphy);
+	cfg80211_ch_switch_notify(vif->ndev, &chandef, 0);
+	wiphy_unlock(vif->ar->wiphy);
 }
 
 static int ath6kl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
-				   u8 key_index, bool pairwise,
+				   int link_id, u8 key_index, bool pairwise,
 				   const u8 *mac_addr,
 				   struct key_params *params)
 {
@@ -1249,7 +1249,7 @@ static int ath6kl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 }
 
 static int ath6kl_cfg80211_del_key(struct wiphy *wiphy, struct net_device *ndev,
-				   u8 key_index, bool pairwise,
+				   int link_id, u8 key_index, bool pairwise,
 				   const u8 *mac_addr)
 {
 	struct ath6kl *ar = ath6kl_priv(ndev);
@@ -1279,7 +1279,7 @@ static int ath6kl_cfg80211_del_key(struct wiphy *wiphy, struct net_device *ndev,
 }
 
 static int ath6kl_cfg80211_get_key(struct wiphy *wiphy, struct net_device *ndev,
-				   u8 key_index, bool pairwise,
+				   int link_id, u8 key_index, bool pairwise,
 				   const u8 *mac_addr, void *cookie,
 				   void (*callback) (void *cookie,
 						     struct key_params *))
@@ -1314,7 +1314,7 @@ static int ath6kl_cfg80211_get_key(struct wiphy *wiphy, struct net_device *ndev,
 }
 
 static int ath6kl_cfg80211_set_default_key(struct wiphy *wiphy,
-					   struct net_device *ndev,
+					   struct net_device *ndev, int link_id,
 					   u8 key_index, bool unicast,
 					   bool multicast)
 {
@@ -2954,7 +2954,7 @@ static int ath6kl_start_ap(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static int ath6kl_change_beacon(struct wiphy *wiphy, struct net_device *dev,
-				struct cfg80211_beacon_data *beacon)
+				struct cfg80211_ap_update *params)
 {
 	struct ath6kl_vif *vif = netdev_priv(dev);
 
@@ -2964,10 +2964,11 @@ static int ath6kl_change_beacon(struct wiphy *wiphy, struct net_device *dev,
 	if (vif->next_mode != AP_NETWORK)
 		return -EOPNOTSUPP;
 
-	return ath6kl_set_ies(vif, beacon);
+	return ath6kl_set_ies(vif, &params->beacon);
 }
 
-static int ath6kl_stop_ap(struct wiphy *wiphy, struct net_device *dev)
+static int ath6kl_stop_ap(struct wiphy *wiphy, struct net_device *dev,
+			  unsigned int link_id)
 {
 	struct ath6kl *ar = ath6kl_priv(dev);
 	struct ath6kl_vif *vif = netdev_priv(dev);
@@ -3249,22 +3250,19 @@ static int ath6kl_get_antenna(struct wiphy *wiphy,
 	return 0;
 }
 
-static void ath6kl_mgmt_frame_register(struct wiphy *wiphy,
-				       struct wireless_dev *wdev,
-				       u16 frame_type, bool reg)
+static void ath6kl_update_mgmt_frame_registrations(struct wiphy *wiphy,
+						   struct wireless_dev *wdev,
+						   struct mgmt_frame_regs *upd)
 {
 	struct ath6kl_vif *vif = ath6kl_vif_from_wdev(wdev);
 
-	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: frame_type=0x%x reg=%d\n",
-		   __func__, frame_type, reg);
-	if (frame_type == IEEE80211_STYPE_PROBE_REQ) {
-		/*
-		 * Note: This notification callback is not allowed to sleep, so
-		 * we cannot send WMI_PROBE_REQ_REPORT_CMD here. Instead, we
-		 * hardcode target to report Probe Request frames all the time.
-		 */
-		vif->probe_req_report = reg;
-	}
+	/*
+	 * FIXME: send WMI_PROBE_REQ_REPORT_CMD here instead of hardcoding
+	 *	  the reporting in the target all the time, this callback
+	 *	  *is* allowed to sleep after all.
+	 */
+	vif->probe_req_report =
+		upd->interface_stypes & BIT(IEEE80211_STYPE_PROBE_REQ >> 4);
 }
 
 static int ath6kl_cfg80211_sscan_start(struct wiphy *wiphy,
@@ -3306,8 +3304,8 @@ static int ath6kl_cfg80211_sscan_start(struct wiphy *wiphy,
 		if (ret < 0)
 			return ret;
 	} else {
-		 ret = ath6kl_wmi_bssfilter_cmd(ar->wmi, vif->fw_vif_idx,
-						MATCHED_SSID_FILTER, 0);
+		ret = ath6kl_wmi_bssfilter_cmd(ar->wmi, vif->fw_vif_idx,
+					       MATCHED_SSID_FILTER, 0);
 		if (ret < 0)
 			return ret;
 	}
@@ -3371,6 +3369,7 @@ static int ath6kl_cfg80211_sscan_stop(struct wiphy *wiphy,
 
 static int ath6kl_cfg80211_set_bitrate(struct wiphy *wiphy,
 				       struct net_device *dev,
+				       unsigned int link_id,
 				       const u8 *addr,
 				       const struct cfg80211_bitrate_mask *mask)
 {
@@ -3464,7 +3463,8 @@ static struct cfg80211_ops ath6kl_cfg80211_ops = {
 	.remain_on_channel = ath6kl_remain_on_channel,
 	.cancel_remain_on_channel = ath6kl_cancel_remain_on_channel,
 	.mgmt_tx = ath6kl_mgmt_tx,
-	.mgmt_frame_register = ath6kl_mgmt_frame_register,
+	.update_mgmt_frame_registrations =
+		ath6kl_update_mgmt_frame_registrations,
 	.get_antenna = ath6kl_get_antenna,
 	.sched_scan_start = ath6kl_cfg80211_sscan_start,
 	.sched_scan_stop = ath6kl_cfg80211_sscan_stop,
@@ -3650,7 +3650,7 @@ void ath6kl_cfg80211_vif_cleanup(struct ath6kl_vif *vif)
 		kfree(mc_filter);
 	}
 
-	unregister_netdevice(vif->ndev);
+	cfg80211_unregister_netdevice(vif->ndev);
 
 	ar->num_vif--;
 }
@@ -3783,6 +3783,7 @@ struct wireless_dev *ath6kl_interface_add(struct ath6kl *ar, const char *name,
 {
 	struct net_device *ndev;
 	struct ath6kl_vif *vif;
+	u8 addr[ETH_ALEN];
 
 	ndev = alloc_netdev(sizeof(*vif), name, name_assign_type, ether_setup);
 	if (!ndev)
@@ -3805,14 +3806,14 @@ struct wireless_dev *ath6kl_interface_add(struct ath6kl *ar, const char *name,
 	vif->htcap[NL80211_BAND_2GHZ].ht_enable = true;
 	vif->htcap[NL80211_BAND_5GHZ].ht_enable = true;
 
-	memcpy(ndev->dev_addr, ar->mac_addr, ETH_ALEN);
+	ether_addr_copy(addr, ar->mac_addr);
 	if (fw_vif_idx != 0) {
-		ndev->dev_addr[0] = (ndev->dev_addr[0] ^ (1 << fw_vif_idx)) |
-				     0x2;
+		addr[0] = (addr[0] ^ (1 << fw_vif_idx)) | 0x2;
 		if (test_bit(ATH6KL_FW_CAPABILITY_CUSTOM_MAC_ADDR,
 			     ar->fw_capabilities))
-			ndev->dev_addr[4] ^= 0x80;
+			addr[4] ^= 0x80;
 	}
+	eth_hw_addr_set(ndev, addr);
 
 	init_netdev(ndev);
 
@@ -3823,7 +3824,7 @@ struct wireless_dev *ath6kl_interface_add(struct ath6kl *ar, const char *name,
 
 	netdev_set_default_ethtool_ops(ndev, &ath6kl_ethtool_ops);
 
-	if (register_netdevice(ndev))
+	if (cfg80211_register_netdevice(ndev))
 		goto err;
 
 	ar->avail_idx_map &= ~BIT(fw_vif_idx);
@@ -3899,19 +3900,19 @@ int ath6kl_cfg80211_init(struct ath6kl *ar)
 	switch (ar->hw.cap) {
 	case WMI_11AN_CAP:
 		ht = true;
-		/* fall through */
+		fallthrough;
 	case WMI_11A_CAP:
 		band_5gig = true;
 		break;
 	case WMI_11GN_CAP:
 		ht = true;
-		/* fall through */
+		fallthrough;
 	case WMI_11G_CAP:
 		band_2gig = true;
 		break;
 	case WMI_11AGN_CAP:
 		ht = true;
-		/* fall through */
+		fallthrough;
 	case WMI_11AG_CAP:
 		band_2gig = true;
 		band_5gig = true;

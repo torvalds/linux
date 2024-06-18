@@ -26,8 +26,13 @@
 #define MMP2_CLK_VCTCXO_4		25
 #define MMP2_CLK_UART_PLL		26
 #define MMP2_CLK_USB_PLL		27
+#define MMP3_CLK_PLL1_P			28
+#define MMP3_CLK_PLL2_P			29
+#define MMP3_CLK_PLL3			30
+#define MMP2_CLK_I2S0			31
+#define MMP2_CLK_I2S1			32
 
-/* apb periphrals */
+/* apb peripherals */
 #define MMP2_CLK_TWSI0			60
 #define MMP2_CLK_TWSI1			61
 #define MMP2_CLK_TWSI2			62
@@ -50,8 +55,12 @@
 #define MMP2_CLK_SSP2			79
 #define MMP2_CLK_SSP3			80
 #define MMP2_CLK_TIMER			81
+#define MMP2_CLK_THERMAL0		82
+#define MMP3_CLK_THERMAL1		83
+#define MMP3_CLK_THERMAL2		84
+#define MMP3_CLK_THERMAL3		85
 
-/* axi periphrals */
+/* axi peripherals */
 #define MMP2_CLK_SDH0			101
 #define MMP2_CLK_SDH1			102
 #define MMP2_CLK_SDH2			103
@@ -72,6 +81,14 @@
 #define MMP2_CLK_CCIC1_PHY		118
 #define MMP2_CLK_CCIC1_SPHY		119
 #define MMP2_CLK_DISP0_LCDC		120
+#define MMP2_CLK_USBHSIC0		121
+#define MMP2_CLK_USBHSIC1		122
+#define MMP2_CLK_GPU_BUS		123
+#define MMP3_CLK_GPU_BUS		MMP2_CLK_GPU_BUS
+#define MMP2_CLK_GPU_3D			124
+#define MMP3_CLK_GPU_3D			MMP2_CLK_GPU_3D
+#define MMP3_CLK_GPU_2D			125
+#define MMP3_CLK_SDH4			126
+#define MMP2_CLK_AUDIO			127
 
-#define MMP2_NR_CLKS			200
 #endif

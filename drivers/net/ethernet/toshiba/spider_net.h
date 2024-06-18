@@ -44,7 +44,6 @@ extern char spider_net_driver_name[];
 #define SPIDER_NET_RX_CSUM_DEFAULT		1
 
 #define SPIDER_NET_WATCHDOG_TIMEOUT		50*HZ
-#define SPIDER_NET_NAPI_WEIGHT			64
 
 #define SPIDER_NET_FIRMWARE_SEQS	6
 #define SPIDER_NET_FIRMWARE_SEQWORDS	1024
@@ -470,7 +469,7 @@ struct spider_net_card {
 	struct spider_net_extra_stats spider_stats;
 
 	/* Must be last item in struct */
-	struct spider_net_descr darray[0];
+	struct spider_net_descr darray[];
 };
 
 #endif

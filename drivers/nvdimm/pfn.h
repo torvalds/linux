@@ -24,6 +24,18 @@ struct nd_pfn_sb {
 	__le64 npfns;
 	__le32 mode;
 	/* minor-version-1 additions for section alignment */
+	/**
+	 * @start_pad: Deprecated attribute to pad start-misaligned namespaces
+	 *
+	 * start_pad is deprecated because the original definition did
+	 * not comprehend that dataoff is relative to the base address
+	 * of the namespace not the start_pad adjusted base. The result
+	 * is that the dax path is broken, but the block-I/O path is
+	 * not. The kernel will no longer create namespaces using start
+	 * padding, but it still supports block-I/O for legacy
+	 * configurations mainly to allow a backup, reconfigure the
+	 * namespace, and restore flow to repair dax operation.
+	 */
 	__le32 start_pad;
 	__le32 end_trunc;
 	/* minor-version-2 record the base alignment of the mapping */

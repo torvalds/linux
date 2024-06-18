@@ -560,14 +560,12 @@ static void m10v_reg_mux_pre(const struct m10v_clk_mux_factors *factors,
 static int m10v_clk_probe(struct platform_device *pdev)
 {
 	int id;
-	struct resource *res;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	void __iomem *base;
 	const char *parent_name;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(dev, res);
+	base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
@@ -620,6 +618,7 @@ static void __init m10v_cc_init(struct device_node *np)
 
 	if (!m10v_clk_data)
 		return;
+	m10v_clk_data->num = M10V_NUM_CLKS;
 
 	base = of_iomap(np, 0);
 	if (!base) {
@@ -656,8 +655,6 @@ static void __init m10v_cc_init(struct device_node *np)
 					base + CLKSEL(1), 0, 3, 0, rclk_table,
 					&m10v_crglock, NULL);
 	m10v_clk_data->hws[M10V_RCLK_ID] = hw;
-
-	m10v_clk_data->num = M10V_NUM_CLKS;
 	of_clk_add_hw_provider(np, of_clk_hw_onecell_get, m10v_clk_data);
 }
 CLK_OF_DECLARE_DRIVER(m10v_cc, "socionext,milbeaut-m10v-ccu", m10v_cc_init);

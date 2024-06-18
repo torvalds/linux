@@ -17,7 +17,6 @@
 #include <linux/regmap.h>
 #include <linux/export.h>
 #include <linux/pm.h>
-#include <linux/pm_runtime.h>
 #include <sound/core.h>
 #include <sound/hdaudio.h>
 #include <sound/hda_regmap.h>
@@ -358,11 +357,12 @@ static const struct regmap_config hda_regmap_cfg = {
 	.writeable_reg = hda_writeable_reg,
 	.readable_reg = hda_readable_reg,
 	.volatile_reg = hda_volatile_reg,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_read = hda_reg_read,
 	.reg_write = hda_reg_write,
 	.use_single_read = true,
 	.use_single_write = true,
+	.disable_locking = true,
 };
 
 /**
@@ -385,7 +385,7 @@ int snd_hdac_regmap_init(struct hdac_device *codec)
 EXPORT_SYMBOL_GPL(snd_hdac_regmap_init);
 
 /**
- * snd_hdac_regmap_init - Release the regmap from HDA codec
+ * snd_hdac_regmap_exit - Release the regmap from HDA codec
  * @codec: the codec object
  */
 void snd_hdac_regmap_exit(struct hdac_device *codec)
@@ -425,11 +425,28 @@ EXPORT_SYMBOL_GPL(snd_hdac_regmap_add_vendor_verb);
 static int reg_raw_write(struct hdac_device *codec, unsigned int reg,
 			 unsigned int val)
 {
+	int err;
+
+	mutex_lock(&codec->regmap_lock);
 	if (!codec->regmap)
-		return hda_reg_write(codec, reg, val);
+		err = hda_reg_write(codec, reg, val);
 	else
-		return regmap_write(codec->regmap, reg, val);
+		err = regmap_write(codec->regmap, reg, val);
+	mutex_unlock(&codec->regmap_lock);
+	return err;
 }
+
+/* a helper macro to call @func_call; retry with power-up if failed */
+#define CALL_RAW_FUNC(codec, func_call)				\
+	({							\
+		int _err = func_call;				\
+		if (_err == -EAGAIN) {				\
+			_err = snd_hdac_power_up_pm(codec);	\
+			if (_err >= 0)				\
+				_err = func_call;		\
+			snd_hdac_power_down_pm(codec);		\
+		}						\
+		_err;})
 
 /**
  * snd_hdac_regmap_write_raw - write a pseudo register with power mgmt
@@ -442,42 +459,29 @@ static int reg_raw_write(struct hdac_device *codec, unsigned int reg,
 int snd_hdac_regmap_write_raw(struct hdac_device *codec, unsigned int reg,
 			      unsigned int val)
 {
-	int err;
-
-	err = reg_raw_write(codec, reg, val);
-	if (err == -EAGAIN) {
-		err = snd_hdac_power_up_pm(codec);
-		if (err >= 0)
-			err = reg_raw_write(codec, reg, val);
-		snd_hdac_power_down_pm(codec);
-	}
-	return err;
+	return CALL_RAW_FUNC(codec, reg_raw_write(codec, reg, val));
 }
 EXPORT_SYMBOL_GPL(snd_hdac_regmap_write_raw);
 
 static int reg_raw_read(struct hdac_device *codec, unsigned int reg,
 			unsigned int *val, bool uncached)
 {
+	int err;
+
+	mutex_lock(&codec->regmap_lock);
 	if (uncached || !codec->regmap)
-		return hda_reg_read(codec, reg, val);
+		err = hda_reg_read(codec, reg, val);
 	else
-		return regmap_read(codec->regmap, reg, val);
+		err = regmap_read(codec->regmap, reg, val);
+	mutex_unlock(&codec->regmap_lock);
+	return err;
 }
 
 static int __snd_hdac_regmap_read_raw(struct hdac_device *codec,
 				      unsigned int reg, unsigned int *val,
 				      bool uncached)
 {
-	int err;
-
-	err = reg_raw_read(codec, reg, val, uncached);
-	if (err == -EAGAIN) {
-		err = snd_hdac_power_up_pm(codec);
-		if (err >= 0)
-			err = reg_raw_read(codec, reg, val, uncached);
-		snd_hdac_power_down_pm(codec);
-	}
-	return err;
+	return CALL_RAW_FUNC(codec, reg_raw_read(codec, reg, val, uncached));
 }
 
 /**
@@ -504,11 +508,40 @@ int snd_hdac_regmap_read_raw_uncached(struct hdac_device *codec,
 	return __snd_hdac_regmap_read_raw(codec, reg, val, true);
 }
 
+static int reg_raw_update(struct hdac_device *codec, unsigned int reg,
+			  unsigned int mask, unsigned int val)
+{
+	unsigned int orig;
+	bool change;
+	int err;
+
+	mutex_lock(&codec->regmap_lock);
+	if (codec->regmap) {
+		err = regmap_update_bits_check(codec->regmap, reg, mask, val,
+					       &change);
+		if (!err)
+			err = change ? 1 : 0;
+	} else {
+		err = hda_reg_read(codec, reg, &orig);
+		if (!err) {
+			val &= mask;
+			val |= orig & ~mask;
+			if (val != orig) {
+				err = hda_reg_write(codec, reg, val);
+				if (!err)
+					err = 1;
+			}
+		}
+	}
+	mutex_unlock(&codec->regmap_lock);
+	return err;
+}
+
 /**
  * snd_hdac_regmap_update_raw - update a pseudo register with power mgmt
  * @codec: the codec object
  * @reg: pseudo register
- * @mask: bit mask to udpate
+ * @mask: bit mask to update
  * @val: value to update
  *
  * Returns zero if successful or a negative error code.
@@ -516,19 +549,53 @@ int snd_hdac_regmap_read_raw_uncached(struct hdac_device *codec,
 int snd_hdac_regmap_update_raw(struct hdac_device *codec, unsigned int reg,
 			       unsigned int mask, unsigned int val)
 {
-	unsigned int orig;
-	int err;
-
-	val &= mask;
-	err = snd_hdac_regmap_read_raw(codec, reg, &orig);
-	if (err < 0)
-		return err;
-	val |= orig & ~mask;
-	if (val == orig)
-		return 0;
-	err = snd_hdac_regmap_write_raw(codec, reg, val);
-	if (err < 0)
-		return err;
-	return 1;
+	return CALL_RAW_FUNC(codec, reg_raw_update(codec, reg, mask, val));
 }
 EXPORT_SYMBOL_GPL(snd_hdac_regmap_update_raw);
+
+static int reg_raw_update_once(struct hdac_device *codec, unsigned int reg,
+			       unsigned int mask, unsigned int val)
+{
+	int err = 0;
+
+	if (!codec->regmap)
+		return reg_raw_update(codec, reg, mask, val);
+
+	mutex_lock(&codec->regmap_lock);
+	/* Discard any updates to already initialised registers. */
+	if (!regcache_reg_cached(codec->regmap, reg))
+		err = regmap_update_bits(codec->regmap, reg, mask, val);
+	mutex_unlock(&codec->regmap_lock);
+	return err;
+}
+
+/**
+ * snd_hdac_regmap_update_raw_once - initialize the register value only once
+ * @codec: the codec object
+ * @reg: pseudo register
+ * @mask: bit mask to update
+ * @val: value to update
+ *
+ * Performs the update of the register bits only once when the register
+ * hasn't been initialized yet.  Used in HD-audio legacy driver.
+ * Returns zero if successful or a negative error code
+ */
+int snd_hdac_regmap_update_raw_once(struct hdac_device *codec, unsigned int reg,
+				    unsigned int mask, unsigned int val)
+{
+	return CALL_RAW_FUNC(codec, reg_raw_update_once(codec, reg, mask, val));
+}
+EXPORT_SYMBOL_GPL(snd_hdac_regmap_update_raw_once);
+
+/**
+ * snd_hdac_regmap_sync - sync out the cached values for PM resume
+ * @codec: the codec object
+ */
+void snd_hdac_regmap_sync(struct hdac_device *codec)
+{
+	mutex_lock(&codec->regmap_lock);
+	if (codec->regmap)
+		regcache_sync(codec->regmap);
+	mutex_unlock(&codec->regmap_lock);
+}
+EXPORT_SYMBOL_GPL(snd_hdac_regmap_sync);

@@ -85,7 +85,7 @@ static inline void prefetch_ptr(struct efx_tx_queue *tx_queue)
 	prefetch(ptr);
 	prefetch(ptr + 0x80);
 
-	ptr = (char *) (((efx_qword_t *)tx_queue->txd.buf.addr) + insert_ptr);
+	ptr = (char *)(((efx_qword_t *)tx_queue->txd.addr) + insert_ptr);
 	prefetch(ptr);
 	prefetch(ptr + 0x80);
 }
@@ -147,7 +147,7 @@ static __be16 efx_tso_check_protocol(struct sk_buff *skb)
 	EFX_WARN_ON_ONCE_PARANOID(((struct ethhdr *)skb->data)->h_proto !=
 				  protocol);
 	if (protocol == htons(ETH_P_8021Q)) {
-		struct vlan_ethhdr *veh = (struct vlan_ethhdr *)skb->data;
+		struct vlan_ethhdr *veh = skb_vlan_eth_hdr(skb);
 
 		protocol = veh->h_vlan_encapsulated_proto;
 	}
@@ -174,8 +174,8 @@ static int tso_start(struct tso_state *st, struct efx_nic *efx,
 	unsigned int header_len, in_len;
 	dma_addr_t dma_addr;
 
-	st->ip_off = skb_network_header(skb) - skb->data;
-	st->tcp_off = skb_transport_header(skb) - skb->data;
+	st->ip_off = skb_network_offset(skb);
+	st->tcp_off = skb_transport_offset(skb);
 	header_len = st->tcp_off + (tcp_hdr(skb)->doff << 2u);
 	in_len = skb_headlen(skb) - header_len;
 	st->header_len = header_len;

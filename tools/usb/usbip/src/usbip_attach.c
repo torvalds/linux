@@ -86,7 +86,7 @@ static int import_device(int sockfd, struct usbip_usb_device *udev)
 
 	rc = usbip_vhci_driver_open();
 	if (rc < 0) {
-		err("open vhci_driver");
+		err("open vhci_driver (is vhci_hcd loaded?)");
 		goto err_out;
 	}
 

@@ -5,6 +5,7 @@
  */
 
 #include <linux/clk-provider.h>
+#include <linux/export.h>
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/err.h>
@@ -12,7 +13,7 @@
 
 /**
  * struct clk_pfd - IMX PFD clock
- * @clk_hw:	clock source
+ * @hw:		clock source
  * @reg:	PFD register address
  * @idx:	the index of PFD encoded in the register
  *
@@ -153,3 +154,4 @@ struct clk_hw *imx_clk_hw_pfd(const char *name, const char *parent_name,
 
 	return hw;
 }
+EXPORT_SYMBOL_GPL(imx_clk_hw_pfd);

@@ -1,67 +1,9 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
-
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
+/*
+ * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
+ * Copyright (C) 2015-2016 Intel Deutschland GmbH
+ */
 #ifndef __sta_h__
 #define __sta_h__
 
@@ -70,7 +12,7 @@
 #include <linux/wait.h>
 
 #include "iwl-trans.h" /* for IWL_MAX_TID_COUNT */
-#include "fw-api.h" /* IWL_MVM_STATION_COUNT */
+#include "fw-api.h" /* IWL_MVM_STATION_COUNT_MAX */
 #include "rs.h"
 
 struct iwl_mvm;
@@ -339,21 +281,36 @@ struct iwl_mvm_key_pn {
 	} ____cacheline_aligned_in_smp q[];
 };
 
+/**
+ * enum iwl_mvm_rxq_notif_type - Internal message identifier
+ *
+ * @IWL_MVM_RXQ_EMPTY: empty sync notification
+ * @IWL_MVM_RXQ_NOTIF_DEL_BA: notify RSS queues of delBA
+ */
+enum iwl_mvm_rxq_notif_type {
+	IWL_MVM_RXQ_EMPTY,
+	IWL_MVM_RXQ_NOTIF_DEL_BA,
+};
+
+/**
+ * struct iwl_mvm_internal_rxq_notif - Internal representation of the data sent
+ * in &iwl_rxq_sync_cmd. Should be DWORD aligned.
+ * FW is agnostic to the payload, so there are no endianity requirements.
+ *
+ * @type: value from &iwl_mvm_rxq_notif_type
+ * @sync: ctrl path is waiting for all notifications to be received
+ * @cookie: internal cookie to identify old notifications
+ * @data: payload
+ */
+struct iwl_mvm_internal_rxq_notif {
+	u16 type;
+	u16 sync;
+	u32 cookie;
+	u8 data[];
+} __packed;
+
 struct iwl_mvm_delba_data {
 	u32 baid;
-} __packed;
-
-struct iwl_mvm_nssn_sync_data {
-	u32 baid;
-	u32 nssn;
-} __packed;
-
-struct iwl_mvm_rss_sync_notif {
-	struct iwl_mvm_internal_rxq_notif metadata;
-	union {
-		struct iwl_mvm_delba_data delba;
-		struct iwl_mvm_nssn_sync_data nssn_sync;
-	};
 } __packed;
 
 /**
@@ -367,14 +324,56 @@ struct iwl_mvm_rxq_dup_data {
 } ____cacheline_aligned_in_smp;
 
 /**
+ * struct iwl_mvm_link_sta - link specific parameters of a station
+ * @rcu_head: used for freeing the data
+ * @sta_id: the index of the station in the fw
+ * @lq_sta: holds rate scaling data, either for the case when RS is done in
+ *	the driver - %rs_drv or in the FW - %rs_fw.
+ * @orig_amsdu_len: used to save the original amsdu_len when it is changed via
+ *      debugfs.  If it's set to 0, it means that it is it's not set via
+ *      debugfs.
+ * @avg_energy: energy as reported by FW statistics notification
+ */
+struct iwl_mvm_link_sta {
+	struct rcu_head rcu_head;
+	u32 sta_id;
+	union {
+		struct iwl_lq_sta_rs_fw rs_fw;
+		struct iwl_lq_sta rs_drv;
+	} lq_sta;
+
+	u16 orig_amsdu_len;
+
+	u8 avg_energy;
+};
+
+struct iwl_mvm_mpdu_counter {
+	u32 tx;
+	u32 rx;
+};
+
+/**
+ * struct iwl_mvm_tpt_counter - per-queue MPDU counter
+ *
+ * @lock: Needed to protect the counters when modified from statistics.
+ * @per_link: per-link counters.
+ * @window_start: timestamp of the counting-window start
+ */
+struct iwl_mvm_tpt_counter {
+	spinlock_t lock;
+	struct iwl_mvm_mpdu_counter per_link[IWL_MVM_FW_MAX_LINK_ID];
+	unsigned long window_start;
+} ____cacheline_aligned_in_smp;
+
+/**
  * struct iwl_mvm_sta - representation of a station in the driver
- * @sta_id: the index of the station in the fw (will be replaced by id_n_color)
+ * @vif: the interface the station belongs to
  * @tfd_queue_msk: the tfd queues used by the station
  * @mac_id_n_color: the MAC context this station is linked to
  * @tid_disable_agg: bitmap: if bit(tid) is set, the fw won't send ampdus for
  *	tid.
- * @max_agg_bufsize: the maximal size of the AGG buffer for this station
  * @sta_type: station type
+ * @authorized: indicates station is authorized
  * @sta_state: station state according to enum %ieee80211_sta_state
  * @bt_reduced_txpower: is reduced tx power enabled for this station
  * @next_status_eosp: the next reclaimed packet is a PS-Poll response and
@@ -383,8 +382,7 @@ struct iwl_mvm_rxq_dup_data {
  * and from Tx response flow, it needs a spinlock.
  * @tid_data: per tid data + mgmt. Look at %iwl_mvm_tid_data.
  * @tid_to_baid: a simple map of TID to baid
- * @lq_sta: holds rate scaling data, either for the case when RS is done in
- *	the driver - %rs_drv or in the FW - %rs_fw.
+ * @vif: a vif pointer
  * @reserved_queue: the queue reserved for this STA for DQA purposes
  *	Every STA has is given one reserved queue to allow it to operate. If no
  *	such queue can be guaranteed, the STA addition will fail.
@@ -394,10 +392,9 @@ struct iwl_mvm_rxq_dup_data {
  * @amsdu_enabled: bitmap of TX AMSDU allowed TIDs.
  *	In case TLC offload is not active it is either 0xFFFF or 0.
  * @max_amsdu_len: max AMSDU length
- * @orig_amsdu_len: used to save the original amsdu_len when it is changed via
- *      debugfs.  If it's set to 0, it means that it is it's not set via
- *      debugfs.
+ * @sleeping: indicates the station is sleeping (when not offloaded to FW)
  * @agg_tids: bitmap of tids whose status is operational aggregated (IWL_AGG_ON)
+ * @sleeping: sta sleep transitions in power management
  * @sleep_tx_count: the number of frames that we told the firmware to let out
  *	even when that station is asleep. This is useful in case the queue
  *	gets empty before all the frames were sent, which can happen when
@@ -405,10 +402,17 @@ struct iwl_mvm_rxq_dup_data {
  *	the BA window. To be used for UAPSD only.
  * @ptk_pn: per-queue PTK PN data structures
  * @dup_data: per queue duplicate packet detection data
- * @deferred_traffic_tid_map: indication bitmap of deferred traffic per-TID
  * @tx_ant: the index of the antenna to use for data tx to this station. Only
  *	used during connection establishment (e.g. for the 4 way handshake
  *	exchange).
+ * @pairwise_cipher: used to feed iwlmei upon authorization
+ * @deflink: the default link station, for non-MLO STA, all link specific data
+ *	is accessed via deflink (or link[0]). For MLO, it will hold data of the
+ *	first added link STA.
+ * @link: per link sta entries. For non-MLO only link[0] holds data. For MLO,
+ *	link[0] points to deflink and link[link_id] is allocated when new link
+ *	sta is added.
+ * @mpdu_counters: RX/TX MPDUs counters for each queue.
  *
  * When mac80211 creates a station it reserves some space (hw->sta_data_size)
  * in the structure for use by driver. This structure is placed in that
@@ -416,22 +420,17 @@ struct iwl_mvm_rxq_dup_data {
  *
  */
 struct iwl_mvm_sta {
-	u32 sta_id;
 	u32 tfd_queue_msk;
 	u32 mac_id_n_color;
 	u16 tid_disable_agg;
-	u16 max_agg_bufsize;
-	enum iwl_sta_type sta_type;
+	u8 sta_type;
 	enum ieee80211_sta_state sta_state;
 	bool bt_reduced_txpower;
 	bool next_status_eosp;
+	bool authorized;
 	spinlock_t lock;
 	struct iwl_mvm_tid_data tid_data[IWL_MAX_TID_COUNT + 1];
 	u8 tid_to_baid[IWL_MAX_TID_COUNT];
-	union {
-		struct iwl_lq_sta_rs_fw rs_fw;
-		struct iwl_lq_sta rs_drv;
-	} lq_sta;
 	struct ieee80211_vif *vif;
 	struct iwl_mvm_key_pn __rcu *ptk_pn[4];
 	struct iwl_mvm_rxq_dup_data *dup_data;
@@ -445,12 +444,16 @@ struct iwl_mvm_sta {
 	bool disable_tx;
 	u16 amsdu_enabled;
 	u16 max_amsdu_len;
-	u16 orig_amsdu_len;
 	bool sleeping;
 	u8 agg_tids;
 	u8 sleep_tx_count;
-	u8 avg_energy;
 	u8 tx_ant;
+	u32 pairwise_cipher;
+
+	struct iwl_mvm_link_sta deflink;
+	struct iwl_mvm_link_sta __rcu *link[IEEE80211_MLD_MAX_NUM_LINKS];
+
+	struct iwl_mvm_tpt_counter *mpdu_counters;
 };
 
 u16 iwl_mvm_tid_queued(struct iwl_mvm *mvm, struct iwl_mvm_tid_data *tid_data);
@@ -470,7 +473,7 @@ iwl_mvm_sta_from_mac80211(struct ieee80211_sta *sta)
  */
 struct iwl_mvm_int_sta {
 	u32 sta_id;
-	enum iwl_sta_type type;
+	u8 type;
 	u32 tfd_queue_msk;
 };
 
@@ -486,6 +489,9 @@ struct iwl_mvm_int_sta {
  */
 int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			   bool update, unsigned int flags);
+int iwl_mvm_find_free_sta_id(struct iwl_mvm *mvm, enum nl80211_iftype iftype);
+int iwl_mvm_sta_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+		     struct ieee80211_sta *sta, int sta_id, u8 sta_type);
 int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 		    struct ieee80211_vif *vif,
 		    struct ieee80211_sta *sta);
@@ -497,8 +503,13 @@ static inline int iwl_mvm_update_sta(struct iwl_mvm *mvm,
 	return iwl_mvm_sta_send_to_fw(mvm, sta, true, 0);
 }
 
+void iwl_mvm_realloc_queues_after_restart(struct iwl_mvm *mvm,
+					  struct ieee80211_sta *sta);
 int iwl_mvm_wait_sta_queues_empty(struct iwl_mvm *mvm,
 				  struct iwl_mvm_sta *mvm_sta);
+bool iwl_mvm_sta_del(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+		     struct ieee80211_sta *sta,
+		     struct ieee80211_link_sta *link_sta, int *ret);
 int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 		   struct ieee80211_vif *vif,
 		   struct ieee80211_sta *sta);
@@ -524,6 +535,9 @@ void iwl_mvm_update_tkip_key(struct iwl_mvm *mvm,
 void iwl_mvm_rx_eosp_notif(struct iwl_mvm *mvm,
 			   struct iwl_rx_cmd_buffer *rxb);
 
+void iwl_mvm_count_mpdu(struct iwl_mvm_sta *mvm_sta, u8 fw_sta_id, u32 count,
+			bool tx, int queue);
+
 /* AMPDU */
 int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		       int tid, u16 ssn, bool start, u16 buf_size, u16 timeout);
@@ -540,10 +554,12 @@ int iwl_mvm_sta_tx_agg_flush(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 int iwl_mvm_sta_tx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		       int tid, u8 queue, bool start);
 
-int iwl_mvm_add_aux_sta(struct iwl_mvm *mvm);
-void iwl_mvm_del_aux_sta(struct iwl_mvm *mvm);
+int iwl_mvm_add_aux_sta(struct iwl_mvm *mvm, u32 lmac_id);
+int iwl_mvm_rm_aux_sta(struct iwl_mvm *mvm);
 
 int iwl_mvm_alloc_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
+void iwl_mvm_free_bcast_sta_queues(struct iwl_mvm *mvm,
+				   struct ieee80211_vif *vif);
 int iwl_mvm_send_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_add_p2p_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_send_rm_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
@@ -553,7 +569,7 @@ int iwl_mvm_rm_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_allocate_int_sta(struct iwl_mvm *mvm,
 			     struct iwl_mvm_int_sta *sta,
 				    u32 qmask, enum nl80211_iftype iftype,
-				    enum iwl_sta_type type);
+				    u8 type);
 void iwl_mvm_dealloc_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 void iwl_mvm_dealloc_int_sta(struct iwl_mvm *mvm, struct iwl_mvm_int_sta *sta);
 int iwl_mvm_add_snif_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
@@ -577,7 +593,101 @@ void iwl_mvm_sta_modify_disable_tx_ap(struct iwl_mvm *mvm,
 void iwl_mvm_modify_all_sta_disable_tx(struct iwl_mvm *mvm,
 				       struct iwl_mvm_vif *mvmvif,
 				       bool disable);
-void iwl_mvm_csa_client_absent(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
-void iwl_mvm_add_new_dqa_stream_wk(struct work_struct *wk);
 
+void iwl_mvm_csa_client_absent(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
+int iwl_mvm_sta_ensure_queue(struct iwl_mvm *mvm, struct ieee80211_txq *txq);
+void iwl_mvm_add_new_dqa_stream_wk(struct work_struct *wk);
+int iwl_mvm_add_pasn_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			 struct iwl_mvm_int_sta *sta, u8 *addr, u32 cipher,
+			 u8 *key, u32 key_len,
+			 struct ieee80211_key_conf *key_conf_out);
+void iwl_mvm_cancel_channel_switch(struct iwl_mvm *mvm,
+				   struct ieee80211_vif *vif,
+				   u32 id);
+/* Queues */
+int iwl_mvm_tvqm_enable_txq(struct iwl_mvm *mvm,
+			    struct ieee80211_sta *sta,
+			    u8 sta_id, u8 tid, unsigned int timeout);
+
+/* Sta state */
+/**
+ * struct iwl_mvm_sta_state_ops - callbacks for the sta_state() ops
+ *
+ * Since the only difference between both MLD and
+ * non-MLD versions of sta_state() is these function calls,
+ * each version will send its specific function calls to
+ * %iwl_mvm_mac_sta_state_common().
+ *
+ * @add_sta: pointer to the function that adds a new sta
+ * @update_sta: pointer to the function that updates a sta
+ * @rm_sta: pointer to the functions that removes a sta
+ * @mac_ctxt_changed: pointer to the function that handles a change in mac ctxt
+ */
+struct iwl_mvm_sta_state_ops {
+	int (*add_sta)(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+		       struct ieee80211_sta *sta);
+	int (*update_sta)(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			  struct ieee80211_sta *sta);
+	int (*rm_sta)(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+		      struct ieee80211_sta *sta);
+	int (*mac_ctxt_changed)(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+				bool force_assoc_off);
+};
+
+int iwl_mvm_mac_sta_state_common(struct ieee80211_hw *hw,
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_sta *sta,
+				 enum ieee80211_sta_state old_state,
+				 enum ieee80211_sta_state new_state,
+				 const struct iwl_mvm_sta_state_ops *callbacks);
+
+/* New MLD STA related APIs */
+/* STA */
+int iwl_mvm_mld_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			      struct ieee80211_bss_conf *link_conf);
+int iwl_mvm_mld_add_snif_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			     struct ieee80211_bss_conf *link_conf);
+int iwl_mvm_mld_add_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			      struct ieee80211_bss_conf *link_conf);
+int iwl_mvm_mld_add_aux_sta(struct iwl_mvm *mvm, u32 lmac_id);
+int iwl_mvm_mld_rm_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			     struct ieee80211_bss_conf *link_conf);
+int iwl_mvm_mld_rm_snif_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
+int iwl_mvm_mld_rm_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			     struct ieee80211_bss_conf *link_conf);
+int iwl_mvm_mld_rm_aux_sta(struct iwl_mvm *mvm);
+int iwl_mvm_mld_add_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			struct ieee80211_sta *sta);
+int iwl_mvm_mld_update_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			   struct ieee80211_sta *sta);
+int iwl_mvm_mld_rm_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+		       struct ieee80211_sta *sta);
+void iwl_mvm_mld_free_sta_link(struct iwl_mvm *mvm,
+			       struct iwl_mvm_sta *mvm_sta,
+			       struct iwl_mvm_link_sta *mvm_sta_link,
+			       unsigned int link_id,
+			       bool is_in_fw);
+int iwl_mvm_mld_rm_sta_id(struct iwl_mvm *mvm, u8 sta_id);
+int iwl_mvm_mld_update_sta_links(struct iwl_mvm *mvm,
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_sta *sta,
+				 u16 old_links, u16 new_links);
+u32 iwl_mvm_sta_fw_id_mask(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
+			   int filter_link_id);
+int iwl_mvm_mld_add_int_sta_with_queue(struct iwl_mvm *mvm,
+				       struct iwl_mvm_int_sta *sta,
+				       const u8 *addr, int link_id,
+				       u16 *queue, u8 tid,
+				       unsigned int *_wdg_timeout);
+
+/* Queues */
+void iwl_mvm_mld_modify_all_sta_disable_tx(struct iwl_mvm *mvm,
+					   struct iwl_mvm_vif *mvmvif,
+					   bool disable);
+void iwl_mvm_mld_sta_modify_disable_tx(struct iwl_mvm *mvm,
+				       struct iwl_mvm_sta *mvm_sta,
+				       bool disable);
+void iwl_mvm_mld_sta_modify_disable_tx_ap(struct iwl_mvm *mvm,
+					  struct ieee80211_sta *sta,
+					  bool disable);
 #endif /* __sta_h__ */

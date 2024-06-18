@@ -1,0 +1,124 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+
+$id: http://devicetree.org/schemas/hwmon/adi,adm1275.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog Devices ADM1075/ADM127x/ADM1281/ADM129x digital power monitors
+
+maintainers:
+  - Krzysztof Kozlowski <krzk@kernel.org>
+
+description: |
+  The ADM1293 and ADM1294 are high accuracy integrated digital power monitors
+  that offer digital current, voltage, and power monitoring using an on-chip,
+  12-bit analog-to-digital converter (ADC), communicated through a PMBus
+  compliant I2C interface.
+
+  Datasheets:
+    https://www.analog.com/en/products/adm1294.html
+
+properties:
+  compatible:
+    enum:
+      - adi,adm1075
+      - adi,adm1272
+      - adi,adm1275
+      - adi,adm1276
+      - adi,adm1278
+      - adi,adm1281
+      - adi,adm1293
+      - adi,adm1294
+
+  reg:
+    maxItems: 1
+
+  adi,volt-curr-sample-average:
+    description: |
+      Number of samples to be used to report voltage and current values.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [1, 2, 4, 8, 16, 32, 64, 128]
+
+  adi,power-sample-average:
+    description: |
+      Number of samples to be used to report power values.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [1, 2, 4, 8, 16, 32, 64, 128]
+
+allOf:
+  - $ref: hwmon-common.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - adi,adm1075
+              - adi,adm1276
+    then:
+      properties:
+        adi,volt-curr-sample-average:
+          default: 128
+        adi,power-sample-average: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - adi,adm1275
+    then:
+      properties:
+        adi,volt-curr-sample-average:
+          default: 16
+        adi,power-sample-average: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - adi,adm1272
+    then:
+      properties:
+        adi,volt-curr-sample-average:
+          default: 128
+        adi,power-sample-average:
+          default: 128
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - adi,adm1278
+              - adi,adm1281
+              - adi,adm1293
+              - adi,adm1294
+    then:
+      properties:
+        adi,volt-curr-sample-average:
+          default: 128
+        adi,power-sample-average:
+          default: 1
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        power-sensor@10 {
+            compatible = "adi,adm1272";
+            reg = <0x10>;
+            shunt-resistor-micro-ohms = <500>;
+            adi,volt-curr-sample-average = <128>;
+            adi,power-sample-average = <128>;
+        };
+    };

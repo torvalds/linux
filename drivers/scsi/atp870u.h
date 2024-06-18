@@ -7,10 +7,10 @@
 
 /* I/O Port */
 
-#define MAX_CDB 	12
-#define MAX_SENSE 	14
-#define qcnt	       	32
-#define ATP870U_SCATTER 	128
+#define MAX_CDB		12
+#define MAX_SENSE	14
+#define qcnt		32
+#define ATP870U_SCATTER	128
 
 #define MAX_ADAPTER	8
 #define MAX_SCSI_ID	16
@@ -40,7 +40,7 @@ struct atp_unit
 	unsigned short ultra_map[2];
 	unsigned short async[2];
 	unsigned char sp[2][16];
-	unsigned char r1f[2][16];		
+	unsigned char r1f[2][16];
 	struct scsi_cmnd *quereq[2][qcnt];
 	struct atp_id
 	{
@@ -55,8 +55,8 @@ struct atp_unit
 		dma_addr_t prdaddr;		/* Dynamically updated in driver */
 		struct scsi_cmnd *curr_req;
 	} id[2][16];
-    	struct Scsi_Host *host;
-    	struct pci_dev *pdev;
+	struct Scsi_Host *host;
+	struct pci_dev *pdev;
 	unsigned int unit;
 };
 

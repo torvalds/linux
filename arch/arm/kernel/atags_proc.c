@@ -7,19 +7,19 @@
 
 struct buffer {
 	size_t size;
-	char data[];
+	char data[] __counted_by(size);
 };
 
 static ssize_t atags_read(struct file *file, char __user *buf,
 			  size_t count, loff_t *ppos)
 {
-	struct buffer *b = PDE_DATA(file_inode(file));
+	struct buffer *b = pde_data(file_inode(file));
 	return simple_read_from_buffer(buf, count, ppos, b->data, b->size);
 }
 
-static const struct file_operations atags_fops = {
-	.read = atags_read,
-	.llseek = default_llseek,
+static const struct proc_ops atags_proc_ops = {
+	.proc_read	= atags_read,
+	.proc_lseek	= default_llseek,
 };
 
 #define BOOT_PARAMS_SIZE 1536
@@ -42,7 +42,7 @@ static int __init init_atags_procfs(void)
 	size_t size;
 
 	if (tag->hdr.tag != ATAG_CORE) {
-		pr_info("No ATAGs?");
+		pr_info("No ATAGs?\n");
 		return -EINVAL;
 	}
 
@@ -54,14 +54,14 @@ static int __init init_atags_procfs(void)
 
 	WARN_ON(tag->hdr.tag != ATAG_NONE);
 
-	b = kmalloc(sizeof(*b) + size, GFP_KERNEL);
+	b = kmalloc(struct_size(b, data, size), GFP_KERNEL);
 	if (!b)
 		goto nomem;
 
 	b->size = size;
 	memcpy(b->data, atags_copy, size);
 
-	tags_entry = proc_create_data("atags", 0400, NULL, &atags_fops, b);
+	tags_entry = proc_create_data("atags", 0400, NULL, &atags_proc_ops, b);
 	if (!tags_entry)
 		goto nomem;
 

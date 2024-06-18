@@ -42,6 +42,63 @@ DEFINE_EVENT(spi_controller, spi_controller_busy,
 
 );
 
+TRACE_EVENT(spi_setup,
+	TP_PROTO(struct spi_device *spi, int status),
+	TP_ARGS(spi, status),
+
+	TP_STRUCT__entry(
+		__field(int, bus_num)
+		__field(int, chip_select)
+		__field(unsigned long, mode)
+		__field(unsigned int, bits_per_word)
+		__field(unsigned int, max_speed_hz)
+		__field(int, status)
+	),
+
+	TP_fast_assign(
+		__entry->bus_num = spi->controller->bus_num;
+		__entry->chip_select =  spi_get_chipselect(spi, 0);
+		__entry->mode = spi->mode;
+		__entry->bits_per_word = spi->bits_per_word;
+		__entry->max_speed_hz = spi->max_speed_hz;
+		__entry->status = status;
+	),
+
+	TP_printk("spi%d.%d setup mode %lu, %s%s%s%s%u bits/w, %u Hz max --> %d",
+		  __entry->bus_num, __entry->chip_select,
+		  (__entry->mode & SPI_MODE_X_MASK),
+		  (__entry->mode & SPI_CS_HIGH) ? "cs_high, " : "",
+		  (__entry->mode & SPI_LSB_FIRST) ? "lsb, " : "",
+		  (__entry->mode & SPI_3WIRE) ? "3wire, " : "",
+		  (__entry->mode & SPI_LOOP) ? "loopback, " : "",
+		  __entry->bits_per_word, __entry->max_speed_hz,
+		  __entry->status)
+);
+
+TRACE_EVENT(spi_set_cs,
+	TP_PROTO(struct spi_device *spi, bool enable),
+	TP_ARGS(spi, enable),
+
+	TP_STRUCT__entry(
+		__field(int, bus_num)
+		__field(int, chip_select)
+		__field(unsigned long, mode)
+		__field(bool, enable)
+	),
+
+	TP_fast_assign(
+		__entry->bus_num = spi->controller->bus_num;
+		__entry->chip_select = spi_get_chipselect(spi, 0);
+		__entry->mode = spi->mode;
+		__entry->enable = enable;
+	),
+
+	TP_printk("spi%d.%d %s%s",
+		  __entry->bus_num, __entry->chip_select,
+		  __entry->enable ? "activate" : "deactivate",
+		  (__entry->mode & SPI_CS_HIGH) ? ", cs_high" : "")
+);
+
 DECLARE_EVENT_CLASS(spi_message,
 
 	TP_PROTO(struct spi_message *msg),
@@ -56,7 +113,7 @@ DECLARE_EVENT_CLASS(spi_message,
 
 	TP_fast_assign(
 		__entry->bus_num = msg->spi->controller->bus_num;
-		__entry->chip_select = msg->spi->chip_select;
+		__entry->chip_select = spi_get_chipselect(msg->spi, 0);
 		__entry->msg = msg;
 	),
 
@@ -97,7 +154,7 @@ TRACE_EVENT(spi_message_done,
 
 	TP_fast_assign(
 		__entry->bus_num = msg->spi->controller->bus_num;
-		__entry->chip_select = msg->spi->chip_select;
+		__entry->chip_select = spi_get_chipselect(msg->spi, 0);
 		__entry->msg = msg;
 		__entry->frame = msg->frame_length;
 		__entry->actual = msg->actual_length;
@@ -110,7 +167,7 @@ TRACE_EVENT(spi_message_done,
 );
 
 /*
- * consider a buffer valid if non-NULL and if it doesn't match the dummy buffer
+ * Consider a buffer valid if non-NULL and if it doesn't match the dummy buffer
  * that only exist to work with controllers that have SPI_CONTROLLER_MUST_TX or
  * SPI_CONTROLLER_MUST_RX.
  */
@@ -140,7 +197,7 @@ DECLARE_EVENT_CLASS(spi_transfer,
 
 	TP_fast_assign(
 		__entry->bus_num = msg->spi->controller->bus_num;
-		__entry->chip_select = msg->spi->chip_select;
+		__entry->chip_select = spi_get_chipselect(msg->spi, 0);
 		__entry->xfer = xfer;
 		__entry->len = xfer->len;
 

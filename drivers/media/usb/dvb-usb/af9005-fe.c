@@ -6,7 +6,7 @@
  *
  * Thanks to Afatech who kindly provided information.
  *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 #include "af9005.h"
 #include "af9005-script.h"
@@ -1412,8 +1412,7 @@ static int af9005_fe_get_frontend(struct dvb_frontend *fe,
 
 static void af9005_fe_release(struct dvb_frontend *fe)
 {
-	struct af9005_fe_state *state =
-	    (struct af9005_fe_state *)fe->demodulator_priv;
+	struct af9005_fe_state *state = fe->demodulator_priv;
 	kfree(state);
 }
 

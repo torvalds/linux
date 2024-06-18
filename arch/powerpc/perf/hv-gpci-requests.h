@@ -79,6 +79,7 @@ REQUEST(__field(0,	8,	partition_id)
 )
 #include I(REQUEST_END)
 
+#ifdef ENABLE_EVENTS_COUNTERINFO_V6
 /*
  * Not available for counter_info_version >= 0x8, use
  * run_instruction_cycles_by_partition(0x100) instead.
@@ -92,10 +93,11 @@ REQUEST(__field(0,	8,	partition_id)
 	__count(0x10,	8,	cycles)
 )
 #include I(REQUEST_END)
+#endif
 
 #define REQUEST_NAME system_performance_capabilities
 #define REQUEST_NUM 0x40
-#define REQUEST_IDX_KIND "starting_index=0xffffffffffffffff"
+#define REQUEST_IDX_KIND "starting_index=0xffffffff"
 #include I(REQUEST_BEGIN)
 REQUEST(__field(0,	1,	perf_collect_privileged)
 	__field(0x1,	1,	capability_mask)
@@ -103,6 +105,7 @@ REQUEST(__field(0,	1,	perf_collect_privileged)
 )
 #include I(REQUEST_END)
 
+#ifdef ENABLE_EVENTS_COUNTERINFO_V6
 #define REQUEST_NAME processor_bus_utilization_abc_links
 #define REQUEST_NUM 0x50
 #define REQUEST_IDX_KIND "hw_chip_id=?"
@@ -194,6 +197,7 @@ REQUEST(__field(0,	4,	phys_processor_idx)
 	__count(0x28,	8,	instructions_completed)
 )
 #include I(REQUEST_END)
+#endif
 
 /* Processor_core_power_mode (0x95) skipped, no counters */
 /* Affinity_domain_information_by_virtual_processor (0xA0) skipped,
@@ -223,7 +227,7 @@ REQUEST(__field(0,	2, partition_id)
 
 #define REQUEST_NAME system_hypervisor_times
 #define REQUEST_NUM 0xF0
-#define REQUEST_IDX_KIND "starting_index=0xffffffffffffffff"
+#define REQUEST_IDX_KIND "starting_index=0xffffffff"
 #include I(REQUEST_BEGIN)
 REQUEST(__count(0,	8,	time_spent_to_dispatch_virtual_processors)
 	__count(0x8,	8,	time_spent_processing_virtual_processor_timers)
@@ -234,7 +238,7 @@ REQUEST(__count(0,	8,	time_spent_to_dispatch_virtual_processors)
 
 #define REQUEST_NAME system_tlbie_count_and_time
 #define REQUEST_NUM 0xF4
-#define REQUEST_IDX_KIND "starting_index=0xffffffffffffffff"
+#define REQUEST_IDX_KIND "starting_index=0xffffffff"
 #include I(REQUEST_BEGIN)
 REQUEST(__count(0,	8,	tlbie_instructions_issued)
 	/*

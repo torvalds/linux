@@ -169,7 +169,7 @@ static int axg_pdm_set_sysclk(struct axg_pdm *priv, unsigned int os,
 
 	/*
 	 * Set the default system clock rate unless it is too fast for
-	 * for the requested sample rate. In this case, the sample pointer
+	 * the requested sample rate. In this case, the sample pointer
 	 * counter could overflow so set a lower system clock rate
 	 */
 	if (sys_rate < priv->cfg->sys_rate)
@@ -293,13 +293,6 @@ static void axg_pdm_shutdown(struct snd_pcm_substream *substream,
 	axg_pdm_filters_enable(priv->map, false);
 	clk_disable_unprepare(priv->dclk);
 }
-
-static const struct snd_soc_dai_ops axg_pdm_dai_ops = {
-	.trigger	= axg_pdm_trigger,
-	.hw_params	= axg_pdm_hw_params,
-	.startup	= axg_pdm_startup,
-	.shutdown	= axg_pdm_shutdown,
-};
 
 static void axg_pdm_set_hcic_ctrl(struct axg_pdm *priv)
 {
@@ -440,6 +433,15 @@ static int axg_pdm_dai_remove(struct snd_soc_dai *dai)
 	return 0;
 }
 
+static const struct snd_soc_dai_ops axg_pdm_dai_ops = {
+	.probe		= axg_pdm_dai_probe,
+	.remove		= axg_pdm_dai_remove,
+	.trigger	= axg_pdm_trigger,
+	.hw_params	= axg_pdm_hw_params,
+	.startup	= axg_pdm_startup,
+	.shutdown	= axg_pdm_shutdown,
+};
+
 static struct snd_soc_dai_driver axg_pdm_dai_drv = {
 	.name = "PDM",
 	.capture = {
@@ -453,11 +455,11 @@ static struct snd_soc_dai_driver axg_pdm_dai_drv = {
 				   SNDRV_PCM_FMTBIT_S32_LE),
 	},
 	.ops		= &axg_pdm_dai_ops,
-	.probe		= axg_pdm_dai_probe,
-	.remove		= axg_pdm_dai_remove,
 };
 
-static const struct snd_soc_component_driver axg_pdm_component_drv = {};
+static const struct snd_soc_component_driver axg_pdm_component_drv = {
+	.legacy_dai_naming = 1,
+};
 
 static const struct regmap_config axg_pdm_regmap_cfg = {
 	.reg_bits	= 32,
@@ -586,7 +588,6 @@ static int axg_pdm_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct axg_pdm *priv;
 	void __iomem *regs;
-	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -611,28 +612,16 @@ static int axg_pdm_probe(struct platform_device *pdev)
 	}
 
 	priv->pclk = devm_clk_get(dev, "pclk");
-	if (IS_ERR(priv->pclk)) {
-		ret = PTR_ERR(priv->pclk);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "failed to get pclk: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(priv->pclk))
+		return dev_err_probe(dev, PTR_ERR(priv->pclk), "failed to get pclk\n");
 
 	priv->dclk = devm_clk_get(dev, "dclk");
-	if (IS_ERR(priv->dclk)) {
-		ret = PTR_ERR(priv->dclk);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "failed to get dclk: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(priv->dclk))
+		return dev_err_probe(dev, PTR_ERR(priv->dclk), "failed to get dclk\n");
 
 	priv->sysclk = devm_clk_get(dev, "sysclk");
-	if (IS_ERR(priv->sysclk)) {
-		ret = PTR_ERR(priv->sysclk);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "failed to get dclk: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(priv->sysclk))
+		return dev_err_probe(dev, PTR_ERR(priv->sysclk), "failed to get dclk\n");
 
 	return devm_snd_soc_register_component(dev, &axg_pdm_component_drv,
 					       &axg_pdm_dai_drv, 1);

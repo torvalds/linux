@@ -8,9 +8,6 @@
  * Acorn RiscPC PS/2 keyboard controller driver for Linux/ARM
  */
 
-/*
- */
-
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/serio.h>
@@ -104,12 +101,12 @@ static int rpckbd_probe(struct platform_device *dev)
 	int tx_irq, rx_irq;
 
 	rx_irq = platform_get_irq(dev, 0);
-	if (rx_irq <= 0)
-		return rx_irq < 0 ? rx_irq : -ENXIO;
+	if (rx_irq < 0)
+		return rx_irq;
 
 	tx_irq = platform_get_irq(dev, 1);
-	if (tx_irq <= 0)
-		return tx_irq < 0 ? tx_irq : -ENXIO;
+	if (tx_irq < 0)
+		return tx_irq;
 
 	serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
 	rpckbd = kzalloc(sizeof(*rpckbd), GFP_KERNEL);
@@ -128,28 +125,26 @@ static int rpckbd_probe(struct platform_device *dev)
 	serio->close		= rpckbd_close;
 	serio->dev.parent	= &dev->dev;
 	serio->port_data	= rpckbd;
-	strlcpy(serio->name, "RiscPC PS/2 kbd port", sizeof(serio->name));
-	strlcpy(serio->phys, "rpckbd/serio0", sizeof(serio->phys));
+	strscpy(serio->name, "RiscPC PS/2 kbd port", sizeof(serio->name));
+	strscpy(serio->phys, "rpckbd/serio0", sizeof(serio->phys));
 
 	platform_set_drvdata(dev, serio);
 	serio_register_port(serio);
 	return 0;
 }
 
-static int rpckbd_remove(struct platform_device *dev)
+static void rpckbd_remove(struct platform_device *dev)
 {
 	struct serio *serio = platform_get_drvdata(dev);
 	struct rpckbd_data *rpckbd = serio->port_data;
 
 	serio_unregister_port(serio);
 	kfree(rpckbd);
-
-	return 0;
 }
 
 static struct platform_driver rpckbd_driver = {
 	.probe		= rpckbd_probe,
-	.remove		= rpckbd_remove,
+	.remove_new	= rpckbd_remove,
 	.driver		= {
 		.name	= "kart",
 	},

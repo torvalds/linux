@@ -6,14 +6,13 @@
  *  Copyright (c) 2006 Dmitry Torokhov <dtor@mail.ru>
  */
 
-/*
- */
-
 /* #define DEBUG */
 
 #include <linux/input.h>
+#include <linux/limits.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/overflow.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 
@@ -67,7 +66,7 @@ static int compat_effect(struct ff_device *ff, struct ff_effect *effect)
 		effect->type = FF_PERIODIC;
 		effect->u.periodic.waveform = FF_SINE;
 		effect->u.periodic.period = 50;
-		effect->u.periodic.magnitude = max(magnitude, 0x7fff);
+		effect->u.periodic.magnitude = magnitude;
 		effect->u.periodic.offset = 0;
 		effect->u.periodic.phase = 0;
 		effect->u.periodic.envelope.attack_length = 0;
@@ -318,9 +317,8 @@ int input_ff_create(struct input_dev *dev, unsigned int max_effects)
 		return -EINVAL;
 	}
 
-	ff_dev_size = sizeof(struct ff_device) +
-				max_effects * sizeof(struct file *);
-	if (ff_dev_size < max_effects) /* overflow */
+	ff_dev_size = struct_size(ff, effect_owners, max_effects);
+	if (ff_dev_size == SIZE_MAX) /* overflow */
 		return -EINVAL;
 
 	ff = kzalloc(ff_dev_size, GFP_KERNEL);

@@ -3,8 +3,12 @@ ccflags-$(CONFIG_DRM_TEGRA_DEBUG) += -DDEBUG
 
 tegra-drm-y := \
 	drm.o \
+	uapi.o \
+	submit.o \
+	firewall.o \
 	gem.o \
 	fb.o \
+	dp.o \
 	hub.o \
 	plane.o \
 	dc.o \
@@ -19,8 +23,12 @@ tegra-drm-y := \
 	gr2d.o \
 	gr3d.o \
 	falcon.o \
-	vic.o
+	vic.o \
+	nvdec.o \
+	riscv.o
 
 tegra-drm-y += trace.o
+
+tegra-drm-$(CONFIG_DRM_FBDEV_EMULATION) += fbdev.o
 
 obj-$(CONFIG_DRM_TEGRA) += tegra-drm.o

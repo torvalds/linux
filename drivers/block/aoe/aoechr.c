@@ -49,13 +49,23 @@ static int emsgs_head_idx, emsgs_tail_idx;
 static struct completion emsgs_comp;
 static spinlock_t emsgs_lock;
 static int nblocked_emsgs_readers;
-static struct class *aoe_class;
+
 static struct aoe_chardev chardevs[] = {
 	{ MINOR_ERR, "err" },
 	{ MINOR_DISCOVER, "discover" },
 	{ MINOR_INTERFACES, "interfaces" },
 	{ MINOR_REVALIDATE, "revalidate" },
 	{ MINOR_FLUSH, "flush" },
+};
+
+static char *aoe_devnode(const struct device *dev, umode_t *mode)
+{
+	return kasprintf(GFP_KERNEL, "etherd/%s", dev_name(dev));
+}
+
+static const struct class aoe_class = {
+	.name = "aoe",
+	.devnode = aoe_devnode,
 };
 
 static int
@@ -140,10 +150,8 @@ bail:		spin_unlock_irqrestore(&emsgs_lock, flags);
 	}
 
 	mp = kmemdup(msg, n, GFP_ATOMIC);
-	if (mp == NULL) {
-		printk(KERN_ERR "aoe: allocation failure, len=%ld\n", n);
+	if (!mp)
 		goto bail;
-	}
 
 	em->msg = mp;
 	em->flags |= EMFL_VALID;
@@ -275,11 +283,6 @@ static const struct file_operations aoe_fops = {
 	.llseek = noop_llseek,
 };
 
-static char *aoe_devnode(struct device *dev, umode_t *mode)
-{
-	return kasprintf(GFP_KERNEL, "etherd/%s", dev_name(dev));
-}
-
 int __init
 aoechr_init(void)
 {
@@ -292,15 +295,14 @@ aoechr_init(void)
 	}
 	init_completion(&emsgs_comp);
 	spin_lock_init(&emsgs_lock);
-	aoe_class = class_create(THIS_MODULE, "aoe");
-	if (IS_ERR(aoe_class)) {
+	n = class_register(&aoe_class);
+	if (n) {
 		unregister_chrdev(AOE_MAJOR, "aoechr");
-		return PTR_ERR(aoe_class);
+		return n;
 	}
-	aoe_class->devnode = aoe_devnode;
 
 	for (i = 0; i < ARRAY_SIZE(chardevs); ++i)
-		device_create(aoe_class, NULL,
+		device_create(&aoe_class, NULL,
 			      MKDEV(AOE_MAJOR, chardevs[i].minor), NULL,
 			      chardevs[i].name);
 
@@ -313,8 +315,8 @@ aoechr_exit(void)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(chardevs); ++i)
-		device_destroy(aoe_class, MKDEV(AOE_MAJOR, chardevs[i].minor));
-	class_destroy(aoe_class);
+		device_destroy(&aoe_class, MKDEV(AOE_MAJOR, chardevs[i].minor));
+	class_unregister(&aoe_class);
 	unregister_chrdev(AOE_MAJOR, "aoechr");
 }
 

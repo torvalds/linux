@@ -37,7 +37,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* A "hypercall" is an "sc 1" instruction.  This header file file provides C
+/* A "hypercall" is an "sc 1" instruction.  This header file provides C
  * wrapper functions for the ePAPR hypervisor interface.  It is inteded
  * for use by Linux device drivers and other operating systems.
  *
@@ -65,7 +65,7 @@
  * but the gcc inline assembly syntax does not allow us to specify registers
  * on the clobber list that are also on the input/output list.  Therefore,
  * the lists of clobbered registers depends on the number of register
- * parmeters ("+r" and "=r") passed to the hypercall.
+ * parameters ("+r" and "=r") passed to the hypercall.
  *
  * Each assembly block should use one of the HCALL_CLOBBERSx macros.  As a
  * general rule, 'x' is the number of parameters passed to the assembly
@@ -246,7 +246,7 @@ static inline unsigned int ev_int_get_mask(unsigned int interrupt,
  * ev_int_eoi - signal the end of interrupt processing
  * @interrupt: the interrupt number
  *
- * This function signals the end of processing for the the specified
+ * This function signals the end of processing for the specified
  * interrupt, which must be the interrupt currently in service. By
  * definition, this is also the highest-priority interrupt.
  *

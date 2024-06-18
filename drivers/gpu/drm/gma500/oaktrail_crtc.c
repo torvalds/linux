@@ -8,8 +8,11 @@
 #include <linux/pm_runtime.h>
 
 #include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
+#include <drm/drm_modeset_helper_vtables.h>
 
 #include "framebuffer.h"
+#include "gem.h"
 #include "gma_display.h"
 #include "power.h"
 #include "psb_drv.h"
@@ -82,7 +85,7 @@ static const struct gma_limit_t *mrst_limit(struct drm_crtc *crtc,
 {
 	const struct gma_limit_t *limit = NULL;
 	struct drm_device *dev = crtc->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 
 	if (gma_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)
 	    || gma_pipe_has_type(crtc, INTEL_OUTPUT_MIPI)) {
@@ -129,6 +132,7 @@ static bool mrst_sdvo_find_best_pll(const struct gma_limit_t *limit,
 	s32 freq_error, min_error = 100000;
 
 	memset(best_clock, 0, sizeof(*best_clock));
+	memset(&clock, 0, sizeof(clock));
 
 	for (clock.m = limit->m.min; clock.m <= limit->m.max; clock.m++) {
 		for (clock.n = limit->n.min; clock.n <= limit->n.max;
@@ -173,7 +177,7 @@ static bool mrst_sdvo_find_best_pll(const struct gma_limit_t *limit,
 	return min_error == 0;
 }
 
-/**
+/*
  * Returns a set of divisors for the desired target clock with the given refclk,
  * or FALSE.  Divisor values are the actual divisors for
  */
@@ -185,6 +189,7 @@ static bool mrst_lvds_find_best_pll(const struct gma_limit_t *limit,
 	int err = target;
 
 	memset(best_clock, 0, sizeof(*best_clock));
+	memset(&clock, 0, sizeof(clock));
 
 	for (clock.m = limit->m.min; clock.m <= limit->m.max; clock.m++) {
 		for (clock.p1 = limit->p1.min; clock.p1 <= limit->p1.max;
@@ -203,7 +208,7 @@ static bool mrst_lvds_find_best_pll(const struct gma_limit_t *limit,
 	return err != target;
 }
 
-/**
+/*
  * Sets the power management mode of the pipe and plane.
  *
  * This code should probably grow support for turning the cursor off and back
@@ -212,7 +217,7 @@ static bool mrst_lvds_find_best_pll(const struct gma_limit_t *limit,
 static void oaktrail_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 	int pipe = gma_crtc->pipe;
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
@@ -306,7 +311,7 @@ static void oaktrail_crtc_dpms(struct drm_crtc *crtc, int mode)
 						   temp & ~PIPEACONF_ENABLE, i);
 				REG_READ_WITH_AUX(map->conf, i);
 			}
-			/* Wait for for the pipe disable to take effect. */
+			/* Wait for the pipe disable to take effect. */
 			gma_wait_for_vblank(dev);
 
 			temp = REG_READ_WITH_AUX(map->dpll, i);
@@ -335,7 +340,7 @@ static void oaktrail_crtc_dpms(struct drm_crtc *crtc, int mode)
 	gma_power_end(dev);
 }
 
-/**
+/*
  * Return the pipe currently connected to the panel fitter,
  * or -1 if the panel fitter is not present or not in use
  */
@@ -359,7 +364,7 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	int pipe = gma_crtc->pipe;
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	int refclk = 0;
@@ -369,9 +374,9 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 	bool ok, is_sdvo = false;
 	bool is_lvds = false;
 	bool is_mipi = false;
-	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct gma_encoder *gma_encoder = NULL;
 	uint64_t scalingType = DRM_MODE_SCALE_FULLSCREEN;
+	struct drm_connector_list_iter conn_iter;
 	struct drm_connector *connector;
 	int i;
 	int need_aux = gma_pipe_has_type(crtc, INTEL_OUTPUT_SDVO) ? 1 : 0;
@@ -382,14 +387,11 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 	if (!gma_power_begin(dev, true))
 		return 0;
 
-	memcpy(&gma_crtc->saved_mode,
-		mode,
-		sizeof(struct drm_display_mode));
-	memcpy(&gma_crtc->saved_adjusted_mode,
-		adjusted_mode,
-		sizeof(struct drm_display_mode));
+	drm_mode_copy(&gma_crtc->saved_mode, mode);
+	drm_mode_copy(&gma_crtc->saved_adjusted_mode, adjusted_mode);
 
-	list_for_each_entry(connector, &mode_config->connector_list, head) {
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
 		if (!connector->encoder || connector->encoder->crtc != crtc)
 			continue;
 
@@ -406,7 +408,15 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 			is_mipi = true;
 			break;
 		}
+
+		break;
 	}
+
+	if (gma_encoder)
+		drm_object_property_get_value(&connector->base,
+			dev->mode_config.scaling_mode_property, &scalingType);
+
+	drm_connector_list_iter_end(&conn_iter);
 
 	/* Disable the VGA plane that we never use */
 	for (i = 0; i <= need_aux; i++)
@@ -420,10 +430,6 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 		REG_WRITE_WITH_AUX(map->src, ((mode->crtc_hdisplay - 1) << 16) |
 					     (mode->crtc_vdisplay - 1), i);
 	}
-
-	if (gma_encoder)
-		drm_object_property_get_value(&connector->base,
-			dev->mode_config.scaling_mode_property, &scalingType);
 
 	if (scalingType == DRM_MODE_SCALE_NO_SCALE) {
 		/* Moorestown doesn't have register support for centering so
@@ -587,7 +593,7 @@ static int oaktrail_pipe_set_base(struct drm_crtc *crtc,
 			    int x, int y, struct drm_framebuffer *old_fb)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 	struct drm_framebuffer *fb = crtc->primary->fb;
 	int pipe = gma_crtc->pipe;
@@ -606,7 +612,7 @@ static int oaktrail_pipe_set_base(struct drm_crtc *crtc,
 	if (!gma_power_begin(dev, true))
 		return 0;
 
-	start = to_gtt_range(fb->obj[0])->offset;
+	start = to_psb_gem_object(fb->obj[0])->offset;
 	offset = y * fb->pitches[0] + x * fb->format->cpp[0];
 
 	REG_WRITE(map->stride, fb->pitches[0]);

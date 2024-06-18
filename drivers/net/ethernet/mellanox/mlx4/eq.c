@@ -210,7 +210,7 @@ static void slave_event(struct mlx4_dev *dev, u8 slave, struct mlx4_eqe *eqe)
 
 	memcpy(s_eqe, eqe, sizeof(struct mlx4_eqe) - 1);
 	s_eqe->slave_id = slave;
-	/* ensure all information is written before setting the ownersip bit */
+	/* ensure all information is written before setting the ownership bit */
 	dma_wmb();
 	s_eqe->owner = !!(slave_eq->prod & SLAVE_EVENT_EQ_SIZE) ? 0x0 : 0x80;
 	++slave_eq->prod;
@@ -244,9 +244,9 @@ static void mlx4_set_eq_affinity_hint(struct mlx4_priv *priv, int vec)
 	    cpumask_empty(eq->affinity_mask))
 		return;
 
-	hint_err = irq_set_affinity_hint(eq->irq, eq->affinity_mask);
+	hint_err = irq_update_affinity_hint(eq->irq, eq->affinity_mask);
 	if (hint_err)
-		mlx4_warn(dev, "irq_set_affinity_hint failed, err %d\n", hint_err);
+		mlx4_warn(dev, "irq_update_affinity_hint failed, err %d\n", hint_err);
 }
 #endif
 
@@ -501,7 +501,7 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 	int port;
 	int slave = 0;
 	int ret;
-	u32 flr_slave;
+	int flr_slave;
 	u8 update_slave_state;
 	int i;
 	enum slave_port_gen_event gen_event;
@@ -558,7 +558,7 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 			mlx4_dbg(dev, "%s: MLX4_EVENT_TYPE_SRQ_LIMIT. srq_no=0x%x, eq 0x%x\n",
 				 __func__, be32_to_cpu(eqe->event.srq.srqn),
 				 eq->eqn);
-			/* fall through */
+			fallthrough;
 		case MLX4_EVENT_TYPE_SRQ_CATAS_ERROR:
 			if (mlx4_is_master(dev)) {
 				/* forward only to slave owning the SRQ */
@@ -606,8 +606,8 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 			port = be32_to_cpu(eqe->event.port_change.port) >> 28;
 			slaves_port = mlx4_phys_to_slaves_pport(dev, port);
 			if (eqe->subtype == MLX4_PORT_CHANGE_SUBTYPE_DOWN) {
-				mlx4_dispatch_event(dev, MLX4_DEV_EVENT_PORT_DOWN,
-						    port);
+				mlx4_dispatch_event(
+					dev, MLX4_DEV_EVENT_PORT_DOWN, &port);
 				mlx4_priv(dev)->sense.do_sense_port[port] = 1;
 				if (!mlx4_is_master(dev))
 					break;
@@ -647,7 +647,8 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 					}
 				}
 			} else {
-				mlx4_dispatch_event(dev, MLX4_DEV_EVENT_PORT_UP, port);
+				mlx4_dispatch_event(dev, MLX4_DEV_EVENT_PORT_UP,
+						    &port);
 
 				mlx4_priv(dev)->sense.do_sense_port[port] = 0;
 
@@ -758,7 +759,7 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 			}
 			spin_unlock_irqrestore(&priv->mfunc.master.slave_state_lock, flags);
 			mlx4_dispatch_event(dev, MLX4_DEV_EVENT_SLAVE_SHUTDOWN,
-					    flr_slave);
+					    &flr_slave);
 			queue_work(priv->mfunc.master.comm_wq,
 				   &priv->mfunc.master.slave_flr_event_work);
 			break;
@@ -787,8 +788,8 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 			break;
 
 		case MLX4_EVENT_TYPE_PORT_MNG_CHG_EVENT:
-			mlx4_dispatch_event(dev, MLX4_DEV_EVENT_PORT_MGMT_CHANGE,
-					    (unsigned long) eqe);
+			mlx4_dispatch_event(
+				dev, MLX4_DEV_EVENT_PORT_MGMT_CHANGE, eqe);
 			break;
 
 		case MLX4_EVENT_TYPE_RECOVERABLE_ERROR_EVENT:
@@ -1057,8 +1058,7 @@ static int mlx4_create_eq(struct mlx4_dev *dev, int nent,
 	INIT_LIST_HEAD(&eq->tasklet_ctx.list);
 	INIT_LIST_HEAD(&eq->tasklet_ctx.process_list);
 	spin_lock_init(&eq->tasklet_ctx.lock);
-	tasklet_init(&eq->tasklet_ctx.task, mlx4_cq_tasklet_cb,
-		     (unsigned long)&eq->tasklet_ctx);
+	tasklet_setup(&eq->tasklet_ctx.task, mlx4_cq_tasklet_cb);
 
 	return err;
 
@@ -1124,9 +1124,7 @@ static void mlx4_free_irqs(struct mlx4_dev *dev)
 	for (i = 0; i < dev->caps.num_comp_vectors + 1; ++i)
 		if (eq_table->eq[i].have_irq) {
 			free_cpumask_var(eq_table->eq[i].affinity_mask);
-#if defined(CONFIG_SMP)
-			irq_set_affinity_hint(eq_table->eq[i].irq, NULL);
-#endif
+			irq_update_affinity_hint(eq_table->eq[i].irq, NULL);
 			free_irq(eq_table->eq[i].irq, eq_table->eq + i);
 			eq_table->eq[i].have_irq = 0;
 		}

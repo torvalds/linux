@@ -8,32 +8,13 @@
 
 #include "mdp5_kms.h"
 
+#ifdef CONFIG_DRM_MSM_DSI
+
 static struct mdp5_kms *get_kms(struct drm_encoder *encoder)
 {
 	struct msm_drm_private *priv = encoder->dev->dev_private;
 	return to_mdp5_kms(to_mdp_kms(priv->kms));
 }
-
-#ifdef DOWNSTREAM_CONFIG_MSM_BUS_SCALING
-#include <mach/board.h>
-#include <linux/msm-bus.h>
-#include <linux/msm-bus-board.h>
-
-static void bs_set(struct mdp5_encoder *mdp5_cmd_enc, int idx)
-{
-	if (mdp5_cmd_enc->bsc) {
-		DBG("set bus scaling: %d", idx);
-		/* HACK: scaling down, and then immediately back up
-		 * seems to leave things broken (underflow).. so
-		 * never disable:
-		 */
-		idx = 1;
-		msm_bus_scale_client_update_request(mdp5_cmd_enc->bsc, idx);
-	}
-}
-#else
-static void bs_set(struct mdp5_encoder *mdp5_cmd_enc, int idx) {}
-#endif
 
 #define VSYNC_CLK_RATE 19200000
 static int pingpong_tearcheck_setup(struct drm_encoder *encoder,
@@ -41,7 +22,7 @@ static int pingpong_tearcheck_setup(struct drm_encoder *encoder,
 {
 	struct mdp5_kms *mdp5_kms = get_kms(encoder);
 	struct device *dev = encoder->dev->dev;
-	u32 total_lines_x100, vclks_line, cfg;
+	u32 total_lines, vclks_line, cfg;
 	long vsync_clk_speed;
 	struct mdp5_hw_mixer *mixer = mdp5_crtc_get_mixer(encoder->crtc);
 	int pp_id = mixer->pp;
@@ -51,8 +32,8 @@ static int pingpong_tearcheck_setup(struct drm_encoder *encoder,
 		return -EINVAL;
 	}
 
-	total_lines_x100 = mode->vtotal * drm_mode_vrefresh(mode);
-	if (!total_lines_x100) {
+	total_lines = mode->vtotal * drm_mode_vrefresh(mode);
+	if (!total_lines) {
 		DRM_DEV_ERROR(dev, "%s: vtotal(%d) or vrefresh(%d) is 0\n",
 			      __func__, mode->vtotal, drm_mode_vrefresh(mode));
 		return -EINVAL;
@@ -64,15 +45,23 @@ static int pingpong_tearcheck_setup(struct drm_encoder *encoder,
 							vsync_clk_speed);
 		return -EINVAL;
 	}
-	vclks_line = vsync_clk_speed * 100 / total_lines_x100;
+	vclks_line = vsync_clk_speed / total_lines;
 
 	cfg = MDP5_PP_SYNC_CONFIG_VSYNC_COUNTER_EN
 		| MDP5_PP_SYNC_CONFIG_VSYNC_IN_EN;
 	cfg |= MDP5_PP_SYNC_CONFIG_VSYNC_COUNT(vclks_line);
 
+	/*
+	 * Tearcheck emits a blanking signal every vclks_line * vtotal * 2 ticks on
+	 * the vsync_clk equating to roughly half the desired panel refresh rate.
+	 * This is only necessary as stability fallback if interrupts from the
+	 * panel arrive too late or not at all, but is currently used by default
+	 * because these panel interrupts are not wired up yet.
+	 */
 	mdp5_write(mdp5_kms, REG_MDP5_PP_SYNC_CONFIG_VSYNC(pp_id), cfg);
 	mdp5_write(mdp5_kms,
-		REG_MDP5_PP_SYNC_CONFIG_HEIGHT(pp_id), 0xfff0);
+		REG_MDP5_PP_SYNC_CONFIG_HEIGHT(pp_id), (2 * mode->vtotal));
+
 	mdp5_write(mdp5_kms,
 		REG_MDP5_PP_VSYNC_INIT_VAL(pp_id), mode->vdisplay);
 	mdp5_write(mdp5_kms, REG_MDP5_PP_RD_PTR_IRQ(pp_id), mode->vdisplay + 1);
@@ -80,6 +69,7 @@ static int pingpong_tearcheck_setup(struct drm_encoder *encoder,
 	mdp5_write(mdp5_kms, REG_MDP5_PP_SYNC_THRESH(pp_id),
 			MDP5_PP_SYNC_THRESH_START(4) |
 			MDP5_PP_SYNC_THRESH_CONTINUE(4));
+	mdp5_write(mdp5_kms, REG_MDP5_PP_AUTOREFRESH_CONFIG(pp_id), 0x0);
 
 	return 0;
 }
@@ -146,8 +136,6 @@ void mdp5_cmd_encoder_disable(struct drm_encoder *encoder)
 	mdp5_ctl_set_encoder_state(ctl, pipeline, false);
 	mdp5_ctl_commit(ctl, pipeline, mdp_ctl_flush_mask_encoder(intf), true);
 
-	bs_set(mdp5_cmd_enc, 0);
-
 	mdp5_cmd_enc->enabled = false;
 }
 
@@ -161,7 +149,6 @@ void mdp5_cmd_encoder_enable(struct drm_encoder *encoder)
 	if (WARN_ON(mdp5_cmd_enc->enabled))
 		return;
 
-	bs_set(mdp5_cmd_enc, 1);
 	if (pingpong_tearcheck_enable(encoder))
 		return;
 
@@ -171,45 +158,4 @@ void mdp5_cmd_encoder_enable(struct drm_encoder *encoder)
 
 	mdp5_cmd_enc->enabled = true;
 }
-
-int mdp5_cmd_encoder_set_split_display(struct drm_encoder *encoder,
-				       struct drm_encoder *slave_encoder)
-{
-	struct mdp5_encoder *mdp5_cmd_enc = to_mdp5_encoder(encoder);
-	struct mdp5_kms *mdp5_kms;
-	struct device *dev;
-	int intf_num;
-	u32 data = 0;
-
-	if (!encoder || !slave_encoder)
-		return -EINVAL;
-
-	mdp5_kms = get_kms(encoder);
-	intf_num = mdp5_cmd_enc->intf->num;
-
-	/* Switch slave encoder's trigger MUX, to use the master's
-	 * start signal for the slave encoder
-	 */
-	if (intf_num == 1)
-		data |= MDP5_SPLIT_DPL_UPPER_INTF2_SW_TRG_MUX;
-	else if (intf_num == 2)
-		data |= MDP5_SPLIT_DPL_UPPER_INTF1_SW_TRG_MUX;
-	else
-		return -EINVAL;
-
-	/* Smart Panel, Sync mode */
-	data |= MDP5_SPLIT_DPL_UPPER_SMART_PANEL;
-
-	dev = &mdp5_kms->pdev->dev;
-
-	/* Make sure clocks are on when connectors calling this function. */
-	pm_runtime_get_sync(dev);
-	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_UPPER, data);
-
-	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_LOWER,
-		   MDP5_SPLIT_DPL_LOWER_SMART_PANEL);
-	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_EN, 1);
-	pm_runtime_put_sync(dev);
-
-	return 0;
-}
+#endif /* CONFIG_DRM_MSM_DSI */

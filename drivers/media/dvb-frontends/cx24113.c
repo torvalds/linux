@@ -378,7 +378,7 @@ static void cx24113_set_nfr(struct cx24113_state *state, u16 n, s32 f, u8 r)
 
 static int cx24113_set_frequency(struct cx24113_state *state, u32 frequency)
 {
-	u8 r = 1; /* or 2 */
+	u8 r;
 	u16 n = 6;
 	s32 f = 0;
 
@@ -590,7 +590,7 @@ error:
 
 	return NULL;
 }
-EXPORT_SYMBOL(cx24113_attach);
+EXPORT_SYMBOL_GPL(cx24113_attach);
 
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Activates frontend debugging (default:0)");

@@ -1328,27 +1328,6 @@ static const u32 ar9580_1p0_baseband_postamble[][5] = {
 	{0x0000c284, 0x00000000, 0x00000000, 0x00000150, 0x00000150},
 };
 
-static const u32 ar9580_1p0_pcie_phy_clkreq_enable_L1[][2] = {
-	/* Addr      allmodes  */
-	{0x00004040, 0x0835365e},
-	{0x00004040, 0x0008003b},
-	{0x00004044, 0x00000000},
-};
-
-static const u32 ar9580_1p0_pcie_phy_clkreq_disable_L1[][2] = {
-	/* Addr      allmodes  */
-	{0x00004040, 0x0831365e},
-	{0x00004040, 0x0008003b},
-	{0x00004044, 0x00000000},
-};
-
-static const u32 ar9580_1p0_pcie_phy_pll_on_clkreq[][2] = {
-	/* Addr      allmodes  */
-	{0x00004040, 0x0831265e},
-	{0x00004040, 0x0008003b},
-	{0x00004044, 0x00000000},
-};
-
 static const u32 ar9580_1p0_baseband_postamble_dfs_channel[][3] = {
 	/* Addr      5G          2G        */
 	{0x00009814, 0x3400c00f, 0x3400c00f},

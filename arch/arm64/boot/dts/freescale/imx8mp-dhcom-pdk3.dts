@@ -1,0 +1,312 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (C) 2023 Marek Vasut <marex@denx.de>
+ *
+ * DHCOM iMX8MP variant:
+ * DHCM-iMX8ML8-C160-R409-F1638-SPI16-GE-CAN2-SD-RTC-WBTA-ADC-T-RGB-CSI2-HS-I-01D2
+ * DHCOM PCB number: 660-100 or newer
+ * PDK3 PCB number: 669-100 or newer
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/leds/common.h>
+#include <dt-bindings/phy/phy-imx8-pcie.h>
+#include "imx8mp-dhcom-som.dtsi"
+
+/ {
+	model = "DH electronics i.MX8M Plus DHCOM Premium Developer Kit (3)";
+	compatible = "dh,imx8mp-dhcom-pdk3", "dh,imx8mp-dhcom-som",
+		     "fsl,imx8mp";
+
+	chosen {
+		stdout-path = &uart1;
+	};
+
+	clk_ext_audio_codec: clock-codec {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <24000000>;
+	};
+
+	clk_xtal25: clock-xtal25 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <25000000>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		button-0 {
+			gpios = <&gpio1 9 GPIO_ACTIVE_LOW>; /* GPIO A */
+			label = "TA1-GPIO-A";
+			linux,code = <KEY_A>;
+			pinctrl-0 = <&pinctrl_dhcom_a>;
+			pinctrl-names = "default";
+			wakeup-source;
+		};
+
+		button-1 {
+			gpios = <&gpio1 8 GPIO_ACTIVE_LOW>; /* GPIO B */
+			label = "TA2-GPIO-B";
+			linux,code = <KEY_B>;
+			pinctrl-0 = <&pinctrl_dhcom_b>;
+			pinctrl-names = "default";
+			wakeup-source;
+		};
+
+		button-2 {
+			gpios = <&gpio5 2 GPIO_ACTIVE_LOW>; /* GPIO C */
+			label = "TA3-GPIO-C";
+			linux,code = <KEY_C>;
+			pinctrl-0 = <&pinctrl_dhcom_c>;
+			pinctrl-names = "default";
+			wakeup-source;
+		};
+
+		button-3 {
+			gpios = <&gpio5 22 GPIO_ACTIVE_LOW>; /* GPIO E */
+			label = "TA4-GPIO-E";
+			linux,code = <KEY_E>;
+			pinctrl-0 = <&pinctrl_dhcom_e>;
+			pinctrl-names = "default";
+			wakeup-source;
+		};
+	};
+
+	led {
+		compatible = "gpio-leds";
+
+		led-0 {
+			color = <LED_COLOR_ID_GREEN>;
+			default-state = "off";
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <0>;
+			gpios = <&gpio4 27 GPIO_ACTIVE_HIGH>; /* GPIO D */
+			pinctrl-0 = <&pinctrl_dhcom_d>;
+			pinctrl-names = "default";
+		};
+
+		led-1 {
+			color = <LED_COLOR_ID_GREEN>;
+			default-state = "off";
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <1>;
+			gpios = <&gpio5 23 GPIO_ACTIVE_HIGH>; /* GPIO F */
+			pinctrl-0 = <&pinctrl_dhcom_f>;
+			pinctrl-names = "default";
+		};
+
+		led-2 {
+			color = <LED_COLOR_ID_GREEN>;
+			default-state = "off";
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <2>;
+			gpios = <&gpio1 0 GPIO_ACTIVE_HIGH>; /* GPIO G */
+			pinctrl-0 = <&pinctrl_dhcom_g>;
+			pinctrl-names = "default";
+		};
+
+		led-3 {
+			color = <LED_COLOR_ID_GREEN>;
+			default-state = "off";
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <3>;
+			gpios = <&gpio1 5 GPIO_ACTIVE_HIGH>; /* GPIO I */
+			pinctrl-0 = <&pinctrl_dhcom_i>;
+			pinctrl-names = "default";
+		};
+	};
+
+	reg_3p3vdd: regulator-3p3vdd {	/* 3.3VDD */
+		compatible = "regulator-fixed";
+		regulator-always-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-name = "3P3VDD";
+	};
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "SGTL5000-Card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,bitclock-master = <&codec_dai>;
+		simple-audio-card,frame-master = <&codec_dai>;
+		simple-audio-card,widgets = "Headphone", "Headphone Jack";
+		simple-audio-card,routing = "Headphone Jack", "HP_OUT";
+
+		cpu_dai: simple-audio-card,cpu {
+			sound-dai = <&sai3>;
+		};
+
+		codec_dai: simple-audio-card,codec {
+			sound-dai = <&sgtl5000>;
+		};
+	};
+};
+
+&i2c5 {
+	i2c-mux@70 {
+		compatible = "nxp,pca9540";
+		reg = <0x70>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		i2cmuxed0: i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+
+			sgtl5000: codec@a {
+				compatible = "fsl,sgtl5000";
+				reg = <0x0a>;
+				#sound-dai-cells = <0>;
+				clocks = <&clk_ext_audio_codec>;
+				VDDA-supply = <&reg_3p3vdd>;
+				VDDIO-supply = <&reg_vdd_3p3v_awo>;
+			};
+
+			csi2exp: gpio@24 {
+				compatible = "nxp,pca9570";
+				reg = <0x24>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio-line-names =
+					"CSI2_#RESET", "CSI2_#PWDN",
+					"CSI_#PWDN", "CSI_#RESET";
+			};
+
+			typec@3d {
+				compatible = "nxp,ptn5150";
+				reg = <0x3d>;
+				interrupt-parent = <&gpio4>;
+				interrupts = <25 IRQ_TYPE_EDGE_FALLING>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_ptn5150>;
+
+				port {
+
+					ptn5150_out_ep: endpoint {
+						remote-endpoint = <&dwc3_0_ep>;
+					};
+				};
+			};
+
+			power-sensor@40 {
+				compatible = "ti,ina238";
+				reg = <0x40>;
+				shunt-resistor = <20000>;	/* 0.02 R */
+				ti,shunt-gain = <1>;	/* Drop cca. 40mV */
+			};
+
+			eeprom_board: eeprom@54 {
+				compatible = "atmel,24c04";
+				pagesize = <16>;
+				reg = <0x54>;
+			};
+
+			pcieclk: clock@6b {
+				compatible = "skyworks,si52144";
+				reg = <0x6b>;
+				clocks = <&clk_xtal25>;
+				#clock-cells = <1>;
+			};
+		};
+
+		i2cmuxed1: i2c@1 {	/* HDMI DDC I2C */
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+		};
+	};
+};
+
+&fec {	/* Second ethernet */
+	pinctrl-0 = <&pinctrl_fec_rgmii>;
+	phy-handle = <&ethphypdk>;
+	phy-mode = "rgmii-id";
+
+	mdio {
+		ethphypdk: ethernet-phy@7 { /* Micrel KSZ9131RNXI */
+			compatible = "ethernet-phy-id0022.1642",
+				     "ethernet-phy-ieee802.3-c22";
+			interrupt-parent = <&gpio4>;
+			interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
+			pinctrl-0 = <&pinctrl_ethphy1>;
+			pinctrl-names = "default";
+			reg = <7>;
+			reset-assert-us = <1000>;
+			/* RESET_N signal rise time ~100ms */
+			reset-deassert-us = <120000>;
+			reset-gpios = <&gpio4 2 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&flexcan1 {
+	status = "okay";
+};
+
+&pcie_phy {
+	clocks = <&pcieclk 1>;
+	clock-names = "ref";
+	fsl,refclk-pad-mode = <IMX8_PCIE_REFCLK_PAD_INPUT>;
+	status = "okay";
+};
+
+&pcie {
+	fsl,max-link-speed = <3>;
+	reset-gpio = <&gpio1 6 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
+&sai3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sai3>;
+	assigned-clocks = <&clk IMX8MP_CLK_SAI3>;
+	assigned-clock-parents = <&clk IMX8MP_AUDIO_PLL1_OUT>;
+	assigned-clock-rates = <12288000>;
+	fsl,sai-mclk-direction-output;
+	status = "okay";
+};
+
+&usb_dwc3_0 {
+	usb-role-switch;
+
+	port {
+		dwc3_0_ep: endpoint {
+			remote-endpoint = <&ptn5150_out_ep>;
+		};
+	};
+};
+
+&usb3_1 {
+	fsl,disable-port-power-control;
+	fsl,permanently-attached;
+};
+
+&usb_dwc3_1 {
+	/* This port has USB5734 Hub connected to it, PWR/OC pins are unused */
+	/delete-property/ pinctrl-names;
+	/delete-property/ pinctrl-0;
+};
+
+&iomuxc {
+	/*
+	 * GPIO_A,B,C,E are connected to buttons.
+	 * GPIO_D,F,G,I are connected to LEDs.
+	 * GPIO_H is connected to USB Hub RESET_N.
+	 * GPIO_M is connected to CLKOUT2.
+	 */
+	pinctrl-0 = <&pinctrl_hog_base
+		     &pinctrl_dhcom_h &pinctrl_dhcom_j &pinctrl_dhcom_k
+		     &pinctrl_dhcom_l
+		     &pinctrl_dhcom_int>;
+
+	pinctrl_ptn5150: ptn5150grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SAI2_TXC__GPIO4_IO25		0x40000000
+		>;
+	};
+};

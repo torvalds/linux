@@ -7,9 +7,9 @@
 
 #include <linux/interrupt.h>
 #include <linux/module.h>
-#include <linux/of_irq.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 
@@ -41,6 +41,72 @@ enum fxas21002c_mode_state {
 #define FXAS21002C_RANGE_LIMIT_DOUBLE	2000
 
 #define FXAS21002C_AXIS_TO_REG(axis) (FXAS21002C_REG_OUT_X_MSB + ((axis) * 2))
+
+static const struct reg_field fxas21002c_reg_fields[] = {
+	[F_DR_STATUS]		= REG_FIELD(FXAS21002C_REG_STATUS, 0, 7),
+	[F_OUT_X_MSB]		= REG_FIELD(FXAS21002C_REG_OUT_X_MSB, 0, 7),
+	[F_OUT_X_LSB]		= REG_FIELD(FXAS21002C_REG_OUT_X_LSB, 0, 7),
+	[F_OUT_Y_MSB]		= REG_FIELD(FXAS21002C_REG_OUT_Y_MSB, 0, 7),
+	[F_OUT_Y_LSB]		= REG_FIELD(FXAS21002C_REG_OUT_Y_LSB, 0, 7),
+	[F_OUT_Z_MSB]		= REG_FIELD(FXAS21002C_REG_OUT_Z_MSB, 0, 7),
+	[F_OUT_Z_LSB]		= REG_FIELD(FXAS21002C_REG_OUT_Z_LSB, 0, 7),
+	[F_ZYX_OW]		= REG_FIELD(FXAS21002C_REG_DR_STATUS, 7, 7),
+	[F_Z_OW]		= REG_FIELD(FXAS21002C_REG_DR_STATUS, 6, 6),
+	[F_Y_OW]		= REG_FIELD(FXAS21002C_REG_DR_STATUS, 5, 5),
+	[F_X_OW]		= REG_FIELD(FXAS21002C_REG_DR_STATUS, 4, 4),
+	[F_ZYX_DR]		= REG_FIELD(FXAS21002C_REG_DR_STATUS, 3, 3),
+	[F_Z_DR]		= REG_FIELD(FXAS21002C_REG_DR_STATUS, 2, 2),
+	[F_Y_DR]		= REG_FIELD(FXAS21002C_REG_DR_STATUS, 1, 1),
+	[F_X_DR]		= REG_FIELD(FXAS21002C_REG_DR_STATUS, 0, 0),
+	[F_OVF]			= REG_FIELD(FXAS21002C_REG_F_STATUS, 7, 7),
+	[F_WMKF]		= REG_FIELD(FXAS21002C_REG_F_STATUS, 6, 6),
+	[F_CNT]			= REG_FIELD(FXAS21002C_REG_F_STATUS, 0, 5),
+	[F_MODE]		= REG_FIELD(FXAS21002C_REG_F_SETUP, 6, 7),
+	[F_WMRK]		= REG_FIELD(FXAS21002C_REG_F_SETUP, 0, 5),
+	[F_EVENT]		= REG_FIELD(FXAS21002C_REG_F_EVENT, 5, 5),
+	[FE_TIME]		= REG_FIELD(FXAS21002C_REG_F_EVENT, 0, 4),
+	[F_BOOTEND]		= REG_FIELD(FXAS21002C_REG_INT_SRC_FLAG, 3, 3),
+	[F_SRC_FIFO]		= REG_FIELD(FXAS21002C_REG_INT_SRC_FLAG, 2, 2),
+	[F_SRC_RT]		= REG_FIELD(FXAS21002C_REG_INT_SRC_FLAG, 1, 1),
+	[F_SRC_DRDY]		= REG_FIELD(FXAS21002C_REG_INT_SRC_FLAG, 0, 0),
+	[F_WHO_AM_I]		= REG_FIELD(FXAS21002C_REG_WHO_AM_I, 0, 7),
+	[F_BW]			= REG_FIELD(FXAS21002C_REG_CTRL0, 6, 7),
+	[F_SPIW]		= REG_FIELD(FXAS21002C_REG_CTRL0, 5, 5),
+	[F_SEL]			= REG_FIELD(FXAS21002C_REG_CTRL0, 3, 4),
+	[F_HPF_EN]		= REG_FIELD(FXAS21002C_REG_CTRL0, 2, 2),
+	[F_FS]			= REG_FIELD(FXAS21002C_REG_CTRL0, 0, 1),
+	[F_ELE]			= REG_FIELD(FXAS21002C_REG_RT_CFG, 3, 3),
+	[F_ZTEFE]		= REG_FIELD(FXAS21002C_REG_RT_CFG, 2, 2),
+	[F_YTEFE]		= REG_FIELD(FXAS21002C_REG_RT_CFG, 1, 1),
+	[F_XTEFE]		= REG_FIELD(FXAS21002C_REG_RT_CFG, 0, 0),
+	[F_EA]			= REG_FIELD(FXAS21002C_REG_RT_SRC, 6, 6),
+	[F_ZRT]			= REG_FIELD(FXAS21002C_REG_RT_SRC, 5, 5),
+	[F_ZRT_POL]		= REG_FIELD(FXAS21002C_REG_RT_SRC, 4, 4),
+	[F_YRT]			= REG_FIELD(FXAS21002C_REG_RT_SRC, 3, 3),
+	[F_YRT_POL]		= REG_FIELD(FXAS21002C_REG_RT_SRC, 2, 2),
+	[F_XRT]			= REG_FIELD(FXAS21002C_REG_RT_SRC, 1, 1),
+	[F_XRT_POL]		= REG_FIELD(FXAS21002C_REG_RT_SRC, 0, 0),
+	[F_DBCNTM]		= REG_FIELD(FXAS21002C_REG_RT_THS, 7, 7),
+	[F_THS]			= REG_FIELD(FXAS21002C_REG_RT_SRC, 0, 6),
+	[F_RT_COUNT]		= REG_FIELD(FXAS21002C_REG_RT_COUNT, 0, 7),
+	[F_TEMP]		= REG_FIELD(FXAS21002C_REG_TEMP, 0, 7),
+	[F_RST]			= REG_FIELD(FXAS21002C_REG_CTRL1, 6, 6),
+	[F_ST]			= REG_FIELD(FXAS21002C_REG_CTRL1, 5, 5),
+	[F_DR]			= REG_FIELD(FXAS21002C_REG_CTRL1, 2, 4),
+	[F_ACTIVE]		= REG_FIELD(FXAS21002C_REG_CTRL1, 1, 1),
+	[F_READY]		= REG_FIELD(FXAS21002C_REG_CTRL1, 0, 0),
+	[F_INT_CFG_FIFO]	= REG_FIELD(FXAS21002C_REG_CTRL2, 7, 7),
+	[F_INT_EN_FIFO]		= REG_FIELD(FXAS21002C_REG_CTRL2, 6, 6),
+	[F_INT_CFG_RT]		= REG_FIELD(FXAS21002C_REG_CTRL2, 5, 5),
+	[F_INT_EN_RT]		= REG_FIELD(FXAS21002C_REG_CTRL2, 4, 4),
+	[F_INT_CFG_DRDY]	= REG_FIELD(FXAS21002C_REG_CTRL2, 3, 3),
+	[F_INT_EN_DRDY]		= REG_FIELD(FXAS21002C_REG_CTRL2, 2, 2),
+	[F_IPOL]		= REG_FIELD(FXAS21002C_REG_CTRL2, 1, 1),
+	[F_PP_OD]		= REG_FIELD(FXAS21002C_REG_CTRL2, 0, 0),
+	[F_WRAPTOONE]		= REG_FIELD(FXAS21002C_REG_CTRL3, 3, 3),
+	[F_EXTCTRLEN]		= REG_FIELD(FXAS21002C_REG_CTRL3, 2, 2),
+	[F_FS_DOUBLE]		= REG_FIELD(FXAS21002C_REG_CTRL3, 0, 0),
+};
 
 static const int fxas21002c_odr_values[] = {
 	800, 400, 200, 100, 50, 25, 12, 12
@@ -84,10 +150,10 @@ struct fxas21002c_data {
 	struct regulator *vddio;
 
 	/*
-	 * DMA (thus cache coherency maintenance) requires the
-	 * transfer buffers to live in their own cache lines.
+	 * DMA (thus cache coherency maintenance) may require the
+	 * transfer buffers live in their own cache lines.
 	 */
-	s16 buffer[8] ____cacheline_aligned;
+	s16 buffer[8] __aligned(IIO_DMA_MINALIGN);
 };
 
 enum fxas21002c_channel_index {
@@ -300,14 +366,7 @@ out_unlock:
 
 static int  fxas21002c_pm_get(struct fxas21002c_data *data)
 {
-	struct device *dev = regmap_get_device(data->regmap);
-	int ret;
-
-	ret = pm_runtime_get_sync(dev);
-	if (ret < 0)
-		pm_runtime_put_noidle(dev);
-
-	return ret;
+	return pm_runtime_resume_and_get(regmap_get_device(data->regmap));
 }
 
 static int  fxas21002c_pm_put(struct fxas21002c_data *data)
@@ -333,6 +392,7 @@ static int fxas21002c_temp_get(struct fxas21002c_data *data, int *val)
 	ret = regmap_field_read(data->regmap_fields[F_TEMP], &temp);
 	if (ret < 0) {
 		dev_err(dev, "failed to read temp: %d\n", ret);
+		fxas21002c_pm_put(data);
 		goto data_unlock;
 	}
 
@@ -366,6 +426,7 @@ static int fxas21002c_axis_get(struct fxas21002c_data *data,
 			       &axis_be, sizeof(axis_be));
 	if (ret < 0) {
 		dev_err(dev, "failed to read axis: %d: %d\n", index, ret);
+		fxas21002c_pm_put(data);
 		goto data_unlock;
 	}
 
@@ -752,7 +813,7 @@ static irqreturn_t fxas21002c_data_rdy_thread(int irq, void *private)
 	if (!data_ready)
 		return IRQ_NONE;
 
-	iio_trigger_poll_chained(data->dready_trig);
+	iio_trigger_poll_nested(data->dready_trig);
 
 	return IRQ_HANDLED;
 }
@@ -761,7 +822,6 @@ static int fxas21002c_trigger_probe(struct fxas21002c_data *data)
 {
 	struct device *dev = regmap_get_device(data->regmap);
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct device_node *np = indio_dev->dev.of_node;
 	unsigned long irq_trig;
 	bool irq_open_drain;
 	int irq1;
@@ -770,8 +830,7 @@ static int fxas21002c_trigger_probe(struct fxas21002c_data *data)
 	if (!data->irq)
 		return 0;
 
-	irq1 = of_irq_get_byname(np, "INT1");
-
+	irq1 = fwnode_irq_get_byname(dev_fwnode(dev), "INT1");
 	if (irq1 == data->irq) {
 		dev_info(dev, "using interrupt line INT1\n");
 		ret = regmap_field_write(data->regmap_fields[F_INT_CFG_DRDY],
@@ -782,11 +841,11 @@ static int fxas21002c_trigger_probe(struct fxas21002c_data *data)
 
 	dev_info(dev, "using interrupt line INT2\n");
 
-	irq_open_drain = of_property_read_bool(np, "drive-open-drain");
+	irq_open_drain = device_property_read_bool(dev, "drive-open-drain");
 
 	data->dready_trig = devm_iio_trigger_alloc(dev, "%s-dev%d",
 						   indio_dev->name,
-						   indio_dev->id);
+						   iio_device_id(indio_dev));
 	if (!data->dready_trig)
 		return -ENOMEM;
 
@@ -809,7 +868,6 @@ static int fxas21002c_trigger_probe(struct fxas21002c_data *data)
 	if (ret < 0)
 		return ret;
 
-	data->dready_trig->dev.parent = dev;
 	data->dready_trig->ops = &fxas21002c_trigger_ops;
 	iio_trigger_set_drvdata(data->dready_trig, indio_dev);
 
@@ -905,7 +963,6 @@ int fxas21002c_core_probe(struct device *dev, struct regmap *regmap, int irq,
 	if (ret < 0)
 		return ret;
 
-	indio_dev->dev.parent = dev;
 	indio_dev->channels = fxas21002c_channels;
 	indio_dev->num_channels = ARRAY_SIZE(fxas21002c_channels);
 	indio_dev->name = name;
@@ -938,11 +995,10 @@ int fxas21002c_core_probe(struct device *dev, struct regmap *regmap, int irq,
 pm_disable:
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
-	pm_runtime_put_noidle(dev);
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(fxas21002c_core_probe);
+EXPORT_SYMBOL_NS_GPL(fxas21002c_core_probe, IIO_FXAS21002C);
 
 void fxas21002c_core_remove(struct device *dev)
 {
@@ -952,11 +1008,10 @@ void fxas21002c_core_remove(struct device *dev)
 
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
-	pm_runtime_put_noidle(dev);
 }
-EXPORT_SYMBOL_GPL(fxas21002c_core_remove);
+EXPORT_SYMBOL_NS_GPL(fxas21002c_core_remove, IIO_FXAS21002C);
 
-static int __maybe_unused fxas21002c_suspend(struct device *dev)
+static int fxas21002c_suspend(struct device *dev)
 {
 	struct fxas21002c_data *data = iio_priv(dev_get_drvdata(dev));
 
@@ -966,7 +1021,7 @@ static int __maybe_unused fxas21002c_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused fxas21002c_resume(struct device *dev)
+static int fxas21002c_resume(struct device *dev)
 {
 	struct fxas21002c_data *data = iio_priv(dev_get_drvdata(dev));
 	int ret;
@@ -978,26 +1033,25 @@ static int __maybe_unused fxas21002c_resume(struct device *dev)
 	return fxas21002c_mode_set(data, data->prev_mode);
 }
 
-static int __maybe_unused fxas21002c_runtime_suspend(struct device *dev)
+static int fxas21002c_runtime_suspend(struct device *dev)
 {
 	struct fxas21002c_data *data = iio_priv(dev_get_drvdata(dev));
 
 	return fxas21002c_mode_set(data, FXAS21002C_MODE_READY);
 }
 
-static int __maybe_unused fxas21002c_runtime_resume(struct device *dev)
+static int fxas21002c_runtime_resume(struct device *dev)
 {
 	struct fxas21002c_data *data = iio_priv(dev_get_drvdata(dev));
 
 	return fxas21002c_mode_set(data, FXAS21002C_MODE_ACTIVE);
 }
 
-const struct dev_pm_ops fxas21002c_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(fxas21002c_suspend, fxas21002c_resume)
-	SET_RUNTIME_PM_OPS(fxas21002c_runtime_suspend,
-			   fxas21002c_runtime_resume, NULL)
+EXPORT_NS_GPL_DEV_PM_OPS(fxas21002c_pm_ops, IIO_FXAS21002C) = {
+	SYSTEM_SLEEP_PM_OPS(fxas21002c_suspend, fxas21002c_resume)
+	RUNTIME_PM_OPS(fxas21002c_runtime_suspend, fxas21002c_runtime_resume,
+		       NULL)
 };
-EXPORT_SYMBOL_GPL(fxas21002c_pm_ops);
 
 MODULE_AUTHOR("Rui Miguel Silva <rui.silva@linaro.org>");
 MODULE_LICENSE("GPL v2");

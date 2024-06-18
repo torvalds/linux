@@ -36,13 +36,13 @@
 #include <linux/serial.h>
 #include <linux/smp.h>
 #include <linux/bitops.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/platform_device.h>
 #include <linux/memblock.h>
 
 #include <asm/processor.h>
 #include <asm/sections.h>
-#include <asm/prom.h>
-#include <asm/pgtable.h>
 #include <asm/io.h>
 #include <asm/pci-bridge.h>
 #include <asm/iommu.h>
@@ -163,8 +163,8 @@ static struct smp_ops_t maple_smp_ops = {
 
 static void __init maple_use_rtas_reboot_and_halt_if_present(void)
 {
-	if (rtas_service_present("system-reboot") &&
-	    rtas_service_present("power-off")) {
+	if (rtas_function_implemented(RTAS_FN_SYSTEM_REBOOT) &&
+	    rtas_function_implemented(RTAS_FN_POWER_OFF)) {
 		ppc_md.restart = rtas_restart;
 		pm_power_off = rtas_power_off;
 		ppc_md.halt = rtas_halt;
@@ -179,12 +179,6 @@ static void __init maple_setup_arch(void)
 	/* Setup SMP callback */
 #ifdef CONFIG_SMP
 	smp_ops = &maple_smp_ops;
-#endif
-	/* Lookup PCI hosts */
-       	maple_pci_init();
-
-#ifdef CONFIG_DUMMY_CONSOLE
-	conswitchp = &dummy_con;
 #endif
 	maple_use_rtas_reboot_and_halt_if_present();
 
@@ -232,7 +226,7 @@ static void __init maple_init_IRQ(void)
 	root = of_find_node_by_path("/");
 	naddr = of_n_addr_cells(root);
 	opprop = of_get_property(root, "platform-open-pic", &opplen);
-	if (opprop != 0) {
+	if (opprop) {
 		openpic_addr = of_read_number(opprop, naddr);
 		has_isus = (opplen > naddr);
 		printk(KERN_DEBUG "OpenPIC addr: %lx, has ISUs: %d\n",
@@ -242,7 +236,7 @@ static void __init maple_init_IRQ(void)
 	BUG_ON(openpic_addr == 0);
 
 	/* Check for a big endian MPIC */
-	if (of_get_property(np, "big-endian", NULL) != NULL)
+	if (of_property_read_bool(np, "big-endian"))
 		flags |= MPIC_BIG_ENDIAN;
 
 	/* XXX Maple specific bits */
@@ -293,23 +287,6 @@ static int __init maple_probe(void)
 
 	return 1;
 }
-
-define_machine(maple) {
-	.name			= "Maple",
-	.probe			= maple_probe,
-	.setup_arch		= maple_setup_arch,
-	.init_IRQ		= maple_init_IRQ,
-	.pci_irq_fixup		= maple_pci_irq_fixup,
-	.pci_get_legacy_ide_irq	= maple_pci_get_legacy_ide_irq,
-	.restart		= maple_restart,
-	.halt			= maple_halt,
-       	.get_boot_time		= maple_get_boot_time,
-       	.set_rtc_time		= maple_set_rtc_time,
-       	.get_rtc_time		= maple_get_rtc_time,
-      	.calibrate_decr		= generic_calibrate_decr,
-	.progress		= maple_progress,
-	.power_save		= power4_idle,
-};
 
 #ifdef CONFIG_EDAC
 /*
@@ -367,3 +344,20 @@ static int __init maple_cpc925_edac_setup(void)
 }
 machine_device_initcall(maple, maple_cpc925_edac_setup);
 #endif
+
+define_machine(maple) {
+	.name			= "Maple",
+	.probe			= maple_probe,
+	.setup_arch		= maple_setup_arch,
+	.discover_phbs		= maple_pci_init,
+	.init_IRQ		= maple_init_IRQ,
+	.pci_irq_fixup		= maple_pci_irq_fixup,
+	.pci_get_legacy_ide_irq	= maple_pci_get_legacy_ide_irq,
+	.restart		= maple_restart,
+	.halt			= maple_halt,
+	.get_boot_time		= maple_get_boot_time,
+	.set_rtc_time		= maple_set_rtc_time,
+	.get_rtc_time		= maple_get_rtc_time,
+	.progress		= maple_progress,
+	.power_save		= power4_idle,
+};

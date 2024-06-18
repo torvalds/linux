@@ -1,0 +1,80 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright 2017-2022 Toradex
+ */
+
+/* Colibri AD0 to AD3 */
+&adc1 {
+	status = "okay";
+};
+
+/* Colibri SSP */
+&ecspi3 {
+	cs-gpios = <
+		&gpio4 11 GPIO_ACTIVE_LOW /* SODIMM 86 / regular SSPFRM as UNO_SPI_CS or  */
+		&gpio4 23 GPIO_ACTIVE_LOW /* SODIMM 65 / already muxed pinctrl_gpio2 as SPI_CE0_N */
+		&gpio4 22 GPIO_ACTIVE_LOW /* SODIMM 85 / already muxed pinctrl_gpio2 as SPI_CE1_N */
+	>;
+	status = "okay";
+};
+
+/* Colibri Fast Ethernet */
+&fec1 {
+	status = "okay";
+};
+
+/* Colibri I2C: I2C3_SDA/SCL on SODIMM 194/196 */
+&i2c4 {
+	status = "okay";
+};
+
+/* Colibri PWM<A> */
+&pwm1 {
+	status = "okay";
+};
+
+/* Colibri PWM<B> */
+&pwm2 {
+	status = "okay";
+};
+
+/* Colibri PWM<C> */
+&pwm3 {
+	status = "okay";
+};
+
+/* Colibri PWM<D> */
+&pwm4 {
+	status = "okay";
+};
+
+/* M41T0M6 real time clock */
+&rtc {
+	status = "okay";
+};
+
+/* Colibri UART_A */
+&uart1 {
+	status = "okay";
+};
+
+/* Colibri UART_B */
+&uart2 {
+	status = "okay";
+};
+
+/* Colibri UART_C */
+&uart3 {
+	status = "okay";
+};
+
+/* Colibri USBC */
+&usbotg1 {
+	disable-over-current;
+	status = "okay";
+};
+
+/* Colibri MMC/SD */
+&usdhc1 {
+	status = "okay";
+};

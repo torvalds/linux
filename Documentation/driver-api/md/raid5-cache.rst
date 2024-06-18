@@ -81,7 +81,7 @@ The write-through and write-back cache use the same disk format. The cache disk
 is organized as a simple write log. The log consists of 'meta data' and 'data'
 pairs. The meta data describes the data. It also includes checksum and sequence
 ID for recovery identification. Data can be IO data and parity data. Data is
-checksumed too. The checksum is stored in the meta data ahead of the data. The
+checksummed too. The checksum is stored in the meta data ahead of the data. The
 checksum is an optimization because MD can write meta and data freely without
 worry about the order. MD superblock has a field pointed to the valid meta data
 of log head.

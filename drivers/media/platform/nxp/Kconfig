@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+# V4L drivers
+
+comment "NXP media platform drivers"
+
+config VIDEO_IMX7_CSI
+	tristate "NXP CSI Bridge driver"
+	depends on ARCH_MXC || COMPILE_TEST
+	depends on HAS_DMA
+	depends on VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select V4L2_FWNODE
+	select VIDEOBUF2_DMA_CONTIG
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  Driver for the NXP Camera Sensor Interface (CSI) Bridge. This device
+	  is found in the i.MX6UL/L, i.MX7 and i.MX8M[MQ] SoCs.
+
+config VIDEO_IMX8MQ_MIPI_CSI2
+	tristate "NXP i.MX8MQ MIPI CSI-2 receiver"
+	depends on ARCH_MXC || COMPILE_TEST
+	depends on VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select V4L2_FWNODE
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  Video4Linux2 driver for the MIPI CSI-2 receiver found on the i.MX8MQ
+	  SoC.
+
+config VIDEO_IMX_MIPI_CSIS
+	tristate "NXP MIPI CSI-2 CSIS receiver found on i.MX7 and i.MX8 models"
+	depends on ARCH_MXC || COMPILE_TEST
+	depends on VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select V4L2_FWNODE
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  Video4Linux2 sub-device driver for the MIPI CSI-2 CSIS receiver
+	  v3.3/v3.6.3 found on some i.MX7 and i.MX8 SoCs.
+
+source "drivers/media/platform/nxp/imx8-isi/Kconfig"
+
+# mem2mem drivers
+
+config VIDEO_IMX_PXP
+	tristate "NXP i.MX Pixel Pipeline (PXP)"
+	depends on V4L_MEM2MEM_DRIVERS
+	depends on VIDEO_DEV && (ARCH_MXC || COMPILE_TEST)
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_MEM2MEM_DEV
+	help
+	  The i.MX Pixel Pipeline is a memory-to-memory engine for scaling,
+	  color space conversion, and rotation.
+
+config VIDEO_MX2_EMMAPRP
+	tristate "NXP MX2 eMMa-PrP support"
+	depends on V4L_MEM2MEM_DRIVERS
+	depends on VIDEO_DEV
+	depends on SOC_IMX27 || COMPILE_TEST
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_MEM2MEM_DEV
+	help
+	    MX2X chips have a PrP that can be used to process buffers from
+	    memory to memory. Operations include resizing and format
+	    conversion.
+
+source "drivers/media/platform/nxp/dw100/Kconfig"
+source "drivers/media/platform/nxp/imx-jpeg/Kconfig"

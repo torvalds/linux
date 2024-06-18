@@ -470,7 +470,6 @@ static int tda18271_powerscan(struct dvb_frontend *fe,
 	/* algorithm initialization */
 	sgn = 1;
 	*freq_out = *freq_in;
-	bcal = 0;
 	count = 0;
 	wait = false;
 
@@ -948,7 +947,7 @@ static int tda18271_set_params(struct dvb_frontend *fe)
 		break;
 	case SYS_DVBC_ANNEX_B:
 		bw = 6000000;
-		/* fall through */
+		fallthrough;
 	case SYS_DVBC_ANNEX_A:
 	case SYS_DVBC_ANNEX_C:
 		if (bw <= 6000000) {

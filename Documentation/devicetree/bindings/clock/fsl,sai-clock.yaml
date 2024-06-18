@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/fsl,sai-clock.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale SAI bitclock-as-a-clock
+
+maintainers:
+  - Michael Walle <michael@walle.cc>
+
+description: |
+  It is possible to use the BCLK pin of a SAI module as a generic clock
+  output. Some SoC are very constrained in their pin multiplexer
+  configuration. Eg. pins can only be changed groups. For example, on the
+  LS1028A SoC you can only enable SAIs in pairs. If you use only one SAI,
+  the second pins are wasted. Using this binding it is possible to use the
+  clock of the second SAI as a MCLK clock for an audio codec, for example.
+
+  This is a composite of a gated clock and a divider clock.
+
+properties:
+  compatible:
+    const: fsl,vf610-sai-clock
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  '#clock-cells':
+    const: 0
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - '#clock-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        mclk: clock-mclk@f130080 {
+            compatible = "fsl,vf610-sai-clock";
+            reg = <0x0 0xf130080 0x0 0x80>;
+            #clock-cells = <0>;
+            clocks = <&parentclk>;
+        };
+    };

@@ -11,11 +11,11 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		pm8005_gpio: gpios@c000 {
+		pm8005_gpios: gpio@c000 {
 			compatible = "qcom,pm8005-gpio", "qcom,spmi-gpio";
 			reg = <0xc000>;
 			gpio-controller;
-			gpio-ranges = <&pm8005_gpio 0 0 4>;
+			gpio-ranges = <&pm8005_gpios 0 0 4>;
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
@@ -28,5 +28,9 @@
 		reg = <0x5 SPMI_USID>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		pm8005_regulators: regulators {
+			compatible = "qcom,pm8005-regulators";
+		};
 	};
 };

@@ -34,8 +34,8 @@ struct parisc_driver {
 	struct parisc_driver *next;
 	char *name; 
 	const struct parisc_device_id *id_table;
-	int (*probe) (struct parisc_device *dev); /* New device discovered */
-	int (*remove) (struct parisc_device *dev);
+	int (*probe)(struct parisc_device *dev); /* New device discovered */
+	void (*remove)(struct parisc_device *dev);
 	struct device_driver drv;
 };
 
@@ -61,7 +61,7 @@ parisc_get_drvdata(struct parisc_device *d)
 	return dev_get_drvdata(&d->dev);
 }
 
-extern struct bus_type parisc_bus_type;
+extern const struct bus_type parisc_bus_type;
 
 int iosapic_serial_irq(struct parisc_device *dev);
 

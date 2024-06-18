@@ -15,7 +15,7 @@ static int debugfs_errno_get(void *data, u64 *val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(fops_errno, debugfs_errno_get, debugfs_errno_set,
+DEFINE_SIMPLE_ATTRIBUTE_SIGNED(fops_errno, debugfs_errno_get, debugfs_errno_set,
 			"%lld\n");
 
 static struct dentry *debugfs_create_errno(const char *name, umode_t mode,
@@ -82,9 +82,6 @@ static int __init err_inject_init(void)
 {
 	notifier_err_inject_dir =
 		debugfs_create_dir("notifier-error-inject", NULL);
-
-	if (!notifier_err_inject_dir)
-		return -ENOMEM;
 
 	return 0;
 }

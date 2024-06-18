@@ -81,15 +81,23 @@
 		};
 		xgene_L2_0: l2-cache-0 {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 		xgene_L2_1: l2-cache-1 {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 		xgene_L2_2: l2-cache-2 {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 		xgene_L2_3: l2-cache-3 {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 	};
 
@@ -104,6 +112,13 @@
 		interrupts = <1 9 0xf04>;	/* GIC Maintenence IRQ */
 	};
 
+	refclk: refclk {
+		compatible = "fixed-clock";
+		#clock-cells = <1>;
+		clock-frequency = <100000000>;
+		clock-output-names = "refclk";
+	};
+
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupts = <1 0 0xff08>,	/* Secure Phys IRQ */
@@ -114,7 +129,7 @@
 	};
 
 	pmu {
-		compatible = "apm,potenza-pmu", "arm,armv8-pmuv3";
+		compatible = "apm,potenza-pmu";
 		interrupts = <1 12 0xff04>;
 	};
 
@@ -129,12 +144,6 @@
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges;
-			refclk: refclk {
-				compatible = "fixed-clock";
-				#clock-cells = <1>;
-				clock-frequency = <100000000>;
-				clock-output-names = "refclk";
-			};
 
 			pcppll: pcppll@17000100 {
 				compatible = "apm,xgene-pcppll-clock";
@@ -270,7 +279,7 @@
 				reg = <0x0 0x1f22c000 0x0 0x1000>;
 				reg-names = "csr-reg";
 				clock-output-names = "sataphy2clk";
-				status = "ok";
+				status = "okay";
 				csr-offset = <0x4>;
 				csr-mask = <0x3a>;
 				enable-offset = <0x0>;
@@ -284,7 +293,7 @@
 				reg = <0x0 0x1f23c000 0x0 0x1000>;
 				reg-names = "csr-reg";
 				clock-output-names = "sataphy3clk";
-				status = "ok";
+				status = "okay";
 				csr-offset = <0x4>;
 				csr-mask = <0x3a>;
 				enable-offset = <0x0>;
@@ -763,7 +772,6 @@
 
 		serial0: serial@1c020000 {
 			status = "disabled";
-			device_type = "serial";
 			compatible = "ns16550a";
 			reg = <0 0x1c020000 0x0 0x1000>;
 			reg-shift = <2>;
@@ -774,7 +782,6 @@
 
 		serial1: serial@1c021000 {
 			status = "disabled";
-			device_type = "serial";
 			compatible = "ns16550a";
 			reg = <0 0x1c021000 0x0 0x1000>;
 			reg-shift = <2>;
@@ -785,7 +792,6 @@
 
 		serial2: serial@1c022000 {
 			status = "disabled";
-			device_type = "serial";
 			compatible = "ns16550a";
 			reg = <0 0x1c022000 0x0 0x1000>;
 			reg-shift = <2>;
@@ -796,7 +802,6 @@
 
 		serial3: serial@1c023000 {
 			status = "disabled";
-			device_type = "serial";
 			compatible = "ns16550a";
 			reg = <0 0x1c023000 0x0 0x1000>;
 			reg-shift = <2>;
@@ -825,13 +830,13 @@
 		dwgpio: gpio@1c024000 {
 			compatible = "snps,dw-apb-gpio";
 			reg = <0x0 0x1c024000 0x0 0x1000>;
-			reg-io-width = <4>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 
 			porta: gpio-controller@0 {
 				compatible = "snps,dw-apb-gpio-port";
 				gpio-controller;
+				#gpio-cells = <2>;
 				snps,nr-gpios = <32>;
 				reg = <0>;
 			};
@@ -864,7 +869,7 @@
 			reg = <0x0 0x1f22a000 0x0 0x100>;
 			#phy-cells = <1>;
 			clocks = <&sataphy2clk 0>;
-			status = "ok";
+			status = "okay";
 			apm,tx-boost-gain = <30 30 30 30 30 30>;
 			apm,tx-eye-tuning = <1 10 10 2 10 10>;
 		};
@@ -874,7 +879,7 @@
 			reg = <0x0 0x1f23a000 0x0 0x100>;
 			#phy-cells = <1>;
 			clocks = <&sataphy3clk 0>;
-			status = "ok";
+			status = "okay";
 			apm,tx-boost-gain = <31 31 31 31 31 31>;
 			apm,tx-eye-tuning = <2 10 10 2 10 10>;
 		};
@@ -903,7 +908,7 @@
 			      <0x0 0x1f227000 0x0 0x1000>;
 			interrupts = <0x0 0x87 0x4>;
 			dma-coherent;
-			status = "ok";
+			status = "okay";
 			clocks = <&sata23clk 0>;
 			phys = <&phy2 0>;
 			phy-names = "sata-phy";
@@ -917,32 +922,32 @@
 			      <0x0 0x1f23e000 0x0 0x1000>;
 			interrupts = <0x0 0x88 0x4>;
 			dma-coherent;
-			status = "ok";
+			status = "okay";
 			clocks = <&sata45clk 0>;
 			phys = <&phy3 0>;
 			phy-names = "sata-phy";
 		};
 
-		/* Do not change dwusb name, coded for backward compatibility */
-		usb0: dwusb@19000000 {
+		/* Node-name might need to be coded as dwusb for backward compatibility */
+		usb0: usb@19000000 {
 			status = "disabled";
 			compatible = "snps,dwc3";
-			reg =  <0x0 0x19000000 0x0 0x100000>;
+			reg = <0x0 0x19000000 0x0 0x100000>;
 			interrupts = <0x0 0x89 0x4>;
 			dma-coherent;
 			dr_mode = "host";
 		};
 
-		usb1: dwusb@19800000 {
+		usb1: usb@19800000 {
 			status = "disabled";
 			compatible = "snps,dwc3";
-			reg =  <0x0 0x19800000 0x0 0x100000>;
+			reg = <0x0 0x19800000 0x0 0x100000>;
 			interrupts = <0x0 0x8a 0x4>;
 			dma-coherent;
 			dr_mode = "host";
 		};
 
-		sbgpio: gpio@17001000{
+		sbgpio: gpio@17001000 {
 			compatible = "apm,xgene-gpio-sb";
 			reg = <0x0 0x17001000 0x0 0x400>;
 			#gpio-cells = <2>;

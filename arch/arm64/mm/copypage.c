@@ -6,21 +6,37 @@
  * Copyright (C) 2012 ARM Ltd.
  */
 
+#include <linux/bitops.h>
 #include <linux/mm.h>
 
 #include <asm/page.h>
 #include <asm/cacheflush.h>
+#include <asm/cpufeature.h>
+#include <asm/mte.h>
 
-void __cpu_copy_user_page(void *kto, const void *kfrom, unsigned long vaddr)
+void copy_highpage(struct page *to, struct page *from)
 {
-	struct page *page = virt_to_page(kto);
+	void *kto = page_address(to);
+	void *kfrom = page_address(from);
+
 	copy_page(kto, kfrom);
-	flush_dcache_page(page);
-}
-EXPORT_SYMBOL_GPL(__cpu_copy_user_page);
 
-void __cpu_clear_user_page(void *kaddr, unsigned long vaddr)
-{
-	clear_page(kaddr);
+	if (kasan_hw_tags_enabled())
+		page_kasan_tag_reset(to);
+
+	if (system_supports_mte() && page_mte_tagged(from)) {
+		/* It's a new page, shouldn't have been tagged yet */
+		WARN_ON_ONCE(!try_page_mte_tagging(to));
+		mte_copy_page_tags(kto, kfrom);
+		set_page_mte_tagged(to);
+	}
 }
-EXPORT_SYMBOL_GPL(__cpu_clear_user_page);
+EXPORT_SYMBOL(copy_highpage);
+
+void copy_user_highpage(struct page *to, struct page *from,
+			unsigned long vaddr, struct vm_area_struct *vma)
+{
+	copy_highpage(to, from);
+	flush_dcache_page(to);
+}
+EXPORT_SYMBOL_GPL(copy_user_highpage);

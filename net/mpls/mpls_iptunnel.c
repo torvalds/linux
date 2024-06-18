@@ -55,8 +55,6 @@ static int mpls_xmit(struct sk_buff *skb)
 	out_dev = dst->dev;
 	net = dev_net(out_dev);
 
-	skb_orphan(skb);
-
 	if (!mpls_output_possible(out_dev) ||
 	    !dst->lwtstate || skb_warn_if_lro(skb))
 		goto drop;
@@ -83,7 +81,7 @@ static int mpls_xmit(struct sk_buff *skb)
 			ttl = net->mpls.default_ttl;
 		else
 			ttl = ip_hdr(skb)->ttl;
-		rt = (struct rtable *)dst;
+		rt = dst_rtable(dst);
 	} else if (dst->ops->family == AF_INET6) {
 		if (tun_encap_info->ttl_propagate == MPLS_TTL_PROP_DISABLED)
 			ttl = tun_encap_info->default_ttl;
@@ -92,7 +90,7 @@ static int mpls_xmit(struct sk_buff *skb)
 			ttl = net->mpls.default_ttl;
 		else
 			ttl = ipv6_hdr(skb)->hop_limit;
-		rt6 = (struct rt6_info *)dst;
+		rt6 = dst_rt6_info(dst);
 	} else {
 		goto drop;
 	}
@@ -162,7 +160,7 @@ drop:
 	return -EINVAL;
 }
 
-static int mpls_build_state(struct nlattr *nla,
+static int mpls_build_state(struct net *net, struct nlattr *nla,
 			    unsigned int family, const void *cfg,
 			    struct lwtunnel_state **ts,
 			    struct netlink_ext_ack *extack)
@@ -300,5 +298,6 @@ static void __exit mpls_iptunnel_exit(void)
 module_exit(mpls_iptunnel_exit);
 
 MODULE_ALIAS_RTNL_LWT(MPLS);
+MODULE_SOFTDEP("post: mpls_gso");
 MODULE_DESCRIPTION("MultiProtocol Label Switching IP Tunnels");
 MODULE_LICENSE("GPL v2");

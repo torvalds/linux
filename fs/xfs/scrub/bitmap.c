@@ -1,82 +1,199 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2018 Oracle.  All Rights Reserved.
- * Author: Darrick J. Wong <darrick.wong@oracle.com>
+ * Copyright (C) 2018-2023 Oracle.  All Rights Reserved.
+ * Author: Darrick J. Wong <djwong@kernel.org>
  */
 #include "xfs.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
+#include "xfs_bit.h"
 #include "xfs_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
 #include "xfs_btree.h"
+#include "scrub/scrub.h"
 #include "scrub/bitmap.h"
 
+#include <linux/interval_tree_generic.h>
+
+/* u64 bitmap */
+
+struct xbitmap64_node {
+	struct rb_node	bn_rbnode;
+
+	/* First set bit of this interval and subtree. */
+	uint64_t	bn_start;
+
+	/* Last set bit of this interval. */
+	uint64_t	bn_last;
+
+	/* Last set bit of this subtree.  Do not touch this. */
+	uint64_t	__bn_subtree_last;
+};
+
+/* Define our own interval tree type with uint64_t parameters. */
+
+#define START(node) ((node)->bn_start)
+#define LAST(node)  ((node)->bn_last)
+
 /*
- * Set a range of this bitmap.  Caller must ensure the range is not set.
- *
- * This is the logical equivalent of bitmap |= mask(start, len).
+ * These functions are defined by the INTERVAL_TREE_DEFINE macro, but we'll
+ * forward-declare them anyway for clarity.
  */
+static inline __maybe_unused void
+xbitmap64_tree_insert(struct xbitmap64_node *node, struct rb_root_cached *root);
+
+static inline __maybe_unused void
+xbitmap64_tree_remove(struct xbitmap64_node *node, struct rb_root_cached *root);
+
+static inline __maybe_unused struct xbitmap64_node *
+xbitmap64_tree_iter_first(struct rb_root_cached *root, uint64_t start,
+			uint64_t last);
+
+static inline __maybe_unused struct xbitmap64_node *
+xbitmap64_tree_iter_next(struct xbitmap64_node *node, uint64_t start,
+		       uint64_t last);
+
+INTERVAL_TREE_DEFINE(struct xbitmap64_node, bn_rbnode, uint64_t,
+		__bn_subtree_last, START, LAST, static inline __maybe_unused,
+		xbitmap64_tree)
+
+/* Iterate each interval of a bitmap.  Do not change the bitmap. */
+#define for_each_xbitmap64_extent(bn, bitmap) \
+	for ((bn) = rb_entry_safe(rb_first(&(bitmap)->xb_root.rb_root), \
+				   struct xbitmap64_node, bn_rbnode); \
+	     (bn) != NULL; \
+	     (bn) = rb_entry_safe(rb_next(&(bn)->bn_rbnode), \
+				   struct xbitmap64_node, bn_rbnode))
+
+/* Clear a range of this bitmap. */
 int
-xfs_bitmap_set(
-	struct xfs_bitmap	*bitmap,
+xbitmap64_clear(
+	struct xbitmap64	*bitmap,
 	uint64_t		start,
 	uint64_t		len)
 {
-	struct xfs_bitmap_range	*bmr;
+	struct xbitmap64_node	*bn;
+	struct xbitmap64_node	*new_bn;
+	uint64_t		last = start + len - 1;
 
-	bmr = kmem_alloc(sizeof(struct xfs_bitmap_range), KM_MAYFAIL);
-	if (!bmr)
-		return -ENOMEM;
+	while ((bn = xbitmap64_tree_iter_first(&bitmap->xb_root, start, last))) {
+		if (bn->bn_start < start && bn->bn_last > last) {
+			uint64_t	old_last = bn->bn_last;
 
-	INIT_LIST_HEAD(&bmr->list);
-	bmr->start = start;
-	bmr->len = len;
-	list_add_tail(&bmr->list, &bitmap->list);
+			/* overlaps with the entire clearing range */
+			xbitmap64_tree_remove(bn, &bitmap->xb_root);
+			bn->bn_last = start - 1;
+			xbitmap64_tree_insert(bn, &bitmap->xb_root);
+
+			/* add an extent */
+			new_bn = kmalloc(sizeof(struct xbitmap64_node),
+					XCHK_GFP_FLAGS);
+			if (!new_bn)
+				return -ENOMEM;
+			new_bn->bn_start = last + 1;
+			new_bn->bn_last = old_last;
+			xbitmap64_tree_insert(new_bn, &bitmap->xb_root);
+		} else if (bn->bn_start < start) {
+			/* overlaps with the left side of the clearing range */
+			xbitmap64_tree_remove(bn, &bitmap->xb_root);
+			bn->bn_last = start - 1;
+			xbitmap64_tree_insert(bn, &bitmap->xb_root);
+		} else if (bn->bn_last > last) {
+			/* overlaps with the right side of the clearing range */
+			xbitmap64_tree_remove(bn, &bitmap->xb_root);
+			bn->bn_start = last + 1;
+			xbitmap64_tree_insert(bn, &bitmap->xb_root);
+			break;
+		} else {
+			/* in the middle of the clearing range */
+			xbitmap64_tree_remove(bn, &bitmap->xb_root);
+			kfree(bn);
+		}
+	}
+
+	return 0;
+}
+
+/* Set a range of this bitmap. */
+int
+xbitmap64_set(
+	struct xbitmap64	*bitmap,
+	uint64_t		start,
+	uint64_t		len)
+{
+	struct xbitmap64_node	*left;
+	struct xbitmap64_node	*right;
+	uint64_t		last = start + len - 1;
+	int			error;
+
+	/* Is this whole range already set? */
+	left = xbitmap64_tree_iter_first(&bitmap->xb_root, start, last);
+	if (left && left->bn_start <= start && left->bn_last >= last)
+		return 0;
+
+	/* Clear out everything in the range we want to set. */
+	error = xbitmap64_clear(bitmap, start, len);
+	if (error)
+		return error;
+
+	/* Do we have a left-adjacent extent? */
+	left = xbitmap64_tree_iter_first(&bitmap->xb_root, start - 1, start - 1);
+	ASSERT(!left || left->bn_last + 1 == start);
+
+	/* Do we have a right-adjacent extent? */
+	right = xbitmap64_tree_iter_first(&bitmap->xb_root, last + 1, last + 1);
+	ASSERT(!right || right->bn_start == last + 1);
+
+	if (left && right) {
+		/* combine left and right adjacent extent */
+		xbitmap64_tree_remove(left, &bitmap->xb_root);
+		xbitmap64_tree_remove(right, &bitmap->xb_root);
+		left->bn_last = right->bn_last;
+		xbitmap64_tree_insert(left, &bitmap->xb_root);
+		kfree(right);
+	} else if (left) {
+		/* combine with left extent */
+		xbitmap64_tree_remove(left, &bitmap->xb_root);
+		left->bn_last = last;
+		xbitmap64_tree_insert(left, &bitmap->xb_root);
+	} else if (right) {
+		/* combine with right extent */
+		xbitmap64_tree_remove(right, &bitmap->xb_root);
+		right->bn_start = start;
+		xbitmap64_tree_insert(right, &bitmap->xb_root);
+	} else {
+		/* add an extent */
+		left = kmalloc(sizeof(struct xbitmap64_node), XCHK_GFP_FLAGS);
+		if (!left)
+			return -ENOMEM;
+		left->bn_start = start;
+		left->bn_last = last;
+		xbitmap64_tree_insert(left, &bitmap->xb_root);
+	}
 
 	return 0;
 }
 
 /* Free everything related to this bitmap. */
 void
-xfs_bitmap_destroy(
-	struct xfs_bitmap	*bitmap)
+xbitmap64_destroy(
+	struct xbitmap64	*bitmap)
 {
-	struct xfs_bitmap_range	*bmr;
-	struct xfs_bitmap_range	*n;
+	struct xbitmap64_node	*bn;
 
-	for_each_xfs_bitmap_extent(bmr, n, bitmap) {
-		list_del(&bmr->list);
-		kmem_free(bmr);
+	while ((bn = xbitmap64_tree_iter_first(&bitmap->xb_root, 0, -1ULL))) {
+		xbitmap64_tree_remove(bn, &bitmap->xb_root);
+		kfree(bn);
 	}
 }
 
 /* Set up a per-AG block bitmap. */
 void
-xfs_bitmap_init(
-	struct xfs_bitmap	*bitmap)
+xbitmap64_init(
+	struct xbitmap64	*bitmap)
 {
-	INIT_LIST_HEAD(&bitmap->list);
-}
-
-/* Compare two btree extents. */
-static int
-xfs_bitmap_range_cmp(
-	void			*priv,
-	struct list_head	*a,
-	struct list_head	*b)
-{
-	struct xfs_bitmap_range	*ap;
-	struct xfs_bitmap_range	*bp;
-
-	ap = container_of(a, struct xfs_bitmap_range, list);
-	bp = container_of(b, struct xfs_bitmap_range, list);
-
-	if (ap->start > bp->start)
-		return 1;
-	if (ap->start < bp->start)
-		return -1;
-	return 0;
+	bitmap->xb_root = RB_ROOT_CACHED;
 }
 
 /*
@@ -93,175 +210,20 @@ xfs_bitmap_range_cmp(
  *
  * This is the logical equivalent of bitmap &= ~sub.
  */
-#define LEFT_ALIGNED	(1 << 0)
-#define RIGHT_ALIGNED	(1 << 1)
 int
-xfs_bitmap_disunion(
-	struct xfs_bitmap	*bitmap,
-	struct xfs_bitmap	*sub)
+xbitmap64_disunion(
+	struct xbitmap64	*bitmap,
+	struct xbitmap64	*sub)
 {
-	struct list_head	*lp;
-	struct xfs_bitmap_range	*br;
-	struct xfs_bitmap_range	*new_br;
-	struct xfs_bitmap_range	*sub_br;
-	uint64_t		sub_start;
-	uint64_t		sub_len;
-	int			state;
-	int			error = 0;
-
-	if (list_empty(&bitmap->list) || list_empty(&sub->list))
-		return 0;
-	ASSERT(!list_empty(&sub->list));
-
-	list_sort(NULL, &bitmap->list, xfs_bitmap_range_cmp);
-	list_sort(NULL, &sub->list, xfs_bitmap_range_cmp);
-
-	/*
-	 * Now that we've sorted both lists, we iterate bitmap once, rolling
-	 * forward through sub and/or bitmap as necessary until we find an
-	 * overlap or reach the end of either list.  We do not reset lp to the
-	 * head of bitmap nor do we reset sub_br to the head of sub.  The
-	 * list traversal is similar to merge sort, but we're deleting
-	 * instead.  In this manner we avoid O(n^2) operations.
-	 */
-	sub_br = list_first_entry(&sub->list, struct xfs_bitmap_range,
-			list);
-	lp = bitmap->list.next;
-	while (lp != &bitmap->list) {
-		br = list_entry(lp, struct xfs_bitmap_range, list);
-
-		/*
-		 * Advance sub_br and/or br until we find a pair that
-		 * intersect or we run out of extents.
-		 */
-		while (sub_br->start + sub_br->len <= br->start) {
-			if (list_is_last(&sub_br->list, &sub->list))
-				goto out;
-			sub_br = list_next_entry(sub_br, list);
-		}
-		if (sub_br->start >= br->start + br->len) {
-			lp = lp->next;
-			continue;
-		}
-
-		/* trim sub_br to fit the extent we have */
-		sub_start = sub_br->start;
-		sub_len = sub_br->len;
-		if (sub_br->start < br->start) {
-			sub_len -= br->start - sub_br->start;
-			sub_start = br->start;
-		}
-		if (sub_len > br->len)
-			sub_len = br->len;
-
-		state = 0;
-		if (sub_start == br->start)
-			state |= LEFT_ALIGNED;
-		if (sub_start + sub_len == br->start + br->len)
-			state |= RIGHT_ALIGNED;
-		switch (state) {
-		case LEFT_ALIGNED:
-			/* Coincides with only the left. */
-			br->start += sub_len;
-			br->len -= sub_len;
-			break;
-		case RIGHT_ALIGNED:
-			/* Coincides with only the right. */
-			br->len -= sub_len;
-			lp = lp->next;
-			break;
-		case LEFT_ALIGNED | RIGHT_ALIGNED:
-			/* Total overlap, just delete ex. */
-			lp = lp->next;
-			list_del(&br->list);
-			kmem_free(br);
-			break;
-		case 0:
-			/*
-			 * Deleting from the middle: add the new right extent
-			 * and then shrink the left extent.
-			 */
-			new_br = kmem_alloc(sizeof(struct xfs_bitmap_range),
-					KM_MAYFAIL);
-			if (!new_br) {
-				error = -ENOMEM;
-				goto out;
-			}
-			INIT_LIST_HEAD(&new_br->list);
-			new_br->start = sub_start + sub_len;
-			new_br->len = br->start + br->len - new_br->start;
-			list_add(&new_br->list, &br->list);
-			br->len = sub_start - br->start;
-			lp = lp->next;
-			break;
-		default:
-			ASSERT(0);
-			break;
-		}
-	}
-
-out:
-	return error;
-}
-#undef LEFT_ALIGNED
-#undef RIGHT_ALIGNED
-
-/*
- * Record all btree blocks seen while iterating all records of a btree.
- *
- * We know that the btree query_all function starts at the left edge and walks
- * towards the right edge of the tree.  Therefore, we know that we can walk up
- * the btree cursor towards the root; if the pointer for a given level points
- * to the first record/key in that block, we haven't seen this block before;
- * and therefore we need to remember that we saw this block in the btree.
- *
- * So if our btree is:
- *
- *    4
- *  / | \
- * 1  2  3
- *
- * Pretend for this example that each leaf block has 100 btree records.  For
- * the first btree record, we'll observe that bc_ptrs[0] == 1, so we record
- * that we saw block 1.  Then we observe that bc_ptrs[1] == 1, so we record
- * block 4.  The list is [1, 4].
- *
- * For the second btree record, we see that bc_ptrs[0] == 2, so we exit the
- * loop.  The list remains [1, 4].
- *
- * For the 101st btree record, we've moved onto leaf block 2.  Now
- * bc_ptrs[0] == 1 again, so we record that we saw block 2.  We see that
- * bc_ptrs[1] == 2, so we exit the loop.  The list is now [1, 4, 2].
- *
- * For the 102nd record, bc_ptrs[0] == 2, so we continue.
- *
- * For the 201st record, we've moved on to leaf block 3.  bc_ptrs[0] == 1, so
- * we add 3 to the list.  Now it is [1, 4, 2, 3].
- *
- * For the 300th record we just exit, with the list being [1, 4, 2, 3].
- */
-
-/*
- * Record all the buffers pointed to by the btree cursor.  Callers already
- * engaged in a btree walk should call this function to capture the list of
- * blocks going from the leaf towards the root.
- */
-int
-xfs_bitmap_set_btcur_path(
-	struct xfs_bitmap	*bitmap,
-	struct xfs_btree_cur	*cur)
-{
-	struct xfs_buf		*bp;
-	xfs_fsblock_t		fsb;
-	int			i;
+	struct xbitmap64_node	*bn;
 	int			error;
 
-	for (i = 0; i < cur->bc_nlevels && cur->bc_ptrs[i] == 1; i++) {
-		xfs_btree_get_block(cur, i, &bp);
-		if (!bp)
-			continue;
-		fsb = XFS_DADDR_TO_FSB(cur->bc_mp, bp->b_bn);
-		error = xfs_bitmap_set(bitmap, fsb, 1);
+	if (xbitmap64_empty(bitmap) || xbitmap64_empty(sub))
+		return 0;
+
+	for_each_xbitmap64_extent(bn, sub) {
+		error = xbitmap64_clear(bitmap, bn->bn_start,
+				bn->bn_last - bn->bn_start + 1);
 		if (error)
 			return error;
 	}
@@ -269,30 +231,354 @@ xfs_bitmap_set_btcur_path(
 	return 0;
 }
 
-/* Collect a btree's block in the bitmap. */
-STATIC int
-xfs_bitmap_collect_btblock(
-	struct xfs_btree_cur	*cur,
-	int			level,
-	void			*priv)
+/* How many bits are set in this bitmap? */
+uint64_t
+xbitmap64_hweight(
+	struct xbitmap64	*bitmap)
 {
-	struct xfs_bitmap	*bitmap = priv;
-	struct xfs_buf		*bp;
-	xfs_fsblock_t		fsbno;
+	struct xbitmap64_node	*bn;
+	uint64_t		ret = 0;
 
-	xfs_btree_get_block(cur, level, &bp);
-	if (!bp)
-		return 0;
+	for_each_xbitmap64_extent(bn, bitmap)
+		ret += bn->bn_last - bn->bn_start + 1;
 
-	fsbno = XFS_DADDR_TO_FSB(cur->bc_mp, bp->b_bn);
-	return xfs_bitmap_set(bitmap, fsbno, 1);
+	return ret;
 }
 
-/* Walk the btree and mark the bitmap wherever a btree block is found. */
+/* Call a function for every run of set bits in this bitmap. */
 int
-xfs_bitmap_set_btblocks(
-	struct xfs_bitmap	*bitmap,
-	struct xfs_btree_cur	*cur)
+xbitmap64_walk(
+	struct xbitmap64	*bitmap,
+	xbitmap64_walk_fn		fn,
+	void			*priv)
 {
-	return xfs_btree_visit_blocks(cur, xfs_bitmap_collect_btblock, bitmap);
+	struct xbitmap64_node	*bn;
+	int			error = 0;
+
+	for_each_xbitmap64_extent(bn, bitmap) {
+		error = fn(bn->bn_start, bn->bn_last - bn->bn_start + 1, priv);
+		if (error)
+			break;
+	}
+
+	return error;
+}
+
+/* Does this bitmap have no bits set at all? */
+bool
+xbitmap64_empty(
+	struct xbitmap64	*bitmap)
+{
+	return bitmap->xb_root.rb_root.rb_node == NULL;
+}
+
+/* Is the start of the range set or clear?  And for how long? */
+bool
+xbitmap64_test(
+	struct xbitmap64	*bitmap,
+	uint64_t		start,
+	uint64_t		*len)
+{
+	struct xbitmap64_node	*bn;
+	uint64_t		last = start + *len - 1;
+
+	bn = xbitmap64_tree_iter_first(&bitmap->xb_root, start, last);
+	if (!bn)
+		return false;
+	if (bn->bn_start <= start) {
+		if (bn->bn_last < last)
+			*len = bn->bn_last - start + 1;
+		return true;
+	}
+	*len = bn->bn_start - start;
+	return false;
+}
+
+/* u32 bitmap */
+
+struct xbitmap32_node {
+	struct rb_node	bn_rbnode;
+
+	/* First set bit of this interval and subtree. */
+	uint32_t	bn_start;
+
+	/* Last set bit of this interval. */
+	uint32_t	bn_last;
+
+	/* Last set bit of this subtree.  Do not touch this. */
+	uint32_t	__bn_subtree_last;
+};
+
+/* Define our own interval tree type with uint32_t parameters. */
+
+/*
+ * These functions are defined by the INTERVAL_TREE_DEFINE macro, but we'll
+ * forward-declare them anyway for clarity.
+ */
+static inline __maybe_unused void
+xbitmap32_tree_insert(struct xbitmap32_node *node, struct rb_root_cached *root);
+
+static inline __maybe_unused void
+xbitmap32_tree_remove(struct xbitmap32_node *node, struct rb_root_cached *root);
+
+static inline __maybe_unused struct xbitmap32_node *
+xbitmap32_tree_iter_first(struct rb_root_cached *root, uint32_t start,
+			  uint32_t last);
+
+static inline __maybe_unused struct xbitmap32_node *
+xbitmap32_tree_iter_next(struct xbitmap32_node *node, uint32_t start,
+			 uint32_t last);
+
+INTERVAL_TREE_DEFINE(struct xbitmap32_node, bn_rbnode, uint32_t,
+		__bn_subtree_last, START, LAST, static inline __maybe_unused,
+		xbitmap32_tree)
+
+/* Iterate each interval of a bitmap.  Do not change the bitmap. */
+#define for_each_xbitmap32_extent(bn, bitmap) \
+	for ((bn) = rb_entry_safe(rb_first(&(bitmap)->xb_root.rb_root), \
+				   struct xbitmap32_node, bn_rbnode); \
+	     (bn) != NULL; \
+	     (bn) = rb_entry_safe(rb_next(&(bn)->bn_rbnode), \
+				   struct xbitmap32_node, bn_rbnode))
+
+/* Clear a range of this bitmap. */
+int
+xbitmap32_clear(
+	struct xbitmap32	*bitmap,
+	uint32_t		start,
+	uint32_t		len)
+{
+	struct xbitmap32_node	*bn;
+	struct xbitmap32_node	*new_bn;
+	uint32_t		last = start + len - 1;
+
+	while ((bn = xbitmap32_tree_iter_first(&bitmap->xb_root, start, last))) {
+		if (bn->bn_start < start && bn->bn_last > last) {
+			uint32_t	old_last = bn->bn_last;
+
+			/* overlaps with the entire clearing range */
+			xbitmap32_tree_remove(bn, &bitmap->xb_root);
+			bn->bn_last = start - 1;
+			xbitmap32_tree_insert(bn, &bitmap->xb_root);
+
+			/* add an extent */
+			new_bn = kmalloc(sizeof(struct xbitmap32_node),
+					XCHK_GFP_FLAGS);
+			if (!new_bn)
+				return -ENOMEM;
+			new_bn->bn_start = last + 1;
+			new_bn->bn_last = old_last;
+			xbitmap32_tree_insert(new_bn, &bitmap->xb_root);
+		} else if (bn->bn_start < start) {
+			/* overlaps with the left side of the clearing range */
+			xbitmap32_tree_remove(bn, &bitmap->xb_root);
+			bn->bn_last = start - 1;
+			xbitmap32_tree_insert(bn, &bitmap->xb_root);
+		} else if (bn->bn_last > last) {
+			/* overlaps with the right side of the clearing range */
+			xbitmap32_tree_remove(bn, &bitmap->xb_root);
+			bn->bn_start = last + 1;
+			xbitmap32_tree_insert(bn, &bitmap->xb_root);
+			break;
+		} else {
+			/* in the middle of the clearing range */
+			xbitmap32_tree_remove(bn, &bitmap->xb_root);
+			kfree(bn);
+		}
+	}
+
+	return 0;
+}
+
+/* Set a range of this bitmap. */
+int
+xbitmap32_set(
+	struct xbitmap32	*bitmap,
+	uint32_t		start,
+	uint32_t		len)
+{
+	struct xbitmap32_node	*left;
+	struct xbitmap32_node	*right;
+	uint32_t		last = start + len - 1;
+	int			error;
+
+	/* Is this whole range already set? */
+	left = xbitmap32_tree_iter_first(&bitmap->xb_root, start, last);
+	if (left && left->bn_start <= start && left->bn_last >= last)
+		return 0;
+
+	/* Clear out everything in the range we want to set. */
+	error = xbitmap32_clear(bitmap, start, len);
+	if (error)
+		return error;
+
+	/* Do we have a left-adjacent extent? */
+	left = xbitmap32_tree_iter_first(&bitmap->xb_root, start - 1, start - 1);
+	ASSERT(!left || left->bn_last + 1 == start);
+
+	/* Do we have a right-adjacent extent? */
+	right = xbitmap32_tree_iter_first(&bitmap->xb_root, last + 1, last + 1);
+	ASSERT(!right || right->bn_start == last + 1);
+
+	if (left && right) {
+		/* combine left and right adjacent extent */
+		xbitmap32_tree_remove(left, &bitmap->xb_root);
+		xbitmap32_tree_remove(right, &bitmap->xb_root);
+		left->bn_last = right->bn_last;
+		xbitmap32_tree_insert(left, &bitmap->xb_root);
+		kfree(right);
+	} else if (left) {
+		/* combine with left extent */
+		xbitmap32_tree_remove(left, &bitmap->xb_root);
+		left->bn_last = last;
+		xbitmap32_tree_insert(left, &bitmap->xb_root);
+	} else if (right) {
+		/* combine with right extent */
+		xbitmap32_tree_remove(right, &bitmap->xb_root);
+		right->bn_start = start;
+		xbitmap32_tree_insert(right, &bitmap->xb_root);
+	} else {
+		/* add an extent */
+		left = kmalloc(sizeof(struct xbitmap32_node), XCHK_GFP_FLAGS);
+		if (!left)
+			return -ENOMEM;
+		left->bn_start = start;
+		left->bn_last = last;
+		xbitmap32_tree_insert(left, &bitmap->xb_root);
+	}
+
+	return 0;
+}
+
+/* Free everything related to this bitmap. */
+void
+xbitmap32_destroy(
+	struct xbitmap32	*bitmap)
+{
+	struct xbitmap32_node	*bn;
+
+	while ((bn = xbitmap32_tree_iter_first(&bitmap->xb_root, 0, -1U))) {
+		xbitmap32_tree_remove(bn, &bitmap->xb_root);
+		kfree(bn);
+	}
+}
+
+/* Set up a per-AG block bitmap. */
+void
+xbitmap32_init(
+	struct xbitmap32	*bitmap)
+{
+	bitmap->xb_root = RB_ROOT_CACHED;
+}
+
+/*
+ * Remove all the blocks mentioned in @sub from the extents in @bitmap.
+ *
+ * The intent is that callers will iterate the rmapbt for all of its records
+ * for a given owner to generate @bitmap; and iterate all the blocks of the
+ * metadata structures that are not being rebuilt and have the same rmapbt
+ * owner to generate @sub.  This routine subtracts all the extents
+ * mentioned in sub from all the extents linked in @bitmap, which leaves
+ * @bitmap as the list of blocks that are not accounted for, which we assume
+ * are the dead blocks of the old metadata structure.  The blocks mentioned in
+ * @bitmap can be reaped.
+ *
+ * This is the logical equivalent of bitmap &= ~sub.
+ */
+int
+xbitmap32_disunion(
+	struct xbitmap32	*bitmap,
+	struct xbitmap32	*sub)
+{
+	struct xbitmap32_node	*bn;
+	int			error;
+
+	if (xbitmap32_empty(bitmap) || xbitmap32_empty(sub))
+		return 0;
+
+	for_each_xbitmap32_extent(bn, sub) {
+		error = xbitmap32_clear(bitmap, bn->bn_start,
+				bn->bn_last - bn->bn_start + 1);
+		if (error)
+			return error;
+	}
+
+	return 0;
+}
+
+/* How many bits are set in this bitmap? */
+uint32_t
+xbitmap32_hweight(
+	struct xbitmap32	*bitmap)
+{
+	struct xbitmap32_node	*bn;
+	uint32_t		ret = 0;
+
+	for_each_xbitmap32_extent(bn, bitmap)
+		ret += bn->bn_last - bn->bn_start + 1;
+
+	return ret;
+}
+
+/* Call a function for every run of set bits in this bitmap. */
+int
+xbitmap32_walk(
+	struct xbitmap32	*bitmap,
+	xbitmap32_walk_fn	fn,
+	void			*priv)
+{
+	struct xbitmap32_node	*bn;
+	int			error = 0;
+
+	for_each_xbitmap32_extent(bn, bitmap) {
+		error = fn(bn->bn_start, bn->bn_last - bn->bn_start + 1, priv);
+		if (error)
+			break;
+	}
+
+	return error;
+}
+
+/* Does this bitmap have no bits set at all? */
+bool
+xbitmap32_empty(
+	struct xbitmap32	*bitmap)
+{
+	return bitmap->xb_root.rb_root.rb_node == NULL;
+}
+
+/* Is the start of the range set or clear?  And for how long? */
+bool
+xbitmap32_test(
+	struct xbitmap32	*bitmap,
+	uint32_t		start,
+	uint32_t		*len)
+{
+	struct xbitmap32_node	*bn;
+	uint32_t		last = start + *len - 1;
+
+	bn = xbitmap32_tree_iter_first(&bitmap->xb_root, start, last);
+	if (!bn)
+		return false;
+	if (bn->bn_start <= start) {
+		if (bn->bn_last < last)
+			*len = bn->bn_last - start + 1;
+		return true;
+	}
+	*len = bn->bn_start - start;
+	return false;
+}
+
+/* Count the number of set regions in this bitmap. */
+uint32_t
+xbitmap32_count_set_regions(
+	struct xbitmap32	*bitmap)
+{
+	struct xbitmap32_node	*bn;
+	uint32_t		nr = 0;
+
+	for_each_xbitmap32_extent(bn, bitmap)
+		nr++;
+
+	return nr;
 }

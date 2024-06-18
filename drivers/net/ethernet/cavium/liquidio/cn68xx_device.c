@@ -25,6 +25,7 @@
 #include "octeon_main.h"
 #include "cn66xx_regs.h"
 #include "cn66xx_device.h"
+#include "cn68xx_device.h"
 #include "cn68xx_regs.h"
 
 static void lio_cn68xx_set_dpi_regs(struct octeon_device *oct)
@@ -180,3 +181,4 @@ int lio_setup_cn68xx_octeon_device(struct octeon_device *oct)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(lio_setup_cn68xx_octeon_device);

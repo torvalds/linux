@@ -276,7 +276,6 @@ static int st_nci_hci_apdu_reader_event_received(struct nci_dev *ndev,
 						   u8 event,
 						   struct sk_buff *skb)
 {
-	int r = 0;
 	struct st_nci_info *info = nci_get_drvdata(ndev);
 
 	pr_debug("apdu reader gate event: %x\n", event);
@@ -298,7 +297,7 @@ static int st_nci_hci_apdu_reader_event_received(struct nci_dev *ndev,
 	}
 
 	kfree_skb(skb);
-	return r;
+	return 0;
 }
 
 /*
@@ -313,6 +312,8 @@ static int st_nci_hci_connectivity_event_received(struct nci_dev *ndev,
 	int r = 0;
 	struct device *dev = &ndev->nfc_dev->dev;
 	struct nfc_evt_transaction *transaction;
+	u32 aid_len;
+	u8 params_len;
 
 	pr_debug("connectivity gate event: %x\n", event);
 
@@ -326,27 +327,47 @@ static int st_nci_hci_connectivity_event_received(struct nci_dev *ndev,
 		 * Description  Tag     Length
 		 * AID          81      5 to 16
 		 * PARAMETERS   82      0 to 255
+		 *
+		 * The key differences are aid storage length is variably sized
+		 * in the packet, but fixed in nfc_evt_transaction, and that
+		 * the aid_len is u8 in the packet, but u32 in the structure,
+		 * and the tags in the packet are not included in
+		 * nfc_evt_transaction.
+		 *
+		 * size(b):  1          1       5-16 1             1           0-255
+		 * offset:   0          1       2    aid_len + 2   aid_len + 3 aid_len + 4
+		 * mem name: aid_tag(M) aid_len aid  params_tag(M) params_len  params
+		 * example:  0x81       5-16    X    0x82          0-255       X
 		 */
-		if (skb->len < NFC_MIN_AID_LENGTH + 2 &&
-		    skb->data[0] != NFC_EVT_TRANSACTION_AID_TAG)
+		if (skb->len < 2 || skb->data[0] != NFC_EVT_TRANSACTION_AID_TAG)
 			return -EPROTO;
 
-		transaction = (struct nfc_evt_transaction *)devm_kzalloc(dev,
-					    skb->len - 2, GFP_KERNEL);
+		aid_len = skb->data[1];
+
+		if (skb->len < aid_len + 4 ||
+		    aid_len > sizeof(transaction->aid))
+			return -EPROTO;
+
+		params_len = skb->data[aid_len + 3];
+
+		/* Verify PARAMETERS tag is (82), and final check that there is
+		 * enough space in the packet to read everything.
+		 */
+		if (skb->data[aid_len + 2] != NFC_EVT_TRANSACTION_PARAMS_TAG ||
+		    skb->len < aid_len + 4 + params_len)
+			return -EPROTO;
+
+		transaction = devm_kzalloc(dev, sizeof(*transaction) +
+					   params_len, GFP_KERNEL);
 		if (!transaction)
 			return -ENOMEM;
 
-		transaction->aid_len = skb->data[1];
-		memcpy(transaction->aid, &skb->data[2], transaction->aid_len);
+		transaction->aid_len = aid_len;
+		transaction->params_len = params_len;
 
-		/* Check next byte is PARAMETERS tag (82) */
-		if (skb->data[transaction->aid_len + 2] !=
-		    NFC_EVT_TRANSACTION_PARAMS_TAG)
-			return -EPROTO;
-
-		transaction->params_len = skb->data[transaction->aid_len + 3];
-		memcpy(transaction->params, skb->data +
-		       transaction->aid_len + 4, transaction->params_len);
+		memcpy(transaction->aid, &skb->data[2], aid_len);
+		memcpy(transaction->params, &skb->data[aid_len + 4],
+		       params_len);
 
 		r = nfc_se_transaction(ndev->nfc_dev, host, transaction);
 		break;
@@ -472,8 +493,6 @@ int st_nci_disable_se(struct nci_dev *ndev, u32 se_idx)
 {
 	int r;
 
-	pr_debug("st_nci_disable_se\n");
-
 	/*
 	 * According to upper layer, se_idx == NFC_SE_UICC when
 	 * info->se_info.se_status->is_uicc_enable is true should never happen
@@ -497,8 +516,6 @@ EXPORT_SYMBOL_GPL(st_nci_disable_se);
 int st_nci_enable_se(struct nci_dev *ndev, u32 se_idx)
 {
 	int r;
-
-	pr_debug("st_nci_enable_se\n");
 
 	/*
 	 * According to upper layer, se_idx == NFC_SE_UICC when
@@ -536,10 +553,8 @@ static int st_nci_hci_network_init(struct nci_dev *ndev)
 	dest_params =
 		kzalloc(sizeof(struct core_conn_create_dest_spec_params) +
 			sizeof(struct dest_spec_params), GFP_KERNEL);
-	if (dest_params == NULL) {
-		r = -ENOMEM;
-		goto exit;
-	}
+	if (dest_params == NULL)
+		return -ENOMEM;
 
 	dest_params->type = NCI_DESTINATION_SPECIFIC_PARAM_NFCEE_TYPE;
 	dest_params->length = sizeof(struct dest_spec_params);
@@ -596,8 +611,6 @@ static int st_nci_hci_network_init(struct nci_dev *ndev)
 
 free_dest_params:
 	kfree(dest_params);
-
-exit:
 	return r;
 }
 
@@ -607,8 +620,6 @@ int st_nci_discover_se(struct nci_dev *ndev)
 	int r, wl_size = 0;
 	int se_count = 0;
 	struct st_nci_info *info = nci_get_drvdata(ndev);
-
-	pr_debug("st_nci_discover_se\n");
 
 	r = st_nci_hci_network_init(ndev);
 	if (r != 0)
@@ -650,8 +661,6 @@ int st_nci_se_io(struct nci_dev *ndev, u32 se_idx,
 {
 	struct st_nci_info *info = nci_get_drvdata(ndev);
 
-	pr_debug("\n");
-
 	switch (se_idx) {
 	case ST_NCI_ESE_HOST_ID:
 		info->se_info.cb = cb;
@@ -663,6 +672,12 @@ int st_nci_se_io(struct nci_dev *ndev, u32 se_idx,
 					ST_NCI_EVT_TRANSMIT_DATA, apdu,
 					apdu_length);
 	default:
+		/* Need to free cb_context here as at the moment we can't
+		 * clearly indicate to the caller if the callback function
+		 * would be called (and free it) or not. In both cases a
+		 * negative value may be returned to the caller.
+		 */
+		kfree(cb_context);
 		return -ENODEV;
 	}
 }
@@ -683,8 +698,6 @@ static void st_nci_se_wt_timeout(struct timer_list *t)
 	u8 param = 0x01;
 	struct st_nci_info *info = from_timer(info, t, se_info.bwi_timer);
 
-	pr_debug("\n");
-
 	info->se_info.bwi_active = false;
 
 	if (!info->se_info.xch_error) {
@@ -703,8 +716,6 @@ static void st_nci_se_activation_timeout(struct timer_list *t)
 {
 	struct st_nci_info *info = from_timer(info, t,
 					      se_info.se_active_timer);
-
-	pr_debug("\n");
 
 	info->se_info.se_active = false;
 

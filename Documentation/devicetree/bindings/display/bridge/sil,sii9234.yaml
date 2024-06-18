@@ -1,0 +1,110 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/bridge/sil,sii9234.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Silicon Image SiI9234 HDMI/MHL bridge
+
+maintainers:
+  - Maciej Purski <m.purski@samsung.com>
+
+properties:
+  compatible:
+    const: sil,sii9234
+
+  reg:
+    description: I2C address for TPI interface
+    maxItems: 1
+
+  avcc12-supply:
+    description: TMDS Analog Supply Voltage, 1.2V
+
+  avcc33-supply:
+    description: MHL/USB Switch Supply Voltage, 3.3V
+
+  cvcc12-supply:
+    description: Digital Core Supply Voltage, 1.2V
+
+  iovcc18-supply:
+    description: I/O voltage supply, 1.8V
+
+  interrupts:
+    maxItems: 1
+
+  reset-gpios:
+    description: GPIO connected to the reset pin.
+    maxItems: 1
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+
+    properties:
+      port@0:
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
+          Video port for HDMI (encoder) input
+
+      port@1:
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
+          MHL to connector port
+
+    required:
+      - port@0
+
+required:
+  - compatible
+  - reg
+  - avcc12-supply
+  - avcc33-supply
+  - cvcc12-supply
+  - iovcc18-supply
+  - interrupts
+  - reset-gpios
+  - ports
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      bridge@39 {
+        compatible = "sil,sii9234";
+        reg = <0x39>;
+        avcc12-supply = <&vsil12>;
+        avcc33-supply = <&vcc33mhl>;
+        cvcc12-supply = <&vsil12>;
+        iovcc18-supply = <&vcc18mhl>;
+        interrupt-parent = <&gpf3>;
+        interrupts = <5 IRQ_TYPE_LEVEL_HIGH>;
+        reset-gpios = <&gpf3 4 GPIO_ACTIVE_LOW>;
+
+        ports {
+          #address-cells = <1>;
+          #size-cells = <0>;
+
+          port@0 {
+            reg = <0>;
+            mhl_to_hdmi: endpoint {
+              remote-endpoint = <&hdmi_to_mhl>;
+            };
+          };
+
+          port@1 {
+            reg = <1>;
+            mhl_to_connector: endpoint {
+              remote-endpoint = <&connector_to_mhl>;
+            };
+          };
+        };
+      };
+    };
+
+...

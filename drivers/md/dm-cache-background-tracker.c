@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2017 Red Hat. All rights reserved.
  *
@@ -17,7 +18,7 @@ struct bt_work {
 };
 
 struct background_tracker {
-	unsigned max_work;
+	unsigned int max_work;
 	atomic_t pending_promotes;
 	atomic_t pending_writebacks;
 	atomic_t pending_demotes;
@@ -29,7 +30,7 @@ struct background_tracker {
 	struct kmem_cache *work_cache;
 };
 
-struct background_tracker *btracker_create(unsigned max_work)
+struct background_tracker *btracker_create(unsigned int max_work)
 {
 	struct background_tracker *b = kmalloc(sizeof(*b), GFP_KERNEL);
 
@@ -60,6 +61,14 @@ EXPORT_SYMBOL_GPL(btracker_create);
 
 void btracker_destroy(struct background_tracker *b)
 {
+	struct bt_work *w, *tmp;
+
+	BUG_ON(!list_empty(&b->issued));
+	list_for_each_entry_safe (w, tmp, &b->queued, list) {
+		list_del(&w->list);
+		kmem_cache_free(b->work_cache, w);
+	}
+
 	kmem_cache_destroy(b->work_cache);
 	kfree(b);
 }
@@ -147,13 +156,13 @@ static void update_stats(struct background_tracker *b, struct policy_work *w, in
 	}
 }
 
-unsigned btracker_nr_writebacks_queued(struct background_tracker *b)
+unsigned int btracker_nr_writebacks_queued(struct background_tracker *b)
 {
 	return atomic_read(&b->pending_writebacks);
 }
 EXPORT_SYMBOL_GPL(btracker_nr_writebacks_queued);
 
-unsigned btracker_nr_demotions_queued(struct background_tracker *b)
+unsigned int btracker_nr_demotions_queued(struct background_tracker *b)
 {
 	return atomic_read(&b->pending_demotes);
 }

@@ -93,19 +93,18 @@ static const struct drm_display_mode ls037v7dw01_mode = {
 	.vsync_start = 640 + 1,
 	.vsync_end = 640 + 1 + 1,
 	.vtotal = 640 + 1 + 1 + 1,
-	.vrefresh = 58,
 	.type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED,
 	.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 	.width_mm = 56,
 	.height_mm = 75,
 };
 
-static int ls037v7dw01_get_modes(struct drm_panel *panel)
+static int ls037v7dw01_get_modes(struct drm_panel *panel,
+				 struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(panel->drm, &ls037v7dw01_mode);
+	mode = drm_mode_duplicate(connector->dev, &ls037v7dw01_mode);
 	if (!mode)
 		return -ENOMEM;
 
@@ -147,22 +146,19 @@ static int ls037v7dw01_probe(struct platform_device *pdev)
 	lcd->pdev = pdev;
 
 	lcd->vdd = devm_regulator_get(&pdev->dev, "envdd");
-	if (IS_ERR(lcd->vdd)) {
-		dev_err(&pdev->dev, "failed to get regulator\n");
-		return PTR_ERR(lcd->vdd);
-	}
+	if (IS_ERR(lcd->vdd))
+		return dev_err_probe(&pdev->dev, PTR_ERR(lcd->vdd),
+				     "failed to get regulator\n");
 
 	lcd->ini_gpio = devm_gpiod_get(&pdev->dev, "enable", GPIOD_OUT_LOW);
-	if (IS_ERR(lcd->ini_gpio)) {
-		dev_err(&pdev->dev, "failed to get enable gpio\n");
-		return PTR_ERR(lcd->ini_gpio);
-	}
+	if (IS_ERR(lcd->ini_gpio))
+		return dev_err_probe(&pdev->dev, PTR_ERR(lcd->ini_gpio),
+				     "failed to get enable gpio\n");
 
 	lcd->resb_gpio = devm_gpiod_get(&pdev->dev, "reset", GPIOD_OUT_LOW);
-	if (IS_ERR(lcd->resb_gpio)) {
-		dev_err(&pdev->dev, "failed to get reset gpio\n");
-		return PTR_ERR(lcd->resb_gpio);
-	}
+	if (IS_ERR(lcd->resb_gpio))
+		return dev_err_probe(&pdev->dev, PTR_ERR(lcd->resb_gpio),
+				     "failed to get reset gpio\n");
 
 	lcd->mo_gpio = devm_gpiod_get_index(&pdev->dev, "mode", 0,
 					    GPIOD_OUT_LOW);
@@ -185,22 +181,21 @@ static int ls037v7dw01_probe(struct platform_device *pdev)
 		return PTR_ERR(lcd->ud_gpio);
 	}
 
-	drm_panel_init(&lcd->panel);
-	lcd->panel.dev = &pdev->dev;
-	lcd->panel.funcs = &ls037v7dw01_funcs;
+	drm_panel_init(&lcd->panel, &pdev->dev, &ls037v7dw01_funcs,
+		       DRM_MODE_CONNECTOR_DPI);
 
-	return drm_panel_add(&lcd->panel);
+	drm_panel_add(&lcd->panel);
+
+	return 0;
 }
 
-static int ls037v7dw01_remove(struct platform_device *pdev)
+static void ls037v7dw01_remove(struct platform_device *pdev)
 {
 	struct ls037v7dw01_panel *lcd = platform_get_drvdata(pdev);
 
 	drm_panel_remove(&lcd->panel);
 	drm_panel_disable(&lcd->panel);
 	drm_panel_unprepare(&lcd->panel);
-
-	return 0;
 }
 
 static const struct of_device_id ls037v7dw01_of_match[] = {
@@ -212,7 +207,7 @@ MODULE_DEVICE_TABLE(of, ls037v7dw01_of_match);
 
 static struct platform_driver ls037v7dw01_driver = {
 	.probe		= ls037v7dw01_probe,
-	.remove		= ls037v7dw01_remove,
+	.remove_new	= ls037v7dw01_remove,
 	.driver		= {
 		.name = "panel-sharp-ls037v7dw01",
 		.of_match_table = ls037v7dw01_of_match,

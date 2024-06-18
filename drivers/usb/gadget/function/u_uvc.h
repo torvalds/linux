@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * u_uvc.h
  *
@@ -27,6 +27,10 @@ struct f_uvc_opts {
 
 	unsigned int					control_interface;
 	unsigned int					streaming_interface;
+	char						function_name[32];
+	unsigned int					last_unit_id;
+
+	bool						enable_interrupt_ep;
 
 	/*
 	 * Control descriptors array pointers for full-/high-speed and
@@ -51,7 +55,6 @@ struct f_uvc_opts {
 	struct uvc_camera_terminal_descriptor		uvc_camera_terminal;
 	struct uvc_processing_unit_descriptor		uvc_processing;
 	struct uvc_output_terminal_descriptor		uvc_output_terminal;
-	struct uvc_color_matching_descriptor		uvc_color_matching;
 
 	/*
 	 * Control descriptors pointers arrays for full-/high-speed and
@@ -64,6 +67,12 @@ struct f_uvc_opts {
 	struct uvc_descriptor_header			*uvc_ss_control_cls[5];
 
 	/*
+	 * Control descriptors for extension units. There could be any number
+	 * of these, including none at all.
+	 */
+	struct list_head				extension_units;
+
+	/*
 	 * Streaming descriptors for full-speed, high-speed and super-speed.
 	 * Used by configfs only, must not be touched by legacy gadgets. The
 	 * arrays are allocated at runtime as the number of descriptors isn't
@@ -74,6 +83,14 @@ struct f_uvc_opts {
 	struct uvc_descriptor_header			**uvc_ss_streaming_cls;
 
 	/*
+	 * Indexes into the function's string descriptors allowing users to set
+	 * custom descriptions rather than the hard-coded defaults.
+	 */
+	u8						iad_index;
+	u8						vs0_index;
+	u8						vs1_index;
+
+	/*
 	 * Read/write access to configfs attributes is handled by configfs.
 	 *
 	 * This lock protects the descriptors from concurrent access by
@@ -81,6 +98,12 @@ struct f_uvc_opts {
 	 */
 	struct mutex			lock;
 	int				refcnt;
+
+	/*
+	 * Only for legacy gadget. Shall be NULL for configfs-composed gadgets,
+	 * which is guaranteed by alloc_inst implementation of f_uvc doing kzalloc.
+	 */
+	struct uvcg_streaming_header	*header;
 };
 
 #endif /* U_UVC_H */

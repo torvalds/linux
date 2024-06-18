@@ -70,12 +70,6 @@ config USB_MUSB_SUNXI
 	select GENERIC_PHY
 	select SUNXI_SRAM
 
-config USB_MUSB_DAVINCI
-	tristate "DaVinci"
-	depends on ARCH_DAVINCI_DMx
-	depends on NOP_USB_XCEIV
-	depends on BROKEN
-
 config USB_MUSB_DA8XX
 	tristate "DA8xx/OMAP-L1x"
 	depends on ARCH_DAVINCI_DA8XX
@@ -86,7 +80,7 @@ config USB_MUSB_TUSB6010
 	tristate "TUSB6010"
 	depends on HAS_IOMEM
 	depends on ARCH_OMAP2PLUS || COMPILE_TEST
-	depends on NOP_USB_XCEIV = USB_MUSB_HDRC # both built-in or both modules
+	depends on NOP_USB_XCEIV!=m || USB_MUSB_HDRC=m
 
 config USB_MUSB_OMAP2PLUS
 	tristate "OMAP2430 and onwards"
@@ -94,14 +88,8 @@ config USB_MUSB_OMAP2PLUS
 	depends on OMAP_CONTROL_PHY || !OMAP_CONTROL_PHY
 	select GENERIC_PHY
 
-config USB_MUSB_AM35X
-	tristate "AM35x"
-	depends on ARCH_OMAP
-	depends on NOP_USB_XCEIV
-
 config USB_MUSB_DSPS
 	tristate "TI DSPS platforms"
-	select USB_MUSB_AM335X_CHILD
 	depends on ARCH_OMAP2PLUS || COMPILE_TEST
 	depends on OF_IRQ
 
@@ -111,13 +99,28 @@ config USB_MUSB_UX500
 
 config USB_MUSB_JZ4740
 	tristate "JZ4740"
-	depends on NOP_USB_XCEIV
+	depends on OF
 	depends on MIPS || COMPILE_TEST
 	depends on USB_MUSB_GADGET
-	depends on USB=n || USB_OTG_BLACKLIST_HUB
+	select USB_ROLE_SWITCH
 
-config USB_MUSB_AM335X_CHILD
-	tristate
+config USB_MUSB_MEDIATEK
+	tristate "MediaTek platforms"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on NOP_USB_XCEIV
+	select GENERIC_PHY
+	select USB_ROLE_SWITCH
+
+config USB_MUSB_POLARFIRE_SOC
+	tristate "Microchip PolarFire SoC platforms"
+	depends on ARCH_MICROCHIP_POLARFIRE || COMPILE_TEST
+	depends on NOP_USB_XCEIV
+	select USB_MUSB_DUAL_ROLE
+	help
+	  Say Y here to enable support for USB on Microchip's PolarFire SoC.
+
+	  This support is also available as a module.  If so, the module
+	  will be called mpfs.
 
 comment "MUSB DMA mode"
 
@@ -142,15 +145,9 @@ config USB_UX500_DMA
 
 config USB_INVENTRA_DMA
 	bool 'Inventra'
-	depends on USB_MUSB_OMAP2PLUS
+	depends on USB_MUSB_OMAP2PLUS || USB_MUSB_MEDIATEK || USB_MUSB_JZ4740 || USB_MUSB_POLARFIRE_SOC
 	help
 	  Enable DMA transfers using Mentor's engine.
-
-config USB_TI_CPPI_DMA
-	bool 'TI CPPI (Davinci)'
-	depends on USB_MUSB_DAVINCI
-	help
-	  Enable DMA transfers when TI CPPI DMA is available.
 
 config USB_TI_CPPI41_DMA
 	bool 'TI CPPI 4.1'

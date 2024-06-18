@@ -12,14 +12,44 @@
 #include <linux/export.h>
 #include <linux/list.h>
 
+#include "dev.h"
+
 /*
  * General list handling functions
  */
 
-static int __hw_addr_create_ex(struct netdev_hw_addr_list *list,
-			       const unsigned char *addr, int addr_len,
-			       unsigned char addr_type, bool global,
-			       bool sync)
+static int __hw_addr_insert(struct netdev_hw_addr_list *list,
+			    struct netdev_hw_addr *new, int addr_len)
+{
+	struct rb_node **ins_point = &list->tree.rb_node, *parent = NULL;
+	struct netdev_hw_addr *ha;
+
+	while (*ins_point) {
+		int diff;
+
+		ha = rb_entry(*ins_point, struct netdev_hw_addr, node);
+		diff = memcmp(new->addr, ha->addr, addr_len);
+		if (diff == 0)
+			diff = memcmp(&new->type, &ha->type, sizeof(new->type));
+
+		parent = *ins_point;
+		if (diff < 0)
+			ins_point = &parent->rb_left;
+		else if (diff > 0)
+			ins_point = &parent->rb_right;
+		else
+			return -EEXIST;
+	}
+
+	rb_link_node_rcu(&new->node, parent, ins_point);
+	rb_insert_color(&new->node, &list->tree);
+
+	return 0;
+}
+
+static struct netdev_hw_addr*
+__hw_addr_create(const unsigned char *addr, int addr_len,
+		 unsigned char addr_type, bool global, bool sync)
 {
 	struct netdev_hw_addr *ha;
 	int alloc_size;
@@ -29,32 +59,44 @@ static int __hw_addr_create_ex(struct netdev_hw_addr_list *list,
 		alloc_size = L1_CACHE_BYTES;
 	ha = kmalloc(alloc_size, GFP_ATOMIC);
 	if (!ha)
-		return -ENOMEM;
+		return NULL;
 	memcpy(ha->addr, addr, addr_len);
 	ha->type = addr_type;
 	ha->refcount = 1;
 	ha->global_use = global;
 	ha->synced = sync ? 1 : 0;
 	ha->sync_cnt = 0;
-	list_add_tail_rcu(&ha->list, &list->list);
-	list->count++;
 
-	return 0;
+	return ha;
 }
 
 static int __hw_addr_add_ex(struct netdev_hw_addr_list *list,
 			    const unsigned char *addr, int addr_len,
 			    unsigned char addr_type, bool global, bool sync,
-			    int sync_count)
+			    int sync_count, bool exclusive)
 {
+	struct rb_node **ins_point = &list->tree.rb_node, *parent = NULL;
 	struct netdev_hw_addr *ha;
 
 	if (addr_len > MAX_ADDR_LEN)
 		return -EINVAL;
 
-	list_for_each_entry(ha, &list->list, list) {
-		if (ha->type == addr_type &&
-		    !memcmp(ha->addr, addr, addr_len)) {
+	while (*ins_point) {
+		int diff;
+
+		ha = rb_entry(*ins_point, struct netdev_hw_addr, node);
+		diff = memcmp(addr, ha->addr, addr_len);
+		if (diff == 0)
+			diff = memcmp(&addr_type, &ha->type, sizeof(addr_type));
+
+		parent = *ins_point;
+		if (diff < 0) {
+			ins_point = &parent->rb_left;
+		} else if (diff > 0) {
+			ins_point = &parent->rb_right;
+		} else {
+			if (exclusive)
+				return -EEXIST;
 			if (global) {
 				/* check if addr is already used as global */
 				if (ha->global_use)
@@ -73,8 +115,17 @@ static int __hw_addr_add_ex(struct netdev_hw_addr_list *list,
 		}
 	}
 
-	return __hw_addr_create_ex(list, addr, addr_len, addr_type, global,
-				   sync);
+	ha = __hw_addr_create(addr, addr_len, addr_type, global, sync);
+	if (!ha)
+		return -ENOMEM;
+
+	rb_link_node(&ha->node, parent, ins_point);
+	rb_insert_color(&ha->node, &list->tree);
+
+	list_add_tail_rcu(&ha->list, &list->list);
+	list->count++;
+
+	return 0;
 }
 
 static int __hw_addr_add(struct netdev_hw_addr_list *list,
@@ -82,7 +133,7 @@ static int __hw_addr_add(struct netdev_hw_addr_list *list,
 			 unsigned char addr_type)
 {
 	return __hw_addr_add_ex(list, addr, addr_len, addr_type, false, false,
-				0);
+				0, false);
 }
 
 static int __hw_addr_del_entry(struct netdev_hw_addr_list *list,
@@ -103,24 +154,50 @@ static int __hw_addr_del_entry(struct netdev_hw_addr_list *list,
 
 	if (--ha->refcount)
 		return 0;
+
+	rb_erase(&ha->node, &list->tree);
+
 	list_del_rcu(&ha->list);
 	kfree_rcu(ha, rcu_head);
 	list->count--;
 	return 0;
 }
 
+static struct netdev_hw_addr *__hw_addr_lookup(struct netdev_hw_addr_list *list,
+					       const unsigned char *addr, int addr_len,
+					       unsigned char addr_type)
+{
+	struct rb_node *node;
+
+	node = list->tree.rb_node;
+
+	while (node) {
+		struct netdev_hw_addr *ha = rb_entry(node, struct netdev_hw_addr, node);
+		int diff = memcmp(addr, ha->addr, addr_len);
+
+		if (diff == 0 && addr_type)
+			diff = memcmp(&addr_type, &ha->type, sizeof(addr_type));
+
+		if (diff < 0)
+			node = node->rb_left;
+		else if (diff > 0)
+			node = node->rb_right;
+		else
+			return ha;
+	}
+
+	return NULL;
+}
+
 static int __hw_addr_del_ex(struct netdev_hw_addr_list *list,
 			    const unsigned char *addr, int addr_len,
 			    unsigned char addr_type, bool global, bool sync)
 {
-	struct netdev_hw_addr *ha;
+	struct netdev_hw_addr *ha = __hw_addr_lookup(list, addr, addr_len, addr_type);
 
-	list_for_each_entry(ha, &list->list, list) {
-		if (!memcmp(ha->addr, addr, addr_len) &&
-		    (ha->type == addr_type || !addr_type))
-			return __hw_addr_del_entry(list, ha, global, sync);
-	}
-	return -ENOENT;
+	if (!ha)
+		return -ENOENT;
+	return __hw_addr_del_entry(list, ha, global, sync);
 }
 
 static int __hw_addr_del(struct netdev_hw_addr_list *list,
@@ -137,7 +214,7 @@ static int __hw_addr_sync_one(struct netdev_hw_addr_list *to_list,
 	int err;
 
 	err = __hw_addr_add_ex(to_list, ha->addr, addr_len, ha->type,
-			       false, true, ha->sync_cnt);
+			       false, true, ha->sync_cnt, false);
 	if (err && err != -EEXIST)
 		return err;
 
@@ -228,7 +305,7 @@ EXPORT_SYMBOL(__hw_addr_unsync);
  *  @sync: function to call if address should be added
  *  @unsync: function to call if address should be removed
  *
- *  This funciton is intended to be called from the ndo_set_rx_mode
+ *  This function is intended to be called from the ndo_set_rx_mode
  *  function of devices that require explicit address add/remove
  *  notifications.  The unsync function may be NULL in which case
  *  the addresses requiring removal will simply be removed without
@@ -407,6 +484,7 @@ static void __hw_addr_flush(struct netdev_hw_addr_list *list)
 {
 	struct netdev_hw_addr *ha, *tmp;
 
+	list->tree = RB_ROOT;
 	list_for_each_entry_safe(ha, tmp, &list->list, list) {
 		list_del_rcu(&ha->list);
 		kfree_rcu(ha, rcu_head);
@@ -418,12 +496,28 @@ void __hw_addr_init(struct netdev_hw_addr_list *list)
 {
 	INIT_LIST_HEAD(&list->list);
 	list->count = 0;
+	list->tree = RB_ROOT;
 }
 EXPORT_SYMBOL(__hw_addr_init);
 
 /*
  * Device addresses handling functions
  */
+
+/* Check that netdev->dev_addr is not written to directly as this would
+ * break the rbtree layout. All changes should go thru dev_addr_set() and co.
+ * Remove this check in mid-2024.
+ */
+void dev_addr_check(struct net_device *dev)
+{
+	if (!memcmp(dev->dev_addr, dev->dev_addr_shadow, MAX_ADDR_LEN))
+		return;
+
+	netdev_warn(dev, "Current addr:  %*ph\n", MAX_ADDR_LEN, dev->dev_addr);
+	netdev_warn(dev, "Expected addr: %*ph\n",
+		    MAX_ADDR_LEN, dev->dev_addr_shadow);
+	netdev_WARN(dev, "Incorrect netdev->dev_addr\n");
+}
 
 /**
  *	dev_addr_flush - Flush device address list
@@ -436,11 +530,11 @@ EXPORT_SYMBOL(__hw_addr_init);
 void dev_addr_flush(struct net_device *dev)
 {
 	/* rtnl_mutex must be held here */
+	dev_addr_check(dev);
 
 	__hw_addr_flush(&dev->dev_addrs);
 	dev->dev_addr = NULL;
 }
-EXPORT_SYMBOL(dev_addr_flush);
 
 /**
  *	dev_addr_init - Init device address list
@@ -474,7 +568,21 @@ int dev_addr_init(struct net_device *dev)
 	}
 	return err;
 }
-EXPORT_SYMBOL(dev_addr_init);
+
+void dev_addr_mod(struct net_device *dev, unsigned int offset,
+		  const void *addr, size_t len)
+{
+	struct netdev_hw_addr *ha;
+
+	dev_addr_check(dev);
+
+	ha = container_of(dev->dev_addr, struct netdev_hw_addr, addr[0]);
+	rb_erase(&ha->node, &dev->dev_addrs.tree);
+	memcpy(&ha->addr[offset], addr, len);
+	memcpy(&dev->dev_addr_shadow[offset], addr, len);
+	WARN_ON(__hw_addr_insert(&dev->dev_addrs, ha, dev->addr_len));
+}
+EXPORT_SYMBOL(dev_addr_mod);
 
 /**
  *	dev_addr_add - Add a device address
@@ -552,22 +660,14 @@ EXPORT_SYMBOL(dev_addr_del);
  */
 int dev_uc_add_excl(struct net_device *dev, const unsigned char *addr)
 {
-	struct netdev_hw_addr *ha;
 	int err;
 
 	netif_addr_lock_bh(dev);
-	list_for_each_entry(ha, &dev->uc.list, list) {
-		if (!memcmp(ha->addr, addr, dev->addr_len) &&
-		    ha->type == NETDEV_HW_ADDR_T_UNICAST) {
-			err = -EEXIST;
-			goto out;
-		}
-	}
-	err = __hw_addr_create_ex(&dev->uc, addr, dev->addr_len,
-				  NETDEV_HW_ADDR_T_UNICAST, true, false);
+	err = __hw_addr_add_ex(&dev->uc, addr, dev->addr_len,
+			       NETDEV_HW_ADDR_T_UNICAST, true, false,
+			       0, true);
 	if (!err)
 		__dev_set_rx_mode(dev);
-out:
 	netif_addr_unlock_bh(dev);
 	return err;
 }
@@ -637,7 +737,7 @@ int dev_uc_sync(struct net_device *to, struct net_device *from)
 	if (to->addr_len != from->addr_len)
 		return -EINVAL;
 
-	netif_addr_lock_nested(to);
+	netif_addr_lock(to);
 	err = __hw_addr_sync(&to->uc, &from->uc, to->addr_len);
 	if (!err)
 		__dev_set_rx_mode(to);
@@ -667,7 +767,7 @@ int dev_uc_sync_multiple(struct net_device *to, struct net_device *from)
 	if (to->addr_len != from->addr_len)
 		return -EINVAL;
 
-	netif_addr_lock_nested(to);
+	netif_addr_lock(to);
 	err = __hw_addr_sync_multiple(&to->uc, &from->uc, to->addr_len);
 	if (!err)
 		__dev_set_rx_mode(to);
@@ -690,8 +790,17 @@ void dev_uc_unsync(struct net_device *to, struct net_device *from)
 	if (to->addr_len != from->addr_len)
 		return;
 
+	/* netif_addr_lock_bh() uses lockdep subclass 0, this is okay for two
+	 * reasons:
+	 * 1) This is always called without any addr_list_lock, so as the
+	 *    outermost one here, it must be 0.
+	 * 2) This is called by some callers after unlinking the upper device,
+	 *    so the dev->lower_level becomes 1 again.
+	 * Therefore, the subclass for 'from' is 0, for 'to' is either 1 or
+	 * larger.
+	 */
 	netif_addr_lock_bh(from);
-	netif_addr_lock_nested(to);
+	netif_addr_lock(to);
 	__hw_addr_unsync(&to->uc, &from->uc, to->addr_len);
 	__dev_set_rx_mode(to);
 	netif_addr_unlock(to);
@@ -714,7 +823,7 @@ void dev_uc_flush(struct net_device *dev)
 EXPORT_SYMBOL(dev_uc_flush);
 
 /**
- *	dev_uc_flush - Init unicast address list
+ *	dev_uc_init - Init unicast address list
  *	@dev: device
  *
  *	Init unicast address list.
@@ -736,22 +845,14 @@ EXPORT_SYMBOL(dev_uc_init);
  */
 int dev_mc_add_excl(struct net_device *dev, const unsigned char *addr)
 {
-	struct netdev_hw_addr *ha;
 	int err;
 
 	netif_addr_lock_bh(dev);
-	list_for_each_entry(ha, &dev->mc.list, list) {
-		if (!memcmp(ha->addr, addr, dev->addr_len) &&
-		    ha->type == NETDEV_HW_ADDR_T_MULTICAST) {
-			err = -EEXIST;
-			goto out;
-		}
-	}
-	err = __hw_addr_create_ex(&dev->mc, addr, dev->addr_len,
-				  NETDEV_HW_ADDR_T_MULTICAST, true, false);
+	err = __hw_addr_add_ex(&dev->mc, addr, dev->addr_len,
+			       NETDEV_HW_ADDR_T_MULTICAST, true, false,
+			       0, true);
 	if (!err)
 		__dev_set_rx_mode(dev);
-out:
 	netif_addr_unlock_bh(dev);
 	return err;
 }
@@ -764,7 +865,8 @@ static int __dev_mc_add(struct net_device *dev, const unsigned char *addr,
 
 	netif_addr_lock_bh(dev);
 	err = __hw_addr_add_ex(&dev->mc, addr, dev->addr_len,
-			       NETDEV_HW_ADDR_T_MULTICAST, global, false, 0);
+			       NETDEV_HW_ADDR_T_MULTICAST, global, false,
+			       0, false);
 	if (!err)
 		__dev_set_rx_mode(dev);
 	netif_addr_unlock_bh(dev);
@@ -858,7 +960,7 @@ int dev_mc_sync(struct net_device *to, struct net_device *from)
 	if (to->addr_len != from->addr_len)
 		return -EINVAL;
 
-	netif_addr_lock_nested(to);
+	netif_addr_lock(to);
 	err = __hw_addr_sync(&to->mc, &from->mc, to->addr_len);
 	if (!err)
 		__dev_set_rx_mode(to);
@@ -888,7 +990,7 @@ int dev_mc_sync_multiple(struct net_device *to, struct net_device *from)
 	if (to->addr_len != from->addr_len)
 		return -EINVAL;
 
-	netif_addr_lock_nested(to);
+	netif_addr_lock(to);
 	err = __hw_addr_sync_multiple(&to->mc, &from->mc, to->addr_len);
 	if (!err)
 		__dev_set_rx_mode(to);
@@ -911,8 +1013,9 @@ void dev_mc_unsync(struct net_device *to, struct net_device *from)
 	if (to->addr_len != from->addr_len)
 		return;
 
+	/* See the above comments inside dev_uc_unsync(). */
 	netif_addr_lock_bh(from);
-	netif_addr_lock_nested(to);
+	netif_addr_lock(to);
 	__hw_addr_unsync(&to->mc, &from->mc, to->addr_len);
 	__dev_set_rx_mode(to);
 	netif_addr_unlock(to);

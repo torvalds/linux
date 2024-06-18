@@ -108,6 +108,11 @@ bool vmci_host_code_active(void)
 	     atomic_read(&vmci_host_active_users) > 0);
 }
 
+int vmci_host_users(void)
+{
+	return atomic_read(&vmci_host_active_users);
+}
+
 /*
  * Called on open of /dev/vmci.
  */
@@ -160,10 +165,16 @@ static int vmci_host_close(struct inode *inode, struct file *filp)
 static __poll_t vmci_host_poll(struct file *filp, poll_table *wait)
 {
 	struct vmci_host_dev *vmci_host_dev = filp->private_data;
-	struct vmci_ctx *context = vmci_host_dev->context;
+	struct vmci_ctx *context;
 	__poll_t mask = 0;
 
 	if (vmci_host_dev->ct_type == VMCIOBJ_CONTEXT) {
+		/*
+		 * Read context only if ct_type == VMCIOBJ_CONTEXT to make
+		 * sure that context is initialized
+		 */
+		context = vmci_host_dev->context;
+
 		/* Check for VMCI calls to this VM context. */
 		if (wait)
 			poll_wait(filp, &context->host_context.wait_queue,
@@ -228,8 +239,6 @@ static int vmci_host_setup_notify(struct vmci_ctx *context,
 	 * about the size.
 	 */
 	BUILD_BUG_ON(sizeof(bool) != sizeof(u8));
-	if (!access_ok((void __user *)uva, sizeof(u8)))
-		return VMCI_ERROR_GENERIC;
 
 	/*
 	 * Lock physical page backing a given user VA.
@@ -239,6 +248,8 @@ static int vmci_host_setup_notify(struct vmci_ctx *context,
 		context->notify_page = NULL;
 		return VMCI_ERROR_GENERIC;
 	}
+	if (context->notify_page == NULL)
+		return VMCI_ERROR_UNAVAILABLE;
 
 	/*
 	 * Map the locked page and set up notify pointer.
@@ -337,6 +348,8 @@ static int vmci_host_do_init_context(struct vmci_host_dev *vmci_host_dev,
 
 	vmci_host_dev->ct_type = VMCIOBJ_CONTEXT;
 	atomic_inc(&vmci_host_active_users);
+
+	vmci_call_vsock_callback(true);
 
 	retval = 0;
 
@@ -903,7 +916,7 @@ static long vmci_host_unlocked_ioctl(struct file *filp,
 				     unsigned int iocmd, unsigned long ioarg)
 {
 #define VMCI_DO_IOCTL(ioctl_name, ioctl_fn) do {			\
-		char *name = __stringify(IOCTL_VMCI_ ## ioctl_name);	\
+		char *name = "IOCTL_VMCI_" # ioctl_name;		\
 		return vmci_host_do_ ## ioctl_fn(			\
 			vmci_host_dev, name, uptr);			\
 	} while (0)
@@ -961,7 +974,7 @@ static const struct file_operations vmuser_fops = {
 	.release	= vmci_host_close,
 	.poll		= vmci_host_poll,
 	.unlocked_ioctl	= vmci_host_unlocked_ioctl,
-	.compat_ioctl	= vmci_host_unlocked_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 };
 
 static struct miscdevice vmci_host_miscdev = {

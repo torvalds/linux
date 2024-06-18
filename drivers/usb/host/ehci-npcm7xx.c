@@ -22,23 +22,11 @@
 
 #include "ehci.h"
 
-#include <linux/regmap.h>
-#include <linux/mfd/syscon.h>
-
 #define DRIVER_DESC "EHCI npcm7xx driver"
-
-static const char hcd_name[] = "npcm7xx-ehci";
-
-#define  USB2PHYCTL_OFFSET 0x144
-
-#define  IPSRST2_OFFSET 0x24
-#define  IPSRST3_OFFSET 0x34
-
 
 static struct hc_driver __read_mostly ehci_npcm7xx_hc_driver;
 
-#ifdef CONFIG_PM_SLEEP
-static int ehci_npcm7xx_drv_suspend(struct device *dev)
+static int __maybe_unused ehci_npcm7xx_drv_suspend(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
 	bool do_wakeup = device_may_wakeup(dev);
@@ -46,14 +34,13 @@ static int ehci_npcm7xx_drv_suspend(struct device *dev)
 	return ehci_suspend(hcd, do_wakeup);
 }
 
-static int ehci_npcm7xx_drv_resume(struct device *dev)
+static int __maybe_unused ehci_npcm7xx_drv_resume(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
 
 	ehci_resume(hcd, false);
 	return 0;
 }
-#endif /* CONFIG_PM_SLEEP */
 
 static SIMPLE_DEV_PM_OPS(ehci_npcm7xx_pm_ops, ehci_npcm7xx_drv_suspend,
 		ehci_npcm7xx_drv_resume);
@@ -62,51 +49,11 @@ static int npcm7xx_ehci_hcd_drv_probe(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd;
 	struct resource *res;
-	struct regmap *gcr_regmap;
-	struct regmap *rst_regmap;
 	const struct hc_driver *driver = &ehci_npcm7xx_hc_driver;
 	int irq;
 	int retval;
 
-	dev_dbg(&pdev->dev,	"initializing npcm7xx ehci USB Controller\n");
-
-	gcr_regmap = syscon_regmap_lookup_by_compatible("nuvoton,npcm750-gcr");
-	if (IS_ERR(gcr_regmap)) {
-		dev_err(&pdev->dev, "%s: failed to find nuvoton,npcm750-gcr\n",
-			__func__);
-		return PTR_ERR(gcr_regmap);
-	}
-
-	rst_regmap = syscon_regmap_lookup_by_compatible("nuvoton,npcm750-rst");
-	if (IS_ERR(rst_regmap)) {
-		dev_err(&pdev->dev, "%s: failed to find nuvoton,npcm750-rst\n",
-			__func__);
-		return PTR_ERR(rst_regmap);
-	}
-
-	/********* phy init  ******/
-	// reset usb host
-	regmap_update_bits(rst_regmap, IPSRST2_OFFSET,
-			(0x1 << 26), (0x1 << 26));
-	regmap_update_bits(rst_regmap, IPSRST3_OFFSET,
-			(0x1 << 25), (0x1 << 25));
-	regmap_update_bits(gcr_regmap, USB2PHYCTL_OFFSET,
-			(0x1 << 28), 0);
-
-	udelay(1);
-
-	// enable phy
-	regmap_update_bits(rst_regmap, IPSRST3_OFFSET,
-			(0x1 << 25), 0);
-
-	udelay(50); // enable phy
-
-	regmap_update_bits(gcr_regmap, USB2PHYCTL_OFFSET,
-			(0x1 << 28), (0x1 << 28));
-
-	// enable host
-	regmap_update_bits(rst_regmap, IPSRST2_OFFSET,
-			(0x1 << 26), 0);
+	dev_dbg(&pdev->dev, "initializing npcm7xx ehci USB Controller\n");
 
 	if (usb_disabled())
 		return -ENODEV;
@@ -132,8 +79,7 @@ static int npcm7xx_ehci_hcd_drv_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	hcd->regs = devm_ioremap_resource(&pdev->dev, res);
+	hcd->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(hcd->regs)) {
 		retval = PTR_ERR(hcd->regs);
 		goto err_put_hcd;
@@ -159,15 +105,13 @@ fail:
 	return retval;
 }
 
-static int npcm7xx_ehci_hcd_drv_remove(struct platform_device *pdev)
+static void npcm7xx_ehci_hcd_drv_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 
 	usb_remove_hcd(hcd);
 
 	usb_put_hcd(hcd);
-
-	return 0;
 }
 
 static const struct of_device_id npcm7xx_ehci_id_table[] = {
@@ -178,12 +122,12 @@ MODULE_DEVICE_TABLE(of, npcm7xx_ehci_id_table);
 
 static struct platform_driver npcm7xx_ehci_hcd_driver = {
 	.probe		= npcm7xx_ehci_hcd_drv_probe,
-	.remove		= npcm7xx_ehci_hcd_drv_remove,
+	.remove_new	= npcm7xx_ehci_hcd_drv_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
 	.driver		= {
 		.name = "npcm7xx-ehci",
 		.bus = &platform_bus_type,
-		.pm = &ehci_npcm7xx_pm_ops,
+		.pm = pm_ptr(&ehci_npcm7xx_pm_ops),
 		.of_match_table = npcm7xx_ehci_id_table,
 	}
 };
@@ -192,8 +136,6 @@ static int __init ehci_npcm7xx_init(void)
 {
 	if (usb_disabled())
 		return -ENODEV;
-
-	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
 
 	ehci_init_driver(&ehci_npcm7xx_hc_driver, NULL);
 	return platform_driver_register(&npcm7xx_ehci_hcd_driver);

@@ -14,6 +14,7 @@
 #ifndef V4L2_COMMON_H_
 #define V4L2_COMMON_H_
 
+#include <linux/time.h>
 #include <media/v4l2-dev.h>
 
 /* Common printk constructs for v4l-i2c drivers. These macros create a unique
@@ -174,7 +175,8 @@ struct v4l2_subdev *v4l2_i2c_new_subdev_board(struct v4l2_device *v4l2_dev,
  *
  * @sd: pointer to &struct v4l2_subdev
  * @client: pointer to struct i2c_client
- * @devname: the name of the device; if NULL, the I²C device's name will be used
+ * @devname: the name of the device; if NULL, the I²C device drivers's name
+ *           will be used
  * @postfix: sub-device specific string to put right after the I²C device name;
  *	     may be NULL
  */
@@ -276,13 +278,13 @@ static inline void v4l2_i2c_subdev_unregister(struct v4l2_subdev *sd)
  *
  *
  * @v4l2_dev: pointer to &struct v4l2_device.
- * @master: pointer to struct spi_master.
+ * @ctlr: pointer to struct spi_controller.
  * @info: pointer to struct spi_board_info.
  *
  * returns a &struct v4l2_subdev pointer.
  */
 struct v4l2_subdev *v4l2_spi_new_subdev(struct v4l2_device *v4l2_dev,
-		struct spi_master *master, struct spi_board_info *info);
+		struct spi_controller *ctlr, struct spi_board_info *info);
 
 /**
  * v4l2_spi_subdev_init - Initialize a v4l2_subdev with data from an
@@ -306,7 +308,7 @@ void v4l2_spi_subdev_unregister(struct v4l2_subdev *sd);
 
 static inline struct v4l2_subdev *
 v4l2_spi_new_subdev(struct v4l2_device *v4l2_dev,
-		    struct spi_master *master, struct spi_board_info *info)
+		    struct spi_controller *ctlr, struct spi_board_info *info)
 {
 	return NULL;
 }
@@ -423,7 +425,7 @@ __v4l2_find_nearest_size(const void *array, size_t array_size,
 
 /**
  * v4l2_g_parm_cap - helper routine for vidioc_g_parm to fill this in by
- *      calling the g_frame_interval op of the given subdev. It only works
+ *      calling the get_frame_interval op of the given subdev. It only works
  *      for V4L2_BUF_TYPE_VIDEO_CAPTURE(_MPLANE), hence the _cap in the
  *      function name.
  *
@@ -436,7 +438,7 @@ int v4l2_g_parm_cap(struct video_device *vdev,
 
 /**
  * v4l2_s_parm_cap - helper routine for vidioc_s_parm to fill this in by
- *      calling the s_frame_interval op of the given subdev. It only works
+ *      calling the set_frame_interval op of the given subdev. It only works
  *      for V4L2_BUF_TYPE_VIDEO_CAPTURE(_MPLANE), hence the _cap in the
  *      function name.
  *
@@ -457,11 +459,28 @@ int v4l2_s_parm_cap(struct video_device *vdev,
 /* Pixel format and FourCC helpers */
 
 /**
+ * enum v4l2_pixel_encoding - specifies the pixel encoding value
+ *
+ * @V4L2_PIXEL_ENC_UNKNOWN:	Pixel encoding is unknown/un-initialized
+ * @V4L2_PIXEL_ENC_YUV:		Pixel encoding is YUV
+ * @V4L2_PIXEL_ENC_RGB:		Pixel encoding is RGB
+ * @V4L2_PIXEL_ENC_BAYER:	Pixel encoding is Bayer
+ */
+enum v4l2_pixel_encoding {
+	V4L2_PIXEL_ENC_UNKNOWN = 0,
+	V4L2_PIXEL_ENC_YUV = 1,
+	V4L2_PIXEL_ENC_RGB = 2,
+	V4L2_PIXEL_ENC_BAYER = 3,
+};
+
+/**
  * struct v4l2_format_info - information about a V4L2 format
  * @format: 4CC format identifier (V4L2_PIX_FMT_*)
+ * @pixel_enc: Pixel encoding (see enum v4l2_pixel_encoding above)
  * @mem_planes: Number of memory planes, which includes the alpha plane (1 to 4).
  * @comp_planes: Number of component planes, which includes the alpha plane (1 to 4).
  * @bpp: Array of per-plane bytes per pixel
+ * @bpp_div: Array of per-plane bytes per pixel divisors to support fractional pixel sizes.
  * @hdiv: Horizontal chroma subsampling factor
  * @vdiv: Vertical chroma subsampling factor
  * @block_w: Per-plane macroblock pixel width (optional)
@@ -469,22 +488,138 @@ int v4l2_s_parm_cap(struct video_device *vdev,
  */
 struct v4l2_format_info {
 	u32 format;
+	u8 pixel_enc;
 	u8 mem_planes;
 	u8 comp_planes;
 	u8 bpp[4];
+	u8 bpp_div[4];
 	u8 hdiv;
 	u8 vdiv;
 	u8 block_w[4];
 	u8 block_h[4];
 };
 
-const struct v4l2_format_info *v4l2_format_info(u32 format);
+static inline bool v4l2_is_format_rgb(const struct v4l2_format_info *f)
+{
+	return f && f->pixel_enc == V4L2_PIXEL_ENC_RGB;
+}
 
+static inline bool v4l2_is_format_yuv(const struct v4l2_format_info *f)
+{
+	return f && f->pixel_enc == V4L2_PIXEL_ENC_YUV;
+}
+
+static inline bool v4l2_is_format_bayer(const struct v4l2_format_info *f)
+{
+	return f && f->pixel_enc == V4L2_PIXEL_ENC_BAYER;
+}
+
+const struct v4l2_format_info *v4l2_format_info(u32 format);
 void v4l2_apply_frmsize_constraints(u32 *width, u32 *height,
 				    const struct v4l2_frmsize_stepwise *frmsize);
 int v4l2_fill_pixfmt(struct v4l2_pix_format *pixfmt, u32 pixelformat,
 		     u32 width, u32 height);
 int v4l2_fill_pixfmt_mp(struct v4l2_pix_format_mplane *pixfmt, u32 pixelformat,
 			u32 width, u32 height);
+
+/**
+ * v4l2_get_link_freq - Get link rate from transmitter
+ *
+ * @handler: The transmitter's control handler
+ * @mul: The multiplier between pixel rate and link frequency. Bits per pixel on
+ *	 D-PHY, samples per clock on parallel. 0 otherwise.
+ * @div: The divisor between pixel rate and link frequency. Number of data lanes
+ *	 times two on D-PHY, 1 on parallel. 0 otherwise.
+ *
+ * This function is intended for obtaining the link frequency from the
+ * transmitter sub-devices. It returns the link rate, either from the
+ * V4L2_CID_LINK_FREQ control implemented by the transmitter, or value
+ * calculated based on the V4L2_CID_PIXEL_RATE implemented by the transmitter.
+ *
+ * Return:
+ * * >0: Link frequency
+ * * %-ENOENT: Link frequency or pixel rate control not found
+ * * %-EINVAL: Invalid link frequency value
+ */
+s64 v4l2_get_link_freq(struct v4l2_ctrl_handler *handler, unsigned int mul,
+		       unsigned int div);
+
+void v4l2_simplify_fraction(u32 *numerator, u32 *denominator,
+		unsigned int n_terms, unsigned int threshold);
+u32 v4l2_fraction_to_interval(u32 numerator, u32 denominator);
+
+/**
+ * v4l2_link_freq_to_bitmap - Figure out platform-supported link frequencies
+ * @dev: The struct device
+ * @fw_link_freqs: Array of link frequencies from firmware
+ * @num_of_fw_link_freqs: Number of entries in @fw_link_freqs
+ * @driver_link_freqs: Array of link frequencies supported by the driver
+ * @num_of_driver_link_freqs: Number of entries in @driver_link_freqs
+ * @bitmap: Bitmap of driver-supported link frequencies found in @fw_link_freqs
+ *
+ * This function checks which driver-supported link frequencies are enabled in
+ * system firmware and sets the corresponding bits in @bitmap (after first
+ * zeroing it).
+ *
+ * Return:
+ * * %0: Success
+ * * %-ENOENT: No match found between driver-supported link frequencies and
+ *   those available in firmware.
+ * * %-ENODATA: No link frequencies were specified in firmware.
+ */
+int v4l2_link_freq_to_bitmap(struct device *dev, const u64 *fw_link_freqs,
+			     unsigned int num_of_fw_link_freqs,
+			     const s64 *driver_link_freqs,
+			     unsigned int num_of_driver_link_freqs,
+			     unsigned long *bitmap);
+
+static inline u64 v4l2_buffer_get_timestamp(const struct v4l2_buffer *buf)
+{
+	/*
+	 * When the timestamp comes from 32-bit user space, there may be
+	 * uninitialized data in tv_usec, so cast it to u32.
+	 * Otherwise allow invalid input for backwards compatibility.
+	 */
+	return buf->timestamp.tv_sec * NSEC_PER_SEC +
+		(u32)buf->timestamp.tv_usec * NSEC_PER_USEC;
+}
+
+static inline void v4l2_buffer_set_timestamp(struct v4l2_buffer *buf,
+					     u64 timestamp)
+{
+	struct timespec64 ts = ns_to_timespec64(timestamp);
+
+	buf->timestamp.tv_sec  = ts.tv_sec;
+	buf->timestamp.tv_usec = ts.tv_nsec / NSEC_PER_USEC;
+}
+
+static inline bool v4l2_is_colorspace_valid(__u32 colorspace)
+{
+	return colorspace > V4L2_COLORSPACE_DEFAULT &&
+	       colorspace < V4L2_COLORSPACE_LAST;
+}
+
+static inline bool v4l2_is_xfer_func_valid(__u32 xfer_func)
+{
+	return xfer_func > V4L2_XFER_FUNC_DEFAULT &&
+	       xfer_func < V4L2_XFER_FUNC_LAST;
+}
+
+static inline bool v4l2_is_ycbcr_enc_valid(__u8 ycbcr_enc)
+{
+	return ycbcr_enc > V4L2_YCBCR_ENC_DEFAULT &&
+	       ycbcr_enc < V4L2_YCBCR_ENC_LAST;
+}
+
+static inline bool v4l2_is_hsv_enc_valid(__u8 hsv_enc)
+{
+	return hsv_enc == V4L2_HSV_ENC_180 || hsv_enc == V4L2_HSV_ENC_256;
+}
+
+static inline bool v4l2_is_quant_valid(__u8 quantization)
+{
+	return quantization == V4L2_QUANTIZATION_FULL_RANGE ||
+	       quantization == V4L2_QUANTIZATION_LIM_RANGE;
+}
 
 #endif /* V4L2_COMMON_H_ */

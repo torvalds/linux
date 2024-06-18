@@ -33,6 +33,7 @@
 #define UINPUT_NAME		"uinput"
 #define UINPUT_BUFFER_SIZE	16
 #define UINPUT_NUM_REQUESTS	16
+#define UINPUT_TIMESTAMP_ALLOWED_OFFSET_SECS 10
 
 enum uinput_state { UIST_NEW_DEVICE, UIST_SETUP_COMPLETE, UIST_CREATED };
 
@@ -74,12 +75,16 @@ static int uinput_dev_event(struct input_dev *dev,
 	struct uinput_device	*udev = input_get_drvdata(dev);
 	struct timespec64	ts;
 
-	udev->buff[udev->head].type = type;
-	udev->buff[udev->head].code = code;
-	udev->buff[udev->head].value = value;
 	ktime_get_ts64(&ts);
-	udev->buff[udev->head].input_event_sec = ts.tv_sec;
-	udev->buff[udev->head].input_event_usec = ts.tv_nsec / NSEC_PER_USEC;
+
+	udev->buff[udev->head] = (struct input_event) {
+		.input_event_sec = ts.tv_sec,
+		.input_event_usec = ts.tv_nsec / NSEC_PER_USEC,
+		.type = type,
+		.code = code,
+		.value = value,
+	};
+
 	udev->head = (udev->head + 1) % UINPUT_BUFFER_SIZE;
 
 	wake_up_interruptible(&udev->waitq);
@@ -565,11 +570,40 @@ static int uinput_setup_device_legacy(struct uinput_device *udev,
 	return retval;
 }
 
+/*
+ * Returns true if the given timestamp is valid (i.e., if all the following
+ * conditions are satisfied), false otherwise.
+ * 1) given timestamp is positive
+ * 2) it's within the allowed offset before the current time
+ * 3) it's not in the future
+ */
+static bool is_valid_timestamp(const ktime_t timestamp)
+{
+	ktime_t zero_time;
+	ktime_t current_time;
+	ktime_t min_time;
+	ktime_t offset;
+
+	zero_time = ktime_set(0, 0);
+	if (ktime_compare(zero_time, timestamp) >= 0)
+		return false;
+
+	current_time = ktime_get();
+	offset = ktime_set(UINPUT_TIMESTAMP_ALLOWED_OFFSET_SECS, 0);
+	min_time = ktime_sub(current_time, offset);
+
+	if (ktime_after(min_time, timestamp) || ktime_after(timestamp, current_time))
+		return false;
+
+	return true;
+}
+
 static ssize_t uinput_inject_events(struct uinput_device *udev,
 				    const char __user *buffer, size_t count)
 {
 	struct input_event ev;
 	size_t bytes = 0;
+	ktime_t timestamp;
 
 	if (count != 0 && count < input_event_size())
 		return -EINVAL;
@@ -583,6 +617,10 @@ static ssize_t uinput_inject_events(struct uinput_device *udev,
 		 */
 		if (input_event_from_user(buffer + bytes, &ev))
 			return -EFAULT;
+
+		timestamp = ktime_set(ev.input_event_sec, ev.input_event_usec * NSEC_PER_USEC);
+		if (is_valid_timestamp(timestamp))
+			input_set_timestamp(udev->dev, timestamp);
 
 		input_event(udev->dev, ev.type, ev.code, ev.value);
 		bytes += input_event_size();
@@ -689,13 +727,14 @@ static ssize_t uinput_read(struct file *file, char __user *buffer,
 static __poll_t uinput_poll(struct file *file, poll_table *wait)
 {
 	struct uinput_device *udev = file->private_data;
+	__poll_t mask = EPOLLOUT | EPOLLWRNORM; /* uinput is always writable */
 
 	poll_wait(file, &udev->waitq, wait);
 
 	if (udev->head != udev->tail)
-		return EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 
-	return 0;
+	return mask;
 }
 
 static int uinput_release(struct inode *inode, struct file *file)

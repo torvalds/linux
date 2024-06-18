@@ -56,7 +56,7 @@ instead of ``double-indenting`` the ``case`` labels.  E.g.:
 	case 'K':
 	case 'k':
 		mem <<= 10;
-		/* fall through */
+		fallthrough;
 	default:
 		break;
 	}
@@ -69,8 +69,25 @@ something to hide:
 	if (condition) do_this;
 	  do_something_everytime;
 
+Don't use commas to avoid using braces:
+
+.. code-block:: c
+
+	if (condition)
+		do_this(), do_that();
+
+Always uses braces for multiple statements:
+
+.. code-block:: c
+
+	if (condition) {
+		do_this();
+		do_that();
+	}
+
 Don't put multiple assignments on a single line either.  Kernel coding style
 is super simple.  Avoid tricky expressions.
+
 
 Outside of comments, documentation and except in Kconfig, spaces are never
 used for indentation, and the above example is deliberately broken.
@@ -84,15 +101,20 @@ Get a decent editor and don't leave whitespace at the end of lines.
 Coding style is all about readability and maintainability using commonly
 available tools.
 
-The limit on the length of lines is 80 columns and this is a strongly
-preferred limit.
+The preferred limit on the length of a single line is 80 columns.
 
-Statements longer than 80 columns will be broken into sensible chunks, unless
-exceeding 80 columns significantly increases readability and does not hide
-information. Descendants are always substantially shorter than the parent and
-are placed substantially to the right. The same applies to function headers
-with a long argument list. However, never break user-visible strings such as
-printk messages, because that breaks the ability to grep for them.
+Statements longer than 80 columns should be broken into sensible chunks,
+unless exceeding 80 columns significantly increases readability and does
+not hide information.
+
+Descendants are always substantially shorter than the parent and
+are placed substantially to the right.  A very commonly used style
+is to align descendants to a function open parenthesis.
+
+These same rules are applied to function headers with a long argument list.
+
+However, never break user-visible strings such as printk messages because
+that breaks the ability to grep for them.
 
 
 3) Placing Braces and Spaces
@@ -181,7 +203,7 @@ Do not unnecessarily use braces where a single statement will do.
 
 and
 
-.. code-block:: none
+.. code-block:: c
 
 	if (condition)
 		do_this();
@@ -284,9 +306,9 @@ context lines.
 4) Naming
 ---------
 
-C is a Spartan language, and so should your naming be.  Unlike Modula-2
-and Pascal programmers, C programmers do not use cute names like
-ThisVariableIsATemporaryCounter.  A C programmer would call that
+C is a Spartan language, and your naming conventions should follow suit.
+Unlike Modula-2 and Pascal programmers, C programmers do not use cute
+names like ThisVariableIsATemporaryCounter. A C programmer would call that
 variable ``tmp``, which is much easier to write, and not the least more
 difficult to understand.
 
@@ -300,9 +322,8 @@ that counts the number of active users, you should call that
 ``count_active_users()`` or similar, you should **not** call it ``cntusr()``.
 
 Encoding the type of a function into the name (so-called Hungarian
-notation) is brain damaged - the compiler knows the types anyway and can
-check those, and it only confuses the programmer.  No wonder MicroSoft
-makes buggy programs.
+notation) is asinine - the compiler knows the types anyway and can check
+those, and it only confuses the programmer.
 
 LOCAL variable names should be short, and to the point.  If you have
 some random integer loop counter, it should probably be called ``i``.
@@ -314,6 +335,26 @@ If you are afraid to mix up your local variable names, you have another
 problem, which is called the function-growth-hormone-imbalance syndrome.
 See chapter 6 (Functions).
 
+For symbol names and documentation, avoid introducing new usage of
+'master / slave' (or 'slave' independent of 'master') and 'blacklist /
+whitelist'.
+
+Recommended replacements for 'master / slave' are:
+    '{primary,main} / {secondary,replica,subordinate}'
+    '{initiator,requester} / {target,responder}'
+    '{controller,host} / {device,worker,proxy}'
+    'leader / follower'
+    'director / performer'
+
+Recommended replacements for 'blacklist/whitelist' are:
+    'denylist / allowlist'
+    'blocklist / passlist'
+
+Exceptions for introducing new usage is to maintain a userspace ABI/API,
+or when updating code for an existing (as of 2020) hardware or protocol
+specification that mandates those terms. For new specifications
+translate specification usage of the terminology to the kernel coding
+standard where possible.
 
 5) Typedefs
 -----------
@@ -439,13 +480,48 @@ closing function brace line.  E.g.:
 	}
 	EXPORT_SYMBOL(system_is_up);
 
+6.1) Function prototypes
+************************
+
 In function prototypes, include parameter names with their data types.
 Although this is not required by the C language, it is preferred in Linux
 because it is a simple way to add valuable information for the reader.
 
-Do not use the ``extern`` keyword with function prototypes as this makes
+Do not use the ``extern`` keyword with function declarations as this makes
 lines longer and isn't strictly necessary.
 
+When writing function prototypes, please keep the `order of elements regular
+<https://lore.kernel.org/mm-commits/CAHk-=wiOCLRny5aifWNhr621kYrJwhfURsa0vFPeUEm8mF0ufg@mail.gmail.com/>`_.
+For example, using this function declaration example::
+
+ __init void * __must_check action(enum magic value, size_t size, u8 count,
+				   char *fmt, ...) __printf(4, 5) __malloc;
+
+The preferred order of elements for a function prototype is:
+
+- storage class (below, ``static __always_inline``, noting that ``__always_inline``
+  is technically an attribute but is treated like ``inline``)
+- storage class attributes (here, ``__init`` -- i.e. section declarations, but also
+  things like ``__cold``)
+- return type (here, ``void *``)
+- return type attributes (here, ``__must_check``)
+- function name (here, ``action``)
+- function parameters (here, ``(enum magic value, size_t size, u8 count, char *fmt, ...)``,
+  noting that parameter names should always be included)
+- function parameter attributes (here, ``__printf(4, 5)``)
+- function behavior attributes (here, ``__malloc``)
+
+Note that for a function **definition** (i.e. the actual function body),
+the compiler does not allow function parameter attributes after the
+function parameters. In these cases, they should go after the storage
+class attributes (e.g. note the changed position of ``__printf(4, 5)``
+below, compared to the **declaration** example above)::
+
+ static __always_inline __init __printf(4, 5) void * __must_check action(enum magic value,
+		size_t size, u8 count, char *fmt, ...) __malloc
+ {
+	...
+ }
 
 7) Centralized exiting of functions
 -----------------------------------
@@ -510,9 +586,9 @@ fix for this is to split it up into two error labels ``err_free_bar:`` and
 
 .. code-block:: c
 
-	 err_free_bar:
+	err_free_bar:
 		kfree(foo->bar);
-	 err_free_foo:
+	err_free_foo:
 		kfree(foo);
 		return ret;
 
@@ -584,7 +660,7 @@ make a good program).
 So, you can either get rid of GNU emacs, or change it to use saner
 values.  To do the latter, you can stick the following in your .emacs file:
 
-.. code-block:: none
+.. code-block:: elisp
 
   (defun c-lineup-arglist-tabs-only (ignored)
     "Line up argument lists by tabs, not spaces"
@@ -603,7 +679,7 @@ values.  To do the latter, you can stick the following in your .emacs file:
           (c-offsets-alist . (
                   (arglist-close         . c-lineup-arglist-tabs-only)
                   (arglist-cont-nonempty .
-		      (c-lineup-gcc-asm-reg c-lineup-arglist-tabs-only))
+                      (c-lineup-gcc-asm-reg c-lineup-arglist-tabs-only))
                   (arglist-intro         . +)
                   (brace-list-intro      . +)
                   (c                     . c-lineup-C-comments)
@@ -659,6 +735,10 @@ for aligning variables/macros, for reflowing text and other similar tasks.
 See the file :ref:`Documentation/process/clang-format.rst <clangformat>`
 for more details.
 
+Some basic editor settings, such as indentation and line endings, will be
+set automatically if you are using an editor that is compatible with
+EditorConfig. See the official EditorConfig website for more information:
+https://editorconfig.org/
 
 10) Kconfig configuration files
 -------------------------------
@@ -747,6 +827,29 @@ Macros with multiple statements should be enclosed in a do - while block:
 				do_this(b, c);		\
 		} while (0)
 
+Function-like macros with unused parameters should be replaced by static
+inline functions to avoid the issue of unused variables:
+
+.. code-block:: c
+
+	static inline void fun(struct foo *foo)
+	{
+	}
+
+Due to historical practices, many files still employ the "cast to (void)"
+approach to evaluate parameters. However, this method is not advisable.
+Inline functions address the issue of "expression with side effects
+evaluated more than once", circumvent unused-variable problems, and
+are generally better documented than macros for some reason.
+
+.. code-block:: c
+
+	/*
+	 * Avoid doing this whenever possible and instead opt for static
+	 * inline functions
+	 */
+	#define macrofun(foo) do { (void) (foo); } while (0)
+
 Things to avoid when using macros:
 
 1) macros that affect control flow:
@@ -806,20 +909,21 @@ covers RTL which is used frequently with assembly language in the kernel.
 ----------------------------
 
 Kernel developers like to be seen as literate. Do mind the spelling
-of kernel messages to make a good impression. Do not use crippled
-words like ``dont``; use ``do not`` or ``don't`` instead.  Make the messages
-concise, clear, and unambiguous.
+of kernel messages to make a good impression. Do not use incorrect
+contractions like ``dont``; use ``do not`` or ``don't`` instead. Make the
+messages concise, clear, and unambiguous.
 
 Kernel messages do not have to be terminated with a period.
 
 Printing numbers in parentheses (%d) adds no value and should be avoided.
 
-There are a number of driver model diagnostic macros in <linux/device.h>
+There are a number of driver model diagnostic macros in <linux/dev_printk.h>
 which you should use to make sure messages are matched to the right device
 and driver, and are tagged with the right level:  dev_err(), dev_warn(),
 dev_info(), and so forth.  For messages that aren't associated with a
 particular device, <linux/printk.h> defines pr_notice(), pr_info(),
-pr_warn(), pr_err(), etc.
+pr_warn(), pr_err(), etc. When drivers are working properly they are quiet,
+so prefer to use dev_dbg/pr_debug unless something is wrong.
 
 Coming up with good debugging messages can be quite a challenge; and once
 you have them, they can be a huge help for remote troubleshooting.  However
@@ -988,7 +1092,7 @@ Similarly, if you need to calculate the size of some structure member, use
 
 .. code-block:: c
 
-	#define FIELD_SIZEOF(t, f) (sizeof(((t*)0)->f))
+	#define sizeof_field(t, f) (sizeof(((t*)0)->f))
 
 There are also min() and max() macros that do strict type checking if you
 need them.  Feel free to peruse that header file to see what else is already
@@ -1110,6 +1214,68 @@ expression used.  For instance:
 	#endif /* CONFIG_SOMETHING */
 
 
+22) Do not crash the kernel
+---------------------------
+
+In general, the decision to crash the kernel belongs to the user, rather
+than to the kernel developer.
+
+Avoid panic()
+*************
+
+panic() should be used with care and primarily only during system boot.
+panic() is, for example, acceptable when running out of memory during boot and
+not being able to continue.
+
+Use WARN() rather than BUG()
+****************************
+
+Do not add new code that uses any of the BUG() variants, such as BUG(),
+BUG_ON(), or VM_BUG_ON(). Instead, use a WARN*() variant, preferably
+WARN_ON_ONCE(), and possibly with recovery code. Recovery code is not
+required if there is no reasonable way to at least partially recover.
+
+"I'm too lazy to do error handling" is not an excuse for using BUG(). Major
+internal corruptions with no way of continuing may still use BUG(), but need
+good justification.
+
+Use WARN_ON_ONCE() rather than WARN() or WARN_ON()
+**************************************************
+
+WARN_ON_ONCE() is generally preferred over WARN() or WARN_ON(), because it
+is common for a given warning condition, if it occurs at all, to occur
+multiple times. This can fill up and wrap the kernel log, and can even slow
+the system enough that the excessive logging turns into its own, additional
+problem.
+
+Do not WARN lightly
+*******************
+
+WARN*() is intended for unexpected, this-should-never-happen situations.
+WARN*() macros are not to be used for anything that is expected to happen
+during normal operation. These are not pre- or post-condition asserts, for
+example. Again: WARN*() must not be used for a condition that is expected
+to trigger easily, for example, by user space actions. pr_warn_once() is a
+possible alternative, if you need to notify the user of a problem.
+
+Do not worry about panic_on_warn users
+**************************************
+
+A few more words about panic_on_warn: Remember that ``panic_on_warn`` is an
+available kernel option, and that many users set this option. This is why
+there is a "Do not WARN lightly" writeup, above. However, the existence of
+panic_on_warn users is not a valid reason to avoid the judicious use
+WARN*(). That is because, whoever enables panic_on_warn has explicitly
+asked the kernel to crash if a WARN*() fires, and such users must be
+prepared to deal with the consequences of a system that is somewhat more
+likely to crash.
+
+Use BUILD_BUG_ON() for compile-time assertions
+**********************************************
+
+The use of BUILD_BUG_ON() is acceptable and encouraged, because it is a
+compile-time assertion that has no effect at runtime.
+
 Appendix I) References
 ----------------------
 
@@ -1124,10 +1290,10 @@ Addison-Wesley, Inc., 1999.
 ISBN 0-201-61586-X.
 
 GNU manuals - where in compliance with K&R and this text - for cpp, gcc,
-gcc internals and indent, all available from http://www.gnu.org/manual/
+gcc internals and indent, all available from https://www.gnu.org/manual/
 
 WG14 is the international standardization working group for the programming
 language C, URL: http://www.open-std.org/JTC1/SC22/WG14/
 
-Kernel :ref:`process/coding-style.rst <codingstyle>`, by greg@kroah.com at OLS 2002:
+Kernel CodingStyle, by greg@kroah.com at OLS 2002:
 http://www.kroah.com/linux/talks/ols_2002_kernel_codingstyle_talk/html/

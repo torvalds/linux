@@ -22,7 +22,7 @@
  *   - Data sheet of the T7903, a newer but very similar ISA bus equivalent
  *     available from the Lucent (formerly AT&T microelectronics) home
  *     page.
- *   - http://www.freesoft.org/Linux/DBRI/
+ *   - https://www.freesoft.org/Linux/DBRI/
  * - MMCODEC: Crystal Semiconductor CS4215 16 bit Multimedia Audio Codec
  *   Interfaces: CHI, Audio In & Out, 2 bits parallel
  *   Documentation: from the Crystal Semiconductor home page.
@@ -69,14 +69,13 @@
 #include <sound/initval.h>
 
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/platform_device.h>
 #include <linux/atomic.h>
 #include <linux/module.h>
 
 MODULE_AUTHOR("Rudolf Koenig, Brent Baccala and Martin Habets");
 MODULE_DESCRIPTION("Sun DBRI");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Sun,DBRI}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
@@ -104,7 +103,7 @@ module_param(dbri_debug, int, 0644);
 MODULE_PARM_DESC(dbri_debug, "Debug value for Sun DBRI soundcard.");
 
 #ifdef DBRI_DEBUG
-static char *cmds[] = {
+static const char * const cmds[] = {
 	"WAIT", "PAUSE", "JUMP", "IIQ", "REX", "SDP", "CDP", "DTS",
 	"SSP", "CHI", "NT", "TE", "CDEC", "TEST", "CDM", "RESRV"
 };
@@ -580,16 +579,16 @@ static __u32 reverse_bytes(__u32 b, int len)
 	switch (len) {
 	case 32:
 		b = ((b & 0xffff0000) >> 16) | ((b & 0x0000ffff) << 16);
-		/* fall through */
+		fallthrough;
 	case 16:
 		b = ((b & 0xff00ff00) >> 8) | ((b & 0x00ff00ff) << 8);
-		/* fall through */
+		fallthrough;
 	case 8:
 		b = ((b & 0xf0f0f0f0) >> 4) | ((b & 0x0f0f0f0f) << 4);
-		/* fall through */
+		fallthrough;
 	case 4:
 		b = ((b & 0xcccccccc) >> 2) | ((b & 0x33333333) << 2);
-		/* fall through */
+		fallthrough;
 	case 2:
 		b = ((b & 0xaaaaaaaa) >> 1) | ((b & 0x55555555) << 1);
 	case 1:
@@ -620,7 +619,7 @@ A circular command buffer is used here. A new command is being added
 while another can be executed. The scheme works by adding two WAIT commands
 after each sent batch of commands. When the next batch is prepared it is
 added after the WAIT commands then the WAITs are replaced with single JUMP
-command to the new batch. The the DBRI is forced to reread the last WAIT
+command to the new batch. Then the DBRI is forced to reread the last WAIT
 command (replaced by the JUMP by then). If the DBRI is still executing
 previous commands the request to reread the WAIT command is ignored.
 
@@ -689,7 +688,7 @@ static void dbri_cmdsend(struct snd_dbri *dbri, s32 *cmd, int len)
 {
 	u32 dvma_addr = (u32)dbri->dma_dvma;
 	s32 tmp, addr;
-	static int wait_id = 0;
+	static int wait_id;
 
 	wait_id++;
 	wait_id &= 0xffff;	/* restrict it to a 16 bit counter. */
@@ -1927,7 +1926,7 @@ static void dbri_process_interrupt_buffer(struct snd_dbri *dbri)
 static irqreturn_t snd_dbri_interrupt(int irq, void *dev_id)
 {
 	struct snd_dbri *dbri = dev_id;
-	static int errcnt = 0;
+	static int errcnt;
 	int x;
 
 	if (dbri == NULL)
@@ -2099,12 +2098,6 @@ static int snd_dbri_hw_params(struct snd_pcm_substream *substream,
 	if (ret != 0)
 		return ret;
 
-	if ((ret = snd_pcm_lib_malloc_pages(substream,
-				params_buffer_bytes(hw_params))) < 0) {
-		printk(KERN_ERR "malloc_pages failed with %d\n", ret);
-		return ret;
-	}
-
 	/* hw_params can get called multiple times. Only map the DMA once.
 	 */
 	if (info->dvma_buffer == 0) {
@@ -2151,7 +2144,7 @@ static int snd_dbri_hw_free(struct snd_pcm_substream *substream)
 		info->pipe = -1;
 	}
 
-	return snd_pcm_lib_free_pages(substream);
+	return 0;
 }
 
 static int snd_dbri_prepare(struct snd_pcm_substream *substream)
@@ -2221,7 +2214,6 @@ static snd_pcm_uframes_t snd_dbri_pointer(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_dbri_ops = {
 	.open = snd_dbri_open,
 	.close = snd_dbri_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = snd_dbri_hw_params,
 	.hw_free = snd_dbri_hw_free,
 	.prepare = snd_dbri_prepare,
@@ -2234,11 +2226,12 @@ static int snd_dbri_pcm(struct snd_card *card)
 	struct snd_pcm *pcm;
 	int err;
 
-	if ((err = snd_pcm_new(card,
-			       /* ID */		    "sun_dbri",
-			       /* device */	    0,
-			       /* playback count */ 1,
-			       /* capture count */  1, &pcm)) < 0)
+	err = snd_pcm_new(card,
+			  /* ID */	    "sun_dbri",
+			  /* device */	    0,
+			  /* playback count */ 1,
+			  /* capture count */  1, &pcm);
+	if (err < 0)
 		return err;
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_dbri_ops);
@@ -2248,9 +2241,8 @@ static int snd_dbri_pcm(struct snd_card *card)
 	pcm->info_flags = 0;
 	strcpy(pcm->name, card->shortname);
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
-					      snd_dma_continuous_data(GFP_KERNEL),
-					      64 * 1024, 64 * 1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
+				       NULL, 64 * 1024, 64 * 1024);
 	return 0;
 }
 
@@ -2418,7 +2410,7 @@ static int snd_cs4215_put_single(struct snd_kcontrol *kcontrol,
   .private_value = (entry) | ((shift) << 8) | ((mask) << 16) |	\
 			((invert) << 24) },
 
-static struct snd_kcontrol_new dbri_controls[] = {
+static const struct snd_kcontrol_new dbri_controls[] = {
 	{
 	 .iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	 .name  = "Playback Volume",
@@ -2599,7 +2591,7 @@ static int dbri_probe(struct platform_device *op)
 	struct snd_dbri *dbri;
 	struct resource *rp;
 	struct snd_card *card;
-	static int dev = 0;
+	static int dev;
 	int irq;
 	int err;
 
@@ -2664,14 +2656,12 @@ _err:
 	return err;
 }
 
-static int dbri_remove(struct platform_device *op)
+static void dbri_remove(struct platform_device *op)
 {
 	struct snd_card *card = dev_get_drvdata(&op->dev);
 
 	snd_dbri_free(card->private_data);
 	snd_card_free(card);
-
-	return 0;
 }
 
 static const struct of_device_id dbri_match[] = {
@@ -2692,7 +2682,7 @@ static struct platform_driver dbri_sbus_driver = {
 		.of_match_table = dbri_match,
 	},
 	.probe		= dbri_probe,
-	.remove		= dbri_remove,
+	.remove_new	= dbri_remove,
 };
 
 module_platform_driver(dbri_sbus_driver);

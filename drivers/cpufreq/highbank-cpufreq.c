@@ -55,7 +55,7 @@ static struct notifier_block hb_cpufreq_clk_nb = {
 	.notifier_call = hb_cpufreq_clk_notify,
 };
 
-static int hb_cpufreq_driver_init(void)
+static int __init hb_cpufreq_driver_init(void)
 {
 	struct platform_device_info devinfo = { .name = "cpufreq-dt", };
 	struct device *cpu_dev;
@@ -100,6 +100,13 @@ out_put_node:
 	return ret;
 }
 module_init(hb_cpufreq_driver_init);
+
+static const struct of_device_id __maybe_unused hb_cpufreq_of_match[] = {
+	{ .compatible = "calxeda,highbank" },
+	{ .compatible = "calxeda,ecx-2000" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, hb_cpufreq_of_match);
 
 MODULE_AUTHOR("Mark Langsdorf <mark.langsdorf@calxeda.com>");
 MODULE_DESCRIPTION("Calxeda Highbank cpufreq driver");

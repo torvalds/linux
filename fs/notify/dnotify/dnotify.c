@@ -19,11 +19,28 @@
 #include <linux/fdtable.h>
 #include <linux/fsnotify_backend.h>
 
-int dir_notify_enable __read_mostly = 1;
+static int dir_notify_enable __read_mostly = 1;
+#ifdef CONFIG_SYSCTL
+static struct ctl_table dnotify_sysctls[] = {
+	{
+		.procname	= "dir-notify-enable",
+		.data		= &dir_notify_enable,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+};
+static void __init dnotify_sysctl_init(void)
+{
+	register_sysctl_init("fs", dnotify_sysctls);
+}
+#else
+#define dnotify_sysctl_init() do { } while (0)
+#endif
 
-static struct kmem_cache *dnotify_struct_cache __read_mostly;
-static struct kmem_cache *dnotify_mark_cache __read_mostly;
-static struct fsnotify_group *dnotify_group __read_mostly;
+static struct kmem_cache *dnotify_struct_cache __ro_after_init;
+static struct kmem_cache *dnotify_mark_cache __ro_after_init;
+static struct fsnotify_group *dnotify_group __ro_after_init;
 
 /*
  * dnotify will attach one of these to each inode (i_fsnotify_marks) which
@@ -70,13 +87,10 @@ static void dnotify_recalc_inode_mask(struct fsnotify_mark *fsn_mark)
  * destroy the dnotify struct if it was not registered to receive multiple
  * events.
  */
-static int dnotify_handle_event(struct fsnotify_group *group,
-				struct inode *inode,
-				u32 mask, const void *data, int data_type,
-				const struct qstr *file_name, u32 cookie,
-				struct fsnotify_iter_info *iter_info)
+static int dnotify_handle_event(struct fsnotify_mark *inode_mark, u32 mask,
+				struct inode *inode, struct inode *dir,
+				const struct qstr *name, u32 cookie)
 {
-	struct fsnotify_mark *inode_mark = fsnotify_iter_inode_mark(iter_info);
 	struct dnotify_mark *dn_mark;
 	struct dnotify_struct *dn;
 	struct dnotify_struct **prev;
@@ -84,10 +98,7 @@ static int dnotify_handle_event(struct fsnotify_group *group,
 	__u32 test_mask = mask & ~FS_EVENT_ON_CHILD;
 
 	/* not a dir, dnotify doesn't care */
-	if (!S_ISDIR(inode->i_mode))
-		return 0;
-
-	if (WARN_ON(fsnotify_iter_vfsmount_mark(iter_info)))
+	if (!dir && !(mask & FS_ISDIR))
 		return 0;
 
 	dn_mark = container_of(inode_mark, struct dnotify_mark, fsn_mark);
@@ -127,7 +138,7 @@ static void dnotify_free_mark(struct fsnotify_mark *fsn_mark)
 }
 
 static const struct fsnotify_ops dnotify_fsnotify_ops = {
-	.handle_event = dnotify_handle_event,
+	.handle_inode_event = dnotify_handle_event,
 	.free_mark = dnotify_free_mark,
 };
 
@@ -151,12 +162,12 @@ void dnotify_flush(struct file *filp, fl_owner_t id)
 	if (!S_ISDIR(inode->i_mode))
 		return;
 
-	fsn_mark = fsnotify_find_mark(&inode->i_fsnotify_marks, dnotify_group);
+	fsn_mark = fsnotify_find_inode_mark(inode, dnotify_group);
 	if (!fsn_mark)
 		return;
 	dn_mark = container_of(fsn_mark, struct dnotify_mark, fsn_mark);
 
-	mutex_lock(&dnotify_group->mark_mutex);
+	fsnotify_group_lock(dnotify_group);
 
 	spin_lock(&fsn_mark->lock);
 	prev = &dn_mark->dn;
@@ -179,7 +190,7 @@ void dnotify_flush(struct file *filp, fl_owner_t id)
 		free = true;
 	}
 
-	mutex_unlock(&dnotify_group->mark_mutex);
+	fsnotify_group_unlock(dnotify_group);
 
 	if (free)
 		fsnotify_free_mark(fsn_mark);
@@ -187,7 +198,7 @@ void dnotify_flush(struct file *filp, fl_owner_t id)
 }
 
 /* this conversion is done only at watch creation */
-static __u32 convert_arg(unsigned long arg)
+static __u32 convert_arg(unsigned int arg)
 {
 	__u32 new_mask = FS_EVENT_ON_CHILD;
 
@@ -202,7 +213,7 @@ static __u32 convert_arg(unsigned long arg)
 	if (arg & DN_ATTRIB)
 		new_mask |= FS_ATTRIB;
 	if (arg & DN_RENAME)
-		new_mask |= FS_DN_RENAME;
+		new_mask |= FS_RENAME;
 	if (arg & DN_CREATE)
 		new_mask |= (FS_CREATE | FS_MOVED_TO);
 
@@ -246,14 +257,14 @@ static int attach_dn(struct dnotify_struct *dn, struct dnotify_mark *dn_mark,
  * up here.  Allocate both a mark for fsnotify to add and a dnotify_struct to be
  * attached to the fsnotify_mark.
  */
-int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
+int fcntl_dirnotify(int fd, struct file *filp, unsigned int arg)
 {
 	struct dnotify_mark *new_dn_mark, *dn_mark;
 	struct fsnotify_mark *new_fsn_mark, *fsn_mark;
 	struct dnotify_struct *dn;
 	struct inode *inode;
 	fl_owner_t id = current->files;
-	struct file *f;
+	struct file *f = NULL;
 	int destroy = 0, error = 0;
 	__u32 mask;
 
@@ -312,17 +323,17 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
 	new_dn_mark->dn = NULL;
 
 	/* this is needed to prevent the fcntl/close race described below */
-	mutex_lock(&dnotify_group->mark_mutex);
+	fsnotify_group_lock(dnotify_group);
 
 	/* add the new_fsn_mark or find an old one. */
-	fsn_mark = fsnotify_find_mark(&inode->i_fsnotify_marks, dnotify_group);
+	fsn_mark = fsnotify_find_inode_mark(inode, dnotify_group);
 	if (fsn_mark) {
 		dn_mark = container_of(fsn_mark, struct dnotify_mark, fsn_mark);
 		spin_lock(&fsn_mark->lock);
 	} else {
 		error = fsnotify_add_inode_mark_locked(new_fsn_mark, inode, 0);
 		if (error) {
-			mutex_unlock(&dnotify_group->mark_mutex);
+			fsnotify_group_unlock(dnotify_group);
 			goto out_err;
 		}
 		spin_lock(&new_fsn_mark->lock);
@@ -333,7 +344,7 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
 	}
 
 	rcu_read_lock();
-	f = fcheck(fd);
+	f = lookup_fdget_rcu(fd);
 	rcu_read_unlock();
 
 	/* if (f != filp) means that we lost a race and another task/thread
@@ -371,7 +382,7 @@ out:
 
 	if (destroy)
 		fsnotify_detach_mark(fsn_mark);
-	mutex_unlock(&dnotify_group->mark_mutex);
+	fsnotify_group_unlock(dnotify_group);
 	if (destroy)
 		fsnotify_free_mark(fsn_mark);
 	fsnotify_put_mark(fsn_mark);
@@ -380,6 +391,8 @@ out_err:
 		fsnotify_put_mark(new_fsn_mark);
 	if (dn)
 		kmem_cache_free(dnotify_struct_cache, dn);
+	if (f)
+		fput(f);
 	return error;
 }
 
@@ -389,9 +402,11 @@ static int __init dnotify_init(void)
 					  SLAB_PANIC|SLAB_ACCOUNT);
 	dnotify_mark_cache = KMEM_CACHE(dnotify_mark, SLAB_PANIC|SLAB_ACCOUNT);
 
-	dnotify_group = fsnotify_alloc_group(&dnotify_fsnotify_ops);
+	dnotify_group = fsnotify_alloc_group(&dnotify_fsnotify_ops,
+					     FSNOTIFY_GROUP_NOFS);
 	if (IS_ERR(dnotify_group))
 		panic("unable to allocate fsnotify group for dnotify\n");
+	dnotify_sysctl_init();
 	return 0;
 }
 

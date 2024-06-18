@@ -7,15 +7,19 @@
  *          Michael Thayer <michael.thayer@oracle.com,
  *          Hans de Goede <hdegoede@redhat.com>
  */
-#include <linux/console.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/vt_kern.h>
 
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_aperture.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_fbdev_generic.h>
 #include <drm/drm_file.h>
 #include <drm/drm_ioctl.h>
+#include <drm/drm_managed.h>
+#include <drm/drm_modeset_helper.h>
+#include <drm/drm_module.h>
 
 #include "vbox_drv.h"
 
@@ -24,17 +28,13 @@ static int vbox_modeset = -1;
 MODULE_PARM_DESC(modeset, "Disable/Enable modesetting");
 module_param_named(modeset, vbox_modeset, int, 0400);
 
-static struct drm_driver driver;
+static const struct drm_driver driver;
 
 static const struct pci_device_id pciidlist[] = {
 	{ PCI_DEVICE(0x80ee, 0xbeef) },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, pciidlist);
-
-static const struct drm_fb_helper_funcs vbox_fb_helper_funcs = {
-	.fb_probe = vboxfb_create,
-};
 
 static int vbox_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
@@ -44,28 +44,25 @@ static int vbox_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!vbox_check_supported(VBE_DISPI_ID_HGSMI))
 		return -ENODEV;
 
-	vbox = kzalloc(sizeof(*vbox), GFP_KERNEL);
-	if (!vbox)
-		return -ENOMEM;
-
-	ret = drm_dev_init(&vbox->ddev, &driver, &pdev->dev);
-	if (ret) {
-		kfree(vbox);
+	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, &driver);
+	if (ret)
 		return ret;
-	}
 
-	vbox->ddev.pdev = pdev;
-	vbox->ddev.dev_private = vbox;
+	vbox = devm_drm_dev_alloc(&pdev->dev, &driver,
+				  struct vbox_private, ddev);
+	if (IS_ERR(vbox))
+		return PTR_ERR(vbox);
+
 	pci_set_drvdata(pdev, vbox);
 	mutex_init(&vbox->hw_mutex);
 
-	ret = pci_enable_device(pdev);
+	ret = pcim_enable_device(pdev);
 	if (ret)
-		goto err_dev_put;
+		return ret;
 
 	ret = vbox_hw_init(vbox);
 	if (ret)
-		goto err_pci_disable;
+		return ret;
 
 	ret = vbox_mm_init(vbox);
 	if (ret)
@@ -73,38 +70,26 @@ static int vbox_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	ret = vbox_mode_init(vbox);
 	if (ret)
-		goto err_mm_fini;
+		goto err_hw_fini;
 
 	ret = vbox_irq_init(vbox);
 	if (ret)
 		goto err_mode_fini;
 
-	ret = drm_fb_helper_fbdev_setup(&vbox->ddev, &vbox->fb_helper,
-					&vbox_fb_helper_funcs, 32,
-					vbox->num_crtcs);
+	ret = drm_dev_register(&vbox->ddev, 0);
 	if (ret)
 		goto err_irq_fini;
 
-	ret = drm_dev_register(&vbox->ddev, 0);
-	if (ret)
-		goto err_fbdev_fini;
+	drm_fbdev_generic_setup(&vbox->ddev, 32);
 
 	return 0;
 
-err_fbdev_fini:
-	vbox_fbdev_fini(vbox);
 err_irq_fini:
 	vbox_irq_fini(vbox);
 err_mode_fini:
 	vbox_mode_fini(vbox);
-err_mm_fini:
-	vbox_mm_fini(vbox);
 err_hw_fini:
 	vbox_hw_fini(vbox);
-err_pci_disable:
-	pci_disable_device(pdev);
-err_dev_put:
-	drm_dev_put(&vbox->ddev);
 	return ret;
 }
 
@@ -113,27 +98,32 @@ static void vbox_pci_remove(struct pci_dev *pdev)
 	struct vbox_private *vbox = pci_get_drvdata(pdev);
 
 	drm_dev_unregister(&vbox->ddev);
-	vbox_fbdev_fini(vbox);
+	drm_atomic_helper_shutdown(&vbox->ddev);
 	vbox_irq_fini(vbox);
 	vbox_mode_fini(vbox);
-	vbox_mm_fini(vbox);
 	vbox_hw_fini(vbox);
-	drm_dev_put(&vbox->ddev);
 }
 
-#ifdef CONFIG_PM_SLEEP
+static void vbox_pci_shutdown(struct pci_dev *pdev)
+{
+	struct vbox_private *vbox = pci_get_drvdata(pdev);
+
+	drm_atomic_helper_shutdown(&vbox->ddev);
+}
+
 static int vbox_pm_suspend(struct device *dev)
 {
 	struct vbox_private *vbox = dev_get_drvdata(dev);
+	struct pci_dev *pdev = to_pci_dev(dev);
 	int error;
 
 	error = drm_mode_config_helper_suspend(&vbox->ddev);
 	if (error)
 		return error;
 
-	pci_save_state(vbox->ddev.pdev);
-	pci_disable_device(vbox->ddev.pdev);
-	pci_set_power_state(vbox->ddev.pdev, PCI_D3hot);
+	pci_save_state(pdev);
+	pci_disable_device(pdev);
+	pci_set_power_state(pdev, PCI_D3hot);
 
 	return 0;
 }
@@ -141,8 +131,9 @@ static int vbox_pm_suspend(struct device *dev)
 static int vbox_pm_resume(struct device *dev)
 {
 	struct vbox_private *vbox = dev_get_drvdata(dev);
+	struct pci_dev *pdev = to_pci_dev(dev);
 
-	if (pci_enable_device(vbox->ddev.pdev))
+	if (pci_enable_device(pdev))
 		return -EIO;
 
 	return drm_mode_config_helper_resume(&vbox->ddev);
@@ -177,31 +168,23 @@ static const struct dev_pm_ops vbox_pm_ops = {
 	.poweroff = vbox_pm_poweroff,
 	.restore = vbox_pm_resume,
 };
-#endif
 
 static struct pci_driver vbox_pci_driver = {
 	.name = DRIVER_NAME,
 	.id_table = pciidlist,
 	.probe = vbox_pci_probe,
 	.remove = vbox_pci_remove,
-#ifdef CONFIG_PM_SLEEP
-	.driver.pm = &vbox_pm_ops,
-#endif
+	.shutdown = vbox_pci_shutdown,
+	.driver.pm = pm_sleep_ptr(&vbox_pm_ops),
 };
 
-static const struct file_operations vbox_fops = {
-	.owner = THIS_MODULE,
-	DRM_VRAM_MM_FILE_OPERATIONS
-};
+DEFINE_DRM_GEM_FOPS(vbox_fops);
 
-static struct drm_driver driver = {
+static const struct drm_driver driver = {
 	.driver_features =
-	    DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
-
-	.lastclose = drm_fb_helper_lastclose,
+	    DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC | DRIVER_CURSOR_HOTSPOT,
 
 	.fops = &vbox_fops,
-	.irq_handler = vbox_irq_handler,
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
@@ -212,26 +195,7 @@ static struct drm_driver driver = {
 	DRM_GEM_VRAM_DRIVER,
 };
 
-static int __init vbox_init(void)
-{
-#ifdef CONFIG_VGA_CONSOLE
-	if (vgacon_text_force() && vbox_modeset == -1)
-		return -EINVAL;
-#endif
-
-	if (vbox_modeset == 0)
-		return -EINVAL;
-
-	return pci_register_driver(&vbox_pci_driver);
-}
-
-static void __exit vbox_exit(void)
-{
-	pci_unregister_driver(&vbox_pci_driver);
-}
-
-module_init(vbox_init);
-module_exit(vbox_exit);
+drm_module_pci_driver_if_modeset(vbox_pci_driver, vbox_modeset);
 
 MODULE_AUTHOR("Oracle Corporation");
 MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");

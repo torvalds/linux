@@ -55,15 +55,21 @@ acpi_rs_convert_aml_to_resources(u8 * aml,
 	aml_resource = ACPI_CAST_PTR(union aml_resource, aml);
 
 	if (acpi_ut_get_resource_type(aml) == ACPI_RESOURCE_NAME_SERIAL_BUS) {
-		if (aml_resource->common_serial_bus.type >
-		    AML_RESOURCE_MAX_SERIALBUSTYPE) {
+
+		/* Avoid undefined behavior: member access within misaligned address */
+
+		struct aml_resource_common_serialbus common_serial_bus;
+		memcpy(&common_serial_bus, aml_resource,
+		       sizeof(common_serial_bus));
+
+		if (common_serial_bus.type > AML_RESOURCE_MAX_SERIALBUSTYPE) {
 			conversion_table = NULL;
 		} else {
-			/* This is an I2C, SPI, or UART serial_bus descriptor */
+			/* This is an I2C, SPI, UART, or CSI2 serial_bus descriptor */
 
 			conversion_table =
 			    acpi_gbl_convert_resource_serial_bus_dispatch
-			    [aml_resource->common_serial_bus.type];
+			    [common_serial_bus.type];
 		}
 	} else {
 		conversion_table =
@@ -87,6 +93,11 @@ acpi_rs_convert_aml_to_resources(u8 * aml,
 				"Could not convert AML resource (Type 0x%X)",
 				*aml));
 		return_ACPI_STATUS(status);
+	}
+
+	if (!resource->length) {
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Zero-length resource returned from RsConvertAmlToResource"));
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES,
@@ -158,7 +169,7 @@ acpi_rs_convert_resources_to_aml(struct acpi_resource *resource,
 			    AML_RESOURCE_MAX_SERIALBUSTYPE) {
 				conversion_table = NULL;
 			} else {
-				/* This is an I2C, SPI, or UART serial_bus descriptor */
+				/* This is an I2C, SPI, UART or CSI2 serial_bus descriptor */
 
 				conversion_table =
 				    acpi_gbl_convert_resource_serial_bus_dispatch

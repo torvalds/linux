@@ -9,9 +9,9 @@
 #include <linux/uidgid.h>
 #include <net/inet_frag.h>
 #include <linux/rcupdate.h>
+#include <linux/seqlock.h>
 #include <linux/siphash.h>
 
-struct tcpm_hash_bucket;
 struct ctl_table_header;
 struct ipv4_devconf;
 struct fib_rules_ops;
@@ -19,8 +19,7 @@ struct hlist_head;
 struct fib_table;
 struct sock;
 struct local_ports {
-	seqlock_t	lock;
-	int		range[2];
+	u32		range;	/* high << 16 | low */
 	bool		warned;
 };
 
@@ -32,8 +31,9 @@ struct ping_group_range {
 struct inet_hashinfo;
 
 struct inet_timewait_death_row {
-	atomic_t		tw_count;
+	refcount_t		tw_refcount;
 
+	/* Padding to avoid false sharing, tw_refcount can be often written */
 	struct inet_hashinfo 	*hashinfo ____cacheline_aligned_in_smp;
 	int			sysctl_max_tw_buckets;
 };
@@ -41,6 +41,41 @@ struct inet_timewait_death_row {
 struct tcp_fastopen_context;
 
 struct netns_ipv4 {
+	/* Cacheline organization can be found documented in
+	 * Documentation/networking/net_cachelines/netns_ipv4_sysctl.rst.
+	 * Please update the document when adding new fields.
+	 */
+
+	/* TX readonly hotpath cache lines */
+	__cacheline_group_begin(netns_ipv4_read_tx);
+	u8 sysctl_tcp_early_retrans;
+	u8 sysctl_tcp_tso_win_divisor;
+	u8 sysctl_tcp_tso_rtt_log;
+	u8 sysctl_tcp_autocorking;
+	int sysctl_tcp_min_snd_mss;
+	unsigned int sysctl_tcp_notsent_lowat;
+	int sysctl_tcp_limit_output_bytes;
+	int sysctl_tcp_min_rtt_wlen;
+	int sysctl_tcp_wmem[3];
+	u8 sysctl_ip_fwd_use_pmtu;
+	__cacheline_group_end(netns_ipv4_read_tx);
+
+	/* TXRX readonly hotpath cache lines */
+	__cacheline_group_begin(netns_ipv4_read_txrx);
+	u8 sysctl_tcp_moderate_rcvbuf;
+	__cacheline_group_end(netns_ipv4_read_txrx);
+
+	/* RX readonly hotpath cache line */
+	__cacheline_group_begin(netns_ipv4_read_rx);
+	u8 sysctl_ip_early_demux;
+	u8 sysctl_tcp_early_demux;
+	int sysctl_tcp_reordering;
+	int sysctl_tcp_rmem[3];
+	__cacheline_group_end(netns_ipv4_read_rx);
+
+	struct inet_timewait_death_row tcp_death_row;
+	struct udp_table *udp_table;
+
 #ifdef CONFIG_SYSCTL
 	struct ctl_table_header	*forw_hdr;
 	struct ctl_table_header	*frags_hdr;
@@ -54,146 +89,147 @@ struct netns_ipv4 {
 	struct mutex		ra_mutex;
 #ifdef CONFIG_IP_MULTIPLE_TABLES
 	struct fib_rules_ops	*rules_ops;
-	bool			fib_has_custom_rules;
-	unsigned int		fib_rules_require_fldissect;
 	struct fib_table __rcu	*fib_main;
 	struct fib_table __rcu	*fib_default;
+	unsigned int		fib_rules_require_fldissect;
+	bool			fib_has_custom_rules;
 #endif
 	bool			fib_has_custom_local_routes;
+	bool			fib_offload_disabled;
+	u8			sysctl_tcp_shrink_window;
 #ifdef CONFIG_IP_ROUTE_CLASSID
-	int			fib_num_tclassid_users;
+	atomic_t		fib_num_tclassid_users;
 #endif
 	struct hlist_head	*fib_table_hash;
-	bool			fib_offload_disabled;
 	struct sock		*fibnl;
 
-	struct sock  * __percpu	*icmp_sk;
 	struct sock		*mc_autojoin_sk;
 
 	struct inet_peer_base	*peers;
-	struct sock  * __percpu	*tcp_sk;
 	struct fqdir		*fqdir;
-#ifdef CONFIG_NETFILTER
-	struct xt_table		*iptable_filter;
-	struct xt_table		*iptable_mangle;
-	struct xt_table		*iptable_raw;
-	struct xt_table		*arptable_filter;
-#ifdef CONFIG_SECURITY
-	struct xt_table		*iptable_security;
-#endif
-	struct xt_table		*nat_table;
-#endif
 
-	int sysctl_icmp_echo_ignore_all;
-	int sysctl_icmp_echo_ignore_broadcasts;
-	int sysctl_icmp_ignore_bogus_error_responses;
+	u8 sysctl_icmp_echo_ignore_all;
+	u8 sysctl_icmp_echo_enable_probe;
+	u8 sysctl_icmp_echo_ignore_broadcasts;
+	u8 sysctl_icmp_ignore_bogus_error_responses;
+	u8 sysctl_icmp_errors_use_inbound_ifaddr;
 	int sysctl_icmp_ratelimit;
 	int sysctl_icmp_ratemask;
-	int sysctl_icmp_errors_use_inbound_ifaddr;
+
+	u32 ip_rt_min_pmtu;
+	int ip_rt_mtu_expires;
+	int ip_rt_min_advmss;
 
 	struct local_ports ip_local_ports;
 
-	int sysctl_tcp_ecn;
-	int sysctl_tcp_ecn_fallback;
+	u8 sysctl_tcp_ecn;
+	u8 sysctl_tcp_ecn_fallback;
 
-	int sysctl_ip_default_ttl;
-	int sysctl_ip_no_pmtu_disc;
-	int sysctl_ip_fwd_use_pmtu;
-	int sysctl_ip_fwd_update_priority;
-	int sysctl_ip_nonlocal_bind;
+	u8 sysctl_ip_default_ttl;
+	u8 sysctl_ip_no_pmtu_disc;
+	u8 sysctl_ip_fwd_update_priority;
+	u8 sysctl_ip_nonlocal_bind;
+	u8 sysctl_ip_autobind_reuse;
 	/* Shall we try to damage output packets if routing dev changes? */
-	int sysctl_ip_dynaddr;
-	int sysctl_ip_early_demux;
+	u8 sysctl_ip_dynaddr;
 #ifdef CONFIG_NET_L3_MASTER_DEV
-	int sysctl_raw_l3mdev_accept;
+	u8 sysctl_raw_l3mdev_accept;
 #endif
-	int sysctl_tcp_early_demux;
-	int sysctl_udp_early_demux;
+	u8 sysctl_udp_early_demux;
 
-	int sysctl_fwmark_reflect;
-	int sysctl_tcp_fwmark_accept;
+	u8 sysctl_nexthop_compat_mode;
+
+	u8 sysctl_fwmark_reflect;
+	u8 sysctl_tcp_fwmark_accept;
 #ifdef CONFIG_NET_L3_MASTER_DEV
-	int sysctl_tcp_l3mdev_accept;
+	u8 sysctl_tcp_l3mdev_accept;
 #endif
-	int sysctl_tcp_mtu_probing;
+	u8 sysctl_tcp_mtu_probing;
 	int sysctl_tcp_mtu_probe_floor;
 	int sysctl_tcp_base_mss;
-	int sysctl_tcp_min_snd_mss;
 	int sysctl_tcp_probe_threshold;
 	u32 sysctl_tcp_probe_interval;
 
 	int sysctl_tcp_keepalive_time;
-	int sysctl_tcp_keepalive_probes;
 	int sysctl_tcp_keepalive_intvl;
+	u8 sysctl_tcp_keepalive_probes;
 
-	int sysctl_tcp_syn_retries;
-	int sysctl_tcp_synack_retries;
-	int sysctl_tcp_syncookies;
-	int sysctl_tcp_reordering;
-	int sysctl_tcp_retries1;
-	int sysctl_tcp_retries2;
-	int sysctl_tcp_orphan_retries;
+	u8 sysctl_tcp_syn_retries;
+	u8 sysctl_tcp_synack_retries;
+	u8 sysctl_tcp_syncookies;
+	u8 sysctl_tcp_migrate_req;
+	u8 sysctl_tcp_comp_sack_nr;
+	u8 sysctl_tcp_backlog_ack_defer;
+	u8 sysctl_tcp_pingpong_thresh;
+
+	u8 sysctl_tcp_retries1;
+	u8 sysctl_tcp_retries2;
+	u8 sysctl_tcp_orphan_retries;
+	u8 sysctl_tcp_tw_reuse;
 	int sysctl_tcp_fin_timeout;
-	unsigned int sysctl_tcp_notsent_lowat;
-	int sysctl_tcp_tw_reuse;
-	int sysctl_tcp_sack;
-	int sysctl_tcp_window_scaling;
-	int sysctl_tcp_timestamps;
-	int sysctl_tcp_early_retrans;
-	int sysctl_tcp_recovery;
-	int sysctl_tcp_thin_linear_timeouts;
-	int sysctl_tcp_slow_start_after_idle;
-	int sysctl_tcp_retrans_collapse;
-	int sysctl_tcp_stdurg;
-	int sysctl_tcp_rfc1337;
-	int sysctl_tcp_abort_on_overflow;
-	int sysctl_tcp_fack;
+	u8 sysctl_tcp_sack;
+	u8 sysctl_tcp_window_scaling;
+	u8 sysctl_tcp_timestamps;
+	u8 sysctl_tcp_recovery;
+	u8 sysctl_tcp_thin_linear_timeouts;
+	u8 sysctl_tcp_slow_start_after_idle;
+	u8 sysctl_tcp_retrans_collapse;
+	u8 sysctl_tcp_stdurg;
+	u8 sysctl_tcp_rfc1337;
+	u8 sysctl_tcp_abort_on_overflow;
+	u8 sysctl_tcp_fack; /* obsolete */
 	int sysctl_tcp_max_reordering;
-	int sysctl_tcp_dsack;
-	int sysctl_tcp_app_win;
-	int sysctl_tcp_adv_win_scale;
-	int sysctl_tcp_frto;
-	int sysctl_tcp_nometrics_save;
-	int sysctl_tcp_moderate_rcvbuf;
-	int sysctl_tcp_tso_win_divisor;
-	int sysctl_tcp_workaround_signed_windows;
-	int sysctl_tcp_limit_output_bytes;
+	int sysctl_tcp_adv_win_scale; /* obsolete */
+	u8 sysctl_tcp_dsack;
+	u8 sysctl_tcp_app_win;
+	u8 sysctl_tcp_frto;
+	u8 sysctl_tcp_nometrics_save;
+	u8 sysctl_tcp_no_ssthresh_metrics_save;
+	u8 sysctl_tcp_workaround_signed_windows;
 	int sysctl_tcp_challenge_ack_limit;
-	int sysctl_tcp_min_tso_segs;
-	int sysctl_tcp_min_rtt_wlen;
-	int sysctl_tcp_autocorking;
+	u8 sysctl_tcp_min_tso_segs;
+	u8 sysctl_tcp_reflect_tos;
 	int sysctl_tcp_invalid_ratelimit;
 	int sysctl_tcp_pacing_ss_ratio;
 	int sysctl_tcp_pacing_ca_ratio;
-	int sysctl_tcp_wmem[3];
-	int sysctl_tcp_rmem[3];
-	int sysctl_tcp_comp_sack_nr;
+	unsigned int sysctl_tcp_child_ehash_entries;
 	unsigned long sysctl_tcp_comp_sack_delay_ns;
-	struct inet_timewait_death_row tcp_death_row;
+	unsigned long sysctl_tcp_comp_sack_slack_ns;
 	int sysctl_max_syn_backlog;
 	int sysctl_tcp_fastopen;
 	const struct tcp_congestion_ops __rcu  *tcp_congestion_control;
 	struct tcp_fastopen_context __rcu *tcp_fastopen_ctx;
-	spinlock_t tcp_fastopen_ctx_lock;
 	unsigned int sysctl_tcp_fastopen_blackhole_timeout;
 	atomic_t tfo_active_disable_times;
 	unsigned long tfo_active_disable_stamp;
+	u32 tcp_challenge_timestamp;
+	u32 tcp_challenge_count;
+	u8 sysctl_tcp_plb_enabled;
+	u8 sysctl_tcp_plb_idle_rehash_rounds;
+	u8 sysctl_tcp_plb_rehash_rounds;
+	u8 sysctl_tcp_plb_suspend_rto_sec;
+	int sysctl_tcp_plb_cong_thresh;
 
 	int sysctl_udp_wmem_min;
 	int sysctl_udp_rmem_min;
 
+	u8 sysctl_fib_notify_on_flag_change;
+	u8 sysctl_tcp_syn_linear_timeouts;
+
 #ifdef CONFIG_NET_L3_MASTER_DEV
-	int sysctl_udp_l3mdev_accept;
+	u8 sysctl_udp_l3mdev_accept;
 #endif
 
+	u8 sysctl_igmp_llm_reports;
 	int sysctl_igmp_max_memberships;
 	int sysctl_igmp_max_msf;
-	int sysctl_igmp_llm_reports;
 	int sysctl_igmp_qrv;
 
 	struct ping_group_range ping_group_range;
 
 	atomic_t dev_addr_genid;
+
+	unsigned int sysctl_udp_child_hash_entries;
 
 #ifdef CONFIG_SYSCTL
 	unsigned long *sysctl_local_reserved_ports;
@@ -209,8 +245,9 @@ struct netns_ipv4 {
 #endif
 #endif
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
-	int sysctl_fib_multipath_use_neigh;
-	int sysctl_fib_multipath_hash_policy;
+	u32 sysctl_fib_multipath_hash_fields;
+	u8 sysctl_fib_multipath_use_neigh;
+	u8 sysctl_fib_multipath_hash_policy;
 #endif
 
 	struct fib_notifier_ops	*notifier_ops;

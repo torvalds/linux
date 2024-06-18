@@ -24,6 +24,17 @@ static bool ubifs_crypt_empty_dir(struct inode *inode)
 	return ubifs_check_dir_empty(inode) == 0;
 }
 
+/**
+ * ubifs_encrypt - Encrypt data.
+ * @inode: inode which refers to the data node
+ * @dn: data node to encrypt
+ * @in_len: length of data to be compressed
+ * @out_len: allocated memory size for the data area of @dn
+ * @block: logical block number of the block
+ *
+ * This function encrypt a possibly-compressed data in the data node.
+ * The encrypted data length will store in @out_len.
+ */
 int ubifs_encrypt(const struct inode *inode, struct ubifs_data_node *dn,
 		  unsigned int in_len, unsigned int *out_len, int block)
 {
@@ -77,10 +88,8 @@ int ubifs_decrypt(const struct inode *inode, struct ubifs_data_node *dn,
 }
 
 const struct fscrypt_operations ubifs_crypt_operations = {
-	.flags			= FS_CFLG_OWN_PAGES,
-	.key_prefix		= "ubifs:",
+	.legacy_key_prefix	= "ubifs:",
 	.get_context		= ubifs_crypt_get_context,
 	.set_context		= ubifs_crypt_set_context,
 	.empty_dir		= ubifs_crypt_empty_dir,
-	.max_namelen		= UBIFS_MAX_NLEN,
 };

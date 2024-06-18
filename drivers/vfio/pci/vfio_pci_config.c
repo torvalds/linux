@@ -26,7 +26,7 @@
 #include <linux/vfio.h>
 #include <linux/slab.h>
 
-#include "vfio_pci_private.h"
+#include "vfio_pci_priv.h"
 
 /* Fake capability ID for standard config space */
 #define PCI_CAP_ID_BASIC	0
@@ -96,21 +96,22 @@ static const u16 pci_ext_cap_length[PCI_EXT_CAP_ID_MAX + 1] = {
 	[PCI_EXT_CAP_ID_SECPCI]	=	0,	/* not yet */
 	[PCI_EXT_CAP_ID_PMUX]	=	0,	/* not yet */
 	[PCI_EXT_CAP_ID_PASID]	=	0,	/* not yet */
+	[PCI_EXT_CAP_ID_DVSEC]	=	0xFF,
 };
 
 /*
  * Read/Write Permission Bits - one bit for each bit in capability
  * Any field can be read if it exists, but what is read depends on
- * whether the field is 'virtualized', or just pass thru to the
+ * whether the field is 'virtualized', or just pass through to the
  * hardware.  Any virtualized field is also virtualized for writes.
  * Writes are only permitted if they have a 1 bit here.
  */
 struct perm_bits {
 	u8	*virt;		/* read/write virtual data, not hw */
 	u8	*write;		/* writeable bits */
-	int	(*readfn)(struct vfio_pci_device *vdev, int pos, int count,
+	int	(*readfn)(struct vfio_pci_core_device *vdev, int pos, int count,
 			  struct perm_bits *perm, int offset, __le32 *val);
-	int	(*writefn)(struct vfio_pci_device *vdev, int pos, int count,
+	int	(*writefn)(struct vfio_pci_core_device *vdev, int pos, int count,
 			   struct perm_bits *perm, int offset, __le32 val);
 };
 
@@ -171,7 +172,7 @@ static int vfio_user_config_write(struct pci_dev *pdev, int offset,
 	return ret;
 }
 
-static int vfio_default_config_read(struct vfio_pci_device *vdev, int pos,
+static int vfio_default_config_read(struct vfio_pci_core_device *vdev, int pos,
 				    int count, struct perm_bits *perm,
 				    int offset, __le32 *val)
 {
@@ -197,7 +198,7 @@ static int vfio_default_config_read(struct vfio_pci_device *vdev, int pos,
 	return count;
 }
 
-static int vfio_default_config_write(struct vfio_pci_device *vdev, int pos,
+static int vfio_default_config_write(struct vfio_pci_core_device *vdev, int pos,
 				     int count, struct perm_bits *perm,
 				     int offset, __le32 val)
 {
@@ -222,7 +223,7 @@ static int vfio_default_config_write(struct vfio_pci_device *vdev, int pos,
 		memcpy(vdev->vconfig + pos, &virt_val, count);
 	}
 
-	/* Non-virtualzed and writable bits go to hardware */
+	/* Non-virtualized and writable bits go to hardware */
 	if (write & ~virt) {
 		struct pci_dev *pdev = vdev->pdev;
 		__le32 phys_val = 0;
@@ -244,7 +245,7 @@ static int vfio_default_config_write(struct vfio_pci_device *vdev, int pos,
 }
 
 /* Allow direct read from hardware, except for capability next pointer */
-static int vfio_direct_config_read(struct vfio_pci_device *vdev, int pos,
+static int vfio_direct_config_read(struct vfio_pci_core_device *vdev, int pos,
 				   int count, struct perm_bits *perm,
 				   int offset, __le32 *val)
 {
@@ -269,7 +270,7 @@ static int vfio_direct_config_read(struct vfio_pci_device *vdev, int pos,
 }
 
 /* Raw access skips any kind of virtualization */
-static int vfio_raw_config_write(struct vfio_pci_device *vdev, int pos,
+static int vfio_raw_config_write(struct vfio_pci_core_device *vdev, int pos,
 				 int count, struct perm_bits *perm,
 				 int offset, __le32 val)
 {
@@ -282,7 +283,7 @@ static int vfio_raw_config_write(struct vfio_pci_device *vdev, int pos,
 	return count;
 }
 
-static int vfio_raw_config_read(struct vfio_pci_device *vdev, int pos,
+static int vfio_raw_config_read(struct vfio_pci_core_device *vdev, int pos,
 				int count, struct perm_bits *perm,
 				int offset, __le32 *val)
 {
@@ -296,7 +297,7 @@ static int vfio_raw_config_read(struct vfio_pci_device *vdev, int pos,
 }
 
 /* Virt access uses only virtualization */
-static int vfio_virt_config_write(struct vfio_pci_device *vdev, int pos,
+static int vfio_virt_config_write(struct vfio_pci_core_device *vdev, int pos,
 				  int count, struct perm_bits *perm,
 				  int offset, __le32 val)
 {
@@ -304,7 +305,7 @@ static int vfio_virt_config_write(struct vfio_pci_device *vdev, int pos,
 	return count;
 }
 
-static int vfio_virt_config_read(struct vfio_pci_device *vdev, int pos,
+static int vfio_virt_config_read(struct vfio_pci_core_device *vdev, int pos,
 				 int count, struct perm_bits *perm,
 				 int offset, __le32 *val)
 {
@@ -395,11 +396,28 @@ static inline void p_setd(struct perm_bits *p, int off, u32 virt, u32 write)
 	*(__le32 *)(&p->write[off]) = cpu_to_le32(write);
 }
 
+/* Caller should hold memory_lock semaphore */
+bool __vfio_pci_memory_enabled(struct vfio_pci_core_device *vdev)
+{
+	struct pci_dev *pdev = vdev->pdev;
+	u16 cmd = le16_to_cpu(*(__le16 *)&vdev->vconfig[PCI_COMMAND]);
+
+	/*
+	 * Memory region cannot be accessed if device power state is D3.
+	 *
+	 * SR-IOV VF memory enable is handled by the MSE bit in the
+	 * PF SR-IOV capability, there's therefore no need to trigger
+	 * faults based on the virtual value.
+	 */
+	return pdev->current_state < PCI_D3hot &&
+	       (pdev->no_command_memory || (cmd & PCI_COMMAND_MEMORY));
+}
+
 /*
  * Restore the *real* BARs after we detect a FLR or backdoor reset.
  * (backdoor = some device specific technique that we didn't catch)
  */
-static void vfio_bar_restore(struct vfio_pci_device *vdev)
+static void vfio_bar_restore(struct vfio_pci_core_device *vdev)
 {
 	struct pci_dev *pdev = vdev->pdev;
 	u32 *rbar = vdev->rbar;
@@ -446,34 +464,39 @@ static __le32 vfio_generate_bar_flags(struct pci_dev *pdev, int bar)
  * Pretend we're hardware and tweak the values of the *virtual* PCI BARs
  * to reflect the hardware capabilities.  This implements BAR sizing.
  */
-static void vfio_bar_fixup(struct vfio_pci_device *vdev)
+static void vfio_bar_fixup(struct vfio_pci_core_device *vdev)
 {
 	struct pci_dev *pdev = vdev->pdev;
 	int i;
-	__le32 *bar;
+	__le32 *vbar;
 	u64 mask;
 
-	bar = (__le32 *)&vdev->vconfig[PCI_BASE_ADDRESS_0];
+	if (!vdev->bardirty)
+		return;
 
-	for (i = PCI_STD_RESOURCES; i <= PCI_STD_RESOURCE_END; i++, bar++) {
-		if (!pci_resource_start(pdev, i)) {
-			*bar = 0; /* Unmapped by host = unimplemented to user */
+	vbar = (__le32 *)&vdev->vconfig[PCI_BASE_ADDRESS_0];
+
+	for (i = 0; i < PCI_STD_NUM_BARS; i++, vbar++) {
+		int bar = i + PCI_STD_RESOURCES;
+
+		if (!pci_resource_start(pdev, bar)) {
+			*vbar = 0; /* Unmapped by host = unimplemented to user */
 			continue;
 		}
 
-		mask = ~(pci_resource_len(pdev, i) - 1);
+		mask = ~(pci_resource_len(pdev, bar) - 1);
 
-		*bar &= cpu_to_le32((u32)mask);
-		*bar |= vfio_generate_bar_flags(pdev, i);
+		*vbar &= cpu_to_le32((u32)mask);
+		*vbar |= vfio_generate_bar_flags(pdev, bar);
 
-		if (*bar & cpu_to_le32(PCI_BASE_ADDRESS_MEM_TYPE_64)) {
-			bar++;
-			*bar &= cpu_to_le32((u32)(mask >> 32));
+		if (*vbar & cpu_to_le32(PCI_BASE_ADDRESS_MEM_TYPE_64)) {
+			vbar++;
+			*vbar &= cpu_to_le32((u32)(mask >> 32));
 			i++;
 		}
 	}
 
-	bar = (__le32 *)&vdev->vconfig[PCI_ROM_ADDRESS];
+	vbar = (__le32 *)&vdev->vconfig[PCI_ROM_ADDRESS];
 
 	/*
 	 * NB. REGION_INFO will have reported zero size if we weren't able
@@ -483,19 +506,19 @@ static void vfio_bar_fixup(struct vfio_pci_device *vdev)
 	if (pci_resource_start(pdev, PCI_ROM_RESOURCE)) {
 		mask = ~(pci_resource_len(pdev, PCI_ROM_RESOURCE) - 1);
 		mask |= PCI_ROM_ADDRESS_ENABLE;
-		*bar &= cpu_to_le32((u32)mask);
+		*vbar &= cpu_to_le32((u32)mask);
 	} else if (pdev->resource[PCI_ROM_RESOURCE].flags &
 					IORESOURCE_ROM_SHADOW) {
 		mask = ~(0x20000 - 1);
 		mask |= PCI_ROM_ADDRESS_ENABLE;
-		*bar &= cpu_to_le32((u32)mask);
+		*vbar &= cpu_to_le32((u32)mask);
 	} else
-		*bar = 0;
+		*vbar = 0;
 
 	vdev->bardirty = false;
 }
 
-static int vfio_basic_config_read(struct vfio_pci_device *vdev, int pos,
+static int vfio_basic_config_read(struct vfio_pci_core_device *vdev, int pos,
 				  int count, struct perm_bits *perm,
 				  int offset, __le32 *val)
 {
@@ -504,8 +527,8 @@ static int vfio_basic_config_read(struct vfio_pci_device *vdev, int pos,
 
 	count = vfio_default_config_read(vdev, pos, count, perm, offset, val);
 
-	/* Mask in virtual memory enable for SR-IOV devices */
-	if (offset == PCI_COMMAND && vdev->pdev->is_virtfn) {
+	/* Mask in virtual memory enable */
+	if (offset == PCI_COMMAND && vdev->pdev->no_command_memory) {
 		u16 cmd = le16_to_cpu(*(__le16 *)&vdev->vconfig[PCI_COMMAND]);
 		u32 tmp_val = le32_to_cpu(*val);
 
@@ -517,7 +540,7 @@ static int vfio_basic_config_read(struct vfio_pci_device *vdev, int pos,
 }
 
 /* Test whether BARs match the value we think they should contain */
-static bool vfio_need_bar_restore(struct vfio_pci_device *vdev)
+static bool vfio_need_bar_restore(struct vfio_pci_core_device *vdev)
 {
 	int i = 0, pos = PCI_BASE_ADDRESS_0, ret;
 	u32 bar;
@@ -533,7 +556,7 @@ static bool vfio_need_bar_restore(struct vfio_pci_device *vdev)
 	return false;
 }
 
-static int vfio_basic_config_write(struct vfio_pci_device *vdev, int pos,
+static int vfio_basic_config_write(struct vfio_pci_core_device *vdev, int pos,
 				   int count, struct perm_bits *perm,
 				   int offset, __le32 val)
 {
@@ -554,13 +577,18 @@ static int vfio_basic_config_write(struct vfio_pci_device *vdev, int pos,
 
 		new_cmd = le32_to_cpu(val);
 
+		phys_io = !!(phys_cmd & PCI_COMMAND_IO);
+		virt_io = !!(le16_to_cpu(*virt_cmd) & PCI_COMMAND_IO);
+		new_io = !!(new_cmd & PCI_COMMAND_IO);
+
 		phys_mem = !!(phys_cmd & PCI_COMMAND_MEMORY);
 		virt_mem = !!(le16_to_cpu(*virt_cmd) & PCI_COMMAND_MEMORY);
 		new_mem = !!(new_cmd & PCI_COMMAND_MEMORY);
 
-		phys_io = !!(phys_cmd & PCI_COMMAND_IO);
-		virt_io = !!(le16_to_cpu(*virt_cmd) & PCI_COMMAND_IO);
-		new_io = !!(new_cmd & PCI_COMMAND_IO);
+		if (!new_mem)
+			vfio_pci_zap_and_down_write_memory_lock(vdev);
+		else
+			down_write(&vdev->memory_lock);
 
 		/*
 		 * If the user is writing mem/io enable (new_mem/io) and we
@@ -568,17 +596,22 @@ static int vfio_basic_config_write(struct vfio_pci_device *vdev, int pos,
 		 * shows it disabled (phys_mem/io, then the device has
 		 * undergone some kind of backdoor reset and needs to be
 		 * restored before we allow it to enable the bars.
-		 * SR-IOV devices will trigger this, but we catch them later
+		 * SR-IOV devices will trigger this - for mem enable let's
+		 * catch this now and for io enable it will be caught later
 		 */
-		if ((new_mem && virt_mem && !phys_mem) ||
+		if ((new_mem && virt_mem && !phys_mem &&
+		     !pdev->no_command_memory) ||
 		    (new_io && virt_io && !phys_io) ||
 		    vfio_need_bar_restore(vdev))
 			vfio_bar_restore(vdev);
 	}
 
 	count = vfio_default_config_write(vdev, pos, count, perm, offset, val);
-	if (count < 0)
+	if (count < 0) {
+		if (offset == PCI_COMMAND)
+			up_write(&vdev->memory_lock);
 		return count;
+	}
 
 	/*
 	 * Save current memory/io enable bits in vconfig to allow for
@@ -589,6 +622,8 @@ static int vfio_basic_config_write(struct vfio_pci_device *vdev, int pos,
 
 		*virt_cmd &= cpu_to_le16(~mask);
 		*virt_cmd |= cpu_to_le16(new_cmd & mask);
+
+		up_write(&vdev->memory_lock);
 	}
 
 	/* Emulate INTx disable */
@@ -661,7 +696,23 @@ static int __init init_pci_cap_basic_perm(struct perm_bits *perm)
 	return 0;
 }
 
-static int vfio_pm_config_write(struct vfio_pci_device *vdev, int pos,
+/*
+ * It takes all the required locks to protect the access of power related
+ * variables and then invokes vfio_pci_set_power_state().
+ */
+static void vfio_lock_and_set_power_state(struct vfio_pci_core_device *vdev,
+					  pci_power_t state)
+{
+	if (state >= PCI_D3hot)
+		vfio_pci_zap_and_down_write_memory_lock(vdev);
+	else
+		down_write(&vdev->memory_lock);
+
+	vfio_pci_set_power_state(vdev, state);
+	up_write(&vdev->memory_lock);
+}
+
+static int vfio_pm_config_write(struct vfio_pci_core_device *vdev, int pos,
 				int count, struct perm_bits *perm,
 				int offset, __le32 val)
 {
@@ -687,7 +738,7 @@ static int vfio_pm_config_write(struct vfio_pci_device *vdev, int pos,
 			break;
 		}
 
-		vfio_pci_set_power_state(vdev, state);
+		vfio_lock_and_set_power_state(vdev, state);
 	}
 
 	return count;
@@ -708,15 +759,32 @@ static int __init init_pci_cap_pm_perm(struct perm_bits *perm)
 	p_setb(perm, PCI_CAP_LIST_NEXT, (u8)ALL_VIRT, NO_WRITE);
 
 	/*
+	 * The guests can't process PME events. If any PME event will be
+	 * generated, then it will be mostly handled in the host and the
+	 * host will clear the PME_STATUS. So virtualize PME_Support bits.
+	 * The vconfig bits will be cleared during device capability
+	 * initialization.
+	 */
+	p_setw(perm, PCI_PM_PMC, PCI_PM_CAP_PME_MASK, NO_WRITE);
+
+	/*
 	 * Power management is defined *per function*, so we can let
 	 * the user change power state, but we trap and initiate the
 	 * change ourselves, so the state bits are read-only.
+	 *
+	 * The guest can't process PME from D3cold so virtualize PME_Status
+	 * and PME_En bits. The vconfig bits will be cleared during device
+	 * capability initialization.
 	 */
-	p_setd(perm, PCI_PM_CTRL, NO_VIRT, ~PCI_PM_CTRL_STATE_MASK);
+	p_setd(perm, PCI_PM_CTRL,
+	       PCI_PM_CTRL_PME_ENABLE | PCI_PM_CTRL_PME_STATUS,
+	       ~(PCI_PM_CTRL_PME_ENABLE | PCI_PM_CTRL_PME_STATUS |
+		 PCI_PM_CTRL_STATE_MASK));
+
 	return 0;
 }
 
-static int vfio_vpd_config_write(struct vfio_pci_device *vdev, int pos,
+static int vfio_vpd_config_write(struct vfio_pci_core_device *vdev, int pos,
 				 int count, struct perm_bits *perm,
 				 int offset, __le32 val)
 {
@@ -798,7 +866,7 @@ static int __init init_pci_cap_pcix_perm(struct perm_bits *perm)
 	return 0;
 }
 
-static int vfio_exp_config_write(struct vfio_pci_device *vdev, int pos,
+static int vfio_exp_config_write(struct vfio_pci_core_device *vdev, int pos,
 				 int count, struct perm_bits *perm,
 				 int offset, __le32 val)
 {
@@ -826,8 +894,11 @@ static int vfio_exp_config_write(struct vfio_pci_device *vdev, int pos,
 						 pos - offset + PCI_EXP_DEVCAP,
 						 &cap);
 
-		if (!ret && (cap & PCI_EXP_DEVCAP_FLR))
+		if (!ret && (cap & PCI_EXP_DEVCAP_FLR)) {
+			vfio_pci_zap_and_down_write_memory_lock(vdev);
 			pci_try_reset_function(vdev->pdev);
+			up_write(&vdev->memory_lock);
+		}
 	}
 
 	/*
@@ -879,7 +950,7 @@ static int __init init_pci_cap_exp_perm(struct perm_bits *perm)
 	return 0;
 }
 
-static int vfio_af_config_write(struct vfio_pci_device *vdev, int pos,
+static int vfio_af_config_write(struct vfio_pci_core_device *vdev, int pos,
 				int count, struct perm_bits *perm,
 				int offset, __le32 val)
 {
@@ -905,8 +976,11 @@ static int vfio_af_config_write(struct vfio_pci_device *vdev, int pos,
 						pos - offset + PCI_AF_CAP,
 						&cap);
 
-		if (!ret && (cap & PCI_AF_CAP_FLR) && (cap & PCI_AF_CAP_TP))
+		if (!ret && (cap & PCI_AF_CAP_FLR) && (cap & PCI_AF_CAP_TP)) {
+			vfio_pci_zap_and_down_write_memory_lock(vdev);
 			pci_try_reset_function(vdev->pdev);
+			up_write(&vdev->memory_lock);
+		}
 	}
 
 	return count;
@@ -1028,6 +1102,7 @@ int __init vfio_pci_init_perm_bits(void)
 	ret |= init_pci_ext_cap_err_perm(&ecap_perms[PCI_EXT_CAP_ID_ERR]);
 	ret |= init_pci_ext_cap_pwr_perm(&ecap_perms[PCI_EXT_CAP_ID_PWR]);
 	ecap_perms[PCI_EXT_CAP_ID_VNDR].writefn = vfio_raw_config_write;
+	ecap_perms[PCI_EXT_CAP_ID_DVSEC].writefn = vfio_raw_config_write;
 
 	if (ret)
 		vfio_pci_uninit_perm_bits();
@@ -1035,7 +1110,7 @@ int __init vfio_pci_init_perm_bits(void)
 	return ret;
 }
 
-static int vfio_find_cap_start(struct vfio_pci_device *vdev, int pos)
+static int vfio_find_cap_start(struct vfio_pci_core_device *vdev, int pos)
 {
 	u8 cap;
 	int base = (pos >= PCI_CFG_SPACE_SIZE) ? PCI_CFG_SPACE_SIZE :
@@ -1052,7 +1127,7 @@ static int vfio_find_cap_start(struct vfio_pci_device *vdev, int pos)
 	return pos;
 }
 
-static int vfio_msi_config_read(struct vfio_pci_device *vdev, int pos,
+static int vfio_msi_config_read(struct vfio_pci_core_device *vdev, int pos,
 				int count, struct perm_bits *perm,
 				int offset, __le32 *val)
 {
@@ -1072,7 +1147,7 @@ static int vfio_msi_config_read(struct vfio_pci_device *vdev, int pos,
 	return vfio_default_config_read(vdev, pos, count, perm, offset, val);
 }
 
-static int vfio_msi_config_write(struct vfio_pci_device *vdev, int pos,
+static int vfio_msi_config_write(struct vfio_pci_core_device *vdev, int pos,
 				 int count, struct perm_bits *perm,
 				 int offset, __le32 val)
 {
@@ -1093,7 +1168,7 @@ static int vfio_msi_config_write(struct vfio_pci_device *vdev, int pos,
 		flags = le16_to_cpu(*pflags);
 
 		/* MSI is enabled via ioctl */
-		if  (!is_msi(vdev))
+		if  (vdev->irq_type != VFIO_PCI_MSI_IRQ_INDEX)
 			flags &= ~PCI_MSI_FLAGS_ENABLE;
 
 		/* Check queue size */
@@ -1152,7 +1227,7 @@ static int init_pci_cap_msi_perm(struct perm_bits *perm, int len, u16 flags)
 }
 
 /* Determine MSI CAP field length; initialize msi_perms on 1st call per vdev */
-static int vfio_msi_cap_len(struct vfio_pci_device *vdev, u8 pos)
+static int vfio_msi_cap_len(struct vfio_pci_core_device *vdev, u8 pos)
 {
 	struct pci_dev *pdev = vdev->pdev;
 	int len, ret;
@@ -1171,7 +1246,7 @@ static int vfio_msi_cap_len(struct vfio_pci_device *vdev, u8 pos)
 	if (vdev->msi_perm)
 		return len;
 
-	vdev->msi_perm = kmalloc(sizeof(struct perm_bits), GFP_KERNEL);
+	vdev->msi_perm = kmalloc(sizeof(struct perm_bits), GFP_KERNEL_ACCOUNT);
 	if (!vdev->msi_perm)
 		return -ENOMEM;
 
@@ -1185,7 +1260,7 @@ static int vfio_msi_cap_len(struct vfio_pci_device *vdev, u8 pos)
 }
 
 /* Determine extended capability length for VC (2 & 9) and MFVC */
-static int vfio_vc_cap_len(struct vfio_pci_device *vdev, u16 pos)
+static int vfio_vc_cap_len(struct vfio_pci_core_device *vdev, u16 pos)
 {
 	struct pci_dev *pdev = vdev->pdev;
 	u32 tmp;
@@ -1226,7 +1301,7 @@ static int vfio_vc_cap_len(struct vfio_pci_device *vdev, u16 pos)
 	return len;
 }
 
-static int vfio_cap_len(struct vfio_pci_device *vdev, u8 cap, u8 pos)
+static int vfio_cap_len(struct vfio_pci_core_device *vdev, u8 cap, u8 pos)
 {
 	struct pci_dev *pdev = vdev->pdev;
 	u32 dword;
@@ -1301,7 +1376,7 @@ static int vfio_cap_len(struct vfio_pci_device *vdev, u8 cap, u8 pos)
 	return 0;
 }
 
-static int vfio_ext_cap_len(struct vfio_pci_device *vdev, u16 ecap, u16 epos)
+static int vfio_ext_cap_len(struct vfio_pci_core_device *vdev, u16 ecap, u16 epos)
 {
 	struct pci_dev *pdev = vdev->pdev;
 	u8 byte;
@@ -1367,6 +1442,11 @@ static int vfio_ext_cap_len(struct vfio_pci_device *vdev, u16 ecap, u16 epos)
 			return PCI_TPH_BASE_SIZEOF + (sts * 2) + 2;
 		}
 		return PCI_TPH_BASE_SIZEOF;
+	case PCI_EXT_CAP_ID_DVSEC:
+		ret = pci_read_config_dword(pdev, epos + PCI_DVSEC_HEADER1, &dword);
+		if (ret)
+			return pcibios_err_to_errno(ret);
+		return PCI_DVSEC_HEADER1_LEN(dword);
 	default:
 		pci_warn(pdev, "%s: unknown length for PCI ecap %#x@%#x\n",
 			 __func__, ecap, epos);
@@ -1375,7 +1455,18 @@ static int vfio_ext_cap_len(struct vfio_pci_device *vdev, u16 ecap, u16 epos)
 	return 0;
 }
 
-static int vfio_fill_vconfig_bytes(struct vfio_pci_device *vdev,
+static void vfio_update_pm_vconfig_bytes(struct vfio_pci_core_device *vdev,
+					 int offset)
+{
+	__le16 *pmc = (__le16 *)&vdev->vconfig[offset + PCI_PM_PMC];
+	__le16 *ctrl = (__le16 *)&vdev->vconfig[offset + PCI_PM_CTRL];
+
+	/* Clear vconfig PME_Support, PME_Status, and PME_En bits */
+	*pmc &= ~cpu_to_le16(PCI_PM_CAP_PME_MASK);
+	*ctrl &= ~cpu_to_le16(PCI_PM_CTRL_PME_ENABLE | PCI_PM_CTRL_PME_STATUS);
+}
+
+static int vfio_fill_vconfig_bytes(struct vfio_pci_core_device *vdev,
 				   int offset, int size)
 {
 	struct pci_dev *pdev = vdev->pdev;
@@ -1422,7 +1513,7 @@ static int vfio_fill_vconfig_bytes(struct vfio_pci_device *vdev,
 	return ret;
 }
 
-static int vfio_cap_init(struct vfio_pci_device *vdev)
+static int vfio_cap_init(struct vfio_pci_core_device *vdev)
 {
 	struct pci_dev *pdev = vdev->pdev;
 	u8 *map = vdev->pci_config_map;
@@ -1460,7 +1551,12 @@ static int vfio_cap_init(struct vfio_pci_device *vdev)
 		if (ret)
 			return ret;
 
-		if (cap <= PCI_CAP_ID_MAX) {
+		/*
+		 * ID 0 is a NULL capability, conflicting with our fake
+		 * PCI_CAP_ID_BASIC.  As it has no content, consider it
+		 * hidden for now.
+		 */
+		if (cap && cap <= PCI_CAP_ID_MAX) {
 			len = pci_cap_length[cap];
 			if (len == 0xFF) { /* Variable length */
 				len = vfio_cap_len(vdev, cap, pos);
@@ -1470,8 +1566,8 @@ static int vfio_cap_init(struct vfio_pci_device *vdev)
 		}
 
 		if (!len) {
-			pci_info(pdev, "%s: hiding cap %#x@%#x\n", __func__,
-				 cap, pos);
+			pci_dbg(pdev, "%s: hiding cap %#x@%#x\n", __func__,
+				cap, pos);
 			*prev = next;
 			pos = next;
 			continue;
@@ -1493,6 +1589,9 @@ static int vfio_cap_init(struct vfio_pci_device *vdev)
 		if (ret)
 			return ret;
 
+		if (cap == PCI_CAP_ID_PM)
+			vfio_update_pm_vconfig_bytes(vdev, pos);
+
 		prev = &vdev->vconfig[pos + PCI_CAP_LIST_NEXT];
 		pos = next;
 		caps++;
@@ -1507,7 +1606,7 @@ static int vfio_cap_init(struct vfio_pci_device *vdev)
 	return 0;
 }
 
-static int vfio_ecap_init(struct vfio_pci_device *vdev)
+static int vfio_ecap_init(struct vfio_pci_core_device *vdev)
 {
 	struct pci_dev *pdev = vdev->pdev;
 	u8 *map = vdev->pci_config_map;
@@ -1539,13 +1638,13 @@ static int vfio_ecap_init(struct vfio_pci_device *vdev)
 			if (len == 0xFF) {
 				len = vfio_ext_cap_len(vdev, ecap, epos);
 				if (len < 0)
-					return ret;
+					return len;
 			}
 		}
 
 		if (!len) {
-			pci_info(pdev, "%s: hiding ecap %#x@%#x\n",
-				 __func__, ecap, epos);
+			pci_dbg(pdev, "%s: hiding ecap %#x@%#x\n",
+				__func__, ecap, epos);
 
 			/* If not the first in the chain, we can skip over it */
 			if (prev) {
@@ -1627,7 +1726,7 @@ static const struct pci_device_id known_bogus_vf_intx_pin[] = {
  * for each area requiring emulated bits, but the array of pointers
  * would be comparable in size (at least for standard config space).
  */
-int vfio_config_init(struct vfio_pci_device *vdev)
+int vfio_config_init(struct vfio_pci_core_device *vdev)
 {
 	struct pci_dev *pdev = vdev->pdev;
 	u8 *map, *vconfig;
@@ -1636,14 +1735,14 @@ int vfio_config_init(struct vfio_pci_device *vdev)
 	/*
 	 * Config space, caps and ecaps are all dword aligned, so we could
 	 * use one byte per dword to record the type.  However, there are
-	 * no requiremenst on the length of a capability, so the gap between
+	 * no requirements on the length of a capability, so the gap between
 	 * capabilities needs byte granularity.
 	 */
-	map = kmalloc(pdev->cfg_size, GFP_KERNEL);
+	map = kmalloc(pdev->cfg_size, GFP_KERNEL_ACCOUNT);
 	if (!map)
 		return -ENOMEM;
 
-	vconfig = kmalloc(pdev->cfg_size, GFP_KERNEL);
+	vconfig = kmalloc(pdev->cfg_size, GFP_KERNEL_ACCOUNT);
 	if (!vconfig) {
 		kfree(map);
 		return -ENOMEM;
@@ -1698,6 +1797,17 @@ int vfio_config_init(struct vfio_pci_device *vdev)
 
 		vconfig[PCI_INTERRUPT_PIN] = 0; /* Gratuitous for good VFs */
 	}
+	if (pdev->no_command_memory) {
+		/*
+		 * VFs and devices that set pdev->no_command_memory do not
+		 * implement the memory enable bit of the COMMAND register
+		 * therefore we'll not have it set in our initial copy of
+		 * config space after pci_enable_device().  For consistency
+		 * with PFs, set the virtual enable bit here.
+		 */
+		*(__le16 *)&vconfig[PCI_COMMAND] |=
+					cpu_to_le16(PCI_COMMAND_MEMORY);
+	}
 
 	if (!IS_ENABLED(CONFIG_VFIO_PCI_INTX) || vdev->nointx)
 		vconfig[PCI_INTERRUPT_PIN] = 0;
@@ -1720,21 +1830,24 @@ out:
 	return pcibios_err_to_errno(ret);
 }
 
-void vfio_config_free(struct vfio_pci_device *vdev)
+void vfio_config_free(struct vfio_pci_core_device *vdev)
 {
 	kfree(vdev->vconfig);
 	vdev->vconfig = NULL;
 	kfree(vdev->pci_config_map);
 	vdev->pci_config_map = NULL;
-	kfree(vdev->msi_perm);
-	vdev->msi_perm = NULL;
+	if (vdev->msi_perm) {
+		free_perm_bits(vdev->msi_perm);
+		kfree(vdev->msi_perm);
+		vdev->msi_perm = NULL;
+	}
 }
 
 /*
  * Find the remaining number of bytes in a dword that match the given
  * position.  Stop at either the end of the capability or the dword boundary.
  */
-static size_t vfio_pci_cap_remaining_dword(struct vfio_pci_device *vdev,
+static size_t vfio_pci_cap_remaining_dword(struct vfio_pci_core_device *vdev,
 					   loff_t pos)
 {
 	u8 cap = vdev->pci_config_map[pos];
@@ -1746,7 +1859,7 @@ static size_t vfio_pci_cap_remaining_dword(struct vfio_pci_device *vdev,
 	return i;
 }
 
-static ssize_t vfio_config_do_rw(struct vfio_pci_device *vdev, char __user *buf,
+static ssize_t vfio_config_do_rw(struct vfio_pci_core_device *vdev, char __user *buf,
 				 size_t count, loff_t *ppos, bool iswrite)
 {
 	struct pci_dev *pdev = vdev->pdev;
@@ -1829,7 +1942,7 @@ static ssize_t vfio_config_do_rw(struct vfio_pci_device *vdev, char __user *buf,
 	return ret;
 }
 
-ssize_t vfio_pci_config_rw(struct vfio_pci_device *vdev, char __user *buf,
+ssize_t vfio_pci_config_rw(struct vfio_pci_core_device *vdev, char __user *buf,
 			   size_t count, loff_t *ppos, bool iswrite)
 {
 	size_t done = 0;
@@ -1853,3 +1966,45 @@ ssize_t vfio_pci_config_rw(struct vfio_pci_device *vdev, char __user *buf,
 
 	return done;
 }
+
+/**
+ * vfio_pci_core_range_intersect_range() - Determine overlap between a buffer
+ *					   and register offset ranges.
+ * @buf_start:		start offset of the buffer
+ * @buf_cnt:		number of buffer bytes
+ * @reg_start:		start register offset
+ * @reg_cnt:		number of register bytes
+ * @buf_offset:	start offset of overlap in the buffer
+ * @intersect_count:	number of overlapping bytes
+ * @register_offset:	start offset of overlap in register
+ *
+ * Returns: true if there is overlap, false if not.
+ * The overlap start and size is returned through function args.
+ */
+bool vfio_pci_core_range_intersect_range(loff_t buf_start, size_t buf_cnt,
+					 loff_t reg_start, size_t reg_cnt,
+					 loff_t *buf_offset,
+					 size_t *intersect_count,
+					 size_t *register_offset)
+{
+	if (buf_start <= reg_start &&
+	    buf_start + buf_cnt > reg_start) {
+		*buf_offset = reg_start - buf_start;
+		*intersect_count = min_t(size_t, reg_cnt,
+					 buf_start + buf_cnt - reg_start);
+		*register_offset = 0;
+		return true;
+	}
+
+	if (buf_start > reg_start &&
+	    buf_start < reg_start + reg_cnt) {
+		*buf_offset = 0;
+		*intersect_count = min_t(size_t, buf_cnt,
+					 reg_start + reg_cnt - buf_start);
+		*register_offset = buf_start - reg_start;
+		return true;
+	}
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(vfio_pci_core_range_intersect_range);

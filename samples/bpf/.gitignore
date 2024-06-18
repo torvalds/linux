@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 cpustat
 fds_example
 hbm
@@ -36,16 +37,15 @@ tracex4
 tracex5
 tracex6
 tracex7
-xdp1
-xdp2
 xdp_adjust_tail
 xdp_fwd
-xdp_monitor
-xdp_redirect
-xdp_redirect_cpu
-xdp_redirect_map
 xdp_router_ipv4
-xdp_rxq_info
-xdp_sample_pkts
 xdp_tx_iptunnel
-xdpsock
+testfile.img
+hbm_out.log
+iperf.*
+*.out
+*.skel.h
+/vmlinux.h
+/bpftool/
+/libbpf/

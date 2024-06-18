@@ -241,17 +241,17 @@ static int si476x_core_parse_and_nag_about_error(struct si476x_core *core)
 /**
  * si476x_core_send_command() - sends a command to si476x and waits its
  * response
- * @core:    si476x_device structure for the device we are
+ * @core:     si476x_device structure for the device we are
  *            communicating with
  * @command:  command id
  * @args:     command arguments we are sending
  * @argn:     actual size of @args
- * @response: buffer to place the expected response from the device
- * @respn:    actual size of @response
+ * @resp:     buffer to place the expected response from the device
+ * @respn:    actual size of @resp
  * @usecs:    amount of time to wait before reading the response (in
  *            usecs)
  *
- * Function returns 0 on succsess and negative error code on
+ * Function returns 0 on success and negative error code on
  * failure
  */
 static int si476x_core_send_command(struct si476x_core *core,
@@ -390,7 +390,7 @@ static int si476x_cmd_tune_seek_freq(struct si476x_core *core,
 }
 
 /**
- * si476x_cmd_func_info() - send 'FUNC_INFO' command to the device
+ * si476x_core_cmd_func_info() - send 'FUNC_INFO' command to the device
  * @core: device to send the command to
  * @info:  struct si476x_func_info to fill all the information
  *         returned by the command
@@ -398,7 +398,7 @@ static int si476x_cmd_tune_seek_freq(struct si476x_core *core,
  * The command requests the firmware and patch version for currently
  * loaded firmware (dependent on the function of the device FM/AM/WB)
  *
- * Function returns 0 on succsess and negative error code on
+ * Function returns 0 on success and negative error code on
  * failure
  */
 int si476x_core_cmd_func_info(struct si476x_core *core,
@@ -424,12 +424,12 @@ int si476x_core_cmd_func_info(struct si476x_core *core,
 EXPORT_SYMBOL_GPL(si476x_core_cmd_func_info);
 
 /**
- * si476x_cmd_set_property() - send 'SET_PROPERTY' command to the device
+ * si476x_core_cmd_set_property() - send 'SET_PROPERTY' command to the device
  * @core:    device to send the command to
  * @property: property address
  * @value:    property value
  *
- * Function returns 0 on succsess and negative error code on
+ * Function returns 0 on success and negative error code on
  * failure
  */
 int si476x_core_cmd_set_property(struct si476x_core *core,
@@ -452,7 +452,7 @@ int si476x_core_cmd_set_property(struct si476x_core *core,
 EXPORT_SYMBOL_GPL(si476x_core_cmd_set_property);
 
 /**
- * si476x_cmd_get_property() - send 'GET_PROPERTY' command to the device
+ * si476x_core_cmd_get_property() - send 'GET_PROPERTY' command to the device
  * @core:    device to send the command to
  * @property: property address
  *
@@ -481,7 +481,7 @@ int si476x_core_cmd_get_property(struct si476x_core *core, u16 property)
 EXPORT_SYMBOL_GPL(si476x_core_cmd_get_property);
 
 /**
- * si476x_cmd_dig_audio_pin_cfg() - send 'DIG_AUDIO_PIN_CFG' command to
+ * si476x_core_cmd_dig_audio_pin_cfg() - send 'DIG_AUDIO_PIN_CFG' command to
  * the device
  * @core: device to send the command to
  * @dclk:  DCLK pin function configuration:
@@ -496,7 +496,7 @@ EXPORT_SYMBOL_GPL(si476x_core_cmd_get_property);
  *                             enable 1MOhm pulldown
  *      SI476X_DFS_DAUDIO    - set the pin to be a part of digital
  *                             audio interface
- * @dout - DOUT pin function configuration:
+ * @dout: - DOUT pin function configuration:
  *      SI476X_DOUT_NOOP       - do not modify the behaviour
  *      SI476X_DOUT_TRISTATE   - put the pin in tristate condition,
  *                               enable 1MOhm pulldown
@@ -504,7 +504,7 @@ EXPORT_SYMBOL_GPL(si476x_core_cmd_get_property);
  *                               port 1
  *      SI476X_DOUT_I2S_INPUT  - set this pin to be digital in on I2S
  *                               port 1
- * @xout - XOUT pin function configuration:
+ * @xout: - XOUT pin function configuration:
  *	SI476X_XOUT_NOOP        - do not modify the behaviour
  *      SI476X_XOUT_TRISTATE    - put the pin in tristate condition,
  *                                enable 1MOhm pulldown
@@ -539,26 +539,26 @@ int si476x_core_cmd_dig_audio_pin_cfg(struct  si476x_core *core,
 EXPORT_SYMBOL_GPL(si476x_core_cmd_dig_audio_pin_cfg);
 
 /**
- * si476x_cmd_zif_pin_cfg - send 'ZIF_PIN_CFG_COMMAND'
- * @core - device to send the command to
- * @iqclk - IQCL pin function configuration:
+ * si476x_core_cmd_zif_pin_cfg - send 'ZIF_PIN_CFG_COMMAND'
+ * @core: - device to send the command to
+ * @iqclk: - IQCL pin function configuration:
  *       SI476X_IQCLK_NOOP     - do not modify the behaviour
  *       SI476X_IQCLK_TRISTATE - put the pin in tristate condition,
  *                               enable 1MOhm pulldown
- *       SI476X_IQCLK_IQ       - set pin to be a part of I/Q interace
+ *       SI476X_IQCLK_IQ       - set pin to be a part of I/Q interface
  *                               in master mode
- * @iqfs - IQFS pin function configuration:
+ * @iqfs: - IQFS pin function configuration:
  *       SI476X_IQFS_NOOP     - do not modify the behaviour
  *       SI476X_IQFS_TRISTATE - put the pin in tristate condition,
  *                              enable 1MOhm pulldown
- *       SI476X_IQFS_IQ       - set pin to be a part of I/Q interace
+ *       SI476X_IQFS_IQ       - set pin to be a part of I/Q interface
  *                              in master mode
- * @iout - IOUT pin function configuration:
+ * @iout: - IOUT pin function configuration:
  *       SI476X_IOUT_NOOP     - do not modify the behaviour
  *       SI476X_IOUT_TRISTATE - put the pin in tristate condition,
  *                              enable 1MOhm pulldown
  *       SI476X_IOUT_OUTPUT   - set pin to be I out
- * @qout - QOUT pin function configuration:
+ * @qout: - QOUT pin function configuration:
  *       SI476X_QOUT_NOOP     - do not modify the behaviour
  *       SI476X_QOUT_TRISTATE - put the pin in tristate condition,
  *                              enable 1MOhm pulldown
@@ -588,31 +588,31 @@ int si476x_core_cmd_zif_pin_cfg(struct si476x_core *core,
 EXPORT_SYMBOL_GPL(si476x_core_cmd_zif_pin_cfg);
 
 /**
- * si476x_cmd_ic_link_gpo_ctl_pin_cfg - send
- * 'IC_LINK_GPIO_CTL_PIN_CFG' comand to the device
- * @core - device to send the command to
- * @icin - ICIN pin function configuration:
+ * si476x_core_cmd_ic_link_gpo_ctl_pin_cfg - send
+ * 'IC_LINK_GPIO_CTL_PIN_CFG' command to the device
+ * @core: - device to send the command to
+ * @icin: - ICIN pin function configuration:
  *      SI476X_ICIN_NOOP      - do not modify the behaviour
  *      SI476X_ICIN_TRISTATE  - put the pin in tristate condition,
  *                              enable 1MOhm pulldown
  *      SI476X_ICIN_GPO1_HIGH - set pin to be an output, drive it high
  *      SI476X_ICIN_GPO1_LOW  - set pin to be an output, drive it low
  *      SI476X_ICIN_IC_LINK   - set the pin to be a part of Inter-Chip link
- * @icip - ICIP pin function configuration:
+ * @icip: - ICIP pin function configuration:
  *      SI476X_ICIP_NOOP      - do not modify the behaviour
  *      SI476X_ICIP_TRISTATE  - put the pin in tristate condition,
  *                              enable 1MOhm pulldown
  *      SI476X_ICIP_GPO1_HIGH - set pin to be an output, drive it high
  *      SI476X_ICIP_GPO1_LOW  - set pin to be an output, drive it low
  *      SI476X_ICIP_IC_LINK   - set the pin to be a part of Inter-Chip link
- * @icon - ICON pin function configuration:
+ * @icon: - ICON pin function configuration:
  *      SI476X_ICON_NOOP     - do not modify the behaviour
  *      SI476X_ICON_TRISTATE - put the pin in tristate condition,
  *                             enable 1MOhm pulldown
  *      SI476X_ICON_I2S      - set the pin to be a part of audio
  *                             interface in slave mode (DCLK)
  *      SI476X_ICON_IC_LINK  - set the pin to be a part of Inter-Chip link
- * @icop - ICOP pin function configuration:
+ * @icop: - ICOP pin function configuration:
  *      SI476X_ICOP_NOOP     - do not modify the behaviour
  *      SI476X_ICOP_TRISTATE - put the pin in tristate condition,
  *                             enable 1MOhm pulldown
@@ -645,10 +645,10 @@ int si476x_core_cmd_ic_link_gpo_ctl_pin_cfg(struct si476x_core *core,
 EXPORT_SYMBOL_GPL(si476x_core_cmd_ic_link_gpo_ctl_pin_cfg);
 
 /**
- * si476x_cmd_ana_audio_pin_cfg - send 'ANA_AUDIO_PIN_CFG' to the
+ * si476x_core_cmd_ana_audio_pin_cfg - send 'ANA_AUDIO_PIN_CFG' to the
  * device
- * @core - device to send the command to
- * @lrout - LROUT pin function configuration:
+ * @core: - device to send the command to
+ * @lrout: - LROUT pin function configuration:
  *       SI476X_LROUT_NOOP     - do not modify the behaviour
  *       SI476X_LROUT_TRISTATE - put the pin in tristate condition,
  *                               enable 1MOhm pulldown
@@ -674,16 +674,16 @@ EXPORT_SYMBOL_GPL(si476x_core_cmd_ana_audio_pin_cfg);
 
 
 /**
- * si476x_cmd_intb_pin_cfg - send 'INTB_PIN_CFG' command to the device
- * @core - device to send the command to
- * @intb - INTB pin function configuration:
+ * si476x_core_cmd_intb_pin_cfg_a10 - send 'INTB_PIN_CFG' command to the device
+ * @core: - device to send the command to
+ * @intb: - INTB pin function configuration:
  *      SI476X_INTB_NOOP     - do not modify the behaviour
  *      SI476X_INTB_TRISTATE - put the pin in tristate condition,
  *                             enable 1MOhm pulldown
  *      SI476X_INTB_DAUDIO   - set pin to be a part of digital
  *                             audio interface in slave mode
  *      SI476X_INTB_IRQ      - set pin to be an interrupt request line
- * @a1 - A1 pin function configuration:
+ * @a1: - A1 pin function configuration:
  *      SI476X_A1_NOOP     - do not modify the behaviour
  *      SI476X_A1_TRISTATE - put the pin in tristate condition,
  *                           enable 1MOhm pulldown
@@ -726,16 +726,12 @@ static int si476x_core_cmd_intb_pin_cfg_a20(struct si476x_core *core,
 
 
 /**
- * si476x_cmd_am_rsq_status - send 'AM_RSQ_STATUS' command to the
+ * si476x_core_cmd_am_rsq_status - send 'AM_RSQ_STATUS' command to the
  * device
- * @core  - device to send the command to
- * @rsqack - if set command clears RSQINT, SNRINT, SNRLINT, RSSIHINT,
- *           RSSSILINT, BLENDINT, MULTHINT and MULTLINT
- * @attune - when set the values in the status report are the values
- *           that were calculated at tune
- * @cancel - abort ongoing seek/tune opertation
- * @stcack - clear the STCINT bin in status register
- * @report - all signal quality information retured by the command
+ * @core:  - device to send the command to
+ * @rsqargs: - pointer to a structure containing a group of sub-args
+ *             relevant to sending the RSQ status command
+ * @report: - all signal quality information returned by the command
  *           (if NULL then the output of the command is ignored)
  *
  * Function returns 0 on success and negative error code on failure
@@ -860,11 +856,11 @@ EXPORT_SYMBOL_GPL(si476x_core_cmd_am_acf_status);
 
 
 /**
- * si476x_cmd_fm_seek_start - send 'FM_SEEK_START' command to the
+ * si476x_core_cmd_fm_seek_start - send 'FM_SEEK_START' command to the
  * device
- * @core  - device to send the command to
- * @seekup - if set the direction of the search is 'up'
- * @wrap   - if set seek wraps when hitting band limit
+ * @core:  - device to send the command to
+ * @seekup: - if set the direction of the search is 'up'
+ * @wrap:   - if set seek wraps when hitting band limit
  *
  * This function begins search for a valid station. The station is
  * considered valid when 'FM_VALID_SNR_THRESHOLD' and
@@ -888,14 +884,16 @@ int si476x_core_cmd_fm_seek_start(struct si476x_core *core,
 EXPORT_SYMBOL_GPL(si476x_core_cmd_fm_seek_start);
 
 /**
- * si476x_cmd_fm_rds_status - send 'FM_RDS_STATUS' command to the
+ * si476x_core_cmd_fm_rds_status - send 'FM_RDS_STATUS' command to the
  * device
- * @core - device to send the command to
- * @status_only - if set the data is not removed from RDSFIFO,
+ * @core: - device to send the command to
+ * @status_only: - if set the data is not removed from RDSFIFO,
  *                RDSFIFOUSED is not decremented and data in all the
  *                rest RDS data contains the last valid info received
- * @mtfifo if set the command clears RDS receive FIFO
- * @intack if set the command clards the RDSINT bit.
+ * @mtfifo: if set the command clears RDS receive FIFO
+ * @intack: if set the command clards the RDSINT bit.
+ * @report: - all signal quality information returned by the command
+ *           (if NULL then the output of the command is ignored)
  *
  * Function returns 0 on success and negative error code on failure
  */
@@ -1016,7 +1014,7 @@ EXPORT_SYMBOL_GPL(si476x_core_cmd_fm_phase_diversity);
  * NOTE caller must hold core lock
  *
  * Function returns the value of the status bit in case of success and
- * negative error code in case of failre.
+ * negative error code in case of failure.
  */
 int si476x_core_cmd_fm_phase_div_status(struct si476x_core *core)
 {
@@ -1034,11 +1032,11 @@ EXPORT_SYMBOL_GPL(si476x_core_cmd_fm_phase_div_status);
 
 
 /**
- * si476x_cmd_am_seek_start - send 'FM_SEEK_START' command to the
+ * si476x_core_cmd_am_seek_start - send 'FM_SEEK_START' command to the
  * device
- * @core  - device to send the command to
- * @seekup - if set the direction of the search is 'up'
- * @wrap   - if set seek wraps when hitting band limit
+ * @core:  - device to send the command to
+ * @seekup: - if set the direction of the search is 'up'
+ * @wrap:   - if set seek wraps when hitting band limit
  *
  * This function begins search for a valid station. The station is
  * considered valid when 'FM_VALID_SNR_THRESHOLD' and

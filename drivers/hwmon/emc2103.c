@@ -443,7 +443,7 @@ static ssize_t pwm1_enable_store(struct device *dev,
 	}
 
 	result = read_u8_from_i2c(client, REG_FAN_CONF1, &conf_reg);
-	if (result) {
+	if (result < 0) {
 		count = result;
 		goto err;
 	}
@@ -551,7 +551,7 @@ static const struct attribute_group emc2103_temp4_group = {
 };
 
 static int
-emc2103_probe(struct i2c_client *client, const struct i2c_device_id *id)
+emc2103_probe(struct i2c_client *client)
 {
 	struct emc2103_data *data;
 	struct device *hwmon_dev;
@@ -620,7 +620,7 @@ emc2103_probe(struct i2c_client *client, const struct i2c_device_id *id)
 }
 
 static const struct i2c_device_id emc2103_ids[] = {
-	{ "emc2103", 0, },
+	{ "emc2103" },
 	{ /* LIST END */ }
 };
 MODULE_DEVICE_TABLE(i2c, emc2103_ids);
@@ -643,7 +643,7 @@ emc2103_detect(struct i2c_client *new_client, struct i2c_board_info *info)
 	if ((product != 0x24) && (product != 0x26))
 		return -ENODEV;
 
-	strlcpy(info->type, "emc2103", I2C_NAME_SIZE);
+	strscpy(info->type, "emc2103", I2C_NAME_SIZE);
 
 	return 0;
 }

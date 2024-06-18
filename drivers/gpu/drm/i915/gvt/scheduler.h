@@ -36,6 +36,11 @@
 #ifndef _GVT_SCHEDULER_H_
 #define _GVT_SCHEDULER_H_
 
+#include "gt/intel_engine_types.h"
+
+#include "execlist.h"
+#include "interrupt.h"
+
 struct intel_gvt_workload_scheduler {
 	struct intel_vgpu *current_vgpu;
 	struct intel_vgpu *next_vgpu;
@@ -51,7 +56,7 @@ struct intel_gvt_workload_scheduler {
 	wait_queue_head_t waitq[I915_NUM_ENGINES];
 
 	void *sched_data;
-	struct intel_gvt_sched_policy_ops *sched_ops;
+	const struct intel_gvt_sched_policy_ops *sched_ops;
 };
 
 #define INDIRECT_CTX_ADDR_MASK 0xffffffc0
@@ -79,7 +84,7 @@ struct intel_shadow_wa_ctx {
 
 struct intel_vgpu_workload {
 	struct intel_vgpu *vgpu;
-	int ring_id;
+	const struct intel_engine_cs *engine;
 	struct i915_request *req;
 	/* if this workload has been dispatched to i915? */
 	bool dispatched;
@@ -87,6 +92,7 @@ struct intel_vgpu_workload {
 	int status;
 
 	struct intel_vgpu_mm *shadow_mm;
+	struct list_head lri_shadow_mm; /* For PPGTT load cmd */
 
 	/* different submission model may need different handler */
 	int (*prepare)(struct intel_vgpu_workload *);
@@ -98,10 +104,8 @@ struct intel_vgpu_workload {
 
 	/* execlist context information */
 	struct execlist_ctx_descriptor_format ctx_desc;
-	struct execlist_ring_context *ring_context;
 	unsigned long rb_head, rb_tail, rb_ctl, rb_start, rb_len;
 	unsigned long guest_rb_head;
-	bool restore_inhibit;
 	struct intel_vgpu_elsp_dwords elsp_dwords;
 	bool emulate_schedule_in;
 	atomic_t shadow_ctx_active;
@@ -123,14 +127,12 @@ struct intel_vgpu_shadow_bb {
 	struct i915_vma *vma;
 	void *va;
 	u32 *bb_start_cmd_va;
-	unsigned int clflush;
-	bool accessing;
 	unsigned long bb_offset;
 	bool ppgtt;
 };
 
-#define workload_q_head(vgpu, ring_id) \
-	(&(vgpu->submission.workload_q_head[ring_id]))
+#define workload_q_head(vgpu, e) \
+	(&(vgpu)->submission.workload_q_head[(e)->id])
 
 void intel_vgpu_queue_workload(struct intel_vgpu_workload *workload);
 
@@ -155,7 +157,8 @@ extern const struct intel_vgpu_submission_ops
 intel_vgpu_execlist_submission_ops;
 
 struct intel_vgpu_workload *
-intel_vgpu_create_workload(struct intel_vgpu *vgpu, int ring_id,
+intel_vgpu_create_workload(struct intel_vgpu *vgpu,
+			   const struct intel_engine_cs *engine,
 			   struct execlist_ctx_descriptor_format *desc);
 
 void intel_vgpu_destroy_workload(struct intel_vgpu_workload *workload);

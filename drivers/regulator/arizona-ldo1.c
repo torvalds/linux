@@ -87,7 +87,7 @@ static const struct regulator_ops arizona_ldo1_hc_ops = {
 	.set_bypass = regulator_set_bypass_regmap,
 };
 
-static const struct regulator_linear_range arizona_ldo1_hc_ranges[] = {
+static const struct linear_range arizona_ldo1_hc_ranges[] = {
 	REGULATOR_LINEAR_RANGE(900000, 0, 0x6, 50000),
 	REGULATOR_LINEAR_RANGE(1800000, 0x7, 0x7, 0),
 };
@@ -339,14 +339,12 @@ static int arizona_ldo1_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int arizona_ldo1_remove(struct platform_device *pdev)
+static void arizona_ldo1_remove(struct platform_device *pdev)
 {
 	struct arizona_ldo1 *ldo1 = platform_get_drvdata(pdev);
 
 	if (ldo1->ena_gpiod)
 		gpiod_put(ldo1->ena_gpiod);
-
-	return 0;
 }
 
 static int madera_ldo1_probe(struct platform_device *pdev)
@@ -377,17 +375,19 @@ static int madera_ldo1_probe(struct platform_device *pdev)
 
 static struct platform_driver arizona_ldo1_driver = {
 	.probe = arizona_ldo1_probe,
-	.remove = arizona_ldo1_remove,
+	.remove_new = arizona_ldo1_remove,
 	.driver		= {
 		.name	= "arizona-ldo1",
+		.probe_type = PROBE_FORCE_SYNCHRONOUS,
 	},
 };
 
 static struct platform_driver madera_ldo1_driver = {
 	.probe = madera_ldo1_probe,
-	.remove = arizona_ldo1_remove,
+	.remove_new = arizona_ldo1_remove,
 	.driver		= {
 		.name	= "madera-ldo1",
+		.probe_type = PROBE_FORCE_SYNCHRONOUS,
 	},
 };
 

@@ -23,6 +23,7 @@ use strict;
 use POSIX;
 use File::Basename;
 use File::Spec;
+use File::Temp qw/tempfile/;
 use Cwd 'abs_path';
 use Term::ANSIColor qw(:constants);
 use Getopt::Long qw(:config no_auto_abbrev);
@@ -51,9 +52,12 @@ my $input_raw = "";	# Read raw results from file instead of scanning.
 my $suppress_dmesg = 0;		# Don't show dmesg in output.
 my $squash_by_path = 0;		# Summary report grouped by absolute path.
 my $squash_by_filename = 0;	# Summary report grouped by filename.
+my $kallsyms_file = "";		# Kernel symbols file.
 my $kernel_config_file = "";	# Kernel configuration file.
 my $opt_32bit = 0;		# Scan 32-bit kernel.
 my $page_offset_32bit = 0;	# Page offset for 32-bit kernel.
+
+my @kallsyms = ();
 
 # Skip these absolute paths.
 my @skip_abs = (
@@ -61,6 +65,7 @@ my @skip_abs = (
 	'/proc/device-tree',
 	'/proc/1/syscall',
 	'/sys/firmware/devicetree',
+	'/sys/kernel/tracing/trace_pipe',
 	'/sys/kernel/debug/tracing/trace_pipe',
 	'/sys/kernel/security/apparmor/revision');
 
@@ -94,6 +99,8 @@ Options:
 	      --squash-by-path		Show one result per unique path.
 	      --squash-by-filename	Show one result per unique filename.
 	--kernel-config-file=<file>     Kernel configuration file (e.g /boot/config)
+	--kallsyms=<file>		Read kernel symbol addresses from file (for
+						scanning binary files).
 	--32-bit			Scan 32-bit kernel.
 	--page-offset-32-bit=o		Page offset (for 32-bit kernel 0xABCD1234).
 	-d, --debug			Display debugging output.
@@ -114,6 +121,7 @@ GetOptions(
 	'squash-by-path'        => \$squash_by_path,
 	'squash-by-filename'    => \$squash_by_filename,
 	'raw'                   => \$raw,
+	'kallsyms=s'            => \$kallsyms_file,
 	'kernel-config-file=s'	=> \$kernel_config_file,
 	'32-bit'		=> \$opt_32bit,
 	'page-offset-32-bit=o'	=> \$page_offset_32bit,
@@ -152,6 +160,25 @@ if (!(is_supported_architecture() or $opt_32bit or $page_offset_32bit)) {
 if ($output_raw) {
 	open my $fh, '>', $output_raw or die "$0: $output_raw: $!\n";
 	select $fh;
+}
+
+if ($kallsyms_file) {
+	open my $fh, '<', $kallsyms_file or die "$0: $kallsyms_file: $!\n";
+	while (<$fh>) {
+		chomp;
+		my @entry = split / /, $_;
+		my $addr_text = $entry[0];
+		if ($addr_text !~ /^0/) {
+			# TODO: Why is hex() so impossibly slow?
+			my $addr = hex($addr_text);
+			my $symbol = $entry[2];
+			# Only keep kernel text addresses.
+			my $long = pack("J", $addr);
+			my $entry = [$long, $symbol];
+			push @kallsyms, $entry;
+		}
+	}
+	close $fh;
 }
 
 parse_dmesg();
@@ -220,6 +247,7 @@ sub get_kernel_config_option
 {
 	my ($option) = @_;
 	my $value = "";
+	my $tmp_fh;
 	my $tmp_file = "";
 	my @config_files;
 
@@ -227,7 +255,8 @@ sub get_kernel_config_option
 	if ($kernel_config_file ne "") {
 		@config_files = ($kernel_config_file);
 	} elsif (-R "/proc/config.gz") {
-		my $tmp_file = "/tmp/tmpkconf";
+		($tmp_fh, $tmp_file) = tempfile("config.gz-XXXXXX",
+						UNLINK => 1);
 
 		if (system("gunzip < /proc/config.gz > $tmp_file")) {
 			dprint("system(gunzip < /proc/config.gz) failed\n");
@@ -247,10 +276,6 @@ sub get_kernel_config_option
 		if ($value ne "") {
 			last;
 		}
-	}
-
-	if ($tmp_file ne "") {
-		system("rm -f $tmp_file");
 	}
 
 	return $value;
@@ -284,9 +309,10 @@ sub is_false_positive
 		return is_false_positive_32bit($match);
 	}
 
-	# 64 bit false positives.
-
-	if ($match =~ '\b(0x)?(f|F){16}\b' or
+	# Ignore 64 bit false positives:
+	# 0xfffffffffffffff[0-f]
+	# 0x0000000000000000
+	if ($match =~ '\b(0x)?(f|F){15}[0-9a-f]\b' or
 	    $match =~ '\b(0x)?0{16}\b') {
 		return 1;
 	}
@@ -303,7 +329,7 @@ sub is_false_positive_32bit
        my ($match) = @_;
        state $page_offset = get_page_offset();
 
-       if ($match =~ '\b(0x)?(f|F){8}\b') {
+       if ($match =~ '\b(0x)?(f|F){7}[0-9a-f]\b') {
                return 1;
        }
 
@@ -346,18 +372,23 @@ sub is_in_vsyscall_memory_region
 # True if argument potentially contains a kernel address.
 sub may_leak_address
 {
-	my ($line) = @_;
+	my ($path, $line) = @_;
 	my $address_re;
 
-	# Signal masks.
+	# Ignore Signal masks.
 	if ($line =~ '^SigBlk:' or
 	    $line =~ '^SigIgn:' or
 	    $line =~ '^SigCgt:') {
 		return 0;
 	}
 
-	if ($line =~ '\bKEY=[[:xdigit:]]{14} [[:xdigit:]]{16} [[:xdigit:]]{16}\b' or
-	    $line =~ '\b[[:xdigit:]]{14} [[:xdigit:]]{16} [[:xdigit:]]{16}\b') {
+	# Ignore input device reporting.
+	# /proc/bus/input/devices: B: KEY=402000000 3803078f800d001 feffffdfffefffff fffffffffffffffe
+	# /sys/devices/platform/i8042/serio0/input/input1/uevent: KEY=402000000 3803078f800d001 feffffdfffefffff fffffffffffffffe
+	# /sys/devices/platform/i8042/serio0/input/input1/capabilities/key: 402000000 3803078f800d001 feffffdfffefffff fffffffffffffffe
+	if ($line =~ '\bKEY=[[:xdigit:]]{9,14} [[:xdigit:]]{16} [[:xdigit:]]{16}\b' or
+            ($path =~ '\bkey$' and
+             $line =~ '\b[[:xdigit:]]{9,14} [[:xdigit:]]{16} [[:xdigit:]]{16}\b')) {
 		return 0;
 	}
 
@@ -400,7 +431,7 @@ sub parse_dmesg
 {
 	open my $cmd, '-|', 'dmesg';
 	while (<$cmd>) {
-		if (may_leak_address($_)) {
+		if (may_leak_address("dmesg", $_)) {
 			print 'dmesg: ' . $_;
 		}
 	}
@@ -441,6 +472,25 @@ sub timed_parse_file
 	}
 }
 
+sub parse_binary
+{
+	my ($file) = @_;
+
+	open my $fh, "<:raw", $file or return;
+	local $/ = undef;
+	my $bytes = <$fh>;
+	close $fh;
+
+	foreach my $entry (@kallsyms) {
+		my $addr = $entry->[0];
+		my $symbol = $entry->[1];
+		my $offset = index($bytes, $addr);
+		if ($offset != -1) {
+			printf("$file: $symbol @ $offset\n");
+		}
+	}
+}
+
 sub parse_file
 {
 	my ($file) = @_;
@@ -450,13 +500,23 @@ sub parse_file
 	}
 
 	if (! -T $file) {
+		if ($file =~ m|^/sys/kernel/btf/| or
+		    $file =~ m|^/sys/devices/pci| or
+		    $file =~ m|^/sys/firmware/efi/efivars/| or
+		    $file =~ m|^/proc/bus/pci/|) {
+			return;
+		}
+		if (scalar @kallsyms > 0) {
+			parse_binary($file);
+		}
 		return;
 	}
 
 	open my $fh, "<", $file or return;
 	while ( <$fh> ) {
-		if (may_leak_address($_)) {
-			print $file . ': ' . $_;
+		chomp;
+		if (may_leak_address($file, $_)) {
+			printf("$file: $_\n");
 		}
 	}
 	close $fh;
@@ -467,7 +527,7 @@ sub check_path_for_leaks
 {
 	my ($path) = @_;
 
-	if (may_leak_address($path)) {
+	if (may_leak_address($path, $path)) {
 		printf("Path name may contain address: $path\n");
 	}
 }

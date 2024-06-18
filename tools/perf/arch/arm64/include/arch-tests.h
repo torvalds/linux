@@ -2,11 +2,9 @@
 #ifndef ARCH_TESTS_H
 #define ARCH_TESTS_H
 
-#ifdef HAVE_DWARF_UNWIND_SUPPORT
-struct thread;
-struct perf_sample;
-#endif
+struct test_suite;
 
-extern struct test arch_tests[];
+int test__cpuid_match(struct test_suite *test, int subtest);
+extern struct test_suite *arch_tests[];
 
 #endif

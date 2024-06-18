@@ -44,14 +44,19 @@ struct tnum tnum_rshift(struct tnum a, u8 shift)
 	return TNUM(a.value >> shift, a.mask >> shift);
 }
 
-struct tnum tnum_arshift(struct tnum a, u8 min_shift)
+struct tnum tnum_arshift(struct tnum a, u8 min_shift, u8 insn_bitness)
 {
 	/* if a.value is negative, arithmetic shifting by minimum shift
 	 * will have larger negative offset compared to more shifting.
 	 * If a.value is nonnegative, arithmetic shifting by minimum shift
 	 * will have larger positive offset compare to more shifting.
 	 */
-	return TNUM((s64)a.value >> min_shift, (s64)a.mask >> min_shift);
+	if (insn_bitness == 32)
+		return TNUM((u32)(((s32)a.value) >> min_shift),
+			    (u32)(((s32)a.mask)  >> min_shift));
+	else
+		return TNUM((s64)a.value >> min_shift,
+			    (s64)a.mask  >> min_shift);
 }
 
 struct tnum tnum_add(struct tnum a, struct tnum b)
@@ -106,28 +111,31 @@ struct tnum tnum_xor(struct tnum a, struct tnum b)
 	return TNUM(v & ~mu, mu);
 }
 
-/* half-multiply add: acc += (unknown * mask * value).
- * An intermediate step in the multiply algorithm.
+/* Generate partial products by multiplying each bit in the multiplier (tnum a)
+ * with the multiplicand (tnum b), and add the partial products after
+ * appropriately bit-shifting them. Instead of directly performing tnum addition
+ * on the generated partial products, equivalenty, decompose each partial
+ * product into two tnums, consisting of the value-sum (acc_v) and the
+ * mask-sum (acc_m) and then perform tnum addition on them. The following paper
+ * explains the algorithm in more detail: https://arxiv.org/abs/2105.05398.
  */
-static struct tnum hma(struct tnum acc, u64 value, u64 mask)
-{
-	while (mask) {
-		if (mask & 1)
-			acc = tnum_add(acc, TNUM(0, value));
-		mask >>= 1;
-		value <<= 1;
-	}
-	return acc;
-}
-
 struct tnum tnum_mul(struct tnum a, struct tnum b)
 {
-	struct tnum acc;
-	u64 pi;
+	u64 acc_v = a.value * b.value;
+	struct tnum acc_m = TNUM(0, 0);
 
-	pi = a.value * b.value;
-	acc = hma(TNUM(pi, 0), a.mask, b.mask | b.value);
-	return hma(acc, b.mask, a.value);
+	while (a.value || a.mask) {
+		/* LSB of tnum a is a certain 1 */
+		if (a.value & 1)
+			acc_m = tnum_add(acc_m, TNUM(0, b.mask));
+		/* LSB of tnum a is uncertain */
+		else if (a.mask & 1)
+			acc_m = tnum_add(acc_m, TNUM(0, b.value | b.mask));
+		/* Note: no case for LSB is certain 0 */
+		a = tnum_rshift(a, 1);
+		b = tnum_lshift(b, 1);
+	}
+	return tnum_add(TNUM(acc_v, 0), acc_m);
 }
 
 /* Note that if a and b disagree - i.e. one has a 'known 1' where the other has
@@ -164,12 +172,6 @@ bool tnum_in(struct tnum a, struct tnum b)
 	return a.value == b.value;
 }
 
-int tnum_strn(char *str, size_t size, struct tnum a)
-{
-	return snprintf(str, size, "(%#llx; %#llx)", a.value, a.mask);
-}
-EXPORT_SYMBOL_GPL(tnum_strn);
-
 int tnum_sbin(char *str, size_t size, struct tnum a)
 {
 	size_t n;
@@ -188,4 +190,24 @@ int tnum_sbin(char *str, size_t size, struct tnum a)
 	}
 	str[min(size - 1, (size_t)64)] = 0;
 	return 64;
+}
+
+struct tnum tnum_subreg(struct tnum a)
+{
+	return tnum_cast(a, 4);
+}
+
+struct tnum tnum_clear_subreg(struct tnum a)
+{
+	return tnum_lshift(tnum_rshift(a, 32), 32);
+}
+
+struct tnum tnum_with_subreg(struct tnum reg, struct tnum subreg)
+{
+	return tnum_or(tnum_clear_subreg(reg), tnum_subreg(subreg));
+}
+
+struct tnum tnum_const_subreg(struct tnum a, u32 value)
+{
+	return tnum_with_subreg(a, tnum_const(value));
 }

@@ -1,0 +1,138 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+comment "Renesas media platform drivers"
+
+# V4L drivers
+
+config VIDEO_RENESAS_CEU
+	tristate "Renesas Capture Engine Unit (CEU) driver"
+	depends on V4L_PLATFORM_DRIVERS
+	depends on VIDEO_DEV
+	depends on ARCH_SHMOBILE || ARCH_R7S72100 || COMPILE_TEST
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_FWNODE
+	help
+	  This is a v4l2 driver for the Renesas CEU Interface
+
+config VIDEO_RCAR_CSI2
+	tristate "R-Car MIPI CSI-2 Receiver"
+	depends on V4L_PLATFORM_DRIVERS
+	depends on VIDEO_DEV && OF
+	depends on ARCH_RENESAS || COMPILE_TEST
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select RESET_CONTROLLER
+	select V4L2_FWNODE
+	help
+	  Support for Renesas R-Car MIPI CSI-2 receiver.
+	  Supports R-Car Gen3 and RZ/G2 SoCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rcar-csi2.
+
+config VIDEO_RCAR_ISP
+	tristate "R-Car Image Signal Processor (ISP)"
+	depends on V4L_PLATFORM_DRIVERS
+	depends on VIDEO_DEV && OF
+	depends on ARCH_RENESAS || COMPILE_TEST
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select RESET_CONTROLLER
+	select V4L2_FWNODE
+	help
+	  Support for Renesas R-Car Image Signal Processor (ISP).
+	  Enable this to support the Renesas R-Car Image Signal
+	  Processor (ISP).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rcar-isp.
+
+config VIDEO_SH_VOU
+	tristate "SuperH VOU video output driver"
+	depends on V4L_PLATFORM_DRIVERS
+	depends on VIDEO_DEV && I2C
+	depends on ARCH_SHMOBILE || COMPILE_TEST
+	select VIDEOBUF2_DMA_CONTIG
+	help
+	  Support for the Video Output Unit (VOU) on SuperH SoCs.
+
+source "drivers/media/platform/renesas/rcar-vin/Kconfig"
+source "drivers/media/platform/renesas/rzg2l-cru/Kconfig"
+
+# Mem2mem drivers
+
+config VIDEO_RENESAS_FCP
+	tristate "Renesas Frame Compression Processor"
+	depends on V4L_MEM2MEM_DRIVERS
+	depends on ARCH_RENESAS || COMPILE_TEST
+	depends on OF
+	help
+	  This is a driver for the Renesas Frame Compression Processor (FCP).
+	  The FCP is a companion module of video processing modules in the
+	  Renesas R-Car Gen3 and RZ/G2 SoCs. It handles memory access for
+	  the codec, VSP and FDP modules.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called rcar-fcp.
+
+config VIDEO_RENESAS_FDP1
+	tristate "Renesas Fine Display Processor"
+	depends on V4L_MEM2MEM_DRIVERS
+	depends on VIDEO_DEV
+	depends on ARCH_RENESAS || COMPILE_TEST
+	depends on (!ARM64 && !VIDEO_RENESAS_FCP) || VIDEO_RENESAS_FCP
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_MEM2MEM_DEV
+	help
+	  This is a V4L2 driver for the Renesas Fine Display Processor
+	  providing colour space conversion, and de-interlacing features.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called rcar_fdp1.
+
+config VIDEO_RENESAS_JPU
+	tristate "Renesas JPEG Processing Unit"
+	depends on V4L_MEM2MEM_DRIVERS
+	depends on VIDEO_DEV
+	depends on ARCH_RENESAS || COMPILE_TEST
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_MEM2MEM_DEV
+	help
+	  This is a V4L2 driver for the Renesas JPEG Processing Unit.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called rcar_jpu.
+
+config VIDEO_RENESAS_VSP1
+	tristate "Renesas VSP1 Video Processing Engine"
+	depends on V4L_MEM2MEM_DRIVERS
+	depends on VIDEO_DEV
+	depends on ARCH_RENESAS || COMPILE_TEST
+	depends on (!ARM64 && !VIDEO_RENESAS_FCP) || VIDEO_RENESAS_FCP
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select VIDEOBUF2_DMA_CONTIG
+	select VIDEOBUF2_VMALLOC
+	help
+	  This is a V4L2 driver for the Renesas VSP1 video processing engine.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called vsp1.
+
+# SDR drivers
+
+config VIDEO_RCAR_DRIF
+	tristate "Renesas Digital Radio Interface (DRIF)"
+	depends on SDR_PLATFORM_DRIVERS
+	depends on VIDEO_DEV
+	depends on ARCH_RENESAS || COMPILE_TEST
+	select VIDEOBUF2_VMALLOC
+	select V4L2_ASYNC
+	help
+	  Say Y if you want to enable R-Car Gen3 DRIF support. DRIF is Digital
+	  Radio Interface that interfaces with an RF front end chip. It is a
+	  receiver of digital data which uses DMA to transfer received data to
+	  a configured location for an application to use.
+
+	  To compile this driver as a module, choose M here; the module
+	  will be called rcar_drif.

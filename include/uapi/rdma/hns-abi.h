@@ -39,6 +39,12 @@
 struct hns_roce_ib_create_cq {
 	__aligned_u64 buf_addr;
 	__aligned_u64 db_addr;
+	__u32 cqe_size;
+	__u32 reserved;
+};
+
+enum hns_roce_cq_cap_flags {
+	HNS_ROCE_CQ_FLAG_RECORD_DB = 1 << 0,
 };
 
 struct hns_roce_ib_create_cq_resp {
@@ -46,15 +52,36 @@ struct hns_roce_ib_create_cq_resp {
 	__aligned_u64 cap_flags;
 };
 
+enum hns_roce_srq_cap_flags {
+	HNS_ROCE_SRQ_CAP_RECORD_DB = 1 << 0,
+};
+
+enum hns_roce_srq_cap_flags_resp {
+	HNS_ROCE_RSP_SRQ_CAP_RECORD_DB = 1 << 0,
+};
+
 struct hns_roce_ib_create_srq {
 	__aligned_u64 buf_addr;
 	__aligned_u64 db_addr;
 	__aligned_u64 que_addr;
+	__u32 req_cap_flags; /* Use enum hns_roce_srq_cap_flags */
+	__u32 reserved;
 };
 
 struct hns_roce_ib_create_srq_resp {
 	__u32	srqn;
-	__u32	reserved;
+	__u32	cap_flags; /* Use enum hns_roce_srq_cap_flags */
+};
+
+enum hns_roce_congest_type_flags {
+	HNS_ROCE_CREATE_QP_FLAGS_DCQCN,
+	HNS_ROCE_CREATE_QP_FLAGS_LDCP,
+	HNS_ROCE_CREATE_QP_FLAGS_HC3,
+	HNS_ROCE_CREATE_QP_FLAGS_DIP,
+};
+
+enum hns_roce_create_qp_comp_mask {
+	HNS_ROCE_CREATE_QP_MASK_CONGEST_TYPE = 1 << 0,
 };
 
 struct hns_roce_ib_create_qp {
@@ -65,19 +92,65 @@ struct hns_roce_ib_create_qp {
 	__u8    sq_no_prefetch;
 	__u8    reserved[5];
 	__aligned_u64 sdb_addr;
+	__aligned_u64 comp_mask; /* Use enum hns_roce_create_qp_comp_mask */
+	__aligned_u64 create_flags;
+	__aligned_u64 cong_type_flags;
+};
+
+enum hns_roce_qp_cap_flags {
+	HNS_ROCE_QP_CAP_RQ_RECORD_DB = 1 << 0,
+	HNS_ROCE_QP_CAP_SQ_RECORD_DB = 1 << 1,
+	HNS_ROCE_QP_CAP_OWNER_DB = 1 << 2,
+	HNS_ROCE_QP_CAP_DIRECT_WQE = 1 << 5,
 };
 
 struct hns_roce_ib_create_qp_resp {
 	__aligned_u64 cap_flags;
+	__aligned_u64 dwqe_mmap_key;
+};
+
+struct hns_roce_ib_modify_qp_resp {
+	__u8	tc_mode;
+	__u8	priority;
+	__u8	reserved[6];
+};
+
+enum {
+	HNS_ROCE_EXSGE_FLAGS = 1 << 0,
+	HNS_ROCE_RQ_INLINE_FLAGS = 1 << 1,
+	HNS_ROCE_CQE_INLINE_FLAGS = 1 << 2,
+};
+
+enum {
+	HNS_ROCE_RSP_EXSGE_FLAGS = 1 << 0,
+	HNS_ROCE_RSP_RQ_INLINE_FLAGS = 1 << 1,
+	HNS_ROCE_RSP_CQE_INLINE_FLAGS = 1 << 2,
 };
 
 struct hns_roce_ib_alloc_ucontext_resp {
 	__u32	qp_tab_size;
+	__u32	cqe_size;
+	__u32	srq_tab_size;
 	__u32	reserved;
+	__u32	config;
+	__u32	max_inline_data;
+	__u8	congest_type;
+	__u8	reserved0[7];
+};
+
+struct hns_roce_ib_alloc_ucontext {
+	__u32 config;
+	__u32 reserved;
 };
 
 struct hns_roce_ib_alloc_pd_resp {
 	__u32 pdn;
+};
+
+struct hns_roce_ib_create_ah_resp {
+	__u8 dmac[6];
+	__u8 priority;
+	__u8 tc_mode;
 };
 
 #endif /* HNS_ABI_USER_H */

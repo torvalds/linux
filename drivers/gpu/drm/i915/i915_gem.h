@@ -26,29 +26,83 @@
 #define __I915_GEM_H__
 
 #include <linux/bug.h>
-#include <linux/interrupt.h>
+#include <linux/types.h>
 
 #include <drm/drm_drv.h>
 
+#include "i915_utils.h"
+
+struct drm_file;
+struct drm_i915_gem_object;
 struct drm_i915_private;
+struct i915_gem_ww_ctx;
+struct i915_gtt_view;
+struct i915_vma;
+
+#define I915_GEM_GPU_DOMAINS	       \
+	(I915_GEM_DOMAIN_RENDER |      \
+	 I915_GEM_DOMAIN_SAMPLER |     \
+	 I915_GEM_DOMAIN_COMMAND |     \
+	 I915_GEM_DOMAIN_INSTRUCTION | \
+	 I915_GEM_DOMAIN_VERTEX)
+
+void i915_gem_init_early(struct drm_i915_private *i915);
+void i915_gem_cleanup_early(struct drm_i915_private *i915);
+
+void i915_gem_drain_freed_objects(struct drm_i915_private *i915);
+void i915_gem_drain_workqueue(struct drm_i915_private *i915);
+
+struct i915_vma * __must_check
+i915_gem_object_ggtt_pin_ww(struct drm_i915_gem_object *obj,
+			    struct i915_gem_ww_ctx *ww,
+			    const struct i915_gtt_view *view,
+			    u64 size, u64 alignment, u64 flags);
+
+struct i915_vma * __must_check
+i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
+			 const struct i915_gtt_view *view,
+			 u64 size, u64 alignment, u64 flags);
+
+int i915_gem_object_unbind(struct drm_i915_gem_object *obj,
+			   unsigned long flags);
+#define I915_GEM_OBJECT_UNBIND_ACTIVE BIT(0)
+#define I915_GEM_OBJECT_UNBIND_BARRIER BIT(1)
+#define I915_GEM_OBJECT_UNBIND_TEST BIT(2)
+#define I915_GEM_OBJECT_UNBIND_VM_TRYLOCK BIT(3)
+#define I915_GEM_OBJECT_UNBIND_ASYNC BIT(4)
+
+void i915_gem_runtime_suspend(struct drm_i915_private *i915);
+
+int __must_check i915_gem_init(struct drm_i915_private *i915);
+void i915_gem_driver_register(struct drm_i915_private *i915);
+void i915_gem_driver_unregister(struct drm_i915_private *i915);
+void i915_gem_driver_remove(struct drm_i915_private *i915);
+void i915_gem_driver_release(struct drm_i915_private *i915);
+
+int i915_gem_open(struct drm_i915_private *i915, struct drm_file *file);
+
+/* FIXME: All of the below belong somewhere else. */
 
 #ifdef CONFIG_DRM_I915_DEBUG_GEM
 
-#define GEM_SHOW_DEBUG() (drm_debug & DRM_UT_DRIVER)
+#define GEM_SHOW_DEBUG() drm_debug_enabled(DRM_UT_DRIVER)
+
+#ifdef CONFIG_DRM_I915_DEBUG_GEM_ONCE
+#define __GEM_BUG(cond) BUG()
+#else
+#define __GEM_BUG(cond) \
+	WARN(1, "%s:%d GEM_BUG_ON(%s)\n", __func__, __LINE__, __stringify(cond))
+#endif
 
 #define GEM_BUG_ON(condition) do { if (unlikely((condition))) {	\
-		pr_err("%s:%d GEM_BUG_ON(%s)\n", \
-		       __func__, __LINE__, __stringify(condition)); \
-		GEM_TRACE("%s:%d GEM_BUG_ON(%s)\n", \
-			  __func__, __LINE__, __stringify(condition)); \
-		BUG(); \
+		GEM_TRACE_ERR("%s:%d GEM_BUG_ON(%s)\n", \
+			      __func__, __LINE__, __stringify(condition)); \
+		GEM_TRACE_DUMP(); \
+		__GEM_BUG(condition); \
 		} \
 	} while(0)
 #define GEM_WARN_ON(expr) WARN_ON(expr)
 
-#define GEM_DEBUG_DECL(var) var
-#define GEM_DEBUG_EXEC(expr) expr
-#define GEM_DEBUG_BUG_ON(expr) GEM_BUG_ON(expr)
 #define GEM_DEBUG_WARN_ON(expr) GEM_WARN_ON(expr)
 
 #else
@@ -58,44 +112,26 @@ struct drm_i915_private;
 #define GEM_BUG_ON(expr) BUILD_BUG_ON_INVALID(expr)
 #define GEM_WARN_ON(expr) ({ unlikely(!!(expr)); })
 
-#define GEM_DEBUG_DECL(var)
-#define GEM_DEBUG_EXEC(expr) do { } while (0)
-#define GEM_DEBUG_BUG_ON(expr)
 #define GEM_DEBUG_WARN_ON(expr) ({ BUILD_BUG_ON_INVALID(expr); 0; })
 #endif
 
 #if IS_ENABLED(CONFIG_DRM_I915_TRACE_GEM)
 #define GEM_TRACE(...) trace_printk(__VA_ARGS__)
-#define GEM_TRACE_DUMP() ftrace_dump(DUMP_ALL)
+#define GEM_TRACE_ERR(...) do {						\
+	pr_err(__VA_ARGS__);						\
+	trace_printk(__VA_ARGS__);					\
+} while (0)
+#define GEM_TRACE_DUMP() \
+	do { ftrace_dump(DUMP_ALL); __add_taint_for_CI(TAINT_WARN); } while (0)
 #define GEM_TRACE_DUMP_ON(expr) \
-	do { if (expr) ftrace_dump(DUMP_ALL); } while (0)
+	do { if (expr) GEM_TRACE_DUMP(); } while (0)
 #else
 #define GEM_TRACE(...) do { } while (0)
+#define GEM_TRACE_ERR(...) do { } while (0)
 #define GEM_TRACE_DUMP() do { } while (0)
 #define GEM_TRACE_DUMP_ON(expr) BUILD_BUG_ON_INVALID(expr)
 #endif
 
 #define I915_GEM_IDLE_TIMEOUT (HZ / 5)
-
-static inline void __tasklet_disable_sync_once(struct tasklet_struct *t)
-{
-	if (!atomic_fetch_inc(&t->count))
-		tasklet_unlock_wait(t);
-}
-
-static inline bool __tasklet_is_enabled(const struct tasklet_struct *t)
-{
-	return !atomic_read(&t->count);
-}
-
-static inline bool __tasklet_enable(struct tasklet_struct *t)
-{
-	return atomic_dec_and_test(&t->count);
-}
-
-static inline bool __tasklet_is_scheduled(struct tasklet_struct *t)
-{
-	return test_bit(TASKLET_STATE_SCHED, &t->state);
-}
 
 #endif /* __I915_GEM_H__ */

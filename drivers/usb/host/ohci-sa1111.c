@@ -125,10 +125,7 @@ static int sa1111_start_hc(struct sa1111_dev *dev)
 
 	dev_dbg(&dev->dev, "starting SA-1111 OHCI USB Controller\n");
 
-	if (machine_is_xp860() ||
-	    machine_is_assabet() ||
-	    machine_is_pfs168() ||
-	    machine_is_badge4())
+	if (machine_is_assabet())
 		usb_rst = USB_RESET_PWRSENSELOW | USB_RESET_PWRCTRLLOW;
 
 	/*
@@ -203,6 +200,31 @@ static int ohci_hcd_sa1111_probe(struct sa1111_dev *dev)
 		goto err1;
 	}
 
+	/*
+	 * According to the "Intel StrongARM SA-1111 Microprocessor Companion
+	 * Chip Specification Update" (June 2000), erratum #7, there is a
+	 * significant bug in the SA1111 SDRAM shared memory controller.  If
+	 * an access to a region of memory above 1MB relative to the bank base,
+	 * it is important that address bit 10 _NOT_ be asserted. Depending
+	 * on the configuration of the RAM, bit 10 may correspond to one
+	 * of several different (processor-relative) address bits.
+	 *
+	 * Section 4.6 of the "Intel StrongARM SA-1111 Development Module
+	 * User's Guide" mentions that jumpers R51 and R52 control the
+	 * target of SA-1111 DMA (either SDRAM bank 0 on Assabet, or
+	 * SDRAM bank 1 on Neponset). The default configuration selects
+	 * Assabet, so any address in bank 1 is necessarily invalid.
+	 *
+	 * As a workaround, use a bounce buffer in addressable memory
+	 * as local_mem, relying on ZONE_DMA to provide an area that
+	 * fits within the above constraints.
+	 *
+	 * SZ_64K is an estimate for what size this might need.
+	 */
+	ret = usb_hcd_setup_local_mem(hcd, 0, 0, SZ_64K);
+	if (ret)
+		goto err1;
+
 	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len, hcd_name)) {
 		dev_dbg(&dev->dev, "request_mem_region failed\n");
 		ret = -EBUSY;
@@ -236,7 +258,7 @@ static int ohci_hcd_sa1111_probe(struct sa1111_dev *dev)
  * Reverses the effect of ohci_hcd_sa1111_probe(), first invoking
  * the HCD's stop() method.
  */
-static int ohci_hcd_sa1111_remove(struct sa1111_dev *dev)
+static void ohci_hcd_sa1111_remove(struct sa1111_dev *dev)
 {
 	struct usb_hcd *hcd = sa1111_get_drvdata(dev);
 
@@ -244,8 +266,6 @@ static int ohci_hcd_sa1111_remove(struct sa1111_dev *dev)
 	sa1111_stop_hc(dev);
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
-
-	return 0;
 }
 
 static void ohci_hcd_sa1111_shutdown(struct device *_dev)

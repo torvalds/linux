@@ -1,0 +1,92 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+
+$id: http://devicetree.org/schemas/hwmon/ti,ina2xx.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments INA209 family of power/voltage monitors
+
+maintainers:
+  - Krzysztof Kozlowski <krzk@kernel.org>
+
+description: |
+  The INA209 is a high-side current shunt and power monitor with
+  an I2C interface.
+
+  Datasheets:
+    https://www.ti.com/product/INA209
+
+properties:
+  compatible:
+    enum:
+      - ti,ina209
+      - ti,ina219
+      - ti,ina220
+      - ti,ina226
+      - ti,ina230
+      - ti,ina231
+      - ti,ina237
+      - ti,ina238
+      - ti,ina260
+
+  reg:
+    maxItems: 1
+
+  "#io-channel-cells":
+    const: 1
+
+  shunt-resistor:
+    description:
+      Shunt resistor value in micro-Ohm.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  ti,shunt-gain:
+    description: |
+      Programmable gain divisor for the shunt voltage accuracy and range. This
+      property only applies to devices that have configurable PGA/ADCRANGE. The
+      gain value is used configure the gain and to convert the shunt voltage,
+      current and power register values when reading measurements from the
+      device.
+
+      For devices that have a configurable PGA (e.g. INA209, INA219, INA220),
+      the gain value maps directly with the PG bits of the config register.
+
+      For devices that have ADCRANGE configuration (e.g. INA238) a shunt-gain
+      value of 1 maps to ADCRANGE=1 where no gain divisor is applied to the
+      shunt voltage, and a value of 4 maps to ADCRANGE=0 such that a wider
+      voltage range is used.
+
+      The default value is device dependent, and is defined by the reset value
+      of PGA/ADCRANGE in the respective configuration registers.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [1, 2, 4, 8]
+
+  vs-supply:
+    description: phandle to the regulator that provides the VS supply typically
+      in range from 2.7 V to 5.5 V.
+
+required:
+  - compatible
+  - reg
+
+allOf:
+  - $ref: hwmon-common.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        power-sensor@44 {
+            compatible = "ti,ina220";
+            reg = <0x44>;
+            #io-channel-cells = <1>;
+            label = "vdd_3v0";
+            shunt-resistor = <1000>;
+            vs-supply = <&vdd_3v0>;
+        };
+    };

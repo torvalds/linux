@@ -76,7 +76,7 @@ static u64 cev_delta2ns(unsigned long latch, struct clock_event_device *evt,
 }
 
 /**
- * clockevents_delta2ns - Convert a latch value (device ticks) to nanoseconds
+ * clockevent_delta2ns - Convert a latch value (device ticks) to nanoseconds
  * @latch:	value to convert
  * @evt:	pointer to clock event device descriptor
  *
@@ -347,8 +347,7 @@ static void clockevents_notify_released(void)
 	while (!list_empty(&clockevents_released)) {
 		dev = list_entry(clockevents_released.next,
 				 struct clock_event_device, list);
-		list_del(&dev->list);
-		list_add(&dev->list, &clockevent_devices);
+		list_move(&dev->list, &clockevent_devices);
 		tick_check_new_device(dev);
 	}
 }
@@ -576,8 +575,7 @@ void clockevents_exchange_device(struct clock_event_device *old,
 	if (old) {
 		module_put(old->owner);
 		clockevents_switch_state(old, CLOCK_EVT_STATE_DETACHED);
-		list_del(&old->list);
-		list_add(&old->list, &clockevents_released);
+		list_move(&old->list, &clockevents_released);
 	}
 
 	if (new) {
@@ -629,6 +627,7 @@ void tick_offline_cpu(unsigned int cpu)
 
 /**
  * tick_cleanup_dead_cpu - Cleanup the tick and clockevents of a dead cpu
+ * @cpu:	The dead CPU
  */
 void tick_cleanup_dead_cpu(int cpu)
 {
@@ -660,7 +659,7 @@ void tick_cleanup_dead_cpu(int cpu)
 #endif
 
 #ifdef CONFIG_SYSFS
-static struct bus_type clockevents_subsys = {
+static const struct bus_type clockevents_subsys = {
 	.name		= "clockevents",
 	.dev_name       = "clockevent",
 };
@@ -668,9 +667,9 @@ static struct bus_type clockevents_subsys = {
 static DEFINE_PER_CPU(struct device, tick_percpu_dev);
 static struct tick_device *tick_get_tick_dev(struct device *dev);
 
-static ssize_t sysfs_show_current_tick_dev(struct device *dev,
-					   struct device_attribute *attr,
-					   char *buf)
+static ssize_t current_device_show(struct device *dev,
+				   struct device_attribute *attr,
+				   char *buf)
 {
 	struct tick_device *td;
 	ssize_t count = 0;
@@ -678,20 +677,20 @@ static ssize_t sysfs_show_current_tick_dev(struct device *dev,
 	raw_spin_lock_irq(&clockevents_lock);
 	td = tick_get_tick_dev(dev);
 	if (td && td->evtdev)
-		count = snprintf(buf, PAGE_SIZE, "%s\n", td->evtdev->name);
+		count = sysfs_emit(buf, "%s\n", td->evtdev->name);
 	raw_spin_unlock_irq(&clockevents_lock);
 	return count;
 }
-static DEVICE_ATTR(current_device, 0444, sysfs_show_current_tick_dev, NULL);
+static DEVICE_ATTR_RO(current_device);
 
 /* We don't support the abomination of removable broadcast devices */
-static ssize_t sysfs_unbind_tick_dev(struct device *dev,
-				     struct device_attribute *attr,
-				     const char *buf, size_t count)
+static ssize_t unbind_device_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
 {
 	char name[CS_NAME_LEN];
 	ssize_t ret = sysfs_get_uname(buf, name, count);
-	struct clock_event_device *ce;
+	struct clock_event_device *ce = NULL, *iter;
 
 	if (ret < 0)
 		return ret;
@@ -699,9 +698,10 @@ static ssize_t sysfs_unbind_tick_dev(struct device *dev,
 	ret = -ENODEV;
 	mutex_lock(&clockevents_mutex);
 	raw_spin_lock_irq(&clockevents_lock);
-	list_for_each_entry(ce, &clockevent_devices, list) {
-		if (!strcmp(ce->name, name)) {
-			ret = __clockevents_try_unbind(ce, dev->id);
+	list_for_each_entry(iter, &clockevent_devices, list) {
+		if (!strcmp(iter->name, name)) {
+			ret = __clockevents_try_unbind(iter, dev->id);
+			ce = iter;
 			break;
 		}
 	}
@@ -714,7 +714,7 @@ static ssize_t sysfs_unbind_tick_dev(struct device *dev,
 	mutex_unlock(&clockevents_mutex);
 	return ret ? ret : count;
 }
-static DEVICE_ATTR(unbind_device, 0200, NULL, sysfs_unbind_tick_dev);
+static DEVICE_ATTR_WO(unbind_device);
 
 #ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
 static struct device tick_bc_dev = {

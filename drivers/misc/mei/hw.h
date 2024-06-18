@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2003-2018, Intel Corporation. All rights reserved
+ * Copyright (c) 2003-2022, Intel Corporation. All rights reserved
  * Intel Management Engine Interface (Intel MEI) Linux driver
  */
 
 #ifndef _MEI_HW_TYPES_H_
 #define _MEI_HW_TYPES_H_
 
-#include <linux/uuid.h>
+#include <linux/mei.h>
 
 /*
  * Timeouts in Seconds
@@ -16,16 +16,26 @@
 #define MEI_CONNECT_TIMEOUT         3  /* HPS: at least 2 seconds */
 
 #define MEI_CL_CONNECT_TIMEOUT     15  /* HPS: Client Connect Timeout */
+#define MEI_CL_CONNECT_TIMEOUT_SLOW 30 /* HPS: Client Connect Timeout, slow FW */
 #define MEI_CLIENTS_INIT_TIMEOUT   15  /* HPS: Clients Enumeration Timeout */
 
 #define MEI_PGI_TIMEOUT             1  /* PG Isolation time response 1 sec */
 #define MEI_D0I3_TIMEOUT            5  /* D0i3 set/unset max response time */
 #define MEI_HBM_TIMEOUT             1  /* 1 second */
+#define MEI_HBM_TIMEOUT_SLOW        5  /* 5 second, slow FW */
+
+#define MKHI_RCV_TIMEOUT 500 /* receive timeout in msec */
+#define MKHI_RCV_TIMEOUT_SLOW 10000 /* receive timeout in msec, slow FW */
+
+/*
+ * FW page size for DMA allocations
+ */
+#define MEI_FW_PAGE_SIZE 4096UL
 
 /*
  * MEI Version
  */
-#define HBM_MINOR_VERSION                   1
+#define HBM_MINOR_VERSION                   2
 #define HBM_MAJOR_VERSION                   2
 
 /*
@@ -76,6 +86,30 @@
 #define HBM_MINOR_VERSION_DR               1
 #define HBM_MAJOR_VERSION_DR               2
 
+/*
+ * MEI version with vm tag support
+ */
+#define HBM_MINOR_VERSION_VT               2
+#define HBM_MAJOR_VERSION_VT               2
+
+/*
+ * MEI version with GSC support
+ */
+#define HBM_MINOR_VERSION_GSC              2
+#define HBM_MAJOR_VERSION_GSC              2
+
+/*
+ * MEI version with capabilities message support
+ */
+#define HBM_MINOR_VERSION_CAP              2
+#define HBM_MAJOR_VERSION_CAP              2
+
+/*
+ * MEI version with client DMA support
+ */
+#define HBM_MINOR_VERSION_CD               2
+#define HBM_MAJOR_VERSION_CD               2
+
 /* Host bus message command opcode */
 #define MEI_HBM_CMD_OP_MSK                  0x7f
 /* Host bus message command RESPONSE */
@@ -120,6 +154,15 @@
 
 #define MEI_HBM_DMA_SETUP_REQ_CMD           0x12
 #define MEI_HBM_DMA_SETUP_RES_CMD           0x92
+
+#define MEI_HBM_CAPABILITIES_REQ_CMD        0x13
+#define MEI_HBM_CAPABILITIES_RES_CMD        0x93
+
+#define MEI_HBM_CLIENT_DMA_MAP_REQ_CMD      0x14
+#define MEI_HBM_CLIENT_DMA_MAP_RES_CMD      0x94
+
+#define MEI_HBM_CLIENT_DMA_UNMAP_REQ_CMD    0x15
+#define MEI_HBM_CLIENT_DMA_UNMAP_RES_CMD    0x95
 
 /*
  * MEI Stop Reason
@@ -182,9 +225,173 @@ enum mei_cl_connect_status {
 /*
  * Client Disconnect Status
  */
-enum  mei_cl_disconnect_status {
+enum mei_cl_disconnect_status {
 	MEI_CL_DISCONN_SUCCESS = MEI_HBMS_SUCCESS
 };
+
+/**
+ * enum mei_ext_hdr_type - extended header type used in
+ *    extended header TLV
+ *
+ * @MEI_EXT_HDR_NONE: sentinel
+ * @MEI_EXT_HDR_VTAG: vtag header
+ * @MEI_EXT_HDR_GSC: gsc header
+ */
+enum mei_ext_hdr_type {
+	MEI_EXT_HDR_NONE = 0,
+	MEI_EXT_HDR_VTAG = 1,
+	MEI_EXT_HDR_GSC = 2,
+};
+
+/**
+ * struct mei_ext_hdr - extend header descriptor (TLV)
+ * @type: enum mei_ext_hdr_type
+ * @length: length excluding descriptor
+ */
+struct mei_ext_hdr {
+	u8 type;
+	u8 length;
+} __packed;
+
+/**
+ * struct mei_ext_meta_hdr - extend header meta data
+ * @count: number of headers
+ * @size: total size of the extended header list excluding meta header
+ * @reserved: reserved
+ * @hdrs: extended headers TLV list
+ */
+struct mei_ext_meta_hdr {
+	u8 count;
+	u8 size;
+	u8 reserved[2];
+	u8 hdrs[];
+} __packed;
+
+/**
+ * struct mei_ext_hdr_vtag - extend header for vtag
+ *
+ * @hdr: standard extend header
+ * @vtag: virtual tag
+ * @reserved: reserved
+ */
+struct mei_ext_hdr_vtag {
+	struct mei_ext_hdr hdr;
+	u8 vtag;
+	u8 reserved;
+} __packed;
+
+/*
+ * Extended header iterator functions
+ */
+/**
+ * mei_ext_begin - extended header iterator begin
+ *
+ * @meta: meta header of the extended header list
+ *
+ * Return: The first extended header
+ */
+static inline struct mei_ext_hdr *mei_ext_begin(struct mei_ext_meta_hdr *meta)
+{
+	return (struct mei_ext_hdr *)meta->hdrs;
+}
+
+/**
+ * mei_ext_last - check if the ext is the last one in the TLV list
+ *
+ * @meta: meta header of the extended header list
+ * @ext: a meta header on the list
+ *
+ * Return: true if ext is the last header on the list
+ */
+static inline bool mei_ext_last(struct mei_ext_meta_hdr *meta,
+				struct mei_ext_hdr *ext)
+{
+	return (u8 *)ext >= (u8 *)meta + sizeof(*meta) + (meta->size * 4);
+}
+
+struct mei_gsc_sgl {
+	u32 low;
+	u32 high;
+	u32 length;
+} __packed;
+
+#define GSC_HECI_MSG_KERNEL 0
+#define GSC_HECI_MSG_USER   1
+
+#define GSC_ADDRESS_TYPE_GTT   0
+#define GSC_ADDRESS_TYPE_PPGTT 1
+#define GSC_ADDRESS_TYPE_PHYSICAL_CONTINUOUS 2 /* max of 64K */
+#define GSC_ADDRESS_TYPE_PHYSICAL_SGL 3
+
+/**
+ * struct mei_ext_hdr_gsc_h2f - extended header: gsc host to firmware interface
+ *
+ * @hdr: extended header
+ * @client_id: GSC_HECI_MSG_KERNEL or GSC_HECI_MSG_USER
+ * @addr_type: GSC_ADDRESS_TYPE_{GTT, PPGTT, PHYSICAL_CONTINUOUS, PHYSICAL_SGL}
+ * @fence_id: synchronization marker
+ * @input_address_count: number of input sgl buffers
+ * @output_address_count: number of output sgl buffers
+ * @reserved: reserved
+ * @sgl: sg list
+ */
+struct mei_ext_hdr_gsc_h2f {
+	struct mei_ext_hdr hdr;
+	u8                 client_id;
+	u8                 addr_type;
+	u32                fence_id;
+	u8                 input_address_count;
+	u8                 output_address_count;
+	u8                 reserved[2];
+	struct mei_gsc_sgl sgl[];
+} __packed;
+
+/**
+ * struct mei_ext_hdr_gsc_f2h - gsc firmware to host interface
+ *
+ * @hdr: extended header
+ * @client_id: GSC_HECI_MSG_KERNEL or GSC_HECI_MSG_USER
+ * @reserved: reserved
+ * @fence_id: synchronization marker
+ * @written: number of bytes written to firmware
+ */
+struct mei_ext_hdr_gsc_f2h {
+	struct mei_ext_hdr hdr;
+	u8                 client_id;
+	u8                 reserved;
+	u32                fence_id;
+	u32                written;
+} __packed;
+
+/**
+ * mei_ext_next - following extended header on the TLV list
+ *
+ * @ext: current extend header
+ *
+ * Context: The function does not check for the overflows,
+ *          one should call mei_ext_last before.
+ *
+ * Return: The following extend header after @ext
+ */
+static inline struct mei_ext_hdr *mei_ext_next(struct mei_ext_hdr *ext)
+{
+	return (struct mei_ext_hdr *)((u8 *)ext + (ext->length * 4));
+}
+
+/**
+ * mei_ext_hdr_len - get ext header length in bytes
+ *
+ * @ext: extend header
+ *
+ * Return: extend header length in bytes
+ */
+static inline u32 mei_ext_hdr_len(const struct mei_ext_hdr *ext)
+{
+	if (!ext)
+		return 0;
+
+	return ext->length * sizeof(u32);
+}
 
 /**
  * struct mei_msg_hdr - MEI BUS Interface Section
@@ -193,6 +400,7 @@ enum  mei_cl_disconnect_status {
  * @host_addr: host address
  * @length: message length
  * @reserved: reserved
+ * @extended: message has extended header
  * @dma_ring: message is on dma ring
  * @internal: message is internal
  * @msg_complete: last packet of the message
@@ -202,22 +410,24 @@ struct mei_msg_hdr {
 	u32 me_addr:8;
 	u32 host_addr:8;
 	u32 length:9;
-	u32 reserved:4;
+	u32 reserved:3;
+	u32 extended:1;
 	u32 dma_ring:1;
 	u32 internal:1;
 	u32 msg_complete:1;
-	u32 extension[0];
+	u32 extension[];
 } __packed;
 
-#define MEI_MSG_HDR_MAX 2
+/* The length is up to 9 bits */
+#define MEI_MSG_MAX_LEN_MASK GENMASK(9, 0)
 
 struct mei_bus_message {
 	u8 hbm_cmd;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 /**
- * struct hbm_cl_cmd - client specific host bus command
+ * struct mei_hbm_cl_cmd - client specific host bus command
  *	CONNECT, DISCONNECT, and FlOW CONTROL
  *
  * @hbm_cmd: bus message command header
@@ -296,13 +506,26 @@ struct hbm_host_enum_response {
 	u8 valid_addresses[32];
 } __packed;
 
+/**
+ * struct mei_client_properties - mei client properties
+ *
+ * @protocol_name: guid of the client
+ * @protocol_version: client protocol version
+ * @max_number_of_connections: number of possible connections.
+ * @fixed_address: fixed me address (0 if the client is dynamic)
+ * @single_recv_buf: 1 if all connections share a single receive buffer.
+ * @vt_supported: the client support vtag
+ * @reserved: reserved
+ * @max_msg_length: MTU of the client
+ */
 struct mei_client_properties {
 	uuid_le protocol_name;
 	u8 protocol_version;
 	u8 max_number_of_connections;
 	u8 fixed_address;
 	u8 single_recv_buf:1;
-	u8 reserved:7;
+	u8 vt_supported:1;
+	u8 reserved:6;
 	u32 max_msg_length;
 } __packed;
 
@@ -316,7 +539,7 @@ struct hbm_props_response {
 	u8 hbm_cmd;
 	u8 me_addr;
 	u8 status;
-	u8 reserved[1];
+	u8 reserved;
 	struct mei_client_properties client_properties;
 } __packed;
 
@@ -349,7 +572,7 @@ struct hbm_add_client_response {
 	u8 hbm_cmd;
 	u8 me_addr;
 	u8 status;
-	u8 reserved[1];
+	u8 reserved;
 } __packed;
 
 /**
@@ -458,7 +681,7 @@ struct hbm_notification {
 	u8 hbm_cmd;
 	u8 me_addr;
 	u8 host_addr;
-	u8 reserved[1];
+	u8 reserved;
 } __packed;
 
 /**
@@ -508,7 +731,7 @@ struct hbm_dma_setup_response {
 } __packed;
 
 /**
- * struct mei_dma_ring_ctrl - dma ring control block
+ * struct hbm_dma_ring_ctrl - dma ring control block
  *
  * @hbuf_wr_idx: host circular buffer write index in slots
  * @reserved1: reserved for alignment
@@ -528,6 +751,84 @@ struct hbm_dma_ring_ctrl {
 	u32 reserved3;
 	u32 dbuf_rd_idx;
 	u32 reserved4;
+} __packed;
+
+/* virtual tag supported */
+#define HBM_CAP_VT BIT(0)
+
+/* gsc extended header support */
+#define HBM_CAP_GSC BIT(1)
+
+/* client dma supported */
+#define HBM_CAP_CD BIT(2)
+
+/**
+ * struct hbm_capability_request - capability request from host to fw
+ *
+ * @hbm_cmd : bus message command header
+ * @capability_requested: bitmask of capabilities requested by host
+ */
+struct hbm_capability_request {
+	u8 hbm_cmd;
+	u8 capability_requested[3];
+} __packed;
+
+/**
+ * struct hbm_capability_response - capability response from fw to host
+ *
+ * @hbm_cmd : bus message command header
+ * @capability_granted: bitmask of capabilities granted by FW
+ */
+struct hbm_capability_response {
+	u8 hbm_cmd;
+	u8 capability_granted[3];
+} __packed;
+
+/**
+ * struct hbm_client_dma_map_request - client dma map request from host to fw
+ *
+ * @hbm_cmd: bus message command header
+ * @client_buffer_id: client buffer id
+ * @reserved: reserved
+ * @address_lsb: DMA address LSB
+ * @address_msb: DMA address MSB
+ * @size: DMA size
+ */
+struct hbm_client_dma_map_request {
+	u8 hbm_cmd;
+	u8 client_buffer_id;
+	u8 reserved[2];
+	u32 address_lsb;
+	u32 address_msb;
+	u32 size;
+} __packed;
+
+/**
+ * struct hbm_client_dma_unmap_request - client dma unmap request
+ *        from the host to the firmware
+ *
+ * @hbm_cmd: bus message command header
+ * @status: unmap status
+ * @client_buffer_id: client buffer id
+ * @reserved: reserved
+ */
+struct hbm_client_dma_unmap_request {
+	u8 hbm_cmd;
+	u8 status;
+	u8 client_buffer_id;
+	u8 reserved;
+} __packed;
+
+/**
+ * struct hbm_client_dma_response - client dma unmap response
+ *        from the firmware to the host
+ *
+ * @hbm_cmd: bus message command header
+ * @status: command status
+ */
+struct hbm_client_dma_response {
+	u8 hbm_cmd;
+	u8 status;
 } __packed;
 
 #endif

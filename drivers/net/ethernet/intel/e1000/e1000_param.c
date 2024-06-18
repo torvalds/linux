@@ -82,7 +82,6 @@ E1000_PARAM(Duplex, "Duplex setting");
  */
 E1000_PARAM(AutoNeg, "Advertised auto-negotiation setting");
 #define AUTONEG_ADV_DEFAULT  0x2F
-#define AUTONEG_ADV_MASK     0x2F
 
 /* User Specified Flow Control Override
  *
@@ -95,7 +94,6 @@ E1000_PARAM(AutoNeg, "Advertised auto-negotiation setting");
  * Default Value: Read flow control settings from the EEPROM
  */
 E1000_PARAM(FlowControl, "Flow Control setting");
-#define FLOW_CONTROL_DEFAULT FLOW_CONTROL_FULL
 
 /* XsumRX - Receive Checksum Offload Enable/Disable
  *
@@ -708,7 +706,7 @@ static void e1000_check_copper_options(struct e1000_adapter *adapter)
 		goto full_duplex_only;
 	case SPEED_1000 + HALF_DUPLEX:
 		e_dev_info("Half Duplex is not supported at 1000 Mbps\n");
-		/* fall through */
+		fallthrough;
 	case SPEED_1000 + FULL_DUPLEX:
 full_duplex_only:
 		e_dev_info("Using Autonegotiation at 1000 Mbps Full Duplex "

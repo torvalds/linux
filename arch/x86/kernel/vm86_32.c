@@ -98,7 +98,6 @@ void save_v86_state(struct kernel_vm86_regs *regs, int retval)
 	struct task_struct *tsk = current;
 	struct vm86plus_struct __user *user;
 	struct vm86 *vm86 = current->thread.vm86;
-	long err = 0;
 
 	/*
 	 * This gets called from entry.S with interrupts disabled, but
@@ -107,45 +106,41 @@ void save_v86_state(struct kernel_vm86_regs *regs, int retval)
 	 */
 	local_irq_enable();
 
-	if (!vm86 || !vm86->user_vm86) {
-		pr_alert("no user_vm86: BAD\n");
-		do_exit(SIGSEGV);
-	}
+	BUG_ON(!vm86);
+
 	set_flags(regs->pt.flags, VEFLAGS, X86_EFLAGS_VIF | vm86->veflags_mask);
 	user = vm86->user_vm86;
 
-	if (!access_ok(user, vm86->vm86plus.is_vm86pus ?
+	if (!user_access_begin(user, vm86->vm86plus.is_vm86pus ?
 		       sizeof(struct vm86plus_struct) :
-		       sizeof(struct vm86_struct))) {
-		pr_alert("could not access userspace vm86 info\n");
-		do_exit(SIGSEGV);
-	}
+		       sizeof(struct vm86_struct)))
+		goto Efault;
 
-	put_user_try {
-		put_user_ex(regs->pt.bx, &user->regs.ebx);
-		put_user_ex(regs->pt.cx, &user->regs.ecx);
-		put_user_ex(regs->pt.dx, &user->regs.edx);
-		put_user_ex(regs->pt.si, &user->regs.esi);
-		put_user_ex(regs->pt.di, &user->regs.edi);
-		put_user_ex(regs->pt.bp, &user->regs.ebp);
-		put_user_ex(regs->pt.ax, &user->regs.eax);
-		put_user_ex(regs->pt.ip, &user->regs.eip);
-		put_user_ex(regs->pt.cs, &user->regs.cs);
-		put_user_ex(regs->pt.flags, &user->regs.eflags);
-		put_user_ex(regs->pt.sp, &user->regs.esp);
-		put_user_ex(regs->pt.ss, &user->regs.ss);
-		put_user_ex(regs->es, &user->regs.es);
-		put_user_ex(regs->ds, &user->regs.ds);
-		put_user_ex(regs->fs, &user->regs.fs);
-		put_user_ex(regs->gs, &user->regs.gs);
+	unsafe_put_user(regs->pt.bx, &user->regs.ebx, Efault_end);
+	unsafe_put_user(regs->pt.cx, &user->regs.ecx, Efault_end);
+	unsafe_put_user(regs->pt.dx, &user->regs.edx, Efault_end);
+	unsafe_put_user(regs->pt.si, &user->regs.esi, Efault_end);
+	unsafe_put_user(regs->pt.di, &user->regs.edi, Efault_end);
+	unsafe_put_user(regs->pt.bp, &user->regs.ebp, Efault_end);
+	unsafe_put_user(regs->pt.ax, &user->regs.eax, Efault_end);
+	unsafe_put_user(regs->pt.ip, &user->regs.eip, Efault_end);
+	unsafe_put_user(regs->pt.cs, &user->regs.cs, Efault_end);
+	unsafe_put_user(regs->pt.flags, &user->regs.eflags, Efault_end);
+	unsafe_put_user(regs->pt.sp, &user->regs.esp, Efault_end);
+	unsafe_put_user(regs->pt.ss, &user->regs.ss, Efault_end);
+	unsafe_put_user(regs->es, &user->regs.es, Efault_end);
+	unsafe_put_user(regs->ds, &user->regs.ds, Efault_end);
+	unsafe_put_user(regs->fs, &user->regs.fs, Efault_end);
+	unsafe_put_user(regs->gs, &user->regs.gs, Efault_end);
 
-		put_user_ex(vm86->screen_bitmap, &user->screen_bitmap);
-	} put_user_catch(err);
-	if (err) {
-		pr_alert("could not access userspace vm86 info\n");
-		do_exit(SIGSEGV);
-	}
+	/*
+	 * Don't write screen_bitmap in case some user had a value there
+	 * and expected it to remain unchanged.
+	 */
 
+	user_access_end();
+
+exit_vm86:
 	preempt_disable();
 	tsk->thread.sp0 = vm86->saved_sp0;
 	tsk->thread.sysenter_cs = __KERNEL_CS;
@@ -156,53 +151,18 @@ void save_v86_state(struct kernel_vm86_regs *regs, int retval)
 
 	memcpy(&regs->pt, &vm86->regs32, sizeof(struct pt_regs));
 
-	lazy_load_gs(vm86->regs32.gs);
+	loadsegment(gs, vm86->regs32.gs);
 
 	regs->pt.ax = retval;
+	return;
+
+Efault_end:
+	user_access_end();
+Efault:
+	pr_alert("could not access userspace vm86 info\n");
+	force_exit_sig(SIGSEGV);
+	goto exit_vm86;
 }
-
-static void mark_screen_rdonly(struct mm_struct *mm)
-{
-	struct vm_area_struct *vma;
-	spinlock_t *ptl;
-	pgd_t *pgd;
-	p4d_t *p4d;
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *pte;
-	int i;
-
-	down_write(&mm->mmap_sem);
-	pgd = pgd_offset(mm, 0xA0000);
-	if (pgd_none_or_clear_bad(pgd))
-		goto out;
-	p4d = p4d_offset(pgd, 0xA0000);
-	if (p4d_none_or_clear_bad(p4d))
-		goto out;
-	pud = pud_offset(p4d, 0xA0000);
-	if (pud_none_or_clear_bad(pud))
-		goto out;
-	pmd = pmd_offset(pud, 0xA0000);
-
-	if (pmd_trans_huge(*pmd)) {
-		vma = find_vma(mm, 0xA0000);
-		split_huge_pmd(vma, pmd, 0xA0000);
-	}
-	if (pmd_none_or_clear_bad(pmd))
-		goto out;
-	pte = pte_offset_map_lock(mm, pmd, 0xA0000, &ptl);
-	for (i = 0; i < 32; i++) {
-		if (pte_present(*pte))
-			set_pte(pte, pte_wrprotect(*pte));
-		pte++;
-	}
-	pte_unmap_unlock(pte, ptl);
-out:
-	up_write(&mm->mmap_sem);
-	flush_tlb_mm_range(mm, 0xA0000, 0xA0000 + 32*PAGE_SIZE, PAGE_SHIFT, false);
-}
-
-
 
 static int do_vm86_irq_handling(int subfunction, int irqnumber);
 static long do_sys_vm86(struct vm86plus_struct __user *user_vm86, bool plus);
@@ -243,6 +203,7 @@ static long do_sys_vm86(struct vm86plus_struct __user *user_vm86, bool plus)
 	struct kernel_vm86_regs vm86regs;
 	struct pt_regs *regs = current_pt_regs();
 	unsigned long err = 0;
+	struct vm86_struct v;
 
 	err = security_mmap_addr(0);
 	if (err) {
@@ -278,39 +239,40 @@ static long do_sys_vm86(struct vm86plus_struct __user *user_vm86, bool plus)
 	if (vm86->saved_sp0)
 		return -EPERM;
 
-	if (!access_ok(user_vm86, plus ?
-		       sizeof(struct vm86_struct) :
-		       sizeof(struct vm86plus_struct)))
+	if (copy_from_user(&v, user_vm86,
+			offsetof(struct vm86_struct, int_revectored)))
 		return -EFAULT;
 
-	memset(&vm86regs, 0, sizeof(vm86regs));
-	get_user_try {
-		unsigned short seg;
-		get_user_ex(vm86regs.pt.bx, &user_vm86->regs.ebx);
-		get_user_ex(vm86regs.pt.cx, &user_vm86->regs.ecx);
-		get_user_ex(vm86regs.pt.dx, &user_vm86->regs.edx);
-		get_user_ex(vm86regs.pt.si, &user_vm86->regs.esi);
-		get_user_ex(vm86regs.pt.di, &user_vm86->regs.edi);
-		get_user_ex(vm86regs.pt.bp, &user_vm86->regs.ebp);
-		get_user_ex(vm86regs.pt.ax, &user_vm86->regs.eax);
-		get_user_ex(vm86regs.pt.ip, &user_vm86->regs.eip);
-		get_user_ex(seg, &user_vm86->regs.cs);
-		vm86regs.pt.cs = seg;
-		get_user_ex(vm86regs.pt.flags, &user_vm86->regs.eflags);
-		get_user_ex(vm86regs.pt.sp, &user_vm86->regs.esp);
-		get_user_ex(seg, &user_vm86->regs.ss);
-		vm86regs.pt.ss = seg;
-		get_user_ex(vm86regs.es, &user_vm86->regs.es);
-		get_user_ex(vm86regs.ds, &user_vm86->regs.ds);
-		get_user_ex(vm86regs.fs, &user_vm86->regs.fs);
-		get_user_ex(vm86regs.gs, &user_vm86->regs.gs);
 
-		get_user_ex(vm86->flags, &user_vm86->flags);
-		get_user_ex(vm86->screen_bitmap, &user_vm86->screen_bitmap);
-		get_user_ex(vm86->cpu_type, &user_vm86->cpu_type);
-	} get_user_catch(err);
-	if (err)
-		return err;
+	/* VM86_SCREEN_BITMAP had numerous bugs and appears to have no users. */
+	if (v.flags & VM86_SCREEN_BITMAP) {
+		char comm[TASK_COMM_LEN];
+
+		pr_info_once("vm86: '%s' uses VM86_SCREEN_BITMAP, which is no longer supported\n", get_task_comm(comm, current));
+		return -EINVAL;
+	}
+
+	memset(&vm86regs, 0, sizeof(vm86regs));
+
+	vm86regs.pt.bx = v.regs.ebx;
+	vm86regs.pt.cx = v.regs.ecx;
+	vm86regs.pt.dx = v.regs.edx;
+	vm86regs.pt.si = v.regs.esi;
+	vm86regs.pt.di = v.regs.edi;
+	vm86regs.pt.bp = v.regs.ebp;
+	vm86regs.pt.ax = v.regs.eax;
+	vm86regs.pt.ip = v.regs.eip;
+	vm86regs.pt.cs = v.regs.cs;
+	vm86regs.pt.flags = v.regs.eflags;
+	vm86regs.pt.sp = v.regs.esp;
+	vm86regs.pt.ss = v.regs.ss;
+	vm86regs.es = v.regs.es;
+	vm86regs.ds = v.regs.ds;
+	vm86regs.fs = v.regs.fs;
+	vm86regs.gs = v.regs.gs;
+
+	vm86->flags = v.flags;
+	vm86->cpu_type = v.cpu_type;
 
 	if (copy_from_user(&vm86->int_revectored,
 			   &user_vm86->int_revectored,
@@ -363,7 +325,7 @@ static long do_sys_vm86(struct vm86plus_struct __user *user_vm86, bool plus)
  * Save old state
  */
 	vm86->saved_sp0 = tsk->thread.sp0;
-	lazy_save_gs(vm86->regs32.gs);
+	savesegment(gs, vm86->regs32.gs);
 
 	/* make room for real-mode segments */
 	preempt_disable();
@@ -377,11 +339,7 @@ static long do_sys_vm86(struct vm86plus_struct __user *user_vm86, bool plus)
 	update_task_stack(tsk);
 	preempt_enable();
 
-	if (vm86->flags & VM86_SCREEN_BITMAP)
-		mark_screen_rdonly(tsk->mm);
-
 	memcpy((struct kernel_vm86_regs *)regs, &vm86regs, sizeof(vm86regs));
-	force_iret();
 	return regs->ax;
 }
 

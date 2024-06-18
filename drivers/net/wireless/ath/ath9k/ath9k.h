@@ -20,6 +20,7 @@
 #include <linux/etherdevice.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
+#include <linux/kstrtox.h>
 #include <linux/leds.h>
 #include <linux/completion.h>
 #include <linux/time.h>
@@ -38,6 +39,7 @@ extern int ath9k_modparam_nohwcrypt;
 extern int ath9k_led_blink;
 extern bool is_ath9k_unloaded;
 extern int ath9k_use_chanctx;
+extern int ath9k_use_msi;
 
 /*************************/
 /* Descriptor Management */
@@ -177,7 +179,8 @@ struct ath_frame_info {
 	s8 txq;
 	u8 keyix;
 	u8 rtscts_rate;
-	u8 retries : 7;
+	u8 retries : 6;
+	u8 dyn_smps : 1;
 	u8 baw_tracked : 1;
 	u8 tx_power;
 	enum ath9k_key_type keytype:2;
@@ -661,7 +664,6 @@ struct ath9k_vif_iter_data {
 	int naps;      /* number of AP vifs */
 	int nmeshes;   /* number of mesh vifs */
 	int nstations; /* number of station vifs */
-	int nwds;      /* number of WDS vifs */
 	int nadhocs;   /* number of adhoc vifs */
 	int nocbs;     /* number of OCB vifs */
 	int nbcnvifs;  /* number of beaconing vifs */
@@ -713,7 +715,7 @@ struct ath_beacon {
 	bool tx_last;
 };
 
-void ath9k_beacon_tasklet(unsigned long data);
+void ath9k_beacon_tasklet(struct tasklet_struct *t);
 void ath9k_beacon_config(struct ath_softc *sc, struct ieee80211_vif *main_vif,
 			 bool beacons);
 void ath9k_beacon_assign_slot(struct ath_softc *sc, struct ieee80211_vif *vif);
@@ -1071,8 +1073,9 @@ struct ath_softc {
 #endif
 
 #ifdef CONFIG_ATH9K_HWRNG
+	struct hwrng rng_ops;
 	u32 rng_last;
-	struct task_struct *rng_task;
+	char rng_name[sizeof("ath9k_65535")];
 #endif
 };
 
@@ -1117,7 +1120,7 @@ static inline void ath_read_cachesize(struct ath_common *common, int *csz)
 	common->bus_ops->read_cachesize(common, csz);
 }
 
-void ath9k_tasklet(unsigned long data);
+void ath9k_tasklet(struct tasklet_struct *t);
 int ath_cabq_update(struct ath_softc *);
 u8 ath9k_parse_mpdudensity(u8 mpdudensity);
 irqreturn_t ath_isr(int irq, void *dev);
@@ -1127,7 +1130,6 @@ void ath_restart_work(struct ath_softc *sc);
 int ath9k_init_device(u16 devid, struct ath_softc *sc,
 		    const struct ath_bus_ops *bus_ops);
 void ath9k_deinit_device(struct ath_softc *sc);
-void ath9k_reload_chainmask_settings(struct ath_softc *sc);
 u8 ath_txchainmask_reduction(struct ath_softc *sc, u8 chainmask, u32 rate);
 void ath_start_rfkill_poll(struct ath_softc *sc);
 void ath9k_rfkill_poll_state(struct ieee80211_hw *hw);

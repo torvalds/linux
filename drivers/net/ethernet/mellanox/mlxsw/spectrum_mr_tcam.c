@@ -199,8 +199,8 @@ mlxsw_sp_mr_tcam_afa_block_create(struct mlxsw_sp *mlxsw_sp,
 	int err;
 
 	afa_block = mlxsw_afa_block_create(mlxsw_sp->afa);
-	if (!afa_block)
-		return ERR_PTR(-ENOMEM);
+	if (IS_ERR(afa_block))
+		return afa_block;
 
 	err = mlxsw_afa_block_append_allocated_counter(afa_block,
 						       counter_index);
@@ -361,7 +361,7 @@ static int mlxsw_sp_mr_tcam_route_stats(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_mr_tcam_route *route = route_priv;
 
 	return mlxsw_sp_flow_counter_get(mlxsw_sp, route->counter_index,
-					 packets, bytes);
+					 false, packets, bytes);
 }
 
 static int

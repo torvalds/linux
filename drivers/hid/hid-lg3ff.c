@@ -41,10 +41,6 @@
  * I'm sure these are effects that I don't know enough about them
  */
 
-struct lg3ff_device {
-	struct hid_report *report;
-};
-
 static int hid_lg3ff_play(struct input_dev *dev, void *data,
 			 struct ff_effect *effect)
 {
@@ -117,11 +113,18 @@ static const signed short ff3_joystick_ac[] = {
 
 int lg3ff_init(struct hid_device *hid)
 {
-	struct hid_input *hidinput = list_entry(hid->inputs.next, struct hid_input, list);
-	struct input_dev *dev = hidinput->input;
+	struct hid_input *hidinput;
+	struct input_dev *dev;
 	const signed short *ff_bits = ff3_joystick_ac;
 	int error;
 	int i;
+
+	if (list_empty(&hid->inputs)) {
+		hid_err(hid, "no inputs found\n");
+		return -ENODEV;
+	}
+	hidinput = list_entry(hid->inputs.next, struct hid_input, list);
+	dev = hidinput->input;
 
 	/* Check that the report looks ok */
 	if (!hid_validate_values(hid, HID_OUTPUT_REPORT, 0, 0, 35))

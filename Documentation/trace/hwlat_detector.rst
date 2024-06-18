@@ -14,7 +14,7 @@ originally written for use by the "RT" patch since the Real Time
 kernel is highly latency sensitive.
 
 SMIs are not serviced by the Linux kernel, which means that it does not
-even know that they are occuring. SMIs are instead set up by BIOS code
+even know that they are occurring. SMIs are instead set up by BIOS code
 and are serviced by BIOS code, usually for "critical" events such as
 management of thermal sensors and fans. Sometimes though, SMIs are used for
 other tasks and those tasks can spend an inordinate amount of time in the
@@ -76,8 +76,13 @@ in /sys/kernel/tracing:
  - tracing_cpumask	- the CPUs to move the hwlat thread across
  - hwlat_detector/width	- specified amount of time to spin within window (usecs)
  - hwlat_detector/window	- amount of time between (width) runs (usecs)
+ - hwlat_detector/mode	- the thread mode
 
-The hwlat detector's kernel thread will migrate across each CPU specified in
-tracing_cpumask between each window. To limit the migration, either modify
-tracing_cpumask, or modify the hwlat kernel thread (named [hwlatd]) CPU
-affinity directly, and the migration will stop.
+By default, one hwlat detector's kernel thread will migrate across each CPU
+specified in cpumask at the beginning of a new window, in a round-robin
+fashion. This behavior can be changed by changing the thread mode,
+the available options are:
+
+ - none:        do not force migration
+ - round-robin: migrate across each CPU specified in cpumask [default]
+ - per-cpu:     create one thread for each cpu in tracing_cpumask

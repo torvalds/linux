@@ -54,9 +54,35 @@ config SQUASHFS_FILE_DIRECT
 
 endchoice
 
-choice
-	prompt "Decompressor parallelisation options"
+config SQUASHFS_DECOMP_SINGLE
 	depends on SQUASHFS
+	def_bool n
+
+config SQUASHFS_DECOMP_MULTI
+	depends on SQUASHFS
+	def_bool n
+
+config SQUASHFS_DECOMP_MULTI_PERCPU
+	depends on SQUASHFS
+	def_bool n
+
+config SQUASHFS_CHOICE_DECOMP_BY_MOUNT
+	bool "Select the parallel decompression mode during mount"
+	depends on SQUASHFS
+	default n
+	select SQUASHFS_DECOMP_SINGLE
+	select SQUASHFS_DECOMP_MULTI
+	select SQUASHFS_DECOMP_MULTI_PERCPU
+	select SQUASHFS_MOUNT_DECOMP_THREADS
+	help
+	  Compile all parallel decompression modes and specify the
+	  decompression mode by setting "threads=" during mount.
+	  default Decompressor parallelisation is SQUASHFS_DECOMP_SINGLE
+
+choice
+	prompt "Select decompression parallel mode at compile time"
+	depends on SQUASHFS
+	depends on !SQUASHFS_CHOICE_DECOMP_BY_MOUNT
 	help
 	  Squashfs now supports three parallelisation options for
 	  decompression.  Each one exhibits various trade-offs between
@@ -64,15 +90,17 @@ choice
 
 	  If in doubt, select "Single threaded compression"
 
-config SQUASHFS_DECOMP_SINGLE
+config SQUASHFS_COMPILE_DECOMP_SINGLE
 	bool "Single threaded compression"
+	select SQUASHFS_DECOMP_SINGLE
 	help
 	  Traditionally Squashfs has used single-threaded decompression.
 	  Only one block (data or metadata) can be decompressed at any
 	  one time.  This limits CPU and memory usage to a minimum.
 
-config SQUASHFS_DECOMP_MULTI
+config SQUASHFS_COMPILE_DECOMP_MULTI
 	bool "Use multiple decompressors for parallel I/O"
+	select SQUASHFS_DECOMP_MULTI
 	help
 	  By default Squashfs uses a single decompressor but it gives
 	  poor performance on parallel I/O workloads when using multiple CPU
@@ -85,8 +113,9 @@ config SQUASHFS_DECOMP_MULTI
 	  decompressors per core.  It dynamically allocates decompressors
 	  on a demand basis.
 
-config SQUASHFS_DECOMP_MULTI_PERCPU
+config SQUASHFS_COMPILE_DECOMP_MULTI_PERCPU
 	bool "Use percpu multiple decompressors for parallel I/O"
+	select SQUASHFS_DECOMP_MULTI_PERCPU
 	help
 	  By default Squashfs uses a single decompressor but it gives
 	  poor performance on parallel I/O workloads when using multiple CPU
@@ -95,8 +124,20 @@ config SQUASHFS_DECOMP_MULTI_PERCPU
 	  This decompressor implementation uses a maximum of one
 	  decompressor per core.  It uses percpu variables to ensure
 	  decompression is load-balanced across the cores.
-
 endchoice
+
+config SQUASHFS_MOUNT_DECOMP_THREADS
+	bool "Add the mount parameter 'threads=' for squashfs"
+	depends on SQUASHFS
+	depends on SQUASHFS_DECOMP_MULTI
+	default n
+	help
+	  Use threads= to set the decompression parallel mode and the number of threads.
+	  If SQUASHFS_CHOICE_DECOMP_BY_MOUNT=y
+	      threads=<single|multi|percpu|1|2|3|...>
+	  else
+	      threads=<2|3|...>
+	  The upper limit is num_online_cpus() * 2.
 
 config SQUASHFS_XATTR
 	bool "Squashfs XATTR support"

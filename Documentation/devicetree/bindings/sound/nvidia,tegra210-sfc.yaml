@@ -1,0 +1,74 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/nvidia,tegra210-sfc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Tegra210 SFC
+
+description: |
+  The Sampling Frequency Converter (SFC) converts the sampling frequency
+  of the input signal from one frequency to another. It supports sampling
+  frequency conversions of streams of up to two channels (stereo).
+
+maintainers:
+  - Jon Hunter <jonathanh@nvidia.com>
+  - Mohan Kumar <mkumard@nvidia.com>
+  - Sameer Pujar <spujar@nvidia.com>
+
+allOf:
+  - $ref: dai-common.yaml#
+
+properties:
+  $nodename:
+    pattern: "^sfc@[0-9a-f]*$"
+
+  compatible:
+    oneOf:
+      - const: nvidia,tegra210-sfc
+      - items:
+          - enum:
+              - nvidia,tegra234-sfc
+              - nvidia,tegra194-sfc
+              - nvidia,tegra186-sfc
+          - const: nvidia,tegra210-sfc
+
+  reg:
+    maxItems: 1
+
+  sound-name-prefix:
+    pattern: "^SFC[1-9]$"
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+    properties:
+      port@0:
+        $ref: audio-graph-port.yaml#
+        unevaluatedProperties: false
+        description: |
+          SFC ACIF (Audio Client Interface) input port. This is connected
+          to corresponding ACIF output port on AHUB (Audio Hub).
+
+      port@1:
+        $ref: audio-graph-port.yaml#
+        unevaluatedProperties: false
+        description: |
+          SFC ACIF output port. This is connected to corresponding ACIF
+          input port on AHUB.
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+
+    sfc@702d2000 {
+        compatible = "nvidia,tegra210-sfc";
+        reg = <0x702d2000 0x200>;
+        sound-name-prefix = "SFC1";
+    };
+
+...

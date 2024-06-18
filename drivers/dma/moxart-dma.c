@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * MOXA ART SoCs DMA Engine support.
  *
  * Copyright (C) 2013 Jonas Jensen
  *
  * Jonas Jensen <jonas.jensen@gmail.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 #include <linux/dmaengine.h>
@@ -127,7 +124,7 @@ struct moxart_desc {
 	unsigned int			dma_cycles;
 	struct virt_dma_desc		vd;
 	uint8_t				es;
-	struct moxart_sg		sg[0];
+	struct moxart_sg		sg[] __counted_by(sglen);
 };
 
 struct moxart_chan {
@@ -312,6 +309,7 @@ static struct dma_async_tx_descriptor *moxart_prep_slave_sg(
 	d = kzalloc(struct_size(d, sg, sg_len), GFP_ATOMIC);
 	if (!d)
 		return NULL;
+	d->sglen = sg_len;
 
 	d->dma_dir = dir;
 	d->dev_addr = dev_addr;
@@ -321,8 +319,6 @@ static struct dma_async_tx_descriptor *moxart_prep_slave_sg(
 		d->sg[i].addr = sg_dma_address(sgent);
 		d->sg[i].len = sg_dma_len(sgent);
 	}
-
-	d->sglen = sg_len;
 
 	ch->error = 0;
 
@@ -524,7 +520,6 @@ static irqreturn_t moxart_dma_interrupt(int irq, void *devid)
 	struct moxart_dmadev *mc = devid;
 	struct moxart_chan *ch = &mc->slave_chans[0];
 	unsigned int i;
-	unsigned long flags;
 	u32 ctrl;
 
 	dev_dbg(chan2dev(&ch->vc.chan), "%s\n", __func__);
@@ -541,14 +536,14 @@ static irqreturn_t moxart_dma_interrupt(int irq, void *devid)
 		if (ctrl & APB_DMA_FIN_INT_STS) {
 			ctrl &= ~APB_DMA_FIN_INT_STS;
 			if (ch->desc) {
-				spin_lock_irqsave(&ch->vc.lock, flags);
+				spin_lock(&ch->vc.lock);
 				if (++ch->sgidx < ch->desc->sglen) {
 					moxart_dma_start_sg(ch, ch->sgidx);
 				} else {
 					vchan_cookie_complete(&ch->desc->vd);
 					moxart_dma_start_desc(&ch->vc.chan);
 				}
-				spin_unlock_irqrestore(&ch->vc.lock, flags);
+				spin_unlock(&ch->vc.lock);
 			}
 		}
 
@@ -567,8 +562,7 @@ static int moxart_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->of_node;
-	struct resource *res;
-	static void __iomem *dma_base_addr;
+	void __iomem *dma_base_addr;
 	int ret, i;
 	unsigned int irq;
 	struct moxart_chan *ch;
@@ -584,8 +578,7 @@ static int moxart_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dma_base_addr = devm_ioremap_resource(dev, res);
+	dma_base_addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dma_base_addr))
 		return PTR_ERR(dma_base_addr);
 
@@ -636,7 +629,7 @@ static int moxart_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int moxart_remove(struct platform_device *pdev)
+static void moxart_remove(struct platform_device *pdev)
 {
 	struct moxart_dmadev *m = platform_get_drvdata(pdev);
 
@@ -646,8 +639,6 @@ static int moxart_remove(struct platform_device *pdev)
 
 	if (pdev->dev.of_node)
 		of_dma_controller_free(pdev->dev.of_node);
-
-	return 0;
 }
 
 static const struct of_device_id moxart_dma_match[] = {
@@ -658,7 +649,7 @@ MODULE_DEVICE_TABLE(of, moxart_dma_match);
 
 static struct platform_driver moxart_driver = {
 	.probe	= moxart_probe,
-	.remove	= moxart_remove,
+	.remove_new = moxart_remove,
 	.driver = {
 		.name		= "moxart-dma-engine",
 		.of_match_table	= moxart_dma_match,

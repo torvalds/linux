@@ -1,0 +1,64 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (C) 2022 Microchip Technology, Inc. and its subsidiaries
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/crypto/atmel,at91sam9g46-sha.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Atmel Secure Hash Algorithm (SHA) HW cryptographic accelerator
+
+maintainers:
+  - Tudor Ambarus <tudor.ambarus@linaro.org>
+
+properties:
+  compatible:
+    oneOf:
+      - const: atmel,at91sam9g46-sha
+      - items:
+          - const: microchip,sam9x7-sha
+          - const: atmel,at91sam9g46-sha
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    const: sha_clk
+
+  dmas:
+    maxItems: 1
+    description: TX DMA Channel
+
+  dma-names:
+    const: tx
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/at91.h>
+    #include <dt-bindings/dma/at91.h>
+
+    sha: crypto@e1814000 {
+      compatible = "atmel,at91sam9g46-sha";
+      reg = <0xe1814000 0x100>;
+      interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
+      clocks = <&pmc PMC_TYPE_PERIPHERAL 83>;
+      clock-names = "sha_clk";
+      dmas = <&dma0 AT91_XDMAC_DT_PERID(48)>;
+      dma-names = "tx";
+    };

@@ -301,6 +301,23 @@ struct acpi_rsdump_info acpi_rs_dump_pin_function[10] = {
 	 "VendorData", NULL},
 };
 
+struct acpi_rsdump_info acpi_rs_dump_clock_input[7] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_clock_input),
+	 "ClockInput", NULL},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(clock_input.revision_id), "RevisionId",
+	 NULL},
+	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(clock_input.frequency_numerator),
+	 "FrequencyNumerator", NULL},
+	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(clock_input.frequency_divisor),
+	 "FrequencyDivisor", NULL},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(clock_input.scale), "Scale",
+	 acpi_gbl_clock_input_scale},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(clock_input.mode), "Mode",
+	 acpi_gbl_clock_input_mode},
+	{ACPI_RSD_SOURCE, ACPI_RSD_OFFSET(clock_input.resource_source),
+	 "ResourceSource", NULL},
+};
+
 struct acpi_rsdump_info acpi_rs_dump_pin_config[11] = {
 	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_pin_config),
 	 "PinConfig", NULL},
@@ -419,6 +436,32 @@ struct acpi_rsdump_info acpi_rs_dump_common_serial_bus[11] = {
 	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_common_serial_bus),
 	 "Common Serial Bus", NULL},
 	ACPI_RS_DUMP_COMMON_SERIAL_BUS
+};
+
+struct acpi_rsdump_info acpi_rs_dump_csi2_serial_bus[11] = {
+	{ ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_csi2_serial_bus),
+	 "Camera Serial Bus", NULL },
+	{ ACPI_RSD_UINT8, ACPI_RSD_OFFSET(csi2_serial_bus.revision_id),
+	 "RevisionId", NULL },
+	{ ACPI_RSD_UINT8, ACPI_RSD_OFFSET(csi2_serial_bus.type), "Type",
+	 acpi_gbl_sbt_decode },
+	{ ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(csi2_serial_bus.producer_consumer),
+	 "ProducerConsumer", acpi_gbl_consume_decode },
+	{ ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(csi2_serial_bus.slave_mode),
+	 "SlaveMode", acpi_gbl_sm_decode },
+	{ ACPI_RSD_2BITFLAG, ACPI_RSD_OFFSET(csi2_serial_bus.phy_type),
+	 "PhyType", acpi_gbl_phy_decode },
+	{ ACPI_RSD_6BITFLAG,
+	 ACPI_RSD_OFFSET(csi2_serial_bus.local_port_instance),
+	 "LocalPortInstance", NULL },
+	{ ACPI_RSD_UINT8, ACPI_RSD_OFFSET(csi2_serial_bus.type_revision_id),
+	 "TypeRevisionId", NULL },
+	{ ACPI_RSD_UINT16, ACPI_RSD_OFFSET(csi2_serial_bus.vendor_length),
+	 "VendorLength", NULL },
+	{ ACPI_RSD_SHORTLISTX, ACPI_RSD_OFFSET(csi2_serial_bus.vendor_data),
+	 "VendorData", NULL },
+	{ ACPI_RSD_SOURCE, ACPI_RSD_OFFSET(csi2_serial_bus.resource_source),
+	 "ResourceSource", NULL },
 };
 
 struct acpi_rsdump_info acpi_rs_dump_i2c_serial_bus[14] = {

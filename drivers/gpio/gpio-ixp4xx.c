@@ -14,10 +14,6 @@
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/bitops.h>
-/* Include that go away with DT transition */
-#include <linux/irqchip/irq-ixp4xx.h>
-
-#include <asm/mach-types.h>
 
 #define IXP4XX_REG_GPOUT	0x00
 #define IXP4XX_REG_GPOE		0x04
@@ -41,6 +37,18 @@
 #define IXP4XX_GPIO_STYLE_TRANSITIONAL	0x4
 #define IXP4XX_GPIO_STYLE_MASK		GENMASK(2, 0)
 #define IXP4XX_GPIO_STYLE_SIZE		3
+
+/*
+ * Clock output control register defines.
+ */
+#define IXP4XX_GPCLK_CLK0DC_SHIFT	0
+#define IXP4XX_GPCLK_CLK0TC_SHIFT	4
+#define IXP4XX_GPCLK_CLK0_MASK		GENMASK(7, 0)
+#define IXP4XX_GPCLK_MUX14		BIT(8)
+#define IXP4XX_GPCLK_CLK1DC_SHIFT	16
+#define IXP4XX_GPCLK_CLK1TC_SHIFT	20
+#define IXP4XX_GPCLK_CLK1_MASK		GENMASK(23, 16)
+#define IXP4XX_GPCLK_MUX15		BIT(24)
 
 /**
  * struct ixp4xx_gpio - IXP4 GPIO state container
@@ -67,6 +75,14 @@ static void ixp4xx_gpio_irq_ack(struct irq_data *d)
 	__raw_writel(BIT(d->hwirq), g->base + IXP4XX_REG_GPIS);
 }
 
+static void ixp4xx_gpio_mask_irq(struct irq_data *d)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+
+	irq_chip_mask_parent(d);
+	gpiochip_disable_irq(gc, d->hwirq);
+}
+
 static void ixp4xx_gpio_irq_unmask(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
@@ -76,6 +92,7 @@ static void ixp4xx_gpio_irq_unmask(struct irq_data *d)
 	if (!(g->irq_edge & BIT(d->hwirq)))
 		ixp4xx_gpio_irq_ack(d);
 
+	gpiochip_enable_irq(gc, d->hwirq);
 	irq_chip_unmask_parent(d);
 }
 
@@ -128,7 +145,7 @@ static int ixp4xx_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 		int_reg = IXP4XX_REG_GPIT1;
 	}
 
-	spin_lock_irqsave(&g->gc.bgpio_lock, flags);
+	raw_spin_lock_irqsave(&g->gc.bgpio_lock, flags);
 
 	/* Clear the style for the appropriate pin */
 	val = __raw_readl(g->base + int_reg);
@@ -147,18 +164,20 @@ static int ixp4xx_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	val |= BIT(d->hwirq);
 	__raw_writel(val, g->base + IXP4XX_REG_GPOE);
 
-	spin_unlock_irqrestore(&g->gc.bgpio_lock, flags);
+	raw_spin_unlock_irqrestore(&g->gc.bgpio_lock, flags);
 
 	/* This parent only accept level high (asserted) */
 	return irq_chip_set_type_parent(d, IRQ_TYPE_LEVEL_HIGH);
 }
 
-static struct irq_chip ixp4xx_gpio_irqchip = {
+static const struct irq_chip ixp4xx_gpio_irqchip = {
 	.name = "IXP4GPIO",
 	.irq_ack = ixp4xx_gpio_irq_ack,
-	.irq_mask = irq_chip_mask_parent,
+	.irq_mask = ixp4xx_gpio_mask_irq,
 	.irq_unmask = ixp4xx_gpio_irq_unmask,
 	.irq_set_type = ixp4xx_gpio_irq_set_type,
+	.flags = IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
 };
 
 static int ixp4xx_gpio_child_to_parent_hwirq(struct gpio_chip *gc,
@@ -192,9 +211,11 @@ static int ixp4xx_gpio_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct irq_domain *parent;
-	struct resource *res;
 	struct ixp4xx_gpio *g;
 	struct gpio_irq_chip *girq;
+	struct device_node *irq_parent;
+	bool clk_14, clk_15;
+	u32 val;
 	int ret;
 
 	g = devm_kzalloc(dev, sizeof(*g), GFP_KERNEL);
@@ -202,46 +223,64 @@ static int ixp4xx_gpio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	g->dev = dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	g->base = devm_ioremap_resource(dev, res);
+	g->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(g->base))
 		return PTR_ERR(g->base);
 
-	/*
-	 * When we convert to device tree we will simply look up the
-	 * parent irqdomain using irq_find_host(parent) as parent comes
-	 * from IRQCHIP_DECLARE(), then use of_node_to_fwnode() to get
-	 * the fwnode. For now we need this boardfile style code.
-	 */
-	if (np) {
-		struct device_node *irq_parent;
-
-		irq_parent = of_irq_find_parent(np);
-		if (!irq_parent) {
-			dev_err(dev, "no IRQ parent node\n");
-			return -ENODEV;
-		}
-		parent = irq_find_host(irq_parent);
-		if (!parent) {
-			dev_err(dev, "no IRQ parent domain\n");
-			return -ENODEV;
-		}
-		g->fwnode = of_node_to_fwnode(np);
-	} else {
-		parent = ixp4xx_get_irq_domain();
-		g->fwnode = irq_domain_alloc_fwnode(&res->start);
-		if (!g->fwnode) {
-			dev_err(dev, "no domain base\n");
-			return -ENODEV;
-		}
+	irq_parent = of_irq_find_parent(np);
+	if (!irq_parent) {
+		dev_err(dev, "no IRQ parent node\n");
+		return -ENODEV;
 	}
+	parent = irq_find_host(irq_parent);
+	if (!parent) {
+		dev_err(dev, "no IRQ parent domain\n");
+		return -ENODEV;
+	}
+	g->fwnode = of_node_to_fwnode(np);
+
+	/*
+	 * If either clock output is enabled explicitly in the device tree
+	 * we take full control of the clock by masking off all bits for
+	 * the clock control and selectively enabling them. Otherwise
+	 * we leave the hardware default settings.
+	 *
+	 * Enable clock outputs with default timings of requested clock.
+	 * If you need control over TC and DC, add these to the device
+	 * tree bindings and use them here.
+	 */
+	clk_14 = of_property_read_bool(np, "intel,ixp4xx-gpio14-clkout");
+	clk_15 = of_property_read_bool(np, "intel,ixp4xx-gpio15-clkout");
 
 	/*
 	 * Make sure GPIO 14 and 15 are NOT used as clocks but GPIO on
 	 * specific machines.
 	 */
-	if (machine_is_dsmg600() || machine_is_nas100d())
-		__raw_writel(0x0, g->base + IXP4XX_REG_GPCLK);
+	if (of_machine_is_compatible("dlink,dsm-g600-a") ||
+	    of_machine_is_compatible("iom,nas-100d"))
+		val = 0;
+	else {
+		val = __raw_readl(g->base + IXP4XX_REG_GPCLK);
+
+		if (clk_14 || clk_15) {
+			val &= ~(IXP4XX_GPCLK_MUX14 | IXP4XX_GPCLK_MUX15);
+			val &= ~IXP4XX_GPCLK_CLK0_MASK;
+			val &= ~IXP4XX_GPCLK_CLK1_MASK;
+			if (clk_14) {
+				/* IXP4XX_GPCLK_CLK0DC implicit low */
+				val |= (1 << IXP4XX_GPCLK_CLK0TC_SHIFT);
+				val |= IXP4XX_GPCLK_MUX14;
+			}
+
+			if (clk_15) {
+				/* IXP4XX_GPCLK_CLK1DC implicit low */
+				val |= (1 << IXP4XX_GPCLK_CLK1TC_SHIFT);
+				val |= IXP4XX_GPCLK_MUX15;
+			}
+		}
+	}
+
+	__raw_writel(val, g->base + IXP4XX_REG_GPCLK);
 
 	/*
 	 * This is a very special big-endian ARM issue: when the IXP4xx is
@@ -282,7 +321,7 @@ static int ixp4xx_gpio_probe(struct platform_device *pdev)
 	g->gc.owner = THIS_MODULE;
 
 	girq = &g->gc.irq;
-	girq->chip = &ixp4xx_gpio_irqchip;
+	gpio_irq_chip_set_chip(girq, &ixp4xx_gpio_irqchip);
 	girq->fwnode = g->fwnode;
 	girq->parent_domain = parent;
 	girq->child_to_parent_hwirq = ixp4xx_gpio_child_to_parent_hwirq;
@@ -312,7 +351,7 @@ static const struct of_device_id ixp4xx_gpio_of_match[] = {
 static struct platform_driver ixp4xx_gpio_driver = {
 	.driver = {
 		.name		= "ixp4xx-gpio",
-		.of_match_table = of_match_ptr(ixp4xx_gpio_of_match),
+		.of_match_table = ixp4xx_gpio_of_match,
 	},
 	.probe = ixp4xx_gpio_probe,
 };

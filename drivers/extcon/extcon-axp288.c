@@ -24,6 +24,7 @@
 
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
+#include <asm/iosf_mbi.h>
 
 /* Power source status register */
 #define PS_STAT_VBUS_TRIGGER		BIT(0)
@@ -107,7 +108,7 @@ struct axp288_extcon_info {
 };
 
 static const struct x86_cpu_id cherry_trail_cpu_ids[] = {
-	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_ATOM_AIRMONT, X86_FEATURE_ANY },
+	X86_MATCH_INTEL_FAM6_MODEL(ATOM_AIRMONT,	NULL),
 	{}
 };
 
@@ -215,6 +216,10 @@ static int axp288_handle_chrg_det_event(struct axp288_extcon_info *info)
 	unsigned int cable = info->previous_cable;
 	bool vbus_attach = false;
 
+	ret = iosf_mbi_block_punit_i2c_access();
+	if (ret < 0)
+		return ret;
+
 	vbus_attach = axp288_get_vbus_attach(info);
 	if (!vbus_attach)
 		goto no_vbus;
@@ -253,6 +258,8 @@ static int axp288_handle_chrg_det_event(struct axp288_extcon_info *info)
 	}
 
 no_vbus:
+	iosf_mbi_unblock_punit_i2c_access();
+
 	extcon_set_state_sync(info->edev, info->previous_cable, false);
 	if (info->previous_cable == EXTCON_CHG_USB_SDP)
 		extcon_set_state_sync(info->edev, EXTCON_USB, false);
@@ -275,6 +282,8 @@ no_vbus:
 	return 0;
 
 dev_det_ret:
+	iosf_mbi_unblock_punit_i2c_access();
+
 	if (ret < 0)
 		dev_err(info->dev, "failed to detect BC Mod\n");
 
@@ -305,13 +314,23 @@ static irqreturn_t axp288_extcon_isr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void axp288_extcon_enable(struct axp288_extcon_info *info)
+static int axp288_extcon_enable(struct axp288_extcon_info *info)
 {
+	int ret = 0;
+
+	ret = iosf_mbi_block_punit_i2c_access();
+	if (ret < 0)
+		return ret;
+
 	regmap_update_bits(info->regmap, AXP288_BC_GLOBAL_REG,
 						BC_GLOBAL_RUN, 0);
 	/* Enable the charger detection logic */
 	regmap_update_bits(info->regmap, AXP288_BC_GLOBAL_REG,
 					BC_GLOBAL_RUN, BC_GLOBAL_RUN);
+
+	iosf_mbi_unblock_punit_i2c_access();
+
+	return ret;
 }
 
 static void axp288_put_role_sw(void *data)
@@ -320,6 +339,25 @@ static void axp288_put_role_sw(void *data)
 
 	cancel_work_sync(&info->role_work);
 	usb_role_switch_put(info->role_sw);
+}
+
+static int axp288_extcon_find_role_sw(struct axp288_extcon_info *info)
+{
+	const struct software_node *swnode;
+	struct fwnode_handle *fwnode;
+
+	if (!x86_match_cpu(cherry_trail_cpu_ids))
+		return 0;
+
+	swnode = software_node_find_by_name(NULL, "intel-xhci-usb-sw");
+	if (!swnode)
+		return -EPROBE_DEFER;
+
+	fwnode = software_node_fwnode(swnode);
+	info->role_sw = usb_role_switch_find_by_fwnode(fwnode);
+	fwnode_handle_put(fwnode);
+
+	return info->role_sw ? 0 : -EPROBE_DEFER;
 }
 
 static int axp288_extcon_probe(struct platform_device *pdev)
@@ -343,9 +381,10 @@ static int axp288_extcon_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, info);
 
-	info->role_sw = usb_role_switch_get(dev);
-	if (IS_ERR(info->role_sw))
-		return PTR_ERR(info->role_sw);
+	ret = axp288_extcon_find_role_sw(info);
+	if (ret)
+		return ret;
+
 	if (info->role_sw) {
 		ret = devm_add_action_or_reset(dev, axp288_put_role_sw, info);
 		if (ret)
@@ -354,9 +393,9 @@ static int axp288_extcon_probe(struct platform_device *pdev)
 		adev = acpi_dev_get_first_match_dev("INT3496", NULL, -1);
 		if (adev) {
 			info->id_extcon = extcon_get_extcon_dev(acpi_dev_name(adev));
-			put_device(&adev->dev);
-			if (!info->id_extcon)
-				return -EPROBE_DEFER;
+			acpi_dev_put(adev);
+			if (IS_ERR(info->id_extcon))
+				return PTR_ERR(info->id_extcon);
 
 			dev_info(dev, "controlling USB role\n");
 		} else {
@@ -364,9 +403,15 @@ static int axp288_extcon_probe(struct platform_device *pdev)
 		}
 	}
 
+	ret = iosf_mbi_block_punit_i2c_access();
+	if (ret < 0)
+		return ret;
+
 	info->vbus_attach = axp288_get_vbus_attach(info);
 
 	axp288_extcon_log_rsi(info);
+
+	iosf_mbi_unblock_punit_i2c_access();
 
 	/* Initialize extcon device */
 	info->edev = devm_extcon_dev_allocate(&pdev->dev,
@@ -421,10 +466,43 @@ static int axp288_extcon_probe(struct platform_device *pdev)
 	}
 
 	/* Start charger cable type detection */
-	axp288_extcon_enable(info);
+	ret = axp288_extcon_enable(info);
+	if (ret < 0)
+		return ret;
+
+	device_init_wakeup(dev, true);
+	platform_set_drvdata(pdev, info);
 
 	return 0;
 }
+
+static int __maybe_unused axp288_extcon_suspend(struct device *dev)
+{
+	struct axp288_extcon_info *info = dev_get_drvdata(dev);
+
+	if (device_may_wakeup(dev))
+		enable_irq_wake(info->irq[VBUS_RISING_IRQ]);
+
+	return 0;
+}
+
+static int __maybe_unused axp288_extcon_resume(struct device *dev)
+{
+	struct axp288_extcon_info *info = dev_get_drvdata(dev);
+
+	/*
+	 * Wakeup when a charger is connected to do charger-type
+	 * connection and generate an extcon event which makes the
+	 * axp288 charger driver set the input current limit.
+	 */
+	if (device_may_wakeup(dev))
+		disable_irq_wake(info->irq[VBUS_RISING_IRQ]);
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(axp288_extcon_pm_ops, axp288_extcon_suspend,
+			 axp288_extcon_resume);
 
 static const struct platform_device_id axp288_extcon_table[] = {
 	{ .name = "axp288_extcon" },
@@ -437,32 +515,10 @@ static struct platform_driver axp288_extcon_driver = {
 	.id_table = axp288_extcon_table,
 	.driver = {
 		.name = "axp288_extcon",
+		.pm = &axp288_extcon_pm_ops,
 	},
 };
-
-static struct device_connection axp288_extcon_role_sw_conn = {
-	.endpoint[0] = "axp288_extcon",
-	.endpoint[1] = "intel_xhci_usb_sw-role-switch",
-	.id = "usb-role-switch",
-};
-
-static int __init axp288_extcon_init(void)
-{
-	if (x86_match_cpu(cherry_trail_cpu_ids))
-		device_connection_add(&axp288_extcon_role_sw_conn);
-
-	return platform_driver_register(&axp288_extcon_driver);
-}
-module_init(axp288_extcon_init);
-
-static void __exit axp288_extcon_exit(void)
-{
-	if (x86_match_cpu(cherry_trail_cpu_ids))
-		device_connection_remove(&axp288_extcon_role_sw_conn);
-
-	platform_driver_unregister(&axp288_extcon_driver);
-}
-module_exit(axp288_extcon_exit);
+module_platform_driver(axp288_extcon_driver);
 
 MODULE_AUTHOR("Ramakrishna Pallala <ramakrishna.pallala@intel.com>");
 MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");

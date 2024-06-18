@@ -14,9 +14,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/pinctrl/pinctrl.h>
-#include <linux/reset.h>
 
 #include "pinctrl-sunxi.h"
 
@@ -24,11 +22,13 @@ static const struct sunxi_desc_pin sun50i_h6_r_pins[] = {
 	SUNXI_PIN(SUNXI_PINCTRL_PIN(L, 0),
 		  SUNXI_FUNCTION(0x0, "gpio_in"),
 		  SUNXI_FUNCTION(0x1, "gpio_out"),
+		  SUNXI_FUNCTION(0x2, "s_rsb"),		/* SCK */
 		  SUNXI_FUNCTION(0x3, "s_i2c"),		/* SCK */
 		  SUNXI_FUNCTION_IRQ_BANK(0x6, 0, 0)),	/* PL_EINT0 */
 	SUNXI_PIN(SUNXI_PINCTRL_PIN(L, 1),
 		  SUNXI_FUNCTION(0x0, "gpio_in"),
 		  SUNXI_FUNCTION(0x1, "gpio_out"),
+		  SUNXI_FUNCTION(0x2, "s_rsb"),		/* SDA */
 		  SUNXI_FUNCTION(0x3, "s_i2c"),		/* SDA */
 		  SUNXI_FUNCTION_IRQ_BANK(0x6, 0, 1)),	/* PL_EINT1 */
 	SUNXI_PIN(SUNXI_PINCTRL_PIN(L, 2),
@@ -105,6 +105,7 @@ static const struct sunxi_pinctrl_desc sun50i_h6_r_pinctrl_data = {
 	.npins = ARRAY_SIZE(sun50i_h6_r_pins),
 	.pin_base = PL_BASE,
 	.irq_banks = 2,
+	.io_bias_cfg_variant = BIAS_VOLTAGE_PIO_POW_MODE_SEL,
 };
 
 static int sun50i_h6_r_pinctrl_probe(struct platform_device *pdev)

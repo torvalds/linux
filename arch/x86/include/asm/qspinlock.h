@@ -32,6 +32,7 @@ extern void native_queued_spin_lock_slowpath(struct qspinlock *lock, u32 val);
 extern void __pv_init_lock_hash(void);
 extern void __pv_queued_spin_lock_slowpath(struct qspinlock *lock, u32 val);
 extern void __raw_callee_save___pv_queued_spin_unlock(struct qspinlock *lock);
+extern bool nopvspin;
 
 #define	queued_spin_unlock queued_spin_unlock
 /**
@@ -52,6 +53,7 @@ static inline void queued_spin_lock_slowpath(struct qspinlock *lock, u32 val)
 
 static inline void queued_spin_unlock(struct qspinlock *lock)
 {
+	kcsan_release();
 	pv_queued_spin_unlock(lock);
 }
 
@@ -72,8 +74,6 @@ static inline bool vcpu_is_preempted(long cpu)
  */
 DECLARE_STATIC_KEY_TRUE(virt_spin_lock_key);
 
-void native_pv_lock_init(void) __init;
-
 /*
  * Shortcut for the queued_spin_lock_slowpath() function that allows
  * virt to hijack it.
@@ -85,6 +85,8 @@ void native_pv_lock_init(void) __init;
 #define virt_spin_lock virt_spin_lock
 static inline bool virt_spin_lock(struct qspinlock *lock)
 {
+	int val;
+
 	if (!static_branch_likely(&virt_spin_lock_key))
 		return false;
 
@@ -94,17 +96,17 @@ static inline bool virt_spin_lock(struct qspinlock *lock)
 	 * horrible lock 'holder' preemption issues.
 	 */
 
-	do {
-		while (atomic_read(&lock->val) != 0)
-			cpu_relax();
-	} while (atomic_cmpxchg(&lock->val, 0, _Q_LOCKED_VAL) != 0);
+ __retry:
+	val = atomic_read(&lock->val);
+
+	if (val || !atomic_try_cmpxchg(&lock->val, &val, _Q_LOCKED_VAL)) {
+		cpu_relax();
+		goto __retry;
+	}
 
 	return true;
 }
-#else
-static inline void native_pv_lock_init(void)
-{
-}
+
 #endif /* CONFIG_PARAVIRT */
 
 #include <asm-generic/qspinlock.h>

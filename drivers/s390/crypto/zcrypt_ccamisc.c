@@ -23,11 +23,6 @@
 #include "zcrypt_msgtype6.h"
 #include "zcrypt_ccamisc.h"
 
-#define DEBUG_DBG(...)	ZCRYPT_DBF(DBF_DEBUG, ##__VA_ARGS__)
-#define DEBUG_INFO(...) ZCRYPT_DBF(DBF_INFO, ##__VA_ARGS__)
-#define DEBUG_WARN(...) ZCRYPT_DBF(DBF_WARN, ##__VA_ARGS__)
-#define DEBUG_ERR(...)	ZCRYPT_DBF(DBF_ERR, ##__VA_ARGS__)
-
 /* Size of parameter block used for all cca requests/replies */
 #define PARMBSIZE 512
 
@@ -53,26 +48,26 @@ static DEFINE_SPINLOCK(cca_info_list_lock);
 int cca_check_secaeskeytoken(debug_info_t *dbg, int dbflvl,
 			     const u8 *token, int keybitsize)
 {
-	struct secaeskeytoken *t = (struct secaeskeytoken *) token;
+	struct secaeskeytoken *t = (struct secaeskeytoken *)token;
 
 #define DBF(...) debug_sprintf_event(dbg, dbflvl, ##__VA_ARGS__)
 
 	if (t->type != TOKTYPE_CCA_INTERNAL) {
 		if (dbg)
 			DBF("%s token check failed, type 0x%02x != 0x%02x\n",
-			    __func__, (int) t->type, TOKTYPE_CCA_INTERNAL);
+			    __func__, (int)t->type, TOKTYPE_CCA_INTERNAL);
 		return -EINVAL;
 	}
 	if (t->version != TOKVER_CCA_AES) {
 		if (dbg)
 			DBF("%s token check failed, version 0x%02x != 0x%02x\n",
-			    __func__, (int) t->version, TOKVER_CCA_AES);
+			    __func__, (int)t->version, TOKVER_CCA_AES);
 		return -EINVAL;
 	}
 	if (keybitsize > 0 && t->bitsize != keybitsize) {
 		if (dbg)
 			DBF("%s token check failed, bitsize %d != %d\n",
-			    __func__, (int) t->bitsize, keybitsize);
+			    __func__, (int)t->bitsize, keybitsize);
 		return -EINVAL;
 	}
 
@@ -93,7 +88,7 @@ int cca_check_secaescipherkey(debug_info_t *dbg, int dbflvl,
 			      const u8 *token, int keybitsize,
 			      int checkcpacfexport)
 {
-	struct cipherkeytoken *t = (struct cipherkeytoken *) token;
+	struct cipherkeytoken *t = (struct cipherkeytoken *)token;
 	bool keybitsizeok = true;
 
 #define DBF(...) debug_sprintf_event(dbg, dbflvl, ##__VA_ARGS__)
@@ -101,37 +96,37 @@ int cca_check_secaescipherkey(debug_info_t *dbg, int dbflvl,
 	if (t->type != TOKTYPE_CCA_INTERNAL) {
 		if (dbg)
 			DBF("%s token check failed, type 0x%02x != 0x%02x\n",
-			    __func__, (int) t->type, TOKTYPE_CCA_INTERNAL);
+			    __func__, (int)t->type, TOKTYPE_CCA_INTERNAL);
 		return -EINVAL;
 	}
 	if (t->version != TOKVER_CCA_VLSC) {
 		if (dbg)
 			DBF("%s token check failed, version 0x%02x != 0x%02x\n",
-			    __func__, (int) t->version, TOKVER_CCA_VLSC);
+			    __func__, (int)t->version, TOKVER_CCA_VLSC);
 		return -EINVAL;
 	}
 	if (t->algtype != 0x02) {
 		if (dbg)
 			DBF("%s token check failed, algtype 0x%02x != 0x02\n",
-			    __func__, (int) t->algtype);
+			    __func__, (int)t->algtype);
 		return -EINVAL;
 	}
 	if (t->keytype != 0x0001) {
 		if (dbg)
 			DBF("%s token check failed, keytype 0x%04x != 0x0001\n",
-			    __func__, (int) t->keytype);
+			    __func__, (int)t->keytype);
 		return -EINVAL;
 	}
 	if (t->plfver != 0x00 && t->plfver != 0x01) {
 		if (dbg)
 			DBF("%s token check failed, unknown plfver 0x%02x\n",
-			    __func__, (int) t->plfver);
+			    __func__, (int)t->plfver);
 		return -EINVAL;
 	}
 	if (t->wpllen != 512 && t->wpllen != 576 && t->wpllen != 640) {
 		if (dbg)
 			DBF("%s token check failed, unknown wpllen %d\n",
-			    __func__, (int) t->wpllen);
+			    __func__, (int)t->wpllen);
 		return -EINVAL;
 	}
 	if (keybitsize > 0) {
@@ -173,15 +168,58 @@ int cca_check_secaescipherkey(debug_info_t *dbg, int dbflvl,
 EXPORT_SYMBOL(cca_check_secaescipherkey);
 
 /*
+ * Simple check if the token is a valid CCA secure ECC private
+ * key token. Returns 0 on success or errno value on failure.
+ */
+int cca_check_sececckeytoken(debug_info_t *dbg, int dbflvl,
+			     const u8 *token, size_t keysize,
+			     int checkcpacfexport)
+{
+	struct eccprivkeytoken *t = (struct eccprivkeytoken *)token;
+
+#define DBF(...) debug_sprintf_event(dbg, dbflvl, ##__VA_ARGS__)
+
+	if (t->type != TOKTYPE_CCA_INTERNAL_PKA) {
+		if (dbg)
+			DBF("%s token check failed, type 0x%02x != 0x%02x\n",
+			    __func__, (int)t->type, TOKTYPE_CCA_INTERNAL_PKA);
+		return -EINVAL;
+	}
+	if (t->len > keysize) {
+		if (dbg)
+			DBF("%s token check failed, len %d > keysize %zu\n",
+			    __func__, (int)t->len, keysize);
+		return -EINVAL;
+	}
+	if (t->secid != 0x20) {
+		if (dbg)
+			DBF("%s token check failed, secid 0x%02x != 0x20\n",
+			    __func__, (int)t->secid);
+		return -EINVAL;
+	}
+	if (checkcpacfexport && !(t->kutc & 0x01)) {
+		if (dbg)
+			DBF("%s token check failed, XPRTCPAC bit is 0\n",
+			    __func__);
+		return -EINVAL;
+	}
+
+#undef DBF
+
+	return 0;
+}
+EXPORT_SYMBOL(cca_check_sececckeytoken);
+
+/*
  * Allocate consecutive memory for request CPRB, request param
  * block, reply CPRB and reply param block and fill in values
  * for the common fields. Returns 0 on success or errno value
  * on failure.
  */
 static int alloc_and_prep_cprbmem(size_t paramblen,
-				  u8 **pcprbmem,
-				  struct CPRBX **preqCPRB,
-				  struct CPRBX **prepCPRB)
+				  u8 **p_cprb_mem,
+				  struct CPRBX **p_req_cprb,
+				  struct CPRBX **p_rep_cprb)
 {
 	u8 *cprbmem;
 	size_t cprbplusparamblen = sizeof(struct CPRBX) + paramblen;
@@ -195,8 +233,8 @@ static int alloc_and_prep_cprbmem(size_t paramblen,
 	if (!cprbmem)
 		return -ENOMEM;
 
-	preqcblk = (struct CPRBX *) cprbmem;
-	prepcblk = (struct CPRBX *) (cprbmem + cprbplusparamblen);
+	preqcblk = (struct CPRBX *)cprbmem;
+	prepcblk = (struct CPRBX *)(cprbmem + cprbplusparamblen);
 
 	/* fill request cprb struct */
 	preqcblk->cprb_len = sizeof(struct CPRBX);
@@ -205,14 +243,14 @@ static int alloc_and_prep_cprbmem(size_t paramblen,
 	preqcblk->rpl_msgbl = cprbplusparamblen;
 	if (paramblen) {
 		preqcblk->req_parmb =
-			((u8 *) preqcblk) + sizeof(struct CPRBX);
+			((u8 __user *)preqcblk) + sizeof(struct CPRBX);
 		preqcblk->rpl_parmb =
-			((u8 *) prepcblk) + sizeof(struct CPRBX);
+			((u8 __user *)prepcblk) + sizeof(struct CPRBX);
 	}
 
-	*pcprbmem = cprbmem;
-	*preqCPRB = preqcblk;
-	*prepCPRB = prepcblk;
+	*p_cprb_mem = cprbmem;
+	*p_req_cprb = preqcblk;
+	*p_rep_cprb = prepcblk;
 
 	return 0;
 }
@@ -243,38 +281,20 @@ static inline void prep_xcrb(struct ica_xcRB *pxcrb,
 	pxcrb->user_defined = (cardnr == 0xFFFF ? AUTOSELECT : cardnr);
 	pxcrb->request_control_blk_length =
 		preqcblk->cprb_len + preqcblk->req_parml;
-	pxcrb->request_control_blk_addr = (void __user *) preqcblk;
+	pxcrb->request_control_blk_addr = (void __user *)preqcblk;
 	pxcrb->reply_control_blk_length = preqcblk->rpl_msgbl;
-	pxcrb->reply_control_blk_addr = (void __user *) prepcblk;
-}
-
-/*
- * Helper function which calls zcrypt_send_cprb with
- * memory management segment adjusted to kernel space
- * so that the copy_from_user called within this
- * function do in fact copy from kernel space.
- */
-static inline int _zcrypt_send_cprb(struct ica_xcRB *xcrb)
-{
-	int rc;
-	mm_segment_t old_fs = get_fs();
-
-	set_fs(KERNEL_DS);
-	rc = zcrypt_send_cprb(xcrb);
-	set_fs(old_fs);
-
-	return rc;
+	pxcrb->reply_control_blk_addr = (void __user *)prepcblk;
 }
 
 /*
  * Generate (random) CCA AES DATA secure key.
  */
 int cca_genseckey(u16 cardnr, u16 domain,
-		  u32 keybitsize, u8 seckey[SECKEYBLOBSIZE])
+		  u32 keybitsize, u8 *seckey)
 {
 	int i, rc, keysize;
 	int seckeysize;
-	u8 *mem;
+	u8 *mem, *ptr;
 	struct CPRBX *preqcblk, *prepcblk;
 	struct ica_xcRB xcrb;
 	struct kgreqparm {
@@ -305,7 +325,7 @@ int cca_genseckey(u16 cardnr, u16 domain,
 			struct {
 				u16 toklen;
 				u16 tokattr;
-				u8  tok[0];
+				u8  tok[];
 				/* ... some more data ... */
 			} keyblock;
 		} lv3;
@@ -320,7 +340,7 @@ int cca_genseckey(u16 cardnr, u16 domain,
 	preqcblk->domain = domain;
 
 	/* fill request cprb param block with KG request */
-	preqparm = (struct kgreqparm *) preqcblk->req_parmb;
+	preqparm = (struct kgreqparm __force *)preqcblk->req_parmb;
 	memcpy(preqparm->subfunc_code, "KG", 2);
 	preqparm->rule_array_len = sizeof(preqparm->rule_array_len);
 	preqparm->lv1.len = sizeof(struct lv1);
@@ -342,8 +362,8 @@ int cca_genseckey(u16 cardnr, u16 domain,
 		memcpy(preqparm->lv1.key_length, "KEYLN32 ", 8);
 		break;
 	default:
-		DEBUG_ERR("%s unknown/unsupported keybitsize %d\n",
-			  __func__, keybitsize);
+		ZCRYPT_DBF_ERR("%s unknown/unsupported keybitsize %d\n",
+			       __func__, keybitsize);
 		rc = -EINVAL;
 		goto out;
 	}
@@ -359,41 +379,42 @@ int cca_genseckey(u16 cardnr, u16 domain,
 	prep_xcrb(&xcrb, cardnr, preqcblk, prepcblk);
 
 	/* forward xcrb with request CPRB and reply CPRB to zcrypt dd */
-	rc = _zcrypt_send_cprb(&xcrb);
+	rc = zcrypt_send_cprb(&xcrb);
 	if (rc) {
-		DEBUG_ERR("%s zcrypt_send_cprb (cardnr=%d domain=%d) failed, errno %d\n",
-			  __func__, (int) cardnr, (int) domain, rc);
+		ZCRYPT_DBF_ERR("%s zcrypt_send_cprb (cardnr=%d domain=%d) failed, errno %d\n",
+			       __func__, (int)cardnr, (int)domain, rc);
 		goto out;
 	}
 
 	/* check response returncode and reasoncode */
 	if (prepcblk->ccp_rtcode != 0) {
-		DEBUG_ERR("%s secure key generate failure, card response %d/%d\n",
-			  __func__,
-			  (int) prepcblk->ccp_rtcode,
-			  (int) prepcblk->ccp_rscode);
+		ZCRYPT_DBF_ERR("%s secure key generate failure, card response %d/%d\n",
+			       __func__,
+			  (int)prepcblk->ccp_rtcode,
+			  (int)prepcblk->ccp_rscode);
 		rc = -EIO;
 		goto out;
 	}
 
 	/* process response cprb param block */
-	prepcblk->rpl_parmb = ((u8 *) prepcblk) + sizeof(struct CPRBX);
-	prepparm = (struct kgrepparm *) prepcblk->rpl_parmb;
+	ptr =  ((u8 *)prepcblk) + sizeof(struct CPRBX);
+	prepcblk->rpl_parmb = (u8 __user *)ptr;
+	prepparm = (struct kgrepparm *)ptr;
 
 	/* check length of the returned secure key token */
 	seckeysize = prepparm->lv3.keyblock.toklen
 		- sizeof(prepparm->lv3.keyblock.toklen)
 		- sizeof(prepparm->lv3.keyblock.tokattr);
 	if (seckeysize != SECKEYBLOBSIZE) {
-		DEBUG_ERR("%s secure token size mismatch %d != %d bytes\n",
-			  __func__, seckeysize, SECKEYBLOBSIZE);
+		ZCRYPT_DBF_ERR("%s secure token size mismatch %d != %d bytes\n",
+			       __func__, seckeysize, SECKEYBLOBSIZE);
 		rc = -EIO;
 		goto out;
 	}
 
 	/* check secure key token */
 	rc = cca_check_secaeskeytoken(zcrypt_dbf_info, DBF_ERR,
-				      prepparm->lv3.keyblock.tok, 8*keysize);
+				      prepparm->lv3.keyblock.tok, 8 * keysize);
 	if (rc) {
 		rc = -EIO;
 		goto out;
@@ -412,10 +433,10 @@ EXPORT_SYMBOL(cca_genseckey);
  * Generate an CCA AES DATA secure key with given key value.
  */
 int cca_clr2seckey(u16 cardnr, u16 domain, u32 keybitsize,
-		   const u8 *clrkey, u8 seckey[SECKEYBLOBSIZE])
+		   const u8 *clrkey, u8 *seckey)
 {
 	int rc, keysize, seckeysize;
-	u8 *mem;
+	u8 *mem, *ptr;
 	struct CPRBX *preqcblk, *prepcblk;
 	struct ica_xcRB xcrb;
 	struct cmreqparm {
@@ -424,18 +445,18 @@ int cca_clr2seckey(u16 cardnr, u16 domain, u32 keybitsize,
 		char  rule_array[8];
 		struct lv1 {
 			u16 len;
-			u8  clrkey[0];
+			u8  clrkey[];
 		} lv1;
-		struct lv2 {
-			u16 len;
-			struct keyid {
-				u16 len;
-				u16 attr;
-				u8  data[SECKEYBLOBSIZE];
-			} keyid;
-		} lv2;
+		/* followed by struct lv2 */
 	} __packed * preqparm;
-	struct lv2 *plv2;
+	struct lv2 {
+		u16 len;
+		struct keyid {
+			u16 len;
+			u16 attr;
+			u8  data[SECKEYBLOBSIZE];
+		} keyid;
+	} __packed * plv2;
 	struct cmrepparm {
 		u8  subfunc_code[2];
 		u16 rule_array_len;
@@ -445,7 +466,7 @@ int cca_clr2seckey(u16 cardnr, u16 domain, u32 keybitsize,
 			struct {
 				u16 toklen;
 				u16 tokattr;
-				u8  tok[0];
+				u8  tok[];
 				/* ... some more data ... */
 			} keyblock;
 		} lv3;
@@ -460,7 +481,7 @@ int cca_clr2seckey(u16 cardnr, u16 domain, u32 keybitsize,
 	preqcblk->domain = domain;
 
 	/* fill request cprb param block with CM request */
-	preqparm = (struct cmreqparm *) preqcblk->req_parmb;
+	preqparm = (struct cmreqparm __force *)preqcblk->req_parmb;
 	memcpy(preqparm->subfunc_code, "CM", 2);
 	memcpy(preqparm->rule_array, "AES     ", 8);
 	preqparm->rule_array_len =
@@ -479,58 +500,59 @@ int cca_clr2seckey(u16 cardnr, u16 domain, u32 keybitsize,
 		keysize = 32;
 		break;
 	default:
-		DEBUG_ERR("%s unknown/unsupported keybitsize %d\n",
-			  __func__, keybitsize);
+		ZCRYPT_DBF_ERR("%s unknown/unsupported keybitsize %d\n",
+			       __func__, keybitsize);
 		rc = -EINVAL;
 		goto out;
 	}
 	preqparm->lv1.len = sizeof(struct lv1) + keysize;
 	memcpy(preqparm->lv1.clrkey, clrkey, keysize);
-	plv2 = (struct lv2 *) (((u8 *) &preqparm->lv2) + keysize);
+	plv2 = (struct lv2 *)(((u8 *)preqparm) + sizeof(*preqparm) + keysize);
 	plv2->len = sizeof(struct lv2);
 	plv2->keyid.len = sizeof(struct keyid);
 	plv2->keyid.attr = 0x30;
-	preqcblk->req_parml = sizeof(struct cmreqparm) + keysize;
+	preqcblk->req_parml = sizeof(*preqparm) + keysize + sizeof(*plv2);
 
 	/* fill xcrb struct */
 	prep_xcrb(&xcrb, cardnr, preqcblk, prepcblk);
 
 	/* forward xcrb with request CPRB and reply CPRB to zcrypt dd */
-	rc = _zcrypt_send_cprb(&xcrb);
+	rc = zcrypt_send_cprb(&xcrb);
 	if (rc) {
-		DEBUG_ERR("%s zcrypt_send_cprb (cardnr=%d domain=%d) failed, rc=%d\n",
-			  __func__, (int) cardnr, (int) domain, rc);
+		ZCRYPT_DBF_ERR("%s zcrypt_send_cprb (cardnr=%d domain=%d) failed, rc=%d\n",
+			       __func__, (int)cardnr, (int)domain, rc);
 		goto out;
 	}
 
 	/* check response returncode and reasoncode */
 	if (prepcblk->ccp_rtcode != 0) {
-		DEBUG_ERR("%s clear key import failure, card response %d/%d\n",
-			  __func__,
-			  (int) prepcblk->ccp_rtcode,
-			  (int) prepcblk->ccp_rscode);
+		ZCRYPT_DBF_ERR("%s clear key import failure, card response %d/%d\n",
+			       __func__,
+			       (int)prepcblk->ccp_rtcode,
+			       (int)prepcblk->ccp_rscode);
 		rc = -EIO;
 		goto out;
 	}
 
 	/* process response cprb param block */
-	prepcblk->rpl_parmb = ((u8 *) prepcblk) + sizeof(struct CPRBX);
-	prepparm = (struct cmrepparm *) prepcblk->rpl_parmb;
+	ptr = ((u8 *)prepcblk) + sizeof(struct CPRBX);
+	prepcblk->rpl_parmb = (u8 __user *)ptr;
+	prepparm = (struct cmrepparm *)ptr;
 
 	/* check length of the returned secure key token */
 	seckeysize = prepparm->lv3.keyblock.toklen
 		- sizeof(prepparm->lv3.keyblock.toklen)
 		- sizeof(prepparm->lv3.keyblock.tokattr);
 	if (seckeysize != SECKEYBLOBSIZE) {
-		DEBUG_ERR("%s secure token size mismatch %d != %d bytes\n",
-			  __func__, seckeysize, SECKEYBLOBSIZE);
+		ZCRYPT_DBF_ERR("%s secure token size mismatch %d != %d bytes\n",
+			       __func__, seckeysize, SECKEYBLOBSIZE);
 		rc = -EIO;
 		goto out;
 	}
 
 	/* check secure key token */
 	rc = cca_check_secaeskeytoken(zcrypt_dbf_info, DBF_ERR,
-				      prepparm->lv3.keyblock.tok, 8*keysize);
+				      prepparm->lv3.keyblock.tok, 8 * keysize);
 	if (rc) {
 		rc = -EIO;
 		goto out;
@@ -550,11 +572,11 @@ EXPORT_SYMBOL(cca_clr2seckey);
  * Derive proteced key from an CCA AES DATA secure key.
  */
 int cca_sec2protkey(u16 cardnr, u16 domain,
-		    const u8 seckey[SECKEYBLOBSIZE],
-		    u8 *protkey, u32 *protkeylen, u32 *protkeytype)
+		    const u8 *seckey, u8 *protkey, u32 *protkeylen,
+		    u32 *protkeytype)
 {
 	int rc;
-	u8 *mem;
+	u8 *mem, *ptr;
 	struct CPRBX *preqcblk, *prepcblk;
 	struct ica_xcRB xcrb;
 	struct uskreqparm {
@@ -569,7 +591,7 @@ int cca_sec2protkey(u16 cardnr, u16 domain,
 			u16 len;
 			u16 attr_len;
 			u16 attr_flags;
-			u8  token[0];	      /* cca secure key token */
+			u8  token[];	      /* cca secure key token */
 		} lv2;
 	} __packed * preqparm;
 	struct uskrepparm {
@@ -592,7 +614,7 @@ int cca_sec2protkey(u16 cardnr, u16 domain,
 				u8  pad2[1];
 				u8  vptype;
 				u8  vp[32];  /* verification pattern */
-			} keyblock;
+			} ckb;
 		} lv3;
 	} __packed * prepparm;
 
@@ -605,7 +627,7 @@ int cca_sec2protkey(u16 cardnr, u16 domain,
 	preqcblk->domain = domain;
 
 	/* fill request cprb param block with USK request */
-	preqparm = (struct uskreqparm *) preqcblk->req_parmb;
+	preqparm = (struct uskreqparm __force *)preqcblk->req_parmb;
 	memcpy(preqparm->subfunc_code, "US", 2);
 	preqparm->rule_array_len = sizeof(preqparm->rule_array_len);
 	preqparm->lv1.len = sizeof(struct lv1);
@@ -622,67 +644,72 @@ int cca_sec2protkey(u16 cardnr, u16 domain,
 	prep_xcrb(&xcrb, cardnr, preqcblk, prepcblk);
 
 	/* forward xcrb with request CPRB and reply CPRB to zcrypt dd */
-	rc = _zcrypt_send_cprb(&xcrb);
+	rc = zcrypt_send_cprb(&xcrb);
 	if (rc) {
-		DEBUG_ERR("%s zcrypt_send_cprb (cardnr=%d domain=%d) failed, rc=%d\n",
-			  __func__, (int) cardnr, (int) domain, rc);
+		ZCRYPT_DBF_ERR("%s zcrypt_send_cprb (cardnr=%d domain=%d) failed, rc=%d\n",
+			       __func__, (int)cardnr, (int)domain, rc);
 		goto out;
 	}
 
 	/* check response returncode and reasoncode */
 	if (prepcblk->ccp_rtcode != 0) {
-		DEBUG_ERR("%s unwrap secure key failure, card response %d/%d\n",
-			  __func__,
-			  (int) prepcblk->ccp_rtcode,
-			  (int) prepcblk->ccp_rscode);
-		rc = -EIO;
+		ZCRYPT_DBF_ERR("%s unwrap secure key failure, card response %d/%d\n",
+			       __func__,
+			       (int)prepcblk->ccp_rtcode,
+			       (int)prepcblk->ccp_rscode);
+		if (prepcblk->ccp_rtcode == 8 && prepcblk->ccp_rscode == 2290)
+			rc = -EBUSY;
+		else
+			rc = -EIO;
 		goto out;
 	}
 	if (prepcblk->ccp_rscode != 0) {
-		DEBUG_WARN("%s unwrap secure key warning, card response %d/%d\n",
-			   __func__,
-			   (int) prepcblk->ccp_rtcode,
-			   (int) prepcblk->ccp_rscode);
+		ZCRYPT_DBF_WARN("%s unwrap secure key warning, card response %d/%d\n",
+				__func__,
+				(int)prepcblk->ccp_rtcode,
+				(int)prepcblk->ccp_rscode);
 	}
 
 	/* process response cprb param block */
-	prepcblk->rpl_parmb = ((u8 *) prepcblk) + sizeof(struct CPRBX);
-	prepparm = (struct uskrepparm *) prepcblk->rpl_parmb;
+	ptr = ((u8 *)prepcblk) + sizeof(struct CPRBX);
+	prepcblk->rpl_parmb = (u8 __user *)ptr;
+	prepparm = (struct uskrepparm *)ptr;
 
 	/* check the returned keyblock */
-	if (prepparm->lv3.keyblock.version != 0x01) {
-		DEBUG_ERR("%s reply param keyblock version mismatch 0x%02x != 0x01\n",
-			  __func__, (int) prepparm->lv3.keyblock.version);
+	if (prepparm->lv3.ckb.version != 0x01 &&
+	    prepparm->lv3.ckb.version != 0x02) {
+		ZCRYPT_DBF_ERR("%s reply param keyblock version mismatch 0x%02x\n",
+			       __func__, (int)prepparm->lv3.ckb.version);
 		rc = -EIO;
 		goto out;
 	}
 
-	/* copy the tanslated protected key */
-	switch (prepparm->lv3.keyblock.len) {
-	case 16+32:
+	/* copy the translated protected key */
+	switch (prepparm->lv3.ckb.len) {
+	case 16 + 32:
 		/* AES 128 protected key */
 		if (protkeytype)
 			*protkeytype = PKEY_KEYTYPE_AES_128;
 		break;
-	case 24+32:
+	case 24 + 32:
 		/* AES 192 protected key */
 		if (protkeytype)
 			*protkeytype = PKEY_KEYTYPE_AES_192;
 		break;
-	case 32+32:
+	case 32 + 32:
 		/* AES 256 protected key */
 		if (protkeytype)
 			*protkeytype = PKEY_KEYTYPE_AES_256;
 		break;
 	default:
-		DEBUG_ERR("%s unknown/unsupported keylen %d\n",
-			  __func__, prepparm->lv3.keyblock.len);
+		ZCRYPT_DBF_ERR("%s unknown/unsupported keylen %d\n",
+			       __func__, prepparm->lv3.ckb.len);
 		rc = -EIO;
 		goto out;
 	}
-	memcpy(protkey, prepparm->lv3.keyblock.key, prepparm->lv3.keyblock.len);
+	memcpy(protkey, prepparm->lv3.ckb.key, prepparm->lv3.ckb.len);
 	if (protkeylen)
-		*protkeylen = prepparm->lv3.keyblock.len;
+		*protkeylen = prepparm->lv3.ckb.len;
 
 out:
 	free_cprbmem(mem, PARMBSIZE, 0);
@@ -713,13 +740,13 @@ int cca_gencipherkey(u16 cardnr, u16 domain, u32 keybitsize, u32 keygenflags,
 		     u8 *keybuf, size_t *keybufsize)
 {
 	int rc;
-	u8 *mem;
+	u8 *mem, *ptr;
 	struct CPRBX *preqcblk, *prepcblk;
 	struct ica_xcRB xcrb;
 	struct gkreqparm {
 		u8  subfunc_code[2];
 		u16 rule_array_len;
-		char rule_array[2*8];
+		char rule_array[2 * 8];
 		struct {
 			u16 len;
 			u8  key_type_1[8];
@@ -729,22 +756,22 @@ int cca_gencipherkey(u16 cardnr, u16 domain, u32 keybitsize, u32 keygenflags,
 			u16 key_name_2_len;
 			u16 user_data_1_len;
 			u16 user_data_2_len;
-			u8  key_name_1[0];
-			u8  key_name_2[0];
-			u8  user_data_1[0];
-			u8  user_data_2[0];
+			/* u8  key_name_1[]; */
+			/* u8  key_name_2[]; */
+			/* u8  user_data_1[]; */
+			/* u8  user_data_2[]; */
 		} vud;
 		struct {
 			u16 len;
 			struct {
 				u16 len;
 				u16 flag;
-				u8  kek_id_1[0];
+				/* u8  kek_id_1[]; */
 			} tlv1;
 			struct {
 				u16 len;
 				u16 flag;
-				u8  kek_id_2[0];
+				/* u8  kek_id_2[]; */
 			} tlv2;
 			struct {
 				u16 len;
@@ -754,17 +781,17 @@ int cca_gencipherkey(u16 cardnr, u16 domain, u32 keybitsize, u32 keygenflags,
 			struct {
 				u16 len;
 				u16 flag;
-				u8  gen_key_id_1_label[0];
+				/* u8  gen_key_id_1_label[]; */
 			} tlv4;
 			struct {
 				u16 len;
 				u16 flag;
-				u8  gen_key_id_2[0];
+				/* u8  gen_key_id_2[]; */
 			} tlv5;
 			struct {
 				u16 len;
 				u16 flag;
-				u8  gen_key_id_2_label[0];
+				/* u8  gen_key_id_2_label[]; */
 			} tlv6;
 		} kb;
 	} __packed * preqparm;
@@ -779,7 +806,7 @@ int cca_gencipherkey(u16 cardnr, u16 domain, u32 keybitsize, u32 keygenflags,
 			struct {
 				u16 len;
 				u16 flag;
-				u8  gen_key[0]; /* 120-136 bytes */
+				u8  gen_key[]; /* 120-136 bytes */
 			} tlv1;
 		} kb;
 	} __packed * prepparm;
@@ -795,10 +822,10 @@ int cca_gencipherkey(u16 cardnr, u16 domain, u32 keybitsize, u32 keygenflags,
 	preqcblk->req_parml = sizeof(struct gkreqparm);
 
 	/* prepare request param block with GK request */
-	preqparm = (struct gkreqparm *) preqcblk->req_parmb;
+	preqparm = (struct gkreqparm __force *)preqcblk->req_parmb;
 	memcpy(preqparm->subfunc_code, "GK", 2);
 	preqparm->rule_array_len =  sizeof(uint16_t) + 2 * 8;
-	memcpy(preqparm->rule_array, "AES     OP      ", 2*8);
+	memcpy(preqparm->rule_array, "AES     OP      ", 2 * 8);
 
 	/* prepare vud block */
 	preqparm->vud.len = sizeof(preqparm->vud);
@@ -808,9 +835,8 @@ int cca_gencipherkey(u16 cardnr, u16 domain, u32 keybitsize, u32 keygenflags,
 	case 256:
 		break;
 	default:
-		DEBUG_ERR(
-			"%s unknown/unsupported keybitsize %d\n",
-			__func__, keybitsize);
+		ZCRYPT_DBF_ERR("%s unknown/unsupported keybitsize %d\n",
+			       __func__, keybitsize);
 		rc = -EINVAL;
 		goto out;
 	}
@@ -837,43 +863,42 @@ int cca_gencipherkey(u16 cardnr, u16 domain, u32 keybitsize, u32 keygenflags,
 
 	/* patch the skeleton key token export flags inside the kb block */
 	if (keygenflags) {
-		t = (struct cipherkeytoken *) preqparm->kb.tlv3.gen_key_id_1;
-		t->kmf1 |= (u16) (keygenflags & 0x0000FF00);
-		t->kmf1 &= (u16) ~(keygenflags & 0x000000FF);
+		t = (struct cipherkeytoken *)preqparm->kb.tlv3.gen_key_id_1;
+		t->kmf1 |= (u16)(keygenflags & 0x0000FF00);
+		t->kmf1 &= (u16)~(keygenflags & 0x000000FF);
 	}
 
 	/* prepare xcrb struct */
 	prep_xcrb(&xcrb, cardnr, preqcblk, prepcblk);
 
 	/* forward xcrb with request CPRB and reply CPRB to zcrypt dd */
-	rc = _zcrypt_send_cprb(&xcrb);
+	rc = zcrypt_send_cprb(&xcrb);
 	if (rc) {
-		DEBUG_ERR(
-			"%s zcrypt_send_cprb (cardnr=%d domain=%d) failed, rc=%d\n",
-			__func__, (int) cardnr, (int) domain, rc);
+		ZCRYPT_DBF_ERR("%s zcrypt_send_cprb (cardnr=%d domain=%d) failed, rc=%d\n",
+			       __func__, (int)cardnr, (int)domain, rc);
 		goto out;
 	}
 
 	/* check response returncode and reasoncode */
 	if (prepcblk->ccp_rtcode != 0) {
-		DEBUG_ERR(
-			"%s cipher key generate failure, card response %d/%d\n",
-			__func__,
-			(int) prepcblk->ccp_rtcode,
-			(int) prepcblk->ccp_rscode);
+		ZCRYPT_DBF_ERR("%s cipher key generate failure, card response %d/%d\n",
+			       __func__,
+			       (int)prepcblk->ccp_rtcode,
+			       (int)prepcblk->ccp_rscode);
 		rc = -EIO;
 		goto out;
 	}
 
 	/* process response cprb param block */
-	prepcblk->rpl_parmb = ((u8 *) prepcblk) + sizeof(struct CPRBX);
-	prepparm = (struct gkrepparm *) prepcblk->rpl_parmb;
+	ptr = ((u8 *)prepcblk) + sizeof(struct CPRBX);
+	prepcblk->rpl_parmb = (u8 __user *)ptr;
+	prepparm = (struct gkrepparm *)ptr;
 
 	/* do some plausibility checks on the key block */
 	if (prepparm->kb.len < 120 + 5 * sizeof(uint16_t) ||
 	    prepparm->kb.len > 136 + 5 * sizeof(uint16_t)) {
-		DEBUG_ERR("%s reply with invalid or unknown key block\n",
-			  __func__);
+		ZCRYPT_DBF_ERR("%s reply with invalid or unknown key block\n",
+			       __func__);
 		rc = -EIO;
 		goto out;
 	}
@@ -888,7 +913,7 @@ int cca_gencipherkey(u16 cardnr, u16 domain, u32 keybitsize, u32 keygenflags,
 	}
 
 	/* copy the generated vlsc key token */
-	t = (struct cipherkeytoken *) prepparm->kb.tlv1.gen_key;
+	t = (struct cipherkeytoken *)prepparm->kb.tlv1.gen_key;
 	if (keybuf) {
 		if (*keybufsize >= t->len)
 			memcpy(keybuf, t, t->len);
@@ -916,13 +941,13 @@ static int _ip_cprb_helper(u16 cardnr, u16 domain,
 			   int *key_token_size)
 {
 	int rc, n;
-	u8 *mem;
+	u8 *mem, *ptr;
 	struct CPRBX *preqcblk, *prepcblk;
 	struct ica_xcRB xcrb;
 	struct rule_array_block {
 		u8  subfunc_code[2];
 		u16 rule_array_len;
-		char rule_array[0];
+		char rule_array[];
 	} __packed * preq_ra_block;
 	struct vud_block {
 		u16 len;
@@ -934,7 +959,7 @@ static int _ip_cprb_helper(u16 cardnr, u16 domain,
 		struct {
 			u16 len;
 			u16 flag;	/* 0x0063 */
-			u8  clr_key[0]; /* clear key value bytes */
+			u8  clr_key[];	/* clear key value bytes */
 		} tlv2;
 	} __packed * preq_vud_block;
 	struct key_block {
@@ -942,7 +967,7 @@ static int _ip_cprb_helper(u16 cardnr, u16 domain,
 		struct {
 			u16 len;
 			u16 flag;	  /* 0x0030 */
-			u8  key_token[0]; /* key skeleton */
+			u8  key_token[];  /* key skeleton */
 		} tlv1;
 	} __packed * preq_key_block;
 	struct iprepparm {
@@ -956,7 +981,7 @@ static int _ip_cprb_helper(u16 cardnr, u16 domain,
 			struct {
 				u16 len;
 				u16 flag;	  /* 0x0030 */
-				u8  key_token[0]; /* key token */
+				u8  key_token[];  /* key token */
 			} tlv1;
 		} kb;
 	} __packed * prepparm;
@@ -973,7 +998,7 @@ static int _ip_cprb_helper(u16 cardnr, u16 domain,
 	preqcblk->req_parml = 0;
 
 	/* prepare request param block with IP request */
-	preq_ra_block = (struct rule_array_block *) preqcblk->req_parmb;
+	preq_ra_block = (struct rule_array_block __force *)preqcblk->req_parmb;
 	memcpy(preq_ra_block->subfunc_code, "IP", 2);
 	preq_ra_block->rule_array_len =  sizeof(uint16_t) + 2 * 8;
 	memcpy(preq_ra_block->rule_array, rule_array_1, 8);
@@ -986,7 +1011,7 @@ static int _ip_cprb_helper(u16 cardnr, u16 domain,
 	}
 
 	/* prepare vud block */
-	preq_vud_block = (struct vud_block *)
+	preq_vud_block = (struct vud_block __force *)
 		(preqcblk->req_parmb + preqcblk->req_parml);
 	n = complete ? 0 : (clr_key_bit_size + 7) / 8;
 	preq_vud_block->len = sizeof(struct vud_block) + n;
@@ -1000,7 +1025,7 @@ static int _ip_cprb_helper(u16 cardnr, u16 domain,
 	preqcblk->req_parml += preq_vud_block->len;
 
 	/* prepare key block */
-	preq_key_block = (struct key_block *)
+	preq_key_block = (struct key_block __force *)
 		(preqcblk->req_parmb + preqcblk->req_parml);
 	n = *key_token_size;
 	preq_key_block->len = sizeof(struct key_block) + n;
@@ -1013,34 +1038,33 @@ static int _ip_cprb_helper(u16 cardnr, u16 domain,
 	prep_xcrb(&xcrb, cardnr, preqcblk, prepcblk);
 
 	/* forward xcrb with request CPRB and reply CPRB to zcrypt dd */
-	rc = _zcrypt_send_cprb(&xcrb);
+	rc = zcrypt_send_cprb(&xcrb);
 	if (rc) {
-		DEBUG_ERR(
-			"%s zcrypt_send_cprb (cardnr=%d domain=%d) failed, rc=%d\n",
-			__func__, (int) cardnr, (int) domain, rc);
+		ZCRYPT_DBF_ERR("%s zcrypt_send_cprb (cardnr=%d domain=%d) failed, rc=%d\n",
+			       __func__, (int)cardnr, (int)domain, rc);
 		goto out;
 	}
 
 	/* check response returncode and reasoncode */
 	if (prepcblk->ccp_rtcode != 0) {
-		DEBUG_ERR(
-			"%s CSNBKPI2 failure, card response %d/%d\n",
-			__func__,
-			(int) prepcblk->ccp_rtcode,
-			(int) prepcblk->ccp_rscode);
+		ZCRYPT_DBF_ERR("%s CSNBKPI2 failure, card response %d/%d\n",
+			       __func__,
+			       (int)prepcblk->ccp_rtcode,
+			       (int)prepcblk->ccp_rscode);
 		rc = -EIO;
 		goto out;
 	}
 
 	/* process response cprb param block */
-	prepcblk->rpl_parmb = ((u8 *) prepcblk) + sizeof(struct CPRBX);
-	prepparm = (struct iprepparm *) prepcblk->rpl_parmb;
+	ptr = ((u8 *)prepcblk) + sizeof(struct CPRBX);
+	prepcblk->rpl_parmb = (u8 __user *)ptr;
+	prepparm = (struct iprepparm *)ptr;
 
 	/* do some plausibility checks on the key block */
-	if (prepparm->kb.len < 120 + 5 * sizeof(uint16_t) ||
-	    prepparm->kb.len > 136 + 5 * sizeof(uint16_t)) {
-		DEBUG_ERR("%s reply with invalid or unknown key block\n",
-			  __func__);
+	if (prepparm->kb.len < 120 + 3 * sizeof(uint16_t) ||
+	    prepparm->kb.len > 136 + 3 * sizeof(uint16_t)) {
+		ZCRYPT_DBF_ERR("%s reply with invalid or unknown key block\n",
+			       __func__);
 		rc = -EIO;
 		goto out;
 	}
@@ -1048,7 +1072,7 @@ static int _ip_cprb_helper(u16 cardnr, u16 domain,
 	/* do not check the key here, it may be incomplete */
 
 	/* copy the vlsc key token back */
-	t = (struct cipherkeytoken *) prepparm->kb.tlv1.key_token;
+	t = (struct cipherkeytoken *)prepparm->kb.tlv1.key_token;
 	memcpy(key_token, t, t->len);
 	*key_token_size = t->len;
 
@@ -1083,9 +1107,9 @@ int cca_clr2cipherkey(u16 card, u16 dom, u32 keybitsize, u32 keygenflags,
 
 	/* patch the skeleton key token export flags */
 	if (keygenflags) {
-		t = (struct cipherkeytoken *) token;
-		t->kmf1 |= (u16) (keygenflags & 0x0000FF00);
-		t->kmf1 &= (u16) ~(keygenflags & 0x000000FF);
+		t = (struct cipherkeytoken *)token;
+		t->kmf1 |= (u16)(keygenflags & 0x0000FF00);
+		t->kmf1 &= (u16)~(keygenflags & 0x000000FF);
 	}
 
 	/*
@@ -1098,33 +1122,29 @@ int cca_clr2cipherkey(u16 card, u16 dom, u32 keybitsize, u32 keygenflags,
 	rc = _ip_cprb_helper(card, dom, "AES     ", "FIRST   ", "MIN3PART",
 			     exorbuf, keybitsize, token, &tokensize);
 	if (rc) {
-		DEBUG_ERR(
-			"%s clear key import 1/4 with CSNBKPI2 failed, rc=%d\n",
-			__func__, rc);
+		ZCRYPT_DBF_ERR("%s clear key import 1/4 with CSNBKPI2 failed, rc=%d\n",
+			       __func__, rc);
 		goto out;
 	}
 	rc = _ip_cprb_helper(card, dom, "AES     ", "ADD-PART", NULL,
 			     clrkey, keybitsize, token, &tokensize);
 	if (rc) {
-		DEBUG_ERR(
-			"%s clear key import 2/4 with CSNBKPI2 failed, rc=%d\n",
-			__func__, rc);
+		ZCRYPT_DBF_ERR("%s clear key import 2/4 with CSNBKPI2 failed, rc=%d\n",
+			       __func__, rc);
 		goto out;
 	}
 	rc = _ip_cprb_helper(card, dom, "AES     ", "ADD-PART", NULL,
 			     exorbuf, keybitsize, token, &tokensize);
 	if (rc) {
-		DEBUG_ERR(
-			"%s clear key import 3/4 with CSNBKPI2 failed, rc=%d\n",
-			__func__, rc);
+		ZCRYPT_DBF_ERR("%s clear key import 3/4 with CSNBKPI2 failed, rc=%d\n",
+			       __func__, rc);
 		goto out;
 	}
 	rc = _ip_cprb_helper(card, dom, "AES     ", "COMPLETE", NULL,
 			     NULL, keybitsize, token, &tokensize);
 	if (rc) {
-		DEBUG_ERR(
-			"%s clear key import 4/4 with CSNBKPI2 failed, rc=%d\n",
-			__func__, rc);
+		ZCRYPT_DBF_ERR("%s clear key import 4/4 with CSNBKPI2 failed, rc=%d\n",
+			       __func__, rc);
 		goto out;
 	}
 
@@ -1150,7 +1170,7 @@ int cca_cipher2protkey(u16 cardnr, u16 domain, const u8 *ckey,
 		       u8 *protkey, u32 *protkeylen, u32 *protkeytype)
 {
 	int rc;
-	u8 *mem;
+	u8 *mem, *ptr;
 	struct CPRBX *preqcblk, *prepcblk;
 	struct ica_xcRB xcrb;
 	struct aureqparm {
@@ -1167,7 +1187,7 @@ int cca_cipher2protkey(u16 cardnr, u16 domain, const u8 *ckey,
 			u16 len;
 			u16 cca_key_token_len;
 			u16 cca_key_token_flags;
-			u8  cca_key_token[0]; // 64 or more
+			u8  cca_key_token[]; /* 64 or more */
 		} kb;
 	} __packed * preqparm;
 	struct aurepparm {
@@ -1207,7 +1227,7 @@ int cca_cipher2protkey(u16 cardnr, u16 domain, const u8 *ckey,
 	preqcblk->domain = domain;
 
 	/* fill request cprb param block with AU request */
-	preqparm = (struct aureqparm *) preqcblk->req_parmb;
+	preqparm = (struct aureqparm __force *)preqcblk->req_parmb;
 	memcpy(preqparm->subfunc_code, "AU", 2);
 	preqparm->rule_array_len =
 		sizeof(preqparm->rule_array_len)
@@ -1229,72 +1249,72 @@ int cca_cipher2protkey(u16 cardnr, u16 domain, const u8 *ckey,
 	prep_xcrb(&xcrb, cardnr, preqcblk, prepcblk);
 
 	/* forward xcrb with request CPRB and reply CPRB to zcrypt dd */
-	rc = _zcrypt_send_cprb(&xcrb);
+	rc = zcrypt_send_cprb(&xcrb);
 	if (rc) {
-		DEBUG_ERR(
-			"%s zcrypt_send_cprb (cardnr=%d domain=%d) failed, rc=%d\n",
-			__func__, (int) cardnr, (int) domain, rc);
+		ZCRYPT_DBF_ERR("%s zcrypt_send_cprb (cardnr=%d domain=%d) failed, rc=%d\n",
+			       __func__, (int)cardnr, (int)domain, rc);
 		goto out;
 	}
 
 	/* check response returncode and reasoncode */
 	if (prepcblk->ccp_rtcode != 0) {
-		DEBUG_ERR(
-			"%s unwrap secure key failure, card response %d/%d\n",
-			__func__,
-			(int) prepcblk->ccp_rtcode,
-			(int) prepcblk->ccp_rscode);
-		rc = -EIO;
+		ZCRYPT_DBF_ERR("%s unwrap secure key failure, card response %d/%d\n",
+			       __func__,
+			       (int)prepcblk->ccp_rtcode,
+			       (int)prepcblk->ccp_rscode);
+		if (prepcblk->ccp_rtcode == 8 && prepcblk->ccp_rscode == 2290)
+			rc = -EBUSY;
+		else
+			rc = -EIO;
 		goto out;
 	}
 	if (prepcblk->ccp_rscode != 0) {
-		DEBUG_WARN(
-			"%s unwrap secure key warning, card response %d/%d\n",
-			__func__,
-			(int) prepcblk->ccp_rtcode,
-			(int) prepcblk->ccp_rscode);
+		ZCRYPT_DBF_WARN("%s unwrap secure key warning, card response %d/%d\n",
+				__func__,
+				(int)prepcblk->ccp_rtcode,
+				(int)prepcblk->ccp_rscode);
 	}
 
 	/* process response cprb param block */
-	prepcblk->rpl_parmb = ((u8 *) prepcblk) + sizeof(struct CPRBX);
-	prepparm = (struct aurepparm *) prepcblk->rpl_parmb;
+	ptr = ((u8 *)prepcblk) + sizeof(struct CPRBX);
+	prepcblk->rpl_parmb = (u8 __user *)ptr;
+	prepparm = (struct aurepparm *)ptr;
 
 	/* check the returned keyblock */
-	if (prepparm->vud.ckb.version != 0x01) {
-		DEBUG_ERR(
-			"%s reply param keyblock version mismatch 0x%02x != 0x01\n",
-			__func__, (int) prepparm->vud.ckb.version);
+	if (prepparm->vud.ckb.version != 0x01 &&
+	    prepparm->vud.ckb.version != 0x02) {
+		ZCRYPT_DBF_ERR("%s reply param keyblock version mismatch 0x%02x\n",
+			       __func__, (int)prepparm->vud.ckb.version);
 		rc = -EIO;
 		goto out;
 	}
 	if (prepparm->vud.ckb.algo != 0x02) {
-		DEBUG_ERR(
-			"%s reply param keyblock algo mismatch 0x%02x != 0x02\n",
-			__func__, (int) prepparm->vud.ckb.algo);
+		ZCRYPT_DBF_ERR("%s reply param keyblock algo mismatch 0x%02x != 0x02\n",
+			       __func__, (int)prepparm->vud.ckb.algo);
 		rc = -EIO;
 		goto out;
 	}
 
 	/* copy the translated protected key */
 	switch (prepparm->vud.ckb.keylen) {
-	case 16+32:
+	case 16 + 32:
 		/* AES 128 protected key */
 		if (protkeytype)
 			*protkeytype = PKEY_KEYTYPE_AES_128;
 		break;
-	case 24+32:
+	case 24 + 32:
 		/* AES 192 protected key */
 		if (protkeytype)
 			*protkeytype = PKEY_KEYTYPE_AES_192;
 		break;
-	case 32+32:
+	case 32 + 32:
 		/* AES 256 protected key */
 		if (protkeytype)
 			*protkeytype = PKEY_KEYTYPE_AES_256;
 		break;
 	default:
-		DEBUG_ERR("%s unknown/unsupported keylen %d\n",
-			  __func__, prepparm->vud.ckb.keylen);
+		ZCRYPT_DBF_ERR("%s unknown/unsupported keylen %d\n",
+			       __func__, prepparm->vud.ckb.keylen);
 		rc = -EIO;
 		goto out;
 	}
@@ -1307,6 +1327,153 @@ out:
 	return rc;
 }
 EXPORT_SYMBOL(cca_cipher2protkey);
+
+/*
+ * Derive protected key from CCA ECC secure private key.
+ */
+int cca_ecc2protkey(u16 cardnr, u16 domain, const u8 *key,
+		    u8 *protkey, u32 *protkeylen, u32 *protkeytype)
+{
+	int rc;
+	u8 *mem, *ptr;
+	struct CPRBX *preqcblk, *prepcblk;
+	struct ica_xcRB xcrb;
+	struct aureqparm {
+		u8  subfunc_code[2];
+		u16 rule_array_len;
+		u8  rule_array[8];
+		struct {
+			u16 len;
+			u16 tk_blob_len;
+			u16 tk_blob_tag;
+			u8  tk_blob[66];
+		} vud;
+		struct {
+			u16 len;
+			u16 cca_key_token_len;
+			u16 cca_key_token_flags;
+			u8  cca_key_token[];
+		} kb;
+	} __packed * preqparm;
+	struct aurepparm {
+		u8  subfunc_code[2];
+		u16 rule_array_len;
+		struct {
+			u16 len;
+			u16 sublen;
+			u16 tag;
+			struct cpacfkeyblock {
+				u8  version;  /* version of this struct */
+				u8  flags[2];
+				u8  algo;
+				u8  form;
+				u8  pad1[3];
+				u16 keylen;
+				u8  key[];  /* the key (keylen bytes) */
+				/* u16 keyattrlen; */
+				/* u8  keyattr[32]; */
+				/* u8  pad2[1]; */
+				/* u8  vptype; */
+				/* u8  vp[32];	verification pattern */
+			} ckb;
+		} vud;
+		/* followed by a key block */
+	} __packed * prepparm;
+	int keylen = ((struct eccprivkeytoken *)key)->len;
+
+	/* get already prepared memory for 2 cprbs with param block each */
+	rc = alloc_and_prep_cprbmem(PARMBSIZE, &mem, &preqcblk, &prepcblk);
+	if (rc)
+		return rc;
+
+	/* fill request cprb struct */
+	preqcblk->domain = domain;
+
+	/* fill request cprb param block with AU request */
+	preqparm = (struct aureqparm __force *)preqcblk->req_parmb;
+	memcpy(preqparm->subfunc_code, "AU", 2);
+	preqparm->rule_array_len =
+		sizeof(preqparm->rule_array_len)
+		+ sizeof(preqparm->rule_array);
+	memcpy(preqparm->rule_array, "EXPT-SK ", 8);
+	/* vud, tk blob */
+	preqparm->vud.len = sizeof(preqparm->vud);
+	preqparm->vud.tk_blob_len = sizeof(preqparm->vud.tk_blob)
+		+ 2 * sizeof(uint16_t);
+	preqparm->vud.tk_blob_tag = 0x00C2;
+	/* kb, cca token */
+	preqparm->kb.len = keylen + 3 * sizeof(uint16_t);
+	preqparm->kb.cca_key_token_len = keylen + 2 * sizeof(uint16_t);
+	memcpy(preqparm->kb.cca_key_token, key, keylen);
+	/* now fill length of param block into cprb */
+	preqcblk->req_parml = sizeof(struct aureqparm) + keylen;
+
+	/* fill xcrb struct */
+	prep_xcrb(&xcrb, cardnr, preqcblk, prepcblk);
+
+	/* forward xcrb with request CPRB and reply CPRB to zcrypt dd */
+	rc = zcrypt_send_cprb(&xcrb);
+	if (rc) {
+		ZCRYPT_DBF_ERR("%s zcrypt_send_cprb (cardnr=%d domain=%d) failed, rc=%d\n",
+			       __func__, (int)cardnr, (int)domain, rc);
+		goto out;
+	}
+
+	/* check response returncode and reasoncode */
+	if (prepcblk->ccp_rtcode != 0) {
+		ZCRYPT_DBF_ERR("%s unwrap secure key failure, card response %d/%d\n",
+			       __func__,
+			       (int)prepcblk->ccp_rtcode,
+			       (int)prepcblk->ccp_rscode);
+		if (prepcblk->ccp_rtcode == 8 && prepcblk->ccp_rscode == 2290)
+			rc = -EBUSY;
+		else
+			rc = -EIO;
+		goto out;
+	}
+	if (prepcblk->ccp_rscode != 0) {
+		ZCRYPT_DBF_WARN("%s unwrap secure key warning, card response %d/%d\n",
+				__func__,
+				(int)prepcblk->ccp_rtcode,
+				(int)prepcblk->ccp_rscode);
+	}
+
+	/* process response cprb param block */
+	ptr = ((u8 *)prepcblk) + sizeof(struct CPRBX);
+	prepcblk->rpl_parmb = (u8 __user *)ptr;
+	prepparm = (struct aurepparm *)ptr;
+
+	/* check the returned keyblock */
+	if (prepparm->vud.ckb.version != 0x02) {
+		ZCRYPT_DBF_ERR("%s reply param keyblock version mismatch 0x%02x != 0x02\n",
+			       __func__, (int)prepparm->vud.ckb.version);
+		rc = -EIO;
+		goto out;
+	}
+	if (prepparm->vud.ckb.algo != 0x81) {
+		ZCRYPT_DBF_ERR("%s reply param keyblock algo mismatch 0x%02x != 0x81\n",
+			       __func__, (int)prepparm->vud.ckb.algo);
+		rc = -EIO;
+		goto out;
+	}
+
+	/* copy the translated protected key */
+	if (prepparm->vud.ckb.keylen > *protkeylen) {
+		ZCRYPT_DBF_ERR("%s prot keylen mismatch %d > buffersize %u\n",
+			       __func__, prepparm->vud.ckb.keylen, *protkeylen);
+		rc = -EIO;
+		goto out;
+	}
+	memcpy(protkey, prepparm->vud.ckb.key, prepparm->vud.ckb.keylen);
+	*protkeylen = prepparm->vud.ckb.keylen;
+	if (protkeytype)
+		*protkeytype = PKEY_KEYTYPE_ECC;
+
+out:
+	free_cprbmem(mem, PARMBSIZE, 0);
+	return rc;
+}
+EXPORT_SYMBOL(cca_ecc2protkey);
 
 /*
  * query cryptographic facility from CCA adapter
@@ -1334,7 +1501,7 @@ int cca_query_crypto_facility(u16 cardnr, u16 domain,
 	size_t parmbsize = sizeof(struct fqreqparm);
 	struct fqrepparm {
 		u8  subfunc_code[2];
-		u8  lvdata[0];
+		u8  lvdata[];
 	} __packed * prepparm;
 
 	/* get already prepared memory for 2 cprbs with param block each */
@@ -1346,7 +1513,7 @@ int cca_query_crypto_facility(u16 cardnr, u16 domain,
 	preqcblk->domain = domain;
 
 	/* fill request cprb param block with FQ request */
-	preqparm = (struct fqreqparm *) preqcblk->req_parmb;
+	preqparm = (struct fqreqparm __force *)preqcblk->req_parmb;
 	memcpy(preqparm->subfunc_code, "FQ", 2);
 	memcpy(preqparm->rule_array, keyword, sizeof(preqparm->rule_array));
 	preqparm->rule_array_len =
@@ -1359,30 +1526,31 @@ int cca_query_crypto_facility(u16 cardnr, u16 domain,
 	prep_xcrb(&xcrb, cardnr, preqcblk, prepcblk);
 
 	/* forward xcrb with request CPRB and reply CPRB to zcrypt dd */
-	rc = _zcrypt_send_cprb(&xcrb);
+	rc = zcrypt_send_cprb(&xcrb);
 	if (rc) {
-		DEBUG_ERR("%s zcrypt_send_cprb (cardnr=%d domain=%d) failed, rc=%d\n",
-			  __func__, (int) cardnr, (int) domain, rc);
+		ZCRYPT_DBF_ERR("%s zcrypt_send_cprb (cardnr=%d domain=%d) failed, rc=%d\n",
+			       __func__, (int)cardnr, (int)domain, rc);
 		goto out;
 	}
 
 	/* check response returncode and reasoncode */
 	if (prepcblk->ccp_rtcode != 0) {
-		DEBUG_ERR("%s unwrap secure key failure, card response %d/%d\n",
-			  __func__,
-			  (int) prepcblk->ccp_rtcode,
-			  (int) prepcblk->ccp_rscode);
+		ZCRYPT_DBF_ERR("%s unwrap secure key failure, card response %d/%d\n",
+			       __func__,
+			       (int)prepcblk->ccp_rtcode,
+			       (int)prepcblk->ccp_rscode);
 		rc = -EIO;
 		goto out;
 	}
 
 	/* process response cprb param block */
-	prepcblk->rpl_parmb = ((u8 *) prepcblk) + sizeof(struct CPRBX);
-	prepparm = (struct fqrepparm *) prepcblk->rpl_parmb;
+	ptr = ((u8 *)prepcblk) + sizeof(struct CPRBX);
+	prepcblk->rpl_parmb = (u8 __user *)ptr;
+	prepparm = (struct fqrepparm *)ptr;
 	ptr = prepparm->lvdata;
 
 	/* check and possibly copy reply rule array */
-	len = *((u16 *) ptr);
+	len = *((u16 *)ptr);
 	if (len > sizeof(u16)) {
 		ptr += sizeof(u16);
 		len -= sizeof(u16);
@@ -1393,7 +1561,7 @@ int cca_query_crypto_facility(u16 cardnr, u16 domain,
 		ptr += len;
 	}
 	/* check and possible copy reply var array */
-	len = *((u16 *) ptr);
+	len = *((u16 *)ptr);
 	if (len > sizeof(u16)) {
 		ptr += sizeof(u16);
 		len -= sizeof(u16);
@@ -1504,33 +1672,59 @@ static int fetch_cca_info(u16 cardnr, u16 domain, struct cca_info *ci)
 	ci->hwtype = devstat.hwtype;
 
 	/* prep page for rule array and var array use */
-	pg = (u8 *) __get_free_page(GFP_KERNEL);
+	pg = (u8 *)__get_free_page(GFP_KERNEL);
 	if (!pg)
 		return -ENOMEM;
 	rarray = pg;
-	varray = pg + PAGE_SIZE/2;
-	rlen = vlen = PAGE_SIZE/2;
+	varray = pg + PAGE_SIZE / 2;
+	rlen = vlen = PAGE_SIZE / 2;
 
 	/* QF for this card/domain */
 	rc = cca_query_crypto_facility(cardnr, domain, "STATICSA",
 				       rarray, &rlen, varray, &vlen);
-	if (rc == 0 && rlen >= 10*8 && vlen >= 204) {
+	if (rc == 0 && rlen >= 10 * 8 && vlen >= 204) {
 		memcpy(ci->serial, rarray, 8);
-		ci->new_mk_state = (char) rarray[7*8];
-		ci->cur_mk_state = (char) rarray[8*8];
-		ci->old_mk_state = (char) rarray[9*8];
-		if (ci->old_mk_state == '2')
-			memcpy(&ci->old_mkvp, varray + 172, 8);
-		if (ci->cur_mk_state == '2')
-			memcpy(&ci->cur_mkvp, varray + 184, 8);
-		if (ci->new_mk_state == '3')
-			memcpy(&ci->new_mkvp, varray + 196, 8);
-		found = 1;
+		ci->new_asym_mk_state = (char)rarray[4 * 8];
+		ci->cur_asym_mk_state = (char)rarray[5 * 8];
+		ci->old_asym_mk_state = (char)rarray[6 * 8];
+		if (ci->old_asym_mk_state == '2')
+			memcpy(ci->old_asym_mkvp, varray + 64, 16);
+		if (ci->cur_asym_mk_state == '2')
+			memcpy(ci->cur_asym_mkvp, varray + 84, 16);
+		if (ci->new_asym_mk_state == '3')
+			memcpy(ci->new_asym_mkvp, varray + 104, 16);
+		ci->new_aes_mk_state = (char)rarray[7 * 8];
+		ci->cur_aes_mk_state = (char)rarray[8 * 8];
+		ci->old_aes_mk_state = (char)rarray[9 * 8];
+		if (ci->old_aes_mk_state == '2')
+			memcpy(&ci->old_aes_mkvp, varray + 172, 8);
+		if (ci->cur_aes_mk_state == '2')
+			memcpy(&ci->cur_aes_mkvp, varray + 184, 8);
+		if (ci->new_aes_mk_state == '3')
+			memcpy(&ci->new_aes_mkvp, varray + 196, 8);
+		found++;
+	}
+	if (!found)
+		goto out;
+	rlen = vlen = PAGE_SIZE / 2;
+	rc = cca_query_crypto_facility(cardnr, domain, "STATICSB",
+				       rarray, &rlen, varray, &vlen);
+	if (rc == 0 && rlen >= 13 * 8 && vlen >= 240) {
+		ci->new_apka_mk_state = (char)rarray[10 * 8];
+		ci->cur_apka_mk_state = (char)rarray[11 * 8];
+		ci->old_apka_mk_state = (char)rarray[12 * 8];
+		if (ci->old_apka_mk_state == '2')
+			memcpy(&ci->old_apka_mkvp, varray + 208, 8);
+		if (ci->cur_apka_mk_state == '2')
+			memcpy(&ci->cur_apka_mkvp, varray + 220, 8);
+		if (ci->new_apka_mk_state == '3')
+			memcpy(&ci->new_apka_mkvp, varray + 232, 8);
+		found++;
 	}
 
-	free_page((unsigned long) pg);
-
-	return found ? 0 : -ENOENT;
+out:
+	free_page((unsigned long)pg);
+	return found == 2 ? 0 : -ENOENT;
 }
 
 /*
@@ -1568,9 +1762,9 @@ static int findcard(u64 mkvp, u16 *pcardnr, u16 *pdomain,
 		return -EINVAL;
 
 	/* fetch status of all crypto cards */
-	device_status = kmalloc_array(MAX_ZDEV_ENTRIES_EXT,
-				      sizeof(struct zcrypt_device_status_ext),
-				      GFP_KERNEL);
+	device_status = kvcalloc(MAX_ZDEV_ENTRIES_EXT,
+				 sizeof(struct zcrypt_device_status_ext),
+				 GFP_KERNEL);
 	if (!device_status)
 		return -ENOMEM;
 	zcrypt_device_status_mask_ext(device_status);
@@ -1584,16 +1778,16 @@ static int findcard(u64 mkvp, u16 *pcardnr, u16 *pdomain,
 			/* enabled CCA card, check current mkvp from cache */
 			if (cca_info_cache_fetch(card, dom, &ci) == 0 &&
 			    ci.hwtype >= minhwtype &&
-			    ci.cur_mk_state == '2' &&
-			    ci.cur_mkvp == mkvp) {
+			    ci.cur_aes_mk_state == '2' &&
+			    ci.cur_aes_mkvp == mkvp) {
 				if (!verify)
 					break;
 				/* verify: refresh card info */
 				if (fetch_cca_info(card, dom, &ci) == 0) {
 					cca_info_cache_update(card, dom, &ci);
 					if (ci.hwtype >= minhwtype &&
-					    ci.cur_mk_state == '2' &&
-					    ci.cur_mkvp == mkvp)
+					    ci.cur_aes_mk_state == '2' &&
+					    ci.cur_aes_mkvp == mkvp)
 						break;
 				}
 			}
@@ -1615,12 +1809,12 @@ static int findcard(u64 mkvp, u16 *pcardnr, u16 *pdomain,
 			if (fetch_cca_info(card, dom, &ci) == 0) {
 				cca_info_cache_update(card, dom, &ci);
 				if (ci.hwtype >= minhwtype &&
-				    ci.cur_mk_state == '2' &&
-				    ci.cur_mkvp == mkvp)
+				    ci.cur_aes_mk_state == '2' &&
+				    ci.cur_aes_mkvp == mkvp)
 					break;
 				if (ci.hwtype >= minhwtype &&
-				    ci.old_mk_state == '2' &&
-				    ci.old_mkvp == mkvp &&
+				    ci.old_aes_mk_state == '2' &&
+				    ci.old_aes_mkvp == mkvp &&
 				    oi < 0)
 					oi = i;
 			}
@@ -1637,10 +1831,11 @@ static int findcard(u64 mkvp, u16 *pcardnr, u16 *pdomain,
 		if (pdomain)
 			*pdomain = dom;
 		rc = (i < MAX_ZDEV_ENTRIES_EXT ? 0 : 1);
-	} else
+	} else {
 		rc = -ENODEV;
+	}
 
-	kfree(device_status);
+	kvfree(device_status);
 	return rc;
 }
 
@@ -1652,7 +1847,7 @@ int cca_findcard(const u8 *key, u16 *pcardnr, u16 *pdomain, int verify)
 {
 	u64 mkvp;
 	int minhwtype = 0;
-	const struct keytoken_header *hdr = (struct keytoken_header *) key;
+	const struct keytoken_header *hdr = (struct keytoken_header *)key;
 
 	if (hdr->type != TOKTYPE_CCA_INTERNAL)
 		return -EINVAL;
@@ -1674,87 +1869,92 @@ int cca_findcard(const u8 *key, u16 *pcardnr, u16 *pdomain, int verify)
 EXPORT_SYMBOL(cca_findcard);
 
 int cca_findcard2(u32 **apqns, u32 *nr_apqns, u16 cardnr, u16 domain,
-		  int minhwtype, u64 cur_mkvp, u64 old_mkvp, int verify)
+		  int minhwtype, int mktype, u64 cur_mkvp, u64 old_mkvp,
+		  int verify)
 {
 	struct zcrypt_device_status_ext *device_status;
-	int i, n, card, dom, curmatch, oldmatch, rc = 0;
+	u32 *_apqns = NULL, _nr_apqns = 0;
+	int i, card, dom, curmatch, oldmatch, rc = 0;
 	struct cca_info ci;
 
-	*apqns = NULL;
-	*nr_apqns = 0;
-
 	/* fetch status of all crypto cards */
-	device_status = kmalloc_array(MAX_ZDEV_ENTRIES_EXT,
-				      sizeof(struct zcrypt_device_status_ext),
-				      GFP_KERNEL);
+	device_status = kvcalloc(MAX_ZDEV_ENTRIES_EXT,
+				 sizeof(struct zcrypt_device_status_ext),
+				 GFP_KERNEL);
 	if (!device_status)
 		return -ENOMEM;
 	zcrypt_device_status_mask_ext(device_status);
 
-	/* loop two times: first gather eligible apqns, then store them */
-	while (1) {
-		n = 0;
-		/* walk through all the crypto cards */
-		for (i = 0; i < MAX_ZDEV_ENTRIES_EXT; i++) {
-			card = AP_QID_CARD(device_status[i].qid);
-			dom = AP_QID_QUEUE(device_status[i].qid);
-			/* check online state */
-			if (!device_status[i].online)
-				continue;
-			/* check for cca functions */
-			if (!(device_status[i].functions & 0x04))
-				continue;
-			/* check cardnr */
-			if (cardnr != 0xFFFF && card != cardnr)
-				continue;
-			/* check domain */
-			if (domain != 0xFFFF && dom != domain)
-				continue;
-			/* get cca info on this apqn */
-			if (cca_get_info(card, dom, &ci, verify))
-				continue;
-			/* current master key needs to be valid */
-			if (ci.cur_mk_state != '2')
-				continue;
-			/* check min hardware type */
-			if (minhwtype > 0 && minhwtype > ci.hwtype)
-				continue;
-			if (cur_mkvp || old_mkvp) {
-				/* check mkvps */
-				curmatch = oldmatch = 0;
-				if (cur_mkvp && cur_mkvp == ci.cur_mkvp)
-					curmatch = 1;
-				if (old_mkvp && ci.old_mk_state == '2' &&
-				    old_mkvp == ci.old_mkvp)
-					oldmatch = 1;
-				if ((cur_mkvp || old_mkvp) &&
-				    (curmatch + oldmatch < 1))
-					continue;
-			}
-			/* apqn passed all filtering criterons */
-			if (*apqns && n < *nr_apqns)
-				(*apqns)[n] = (((u16)card) << 16) | ((u16) dom);
-			n++;
-		}
-		/* loop 2nd time: array has been filled */
-		if (*apqns)
-			break;
-		/* loop 1st time: have # of eligible apqns in n */
-		if (!n) {
-			rc = -ENODEV; /* no eligible apqns found */
-			break;
-		}
-		*nr_apqns = n;
-		/* allocate array to store n apqns into */
-		*apqns = kmalloc_array(n, sizeof(u32), GFP_KERNEL);
-		if (!*apqns) {
-			rc = -ENOMEM;
-			break;
-		}
-		verify = 0;
+	/* allocate 1k space for up to 256 apqns */
+	_apqns = kmalloc_array(256, sizeof(u32), GFP_KERNEL);
+	if (!_apqns) {
+		kvfree(device_status);
+		return -ENOMEM;
 	}
 
-	kfree(device_status);
+	/* walk through all the crypto apqnss */
+	for (i = 0; i < MAX_ZDEV_ENTRIES_EXT; i++) {
+		card = AP_QID_CARD(device_status[i].qid);
+		dom = AP_QID_QUEUE(device_status[i].qid);
+		/* check online state */
+		if (!device_status[i].online)
+			continue;
+		/* check for cca functions */
+		if (!(device_status[i].functions & 0x04))
+			continue;
+		/* check cardnr */
+		if (cardnr != 0xFFFF && card != cardnr)
+			continue;
+		/* check domain */
+		if (domain != 0xFFFF && dom != domain)
+			continue;
+		/* get cca info on this apqn */
+		if (cca_get_info(card, dom, &ci, verify))
+			continue;
+		/* current master key needs to be valid */
+		if (mktype == AES_MK_SET && ci.cur_aes_mk_state != '2')
+			continue;
+		if (mktype == APKA_MK_SET && ci.cur_apka_mk_state != '2')
+			continue;
+		/* check min hardware type */
+		if (minhwtype > 0 && minhwtype > ci.hwtype)
+			continue;
+		if (cur_mkvp || old_mkvp) {
+			/* check mkvps */
+			curmatch = oldmatch = 0;
+			if (mktype == AES_MK_SET) {
+				if (cur_mkvp && cur_mkvp == ci.cur_aes_mkvp)
+					curmatch = 1;
+				if (old_mkvp && ci.old_aes_mk_state == '2' &&
+				    old_mkvp == ci.old_aes_mkvp)
+					oldmatch = 1;
+			} else {
+				if (cur_mkvp && cur_mkvp == ci.cur_apka_mkvp)
+					curmatch = 1;
+				if (old_mkvp && ci.old_apka_mk_state == '2' &&
+				    old_mkvp == ci.old_apka_mkvp)
+					oldmatch = 1;
+			}
+			if (curmatch + oldmatch < 1)
+				continue;
+		}
+		/* apqn passed all filtering criterons, add to the array */
+		if (_nr_apqns < 256)
+			_apqns[_nr_apqns++] = (((u16)card) << 16) | ((u16)dom);
+	}
+
+	/* nothing found ? */
+	if (!_nr_apqns) {
+		kfree(_apqns);
+		rc = -ENODEV;
+	} else {
+		/* no re-allocation, simple return the _apqns array */
+		*apqns = _apqns;
+		*nr_apqns = _nr_apqns;
+		rc = 0;
+	}
+
+	kvfree(device_status);
 	return rc;
 }
 EXPORT_SYMBOL(cca_findcard2);

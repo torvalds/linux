@@ -1,0 +1,9 @@
+# TEMPORARY
+# Alphabetical order
+exceptions				 # JIT does not support calling kfunc bpf_throw				       (exceptions)
+get_stack_raw_tp                         # user_stack corrupted user stack                                             (no backchain userspace)
+stacktrace_build_id                      # compare_map_keys stackid_hmap vs. stackmap err -2 errno 2                   (?)
+verifier_iterating_callbacks
+verifier_arena                           # JIT does not support arena
+arena_htab                               # JIT does not support arena
+arena_atomics

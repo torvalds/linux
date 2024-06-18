@@ -3,41 +3,44 @@
 #
 # Usage: configcheck.sh .config .config-template
 #
+# Non-empty output if errors detected.
+#
 # Copyright (C) IBM Corporation, 2011
 #
 # Authors: Paul E. McKenney <paulmck@linux.ibm.com>
 
-T=${TMPDIR-/tmp}/abat-chk-config.sh.$$
+T="`mktemp -d ${TMPDIR-/tmp}/configcheck.sh.XXXXXX`"
 trap 'rm -rf $T' 0
-mkdir $T
 
-cat $1 > $T/.config
+# function test_kconfig_enabled ( Kconfig-var=val )
+function test_kconfig_enabled () {
+	if ! grep -q "^$1$" $T/.config
+	then
+		echo :$1: improperly set
+		return 1
+	fi
+	return 0
+}
 
-cat $2 | sed -e 's/\(.*\)=n/# \1 is not set/' -e 's/^#CHECK#//' |
-grep -v '^CONFIG_INITRAMFS_SOURCE' |
-awk	'
-{
-		print "if grep -q \"" $0 "\" < '"$T/.config"'";
-		print "then";
-		print "\t:";
-		print "else";
-		if ($1 == "#") {
-			print "\tif grep -q \"" $2 "\" < '"$T/.config"'";
-			print "\tthen";
-			print "\t\tif test \"$firsttime\" = \"\""
-			print "\t\tthen"
-			print "\t\t\tfirsttime=1"
-			print "\t\tfi"
-			print "\t\techo \":" $2 ": improperly set\"";
-			print "\telse";
-			print "\t\t:";
-			print "\tfi";
-		} else {
-			print "\tif test \"$firsttime\" = \"\""
-			print "\tthen"
-			print "\t\tfirsttime=1"
-			print "\tfi"
-			print "\techo \":" $0 ": improperly set\"";
-		}
-		print "fi";
-	}' | sh
+# function test_kconfig_disabled ( Kconfig-var )
+function test_kconfig_disabled () {
+	if grep -q "^$1=n$" $T/.config
+	then
+		return 0
+	fi
+	if grep -q "^$1=" $T/.config
+	then
+		echo :$1=n: improperly set
+		return 1
+	fi
+	return 0
+}
+
+sed -e 's/"//g' < $1 > $T/.config
+sed -e 's/^#CHECK#//' < $2 > $T/ConfigFragment
+grep '^CONFIG_.*=n$' $T/ConfigFragment |
+	sed -e 's/^/test_kconfig_disabled /' -e 's/=n$//' > $T/kconfig-n.sh
+. $T/kconfig-n.sh
+grep -v '^CONFIG_.*=n$' $T/ConfigFragment | grep '^CONFIG_' |
+	sed -e 's/^/test_kconfig_enabled /' > $T/kconfig-not-n.sh
+. $T/kconfig-not-n.sh

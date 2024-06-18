@@ -640,7 +640,7 @@ static int rtl2832_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	struct i2c_client *client = dev->client;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret;
-	u32 uninitialized_var(tmp);
+	u32 tmp;
 	u8 u8tmp, buf[2];
 	u16 u16tmp;
 
@@ -698,6 +698,7 @@ static int rtl2832_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			goto err;
 
 		constellation = (u8tmp >> 2) & 0x03; /* [3:2] */
+		ret = -EINVAL;
 		if (constellation > CONSTELLATION_NUM - 1)
 			goto err;
 
@@ -1020,8 +1021,7 @@ err:
 	return ret;
 }
 
-static int rtl2832_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int rtl2832_probe(struct i2c_client *client)
 {
 	struct rtl2832_platform_data *pdata = client->dev.platform_data;
 	struct i2c_adapter *i2c = client->adapter;
@@ -1056,13 +1056,13 @@ static int rtl2832_probe(struct i2c_client *client,
 	dev->sleeping = true;
 	INIT_DELAYED_WORK(&dev->i2c_gate_work, rtl2832_i2c_gate_work);
 	/* create regmap */
-	dev->regmap_config.reg_bits =  8,
-	dev->regmap_config.val_bits =  8,
-	dev->regmap_config.volatile_reg = rtl2832_volatile_reg,
-	dev->regmap_config.max_register = 5 * 0x100,
-	dev->regmap_config.ranges = regmap_range_cfg,
-	dev->regmap_config.num_ranges = ARRAY_SIZE(regmap_range_cfg),
-	dev->regmap_config.cache_type = REGCACHE_NONE,
+	dev->regmap_config.reg_bits =  8;
+	dev->regmap_config.val_bits =  8;
+	dev->regmap_config.volatile_reg = rtl2832_volatile_reg;
+	dev->regmap_config.max_register = 5 * 0x100;
+	dev->regmap_config.ranges = regmap_range_cfg;
+	dev->regmap_config.num_ranges = ARRAY_SIZE(regmap_range_cfg);
+	dev->regmap_config.cache_type = REGCACHE_NONE;
 	dev->regmap = regmap_init_i2c(client, &dev->regmap_config);
 	if (IS_ERR(dev->regmap)) {
 		ret = PTR_ERR(dev->regmap);
@@ -1082,7 +1082,7 @@ static int rtl2832_probe(struct i2c_client *client,
 		goto err_regmap_exit;
 	}
 	dev->muxc->priv = dev;
-	ret = i2c_mux_add_adapter(dev->muxc, 0, 0, 0);
+	ret = i2c_mux_add_adapter(dev->muxc, 0, 0);
 	if (ret)
 		goto err_regmap_exit;
 
@@ -1109,7 +1109,7 @@ err:
 	return ret;
 }
 
-static int rtl2832_remove(struct i2c_client *client)
+static void rtl2832_remove(struct i2c_client *client)
 {
 	struct rtl2832_dev *dev = i2c_get_clientdata(client);
 
@@ -1122,8 +1122,6 @@ static int rtl2832_remove(struct i2c_client *client)
 	regmap_exit(dev->regmap);
 
 	kfree(dev);
-
-	return 0;
 }
 
 static const struct i2c_device_id rtl2832_id_table[] = {

@@ -799,8 +799,7 @@ static int ath6kl_sdio_config(struct ath6kl *ar)
 
 	sdio_claim_host(func);
 
-	if ((ar_sdio->id->device & MANUFACTURER_ID_ATH6KL_BASE_MASK) >=
-	    MANUFACTURER_ID_AR6003_BASE) {
+	if (ar_sdio->id->device >= SDIO_DEVICE_ID_ATHEROS_AR6003_00) {
 		/* enable 4-bit ASYNC interrupt on AR6003 or later */
 		ret = ath6kl_sdio_func0_cmd52_wr_byte(func->card,
 						CCCR_SDIO_IRQ_MODE_REG,
@@ -1186,7 +1185,7 @@ static int ath6kl_sdio_bmi_read(struct ath6kl *ar, u8 *buf, u32 len)
 	 *        Wait for first 4 bytes to be in FIFO
 	 *        If CONSERVATIVE_BMI_READ is enabled, also wait for
 	 *        a BMI command credit, which indicates that the ENTIRE
-	 *        response is available in the the FIFO
+	 *        response is available in the FIFO
 	 *
 	 *  CASE 3: length > 128
 	 *        Wait for the first 4 bytes to be in FIFO
@@ -1409,13 +1408,13 @@ static void ath6kl_sdio_remove(struct sdio_func *func)
 }
 
 static const struct sdio_device_id ath6kl_sdio_devices[] = {
-	{SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_AR6003_BASE | 0x0))},
-	{SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_AR6003_BASE | 0x1))},
-	{SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_AR6004_BASE | 0x0))},
-	{SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_AR6004_BASE | 0x1))},
-	{SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_AR6004_BASE | 0x2))},
-	{SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_AR6004_BASE | 0x18))},
-	{SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_AR6004_BASE | 0x19))},
+	{SDIO_DEVICE(SDIO_VENDOR_ID_ATHEROS, SDIO_DEVICE_ID_ATHEROS_AR6003_00)},
+	{SDIO_DEVICE(SDIO_VENDOR_ID_ATHEROS, SDIO_DEVICE_ID_ATHEROS_AR6003_01)},
+	{SDIO_DEVICE(SDIO_VENDOR_ID_ATHEROS, SDIO_DEVICE_ID_ATHEROS_AR6004_00)},
+	{SDIO_DEVICE(SDIO_VENDOR_ID_ATHEROS, SDIO_DEVICE_ID_ATHEROS_AR6004_01)},
+	{SDIO_DEVICE(SDIO_VENDOR_ID_ATHEROS, SDIO_DEVICE_ID_ATHEROS_AR6004_02)},
+	{SDIO_DEVICE(SDIO_VENDOR_ID_ATHEROS, SDIO_DEVICE_ID_ATHEROS_AR6004_18)},
+	{SDIO_DEVICE(SDIO_VENDOR_ID_ATHEROS, SDIO_DEVICE_ID_ATHEROS_AR6004_19)},
 	{},
 };
 
@@ -1428,25 +1427,7 @@ static struct sdio_driver ath6kl_sdio_driver = {
 	.remove = ath6kl_sdio_remove,
 	.drv.pm = ATH6KL_SDIO_PM_OPS,
 };
-
-static int __init ath6kl_sdio_init(void)
-{
-	int ret;
-
-	ret = sdio_register_driver(&ath6kl_sdio_driver);
-	if (ret)
-		ath6kl_err("sdio driver registration failed: %d\n", ret);
-
-	return ret;
-}
-
-static void __exit ath6kl_sdio_exit(void)
-{
-	sdio_unregister_driver(&ath6kl_sdio_driver);
-}
-
-module_init(ath6kl_sdio_init);
-module_exit(ath6kl_sdio_exit);
+module_sdio_driver(ath6kl_sdio_driver);
 
 MODULE_AUTHOR("Atheros Communications, Inc.");
 MODULE_DESCRIPTION("Driver support for Atheros AR600x SDIO devices");

@@ -4,6 +4,7 @@
 #include <linux/cpu.h>
 
 #include <asm/msr.h>
+#include <asm/mwait.h>
 
 #define UMWAIT_C02_ENABLE	0
 
@@ -16,12 +17,6 @@
  * umwait max time is 100000 in TSC-quanta and C0.2 is enabled
  */
 static u32 umwait_control_cached = UMWAIT_CTRL_VAL(100000, UMWAIT_C02_ENABLE);
-
-u32 get_umwait_control_msr(void)
-{
-	return umwait_control_cached;
-}
-EXPORT_SYMBOL_GPL(get_umwait_control_msr);
 
 /*
  * Cache the original IA32_UMWAIT_CONTROL MSR value which is configured by
@@ -237,7 +232,11 @@ static int __init umwait_init(void)
 	 * Add umwait control interface. Ignore failure, so at least the
 	 * default values are set up in case the machine manages to boot.
 	 */
-	dev = cpu_subsys.dev_root;
-	return sysfs_create_group(&dev->kobj, &umwait_attr_group);
+	dev = bus_get_dev_root(&cpu_subsys);
+	if (dev) {
+		ret = sysfs_create_group(&dev->kobj, &umwait_attr_group);
+		put_device(dev);
+	}
+	return ret;
 }
 device_initcall(umwait_init);

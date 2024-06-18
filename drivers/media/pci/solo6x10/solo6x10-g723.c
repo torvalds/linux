@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2010-2013 Bluecherry, LLC <http://www.bluecherrydvr.com>
+ * Copyright (C) 2010-2013 Bluecherry, LLC <https://www.bluecherrydvr.com>
  *
  * Original author:
  * Ben Collins <bcollins@ubuntu.com>
@@ -97,17 +97,6 @@ void solo_g723_isr(struct solo_dev *solo_dev)
 	}
 }
 
-static int snd_solo_hw_params(struct snd_pcm_substream *ss,
-			      struct snd_pcm_hw_params *hw_params)
-{
-	return snd_pcm_lib_malloc_pages(ss, params_buffer_bytes(hw_params));
-}
-
-static int snd_solo_hw_free(struct snd_pcm_substream *ss)
-{
-	return snd_pcm_lib_free_pages(ss);
-}
-
 static const struct snd_pcm_hardware snd_solo_pcm_hw = {
 	.info			= (SNDRV_PCM_INFO_MMAP |
 				   SNDRV_PCM_INFO_INTERLEAVED |
@@ -135,9 +124,10 @@ static int snd_solo_pcm_open(struct snd_pcm_substream *ss)
 	if (solo_pcm == NULL)
 		goto oom;
 
-	solo_pcm->g723_buf = pci_alloc_consistent(solo_dev->pdev,
-						  G723_PERIOD_BYTES,
-						  &solo_pcm->g723_dma);
+	solo_pcm->g723_buf = dma_alloc_coherent(&solo_dev->pdev->dev,
+						G723_PERIOD_BYTES,
+						&solo_pcm->g723_dma,
+						GFP_KERNEL);
 	if (solo_pcm->g723_buf == NULL)
 		goto oom;
 
@@ -159,8 +149,8 @@ static int snd_solo_pcm_close(struct snd_pcm_substream *ss)
 	struct solo_snd_pcm *solo_pcm = snd_pcm_substream_chip(ss);
 
 	snd_pcm_substream_chip(ss) = solo_pcm->solo_dev;
-	pci_free_consistent(solo_pcm->solo_dev->pdev, G723_PERIOD_BYTES,
-			    solo_pcm->g723_buf, solo_pcm->g723_dma);
+	dma_free_coherent(&solo_pcm->solo_dev->pdev->dev, G723_PERIOD_BYTES,
+			  solo_pcm->g723_buf, solo_pcm->g723_dma);
 	kfree(solo_pcm);
 
 	return 0;
@@ -214,9 +204,9 @@ static snd_pcm_uframes_t snd_solo_pcm_pointer(struct snd_pcm_substream *ss)
 	return idx * G723_FRAMES_PER_PAGE;
 }
 
-static int snd_solo_pcm_copy_user(struct snd_pcm_substream *ss, int channel,
-				  unsigned long pos, void __user *dst,
-				  unsigned long count)
+static int snd_solo_pcm_copy(struct snd_pcm_substream *ss, int channel,
+			     unsigned long pos, struct iov_iter *dst,
+			     unsigned long count)
 {
 	struct solo_snd_pcm *solo_pcm = snd_pcm_substream_chip(ss);
 	struct solo_dev *solo_dev = solo_pcm->solo_dev;
@@ -233,35 +223,9 @@ static int snd_solo_pcm_copy_user(struct snd_pcm_substream *ss, int channel,
 		if (err)
 			return err;
 
-		if (copy_to_user(dst, solo_pcm->g723_buf, G723_PERIOD_BYTES))
+		if (copy_to_iter(solo_pcm->g723_buf, G723_PERIOD_BYTES, dst) !=
+		    G723_PERIOD_BYTES)
 			return -EFAULT;
-		dst += G723_PERIOD_BYTES;
-	}
-
-	return 0;
-}
-
-static int snd_solo_pcm_copy_kernel(struct snd_pcm_substream *ss, int channel,
-				    unsigned long pos, void *dst,
-				    unsigned long count)
-{
-	struct solo_snd_pcm *solo_pcm = snd_pcm_substream_chip(ss);
-	struct solo_dev *solo_dev = solo_pcm->solo_dev;
-	int err, i;
-
-	for (i = 0; i < (count / G723_FRAMES_PER_PAGE); i++) {
-		int page = (pos / G723_FRAMES_PER_PAGE) + i;
-
-		err = solo_p2m_dma_t(solo_dev, 0, solo_pcm->g723_dma,
-				     SOLO_G723_EXT_ADDR(solo_dev) +
-				     (page * G723_PERIOD_BLOCK) +
-				     (ss->number * G723_PERIOD_BYTES),
-				     G723_PERIOD_BYTES, 0, 0);
-		if (err)
-			return err;
-
-		memcpy(dst, solo_pcm->g723_buf, G723_PERIOD_BYTES);
-		dst += G723_PERIOD_BYTES;
 	}
 
 	return 0;
@@ -270,14 +234,10 @@ static int snd_solo_pcm_copy_kernel(struct snd_pcm_substream *ss, int channel,
 static const struct snd_pcm_ops snd_solo_pcm_ops = {
 	.open = snd_solo_pcm_open,
 	.close = snd_solo_pcm_close,
-	.ioctl = snd_pcm_lib_ioctl,
-	.hw_params = snd_solo_hw_params,
-	.hw_free = snd_solo_hw_free,
 	.prepare = snd_solo_pcm_prepare,
 	.trigger = snd_solo_pcm_trigger,
 	.pointer = snd_solo_pcm_pointer,
-	.copy_user = snd_solo_pcm_copy_user,
-	.copy_kernel = snd_solo_pcm_copy_kernel,
+	.copy = snd_solo_pcm_copy,
 };
 
 static int snd_solo_capture_volume_info(struct snd_kcontrol *kcontrol,
@@ -351,11 +311,11 @@ static int solo_snd_pcm_init(struct solo_dev *solo_dev)
 	     ss; ss = ss->next, i++)
 		sprintf(ss->name, "Camera #%d Audio", i);
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm,
-					SNDRV_DMA_TYPE_CONTINUOUS,
-					snd_dma_continuous_data(GFP_KERNEL),
-					G723_PERIOD_BYTES * PERIODS,
-					G723_PERIOD_BYTES * PERIODS);
+	snd_pcm_set_managed_buffer_all(pcm,
+				       SNDRV_DMA_TYPE_CONTINUOUS,
+				       NULL,
+				       G723_PERIOD_BYTES * PERIODS,
+				       G723_PERIOD_BYTES * PERIODS);
 
 	solo_dev->snd_pcm = pcm;
 
@@ -399,7 +359,7 @@ int solo_g723_init(struct solo_dev *solo_dev)
 
 	ret = snd_ctl_add(card, snd_ctl_new1(&kctl, solo_dev));
 	if (ret < 0)
-		return ret;
+		goto snd_error;
 
 	ret = solo_snd_pcm_init(solo_dev);
 	if (ret < 0)

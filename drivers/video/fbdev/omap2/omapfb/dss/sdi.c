@@ -375,15 +375,14 @@ static int sdi_probe(struct platform_device *pdev)
 	return component_add(&pdev->dev, &sdi_component_ops);
 }
 
-static int sdi_remove(struct platform_device *pdev)
+static void sdi_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &sdi_component_ops);
-	return 0;
 }
 
 static struct platform_driver omap_sdi_driver = {
 	.probe		= sdi_probe,
-	.remove         = sdi_remove,
+	.remove_new     = sdi_remove,
 	.driver         = {
 		.name   = "omapdss_sdi",
 		.suppress_bind_attrs = true,

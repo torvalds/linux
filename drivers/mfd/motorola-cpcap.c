@@ -11,7 +11,7 @@
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
 #include <linux/regmap.h>
 #include <linux/sysfs.h>
 
@@ -97,7 +97,7 @@ static struct regmap_irq_chip cpcap_irq_chip[CPCAP_NR_IRQ_CHIPS] = {
 		.ack_base = CPCAP_REG_MI1,
 		.mask_base = CPCAP_REG_MIM1,
 		.use_ack = true,
-		.ack_invert = true,
+		.clear_ack = true,
 	},
 	{
 		.name = "cpcap-m2",
@@ -106,7 +106,7 @@ static struct regmap_irq_chip cpcap_irq_chip[CPCAP_NR_IRQ_CHIPS] = {
 		.ack_base = CPCAP_REG_MI2,
 		.mask_base = CPCAP_REG_MIM2,
 		.use_ack = true,
-		.ack_invert = true,
+		.clear_ack = true,
 	},
 	{
 		.name = "cpcap1-4",
@@ -115,7 +115,7 @@ static struct regmap_irq_chip cpcap_irq_chip[CPCAP_NR_IRQ_CHIPS] = {
 		.ack_base = CPCAP_REG_INT1,
 		.mask_base = CPCAP_REG_INTM1,
 		.use_ack = true,
-		.ack_invert = true,
+		.clear_ack = true,
 	},
 };
 
@@ -202,6 +202,13 @@ static const struct of_device_id cpcap_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, cpcap_of_match);
 
+static const struct spi_device_id cpcap_spi_ids[] = {
+	{ .name = "cpcap", },
+	{ .name = "6556002", },
+	{},
+};
+MODULE_DEVICE_TABLE(spi, cpcap_spi_ids);
+
 static const struct regmap_config cpcap_regmap_config = {
 	.reg_bits = 16,
 	.reg_stride = 4,
@@ -213,6 +220,26 @@ static const struct regmap_config cpcap_regmap_config = {
 	.reg_format_endian = REGMAP_ENDIAN_LITTLE,
 	.val_format_endian = REGMAP_ENDIAN_LITTLE,
 };
+
+static int cpcap_suspend(struct device *dev)
+{
+	struct spi_device *spi = to_spi_device(dev);
+
+	disable_irq(spi->irq);
+
+	return 0;
+}
+
+static int cpcap_resume(struct device *dev)
+{
+	struct spi_device *spi = to_spi_device(dev);
+
+	enable_irq(spi->irq);
+
+	return 0;
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(cpcap_pm, cpcap_suspend, cpcap_resume);
 
 static const struct mfd_cell cpcap_mfd_devices[] = {
 	{
@@ -263,13 +290,8 @@ static const struct mfd_cell cpcap_mfd_devices[] = {
 
 static int cpcap_probe(struct spi_device *spi)
 {
-	const struct of_device_id *match;
 	struct cpcap_ddata *cpcap;
 	int ret;
-
-	match = of_match_device(of_match_ptr(cpcap_of_match), &spi->dev);
-	if (!match)
-		return -ENODEV;
 
 	cpcap = devm_kzalloc(&spi->dev, sizeof(*cpcap), GFP_KERNEL);
 	if (!cpcap)
@@ -305,6 +327,10 @@ static int cpcap_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
+	/* Parent SPI controller uses DMA, CPCAP and child devices do not */
+	spi->dev.coherent_dma_mask = 0;
+	spi->dev.dma_mask = &spi->dev.coherent_dma_mask;
+
 	return devm_mfd_add_devices(&spi->dev, 0, cpcap_mfd_devices,
 				    ARRAY_SIZE(cpcap_mfd_devices), NULL, 0, NULL);
 }
@@ -313,8 +339,10 @@ static struct spi_driver cpcap_driver = {
 	.driver = {
 		.name = "cpcap-core",
 		.of_match_table = cpcap_of_match,
+		.pm = pm_sleep_ptr(&cpcap_pm),
 	},
 	.probe = cpcap_probe,
+	.id_table = cpcap_spi_ids,
 };
 module_spi_driver(cpcap_driver);
 

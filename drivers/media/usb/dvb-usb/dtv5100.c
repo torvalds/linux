@@ -26,6 +26,7 @@ static int dtv5100_i2c_msg(struct dvb_usb_device *d, u8 addr,
 			   u8 *wbuf, u16 wlen, u8 *rbuf, u16 rlen)
 {
 	struct dtv5100_state *st = d->priv;
+	unsigned int pipe;
 	u8 request;
 	u8 type;
 	u16 value;
@@ -34,6 +35,7 @@ static int dtv5100_i2c_msg(struct dvb_usb_device *d, u8 addr,
 	switch (wlen) {
 	case 1:
 		/* write { reg }, read { value } */
+		pipe = usb_rcvctrlpipe(d->udev, 0);
 		request = (addr == DTV5100_DEMOD_ADDR ? DTV5100_DEMOD_READ :
 							DTV5100_TUNER_READ);
 		type = USB_TYPE_VENDOR | USB_DIR_IN;
@@ -41,6 +43,7 @@ static int dtv5100_i2c_msg(struct dvb_usb_device *d, u8 addr,
 		break;
 	case 2:
 		/* write { reg, value } */
+		pipe = usb_sndctrlpipe(d->udev, 0);
 		request = (addr == DTV5100_DEMOD_ADDR ? DTV5100_DEMOD_WRITE :
 							DTV5100_TUNER_WRITE);
 		type = USB_TYPE_VENDOR | USB_DIR_OUT;
@@ -54,7 +57,7 @@ static int dtv5100_i2c_msg(struct dvb_usb_device *d, u8 addr,
 
 	memcpy(st->data, rbuf, rlen);
 	msleep(1); /* avoid I2C errors */
-	return usb_control_msg(d->udev, usb_rcvctrlpipe(d->udev, 0), request,
+	return usb_control_msg(d->udev, pipe, request,
 			       type, value, index, st->data, rlen,
 			       DTV5100_USB_TIMEOUT);
 }
@@ -141,7 +144,7 @@ static int dtv5100_probe(struct usb_interface *intf,
 
 	/* initialize non qt1010/zl10353 part? */
 	for (i = 0; dtv5100_init[i].request; i++) {
-		ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
+		ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				      dtv5100_init[i].request,
 				      USB_TYPE_VENDOR | USB_DIR_OUT,
 				      dtv5100_init[i].value,
@@ -159,10 +162,15 @@ static int dtv5100_probe(struct usb_interface *intf,
 	return 0;
 }
 
-static struct usb_device_id dtv5100_table[] = {
-	{ USB_DEVICE(0x06be, 0xa232) },
-	{ }		/* Terminating entry */
+enum {
+	AME_DTV5100,
 };
+
+static struct usb_device_id dtv5100_table[] = {
+	DVB_USB_DEV(AME, AME_DTV5100),
+	{ }
+};
+
 MODULE_DEVICE_TABLE(usb, dtv5100_table);
 
 static struct dvb_usb_device_properties dtv5100_properties = {
@@ -198,7 +206,7 @@ static struct dvb_usb_device_properties dtv5100_properties = {
 		{
 			.name = "AME DTV-5100 USB2.0 DVB-T",
 			.cold_ids = { NULL },
-			.warm_ids = { &dtv5100_table[0], NULL },
+			.warm_ids = { &dtv5100_table[AME_DTV5100], NULL },
 		},
 	}
 };

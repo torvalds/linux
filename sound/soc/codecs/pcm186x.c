@@ -2,7 +2,7 @@
 /*
  * Texas Instruments PCM186x Universal Audio ADC
  *
- * Copyright (C) 2015-2017 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2015-2017 Texas Instruments Incorporated - https://www.ti.com
  *	Andreas Dannenberg <dannenberg@ti.com>
  *	Andrew F. Davis <afd@ti.com>
  */
@@ -12,7 +12,6 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
-#include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
@@ -39,7 +38,7 @@ struct pcm186x_priv {
 	unsigned int sysclk;
 	unsigned int tdm_offset;
 	bool is_tdm_mode;
-	bool is_master_mode;
+	bool is_provider_mode;
 };
 
 static const DECLARE_TLV_DB_SCALE(pcm186x_pga_tlv, -1200, 50, 0);
@@ -340,8 +339,8 @@ static int pcm186x_hw_params(struct snd_pcm_substream *substream,
 				    PCM186X_PCM_CFG_TDM_LRCK_MODE);
 	}
 
-	/* Only configure clock dividers in master mode. */
-	if (priv->is_master_mode) {
+	/* Only configure clock dividers in provider mode. */
+	if (priv->is_provider_mode) {
 		div_bck = priv->sysclk / (div_lrck * rate);
 
 		dev_dbg(component->dev,
@@ -364,18 +363,17 @@ static int pcm186x_set_fmt(struct snd_soc_dai *dai, unsigned int format)
 
 	dev_dbg(component->dev, "%s() format=0x%x\n", __func__, format);
 
-	/* set master/slave audio interface */
-	switch (format & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	switch (format & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
 		if (!priv->sysclk) {
-			dev_err(component->dev, "operating in master mode requires sysclock to be configured\n");
+			dev_err(component->dev, "operating in provider mode requires sysclock to be configured\n");
 			return -EINVAL;
 		}
 		clk_ctrl |= PCM186X_CLK_CTRL_MST_MODE;
-		priv->is_master_mode = true;
+		priv->is_provider_mode = true;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
-		priv->is_master_mode = false;
+	case SND_SOC_DAIFMT_CBC_CFC:
+		priv->is_provider_mode = false;
 		break;
 	default:
 		dev_err(component->dev, "Invalid DAI master/slave interface\n");
@@ -401,7 +399,7 @@ static int pcm186x_set_fmt(struct snd_soc_dai *dai, unsigned int format)
 		break;
 	case SND_SOC_DAIFMT_DSP_A:
 		priv->tdm_offset += 1;
-		/* fall through */
+		fallthrough;
 		/* DSP_A uses the same basic config as DSP_B
 		 * except we need to shift the TDM output by one BCK cycle
 		 */
@@ -535,19 +533,14 @@ static int pcm186x_power_on(struct snd_soc_component *component)
 static int pcm186x_power_off(struct snd_soc_component *component)
 {
 	struct pcm186x_priv *priv = snd_soc_component_get_drvdata(component);
-	int ret;
 
 	snd_soc_component_update_bits(component, PCM186X_POWER_CTRL,
 			    PCM186X_PWR_CTRL_PWRDN, PCM186X_PWR_CTRL_PWRDN);
 
 	regcache_cache_only(priv->regmap, true);
 
-	ret = regulator_bulk_disable(ARRAY_SIZE(priv->supplies),
+	return regulator_bulk_disable(ARRAY_SIZE(priv->supplies),
 				     priv->supplies);
-	if (ret)
-		return ret;
-
-	return 0;
 }
 
 static int pcm186x_set_bias_level(struct snd_soc_component *component,
@@ -584,7 +577,6 @@ static struct snd_soc_component_driver soc_codec_dev_pcm1863 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static struct snd_soc_component_driver soc_codec_dev_pcm1865 = {
@@ -599,7 +591,6 @@ static struct snd_soc_component_driver soc_codec_dev_pcm1865 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static bool pcm186x_volatile(struct device *dev, unsigned int reg)

@@ -34,6 +34,14 @@
 #define SND_FF_IN_MIDI_PORTS		2
 #define SND_FF_OUT_MIDI_PORTS		2
 
+enum snd_ff_unit_version {
+	SND_FF_UNIT_VERSION_FF800	= 0x000001,
+	SND_FF_UNIT_VERSION_FF400	= 0x000002,
+	SND_FF_UNIT_VERSION_UFX		= 0x000003,
+	SND_FF_UNIT_VERSION_UCX		= 0x000004,
+	SND_FF_UNIT_VERSION_802		= 0x000005,
+};
+
 enum snd_ff_stream_mode {
 	SND_FF_STREAM_MODE_LOW = 0,
 	SND_FF_STREAM_MODE_MID,
@@ -43,8 +51,6 @@ enum snd_ff_stream_mode {
 
 struct snd_ff_protocol;
 struct snd_ff_spec {
-	const char *const name;
-
 	const unsigned int pcm_capture_channels[SND_FF_STREAM_MODE_COUNT];
 	const unsigned int pcm_playback_channels[SND_FF_STREAM_MODE_COUNT];
 
@@ -63,9 +69,7 @@ struct snd_ff {
 	struct mutex mutex;
 	spinlock_t lock;
 
-	bool registered;
-	struct delayed_work dwork;
-
+	enum snd_ff_unit_version unit_version;
 	const struct snd_ff_spec *spec;
 
 	/* To handle MIDI tx. */
@@ -93,6 +97,8 @@ struct snd_ff {
 	wait_queue_head_t hwdep_wait;
 
 	struct amdtp_domain domain;
+
+	void *msg_parser;
 };
 
 enum snd_ff_clock_src {
@@ -106,8 +112,11 @@ enum snd_ff_clock_src {
 };
 
 struct snd_ff_protocol {
-	void (*handle_midi_msg)(struct snd_ff *ff, unsigned int offset,
-				__le32 *buf, size_t length);
+	size_t msg_parser_size;
+	bool (*has_msg)(struct snd_ff *ff);
+	long (*copy_msg_to_user)(struct snd_ff *ff, char __user *buf, long count);
+	void (*handle_msg)(struct snd_ff *ff, unsigned int offset, const __le32 *buf,
+			   size_t length, u32 tstamp);
 	int (*fill_midi_msg)(struct snd_ff *ff,
 			     struct snd_rawmidi_substream *substream,
 			     unsigned int port);
@@ -139,7 +148,9 @@ int snd_ff_stream_get_multiplier_mode(enum cip_sfc sfc,
 				      enum snd_ff_stream_mode *mode);
 int snd_ff_stream_init_duplex(struct snd_ff *ff);
 void snd_ff_stream_destroy_duplex(struct snd_ff *ff);
-int snd_ff_stream_reserve_duplex(struct snd_ff *ff, unsigned int rate);
+int snd_ff_stream_reserve_duplex(struct snd_ff *ff, unsigned int rate,
+				 unsigned int frames_per_period,
+				 unsigned int frames_per_buffer);
 int snd_ff_stream_start_duplex(struct snd_ff *ff, unsigned int rate);
 void snd_ff_stream_stop_duplex(struct snd_ff *ff);
 void snd_ff_stream_update_duplex(struct snd_ff *ff);

@@ -43,7 +43,6 @@ static const struct sdhci_ops sdhci_pltfm_ops = {
 static int sdhci_probe(struct platform_device *pdev)
 {
 	struct sdhci_host *host;
-	struct resource *iomem;
 	struct spear_sdhci *sdhci;
 	struct device *dev;
 	int ret;
@@ -56,8 +55,7 @@ static int sdhci_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	host->ioaddr = devm_ioremap_resource(&pdev->dev, iomem);
+	host->ioaddr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(host->ioaddr)) {
 		ret = PTR_ERR(host->ioaddr);
 		dev_dbg(&pdev->dev, "unable to map iomem: %d\n", ret);
@@ -67,8 +65,8 @@ static int sdhci_probe(struct platform_device *pdev)
 	host->hw_name = "sdhci";
 	host->ops = &sdhci_pltfm_ops;
 	host->irq = platform_get_irq(pdev, 0);
-	if (host->irq <= 0) {
-		ret = -EINVAL;
+	if (host->irq < 0) {
+		ret = host->irq;
 		goto err_host;
 	}
 	host->quirks = SDHCI_QUIRK_BROKEN_ADMA;
@@ -98,7 +96,7 @@ static int sdhci_probe(struct platform_device *pdev)
 	 * It is optional to use GPIOs for sdhci card detection. If we
 	 * find a descriptor using slot GPIO, we use it.
 	 */
-	ret = mmc_gpiod_request_cd(host->mmc, "cd", 0, false, 0, NULL);
+	ret = mmc_gpiod_request_cd(host->mmc, "cd", 0, false, 0);
 	if (ret == -EPROBE_DEFER)
 		goto disable_clk;
 
@@ -119,7 +117,7 @@ err:
 	return ret;
 }
 
-static int sdhci_remove(struct platform_device *pdev)
+static void sdhci_remove(struct platform_device *pdev)
 {
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct spear_sdhci *sdhci = sdhci_priv(host);
@@ -133,8 +131,6 @@ static int sdhci_remove(struct platform_device *pdev)
 	sdhci_remove_host(host, dead);
 	clk_disable_unprepare(sdhci->clk);
 	sdhci_free_host(host);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -172,22 +168,21 @@ static int sdhci_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(sdhci_pm_ops, sdhci_suspend, sdhci_resume);
 
-#ifdef CONFIG_OF
 static const struct of_device_id sdhci_spear_id_table[] = {
 	{ .compatible = "st,spear300-sdhci" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, sdhci_spear_id_table);
-#endif
 
 static struct platform_driver sdhci_driver = {
 	.driver = {
 		.name	= "sdhci",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.pm	= &sdhci_pm_ops,
-		.of_match_table = of_match_ptr(sdhci_spear_id_table),
+		.of_match_table = sdhci_spear_id_table,
 	},
 	.probe		= sdhci_probe,
-	.remove		= sdhci_remove,
+	.remove_new	= sdhci_remove,
 };
 
 module_platform_driver(sdhci_driver);

@@ -158,6 +158,7 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 
 	int ret, size, req_vec;
 	int i;
+	static atomic_t counter;
 
 	size = ipoib_recvq_size + 1;
 	ret = ipoib_cm_dev_init(dev);
@@ -171,8 +172,7 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 		if (ret != -EOPNOTSUPP)
 			return ret;
 
-	req_vec = (priv->port - 1) * 2;
-
+	req_vec = atomic_inc_return(&counter) * 2;
 	cq_attr.cqe = size;
 	cq_attr.comp_vector = req_vec % priv->ca->num_comp_vectors;
 	priv->recv_cq = ib_create_cq(priv->ca, ipoib_ib_rx_completion, NULL,
@@ -197,14 +197,17 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 	init_attr.send_cq = priv->send_cq;
 	init_attr.recv_cq = priv->recv_cq;
 
-	if (priv->hca_caps & IB_DEVICE_UD_TSO)
+	if (priv->kernel_caps & IBK_UD_TSO)
 		init_attr.create_flags |= IB_QP_CREATE_IPOIB_UD_LSO;
 
-	if (priv->hca_caps & IB_DEVICE_BLOCK_MULTICAST_LOOPBACK)
+	if (priv->kernel_caps & IBK_BLOCK_MULTICAST_LOOPBACK)
 		init_attr.create_flags |= IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK;
 
 	if (priv->hca_caps & IB_DEVICE_MANAGED_FLOW_STEERING)
 		init_attr.create_flags |= IB_QP_CREATE_NETIF_QP;
+
+	if (priv->kernel_caps & IBK_RDMA_NETDEV_OPA)
+		init_attr.create_flags |= IB_QP_CREATE_NETDEV_USE;
 
 	priv->qp = ib_create_qp(priv->pd, &init_attr);
 	if (IS_ERR(priv->qp)) {

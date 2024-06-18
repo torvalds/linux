@@ -13,9 +13,9 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/property.h>
 #include <linux/pwm.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
@@ -59,8 +59,6 @@ struct img_pwm_soc_data {
 };
 
 struct img_pwm_chip {
-	struct device	*dev;
-	struct pwm_chip	chip;
 	struct clk	*pwm_clk;
 	struct clk	*sys_clk;
 	void __iomem	*base;
@@ -74,19 +72,18 @@ struct img_pwm_chip {
 
 static inline struct img_pwm_chip *to_img_pwm_chip(struct pwm_chip *chip)
 {
-	return container_of(chip, struct img_pwm_chip, chip);
+	return pwmchip_get_drvdata(chip);
 }
 
-static inline void img_pwm_writel(struct img_pwm_chip *chip,
+static inline void img_pwm_writel(struct img_pwm_chip *imgchip,
 				  u32 reg, u32 val)
 {
-	writel(val, chip->base + reg);
+	writel(val, imgchip->base + reg);
 }
 
-static inline u32 img_pwm_readl(struct img_pwm_chip *chip,
-					 u32 reg)
+static inline u32 img_pwm_readl(struct img_pwm_chip *imgchip, u32 reg)
 {
-	return readl(chip->base + reg);
+	return readl(imgchip->base + reg);
 }
 
 static int img_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -94,17 +91,17 @@ static int img_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 {
 	u32 val, div, duty, timebase;
 	unsigned long mul, output_clk_hz, input_clk_hz;
-	struct img_pwm_chip *pwm_chip = to_img_pwm_chip(chip);
-	unsigned int max_timebase = pwm_chip->data->max_timebase;
+	struct img_pwm_chip *imgchip = to_img_pwm_chip(chip);
+	unsigned int max_timebase = imgchip->data->max_timebase;
 	int ret;
 
-	if (period_ns < pwm_chip->min_period_ns ||
-	    period_ns > pwm_chip->max_period_ns) {
-		dev_err(chip->dev, "configured period not in range\n");
+	if (period_ns < imgchip->min_period_ns ||
+	    period_ns > imgchip->max_period_ns) {
+		dev_err(pwmchip_parent(chip), "configured period not in range\n");
 		return -ERANGE;
 	}
 
-	input_clk_hz = clk_get_rate(pwm_chip->pwm_clk);
+	input_clk_hz = clk_get_rate(imgchip->pwm_clk);
 	output_clk_hz = DIV_ROUND_UP(NSEC_PER_SEC, period_ns);
 
 	mul = DIV_ROUND_UP(input_clk_hz, output_clk_hz);
@@ -121,29 +118,29 @@ static int img_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		div = PWM_CTRL_CFG_SUB_DIV0_DIV1;
 		timebase = DIV_ROUND_UP(mul, 512);
 	} else {
-		dev_err(chip->dev,
+		dev_err(pwmchip_parent(chip),
 			"failed to configure timebase steps/divider value\n");
 		return -EINVAL;
 	}
 
 	duty = DIV_ROUND_UP(timebase * duty_ns, period_ns);
 
-	ret = pm_runtime_get_sync(chip->dev);
+	ret = pm_runtime_resume_and_get(pwmchip_parent(chip));
 	if (ret < 0)
 		return ret;
 
-	val = img_pwm_readl(pwm_chip, PWM_CTRL_CFG);
+	val = img_pwm_readl(imgchip, PWM_CTRL_CFG);
 	val &= ~(PWM_CTRL_CFG_DIV_MASK << PWM_CTRL_CFG_DIV_SHIFT(pwm->hwpwm));
 	val |= (div & PWM_CTRL_CFG_DIV_MASK) <<
 		PWM_CTRL_CFG_DIV_SHIFT(pwm->hwpwm);
-	img_pwm_writel(pwm_chip, PWM_CTRL_CFG, val);
+	img_pwm_writel(imgchip, PWM_CTRL_CFG, val);
 
 	val = (duty << PWM_CH_CFG_DUTY_SHIFT) |
 	      (timebase << PWM_CH_CFG_TMBASE_SHIFT);
-	img_pwm_writel(pwm_chip, PWM_CH_CFG(pwm->hwpwm), val);
+	img_pwm_writel(imgchip, PWM_CH_CFG(pwm->hwpwm), val);
 
-	pm_runtime_mark_last_busy(chip->dev);
-	pm_runtime_put_autosuspend(chip->dev);
+	pm_runtime_mark_last_busy(pwmchip_parent(chip));
+	pm_runtime_put_autosuspend(pwmchip_parent(chip));
 
 	return 0;
 }
@@ -151,20 +148,20 @@ static int img_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 static int img_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	u32 val;
-	struct img_pwm_chip *pwm_chip = to_img_pwm_chip(chip);
+	struct img_pwm_chip *imgchip = to_img_pwm_chip(chip);
 	int ret;
 
-	ret = pm_runtime_get_sync(chip->dev);
+	ret = pm_runtime_resume_and_get(pwmchip_parent(chip));
 	if (ret < 0)
 		return ret;
 
-	val = img_pwm_readl(pwm_chip, PWM_CTRL_CFG);
+	val = img_pwm_readl(imgchip, PWM_CTRL_CFG);
 	val |= BIT(pwm->hwpwm);
-	img_pwm_writel(pwm_chip, PWM_CTRL_CFG, val);
+	img_pwm_writel(imgchip, PWM_CTRL_CFG, val);
 
-	regmap_update_bits(pwm_chip->periph_regs, PERIP_PWM_PDM_CONTROL,
-			   PERIP_PWM_PDM_CONTROL_CH_MASK <<
-			   PERIP_PWM_PDM_CONTROL_CH_SHIFT(pwm->hwpwm), 0);
+	regmap_clear_bits(imgchip->periph_regs, PERIP_PWM_PDM_CONTROL,
+			  PERIP_PWM_PDM_CONTROL_CH_MASK <<
+			  PERIP_PWM_PDM_CONTROL_CH_SHIFT(pwm->hwpwm));
 
 	return 0;
 }
@@ -172,21 +169,43 @@ static int img_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 static void img_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	u32 val;
-	struct img_pwm_chip *pwm_chip = to_img_pwm_chip(chip);
+	struct img_pwm_chip *imgchip = to_img_pwm_chip(chip);
 
-	val = img_pwm_readl(pwm_chip, PWM_CTRL_CFG);
+	val = img_pwm_readl(imgchip, PWM_CTRL_CFG);
 	val &= ~BIT(pwm->hwpwm);
-	img_pwm_writel(pwm_chip, PWM_CTRL_CFG, val);
+	img_pwm_writel(imgchip, PWM_CTRL_CFG, val);
 
-	pm_runtime_mark_last_busy(chip->dev);
-	pm_runtime_put_autosuspend(chip->dev);
+	pm_runtime_mark_last_busy(pwmchip_parent(chip));
+	pm_runtime_put_autosuspend(pwmchip_parent(chip));
+}
+
+static int img_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
+			 const struct pwm_state *state)
+{
+	int err;
+
+	if (state->polarity != PWM_POLARITY_NORMAL)
+		return -EINVAL;
+
+	if (!state->enabled) {
+		if (pwm->state.enabled)
+			img_pwm_disable(chip, pwm);
+
+		return 0;
+	}
+
+	err = img_pwm_config(chip, pwm, state->duty_cycle, state->period);
+	if (err)
+		return err;
+
+	if (!pwm->state.enabled)
+		err = img_pwm_enable(chip, pwm);
+
+	return err;
 }
 
 static const struct pwm_ops img_pwm_ops = {
-	.config = img_pwm_config,
-	.enable = img_pwm_enable,
-	.disable = img_pwm_disable,
-	.owner = THIS_MODULE,
+	.apply = img_pwm_apply,
 };
 
 static const struct img_pwm_soc_data pistachio_pwm = {
@@ -204,29 +223,31 @@ MODULE_DEVICE_TABLE(of, img_pwm_of_match);
 
 static int img_pwm_runtime_suspend(struct device *dev)
 {
-	struct img_pwm_chip *pwm_chip = dev_get_drvdata(dev);
+	struct pwm_chip *chip = dev_get_drvdata(dev);
+	struct img_pwm_chip *imgchip = to_img_pwm_chip(chip);
 
-	clk_disable_unprepare(pwm_chip->pwm_clk);
-	clk_disable_unprepare(pwm_chip->sys_clk);
+	clk_disable_unprepare(imgchip->pwm_clk);
+	clk_disable_unprepare(imgchip->sys_clk);
 
 	return 0;
 }
 
 static int img_pwm_runtime_resume(struct device *dev)
 {
-	struct img_pwm_chip *pwm_chip = dev_get_drvdata(dev);
+	struct pwm_chip *chip = dev_get_drvdata(dev);
+	struct img_pwm_chip *imgchip = to_img_pwm_chip(chip);
 	int ret;
 
-	ret = clk_prepare_enable(pwm_chip->sys_clk);
+	ret = clk_prepare_enable(imgchip->sys_clk);
 	if (ret < 0) {
 		dev_err(dev, "could not prepare or enable sys clock\n");
 		return ret;
 	}
 
-	ret = clk_prepare_enable(pwm_chip->pwm_clk);
+	ret = clk_prepare_enable(imgchip->pwm_clk);
 	if (ret < 0) {
 		dev_err(dev, "could not prepare or enable pwm clock\n");
-		clk_disable_unprepare(pwm_chip->sys_clk);
+		clk_disable_unprepare(imgchip->sys_clk);
 		return ret;
 	}
 
@@ -238,42 +259,38 @@ static int img_pwm_probe(struct platform_device *pdev)
 	int ret;
 	u64 val;
 	unsigned long clk_rate;
-	struct resource *res;
-	struct img_pwm_chip *pwm;
-	const struct of_device_id *of_dev_id;
+	struct pwm_chip *chip;
+	struct img_pwm_chip *imgchip;
 
-	pwm = devm_kzalloc(&pdev->dev, sizeof(*pwm), GFP_KERNEL);
-	if (!pwm)
-		return -ENOMEM;
+	chip = devm_pwmchip_alloc(&pdev->dev, IMG_PWM_NPWM, sizeof(*imgchip));
+	if (IS_ERR(chip))
+		return PTR_ERR(chip);
+	imgchip = to_img_pwm_chip(chip);
 
-	pwm->dev = &pdev->dev;
+	imgchip->base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(imgchip->base))
+		return PTR_ERR(imgchip->base);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pwm->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(pwm->base))
-		return PTR_ERR(pwm->base);
+	imgchip->data = device_get_match_data(&pdev->dev);
 
-	of_dev_id = of_match_device(img_pwm_of_match, &pdev->dev);
-	if (!of_dev_id)
-		return -ENODEV;
-	pwm->data = of_dev_id->data;
+	imgchip->periph_regs = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+							       "img,cr-periph");
+	if (IS_ERR(imgchip->periph_regs))
+		return PTR_ERR(imgchip->periph_regs);
 
-	pwm->periph_regs = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
-							   "img,cr-periph");
-	if (IS_ERR(pwm->periph_regs))
-		return PTR_ERR(pwm->periph_regs);
-
-	pwm->sys_clk = devm_clk_get(&pdev->dev, "sys");
-	if (IS_ERR(pwm->sys_clk)) {
+	imgchip->sys_clk = devm_clk_get(&pdev->dev, "sys");
+	if (IS_ERR(imgchip->sys_clk)) {
 		dev_err(&pdev->dev, "failed to get system clock\n");
-		return PTR_ERR(pwm->sys_clk);
+		return PTR_ERR(imgchip->sys_clk);
 	}
 
-	pwm->pwm_clk = devm_clk_get(&pdev->dev, "pwm");
-	if (IS_ERR(pwm->pwm_clk)) {
+	imgchip->pwm_clk = devm_clk_get(&pdev->dev, "pwm");
+	if (IS_ERR(imgchip->pwm_clk)) {
 		dev_err(&pdev->dev, "failed to get pwm clock\n");
-		return PTR_ERR(pwm->pwm_clk);
+		return PTR_ERR(imgchip->pwm_clk);
 	}
+
+	platform_set_drvdata(pdev, chip);
 
 	pm_runtime_set_autosuspend_delay(&pdev->dev, IMG_PWM_PM_TIMEOUT);
 	pm_runtime_use_autosuspend(&pdev->dev);
@@ -284,34 +301,30 @@ static int img_pwm_probe(struct platform_device *pdev)
 			goto err_pm_disable;
 	}
 
-	clk_rate = clk_get_rate(pwm->pwm_clk);
+	clk_rate = clk_get_rate(imgchip->pwm_clk);
 	if (!clk_rate) {
-		dev_err(&pdev->dev, "pwm clock has no frequency\n");
+		dev_err(&pdev->dev, "imgchip clock has no frequency\n");
 		ret = -EINVAL;
 		goto err_suspend;
 	}
 
 	/* The maximum input clock divider is 512 */
-	val = (u64)NSEC_PER_SEC * 512 * pwm->data->max_timebase;
+	val = (u64)NSEC_PER_SEC * 512 * imgchip->data->max_timebase;
 	do_div(val, clk_rate);
-	pwm->max_period_ns = val;
+	imgchip->max_period_ns = val;
 
 	val = (u64)NSEC_PER_SEC * MIN_TMBASE_STEPS;
 	do_div(val, clk_rate);
-	pwm->min_period_ns = val;
+	imgchip->min_period_ns = val;
 
-	pwm->chip.dev = &pdev->dev;
-	pwm->chip.ops = &img_pwm_ops;
-	pwm->chip.base = -1;
-	pwm->chip.npwm = IMG_PWM_NPWM;
+	chip->ops = &img_pwm_ops;
 
-	ret = pwmchip_add(&pwm->chip);
+	ret = pwmchip_add(chip);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "pwmchip_add failed: %d\n", ret);
 		goto err_suspend;
 	}
 
-	platform_set_drvdata(pdev, pwm);
 	return 0;
 
 err_suspend:
@@ -323,35 +336,22 @@ err_pm_disable:
 	return ret;
 }
 
-static int img_pwm_remove(struct platform_device *pdev)
+static void img_pwm_remove(struct platform_device *pdev)
 {
-	struct img_pwm_chip *pwm_chip = platform_get_drvdata(pdev);
-	u32 val;
-	unsigned int i;
-	int ret;
+	struct pwm_chip *chip = platform_get_drvdata(pdev);
 
-	ret = pm_runtime_get_sync(&pdev->dev);
-	if (ret < 0)
-		return ret;
-
-	for (i = 0; i < pwm_chip->chip.npwm; i++) {
-		val = img_pwm_readl(pwm_chip, PWM_CTRL_CFG);
-		val &= ~BIT(i);
-		img_pwm_writel(pwm_chip, PWM_CTRL_CFG, val);
-	}
-
-	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		img_pwm_runtime_suspend(&pdev->dev);
 
-	return pwmchip_remove(&pwm_chip->chip);
+	pwmchip_remove(chip);
 }
 
 #ifdef CONFIG_PM_SLEEP
 static int img_pwm_suspend(struct device *dev)
 {
-	struct img_pwm_chip *pwm_chip = dev_get_drvdata(dev);
+	struct pwm_chip *chip = dev_get_drvdata(dev);
+	struct img_pwm_chip *imgchip = to_img_pwm_chip(chip);
 	int i, ret;
 
 	if (pm_runtime_status_suspended(dev)) {
@@ -360,11 +360,11 @@ static int img_pwm_suspend(struct device *dev)
 			return ret;
 	}
 
-	for (i = 0; i < pwm_chip->chip.npwm; i++)
-		pwm_chip->suspend_ch_cfg[i] = img_pwm_readl(pwm_chip,
-							    PWM_CH_CFG(i));
+	for (i = 0; i < chip->npwm; i++)
+		imgchip->suspend_ch_cfg[i] = img_pwm_readl(imgchip,
+							   PWM_CH_CFG(i));
 
-	pwm_chip->suspend_ctrl_cfg = img_pwm_readl(pwm_chip, PWM_CTRL_CFG);
+	imgchip->suspend_ctrl_cfg = img_pwm_readl(imgchip, PWM_CTRL_CFG);
 
 	img_pwm_runtime_suspend(dev);
 
@@ -373,7 +373,8 @@ static int img_pwm_suspend(struct device *dev)
 
 static int img_pwm_resume(struct device *dev)
 {
-	struct img_pwm_chip *pwm_chip = dev_get_drvdata(dev);
+	struct pwm_chip *chip = dev_get_drvdata(dev);
+	struct img_pwm_chip *imgchip = to_img_pwm_chip(chip);
 	int ret;
 	int i;
 
@@ -381,19 +382,18 @@ static int img_pwm_resume(struct device *dev)
 	if (ret)
 		return ret;
 
-	for (i = 0; i < pwm_chip->chip.npwm; i++)
-		img_pwm_writel(pwm_chip, PWM_CH_CFG(i),
-			       pwm_chip->suspend_ch_cfg[i]);
+	for (i = 0; i < chip->npwm; i++)
+		img_pwm_writel(imgchip, PWM_CH_CFG(i),
+			       imgchip->suspend_ch_cfg[i]);
 
-	img_pwm_writel(pwm_chip, PWM_CTRL_CFG, pwm_chip->suspend_ctrl_cfg);
+	img_pwm_writel(imgchip, PWM_CTRL_CFG, imgchip->suspend_ctrl_cfg);
 
-	for (i = 0; i < pwm_chip->chip.npwm; i++)
-		if (pwm_chip->suspend_ctrl_cfg & BIT(i))
-			regmap_update_bits(pwm_chip->periph_regs,
-					   PERIP_PWM_PDM_CONTROL,
-					   PERIP_PWM_PDM_CONTROL_CH_MASK <<
-					   PERIP_PWM_PDM_CONTROL_CH_SHIFT(i),
-					   0);
+	for (i = 0; i < chip->npwm; i++)
+		if (imgchip->suspend_ctrl_cfg & BIT(i))
+			regmap_clear_bits(imgchip->periph_regs,
+					  PERIP_PWM_PDM_CONTROL,
+					  PERIP_PWM_PDM_CONTROL_CH_MASK <<
+					  PERIP_PWM_PDM_CONTROL_CH_SHIFT(i));
 
 	if (pm_runtime_status_suspended(dev))
 		img_pwm_runtime_suspend(dev);
@@ -416,7 +416,7 @@ static struct platform_driver img_pwm_driver = {
 		.of_match_table = img_pwm_of_match,
 	},
 	.probe = img_pwm_probe,
-	.remove = img_pwm_remove,
+	.remove_new = img_pwm_remove,
 };
 module_platform_driver(img_pwm_driver);
 

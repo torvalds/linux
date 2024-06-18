@@ -12,22 +12,17 @@ int __udp6_lib_rcv(struct sk_buff *, struct udp_table *, int);
 int __udp6_lib_err(struct sk_buff *, struct inet6_skb_parm *, u8, u8, int,
 		   __be32, struct udp_table *);
 
+int udpv6_init_sock(struct sock *sk);
 int udp_v6_get_port(struct sock *sk, unsigned short snum);
 void udp_v6_rehash(struct sock *sk);
 
 int udpv6_getsockopt(struct sock *sk, int level, int optname,
 		     char __user *optval, int __user *optlen);
-int udpv6_setsockopt(struct sock *sk, int level, int optname,
-		     char __user *optval, unsigned int optlen);
-#ifdef CONFIG_COMPAT
-int compat_udpv6_setsockopt(struct sock *sk, int level, int optname,
-			    char __user *optval, unsigned int optlen);
-int compat_udpv6_getsockopt(struct sock *sk, int level, int optname,
-			    char __user *optval, int __user *optlen);
-#endif
+int udpv6_setsockopt(struct sock *sk, int level, int optname, sockptr_t optval,
+		     unsigned int optlen);
 int udpv6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len);
-int udpv6_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int noblock,
-		  int flags, int *addr_len);
+int udpv6_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int flags,
+		  int *addr_len);
 void udpv6_destroy_sock(struct sock *sk);
 
 #ifdef CONFIG_PROC_FS

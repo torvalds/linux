@@ -7,6 +7,7 @@
 /*
  * Call Logical Processor - Command Codes
  */
+#define CLP_SLPC		0x0001
 #define CLP_LIST_PCI		0x0002
 #define CLP_QUERY_PCI_FN	0x0003
 #define CLP_QUERY_PCI_FNGRP	0x0004
@@ -49,7 +50,23 @@ struct clp_fh_list_entry {
 #define CLP_UTIL_STR_LEN	64
 #define CLP_PFIP_NR_SEGMENTS	4
 
+/* PCI function type numbers */
+#define PCI_FUNC_TYPE_ISM	0x5	/* ISM device */
+
 extern bool zpci_unique_uid;
+
+struct clp_rsp_slpc_pci {
+	struct clp_rsp_hdr hdr;
+	u32 reserved2[4];
+	u32 lpif[8];
+	u32 reserved3[4];
+	u32 vwb		:  1;
+	u32		:  1;
+	u32 mio_wb	:  6;
+	u32		: 24;
+	u32 reserved5[3];
+	u32 lpic[8];
+} __packed;
 
 /* List PCI functions request */
 struct clp_req_list_pci {
@@ -77,7 +94,7 @@ struct mio_info {
 	struct {
 		u64 wb;
 		u64 wt;
-	} addr[PCI_BAR_COUNT];
+	} addr[PCI_STD_NUM_BARS];
 	u32 reserved[6];
 } __packed;
 
@@ -93,21 +110,28 @@ struct clp_req_query_pci {
 struct clp_rsp_query_pci {
 	struct clp_rsp_hdr hdr;
 	u16 vfn;			/* virtual fn number */
-	u16			:  6;
+	u16			:  3;
+	u16 rid_avail		:  1;
+	u16 is_physfn		:  1;
+	u16 reserved1		:  1;
 	u16 mio_addr_avail	:  1;
 	u16 util_str_avail	:  1;	/* utility string available? */
 	u16 pfgid		:  8;	/* pci function group id */
 	u32 fid;			/* pci function id */
-	u8 bar_size[PCI_BAR_COUNT];
+	u8 bar_size[PCI_STD_NUM_BARS];
 	u16 pchid;
-	__le32 bar[PCI_BAR_COUNT];
+	__le32 bar[PCI_STD_NUM_BARS];
 	u8 pfip[CLP_PFIP_NR_SEGMENTS];	/* pci function internal path */
-	u32			: 16;
+	u16			: 12;
+	u16 port		:  4;
 	u8 fmb_len;
 	u8 pft;				/* pci function type */
 	u64 sdma;			/* start dma as */
 	u64 edma;			/* end dma as */
-	u32 reserved[11];
+#define ZPCI_RID_MASK_DEVFN 0x00ff
+	u16 rid;			/* BUS/DEVFN PCI address */
+	u16 reserved0;
+	u32 reserved[10];
 	u32 uid;			/* user defined id */
 	u8 util_str[CLP_UTIL_STR_LEN];	/* utility string */
 	u32 reserved2[16];
@@ -132,9 +156,11 @@ struct clp_rsp_query_pci_grp {
 	u8			:  6;
 	u8 frame		:  1;
 	u8 refresh		:  1;	/* TLB refresh mode */
-	u16 reserved2;
+	u16			:  3;
+	u16 maxstbl		: 13;	/* Maximum store block size */
 	u16 mui;
-	u16			: 16;
+	u8 dtsm;			/* Supported DT mask */
+	u8 reserved3;
 	u16 maxfaal;
 	u16			:  4;
 	u16 dnoi		: 12;
@@ -152,7 +178,8 @@ struct clp_req_set_pci {
 	u16 reserved2;
 	u8 oc;				/* operation controls */
 	u8 ndas;			/* number of dma spaces */
-	u64 reserved3;
+	u32 reserved3;
+	u32 gisa;			/* GISA designation */
 } __packed;
 
 /* Set PCI function response */
@@ -165,6 +192,11 @@ struct clp_rsp_set_pci {
 } __packed;
 
 /* Combined request/response block structures used by clp insn */
+struct clp_req_rsp_slpc_pci {
+	struct clp_req_slpc request;
+	struct clp_rsp_slpc_pci response;
+} __packed;
+
 struct clp_req_rsp_list_pci {
 	struct clp_req_list_pci request;
 	struct clp_rsp_list_pci response;

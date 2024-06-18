@@ -8,41 +8,109 @@
 #include <linux/acpi.h>
 #endif
 
+#define UIP_RECHECK_DELAY		100	/* usec */
+#define UIP_RECHECK_DELAY_MS		(USEC_PER_MSEC / UIP_RECHECK_DELAY)
+#define UIP_RECHECK_LOOPS_MS(x)		(x / UIP_RECHECK_DELAY_MS)
+
 /*
- * Returns true if a clock update is in progress
+ * Execute a function while the UIP (Update-in-progress) bit of the RTC is
+ * unset. The timeout is configurable by the caller in ms.
+ *
+ * Warning: callback may be executed more then once.
  */
-static inline unsigned char mc146818_is_updating(void)
+bool mc146818_avoid_UIP(void (*callback)(unsigned char seconds, void *param),
+			int timeout,
+			void *param)
 {
-	unsigned char uip;
+	int i;
 	unsigned long flags;
+	unsigned char seconds;
 
-	spin_lock_irqsave(&rtc_lock, flags);
-	uip = (CMOS_READ(RTC_FREQ_SELECT) & RTC_UIP);
-	spin_unlock_irqrestore(&rtc_lock, flags);
-	return uip;
+	for (i = 0; UIP_RECHECK_LOOPS_MS(i) < timeout; i++) {
+		spin_lock_irqsave(&rtc_lock, flags);
+
+		/*
+		 * Check whether there is an update in progress during which the
+		 * readout is unspecified. The maximum update time is ~2ms. Poll
+		 * for completion.
+		 *
+		 * Store the second value before checking UIP so a long lasting
+		 * NMI which happens to hit after the UIP check cannot make
+		 * an update cycle invisible.
+		 */
+		seconds = CMOS_READ(RTC_SECONDS);
+
+		if (CMOS_READ(RTC_FREQ_SELECT) & RTC_UIP) {
+			spin_unlock_irqrestore(&rtc_lock, flags);
+			udelay(UIP_RECHECK_DELAY);
+			continue;
+		}
+
+		/* Revalidate the above readout */
+		if (seconds != CMOS_READ(RTC_SECONDS)) {
+			spin_unlock_irqrestore(&rtc_lock, flags);
+			continue;
+		}
+
+		if (callback)
+			callback(seconds, param);
+
+		/*
+		 * Check for the UIP bit again. If it is set now then
+		 * the above values may contain garbage.
+		 */
+		if (CMOS_READ(RTC_FREQ_SELECT) & RTC_UIP) {
+			spin_unlock_irqrestore(&rtc_lock, flags);
+			udelay(UIP_RECHECK_DELAY);
+			continue;
+		}
+
+		/*
+		 * A NMI might have interrupted the above sequence so check
+		 * whether the seconds value has changed which indicates that
+		 * the NMI took longer than the UIP bit was set. Unlikely, but
+		 * possible and there is also virt...
+		 */
+		if (seconds != CMOS_READ(RTC_SECONDS)) {
+			spin_unlock_irqrestore(&rtc_lock, flags);
+			continue;
+		}
+		spin_unlock_irqrestore(&rtc_lock, flags);
+
+		if (UIP_RECHECK_LOOPS_MS(i) >= 100)
+			pr_warn("Reading current time from RTC took around %li ms\n",
+				UIP_RECHECK_LOOPS_MS(i));
+
+		return true;
+	}
+	return false;
 }
+EXPORT_SYMBOL_GPL(mc146818_avoid_UIP);
 
-unsigned int mc146818_get_time(struct rtc_time *time)
+/*
+ * If the UIP (Update-in-progress) bit of the RTC is set for more then
+ * 10ms, the RTC is apparently broken or not present.
+ */
+bool mc146818_does_rtc_work(void)
 {
-	unsigned char ctrl;
-	unsigned long flags;
-	unsigned char century = 0;
+	return mc146818_avoid_UIP(NULL, 1000, NULL);
+}
+EXPORT_SYMBOL_GPL(mc146818_does_rtc_work);
 
+struct mc146818_get_time_callback_param {
+	struct rtc_time *time;
+	unsigned char ctrl;
+#ifdef CONFIG_ACPI
+	unsigned char century;
+#endif
 #ifdef CONFIG_MACH_DECSTATION
 	unsigned int real_year;
 #endif
+};
 
-	/*
-	 * read RTC once any update in progress is done. The update
-	 * can take just over 2ms. We wait 20ms. There is no need to
-	 * to poll-wait (up to 1s - eeccch) for the falling edge of RTC_UIP.
-	 * If you need to know *exactly* when a second has started, enable
-	 * periodic update complete interrupts, (via ioctl) and then
-	 * immediately read /dev/rtc which will block until you get the IRQ.
-	 * Once the read clears, read the RTC time (again via ioctl). Easy.
-	 */
-	if (mc146818_is_updating())
-		mdelay(20);
+static void mc146818_get_time_callback(unsigned char seconds, void *param_in)
+{
+	struct mc146818_get_time_callback_param *p = param_in;
 
 	/*
 	 * Only the values that we read from the RTC are set. We leave
@@ -50,25 +118,51 @@ unsigned int mc146818_get_time(struct rtc_time *time)
 	 * RTC has RTC_DAY_OF_WEEK, we ignore it, as it is only updated
 	 * by the RTC when initially set to a non-zero value.
 	 */
-	spin_lock_irqsave(&rtc_lock, flags);
-	time->tm_sec = CMOS_READ(RTC_SECONDS);
-	time->tm_min = CMOS_READ(RTC_MINUTES);
-	time->tm_hour = CMOS_READ(RTC_HOURS);
-	time->tm_mday = CMOS_READ(RTC_DAY_OF_MONTH);
-	time->tm_mon = CMOS_READ(RTC_MONTH);
-	time->tm_year = CMOS_READ(RTC_YEAR);
+	p->time->tm_sec = seconds;
+	p->time->tm_min = CMOS_READ(RTC_MINUTES);
+	p->time->tm_hour = CMOS_READ(RTC_HOURS);
+	p->time->tm_mday = CMOS_READ(RTC_DAY_OF_MONTH);
+	p->time->tm_mon = CMOS_READ(RTC_MONTH);
+	p->time->tm_year = CMOS_READ(RTC_YEAR);
 #ifdef CONFIG_MACH_DECSTATION
-	real_year = CMOS_READ(RTC_DEC_YEAR);
+	p->real_year = CMOS_READ(RTC_DEC_YEAR);
 #endif
 #ifdef CONFIG_ACPI
 	if (acpi_gbl_FADT.header.revision >= FADT2_REVISION_ID &&
-	    acpi_gbl_FADT.century)
-		century = CMOS_READ(acpi_gbl_FADT.century);
+	    acpi_gbl_FADT.century) {
+		p->century = CMOS_READ(acpi_gbl_FADT.century);
+	} else {
+		p->century = 0;
+	}
 #endif
-	ctrl = CMOS_READ(RTC_CONTROL);
-	spin_unlock_irqrestore(&rtc_lock, flags);
 
-	if (!(ctrl & RTC_DM_BINARY) || RTC_ALWAYS_BCD)
+	p->ctrl = CMOS_READ(RTC_CONTROL);
+}
+
+/**
+ * mc146818_get_time - Get the current time from the RTC
+ * @time: pointer to struct rtc_time to store the current time
+ * @timeout: timeout value in ms
+ *
+ * This function reads the current time from the RTC and stores it in the
+ * provided struct rtc_time. The timeout parameter specifies the maximum
+ * time to wait for the RTC to become ready.
+ *
+ * Return: 0 on success, -ETIMEDOUT if the RTC did not become ready within
+ * the specified timeout, or another error code if an error occurred.
+ */
+int mc146818_get_time(struct rtc_time *time, int timeout)
+{
+	struct mc146818_get_time_callback_param p = {
+		.time = time
+	};
+
+	if (!mc146818_avoid_UIP(mc146818_get_time_callback, timeout, &p)) {
+		memset(time, 0, sizeof(*time));
+		return -ETIMEDOUT;
+	}
+
+	if (!(p.ctrl & RTC_DM_BINARY) || RTC_ALWAYS_BCD)
 	{
 		time->tm_sec = bcd2bin(time->tm_sec);
 		time->tm_min = bcd2bin(time->tm_min);
@@ -76,15 +170,19 @@ unsigned int mc146818_get_time(struct rtc_time *time)
 		time->tm_mday = bcd2bin(time->tm_mday);
 		time->tm_mon = bcd2bin(time->tm_mon);
 		time->tm_year = bcd2bin(time->tm_year);
-		century = bcd2bin(century);
+#ifdef CONFIG_ACPI
+		p.century = bcd2bin(p.century);
+#endif
 	}
 
 #ifdef CONFIG_MACH_DECSTATION
-	time->tm_year += real_year - 72;
+	time->tm_year += p.real_year - 72;
 #endif
 
-	if (century > 20)
-		time->tm_year += (century - 19) * 100;
+#ifdef CONFIG_ACPI
+	if (p.century > 19)
+		time->tm_year += (p.century - 19) * 100;
+#endif
 
 	/*
 	 * Account for differences between how the RTC uses the values
@@ -95,9 +193,20 @@ unsigned int mc146818_get_time(struct rtc_time *time)
 
 	time->tm_mon--;
 
-	return RTC_24H;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(mc146818_get_time);
+
+/* AMD systems don't allow access to AltCentury with DV1 */
+static bool apply_amd_register_a_behavior(void)
+{
+#ifdef CONFIG_X86
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD ||
+	    boot_cpu_data.x86_vendor == X86_VENDOR_HYGON)
+		return true;
+#endif
+	return false;
+}
 
 /* Set the current date and time in the real time clock. */
 int mc146818_set_time(struct rtc_time *time)
@@ -121,7 +230,6 @@ int mc146818_set_time(struct rtc_time *time)
 	if (yrs > 255)	/* They are unsigned */
 		return -EINVAL;
 
-	spin_lock_irqsave(&rtc_lock, flags);
 #ifdef CONFIG_MACH_DECSTATION
 	real_yrs = yrs;
 	leap_yr = ((!((yrs + 1900) % 4) && ((yrs + 1900) % 100)) ||
@@ -150,16 +258,16 @@ int mc146818_set_time(struct rtc_time *time)
 	/* These limits and adjustments are independent of
 	 * whether the chip is in binary mode or not.
 	 */
-	if (yrs > 169) {
-		spin_unlock_irqrestore(&rtc_lock, flags);
+	if (yrs > 169)
 		return -EINVAL;
-	}
 
 	if (yrs >= 100)
 		yrs -= 100;
 
-	if (!(CMOS_READ(RTC_CONTROL) & RTC_DM_BINARY)
-	    || RTC_ALWAYS_BCD) {
+	spin_lock_irqsave(&rtc_lock, flags);
+	save_control = CMOS_READ(RTC_CONTROL);
+	spin_unlock_irqrestore(&rtc_lock, flags);
+	if (!(save_control & RTC_DM_BINARY) || RTC_ALWAYS_BCD) {
 		sec = bin2bcd(sec);
 		min = bin2bcd(min);
 		hrs = bin2bcd(hrs);
@@ -169,10 +277,14 @@ int mc146818_set_time(struct rtc_time *time)
 		century = bin2bcd(century);
 	}
 
+	spin_lock_irqsave(&rtc_lock, flags);
 	save_control = CMOS_READ(RTC_CONTROL);
 	CMOS_WRITE((save_control|RTC_SET), RTC_CONTROL);
 	save_freq_select = CMOS_READ(RTC_FREQ_SELECT);
-	CMOS_WRITE((save_freq_select|RTC_DIV_RESET2), RTC_FREQ_SELECT);
+	if (apply_amd_register_a_behavior())
+		CMOS_WRITE((save_freq_select & ~RTC_AMD_BANK_SELECT), RTC_FREQ_SELECT);
+	else
+		CMOS_WRITE((save_freq_select|RTC_DIV_RESET2), RTC_FREQ_SELECT);
 
 #ifdef CONFIG_MACH_DECSTATION
 	CMOS_WRITE(real_yrs, RTC_DEC_YEAR);

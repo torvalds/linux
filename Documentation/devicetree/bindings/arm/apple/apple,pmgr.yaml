@@ -1,0 +1,135 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/apple/apple,pmgr.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Apple SoC Power Manager (PMGR)
+
+maintainers:
+  - Hector Martin <marcan@marcan.st>
+
+description: |
+  Apple SoCs include PMGR blocks responsible for power management,
+  which can control various clocks, resets, power states, and
+  performance features. This node represents the PMGR as a syscon,
+  with sub-nodes representing individual features.
+
+properties:
+  $nodename:
+    pattern: "^power-management@[0-9a-f]+$"
+
+  compatible:
+    items:
+      - enum:
+          - apple,t8103-pmgr
+          - apple,t8112-pmgr
+          - apple,t6000-pmgr
+      - const: apple,pmgr
+      - const: syscon
+      - const: simple-mfd
+
+  reg:
+    maxItems: 1
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 1
+
+patternProperties:
+  "power-controller@[0-9a-f]+$":
+    description:
+      The individual power management domains within this controller
+    type: object
+    $ref: /schemas/power/apple,pmgr-pwrstate.yaml#
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        power-management@23b700000 {
+            compatible = "apple,t8103-pmgr", "apple,pmgr", "syscon", "simple-mfd";
+            #address-cells = <1>;
+            #size-cells = <1>;
+            reg = <0x2 0x3b700000 0x0 0x14000>;
+
+            ps_sio: power-controller@1c0 {
+                compatible = "apple,t8103-pmgr-pwrstate", "apple,pmgr-pwrstate";
+                reg = <0x1c0 8>;
+                #power-domain-cells = <0>;
+                #reset-cells = <0>;
+                label = "sio";
+                apple,always-on;
+            };
+
+            ps_uart_p: power-controller@220 {
+                compatible = "apple,t8103-pmgr-pwrstate", "apple,pmgr-pwrstate";
+                reg = <0x220 8>;
+                #power-domain-cells = <0>;
+                #reset-cells = <0>;
+                label = "uart_p";
+                power-domains = <&ps_sio>;
+            };
+
+            ps_uart0: power-controller@270 {
+                compatible = "apple,t8103-pmgr-pwrstate", "apple,pmgr-pwrstate";
+                reg = <0x270 8>;
+                #power-domain-cells = <0>;
+                #reset-cells = <0>;
+                label = "uart0";
+                power-domains = <&ps_uart_p>;
+            };
+        };
+
+        power-management@23d280000 {
+            compatible = "apple,t8103-pmgr", "apple,pmgr", "syscon", "simple-mfd";
+            #address-cells = <1>;
+            #size-cells = <1>;
+            reg = <0x2 0x3d280000 0x0 0xc000>;
+
+            ps_aop_filter: power-controller@4000 {
+                compatible = "apple,t8103-pmgr-pwrstate", "apple,pmgr-pwrstate";
+                reg = <0x4000 8>;
+                #power-domain-cells = <0>;
+                #reset-cells = <0>;
+                label = "aop_filter";
+            };
+
+            ps_aop_base: power-controller@4010 {
+                compatible = "apple,t8103-pmgr-pwrstate", "apple,pmgr-pwrstate";
+                reg = <0x4010 8>;
+                #power-domain-cells = <0>;
+                #reset-cells = <0>;
+                label = "aop_base";
+                power-domains = <&ps_aop_filter>;
+            };
+
+            ps_aop_shim: power-controller@4038 {
+                compatible = "apple,t8103-pmgr-pwrstate", "apple,pmgr-pwrstate";
+                reg = <0x4038 8>;
+                #power-domain-cells = <0>;
+                #reset-cells = <0>;
+                label = "aop_shim";
+                power-domains = <&ps_aop_base>;
+            };
+
+            ps_aop_uart0: power-controller@4048 {
+                compatible = "apple,t8103-pmgr-pwrstate", "apple,pmgr-pwrstate";
+                reg = <0x4048 8>;
+                #power-domain-cells = <0>;
+                #reset-cells = <0>;
+                label = "aop_uart0";
+                power-domains = <&ps_aop_shim>;
+            };
+        };
+    };

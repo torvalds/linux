@@ -6,9 +6,9 @@
  *          Yannick Fertre <yannick.fertre@st.com>
  */
 
-#include <linux/backlight.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/regulator/consumer.h>
 
@@ -17,7 +17,6 @@
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
-#include <drm/drm_print.h>
 
 /*** Manufacturer Command Set ***/
 #define MCS_CMD_MODE_SW		0xFE /* CMD Mode Switch */
@@ -78,22 +77,18 @@ struct rm68200 {
 	struct drm_panel panel;
 	struct gpio_desc *reset_gpio;
 	struct regulator *supply;
-	struct backlight_device *backlight;
-	bool prepared;
-	bool enabled;
 };
 
 static const struct drm_display_mode default_mode = {
-	.clock = 52582,
+	.clock = 54000,
 	.hdisplay = 720,
-	.hsync_start = 720 + 38,
-	.hsync_end = 720 + 38 + 8,
-	.htotal = 720 + 38 + 8 + 38,
+	.hsync_start = 720 + 48,
+	.hsync_end = 720 + 48 + 9,
+	.htotal = 720 + 48 + 9 + 48,
 	.vdisplay = 1280,
 	.vsync_start = 1280 + 12,
-	.vsync_end = 1280 + 12 + 4,
-	.vtotal = 1280 + 12 + 4 + 12,
-	.vrefresh = 50,
+	.vsync_end = 1280 + 12 + 5,
+	.vtotal = 1280 + 12 + 5 + 12,
 	.flags = 0,
 	.width_mm = 68,
 	.height_mm = 122,
@@ -112,8 +107,7 @@ static void rm68200_dcs_write_buf(struct rm68200 *ctx, const void *data,
 
 	err = mipi_dsi_dcs_write_buffer(dsi, data, len);
 	if (err < 0)
-		DRM_ERROR_RATELIMITED("MIPI DSI DCS write buffer failed: %d\n",
-				      err);
+		dev_err_ratelimited(ctx->dev, "MIPI DSI DCS write buffer failed: %d\n", err);
 }
 
 static void rm68200_dcs_write_cmd(struct rm68200 *ctx, u8 cmd, u8 value)
@@ -123,7 +117,7 @@ static void rm68200_dcs_write_cmd(struct rm68200 *ctx, u8 cmd, u8 value)
 
 	err = mipi_dsi_dcs_write(dsi, cmd, &value, 1);
 	if (err < 0)
-		DRM_ERROR_RATELIMITED("MIPI DSI DCS write failed: %d\n", err);
+		dev_err_ratelimited(ctx->dev, "MIPI DSI DCS write failed: %d\n", err);
 }
 
 #define dcs_write_seq(ctx, seq...)				\
@@ -235,36 +229,19 @@ static void rm68200_init_sequence(struct rm68200 *ctx)
 	dcs_write_seq(ctx, MCS_CMD_MODE_SW, MCS_CMD1_UCS);
 }
 
-static int rm68200_disable(struct drm_panel *panel)
-{
-	struct rm68200 *ctx = panel_to_rm68200(panel);
-
-	if (!ctx->enabled)
-		return 0;
-
-	backlight_disable(ctx->backlight);
-
-	ctx->enabled = false;
-
-	return 0;
-}
-
 static int rm68200_unprepare(struct drm_panel *panel)
 {
 	struct rm68200 *ctx = panel_to_rm68200(panel);
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
 	int ret;
 
-	if (!ctx->prepared)
-		return 0;
-
 	ret = mipi_dsi_dcs_set_display_off(dsi);
 	if (ret)
-		DRM_WARN("failed to set display off: %d\n", ret);
+		dev_warn(panel->dev, "failed to set display off: %d\n", ret);
 
 	ret = mipi_dsi_dcs_enter_sleep_mode(dsi);
 	if (ret)
-		DRM_WARN("failed to enter sleep mode: %d\n", ret);
+		dev_warn(panel->dev, "failed to enter sleep mode: %d\n", ret);
 
 	msleep(120);
 
@@ -275,8 +252,6 @@ static int rm68200_unprepare(struct drm_panel *panel)
 
 	regulator_disable(ctx->supply);
 
-	ctx->prepared = false;
-
 	return 0;
 }
 
@@ -286,12 +261,9 @@ static int rm68200_prepare(struct drm_panel *panel)
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
 	int ret;
 
-	if (ctx->prepared)
-		return 0;
-
 	ret = regulator_enable(ctx->supply);
 	if (ret < 0) {
-		DRM_ERROR("failed to enable supply: %d\n", ret);
+		dev_err(ctx->dev, "failed to enable supply: %d\n", ret);
 		return ret;
 	}
 
@@ -316,53 +288,36 @@ static int rm68200_prepare(struct drm_panel *panel)
 
 	msleep(20);
 
-	ctx->prepared = true;
-
 	return 0;
 }
 
-static int rm68200_enable(struct drm_panel *panel)
-{
-	struct rm68200 *ctx = panel_to_rm68200(panel);
-
-	if (ctx->enabled)
-		return 0;
-
-	backlight_enable(ctx->backlight);
-
-	ctx->enabled = true;
-
-	return 0;
-}
-
-static int rm68200_get_modes(struct drm_panel *panel)
+static int rm68200_get_modes(struct drm_panel *panel,
+			     struct drm_connector *connector)
 {
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(panel->drm, &default_mode);
+	mode = drm_mode_duplicate(connector->dev, &default_mode);
 	if (!mode) {
-		DRM_ERROR("failed to add mode %ux%ux@%u\n",
-			  default_mode.hdisplay, default_mode.vdisplay,
-			  default_mode.vrefresh);
+		dev_err(panel->dev, "failed to add mode %ux%u@%u\n",
+			default_mode.hdisplay, default_mode.vdisplay,
+			drm_mode_vrefresh(&default_mode));
 		return -ENOMEM;
 	}
 
 	drm_mode_set_name(mode);
 
 	mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
-	drm_mode_probed_add(panel->connector, mode);
+	drm_mode_probed_add(connector, mode);
 
-	panel->connector->display_info.width_mm = mode->width_mm;
-	panel->connector->display_info.height_mm = mode->height_mm;
+	connector->display_info.width_mm = mode->width_mm;
+	connector->display_info.height_mm = mode->height_mm;
 
 	return 1;
 }
 
 static const struct drm_panel_funcs rm68200_drm_funcs = {
-	.disable = rm68200_disable,
 	.unprepare = rm68200_unprepare,
 	.prepare = rm68200_prepare,
-	.enable = rm68200_enable,
 	.get_modes = rm68200_get_modes,
 };
 
@@ -391,10 +346,6 @@ static int rm68200_probe(struct mipi_dsi_device *dsi)
 		return ret;
 	}
 
-	ctx->backlight = devm_of_find_backlight(dev);
-	if (IS_ERR(ctx->backlight))
-		return PTR_ERR(ctx->backlight);
-
 	mipi_dsi_set_drvdata(dsi, ctx);
 
 	ctx->dev = dev;
@@ -402,11 +353,14 @@ static int rm68200_probe(struct mipi_dsi_device *dsi)
 	dsi->lanes = 2;
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
-			  MIPI_DSI_MODE_LPM;
+			  MIPI_DSI_MODE_LPM | MIPI_DSI_CLOCK_NON_CONTINUOUS;
 
-	drm_panel_init(&ctx->panel);
-	ctx->panel.dev = dev;
-	ctx->panel.funcs = &rm68200_drm_funcs;
+	drm_panel_init(&ctx->panel, dev, &rm68200_drm_funcs,
+		       DRM_MODE_CONNECTOR_DSI);
+
+	ret = drm_panel_of_backlight(&ctx->panel);
+	if (ret)
+		return ret;
 
 	drm_panel_add(&ctx->panel);
 
@@ -420,14 +374,12 @@ static int rm68200_probe(struct mipi_dsi_device *dsi)
 	return 0;
 }
 
-static int rm68200_remove(struct mipi_dsi_device *dsi)
+static void rm68200_remove(struct mipi_dsi_device *dsi)
 {
 	struct rm68200 *ctx = mipi_dsi_get_drvdata(dsi);
 
 	mipi_dsi_detach(dsi);
 	drm_panel_remove(&ctx->panel);
-
-	return 0;
 }
 
 static const struct of_device_id raydium_rm68200_of_match[] = {

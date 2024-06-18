@@ -84,7 +84,6 @@
 
 struct ad5933_state {
 	struct i2c_client		*client;
-	struct regulator		*reg;
 	struct clk			*mclk;
 	struct delayed_work		work;
 	struct mutex			lock; /* Protect sensor state */
@@ -602,29 +601,13 @@ static const struct iio_buffer_setup_ops ad5933_ring_setup_ops = {
 	.postdisable = ad5933_ring_postdisable,
 };
 
-static int ad5933_register_ring_funcs_and_init(struct iio_dev *indio_dev)
-{
-	struct iio_buffer *buffer;
-
-	buffer = iio_kfifo_allocate();
-	if (!buffer)
-		return -ENOMEM;
-
-	iio_device_attach_buffer(indio_dev, buffer);
-
-	/* Ring buffer functions - here trigger setup related */
-	indio_dev->setup_ops = &ad5933_ring_setup_ops;
-
-	return 0;
-}
-
 static void ad5933_work(struct work_struct *work)
 {
 	struct ad5933_state *st = container_of(work,
 		struct ad5933_state, work.work);
 	struct iio_dev *indio_dev = i2c_get_clientdata(st->client);
 	__be16 buf[2];
-	int val[2];
+	u16 val[2];
 	unsigned char status;
 	int ret;
 
@@ -676,9 +659,9 @@ static void ad5933_work(struct work_struct *work)
 	}
 }
 
-static int ad5933_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ad5933_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	int ret;
 	struct ad5933_state *st;
 	struct iio_dev *indio_dev;
@@ -694,34 +677,18 @@ static int ad5933_probe(struct i2c_client *client,
 
 	mutex_init(&st->lock);
 
-	st->reg = devm_regulator_get(&client->dev, "vdd");
-	if (IS_ERR(st->reg))
-		return PTR_ERR(st->reg);
-
-	ret = regulator_enable(st->reg);
-	if (ret) {
-		dev_err(&client->dev, "Failed to enable specified VDD supply\n");
-		return ret;
-	}
-	ret = regulator_get_voltage(st->reg);
-
+	ret = devm_regulator_get_enable_read_voltage(&client->dev, "vdd");
 	if (ret < 0)
-		goto error_disable_reg;
+		return dev_err_probe(&client->dev, ret, "failed to get vdd voltage\n");
 
 	st->vref_mv = ret / 1000;
 
-	st->mclk = devm_clk_get(&client->dev, "mclk");
-	if (IS_ERR(st->mclk) && PTR_ERR(st->mclk) != -ENOENT) {
-		ret = PTR_ERR(st->mclk);
-		goto error_disable_reg;
-	}
+	st->mclk = devm_clk_get_enabled(&client->dev, "mclk");
+	if (IS_ERR(st->mclk) && PTR_ERR(st->mclk) != -ENOENT)
+		return PTR_ERR(st->mclk);
 
-	if (!IS_ERR(st->mclk)) {
-		ret = clk_prepare_enable(st->mclk);
-		if (ret < 0)
-			goto error_disable_reg;
+	if (!IS_ERR(st->mclk))
 		ext_clk_hz = clk_get_rate(st->mclk);
-	}
 
 	if (ext_clk_hz) {
 		st->mclk_hz = ext_clk_hz;
@@ -735,48 +702,22 @@ static int ad5933_probe(struct i2c_client *client,
 	INIT_DELAYED_WORK(&st->work, ad5933_work);
 	st->poll_time_jiffies = msecs_to_jiffies(AD5933_POLL_TIME_ms);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &ad5933_info;
 	indio_dev->name = id->name;
-	indio_dev->modes = (INDIO_BUFFER_SOFTWARE | INDIO_DIRECT_MODE);
+	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = ad5933_channels;
 	indio_dev->num_channels = ARRAY_SIZE(ad5933_channels);
 
-	ret = ad5933_register_ring_funcs_and_init(indio_dev);
+	ret = devm_iio_kfifo_buffer_setup(&client->dev, indio_dev,
+					  &ad5933_ring_setup_ops);
 	if (ret)
-		goto error_disable_mclk;
+		return ret;
 
 	ret = ad5933_setup(st);
 	if (ret)
-		goto error_unreg_ring;
+		return ret;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_unreg_ring;
-
-	return 0;
-
-error_unreg_ring:
-	iio_kfifo_free(indio_dev->buffer);
-error_disable_mclk:
-	clk_disable_unprepare(st->mclk);
-error_disable_reg:
-	regulator_disable(st->reg);
-
-	return ret;
-}
-
-static int ad5933_remove(struct i2c_client *client)
-{
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-	struct ad5933_state *st = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	iio_kfifo_free(indio_dev->buffer);
-	regulator_disable(st->reg);
-	clk_disable_unprepare(st->mclk);
-
-	return 0;
+	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
 static const struct i2c_device_id ad5933_id[] = {
@@ -801,7 +742,6 @@ static struct i2c_driver ad5933_driver = {
 		.of_match_table = ad5933_of_match,
 	},
 	.probe = ad5933_probe,
-	.remove = ad5933_remove,
 	.id_table = ad5933_id,
 };
 module_i2c_driver(ad5933_driver);

@@ -1,173 +1,152 @@
 [
     {
+        "BriefDescription": "DTLB load misses",
         "EventCode": "0x8",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1",
         "EventName": "DTLB_LOAD_MISSES.ANY",
         "SampleAfterValue": "200000",
-        "BriefDescription": "DTLB load misses"
+        "UMask": "0x1"
     },
     {
+        "BriefDescription": "DTLB load miss large page walks",
         "EventCode": "0x8",
-        "Counter": "0,1,2,3",
-        "UMask": "0x80",
         "EventName": "DTLB_LOAD_MISSES.LARGE_WALK_COMPLETED",
         "SampleAfterValue": "200000",
-        "BriefDescription": "DTLB load miss large page walks"
+        "UMask": "0x80"
     },
     {
+        "BriefDescription": "DTLB load miss caused by low part of address",
         "EventCode": "0x8",
-        "Counter": "0,1,2,3",
-        "UMask": "0x20",
         "EventName": "DTLB_LOAD_MISSES.PDE_MISS",
         "SampleAfterValue": "200000",
-        "BriefDescription": "DTLB load miss caused by low part of address"
+        "UMask": "0x20"
     },
     {
+        "BriefDescription": "DTLB second level hit",
         "EventCode": "0x8",
-        "Counter": "0,1,2,3",
-        "UMask": "0x10",
         "EventName": "DTLB_LOAD_MISSES.STLB_HIT",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "DTLB second level hit"
+        "UMask": "0x10"
     },
     {
+        "BriefDescription": "DTLB load miss page walks complete",
         "EventCode": "0x8",
-        "Counter": "0,1,2,3",
-        "UMask": "0x2",
         "EventName": "DTLB_LOAD_MISSES.WALK_COMPLETED",
         "SampleAfterValue": "200000",
-        "BriefDescription": "DTLB load miss page walks complete"
+        "UMask": "0x2"
     },
     {
+        "BriefDescription": "DTLB load miss page walk cycles",
         "EventCode": "0x8",
-        "Counter": "0,1,2,3",
-        "UMask": "0x4",
         "EventName": "DTLB_LOAD_MISSES.WALK_CYCLES",
         "SampleAfterValue": "200000",
-        "BriefDescription": "DTLB load miss page walk cycles"
+        "UMask": "0x4"
     },
     {
+        "BriefDescription": "DTLB misses",
         "EventCode": "0x49",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1",
         "EventName": "DTLB_MISSES.ANY",
         "SampleAfterValue": "200000",
-        "BriefDescription": "DTLB misses"
+        "UMask": "0x1"
     },
     {
+        "BriefDescription": "DTLB miss large page walks",
         "EventCode": "0x49",
-        "Counter": "0,1,2,3",
-        "UMask": "0x80",
         "EventName": "DTLB_MISSES.LARGE_WALK_COMPLETED",
         "SampleAfterValue": "200000",
-        "BriefDescription": "DTLB miss large page walks"
+        "UMask": "0x80"
     },
     {
+        "BriefDescription": "DTLB misses caused by low part of address. Count also includes 2M page references because 2M pages do not use the PDE.",
         "EventCode": "0x49",
-        "Counter": "0,1,2,3",
-        "UMask": "0x20",
         "EventName": "DTLB_MISSES.PDE_MISS",
         "SampleAfterValue": "200000",
-        "BriefDescription": "DTLB misses caused by low part of address. Count also includes 2M page references because 2M pages do not use the PDE."
+        "UMask": "0x20"
     },
     {
+        "BriefDescription": "DTLB first level misses but second level hit",
         "EventCode": "0x49",
-        "Counter": "0,1,2,3",
-        "UMask": "0x10",
         "EventName": "DTLB_MISSES.STLB_HIT",
         "SampleAfterValue": "200000",
-        "BriefDescription": "DTLB first level misses but second level hit"
+        "UMask": "0x10"
     },
     {
+        "BriefDescription": "DTLB miss page walks",
         "EventCode": "0x49",
-        "Counter": "0,1,2,3",
-        "UMask": "0x2",
         "EventName": "DTLB_MISSES.WALK_COMPLETED",
         "SampleAfterValue": "200000",
-        "BriefDescription": "DTLB miss page walks"
+        "UMask": "0x2"
     },
     {
+        "BriefDescription": "DTLB miss page walk cycles",
         "EventCode": "0x49",
-        "Counter": "0,1,2,3",
-        "UMask": "0x4",
         "EventName": "DTLB_MISSES.WALK_CYCLES",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "DTLB miss page walk cycles"
+        "UMask": "0x4"
     },
     {
+        "BriefDescription": "Extended Page Table walk cycles",
         "EventCode": "0x4F",
-        "Counter": "0,1,2,3",
-        "UMask": "0x10",
         "EventName": "EPT.WALK_CYCLES",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Extended Page Table walk cycles"
+        "UMask": "0x10"
     },
     {
+        "BriefDescription": "ITLB flushes",
         "EventCode": "0xAE",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1",
         "EventName": "ITLB_FLUSH",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "ITLB flushes"
+        "UMask": "0x1"
     },
     {
-        "PEBS": "1",
-        "EventCode": "0xC8",
-        "Counter": "0,1,2,3",
-        "UMask": "0x20",
-        "EventName": "ITLB_MISS_RETIRED",
-        "SampleAfterValue": "200000",
-        "BriefDescription": "Retired instructions that missed the ITLB (Precise Event)"
-    },
-    {
+        "BriefDescription": "ITLB miss",
         "EventCode": "0x85",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1",
         "EventName": "ITLB_MISSES.ANY",
         "SampleAfterValue": "200000",
-        "BriefDescription": "ITLB miss"
+        "UMask": "0x1"
     },
     {
+        "BriefDescription": "ITLB miss large page walks",
         "EventCode": "0x85",
-        "Counter": "0,1,2,3",
-        "UMask": "0x80",
         "EventName": "ITLB_MISSES.LARGE_WALK_COMPLETED",
         "SampleAfterValue": "200000",
-        "BriefDescription": "ITLB miss large page walks"
+        "UMask": "0x80"
     },
     {
+        "BriefDescription": "ITLB miss page walks",
         "EventCode": "0x85",
-        "Counter": "0,1,2,3",
-        "UMask": "0x2",
         "EventName": "ITLB_MISSES.WALK_COMPLETED",
         "SampleAfterValue": "200000",
-        "BriefDescription": "ITLB miss page walks"
+        "UMask": "0x2"
     },
     {
+        "BriefDescription": "ITLB miss page walk cycles",
         "EventCode": "0x85",
-        "Counter": "0,1,2,3",
-        "UMask": "0x4",
         "EventName": "ITLB_MISSES.WALK_CYCLES",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "ITLB miss page walk cycles"
+        "UMask": "0x4"
     },
     {
+        "BriefDescription": "Retired instructions that missed the ITLB (Precise Event)",
+        "EventCode": "0xC8",
+        "EventName": "ITLB_MISS_RETIRED",
         "PEBS": "1",
+        "SampleAfterValue": "200000",
+        "UMask": "0x20"
+    },
+    {
+        "BriefDescription": "Retired loads that miss the DTLB (Precise Event)",
         "EventCode": "0xCB",
-        "Counter": "0,1,2,3",
-        "UMask": "0x80",
         "EventName": "MEM_LOAD_RETIRED.DTLB_MISS",
+        "PEBS": "1",
         "SampleAfterValue": "200000",
-        "BriefDescription": "Retired loads that miss the DTLB (Precise Event)"
+        "UMask": "0x80"
     },
     {
-        "PEBS": "1",
+        "BriefDescription": "Retired stores that miss the DTLB (Precise Event)",
         "EventCode": "0xC",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1",
         "EventName": "MEM_STORE_RETIRED.DTLB_MISS",
+        "PEBS": "1",
         "SampleAfterValue": "200000",
-        "BriefDescription": "Retired stores that miss the DTLB (Precise Event)"
+        "UMask": "0x1"
     }
 ]

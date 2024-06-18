@@ -390,6 +390,7 @@ static int m88rs2000_tab_set(struct m88rs2000_state *state,
 		case 0xff:
 			if (tab[i].reg == 0xaa && tab[i].val == 0xff)
 				return 0;
+			break;
 		case 0x00:
 			break;
 		default:
@@ -807,7 +808,7 @@ error:
 
 	return NULL;
 }
-EXPORT_SYMBOL(m88rs2000_attach);
+EXPORT_SYMBOL_GPL(m88rs2000_attach);
 
 MODULE_DESCRIPTION("M88RS2000 DVB-S Demodulator driver");
 MODULE_AUTHOR("Malcolm Priestley tvboxspy@gmail.com");

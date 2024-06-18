@@ -24,27 +24,11 @@ void rcu_sync_init(struct rcu_sync *rsp)
 	init_waitqueue_head(&rsp->gp_wait);
 }
 
-/**
- * rcu_sync_enter_start - Force readers onto slow path for multiple updates
- * @rsp: Pointer to rcu_sync structure to use for synchronization
- *
- * Must be called after rcu_sync_init() and before first use.
- *
- * Ensures rcu_sync_is_idle() returns false and rcu_sync_{enter,exit}()
- * pairs turn into NO-OPs.
- */
-void rcu_sync_enter_start(struct rcu_sync *rsp)
-{
-	rsp->gp_count++;
-	rsp->gp_state = GP_PASSED;
-}
-
-
 static void rcu_sync_func(struct rcu_head *rhp);
 
 static void rcu_sync_call(struct rcu_sync *rsp)
 {
-	call_rcu(&rsp->cb_head, rcu_sync_func);
+	call_rcu_hurry(&rsp->cb_head, rcu_sync_func);
 }
 
 /**
@@ -94,9 +78,9 @@ static void rcu_sync_func(struct rcu_head *rhp)
 		rcu_sync_call(rsp);
 	} else {
 		/*
-		 * We're at least a GP after the last rcu_sync_exit(); eveybody
+		 * We're at least a GP after the last rcu_sync_exit(); everybody
 		 * will now have observed the write side critical section.
-		 * Let 'em rip!.
+		 * Let 'em rip!
 		 */
 		WRITE_ONCE(rsp->gp_state, GP_IDLE);
 	}
@@ -111,7 +95,7 @@ static void rcu_sync_func(struct rcu_head *rhp)
  * a slowpath during the update.  After this function returns, all
  * subsequent calls to rcu_sync_is_idle() will return false, which
  * tells readers to stay off their fastpaths.  A later call to
- * rcu_sync_exit() re-enables reader slowpaths.
+ * rcu_sync_exit() re-enables reader fastpaths.
  *
  * When called in isolation, rcu_sync_enter() must wait for a grace
  * period, however, closely spaced calls to rcu_sync_enter() can
@@ -138,7 +122,7 @@ void rcu_sync_enter(struct rcu_sync *rsp)
 		 * we are called at early boot time but this shouldn't happen.
 		 */
 	}
-	rsp->gp_count++;
+	WRITE_ONCE(rsp->gp_count, rsp->gp_count + 1);
 	spin_unlock_irq(&rsp->rss_lock);
 
 	if (gp_state == GP_IDLE) {
@@ -167,11 +151,15 @@ void rcu_sync_enter(struct rcu_sync *rsp)
  */
 void rcu_sync_exit(struct rcu_sync *rsp)
 {
+	int gpc;
+
 	WARN_ON_ONCE(READ_ONCE(rsp->gp_state) == GP_IDLE);
 	WARN_ON_ONCE(READ_ONCE(rsp->gp_count) == 0);
 
 	spin_lock_irq(&rsp->rss_lock);
-	if (!--rsp->gp_count) {
+	gpc = rsp->gp_count - 1;
+	WRITE_ONCE(rsp->gp_count, gpc);
+	if (!gpc) {
 		if (rsp->gp_state == GP_PASSED) {
 			WRITE_ONCE(rsp->gp_state, GP_EXIT);
 			rcu_sync_call(rsp);

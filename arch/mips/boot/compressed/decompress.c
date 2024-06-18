@@ -7,12 +7,19 @@
  * Author: Wu Zhangjin <wuzhangjin@gmail.com>
  */
 
+#define DISABLE_BRANCH_PROFILING
+
+#define __NO_FORTIFY
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/libfdt.h>
 
 #include <asm/addrspace.h>
+#include <asm/unaligned.h>
+#include <asm-generic/vmlinux.lds.h>
+
+#include "decompress.h"
 
 /*
  * These two variables specify the free mem region
@@ -20,20 +27,6 @@
  */
 unsigned long free_mem_ptr;
 unsigned long free_mem_end_ptr;
-
-/* The linker tells us where the image is. */
-extern unsigned char __image_begin, __image_end;
-
-/* debug interfaces  */
-#ifdef CONFIG_DEBUG_ZBOOT
-extern void puts(const char *s);
-extern void puthex(unsigned long long val);
-#else
-#define puts(s) do {} while (0)
-#define puthex(val) do {} while (0)
-#endif
-
-extern char __appended_dtb[];
 
 void error(char *x)
 {
@@ -72,6 +65,10 @@ void error(char *x)
 #include "../../../../lib/decompress_unxz.c"
 #endif
 
+#ifdef CONFIG_KERNEL_ZSTD
+#include "../../../../lib/decompress_unzstd.c"
+#endif
+
 const unsigned long __stack_chk_guard = 0x000a0dff;
 
 void __stack_chk_fail(void)
@@ -83,9 +80,9 @@ void decompress_kernel(unsigned long boot_heap_start)
 {
 	unsigned long zimage_start, zimage_size;
 
-	zimage_start = (unsigned long)(&__image_begin);
-	zimage_size = (unsigned long)(&__image_end) -
-	    (unsigned long)(&__image_begin);
+	zimage_start = (unsigned long)(__image_begin);
+	zimage_size = (unsigned long)(__image_end) -
+	    (unsigned long)(__image_begin);
 
 	puts("zimage at:     ");
 	puthex(zimage_start);
@@ -113,7 +110,14 @@ void decompress_kernel(unsigned long boot_heap_start)
 		dtb_size = fdt_totalsize((void *)&__appended_dtb);
 
 		/* last four bytes is always image size in little endian */
-		image_size = le32_to_cpup((void *)&__image_end - 4);
+		image_size = get_unaligned_le32((void *)__image_end - 4);
+
+		/* The device tree's address must be properly aligned  */
+		image_size = ALIGN(image_size, STRUCT_ALIGNMENT);
+
+		puts("Copy device tree to address  ");
+		puthex(VMLINUX_LOAD_ADDRESS_ULL + image_size);
+		puts("\n");
 
 		/* copy dtb to where the booted kernel will expect it */
 		memcpy((void *)VMLINUX_LOAD_ADDRESS_ULL + image_size,

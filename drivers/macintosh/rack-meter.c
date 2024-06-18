@@ -27,7 +27,6 @@
 #include <linux/of_irq.h>
 
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>
 #include <asm/dbdma.h>
@@ -81,13 +80,14 @@ static int rackmeter_ignore_nice;
  */
 static inline u64 get_cpu_idle_time(unsigned int cpu)
 {
+	struct kernel_cpustat *kcpustat = &kcpustat_cpu(cpu);
 	u64 retval;
 
-	retval = kcpustat_cpu(cpu).cpustat[CPUTIME_IDLE] +
-		 kcpustat_cpu(cpu).cpustat[CPUTIME_IOWAIT];
+	retval = kcpustat->cpustat[CPUTIME_IDLE] +
+		 kcpustat->cpustat[CPUTIME_IOWAIT];
 
 	if (rackmeter_ignore_nice)
-		retval += kcpustat_cpu(cpu).cpustat[CPUTIME_NICE];
+		retval += kcpustat_field(kcpustat, CPUTIME_NICE, cpu);
 
 	return retval;
 }
@@ -387,7 +387,7 @@ static int rackmeter_probe(struct macio_dev* mdev,
 	       if (of_node_name_eq(np, "lightshow"))
 		       break;
 	       if (of_node_name_eq(np, "sound") &&
-		   of_get_property(np, "virtual", NULL) != NULL)
+		   of_property_present(np, "virtual"))
 		       break;
 	}
 	if (np == NULL) {
@@ -523,7 +523,7 @@ static int rackmeter_probe(struct macio_dev* mdev,
 	return rc;
 }
 
-static int rackmeter_remove(struct macio_dev* mdev)
+static void rackmeter_remove(struct macio_dev *mdev)
 {
 	struct rackmeter *rm = dev_get_drvdata(&mdev->ofdev.dev);
 
@@ -558,8 +558,6 @@ static int rackmeter_remove(struct macio_dev* mdev)
 
 	/* Get rid of me */
 	kfree(rm);
-
-	return 0;
 }
 
 static int rackmeter_shutdown(struct macio_dev* mdev)

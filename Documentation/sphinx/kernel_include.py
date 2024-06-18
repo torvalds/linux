@@ -59,6 +59,7 @@ class KernelInclude(Include):
     u"""KernelInclude (``kernel-include``) directive"""
 
     def run(self):
+        env = self.state.document.settings.env
         path = os.path.realpath(
             os.path.expandvars(self.arguments[0]))
 
@@ -69,6 +70,8 @@ class KernelInclude(Include):
                 % (self.name, path))
 
         self.arguments[0] = path
+
+        env.note_dependency(os.path.abspath(path))
 
         #return super(KernelInclude, self).run() # won't work, see HINTs in _run()
         return self._run()
@@ -94,7 +97,6 @@ class KernelInclude(Include):
         # HINT: this is the only line I had to change / commented out:
         #path = utils.relative_path(None, path)
 
-        path = nodes.reprunicode(path)
         encoding = self.options.get(
             'encoding', self.state.document.settings.input_encoding)
         e_handler=self.state.document.settings.input_encoding_error_handler

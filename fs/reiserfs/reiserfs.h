@@ -18,8 +18,6 @@
 
 /* the 32 bit compat definitions with int argument */
 #define REISERFS_IOC32_UNPACK		_IOW(0xCD, 1, int)
-#define REISERFS_IOC32_GETFLAGS		FS_IOC32_GETFLAGS
-#define REISERFS_IOC32_SETFLAGS		FS_IOC32_SETFLAGS
 #define REISERFS_IOC32_GETVERSION	FS_IOC32_GETVERSION
 #define REISERFS_IOC32_SETVERSION	FS_IOC32_SETVERSION
 
@@ -99,7 +97,7 @@ struct reiserfs_inode_info {
 	struct rw_semaphore i_xattr_sem;
 #endif
 #ifdef CONFIG_QUOTA
-	struct dquot *i_dquot[MAXQUOTAS];
+	struct dquot __rcu *i_dquot[MAXQUOTAS];
 #endif
 
 	struct inode vfs_inode;
@@ -301,8 +299,7 @@ struct reiserfs_journal {
 	/* oldest journal block.  start here for traverse */
 	struct reiserfs_journal_cnode *j_first;
 
-	struct block_device *j_dev_bd;
-	fmode_t j_dev_mode;
+	struct file *j_bdev_file;
 
 	/* first block on s_dev of reserved area journal */
 	int j_1st_reserved_block;
@@ -1109,7 +1106,7 @@ int is_reiserfs_jr(struct reiserfs_super_block *rs);
  * ReiserFS leaves the first 64k unused, so that partition labels have
  * enough space.  If someone wants to write a fancy bootloader that
  * needs more than 64k, let us know, and this will be increased in size.
- * This number must be larger than than the largest block size on any
+ * This number must be larger than the largest block size on any
  * platform, or code will break.  -Hans
  */
 #define REISERFS_DISK_OFFSET_IN_BYTES (64 * 1024)
@@ -1167,6 +1164,8 @@ static inline int bmap_would_wrap(unsigned bmap_nr)
 {
 	return bmap_nr > ((1LL << 16) - 1);
 }
+
+extern const struct xattr_handler * const reiserfs_xattr_handlers[];
 
 /*
  * this says about version of key of all items (but stat data) the
@@ -2374,7 +2373,7 @@ struct virtual_node {
 struct direntry_uarea {
 	int flags;
 	__u16 entry_count;
-	__u16 entry_sizes[1];
+	__u16 entry_sizes[];
 } __attribute__ ((__packed__));
 
 /***************************************************************************
@@ -2700,7 +2699,7 @@ struct reiserfs_iget_args {
 #define get_journal_desc_magic(bh) (bh->b_data + bh->b_size - 12)
 
 #define journal_trans_half(blocksize) \
-	((blocksize - sizeof (struct reiserfs_journal_desc) + sizeof (__u32) - 12) / sizeof (__u32))
+	((blocksize - sizeof(struct reiserfs_journal_desc) - 12) / sizeof(__u32))
 
 /* journal.c see journal.c for all the comments here */
 
@@ -2712,7 +2711,7 @@ struct reiserfs_journal_desc {
 	__le32 j_len;
 
 	__le32 j_mount_id;	/* mount id of this trans */
-	__le32 j_realblock[1];	/* real locations for each block */
+	__le32 j_realblock[];	/* real locations for each block */
 };
 
 #define get_desc_trans_id(d)   le32_to_cpu((d)->j_trans_id)
@@ -2727,7 +2726,7 @@ struct reiserfs_journal_desc {
 struct reiserfs_journal_commit {
 	__le32 j_trans_id;	/* must match j_trans_id from the desc block */
 	__le32 j_len;		/* ditto */
-	__le32 j_realblock[1];	/* real locations for each block */
+	__le32 j_realblock[];	/* real locations for each block */
 };
 
 #define get_commit_trans_id(c) le32_to_cpu((c)->j_trans_id)
@@ -2810,9 +2809,12 @@ struct reiserfs_journal_header {
 #define journal_hash(t,sb,block) ((t)[_jhashfn((sb),(block)) & JBH_HASH_MASK])
 
 /* We need these to make journal.c code more readable */
-#define journal_find_get_block(s, block) __find_get_block(SB_JOURNAL(s)->j_dev_bd, block, s->s_blocksize)
-#define journal_getblk(s, block) __getblk(SB_JOURNAL(s)->j_dev_bd, block, s->s_blocksize)
-#define journal_bread(s, block) __bread(SB_JOURNAL(s)->j_dev_bd, block, s->s_blocksize)
+#define journal_find_get_block(s, block) __find_get_block(\
+		file_bdev(SB_JOURNAL(s)->j_bdev_file), block, s->s_blocksize)
+#define journal_getblk(s, block) __getblk(file_bdev(SB_JOURNAL(s)->j_bdev_file),\
+		block, s->s_blocksize)
+#define journal_bread(s, block) __bread(file_bdev(SB_JOURNAL(s)->j_bdev_file),\
+		block, s->s_blocksize)
 
 enum reiserfs_bh_state_bits {
 	BH_JDirty = BH_PrivateStart,	/* buffer is in current transaction */
@@ -3100,11 +3102,13 @@ static inline void reiserfs_update_sd(struct reiserfs_transaction_handle *th,
 }
 
 void sd_attrs_to_i_attrs(__u16 sd_attrs, struct inode *inode);
-int reiserfs_setattr(struct dentry *dentry, struct iattr *attr);
+int reiserfs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+		     struct iattr *attr);
 
 int __reiserfs_write_begin(struct page *page, unsigned from, unsigned len);
 
 /* namei.c */
+void reiserfs_init_priv_inode(struct inode *inode);
 void set_de_name_and_namelen(struct reiserfs_dir_entry *de);
 int search_by_entry_key(struct super_block *sb, const struct cpu_key *key,
 			struct treepath *path, struct reiserfs_dir_entry *de);
@@ -3174,6 +3178,7 @@ void reiserfs_unmap_buffer(struct buffer_head *);
 
 /* file.c */
 extern const struct inode_operations reiserfs_file_inode_operations;
+extern const struct inode_operations reiserfs_priv_file_inode_operations;
 extern const struct file_operations reiserfs_file_operations;
 extern const struct address_space_operations reiserfs_address_space_operations;
 
@@ -3405,7 +3410,10 @@ __u32 r5_hash(const signed char *msg, int len);
 #define SPARE_SPACE 500
 
 /* prototypes from ioctl.c */
+int reiserfs_fileattr_get(struct dentry *dentry, struct fileattr *fa);
+int reiserfs_fileattr_set(struct mnt_idmap *idmap,
+			  struct dentry *dentry, struct fileattr *fa);
 long reiserfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 long reiserfs_compat_ioctl(struct file *filp,
 		   unsigned int cmd, unsigned long arg);
-int reiserfs_unpack(struct inode *inode, struct file *filp);
+int reiserfs_unpack(struct inode *inode);

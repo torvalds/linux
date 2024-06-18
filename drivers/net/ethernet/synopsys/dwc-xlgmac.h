@@ -38,7 +38,8 @@
 #define XLGMAC_RX_DESC_MAX_DIRTY	(XLGMAC_RX_DESC_CNT >> 3)
 
 /* Descriptors required for maximum contiguous TSO/GSO packet */
-#define XLGMAC_TX_MAX_SPLIT	((GSO_MAX_SIZE / XLGMAC_TX_MAX_BUF_SIZE) + 1)
+#define XLGMAC_TX_MAX_SPLIT	\
+	((GSO_LEGACY_MAX_SIZE / XLGMAC_TX_MAX_BUF_SIZE) + 1)
 
 /* Maximum possible descriptors needed for a SKB */
 #define XLGMAC_TX_MAX_DESC_NR	(MAX_SKB_FRAGS + XLGMAC_TX_MAX_SPLIT + 2)
@@ -379,7 +380,7 @@ struct xlgmac_channel {
 } ____cacheline_aligned;
 
 struct xlgmac_desc_ops {
-	int (*alloc_channles_and_rings)(struct xlgmac_pdata *pdata);
+	int (*alloc_channels_and_rings)(struct xlgmac_pdata *pdata);
 	void (*free_channels_and_rings)(struct xlgmac_pdata *pdata);
 	int (*map_tx_skb)(struct xlgmac_channel *channel,
 			  struct sk_buff *skb);
@@ -410,7 +411,7 @@ struct xlgmac_hw_ops {
 	void (*dev_xmit)(struct xlgmac_channel *channel);
 	int (*dev_read)(struct xlgmac_channel *channel);
 
-	int (*set_mac_address)(struct xlgmac_pdata *pdata, u8 *addr);
+	int (*set_mac_address)(struct xlgmac_pdata *pdata, const u8 *addr);
 	int (*config_rx_mode)(struct xlgmac_pdata *pdata);
 	int (*enable_rx_csum)(struct xlgmac_pdata *pdata);
 	int (*disable_rx_csum)(struct xlgmac_pdata *pdata);

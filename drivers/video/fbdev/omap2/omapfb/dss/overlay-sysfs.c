@@ -13,6 +13,7 @@
 #include <linux/err.h>
 #include <linux/sysfs.h>
 #include <linux/kobject.h>
+#include <linux/kstrtox.h>
 #include <linux/platform_device.h>
 
 #include <video/omapfb_dss.h>
@@ -22,12 +23,12 @@
 
 static ssize_t overlay_name_show(struct omap_overlay *ovl, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%s\n", ovl->name);
+	return sysfs_emit(buf, "%s\n", ovl->name);
 }
 
 static ssize_t overlay_manager_show(struct omap_overlay *ovl, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%s\n",
+	return sysfs_emit(buf, "%s\n",
 			ovl->manager ? ovl->manager->name : "<none>");
 }
 
@@ -108,7 +109,7 @@ static ssize_t overlay_input_size_show(struct omap_overlay *ovl, char *buf)
 
 	ovl->get_overlay_info(ovl, &info);
 
-	return snprintf(buf, PAGE_SIZE, "%d,%d\n",
+	return sysfs_emit(buf, "%d,%d\n",
 			info.width, info.height);
 }
 
@@ -118,7 +119,7 @@ static ssize_t overlay_screen_width_show(struct omap_overlay *ovl, char *buf)
 
 	ovl->get_overlay_info(ovl, &info);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", info.screen_width);
+	return sysfs_emit(buf, "%d\n", info.screen_width);
 }
 
 static ssize_t overlay_position_show(struct omap_overlay *ovl, char *buf)
@@ -127,7 +128,7 @@ static ssize_t overlay_position_show(struct omap_overlay *ovl, char *buf)
 
 	ovl->get_overlay_info(ovl, &info);
 
-	return snprintf(buf, PAGE_SIZE, "%d,%d\n",
+	return sysfs_emit(buf, "%d,%d\n",
 			info.pos_x, info.pos_y);
 }
 
@@ -166,7 +167,7 @@ static ssize_t overlay_output_size_show(struct omap_overlay *ovl, char *buf)
 
 	ovl->get_overlay_info(ovl, &info);
 
-	return snprintf(buf, PAGE_SIZE, "%d,%d\n",
+	return sysfs_emit(buf, "%d,%d\n",
 			info.out_width, info.out_height);
 }
 
@@ -201,7 +202,7 @@ static ssize_t overlay_output_size_store(struct omap_overlay *ovl,
 
 static ssize_t overlay_enabled_show(struct omap_overlay *ovl, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", ovl->is_enabled(ovl));
+	return sysfs_emit(buf, "%d\n", ovl->is_enabled(ovl));
 }
 
 static ssize_t overlay_enabled_store(struct omap_overlay *ovl, const char *buf,
@@ -210,7 +211,7 @@ static ssize_t overlay_enabled_store(struct omap_overlay *ovl, const char *buf,
 	int r;
 	bool enable;
 
-	r = strtobool(buf, &enable);
+	r = kstrtobool(buf, &enable);
 	if (r)
 		return r;
 
@@ -231,7 +232,7 @@ static ssize_t overlay_global_alpha_show(struct omap_overlay *ovl, char *buf)
 
 	ovl->get_overlay_info(ovl, &info);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n",
+	return sysfs_emit(buf, "%d\n",
 			info.global_alpha);
 }
 
@@ -273,7 +274,7 @@ static ssize_t overlay_pre_mult_alpha_show(struct omap_overlay *ovl,
 
 	ovl->get_overlay_info(ovl, &info);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n",
+	return sysfs_emit(buf, "%d\n",
 			info.pre_mult_alpha);
 }
 
@@ -314,7 +315,7 @@ static ssize_t overlay_zorder_show(struct omap_overlay *ovl, char *buf)
 
 	ovl->get_overlay_info(ovl, &info);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", info.zorder);
+	return sysfs_emit(buf, "%d\n", info.zorder);
 }
 
 static ssize_t overlay_zorder_store(struct omap_overlay *ovl,
@@ -390,6 +391,7 @@ static struct attribute *overlay_sysfs_attrs[] = {
 	&overlay_attr_zorder.attr,
 	NULL
 };
+ATTRIBUTE_GROUPS(overlay_sysfs);
 
 static ssize_t overlay_attr_show(struct kobject *kobj, struct attribute *attr,
 		char *buf)
@@ -428,7 +430,7 @@ static const struct sysfs_ops overlay_sysfs_ops = {
 
 static struct kobj_type overlay_ktype = {
 	.sysfs_ops = &overlay_sysfs_ops,
-	.default_attrs = overlay_sysfs_attrs,
+	.default_groups = overlay_sysfs_groups,
 };
 
 int dss_overlay_kobj_init(struct omap_overlay *ovl,

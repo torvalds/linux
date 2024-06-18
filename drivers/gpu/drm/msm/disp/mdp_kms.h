@@ -11,6 +11,7 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 
+#include "mdp_format.h"
 #include "msm_drv.h"
 #include "msm_kms.h"
 #include "mdp_common.xml.h"
@@ -36,12 +37,17 @@ struct mdp_kms {
 };
 #define to_mdp_kms(x) container_of(x, struct mdp_kms, base)
 
-static inline void mdp_kms_init(struct mdp_kms *mdp_kms,
+static inline int mdp_kms_init(struct mdp_kms *mdp_kms,
 		const struct mdp_kms_funcs *funcs)
 {
 	mdp_kms->funcs = funcs;
 	INIT_LIST_HEAD(&mdp_kms->irq_list);
-	msm_kms_init(&mdp_kms->base, &funcs->base);
+	return msm_kms_init(&mdp_kms->base, &funcs->base);
+}
+
+static inline void mdp_kms_destroy(struct mdp_kms *mdp_kms)
+{
+	msm_kms_destroy(&mdp_kms->base);
 }
 
 /*
@@ -71,23 +77,6 @@ void mdp_irq_update(struct mdp_kms *mdp_kms);
 /*
  * pixel format helpers:
  */
-
-struct mdp_format {
-	struct msm_format base;
-	enum mdp_bpc bpc_r, bpc_g, bpc_b;
-	enum mdp_bpc_alpha bpc_a;
-	uint8_t unpack[4];
-	bool alpha_enable, unpack_tight;
-	uint8_t cpp, unpack_count;
-	enum mdp_fetch_type fetch_type;
-	enum mdp_chroma_samp_type chroma_sample;
-	bool is_yuv;
-};
-#define to_mdp_format(x) container_of(x, struct mdp_format, base)
-#define MDP_FORMAT_IS_YUV(mdp_format) ((mdp_format)->is_yuv)
-
-uint32_t mdp_get_formats(uint32_t *formats, uint32_t max_formats, bool rgb_only);
-const struct msm_format *mdp_get_format(struct msm_kms *kms, uint32_t format, uint64_t modifier);
 
 /* MDP capabilities */
 #define MDP_CAP_SMP		BIT(0)	/* Shared Memory Pool                 */

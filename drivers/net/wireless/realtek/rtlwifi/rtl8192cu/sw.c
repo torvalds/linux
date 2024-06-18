@@ -12,7 +12,6 @@
 #include "mac.h"
 #include "dm.h"
 #include "rf.h"
-#include "sw.h"
 #include "trx.h"
 #include "led.h"
 #include "hw.h"
@@ -41,7 +40,7 @@ static int rtl92cu_init_sw_vars(struct ieee80211_hw *hw)
 	rtlpriv->dm.thermalvalue = 0;
 
 	/* for firmware buf */
-	rtlpriv->rtlhal.pfirmware = vzalloc(0x4000);
+	rtlpriv->rtlhal.pfirmware = kmalloc(0x4000, GFP_KERNEL);
 	if (!rtlpriv->rtlhal.pfirmware) {
 		pr_err("Can't alloc buffer for fw\n");
 		return 1;
@@ -62,7 +61,7 @@ static int rtl92cu_init_sw_vars(struct ieee80211_hw *hw)
 				      fw_name, rtlpriv->io.dev,
 				      GFP_KERNEL, hw, rtl_fw_cb);
 	if (err) {
-		vfree(rtlpriv->rtlhal.pfirmware);
+		kfree(rtlpriv->rtlhal.pfirmware);
 		rtlpriv->rtlhal.pfirmware = NULL;
 	}
 	return err;
@@ -73,7 +72,7 @@ static void rtl92cu_deinit_sw_vars(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	if (rtlpriv->rtlhal.pfirmware) {
-		vfree(rtlpriv->rtlhal.pfirmware);
+		kfree(rtlpriv->rtlhal.pfirmware);
 		rtlpriv->rtlhal.pfirmware = NULL;
 	}
 }
@@ -103,7 +102,6 @@ static struct rtl_hal_ops rtl8192cu_hal_ops = {
 	.set_hw_reg = rtl92cu_set_hw_reg,
 	.update_rate_tbl = rtl92cu_update_hal_rate_tbl,
 	.fill_tx_desc = rtl92cu_tx_fill_desc,
-	.fill_fake_txdesc = rtl92cu_fill_fake_txdesc,
 	.fill_tx_cmddesc = rtl92cu_tx_fill_cmddesc,
 	.query_rx_desc = rtl92cu_rx_query_desc,
 	.set_channel_access = rtl92cu_update_channel_access_setting,
@@ -116,8 +114,6 @@ static struct rtl_hal_ops rtl8192cu_hal_ops = {
 	.led_control = rtl92cu_led_control,
 	.enable_hw_sec = rtl92cu_enable_hw_security_config,
 	.set_key = rtl92c_set_key,
-	.init_sw_leds = rtl92cu_init_sw_leds,
-	.deinit_sw_leds = rtl92cu_deinit_sw_leds,
 	.get_bbreg = rtl92c_phy_query_bb_reg,
 	.set_bbreg = rtl92c_phy_set_bb_reg,
 	.get_rfreg = rtl92cu_phy_query_rf_reg,
@@ -149,7 +145,6 @@ MODULE_PARM_DESC(debug_mask, "Set debug mask (default 0)");
 
 static struct rtl_hal_usbint_cfg rtl92cu_interface_cfg = {
 	/* rx */
-	.in_ep_num = RTL92C_USB_BULK_IN_NUM,
 	.rx_urb_num = RTL92C_NUM_RX_URBS,
 	.rx_max_size = RTL92C_SIZE_MAX_RX_BUFFER,
 	.usb_rx_hdl = rtl8192cu_rx_hdl,
@@ -252,45 +247,45 @@ static struct rtl_hal_cfg rtl92cu_hal_cfg = {
 	.maps[RTL_RC_HT_RATEMCS15] = DESC_RATEMCS15,
 };
 
-#define USB_VENDER_ID_REALTEK		0x0bda
+#define USB_VENDOR_ID_REALTEK		0x0bda
 
 /* 2010-10-19 DID_USB_V3.4 */
 static const struct usb_device_id rtl8192c_usb_ids[] = {
 
 	/*=== Realtek demoboard ===*/
 	/* Default ID */
-	{RTL_USB_DEVICE(USB_VENDER_ID_REALTEK, 0x8191, rtl92cu_hal_cfg)},
+	{RTL_USB_DEVICE(USB_VENDOR_ID_REALTEK, 0x8191, rtl92cu_hal_cfg)},
 
 	/****** 8188CU ********/
 	/* RTL8188CTV */
-	{RTL_USB_DEVICE(USB_VENDER_ID_REALTEK, 0x018a, rtl92cu_hal_cfg)},
+	{RTL_USB_DEVICE(USB_VENDOR_ID_REALTEK, 0x018a, rtl92cu_hal_cfg)},
 	/* 8188CE-VAU USB minCard */
-	{RTL_USB_DEVICE(USB_VENDER_ID_REALTEK, 0x8170, rtl92cu_hal_cfg)},
+	{RTL_USB_DEVICE(USB_VENDOR_ID_REALTEK, 0x8170, rtl92cu_hal_cfg)},
 	/* 8188cu 1*1 dongle */
-	{RTL_USB_DEVICE(USB_VENDER_ID_REALTEK, 0x8176, rtl92cu_hal_cfg)},
+	{RTL_USB_DEVICE(USB_VENDOR_ID_REALTEK, 0x8176, rtl92cu_hal_cfg)},
 	/* 8188cu 1*1 dongle, (b/g mode only) */
-	{RTL_USB_DEVICE(USB_VENDER_ID_REALTEK, 0x8177, rtl92cu_hal_cfg)},
+	{RTL_USB_DEVICE(USB_VENDOR_ID_REALTEK, 0x8177, rtl92cu_hal_cfg)},
 	/* 8188cu Slim Solo */
-	{RTL_USB_DEVICE(USB_VENDER_ID_REALTEK, 0x817a, rtl92cu_hal_cfg)},
+	{RTL_USB_DEVICE(USB_VENDOR_ID_REALTEK, 0x817a, rtl92cu_hal_cfg)},
 	/* 8188cu Slim Combo */
-	{RTL_USB_DEVICE(USB_VENDER_ID_REALTEK, 0x817b, rtl92cu_hal_cfg)},
+	{RTL_USB_DEVICE(USB_VENDOR_ID_REALTEK, 0x817b, rtl92cu_hal_cfg)},
 	/* 8188RU High-power USB Dongle */
-	{RTL_USB_DEVICE(USB_VENDER_ID_REALTEK, 0x817d, rtl92cu_hal_cfg)},
+	{RTL_USB_DEVICE(USB_VENDOR_ID_REALTEK, 0x817d, rtl92cu_hal_cfg)},
 	/* 8188CE-VAU USB minCard (b/g mode only) */
-	{RTL_USB_DEVICE(USB_VENDER_ID_REALTEK, 0x817e, rtl92cu_hal_cfg)},
+	{RTL_USB_DEVICE(USB_VENDOR_ID_REALTEK, 0x817e, rtl92cu_hal_cfg)},
 	/* 8188RU in Alfa AWUS036NHR */
-	{RTL_USB_DEVICE(USB_VENDER_ID_REALTEK, 0x817f, rtl92cu_hal_cfg)},
+	{RTL_USB_DEVICE(USB_VENDOR_ID_REALTEK, 0x817f, rtl92cu_hal_cfg)},
 	/* RTL8188CUS-VL */
-	{RTL_USB_DEVICE(USB_VENDER_ID_REALTEK, 0x818a, rtl92cu_hal_cfg)},
-	{RTL_USB_DEVICE(USB_VENDER_ID_REALTEK, 0x819a, rtl92cu_hal_cfg)},
+	{RTL_USB_DEVICE(USB_VENDOR_ID_REALTEK, 0x818a, rtl92cu_hal_cfg)},
+	{RTL_USB_DEVICE(USB_VENDOR_ID_REALTEK, 0x819a, rtl92cu_hal_cfg)},
 	/* 8188 Combo for BC4 */
-	{RTL_USB_DEVICE(USB_VENDER_ID_REALTEK, 0x8754, rtl92cu_hal_cfg)},
+	{RTL_USB_DEVICE(USB_VENDOR_ID_REALTEK, 0x8754, rtl92cu_hal_cfg)},
 
 	/****** 8192CU ********/
 	/* 8192cu 2*2 */
-	{RTL_USB_DEVICE(USB_VENDER_ID_REALTEK, 0x8178, rtl92cu_hal_cfg)},
+	{RTL_USB_DEVICE(USB_VENDOR_ID_REALTEK, 0x8178, rtl92cu_hal_cfg)},
 	/* 8192CE-VAU USB minCard */
-	{RTL_USB_DEVICE(USB_VENDER_ID_REALTEK, 0x817c, rtl92cu_hal_cfg)},
+	{RTL_USB_DEVICE(USB_VENDOR_ID_REALTEK, 0x817c, rtl92cu_hal_cfg)},
 
 	/*=== Customer ID ===*/
 	/****** 8188CU ********/
@@ -329,12 +324,13 @@ static const struct usb_device_id rtl8192c_usb_ids[] = {
 
 	/****** 8188 RU ********/
 	/* Netcore */
-	{RTL_USB_DEVICE(USB_VENDER_ID_REALTEK, 0x317f, rtl92cu_hal_cfg)},
+	{RTL_USB_DEVICE(USB_VENDOR_ID_REALTEK, 0x317f, rtl92cu_hal_cfg)},
 
 	/****** 8188CUS Slim Solo********/
 	{RTL_USB_DEVICE(0x04f2, 0xaff7, rtl92cu_hal_cfg)}, /*Xavi*/
 	{RTL_USB_DEVICE(0x04f2, 0xaff9, rtl92cu_hal_cfg)}, /*Xavi*/
 	{RTL_USB_DEVICE(0x04f2, 0xaffa, rtl92cu_hal_cfg)}, /*Xavi*/
+	{RTL_USB_DEVICE(0x0846, 0x9042, rtl92cu_hal_cfg)}, /*On Netwrks N150MA*/
 
 	/****** 8188CUS Slim Combo ********/
 	{RTL_USB_DEVICE(0x04f2, 0xaff8, rtl92cu_hal_cfg)}, /*Xavi*/

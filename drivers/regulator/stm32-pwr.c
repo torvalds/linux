@@ -6,8 +6,7 @@
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/of_regulator.h>
@@ -93,7 +92,7 @@ static int stm32_pwr_reg_disable(struct regulator_dev *rdev)
 	writel_relaxed(val, priv->base + REG_PWR_CR3);
 
 	/* use an arbitrary timeout of 20ms */
-	ret = readx_poll_timeout(stm32_pwr_reg_is_ready, rdev, val, !val,
+	ret = readx_poll_timeout(stm32_pwr_reg_is_enabled, rdev, val, !val,
 				 100, 20 * 1000);
 	if (ret)
 		dev_err(&rdev->dev, "regulator disable timed out!\n");
@@ -129,17 +128,16 @@ static const struct regulator_desc stm32_pwr_desc[] = {
 
 static int stm32_pwr_regulator_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
 	struct stm32_pwr_reg *priv;
 	void __iomem *base;
 	struct regulator_dev *rdev;
 	struct regulator_config config = { };
 	int i, ret = 0;
 
-	base = of_iomap(np, 0);
-	if (!base) {
+	base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(base)) {
 		dev_err(&pdev->dev, "Unable to map IO memory\n");
-		return -ENOMEM;
+		return PTR_ERR(base);
 	}
 
 	config.dev = &pdev->dev;
@@ -166,7 +164,7 @@ static int stm32_pwr_regulator_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static const struct of_device_id stm32_pwr_of_match[] = {
+static const struct of_device_id __maybe_unused stm32_pwr_of_match[] = {
 	{ .compatible = "st,stm32mp1,pwr-reg", },
 	{},
 };
@@ -176,6 +174,7 @@ static struct platform_driver stm32_pwr_driver = {
 	.probe = stm32_pwr_regulator_probe,
 	.driver = {
 		.name  = "stm32-pwr-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(stm32_pwr_of_match),
 	},
 };
@@ -183,4 +182,3 @@ module_platform_driver(stm32_pwr_driver);
 
 MODULE_DESCRIPTION("STM32MP1 PWR voltage regulator driver");
 MODULE_AUTHOR("Pascal Paillet <p.paillet@st.com>");
-MODULE_LICENSE("GPL v2");

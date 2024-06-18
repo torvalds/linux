@@ -35,7 +35,7 @@
 &ifc {
 	#address-cells = <2>;
 	#size-cells = <1>;
-	compatible = "fsl,ifc", "simple-bus";
+	compatible = "fsl,ifc";
 	interrupts = <19 2 0 0>;
 };
 
@@ -124,10 +124,10 @@
 		reg = <0x80000 0x20000>;
 		ranges = <0x0 0x80000 0x20000>;
 
-		jr@1000{
+		jr@1000 {
 			interrupts = <45 2 0 0>;
 		};
-		jr@2000{
+		jr@2000 {
 			interrupts = <57 2 0 0>;
 		};
 	};
@@ -140,10 +140,10 @@
 		reg = <0xa0000 0x20000>;
 		ranges = <0x0 0xa0000 0x20000>;
 
-		jr@1000{
+		jr@1000 {
 			interrupts = <49 2 0 0>;
 		};
-		jr@2000{
+		jr@2000 {
 			interrupts = <50 2 0 0>;
 		};
 	};
@@ -156,10 +156,10 @@
 		reg = <0xc0000 0x20000>;
 		ranges = <0x0 0xc0000 0x20000>;
 
-		jr@1000{
+		jr@1000 {
 			interrupts = <55 2 0 0>;
 		};
-		jr@2000{
+		jr@2000 {
 			interrupts = <56 2 0 0>;
 		};
 	};
@@ -171,8 +171,6 @@
 	enet0: ethernet@b0000 {
 		queue-group@b0000 {
 			reg = <0x10000 0x1000>;
-			fsl,rx-bit-map = <0xff>;
-			fsl,tx-bit-map = <0xff>;
 		};
 	};
 
@@ -180,8 +178,6 @@
 	enet1: ethernet@b1000 {
 		queue-group@b1000 {
 			reg = <0x11000 0x1000>;
-			fsl,rx-bit-map = <0xff>;
-			fsl,tx-bit-map = <0xff>;
 		};
 	};
 

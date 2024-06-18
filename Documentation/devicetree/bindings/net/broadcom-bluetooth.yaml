@@ -1,0 +1,164 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/broadcom-bluetooth.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom Bluetooth Chips
+
+maintainers:
+  - Linus Walleij <linus.walleij@linaro.org>
+
+description:
+  This binding describes Broadcom UART-attached bluetooth chips.
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - infineon,cyw43439-bt
+          - const: brcm,bcm4329-bt
+      - enum:
+          - brcm,bcm20702a1
+          - brcm,bcm4329-bt
+          - brcm,bcm4330-bt
+          - brcm,bcm4334-bt
+          - brcm,bcm43430a0-bt
+          - brcm,bcm43430a1-bt
+          - brcm,bcm43438-bt
+          - brcm,bcm4345c5
+          - brcm,bcm43540-bt
+          - brcm,bcm4335a0
+          - brcm,bcm4349-bt
+          - cypress,cyw4373a0-bt
+          - infineon,cyw55572-bt
+
+  shutdown-gpios:
+    maxItems: 1
+    description: GPIO specifier for the line BT_REG_ON used to
+      power on the BT module
+
+  reset-gpios:
+    maxItems: 1
+    description: GPIO specifier for the line BT_RST_N used to
+      reset the BT module. This should be marked as
+      GPIO_ACTIVE_LOW.
+
+  device-wakeup-gpios:
+    maxItems: 1
+    description: GPIO specifier for the line BT_WAKE used to
+      wakeup the controller. This is using the BT_GPIO_0
+      pin on the chip when in use.
+
+  host-wakeup-gpios:
+    maxItems: 1
+    deprecated: true
+    description: GPIO specifier for the line HOST_WAKE used
+      to wakeup the host processor. This is using he BT_GPIO_1
+      pin on the chip when in use. This is deprecated and replaced
+      by interrupts and "host-wakeup" interrupt-names
+
+  clocks:
+    minItems: 1
+    maxItems: 2
+    description: 1 or 2 clocks as defined in clock-names below,
+      in that order
+
+  clock-names:
+    description: Names of the 1 to 2 supplied clocks
+    oneOf:
+      - const: extclk
+        deprecated: true
+        description: Deprecated in favor of txco
+
+      - const: txco
+        description: >
+          external reference clock (not a standalone crystal)
+
+      - const: lpo
+        description: >
+          external low power 32.768 kHz clock
+
+      - items:
+          - const: txco
+          - const: lpo
+
+  vbat-supply:
+    description: phandle to regulator supply for VBAT
+
+  vddio-supply:
+    description: phandle to regulator supply for VDDIO
+
+  brcm,bt-pcm-int-params:
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+    minItems: 5
+    maxItems: 5
+    description: |-
+      configure PCM parameters via a 5-byte array:
+       sco-routing: 0 = PCM, 1 = Transport, 2 = Codec, 3 = I2S
+       pcm-interface-rate: 128KBps, 256KBps, 512KBps, 1024KBps, 2048KBps
+       pcm-frame-type: short, long
+       pcm-sync-mode: slave, master
+       pcm-clock-mode: slave, master
+
+  brcm,requires-autobaud-mode:
+    type: boolean
+    description:
+      Set this property if autobaud mode is required. Autobaud mode is required
+      if the device's initial baud rate in normal mode is not supported by the
+      host or if the device requires autobaud mode startup before loading FW.
+
+  interrupts:
+    items:
+      - description: Handle to the line HOST_WAKE used to wake
+          up the host processor. This uses the BT_GPIO_1 pin on
+          the chip when in use.
+
+  interrupt-names:
+    items:
+      - const: host-wakeup
+
+  max-speed: true
+  current-speed: true
+
+required:
+  - compatible
+
+dependencies:
+  brcm,requires-autobaud-mode: [ shutdown-gpios ]
+
+if:
+  not:
+    properties:
+      compatible:
+        contains:
+          enum:
+            - brcm,bcm20702a1
+            - brcm,bcm4329-bt
+            - brcm,bcm4330-bt
+then:
+  properties:
+    reset-gpios: false
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    uart {
+        uart-has-rtscts;
+
+        bluetooth {
+            compatible = "brcm,bcm4330-bt";
+            max-speed = <921600>;
+            brcm,bt-pcm-int-params = [01 02 00 01 01];
+            shutdown-gpios = <&gpio 30 GPIO_ACTIVE_HIGH>;
+            device-wakeup-gpios = <&gpio 7 GPIO_ACTIVE_HIGH>;
+            reset-gpios = <&gpio 9 GPIO_ACTIVE_LOW>;
+            interrupt-parent = <&gpio>;
+            interrupts = <8 IRQ_TYPE_EDGE_FALLING>;
+        };
+    };

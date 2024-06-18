@@ -14,30 +14,6 @@
 #include <linux/types.h>
 #include <linux/iio/common/st_sensors.h>
 
-enum st_accel_type {
-	LSM303DLH,
-	LSM303DLHC,
-	LIS3DH,
-	LSM330D,
-	LSM330DL,
-	LSM330DLC,
-	LIS331DLH,
-	LSM303DL,
-	LSM303DLM,
-	LSM330,
-	LSM303AGR,
-	LIS2DH12,
-	LIS3L02DQ,
-	LNG2DM,
-	H3LIS331DL,
-	LIS331DL,
-	LIS3LV02DL,
-	LIS2DW12,
-	LIS3DHH,
-	LIS2DE12,
-	ST_ACCEL_MAX,
-};
-
 #define H3LIS331DL_ACCEL_DEV_NAME	"h3lis331dl_accel"
 #define LIS3LV02DL_ACCEL_DEV_NAME	"lis3lv02dl_accel"
 #define LSM303DLHC_ACCEL_DEV_NAME	"lsm303dlhc_accel"
@@ -59,31 +35,21 @@ enum st_accel_type {
 #define LIS3DHH_ACCEL_DEV_NAME		"lis3dhh"
 #define LIS3DE_ACCEL_DEV_NAME		"lis3de"
 #define LIS2DE12_ACCEL_DEV_NAME		"lis2de12"
+#define LIS2HH12_ACCEL_DEV_NAME		"lis2hh12"
+#define LIS302DL_ACCEL_DEV_NAME		"lis302dl"
+#define LSM303C_ACCEL_DEV_NAME		"lsm303c_accel"
+#define SC7A20_ACCEL_DEV_NAME		"sc7a20"
+#define IIS328DQ_ACCEL_DEV_NAME		"iis328dq"
 
-/**
-* struct st_sensors_platform_data - default accel platform data
-* @drdy_int_pin: default accel DRDY is available on INT1 pin.
-*/
-static const struct st_sensors_platform_data default_accel_pdata = {
-	.drdy_int_pin = 1,
-};
-
-const struct st_sensor_settings *st_accel_get_settings(const char *name);
-int st_accel_common_probe(struct iio_dev *indio_dev);
-void st_accel_common_remove(struct iio_dev *indio_dev);
 
 #ifdef CONFIG_IIO_BUFFER
 int st_accel_allocate_ring(struct iio_dev *indio_dev);
-void st_accel_deallocate_ring(struct iio_dev *indio_dev);
 int st_accel_trig_set_state(struct iio_trigger *trig, bool state);
 #define ST_ACCEL_TRIGGER_SET_STATE (&st_accel_trig_set_state)
 #else /* CONFIG_IIO_BUFFER */
 static inline int st_accel_allocate_ring(struct iio_dev *indio_dev)
 {
 	return 0;
-}
-static inline void st_accel_deallocate_ring(struct iio_dev *indio_dev)
-{
 }
 #define ST_ACCEL_TRIGGER_SET_STATE NULL
 #endif /* CONFIG_IIO_BUFFER */

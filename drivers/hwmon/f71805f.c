@@ -165,7 +165,7 @@ struct f71805f_data {
 	struct device *hwmon_dev;
 
 	struct mutex update_lock;
-	char valid;		/* !=0 if following fields are valid */
+	bool valid;		/* true if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 	unsigned long last_limits;	/* In jiffies */
 
@@ -404,7 +404,7 @@ static struct f71805f_data *f71805f_update_device(struct device *dev)
 			+ (f71805f_read8(data, F71805F_REG_STATUS(2)) << 16);
 
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->update_lock);
@@ -1480,7 +1480,7 @@ exit_remove_files:
 	return err;
 }
 
-static int f71805f_remove(struct platform_device *pdev)
+static void f71805f_remove(struct platform_device *pdev)
 {
 	struct f71805f_data *data = platform_get_drvdata(pdev);
 	int i;
@@ -1490,8 +1490,6 @@ static int f71805f_remove(struct platform_device *pdev)
 	for (i = 0; i < 4; i++)
 		sysfs_remove_group(&pdev->dev.kobj, &f71805f_group_optin[i]);
 	sysfs_remove_group(&pdev->dev.kobj, &f71805f_group_pwm_freq);
-
-	return 0;
 }
 
 static struct platform_driver f71805f_driver = {
@@ -1499,7 +1497,7 @@ static struct platform_driver f71805f_driver = {
 		.name	= DRVNAME,
 	},
 	.probe		= f71805f_probe,
-	.remove		= f71805f_remove,
+	.remove_new	= f71805f_remove,
 };
 
 static int __init f71805f_device_add(unsigned short address,

@@ -34,6 +34,8 @@
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <linux/netfilter/nf_conntrack_h323.h>
 
+#define H323_MAX_SIZE 65535
+
 /* Parameters */
 static unsigned int default_rrq_ttl __read_mostly = 300;
 module_param(default_rrq_ttl, uint, 0600);
@@ -49,64 +51,8 @@ MODULE_PARM_DESC(callforward_filter, "only create call forwarding expectations "
 				     "if both endpoints are on different sides "
 				     "(determined by routing information)");
 
-/* Hooks for NAT */
-int (*set_h245_addr_hook) (struct sk_buff *skb, unsigned int protoff,
-			   unsigned char **data, int dataoff,
-			   H245_TransportAddress *taddr,
-			   union nf_inet_addr *addr, __be16 port)
-			   __read_mostly;
-int (*set_h225_addr_hook) (struct sk_buff *skb, unsigned int protoff,
-			   unsigned char **data, int dataoff,
-			   TransportAddress *taddr,
-			   union nf_inet_addr *addr, __be16 port)
-			   __read_mostly;
-int (*set_sig_addr_hook) (struct sk_buff *skb,
-			  struct nf_conn *ct,
-			  enum ip_conntrack_info ctinfo,
-			  unsigned int protoff, unsigned char **data,
-			  TransportAddress *taddr, int count) __read_mostly;
-int (*set_ras_addr_hook) (struct sk_buff *skb,
-			  struct nf_conn *ct,
-			  enum ip_conntrack_info ctinfo,
-			  unsigned int protoff, unsigned char **data,
-			  TransportAddress *taddr, int count) __read_mostly;
-int (*nat_rtp_rtcp_hook) (struct sk_buff *skb,
-			  struct nf_conn *ct,
-			  enum ip_conntrack_info ctinfo,
-			  unsigned int protoff,
-			  unsigned char **data, int dataoff,
-			  H245_TransportAddress *taddr,
-			  __be16 port, __be16 rtp_port,
-			  struct nf_conntrack_expect *rtp_exp,
-			  struct nf_conntrack_expect *rtcp_exp) __read_mostly;
-int (*nat_t120_hook) (struct sk_buff *skb,
-		      struct nf_conn *ct,
-		      enum ip_conntrack_info ctinfo,
-		      unsigned int protoff,
-		      unsigned char **data, int dataoff,
-		      H245_TransportAddress *taddr, __be16 port,
-		      struct nf_conntrack_expect *exp) __read_mostly;
-int (*nat_h245_hook) (struct sk_buff *skb,
-		      struct nf_conn *ct,
-		      enum ip_conntrack_info ctinfo,
-		      unsigned int protoff,
-		      unsigned char **data, int dataoff,
-		      TransportAddress *taddr, __be16 port,
-		      struct nf_conntrack_expect *exp) __read_mostly;
-int (*nat_callforwarding_hook) (struct sk_buff *skb,
-				struct nf_conn *ct,
-				enum ip_conntrack_info ctinfo,
-				unsigned int protoff,
-				unsigned char **data, int dataoff,
-				TransportAddress *taddr, __be16 port,
-				struct nf_conntrack_expect *exp) __read_mostly;
-int (*nat_q931_hook) (struct sk_buff *skb,
-		      struct nf_conn *ct,
-		      enum ip_conntrack_info ctinfo,
-		      unsigned int protoff,
-		      unsigned char **data, TransportAddress *taddr, int idx,
-		      __be16 port, struct nf_conntrack_expect *exp)
-		      __read_mostly;
+const struct nfct_h323_nat_hooks __rcu *nfct_h323_nat_hook __read_mostly;
+EXPORT_SYMBOL_GPL(nfct_h323_nat_hook);
 
 static DEFINE_SPINLOCK(nf_h323_lock);
 static char *h323_buffer;
@@ -142,11 +88,15 @@ static int get_tpkt_data(struct sk_buff *skb, unsigned int protoff,
 	if (tcpdatalen <= 0)	/* No TCP data */
 		goto clear_out;
 
+	if (tcpdatalen > H323_MAX_SIZE)
+		tcpdatalen = H323_MAX_SIZE;
+
 	if (*data == NULL) {	/* first TPKT */
 		/* Get first TPKT pointer */
 		tpkt = skb_header_pointer(skb, tcpdataoff, tcpdatalen,
 					  h323_buffer);
-		BUG_ON(tpkt == NULL);
+		if (!tpkt)
+			goto clear_out;
 
 		/* Validate TPKT identifier */
 		if (tcpdatalen < 4 || tpkt[0] != 0x03 || tpkt[1] != 0) {
@@ -193,7 +143,7 @@ static int get_tpkt_data(struct sk_buff *skb, unsigned int protoff,
 		if (tcpdatalen == 4) {	/* Separate TPKT header */
 			/* Netmeeting sends TPKT header and data separately */
 			pr_debug("nf_ct_h323: separate TPKT header indicates "
-				 "there will be TPKT data of %hu bytes\n",
+				 "there will be TPKT data of %d bytes\n",
 				 tpktlen - 4);
 			info->tpkt_len[dir] = tpktlen - 4;
 			return 0;
@@ -258,6 +208,7 @@ static int expect_rtp_rtcp(struct sk_buff *skb, struct nf_conn *ct,
 			   unsigned char **data, int dataoff,
 			   H245_TransportAddress *taddr)
 {
+	const struct nfct_h323_nat_hooks *nathook;
 	int dir = CTINFO2DIR(ctinfo);
 	int ret = 0;
 	__be16 port;
@@ -265,7 +216,6 @@ static int expect_rtp_rtcp(struct sk_buff *skb, struct nf_conn *ct,
 	union nf_inet_addr addr;
 	struct nf_conntrack_expect *rtp_exp;
 	struct nf_conntrack_expect *rtcp_exp;
-	typeof(nat_rtp_rtcp_hook) nat_rtp_rtcp;
 
 	/* Read RTP or RTCP address */
 	if (!get_h245_addr(ct, *data, taddr, &addr, &port) ||
@@ -295,15 +245,16 @@ static int expect_rtp_rtcp(struct sk_buff *skb, struct nf_conn *ct,
 			  &ct->tuplehash[!dir].tuple.dst.u3,
 			  IPPROTO_UDP, NULL, &rtcp_port);
 
+	nathook = rcu_dereference(nfct_h323_nat_hook);
 	if (memcmp(&ct->tuplehash[dir].tuple.src.u3,
 		   &ct->tuplehash[!dir].tuple.dst.u3,
 		   sizeof(ct->tuplehash[dir].tuple.src.u3)) &&
-		   (nat_rtp_rtcp = rcu_dereference(nat_rtp_rtcp_hook)) &&
+		   nathook &&
 		   nf_ct_l3num(ct) == NFPROTO_IPV4 &&
 		   ct->status & IPS_NAT_MASK) {
 		/* NAT needed */
-		ret = nat_rtp_rtcp(skb, ct, ctinfo, protoff, data, dataoff,
-				   taddr, port, rtp_port, rtp_exp, rtcp_exp);
+		ret = nathook->nat_rtp_rtcp(skb, ct, ctinfo, protoff, data, dataoff,
+					    taddr, port, rtp_port, rtp_exp, rtcp_exp);
 	} else {		/* Conntrack only */
 		if (nf_ct_expect_related(rtp_exp, 0) == 0) {
 			if (nf_ct_expect_related(rtcp_exp, 0) == 0) {
@@ -332,12 +283,12 @@ static int expect_t120(struct sk_buff *skb,
 		       unsigned char **data, int dataoff,
 		       H245_TransportAddress *taddr)
 {
+	const struct nfct_h323_nat_hooks *nathook;
 	int dir = CTINFO2DIR(ctinfo);
 	int ret = 0;
 	__be16 port;
 	union nf_inet_addr addr;
 	struct nf_conntrack_expect *exp;
-	typeof(nat_t120_hook) nat_t120;
 
 	/* Read T.120 address */
 	if (!get_h245_addr(ct, *data, taddr, &addr, &port) ||
@@ -354,15 +305,16 @@ static int expect_t120(struct sk_buff *skb,
 			  IPPROTO_TCP, NULL, &port);
 	exp->flags = NF_CT_EXPECT_PERMANENT;	/* Accept multiple channels */
 
+	nathook = rcu_dereference(nfct_h323_nat_hook);
 	if (memcmp(&ct->tuplehash[dir].tuple.src.u3,
 		   &ct->tuplehash[!dir].tuple.dst.u3,
 		   sizeof(ct->tuplehash[dir].tuple.src.u3)) &&
-	    (nat_t120 = rcu_dereference(nat_t120_hook)) &&
+	    nathook &&
 	    nf_ct_l3num(ct) == NFPROTO_IPV4 &&
 	    ct->status & IPS_NAT_MASK) {
 		/* NAT needed */
-		ret = nat_t120(skb, ct, ctinfo, protoff, data, dataoff, taddr,
-			       port, exp);
+		ret = nathook->nat_t120(skb, ct, ctinfo, protoff, data,
+					dataoff, taddr, port, exp);
 	} else {		/* Conntrack only */
 		if (nf_ct_expect_related(exp, 0) == 0) {
 			pr_debug("nf_ct_h323: expect T.120 ");
@@ -663,18 +615,19 @@ int get_h225_addr(struct nf_conn *ct, unsigned char *data,
 
 	return 1;
 }
+EXPORT_SYMBOL_GPL(get_h225_addr);
 
 static int expect_h245(struct sk_buff *skb, struct nf_conn *ct,
 		       enum ip_conntrack_info ctinfo,
 		       unsigned int protoff, unsigned char **data, int dataoff,
 		       TransportAddress *taddr)
 {
+	const struct nfct_h323_nat_hooks *nathook;
 	int dir = CTINFO2DIR(ctinfo);
 	int ret = 0;
 	__be16 port;
 	union nf_inet_addr addr;
 	struct nf_conntrack_expect *exp;
-	typeof(nat_h245_hook) nat_h245;
 
 	/* Read h245Address */
 	if (!get_h225_addr(ct, *data, taddr, &addr, &port) ||
@@ -691,15 +644,16 @@ static int expect_h245(struct sk_buff *skb, struct nf_conn *ct,
 			  IPPROTO_TCP, NULL, &port);
 	exp->helper = &nf_conntrack_helper_h245;
 
+	nathook = rcu_dereference(nfct_h323_nat_hook);
 	if (memcmp(&ct->tuplehash[dir].tuple.src.u3,
 		   &ct->tuplehash[!dir].tuple.dst.u3,
 		   sizeof(ct->tuplehash[dir].tuple.src.u3)) &&
-	    (nat_h245 = rcu_dereference(nat_h245_hook)) &&
+	    nathook &&
 	    nf_ct_l3num(ct) == NFPROTO_IPV4 &&
 	    ct->status & IPS_NAT_MASK) {
 		/* NAT needed */
-		ret = nat_h245(skb, ct, ctinfo, protoff, data, dataoff, taddr,
-			       port, exp);
+		ret = nathook->nat_h245(skb, ct, ctinfo, protoff, data,
+					dataoff, taddr, port, exp);
 	} else {		/* Conntrack only */
 		if (nf_ct_expect_related(exp, 0) == 0) {
 			pr_debug("nf_ct_q931: expect H.245 ");
@@ -784,13 +738,13 @@ static int expect_callforwarding(struct sk_buff *skb,
 				 unsigned char **data, int dataoff,
 				 TransportAddress *taddr)
 {
+	const struct nfct_h323_nat_hooks *nathook;
 	int dir = CTINFO2DIR(ctinfo);
 	int ret = 0;
 	__be16 port;
 	union nf_inet_addr addr;
 	struct nf_conntrack_expect *exp;
 	struct net *net = nf_ct_net(ct);
-	typeof(nat_callforwarding_hook) nat_callforwarding;
 
 	/* Read alternativeAddress */
 	if (!get_h225_addr(ct, *data, taddr, &addr, &port) || port == 0)
@@ -814,16 +768,17 @@ static int expect_callforwarding(struct sk_buff *skb,
 			  IPPROTO_TCP, NULL, &port);
 	exp->helper = nf_conntrack_helper_q931;
 
+	nathook = rcu_dereference(nfct_h323_nat_hook);
 	if (memcmp(&ct->tuplehash[dir].tuple.src.u3,
 		   &ct->tuplehash[!dir].tuple.dst.u3,
 		   sizeof(ct->tuplehash[dir].tuple.src.u3)) &&
-	    (nat_callforwarding = rcu_dereference(nat_callforwarding_hook)) &&
+	    nathook &&
 	    nf_ct_l3num(ct) == NFPROTO_IPV4 &&
 	    ct->status & IPS_NAT_MASK) {
 		/* Need NAT */
-		ret = nat_callforwarding(skb, ct, ctinfo,
-					 protoff, data, dataoff,
-					 taddr, port, exp);
+		ret = nathook->nat_callforwarding(skb, ct, ctinfo,
+						  protoff, data, dataoff,
+						  taddr, port, exp);
 	} else {		/* Conntrack only */
 		if (nf_ct_expect_related(exp, 0) == 0) {
 			pr_debug("nf_ct_q931: expect Call Forwarding ");
@@ -843,12 +798,12 @@ static int process_setup(struct sk_buff *skb, struct nf_conn *ct,
 			 unsigned char **data, int dataoff,
 			 Setup_UUIE *setup)
 {
+	const struct nfct_h323_nat_hooks *nathook;
 	int dir = CTINFO2DIR(ctinfo);
 	int ret;
 	int i;
 	__be16 port;
 	union nf_inet_addr addr;
-	typeof(set_h225_addr_hook) set_h225_addr;
 
 	pr_debug("nf_ct_q931: Setup\n");
 
@@ -859,9 +814,9 @@ static int process_setup(struct sk_buff *skb, struct nf_conn *ct,
 			return -1;
 	}
 
-	set_h225_addr = rcu_dereference(set_h225_addr_hook);
+	nathook = rcu_dereference(nfct_h323_nat_hook);
 	if ((setup->options & eSetup_UUIE_destCallSignalAddress) &&
-	    (set_h225_addr) && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
+	    nathook && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
 	    ct->status & IPS_NAT_MASK &&
 	    get_h225_addr(ct, *data, &setup->destCallSignalAddress,
 			  &addr, &port) &&
@@ -869,16 +824,16 @@ static int process_setup(struct sk_buff *skb, struct nf_conn *ct,
 		pr_debug("nf_ct_q931: set destCallSignalAddress %pI6:%hu->%pI6:%hu\n",
 			 &addr, ntohs(port), &ct->tuplehash[!dir].tuple.src.u3,
 			 ntohs(ct->tuplehash[!dir].tuple.src.u.tcp.port));
-		ret = set_h225_addr(skb, protoff, data, dataoff,
-				    &setup->destCallSignalAddress,
-				    &ct->tuplehash[!dir].tuple.src.u3,
-				    ct->tuplehash[!dir].tuple.src.u.tcp.port);
+		ret = nathook->set_h225_addr(skb, protoff, data, dataoff,
+					     &setup->destCallSignalAddress,
+					     &ct->tuplehash[!dir].tuple.src.u3,
+					     ct->tuplehash[!dir].tuple.src.u.tcp.port);
 		if (ret < 0)
 			return -1;
 	}
 
 	if ((setup->options & eSetup_UUIE_sourceCallSignalAddress) &&
-	    (set_h225_addr) && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
+	    nathook && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
 	    ct->status & IPS_NAT_MASK &&
 	    get_h225_addr(ct, *data, &setup->sourceCallSignalAddress,
 			  &addr, &port) &&
@@ -886,10 +841,10 @@ static int process_setup(struct sk_buff *skb, struct nf_conn *ct,
 		pr_debug("nf_ct_q931: set sourceCallSignalAddress %pI6:%hu->%pI6:%hu\n",
 			 &addr, ntohs(port), &ct->tuplehash[!dir].tuple.dst.u3,
 			 ntohs(ct->tuplehash[!dir].tuple.dst.u.tcp.port));
-		ret = set_h225_addr(skb, protoff, data, dataoff,
-				    &setup->sourceCallSignalAddress,
-				    &ct->tuplehash[!dir].tuple.dst.u3,
-				    ct->tuplehash[!dir].tuple.dst.u.tcp.port);
+		ret = nathook->set_h225_addr(skb, protoff, data, dataoff,
+					     &setup->sourceCallSignalAddress,
+					     &ct->tuplehash[!dir].tuple.dst.u3,
+					     ct->tuplehash[!dir].tuple.dst.u.tcp.port);
 		if (ret < 0)
 			return -1;
 	}
@@ -1219,6 +1174,9 @@ static unsigned char *get_udp_data(struct sk_buff *skb, unsigned int protoff,
 	if (dataoff >= skb->len)
 		return NULL;
 	*datalen = skb->len - dataoff;
+	if (*datalen > H323_MAX_SIZE)
+		*datalen = H323_MAX_SIZE;
+
 	return skb_header_pointer(skb, dataoff, *datalen, h323_buffer);
 }
 
@@ -1248,13 +1206,13 @@ static int expect_q931(struct sk_buff *skb, struct nf_conn *ct,
 		       TransportAddress *taddr, int count)
 {
 	struct nf_ct_h323_master *info = nfct_help_data(ct);
+	const struct nfct_h323_nat_hooks *nathook;
 	int dir = CTINFO2DIR(ctinfo);
 	int ret = 0;
 	int i;
 	__be16 port;
 	union nf_inet_addr addr;
 	struct nf_conntrack_expect *exp;
-	typeof(nat_q931_hook) nat_q931;
 
 	/* Look for the first related address */
 	for (i = 0; i < count; i++) {
@@ -1278,11 +1236,11 @@ static int expect_q931(struct sk_buff *skb, struct nf_conn *ct,
 	exp->helper = nf_conntrack_helper_q931;
 	exp->flags = NF_CT_EXPECT_PERMANENT;	/* Accept multiple calls */
 
-	nat_q931 = rcu_dereference(nat_q931_hook);
-	if (nat_q931 && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
+	nathook = rcu_dereference(nfct_h323_nat_hook);
+	if (nathook && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
 	    ct->status & IPS_NAT_MASK) {	/* Need NAT */
-		ret = nat_q931(skb, ct, ctinfo, protoff, data,
-			       taddr, i, port, exp);
+		ret = nathook->nat_q931(skb, ct, ctinfo, protoff, data,
+					taddr, i, port, exp);
 	} else {		/* Conntrack only */
 		if (nf_ct_expect_related(exp, 0) == 0) {
 			pr_debug("nf_ct_ras: expect Q.931 ");
@@ -1304,15 +1262,15 @@ static int process_grq(struct sk_buff *skb, struct nf_conn *ct,
 		       unsigned int protoff,
 		       unsigned char **data, GatekeeperRequest *grq)
 {
-	typeof(set_ras_addr_hook) set_ras_addr;
+	const struct nfct_h323_nat_hooks *nathook;
 
 	pr_debug("nf_ct_ras: GRQ\n");
 
-	set_ras_addr = rcu_dereference(set_ras_addr_hook);
-	if (set_ras_addr && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
+	nathook = rcu_dereference(nfct_h323_nat_hook);
+	if (nathook && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
 	    ct->status & IPS_NAT_MASK)	/* NATed */
-		return set_ras_addr(skb, ct, ctinfo, protoff, data,
-				    &grq->rasAddress, 1);
+		return nathook->set_ras_addr(skb, ct, ctinfo, protoff, data,
+					     &grq->rasAddress, 1);
 	return 0;
 }
 
@@ -1366,8 +1324,8 @@ static int process_rrq(struct sk_buff *skb, struct nf_conn *ct,
 		       unsigned char **data, RegistrationRequest *rrq)
 {
 	struct nf_ct_h323_master *info = nfct_help_data(ct);
+	const struct nfct_h323_nat_hooks *nathook;
 	int ret;
-	typeof(set_ras_addr_hook) set_ras_addr;
 
 	pr_debug("nf_ct_ras: RRQ\n");
 
@@ -1377,12 +1335,12 @@ static int process_rrq(struct sk_buff *skb, struct nf_conn *ct,
 	if (ret < 0)
 		return -1;
 
-	set_ras_addr = rcu_dereference(set_ras_addr_hook);
-	if (set_ras_addr && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
+	nathook = rcu_dereference(nfct_h323_nat_hook);
+	if (nathook && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
 	    ct->status & IPS_NAT_MASK) {
-		ret = set_ras_addr(skb, ct, ctinfo, protoff, data,
-				   rrq->rasAddress.item,
-				   rrq->rasAddress.count);
+		ret = nathook->set_ras_addr(skb, ct, ctinfo, protoff, data,
+					    rrq->rasAddress.item,
+					    rrq->rasAddress.count);
 		if (ret < 0)
 			return -1;
 	}
@@ -1402,19 +1360,19 @@ static int process_rcf(struct sk_buff *skb, struct nf_conn *ct,
 		       unsigned char **data, RegistrationConfirm *rcf)
 {
 	struct nf_ct_h323_master *info = nfct_help_data(ct);
+	const struct nfct_h323_nat_hooks *nathook;
 	int dir = CTINFO2DIR(ctinfo);
 	int ret;
 	struct nf_conntrack_expect *exp;
-	typeof(set_sig_addr_hook) set_sig_addr;
 
 	pr_debug("nf_ct_ras: RCF\n");
 
-	set_sig_addr = rcu_dereference(set_sig_addr_hook);
-	if (set_sig_addr && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
+	nathook = rcu_dereference(nfct_h323_nat_hook);
+	if (nathook && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
 	    ct->status & IPS_NAT_MASK) {
-		ret = set_sig_addr(skb, ct, ctinfo, protoff, data,
-					rcf->callSignalAddress.item,
-					rcf->callSignalAddress.count);
+		ret = nathook->set_sig_addr(skb, ct, ctinfo, protoff, data,
+					    rcf->callSignalAddress.item,
+					    rcf->callSignalAddress.count);
 		if (ret < 0)
 			return -1;
 	}
@@ -1453,18 +1411,18 @@ static int process_urq(struct sk_buff *skb, struct nf_conn *ct,
 		       unsigned char **data, UnregistrationRequest *urq)
 {
 	struct nf_ct_h323_master *info = nfct_help_data(ct);
+	const struct nfct_h323_nat_hooks *nathook;
 	int dir = CTINFO2DIR(ctinfo);
 	int ret;
-	typeof(set_sig_addr_hook) set_sig_addr;
 
 	pr_debug("nf_ct_ras: URQ\n");
 
-	set_sig_addr = rcu_dereference(set_sig_addr_hook);
-	if (set_sig_addr && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
+	nathook = rcu_dereference(nfct_h323_nat_hook);
+	if (nathook && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
 	    ct->status & IPS_NAT_MASK) {
-		ret = set_sig_addr(skb, ct, ctinfo, protoff, data,
-				   urq->callSignalAddress.item,
-				   urq->callSignalAddress.count);
+		ret = nathook->set_sig_addr(skb, ct, ctinfo, protoff, data,
+					    urq->callSignalAddress.item,
+					    urq->callSignalAddress.count);
 		if (ret < 0)
 			return -1;
 	}
@@ -1486,39 +1444,42 @@ static int process_arq(struct sk_buff *skb, struct nf_conn *ct,
 		       unsigned char **data, AdmissionRequest *arq)
 {
 	const struct nf_ct_h323_master *info = nfct_help_data(ct);
+	const struct nfct_h323_nat_hooks *nathook;
 	int dir = CTINFO2DIR(ctinfo);
 	__be16 port;
 	union nf_inet_addr addr;
-	typeof(set_h225_addr_hook) set_h225_addr;
 
 	pr_debug("nf_ct_ras: ARQ\n");
 
-	set_h225_addr = rcu_dereference(set_h225_addr_hook);
+	nathook = rcu_dereference(nfct_h323_nat_hook);
+	if (!nathook)
+		return 0;
+
 	if ((arq->options & eAdmissionRequest_destCallSignalAddress) &&
 	    get_h225_addr(ct, *data, &arq->destCallSignalAddress,
 			  &addr, &port) &&
 	    !memcmp(&addr, &ct->tuplehash[dir].tuple.src.u3, sizeof(addr)) &&
 	    port == info->sig_port[dir] &&
 	    nf_ct_l3num(ct) == NFPROTO_IPV4 &&
-	    set_h225_addr && ct->status & IPS_NAT_MASK) {
+	    ct->status & IPS_NAT_MASK) {
 		/* Answering ARQ */
-		return set_h225_addr(skb, protoff, data, 0,
-				     &arq->destCallSignalAddress,
-				     &ct->tuplehash[!dir].tuple.dst.u3,
-				     info->sig_port[!dir]);
+		return nathook->set_h225_addr(skb, protoff, data, 0,
+					      &arq->destCallSignalAddress,
+					      &ct->tuplehash[!dir].tuple.dst.u3,
+					      info->sig_port[!dir]);
 	}
 
 	if ((arq->options & eAdmissionRequest_srcCallSignalAddress) &&
 	    get_h225_addr(ct, *data, &arq->srcCallSignalAddress,
 			  &addr, &port) &&
 	    !memcmp(&addr, &ct->tuplehash[dir].tuple.src.u3, sizeof(addr)) &&
-	    set_h225_addr && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
+	    nf_ct_l3num(ct) == NFPROTO_IPV4 &&
 	    ct->status & IPS_NAT_MASK) {
 		/* Calling ARQ */
-		return set_h225_addr(skb, protoff, data, 0,
-				     &arq->srcCallSignalAddress,
-				     &ct->tuplehash[!dir].tuple.dst.u3,
-				     port);
+		return nathook->set_h225_addr(skb, protoff, data, 0,
+					      &arq->srcCallSignalAddress,
+					      &ct->tuplehash[!dir].tuple.dst.u3,
+					      port);
 	}
 
 	return 0;
@@ -1534,7 +1495,6 @@ static int process_acf(struct sk_buff *skb, struct nf_conn *ct,
 	__be16 port;
 	union nf_inet_addr addr;
 	struct nf_conntrack_expect *exp;
-	typeof(set_sig_addr_hook) set_sig_addr;
 
 	pr_debug("nf_ct_ras: ACF\n");
 
@@ -1543,12 +1503,15 @@ static int process_acf(struct sk_buff *skb, struct nf_conn *ct,
 		return 0;
 
 	if (!memcmp(&addr, &ct->tuplehash[dir].tuple.dst.u3, sizeof(addr))) {
+		const struct nfct_h323_nat_hooks *nathook;
+
 		/* Answering ACF */
-		set_sig_addr = rcu_dereference(set_sig_addr_hook);
-		if (set_sig_addr && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
+		nathook = rcu_dereference(nfct_h323_nat_hook);
+		if (nathook && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
 		    ct->status & IPS_NAT_MASK)
-			return set_sig_addr(skb, ct, ctinfo, protoff, data,
-					    &acf->destCallSignalAddress, 1);
+			return nathook->set_sig_addr(skb, ct, ctinfo, protoff,
+						     data,
+						     &acf->destCallSignalAddress, 1);
 		return 0;
 	}
 
@@ -1577,15 +1540,15 @@ static int process_lrq(struct sk_buff *skb, struct nf_conn *ct,
 		       unsigned int protoff,
 		       unsigned char **data, LocationRequest *lrq)
 {
-	typeof(set_ras_addr_hook) set_ras_addr;
+	const struct nfct_h323_nat_hooks *nathook;
 
 	pr_debug("nf_ct_ras: LRQ\n");
 
-	set_ras_addr = rcu_dereference(set_ras_addr_hook);
-	if (set_ras_addr && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
+	nathook = rcu_dereference(nfct_h323_nat_hook);
+	if (nathook && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
 	    ct->status & IPS_NAT_MASK)
-		return set_ras_addr(skb, ct, ctinfo, protoff, data,
-				    &lrq->replyAddress, 1);
+		return nathook->set_ras_addr(skb, ct, ctinfo, protoff, data,
+					     &lrq->replyAddress, 1);
 	return 0;
 }
 
@@ -1633,27 +1596,22 @@ static int process_irr(struct sk_buff *skb, struct nf_conn *ct,
 		       unsigned int protoff,
 		       unsigned char **data, InfoRequestResponse *irr)
 {
+	const struct nfct_h323_nat_hooks *nathook;
 	int ret;
-	typeof(set_ras_addr_hook) set_ras_addr;
-	typeof(set_sig_addr_hook) set_sig_addr;
 
 	pr_debug("nf_ct_ras: IRR\n");
 
-	set_ras_addr = rcu_dereference(set_ras_addr_hook);
-	if (set_ras_addr && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
+	nathook = rcu_dereference(nfct_h323_nat_hook);
+	if (nathook && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
 	    ct->status & IPS_NAT_MASK) {
-		ret = set_ras_addr(skb, ct, ctinfo, protoff, data,
-				   &irr->rasAddress, 1);
+		ret = nathook->set_ras_addr(skb, ct, ctinfo, protoff, data,
+					    &irr->rasAddress, 1);
 		if (ret < 0)
 			return -1;
-	}
 
-	set_sig_addr = rcu_dereference(set_sig_addr_hook);
-	if (set_sig_addr && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
-	    ct->status & IPS_NAT_MASK) {
-		ret = set_sig_addr(skb, ct, ctinfo, protoff, data,
-					irr->callSignalAddress.item,
-					irr->callSignalAddress.count);
+		ret = nathook->set_sig_addr(skb, ct, ctinfo, protoff, data,
+					    irr->callSignalAddress.item,
+					    irr->callSignalAddress.count);
 		if (ret < 0)
 			return -1;
 	}
@@ -1820,7 +1778,7 @@ static int __init nf_conntrack_h323_init(void)
 
 	NF_CT_HELPER_BUILD_BUG_ON(sizeof(struct nf_ct_h323_master));
 
-	h323_buffer = kmalloc(65536, GFP_KERNEL);
+	h323_buffer = kmalloc(H323_MAX_SIZE + 1, GFP_KERNEL);
 	if (!h323_buffer)
 		return -ENOMEM;
 	ret = h323_helper_init();
@@ -1835,17 +1793,6 @@ err1:
 
 module_init(nf_conntrack_h323_init);
 module_exit(nf_conntrack_h323_fini);
-
-EXPORT_SYMBOL_GPL(get_h225_addr);
-EXPORT_SYMBOL_GPL(set_h245_addr_hook);
-EXPORT_SYMBOL_GPL(set_h225_addr_hook);
-EXPORT_SYMBOL_GPL(set_sig_addr_hook);
-EXPORT_SYMBOL_GPL(set_ras_addr_hook);
-EXPORT_SYMBOL_GPL(nat_rtp_rtcp_hook);
-EXPORT_SYMBOL_GPL(nat_t120_hook);
-EXPORT_SYMBOL_GPL(nat_h245_hook);
-EXPORT_SYMBOL_GPL(nat_callforwarding_hook);
-EXPORT_SYMBOL_GPL(nat_q931_hook);
 
 MODULE_AUTHOR("Jing Min Zhao <zhaojingmin@users.sourceforge.net>");
 MODULE_DESCRIPTION("H.323 connection tracking helper");

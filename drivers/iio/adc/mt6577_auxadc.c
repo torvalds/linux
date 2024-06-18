@@ -9,9 +9,9 @@
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/iopoll.h>
 #include <linux/io.h>
 #include <linux/iio/iio.h>
@@ -44,6 +44,11 @@ struct mt6577_auxadc_device {
 	struct clk *adc_clk;
 	struct mutex lock;
 	const struct mtk_auxadc_compatible *dev_comp;
+};
+
+static const struct mtk_auxadc_compatible mt8186_compat = {
+	.sample_data_cali = false,
+	.check_global_idle = false,
 };
 
 static const struct mtk_auxadc_compatible mt8173_compat = {
@@ -81,6 +86,10 @@ static const struct iio_chan_spec mt6577_auxadc_iio_channels[] = {
 	MT6577_AUXADC_CHANNEL(14),
 	MT6577_AUXADC_CHANNEL(15),
 };
+
+/* For Voltage calculation */
+#define VOLTAGE_FULL_RANGE  1500	/* VA voltage */
+#define AUXADC_PRECISE      4096	/* 12 bits */
 
 static int mt_auxadc_get_cali_data(int rawdata, bool enable_cali)
 {
@@ -191,6 +200,10 @@ static int mt6577_auxadc_read_raw(struct iio_dev *indio_dev,
 		}
 		if (adc_dev->dev_comp->sample_data_cali)
 			*val = mt_auxadc_get_cali_data(*val, true);
+
+		/* Convert adc raw data to voltage: 0 - 1500 mV */
+		*val = *val * VOLTAGE_FULL_RANGE / AUXADC_PRECISE;
+
 		return IIO_VAL_INT;
 
 	default:
@@ -202,7 +215,7 @@ static const struct iio_info mt6577_auxadc_info = {
 	.read_raw = &mt6577_auxadc_read_raw,
 };
 
-static int __maybe_unused mt6577_auxadc_resume(struct device *dev)
+static int mt6577_auxadc_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct mt6577_auxadc_device *adc_dev = iio_priv(indio_dev);
@@ -221,7 +234,7 @@ static int __maybe_unused mt6577_auxadc_resume(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused mt6577_auxadc_suspend(struct device *dev)
+static int mt6577_auxadc_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct mt6577_auxadc_device *adc_dev = iio_priv(indio_dev);
@@ -233,11 +246,18 @@ static int __maybe_unused mt6577_auxadc_suspend(struct device *dev)
 	return 0;
 }
 
+static void mt6577_power_off(void *data)
+{
+	struct mt6577_auxadc_device *adc_dev = data;
+
+	mt6577_auxadc_mod_reg(adc_dev->reg_base + MT6577_AUXADC_MISC,
+			      0, MT6577_AUXADC_PDN_EN);
+}
+
 static int mt6577_auxadc_probe(struct platform_device *pdev)
 {
 	struct mt6577_auxadc_device *adc_dev;
 	unsigned long adc_clk_rate;
-	struct resource *res;
 	struct iio_dev *indio_dev;
 	int ret;
 
@@ -246,88 +266,58 @@ static int mt6577_auxadc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	adc_dev = iio_priv(indio_dev);
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->name = dev_name(&pdev->dev);
 	indio_dev->info = &mt6577_auxadc_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = mt6577_auxadc_iio_channels;
 	indio_dev->num_channels = ARRAY_SIZE(mt6577_auxadc_iio_channels);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	adc_dev->reg_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(adc_dev->reg_base)) {
-		dev_err(&pdev->dev, "failed to get auxadc base address\n");
-		return PTR_ERR(adc_dev->reg_base);
-	}
+	adc_dev->reg_base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(adc_dev->reg_base))
+		return dev_err_probe(&pdev->dev, PTR_ERR(adc_dev->reg_base),
+				     "failed to get auxadc base address\n");
 
-	adc_dev->adc_clk = devm_clk_get(&pdev->dev, "main");
-	if (IS_ERR(adc_dev->adc_clk)) {
-		dev_err(&pdev->dev, "failed to get auxadc clock\n");
-		return PTR_ERR(adc_dev->adc_clk);
-	}
-
-	ret = clk_prepare_enable(adc_dev->adc_clk);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to enable auxadc clock\n");
-		return ret;
-	}
+	adc_dev->adc_clk = devm_clk_get_enabled(&pdev->dev, "main");
+	if (IS_ERR(adc_dev->adc_clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(adc_dev->adc_clk),
+				     "failed to enable auxadc clock\n");
 
 	adc_clk_rate = clk_get_rate(adc_dev->adc_clk);
-	if (!adc_clk_rate) {
-		ret = -EINVAL;
-		dev_err(&pdev->dev, "null clock rate\n");
-		goto err_disable_clk;
-	}
+	if (!adc_clk_rate)
+		return dev_err_probe(&pdev->dev, -EINVAL, "null clock rate\n");
+
+	adc_dev->dev_comp = device_get_match_data(&pdev->dev);
 
 	mutex_init(&adc_dev->lock);
 
 	mt6577_auxadc_mod_reg(adc_dev->reg_base + MT6577_AUXADC_MISC,
 			      MT6577_AUXADC_PDN_EN, 0);
 	mdelay(MT6577_AUXADC_POWER_READY_MS);
-
 	platform_set_drvdata(pdev, indio_dev);
 
-	ret = iio_device_register(indio_dev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to register iio device\n");
-		goto err_power_off;
-	}
+	ret = devm_add_action_or_reset(&pdev->dev, mt6577_power_off, adc_dev);
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret,
+				     "Failed to add action to managed power off\n");
 
-	return 0;
-
-err_power_off:
-	mt6577_auxadc_mod_reg(adc_dev->reg_base + MT6577_AUXADC_MISC,
-			      0, MT6577_AUXADC_PDN_EN);
-err_disable_clk:
-	clk_disable_unprepare(adc_dev->adc_clk);
-	return ret;
-}
-
-static int mt6577_auxadc_remove(struct platform_device *pdev)
-{
-	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
-	struct mt6577_auxadc_device *adc_dev = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-
-	mt6577_auxadc_mod_reg(adc_dev->reg_base + MT6577_AUXADC_MISC,
-			      0, MT6577_AUXADC_PDN_EN);
-
-	clk_disable_unprepare(adc_dev->adc_clk);
+	ret = devm_iio_device_register(&pdev->dev, indio_dev);
+	if (ret < 0)
+		return dev_err_probe(&pdev->dev, ret, "failed to register iio device\n");
 
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(mt6577_auxadc_pm_ops,
-			 mt6577_auxadc_suspend,
-			 mt6577_auxadc_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(mt6577_auxadc_pm_ops,
+				mt6577_auxadc_suspend,
+				mt6577_auxadc_resume);
 
 static const struct of_device_id mt6577_auxadc_of_match[] = {
-	{ .compatible = "mediatek,mt2701-auxadc", .data = &mt8173_compat},
-	{ .compatible = "mediatek,mt2712-auxadc", .data = &mt8173_compat},
-	{ .compatible = "mediatek,mt7622-auxadc", .data = &mt8173_compat},
-	{ .compatible = "mediatek,mt8173-auxadc", .data = &mt8173_compat},
-	{ .compatible = "mediatek,mt6765-auxadc", .data = &mt6765_compat},
+	{ .compatible = "mediatek,mt2701-auxadc", .data = &mt8173_compat },
+	{ .compatible = "mediatek,mt2712-auxadc", .data = &mt8173_compat },
+	{ .compatible = "mediatek,mt7622-auxadc", .data = &mt8173_compat },
+	{ .compatible = "mediatek,mt8173-auxadc", .data = &mt8173_compat },
+	{ .compatible = "mediatek,mt8186-auxadc", .data = &mt8186_compat },
+	{ .compatible = "mediatek,mt6765-auxadc", .data = &mt6765_compat },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, mt6577_auxadc_of_match);
@@ -336,10 +326,9 @@ static struct platform_driver mt6577_auxadc_driver = {
 	.driver = {
 		.name   = "mt6577-auxadc",
 		.of_match_table = mt6577_auxadc_of_match,
-		.pm = &mt6577_auxadc_pm_ops,
+		.pm = pm_sleep_ptr(&mt6577_auxadc_pm_ops),
 	},
 	.probe	= mt6577_auxadc_probe,
-	.remove	= mt6577_auxadc_remove,
 };
 module_platform_driver(mt6577_auxadc_driver);
 

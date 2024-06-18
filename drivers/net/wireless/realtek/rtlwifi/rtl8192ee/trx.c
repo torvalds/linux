@@ -55,7 +55,7 @@ static void _rtl92ee_query_rxphystatus(struct ieee80211_hw *hw,
 		cck_agc_rpt = p_phystrpt->cck_agc_rpt_ofdm_cfosho_a;
 
 		/* (1)Hardware does not provide RSSI for CCK
-		 * (2)PWDB, Average PWDB cacluated by
+		 * (2)PWDB, Average PWDB calculated by
 		 * hardware (for rate adaptive)
 		 */
 		cck_highpwr = (u8)rtl_get_bbreg(hw, RFPGA0_XA_HSSIPARAMETER2,
@@ -153,7 +153,7 @@ static void _rtl92ee_query_rxphystatus(struct ieee80211_hw *hw,
 			pstatus->rx_mimo_signalstrength[i] = (u8)rssi;
 		}
 
-		/* (2)PWDB, Average PWDB cacluated by
+		/* (2)PWDB, Average PWDB calculated by
 		 * hardware (for rate adaptive)
 		 */
 		rx_pwr_all = ((p_phystrpt->cck_sig_qual_ofdm_pwdb_all >> 1)
@@ -363,9 +363,9 @@ bool rtl92ee_rx_query_desc(struct ieee80211_hw *hw,
 	else
 		wake_match = 0;
 	if (wake_match)
-		RT_TRACE(rtlpriv, COMP_RXDESC, DBG_LOUD,
-			 "GGGGGGGGGGGGGet Wakeup Packet!! WakeMatch=%d\n",
-			 wake_match);
+		rtl_dbg(rtlpriv, COMP_RXDESC, DBG_LOUD,
+			"GGGGGGGGGGGGGet Wakeup Packet!! WakeMatch=%d\n",
+			wake_match);
 	rx_status->freq = hw->conf.chandef.chan->center_freq;
 	rx_status->band = hw->conf.chandef.chan->band;
 
@@ -468,9 +468,9 @@ u16 rtl92ee_rx_desc_buff_remained_cnt(struct ieee80211_hw *hw, u8 queue_index)
 	write_point = (u16)(tmp_4byte & 0x7ff);
 
 	if (write_point != rtlpci->rx_ring[queue_index].next_rx_rp) {
-		RT_TRACE(rtlpriv, COMP_RXDESC, DBG_DMESG,
-			 "!!!write point is 0x%x, reg 0x3B4 value is 0x%x\n",
-			  write_point, tmp_4byte);
+		rtl_dbg(rtlpriv, COMP_RXDESC, DBG_DMESG,
+			"!!!write point is 0x%x, reg 0x3B4 value is 0x%x\n",
+			write_point, tmp_4byte);
 		tmp_4byte = rtl_read_dword(rtlpriv, REG_RXQ_TXBD_IDX);
 		read_point = (u16)((tmp_4byte>>16) & 0x7ff);
 		write_point = (u16)(tmp_4byte & 0x7ff);
@@ -550,9 +550,11 @@ u16 rtl92ee_get_available_desc(struct ieee80211_hw *hw, u8 q_idx)
 	return point_diff;
 }
 
-void rtl92ee_pre_fill_tx_bd_desc(struct ieee80211_hw *hw,
-				 u8 *tx_bd_desc8, u8 *desc8, u8 queue_index,
-				 struct sk_buff *skb, dma_addr_t addr)
+static void rtl92ee_pre_fill_tx_bd_desc(struct ieee80211_hw *hw,
+					u8 *tx_bd_desc8, u8 *desc8,
+					u8 queue_index,
+					struct sk_buff *skb,
+					dma_addr_t addr)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
@@ -651,7 +653,6 @@ void rtl92ee_tx_fill_desc(struct ieee80211_hw *hw,
 	struct rtlwifi_tx_info *tx_info = rtl_tx_skb_cb_info(skb);
 	u16 seq_number;
 	__le16 fc = hdr->frame_control;
-	unsigned int buf_len;
 	u8 fw_qsel = _rtl92ee_map_hwqueue_to_fwqueue(skb, hw_queue);
 	bool firstseg = ((hdr->seq_ctrl &
 			    cpu_to_le16(IEEE80211_SCTL_FRAG)) == 0);
@@ -659,7 +660,6 @@ void rtl92ee_tx_fill_desc(struct ieee80211_hw *hw,
 			   cpu_to_le16(IEEE80211_FCTL_MOREFRAGS)) == 0);
 	dma_addr_t mapping;
 	u8 bw_40 = 0;
-	u8 short_gi;
 	__le32 *pdesc = (__le32 *)pdesc8;
 
 	if (mac->opmode == NL80211_IFTYPE_STATION) {
@@ -667,7 +667,7 @@ void rtl92ee_tx_fill_desc(struct ieee80211_hw *hw,
 	} else if (mac->opmode == NL80211_IFTYPE_AP ||
 		   mac->opmode == NL80211_IFTYPE_ADHOC) {
 		if (sta)
-			bw_40 = sta->ht_cap.cap &
+			bw_40 = sta->deflink.ht_cap.cap &
 				IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 	}
 	seq_number = (le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_SEQ) >> 4;
@@ -677,12 +677,11 @@ void rtl92ee_tx_fill_desc(struct ieee80211_hw *hw,
 		skb_push(skb, EM_HDR_LEN);
 		memset(skb->data, 0, EM_HDR_LEN);
 	}
-	buf_len = skb->len;
-	mapping = pci_map_single(rtlpci->pdev, skb->data, skb->len,
-				 PCI_DMA_TODEVICE);
-	if (pci_dma_mapping_error(rtlpci->pdev, mapping)) {
-		RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE,
-			 "DMA mapping error\n");
+	mapping = dma_map_single(&rtlpci->pdev->dev, skb->data, skb->len,
+				 DMA_TO_DEVICE);
+	if (dma_mapping_error(&rtlpci->pdev->dev, mapping)) {
+		rtl_dbg(rtlpriv, COMP_SEND, DBG_TRACE,
+			"DMA mapping error\n");
 		return;
 	}
 
@@ -700,9 +699,9 @@ void rtl92ee_tx_fill_desc(struct ieee80211_hw *hw,
 			set_tx_desc_offset(pdesc,
 					   USB_HWDESC_HEADER_LEN + EM_HDR_LEN);
 			if (ptcb_desc->empkt_num) {
-				RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE,
-					 "Insert 8 byte.pTcb->EMPktNum:%d\n",
-					  ptcb_desc->empkt_num);
+				rtl_dbg(rtlpriv, COMP_SEND, DBG_TRACE,
+					"Insert 8 byte.pTcb->EMPktNum:%d\n",
+					ptcb_desc->empkt_num);
 				_rtl92ee_insert_emcontent(ptcb_desc,
 							  (u8 *)(skb->data));
 			}
@@ -723,11 +722,6 @@ void rtl92ee_tx_fill_desc(struct ieee80211_hw *hw,
 				ptcb_desc->use_driver_rate = false;
 			}
 		}
-
-		if (ptcb_desc->hw_rate > DESC_RATEMCS0)
-			short_gi = (ptcb_desc->use_shortgi) ? 1 : 0;
-		else
-			short_gi = (ptcb_desc->use_shortpreamble) ? 1 : 0;
 
 		if (info->flags & IEEE80211_TX_CTL_AMPDU) {
 			set_tx_desc_agg_enable(pdesc, 1);
@@ -767,7 +761,7 @@ void rtl92ee_tx_fill_desc(struct ieee80211_hw *hw,
 
 		set_tx_desc_linip(pdesc, 0);
 		if (sta) {
-			u8 ampdu_density = sta->ht_cap.ampdu_density;
+			u8 ampdu_density = sta->deflink.ht_cap.ampdu_density;
 
 			set_tx_desc_ampdu_density(pdesc, ampdu_density);
 		}
@@ -806,8 +800,8 @@ void rtl92ee_tx_fill_desc(struct ieee80211_hw *hw,
 		}
 		if (ieee80211_is_data_qos(fc)) {
 			if (mac->rdg_en) {
-				RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE,
-					 "Enable RDG function.\n");
+				rtl_dbg(rtlpriv, COMP_SEND, DBG_TRACE,
+					"Enable RDG function.\n");
 				set_tx_desc_rdg_enable(pdesc, 1);
 				set_tx_desc_htc(pdesc, 1);
 			}
@@ -832,31 +826,28 @@ void rtl92ee_tx_fill_desc(struct ieee80211_hw *hw,
 	    is_broadcast_ether_addr(ieee80211_get_DA(hdr))) {
 		set_tx_desc_bmc(pdesc, 1);
 	}
-	RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE, "\n");
+	rtl_dbg(rtlpriv, COMP_SEND, DBG_TRACE, "\n");
 }
 
-void rtl92ee_tx_fill_cmddesc(struct ieee80211_hw *hw,
-			     u8 *pdesc8, bool firstseg,
-			     bool lastseg, struct sk_buff *skb)
+void rtl92ee_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc8,
+			     struct sk_buff *skb)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	u8 fw_queue = QSLT_BEACON;
-	dma_addr_t mapping = pci_map_single(rtlpci->pdev,
-					    skb->data, skb->len,
-					    PCI_DMA_TODEVICE);
+	dma_addr_t mapping = dma_map_single(&rtlpci->pdev->dev, skb->data,
+					    skb->len, DMA_TO_DEVICE);
 	u8 txdesc_len = 40;
 	__le32 *pdesc = (__le32 *)pdesc8;
 
-	if (pci_dma_mapping_error(rtlpci->pdev, mapping)) {
-		RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE,
-			 "DMA mapping error\n");
+	if (dma_mapping_error(&rtlpci->pdev->dev, mapping)) {
+		rtl_dbg(rtlpriv, COMP_SEND, DBG_TRACE,
+			"DMA mapping error\n");
 		return;
 	}
 	clear_pci_tx_desc_content(pdesc, txdesc_len);
 
-	if (firstseg)
-		set_tx_desc_offset(pdesc, txdesc_len);
+	set_tx_desc_offset(pdesc, txdesc_len);
 
 	set_tx_desc_tx_rate(pdesc, DESC_RATE1M);
 
@@ -1006,18 +997,16 @@ bool rtl92ee_is_tx_desc_closed(struct ieee80211_hw *hw, u8 hw_queue, u16 index)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u16 read_point, write_point;
 	bool ret = false;
-	static u8 stop_report_cnt;
 	struct rtl8192_tx_ring *ring = &rtlpci->tx_ring[hw_queue];
 
 	{
-		u16 cur_tx_rp, cur_tx_wp;
+		u16 cur_tx_rp;
 		u32 tmpu32;
 
 		tmpu32 =
 		  rtl_read_dword(rtlpriv,
 				 get_desc_addr_fr_q_idx(hw_queue));
 		cur_tx_rp = (u16)((tmpu32 >> 16) & 0x0fff);
-		cur_tx_wp = (u16)(tmpu32 & 0x0fff);
 
 		/* don't need to update ring->cur_tx_wp */
 		ring->cur_tx_rp = cur_tx_rp;
@@ -1047,13 +1036,6 @@ bool rtl92ee_is_tx_desc_closed(struct ieee80211_hw *hw, u8 hw_queue, u16 index)
 	if (rtlpriv->rtlhal.driver_is_goingto_unload ||
 	    rtlpriv->psc.rfoff_reason > RF_CHANGE_BY_PS)
 		ret = true;
-
-	if (hw_queue < BEACON_QUEUE) {
-		if (!ret)
-			stop_report_cnt++;
-		else
-			stop_report_cnt = 0;
-	}
 
 	return ret;
 }

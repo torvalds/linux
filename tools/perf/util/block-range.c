@@ -11,11 +11,7 @@ struct {
 
 static void block_range__debug(void)
 {
-	/*
-	 * XXX still paranoid for now; see if we can make this depend on
-	 * DEBUG=1 builds.
-	 */
-#if 1
+#ifndef NDEBUG
 	struct rb_node *rb;
 	u64 old = 0; /* NULL isn't executable */
 
@@ -315,6 +311,7 @@ done:
 double block_range__coverage(struct block_range *br)
 {
 	struct symbol *sym;
+	struct annotated_branch *branch;
 
 	if (!br) {
 		if (block_ranges.blocks)
@@ -327,5 +324,9 @@ double block_range__coverage(struct block_range *br)
 	if (!sym)
 		return -1;
 
-	return (double)br->coverage / symbol__annotation(sym)->max_coverage;
+	branch = symbol__annotation(sym)->branch;
+	if (!branch)
+		return -1;
+
+	return (double)br->coverage / branch->max_coverage;
 }

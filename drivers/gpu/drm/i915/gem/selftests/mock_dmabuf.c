@@ -4,6 +4,7 @@
  * Copyright © 2016 Intel Corporation
  */
 
+#include <linux/vmalloc.h>
 #include "mock_dmabuf.h"
 
 static struct sg_table *mock_map_dma_buf(struct dma_buf_attachment *attachment,
@@ -28,10 +29,9 @@ static struct sg_table *mock_map_dma_buf(struct dma_buf_attachment *attachment,
 		sg = sg_next(sg);
 	}
 
-	if (!dma_map_sg(attachment->dev, st->sgl, st->nents, dir)) {
-		err = -ENOMEM;
+	err = dma_map_sgtable(attachment->dev, st, dir, 0);
+	if (err)
 		goto err_st;
-	}
 
 	return st;
 
@@ -46,7 +46,7 @@ static void mock_unmap_dma_buf(struct dma_buf_attachment *attachment,
 			       struct sg_table *st,
 			       enum dma_data_direction dir)
 {
-	dma_unmap_sg(attachment->dev, st->sgl, st->nents, dir);
+	dma_unmap_sgtable(attachment->dev, st, dir, 0);
 	sg_free_table(st);
 	kfree(st);
 }
@@ -62,32 +62,24 @@ static void mock_dmabuf_release(struct dma_buf *dma_buf)
 	kfree(mock);
 }
 
-static void *mock_dmabuf_vmap(struct dma_buf *dma_buf)
+static int mock_dmabuf_vmap(struct dma_buf *dma_buf, struct iosys_map *map)
 {
 	struct mock_dmabuf *mock = to_mock(dma_buf);
+	void *vaddr;
 
-	return vm_map_ram(mock->pages, mock->npages, 0, PAGE_KERNEL);
+	vaddr = vm_map_ram(mock->pages, mock->npages, 0);
+	if (!vaddr)
+		return -ENOMEM;
+	iosys_map_set_vaddr(map, vaddr);
+
+	return 0;
 }
 
-static void mock_dmabuf_vunmap(struct dma_buf *dma_buf, void *vaddr)
+static void mock_dmabuf_vunmap(struct dma_buf *dma_buf, struct iosys_map *map)
 {
 	struct mock_dmabuf *mock = to_mock(dma_buf);
 
-	vm_unmap_ram(vaddr, mock->npages);
-}
-
-static void *mock_dmabuf_kmap(struct dma_buf *dma_buf, unsigned long page_num)
-{
-	struct mock_dmabuf *mock = to_mock(dma_buf);
-
-	return kmap(mock->pages[page_num]);
-}
-
-static void mock_dmabuf_kunmap(struct dma_buf *dma_buf, unsigned long page_num, void *addr)
-{
-	struct mock_dmabuf *mock = to_mock(dma_buf);
-
-	return kunmap(mock->pages[page_num]);
+	vm_unmap_ram(map->vaddr, mock->npages);
 }
 
 static int mock_dmabuf_mmap(struct dma_buf *dma_buf, struct vm_area_struct *vma)
@@ -99,8 +91,6 @@ static const struct dma_buf_ops mock_dmabuf_ops =  {
 	.map_dma_buf = mock_map_dma_buf,
 	.unmap_dma_buf = mock_unmap_dma_buf,
 	.release = mock_dmabuf_release,
-	.map = mock_dmabuf_kmap,
-	.unmap = mock_dmabuf_kunmap,
 	.mmap = mock_dmabuf_mmap,
 	.vmap = mock_dmabuf_vmap,
 	.vunmap = mock_dmabuf_vunmap,

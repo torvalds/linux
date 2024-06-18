@@ -74,9 +74,9 @@ static int hmc5843_spi_probe(struct spi_device *spi)
 			id->driver_data, id->name);
 }
 
-static int hmc5843_spi_remove(struct spi_device *spi)
+static void hmc5843_spi_remove(struct spi_device *spi)
 {
-	return hmc5843_common_remove(&spi->dev);
+	hmc5843_common_remove(&spi->dev);
 }
 
 static const struct spi_device_id hmc5843_id[] = {
@@ -86,13 +86,13 @@ static const struct spi_device_id hmc5843_id[] = {
 MODULE_DEVICE_TABLE(spi, hmc5843_id);
 
 static struct spi_driver hmc5843_driver = {
-		.driver = {
-				.name = "hmc5843",
-				.pm = HMC5843_PM_OPS,
-		},
-		.id_table = hmc5843_id,
-		.probe = hmc5843_spi_probe,
-		.remove = hmc5843_spi_remove,
+	.driver = {
+		.name = "hmc5843",
+		.pm = pm_sleep_ptr(&hmc5843_pm_ops),
+	},
+	.id_table = hmc5843_id,
+	.probe = hmc5843_spi_probe,
+	.remove = hmc5843_spi_remove,
 };
 
 module_spi_driver(hmc5843_driver);
@@ -100,3 +100,4 @@ module_spi_driver(hmc5843_driver);
 MODULE_AUTHOR("Josef Gajdusek <atx@atx.name>");
 MODULE_DESCRIPTION("HMC5983 SPI driver");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(IIO_HMC5843);

@@ -10,8 +10,7 @@ of conventions and procedures which are used in the posting of patches;
 following them will make life much easier for everybody involved.  This
 document will attempt to cover these expectations in reasonable detail;
 more information can also be found in the files
-:ref:`Documentation/process/submitting-patches.rst <submittingpatches>`,
-:ref:`Documentation/process/submitting-drivers.rst  <submittingdrivers>`
+:ref:`Documentation/process/submitting-patches.rst <submittingpatches>`
 and :ref:`Documentation/process/submit-checklist.rst <submitchecklist>`.
 
 
@@ -197,14 +196,39 @@ the build process, for example, or editor backup files) in the patch.  The
 file "dontdiff" in the Documentation directory can help in this regard;
 pass it to diff with the "-X" option.
 
-The tags mentioned above are used to describe how various developers have
-been associated with the development of this patch.  They are described in
-detail in
-the :ref:`Documentation/process/submitting-patches.rst <submittingpatches>`
-document; what follows here is a brief summary.  Each of these lines has
-the format:
+The tags already briefly mentioned above are used to provide insights how
+the patch came into being. They are described in detail in the
+:ref:`Documentation/process/submitting-patches.rst <submittingpatches>`
+document; what follows here is a brief summary.
 
-::
+One tag is used to refer to earlier commits which introduced problems fixed by
+the patch::
+
+	Fixes: 1f2e3d4c5b6a ("The first line of the commit specified by the first 12 characters of its SHA-1 ID")
+
+Another tag is used for linking web pages with additional backgrounds or
+details, for example an earlier discussion which leads to the patch or a
+document with a specification implemented by the patch::
+
+	Link: https://example.com/somewhere.html  optional-other-stuff
+
+Many maintainers when applying a patch also add this tag to link to the
+latest public review posting of the patch; often this is automatically done
+by tools like b4 or a git hook like the one described in
+'Documentation/maintainer/configure-git.rst'.
+
+If the URL points to a public bug report being fixed by the patch, use the
+"Closes:" tag instead::
+
+	Closes: https://example.com/issues/1234  optional-other-stuff
+
+Some bug trackers have the ability to close issues automatically when a
+commit with such a tag is applied. Some bots monitoring mailing lists can
+also track such tags and take certain actions. Private bug trackers and
+invalid URLs are forbidden.
+
+Another kind of tag is used to document who was involved in the development of
+the patch. Each of these uses this format::
 
 	tag: Full Name <email address>  optional-other-stuff
 
@@ -237,13 +261,18 @@ The tags in common use are:
  - Reported-by: names a user who reported a problem which is fixed by this
    patch; this tag is used to give credit to the (often underappreciated)
    people who test our code and let us know when things do not work
-   correctly.
+   correctly. Note, this tag should be followed by a Closes: tag pointing to
+   the report, unless the report is not available on the web. The Link: tag
+   can be used instead of Closes: if the patch fixes a part of the issue(s)
+   being reported.
 
  - Cc: the named person received a copy of the patch and had the
    opportunity to comment on it.
 
-Be careful in the addition of tags to your patches: only Cc: is appropriate
-for addition without the explicit permission of the person named.
+Be careful in the addition of tags to your patches, as only Cc: is appropriate
+for addition without the explicit permission of the person named; using
+Reported-by: is fine most of the time as well, but ask for permission if
+the bug was reported in private.
 
 
 Sending the patch

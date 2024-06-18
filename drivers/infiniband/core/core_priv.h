@@ -44,6 +44,7 @@
 #include <rdma/ib_mad.h>
 #include <rdma/restrack.h>
 #include "mad_priv.h"
+#include "restrack.h"
 
 /* Total number of ports combined across all struct ib_devices's */
 #define RDMA_MAX_PORTS 8192
@@ -77,19 +78,17 @@ static inline struct rdma_dev_net *rdma_net_to_dev_net(struct net *net)
 	return net_generic(net, rdma_dev_net_id);
 }
 
-int ib_device_register_sysfs(struct ib_device *device);
-void ib_device_unregister_sysfs(struct ib_device *device);
 int ib_device_rename(struct ib_device *ibdev, const char *name);
 int ib_device_set_dim(struct ib_device *ibdev, u8 use_dim);
 
-typedef void (*roce_netdev_callback)(struct ib_device *device, u8 port,
+typedef void (*roce_netdev_callback)(struct ib_device *device, u32 port,
 	      struct net_device *idev, void *cookie);
 
-typedef bool (*roce_netdev_filter)(struct ib_device *device, u8 port,
+typedef bool (*roce_netdev_filter)(struct ib_device *device, u32 port,
 				   struct net_device *idev, void *cookie);
 
 struct net_device *ib_device_get_netdev(struct ib_device *ib_dev,
-					unsigned int port);
+					u32 port);
 
 void ib_enum_roce_netdev(struct ib_device *ib_dev,
 			 roce_netdev_filter filter,
@@ -112,7 +111,7 @@ int ib_enum_all_devs(nldev_callback nldev_cb, struct sk_buff *skb,
 struct ib_client_nl_info {
 	struct sk_buff *nl_msg;
 	struct device *cdev;
-	unsigned int port;
+	u32 port;
 	u64 abi;
 };
 int ib_get_client_nl_info(struct ib_device *ibdev, const char *client_name,
@@ -127,28 +126,29 @@ int ib_cache_gid_parse_type_str(const char *buf);
 
 const char *ib_cache_gid_type_str(enum ib_gid_type gid_type);
 
-void ib_cache_gid_set_default_gid(struct ib_device *ib_dev, u8 port,
+void ib_cache_gid_set_default_gid(struct ib_device *ib_dev, u32 port,
 				  struct net_device *ndev,
 				  unsigned long gid_type_mask,
 				  enum ib_cache_gid_default_mode mode);
 
-int ib_cache_gid_add(struct ib_device *ib_dev, u8 port,
+int ib_cache_gid_add(struct ib_device *ib_dev, u32 port,
 		     union ib_gid *gid, struct ib_gid_attr *attr);
 
-int ib_cache_gid_del(struct ib_device *ib_dev, u8 port,
+int ib_cache_gid_del(struct ib_device *ib_dev, u32 port,
 		     union ib_gid *gid, struct ib_gid_attr *attr);
 
-int ib_cache_gid_del_all_netdev_gids(struct ib_device *ib_dev, u8 port,
+int ib_cache_gid_del_all_netdev_gids(struct ib_device *ib_dev, u32 port,
 				     struct net_device *ndev);
 
 int roce_gid_mgmt_init(void);
 void roce_gid_mgmt_cleanup(void);
 
-unsigned long roce_gid_type_mask_support(struct ib_device *ib_dev, u8 port);
+unsigned long roce_gid_type_mask_support(struct ib_device *ib_dev, u32 port);
 
 int ib_cache_setup_one(struct ib_device *device);
 void ib_cache_cleanup_one(struct ib_device *device);
 void ib_cache_release_one(struct ib_device *device);
+void ib_dispatch_event_clients(struct ib_event *event);
 
 #ifdef CONFIG_CGROUP_RDMA
 void ib_device_register_rdmacg(struct ib_device *device);
@@ -199,6 +199,7 @@ void ib_mad_cleanup(void);
 int ib_sa_init(void);
 void ib_sa_cleanup(void);
 
+void rdma_nl_init(void);
 void rdma_nl_exit(void);
 
 int ib_nl_handle_resolve_resp(struct sk_buff *skb,
@@ -211,15 +212,15 @@ int ib_nl_handle_ip_res_resp(struct sk_buff *skb,
 			     struct nlmsghdr *nlh,
 			     struct netlink_ext_ack *extack);
 
-int ib_get_cached_subnet_prefix(struct ib_device *device,
-				u8                port_num,
-				u64              *sn_pfx);
+void ib_get_cached_subnet_prefix(struct ib_device *device,
+				u32 port_num,
+				u64 *sn_pfx);
 
 #ifdef CONFIG_SECURITY_INFINIBAND
 void ib_security_release_port_pkey_list(struct ib_device *device);
 
 void ib_security_cache_change(struct ib_device *device,
-			      u8 port_num,
+			      u32 port_num,
 			      u64 subnet_prefix);
 
 int ib_security_modify_qp(struct ib_qp *qp,
@@ -244,7 +245,7 @@ static inline void ib_security_release_port_pkey_list(struct ib_device *device)
 }
 
 static inline void ib_security_cache_change(struct ib_device *device,
-					    u8 port_num,
+					    u32 port_num,
 					    u64 subnet_prefix)
 {
 }
@@ -315,44 +316,13 @@ struct ib_device *ib_device_get_by_index(const struct net *net, u32 index);
 void nldev_init(void);
 void nldev_exit(void);
 
-static inline struct ib_qp *_ib_create_qp(struct ib_device *dev,
-					  struct ib_pd *pd,
-					  struct ib_qp_init_attr *attr,
-					  struct ib_udata *udata,
-					  struct ib_uobject *uobj)
-{
-	enum ib_qp_type qp_type = attr->qp_type;
-	struct ib_qp *qp;
-	bool is_xrc;
+struct ib_qp *ib_create_qp_user(struct ib_device *dev, struct ib_pd *pd,
+				struct ib_qp_init_attr *attr,
+				struct ib_udata *udata,
+				struct ib_uqp_object *uobj, const char *caller);
 
-	if (!dev->ops.create_qp)
-		return ERR_PTR(-EOPNOTSUPP);
-
-	qp = dev->ops.create_qp(pd, attr, udata);
-	if (IS_ERR(qp))
-		return qp;
-
-	qp->device = dev;
-	qp->pd = pd;
-	qp->uobject = uobj;
-	qp->real_qp = qp;
-	/*
-	 * We don't track XRC QPs for now, because they don't have PD
-	 * and more importantly they are created internaly by driver,
-	 * see mlx5 create_dev_resources() as an example.
-	 */
-	is_xrc = qp_type == IB_QPT_XRC_INI || qp_type == IB_QPT_XRC_TGT;
-	if ((qp_type < IB_QPT_MAX && !is_xrc) || qp_type == IB_QPT_DRIVER) {
-		qp->res.type = RDMA_RESTRACK_QP;
-		if (uobj)
-			rdma_restrack_uadd(&qp->res);
-		else
-			rdma_restrack_kadd(&qp->res);
-	} else
-		qp->res.valid = false;
-
-	return qp;
-}
+void ib_qp_usecnt_inc(struct ib_qp *qp);
+void ib_qp_usecnt_dec(struct ib_qp *qp);
 
 struct rdma_dev_addr;
 int rdma_resolve_ip_route(struct sockaddr *src_addr,
@@ -374,17 +344,34 @@ struct net_device *rdma_read_gid_attr_ndev_rcu(const struct ib_gid_attr *attr);
 
 void ib_free_port_attrs(struct ib_core_device *coredev);
 int ib_setup_port_attrs(struct ib_core_device *coredev);
+struct rdma_hw_stats *ib_get_hw_stats_port(struct ib_device *ibdev, u32 port_num);
+void ib_device_release_hw_stats(struct hw_stats_device_data *data);
+int ib_setup_device_attrs(struct ib_device *ibdev);
 
 int rdma_compatdev_set(u8 enable);
 
-int ib_port_register_module_stat(struct ib_device *device, u8 port_num,
-				 struct kobject *kobj, struct kobj_type *ktype,
-				 const char *name);
-void ib_port_unregister_module_stat(struct kobject *kobj);
+int ib_port_register_client_groups(struct ib_device *ibdev, u32 port_num,
+				   const struct attribute_group **groups);
+void ib_port_unregister_client_groups(struct ib_device *ibdev, u32 port_num,
+				     const struct attribute_group **groups);
 
 int ib_device_set_netns_put(struct sk_buff *skb,
 			    struct ib_device *dev, u32 ns_fd);
 
 int rdma_nl_net_init(struct rdma_dev_net *rnet);
 void rdma_nl_net_exit(struct rdma_dev_net *rnet);
+
+struct rdma_umap_priv {
+	struct vm_area_struct *vma;
+	struct list_head list;
+	struct rdma_user_mmap_entry *entry;
+};
+
+void rdma_umap_priv_init(struct rdma_umap_priv *priv,
+			 struct vm_area_struct *vma,
+			 struct rdma_user_mmap_entry *entry);
+
+void ib_cq_pool_cleanup(struct ib_device *dev);
+
+bool rdma_nl_get_privileged_qkey(void);
 #endif /* _CORE_PRIV_H */

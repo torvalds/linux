@@ -272,7 +272,7 @@ static umode_t tmp108_is_visible(const void *data, enum hwmon_sensor_types type,
 	}
 }
 
-static const struct hwmon_channel_info *tmp108_info[] = {
+static const struct hwmon_channel_info * const tmp108_info[] = {
 	HWMON_CHANNEL_INFO(chip,
 			   HWMON_C_REGISTER_TZ | HWMON_C_UPDATE_INTERVAL),
 	HWMON_CHANNEL_INFO(temp,
@@ -318,13 +318,12 @@ static const struct regmap_config tmp108_regmap_config = {
 	.writeable_reg = tmp108_is_writeable_reg,
 	.volatile_reg = tmp108_is_volatile_reg,
 	.val_format_endian = REGMAP_ENDIAN_BIG,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.use_single_read = true,
 	.use_single_write = true,
 };
 
-static int tmp108_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int tmp108_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device *hwmon_dev;
@@ -391,7 +390,7 @@ static int tmp108_probe(struct i2c_client *client,
 	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
-static int __maybe_unused tmp108_suspend(struct device *dev)
+static int tmp108_suspend(struct device *dev)
 {
 	struct tmp108 *tmp108 = dev_get_drvdata(dev);
 
@@ -399,7 +398,7 @@ static int __maybe_unused tmp108_suspend(struct device *dev)
 				  TMP108_CONF_MODE_MASK, TMP108_MODE_SHUTDOWN);
 }
 
-static int __maybe_unused tmp108_resume(struct device *dev)
+static int tmp108_resume(struct device *dev)
 {
 	struct tmp108 *tmp108 = dev_get_drvdata(dev);
 	int err;
@@ -411,10 +410,10 @@ static int __maybe_unused tmp108_resume(struct device *dev)
 	return err;
 }
 
-static SIMPLE_DEV_PM_OPS(tmp108_dev_pm_ops, tmp108_suspend, tmp108_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(tmp108_dev_pm_ops, tmp108_suspend, tmp108_resume);
 
 static const struct i2c_device_id tmp108_i2c_ids[] = {
-	{ "tmp108", 0 },
+	{ "tmp108" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tmp108_i2c_ids);
@@ -430,7 +429,7 @@ MODULE_DEVICE_TABLE(of, tmp108_of_ids);
 static struct i2c_driver tmp108_driver = {
 	.driver = {
 		.name	= DRIVER_NAME,
-		.pm	= &tmp108_dev_pm_ops,
+		.pm	= pm_sleep_ptr(&tmp108_dev_pm_ops),
 		.of_match_table = of_match_ptr(tmp108_of_ids),
 	},
 	.probe		= tmp108_probe,

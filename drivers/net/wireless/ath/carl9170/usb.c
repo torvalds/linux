@@ -61,7 +61,7 @@ MODULE_ALIAS("arusb_lnx");
  * Note:
  *
  * Always update our wiki's device list (located at:
- * http://wireless.kernel.org/en/users/Drivers/ar9170/devices ),
+ * https://wireless.wiki.kernel.org/en/users/Drivers/ar9170/devices ),
  * whenever you add a new device.
  */
 static const struct usb_device_id carl9170_usb_ids[] = {
@@ -178,7 +178,7 @@ static void carl9170_usb_tx_data_complete(struct urb *urb)
 	switch (urb->status) {
 	/* everything is fine */
 	case 0:
-		carl9170_tx_callback(ar, (void *)urb->context);
+		carl9170_tx_callback(ar, urb->context);
 		break;
 
 	/* disconnect */
@@ -369,7 +369,7 @@ void carl9170_usb_handle_tx_err(struct ar9170 *ar)
 	struct urb *urb;
 
 	while ((urb = usb_get_from_anchor(&ar->tx_err))) {
-		struct sk_buff *skb = (void *)urb->context;
+		struct sk_buff *skb = urb->context;
 
 		carl9170_tx_drop(ar, skb);
 		carl9170_tx_callback(ar, skb);
@@ -377,9 +377,9 @@ void carl9170_usb_handle_tx_err(struct ar9170 *ar)
 	}
 }
 
-static void carl9170_usb_tasklet(unsigned long data)
+static void carl9170_usb_tasklet(struct tasklet_struct *t)
 {
-	struct ar9170 *ar = (struct ar9170 *) data;
+	struct ar9170 *ar = from_tasklet(ar, t, usb_tasklet);
 
 	if (!IS_INITIALIZED(ar))
 		return;
@@ -397,7 +397,7 @@ static void carl9170_usb_tasklet(unsigned long data)
 
 static void carl9170_usb_rx_complete(struct urb *urb)
 {
-	struct ar9170 *ar = (struct ar9170 *)urb->context;
+	struct ar9170 *ar = urb->context;
 	int err;
 
 	if (WARN_ON_ONCE(!ar))
@@ -559,7 +559,7 @@ static int carl9170_usb_flush(struct ar9170 *ar)
 	int ret, err = 0;
 
 	while ((urb = usb_get_from_anchor(&ar->tx_wait))) {
-		struct sk_buff *skb = (void *)urb->context;
+		struct sk_buff *skb = urb->context;
 		carl9170_tx_drop(ar, skb);
 		carl9170_tx_callback(ar, skb);
 		usb_free_urb(urb);
@@ -668,7 +668,7 @@ int carl9170_exec_cmd(struct ar9170 *ar, const enum carl9170_cmd_oids cmd,
 		memcpy(ar->cmd.data, payload, plen);
 
 	spin_lock_bh(&ar->cmd_lock);
-	ar->readbuf = (u8 *)out;
+	ar->readbuf = out;
 	ar->readlen = outlen;
 	spin_unlock_bh(&ar->cmd_lock);
 
@@ -1069,6 +1069,38 @@ static int carl9170_usb_probe(struct usb_interface *intf,
 			ar->usb_ep_cmd_is_bulk = true;
 	}
 
+	/* Verify that all expected endpoints are present */
+	if (ar->usb_ep_cmd_is_bulk) {
+		u8 bulk_ep_addr[] = {
+			AR9170_USB_EP_RX | USB_DIR_IN,
+			AR9170_USB_EP_TX | USB_DIR_OUT,
+			AR9170_USB_EP_CMD | USB_DIR_OUT,
+			0};
+		u8 int_ep_addr[] = {
+			AR9170_USB_EP_IRQ | USB_DIR_IN,
+			0};
+		if (!usb_check_bulk_endpoints(intf, bulk_ep_addr) ||
+		    !usb_check_int_endpoints(intf, int_ep_addr))
+			err = -ENODEV;
+	} else {
+		u8 bulk_ep_addr[] = {
+			AR9170_USB_EP_RX | USB_DIR_IN,
+			AR9170_USB_EP_TX | USB_DIR_OUT,
+			0};
+		u8 int_ep_addr[] = {
+			AR9170_USB_EP_IRQ | USB_DIR_IN,
+			AR9170_USB_EP_CMD | USB_DIR_OUT,
+			0};
+		if (!usb_check_bulk_endpoints(intf, bulk_ep_addr) ||
+		    !usb_check_int_endpoints(intf, int_ep_addr))
+			err = -ENODEV;
+	}
+
+	if (err) {
+		carl9170_free(ar);
+		return err;
+	}
+
 	usb_set_intfdata(intf, ar);
 	SET_IEEE80211_DEV(ar->hw, &intf->dev);
 
@@ -1082,8 +1114,7 @@ static int carl9170_usb_probe(struct usb_interface *intf,
 	init_completion(&ar->cmd_wait);
 	init_completion(&ar->fw_boot_wait);
 	init_completion(&ar->fw_load_wait);
-	tasklet_init(&ar->usb_tasklet, carl9170_usb_tasklet,
-		     (unsigned long)ar);
+	tasklet_setup(&ar->usb_tasklet, carl9170_usb_tasklet);
 
 	atomic_set(&ar->tx_cmd_urbs, 0);
 	atomic_set(&ar->tx_anch_urbs, 0);

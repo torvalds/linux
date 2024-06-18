@@ -24,188 +24,186 @@
 #define MAX_INSTANCE                                       5
 #define MAX_SEGMENT                                        5
 
-struct IP_BASE_INSTANCE
-{
+struct IP_BASE_INSTANCE {
     unsigned int segment[MAX_SEGMENT];
 };
 
-struct IP_BASE
-{
+struct IP_BASE {
     struct IP_BASE_INSTANCE instance[MAX_INSTANCE];
 };
 
 
-static const struct IP_BASE NBIF_BASE			= { { { { 0x00000000, 0x00000014, 0x00000D20, 0x00010400, 0 } },
+static const struct IP_BASE __maybe_unused NBIF_BASE	= { { { { 0x00000000, 0x00000014, 0x00000D20, 0x00010400, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } } } };
-static const struct IP_BASE NBIO_BASE			= { { { { 0x00000000, 0x00000014, 0x00000D20, 0x00010400, 0 } },
+static const struct IP_BASE __maybe_unused NBIO_BASE	= { { { { 0x00000000, 0x00000014, 0x00000D20, 0x00010400, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } } } };
-static const struct IP_BASE DCE_BASE			= { { { { 0x00000012, 0x000000C0, 0x000034C0, 0, 0 } },
+static const struct IP_BASE __maybe_unused DCE_BASE	= { { { { 0x00000012, 0x000000C0, 0x000034C0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } } } };
-static const struct IP_BASE DCN_BASE			= { { { { 0x00000012, 0x000000C0, 0x000034C0, 0, 0 } },
+static const struct IP_BASE __maybe_unused DCN_BASE	= { { { { 0x00000012, 0x000000C0, 0x000034C0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } } } };
-static const struct IP_BASE MP0_BASE			= { { { { 0x00016000, 0, 0, 0, 0 } },
+static const struct IP_BASE __maybe_unused MP0_BASE	= { { { { 0x00016000, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } } } };
-static const struct IP_BASE MP1_BASE			= { { { { 0x00016000, 0, 0, 0, 0 } },
+static const struct IP_BASE __maybe_unused MP1_BASE	= { { { { 0x00016000, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } } } };
-static const struct IP_BASE MP2_BASE			= { { { { 0x00016000, 0, 0, 0, 0 } },
+static const struct IP_BASE __maybe_unused MP2_BASE	= { { { { 0x00016000, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } } } };
-static const struct IP_BASE DF_BASE			= { { { { 0x00007000, 0, 0, 0, 0 } },
+static const struct IP_BASE __maybe_unused DF_BASE	= { { { { 0x00007000, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } } } };
-static const struct IP_BASE UVD_BASE			= { { { { 0x00007800, 0x00007E00, 0, 0, 0 } },
+static const struct IP_BASE __maybe_unused UVD_BASE	= { { { { 0x00007800, 0x00007E00, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } } } };  //note: GLN does not use the first segment
-static const struct IP_BASE VCN_BASE			= { { { { 0x00007800, 0x00007E00, 0, 0, 0 } },
+static const struct IP_BASE __maybe_unused VCN_BASE	= { { { { 0x00007800, 0x00007E00, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } } } };  //note: GLN does not use the first segment
-static const struct IP_BASE DBGU_BASE			= { { { { 0x00000180, 0x000001A0, 0, 0, 0 } },
+static const struct IP_BASE __maybe_unused DBGU_BASE	= { { { { 0x00000180, 0x000001A0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } } } }; // not exist
-static const struct IP_BASE DBGU_NBIO_BASE		= { { { { 0x000001C0, 0, 0, 0, 0 } },
+static const struct IP_BASE __maybe_unused DBGU_NBIO_BASE	= { { { { 0x000001C0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } } } }; // not exist
-static const struct IP_BASE DBGU_IO_BASE		= { { { { 0x000001E0, 0, 0, 0, 0 } },
+static const struct IP_BASE __maybe_unused DBGU_IO_BASE	= { { { { 0x000001E0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } } } }; // not exist
-static const struct IP_BASE DFX_DAP_BASE		= { { { { 0x000005A0, 0, 0, 0, 0 } },
+static const struct IP_BASE __maybe_unused DFX_DAP_BASE	= { { { { 0x000005A0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } } } }; // not exist
-static const struct IP_BASE DFX_BASE			= { { { { 0x00000580, 0, 0, 0, 0 } },
+static const struct IP_BASE __maybe_unused DFX_BASE	= { { { { 0x00000580, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } } } }; // this file does not contain registers
-static const struct IP_BASE ISP_BASE			= { { { { 0x00018000, 0, 0, 0, 0 } },
+static const struct IP_BASE __maybe_unused ISP_BASE	= { { { { 0x00018000, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } } } }; // not exist
-static const struct IP_BASE SYSTEMHUB_BASE		= { { { { 0x00000EA0, 0, 0, 0, 0 } },
+static const struct IP_BASE __maybe_unused SYSTEMHUB_BASE	= { { { { 0x00000EA0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } } } }; // not exist
-static const struct IP_BASE L2IMU_BASE			= { { { { 0x00007DC0, 0, 0, 0, 0 } },
+static const struct IP_BASE __maybe_unused L2IMU_BASE	= { { { { 0x00007DC0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } } } };
-static const struct IP_BASE IOHC_BASE			= { { { { 0x00010000, 0, 0, 0, 0 } },
+static const struct IP_BASE __maybe_unused IOHC_BASE	= { { { { 0x00010000, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } } } };
-static const struct IP_BASE ATHUB_BASE			= { { { { 0x00000C20, 0, 0, 0, 0 } },
+static const struct IP_BASE __maybe_unused ATHUB_BASE	= { { { { 0x00000C20, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } } } };
-static const struct IP_BASE VCE_BASE			= { { { { 0x00007E00, 0x00048800, 0, 0, 0 } },
+static const struct IP_BASE __maybe_unused VCE_BASE	= { { { { 0x00007E00, 0x00048800, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } } } };
-static const struct IP_BASE GC_BASE			= { { { { 0x00002000, 0x0000A000, 0, 0, 0 } },
+static const struct IP_BASE __maybe_unused GC_BASE	= { { { { 0x00002000, 0x0000A000, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } } } };
-static const struct IP_BASE MMHUB_BASE			= { { { { 0x0001A000, 0, 0, 0, 0 } },
+static const struct IP_BASE __maybe_unused MMHUB_BASE	= { { { { 0x0001A000, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } } } };
-static const struct IP_BASE RSMU_BASE			= { { { { 0x00012000, 0, 0, 0, 0 } },
+static const struct IP_BASE __maybe_unused RSMU_BASE	= { { { { 0x00012000, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } } } };
-static const struct IP_BASE HDP_BASE			= { { { { 0x00000F20, 0, 0, 0, 0 } },
+static const struct IP_BASE __maybe_unused HDP_BASE	= { { { { 0x00000F20, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } } } };
-static const struct IP_BASE OSSSYS_BASE		= { { { { 0x000010A0, 0, 0, 0, 0 } },
+static const struct IP_BASE __maybe_unused OSSSYS_BASE	 = { { { { 0x000010A0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } } } };
-static const struct IP_BASE SDMA0_BASE			= { { { { 0x00001260, 0, 0, 0, 0 } },
+static const struct IP_BASE __maybe_unused SDMA0_BASE	= { { { { 0x00001260, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } } } };
-static const struct IP_BASE SDMA1_BASE			= { { { { 0x00001460, 0, 0, 0, 0 } },
+static const struct IP_BASE __maybe_unused SDMA1_BASE	= { { { { 0x00001460, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } } } };
-static const struct IP_BASE XDMA_BASE			= { { { { 0x00003400, 0, 0, 0, 0 } },
+static const struct IP_BASE __maybe_unused XDMA_BASE	= { { { { 0x00003400, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } } } };
-static const struct IP_BASE UMC_BASE			= { { { { 0x00014000, 0, 0, 0, 0 } },
+static const struct IP_BASE __maybe_unused UMC_BASE	= { { { { 0x00014000, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } } } };
-static const struct IP_BASE THM_BASE			= { { { { 0x00016600, 0, 0, 0, 0 } },
+static const struct IP_BASE __maybe_unused THM_BASE	= { { { { 0x00016600, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } } } };
-static const struct IP_BASE SMUIO_BASE			= { { { { 0x00016800, 0, 0, 0, 0 } },
+static const struct IP_BASE __maybe_unused SMUIO_BASE	= { { { { 0x00016800, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } } } };
-static const struct IP_BASE PWR_BASE			= { { { { 0x00016A00, 0, 0, 0, 0 } },
+static const struct IP_BASE __maybe_unused PWR_BASE	= { { { { 0x00016A00, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } } } };
-static const struct IP_BASE CLK_BASE			= { { { { 0x00016C00, 0, 0, 0, 0 } },
-									    { { 0x00016E00, 0, 0, 0, 0 } },
+static const struct IP_BASE __maybe_unused CLK_BASE	= { { { { 0x00016C00, 0, 0, 0, 0 } },
+										{ { 0x00016E00, 0, 0, 0, 0 } },
 										{ { 0x00017000, 0, 0, 0, 0 } },
-	                                    { { 0x00017200, 0, 0, 0, 0 } },
-						                { { 0x00017E00, 0, 0, 0, 0 } } } };
-static const struct IP_BASE FUSE_BASE			= { { { { 0x00017400, 0, 0, 0, 0 } },
+										{ { 0x00017200, 0, 0, 0, 0 } },
+										{ { 0x00017E00, 0, 0, 0, 0 } } } };
+static const struct IP_BASE __maybe_unused FUSE_BASE	= { { { { 0x00017400, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },

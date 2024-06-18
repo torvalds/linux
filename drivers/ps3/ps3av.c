@@ -11,12 +11,13 @@
 #include <linux/delay.h>
 #include <linux/notifier.h>
 #include <linux/ioctl.h>
-#include <linux/fb.h>
 #include <linux/slab.h>
 
 #include <asm/firmware.h>
 #include <asm/ps3av.h>
 #include <asm/ps3.h>
+
+#include <video/cmdline.h>
 
 #include "vuart.h"
 
@@ -217,9 +218,9 @@ static int ps3av_send_cmd_pkt(const struct ps3av_send_hdr *send_buf,
 	/* send pkt */
 	res = ps3av_vuart_write(ps3av->dev, send_buf, write_len);
 	if (res < 0) {
-		dev_dbg(&ps3av->dev->core,
-			"%s: ps3av_vuart_write() failed (result=%d)\n",
-			__func__, res);
+		dev_warn(&ps3av->dev->core,
+			"%s:%d: ps3av_vuart_write() failed: %s\n", __func__,
+			__LINE__, ps3_result(res));
 		return res;
 	}
 
@@ -230,9 +231,9 @@ static int ps3av_send_cmd_pkt(const struct ps3av_send_hdr *send_buf,
 		res = ps3av_vuart_read(ps3av->dev, recv_buf, PS3AV_HDR_SIZE,
 				       timeout);
 		if (res != PS3AV_HDR_SIZE) {
-			dev_dbg(&ps3av->dev->core,
-				"%s: ps3av_vuart_read() failed (result=%d)\n",
-				__func__, res);
+			dev_warn(&ps3av->dev->core,
+				"%s:%d: ps3av_vuart_read() failed: %s\n", __func__,
+				__LINE__, ps3_result(res));
 			return res;
 		}
 
@@ -240,9 +241,9 @@ static int ps3av_send_cmd_pkt(const struct ps3av_send_hdr *send_buf,
 		res = ps3av_vuart_read(ps3av->dev, &recv_buf->cid,
 				       recv_buf->size, timeout);
 		if (res < 0) {
-			dev_dbg(&ps3av->dev->core,
-				"%s: ps3av_vuart_read() failed (result=%d)\n",
-				__func__, res);
+			dev_warn(&ps3av->dev->core,
+				"%s:%d: ps3av_vuart_read() failed: %s\n", __func__,
+				__LINE__, ps3_result(res));
 			return res;
 		}
 		res += PS3AV_HDR_SIZE;	/* total len */
@@ -251,8 +252,8 @@ static int ps3av_send_cmd_pkt(const struct ps3av_send_hdr *send_buf,
 	} while (event);
 
 	if ((cmd | PS3AV_REPLY_BIT) != recv_buf->cid) {
-		dev_dbg(&ps3av->dev->core, "%s: reply err (result=%x)\n",
-			__func__, recv_buf->cid);
+		dev_warn(&ps3av->dev->core, "%s:%d: reply err: %x\n", __func__,
+			__LINE__, recv_buf->cid);
 		return -EINVAL;
 	}
 
@@ -769,7 +770,7 @@ static int ps3av_auto_videomode(struct ps3av_pkt_av_get_hw_conf *av_hw_conf)
 		switch (info->monitor_type) {
 		case PS3AV_MONITOR_TYPE_DVI:
 			dvi = PS3AV_MODE_DVI;
-			/* fall through */
+			fallthrough;
 		case PS3AV_MONITOR_TYPE_HDMI:
 			id = ps3av_hdmi_get_id(info);
 			break;
@@ -921,6 +922,7 @@ EXPORT_SYMBOL_GPL(ps3av_audio_mute);
 
 static int ps3av_probe(struct ps3_system_bus_device *dev)
 {
+	const char *mode_option;
 	int res;
 	int id;
 
@@ -968,10 +970,9 @@ static int ps3av_probe(struct ps3_system_bus_device *dev)
 
 	ps3av_get_hw_conf(ps3av);
 
-#ifdef CONFIG_FB
-	if (fb_mode_option && !strcmp(fb_mode_option, "safe"))
+	mode_option = video_get_options(NULL);
+	if (mode_option && !strcmp(mode_option, "safe"))
 		safe_mode = 1;
-#endif /* CONFIG_FB */
 	id = ps3av_auto_videomode(&ps3av->av_hw_conf);
 	if (id < 0) {
 		printk(KERN_ERR "%s: invalid id :%d\n", __func__, id);

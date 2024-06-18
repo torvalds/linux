@@ -33,8 +33,26 @@
 /* Used to memset ipv4 address padding. */
 #define IP_TUNNEL_KEY_IPV4_PAD	offsetofend(struct ip_tunnel_key, u.ipv4.dst)
 #define IP_TUNNEL_KEY_IPV4_PAD_LEN				\
-	(FIELD_SIZEOF(struct ip_tunnel_key, u) -		\
-	 FIELD_SIZEOF(struct ip_tunnel_key, u.ipv4))
+	(sizeof_field(struct ip_tunnel_key, u) -		\
+	 sizeof_field(struct ip_tunnel_key, u.ipv4))
+
+#define __ipt_flag_op(op, ...)					\
+	op(__VA_ARGS__, __IP_TUNNEL_FLAG_NUM)
+
+#define IP_TUNNEL_DECLARE_FLAGS(...)				\
+	__ipt_flag_op(DECLARE_BITMAP, __VA_ARGS__)
+
+#define ip_tunnel_flags_zero(...)	__ipt_flag_op(bitmap_zero, __VA_ARGS__)
+#define ip_tunnel_flags_copy(...)	__ipt_flag_op(bitmap_copy, __VA_ARGS__)
+#define ip_tunnel_flags_and(...)	__ipt_flag_op(bitmap_and, __VA_ARGS__)
+#define ip_tunnel_flags_or(...)		__ipt_flag_op(bitmap_or, __VA_ARGS__)
+
+#define ip_tunnel_flags_empty(...)				\
+	__ipt_flag_op(bitmap_empty, __VA_ARGS__)
+#define ip_tunnel_flags_intersect(...)				\
+	__ipt_flag_op(bitmap_intersects, __VA_ARGS__)
+#define ip_tunnel_flags_subset(...)				\
+	__ipt_flag_op(bitmap_subset, __VA_ARGS__)
 
 struct ip_tunnel_key {
 	__be64			tun_id;
@@ -48,12 +66,21 @@ struct ip_tunnel_key {
 			struct in6_addr dst;
 		} ipv6;
 	} u;
-	__be16			tun_flags;
+	IP_TUNNEL_DECLARE_FLAGS(tun_flags);
+	__be32			label;		/* Flow Label for IPv6 */
+	u32			nhid;
 	u8			tos;		/* TOS for IPv4, TC for IPv6 */
 	u8			ttl;		/* TTL for IPv4, HL for IPv6 */
-	__be32			label;		/* Flow Label for IPv6 */
 	__be16			tp_src;
 	__be16			tp_dst;
+	__u8			flow_flags;
+};
+
+struct ip_tunnel_encap {
+	u16			type;
+	u16			flags;
+	__be16			sport;
+	__be16			dport;
 };
 
 /* Flags for ip_tunnel_info mode. */
@@ -63,11 +90,18 @@ struct ip_tunnel_key {
 
 /* Maximum tunnel options length. */
 #define IP_TUNNEL_OPTS_MAX					\
-	GENMASK((FIELD_SIZEOF(struct ip_tunnel_info,		\
+	GENMASK((sizeof_field(struct ip_tunnel_info,		\
 			      options_len) * BITS_PER_BYTE) - 1, 0)
+
+#define ip_tunnel_info_opts(info)				\
+	_Generic(info,						\
+		 const struct ip_tunnel_info * : ((const void *)((info) + 1)),\
+		 struct ip_tunnel_info * : ((void *)((info) + 1))\
+	)
 
 struct ip_tunnel_info {
 	struct ip_tunnel_key	key;
+	struct ip_tunnel_encap	encap;
 #ifdef CONFIG_DST_CACHE
 	struct dst_cache	dst_cache;
 #endif
@@ -85,13 +119,6 @@ struct ip_tunnel_6rd_parm {
 };
 #endif
 
-struct ip_tunnel_encap {
-	u16			type;
-	u16			flags;
-	__be16			sport;
-	__be16			dport;
-};
-
 struct ip_tunnel_prl_entry {
 	struct ip_tunnel_prl_entry __rcu *next;
 	__be32				addr;
@@ -101,10 +128,24 @@ struct ip_tunnel_prl_entry {
 
 struct metadata_dst;
 
+/* Kernel-side variant of ip_tunnel_parm */
+struct ip_tunnel_parm_kern {
+	char			name[IFNAMSIZ];
+	IP_TUNNEL_DECLARE_FLAGS(i_flags);
+	IP_TUNNEL_DECLARE_FLAGS(o_flags);
+	__be32			i_key;
+	__be32			o_key;
+	int			link;
+	struct iphdr		iph;
+};
+
 struct ip_tunnel {
 	struct ip_tunnel __rcu	*next;
 	struct hlist_node hash_node;
+
 	struct net_device	*dev;
+	netdevice_tracker	dev_tracker;
+
 	struct net		*net;	/* netns for packet i/o */
 
 	unsigned long	err_time;	/* Time when the last ICMP error
@@ -113,7 +154,7 @@ struct ip_tunnel {
 
 	/* These four fields used only by GRE */
 	u32		i_seqno;	/* The last seen seqno	*/
-	u32		o_seqno;	/* The last output seqno */
+	atomic_t	o_seqno;	/* The last output seqno */
 	int		tun_hlen;	/* Precalculated header length */
 
 	/* These four fields used only by ERSPAN */
@@ -124,7 +165,7 @@ struct ip_tunnel {
 
 	struct dst_cache dst_cache;
 
-	struct ip_tunnel_parm parms;
+	struct ip_tunnel_parm_kern parms;
 
 	int		mlink;
 	int		encap_hlen;	/* Encap header length (FOU,GUE) */
@@ -145,7 +186,7 @@ struct ip_tunnel {
 };
 
 struct tnl_ptk_info {
-	__be16 flags;
+	IP_TUNNEL_DECLARE_FLAGS(flags);
 	__be16 proto;
 	__be32 key;
 	__be32 seq;
@@ -167,11 +208,80 @@ struct ip_tunnel_net {
 	int type;
 };
 
+static inline void ip_tunnel_set_options_present(unsigned long *flags)
+{
+	IP_TUNNEL_DECLARE_FLAGS(present) = { };
+
+	__set_bit(IP_TUNNEL_GENEVE_OPT_BIT, present);
+	__set_bit(IP_TUNNEL_VXLAN_OPT_BIT, present);
+	__set_bit(IP_TUNNEL_ERSPAN_OPT_BIT, present);
+	__set_bit(IP_TUNNEL_GTP_OPT_BIT, present);
+	__set_bit(IP_TUNNEL_PFCP_OPT_BIT, present);
+
+	ip_tunnel_flags_or(flags, flags, present);
+}
+
+static inline void ip_tunnel_clear_options_present(unsigned long *flags)
+{
+	IP_TUNNEL_DECLARE_FLAGS(present) = { };
+
+	__set_bit(IP_TUNNEL_GENEVE_OPT_BIT, present);
+	__set_bit(IP_TUNNEL_VXLAN_OPT_BIT, present);
+	__set_bit(IP_TUNNEL_ERSPAN_OPT_BIT, present);
+	__set_bit(IP_TUNNEL_GTP_OPT_BIT, present);
+	__set_bit(IP_TUNNEL_PFCP_OPT_BIT, present);
+
+	__ipt_flag_op(bitmap_andnot, flags, flags, present);
+}
+
+static inline bool ip_tunnel_is_options_present(const unsigned long *flags)
+{
+	IP_TUNNEL_DECLARE_FLAGS(present) = { };
+
+	__set_bit(IP_TUNNEL_GENEVE_OPT_BIT, present);
+	__set_bit(IP_TUNNEL_VXLAN_OPT_BIT, present);
+	__set_bit(IP_TUNNEL_ERSPAN_OPT_BIT, present);
+	__set_bit(IP_TUNNEL_GTP_OPT_BIT, present);
+	__set_bit(IP_TUNNEL_PFCP_OPT_BIT, present);
+
+	return ip_tunnel_flags_intersect(flags, present);
+}
+
+static inline bool ip_tunnel_flags_is_be16_compat(const unsigned long *flags)
+{
+	IP_TUNNEL_DECLARE_FLAGS(supp) = { };
+
+	bitmap_set(supp, 0, BITS_PER_TYPE(__be16));
+	__set_bit(IP_TUNNEL_VTI_BIT, supp);
+
+	return ip_tunnel_flags_subset(flags, supp);
+}
+
+static inline void ip_tunnel_flags_from_be16(unsigned long *dst, __be16 flags)
+{
+	ip_tunnel_flags_zero(dst);
+
+	bitmap_write(dst, be16_to_cpu(flags), 0, BITS_PER_TYPE(__be16));
+	__assign_bit(IP_TUNNEL_VTI_BIT, dst, flags & VTI_ISVTI);
+}
+
+static inline __be16 ip_tunnel_flags_to_be16(const unsigned long *flags)
+{
+	__be16 ret;
+
+	ret = cpu_to_be16(bitmap_read(flags, 0, BITS_PER_TYPE(__be16)));
+	if (test_bit(IP_TUNNEL_VTI_BIT, flags))
+		ret |= VTI_ISVTI;
+
+	return ret;
+}
+
 static inline void ip_tunnel_key_init(struct ip_tunnel_key *key,
 				      __be32 saddr, __be32 daddr,
 				      u8 tos, u8 ttl, __be32 label,
 				      __be16 tp_src, __be16 tp_dst,
-				      __be64 tun_id, __be16 tun_flags)
+				      __be64 tun_id,
+				      const unsigned long *tun_flags)
 {
 	key->tun_id = tun_id;
 	key->u.ipv4.src = saddr;
@@ -181,7 +291,7 @@ static inline void ip_tunnel_key_init(struct ip_tunnel_key *key,
 	key->tos = tos;
 	key->ttl = ttl;
 	key->label = label;
-	key->tun_flags = tun_flags;
+	ip_tunnel_flags_copy(key->tun_flags, tun_flags);
 
 	/* For the tunnel types on the top of IPsec, the tp_src and tp_dst of
 	 * the upper tunnel are used.
@@ -202,12 +312,8 @@ ip_tunnel_dst_cache_usable(const struct sk_buff *skb,
 {
 	if (skb->mark)
 		return false;
-	if (!info)
-		return true;
-	if (info->key.tun_flags & TUNNEL_NOCACHE)
-		return false;
 
-	return true;
+	return !info || !test_bit(IP_TUNNEL_NOCACHE_BIT, info->key.tun_flags);
 }
 
 static inline unsigned short ip_tunnel_info_af(const struct ip_tunnel_info
@@ -240,11 +346,19 @@ static inline __be32 tunnel_id_to_key32(__be64 tun_id)
 static inline void ip_tunnel_init_flow(struct flowi4 *fl4,
 				       int proto,
 				       __be32 daddr, __be32 saddr,
-				       __be32 key, __u8 tos, int oif,
-				       __u32 mark, __u32 tun_inner_hash)
+				       __be32 key, __u8 tos,
+				       struct net *net, int oif,
+				       __u32 mark, __u32 tun_inner_hash,
+				       __u8 flow_flags)
 {
 	memset(fl4, 0, sizeof(*fl4));
-	fl4->flowi4_oif = oif;
+
+	if (oif) {
+		fl4->flowi4_l3mdev = l3mdev_master_upper_ifindex_by_index_rcu(net, oif);
+		/* Legacy VRF/l3mdev use case */
+		fl4->flowi4_oif = fl4->flowi4_l3mdev ? 0 : oif;
+	}
+
 	fl4->daddr = daddr;
 	fl4->saddr = saddr;
 	fl4->flowi4_tos = tos;
@@ -252,6 +366,7 @@ static inline void ip_tunnel_init_flow(struct flowi4 *fl4,
 	fl4->fl4_gre_key = key;
 	fl4->flowi4_mark = mark;
 	fl4->flowi4_multipath_hash = tun_inner_hash;
+	fl4->flowi4_flags = flow_flags;
 }
 
 int ip_tunnel_init(struct net_device *dev);
@@ -263,31 +378,46 @@ int ip_tunnel_init_net(struct net *net, unsigned int ip_tnl_net_id,
 		       struct rtnl_link_ops *ops, char *devname);
 
 void ip_tunnel_delete_nets(struct list_head *list_net, unsigned int id,
-			   struct rtnl_link_ops *ops);
+			   struct rtnl_link_ops *ops,
+			   struct list_head *dev_to_kill);
 
 void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 		    const struct iphdr *tnl_params, const u8 protocol);
 void ip_md_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 		       const u8 proto, int tunnel_hlen);
-int ip_tunnel_ioctl(struct net_device *dev, struct ip_tunnel_parm *p, int cmd);
+int ip_tunnel_ctl(struct net_device *dev, struct ip_tunnel_parm_kern *p,
+		  int cmd);
+bool ip_tunnel_parm_from_user(struct ip_tunnel_parm_kern *kp,
+			      const void __user *data);
+bool ip_tunnel_parm_to_user(void __user *data, struct ip_tunnel_parm_kern *kp);
+int ip_tunnel_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
+			     void __user *data, int cmd);
 int __ip_tunnel_change_mtu(struct net_device *dev, int new_mtu, bool strict);
 int ip_tunnel_change_mtu(struct net_device *dev, int new_mtu);
 
-void ip_tunnel_get_stats64(struct net_device *dev,
-			   struct rtnl_link_stats64 *tot);
 struct ip_tunnel *ip_tunnel_lookup(struct ip_tunnel_net *itn,
-				   int link, __be16 flags,
+				   int link, const unsigned long *flags,
 				   __be32 remote, __be32 local,
 				   __be32 key);
 
+void ip_tunnel_md_udp_encap(struct sk_buff *skb, struct ip_tunnel_info *info);
 int ip_tunnel_rcv(struct ip_tunnel *tunnel, struct sk_buff *skb,
 		  const struct tnl_ptk_info *tpi, struct metadata_dst *tun_dst,
 		  bool log_ecn_error);
 int ip_tunnel_changelink(struct net_device *dev, struct nlattr *tb[],
-			 struct ip_tunnel_parm *p, __u32 fwmark);
+			 struct ip_tunnel_parm_kern *p, __u32 fwmark);
 int ip_tunnel_newlink(struct net_device *dev, struct nlattr *tb[],
-		      struct ip_tunnel_parm *p, __u32 fwmark);
+		      struct ip_tunnel_parm_kern *p, __u32 fwmark);
 void ip_tunnel_setup(struct net_device *dev, unsigned int net_id);
+
+bool ip_tunnel_netlink_encap_parms(struct nlattr *data[],
+				   struct ip_tunnel_encap *encap);
+
+void ip_tunnel_netlink_parms(struct nlattr *data[],
+			     struct ip_tunnel_parm_kern *parms);
+
+extern const struct header_ops ip_tunnel_header_ops;
+__be16 ip_tunnel_parse_protocol(const struct sk_buff *skb);
 
 struct ip_tunnel_encap_ops {
 	size_t (*encap_hlen)(struct ip_tunnel_encap *e);
@@ -329,6 +459,40 @@ static inline bool pskb_inet_may_pull(struct sk_buff *skb)
 	return pskb_network_may_pull(skb, nhlen);
 }
 
+/* Variant of pskb_inet_may_pull().
+ */
+static inline bool skb_vlan_inet_prepare(struct sk_buff *skb,
+					 bool inner_proto_inherit)
+{
+	int nhlen = 0, maclen = inner_proto_inherit ? 0 : ETH_HLEN;
+	__be16 type = skb->protocol;
+
+	/* Essentially this is skb_protocol(skb, true)
+	 * And we get MAC len.
+	 */
+	if (eth_type_vlan(type))
+		type = __vlan_get_protocol(skb, type, &maclen);
+
+	switch (type) {
+#if IS_ENABLED(CONFIG_IPV6)
+	case htons(ETH_P_IPV6):
+		nhlen = sizeof(struct ipv6hdr);
+		break;
+#endif
+	case htons(ETH_P_IP):
+		nhlen = sizeof(struct iphdr);
+		break;
+	}
+	/* For ETH_P_IPV6/ETH_P_IP we make sure to pull
+	 * a base network header in skb->head.
+	 */
+	if (!pskb_may_pull(skb, maclen + nhlen))
+		return false;
+
+	skb_set_network_header(skb, maclen);
+	return true;
+}
+
 static inline int ip_encap_hlen(struct ip_tunnel_encap *e)
 {
 	const struct ip_tunnel_encap_ops *ops;
@@ -349,22 +513,23 @@ static inline int ip_encap_hlen(struct ip_tunnel_encap *e)
 	return hlen;
 }
 
-static inline int ip_tunnel_encap(struct sk_buff *skb, struct ip_tunnel *t,
+static inline int ip_tunnel_encap(struct sk_buff *skb,
+				  struct ip_tunnel_encap *e,
 				  u8 *protocol, struct flowi4 *fl4)
 {
 	const struct ip_tunnel_encap_ops *ops;
 	int ret = -EINVAL;
 
-	if (t->encap.type == TUNNEL_ENCAP_NONE)
+	if (e->type == TUNNEL_ENCAP_NONE)
 		return 0;
 
-	if (t->encap.type >= MAX_IPTUN_ENCAP_OPS)
+	if (e->type >= MAX_IPTUN_ENCAP_OPS)
 		return -EINVAL;
 
 	rcu_read_lock();
-	ops = rcu_dereference(iptun_encaps[t->encap.type]);
+	ops = rcu_dereference(iptun_encaps[e->type]);
 	if (likely(ops && ops->build_header))
-		ret = ops->build_header(skb, &t->encap, protocol, fl4);
+		ret = ops->build_header(skb, e, protocol, fl4);
 	rcu_read_unlock();
 
 	return ret;
@@ -374,10 +539,23 @@ static inline int ip_tunnel_encap(struct sk_buff *skb, struct ip_tunnel *t,
 static inline u8 ip_tunnel_get_dsfield(const struct iphdr *iph,
 				       const struct sk_buff *skb)
 {
-	if (skb->protocol == htons(ETH_P_IP))
+	__be16 payload_protocol = skb_protocol(skb, true);
+
+	if (payload_protocol == htons(ETH_P_IP))
 		return iph->tos;
-	else if (skb->protocol == htons(ETH_P_IPV6))
+	else if (payload_protocol == htons(ETH_P_IPV6))
 		return ipv6_get_dsfield((const struct ipv6hdr *)iph);
+	else
+		return 0;
+}
+
+static inline __be32 ip_tunnel_get_flowlabel(const struct iphdr *iph,
+					     const struct sk_buff *skb)
+{
+	__be16 payload_protocol = skb_protocol(skb, true);
+
+	if (payload_protocol == htons(ETH_P_IPV6))
+		return ip6_flowlabel((const struct ipv6hdr *)iph);
 	else
 		return 0;
 }
@@ -385,9 +563,11 @@ static inline u8 ip_tunnel_get_dsfield(const struct iphdr *iph,
 static inline u8 ip_tunnel_get_ttl(const struct iphdr *iph,
 				       const struct sk_buff *skb)
 {
-	if (skb->protocol == htons(ETH_P_IP))
+	__be16 payload_protocol = skb_protocol(skb, true);
+
+	if (payload_protocol == htons(ETH_P_IP))
 		return iph->ttl;
-	else if (skb->protocol == htons(ETH_P_IPV6))
+	else if (payload_protocol == htons(ETH_P_IPV6))
 		return ((const struct ipv6hdr *)iph)->hop_limit;
 	else
 		return 0;
@@ -416,6 +596,8 @@ void iptunnel_xmit(struct sock *sk, struct rtable *rt, struct sk_buff *skb,
 		   u8 tos, u8 ttl, __be16 df, bool xnet);
 struct metadata_dst *iptunnel_metadata_reply(struct metadata_dst *md,
 					     gfp_t flags);
+int skb_tunnel_check_pmtu(struct sk_buff *skb, struct dst_entry *encap_dst,
+			  int headroom, bool reply);
 
 int iptunnel_handle_offloads(struct sk_buff *skb, int gso_type_mask);
 
@@ -441,25 +623,19 @@ static inline void iptunnel_xmit_stats(struct net_device *dev, int pkt_len)
 		struct pcpu_sw_netstats *tstats = get_cpu_ptr(dev->tstats);
 
 		u64_stats_update_begin(&tstats->syncp);
-		tstats->tx_bytes += pkt_len;
-		tstats->tx_packets++;
+		u64_stats_add(&tstats->tx_bytes, pkt_len);
+		u64_stats_inc(&tstats->tx_packets);
 		u64_stats_update_end(&tstats->syncp);
 		put_cpu_ptr(tstats);
-	} else {
-		struct net_device_stats *err_stats = &dev->stats;
-
-		if (pkt_len < 0) {
-			err_stats->tx_errors++;
-			err_stats->tx_aborted_errors++;
-		} else {
-			err_stats->tx_dropped++;
-		}
+		return;
 	}
-}
 
-static inline void *ip_tunnel_info_opts(struct ip_tunnel_info *info)
-{
-	return info + 1;
+	if (pkt_len < 0) {
+		DEV_STATS_INC(dev, tx_errors);
+		DEV_STATS_INC(dev, tx_aborted_errors);
+	} else {
+		DEV_STATS_INC(dev, tx_dropped);
+	}
 }
 
 static inline void ip_tunnel_info_opts_get(void *to,
@@ -470,11 +646,14 @@ static inline void ip_tunnel_info_opts_get(void *to,
 
 static inline void ip_tunnel_info_opts_set(struct ip_tunnel_info *info,
 					   const void *from, int len,
-					   __be16 flags)
+					   const unsigned long *flags)
 {
-	memcpy(ip_tunnel_info_opts(info), from, len);
 	info->options_len = len;
-	info->key.tun_flags |= flags;
+	if (len > 0) {
+		memcpy(ip_tunnel_info_opts(info), from, len);
+		ip_tunnel_flags_or(info->key.tun_flags, info->key.tun_flags,
+				   flags);
+	}
 }
 
 static inline struct ip_tunnel_info *lwt_tun_info(struct lwtunnel_state *lwtstate)
@@ -517,10 +696,9 @@ static inline void ip_tunnel_info_opts_get(void *to,
 
 static inline void ip_tunnel_info_opts_set(struct ip_tunnel_info *info,
 					   const void *from, int len,
-					   __be16 flags)
+					   const unsigned long *flags)
 {
 	info->options_len = 0;
-	info->key.tun_flags |= flags;
 }
 
 #endif /* CONFIG_INET */

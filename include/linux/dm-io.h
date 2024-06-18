@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2003 Sistina Software
  * Copyright (C) 2004 - 2008 Red Hat, Inc. All rights reserved.
@@ -13,6 +14,7 @@
 #ifdef __KERNEL__
 
 #include <linux/types.h>
+#include <linux/blk_types.h>
 
 struct dm_io_region {
 	struct block_device *bdev;
@@ -25,7 +27,7 @@ struct page_list {
 	struct page *page;
 };
 
-typedef void (*io_notify_fn)(unsigned long error, void *context);
+typedef void (*io_notify_fn)(unsigned int long error, void *context);
 
 enum dm_io_mem_type {
 	DM_IO_PAGE_LIST,/* Page list */
@@ -37,7 +39,7 @@ enum dm_io_mem_type {
 struct dm_io_memory {
 	enum dm_io_mem_type type;
 
-	unsigned offset;
+	unsigned int offset;
 
 	union {
 		struct page_list *pl;
@@ -57,8 +59,7 @@ struct dm_io_notify {
  */
 struct dm_io_client;
 struct dm_io_request {
-	int bi_op;			/* REQ_OP */
-	int bi_op_flags;		/* req_flag_bits */
+	blk_opf_t	    bi_opf;	/* Request type and flags */
 	struct dm_io_memory mem;	/* Memory to use for io */
 	struct dm_io_notify notify;	/* Synchronous if notify.fn is NULL */
 	struct dm_io_client *client;	/* Client memory handler */
@@ -78,8 +79,9 @@ void dm_io_client_destroy(struct dm_io_client *client);
  * Each bit in the optional 'sync_error_bits' bitset indicates whether an
  * error occurred doing io to the corresponding region.
  */
-int dm_io(struct dm_io_request *io_req, unsigned num_regions,
-	  struct dm_io_region *region, unsigned long *sync_error_bits);
+int dm_io(struct dm_io_request *io_req, unsigned int num_regions,
+	  struct dm_io_region *region, unsigned int long *sync_error_bits,
+	  unsigned short ioprio);
 
 #endif	/* __KERNEL__ */
 #endif	/* _LINUX_DM_IO_H */

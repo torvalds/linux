@@ -2,7 +2,9 @@
 #ifndef _INTEL_RINGBUFFER_H_
 #define _INTEL_RINGBUFFER_H_
 
+#include <asm/cacheflush.h>
 #include <drm/drm_util.h>
+#include <drm/drm_cache.h>
 
 #include <linux/hashtable.h>
 #include <linux/irq_work.h>
@@ -10,15 +12,17 @@
 #include <linux/seqlock.h>
 
 #include "i915_pmu.h"
-#include "i915_reg.h"
 #include "i915_request.h"
 #include "i915_selftest.h"
-#include "gt/intel_timeline.h"
 #include "intel_engine_types.h"
-#include "intel_gpu_commands.h"
+#include "intel_gt_types.h"
+#include "intel_timeline.h"
 #include "intel_workarounds.h"
 
 struct drm_printer;
+struct intel_context;
+struct intel_gt;
+struct lock_class_key;
 
 /* Early gen2 devices have a cacheline of just 32 bytes, using 64 is overkill,
  * but keeps the logic simple. Indeed, the whole purpose of this macro is just
@@ -27,6 +31,13 @@ struct drm_printer;
  */
 #define CACHELINE_BYTES 64
 #define CACHELINE_DWORDS (CACHELINE_BYTES / sizeof(u32))
+
+#define ENGINE_TRACE(e, fmt, ...) do {					\
+	const struct intel_engine_cs *e__ __maybe_unused = (e);		\
+	GEM_TRACE("%s %s: " fmt,					\
+		  dev_name(e__->i915->drm.dev), e__->name,		\
+		  ##__VA_ARGS__);					\
+} while (0)
 
 /*
  * The register defines to be used with the following macros need to accept a
@@ -89,38 +100,6 @@ struct drm_printer;
 /* seqno size is actually only a uint32, but since we plan to use MI_FLUSH_DW to
  * do the writes, and that must have qw aligned offsets, simply pretend it's 8b.
  */
-enum intel_engine_hangcheck_action {
-	ENGINE_IDLE = 0,
-	ENGINE_WAIT,
-	ENGINE_ACTIVE_SEQNO,
-	ENGINE_ACTIVE_HEAD,
-	ENGINE_ACTIVE_SUBUNITS,
-	ENGINE_WAIT_KICK,
-	ENGINE_DEAD,
-};
-
-static inline const char *
-hangcheck_action_to_str(const enum intel_engine_hangcheck_action a)
-{
-	switch (a) {
-	case ENGINE_IDLE:
-		return "idle";
-	case ENGINE_WAIT:
-		return "wait";
-	case ENGINE_ACTIVE_SEQNO:
-		return "active seqno";
-	case ENGINE_ACTIVE_HEAD:
-		return "active head";
-	case ENGINE_ACTIVE_SUBUNITS:
-		return "active subunits";
-	case ENGINE_WAIT_KICK:
-		return "wait kick";
-	case ENGINE_DEAD:
-		return "dead";
-	}
-
-	return "unknown";
-}
 
 static inline unsigned int
 execlists_num_ports(const struct intel_engine_execlists * const execlists)
@@ -131,9 +110,20 @@ execlists_num_ports(const struct intel_engine_execlists * const execlists)
 static inline struct i915_request *
 execlists_active(const struct intel_engine_execlists *execlists)
 {
-	GEM_BUG_ON(execlists->active - execlists->inflight >
-		   execlists_num_ports(execlists));
-	return READ_ONCE(*execlists->active);
+	struct i915_request * const *cur, * const *old, *active;
+
+	cur = READ_ONCE(execlists->active);
+	smp_rmb(); /* pairs with overwrite protection in process_csb() */
+	do {
+		old = cur;
+
+		active = READ_ONCE(*cur);
+		cur = READ_ONCE(execlists->active);
+
+		smp_rmb(); /* and complete the seqlock retry */
+	} while (unlikely(cur != old));
+
+	return active;
 }
 
 struct i915_request *
@@ -154,15 +144,9 @@ intel_write_status_page(struct intel_engine_cs *engine, int reg, u32 value)
 	 * of extra paranoia to try and ensure that the HWS takes the value
 	 * we give and that it doesn't end up trapped inside the CPU!
 	 */
-	if (static_cpu_has(X86_FEATURE_CLFLUSH)) {
-		mb();
-		clflush(&engine->status_page.addr[reg]);
-		engine->status_page.addr[reg] = value;
-		clflush(&engine->status_page.addr[reg]);
-		mb();
-	} else {
-		WRITE_ONCE(engine->status_page.addr[reg], value);
-	}
+	drm_clflush_virt_range(&engine->status_page.addr[reg], sizeof(value));
+	WRITE_ONCE(engine->status_page.addr[reg], value);
+	drm_clflush_virt_range(&engine->status_page.addr[reg], sizeof(value));
 }
 
 /*
@@ -185,231 +169,73 @@ intel_write_status_page(struct intel_engine_cs *engine, int reg, u32 value)
 #define I915_GEM_HWS_PREEMPT_ADDR	(I915_GEM_HWS_PREEMPT * sizeof(u32))
 #define I915_GEM_HWS_SEQNO		0x40
 #define I915_GEM_HWS_SEQNO_ADDR		(I915_GEM_HWS_SEQNO * sizeof(u32))
+#define I915_GEM_HWS_MIGRATE		(0x42 * sizeof(u32))
+#define I915_GEM_HWS_GGTT_BIND		0x46
+#define I915_GEM_HWS_GGTT_BIND_ADDR	(I915_GEM_HWS_GGTT_BIND * sizeof(u32))
+#define I915_GEM_HWS_PXP		0x60
+#define I915_GEM_HWS_PXP_ADDR		(I915_GEM_HWS_PXP * sizeof(u32))
+#define I915_GEM_HWS_GSC		0x62
+#define I915_GEM_HWS_GSC_ADDR		(I915_GEM_HWS_GSC * sizeof(u32))
 #define I915_GEM_HWS_SCRATCH		0x80
-#define I915_GEM_HWS_SCRATCH_ADDR	(I915_GEM_HWS_SCRATCH * sizeof(u32))
 
 #define I915_HWS_CSB_BUF0_INDEX		0x10
 #define I915_HWS_CSB_WRITE_INDEX	0x1f
-#define CNL_HWS_CSB_WRITE_INDEX		0x2f
-
-struct intel_ring *
-intel_engine_create_ring(struct intel_engine_cs *engine, int size);
-int intel_ring_pin(struct intel_ring *ring);
-void intel_ring_reset(struct intel_ring *ring, u32 tail);
-unsigned int intel_ring_update_space(struct intel_ring *ring);
-void intel_ring_unpin(struct intel_ring *ring);
-void intel_ring_free(struct kref *ref);
-
-static inline struct intel_ring *intel_ring_get(struct intel_ring *ring)
-{
-	kref_get(&ring->ref);
-	return ring;
-}
-
-static inline void intel_ring_put(struct intel_ring *ring)
-{
-	kref_put(&ring->ref, intel_ring_free);
-}
+#define ICL_HWS_CSB_WRITE_INDEX		0x2f
+#define INTEL_HWS_CSB_WRITE_INDEX(__i915) \
+	(GRAPHICS_VER(__i915) >= 11 ? ICL_HWS_CSB_WRITE_INDEX : I915_HWS_CSB_WRITE_INDEX)
 
 void intel_engine_stop(struct intel_engine_cs *engine);
 void intel_engine_cleanup(struct intel_engine_cs *engine);
 
-int __must_check intel_ring_cacheline_align(struct i915_request *rq);
+int intel_engines_init_mmio(struct intel_gt *gt);
+int intel_engines_init(struct intel_gt *gt);
 
-u32 __must_check *intel_ring_begin(struct i915_request *rq, unsigned int n);
+void intel_engine_free_request_pool(struct intel_engine_cs *engine);
 
-static inline void intel_ring_advance(struct i915_request *rq, u32 *cs)
-{
-	/* Dummy function.
-	 *
-	 * This serves as a placeholder in the code so that the reader
-	 * can compare against the preceding intel_ring_begin() and
-	 * check that the number of dwords emitted matches the space
-	 * reserved for the command packet (i.e. the value passed to
-	 * intel_ring_begin()).
-	 */
-	GEM_BUG_ON((rq->ring->vaddr + rq->ring->emit) != cs);
-}
-
-static inline u32 intel_ring_wrap(const struct intel_ring *ring, u32 pos)
-{
-	return pos & (ring->size - 1);
-}
-
-static inline bool
-intel_ring_offset_valid(const struct intel_ring *ring,
-			unsigned int pos)
-{
-	if (pos & -ring->size) /* must be strictly within the ring */
-		return false;
-
-	if (!IS_ALIGNED(pos, 8)) /* must be qword aligned */
-		return false;
-
-	return true;
-}
-
-static inline u32 intel_ring_offset(const struct i915_request *rq, void *addr)
-{
-	/* Don't write ring->size (equivalent to 0) as that hangs some GPUs. */
-	u32 offset = addr - rq->ring->vaddr;
-	GEM_BUG_ON(offset > rq->ring->size);
-	return intel_ring_wrap(rq->ring, offset);
-}
-
-static inline void
-assert_ring_tail_valid(const struct intel_ring *ring, unsigned int tail)
-{
-	GEM_BUG_ON(!intel_ring_offset_valid(ring, tail));
-
-	/*
-	 * "Ring Buffer Use"
-	 *	Gen2 BSpec "1. Programming Environment" / 1.4.4.6
-	 *	Gen3 BSpec "1c Memory Interface Functions" / 2.3.4.5
-	 *	Gen4+ BSpec "1c Memory Interface and Command Stream" / 5.3.4.5
-	 * "If the Ring Buffer Head Pointer and the Tail Pointer are on the
-	 * same cacheline, the Head Pointer must not be greater than the Tail
-	 * Pointer."
-	 *
-	 * We use ring->head as the last known location of the actual RING_HEAD,
-	 * it may have advanced but in the worst case it is equally the same
-	 * as ring->head and so we should never program RING_TAIL to advance
-	 * into the same cacheline as ring->head.
-	 */
-#define cacheline(a) round_down(a, CACHELINE_BYTES)
-	GEM_BUG_ON(cacheline(tail) == cacheline(ring->head) &&
-		   tail < ring->head);
-#undef cacheline
-}
-
-static inline unsigned int
-intel_ring_set_tail(struct intel_ring *ring, unsigned int tail)
-{
-	/* Whilst writes to the tail are strictly order, there is no
-	 * serialisation between readers and the writers. The tail may be
-	 * read by i915_request_retire() just as it is being updated
-	 * by execlists, as although the breadcrumb is complete, the context
-	 * switch hasn't been seen.
-	 */
-	assert_ring_tail_valid(ring, tail);
-	ring->tail = tail;
-	return tail;
-}
-
-static inline unsigned int
-__intel_ring_space(unsigned int head, unsigned int tail, unsigned int size)
-{
-	/*
-	 * "If the Ring Buffer Head Pointer and the Tail Pointer are on the
-	 * same cacheline, the Head Pointer must not be greater than the Tail
-	 * Pointer."
-	 */
-	GEM_BUG_ON(!is_power_of_2(size));
-	return (head - tail - CACHELINE_BYTES) & (size - 1);
-}
-
-int intel_engines_init_mmio(struct drm_i915_private *i915);
-int intel_engines_setup(struct drm_i915_private *i915);
-int intel_engines_init(struct drm_i915_private *i915);
-void intel_engines_cleanup(struct drm_i915_private *i915);
+void intel_engines_release(struct intel_gt *gt);
+void intel_engines_free(struct intel_gt *gt);
 
 int intel_engine_init_common(struct intel_engine_cs *engine);
 void intel_engine_cleanup_common(struct intel_engine_cs *engine);
 
+int intel_engine_resume(struct intel_engine_cs *engine);
+
 int intel_ring_submission_setup(struct intel_engine_cs *engine);
-int intel_ring_submission_init(struct intel_engine_cs *engine);
 
 int intel_engine_stop_cs(struct intel_engine_cs *engine);
 void intel_engine_cancel_stop_cs(struct intel_engine_cs *engine);
+
+void intel_engine_wait_for_pending_mi_fw(struct intel_engine_cs *engine);
 
 void intel_engine_set_hwsp_writemask(struct intel_engine_cs *engine, u32 mask);
 
 u64 intel_engine_get_active_head(const struct intel_engine_cs *engine);
 u64 intel_engine_get_last_batch_head(const struct intel_engine_cs *engine);
 
-void intel_engine_get_instdone(struct intel_engine_cs *engine,
+void intel_engine_get_instdone(const struct intel_engine_cs *engine,
 			       struct intel_instdone *instdone);
 
 void intel_engine_init_execlists(struct intel_engine_cs *engine);
 
-void intel_engine_init_breadcrumbs(struct intel_engine_cs *engine);
-void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine);
-
-void intel_engine_signal_breadcrumbs(struct intel_engine_cs *engine);
-void intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine);
-
-static inline void
-intel_engine_queue_breadcrumbs(struct intel_engine_cs *engine)
-{
-	irq_work_queue(&engine->breadcrumbs.irq_work);
-}
-
-void intel_engine_breadcrumbs_irq(struct intel_engine_cs *engine);
-
-void intel_engine_reset_breadcrumbs(struct intel_engine_cs *engine);
-void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine);
-
-void intel_engine_print_breadcrumbs(struct intel_engine_cs *engine,
-				    struct drm_printer *p);
-
-static inline u32 *gen8_emit_pipe_control(u32 *batch, u32 flags, u32 offset)
-{
-	memset(batch, 0, 6 * sizeof(u32));
-
-	batch[0] = GFX_OP_PIPE_CONTROL(6);
-	batch[1] = flags;
-	batch[2] = offset;
-
-	return batch + 6;
-}
-
-static inline u32 *
-gen8_emit_ggtt_write_rcs(u32 *cs, u32 value, u32 gtt_offset, u32 flags)
-{
-	/* We're using qword write, offset should be aligned to 8 bytes. */
-	GEM_BUG_ON(!IS_ALIGNED(gtt_offset, 8));
-
-	/* w/a for post sync ops following a GPGPU operation we
-	 * need a prior CS_STALL, which is emitted by the flush
-	 * following the batch.
-	 */
-	*cs++ = GFX_OP_PIPE_CONTROL(6);
-	*cs++ = flags | PIPE_CONTROL_QW_WRITE | PIPE_CONTROL_GLOBAL_GTT_IVB;
-	*cs++ = gtt_offset;
-	*cs++ = 0;
-	*cs++ = value;
-	/* We're thrashing one dword of HWS. */
-	*cs++ = 0;
-
-	return cs;
-}
-
-static inline u32 *
-gen8_emit_ggtt_write(u32 *cs, u32 value, u32 gtt_offset, u32 flags)
-{
-	/* w/a: bit 5 needs to be zero for MI_FLUSH_DW address. */
-	GEM_BUG_ON(gtt_offset & (1 << 5));
-	/* Offset should be aligned to 8 bytes for both (QW/DW) write types */
-	GEM_BUG_ON(!IS_ALIGNED(gtt_offset, 8));
-
-	*cs++ = (MI_FLUSH_DW + 1) | MI_FLUSH_DW_OP_STOREDW | flags;
-	*cs++ = gtt_offset | MI_FLUSH_DW_USE_GTT;
-	*cs++ = 0;
-	*cs++ = value;
-
-	return cs;
-}
+bool intel_engine_irq_enable(struct intel_engine_cs *engine);
+void intel_engine_irq_disable(struct intel_engine_cs *engine);
 
 static inline void __intel_engine_reset(struct intel_engine_cs *engine,
 					bool stalled)
 {
-	if (engine->reset.reset)
-		engine->reset.reset(engine, stalled);
+	if (engine->reset.rewind)
+		engine->reset.rewind(engine, stalled);
 	engine->serial++; /* contexts lost */
 }
 
-bool intel_engine_is_idle(struct intel_engine_cs *engine);
 bool intel_engines_are_idle(struct intel_gt *gt);
+bool intel_engine_is_idle(struct intel_engine_cs *engine);
+
+void __intel_engine_flush_submission(struct intel_engine_cs *engine, bool sync);
+static inline void intel_engine_flush_submission(struct intel_engine_cs *engine)
+{
+	__intel_engine_flush_submission(engine, true);
+}
 
 void intel_engines_reset_default_submission(struct intel_gt *gt);
 
@@ -419,96 +245,117 @@ __printf(3, 4)
 void intel_engine_dump(struct intel_engine_cs *engine,
 		       struct drm_printer *m,
 		       const char *header, ...);
+void intel_engine_dump_active_requests(struct list_head *requests,
+				       struct i915_request *hung_rq,
+				       struct drm_printer *m);
 
-static inline void intel_engine_context_in(struct intel_engine_cs *engine)
-{
-	unsigned long flags;
+ktime_t intel_engine_get_busy_time(struct intel_engine_cs *engine,
+				   ktime_t *now);
 
-	if (READ_ONCE(engine->stats.enabled) == 0)
-		return;
+void intel_engine_get_hung_entity(struct intel_engine_cs *engine,
+				  struct intel_context **ce, struct i915_request **rq);
 
-	write_seqlock_irqsave(&engine->stats.lock, flags);
+u32 intel_engine_context_size(struct intel_gt *gt, u8 class);
+struct intel_context *
+intel_engine_create_pinned_context(struct intel_engine_cs *engine,
+				   struct i915_address_space *vm,
+				   unsigned int ring_size,
+				   unsigned int hwsp,
+				   struct lock_class_key *key,
+				   const char *name);
 
-	if (engine->stats.enabled > 0) {
-		if (engine->stats.active++ == 0)
-			engine->stats.start = ktime_get();
-		GEM_BUG_ON(engine->stats.active == 0);
-	}
+void intel_engine_destroy_pinned_context(struct intel_context *ce);
 
-	write_sequnlock_irqrestore(&engine->stats.lock, flags);
-}
+void xehp_enable_ccs_engines(struct intel_engine_cs *engine);
 
-static inline void intel_engine_context_out(struct intel_engine_cs *engine)
-{
-	unsigned long flags;
-
-	if (READ_ONCE(engine->stats.enabled) == 0)
-		return;
-
-	write_seqlock_irqsave(&engine->stats.lock, flags);
-
-	if (engine->stats.enabled > 0) {
-		ktime_t last;
-
-		if (engine->stats.active && --engine->stats.active == 0) {
-			/*
-			 * Decrement the active context count and in case GPU
-			 * is now idle add up to the running total.
-			 */
-			last = ktime_sub(ktime_get(), engine->stats.start);
-
-			engine->stats.total = ktime_add(engine->stats.total,
-							last);
-		} else if (engine->stats.active == 0) {
-			/*
-			 * After turning on engine stats, context out might be
-			 * the first event in which case we account from the
-			 * time stats gathering was turned on.
-			 */
-			last = ktime_sub(ktime_get(), engine->stats.enabled_at);
-
-			engine->stats.total = ktime_add(engine->stats.total,
-							last);
-		}
-	}
-
-	write_sequnlock_irqrestore(&engine->stats.lock, flags);
-}
-
-int intel_enable_engine_stats(struct intel_engine_cs *engine);
-void intel_disable_engine_stats(struct intel_engine_cs *engine);
-
-ktime_t intel_engine_get_busy_time(struct intel_engine_cs *engine);
-
-struct i915_request *
-intel_engine_find_active_request(struct intel_engine_cs *engine);
-
-u32 intel_engine_context_size(struct drm_i915_private *i915, u8 class);
-
-#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
-
-static inline bool inject_preempt_hang(struct intel_engine_execlists *execlists)
-{
-	if (!execlists->preempt_hang.inject_hang)
-		return false;
-
-	complete(&execlists->preempt_hang.completion);
-	return true;
-}
-
-#else
-
-static inline bool inject_preempt_hang(struct intel_engine_execlists *execlists)
-{
-	return false;
-}
-
-#endif
-
-void intel_engine_init_active(struct intel_engine_cs *engine,
-			      unsigned int subclass);
 #define ENGINE_PHYSICAL	0
 #define ENGINE_MOCK	1
 #define ENGINE_VIRTUAL	2
+
+static inline bool intel_engine_uses_guc(const struct intel_engine_cs *engine)
+{
+	return engine->gt->submission_method >= INTEL_SUBMISSION_GUC;
+}
+
+static inline bool
+intel_engine_has_preempt_reset(const struct intel_engine_cs *engine)
+{
+	if (!CONFIG_DRM_I915_PREEMPT_TIMEOUT)
+		return false;
+
+	return intel_engine_has_preemption(engine);
+}
+
+#define FORCE_VIRTUAL	BIT(0)
+struct intel_context *
+intel_engine_create_virtual(struct intel_engine_cs **siblings,
+			    unsigned int count, unsigned long flags);
+
+static inline struct intel_context *
+intel_engine_create_parallel(struct intel_engine_cs **engines,
+			     unsigned int num_engines,
+			     unsigned int width)
+{
+	GEM_BUG_ON(!engines[0]->cops->create_parallel);
+	return engines[0]->cops->create_parallel(engines, num_engines, width);
+}
+
+static inline bool
+intel_virtual_engine_has_heartbeat(const struct intel_engine_cs *engine)
+{
+	/*
+	 * For non-GuC submission we expect the back-end to look at the
+	 * heartbeat status of the actual physical engine that the work
+	 * has been (or is being) scheduled on, so we should only reach
+	 * here with GuC submission enabled.
+	 */
+	GEM_BUG_ON(!intel_engine_uses_guc(engine));
+
+	return intel_guc_virtual_engine_has_heartbeat(engine);
+}
+
+static inline bool
+intel_engine_has_heartbeat(const struct intel_engine_cs *engine)
+{
+	if (!CONFIG_DRM_I915_HEARTBEAT_INTERVAL)
+		return false;
+
+	if (intel_engine_is_virtual(engine))
+		return intel_virtual_engine_has_heartbeat(engine);
+	else
+		return READ_ONCE(engine->props.heartbeat_interval_ms);
+}
+
+static inline struct intel_engine_cs *
+intel_engine_get_sibling(struct intel_engine_cs *engine, unsigned int sibling)
+{
+	GEM_BUG_ON(!intel_engine_is_virtual(engine));
+	return engine->cops->get_sibling(engine, sibling);
+}
+
+static inline void
+intel_engine_set_hung_context(struct intel_engine_cs *engine,
+			      struct intel_context *ce)
+{
+	engine->hung_ce = ce;
+}
+
+static inline void
+intel_engine_clear_hung_context(struct intel_engine_cs *engine)
+{
+	intel_engine_set_hung_context(engine, NULL);
+}
+
+static inline struct intel_context *
+intel_engine_get_hung_context(struct intel_engine_cs *engine)
+{
+	return engine->hung_ce;
+}
+
+u64 intel_clamp_heartbeat_interval_ms(struct intel_engine_cs *engine, u64 value);
+u64 intel_clamp_max_busywait_duration_ns(struct intel_engine_cs *engine, u64 value);
+u64 intel_clamp_preempt_timeout_ms(struct intel_engine_cs *engine, u64 value);
+u64 intel_clamp_stop_timeout_ms(struct intel_engine_cs *engine, u64 value);
+u64 intel_clamp_timeslice_duration_ms(struct intel_engine_cs *engine, u64 value);
 
 #endif /* _INTEL_RINGBUFFER_H_ */

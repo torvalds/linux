@@ -1,3 +1,5 @@
+.. _embargoed_hardware_issues:
+
 Embargoed hardware issues
 =========================
 
@@ -23,20 +25,23 @@ Contact
 The Linux kernel hardware security team is separate from the regular Linux
 kernel security team.
 
-The team only handles the coordination of embargoed hardware security
-issues.  Reports of pure software security bugs in the Linux kernel are not
+The team only handles developing fixes for embargoed hardware security
+issues. Reports of pure software security bugs in the Linux kernel are not
 handled by this team and the reporter will be guided to contact the regular
 Linux kernel security team (:ref:`Documentation/admin-guide/
 <securitybugs>`) instead.
 
 The team can be contacted by email at <hardware-security@kernel.org>. This
-is a private list of security officers who will help you to coordinate an
-issue according to our documented process.
+is a private list of security officers who will help you to coordinate a
+fix according to our documented process.
 
 The list is encrypted and email to the list can be sent by either PGP or
 S/MIME encrypted and must be signed with the reporter's PGP key or S/MIME
 certificate. The list's PGP key and S/MIME certificate are available from
-https://www.kernel.org/....
+the following URLs:
+
+  - PGP: https://www.kernel.org/static/files/hardware-security.asc
+  - S/MIME: https://www.kernel.org/static/files/hardware-security.crt
 
 While hardware security issues are often handled by the affected hardware
 vendor, we welcome contact from researchers or individuals who have
@@ -55,14 +60,14 @@ Operation of mailing-lists
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The encrypted mailing-lists which are used in our process are hosted on
-Linux Foundation's IT infrastructure. By providing this service Linux
-Foundation's director of IT Infrastructure security technically has the
-ability to access the embargoed information, but is obliged to
-confidentiality by his employment contract. Linux Foundation's director of
-IT Infrastructure security is also responsible for the kernel.org
-infrastructure.
+Linux Foundation's IT infrastructure. By providing this service, members
+of Linux Foundation's IT operations personnel technically have the
+ability to access the embargoed information, but are obliged to
+confidentiality by their employment contract. Linux Foundation IT
+personnel are also responsible for operating and managing the rest of
+kernel.org infrastructure.
 
-The Linux Foundation's current director of IT Infrastructure security is
+The Linux Foundation's current director of IT Project infrastructure is
 Konstantin Ryabitsev.
 
 
@@ -127,11 +132,11 @@ other hardware could be affected.
 
 The hardware security team will provide an incident-specific encrypted
 mailing-list which will be used for initial discussion with the reporter,
-further disclosure and coordination.
+further disclosure, and coordination of fixes.
 
 The hardware security team will provide the disclosing party a list of
 developers (domain experts) who should be informed initially about the
-issue after confirming with the developers  that they will adhere to this
+issue after confirming with the developers that they will adhere to this
 Memorandum of Understanding and the documented process. These developers
 form the initial response team and will be responsible for handling the
 issue after initial contact. The hardware security team is supporting the
@@ -147,7 +152,7 @@ The disclosing party should provide a list of contacts for all other
 entities who have already been, or should be, informed about the issue.
 This serves several purposes:
 
- - The list of disclosed entities allows communication accross the
+ - The list of disclosed entities allows communication across the
    industry, e.g. other OS vendors, HW vendors, etc.
 
  - The disclosed entities can be contacted to name experts who should
@@ -204,13 +209,18 @@ five work days this is taken as silent acknowledgement.
 After acknowledgement or resolution of an objection the expert is disclosed
 by the incident team and brought into the development process.
 
+List participants may not communicate about the issue outside of the
+private mailing list. List participants may not use any shared resources
+(e.g. employer build farms, CI systems, etc) when working on patches.
+
 
 Coordinated release
 """""""""""""""""""
 
 The involved parties will negotiate the date and time where the embargo
 ends. At that point the prepared mitigations are integrated into the
-relevant kernel trees and published.
+relevant kernel trees and published. There is no pre-notification process:
+fixes are published in public and available to everyone at the same time.
 
 While we understand that hardware security issues need coordinated embargo
 time, the embargo time should be constrained to the minimum time which is
@@ -239,24 +249,28 @@ disclosure of a particular issue, unless requested by a response team or by
 an involved disclosed party. The current ambassadors list:
 
   ============= ========================================================
-  ARM
-  AMD
-  IBM
+  AMD		Tom Lendacky <thomas.lendacky@amd.com>
+  Ampere	Darren Hart <darren@os.amperecomputing.com>
+  ARM		Catalin Marinas <catalin.marinas@arm.com>
+  IBM Power	Michael Ellerman <ellerman@au.ibm.com>
+  IBM Z		Christian Borntraeger <borntraeger@de.ibm.com>
   Intel		Tony Luck <tony.luck@intel.com>
-  Qualcomm	Trilok Soni <tsoni@codeaurora.org>
+  Qualcomm	Trilok Soni <quic_tsoni@quicinc.com>
+  RISC-V	Palmer Dabbelt <palmer@dabbelt.com>
+  Samsung	Javier González <javier.gonz@samsung.com>
 
-  Microsoft	Sasha Levin <sashal@kernel.org>
-  VMware
+  Microsoft	James Morris <jamorris@linux.microsoft.com>
   Xen		Andrew Cooper <andrew.cooper3@citrix.com>
 
-  Canonical	Tyler Hicks <tyhicks@canonical.com>
+  Canonical	John Johansen <john.johansen@canonical.com>
   Debian	Ben Hutchings <ben@decadent.org.uk>
   Oracle	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
   Red Hat	Josh Poimboeuf <jpoimboe@redhat.com>
   SUSE		Jiri Kosina <jkosina@suse.cz>
 
-  Amazon
   Google	Kees Cook <keescook@chromium.org>
+
+  LLVM		Nick Desaulniers <ndesaulniers@google.com>
   ============= ========================================================
 
 If you want your organization to be added to the ambassadors list, please
@@ -274,7 +288,7 @@ software decrypts the email and re-encrypts it individually for each
 subscriber with the subscriber's PGP key or S/MIME certificate. Details
 about the mailing-list software and the setup which is used to ensure the
 security of the lists and protection of the data can be found here:
-https://www.kernel.org/....
+https://korg.wiki.kernel.org/userdoc/remail.
 
 List keys
 ^^^^^^^^^

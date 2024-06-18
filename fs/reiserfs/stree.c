@@ -387,6 +387,24 @@ void pathrelse(struct treepath *search_path)
 	search_path->path_length = ILLEGAL_PATH_ELEMENT_OFFSET;
 }
 
+static int has_valid_deh_location(struct buffer_head *bh, struct item_head *ih)
+{
+	struct reiserfs_de_head *deh;
+	int i;
+
+	deh = B_I_DEH(bh, ih);
+	for (i = 0; i < ih_entry_count(ih); i++) {
+		if (deh_location(&deh[i]) > ih_item_len(ih)) {
+			reiserfs_warning(NULL, "reiserfs-5094",
+					 "directory entry location seems wrong %h",
+					 &deh[i]);
+			return 0;
+		}
+	}
+
+	return 1;
+}
+
 static int is_leaf(char *buf, int blocksize, struct buffer_head *bh)
 {
 	struct block_head *blkh;
@@ -453,6 +471,15 @@ static int is_leaf(char *buf, int blocksize, struct buffer_head *bh)
 					 "item location seems wrong "
 					 "(second one): %h", ih);
 			return 0;
+		}
+		if (is_direntry_le_ih(ih)) {
+			if (ih_item_len(ih) < (ih_entry_count(ih) * IH_SIZE)) {
+				reiserfs_warning(NULL, "reiserfs-5093",
+						 "item entry count seems wrong %h",
+						 ih);
+				return 0;
+			}
+			return has_valid_deh_location(bh, ih);
 		}
 		prev_location = ih_location(ih);
 	}
@@ -552,7 +579,7 @@ static int search_by_key_reada(struct super_block *s,
 		if (!buffer_uptodate(bh[j])) {
 			if (depth == -1)
 				depth = reiserfs_write_unlock_nested(s);
-			ll_rw_block(REQ_OP_READ, REQ_RAHEAD, 1, bh + j);
+			bh_readahead(bh[j], REQ_RAHEAD);
 		}
 		brelse(bh[j]);
 	}
@@ -658,7 +685,7 @@ int search_by_key(struct super_block *sb, const struct cpu_key *key,
 			if (!buffer_uptodate(bh) && depth == -1)
 				depth = reiserfs_write_unlock_nested(sb);
 
-			ll_rw_block(REQ_OP_READ, 0, 1, &bh);
+			bh_read_nowait(bh, 0);
 			wait_on_buffer(bh);
 
 			if (depth != -1)
@@ -917,12 +944,6 @@ int comp_items(const struct item_head *stored_ih, const struct treepath *path)
 	ih = tp_item_head(path);
 	return memcmp(stored_ih, ih, IH_SIZE);
 }
-
-/* unformatted nodes are not logged anymore, ever.  This is safe now */
-#define held_by_others(bh) (atomic_read(&(bh)->b_count) > 1)
-
-/* block can not be forgotten as it is in I/O or held by someone */
-#define block_in_use(bh) (buffer_locked(bh) || (held_by_others(bh)))
 
 /* prepare for delete or cut of direct item */
 static inline int prepare_for_direct_item(struct treepath *path,
@@ -1241,7 +1262,6 @@ int reiserfs_delete_item(struct reiserfs_transaction_handle *th,
 
 #ifdef CONFIG_REISERFS_CHECK
 	char mode;
-	int iter = 0;
 #endif
 
 	BUG_ON(!th->t_trans_id);
@@ -1253,7 +1273,6 @@ int reiserfs_delete_item(struct reiserfs_transaction_handle *th,
 		removed = 0;
 
 #ifdef CONFIG_REISERFS_CHECK
-		iter++;
 		mode =
 #endif
 		    prepare_for_delete_or_cut(th, inode, path,
@@ -1388,7 +1407,7 @@ void reiserfs_delete_solid_item(struct reiserfs_transaction_handle *th,
 	INITIALIZE_PATH(path);
 	int item_len = 0;
 	int tb_init = 0;
-	struct cpu_key cpu_key;
+	struct cpu_key cpu_key = {};
 	int retval;
 	int quota_cut_bytes = 0;
 
@@ -1984,8 +2003,9 @@ int reiserfs_do_truncate(struct reiserfs_transaction_handle *th,
 			pathrelse(&s_search_path);
 
 			if (update_timestamps) {
-				inode->i_mtime = current_time(inode);
-				inode->i_ctime = current_time(inode);
+				inode_set_mtime_to_ts(inode,
+						      current_time(inode));
+				inode_set_ctime_current(inode);
 			}
 			reiserfs_update_sd(th, inode);
 
@@ -2009,8 +2029,8 @@ int reiserfs_do_truncate(struct reiserfs_transaction_handle *th,
 update_and_out:
 	if (update_timestamps) {
 		/* this is truncate, not file closing */
-		inode->i_mtime = current_time(inode);
-		inode->i_ctime = current_time(inode);
+		inode_set_mtime_to_ts(inode, current_time(inode));
+		inode_set_ctime_current(inode);
 	}
 	reiserfs_update_sd(th, inode);
 
@@ -2246,7 +2266,8 @@ error_out:
 	/* also releases the path */
 	unfix_nodes(&s_ins_balance);
 #ifdef REISERQUOTA_DEBUG
-	reiserfs_debug(th->t_super, REISERFS_DEBUG_CODE,
+	if (inode)
+		reiserfs_debug(th->t_super, REISERFS_DEBUG_CODE,
 		       "reiserquota insert_item(): freeing %u id=%u type=%c",
 		       quota_bytes, inode->i_uid, head2type(ih));
 #endif

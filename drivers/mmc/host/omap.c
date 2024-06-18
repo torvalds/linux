@@ -26,6 +26,7 @@
 #include <linux/clk.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
+#include <linux/gpio/consumer.h>
 #include <linux/platform_data/mmc-omap.h>
 
 
@@ -111,6 +112,9 @@ struct mmc_omap_slot {
 	struct mmc_request      *mrq;
 	struct mmc_omap_host    *host;
 	struct mmc_host		*mmc;
+	struct gpio_desc	*vsd;
+	struct gpio_desc	*vio;
+	struct gpio_desc	*cover;
 	struct omap_mmc_slot_data *pdata;
 };
 
@@ -133,6 +137,7 @@ struct mmc_omap_host {
 	int			irq;
 	unsigned char		bus_mode;
 	unsigned int		reg_shift;
+	struct gpio_desc	*slot_switch;
 
 	struct work_struct	cmd_abort_work;
 	unsigned		abort:1;
@@ -143,10 +148,8 @@ struct mmc_omap_host {
 	struct work_struct      send_stop_work;
 	struct mmc_data		*stop_data;
 
+	struct sg_mapping_iter	sg_miter;
 	unsigned int		sg_len;
-	int			sg_idx;
-	u16 *			buffer;
-	u32			buffer_bytes_left;
 	u32			total_bytes_left;
 
 	unsigned		features;
@@ -216,8 +219,13 @@ no_claim:
 
 	if (host->current_slot != slot) {
 		OMAP_MMC_WRITE(host, CON, slot->saved_con & 0xFC00);
-		if (host->pdata->switch_slot != NULL)
-			host->pdata->switch_slot(mmc_dev(slot->mmc), slot->id);
+		if (host->slot_switch)
+			/*
+			 * With two slots and a simple GPIO switch, setting
+			 * the GPIO to 0 selects slot ID 0, setting it to 1
+			 * selects slot ID 1.
+			 */
+			gpiod_set_value(host->slot_switch, slot->id);
 		host->current_slot = slot;
 	}
 
@@ -297,6 +305,9 @@ static void mmc_omap_release_slot(struct mmc_omap_slot *slot, int clk_enabled)
 static inline
 int mmc_omap_cover_is_open(struct mmc_omap_slot *slot)
 {
+	/* If we have a GPIO then use that */
+	if (slot->cover)
+		return gpiod_get_value(slot->cover);
 	if (slot->pdata->get_cover_state)
 		return slot->pdata->get_cover_state(mmc_dev(slot->mmc),
 						    slot->id);
@@ -443,6 +454,8 @@ mmc_omap_xfer_done(struct mmc_omap_host *host, struct mmc_data *data)
 {
 	if (host->dma_in_use)
 		mmc_omap_release_dma(host, data, data->error);
+	else
+		sg_miter_stop(&host->sg_miter);
 
 	host->data = NULL;
 	host->sg_len = 0;
@@ -638,19 +651,6 @@ mmc_omap_cmd_timer(struct timer_list *t)
 	spin_unlock_irqrestore(&host->slot_lock, flags);
 }
 
-/* PIO only */
-static void
-mmc_omap_sg_to_buf(struct mmc_omap_host *host)
-{
-	struct scatterlist *sg;
-
-	sg = host->data->sg + host->sg_idx;
-	host->buffer_bytes_left = sg->length;
-	host->buffer = sg_virt(sg);
-	if (host->buffer_bytes_left > host->total_bytes_left)
-		host->buffer_bytes_left = host->total_bytes_left;
-}
-
 static void
 mmc_omap_clk_timer(struct timer_list *t)
 {
@@ -663,33 +663,37 @@ mmc_omap_clk_timer(struct timer_list *t)
 static void
 mmc_omap_xfer_data(struct mmc_omap_host *host, int write)
 {
+	struct sg_mapping_iter *sgm = &host->sg_miter;
 	int n, nwords;
+	u16 *buffer;
 
-	if (host->buffer_bytes_left == 0) {
-		host->sg_idx++;
-		BUG_ON(host->sg_idx == host->sg_len);
-		mmc_omap_sg_to_buf(host);
+	if (!sg_miter_next(sgm)) {
+		/* This should not happen */
+		dev_err(mmc_dev(host->mmc), "ran out of scatterlist prematurely\n");
+		return;
 	}
+	buffer = sgm->addr;
+
 	n = 64;
-	if (n > host->buffer_bytes_left)
-		n = host->buffer_bytes_left;
+	if (n > sgm->length)
+		n = sgm->length;
+	if (n > host->total_bytes_left)
+		n = host->total_bytes_left;
 
 	/* Round up to handle odd number of bytes to transfer */
 	nwords = DIV_ROUND_UP(n, 2);
 
-	host->buffer_bytes_left -= n;
+	sgm->consumed = n;
 	host->total_bytes_left -= n;
 	host->data->bytes_xfered += n;
 
 	if (write) {
 		__raw_writesw(host->virt_base + OMAP_MMC_REG(host, DATA),
-			      host->buffer, nwords);
+			      buffer, nwords);
 	} else {
 		__raw_readsw(host->virt_base + OMAP_MMC_REG(host, DATA),
-			     host->buffer, nwords);
+			     buffer, nwords);
 	}
-
-	host->buffer += nwords;
 }
 
 #ifdef CONFIG_MMC_DEBUG
@@ -878,9 +882,9 @@ static void mmc_omap_cover_timer(struct timer_list *t)
 	tasklet_schedule(&slot->cover_tasklet);
 }
 
-static void mmc_omap_cover_handler(unsigned long param)
+static void mmc_omap_cover_handler(struct tasklet_struct *t)
 {
-	struct mmc_omap_slot *slot = (struct mmc_omap_slot *)param;
+	struct mmc_omap_slot *slot = from_tasklet(slot, t, cover_tasklet);
 	int cover_open = mmc_omap_cover_is_open(slot);
 
 	mmc_detect_change(slot->mmc, 0);
@@ -943,6 +947,7 @@ static inline void set_data_timeout(struct mmc_omap_host *host, struct mmc_reque
 static void
 mmc_omap_prepare_data(struct mmc_omap_host *host, struct mmc_request *req)
 {
+	unsigned int miter_flags = SG_MITER_ATOMIC; /* Used from IRQ */
 	struct mmc_data *data = req->data;
 	int i, use_dma = 1, block_size;
 	struct scatterlist *sg;
@@ -977,7 +982,6 @@ mmc_omap_prepare_data(struct mmc_omap_host *host, struct mmc_request *req)
 		}
 	}
 
-	host->sg_idx = 0;
 	if (use_dma) {
 		enum dma_data_direction dma_data_dir;
 		struct dma_async_tx_descriptor *tx;
@@ -1058,7 +1062,11 @@ mmc_omap_prepare_data(struct mmc_omap_host *host, struct mmc_request *req)
 	OMAP_MMC_WRITE(host, BUF, 0x1f1f);
 	host->total_bytes_left = data->blocks * block_size;
 	host->sg_len = sg_len;
-	mmc_omap_sg_to_buf(host);
+	if (data->flags & MMC_DATA_READ)
+		miter_flags |= SG_MITER_TO_SG;
+	else
+		miter_flags |= SG_MITER_FROM_SG;
+	sg_miter_start(&host->sg_miter, data->sg, data->sg_len, miter_flags);
 	host->dma_in_use = 0;
 }
 
@@ -1105,6 +1113,26 @@ static void mmc_omap_set_power(struct mmc_omap_slot *slot, int power_on,
 	struct mmc_omap_host *host;
 
 	host = slot->host;
+
+	if (power_on) {
+		if (slot->vsd) {
+			gpiod_set_value(slot->vsd, power_on);
+			msleep(1);
+		}
+		if (slot->vio) {
+			gpiod_set_value(slot->vio, power_on);
+			msleep(1);
+		}
+	} else {
+		if (slot->vio) {
+			gpiod_set_value(slot->vio, power_on);
+			msleep(50);
+		}
+		if (slot->vsd) {
+			gpiod_set_value(slot->vsd, power_on);
+			msleep(50);
+		}
+	}
 
 	if (slot->pdata->set_power != NULL)
 		slot->pdata->set_power(mmc_dev(slot->mmc), slot->id, power_on,
@@ -1240,11 +1268,28 @@ static int mmc_omap_new_slot(struct mmc_omap_host *host, int id)
 	slot->power_mode = MMC_POWER_UNDEFINED;
 	slot->pdata = &host->pdata->slots[id];
 
+	/* Check for some optional GPIO controls */
+	slot->vsd = devm_gpiod_get_index_optional(host->dev, "vsd",
+						  id, GPIOD_OUT_LOW);
+	if (IS_ERR(slot->vsd))
+		return dev_err_probe(host->dev, PTR_ERR(slot->vsd),
+				     "error looking up VSD GPIO\n");
+	slot->vio = devm_gpiod_get_index_optional(host->dev, "vio",
+						  id, GPIOD_OUT_LOW);
+	if (IS_ERR(slot->vio))
+		return dev_err_probe(host->dev, PTR_ERR(slot->vio),
+				     "error looking up VIO GPIO\n");
+	slot->cover = devm_gpiod_get_index_optional(host->dev, "cover",
+						    id, GPIOD_IN);
+	if (IS_ERR(slot->cover))
+		return dev_err_probe(host->dev, PTR_ERR(slot->cover),
+				     "error looking up cover switch GPIO\n");
+
 	host->slots[id] = slot;
 
 	mmc->caps = 0;
 	if (host->pdata->slots[id].wires >= 4)
-		mmc->caps |= MMC_CAP_4_BIT_DATA | MMC_CAP_ERASE;
+		mmc->caps |= MMC_CAP_4_BIT_DATA;
 
 	mmc->ops = &mmc_omap_ops;
 	mmc->f_min = 400000;
@@ -1269,8 +1314,7 @@ static int mmc_omap_new_slot(struct mmc_omap_host *host, int id)
 
 	if (slot->pdata->get_cover_state != NULL) {
 		timer_setup(&slot->cover_timer, mmc_omap_cover_timer, 0);
-		tasklet_init(&slot->cover_tasklet, mmc_omap_cover_handler,
-			     (unsigned long)slot);
+		tasklet_setup(&slot->cover_tasklet, mmc_omap_cover_handler);
 	}
 
 	r = mmc_add_host(mmc);
@@ -1344,10 +1388,9 @@ static int mmc_omap_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
-		return -ENXIO;
+		return irq;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	host->virt_base = devm_ioremap_resource(&pdev->dev, res);
+	host->virt_base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(host->virt_base))
 		return PTR_ERR(host->virt_base);
 
@@ -1369,13 +1412,19 @@ static int mmc_omap_probe(struct platform_device *pdev)
 	host->dev = &pdev->dev;
 	platform_set_drvdata(pdev, host);
 
+	host->slot_switch = devm_gpiod_get_optional(host->dev, "switch",
+						    GPIOD_OUT_LOW);
+	if (IS_ERR(host->slot_switch))
+		return dev_err_probe(host->dev, PTR_ERR(host->slot_switch),
+				     "error looking up slot switch GPIO\n");
+
 	host->id = pdev->id;
 	host->irq = irq;
 	host->phys_base = res->start;
 	host->iclk = clk_get(&pdev->dev, "ick");
 	if (IS_ERR(host->iclk))
 		return PTR_ERR(host->iclk);
-	clk_enable(host->iclk);
+	clk_prepare_enable(host->iclk);
 
 	host->fclk = clk_get(&pdev->dev, "fck");
 	if (IS_ERR(host->fclk)) {
@@ -1383,16 +1432,18 @@ static int mmc_omap_probe(struct platform_device *pdev)
 		goto err_free_iclk;
 	}
 
+	ret = clk_prepare(host->fclk);
+	if (ret)
+		goto err_put_fclk;
+
 	host->dma_tx_burst = -1;
 	host->dma_rx_burst = -1;
 
 	host->dma_tx = dma_request_chan(&pdev->dev, "tx");
 	if (IS_ERR(host->dma_tx)) {
 		ret = PTR_ERR(host->dma_tx);
-		if (ret == -EPROBE_DEFER) {
-			clk_put(host->fclk);
-			goto err_free_iclk;
-		}
+		if (ret == -EPROBE_DEFER)
+			goto err_free_fclk;
 
 		host->dma_tx = NULL;
 		dev_warn(host->dev, "TX DMA channel request failed\n");
@@ -1404,8 +1455,7 @@ static int mmc_omap_probe(struct platform_device *pdev)
 		if (ret == -EPROBE_DEFER) {
 			if (host->dma_tx)
 				dma_release_channel(host->dma_tx);
-			clk_put(host->fclk);
-			goto err_free_iclk;
+			goto err_free_fclk;
 		}
 
 		host->dma_rx = NULL;
@@ -1455,14 +1505,17 @@ err_free_dma:
 		dma_release_channel(host->dma_tx);
 	if (host->dma_rx)
 		dma_release_channel(host->dma_rx);
+err_free_fclk:
+	clk_unprepare(host->fclk);
+err_put_fclk:
 	clk_put(host->fclk);
 err_free_iclk:
-	clk_disable(host->iclk);
+	clk_disable_unprepare(host->iclk);
 	clk_put(host->iclk);
 	return ret;
 }
 
-static int mmc_omap_remove(struct platform_device *pdev)
+static void mmc_omap_remove(struct platform_device *pdev)
 {
 	struct mmc_omap_host *host = platform_get_drvdata(pdev);
 	int i;
@@ -1477,8 +1530,9 @@ static int mmc_omap_remove(struct platform_device *pdev)
 
 	mmc_omap_fclk_enable(host, 0);
 	free_irq(host->irq, host);
+	clk_unprepare(host->fclk);
 	clk_put(host->fclk);
-	clk_disable(host->iclk);
+	clk_disable_unprepare(host->iclk);
 	clk_put(host->iclk);
 
 	if (host->dma_tx)
@@ -1487,8 +1541,6 @@ static int mmc_omap_remove(struct platform_device *pdev)
 		dma_release_channel(host->dma_rx);
 
 	destroy_workqueue(host->mmc_omap_wq);
-
-	return 0;
 }
 
 #if IS_BUILTIN(CONFIG_OF)
@@ -1501,9 +1553,10 @@ MODULE_DEVICE_TABLE(of, mmc_omap_match);
 
 static struct platform_driver mmc_omap_driver = {
 	.probe		= mmc_omap_probe,
-	.remove		= mmc_omap_remove,
+	.remove_new	= mmc_omap_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(mmc_omap_match),
 	},
 };

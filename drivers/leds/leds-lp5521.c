@@ -58,14 +58,11 @@
 /* CONFIG register */
 #define LP5521_PWM_HF			0x40	/* PWM: 0 = 256Hz, 1 = 558Hz */
 #define LP5521_PWRSAVE_EN		0x20	/* 1 = Power save mode */
-#define LP5521_CP_MODE_OFF		0	/* Charge pump (CP) off */
-#define LP5521_CP_MODE_BYPASS		8	/* CP forced to bypass mode */
-#define LP5521_CP_MODE_1X5		0x10	/* CP forced to 1.5x mode */
-#define LP5521_CP_MODE_AUTO		0x18	/* Automatic mode selection */
+#define LP5521_CP_MODE_MASK		0x18	/* Charge pump mode */
+#define LP5521_CP_MODE_SHIFT		3
 #define LP5521_R_TO_BATT		0x04	/* R out: 0 = CP, 1 = Vbat */
 #define LP5521_CLK_INT			0x01	/* Internal clock */
-#define LP5521_DEFAULT_CFG		\
-	(LP5521_PWM_HF | LP5521_PWRSAVE_EN | LP5521_CP_MODE_AUTO)
+#define LP5521_DEFAULT_CFG		(LP5521_PWM_HF | LP5521_PWRSAVE_EN)
 
 /* Status */
 #define LP5521_EXT_CLK_USED		0x08
@@ -304,11 +301,15 @@ static int lp5521_post_init_device(struct lp55xx_chip *chip)
 
 	/* Set all PWMs to direct control mode */
 	ret = lp55xx_write(chip, LP5521_REG_OP_MODE, LP5521_CMD_DIRECT);
+	if (ret)
+		return ret;
 
 	/* Update configuration for the clock setting */
 	val = LP5521_DEFAULT_CFG;
 	if (!lp55xx_is_extclk_used(chip))
 		val |= LP5521_CLK_INT;
+
+	val |= (chip->pdata->charge_pump_mode << LP5521_CP_MODE_SHIFT) & LP5521_CP_MODE_MASK;
 
 	ret = lp55xx_write(chip, LP5521_REG_CONFIG, val);
 	if (ret)
@@ -347,6 +348,25 @@ static int lp5521_run_selftest(struct lp55xx_chip *chip, char *buf)
 		return -EIO;
 
 	return 0;
+}
+
+static int lp5521_multicolor_brightness(struct lp55xx_led *led)
+{
+	struct lp55xx_chip *chip = led->chip;
+	int ret;
+	int i;
+
+	mutex_lock(&chip->lock);
+	for (i = 0; i < led->mc_cdev.num_colors; i++) {
+		ret = lp55xx_write(chip,
+				   LP5521_REG_LED_PWM_BASE +
+				   led->mc_cdev.subled_info[i].channel,
+				   led->mc_cdev.subled_info[i].brightness);
+		if (ret)
+			break;
+	}
+	mutex_unlock(&chip->lock);
+	return ret;
 }
 
 static int lp5521_led_brightness(struct lp55xx_led *led)
@@ -450,7 +470,7 @@ static ssize_t lp5521_selftest(struct device *dev,
 	ret = lp5521_run_selftest(chip, buf);
 	mutex_unlock(&chip->lock);
 
-	return scnprintf(buf, PAGE_SIZE, "%s\n", ret ? "FAIL" : "OK");
+	return sysfs_emit(buf, "%s\n", ret ? "FAIL" : "OK");
 }
 
 /* device attributes */
@@ -490,24 +510,32 @@ static struct lp55xx_device_config lp5521_cfg = {
 	.max_channel  = LP5521_MAX_LEDS,
 	.post_init_device   = lp5521_post_init_device,
 	.brightness_fn      = lp5521_led_brightness,
+	.multicolor_brightness_fn = lp5521_multicolor_brightness,
 	.set_led_current    = lp5521_set_led_current,
 	.firmware_cb        = lp5521_firmware_loaded,
 	.run_engine         = lp5521_run_engine,
 	.dev_attr_group     = &lp5521_group,
 };
 
-static int lp5521_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int lp5521_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	int ret;
 	struct lp55xx_chip *chip;
 	struct lp55xx_led *led;
 	struct lp55xx_platform_data *pdata = dev_get_platdata(&client->dev);
-	struct device_node *np = client->dev.of_node;
+	struct device_node *np = dev_of_node(&client->dev);
+
+	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
+	if (!chip)
+		return -ENOMEM;
+
+	chip->cfg = &lp5521_cfg;
 
 	if (!pdata) {
 		if (np) {
-			pdata = lp55xx_of_populate_pdata(&client->dev, np);
+			pdata = lp55xx_of_populate_pdata(&client->dev, np,
+							 chip);
 			if (IS_ERR(pdata))
 				return PTR_ERR(pdata);
 		} else {
@@ -516,10 +544,6 @@ static int lp5521_probe(struct i2c_client *client,
 		}
 	}
 
-	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
-	if (!chip)
-		return -ENOMEM;
-
 	led = devm_kcalloc(&client->dev,
 			pdata->num_channels, sizeof(*led), GFP_KERNEL);
 	if (!led)
@@ -527,7 +551,6 @@ static int lp5521_probe(struct i2c_client *client,
 
 	chip->cl = client;
 	chip->pdata = pdata;
-	chip->cfg = &lp5521_cfg;
 
 	mutex_init(&chip->lock);
 
@@ -541,35 +564,30 @@ static int lp5521_probe(struct i2c_client *client,
 
 	ret = lp55xx_register_leds(led, chip);
 	if (ret)
-		goto err_register_leds;
+		goto err_out;
 
 	ret = lp55xx_register_sysfs(chip);
 	if (ret) {
 		dev_err(&client->dev, "registering sysfs failed\n");
-		goto err_register_sysfs;
+		goto err_out;
 	}
 
 	return 0;
 
-err_register_sysfs:
-	lp55xx_unregister_leds(led, chip);
-err_register_leds:
+err_out:
 	lp55xx_deinit_device(chip);
 err_init:
 	return ret;
 }
 
-static int lp5521_remove(struct i2c_client *client)
+static void lp5521_remove(struct i2c_client *client)
 {
 	struct lp55xx_led *led = i2c_get_clientdata(client);
 	struct lp55xx_chip *chip = led->chip;
 
 	lp5521_stop_all_engines(chip);
 	lp55xx_unregister_sysfs(chip);
-	lp55xx_unregister_leds(led, chip);
 	lp55xx_deinit_device(chip);
-
-	return 0;
 }
 
 static const struct i2c_device_id lp5521_id[] = {
@@ -578,18 +596,17 @@ static const struct i2c_device_id lp5521_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, lp5521_id);
 
-#ifdef CONFIG_OF
 static const struct of_device_id of_lp5521_leds_match[] = {
 	{ .compatible = "national,lp5521", },
 	{},
 };
 
 MODULE_DEVICE_TABLE(of, of_lp5521_leds_match);
-#endif
+
 static struct i2c_driver lp5521_driver = {
 	.driver = {
 		.name	= "lp5521",
-		.of_match_table = of_match_ptr(of_lp5521_leds_match),
+		.of_match_table = of_lp5521_leds_match,
 	},
 	.probe		= lp5521_probe,
 	.remove		= lp5521_remove,

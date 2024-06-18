@@ -35,6 +35,7 @@
 #define HIDEEP_EVENT_ADDR		0x240
 
 /* command list */
+#define HIDEEP_WORK_MODE		0x081e
 #define HIDEEP_RESET_CMD		0x9800
 
 /* event bit */
@@ -271,9 +272,14 @@ static int hideep_pgm_w_reg(struct hideep_ts *ts, u32 addr, u32 val)
 
 #define SW_RESET_IN_PGM(clk)					\
 {								\
+	__be32 data = cpu_to_be32(0x01);			\
 	hideep_pgm_w_reg(ts, HIDEEP_SYSCON_WDT_CNT, (clk));	\
 	hideep_pgm_w_reg(ts, HIDEEP_SYSCON_WDT_CON, 0x03);	\
-	hideep_pgm_w_reg(ts, HIDEEP_SYSCON_WDT_CON, 0x01);	\
+	/*							\
+	 * The first write may already cause a reset, use a raw	\
+	 * write for the second write to avoid error logging.	\
+	 */							\
+	hideep_pgm_w_mem(ts, HIDEEP_SYSCON_WDT_CON, &data, 1);	\
 }
 
 #define SET_FLASH_PIO(ce)					\
@@ -361,13 +367,16 @@ static int hideep_enter_pgm(struct hideep_ts *ts)
 	return -EIO;
 }
 
-static void hideep_nvm_unlock(struct hideep_ts *ts)
+static int hideep_nvm_unlock(struct hideep_ts *ts)
 {
 	u32 unmask_code;
+	int error;
 
 	hideep_pgm_w_reg(ts, HIDEEP_FLASH_CFG, HIDEEP_NVM_SFR_RPAGE);
-	hideep_pgm_r_reg(ts, 0x0000000C, &unmask_code);
+	error = hideep_pgm_r_reg(ts, 0x0000000C, &unmask_code);
 	hideep_pgm_w_reg(ts, HIDEEP_FLASH_CFG, HIDEEP_NVM_DEFAULT_PAGE);
+	if (error)
+		return error;
 
 	/* make it unprotected code */
 	unmask_code &= ~HIDEEP_PROT_MODE;
@@ -384,6 +393,8 @@ static void hideep_nvm_unlock(struct hideep_ts *ts)
 	NVM_W_SFR(HIDEEP_NVM_MASK_OFS, ts->nvm_mask);
 	SET_FLASH_HWCONTROL();
 	hideep_pgm_w_reg(ts, HIDEEP_FLASH_CFG, HIDEEP_NVM_DEFAULT_PAGE);
+
+	return 0;
 }
 
 static int hideep_check_status(struct hideep_ts *ts)
@@ -462,7 +473,9 @@ static int hideep_program_nvm(struct hideep_ts *ts,
 	u32 addr = 0;
 	int error;
 
-	hideep_nvm_unlock(ts);
+	error = hideep_nvm_unlock(ts);
+	if (error)
+		return error;
 
 	while (ucode_len > 0) {
 		xfer_len = min_t(size_t, ucode_len, HIDEEP_NVM_PAGE_SIZE);
@@ -915,8 +928,7 @@ static ssize_t hideep_fw_version_show(struct device *dev,
 	ssize_t len;
 
 	mutex_lock(&ts->dev_mutex);
-	len = scnprintf(buf, PAGE_SIZE, "%04x\n",
-			be16_to_cpu(ts->dwz_info.release_ver));
+	len = sysfs_emit(buf, "%04x\n", be16_to_cpu(ts->dwz_info.release_ver));
 	mutex_unlock(&ts->dev_mutex);
 
 	return len;
@@ -930,8 +942,7 @@ static ssize_t hideep_product_id_show(struct device *dev,
 	ssize_t len;
 
 	mutex_lock(&ts->dev_mutex);
-	len = scnprintf(buf, PAGE_SIZE, "%04x\n",
-			be16_to_cpu(ts->dwz_info.product_id));
+	len = sysfs_emit(buf, "%04x\n", be16_to_cpu(ts->dwz_info.product_id));
 	mutex_unlock(&ts->dev_mutex);
 
 	return len;
@@ -941,18 +952,30 @@ static DEVICE_ATTR(version, 0664, hideep_fw_version_show, NULL);
 static DEVICE_ATTR(product_id, 0664, hideep_product_id_show, NULL);
 static DEVICE_ATTR(update_fw, 0664, NULL, hideep_update_fw);
 
-static struct attribute *hideep_ts_sysfs_entries[] = {
+static struct attribute *hideep_ts_attrs[] = {
 	&dev_attr_version.attr,
 	&dev_attr_product_id.attr,
 	&dev_attr_update_fw.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(hideep_ts);
 
-static const struct attribute_group hideep_ts_attr_group = {
-	.attrs = hideep_ts_sysfs_entries,
-};
+static void hideep_set_work_mode(struct hideep_ts *ts)
+{
+	/*
+	 * Reset touch report format to the native HiDeep 20 protocol if requested.
+	 * This is necessary to make touchscreens which come up in I2C-HID mode
+	 * work with this driver.
+	 *
+	 * Note this is a kernel internal device-property set by x86 platform code,
+	 * this MUST not be used in devicetree files without first adding it to
+	 * the DT bindings.
+	 */
+	if (device_property_read_bool(&ts->client->dev, "hideep,force-native-protocol"))
+		regmap_write(ts->reg, HIDEEP_WORK_MODE, 0x00);
+}
 
-static int __maybe_unused hideep_suspend(struct device *dev)
+static int hideep_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct hideep_ts *ts = i2c_get_clientdata(client);
@@ -963,7 +986,7 @@ static int __maybe_unused hideep_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused hideep_resume(struct device *dev)
+static int hideep_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct hideep_ts *ts = i2c_get_clientdata(client);
@@ -975,12 +998,14 @@ static int __maybe_unused hideep_resume(struct device *dev)
 		return error;
 	}
 
+	hideep_set_work_mode(ts);
+
 	enable_irq(client->irq);
 
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(hideep_pm_ops, hideep_suspend, hideep_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(hideep_pm_ops, hideep_suspend, hideep_resume);
 
 static const struct regmap_config hideep_regmap_config = {
 	.reg_bits = 16,
@@ -990,8 +1015,7 @@ static const struct regmap_config hideep_regmap_config = {
 	.max_register = 0xffff,
 };
 
-static int hideep_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int hideep_probe(struct i2c_client *client)
 {
 	struct hideep_ts *ts;
 	int error;
@@ -1052,6 +1076,8 @@ static int hideep_probe(struct i2c_client *client,
 		return error;
 	}
 
+	hideep_set_work_mode(ts);
+
 	error = hideep_init_input(ts);
 	if (error)
 		return error;
@@ -1065,18 +1091,11 @@ static int hideep_probe(struct i2c_client *client,
 		return error;
 	}
 
-	error = devm_device_add_group(&client->dev, &hideep_ts_attr_group);
-	if (error) {
-		dev_err(&client->dev,
-			"failed to add sysfs attributes: %d\n", error);
-		return error;
-	}
-
 	return 0;
 }
 
 static const struct i2c_device_id hideep_i2c_id[] = {
-	{ HIDEEP_I2C_NAME, 0 },
+	{ HIDEEP_I2C_NAME },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, hideep_i2c_id);
@@ -1100,9 +1119,10 @@ MODULE_DEVICE_TABLE(of, hideep_match_table);
 static struct i2c_driver hideep_driver = {
 	.driver = {
 		.name			= HIDEEP_I2C_NAME,
+		.dev_groups		= hideep_ts_groups,
 		.of_match_table		= of_match_ptr(hideep_match_table),
 		.acpi_match_table	= ACPI_PTR(hideep_acpi_id),
-		.pm			= &hideep_pm_ops,
+		.pm			= pm_sleep_ptr(&hideep_pm_ops),
 	},
 	.id_table	= hideep_i2c_id,
 	.probe		= hideep_probe,

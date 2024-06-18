@@ -195,7 +195,7 @@ static const struct phy_ops sr_paxc_phy_ops = {
 };
 
 static struct phy *sr_pcie_phy_xlate(struct device *dev,
-				     struct of_phandle_args *args)
+				     const struct of_phandle_args *args)
 {
 	struct sr_pcie_phy_core *core;
 	int phy_idx;
@@ -217,7 +217,6 @@ static int sr_pcie_phy_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->of_node;
 	struct sr_pcie_phy_core *core;
-	struct resource *res;
 	struct phy_provider *provider;
 	unsigned int phy_idx = 0;
 
@@ -226,9 +225,7 @@ static int sr_pcie_phy_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	core->dev = dev;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	core->base = devm_ioremap_resource(core->dev, res);
+	core->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(core->base))
 		return PTR_ERR(core->base);
 

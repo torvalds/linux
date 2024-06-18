@@ -172,8 +172,8 @@ static unsigned int radisys_qc_issue(struct ata_queued_cmd *qc)
 
 	if (adev != ap->private_data) {
 		/* UDMA timing is not shared */
-		if (adev->dma_mode < XFER_UDMA_0) {
-			if (adev->dma_mode)
+		if (adev->dma_mode < XFER_UDMA_0 || !ata_dma_enabled(adev)) {
+			if (ata_dma_enabled(adev))
 				radisys_set_dmamode(ap, adev);
 			else if (adev->pio_mode)
 				radisys_set_piomode(ap, adev);
@@ -183,7 +183,7 @@ static unsigned int radisys_qc_issue(struct ata_queued_cmd *qc)
 }
 
 
-static struct scsi_host_template radisys_sht = {
+static const struct scsi_host_template radisys_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 

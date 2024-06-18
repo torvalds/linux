@@ -1,0 +1,156 @@
+/*
+ * Copyright 2015 Timesys Corporation.
+ * Copyright 2015 General Electric Company
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License
+ *     version 2 as published by the Free Software Foundation.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/dts-v1/;
+
+#include "imx6q-bx50v3.dtsi"
+
+/ {
+	model = "General Electric B650v3";
+	compatible = "ge,imx6q-b650v3", "advantech,imx6q-ba16", "fsl,imx6q";
+
+	chosen {
+		stdout-path = &uart3;
+	};
+
+	panel-lvds0 {
+		compatible = "innolux,g121x1-l03";
+		backlight = <&backlight_lvds>;
+		power-supply = <&reg_lvds>;
+
+		port {
+			panel_in_lvds0: endpoint {
+				remote-endpoint = <&lvds0_out>;
+			};
+		};
+	};
+};
+
+&ldb {
+	status = "okay";
+
+	lvds0: lvds-channel@0 {
+		fsl,data-mapping = "spwg";
+		fsl,data-width = <24>;
+		status = "okay";
+
+		port@4 {
+			reg = <4>;
+
+			lvds0_out: endpoint {
+				remote-endpoint = <&panel_in_lvds0>;
+			};
+		};
+	};
+};
+
+&pca9539 {
+	gpio-line-names = "AMB_P_INT1#", "AMB_P_INT2#", "BT_EN", "WLAN_EN",
+			  "", "SM_D_ACT", "DP1_RST#", "",
+			  "WD15S_EN", "WD15S_DIS#", "", "",
+			  "", "", "", "";
+
+	P07-hog {
+		gpio-hog;
+		gpios = <7 0>;
+		output-low;
+		line-name = "PCA9539-P07";
+	};
+};
+
+&usbphy1 {
+	fsl,tx-cal-45-dn-ohms = <54>;
+	fsl,tx-cal-45-dp-ohms = <54>;
+	fsl,tx-d-cal = <100>;
+};
+
+&pci_root {
+	/* Intel Corporation I210 Gigabit Network Connection */
+	switch_nic: ethernet@3,0 {
+		compatible = "pci8086,1533";
+		reg = <0x00010000 0 0 0 0>;
+	};
+};
+
+&switch_ports {
+	port@0 {
+		reg = <0>;
+		label = "enacq";
+		phy-handle = <&switchphy0>;
+	};
+
+	port@1 {
+		reg = <1>;
+		label = "eneport1";
+		phy-handle = <&switchphy1>;
+	};
+
+	port@2 {
+		reg = <2>;
+		label = "enix";
+		phy-handle = <&switchphy2>;
+	};
+
+	port@3 {
+		reg = <3>;
+		label = "enid";
+		phy-handle = <&switchphy3>;
+	};
+
+	port@4 {
+		reg = <4>;
+		label = "cpu";
+		ethernet = <&switch_nic>;
+		phy-handle = <&switchphy4>;
+	};
+
+	port@5 {
+		reg = <5>;
+		label = "enembc";
+
+		/* connected to Ethernet MAC of AT91RM9200 in MII mode */
+		fixed-link {
+			speed = <100>;
+			full-duplex;
+		};
+	};
+};

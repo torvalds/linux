@@ -6,9 +6,11 @@
  * Author: Boris Brezillon <boris.brezillon@bootlin.com>
  */
 #include <linux/dmaengine.h>
+#include <linux/iopoll.h>
 #include <linux/pm_runtime.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi-mem.h>
+#include <linux/sched/task_stack.h>
 
 #include "internals.h"
 
@@ -108,15 +110,17 @@ static int spi_check_buswidth_req(struct spi_mem *mem, u8 buswidth, bool tx)
 		return 0;
 
 	case 2:
-		if ((tx && (mode & (SPI_TX_DUAL | SPI_TX_QUAD))) ||
-		    (!tx && (mode & (SPI_RX_DUAL | SPI_RX_QUAD))))
+		if ((tx &&
+		     (mode & (SPI_TX_DUAL | SPI_TX_QUAD | SPI_TX_OCTAL))) ||
+		    (!tx &&
+		     (mode & (SPI_RX_DUAL | SPI_RX_QUAD | SPI_RX_OCTAL))))
 			return 0;
 
 		break;
 
 	case 4:
-		if ((tx && (mode & SPI_TX_QUAD)) ||
-		    (!tx && (mode & SPI_RX_QUAD)))
+		if ((tx && (mode & (SPI_TX_QUAD | SPI_TX_OCTAL))) ||
+		    (!tx && (mode & (SPI_RX_QUAD | SPI_RX_OCTAL))))
 			return 0;
 
 		break;
@@ -135,8 +139,8 @@ static int spi_check_buswidth_req(struct spi_mem *mem, u8 buswidth, bool tx)
 	return -ENOTSUPP;
 }
 
-bool spi_mem_default_supports_op(struct spi_mem *mem,
-				 const struct spi_mem_op *op)
+static bool spi_mem_check_buswidth(struct spi_mem *mem,
+				   const struct spi_mem_op *op)
 {
 	if (spi_check_buswidth_req(mem, op->cmd.buswidth, true))
 		return false;
@@ -156,6 +160,32 @@ bool spi_mem_default_supports_op(struct spi_mem *mem,
 
 	return true;
 }
+
+bool spi_mem_default_supports_op(struct spi_mem *mem,
+				 const struct spi_mem_op *op)
+{
+	struct spi_controller *ctlr = mem->spi->controller;
+	bool op_is_dtr =
+		op->cmd.dtr || op->addr.dtr || op->dummy.dtr || op->data.dtr;
+
+	if (op_is_dtr) {
+		if (!spi_mem_controller_is_capable(ctlr, dtr))
+			return false;
+
+		if (op->cmd.nbytes != 2)
+			return false;
+	} else {
+		if (op->cmd.nbytes != 1)
+			return false;
+	}
+
+	if (op->data.ecc) {
+		if (!spi_mem_controller_is_capable(ctlr, ecc))
+			return false;
+	}
+
+	return spi_mem_check_buswidth(mem, op);
+}
 EXPORT_SYMBOL_GPL(spi_mem_default_supports_op);
 
 static bool spi_mem_buswidth_is_valid(u8 buswidth)
@@ -168,7 +198,7 @@ static bool spi_mem_buswidth_is_valid(u8 buswidth)
 
 static int spi_mem_check_op(const struct spi_mem_op *op)
 {
-	if (!op->cmd.buswidth)
+	if (!op->cmd.buswidth || !op->cmd.nbytes)
 		return -EINVAL;
 
 	if ((op->addr.nbytes && !op->addr.buswidth) ||
@@ -180,6 +210,15 @@ static int spi_mem_check_op(const struct spi_mem_op *op)
 	    !spi_mem_buswidth_is_valid(op->addr.buswidth) ||
 	    !spi_mem_buswidth_is_valid(op->dummy.buswidth) ||
 	    !spi_mem_buswidth_is_valid(op->data.buswidth))
+		return -EINVAL;
+
+	/* Buffers must be DMA-able. */
+	if (WARN_ON_ONCE(op->data.dir == SPI_MEM_DATA_IN &&
+			 object_is_on_stack(op->data.buf.in)))
+		return -EINVAL;
+
+	if (WARN_ON_ONCE(op->data.dir == SPI_MEM_DATA_OUT &&
+			 object_is_on_stack(op->data.buf.out)))
 		return -EINVAL;
 
 	return 0;
@@ -233,7 +272,7 @@ static int spi_mem_access_start(struct spi_mem *mem)
 	if (ctlr->auto_runtime_pm) {
 		int ret;
 
-		ret = pm_runtime_get_sync(ctlr->dev.parent);
+		ret = pm_runtime_resume_and_get(ctlr->dev.parent);
 		if (ret < 0) {
 			dev_err(&ctlr->dev, "Failed to power device: %d\n",
 				ret);
@@ -256,6 +295,49 @@ static void spi_mem_access_end(struct spi_mem *mem)
 
 	if (ctlr->auto_runtime_pm)
 		pm_runtime_put(ctlr->dev.parent);
+}
+
+static void spi_mem_add_op_stats(struct spi_statistics __percpu *pcpu_stats,
+				 const struct spi_mem_op *op, int exec_op_ret)
+{
+	struct spi_statistics *stats;
+	u64 len, l2len;
+
+	get_cpu();
+	stats = this_cpu_ptr(pcpu_stats);
+	u64_stats_update_begin(&stats->syncp);
+
+	/*
+	 * We do not have the concept of messages or transfers. Let's consider
+	 * that one operation is equivalent to one message and one transfer.
+	 */
+	u64_stats_inc(&stats->messages);
+	u64_stats_inc(&stats->transfers);
+
+	/* Use the sum of all lengths as bytes count and histogram value. */
+	len = op->cmd.nbytes + op->addr.nbytes;
+	len += op->dummy.nbytes + op->data.nbytes;
+	u64_stats_add(&stats->bytes, len);
+	l2len = min(fls(len), SPI_STATISTICS_HISTO_SIZE) - 1;
+	u64_stats_inc(&stats->transfer_bytes_histo[l2len]);
+
+	/* Only account for data bytes as transferred bytes. */
+	if (op->data.nbytes && op->data.dir == SPI_MEM_DATA_OUT)
+		u64_stats_add(&stats->bytes_tx, op->data.nbytes);
+	if (op->data.nbytes && op->data.dir == SPI_MEM_DATA_IN)
+		u64_stats_add(&stats->bytes_rx, op->data.nbytes);
+
+	/*
+	 * A timeout is not an error, following the same behavior as
+	 * spi_transfer_one_message().
+	 */
+	if (exec_op_ret == -ETIMEDOUT)
+		u64_stats_inc(&stats->timedout);
+	else if (exec_op_ret)
+		u64_stats_inc(&stats->errors);
+
+	u64_stats_update_end(&stats->syncp);
+	put_cpu();
 }
 
 /**
@@ -284,9 +366,9 @@ int spi_mem_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 		return ret;
 
 	if (!spi_mem_internal_supports_op(mem, op))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
-	if (ctlr->mem_ops) {
+	if (ctlr->mem_ops && ctlr->mem_ops->exec_op && !spi_get_csgpiod(mem->spi, 0)) {
 		ret = spi_mem_access_start(mem);
 		if (ret)
 			return ret;
@@ -300,12 +382,15 @@ int spi_mem_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 		 * read path) and expect the core to use the regular SPI
 		 * interface in other cases.
 		 */
-		if (!ret || ret != -ENOTSUPP)
+		if (!ret || (ret != -ENOTSUPP && ret != -EOPNOTSUPP)) {
+			spi_mem_add_op_stats(ctlr->pcpu_statistics, op, ret);
+			spi_mem_add_op_stats(mem->spi->pcpu_statistics, op, ret);
+
 			return ret;
+		}
 	}
 
-	tmpbufsize = sizeof(op->cmd.opcode) + op->addr.nbytes +
-		     op->dummy.nbytes;
+	tmpbufsize = op->cmd.nbytes + op->addr.nbytes + op->dummy.nbytes;
 
 	/*
 	 * Allocate a buffer to transmit the CMD, ADDR cycles with kmalloc() so
@@ -320,7 +405,7 @@ int spi_mem_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 
 	tmpbuf[0] = op->cmd.opcode;
 	xfers[xferpos].tx_buf = tmpbuf;
-	xfers[xferpos].len = sizeof(op->cmd.opcode);
+	xfers[xferpos].len = op->cmd.nbytes;
 	xfers[xferpos].tx_nbits = op->cmd.buswidth;
 	spi_message_add_tail(&xfers[xferpos], &msg);
 	xferpos++;
@@ -346,6 +431,7 @@ int spi_mem_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 		xfers[xferpos].tx_buf = tmpbuf + op->addr.nbytes + 1;
 		xfers[xferpos].len = op->dummy.nbytes;
 		xfers[xferpos].tx_nbits = op->dummy.buswidth;
+		xfers[xferpos].dummy_data = 1;
 		spi_message_add_tail(&xfers[xferpos], &msg);
 		xferpos++;
 		totalxferlen += op->dummy.nbytes;
@@ -418,12 +504,12 @@ int spi_mem_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
 	struct spi_controller *ctlr = mem->spi->controller;
 	size_t len;
 
-	len = sizeof(op->cmd.opcode) + op->addr.nbytes + op->dummy.nbytes;
-
 	if (ctlr->mem_ops && ctlr->mem_ops->adjust_op_size)
 		return ctlr->mem_ops->adjust_op_size(mem, op);
 
 	if (!ctlr->mem_ops || !ctlr->mem_ops->exec_op) {
+		len = op->cmd.nbytes + op->addr.nbytes + op->dummy.nbytes;
+
 		if (len > spi_max_transfer_size(mem->spi))
 			return -EINVAL;
 
@@ -487,7 +573,7 @@ static ssize_t spi_mem_no_dirmap_write(struct spi_mem_dirmap_desc *desc,
  * This function is creating a direct mapping descriptor which can then be used
  * to access the memory using spi_mem_dirmap_read() or spi_mem_dirmap_write().
  * If the SPI controller driver does not support direct mapping, this function
- * fallback to an implementation using spi_mem_exec_op(), so that the caller
+ * falls back to an implementation using spi_mem_exec_op(), so that the caller
  * doesn't have to bother implementing a fallback on his own.
  *
  * Return: a valid pointer in case of success, and ERR_PTR() otherwise.
@@ -520,7 +606,7 @@ spi_mem_dirmap_create(struct spi_mem *mem,
 	if (ret) {
 		desc->nodirmap = true;
 		if (!spi_mem_supports_op(desc->mem, &desc->info.op_tmpl))
-			ret = -ENOTSUPP;
+			ret = -EOPNOTSUPP;
 		else
 			ret = 0;
 	}
@@ -596,10 +682,10 @@ EXPORT_SYMBOL_GPL(devm_spi_mem_dirmap_create);
 
 static int devm_spi_mem_dirmap_match(struct device *dev, void *res, void *data)
 {
-        struct spi_mem_dirmap_desc **ptr = res;
+	struct spi_mem_dirmap_desc **ptr = res;
 
-        if (WARN_ON(!ptr || !*ptr))
-                return 0;
+	if (WARN_ON(!ptr || !*ptr))
+		return 0;
 
 	return *ptr == data;
 }
@@ -718,6 +804,91 @@ static inline struct spi_mem_driver *to_spi_mem_drv(struct device_driver *drv)
 	return container_of(drv, struct spi_mem_driver, spidrv.driver);
 }
 
+static int spi_mem_read_status(struct spi_mem *mem,
+			       const struct spi_mem_op *op,
+			       u16 *status)
+{
+	const u8 *bytes = (u8 *)op->data.buf.in;
+	int ret;
+
+	ret = spi_mem_exec_op(mem, op);
+	if (ret)
+		return ret;
+
+	if (op->data.nbytes > 1)
+		*status = ((u16)bytes[0] << 8) | bytes[1];
+	else
+		*status = bytes[0];
+
+	return 0;
+}
+
+/**
+ * spi_mem_poll_status() - Poll memory device status
+ * @mem: SPI memory device
+ * @op: the memory operation to execute
+ * @mask: status bitmask to ckeck
+ * @match: (status & mask) expected value
+ * @initial_delay_us: delay in us before starting to poll
+ * @polling_delay_us: time to sleep between reads in us
+ * @timeout_ms: timeout in milliseconds
+ *
+ * This function polls a status register and returns when
+ * (status & mask) == match or when the timeout has expired.
+ *
+ * Return: 0 in case of success, -ETIMEDOUT in case of error,
+ *         -EOPNOTSUPP if not supported.
+ */
+int spi_mem_poll_status(struct spi_mem *mem,
+			const struct spi_mem_op *op,
+			u16 mask, u16 match,
+			unsigned long initial_delay_us,
+			unsigned long polling_delay_us,
+			u16 timeout_ms)
+{
+	struct spi_controller *ctlr = mem->spi->controller;
+	int ret = -EOPNOTSUPP;
+	int read_status_ret;
+	u16 status;
+
+	if (op->data.nbytes < 1 || op->data.nbytes > 2 ||
+	    op->data.dir != SPI_MEM_DATA_IN)
+		return -EINVAL;
+
+	if (ctlr->mem_ops && ctlr->mem_ops->poll_status && !spi_get_csgpiod(mem->spi, 0)) {
+		ret = spi_mem_access_start(mem);
+		if (ret)
+			return ret;
+
+		ret = ctlr->mem_ops->poll_status(mem, op, mask, match,
+						 initial_delay_us, polling_delay_us,
+						 timeout_ms);
+
+		spi_mem_access_end(mem);
+	}
+
+	if (ret == -EOPNOTSUPP) {
+		if (!spi_mem_supports_op(mem, op))
+			return ret;
+
+		if (initial_delay_us < 10)
+			udelay(initial_delay_us);
+		else
+			usleep_range((initial_delay_us >> 2) + 1,
+				     initial_delay_us);
+
+		ret = read_poll_timeout(spi_mem_read_status, read_status_ret,
+					(read_status_ret || ((status) & mask) == match),
+					polling_delay_us, timeout_ms * 1000, false, mem,
+					op, &status);
+		if (read_status_ret)
+			return read_status_ret;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(spi_mem_poll_status);
+
 static int spi_mem_probe(struct spi_device *spi)
 {
 	struct spi_mem_driver *memdrv = to_spi_mem_drv(spi->dev.driver);
@@ -736,22 +907,20 @@ static int spi_mem_probe(struct spi_device *spi)
 		mem->name = dev_name(&spi->dev);
 
 	if (IS_ERR_OR_NULL(mem->name))
-		return PTR_ERR(mem->name);
+		return PTR_ERR_OR_ZERO(mem->name);
 
 	spi_set_drvdata(spi, mem);
 
 	return memdrv->probe(mem);
 }
 
-static int spi_mem_remove(struct spi_device *spi)
+static void spi_mem_remove(struct spi_device *spi)
 {
 	struct spi_mem_driver *memdrv = to_spi_mem_drv(spi->dev.driver);
 	struct spi_mem *mem = spi_get_drvdata(spi);
 
 	if (memdrv->remove)
-		return memdrv->remove(mem);
-
-	return 0;
+		memdrv->remove(mem);
 }
 
 static void spi_mem_shutdown(struct spi_device *spi)
@@ -785,7 +954,7 @@ int spi_mem_driver_register_with_owner(struct spi_mem_driver *memdrv,
 EXPORT_SYMBOL_GPL(spi_mem_driver_register_with_owner);
 
 /**
- * spi_mem_driver_unregister_with_owner() - Unregister a SPI memory driver
+ * spi_mem_driver_unregister() - Unregister a SPI memory driver
  * @memdrv: the SPI memory driver to unregister
  *
  * Unregisters a SPI memory driver.

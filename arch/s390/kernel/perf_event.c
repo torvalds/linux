@@ -15,34 +15,16 @@
 #include <linux/export.h>
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
+#include <linux/uaccess.h>
+#include <linux/compat.h>
 #include <linux/sysfs.h>
+#include <asm/stacktrace.h>
 #include <asm/irq.h>
 #include <asm/cpu_mf.h>
 #include <asm/lowcore.h>
 #include <asm/processor.h>
 #include <asm/sysinfo.h>
 #include <asm/unwind.h>
-
-const char *perf_pmu_name(void)
-{
-	if (cpum_cf_avail() || cpum_sf_avail())
-		return "CPU-Measurement Facilities (CPU-MF)";
-	return "pmu";
-}
-EXPORT_SYMBOL(perf_pmu_name);
-
-int perf_num_counters(void)
-{
-	int num = 0;
-
-	if (cpum_cf_avail())
-		num += PERF_CPUM_CF_MAX_CTR;
-	if (cpum_sf_avail())
-		num += PERF_CPUM_SF_MAX_CTR;
-
-	return num;
-}
-EXPORT_SYMBOL(perf_num_counters);
 
 static struct kvm_s390_sie_block *sie_block(struct pt_regs *regs)
 {
@@ -51,7 +33,7 @@ static struct kvm_s390_sie_block *sie_block(struct pt_regs *regs)
 	if (!stack)
 		return NULL;
 
-	return (struct kvm_s390_sie_block *) stack->empty1[0];
+	return (struct kvm_s390_sie_block *)stack->sie_control_block;
 }
 
 static bool is_in_guest(struct pt_regs *regs)
@@ -224,9 +206,19 @@ void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry,
 			   struct pt_regs *regs)
 {
 	struct unwind_state state;
+	unsigned long addr;
 
-	unwind_for_each_frame(&state, current, regs, 0)
-		perf_callchain_store(entry, state.ip);
+	unwind_for_each_frame(&state, current, regs, 0) {
+		addr = unwind_get_return_address(&state);
+		if (!addr || perf_callchain_store(entry, addr))
+			return;
+	}
+}
+
+void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
+			 struct pt_regs *regs)
+{
+	arch_stack_walk_user_common(NULL, NULL, entry, regs, true);
 }
 
 /* Perf definitions for PMU event attributes in sysfs */

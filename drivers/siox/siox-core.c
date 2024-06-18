@@ -498,7 +498,7 @@ static void siox_device_release(struct device *dev)
 	kfree(sdevice);
 }
 
-static struct device_type siox_device_type = {
+static const struct device_type siox_device_type = {
 	.groups = siox_device_groups,
 	.release = siox_device_release,
 };
@@ -512,40 +512,44 @@ static int siox_match(struct device *dev, struct device_driver *drv)
 	return 1;
 }
 
-static struct bus_type siox_bus_type = {
-	.name = "siox",
-	.match = siox_match,
-};
-
-static int siox_driver_probe(struct device *dev)
+static int siox_probe(struct device *dev)
 {
 	struct siox_driver *sdriver = to_siox_driver(dev->driver);
 	struct siox_device *sdevice = to_siox_device(dev);
-	int ret;
 
-	ret = sdriver->probe(sdevice);
-	return ret;
+	return sdriver->probe(sdevice);
 }
 
-static int siox_driver_remove(struct device *dev)
-{
-	struct siox_driver *sdriver =
-		container_of(dev->driver, struct siox_driver, driver);
-	struct siox_device *sdevice = to_siox_device(dev);
-	int ret;
-
-	ret = sdriver->remove(sdevice);
-	return ret;
-}
-
-static void siox_driver_shutdown(struct device *dev)
+static void siox_remove(struct device *dev)
 {
 	struct siox_driver *sdriver =
 		container_of(dev->driver, struct siox_driver, driver);
 	struct siox_device *sdevice = to_siox_device(dev);
 
-	sdriver->shutdown(sdevice);
+	if (sdriver->remove)
+		sdriver->remove(sdevice);
 }
+
+static void siox_shutdown(struct device *dev)
+{
+	struct siox_device *sdevice = to_siox_device(dev);
+	struct siox_driver *sdriver;
+
+	if (!dev->driver)
+		return;
+
+	sdriver = container_of(dev->driver, struct siox_driver, driver);
+	if (sdriver->shutdown)
+		sdriver->shutdown(sdevice);
+}
+
+static const struct bus_type siox_bus_type = {
+	.name = "siox",
+	.match = siox_match,
+	.probe = siox_probe,
+	.remove = siox_remove,
+	.shutdown = siox_shutdown,
+};
 
 static ssize_t active_show(struct device *dev,
 			   struct device_attribute *attr, char *buf)
@@ -672,7 +676,7 @@ static void siox_master_release(struct device *dev)
 	kfree(smaster);
 }
 
-static struct device_type siox_master_type = {
+static const struct device_type siox_master_type = {
 	.groups = siox_master_groups,
 	.release = siox_master_release,
 };
@@ -703,6 +707,31 @@ struct siox_master *siox_master_alloc(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(siox_master_alloc);
 
+static void devm_siox_master_put(void *data)
+{
+	struct siox_master *smaster = data;
+
+	siox_master_put(smaster);
+}
+
+struct siox_master *devm_siox_master_alloc(struct device *dev,
+					   size_t size)
+{
+	struct siox_master *smaster;
+	int ret;
+
+	smaster = siox_master_alloc(dev, size);
+	if (!smaster)
+		return NULL;
+
+	ret = devm_add_action_or_reset(dev, devm_siox_master_put, smaster);
+	if (ret)
+		return NULL;
+
+	return smaster;
+}
+EXPORT_SYMBOL_GPL(devm_siox_master_alloc);
+
 int siox_master_register(struct siox_master *smaster)
 {
 	int ret;
@@ -712,6 +741,8 @@ int siox_master_register(struct siox_master *smaster)
 
 	if (!smaster->pushpull)
 		return -EINVAL;
+
+	get_device(&smaster->dev);
 
 	dev_set_name(&smaster->dev, "siox-%d", smaster->busno);
 
@@ -763,6 +794,25 @@ void siox_master_unregister(struct siox_master *smaster)
 	put_device(&smaster->dev);
 }
 EXPORT_SYMBOL_GPL(siox_master_unregister);
+
+static void devm_siox_master_unregister(void *data)
+{
+	struct siox_master *smaster = data;
+
+	siox_master_unregister(smaster);
+}
+
+int devm_siox_master_register(struct device *dev, struct siox_master *smaster)
+{
+	int ret;
+
+	ret = siox_master_register(smaster);
+	if (ret)
+		return ret;
+
+	return devm_add_action_or_reset(dev, devm_siox_master_unregister, smaster);
+}
+EXPORT_SYMBOL_GPL(devm_siox_master_register);
 
 static struct siox_device *siox_device_add(struct siox_master *smaster,
 					   const char *type, size_t inbytes,
@@ -835,6 +885,8 @@ static struct siox_device *siox_device_add(struct siox_master *smaster,
 
 err_device_register:
 	/* don't care to make the buffer smaller again */
+	put_device(&sdevice->dev);
+	sdevice = NULL;
 
 err_buf_alloc:
 	siox_master_unlock(smaster);
@@ -882,7 +934,8 @@ int __siox_driver_register(struct siox_driver *sdriver, struct module *owner)
 	if (unlikely(!siox_is_registered))
 		return -EPROBE_DEFER;
 
-	if (!sdriver->set_data && !sdriver->get_data) {
+	if (!sdriver->probe ||
+	    (!sdriver->set_data && !sdriver->get_data)) {
 		pr_err("Driver %s doesn't provide needed callbacks\n",
 		       sdriver->driver.name);
 		return -EINVAL;
@@ -890,13 +943,6 @@ int __siox_driver_register(struct siox_driver *sdriver, struct module *owner)
 
 	sdriver->driver.owner = owner;
 	sdriver->driver.bus = &siox_bus_type;
-
-	if (sdriver->probe)
-		sdriver->driver.probe = siox_driver_probe;
-	if (sdriver->remove)
-		sdriver->driver.remove = siox_driver_remove;
-	if (sdriver->shutdown)
-		sdriver->driver.shutdown = siox_driver_shutdown;
 
 	ret = driver_register(&sdriver->driver);
 	if (ret)

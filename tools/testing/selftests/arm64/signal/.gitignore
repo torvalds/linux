@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
+mangle_*
+fake_sigreturn_*
+fpmr_*
+sme_*
+ssve_*
+sve_*
+tpidr2_*
+za_*
+zt_*
+!*.[ch]

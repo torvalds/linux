@@ -7,7 +7,7 @@
 #include <linux/types.h>
 
 #ifndef KSYM_NAME_LEN
-#define KSYM_NAME_LEN 256
+#define KSYM_NAME_LEN 512
 #endif
 
 static inline u8 kallsyms2elf_binding(char type)
@@ -17,8 +17,6 @@ static inline u8 kallsyms2elf_binding(char type)
 
 	return isupper(type) ? STB_GLOBAL : STB_LOCAL;
 }
-
-int hex2u64(const char *ptr, u64 *long_val);
 
 u8 kallsyms2elf_type(char type);
 

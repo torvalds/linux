@@ -9,6 +9,7 @@
  * This file initializes the trap entry points
  */
 
+#include <linux/cpu.h>
 #include <linux/jiffies.h>
 #include <linux/mm.h>
 #include <linux/sched/signal.h>
@@ -28,39 +29,6 @@
 #include <asm/special_insns.h>
 
 #include "proto.h"
-
-/* Work-around for some SRMs which mishandle opDEC faults.  */
-
-static int opDEC_fix;
-
-static void
-opDEC_check(void)
-{
-	__asm__ __volatile__ (
-	/* Load the address of... */
-	"	br	$16, 1f\n"
-	/* A stub instruction fault handler.  Just add 4 to the
-	   pc and continue.  */
-	"	ldq	$16, 8($sp)\n"
-	"	addq	$16, 4, $16\n"
-	"	stq	$16, 8($sp)\n"
-	"	call_pal %[rti]\n"
-	/* Install the instruction fault handler.  */
-	"1:	lda	$17, 3\n"
-	"	call_pal %[wrent]\n"
-	/* With that in place, the fault from the round-to-minf fp
-	   insn will arrive either at the "lda 4" insn (bad) or one
-	   past that (good).  This places the correct fixup in %0.  */
-	"	lda %[fix], 0\n"
-	"	cvttq/svm $f31,$f31\n"
-	"	lda %[fix], 4"
-	: [fix] "=r" (opDEC_fix)
-	: [rti] "n" (PAL_rti), [wrent] "n" (PAL_wrent)
-	: "$0", "$1", "$16", "$17", "$22", "$23", "$24", "$25");
-
-	if (opDEC_fix)
-		printk("opDEC fixup enabled.\n");
-}
 
 void
 dik_show_regs(struct pt_regs *regs, unsigned long *r9_15)
@@ -121,36 +89,34 @@ dik_show_code(unsigned int *pc)
 }
 
 static void
-dik_show_trace(unsigned long *sp)
+dik_show_trace(unsigned long *sp, const char *loglvl)
 {
 	long i = 0;
-	printk("Trace:\n");
+	printk("%sTrace:\n", loglvl);
 	while (0x1ff8 & (unsigned long) sp) {
 		extern char _stext[], _etext[];
 		unsigned long tmp = *sp;
 		sp++;
-		if (tmp < (unsigned long) &_stext)
+		if (!is_kernel_text(tmp))
 			continue;
-		if (tmp >= (unsigned long) &_etext)
-			continue;
-		printk("[<%lx>] %pSR\n", tmp, (void *)tmp);
+		printk("%s[<%lx>] %pSR\n", loglvl, tmp, (void *)tmp);
 		if (i > 40) {
-			printk(" ...");
+			printk("%s ...", loglvl);
 			break;
 		}
 	}
-	printk("\n");
+	printk("%s\n", loglvl);
 }
 
 static int kstack_depth_to_print = 24;
 
-void show_stack(struct task_struct *task, unsigned long *sp)
+void show_stack(struct task_struct *task, unsigned long *sp, const char *loglvl)
 {
 	unsigned long *stack;
 	int i;
 
 	/*
-	 * debugging aid: "show_stack(NULL);" prints the
+	 * debugging aid: "show_stack(NULL, NULL, KERN_EMERG);" prints the
 	 * back trace for this cpu.
 	 */
 	if(sp==NULL)
@@ -163,14 +129,14 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 		if ((i % 4) == 0) {
 			if (i)
 				pr_cont("\n");
-			printk("       ");
+			printk("%s       ", loglvl);
 		} else {
 			pr_cont(" ");
 		}
 		pr_cont("%016lx", *stack++);
 	}
 	pr_cont("\n");
-	dik_show_trace(sp);
+	dik_show_trace(sp, loglvl);
 }
 
 void
@@ -184,7 +150,7 @@ die_if_kernel(char * str, struct pt_regs *regs, long err, unsigned long *r9_15)
 	printk("%s(%d): %s %ld\n", current->comm, task_pid_nr(current), str, err);
 	dik_show_regs(regs, r9_15);
 	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
-	dik_show_trace((unsigned long *)(regs+1));
+	dik_show_trace((unsigned long *)(regs+1), KERN_DEFAULT);
 	dik_show_code((unsigned int *)regs->pc);
 
 	if (test_and_set_thread_flag (TIF_DIE_IF_KERNEL)) {
@@ -192,7 +158,7 @@ die_if_kernel(char * str, struct pt_regs *regs, long err, unsigned long *r9_15)
 		local_irq_enable();
 		while (1);
 	}
-	do_exit(SIGSEGV);
+	make_task_dead(SIGSEGV);
 }
 
 #ifndef CONFIG_MATHEMU
@@ -227,7 +193,7 @@ do_entArith(unsigned long summary, unsigned long write_mask,
 	}
 	die_if_kernel("Arithmetic fault", regs, 0, NULL);
 
-	send_sig_fault(SIGFPE, si_code, (void __user *) regs->pc, 0, current);
+	send_sig_fault_trapno(SIGFPE, si_code, (void __user *) regs->pc, 0, current);
 }
 
 asmlinkage void
@@ -235,7 +201,21 @@ do_entIF(unsigned long type, struct pt_regs *regs)
 {
 	int signo, code;
 
-	if ((regs->ps & ~IPL_MAX) == 0) {
+	if (type == 3) { /* FEN fault */
+		/* Irritating users can call PAL_clrfen to disable the
+		   FPU for the process.  The kernel will then trap in
+		   do_switch_stack and undo_switch_stack when we try
+		   to save and restore the FP registers.
+
+		   Given that GCC by default generates code that uses the
+		   FP registers, PAL_clrfen is not useful except for DoS
+		   attacks.  So turn the bleeding FPU back on and be done
+		   with it.  */
+		current_thread_info()->pcb.flags |= 1;
+		__reload_thread(&current_thread_info()->pcb);
+		return;
+	}
+	if (!user_mode(regs)) {
 		if (type == 1) {
 			const unsigned int *data
 			  = (const unsigned int *) regs->pc;
@@ -268,13 +248,13 @@ do_entIF(unsigned long type, struct pt_regs *regs)
 			regs->pc -= 4;	/* make pc point to former bpt */
 		}
 
-		send_sig_fault(SIGTRAP, TRAP_BRKPT, (void __user *)regs->pc, 0,
+		send_sig_fault(SIGTRAP, TRAP_BRKPT, (void __user *)regs->pc,
 			       current);
 		return;
 
 	      case 1: /* bugcheck */
-		send_sig_fault(SIGTRAP, TRAP_UNK, (void __user *) regs->pc, 0,
-			       current);
+		send_sig_fault_trapno(SIGTRAP, TRAP_UNK,
+				      (void __user *) regs->pc, 0, current);
 		return;
 		
 	      case 2: /* gentrap */
@@ -335,59 +315,19 @@ do_entIF(unsigned long type, struct pt_regs *regs)
 			break;
 		}
 
-		send_sig_fault(signo, code, (void __user *) regs->pc, regs->r16,
-			       current);
+		send_sig_fault_trapno(signo, code, (void __user *) regs->pc,
+				      regs->r16, current);
 		return;
 
 	      case 4: /* opDEC */
-		if (implver() == IMPLVER_EV4) {
-			long si_code;
-
-			/* The some versions of SRM do not handle
-			   the opDEC properly - they return the PC of the
-			   opDEC fault, not the instruction after as the
-			   Alpha architecture requires.  Here we fix it up.
-			   We do this by intentionally causing an opDEC
-			   fault during the boot sequence and testing if
-			   we get the correct PC.  If not, we set a flag
-			   to correct it every time through.  */
-			regs->pc += opDEC_fix; 
-			
-			/* EV4 does not implement anything except normal
-			   rounding.  Everything else will come here as
-			   an illegal instruction.  Emulate them.  */
-			si_code = alpha_fp_emul(regs->pc - 4);
-			if (si_code == 0)
-				return;
-			if (si_code > 0) {
-				send_sig_fault(SIGFPE, si_code,
-					       (void __user *) regs->pc, 0,
-					       current);
-				return;
-			}
-		}
 		break;
-
-	      case 3: /* FEN fault */
-		/* Irritating users can call PAL_clrfen to disable the
-		   FPU for the process.  The kernel will then trap in
-		   do_switch_stack and undo_switch_stack when we try
-		   to save and restore the FP registers.
-
-		   Given that GCC by default generates code that uses the
-		   FP registers, PAL_clrfen is not useful except for DoS
-		   attacks.  So turn the bleeding FPU back on and be done
-		   with it.  */
-		current_thread_info()->pcb.flags |= 1;
-		__reload_thread(&current_thread_info()->pcb);
-		return;
 
 	      case 5: /* illoc */
 	      default: /* unexpected instruction-fault type */
 		      ;
 	}
 
-	send_sig_fault(SIGILL, ILL_ILLOPC, (void __user *)regs->pc, 0, current);
+	send_sig_fault(SIGILL, ILL_ILLOPC, (void __user *)regs->pc, current);
 }
 
 /* There is an ifdef in the PALcode in MILO that enables a 
@@ -402,7 +342,7 @@ do_entDbg(struct pt_regs *regs)
 {
 	die_if_kernel("Instruction fault", regs, 0, NULL);
 
-	force_sig_fault(SIGILL, ILL_ILLOPC, (void __user *)regs->pc, 0);
+	force_sig_fault(SIGILL, ILL_ILLOPC, (void __user *)regs->pc);
 }
 
 
@@ -577,7 +517,7 @@ do_entUna(void * va, unsigned long opcode, unsigned long reg,
 
 	printk("Bad unaligned kernel access at %016lx: %p %lx %lu\n",
 		pc, va, opcode, reg);
-	do_exit(SIGSEGV);
+	make_task_dead(SIGSEGV);
 
 got_exception:
 	/* Ok, we caught the exception, but we don't want it.  Is there
@@ -625,14 +565,14 @@ got_exception:
 	printk("gp = %016lx  sp = %p\n", regs->gp, regs+1);
 
 	dik_show_code((unsigned int *)pc);
-	dik_show_trace((unsigned long *)(regs+1));
+	dik_show_trace((unsigned long *)(regs+1), KERN_DEFAULT);
 
 	if (test_and_set_thread_flag (TIF_DIE_IF_KERNEL)) {
 		printk("die_if_kernel recursion detected.\n");
 		local_irq_enable();
 		while (1);
 	}
-	do_exit(SIGSEGV);
+	make_task_dead(SIGSEGV);
 }
 
 /*
@@ -730,7 +670,7 @@ do_entUnaUser(void __user * va, unsigned long opcode,
 	long error;
 
 	/* Check the UAC bits to decide what the user wants us to do
-	   with the unaliged access.  */
+	   with the unaligned access.  */
 
 	if (!(current_thread_info()->status & TS_UAC_NOPRINT)) {
 		if (__ratelimit(&ratelimit)) {
@@ -883,7 +823,7 @@ do_entUnaUser(void __user * va, unsigned long opcode,
 
 	case 0x26: /* sts */
 		fake_reg = s_reg_to_mem(alpha_read_fp_reg(reg));
-		/* FALLTHRU */
+		fallthrough;
 
 	case 0x2c: /* stl */
 		__asm__ __volatile__(
@@ -911,7 +851,7 @@ do_entUnaUser(void __user * va, unsigned long opcode,
 
 	case 0x27: /* stt */
 		fake_reg = alpha_read_fp_reg(reg);
-		/* FALLTHRU */
+		fallthrough;
 
 	case 0x2d: /* stq */
 		__asm__ __volatile__(
@@ -957,19 +897,19 @@ give_sigsegv:
 		si_code = SEGV_ACCERR;
 	else {
 		struct mm_struct *mm = current->mm;
-		down_read(&mm->mmap_sem);
+		mmap_read_lock(mm);
 		if (find_vma(mm, (unsigned long)va))
 			si_code = SEGV_ACCERR;
 		else
 			si_code = SEGV_MAPERR;
-		up_read(&mm->mmap_sem);
+		mmap_read_unlock(mm);
 	}
-	send_sig_fault(SIGSEGV, si_code, va, 0, current);
+	send_sig_fault(SIGSEGV, si_code, va, current);
 	return;
 
 give_sigbus:
 	regs->pc -= 4;
-	send_sig_fault(SIGBUS, BUS_ADRALN, va, 0, current);
+	send_sig_fault(SIGBUS, BUS_ADRALN, va, current);
 	return;
 }
 
@@ -979,11 +919,6 @@ trap_init(void)
 	/* Tell PAL-code what global pointer we want in the kernel.  */
 	register unsigned long gptr __asm__("$29");
 	wrkgp(gptr);
-
-	/* Hack for Multia (UDB) and JENSEN: some of their SRMs have
-	   a bug in the handling of the opDEC fault.  Fix it up if so.  */
-	if (implver() == IMPLVER_EV4)
-		opDEC_check();
 
 	wrent(entArith, 1);
 	wrent(entMM, 2);

@@ -281,6 +281,7 @@ MODULE_DEVICE_TABLE(platform, max77693_pmic_id);
 static struct platform_driver max77693_pmic_driver = {
 	.driver = {
 		   .name = "max77693-pmic",
+		   .probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		   },
 	.probe = max77693_pmic_probe,
 	.id_table = max77693_pmic_id,

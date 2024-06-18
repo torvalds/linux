@@ -168,7 +168,7 @@ void __init octeon_pci_dma_init(void)
 }
 #endif /* CONFIG_PCI */
 
-dma_addr_t __phys_to_dma(struct device *dev, phys_addr_t paddr)
+dma_addr_t phys_to_dma(struct device *dev, phys_addr_t paddr)
 {
 #ifdef CONFIG_PCI
 	if (dev && dev_is_pci(dev))
@@ -177,7 +177,7 @@ dma_addr_t __phys_to_dma(struct device *dev, phys_addr_t paddr)
 	return paddr;
 }
 
-phys_addr_t __dma_to_phys(struct device *dev, dma_addr_t daddr)
+phys_addr_t dma_to_phys(struct device *dev, dma_addr_t daddr)
 {
 #ifdef CONFIG_PCI
 	if (dev && dev_is_pci(dev))
@@ -186,29 +186,26 @@ phys_addr_t __dma_to_phys(struct device *dev, dma_addr_t daddr)
 	return daddr;
 }
 
-char *octeon_swiotlb;
-
 void __init plat_swiotlb_setup(void)
 {
-	struct memblock_region *mem;
+	phys_addr_t start, end;
 	phys_addr_t max_addr;
 	phys_addr_t addr_size;
 	size_t swiotlbsize;
-	unsigned long swiotlb_nslabs;
+	u64 i;
 
 	max_addr = 0;
 	addr_size = 0;
 
-	for_each_memblock(memory, mem) {
+	for_each_mem_range(i, &start, &end) {
 		/* These addresses map low for PCI. */
-		if (mem->base > 0x410000000ull && !OCTEON_IS_OCTEON2())
+		if (start > 0x410000000ull && !OCTEON_IS_OCTEON2())
 			continue;
 
-		addr_size += mem->size;
+		addr_size += (end - start);
 
-		if (max_addr < mem->base + mem->size)
-			max_addr = mem->base + mem->size;
-
+		if (max_addr < end)
+			max_addr = end;
 	}
 
 	swiotlbsize = PAGE_SIZE;
@@ -236,15 +233,7 @@ void __init plat_swiotlb_setup(void)
 	if (OCTEON_IS_OCTEON2() && max_addr >= 0x100000000ul)
 		swiotlbsize = 64 * (1<<20);
 #endif
-	swiotlb_nslabs = swiotlbsize >> IO_TLB_SHIFT;
-	swiotlb_nslabs = ALIGN(swiotlb_nslabs, IO_TLB_SEGSIZE);
-	swiotlbsize = swiotlb_nslabs << IO_TLB_SHIFT;
 
-	octeon_swiotlb = memblock_alloc_low(swiotlbsize, PAGE_SIZE);
-	if (!octeon_swiotlb)
-		panic("%s: Failed to allocate %zu bytes align=%lx\n",
-		      __func__, swiotlbsize, PAGE_SIZE);
-
-	if (swiotlb_init_with_tbl(octeon_swiotlb, swiotlb_nslabs, 1) == -ENOMEM)
-		panic("Cannot allocate SWIOTLB buffer");
+	swiotlb_adjust_size(swiotlbsize);
+	swiotlb_init(true, SWIOTLB_VERBOSE);
 }

@@ -1,8 +1,11 @@
 perf-y += header.o
-perf-y += sym-handling.o
-perf-y += kvm-stat.o
+perf-$(CONFIG_LIBTRACEEVENT) += kvm-stat.o
 perf-y += perf_regs.o
 perf-y += mem-events.o
+perf-y += pmu.o
+perf-y += sym-handling.o
+perf-y += evsel.o
+perf-y += event.o
 
 perf-$(CONFIG_DWARF) += dwarf-regs.o
 perf-$(CONFIG_DWARF) += skip-callchain-idx.o

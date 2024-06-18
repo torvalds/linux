@@ -16,16 +16,15 @@
 #include <asm/paravirt.h>
 #include <asm/apic.h>
 
-static bool __initdata hv_pvspin = true;
+static bool hv_pvspin __initdata = true;
 
 static void hv_qlock_kick(int cpu)
 {
-	apic->send_IPI(cpu, X86_PLATFORM_IPI_VECTOR);
+	__apic_send_IPI(cpu, X86_PLATFORM_IPI_VECTOR);
 }
 
 static void hv_qlock_wait(u8 *byte, u8 val)
 {
-	unsigned long msr_val;
 	unsigned long flags;
 
 	if (in_nmi())
@@ -48,8 +47,13 @@ static void hv_qlock_wait(u8 *byte, u8 val)
 	/*
 	 * Only issue the rdmsrl() when the lock state has not changed.
 	 */
-	if (READ_ONCE(*byte) == val)
+	if (READ_ONCE(*byte) == val) {
+		unsigned long msr_val;
+
 		rdmsrl(HV_X64_MSR_GUEST_IDLE, msr_val);
+
+		(void)msr_val;
+	}
 	local_irq_restore(flags);
 }
 
@@ -60,13 +64,14 @@ __visible bool hv_vcpu_is_preempted(int vcpu)
 {
 	return false;
 }
+
 PV_CALLEE_SAVE_REGS_THUNK(hv_vcpu_is_preempted);
 
 void __init hv_init_spinlocks(void)
 {
 	if (!hv_pvspin || !apic ||
 	    !(ms_hyperv.hints & HV_X64_CLUSTER_IPI_RECOMMENDED) ||
-	    !(ms_hyperv.features & HV_X64_MSR_GUEST_IDLE_AVAILABLE)) {
+	    !(ms_hyperv.features & HV_MSR_GUEST_IDLE_AVAILABLE)) {
 		pr_info("PV spinlocks disabled\n");
 		return;
 	}

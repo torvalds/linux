@@ -462,7 +462,7 @@ nvkm_perfmon_mthd_query_domain(struct nvkm_perfmon *perfmon,
 
 		args->v0.id         = di;
 		args->v0.signal_nr  = nvkm_perfdom_count_perfsig(dom);
-		strncpy(args->v0.name, dom->name, sizeof(args->v0.name) - 1);
+		strscpy(args->v0.name, dom->name, sizeof(args->v0.name));
 
 		/* Currently only global counters (PCOUNTER) are implemented
 		 * but this will be different for local counters (MP). */
@@ -513,8 +513,7 @@ nvkm_perfmon_mthd_query_signal(struct nvkm_perfmon *perfmon,
 			snprintf(args->v0.name, sizeof(args->v0.name),
 				 "/%s/%02x", dom->name, si);
 		} else {
-			strncpy(args->v0.name, sig->name,
-				sizeof(args->v0.name) - 1);
+			strscpy(args->v0.name, sig->name, sizeof(args->v0.name));
 		}
 
 		args->v0.signal = si;
@@ -572,7 +571,7 @@ nvkm_perfmon_mthd_query_source(struct nvkm_perfmon *perfmon,
 
 		args->v0.source = sig->source[si];
 		args->v0.mask   = src->mask;
-		strncpy(args->v0.name, src->name, sizeof(args->v0.name) - 1);
+		strscpy(args->v0.name, src->name, sizeof(args->v0.name));
 	}
 
 	if (++si < source_nr) {
@@ -628,10 +627,10 @@ nvkm_perfmon_dtor(struct nvkm_object *object)
 {
 	struct nvkm_perfmon *perfmon = nvkm_perfmon(object);
 	struct nvkm_pm *pm = perfmon->pm;
-	mutex_lock(&pm->engine.subdev.mutex);
-	if (pm->perfmon == &perfmon->object)
-		pm->perfmon = NULL;
-	mutex_unlock(&pm->engine.subdev.mutex);
+	spin_lock(&pm->client.lock);
+	if (pm->client.object == &perfmon->object)
+		pm->client.object = NULL;
+	spin_unlock(&pm->client.lock);
 	return perfmon;
 }
 
@@ -671,11 +670,11 @@ nvkm_pm_oclass_new(struct nvkm_device *device, const struct nvkm_oclass *oclass,
 	if (ret)
 		return ret;
 
-	mutex_lock(&pm->engine.subdev.mutex);
-	if (pm->perfmon == NULL)
-		pm->perfmon = *pobject;
-	ret = (pm->perfmon == *pobject) ? 0 : -EBUSY;
-	mutex_unlock(&pm->engine.subdev.mutex);
+	spin_lock(&pm->client.lock);
+	if (pm->client.object == NULL)
+		pm->client.object = *pobject;
+	ret = (pm->client.object == *pobject) ? 0 : -EBUSY;
+	spin_unlock(&pm->client.lock);
 	return ret;
 }
 
@@ -858,10 +857,11 @@ nvkm_pm = {
 
 int
 nvkm_pm_ctor(const struct nvkm_pm_func *func, struct nvkm_device *device,
-	     int index, struct nvkm_pm *pm)
+	     enum nvkm_subdev_type type, int inst, struct nvkm_pm *pm)
 {
 	pm->func = func;
 	INIT_LIST_HEAD(&pm->domains);
 	INIT_LIST_HEAD(&pm->sources);
-	return nvkm_engine_ctor(&nvkm_pm, device, index, true, &pm->engine);
+	spin_lock_init(&pm->client.lock);
+	return nvkm_engine_ctor(&nvkm_pm, device, type, inst, true, &pm->engine);
 }

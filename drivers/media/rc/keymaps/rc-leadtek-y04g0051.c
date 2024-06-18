@@ -85,3 +85,4 @@ module_exit(exit_rc_map_leadtek_y04g0051)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
+MODULE_DESCRIPTION("LeadTek Y04G0051 remote controller keytable");

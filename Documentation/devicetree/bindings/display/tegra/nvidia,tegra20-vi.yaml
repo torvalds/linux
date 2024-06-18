@@ -1,0 +1,221 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/tegra/nvidia,tegra20-vi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra Video Input controller
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+
+properties:
+  $nodename:
+    pattern: "^vi@[0-9a-f]+$"
+
+  compatible:
+    oneOf:
+      - const: nvidia,tegra20-vi
+      - const: nvidia,tegra30-vi
+      - const: nvidia,tegra114-vi
+      - const: nvidia,tegra124-vi
+      - items:
+          - const: nvidia,tegra132-vi
+          - const: nvidia,tegra124-vi
+      - const: nvidia,tegra210-vi
+      - const: nvidia,tegra186-vi
+      - const: nvidia,tegra194-vi
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  resets:
+    items:
+      - description: module reset
+
+  reset-names:
+    items:
+      - const: vi
+
+  iommus:
+    maxItems: 1
+
+  interconnects:
+    minItems: 4
+    maxItems: 5
+
+  interconnect-names:
+    minItems: 4
+    maxItems: 5
+
+  operating-points-v2: true
+
+  power-domains:
+    items:
+      - description: phandle to the VENC power domain
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 1
+
+  ranges:
+    maxItems: 1
+
+  avdd-dsi-csi-supply:
+    description: DSI/CSI power supply. Must supply 1.2 V.
+
+  vip:
+    $ref: /schemas/display/tegra/nvidia,tegra20-vip.yaml
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+
+    properties:
+      port@0:
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
+          Input from the VIP (parallel input capture) module
+
+patternProperties:
+  "^csi@[0-9a-f]+$":
+    type: object
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - nvidia,tegra20-vi
+              - nvidia,tegra30-vi
+              - nvidia,tegra114-vi
+              - nvidia,tegra124-vi
+    then:
+      required:
+        - resets
+        - reset-names
+    else:
+      required:
+        - power-domains
+
+examples:
+  - |
+    #include <dt-bindings/clock/tegra20-car.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        camera@48 {
+            compatible = "aptina,mt9v111";
+            reg = <0x48>;
+            clocks = <&camera_clk>;
+
+            port {
+                mt9v111_out: endpoint {
+                    remote-endpoint = <&vi_vip_in>;
+                };
+            };
+        };
+    };
+
+    vi@54080000 {
+        compatible = "nvidia,tegra20-vi";
+        reg = <0x54080000 0x00040000>;
+        interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&tegra_car TEGRA20_CLK_VI>;
+        resets = <&tegra_car 100>;
+        reset-names = "vi";
+
+        vip {
+            compatible = "nvidia,tegra20-vip";
+            ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
+                port@0 {
+                    reg = <0>;
+                    vi_vip_in: endpoint {
+                        remote-endpoint = <&mt9v111_out>;
+                    };
+                };
+                port@1 {
+                    reg = <1>;
+                    vi_vip_out: endpoint {
+                        remote-endpoint = <&vi_in>;
+                    };
+                };
+            };
+        };
+
+        ports {
+            #address-cells = <1>;
+            #size-cells = <0>;
+            port@0 {
+                reg = <0>;
+                vi_in: endpoint {
+                    remote-endpoint = <&vi_vip_out>;
+                };
+            };
+        };
+    };
+
+  - |
+    #include <dt-bindings/clock/tegra210-car.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    vi@54080000 {
+        compatible = "nvidia,tegra210-vi";
+        reg = <0x54080000 0x00000700>;
+        interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
+        assigned-clocks = <&tegra_car TEGRA210_CLK_VI>;
+        assigned-clock-parents = <&tegra_car TEGRA210_CLK_PLL_C4_OUT0>;
+
+        clocks = <&tegra_car TEGRA210_CLK_VI>;
+        power-domains = <&pd_venc>;
+
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        ranges = <0x0 0x54080000 0x2000>;
+
+        csi@838 {
+            compatible = "nvidia,tegra210-csi";
+            reg = <0x838 0x1300>;
+            assigned-clocks = <&tegra_car TEGRA210_CLK_CILAB>,
+                              <&tegra_car TEGRA210_CLK_CILCD>,
+                              <&tegra_car TEGRA210_CLK_CILE>,
+                              <&tegra_car TEGRA210_CLK_CSI_TPG>;
+            assigned-clock-parents = <&tegra_car TEGRA210_CLK_PLL_P>,
+                                     <&tegra_car TEGRA210_CLK_PLL_P>,
+                                     <&tegra_car TEGRA210_CLK_PLL_P>;
+            assigned-clock-rates = <102000000>,
+                                   <102000000>,
+                                   <102000000>,
+                                   <972000000>;
+
+            clocks = <&tegra_car TEGRA210_CLK_CSI>,
+                     <&tegra_car TEGRA210_CLK_CILAB>,
+                     <&tegra_car TEGRA210_CLK_CILCD>,
+                     <&tegra_car TEGRA210_CLK_CILE>,
+                     <&tegra_car TEGRA210_CLK_CSI_TPG>;
+            clock-names = "csi", "cilab", "cilcd", "cile", "csi_tpg";
+            power-domains = <&pd_sor>;
+        };
+    };

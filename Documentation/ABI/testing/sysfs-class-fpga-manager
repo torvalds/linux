@@ -28,8 +28,7 @@ Description:	Read fpga manager state as a string.
 		* firmware request	= firmware class request in progress
 		* firmware request error = firmware request failed
 		* write init		= preparing FPGA for programming
-		* write init error	= Error while preparing FPGA for
-					  programming
+		* write init error	= Error while preparing FPGA for programming
 		* write			= FPGA ready to receive image data
 		* write error		= Error while programming
 		* write complete	= Doing post programming steps
@@ -47,7 +46,7 @@ Description:	Read fpga manager status as a string.
 		programming errors to userspace. This is a list of strings for
 		the supported status.
 
-		* reconfig operation error 	- invalid operations detected by
+		* reconfig operation error	- invalid operations detected by
 						  reconfiguration hardware.
 						  e.g. start reconfiguration
 						  with errors not cleared

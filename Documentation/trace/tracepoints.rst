@@ -27,7 +27,7 @@ the tracepoint site).
 
 You can put tracepoints at important locations in the code. They are
 lightweight hooks that can pass an arbitrary number of parameters,
-which prototypes are described in a tracepoint declaration placed in a
+whose prototypes are described in a tracepoint declaration placed in a
 header file.
 
 They can be used for tracing and performance accounting.
@@ -146,3 +146,30 @@ with jump labels and avoid conditional branches.
       define tracepoints. Check http://lwn.net/Articles/379903,
       http://lwn.net/Articles/381064 and http://lwn.net/Articles/383362
       for a series of articles with more details.
+
+If you require calling a tracepoint from a header file, it is not
+recommended to call one directly or to use the trace_<tracepoint>_enabled()
+function call, as tracepoints in header files can have side effects if a
+header is included from a file that has CREATE_TRACE_POINTS set, as
+well as the trace_<tracepoint>() is not that small of an inline
+and can bloat the kernel if used by other inlined functions. Instead,
+include tracepoint-defs.h and use tracepoint_enabled().
+
+In a C file::
+
+	void do_trace_foo_bar_wrapper(args)
+	{
+		trace_foo_bar(args);
+	}
+
+In the header file::
+
+	DECLARE_TRACEPOINT(foo_bar);
+
+	static inline void some_inline_function()
+	{
+		[..]
+		if (tracepoint_enabled(foo_bar))
+			do_trace_foo_bar_wrapper(args);
+		[..]
+	}

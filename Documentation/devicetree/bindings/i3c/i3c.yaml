@@ -1,0 +1,193 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/i3c/i3c.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: I3C bus
+
+maintainers:
+  - Alexandre Belloni <alexandre.belloni@bootlin.com>
+  - Miquel Raynal <miquel.raynal@bootlin.com>
+
+description: |
+  I3C busses can be described with a node for the primary I3C controller device
+  and a set of child nodes for each I2C or I3C slave on the bus. Each of them
+  may, during the life of the bus, request mastership.
+
+properties:
+  $nodename:
+    pattern: "^i3c@[0-9a-f]+$"
+
+  "#address-cells":
+    const: 3
+    description: |
+      Each I2C device connected to the bus should be described in a subnode.
+
+      All I3C devices are supposed to support DAA (Dynamic Address Assignment),
+      and are thus discoverable. So, by default, I3C devices do not have to be
+      described in the device tree. This being said, one might want to attach
+      extra resources to these devices, and those resources may have to be
+      described in the device tree, which in turn means we have to describe
+      I3C devices.
+
+      Another use case for describing an I3C device in the device tree is when
+      this I3C device has a static I2C address and we want to assign it a
+      specific I3C dynamic address before the DAA takes place (so that other
+      devices on the bus can't take this dynamic address).
+
+  "#size-cells":
+    const: 0
+
+  i3c-scl-hz:
+    description: |
+      Frequency of the SCL signal used for I3C transfers. When undefined, the
+      default value should be 12.5MHz.
+
+      May not be supported by all controllers.
+
+  i2c-scl-hz:
+    description: |
+      Frequency of the SCL signal used for I2C transfers. When undefined, the
+      default should be to look at LVR (Legacy Virtual Register) values of
+      I2C devices described in the device tree to determine the maximum I2C
+      frequency.
+
+      May not be supported by all controllers.
+
+  mctp-controller:
+    type: boolean
+    description: |
+      Indicates that the system is accessible via this bus as an endpoint for
+      MCTP over I3C transport.
+
+required:
+  - "#address-cells"
+  - "#size-cells"
+
+patternProperties:
+  "@[0-9a-f]+$":
+    type: object
+    description: |
+      I2C child, should be named: <device-type>@<i2c-address>
+
+      All properties described in dtschema schemas/i2c/i2c-controller.yaml
+      are valid here, except the reg property whose content is changed.
+
+    properties:
+      compatible:
+        description:
+          Compatible of the I2C device.
+
+      reg:
+        items:
+          - items:
+              - description: |
+                  I2C address. 10 bit addressing is not supported. Devices with
+                  10-bit address can't be properly passed through DEFSLVS
+                  command.
+                minimum: 0
+                maximum: 0x7f
+              - const: 0
+              - description: |
+                  Shall encode the I3C LVR (Legacy Virtual Register):
+                    bit[31:8]: unused/ignored
+                    bit[7:5]: I2C device index. Possible values:
+                      * 0: I2C device has a 50 ns spike filter
+                      * 1: I2C device does not have a 50 ns spike filter but
+                           supports high frequency on SCL
+                      * 2: I2C device does not have a 50 ns spike filter and is
+                           not tolerant to high frequencies
+                      * 3-7: reserved
+                    bit[4]: tell whether the device operates in FM (Fast Mode)
+                            or FM+ mode:
+                      * 0: FM+ mode
+                      * 1: FM mode
+                    bit[3:0]: device type
+                      * 0-15: reserved
+
+    required:
+      - compatible
+      - reg
+
+  "@[0-9a-f]+,[0-9a-f]+$":
+    type: object
+    description: |
+      I3C child, should be named: <device-type>@<static-i2c-address>,<i3c-pid>
+
+    properties:
+      reg:
+        items:
+          - items:
+              - description: |
+                  Encodes the static I2C address. Should be 0 if the device does
+                  not have one (0 is not a valid I2C address).
+                minimum: 0
+                maximum: 0x7f
+              - description: |
+                  First half of the Provisioned ID (following the PID
+                  definition provided by the I3C specification).
+
+                  Contains the manufacturer ID left-shifted by 1.
+              - description: |
+                  Second half of the Provisioned ID (following the PID
+                  definition provided by the I3C specification).
+
+                  Contains the ORing of the part ID left-shifted by 16,
+                  the instance ID left-shifted by 12 and extra information.
+
+      assigned-address:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0x1
+        maximum: 0xff
+        description: |
+          Dynamic address to be assigned to this device. In case static address is
+          present (first cell of the reg property != 0), this address is assigned
+          through SETDASA. If static address is not present, this address is assigned
+          through SETNEWDA after assigning a temporary address via ENTDAA.
+
+    required:
+      - reg
+
+additionalProperties: true
+
+examples:
+  - |
+    i3c@d040000 {
+        compatible = "cdns,i3c-master";
+        clocks = <&coreclock>, <&i3csysclock>;
+        clock-names = "pclk", "sysclk";
+        interrupts = <3 0>;
+        reg = <0x0d040000 0x1000>;
+        #address-cells = <3>;
+        #size-cells = <0>;
+        i2c-scl-hz = <100000>;
+
+        /* I2C device. */
+        eeprom@57 {
+            compatible = "atmel,24c01";
+            reg = <0x57 0x0 0x10>;
+            pagesize = <0x8>;
+        };
+
+        /* I3C device with a static I2C address and assigned address. */
+        thermal_sensor: sensor@68,39200144004 {
+            reg = <0x68 0x392 0x144004>;
+            assigned-address = <0xa>;
+        };
+
+        /* I3C device with only assigned address. */
+        pressure_sensor: sensor@0,39200124004 {
+            reg = <0x0 0x392 0x124000>;
+            assigned-address = <0xc>;
+        };
+
+        /*
+         * I3C device without a static I2C address but requiring
+         * resources described in the DT.
+         */
+        sensor@0,39200154004 {
+            reg = <0x0 0x392 0x154004>;
+            clocks = <&clock_provider 0>;
+        };
+    };

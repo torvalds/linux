@@ -31,9 +31,9 @@
  * CONFIG_NUMA.
  */
 #include <linux/numa.h>
+#include <linux/cpumask.h>
 
 #ifdef CONFIG_NUMA
-#include <linux/cpumask.h>
 
 #include <asm/mpspec.h>
 #include <asm/percpu.h>
@@ -102,27 +102,94 @@ static inline void setup_node_to_cpumask_map(void) { }
 
 #include <asm-generic/topology.h>
 
-extern const struct cpumask *cpu_coregroup_mask(int cpu);
+/* Topology information */
+enum x86_topology_domains {
+	TOPO_SMT_DOMAIN,
+	TOPO_CORE_DOMAIN,
+	TOPO_MODULE_DOMAIN,
+	TOPO_TILE_DOMAIN,
+	TOPO_DIE_DOMAIN,
+	TOPO_DIEGRP_DOMAIN,
+	TOPO_PKG_DOMAIN,
+	TOPO_MAX_DOMAIN,
+};
 
-#define topology_logical_package_id(cpu)	(cpu_data(cpu).logical_proc_id)
-#define topology_physical_package_id(cpu)	(cpu_data(cpu).phys_proc_id)
-#define topology_logical_die_id(cpu)		(cpu_data(cpu).logical_die_id)
-#define topology_die_id(cpu)			(cpu_data(cpu).cpu_die_id)
-#define topology_core_id(cpu)			(cpu_data(cpu).cpu_core_id)
+struct x86_topology_system {
+	unsigned int	dom_shifts[TOPO_MAX_DOMAIN];
+	unsigned int	dom_size[TOPO_MAX_DOMAIN];
+};
+
+extern struct x86_topology_system x86_topo_system;
+
+static inline unsigned int topology_get_domain_size(enum x86_topology_domains dom)
+{
+	return x86_topo_system.dom_size[dom];
+}
+
+static inline unsigned int topology_get_domain_shift(enum x86_topology_domains dom)
+{
+	return dom == TOPO_SMT_DOMAIN ? 0 : x86_topo_system.dom_shifts[dom - 1];
+}
+
+extern const struct cpumask *cpu_coregroup_mask(int cpu);
+extern const struct cpumask *cpu_clustergroup_mask(int cpu);
+
+#define topology_logical_package_id(cpu)	(cpu_data(cpu).topo.logical_pkg_id)
+#define topology_physical_package_id(cpu)	(cpu_data(cpu).topo.pkg_id)
+#define topology_logical_die_id(cpu)		(cpu_data(cpu).topo.logical_die_id)
+#define topology_die_id(cpu)			(cpu_data(cpu).topo.die_id)
+#define topology_core_id(cpu)			(cpu_data(cpu).topo.core_id)
+#define topology_ppin(cpu)			(cpu_data(cpu).ppin)
+
+#define topology_amd_node_id(cpu)		(cpu_data(cpu).topo.amd_node_id)
+
+extern unsigned int __max_dies_per_package;
+extern unsigned int __max_logical_packages;
+extern unsigned int __max_threads_per_core;
+extern unsigned int __num_threads_per_package;
+extern unsigned int __num_cores_per_package;
+
+static inline unsigned int topology_max_packages(void)
+{
+	return __max_logical_packages;
+}
+
+static inline unsigned int topology_max_dies_per_package(void)
+{
+	return __max_dies_per_package;
+}
+
+static inline unsigned int topology_num_cores_per_package(void)
+{
+	return __num_cores_per_package;
+}
+
+static inline unsigned int topology_num_threads_per_package(void)
+{
+	return __num_threads_per_package;
+}
+
+#ifdef CONFIG_X86_LOCAL_APIC
+int topology_get_logical_id(u32 apicid, enum x86_topology_domains at_level);
+#else
+static inline int topology_get_logical_id(u32 apicid, enum x86_topology_domains at_level)
+{
+	return 0;
+}
+#endif
 
 #ifdef CONFIG_SMP
+#define topology_cluster_id(cpu)		(cpu_data(cpu).topo.l2c_id)
 #define topology_die_cpumask(cpu)		(per_cpu(cpu_die_map, cpu))
+#define topology_cluster_cpumask(cpu)		(cpu_clustergroup_mask(cpu))
 #define topology_core_cpumask(cpu)		(per_cpu(cpu_core_map, cpu))
 #define topology_sibling_cpumask(cpu)		(per_cpu(cpu_sibling_map, cpu))
 
-extern unsigned int __max_logical_packages;
-#define topology_max_packages()			(__max_logical_packages)
 
-extern unsigned int __max_die_per_package;
-
-static inline int topology_max_die_per_package(void)
+static inline int topology_phys_to_logical_pkg(unsigned int pkg)
 {
-	return __max_die_per_package;
+	return topology_get_logical_id(pkg << x86_topo_system.dom_shifts[TOPO_PKG_DOMAIN],
+				       TOPO_PKG_DOMAIN);
 }
 
 extern int __max_smt_threads;
@@ -132,26 +199,33 @@ static inline int topology_max_smt_threads(void)
 	return __max_smt_threads;
 }
 
-int topology_update_package_map(unsigned int apicid, unsigned int cpu);
-int topology_update_die_map(unsigned int dieid, unsigned int cpu);
-int topology_phys_to_logical_pkg(unsigned int pkg);
-int topology_phys_to_logical_die(unsigned int die, unsigned int cpu);
-bool topology_is_primary_thread(unsigned int cpu);
-bool topology_smt_supported(void);
-#else
-#define topology_max_packages()			(1)
-static inline int
-topology_update_package_map(unsigned int apicid, unsigned int cpu) { return 0; }
-static inline int
-topology_update_die_map(unsigned int dieid, unsigned int cpu) { return 0; }
+#include <linux/cpu_smt.h>
+
+extern unsigned int __amd_nodes_per_pkg;
+
+static inline unsigned int topology_amd_nodes_per_pkg(void)
+{
+	return __amd_nodes_per_pkg;
+}
+
+extern struct cpumask __cpu_primary_thread_mask;
+#define cpu_primary_thread_mask ((const struct cpumask *)&__cpu_primary_thread_mask)
+
+/**
+ * topology_is_primary_thread - Check whether CPU is the primary SMT thread
+ * @cpu:	CPU to check
+ */
+static inline bool topology_is_primary_thread(unsigned int cpu)
+{
+	return cpumask_test_cpu(cpu, cpu_primary_thread_mask);
+}
+
+#else /* CONFIG_SMP */
 static inline int topology_phys_to_logical_pkg(unsigned int pkg) { return 0; }
-static inline int topology_phys_to_logical_die(unsigned int die,
-		unsigned int cpu) { return 0; }
-static inline int topology_max_die_per_package(void) { return 1; }
 static inline int topology_max_smt_threads(void) { return 1; }
 static inline bool topology_is_primary_thread(unsigned int cpu) { return true; }
-static inline bool topology_smt_supported(void) { return false; }
-#endif
+static inline unsigned int topology_amd_nodes_per_pkg(void) { return 1; }
+#endif /* !CONFIG_SMP */
 
 static inline void arch_fix_phys_package_id(int num, u32 slot)
 {
@@ -192,5 +266,35 @@ static inline void sched_clear_itmt_support(void)
 {
 }
 #endif /* CONFIG_SCHED_MC_PRIO */
+
+#if defined(CONFIG_SMP) && defined(CONFIG_X86_64)
+#include <asm/cpufeature.h>
+
+DECLARE_STATIC_KEY_FALSE(arch_scale_freq_key);
+
+#define arch_scale_freq_invariant() static_branch_likely(&arch_scale_freq_key)
+
+DECLARE_PER_CPU(unsigned long, arch_freq_scale);
+
+static inline long arch_scale_freq_capacity(int cpu)
+{
+	return per_cpu(arch_freq_scale, cpu);
+}
+#define arch_scale_freq_capacity arch_scale_freq_capacity
+
+extern void arch_set_max_freq_ratio(bool turbo_disabled);
+extern void freq_invariance_set_perf_ratio(u64 ratio, bool turbo_disabled);
+#else
+static inline void arch_set_max_freq_ratio(bool turbo_disabled) { }
+static inline void freq_invariance_set_perf_ratio(u64 ratio, bool turbo_disabled) { }
+#endif
+
+extern void arch_scale_freq_tick(void);
+#define arch_scale_freq_tick arch_scale_freq_tick
+
+#ifdef CONFIG_ACPI_CPPC_LIB
+void init_freq_invariance_cppc(void);
+#define arch_init_invariance_cppc init_freq_invariance_cppc
+#endif
 
 #endif /* _ASM_X86_TOPOLOGY_H */

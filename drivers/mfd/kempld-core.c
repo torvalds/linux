@@ -6,13 +6,17 @@
  * Author: Michael Brunner <michael.brunner@kontron.com>
  */
 
+#include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/kempld.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/property.h>
 #include <linux/dmi.h>
 #include <linux/io.h>
 #include <linux/delay.h>
+#include <linux/sysfs.h>
 
 #define MAX_ID_LEN 4
 static char force_device_id[MAX_ID_LEN + 1] = "";
@@ -79,41 +83,33 @@ enum kempld_cells {
 	KEMPLD_UART,
 };
 
-static const struct mfd_cell kempld_devs[] = {
-	[KEMPLD_I2C] = {
-		.name = "kempld-i2c",
-	},
-	[KEMPLD_WDT] = {
-		.name = "kempld-wdt",
-	},
-	[KEMPLD_GPIO] = {
-		.name = "kempld-gpio",
-	},
-	[KEMPLD_UART] = {
-		.name = "kempld-uart",
-	},
+static const char *kempld_dev_names[] = {
+	[KEMPLD_I2C] = "kempld-i2c",
+	[KEMPLD_WDT] = "kempld-wdt",
+	[KEMPLD_GPIO] = "kempld-gpio",
+	[KEMPLD_UART] = "kempld-uart",
 };
 
-#define KEMPLD_MAX_DEVS	ARRAY_SIZE(kempld_devs)
+#define KEMPLD_MAX_DEVS	ARRAY_SIZE(kempld_dev_names)
 
 static int kempld_register_cells_generic(struct kempld_device_data *pld)
 {
-	struct mfd_cell devs[KEMPLD_MAX_DEVS];
+	struct mfd_cell devs[KEMPLD_MAX_DEVS] = {};
 	int i = 0;
 
 	if (pld->feature_mask & KEMPLD_FEATURE_BIT_I2C)
-		devs[i++] = kempld_devs[KEMPLD_I2C];
+		devs[i++].name = kempld_dev_names[KEMPLD_I2C];
 
 	if (pld->feature_mask & KEMPLD_FEATURE_BIT_WATCHDOG)
-		devs[i++] = kempld_devs[KEMPLD_WDT];
+		devs[i++].name = kempld_dev_names[KEMPLD_WDT];
 
 	if (pld->feature_mask & KEMPLD_FEATURE_BIT_GPIO)
-		devs[i++] = kempld_devs[KEMPLD_GPIO];
+		devs[i++].name = kempld_dev_names[KEMPLD_GPIO];
 
 	if (pld->feature_mask & KEMPLD_FEATURE_MASK_UART)
-		devs[i++] = kempld_devs[KEMPLD_UART];
+		devs[i++].name = kempld_dev_names[KEMPLD_UART];
 
-	return mfd_add_devices(pld->dev, -1, devs, i, NULL, 0, NULL);
+	return mfd_add_devices(pld->dev, PLATFORM_DEVID_NONE, devs, i, NULL, 0, NULL);
 }
 
 static struct resource kempld_ioresource = {
@@ -133,31 +129,22 @@ static const struct kempld_platform_data kempld_platform_data_generic = {
 
 static struct platform_device *kempld_pdev;
 
-static int kempld_create_platform_device(const struct dmi_system_id *id)
+static int kempld_create_platform_device(const struct kempld_platform_data *pdata)
 {
-	const struct kempld_platform_data *pdata = id->driver_data;
-	int ret;
+	const struct platform_device_info pdevinfo = {
+		.name = "kempld",
+		.id = PLATFORM_DEVID_NONE,
+		.res = pdata->ioresource,
+		.num_res = 1,
+		.data = pdata,
+		.size_data = sizeof(*pdata),
+	};
 
-	kempld_pdev = platform_device_alloc("kempld", -1);
-	if (!kempld_pdev)
-		return -ENOMEM;
-
-	ret = platform_device_add_data(kempld_pdev, pdata, sizeof(*pdata));
-	if (ret)
-		goto err;
-
-	ret = platform_device_add_resources(kempld_pdev, pdata->ioresource, 1);
-	if (ret)
-		goto err;
-
-	ret = platform_device_add(kempld_pdev);
-	if (ret)
-		goto err;
+	kempld_pdev = platform_device_register_full(&pdevinfo);
+	if (IS_ERR(kempld_pdev))
+		return PTR_ERR(kempld_pdev);
 
 	return 0;
-err:
-	platform_device_put(kempld_pdev);
-	return ret;
 }
 
 /**
@@ -306,11 +293,8 @@ static int kempld_get_info(struct kempld_device_data *pld)
 	else
 		minor = (pld->info.minor - 10) + 'A';
 
-	ret = scnprintf(pld->info.version, sizeof(pld->info.version),
-			"P%X%c%c.%04X", pld->info.number, major, minor,
-			pld->info.buildnr);
-	if (ret < 0)
-		return ret;
+	scnprintf(pld->info.version, sizeof(pld->info.version), "P%X%c%c.%04X",
+		  pld->info.number, major, minor, pld->info.buildnr);
 
 	return 0;
 }
@@ -351,46 +335,41 @@ static const char *kempld_get_type_string(struct kempld_device_data *pld)
 	return version_type;
 }
 
-static ssize_t kempld_version_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t pld_version_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	struct kempld_device_data *pld = dev_get_drvdata(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%s\n", pld->info.version);
+	return sysfs_emit(buf, "%s\n", pld->info.version);
 }
 
-static ssize_t kempld_specification_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t pld_specification_show(struct device *dev,
+				      struct device_attribute *attr, char *buf)
 {
 	struct kempld_device_data *pld = dev_get_drvdata(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%d.%d\n", pld->info.spec_major,
-		       pld->info.spec_minor);
+	return sysfs_emit(buf, "%d.%d\n", pld->info.spec_major, pld->info.spec_minor);
 }
 
-static ssize_t kempld_type_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t pld_type_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	struct kempld_device_data *pld = dev_get_drvdata(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%s\n", kempld_get_type_string(pld));
+	return sysfs_emit(buf, "%s\n", kempld_get_type_string(pld));
 }
 
-static DEVICE_ATTR(pld_version, S_IRUGO, kempld_version_show, NULL);
-static DEVICE_ATTR(pld_specification, S_IRUGO, kempld_specification_show,
-		   NULL);
-static DEVICE_ATTR(pld_type, S_IRUGO, kempld_type_show, NULL);
+static DEVICE_ATTR_RO(pld_version);
+static DEVICE_ATTR_RO(pld_specification);
+static DEVICE_ATTR_RO(pld_type);
 
-static struct attribute *pld_attributes[] = {
+static struct attribute *pld_attrs[] = {
 	&dev_attr_pld_version.attr,
 	&dev_attr_pld_specification.attr,
 	&dev_attr_pld_type.attr,
 	NULL
 };
-
-static const struct attribute_group pld_attr_group = {
-	.attrs = pld_attributes,
-};
+ATTRIBUTE_GROUPS(pld);
 
 static int kempld_detect_device(struct kempld_device_data *pld)
 {
@@ -423,24 +402,42 @@ static int kempld_detect_device(struct kempld_device_data *pld)
 		 pld->info.version, kempld_get_type_string(pld),
 		 pld->info.spec_major, pld->info.spec_minor);
 
-	ret = sysfs_create_group(&pld->dev->kobj, &pld_attr_group);
-	if (ret)
-		return ret;
-
-	ret = kempld_register_cells(pld);
-	if (ret)
-		sysfs_remove_group(&pld->dev->kobj, &pld_attr_group);
-
-	return ret;
+	return kempld_register_cells(pld);
 }
 
 static int kempld_probe(struct platform_device *pdev)
 {
-	const struct kempld_platform_data *pdata =
-		dev_get_platdata(&pdev->dev);
+	const struct kempld_platform_data *pdata;
 	struct device *dev = &pdev->dev;
 	struct kempld_device_data *pld;
 	struct resource *ioport;
+	int ret;
+
+	if (IS_ERR_OR_NULL(kempld_pdev)) {
+		/*
+		 * No kempld_pdev device has been registered in kempld_init,
+		 * so we seem to be probing an ACPI platform device.
+		 */
+		pdata = device_get_match_data(dev);
+		if (!pdata)
+			return -ENODEV;
+
+		ret = platform_device_add_data(pdev, pdata, sizeof(*pdata));
+		if (ret)
+			return ret;
+	} else if (kempld_pdev == pdev) {
+		pdata = dev_get_platdata(dev);
+	} else {
+		/*
+		 * The platform device we are probing is not the one we
+		 * registered in kempld_init using the DMI table, so this one
+		 * comes from ACPI.
+		 * As we can only probe one - abort here and use the DMI
+		 * based one instead.
+		 */
+		dev_notice(dev, "platform device exists - not using ACPI\n");
+		return -ENODEV;
+	}
 
 	pld = devm_kzalloc(dev, sizeof(*pld), GFP_KERNEL);
 	if (!pld)
@@ -466,25 +463,30 @@ static int kempld_probe(struct platform_device *pdev)
 	return kempld_detect_device(pld);
 }
 
-static int kempld_remove(struct platform_device *pdev)
+static void kempld_remove(struct platform_device *pdev)
 {
 	struct kempld_device_data *pld = platform_get_drvdata(pdev);
 	const struct kempld_platform_data *pdata = dev_get_platdata(pld->dev);
 
-	sysfs_remove_group(&pld->dev->kobj, &pld_attr_group);
-
 	mfd_remove_devices(&pdev->dev);
 	pdata->release_hardware_mutex(pld);
-
-	return 0;
 }
+
+static const struct acpi_device_id kempld_acpi_table[] = {
+	{ "KEM0000", (kernel_ulong_t)&kempld_platform_data_generic },
+	{ "KEM0001", (kernel_ulong_t)&kempld_platform_data_generic },
+	{}
+};
+MODULE_DEVICE_TABLE(acpi, kempld_acpi_table);
 
 static struct platform_driver kempld_driver = {
 	.driver		= {
 		.name	= "kempld",
+		.acpi_match_table = kempld_acpi_table,
+		.dev_groups	  = pld_groups,
 	},
 	.probe		= kempld_probe,
-	.remove		= kempld_remove,
+	.remove_new	= kempld_remove,
 };
 
 static const struct dmi_system_id kempld_dmi_table[] __initconst = {
@@ -494,304 +496,281 @@ static const struct dmi_system_id kempld_dmi_table[] __initconst = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "COMe-bBD"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
 	}, {
 		.ident = "BBL6",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "COMe-bBL6"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
+	}, {
+		.ident = "BDV7",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
+			DMI_MATCH(DMI_BOARD_NAME, "COMe-bDV7"),
+		},
 	}, {
 		.ident = "BHL6",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "COMe-bHL6"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
 	}, {
 		.ident = "BKL6",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "COMe-bKL6"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
 	}, {
 		.ident = "BSL6",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "COMe-bSL6"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
 	}, {
 		.ident = "CAL6",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "COMe-cAL"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
 	}, {
 		.ident = "CBL6",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "COMe-cBL6"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
 	}, {
 		.ident = "CBW6",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "COMe-cBW6"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
 	}, {
 		.ident = "CCR2",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "COMe-bIP2"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
 	}, {
 		.ident = "CCR6",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "COMe-bIP6"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
+	}, {
+		.ident = "CDV7",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
+			DMI_MATCH(DMI_BOARD_NAME, "COMe-cDV7"),
+		},
 	}, {
 		.ident = "CHL6",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "COMe-cHL6"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
 	}, {
 		.ident = "CHR2",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "ETXexpress-SC T2"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
 	}, {
 		.ident = "CHR2",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "ETXe-SC T2"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
 	}, {
 		.ident = "CHR2",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "COMe-bSC2"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
 	}, {
 		.ident = "CHR6",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "ETXexpress-SC T6"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
 	}, {
 		.ident = "CHR6",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "ETXe-SC T6"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
 	}, {
 		.ident = "CHR6",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "COMe-bSC6"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
 	}, {
 		.ident = "CKL6",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "COMe-cKL6"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
 	}, {
 		.ident = "CNTG",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "ETXexpress-PC"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
 	}, {
 		.ident = "CNTG",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "COMe-bPC2"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
 	}, {
 		.ident = "CNTX",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "PXT"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
 	}, {
 		.ident = "CSL6",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "COMe-cSL6"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
 	}, {
 		.ident = "CVV6",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "COMe-cBT"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
 	}, {
 		.ident = "FRI2",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BIOS_VERSION, "FRI2"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
 	}, {
 		.ident = "FRI2",
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Fish River Island II"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
+	}, {
+		.ident = "A203",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
+			DMI_MATCH(DMI_BOARD_NAME, "KBox A-203"),
+		},
+	}, {
+		.ident = "M4A1",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
+			DMI_MATCH(DMI_BOARD_NAME, "COMe-m4AL"),
+		},
 	}, {
 		.ident = "MAL1",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "COMe-mAL10"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
+	}, {
+		.ident = "MAPL",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
+			DMI_MATCH(DMI_BOARD_NAME, "mITX-APL"),
+		},
 	}, {
 		.ident = "MBR1",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "ETX-OH"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
 	}, {
 		.ident = "MVV1",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "COMe-mBT"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
 	}, {
 		.ident = "NTC1",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "nanoETXexpress-TT"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
 	}, {
 		.ident = "NTC1",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "nETXe-TT"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
 	}, {
 		.ident = "NTC1",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "COMe-mTT"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
 	}, {
 		.ident = "NUP1",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "COMe-mCT"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
+	}, {
+		.ident = "PAPL",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
+			DMI_MATCH(DMI_BOARD_NAME, "pITX-APL"),
+		},
+	}, {
+		.ident = "SXAL",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
+			DMI_MATCH(DMI_BOARD_NAME, "SMARC-sXAL"),
+		},
+	}, {
+		.ident = "SXAL4",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
+			DMI_MATCH(DMI_BOARD_NAME, "SMARC-sXA4"),
+		},
 	}, {
 		.ident = "UNP1",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "microETXexpress-DC"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
 	}, {
 		.ident = "UNP1",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "COMe-cDC2"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
 	}, {
 		.ident = "UNTG",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "microETXexpress-PC"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
 	}, {
 		.ident = "UNTG",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "COMe-cPC2"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
 	}, {
 		.ident = "UUP6",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "COMe-cCT6"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
-	},
-	{
+	}, {
 		.ident = "UTH6",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
 			DMI_MATCH(DMI_BOARD_NAME, "COMe-cTH6"),
 		},
-		.driver_data = (void *)&kempld_platform_data_generic,
-		.callback = kempld_create_platform_device,
+	}, {
+		.ident = "Q7AL",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
+			DMI_MATCH(DMI_BOARD_NAME, "Qseven-Q7AL"),
+		},
 	},
 	{}
 };
@@ -800,28 +779,28 @@ MODULE_DEVICE_TABLE(dmi, kempld_dmi_table);
 static int __init kempld_init(void)
 {
 	const struct dmi_system_id *id;
+	int ret = -ENODEV;
 
-	if (force_device_id[0]) {
-		for (id = kempld_dmi_table;
-		     id->matches[0].slot != DMI_NONE; id++)
-			if (strstr(id->ident, force_device_id))
-				if (id->callback && !id->callback(id))
-					break;
-		if (id->matches[0].slot == DMI_NONE)
-			return -ENODEV;
-	} else {
-		if (!dmi_check_system(kempld_dmi_table))
-			return -ENODEV;
+	for (id = dmi_first_match(kempld_dmi_table); id; id = dmi_first_match(id + 1)) {
+		/* Check, if user asked for the exact device ID match */
+		if (force_device_id[0] && !strstr(id->ident, force_device_id))
+			continue;
+
+		ret = kempld_create_platform_device(&kempld_platform_data_generic);
+		if (ret)
+			continue;
+
+		break;
 	}
+	if (ret)
+		return ret;
 
 	return platform_driver_register(&kempld_driver);
 }
 
 static void __exit kempld_exit(void)
 {
-	if (kempld_pdev)
-		platform_device_unregister(kempld_pdev);
-
+	platform_device_unregister(kempld_pdev);
 	platform_driver_unregister(&kempld_driver);
 }
 

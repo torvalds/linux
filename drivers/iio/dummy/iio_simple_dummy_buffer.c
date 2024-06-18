@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * Copyright (c) 2011 Jonathan Cameron
  *
  * Buffer handling elements of industrial I/O reference driver.
@@ -16,9 +16,9 @@
 #include <linux/bitmap.h>
 
 #include <linux/iio/iio.h>
-#include <linux/iio/trigger_consumer.h>
 #include <linux/iio/buffer.h>
-#include <linux/iio/kfifo_buf.h>
+#include <linux/iio/trigger_consumer.h>
+#include <linux/iio/triggered_buffer.h>
 
 #include "iio_simple_dummy.h"
 
@@ -45,43 +45,31 @@ static irqreturn_t iio_simple_dummy_trigger_h(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
-	int len = 0;
+	int i = 0, j;
 	u16 *data;
 
 	data = kmalloc(indio_dev->scan_bytes, GFP_KERNEL);
 	if (!data)
 		goto done;
 
-	if (!bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength)) {
-		/*
-		 * Three common options here:
-		 * hardware scans: certain combinations of channels make
-		 *   up a fast read.  The capture will consist of all of them.
-		 *   Hence we just call the grab data function and fill the
-		 *   buffer without processing.
-		 * software scans: can be considered to be random access
-		 *   so efficient reading is just a case of minimal bus
-		 *   transactions.
-		 * software culled hardware scans:
-		 *   occasionally a driver may process the nearest hardware
-		 *   scan to avoid storing elements that are not desired. This
-		 *   is the fiddliest option by far.
-		 * Here let's pretend we have random access. And the values are
-		 * in the constant table fakedata.
-		 */
-		int i, j;
-
-		for (i = 0, j = 0;
-		     i < bitmap_weight(indio_dev->active_scan_mask,
-				       indio_dev->masklength);
-		     i++, j++) {
-			j = find_next_bit(indio_dev->active_scan_mask,
-					  indio_dev->masklength, j);
-			/* random access read from the 'device' */
-			data[i] = fakedata[j];
-			len += 2;
-		}
-	}
+	/*
+	 * Three common options here:
+	 * hardware scans:
+	 *   certain combinations of channels make up a fast read. The capture
+	 *   will consist of all of them. Hence we just call the grab data
+	 *   function and fill the buffer without processing.
+	 * software scans:
+	 *   can be considered to be random access so efficient reading is just
+	 *   a case of minimal bus transactions.
+	 * software culled hardware scans:
+	 *   occasionally a driver may process the nearest hardware scan to avoid
+	 *   storing elements that are not desired. This is the fiddliest option
+	 *   by far.
+	 * Here let's pretend we have random access. And the values are in the
+	 * constant table fakedata.
+	 */
+	for_each_set_bit(j, indio_dev->active_scan_mask, indio_dev->masklength)
+		data[i++] = fakedata[j];
 
 	iio_push_to_buffers_with_timestamp(indio_dev, data,
 					   iio_get_time_ns(indio_dev));
@@ -99,90 +87,20 @@ done:
 }
 
 static const struct iio_buffer_setup_ops iio_simple_dummy_buffer_setup_ops = {
-	/*
-	 * iio_triggered_buffer_postenable:
-	 * Generic function that simply attaches the pollfunc to the trigger.
-	 * Replace this to mess with hardware state before we attach the
-	 * trigger.
-	 */
-	.postenable = &iio_triggered_buffer_postenable,
-	/*
-	 * iio_triggered_buffer_predisable:
-	 * Generic function that simple detaches the pollfunc from the trigger.
-	 * Replace this to put hardware state back again after the trigger is
-	 * detached but before userspace knows we have disabled the ring.
-	 */
-	.predisable = &iio_triggered_buffer_predisable,
 };
 
 int iio_simple_dummy_configure_buffer(struct iio_dev *indio_dev)
 {
-	int ret;
-	struct iio_buffer *buffer;
-
-	/* Allocate a buffer to use - here a kfifo */
-	buffer = iio_kfifo_allocate();
-	if (!buffer) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-
-	iio_device_attach_buffer(indio_dev, buffer);
-
-	/*
-	 * Tell the core what device type specific functions should
-	 * be run on either side of buffer capture enable / disable.
-	 */
-	indio_dev->setup_ops = &iio_simple_dummy_buffer_setup_ops;
-
-	/*
-	 * Configure a polling function.
-	 * When a trigger event with this polling function connected
-	 * occurs, this function is run. Typically this grabs data
-	 * from the device.
-	 *
-	 * NULL for the bottom half. This is normally implemented only if we
-	 * either want to ping a capture now pin (no sleeping) or grab
-	 * a timestamp as close as possible to a data ready trigger firing.
-	 *
-	 * IRQF_ONESHOT ensures irqs are masked such that only one instance
-	 * of the handler can run at a time.
-	 *
-	 * "iio_simple_dummy_consumer%d" formatting string for the irq 'name'
-	 * as seen under /proc/interrupts. Remaining parameters as per printk.
-	 */
-	indio_dev->pollfunc = iio_alloc_pollfunc(NULL,
-						 &iio_simple_dummy_trigger_h,
-						 IRQF_ONESHOT,
-						 indio_dev,
-						 "iio_simple_dummy_consumer%d",
-						 indio_dev->id);
-
-	if (!indio_dev->pollfunc) {
-		ret = -ENOMEM;
-		goto error_free_buffer;
-	}
-
-	/*
-	 * Notify the core that this device is capable of buffered capture
-	 * driven by a trigger.
-	 */
-	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
-
-	return 0;
-
-error_free_buffer:
-	iio_kfifo_free(indio_dev->buffer);
-error_ret:
-	return ret;
+	return iio_triggered_buffer_setup(indio_dev, NULL,
+					  iio_simple_dummy_trigger_h,
+					  &iio_simple_dummy_buffer_setup_ops);
 }
 
 /**
  * iio_simple_dummy_unconfigure_buffer() - release buffer resources
- * @indo_dev: device instance state
+ * @indio_dev: device instance state
  */
 void iio_simple_dummy_unconfigure_buffer(struct iio_dev *indio_dev)
 {
-	iio_dealloc_pollfunc(indio_dev->pollfunc);
-	iio_kfifo_free(indio_dev->buffer);
+	iio_triggered_buffer_cleanup(indio_dev);
 }

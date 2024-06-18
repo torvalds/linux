@@ -289,7 +289,7 @@ static struct esp_driver_ops mac_esp_ops = {
 
 static int esp_mac_probe(struct platform_device *dev)
 {
-	struct scsi_host_template *tpnt = &scsi_esp_template;
+	const struct scsi_host_template *tpnt = &scsi_esp_template;
 	struct Scsi_Host *host;
 	struct esp *esp;
 	int err;
@@ -407,7 +407,7 @@ fail:
 	return err;
 }
 
-static int esp_mac_remove(struct platform_device *dev)
+static void esp_mac_remove(struct platform_device *dev)
 {
 	struct mac_esp_priv *mep = platform_get_drvdata(dev);
 	struct esp *esp = mep->esp;
@@ -428,33 +428,19 @@ static int esp_mac_remove(struct platform_device *dev)
 	kfree(esp->command_block);
 
 	scsi_host_put(esp->host);
-
-	return 0;
 }
 
 static struct platform_driver esp_mac_driver = {
 	.probe    = esp_mac_probe,
-	.remove   = esp_mac_remove,
+	.remove_new = esp_mac_remove,
 	.driver   = {
 		.name	= DRV_MODULE_NAME,
 	},
 };
-
-static int __init mac_esp_init(void)
-{
-	return platform_driver_register(&esp_mac_driver);
-}
-
-static void __exit mac_esp_exit(void)
-{
-	platform_driver_unregister(&esp_mac_driver);
-}
+module_platform_driver(esp_mac_driver);
 
 MODULE_DESCRIPTION("Mac ESP SCSI driver");
 MODULE_AUTHOR("Finn Thain");
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION(DRV_VERSION);
 MODULE_ALIAS("platform:" DRV_MODULE_NAME);
-
-module_init(mac_esp_init);
-module_exit(mac_esp_exit);

@@ -6,12 +6,196 @@
  *
  *  Common directory handling for ADFS
  */
+#include <linux/slab.h>
 #include "adfs.h"
 
 /*
  * For future.  This should probably be per-directory.
  */
-static DEFINE_RWLOCK(adfs_dir_lock);
+static DECLARE_RWSEM(adfs_dir_rwsem);
+
+int adfs_dir_copyfrom(void *dst, struct adfs_dir *dir, unsigned int offset,
+		      size_t len)
+{
+	struct super_block *sb = dir->sb;
+	unsigned int index, remain;
+
+	index = offset >> sb->s_blocksize_bits;
+	offset &= sb->s_blocksize - 1;
+	remain = sb->s_blocksize - offset;
+	if (index + (remain < len) >= dir->nr_buffers)
+		return -EINVAL;
+
+	if (remain < len) {
+		memcpy(dst, dir->bhs[index]->b_data + offset, remain);
+		dst += remain;
+		len -= remain;
+		index += 1;
+		offset = 0;
+	}
+
+	memcpy(dst, dir->bhs[index]->b_data + offset, len);
+
+	return 0;
+}
+
+int adfs_dir_copyto(struct adfs_dir *dir, unsigned int offset, const void *src,
+		    size_t len)
+{
+	struct super_block *sb = dir->sb;
+	unsigned int index, remain;
+
+	index = offset >> sb->s_blocksize_bits;
+	offset &= sb->s_blocksize - 1;
+	remain = sb->s_blocksize - offset;
+	if (index + (remain < len) >= dir->nr_buffers)
+		return -EINVAL;
+
+	if (remain < len) {
+		memcpy(dir->bhs[index]->b_data + offset, src, remain);
+		src += remain;
+		len -= remain;
+		index += 1;
+		offset = 0;
+	}
+
+	memcpy(dir->bhs[index]->b_data + offset, src, len);
+
+	return 0;
+}
+
+static void __adfs_dir_cleanup(struct adfs_dir *dir)
+{
+	dir->nr_buffers = 0;
+
+	if (dir->bhs != dir->bh)
+		kfree(dir->bhs);
+	dir->bhs = NULL;
+	dir->sb = NULL;
+}
+
+void adfs_dir_relse(struct adfs_dir *dir)
+{
+	unsigned int i;
+
+	for (i = 0; i < dir->nr_buffers; i++)
+		brelse(dir->bhs[i]);
+
+	__adfs_dir_cleanup(dir);
+}
+
+static void adfs_dir_forget(struct adfs_dir *dir)
+{
+	unsigned int i;
+
+	for (i = 0; i < dir->nr_buffers; i++)
+		bforget(dir->bhs[i]);
+
+	__adfs_dir_cleanup(dir);
+}
+
+int adfs_dir_read_buffers(struct super_block *sb, u32 indaddr,
+			  unsigned int size, struct adfs_dir *dir)
+{
+	struct buffer_head **bhs;
+	unsigned int i, num;
+	int block;
+
+	num = ALIGN(size, sb->s_blocksize) >> sb->s_blocksize_bits;
+	if (num > ARRAY_SIZE(dir->bh)) {
+		/* We only allow one extension */
+		if (dir->bhs != dir->bh)
+			return -EINVAL;
+
+		bhs = kcalloc(num, sizeof(*bhs), GFP_KERNEL);
+		if (!bhs)
+			return -ENOMEM;
+
+		if (dir->nr_buffers)
+			memcpy(bhs, dir->bhs, dir->nr_buffers * sizeof(*bhs));
+
+		dir->bhs = bhs;
+	}
+
+	for (i = dir->nr_buffers; i < num; i++) {
+		block = __adfs_block_map(sb, indaddr, i);
+		if (!block) {
+			adfs_error(sb, "dir %06x has a hole at offset %u",
+				   indaddr, i);
+			goto error;
+		}
+
+		dir->bhs[i] = sb_bread(sb, block);
+		if (!dir->bhs[i]) {
+			adfs_error(sb,
+				   "dir %06x failed read at offset %u, mapped block 0x%08x",
+				   indaddr, i, block);
+			goto error;
+		}
+
+		dir->nr_buffers++;
+	}
+	return 0;
+
+error:
+	adfs_dir_relse(dir);
+
+	return -EIO;
+}
+
+static int adfs_dir_read(struct super_block *sb, u32 indaddr,
+			 unsigned int size, struct adfs_dir *dir)
+{
+	dir->sb = sb;
+	dir->bhs = dir->bh;
+	dir->nr_buffers = 0;
+
+	return ADFS_SB(sb)->s_dir->read(sb, indaddr, size, dir);
+}
+
+static int adfs_dir_read_inode(struct super_block *sb, struct inode *inode,
+			       struct adfs_dir *dir)
+{
+	int ret;
+
+	ret = adfs_dir_read(sb, ADFS_I(inode)->indaddr, inode->i_size, dir);
+	if (ret)
+		return ret;
+
+	if (ADFS_I(inode)->parent_id != dir->parent_id) {
+		adfs_error(sb,
+			   "parent directory id changed under me! (%06x but got %06x)\n",
+			   ADFS_I(inode)->parent_id, dir->parent_id);
+		adfs_dir_relse(dir);
+		ret = -EIO;
+	}
+
+	return ret;
+}
+
+static void adfs_dir_mark_dirty(struct adfs_dir *dir)
+{
+	unsigned int i;
+
+	/* Mark the buffers dirty */
+	for (i = 0; i < dir->nr_buffers; i++)
+		mark_buffer_dirty(dir->bhs[i]);
+}
+
+static int adfs_dir_sync(struct adfs_dir *dir)
+{
+	int err = 0;
+	int i;
+
+	for (i = dir->nr_buffers - 1; i >= 0; i--) {
+		struct buffer_head *bh = dir->bhs[i];
+		sync_dirty_buffer(bh);
+		if (buffer_req(bh) && !buffer_uptodate(bh))
+			err = -EIO;
+	}
+
+	return err;
+}
 
 void adfs_object_fixup(struct adfs_dir *dir, struct object_info *obj)
 {
@@ -51,87 +235,90 @@ void adfs_object_fixup(struct adfs_dir *dir, struct object_info *obj)
 	}
 }
 
-static int
-adfs_readdir(struct file *file, struct dir_context *ctx)
+static int adfs_iterate(struct file *file, struct dir_context *ctx)
 {
 	struct inode *inode = file_inode(file);
 	struct super_block *sb = inode->i_sb;
 	const struct adfs_dir_ops *ops = ADFS_SB(sb)->s_dir;
-	struct object_info obj;
 	struct adfs_dir dir;
-	int ret = 0;
+	int ret;
 
-	if (ctx->pos >> 32)
-		return 0;
-
-	ret = ops->read(sb, inode->i_ino, inode->i_size, &dir);
+	down_read(&adfs_dir_rwsem);
+	ret = adfs_dir_read_inode(sb, inode, &dir);
 	if (ret)
-		return ret;
+		goto unlock;
 
 	if (ctx->pos == 0) {
 		if (!dir_emit_dot(file, ctx))
-			goto free_out;
+			goto unlock_relse;
 		ctx->pos = 1;
 	}
 	if (ctx->pos == 1) {
 		if (!dir_emit(ctx, "..", 2, dir.parent_id, DT_DIR))
-			goto free_out;
+			goto unlock_relse;
 		ctx->pos = 2;
 	}
 
-	read_lock(&adfs_dir_lock);
+	ret = ops->iterate(&dir, ctx);
 
-	ret = ops->setpos(&dir, ctx->pos - 2);
-	if (ret)
-		goto unlock_out;
-	while (ops->getnext(&dir, &obj) == 0) {
-		if (!dir_emit(ctx, obj.name, obj.name_len,
-			      obj.indaddr, DT_UNKNOWN))
-			break;
-		ctx->pos++;
-	}
+unlock_relse:
+	up_read(&adfs_dir_rwsem);
+	adfs_dir_relse(&dir);
+	return ret;
 
-unlock_out:
-	read_unlock(&adfs_dir_lock);
-
-free_out:
-	ops->free(&dir);
+unlock:
+	up_read(&adfs_dir_rwsem);
 	return ret;
 }
 
 int
 adfs_dir_update(struct super_block *sb, struct object_info *obj, int wait)
 {
-	int ret = -EINVAL;
-#ifdef CONFIG_ADFS_FS_RW
 	const struct adfs_dir_ops *ops = ADFS_SB(sb)->s_dir;
 	struct adfs_dir dir;
+	int ret;
 
-	printk(KERN_INFO "adfs_dir_update: object %06x in dir %06x\n",
-		 obj->indaddr, obj->parent_id);
+	if (!IS_ENABLED(CONFIG_ADFS_FS_RW))
+		return -EINVAL;
 
-	if (!ops->update) {
-		ret = -EINVAL;
-		goto out;
-	}
+	if (!ops->update)
+		return -EINVAL;
 
-	ret = ops->read(sb, obj->parent_id, 0, &dir);
+	down_write(&adfs_dir_rwsem);
+	ret = adfs_dir_read(sb, obj->parent_id, 0, &dir);
 	if (ret)
-		goto out;
+		goto unlock;
 
-	write_lock(&adfs_dir_lock);
 	ret = ops->update(&dir, obj);
-	write_unlock(&adfs_dir_lock);
+	if (ret)
+		goto forget;
 
-	if (wait) {
-		int err = ops->sync(&dir);
-		if (!ret)
-			ret = err;
-	}
+	ret = ops->commit(&dir);
+	if (ret)
+		goto forget;
+	up_write(&adfs_dir_rwsem);
 
-	ops->free(&dir);
-out:
-#endif
+	adfs_dir_mark_dirty(&dir);
+
+	if (wait)
+		ret = adfs_dir_sync(&dir);
+
+	adfs_dir_relse(&dir);
+	return ret;
+
+	/*
+	 * If the updated failed because the entry wasn't found, we can
+	 * just release the buffers. If it was any other error, forget
+	 * the dirtied buffers so they aren't written back to the media.
+	 */
+forget:
+	if (ret == -ENOENT)
+		adfs_dir_relse(&dir);
+	else
+		adfs_dir_forget(&dir);
+unlock:
+	up_write(&adfs_dir_rwsem);
+
 	return ret;
 }
 
@@ -167,25 +354,14 @@ static int adfs_dir_lookup_byname(struct inode *inode, const struct qstr *qstr,
 	u32 name_len;
 	int ret;
 
-	ret = ops->read(sb, inode->i_ino, inode->i_size, &dir);
+	down_read(&adfs_dir_rwsem);
+	ret = adfs_dir_read_inode(sb, inode, &dir);
 	if (ret)
-		goto out;
-
-	if (ADFS_I(inode)->parent_id != dir.parent_id) {
-		adfs_error(sb,
-			   "parent directory changed under me! (%06x but got %06x)\n",
-			   ADFS_I(inode)->parent_id, dir.parent_id);
-		ret = -EIO;
-		goto free_out;
-	}
-
-	obj->parent_id = inode->i_ino;
-
-	read_lock(&adfs_dir_lock);
+		goto unlock;
 
 	ret = ops->setpos(&dir, 0);
 	if (ret)
-		goto unlock_out;
+		goto unlock_relse;
 
 	ret = -ENOENT;
 	name = qstr->name;
@@ -196,20 +372,22 @@ static int adfs_dir_lookup_byname(struct inode *inode, const struct qstr *qstr,
 			break;
 		}
 	}
+	obj->parent_id = ADFS_I(inode)->indaddr;
 
-unlock_out:
-	read_unlock(&adfs_dir_lock);
+unlock_relse:
+	up_read(&adfs_dir_rwsem);
+	adfs_dir_relse(&dir);
+	return ret;
 
-free_out:
-	ops->free(&dir);
-out:
+unlock:
+	up_read(&adfs_dir_rwsem);
 	return ret;
 }
 
 const struct file_operations adfs_dir_operations = {
 	.read		= generic_read_dir,
 	.llseek		= generic_file_llseek,
-	.iterate	= adfs_readdir,
+	.iterate_shared	= adfs_iterate,
 	.fsync		= generic_file_fsync,
 };
 

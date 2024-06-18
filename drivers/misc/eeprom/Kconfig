@@ -6,6 +6,7 @@ config EEPROM_AT24
 	depends on I2C && SYSFS
 	select NVMEM
 	select NVMEM_SYSFS
+	select REGMAP
 	select REGMAP_I2C
 	help
 	  Enable this driver to get read/write support to most I2C EEPROMs
@@ -32,31 +33,18 @@ config EEPROM_AT24
 	  will be called at24.
 
 config EEPROM_AT25
-	tristate "SPI EEPROMs from most vendors"
+	tristate "SPI EEPROMs (FRAMs) from most vendors"
 	depends on SPI && SYSFS
 	select NVMEM
 	select NVMEM_SYSFS
 	help
-	  Enable this driver to get read/write support to most SPI EEPROMs,
+	  Enable this driver to get read/write support to most SPI EEPROMs
+	  and Cypress FRAMs,
 	  after you configure the board init code to know about each eeprom
 	  on your target board.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called at25.
-
-config EEPROM_LEGACY
-	tristate "Old I2C EEPROM reader (DEPRECATED)"
-	depends on I2C && SYSFS
-	help
-	  If you say yes here you get read-only access to the EEPROM data
-	  available on modern memory DIMMs and Sony Vaio laptops via I2C. Such
-	  EEPROMs could theoretically be available on other devices as well.
-
-	  This driver is deprecated and will be removed soon, please use the
-	  better at24 driver instead.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called eeprom.
 
 config EEPROM_MAX6875
 	tristate "Maxim MAX6874/5 power supply supervisor"

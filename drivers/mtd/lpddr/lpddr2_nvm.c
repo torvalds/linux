@@ -393,6 +393,17 @@ static int lpddr2_nvm_lock(struct mtd_info *mtd, loff_t start_add,
 	return lpddr2_nvm_do_block_op(mtd, start_add, len, LPDDR2_NVM_LOCK);
 }
 
+static const struct mtd_info lpddr2_nvm_mtd_info = {
+	.type		= MTD_RAM,
+	.writesize	= 1,
+	.flags		= (MTD_CAP_NVRAM | MTD_POWERUP_LOCK),
+	._read		= lpddr2_nvm_read,
+	._write		= lpddr2_nvm_write,
+	._erase		= lpddr2_nvm_erase,
+	._unlock	= lpddr2_nvm_unlock,
+	._lock		= lpddr2_nvm_lock,
+};
+
 /*
  * lpddr2_nvm driver probe method
  */
@@ -401,7 +412,6 @@ static int lpddr2_nvm_probe(struct platform_device *pdev)
 	struct map_info *map;
 	struct mtd_info *mtd;
 	struct resource *add_range;
-	struct resource *control_regs;
 	struct pcm_int_data *pcm_data;
 
 	/* Allocate memory control_regs data structures */
@@ -422,6 +432,8 @@ static int lpddr2_nvm_probe(struct platform_device *pdev)
 
 	/* lpddr2_nvm address range */
 	add_range = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!add_range)
+		return -ENODEV;
 
 	/* Populate map_info data structure */
 	*map = (struct map_info) {
@@ -433,33 +445,24 @@ static int lpddr2_nvm_probe(struct platform_device *pdev)
 		.pfow_base	= OW_BASE_ADDRESS,
 		.fldrv_priv	= pcm_data,
 	};
+
 	if (IS_ERR(map->virt))
 		return PTR_ERR(map->virt);
 
 	simple_map_init(map);	/* fill with default methods */
 
-	control_regs = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	pcm_data->ctl_regs = devm_ioremap_resource(&pdev->dev, control_regs);
+	pcm_data->ctl_regs = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(pcm_data->ctl_regs))
 		return PTR_ERR(pcm_data->ctl_regs);
 
 	/* Populate mtd_info data structure */
-	*mtd = (struct mtd_info) {
-		.dev		= { .parent = &pdev->dev },
-		.name		= pdev->dev.init_name,
-		.type		= MTD_RAM,
-		.priv		= map,
-		.size		= resource_size(add_range),
-		.erasesize	= ERASE_BLOCKSIZE * pcm_data->bus_width,
-		.writesize	= 1,
-		.writebufsize	= WRITE_BUFFSIZE * pcm_data->bus_width,
-		.flags		= (MTD_CAP_NVRAM | MTD_POWERUP_LOCK),
-		._read		= lpddr2_nvm_read,
-		._write		= lpddr2_nvm_write,
-		._erase		= lpddr2_nvm_erase,
-		._unlock	= lpddr2_nvm_unlock,
-		._lock		= lpddr2_nvm_lock,
-	};
+	*mtd = lpddr2_nvm_mtd_info;
+	mtd->dev.parent		= &pdev->dev;
+	mtd->name		= pdev->dev.init_name;
+	mtd->priv		= map;
+	mtd->size		= resource_size(add_range);
+	mtd->erasesize		= ERASE_BLOCKSIZE * pcm_data->bus_width;
+	mtd->writebufsize	= WRITE_BUFFSIZE * pcm_data->bus_width;
 
 	/* Verify the presence of the device looking for PFOW string */
 	if (!lpddr2_nvm_pfow_present(map)) {
@@ -473,9 +476,9 @@ static int lpddr2_nvm_probe(struct platform_device *pdev)
 /*
  * lpddr2_nvm driver remove method
  */
-static int lpddr2_nvm_remove(struct platform_device *pdev)
+static void lpddr2_nvm_remove(struct platform_device *pdev)
 {
-	return mtd_device_unregister(dev_get_drvdata(&pdev->dev));
+	WARN_ON(mtd_device_unregister(dev_get_drvdata(&pdev->dev)));
 }
 
 /* Initialize platform_driver data structure for lpddr2_nvm */
@@ -484,7 +487,7 @@ static struct platform_driver lpddr2_nvm_drv = {
 		.name	= "lpddr2_nvm",
 	},
 	.probe		= lpddr2_nvm_probe,
-	.remove		= lpddr2_nvm_remove,
+	.remove_new	= lpddr2_nvm_remove,
 };
 
 module_platform_driver(lpddr2_nvm_drv);

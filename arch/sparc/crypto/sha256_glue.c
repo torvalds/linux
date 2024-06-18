@@ -15,9 +15,9 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mm.h>
-#include <linux/cryptohash.h>
 #include <linux/types.h>
-#include <crypto/sha.h>
+#include <crypto/sha2.h>
+#include <crypto/sha256_base.h>
 
 #include <asm/pstate.h>
 #include <asm/elf.h>
@@ -26,38 +26,6 @@
 
 asmlinkage void sha256_sparc64_transform(u32 *digest, const char *data,
 					 unsigned int rounds);
-
-static int sha224_sparc64_init(struct shash_desc *desc)
-{
-	struct sha256_state *sctx = shash_desc_ctx(desc);
-	sctx->state[0] = SHA224_H0;
-	sctx->state[1] = SHA224_H1;
-	sctx->state[2] = SHA224_H2;
-	sctx->state[3] = SHA224_H3;
-	sctx->state[4] = SHA224_H4;
-	sctx->state[5] = SHA224_H5;
-	sctx->state[6] = SHA224_H6;
-	sctx->state[7] = SHA224_H7;
-	sctx->count = 0;
-
-	return 0;
-}
-
-static int sha256_sparc64_init(struct shash_desc *desc)
-{
-	struct sha256_state *sctx = shash_desc_ctx(desc);
-	sctx->state[0] = SHA256_H0;
-	sctx->state[1] = SHA256_H1;
-	sctx->state[2] = SHA256_H2;
-	sctx->state[3] = SHA256_H3;
-	sctx->state[4] = SHA256_H4;
-	sctx->state[5] = SHA256_H5;
-	sctx->state[6] = SHA256_H6;
-	sctx->state[7] = SHA256_H7;
-	sctx->count = 0;
-
-	return 0;
-}
 
 static void __sha256_sparc64_update(struct sha256_state *sctx, const u8 *data,
 				    unsigned int len, unsigned int partial)
@@ -157,9 +125,9 @@ static int sha256_sparc64_import(struct shash_desc *desc, const void *in)
 	return 0;
 }
 
-static struct shash_alg sha256 = {
+static struct shash_alg sha256_alg = {
 	.digestsize	=	SHA256_DIGEST_SIZE,
-	.init		=	sha256_sparc64_init,
+	.init		=	sha256_base_init,
 	.update		=	sha256_sparc64_update,
 	.final		=	sha256_sparc64_final,
 	.export		=	sha256_sparc64_export,
@@ -175,9 +143,9 @@ static struct shash_alg sha256 = {
 	}
 };
 
-static struct shash_alg sha224 = {
+static struct shash_alg sha224_alg = {
 	.digestsize	=	SHA224_DIGEST_SIZE,
-	.init		=	sha224_sparc64_init,
+	.init		=	sha224_base_init,
 	.update		=	sha256_sparc64_update,
 	.final		=	sha224_sparc64_final,
 	.descsize	=	sizeof(struct sha256_state),
@@ -207,13 +175,13 @@ static bool __init sparc64_has_sha256_opcode(void)
 static int __init sha256_sparc64_mod_init(void)
 {
 	if (sparc64_has_sha256_opcode()) {
-		int ret = crypto_register_shash(&sha224);
+		int ret = crypto_register_shash(&sha224_alg);
 		if (ret < 0)
 			return ret;
 
-		ret = crypto_register_shash(&sha256);
+		ret = crypto_register_shash(&sha256_alg);
 		if (ret < 0) {
-			crypto_unregister_shash(&sha224);
+			crypto_unregister_shash(&sha224_alg);
 			return ret;
 		}
 
@@ -226,8 +194,8 @@ static int __init sha256_sparc64_mod_init(void)
 
 static void __exit sha256_sparc64_mod_fini(void)
 {
-	crypto_unregister_shash(&sha224);
-	crypto_unregister_shash(&sha256);
+	crypto_unregister_shash(&sha224_alg);
+	crypto_unregister_shash(&sha256_alg);
 }
 
 module_init(sha256_sparc64_mod_init);

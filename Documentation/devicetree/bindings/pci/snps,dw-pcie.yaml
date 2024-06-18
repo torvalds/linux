@@ -1,0 +1,242 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pci/snps,dw-pcie.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Synopsys DesignWare PCIe interface
+
+maintainers:
+  - Jingoo Han <jingoohan1@gmail.com>
+  - Gustavo Pimentel <gustavo.pimentel@synopsys.com>
+
+description: |
+  Synopsys DesignWare PCIe host controller
+
+# Please create a separate DT-schema for your DWC PCIe Root Port controller
+# and make sure it's assigned with the vendor-specific compatible string.
+select:
+  properties:
+    compatible:
+      const: snps,dw-pcie
+  required:
+    - compatible
+
+allOf:
+  - $ref: /schemas/pci/pci-host-bridge.yaml#
+  - $ref: /schemas/pci/snps,dw-pcie-common.yaml#
+  - if:
+      not:
+        required:
+          - msi-map
+    then:
+      properties:
+        interrupt-names:
+          contains:
+            const: msi
+
+properties:
+  reg:
+    description:
+      At least DBI reg-space and peripheral devices CFG-space outbound window
+      are required for the normal controller work. iATU memory IO region is
+      also required if the space is unrolled (IP-core version >= 4.80a).
+    minItems: 2
+    maxItems: 7
+
+  reg-names:
+    minItems: 2
+    maxItems: 7
+    items:
+      oneOf:
+        - description:
+            Basic DWC PCIe controller configuration-space accessible over
+            the DBI interface. This memory space is either activated with
+            CDM/ELBI = 0 and CS2 = 0 or is a contiguous memory region
+            with all spaces. Note iATU/eDMA CSRs are indirectly accessible
+            via the PL viewports on the DWC PCIe controllers older than
+            v4.80a.
+          const: dbi
+        - description:
+            Shadow DWC PCIe config-space registers. This space is selected
+            by setting CDM/ELBI = 0 and CS2 = 1. This is an intermix of
+            the PCI-SIG PCIe CFG-space with the shadow registers for some
+            PCI Header space, PCI Standard and Extended Structures. It's
+            mainly relevant for the end-point controller configuration,
+            but still there are some shadow registers available for the
+            Root Port mode too.
+          const: dbi2
+        - description:
+            External Local Bus registers. It's an application-dependent
+            registers normally defined by the platform engineers. The space
+            can be selected by setting CDM/ELBI = 1 and CS2 = 0 wires or can
+            be accessed over some platform-specific means (for instance
+            as a part of a system controller).
+          enum: [ elbi, app ]
+        - description:
+            iATU/eDMA registers common for all device functions. It's an
+            unrolled memory space with the internal Address Translation
+            Unit and Enhanced DMA, which is selected by setting CDM/ELBI = 1
+            and CS2 = 1. For IP-core releases prior v4.80a, these registers
+            have been programmed via an indirect addressing scheme using a
+            set of viewport CSRs mapped into the PL space. Note iATU is
+            normally mapped to the 0x0 address of this region, while eDMA
+            is available at 0x80000 base address.
+          const: atu
+        - description:
+            Platform-specific eDMA registers. Some platforms may have eDMA
+            CSRs mapped in a non-standard base address. The registers offset
+            can be changed or the MS/LS-bits of the address can be attached
+            in an additional RTL block before the MEM-IO transactions reach
+            the DW PCIe slave interface.
+          const: dma
+        - description:
+            PHY/PCS configuration registers. Some platforms can have the
+            PCS and PHY CSRs accessible over a dedicated memory mapped
+            region, but mainly these registers are indirectly accessible
+            either by means of the embedded PHY viewport schema or by some
+            platform-specific method.
+          const: phy
+        - description:
+            Outbound iATU-capable memory-region which will be used to access
+            the peripheral PCIe devices configuration space.
+          const: config
+        - description:
+            Vendor-specific CSR names. Consider using the generic names above
+            for new bindings.
+          oneOf:
+            - description: See native 'elbi/app' CSR region for details.
+              enum: [ apb, mgmt, link, ulreg, appl ]
+            - description: See native 'atu' CSR region for details.
+              enum: [ atu_dma ]
+            - description: Syscon-related CSR regions.
+              enum: [ smu, mpu ]
+            - description: Tegra234 aperture
+              enum: [ ecam ]
+    allOf:
+      - contains:
+          const: dbi
+      - contains:
+          const: config
+
+  interrupts:
+    description:
+      DWC PCIe Root Port/Complex specific IRQ signals. At least MSI interrupt
+      signal is supposed to be specified for the host controller.
+    minItems: 1
+    maxItems: 26
+
+  interrupt-names:
+    minItems: 1
+    maxItems: 26
+    items:
+      oneOf:
+        - description:
+            Controller request to read or write virtual product data
+            from/to the VPD capability registers.
+          const: vpd
+        - description:
+            Link Equalization Request flag is set in the Link Status 2
+            register (applicable if the corresponding IRQ is enabled in
+            the Link Control 3 register).
+          const: l_eq
+        - description:
+            Indicates that the eDMA Tx/Rx transfer is complete or that an
+            error has occurred on the corresponding channel. eDMA can have
+            eight Tx (Write) and Rx (Read) eDMA channels thus supporting up
+            to 16 IRQ signals all together. Write eDMA channels shall go
+            first in the ordered row as per default edma_int[*] bus setup.
+          pattern: '^dma([0-9]|1[0-5])?$'
+        - description:
+            PCIe protocol correctable error or a Data Path protection
+            correctable error is detected by the automotive/safety
+            feature.
+          const: sft_ce
+        - description:
+            Indicates that the internal safety mechanism has detected an
+            uncorrectable error.
+          const: sft_ue
+        - description:
+            Application-specific IRQ raised depending on the vendor-specific
+            events basis.
+          const: app
+        - description:
+            DSP AXI MSI Interrupt detected. It gets de-asserted when there is
+            no more MSI interrupt pending. The interrupt is relevant to the
+            iMSI-RX - Integrated MSI Receiver (AXI bridge).
+          const: msi
+        - description:
+            Legacy A/B/C/D interrupt signal. Basically it's triggered by
+            receiving a Assert_INT{A,B,C,D}/Desassert_INT{A,B,C,D} message
+            from the downstream device.
+          pattern: "^int(a|b|c|d)$"
+        - description:
+            Error condition detected and a flag is set in the Root Error Status
+            register of the AER capability. It's asserted when the RC
+            internally generated an error or an error message is received by
+            the RC.
+          const: aer
+        - description:
+            PME message is received by the port. That means having the PME
+            status bit set in the Root Status register (the event is
+            supposed to be unmasked in the Root Control register).
+          const: pme
+        - description:
+            Hot-plug event is detected. That is a bit has been set in the
+            Slot Status register and the corresponding event is enabled in
+            the Slot Control register.
+          const: hp
+        - description:
+            Link Autonomous Bandwidth Status flag has been set in the Link
+            Status register (the event is supposed to be unmasked in the
+            Link Control register).
+          const: bw_au
+        - description:
+            Bandwidth Management Status flag has been set in the Link
+            Status register (the event is supposed to be unmasked in the
+            Link Control register).
+          const: bw_mg
+        - description:
+            Combined Legacy A/B/C/D interrupt signal. See "^int(a|b|c|d)$" for
+            details.
+          const: legacy
+        - description:
+            Vendor-specific IRQ names. Consider using the generic names above
+            for new bindings.
+          oneOf:
+            - description: See native "app" IRQ for details
+              enum: [ intr, sys, pmc, msg, err ]
+
+additionalProperties: true
+
+required:
+  - compatible
+  - reg
+  - reg-names
+
+examples:
+  - |
+    pcie@dfc00000 {
+      compatible = "snps,dw-pcie";
+      device_type = "pci";
+      reg = <0xdfc00000 0x0001000>, /* IP registers */
+            <0xd0000000 0x0002000>; /* Configuration space */
+      reg-names = "dbi", "config";
+      #address-cells = <3>;
+      #size-cells = <2>;
+      ranges = <0x81000000 0 0x00000000 0xde000000 0 0x00010000>,
+               <0x82000000 0 0xd0400000 0xd0400000 0 0x0d000000>;
+      bus-range = <0x0 0xff>;
+
+      interrupts = <25>, <24>;
+      interrupt-names = "msi", "hp";
+      #interrupt-cells = <1>;
+
+      reset-gpios = <&port0 0 1>;
+
+      phys = <&pcie_phy>;
+      phy-names = "pcie";
+
+      num-lanes = <1>;
+      max-link-speed = <3>;
+    };

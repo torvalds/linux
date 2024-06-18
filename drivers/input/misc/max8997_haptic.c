@@ -61,15 +61,10 @@ static int max8997_haptic_set_duty_cycle(struct max8997_haptic *chip)
 		unsigned int duty = chip->pwm_period * chip->level / 100;
 		ret = pwm_config(chip->pwm, duty, chip->pwm_period);
 	} else {
-		int i;
 		u8 duty_index = 0;
 
-		for (i = 0; i <= 64; i++) {
-			if (chip->level <= i * 100 / 64) {
-				duty_index = i;
-				break;
-			}
-		}
+		duty_index = DIV_ROUND_UP(chip->level * 64, 100);
+
 		switch (chip->internal_mode_pattern) {
 		case 0:
 			max8997_write_reg(chip->client,
@@ -283,8 +278,7 @@ static int max8997_haptic_probe(struct platform_device *pdev)
 		break;
 
 	case MAX8997_EXTERNAL_MODE:
-		chip->pwm = pwm_request(haptic_pdata->pwm_channel_id,
-					"max8997-haptic");
+		chip->pwm = pwm_get(&pdev->dev, NULL);
 		if (IS_ERR(chip->pwm)) {
 			error = PTR_ERR(chip->pwm);
 			dev_err(&pdev->dev,
@@ -349,7 +343,7 @@ err_put_regulator:
 	regulator_put(chip->regulator);
 err_free_pwm:
 	if (chip->mode == MAX8997_EXTERNAL_MODE)
-		pwm_free(chip->pwm);
+		pwm_put(chip->pwm);
 err_free_mem:
 	input_free_device(input_dev);
 	kfree(chip);
@@ -357,7 +351,7 @@ err_free_mem:
 	return error;
 }
 
-static int max8997_haptic_remove(struct platform_device *pdev)
+static void max8997_haptic_remove(struct platform_device *pdev)
 {
 	struct max8997_haptic *chip = platform_get_drvdata(pdev);
 
@@ -365,14 +359,12 @@ static int max8997_haptic_remove(struct platform_device *pdev)
 	regulator_put(chip->regulator);
 
 	if (chip->mode == MAX8997_EXTERNAL_MODE)
-		pwm_free(chip->pwm);
+		pwm_put(chip->pwm);
 
 	kfree(chip);
-
-	return 0;
 }
 
-static int __maybe_unused max8997_haptic_suspend(struct device *dev)
+static int max8997_haptic_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct max8997_haptic *chip = platform_get_drvdata(pdev);
@@ -382,7 +374,8 @@ static int __maybe_unused max8997_haptic_suspend(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(max8997_haptic_pm_ops, max8997_haptic_suspend, NULL);
+static DEFINE_SIMPLE_DEV_PM_OPS(max8997_haptic_pm_ops,
+				max8997_haptic_suspend, NULL);
 
 static const struct platform_device_id max8997_haptic_id[] = {
 	{ "max8997-haptic", 0 },
@@ -393,10 +386,10 @@ MODULE_DEVICE_TABLE(platform, max8997_haptic_id);
 static struct platform_driver max8997_haptic_driver = {
 	.driver	= {
 		.name	= "max8997-haptic",
-		.pm	= &max8997_haptic_pm_ops,
+		.pm	= pm_sleep_ptr(&max8997_haptic_pm_ops),
 	},
 	.probe		= max8997_haptic_probe,
-	.remove		= max8997_haptic_remove,
+	.remove_new	= max8997_haptic_remove,
 	.id_table	= max8997_haptic_id,
 };
 module_platform_driver(max8997_haptic_driver);

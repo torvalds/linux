@@ -1,51 +1,28 @@
 # SPDX-License-Identifier: GPL-2.0-only
-preferred-plugin-hostcc := $(if-success,[ $(gcc-version) -ge 40800 ],$(HOSTCXX),$(HOSTCC))
-
-config PLUGIN_HOSTCC
-	string
-	default "$(shell,$(srctree)/scripts/gcc-plugin.sh "$(preferred-plugin-hostcc)" "$(HOSTCXX)" "$(CC)")" if CC_IS_GCC
-	help
-	  Host compiler used to build GCC plugins.  This can be $(HOSTCXX),
-	  $(HOSTCC), or a null string if GCC plugin is unsupported.
-
 config HAVE_GCC_PLUGINS
 	bool
 	help
 	  An arch should select this symbol if it supports building with
 	  GCC plugins.
 
-config GCC_PLUGINS
-	bool
+menuconfig GCC_PLUGINS
+	bool "GCC plugins"
 	depends on HAVE_GCC_PLUGINS
-	depends on PLUGIN_HOSTCC != ""
+	depends on CC_IS_GCC
+	depends on $(success,test -e $(shell,$(CC) -print-file-name=plugin)/include/plugin-version.h)
 	default y
 	help
 	  GCC plugins are loadable modules that provide extra features to the
 	  compiler. They are useful for runtime instrumentation and static analysis.
 
-	  See Documentation/core-api/gcc-plugins.rst for details.
+	  See Documentation/kbuild/gcc-plugins.rst for details.
 
-menu "GCC plugins"
-	depends on GCC_PLUGINS
-
-config GCC_PLUGIN_CYC_COMPLEXITY
-	bool "Compute the cyclomatic complexity of a function" if EXPERT
-	depends on !COMPILE_TEST	# too noisy
-	help
-	  The complexity M of a function's control flow graph is defined as:
-	   M = E - N + 2P
-	  where
-
-	  E = the number of edges
-	  N = the number of nodes
-	  P = the number of connected components (exit nodes).
-
-	  Enabling this plugin reports the complexity to stderr during the
-	  build. It mainly serves as a simple example of how to create a
-	  gcc plugin for the kernel.
+if GCC_PLUGINS
 
 config GCC_PLUGIN_SANCOV
 	bool
+	# Plugin can be removed once the kernel only supports GCC 6+
+	depends on !CC_HAS_SANCOV_TRACE_PC
 	help
 	  This plugin inserts a __sanitizer_cov_trace_pc() call at the start of
 	  basic blocks. It supports all gcc versions with plugin support (from
@@ -69,48 +46,8 @@ config GCC_PLUGIN_LATENT_ENTROPY
 	   * https://grsecurity.net/
 	   * https://pax.grsecurity.net/
 
-config GCC_PLUGIN_RANDSTRUCT
-	bool "Randomize layout of sensitive kernel structures"
-	select MODVERSIONS if MODULES
-	help
-	  If you say Y here, the layouts of structures that are entirely
-	  function pointers (and have not been manually annotated with
-	  __no_randomize_layout), or structures that have been explicitly
-	  marked with __randomize_layout, will be randomized at compile-time.
-	  This can introduce the requirement of an additional information
-	  exposure vulnerability for exploits targeting these structure
-	  types.
-
-	  Enabling this feature will introduce some performance impact,
-	  slightly increase memory usage, and prevent the use of forensic
-	  tools like Volatility against the system (unless the kernel
-	  source tree isn't cleaned after kernel installation).
-
-	  The seed used for compilation is located at
-	  scripts/gcc-plgins/randomize_layout_seed.h.  It remains after
-	  a make clean to allow for external modules to be compiled with
-	  the existing seed and will be removed by a make mrproper or
-	  make distclean.
-
-	  Note that the implementation requires gcc 4.7 or newer.
-
-	  This plugin was ported from grsecurity/PaX. More information at:
-	   * https://grsecurity.net/
-	   * https://pax.grsecurity.net/
-
-config GCC_PLUGIN_RANDSTRUCT_PERFORMANCE
-	bool "Use cacheline-aware structure randomization"
-	depends on GCC_PLUGIN_RANDSTRUCT
-	depends on !COMPILE_TEST	# do not reduce test coverage
-	help
-	  If you say Y here, the RANDSTRUCT randomization will make a
-	  best effort at restricting randomization to cacheline-sized
-	  groups of elements.  It will further not randomize bitfields
-	  in structures.  This reduces the performance hit of RANDSTRUCT
-	  at the cost of weakened randomization.
-
 config GCC_PLUGIN_ARM_SSP_PER_TASK
 	bool
 	depends on GCC_PLUGINS && ARM
 
-endmenu
+endif

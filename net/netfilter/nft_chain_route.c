@@ -26,7 +26,7 @@ static unsigned int nf_route_table_hook4(void *priv,
 	u8 tos;
 
 	nft_set_pktinfo(&pkt, skb, state);
-	nft_set_pktinfo_ipv4(&pkt, skb);
+	nft_set_pktinfo_ipv4(&pkt);
 
 	mark = skb->mark;
 	iph = ip_hdr(skb);
@@ -42,7 +42,7 @@ static unsigned int nf_route_table_hook4(void *priv,
 		    iph->daddr != daddr ||
 		    skb->mark != mark ||
 		    iph->tos != tos) {
-			err = ip_route_me_harder(state->net, skb, RTN_UNSPEC);
+			err = ip_route_me_harder(state->net, state->sk, skb, RTN_UNSPEC);
 			if (err < 0)
 				ret = NF_DROP_ERR(err);
 		}
@@ -74,7 +74,7 @@ static unsigned int nf_route_table_hook6(void *priv,
 	int err;
 
 	nft_set_pktinfo(&pkt, skb, state);
-	nft_set_pktinfo_ipv6(&pkt, skb);
+	nft_set_pktinfo_ipv6(&pkt);
 
 	/* save source/dest address, mark, hoplimit, flowlabel, priority */
 	memcpy(&saddr, &ipv6_hdr(skb)->saddr, sizeof(saddr));
@@ -92,7 +92,7 @@ static unsigned int nf_route_table_hook6(void *priv,
 	     skb->mark != mark ||
 	     ipv6_hdr(skb)->hop_limit != hop_limit ||
 	     flowlabel != *((u32 *)ipv6_hdr(skb)))) {
-		err = nf_ip6_route_me_harder(state->net, skb);
+		err = nf_ip6_route_me_harder(state->net, state->sk, skb);
 		if (err < 0)
 			ret = NF_DROP_ERR(err);
 	}

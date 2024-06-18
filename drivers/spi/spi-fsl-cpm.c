@@ -21,6 +21,7 @@
 #include <linux/spi/spi.h>
 #include <linux/types.h>
 #include <linux/platform_device.h>
+#include <linux/byteorder/generic.h>
 
 #include "spi-fsl-cpm.h"
 #include "spi-fsl-lib.h"
@@ -55,12 +56,12 @@ void fsl_spi_cpm_reinit_txrx(struct mpc8xxx_spi *mspi)
 			     QE_CR_PROTOCOL_UNSPECIFIED, 0);
 	} else {
 		if (mspi->flags & SPI_CPM1) {
-			out_be32(&mspi->pram->rstate, 0);
-			out_be16(&mspi->pram->rbptr,
-				 in_be16(&mspi->pram->rbase));
-			out_be32(&mspi->pram->tstate, 0);
-			out_be16(&mspi->pram->tbptr,
-				 in_be16(&mspi->pram->tbase));
+			iowrite32be(0, &mspi->pram->rstate);
+			iowrite16be(ioread16be(&mspi->pram->rbase),
+				    &mspi->pram->rbptr);
+			iowrite32be(0, &mspi->pram->tstate);
+			iowrite16be(ioread16be(&mspi->pram->tbase),
+				    &mspi->pram->tbptr);
 		} else {
 			cpm_command(CPM_SPI_CMD, CPM_CR_INIT_TRX);
 		}
@@ -74,42 +75,36 @@ static void fsl_spi_cpm_bufs_start(struct mpc8xxx_spi *mspi)
 	struct cpm_buf_desc __iomem *rx_bd = mspi->rx_bd;
 	unsigned int xfer_len = min(mspi->count, SPI_MRBLR);
 	unsigned int xfer_ofs;
-	struct fsl_spi_reg *reg_base = mspi->reg_base;
+	struct fsl_spi_reg __iomem *reg_base = mspi->reg_base;
 
 	xfer_ofs = mspi->xfer_in_progress->len - mspi->count;
 
 	if (mspi->rx_dma == mspi->dma_dummy_rx)
-		out_be32(&rx_bd->cbd_bufaddr, mspi->rx_dma);
+		iowrite32be(mspi->rx_dma, &rx_bd->cbd_bufaddr);
 	else
-		out_be32(&rx_bd->cbd_bufaddr, mspi->rx_dma + xfer_ofs);
-	out_be16(&rx_bd->cbd_datlen, 0);
-	out_be16(&rx_bd->cbd_sc, BD_SC_EMPTY | BD_SC_INTRPT | BD_SC_WRAP);
+		iowrite32be(mspi->rx_dma + xfer_ofs, &rx_bd->cbd_bufaddr);
+	iowrite16be(0, &rx_bd->cbd_datlen);
+	iowrite16be(BD_SC_EMPTY | BD_SC_INTRPT | BD_SC_WRAP, &rx_bd->cbd_sc);
 
 	if (mspi->tx_dma == mspi->dma_dummy_tx)
-		out_be32(&tx_bd->cbd_bufaddr, mspi->tx_dma);
+		iowrite32be(mspi->tx_dma, &tx_bd->cbd_bufaddr);
 	else
-		out_be32(&tx_bd->cbd_bufaddr, mspi->tx_dma + xfer_ofs);
-	out_be16(&tx_bd->cbd_datlen, xfer_len);
-	out_be16(&tx_bd->cbd_sc, BD_SC_READY | BD_SC_INTRPT | BD_SC_WRAP |
-				 BD_SC_LAST);
+		iowrite32be(mspi->tx_dma + xfer_ofs, &tx_bd->cbd_bufaddr);
+	iowrite16be(xfer_len, &tx_bd->cbd_datlen);
+	iowrite16be(BD_SC_READY | BD_SC_INTRPT | BD_SC_WRAP | BD_SC_LAST,
+		    &tx_bd->cbd_sc);
 
 	/* start transfer */
 	mpc8xxx_spi_write_reg(&reg_base->command, SPCOM_STR);
 }
 
-int fsl_spi_cpm_bufs(struct mpc8xxx_spi *mspi,
-		     struct spi_transfer *t, bool is_dma_mapped)
+int fsl_spi_cpm_bufs(struct mpc8xxx_spi *mspi, struct spi_transfer *t)
 {
 	struct device *dev = mspi->dev;
-	struct fsl_spi_reg *reg_base = mspi->reg_base;
+	struct fsl_spi_reg __iomem *reg_base = mspi->reg_base;
 
-	if (is_dma_mapped) {
-		mspi->map_tx_dma = 0;
-		mspi->map_rx_dma = 0;
-	} else {
-		mspi->map_tx_dma = 1;
-		mspi->map_rx_dma = 1;
-	}
+	mspi->map_tx_dma = 1;
+	mspi->map_rx_dma = 1;
 
 	if (!t->tx_buf) {
 		mspi->tx_dma = mspi->dma_dummy_tx;
@@ -119,6 +114,21 @@ int fsl_spi_cpm_bufs(struct mpc8xxx_spi *mspi,
 	if (!t->rx_buf) {
 		mspi->rx_dma = mspi->dma_dummy_rx;
 		mspi->map_rx_dma = 0;
+	}
+	if (t->bits_per_word == 16 && t->tx_buf) {
+		const u16 *src = t->tx_buf;
+		__le16 *dst;
+		int i;
+
+		dst = kmalloc(t->len, GFP_KERNEL);
+		if (!dst)
+			return -ENOMEM;
+
+		for (i = 0; i < t->len >> 1; i++)
+			dst[i] = cpu_to_le16p(src + i);
+
+		mspi->tx = dst;
+		mspi->map_tx_dma = 1;
 	}
 
 	if (mspi->map_tx_dma) {
@@ -131,7 +141,7 @@ int fsl_spi_cpm_bufs(struct mpc8xxx_spi *mspi,
 			return -ENOMEM;
 		}
 	} else if (t->tx_buf) {
-		mspi->tx_dma = t->tx_dma;
+		mspi->tx_dma = 0;
 	}
 
 	if (mspi->map_rx_dma) {
@@ -173,18 +183,25 @@ void fsl_spi_cpm_bufs_complete(struct mpc8xxx_spi *mspi)
 	if (mspi->map_rx_dma)
 		dma_unmap_single(dev, mspi->rx_dma, t->len, DMA_FROM_DEVICE);
 	mspi->xfer_in_progress = NULL;
+
+	if (t->bits_per_word == 16 && t->rx_buf) {
+		int i;
+
+		for (i = 0; i < t->len; i += 2)
+			le16_to_cpus(t->rx_buf + i);
+	}
 }
 EXPORT_SYMBOL_GPL(fsl_spi_cpm_bufs_complete);
 
 void fsl_spi_cpm_irq(struct mpc8xxx_spi *mspi, u32 events)
 {
 	u16 len;
-	struct fsl_spi_reg *reg_base = mspi->reg_base;
+	struct fsl_spi_reg __iomem *reg_base = mspi->reg_base;
 
 	dev_dbg(mspi->dev, "%s: bd datlen %d, count %d\n", __func__,
-		in_be16(&mspi->rx_bd->cbd_datlen), mspi->count);
+		ioread16be(&mspi->rx_bd->cbd_datlen), mspi->count);
 
-	len = in_be16(&mspi->rx_bd->cbd_datlen);
+	len = ioread16be(&mspi->rx_bd->cbd_datlen);
 	if (len > mspi->count) {
 		WARN_ON(1);
 		len = mspi->count;
@@ -226,7 +243,7 @@ static void fsl_spi_free_dummy_rx(void)
 	case 1:
 		kfree(fsl_dummy_rx);
 		fsl_dummy_rx = NULL;
-		/* fall through */
+		fallthrough;
 	default:
 		fsl_dummy_rx_refcnt--;
 		break;
@@ -294,7 +311,7 @@ int fsl_spi_cpm_init(struct mpc8xxx_spi *mspi)
 		switch (mspi->subblock) {
 		default:
 			dev_warn(dev, "cell-index unspecified, assuming SPI1\n");
-			/* fall through */
+			fallthrough;
 		case 0:
 			mspi->subblock = QE_CR_SUBBLOCK_SPI1;
 			break;
@@ -305,7 +322,7 @@ int fsl_spi_cpm_init(struct mpc8xxx_spi *mspi)
 	}
 
 	if (mspi->flags & SPI_CPM1) {
-		void *pram;
+		void __iomem *pram;
 
 		pram = devm_platform_ioremap_resource(to_platform_device(dev),
 						      1);
@@ -333,7 +350,7 @@ int fsl_spi_cpm_init(struct mpc8xxx_spi *mspi)
 		goto err_bds;
 	}
 
-	mspi->dma_dummy_tx = dma_map_single(dev, empty_zero_page, PAGE_SIZE,
+	mspi->dma_dummy_tx = dma_map_single(dev, ZERO_PAGE(0), PAGE_SIZE,
 					    DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, mspi->dma_dummy_tx)) {
 		dev_err(dev, "unable to map dummy tx buffer\n");
@@ -351,21 +368,21 @@ int fsl_spi_cpm_init(struct mpc8xxx_spi *mspi)
 	mspi->rx_bd = cpm_muram_addr(bds_ofs + sizeof(*mspi->tx_bd));
 
 	/* Initialize parameter ram. */
-	out_be16(&mspi->pram->tbase, cpm_muram_offset(mspi->tx_bd));
-	out_be16(&mspi->pram->rbase, cpm_muram_offset(mspi->rx_bd));
-	out_8(&mspi->pram->tfcr, CPMFCR_EB | CPMFCR_GBL);
-	out_8(&mspi->pram->rfcr, CPMFCR_EB | CPMFCR_GBL);
-	out_be16(&mspi->pram->mrblr, SPI_MRBLR);
-	out_be32(&mspi->pram->rstate, 0);
-	out_be32(&mspi->pram->rdp, 0);
-	out_be16(&mspi->pram->rbptr, 0);
-	out_be16(&mspi->pram->rbc, 0);
-	out_be32(&mspi->pram->rxtmp, 0);
-	out_be32(&mspi->pram->tstate, 0);
-	out_be32(&mspi->pram->tdp, 0);
-	out_be16(&mspi->pram->tbptr, 0);
-	out_be16(&mspi->pram->tbc, 0);
-	out_be32(&mspi->pram->txtmp, 0);
+	iowrite16be(cpm_muram_offset(mspi->tx_bd), &mspi->pram->tbase);
+	iowrite16be(cpm_muram_offset(mspi->rx_bd), &mspi->pram->rbase);
+	iowrite8(CPMFCR_EB | CPMFCR_GBL, &mspi->pram->tfcr);
+	iowrite8(CPMFCR_EB | CPMFCR_GBL, &mspi->pram->rfcr);
+	iowrite16be(SPI_MRBLR, &mspi->pram->mrblr);
+	iowrite32be(0, &mspi->pram->rstate);
+	iowrite32be(0, &mspi->pram->rdp);
+	iowrite16be(0, &mspi->pram->rbptr);
+	iowrite16be(0, &mspi->pram->rbc);
+	iowrite32be(0, &mspi->pram->rxtmp);
+	iowrite32be(0, &mspi->pram->tstate);
+	iowrite32be(0, &mspi->pram->tdp);
+	iowrite16be(0, &mspi->pram->tbptr);
+	iowrite16be(0, &mspi->pram->tbc);
+	iowrite32be(0, &mspi->pram->txtmp);
 
 	return 0;
 
@@ -392,7 +409,8 @@ void fsl_spi_cpm_free(struct mpc8xxx_spi *mspi)
 	dma_unmap_single(dev, mspi->dma_dummy_rx, SPI_MRBLR, DMA_FROM_DEVICE);
 	dma_unmap_single(dev, mspi->dma_dummy_tx, PAGE_SIZE, DMA_TO_DEVICE);
 	cpm_muram_free(cpm_muram_offset(mspi->tx_bd));
-	cpm_muram_free(cpm_muram_offset(mspi->pram));
+	if (!(mspi->flags & SPI_CPM1))
+		cpm_muram_free(cpm_muram_offset(mspi->pram));
 	fsl_spi_free_dummy_rx();
 }
 EXPORT_SYMBOL_GPL(fsl_spi_cpm_free);

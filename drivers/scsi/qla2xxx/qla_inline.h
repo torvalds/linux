@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * QLogic Fibre Channel HBA Driver
  * Copyright (c)  2003-2014 QLogic Corporation
- *
- * See LICENSE.qla2xxx for copyright and licensing details.
  */
 
 #include "qla_target.h"
@@ -11,7 +10,7 @@
  * Continuation Type 1 IOCBs to allocate.
  *
  * @vha: HA context
- * @dsds: number of data segment decriptors needed
+ * @dsds: number of data segment descriptors needed
  *
  * Returns the number of IOCB entries needed to store @dsds.
  */
@@ -40,16 +39,16 @@ qla24xx_calc_iocbs(scsi_qla_host_t *vha, uint16_t dsds)
  *      register value.
  */
 static __inline__ uint16_t
-qla2x00_debounce_register(volatile uint16_t __iomem *addr)
+qla2x00_debounce_register(volatile __le16 __iomem *addr)
 {
 	volatile uint16_t first;
 	volatile uint16_t second;
 
 	do {
-		first = RD_REG_WORD(addr);
+		first = rd_reg_word(addr);
 		barrier();
 		cpu_relax();
-		second = RD_REG_WORD(addr);
+		second = rd_reg_word(addr);
 	} while (first != second);
 
 	return (first);
@@ -103,6 +102,33 @@ qla2x00_clean_dsd_pool(struct qla_hw_data *ha, struct crc_context *ctx)
 		kfree(dsd);
 	}
 	INIT_LIST_HEAD(&ctx->dsd_list);
+}
+
+static inline void
+qla2x00_set_fcport_disc_state(fc_port_t *fcport, int state)
+{
+	int old_val;
+	uint8_t shiftbits, mask;
+	uint8_t port_dstate_str_sz;
+
+	/* This will have to change when the max no. of states > 16 */
+	shiftbits = 4;
+	mask = (1 << shiftbits) - 1;
+
+	port_dstate_str_sz = sizeof(port_dstate_str) / sizeof(char *);
+	fcport->disc_state = state;
+	while (1) {
+		old_val = atomic_read(&fcport->shadow_disc_state);
+		if (old_val == atomic_cmpxchg(&fcport->shadow_disc_state,
+		    old_val, (old_val << shiftbits) | state)) {
+			ql_dbg(ql_dbg_disc, fcport->vha, 0x2134,
+			    "FCPort %8phC disc_state transition: %s to %s - portid=%06x.\n",
+			    fcport->port_name, (old_val & mask) < port_dstate_str_sz ?
+				    port_dstate_str[old_val & mask] : "Unknown",
+			    port_dstate_str[state], fcport->d_id.b24);
+			return;
+		}
+	}
 }
 
 static inline int
@@ -161,6 +187,8 @@ static void qla2xxx_init_sp(srb_t *sp, scsi_qla_host_t *vha,
 	sp->vha = vha;
 	sp->qpair = qpair;
 	sp->cmd_type = TYPE_SRB;
+	/* ref : INIT - normal flow */
+	kref_init(&sp->cmd_kref);
 	INIT_LIST_HEAD(&sp->elem);
 }
 
@@ -183,10 +211,15 @@ qla2xxx_get_qpair_sp(scsi_qla_host_t *vha, struct qla_qpair *qpair,
 	return sp;
 }
 
+void qla2xxx_rel_done_warning(srb_t *sp, int res);
+void qla2xxx_rel_free_warning(srb_t *sp);
+
 static inline void
 qla2xxx_rel_qpair_sp(struct qla_qpair *qpair, srb_t *sp)
 {
 	sp->qpair = NULL;
+	sp->done = qla2xxx_rel_done_warning;
+	sp->free = qla2xxx_rel_free_warning;
 	mempool_free(sp, qpair->srb_mempool);
 	QLA_QPAIR_MARK_NOT_BUSY(qpair);
 }
@@ -195,11 +228,9 @@ static inline srb_t *
 qla2x00_get_sp(scsi_qla_host_t *vha, fc_port_t *fcport, gfp_t flag)
 {
 	srb_t *sp = NULL;
-	uint8_t bail;
 	struct qla_qpair *qpair;
 
-	QLA_VHA_MARK_BUSY(vha, bail);
-	if (unlikely(bail))
+	if (unlikely(qla_vha_mark_busy(vha)))
 		return NULL;
 
 	qpair = vha->hw->base_qpair;
@@ -242,11 +273,41 @@ qla2x00_handle_mbx_completion(struct qla_hw_data *ha, int status)
 }
 
 static inline void
-qla2x00_set_retry_delay_timestamp(fc_port_t *fcport, uint16_t retry_delay)
+qla2x00_set_retry_delay_timestamp(fc_port_t *fcport, uint16_t sts_qual)
 {
-	if (retry_delay)
-		fcport->retry_delay_timestamp = jiffies +
-		    (retry_delay * HZ / 10);
+	u8 scope;
+	u16 qual;
+#define SQ_SCOPE_MASK		0xc000 /* SAM-6 rev5 5.3.2 */
+#define SQ_SCOPE_SHIFT		14
+#define SQ_QUAL_MASK		0x3fff
+
+#define SQ_MAX_WAIT_SEC		60 /* Max I/O hold off time in seconds. */
+#define SQ_MAX_WAIT_TIME	(SQ_MAX_WAIT_SEC * 10) /* in 100ms. */
+
+	if (!sts_qual) /* Common case. */
+		return;
+
+	scope = (sts_qual & SQ_SCOPE_MASK) >> SQ_SCOPE_SHIFT;
+	/* Handle only scope 1 or 2, which is for I-T nexus. */
+	if (scope != 1 && scope != 2)
+		return;
+
+	/* Skip processing, if retry delay timer is already in effect. */
+	if (fcport->retry_delay_timestamp &&
+	    time_before(jiffies, fcport->retry_delay_timestamp))
+		return;
+
+	qual = sts_qual & SQ_QUAL_MASK;
+	if (qual < 1 || qual > 0x3fef)
+		return;
+	qual = min(qual, (u16)SQ_MAX_WAIT_TIME);
+
+	/* qual is expressed in 100ms increments. */
+	fcport->retry_delay_timestamp = jiffies + (qual * HZ / 10);
+
+	ql_log(ql_log_warn, fcport->vha, 0x5101,
+	       "%8phC: I/O throttling requested (status qualifier = %04xh), holding off I/Os for %ums.\n",
+	       fcport->port_name, sts_qual, qual * 100);
 }
 
 static inline bool
@@ -305,5 +366,268 @@ qla_83xx_start_iocbs(struct qla_qpair *qpair)
 	} else
 		req->ring_ptr++;
 
-	WRT_REG_DWORD(req->req_q_in, req->ring_index);
+	wrt_reg_dword(req->req_q_in, req->ring_index);
+}
+
+static inline int
+qla2xxx_get_fc4_priority(struct scsi_qla_host *vha)
+{
+	uint32_t data;
+
+	data =
+	    ((uint8_t *)vha->hw->nvram)[NVRAM_DUAL_FCP_NVME_FLAG_OFFSET];
+
+
+	return (data >> 6) & BIT_0 ? FC4_PRIORITY_FCP : FC4_PRIORITY_NVME;
+}
+
+enum {
+	RESOURCE_NONE,
+	RESOURCE_IOCB = BIT_0,
+	RESOURCE_EXCH = BIT_1,  /* exchange */
+	RESOURCE_FORCE = BIT_2,
+	RESOURCE_HA = BIT_3,
+};
+
+static inline int
+qla_get_fw_resources(struct qla_qpair *qp, struct iocb_resource *iores)
+{
+	u16 iocbs_used, i;
+	u16 exch_used;
+	struct qla_hw_data *ha = qp->hw;
+
+	if (!ql2xenforce_iocb_limit) {
+		iores->res_type = RESOURCE_NONE;
+		return 0;
+	}
+	if (iores->res_type & RESOURCE_FORCE)
+		goto force;
+
+	if ((iores->iocb_cnt + qp->fwres.iocbs_used) >= qp->fwres.iocbs_qp_limit) {
+		/* no need to acquire qpair lock. It's just rough calculation */
+		iocbs_used = ha->base_qpair->fwres.iocbs_used;
+		for (i = 0; i < ha->max_qpairs; i++) {
+			if (ha->queue_pair_map[i])
+				iocbs_used += ha->queue_pair_map[i]->fwres.iocbs_used;
+		}
+
+		if ((iores->iocb_cnt + iocbs_used) >= qp->fwres.iocbs_limit) {
+			iores->res_type = RESOURCE_NONE;
+			return -ENOSPC;
+		}
+	}
+
+	if (iores->res_type & RESOURCE_EXCH) {
+		exch_used = ha->base_qpair->fwres.exch_used;
+		for (i = 0; i < ha->max_qpairs; i++) {
+			if (ha->queue_pair_map[i])
+				exch_used += ha->queue_pair_map[i]->fwres.exch_used;
+		}
+
+		if ((exch_used + iores->exch_cnt) >= qp->fwres.exch_limit) {
+			iores->res_type = RESOURCE_NONE;
+			return -ENOSPC;
+		}
+	}
+
+	if (ql2xenforce_iocb_limit == 2) {
+		if ((iores->iocb_cnt + atomic_read(&ha->fwres.iocb_used)) >=
+		    ha->fwres.iocb_limit) {
+			iores->res_type = RESOURCE_NONE;
+			return -ENOSPC;
+		}
+
+		if (iores->res_type & RESOURCE_EXCH) {
+			if ((iores->exch_cnt + atomic_read(&ha->fwres.exch_used)) >=
+			    ha->fwres.exch_limit) {
+				iores->res_type = RESOURCE_NONE;
+				return -ENOSPC;
+			}
+		}
+	}
+
+force:
+	qp->fwres.iocbs_used += iores->iocb_cnt;
+	qp->fwres.exch_used += iores->exch_cnt;
+	if (ql2xenforce_iocb_limit == 2) {
+		atomic_add(iores->iocb_cnt, &ha->fwres.iocb_used);
+		atomic_add(iores->exch_cnt, &ha->fwres.exch_used);
+		iores->res_type |= RESOURCE_HA;
+	}
+	return 0;
+}
+
+/*
+ * decrement to zero.  This routine will not decrement below zero
+ * @v:  pointer of type atomic_t
+ * @amount: amount to decrement from v
+ */
+static void qla_atomic_dtz(atomic_t *v, int amount)
+{
+	int c, old, dec;
+
+	c = atomic_read(v);
+	for (;;) {
+		dec = c - amount;
+		if (unlikely(dec < 0))
+			dec = 0;
+
+		old = atomic_cmpxchg((v), c, dec);
+		if (likely(old == c))
+			break;
+		c = old;
+	}
+}
+
+static inline void
+qla_put_fw_resources(struct qla_qpair *qp, struct iocb_resource *iores)
+{
+	struct qla_hw_data *ha = qp->hw;
+
+	if (iores->res_type & RESOURCE_HA) {
+		if (iores->res_type & RESOURCE_IOCB)
+			qla_atomic_dtz(&ha->fwres.iocb_used, iores->iocb_cnt);
+
+		if (iores->res_type & RESOURCE_EXCH)
+			qla_atomic_dtz(&ha->fwres.exch_used, iores->exch_cnt);
+	}
+
+	if (iores->res_type & RESOURCE_IOCB) {
+		if (qp->fwres.iocbs_used >= iores->iocb_cnt) {
+			qp->fwres.iocbs_used -= iores->iocb_cnt;
+		} else {
+			/* should not happen */
+			qp->fwres.iocbs_used = 0;
+		}
+	}
+
+	if (iores->res_type & RESOURCE_EXCH) {
+		if (qp->fwres.exch_used >= iores->exch_cnt) {
+			qp->fwres.exch_used -= iores->exch_cnt;
+		} else {
+			/* should not happen */
+			qp->fwres.exch_used = 0;
+		}
+	}
+	iores->res_type = RESOURCE_NONE;
+}
+
+#define ISP_REG_DISCONNECT 0xffffffffU
+/**************************************************************************
+ * qla2x00_isp_reg_stat
+ *
+ * Description:
+ *        Read the host status register of ISP before aborting the command.
+ *
+ * Input:
+ *       ha = pointer to host adapter structure.
+ *
+ *
+ * Returns:
+ *       Either true or false.
+ *
+ * Note: Return true if there is register disconnect.
+ **************************************************************************/
+static inline
+uint32_t qla2x00_isp_reg_stat(struct qla_hw_data *ha)
+{
+	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
+	struct device_reg_82xx __iomem *reg82 = &ha->iobase->isp82;
+
+	if (IS_P3P_TYPE(ha))
+		return ((rd_reg_dword(&reg82->host_int)) == ISP_REG_DISCONNECT);
+	else
+		return ((rd_reg_dword(&reg->host_status)) ==
+			ISP_REG_DISCONNECT);
+}
+
+static inline
+bool qla_pci_disconnected(struct scsi_qla_host *vha,
+			  struct device_reg_24xx __iomem *reg)
+{
+	uint32_t stat;
+	bool ret = false;
+
+	stat = rd_reg_dword(&reg->host_status);
+	if (stat == 0xffffffff) {
+		ql_log(ql_log_info, vha, 0x8041,
+		       "detected PCI disconnect.\n");
+		qla_schedule_eeh_work(vha);
+		ret = true;
+	}
+	return ret;
+}
+
+static inline bool
+fcport_is_smaller(fc_port_t *fcport)
+{
+	if (wwn_to_u64(fcport->port_name) <
+		wwn_to_u64(fcport->vha->port_name))
+		return true;
+	else
+		return false;
+}
+
+static inline bool
+fcport_is_bigger(fc_port_t *fcport)
+{
+	return !fcport_is_smaller(fcport);
+}
+
+static inline struct qla_qpair *
+qla_mapq_nvme_select_qpair(struct qla_hw_data *ha, struct qla_qpair *qpair)
+{
+	int cpuid = raw_smp_processor_id();
+
+	if (qpair->cpuid != cpuid &&
+	    ha->qp_cpu_map[cpuid]) {
+		qpair = ha->qp_cpu_map[cpuid];
+	}
+	return qpair;
+}
+
+static inline void
+qla_mapq_init_qp_cpu_map(struct qla_hw_data *ha,
+			 struct qla_msix_entry *msix,
+			 struct qla_qpair *qpair)
+{
+	const struct cpumask *mask;
+	unsigned int cpu;
+
+	if (!ha->qp_cpu_map)
+		return;
+	mask = pci_irq_get_affinity(ha->pdev, msix->vector_base0);
+	if (!mask)
+		return;
+	qpair->cpuid = cpumask_first(mask);
+	for_each_cpu(cpu, mask) {
+		ha->qp_cpu_map[cpu] = qpair;
+	}
+	msix->cpuid = qpair->cpuid;
+	qpair->cpu_mapped = true;
+}
+
+static inline void
+qla_mapq_free_qp_cpu_map(struct qla_hw_data *ha)
+{
+	if (ha->qp_cpu_map) {
+		kfree(ha->qp_cpu_map);
+		ha->qp_cpu_map = NULL;
+	}
+}
+
+static inline int qla_mapq_alloc_qp_cpu_map(struct qla_hw_data *ha)
+{
+	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
+
+	if (!ha->qp_cpu_map) {
+		ha->qp_cpu_map = kcalloc(NR_CPUS, sizeof(struct qla_qpair *),
+					 GFP_KERNEL);
+		if (!ha->qp_cpu_map) {
+			ql_log(ql_log_fatal, vha, 0x0180,
+			       "Unable to allocate memory for qp_cpu_map ptrs.\n");
+			return -1;
+		}
+	}
+	return 0;
 }

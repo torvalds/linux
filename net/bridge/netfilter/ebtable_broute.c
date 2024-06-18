@@ -36,18 +36,10 @@ static struct ebt_replace_kernel initial_table = {
 	.entries	= (char *)&initial_chain,
 };
 
-static int check(const struct ebt_table_info *info, unsigned int valid_hooks)
-{
-	if (valid_hooks & ~(1 << NF_BR_BROUTING))
-		return -EINVAL;
-	return 0;
-}
-
 static const struct ebt_table broute_table = {
 	.name		= "broute",
 	.table		= &initial_table,
 	.valid_hooks	= 1 << NF_BR_BROUTING,
-	.check		= check,
 	.me		= THIS_MODULE,
 };
 
@@ -66,8 +58,7 @@ static unsigned int ebt_broute(void *priv, struct sk_buff *skb,
 			   NFPROTO_BRIDGE, s->in, NULL, NULL,
 			   s->net, NULL);
 
-	ret = ebt_do_table(skb, &state, state.net->xt.broute_table);
-
+	ret = ebt_do_table(priv, skb, &state);
 	if (ret != NF_DROP)
 		return ret;
 
@@ -99,32 +90,49 @@ static const struct nf_hook_ops ebt_ops_broute = {
 	.priority	= NF_BR_PRI_FIRST,
 };
 
-static int __net_init broute_net_init(struct net *net)
+static int broute_table_init(struct net *net)
 {
-	return ebt_register_table(net, &broute_table, &ebt_ops_broute,
-				  &net->xt.broute_table);
+	return ebt_register_table(net, &broute_table, &ebt_ops_broute);
+}
+
+static void __net_exit broute_net_pre_exit(struct net *net)
+{
+	ebt_unregister_table_pre_exit(net, "broute");
 }
 
 static void __net_exit broute_net_exit(struct net *net)
 {
-	ebt_unregister_table(net, net->xt.broute_table, &ebt_ops_broute);
+	ebt_unregister_table(net, "broute");
 }
 
 static struct pernet_operations broute_net_ops = {
-	.init = broute_net_init,
 	.exit = broute_net_exit,
+	.pre_exit = broute_net_pre_exit,
 };
 
 static int __init ebtable_broute_init(void)
 {
-	return register_pernet_subsys(&broute_net_ops);
+	int ret = ebt_register_template(&broute_table, broute_table_init);
+
+	if (ret)
+		return ret;
+
+	ret = register_pernet_subsys(&broute_net_ops);
+	if (ret) {
+		ebt_unregister_template(&broute_table);
+		return ret;
+	}
+
+	return 0;
 }
 
 static void __exit ebtable_broute_fini(void)
 {
 	unregister_pernet_subsys(&broute_net_ops);
+	ebt_unregister_template(&broute_table);
 }
 
 module_init(ebtable_broute_init);
 module_exit(ebtable_broute_fini);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Force packets to be routed instead of bridged");

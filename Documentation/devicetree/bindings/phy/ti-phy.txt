@@ -27,43 +27,6 @@ omap_control_usb: omap-control-usb@4a002300 {
         reg-names = "otghs_control";
 };
 
-OMAP USB2 PHY
-
-Required properties:
- - compatible: Should be "ti,omap-usb2"
-	       Should be "ti,dra7x-usb2" for the 1st instance of USB2 PHY on
-	       DRA7x
-	       Should be "ti,dra7x-usb2-phy2" for the 2nd instance of USB2 PHY
-	       in DRA7x
-	       Should be "ti,am654-usb2" for the USB2 PHYs on AM654.
- - reg : Address and length of the register set for the device.
- - #phy-cells: determine the number of cells that should be given in the
-   phandle while referencing this phy.
- - clocks: a list of phandles and clock-specifier pairs, one for each entry in
-   clock-names.
- - clock-names: should include:
-   * "wkupclk" - wakeup clock.
-   * "refclk" - reference clock (optional).
-
-Deprecated properties:
- - ctrl-module : phandle of the control module used by PHY driver to power on
-   the PHY.
-
-Recommended properies:
-- syscon-phy-power : phandle/offset pair. Phandle to the system control
-  module and the register offset to power on/off the PHY.
-
-This is usually a subnode of ocp2scp to which it is connected.
-
-usb2phy@4a0ad080 {
-	compatible = "ti,omap-usb2";
-	reg = <0x4a0ad080 0x58>;
-	ctrl-module = <&omap_control_usb>;
-	#phy-cells = <0>;
-	clocks = <&usb_phy_cm_clk32k>, <&usb_otg_ss_refclk960m>;
-	clock-names = "wkupclk", "refclk";
-};
-
 TI PIPE3 PHY
 
 Required properties:
@@ -99,7 +62,7 @@ Deprecated properties:
  - ctrl-module : phandle of the control module used by PHY driver to power on
    the PHY.
 
-Recommended properies:
+Recommended properties:
  - syscon-phy-power : phandle/offset pair. Phandle to the system control
    module and the register offset to power on/off the PHY.
 

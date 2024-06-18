@@ -1,0 +1,96 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/thermal/ti,j72xx-thermal.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments J72XX VTM (DTS)
+
+maintainers:
+  - Keerthy <j-keerthy@ti.com>
+
+description: |
+  The TI K3 family of SoCs typically have a Voltage & Thermal
+  Management (VTM) device to control up to 8 temperature diode
+  sensors to measure silicon junction temperatures from different
+  hotspots of the chip as well as provide temperature, interrupt
+  and alerting information.
+
+  The following polynomial equation can then be used to convert
+  value returned by this device into a temperature in Celsius
+
+  Temp(C) = (-9.2627e-12) * x^4 + (6.0373e-08) * x^3 + \
+            (-1.7058e-04) * x^2 + (3.2512e-01) * x   + (-4.9003e+01)
+
+properties:
+  compatible:
+    enum:
+      - ti,j721e-vtm
+      - ti,j7200-vtm
+
+  reg:
+    items:
+      - description: VTM cfg1 register space
+      - description: VTM cfg2 register space
+      - description: |
+          A software trimming method must be applied to some Jacinto
+          devices to function properly. This eFuse region provides
+          the information needed for these SoCs to report
+          temperatures accurately.
+    minItems: 2
+
+  power-domains:
+    maxItems: 1
+
+  "#thermal-sensor-cells":
+    const: 1
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ti,j721e-vtm
+    then:
+      properties:
+        reg:
+          minItems: 3
+    else:
+      properties:
+        reg:
+          maxItems: 2
+
+required:
+  - compatible
+  - reg
+  - power-domains
+  - "#thermal-sensor-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/soc/ti,sci_pm_domain.h>
+    wkup_vtm0: thermal-sensor@42040000 {
+        compatible = "ti,j721e-vtm";
+        reg = <0x42040000 0x350>,
+              <0x42050000 0x350>,
+              <0x43000300 0x10>;
+        power-domains = <&k3_pds 154 TI_SCI_PD_EXCLUSIVE>;
+        #thermal-sensor-cells = <1>;
+    };
+
+    mpu_thermal: mpu-thermal {
+        polling-delay-passive = <250>; /* milliseconds */
+        polling-delay = <500>; /* milliseconds */
+        thermal-sensors = <&wkup_vtm0 0>;
+
+        trips {
+            mpu_crit: mpu-crit {
+                temperature = <125000>; /* milliCelsius */
+                hysteresis = <2000>; /* milliCelsius */
+                type = "critical";
+            };
+        };
+    };
+...

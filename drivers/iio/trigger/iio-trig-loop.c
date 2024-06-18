@@ -46,7 +46,7 @@ static int iio_loop_thread(void *data)
 	set_freezable();
 
 	do {
-		iio_trigger_poll_chained(trig);
+		iio_trigger_poll_nested(trig);
 	} while (likely(!kthread_freezable_should_stop(NULL)));
 
 	return 0;
@@ -84,7 +84,7 @@ static struct iio_sw_trigger *iio_trig_loop_probe(const char *name)
 	if (!trig_info)
 		return ERR_PTR(-ENOMEM);
 
-	trig_info->swt.trigger = iio_trigger_alloc("%s", name);
+	trig_info->swt.trigger = iio_trigger_alloc(NULL, "%s", name);
 	if (!trig_info->swt.trigger) {
 		ret = -ENOMEM;
 		goto err_free_trig_info;

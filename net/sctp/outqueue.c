@@ -36,6 +36,7 @@
 #include <net/sctp/sctp.h>
 #include <net/sctp/sm.h>
 #include <net/sctp/stream_sched.h>
+#include <trace/events/sctp.h>
 
 /* Declare internal functions here.  */
 static int sctp_acked(struct sctp_sackhdr *sack, __u32 tsn);
@@ -279,7 +280,7 @@ void sctp_outq_free(struct sctp_outq *q)
 /* Put a new chunk in an sctp_outq.  */
 void sctp_outq_tail(struct sctp_outq *q, struct sctp_chunk *chunk, gfp_t gfp)
 {
-	struct net *net = sock_net(q->asoc->base.sk);
+	struct net *net = q->asoc->base.net;
 
 	pr_debug("%s: outq:%p, chunk:%p[%s]\n", __func__, q, chunk,
 		 chunk && chunk->chunk_hdr ?
@@ -383,6 +384,7 @@ static int sctp_prsctp_prune_unsent(struct sctp_association *asoc,
 {
 	struct sctp_outq *q = &asoc->outqueue;
 	struct sctp_chunk *chk, *temp;
+	struct sctp_stream_out *sout;
 
 	q->sched->unsched_all(&asoc->stream);
 
@@ -397,12 +399,14 @@ static int sctp_prsctp_prune_unsent(struct sctp_association *asoc,
 		sctp_sched_dequeue_common(q, chk);
 		asoc->sent_cnt_removable--;
 		asoc->abandoned_unsent[SCTP_PR_INDEX(PRIO)]++;
-		if (chk->sinfo.sinfo_stream < asoc->stream.outcnt) {
-			struct sctp_stream_out *streamout =
-				SCTP_SO(&asoc->stream, chk->sinfo.sinfo_stream);
 
-			streamout->ext->abandoned_unsent[SCTP_PR_INDEX(PRIO)]++;
-		}
+		sout = SCTP_SO(&asoc->stream, chk->sinfo.sinfo_stream);
+		sout->ext->abandoned_unsent[SCTP_PR_INDEX(PRIO)]++;
+
+		/* clear out_curr if all frag chunks are pruned */
+		if (asoc->stream.out_curr == sout &&
+		    list_is_last(&chk->frag_list, &chk->msg->chunks))
+			asoc->stream.out_curr = NULL;
 
 		msg_len -= chk->skb->truesize + sizeof(struct sctp_chunk);
 		sctp_chunk_free(chk);
@@ -533,7 +537,7 @@ void sctp_retransmit_mark(struct sctp_outq *q,
 void sctp_retransmit(struct sctp_outq *q, struct sctp_transport *transport,
 		     enum sctp_retransmit_reason reason)
 {
-	struct net *net = sock_net(q->asoc->base.sk);
+	struct net *net = q->asoc->base.net;
 
 	switch (reason) {
 	case SCTP_RTXR_T3_RTX:
@@ -546,6 +550,9 @@ void sctp_retransmit(struct sctp_outq *q, struct sctp_transport *transport,
 			sctp_assoc_update_retran_path(transport->asoc);
 		transport->asoc->rtx_data_chunks +=
 			transport->asoc->unack_data;
+		if (transport->pl.state == SCTP_PL_COMPLETE &&
+		    transport->asoc->unack_data)
+			sctp_transport_reset_probe_timer(transport);
 		break;
 	case SCTP_RTXR_FAST_RTX:
 		SCTP_INC_STATS(net, SCTP_MIB_FAST_RETRANSMITS);
@@ -768,7 +775,11 @@ static int sctp_packet_singleton(struct sctp_transport *transport,
 
 	sctp_packet_init(&singleton, transport, sport, dport);
 	sctp_packet_config(&singleton, vtag, 0);
-	sctp_packet_append_chunk(&singleton, chunk);
+	if (sctp_packet_append_chunk(&singleton, chunk) != SCTP_XMIT_OK) {
+		list_del_init(&chunk->list);
+		sctp_chunk_free(chunk);
+		return -ENOMEM;
+	}
 	return sctp_packet_transmit(&singleton, gfp);
 }
 
@@ -906,12 +917,13 @@ static void sctp_outq_flush_ctrl(struct sctp_flush_ctx *ctx)
 				ctx->asoc->base.sk->sk_err = -error;
 				return;
 			}
+			ctx->asoc->stats.octrlchunks++;
 			break;
 
 		case SCTP_CID_ABORT:
 			if (sctp_test_T_bit(chunk))
 				ctx->packet->vtag = ctx->asoc->c.my_vtag;
-			/* fallthru */
+			fallthrough;
 
 		/* The following chunks are "response" chunks, i.e.
 		 * they are generated in response to something we
@@ -926,10 +938,18 @@ static void sctp_outq_flush_ctrl(struct sctp_flush_ctx *ctx)
 		case SCTP_CID_ECN_CWR:
 		case SCTP_CID_ASCONF_ACK:
 			one_packet = 1;
-			/* Fall through */
+			fallthrough;
 
-		case SCTP_CID_SACK:
 		case SCTP_CID_HEARTBEAT:
+			if (chunk->pmtu_probe) {
+				error = sctp_packet_singleton(ctx->transport,
+							      chunk, ctx->gfp);
+				if (!error)
+					ctx->asoc->stats.octrlchunks++;
+				break;
+			}
+			fallthrough;
+		case SCTP_CID_SACK:
 		case SCTP_CID_SHUTDOWN:
 		case SCTP_CID_ECN_ECNE:
 		case SCTP_CID_ASCONF:
@@ -1029,7 +1049,7 @@ static void sctp_outq_flush_data(struct sctp_flush_ctx *ctx,
 		if (!ctx->packet || !ctx->packet->has_cookie_echo)
 			return;
 
-		/* fall through */
+		fallthrough;
 	case SCTP_STATE_ESTABLISHED:
 	case SCTP_STATE_SHUTDOWN_PENDING:
 	case SCTP_STATE_SHUTDOWN_RECEIVED:
@@ -1134,6 +1154,7 @@ static void sctp_outq_flush_data(struct sctp_flush_ctx *ctx,
 
 static void sctp_outq_flush_transports(struct sctp_flush_ctx *ctx)
 {
+	struct sock *sk = ctx->asoc->base.sk;
 	struct list_head *ltransport;
 	struct sctp_packet *packet;
 	struct sctp_transport *t;
@@ -1143,6 +1164,12 @@ static void sctp_outq_flush_transports(struct sctp_flush_ctx *ctx)
 		t = list_entry(ltransport, struct sctp_transport, send_ready);
 		packet = &t->packet;
 		if (!sctp_packet_empty(packet)) {
+			rcu_read_lock();
+			if (t->dst && __sk_dst_get(sk) != t->dst) {
+				dst_hold(t->dst);
+				sk_setup_caps(sk, t->dst);
+			}
+			rcu_read_unlock();
 			error = sctp_packet_transmit(packet, ctx->gfp);
 			if (error < 0)
 				ctx->q->asoc->base.sk->sk_err = -error;
@@ -1204,7 +1231,7 @@ static void sctp_sack_update_unack_data(struct sctp_association *assoc,
 
 	unack_data = assoc->next_tsn - assoc->ctsn_ack_point - 1;
 
-	frags = sack->variable;
+	frags = (union sctp_sack_variable *)(sack + 1);
 	for (i = 0; i < ntohs(sack->num_gap_ack_blocks); i++) {
 		unack_data -= ((ntohs(frags[i].gab.end) -
 				ntohs(frags[i].gab.start) + 1));
@@ -1225,7 +1252,6 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_chunk *chunk)
 	struct sctp_transport *transport;
 	struct sctp_chunk *tchunk = NULL;
 	struct list_head *lchunk, *transport_list, *temp;
-	union sctp_sack_variable *frags = sack->variable;
 	__u32 sack_ctsn, ctsn, tsn;
 	__u32 highest_tsn, highest_new_tsn;
 	__u32 sack_a_rwnd;
@@ -1237,6 +1263,12 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_chunk *chunk)
 
 	/* Grab the association's destination address list. */
 	transport_list = &asoc->peer.transport_addr_list;
+
+	/* SCTP path tracepoint for congestion control debugging. */
+	if (trace_sctp_probe_path_enabled()) {
+		list_for_each_entry(transport, transport_list, transports)
+			trace_sctp_probe_path(transport, asoc);
+	}
 
 	sack_ctsn = ntohl(sack->cum_tsn_ack);
 	gap_ack_blocks = ntohs(sack->num_gap_ack_blocks);
@@ -1280,8 +1312,12 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_chunk *chunk)
 
 	/* Get the highest TSN in the sack. */
 	highest_tsn = sack_ctsn;
-	if (gap_ack_blocks)
+	if (gap_ack_blocks) {
+		union sctp_sack_variable *frags =
+			(union sctp_sack_variable *)(sack + 1);
+
 		highest_tsn += ntohs(frags[gap_ack_blocks - 1].gab.end);
+	}
 
 	if (TSN_lt(asoc->highest_sacked, highest_tsn))
 		asoc->highest_sacked = highest_tsn;
@@ -1756,7 +1792,7 @@ static int sctp_acked(struct sctp_sackhdr *sack, __u32 tsn)
 	 *  Block are assumed to have been received correctly.
 	 */
 
-	frags = sack->variable;
+	frags = (union sctp_sack_variable *)(sack + 1);
 	blocks = ntohs(sack->num_gap_ack_blocks);
 	tsn_offset = tsn - ctsn;
 	for (i = 0; i < blocks; ++i) {
@@ -1884,6 +1920,6 @@ void sctp_generate_fwdtsn(struct sctp_outq *q, __u32 ctsn)
 
 	if (ftsn_chunk) {
 		list_add_tail(&ftsn_chunk->list, &q->control_chunk_list);
-		SCTP_INC_STATS(sock_net(asoc->base.sk), SCTP_MIB_OUTCTRLCHUNKS);
+		SCTP_INC_STATS(asoc->base.net, SCTP_MIB_OUTCTRLCHUNKS);
 	}
 }

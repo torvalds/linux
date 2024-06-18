@@ -4,7 +4,7 @@
 * Copyright (C) 2006 Mario Hlawitschka (dh1pa@amsat.org)
 * Copyright (C) 2006 Marco Gittler (g.marco@freenet.de)
 *
-* see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+* see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
 */
 
 #define DVB_USB_LOG_PREFIX "opera"
@@ -172,8 +172,7 @@ static int opera1_set_voltage(struct dvb_frontend *fe,
 	struct i2c_msg msg[] = {
 		{.addr = ADDR_B600_VOLTAGE_13V,.flags = 0,.buf = command_13v,.len = 1},
 	};
-	struct dvb_usb_adapter *udev_adap =
-	    (struct dvb_usb_adapter *)(fe->dvb->priv);
+	struct dvb_usb_adapter *udev_adap = fe->dvb->priv;
 	if (voltage == SEC_VOLTAGE_18) {
 		msg[0].addr = ADDR_B601_VOLTAGE_18V;
 		msg[0].buf = command_18v;
@@ -425,19 +424,29 @@ static int opera1_rc_query(struct dvb_usb_device *dev, u32 * event, int *state)
 	return 0;
 }
 
+enum {
+	CYPRESS_OPERA1_COLD,
+	OPERA1_WARM,
+};
+
 static struct usb_device_id opera1_table[] = {
-	{USB_DEVICE(USB_VID_CYPRESS, USB_PID_OPERA1_COLD)},
-	{USB_DEVICE(USB_VID_OPERA1, USB_PID_OPERA1_WARM)},
-	{}
+	DVB_USB_DEV(CYPRESS, CYPRESS_OPERA1_COLD),
+	DVB_USB_DEV(OPERA1, OPERA1_WARM),
+	{ }
 };
 
 MODULE_DEVICE_TABLE(usb, opera1_table);
 
 static int opera1_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 {
+	int ret;
 	u8 command[] = { READ_MAC_ADDR };
-	opera1_xilinx_rw(d->udev, 0xb1, 0xa0, command, 1, OPERA_WRITE_MSG);
-	opera1_xilinx_rw(d->udev, 0xb1, 0xa1, mac, 6, OPERA_READ_MSG);
+	ret = opera1_xilinx_rw(d->udev, 0xb1, 0xa0, command, 1, OPERA_WRITE_MSG);
+	if (ret)
+		return ret;
+	ret = opera1_xilinx_rw(d->udev, 0xb1, 0xa1, mac, 6, OPERA_READ_MSG);
+	if (ret)
+		return ret;
 	return 0;
 }
 static int opera1_xilinx_load_firmware(struct usb_device *dev,
@@ -540,8 +549,8 @@ static struct dvb_usb_device_properties opera1_properties = {
 	.num_device_descs = 1,
 	.devices = {
 		{"Opera1 DVB-S USB2.0",
-			{&opera1_table[0], NULL},
-			{&opera1_table[1], NULL},
+			{&opera1_table[CYPRESS_OPERA1_COLD], NULL},
+			{&opera1_table[OPERA1_WARM], NULL},
 		},
 	}
 };

@@ -30,6 +30,7 @@
 pgd_t *pgd_alloc(struct mm_struct *mm)
 {
 	pgd_t *new_pgd, *init_pgd;
+	p4d_t *new_p4d, *init_p4d;
 	pud_t *new_pud, *init_pud;
 	pmd_t *new_pmd, *init_pmd;
 	pte_t *new_pte, *init_pte;
@@ -53,15 +54,33 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 	/*
 	 * Allocate PMD table for modules and pkmap mappings.
 	 */
-	new_pud = pud_alloc(mm, new_pgd + pgd_index(MODULES_VADDR),
+	new_p4d = p4d_alloc(mm, new_pgd + pgd_index(MODULES_VADDR),
 			    MODULES_VADDR);
+	if (!new_p4d)
+		goto no_p4d;
+
+	new_pud = pud_alloc(mm, new_p4d, MODULES_VADDR);
 	if (!new_pud)
 		goto no_pud;
 
 	new_pmd = pmd_alloc(mm, new_pud, 0);
 	if (!new_pmd)
 		goto no_pmd;
-#endif
+#ifdef CONFIG_KASAN
+	/*
+	 * Copy PMD table for KASAN shadow mappings.
+	 */
+	init_pgd = pgd_offset_k(TASK_SIZE);
+	init_p4d = p4d_offset(init_pgd, TASK_SIZE);
+	init_pud = pud_offset(init_p4d, TASK_SIZE);
+	init_pmd = pmd_offset(init_pud, TASK_SIZE);
+	new_pmd = pmd_offset(new_pud, TASK_SIZE);
+	memcpy(new_pmd, init_pmd,
+	       (pmd_index(MODULES_VADDR) - pmd_index(TASK_SIZE))
+	       * sizeof(pmd_t));
+	clean_dcache_area(new_pmd, PTRS_PER_PMD * sizeof(pmd_t));
+#endif /* CONFIG_KASAN */
+#endif /* CONFIG_LPAE */
 
 	if (!vectors_high()) {
 		/*
@@ -69,7 +88,11 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 		 * contains the machine vectors. The vectors are always high
 		 * with LPAE.
 		 */
-		new_pud = pud_alloc(mm, new_pgd, 0);
+		new_p4d = p4d_alloc(mm, new_pgd, 0);
+		if (!new_p4d)
+			goto no_p4d;
+
+		new_pud = pud_alloc(mm, new_p4d, 0);
 		if (!new_pud)
 			goto no_pud;
 
@@ -91,7 +114,8 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 		pmd_val(*new_pmd) |= PMD_DOMAIN(DOMAIN_VECTORS);
 #endif
 
-		init_pud = pud_offset(init_pgd, 0);
+		init_p4d = p4d_offset(init_pgd, 0);
+		init_pud = pud_offset(init_p4d, 0);
 		init_pmd = pmd_offset(init_pud, 0);
 		init_pte = pte_offset_map(init_pmd, 0);
 		set_pte_ext(new_pte + 0, init_pte[0], 0);
@@ -108,6 +132,8 @@ no_pte:
 no_pmd:
 	pud_free(mm, new_pud);
 no_pud:
+	p4d_free(mm, new_p4d);
+no_p4d:
 	__pgd_free(new_pgd);
 no_pgd:
 	return NULL;
@@ -116,6 +142,7 @@ no_pgd:
 void pgd_free(struct mm_struct *mm, pgd_t *pgd_base)
 {
 	pgd_t *pgd;
+	p4d_t *p4d;
 	pud_t *pud;
 	pmd_t *pmd;
 	pgtable_t pte;
@@ -127,7 +154,11 @@ void pgd_free(struct mm_struct *mm, pgd_t *pgd_base)
 	if (pgd_none_or_clear_bad(pgd))
 		goto no_pgd;
 
-	pud = pud_offset(pgd, 0);
+	p4d = p4d_offset(pgd, 0);
+	if (p4d_none_or_clear_bad(p4d))
+		goto no_p4d;
+
+	pud = pud_offset(p4d, 0);
 	if (pud_none_or_clear_bad(pud))
 		goto no_pud;
 
@@ -144,8 +175,11 @@ no_pmd:
 	pmd_free(mm, pmd);
 	mm_dec_nr_pmds(mm);
 no_pud:
-	pgd_clear(pgd);
+	p4d_clear(p4d);
 	pud_free(mm, pud);
+no_p4d:
+	pgd_clear(pgd);
+	p4d_free(mm, p4d);
 no_pgd:
 #ifdef CONFIG_ARM_LPAE
 	/*
@@ -156,15 +190,21 @@ no_pgd:
 			continue;
 		if (pgd_val(*pgd) & L_PGD_SWAPPER)
 			continue;
-		pud = pud_offset(pgd, 0);
+		p4d = p4d_offset(pgd, 0);
+		if (p4d_none_or_clear_bad(p4d))
+			continue;
+		pud = pud_offset(p4d, 0);
 		if (pud_none_or_clear_bad(pud))
 			continue;
 		pmd = pmd_offset(pud, 0);
 		pud_clear(pud);
 		pmd_free(mm, pmd);
 		mm_dec_nr_pmds(mm);
-		pgd_clear(pgd);
+		p4d_clear(p4d);
 		pud_free(mm, pud);
+		mm_dec_nr_puds(mm);
+		pgd_clear(pgd);
+		p4d_free(mm, p4d);
 	}
 #endif
 	__pgd_free(pgd_base);

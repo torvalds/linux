@@ -20,9 +20,12 @@
 #include <linux/pci_ids.h>
 #include <linux/types.h>
 #include <linux/watchdog.h>
+#ifdef CONFIG_HPWDT_NMI_DECODING
 #include <asm/nmi.h>
+#endif
+#include <linux/crash_dump.h>
 
-#define HPWDT_VERSION			"2.0.3"
+#define HPWDT_VERSION			"2.0.4"
 #define SECS_TO_TICKS(secs)		((secs) * 1000 / 128)
 #define TICKS_TO_SECS(ticks)		((ticks) * 128 / 1000)
 #define HPWDT_MAX_TICKS			65535
@@ -30,7 +33,6 @@
 #define DEFAULT_MARGIN			30
 #define PRETIMEOUT_SEC			9
 
-static bool ilo5;
 static unsigned int soft_margin = DEFAULT_MARGIN;	/* in seconds */
 static bool nowayout = WATCHDOG_NOWAYOUT;
 static bool pretimeout = IS_ENABLED(CONFIG_HPWDT_NMI_DECODING);
@@ -44,6 +46,7 @@ static unsigned long __iomem *hpwdt_timer_con;
 static const struct pci_device_id hpwdt_devices[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_COMPAQ, 0xB203) },	/* iLO2 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_HP, 0x3306) },	/* iLO3 */
+	{ PCI_DEVICE(PCI_VENDOR_ID_HP_3PAR, 0x0389) },	/* PCtrl */
 	{0},			/* terminate list */
 };
 MODULE_DEVICE_TABLE(pci, hpwdt_devices);
@@ -122,7 +125,7 @@ static int hpwdt_settimeout(struct watchdog_device *wdd, unsigned int val)
 	if (val <= wdd->pretimeout) {
 		dev_dbg(wdd->parent, "pretimeout < timeout. Setting to zero\n");
 		wdd->pretimeout = 0;
-		pretimeout = 0;
+		pretimeout = false;
 		if (watchdog_active(wdd))
 			hpwdt_start(wdd);
 	}
@@ -174,10 +177,7 @@ static int hpwdt_pretimeout(unsigned int ulReason, struct pt_regs *regs)
 		"3. OA Forward Progress Log\n"
 		"4. iLO Event Log";
 
-	if (ilo5 && ulReason == NMI_UNKNOWN && !mynmi)
-		return NMI_DONE;
-
-	if (ilo5 && !pretimeout && !mynmi)
+	if (ulReason == NMI_UNKNOWN && !mynmi)
 		return NMI_DONE;
 
 	if (kdumptimeout < 0)
@@ -334,9 +334,14 @@ static int hpwdt_init_one(struct pci_dev *dev,
 	watchdog_set_nowayout(&hpwdt_dev, nowayout);
 	watchdog_init_timeout(&hpwdt_dev, soft_margin, NULL);
 
+	if (is_kdump_kernel()) {
+		pretimeout = false;
+		kdumptimeout = 0;
+	}
+
 	if (pretimeout && hpwdt_dev.timeout <= PRETIMEOUT_SEC) {
 		dev_warn(&dev->dev, "timeout <= pretimeout. Setting pretimeout to zero\n");
-		pretimeout = 0;
+		pretimeout = false;
 	}
 	hpwdt_dev.pretimeout = pretimeout ? PRETIMEOUT_SEC : 0;
 	kdumptimeout = min(kdumptimeout, HPWDT_MAX_TIMER);
@@ -353,9 +358,6 @@ static int hpwdt_init_one(struct pci_dev *dev,
 	dev_info(&dev->dev, "pretimeout: %s.\n",
 				pretimeout ? "on" : "off");
 	dev_info(&dev->dev, "kdumptimeout: %d.\n", kdumptimeout);
-
-	if (dev->subsystem_vendor == PCI_VENDOR_ID_HP_3PAR)
-		ilo5 = true;
 
 	return 0;
 
@@ -376,11 +378,36 @@ static void hpwdt_exit(struct pci_dev *dev)
 	pci_disable_device(dev);
 }
 
+static int hpwdt_suspend(struct device *dev)
+{
+	if (watchdog_active(&hpwdt_dev))
+		hpwdt_stop();
+
+	return 0;
+}
+
+static int hpwdt_resume(struct device *dev)
+{
+	if (watchdog_active(&hpwdt_dev))
+		hpwdt_start(&hpwdt_dev);
+
+	return 0;
+}
+
+static const struct dev_pm_ops hpwdt_pm_ops = {
+	LATE_SYSTEM_SLEEP_PM_OPS(hpwdt_suspend, hpwdt_resume)
+};
+
 static struct pci_driver hpwdt_driver = {
 	.name = "hpwdt",
 	.id_table = hpwdt_devices,
 	.probe = hpwdt_init_one,
 	.remove = hpwdt_exit,
+
+	.driver = {
+		.name = "hpwdt",
+		.pm = &hpwdt_pm_ops,
+	}
 };
 
 MODULE_AUTHOR("Tom Mingarelli");

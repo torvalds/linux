@@ -260,6 +260,10 @@ ABS_MT_PRESSURE
     of TOUCH and WIDTH for pressure-based devices or any device with a spatial
     signal intensity distribution.
 
+    If the resolution is zero, the pressure data is in arbitrary units.
+    If the resolution is non-zero, the pressure data is in units/gram. See
+    :ref:`input-event-codes` for details.
+
 ABS_MT_DISTANCE
     The distance, in surface units, between the contact and the surface. Zero
     distance means the contact is touching the surface. A positive number means
@@ -275,14 +279,14 @@ ABS_MT_ORIENTATION
     max should be returned; when aligned with the X axis in the negative
     direction, the range -max should be returned.
 
-    Touch ellipsis are symmetrical by default. For devices capable of true 360
+    Touch ellipses are symmetrical by default. For devices capable of true 360
     degree orientation, the reported orientation must exceed the range max to
     indicate more than a quarter of a revolution. For an upside-down finger,
     range max * 2 should be returned.
 
     Orientation can be omitted if the touch area is circular, or if the
     information is not available in the kernel driver. Partial orientation
-    support is possible if the device can distinguish between the two axis, but
+    support is possible if the device can distinguish between the two axes, but
     not (uniquely) any values in between. In such cases, the range of
     ABS_MT_ORIENTATION should be [0, 1] [#f4]_.
 
@@ -352,7 +356,7 @@ The range of ABS_MT_ORIENTATION should be set to [0, 1], to indicate that
 the device can distinguish between a finger along the Y axis (0) and a
 finger along the X axis (1).
 
-For win8 devices with both T and C coordinates, the position mapping is::
+For Win8 devices with both T and C coordinates, the position mapping is::
 
    ABS_MT_POSITION_X := T_X
    ABS_MT_POSITION_Y := T_Y
@@ -379,7 +383,7 @@ Finger Tracking
 ---------------
 
 The process of finger tracking, i.e., to assign a unique trackingID to each
-initiated contact on the surface, is a Euclidian Bipartite Matching
+initiated contact on the surface, is a Euclidean Bipartite Matching
 problem.  At each event synchronization, the set of actual contacts is
 matched to the set of contacts from the previous synchronization. A full
 implementation can be found in [#f3]_.

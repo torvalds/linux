@@ -12,7 +12,6 @@
 #include <linux/init.h>
 #include <linux/mfd/palmas.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 
 struct palmas_gpio {
@@ -170,9 +169,7 @@ static int palmas_gpio_probe(struct platform_device *pdev)
 	palmas_gpio->gpio_chip.set	= palmas_gpio_set;
 	palmas_gpio->gpio_chip.get	= palmas_gpio_get;
 	palmas_gpio->gpio_chip.parent = &pdev->dev;
-#ifdef CONFIG_OF_GPIO
-	palmas_gpio->gpio_chip.of_node = pdev->dev.of_node;
-#endif
+
 	palmas_pdata = dev_get_platdata(palmas->dev);
 	if (palmas_pdata && palmas_pdata->gpio_base)
 		palmas_gpio->gpio_chip.base = palmas_pdata->gpio_base;
@@ -186,7 +183,6 @@ static int palmas_gpio_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	platform_set_drvdata(pdev, palmas_gpio);
 	return ret;
 }
 

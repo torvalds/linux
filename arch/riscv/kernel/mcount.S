@@ -3,20 +3,21 @@
 
 #include <linux/init.h>
 #include <linux/linkage.h>
+#include <linux/cfi_types.h>
+#include <linux/export.h>
 #include <asm/asm.h>
 #include <asm/csr.h>
 #include <asm/unistd.h>
 #include <asm/thread_info.h>
 #include <asm/asm-offsets.h>
-#include <asm-generic/export.h>
 #include <asm/ftrace.h>
 
 	.text
 
 	.macro SAVE_ABI_STATE
 	addi	sp, sp, -16
-	sd	s0, 0(sp)
-	sd	ra, 8(sp)
+	REG_S	s0, 0*SZREG(sp)
+	REG_S	ra, 1*SZREG(sp)
 	addi	s0, sp, 16
 	.endm
 
@@ -25,36 +26,42 @@
 	 * register if a0 was not saved.
 	 */
 	.macro SAVE_RET_ABI_STATE
-	addi	sp, sp, -32
-	sd	s0, 16(sp)
-	sd	ra, 24(sp)
-	sd	a0, 8(sp)
-	addi	s0, sp, 32
+	addi	sp, sp, -4*SZREG
+	REG_S	s0, 2*SZREG(sp)
+	REG_S	ra, 3*SZREG(sp)
+	REG_S	a0, 1*SZREG(sp)
+	REG_S	a1, 0*SZREG(sp)
+	addi	s0, sp, 4*SZREG
 	.endm
 
 	.macro RESTORE_ABI_STATE
-	ld	ra, 8(sp)
-	ld	s0, 0(sp)
+	REG_L	ra, 1*SZREG(sp)
+	REG_L	s0, 0*SZREG(sp)
 	addi	sp, sp, 16
 	.endm
 
 	.macro RESTORE_RET_ABI_STATE
-	ld	ra, 24(sp)
-	ld	s0, 16(sp)
-	ld	a0, 8(sp)
-	addi	sp, sp, 32
+	REG_L	ra, 3*SZREG(sp)
+	REG_L	s0, 2*SZREG(sp)
+	REG_L	a0, 1*SZREG(sp)
+	REG_L	a1, 0*SZREG(sp)
+	addi	sp, sp, 4*SZREG
 	.endm
 
-ENTRY(ftrace_stub)
+SYM_TYPED_FUNC_START(ftrace_stub)
 #ifdef CONFIG_DYNAMIC_FTRACE
        .global _mcount
        .set    _mcount, ftrace_stub
 #endif
 	ret
-ENDPROC(ftrace_stub)
+SYM_FUNC_END(ftrace_stub)
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-ENTRY(return_to_handler)
+SYM_TYPED_FUNC_START(ftrace_stub_graph)
+	ret
+SYM_FUNC_END(ftrace_stub_graph)
+
+SYM_FUNC_START(return_to_handler)
 /*
  * On implementing the frame point test, the ideal way is to compare the
  * s0 (frame pointer, if enabled) on entry and the sp (stack pointer) on return.
@@ -63,36 +70,31 @@ ENTRY(return_to_handler)
  * So alternatively we check the *old* frame pointer position, that is, the
  * value stored in -16(s0) on entry, and the s0 on return.
  */
-#ifdef HAVE_FUNCTION_GRAPH_FP_TEST
-	mv	t6, s0
-#endif
 	SAVE_RET_ABI_STATE
-#ifdef HAVE_FUNCTION_GRAPH_FP_TEST
-	mv	a0, t6
-#endif
+	mv	a0, sp
 	call	ftrace_return_to_handler
-	mv	a1, a0
+	mv	a2, a0
 	RESTORE_RET_ABI_STATE
-	jalr	a1
-ENDPROC(return_to_handler)
+	jalr	a2
+SYM_FUNC_END(return_to_handler)
 #endif
 
 #ifndef CONFIG_DYNAMIC_FTRACE
-ENTRY(_mcount)
+SYM_FUNC_START(_mcount)
 	la	t4, ftrace_stub
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	la	t0, ftrace_graph_return
-	ld	t1, 0(t0)
-	bne	t1, t4, do_ftrace_graph_caller
+	REG_L	t1, 0(t0)
+	bne	t1, t4, .Ldo_ftrace_graph_caller
 
 	la	t3, ftrace_graph_entry
-	ld	t2, 0(t3)
+	REG_L	t2, 0(t3)
 	la	t6, ftrace_graph_entry_stub
-	bne	t2, t6, do_ftrace_graph_caller
+	bne	t2, t6, .Ldo_ftrace_graph_caller
 #endif
 	la	t3, ftrace_trace_function
-	ld	t5, 0(t3)
-	bne	t5, t4, do_trace
+	REG_L	t5, 0(t3)
+	bne	t5, t4, .Ldo_trace
 	ret
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
@@ -100,11 +102,11 @@ ENTRY(_mcount)
  * A pseudo representation for the function graph tracer:
  * prepare_to_return(&ra_to_caller_of_caller, ra_to_caller)
  */
-do_ftrace_graph_caller:
-	addi	a0, s0, -8
+.Ldo_ftrace_graph_caller:
+	addi	a0, s0, -SZREG
 	mv	a1, ra
 #ifdef HAVE_FUNCTION_GRAPH_FP_TEST
-	ld	a2, -16(s0)
+	REG_L	a2, -2*SZREG(s0)
 #endif
 	SAVE_ABI_STATE
 	call	prepare_ftrace_return
@@ -116,14 +118,14 @@ do_ftrace_graph_caller:
  * A pseudo representation for the function tracer:
  * (*ftrace_trace_function)(ra_to_caller, ra_to_caller_of_caller)
  */
-do_trace:
-	ld	a1, -8(s0)
+.Ldo_trace:
+	REG_L	a1, -SZREG(s0)
 	mv	a0, ra
 
 	SAVE_ABI_STATE
 	jalr	t5
 	RESTORE_ABI_STATE
 	ret
-ENDPROC(_mcount)
+SYM_FUNC_END(_mcount)
 #endif
 EXPORT_SYMBOL(_mcount)

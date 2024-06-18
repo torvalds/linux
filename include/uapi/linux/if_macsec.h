@@ -22,9 +22,13 @@
 
 #define MACSEC_KEYID_LEN 16
 
-/* cipher IDs as per IEEE802.1AEbn-2011 */
+#define MACSEC_SALT_LEN 12
+
+/* cipher IDs as per IEEE802.1AE-2018 (Table 14-1) */
 #define MACSEC_CIPHER_ID_GCM_AES_128 0x0080C20001000001ULL
 #define MACSEC_CIPHER_ID_GCM_AES_256 0x0080C20001000002ULL
+#define MACSEC_CIPHER_ID_GCM_AES_XPN_128 0x0080C20001000003ULL
+#define MACSEC_CIPHER_ID_GCM_AES_XPN_256 0x0080C20001000004ULL
 
 /* deprecated cipher ID for GCM-AES-128 */
 #define MACSEC_DEFAULT_CIPHER_ID     0x0080020001000001ULL
@@ -45,6 +49,7 @@ enum macsec_attrs {
 	MACSEC_ATTR_RXSC_LIST,   /* dump, nested, macsec_rxsc_attrs for each RXSC */
 	MACSEC_ATTR_TXSC_STATS,  /* dump, nested, macsec_txsc_stats_attr */
 	MACSEC_ATTR_SECY_STATS,  /* dump, nested, macsec_secy_stats_attr */
+	MACSEC_ATTR_OFFLOAD,     /* config, nested, macsec_offload_attrs */
 	__MACSEC_ATTR_END,
 	NUM_MACSEC_ATTR = __MACSEC_ATTR_END,
 	MACSEC_ATTR_MAX = __MACSEC_ATTR_END - 1,
@@ -87,14 +92,25 @@ enum macsec_sa_attrs {
 	MACSEC_SA_ATTR_UNSPEC,
 	MACSEC_SA_ATTR_AN,     /* config/dump, u8 0..3 */
 	MACSEC_SA_ATTR_ACTIVE, /* config/dump, u8 0..1 */
-	MACSEC_SA_ATTR_PN,     /* config/dump, u32 */
+	MACSEC_SA_ATTR_PN,     /* config/dump, u32/u64 (u64 if XPN) */
 	MACSEC_SA_ATTR_KEY,    /* config, data */
 	MACSEC_SA_ATTR_KEYID,  /* config/dump, 128-bit */
 	MACSEC_SA_ATTR_STATS,  /* dump, nested, macsec_sa_stats_attr */
 	MACSEC_SA_ATTR_PAD,
+	MACSEC_SA_ATTR_SSCI,   /* config/dump, u32 - XPN only */
+	MACSEC_SA_ATTR_SALT,   /* config, 96-bit - XPN only */
 	__MACSEC_SA_ATTR_END,
 	NUM_MACSEC_SA_ATTR = __MACSEC_SA_ATTR_END,
 	MACSEC_SA_ATTR_MAX = __MACSEC_SA_ATTR_END - 1,
+};
+
+enum macsec_offload_attrs {
+	MACSEC_OFFLOAD_ATTR_UNSPEC,
+	MACSEC_OFFLOAD_ATTR_TYPE, /* config/dump, u8 0..2 */
+	MACSEC_OFFLOAD_ATTR_PAD,
+	__MACSEC_OFFLOAD_ATTR_END,
+	NUM_MACSEC_OFFLOAD_ATTR = __MACSEC_OFFLOAD_ATTR_END,
+	MACSEC_OFFLOAD_ATTR_MAX = __MACSEC_OFFLOAD_ATTR_END - 1,
 };
 
 enum macsec_nl_commands {
@@ -108,6 +124,7 @@ enum macsec_nl_commands {
 	MACSEC_CMD_ADD_RXSA,
 	MACSEC_CMD_DEL_RXSA,
 	MACSEC_CMD_UPD_RXSA,
+	MACSEC_CMD_UPD_OFFLOAD,
 };
 
 /* u64 per-RXSC stats */

@@ -19,6 +19,7 @@
  * which is (c) 1998 Gerd Knorr <kraxel@goldbach.in-berlin.de>
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -26,7 +27,6 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/mm.h>
-#include <linux/screen_info.h>
 #include <linux/slab.h>
 #include <linux/fb.h>
 #include <linux/selection.h>
@@ -213,7 +213,7 @@ static void sisfb_search_mode(char *name, bool quiet)
 		/* This does some fuzzy mode naming detection */
 		if(sscanf(strbuf1, "%u %u %u %u", &xres, &yres, &depth, &rate) == 4) {
 			if((rate <= 32) || (depth > 32)) {
-				j = rate; rate = depth; depth = j;
+				swap(rate, depth);
 			}
 			sprintf(strbuf, "%ux%ux%u", xres, yres, depth);
 			nameptr = strbuf;
@@ -255,36 +255,6 @@ static void sisfb_search_mode(char *name, bool quiet)
 	if((!j) && !quiet)
 		printk(KERN_ERR "sisfb: Invalid mode '%s'\n", nameptr);
 }
-
-#ifndef MODULE
-static void sisfb_get_vga_mode_from_kernel(void)
-{
-#ifdef CONFIG_X86
-	char mymode[32];
-	int  mydepth = screen_info.lfb_depth;
-
-	if(screen_info.orig_video_isVGA != VIDEO_TYPE_VLFB) return;
-
-	if( (screen_info.lfb_width >= 320) && (screen_info.lfb_width <= 2048) &&
-	    (screen_info.lfb_height >= 200) && (screen_info.lfb_height <= 1536) &&
-	    (mydepth >= 8) && (mydepth <= 32) ) {
-
-		if(mydepth == 24) mydepth = 32;
-
-		sprintf(mymode, "%ux%ux%u", screen_info.lfb_width,
-					screen_info.lfb_height,
-					mydepth);
-
-		printk(KERN_DEBUG
-			"sisfb: Using vga mode %s pre-set by kernel as default\n",
-			mymode);
-
-		sisfb_search_mode(mymode, true);
-	}
-#endif
-	return;
-}
-#endif
 
 static void __init
 sisfb_search_crt2type(const char *name)
@@ -649,37 +619,37 @@ sisfb_validate_mode(struct sis_video_info *ivideo, int myindex, u32 vbflags)
 	u16 xres=0, yres, myres;
 
 #ifdef CONFIG_FB_SIS_300
-	if(ivideo->sisvga_engine == SIS_300_VGA) {
-		if(!(sisbios_mode[myindex].chipset & MD_SIS300))
+	if (ivideo->sisvga_engine == SIS_300_VGA) {
+		if (!(sisbios_mode[myindex].chipset & MD_SIS300))
 			return -1 ;
 	}
 #endif
 #ifdef CONFIG_FB_SIS_315
-	if(ivideo->sisvga_engine == SIS_315_VGA) {
-		if(!(sisbios_mode[myindex].chipset & MD_SIS315))
+	if (ivideo->sisvga_engine == SIS_315_VGA) {
+		if (!(sisbios_mode[myindex].chipset & MD_SIS315))
 			return -1;
 	}
 #endif
 
 	myres = sisbios_mode[myindex].yres;
 
-	switch(vbflags & VB_DISPTYPE_DISP2) {
+	switch (vbflags & VB_DISPTYPE_DISP2) {
 
 	case CRT2_LCD:
 		xres = ivideo->lcdxres; yres = ivideo->lcdyres;
 
-		if((ivideo->SiS_Pr.SiS_CustomT != CUT_PANEL848) &&
-		   (ivideo->SiS_Pr.SiS_CustomT != CUT_PANEL856)) {
-			if(sisbios_mode[myindex].xres > xres)
+		if ((ivideo->SiS_Pr.SiS_CustomT != CUT_PANEL848) &&
+		    (ivideo->SiS_Pr.SiS_CustomT != CUT_PANEL856)) {
+			if (sisbios_mode[myindex].xres > xres)
 				return -1;
-			if(myres > yres)
+			if (myres > yres)
 				return -1;
 		}
 
-		if(ivideo->sisfb_fstn) {
-			if(sisbios_mode[myindex].xres == 320) {
-				if(myres == 240) {
-					switch(sisbios_mode[myindex].mode_no[1]) {
+		if (ivideo->sisfb_fstn) {
+			if (sisbios_mode[myindex].xres == 320) {
+				if (myres == 240) {
+					switch (sisbios_mode[myindex].mode_no[1]) {
 						case 0x50: myindex = MODE_FSTN_8;  break;
 						case 0x56: myindex = MODE_FSTN_16; break;
 						case 0x53: return -1;
@@ -688,7 +658,7 @@ sisfb_validate_mode(struct sis_video_info *ivideo, int myindex, u32 vbflags)
 			}
 		}
 
-		if(SiS_GetModeID_LCD(ivideo->sisvga_engine, vbflags, sisbios_mode[myindex].xres,
+		if (SiS_GetModeID_LCD(ivideo->sisvga_engine, vbflags, sisbios_mode[myindex].xres,
 			 	sisbios_mode[myindex].yres, 0, ivideo->sisfb_fstn,
 			 	ivideo->SiS_Pr.SiS_CustomT, xres, yres, ivideo->vbflags2) < 0x14) {
 			return -1;
@@ -696,14 +666,14 @@ sisfb_validate_mode(struct sis_video_info *ivideo, int myindex, u32 vbflags)
 		break;
 
 	case CRT2_TV:
-		if(SiS_GetModeID_TV(ivideo->sisvga_engine, vbflags, sisbios_mode[myindex].xres,
+		if (SiS_GetModeID_TV(ivideo->sisvga_engine, vbflags, sisbios_mode[myindex].xres,
 				sisbios_mode[myindex].yres, 0, ivideo->vbflags2) < 0x14) {
 			return -1;
 		}
 		break;
 
 	case CRT2_VGA:
-		if(SiS_GetModeID_VGA2(ivideo->sisvga_engine, vbflags, sisbios_mode[myindex].xres,
+		if (SiS_GetModeID_VGA2(ivideo->sisvga_engine, vbflags, sisbios_mode[myindex].xres,
 				sisbios_mode[myindex].yres, 0, ivideo->vbflags2) < 0x14) {
 			return -1;
 		}
@@ -1474,6 +1444,8 @@ sisfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 
 	vtotal = var->upper_margin + var->lower_margin + var->vsync_len;
 
+	if (!var->pixclock)
+		return -EINVAL;
 	pixclock = var->pixclock;
 
 	if((var->vmode & FB_VMODE_MASK) == FB_VMODE_NONINTERLACED) {
@@ -1739,7 +1711,7 @@ static int	sisfb_ioctl(struct fb_info *info, unsigned int cmd,
 		if(ivideo->warncount++ < 10)
 			printk(KERN_INFO
 				"sisfb: Deprecated ioctl call received - update your application!\n");
-		/* fall through */
+		fallthrough;
 	   case SISFB_GET_INFO:  /* For communication with X driver */
 		ivideo->sisfb_infoblock.sisfb_id         = SISFB_ID;
 		ivideo->sisfb_infoblock.sisfb_version    = VER_MAJOR;
@@ -1793,7 +1765,7 @@ static int	sisfb_ioctl(struct fb_info *info, unsigned int cmd,
 		if(ivideo->warncount++ < 10)
 			printk(KERN_INFO
 				"sisfb: Deprecated ioctl call received - update your application!\n");
-		/* fall through */
+		fallthrough;
 	   case SISFB_GET_VBRSTATUS:
 		if(sisfb_CheckVBRetrace(ivideo))
 			return put_user((u32)1, argp);
@@ -1804,7 +1776,7 @@ static int	sisfb_ioctl(struct fb_info *info, unsigned int cmd,
 		if(ivideo->warncount++ < 10)
 			printk(KERN_INFO
 				"sisfb: Deprecated ioctl call received - update your application!\n");
-		/* fall through */
+		fallthrough;
 	   case SISFB_GET_AUTOMAXIMIZE:
 		if(ivideo->sisfb_max)
 			return put_user((u32)1, argp);
@@ -1815,7 +1787,7 @@ static int	sisfb_ioctl(struct fb_info *info, unsigned int cmd,
 		if(ivideo->warncount++ < 10)
 			printk(KERN_INFO
 				"sisfb: Deprecated ioctl call received - update your application!\n");
-		/* fall through */
+		fallthrough;
 	   case SISFB_SET_AUTOMAXIMIZE:
 		if(get_user(gpu32, argp))
 			return -EFAULT;
@@ -1872,7 +1844,7 @@ sisfb_get_fix(struct fb_fix_screeninfo *fix, int con, struct fb_info *info)
 
 	memset(fix, 0, sizeof(struct fb_fix_screeninfo));
 
-	strlcpy(fix->id, ivideo->myid, sizeof(fix->id));
+	strscpy(fix->id, ivideo->myid, sizeof(fix->id));
 
 	mutex_lock(&info->mm_lock);
 	fix->smem_start  = ivideo->video_base + ivideo->video_offset;
@@ -1906,10 +1878,11 @@ sisfb_get_fix(struct fb_fix_screeninfo *fix, int con, struct fb_info *info)
 
 /* ----------------  fb_ops structures ----------------- */
 
-static struct fb_ops sisfb_ops = {
+static const struct fb_ops sisfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_open	= sisfb_open,
 	.fb_release	= sisfb_release,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_check_var	= sisfb_check_var,
 	.fb_set_par	= sisfb_set_par,
 	.fb_setcolreg	= sisfb_setcolreg,
@@ -1922,7 +1895,8 @@ static struct fb_ops sisfb_ops = {
 #ifdef SIS_NEW_CONFIG_COMPAT
 	.fb_compat_ioctl= sisfb_ioctl,
 #endif
-	.fb_ioctl	= sisfb_ioctl
+	.fb_ioctl	= sisfb_ioctl,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 };
 
 /* ---------------- Chip generation dependent routines ---------------- */
@@ -2204,82 +2178,88 @@ static bool sisfb_test_DDC1(struct sis_video_info *ivideo)
 
 static void sisfb_sense_crt1(struct sis_video_info *ivideo)
 {
-    bool mustwait = false;
-    u8  sr1F, cr17;
+	bool mustwait = false;
+	u8  sr1F, cr17;
 #ifdef CONFIG_FB_SIS_315
-    u8  cr63=0;
+	u8  cr63 = 0;
 #endif
-    u16 temp = 0xffff;
-    int i;
+	u16 temp = 0xffff;
+	int i;
 
-    sr1F = SiS_GetReg(SISSR, 0x1F);
-    SiS_SetRegOR(SISSR, 0x1F, 0x04);
-    SiS_SetRegAND(SISSR, 0x1F, 0x3F);
-    if(sr1F & 0xc0) mustwait = true;
+	sr1F = SiS_GetReg(SISSR, 0x1F);
+	SiS_SetRegOR(SISSR, 0x1F, 0x04);
+	SiS_SetRegAND(SISSR, 0x1F, 0x3F);
 
-#ifdef CONFIG_FB_SIS_315
-    if(ivideo->sisvga_engine == SIS_315_VGA) {
-       cr63 = SiS_GetReg(SISCR, ivideo->SiS_Pr.SiS_MyCR63);
-       cr63 &= 0x40;
-       SiS_SetRegAND(SISCR, ivideo->SiS_Pr.SiS_MyCR63, 0xBF);
-    }
-#endif
-
-    cr17 = SiS_GetReg(SISCR, 0x17);
-    cr17 &= 0x80;
-    if(!cr17) {
-       SiS_SetRegOR(SISCR, 0x17, 0x80);
-       mustwait = true;
-       SiS_SetReg(SISSR, 0x00, 0x01);
-       SiS_SetReg(SISSR, 0x00, 0x03);
-    }
-
-    if(mustwait) {
-       for(i=0; i < 10; i++) sisfbwaitretracecrt1(ivideo);
-    }
+	if (sr1F & 0xc0)
+		mustwait = true;
 
 #ifdef CONFIG_FB_SIS_315
-    if(ivideo->chip >= SIS_330) {
-       SiS_SetRegAND(SISCR, 0x32, ~0x20);
-       if(ivideo->chip >= SIS_340) {
-	   SiS_SetReg(SISCR, 0x57, 0x4a);
-       } else {
-	   SiS_SetReg(SISCR, 0x57, 0x5f);
-       }
-	SiS_SetRegOR(SISCR, 0x53, 0x02);
-	while ((SiS_GetRegByte(SISINPSTAT)) & 0x01)    break;
-	while (!((SiS_GetRegByte(SISINPSTAT)) & 0x01)) break;
-	if ((SiS_GetRegByte(SISMISCW)) & 0x10) temp = 1;
-	SiS_SetRegAND(SISCR, 0x53, 0xfd);
-	SiS_SetRegAND(SISCR, 0x57, 0x00);
-    }
+	if (ivideo->sisvga_engine == SIS_315_VGA) {
+		cr63 = SiS_GetReg(SISCR, ivideo->SiS_Pr.SiS_MyCR63);
+		cr63 &= 0x40;
+		SiS_SetRegAND(SISCR, ivideo->SiS_Pr.SiS_MyCR63, 0xBF);
+	}
 #endif
 
-    if(temp == 0xffff) {
-       i = 3;
-       do {
-	  temp = SiS_HandleDDC(&ivideo->SiS_Pr, ivideo->vbflags,
-		ivideo->sisvga_engine, 0, 0, NULL, ivideo->vbflags2);
-       } while(((temp == 0) || (temp == 0xffff)) && i--);
+	cr17 = SiS_GetReg(SISCR, 0x17);
+	cr17 &= 0x80;
 
-       if((temp == 0) || (temp == 0xffff)) {
-          if(sisfb_test_DDC1(ivideo)) temp = 1;
-       }
-    }
+	if (!cr17) {
+		SiS_SetRegOR(SISCR, 0x17, 0x80);
+		mustwait = true;
+		SiS_SetReg(SISSR, 0x00, 0x01);
+		SiS_SetReg(SISSR, 0x00, 0x03);
+	}
 
-    if((temp) && (temp != 0xffff)) {
-       SiS_SetRegOR(SISCR, 0x32, 0x20);
-    }
+	if (mustwait) {
+		for (i = 0; i < 10; i++)
+			sisfbwaitretracecrt1(ivideo);
+	}
+#ifdef CONFIG_FB_SIS_315
+	if (ivideo->chip >= SIS_330) {
+		SiS_SetRegAND(SISCR, 0x32, ~0x20);
+		if (ivideo->chip >= SIS_340)
+			SiS_SetReg(SISCR, 0x57, 0x4a);
+		else
+			SiS_SetReg(SISCR, 0x57, 0x5f);
+
+		SiS_SetRegOR(SISCR, 0x53, 0x02);
+		while ((SiS_GetRegByte(SISINPSTAT)) & 0x01)
+			break;
+		while (!((SiS_GetRegByte(SISINPSTAT)) & 0x01))
+			break;
+		if ((SiS_GetRegByte(SISMISCW)) & 0x10)
+			temp = 1;
+
+		SiS_SetRegAND(SISCR, 0x53, 0xfd);
+		SiS_SetRegAND(SISCR, 0x57, 0x00);
+	}
+#endif
+
+	if (temp == 0xffff) {
+		i = 3;
+
+		do {
+			temp = SiS_HandleDDC(&ivideo->SiS_Pr, ivideo->vbflags,
+			ivideo->sisvga_engine, 0, 0, NULL, ivideo->vbflags2);
+		} while (((temp == 0) || (temp == 0xffff)) && i--);
+
+		if ((temp == 0) || (temp == 0xffff)) {
+			if (sisfb_test_DDC1(ivideo))
+				temp = 1;
+		}
+	}
+
+	if ((temp) && (temp != 0xffff))
+		SiS_SetRegOR(SISCR, 0x32, 0x20);
 
 #ifdef CONFIG_FB_SIS_315
-    if(ivideo->sisvga_engine == SIS_315_VGA) {
-	SiS_SetRegANDOR(SISCR, ivideo->SiS_Pr.SiS_MyCR63, 0xBF, cr63);
-    }
+	if (ivideo->sisvga_engine == SIS_315_VGA)
+		SiS_SetRegANDOR(SISCR, ivideo->SiS_Pr.SiS_MyCR63, 0xBF, cr63);
 #endif
 
-    SiS_SetRegANDOR(SISCR, 0x17, 0x7F, cr17);
-
-    SiS_SetReg(SISSR, 0x1F, sr1F);
+	SiS_SetRegANDOR(SISCR, 0x17, 0x7F, cr17);
+	SiS_SetReg(SISSR, 0x1F, sr1F);
 }
 
 /* Determine and detect attached devices on SiS30x */
@@ -2293,25 +2273,25 @@ static void SiS_SenseLCD(struct sis_video_info *ivideo)
 	ivideo->SiS_Pr.PanelSelfDetected = false;
 
 	/* LCD detection only for TMDS bridges */
-	if(!(ivideo->vbflags2 & VB2_SISTMDSBRIDGE))
+	if (!(ivideo->vbflags2 & VB2_SISTMDSBRIDGE))
 		return;
-	if(ivideo->vbflags2 & VB2_30xBDH)
+	if (ivideo->vbflags2 & VB2_30xBDH)
 		return;
 
 	/* If LCD already set up by BIOS, skip it */
 	reg = SiS_GetReg(SISCR, 0x32);
-	if(reg & 0x08)
+	if (reg & 0x08)
 		return;
 
 	realcrtno = 1;
-	if(ivideo->SiS_Pr.DDCPortMixup)
+	if (ivideo->SiS_Pr.DDCPortMixup)
 		realcrtno = 0;
 
 	/* Check DDC capabilities */
 	temp = SiS_HandleDDC(&ivideo->SiS_Pr, ivideo->vbflags, ivideo->sisvga_engine,
 				realcrtno, 0, &buffer[0], ivideo->vbflags2);
 
-	if((!temp) || (temp == 0xffff) || (!(temp & 0x02)))
+	if ((!temp) || (temp == 0xffff) || (!(temp & 0x02)))
 		return;
 
 	/* Read DDC data */
@@ -2320,17 +2300,17 @@ static void SiS_SenseLCD(struct sis_video_info *ivideo)
 		temp = SiS_HandleDDC(&ivideo->SiS_Pr, ivideo->vbflags,
 				ivideo->sisvga_engine, realcrtno, 1,
 				&buffer[0], ivideo->vbflags2);
-	} while((temp) && i--);
+	} while ((temp) && i--);
 
-	if(temp)
+	if (temp)
 		return;
 
 	/* No digital device */
-	if(!(buffer[0x14] & 0x80))
+	if (!(buffer[0x14] & 0x80))
 		return;
 
 	/* First detailed timing preferred timing? */
-	if(!(buffer[0x18] & 0x02))
+	if (!(buffer[0x18] & 0x02))
 		return;
 
 	xres = buffer[0x38] | ((buffer[0x3a] & 0xf0) << 4);
@@ -2338,26 +2318,26 @@ static void SiS_SenseLCD(struct sis_video_info *ivideo)
 
 	switch(xres) {
 		case 1024:
-			if(yres == 768)
+			if (yres == 768)
 				paneltype = 0x02;
 			break;
 		case 1280:
-			if(yres == 1024)
+			if (yres == 1024)
 				paneltype = 0x03;
 			break;
 		case 1600:
-			if((yres == 1200) && (ivideo->vbflags2 & VB2_30xC))
+			if ((yres == 1200) && (ivideo->vbflags2 & VB2_30xC))
 				paneltype = 0x0b;
 			break;
 	}
 
-	if(!paneltype)
+	if (!paneltype)
 		return;
 
-	if(buffer[0x23])
+	if (buffer[0x23])
 		cr37 |= 0x10;
 
-	if((buffer[0x47] & 0x18) == 0x18)
+	if ((buffer[0x47] & 0x18) == 0x18)
 		cr37 |= ((((buffer[0x47] & 0x06) ^ 0x06) << 5) | 0x20);
 	else
 		cr37 |= 0xc0;
@@ -2372,31 +2352,34 @@ static void SiS_SenseLCD(struct sis_video_info *ivideo)
 
 static int SISDoSense(struct sis_video_info *ivideo, u16 type, u16 test)
 {
-    int temp, mytest, result, i, j;
+	int temp, mytest, result, i, j;
 
-    for(j = 0; j < 10; j++) {
-       result = 0;
-       for(i = 0; i < 3; i++) {
-          mytest = test;
-	   SiS_SetReg(SISPART4, 0x11, (type & 0x00ff));
-          temp = (type >> 8) | (mytest & 0x00ff);
-	  SiS_SetRegANDOR(SISPART4, 0x10, 0xe0, temp);
-          SiS_DDC2Delay(&ivideo->SiS_Pr, 0x1500);
-          mytest >>= 8;
-          mytest &= 0x7f;
-	   temp = SiS_GetReg(SISPART4, 0x03);
-          temp ^= 0x0e;
-          temp &= mytest;
-          if(temp == mytest) result++;
+	for (j = 0; j < 10; j++) {
+		result = 0;
+		for (i = 0; i < 3; i++) {
+			mytest = test;
+			SiS_SetReg(SISPART4, 0x11, (type & 0x00ff));
+			temp = (type >> 8) | (mytest & 0x00ff);
+			SiS_SetRegANDOR(SISPART4, 0x10, 0xe0, temp);
+			SiS_DDC2Delay(&ivideo->SiS_Pr, 0x1500);
+			mytest >>= 8;
+			mytest &= 0x7f;
+			temp = SiS_GetReg(SISPART4, 0x03);
+			temp ^= 0x0e;
+			temp &= mytest;
+			if (temp == mytest)
+				result++;
 #if 1
-	  SiS_SetReg(SISPART4, 0x11, 0x00);
-	  SiS_SetRegAND(SISPART4, 0x10, 0xe0);
-	  SiS_DDC2Delay(&ivideo->SiS_Pr, 0x1000);
+			SiS_SetReg(SISPART4, 0x11, 0x00);
+			SiS_SetRegAND(SISPART4, 0x10, 0xe0);
+			SiS_DDC2Delay(&ivideo->SiS_Pr, 0x1000);
 #endif
-       }
-       if((result == 0) || (result >= 2)) break;
-    }
-    return result;
+		}
+
+		if ((result == 0) || (result >= 2))
+			break;
+	}
+	return result;
 }
 
 static void SiS_Sense30x(struct sis_video_info *ivideo)
@@ -4262,18 +4245,17 @@ static int sisfb_post_300_rwtest(struct sis_video_info *ivideo, int iteration,
 	unsigned int k, RankCapacity, PageCapacity, BankNumHigh, BankNumMid;
 	unsigned int PhysicalAdrOtherPage, PhysicalAdrHigh, PhysicalAdrHalfPage;
 
-	 for(k = 0; k < ARRAY_SIZE(SiS_DRAMType); k++) {
-
+	for (k = 0; k < ARRAY_SIZE(SiS_DRAMType); k++) {
 		RankCapacity = buswidth * SiS_DRAMType[k][3];
 
-		if(RankCapacity != PseudoRankCapacity)
+		if (RankCapacity != PseudoRankCapacity)
 			continue;
 
-		if((SiS_DRAMType[k][2] + SiS_DRAMType[k][0]) > PseudoAdrPinCount)
+		if ((SiS_DRAMType[k][2] + SiS_DRAMType[k][0]) > PseudoAdrPinCount)
 			continue;
 
 		BankNumHigh = RankCapacity * 16 * iteration - 1;
-		if(iteration == 3) {             /* Rank No */
+		if (iteration == 3) {             /* Rank No */
 			BankNumMid  = RankCapacity * 16 - 1;
 		} else {
 			BankNumMid  = RankCapacity * 16 * iteration / 2 - 1;
@@ -4287,18 +4269,22 @@ static int sisfb_post_300_rwtest(struct sis_video_info *ivideo, int iteration,
 		SiS_SetRegAND(SISSR, 0x15, 0xFB); /* Test */
 		SiS_SetRegOR(SISSR, 0x15, 0x04);  /* Test */
 		sr14 = (SiS_DRAMType[k][3] * buswidth) - 1;
-		if(buswidth == 4)      sr14 |= 0x80;
-		else if(buswidth == 2) sr14 |= 0x40;
+
+		if (buswidth == 4)
+			sr14 |= 0x80;
+		else if (buswidth == 2)
+			sr14 |= 0x40;
+
 		SiS_SetReg(SISSR, 0x13, SiS_DRAMType[k][4]);
 		SiS_SetReg(SISSR, 0x14, sr14);
 
 		BankNumHigh <<= 16;
 		BankNumMid <<= 16;
 
-		if((BankNumHigh + PhysicalAdrHigh      >= mapsize) ||
-		   (BankNumMid  + PhysicalAdrHigh      >= mapsize) ||
-		   (BankNumHigh + PhysicalAdrHalfPage  >= mapsize) ||
-		   (BankNumHigh + PhysicalAdrOtherPage >= mapsize))
+		if ((BankNumHigh + PhysicalAdrHigh >= mapsize) ||
+		    (BankNumMid  + PhysicalAdrHigh >= mapsize) ||
+		    (BankNumHigh + PhysicalAdrHalfPage  >= mapsize) ||
+		    (BankNumHigh + PhysicalAdrOtherPage >= mapsize))
 			continue;
 
 		/* Write data */
@@ -4312,7 +4298,7 @@ static int sisfb_post_300_rwtest(struct sis_video_info *ivideo, int iteration,
 				(FBAddr + BankNumHigh + PhysicalAdrOtherPage));
 
 		/* Read data */
-		if(readw(FBAddr + BankNumHigh + PhysicalAdrHigh) == PhysicalAdrHigh)
+		if (readw(FBAddr + BankNumHigh + PhysicalAdrHigh) == PhysicalAdrHigh)
 			return 1;
 	}
 
@@ -4463,7 +4449,7 @@ static void sisfb_post_sis300(struct pci_dev *pdev)
 		SiS_SetReg(SISCR, 0x37, 0x02);
 		SiS_SetReg(SISPART2, 0x00, 0x1c);
 		v4 = 0x00; v5 = 0x00; v6 = 0x10;
-		if(ivideo->SiS_Pr.UseROM) {
+		if (ivideo->SiS_Pr.UseROM && bios) {
 			v4 = bios[0xf5];
 			v5 = bios[0xf6];
 			v6 = bios[0xf7];
@@ -5029,7 +5015,6 @@ static void sisfb_post_xgi_ddr2(struct sis_video_info *ivideo, u8 regb)
 	static const u8 cs168[8] = {
 		0x48, 0x78, 0x88, 0x00, 0x00, 0x00, 0x00, 0x00
 	};
-	u8 reg;
 	u8 v1;
 	u8 v2;
 	u8 v3;
@@ -5037,9 +5022,9 @@ static void sisfb_post_xgi_ddr2(struct sis_video_info *ivideo, u8 regb)
 	SiS_SetReg(SISCR, 0xb0, 0x80); /* DDR2 dual frequency mode */
 	SiS_SetReg(SISCR, 0x82, 0x77);
 	SiS_SetReg(SISCR, 0x86, 0x00);
-	reg = SiS_GetReg(SISCR, 0x86);
+	SiS_GetReg(SISCR, 0x86);
 	SiS_SetReg(SISCR, 0x86, 0x88);
-	reg = SiS_GetReg(SISCR, 0x86);
+	SiS_GetReg(SISCR, 0x86);
 	v1 = cs168[regb]; v2 = cs160[regb]; v3 = cs158[regb];
 	if (ivideo->haveXGIROM) {
 		v1 = bios[regb + 0x168];
@@ -5049,9 +5034,9 @@ static void sisfb_post_xgi_ddr2(struct sis_video_info *ivideo, u8 regb)
 	SiS_SetReg(SISCR, 0x86, v1);
 	SiS_SetReg(SISCR, 0x82, 0x77);
 	SiS_SetReg(SISCR, 0x85, 0x00);
-	reg = SiS_GetReg(SISCR, 0x85);
+	SiS_GetReg(SISCR, 0x85);
 	SiS_SetReg(SISCR, 0x85, 0x88);
-	reg = SiS_GetReg(SISCR, 0x85);
+	SiS_GetReg(SISCR, 0x85);
 	SiS_SetReg(SISCR, 0x85, v2);
 	SiS_SetReg(SISCR, 0x82, v3);
 	SiS_SetReg(SISCR, 0x98, 0x01);
@@ -5850,6 +5835,10 @@ static int sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if(sisfb_off)
 		return -ENXIO;
 
+	ret = aperture_remove_conflicting_pci_devices(pdev, "sisfb");
+	if (ret)
+		return ret;
+
 	sis_fb_info = framebuffer_alloc(sizeof(*ivideo), &pdev->dev);
 	if(!sis_fb_info)
 		return -ENOMEM;
@@ -5868,7 +5857,7 @@ static int sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			ivideo->cardnumber++;
 	}
 
-	strlcpy(ivideo->myid, chipinfo->chip_name, sizeof(ivideo->myid));
+	strscpy(ivideo->myid, chipinfo->chip_name, sizeof(ivideo->myid));
 
 	ivideo->warncount = 0;
 	ivideo->chip_id = pdev->device;
@@ -5882,12 +5871,6 @@ static int sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ivideo->pcifunc = PCI_FUNC(pdev->devfn);
 	ivideo->subsysvendor = pdev->subsystem_vendor;
 	ivideo->subsysdevice = pdev->subsystem_device;
-
-#ifndef MODULE
-	if(sisfb_mode_idx == -1) {
-		sisfb_get_vga_mode_from_kernel();
-	}
-#endif
 
 	ivideo->chip = chipinfo->chip;
 	ivideo->chip_real_id = chipinfo->chip;
@@ -6151,24 +6134,20 @@ static int sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 #endif
 
 #ifdef CONFIG_FB_SIS_315
-		if(ivideo->sisvga_engine == SIS_315_VGA) {
+		if (ivideo->sisvga_engine == SIS_315_VGA) {
 			int result = 1;
-		/*	if((ivideo->chip == SIS_315H)   ||
-			   (ivideo->chip == SIS_315)    ||
-			   (ivideo->chip == SIS_315PRO) ||
-			   (ivideo->chip == SIS_330)) {
-				sisfb_post_sis315330(pdev);
-			} else */ if(ivideo->chip == XGI_20) {
+
+			if (ivideo->chip == XGI_20) {
 				result = sisfb_post_xgi(pdev);
 				ivideo->sisfb_can_post = 1;
-			} else if((ivideo->chip == XGI_40) && ivideo->haveXGIROM) {
+			} else if ((ivideo->chip == XGI_40) && ivideo->haveXGIROM) {
 				result = sisfb_post_xgi(pdev);
 				ivideo->sisfb_can_post = 1;
 			} else {
 				printk(KERN_INFO "sisfb: Card is not "
 					"POSTed and sisfb can't do this either.\n");
 			}
-			if(!result) {
+			if (!result) {
 				printk(KERN_ERR "sisfb: Failed to POST card\n");
 				ret = -ENODEV;
 				goto error_3;
@@ -6460,14 +6439,11 @@ error_3:	vfree(ivideo->bios_abase);
 		sisfb_initaccel(ivideo);
 
 #if defined(FBINFO_HWACCEL_DISABLED) && defined(FBINFO_HWACCEL_XPAN)
-		sis_fb_info->flags = FBINFO_DEFAULT 		|
-				     FBINFO_HWACCEL_YPAN 	|
+		sis_fb_info->flags = FBINFO_HWACCEL_YPAN	|
 				     FBINFO_HWACCEL_XPAN 	|
 				     FBINFO_HWACCEL_COPYAREA 	|
 				     FBINFO_HWACCEL_FILLRECT 	|
 				     ((ivideo->accel) ? 0 : FBINFO_HWACCEL_DISABLED);
-#else
-		sis_fb_info->flags = FBINFO_FLAG_DEFAULT;
 #endif
 		sis_fb_info->var = ivideo->default_var;
 		sis_fb_info->fix = ivideo->sisfb_fix;
@@ -6576,7 +6552,12 @@ static int __init sisfb_init(void)
 {
 #ifndef MODULE
 	char *options = NULL;
+#endif
 
+	if (fb_modesetting_disabled("sisfb"))
+		return -ENODEV;
+
+#ifndef MODULE
 	if(fb_get_options("sisfb", &options))
 		return -ENODEV;
 

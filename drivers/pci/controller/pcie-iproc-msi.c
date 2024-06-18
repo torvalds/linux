@@ -49,7 +49,7 @@ enum iproc_msi_reg {
 struct iproc_msi;
 
 /**
- * iProc MSI group
+ * struct iproc_msi_grp - iProc MSI group
  *
  * One MSI group is allocated per GIC interrupt, serviced by one iProc MSI
  * event queue.
@@ -65,7 +65,7 @@ struct iproc_msi_grp {
 };
 
 /**
- * iProc event queue based MSI
+ * struct iproc_msi - iProc event queue based MSI
  *
  * Only meant to be used on platforms without MSI support integrated into the
  * GIC.
@@ -171,7 +171,7 @@ static struct irq_chip iproc_msi_irq_chip = {
 
 static struct msi_domain_info iproc_msi_domain_info = {
 	.flags = MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
-		MSI_FLAG_MULTI_PCI_MSI | MSI_FLAG_PCI_MSIX,
+		MSI_FLAG_PCI_MSIX,
 	.chip = &iproc_msi_irq_chip,
 };
 
@@ -209,15 +209,20 @@ static int iproc_msi_irq_set_affinity(struct irq_data *data,
 	struct iproc_msi *msi = irq_data_get_irq_chip_data(data);
 	int target_cpu = cpumask_first(mask);
 	int curr_cpu;
+	int ret;
 
 	curr_cpu = hwirq_to_cpu(msi, data->hwirq);
 	if (curr_cpu == target_cpu)
-		return IRQ_SET_MASK_OK_DONE;
+		ret = IRQ_SET_MASK_OK_DONE;
+	else {
+		/* steer MSI to the target CPU */
+		data->hwirq = hwirq_to_canonical_hwirq(msi, data->hwirq) + target_cpu;
+		ret = IRQ_SET_MASK_OK;
+	}
 
-	/* steer MSI to the target CPU */
-	data->hwirq = hwirq_to_canonical_hwirq(msi, data->hwirq) + target_cpu;
+	irq_data_update_effective_affinity(data, cpumask_of(target_cpu));
 
-	return IRQ_SET_MASK_OK;
+	return ret;
 }
 
 static void iproc_msi_irq_compose_msi_msg(struct irq_data *data,
@@ -245,19 +250,22 @@ static int iproc_msi_irq_domain_alloc(struct irq_domain *domain,
 	struct iproc_msi *msi = domain->host_data;
 	int hwirq, i;
 
+	if (msi->nr_cpus > 1 && nr_irqs > 1)
+		return -EINVAL;
+
 	mutex_lock(&msi->bitmap_lock);
 
-	/* Allocate 'nr_cpus' number of MSI vectors each time */
-	hwirq = bitmap_find_next_zero_area(msi->bitmap, msi->nr_msi_vecs, 0,
-					   msi->nr_cpus, 0);
-	if (hwirq < msi->nr_msi_vecs) {
-		bitmap_set(msi->bitmap, hwirq, msi->nr_cpus);
-	} else {
-		mutex_unlock(&msi->bitmap_lock);
-		return -ENOSPC;
-	}
+	/*
+	 * Allocate 'nr_irqs' multiplied by 'nr_cpus' number of MSI vectors
+	 * each time
+	 */
+	hwirq = bitmap_find_free_region(msi->bitmap, msi->nr_msi_vecs,
+					order_base_2(msi->nr_cpus * nr_irqs));
 
 	mutex_unlock(&msi->bitmap_lock);
+
+	if (hwirq < 0)
+		return -ENOSPC;
 
 	for (i = 0; i < nr_irqs; i++) {
 		irq_domain_set_info(domain, virq + i, hwirq + i,
@@ -266,7 +274,7 @@ static int iproc_msi_irq_domain_alloc(struct irq_domain *domain,
 				    NULL, NULL);
 	}
 
-	return hwirq;
+	return 0;
 }
 
 static void iproc_msi_irq_domain_free(struct irq_domain *domain,
@@ -279,7 +287,8 @@ static void iproc_msi_irq_domain_free(struct irq_domain *domain,
 	mutex_lock(&msi->bitmap_lock);
 
 	hwirq = hwirq_to_canonical_hwirq(msi, data->hwirq);
-	bitmap_clear(msi->bitmap, hwirq, msi->nr_cpus);
+	bitmap_release_region(msi->bitmap, hwirq,
+			      order_base_2(msi->nr_cpus * nr_irqs));
 
 	mutex_unlock(&msi->bitmap_lock);
 
@@ -293,11 +302,12 @@ static const struct irq_domain_ops msi_domain_ops = {
 
 static inline u32 decode_msi_hwirq(struct iproc_msi *msi, u32 eq, u32 head)
 {
-	u32 *msg, hwirq;
+	u32 __iomem *msg;
+	u32 hwirq;
 	unsigned int offs;
 
 	offs = iproc_msi_eq_offset(msi, eq) + head * sizeof(u32);
-	msg = (u32 *)(msi->eq_cpu + offs);
+	msg = (u32 __iomem *)(msi->eq_cpu + offs);
 	hwirq = readl(msg);
 	hwirq = (hwirq >> 5) + (hwirq & 0x1f);
 
@@ -316,7 +326,6 @@ static void iproc_msi_handler(struct irq_desc *desc)
 	struct iproc_msi *msi;
 	u32 eq, head, tail, nr_events;
 	unsigned long hwirq;
-	int virq;
 
 	chained_irq_enter(chip, desc);
 
@@ -352,8 +361,7 @@ static void iproc_msi_handler(struct irq_desc *desc)
 		/* process all outstanding events */
 		while (nr_events--) {
 			hwirq = decode_msi_hwirq(msi, eq, head);
-			virq = irq_find_mapping(msi->inner_domain, hwirq);
-			generic_handle_irq(virq);
+			generic_handle_domain_irq(msi->inner_domain, hwirq);
 
 			head++;
 			head %= EQ_LEN;
@@ -517,7 +525,7 @@ int iproc_msi_init(struct iproc_pcie *pcie, struct device_node *node)
 	if (!of_device_is_compatible(node, "brcm,iproc-msi"))
 		return -ENODEV;
 
-	if (!of_find_property(node, "msi-controller", NULL))
+	if (!of_property_read_bool(node, "msi-controller"))
 		return -ENODEV;
 
 	if (pcie->msi)
@@ -532,6 +540,9 @@ int iproc_msi_init(struct iproc_pcie *pcie, struct device_node *node)
 	msi->msi_addr = pcie->base_addr;
 	mutex_init(&msi->bitmap_lock);
 	msi->nr_cpus = num_possible_cpus();
+
+	if (msi->nr_cpus == 1)
+		iproc_msi_domain_info.flags |=  MSI_FLAG_MULTI_PCI_MSI;
 
 	msi->nr_irqs = of_irq_count(node);
 	if (!msi->nr_irqs) {
@@ -574,12 +585,11 @@ int iproc_msi_init(struct iproc_pcie *pcie, struct device_node *node)
 		return -EINVAL;
 	}
 
-	if (of_find_property(node, "brcm,pcie-msi-inten", NULL))
-		msi->has_inten_reg = true;
+	msi->has_inten_reg = of_property_read_bool(node, "brcm,pcie-msi-inten");
 
 	msi->nr_msi_vecs = msi->nr_irqs * EQ_LEN;
-	msi->bitmap = devm_kcalloc(pcie->dev, BITS_TO_LONGS(msi->nr_msi_vecs),
-				   sizeof(*msi->bitmap), GFP_KERNEL);
+	msi->bitmap = devm_bitmap_zalloc(pcie->dev, msi->nr_msi_vecs,
+					 GFP_KERNEL);
 	if (!msi->bitmap)
 		return -ENOMEM;
 

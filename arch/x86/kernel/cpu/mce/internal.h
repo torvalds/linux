@@ -35,24 +35,86 @@ int mce_gen_pool_add(struct mce *mce);
 int mce_gen_pool_init(void);
 struct llist_node *mce_gen_pool_prepare_records(void);
 
-extern int (*mce_severity)(struct mce *a, int tolerant, char **msg, bool is_excp);
+int mce_severity(struct mce *a, struct pt_regs *regs, char **msg, bool is_excp);
 struct dentry *mce_get_debugfs_dir(void);
 
 extern mce_banks_t mce_banks_ce_disabled;
 
 #ifdef CONFIG_X86_MCE_INTEL
-unsigned long cmci_intel_adjust_timer(unsigned long interval);
-bool mce_intel_cmci_poll(void);
-void mce_intel_hcpu_update(unsigned long cpu);
+void mce_intel_handle_storm(int bank, bool on);
 void cmci_disable_bank(int bank);
+void intel_init_cmci(void);
+void intel_init_lmce(void);
+void intel_clear_lmce(void);
+bool intel_filter_mce(struct mce *m);
+bool intel_mce_usable_address(struct mce *m);
 #else
-# define cmci_intel_adjust_timer mce_adjust_timer_default
-static inline bool mce_intel_cmci_poll(void) { return false; }
-static inline void mce_intel_hcpu_update(unsigned long cpu) { }
+static inline void mce_intel_handle_storm(int bank, bool on) { }
 static inline void cmci_disable_bank(int bank) { }
+static inline void intel_init_cmci(void) { }
+static inline void intel_init_lmce(void) { }
+static inline void intel_clear_lmce(void) { }
+static inline bool intel_filter_mce(struct mce *m) { return false; }
+static inline bool intel_mce_usable_address(struct mce *m) { return false; }
 #endif
 
-void mce_timer_kick(unsigned long interval);
+void mce_timer_kick(bool storm);
+
+#ifdef CONFIG_X86_MCE_THRESHOLD
+void cmci_storm_begin(unsigned int bank);
+void cmci_storm_end(unsigned int bank);
+void mce_track_storm(struct mce *mce);
+void mce_inherit_storm(unsigned int bank);
+bool mce_get_storm_mode(void);
+void mce_set_storm_mode(bool storm);
+#else
+static inline void cmci_storm_begin(unsigned int bank) {}
+static inline void cmci_storm_end(unsigned int bank) {}
+static inline void mce_track_storm(struct mce *mce) {}
+static inline void mce_inherit_storm(unsigned int bank) {}
+static inline bool mce_get_storm_mode(void) { return false; }
+static inline void mce_set_storm_mode(bool storm) {}
+#endif
+
+/*
+ * history:		Bitmask tracking errors occurrence. Each set bit
+ *			represents an error seen.
+ *
+ * timestamp:		Last time (in jiffies) that the bank was polled.
+ * in_storm_mode:	Is this bank in storm mode?
+ * poll_only:		Bank does not support CMCI, skip storm tracking.
+ */
+struct storm_bank {
+	u64 history;
+	u64 timestamp;
+	bool in_storm_mode;
+	bool poll_only;
+};
+
+#define NUM_HISTORY_BITS (sizeof(u64) * BITS_PER_BYTE)
+
+/* How many errors within the history buffer mark the start of a storm. */
+#define STORM_BEGIN_THRESHOLD	5
+
+/*
+ * How many polls of machine check bank without an error before declaring
+ * the storm is over. Since it is tracked by the bitmasks in the history
+ * field of struct storm_bank the mask is 30 bits [0 ... 29].
+ */
+#define STORM_END_POLL_THRESHOLD	29
+
+/*
+ * banks:		per-cpu, per-bank details
+ * stormy_bank_count:	count of MC banks in storm state
+ * poll_mode:		CPU is in poll mode
+ */
+struct mca_storm_desc {
+	struct storm_bank	banks[MAX_NR_BANKS];
+	u8			stormy_bank_count;
+	bool			poll_mode;
+};
+
+DECLARE_PER_CPU(struct mca_storm_desc, storm_desc);
 
 #ifdef CONFIG_ACPI_APEI
 int apei_write_mce(struct mce *m);
@@ -77,8 +139,6 @@ static inline int apei_clear_mce(u64 record_id)
 	return -EINVAL;
 }
 #endif
-
-void mce_inject_log(struct mce *m);
 
 /*
  * We consider records to be equivalent if bank+status+addr+misc all match.
@@ -107,22 +167,24 @@ static inline void mce_unregister_injector_chain(struct notifier_block *nb)	{ }
 #endif
 
 struct mca_config {
-	bool dont_log_ce;
-	bool cmci_disabled;
-	bool ignore_ce;
-
 	__u64 lmce_disabled		: 1,
 	      disabled			: 1,
 	      ser			: 1,
 	      recovery			: 1,
 	      bios_cmci_threshold	: 1,
-	      __reserved		: 59;
+	      /* Proper #MC exception handler is set */
+	      initialized		: 1,
+	      __reserved		: 58;
 
-	s8 bootlog;
-	int tolerant;
+	bool dont_log_ce;
+	bool cmci_disabled;
+	bool ignore_ce;
+	bool print_all;
+
 	int monarch_timeout;
 	int panic_timeout;
 	u32 rip_msr;
+	s8 bootlog;
 };
 
 extern struct mca_config mca_cfg;
@@ -139,7 +201,7 @@ struct mce_vendor_flags {
 	 * Recovery. It indicates support for data poisoning in HW and deferred
 	 * error interrupts.
 	 */
-	      succor		: 1,
+	succor			: 1,
 
 	/*
 	 * (AMD) SMCA: This bit indicates support for Scalable MCA which expands
@@ -147,29 +209,129 @@ struct mce_vendor_flags {
 	 * banks. Also, to accommodate the new banks and registers, the MCA
 	 * register space is moved to a new MSR range.
 	 */
-	      smca		: 1,
+	smca			: 1,
 
-	      __reserved_0	: 61;
+	/* Zen IFU quirk */
+	zen_ifu_quirk		: 1,
+
+	/* AMD-style error thresholding banks present. */
+	amd_threshold		: 1,
+
+	/* Pentium, family 5-style MCA */
+	p5			: 1,
+
+	/* Centaur Winchip C6-style MCA */
+	winchip			: 1,
+
+	/* SandyBridge IFU quirk */
+	snb_ifu_quirk		: 1,
+
+	/* Skylake, Cascade Lake, Cooper Lake REP;MOVS* quirk */
+	skx_repmov_quirk	: 1,
+
+	__reserved_0		: 55;
 };
 
 extern struct mce_vendor_flags mce_flags;
 
-struct mca_msr_regs {
-	u32 (*ctl)	(int bank);
-	u32 (*status)	(int bank);
-	u32 (*addr)	(int bank);
-	u32 (*misc)	(int bank);
+struct mce_bank {
+	/* subevents to enable */
+	u64			ctl;
+
+	/* initialise bank? */
+	__u64 init		: 1,
+
+	/*
+	 * (AMD) MCA_CONFIG[McaLsbInStatusSupported]: When set, this bit indicates
+	 * the LSB field is found in MCA_STATUS and not in MCA_ADDR.
+	 */
+	lsb_in_status		: 1,
+
+	__reserved_1		: 62;
 };
 
-extern struct mca_msr_regs msr_ops;
+DECLARE_PER_CPU_READ_MOSTLY(struct mce_bank[MAX_NR_BANKS], mce_banks_array);
+
+enum mca_msr {
+	MCA_CTL,
+	MCA_STATUS,
+	MCA_ADDR,
+	MCA_MISC,
+};
 
 /* Decide whether to add MCE record to MCE event pool or filter it out. */
 extern bool filter_mce(struct mce *m);
 
 #ifdef CONFIG_X86_MCE_AMD
 extern bool amd_filter_mce(struct mce *m);
+bool amd_mce_usable_address(struct mce *m);
+
+/*
+ * If MCA_CONFIG[McaLsbInStatusSupported] is set, extract ErrAddr in bits
+ * [56:0] of MCA_STATUS, else in bits [55:0] of MCA_ADDR.
+ */
+static __always_inline void smca_extract_err_addr(struct mce *m)
+{
+	u8 lsb;
+
+	if (!mce_flags.smca)
+		return;
+
+	if (this_cpu_ptr(mce_banks_array)[m->bank].lsb_in_status) {
+		lsb = (m->status >> 24) & 0x3f;
+
+		m->addr &= GENMASK_ULL(56, lsb);
+
+		return;
+	}
+
+	lsb = (m->addr >> 56) & 0x3f;
+
+	m->addr &= GENMASK_ULL(55, lsb);
+}
+
 #else
-static inline bool amd_filter_mce(struct mce *m)			{ return false; };
+static inline bool amd_filter_mce(struct mce *m) { return false; }
+static inline bool amd_mce_usable_address(struct mce *m) { return false; }
+static inline void smca_extract_err_addr(struct mce *m) { }
 #endif
 
+#ifdef CONFIG_X86_ANCIENT_MCE
+void intel_p5_mcheck_init(struct cpuinfo_x86 *c);
+void winchip_mcheck_init(struct cpuinfo_x86 *c);
+noinstr void pentium_machine_check(struct pt_regs *regs);
+noinstr void winchip_machine_check(struct pt_regs *regs);
+static inline void enable_p5_mce(void) { mce_p5_enabled = 1; }
+#else
+static __always_inline void intel_p5_mcheck_init(struct cpuinfo_x86 *c) {}
+static __always_inline void winchip_mcheck_init(struct cpuinfo_x86 *c) {}
+static __always_inline void enable_p5_mce(void) {}
+static __always_inline void pentium_machine_check(struct pt_regs *regs) {}
+static __always_inline void winchip_machine_check(struct pt_regs *regs) {}
+#endif
+
+noinstr u64 mce_rdmsrl(u32 msr);
+
+static __always_inline u32 mca_msr_reg(int bank, enum mca_msr reg)
+{
+	if (cpu_feature_enabled(X86_FEATURE_SMCA)) {
+		switch (reg) {
+		case MCA_CTL:	 return MSR_AMD64_SMCA_MCx_CTL(bank);
+		case MCA_ADDR:	 return MSR_AMD64_SMCA_MCx_ADDR(bank);
+		case MCA_MISC:	 return MSR_AMD64_SMCA_MCx_MISC(bank);
+		case MCA_STATUS: return MSR_AMD64_SMCA_MCx_STATUS(bank);
+		}
+	}
+
+	switch (reg) {
+	case MCA_CTL:	 return MSR_IA32_MCx_CTL(bank);
+	case MCA_ADDR:	 return MSR_IA32_MCx_ADDR(bank);
+	case MCA_MISC:	 return MSR_IA32_MCx_MISC(bank);
+	case MCA_STATUS: return MSR_IA32_MCx_STATUS(bank);
+	}
+
+	return 0;
+}
+
+extern void (*mc_poll_banks)(void);
 #endif /* __X86_MCE_INTERNAL_H__ */

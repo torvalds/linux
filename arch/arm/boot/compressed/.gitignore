@@ -1,17 +1,4 @@
-ashldi3.S
-bswapsdi2.S
-font.c
-lib1funcs.S
-hyp-stub.S
+# SPDX-License-Identifier: GPL-2.0-only
 piggy_data
 vmlinux
 vmlinux.lds
-
-# borrowed libfdt files
-fdt.c
-fdt.h
-fdt_ro.c
-fdt_rw.c
-fdt_wip.c
-libfdt.h
-libfdt_internal.h

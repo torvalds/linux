@@ -3,15 +3,6 @@
  * cxd2099.c: Driver for the Sony CXD2099AR Common Interface Controller
  *
  * Copyright (C) 2010-2013 Digital Devices GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 only, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/slab.h>
@@ -607,8 +598,7 @@ static const struct dvb_ca_en50221 en_templ = {
 	.write_data          = write_data,
 };
 
-static int cxd2099_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int cxd2099_probe(struct i2c_client *client)
 {
 	struct cxd *ci;
 	struct cxd2099_cfg *cfg = client->dev.platform_data;
@@ -673,14 +663,12 @@ err:
 	return ret;
 }
 
-static int cxd2099_remove(struct i2c_client *client)
+static void cxd2099_remove(struct i2c_client *client)
 {
 	struct cxd *ci = i2c_get_clientdata(client);
 
 	regmap_exit(ci->regmap);
 	kfree(ci);
-
-	return 0;
 }
 
 static const struct i2c_device_id cxd2099_id[] = {

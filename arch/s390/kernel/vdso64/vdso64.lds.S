@@ -9,11 +9,14 @@
 
 OUTPUT_FORMAT("elf64-s390", "elf64-s390", "elf64-s390")
 OUTPUT_ARCH(s390:64-bit)
-ENTRY(_start)
 
 SECTIONS
 {
-	. = VDSO64_LBASE + SIZEOF_HEADERS;
+	PROVIDE(_vdso_data = . - __VVAR_PAGES * PAGE_SIZE);
+#ifdef CONFIG_TIME_NS
+	PROVIDE(_timens_data = _vdso_data + PAGE_SIZE);
+#endif
+	. = VDSO_LBASE + SIZEOF_HEADERS;
 
 	.hash		: { *(.hash) }			:text
 	.gnu.hash	: { *(.gnu.hash) }
@@ -47,6 +50,7 @@ SECTIONS
 
 	.rela.dyn ALIGN(8) : { *(.rela.dyn) }
 	.got ALIGN(8)	: { *(.got .toc) }
+	.got.plt ALIGN(8) : { *(.got.plt) }
 
 	_end = .;
 	PROVIDE(end = .);
@@ -94,9 +98,6 @@ SECTIONS
 	.debug_ranges	0 : { *(.debug_ranges) }
 	.gnu.attributes 0 : { KEEP (*(.gnu.attributes)) }
 
-	. = ALIGN(PAGE_SIZE);
-	PROVIDE(_vdso_data = .);
-
 	/DISCARD/	: {
 		*(.note.GNU-stack)
 		*(.branch_lt)
@@ -136,7 +137,9 @@ VERSION
 		__kernel_clock_gettime;
 		__kernel_clock_getres;
 		__kernel_getcpu;
-
+		__kernel_restart_syscall;
+		__kernel_rt_sigreturn;
+		__kernel_sigreturn;
 	local: *;
 	};
 }

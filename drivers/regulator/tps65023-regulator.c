@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * tps65023-regulator.c
  *
  * Supports TPS65023 Regulator
  *
- * Copyright (C) 2009 Texas Instrument Incorporated - http://www.ti.com/
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any kind,
- * whether express or implied; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ * Copyright (C) 2009 Texas Instrument Incorporated - https://www.ti.com/
  */
 
 #include <linux/kernel.h>
@@ -265,9 +257,9 @@ static struct tps_driver_data tps65023_drv_data = {
 	.core_regulator = TPS65023_DCDC_1,
 };
 
-static int tps_65023_probe(struct i2c_client *client,
-				     const struct i2c_device_id *id)
+static int tps_65023_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct regulator_init_data *init_data = dev_get_platdata(&client->dev);
 	struct regulator_config config = { };
 	struct tps_pmic *tps;
@@ -316,7 +308,7 @@ static int tps_65023_probe(struct i2c_client *client,
 	return 0;
 }
 
-static const struct of_device_id tps65023_of_match[] = {
+static const struct of_device_id __maybe_unused tps65023_of_match[] = {
 	{ .compatible = "ti,tps65020", .data = &tps65020_drv_data},
 	{ .compatible = "ti,tps65021", .data = &tps65021_drv_data},
 	{ .compatible = "ti,tps65023", .data = &tps65023_drv_data},
@@ -342,6 +334,7 @@ MODULE_DEVICE_TABLE(i2c, tps_65023_id);
 static struct i2c_driver tps_65023_i2c_driver = {
 	.driver = {
 		.name = "tps65023",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(tps65023_of_match),
 	},
 	.probe = tps_65023_probe,

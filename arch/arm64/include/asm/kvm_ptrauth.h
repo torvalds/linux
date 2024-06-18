@@ -60,52 +60,65 @@
 .endm
 
 /*
- * Both ptrauth_switch_to_guest and ptrauth_switch_to_host macros will
- * check for the presence of one of the cpufeature flag
- * ARM64_HAS_ADDRESS_AUTH_ARCH or ARM64_HAS_ADDRESS_AUTH_IMP_DEF and
+ * Both ptrauth_switch_to_guest and ptrauth_switch_to_hyp macros will
+ * check for the presence ARM64_HAS_ADDRESS_AUTH, which is defined as
+ * (ARM64_HAS_ADDRESS_AUTH_ARCH || ARM64_HAS_ADDRESS_AUTH_IMP_DEF) and
  * then proceed ahead with the save/restore of Pointer Authentication
- * key registers.
+ * key registers if enabled for the guest.
  */
 .macro ptrauth_switch_to_guest g_ctxt, reg1, reg2, reg3
-alternative_if ARM64_HAS_ADDRESS_AUTH_ARCH
-	b	1000f
+alternative_if_not ARM64_HAS_ADDRESS_AUTH
+	b	.L__skip_switch\@
 alternative_else_nop_endif
-alternative_if_not ARM64_HAS_ADDRESS_AUTH_IMP_DEF
-	b	1001f
-alternative_else_nop_endif
-1000:
-	ldr	\reg1, [\g_ctxt, #(VCPU_HCR_EL2 - VCPU_CONTEXT)]
+	mrs	\reg1, hcr_el2
 	and	\reg1, \reg1, #(HCR_API | HCR_APK)
-	cbz	\reg1, 1001f
+	cbz	\reg1, .L__skip_switch\@
 	add	\reg1, \g_ctxt, #CPU_APIAKEYLO_EL1
 	ptrauth_restore_state	\reg1, \reg2, \reg3
-1001:
+.L__skip_switch\@:
 .endm
 
-.macro ptrauth_switch_to_host g_ctxt, h_ctxt, reg1, reg2, reg3
-alternative_if ARM64_HAS_ADDRESS_AUTH_ARCH
-	b	2000f
+.macro ptrauth_switch_to_hyp g_ctxt, h_ctxt, reg1, reg2, reg3
+alternative_if_not ARM64_HAS_ADDRESS_AUTH
+	b	.L__skip_switch\@
 alternative_else_nop_endif
-alternative_if_not ARM64_HAS_ADDRESS_AUTH_IMP_DEF
-	b	2001f
-alternative_else_nop_endif
-2000:
-	ldr	\reg1, [\g_ctxt, #(VCPU_HCR_EL2 - VCPU_CONTEXT)]
+	mrs	\reg1, hcr_el2
 	and	\reg1, \reg1, #(HCR_API | HCR_APK)
-	cbz	\reg1, 2001f
+	cbz	\reg1, .L__skip_switch\@
 	add	\reg1, \g_ctxt, #CPU_APIAKEYLO_EL1
 	ptrauth_save_state	\reg1, \reg2, \reg3
 	add	\reg1, \h_ctxt, #CPU_APIAKEYLO_EL1
 	ptrauth_restore_state	\reg1, \reg2, \reg3
 	isb
-2001:
+.L__skip_switch\@:
 .endm
 
 #else /* !CONFIG_ARM64_PTR_AUTH */
 .macro ptrauth_switch_to_guest g_ctxt, reg1, reg2, reg3
 .endm
-.macro ptrauth_switch_to_host g_ctxt, h_ctxt, reg1, reg2, reg3
+.macro ptrauth_switch_to_hyp g_ctxt, h_ctxt, reg1, reg2, reg3
 .endm
 #endif /* CONFIG_ARM64_PTR_AUTH */
+
+#else  /* !__ASSEMBLY */
+
+#define __ptrauth_save_key(ctxt, key)					\
+	do {								\
+		u64 __val;                                              \
+		__val = read_sysreg_s(SYS_ ## key ## KEYLO_EL1);	\
+		ctxt_sys_reg(ctxt, key ## KEYLO_EL1) = __val;		\
+		__val = read_sysreg_s(SYS_ ## key ## KEYHI_EL1);	\
+		ctxt_sys_reg(ctxt, key ## KEYHI_EL1) = __val;		\
+	} while(0)
+
+#define ptrauth_save_keys(ctxt)						\
+	do {								\
+		__ptrauth_save_key(ctxt, APIA);				\
+		__ptrauth_save_key(ctxt, APIB);				\
+		__ptrauth_save_key(ctxt, APDA);				\
+		__ptrauth_save_key(ctxt, APDB);				\
+		__ptrauth_save_key(ctxt, APGA);				\
+	} while(0)
+
 #endif /* __ASSEMBLY__ */
 #endif /* __ASM_KVM_PTRAUTH_H */

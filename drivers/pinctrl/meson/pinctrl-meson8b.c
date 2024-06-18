@@ -233,6 +233,8 @@ static const unsigned int hdmi_scl_pins[]	= { GPIOH_2 };
 static const unsigned int hdmi_cec_0_pins[]	= { GPIOH_3 };
 static const unsigned int eth_txd1_0_pins[]	= { GPIOH_5 };
 static const unsigned int eth_txd0_0_pins[]	= { GPIOH_6 };
+static const unsigned int eth_rxd3_h_pins[]	= { GPIOH_5 };
+static const unsigned int eth_rxd2_h_pins[]	= { GPIOH_6 };
 static const unsigned int clk_24m_out_pins[]	= { GPIOH_9 };
 
 static const unsigned int spi_ss1_pins[]	= { GPIOH_0 };
@@ -535,6 +537,8 @@ static struct meson_pmx_group meson8b_cbus_groups[] = {
 	GROUP(spi_miso_1,	9,	12),
 	GROUP(spi_mosi_1,	9,	11),
 	GROUP(spi_sclk_1,	9,	10),
+	GROUP(eth_rxd3_h,	6,	15),
+	GROUP(eth_rxd2_h,	6,	14),
 	GROUP(eth_txd3,		6,	13),
 	GROUP(eth_txd2,		6,	12),
 	GROUP(eth_tx_clk,	6,	11),
@@ -746,7 +750,8 @@ static const char * const ethernet_groups[] = {
 	"eth_tx_clk", "eth_tx_en", "eth_txd1_0", "eth_txd1_1",
 	"eth_txd0_0", "eth_txd0_1", "eth_rx_clk", "eth_rx_dv",
 	"eth_rxd1", "eth_rxd0", "eth_mdio_en", "eth_mdc", "eth_ref_clk",
-	"eth_txd2", "eth_txd3", "eth_rxd3", "eth_rxd2"
+	"eth_txd2", "eth_txd3", "eth_rxd3", "eth_rxd2",
+	"eth_rxd3_h", "eth_rxd2_h"
 };
 
 static const char * const i2c_a_groups[] = {
@@ -962,6 +967,7 @@ static struct meson_pinctrl_data meson8b_aobus_pinctrl_data = {
 	.num_funcs	= ARRAY_SIZE(meson8b_aobus_functions),
 	.num_banks	= ARRAY_SIZE(meson8b_aobus_banks),
 	.pmx_ops	= &meson8_pmx_ops,
+	.parse_dt	= &meson8_aobus_parse_dt_extra,
 };
 
 static const struct of_device_id meson8b_pinctrl_dt_match[] = {

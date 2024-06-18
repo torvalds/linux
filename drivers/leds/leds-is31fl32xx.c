@@ -15,7 +15,6 @@
 #include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 
 /* Used to indicate a device has no such register */
 #define IS31FL32XX_REG_NONE 0xFF
@@ -44,7 +43,7 @@ struct is31fl32xx_priv {
 	const struct is31fl32xx_chipdef *cdef;
 	struct i2c_client *client;
 	unsigned int num_leds;
-	struct is31fl32xx_led_data leds[0];
+	struct is31fl32xx_led_data leds[];
 };
 
 /**
@@ -58,7 +57,8 @@ struct is31fl32xx_priv {
  * @pwm_registers_reversed: : true if PWM registers count down instead of up
  * @led_control_register_base : address of first LED control register (optional)
  * @enable_bits_per_led_control_register: number of LEDs enable bits in each
- * @reset_func:         : pointer to reset function
+ * @reset_func          : pointer to reset function
+ * @sw_shutdown_func    : pointer to software shutdown function
  *
  * For all optional register addresses, the sentinel value %IS31FL32XX_REG_NONE
  * indicates that this chip has no such register.
@@ -332,9 +332,6 @@ static int is31fl32xx_parse_child_dt(const struct device *dev,
 	int ret = 0;
 	u32 reg;
 
-	if (of_property_read_string(child, "label", &cdev->name))
-		cdev->name = child->name;
-
 	ret = of_property_read_u32(child, "reg", &reg);
 	if (ret || reg < 1 || reg > led_data->priv->cdef->channels) {
 		dev_err(dev,
@@ -343,9 +340,6 @@ static int is31fl32xx_parse_child_dt(const struct device *dev,
 		return -EINVAL;
 	}
 	led_data->channel = reg;
-
-	of_property_read_string(child, "linux,default-trigger",
-				&cdev->default_trigger);
 
 	cdev->brightness_set_blocking = is31fl32xx_brightness_set;
 
@@ -372,7 +366,8 @@ static int is31fl32xx_parse_dt(struct device *dev,
 	struct device_node *child;
 	int ret = 0;
 
-	for_each_child_of_node(dev->of_node, child) {
+	for_each_available_child_of_node(dev_of_node(dev), child) {
+		struct led_init_data init_data = {};
 		struct is31fl32xx_led_data *led_data =
 			&priv->leds[priv->num_leds];
 		const struct is31fl32xx_led_data *other_led_data;
@@ -388,17 +383,19 @@ static int is31fl32xx_parse_dt(struct device *dev,
 							  led_data->channel);
 		if (other_led_data) {
 			dev_err(dev,
-				"%s and %s both attempting to use channel %d\n",
-				led_data->cdev.name,
-				other_led_data->cdev.name,
-				led_data->channel);
+				"Node %pOF 'reg' conflicts with another LED\n",
+				child);
+			ret = -EINVAL;
 			goto err;
 		}
 
-		ret = devm_led_classdev_register(dev, &led_data->cdev);
+		init_data.fwnode = of_fwnode_handle(child);
+
+		ret = devm_led_classdev_register_ext(dev, &led_data->cdev,
+						     &init_data);
 		if (ret) {
-			dev_err(dev, "failed to register PWM led for %s: %d\n",
-				led_data->cdev.name, ret);
+			dev_err(dev, "Failed to register LED for %pOF: %d\n",
+				child, ret);
 			goto err;
 		}
 
@@ -424,23 +421,17 @@ static const struct of_device_id of_is31fl32xx_match[] = {
 
 MODULE_DEVICE_TABLE(of, of_is31fl32xx_match);
 
-static int is31fl32xx_probe(struct i2c_client *client,
-			    const struct i2c_device_id *id)
+static int is31fl32xx_probe(struct i2c_client *client)
 {
 	const struct is31fl32xx_chipdef *cdef;
-	const struct of_device_id *of_dev_id;
 	struct device *dev = &client->dev;
 	struct is31fl32xx_priv *priv;
 	int count;
 	int ret = 0;
 
-	of_dev_id = of_match_device(of_is31fl32xx_match, dev);
-	if (!of_dev_id)
-		return -EINVAL;
+	cdef = device_get_match_data(dev);
 
-	cdef = of_dev_id->data;
-
-	count = of_get_child_count(dev->of_node);
+	count = of_get_available_child_count(dev_of_node(dev));
 	if (!count)
 		return -EINVAL;
 
@@ -464,11 +455,15 @@ static int is31fl32xx_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int is31fl32xx_remove(struct i2c_client *client)
+static void is31fl32xx_remove(struct i2c_client *client)
 {
 	struct is31fl32xx_priv *priv = i2c_get_clientdata(client);
+	int ret;
 
-	return is31fl32xx_reset_regs(priv);
+	ret = is31fl32xx_reset_regs(priv);
+	if (ret)
+		dev_err(&client->dev, "Failed to reset registers on removal (%pe)\n",
+			ERR_PTR(ret));
 }
 
 /*

@@ -72,6 +72,20 @@ static const char *nvme_trace_admin_identify(struct trace_seq *p, u8 *cdw10)
 	return ret;
 }
 
+static const char *nvme_trace_admin_set_features(struct trace_seq *p,
+						 u8 *cdw10)
+{
+	const char *ret = trace_seq_buffer_ptr(p);
+	u8 fid = cdw10[0];
+	u8 sv = cdw10[3] & 0x8;
+	u32 cdw11 = get_unaligned_le32(cdw10 + 4);
+
+	trace_seq_printf(p, "fid=0x%x, sv=0x%x, cdw11=0x%x", fid, sv, cdw11);
+	trace_seq_putc(p, 0);
+
+	return ret;
+}
+
 static const char *nvme_trace_admin_get_features(struct trace_seq *p,
 						 u8 *cdw10)
 {
@@ -80,7 +94,7 @@ static const char *nvme_trace_admin_get_features(struct trace_seq *p,
 	u8 sel = cdw10[1] & 0x7;
 	u32 cdw11 = get_unaligned_le32(cdw10 + 4);
 
-	trace_seq_printf(p, "fid=0x%x sel=0x%x cdw11=0x%x", fid, sel, cdw11);
+	trace_seq_printf(p, "fid=0x%x, sel=0x%x, cdw11=0x%x", fid, sel, cdw11);
 	trace_seq_putc(p, 0);
 
 	return ret;
@@ -97,6 +111,26 @@ static const char *nvme_trace_get_lba_status(struct trace_seq *p,
 
 	trace_seq_printf(p, "slba=0x%llx, mndw=0x%x, rl=0x%x, atype=%u",
 			slba, mndw, rl, atype);
+	trace_seq_putc(p, 0);
+
+	return ret;
+}
+
+static const char *nvme_trace_admin_format_nvm(struct trace_seq *p, u8 *cdw10)
+{
+	const char *ret = trace_seq_buffer_ptr(p);
+	/*
+	 * lbafu(bit 13:12) is already in the upper 4 bits, lbafl: bit 03:00.
+	 */
+	u8 lbaf = (cdw10[1] & 0x30) | (cdw10[0] & 0xF);
+	u8 mset = (cdw10[0] >> 4) & 0x1;
+	u8 pi = (cdw10[0] >> 5) & 0x7;
+	u8 pil = cdw10[1] & 0x1;
+	u8 ses = (cdw10[1] >> 1) & 0x7;
+
+	trace_seq_printf(p, "lbaf=%u, mset=%u, pi=%u, pil=%u, ses=%u",
+			lbaf, mset, pi, pil, ses);
+
 	trace_seq_putc(p, 0);
 
 	return ret;
@@ -131,6 +165,121 @@ static const char *nvme_trace_dsm(struct trace_seq *p, u8 *cdw10)
 	return ret;
 }
 
+static const char *nvme_trace_zone_mgmt_send(struct trace_seq *p, u8 *cdw10)
+{
+	static const char * const zsa_strs[] = {
+		[0x01] = "close zone",
+		[0x02] = "finish zone",
+		[0x03] = "open zone",
+		[0x04] = "reset zone",
+		[0x05] = "offline zone",
+		[0x10] = "set zone descriptor extension"
+	};
+	const char *ret = trace_seq_buffer_ptr(p);
+	u64 slba = get_unaligned_le64(cdw10);
+	const char *zsa_str;
+	u8 zsa = cdw10[12];
+	u8 all = cdw10[13];
+
+	if (zsa < ARRAY_SIZE(zsa_strs) && zsa_strs[zsa])
+		zsa_str = zsa_strs[zsa];
+	else
+		zsa_str = "reserved";
+
+	trace_seq_printf(p, "slba=%llu, zsa=%u:%s, all=%u",
+		slba, zsa, zsa_str, all);
+	trace_seq_putc(p, 0);
+
+	return ret;
+}
+
+static const char *nvme_trace_zone_mgmt_recv(struct trace_seq *p, u8 *cdw10)
+{
+	static const char * const zrasf_strs[] = {
+		[0x00] = "list all zones",
+		[0x01] = "list the zones in the ZSE: Empty state",
+		[0x02] = "list the zones in the ZSIO: Implicitly Opened state",
+		[0x03] = "list the zones in the ZSEO: Explicitly Opened state",
+		[0x04] = "list the zones in the ZSC: Closed state",
+		[0x05] = "list the zones in the ZSF: Full state",
+		[0x06] = "list the zones in the ZSRO: Read Only state",
+		[0x07] = "list the zones in the ZSO: Offline state",
+		[0x09] = "list the zones that have the zone attribute"
+	};
+	const char *ret = trace_seq_buffer_ptr(p);
+	u64 slba = get_unaligned_le64(cdw10);
+	u32 numd = get_unaligned_le32(cdw10 + 8);
+	u8 zra = cdw10[12];
+	u8 zrasf = cdw10[13];
+	const char *zrasf_str;
+	u8 pr = cdw10[14];
+
+	if (zrasf < ARRAY_SIZE(zrasf_strs) && zrasf_strs[zrasf])
+		zrasf_str = zrasf_strs[zrasf];
+	else
+		zrasf_str = "reserved";
+
+	trace_seq_printf(p, "slba=%llu, numd=%u, zra=%u, zrasf=%u:%s, pr=%u",
+		slba, numd, zra, zrasf, zrasf_str, pr);
+	trace_seq_putc(p, 0);
+
+	return ret;
+}
+
+static const char *nvme_trace_resv_reg(struct trace_seq *p, u8 *cdw10)
+{
+	const char *ret = trace_seq_buffer_ptr(p);
+	u8 rrega = cdw10[0] & 0x7;
+	u8 iekey = (cdw10[0] >> 3) & 0x1;
+	u8 ptpl = (cdw10[3] >> 6) & 0x3;
+
+	trace_seq_printf(p, "rrega=%u, iekey=%u, ptpl=%u",
+			 rrega, iekey, ptpl);
+	trace_seq_putc(p, 0);
+
+	return ret;
+}
+
+static const char *nvme_trace_resv_acq(struct trace_seq *p, u8 *cdw10)
+{
+	const char *ret = trace_seq_buffer_ptr(p);
+	u8 racqa = cdw10[0] & 0x7;
+	u8 iekey = (cdw10[0] >> 3) & 0x1;
+	u8 rtype = cdw10[1];
+
+	trace_seq_printf(p, "racqa=%u, iekey=%u, rtype=%u",
+			 racqa, iekey, rtype);
+	trace_seq_putc(p, 0);
+
+	return ret;
+}
+
+static const char *nvme_trace_resv_rel(struct trace_seq *p, u8 *cdw10)
+{
+	const char *ret = trace_seq_buffer_ptr(p);
+	u8 rrela = cdw10[0] & 0x7;
+	u8 iekey = (cdw10[0] >> 3) & 0x1;
+	u8 rtype = cdw10[1];
+
+	trace_seq_printf(p, "rrela=%u, iekey=%u, rtype=%u",
+			 rrela, iekey, rtype);
+	trace_seq_putc(p, 0);
+
+	return ret;
+}
+
+static const char *nvme_trace_resv_report(struct trace_seq *p, u8 *cdw10)
+{
+	const char *ret = trace_seq_buffer_ptr(p);
+	u32 numd = get_unaligned_le32(cdw10);
+	u8 eds = cdw10[4] & 0x1;
+
+	trace_seq_printf(p, "numd=%u, eds=%u", numd, eds);
+	trace_seq_putc(p, 0);
+
+	return ret;
+}
+
 static const char *nvme_trace_common(struct trace_seq *p, u8 *cdw10)
 {
 	const char *ret = trace_seq_buffer_ptr(p);
@@ -155,10 +304,14 @@ const char *nvme_trace_parse_admin_cmd(struct trace_seq *p,
 		return nvme_trace_create_cq(p, cdw10);
 	case nvme_admin_identify:
 		return nvme_trace_admin_identify(p, cdw10);
+	case nvme_admin_set_features:
+		return nvme_trace_admin_set_features(p, cdw10);
 	case nvme_admin_get_features:
 		return nvme_trace_admin_get_features(p, cdw10);
 	case nvme_admin_get_lba_status:
 		return nvme_trace_get_lba_status(p, cdw10);
+	case nvme_admin_format_nvm:
+		return nvme_trace_admin_format_nvm(p, cdw10);
 	default:
 		return nvme_trace_common(p, cdw10);
 	}
@@ -171,9 +324,22 @@ const char *nvme_trace_parse_nvm_cmd(struct trace_seq *p,
 	case nvme_cmd_read:
 	case nvme_cmd_write:
 	case nvme_cmd_write_zeroes:
+	case nvme_cmd_zone_append:
 		return nvme_trace_read_write(p, cdw10);
 	case nvme_cmd_dsm:
 		return nvme_trace_dsm(p, cdw10);
+	case nvme_cmd_zone_mgmt_send:
+		return nvme_trace_zone_mgmt_send(p, cdw10);
+	case nvme_cmd_zone_mgmt_recv:
+		return nvme_trace_zone_mgmt_recv(p, cdw10);
+	case nvme_cmd_resv_register:
+		return nvme_trace_resv_reg(p, cdw10);
+	case nvme_cmd_resv_acquire:
+		return nvme_trace_resv_acq(p, cdw10);
+	case nvme_cmd_resv_release:
+		return nvme_trace_resv_rel(p, cdw10);
+	case nvme_cmd_resv_report:
+		return nvme_trace_resv_report(p, cdw10);
 	default:
 		return nvme_trace_common(p, cdw10);
 	}
@@ -218,6 +384,34 @@ static const char *nvme_trace_fabrics_property_get(struct trace_seq *p, u8 *spc)
 	return ret;
 }
 
+static const char *nvme_trace_fabrics_auth_send(struct trace_seq *p, u8 *spc)
+{
+	const char *ret = trace_seq_buffer_ptr(p);
+	u8 spsp0 = spc[1];
+	u8 spsp1 = spc[2];
+	u8 secp = spc[3];
+	u32 tl = get_unaligned_le32(spc + 4);
+
+	trace_seq_printf(p, "spsp0=%02x, spsp1=%02x, secp=%02x, tl=%u",
+			 spsp0, spsp1, secp, tl);
+	trace_seq_putc(p, 0);
+	return ret;
+}
+
+static const char *nvme_trace_fabrics_auth_receive(struct trace_seq *p, u8 *spc)
+{
+	const char *ret = trace_seq_buffer_ptr(p);
+	u8 spsp0 = spc[1];
+	u8 spsp1 = spc[2];
+	u8 secp = spc[3];
+	u32 al = get_unaligned_le32(spc + 4);
+
+	trace_seq_printf(p, "spsp0=%02x, spsp1=%02x, secp=%02x, al=%u",
+			 spsp0, spsp1, secp, al);
+	trace_seq_putc(p, 0);
+	return ret;
+}
+
 static const char *nvme_trace_fabrics_common(struct trace_seq *p, u8 *spc)
 {
 	const char *ret = trace_seq_buffer_ptr(p);
@@ -237,6 +431,10 @@ const char *nvme_trace_parse_fabrics_cmd(struct trace_seq *p,
 		return nvme_trace_fabrics_connect(p, spc);
 	case nvme_fabrics_type_property_get:
 		return nvme_trace_fabrics_property_get(p, spc);
+	case nvme_fabrics_type_auth_send:
+		return nvme_trace_fabrics_auth_send(p, spc);
+	case nvme_fabrics_type_auth_receive:
+		return nvme_trace_fabrics_auth_receive(p, spc);
 	default:
 		return nvme_trace_fabrics_common(p, spc);
 	}

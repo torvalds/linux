@@ -121,7 +121,7 @@ mISDN_sock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 	if (sk->sk_state == MISDN_CLOSED)
 		return 0;
 
-	skb = skb_recv_datagram(sk, flags, flags & MSG_DONTWAIT, &err);
+	skb = skb_recv_datagram(sk, flags, &err);
 	if (!skb)
 		return err;
 
@@ -401,23 +401,23 @@ data_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 }
 
 static int data_sock_setsockopt(struct socket *sock, int level, int optname,
-				char __user *optval, unsigned int len)
+				sockptr_t optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	int err = 0, opt = 0;
 
 	if (*debug & DEBUG_SOCKET)
-		printk(KERN_DEBUG "%s(%p, %d, %x, %p, %d)\n", __func__, sock,
-		       level, optname, optval, len);
+		printk(KERN_DEBUG "%s(%p, %d, %x, optval, %d)\n", __func__, sock,
+		       level, optname, optlen);
 
 	lock_sock(sk);
 
 	switch (optname) {
 	case MISDN_TIME_STAMP:
-		if (get_user(opt, (int __user *)optval)) {
-			err = -EFAULT;
+		err = copy_safe_from_sockptr(&opt, sizeof(opt),
+					     optval, optlen);
+		if (err)
 			break;
-		}
 
 		if (opt)
 			_pms(sk)->cmask |= MISDN_TIME_STAMP;
@@ -738,8 +738,6 @@ static const struct proto_ops base_sock_ops = {
 	.recvmsg	= sock_no_recvmsg,
 	.listen		= sock_no_listen,
 	.shutdown	= sock_no_shutdown,
-	.setsockopt	= sock_no_setsockopt,
-	.getsockopt	= sock_no_getsockopt,
 	.connect	= sock_no_connect,
 	.socketpair	= sock_no_socketpair,
 	.accept		= sock_no_accept,

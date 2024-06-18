@@ -28,6 +28,10 @@
 #define ADAU1761_REC_MIXER_RIGHT1	0x400d
 #define ADAU1761_LEFT_DIFF_INPUT_VOL	0x400e
 #define ADAU1761_RIGHT_DIFF_INPUT_VOL	0x400f
+#define ADAU1761_ALC_CTRL0		0x4011
+#define ADAU1761_ALC_CTRL1		0x4012
+#define ADAU1761_ALC_CTRL2		0x4013
+#define ADAU1761_ALC_CTRL3		0x4014
 #define ADAU1761_PLAY_LR_MIXER_LEFT	0x4020
 #define ADAU1761_PLAY_MIXER_LEFT0	0x401c
 #define ADAU1761_PLAY_MIXER_LEFT1	0x401d
@@ -71,6 +75,10 @@ static const struct reg_default adau1761_reg_defaults[] = {
 	{ ADAU1761_REC_MIXER_RIGHT0,		0x00 },
 	{ ADAU1761_REC_MIXER_RIGHT1,		0x00 },
 	{ ADAU1761_LEFT_DIFF_INPUT_VOL,		0x00 },
+	{ ADAU1761_ALC_CTRL0,			0x00 },
+	{ ADAU1761_ALC_CTRL1,			0x00 },
+	{ ADAU1761_ALC_CTRL2,			0x00 },
+	{ ADAU1761_ALC_CTRL3,			0x00 },
 	{ ADAU1761_RIGHT_DIFF_INPUT_VOL,	0x00 },
 	{ ADAU1761_PLAY_LR_MIXER_LEFT,		0x00 },
 	{ ADAU1761_PLAY_MIXER_LEFT0,		0x00 },
@@ -121,6 +129,10 @@ static const DECLARE_TLV_DB_SCALE(adau1761_sidetone_tlv, -1800, 300, 1);
 static const DECLARE_TLV_DB_SCALE(adau1761_boost_tlv, -600, 600, 1);
 static const DECLARE_TLV_DB_SCALE(adau1761_pga_boost_tlv, -2000, 2000, 1);
 
+static const DECLARE_TLV_DB_SCALE(adau1761_alc_max_gain_tlv, -1200, 600, 0);
+static const DECLARE_TLV_DB_SCALE(adau1761_alc_target_tlv, -2850, 150, 0);
+static const DECLARE_TLV_DB_SCALE(adau1761_alc_ng_threshold_tlv, -7650, 150, 0);
+
 static const unsigned int adau1761_bias_select_values[] = {
 	0, 2, 3,
 };
@@ -147,6 +159,103 @@ static SOC_VALUE_ENUM_SINGLE_DECL(adau1761_capture_bias_enum,
 		ADAU17X1_REC_POWER_MGMT, 1, 0x3, adau1761_bias_select_text,
 		adau1761_bias_select_values);
 
+static const unsigned int adau1761_pga_slew_time_values[] = {
+	3, 0, 1, 2,
+};
+
+static const char * const adau1761_pga_slew_time_text[] = {
+	"Off",
+	"24 ms",
+	"48 ms",
+	"96 ms",
+};
+
+static const char * const adau1761_alc_function_text[] = {
+	"Off",
+	"Right",
+	"Left",
+	"Stereo",
+	"DSP control",
+};
+
+static const char * const adau1761_alc_hold_time_text[] = {
+	"2.67 ms",
+	"5.34 ms",
+	"10.68 ms",
+	"21.36 ms",
+	"42.72 ms",
+	"85.44 ms",
+	"170.88 ms",
+	"341.76 ms",
+	"683.52 ms",
+	"1367 ms",
+	"2734.1 ms",
+	"5468.2 ms",
+	"10936 ms",
+	"21873 ms",
+	"43745 ms",
+	"87491 ms",
+};
+
+static const char * const adau1761_alc_attack_time_text[] = {
+	"6 ms",
+	"12 ms",
+	"24 ms",
+	"48 ms",
+	"96 ms",
+	"192 ms",
+	"384 ms",
+	"768 ms",
+	"1540 ms",
+	"3070 ms",
+	"6140 ms",
+	"12290 ms",
+	"24580 ms",
+	"49150 ms",
+	"98300 ms",
+	"196610 ms",
+};
+
+static const char * const adau1761_alc_decay_time_text[] = {
+	"24 ms",
+	"48 ms",
+	"96 ms",
+	"192 ms",
+	"384 ms",
+	"768 ms",
+	"15400 ms",
+	"30700 ms",
+	"61400 ms",
+	"12290 ms",
+	"24580 ms",
+	"49150 ms",
+	"98300 ms",
+	"196610 ms",
+	"393220 ms",
+	"786430 ms",
+};
+
+static const char * const adau1761_alc_ng_type_text[] = {
+	"Hold",
+	"Mute",
+	"Fade",
+	"Fade + Mute",
+};
+
+static SOC_VALUE_ENUM_SINGLE_DECL(adau1761_pga_slew_time_enum,
+		ADAU1761_ALC_CTRL0, 6, 0x3, adau1761_pga_slew_time_text,
+		adau1761_pga_slew_time_values);
+static SOC_ENUM_SINGLE_DECL(adau1761_alc_function_enum,
+		ADAU1761_ALC_CTRL0, 0, adau1761_alc_function_text);
+static SOC_ENUM_SINGLE_DECL(adau1761_alc_hold_time_enum,
+		ADAU1761_ALC_CTRL1, 4, adau1761_alc_hold_time_text);
+static SOC_ENUM_SINGLE_DECL(adau1761_alc_attack_time_enum,
+		ADAU1761_ALC_CTRL2, 4, adau1761_alc_attack_time_text);
+static SOC_ENUM_SINGLE_DECL(adau1761_alc_decay_time_enum,
+		ADAU1761_ALC_CTRL2, 0, adau1761_alc_decay_time_text);
+static SOC_ENUM_SINGLE_DECL(adau1761_alc_ng_type_enum,
+		ADAU1761_ALC_CTRL3, 6, adau1761_alc_ng_type_text);
+
 static const struct snd_kcontrol_new adau1761_jack_detect_controls[] = {
 	SOC_SINGLE("Speaker Auto-mute Switch", ADAU1761_DIGMIC_JACKDETECT,
 		4, 1, 0),
@@ -161,6 +270,22 @@ static const struct snd_kcontrol_new adau1761_differential_mode_controls[] = {
 
 	SOC_DOUBLE_R_TLV("PGA Boost Capture Volume", ADAU1761_REC_MIXER_LEFT1,
 		ADAU1761_REC_MIXER_RIGHT1, 3, 2, 0, adau1761_pga_boost_tlv),
+
+	SOC_ENUM("PGA Capture Slew Time", adau1761_pga_slew_time_enum),
+
+	SOC_SINGLE_TLV("ALC Capture Max Gain Volume", ADAU1761_ALC_CTRL0,
+		3, 7, 0, adau1761_alc_max_gain_tlv),
+	SOC_ENUM("ALC Capture Function", adau1761_alc_function_enum),
+	SOC_ENUM("ALC Capture Hold Time", adau1761_alc_hold_time_enum),
+	SOC_SINGLE_TLV("ALC Capture Target Volume", ADAU1761_ALC_CTRL1,
+		0, 15, 0, adau1761_alc_target_tlv),
+	SOC_ENUM("ALC Capture Attack Time", adau1761_alc_decay_time_enum),
+	SOC_ENUM("ALC Capture Decay Time", adau1761_alc_attack_time_enum),
+	SOC_ENUM("ALC Capture Noise Gate Type", adau1761_alc_ng_type_enum),
+	SOC_SINGLE("ALC Capture Noise Gate Switch",
+		ADAU1761_ALC_CTRL3, 5, 1, 0),
+	SOC_SINGLE_TLV("ALC Capture Noise Gate Threshold Volume",
+		ADAU1761_ALC_CTRL3, 0, 31, 0, adau1761_alc_ng_threshold_tlv),
 };
 
 static const struct snd_kcontrol_new adau1761_single_mode_controls[] = {
@@ -431,8 +556,6 @@ static const struct snd_soc_dapm_route adau1761_dapm_routes[] = {
 	{ "Left DAC", NULL, "Interpolator Resync Clock" },
 	{ "Right DAC", NULL, "Interpolator Resync Clock" },
 
-	{ "DSP", NULL, "Digital Clock 0" },
-
 	{ "Slew Clock", NULL, "Digital Clock 0" },
 	{ "Right Playback Mixer", NULL, "Slew Clock" },
 	{ "Left Playback Mixer", NULL, "Slew Clock" },
@@ -443,6 +566,56 @@ static const struct snd_soc_dapm_route adau1761_dapm_routes[] = {
 	{ "Digital Clock 0", NULL, "SYSCLK" },
 	{ "Digital Clock 1", NULL, "SYSCLK" },
 };
+
+static const struct snd_soc_dapm_route adau1761_dapm_dsp_routes[] = {
+	{ "DSP", NULL, "Digital Clock 0" },
+};
+
+static int adau1761_compatibility_probe(struct device *dev)
+{
+	struct adau *adau = dev_get_drvdata(dev);
+	struct regmap *regmap = adau->regmap;
+	int val, ret = 0;
+
+	/* Only consider compatibility mode when ADAU1361 was specified. */
+	if (adau->type != ADAU1361)
+		return 0;
+
+	regcache_cache_bypass(regmap, true);
+
+	/*
+	 * This will enable the core clock and bypass the PLL,
+	 * so that we can access the registers for probing purposes
+	 * (without having to set up the PLL).
+	 */
+	regmap_write(regmap, ADAU17X1_CLOCK_CONTROL,
+		ADAU17X1_CLOCK_CONTROL_SYSCLK_EN);
+
+	/*
+	 * ADAU17X1_SERIAL_SAMPLING_RATE doesn't exist in non-DSP chips;
+	 * reading it results in zero at all times, and write is a no-op.
+	 * Use this register to probe for ADAU1761.
+	 */
+	regmap_write(regmap, ADAU17X1_SERIAL_SAMPLING_RATE, 1);
+	ret = regmap_read(regmap, ADAU17X1_SERIAL_SAMPLING_RATE, &val);
+	if (ret)
+		goto exit;
+	if (val != 1)
+		goto exit;
+	regmap_write(regmap, ADAU17X1_SERIAL_SAMPLING_RATE, 0);
+	ret = regmap_read(regmap, ADAU17X1_SERIAL_SAMPLING_RATE, &val);
+	if (ret)
+		goto exit;
+	if (val != 0)
+		goto exit;
+
+	adau->type = ADAU1761_AS_1361;
+exit:
+	/* Disable core clock after probing. */
+	regmap_write(regmap, ADAU17X1_CLOCK_CONTROL, 0);
+	regcache_cache_bypass(regmap, false);
+	return ret;
+}
 
 static int adau1761_set_bias_level(struct snd_soc_component *component,
 				 enum snd_soc_bias_level level)
@@ -517,7 +690,7 @@ static int adau1761_setup_digmic_jackdetect(struct snd_soc_component *component)
 			ARRAY_SIZE(adau1761_jack_detect_controls));
 		if (ret)
 			return ret;
-		/* fall through */
+		fallthrough;
 	case ADAU1761_DIGMIC_JACKDET_PIN_MODE_NONE:
 		ret = snd_soc_dapm_add_routes(dapm, adau1761_no_dmic_routes,
 			ARRAY_SIZE(adau1761_no_dmic_routes));
@@ -568,7 +741,7 @@ static int adau1761_setup_headphone_mode(struct snd_soc_component *component)
 			ADAU1761_PLAY_MONO_OUTPUT_VOL_UNMUTE,
 			ADAU1761_PLAY_MONO_OUTPUT_VOL_MODE_HP |
 			ADAU1761_PLAY_MONO_OUTPUT_VOL_UNMUTE);
-		/* fallthrough */
+		fallthrough;
 	case ADAU1761_OUTPUT_MODE_HEADPHONE:
 		regmap_update_bits(adau->regmap, ADAU1761_PLAY_HP_RIGHT_VOL,
 			ADAU1761_PLAY_HP_RIGHT_VOL_MODE_HP,
@@ -632,6 +805,10 @@ static bool adau1761_readable_register(struct device *dev, unsigned int reg)
 	case ADAU1761_DEJITTER:
 	case ADAU1761_CLK_ENABLE0:
 	case ADAU1761_CLK_ENABLE1:
+	case ADAU1761_ALC_CTRL0:
+	case ADAU1761_ALC_CTRL1:
+	case ADAU1761_ALC_CTRL2:
+	case ADAU1761_ALC_CTRL3:
 		return true;
 	default:
 		break;
@@ -694,7 +871,11 @@ static int adau1761_component_probe(struct snd_soc_component *component)
 	if (ret)
 		return ret;
 
-	if (adau->type == ADAU1761) {
+	/*
+	 * If we've got an ADAU1761, or an ADAU1761 operating as an
+	 * ADAU1361, we need these non-DSP related DAPM widgets and routes.
+	 */
+	if (adau->type == ADAU1761 || adau->type == ADAU1761_AS_1361) {
 		ret = snd_soc_dapm_new_controls(dapm, adau1761_dapm_widgets,
 			ARRAY_SIZE(adau1761_dapm_widgets));
 		if (ret)
@@ -705,7 +886,29 @@ static int adau1761_component_probe(struct snd_soc_component *component)
 		if (ret)
 			return ret;
 	}
-
+	/*
+	 * These routes are DSP related and only used when we have a
+	 * bona fide ADAU1761.
+	 */
+	if (adau->type == ADAU1761) {
+		ret = snd_soc_dapm_add_routes(dapm, adau1761_dapm_dsp_routes,
+			ARRAY_SIZE(adau1761_dapm_dsp_routes));
+		if (ret)
+			return ret;
+	}
+	/*
+	 * In the ADAU1761, by default, the AIF is routed to the DSP, whereas
+	 * for the ADAU1361, the AIF is permanently routed to the ADC and DAC.
+	 * Thus, if we have an ADAU1761 masquerading as an ADAU1361,
+	 * we need to explicitly route the AIF to the ADC and DAC.
+	 * For the ADAU1761, this is normally done by set_tdm_slot, but this
+	 * function is not necessarily called during stream setup, so set up
+	 * the compatible AIF routings here from the start.
+	 */
+	if  (adau->type == ADAU1761_AS_1361) {
+		regmap_write(adau->regmap, ADAU17X1_SERIAL_INPUT_ROUTE, 0x01);
+		regmap_write(adau->regmap, ADAU17X1_SERIAL_OUTPUT_ROUTE, 0x01);
+	}
 	ret = adau17x1_add_routes(component);
 	if (ret < 0)
 		return ret;
@@ -727,7 +930,6 @@ static const struct snd_soc_component_driver adau1761_component_driver = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 #define ADAU1761_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE | \
@@ -790,6 +992,10 @@ int adau1761_probe(struct device *dev, struct regmap *regmap,
 	if (ret)
 		return ret;
 
+	ret = adau1761_compatibility_probe(dev);
+	if (ret)
+		return ret;
+
 	/* Enable cache only mode as we could miss writes before bias level
 	 * reaches standby and the core clock is enabled */
 	regcache_cache_only(regmap, true);
@@ -808,7 +1014,7 @@ const struct regmap_config adau1761_regmap_config = {
 	.readable_reg = adau1761_readable_register,
 	.volatile_reg = adau17x1_volatile_register,
 	.precious_reg = adau17x1_precious_register,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 EXPORT_SYMBOL_GPL(adau1761_regmap_config);
 

@@ -1,71 +1,15 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2015        Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2015        Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
+/*
+ * Copyright (C) 2005-2014, 2018-2021 Intel Corporation
+ * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
+ * Copyright (C) 2015 Intel Deutschland GmbH
+ */
 #ifndef __iwl_op_mode_h__
 #define __iwl_op_mode_h__
 
 #include <linux/netdevice.h>
 #include <linux/debugfs.h>
+#include "iwl-dbg-tlv.h"
 
 struct iwl_op_mode;
 struct iwl_trans;
@@ -120,26 +64,27 @@ struct iwl_cfg;
  *	received on the RSS queue(s). The queue parameter indicates which of the
  *	RSS queues received this frame; it will always be non-zero.
  *	This method must not sleep.
- * @async_cb: called when an ASYNC command with CMD_WANT_ASYNC_CALLBACK set
- *	completes. Must be atomic.
  * @queue_full: notifies that a HW queue is full.
  *	Must be atomic and called with BH disabled.
  * @queue_not_full: notifies that a HW queue is not full any more.
  *	Must be atomic and called with BH disabled.
- * @hw_rf_kill:notifies of a change in the HW rf kill switch. True means that
+ * @hw_rf_kill: notifies of a change in the HW rf kill switch. True means that
  *	the radio is killed. Return %true if the device should be stopped by
  *	the transport immediately after the call. May sleep.
+ *	Note that this must not return %true for newer devices using gen2 PCIe
+ *	transport.
  * @free_skb: allows the transport layer to free skbs that haven't been
  *	reclaimed by the op_mode. This can happen when the driver is freed and
  *	there are Tx packets pending in the transport layer.
  *	Must be atomic
  * @nic_error: error notification. Must be atomic and must be called with BH
- *	disabled.
+ *	disabled, unless the sync parameter is true.
  * @cmd_queue_full: Called when the command queue gets full. Must be atomic and
  *	called with BH disabled.
  * @nic_config: configure NIC, called before firmware is started.
  *	May sleep
  * @wimax_active: invoked when WiMax becomes active. May sleep
+ * @time_point: called when transport layer wants to collect debug data
  */
 struct iwl_op_mode_ops {
 	struct iwl_op_mode *(*start)(struct iwl_trans *trans,
@@ -151,16 +96,17 @@ struct iwl_op_mode_ops {
 		   struct iwl_rx_cmd_buffer *rxb);
 	void (*rx_rss)(struct iwl_op_mode *op_mode, struct napi_struct *napi,
 		       struct iwl_rx_cmd_buffer *rxb, unsigned int queue);
-	void (*async_cb)(struct iwl_op_mode *op_mode,
-			 const struct iwl_device_cmd *cmd);
 	void (*queue_full)(struct iwl_op_mode *op_mode, int queue);
 	void (*queue_not_full)(struct iwl_op_mode *op_mode, int queue);
 	bool (*hw_rf_kill)(struct iwl_op_mode *op_mode, bool state);
 	void (*free_skb)(struct iwl_op_mode *op_mode, struct sk_buff *skb);
-	void (*nic_error)(struct iwl_op_mode *op_mode);
+	void (*nic_error)(struct iwl_op_mode *op_mode, bool sync);
 	void (*cmd_queue_full)(struct iwl_op_mode *op_mode);
 	void (*nic_config)(struct iwl_op_mode *op_mode);
 	void (*wimax_active)(struct iwl_op_mode *op_mode);
+	void (*time_point)(struct iwl_op_mode *op_mode,
+			   enum iwl_fw_ini_time_point tp_id,
+			   union iwl_dbg_tlv_tp_data *tp_data);
 };
 
 int iwl_opmode_register(const char *name, const struct iwl_op_mode_ops *ops);
@@ -175,7 +121,7 @@ void iwl_opmode_deregister(const char *name);
 struct iwl_op_mode {
 	const struct iwl_op_mode_ops *ops;
 
-	char op_mode_specific[0] __aligned(sizeof(void *));
+	char op_mode_specific[] __aligned(sizeof(void *));
 };
 
 static inline void iwl_op_mode_stop(struct iwl_op_mode *op_mode)
@@ -197,13 +143,6 @@ static inline void iwl_op_mode_rx_rss(struct iwl_op_mode *op_mode,
 				      unsigned int queue)
 {
 	op_mode->ops->rx_rss(op_mode, napi, rxb, queue);
-}
-
-static inline void iwl_op_mode_async_cb(struct iwl_op_mode *op_mode,
-					const struct iwl_device_cmd *cmd)
-{
-	if (op_mode->ops->async_cb)
-		op_mode->ops->async_cb(op_mode, cmd);
 }
 
 static inline void iwl_op_mode_queue_full(struct iwl_op_mode *op_mode,
@@ -228,12 +167,14 @@ iwl_op_mode_hw_rf_kill(struct iwl_op_mode *op_mode, bool state)
 static inline void iwl_op_mode_free_skb(struct iwl_op_mode *op_mode,
 					struct sk_buff *skb)
 {
+	if (WARN_ON_ONCE(!op_mode))
+		return;
 	op_mode->ops->free_skb(op_mode, skb);
 }
 
-static inline void iwl_op_mode_nic_error(struct iwl_op_mode *op_mode)
+static inline void iwl_op_mode_nic_error(struct iwl_op_mode *op_mode, bool sync)
 {
-	op_mode->ops->nic_error(op_mode);
+	op_mode->ops->nic_error(op_mode, sync);
 }
 
 static inline void iwl_op_mode_cmd_queue_full(struct iwl_op_mode *op_mode)
@@ -251,6 +192,15 @@ static inline void iwl_op_mode_wimax_active(struct iwl_op_mode *op_mode)
 {
 	might_sleep();
 	op_mode->ops->wimax_active(op_mode);
+}
+
+static inline void iwl_op_mode_time_point(struct iwl_op_mode *op_mode,
+					  enum iwl_fw_ini_time_point tp_id,
+					  union iwl_dbg_tlv_tp_data *tp_data)
+{
+	if (!op_mode || !op_mode->ops || !op_mode->ops->time_point)
+		return;
+	op_mode->ops->time_point(op_mode, tp_id, tp_data);
 }
 
 #endif /* __iwl_op_mode_h__ */

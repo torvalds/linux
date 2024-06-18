@@ -8,6 +8,9 @@
 #include <net/netfilter/nf_tables.h>
 #include <net/netfilter/nft_meta.h>
 #include <linux/if_bridge.h>
+#include <uapi/linux/netfilter_bridge.h> /* NF_BR_PRE_ROUTING */
+
+#include "../br_private.h"
 
 static const struct net_device *
 nft_meta_get_bridge(const struct net_device *dev)
@@ -53,7 +56,7 @@ static void nft_meta_bridge_get_eval(const struct nft_expr *expr,
 			goto err;
 
 		br_vlan_get_proto(br_dev, &p_proto);
-		nft_reg_store16(dest, htons(p_proto));
+		nft_reg_store_be16(dest, htons(p_proto));
 		return;
 	}
 	default:
@@ -87,9 +90,9 @@ static int nft_meta_bridge_get_init(const struct nft_ctx *ctx,
 		return nft_meta_get_init(ctx, expr, tb);
 	}
 
-	priv->dreg = nft_parse_register(tb[NFTA_META_DREG]);
-	return nft_validate_register_store(ctx, priv->dreg, NULL,
-					   NFT_DATA_VALUE, len);
+	priv->len = len;
+	return nft_parse_register_store(ctx, tb[NFTA_META_DREG], &priv->dreg,
+					NULL, NFT_DATA_VALUE, len);
 }
 
 static struct nft_expr_type nft_meta_bridge_type;
@@ -99,16 +102,98 @@ static const struct nft_expr_ops nft_meta_bridge_get_ops = {
 	.eval		= nft_meta_bridge_get_eval,
 	.init		= nft_meta_bridge_get_init,
 	.dump		= nft_meta_get_dump,
+	.reduce		= nft_meta_get_reduce,
 };
+
+static void nft_meta_bridge_set_eval(const struct nft_expr *expr,
+				     struct nft_regs *regs,
+				     const struct nft_pktinfo *pkt)
+{
+	const struct nft_meta *meta = nft_expr_priv(expr);
+	u32 *sreg = &regs->data[meta->sreg];
+	struct sk_buff *skb = pkt->skb;
+	u8 value8;
+
+	switch (meta->key) {
+	case NFT_META_BRI_BROUTE:
+		value8 = nft_reg_load8(sreg);
+		BR_INPUT_SKB_CB(skb)->br_netfilter_broute = !!value8;
+		break;
+	default:
+		nft_meta_set_eval(expr, regs, pkt);
+	}
+}
+
+static int nft_meta_bridge_set_init(const struct nft_ctx *ctx,
+				    const struct nft_expr *expr,
+				    const struct nlattr * const tb[])
+{
+	struct nft_meta *priv = nft_expr_priv(expr);
+	unsigned int len;
+	int err;
+
+	priv->key = ntohl(nla_get_be32(tb[NFTA_META_KEY]));
+	switch (priv->key) {
+	case NFT_META_BRI_BROUTE:
+		len = sizeof(u8);
+		break;
+	default:
+		return nft_meta_set_init(ctx, expr, tb);
+	}
+
+	priv->len = len;
+	err = nft_parse_register_load(tb[NFTA_META_SREG], &priv->sreg, len);
+	if (err < 0)
+		return err;
+
+	return 0;
+}
+
+static bool nft_meta_bridge_set_reduce(struct nft_regs_track *track,
+				       const struct nft_expr *expr)
+{
+	int i;
+
+	for (i = 0; i < NFT_REG32_NUM; i++) {
+		if (!track->regs[i].selector)
+			continue;
+
+		if (track->regs[i].selector->ops != &nft_meta_bridge_get_ops)
+			continue;
+
+		__nft_reg_track_cancel(track, i);
+	}
+
+	return false;
+}
+
+static int nft_meta_bridge_set_validate(const struct nft_ctx *ctx,
+					const struct nft_expr *expr,
+					const struct nft_data **data)
+{
+	struct nft_meta *priv = nft_expr_priv(expr);
+	unsigned int hooks;
+
+	switch (priv->key) {
+	case NFT_META_BRI_BROUTE:
+		hooks = 1 << NF_BR_PRE_ROUTING;
+		break;
+	default:
+		return nft_meta_set_validate(ctx, expr, data);
+	}
+
+	return nft_chain_validate_hooks(ctx->chain, hooks);
+}
 
 static const struct nft_expr_ops nft_meta_bridge_set_ops = {
 	.type		= &nft_meta_bridge_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_meta)),
-	.eval		= nft_meta_set_eval,
-	.init		= nft_meta_set_init,
+	.eval		= nft_meta_bridge_set_eval,
+	.init		= nft_meta_bridge_set_init,
 	.destroy	= nft_meta_set_destroy,
 	.dump		= nft_meta_set_dump,
-	.validate	= nft_meta_set_validate,
+	.reduce		= nft_meta_bridge_set_reduce,
+	.validate	= nft_meta_bridge_set_validate,
 };
 
 static const struct nft_expr_ops *
@@ -155,3 +240,4 @@ module_exit(nft_meta_bridge_module_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("wenxu <wenxu@ucloud.cn>");
 MODULE_ALIAS_NFT_AF_EXPR(AF_BRIDGE, "meta");
+MODULE_DESCRIPTION("Support for bridge dedicated meta key");

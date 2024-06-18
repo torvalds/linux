@@ -111,12 +111,11 @@ static int fdomain_isa_match(struct device *dev, unsigned int ndev)
 			base = readb(p + sig->base_offset) +
 			      (readb(p + sig->base_offset + 1) << 8);
 		iounmap(p);
-		if (base)
+		if (base) {
 			dev_info(dev, "BIOS at 0x%lx specifies I/O base 0x%x\n",
 				 bios_base, base);
-		else
+		} else { /* no I/O base in BIOS area */
 			dev_info(dev, "BIOS at 0x%lx\n", bios_base);
-		if (!base) {	/* no I/O base in BIOS area */
 			/* save BIOS signature for later use in port probing */
 			saved_sig = sig;
 			return 0;
@@ -176,7 +175,7 @@ static int fdomain_isa_param_match(struct device *dev, unsigned int ndev)
 	return 1;
 }
 
-static int fdomain_isa_remove(struct device *dev, unsigned int ndev)
+static void fdomain_isa_remove(struct device *dev, unsigned int ndev)
 {
 	struct Scsi_Host *sh = dev_get_drvdata(dev);
 	int base = sh->io_port;
@@ -184,7 +183,6 @@ static int fdomain_isa_remove(struct device *dev, unsigned int ndev)
 	fdomain_destroy(sh);
 	release_region(base, FDOMAIN_REGION_SIZE);
 	dev_set_drvdata(dev, NULL);
-	return 0;
 }
 
 static struct isa_driver fdomain_isa_driver = {

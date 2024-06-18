@@ -286,7 +286,7 @@ static void *alloc_dma_buffer(struct vio_dev *vdev, size_t size,
 
 	if (dma_mapping_error(&vdev->dev, *dma_handle)) {
 		*dma_handle = 0;
-		kzfree(buffer);
+		kfree_sensitive(buffer);
 		return NULL;
 	}
 
@@ -310,7 +310,7 @@ static void free_dma_buffer(struct vio_dev *vdev, size_t size, void *vaddr,
 	dma_unmap_single(&vdev->dev, dma_handle, size, DMA_BIDIRECTIONAL);
 
 	/* deallocate memory */
-	kzfree(vaddr);
+	kfree_sensitive(vaddr);
 }
 
 /**
@@ -760,7 +760,7 @@ static int ibmvmc_send_rem_buffer_resp(struct crq_server_adapter *adapter,
  * @adapter:	crq_server_adapter struct
  * @buffer:	ibmvmc_buffer struct
  * @hmc:	ibmvmc_hmc struct
- * @msg_length:	message length field
+ * @msg_len:	message length field
  *
  * This command is sent between the management partition and the hypervisor
  * in order to signal the arrival of an HMC protocol message. The command
@@ -883,7 +883,7 @@ static int ibmvmc_close(struct inode *inode, struct file *file)
 		spin_unlock_irqrestore(&hmc->lock, flags);
 	}
 
-	kzfree(session);
+	kfree_sensitive(session);
 
 	return rc;
 }
@@ -1028,7 +1028,7 @@ static unsigned int ibmvmc_poll(struct file *file, poll_table *wait)
  * ibmvmc_write - Write
  *
  * @file:	file struct
- * @buf:	Character buffer
+ * @buffer:	Character buffer
  * @count:	Count field
  * @ppos:	Offset
  *
@@ -1039,6 +1039,7 @@ static unsigned int ibmvmc_poll(struct file *file, poll_table *wait)
 static ssize_t ibmvmc_write(struct file *file, const char *buffer,
 			    size_t count, loff_t *ppos)
 {
+	struct inode *inode;
 	struct ibmvmc_buffer *vmc_buffer;
 	struct ibmvmc_file_session *session;
 	struct crq_server_adapter *adapter;
@@ -1122,8 +1123,9 @@ static ssize_t ibmvmc_write(struct file *file, const char *buffer,
 	if (p == buffer)
 		goto out;
 
-	file->f_path.dentry->d_inode->i_mtime = current_time(file_inode(file));
-	mark_inode_dirty(file->f_path.dentry->d_inode);
+	inode = file_inode(file);
+	inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
+	mark_inode_dirty(inode);
 
 	dev_dbg(adapter->dev, "write: file = 0x%lx, count = 0x%lx\n",
 		(unsigned long)file, (unsigned long)count);
@@ -1247,9 +1249,7 @@ static long ibmvmc_ioctl_sethmcid(struct ibmvmc_file_session *session,
 		return -EIO;
 	}
 
-	/* Make sure buffer is NULL terminated before trying to print it */
-	memset(print_buffer, 0, HMC_ID_LEN + 1);
-	strncpy(print_buffer, hmc->hmc_id, HMC_ID_LEN);
+	strscpy(print_buffer, hmc->hmc_id, sizeof(print_buffer));
 	pr_info("ibmvmc: sethmcid: Set HMC ID: \"%s\"\n", print_buffer);
 
 	memcpy(buffer->real_addr_local, hmc->hmc_id, HMC_ID_LEN);
@@ -1347,7 +1347,7 @@ static long ibmvmc_ioctl_requestvmc(struct ibmvmc_file_session *session,
 /**
  * ibmvmc_ioctl - IOCTL
  *
- * @session:	ibmvmc_file_session struct
+ * @file:	file information
  * @cmd:	cmd field
  * @arg:	Argument field
  *
@@ -2288,15 +2288,13 @@ crq_failed:
 	return -EPERM;
 }
 
-static int ibmvmc_remove(struct vio_dev *vdev)
+static void ibmvmc_remove(struct vio_dev *vdev)
 {
 	struct crq_server_adapter *adapter = dev_get_drvdata(&vdev->dev);
 
 	dev_info(adapter->dev, "Entering remove for UA 0x%x\n",
 		 vdev->unit_address);
 	ibmvmc_release_crq_queue(adapter);
-
-	return 0;
 }
 
 static struct vio_device_id ibmvmc_device_table[] = {

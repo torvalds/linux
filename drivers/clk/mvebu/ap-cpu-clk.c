@@ -15,7 +15,6 @@
 #include <linux/mfd/syscon.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include "armada_ap_cp_helper.h"
@@ -30,7 +29,7 @@
 
 #define APN806_MAX_DIVIDER		32
 
-/**
+/*
  * struct cpu_dfs_regs: CPU DFS register mapping
  * @divider_reg: full integer ratio from PLL frequency to CPU clock frequency
  * @force_reg: request to force new ratio regardless of relation to other clocks
@@ -197,7 +196,7 @@ static int ap_cpu_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	stable_bit = BIT(clk->pll_regs->ratio_state_offset +
 			 clk->cluster *
-			 clk->pll_regs->ratio_state_cluster_offset),
+			 clk->pll_regs->ratio_state_cluster_offset);
 	ret = regmap_read_poll_timeout(clk->pll_cr_base,
 				       clk->pll_regs->ratio_state_reg, reg,
 				       reg & stable_bit, STATUS_POLL_PERIOD_US,
@@ -253,15 +252,18 @@ static int ap_cpu_clock_probe(struct platform_device *pdev)
 	 */
 	nclusters = 1;
 	for_each_of_cpu_node(dn) {
-		int cpu, err;
+		u64 cpu;
 
-		err = of_property_read_u32(dn, "reg", &cpu);
-		if (WARN_ON(err))
-			return err;
+		cpu = of_get_cpu_hwid(dn, 0);
+		if (WARN_ON(cpu == OF_BAD_ADDR)) {
+			of_node_put(dn);
+			return -EINVAL;
+		}
 
 		/* If cpu2 or cpu3 is enabled */
 		if (cpu & APN806_CLUSTER_NUM_MASK) {
 			nclusters = 2;
+			of_node_put(dn);
 			break;
 		}
 	}
@@ -274,8 +276,8 @@ static int ap_cpu_clock_probe(struct platform_device *pdev)
 	if (!ap_cpu_clk)
 		return -ENOMEM;
 
-	ap_cpu_data = devm_kzalloc(dev, sizeof(*ap_cpu_data) +
-				sizeof(struct clk_hw *) * nclusters,
+	ap_cpu_data = devm_kzalloc(dev, struct_size(ap_cpu_data, hws,
+						    nclusters),
 				GFP_KERNEL);
 	if (!ap_cpu_data)
 		return -ENOMEM;
@@ -285,11 +287,13 @@ static int ap_cpu_clock_probe(struct platform_device *pdev)
 		struct clk_init_data init;
 		const char *parent_name;
 		struct clk *parent;
-		int cpu, err;
+		u64 cpu;
 
-		err = of_property_read_u32(dn, "reg", &cpu);
-		if (WARN_ON(err))
-			return err;
+		cpu = of_get_cpu_hwid(dn, 0);
+		if (WARN_ON(cpu == OF_BAD_ADDR)) {
+			of_node_put(dn);
+			return -EINVAL;
+		}
 
 		cluster_index = cpu & APN806_CLUSTER_NUM_MASK;
 		cluster_index >>= APN806_CLUSTER_NUM_OFFSET;
@@ -301,6 +305,7 @@ static int ap_cpu_clock_probe(struct platform_device *pdev)
 		parent = of_clk_get(np, cluster_index);
 		if (IS_ERR(parent)) {
 			dev_err(dev, "Could not get the clock parent\n");
+			of_node_put(dn);
 			return -EINVAL;
 		}
 		parent_name =  __clk_get_name(parent);
@@ -319,8 +324,10 @@ static int ap_cpu_clock_probe(struct platform_device *pdev)
 		init.parent_names = &parent_name;
 
 		ret = devm_clk_hw_register(dev, &ap_cpu_clk[cluster_index].hw);
-		if (ret)
+		if (ret) {
+			of_node_put(dn);
 			return ret;
+		}
 		ap_cpu_data->hws[cluster_index] = &ap_cpu_clk[cluster_index].hw;
 	}
 

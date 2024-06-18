@@ -5,8 +5,8 @@
 menuconfig BLOCK
        bool "Enable the block layer" if EXPERT
        default y
+       select FS_IOMAP
        select SBITMAP
-       select SRCU
        help
 	 Provide block layer support for the kernel.
 
@@ -26,35 +26,34 @@ menuconfig BLOCK
 
 if BLOCK
 
+config BLOCK_LEGACY_AUTOLOAD
+	bool "Legacy autoloading support"
+	default y
+	help
+	  Enable loading modules and creating block device instances based on
+	  accesses through their device special file.  This is a historic Linux
+	  feature and makes no sense in a udev world where device files are
+	  created on demand, but scripts that manually create device nodes and
+	  then call losetup might rely on this behavior.
+
 config BLK_RQ_ALLOC_TIME
 	bool
 
-config BLK_SCSI_REQUEST
+config BLK_CGROUP_RWSTAT
 	bool
 
-config BLK_DEV_BSG
-	bool "Block layer SG support v4"
-	default y
-	select BLK_SCSI_REQUEST
-	help
-	  Saying Y here will enable generic SG (SCSI generic) v4 support
-	  for any block device.
+config BLK_CGROUP_PUNT_BIO
+	bool
 
-	  Unlike SG v3 (aka block/scsi_ioctl.c drivers/scsi/sg.c), SG v4
-	  can handle complicated SCSI commands: tagged variable length cdbs
-	  with bidirectional data transfers and generic request/response
-	  protocols (e.g. Task Management Functions and SMP in Serial
-	  Attached SCSI).
+config BLK_DEV_BSG_COMMON
+	tristate
 
-	  This option is required by recent UDEV versions to properly
-	  access device serial numbers, etc.
-
-	  If unsure, say Y.
+config BLK_ICQ
+	bool
 
 config BLK_DEV_BSGLIB
 	bool "Block layer SG support v4 helper lib"
-	select BLK_DEV_BSG
-	select BLK_SCSI_REQUEST
+	select BLK_DEV_BSG_COMMON
 	help
 	  Subsystems will normally enable this if needed. Users will not
 	  normally need to manually enable this.
@@ -63,8 +62,7 @@ config BLK_DEV_BSGLIB
 
 config BLK_DEV_INTEGRITY
 	bool "Block layer data integrity support"
-	select CRC_T10DIF if BLK_DEV_INTEGRITY
-	---help---
+	help
 	Some storage devices allow extra information to be
 	stored/retrieved to help protect the data.  The block layer
 	data integrity option provides hooks which can be used by
@@ -74,19 +72,46 @@ config BLK_DEV_INTEGRITY
 	T10/SCSI Data Integrity Field or the T13/ATA External Path
 	Protection.  If in doubt, say N.
 
+config BLK_DEV_INTEGRITY_T10
+	tristate
+	depends on BLK_DEV_INTEGRITY
+	select CRC_T10DIF
+	select CRC64_ROCKSOFT
+
+config BLK_DEV_WRITE_MOUNTED
+	bool "Allow writing to mounted block devices"
+	default y
+	help
+	When a block device is mounted, writing to its buffer cache is very
+	likely going to cause filesystem corruption. It is also rather easy to
+	crash the kernel in this way since the filesystem has no practical way
+	of detecting these writes to buffer cache and verifying its metadata
+	integrity. However there are some setups that need this capability
+	like running fsck on read-only mounted root device, modifying some
+	features on mounted ext4 filesystem, and similar. If you say N, the
+	kernel will prevent processes from writing to block devices that are
+	mounted by filesystems which provides some more protection from runaway
+	privileged processes and generally makes it much harder to crash
+	filesystem drivers. Note however that this does not prevent
+	underlying device(s) from being modified by other means, e.g. by
+	directly submitting SCSI commands or through access to lower layers of
+	storage stack. If in doubt, say Y. The configuration can be overridden
+	with the bdev_allow_write_mounted boot option.
+
 config BLK_DEV_ZONED
 	bool "Zoned block device support"
-	select MQ_IOSCHED_DEADLINE
-	---help---
+	help
 	Block layer zoned block device support. This option enables
-	support for ZAC/ZBC host-managed and host-aware zoned block devices.
+	support for ZAC/ZBC/ZNS host-managed and host-aware zoned block
+	devices.
 
-	Say yes here if you have a ZAC or ZBC storage device.
+	Say yes here if you have a ZAC, ZBC, or ZNS storage device.
 
 config BLK_DEV_THROTTLING
 	bool "Block layer bio throttling support"
-	depends on BLK_CGROUP=y
-	---help---
+	depends on BLK_CGROUP
+	select BLK_CGROUP_RWSTAT
+	help
 	Block layer bio throttling support. It can be used to limit
 	the IO rate to a device. IO rate policies are per cgroup and
 	one needs to mount and use blkio cgroup controller for creating
@@ -94,40 +119,26 @@ config BLK_DEV_THROTTLING
 
 	See Documentation/admin-guide/cgroup-v1/blkio-controller.rst for more information.
 
-config BLK_DEV_THROTTLING_LOW
-	bool "Block throttling .low limit interface support (EXPERIMENTAL)"
-	depends on BLK_DEV_THROTTLING
-	---help---
-	Add .low limit interface for block throttling. The low limit is a best
-	effort limit to prioritize cgroups. Depending on the setting, the limit
-	can be used to protect cgroups in terms of bandwidth/iops and better
-	utilize disk resource.
-
-	Note, this is an experimental interface and could be changed someday.
-
-config BLK_CMDLINE_PARSER
-	bool "Block device command line partition parser"
-	---help---
-	Enabling this option allows you to specify the partition layout from
-	the kernel boot args.  This is typically of use for embedded devices
-	which don't otherwise have any standardized method for listing the
-	partitions on a block device.
-
-	See Documentation/block/cmdline-partition.rst for more information.
-
 config BLK_WBT
 	bool "Enable support for block device writeback throttling"
-	---help---
+	help
 	Enabling this option enables the block layer to throttle buffered
 	background writeback from the VM, making it more smooth and having
 	less impact on foreground operations. The throttling is done
 	dynamically on an algorithm loosely based on CoDel, factoring in
 	the realtime performance of the disk.
 
+config BLK_WBT_MQ
+	bool "Enable writeback throttling by default"
+	default y
+	depends on BLK_WBT
+	help
+	Enable writeback throttling by default for request-based block devices.
+
 config BLK_CGROUP_IOLATENCY
 	bool "Enable support for latency based cgroup IO protection"
-	depends on BLK_CGROUP=y
-	---help---
+	depends on BLK_CGROUP
+	help
 	Enabling this option enables the .latency interface for IO throttling.
 	The IO controller will attempt to maintain average IO latencies below
 	the configured latency target, throttling anybody with a higher latency
@@ -135,30 +146,39 @@ config BLK_CGROUP_IOLATENCY
 
 	Note, this is an experimental interface and could be changed someday.
 
+config BLK_CGROUP_FC_APPID
+	bool "Enable support to track FC I/O Traffic across cgroup applications"
+	depends on BLK_CGROUP && NVME_FC
+	help
+	  Enabling this option enables the support to track FC I/O traffic across
+	  cgroup applications. It enables the Fabric and the storage targets to
+	  identify, monitor, and handle FC traffic based on VM tags by inserting
+	  application specific identification into the FC frame.
+
 config BLK_CGROUP_IOCOST
 	bool "Enable support for cost model based cgroup IO controller"
-	depends on BLK_CGROUP=y
+	depends on BLK_CGROUP
 	select BLK_RQ_ALLOC_TIME
-	---help---
+	help
 	Enabling this option enables the .weight interface for cost
 	model based proportional IO control.  The IO controller
 	distributes IO capacity between different groups based on
 	their share of the overall weight distribution.
 
-config BLK_WBT_MQ
-	bool "Multiqueue writeback throttling"
-	default y
-	depends on BLK_WBT
-	---help---
-	Enable writeback throttling by default on multiqueue devices.
-	Multiqueue currently doesn't have support for IO scheduling,
-	enabling this option is recommended.
+config BLK_CGROUP_IOPRIO
+	bool "Cgroup I/O controller for assigning an I/O priority class"
+	depends on BLK_CGROUP
+	help
+	Enable the .prio interface for assigning an I/O priority class to
+	requests. The I/O priority class affects the order in which an I/O
+	scheduler and block devices process requests. Only some I/O schedulers
+	and some block devices support I/O priorities.
 
 config BLK_DEBUG_FS
 	bool "Block layer debugging information in debugfs"
 	default y
 	depends on DEBUG_FS
-	---help---
+	help
 	Include block layer debugging information in debugfs. This information
 	is mostly useful for kernel developers, but it doesn't incur any cost
 	at runtime.
@@ -166,46 +186,53 @@ config BLK_DEBUG_FS
 	Unless you are building a kernel for a tiny system, you should
 	say Y here.
 
-config BLK_DEBUG_FS_ZONED
-       bool
-       default BLK_DEBUG_FS && BLK_DEV_ZONED
-
 config BLK_SED_OPAL
 	bool "Logic for interfacing with Opal enabled SEDs"
-	---help---
+	depends on KEYS
+	select PSERIES_PLPKS if PPC_PSERIES
+	select PSERIES_PLPKS_SED if PPC_PSERIES
+	help
 	Builds Logic for interfacing with Opal enabled controllers.
 	Enabling this option enables users to setup/unlock/lock
 	Locking ranges for SED devices using the Opal protocol.
 
-menu "Partition Types"
+config BLK_INLINE_ENCRYPTION
+	bool "Enable inline encryption support in block layer"
+	help
+	  Build the blk-crypto subsystem. Enabling this lets the
+	  block layer handle encryption, so users can take
+	  advantage of inline encryption hardware if present.
+
+config BLK_INLINE_ENCRYPTION_FALLBACK
+	bool "Enable crypto API fallback for blk-crypto"
+	depends on BLK_INLINE_ENCRYPTION
+	select CRYPTO
+	select CRYPTO_SKCIPHER
+	help
+	  Enabling this lets the block layer handle inline encryption
+	  by falling back to the kernel crypto API when inline
+	  encryption hardware is not present.
 
 source "block/partitions/Kconfig"
 
-endmenu
-
-endif # BLOCK
-
-config BLOCK_COMPAT
-	bool
-	depends on BLOCK && COMPAT
-	default y
-
 config BLK_MQ_PCI
-	bool
-	depends on BLOCK && PCI
-	default y
+	def_bool PCI
 
 config BLK_MQ_VIRTIO
 	bool
-	depends on BLOCK && VIRTIO
-	default y
-
-config BLK_MQ_RDMA
-	bool
-	depends on BLOCK && INFINIBAND
+	depends on VIRTIO
 	default y
 
 config BLK_PM
-	def_bool BLOCK && PM
+	def_bool PM
+
+# do not use in new code
+config BLOCK_HOLDER_DEPRECATED
+	bool
+
+config BLK_MQ_STACKING
+	bool
 
 source "block/Kconfig.iosched"
+
+endif # BLOCK

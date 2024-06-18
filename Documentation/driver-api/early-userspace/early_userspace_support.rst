@@ -69,17 +69,17 @@ early userspace image can be built by an unprivileged user.
 
 As a technical note, when directories and files are specified, the
 entire CONFIG_INITRAMFS_SOURCE is passed to
-usr/gen_initramfs_list.sh.  This means that CONFIG_INITRAMFS_SOURCE
+usr/gen_initramfs.sh.  This means that CONFIG_INITRAMFS_SOURCE
 can really be interpreted as any legal argument to
-gen_initramfs_list.sh.  If a directory is specified as an argument then
+gen_initramfs.sh.  If a directory is specified as an argument then
 the contents are scanned, uid/gid translation is performed, and
 usr/gen_init_cpio file directives are output.  If a directory is
-specified as an argument to usr/gen_initramfs_list.sh then the
+specified as an argument to usr/gen_initramfs.sh then the
 contents of the file are simply copied to the output.  All of the output
 directives from directory scanning and file contents copying are
 processed by usr/gen_init_cpio.
 
-See also 'usr/gen_initramfs_list.sh -h'.
+See also 'usr/gen_initramfs.sh -h'.
 
 Where's this all leading?
 =========================
@@ -92,7 +92,7 @@ You can obtain somewhat infrequent snapshots of klibc from
 https://www.kernel.org/pub/linux/libs/klibc/
 
 For active users, you are better off using the klibc git
-repository, at http://git.kernel.org/?p=libs/klibc/klibc.git
+repository, at https://git.kernel.org/?p=libs/klibc/klibc.git
 
 The standalone klibc distribution currently provides three components,
 in addition to the klibc library:
@@ -122,7 +122,7 @@ and a number of other utilities, so you can replace kinit and build
 custom initramfs images that meet your needs exactly.
 
 For questions and help, you can sign up for the early userspace
-mailing list at http://www.zytor.com/mailman/listinfo/klibc
+mailing list at https://www.zytor.com/mailman/listinfo/klibc
 
 How does it work?
 =================

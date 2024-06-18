@@ -18,6 +18,7 @@
 #define AO_RTI_GEN_PWR_SLEEP0	0xe8
 #define AO_RTI_GEN_PWR_ISO0	0xec
 	#define GEN_PWR_VDEC_1 (BIT(3) | BIT(2))
+	#define GEN_PWR_VDEC_1_SM1 (BIT(1))
 
 #define MC_SIZE			(4096 * 4)
 
@@ -142,12 +143,20 @@ static int vdec_1_stop(struct amvdec_session *sess)
 	amvdec_read_dos(core, DOS_SW_RESET0);
 
 	/* enable vdec1 isolation */
-	regmap_write(core->regmap_ao, AO_RTI_GEN_PWR_ISO0, 0xc0);
+	if (core->platform->revision == VDEC_REVISION_SM1)
+		regmap_update_bits(core->regmap_ao, AO_RTI_GEN_PWR_ISO0,
+				   GEN_PWR_VDEC_1_SM1, GEN_PWR_VDEC_1_SM1);
+	else
+		regmap_write(core->regmap_ao, AO_RTI_GEN_PWR_ISO0, 0xc0);
 	/* power off vdec1 memories */
 	amvdec_write_dos(core, DOS_MEM_PD_VDEC, 0xffffffff);
 	/* power off vdec1 */
-	regmap_update_bits(core->regmap_ao, AO_RTI_GEN_PWR_SLEEP0,
-			   GEN_PWR_VDEC_1, GEN_PWR_VDEC_1);
+	if (core->platform->revision == VDEC_REVISION_SM1)
+		regmap_update_bits(core->regmap_ao, AO_RTI_GEN_PWR_SLEEP0,
+				   GEN_PWR_VDEC_1_SM1, GEN_PWR_VDEC_1_SM1);
+	else
+		regmap_update_bits(core->regmap_ao, AO_RTI_GEN_PWR_SLEEP0,
+				   GEN_PWR_VDEC_1, GEN_PWR_VDEC_1);
 
 	clk_disable_unprepare(core->vdec_1_clk);
 
@@ -170,8 +179,12 @@ static int vdec_1_start(struct amvdec_session *sess)
 		return ret;
 
 	/* Enable power for VDEC_1 */
-	regmap_update_bits(core->regmap_ao, AO_RTI_GEN_PWR_SLEEP0,
-			   GEN_PWR_VDEC_1, 0);
+	if (core->platform->revision == VDEC_REVISION_SM1)
+		regmap_update_bits(core->regmap_ao, AO_RTI_GEN_PWR_SLEEP0,
+				   GEN_PWR_VDEC_1_SM1, 0);
+	else
+		regmap_update_bits(core->regmap_ao, AO_RTI_GEN_PWR_SLEEP0,
+				   GEN_PWR_VDEC_1, 0);
 	usleep_range(10, 20);
 
 	/* Reset VDEC1 */
@@ -183,7 +196,11 @@ static int vdec_1_start(struct amvdec_session *sess)
 	/* enable VDEC Memories */
 	amvdec_write_dos(core, DOS_MEM_PD_VDEC, 0);
 	/* Remove VDEC1 Isolation */
-	regmap_write(core->regmap_ao, AO_RTI_GEN_PWR_ISO0, 0);
+	if (core->platform->revision == VDEC_REVISION_SM1)
+		regmap_update_bits(core->regmap_ao, AO_RTI_GEN_PWR_ISO0,
+				   GEN_PWR_VDEC_1_SM1, 0);
+	else
+		regmap_write(core->regmap_ao, AO_RTI_GEN_PWR_ISO0, 0);
 	/* Reset DOS top registers */
 	amvdec_write_dos(core, DOS_VDEC_MCRCC_STALL_CTRL, 0);
 

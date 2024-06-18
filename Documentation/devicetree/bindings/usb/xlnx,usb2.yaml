@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/usb/xlnx,usb2.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Xilinx udc controller
+
+maintainers:
+  - Mubin Sayyed <mubin.sayyed@amd.com>
+  - Radhey Shyam Pandey <radhey.shyam.pandey@amd.com>
+
+properties:
+  compatible:
+    const: xlnx,usb2-device-4.00.a
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  xlnx,has-builtin-dma:
+    description:
+      If present, hardware has dma capability.
+    type: boolean
+
+  clocks:
+    minItems: 1
+
+  clock-names:
+    const: s_axi_aclk
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    axi-usb2-device@42e00000 {
+        compatible = "xlnx,usb2-device-4.00.a";
+        interrupts = <0x0 0x39 0x1>;
+        reg = <0xee000000 0xc00>;
+        xlnx,has-builtin-dma;
+    };

@@ -96,7 +96,7 @@ struct sgimc_regs {
 	volatile u32 lbursttp;	/* Time period for long bursts */
 
 	/* MC chip can drive up to 4 bank 4 SIMMs each. All SIMMs in bank must
-	 * be the same size. The size encoding for supported SIMMs is bellow */
+	 * be the same size. The size encoding for supported SIMMs is below */
 	u32 _unused11[9];
 	volatile u32 mconfig0;	/* Memory config register zero */
 	u32 _unused12;

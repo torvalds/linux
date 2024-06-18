@@ -6,7 +6,7 @@
 #ifndef __STRATIX10_SVC_CLIENT_H
 #define __STRATIX10_SVC_CLIENT_H
 
-/**
+/*
  * Service layer driver supports client names
  *
  * fpga: for FPGA configuration
@@ -14,59 +14,62 @@
  */
 #define SVC_CLIENT_FPGA			"fpga"
 #define SVC_CLIENT_RSU			"rsu"
+#define SVC_CLIENT_FCS			"fcs"
 
-/**
+/*
  * Status of the sent command, in bit number
  *
- * SVC_COMMAND_STATUS_RECONFIG_REQUEST_OK:
- * Secure firmware accepts the request of FPGA reconfiguration.
+ * SVC_STATUS_OK:
+ * Secure firmware accepts the request issued by one of service clients.
  *
- * SVC_STATUS_RECONFIG_BUFFER_SUBMITTED:
- * Service client successfully submits FPGA configuration
- * data buffer to secure firmware.
+ * SVC_STATUS_BUFFER_SUBMITTED:
+ * Service client successfully submits data buffer to secure firmware.
  *
- * SVC_COMMAND_STATUS_RECONFIG_BUFFER_DONE:
+ * SVC_STATUS_BUFFER_DONE:
  * Secure firmware completes data process, ready to accept the
  * next WRITE transaction.
  *
- * SVC_COMMAND_STATUS_RECONFIG_COMPLETED:
- * Secure firmware completes FPGA configuration successfully, FPGA should
- * be in user mode.
+ * SVC_STATUS_COMPLETED:
+ * Secure firmware completes service request successfully. In case of
+ * FPGA configuration, FPGA should be in user mode.
  *
- * SVC_COMMAND_STATUS_RECONFIG_BUSY:
- * FPGA configuration is still in process.
+ * SVC_COMMAND_STATUS_BUSY:
+ * Service request is still in process.
  *
- * SVC_COMMAND_STATUS_RECONFIG_ERROR:
- * Error encountered during FPGA configuration.
+ * SVC_COMMAND_STATUS_ERROR:
+ * Error encountered during the process of the service request.
  *
- * SVC_STATUS_RSU_OK:
- * Secure firmware accepts the request of remote status update (RSU).
+ * SVC_STATUS_NO_SUPPORT:
+ * Secure firmware doesn't support requested features such as RSU retry
+ * or RSU notify.
  */
-#define SVC_STATUS_RECONFIG_REQUEST_OK		0
-#define SVC_STATUS_RECONFIG_BUFFER_SUBMITTED	1
-#define SVC_STATUS_RECONFIG_BUFFER_DONE		2
-#define SVC_STATUS_RECONFIG_COMPLETED		3
-#define SVC_STATUS_RECONFIG_BUSY		4
-#define SVC_STATUS_RECONFIG_ERROR		5
-#define SVC_STATUS_RSU_OK			6
-#define SVC_STATUS_RSU_ERROR			7
-/**
+#define SVC_STATUS_OK			0
+#define SVC_STATUS_BUFFER_SUBMITTED	1
+#define SVC_STATUS_BUFFER_DONE		2
+#define SVC_STATUS_COMPLETED		3
+#define SVC_STATUS_BUSY			4
+#define SVC_STATUS_ERROR		5
+#define SVC_STATUS_NO_SUPPORT		6
+#define SVC_STATUS_INVALID_PARAM	7
+
+/*
  * Flag bit for COMMAND_RECONFIG
  *
  * COMMAND_RECONFIG_FLAG_PARTIAL:
- * Set to FPGA configuration type (full or partial), the default
- * is full reconfig.
+ * Set to FPGA configuration type (full or partial).
  */
 #define COMMAND_RECONFIG_FLAG_PARTIAL	0
 
-/**
+/*
  * Timeout settings for service clients:
  * timeout value used in Stratix10 FPGA manager driver.
  * timeout value used in RSU driver
  */
-#define SVC_RECONFIG_REQUEST_TIMEOUT_MS         100
-#define SVC_RECONFIG_BUFFER_TIMEOUT_MS          240
+#define SVC_RECONFIG_REQUEST_TIMEOUT_MS         300
+#define SVC_RECONFIG_BUFFER_TIMEOUT_MS          720
 #define SVC_RSU_REQUEST_TIMEOUT_MS              300
+#define SVC_FCS_REQUEST_TIMEOUT_MS		2000
+#define SVC_COMPLETED_TIMEOUT_MS		30000
 
 struct stratix10_svc_chan;
 
@@ -76,55 +79,114 @@ struct stratix10_svc_chan;
  * @COMMAND_NOOP: do 'dummy' request for integration/debug/trouble-shooting
  *
  * @COMMAND_RECONFIG: ask for FPGA configuration preparation, return status
- * is SVC_STATUS_RECONFIG_REQUEST_OK
+ * is SVC_STATUS_OK
  *
  * @COMMAND_RECONFIG_DATA_SUBMIT: submit buffer(s) of bit-stream data for the
- * FPGA configuration, return status is SVC_STATUS_RECONFIG_BUFFER_SUBMITTED,
- * or SVC_STATUS_RECONFIG_ERROR
+ * FPGA configuration, return status is SVC_STATUS_SUBMITTED or SVC_STATUS_ERROR
  *
  * @COMMAND_RECONFIG_DATA_CLAIM: check the status of the configuration, return
- * status is SVC_STATUS_RECONFIG_COMPLETED, or SVC_STATUS_RECONFIG_BUSY, or
- * SVC_STATUS_RECONFIG_ERROR
+ * status is SVC_STATUS_COMPLETED, or SVC_STATUS_BUSY, or SVC_STATUS_ERROR
  *
  * @COMMAND_RECONFIG_STATUS: check the status of the configuration, return
- * status is SVC_STATUS_RECONFIG_COMPLETED, or  SVC_STATUS_RECONFIG_BUSY, or
- * SVC_STATUS_RECONFIG_ERROR
+ * status is SVC_STATUS_COMPLETED, or SVC_STATUS_BUSY, or SVC_STATUS_ERROR
  *
  * @COMMAND_RSU_STATUS: request remote system update boot log, return status
  * is log data or SVC_STATUS_RSU_ERROR
  *
  * @COMMAND_RSU_UPDATE: set the offset of the bitstream to boot after reboot,
- * return status is SVC_STATUS_RSU_OK or SVC_STATUS_RSU_ERROR
+ * return status is SVC_STATUS_OK or SVC_STATUS_ERROR
  *
  * @COMMAND_RSU_NOTIFY: report the status of hard processor system
- * software to firmware, return status is SVC_STATUS_RSU_OK or
- * SVC_STATUS_RSU_ERROR
+ * software to firmware, return status is SVC_STATUS_OK or
+ * SVC_STATUS_ERROR
  *
  * @COMMAND_RSU_RETRY: query firmware for the current image's retry counter,
- * return status is SVC_STATUS_RSU_OK or SVC_STATUS_RSU_ERROR
+ * return status is SVC_STATUS_OK or SVC_STATUS_ERROR
+ *
+ * @COMMAND_RSU_MAX_RETRY: query firmware for the max retry value,
+ * return status is SVC_STATUS_OK or SVC_STATUS_ERROR
+ *
+ * @COMMAND_RSU_DCMF_VERSION: query firmware for the DCMF version, return status
+ * is SVC_STATUS_OK or SVC_STATUS_ERROR
+ *
+ * @COMMAND_POLL_SERVICE_STATUS: poll if the service request is complete,
+ * return statis is SVC_STATUS_OK, SVC_STATUS_ERROR or SVC_STATUS_BUSY
+ *
+ * @COMMAND_FIRMWARE_VERSION: query running firmware version, return status
+ * is SVC_STATUS_OK or SVC_STATUS_ERROR
+ *
+ * @COMMAND_SMC_SVC_VERSION: Non-mailbox SMC SVC API Version,
+ * return status is SVC_STATUS_OK
+ *
+ * @COMMAND_MBOX_SEND_CMD: send generic mailbox command, return status is
+ * SVC_STATUS_OK or SVC_STATUS_ERROR
+ *
+ * @COMMAND_RSU_DCMF_STATUS: query firmware for the DCMF status
+ * return status is SVC_STATUS_OK or SVC_STATUS_ERROR
+ *
+ * @COMMAND_FCS_REQUEST_SERVICE: request validation of image from firmware,
+ * return status is SVC_STATUS_OK, SVC_STATUS_INVALID_PARAM
+ *
+ * @COMMAND_FCS_SEND_CERTIFICATE: send a certificate, return status is
+ * SVC_STATUS_OK, SVC_STATUS_INVALID_PARAM, SVC_STATUS_ERROR
+ *
+ * @COMMAND_FCS_GET_PROVISION_DATA: read the provisioning data, return status is
+ * SVC_STATUS_OK, SVC_STATUS_INVALID_PARAM, SVC_STATUS_ERROR
+ *
+ * @COMMAND_FCS_DATA_ENCRYPTION: encrypt the data, return status is
+ * SVC_STATUS_OK, SVC_STATUS_INVALID_PARAM, SVC_STATUS_ERROR
+ *
+ * @COMMAND_FCS_DATA_DECRYPTION: decrypt the data, return status is
+ * SVC_STATUS_OK, SVC_STATUS_INVALID_PARAM, SVC_STATUS_ERROR
+ *
+ * @COMMAND_FCS_RANDOM_NUMBER_GEN: generate a random number, return status
+ * is SVC_STATUS_OK, SVC_STATUS_ERROR
  */
 enum stratix10_svc_command_code {
+	/* for FPGA */
 	COMMAND_NOOP = 0,
 	COMMAND_RECONFIG,
 	COMMAND_RECONFIG_DATA_SUBMIT,
 	COMMAND_RECONFIG_DATA_CLAIM,
 	COMMAND_RECONFIG_STATUS,
-	COMMAND_RSU_STATUS,
+	/* for RSU */
+	COMMAND_RSU_STATUS = 10,
 	COMMAND_RSU_UPDATE,
 	COMMAND_RSU_NOTIFY,
 	COMMAND_RSU_RETRY,
+	COMMAND_RSU_MAX_RETRY,
+	COMMAND_RSU_DCMF_VERSION,
+	COMMAND_RSU_DCMF_STATUS,
+	COMMAND_FIRMWARE_VERSION,
+	/* for FCS */
+	COMMAND_FCS_REQUEST_SERVICE = 20,
+	COMMAND_FCS_SEND_CERTIFICATE,
+	COMMAND_FCS_GET_PROVISION_DATA,
+	COMMAND_FCS_DATA_ENCRYPTION,
+	COMMAND_FCS_DATA_DECRYPTION,
+	COMMAND_FCS_RANDOM_NUMBER_GEN,
+	/* for general status poll */
+	COMMAND_POLL_SERVICE_STATUS = 40,
+	/* for generic mailbox send command */
+	COMMAND_MBOX_SEND_CMD = 100,
+	/* Non-mailbox SMC Call */
+	COMMAND_SMC_SVC_VERSION = 200,
 };
 
 /**
  * struct stratix10_svc_client_msg - message sent by client to service
  * @payload: starting address of data need be processed
- * @payload_length: data size in bytes
+ * @payload_length: to be processed data size in bytes
+ * @payload_output: starting address of processed data
+ * @payload_length_output: processed data size in bytes
  * @command: service command
  * @arg: args to be passed via registers and not physically mapped buffers
  */
 struct stratix10_svc_client_msg {
 	void *payload;
 	size_t payload_length;
+	void *payload_output;
+	size_t payload_length_output;
 	enum stratix10_svc_command_code command;
 	u64 arg[3];
 };
@@ -214,7 +276,7 @@ void stratix10_svc_free_memory(struct stratix10_svc_chan *chan, void *kaddr);
 int stratix10_svc_send(struct stratix10_svc_chan *chan, void *msg);
 
 /**
- * intel_svc_done() - complete service request
+ * stratix10_svc_done() - complete service request
  * @chan: service channel assigned to the client
  *
  * This function is used by service client to inform service layer that

@@ -296,23 +296,23 @@ int media_request_alloc(struct media_device *mdev, int *alloc_fd)
 	if (WARN_ON(!mdev->ops->req_alloc ^ !mdev->ops->req_free))
 		return -ENOMEM;
 
+	if (mdev->ops->req_alloc)
+		req = mdev->ops->req_alloc(mdev);
+	else
+		req = kzalloc(sizeof(*req), GFP_KERNEL);
+	if (!req)
+		return -ENOMEM;
+
 	fd = get_unused_fd_flags(O_CLOEXEC);
-	if (fd < 0)
-		return fd;
+	if (fd < 0) {
+		ret = fd;
+		goto err_free_req;
+	}
 
 	filp = anon_inode_getfile("request", &request_fops, NULL, O_CLOEXEC);
 	if (IS_ERR(filp)) {
 		ret = PTR_ERR(filp);
 		goto err_put_fd;
-	}
-
-	if (mdev->ops->req_alloc)
-		req = mdev->ops->req_alloc(mdev);
-	else
-		req = kzalloc(sizeof(*req), GFP_KERNEL);
-	if (!req) {
-		ret = -ENOMEM;
-		goto err_fput;
 	}
 
 	filp->private_data = req;
@@ -336,11 +336,14 @@ int media_request_alloc(struct media_device *mdev, int *alloc_fd)
 
 	return 0;
 
-err_fput:
-	fput(filp);
-
 err_put_fd:
 	put_unused_fd(fd);
+
+err_free_req:
+	if (mdev->ops->req_free)
+		mdev->ops->req_free(req);
+	else
+		kfree(req);
 
 	return ret;
 }
@@ -411,7 +414,8 @@ int media_request_object_bind(struct media_request *req,
 
 	spin_lock_irqsave(&req->lock, flags);
 
-	if (WARN_ON(req->state != MEDIA_REQUEST_STATE_UPDATING))
+	if (WARN_ON(req->state != MEDIA_REQUEST_STATE_UPDATING &&
+		    req->state != MEDIA_REQUEST_STATE_QUEUED))
 		goto unlock;
 
 	obj->req = req;

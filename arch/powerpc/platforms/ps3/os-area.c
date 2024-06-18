@@ -17,8 +17,6 @@
 #include <linux/of.h>
 #include <linux/slab.h>
 
-#include <asm/prom.h>
-
 #include "platform.h"
 
 enum {
@@ -501,7 +499,7 @@ static int db_set_64(struct os_area_db *db, const struct os_area_db_id *id,
 	return -1;
 }
 
-static int db_get_64(const struct os_area_db *db,
+static int __init db_get_64(const struct os_area_db *db,
 	const struct os_area_db_id *id, uint64_t *value)
 {
 	struct db_iterator i;
@@ -517,7 +515,7 @@ static int db_get_64(const struct os_area_db *db,
 	return -1;
 }
 
-static int db_get_rtc_diff(const struct os_area_db *db, int64_t *rtc_diff)
+static int __init db_get_rtc_diff(const struct os_area_db *db, int64_t *rtc_diff)
 {
 	return db_get_64(db, &os_area_db_id_rtc_diff, (uint64_t*)rtc_diff);
 }
@@ -613,10 +611,8 @@ static int update_flash_db(void)
 	/* Read in header and db from flash. */
 
 	header = kmalloc(buf_len, GFP_KERNEL);
-	if (!header) {
-		pr_debug("%s: kmalloc failed\n", __func__);
+	if (!header)
 		return -ENOMEM;
-	}
 
 	count = os_area_flash_read(header, buf_len, 0);
 	if (count < 0) {

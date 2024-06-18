@@ -1,0 +1,197 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/tegra/nvidia,tegra124-sor.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra SOR Output Encoder
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+
+description: |
+  The Serial Output Resource (SOR) can be used to drive HDMI, LVDS, eDP
+  and DP outputs.
+
+properties:
+  $nodename:
+    pattern: "^sor@[0-9a-f]+$"
+
+  compatible:
+    oneOf:
+      - enum:
+          - nvidia,tegra124-sor
+          - nvidia,tegra210-sor
+          - nvidia,tegra210-sor1
+          - nvidia,tegra186-sor
+          - nvidia,tegra186-sor1
+          - nvidia,tegra194-sor
+
+      - items:
+          - const: nvidia,tegra132-sor
+          - const: nvidia,tegra124-sor
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    minItems: 5
+    maxItems: 6
+
+  clock-names:
+    minItems: 5
+    maxItems: 6
+
+  resets:
+    items:
+      - description: module reset
+
+  reset-names:
+    items:
+      - const: sor
+
+  power-domains:
+    maxItems: 1
+
+  avdd-io-hdmi-dp-supply:
+    description: I/O supply for HDMI/DP
+
+  vdd-hdmi-dp-pll-supply:
+    description: PLL supply for HDMI/DP
+
+  hdmi-supply:
+    description: +5.0V HDMI connector supply, required for HDMI
+
+  # Tegra186 and later
+  nvidia,interface:
+    description: index of the SOR interface
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  nvidia,ddc-i2c-bus:
+    description: phandle of an I2C controller used for DDC EDID
+      probing
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  nvidia,hpd-gpio:
+    description: specifies a GPIO used for hotplug detection
+    maxItems: 1
+
+  nvidia,edid:
+    description: supplies a binary EDID blob
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+
+  nvidia,panel:
+    description: phandle of a display panel, required for eDP
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  nvidia,xbar-cfg:
+    description: 5 cells containing the crossbar configuration.
+      Each lane of the SOR, identified by the cell's index, is
+      mapped via the crossbar to the pad specified by the cell's
+      value.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+
+  # optional when driving an eDP output
+  nvidia,dpaux:
+    description: phandle to a DisplayPort AUX interface
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - nvidia,tegra186-sor
+              - nvidia,tegra194-sor
+    then:
+      properties:
+        clocks:
+          items:
+            - description: clock input for the SOR hardware
+            - description: SOR output clock
+            - description: input for the pixel clock
+            - description: reference clock for the SOR clock
+            - description: safe reference clock for the SOR clock
+                during power up
+            - description: SOR pad output clock
+
+        clock-names:
+          items:
+            - const: sor
+            - enum:
+                - source # deprecated
+                - out
+            - const: parent
+            - const: dp
+            - const: safe
+            - const: pad
+    else:
+      properties:
+        clocks:
+          items:
+            - description: clock input for the SOR hardware
+            - description: SOR output clock
+            - description: input for the pixel clock
+            - description: reference clock for the SOR clock
+            - description: safe reference clock for the SOR clock
+                during power up
+
+        clock-names:
+          items:
+            - const: sor
+            - enum:
+                - source # deprecated
+                - out
+            - const: parent
+            - const: dp
+            - const: safe
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - resets
+  - reset-names
+  - avdd-io-hdmi-dp-supply
+  - vdd-hdmi-dp-pll-supply
+
+examples:
+  - |
+    #include <dt-bindings/clock/tegra210-car.h>
+    #include <dt-bindings/gpio/tegra-gpio.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    sor0: sor@54540000 {
+        compatible = "nvidia,tegra210-sor";
+        reg = <0x54540000 0x00040000>;
+        interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&tegra_car TEGRA210_CLK_SOR0>,
+                 <&tegra_car TEGRA210_CLK_SOR0_OUT>,
+                 <&tegra_car TEGRA210_CLK_PLL_D_OUT0>,
+                 <&tegra_car TEGRA210_CLK_PLL_DP>,
+                 <&tegra_car TEGRA210_CLK_SOR_SAFE>;
+        clock-names = "sor", "out", "parent", "dp", "safe";
+        resets = <&tegra_car 182>;
+        reset-names = "sor";
+        pinctrl-0 = <&state_dpaux_aux>;
+        pinctrl-1 = <&state_dpaux_i2c>;
+        pinctrl-2 = <&state_dpaux_off>;
+        pinctrl-names = "aux", "i2c", "off";
+        power-domains = <&pd_sor>;
+
+        avdd-io-hdmi-dp-supply = <&avdd_1v05>;
+        vdd-hdmi-dp-pll-supply = <&vdd_1v8>;
+        hdmi-supply = <&vdd_hdmi>;
+
+        nvidia,ddc-i2c-bus = <&hdmi_ddc>;
+        nvidia,hpd-gpio = <&gpio TEGRA_GPIO(CC, 1) GPIO_ACTIVE_LOW>;
+    };

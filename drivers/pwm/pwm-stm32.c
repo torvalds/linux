@@ -12,6 +12,7 @@
 #include <linux/mfd/stm32-timers.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
 
@@ -19,25 +20,26 @@
 #define CCMR_CHANNEL_MASK  0xFF
 #define MAX_BREAKINPUT 2
 
-struct stm32_pwm {
-	struct pwm_chip chip;
-	struct mutex lock; /* protect pwm config/enable */
-	struct clk *clk;
-	struct regmap *regmap;
-	u32 max_arr;
-	bool have_complementary_output;
-	u32 capture[4] ____cacheline_aligned; /* DMA'able buffer */
-};
-
 struct stm32_breakinput {
 	u32 index;
 	u32 level;
 	u32 filter;
 };
 
+struct stm32_pwm {
+	struct mutex lock; /* protect pwm config/enable */
+	struct clk *clk;
+	struct regmap *regmap;
+	u32 max_arr;
+	bool have_complementary_output;
+	struct stm32_breakinput breakinputs[MAX_BREAKINPUT];
+	unsigned int num_breakinputs;
+	u32 capture[4] ____cacheline_aligned; /* DMA'able buffer */
+};
+
 static inline struct stm32_pwm *to_stm32_pwm_dev(struct pwm_chip *chip)
 {
-	return container_of(chip, struct stm32_pwm, chip);
+	return pwmchip_get_drvdata(chip);
 }
 
 static u32 active_channels(struct stm32_pwm *dev)
@@ -47,21 +49,6 @@ static u32 active_channels(struct stm32_pwm *dev)
 	regmap_read(dev->regmap, TIM_CCER, &ccer);
 
 	return ccer & TIM_CCER_CCXE;
-}
-
-static int write_ccrx(struct stm32_pwm *dev, int ch, u32 value)
-{
-	switch (ch) {
-	case 0:
-		return regmap_write(dev->regmap, TIM_CCR1, value);
-	case 1:
-		return regmap_write(dev->regmap, TIM_CCR2, value);
-	case 2:
-		return regmap_write(dev->regmap, TIM_CCR3, value);
-	case 3:
-		return regmap_write(dev->regmap, TIM_CCR4, value);
-	}
-	return -EINVAL;
 }
 
 #define TIM_CCER_CC12P (TIM_CCER_CC1P | TIM_CCER_CC2P)
@@ -102,24 +89,25 @@ static int write_ccrx(struct stm32_pwm *dev, int ch, u32 value)
  * - Period     = t2 - t0
  * - Duty cycle = t1 - t0
  */
-static int stm32_pwm_raw_capture(struct stm32_pwm *priv, struct pwm_device *pwm,
+static int stm32_pwm_raw_capture(struct pwm_chip *chip, struct pwm_device *pwm,
 				 unsigned long tmo_ms, u32 *raw_prd,
 				 u32 *raw_dty)
 {
-	struct device *parent = priv->chip.dev->parent;
+	struct stm32_pwm *priv = to_stm32_pwm_dev(chip);
+	struct device *parent = pwmchip_parent(chip)->parent;
 	enum stm32_timers_dmas dma_id;
 	u32 ccen, ccr;
 	int ret;
 
 	/* Ensure registers have been updated, enable counter and capture */
-	regmap_update_bits(priv->regmap, TIM_EGR, TIM_EGR_UG, TIM_EGR_UG);
-	regmap_update_bits(priv->regmap, TIM_CR1, TIM_CR1_CEN, TIM_CR1_CEN);
+	regmap_set_bits(priv->regmap, TIM_EGR, TIM_EGR_UG);
+	regmap_set_bits(priv->regmap, TIM_CR1, TIM_CR1_CEN);
 
 	/* Use cc1 or cc3 DMA resp for PWM input channels 1 & 2 or 3 & 4 */
 	dma_id = pwm->hwpwm < 2 ? STM32_TIMERS_DMA_CH1 : STM32_TIMERS_DMA_CH3;
 	ccen = pwm->hwpwm < 2 ? TIM_CCER_CC12E : TIM_CCER_CC34E;
 	ccr = pwm->hwpwm < 2 ? TIM_CCR1 : TIM_CCR3;
-	regmap_update_bits(priv->regmap, TIM_CCER, ccen, ccen);
+	regmap_set_bits(priv->regmap, TIM_CCER, ccen);
 
 	/*
 	 * Timer DMA burst mode. Request 2 registers, 2 bursts, to get both
@@ -157,8 +145,8 @@ static int stm32_pwm_raw_capture(struct stm32_pwm *priv, struct pwm_device *pwm,
 	}
 
 stop:
-	regmap_update_bits(priv->regmap, TIM_CCER, ccen, 0);
-	regmap_update_bits(priv->regmap, TIM_CR1, TIM_CR1_CEN, 0);
+	regmap_clear_bits(priv->regmap, TIM_CCER, ccen);
+	regmap_clear_bits(priv->regmap, TIM_CR1, TIM_CR1_CEN);
 
 	return ret;
 }
@@ -182,7 +170,7 @@ static int stm32_pwm_capture(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	ret = clk_enable(priv->clk);
 	if (ret) {
-		dev_err(priv->chip.dev, "failed to enable counter clock\n");
+		dev_err(pwmchip_parent(chip), "failed to enable counter clock\n");
 		goto unlock;
 	}
 
@@ -204,6 +192,10 @@ static int stm32_pwm_capture(struct pwm_chip *chip, struct pwm_device *pwm,
 	regmap_write(priv->regmap, TIM_ARR, priv->max_arr);
 	regmap_write(priv->regmap, TIM_PSC, psc);
 
+	/* Reset input selector to its default input and disable slave mode */
+	regmap_write(priv->regmap, TIM_TISEL, 0x0);
+	regmap_write(priv->regmap, TIM_SMCR, 0x0);
+
 	/* Map TI1 or TI2 PWM input to IC1 & IC2 (or TI3/4 to IC3 & IC4) */
 	regmap_update_bits(priv->regmap,
 			   pwm->hwpwm < 2 ? TIM_CCMR1 : TIM_CCMR2,
@@ -216,7 +208,7 @@ static int stm32_pwm_capture(struct pwm_chip *chip, struct pwm_device *pwm,
 			   TIM_CCER_CC12P : TIM_CCER_CC34P, pwm->hwpwm < 2 ?
 			   TIM_CCER_CC2P : TIM_CCER_CC4P);
 
-	ret = stm32_pwm_raw_capture(priv, pwm, tmo_ms, &raw_prd, &raw_dty);
+	ret = stm32_pwm_raw_capture(chip, pwm, tmo_ms, &raw_prd, &raw_dty);
 	if (ret)
 		goto stop;
 
@@ -237,7 +229,7 @@ static int stm32_pwm_capture(struct pwm_chip *chip, struct pwm_device *pwm,
 		/* 2nd measure with new scale */
 		psc /= scale;
 		regmap_write(priv->regmap, TIM_PSC, psc);
-		ret = stm32_pwm_raw_capture(priv, pwm, tmo_ms, &raw_prd,
+		ret = stm32_pwm_raw_capture(chip, pwm, tmo_ms, &raw_prd,
 					    &raw_dty);
 		if (ret)
 			goto stop;
@@ -265,7 +257,7 @@ static int stm32_pwm_capture(struct pwm_chip *chip, struct pwm_device *pwm,
 			   FIELD_PREP(TIM_CCMR_IC1PSC, icpsc) |
 			   FIELD_PREP(TIM_CCMR_IC2PSC, icpsc));
 
-	ret = stm32_pwm_raw_capture(priv, pwm, tmo_ms, &raw_prd, &raw_dty);
+	ret = stm32_pwm_raw_capture(chip, pwm, tmo_ms, &raw_prd, &raw_dty);
 	if (ret)
 		goto stop;
 
@@ -316,29 +308,35 @@ unlock:
 	return ret;
 }
 
-static int stm32_pwm_config(struct stm32_pwm *priv, int ch,
-			    int duty_ns, int period_ns)
+static int stm32_pwm_config(struct stm32_pwm *priv, unsigned int ch,
+			    u64 duty_ns, u64 period_ns)
 {
-	unsigned long long prd, div, dty;
-	unsigned int prescaler = 0;
+	unsigned long long prd, dty;
+	unsigned long long prescaler;
 	u32 ccmr, mask, shift;
 
-	/* Period and prescaler values depends on clock rate */
-	div = (unsigned long long)clk_get_rate(priv->clk) * period_ns;
+	/*
+	 * .probe() asserted that clk_get_rate() is not bigger than 1 GHz, so
+	 * the calculations here won't overflow.
+	 * First we need to find the minimal value for prescaler such that
+	 *
+	 *        period_ns * clkrate
+	 *   ------------------------------
+	 *   NSEC_PER_SEC * (prescaler + 1)
+	 *
+	 * isn't bigger than max_arr.
+	 */
 
-	do_div(div, NSEC_PER_SEC);
-	prd = div;
-
-	while (div > priv->max_arr) {
-		prescaler++;
-		div = prd;
-		do_div(div, prescaler + 1);
-	}
-
-	prd = div;
+	prescaler = mul_u64_u64_div_u64(period_ns, clk_get_rate(priv->clk),
+					(u64)NSEC_PER_SEC * priv->max_arr);
+	if (prescaler > 0)
+		prescaler -= 1;
 
 	if (prescaler > MAX_TIM_PSC)
 		return -EINVAL;
+
+	prd = mul_u64_u64_div_u64(period_ns, clk_get_rate(priv->clk),
+				  (u64)NSEC_PER_SEC * (prescaler + 1));
 
 	/*
 	 * All channels share the same prescaler and counter so when two
@@ -356,13 +354,13 @@ static int stm32_pwm_config(struct stm32_pwm *priv, int ch,
 
 	regmap_write(priv->regmap, TIM_PSC, prescaler);
 	regmap_write(priv->regmap, TIM_ARR, prd - 1);
-	regmap_update_bits(priv->regmap, TIM_CR1, TIM_CR1_ARPE, TIM_CR1_ARPE);
+	regmap_set_bits(priv->regmap, TIM_CR1, TIM_CR1_ARPE);
 
 	/* Calculate the duty cycles */
-	dty = prd * duty_ns;
-	do_div(dty, period_ns);
+	dty = mul_u64_u64_div_u64(duty_ns, clk_get_rate(priv->clk),
+				  (u64)NSEC_PER_SEC * (prescaler + 1));
 
-	write_ccrx(priv, ch, dty);
+	regmap_write(priv->regmap, TIM_CCR1 + 4 * ch, dty);
 
 	/* Configure output mode */
 	shift = (ch & 0x1) * CCMR_CHANNEL_SHIFT;
@@ -374,14 +372,12 @@ static int stm32_pwm_config(struct stm32_pwm *priv, int ch,
 	else
 		regmap_update_bits(priv->regmap, TIM_CCMR2, mask, ccmr);
 
-	regmap_update_bits(priv->regmap, TIM_BDTR,
-			   TIM_BDTR_MOE | TIM_BDTR_AOE,
-			   TIM_BDTR_MOE | TIM_BDTR_AOE);
+	regmap_set_bits(priv->regmap, TIM_BDTR, TIM_BDTR_MOE);
 
 	return 0;
 }
 
-static int stm32_pwm_set_polarity(struct stm32_pwm *priv, int ch,
+static int stm32_pwm_set_polarity(struct stm32_pwm *priv, unsigned int ch,
 				  enum pwm_polarity polarity)
 {
 	u32 mask;
@@ -396,7 +392,7 @@ static int stm32_pwm_set_polarity(struct stm32_pwm *priv, int ch,
 	return 0;
 }
 
-static int stm32_pwm_enable(struct stm32_pwm *priv, int ch)
+static int stm32_pwm_enable(struct stm32_pwm *priv, unsigned int ch)
 {
 	u32 mask;
 	int ret;
@@ -410,18 +406,18 @@ static int stm32_pwm_enable(struct stm32_pwm *priv, int ch)
 	if (priv->have_complementary_output)
 		mask |= TIM_CCER_CC1NE << (ch * 4);
 
-	regmap_update_bits(priv->regmap, TIM_CCER, mask, mask);
+	regmap_set_bits(priv->regmap, TIM_CCER, mask);
 
 	/* Make sure that registers are updated */
-	regmap_update_bits(priv->regmap, TIM_EGR, TIM_EGR_UG, TIM_EGR_UG);
+	regmap_set_bits(priv->regmap, TIM_EGR, TIM_EGR_UG);
 
 	/* Enable controller */
-	regmap_update_bits(priv->regmap, TIM_CR1, TIM_CR1_CEN, TIM_CR1_CEN);
+	regmap_set_bits(priv->regmap, TIM_CR1, TIM_CR1_CEN);
 
 	return 0;
 }
 
-static void stm32_pwm_disable(struct stm32_pwm *priv, int ch)
+static void stm32_pwm_disable(struct stm32_pwm *priv, unsigned int ch)
 {
 	u32 mask;
 
@@ -430,11 +426,11 @@ static void stm32_pwm_disable(struct stm32_pwm *priv, int ch)
 	if (priv->have_complementary_output)
 		mask |= TIM_CCER_CC1NE << (ch * 4);
 
-	regmap_update_bits(priv->regmap, TIM_CCER, mask, 0);
+	regmap_clear_bits(priv->regmap, TIM_CCER, mask);
 
 	/* When all channels are disabled, we can disable the controller */
 	if (!active_channels(priv))
-		regmap_update_bits(priv->regmap, TIM_CR1, TIM_CR1_CEN, 0);
+		regmap_clear_bits(priv->regmap, TIM_CR1, TIM_CR1_CEN);
 
 	clk_disable(priv->clk);
 }
@@ -481,29 +477,67 @@ static int stm32_pwm_apply_locked(struct pwm_chip *chip, struct pwm_device *pwm,
 	return ret;
 }
 
+static int stm32_pwm_get_state(struct pwm_chip *chip,
+			       struct pwm_device *pwm, struct pwm_state *state)
+{
+	struct stm32_pwm *priv = to_stm32_pwm_dev(chip);
+	int ch = pwm->hwpwm;
+	unsigned long rate;
+	u32 ccer, psc, arr, ccr;
+	u64 dty, prd;
+	int ret;
+
+	mutex_lock(&priv->lock);
+
+	ret = regmap_read(priv->regmap, TIM_CCER, &ccer);
+	if (ret)
+		goto out;
+
+	state->enabled = ccer & (TIM_CCER_CC1E << (ch * 4));
+	state->polarity = (ccer & (TIM_CCER_CC1P << (ch * 4))) ?
+			  PWM_POLARITY_INVERSED : PWM_POLARITY_NORMAL;
+	ret = regmap_read(priv->regmap, TIM_PSC, &psc);
+	if (ret)
+		goto out;
+	ret = regmap_read(priv->regmap, TIM_ARR, &arr);
+	if (ret)
+		goto out;
+	ret = regmap_read(priv->regmap, TIM_CCR1 + 4 * ch, &ccr);
+	if (ret)
+		goto out;
+
+	rate = clk_get_rate(priv->clk);
+
+	prd = (u64)NSEC_PER_SEC * (psc + 1) * (arr + 1);
+	state->period = DIV_ROUND_UP_ULL(prd, rate);
+	dty = (u64)NSEC_PER_SEC * (psc + 1) * ccr;
+	state->duty_cycle = DIV_ROUND_UP_ULL(dty, rate);
+
+out:
+	mutex_unlock(&priv->lock);
+	return ret;
+}
+
 static const struct pwm_ops stm32pwm_ops = {
-	.owner = THIS_MODULE,
 	.apply = stm32_pwm_apply_locked,
+	.get_state = stm32_pwm_get_state,
 	.capture = IS_ENABLED(CONFIG_DMA_ENGINE) ? stm32_pwm_capture : NULL,
 };
 
 static int stm32_pwm_set_breakinput(struct stm32_pwm *priv,
-				    int index, int level, int filter)
+				    const struct stm32_breakinput *bi)
 {
-	u32 bke = (index == 0) ? TIM_BDTR_BKE : TIM_BDTR_BK2E;
-	int shift = (index == 0) ? TIM_BDTR_BKF_SHIFT : TIM_BDTR_BK2F_SHIFT;
-	u32 mask = (index == 0) ? TIM_BDTR_BKE | TIM_BDTR_BKP | TIM_BDTR_BKF
-				: TIM_BDTR_BK2E | TIM_BDTR_BK2P | TIM_BDTR_BK2F;
-	u32 bdtr = bke;
+	u32 shift = TIM_BDTR_BKF_SHIFT(bi->index);
+	u32 bke = TIM_BDTR_BKE(bi->index);
+	u32 bkp = TIM_BDTR_BKP(bi->index);
+	u32 bkf = TIM_BDTR_BKF(bi->index);
+	u32 mask = bkf | bkp | bke;
+	u32 bdtr;
 
-	/*
-	 * The both bits could be set since only one will be wrote
-	 * due to mask value.
-	 */
-	if (level)
-		bdtr |= TIM_BDTR_BKP | TIM_BDTR_BK2P;
+	bdtr = (bi->filter & TIM_BDTR_BKF_MASK) << shift | bke;
 
-	bdtr |= (filter & TIM_BDTR_BKF_MASK) << shift;
+	if (bi->level)
+		bdtr |= bkp;
 
 	regmap_update_bits(priv->regmap, TIM_BDTR, mask, bdtr);
 
@@ -512,11 +546,25 @@ static int stm32_pwm_set_breakinput(struct stm32_pwm *priv,
 	return (bdtr & bke) ? 0 : -EINVAL;
 }
 
-static int stm32_pwm_apply_breakinputs(struct stm32_pwm *priv,
+static int stm32_pwm_apply_breakinputs(struct stm32_pwm *priv)
+{
+	unsigned int i;
+	int ret;
+
+	for (i = 0; i < priv->num_breakinputs; i++) {
+		ret = stm32_pwm_set_breakinput(priv, &priv->breakinputs[i]);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int stm32_pwm_probe_breakinputs(struct stm32_pwm *priv,
 				       struct device_node *np)
 {
-	struct stm32_breakinput breakinput[MAX_BREAKINPUT];
-	int nb, ret, i, array_size;
+	int nb, ret, array_size;
+	unsigned int i;
 
 	nb = of_property_count_elems_of_size(np, "st,breakinput",
 					     sizeof(struct stm32_breakinput));
@@ -531,20 +579,21 @@ static int stm32_pwm_apply_breakinputs(struct stm32_pwm *priv,
 	if (nb > MAX_BREAKINPUT)
 		return -EINVAL;
 
+	priv->num_breakinputs = nb;
 	array_size = nb * sizeof(struct stm32_breakinput) / sizeof(u32);
 	ret = of_property_read_u32_array(np, "st,breakinput",
-					 (u32 *)breakinput, array_size);
+					 (u32 *)priv->breakinputs, array_size);
 	if (ret)
 		return ret;
 
-	for (i = 0; i < nb && !ret; i++) {
-		ret = stm32_pwm_set_breakinput(priv,
-					       breakinput[i].index,
-					       breakinput[i].level,
-					       breakinput[i].filter);
+	for (i = 0; i < priv->num_breakinputs; i++) {
+		if (priv->breakinputs[i].index > 1 ||
+		    priv->breakinputs[i].level > 1 ||
+		    priv->breakinputs[i].filter > 15)
+			return -EINVAL;
 	}
 
-	return ret;
+	return stm32_pwm_apply_breakinputs(priv);
 }
 
 static void stm32_pwm_detect_complementary(struct stm32_pwm *priv)
@@ -555,41 +604,30 @@ static void stm32_pwm_detect_complementary(struct stm32_pwm *priv)
 	 * If complementary bit doesn't exist writing 1 will have no
 	 * effect so we can detect it.
 	 */
-	regmap_update_bits(priv->regmap,
-			   TIM_CCER, TIM_CCER_CC1NE, TIM_CCER_CC1NE);
+	regmap_set_bits(priv->regmap, TIM_CCER, TIM_CCER_CC1NE);
 	regmap_read(priv->regmap, TIM_CCER, &ccer);
-	regmap_update_bits(priv->regmap, TIM_CCER, TIM_CCER_CC1NE, 0);
+	regmap_clear_bits(priv->regmap, TIM_CCER, TIM_CCER_CC1NE);
 
 	priv->have_complementary_output = (ccer != 0);
 }
 
-static int stm32_pwm_detect_channels(struct stm32_pwm *priv)
+static unsigned int stm32_pwm_detect_channels(struct regmap *regmap,
+					      unsigned int *num_enabled)
 {
-	u32 ccer;
-	int npwm = 0;
+	u32 ccer, ccer_backup;
 
 	/*
 	 * If channels enable bits don't exist writing 1 will have no
 	 * effect so we can detect and count them.
 	 */
-	regmap_update_bits(priv->regmap,
-			   TIM_CCER, TIM_CCER_CCXE, TIM_CCER_CCXE);
-	regmap_read(priv->regmap, TIM_CCER, &ccer);
-	regmap_update_bits(priv->regmap, TIM_CCER, TIM_CCER_CCXE, 0);
+	regmap_read(regmap, TIM_CCER, &ccer_backup);
+	regmap_set_bits(regmap, TIM_CCER, TIM_CCER_CCXE);
+	regmap_read(regmap, TIM_CCER, &ccer);
+	regmap_write(regmap, TIM_CCER, ccer_backup);
 
-	if (ccer & TIM_CCER_CC1E)
-		npwm++;
+	*num_enabled = hweight32(ccer_backup & TIM_CCER_CCXE);
 
-	if (ccer & TIM_CCER_CC2E)
-		npwm++;
-
-	if (ccer & TIM_CCER_CC3E)
-		npwm++;
-
-	if (ccer & TIM_CCER_CC4E)
-		npwm++;
-
-	return npwm;
+	return hweight32(ccer & TIM_CCER_CCXE);
 }
 
 static int stm32_pwm_probe(struct platform_device *pdev)
@@ -597,55 +635,99 @@ static int stm32_pwm_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct stm32_timers *ddata = dev_get_drvdata(pdev->dev.parent);
+	struct pwm_chip *chip;
 	struct stm32_pwm *priv;
+	unsigned int npwm, num_enabled;
+	unsigned int i;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
+	npwm = stm32_pwm_detect_channels(ddata->regmap, &num_enabled);
+
+	chip = devm_pwmchip_alloc(dev, npwm, sizeof(*priv));
+	if (IS_ERR(chip))
+		return PTR_ERR(chip);
+	priv = to_stm32_pwm_dev(chip);
 
 	mutex_init(&priv->lock);
 	priv->regmap = ddata->regmap;
 	priv->clk = ddata->clk;
 	priv->max_arr = ddata->max_arr;
-	priv->chip.of_xlate = of_pwm_xlate_with_flags;
-	priv->chip.of_pwm_n_cells = 3;
 
 	if (!priv->regmap || !priv->clk)
-		return -EINVAL;
+		return dev_err_probe(dev, -EINVAL, "Failed to get %s\n",
+				     priv->regmap ? "clk" : "regmap");
 
-	ret = stm32_pwm_apply_breakinputs(priv, np);
+	ret = stm32_pwm_probe_breakinputs(priv, np);
 	if (ret)
-		return ret;
+		return dev_err_probe(dev, ret,
+				     "Failed to configure breakinputs\n");
 
 	stm32_pwm_detect_complementary(priv);
 
-	priv->chip.base = -1;
-	priv->chip.dev = dev;
-	priv->chip.ops = &stm32pwm_ops;
-	priv->chip.npwm = stm32_pwm_detect_channels(priv);
+	ret = devm_clk_rate_exclusive_get(dev, priv->clk);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to lock clock\n");
 
-	ret = pwmchip_add(&priv->chip);
+	/*
+	 * With the clk running with not more than 1 GHz the calculations in
+	 * .apply() won't overflow.
+	 */
+	if (clk_get_rate(priv->clk) > 1000000000)
+		return dev_err_probe(dev, -EINVAL, "Failed to lock clock\n");
+
+	chip->ops = &stm32pwm_ops;
+
+	/* Initialize clock refcount to number of enabled PWM channels. */
+	for (i = 0; i < num_enabled; i++)
+		clk_enable(priv->clk);
+
+	ret = devm_pwmchip_add(dev, chip);
 	if (ret < 0)
+		return dev_err_probe(dev, ret,
+				     "Failed to register pwmchip\n");
+
+	platform_set_drvdata(pdev, chip);
+
+	return 0;
+}
+
+static int stm32_pwm_suspend(struct device *dev)
+{
+	struct pwm_chip *chip = dev_get_drvdata(dev);
+	struct stm32_pwm *priv = to_stm32_pwm_dev(chip);
+	unsigned int i;
+	u32 ccer, mask;
+
+	/* Look for active channels */
+	ccer = active_channels(priv);
+
+	for (i = 0; i < chip->npwm; i++) {
+		mask = TIM_CCER_CC1E << (i * 4);
+		if (ccer & mask) {
+			dev_err(dev, "PWM %u still in use by consumer %s\n",
+				i, chip->pwms[i].label);
+			return -EBUSY;
+		}
+	}
+
+	return pinctrl_pm_select_sleep_state(dev);
+}
+
+static int stm32_pwm_resume(struct device *dev)
+{
+	struct pwm_chip *chip = dev_get_drvdata(dev);
+	struct stm32_pwm *priv = to_stm32_pwm_dev(chip);
+	int ret;
+
+	ret = pinctrl_pm_select_default_state(dev);
+	if (ret)
 		return ret;
 
-	platform_set_drvdata(pdev, priv);
-
-	return 0;
+	/* restore breakinput registers that may have been lost in low power */
+	return stm32_pwm_apply_breakinputs(priv);
 }
 
-static int stm32_pwm_remove(struct platform_device *pdev)
-{
-	struct stm32_pwm *priv = platform_get_drvdata(pdev);
-	unsigned int i;
-
-	for (i = 0; i < priv->chip.npwm; i++)
-		pwm_disable(&priv->chip.pwms[i]);
-
-	pwmchip_remove(&priv->chip);
-
-	return 0;
-}
+static DEFINE_SIMPLE_DEV_PM_OPS(stm32_pwm_pm_ops, stm32_pwm_suspend, stm32_pwm_resume);
 
 static const struct of_device_id stm32_pwm_of_match[] = {
 	{ .compatible = "st,stm32-pwm",	},
@@ -655,10 +737,10 @@ MODULE_DEVICE_TABLE(of, stm32_pwm_of_match);
 
 static struct platform_driver stm32_pwm_driver = {
 	.probe	= stm32_pwm_probe,
-	.remove	= stm32_pwm_remove,
 	.driver	= {
 		.name = "stm32-pwm",
 		.of_match_table = stm32_pwm_of_match,
+		.pm = pm_ptr(&stm32_pwm_pm_ops),
 	},
 };
 module_platform_driver(stm32_pwm_driver);

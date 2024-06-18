@@ -9,11 +9,11 @@
 #else /* __CHECKER__ */
 /*
  * Force a compilation error if condition is true, but also produce a
- * result (of value 0 and type size_t), so the expression can be used
+ * result (of value 0 and type int), so the expression can be used
  * e.g. in a structure initializer (or where-ever else comma expressions
  * aren't permitted).
  */
-#define BUILD_BUG_ON_ZERO(e) (sizeof(struct { int:(-!!(e)); }))
+#define BUILD_BUG_ON_ZERO(e) ((int)(sizeof(struct { int:(-!!(e)); })))
 #endif /* __CHECKER__ */
 
 /* Force a compilation error if a constant expression is not a power of 2 */
@@ -76,5 +76,14 @@
  */
 #define static_assert(expr, ...) __static_assert(expr, ##__VA_ARGS__, #expr)
 #define __static_assert(expr, msg, ...) _Static_assert(expr, msg)
+
+
+/*
+ * Compile time check that field has an expected offset
+ */
+#define ASSERT_STRUCT_OFFSET(type, field, expected_offset)	\
+	BUILD_BUG_ON_MSG(offsetof(type, field) != (expected_offset),	\
+		"Offset of " #field " in " #type " has changed.")
+
 
 #endif	/* _LINUX_BUILD_BUG_H */

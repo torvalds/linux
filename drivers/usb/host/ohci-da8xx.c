@@ -15,6 +15,7 @@
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_data/usb-davinci.h>
@@ -415,13 +416,17 @@ static int ohci_da8xx_probe(struct platform_device *pdev)
 	}
 
 	da8xx_ohci->oc_gpio = devm_gpiod_get_optional(dev, "oc", GPIOD_IN);
-	if (IS_ERR(da8xx_ohci->oc_gpio))
+	if (IS_ERR(da8xx_ohci->oc_gpio)) {
+		error = PTR_ERR(da8xx_ohci->oc_gpio);
 		goto err;
+	}
 
 	if (da8xx_ohci->oc_gpio) {
 		oc_irq = gpiod_to_irq(da8xx_ohci->oc_gpio);
-		if (oc_irq < 0)
+		if (oc_irq < 0) {
+			error = oc_irq;
 			goto err;
+		}
 
 		error = devm_request_threaded_irq(dev, oc_irq, NULL,
 				ohci_da8xx_oc_thread, IRQF_TRIGGER_RISING |
@@ -431,8 +436,7 @@ static int ohci_da8xx_probe(struct platform_device *pdev)
 			goto err;
 	}
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	hcd->regs = devm_ioremap_resource(dev, mem);
+	hcd->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &mem);
 	if (IS_ERR(hcd->regs)) {
 		error = PTR_ERR(hcd->regs);
 		goto err;
@@ -465,14 +469,12 @@ err:
 	return error;
 }
 
-static int ohci_da8xx_remove(struct platform_device *pdev)
+static void ohci_da8xx_remove(struct platform_device *pdev)
 {
 	struct usb_hcd	*hcd = platform_get_drvdata(pdev);
 
 	usb_remove_hcd(hcd);
 	usb_put_hcd(hcd);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -529,7 +531,7 @@ static const struct ohci_driver_overrides da8xx_overrides __initconst = {
  */
 static struct platform_driver ohci_hcd_da8xx_driver = {
 	.probe		= ohci_da8xx_probe,
-	.remove		= ohci_da8xx_remove,
+	.remove_new	= ohci_da8xx_remove,
 	.shutdown 	= usb_hcd_platform_shutdown,
 #ifdef	CONFIG_PM
 	.suspend	= ohci_da8xx_suspend,
@@ -547,7 +549,6 @@ static int __init ohci_da8xx_init(void)
 	if (usb_disabled())
 		return -ENODEV;
 
-	pr_info("%s: " DRIVER_DESC "\n", DRV_NAME);
 	ohci_init_driver(&ohci_da8xx_hc_driver, &da8xx_overrides);
 
 	/*

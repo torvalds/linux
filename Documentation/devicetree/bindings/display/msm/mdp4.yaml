@@ -1,0 +1,124 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/msm/mdp4.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Adreno/Snapdragon MDP4 display controller
+
+description: >
+  MDP4 display controller found in SoCs like MSM8960, APQ8064 and MSM8660.
+
+maintainers:
+  - Rob Clark <robdclark@gmail.com>
+
+properties:
+  compatible:
+    const: qcom,mdp4
+
+  clocks:
+    minItems: 6
+    maxItems: 6
+
+  clock-names:
+    items:
+      - const: core_clk
+      - const: iface_clk
+      - const: bus_clk
+      - const: lut_clk
+      - const: hdmi_clk
+      - const: tv_clk
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  iommus:
+    maxItems: 4
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+    properties:
+      port@0:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: LCDC/LVDS
+
+      port@1:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: DSI1 Cmd / Video
+
+      port@2:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: DSI2 Cmd / Video
+
+      port@3:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: Digital TV
+
+  qcom,lcdc-align-lsb:
+    type: boolean
+    description: >
+      Indication that LSB alignment should be used for LCDC.
+      This is only valid for 18bpp panels.
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - ports
+
+additionalProperties: false
+
+examples:
+  - |
+    mdp: mdp@5100000 {
+        compatible = "qcom,mdp4";
+        reg = <0x05100000 0xf0000>;
+        interrupts = <0 75 0>;
+        clock-names =
+            "core_clk",
+            "iface_clk",
+            "bus_clk",
+            "lut_clk",
+            "hdmi_clk",
+            "tv_clk";
+        clocks =
+            <&mmcc 77>,
+            <&mmcc 86>,
+            <&mmcc 102>,
+            <&mmcc 75>,
+            <&mmcc 97>,
+            <&mmcc 12>;
+
+        ports {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            port@0 {
+                reg = <0>;
+                mdp_lvds_out: endpoint {
+                };
+            };
+
+            port@1 {
+                reg = <1>;
+                mdp_dsi1_out: endpoint {
+                };
+            };
+
+            port@2 {
+                reg = <2>;
+                mdp_dsi2_out: endpoint {
+                };
+            };
+
+            port@3 {
+                reg = <3>;
+                mdp_dtv_out: endpoint {
+                    remote-endpoint = <&hdmi_in>;
+                };
+            };
+        };
+    };

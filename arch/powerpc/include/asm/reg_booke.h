@@ -174,7 +174,6 @@
 #define SPRN_L1CSR1	0x3F3	/* L1 Cache Control and Status Register 1 */
 #define SPRN_MMUCSR0	0x3F4	/* MMU Control and Status Register 0 */
 #define SPRN_MMUCFG	0x3F7	/* MMU Configuration Register */
-#define SPRN_PIT	0x3DB	/* Programmable Interval Timer */
 #define SPRN_BUCSR	0x3F5	/* Branch Unit Control and Status */
 #define SPRN_L2CSR0	0x3F9	/* L2 Data Cache Control and Status Register 0 */
 #define SPRN_L2CSR1	0x3FA	/* L2 Data Cache Control and Status Register 1 */
@@ -247,7 +246,7 @@
 #define PPC47x_MCSR_FPR	0x00800000 /* FPR parity error */
 #define PPC47x_MCSR_IPR	0x00400000 /* Imprecise Machine Check Exception */
 
-#ifdef CONFIG_E500
+#ifdef CONFIG_PPC_E500
 /* All e500 */
 #define MCSR_MCP 	0x80000000UL /* Machine Check Input Pin */
 #define MCSR_ICPERR 	0x40000000UL /* I-Cache Parity Error */
@@ -282,20 +281,8 @@
 #define MSRP_PMMP	0x00000004 /* Protect MSR[PMM] */
 #endif
 
-#ifdef CONFIG_E200
-#define MCSR_MCP 	0x80000000UL /* Machine Check Input Pin */
-#define MCSR_CP_PERR 	0x20000000UL /* Cache Push Parity Error */
-#define MCSR_CPERR 	0x10000000UL /* Cache Parity Error */
-#define MCSR_EXCP_ERR 	0x08000000UL /* ISI, ITLB, or Bus Error on 1st insn
-					fetch for an exception handler */
-#define MCSR_BUS_IRERR 	0x00000010UL /* Read Bus Error on instruction fetch*/
-#define MCSR_BUS_DRERR 	0x00000008UL /* Read Bus Error on data load */
-#define MCSR_BUS_WRERR 	0x00000004UL /* Write Bus Error on buffered
-					store or cache line push */
-#endif
-
 /* Bit definitions for the HID1 */
-#ifdef CONFIG_E500
+#ifdef CONFIG_PPC_E500
 /* e500v1/v2 */
 #define HID1_PLL_CFG_MASK 0xfc000000	/* PLL_CFG input pins */
 #define HID1_RFXE	0x00020000	/* Read fault exception enable */
@@ -558,7 +545,7 @@
 #define TCR_FIE		0x00800000	/* FIT Interrupt Enable */
 #define TCR_ARE		0x00400000	/* Auto Reload Enable */
 
-#ifdef CONFIG_E500
+#ifdef CONFIG_PPC_E500
 #define TCR_GET_WP(tcr)  ((((tcr) & 0xC0000000) >> 30) | \
 			      (((tcr) & 0x1E0000) >> 15))
 #else
@@ -663,60 +650,6 @@
 #define EPC_EPID	0x00003fff
 #define EPC_EPID_SHIFT	0
 
-/*
- * The IBM-403 is an even more odd special case, as it is much
- * older than the IBM-405 series.  We put these down here incase someone
- * wishes to support these machines again.
- */
-#ifdef CONFIG_403GCX
-/* Special Purpose Registers (SPRNs)*/
-#define SPRN_TBHU	0x3CC	/* Time Base High User-mode */
-#define SPRN_TBLU	0x3CD	/* Time Base Low User-mode */
-#define SPRN_CDBCR	0x3D7	/* Cache Debug Control Register */
-#define SPRN_TBHI	0x3DC	/* Time Base High */
-#define SPRN_TBLO	0x3DD	/* Time Base Low */
-#define SPRN_DBCR	0x3F2	/* Debug Control Register */
-#define SPRN_PBL1	0x3FC	/* Protection Bound Lower 1 */
-#define SPRN_PBL2	0x3FE	/* Protection Bound Lower 2 */
-#define SPRN_PBU1	0x3FD	/* Protection Bound Upper 1 */
-#define SPRN_PBU2	0x3FF	/* Protection Bound Upper 2 */
-
-
-/* Bit definitions for the DBCR. */
-#define DBCR_EDM	DBCR0_EDM
-#define DBCR_IDM	DBCR0_IDM
-#define DBCR_RST(x)	(((x) & 0x3) << 28)
-#define DBCR_RST_NONE	0
-#define DBCR_RST_CORE	1
-#define DBCR_RST_CHIP	2
-#define DBCR_RST_SYSTEM	3
-#define DBCR_IC		DBCR0_IC	/* Instruction Completion Debug Evnt */
-#define DBCR_BT		DBCR0_BT	/* Branch Taken Debug Event */
-#define DBCR_EDE	DBCR0_EDE	/* Exception Debug Event */
-#define DBCR_TDE	DBCR0_TDE	/* TRAP Debug Event */
-#define DBCR_FER	0x00F80000	/* First Events Remaining Mask */
-#define DBCR_FT		0x00040000	/* Freeze Timers on Debug Event */
-#define DBCR_IA1	0x00020000	/* Instr. Addr. Compare 1 Enable */
-#define DBCR_IA2	0x00010000	/* Instr. Addr. Compare 2 Enable */
-#define DBCR_D1R	0x00008000	/* Data Addr. Compare 1 Read Enable */
-#define DBCR_D1W	0x00004000	/* Data Addr. Compare 1 Write Enable */
-#define DBCR_D1S(x)	(((x) & 0x3) << 12)	/* Data Adrr. Compare 1 Size */
-#define DAC_BYTE	0
-#define DAC_HALF	1
-#define DAC_WORD	2
-#define DAC_QUAD	3
-#define DBCR_D2R	0x00000800	/* Data Addr. Compare 2 Read Enable */
-#define DBCR_D2W	0x00000400	/* Data Addr. Compare 2 Write Enable */
-#define DBCR_D2S(x)	(((x) & 0x3) << 8)	/* Data Addr. Compare 2 Size */
-#define DBCR_SBT	0x00000040	/* Second Branch Taken Debug Event */
-#define DBCR_SED	0x00000020	/* Second Exception Debug Event */
-#define DBCR_STD	0x00000010	/* Second Trap Debug Event */
-#define DBCR_SIA	0x00000008	/* Second IAC Enable */
-#define DBCR_SDA	0x00000004	/* Second DAC Enable */
-#define DBCR_JOI	0x00000002	/* JTAG Serial Outbound Int. Enable */
-#define DBCR_JII	0x00000001	/* JTAG Serial Inbound Int. Enable */
-#endif /* 403GCX */
-
 /* Some 476 specific registers */
 #define SPRN_SSPCR		830
 #define SPRN_USPCR		831
@@ -758,6 +691,9 @@
 #define mttmr(rn, v)	asm volatile(MTTMR(rn, %0) : \
 				     : "r" ((unsigned long)(v)) \
 				     : "memory")
+
+extern unsigned long global_dbcr0[];
+
 #endif /* !__ASSEMBLY__ */
 
 #endif /* __ASM_POWERPC_REG_BOOKE_H__ */

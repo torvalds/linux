@@ -1,7 +1,0 @@
-Innolux AT043TN24 4.3" WQVGA TFT LCD panel
-
-Required properties:
-- compatible: should be "innolux,at043tn24"
-
-This binding is compatible with the simple-panel binding, which is specified
-in simple-panel.txt in this directory.

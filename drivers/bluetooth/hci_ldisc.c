@@ -127,10 +127,9 @@ int hci_uart_tx_wakeup(struct hci_uart *hu)
 	if (!test_bit(HCI_UART_PROTO_READY, &hu->flags))
 		goto no_schedule;
 
-	if (test_and_set_bit(HCI_UART_SENDING, &hu->tx_state)) {
-		set_bit(HCI_UART_TX_WAKEUP, &hu->tx_state);
+	set_bit(HCI_UART_TX_WAKEUP, &hu->tx_state);
+	if (test_and_set_bit(HCI_UART_SENDING, &hu->tx_state))
 		goto no_schedule;
-	}
 
 	BT_DBG("");
 
@@ -174,10 +173,10 @@ restart:
 		kfree_skb(skb);
 	}
 
+	clear_bit(HCI_UART_SENDING, &hu->tx_state);
 	if (test_bit(HCI_UART_TX_WAKEUP, &hu->tx_state))
 		goto restart;
 
-	clear_bit(HCI_UART_SENDING, &hu->tx_state);
 	wake_up_bit(&hu->tx_state, HCI_UART_SENDING);
 }
 
@@ -324,9 +323,9 @@ void hci_uart_set_flow_control(struct hci_uart *hu, bool enable)
 		/* Disable hardware flow control */
 		ktermios = tty->termios;
 		ktermios.c_cflag &= ~CRTSCTS;
-		status = tty_set_termios(tty, &ktermios);
+		tty_set_termios(tty, &ktermios);
 		BT_DBG("Disabling hardware flow control: %s",
-		       status ? "failed" : "success");
+		       (tty->termios.c_cflag & CRTSCTS) ? "failed" : "success");
 
 		/* Clear RTS to prevent the device from sending */
 		/* Most UARTs need OUT2 to enable interrupts */
@@ -358,9 +357,9 @@ void hci_uart_set_flow_control(struct hci_uart *hu, bool enable)
 		/* Re-enable hardware flow control */
 		ktermios = tty->termios;
 		ktermios.c_cflag |= CRTSCTS;
-		status = tty_set_termios(tty, &ktermios);
+		tty_set_termios(tty, &ktermios);
 		BT_DBG("Enabling hardware flow control: %s",
-		       status ? "failed" : "success");
+		       !(tty->termios.c_cflag & CRTSCTS) ? "failed" : "success");
 	}
 }
 
@@ -480,6 +479,9 @@ static int hci_uart_tty_open(struct tty_struct *tty)
 
 	BT_DBG("tty %p", tty);
 
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
 	/* Error if the tty has no write op instead of leaving an exploitable
 	 * hole
 	 */
@@ -490,6 +492,11 @@ static int hci_uart_tty_open(struct tty_struct *tty)
 	if (!hu) {
 		BT_ERR("Can't allocate control structure");
 		return -ENFILE;
+	}
+	if (percpu_init_rwsem(&hu->proto_lock)) {
+		BT_ERR("Can't allocate semaphore structure");
+		kfree(hu);
+		return -ENOMEM;
 	}
 
 	tty->disc_data = hu;
@@ -502,8 +509,6 @@ static int hci_uart_tty_open(struct tty_struct *tty)
 
 	INIT_WORK(&hu->init_ready, hci_uart_init_work);
 	INIT_WORK(&hu->write_work, hci_uart_write_work);
-
-	percpu_init_rwsem(&hu->proto_lock);
 
 	/* Flush any pending characters in the driver */
 	tty_driver_flush_buffer(tty);
@@ -538,6 +543,7 @@ static void hci_uart_tty_close(struct tty_struct *tty)
 		clear_bit(HCI_UART_PROTO_READY, &hu->flags);
 		percpu_up_write(&hu->proto_lock);
 
+		cancel_work_sync(&hu->init_ready);
 		cancel_work_sync(&hu->write_work);
 
 		if (hdev) {
@@ -593,7 +599,7 @@ static void hci_uart_tty_wakeup(struct tty_struct *tty)
  * Return Value:    None
  */
 static void hci_uart_tty_receive(struct tty_struct *tty, const u8 *data,
-				 char *flags, int count)
+				 const u8 *flags, size_t count)
 {
 	struct hci_uart *hu = tty->disc_data;
 
@@ -661,11 +667,6 @@ static int hci_uart_register_dev(struct hci_uart *hu)
 	if (!test_bit(HCI_UART_RESET_ON_INIT, &hu->hdev_flags))
 		set_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks);
 
-	if (test_bit(HCI_UART_CREATE_AMP, &hu->hdev_flags))
-		hdev->dev_type = HCI_AMP;
-	else
-		hdev->dev_type = HCI_PRIMARY;
-
 	/* Only call open() for the protocol after hdev is fully initialized as
 	 * open() (or a timer/workqueue it starts) may attempt to reference it.
 	 */
@@ -716,7 +717,6 @@ static int hci_uart_set_flags(struct hci_uart *hu, unsigned long flags)
 {
 	unsigned long valid_flags = BIT(HCI_UART_RAW_DEVICE) |
 				    BIT(HCI_UART_RESET_ON_INIT) |
-				    BIT(HCI_UART_CREATE_AMP) |
 				    BIT(HCI_UART_INIT_PENDING) |
 				    BIT(HCI_UART_EXT_CONFIG) |
 				    BIT(HCI_UART_VND_DETECT);
@@ -736,14 +736,13 @@ static int hci_uart_set_flags(struct hci_uart *hu, unsigned long flags)
  * Arguments:
  *
  *    tty        pointer to tty instance data
- *    file       pointer to open file object for device
  *    cmd        IOCTL command code
  *    arg        argument for IOCTL call (cmd dependent)
  *
  * Return Value:    Command dependent
  */
-static int hci_uart_tty_ioctl(struct tty_struct *tty, struct file *file,
-			      unsigned int cmd, unsigned long arg)
+static int hci_uart_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
+			      unsigned long arg)
 {
 	struct hci_uart *hu = tty->disc_data;
 	int err = 0;
@@ -765,7 +764,8 @@ static int hci_uart_tty_ioctl(struct tty_struct *tty, struct file *file,
 		break;
 
 	case HCIUARTGETPROTO:
-		if (test_bit(HCI_UART_PROTO_SET, &hu->flags))
+		if (test_bit(HCI_UART_PROTO_SET, &hu->flags) &&
+		    test_bit(HCI_UART_PROTO_READY, &hu->flags))
 			err = hu->proto->id;
 		else
 			err = -EUNATCH;
@@ -790,7 +790,7 @@ static int hci_uart_tty_ioctl(struct tty_struct *tty, struct file *file,
 		break;
 
 	default:
-		err = n_tty_ioctl_helper(tty, file, cmd, arg);
+		err = n_tty_ioctl_helper(tty, cmd, arg);
 		break;
 	}
 
@@ -801,47 +801,40 @@ static int hci_uart_tty_ioctl(struct tty_struct *tty, struct file *file,
  * We don't provide read/write/poll interface for user space.
  */
 static ssize_t hci_uart_tty_read(struct tty_struct *tty, struct file *file,
-				 unsigned char __user *buf, size_t nr)
+				 u8 *buf, size_t nr, void **cookie,
+				 unsigned long offset)
 {
 	return 0;
 }
 
 static ssize_t hci_uart_tty_write(struct tty_struct *tty, struct file *file,
-				  const unsigned char *data, size_t count)
+				  const u8 *data, size_t count)
 {
 	return 0;
 }
 
-static __poll_t hci_uart_tty_poll(struct tty_struct *tty,
-				      struct file *filp, poll_table *wait)
-{
-	return 0;
-}
+static struct tty_ldisc_ops hci_uart_ldisc = {
+	.owner		= THIS_MODULE,
+	.num		= N_HCI,
+	.name		= "n_hci",
+	.open		= hci_uart_tty_open,
+	.close		= hci_uart_tty_close,
+	.read		= hci_uart_tty_read,
+	.write		= hci_uart_tty_write,
+	.ioctl		= hci_uart_tty_ioctl,
+	.compat_ioctl	= hci_uart_tty_ioctl,
+	.receive_buf	= hci_uart_tty_receive,
+	.write_wakeup	= hci_uart_tty_wakeup,
+};
 
 static int __init hci_uart_init(void)
 {
-	static struct tty_ldisc_ops hci_uart_ldisc;
 	int err;
 
 	BT_INFO("HCI UART driver ver %s", VERSION);
 
 	/* Register the tty discipline */
-
-	memset(&hci_uart_ldisc, 0, sizeof(hci_uart_ldisc));
-	hci_uart_ldisc.magic		= TTY_LDISC_MAGIC;
-	hci_uart_ldisc.name		= "n_hci";
-	hci_uart_ldisc.open		= hci_uart_tty_open;
-	hci_uart_ldisc.close		= hci_uart_tty_close;
-	hci_uart_ldisc.read		= hci_uart_tty_read;
-	hci_uart_ldisc.write		= hci_uart_tty_write;
-	hci_uart_ldisc.ioctl		= hci_uart_tty_ioctl;
-	hci_uart_ldisc.compat_ioctl	= hci_uart_tty_ioctl;
-	hci_uart_ldisc.poll		= hci_uart_tty_poll;
-	hci_uart_ldisc.receive_buf	= hci_uart_tty_receive;
-	hci_uart_ldisc.write_wakeup	= hci_uart_tty_wakeup;
-	hci_uart_ldisc.owner		= THIS_MODULE;
-
-	err = tty_register_ldisc(N_HCI, &hci_uart_ldisc);
+	err = tty_register_ldisc(&hci_uart_ldisc);
 	if (err) {
 		BT_ERR("HCI line discipline registration failed. (%d)", err);
 		return err;
@@ -883,8 +876,6 @@ static int __init hci_uart_init(void)
 
 static void __exit hci_uart_exit(void)
 {
-	int err;
-
 #ifdef CONFIG_BT_HCIUART_H4
 	h4_deinit();
 #endif
@@ -916,10 +907,7 @@ static void __exit hci_uart_exit(void)
 	mrvl_deinit();
 #endif
 
-	/* Release tty registration of line discipline */
-	err = tty_unregister_ldisc(N_HCI);
-	if (err)
-		BT_ERR("Can't unregister HCI line discipline (%d)", err);
+	tty_unregister_ldisc(&hci_uart_ldisc);
 }
 
 module_init(hci_uart_init);

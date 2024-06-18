@@ -138,10 +138,10 @@ TRACE_EVENT(/* put_tid */
 	TP_ARGS(dd, index, type, pa, order),
 	TP_STRUCT__entry(/* entry */
 		DD_DEV_ENTRY(dd)
-		__field(unsigned long, pa);
-		__field(u32, index);
-		__field(u32, type);
-		__field(u16, order);
+		__field(unsigned long, pa)
+		__field(u32, index)
+		__field(u32, type)
+		__field(u16, order)
 	),
 	TP_fast_assign(/* assign */
 		DD_DEV_ASSIGN(dd);
@@ -358,7 +358,7 @@ DECLARE_EVENT_CLASS(/* msg */
 	),
 	TP_fast_assign(/* assign */
 		__entry->qpn = qp ? qp->ibqp.qp_num : 0;
-		__assign_str(msg, msg);
+		__assign_str(msg);
 		__entry->more = more;
 	),
 	TP_printk(/* print */
@@ -651,7 +651,7 @@ DECLARE_EVENT_CLASS(/* tid_node */
 	TP_fast_assign(/* assign */
 		DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device));
 		__entry->qpn = qp->ibqp.qp_num;
-		__assign_str(msg, msg);
+		__assign_str(msg);
 		__entry->index = index;
 		__entry->base = base;
 		__entry->map = map;
@@ -886,7 +886,7 @@ DECLARE_EVENT_CLASS(/* sender_info */
 		__field(u8, s_retry)
 	),
 	TP_fast_assign(/* assign */
-		DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device))
+		DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device));
 		__entry->qpn = qp->ibqp.qp_num;
 		__entry->state = qp->state;
 		__entry->s_cur = qp->s_cur;
@@ -1285,7 +1285,7 @@ DECLARE_EVENT_CLASS(/* rc_rcv_err */
 		__field(int, diff)
 	),
 	TP_fast_assign(/* assign */
-		DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device))
+		DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device));
 		__entry->qpn = qp->ibqp.qp_num;
 		__entry->s_flags = qp->s_flags;
 		__entry->state = qp->state;
@@ -1574,7 +1574,7 @@ DECLARE_EVENT_CLASS(/* tid_ack */
 		__field(u32, resync_psn)
 	),
 	TP_fast_assign(/* assign */
-		DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device))
+		DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device));
 		__entry->qpn = qp->ibqp.qp_num;
 		__entry->aeth = aeth;
 		__entry->psn = psn;

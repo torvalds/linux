@@ -15,6 +15,7 @@
 #include <linux/io.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
+#include <linux/module.h>
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
 
@@ -23,6 +24,7 @@
 #define MTK_EINT_EDGE_SENSITIVE           0
 #define MTK_EINT_LEVEL_SENSITIVE          1
 #define MTK_EINT_DBNC_SET_DBNC_BITS	  4
+#define MTK_EINT_DBNC_MAX		  16
 #define MTK_EINT_DBNC_RST_BIT		  (0x1 << 1)
 #define MTK_EINT_DBNC_SET_EN		  (0x1 << 0)
 
@@ -46,6 +48,21 @@ static const struct mtk_eint_regs mtk_generic_eint_regs = {
 	.dbnc_set  = 0x600,
 	.dbnc_clr  = 0x700,
 };
+
+const unsigned int debounce_time_mt2701[] = {
+	500, 1000, 16000, 32000, 64000, 128000, 256000, 0
+};
+EXPORT_SYMBOL_GPL(debounce_time_mt2701);
+
+const unsigned int debounce_time_mt6765[] = {
+	125, 250, 500, 1000, 16000, 32000, 64000, 128000, 256000, 512000, 0
+};
+EXPORT_SYMBOL_GPL(debounce_time_mt6765);
+
+const unsigned int debounce_time_mt6795[] = {
+	500, 1000, 16000, 32000, 64000, 128000, 256000, 512000, 0
+};
+EXPORT_SYMBOL_GPL(debounce_time_mt6795);
 
 static void __iomem *mtk_eint_get_offset(struct mtk_eint *eint,
 					 unsigned int eint_num,
@@ -156,6 +173,7 @@ static void mtk_eint_ack(struct irq_data *d)
 static int mtk_eint_set_type(struct irq_data *d, unsigned int type)
 {
 	struct mtk_eint *eint = irq_data_get_irq_chip_data(d);
+	bool masked;
 	u32 mask = BIT(d->hwirq & 0x1f);
 	void __iomem *reg;
 
@@ -171,6 +189,13 @@ static int mtk_eint_set_type(struct irq_data *d, unsigned int type)
 		eint->dual_edge[d->hwirq] = 1;
 	else
 		eint->dual_edge[d->hwirq] = 0;
+
+	if (!mtk_eint_get_mask(eint, d->hwirq)) {
+		mtk_eint_mask(d);
+		masked = false;
+	} else {
+		masked = true;
+	}
 
 	if (type & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_EDGE_FALLING)) {
 		reg = mtk_eint_get_offset(eint, d->hwirq, eint->regs->pol_clr);
@@ -188,8 +213,9 @@ static int mtk_eint_set_type(struct irq_data *d, unsigned int type)
 		writel(mask, reg);
 	}
 
-	if (eint->dual_edge[d->hwirq])
-		mtk_eint_flip_edge(eint, d->hwirq);
+	mtk_eint_ack(d);
+	if (!masked)
+		mtk_eint_unmask(d);
 
 	return 0;
 }
@@ -277,12 +303,15 @@ static struct irq_chip mtk_eint_irq_chip = {
 
 static unsigned int mtk_eint_hw_init(struct mtk_eint *eint)
 {
-	void __iomem *reg = eint->base + eint->regs->dom_en;
+	void __iomem *dom_en = eint->base + eint->regs->dom_en;
+	void __iomem *mask_set = eint->base + eint->regs->mask_set;
 	unsigned int i;
 
 	for (i = 0; i < eint->hw->ap_num; i += 32) {
-		writel(0xffffffff, reg);
-		reg += 4;
+		writel(0xffffffff, dom_en);
+		writel(0xffffffff, mask_set);
+		dom_en += 4;
+		mask_set += 4;
 	}
 
 	return 0;
@@ -309,7 +338,7 @@ static void mtk_eint_irq_handler(struct irq_desc *desc)
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct mtk_eint *eint = irq_desc_get_handler_data(desc);
 	unsigned int status, eint_num;
-	int offset, mask_offset, index, virq;
+	int offset, mask_offset, index;
 	void __iomem *reg =  mtk_eint_get_offset(eint, 0, eint->regs->stat);
 	int dual_edge, start_level, curr_level;
 
@@ -321,7 +350,6 @@ static void mtk_eint_irq_handler(struct irq_desc *desc)
 			offset = __ffs(status);
 			mask_offset = eint_num >> 5;
 			index = eint_num + offset;
-			virq = irq_find_mapping(eint->domain, index);
 			status &= ~BIT(offset);
 
 			/*
@@ -351,7 +379,7 @@ static void mtk_eint_irq_handler(struct irq_desc *desc)
 								 index);
 			}
 
-			generic_handle_irq(virq);
+			generic_handle_domain_irq(eint->domain, index);
 
 			if (dual_edge) {
 				curr_level = mtk_eint_flip_edge(eint, index);
@@ -379,6 +407,7 @@ int mtk_eint_do_suspend(struct mtk_eint *eint)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mtk_eint_do_suspend);
 
 int mtk_eint_do_resume(struct mtk_eint *eint)
 {
@@ -386,6 +415,7 @@ int mtk_eint_do_resume(struct mtk_eint *eint)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mtk_eint_do_resume);
 
 int mtk_eint_set_debounce(struct mtk_eint *eint, unsigned long eint_num,
 			  unsigned int debounce)
@@ -393,9 +423,10 @@ int mtk_eint_set_debounce(struct mtk_eint *eint, unsigned long eint_num,
 	int virq, eint_offset;
 	unsigned int set_offset, bit, clr_bit, clr_offset, rst, i, unmask,
 		     dbnc;
-	static const unsigned int debounce_time[] = {500, 1000, 16000, 32000,
-						     64000, 128000, 256000};
 	struct irq_data *d;
+
+	if (!eint->hw->db_time)
+		return -EOPNOTSUPP;
 
 	virq = irq_find_mapping(eint->domain, eint_num);
 	eint_offset = (eint_num % 4) * 8;
@@ -407,9 +438,9 @@ int mtk_eint_set_debounce(struct mtk_eint *eint, unsigned long eint_num,
 	if (!mtk_eint_can_en_debounce(eint, eint_num))
 		return -EINVAL;
 
-	dbnc = ARRAY_SIZE(debounce_time);
-	for (i = 0; i < ARRAY_SIZE(debounce_time); i++) {
-		if (debounce <= debounce_time[i]) {
+	dbnc = eint->num_db_time;
+	for (i = 0; i < eint->num_db_time; i++) {
+		if (debounce <= eint->hw->db_time[i]) {
 			dbnc = i;
 			break;
 		}
@@ -440,6 +471,7 @@ int mtk_eint_set_debounce(struct mtk_eint *eint, unsigned long eint_num,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mtk_eint_set_debounce);
 
 int mtk_eint_find_irq(struct mtk_eint *eint, unsigned long eint_n)
 {
@@ -451,6 +483,7 @@ int mtk_eint_find_irq(struct mtk_eint *eint, unsigned long eint_n)
 
 	return irq;
 }
+EXPORT_SYMBOL_GPL(mtk_eint_find_irq);
 
 int mtk_eint_do_init(struct mtk_eint *eint)
 {
@@ -481,6 +514,13 @@ int mtk_eint_do_init(struct mtk_eint *eint)
 	if (!eint->domain)
 		return -ENOMEM;
 
+	if (eint->hw->db_time) {
+		for (i = 0; i < MTK_EINT_DBNC_MAX; i++)
+			if (eint->hw->db_time[i] == 0)
+				break;
+		eint->num_db_time = i;
+	}
+
 	mtk_eint_hw_init(eint);
 	for (i = 0; i < eint->hw->ap_num; i++) {
 		int virq = irq_create_mapping(eint->domain, i);
@@ -495,3 +535,7 @@ int mtk_eint_do_init(struct mtk_eint *eint)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mtk_eint_do_init);
+
+MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("MediaTek EINT Driver");

@@ -9,6 +9,7 @@
 #include <asm/cio.h>
 #include <asm/fcx.h>
 #include <asm/schid.h>
+#include <asm/tpi.h>
 #include "chsc.h"
 
 /*
@@ -46,18 +47,6 @@ struct pmcw {
 				/*  ... in an operand exception.       */
 } __attribute__ ((packed));
 
-/* I/O-Interruption Code as stored by TEST PENDING INTERRUPTION (TPI). */
-struct tpi_info {
-	struct subchannel_id schid;
-	u32 intparm;
-	u32 adapter_IO:1;
-	u32 directed_irq:1;
-	u32 isc:3;
-	u32 :27;
-	u32 type:3;
-	u32 :12;
-} __packed __aligned(4);
-
 /* Target SCHIB configuration. */
 struct schib_config {
 	u64 mba;
@@ -94,7 +83,7 @@ enum sch_todo {
 /* subchannel data structure used by I/O subroutines */
 struct subchannel {
 	struct subchannel_id schid;
-	spinlock_t *lock;	/* subchannel lock */
+	spinlock_t lock;	/* subchannel lock */
 	struct mutex reg_mutex;
 	enum {
 		SUBCHANNEL_TYPE_IO = 0,
@@ -113,7 +102,12 @@ struct subchannel {
 	enum sch_todo todo;
 	struct work_struct todo_work;
 	struct schib_config config;
-	char *driver_override; /* Driver name to force a match */
+	u64 dma_mask;
+	/*
+	 * Driver name to force a match.  Do not set directly, because core
+	 * frees it.  Use driver_set_override() to set or clear it.
+	 */
+	const char *driver_override;
 } __attribute__ ((aligned(8)));
 
 DECLARE_PER_CPU_ALIGNED(struct irb, cio_irb);

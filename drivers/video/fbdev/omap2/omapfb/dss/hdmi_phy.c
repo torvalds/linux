@@ -143,7 +143,7 @@ int hdmi_phy_configure(struct hdmi_phy_data *phy, unsigned long hfbitclk,
 	/*
 	 * In OMAP5+, the HFBITCLK must be divided by 2 before issuing the
 	 * HDMI_PHYPWRCMD_LDOON command.
-	*/
+	 */
 	if (phy_feat->bist_ctrl)
 		REG_FLD_MOD(phy->base, HDMI_TXPHY_BIST_CONTROL, 1, 11, 11);
 
@@ -207,19 +207,11 @@ static const struct hdmi_phy_features *hdmi_phy_get_features(void)
 
 int hdmi_phy_init(struct platform_device *pdev, struct hdmi_phy_data *phy)
 {
-	struct resource *res;
-
 	phy_feat = hdmi_phy_get_features();
 	if (!phy_feat)
 		return -ENODEV;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "phy");
-	if (!res) {
-		DSSERR("can't get PHY mem resource\n");
-		return -EINVAL;
-	}
-
-	phy->base = devm_ioremap_resource(&pdev->dev, res);
+	phy->base = devm_platform_ioremap_resource_byname(pdev, "phy");
 	if (IS_ERR(phy->base)) {
 		DSSERR("can't ioremap TX PHY\n");
 		return PTR_ERR(phy->base);

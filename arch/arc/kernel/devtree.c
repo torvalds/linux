@@ -12,6 +12,7 @@
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <asm/mach_desc.h>
+#include <asm/serial.h>
 
 #ifdef CONFIG_SERIAL_EARLYCON
 
@@ -29,8 +30,6 @@ static void __init arc_set_early_base_baud(unsigned long dt_root)
 	else if (of_flat_dt_is_compatible(dt_root, "snps,arc-sdp") ||
 		 of_flat_dt_is_compatible(dt_root, "snps,hsdk"))
 		arc_base_baud = 33333333;	/* Fixed 33MHz clk (AXS10x & HSDK) */
-	else if (of_flat_dt_is_compatible(dt_root, "ezchip,arc-nps"))
-		arc_base_baud = 800000000;      /* Fixed 800MHz clk (NPS) */
 	else
 		arc_base_baud = 50000000;	/* Fixed default 50MHz */
 }

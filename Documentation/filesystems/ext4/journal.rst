@@ -4,14 +4,14 @@ Journal (jbd2)
 --------------
 
 Introduced in ext3, the ext4 filesystem employs a journal to protect the
-filesystem against corruption in the case of a system crash. A small
-continuous region of disk (default 128MiB) is reserved inside the
-filesystem as a place to land “important” data writes on-disk as quickly
-as possible. Once the important data transaction is fully written to the
-disk and flushed from the disk write cache, a record of the data being
-committed is also written to the journal. At some later point in time,
-the journal code writes the transactions to their final locations on
-disk (this could involve a lot of seeking or a lot of small
+filesystem against metadata inconsistencies in the case of a system crash. Up
+to 10,240,000 file system blocks (see man mke2fs(8) for more details on journal
+size limits) can be reserved inside the filesystem as a place to land
+“important” data writes on-disk as quickly as possible. Once the important
+data transaction is fully written to the disk and flushed from the disk write
+cache, a record of the data being committed is also written to the journal. At
+some later point in time, the journal code writes the transactions to their
+final locations on disk (this could involve a lot of seeking or a lot of small
 read-write-erases) before erasing the commit record. Should the system
 crash during the second slow write, the journal can be replayed all the
 way to the latest commit record, guaranteeing the atomicity of whatever
@@ -27,6 +27,17 @@ option to control journal behavior. If ``data=journal``, all data and
 metadata are written to disk through the journal. This is slower but
 safest. If ``data=writeback``, dirty data blocks are not flushed to the
 disk before the metadata are written to disk through the journal.
+
+In case of ``data=ordered`` mode, Ext4 also supports fast commits which
+help reduce commit latency significantly. The default ``data=ordered``
+mode works by logging metadata blocks to the journal. In fast commit
+mode, Ext4 only stores the minimal delta needed to recreate the
+affected metadata in fast commit space that is shared with JBD2.
+Once the fast commit area fills in or if fast commit is not possible
+or if JBD2 commit timer goes off, Ext4 performs a traditional full commit.
+A full commit invalidates all the fast commits that happened before
+it and thus it makes the fast commit area empty for further fast
+commits. This feature needs to be enabled at mkfs time.
 
 The journal inode is typically inode 8. The first 68 bytes of the
 journal inode are replicated in the ext4 superblock. The journal itself
@@ -52,8 +63,8 @@ Generally speaking, the journal has this format:
    :header-rows: 1
 
    * - Superblock
-     - descriptor\_block (data\_blocks or revocation\_block) [more data or
-       revocations] commmit\_block
+     - descriptor_block (data_blocks or revocation_block) [more data or
+       revocations] commmit_block
      - [more transactions...]
    * - 
      - One transaction
@@ -82,8 +93,8 @@ superblock.
    * - 1024 bytes of padding
      - ext4 Superblock
      - Journal Superblock
-     - descriptor\_block (data\_blocks or revocation\_block) [more data or
-       revocations] commmit\_block
+     - descriptor_block (data_blocks or revocation_block) [more data or
+       revocations] commmit_block
      - [more transactions...]
    * - 
      -
@@ -106,17 +117,17 @@ Every block in the journal starts with a common 12-byte header
      - Name
      - Description
    * - 0x0
-     - \_\_be32
-     - h\_magic
+     - __be32
+     - h_magic
      - jbd2 magic number, 0xC03B3998.
    * - 0x4
-     - \_\_be32
-     - h\_blocktype
+     - __be32
+     - h_blocktype
      - Description of what this block contains. See the jbd2_blocktype_ table
        below.
    * - 0x8
-     - \_\_be32
-     - h\_sequence
+     - __be32
+     - h_sequence
      - The transaction ID that goes with this block.
 
 .. _jbd2_blocktype:
@@ -166,95 +177,104 @@ which is 1024 bytes long:
      -
      - Static information describing the journal.
    * - 0x0
-     - journal\_header\_t (12 bytes)
-     - s\_header
+     - journal_header_t (12 bytes)
+     - s_header
      - Common header identifying this as a superblock.
    * - 0xC
-     - \_\_be32
-     - s\_blocksize
+     - __be32
+     - s_blocksize
      - Journal device block size.
    * - 0x10
-     - \_\_be32
-     - s\_maxlen
+     - __be32
+     - s_maxlen
      - Total number of blocks in this journal.
    * - 0x14
-     - \_\_be32
-     - s\_first
+     - __be32
+     - s_first
      - First block of log information.
    * -
      -
      -
      - Dynamic information describing the current state of the log.
    * - 0x18
-     - \_\_be32
-     - s\_sequence
+     - __be32
+     - s_sequence
      - First commit ID expected in log.
    * - 0x1C
-     - \_\_be32
-     - s\_start
+     - __be32
+     - s_start
      - Block number of the start of log. Contrary to the comments, this field
        being zero does not imply that the journal is clean!
    * - 0x20
-     - \_\_be32
-     - s\_errno
-     - Error value, as set by jbd2\_journal\_abort().
+     - __be32
+     - s_errno
+     - Error value, as set by jbd2_journal_abort().
    * -
      -
      -
      - The remaining fields are only valid in a v2 superblock.
    * - 0x24
-     - \_\_be32
-     - s\_feature\_compat;
+     - __be32
+     - s_feature_compat;
      - Compatible feature set. See the table jbd2_compat_ below.
    * - 0x28
-     - \_\_be32
-     - s\_feature\_incompat
+     - __be32
+     - s_feature_incompat
      - Incompatible feature set. See the table jbd2_incompat_ below.
    * - 0x2C
-     - \_\_be32
-     - s\_feature\_ro\_compat
+     - __be32
+     - s_feature_ro_compat
      - Read-only compatible feature set. There aren't any of these currently.
    * - 0x30
-     - \_\_u8
-     - s\_uuid[16]
+     - __u8
+     - s_uuid[16]
      - 128-bit uuid for journal. This is compared against the copy in the ext4
        super block at mount time.
    * - 0x40
-     - \_\_be32
-     - s\_nr\_users
+     - __be32
+     - s_nr_users
      - Number of file systems sharing this journal.
    * - 0x44
-     - \_\_be32
-     - s\_dynsuper
+     - __be32
+     - s_dynsuper
      - Location of dynamic super block copy. (Not used?)
    * - 0x48
-     - \_\_be32
-     - s\_max\_transaction
+     - __be32
+     - s_max_transaction
      - Limit of journal blocks per transaction. (Not used?)
    * - 0x4C
-     - \_\_be32
-     - s\_max\_trans\_data
+     - __be32
+     - s_max_trans_data
      - Limit of data blocks per transaction. (Not used?)
    * - 0x50
-     - \_\_u8
-     - s\_checksum\_type
+     - __u8
+     - s_checksum_type
      - Checksum algorithm used for the journal.  See jbd2_checksum_type_ for
        more info.
    * - 0x51
-     - \_\_u8[3]
-     - s\_padding2
+     - __u8[3]
+     - s_padding2
      -
    * - 0x54
-     - \_\_u32
-     - s\_padding[42]
+     - __be32
+     - s_num_fc_blocks
+     - Number of fast commit blocks in the journal.
+   * - 0x58
+     - __be32
+     - s_head
+     - Block number of the head (first unused block) of the journal, only
+       up-to-date when the journal is empty.
+   * - 0x5C
+     - __u32
+     - s_padding[40]
      -
    * - 0xFC
-     - \_\_be32
-     - s\_checksum
+     - __be32
+     - s_checksum
      - Checksum of the entire superblock, with this field set to zero.
    * - 0x100
-     - \_\_u8
-     - s\_users[16\*48]
+     - __u8
+     - s_users[16*48]
      - ids of all file systems sharing the log. e2fsprogs/Linux don't allow
        shared external journals, but I imagine Lustre (or ocfs2?), which use
        the jbd2 code, might.
@@ -271,7 +291,7 @@ The journal compat features are any combination of the following:
      - Description
    * - 0x1
      - Journal maintains checksums on the data blocks.
-       (JBD2\_FEATURE\_COMPAT\_CHECKSUM)
+       (JBD2_FEATURE_COMPAT_CHECKSUM)
 
 .. _jbd2_incompat:
 
@@ -284,21 +304,23 @@ The journal incompat features are any combination of the following:
    * - Value
      - Description
    * - 0x1
-     - Journal has block revocation records. (JBD2\_FEATURE\_INCOMPAT\_REVOKE)
+     - Journal has block revocation records. (JBD2_FEATURE_INCOMPAT_REVOKE)
    * - 0x2
      - Journal can deal with 64-bit block numbers.
-       (JBD2\_FEATURE\_INCOMPAT\_64BIT)
+       (JBD2_FEATURE_INCOMPAT_64BIT)
    * - 0x4
-     - Journal commits asynchronously. (JBD2\_FEATURE\_INCOMPAT\_ASYNC\_COMMIT)
+     - Journal commits asynchronously. (JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT)
    * - 0x8
      - This journal uses v2 of the checksum on-disk format. Each journal
        metadata block gets its own checksum, and the block tags in the
        descriptor table contain checksums for each of the data blocks in the
-       journal. (JBD2\_FEATURE\_INCOMPAT\_CSUM\_V2)
+       journal. (JBD2_FEATURE_INCOMPAT_CSUM_V2)
    * - 0x10
      - This journal uses v3 of the checksum on-disk format. This is the same as
        v2, but the journal block tag size is fixed regardless of the size of
-       block numbers. (JBD2\_FEATURE\_INCOMPAT\_CSUM\_V3)
+       block numbers. (JBD2_FEATURE_INCOMPAT_CSUM_V3)
+   * - 0x20
+     - Journal has fast commit blocks. (JBD2_FEATURE_INCOMPAT_FAST_COMMIT)
 
 .. _jbd2_checksum_type:
 
@@ -338,11 +360,11 @@ Descriptor blocks consume at least 36 bytes, but use a full block:
      - Name
      - Descriptor
    * - 0x0
-     - journal\_header\_t
+     - journal_header_t
      - (open coded)
      - Common block header.
    * - 0xC
-     - struct journal\_block\_tag\_s
+     - struct journal_block_tag_s
      - open coded array[]
      - Enough tags either to fill up the block or to describe all the data
        blocks that follow this descriptor block.
@@ -350,7 +372,7 @@ Descriptor blocks consume at least 36 bytes, but use a full block:
 Journal block tags have any of the following formats, depending on which
 journal feature and block tag flags are set.
 
-If JBD2\_FEATURE\_INCOMPAT\_CSUM\_V3 is set, the journal block tag is
+If JBD2_FEATURE_INCOMPAT_CSUM_V3 is set, the journal block tag is
 defined as ``struct journal_block_tag3_s``, which looks like the
 following. The size is 16 or 32 bytes.
 
@@ -363,24 +385,24 @@ following. The size is 16 or 32 bytes.
      - Name
      - Descriptor
    * - 0x0
-     - \_\_be32
-     - t\_blocknr
+     - __be32
+     - t_blocknr
      - Lower 32-bits of the location of where the corresponding data block
        should end up on disk.
    * - 0x4
-     - \_\_be32
-     - t\_flags
+     - __be32
+     - t_flags
      - Flags that go with the descriptor. See the table jbd2_tag_flags_ for
        more info.
    * - 0x8
-     - \_\_be32
-     - t\_blocknr\_high
+     - __be32
+     - t_blocknr_high
      - Upper 32-bits of the location of where the corresponding data block
-       should end up on disk. This is zero if JBD2\_FEATURE\_INCOMPAT\_64BIT is
+       should end up on disk. This is zero if JBD2_FEATURE_INCOMPAT_64BIT is
        not enabled.
    * - 0xC
-     - \_\_be32
-     - t\_checksum
+     - __be32
+     - t_checksum
      - Checksum of the journal UUID, the sequence number, and the data block.
    * -
      -
@@ -416,7 +438,7 @@ The journal tag flags are any combination of the following:
    * - 0x8
      - This is the last tag in this descriptor block.
 
-If JBD2\_FEATURE\_INCOMPAT\_CSUM\_V3 is NOT set, the journal block tag
+If JBD2_FEATURE_INCOMPAT_CSUM_V3 is NOT set, the journal block tag
 is defined as ``struct journal_block_tag_s``, which looks like the
 following. The size is 8, 12, 24, or 28 bytes:
 
@@ -429,18 +451,18 @@ following. The size is 8, 12, 24, or 28 bytes:
      - Name
      - Descriptor
    * - 0x0
-     - \_\_be32
-     - t\_blocknr
+     - __be32
+     - t_blocknr
      - Lower 32-bits of the location of where the corresponding data block
        should end up on disk.
    * - 0x4
-     - \_\_be16
-     - t\_checksum
+     - __be16
+     - t_checksum
      - Checksum of the journal UUID, the sequence number, and the data block.
        Note that only the lower 16 bits are stored.
    * - 0x6
-     - \_\_be16
-     - t\_flags
+     - __be16
+     - t_flags
      - Flags that go with the descriptor. See the table jbd2_tag_flags_ for
        more info.
    * -
@@ -449,8 +471,8 @@ following. The size is 8, 12, 24, or 28 bytes:
      - This next field is only present if the super block indicates support for
        64-bit block numbers.
    * - 0x8
-     - \_\_be32
-     - t\_blocknr\_high
+     - __be32
+     - t_blocknr_high
      - Upper 32-bits of the location of where the corresponding data block
        should end up on disk.
    * -
@@ -466,8 +488,8 @@ following. The size is 8, 12, 24, or 28 bytes:
        ``j_uuid`` field in ``struct journal_s``, but only tune2fs touches that
        field.
 
-If JBD2\_FEATURE\_INCOMPAT\_CSUM\_V2 or
-JBD2\_FEATURE\_INCOMPAT\_CSUM\_V3 are set, the end of the block is a
+If JBD2_FEATURE_INCOMPAT_CSUM_V2 or
+JBD2_FEATURE_INCOMPAT_CSUM_V3 are set, the end of the block is a
 ``struct jbd2_journal_block_tail``, which looks like this:
 
 .. list-table::
@@ -479,8 +501,8 @@ JBD2\_FEATURE\_INCOMPAT\_CSUM\_V3 are set, the end of the block is a
      - Name
      - Descriptor
    * - 0x0
-     - \_\_be32
-     - t\_checksum
+     - __be32
+     - t_checksum
      - Checksum of the journal UUID + the descriptor block, with this field set
        to zero.
 
@@ -521,25 +543,25 @@ length, but use a full block:
      - Name
      - Description
    * - 0x0
-     - journal\_header\_t
-     - r\_header
+     - journal_header_t
+     - r_header
      - Common block header.
    * - 0xC
-     - \_\_be32
-     - r\_count
+     - __be32
+     - r_count
      - Number of bytes used in this block.
    * - 0x10
-     - \_\_be32 or \_\_be64
+     - __be32 or __be64
      - blocks[0]
      - Blocks to revoke.
 
-After r\_count is a linear array of block numbers that are effectively
+After r_count is a linear array of block numbers that are effectively
 revoked by this transaction. The size of each block number is 8 bytes if
 the superblock advertises 64-bit block number support, or 4 bytes
 otherwise.
 
-If JBD2\_FEATURE\_INCOMPAT\_CSUM\_V2 or
-JBD2\_FEATURE\_INCOMPAT\_CSUM\_V3 are set, the end of the revocation
+If JBD2_FEATURE_INCOMPAT_CSUM_V2 or
+JBD2_FEATURE_INCOMPAT_CSUM_V3 are set, the end of the revocation
 block is a ``struct jbd2_journal_revoke_tail``, which has this format:
 
 .. list-table::
@@ -551,8 +573,8 @@ block is a ``struct jbd2_journal_revoke_tail``, which has this format:
      - Name
      - Description
    * - 0x0
-     - \_\_be32
-     - r\_checksum
+     - __be32
+     - r_checksum
      - Checksum of the journal UUID + revocation block
 
 Commit Block
@@ -575,37 +597,165 @@ bytes long (but uses a full block):
      - Name
      - Descriptor
    * - 0x0
-     - journal\_header\_s
+     - journal_header_s
      - (open coded)
      - Common block header.
    * - 0xC
      - unsigned char
-     - h\_chksum\_type
+     - h_chksum_type
      - The type of checksum to use to verify the integrity of the data blocks
        in the transaction. See jbd2_checksum_type_ for more info.
    * - 0xD
      - unsigned char
-     - h\_chksum\_size
+     - h_chksum_size
      - The number of bytes used by the checksum. Most likely 4.
    * - 0xE
      - unsigned char
-     - h\_padding[2]
+     - h_padding[2]
      -
    * - 0x10
-     - \_\_be32
-     - h\_chksum[JBD2\_CHECKSUM\_BYTES]
+     - __be32
+     - h_chksum[JBD2_CHECKSUM_BYTES]
      - 32 bytes of space to store checksums. If
-       JBD2\_FEATURE\_INCOMPAT\_CSUM\_V2 or JBD2\_FEATURE\_INCOMPAT\_CSUM\_V3
+       JBD2_FEATURE_INCOMPAT_CSUM_V2 or JBD2_FEATURE_INCOMPAT_CSUM_V3
        are set, the first ``__be32`` is the checksum of the journal UUID and
        the entire commit block, with this field zeroed. If
-       JBD2\_FEATURE\_COMPAT\_CHECKSUM is set, the first ``__be32`` is the
+       JBD2_FEATURE_COMPAT_CHECKSUM is set, the first ``__be32`` is the
        crc32 of all the blocks already written to the transaction.
    * - 0x30
-     - \_\_be64
-     - h\_commit\_sec
+     - __be64
+     - h_commit_sec
      - The time that the transaction was committed, in seconds since the epoch.
    * - 0x38
-     - \_\_be32
-     - h\_commit\_nsec
+     - __be32
+     - h_commit_nsec
      - Nanoseconds component of the above timestamp.
 
+Fast commits
+~~~~~~~~~~~~
+
+Fast commit area is organized as a log of tag length values. Each TLV has
+a ``struct ext4_fc_tl`` in the beginning which stores the tag and the length
+of the entire field. It is followed by variable length tag specific value.
+Here is the list of supported tags and their meanings:
+
+.. list-table::
+   :widths: 8 20 20 32
+   :header-rows: 1
+
+   * - Tag
+     - Meaning
+     - Value struct
+     - Description
+   * - EXT4_FC_TAG_HEAD
+     - Fast commit area header
+     - ``struct ext4_fc_head``
+     - Stores the TID of the transaction after which these fast commits should
+       be applied.
+   * - EXT4_FC_TAG_ADD_RANGE
+     - Add extent to inode
+     - ``struct ext4_fc_add_range``
+     - Stores the inode number and extent to be added in this inode
+   * - EXT4_FC_TAG_DEL_RANGE
+     - Remove logical offsets to inode
+     - ``struct ext4_fc_del_range``
+     - Stores the inode number and the logical offset range that needs to be
+       removed
+   * - EXT4_FC_TAG_CREAT
+     - Create directory entry for a newly created file
+     - ``struct ext4_fc_dentry_info``
+     - Stores the parent inode number, inode number and directory entry of the
+       newly created file
+   * - EXT4_FC_TAG_LINK
+     - Link a directory entry to an inode
+     - ``struct ext4_fc_dentry_info``
+     - Stores the parent inode number, inode number and directory entry
+   * - EXT4_FC_TAG_UNLINK
+     - Unlink a directory entry of an inode
+     - ``struct ext4_fc_dentry_info``
+     - Stores the parent inode number, inode number and directory entry
+
+   * - EXT4_FC_TAG_PAD
+     - Padding (unused area)
+     - None
+     - Unused bytes in the fast commit area.
+
+   * - EXT4_FC_TAG_TAIL
+     - Mark the end of a fast commit
+     - ``struct ext4_fc_tail``
+     - Stores the TID of the commit, CRC of the fast commit of which this tag
+       represents the end of
+
+Fast Commit Replay Idempotence
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Fast commits tags are idempotent in nature provided the recovery code follows
+certain rules. The guiding principle that the commit path follows while
+committing is that it stores the result of a particular operation instead of
+storing the procedure.
+
+Let's consider this rename operation: 'mv /a /b'. Let's assume dirent '/a'
+was associated with inode 10. During fast commit, instead of storing this
+operation as a procedure "rename a to b", we store the resulting file system
+state as a "series" of outcomes:
+
+- Link dirent b to inode 10
+- Unlink dirent a
+- Inode 10 with valid refcount
+
+Now when recovery code runs, it needs "enforce" this state on the file
+system. This is what guarantees idempotence of fast commit replay.
+
+Let's take an example of a procedure that is not idempotent and see how fast
+commits make it idempotent. Consider following sequence of operations:
+
+1) rm A
+2) mv B A
+3) read A
+
+If we store this sequence of operations as is then the replay is not idempotent.
+Let's say while in replay, we crash after (2). During the second replay,
+file A (which was actually created as a result of "mv B A" operation) would get
+deleted. Thus, file named A would be absent when we try to read A. So, this
+sequence of operations is not idempotent. However, as mentioned above, instead
+of storing the procedure fast commits store the outcome of each procedure. Thus
+the fast commit log for above procedure would be as follows:
+
+(Let's assume dirent A was linked to inode 10 and dirent B was linked to
+inode 11 before the replay)
+
+1) Unlink A
+2) Link A to inode 11
+3) Unlink B
+4) Inode 11
+
+If we crash after (3) we will have file A linked to inode 11. During the second
+replay, we will remove file A (inode 11). But we will create it back and make
+it point to inode 11. We won't find B, so we'll just skip that step. At this
+point, the refcount for inode 11 is not reliable, but that gets fixed by the
+replay of last inode 11 tag. Thus, by converting a non-idempotent procedure
+into a series of idempotent outcomes, fast commits ensured idempotence during
+the replay.
+
+Journal Checkpoint
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Checkpointing the journal ensures all transactions and their associated buffers
+are submitted to the disk. In-progress transactions are waited upon and included
+in the checkpoint. Checkpointing is used internally during critical updates to
+the filesystem including journal recovery, filesystem resizing, and freeing of
+the journal_t structure.
+
+A journal checkpoint can be triggered from userspace via the ioctl
+EXT4_IOC_CHECKPOINT. This ioctl takes a single, u64 argument for flags.
+Currently, three flags are supported. First, EXT4_IOC_CHECKPOINT_FLAG_DRY_RUN
+can be used to verify input to the ioctl. It returns error if there is any
+invalid input, otherwise it returns success without performing
+any checkpointing. This can be used to check whether the ioctl exists on a
+system and to verify there are no issues with arguments or flags. The
+other two flags are EXT4_IOC_CHECKPOINT_FLAG_DISCARD and
+EXT4_IOC_CHECKPOINT_FLAG_ZEROOUT. These flags cause the journal blocks to be
+discarded or zero-filled, respectively, after the journal checkpoint is
+complete. EXT4_IOC_CHECKPOINT_FLAG_DISCARD and EXT4_IOC_CHECKPOINT_FLAG_ZEROOUT
+cannot both be set. The ioctl may be useful when snapshotting a system or for
+complying with content deletion SLOs.

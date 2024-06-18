@@ -161,7 +161,7 @@ static struct msi_domain_info odmi_msi_domain_info = {
 static int __init mvebu_odmi_init(struct device_node *node,
 				  struct device_node *parent)
 {
-	struct irq_domain *inner_domain, *plat_domain;
+	struct irq_domain *parent_domain, *inner_domain, *plat_domain;
 	int ret, i;
 
 	if (of_property_read_u32(node, "marvell,odmi-frames", &odmis_count))
@@ -171,8 +171,7 @@ static int __init mvebu_odmi_init(struct device_node *node,
 	if (!odmis)
 		return -ENOMEM;
 
-	odmis_bm = kcalloc(BITS_TO_LONGS(odmis_count * NODMIS_PER_FRAME),
-			   sizeof(long), GFP_KERNEL);
+	odmis_bm = bitmap_zalloc(odmis_count * NODMIS_PER_FRAME, GFP_KERNEL);
 	if (!odmis_bm) {
 		ret = -ENOMEM;
 		goto err_alloc;
@@ -198,15 +197,16 @@ static int __init mvebu_odmi_init(struct device_node *node,
 		}
 	}
 
-	inner_domain = irq_domain_create_linear(of_node_to_fwnode(node),
-						odmis_count * NODMIS_PER_FRAME,
-						&odmi_domain_ops, NULL);
+	parent_domain = irq_find_host(parent);
+
+	inner_domain = irq_domain_create_hierarchy(parent_domain, 0,
+						   odmis_count * NODMIS_PER_FRAME,
+						   of_node_to_fwnode(node),
+						   &odmi_domain_ops, NULL);
 	if (!inner_domain) {
 		ret = -ENOMEM;
 		goto err_unmap;
 	}
-
-	inner_domain->parent = irq_find_host(parent);
 
 	plat_domain = platform_msi_create_irq_domain(of_node_to_fwnode(node),
 						     &odmi_msi_domain_info,
@@ -227,7 +227,7 @@ err_unmap:
 		if (odmi->base && !IS_ERR(odmi->base))
 			iounmap(odmis[i].base);
 	}
-	kfree(odmis_bm);
+	bitmap_free(odmis_bm);
 err_alloc:
 	kfree(odmis);
 	return ret;

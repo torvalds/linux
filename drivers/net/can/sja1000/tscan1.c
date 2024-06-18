@@ -5,10 +5,9 @@
  * Copyright 2010 Andre B. Oliveira
  */
 
-/*
- * References:
- * - Getting started with TS-CAN1, Technologic Systems, Jun 2009
- *	http://www.embeddedarm.com/documentation/ts-can1-manual.pdf
+/* References:
+ * - Getting started with TS-CAN1, Technologic Systems, Feb 2022
+ *	https://docs.embeddedts.com/TS-CAN1
  */
 
 #include <linux/init.h>
@@ -159,7 +158,7 @@ static int tscan1_probe(struct device *dev, unsigned id)
 	return -ENXIO;
 }
 
-static int tscan1_remove(struct device *dev, unsigned id /*unused*/)
+static void tscan1_remove(struct device *dev, unsigned id /*unused*/)
 {
 	struct net_device *netdev;
 	struct sja1000_priv *priv;
@@ -179,8 +178,6 @@ static int tscan1_remove(struct device *dev, unsigned id /*unused*/)
 	release_region(pld_base, TSCAN1_PLD_SIZE);
 
 	free_sja1000dev(netdev);
-
-	return 0;
 }
 
 static struct isa_driver tscan1_isa_driver = {

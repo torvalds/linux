@@ -122,13 +122,11 @@ static ssize_t hostaudio_write(struct file *file, const char __user *buffer,
 static __poll_t hostaudio_poll(struct file *file,
 				struct poll_table_struct *wait)
 {
-	__poll_t mask = 0;
-
 #ifdef DEBUG
 	printk(KERN_DEBUG "hostaudio: poll called (unimplemented)\n");
 #endif
 
-	return mask;
+	return 0;
 }
 
 static long hostaudio_ioctl(struct file *file,
@@ -298,6 +296,7 @@ static const struct file_operations hostaudio_fops = {
 	.write          = hostaudio_write,
 	.poll           = hostaudio_poll,
 	.unlocked_ioctl	= hostaudio_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.mmap           = NULL,
 	.open           = hostaudio_open,
 	.release        = hostaudio_release,
@@ -311,7 +310,7 @@ static const struct file_operations hostmixer_fops = {
 	.release        = hostmixer_release,
 };
 
-struct {
+static struct {
 	int dev_audio;
 	int dev_mixer;
 } module_data;

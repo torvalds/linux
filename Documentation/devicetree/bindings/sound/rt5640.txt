@@ -20,6 +20,9 @@ Optional properties:
 - realtek,in3-differential
   Boolean. Indicate MIC1/2/3 input are differential, rather than single-ended.
 
+- realtek,lout-differential
+  Boolean. Indicate LOUT output is differential, rather than stereo.
+
 - realtek,ldo1-en-gpios : The GPIO that controls the CODEC's LDO1_EN pin.
 
 - realtek,dmic1-data-pin
@@ -88,7 +91,7 @@ rt5640 {
 	compatible = "realtek,rt5640";
 	reg = <0x1c>;
 	interrupt-parent = <&gpio>;
-	interrupts = <TEGRA_GPIO(W, 3) GPIO_ACTIVE_HIGH>;
+	interrupts = <TEGRA_GPIO(W, 3) IRQ_TYPE_LEVEL_HIGH>;
 	realtek,ldo1-en-gpios =
 		<&gpio TEGRA_GPIO(V, 3) GPIO_ACTIVE_HIGH>;
 };

@@ -5,7 +5,9 @@ TEST_GEN_PROGS := dscr_default_test dscr_explicit_test dscr_user_test	\
 
 top_srcdir = ../../../../..
 include ../../lib.mk
+include ../flags.mk
 
 $(OUTPUT)/dscr_default_test: LDLIBS += -lpthread
+$(OUTPUT)/dscr_explicit_test: LDLIBS += -lpthread
 
-$(TEST_GEN_PROGS): ../harness.c
+$(TEST_GEN_PROGS): ../harness.c ../utils.c

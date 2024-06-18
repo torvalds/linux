@@ -52,15 +52,15 @@ static void mt76x0_set_chip_cap(struct mt76x02_dev *dev)
 
 	mt76x02_eeprom_parse_hw_cap(dev);
 	dev_dbg(dev->mt76.dev, "2GHz %d 5GHz %d\n",
-		dev->mt76.cap.has_2ghz, dev->mt76.cap.has_5ghz);
+		dev->mphy.cap.has_2ghz, dev->mphy.cap.has_5ghz);
 
 	if (dev->no_2ghz) {
-		dev->mt76.cap.has_2ghz = false;
+		dev->mphy.cap.has_2ghz = false;
 		dev_dbg(dev->mt76.dev, "mask out 2GHz support\n");
 	}
 
 	if (is_mt7630(dev)) {
-		dev->mt76.cap.has_5ghz = false;
+		dev->mphy.cap.has_5ghz = false;
 		dev_dbg(dev->mt76.dev, "mask out 5GHz support\n");
 	}
 
@@ -68,7 +68,7 @@ static void mt76x0_set_chip_cap(struct mt76x02_dev *dev)
 		nic_conf1 &= 0xff00;
 
 	if (nic_conf1 & MT_EE_NIC_CONF_1_HW_RF_CTRL)
-		dev_err(dev->mt76.dev,
+		dev_dbg(dev->mt76.dev,
 			"driver does not support HW RF ctrl\n");
 
 	if (!mt76x02_field_valid(nic_conf0 >> 8))
@@ -109,7 +109,7 @@ static void mt76x0_set_freq_offset(struct mt76x02_dev *dev)
 
 void mt76x0_read_rx_gain(struct mt76x02_dev *dev)
 {
-	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
+	struct ieee80211_channel *chan = dev->mphy.chandef.chan;
 	struct mt76x02_rx_freq_cal *caldata = &dev->cal.rx;
 	s8 val, lna_5g[3], lna_2g;
 	u16 rssi_offset;
@@ -129,7 +129,7 @@ void mt76x0_read_rx_gain(struct mt76x02_dev *dev)
 
 static s8 mt76x0_get_delta(struct mt76x02_dev *dev)
 {
-	struct cfg80211_chan_def *chandef = &dev->mt76.chandef;
+	struct cfg80211_chan_def *chandef = &dev->mphy.chandef;
 	u8 val;
 
 	if (chandef->width == NL80211_CHAN_WIDTH_80) {
@@ -151,7 +151,7 @@ static s8 mt76x0_get_delta(struct mt76x02_dev *dev)
 
 void mt76x0_get_tx_power_per_rate(struct mt76x02_dev *dev,
 				  struct ieee80211_channel *chan,
-				  struct mt76_rate_power *t)
+				  struct mt76x02_rate_power *t)
 {
 	bool is_2ghz = chan->band == NL80211_BAND_2GHZ;
 	u16 val, addr;
@@ -179,31 +179,19 @@ void mt76x0_get_tx_power_per_rate(struct mt76x02_dev *dev,
 	/* ht-vht mcs 1ss 0, 1, 2, 3 */
 	addr = is_2ghz ? MT_EE_TX_POWER_BYRATE_BASE + 6 : 0x124;
 	val = mt76x02_eeprom_get(dev, addr);
-	t->ht[0] = t->ht[1] = t->vht[0] = t->vht[1] = s6_to_s8(val);
-	t->ht[2] = t->ht[3] = t->vht[2] = t->vht[3] = s6_to_s8(val >> 8);
+	t->ht[0] = t->ht[1] = s6_to_s8(val);
+	t->ht[2] = t->ht[3] = s6_to_s8(val >> 8);
 
 	/* ht-vht mcs 1ss 4, 5, 6 */
 	addr = is_2ghz ? MT_EE_TX_POWER_BYRATE_BASE + 8 : 0x126;
 	val = mt76x02_eeprom_get(dev, addr);
-	t->ht[4] = t->ht[5] = t->vht[4] = t->vht[5] = s6_to_s8(val);
-	t->ht[6] = t->ht[7] = t->vht[6] = t->vht[7] = s6_to_s8(val >> 8);
-
-	/* ht-vht mcs 1ss 0, 1, 2, 3 stbc */
-	addr = is_2ghz ? MT_EE_TX_POWER_BYRATE_BASE + 14 : 0xec;
-	val = mt76x02_eeprom_get(dev, addr);
-	t->stbc[0] = t->stbc[1] = s6_to_s8(val);
-	t->stbc[2] = t->stbc[3] = s6_to_s8(val >> 8);
-
-	/* ht-vht mcs 1ss 4, 5, 6 stbc */
-	addr = is_2ghz ? MT_EE_TX_POWER_BYRATE_BASE + 16 : 0xee;
-	val = mt76x02_eeprom_get(dev, addr);
-	t->stbc[4] = t->stbc[5] = s6_to_s8(val);
-	t->stbc[6] = t->stbc[7] = s6_to_s8(val >> 8);
+	t->ht[4] = t->ht[5] = s6_to_s8(val);
+	t->ht[6] = t->ht[7] = s6_to_s8(val >> 8);
 
 	/* vht mcs 8, 9 5GHz */
-	val = mt76x02_eeprom_get(dev, 0x132);
-	t->vht[8] = s6_to_s8(val);
-	t->vht[9] = s6_to_s8(val >> 8);
+	val = mt76x02_eeprom_get(dev, 0x12c);
+	t->vht[0] = s6_to_s8(val);
+	t->vht[1] = s6_to_s8(val >> 8);
 
 	delta = mt76x0_tssi_enabled(dev) ? 0 : mt76x0_get_delta(dev);
 	mt76x02_add_rate_power_offset(t, delta);
@@ -212,7 +200,7 @@ void mt76x0_get_tx_power_per_rate(struct mt76x02_dev *dev,
 void mt76x0_get_power_info(struct mt76x02_dev *dev,
 			   struct ieee80211_channel *chan, s8 *tp)
 {
-	struct mt76x0_chan_map {
+	static const struct mt76x0_chan_map {
 		u8 chan;
 		u8 offset;
 	} chan_map[] = {
@@ -235,7 +223,7 @@ void mt76x0_get_power_info(struct mt76x02_dev *dev,
 			data = mt76x02_eeprom_get(dev, MT_EE_5G_TARGET_POWER);
 		else
 			data = mt76x02_eeprom_get(dev, MT_EE_2G_TARGET_POWER);
-		target_power = (data & 0xff) - dev->mt76.rate_power.ofdm[7];
+		target_power = (data & 0xff) - dev->rate_power.ofdm[7];
 		*tp = target_power + mt76x0_get_delta(dev);
 
 		return;
@@ -342,7 +330,11 @@ int mt76x0_eeprom_init(struct mt76x02_dev *dev)
 	dev_info(dev->mt76.dev, "EEPROM ver:%02hhx fae:%02hhx\n",
 		 version, fae);
 
-	mt76x02_mac_setaddr(dev, dev->mt76.eeprom.data + MT_EE_MAC_ADDR);
+	memcpy(dev->mphy.macaddr, (u8 *)dev->mt76.eeprom.data + MT_EE_MAC_ADDR,
+	       ETH_ALEN);
+	mt76_eeprom_override(&dev->mphy);
+	mt76x02_mac_setaddr(dev, dev->mphy.macaddr);
+
 	mt76x0_set_chip_cap(dev);
 	mt76x0_set_freq_offset(dev);
 	mt76x0_set_temp_offset(dev);
@@ -350,4 +342,5 @@ int mt76x0_eeprom_init(struct mt76x02_dev *dev)
 	return 0;
 }
 
+MODULE_DESCRIPTION("MediaTek MT76x EEPROM helpers");
 MODULE_LICENSE("Dual BSD/GPL");

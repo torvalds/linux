@@ -1,0 +1,279 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mmc/marvell,xenon-sdhci.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell Xenon SDHCI Controller
+
+description: |
+  This file documents differences between the core MMC properties described by
+  mmc-controller.yaml and the properties used by the Xenon implementation.
+
+  Multiple SDHCs might be put into a single Xenon IP, to save size and cost.
+  Each SDHC is independent and owns independent resources, such as register
+  sets, clock and PHY.
+
+  Each SDHC should have an independent device tree node.
+
+maintainers:
+  - Ulf Hansson <ulf.hansson@linaro.org>
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - marvell,armada-cp110-sdhci
+          - marvell,armada-ap806-sdhci
+
+      - items:
+          - enum:
+              - marvell,armada-ap807-sdhci
+              - marvell,ac5-sdhci
+          - const: marvell,armada-ap806-sdhci
+
+      - items:
+          - const: marvell,armada-3700-sdhci
+          - const: marvell,sdhci-xenon
+
+  reg:
+    minItems: 1
+    maxItems: 2
+    description: |
+      For "marvell,armada-3700-sdhci", two register areas.  The first one
+      for Xenon IP register. The second one for the Armada 3700 SoC PHY PAD
+      Voltage Control register.  Please follow the examples with compatible
+      "marvell,armada-3700-sdhci" in below.
+      Please also check property marvell,pad-type in below.
+
+      For other compatible strings, one register area for Xenon IP.
+
+  clocks:
+    minItems: 1
+    maxItems: 2
+
+  clock-names:
+    minItems: 1
+    items:
+      - const: core
+      - const: axi
+
+  interrupts:
+    maxItems: 1
+
+  marvell,xenon-sdhc-id:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 7
+    description: |
+      Indicate the corresponding bit index of current SDHC in SDHC System
+      Operation Control Register Bit[7:0].  Set/clear the corresponding bit to
+      enable/disable current SDHC.
+
+  marvell,xenon-phy-type:
+    $ref: /schemas/types.yaml#/definitions/string
+    enum:
+      - emmc 5.1 phy
+      - emmc 5.0 phy
+    description: |
+      Xenon support multiple types of PHYs. To select eMMC 5.1 PHY, set:
+      marvell,xenon-phy-type = "emmc 5.1 phy" eMMC 5.1 PHY is the default
+      choice if this property is not provided.  To select eMMC 5.0 PHY, set:
+      marvell,xenon-phy-type = "emmc 5.0 phy"
+
+      All those types of PHYs can support eMMC, SD and SDIO. Please note that
+      this property only presents the type of PHY.  It doesn't stand for the
+      entire SDHC type or property.  For example, "emmc 5.1 phy" doesn't mean
+      that this Xenon SDHC only supports eMMC 5.1.
+
+  marvell,xenon-phy-znr:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 0x1f
+    default: 0xf
+    description: |
+      Set PHY ZNR value.
+      Only available for eMMC PHY.
+
+  marvell,xenon-phy-zpr:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 0x1f
+    default: 0xf
+    description: |
+      Set PHY ZPR value.
+      Only available for eMMC PHY.
+
+  marvell,xenon-phy-nr-success-tun:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 1
+    maximum: 7
+    default: 0x4
+    description: |
+      Set the number of required consecutive successful sampling points
+      used to identify a valid sampling window, in tuning process.
+
+  marvell,xenon-phy-tun-step-divider:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    default: 64
+    description: |
+      Set the divider for calculating TUN_STEP.
+
+  marvell,xenon-phy-slow-mode:
+    type: boolean
+    description: |
+      If this property is selected, transfers will bypass PHY.
+      Only available when bus frequency lower than 55MHz in SDR mode.
+      Disabled by default. Please only try this property if timing issues
+      always occur with PHY enabled in eMMC HS SDR, SD SDR12, SD SDR25,
+      SD Default Speed and HS mode and eMMC legacy speed mode.
+
+  marvell,xenon-tun-count:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    default: 0x9
+    description: |
+      Xenon SDHC SoC usually doesn't provide re-tuning counter in
+      Capabilities Register 3 Bit[11:8].
+      This property provides the re-tuning counter.
+
+allOf:
+  - $ref: mmc-controller.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: marvell,armada-3700-sdhci
+
+    then:
+      properties:
+        reg:
+          items:
+            - description: Xenon IP registers
+            - description: Armada 3700 SoC PHY PAD Voltage Control register
+
+        marvell,pad-type:
+          $ref: /schemas/types.yaml#/definitions/string
+          enum:
+            - sd
+            - fixed-1-8v
+          description: |
+            Type of Armada 3700 SoC PHY PAD Voltage Controller register.
+            If "sd" is selected, SoC PHY PAD is set as 3.3V at the beginning
+            and is switched to 1.8V when later in higher speed mode.
+            If "fixed-1-8v" is selected, SoC PHY PAD is fixed 1.8V, such as for
+            eMMC.
+            Please follow the examples with compatible
+            "marvell,armada-3700-sdhci" in below.
+
+      required:
+        - marvell,pad-type
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - marvell,armada-cp110-sdhci
+              - marvell,armada-ap807-sdhci
+              - marvell,armada-ap806-sdhci
+
+    then:
+      properties:
+        clocks:
+          minItems: 2
+
+        clock-names:
+          items:
+            - const: core
+            - const: axi
+
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    // For eMMC
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    mmc@aa0000 {
+      compatible = "marvell,armada-ap807-sdhci", "marvell,armada-ap806-sdhci";
+      reg = <0xaa0000 0x1000>;
+      interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
+      clocks = <&emmc_clk 0>, <&axi_clk 0>;
+      clock-names = "core", "axi";
+      bus-width = <4>;
+      marvell,xenon-phy-slow-mode;
+      marvell,xenon-tun-count = <11>;
+      non-removable;
+      no-sd;
+      no-sdio;
+
+      /* Vmmc and Vqmmc are both fixed */
+    };
+
+  - |
+    // For SD/SDIO
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    mmc@ab0000 {
+      compatible = "marvell,armada-cp110-sdhci";
+      reg = <0xab0000 0x1000>;
+      interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
+      vqmmc-supply = <&sd_vqmmc_regulator>;
+      vmmc-supply = <&sd_vmmc_regulator>;
+      clocks = <&sdclk 0>, <&axi_clk 0>;
+      clock-names = "core", "axi";
+      bus-width = <4>;
+      marvell,xenon-tun-count = <9>;
+    };
+
+  - |
+    // For eMMC with compatible "marvell,armada-3700-sdhci":
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    mmc@aa0000 {
+      compatible = "marvell,armada-3700-sdhci", "marvell,sdhci-xenon";
+      reg = <0xaa0000 0x1000>,
+            <0x17808 0x4>;
+      interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
+      clocks = <&emmcclk 0>;
+      clock-names = "core";
+      bus-width = <8>;
+      mmc-ddr-1_8v;
+      mmc-hs400-1_8v;
+      non-removable;
+      no-sd;
+      no-sdio;
+
+      /* Vmmc and Vqmmc are both fixed */
+
+      marvell,pad-type = "fixed-1-8v";
+    };
+
+  - |
+    // For SD/SDIO with compatible "marvell,armada-3700-sdhci":
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    mmc@ab0000 {
+      compatible = "marvell,armada-3700-sdhci", "marvell,sdhci-xenon";
+      reg = <0xab0000 0x1000>,
+            <0x17808 0x4>;
+      interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
+      vqmmc-supply = <&sd_regulator>;
+      /* Vmmc is fixed */
+      clocks = <&sdclk 0>;
+      clock-names = "core";
+      bus-width = <4>;
+
+      marvell,pad-type = "sd";
+    };

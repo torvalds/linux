@@ -3,6 +3,10 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/memblock.h>
+#include <linux/seq_file.h>
+
+static bool early_memtest_done;
+static phys_addr_t early_memtest_bad_size;
 
 static u64 patterns[] __initdata = {
 	/* The first entry has to be 0 to leave memtest with zeroed memory */
@@ -30,6 +34,7 @@ static void __init reserve_bad_mem(u64 pattern, phys_addr_t start_bad, phys_addr
 	pr_info("  %016llx bad mem addr %pa - %pa reserved\n",
 		cpu_to_be64(pattern), &start_bad, &end_bad);
 	memblock_reserve(start_bad, end_bad - start_bad);
+	early_memtest_bad_size += (end_bad - start_bad);
 }
 
 static void __init memtest(u64 pattern, phys_addr_t start_phys, phys_addr_t size)
@@ -46,10 +51,10 @@ static void __init memtest(u64 pattern, phys_addr_t start_phys, phys_addr_t size
 	last_bad = 0;
 
 	for (p = start; p < end; p++)
-		*p = pattern;
+		WRITE_ONCE(*p, pattern);
 
 	for (p = start; p < end; p++, start_phys_aligned += incr) {
-		if (*p == pattern)
+		if (READ_ONCE(*p) == pattern)
 			continue;
 		if (start_phys_aligned == last_bad + incr) {
 			last_bad += incr;
@@ -61,6 +66,8 @@ static void __init memtest(u64 pattern, phys_addr_t start_phys, phys_addr_t size
 	}
 	if (start_bad)
 		reserve_bad_mem(pattern, start_bad, last_bad + incr);
+
+	early_memtest_done = true;
 }
 
 static void __init do_one_pass(u64 pattern, phys_addr_t start, phys_addr_t end)
@@ -110,4 +117,21 @@ void __init early_memtest(phys_addr_t start, phys_addr_t end)
 		idx = i % ARRAY_SIZE(patterns);
 		do_one_pass(patterns[idx], start, end);
 	}
+}
+
+void memtest_report_meminfo(struct seq_file *m)
+{
+	unsigned long early_memtest_bad_size_kb;
+
+	if (!IS_ENABLED(CONFIG_PROC_FS))
+		return;
+
+	if (!early_memtest_done)
+		return;
+
+	early_memtest_bad_size_kb = early_memtest_bad_size >> 10;
+	if (early_memtest_bad_size && !early_memtest_bad_size_kb)
+		early_memtest_bad_size_kb = 1;
+	/* When 0 is reported, it means there actually was a successful test */
+	seq_printf(m, "EarlyMemtestBad:   %5lu kB\n", early_memtest_bad_size_kb);
 }

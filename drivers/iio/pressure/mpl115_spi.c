@@ -92,6 +92,7 @@ MODULE_DEVICE_TABLE(spi, mpl115_spi_ids);
 static struct spi_driver mpl115_spi_driver = {
 	.driver = {
 		.name   = "mpl115",
+		.pm = pm_ptr(&mpl115_dev_pm_ops),
 	},
 	.probe = mpl115_spi_probe,
 	.id_table = mpl115_spi_ids,
@@ -101,3 +102,4 @@ module_spi_driver(mpl115_spi_driver);
 MODULE_AUTHOR("Akinobu Mita <akinobu.mita@gmail.com>");
 MODULE_DESCRIPTION("Freescale MPL115A1 pressure/temperature driver");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(IIO_MPL115);

@@ -8,6 +8,7 @@
 #include <linux/kvm_host.h>
 #include <linux/err.h>
 #include <linux/kernel_stat.h>
+#include <linux/pgtable.h>
 
 #include <asm/kvm_book3s.h>
 #include <asm/kvm_ppc.h>
@@ -15,7 +16,6 @@
 #include <asm/xics.h>
 #include <asm/synch.h>
 #include <asm/cputhreads.h>
-#include <asm/pgtable.h>
 #include <asm/ppc-opcode.h>
 #include <asm/pnv-pci.h>
 #include <asm/opal.h>
@@ -138,13 +138,6 @@ static void icp_rm_set_vcpu_irq(struct kvm_vcpu *vcpu,
 	/* Kick self ? Just set MER and return */
 	if (vcpu == this_vcpu) {
 		mtspr(SPRN_LPCR, mfspr(SPRN_LPCR) | LPCR_MER);
-		return;
-	}
-
-	if (xive_enabled() && kvmhv_on_pseries()) {
-		/* No XICS access or hypercalls available, too hard */
-		this_icp->rm_action |= XICS_RM_KICK_VCPU;
-		this_icp->rm_kick_target = vcpu;
 		return;
 	}
 
@@ -486,6 +479,11 @@ static void icp_rm_down_cppr(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 	}
 }
 
+unsigned long xics_rm_h_xirr_x(struct kvm_vcpu *vcpu)
+{
+	kvmppc_set_gpr(vcpu, 5, get_tb());
+	return xics_rm_h_xirr(vcpu);
+}
 
 unsigned long xics_rm_h_xirr(struct kvm_vcpu *vcpu)
 {
@@ -520,7 +518,7 @@ unsigned long xics_rm_h_xirr(struct kvm_vcpu *vcpu)
 	} while (!icp_rm_try_update(icp, old_state, new_state));
 
 	/* Return the result in GPR4 */
-	vcpu->arch.regs.gpr[4] = xirr;
+	kvmppc_set_gpr(vcpu, 4, xirr);
 
 	return check_too_hard(xics, icp);
 }
@@ -713,6 +711,7 @@ static int ics_rm_eoi(struct kvm_vcpu *vcpu, u32 irq)
 		icp->rm_eoied_irq = irq;
 	}
 
+	/* Handle passthrough interrupts */
 	if (state->host_irq) {
 		++vcpu->stat.pthru_all;
 		if (state->intr_cpu != -1) {
@@ -764,22 +763,14 @@ int xics_rm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
 	return ics_rm_eoi(vcpu, irq);
 }
 
-unsigned long eoi_rc;
+static unsigned long eoi_rc;
 
-static void icp_eoi(struct irq_chip *c, u32 hwirq, __be32 xirr, bool *again)
+static void icp_eoi(struct irq_data *d, u32 hwirq, __be32 xirr, bool *again)
 {
 	void __iomem *xics_phys;
 	int64_t rc;
 
-	if (kvmhv_on_pseries()) {
-		unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
-
-		iosync();
-		plpar_hcall_raw(H_EOI, retbuf, hwirq);
-		return;
-	}
-
-	rc = pnv_opal_pci_msi_eoi(c, hwirq);
+	rc = pnv_opal_pci_msi_eoi(d);
 
 	if (rc)
 		eoi_rc = rc;
@@ -846,7 +837,7 @@ static inline void this_cpu_inc_rm(unsigned int __percpu *addr)
  */
 static void kvmppc_rm_handle_irq_desc(struct irq_desc *desc)
 {
-	this_cpu_inc_rm(desc->kstat_irqs);
+	this_cpu_inc_rm(&desc->kstat_irqs->cnt);
 	__this_cpu_inc(kstat.irqs_sum);
 }
 
@@ -887,8 +878,7 @@ long kvmppc_deliver_irq_passthru(struct kvm_vcpu *vcpu,
 		icp_rm_deliver_irq(xics, icp, irq, false);
 
 	/* EOI the interrupt */
-	icp_eoi(irq_desc_get_chip(irq_map->desc), irq_map->r_hwirq, xirr,
-		again);
+	icp_eoi(irq_desc_get_irq_data(irq_map->desc), irq_map->r_hwirq, xirr, again);
 
 	if (check_too_hard(xics, icp) == H_TOO_HARD)
 		return 2;
@@ -898,7 +888,7 @@ long kvmppc_deliver_irq_passthru(struct kvm_vcpu *vcpu,
 
 /*  --- Non-real mode XICS-related built-in routines ---  */
 
-/**
+/*
  * Host Operations poked by RM KVM
  */
 static void rm_host_ipi_action(int action, void *data)

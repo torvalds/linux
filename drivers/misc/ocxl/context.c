@@ -10,11 +10,9 @@ int ocxl_context_alloc(struct ocxl_context **context, struct ocxl_afu *afu,
 	int pasid;
 	struct ocxl_context *ctx;
 
-	*context = kzalloc(sizeof(struct ocxl_context), GFP_KERNEL);
-	if (!*context)
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
 		return -ENOMEM;
-
-	ctx = *context;
 
 	ctx->afu = afu;
 	mutex_lock(&afu->contexts_lock);
@@ -22,6 +20,7 @@ int ocxl_context_alloc(struct ocxl_context **context, struct ocxl_afu *afu,
 			afu->pasid_base + afu->pasid_max, GFP_KERNEL);
 	if (pasid < 0) {
 		mutex_unlock(&afu->contexts_lock);
+		kfree(ctx);
 		return pasid;
 	}
 	afu->pasid_count++;
@@ -43,6 +42,7 @@ int ocxl_context_alloc(struct ocxl_context **context, struct ocxl_afu *afu,
 	 * duration of the life of the context
 	 */
 	ocxl_afu_get(afu);
+	*context = ctx;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ocxl_context_alloc);
@@ -55,7 +55,7 @@ EXPORT_SYMBOL_GPL(ocxl_context_alloc);
  */
 static void xsl_fault_error(void *data, u64 addr, u64 dsisr)
 {
-	struct ocxl_context *ctx = (struct ocxl_context *) data;
+	struct ocxl_context *ctx = data;
 
 	mutex_lock(&ctx->xsl_error_lock);
 	ctx->xsl_error.addr = addr;
@@ -70,6 +70,7 @@ int ocxl_context_attach(struct ocxl_context *ctx, u64 amr, struct mm_struct *mm)
 {
 	int rc;
 	unsigned long pidr = 0;
+	struct pci_dev *dev;
 
 	// Locks both status & tidr
 	mutex_lock(&ctx->status_mutex);
@@ -81,8 +82,9 @@ int ocxl_context_attach(struct ocxl_context *ctx, u64 amr, struct mm_struct *mm)
 	if (mm)
 		pidr = mm->context.id;
 
+	dev = to_pci_dev(ctx->afu->fn->dev.parent);
 	rc = ocxl_link_add_pe(ctx->afu->fn->link, ctx->pasid, pidr, ctx->tidr,
-			      amr, mm, xsl_fault_error, ctx);
+			      amr, pci_dev_id(dev), mm, xsl_fault_error, ctx);
 	if (rc)
 		goto out;
 
@@ -178,7 +180,7 @@ static int check_mmap_afu_irq(struct ocxl_context *ctx,
 	if ((vma->vm_flags & VM_READ) || (vma->vm_flags & VM_EXEC) ||
 		!(vma->vm_flags & VM_WRITE))
 		return -EINVAL;
-	vma->vm_flags &= ~(VM_MAYREAD | VM_MAYEXEC);
+	vm_flags_clear(vma, VM_MAYREAD | VM_MAYEXEC);
 	return 0;
 }
 
@@ -202,7 +204,7 @@ int ocxl_context_mmap(struct ocxl_context *ctx, struct vm_area_struct *vma)
 	if (rc)
 		return rc;
 
-	vma->vm_flags |= VM_IO | VM_PFNMAP;
+	vm_flags_set(vma, VM_IO | VM_PFNMAP);
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 	vma->vm_ops = &ocxl_vmops;
 	return 0;
@@ -287,7 +289,7 @@ void ocxl_context_free(struct ocxl_context *ctx)
 
 	ocxl_afu_irq_free_all(ctx);
 	idr_destroy(&ctx->irq_idr);
-	/* reference to the AFU taken in ocxl_context_init */
+	/* reference to the AFU taken in ocxl_context_alloc() */
 	ocxl_afu_put(ctx->afu);
 	kfree(ctx);
 }

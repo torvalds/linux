@@ -1,0 +1,164 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/hwmon/moortec,mr75203.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Moortec Semiconductor MR75203 PVT Controller
+
+maintainers:
+  - Rahul Tanwar <rtanwar@maxlinear.com>
+
+description: |
+  A Moortec PVT (Process, Voltage, Temperature) monitoring logic design can
+  include many different units.
+  Such a design will usually consists of several Moortec's embedded analog IPs,
+  and a single Moortec controller (mr75203) to configure and control the IPs.
+
+  Some of the Moortec's analog hard IPs that can be used in a design:
+  *) Temperature Sensor (TS) - used to monitor core temperature (e.g. mr74137).
+  *) Voltage Monitor (VM) - used to monitor voltage levels (e.g. mr74138).
+  *) Process Detector (PD) - used to assess silicon speed (e.g. mr74139).
+  *) Delay Chain - ring oscillator connected to the PD, used to measure IO
+     based transistors (e.g. mr76008 ring oscillator at 1.1V, mr76007 ring
+     oscillator at 1.8V).
+  *) Pre Scaler - provides divide-by-X scaling of input voltage, which can then
+     be presented for VM for measurement within its range (e.g. mr76006 -
+     divide by 2 pre-scaler).
+
+  TS, VM & PD also include a digital interface, which consists of configuration
+  inputs and measurement outputs.
+
+  Some of the units have number of series, each series can have slightly
+  different characteristics.
+
+  The mr75203 binding describes configuration for the controller unit, but also
+  for some of the analog IPs.
+
+properties:
+  compatible:
+    const: moortec,mr75203
+
+  reg:
+    items:
+      - description: PVT common registers
+      - description: PVT temperature sensor registers
+      - description: PVT process detector registers
+      - description: PVT voltage monitor registers
+
+  reg-names:
+    items:
+      - const: common
+      - const: ts
+      - const: pd
+      - const: vm
+
+  intel,vm-map:
+    description:
+      PVT controller has 5 VM (voltage monitor) sensors.
+      vm-map defines CPU core to VM instance mapping. A
+      value of 0xff means that VM sensor is unused.
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+    maxItems: 5
+
+  clocks:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+  "#thermal-sensor-cells":
+    const: 1
+
+  moortec,vm-active-channels:
+    description:
+      Defines the number of channels per VM that are actually used and are
+      connected to some input source.
+      Maximum number of items - number of VMs.
+      Maximum value of each item - number of channels.
+      Minimum value of each item - 0 (which means entire VM sensor is not used).
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+
+  moortec,vm-pre-scaler-x2:
+    description:
+      Defines the channels that use a mr76006 pre-scaler to divide the input
+      source by 2.
+      The pre-scaler is used for input sources that exceed the VM input range.
+      The driver uses this information to present to the user with the actual
+      value of the voltage source.
+      For channels that are not listed, no pre-scaler is assumed.
+      Maximum number of items - total number of channels in all VMs.
+      Each channel should not appear more than once.
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+
+  moortec,ts-series:
+    description:
+      Definition of the temperature equation and coefficients that shall be
+      used to convert the digital output to value in milli-Celsius.
+    minimum: 5
+    maximum: 6
+    default: 5
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  moortec,ts-coeff-g:
+    description:
+      G coefficient for temperature equation.
+      Default for series 5 = 60000
+      Default for series 6 = 57400
+    multipleOf: 100
+    minimum: 1000
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  moortec,ts-coeff-h:
+    description:
+      H coefficient for temperature equation.
+      Default for series 5 = 200000
+      Default for series 6 = 249400
+    multipleOf: 100
+    minimum: 1000
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  moortec,ts-coeff-cal5:
+    description:
+      cal5 coefficient for temperature equation.
+      Default for series 5 = 4094
+      Default for series 6 = 4096
+    minimum: 1
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  moortec,ts-coeff-j:
+    description:
+      J coefficient for temperature equation.
+      Default for series 5 = -100
+      Default for series 6 = 0
+    multipleOf: 100
+    maximum: 0
+    $ref: /schemas/types.yaml#/definitions/int32
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - clocks
+  - "#thermal-sensor-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+    pvt: pvt@e0680000 {
+        compatible = "moortec,mr75203";
+        reg = <0xe0680000 0x80>,
+              <0xe0680080 0x180>,
+              <0xe0680200 0x200>,
+              <0xe0680400 0xc00>;
+        reg-names = "common", "ts", "pd", "vm";
+        intel,vm-map = [03 01 04 ff ff];
+        clocks = <&osc0>;
+        resets = <&rcu0 0x40 7>;
+        moortec,vm-active-channels = /bits/ 8 <0x10 0x05>;
+        moortec,vm-pre-scaler-x2 = /bits/ 8 <5 6 20>;
+        moortec,ts-coeff-g = <61400>;
+        moortec,ts-coeff-h = <253700>;
+        #thermal-sensor-cells = <1>;
+    };

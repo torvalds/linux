@@ -16,6 +16,7 @@ int fw_argc;
 int *_fw_argv;
 int *_fw_envp;
 
+#ifndef CONFIG_HAVE_PLAT_FW_INIT_CMDLINE
 void __init fw_init_cmdline(void)
 {
 	int i;
@@ -41,6 +42,7 @@ void __init fw_init_cmdline(void)
 			strlcat(arcs_cmdline, " ", COMMAND_LINE_SIZE);
 	}
 }
+#endif
 
 char * __init fw_getcmdline(void)
 {
@@ -51,7 +53,7 @@ char *fw_getenv(char *envname)
 {
 	char *result = NULL;
 
-	if (_fw_envp != NULL) {
+	if (_fw_envp != NULL && fw_envp(0) != NULL) {
 		/*
 		 * Return a pointer to the given environment variable.
 		 * YAMON uses "name", "value" pairs, while U-Boot uses

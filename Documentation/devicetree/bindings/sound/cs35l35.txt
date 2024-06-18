@@ -110,7 +110,7 @@ Optional Monitor Signal Format sub-node:
 
   See Sections 4.8.2 through 4.8.4 Serial-Port Control in the Datasheet
 
-  -cirrus,monitor-signal-format : Sub-node for the Monitor Signaling Formating
+  -cirrus,monitor-signal-format : Sub-node for the Monitor Signaling Formatting
   on the I2S Port. Each of the 3 8 bit values in the array contain the settings
   for depth, location, and frame.
 

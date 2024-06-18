@@ -22,6 +22,7 @@
 #include <asm/mcfqspi.h>
 #include <linux/platform_data/edma.h>
 #include <linux/platform_data/dma-mcf-edma.h>
+#include <linux/platform_data/mmc-esdhc-mcf.h>
 
 /*
  *	All current ColdFire parts contain from 2, 3, 4 or 10 UARTS.
@@ -479,7 +480,7 @@ static struct platform_device mcf_i2c5 = {
 #endif /* MCFI2C_BASE5 */
 #endif /* IS_ENABLED(CONFIG_I2C_IMX) */
 
-#if IS_ENABLED(CONFIG_MCF_EDMA)
+#ifdef MCFEDMA_BASE
 
 static const struct dma_slave_map mcf_edma_map[] = {
 	{ "dreq0", "rx-tx", MCF_EDMA_FILTER_PARAM(0) },
@@ -551,8 +552,75 @@ static struct platform_device mcf_edma = {
 		.platform_data = &mcf_edma_data,
 	}
 };
+#endif /* MCFEDMA_BASE */
 
-#endif /* IS_ENABLED(CONFIG_MCF_EDMA) */
+#ifdef MCFSDHC_BASE
+static struct mcf_esdhc_platform_data mcf_esdhc_data = {
+	.max_bus_width = 4,
+	.cd_type = ESDHC_CD_NONE,
+};
+
+static struct resource mcf_esdhc_resources[] = {
+	{
+		.start = MCFSDHC_BASE,
+		.end = MCFSDHC_BASE + MCFSDHC_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	}, {
+		.start = MCF_IRQ_SDHC,
+		.end = MCF_IRQ_SDHC,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device mcf_esdhc = {
+	.name			= "sdhci-esdhc-mcf",
+	.id			= 0,
+	.num_resources		= ARRAY_SIZE(mcf_esdhc_resources),
+	.resource		= mcf_esdhc_resources,
+	.dev.platform_data	= &mcf_esdhc_data,
+};
+#endif /* MCFSDHC_BASE */
+
+#ifdef MCFFLEXCAN_SIZE
+
+#include <linux/can/platform/flexcan.h>
+
+static struct flexcan_platform_data mcf5441x_flexcan_info = {
+	.clk_src = 1,
+	.clock_frequency = 120000000,
+};
+
+static struct resource mcf5441x_flexcan0_resource[] = {
+	{
+		.start = MCFFLEXCAN_BASE0,
+		.end = MCFFLEXCAN_BASE0 + MCFFLEXCAN_SIZE,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = MCF_IRQ_IFL0,
+		.end = MCF_IRQ_IFL0,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = MCF_IRQ_BOFF0,
+		.end = MCF_IRQ_BOFF0,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = MCF_IRQ_ERR0,
+		.end = MCF_IRQ_ERR0,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device mcf_flexcan0 = {
+	.name = "flexcan-mcf5441x",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(mcf5441x_flexcan0_resource),
+	.resource = mcf5441x_flexcan0_resource,
+	.dev.platform_data = &mcf5441x_flexcan_info,
+};
+#endif /* MCFFLEXCAN_SIZE */
 
 static struct platform_device *mcf_devices[] __initdata = {
 	&mcf_uart,
@@ -583,8 +651,14 @@ static struct platform_device *mcf_devices[] __initdata = {
 	&mcf_i2c5,
 #endif
 #endif
-#if IS_ENABLED(CONFIG_MCF_EDMA)
+#ifdef MCFEDMA_BASE
 	&mcf_edma,
+#endif
+#ifdef MCFSDHC_BASE
+	&mcf_esdhc,
+#endif
+#ifdef MCFFLEXCAN_SIZE
+	&mcf_flexcan0,
 #endif
 };
 
@@ -614,4 +688,3 @@ static int __init mcf_init_devices(void)
 }
 
 arch_initcall(mcf_init_devices);
-

@@ -57,7 +57,7 @@ struct pip_app_resp_head {
 	 * The value of data_status can be the first byte of data or
 	 * the command status or the unsupported command code depending on the
 	 * requested command code.
-	*/
+	 */
 	u8 data_status;
 } __packed;
 
@@ -573,7 +573,7 @@ static int cyapa_pip_retrieve_data_structure(struct cyapa *cyapa,
 
 	memset(&cmd, 0, sizeof(cmd));
 	put_unaligned_le16(PIP_OUTPUT_REPORT_ADDR, &cmd.head.addr);
-	put_unaligned_le16(sizeof(cmd), &cmd.head.length - 2);
+	put_unaligned_le16(sizeof(cmd) - 2, &cmd.head.length);
 	cmd.head.report_id = PIP_APP_CMD_REPORT_ID;
 	cmd.head.cmd_code = PIP_RETRIEVE_DATA_STRUCTURE;
 	put_unaligned_le16(read_offset, &cmd.read_offset);
@@ -629,14 +629,14 @@ static ssize_t cyapa_gen6_show_baseline(struct device *dev,
 	if (error)
 		goto resume_scanning;
 
-	size = scnprintf(buf, PAGE_SIZE, "%d %d %d %d %d %d ",
-			data[0],  /* RX Attenuator Mutual */
-			data[1],  /* IDAC Mutual */
-			data[2],  /* RX Attenuator Self RX */
-			data[3],  /* IDAC Self RX */
-			data[4],  /* RX Attenuator Self TX */
-			data[5]	  /* IDAC Self TX */
-			);
+	size = sysfs_emit(buf, "%d %d %d %d %d %d ",
+			  data[0],  /* RX Attenuator Mutual */
+			  data[1],  /* IDAC Mutual */
+			  data[2],  /* RX Attenuator Self RX */
+			  data[3],  /* IDAC Self RX */
+			  data[4],  /* RX Attenuator Self TX */
+			  data[5]   /* IDAC Self TX */
+			 );
 
 	/* 3. Read Attenuator Trim. */
 	data_len = sizeof(data);
@@ -648,8 +648,8 @@ static ssize_t cyapa_gen6_show_baseline(struct device *dev,
 
 	/* set attenuator trim values. */
 	for (i = 0; i < data_len; i++)
-		size += scnprintf(buf + size, PAGE_SIZE - size,	"%d ", data[i]);
-	size += scnprintf(buf + size, PAGE_SIZE - size, "\n");
+		size += sysfs_emit_at(buf, size, "%d ", data[i]);
+	size += sysfs_emit_at(buf, size, "\n");
 
 resume_scanning:
 	/* 4. Resume Scanning*/
@@ -680,7 +680,7 @@ static int cyapa_gen6_operational_check(struct cyapa *cyapa)
 		}
 
 		cyapa->state = CYAPA_STATE_GEN6_APP;
-		/* fall through */
+		fallthrough;
 
 	case CYAPA_STATE_GEN6_APP:
 		/*

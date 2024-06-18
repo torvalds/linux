@@ -19,10 +19,10 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fb_helper.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_fbdev_dma.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
-#include <drm/drm_irq.h>
+#include <drm/drm_module.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
 
@@ -557,109 +557,55 @@ static irqreturn_t atmel_hlcdc_dc_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static struct drm_framebuffer *atmel_hlcdc_fb_create(struct drm_device *dev,
-		struct drm_file *file_priv, const struct drm_mode_fb_cmd2 *mode_cmd)
-{
-	return drm_gem_fb_create(dev, file_priv, mode_cmd);
-}
-
-struct atmel_hlcdc_dc_commit {
-	struct work_struct work;
-	struct drm_device *dev;
-	struct drm_atomic_state *state;
-};
-
-static void
-atmel_hlcdc_dc_atomic_complete(struct atmel_hlcdc_dc_commit *commit)
-{
-	struct drm_device *dev = commit->dev;
-	struct atmel_hlcdc_dc *dc = dev->dev_private;
-	struct drm_atomic_state *old_state = commit->state;
-
-	/* Apply the atomic update. */
-	drm_atomic_helper_commit_modeset_disables(dev, old_state);
-	drm_atomic_helper_commit_planes(dev, old_state, 0);
-	drm_atomic_helper_commit_modeset_enables(dev, old_state);
-
-	drm_atomic_helper_wait_for_vblanks(dev, old_state);
-
-	drm_atomic_helper_cleanup_planes(dev, old_state);
-
-	drm_atomic_state_put(old_state);
-
-	/* Complete the commit, wake up any waiter. */
-	spin_lock(&dc->commit.wait.lock);
-	dc->commit.pending = false;
-	wake_up_all_locked(&dc->commit.wait);
-	spin_unlock(&dc->commit.wait.lock);
-
-	kfree(commit);
-}
-
-static void atmel_hlcdc_dc_atomic_work(struct work_struct *work)
-{
-	struct atmel_hlcdc_dc_commit *commit =
-		container_of(work, struct atmel_hlcdc_dc_commit, work);
-
-	atmel_hlcdc_dc_atomic_complete(commit);
-}
-
-static int atmel_hlcdc_dc_atomic_commit(struct drm_device *dev,
-					struct drm_atomic_state *state,
-					bool async)
+static void atmel_hlcdc_dc_irq_postinstall(struct drm_device *dev)
 {
 	struct atmel_hlcdc_dc *dc = dev->dev_private;
-	struct atmel_hlcdc_dc_commit *commit;
+	unsigned int cfg = 0;
+	int i;
+
+	/* Enable interrupts on activated layers */
+	for (i = 0; i < ATMEL_HLCDC_MAX_LAYERS; i++) {
+		if (dc->layers[i])
+			cfg |= ATMEL_HLCDC_LAYER_STATUS(i);
+	}
+
+	regmap_write(dc->hlcdc->regmap, ATMEL_HLCDC_IER, cfg);
+}
+
+static void atmel_hlcdc_dc_irq_disable(struct drm_device *dev)
+{
+	struct atmel_hlcdc_dc *dc = dev->dev_private;
+	unsigned int isr;
+
+	regmap_write(dc->hlcdc->regmap, ATMEL_HLCDC_IDR, 0xffffffff);
+	regmap_read(dc->hlcdc->regmap, ATMEL_HLCDC_ISR, &isr);
+}
+
+static int atmel_hlcdc_dc_irq_install(struct drm_device *dev, unsigned int irq)
+{
 	int ret;
 
-	ret = drm_atomic_helper_prepare_planes(dev, state);
+	atmel_hlcdc_dc_irq_disable(dev);
+
+	ret = devm_request_irq(dev->dev, irq, atmel_hlcdc_dc_irq_handler, 0,
+			       dev->driver->name, dev);
 	if (ret)
 		return ret;
 
-	/* Allocate the commit object. */
-	commit = kzalloc(sizeof(*commit), GFP_KERNEL);
-	if (!commit) {
-		ret = -ENOMEM;
-		goto error;
-	}
-
-	INIT_WORK(&commit->work, atmel_hlcdc_dc_atomic_work);
-	commit->dev = dev;
-	commit->state = state;
-
-	spin_lock(&dc->commit.wait.lock);
-	ret = wait_event_interruptible_locked(dc->commit.wait,
-					      !dc->commit.pending);
-	if (ret == 0)
-		dc->commit.pending = true;
-	spin_unlock(&dc->commit.wait.lock);
-
-	if (ret)
-		goto err_free;
-
-	/* We have our own synchronization through the commit lock. */
-	BUG_ON(drm_atomic_helper_swap_state(state, false) < 0);
-
-	/* Swap state succeeded, this is the point of no return. */
-	drm_atomic_state_get(state);
-	if (async)
-		queue_work(dc->wq, &commit->work);
-	else
-		atmel_hlcdc_dc_atomic_complete(commit);
+	atmel_hlcdc_dc_irq_postinstall(dev);
 
 	return 0;
+}
 
-err_free:
-	kfree(commit);
-error:
-	drm_atomic_helper_cleanup_planes(dev, state);
-	return ret;
+static void atmel_hlcdc_dc_irq_uninstall(struct drm_device *dev)
+{
+	atmel_hlcdc_dc_irq_disable(dev);
 }
 
 static const struct drm_mode_config_funcs mode_config_funcs = {
-	.fb_create = atmel_hlcdc_fb_create,
+	.fb_create = drm_gem_fb_create,
 	.atomic_check = drm_atomic_helper_check,
-	.atomic_commit = atmel_hlcdc_dc_atomic_commit,
+	.atomic_commit = drm_atomic_helper_commit,
 };
 
 static int atmel_hlcdc_dc_modeset_init(struct drm_device *dev)
@@ -692,6 +638,7 @@ static int atmel_hlcdc_dc_modeset_init(struct drm_device *dev)
 	dev->mode_config.max_width = dc->desc->max_width;
 	dev->mode_config.max_height = dc->desc->max_height;
 	dev->mode_config.funcs = &mode_config_funcs;
+	dev->mode_config.async_page_flip = true;
 
 	return 0;
 }
@@ -718,27 +665,14 @@ static int atmel_hlcdc_dc_load(struct drm_device *dev)
 	if (!dc)
 		return -ENOMEM;
 
-	dc->wq = alloc_ordered_workqueue("atmel-hlcdc-dc", 0);
-	if (!dc->wq)
-		return -ENOMEM;
-
-	init_waitqueue_head(&dc->commit.wait);
 	dc->desc = match->data;
 	dc->hlcdc = dev_get_drvdata(dev->dev->parent);
 	dev->dev_private = dc;
 
-	if (dc->desc->fixed_clksrc) {
-		ret = clk_prepare_enable(dc->hlcdc->sys_clk);
-		if (ret) {
-			dev_err(dev->dev, "failed to enable sys_clk\n");
-			goto err_destroy_wq;
-		}
-	}
-
 	ret = clk_prepare_enable(dc->hlcdc->periph_clk);
 	if (ret) {
 		dev_err(dev->dev, "failed to enable periph_clk\n");
-		goto err_sys_clk_disable;
+		return ret;
 	}
 
 	pm_runtime_enable(dev->dev);
@@ -758,7 +692,7 @@ static int atmel_hlcdc_dc_load(struct drm_device *dev)
 	drm_mode_config_reset(dev);
 
 	pm_runtime_get_sync(dev->dev);
-	ret = drm_irq_install(dev, dc->hlcdc->irq);
+	ret = atmel_hlcdc_dc_irq_install(dev, dc->hlcdc->irq);
 	pm_runtime_put_sync(dev->dev);
 	if (ret < 0) {
 		dev_err(dev->dev, "failed to install IRQ handler\n");
@@ -774,12 +708,6 @@ static int atmel_hlcdc_dc_load(struct drm_device *dev)
 err_periph_clk_disable:
 	pm_runtime_disable(dev->dev);
 	clk_disable_unprepare(dc->hlcdc->periph_clk);
-err_sys_clk_disable:
-	if (dc->desc->fixed_clksrc)
-		clk_disable_unprepare(dc->hlcdc->sys_clk);
-
-err_destroy_wq:
-	destroy_workqueue(dc->wq);
 
 	return ret;
 }
@@ -788,68 +716,25 @@ static void atmel_hlcdc_dc_unload(struct drm_device *dev)
 {
 	struct atmel_hlcdc_dc *dc = dev->dev_private;
 
-	flush_workqueue(dc->wq);
 	drm_kms_helper_poll_fini(dev);
 	drm_atomic_helper_shutdown(dev);
 	drm_mode_config_cleanup(dev);
 
 	pm_runtime_get_sync(dev->dev);
-	drm_irq_uninstall(dev);
+	atmel_hlcdc_dc_irq_uninstall(dev);
 	pm_runtime_put_sync(dev->dev);
 
 	dev->dev_private = NULL;
 
 	pm_runtime_disable(dev->dev);
 	clk_disable_unprepare(dc->hlcdc->periph_clk);
-	if (dc->desc->fixed_clksrc)
-		clk_disable_unprepare(dc->hlcdc->sys_clk);
-	destroy_workqueue(dc->wq);
 }
 
-static int atmel_hlcdc_dc_irq_postinstall(struct drm_device *dev)
-{
-	struct atmel_hlcdc_dc *dc = dev->dev_private;
-	unsigned int cfg = 0;
-	int i;
+DEFINE_DRM_GEM_DMA_FOPS(fops);
 
-	/* Enable interrupts on activated layers */
-	for (i = 0; i < ATMEL_HLCDC_MAX_LAYERS; i++) {
-		if (dc->layers[i])
-			cfg |= ATMEL_HLCDC_LAYER_STATUS(i);
-	}
-
-	regmap_write(dc->hlcdc->regmap, ATMEL_HLCDC_IER, cfg);
-
-	return 0;
-}
-
-static void atmel_hlcdc_dc_irq_uninstall(struct drm_device *dev)
-{
-	struct atmel_hlcdc_dc *dc = dev->dev_private;
-	unsigned int isr;
-
-	regmap_write(dc->hlcdc->regmap, ATMEL_HLCDC_IDR, 0xffffffff);
-	regmap_read(dc->hlcdc->regmap, ATMEL_HLCDC_ISR, &isr);
-}
-
-DEFINE_DRM_GEM_CMA_FOPS(fops);
-
-static struct drm_driver atmel_hlcdc_dc_driver = {
+static const struct drm_driver atmel_hlcdc_dc_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
-	.irq_handler = atmel_hlcdc_dc_irq_handler,
-	.irq_preinstall = atmel_hlcdc_dc_irq_uninstall,
-	.irq_postinstall = atmel_hlcdc_dc_irq_postinstall,
-	.irq_uninstall = atmel_hlcdc_dc_irq_uninstall,
-	.gem_free_object_unlocked = drm_gem_cma_free_object,
-	.gem_vm_ops = &drm_gem_cma_vm_ops,
-	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
-	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
-	.gem_prime_get_sg_table = drm_gem_cma_prime_get_sg_table,
-	.gem_prime_import_sg_table = drm_gem_cma_prime_import_sg_table,
-	.gem_prime_vmap = drm_gem_cma_prime_vmap,
-	.gem_prime_vunmap = drm_gem_cma_prime_vunmap,
-	.gem_prime_mmap = drm_gem_cma_prime_mmap,
-	.dumb_create = drm_gem_cma_dumb_create,
+	DRM_GEM_DMA_DRIVER_OPS,
 	.fops = &fops,
 	.name = "atmel-hlcdc",
 	.desc = "Atmel HLCD Controller DRM",
@@ -875,7 +760,7 @@ static int atmel_hlcdc_dc_drm_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_unload;
 
-	drm_fbdev_generic_setup(ddev, 24);
+	drm_fbdev_dma_setup(ddev, 24);
 
 	return 0;
 
@@ -888,18 +773,20 @@ err_put:
 	return ret;
 }
 
-static int atmel_hlcdc_dc_drm_remove(struct platform_device *pdev)
+static void atmel_hlcdc_dc_drm_remove(struct platform_device *pdev)
 {
 	struct drm_device *ddev = platform_get_drvdata(pdev);
 
 	drm_dev_unregister(ddev);
 	atmel_hlcdc_dc_unload(ddev);
 	drm_dev_put(ddev);
-
-	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
+static void atmel_hlcdc_dc_drm_shutdown(struct platform_device *pdev)
+{
+	drm_atomic_helper_shutdown(platform_get_drvdata(pdev));
+}
+
 static int atmel_hlcdc_dc_drm_suspend(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
@@ -916,8 +803,6 @@ static int atmel_hlcdc_dc_drm_suspend(struct device *dev)
 	regmap_read(regmap, ATMEL_HLCDC_IMR, &dc->suspend.imr);
 	regmap_write(regmap, ATMEL_HLCDC_IDR, dc->suspend.imr);
 	clk_disable_unprepare(dc->hlcdc->periph_clk);
-	if (dc->desc->fixed_clksrc)
-		clk_disable_unprepare(dc->hlcdc->sys_clk);
 
 	return 0;
 }
@@ -927,17 +812,15 @@ static int atmel_hlcdc_dc_drm_resume(struct device *dev)
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
 	struct atmel_hlcdc_dc *dc = drm_dev->dev_private;
 
-	if (dc->desc->fixed_clksrc)
-		clk_prepare_enable(dc->hlcdc->sys_clk);
 	clk_prepare_enable(dc->hlcdc->periph_clk);
 	regmap_write(dc->hlcdc->regmap, ATMEL_HLCDC_IER, dc->suspend.imr);
 
 	return drm_atomic_helper_resume(drm_dev, dc->suspend.state);
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(atmel_hlcdc_dc_drm_pm_ops,
-		atmel_hlcdc_dc_drm_suspend, atmel_hlcdc_dc_drm_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(atmel_hlcdc_dc_drm_pm_ops,
+				atmel_hlcdc_dc_drm_suspend,
+				atmel_hlcdc_dc_drm_resume);
 
 static const struct of_device_id atmel_hlcdc_dc_of_match[] = {
 	{ .compatible = "atmel,hlcdc-display-controller" },
@@ -946,14 +829,15 @@ static const struct of_device_id atmel_hlcdc_dc_of_match[] = {
 
 static struct platform_driver atmel_hlcdc_dc_platform_driver = {
 	.probe	= atmel_hlcdc_dc_drm_probe,
-	.remove	= atmel_hlcdc_dc_drm_remove,
+	.remove_new = atmel_hlcdc_dc_drm_remove,
+	.shutdown = atmel_hlcdc_dc_drm_shutdown,
 	.driver	= {
 		.name	= "atmel-hlcdc-display-controller",
-		.pm	= &atmel_hlcdc_dc_drm_pm_ops,
+		.pm	= pm_sleep_ptr(&atmel_hlcdc_dc_drm_pm_ops),
 		.of_match_table = atmel_hlcdc_dc_of_match,
 	},
 };
-module_platform_driver(atmel_hlcdc_dc_platform_driver);
+drm_module_platform_driver(atmel_hlcdc_dc_platform_driver);
 
 MODULE_AUTHOR("Jean-Jacques Hiblot <jjhiblot@traphandler.com>");
 MODULE_AUTHOR("Boris Brezillon <boris.brezillon@free-electrons.com>");

@@ -1,0 +1,154 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/gpio/xlnx,gpio-xilinx.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Xilinx AXI GPIO controller
+
+maintainers:
+  - Neeli Srinivas <srinivas.neeli@amd.com>
+
+description:
+  The AXI GPIO design provides a general purpose input/output interface
+  to an AXI4-Lite interface. The AXI GPIO can be configured as either
+  a single or a dual-channel device. The width of each channel is
+  independently configurable. The channels can be configured to
+  generate an interrupt when a transition on any of their inputs occurs.
+
+properties:
+  compatible:
+    enum:
+      - xlnx,xps-gpio-1.00.a
+
+  reg:
+    maxItems: 1
+
+  "#gpio-cells":
+    const: 2
+
+  interrupts:
+    maxItems: 1
+
+  gpio-controller: true
+
+  gpio-line-names:
+    description: strings describing the names of each gpio line
+    minItems: 1
+    maxItems: 64
+
+  interrupt-controller: true
+
+  "#interrupt-cells":
+    const: 2
+
+  clocks:
+    maxItems: 1
+
+  interrupt-names: true
+
+  xlnx,all-inputs:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: This option sets this GPIO channel1 bits in input mode.
+
+  xlnx,all-inputs-2:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: This option sets this GPIO channel2 bits in input mode.
+
+  xlnx,all-outputs:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: This option sets this GPIO channel1 bits in output mode.
+
+  xlnx,all-outputs-2:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: This option sets this GPIO channel2 bits in output mode.
+
+  xlnx,dout-default:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Sets the default value of all the enabled bits of
+                 channel1.
+    default: 0
+
+  xlnx,dout-default-2:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Sets the default value of all the enabled bits of
+                 channel2.
+    default: 0
+
+  xlnx,gpio-width:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: The value defines the bit width of the GPIO channel1.
+    minimum: 1
+    maximum: 32
+    default: 32
+
+  xlnx,gpio2-width:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: The value defines the bit width of the GPIO channel2.
+    minimum: 1
+    maximum: 32
+    default: 32
+
+  xlnx,interrupt-present:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: This parameter enables interrupt control logic
+                 and interrupt registers in GPIO module.
+    minimum: 0
+    maximum: 1
+    default: 0
+
+  xlnx,is-dual:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: This parameter enables a second GPIO channel (GPIO2).
+    minimum: 0
+    maximum: 1
+    default: 0
+
+  xlnx,tri-default:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: This value configures the input or output mode
+                 of each bit of GPIO channel1.
+
+  xlnx,tri-default-2:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: This value configures the input or output mode
+                 of each bit of GPIO channel2.
+
+required:
+  - reg
+  - compatible
+  - gpio-controller
+  - "#gpio-cells"
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+        gpio@a0020000 {
+            compatible = "xlnx,xps-gpio-1.00.a";
+            reg = <0xa0020000 0x10000>;
+            #gpio-cells = <2>;
+            #interrupt-cells = <0x2>;
+            clocks = <&zynqmp_clk 71>;
+            gpio-controller;
+            interrupt-controller;
+            interrupt-names = "ip2intc_irpt";
+            interrupt-parent = <&gic>;
+            interrupts = <0 89 4>;
+            xlnx,all-inputs = <0x0>;
+            xlnx,all-inputs-2 = <0x0>;
+            xlnx,all-outputs = <0x0>;
+            xlnx,all-outputs-2 = <0x0>;
+            xlnx,dout-default = <0x0>;
+            xlnx,dout-default-2 = <0x0>;
+            xlnx,gpio-width = <0x20>;
+            xlnx,gpio2-width = <0x20>;
+            xlnx,interrupt-present = <0x1>;
+            xlnx,is-dual = <0x1>;
+            xlnx,tri-default = <0xFFFFFFFF>;
+            xlnx,tri-default-2 = <0xFFFFFFFF>;
+        };
+
+...

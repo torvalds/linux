@@ -323,7 +323,8 @@ static int ltq_vrx200_pcie_phy_power_on(struct phy *phy)
 		goto err_disable_pdi_clk;
 
 	/* Check if we are in "startup ready" status */
-	if (ltq_vrx200_pcie_phy_wait_for_pll(phy) != 0)
+	ret = ltq_vrx200_pcie_phy_wait_for_pll(phy);
+	if (ret)
 		goto err_disable_phy_clk;
 
 	ltq_vrx200_pcie_phy_apply_workarounds(phy);
@@ -348,7 +349,7 @@ static int ltq_vrx200_pcie_phy_power_off(struct phy *phy)
 	return 0;
 }
 
-static struct phy_ops ltq_vrx200_pcie_phy_ops = {
+static const struct phy_ops ltq_vrx200_pcie_phy_ops = {
 	.init		= ltq_vrx200_pcie_phy_init,
 	.exit		= ltq_vrx200_pcie_phy_exit,
 	.power_on	= ltq_vrx200_pcie_phy_power_on,
@@ -357,7 +358,7 @@ static struct phy_ops ltq_vrx200_pcie_phy_ops = {
 };
 
 static struct phy *ltq_vrx200_pcie_phy_xlate(struct device *dev,
-					     struct of_phandle_args *args)
+					     const struct of_phandle_args *args)
 {
 	struct ltq_vrx200_pcie_phy_priv *priv = dev_get_drvdata(dev);
 	unsigned int mode;
@@ -385,7 +386,7 @@ static struct phy *ltq_vrx200_pcie_phy_xlate(struct device *dev,
 	default:
 		dev_err(dev, "invalid PHY mode %u\n", mode);
 		return ERR_PTR(-EINVAL);
-	};
+	}
 
 	return priv->phy;
 }
@@ -401,7 +402,6 @@ static int ltq_vrx200_pcie_phy_probe(struct platform_device *pdev)
 	struct ltq_vrx200_pcie_phy_priv *priv;
 	struct device *dev = &pdev->dev;
 	struct phy_provider *provider;
-	struct resource *res;
 	void __iomem *base;
 	int ret;
 
@@ -409,8 +409,7 @@ static int ltq_vrx200_pcie_phy_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 

@@ -26,20 +26,23 @@
  *          Jerome Glisse
  */
 
-#include <linux/slab.h>
-#include <linux/seq_file.h>
+#include <linux/debugfs.h>
 #include <linux/firmware.h>
 #include <linux/module.h>
+#include <linux/pci.h>
+#include <linux/seq_file.h>
+#include <linux/slab.h>
 
-#include <drm/drm_debugfs.h>
 #include <drm/drm_device.h>
-#include <drm/drm_pci.h>
 #include <drm/drm_vblank.h>
 #include <drm/radeon_drm.h>
 
 #include "atom.h"
 #include "avivod.h"
+#include "evergreen.h"
+#include "r600.h"
 #include "r600d.h"
+#include "rv770.h"
 #include "radeon.h"
 #include "radeon_asic.h"
 #include "radeon_audio.h"
@@ -97,13 +100,12 @@ MODULE_FIRMWARE("radeon/SUMO_me.bin");
 MODULE_FIRMWARE("radeon/SUMO2_pfp.bin");
 MODULE_FIRMWARE("radeon/SUMO2_me.bin");
 
-static const u32 crtc_offsets[2] =
-{
+static const u32 crtc_offsets[2] = {
 	0,
 	AVIVO_D2CRTC_H_TOTAL - AVIVO_D1CRTC_H_TOTAL
 };
 
-int r600_debugfs_mc_info_init(struct radeon_device *rdev);
+static void r600_debugfs_mc_info_init(struct radeon_device *rdev);
 
 /* r600,rv610,rv630,rv620,rv635,rv670 */
 int r600_mc_wait_for_idle(struct radeon_device *rdev);
@@ -111,8 +113,6 @@ static void r600_gpu_init(struct radeon_device *rdev);
 void r600_fini(struct radeon_device *rdev);
 void r600_irq_disable(struct radeon_device *rdev);
 static void r600_pcie_gen2_enable(struct radeon_device *rdev);
-extern int evergreen_rlc_resume(struct radeon_device *rdev);
-extern void rv770_set_clk_bypass_mode(struct radeon_device *rdev);
 
 /*
  * Indirect registers accessor
@@ -1080,7 +1080,6 @@ void r600_pcie_gart_tlb_flush(struct radeon_device *rdev)
 	if ((rdev->family >= CHIP_RV770) && (rdev->family <= CHIP_RV740) &&
 	    !(rdev->flags & RADEON_IS_AGP)) {
 		void __iomem *ptr = (void *)rdev->gart.ptr;
-		u32 tmp;
 
 		/* r7xx hw bug.  write to HDP_DEBUG1 followed by fb read
 		 * rather than write to HDP_REG_COHERENCY_FLUSH_CNTL
@@ -1088,7 +1087,7 @@ void r600_pcie_gart_tlb_flush(struct radeon_device *rdev)
 		 * method for them.
 		 */
 		WREG32(HDP_DEBUG1, 0);
-		tmp = readl((void __iomem *)ptr);
+		readl((void __iomem *)ptr);
 	} else
 		WREG32(R_005480_HDP_MEM_COHERENCY_FLUSH_CNTL, 0x1);
 
@@ -2570,6 +2569,7 @@ int r600_init_microcode(struct radeon_device *rdev)
 		pr_err("r600_cp: Bogus length %zu in firmware \"%s\"\n",
 		       rdev->me_fw->size, fw_name);
 		err = -EINVAL;
+		goto out;
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "radeon/%s_rlc.bin", rlc_chip_name);
@@ -2580,6 +2580,7 @@ int r600_init_microcode(struct radeon_device *rdev)
 		pr_err("r600_rlc: Bogus length %zu in firmware \"%s\"\n",
 		       rdev->rlc_fw->size, fw_name);
 		err = -EINVAL;
+		goto out;
 	}
 
 	if ((rdev->family >= CHIP_RV770) && (rdev->family <= CHIP_HEMLOCK)) {
@@ -2917,7 +2918,7 @@ void r600_fence_ring_emit(struct radeon_device *rdev,
  * @rdev: radeon_device pointer
  * @ring: radeon ring buffer object
  * @semaphore: radeon semaphore object
- * @emit_wait: Is this a sempahore wait?
+ * @emit_wait: Is this a semaphore wait?
  *
  * Emits a semaphore signal/wait packet to the CP ring and prevents the PFP
  * from running ahead of semaphore waits.
@@ -2954,7 +2955,7 @@ bool r600_semaphore_ring_emit(struct radeon_device *rdev,
  * @src_offset: src GPU address
  * @dst_offset: dst GPU address
  * @num_gpu_pages: number of GPU pages to xfer
- * @fence: radeon fence object
+ * @resv: DMA reservation object to manage fences
  *
  * Copy GPU paging using the CP DMA engine (r6xx+).
  * Used by the radeon ttm implementation to move pages if
@@ -3053,7 +3054,7 @@ static void r600_uvd_init(struct radeon_device *rdev)
 		 * there. So it is pointless to try to go through that code
 		 * hence why we disable uvd here.
 		 */
-		rdev->has_uvd = 0;
+		rdev->has_uvd = false;
 		return;
 	}
 	rdev->ring[R600_RING_TYPE_UVD_INDEX].ring_obj = NULL;
@@ -3191,7 +3192,7 @@ void r600_vga_set_state(struct radeon_device *rdev, bool state)
 	uint32_t temp;
 
 	temp = RREG32(CONFIG_CNTL);
-	if (state == false) {
+	if (!state) {
 		temp &= ~(1<<0);
 		temp |= (1<<1);
 	} else {
@@ -3231,8 +3232,8 @@ int r600_suspend(struct radeon_device *rdev)
 	radeon_audio_fini(rdev);
 	r600_cp_stop(rdev);
 	if (rdev->has_uvd) {
-		uvd_v1_0_fini(rdev);
 		radeon_uvd_suspend(rdev);
+		uvd_v1_0_fini(rdev);
 	}
 	r600_irq_suspend(rdev);
 	radeon_wb_disable(rdev);
@@ -3251,9 +3252,7 @@ int r600_init(struct radeon_device *rdev)
 {
 	int r;
 
-	if (r600_debugfs_mc_info_init(rdev)) {
-		DRM_ERROR("Failed to register debugfs file for mc !\n");
-	}
+	r600_debugfs_mc_info_init(rdev);
 	/* Read BIOS */
 	if (!radeon_get_bios(rdev)) {
 		if (ASIC_IS_AVIVO(rdev))
@@ -3283,9 +3282,7 @@ int r600_init(struct radeon_device *rdev)
 	/* Initialize clocks */
 	radeon_get_clock_info(rdev->ddev);
 	/* Fence driver */
-	r = radeon_fence_driver_init(rdev);
-	if (r)
-		return r;
+	radeon_fence_driver_init(rdev);
 	if (rdev->flags & RADEON_IS_AGP) {
 		r = radeon_agp_init(rdev);
 		if (r)
@@ -3696,8 +3693,8 @@ int r600_irq_init(struct radeon_device *rdev)
 	}
 
 	/* setup interrupt control */
-	/* set dummy read address to ring address */
-	WREG32(INTERRUPT_CNTL2, rdev->ih.gpu_addr >> 8);
+	/* set dummy read address to dummy page address */
+	WREG32(INTERRUPT_CNTL2, rdev->dummy_page.addr >> 8);
 	interrupt_cntl = RREG32(INTERRUPT_CNTL);
 	/* IH_DUMMY_RD_OVERRIDE=0 - dummy read disabled with msi, enabled without msi
 	 * IH_DUMMY_RD_OVERRIDE=1 - dummy read controlled by IH_DUMMY_RD_EN
@@ -4346,34 +4343,32 @@ restart_ih:
  */
 #if defined(CONFIG_DEBUG_FS)
 
-static int r600_debugfs_mc_info(struct seq_file *m, void *data)
+static int r600_debugfs_mc_info_show(struct seq_file *m, void *unused)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_device *rdev = m->private;
 
 	DREG32_SYS(m, rdev, R_000E50_SRBM_STATUS);
 	DREG32_SYS(m, rdev, VM_L2_STATUS);
 	return 0;
 }
 
-static struct drm_info_list r600_mc_info_list[] = {
-	{"r600_mc_info", r600_debugfs_mc_info, 0, NULL},
-};
+DEFINE_SHOW_ATTRIBUTE(r600_debugfs_mc_info);
 #endif
 
-int r600_debugfs_mc_info_init(struct radeon_device *rdev)
+static void r600_debugfs_mc_info_init(struct radeon_device *rdev)
 {
 #if defined(CONFIG_DEBUG_FS)
-	return radeon_debugfs_add_files(rdev, r600_mc_info_list, ARRAY_SIZE(r600_mc_info_list));
-#else
-	return 0;
+	struct dentry *root = rdev->ddev->primary->debugfs_root;
+
+	debugfs_create_file("r600_mc_info", 0444, root, rdev,
+			    &r600_debugfs_mc_info_fops);
+
 #endif
 }
 
 /**
  * r600_mmio_hdp_flush - flush Host Data Path cache via MMIO
- * rdev: radeon device structure
+ * @rdev: radeon device structure
  *
  * Some R6XX/R7XX don't seem to take into account HDP flushes performed
  * through the ring buffer. This leads to corruption in rendering, see
@@ -4390,10 +4385,9 @@ void r600_mmio_hdp_flush(struct radeon_device *rdev)
 	if ((rdev->family >= CHIP_RV770) && (rdev->family <= CHIP_RV740) &&
 	    rdev->vram_scratch.ptr && !(rdev->flags & RADEON_IS_AGP)) {
 		void __iomem *ptr = (void *)rdev->vram_scratch.ptr;
-		u32 tmp;
 
 		WREG32(HDP_DEBUG1, 0);
-		tmp = readl((void __iomem *)ptr);
+		readl((void __iomem *)ptr);
 	} else
 		WREG32(R_005480_HDP_MEM_COHERENCY_FLUSH_CNTL, 0x1);
 }

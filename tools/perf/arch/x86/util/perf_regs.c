@@ -5,12 +5,15 @@
 #include <linux/kernel.h>
 #include <linux/zalloc.h>
 
-#include "../../perf-sys.h"
-#include "../../util/perf_regs.h"
-#include "../../util/debug.h"
-#include "../../util/event.h"
+#include "perf_regs.h"
+#include "../../../perf-sys.h"
+#include "../../../util/perf_regs.h"
+#include "../../../util/debug.h"
+#include "../../../util/event.h"
+#include "../../../util/pmu.h"
+#include "../../../util/pmus.h"
 
-const struct sample_reg sample_reg_masks[] = {
+static const struct sample_reg sample_reg_masks[] = {
 	SMPL_REG(AX, PERF_REG_X86_AX),
 	SMPL_REG(BX, PERF_REG_X86_BX),
 	SMPL_REG(CX, PERF_REG_X86_CX),
@@ -165,7 +168,7 @@ static int sdt_init_op_regex(void)
 /*
  * Max x86 register name length is 5(ex: %r15d). So, 6th char
  * should always contain NULL. This helps to find register name
- * length using strlen, insted of maintaing one more variable.
+ * length using strlen, instead of maintaining one more variable.
  */
 #define SDT_REG_NAME_SIZE  6
 
@@ -207,7 +210,7 @@ int arch_sdt_arg_parse_op(char *old_op, char **new_op)
 	 * and displacement 0 (Both sign and displacement 0 are
 	 * optional so it may be empty). Use one more character
 	 * to hold last NULL so that strlen can be used to find
-	 * prefix length, instead of maintaing one more variable.
+	 * prefix length, instead of maintaining one more variable.
 	 */
 	char prefix[3] = {0};
 
@@ -273,6 +276,11 @@ int arch_sdt_arg_parse_op(char *old_op, char **new_op)
 	return SDT_ARG_VALID;
 }
 
+const struct sample_reg *arch__sample_reg_masks(void)
+{
+	return sample_reg_masks;
+}
+
 uint64_t arch__intr_reg_mask(void)
 {
 	struct perf_event_attr attr = {
@@ -290,6 +298,21 @@ uint64_t arch__intr_reg_mask(void)
 	 */
 	attr.sample_period = 1;
 
+	if (perf_pmus__num_core_pmus() > 1) {
+		struct perf_pmu *pmu = NULL;
+		__u64 type = PERF_TYPE_RAW;
+
+		/*
+		 * The same register set is supported among different hybrid PMUs.
+		 * Only check the first available one.
+		 */
+		while ((pmu = perf_pmus__scan_core(pmu)) != NULL) {
+			type = pmu->type;
+			break;
+		}
+		attr.config |= type << PERF_PMU_TYPE_SHIFT;
+	}
+
 	event_attr_init(&attr);
 
 	fd = sys_perf_event_open(&attr, 0, -1, -1, 0);
@@ -298,5 +321,10 @@ uint64_t arch__intr_reg_mask(void)
 		return (PERF_REG_EXTENDED_MASK | PERF_REGS_MASK);
 	}
 
+	return PERF_REGS_MASK;
+}
+
+uint64_t arch__user_reg_mask(void)
+{
 	return PERF_REGS_MASK;
 }

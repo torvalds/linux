@@ -9,7 +9,7 @@
 #include <linux/compiler.h>
 #include <linux/types.h>
 
-#include "i915_reg.h"
+#include "i915_reg_defs.h"
 
 /* Definitions of GuC H/W registers, bits, etc */
 
@@ -18,28 +18,25 @@
 #define   GS_MIA_IN_RESET		  (0x01 << GS_RESET_SHIFT)
 #define   GS_BOOTROM_SHIFT		1
 #define   GS_BOOTROM_MASK		  (0x7F << GS_BOOTROM_SHIFT)
-#define   GS_BOOTROM_RSA_FAILED		  (0x50 << GS_BOOTROM_SHIFT)
-#define   GS_BOOTROM_JUMP_PASSED	  (0x76 << GS_BOOTROM_SHIFT)
 #define   GS_UKERNEL_SHIFT		8
 #define   GS_UKERNEL_MASK		  (0xFF << GS_UKERNEL_SHIFT)
-#define   GS_UKERNEL_LAPIC_DONE		  (0x30 << GS_UKERNEL_SHIFT)
-#define   GS_UKERNEL_DPC_ERROR		  (0x60 << GS_UKERNEL_SHIFT)
-#define   GS_UKERNEL_EXCEPTION		  (0x70 << GS_UKERNEL_SHIFT)
-#define   GS_UKERNEL_READY		  (0xF0 << GS_UKERNEL_SHIFT)
 #define   GS_MIA_SHIFT			16
 #define   GS_MIA_MASK			  (0x07 << GS_MIA_SHIFT)
 #define   GS_MIA_CORE_STATE		  (0x01 << GS_MIA_SHIFT)
 #define   GS_MIA_HALT_REQUESTED		  (0x02 << GS_MIA_SHIFT)
 #define   GS_MIA_ISR_ENTRY		  (0x04 << GS_MIA_SHIFT)
 #define   GS_AUTH_STATUS_SHIFT		30
-#define   GS_AUTH_STATUS_MASK		  (0x03 << GS_AUTH_STATUS_SHIFT)
+#define   GS_AUTH_STATUS_MASK		  (0x03U << GS_AUTH_STATUS_SHIFT)
 #define   GS_AUTH_STATUS_BAD		  (0x01 << GS_AUTH_STATUS_SHIFT)
 #define   GS_AUTH_STATUS_GOOD		  (0x02 << GS_AUTH_STATUS_SHIFT)
+
+#define GUC_HEADER_INFO			_MMIO(0xc014)
 
 #define SOFT_SCRATCH(n)			_MMIO(0xc180 + (n) * 4)
 #define SOFT_SCRATCH_COUNT		16
 
 #define GEN11_SOFT_SCRATCH(n)		_MMIO(0x190240 + (n) * 4)
+#define MEDIA_SOFT_SCRATCH(n)		_MMIO(0x190310 + (n) * 4)
 #define GEN11_SOFT_SCRATCH_COUNT	4
 
 #define UOS_RSA_SCRATCH(i)		_MMIO(0xc200 + (i) * 4)
@@ -83,6 +80,9 @@
 #define GEN8_GTCR			_MMIO(0x4274)
 #define   GEN8_GTCR_INVALIDATE		  (1<<0)
 
+#define GEN12_GUC_TLB_INV_CR		_MMIO(0xcee8)
+#define   GEN12_GUC_TLB_INV_CR_INVALIDATE	(1 << 0)
+
 #define GUC_ARAT_C6DIS			_MMIO(0xA178)
 
 #define GUC_SHIM_CONTROL		_MMIO(0xc064)
@@ -95,9 +95,18 @@
 #define   GUC_ENABLE_MIA_CLOCK_GATING		(1<<15)
 #define   GUC_GEN10_SHIM_WC_ENABLE		(1<<21)
 
+#define GUC_SHIM_CONTROL2		_MMIO(0xc068)
+#define   GUC_IS_PRIVILEGED		(1<<29)
+#define   GSC_LOADS_HUC			(1<<30)
+
 #define GUC_SEND_INTERRUPT		_MMIO(0xc4c8)
 #define   GUC_SEND_TRIGGER		  (1<<0)
 #define GEN11_GUC_HOST_INTERRUPT	_MMIO(0x1901f0)
+#define MEDIA_GUC_HOST_INTERRUPT	_MMIO(0x190304)
+
+#define GEN12_GUC_SEM_INTR_ENABLES	_MMIO(0xc71c)
+#define   GUC_SEM_INTR_ROUTE_TO_GUC	BIT(31)
+#define   GUC_SEM_INTR_ENABLE_ALL	(0xff)
 
 #define GUC_NUM_DOORBELLS		256
 
@@ -114,6 +123,11 @@ struct guc_doorbell_info {
 #define GEN8_DRBREGL(x)			_MMIO(0x1000 + (x) * 8)
 #define   GEN8_DRB_VALID		  (1<<0)
 #define GEN8_DRBREGU(x)			_MMIO(0x1000 + (x) * 8 + 4)
+
+#define GEN12_DIST_DBS_POPULATED		_MMIO(0xd08)
+#define   GEN12_DOORBELLS_PER_SQIDI_SHIFT	16
+#define   GEN12_DOORBELLS_PER_SQIDI		(0xff)
+#define   GEN12_SQIDIS_DOORBELL_EXIST		(0xffff)
 
 #define DE_GUCRMR			_MMIO(0x44054)
 

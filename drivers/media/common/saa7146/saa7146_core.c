@@ -37,7 +37,8 @@ void saa7146_setgpio(struct saa7146_dev *dev, int port, u32 data)
 {
 	u32 value = 0;
 
-	BUG_ON(port > 3);
+	if (WARN_ON(port > 3))
+		return;
 
 	value = saa7146_read(dev, GPIO_CTRL);
 	value &= ~(0xff << (8*port));
@@ -132,15 +133,15 @@ int saa7146_wait_for_debi_done(struct saa7146_dev *dev, int nobusyloop)
  ****************************************************************************/
 
 /* this is videobuf_vmalloc_to_sg() from videobuf-dma-sg.c
-   make sure virt has been allocated with vmalloc_32(), otherwise the BUG()
-   may be triggered on highmem machines */
+   make sure virt has been allocated with vmalloc_32(), otherwise return NULL
+   on highmem machines */
 static struct scatterlist* vmalloc_to_sg(unsigned char *virt, int nr_pages)
 {
 	struct scatterlist *sglist;
 	struct page *pg;
 	int i;
 
-	sglist = kcalloc(nr_pages, sizeof(struct scatterlist), GFP_KERNEL);
+	sglist = kmalloc_array(nr_pages, sizeof(struct scatterlist), GFP_KERNEL);
 	if (NULL == sglist)
 		return NULL;
 	sg_init_table(sglist, nr_pages);
@@ -148,7 +149,8 @@ static struct scatterlist* vmalloc_to_sg(unsigned char *virt, int nr_pages)
 		pg = vmalloc_to_page(virt);
 		if (NULL == pg)
 			goto err;
-		BUG_ON(PageHighMem(pg));
+		if (WARN_ON(PageHighMem(pg)))
+			goto err;
 		sg_set_page(&sglist[i], pg, PAGE_SIZE, 0);
 	}
 	return sglist;
@@ -177,7 +179,7 @@ void *saa7146_vmalloc_build_pgtable(struct pci_dev *pci, long length, struct saa
 		goto err_free_slist;
 
 	pt->nents = pages;
-	slen = pci_map_sg(pci,pt->slist,pt->nents,PCI_DMA_FROMDEVICE);
+	slen = dma_map_sg(&pci->dev, pt->slist, pt->nents, DMA_FROM_DEVICE);
 	if (0 == slen)
 		goto err_free_pgtable;
 
@@ -187,7 +189,7 @@ void *saa7146_vmalloc_build_pgtable(struct pci_dev *pci, long length, struct saa
 	return mem;
 
 err_unmap_sg:
-	pci_unmap_sg(pci, pt->slist, pt->nents, PCI_DMA_FROMDEVICE);
+	dma_unmap_sg(&pci->dev, pt->slist, pt->nents, DMA_FROM_DEVICE);
 err_free_pgtable:
 	saa7146_pgtable_free(pci, pt);
 err_free_slist:
@@ -201,7 +203,7 @@ err_null:
 
 void saa7146_vfree_destroy_pgtable(struct pci_dev *pci, void *mem, struct saa7146_pgtable *pt)
 {
-	pci_unmap_sg(pci, pt->slist, pt->nents, PCI_DMA_FROMDEVICE);
+	dma_unmap_sg(&pci->dev, pt->slist, pt->nents, DMA_FROM_DEVICE);
 	saa7146_pgtable_free(pci, pt);
 	kfree(pt->slist);
 	pt->slist = NULL;
@@ -212,7 +214,7 @@ void saa7146_pgtable_free(struct pci_dev *pci, struct saa7146_pgtable *pt)
 {
 	if (NULL == pt->cpu)
 		return;
-	pci_free_consistent(pci, pt->size, pt->cpu, pt->dma);
+	dma_free_coherent(&pci->dev, pt->size, pt->cpu, pt->dma);
 	pt->cpu = NULL;
 }
 
@@ -221,7 +223,7 @@ int saa7146_pgtable_alloc(struct pci_dev *pci, struct saa7146_pgtable *pt)
 	__le32       *cpu;
 	dma_addr_t   dma_addr = 0;
 
-	cpu = pci_alloc_consistent(pci, PAGE_SIZE, &dma_addr);
+	cpu = dma_alloc_coherent(&pci->dev, PAGE_SIZE, &dma_addr, GFP_KERNEL);
 	if (NULL == cpu) {
 		return -ENOMEM;
 	}
@@ -233,46 +235,32 @@ int saa7146_pgtable_alloc(struct pci_dev *pci, struct saa7146_pgtable *pt)
 }
 
 int saa7146_pgtable_build_single(struct pci_dev *pci, struct saa7146_pgtable *pt,
-	struct scatterlist *list, int sglen  )
+				 struct scatterlist *list, int sglen)
 {
+	struct sg_dma_page_iter dma_iter;
 	__le32 *ptr, fill;
 	int nr_pages = 0;
-	int i,p;
+	int i;
 
-	BUG_ON(0 == sglen);
-	BUG_ON(list->offset > PAGE_SIZE);
+	if (WARN_ON(!sglen) ||
+	    WARN_ON(list->offset > PAGE_SIZE))
+		return -EIO;
 
 	/* if we have a user buffer, the first page may not be
 	   aligned to a page boundary. */
 	pt->offset = list->offset;
 
 	ptr = pt->cpu;
-	for (i = 0; i < sglen; i++, list++) {
-/*
-		pr_debug("i:%d, adr:0x%08x, len:%d, offset:%d\n",
-			 i, sg_dma_address(list), sg_dma_len(list),
-			 list->offset);
-*/
-		for (p = 0; p * 4096 < list->length; p++, ptr++) {
-			*ptr = cpu_to_le32(sg_dma_address(list) + p * 4096);
-			nr_pages++;
-		}
+	for_each_sg_dma_page(list, &dma_iter, sglen, 0) {
+		*ptr++ = cpu_to_le32(sg_page_iter_dma_address(&dma_iter));
+		nr_pages++;
 	}
 
 
 	/* safety; fill the page table up with the last valid page */
 	fill = *(ptr-1);
-	for(i=nr_pages;i<1024;i++) {
+	for (i = nr_pages; i < 1024; i++)
 		*ptr++ = fill;
-	}
-
-/*
-	ptr = pt->cpu;
-	pr_debug("offset: %d\n", pt->offset);
-	for(i=0;i<5;i++) {
-		pr_debug("ptr1 %d: 0x%08x\n", i, ptr[i]);
-	}
-*/
 	return 0;
 }
 
@@ -412,18 +400,20 @@ static int saa7146_init_one(struct pci_dev *pci, const struct pci_device_id *ent
 	err = -ENOMEM;
 
 	/* get memory for various stuff */
-	dev->d_rps0.cpu_addr = pci_zalloc_consistent(pci, SAA7146_RPS_MEM,
-						     &dev->d_rps0.dma_handle);
+	dev->d_rps0.cpu_addr = dma_alloc_coherent(&pci->dev, SAA7146_RPS_MEM,
+						  &dev->d_rps0.dma_handle,
+						  GFP_KERNEL);
 	if (!dev->d_rps0.cpu_addr)
 		goto err_free_irq;
 
-	dev->d_rps1.cpu_addr = pci_zalloc_consistent(pci, SAA7146_RPS_MEM,
-						     &dev->d_rps1.dma_handle);
+	dev->d_rps1.cpu_addr = dma_alloc_coherent(&pci->dev, SAA7146_RPS_MEM,
+						  &dev->d_rps1.dma_handle,
+						  GFP_KERNEL);
 	if (!dev->d_rps1.cpu_addr)
 		goto err_free_rps0;
 
-	dev->d_i2c.cpu_addr = pci_zalloc_consistent(pci, SAA7146_RPS_MEM,
-						    &dev->d_i2c.dma_handle);
+	dev->d_i2c.cpu_addr = dma_alloc_coherent(&pci->dev, SAA7146_RPS_MEM,
+						 &dev->d_i2c.dma_handle, GFP_KERNEL);
 	if (!dev->d_i2c.cpu_addr)
 		goto err_free_rps1;
 
@@ -471,14 +461,14 @@ out:
 	return err;
 
 err_free_i2c:
-	pci_free_consistent(pci, SAA7146_RPS_MEM, dev->d_i2c.cpu_addr,
-			    dev->d_i2c.dma_handle);
+	dma_free_coherent(&pci->dev, SAA7146_RPS_MEM, dev->d_i2c.cpu_addr,
+			  dev->d_i2c.dma_handle);
 err_free_rps1:
-	pci_free_consistent(pci, SAA7146_RPS_MEM, dev->d_rps1.cpu_addr,
-			    dev->d_rps1.dma_handle);
+	dma_free_coherent(&pci->dev, SAA7146_RPS_MEM, dev->d_rps1.cpu_addr,
+			  dev->d_rps1.dma_handle);
 err_free_rps0:
-	pci_free_consistent(pci, SAA7146_RPS_MEM, dev->d_rps0.cpu_addr,
-			    dev->d_rps0.dma_handle);
+	dma_free_coherent(&pci->dev, SAA7146_RPS_MEM, dev->d_rps0.cpu_addr,
+			  dev->d_rps0.dma_handle);
 err_free_irq:
 	free_irq(pci->irq, (void *)dev);
 err_unmap:
@@ -519,7 +509,8 @@ static void saa7146_remove_one(struct pci_dev *pdev)
 	free_irq(pdev->irq, dev);
 
 	for (p = dev_map; p->addr; p++)
-		pci_free_consistent(pdev, SAA7146_RPS_MEM, p->addr, p->dma);
+		dma_free_coherent(&pdev->dev, SAA7146_RPS_MEM, p->addr,
+				  p->dma);
 
 	iounmap(dev->mem);
 	pci_release_region(pdev, 0);

@@ -24,8 +24,13 @@
 /*
  * ARM PMU hw_event flags
  */
-/* Event uses a 64bit counter */
-#define ARMPMU_EVT_64BIT		1
+#define ARMPMU_EVT_64BIT		0x00001 /* Event uses a 64bit counter */
+#define ARMPMU_EVT_47BIT		0x00002 /* Event uses a 47bit counter */
+#define ARMPMU_EVT_63BIT		0x00004 /* Event uses a 63bit counter */
+
+static_assert((PERF_EVENT_FLAG_ARCH & ARMPMU_EVT_64BIT) == ARMPMU_EVT_64BIT);
+static_assert((PERF_EVENT_FLAG_ARCH & ARMPMU_EVT_47BIT) == ARMPMU_EVT_47BIT);
+static_assert((PERF_EVENT_FLAG_ARCH & ARMPMU_EVT_63BIT) == ARMPMU_EVT_63BIT);
 
 #define HW_OP_UNSUPPORTED		0xFFFF
 #define C(_x)				PERF_COUNT_HW_CACHE_##_x
@@ -55,12 +60,6 @@ struct pmu_hw_events {
 	DECLARE_BITMAP(used_mask, ARMPMU_MAX_HWEVENTS);
 
 	/*
-	 * Hardware lock to serialize accesses to PMU registers. Needed for the
-	 * read/modify/write sequences.
-	 */
-	raw_spinlock_t		pmu_lock;
-
-	/*
 	 * When using percpu IRQs, we need a percpu dev_id. Place it here as we
 	 * already have to allocate this struct per cpu.
 	 */
@@ -73,6 +72,7 @@ enum armpmu_attr_groups {
 	ARMPMU_ATTR_GROUP_COMMON,
 	ARMPMU_ATTR_GROUP_EVENTS,
 	ARMPMU_ATTR_GROUP_FORMATS,
+	ARMPMU_ATTR_GROUP_CAPS,
 	ARMPMU_NR_ATTR_GROUPS
 };
 
@@ -80,6 +80,7 @@ struct arm_pmu {
 	struct pmu	pmu;
 	cpumask_t	supported_cpus;
 	char		*name;
+	int		pmuver;
 	irqreturn_t	(*handle_irq)(struct arm_pmu *pmu);
 	void		(*enable)(struct perf_event *event);
 	void		(*disable)(struct perf_event *event);
@@ -95,7 +96,6 @@ struct arm_pmu {
 	void		(*stop)(struct arm_pmu *);
 	void		(*reset)(void *);
 	int		(*map_event)(struct perf_event *event);
-	int		(*filter_match)(struct perf_event *event);
 	int		num_events;
 	bool		secure_access; /* 32-bit ARM only */
 #define ARMV8_PMUV3_MAX_COMMON_EVENTS		0x40
@@ -108,6 +108,8 @@ struct arm_pmu {
 	struct notifier_block	cpu_pm_nb;
 	/* the attr_groups array must be NULL-terminated */
 	const struct attribute_group *attr_groups[ARMPMU_NR_ATTR_GROUPS + 1];
+	/* store the PMMIR_EL1 to expose slots */
+	u64		reg_pmmir;
 
 	/* Only to be used by ACPI probing code */
 	unsigned long acpi_cpuid;
@@ -159,9 +161,16 @@ int arm_pmu_acpi_probe(armpmu_init_fn init_fn);
 static inline int arm_pmu_acpi_probe(armpmu_init_fn init_fn) { return 0; }
 #endif
 
+#ifdef CONFIG_KVM
+void kvm_host_pmu_init(struct arm_pmu *pmu);
+#else
+#define kvm_host_pmu_init(x)	do { } while(0)
+#endif
+
+bool arm_pmu_irq_is_nmi(void);
+
 /* Internal functions only for core arm_pmu code */
 struct arm_pmu *armpmu_alloc(void);
-struct arm_pmu *armpmu_alloc_atomic(void);
 void armpmu_free(struct arm_pmu *pmu);
 int armpmu_register(struct arm_pmu *pmu);
 int armpmu_request_irq(int irq, int cpu);
@@ -172,5 +181,28 @@ void armpmu_free_irq(int irq, int cpu);
 #endif /* CONFIG_ARM_PMU */
 
 #define ARMV8_SPE_PDEV_NAME "arm,spe-v1"
+#define ARMV8_TRBE_PDEV_NAME "arm,trbe"
+
+/* Why does everything I do descend into this? */
+#define __GEN_PMU_FORMAT_ATTR(cfg, lo, hi)				\
+	(lo) == (hi) ? #cfg ":" #lo "\n" : #cfg ":" #lo "-" #hi
+
+#define _GEN_PMU_FORMAT_ATTR(cfg, lo, hi)				\
+	__GEN_PMU_FORMAT_ATTR(cfg, lo, hi)
+
+#define GEN_PMU_FORMAT_ATTR(name)					\
+	PMU_FORMAT_ATTR(name,						\
+	_GEN_PMU_FORMAT_ATTR(ATTR_CFG_FLD_##name##_CFG,			\
+			     ATTR_CFG_FLD_##name##_LO,			\
+			     ATTR_CFG_FLD_##name##_HI))
+
+#define _ATTR_CFG_GET_FLD(attr, cfg, lo, hi)				\
+	((((attr)->cfg) >> lo) & GENMASK_ULL(hi - lo, 0))
+
+#define ATTR_CFG_GET_FLD(attr, name)					\
+	_ATTR_CFG_GET_FLD(attr,						\
+			  ATTR_CFG_FLD_##name##_CFG,			\
+			  ATTR_CFG_FLD_##name##_LO,			\
+			  ATTR_CFG_FLD_##name##_HI)
 
 #endif /* __ARM_PMU_H__ */

@@ -79,3 +79,4 @@ module_exit(exit_rc_map_videomate_s350)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
+MODULE_DESCRIPTION("videomate-s350 remote controller keytable");

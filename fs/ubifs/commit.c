@@ -70,18 +70,29 @@ static int nothing_to_commit(struct ubifs_info *c)
 		return 0;
 
 	/*
+	 * Increasing @c->dirty_pn_cnt/@c->dirty_nn_cnt and marking
+	 * nnodes/pnodes as dirty in run_gc() could race with following
+	 * checking, which leads inconsistent states between @c->nroot
+	 * and @c->dirty_pn_cnt/@c->dirty_nn_cnt, holding @c->lp_mutex
+	 * to avoid that.
+	 */
+	mutex_lock(&c->lp_mutex);
+	/*
 	 * Even though the TNC is clean, the LPT tree may have dirty nodes. For
 	 * example, this may happen if the budgeting subsystem invoked GC to
 	 * make some free space, and the GC found an LEB with only dirty and
 	 * free space. In this case GC would just change the lprops of this
 	 * LEB (by turning all space into free space) and unmap it.
 	 */
-	if (c->nroot && test_bit(DIRTY_CNODE, &c->nroot->flags))
+	if (c->nroot && test_bit(DIRTY_CNODE, &c->nroot->flags)) {
+		mutex_unlock(&c->lp_mutex);
 		return 0;
+	}
 
 	ubifs_assert(c, atomic_long_read(&c->dirty_zn_cnt) == 0);
 	ubifs_assert(c, c->dirty_pn_cnt == 0);
 	ubifs_assert(c, c->dirty_nn_cnt == 0);
+	mutex_unlock(&c->lp_mutex);
 
 	return 1;
 }
@@ -552,11 +563,11 @@ out:
  */
 int dbg_check_old_index(struct ubifs_info *c, struct ubifs_zbranch *zroot)
 {
-	int lnum, offs, len, err = 0, uninitialized_var(last_level), child_cnt;
+	int lnum, offs, len, err = 0, last_level, child_cnt;
 	int first = 1, iip;
 	struct ubifs_debug_info *d = c->dbg;
-	union ubifs_key uninitialized_var(lower_key), upper_key, l_key, u_key;
-	unsigned long long uninitialized_var(last_sqnum);
+	union ubifs_key lower_key, upper_key, l_key, u_key;
+	unsigned long long last_sqnum;
 	struct ubifs_idx_node *idx;
 	struct list_head list;
 	struct idx_node *i;
@@ -701,13 +712,13 @@ out:
 
 out_dump:
 	ubifs_err(c, "dumping index node (iip=%d)", i->iip);
-	ubifs_dump_node(c, idx);
+	ubifs_dump_node(c, idx, ubifs_idx_node_sz(c, c->fanout));
 	list_del(&i->list);
 	kfree(i);
 	if (!list_empty(&list)) {
 		i = list_entry(list.prev, struct idx_node, list);
 		ubifs_err(c, "dumping parent index node");
-		ubifs_dump_node(c, &i->idx);
+		ubifs_dump_node(c, &i->idx, ubifs_idx_node_sz(c, c->fanout));
 	}
 out_free:
 	while (!list_empty(&list)) {

@@ -22,7 +22,7 @@ Older Version	: 2.20.4.8 (scsi module), 2.20.2.6 (cmm module)
 	Customer reported "garbage in file on x86_64 platform".
 	Root Cause: the driver registered controllers as 64-bit DMA capable
 	for those which are not support it.
-	Fix: Made change in the function inserting identification machanism
+	Fix: Made change in the function inserting identification mechanism
 	identifying 64-bit DMA capable controllers.
 
 	> -----Original Message-----
@@ -82,9 +82,9 @@ Older Version	: 2.20.4.8 (scsi module), 2.20.2.6 (cmm module)
 	Fix: MegaRAID F/W has fixed the problem and being process of release,
 	soon. Meanwhile, driver will filter out the request.
 
-3.	One of member in the data structure of the driver leads unaligne
+3.	One member in the data structure of the driver leads to unaligned
 	issue on 64-bit platform.
-	Customer reporeted "kernel unaligned access addrss" issue when
+	Customer reported "kernel unaligned access address" issue when
 	application communicates with MegaRAID HBA driver.
 	Root Cause: in uioc_t structure, one of member had misaligned and it
 	led system to display the error message.
@@ -220,7 +220,7 @@ Older Version	: 2.20.4.5 (scsi module), 2.20.2.5 (cmm module)
 
 4.	Use the pre defined DMA mask constants from dma-mapping.h
 	Use the DMA_{64,32}BIT_MASK constants from dma-mapping.h when calling
-	pci_set_dma_mask() or pci_set_consistend_dma_mask(). See
+	pci_set_dma_mask() or pci_set_consistent_dma_mask(). See
 	http://marc.theaimsgroup.com/?t=108001993000001&r=1&w=2 for more
 	details.
 		Signed-off-by: Tobias Klauser <tklauser@nuerscht.ch>
@@ -441,7 +441,7 @@ i.	When copying the mailbox packets, copy only first 14 bytes (for 32-bit
 	avoid getting the stale values for busy bit. We want to set the busy
 	bit just before issuing command to the FW.
 
-ii.	In the reset handling, if the reseted command is not owned by the
+ii.	In the reset handling, if the reset command is not owned by the
 	driver, do not (wrongly) print information for the "attached" driver
 	packet.
 

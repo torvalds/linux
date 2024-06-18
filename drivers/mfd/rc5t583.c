@@ -230,11 +230,10 @@ static const struct regmap_config rc5t583_regmap_config = {
 	.volatile_reg = volatile_reg,
 	.max_register = RC5T583_MAX_REG,
 	.num_reg_defaults_raw = RC5T583_NUM_REGS,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
-static int rc5t583_i2c_probe(struct i2c_client *i2c,
-			      const struct i2c_device_id *id)
+static int rc5t583_i2c_probe(struct i2c_client *i2c)
 {
 	struct rc5t583 *rc5t583;
 	struct rc5t583_platform_data *pdata = dev_get_platdata(&i2c->dev);

@@ -1,22 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Digital I/O driver for Technologic Systems I2C FPGA Core
  *
- * Copyright (C) 2015 Technologic Systems
+ * Copyright (C) 2015, 2018 Technologic Systems
  * Copyright (C) 2016 Savoir-Faire Linux
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether expressed or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License version 2 for more details.
  */
 
 #include <linux/gpio/driver.h>
 #include <linux/i2c.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
 
@@ -44,7 +36,10 @@ static int ts4900_gpio_get_direction(struct gpio_chip *chip,
 
 	regmap_read(priv->regmap, offset, &reg);
 
-	return !(reg & TS4900_GPIO_OE);
+	if (reg & TS4900_GPIO_OE)
+		return GPIO_LINE_DIRECTION_OUT;
+
+	return GPIO_LINE_DIRECTION_IN;
 }
 
 static int ts4900_gpio_direction_input(struct gpio_chip *chip,
@@ -53,17 +48,33 @@ static int ts4900_gpio_direction_input(struct gpio_chip *chip,
 	struct ts4900_gpio_priv *priv = gpiochip_get_data(chip);
 
 	/*
-	 * This will clear the output enable bit, the other bits are
-	 * dontcare when this is cleared
+	 * Only clear the OE bit here, requires a RMW. Prevents a potential issue
+	 * with OE and DAT getting to the physical pin at different times.
 	 */
-	return regmap_write(priv->regmap, offset, 0);
+	return regmap_update_bits(priv->regmap, offset, TS4900_GPIO_OE, 0);
 }
 
 static int ts4900_gpio_direction_output(struct gpio_chip *chip,
 					unsigned int offset, int value)
 {
 	struct ts4900_gpio_priv *priv = gpiochip_get_data(chip);
+	unsigned int reg;
 	int ret;
+
+	/*
+	 * If changing from an input to an output, we need to first set the
+	 * GPIO's DAT bit to what is requested and then set the OE bit. This
+	 * prevents a glitch that can occur on the IO line.
+	 */
+	regmap_read(priv->regmap, offset, &reg);
+	if (!(reg & TS4900_GPIO_OE)) {
+		if (value)
+			reg = TS4900_GPIO_OUT;
+		else
+			reg &= ~TS4900_GPIO_OUT;
+
+		regmap_write(priv->regmap, offset, reg);
+	}
 
 	if (value)
 		ret = regmap_write(priv->regmap, offset, TS4900_GPIO_OE |
@@ -125,8 +136,7 @@ static const struct of_device_id ts4900_gpio_of_match_table[] = {
 };
 MODULE_DEVICE_TABLE(of, ts4900_gpio_of_match_table);
 
-static int ts4900_gpio_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ts4900_gpio_probe(struct i2c_client *client)
 {
 	struct ts4900_gpio_priv *priv;
 	u32 ngpio;

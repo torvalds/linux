@@ -2847,7 +2847,7 @@ struct tg3_ocir {
 	u32				port1_flags;
 	u32				port2_flags;
 	u32				port3_flags;
-	u32				reserved2[1];
+	u32				reserved2;
 };
 
 
@@ -3018,6 +3018,7 @@ struct tg3_napi {
 	u16				*rx_rcb_prod_idx;
 	struct tg3_rx_prodring_set	prodring;
 	struct tg3_rx_buffer_desc	*rx_rcb;
+	unsigned long			rx_dropped;
 
 	u32				tx_prod	____cacheline_aligned;
 	u32				tx_cons;
@@ -3026,6 +3027,7 @@ struct tg3_napi {
 	u32				prodmbox;
 	struct tg3_tx_buffer_desc	*tx_ring;
 	struct tg3_tx_ring_info		*tx_buffers;
+	unsigned long			tx_dropped;
 
 	dma_addr_t			status_mapping;
 	dma_addr_t			rx_rcb_mapping;
@@ -3190,6 +3192,7 @@ struct tg3 {
 	struct ptp_clock_info		ptp_info;
 	struct ptp_clock		*ptp_clock;
 	s64				ptp_adjust;
+	u8				ptp_txts_retrycnt;
 
 	/* begin "tx thread" cacheline section */
 	void				(*write32_tx_mbox) (struct tg3 *, u32,
@@ -3219,8 +3222,6 @@ struct tg3 {
 
 
 	/* begin "everything else" cacheline(s) section */
-	unsigned long			rx_dropped;
-	unsigned long			tx_dropped;
 	struct rtnl_link_stats64	net_stats_prev;
 	struct tg3_ethtool_stats	estats_prev;
 
@@ -3372,6 +3373,8 @@ struct tg3 {
 	struct tg3_hw_stats		*hw_stats;
 	dma_addr_t			stats_mapping;
 	struct work_struct		reset_task;
+	struct sk_buff			*tx_tstamp_skb;
+	u64				pre_tx_ts;
 
 	int				nvram_lock_cnt;
 	u32				nvram_size;
@@ -3416,7 +3419,7 @@ struct tg3 {
 	unsigned int			irq_cnt;
 
 	struct ethtool_coalesce		coal;
-	struct ethtool_eee		eee;
+	struct ethtool_keee		eee;
 
 	/* firmware info */
 	const char			*fw_needed;

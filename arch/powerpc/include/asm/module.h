@@ -3,27 +3,9 @@
 #define _ASM_POWERPC_MODULE_H
 #ifdef __KERNEL__
 
-/*
- */
-
 #include <linux/list.h>
 #include <asm/bug.h>
 #include <asm-generic/module.h>
-
-
-#ifdef CONFIG_MPROFILE_KERNEL
-#define MODULE_ARCH_VERMAGIC_FTRACE	"mprofile-kernel "
-#else
-#define MODULE_ARCH_VERMAGIC_FTRACE	""
-#endif
-
-#ifdef CONFIG_RELOCATABLE
-#define MODULE_ARCH_VERMAGIC_RELOCATABLE	"relocatable "
-#else
-#define MODULE_ARCH_VERMAGIC_RELOCATABLE	""
-#endif
-
-#define MODULE_ARCH_VERMAGIC MODULE_ARCH_VERMAGIC_FTRACE MODULE_ARCH_VERMAGIC_RELOCATABLE
 
 #ifndef __powerpc64__
 /*
@@ -45,8 +27,13 @@ struct ppc_plt_entry {
 struct mod_arch_specific {
 #ifdef __powerpc64__
 	unsigned int stubs_section;	/* Index of stubs section in module */
+#ifdef CONFIG_PPC_KERNEL_PCREL
+	unsigned int got_section;	/* What section is the GOT? */
+	unsigned int pcpu_section;	/* .data..percpu section */
+#else
 	unsigned int toc_section;	/* What section is the TOC? */
 	bool toc_fixed;			/* Have we fixed up .TOC.? */
+#endif
 
 	/* For module function descriptor dereference */
 	unsigned long start_opd;
@@ -59,25 +46,21 @@ struct mod_arch_specific {
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 	unsigned long tramp;
-#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
 	unsigned long tramp_regs;
 #endif
-#endif
-
-	/* List of BUG addresses, source line numbers and filenames */
-	struct list_head bug_list;
-	struct bug_entry *bug_table;
-	unsigned int num_bugs;
 };
 
 /*
  * Select ELF headers.
- * Make empty section for module_frob_arch_sections to expand.
+ * Make empty sections for module_frob_arch_sections to expand.
  */
 
 #ifdef __powerpc64__
 #    ifdef MODULE
 	asm(".section .stubs,\"ax\",@nobits; .align 3; .previous");
+#        ifdef CONFIG_PPC_KERNEL_PCREL
+	    asm(".section .mygot,\"a\",@nobits; .align 3; .previous");
+#        endif
 #    endif
 #else
 #    ifdef MODULE
@@ -87,15 +70,8 @@ struct mod_arch_specific {
 #endif
 
 #ifdef CONFIG_DYNAMIC_FTRACE
-#    ifdef MODULE
-	asm(".section .ftrace.tramp,\"ax\",@nobits; .align 3; .previous");
-#    endif	/* MODULE */
-#endif
-
 int module_trampoline_target(struct module *mod, unsigned long trampoline,
 			     unsigned long *target);
-
-#ifdef CONFIG_DYNAMIC_FTRACE
 int module_finalize_ftrace(struct module *mod, const Elf_Shdr *sechdrs);
 #else
 static inline int module_finalize_ftrace(struct module *mod, const Elf_Shdr *sechdrs)

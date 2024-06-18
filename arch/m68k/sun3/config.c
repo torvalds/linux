@@ -17,12 +17,12 @@
 #include <linux/init.h>
 #include <linux/memblock.h>
 #include <linux/platform_device.h>
+#include <linux/linkage.h>
 
 #include <asm/oplib.h>
 #include <asm/setup.h>
 #include <asm/contregs.h>
 #include <asm/movs.h>
-#include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/sun3-head.h>
 #include <asm/sun3mmu.h>
@@ -32,14 +32,14 @@
 #include <asm/intersil.h>
 #include <asm/irq.h>
 #include <asm/sections.h>
-#include <asm/segment.h>
 #include <asm/sun3ints.h>
+#include <asm/config.h>
+
+#include "sun3.h"
 
 char sun3_reserved_pmeg[SUN3_PMEGS_NUM];
 
-static void sun3_sched_init(irq_handler_t handler);
-extern void sun3_get_model (char* model);
-extern int sun3_hwclk(int set, struct rtc_time *t);
+static void sun3_sched_init(void);
 
 volatile char* clock_va;
 extern unsigned long availmem;
@@ -50,7 +50,7 @@ static void sun3_get_hardware_list(struct seq_file *m)
 	seq_printf(m, "PROM Revision:\t%s\n", romvec->pv_monid);
 }
 
-void __init sun3_init(void)
+asmlinkage void __init sun3_init(void)
 {
 	unsigned char enable_register;
 	int i;
@@ -90,7 +90,7 @@ void __init sun3_init(void)
 	sun3_reserved_pmeg[249] = 1;
 	sun3_reserved_pmeg[252] = 1;
 	sun3_reserved_pmeg[253] = 1;
-	set_fs(KERNEL_DS);
+	set_fc(USER_DATA);
 }
 
 /* Without this, Bad Things happen when something calls arch_reset. */
@@ -109,13 +109,10 @@ static void sun3_halt (void)
 static void __init sun3_bootmem_alloc(unsigned long memory_start,
 				      unsigned long memory_end)
 {
-	unsigned long start_page;
-
 	/* align start/end to page boundaries */
 	memory_start = ((memory_start + (PAGE_SIZE-1)) & PAGE_MASK);
 	memory_end = memory_end & PAGE_MASK;
 
-	start_page = __pa(memory_start) >> PAGE_SHIFT;
 	max_pfn = num_pages = __pa(memory_end) >> PAGE_SHIFT;
 
 	high_memory = (void *)memory_end;
@@ -152,7 +149,7 @@ void __init config_sun3(void)
 	sun3_bootmem_alloc(memory_start, memory_end);
 }
 
-static void __init sun3_sched_init(irq_handler_t timer_routine)
+static void __init sun3_sched_init(void)
 {
 	sun3_disable_interrupts();
         intersil_clock->cmd_reg=(INTERSIL_RUN|INTERSIL_INT_DISABLE|INTERSIL_24H_MODE);
@@ -202,7 +199,7 @@ static const struct resource sun3_scsi_rsrc[] __initconst = {
 	},
 };
 
-int __init sun3_platform_init(void)
+static int __init sun3_platform_init(void)
 {
 	switch (idprom->id_machtype) {
 	case SM_SUN3 | SM_3_160:

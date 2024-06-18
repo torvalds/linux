@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Uncore Frquency control drivers
+#
+
+menu "Intel Uncore Frequency Control"
+	depends on X86_64 || COMPILE_TEST
+
+config INTEL_UNCORE_FREQ_CONTROL_TPMI
+	tristate
+
+config INTEL_UNCORE_FREQ_CONTROL
+	tristate "Intel Uncore frequency control driver"
+	depends on X86_64
+	select INTEL_UNCORE_FREQ_CONTROL_TPMI if INTEL_TPMI
+	help
+	  This driver allows control of Uncore frequency limits on
+	  supported server platforms.
+
+	  Uncore frequency controls RING/LLC (last-level cache) clocks.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called intel-uncore-frequency.
+
+endmenu

@@ -1,7 +1,5 @@
 Binding for TI composite clock.
 
-Binding status: Unstable - ABI compatibility may be broken in the future
-
 This binding uses the common clock binding[1]. It assumes a
 register-mapped composite clock with multiple different sub-types;
 
@@ -26,6 +24,9 @@ Required properties:
 - compatible : shall be: "ti,composite-clock"
 - clocks : link phandles of component clocks
 - #clock-cells : from common clock binding; shall be set to 0.
+
+Optional properties:
+- clock-output-names : from common clock binding.
 
 Examples:
 

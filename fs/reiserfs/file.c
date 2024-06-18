@@ -38,15 +38,9 @@ static int reiserfs_file_release(struct inode *inode, struct file *filp)
 
 	BUG_ON(!S_ISREG(inode->i_mode));
 
-        if (atomic_add_unless(&REISERFS_I(inode)->openers, -1, 1))
+	if (!atomic_dec_and_mutex_lock(&REISERFS_I(inode)->openers,
+				       &REISERFS_I(inode)->tailpack))
 		return 0;
-
-	mutex_lock(&REISERFS_I(inode)->tailpack);
-
-        if (!atomic_dec_and_test(&REISERFS_I(inode)->openers)) {
-		mutex_unlock(&REISERFS_I(inode)->tailpack);
-		return 0;
-	}
 
 	/* fast out for when nothing needs to be done */
 	if ((!(REISERFS_I(inode)->i_flags & i_pack_on_close_mask) ||
@@ -165,7 +159,7 @@ static int reiserfs_sync_file(struct file *filp, loff_t start, loff_t end,
 	barrier_done = reiserfs_commit_for_inode(inode);
 	reiserfs_write_unlock(inode->i_sb);
 	if (barrier_done != 1 && reiserfs_barrier_flush(inode->i_sb))
-		blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL, NULL);
+		blkdev_issue_flush(inode->i_sb->s_bdev);
 	inode_unlock(inode);
 	if (barrier_done < 0)
 		return barrier_done;
@@ -233,7 +227,7 @@ drop_write_lock:
 	}
 	/*
 	 * If this is a partial write which happened to make all buffers
-	 * uptodate then we can optimize away a bogus readpage() for
+	 * uptodate then we can optimize away a bogus read_folio() for
 	 * the next read(). Here we 'discover' whether the page went
 	 * uptodate as a result of this (potentially partial) write.
 	 */
@@ -253,7 +247,7 @@ const struct file_operations reiserfs_file_operations = {
 	.fsync = reiserfs_sync_file,
 	.read_iter = generic_file_read_iter,
 	.write_iter = generic_file_write_iter,
-	.splice_read = generic_file_splice_read,
+	.splice_read = filemap_splice_read,
 	.splice_write = iter_file_splice_write,
 	.llseek = generic_file_llseek,
 };
@@ -262,6 +256,15 @@ const struct inode_operations reiserfs_file_inode_operations = {
 	.setattr = reiserfs_setattr,
 	.listxattr = reiserfs_listxattr,
 	.permission = reiserfs_permission,
-	.get_acl = reiserfs_get_acl,
+	.get_inode_acl = reiserfs_get_acl,
 	.set_acl = reiserfs_set_acl,
+	.fileattr_get = reiserfs_fileattr_get,
+	.fileattr_set = reiserfs_fileattr_set,
+};
+
+const struct inode_operations reiserfs_priv_file_inode_operations = {
+	.setattr = reiserfs_setattr,
+	.permission = reiserfs_permission,
+	.fileattr_get = reiserfs_fileattr_get,
+	.fileattr_set = reiserfs_fileattr_set,
 };

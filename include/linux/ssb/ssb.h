@@ -7,7 +7,7 @@
 #include <linux/types.h>
 #include <linux/spinlock.h>
 #include <linux/pci.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/mod_devicetable.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
@@ -285,7 +285,7 @@ struct ssb_device {
 
 /* Go from struct device to struct ssb_device. */
 static inline
-struct ssb_device * dev_to_ssb_dev(struct device *dev)
+struct ssb_device * dev_to_ssb_dev(const struct device *dev)
 {
 	struct __ssb_dev_wrapper *wrap;
 	wrap = container_of(dev, struct __ssb_dev_wrapper, dev);
@@ -620,14 +620,6 @@ static inline void ssb_block_write(struct ssb_device *dev, const void *buffer,
 extern u32 ssb_dma_translation(struct ssb_device *dev);
 #define SSB_DMA_TRANSLATION_MASK	0xC0000000
 #define SSB_DMA_TRANSLATION_SHIFT	30
-
-static inline void __cold __ssb_dma_not_implemented(struct ssb_device *dev)
-{
-#ifdef CONFIG_SSB_DEBUG
-	printk(KERN_ERR "SSB: BUG! Calling DMA API for "
-	       "unsupported bustype %d\n", dev->bus->bustype);
-#endif /* DEBUG */
-}
 
 #ifdef CONFIG_SSB_PCIHOST
 /* PCI-host wrapper driver */

@@ -3,7 +3,7 @@
  * This file holds USB constants and structures that are needed for
  * USB device APIs.  These are used by the USB device model, which is
  * defined in chapter 9 of the USB 2.0 specification and in the
- * Wireless USB 1.0 (spread around).  Linux has several APIs in C that
+ * Wireless USB 1.0 spec (now defunct).  Linux has several APIs in C that
  * need these:
  *
  * - the master/host side Linux-USB kernel driver API;
@@ -13,9 +13,6 @@
  * USB 2.0 adds an additional "On The Go" (OTG) mode, which lets systems
  * act either as a USB master/host or as a USB slave/device.  That means
  * the master and slave side APIs benefit from working well together.
- *
- * There's also "Wireless USB", using low power short range radios for
- * peripheral interconnection but otherwise building on the USB framework.
  *
  * Note all descriptors are declared '__attribute__((packed))' so that:
  *
@@ -138,11 +135,11 @@
  * Test Mode Selectors
  * See USB 2.0 spec Table 9-7
  */
-#define	TEST_J		1
-#define	TEST_K		2
-#define	TEST_SE0_NAK	3
-#define	TEST_PACKET	4
-#define	TEST_FORCE_EN	5
+#define	USB_TEST_J		1
+#define	USB_TEST_K		2
+#define	USB_TEST_SE0_NAK	3
+#define	USB_TEST_PACKET		4
+#define	USB_TEST_FORCE_ENABLE	5
 
 /* Status Type */
 #define USB_STATUS_TYPE_STANDARD	0
@@ -326,6 +323,10 @@ struct usb_device_descriptor {
 #define USB_CLASS_CONTENT_SEC		0x0d	/* content security */
 #define USB_CLASS_VIDEO			0x0e
 #define USB_CLASS_WIRELESS_CONTROLLER	0xe0
+#define USB_CLASS_PERSONAL_HEALTHCARE	0x0f
+#define USB_CLASS_AUDIO_VIDEO		0x10
+#define USB_CLASS_BILLBOARD		0x11
+#define USB_CLASS_USB_TYPE_C_BRIDGE	0x12
 #define USB_CLASS_MISC			0xef
 #define USB_CLASS_APP_SPEC		0xfe
 #define USB_CLASS_VENDOR_SPEC		0xff
@@ -364,12 +365,18 @@ struct usb_config_descriptor {
 
 /*-------------------------------------------------------------------------*/
 
+/* USB String descriptors can contain at most 126 characters. */
+#define USB_MAX_STRING_LEN	126
+
 /* USB_DT_STRING: String descriptor */
 struct usb_string_descriptor {
 	__u8  bLength;
 	__u8  bDescriptorType;
 
-	__le16 wData[1];		/* UTF-16LE encoded */
+	union {
+		__le16 legacy_padding;
+		__DECLARE_FLEX_ARRAY(__le16, wData);	/* UTF-16LE encoded */
+	};
 } __attribute__ ((packed));
 
 /* note that "string" zero is special, it holds language codes that
@@ -756,6 +763,8 @@ struct usb_otg20_descriptor {
 #define USB_OTG_SRP		(1 << 0)
 #define USB_OTG_HNP		(1 << 1)	/* swap host/device roles */
 #define USB_OTG_ADP		(1 << 2)	/* support ADP */
+/* OTG 3.0 */
+#define USB_OTG_RSP		(1 << 3)	/* support RSP */
 
 #define OTG_STS_SELECTOR	0xF000		/* OTG status selector */
 /*-------------------------------------------------------------------------*/
@@ -811,7 +820,7 @@ struct usb_key_descriptor {
 
 	__u8  tTKID[3];
 	__u8  bReserved;
-	__u8  bKeyData[0];
+	__u8  bKeyData[];
 } __attribute__((packed));
 
 /*-------------------------------------------------------------------------*/
@@ -941,6 +950,22 @@ struct usb_ss_container_id_descriptor {
 #define USB_DT_USB_SS_CONTN_ID_SIZE	20
 
 /*
+ * Platform Device Capability descriptor: Defines platform specific device
+ * capabilities
+ */
+#define	USB_PLAT_DEV_CAP_TYPE	5
+struct usb_plat_dev_cap_descriptor {
+	__u8  bLength;
+	__u8  bDescriptorType;
+	__u8  bDevCapabilityType;
+	__u8  bReserved;
+	__u8  UUID[16];
+	__u8  CapabilityData[];
+} __attribute__((packed));
+
+#define USB_DT_USB_PLAT_DEV_CAP_SIZE(capability_data_size)	(20 + capability_data_size)
+
+/*
  * SuperSpeed Plus USB Capability descriptor: Defines the set of
  * SuperSpeed Plus USB specific device level capabilities
  */
@@ -958,12 +983,29 @@ struct usb_ssp_cap_descriptor {
 #define USB_SSP_MIN_RX_LANE_COUNT		(0xf << 8)
 #define USB_SSP_MIN_TX_LANE_COUNT		(0xf << 12)
 	__le16 wReserved;
-	__le32 bmSublinkSpeedAttr[1]; /* list of sublink speed attrib entries */
+	union {
+		__le32 legacy_padding;
+		/* list of sublink speed attrib entries */
+		__DECLARE_FLEX_ARRAY(__le32, bmSublinkSpeedAttr);
+	};
 #define USB_SSP_SUBLINK_SPEED_SSID	(0xf)		/* sublink speed ID */
 #define USB_SSP_SUBLINK_SPEED_LSE	(0x3 << 4)	/* Lanespeed exponent */
+#define USB_SSP_SUBLINK_SPEED_LSE_BPS		0
+#define USB_SSP_SUBLINK_SPEED_LSE_KBPS		1
+#define USB_SSP_SUBLINK_SPEED_LSE_MBPS		2
+#define USB_SSP_SUBLINK_SPEED_LSE_GBPS		3
+
 #define USB_SSP_SUBLINK_SPEED_ST	(0x3 << 6)	/* Sublink type */
+#define USB_SSP_SUBLINK_SPEED_ST_SYM_RX		0
+#define USB_SSP_SUBLINK_SPEED_ST_ASYM_RX	1
+#define USB_SSP_SUBLINK_SPEED_ST_SYM_TX		2
+#define USB_SSP_SUBLINK_SPEED_ST_ASYM_TX	3
+
 #define USB_SSP_SUBLINK_SPEED_RSVD	(0x3f << 8)	/* Reserved */
 #define USB_SSP_SUBLINK_SPEED_LP	(0x3 << 14)	/* Link protocol */
+#define USB_SSP_SUBLINK_SPEED_LP_SS		0
+#define USB_SSP_SUBLINK_SPEED_LP_SSP		1
+
 #define USB_SSP_SUBLINK_SPEED_LSM	(0xff << 16)	/* Lanespeed mantissa */
 } __attribute__((packed));
 
@@ -1222,7 +1264,7 @@ struct usb_set_sel_req {
  * As per USB compliance update, a device that is actively drawing
  * more than 100mA from USB must report itself as bus-powered in
  * the GetStatus(DEVICE) call.
- * http://compliance.usb.org/index.asp?UpdateFile=Electrical&Format=Standard#34
+ * https://compliance.usb.org/index.asp?UpdateFile=Electrical&Format=Standard#34
  */
 #define USB_SELF_POWER_VBUS_MAX_DRAW		100
 

@@ -14,33 +14,102 @@ properties:
     pattern: '^gpu@[a-f0-9]+$'
 
   compatible:
-    items:
-      - enum:
-          - amlogic,meson-g12a-mali
-      - const: arm,mali-bifrost # Mali Bifrost GPU model/revision is fully discoverable
+    oneOf:
+      - items:
+          - enum:
+              - amlogic,meson-g12a-mali
+              - mediatek,mt8183-mali
+              - mediatek,mt8183b-mali
+              - mediatek,mt8186-mali
+              - realtek,rtd1619-mali
+              - renesas,r9a07g044-mali
+              - renesas,r9a07g054-mali
+              - rockchip,px30-mali
+              - rockchip,rk3568-mali
+          - const: arm,mali-bifrost # Mali Bifrost GPU model/revision is fully discoverable
+      - items:
+          - enum:
+              - mediatek,mt8195-mali
+          - const: mediatek,mt8192-mali
+          - const: arm,mali-valhall-jm # Mali Valhall GPU model/revision is fully discoverable
+      - items:
+          - enum:
+              - mediatek,mt8192-mali
+          - const: arm,mali-valhall-jm # Mali Valhall GPU model/revision is fully discoverable
 
   reg:
     maxItems: 1
 
   interrupts:
+    minItems: 3
     items:
       - description: Job interrupt
       - description: MMU interrupt
       - description: GPU interrupt
+      - description: Event interrupt
 
   interrupt-names:
+    minItems: 3
     items:
       - const: job
       - const: mmu
       - const: gpu
+      - const: event
 
   clocks:
-    maxItems: 1
+    minItems: 1
+    maxItems: 3
 
-  mali-supply:
-    maxItems: 1
+  clock-names: true
+
+  mali-supply: true
+
+  sram-supply: true
 
   operating-points-v2: true
+
+  power-domains:
+    minItems: 1
+    maxItems: 5
+
+  power-domain-names:
+    minItems: 2
+    maxItems: 5
+
+  resets:
+    minItems: 1
+    maxItems: 3
+
+  reset-names: true
+
+  "#cooling-cells":
+    const: 2
+
+  dynamic-power-coefficient:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      A u32 value that represents the running time dynamic
+      power coefficient in units of uW/MHz/V^2. The
+      coefficient can either be calculated from power
+      measurements or derived by analysis.
+
+      The dynamic power consumption of the GPU is
+      proportional to the square of the Voltage (V) and
+      the clock frequency (f). The coefficient is used to
+      calculate the dynamic power as below -
+
+      Pdyn = dynamic-power-coefficient * V^2 * f
+
+      where voltage is in V, frequency is in MHz.
+
+  dma-coherent: true
+
+  nvmem-cell-names:
+    items:
+      - const: speed-bin
+
+  nvmem-cells:
+    maxItems: 1
 
 required:
   - compatible
@@ -48,6 +117,8 @@ required:
   - interrupts
   - interrupt-names
   - clocks
+
+additionalProperties: false
 
 allOf:
   - if:
@@ -57,10 +128,141 @@ allOf:
             const: amlogic,meson-g12a-mali
     then:
       properties:
-        resets:
-          minItems: 2
+        power-domains:
+          maxItems: 1
+        power-domain-names: false
       required:
         - resets
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - renesas,r9a07g044-mali
+              - renesas,r9a07g054-mali
+    then:
+      properties:
+        interrupts:
+          minItems: 4
+        interrupt-names:
+          minItems: 4
+        clocks:
+          minItems: 3
+        clock-names:
+          items:
+            - const: gpu
+            - const: bus
+            - const: bus_ace
+        power-domains:
+          maxItems: 1
+        power-domain-names: false
+        resets:
+          minItems: 3
+        reset-names:
+          items:
+            - const: rst
+            - const: axi_rst
+            - const: ace_rst
+      required:
+        - clock-names
+        - power-domains
+        - resets
+        - reset-names
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: mediatek,mt8183-mali
+    then:
+      properties:
+        power-domains:
+          minItems: 3
+          maxItems: 3
+        power-domain-names:
+          items:
+            - const: core0
+            - const: core1
+            - const: core2
+
+      required:
+        - sram-supply
+        - power-domains
+        - power-domain-names
+    else:
+      properties:
+        sram-supply: false
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: mediatek,mt8183b-mali
+    then:
+      properties:
+        power-domains:
+          minItems: 3
+          maxItems: 3
+        power-domain-names:
+          items:
+            - const: core0
+            - const: core1
+            - const: core2
+      required:
+        - power-domains
+        - power-domain-names
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: mediatek,mt8186-mali
+    then:
+      properties:
+        power-domains:
+          minItems: 2
+          maxItems: 2
+        power-domain-names:
+          items:
+            - const: core0
+            - const: core1
+      required:
+        - power-domains
+        - power-domain-names
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: mediatek,mt8192-mali
+    then:
+      properties:
+        power-domains:
+          minItems: 5
+        power-domain-names:
+          items:
+            - const: core0
+            - const: core1
+            - const: core2
+            - const: core3
+            - const: core4
+      required:
+        - power-domains
+        - power-domain-names
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: rockchip,rk3568-mali
+    then:
+      properties:
+        clocks:
+          minItems: 2
+        clock-names:
+          items:
+            - const: gpu
+            - const: bus
+        power-domains:
+          maxItems: 1
+        power-domain-names: false
+      required:
+        - clock-names
 
 examples:
   - |
@@ -80,34 +282,34 @@ examples:
       resets = <&reset 0>, <&reset 1>;
     };
 
-    gpu_opp_table: opp_table0 {
+    gpu_opp_table: opp-table {
       compatible = "operating-points-v2";
 
-      opp@533000000 {
+      opp-533000000 {
         opp-hz = /bits/ 64 <533000000>;
         opp-microvolt = <1250000>;
       };
-      opp@450000000 {
+      opp-450000000 {
         opp-hz = /bits/ 64 <450000000>;
         opp-microvolt = <1150000>;
       };
-      opp@400000000 {
+      opp-400000000 {
         opp-hz = /bits/ 64 <400000000>;
         opp-microvolt = <1125000>;
       };
-      opp@350000000 {
+      opp-350000000 {
         opp-hz = /bits/ 64 <350000000>;
         opp-microvolt = <1075000>;
       };
-      opp@266000000 {
+      opp-266000000 {
         opp-hz = /bits/ 64 <266000000>;
         opp-microvolt = <1025000>;
       };
-      opp@160000000 {
+      opp-160000000 {
         opp-hz = /bits/ 64 <160000000>;
         opp-microvolt = <925000>;
       };
-      opp@100000000 {
+      opp-100000000 {
         opp-hz = /bits/ 64 <100000000>;
         opp-microvolt = <912500>;
       };

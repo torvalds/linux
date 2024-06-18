@@ -3,7 +3,7 @@
  *
  * Name: acexcep.h - Exception codes returned by the ACPI subsystem
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2023, Intel Corp.
  *
  *****************************************************************************/
 
@@ -40,12 +40,12 @@
 struct acpi_exception_info {
 	char *name;
 
-#ifdef ACPI_HELP_APP
+#if defined (ACPI_HELP_APP) || defined (ACPI_ASL_COMPILER)
 	char *description;
 #endif
 };
 
-#ifdef ACPI_HELP_APP
+#if defined (ACPI_HELP_APP) || defined (ACPI_ASL_COMPILER)
 #define EXCEP_TXT(name,description)     {name, description}
 #else
 #define EXCEP_TXT(name,description)     {name}
@@ -59,11 +59,11 @@ struct acpi_exception_info {
 
 #define AE_OK                           (acpi_status) 0x0000
 
-#define ACPI_ENV_EXCEPTION(status)      (status & AE_CODE_ENVIRONMENTAL)
-#define ACPI_AML_EXCEPTION(status)      (status & AE_CODE_AML)
-#define ACPI_PROG_EXCEPTION(status)     (status & AE_CODE_PROGRAMMER)
-#define ACPI_TABLE_EXCEPTION(status)    (status & AE_CODE_ACPI_TABLES)
-#define ACPI_CNTL_EXCEPTION(status)     (status & AE_CODE_CONTROL)
+#define ACPI_ENV_EXCEPTION(status)      (((status) & AE_CODE_MASK) == AE_CODE_ENVIRONMENTAL)
+#define ACPI_AML_EXCEPTION(status)      (((status) & AE_CODE_MASK) == AE_CODE_AML)
+#define ACPI_PROG_EXCEPTION(status)     (((status) & AE_CODE_MASK) == AE_CODE_PROGRAMMER)
+#define ACPI_TABLE_EXCEPTION(status)    (((status) & AE_CODE_MASK) == AE_CODE_ACPI_TABLES)
+#define ACPI_CNTL_EXCEPTION(status)     (((status) & AE_CODE_MASK) == AE_CODE_CONTROL)
 
 /*
  * Environmental exceptions

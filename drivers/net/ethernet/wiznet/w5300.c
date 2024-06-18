@@ -282,9 +282,9 @@ static void w5300_hw_close(struct w5300_priv *priv)
 static void w5300_get_drvinfo(struct net_device *ndev,
 			      struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
-	strlcpy(info->bus_info, dev_name(ndev->dev.parent),
+	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strscpy(info->version, DRV_VERSION, sizeof(info->version));
+	strscpy(info->bus_info, dev_name(ndev->dev.parent),
 		sizeof(info->bus_info));
 }
 
@@ -341,7 +341,7 @@ static void w5300_get_regs(struct net_device *ndev,
 	}
 }
 
-static void w5300_tx_timeout(struct net_device *ndev)
+static void w5300_tx_timeout(struct net_device *ndev, unsigned int txqueue)
 {
 	struct w5300_priv *priv = netdev_priv(ndev);
 
@@ -472,7 +472,7 @@ static int w5300_set_macaddr(struct net_device *ndev, void *addr)
 
 	if (!is_valid_ether_addr(sock_addr->sa_data))
 		return -EADDRNOTAVAIL;
-	memcpy(ndev->dev_addr, sock_addr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(ndev, sock_addr->sa_data);
 	w5300_write_macaddr(priv);
 	return 0;
 }
@@ -534,13 +534,12 @@ static int w5300_hw_probe(struct platform_device *pdev)
 	int ret;
 
 	if (data && is_valid_ether_addr(data->mac_addr)) {
-		memcpy(ndev->dev_addr, data->mac_addr, ETH_ALEN);
+		eth_hw_addr_set(ndev, data->mac_addr);
 	} else {
 		eth_hw_addr_random(ndev);
 	}
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->base = devm_ioremap_resource(&pdev->dev, mem);
+	priv->base = devm_platform_get_and_ioremap_resource(pdev, 0, &mem);
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
@@ -603,7 +602,7 @@ static int w5300_probe(struct platform_device *pdev)
 	ndev->netdev_ops = &w5300_netdev_ops;
 	ndev->ethtool_ops = &w5300_ethtool_ops;
 	ndev->watchdog_timeo = HZ;
-	netif_napi_add(ndev, &priv->napi, w5300_napi_poll, 16);
+	netif_napi_add_weight(ndev, &priv->napi, w5300_napi_poll, 16);
 
 	/* This chip doesn't support VLAN packets with normal MTU,
 	 * so disable VLAN for this device.
@@ -627,7 +626,7 @@ err_register:
 	return err;
 }
 
-static int w5300_remove(struct platform_device *pdev)
+static void w5300_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct w5300_priv *priv = netdev_priv(ndev);
@@ -639,7 +638,6 @@ static int w5300_remove(struct platform_device *pdev)
 
 	unregister_netdev(ndev);
 	free_netdev(ndev);
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -683,7 +681,7 @@ static struct platform_driver w5300_driver = {
 		.pm	= &w5300_pm_ops,
 	},
 	.probe		= w5300_probe,
-	.remove		= w5300_remove,
+	.remove_new	= w5300_remove,
 };
 
 module_platform_driver(w5300_driver);

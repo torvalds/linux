@@ -81,7 +81,7 @@ const struct regmap_config bme680_regmap_config = {
 	.volatile_table = &bme680_volatile_table,
 	.cache_type = REGCACHE_RBTREE,
 };
-EXPORT_SYMBOL(bme680_regmap_config);
+EXPORT_SYMBOL_NS(bme680_regmap_config, IIO_BME680);
 
 static const struct iio_chan_spec bme680_channels[] = {
 	{
@@ -114,14 +114,16 @@ static int bme680_read_calib(struct bme680_data *data,
 	__le16 buf;
 
 	/* Temperature related coefficients */
-	ret = regmap_bulk_read(data->regmap, BME680_T1_LSB_REG, (u8 *) &buf, 2);
+	ret = regmap_bulk_read(data->regmap, BME680_T1_LSB_REG,
+			       &buf, sizeof(buf));
 	if (ret < 0) {
 		dev_err(dev, "failed to read BME680_T1_LSB_REG\n");
 		return ret;
 	}
 	calib->par_t1 = le16_to_cpu(buf);
 
-	ret = regmap_bulk_read(data->regmap, BME680_T2_LSB_REG, (u8 *) &buf, 2);
+	ret = regmap_bulk_read(data->regmap, BME680_T2_LSB_REG,
+			       &buf, sizeof(buf));
 	if (ret < 0) {
 		dev_err(dev, "failed to read BME680_T2_LSB_REG\n");
 		return ret;
@@ -136,14 +138,16 @@ static int bme680_read_calib(struct bme680_data *data,
 	calib->par_t3 = tmp;
 
 	/* Pressure related coefficients */
-	ret = regmap_bulk_read(data->regmap, BME680_P1_LSB_REG, (u8 *) &buf, 2);
+	ret = regmap_bulk_read(data->regmap, BME680_P1_LSB_REG,
+			       &buf, sizeof(buf));
 	if (ret < 0) {
 		dev_err(dev, "failed to read BME680_P1_LSB_REG\n");
 		return ret;
 	}
 	calib->par_p1 = le16_to_cpu(buf);
 
-	ret = regmap_bulk_read(data->regmap, BME680_P2_LSB_REG, (u8 *) &buf, 2);
+	ret = regmap_bulk_read(data->regmap, BME680_P2_LSB_REG,
+			       &buf, sizeof(buf));
 	if (ret < 0) {
 		dev_err(dev, "failed to read BME680_P2_LSB_REG\n");
 		return ret;
@@ -157,14 +161,16 @@ static int bme680_read_calib(struct bme680_data *data,
 	}
 	calib->par_p3 = tmp;
 
-	ret = regmap_bulk_read(data->regmap, BME680_P4_LSB_REG, (u8 *) &buf, 2);
+	ret = regmap_bulk_read(data->regmap, BME680_P4_LSB_REG,
+			       &buf, sizeof(buf));
 	if (ret < 0) {
 		dev_err(dev, "failed to read BME680_P4_LSB_REG\n");
 		return ret;
 	}
 	calib->par_p4 = le16_to_cpu(buf);
 
-	ret = regmap_bulk_read(data->regmap, BME680_P5_LSB_REG, (u8 *) &buf, 2);
+	ret = regmap_bulk_read(data->regmap, BME680_P5_LSB_REG,
+			       &buf, sizeof(buf));
 	if (ret < 0) {
 		dev_err(dev, "failed to read BME680_P5_LSB_REG\n");
 		return ret;
@@ -185,14 +191,16 @@ static int bme680_read_calib(struct bme680_data *data,
 	}
 	calib->par_p7 = tmp;
 
-	ret = regmap_bulk_read(data->regmap, BME680_P8_LSB_REG, (u8 *) &buf, 2);
+	ret = regmap_bulk_read(data->regmap, BME680_P8_LSB_REG,
+			       &buf, sizeof(buf));
 	if (ret < 0) {
 		dev_err(dev, "failed to read BME680_P8_LSB_REG\n");
 		return ret;
 	}
 	calib->par_p8 = le16_to_cpu(buf);
 
-	ret = regmap_bulk_read(data->regmap, BME680_P9_LSB_REG, (u8 *) &buf, 2);
+	ret = regmap_bulk_read(data->regmap, BME680_P9_LSB_REG,
+			       &buf, sizeof(buf));
 	if (ret < 0) {
 		dev_err(dev, "failed to read BME680_P9_LSB_REG\n");
 		return ret;
@@ -276,8 +284,8 @@ static int bme680_read_calib(struct bme680_data *data,
 	}
 	calib->par_gh1 = tmp;
 
-	ret = regmap_bulk_read(data->regmap, BME680_GH2_LSB_REG, (u8 *) &buf,
-			       2);
+	ret = regmap_bulk_read(data->regmap, BME680_GH2_LSB_REG,
+			       &buf, sizeof(buf));
 	if (ret < 0) {
 		dev_err(dev, "failed to read BME680_GH2_LSB_REG\n");
 		return ret;
@@ -471,7 +479,7 @@ static u8 bme680_calc_heater_res(struct bme680_data *data, u16 temp)
 	var4 = (var3 / (calib->res_heat_range + 4));
 	var5 = 131 * calib->res_heat_val + 65536;
 	heatr_res_x100 = ((var4 / var5) - 250) * 34;
-	heatr_res = (heatr_res_x100 + 50) / 100;
+	heatr_res = DIV_ROUND_CLOSEST(heatr_res_x100, 100);
 
 	return heatr_res;
 }
@@ -615,7 +623,7 @@ static int bme680_read_temp(struct bme680_data *data, int *val)
 		return ret;
 
 	ret = regmap_bulk_read(data->regmap, BME680_REG_TEMP_MSB,
-			       (u8 *) &tmp, 3);
+			       &tmp, 3);
 	if (ret < 0) {
 		dev_err(dev, "failed to read temperature\n");
 		return ret;
@@ -630,7 +638,7 @@ static int bme680_read_temp(struct bme680_data *data, int *val)
 	comp_temp = bme680_compensate_temp(data, adc_temp);
 	/*
 	 * val might be NULL if we're called by the read_press/read_humid
-	 * routine which is callled to get t_fine value used in
+	 * routine which is called to get t_fine value used in
 	 * compensate_press/compensate_humid to get compensated
 	 * pressure/humidity readings.
 	 */
@@ -656,7 +664,7 @@ static int bme680_read_press(struct bme680_data *data,
 		return ret;
 
 	ret = regmap_bulk_read(data->regmap, BME680_REG_PRESS_MSB,
-			       (u8 *) &tmp, 3);
+			       &tmp, 3);
 	if (ret < 0) {
 		dev_err(dev, "failed to read pressure\n");
 		return ret;
@@ -689,7 +697,7 @@ static int bme680_read_humid(struct bme680_data *data,
 		return ret;
 
 	ret = regmap_bulk_read(data->regmap, BM6880_REG_HUMIDITY_MSB,
-			       (u8 *) &tmp, 2);
+			       &tmp, sizeof(tmp));
 	if (ret < 0) {
 		dev_err(dev, "failed to read humidity\n");
 		return ret;
@@ -754,7 +762,7 @@ static int bme680_read_gas(struct bme680_data *data,
 	}
 
 	ret = regmap_bulk_read(data->regmap, BME680_REG_GAS_MSB,
-			       (u8 *) &tmp, 2);
+			       &tmp, sizeof(tmp));
 	if (ret < 0) {
 		dev_err(dev, "failed to read gas resistance\n");
 		return ret;
@@ -915,7 +923,6 @@ int bme680_core_probe(struct device *dev, struct regmap *regmap,
 	data = iio_priv(indio_dev);
 	dev_set_drvdata(dev, indio_dev);
 	data->regmap = regmap;
-	indio_dev->dev.parent = dev;
 	indio_dev->name = name;
 	indio_dev->channels = bme680_channels;
 	indio_dev->num_channels = ARRAY_SIZE(bme680_channels);
@@ -950,7 +957,7 @@ int bme680_core_probe(struct device *dev, struct regmap *regmap,
 
 	return devm_iio_device_register(dev, indio_dev);
 }
-EXPORT_SYMBOL_GPL(bme680_core_probe);
+EXPORT_SYMBOL_NS_GPL(bme680_core_probe, IIO_BME680);
 
 MODULE_AUTHOR("Himanshu Jha <himanshujha199640@gmail.com>");
 MODULE_DESCRIPTION("Bosch BME680 Driver");

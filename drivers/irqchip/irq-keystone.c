@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Texas Instruments Keystone IRQ controller IP driver
  *
  * Copyright (C) 2014 Texas Instruments, Inc.
  * Author: Sajesh Kumar Saran <sajesh@ti.com>
  *	   Grygorii Strashko <grygorii.strashko@ti.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/irq.h>
@@ -23,7 +15,7 @@
 #include <linux/irqdomain.h>
 #include <linux/irqchip.h>
 #include <linux/of.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 
@@ -89,7 +81,7 @@ static irqreturn_t keystone_irq_handler(int irq, void *keystone_irq)
 	struct keystone_irq_device *kirq = keystone_irq;
 	unsigned long wa_lock_flags;
 	unsigned long pending;
-	int src, virq;
+	int src, err;
 
 	dev_dbg(kirq->dev, "start irq %d\n", irq);
 
@@ -104,16 +96,14 @@ static irqreturn_t keystone_irq_handler(int irq, void *keystone_irq)
 
 	for (src = 0; src < KEYSTONE_N_IRQ; src++) {
 		if (BIT(src) & pending) {
-			virq = irq_find_mapping(kirq->irqd, src);
-			dev_dbg(kirq->dev, "dispatch bit %d, virq %d\n",
-				src, virq);
-			if (!virq)
-				dev_warn(kirq->dev, "spurious irq detected hwirq %d, virq %d\n",
-					 src, virq);
 			raw_spin_lock_irqsave(&kirq->wa_lock, wa_lock_flags);
-			generic_handle_irq(virq);
+			err = generic_handle_domain_irq(kirq->irqd, src);
 			raw_spin_unlock_irqrestore(&kirq->wa_lock,
 						   wa_lock_flags);
+
+			if (err)
+				dev_warn_ratelimited(kirq->dev, "spurious irq detected hwirq %d\n",
+						     src);
 		}
 	}
 
@@ -200,7 +190,7 @@ static int keystone_irq_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int keystone_irq_remove(struct platform_device *pdev)
+static void keystone_irq_remove(struct platform_device *pdev)
 {
 	struct keystone_irq_device *kirq = platform_get_drvdata(pdev);
 	int hwirq;
@@ -211,7 +201,6 @@ static int keystone_irq_remove(struct platform_device *pdev)
 		irq_dispose_mapping(irq_find_mapping(kirq->irqd, hwirq));
 
 	irq_domain_remove(kirq->irqd);
-	return 0;
 }
 
 static const struct of_device_id keystone_irq_dt_ids[] = {
@@ -222,7 +211,7 @@ MODULE_DEVICE_TABLE(of, keystone_irq_dt_ids);
 
 static struct platform_driver keystone_irq_device_driver = {
 	.probe		= keystone_irq_probe,
-	.remove		= keystone_irq_remove,
+	.remove_new	= keystone_irq_remove,
 	.driver		= {
 		.name	= "keystone_irq",
 		.of_match_table	= of_match_ptr(keystone_irq_dt_ids),

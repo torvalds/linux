@@ -34,9 +34,6 @@
 #include <net/arp.h>
 #include "rtllib.h"
 
-u32 rt_global_debug_component = COMP_ERR;
-EXPORT_SYMBOL(rt_global_debug_component);
-
 static inline int rtllib_networks_allocate(struct rtllib_device *ieee)
 {
 	if (ieee->networks)
@@ -88,7 +85,7 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 	err = rtllib_networks_allocate(ieee);
 	if (err) {
 		pr_err("Unable to allocate beacon storage: %d\n", err);
-		goto failed;
+		goto free_netdev;
 	}
 	rtllib_networks_initialize(ieee);
 
@@ -97,9 +94,6 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 	ieee->scan_age = DEFAULT_MAX_SCAN_AGE;
 	ieee->open_wep = 1;
 
-	/* Default to enabling full open WEP with host based encrypt/decrypt */
-	ieee->host_encrypt = 1;
-	ieee->host_decrypt = 1;
 	ieee->ieee802_1x = 1; /* Default to supporting 802.1x */
 
 	ieee->rtllib_ap_sec_type = rtllib_ap_sec_type;
@@ -107,7 +101,7 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 	spin_lock_init(&ieee->lock);
 	spin_lock_init(&ieee->wpax_suitlist_lock);
 	spin_lock_init(&ieee->reorder_spinlock);
-	atomic_set(&(ieee->atm_swbw), 0);
+	atomic_set(&ieee->atm_swbw, 0);
 
 	/* SAM FIXME */
 	lib80211_crypt_info_init(&ieee->crypt_info, "RTLLIB", &ieee->lock);
@@ -117,19 +111,20 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 	ieee->drop_unencrypted = 0;
 	ieee->privacy_invoked = 0;
 	ieee->ieee802_1x = 1;
-	ieee->raw_tx = 0;
 	ieee->hwsec_active = 0;
 
 	memset(ieee->swcamtable, 0, sizeof(struct sw_cam_table) * 32);
-	rtllib_softmac_init(ieee);
+	err = rtllib_softmac_init(ieee);
+	if (err)
+		goto free_crypt_info;
 
-	ieee->pHTInfo = kzalloc(sizeof(struct rt_hi_throughput), GFP_KERNEL);
-	if (!ieee->pHTInfo)
-		return NULL;
+	ieee->ht_info = kzalloc(sizeof(struct rt_hi_throughput), GFP_KERNEL);
+	if (!ieee->ht_info)
+		goto free_softmac;
 
-	HTUpdateDefaultSetting(ieee);
-	HTInitializeHTInfo(ieee);
-	TSInitialize(ieee);
+	ht_update_default_setting(ieee);
+	ht_initialize_ht_info(ieee);
+	rtllib_ts_init(ieee);
 	for (i = 0; i < IEEE_IBSS_MAC_HASH_SIZE; i++)
 		INIT_LIST_HEAD(&ieee->ibss_mac_hash[i]);
 
@@ -141,8 +136,14 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 
 	return dev;
 
- failed:
+free_softmac:
+	rtllib_softmac_free(ieee);
+free_crypt_info:
+	lib80211_crypt_info_free(&ieee->crypt_info);
+	rtllib_networks_free(ieee);
+free_netdev:
 	free_netdev(dev);
+
 	return NULL;
 }
 EXPORT_SYMBOL(alloc_rtllib);
@@ -152,8 +153,7 @@ void free_rtllib(struct net_device *dev)
 	struct rtllib_device *ieee = (struct rtllib_device *)
 				      netdev_priv_rsl(dev);
 
-	kfree(ieee->pHTInfo);
-	ieee->pHTInfo = NULL;
+	kfree(ieee->ht_info);
 	rtllib_softmac_free(ieee);
 
 	lib80211_crypt_info_free(&ieee->crypt_info);

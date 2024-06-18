@@ -24,6 +24,12 @@
 #include <asm/mmu_context.h>
 
 /*
+ * Room for two PTE pointers, usually the kernel and current user pointers
+ * to their respective root page table.
+ */
+void *abatron_pteptrs[2];
+
+/*
  * On 32-bit PowerPC 6xx/7xx/7xxx CPUs, we use a set of 16 VSIDs
  * (virtual segment identifiers) for each context.  Although the
  * hardware supports 24-bit VSIDs, and thus >1 million contexts,
@@ -38,19 +44,6 @@
 #define NO_CONTEXT      	((unsigned long) -1)
 #define LAST_CONTEXT    	32767
 #define FIRST_CONTEXT    	1
-
-/*
- * This function defines the mapping from contexts to VSIDs (virtual
- * segment IDs).  We use a skew on both the context and the high 4 bits
- * of the 32-bit virtual address (the "effective segment ID") in order
- * to spread out the entries in the MMU hash table.  Note, if this
- * function is changed then arch/ppc/mm/hashtable.S will have to be
- * changed to correspond.
- *
- *
- * CTX_TO_VSID(ctx, va)	(((ctx) * (897 * 16) + ((va) >> 28) * 0x111) \
- *				 & 0xffffff)
- */
 
 static unsigned long next_mmu_context;
 static unsigned long context_map[LAST_CONTEXT / BITS_PER_LONG + 1];
@@ -76,6 +69,12 @@ EXPORT_SYMBOL_GPL(__init_new_context);
 int init_new_context(struct task_struct *t, struct mm_struct *mm)
 {
 	mm->context.id = __init_new_context();
+	mm->context.sr0 = CTX_TO_VSID(mm->context.id, 0);
+
+	if (IS_ENABLED(CONFIG_PPC_KUEP))
+		mm->context.sr0 |= SR_NX;
+	if (!kuap_is_disabled())
+		mm->context.sr0 |= SR_KS;
 
 	return 0;
 }
@@ -111,3 +110,25 @@ void __init mmu_context_init(void)
 	context_map[0] = (1 << FIRST_CONTEXT) - 1;
 	next_mmu_context = FIRST_CONTEXT;
 }
+
+void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next, struct task_struct *tsk)
+{
+	long id = next->context.id;
+
+	if (id < 0)
+		panic("mm_struct %p has no context ID", next);
+
+	isync();
+
+	update_user_segments(next->context.sr0);
+
+	if (IS_ENABLED(CONFIG_BDI_SWITCH))
+		abatron_pteptrs[1] = next->pgd;
+
+	if (!mmu_has_feature(MMU_FTR_HPTE_TABLE))
+		mtspr(SPRN_SDR1, rol32(__pa(next->pgd), 4) & 0xffff01ff);
+
+	mb();	/* sync */
+	isync();
+}
+EXPORT_SYMBOL(switch_mmu_context);

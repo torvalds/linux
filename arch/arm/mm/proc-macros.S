@@ -6,6 +6,7 @@
  *  VM_EXEC
  */
 #include <asm/asm-offsets.h>
+#include <asm/pgtable.h>
 #include <asm/thread_info.h>
 
 #ifdef CONFIG_CPU_V7M
@@ -30,9 +31,7 @@
  * act_mm - get current->active_mm
  */
 	.macro	act_mm, rd
-	bic	\rd, sp, #8128
-	bic	\rd, \rd, #63
-	ldr	\rd, [\rd, #TI_TASK]
+	get_current \rd
 	.if (TSK_ACTIVE_MM > IMM12_MASK)
 	add	\rd, \rd, #TSK_ACTIVE_MM & ~IMM12_MASK
 	.endif
@@ -319,38 +318,6 @@ ENTRY(\name\()_processor_functions)
 #if defined(CONFIG_BIG_LITTLE) && defined(CONFIG_HARDEN_BRANCH_PREDICTOR)
 	.previous
 #endif
-.endm
-
-.macro define_cache_functions name:req
-	.align 2
-	.type	\name\()_cache_fns, #object
-ENTRY(\name\()_cache_fns)
-	.long	\name\()_flush_icache_all
-	.long	\name\()_flush_kern_cache_all
-	.long   \name\()_flush_kern_cache_louis
-	.long	\name\()_flush_user_cache_all
-	.long	\name\()_flush_user_cache_range
-	.long	\name\()_coherent_kern_range
-	.long	\name\()_coherent_user_range
-	.long	\name\()_flush_kern_dcache_area
-	.long	\name\()_dma_map_area
-	.long	\name\()_dma_unmap_area
-	.long	\name\()_dma_flush_range
-	.size	\name\()_cache_fns, . - \name\()_cache_fns
-.endm
-
-.macro define_tlb_functions name:req, flags_up:req, flags_smp
-	.type	\name\()_tlb_fns, #object
-ENTRY(\name\()_tlb_fns)
-	.long	\name\()_flush_user_tlb_range
-	.long	\name\()_flush_kern_tlb_range
-	.ifnb \flags_smp
-		ALT_SMP(.long	\flags_smp )
-		ALT_UP(.long	\flags_up )
-	.else
-		.long	\flags_up
-	.endif
-	.size	\name\()_tlb_fns, . - \name\()_tlb_fns
 .endm
 
 .macro globl_equ x, y

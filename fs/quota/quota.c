@@ -10,6 +10,7 @@
 #include <linux/namei.h>
 #include <linux/slab.h>
 #include <asm/current.h>
+#include <linux/blkdev.h>
 #include <linux/uaccess.h>
 #include <linux/kernel.h>
 #include <linux/security.h>
@@ -17,8 +18,11 @@
 #include <linux/capability.h>
 #include <linux/quotaops.h>
 #include <linux/types.h>
+#include <linux/mount.h>
 #include <linux/writeback.h>
 #include <linux/nospec.h>
+#include "compat.h"
+#include "../internal.h"
 
 static int check_quotactl_permission(struct super_block *sb, int type, int cmd,
 				     qid_t id)
@@ -38,7 +42,7 @@ static int check_quotactl_permission(struct super_block *sb, int type, int cmd,
 		if ((type == USRQUOTA && uid_eq(current_euid(), make_kuid(current_user_ns(), id))) ||
 		    (type == GRPQUOTA && in_egroup_p(make_kgid(current_user_ns(), id))))
 			break;
-		/*FALLTHROUGH*/
+		fallthrough;
 	default:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
@@ -60,8 +64,6 @@ static int quota_sync_all(int type)
 {
 	int ret;
 
-	if (type >= MAXQUOTAS)
-		return -EINVAL;
 	ret = security_quotactl(Q_SYNC, type, 0, NULL);
 	if (!ret)
 		iterate_supers(quota_sync_one, &type);
@@ -213,8 +215,18 @@ static int quota_getquota(struct super_block *sb, int type, qid_t id,
 	if (ret)
 		return ret;
 	copy_to_if_dqblk(&idq, &fdq);
-	if (copy_to_user(addr, &idq, sizeof(idq)))
-		return -EFAULT;
+
+	if (compat_need_64bit_alignment_fixup()) {
+		struct compat_if_dqblk __user *compat_dqblk = addr;
+
+		if (copy_to_user(compat_dqblk, &idq, sizeof(*compat_dqblk)))
+			return -EFAULT;
+		if (put_user(idq.dqb_valid, &compat_dqblk->dqb_valid))
+			return -EFAULT;
+	} else {
+		if (copy_to_user(addr, &idq, sizeof(idq)))
+			return -EFAULT;
+	}
 	return 0;
 }
 
@@ -279,8 +291,16 @@ static int quota_setquota(struct super_block *sb, int type, qid_t id,
 	struct if_dqblk idq;
 	struct kqid qid;
 
-	if (copy_from_user(&idq, addr, sizeof(idq)))
-		return -EFAULT;
+	if (compat_need_64bit_alignment_fixup()) {
+		struct compat_if_dqblk __user *compat_dqblk = addr;
+
+		if (copy_from_user(&idq, compat_dqblk, sizeof(*compat_dqblk)) ||
+		    get_user(idq.dqb_valid, &compat_dqblk->dqb_valid))
+			return -EFAULT;
+	} else {
+		if (copy_from_user(&idq, addr, sizeof(idq)))
+			return -EFAULT;
+	}
 	if (!sb->s_qcop->set_dqblk)
 		return -ENOSYS;
 	qid = make_kqid(current_user_ns(), type, id);
@@ -384,6 +404,33 @@ static int quota_getstate(struct super_block *sb, int type,
 	return 0;
 }
 
+static int compat_copy_fs_qfilestat(struct compat_fs_qfilestat __user *to,
+		struct fs_qfilestat *from)
+{
+	if (copy_to_user(to, from, sizeof(*to)) ||
+	    put_user(from->qfs_nextents, &to->qfs_nextents))
+		return -EFAULT;
+	return 0;
+}
+
+static int compat_copy_fs_quota_stat(struct compat_fs_quota_stat __user *to,
+		struct fs_quota_stat *from)
+{
+	if (put_user(from->qs_version, &to->qs_version) ||
+	    put_user(from->qs_flags, &to->qs_flags) ||
+	    put_user(from->qs_pad, &to->qs_pad) ||
+	    compat_copy_fs_qfilestat(&to->qs_uquota, &from->qs_uquota) ||
+	    compat_copy_fs_qfilestat(&to->qs_gquota, &from->qs_gquota) ||
+	    put_user(from->qs_incoredqs, &to->qs_incoredqs) ||
+	    put_user(from->qs_btimelimit, &to->qs_btimelimit) ||
+	    put_user(from->qs_itimelimit, &to->qs_itimelimit) ||
+	    put_user(from->qs_rtbtimelimit, &to->qs_rtbtimelimit) ||
+	    put_user(from->qs_bwarnlimit, &to->qs_bwarnlimit) ||
+	    put_user(from->qs_iwarnlimit, &to->qs_iwarnlimit))
+		return -EFAULT;
+	return 0;
+}
+
 static int quota_getxstate(struct super_block *sb, int type, void __user *addr)
 {
 	struct fs_quota_stat fqs;
@@ -392,9 +439,14 @@ static int quota_getxstate(struct super_block *sb, int type, void __user *addr)
 	if (!sb->s_qcop->get_state)
 		return -ENOSYS;
 	ret = quota_getstate(sb, type, &fqs);
-	if (!ret && copy_to_user(addr, &fqs, sizeof(fqs)))
+	if (ret)
+		return ret;
+
+	if (compat_need_64bit_alignment_fixup())
+		return compat_copy_fs_quota_stat(addr, &fqs);
+	if (copy_to_user(addr, &fqs, sizeof(fqs)))
 		return -EFAULT;
-	return ret;
+	return 0;
 }
 
 static int quota_getstatev(struct super_block *sb, int type,
@@ -421,6 +473,7 @@ static int quota_getstatev(struct super_block *sb, int type,
 	fqs->qs_rtbtimelimit = state.s_state[type].rt_spc_timelimit;
 	fqs->qs_bwarnlimit = state.s_state[type].spc_warnlimit;
 	fqs->qs_iwarnlimit = state.s_state[type].ino_warnlimit;
+	fqs->qs_rtbwarnlimit = state.s_state[type].rt_spc_warnlimit;
 
 	/* Inodes may be allocated even if inactive; copy out if present */
 	if (state.s_state[USRQUOTA].ino) {
@@ -483,6 +536,14 @@ static inline u64 quota_btobb(u64 bytes)
 	return (bytes + (1 << XFS_BB_SHIFT) - 1) >> XFS_BB_SHIFT;
 }
 
+static inline s64 copy_from_xfs_dqblk_ts(const struct fs_disk_quota *d,
+		__s32 timer, __s8 timer_hi)
+{
+	if (d->d_fieldmask & FS_DQ_BIGTIME)
+		return (u32)timer | (s64)timer_hi << 32;
+	return timer;
+}
+
 static void copy_from_xfs_dqblk(struct qc_dqblk *dst, struct fs_disk_quota *src)
 {
 	dst->d_spc_hardlimit = quota_bbtob(src->d_blk_hardlimit);
@@ -491,14 +552,17 @@ static void copy_from_xfs_dqblk(struct qc_dqblk *dst, struct fs_disk_quota *src)
 	dst->d_ino_softlimit = src->d_ino_softlimit;
 	dst->d_space = quota_bbtob(src->d_bcount);
 	dst->d_ino_count = src->d_icount;
-	dst->d_ino_timer = src->d_itimer;
-	dst->d_spc_timer = src->d_btimer;
+	dst->d_ino_timer = copy_from_xfs_dqblk_ts(src, src->d_itimer,
+						  src->d_itimer_hi);
+	dst->d_spc_timer = copy_from_xfs_dqblk_ts(src, src->d_btimer,
+						  src->d_btimer_hi);
 	dst->d_ino_warns = src->d_iwarns;
 	dst->d_spc_warns = src->d_bwarns;
 	dst->d_rt_spc_hardlimit = quota_bbtob(src->d_rtb_hardlimit);
 	dst->d_rt_spc_softlimit = quota_bbtob(src->d_rtb_softlimit);
 	dst->d_rt_space = quota_bbtob(src->d_rtbcount);
-	dst->d_rt_spc_timer = src->d_rtbtimer;
+	dst->d_rt_spc_timer = copy_from_xfs_dqblk_ts(src, src->d_rtbtimer,
+						     src->d_rtbtimer_hi);
 	dst->d_rt_spc_warns = src->d_rtbwarns;
 	dst->d_fieldmask = 0;
 	if (src->d_fieldmask & FS_DQ_ISOFT)
@@ -590,10 +654,26 @@ static int quota_setxquota(struct super_block *sb, int type, qid_t id,
 	return sb->s_qcop->set_dqblk(sb, qid, &qdq);
 }
 
+static inline void copy_to_xfs_dqblk_ts(const struct fs_disk_quota *d,
+		__s32 *timer_lo, __s8 *timer_hi, s64 timer)
+{
+	*timer_lo = timer;
+	if (d->d_fieldmask & FS_DQ_BIGTIME)
+		*timer_hi = timer >> 32;
+}
+
+static inline bool want_bigtime(s64 timer)
+{
+	return timer > S32_MAX || timer < S32_MIN;
+}
+
 static void copy_to_xfs_dqblk(struct fs_disk_quota *dst, struct qc_dqblk *src,
 			      int type, qid_t id)
 {
 	memset(dst, 0, sizeof(*dst));
+	if (want_bigtime(src->d_ino_timer) || want_bigtime(src->d_spc_timer) ||
+	    want_bigtime(src->d_rt_spc_timer))
+		dst->d_fieldmask |= FS_DQ_BIGTIME;
 	dst->d_version = FS_DQUOT_VERSION;
 	dst->d_id = id;
 	if (type == USRQUOTA)
@@ -608,14 +688,17 @@ static void copy_to_xfs_dqblk(struct fs_disk_quota *dst, struct qc_dqblk *src,
 	dst->d_ino_softlimit = src->d_ino_softlimit;
 	dst->d_bcount = quota_btobb(src->d_space);
 	dst->d_icount = src->d_ino_count;
-	dst->d_itimer = src->d_ino_timer;
-	dst->d_btimer = src->d_spc_timer;
+	copy_to_xfs_dqblk_ts(dst, &dst->d_itimer, &dst->d_itimer_hi,
+			     src->d_ino_timer);
+	copy_to_xfs_dqblk_ts(dst, &dst->d_btimer, &dst->d_btimer_hi,
+			     src->d_spc_timer);
 	dst->d_iwarns = src->d_ino_warns;
 	dst->d_bwarns = src->d_spc_warns;
 	dst->d_rtb_hardlimit = quota_btobb(src->d_rt_spc_hardlimit);
 	dst->d_rtb_softlimit = quota_btobb(src->d_rt_spc_softlimit);
 	dst->d_rtbcount = quota_btobb(src->d_rt_space);
-	dst->d_rtbtimer = src->d_rt_spc_timer;
+	copy_to_xfs_dqblk_ts(dst, &dst->d_rtbtimer, &dst->d_rtbtimer_hi,
+			     src->d_rt_spc_timer);
 	dst->d_rtbwarns = src->d_rt_spc_warns;
 }
 
@@ -686,8 +769,6 @@ static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id,
 {
 	int ret;
 
-	if (type >= MAXQUOTAS)
-		return -EINVAL;
 	type = array_index_nospec(type, MAXQUOTAS);
 	/*
 	 * Quota not supported on this fs? Check this before s_quota_types
@@ -749,8 +830,6 @@ static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id,
 	}
 }
 
-#ifdef CONFIG_BLOCK
-
 /* Return 1 if 'cmd' will block on frozen filesystem */
 static int quotactl_cmd_write(int cmd)
 {
@@ -772,7 +851,6 @@ static int quotactl_cmd_write(int cmd)
 	}
 	return 1;
 }
-#endif /* CONFIG_BLOCK */
 
 /* Return true if quotactl command is manipulating quota on/off state */
 static bool quotactl_cmd_onoff(int cmd)
@@ -788,27 +866,43 @@ static bool quotactl_cmd_onoff(int cmd)
 static struct super_block *quotactl_block(const char __user *special, int cmd)
 {
 #ifdef CONFIG_BLOCK
-	struct block_device *bdev;
 	struct super_block *sb;
 	struct filename *tmp = getname(special);
+	bool excl = false, thawed = false;
+	int error;
+	dev_t dev;
 
 	if (IS_ERR(tmp))
 		return ERR_CAST(tmp);
-	bdev = lookup_bdev(tmp->name);
+	error = lookup_bdev(tmp->name, &dev);
 	putname(tmp);
-	if (IS_ERR(bdev))
-		return ERR_CAST(bdev);
-	if (quotactl_cmd_onoff(cmd))
-		sb = get_super_exclusive_thawed(bdev);
-	else if (quotactl_cmd_write(cmd))
-		sb = get_super_thawed(bdev);
-	else
-		sb = get_super(bdev);
-	bdput(bdev);
+	if (error)
+		return ERR_PTR(error);
+
+	if (quotactl_cmd_onoff(cmd)) {
+		excl = true;
+		thawed = true;
+	} else if (quotactl_cmd_write(cmd)) {
+		thawed = true;
+	}
+
+retry:
+	sb = user_get_super(dev, excl);
 	if (!sb)
 		return ERR_PTR(-ENODEV);
-
+	if (thawed && sb->s_writers.frozen != SB_UNFROZEN) {
+		if (excl)
+			up_write(&sb->s_umount);
+		else
+			up_read(&sb->s_umount);
+		/* Wait for sb to unfreeze */
+		sb_start_write(sb);
+		sb_end_write(sb);
+		put_super(sb);
+		goto retry;
+	}
 	return sb;
+
 #else
 	return ERR_PTR(-ENODEV);
 #endif
@@ -820,8 +914,8 @@ static struct super_block *quotactl_block(const char __user *special, int cmd)
  * calls. Maybe we need to add the process quotas etc. in the future,
  * but we probably should use rlimits for that.
  */
-int kernel_quotactl(unsigned int cmd, const char __user *special,
-		    qid_t id, void __user *addr)
+SYSCALL_DEFINE4(quotactl, unsigned int, cmd, const char __user *, special,
+		qid_t, id, void __user *, addr)
 {
 	uint cmds, type;
 	struct super_block *sb = NULL;
@@ -830,6 +924,9 @@ int kernel_quotactl(unsigned int cmd, const char __user *special,
 
 	cmds = cmd >> SUBCMDSHIFT;
 	type = cmd & SUBCMDMASK;
+
+	if (type >= MAXQUOTAS)
+		return -EINVAL;
 
 	/*
 	 * As a special case Q_SYNC can be called without a specific device.
@@ -873,8 +970,45 @@ out:
 	return ret;
 }
 
-SYSCALL_DEFINE4(quotactl, unsigned int, cmd, const char __user *, special,
+SYSCALL_DEFINE4(quotactl_fd, unsigned int, fd, unsigned int, cmd,
 		qid_t, id, void __user *, addr)
 {
-	return kernel_quotactl(cmd, special, id, addr);
+	struct super_block *sb;
+	unsigned int cmds = cmd >> SUBCMDSHIFT;
+	unsigned int type = cmd & SUBCMDMASK;
+	struct fd f;
+	int ret;
+
+	f = fdget_raw(fd);
+	if (!f.file)
+		return -EBADF;
+
+	ret = -EINVAL;
+	if (type >= MAXQUOTAS)
+		goto out;
+
+	if (quotactl_cmd_write(cmds)) {
+		ret = mnt_want_write(f.file->f_path.mnt);
+		if (ret)
+			goto out;
+	}
+
+	sb = f.file->f_path.mnt->mnt_sb;
+	if (quotactl_cmd_onoff(cmds))
+		down_write(&sb->s_umount);
+	else
+		down_read(&sb->s_umount);
+
+	ret = do_quotactl(sb, type, cmds, id, addr, ERR_PTR(-EINVAL));
+
+	if (quotactl_cmd_onoff(cmds))
+		up_write(&sb->s_umount);
+	else
+		up_read(&sb->s_umount);
+
+	if (quotactl_cmd_write(cmds))
+		mnt_drop_write(f.file->f_path.mnt);
+out:
+	fdput(f);
+	return ret;
 }

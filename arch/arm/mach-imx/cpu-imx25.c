@@ -23,6 +23,7 @@ static int mx25_read_cpu_rev(void)
 
 	np = of_find_compatible_node(NULL, NULL, "fsl,imx25-iim");
 	iim_base = of_iomap(np, 0);
+	of_node_put(np);
 	BUG_ON(!iim_base);
 	rev = readl(iim_base + MXC_IIMSREV);
 	iounmap(iim_base);
@@ -32,6 +33,8 @@ static int mx25_read_cpu_rev(void)
 		return IMX_CHIP_REVISION_1_0;
 	case 0x01:
 		return IMX_CHIP_REVISION_1_1;
+	case 0x02:
+		return IMX_CHIP_REVISION_1_2;
 	default:
 		return IMX_CHIP_REVISION_UNKNOWN;
 	}

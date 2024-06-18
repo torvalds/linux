@@ -25,6 +25,8 @@
 
 extern uint cxl_verbose;
 
+struct property;
+
 #define CXL_TIMEOUT 5
 
 /*
@@ -834,7 +836,8 @@ static inline bool cxl_is_power8(void)
 {
 	if ((pvr_version_is(PVR_POWER8E)) ||
 	    (pvr_version_is(PVR_POWER8NVL)) ||
-	    (pvr_version_is(PVR_POWER8)))
+	    (pvr_version_is(PVR_POWER8)) ||
+	    (pvr_version_is(PVR_HX_C2000)))
 		return true;
 	return false;
 }
@@ -1102,7 +1105,7 @@ extern const struct cxl_backend_ops cxl_native_ops;
 extern const struct cxl_backend_ops cxl_guest_ops;
 extern const struct cxl_backend_ops *cxl_ops;
 
-/* check if the given pci_dev is on the the cxl vphb bus */
+/* check if the given pci_dev is on the cxl vphb bus */
 bool cxl_pci_is_vphb_device(struct pci_dev *dev);
 
 /* decode AFU error bits in the PSL register PSL_SERR_An */

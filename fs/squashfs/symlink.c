@@ -30,21 +30,21 @@
 #include "squashfs.h"
 #include "xattr.h"
 
-static int squashfs_symlink_readpage(struct file *file, struct page *page)
+static int squashfs_symlink_read_folio(struct file *file, struct folio *folio)
 {
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	struct super_block *sb = inode->i_sb;
 	struct squashfs_sb_info *msblk = sb->s_fs_info;
-	int index = page->index << PAGE_SHIFT;
+	int index = folio_pos(folio);
 	u64 block = squashfs_i(inode)->start;
 	int offset = squashfs_i(inode)->offset;
 	int length = min_t(int, i_size_read(inode) - index, PAGE_SIZE);
-	int bytes, copied;
+	int bytes, copied, error;
 	void *pageaddr;
 	struct squashfs_cache_entry *entry;
 
 	TRACE("Entered squashfs_symlink_readpage, page index %ld, start block "
-			"%llx, offset %x\n", page->index, block, offset);
+			"%llx, offset %x\n", folio->index, block, offset);
 
 	/*
 	 * Skip index bytes into symlink metadata.
@@ -56,14 +56,15 @@ static int squashfs_symlink_readpage(struct file *file, struct page *page)
 			ERROR("Unable to read symlink [%llx:%x]\n",
 				squashfs_i(inode)->start,
 				squashfs_i(inode)->offset);
-			goto error_out;
+			error = bytes;
+			goto out;
 		}
 	}
 
 	/*
 	 * Read length bytes from symlink metadata.  Squashfs_read_metadata
 	 * is not used here because it can sleep and we want to use
-	 * kmap_atomic to map the page.  Instead call the underlying
+	 * kmap_local to map the folio.  Instead call the underlying
 	 * squashfs_cache_get routine.  As length bytes may overlap metadata
 	 * blocks, we may need to call squashfs_cache_get multiple times.
 	 */
@@ -74,34 +75,31 @@ static int squashfs_symlink_readpage(struct file *file, struct page *page)
 				squashfs_i(inode)->start,
 				squashfs_i(inode)->offset);
 			squashfs_cache_put(entry);
-			goto error_out;
+			error = entry->error;
+			goto out;
 		}
 
-		pageaddr = kmap_atomic(page);
+		pageaddr = kmap_local_folio(folio, 0);
 		copied = squashfs_copy_data(pageaddr + bytes, entry, offset,
 								length - bytes);
 		if (copied == length - bytes)
 			memset(pageaddr + length, 0, PAGE_SIZE - length);
 		else
 			block = entry->next_index;
-		kunmap_atomic(pageaddr);
+		kunmap_local(pageaddr);
 		squashfs_cache_put(entry);
 	}
 
-	flush_dcache_page(page);
-	SetPageUptodate(page);
-	unlock_page(page);
-	return 0;
-
-error_out:
-	SetPageError(page);
-	unlock_page(page);
-	return 0;
+	flush_dcache_folio(folio);
+	error = 0;
+out:
+	folio_end_read(folio, error == 0);
+	return error;
 }
 
 
 const struct address_space_operations squashfs_symlink_aops = {
-	.readpage = squashfs_symlink_readpage
+	.read_folio = squashfs_symlink_read_folio
 };
 
 const struct inode_operations squashfs_symlink_inode_ops = {

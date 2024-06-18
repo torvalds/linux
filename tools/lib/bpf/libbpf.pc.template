@@ -8,5 +8,5 @@ Name: libbpf
 Description: BPF library
 Version: @VERSION@
 Libs: -L${libdir} -lbpf
-Requires.private: libelf
+Requires.private: libelf zlib
 Cflags: -I${includedir}

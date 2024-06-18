@@ -1,16 +1,22 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2013-2014, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2013-2023, NVIDIA CORPORATION.  All rights reserved.
  */
 
+#include <linux/acpi.h>
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/kobject.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/mod_devicetable.h>
+#include <linux/nvmem-consumer.h>
+#include <linux/nvmem-provider.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
+#include <linux/reset.h>
 #include <linux/slab.h>
 #include <linux/sys_soc.h>
 
@@ -31,49 +37,18 @@ static const char *tegra_revision_name[TEGRA_REVISION_MAX] = {
 	[TEGRA_REVISION_A04]     = "A04",
 };
 
-static u8 fuse_readb(struct tegra_fuse *fuse, unsigned int offset)
-{
-	u32 val;
-
-	val = fuse->read(fuse, round_down(offset, 4));
-	val >>= (offset % 4) * 8;
-	val &= 0xff;
-
-	return val;
-}
-
-static ssize_t fuse_read(struct file *fd, struct kobject *kobj,
-			 struct bin_attribute *attr, char *buf,
-			 loff_t pos, size_t size)
-{
-	struct device *dev = kobj_to_dev(kobj);
-	struct tegra_fuse *fuse = dev_get_drvdata(dev);
-	int i;
-
-	if (pos < 0 || pos >= attr->size)
-		return 0;
-
-	if (size > attr->size - pos)
-		size = attr->size - pos;
-
-	for (i = 0; i < size; i++)
-		buf[i] = fuse_readb(fuse, pos + i);
-
-	return i;
-}
-
-static struct bin_attribute fuse_bin_attr = {
-	.attr = { .name = "fuse", .mode = S_IRUGO, },
-	.read = fuse_read,
+static const char *tegra_platform_name[TEGRA_PLATFORM_MAX] = {
+	[TEGRA_PLATFORM_SILICON]			= "Silicon",
+	[TEGRA_PLATFORM_QT]				= "QT",
+	[TEGRA_PLATFORM_SYSTEM_FPGA]			= "System FPGA",
+	[TEGRA_PLATFORM_UNIT_FPGA]			= "Unit FPGA",
+	[TEGRA_PLATFORM_ASIM_QT]			= "Asim QT",
+	[TEGRA_PLATFORM_ASIM_LINSIM]			= "Asim Linsim",
+	[TEGRA_PLATFORM_DSIM_ASIM_LINSIM]		= "Dsim Asim Linsim",
+	[TEGRA_PLATFORM_VERIFICATION_SIMULATION]	= "Verification Simulation",
+	[TEGRA_PLATFORM_VDK]				= "VDK",
+	[TEGRA_PLATFORM_VSP]				= "VSP",
 };
-
-static int tegra_fuse_create_sysfs(struct device *dev, unsigned int size,
-				   const struct tegra_fuse_info *info)
-{
-	fuse_bin_attr.size = size;
-
-	return device_create_bin_file(dev, &fuse_bin_attr);
-}
 
 static const struct of_device_id car_match[] __initconst = {
 	{ .compatible = "nvidia,tegra20-car", },
@@ -91,6 +66,12 @@ static struct tegra_fuse *fuse = &(struct tegra_fuse) {
 };
 
 static const struct of_device_id tegra_fuse_match[] = {
+#ifdef CONFIG_ARCH_TEGRA_234_SOC
+	{ .compatible = "nvidia,tegra234-efuse", .data = &tegra234_fuse_soc },
+#endif
+#ifdef CONFIG_ARCH_TEGRA_194_SOC
+	{ .compatible = "nvidia,tegra194-efuse", .data = &tegra194_fuse_soc },
+#endif
 #ifdef CONFIG_ARCH_TEGRA_186_SOC
 	{ .compatible = "nvidia,tegra186-efuse", .data = &tegra186_fuse_soc },
 #endif
@@ -115,46 +96,162 @@ static const struct of_device_id tegra_fuse_match[] = {
 	{ /* sentinel */ }
 };
 
+static int tegra_fuse_read(void *priv, unsigned int offset, void *value,
+			   size_t bytes)
+{
+	unsigned int count = bytes / 4, i;
+	struct tegra_fuse *fuse = priv;
+	u32 *buffer = value;
+
+	for (i = 0; i < count; i++)
+		buffer[i] = fuse->read(fuse, offset + i * 4);
+
+	return 0;
+}
+
+static void tegra_fuse_restore(void *base)
+{
+	fuse->base = (void __iomem *)base;
+	fuse->clk = NULL;
+}
+
+static void tegra_fuse_print_sku_info(struct tegra_sku_info *tegra_sku_info)
+{
+	pr_info("Tegra Revision: %s SKU: %d CPU Process: %d SoC Process: %d\n",
+		tegra_revision_name[tegra_sku_info->revision],
+		tegra_sku_info->sku_id, tegra_sku_info->cpu_process_id,
+		tegra_sku_info->soc_process_id);
+	pr_debug("Tegra CPU Speedo ID %d, SoC Speedo ID %d\n",
+		tegra_sku_info->cpu_speedo_id, tegra_sku_info->soc_speedo_id);
+}
+
+static int tegra_fuse_add_lookups(struct tegra_fuse *fuse)
+{
+	fuse->lookups = kmemdup_array(fuse->soc->lookups, fuse->soc->num_lookups,
+				      sizeof(*fuse->lookups), GFP_KERNEL);
+	if (!fuse->lookups)
+		return -ENOMEM;
+
+	nvmem_add_cell_lookups(fuse->lookups, fuse->soc->num_lookups);
+
+	return 0;
+}
+
 static int tegra_fuse_probe(struct platform_device *pdev)
 {
 	void __iomem *base = fuse->base;
+	struct nvmem_config nvmem;
 	struct resource *res;
 	int err;
 
-	/* take over the memory region from the early initialization */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	fuse->phys = res->start;
-	fuse->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(fuse->base)) {
-		err = PTR_ERR(fuse->base);
-		fuse->base = base;
+	err = devm_add_action(&pdev->dev, tegra_fuse_restore, (void __force *)base);
+	if (err)
 		return err;
+
+	/* take over the memory region from the early initialization */
+	fuse->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
+	if (IS_ERR(fuse->base))
+		return PTR_ERR(fuse->base);
+	fuse->phys = res->start;
+
+	/* Initialize the soc data and lookups if using ACPI boot. */
+	if (is_acpi_node(dev_fwnode(&pdev->dev)) && !fuse->soc) {
+		u8 chip;
+
+		tegra_acpi_init_apbmisc();
+
+		chip = tegra_get_chip_id();
+		switch (chip) {
+#if defined(CONFIG_ARCH_TEGRA_194_SOC)
+		case TEGRA194:
+			fuse->soc = &tegra194_fuse_soc;
+			break;
+#endif
+#if defined(CONFIG_ARCH_TEGRA_234_SOC)
+		case TEGRA234:
+			fuse->soc = &tegra234_fuse_soc;
+			break;
+#endif
+#if defined(CONFIG_ARCH_TEGRA_241_SOC)
+		case TEGRA241:
+			fuse->soc = &tegra241_fuse_soc;
+			break;
+#endif
+		default:
+			return dev_err_probe(&pdev->dev, -EINVAL, "Unsupported SoC: %02x\n", chip);
+		}
+
+		fuse->soc->init(fuse);
+		tegra_fuse_print_sku_info(&tegra_sku_info);
+		tegra_soc_device_register();
+
+		err = tegra_fuse_add_lookups(fuse);
+		if (err)
+			return dev_err_probe(&pdev->dev, err, "failed to add FUSE lookups\n");
 	}
 
-	fuse->clk = devm_clk_get(&pdev->dev, "fuse");
-	if (IS_ERR(fuse->clk)) {
-		if (PTR_ERR(fuse->clk) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "failed to get FUSE clock: %ld",
-				PTR_ERR(fuse->clk));
-
-		fuse->base = base;
-		return PTR_ERR(fuse->clk);
-	}
+	fuse->clk = devm_clk_get_optional(&pdev->dev, "fuse");
+	if (IS_ERR(fuse->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(fuse->clk), "failed to get FUSE clock\n");
 
 	platform_set_drvdata(pdev, fuse);
 	fuse->dev = &pdev->dev;
 
+	err = devm_pm_runtime_enable(&pdev->dev);
+	if (err)
+		return err;
+
 	if (fuse->soc->probe) {
 		err = fuse->soc->probe(fuse);
-		if (err < 0) {
-			fuse->base = base;
+		if (err < 0)
 			return err;
-		}
 	}
 
-	if (tegra_fuse_create_sysfs(&pdev->dev, fuse->soc->info->size,
-				    fuse->soc->info))
-		return -ENODEV;
+	memset(&nvmem, 0, sizeof(nvmem));
+	nvmem.dev = &pdev->dev;
+	nvmem.name = "fuse";
+	nvmem.id = -1;
+	nvmem.owner = THIS_MODULE;
+	nvmem.cells = fuse->soc->cells;
+	nvmem.ncells = fuse->soc->num_cells;
+	nvmem.keepout = fuse->soc->keepouts;
+	nvmem.nkeepout = fuse->soc->num_keepouts;
+	nvmem.type = NVMEM_TYPE_OTP;
+	nvmem.read_only = true;
+	nvmem.root_only = false;
+	nvmem.reg_read = tegra_fuse_read;
+	nvmem.size = fuse->soc->info->size;
+	nvmem.word_size = 4;
+	nvmem.stride = 4;
+	nvmem.priv = fuse;
+
+	fuse->nvmem = devm_nvmem_register(&pdev->dev, &nvmem);
+	if (IS_ERR(fuse->nvmem)) {
+		err = PTR_ERR(fuse->nvmem);
+		dev_err(&pdev->dev, "failed to register NVMEM device: %d\n",
+			err);
+		return err;
+	}
+
+	fuse->rst = devm_reset_control_get_optional(&pdev->dev, "fuse");
+	if (IS_ERR(fuse->rst))
+		return dev_err_probe(&pdev->dev, PTR_ERR(fuse->rst), "failed to get FUSE reset\n");
+
+	/*
+	 * FUSE clock is enabled at a boot time, hence this resume/suspend
+	 * disables the clock besides the h/w resetting.
+	 */
+	err = pm_runtime_resume_and_get(&pdev->dev);
+	if (err)
+		return err;
+
+	err = reset_control_reset(fuse->rst);
+	pm_runtime_put(&pdev->dev);
+
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to reset FUSE: %d\n", err);
+		return err;
+	}
 
 	/* release the early I/O memory mapping */
 	iounmap(base);
@@ -162,17 +259,79 @@ static int tegra_fuse_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int __maybe_unused tegra_fuse_runtime_resume(struct device *dev)
+{
+	int err;
+
+	err = clk_prepare_enable(fuse->clk);
+	if (err < 0) {
+		dev_err(dev, "failed to enable FUSE clock: %d\n", err);
+		return err;
+	}
+
+	return 0;
+}
+
+static int __maybe_unused tegra_fuse_runtime_suspend(struct device *dev)
+{
+	clk_disable_unprepare(fuse->clk);
+
+	return 0;
+}
+
+static int __maybe_unused tegra_fuse_suspend(struct device *dev)
+{
+	int ret;
+
+	/*
+	 * Critical for RAM re-repair operation, which must occur on resume
+	 * from LP1 system suspend and as part of CCPLEX cluster switching.
+	 */
+	if (fuse->soc->clk_suspend_on)
+		ret = pm_runtime_resume_and_get(dev);
+	else
+		ret = pm_runtime_force_suspend(dev);
+
+	return ret;
+}
+
+static int __maybe_unused tegra_fuse_resume(struct device *dev)
+{
+	int ret = 0;
+
+	if (fuse->soc->clk_suspend_on)
+		pm_runtime_put(dev);
+	else
+		ret = pm_runtime_force_resume(dev);
+
+	return ret;
+}
+
+static const struct dev_pm_ops tegra_fuse_pm = {
+	SET_RUNTIME_PM_OPS(tegra_fuse_runtime_suspend, tegra_fuse_runtime_resume,
+			   NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(tegra_fuse_suspend, tegra_fuse_resume)
+};
+
+static const struct acpi_device_id tegra_fuse_acpi_match[] = {
+	{ "NVDA200F" },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(acpi, tegra_fuse_acpi_match);
+
 static struct platform_driver tegra_fuse_driver = {
 	.driver = {
 		.name = "tegra-fuse",
 		.of_match_table = tegra_fuse_match,
+		.acpi_match_table = tegra_fuse_acpi_match,
+		.pm = &tegra_fuse_pm,
 		.suppress_bind_attrs = true,
 	},
 	.probe = tegra_fuse_probe,
 };
 builtin_platform_driver(tegra_fuse_driver);
 
-bool __init tegra_fuse_read_spare(unsigned int spare)
+u32 __init tegra_fuse_read_spare(unsigned int spare)
 {
 	unsigned int offset = fuse->soc->info->spare + spare * 4;
 
@@ -186,8 +345,20 @@ u32 __init tegra_fuse_read_early(unsigned int offset)
 
 int tegra_fuse_readl(unsigned long offset, u32 *value)
 {
+	if (!fuse->dev)
+		return -EPROBE_DEFER;
+
+	/*
+	 * Wait for fuse->clk to be initialized if device-tree boot is used.
+	 */
+	if (is_of_node(dev_fwnode(fuse->dev)) && !fuse->clk)
+		return -EPROBE_DEFER;
+
 	if (!fuse->read)
 		return -EPROBE_DEFER;
+
+	if (IS_ERR(fuse->clk))
+		return PTR_ERR(fuse->clk);
 
 	*value = fuse->read(fuse, offset);
 
@@ -212,7 +383,62 @@ static void tegra_enable_fuse_clk(void __iomem *base)
 	writel(reg, base + 0x14);
 }
 
-struct device * __init tegra_soc_device_register(void)
+static ssize_t major_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	return sprintf(buf, "%d\n", tegra_get_major_rev());
+}
+
+static DEVICE_ATTR_RO(major);
+
+static ssize_t minor_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	return sprintf(buf, "%d\n", tegra_get_minor_rev());
+}
+
+static DEVICE_ATTR_RO(minor);
+
+static struct attribute *tegra_soc_attr[] = {
+	&dev_attr_major.attr,
+	&dev_attr_minor.attr,
+	NULL,
+};
+
+const struct attribute_group tegra_soc_attr_group = {
+	.attrs = tegra_soc_attr,
+};
+
+#if IS_ENABLED(CONFIG_ARCH_TEGRA_194_SOC) || \
+    IS_ENABLED(CONFIG_ARCH_TEGRA_234_SOC) || \
+    IS_ENABLED(CONFIG_ARCH_TEGRA_241_SOC)
+static ssize_t platform_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	/*
+	 * Displays the value in the 'pre_si_platform' field of the HIDREV
+	 * register for Tegra194 devices. A value of 0 indicates that the
+	 * platform type is silicon and all other non-zero values indicate
+	 * the type of simulation platform is being used.
+	 */
+	return sprintf(buf, "%d\n", tegra_get_platform());
+}
+
+static DEVICE_ATTR_RO(platform);
+
+static struct attribute *tegra194_soc_attr[] = {
+	&dev_attr_major.attr,
+	&dev_attr_minor.attr,
+	&dev_attr_platform.attr,
+	NULL,
+};
+
+const struct attribute_group tegra194_soc_attr_group = {
+	.attrs = tegra194_soc_attr,
+};
+#endif
+
+struct device *tegra_soc_device_register(void)
 {
 	struct soc_device_attribute *attr;
 	struct soc_device *dev;
@@ -222,8 +448,15 @@ struct device * __init tegra_soc_device_register(void)
 		return NULL;
 
 	attr->family = kasprintf(GFP_KERNEL, "Tegra");
-	attr->revision = kasprintf(GFP_KERNEL, "%d", tegra_sku_info.revision);
+	if (tegra_is_silicon())
+		attr->revision = kasprintf(GFP_KERNEL, "%s %s",
+					   tegra_platform_name[tegra_sku_info.platform],
+					   tegra_revision_name[tegra_sku_info.revision]);
+	else
+		attr->revision = kasprintf(GFP_KERNEL, "%s",
+					   tegra_platform_name[tegra_sku_info.platform]);
 	attr->soc_id = kasprintf(GFP_KERNEL, "%u", tegra_get_chip_id());
+	attr->custom_attr_group = fuse->soc->soc_attr_group;
 
 	dev = soc_device_register(attr);
 	if (IS_ERR(dev)) {
@@ -242,6 +475,7 @@ static int __init tegra_init_fuse(void)
 	const struct of_device_id *match;
 	struct device_node *np;
 	struct resource regs;
+	int err;
 
 	tegra_init_apbmisc();
 
@@ -314,6 +548,7 @@ static int __init tegra_init_fuse(void)
 	np = of_find_matching_node(NULL, car_match);
 	if (np) {
 		void __iomem *base = of_iomap(np, 0);
+		of_node_put(np);
 		if (base) {
 			tegra_enable_fuse_clk(base);
 			iounmap(base);
@@ -323,7 +558,7 @@ static int __init tegra_init_fuse(void)
 		}
 	}
 
-	fuse->base = ioremap_nocache(regs.start, resource_size(&regs));
+	fuse->base = ioremap(regs.start, resource_size(&regs));
 	if (!fuse->base) {
 		pr_err("failed to map FUSE registers\n");
 		return -ENXIO;
@@ -331,15 +566,13 @@ static int __init tegra_init_fuse(void)
 
 	fuse->soc->init(fuse);
 
-	pr_info("Tegra Revision: %s SKU: %d CPU Process: %d SoC Process: %d\n",
-		tegra_revision_name[tegra_sku_info.revision],
-		tegra_sku_info.sku_id, tegra_sku_info.cpu_process_id,
-		tegra_sku_info.soc_process_id);
-	pr_debug("Tegra CPU Speedo ID %d, SoC Speedo ID %d\n",
-		 tegra_sku_info.cpu_speedo_id, tegra_sku_info.soc_speedo_id);
+	tegra_fuse_print_sku_info(&tegra_sku_info);
 
+	err = tegra_fuse_add_lookups(fuse);
+	if (err)
+		pr_err("failed to add FUSE lookups\n");
 
-	return 0;
+	return err;
 }
 early_initcall(tegra_init_fuse);
 

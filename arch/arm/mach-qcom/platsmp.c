@@ -14,7 +14,7 @@
 #include <linux/of_address.h>
 #include <linux/smp.h>
 #include <linux/io.h>
-#include <linux/qcom_scm.h>
+#include <linux/firmware/qcom/qcom_scm.h>
 
 #include <asm/smp_plat.h>
 
@@ -29,6 +29,7 @@
 #define COREPOR_RST		BIT(5)
 #define CORE_RST		BIT(4)
 #define L2DT_SLP		BIT(3)
+#define CORE_MEM_CLAMP		BIT(1)
 #define CLAMP			BIT(0)
 
 #define APC_PWR_GATE_CTL	0x14
@@ -73,6 +74,62 @@ static int scss_release_secondary(unsigned int cpu)
 	iounmap(base);
 
 	return 0;
+}
+
+static int cortex_a7_release_secondary(unsigned int cpu)
+{
+	int ret = 0;
+	void __iomem *reg;
+	struct device_node *cpu_node, *acc_node;
+	u32 reg_val;
+
+	cpu_node = of_get_cpu_node(cpu, NULL);
+	if (!cpu_node)
+		return -ENODEV;
+
+	acc_node = of_parse_phandle(cpu_node, "qcom,acc", 0);
+	if (!acc_node) {
+		ret = -ENODEV;
+		goto out_acc;
+	}
+
+	reg = of_iomap(acc_node, 0);
+	if (!reg) {
+		ret = -ENOMEM;
+		goto out_acc_map;
+	}
+
+	/* Put the CPU into reset. */
+	reg_val = CORE_RST | COREPOR_RST | CLAMP | CORE_MEM_CLAMP;
+	writel(reg_val, reg + APCS_CPU_PWR_CTL);
+
+	/* Turn on the BHS and set the BHS_CNT to 16 XO clock cycles */
+	writel(BHS_EN | (0x10 << BHS_CNT_SHIFT), reg + APC_PWR_GATE_CTL);
+	/* Wait for the BHS to settle */
+	udelay(2);
+
+	reg_val &= ~CORE_MEM_CLAMP;
+	writel(reg_val, reg + APCS_CPU_PWR_CTL);
+	reg_val |= L2DT_SLP;
+	writel(reg_val, reg + APCS_CPU_PWR_CTL);
+	udelay(2);
+
+	reg_val = (reg_val | BIT(17)) & ~CLAMP;
+	writel(reg_val, reg + APCS_CPU_PWR_CTL);
+	udelay(2);
+
+	/* Release CPU out of reset and bring it to life. */
+	reg_val &= ~(CORE_RST | COREPOR_RST);
+	writel(reg_val, reg + APCS_CPU_PWR_CTL);
+	reg_val |= CORE_PWRD_UP;
+	writel(reg_val, reg + APCS_CPU_PWR_CTL);
+
+	iounmap(reg);
+out_acc_map:
+	of_node_put(acc_node);
+out_acc:
+	of_node_put(cpu_node);
+	return ret;
 }
 
 static int kpssv1_release_secondary(unsigned int cpu)
@@ -281,6 +338,11 @@ static int msm8660_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	return qcom_boot_secondary(cpu, scss_release_secondary);
 }
 
+static int cortex_a7_boot_secondary(unsigned int cpu, struct task_struct *idle)
+{
+	return qcom_boot_secondary(cpu, cortex_a7_release_secondary);
+}
+
 static int kpssv1_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	return qcom_boot_secondary(cpu, kpssv1_release_secondary);
@@ -295,8 +357,7 @@ static void __init qcom_smp_prepare_cpus(unsigned int max_cpus)
 {
 	int cpu;
 
-	if (qcom_scm_set_cold_boot_addr(secondary_startup_arm,
-					cpu_present_mask)) {
+	if (qcom_scm_set_cold_boot_addr(secondary_startup_arm)) {
 		for_each_present_cpu(cpu) {
 			if (cpu == smp_processor_id())
 				continue;
@@ -314,6 +375,17 @@ static const struct smp_operations smp_msm8660_ops __initconst = {
 #endif
 };
 CPU_METHOD_OF_DECLARE(qcom_smp, "qcom,gcc-msm8660", &smp_msm8660_ops);
+
+static const struct smp_operations qcom_smp_cortex_a7_ops __initconst = {
+	.smp_prepare_cpus	= qcom_smp_prepare_cpus,
+	.smp_boot_secondary	= cortex_a7_boot_secondary,
+#ifdef CONFIG_HOTPLUG_CPU
+	.cpu_die		= qcom_cpu_die,
+#endif
+};
+CPU_METHOD_OF_DECLARE(qcom_smp_msm8226, "qcom,msm8226-smp", &qcom_smp_cortex_a7_ops);
+CPU_METHOD_OF_DECLARE(qcom_smp_msm8909, "qcom,msm8909-smp", &qcom_smp_cortex_a7_ops);
+CPU_METHOD_OF_DECLARE(qcom_smp_msm8916, "qcom,msm8916-smp", &qcom_smp_cortex_a7_ops);
 
 static const struct smp_operations qcom_smp_kpssv1_ops __initconst = {
 	.smp_prepare_cpus	= qcom_smp_prepare_cpus,

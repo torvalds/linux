@@ -14,7 +14,6 @@
 #include <linux/swab.h>
 #include <linux/crc7.h>
 #include <linux/spi/spi.h>
-#include <linux/wl12xx.h>
 #include <linux/platform_device.h>
 #include <linux/of_irq.h>
 #include <linux/regulator/consumer.h>
@@ -186,7 +185,7 @@ static void wl12xx_spi_init(struct device *child)
 
 	spi_sync(to_spi_device(glue->dev), &m);
 
-	/* Restore chip select configration to normal */
+	/* Restore chip select configuration to normal */
 	spi->mode ^= SPI_CS_HIGH;
 	kfree(cmd);
 }
@@ -391,7 +390,7 @@ static int wl12xx_spi_set_power(struct device *child, bool enable)
 	return ret;
 }
 
-/**
+/*
  * wl12xx_spi_set_block_size
  *
  * This function is not needed for spi mode, but need to be present.
@@ -431,7 +430,6 @@ MODULE_DEVICE_TABLE(of, wlcore_spi_of_match_table);
 /**
  * wlcore_probe_of - DT node parsing.
  * @spi: SPI slave device parameters.
- * @res: resource parameters.
  * @glue: wl12xx SPI bus to slave device glue parameters.
  * @pdev_data: wlcore device parameters
  */
@@ -449,8 +447,7 @@ static int wlcore_probe_of(struct spi_device *spi, struct wl12xx_spi_glue *glue,
 	dev_info(&spi->dev, "selected chip family is %s\n",
 		 pdev_data->family->name);
 
-	if (of_find_property(dt_node, "clock-xtal", NULL))
-		pdev_data->ref_clock_xtal = true;
+	pdev_data->ref_clock_xtal = of_property_read_bool(dt_node, "clock-xtal");
 
 	/* optional clock frequency params */
 	of_property_read_u32(dt_node, "ref-clock-frequency",
@@ -489,12 +486,9 @@ static int wl1271_probe(struct spi_device *spi)
 	spi->bits_per_word = 32;
 
 	glue->reg = devm_regulator_get(&spi->dev, "vwlan");
-	if (PTR_ERR(glue->reg) == -EPROBE_DEFER)
-		return -EPROBE_DEFER;
-	if (IS_ERR(glue->reg)) {
-		dev_err(glue->dev, "can't get regulator\n");
-		return PTR_ERR(glue->reg);
-	}
+	if (IS_ERR(glue->reg))
+		return dev_err_probe(glue->dev, PTR_ERR(glue->reg),
+				     "can't get regulator\n");
 
 	ret = wlcore_probe_of(spi, glue, pdev_data);
 	if (ret) {
@@ -550,19 +544,17 @@ out_dev_put:
 	return ret;
 }
 
-static int wl1271_remove(struct spi_device *spi)
+static void wl1271_remove(struct spi_device *spi)
 {
 	struct wl12xx_spi_glue *glue = spi_get_drvdata(spi);
 
 	platform_device_unregister(glue->core);
-
-	return 0;
 }
 
 static struct spi_driver wl1271_spi_driver = {
 	.driver = {
 		.name		= "wl1271_spi",
-		.of_match_table = of_match_ptr(wlcore_spi_of_match_table),
+		.of_match_table = wlcore_spi_of_match_table,
 	},
 
 	.probe		= wl1271_probe,
@@ -570,6 +562,7 @@ static struct spi_driver wl1271_spi_driver = {
 };
 
 module_spi_driver(wl1271_spi_driver);
+MODULE_DESCRIPTION("TI WLAN SPI helpers");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
 MODULE_AUTHOR("Juuso Oikarinen <juuso.oikarinen@nokia.com>");

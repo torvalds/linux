@@ -55,7 +55,7 @@ static int clk_fixup_div_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct clk_fixup_div *fixup_div = to_clk_fixup_div(hw);
 	struct clk_divider *div = to_clk_divider(hw);
 	unsigned int divider, value;
-	unsigned long flags = 0;
+	unsigned long flags;
 	u32 val;
 
 	divider = parent_rate / rate;

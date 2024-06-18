@@ -40,7 +40,6 @@
 		eiu0: eiu@101000 {
 			#interrupt-cells = <1>;
 			interrupt-controller;
-			interrupt-parent;
 			compatible = "lantiq,eiu-xway";
 			reg = <0x101000 0x1000>;
 		};

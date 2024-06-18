@@ -2,11 +2,12 @@
 /*
  * Turris Mox rWTM firmware driver
  *
- * Copyright (C) 2019 Marek Behun <marek.behun@nic.cz>
+ * Copyright (C) 2019 Marek Behún <kabel@kernel.org>
  */
 
 #include <linux/armada-37xx-rwtm-mailbox.h>
 #include <linux/completion.h>
+#include <linux/debugfs.h>
 #include <linux/dma-mapping.h>
 #include <linux/hw_random.h>
 #include <linux/mailbox_client.h>
@@ -69,6 +70,18 @@ struct mox_rwtm {
 	/* public key burned in eFuse */
 	int has_pubkey;
 	u8 pubkey[135];
+
+#ifdef CONFIG_DEBUG_FS
+	/*
+	 * Signature process. This is currently done via debugfs, because it
+	 * does not conform to the sysfs standard "one file per attribute".
+	 * It should be rewritten via crypto API once akcipher API is available
+	 * from userspace.
+	 */
+	struct dentry *debugfs_root;
+	u32 last_sig[34];
+	int last_sig_done;
+#endif
 };
 
 struct mox_kobject {
@@ -91,7 +104,7 @@ static void mox_kobj_release(struct kobject *kobj)
 	kfree(to_rwtm(kobj)->kobj);
 }
 
-static struct kobj_type mox_kobj_ktype = {
+static const struct kobj_type mox_kobj_ktype = {
 	.release	= mox_kobj_release,
 	.sysfs_ops	= &kobj_sysfs_ops,
 };
@@ -134,11 +147,14 @@ MOX_ATTR_RO(pubkey, "%s\n", pubkey);
 
 static int mox_get_status(enum mbox_cmd cmd, u32 retval)
 {
-	if (MBOX_STS_CMD(retval) != cmd ||
-	    MBOX_STS_ERROR(retval) != MBOX_STS_SUCCESS)
+	if (MBOX_STS_CMD(retval) != cmd)
 		return -EIO;
 	else if (MBOX_STS_ERROR(retval) == MBOX_STS_FAIL)
 		return -(int)MBOX_STS_VALUE(retval);
+	else if (MBOX_STS_ERROR(retval) == MBOX_STS_BADCMD)
+		return -ENOSYS;
+	else if (MBOX_STS_ERROR(retval) != MBOX_STS_SUCCESS)
+		return -EIO;
 	else
 		return MBOX_STS_VALUE(retval);
 }
@@ -188,16 +204,19 @@ static int mox_get_board_info(struct mox_rwtm *rwtm)
 		return ret;
 
 	ret = mox_get_status(MBOX_CMD_BOARD_INFO, reply->retval);
-	if (ret < 0 && ret != -ENODATA) {
-		return ret;
-	} else if (ret == -ENODATA) {
+	if (ret == -ENODATA) {
 		dev_warn(rwtm->dev,
 			 "Board does not have manufacturing information burned!\n");
+	} else if (ret == -ENOSYS) {
+		dev_notice(rwtm->dev,
+			   "Firmware does not support the BOARD_INFO command\n");
+	} else if (ret < 0) {
+		return ret;
 	} else {
 		rwtm->serial_number = reply->status[1];
 		rwtm->serial_number <<= 32;
 		rwtm->serial_number |= reply->status[0];
-			rwtm->board_version = reply->status[2];
+		rwtm->board_version = reply->status[2];
 		rwtm->ram_size = reply->status[3];
 		reply_to_mac_addr(rwtm->mac_address1, reply->status[4],
 				  reply->status[5]);
@@ -221,10 +240,13 @@ static int mox_get_board_info(struct mox_rwtm *rwtm)
 		return ret;
 
 	ret = mox_get_status(MBOX_CMD_ECDSA_PUB_KEY, reply->retval);
-	if (ret < 0 && ret != -ENODATA) {
-		return ret;
-	} else if (ret == -ENODATA) {
+	if (ret == -ENODATA) {
 		dev_warn(rwtm->dev, "Board has no public key burned!\n");
+	} else if (ret == -ENOSYS) {
+		dev_notice(rwtm->dev,
+			   "Firmware does not support the ECDSA_PUB_KEY command\n");
+	} else if (ret < 0) {
+		return ret;
 	} else {
 		u32 *s = reply->status;
 
@@ -236,6 +258,27 @@ static int mox_get_board_info(struct mox_rwtm *rwtm)
 	}
 
 	return 0;
+}
+
+static int check_get_random_support(struct mox_rwtm *rwtm)
+{
+	struct armada_37xx_rwtm_tx_msg msg;
+	int ret;
+
+	msg.command = MBOX_CMD_GET_RANDOM;
+	msg.args[0] = 1;
+	msg.args[1] = rwtm->buf_phys;
+	msg.args[2] = 4;
+
+	ret = mbox_send_message(rwtm->mbox, &msg);
+	if (ret < 0)
+		return ret;
+
+	ret = wait_for_completion_timeout(&rwtm->cmd_done, HZ / 2);
+	if (ret < 0)
+		return ret;
+
+	return mox_get_status(MBOX_CMD_GET_RANDOM, rwtm->reply.retval);
 }
 
 static int mox_hwrng_read(struct hwrng *rng, void *data, size_t max, bool wait)
@@ -278,6 +321,152 @@ unlock_mutex:
 	mutex_unlock(&rwtm->busy);
 	return ret;
 }
+
+#ifdef CONFIG_DEBUG_FS
+static int rwtm_debug_open(struct inode *inode, struct file *file)
+{
+	file->private_data = inode->i_private;
+
+	return nonseekable_open(inode, file);
+}
+
+static ssize_t do_sign_read(struct file *file, char __user *buf, size_t len,
+			    loff_t *ppos)
+{
+	struct mox_rwtm *rwtm = file->private_data;
+	ssize_t ret;
+
+	/* only allow one read, of 136 bytes, from position 0 */
+	if (*ppos != 0)
+		return 0;
+
+	if (len < 136)
+		return -EINVAL;
+
+	if (!rwtm->last_sig_done)
+		return -ENODATA;
+
+	/* 2 arrays of 17 32-bit words are 136 bytes */
+	ret = simple_read_from_buffer(buf, len, ppos, rwtm->last_sig, 136);
+	rwtm->last_sig_done = 0;
+
+	return ret;
+}
+
+static ssize_t do_sign_write(struct file *file, const char __user *buf,
+			     size_t len, loff_t *ppos)
+{
+	struct mox_rwtm *rwtm = file->private_data;
+	struct armada_37xx_rwtm_rx_msg *reply = &rwtm->reply;
+	struct armada_37xx_rwtm_tx_msg msg;
+	loff_t dummy = 0;
+	ssize_t ret;
+
+	/* the input is a SHA-512 hash, so exactly 64 bytes have to be read */
+	if (len != 64)
+		return -EINVAL;
+
+	/* if last result is not zero user has not read that information yet */
+	if (rwtm->last_sig_done)
+		return -EBUSY;
+
+	if (!mutex_trylock(&rwtm->busy))
+		return -EBUSY;
+
+	/*
+	 * Here we have to send:
+	 *   1. Address of the input to sign.
+	 *      The input is an array of 17 32-bit words, the first (most
+	 *      significat) is 0, the rest 16 words are copied from the SHA-512
+	 *      hash given by the user and converted from BE to LE.
+	 *   2. Address of the buffer where ECDSA signature value R shall be
+	 *      stored by the rWTM firmware.
+	 *   3. Address of the buffer where ECDSA signature value S shall be
+	 *      stored by the rWTM firmware.
+	 */
+	memset(rwtm->buf, 0, 4);
+	ret = simple_write_to_buffer(rwtm->buf + 4, 64, &dummy, buf, len);
+	if (ret < 0)
+		goto unlock_mutex;
+	be32_to_cpu_array(rwtm->buf, rwtm->buf, 17);
+
+	msg.command = MBOX_CMD_SIGN;
+	msg.args[0] = 1;
+	msg.args[1] = rwtm->buf_phys;
+	msg.args[2] = rwtm->buf_phys + 68;
+	msg.args[3] = rwtm->buf_phys + 2 * 68;
+	ret = mbox_send_message(rwtm->mbox, &msg);
+	if (ret < 0)
+		goto unlock_mutex;
+
+	ret = wait_for_completion_interruptible(&rwtm->cmd_done);
+	if (ret < 0)
+		goto unlock_mutex;
+
+	ret = MBOX_STS_VALUE(reply->retval);
+	if (MBOX_STS_ERROR(reply->retval) != MBOX_STS_SUCCESS)
+		goto unlock_mutex;
+
+	/*
+	 * Here we read the R and S values of the ECDSA signature
+	 * computed by the rWTM firmware and convert their words from
+	 * LE to BE.
+	 */
+	memcpy(rwtm->last_sig, rwtm->buf + 68, 136);
+	cpu_to_be32_array(rwtm->last_sig, rwtm->last_sig, 34);
+	rwtm->last_sig_done = 1;
+
+	mutex_unlock(&rwtm->busy);
+	return len;
+unlock_mutex:
+	mutex_unlock(&rwtm->busy);
+	return ret;
+}
+
+static const struct file_operations do_sign_fops = {
+	.owner	= THIS_MODULE,
+	.open	= rwtm_debug_open,
+	.read	= do_sign_read,
+	.write	= do_sign_write,
+	.llseek	= no_llseek,
+};
+
+static int rwtm_register_debugfs(struct mox_rwtm *rwtm)
+{
+	struct dentry *root, *entry;
+
+	root = debugfs_create_dir("turris-mox-rwtm", NULL);
+
+	if (IS_ERR(root))
+		return PTR_ERR(root);
+
+	entry = debugfs_create_file_unsafe("do_sign", 0600, root, rwtm,
+					   &do_sign_fops);
+	if (IS_ERR(entry))
+		goto err_remove;
+
+	rwtm->debugfs_root = root;
+
+	return 0;
+err_remove:
+	debugfs_remove_recursive(root);
+	return PTR_ERR(entry);
+}
+
+static void rwtm_unregister_debugfs(struct mox_rwtm *rwtm)
+{
+	debugfs_remove_recursive(rwtm->debugfs_root);
+}
+#else
+static inline int rwtm_register_debugfs(struct mox_rwtm *rwtm)
+{
+	return 0;
+}
+
+static inline void rwtm_unregister_debugfs(struct mox_rwtm *rwtm)
+{
+}
+#endif
 
 static int turris_mox_rwtm_probe(struct platform_device *pdev)
 {
@@ -329,16 +518,30 @@ static int turris_mox_rwtm_probe(struct platform_device *pdev)
 	if (ret < 0)
 		dev_warn(dev, "Cannot read board information: %i\n", ret);
 
+	ret = check_get_random_support(rwtm);
+	if (ret < 0) {
+		dev_notice(dev,
+			   "Firmware does not support the GET_RANDOM command\n");
+		goto free_channel;
+	}
+
 	rwtm->hwrng.name = DRIVER_NAME "_hwrng";
 	rwtm->hwrng.read = mox_hwrng_read;
 	rwtm->hwrng.priv = (unsigned long) rwtm;
-	rwtm->hwrng.quality = 1024;
 
 	ret = devm_hwrng_register(dev, &rwtm->hwrng);
 	if (ret < 0) {
 		dev_err(dev, "Cannot register HWRNG: %i\n", ret);
 		goto free_channel;
 	}
+
+	ret = rwtm_register_debugfs(rwtm);
+	if (ret < 0) {
+		dev_err(dev, "Failed creating debugfs entries: %i\n", ret);
+		goto free_channel;
+	}
+
+	dev_info(dev, "HWRNG successfully registered\n");
 
 	return 0;
 
@@ -351,19 +554,19 @@ put_kobj:
 	return ret;
 }
 
-static int turris_mox_rwtm_remove(struct platform_device *pdev)
+static void turris_mox_rwtm_remove(struct platform_device *pdev)
 {
 	struct mox_rwtm *rwtm = platform_get_drvdata(pdev);
 
+	rwtm_unregister_debugfs(rwtm);
 	sysfs_remove_files(rwtm_to_kobj(rwtm), mox_rwtm_attrs);
 	kobject_put(rwtm_to_kobj(rwtm));
 	mbox_free_channel(rwtm->mbox);
-
-	return 0;
 }
 
 static const struct of_device_id turris_mox_rwtm_match[] = {
 	{ .compatible = "cznic,turris-mox-rwtm", },
+	{ .compatible = "marvell,armada-3700-rwtm-firmware", },
 	{ },
 };
 
@@ -371,7 +574,7 @@ MODULE_DEVICE_TABLE(of, turris_mox_rwtm_match);
 
 static struct platform_driver turris_mox_rwtm_driver = {
 	.probe	= turris_mox_rwtm_probe,
-	.remove	= turris_mox_rwtm_remove,
+	.remove_new = turris_mox_rwtm_remove,
 	.driver	= {
 		.name		= DRIVER_NAME,
 		.of_match_table	= turris_mox_rwtm_match,
@@ -381,4 +584,4 @@ module_platform_driver(turris_mox_rwtm_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Turris Mox rWTM firmware driver");
-MODULE_AUTHOR("Marek Behun <marek.behun@nic.cz>");
+MODULE_AUTHOR("Marek Behun <kabel@kernel.org>");

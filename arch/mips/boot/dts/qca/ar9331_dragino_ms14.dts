@@ -22,25 +22,25 @@
 	leds {
 		compatible = "gpio-leds";
 
-		wlan {
+		led-wlan {
 			label = "dragino2:red:wlan";
 			gpios = <&gpio 0 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
-		lan {
+		led-lan {
 			label = "dragino2:red:lan";
 			gpios = <&gpio 13 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
-		wan {
+		led-wan {
 			label = "dragino2:red:wan";
 			gpios = <&gpio 17 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
-		system {
+		led-system {
 			label = "dragino2:red:system";
 			gpios = <&gpio 28 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
@@ -49,16 +49,14 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
-		button@0 {
+		button-0 {
 			label = "jumpstart";
 			linux,code = <KEY_WPS_BUTTON>;
 			gpios = <&gpio 11 GPIO_ACTIVE_LOW>;
 		};
 
-		button@1 {
+		button-1 {
 			label = "reset";
 			linux,code = <KEY_RESTART>;
 			gpios = <&gpio 12 GPIO_ACTIVE_LOW>;

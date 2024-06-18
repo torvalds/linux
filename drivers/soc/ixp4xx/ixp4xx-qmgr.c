@@ -12,6 +12,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/soc/ixp4xx/qmgr.h>
+#include <linux/soc/ixp4xx/cpu.h>
 
 static struct qmgr_regs __iomem *qmgr_regs;
 static int qmgr_irq_1;
@@ -145,12 +146,12 @@ static irqreturn_t qmgr_irq1_a0(int irq, void *pdev)
 	/* ACK - it may clear any bits so don't rely on it */
 	__raw_writel(0xFFFFFFFF, &qmgr_regs->irqstat[0]);
 
-	en_bitmap = qmgr_regs->irqen[0];
+	en_bitmap = __raw_readl(&qmgr_regs->irqen[0]);
 	while (en_bitmap) {
 		i = __fls(en_bitmap); /* number of the last "low" queue */
 		en_bitmap &= ~BIT(i);
-		src = qmgr_regs->irqsrc[i >> 3];
-		stat = qmgr_regs->stat1[i >> 3];
+		src = __raw_readl(&qmgr_regs->irqsrc[i >> 3]);
+		stat = __raw_readl(&qmgr_regs->stat1[i >> 3]);
 		if (src & 4) /* the IRQ condition is inverted */
 			stat = ~stat;
 		if (stat & BIT(src & 3)) {
@@ -170,7 +171,8 @@ static irqreturn_t qmgr_irq2_a0(int irq, void *pdev)
 	/* ACK - it may clear any bits so don't rely on it */
 	__raw_writel(0xFFFFFFFF, &qmgr_regs->irqstat[1]);
 
-	req_bitmap = qmgr_regs->irqen[1] & qmgr_regs->statne_h;
+	req_bitmap = __raw_readl(&qmgr_regs->irqen[1]) &
+		     __raw_readl(&qmgr_regs->statne_h);
 	while (req_bitmap) {
 		i = __fls(req_bitmap); /* number of the last "high" queue */
 		req_bitmap &= ~BIT(i);
@@ -440,11 +442,10 @@ static int ixp4xx_qmgr_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ixp4xx_qmgr_remove(struct platform_device *pdev)
+static void ixp4xx_qmgr_remove(struct platform_device *pdev)
 {
 	synchronize_irq(qmgr_irq_1);
 	synchronize_irq(qmgr_irq_2);
-	return 0;
 }
 
 static const struct of_device_id ixp4xx_qmgr_of_match[] = {
@@ -457,10 +458,10 @@ static const struct of_device_id ixp4xx_qmgr_of_match[] = {
 static struct platform_driver ixp4xx_qmgr_driver = {
 	.driver = {
 		.name           = "ixp4xx-qmgr",
-		.of_match_table = of_match_ptr(ixp4xx_qmgr_of_match),
+		.of_match_table = ixp4xx_qmgr_of_match,
 	},
 	.probe = ixp4xx_qmgr_probe,
-	.remove = ixp4xx_qmgr_remove,
+	.remove_new = ixp4xx_qmgr_remove,
 };
 module_platform_driver(ixp4xx_qmgr_driver);
 

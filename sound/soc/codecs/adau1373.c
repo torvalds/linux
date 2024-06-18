@@ -12,7 +12,6 @@
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
-#include <linux/gcd.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -28,7 +27,7 @@ struct adau1373_dai {
 	unsigned int clk_src;
 	unsigned int sysclk;
 	bool enable_src;
-	bool master;
+	bool clock_provider;
 };
 
 struct adau1373 {
@@ -827,7 +826,7 @@ static int adau1373_check_aif_clk(struct snd_soc_dapm_widget *source,
 
 	dai = sink->name[3] - '1';
 
-	if (!adau1373->dais[dai].master)
+	if (!adau1373->dais[dai].clock_provider)
 		return 0;
 
 	if (adau1373->dais[dai].clk_src == ADAU1373_CLK_SRC_PLL1)
@@ -835,7 +834,7 @@ static int adau1373_check_aif_clk(struct snd_soc_dapm_widget *source,
 	else
 		clk = "SYSCLK2";
 
-	return strcmp(source->name, clk) == 0;
+	return snd_soc_dapm_widget_name_cmp(source, clk) == 0;
 }
 
 static int adau1373_check_src(struct snd_soc_dapm_widget *source,
@@ -1102,14 +1101,14 @@ static int adau1373_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	struct adau1373_dai *adau1373_dai = &adau1373->dais[dai->id];
 	unsigned int ctrl;
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
 		ctrl = ADAU1373_DAI_MASTER;
-		adau1373_dai->master = true;
+		adau1373_dai->clock_provider = true;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		ctrl = 0;
-		adau1373_dai->master = false;
+		adau1373_dai->clock_provider = false;
 		break;
 	default:
 		return -EINVAL;
@@ -1205,7 +1204,7 @@ static struct snd_soc_dai_driver adau1373_dai_driver[] = {
 			.formats = ADAU1373_FORMATS,
 		},
 		.ops = &adau1373_dai_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 	{
 		.id = 1,
@@ -1225,7 +1224,7 @@ static struct snd_soc_dai_driver adau1373_dai_driver[] = {
 			.formats = ADAU1373_FORMATS,
 		},
 		.ops = &adau1373_dai_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 	{
 		.id = 2,
@@ -1245,7 +1244,7 @@ static struct snd_soc_dai_driver adau1373_dai_driver[] = {
 			.formats = ADAU1373_FORMATS,
 		},
 		.ops = &adau1373_dai_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 };
 
@@ -1452,7 +1451,7 @@ static const struct regmap_config adau1373_regmap_config = {
 	.volatile_reg = adau1373_register_volatile,
 	.max_register = ADAU1373_SOFT_RESET,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = adau1373_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(adau1373_reg_defaults),
 };
@@ -1470,11 +1469,9 @@ static const struct snd_soc_component_driver adau1373_component_driver = {
 	.num_dapm_routes	= ARRAY_SIZE(adau1373_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
-static int adau1373_i2c_probe(struct i2c_client *client,
-			      const struct i2c_device_id *id)
+static int adau1373_i2c_probe(struct i2c_client *client)
 {
 	struct adau1373 *adau1373;
 	int ret;
@@ -1499,7 +1496,7 @@ static int adau1373_i2c_probe(struct i2c_client *client,
 }
 
 static const struct i2c_device_id adau1373_i2c_id[] = {
-	{ "adau1373", 0 },
+	{ "adau1373" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adau1373_i2c_id);

@@ -250,7 +250,7 @@ static int fc0011_set_params(struct dvb_frontend *fe)
 		dev_warn(&priv->i2c->dev, "Unsupported bandwidth %u kHz. Using 6000 kHz.\n",
 			 bandwidth);
 		bandwidth = 6000;
-		/* fallthrough */
+		fallthrough;
 	case 6000:
 		regs[FC11_REG_VCOSEL] |= FC11_VCOSEL_BW6M;
 		break;
@@ -499,7 +499,7 @@ struct dvb_frontend *fc0011_attach(struct dvb_frontend *fe,
 
 	return fe;
 }
-EXPORT_SYMBOL(fc0011_attach);
+EXPORT_SYMBOL_GPL(fc0011_attach);
 
 MODULE_DESCRIPTION("Fitipower FC0011 silicon tuner driver");
 MODULE_AUTHOR("Michael Buesch <m@bues.ch>");

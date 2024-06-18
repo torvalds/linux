@@ -760,7 +760,7 @@ static int rt274_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 		break;
 	default:
 		dev_warn(component->dev, "invalid pll source, use BCLK\n");
-		/* fall through */
+		fallthrough;
 	case RT274_PLL2_S_BCLK:
 		snd_soc_component_update_bits(component, RT274_PLL2_CTRL,
 				RT274_PLL2_SRC_MASK, RT274_PLL2_SRC_BCLK);
@@ -788,7 +788,7 @@ static int rt274_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 			break;
 		default:
 			dev_warn(component->dev, "invalid freq_in, assume 4.8M\n");
-			/* fall through */
+			fallthrough;
 		case 100:
 			snd_soc_component_write(component, 0x7a, 0xaab6);
 			snd_soc_component_write(component, 0x7b, 0x0301);
@@ -980,14 +980,11 @@ static int rt274_probe(struct snd_soc_component *component)
 	struct rt274_priv *rt274 = snd_soc_component_get_drvdata(component);
 
 	rt274->component = component;
+	INIT_DELAYED_WORK(&rt274->jack_detect_work, rt274_jack_detect_work);
 
-	if (rt274->i2c->irq) {
-		INIT_DELAYED_WORK(&rt274->jack_detect_work,
-					rt274_jack_detect_work);
+	if (rt274->i2c->irq)
 		schedule_delayed_work(&rt274->jack_detect_work,
-					msecs_to_jiffies(1250));
-	}
-
+				      msecs_to_jiffies(1250));
 	return 0;
 }
 
@@ -996,6 +993,7 @@ static void rt274_remove(struct snd_soc_component *component)
 	struct rt274_priv *rt274 = snd_soc_component_get_drvdata(component);
 
 	cancel_delayed_work_sync(&rt274->jack_detect_work);
+	rt274->component = NULL;
 }
 
 #ifdef CONFIG_PM
@@ -1056,7 +1054,7 @@ static struct snd_soc_dai_driver rt274_dai[] = {
 			.formats = RT274_FORMATS,
 		},
 		.ops = &rt274_aif_dai_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 };
 
@@ -1075,7 +1073,6 @@ static const struct snd_soc_component_driver soc_component_dev_rt274 = {
 	.num_dapm_routes	= ARRAY_SIZE(rt274_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config rt274_regmap = {
@@ -1100,20 +1097,21 @@ MODULE_DEVICE_TABLE(of, rt274_of_match);
 #endif
 
 static const struct i2c_device_id rt274_i2c_id[] = {
-	{"rt274", 0},
+	{"rt274"},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, rt274_i2c_id);
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id rt274_acpi_match[] = {
 	{ "10EC0274", 0 },
 	{ "INT34C2", 0 },
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, rt274_acpi_match);
+#endif
 
-static int rt274_i2c_probe(struct i2c_client *i2c,
-			   const struct i2c_device_id *id)
+static int rt274_i2c_probe(struct i2c_client *i2c)
 {
 	struct rt274_priv *rt274;
 
@@ -1194,7 +1192,7 @@ static int rt274_i2c_probe(struct i2c_client *i2c,
 			IRQF_TRIGGER_HIGH | IRQF_ONESHOT, "rt274", rt274);
 		if (ret != 0) {
 			dev_err(&i2c->dev,
-				"Failed to reguest IRQ: %d\n", ret);
+				"Failed to request IRQ: %d\n", ret);
 			return ret;
 		}
 	}
@@ -1206,14 +1204,12 @@ static int rt274_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static int rt274_i2c_remove(struct i2c_client *i2c)
+static void rt274_i2c_remove(struct i2c_client *i2c)
 {
 	struct rt274_priv *rt274 = i2c_get_clientdata(i2c);
 
 	if (i2c->irq)
 		free_irq(i2c->irq, rt274);
-
-	return 0;
 }
 
 

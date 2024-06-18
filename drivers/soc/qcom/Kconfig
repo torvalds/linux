@@ -17,7 +17,7 @@ config QCOM_AOSS_QMP
 	  Subsystem (AOSS) using Qualcomm Messaging Protocol (QMP).
 
 config QCOM_COMMAND_DB
-	bool "Qualcomm Command DB"
+	tristate "Qualcomm Command DB"
 	depends on ARCH_QCOM || COMPILE_TEST
 	depends on OF_RESERVED_MEM
 	help
@@ -35,59 +35,90 @@ config QCOM_GENI_SE
 	  driver is also used to manage the common aspects of multiple Serial
 	  Engines present in the QUP.
 
-config QCOM_GLINK_SSR
-	tristate "Qualcomm Glink SSR driver"
-	depends on RPMSG
-	depends on QCOM_RPROC_COMMON
-	help
-	  Say y here to enable GLINK SSR support. The GLINK SSR driver
-	  implements the SSR protocol for notifying the remote processor about
-	  neighboring subsystems going up or down.
-
 config QCOM_GSBI
-        tristate "QCOM General Serial Bus Interface"
-        depends on ARCH_QCOM || COMPILE_TEST
-        select MFD_SYSCON
-        help
-          Say y here to enable GSBI support.  The GSBI provides control
-          functions for connecting the underlying serial UART, SPI, and I2C
-          devices to the output pins.
+	tristate "QCOM General Serial Bus Interface"
+	depends on ARCH_QCOM || COMPILE_TEST
+	select MFD_SYSCON
+	help
+	  Say y here to enable GSBI support.  The GSBI provides control
+	  functions for connecting the underlying serial UART, SPI, and I2C
+	  devices to the output pins.
 
 config QCOM_LLCC
 	tristate "Qualcomm Technologies, Inc. LLCC driver"
 	depends on ARCH_QCOM || COMPILE_TEST
+	select REGMAP_MMIO
 	help
 	  Qualcomm Technologies, Inc. platform specific
-	  Last Level Cache Controller(LLCC) driver. This provides interfaces
-	  to clients that use the LLCC. Say yes here to enable LLCC slice
-	  driver.
+	  Last Level Cache Controller(LLCC) driver for platforms such as,
+	  SDM845. This provides interfaces to clients that use the LLCC.
+	  Say yes here to enable LLCC slice driver.
 
-config QCOM_SDM845_LLCC
-	tristate "Qualcomm Technologies, Inc. SDM845 LLCC driver"
-	depends on QCOM_LLCC
-	help
-	  Say yes here to enable the LLCC driver for SDM845. This provides
-	  data required to configure LLCC so that clients can start using the
-	  LLCC slices.
+config QCOM_KRYO_L2_ACCESSORS
+	bool
+	depends on (ARCH_QCOM || COMPILE_TEST) && ARM64
 
 config QCOM_MDT_LOADER
 	tristate
 	select QCOM_SCM
 
-config QCOM_PM
-	bool "Qualcomm Power Management"
-	depends on ARCH_QCOM && !ARM64
-	select ARM_CPU_SUSPEND
+config QCOM_OCMEM
+	tristate "Qualcomm On Chip Memory (OCMEM) driver"
+	depends on ARCH_QCOM
 	select QCOM_SCM
 	help
-	  QCOM Platform specific power driver to manage cores and L2 low power
-	  modes. It interface with various system drivers to put the cores in
-	  low power modes.
+	  The On Chip Memory (OCMEM) allocator allows various clients to
+	  allocate memory from OCMEM based on performance, latency and power
+	  requirements. This is typically used by the GPU, camera/video, and
+	  audio components on some Snapdragon SoCs.
+
+config QCOM_PDR_HELPERS
+	tristate
+	select QCOM_QMI_HELPERS
+	depends on NET
+
+config QCOM_PMIC_PDCHARGER_ULOG
+	tristate "Qualcomm PMIC PDCharger ULOG driver"
+	depends on RPMSG
+	depends on EVENT_TRACING
+	help
+	  The Qualcomm PMIC PDCharger ULOG driver provides access to logs of
+	  the ADSP firmware PDCharger module in charge of Battery and Power
+	  Delivery on modern systems.
+
+	  Say yes here to support PDCharger ULOG event tracing on modern
+	  Qualcomm platforms.
+
+config QCOM_PMIC_GLINK
+	tristate "Qualcomm PMIC GLINK driver"
+	depends on RPMSG
+	depends on TYPEC
+	depends on DRM
+	depends on NET
+	depends on OF
+	select AUXILIARY_BUS
+	select QCOM_PDR_HELPERS
+	select DRM_AUX_HPD_BRIDGE
+	help
+	  The Qualcomm PMIC GLINK driver provides access, over GLINK, to the
+	  USB and battery firmware running on one of the coprocessors in
+	  several modern Qualcomm platforms.
+
+	  Say yes here to support USB-C and battery status on modern Qualcomm
+	  platforms.
 
 config QCOM_QMI_HELPERS
 	tristate
-	depends on ARCH_QCOM || COMPILE_TEST
 	depends on NET
+
+config QCOM_RAMP_CTRL
+	tristate "Qualcomm Ramp Controller driver"
+	depends on ARCH_QCOM || COMPILE_TEST
+	help
+	  The Ramp Controller is used to program the sequence ID for pulse
+	  swallowing, enable sequence and link sequence IDs for the CPU
+	  cores on some Qualcomm SoCs.
+	  Say y here to enable support for the ramp controller.
 
 config QCOM_RMTFS_MEM
 	tristate "Qualcomm Remote Filesystem memory driver"
@@ -101,33 +132,27 @@ config QCOM_RMTFS_MEM
 
 	  Say y here if you intend to boot the modem remoteproc.
 
+config QCOM_RPM_MASTER_STATS
+	tristate "Qualcomm RPM Master stats"
+	depends on ARCH_QCOM || COMPILE_TEST
+	help
+	  The RPM Master sleep stats driver provides detailed per-subsystem
+	  sleep/wake data, read from the RPM message RAM. It can be used to
+	  assess whether all the low-power modes available are entered as
+	  expected or to check which part of the SoC prevents it from sleeping.
+
+	  Say y here if you intend to debug or monitor platform sleep.
+
 config QCOM_RPMH
-	bool "Qualcomm RPM-Hardened (RPMH) Communication"
-	depends on ARCH_QCOM && ARM64 || COMPILE_TEST
+	tristate "Qualcomm RPM-Hardened (RPMH) Communication"
+	depends on ARCH_QCOM || COMPILE_TEST
+	depends on (QCOM_COMMAND_DB || !QCOM_COMMAND_DB)
 	help
 	  Support for communication with the hardened-RPM blocks in
 	  Qualcomm Technologies Inc (QTI) SoCs. RPMH communication uses an
 	  internal bus to transmit state requests for shared resources. A set
 	  of hardware components aggregate requests for these resources and
 	  help apply the aggregated state on the resource.
-
-config QCOM_RPMHPD
-	bool "Qualcomm RPMh Power domain driver"
-	depends on QCOM_RPMH && QCOM_COMMAND_DB
-	help
-	  QCOM RPMh Power domain driver to support power-domains with
-	  performance states. The driver communicates a performance state
-	  value to RPMh which then translates it into corresponding voltage
-	  for the voltage rail.
-
-config QCOM_RPMPD
-	bool "Qualcomm RPM Power domain driver"
-	depends on QCOM_SMD_RPM=y
-	help
-	  QCOM RPM Power domain driver to support power-domains with
-	  performance states. The driver communicates a performance state
-	  value to RPM which then translates it into corresponding voltage
-	  for the voltage rail.
 
 config QCOM_SMEM
 	tristate "Qualcomm Shared Memory Manager (SMEM)"
@@ -142,6 +167,7 @@ config QCOM_SMD_RPM
 	tristate "Qualcomm Resource Power Manager (RPM) over SMD"
 	depends on ARCH_QCOM || COMPILE_TEST
 	depends on RPMSG
+	depends on RPMSG_QCOM_SMD || RPMSG_QCOM_SMD=n
 	help
 	  If you say yes to this option, support will be included for the
 	  Resource Power Manager system found in the Qualcomm 8974 based
@@ -183,6 +209,26 @@ config QCOM_SOCINFO
 	 Say yes here to support the Qualcomm socinfo driver, providing
 	 information about the SoC to user space.
 
+config QCOM_SPM
+	tristate "Qualcomm Subsystem Power Manager (SPM)"
+	depends on ARCH_QCOM || COMPILE_TEST
+	select QCOM_SCM
+	help
+	  Enable the support for the Qualcomm Subsystem Power Manager, used
+	  to manage cores, L2 low power modes and to configure the internal
+	  Adaptive Voltage Scaler parameters, where supported.
+
+config QCOM_STATS
+	tristate "Qualcomm Technologies, Inc. (QTI) Sleep stats driver"
+	depends on (ARCH_QCOM && DEBUG_FS) || COMPILE_TEST
+	depends on QCOM_SMEM
+	depends on QCOM_AOSS_QMP || QCOM_AOSS_QMP=n
+	help
+	  Qualcomm Technologies, Inc. (QTI) Sleep stats driver to read
+	  the shared memory exported by the remote processor related to
+	  various SoC level low power modes statistics and export to debugfs
+	  interface.
+
 config QCOM_WCNSS_CTRL
 	tristate "Qualcomm WCNSS control driver"
 	depends on ARCH_QCOM || COMPILE_TEST
@@ -192,12 +238,43 @@ config QCOM_WCNSS_CTRL
 	  firmware to a newly booted WCNSS chip.
 
 config QCOM_APR
-	tristate "Qualcomm APR Bus (Asynchronous Packet Router)"
+	tristate "Qualcomm APR/GPR Bus (Asynchronous/Generic Packet Router)"
 	depends on ARCH_QCOM || COMPILE_TEST
 	depends on RPMSG
+	depends on NET
+	select QCOM_PDR_HELPERS
 	help
-          Enable APR IPC protocol support between
-          application processor and QDSP6. APR is
-          used by audio driver to configure QDSP6
-          ASM, ADM and AFE modules.
+	  Enable APR IPC protocol support between
+	  application processor and QDSP6. APR is
+	  used by audio driver to configure QDSP6
+	  ASM, ADM and AFE modules.
+
+config QCOM_ICC_BWMON
+	tristate "QCOM Interconnect Bandwidth Monitor driver"
+	depends on ARCH_QCOM || COMPILE_TEST
+	select PM_OPP
+	select REGMAP_MMIO
+	help
+	  Sets up driver monitoring bandwidth on various interconnects and
+	  based on that voting for interconnect bandwidth, adjusting their
+	  speed to current demand.
+	  Current implementation brings support for BWMON v4, used for example
+	  on SDM845 to measure bandwidth between CPU (gladiator_noc) and Last
+	  Level Cache (memnoc).  Usage of this BWMON allows to remove some of
+	  the fixed bandwidth votes from cpufreq (CPU nodes) thus achieve high
+	  memory throughput even with lower CPU frequencies.
+
+config QCOM_INLINE_CRYPTO_ENGINE
+	tristate
+	select QCOM_SCM
+
+config QCOM_PBS
+	tristate "PBS trigger support for Qualcomm Technologies, Inc. PMICS"
+	depends on SPMI
+	help
+	  This driver supports configuring software programmable boot sequencer (PBS)
+	  trigger event through PBS RAM on Qualcomm Technologies, Inc. PMICs.
+	  This module provides the APIs to the client drivers that wants to send the
+	  PBS trigger event to the PBS RAM.
+
 endmenu

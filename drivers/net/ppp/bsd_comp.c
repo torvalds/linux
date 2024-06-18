@@ -436,7 +436,7 @@ static void *bsd_alloc (unsigned char *options, int opt_len, int decomp)
  * Initialize the data information for the compression code
  */
     db->totlen     = sizeof (struct bsd_db)   +
-      		    (sizeof (struct bsd_dict) * hsize);
+		    (sizeof (struct bsd_dict) * hsize);
 
     db->hsize      = hsize;
     db->hshift     = hshift;
@@ -1166,5 +1166,6 @@ static void __exit bsdcomp_cleanup(void)
 
 module_init(bsdcomp_init);
 module_exit(bsdcomp_cleanup);
+MODULE_DESCRIPTION("PPP BSD-Compress compression module");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_ALIAS("ppp-compress-" __stringify(CI_BSD_COMPRESS));

@@ -20,7 +20,7 @@
 static int host_supports_tls = -1;
 int host_gdt_entry_tls_min;
 
-int do_set_thread_area(struct user_desc *info)
+static int do_set_thread_area(struct user_desc *info)
 {
 	int ret;
 	u32 cpu;
@@ -31,22 +31,6 @@ int do_set_thread_area(struct user_desc *info)
 
 	if (ret)
 		printk(KERN_ERR "PTRACE_SET_THREAD_AREA failed, err = %d, "
-		       "index = %d\n", ret, info->entry_number);
-
-	return ret;
-}
-
-int do_get_thread_area(struct user_desc *info)
-{
-	int ret;
-	u32 cpu;
-
-	cpu = get_cpu();
-	ret = os_get_thread_area(info, userspace_pid[cpu]);
-	put_cpu();
-
-	if (ret)
-		printk(KERN_ERR "PTRACE_GET_THREAD_AREA failed, err = %d, "
 		       "index = %d\n", ret, info->entry_number);
 
 	return ret;
@@ -64,9 +48,6 @@ static int get_free_idx(struct task_struct* task)
 {
 	struct thread_struct *t = &task->thread;
 	int idx;
-
-	if (!t->arch.tls_array)
-		return GDT_ENTRY_TLS_MIN;
 
 	for (idx = 0; idx < GDT_ENTRY_TLS_ENTRIES; idx++)
 		if (!t->arch.tls_array[idx].present)
@@ -215,14 +196,12 @@ static int set_tls_entry(struct task_struct* task, struct user_desc *info,
 	return 0;
 }
 
-int arch_copy_tls(struct task_struct *new)
+int arch_set_tls(struct task_struct *new, unsigned long tls)
 {
 	struct user_desc info;
 	int idx, ret = -EFAULT;
 
-	if (copy_from_user(&info,
-			   (void __user *) UPT_SI(&new->thread.regs.regs),
-			   sizeof(info)))
+	if (copy_from_user(&info, (void __user *) tls, sizeof(info)))
 		goto out;
 
 	ret = -EINVAL;
@@ -236,14 +215,10 @@ out:
 	return ret;
 }
 
-/* XXX: use do_get_thread_area to read the host value? I'm not at all sure! */
 static int get_tls_entry(struct task_struct *task, struct user_desc *info,
 			 int idx)
 {
 	struct thread_struct *t = &task->thread;
-
-	if (!t->arch.tls_array)
-		goto clear;
 
 	if (idx < GDT_ENTRY_TLS_MIN || idx > GDT_ENTRY_TLS_MAX)
 		return -EINVAL;

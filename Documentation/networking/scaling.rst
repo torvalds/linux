@@ -44,6 +44,21 @@ by masking out the low order seven bits of the computed hash for the
 packet (usually a Toeplitz hash), taking this number as a key into the
 indirection table and reading the corresponding value.
 
+Some NICs support symmetric RSS hashing where, if the IP (source address,
+destination address) and TCP/UDP (source port, destination port) tuples
+are swapped, the computed hash is the same. This is beneficial in some
+applications that monitor TCP/IP flows (IDS, firewalls, ...etc) and need
+both directions of the flow to land on the same Rx queue (and CPU). The
+"Symmetric-XOR" is a type of RSS algorithms that achieves this hash
+symmetry by XORing the input source and destination fields of the IP
+and/or L4 protocols. This, however, results in reduced input entropy and
+could potentially be exploited. Specifically, the algorithm XORs the input
+as follows::
+
+    # (SRC_IP ^ DST_IP, SRC_IP ^ DST_IP, SRC_PORT ^ DST_PORT, SRC_PORT ^ DST_PORT)
+
+The result is then fed to the underlying RSS algorithm.
+
 Some advanced NICs allow steering packets to queues based on
 programmable filters. For example, webserver bound TCP port 80 packets
 can be directed to their own receive queue. Such “n-tuple” filters can
@@ -81,7 +96,7 @@ of queues to IRQs can be determined from /proc/interrupts. By default,
 an IRQ may be handled on any CPU. Because a non-negligible part of packet
 processing takes place in receive interrupt handling, it is advantageous
 to spread receive interrupts between CPUs. To manually adjust the IRQ
-affinity of each interrupt see Documentation/IRQ-affinity.txt. Some systems
+affinity of each interrupt see Documentation/core-api/irq/irq-affinity.rst. Some systems
 will be running irqbalance, a daemon that dynamically optimizes IRQ
 assignments and as a result may override any manual settings.
 
@@ -104,6 +119,48 @@ processors with hyperthreading (HT), each hyperthread is represented as
 a separate CPU. For interrupt handling, HT has shown no benefit in
 initial tests, so limit the number of queues to the number of CPU cores
 in the system.
+
+Dedicated RSS contexts
+~~~~~~~~~~~~~~~~~~~~~~
+
+Modern NICs support creating multiple co-existing RSS configurations
+which are selected based on explicit matching rules. This can be very
+useful when application wants to constrain the set of queues receiving
+traffic for e.g. a particular destination port or IP address.
+The example below shows how to direct all traffic to TCP port 22
+to queues 0 and 1.
+
+To create an additional RSS context use::
+
+  # ethtool -X eth0 hfunc toeplitz context new
+  New RSS context is 1
+
+Kernel reports back the ID of the allocated context (the default, always
+present RSS context has ID of 0). The new context can be queried and
+modified using the same APIs as the default context::
+
+  # ethtool -x eth0 context 1
+  RX flow hash indirection table for eth0 with 13 RX ring(s):
+    0:      0     1     2     3     4     5     6     7
+    8:      8     9    10    11    12     0     1     2
+  [...]
+  # ethtool -X eth0 equal 2 context 1
+  # ethtool -x eth0 context 1
+  RX flow hash indirection table for eth0 with 13 RX ring(s):
+    0:      0     1     0     1     0     1     0     1
+    8:      0     1     0     1     0     1     0     1
+  [...]
+
+To make use of the new context direct traffic to it using an n-tuple
+filter::
+
+  # ethtool -N eth0 flow-type tcp6 dst-port 22 context 1
+  Added rule with ID 1023
+
+When done, remove the context and the rule::
+
+  # ethtool -N eth0 delete 1023
+  # ethtool -X eth0 context 1 delete
 
 
 RPS: Receive Packet Steering
@@ -160,7 +217,7 @@ can be configured for each receive queue using a sysfs file entry::
 
 This file implements a bitmap of CPUs. RPS is disabled when it is zero
 (the default), in which case packets are processed on the interrupting
-CPU. Documentation/IRQ-affinity.txt explains how CPUs are assigned to
+CPU. Documentation/core-api/irq/irq-affinity.rst explains how CPUs are assigned to
 the bitmap.
 
 
@@ -269,8 +326,8 @@ a single application thread handles flows with many different flow hashes.
 rps_sock_flow_table is a global flow table that contains the *desired* CPU
 for flows: the CPU that is currently processing the flow in userspace.
 Each table value is a CPU index that is updated during calls to recvmsg
-and sendmsg (specifically, inet_recvmsg(), inet_sendmsg(), inet_sendpage()
-and tcp_splice_read()).
+and sendmsg (specifically, inet_recvmsg(), inet_sendmsg() and
+tcp_splice_read()).
 
 When the scheduler moves a thread to a new CPU while it has outstanding
 receive packets on the old CPU, packets may arrive out of order. To
@@ -465,9 +522,9 @@ XPS Configuration
 -----------------
 
 XPS is only available if the kconfig symbol CONFIG_XPS is enabled (on by
-default for SMP). The functionality remains disabled until explicitly
-configured. To enable XPS, the bitmap of CPUs/receive-queues that may
-use a transmit queue is configured using the sysfs file entry:
+default for SMP). If compiled in, it is driver dependent whether, and
+how, XPS is configured at device init. The mapping of CPUs/receive-queues
+to transmit queue can be inspected and configured using sysfs:
 
 For selection based on CPUs map::
 

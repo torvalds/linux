@@ -19,6 +19,9 @@
 #define _UAPI_LINUX_ICMP_H
 
 #include <linux/types.h>
+#include <asm/byteorder.h>
+#include <linux/if.h>
+#include <linux/in6.h>
 
 #define ICMP_ECHOREPLY		0	/* Echo Reply			*/
 #define ICMP_DEST_UNREACH	3	/* Destination Unreachable	*/
@@ -65,6 +68,23 @@
 #define ICMP_EXC_TTL		0	/* TTL count exceeded		*/
 #define ICMP_EXC_FRAGTIME	1	/* Fragment Reass time exceeded	*/
 
+/* Codes for EXT_ECHO (PROBE) */
+#define ICMP_EXT_ECHO			42
+#define ICMP_EXT_ECHOREPLY		43
+#define ICMP_EXT_CODE_MAL_QUERY		1	/* Malformed Query */
+#define ICMP_EXT_CODE_NO_IF		2	/* No such Interface */
+#define ICMP_EXT_CODE_NO_TABLE_ENT	3	/* No such Table Entry */
+#define ICMP_EXT_CODE_MULT_IFS		4	/* Multiple Interfaces Satisfy Query */
+
+/* Constants for EXT_ECHO (PROBE) */
+#define ICMP_EXT_ECHOREPLY_ACTIVE	(1 << 2)/* active bit in reply message */
+#define ICMP_EXT_ECHOREPLY_IPV4		(1 << 1)/* ipv4 bit in reply message */
+#define ICMP_EXT_ECHOREPLY_IPV6		1	/* ipv6 bit in reply message */
+#define ICMP_EXT_ECHO_CTYPE_NAME	1
+#define ICMP_EXT_ECHO_CTYPE_INDEX	2
+#define ICMP_EXT_ECHO_CTYPE_ADDR	3
+#define ICMP_AFI_IP			1	/* Address Family Identifier for ipv4 */
+#define ICMP_AFI_IP6			2	/* Address Family Identifier for ipv6 */
 
 struct icmphdr {
   __u8		type;
@@ -95,5 +115,48 @@ struct icmp_filter {
 	__u32		data;
 };
 
+/* RFC 4884 extension struct: one per message */
+struct icmp_ext_hdr {
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+	__u8		reserved1:4,
+			version:4;
+#elif defined(__BIG_ENDIAN_BITFIELD)
+	__u8		version:4,
+			reserved1:4;
+#else
+#error	"Please fix <asm/byteorder.h>"
+#endif
+	__u8		reserved2;
+	__sum16		checksum;
+};
 
+/* RFC 4884 extension object header: one for each object */
+struct icmp_extobj_hdr {
+	__be16		length;
+	__u8		class_num;
+	__u8		class_type;
+};
+
+/* RFC 8335: 2.1 Header for c-type 3 payload */
+struct icmp_ext_echo_ctype3_hdr {
+	__be16		afi;
+	__u8		addrlen;
+	__u8		reserved;
+};
+
+/* RFC 8335: 2.1 Interface Identification Object */
+struct icmp_ext_echo_iio {
+	struct icmp_extobj_hdr extobj_hdr;
+	union {
+		char name[IFNAMSIZ];
+		__be32 ifindex;
+		struct {
+			struct icmp_ext_echo_ctype3_hdr ctype3_hdr;
+			union {
+				__be32		ipv4_addr;
+				struct in6_addr	ipv6_addr;
+			} ip_addr;
+		} addr;
+	} ident;
+};
 #endif /* _UAPI_LINUX_ICMP_H */

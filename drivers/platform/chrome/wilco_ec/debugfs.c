@@ -10,6 +10,7 @@
 #include <linux/ctype.h>
 #include <linux/debugfs.h>
 #include <linux/fs.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_data/wilco-ec.h>
 #include <linux/platform_device.h>
@@ -160,29 +161,29 @@ static const struct file_operations fops_raw = {
 
 #define CMD_KB_CHROME		0x88
 #define SUB_CMD_H1_GPIO		0x0A
+#define SUB_CMD_TEST_EVENT	0x0B
 
-struct h1_gpio_status_request {
+struct ec_request {
 	u8 cmd;		/* Always CMD_KB_CHROME */
 	u8 reserved;
-	u8 sub_cmd;	/* Always SUB_CMD_H1_GPIO */
+	u8 sub_cmd;
 } __packed;
 
-struct hi_gpio_status_response {
+struct ec_response {
 	u8 status;	/* 0 if allowed */
-	u8 val;		/* BIT(0)=ENTRY_TO_FACT_MODE, BIT(1)=SPI_CHROME_SEL */
+	u8 val;
 } __packed;
 
-static int h1_gpio_get(void *arg, u64 *val)
+static int send_ec_cmd(struct wilco_ec_device *ec, u8 sub_cmd, u8 *out_val)
 {
-	struct wilco_ec_device *ec = arg;
-	struct h1_gpio_status_request rq;
-	struct hi_gpio_status_response rs;
+	struct ec_request rq;
+	struct ec_response rs;
 	struct wilco_ec_message msg;
 	int ret;
 
 	memset(&rq, 0, sizeof(rq));
 	rq.cmd = CMD_KB_CHROME;
-	rq.sub_cmd = SUB_CMD_H1_GPIO;
+	rq.sub_cmd = sub_cmd;
 
 	memset(&msg, 0, sizeof(msg));
 	msg.type = WILCO_EC_MSG_LEGACY;
@@ -196,12 +197,42 @@ static int h1_gpio_get(void *arg, u64 *val)
 	if (rs.status)
 		return -EIO;
 
-	*val = rs.val;
+	*out_val = rs.val;
 
 	return 0;
 }
 
+/**
+ * h1_gpio_get() - Gets h1 gpio status.
+ * @arg: The wilco EC device.
+ * @val: BIT(0)=ENTRY_TO_FACT_MODE, BIT(1)=SPI_CHROME_SEL
+ */
+static int h1_gpio_get(void *arg, u64 *val)
+{
+	int ret;
+
+	ret = send_ec_cmd(arg, SUB_CMD_H1_GPIO, (u8 *)val);
+	if (ret == 0)
+		*val &= 0xFF;
+	return ret;
+}
+
 DEFINE_DEBUGFS_ATTRIBUTE(fops_h1_gpio, h1_gpio_get, NULL, "0x%02llx\n");
+
+/**
+ * test_event_set() - Sends command to EC to cause an EC test event.
+ * @arg: The wilco EC device.
+ * @val: unused.
+ */
+static int test_event_set(void *arg, u64 val)
+{
+	u8 ret;
+
+	return send_ec_cmd(arg, SUB_CMD_TEST_EVENT, &ret);
+}
+
+/* Format is unused since it is only required for get method which is NULL */
+DEFINE_DEBUGFS_ATTRIBUTE(fops_test_event, NULL, test_event_set, "%llu\n");
 
 /**
  * wilco_ec_debugfs_probe() - Create the debugfs node
@@ -221,33 +252,37 @@ static int wilco_ec_debugfs_probe(struct platform_device *pdev)
 		return 0;
 	debug_info->ec = ec;
 	debug_info->dir = debugfs_create_dir("wilco_ec", NULL);
-	if (!debug_info->dir)
-		return 0;
 	debugfs_create_file("raw", 0644, debug_info->dir, NULL, &fops_raw);
 	debugfs_create_file("h1_gpio", 0444, debug_info->dir, ec,
 			    &fops_h1_gpio);
+	debugfs_create_file("test_event", 0200, debug_info->dir, ec,
+			    &fops_test_event);
 
 	return 0;
 }
 
-static int wilco_ec_debugfs_remove(struct platform_device *pdev)
+static void wilco_ec_debugfs_remove(struct platform_device *pdev)
 {
 	debugfs_remove_recursive(debug_info->dir);
-
-	return 0;
 }
+
+static const struct platform_device_id wilco_ec_debugfs_id[] = {
+	{ DRV_NAME, 0 },
+	{}
+};
+MODULE_DEVICE_TABLE(platform, wilco_ec_debugfs_id);
 
 static struct platform_driver wilco_ec_debugfs_driver = {
 	.driver = {
 		.name = DRV_NAME,
 	},
 	.probe = wilco_ec_debugfs_probe,
-	.remove = wilco_ec_debugfs_remove,
+	.remove_new = wilco_ec_debugfs_remove,
+	.id_table = wilco_ec_debugfs_id,
 };
 
 module_platform_driver(wilco_ec_debugfs_driver);
 
-MODULE_ALIAS("platform:" DRV_NAME);
 MODULE_AUTHOR("Nick Crews <ncrews@chromium.org>");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Wilco EC debugfs driver");

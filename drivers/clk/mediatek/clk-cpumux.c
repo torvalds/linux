@@ -5,11 +5,23 @@
  */
 
 #include <linux/clk-provider.h>
+#include <linux/container_of.h>
+#include <linux/err.h>
 #include <linux/mfd/syscon.h>
+#include <linux/module.h>
+#include <linux/regmap.h>
 #include <linux/slab.h>
 
 #include "clk-mtk.h"
 #include "clk-cpumux.h"
+
+struct mtk_clk_cpumux {
+	struct clk_hw	hw;
+	struct regmap	*regmap;
+	u32		reg;
+	u32		mask;
+	u8		shift;
+};
 
 static inline struct mtk_clk_cpumux *to_mtk_clk_cpumux(struct clk_hw *_hw)
 {
@@ -41,16 +53,17 @@ static int clk_cpumux_set_parent(struct clk_hw *hw, u8 index)
 }
 
 static const struct clk_ops clk_cpumux_ops = {
+	.determine_rate = clk_hw_determine_rate_no_reparent,
 	.get_parent = clk_cpumux_get_parent,
 	.set_parent = clk_cpumux_set_parent,
 };
 
-static struct clk *
-mtk_clk_register_cpumux(const struct mtk_composite *mux,
+static struct clk_hw *
+mtk_clk_register_cpumux(struct device *dev, const struct mtk_composite *mux,
 			struct regmap *regmap)
 {
 	struct mtk_clk_cpumux *cpumux;
-	struct clk *clk;
+	int ret;
 	struct clk_init_data init;
 
 	cpumux = kzalloc(sizeof(*cpumux), GFP_KERNEL);
@@ -69,40 +82,92 @@ mtk_clk_register_cpumux(const struct mtk_composite *mux,
 	cpumux->regmap = regmap;
 	cpumux->hw.init = &init;
 
-	clk = clk_register(NULL, &cpumux->hw);
-	if (IS_ERR(clk))
+	ret = clk_hw_register(dev, &cpumux->hw);
+	if (ret) {
 		kfree(cpumux);
+		return ERR_PTR(ret);
+	}
 
-	return clk;
+	return &cpumux->hw;
 }
 
-int mtk_clk_register_cpumuxes(struct device_node *node,
+static void mtk_clk_unregister_cpumux(struct clk_hw *hw)
+{
+	struct mtk_clk_cpumux *cpumux;
+	if (!hw)
+		return;
+
+	cpumux = to_mtk_clk_cpumux(hw);
+
+	clk_hw_unregister(hw);
+	kfree(cpumux);
+}
+
+int mtk_clk_register_cpumuxes(struct device *dev, struct device_node *node,
 			      const struct mtk_composite *clks, int num,
-			      struct clk_onecell_data *clk_data)
+			      struct clk_hw_onecell_data *clk_data)
 {
 	int i;
-	struct clk *clk;
+	struct clk_hw *hw;
 	struct regmap *regmap;
 
-	regmap = syscon_node_to_regmap(node);
+	regmap = device_node_to_regmap(node);
 	if (IS_ERR(regmap)) {
-		pr_err("Cannot find regmap for %pOF: %ld\n", node,
-		       PTR_ERR(regmap));
+		pr_err("Cannot find regmap for %pOF: %pe\n", node, regmap);
 		return PTR_ERR(regmap);
 	}
 
 	for (i = 0; i < num; i++) {
 		const struct mtk_composite *mux = &clks[i];
 
-		clk = mtk_clk_register_cpumux(mux, regmap);
-		if (IS_ERR(clk)) {
-			pr_err("Failed to register clk %s: %ld\n",
-			       mux->name, PTR_ERR(clk));
+		if (!IS_ERR_OR_NULL(clk_data->hws[mux->id])) {
+			pr_warn("%pOF: Trying to register duplicate clock ID: %d\n",
+				node, mux->id);
 			continue;
 		}
 
-		clk_data->clks[mux->id] = clk;
+		hw = mtk_clk_register_cpumux(dev, mux, regmap);
+		if (IS_ERR(hw)) {
+			pr_err("Failed to register clk %s: %pe\n", mux->name,
+			       hw);
+			goto err;
+		}
+
+		clk_data->hws[mux->id] = hw;
 	}
 
 	return 0;
+
+err:
+	while (--i >= 0) {
+		const struct mtk_composite *mux = &clks[i];
+
+		if (IS_ERR_OR_NULL(clk_data->hws[mux->id]))
+			continue;
+
+		mtk_clk_unregister_cpumux(clk_data->hws[mux->id]);
+		clk_data->hws[mux->id] = ERR_PTR(-ENOENT);
+	}
+
+	return PTR_ERR(hw);
 }
+EXPORT_SYMBOL_GPL(mtk_clk_register_cpumuxes);
+
+void mtk_clk_unregister_cpumuxes(const struct mtk_composite *clks, int num,
+				 struct clk_hw_onecell_data *clk_data)
+{
+	int i;
+
+	for (i = num; i > 0; i--) {
+		const struct mtk_composite *mux = &clks[i - 1];
+
+		if (IS_ERR_OR_NULL(clk_data->hws[mux->id]))
+			continue;
+
+		mtk_clk_unregister_cpumux(clk_data->hws[mux->id]);
+		clk_data->hws[mux->id] = ERR_PTR(-ENOENT);
+	}
+}
+EXPORT_SYMBOL_GPL(mtk_clk_unregister_cpumuxes);
+
+MODULE_LICENSE("GPL");

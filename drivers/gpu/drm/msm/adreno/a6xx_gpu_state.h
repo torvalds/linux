@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (c) 2018 The Linux Foundation. All rights reserved. */
+/*
+ * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ */
 
 #ifndef _A6XX_CRASH_DUMP_H_
 #define _A6XX_CRASH_DUMP_H_
@@ -36,16 +39,22 @@ static const u32 a6xx_fe_cluster[] = {
 	0xa00e, 0xa0ef, 0xa0f8, 0xa0f8,
 };
 
+static const u32 a660_fe_cluster[] = {
+	0x9807, 0x9807,
+};
+
 static const u32 a6xx_pc_vs_cluster[] = {
 	0x9100, 0x9108, 0x9300, 0x9306, 0x9980, 0x9981, 0x9b00, 0x9b07,
 };
 
-#define CLUSTER_FE    0
-#define CLUSTER_SP_VS 1
-#define CLUSTER_PC_VS 2
-#define CLUSTER_GRAS  3
-#define CLUSTER_SP_PS 4
-#define CLUSTER_PS    5
+#define CLUSTER_FE	0
+#define CLUSTER_SP_VS	1
+#define CLUSTER_PC_VS	2
+#define CLUSTER_GRAS	3
+#define CLUSTER_SP_PS	4
+#define CLUSTER_PS	5
+#define CLUSTER_VPC_PS	6
+#define CLUSTER_NONE    7
 
 #define CLUSTER(_id, _reg, _sel_reg, _sel_val) \
 	{ .id = _id, .name = #_id,\
@@ -67,6 +76,7 @@ static const struct a6xx_cluster {
 	CLUSTER(CLUSTER_PS, a6xx_ps_cluster, 0, 0),
 	CLUSTER(CLUSTER_FE, a6xx_fe_cluster, 0, 0),
 	CLUSTER(CLUSTER_PC_VS, a6xx_pc_vs_cluster, 0, 0),
+	CLUSTER(CLUSTER_FE, a660_fe_cluster, 0, 0),
 };
 
 static const u32 a6xx_sp_vs_hlsq_cluster[] = {
@@ -105,7 +115,7 @@ static const u32 a6xx_sp_ps_hlsq_2d_cluster[] = {
 
 static const u32 a6xx_sp_ps_sp_cluster[] = {
 	0xa980, 0xa9a8, 0xa9b0, 0xa9bc, 0xa9d0, 0xa9d3, 0xa9e0, 0xa9f3,
-	0xaa00, 0xaa00, 0xaa30, 0xaa31,
+	0xaa00, 0xaa00, 0xaa30, 0xaa31, 0xaaf2, 0xaaf2,
 };
 
 static const u32 a6xx_sp_ps_sp_2d_cluster[] = {
@@ -200,7 +210,7 @@ static const struct a6xx_shader_block {
 	SHADER(A6XX_SP_LB_3_DATA, 0x800),
 	SHADER(A6XX_SP_LB_4_DATA, 0x800),
 	SHADER(A6XX_SP_LB_5_DATA, 0x200),
-	SHADER(A6XX_SP_CB_BINDLESS_DATA, 0x2000),
+	SHADER(A6XX_SP_CB_BINDLESS_DATA, 0x800),
 	SHADER(A6XX_SP_CB_LEGACY_DATA, 0x280),
 	SHADER(A6XX_SP_UAV_DATA, 0x80),
 	SHADER(A6XX_SP_INST_TAG, 0x80),
@@ -229,6 +239,9 @@ static const struct a6xx_shader_block {
 	SHADER(A6XX_HLSQ_DATAPATH_META, 0x40),
 	SHADER(A6XX_HLSQ_FRONTEND_META, 0x40),
 	SHADER(A6XX_HLSQ_INDIRECT_META, 0x40),
+	SHADER(A6XX_SP_LB_6_DATA, 0x200),
+	SHADER(A6XX_SP_LB_7_DATA, 0x200),
+	SHADER(A6XX_HLSQ_INST_RAM_1, 0x200),
 };
 
 static const u32 a6xx_rb_rac_registers[] = {
@@ -251,7 +264,7 @@ static const u32 a6xx_registers[] = {
 	0x0540, 0x0555,
 	/* CP */
 	0x0800, 0x0808, 0x0810, 0x0813, 0x0820, 0x0821, 0x0823, 0x0824,
-	0x0826, 0x0827, 0x0830, 0x0833, 0x0840, 0x0843, 0x084f, 0x086f,
+	0x0826, 0x0827, 0x0830, 0x0833, 0x0840, 0x0845, 0x084f, 0x086f,
 	0x0880, 0x088a, 0x08a0, 0x08ab, 0x08c0, 0x08c4, 0x08d0, 0x08dd,
 	0x08f0, 0x08f3, 0x0900, 0x0903, 0x0908, 0x0911, 0x0928, 0x093e,
 	0x0942, 0x094d, 0x0980, 0x0984, 0x098d, 0x0996, 0x0998, 0x099e,
@@ -274,6 +287,13 @@ static const u32 a6xx_registers[] = {
 	/* VFD */
 	0xa600, 0xa601, 0xa603, 0xa603, 0xa60a, 0xa60a, 0xa610, 0xa617,
 	0xa630, 0xa630,
+	/* HLSQ */
+	0xd002, 0xd003,
+};
+
+static const u32 a660_registers[] = {
+	/* UCHE */
+	0x0e3c, 0x0e3c,
 };
 
 #define REGS(_array, _sel_reg, _sel_val) \
@@ -282,6 +302,7 @@ static const u32 a6xx_registers[] = {
 
 static const struct a6xx_registers a6xx_reglist[] = {
 	REGS(a6xx_registers, 0, 0),
+	REGS(a660_registers, 0, 0),
 	REGS(a6xx_rb_rac_registers, REG_A6XX_RB_RB_SUB_BLOCK_SEL_CNTL_CD, 0),
 	REGS(a6xx_rb_rbp_registers, REG_A6XX_RB_RB_SUB_BLOCK_SEL_CNTL_CD, 9),
 };
@@ -307,10 +328,18 @@ static const u32 a6xx_vbif_registers[] = {
 	0x3410, 0x3410, 0x3800, 0x3801,
 };
 
-static const struct a6xx_registers a6xx_ahb_reglist[] = {
-	REGS(a6xx_ahb_registers, 0, 0),
-	REGS(a6xx_vbif_registers, 0, 0),
+static const u32 a6xx_gbif_registers[] = {
+	0x3C00, 0X3C0B, 0X3C40, 0X3C47, 0X3CC0, 0X3CD1, 0xE3A, 0xE3A,
 };
+
+static const struct a6xx_registers a6xx_ahb_reglist =
+	REGS(a6xx_ahb_registers, 0, 0);
+
+static const struct a6xx_registers a6xx_vbif_reglist =
+			REGS(a6xx_vbif_registers, 0, 0);
+
+static const struct a6xx_registers a6xx_gbif_reglist =
+			REGS(a6xx_gbif_registers, 0, 0);
 
 static const u32 a6xx_gmu_gx_registers[] = {
 	/* GMU GX */
@@ -332,10 +361,6 @@ static const u32 a6xx_gmu_cx_registers[] = {
 	0x5157, 0x5158, 0x515d, 0x515d, 0x5162, 0x5162, 0x5164, 0x5165,
 	0x5180, 0x5186, 0x5190, 0x519e, 0x51c0, 0x51c0, 0x51c5, 0x51cc,
 	0x51e0, 0x51e2, 0x51f0, 0x51f0, 0x5200, 0x5201,
-	/* GPU RSCC */
-	0x8c8c, 0x8c8c, 0x8d01, 0x8d02, 0x8f40, 0x8f42, 0x8f44, 0x8f47,
-	0x8f4c, 0x8f87, 0x8fec, 0x8fef, 0x8ff4, 0x902f, 0x9094, 0x9097,
-	0x909c, 0x90d7, 0x913c, 0x913f, 0x9144, 0x917f,
 	/* GMU AO */
 	0x9300, 0x9316, 0x9400, 0x9400,
 	/* GPU CC */
@@ -348,30 +373,76 @@ static const u32 a6xx_gmu_cx_registers[] = {
 	0xbc00, 0xbc16, 0xbc20, 0xbc27,
 };
 
+static const u32 a6xx_gmu_cx_rscc_registers[] = {
+	/* GPU RSCC */
+	0x008c, 0x008c, 0x0101, 0x0102, 0x0340, 0x0342, 0x0344, 0x0347,
+	0x034c, 0x0387, 0x03ec, 0x03ef, 0x03f4, 0x042f, 0x0494, 0x0497,
+	0x049c, 0x04d7, 0x053c, 0x053f, 0x0544, 0x057f,
+};
+
 static const struct a6xx_registers a6xx_gmu_reglist[] = {
 	REGS(a6xx_gmu_cx_registers, 0, 0),
+	REGS(a6xx_gmu_cx_rscc_registers, 0, 0),
 	REGS(a6xx_gmu_gx_registers, 0, 0),
 };
 
-static const struct a6xx_indexed_registers {
+static u32 a6xx_get_cp_roq_size(struct msm_gpu *gpu);
+static u32 a7xx_get_cp_roq_size(struct msm_gpu *gpu);
+
+struct a6xx_indexed_registers {
 	const char *name;
 	u32 addr;
 	u32 data;
 	u32 count;
-} a6xx_indexed_reglist[] = {
-	{ "CP_SEQ_STAT", REG_A6XX_CP_SQE_STAT_ADDR,
-		REG_A6XX_CP_SQE_STAT_DATA, 0x33 },
+	u32 (*count_fn)(struct msm_gpu *gpu);
+};
+
+static const struct a6xx_indexed_registers a6xx_indexed_reglist[] = {
+	{ "CP_SQE_STAT", REG_A6XX_CP_SQE_STAT_ADDR,
+		REG_A6XX_CP_SQE_STAT_DATA, 0x33, NULL },
 	{ "CP_DRAW_STATE", REG_A6XX_CP_DRAW_STATE_ADDR,
-		REG_A6XX_CP_DRAW_STATE_DATA, 0x100 },
+		REG_A6XX_CP_DRAW_STATE_DATA, 0x100, NULL },
 	{ "CP_UCODE_DBG_DATA", REG_A6XX_CP_SQE_UCODE_DBG_ADDR,
-		REG_A6XX_CP_SQE_UCODE_DBG_DATA, 0x6000 },
+		REG_A6XX_CP_SQE_UCODE_DBG_DATA, 0x8000, NULL },
 	{ "CP_ROQ", REG_A6XX_CP_ROQ_DBG_ADDR,
-		REG_A6XX_CP_ROQ_DBG_DATA, 0x400 },
+		REG_A6XX_CP_ROQ_DBG_DATA, 0, a6xx_get_cp_roq_size},
+};
+
+static const struct a6xx_indexed_registers a7xx_indexed_reglist[] = {
+	{ "CP_SQE_STAT", REG_A6XX_CP_SQE_STAT_ADDR,
+		REG_A6XX_CP_SQE_STAT_DATA, 0x33, NULL },
+	{ "CP_DRAW_STATE", REG_A6XX_CP_DRAW_STATE_ADDR,
+		REG_A6XX_CP_DRAW_STATE_DATA, 0x100, NULL },
+	{ "CP_UCODE_DBG_DATA", REG_A6XX_CP_SQE_UCODE_DBG_ADDR,
+		REG_A6XX_CP_SQE_UCODE_DBG_DATA, 0x8000, NULL },
+	{ "CP_BV_SQE_STAT_ADDR", REG_A7XX_CP_BV_SQE_STAT_ADDR,
+		REG_A7XX_CP_BV_SQE_STAT_DATA, 0x33, NULL },
+	{ "CP_BV_DRAW_STATE_ADDR", REG_A7XX_CP_BV_DRAW_STATE_ADDR,
+		REG_A7XX_CP_BV_DRAW_STATE_DATA, 0x100, NULL },
+	{ "CP_BV_SQE_UCODE_DBG_ADDR", REG_A7XX_CP_BV_SQE_UCODE_DBG_ADDR,
+		REG_A7XX_CP_BV_SQE_UCODE_DBG_DATA, 0x8000, NULL },
+	{ "CP_SQE_AC_STAT_ADDR", REG_A7XX_CP_SQE_AC_STAT_ADDR,
+		REG_A7XX_CP_SQE_AC_STAT_DATA, 0x33, NULL },
+	{ "CP_LPAC_DRAW_STATE_ADDR", REG_A7XX_CP_LPAC_DRAW_STATE_ADDR,
+		REG_A7XX_CP_LPAC_DRAW_STATE_DATA, 0x100, NULL },
+	{ "CP_SQE_AC_UCODE_DBG_ADDR", REG_A7XX_CP_SQE_AC_UCODE_DBG_ADDR,
+		REG_A7XX_CP_SQE_AC_UCODE_DBG_DATA, 0x8000, NULL },
+	{ "CP_LPAC_FIFO_DBG_ADDR", REG_A7XX_CP_LPAC_FIFO_DBG_ADDR,
+		REG_A7XX_CP_LPAC_FIFO_DBG_DATA, 0x40, NULL },
+	{ "CP_ROQ", REG_A6XX_CP_ROQ_DBG_ADDR,
+		REG_A6XX_CP_ROQ_DBG_DATA, 0, a7xx_get_cp_roq_size },
 };
 
 static const struct a6xx_indexed_registers a6xx_cp_mempool_indexed = {
-	"CP_MEMPOOOL", REG_A6XX_CP_MEM_POOL_DBG_ADDR,
-		REG_A6XX_CP_MEM_POOL_DBG_DATA, 0x2060,
+	"CP_MEMPOOL", REG_A6XX_CP_MEM_POOL_DBG_ADDR,
+		REG_A6XX_CP_MEM_POOL_DBG_DATA, 0x2060, NULL,
+};
+
+static const struct a6xx_indexed_registers a7xx_cp_bv_mempool_indexed[] = {
+	{ "CP_MEMPOOL", REG_A6XX_CP_MEM_POOL_DBG_ADDR,
+		REG_A6XX_CP_MEM_POOL_DBG_DATA, 0x2100, NULL },
+	{ "CP_BV_MEMPOOL", REG_A7XX_CP_BV_MEM_POOL_DBG_ADDR,
+		REG_A7XX_CP_BV_MEM_POOL_DBG_DATA, 0x2100, NULL },
 };
 
 #define DEBUGBUS(_id, _count) { .id = _id, .name = #_id, .count = _count }
@@ -422,9 +493,312 @@ static const struct a6xx_debugbus_block {
 	DEBUGBUS(A6XX_DBGBUS_TPL1_3, 0x100),
 };
 
+static const struct a6xx_debugbus_block a6xx_gbif_debugbus_block =
+			DEBUGBUS(A6XX_DBGBUS_VBIF, 0x100);
+
 static const struct a6xx_debugbus_block a6xx_cx_debugbus_blocks[] = {
 	DEBUGBUS(A6XX_DBGBUS_GMU_CX, 0x100),
 	DEBUGBUS(A6XX_DBGBUS_CX, 0x100),
+};
+
+static const struct a6xx_debugbus_block a650_debugbus_blocks[] = {
+	DEBUGBUS(A6XX_DBGBUS_RB_2, 0x100),
+	DEBUGBUS(A6XX_DBGBUS_CCU_2, 0x100),
+	DEBUGBUS(A6XX_DBGBUS_VFD_4, 0x100),
+	DEBUGBUS(A6XX_DBGBUS_VFD_5, 0x100),
+	DEBUGBUS(A6XX_DBGBUS_SP_2, 0x100),
+	DEBUGBUS(A6XX_DBGBUS_TPL1_4, 0x100),
+	DEBUGBUS(A6XX_DBGBUS_TPL1_5, 0x100),
+	DEBUGBUS(A6XX_DBGBUS_SPTP_0, 0x100),
+	DEBUGBUS(A6XX_DBGBUS_SPTP_1, 0x100),
+	DEBUGBUS(A6XX_DBGBUS_SPTP_2, 0x100),
+	DEBUGBUS(A6XX_DBGBUS_SPTP_3, 0x100),
+	DEBUGBUS(A6XX_DBGBUS_SPTP_4, 0x100),
+	DEBUGBUS(A6XX_DBGBUS_SPTP_5, 0x100),
+};
+
+static const u32 a7xx_gbif_debugbus_blocks[] = {
+	A7XX_DBGBUS_GBIF_CX,
+	A7XX_DBGBUS_GBIF_GX,
+};
+
+static const struct a6xx_debugbus_block a7xx_cx_debugbus_blocks[] = {
+	DEBUGBUS(A7XX_DBGBUS_GMU_CX, 0x100),
+	DEBUGBUS(A7XX_DBGBUS_CX, 0x100),
+	DEBUGBUS(A7XX_DBGBUS_GBIF_CX, 0x100),
+};
+
+#define STATE_NON_CONTEXT 0
+#define STATE_TOGGLE_CTXT 1
+#define STATE_FORCE_CTXT_0 2
+#define STATE_FORCE_CTXT_1 3
+
+struct gen7_sel_reg {
+	unsigned int host_reg;
+	unsigned int cd_reg;
+	unsigned int val;
+};
+
+struct gen7_cluster_registers {
+	/* cluster_id: Cluster identifier */
+	int cluster_id;
+	/* pipe_id: Pipe Identifier */
+	int pipe_id;
+	/* context_id: one of STATE_ that identifies the context to dump */
+	int context_id;
+	/* regs: Pointer to an array of register pairs */
+	const u32 *regs;
+	/* sel: Pointer to a selector register to write before reading */
+	const struct gen7_sel_reg *sel;
+};
+
+struct gen7_sptp_cluster_registers {
+	/* cluster_id: Cluster identifier */
+	enum a7xx_cluster cluster_id;
+	/* statetype: SP block state type for the cluster */
+	enum a7xx_statetype_id statetype;
+	/* pipe_id: Pipe identifier */
+	enum a7xx_pipe pipe_id;
+	/* context_id: Context identifier */
+	int context_id;
+	/* location_id: Location identifier */
+	enum a7xx_state_location location_id;
+	/* regs: Pointer to the list of register pairs to read */
+	const u32 *regs;
+	/* regbase: Dword offset of the register block in the GPu register space */
+	unsigned int regbase;
+};
+
+struct gen7_shader_block {
+	/* statetype: Type identifer for the block */
+	u32 statetype;
+	/* size: Size of the block (in dwords) */
+	u32 size;
+	/* num_sps: The SP id to dump */
+	u32 num_sps;
+	/* num_usptps: The number of USPTPs to dump */;
+	u32 num_usptps;
+	/* pipe_id: Pipe identifier for the block data  */
+	u32 pipeid;
+	/* location: Location identifer for the block data */
+	u32 location;
+};
+
+struct gen7_reg_list {
+	const u32 *regs;
+	const struct gen7_sel_reg *sel;
+};
+
+/* adreno_gen7_x_y_snapshot.h defines which debugbus blocks a given family has, but the
+ * list of debugbus blocks is global on a7xx.
+ */
+
+#define A7XX_DEBUGBUS(_id, _count) [_id] = { .id = _id, .name = #_id, .count = _count },
+static const struct a6xx_debugbus_block a7xx_debugbus_blocks[] = {
+	A7XX_DEBUGBUS(A7XX_DBGBUS_CP_0_0, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_CP_0_1, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_RBBM, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_GBIF_GX, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_GBIF_CX, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_HLSQ, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_UCHE_0, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_UCHE_1, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_TESS_BR, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_TESS_BV, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_PC_BR, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_PC_BV, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_VFDP_BR, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_VFDP_BV, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_VPC_BR, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_VPC_BV, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_TSE_BR, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_TSE_BV, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_RAS_BR, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_RAS_BV, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_VSC, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_COM_0, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_LRZ_BR, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_LRZ_BV, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_UFC_0, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_UFC_1, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_GMU_GX, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_DBGC, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_CX, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_GMU_CX, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_GPC_BR, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_GPC_BV, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_LARC, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_HLSQ_SPTP, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_RB_0, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_RB_1, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_RB_2, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_RB_3, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_RB_4, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_RB_5, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_UCHE_WRAPPER, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_CCU_0, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_CCU_1, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_CCU_2, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_CCU_3, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_CCU_4, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_CCU_5, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_VFD_BR_0, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_VFD_BR_1, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_VFD_BR_2, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_VFD_BR_3, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_VFD_BR_4, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_VFD_BR_5, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_VFD_BR_6, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_VFD_BR_7, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_VFD_BV_0, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_VFD_BV_1, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_VFD_BV_2, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_VFD_BV_3, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_USP_0, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_USP_1, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_USP_2, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_USP_3, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_USP_4, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_USP_5, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_TP_0, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_TP_1, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_TP_2, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_TP_3, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_TP_4, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_TP_5, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_TP_6, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_TP_7, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_TP_8, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_TP_9, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_TP_10, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_TP_11, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_USPTP_0, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_USPTP_1, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_USPTP_2, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_USPTP_3, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_USPTP_4, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_USPTP_5, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_USPTP_6, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_USPTP_7, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_USPTP_8, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_USPTP_9, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_USPTP_10, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_USPTP_11, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_CCHE_0, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_CCHE_1, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_CCHE_2, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_VPC_DSTR_0, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_VPC_DSTR_1, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_VPC_DSTR_2, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_HLSQ_DP_STR_0, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_HLSQ_DP_STR_1, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_HLSQ_DP_STR_2, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_HLSQ_DP_STR_3, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_HLSQ_DP_STR_4, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_HLSQ_DP_STR_5, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_UFC_DSTR_0, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_UFC_DSTR_1, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_UFC_DSTR_2, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_CGC_SUBCORE, 0x100)
+	A7XX_DEBUGBUS(A7XX_DBGBUS_CGC_CORE, 0x100)
+};
+
+#define A7XX_NAME(enumval) [enumval] = #enumval
+static const char *a7xx_statetype_names[] = {
+	A7XX_NAME(A7XX_TP0_NCTX_REG),
+	A7XX_NAME(A7XX_TP0_CTX0_3D_CVS_REG),
+	A7XX_NAME(A7XX_TP0_CTX0_3D_CPS_REG),
+	A7XX_NAME(A7XX_TP0_CTX1_3D_CVS_REG),
+	A7XX_NAME(A7XX_TP0_CTX1_3D_CPS_REG),
+	A7XX_NAME(A7XX_TP0_CTX2_3D_CPS_REG),
+	A7XX_NAME(A7XX_TP0_CTX3_3D_CPS_REG),
+	A7XX_NAME(A7XX_TP0_TMO_DATA),
+	A7XX_NAME(A7XX_TP0_SMO_DATA),
+	A7XX_NAME(A7XX_TP0_MIPMAP_BASE_DATA),
+	A7XX_NAME(A7XX_SP_NCTX_REG),
+	A7XX_NAME(A7XX_SP_CTX0_3D_CVS_REG),
+	A7XX_NAME(A7XX_SP_CTX0_3D_CPS_REG),
+	A7XX_NAME(A7XX_SP_CTX1_3D_CVS_REG),
+	A7XX_NAME(A7XX_SP_CTX1_3D_CPS_REG),
+	A7XX_NAME(A7XX_SP_CTX2_3D_CPS_REG),
+	A7XX_NAME(A7XX_SP_CTX3_3D_CPS_REG),
+	A7XX_NAME(A7XX_SP_INST_DATA),
+	A7XX_NAME(A7XX_SP_INST_DATA_1),
+	A7XX_NAME(A7XX_SP_LB_0_DATA),
+	A7XX_NAME(A7XX_SP_LB_1_DATA),
+	A7XX_NAME(A7XX_SP_LB_2_DATA),
+	A7XX_NAME(A7XX_SP_LB_3_DATA),
+	A7XX_NAME(A7XX_SP_LB_4_DATA),
+	A7XX_NAME(A7XX_SP_LB_5_DATA),
+	A7XX_NAME(A7XX_SP_LB_6_DATA),
+	A7XX_NAME(A7XX_SP_LB_7_DATA),
+	A7XX_NAME(A7XX_SP_CB_RAM),
+	A7XX_NAME(A7XX_SP_LB_13_DATA),
+	A7XX_NAME(A7XX_SP_LB_14_DATA),
+	A7XX_NAME(A7XX_SP_INST_TAG),
+	A7XX_NAME(A7XX_SP_INST_DATA_2),
+	A7XX_NAME(A7XX_SP_TMO_TAG),
+	A7XX_NAME(A7XX_SP_SMO_TAG),
+	A7XX_NAME(A7XX_SP_STATE_DATA),
+	A7XX_NAME(A7XX_SP_HWAVE_RAM),
+	A7XX_NAME(A7XX_SP_L0_INST_BUF),
+	A7XX_NAME(A7XX_SP_LB_8_DATA),
+	A7XX_NAME(A7XX_SP_LB_9_DATA),
+	A7XX_NAME(A7XX_SP_LB_10_DATA),
+	A7XX_NAME(A7XX_SP_LB_11_DATA),
+	A7XX_NAME(A7XX_SP_LB_12_DATA),
+	A7XX_NAME(A7XX_HLSQ_DATAPATH_DSTR_META),
+	A7XX_NAME(A7XX_HLSQ_L2STC_TAG_RAM),
+	A7XX_NAME(A7XX_HLSQ_L2STC_INFO_CMD),
+	A7XX_NAME(A7XX_HLSQ_CVS_BE_CTXT_BUF_RAM_TAG),
+	A7XX_NAME(A7XX_HLSQ_CPS_BE_CTXT_BUF_RAM_TAG),
+	A7XX_NAME(A7XX_HLSQ_GFX_CVS_BE_CTXT_BUF_RAM),
+	A7XX_NAME(A7XX_HLSQ_GFX_CPS_BE_CTXT_BUF_RAM),
+	A7XX_NAME(A7XX_HLSQ_CHUNK_CVS_RAM),
+	A7XX_NAME(A7XX_HLSQ_CHUNK_CPS_RAM),
+	A7XX_NAME(A7XX_HLSQ_CHUNK_CVS_RAM_TAG),
+	A7XX_NAME(A7XX_HLSQ_CHUNK_CPS_RAM_TAG),
+	A7XX_NAME(A7XX_HLSQ_ICB_CVS_CB_BASE_TAG),
+	A7XX_NAME(A7XX_HLSQ_ICB_CPS_CB_BASE_TAG),
+	A7XX_NAME(A7XX_HLSQ_CVS_MISC_RAM),
+	A7XX_NAME(A7XX_HLSQ_CPS_MISC_RAM),
+	A7XX_NAME(A7XX_HLSQ_CPS_MISC_RAM_1),
+	A7XX_NAME(A7XX_HLSQ_INST_RAM),
+	A7XX_NAME(A7XX_HLSQ_GFX_CVS_CONST_RAM),
+	A7XX_NAME(A7XX_HLSQ_GFX_CPS_CONST_RAM),
+	A7XX_NAME(A7XX_HLSQ_CVS_MISC_RAM_TAG),
+	A7XX_NAME(A7XX_HLSQ_CPS_MISC_RAM_TAG),
+	A7XX_NAME(A7XX_HLSQ_INST_RAM_TAG),
+	A7XX_NAME(A7XX_HLSQ_GFX_CVS_CONST_RAM_TAG),
+	A7XX_NAME(A7XX_HLSQ_GFX_CPS_CONST_RAM_TAG),
+	A7XX_NAME(A7XX_HLSQ_GFX_LOCAL_MISC_RAM),
+	A7XX_NAME(A7XX_HLSQ_GFX_LOCAL_MISC_RAM_TAG),
+	A7XX_NAME(A7XX_HLSQ_INST_RAM_1),
+	A7XX_NAME(A7XX_HLSQ_STPROC_META),
+	A7XX_NAME(A7XX_HLSQ_BV_BE_META),
+	A7XX_NAME(A7XX_HLSQ_INST_RAM_2),
+	A7XX_NAME(A7XX_HLSQ_DATAPATH_META),
+	A7XX_NAME(A7XX_HLSQ_FRONTEND_META),
+	A7XX_NAME(A7XX_HLSQ_INDIRECT_META),
+	A7XX_NAME(A7XX_HLSQ_BACKEND_META),
+};
+
+static const char *a7xx_pipe_names[] = {
+	A7XX_NAME(A7XX_PIPE_NONE),
+	A7XX_NAME(A7XX_PIPE_BR),
+	A7XX_NAME(A7XX_PIPE_BV),
+	A7XX_NAME(A7XX_PIPE_LPAC),
+};
+
+static const char *a7xx_cluster_names[] = {
+	A7XX_NAME(A7XX_CLUSTER_NONE),
+	A7XX_NAME(A7XX_CLUSTER_FE),
+	A7XX_NAME(A7XX_CLUSTER_SP_VS),
+	A7XX_NAME(A7XX_CLUSTER_PC_VS),
+	A7XX_NAME(A7XX_CLUSTER_GRAS),
+	A7XX_NAME(A7XX_CLUSTER_SP_PS),
+	A7XX_NAME(A7XX_CLUSTER_VPC_PS),
+	A7XX_NAME(A7XX_CLUSTER_PS),
 };
 
 #endif

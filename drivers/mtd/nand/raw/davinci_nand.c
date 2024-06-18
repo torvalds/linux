@@ -14,11 +14,10 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/err.h>
-#include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/slab.h>
-#include <linux/of_device.h>
 #include <linux/of.h>
 
 #include <linux/platform_data/mtd-davinci.h>
@@ -38,6 +37,7 @@
  * outputs in a "wire-AND" configuration, with no per-chip signals.
  */
 struct davinci_nand_info {
+	struct nand_controller	controller;
 	struct nand_chip	chip;
 
 	struct platform_device	*pdev;
@@ -76,46 +76,6 @@ static inline void davinci_nand_writel(struct davinci_nand_info *info,
 		int offset, unsigned long value)
 {
 	__raw_writel(value, info->base + offset);
-}
-
-/*----------------------------------------------------------------------*/
-
-/*
- * Access to hardware control lines:  ALE, CLE, secondary chipselect.
- */
-
-static void nand_davinci_hwcontrol(struct nand_chip *nand, int cmd,
-				   unsigned int ctrl)
-{
-	struct davinci_nand_info *info = to_davinci_nand(nand_to_mtd(nand));
-	void __iomem			*addr = info->current_cs;
-
-	/* Did the control lines change? */
-	if (ctrl & NAND_CTRL_CHANGE) {
-		if ((ctrl & NAND_CTRL_CLE) == NAND_CTRL_CLE)
-			addr += info->mask_cle;
-		else if ((ctrl & NAND_CTRL_ALE) == NAND_CTRL_ALE)
-			addr += info->mask_ale;
-
-		nand->legacy.IO_ADDR_W = addr;
-	}
-
-	if (cmd != NAND_CMD_NONE)
-		iowrite8(cmd, nand->legacy.IO_ADDR_W);
-}
-
-static void nand_davinci_select_chip(struct nand_chip *nand, int chip)
-{
-	struct davinci_nand_info *info = to_davinci_nand(nand_to_mtd(nand));
-
-	info->current_cs = info->vaddr;
-
-	/* maybe kick in a second chipselect */
-	if (chip > 0)
-		info->current_cs += info->mask_chipsel;
-
-	info->chip.legacy.IO_ADDR_W = info->current_cs;
-	info->chip.legacy.IO_ADDR_R = info->chip.legacy.IO_ADDR_W;
 }
 
 /*----------------------------------------------------------------------*/
@@ -207,7 +167,7 @@ static int nand_davinci_correct_1bit(struct nand_chip *chip, u_char *dat,
 /*
  * 4-bit hardware ECC ... context maintained over entire AEMIF
  *
- * This is a syndrome engine, but we avoid NAND_ECC_HW_SYNDROME
+ * This is a syndrome engine, but we avoid NAND_ECC_PLACEMENT_INTERLEAVED
  * since that forces use of a problematic "infix OOB" layout.
  * Among other things, it trashes manufacturer bad block markers.
  * Also, and specific to this hardware, it ECC-protects the "prepad"
@@ -412,50 +372,6 @@ correct:
 
 /*----------------------------------------------------------------------*/
 
-/*
- * NOTE:  NAND boot requires ALE == EM_A[1], CLE == EM_A[2], so that's
- * how these chips are normally wired.  This translates to both 8 and 16
- * bit busses using ALE == BIT(3) in byte addresses, and CLE == BIT(4).
- *
- * For now we assume that configuration, or any other one which ignores
- * the two LSBs for NAND access ... so we can issue 32-bit reads/writes
- * and have that transparently morphed into multiple NAND operations.
- */
-static void nand_davinci_read_buf(struct nand_chip *chip, uint8_t *buf,
-				  int len)
-{
-	if ((0x03 & ((uintptr_t)buf)) == 0 && (0x03 & len) == 0)
-		ioread32_rep(chip->legacy.IO_ADDR_R, buf, len >> 2);
-	else if ((0x01 & ((uintptr_t)buf)) == 0 && (0x01 & len) == 0)
-		ioread16_rep(chip->legacy.IO_ADDR_R, buf, len >> 1);
-	else
-		ioread8_rep(chip->legacy.IO_ADDR_R, buf, len);
-}
-
-static void nand_davinci_write_buf(struct nand_chip *chip, const uint8_t *buf,
-				   int len)
-{
-	if ((0x03 & ((uintptr_t)buf)) == 0 && (0x03 & len) == 0)
-		iowrite32_rep(chip->legacy.IO_ADDR_R, buf, len >> 2);
-	else if ((0x01 & ((uintptr_t)buf)) == 0 && (0x01 & len) == 0)
-		iowrite16_rep(chip->legacy.IO_ADDR_R, buf, len >> 1);
-	else
-		iowrite8_rep(chip->legacy.IO_ADDR_R, buf, len);
-}
-
-/*
- * Check hardware register for wait status. Returns 1 if device is ready,
- * 0 if it is still busy.
- */
-static int nand_davinci_dev_ready(struct nand_chip *chip)
-{
-	struct davinci_nand_info *info = to_davinci_nand(nand_to_mtd(chip));
-
-	return davinci_nand_readl(info, NANDFSR_OFFSET) & BIT(0);
-}
-
-/*----------------------------------------------------------------------*/
-
 /* An ECC layout for using 4-bit ECC with small-page flash, storing
  * ten ECC bytes plus the manufacturer's bad block marker byte, and
  * and not overlapping the default BBT markers.
@@ -542,11 +458,11 @@ static struct davinci_nand_pdata
 		if (!of_property_read_string(pdev->dev.of_node,
 			"ti,davinci-ecc-mode", &mode)) {
 			if (!strncmp("none", mode, 4))
-				pdata->ecc_mode = NAND_ECC_NONE;
+				pdata->engine_type = NAND_ECC_ENGINE_TYPE_NONE;
 			if (!strncmp("soft", mode, 4))
-				pdata->ecc_mode = NAND_ECC_SOFT;
+				pdata->engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
 			if (!strncmp("hw", mode, 2))
-				pdata->ecc_mode = NAND_ECC_HW;
+				pdata->engine_type = NAND_ECC_ENGINE_TYPE_ON_HOST;
 		}
 		if (!of_property_read_u32(pdev->dev.of_node,
 			"ti,davinci-ecc-bits", &prop))
@@ -597,22 +513,33 @@ static int davinci_nand_attach_chip(struct nand_chip *chip)
 	if (IS_ERR(pdata))
 		return PTR_ERR(pdata);
 
-	switch (info->chip.ecc.mode) {
-	case NAND_ECC_NONE:
+	/* Use board-specific ECC config */
+	chip->ecc.engine_type = pdata->engine_type;
+	chip->ecc.placement = pdata->ecc_placement;
+
+	switch (chip->ecc.engine_type) {
+	case NAND_ECC_ENGINE_TYPE_NONE:
 		pdata->ecc_bits = 0;
 		break;
-	case NAND_ECC_SOFT:
+	case NAND_ECC_ENGINE_TYPE_SOFT:
 		pdata->ecc_bits = 0;
 		/*
-		 * This driver expects Hamming based ECC when ecc_mode is set
-		 * to NAND_ECC_SOFT. Force ecc.algo to NAND_ECC_HAMMING to
-		 * avoid adding an extra ->ecc_algo field to
-		 * davinci_nand_pdata.
+		 * This driver expects Hamming based ECC when engine_type is set
+		 * to NAND_ECC_ENGINE_TYPE_SOFT. Force ecc.algo to
+		 * NAND_ECC_ALGO_HAMMING to avoid adding an extra ->ecc_algo
+		 * field to davinci_nand_pdata.
 		 */
-		info->chip.ecc.algo = NAND_ECC_HAMMING;
+		chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
 		break;
-	case NAND_ECC_HW:
+	case NAND_ECC_ENGINE_TYPE_ON_HOST:
 		if (pdata->ecc_bits == 4) {
+			int chunks = mtd->writesize / 512;
+
+			if (!chunks || mtd->oobsize < 16) {
+				dev_dbg(&info->pdev->dev, "too small\n");
+				return -EINVAL;
+			}
+
 			/*
 			 * No sanity checks:  CPUs must support this,
 			 * and the chips may not use NAND_BUSWIDTH_16.
@@ -629,60 +556,156 @@ static int davinci_nand_attach_chip(struct nand_chip *chip)
 			if (ret == -EBUSY)
 				return ret;
 
-			info->chip.ecc.calculate = nand_davinci_calculate_4bit;
-			info->chip.ecc.correct = nand_davinci_correct_4bit;
-			info->chip.ecc.hwctl = nand_davinci_hwctl_4bit;
-			info->chip.ecc.bytes = 10;
-			info->chip.ecc.options = NAND_ECC_GENERIC_ERASED_CHECK;
-			info->chip.ecc.algo = NAND_ECC_BCH;
+			chip->ecc.calculate = nand_davinci_calculate_4bit;
+			chip->ecc.correct = nand_davinci_correct_4bit;
+			chip->ecc.hwctl = nand_davinci_hwctl_4bit;
+			chip->ecc.bytes = 10;
+			chip->ecc.options = NAND_ECC_GENERIC_ERASED_CHECK;
+			chip->ecc.algo = NAND_ECC_ALGO_BCH;
+
+			/*
+			 * Update ECC layout if needed ... for 1-bit HW ECC, the
+			 * default is OK, but it allocates 6 bytes when only 3
+			 * are needed (for each 512 bytes). For 4-bit HW ECC,
+			 * the default is not usable: 10 bytes needed, not 6.
+			 *
+			 * For small page chips, preserve the manufacturer's
+			 * badblock marking data ... and make sure a flash BBT
+			 * table marker fits in the free bytes.
+			 */
+			if (chunks == 1) {
+				mtd_set_ooblayout(mtd,
+						  &hwecc4_small_ooblayout_ops);
+			} else if (chunks == 4 || chunks == 8) {
+				mtd_set_ooblayout(mtd,
+						  nand_get_large_page_ooblayout());
+				chip->ecc.read_page = nand_read_page_hwecc_oob_first;
+			} else {
+				return -EIO;
+			}
 		} else {
 			/* 1bit ecc hamming */
-			info->chip.ecc.calculate = nand_davinci_calculate_1bit;
-			info->chip.ecc.correct = nand_davinci_correct_1bit;
-			info->chip.ecc.hwctl = nand_davinci_hwctl_1bit;
-			info->chip.ecc.bytes = 3;
-			info->chip.ecc.algo = NAND_ECC_HAMMING;
+			chip->ecc.calculate = nand_davinci_calculate_1bit;
+			chip->ecc.correct = nand_davinci_correct_1bit;
+			chip->ecc.hwctl = nand_davinci_hwctl_1bit;
+			chip->ecc.bytes = 3;
+			chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
 		}
-		info->chip.ecc.size = 512;
-		info->chip.ecc.strength = pdata->ecc_bits;
+		chip->ecc.size = 512;
+		chip->ecc.strength = pdata->ecc_bits;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	/*
-	 * Update ECC layout if needed ... for 1-bit HW ECC, the default
-	 * is OK, but it allocates 6 bytes when only 3 are needed (for
-	 * each 512 bytes).  For the 4-bit HW ECC, that default is not
-	 * usable:  10 bytes are needed, not 6.
-	 */
-	if (pdata->ecc_bits == 4) {
-		int chunks = mtd->writesize / 512;
+	return ret;
+}
 
-		if (!chunks || mtd->oobsize < 16) {
-			dev_dbg(&info->pdev->dev, "too small\n");
-			return -EINVAL;
-		}
+static void nand_davinci_data_in(struct davinci_nand_info *info, void *buf,
+				 unsigned int len, bool force_8bit)
+{
+	u32 alignment = ((uintptr_t)buf | len) & 3;
 
-		/* For small page chips, preserve the manufacturer's
-		 * badblock marking data ... and make sure a flash BBT
-		 * table marker fits in the free bytes.
-		 */
-		if (chunks == 1) {
-			mtd_set_ooblayout(mtd, &hwecc4_small_ooblayout_ops);
-		} else if (chunks == 4 || chunks == 8) {
-			mtd_set_ooblayout(mtd, &nand_ooblayout_lp_ops);
-			info->chip.ecc.mode = NAND_ECC_HW_OOB_FIRST;
-		} else {
-			return -EIO;
+	if (force_8bit || (alignment & 1))
+		ioread8_rep(info->current_cs, buf, len);
+	else if (alignment & 3)
+		ioread16_rep(info->current_cs, buf, len >> 1);
+	else
+		ioread32_rep(info->current_cs, buf, len >> 2);
+}
+
+static void nand_davinci_data_out(struct davinci_nand_info *info,
+				  const void *buf, unsigned int len,
+				  bool force_8bit)
+{
+	u32 alignment = ((uintptr_t)buf | len) & 3;
+
+	if (force_8bit || (alignment & 1))
+		iowrite8_rep(info->current_cs, buf, len);
+	else if (alignment & 3)
+		iowrite16_rep(info->current_cs, buf, len >> 1);
+	else
+		iowrite32_rep(info->current_cs, buf, len >> 2);
+}
+
+static int davinci_nand_exec_instr(struct davinci_nand_info *info,
+				   const struct nand_op_instr *instr)
+{
+	unsigned int i, timeout_us;
+	u32 status;
+	int ret;
+
+	switch (instr->type) {
+	case NAND_OP_CMD_INSTR:
+		iowrite8(instr->ctx.cmd.opcode,
+			 info->current_cs + info->mask_cle);
+		break;
+
+	case NAND_OP_ADDR_INSTR:
+		for (i = 0; i < instr->ctx.addr.naddrs; i++) {
+			iowrite8(instr->ctx.addr.addrs[i],
+				 info->current_cs + info->mask_ale);
 		}
+		break;
+
+	case NAND_OP_DATA_IN_INSTR:
+		nand_davinci_data_in(info, instr->ctx.data.buf.in,
+				     instr->ctx.data.len,
+				     instr->ctx.data.force_8bit);
+		break;
+
+	case NAND_OP_DATA_OUT_INSTR:
+		nand_davinci_data_out(info, instr->ctx.data.buf.out,
+				      instr->ctx.data.len,
+				      instr->ctx.data.force_8bit);
+		break;
+
+	case NAND_OP_WAITRDY_INSTR:
+		timeout_us = instr->ctx.waitrdy.timeout_ms * 1000;
+		ret = readl_relaxed_poll_timeout(info->base + NANDFSR_OFFSET,
+						 status, status & BIT(0), 100,
+						 timeout_us);
+		if (ret)
+			return ret;
+
+		break;
 	}
 
-	return ret;
+	if (instr->delay_ns) {
+		/* Dummy read to be sure that command is sent before ndelay starts */
+		davinci_nand_readl(info, 0);
+		ndelay(instr->delay_ns);
+	}
+
+	return 0;
+}
+
+static int davinci_nand_exec_op(struct nand_chip *chip,
+				const struct nand_operation *op,
+				bool check_only)
+{
+	struct davinci_nand_info *info = to_davinci_nand(nand_to_mtd(chip));
+	unsigned int i;
+
+	if (check_only)
+		return 0;
+
+	info->current_cs = info->vaddr + (op->cs * info->mask_chipsel);
+
+	for (i = 0; i < op->ninstrs; i++) {
+		int ret;
+
+		ret = davinci_nand_exec_instr(info, &op->instrs[i]);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static const struct nand_controller_ops davinci_nand_controller_ops = {
 	.attach_chip = davinci_nand_attach_chip,
+	.exec_op = davinci_nand_exec_op,
 };
 
 static int nand_davinci_probe(struct platform_device *pdev)
@@ -706,7 +729,7 @@ static int nand_davinci_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	/* which external chipselect will we be managing? */
-	if (pdata->core_chipsel < 0 || pdata->core_chipsel > 3)
+	if (pdata->core_chipsel > 3)
 		return -ENODEV;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
@@ -746,11 +769,6 @@ static int nand_davinci_probe(struct platform_device *pdev)
 	mtd->dev.parent		= &pdev->dev;
 	nand_set_flash_node(&info->chip, pdev->dev.of_node);
 
-	info->chip.legacy.IO_ADDR_R	= vaddr;
-	info->chip.legacy.IO_ADDR_W	= vaddr;
-	info->chip.legacy.chip_delay	= 0;
-	info->chip.legacy.select_chip	= nand_davinci_select_chip;
-
 	/* options such as NAND_BBT_USE_FLASH */
 	info->chip.bbt_options	= pdata->bbt_options;
 	/* options such as 16-bit widths */
@@ -767,17 +785,6 @@ static int nand_davinci_probe(struct platform_device *pdev)
 	info->mask_ale		= pdata->mask_ale ? : MASK_ALE;
 	info->mask_cle		= pdata->mask_cle ? : MASK_CLE;
 
-	/* Set address of hardware control function */
-	info->chip.legacy.cmd_ctrl	= nand_davinci_hwcontrol;
-	info->chip.legacy.dev_ready	= nand_davinci_dev_ready;
-
-	/* Speed up buffer I/O */
-	info->chip.legacy.read_buf     = nand_davinci_read_buf;
-	info->chip.legacy.write_buf    = nand_davinci_write_buf;
-
-	/* Use board-specific ECC config */
-	info->chip.ecc.mode	= pdata->ecc_mode;
-
 	spin_lock_irq(&davinci_nand_lock);
 
 	/* put CSxNAND into NAND mode */
@@ -788,7 +795,9 @@ static int nand_davinci_probe(struct platform_device *pdev)
 	spin_unlock_irq(&davinci_nand_lock);
 
 	/* Scan to find existence of the device(s) */
-	info->chip.legacy.dummy_controller.ops = &davinci_nand_controller_ops;
+	nand_controller_init(&info->controller);
+	info->controller.ops = &davinci_nand_controller_ops;
+	info->chip.controller = &info->controller;
 	ret = nand_scan(&info->chip, pdata->mask_chipsel ? 2 : 1);
 	if (ret < 0) {
 		dev_dbg(&pdev->dev, "no NAND chip(s) found\n");
@@ -814,23 +823,25 @@ err_cleanup_nand:
 	return ret;
 }
 
-static int nand_davinci_remove(struct platform_device *pdev)
+static void nand_davinci_remove(struct platform_device *pdev)
 {
 	struct davinci_nand_info *info = platform_get_drvdata(pdev);
+	struct nand_chip *chip = &info->chip;
+	int ret;
 
 	spin_lock_irq(&davinci_nand_lock);
-	if (info->chip.ecc.mode == NAND_ECC_HW_SYNDROME)
+	if (chip->ecc.placement == NAND_ECC_PLACEMENT_INTERLEAVED)
 		ecc4_busy = false;
 	spin_unlock_irq(&davinci_nand_lock);
 
-	nand_release(&info->chip);
-
-	return 0;
+	ret = mtd_device_unregister(nand_to_mtd(chip));
+	WARN_ON(ret);
+	nand_cleanup(chip);
 }
 
 static struct platform_driver nand_davinci_driver = {
 	.probe		= nand_davinci_probe,
-	.remove		= nand_davinci_remove,
+	.remove_new	= nand_davinci_remove,
 	.driver		= {
 		.name	= "davinci_nand",
 		.of_match_table = of_match_ptr(davinci_nand_of_match),

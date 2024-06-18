@@ -11,6 +11,7 @@
  * Available benchmark collection list:
  *
  *  sched ... scheduler and IPC performance
+ *  syscall ... System call performance
  *  mem   ... memory access performance
  *  numa  ... NUMA scheduling and MM performance
  *  futex ... Futex performance
@@ -20,6 +21,7 @@
 #include "builtin.h"
 #include "bench/bench.h"
 
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -45,13 +47,24 @@ static struct bench numa_benchmarks[] = {
 static struct bench sched_benchmarks[] = {
 	{ "messaging",	"Benchmark for scheduling and IPC",		bench_sched_messaging	},
 	{ "pipe",	"Benchmark for pipe() between two processes",	bench_sched_pipe	},
+	{ "seccomp-notify",	"Benchmark for seccomp user notify",	bench_sched_seccomp_notify},
 	{ "all",	"Run all scheduler benchmarks",		NULL			},
 	{ NULL,		NULL,						NULL			}
+};
+
+static struct bench syscall_benchmarks[] = {
+	{ "basic",	"Benchmark for basic getppid(2) calls",		bench_syscall_basic	},
+	{ "getpgid",	"Benchmark for getpgid(2) calls",		bench_syscall_getpgid	},
+	{ "fork",	"Benchmark for fork(2) calls",			bench_syscall_fork	},
+	{ "execve",	"Benchmark for execve(2) calls",		bench_syscall_execve	},
+	{ "all",	"Run all syscall benchmarks",			NULL			},
+	{ NULL,		NULL,						NULL			},
 };
 
 static struct bench mem_benchmarks[] = {
 	{ "memcpy",	"Benchmark for memcpy() functions",		bench_mem_memcpy	},
 	{ "memset",	"Benchmark for memset() functions",		bench_mem_memset	},
+	{ "find_bit",	"Benchmark for find_bit() functions",		bench_mem_find_bit	},
 	{ "all",	"Run all memory access benchmarks",		NULL			},
 	{ NULL,		NULL,						NULL			}
 };
@@ -67,14 +80,39 @@ static struct bench futex_benchmarks[] = {
 	{ NULL,		NULL,						NULL			}
 };
 
-#ifdef HAVE_EVENTFD
+#ifdef HAVE_EVENTFD_SUPPORT
 static struct bench epoll_benchmarks[] = {
 	{ "wait",	"Benchmark epoll concurrent epoll_waits",       bench_epoll_wait	},
 	{ "ctl",	"Benchmark epoll concurrent epoll_ctls",        bench_epoll_ctl		},
 	{ "all",	"Run all futex benchmarks",			NULL			},
 	{ NULL,		NULL,						NULL			}
 };
-#endif // HAVE_EVENTFD
+#endif // HAVE_EVENTFD_SUPPORT
+
+static struct bench internals_benchmarks[] = {
+	{ "synthesize", "Benchmark perf event synthesis",	bench_synthesize	},
+	{ "kallsyms-parse", "Benchmark kallsyms parsing",	bench_kallsyms_parse	},
+	{ "inject-build-id", "Benchmark build-id injection",	bench_inject_build_id	},
+	{ "evlist-open-close", "Benchmark evlist open and close",	bench_evlist_open_close	},
+	{ "pmu-scan", "Benchmark sysfs PMU info scanning",	bench_pmu_scan		},
+	{ NULL,		NULL,					NULL			}
+};
+
+static struct bench breakpoint_benchmarks[] = {
+	{ "thread", "Benchmark thread start/finish with breakpoints", bench_breakpoint_thread},
+	{ "enable", "Benchmark breakpoint enable/disable", bench_breakpoint_enable},
+	{ "all", "Run all breakpoint benchmarks", NULL},
+	{ NULL,	NULL, NULL },
+};
+
+static struct bench uprobe_benchmarks[] = {
+	{ "baseline",	"Baseline libc usleep(1000) call",				bench_uprobe_baseline,	},
+	{ "empty",	"Attach empty BPF prog to uprobe on usleep, system wide",	bench_uprobe_empty,	},
+	{ "trace_printk", "Attach trace_printk BPF prog to uprobe on usleep syswide",	bench_uprobe_trace_printk,	},
+	{ "empty_ret",	"Attach empty BPF prog to uretprobe on usleep, system wide",	bench_uprobe_empty_ret,	},
+	{ "trace_printk_ret", "Attach trace_printk BPF prog to uretprobe on usleep syswide", bench_uprobe_trace_printk_ret,},
+	{ NULL,	NULL, NULL },
+};
 
 struct collection {
 	const char	*name;
@@ -84,14 +122,18 @@ struct collection {
 
 static struct collection collections[] = {
 	{ "sched",	"Scheduler and IPC benchmarks",			sched_benchmarks	},
+	{ "syscall",	"System call benchmarks",			syscall_benchmarks	},
 	{ "mem",	"Memory access benchmarks",			mem_benchmarks		},
 #ifdef HAVE_LIBNUMA_SUPPORT
 	{ "numa",	"NUMA scheduling and MM benchmarks",		numa_benchmarks		},
 #endif
 	{"futex",       "Futex stressing benchmarks",                   futex_benchmarks        },
-#ifdef HAVE_EVENTFD
+#ifdef HAVE_EVENTFD_SUPPORT
 	{"epoll",       "Epoll stressing benchmarks",                   epoll_benchmarks        },
 #endif
+	{ "internals",	"Perf-internals benchmarks",			internals_benchmarks	},
+	{ "breakpoint",	"Breakpoint benchmarks",			breakpoint_benchmarks	},
+	{ "uprobe",	"uprobe benchmarks",				uprobe_benchmarks	},
 	{ "all",	"All benchmarks",				NULL			},
 	{ NULL,		NULL,						NULL			}
 };
@@ -124,7 +166,7 @@ unsigned int bench_repeat = 10; /* default number of times to repeat the run */
 
 static const struct option bench_options[] = {
 	OPT_STRING('f', "format", &bench_format_str, "default|simple", "Specify the output formatting style"),
-	OPT_UINTEGER('r', "repeat",  &bench_repeat,   "Specify amount of times to repeat the run"),
+	OPT_UINTEGER('r', "repeat",  &bench_repeat,   "Specify number of times to repeat the run"),
 	OPT_END()
 };
 
@@ -208,7 +250,6 @@ static void run_collection(struct collection *coll)
 		if (!bench->fn)
 			break;
 		printf("# Running %s/%s benchmark...\n", coll->name, bench->name);
-		fflush(stdout);
 
 		argv[1] = bench->name;
 		run_bench(coll->name, bench->name, bench->fn, 1, argv);
@@ -228,6 +269,10 @@ int cmd_bench(int argc, const char **argv)
 {
 	struct collection *coll;
 	int ret = 0;
+
+	/* Unbuffered output */
+	setvbuf(stdout, NULL, _IONBF, 0);
+	setlocale(LC_ALL, "");
 
 	if (argc < 2) {
 		/* No collection specified. */
@@ -282,7 +327,6 @@ int cmd_bench(int argc, const char **argv)
 
 			if (bench_format == BENCH_FORMAT_DEFAULT)
 				printf("# Running '%s/%s' benchmark:\n", coll->name, bench->name);
-			fflush(stdout);
 			ret = run_bench(coll->name, bench->name, bench->fn, argc-1, argv+1);
 			goto end;
 		}

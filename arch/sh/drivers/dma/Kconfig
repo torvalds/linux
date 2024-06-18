@@ -28,17 +28,19 @@ config SH_DMA_API
 config NR_ONCHIP_DMA_CHANNELS
 	int
 	depends on SH_DMA
-	default "4" if CPU_SUBTYPE_SH7750  || CPU_SUBTYPE_SH7751  || \
-		       CPU_SUBTYPE_SH7750S || CPU_SUBTYPE_SH7091
+	default "4" if CPU_SUBTYPE_SH7709 || CPU_SUBTYPE_SH7750  || \
+		       CPU_SUBTYPE_SH7750S || CPU_SUBTYPE_SH7751 || \
+		       CPU_SUBTYPE_SH7091
 	default "8" if CPU_SUBTYPE_SH7750R || CPU_SUBTYPE_SH7751R || \
 		       CPU_SUBTYPE_SH7760
-	default "12" if CPU_SUBTYPE_SH7723 || CPU_SUBTYPE_SH7780  || \
-			CPU_SUBTYPE_SH7785 || CPU_SUBTYPE_SH7724
+	default "12" if CPU_SUBTYPE_SH7723 || CPU_SUBTYPE_SH7724  || \
+			CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7785
 	default "6"
 	help
 	  This allows you to specify the number of channels that the on-chip
-	  DMAC supports. This will be 4 for SH7750/SH7751/Sh7750S/SH7091 and 8 for the
-	  SH7750R/SH7751R/SH7760, 12 for the SH7723/SH7780/SH7785/SH7724, default is 6.
+	  DMAC supports. This will be 4 for SH7709/SH7750/SH7750S/SH7751/SH7091,
+	  8 for SH7750R/SH7751R/SH7760, and 12 for SH7723/SH7724/SH7780/SH7785.
+	  Default is 6.
 
 config SH_DMABRG
 	bool "SH7760 DMABRG support"
@@ -63,8 +65,7 @@ config PVR2_DMA
 
 config G2_DMA
 	tristate "G2 Bus DMA support"
-	depends on SH_DREAMCAST
-	select SH_DMA_API
+	depends on SH_DREAMCAST && SH_DMA_API
 	help
 	  This enables support for the DMA controller for the Dreamcast's
 	  G2 bus. Drivers that want this will generally enable this on

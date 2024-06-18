@@ -295,7 +295,7 @@ int clk_enable(struct clk *clk)
 	int ret;
 
 	if (!clk)
-		return -EINVAL;
+		return 0;
 
 	spin_lock_irqsave(&clock_lock, flags);
 	ret = __clk_enable(clk);
@@ -368,7 +368,7 @@ static int clk_establish_mapping(struct clk *clk)
 	if (!mapping->base && mapping->phys) {
 		kref_init(&mapping->ref);
 
-		mapping->base = ioremap_nocache(mapping->phys, mapping->len);
+		mapping->base = ioremap(mapping->phys, mapping->len);
 		if (unlikely(!mapping->base))
 			return -ENXIO;
 	} else if (mapping->base) {

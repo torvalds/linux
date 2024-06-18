@@ -23,7 +23,7 @@ DECLARE_EVENT_CLASS(regulator_basic,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, name);
+		__assign_str(name);
 	),
 
 	TP_printk("name=%s", __get_str(name))
@@ -70,6 +70,38 @@ DEFINE_EVENT(regulator_basic, regulator_disable_complete,
 
 );
 
+DEFINE_EVENT(regulator_basic, regulator_bypass_enable,
+
+	TP_PROTO(const char *name),
+
+	TP_ARGS(name)
+
+);
+
+DEFINE_EVENT(regulator_basic, regulator_bypass_enable_complete,
+
+	TP_PROTO(const char *name),
+
+	TP_ARGS(name)
+
+);
+
+DEFINE_EVENT(regulator_basic, regulator_bypass_disable,
+
+	TP_PROTO(const char *name),
+
+	TP_ARGS(name)
+
+);
+
+DEFINE_EVENT(regulator_basic, regulator_bypass_disable_complete,
+
+	TP_PROTO(const char *name),
+
+	TP_ARGS(name)
+
+);
+
 /*
  * Events that take a range of numerical values, mostly for voltages
  * and so on.
@@ -87,7 +119,7 @@ DECLARE_EVENT_CLASS(regulator_range,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, name);
+		__assign_str(name);
 		__entry->min  = min;
 		__entry->max  = max;
 	),
@@ -120,7 +152,7 @@ DECLARE_EVENT_CLASS(regulator_value,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, name);
+		__assign_str(name);
 		__entry->val  = val;
 	),
 

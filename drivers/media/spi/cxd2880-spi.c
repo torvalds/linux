@@ -147,7 +147,7 @@ static int cxd2880_spi_read_ts(struct spi_device *spi,
 
 	ret = spi_sync(spi, &message);
 	if (ret)
-		pr_err("spi_write_then_read failed\n");
+		pr_err("spi_sync failed\n");
 
 	return ret;
 }
@@ -388,7 +388,7 @@ static int cxd2880_start_feed(struct dvb_demux_feed *feed)
 
 	if (dvb_spi->feed_count == 0) {
 		dvb_spi->ts_buf =
-			kmalloc(MAX_TRANS_PKT * 188,
+			kzalloc(MAX_TRANS_PKT * 188,
 				GFP_KERNEL | GFP_DMA);
 		if (!dvb_spi->ts_buf) {
 			pr_err("ts buffer allocate failed\n");
@@ -401,7 +401,7 @@ static int cxd2880_start_feed(struct dvb_demux_feed *feed)
 							      dvb_spi,
 							      "cxd2880_ts_read");
 		if (IS_ERR(dvb_spi->cxd2880_ts_read_thread)) {
-			pr_err("kthread_run failed/\n");
+			pr_err("kthread_run failed\n");
 			kfree(dvb_spi->ts_buf);
 			dvb_spi->ts_buf = NULL;
 			memset(&dvb_spi->filter_config, 0,
@@ -448,7 +448,7 @@ static int cxd2880_stop_feed(struct dvb_demux_feed *feed)
 		 * in dvb_spi->all_pid_feed_count.
 		 */
 		if (dvb_spi->all_pid_feed_count <= 0) {
-			pr_err("PID %d not found.\n", feed->pid);
+			pr_err("PID %d not found\n", feed->pid);
 			return -EINVAL;
 		}
 		dvb_spi->all_pid_feed_count--;
@@ -485,7 +485,7 @@ static int cxd2880_stop_feed(struct dvb_demux_feed *feed)
 
 		ret_stop = kthread_stop(dvb_spi->cxd2880_ts_read_thread);
 		if (ret_stop) {
-			pr_err("'kthread_stop failed. (%d)\n", ret_stop);
+			pr_err("kthread_stop failed. (%d)\n", ret_stop);
 			ret = ret_stop;
 		}
 		kfree(dvb_spi->ts_buf);
@@ -512,7 +512,7 @@ cxd2880_spi_probe(struct spi_device *spi)
 	struct cxd2880_config config;
 
 	if (!spi) {
-		pr_err("invalid arg.\n");
+		pr_err("invalid arg\n");
 		return -EINVAL;
 	}
 
@@ -524,18 +524,18 @@ cxd2880_spi_probe(struct spi_device *spi)
 	if (IS_ERR(dvb_spi->vcc_supply)) {
 		if (PTR_ERR(dvb_spi->vcc_supply) == -EPROBE_DEFER) {
 			ret = -EPROBE_DEFER;
-			goto fail_adapter;
+			goto fail_regulator;
 		}
 		dvb_spi->vcc_supply = NULL;
 	} else {
 		ret = regulator_enable(dvb_spi->vcc_supply);
 		if (ret)
-			goto fail_adapter;
+			goto fail_regulator;
 	}
 
 	dvb_spi->spi = spi;
 	mutex_init(&dvb_spi->spi_mutex);
-	dev_set_drvdata(&spi->dev, dvb_spi);
+	spi_set_drvdata(spi, dvb_spi);
 	config.spi = spi;
 	config.spi_mutex = &dvb_spi->spi_mutex;
 
@@ -596,7 +596,7 @@ cxd2880_spi_probe(struct spi_device *spi)
 	ret = dvb_spi->demux.dmx.connect_frontend(&dvb_spi->demux.dmx,
 						  &dvb_spi->dmx_fe);
 	if (ret < 0) {
-		pr_err("dvb_register_frontend() failed\n");
+		pr_err("connect_frontend() failed\n");
 		goto fail_fe_conn;
 	}
 
@@ -618,26 +618,18 @@ fail_frontend:
 fail_attach:
 	dvb_unregister_adapter(&dvb_spi->adapter);
 fail_adapter:
+	if (dvb_spi->vcc_supply)
+		regulator_disable(dvb_spi->vcc_supply);
+fail_regulator:
 	kfree(dvb_spi);
 	return ret;
 }
 
-static int
+static void
 cxd2880_spi_remove(struct spi_device *spi)
 {
-	struct cxd2880_dvb_spi *dvb_spi;
+	struct cxd2880_dvb_spi *dvb_spi = spi_get_drvdata(spi);
 
-	if (!spi) {
-		pr_err("invalid arg\n");
-		return -EINVAL;
-	}
-
-	dvb_spi = dev_get_drvdata(&spi->dev);
-
-	if (!dvb_spi) {
-		pr_err("failed\n");
-		return -EINVAL;
-	}
 	dvb_spi->demux.dmx.remove_frontend(&dvb_spi->demux.dmx,
 					   &dvb_spi->dmx_fe);
 	dvb_dmxdev_release(&dvb_spi->dmxdev);
@@ -651,8 +643,6 @@ cxd2880_spi_remove(struct spi_device *spi)
 
 	kfree(dvb_spi);
 	pr_info("cxd2880_spi remove ok.\n");
-
-	return 0;
 }
 
 static const struct spi_device_id cxd2880_spi_id[] = {

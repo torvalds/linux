@@ -57,7 +57,7 @@ static const struct snd_kcontrol_new axg_tdmin_in_mux =
 static struct snd_soc_dai *
 axg_tdmin_get_be(struct snd_soc_dapm_widget *w)
 {
-	struct snd_soc_dapm_path *p = NULL;
+	struct snd_soc_dapm_path *p;
 	struct snd_soc_dai *be;
 
 	snd_soc_dapm_widget_for_each_source_path(w, p) {
@@ -83,7 +83,7 @@ axg_tdmin_get_tdm_stream(struct snd_soc_dapm_widget *w)
 	if (!be)
 		return NULL;
 
-	return be->capture_dma_data;
+	return snd_soc_dai_dma_data_get_capture(be);
 }
 
 static void axg_tdmin_enable(struct regmap *map)
@@ -228,14 +228,19 @@ static const struct axg_tdm_formatter_driver axg_tdmin_drv = {
 	.regmap_cfg	= &axg_tdmin_regmap_cfg,
 	.ops		= &axg_tdmin_ops,
 	.quirks		= &(const struct axg_tdm_formatter_hw) {
-		.invert_sclk	= false,
-		.skew_offset	= 2,
+		.skew_offset	= 3,
 	},
 };
 
 static const struct of_device_id axg_tdmin_of_match[] = {
 	{
 		.compatible = "amlogic,axg-tdmin",
+		.data = &axg_tdmin_drv,
+	}, {
+		.compatible = "amlogic,g12a-tdmin",
+		.data = &axg_tdmin_drv,
+	}, {
+		.compatible = "amlogic,sm1-tdmin",
 		.data = &axg_tdmin_drv,
 	}, {}
 };

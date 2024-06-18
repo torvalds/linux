@@ -36,7 +36,6 @@
 #include "pxa3xx-gcu.h"
 
 #define DRV_NAME	"pxa3xx-gcu"
-#define MISCDEV_MINOR	197
 
 #define REG_GCCR	0x00
 #define GCCR_SYNC_CLR	(1 << 9)
@@ -382,7 +381,7 @@ pxa3xx_gcu_write(struct file *file, const char *buff,
 	struct pxa3xx_gcu_batch	*buffer;
 	struct pxa3xx_gcu_priv *priv = to_pxa3xx_gcu_priv(file);
 
-	int words = count / 4;
+	size_t words = count / 4;
 
 	/* Does not need to be atomic. There's a lock in user space,
 	 * but anyhow, this is just for statistics. */
@@ -595,29 +594,24 @@ static int pxa3xx_gcu_probe(struct platform_device *pdev)
 	 * container_of(). This isn't really necessary as we have a fixed minor
 	 * number anyway, but this is to avoid statics. */
 
-	priv->misc_dev.minor	= MISCDEV_MINOR,
+	priv->misc_dev.minor	= PXA3XX_GCU_MINOR,
 	priv->misc_dev.name	= DRV_NAME,
 	priv->misc_dev.fops	= &pxa3xx_gcu_miscdev_fops;
 
 	/* handle IO resources */
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->mmio_base = devm_ioremap_resource(dev, r);
+	priv->mmio_base = devm_platform_get_and_ioremap_resource(pdev, 0, &r);
 	if (IS_ERR(priv->mmio_base))
 		return PTR_ERR(priv->mmio_base);
 
 	/* enable the clock */
 	priv->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(priv->clk)) {
-		dev_err(dev, "failed to get clock\n");
-		return PTR_ERR(priv->clk);
-	}
+	if (IS_ERR(priv->clk))
+		return dev_err_probe(dev, PTR_ERR(priv->clk), "failed to get clock\n");
 
 	/* request the IRQ */
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "no IRQ defined: %d\n", irq);
+	if (irq < 0)
 		return irq;
-	}
 
 	ret = devm_request_irq(dev, irq, pxa3xx_gcu_handle_irq,
 			       0, DRV_NAME, priv);
@@ -638,7 +632,7 @@ static int pxa3xx_gcu_probe(struct platform_device *pdev)
 	ret = misc_register(&priv->misc_dev);
 	if (ret < 0) {
 		dev_err(dev, "misc_register() for minor %d failed\n",
-			MISCDEV_MINOR);
+			PXA3XX_GCU_MINOR);
 		goto err_free_dma;
 	}
 
@@ -651,6 +645,7 @@ static int pxa3xx_gcu_probe(struct platform_device *pdev)
 	for (i = 0; i < 8; i++) {
 		ret = pxa3xx_gcu_add_buffer(dev, priv);
 		if (ret) {
+			pxa3xx_gcu_free_buffers(dev, priv);
 			dev_err(dev, "failed to allocate DMA memory\n");
 			goto err_disable_clk;
 		}
@@ -667,20 +662,20 @@ static int pxa3xx_gcu_probe(struct platform_device *pdev)
 			SHARED_SIZE, irq);
 	return 0;
 
-err_free_dma:
-	dma_free_coherent(dev, SHARED_SIZE,
-			priv->shared, priv->shared_phys);
+err_disable_clk:
+	clk_disable_unprepare(priv->clk);
 
 err_misc_deregister:
 	misc_deregister(&priv->misc_dev);
 
-err_disable_clk:
-	clk_disable_unprepare(priv->clk);
+err_free_dma:
+	dma_free_coherent(dev, SHARED_SIZE,
+			  priv->shared, priv->shared_phys);
 
 	return ret;
 }
 
-static int pxa3xx_gcu_remove(struct platform_device *pdev)
+static void pxa3xx_gcu_remove(struct platform_device *pdev)
 {
 	struct pxa3xx_gcu_priv *priv = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
@@ -688,9 +683,8 @@ static int pxa3xx_gcu_remove(struct platform_device *pdev)
 	pxa3xx_gcu_wait_idle(priv);
 	misc_deregister(&priv->misc_dev);
 	dma_free_coherent(dev, SHARED_SIZE, priv->shared, priv->shared_phys);
+	clk_disable_unprepare(priv->clk);
 	pxa3xx_gcu_free_buffers(dev, priv);
-
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -703,7 +697,7 @@ MODULE_DEVICE_TABLE(of, pxa3xx_gcu_of_match);
 
 static struct platform_driver pxa3xx_gcu_driver = {
 	.probe	  = pxa3xx_gcu_probe,
-	.remove	 = pxa3xx_gcu_remove,
+	.remove_new	 = pxa3xx_gcu_remove,
 	.driver	 = {
 		.name   = DRV_NAME,
 		.of_match_table = of_match_ptr(pxa3xx_gcu_of_match),
@@ -714,7 +708,7 @@ module_platform_driver(pxa3xx_gcu_driver);
 
 MODULE_DESCRIPTION("PXA3xx graphics controller unit driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(MISCDEV_MINOR);
+MODULE_ALIAS_MISCDEV(PXA3XX_GCU_MINOR);
 MODULE_AUTHOR("Janine Kropp <nin@directfb.org>, "
 		"Denis Oliver Kropp <dok@directfb.org>, "
 		"Daniel Mack <daniel@caiaq.de>");

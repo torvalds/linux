@@ -21,24 +21,11 @@ const char *get_system_type(void)
 	return "PIC32MZDA";
 }
 
-static ulong get_fdtaddr(void)
-{
-	ulong ftaddr = 0;
-
-	if (fw_passed_dtb && !fw_arg2 && !fw_arg3)
-		return (ulong)fw_passed_dtb;
-
-	if (__dtb_start < __dtb_end)
-		ftaddr = (ulong)__dtb_start;
-
-	return ftaddr;
-}
-
 void __init plat_mem_setup(void)
 {
 	void *dtb;
 
-	dtb = (void *)get_fdtaddr();
+	dtb = get_fdt();
 	if (!dtb) {
 		pr_err("pic32: no DTB found.\n");
 		return;
@@ -57,10 +44,10 @@ void __init plat_mem_setup(void)
 	pr_info(" builtin_cmdline  : %s\n", CONFIG_CMDLINE);
 #endif
 	if (dtb != __dtb_start)
-		strlcpy(arcs_cmdline, boot_command_line, COMMAND_LINE_SIZE);
+		strscpy(arcs_cmdline, boot_command_line, COMMAND_LINE_SIZE);
 
 #ifdef CONFIG_EARLY_PRINTK
-	fw_init_early_console(-1);
+	fw_init_early_console();
 #endif
 	pic32_config_init();
 }
@@ -91,18 +78,6 @@ void __init prom_init(void)
 	pic32_init_cmdline((int)fw_arg0, (char **)fw_arg1);
 }
 
-void __init prom_free_prom_memory(void)
-{
-}
-
-void __init device_tree_init(void)
-{
-	if (!initial_boot_params)
-		return;
-
-	unflatten_and_copy_device_tree();
-}
-
 static struct pic32_sdhci_platform_data sdhci_data = {
 	.setup_dma = pic32_set_sdhci_adma_fifo_threshold,
 };
@@ -123,12 +98,17 @@ static int __init pic32_of_prepare_platform_data(struct of_dev_auxdata *lookup)
 		np = of_find_compatible_node(NULL, NULL, lookup->compatible);
 		if (np) {
 			lookup->name = (char *)np->name;
-			if (lookup->phys_addr)
+			if (lookup->phys_addr) {
+				of_node_put(np);
 				continue;
+			}
 			if (!of_address_to_resource(np, 0, &res))
 				lookup->phys_addr = res.start;
+			of_node_put(np);
 		}
 	}
+
+	of_node_put(root);
 
 	return 0;
 }

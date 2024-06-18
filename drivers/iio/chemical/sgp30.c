@@ -20,9 +20,9 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/mutex.h>
 #include <linux/i2c.h>
-#include <linux/of_device.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 
@@ -114,6 +114,7 @@ struct sgp_data {
 };
 
 struct sgp_device {
+	unsigned long product_id;
 	const struct iio_chan_spec *channels;
 	int num_channels;
 };
@@ -182,10 +183,12 @@ static const struct iio_chan_spec sgpc3_channels[] = {
 
 static const struct sgp_device sgp_devices[] = {
 	[SGP30] = {
+		.product_id = SGP30,
 		.channels = sgp30_channels,
 		.num_channels = ARRAY_SIZE(sgp30_channels),
 	},
 	[SGPC3] = {
+		.product_id = SGPC3,
 		.channels = sgpc3_channels,
 		.num_channels = ARRAY_SIZE(sgpc3_channels),
 	},
@@ -227,6 +230,7 @@ static int sgp_verify_buffer(const struct sgp_data *data,
  * @cmd:         SGP Command to issue
  * @buf:         Raw data buffer to use
  * @word_count:  Num words to read, excluding CRC bytes
+ * @duration_us: Time taken to sensor to take a reading and data to be ready.
  *
  * Return:       0 on success, negative error otherwise.
  */
@@ -409,6 +413,7 @@ static int sgp_read_raw(struct iio_dev *indio_dev,
 static int sgp_check_compat(struct sgp_data *data,
 			    unsigned int product_id)
 {
+	struct device *dev = &data->client->dev;
 	const struct sgp_version *supported_versions;
 	u16 ix, num_fs;
 	u16 product, generation, major, minor;
@@ -416,21 +421,20 @@ static int sgp_check_compat(struct sgp_data *data,
 	/* driver does not match product */
 	generation = SGP_VERS_GEN(data);
 	if (generation != 0) {
-		dev_err(&data->client->dev,
+		dev_err(dev,
 			"incompatible product generation %d != 0", generation);
 		return -ENODEV;
 	}
 
 	product = SGP_VERS_PRODUCT(data);
 	if (product != product_id) {
-		dev_err(&data->client->dev,
-			"sensor reports a different product: 0x%04hx\n",
+		dev_err(dev, "sensor reports a different product: 0x%04x\n",
 			product);
 		return -ENODEV;
 	}
 
 	if (SGP_VERS_RESERVED(data))
-		dev_warn(&data->client->dev, "reserved bit is set\n");
+		dev_warn(dev, "reserved bit is set\n");
 
 	/* engineering samples are not supported: no interface guarantees */
 	if (SGP_VERS_ENG_BIT(data))
@@ -456,8 +460,7 @@ static int sgp_check_compat(struct sgp_data *data,
 		    minor >= supported_versions[ix].minor)
 			return 0;
 	}
-	dev_err(&data->client->dev, "unsupported sgp version: %d.%d\n",
-		major, minor);
+	dev_err(dev, "unsupported sgp version: %d.%d\n", major, minor);
 
 	return -ENODEV;
 }
@@ -483,7 +486,7 @@ static void sgp_init(struct sgp_data *data)
 		data->iaq_defval_skip_jiffies =
 			43 * data->measure_interval_jiffies;
 		break;
-	};
+	}
 }
 
 static const struct iio_info sgp_info = {
@@ -491,29 +494,25 @@ static const struct iio_info sgp_info = {
 };
 
 static const struct of_device_id sgp_dt_ids[] = {
-	{ .compatible = "sensirion,sgp30", .data = (void *)SGP30 },
-	{ .compatible = "sensirion,sgpc3", .data = (void *)SGPC3 },
+	{ .compatible = "sensirion,sgp30", .data = &sgp_devices[SGP30] },
+	{ .compatible = "sensirion,sgpc3", .data = &sgp_devices[SGPC3] },
 	{ }
 };
 
-static int sgp_probe(struct i2c_client *client,
-		     const struct i2c_device_id *id)
+static int sgp_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
+	const struct sgp_device *match_data;
+	struct device *dev = &client->dev;
 	struct iio_dev *indio_dev;
 	struct sgp_data *data;
-	const struct of_device_id *of_id;
-	unsigned long product_id;
 	int ret;
 
-	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
 		return -ENOMEM;
 
-	of_id = of_match_device(sgp_dt_ids, &client->dev);
-	if (of_id)
-		product_id = (unsigned long)of_id->data;
-	else
-		product_id = id->driver_data;
+	match_data = i2c_get_match_data(client);
 
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
@@ -529,22 +528,21 @@ static int sgp_probe(struct i2c_client *client,
 
 	data->feature_set = be16_to_cpu(data->buffer.raw_words[0].value);
 
-	ret = sgp_check_compat(data, product_id);
+	ret = sgp_check_compat(data, match_data->product_id);
 	if (ret)
 		return ret;
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &sgp_info;
 	indio_dev->name = id->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
-	indio_dev->channels = sgp_devices[product_id].channels;
-	indio_dev->num_channels = sgp_devices[product_id].num_channels;
+	indio_dev->channels = match_data->channels;
+	indio_dev->num_channels = match_data->num_channels;
 
 	sgp_init(data);
 
-	ret = devm_iio_device_register(&client->dev, indio_dev);
+	ret = devm_iio_device_register(dev, indio_dev);
 	if (ret) {
-		dev_err(&client->dev, "failed to register iio device\n");
+		dev_err(dev, "failed to register iio device\n");
 		return ret;
 	}
 
@@ -554,20 +552,18 @@ static int sgp_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int sgp_remove(struct i2c_client *client)
+static void sgp_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct sgp_data *data = iio_priv(indio_dev);
 
 	if (data->iaq_thread)
 		kthread_stop(data->iaq_thread);
-
-	return 0;
 }
 
 static const struct i2c_device_id sgp_id[] = {
-	{ "sgp30", SGP30 },
-	{ "sgpc3", SGPC3 },
+	{ "sgp30", (kernel_ulong_t)&sgp_devices[SGP30] },
+	{ "sgpc3", (kernel_ulong_t)&sgp_devices[SGPC3] },
 	{ }
 };
 
@@ -577,7 +573,7 @@ MODULE_DEVICE_TABLE(of, sgp_dt_ids);
 static struct i2c_driver sgp_driver = {
 	.driver = {
 		.name = "sgp30",
-		.of_match_table = of_match_ptr(sgp_dt_ids),
+		.of_match_table = sgp_dt_ids,
 	},
 	.probe = sgp_probe,
 	.remove = sgp_remove,

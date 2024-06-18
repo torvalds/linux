@@ -77,14 +77,14 @@ static asmlinkage void __exception_irq_entry clps711x_irqh(struct pt_regs *regs)
 		irqstat = readw_relaxed(clps711x_intc->intmr[0]) &
 			  readw_relaxed(clps711x_intc->intsr[0]);
 		if (irqstat)
-			handle_domain_irq(clps711x_intc->domain,
-					  fls(irqstat) - 1, regs);
+			generic_handle_domain_irq(clps711x_intc->domain,
+						  fls(irqstat) - 1);
 
 		irqstat = readw_relaxed(clps711x_intc->intmr[1]) &
 			  readw_relaxed(clps711x_intc->intsr[1]);
 		if (irqstat)
-			handle_domain_irq(clps711x_intc->domain,
-					  fls(irqstat) - 1 + 16, regs);
+			generic_handle_domain_irq(clps711x_intc->domain,
+						  fls(irqstat) - 1 + 16);
 	} while (irqstat);
 }
 
@@ -212,12 +212,6 @@ out_kfree:
 	return err;
 }
 
-void __init clps711x_intc_init(phys_addr_t base, resource_size_t size)
-{
-	BUG_ON(_clps711x_intc_init(NULL, base, size));
-}
-
-#ifdef CONFIG_IRQCHIP
 static int __init clps711x_intc_init_dt(struct device_node *np,
 					struct device_node *parent)
 {
@@ -231,4 +225,3 @@ static int __init clps711x_intc_init_dt(struct device_node *np,
 	return _clps711x_intc_init(np, res.start, resource_size(&res));
 }
 IRQCHIP_DECLARE(clps711x, "cirrus,ep7209-intc", clps711x_intc_init_dt);
-#endif

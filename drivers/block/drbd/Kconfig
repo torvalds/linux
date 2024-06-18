@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # DRBD device driver configuration
 #
@@ -35,7 +35,7 @@ config BLK_DEV_DRBD
 	  cache coherency.
 
 	  For automatic failover you need a cluster manager (e.g. heartbeat).
-	  See also: http://www.drbd.org/, http://www.linux-ha.org
+	  See also: https://www.drbd.org/, http://www.linux-ha.org
 
 	  If unsure, say N.
 

@@ -98,7 +98,7 @@ static bool tomoyo_envp(const char *env_name, const char *env_value,
  * @argc: Length of @argc.
  * @argv: Pointer to "struct tomoyo_argv".
  * @envc: Length of @envp.
- * @envp: Poiner to "struct tomoyo_envp".
+ * @envp: Pointer to "struct tomoyo_envp".
  *
  * Returns true on success, false otherwise.
  */

@@ -1,0 +1,57 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright 2016-2022 Toradex
+ */
+
+/dts-v1/;
+#include "imx7d-colibri.dtsi"
+#include "imx7-colibri-eval-v3.dtsi"
+
+/ {
+	model = "Toradex Colibri iMX7D on Colibri Evaluation Board V3";
+	compatible = "toradex,colibri-imx7d-eval-v3",
+		     "toradex,colibri-imx7d",
+		     "fsl,imx7d";
+};
+
+&ad7879_ts {
+	status = "okay";
+};
+
+/*
+ * The Atmel maxtouch controller uses SODIMM 28/30, also used for PWM<B>, PWM<C>, aka pwm2, pwm3.
+ * So if you enable following capacitive touch controller, disable pwm2/pwm3 first.
+ */
+&atmel_mxt_ts {
+	status = "disabled";
+};
+
+&backlight {
+	status = "okay";
+};
+
+&lcdif {
+	status = "okay";
+};
+
+&panel_dpi {
+	status = "okay";
+};
+
+/* Colibri PWM<B> */
+&pwm2 {
+	/* The pwm2 should be disabled to enable atmel_mxt_ts touchscreen for adapter. */
+	status = "okay";
+};
+
+/* Colibri PWM<C> */
+&pwm3 {
+	/* The pwm3 should be disabled to enable atmel_mxt_ts touchscreen for adapter. */
+	status = "okay";
+};
+
+/* Colibri USBH */
+&usbotg2 {
+	disable-over-current;
+	status = "okay";
+};

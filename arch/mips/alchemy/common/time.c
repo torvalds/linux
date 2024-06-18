@@ -72,13 +72,6 @@ static struct clock_event_device au1x_rtcmatch2_clockdev = {
 	.cpumask	= cpu_possible_mask,
 };
 
-static struct irqaction au1x_rtcmatch2_irqaction = {
-	.handler	= au1x_rtcmatch2_irq,
-	.flags		= IRQF_TIMER,
-	.name		= "timer",
-	.dev_id		= &au1x_rtcmatch2_clockdev,
-};
-
 static int __init alchemy_time_init(unsigned int m2int)
 {
 	struct clock_event_device *cd = &au1x_rtcmatch2_clockdev;
@@ -130,7 +123,9 @@ static int __init alchemy_time_init(unsigned int m2int)
 	cd->min_delta_ns = clockevent_delta2ns(9, cd);
 	cd->min_delta_ticks = 9;	/* ~0.28ms */
 	clockevents_register_device(cd);
-	setup_irq(m2int, &au1x_rtcmatch2_irqaction);
+	if (request_irq(m2int, au1x_rtcmatch2_irq, IRQF_TIMER, "timer",
+			&au1x_rtcmatch2_clockdev))
+		pr_err("Failed to register timer interrupt\n");
 
 	printk(KERN_INFO "Alchemy clocksource installed\n");
 

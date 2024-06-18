@@ -31,42 +31,37 @@
 
 #include <linux/clk.h>
 #include <linux/component.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_atomic_uapi.h>
-#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_dma_helper.h>
+#include <drm/drm_framebuffer.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
 
 #include "vc4_drv.h"
+#include "vc4_hdmi.h"
 #include "vc4_regs.h"
 
-struct vc4_crtc_state {
-	struct drm_crtc_state base;
-	/* Dlist area for this CRTC configuration. */
-	struct drm_mm_node mm;
-	bool feed_txp;
-	bool txp_armed;
+#define HVS_FIFO_LATENCY_PIX	6
 
-	struct {
-		unsigned int left;
-		unsigned int right;
-		unsigned int top;
-		unsigned int bottom;
-	} margins;
-};
+#define CRTC_WRITE(offset, val)								\
+	do {										\
+		kunit_fail_current_test("Accessing a register in a unit test!\n");	\
+		writel(val, vc4_crtc->regs + (offset));					\
+	} while (0)
 
-static inline struct vc4_crtc_state *
-to_vc4_crtc_state(struct drm_crtc_state *crtc_state)
-{
-	return (struct vc4_crtc_state *)crtc_state;
-}
-
-#define CRTC_WRITE(offset, val) writel(val, vc4_crtc->regs + (offset))
-#define CRTC_READ(offset) readl(vc4_crtc->regs + (offset))
+#define CRTC_READ(offset)								\
+	({										\
+		kunit_fail_current_test("Accessing a register in a unit test!\n");	\
+		readl(vc4_crtc->regs + (offset));					\
+	})
 
 static const struct debugfs_reg32 crtc_regs[] = {
 	VC4_REG32(PV_CONTROL),
@@ -84,14 +79,33 @@ static const struct debugfs_reg32 crtc_regs[] = {
 	VC4_REG32(PV_HACT_ACT),
 };
 
-bool vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
-			     bool in_vblank_irq, int *vpos, int *hpos,
-			     ktime_t *stime, ktime_t *etime,
-			     const struct drm_display_mode *mode)
+static unsigned int
+vc4_crtc_get_cob_allocation(struct vc4_dev *vc4, unsigned int channel)
 {
+	struct vc4_hvs *hvs = vc4->hvs;
+	u32 dispbase = HVS_READ(SCALER_DISPBASEX(channel));
+	/* Top/base are supposed to be 4-pixel aligned, but the
+	 * Raspberry Pi firmware fills the low bits (which are
+	 * presumably ignored).
+	 */
+	u32 top = VC4_GET_FIELD(dispbase, SCALER_DISPBASEX_TOP) & ~3;
+	u32 base = VC4_GET_FIELD(dispbase, SCALER_DISPBASEX_BASE) & ~3;
+
+	return top - base + 4;
+}
+
+static bool vc4_crtc_get_scanout_position(struct drm_crtc *crtc,
+					  bool in_vblank_irq,
+					  int *vpos, int *hpos,
+					  ktime_t *stime, ktime_t *etime,
+					  const struct drm_display_mode *mode)
+{
+	struct drm_device *dev = crtc->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct drm_crtc *crtc = drm_crtc_from_index(dev, crtc_id);
+	struct vc4_hvs *hvs = vc4->hvs;
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
+	struct vc4_crtc_state *vc4_crtc_state = to_vc4_crtc_state(crtc->state);
+	unsigned int cob_size;
 	u32 val;
 	int fifo_lines;
 	int vblank_lines;
@@ -107,7 +121,7 @@ bool vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
 	 * Read vertical scanline which is currently composed for our
 	 * pixelvalve by the HVS, and also the scaler status.
 	 */
-	val = HVS_READ(SCALER_DISPSTATX(vc4_crtc->channel));
+	val = HVS_READ(SCALER_DISPSTATX(vc4_crtc_state->assigned_channel));
 
 	/* Get optional system timestamp after query. */
 	if (etime)
@@ -123,12 +137,13 @@ bool vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
 		*vpos /= 2;
 
 		/* Use hpos to correct for field offset in interlaced mode. */
-		if (VC4_GET_FIELD(val, SCALER_DISPSTATX_FRAME_COUNT) % 2)
+		if (vc4_hvs_get_fifo_frame_count(hvs, vc4_crtc_state->assigned_channel) % 2)
 			*hpos += mode->crtc_htotal / 2;
 	}
 
+	cob_size = vc4_crtc_get_cob_allocation(vc4, vc4_crtc_state->assigned_channel);
 	/* This is the offset we need for translating hvs -> pv scanout pos. */
-	fifo_lines = vc4_crtc->cob_size / mode->crtc_hdisplay;
+	fifo_lines = cob_size / mode->crtc_hdisplay;
 
 	if (fifo_lines > 0)
 		ret = true;
@@ -202,68 +217,70 @@ bool vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
 	return ret;
 }
 
-static void vc4_crtc_destroy(struct drm_crtc *crtc)
+static u32 vc4_get_fifo_full_level(struct vc4_crtc *vc4_crtc, u32 format)
 {
-	drm_crtc_cleanup(crtc);
-}
+	const struct vc4_crtc_data *crtc_data = vc4_crtc_to_vc4_crtc_data(vc4_crtc);
+	const struct vc4_pv_data *pv_data = vc4_crtc_to_vc4_pv_data(vc4_crtc);
+	struct vc4_dev *vc4 = to_vc4_dev(vc4_crtc->base.dev);
+	u32 fifo_len_bytes = pv_data->fifo_depth;
 
-static void
-vc4_crtc_lut_load(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
-	u32 i;
-
-	/* The LUT memory is laid out with each HVS channel in order,
-	 * each of which takes 256 writes for R, 256 for G, then 256
-	 * for B.
+	/*
+	 * Pixels are pulled from the HVS if the number of bytes is
+	 * lower than the FIFO full level.
+	 *
+	 * The latency of the pixel fetch mechanism is 6 pixels, so we
+	 * need to convert those 6 pixels in bytes, depending on the
+	 * format, and then subtract that from the length of the FIFO
+	 * to make sure we never end up in a situation where the FIFO
+	 * is full.
 	 */
-	HVS_WRITE(SCALER_GAMADDR,
-		  SCALER_GAMADDR_AUTOINC |
-		  (vc4_crtc->channel * 3 * crtc->gamma_size));
-
-	for (i = 0; i < crtc->gamma_size; i++)
-		HVS_WRITE(SCALER_GAMDATA, vc4_crtc->lut_r[i]);
-	for (i = 0; i < crtc->gamma_size; i++)
-		HVS_WRITE(SCALER_GAMDATA, vc4_crtc->lut_g[i]);
-	for (i = 0; i < crtc->gamma_size; i++)
-		HVS_WRITE(SCALER_GAMDATA, vc4_crtc->lut_b[i]);
-}
-
-static void
-vc4_crtc_update_gamma_lut(struct drm_crtc *crtc)
-{
-	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
-	struct drm_color_lut *lut = crtc->state->gamma_lut->data;
-	u32 length = drm_color_lut_size(crtc->state->gamma_lut);
-	u32 i;
-
-	for (i = 0; i < length; i++) {
-		vc4_crtc->lut_r[i] = drm_color_lut_extract(lut[i].red, 8);
-		vc4_crtc->lut_g[i] = drm_color_lut_extract(lut[i].green, 8);
-		vc4_crtc->lut_b[i] = drm_color_lut_extract(lut[i].blue, 8);
-	}
-
-	vc4_crtc_lut_load(crtc);
-}
-
-static u32 vc4_get_fifo_full_level(u32 format)
-{
-	static const u32 fifo_len_bytes = 64;
-	static const u32 hvs_latency_pix = 6;
-
 	switch (format) {
 	case PV_CONTROL_FORMAT_DSIV_16:
 	case PV_CONTROL_FORMAT_DSIC_16:
-		return fifo_len_bytes - 2 * hvs_latency_pix;
+		return fifo_len_bytes - 2 * HVS_FIFO_LATENCY_PIX;
 	case PV_CONTROL_FORMAT_DSIV_18:
 		return fifo_len_bytes - 14;
 	case PV_CONTROL_FORMAT_24:
 	case PV_CONTROL_FORMAT_DSIV_24:
 	default:
-		return fifo_len_bytes - 3 * hvs_latency_pix;
+		/*
+		 * For some reason, the pixelvalve4 doesn't work with
+		 * the usual formula and will only work with 32.
+		 */
+		if (crtc_data->hvs_output == 5)
+			return 32;
+
+		/*
+		 * It looks like in some situations, we will overflow
+		 * the PixelValve FIFO (with the bit 10 of PV stat being
+		 * set) and stall the HVS / PV, eventually resulting in
+		 * a page flip timeout.
+		 *
+		 * Displaying the video overlay during a playback with
+		 * Kodi on an RPi3 seems to be a great solution with a
+		 * failure rate around 50%.
+		 *
+		 * Removing 1 from the FIFO full level however
+		 * seems to completely remove that issue.
+		 */
+		if (!vc4->is_vc5)
+			return fifo_len_bytes - 3 * HVS_FIFO_LATENCY_PIX - 1;
+
+		return fifo_len_bytes - 3 * HVS_FIFO_LATENCY_PIX;
 	}
+}
+
+static u32 vc4_crtc_get_fifo_full_level_bits(struct vc4_crtc *vc4_crtc,
+					     u32 format)
+{
+	u32 level = vc4_get_fifo_full_level(vc4_crtc, format);
+	u32 ret = 0;
+
+	ret |= VC4_SET_FIELD((level >> 6),
+			     PV5_CONTROL_FIFO_LEVEL_HIGH);
+
+	return ret | VC4_SET_FIELD(level & 0x3f,
+				   PV_CONTROL_FIFO_LEVEL);
 }
 
 /*
@@ -273,121 +290,65 @@ static u32 vc4_get_fifo_full_level(u32 format)
  * allows drivers to push pixels to more than one encoder from the
  * same CRTC.
  */
-static struct drm_encoder *vc4_get_crtc_encoder(struct drm_crtc *crtc)
+struct drm_encoder *vc4_get_crtc_encoder(struct drm_crtc *crtc,
+					 struct drm_crtc_state *state)
 {
-	struct drm_connector *connector;
-	struct drm_connector_list_iter conn_iter;
+	struct drm_encoder *encoder;
 
-	drm_connector_list_iter_begin(crtc->dev, &conn_iter);
-	drm_for_each_connector_iter(connector, &conn_iter) {
-		if (connector->state->crtc == crtc) {
-			drm_connector_list_iter_end(&conn_iter);
-			return connector->encoder;
-		}
-	}
-	drm_connector_list_iter_end(&conn_iter);
+	WARN_ON(hweight32(state->encoder_mask) > 1);
+
+	drm_for_each_encoder_mask(encoder, crtc->dev, state->encoder_mask)
+		return encoder;
 
 	return NULL;
 }
 
-static void vc4_crtc_config_pv(struct drm_crtc *crtc)
+static void vc4_crtc_pixelvalve_reset(struct drm_crtc *crtc)
 {
-	struct drm_encoder *encoder = vc4_get_crtc_encoder(crtc);
-	struct vc4_encoder *vc4_encoder = to_vc4_encoder(encoder);
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
-	struct drm_crtc_state *state = crtc->state;
-	struct drm_display_mode *mode = &state->adjusted_mode;
-	bool interlace = mode->flags & DRM_MODE_FLAG_INTERLACE;
-	u32 pixel_rep = (mode->flags & DRM_MODE_FLAG_DBLCLK) ? 2 : 1;
-	bool is_dsi = (vc4_encoder->type == VC4_ENCODER_TYPE_DSI0 ||
-		       vc4_encoder->type == VC4_ENCODER_TYPE_DSI1);
-	u32 format = is_dsi ? PV_CONTROL_FORMAT_DSIV_24 : PV_CONTROL_FORMAT_24;
+	struct drm_device *dev = crtc->dev;
+	int idx;
 
-	/* Reset the PV fifo. */
-	CRTC_WRITE(PV_CONTROL, 0);
-	CRTC_WRITE(PV_CONTROL, PV_CONTROL_FIFO_CLR | PV_CONTROL_EN);
-	CRTC_WRITE(PV_CONTROL, 0);
+	if (!drm_dev_enter(dev, &idx))
+		return;
 
-	CRTC_WRITE(PV_HORZA,
-		   VC4_SET_FIELD((mode->htotal -
-				  mode->hsync_end) * pixel_rep,
-				 PV_HORZA_HBP) |
-		   VC4_SET_FIELD((mode->hsync_end -
-				  mode->hsync_start) * pixel_rep,
-				 PV_HORZA_HSYNC));
-	CRTC_WRITE(PV_HORZB,
-		   VC4_SET_FIELD((mode->hsync_start -
-				  mode->hdisplay) * pixel_rep,
-				 PV_HORZB_HFP) |
-		   VC4_SET_FIELD(mode->hdisplay * pixel_rep, PV_HORZB_HACTIVE));
+	/* The PV needs to be disabled before it can be flushed */
+	CRTC_WRITE(PV_CONTROL, CRTC_READ(PV_CONTROL) & ~PV_CONTROL_EN);
+	CRTC_WRITE(PV_CONTROL, CRTC_READ(PV_CONTROL) | PV_CONTROL_FIFO_CLR);
 
-	CRTC_WRITE(PV_VERTA,
-		   VC4_SET_FIELD(mode->crtc_vtotal - mode->crtc_vsync_end,
-				 PV_VERTA_VBP) |
-		   VC4_SET_FIELD(mode->crtc_vsync_end - mode->crtc_vsync_start,
-				 PV_VERTA_VSYNC));
-	CRTC_WRITE(PV_VERTB,
-		   VC4_SET_FIELD(mode->crtc_vsync_start - mode->crtc_vdisplay,
-				 PV_VERTB_VFP) |
-		   VC4_SET_FIELD(mode->crtc_vdisplay, PV_VERTB_VACTIVE));
-
-	if (interlace) {
-		CRTC_WRITE(PV_VERTA_EVEN,
-			   VC4_SET_FIELD(mode->crtc_vtotal -
-					 mode->crtc_vsync_end - 1,
-					 PV_VERTA_VBP) |
-			   VC4_SET_FIELD(mode->crtc_vsync_end -
-					 mode->crtc_vsync_start,
-					 PV_VERTA_VSYNC));
-		CRTC_WRITE(PV_VERTB_EVEN,
-			   VC4_SET_FIELD(mode->crtc_vsync_start -
-					 mode->crtc_vdisplay,
-					 PV_VERTB_VFP) |
-			   VC4_SET_FIELD(mode->crtc_vdisplay, PV_VERTB_VACTIVE));
-
-		/* We set up first field even mode for HDMI.  VEC's
-		 * NTSC mode would want first field odd instead, once
-		 * we support it (to do so, set ODD_FIRST and put the
-		 * delay in VSYNCD_EVEN instead).
-		 */
-		CRTC_WRITE(PV_V_CONTROL,
-			   PV_VCONTROL_CONTINUOUS |
-			   (is_dsi ? PV_VCONTROL_DSI : 0) |
-			   PV_VCONTROL_INTERLACE |
-			   VC4_SET_FIELD(mode->htotal * pixel_rep / 2,
-					 PV_VCONTROL_ODD_DELAY));
-		CRTC_WRITE(PV_VSYNCD_EVEN, 0);
-	} else {
-		CRTC_WRITE(PV_V_CONTROL,
-			   PV_VCONTROL_CONTINUOUS |
-			   (is_dsi ? PV_VCONTROL_DSI : 0));
-	}
-
-	CRTC_WRITE(PV_HACT_ACT, mode->hdisplay * pixel_rep);
-
-	CRTC_WRITE(PV_CONTROL,
-		   VC4_SET_FIELD(format, PV_CONTROL_FORMAT) |
-		   VC4_SET_FIELD(vc4_get_fifo_full_level(format),
-				 PV_CONTROL_FIFO_LEVEL) |
-		   VC4_SET_FIELD(pixel_rep - 1, PV_CONTROL_PIXEL_REP) |
-		   PV_CONTROL_CLR_AT_START |
-		   PV_CONTROL_TRIGGER_UNDERFLOW |
-		   PV_CONTROL_WAIT_HSTART |
-		   VC4_SET_FIELD(vc4_encoder->clock_select,
-				 PV_CONTROL_CLK_SELECT) |
-		   PV_CONTROL_FIFO_CLR |
-		   PV_CONTROL_EN);
+	drm_dev_exit(idx);
 }
 
-static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
+static void vc4_crtc_config_pv(struct drm_crtc *crtc, struct drm_encoder *encoder,
+			       struct drm_atomic_state *state)
 {
 	struct drm_device *dev = crtc->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct vc4_encoder *vc4_encoder = to_vc4_encoder(encoder);
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
-	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
-	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
+	const struct vc4_pv_data *pv_data = vc4_crtc_to_vc4_pv_data(vc4_crtc);
+	struct drm_crtc_state *crtc_state = crtc->state;
+	struct drm_display_mode *mode = &crtc_state->adjusted_mode;
 	bool interlace = mode->flags & DRM_MODE_FLAG_INTERLACE;
+	bool is_hdmi = vc4_encoder->type == VC4_ENCODER_TYPE_HDMI0 ||
+		       vc4_encoder->type == VC4_ENCODER_TYPE_HDMI1;
+	u32 pixel_rep = ((mode->flags & DRM_MODE_FLAG_DBLCLK) && !is_hdmi) ? 2 : 1;
+	bool is_dsi = (vc4_encoder->type == VC4_ENCODER_TYPE_DSI0 ||
+		       vc4_encoder->type == VC4_ENCODER_TYPE_DSI1);
+	bool is_dsi1 = vc4_encoder->type == VC4_ENCODER_TYPE_DSI1;
+	bool is_vec = vc4_encoder->type == VC4_ENCODER_TYPE_VEC;
+	u32 format = is_dsi1 ? PV_CONTROL_FORMAT_DSIV_24 : PV_CONTROL_FORMAT_24;
+	u8 ppc = pv_data->pixels_per_clock;
+
+	u16 vert_bp = mode->crtc_vtotal - mode->crtc_vsync_end;
+	u16 vert_sync = mode->crtc_vsync_end - mode->crtc_vsync_start;
+	u16 vert_fp = mode->crtc_vsync_start - mode->crtc_vdisplay;
+
 	bool debug_dump_regs = false;
+	int idx;
+
+	if (!drm_dev_enter(dev, &idx))
+		return;
 
 	if (debug_dump_regs) {
 		struct drm_printer p = drm_info_printer(&vc4_crtc->pdev->dev);
@@ -396,42 +357,91 @@ static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 		drm_print_regset32(&p, &vc4_crtc->regset);
 	}
 
-	if (vc4_crtc->channel == 2) {
-		u32 dispctrl;
-		u32 dsp3_mux;
+	vc4_crtc_pixelvalve_reset(crtc);
 
-		/*
-		 * SCALER_DISPCTRL_DSP3 = X, where X < 2 means 'connect DSP3 to
-		 * FIFO X'.
-		 * SCALER_DISPCTRL_DSP3 = 3 means 'disable DSP 3'.
-		 *
-		 * DSP3 is connected to FIFO2 unless the transposer is
-		 * enabled. In this case, FIFO 2 is directly accessed by the
-		 * TXP IP, and we need to disable the FIFO2 -> pixelvalve1
-		 * route.
-		 */
-		if (vc4_state->feed_txp)
-			dsp3_mux = VC4_SET_FIELD(3, SCALER_DISPCTRL_DSP3_MUX);
+	CRTC_WRITE(PV_HORZA,
+		   VC4_SET_FIELD((mode->htotal - mode->hsync_end) * pixel_rep / ppc,
+				 PV_HORZA_HBP) |
+		   VC4_SET_FIELD((mode->hsync_end - mode->hsync_start) * pixel_rep / ppc,
+				 PV_HORZA_HSYNC));
+
+	CRTC_WRITE(PV_HORZB,
+		   VC4_SET_FIELD((mode->hsync_start - mode->hdisplay) * pixel_rep / ppc,
+				 PV_HORZB_HFP) |
+		   VC4_SET_FIELD(mode->hdisplay * pixel_rep / ppc,
+				 PV_HORZB_HACTIVE));
+
+	if (interlace) {
+		bool odd_field_first = false;
+		u32 field_delay = mode->htotal * pixel_rep / (2 * ppc);
+		u16 vert_bp_even = vert_bp;
+		u16 vert_fp_even = vert_fp;
+
+		if (is_vec) {
+			/* VEC (composite output) */
+			++field_delay;
+			if (mode->htotal == 858) {
+				/* 525-line mode (NTSC or PAL-M) */
+				odd_field_first = true;
+			}
+		}
+
+		if (odd_field_first)
+			++vert_fp_even;
 		else
-			dsp3_mux = VC4_SET_FIELD(2, SCALER_DISPCTRL_DSP3_MUX);
+			++vert_bp;
 
-		dispctrl = HVS_READ(SCALER_DISPCTRL) &
-			   ~SCALER_DISPCTRL_DSP3_MUX_MASK;
-		HVS_WRITE(SCALER_DISPCTRL, dispctrl | dsp3_mux);
+		CRTC_WRITE(PV_VERTA_EVEN,
+			   VC4_SET_FIELD(vert_bp_even, PV_VERTA_VBP) |
+			   VC4_SET_FIELD(vert_sync, PV_VERTA_VSYNC));
+		CRTC_WRITE(PV_VERTB_EVEN,
+			   VC4_SET_FIELD(vert_fp_even, PV_VERTB_VFP) |
+			   VC4_SET_FIELD(mode->crtc_vdisplay, PV_VERTB_VACTIVE));
+
+		/* We set up first field even mode for HDMI and VEC's PAL.
+		 * For NTSC, we need first field odd.
+		 */
+		CRTC_WRITE(PV_V_CONTROL,
+			   PV_VCONTROL_CONTINUOUS |
+			   (is_dsi ? PV_VCONTROL_DSI : 0) |
+			   PV_VCONTROL_INTERLACE |
+			   (odd_field_first
+				   ? PV_VCONTROL_ODD_FIRST
+				   : VC4_SET_FIELD(field_delay,
+						   PV_VCONTROL_ODD_DELAY)));
+		CRTC_WRITE(PV_VSYNCD_EVEN,
+			   (odd_field_first ? field_delay : 0));
+	} else {
+		CRTC_WRITE(PV_V_CONTROL,
+			   PV_VCONTROL_CONTINUOUS |
+			   (is_dsi ? PV_VCONTROL_DSI : 0));
+		CRTC_WRITE(PV_VSYNCD_EVEN, 0);
 	}
 
-	if (!vc4_state->feed_txp)
-		vc4_crtc_config_pv(crtc);
+	CRTC_WRITE(PV_VERTA,
+		   VC4_SET_FIELD(vert_bp, PV_VERTA_VBP) |
+		   VC4_SET_FIELD(vert_sync, PV_VERTA_VSYNC));
+	CRTC_WRITE(PV_VERTB,
+		   VC4_SET_FIELD(vert_fp, PV_VERTB_VFP) |
+		   VC4_SET_FIELD(mode->crtc_vdisplay, PV_VERTB_VACTIVE));
 
-	HVS_WRITE(SCALER_DISPBKGNDX(vc4_crtc->channel),
-		  SCALER_DISPBKGND_AUTOHS |
-		  SCALER_DISPBKGND_GAMMA |
-		  (interlace ? SCALER_DISPBKGND_INTERLACE : 0));
+	if (is_dsi)
+		CRTC_WRITE(PV_HACT_ACT, mode->hdisplay * pixel_rep);
 
-	/* Reload the LUT, since the SRAMs would have been disabled if
-	 * all CRTCs had SCALER_DISPBKGND_GAMMA unset at once.
-	 */
-	vc4_crtc_lut_load(crtc);
+	if (vc4->is_vc5)
+		CRTC_WRITE(PV_MUX_CFG,
+			   VC4_SET_FIELD(PV_MUX_CFG_RGB_PIXEL_MUX_MODE_NO_SWAP,
+					 PV_MUX_CFG_RGB_PIXEL_MUX_MODE));
+
+	CRTC_WRITE(PV_CONTROL, PV_CONTROL_FIFO_CLR |
+		   vc4_crtc_get_fifo_full_level_bits(vc4_crtc, format) |
+		   VC4_SET_FIELD(format, PV_CONTROL_FORMAT) |
+		   VC4_SET_FIELD(pixel_rep - 1, PV_CONTROL_PIXEL_REP) |
+		   PV_CONTROL_CLR_AT_START |
+		   PV_CONTROL_TRIGGER_UNDERFLOW |
+		   PV_CONTROL_WAIT_HSTART |
+		   VC4_SET_FIELD(vc4_encoder->clock_select,
+				 PV_CONTROL_CLK_SELECT));
 
 	if (debug_dump_regs) {
 		struct drm_printer p = drm_info_printer(&vc4_crtc->pdev->dev);
@@ -439,117 +449,183 @@ static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 			 drm_crtc_index(crtc));
 		drm_print_regset32(&p, &vc4_crtc->regset);
 	}
+
+	drm_dev_exit(idx);
 }
 
 static void require_hvs_enabled(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct vc4_hvs *hvs = vc4->hvs;
 
 	WARN_ON_ONCE((HVS_READ(SCALER_DISPCTRL) & SCALER_DISPCTRL_ENABLE) !=
 		     SCALER_DISPCTRL_ENABLE);
 }
 
-static void vc4_crtc_atomic_disable(struct drm_crtc *crtc,
-				    struct drm_crtc_state *old_state)
+static int vc4_crtc_disable(struct drm_crtc *crtc,
+			    struct drm_encoder *encoder,
+			    struct drm_atomic_state *state,
+			    unsigned int channel)
 {
+	struct vc4_encoder *vc4_encoder = to_vc4_encoder(encoder);
+	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
-	u32 chan = vc4_crtc->channel;
-	int ret;
-	require_hvs_enabled(dev);
+	int idx, ret;
 
-	/* Disable vblank irq handling before crtc is disabled. */
-	drm_crtc_vblank_off(crtc);
+	if (!drm_dev_enter(dev, &idx))
+		return -ENODEV;
 
 	CRTC_WRITE(PV_V_CONTROL,
 		   CRTC_READ(PV_V_CONTROL) & ~PV_VCONTROL_VIDEN);
 	ret = wait_for(!(CRTC_READ(PV_V_CONTROL) & PV_VCONTROL_VIDEN), 1);
 	WARN_ONCE(ret, "Timeout waiting for !PV_VCONTROL_VIDEN\n");
 
-	if (HVS_READ(SCALER_DISPCTRLX(chan)) &
-	    SCALER_DISPCTRLX_ENABLE) {
-		HVS_WRITE(SCALER_DISPCTRLX(chan),
-			  SCALER_DISPCTRLX_RESET);
+	/*
+	 * This delay is needed to avoid to get a pixel stuck in an
+	 * unflushable FIFO between the pixelvalve and the HDMI
+	 * controllers on the BCM2711.
+	 *
+	 * Timing is fairly sensitive here, so mdelay is the safest
+	 * approach.
+	 *
+	 * If it was to be reworked, the stuck pixel happens on a
+	 * BCM2711 when changing mode with a good probability, so a
+	 * script that changes mode on a regular basis should trigger
+	 * the bug after less than 10 attempts. It manifests itself with
+	 * every pixels being shifted by one to the right, and thus the
+	 * last pixel of a line actually being displayed as the first
+	 * pixel on the next line.
+	 */
+	mdelay(20);
 
-		/* While the docs say that reset is self-clearing, it
-		 * seems it doesn't actually.
-		 */
-		HVS_WRITE(SCALER_DISPCTRLX(chan), 0);
-	}
+	if (vc4_encoder && vc4_encoder->post_crtc_disable)
+		vc4_encoder->post_crtc_disable(encoder, state);
 
-	/* Once we leave, the scaler should be disabled and its fifo empty. */
+	vc4_crtc_pixelvalve_reset(crtc);
+	vc4_hvs_stop_channel(vc4->hvs, channel);
 
-	WARN_ON_ONCE(HVS_READ(SCALER_DISPCTRLX(chan)) & SCALER_DISPCTRLX_RESET);
+	if (vc4_encoder && vc4_encoder->post_crtc_powerdown)
+		vc4_encoder->post_crtc_powerdown(encoder, state);
 
-	WARN_ON_ONCE(VC4_GET_FIELD(HVS_READ(SCALER_DISPSTATX(chan)),
-				   SCALER_DISPSTATX_MODE) !=
-		     SCALER_DISPSTATX_MODE_DISABLED);
+	drm_dev_exit(idx);
 
-	WARN_ON_ONCE((HVS_READ(SCALER_DISPSTATX(chan)) &
-		      (SCALER_DISPSTATX_FULL | SCALER_DISPSTATX_EMPTY)) !=
-		     SCALER_DISPSTATX_EMPTY);
+	return 0;
+}
+
+int vc4_crtc_disable_at_boot(struct drm_crtc *crtc)
+{
+	struct drm_device *drm = crtc->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(drm);
+	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
+	enum vc4_encoder_type encoder_type;
+	const struct vc4_pv_data *pv_data;
+	struct drm_encoder *encoder;
+	struct vc4_hdmi *vc4_hdmi;
+	unsigned encoder_sel;
+	int channel;
+	int ret;
+
+	if (!(of_device_is_compatible(vc4_crtc->pdev->dev.of_node,
+				      "brcm,bcm2711-pixelvalve2") ||
+	      of_device_is_compatible(vc4_crtc->pdev->dev.of_node,
+				      "brcm,bcm2711-pixelvalve4")))
+		return 0;
+
+	if (!(CRTC_READ(PV_CONTROL) & PV_CONTROL_EN))
+		return 0;
+
+	if (!(CRTC_READ(PV_V_CONTROL) & PV_VCONTROL_VIDEN))
+		return 0;
+
+	channel = vc4_hvs_get_fifo_from_output(vc4->hvs, vc4_crtc->data->hvs_output);
+	if (channel < 0)
+		return 0;
+
+	encoder_sel = VC4_GET_FIELD(CRTC_READ(PV_CONTROL), PV_CONTROL_CLK_SELECT);
+	if (WARN_ON(encoder_sel != 0))
+		return 0;
+
+	pv_data = vc4_crtc_to_vc4_pv_data(vc4_crtc);
+	encoder_type = pv_data->encoder_types[encoder_sel];
+	encoder = vc4_find_encoder_by_type(drm, encoder_type);
+	if (WARN_ON(!encoder))
+		return 0;
+
+	vc4_hdmi = encoder_to_vc4_hdmi(encoder);
+	ret = pm_runtime_resume_and_get(&vc4_hdmi->pdev->dev);
+	if (ret)
+		return ret;
+
+	ret = vc4_crtc_disable(crtc, encoder, NULL, channel);
+	if (ret)
+		return ret;
+
+	/*
+	 * post_crtc_powerdown will have called pm_runtime_put, so we
+	 * don't need it here otherwise we'll get the reference counting
+	 * wrong.
+	 */
+
+	return 0;
+}
+
+void vc4_crtc_send_vblank(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	unsigned long flags;
+
+	if (!crtc->state || !crtc->state->event)
+		return;
+
+	spin_lock_irqsave(&dev->event_lock, flags);
+	drm_crtc_send_vblank_event(crtc, crtc->state->event);
+	crtc->state->event = NULL;
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+}
+
+static void vc4_crtc_atomic_disable(struct drm_crtc *crtc,
+				    struct drm_atomic_state *state)
+{
+	struct drm_crtc_state *old_state = drm_atomic_get_old_crtc_state(state,
+									 crtc);
+	struct vc4_crtc_state *old_vc4_state = to_vc4_crtc_state(old_state);
+	struct drm_encoder *encoder = vc4_get_crtc_encoder(crtc, old_state);
+	struct drm_device *dev = crtc->dev;
+
+	drm_dbg(dev, "Disabling CRTC %s (%u) connected to Encoder %s (%u)",
+		crtc->name, crtc->base.id, encoder->name, encoder->base.id);
+
+	require_hvs_enabled(dev);
+
+	/* Disable vblank irq handling before crtc is disabled. */
+	drm_crtc_vblank_off(crtc);
+
+	vc4_crtc_disable(crtc, encoder, state, old_vc4_state->assigned_channel);
 
 	/*
 	 * Make sure we issue a vblank event after disabling the CRTC if
 	 * someone was waiting it.
 	 */
-	if (crtc->state->event) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&dev->event_lock, flags);
-		drm_crtc_send_vblank_event(crtc, crtc->state->event);
-		crtc->state->event = NULL;
-		spin_unlock_irqrestore(&dev->event_lock, flags);
-	}
-}
-
-void vc4_crtc_txp_armed(struct drm_crtc_state *state)
-{
-	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(state);
-
-	vc4_state->txp_armed = true;
-}
-
-static void vc4_crtc_update_dlist(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
-	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
-
-	if (crtc->state->event) {
-		unsigned long flags;
-
-		crtc->state->event->pipe = drm_crtc_index(crtc);
-
-		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
-
-		spin_lock_irqsave(&dev->event_lock, flags);
-
-		if (!vc4_state->feed_txp || vc4_state->txp_armed) {
-			vc4_crtc->event = crtc->state->event;
-			crtc->state->event = NULL;
-		}
-
-		HVS_WRITE(SCALER_DISPLISTX(vc4_crtc->channel),
-			  vc4_state->mm.start);
-
-		spin_unlock_irqrestore(&dev->event_lock, flags);
-	} else {
-		HVS_WRITE(SCALER_DISPLISTX(vc4_crtc->channel),
-			  vc4_state->mm.start);
-	}
+	vc4_crtc_send_vblank(crtc);
 }
 
 static void vc4_crtc_atomic_enable(struct drm_crtc *crtc,
-				   struct drm_crtc_state *old_state)
+				   struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *new_state = drm_atomic_get_new_crtc_state(state,
+									 crtc);
 	struct drm_device *dev = crtc->dev;
-	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
-	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
-	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
+	struct drm_encoder *encoder = vc4_get_crtc_encoder(crtc, new_state);
+	struct vc4_encoder *vc4_encoder = to_vc4_encoder(encoder);
+	int idx;
+
+	drm_dbg(dev, "Enabling CRTC %s (%u) connected to Encoder %s (%u)",
+		crtc->name, crtc->base.id, encoder->name, encoder->base.id);
+
+	if (!drm_dev_enter(dev, &idx))
+		return;
 
 	require_hvs_enabled(dev);
 
@@ -557,25 +633,29 @@ static void vc4_crtc_atomic_enable(struct drm_crtc *crtc,
 	 * drm_crtc_get_vblank() fails in vc4_crtc_update_dlist().
 	 */
 	drm_crtc_vblank_on(crtc);
-	vc4_crtc_update_dlist(crtc);
 
-	/* Turn on the scaler, which will wait for vstart to start
-	 * compositing.
-	 * When feeding the transposer, we should operate in oneshot
-	 * mode.
-	 */
-	HVS_WRITE(SCALER_DISPCTRLX(vc4_crtc->channel),
-		  VC4_SET_FIELD(mode->hdisplay, SCALER_DISPCTRLX_WIDTH) |
-		  VC4_SET_FIELD(mode->vdisplay, SCALER_DISPCTRLX_HEIGHT) |
-		  SCALER_DISPCTRLX_ENABLE |
-		  (vc4_state->feed_txp ? SCALER_DISPCTRLX_ONESHOT : 0));
+	vc4_hvs_atomic_enable(crtc, state);
+
+	if (vc4_encoder->pre_crtc_configure)
+		vc4_encoder->pre_crtc_configure(encoder, state);
+
+	vc4_crtc_config_pv(crtc, encoder, state);
+
+	CRTC_WRITE(PV_CONTROL, CRTC_READ(PV_CONTROL) | PV_CONTROL_EN);
+
+	if (vc4_encoder->pre_crtc_enable)
+		vc4_encoder->pre_crtc_enable(encoder, state);
 
 	/* When feeding the transposer block the pixelvalve is unneeded and
 	 * should not be enabled.
 	 */
-	if (!vc4_state->feed_txp)
-		CRTC_WRITE(PV_V_CONTROL,
-			   CRTC_READ(PV_V_CONTROL) | PV_VCONTROL_VIDEN);
+	CRTC_WRITE(PV_V_CONTROL,
+		   CRTC_READ(PV_V_CONTROL) | PV_VCONTROL_VIDEN);
+
+	if (vc4_encoder->post_crtc_enable)
+		vc4_encoder->post_crtc_enable(encoder, state);
+
+	drm_dev_exit(idx);
 }
 
 static enum drm_mode_status vc4_crtc_mode_valid(struct drm_crtc *crtc,
@@ -622,52 +702,38 @@ void vc4_crtc_get_margins(struct drm_crtc_state *state,
 	}
 }
 
-static int vc4_crtc_atomic_check(struct drm_crtc *crtc,
-				 struct drm_crtc_state *state)
+int vc4_crtc_atomic_check(struct drm_crtc *crtc,
+			  struct drm_atomic_state *state)
 {
-	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(state);
-	struct drm_device *dev = crtc->dev;
-	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct drm_plane *plane;
-	unsigned long flags;
-	const struct drm_plane_state *plane_state;
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
+	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc_state);
 	struct drm_connector *conn;
 	struct drm_connector_state *conn_state;
-	u32 dlist_count = 0;
+	struct drm_encoder *encoder;
 	int ret, i;
 
-	/* The pixelvalve can only feed one encoder (and encoders are
-	 * 1:1 with connectors.)
-	 */
-	if (hweight32(state->connector_mask) > 1)
-		return -EINVAL;
-
-	drm_atomic_crtc_state_for_each_plane_state(plane, plane_state, state)
-		dlist_count += vc4_plane_dlist_size(plane_state);
-
-	dlist_count++; /* Account for SCALER_CTL0_END. */
-
-	spin_lock_irqsave(&vc4->hvs->mm_lock, flags);
-	ret = drm_mm_insert_node(&vc4->hvs->dlist_mm, &vc4_state->mm,
-				 dlist_count);
-	spin_unlock_irqrestore(&vc4->hvs->mm_lock, flags);
+	ret = vc4_hvs_atomic_check(crtc, state);
 	if (ret)
 		return ret;
 
-	for_each_new_connector_in_state(state->state, conn, conn_state, i) {
+	encoder = vc4_get_crtc_encoder(crtc, crtc_state);
+	if (encoder) {
+		const struct drm_display_mode *mode = &crtc_state->adjusted_mode;
+		struct vc4_encoder *vc4_encoder = to_vc4_encoder(encoder);
+
+		if (vc4_encoder->type == VC4_ENCODER_TYPE_HDMI0) {
+			vc4_state->hvs_load = max(mode->clock * mode->hdisplay / mode->htotal + 8000,
+						  mode->clock * 9 / 10) * 1000;
+		} else {
+			vc4_state->hvs_load = mode->clock * 1000;
+		}
+	}
+
+	for_each_new_connector_in_state(state, conn, conn_state,
+					i) {
 		if (conn_state->crtc != crtc)
 			continue;
-
-		/* The writeback connector is implemented using the transposer
-		 * block which is directly taking its data from the HVS FIFO.
-		 */
-		if (conn->connector_type == DRM_MODE_CONNECTOR_WRITEBACK) {
-			state->no_vblank = true;
-			vc4_state->feed_txp = true;
-		} else {
-			state->no_vblank = false;
-			vc4_state->feed_txp = false;
-		}
 
 		vc4_state->margins.left = conn_state->tv.margins.left;
 		vc4_state->margins.right = conn_state->tv.margins.right;
@@ -679,94 +745,18 @@ static int vc4_crtc_atomic_check(struct drm_crtc *crtc,
 	return 0;
 }
 
-static void vc4_crtc_atomic_flush(struct drm_crtc *crtc,
-				  struct drm_crtc_state *old_state)
-{
-	struct drm_device *dev = crtc->dev;
-	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
-	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
-	struct drm_plane *plane;
-	struct vc4_plane_state *vc4_plane_state;
-	bool debug_dump_regs = false;
-	bool enable_bg_fill = false;
-	u32 __iomem *dlist_start = vc4->hvs->dlist + vc4_state->mm.start;
-	u32 __iomem *dlist_next = dlist_start;
-
-	if (debug_dump_regs) {
-		DRM_INFO("CRTC %d HVS before:\n", drm_crtc_index(crtc));
-		vc4_hvs_dump_state(dev);
-	}
-
-	/* Copy all the active planes' dlist contents to the hardware dlist. */
-	drm_atomic_crtc_for_each_plane(plane, crtc) {
-		/* Is this the first active plane? */
-		if (dlist_next == dlist_start) {
-			/* We need to enable background fill when a plane
-			 * could be alpha blending from the background, i.e.
-			 * where no other plane is underneath. It suffices to
-			 * consider the first active plane here since we set
-			 * needs_bg_fill such that either the first plane
-			 * already needs it or all planes on top blend from
-			 * the first or a lower plane.
-			 */
-			vc4_plane_state = to_vc4_plane_state(plane->state);
-			enable_bg_fill = vc4_plane_state->needs_bg_fill;
-		}
-
-		dlist_next += vc4_plane_write_dlist(plane, dlist_next);
-	}
-
-	writel(SCALER_CTL0_END, dlist_next);
-	dlist_next++;
-
-	WARN_ON_ONCE(dlist_next - dlist_start != vc4_state->mm.size);
-
-	if (enable_bg_fill)
-		/* This sets a black background color fill, as is the case
-		 * with other DRM drivers.
-		 */
-		HVS_WRITE(SCALER_DISPBKGNDX(vc4_crtc->channel),
-			  HVS_READ(SCALER_DISPBKGNDX(vc4_crtc->channel)) |
-			  SCALER_DISPBKGND_FILL);
-
-	/* Only update DISPLIST if the CRTC was already running and is not
-	 * being disabled.
-	 * vc4_crtc_enable() takes care of updating the dlist just after
-	 * re-enabling VBLANK interrupts and before enabling the engine.
-	 * If the CRTC is being disabled, there's no point in updating this
-	 * information.
-	 */
-	if (crtc->state->active && old_state->active)
-		vc4_crtc_update_dlist(crtc);
-
-	if (crtc->state->color_mgmt_changed) {
-		u32 dispbkgndx = HVS_READ(SCALER_DISPBKGNDX(vc4_crtc->channel));
-
-		if (crtc->state->gamma_lut) {
-			vc4_crtc_update_gamma_lut(crtc);
-			dispbkgndx |= SCALER_DISPBKGND_GAMMA;
-		} else {
-			/* Unsetting DISPBKGND_GAMMA skips the gamma lut step
-			 * in hardware, which is the same as a linear lut that
-			 * DRM expects us to use in absence of a user lut.
-			 */
-			dispbkgndx &= ~SCALER_DISPBKGND_GAMMA;
-		}
-		HVS_WRITE(SCALER_DISPBKGNDX(vc4_crtc->channel), dispbkgndx);
-	}
-
-	if (debug_dump_regs) {
-		DRM_INFO("CRTC %d HVS after:\n", drm_crtc_index(crtc));
-		vc4_hvs_dump_state(dev);
-	}
-}
-
 static int vc4_enable_vblank(struct drm_crtc *crtc)
 {
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
+	struct drm_device *dev = crtc->dev;
+	int idx;
+
+	if (!drm_dev_enter(dev, &idx))
+		return -ENODEV;
 
 	CRTC_WRITE(PV_INTEN, PV_INT_VFP_START);
+
+	drm_dev_exit(idx);
 
 	return 0;
 }
@@ -774,8 +764,15 @@ static int vc4_enable_vblank(struct drm_crtc *crtc)
 static void vc4_disable_vblank(struct drm_crtc *crtc)
 {
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
+	struct drm_device *dev = crtc->dev;
+	int idx;
+
+	if (!drm_dev_enter(dev, &idx))
+		return;
 
 	CRTC_WRITE(PV_INTEN, 0);
+
+	drm_dev_exit(idx);
 }
 
 static void vc4_crtc_handle_page_flip(struct vc4_crtc *vc4_crtc)
@@ -783,14 +780,15 @@ static void vc4_crtc_handle_page_flip(struct vc4_crtc *vc4_crtc)
 	struct drm_crtc *crtc = &vc4_crtc->base;
 	struct drm_device *dev = crtc->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
-	u32 chan = vc4_crtc->channel;
+	struct vc4_hvs *hvs = vc4->hvs;
+	u32 chan = vc4_crtc->current_hvs_channel;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
+	spin_lock(&vc4_crtc->irq_lock);
 	if (vc4_crtc->event &&
-	    (vc4_state->mm.start == HVS_READ(SCALER_DISPLACTX(chan)) ||
-	     vc4_state->feed_txp)) {
+	    (vc4_crtc->current_dlist == HVS_READ(SCALER_DISPLACTX(chan)) ||
+	     vc4_crtc->feeds_txp)) {
 		drm_crtc_send_vblank_event(crtc, vc4_crtc->event);
 		vc4_crtc->event = NULL;
 		drm_crtc_vblank_put(crtc);
@@ -801,8 +799,9 @@ static void vc4_crtc_handle_page_flip(struct vc4_crtc *vc4_crtc)
 		 * the CRTC and encoder already reconfigured, leading to
 		 * underruns. This can be seen when reconfiguring the CRTC.
 		 */
-		vc4_hvs_unmask_underrun(dev, vc4_crtc->channel);
+		vc4_hvs_unmask_underrun(hvs, chan);
 	}
+	spin_unlock(&vc4_crtc->irq_lock);
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
 
@@ -834,20 +833,20 @@ struct vc4_async_flip_state {
 	struct drm_framebuffer *old_fb;
 	struct drm_pending_vblank_event *event;
 
-	struct vc4_seqno_cb cb;
+	union {
+		struct dma_fence_cb fence;
+		struct vc4_seqno_cb seqno;
+	} cb;
 };
 
 /* Called when the V3D execution for the BO being flipped to is done, so that
  * we can actually update the plane's address to point to it.
  */
 static void
-vc4_async_page_flip_complete(struct vc4_seqno_cb *cb)
+vc4_async_page_flip_complete(struct vc4_async_flip_state *flip_state)
 {
-	struct vc4_async_flip_state *flip_state =
-		container_of(cb, struct vc4_async_flip_state, cb);
 	struct drm_crtc *crtc = flip_state->crtc;
 	struct drm_device *dev = crtc->dev;
-	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct drm_plane *plane = crtc->primary;
 
 	vc4_plane_async_set_fb(plane, flip_state->fb);
@@ -862,76 +861,101 @@ vc4_async_page_flip_complete(struct vc4_seqno_cb *cb)
 	drm_crtc_vblank_put(crtc);
 	drm_framebuffer_put(flip_state->fb);
 
-	/* Decrement the BO usecnt in order to keep the inc/dec calls balanced
-	 * when the planes are updated through the async update path.
-	 * FIXME: we should move to generic async-page-flip when it's
-	 * available, so that we can get rid of this hand-made cleanup_fb()
-	 * logic.
-	 */
-	if (flip_state->old_fb) {
-		struct drm_gem_cma_object *cma_bo;
-		struct vc4_bo *bo;
-
-		cma_bo = drm_fb_cma_get_gem_obj(flip_state->old_fb, 0);
-		bo = to_vc4_bo(&cma_bo->base);
-		vc4_bo_dec_usecnt(bo);
+	if (flip_state->old_fb)
 		drm_framebuffer_put(flip_state->old_fb);
-	}
 
 	kfree(flip_state);
-
-	up(&vc4->async_modeset);
 }
 
-/* Implements async (non-vblank-synced) page flips.
- *
- * The page flip ioctl needs to return immediately, so we grab the
- * modeset semaphore on the pipe, and queue the address update for
- * when V3D is done with the BO being flipped to.
- */
-static int vc4_async_page_flip(struct drm_crtc *crtc,
-			       struct drm_framebuffer *fb,
-			       struct drm_pending_vblank_event *event,
-			       uint32_t flags)
+static void vc4_async_page_flip_seqno_complete(struct vc4_seqno_cb *cb)
 {
-	struct drm_device *dev = crtc->dev;
-	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct drm_plane *plane = crtc->primary;
-	int ret = 0;
-	struct vc4_async_flip_state *flip_state;
-	struct drm_gem_cma_object *cma_bo = drm_fb_cma_get_gem_obj(fb, 0);
-	struct vc4_bo *bo = to_vc4_bo(&cma_bo->base);
+	struct vc4_async_flip_state *flip_state =
+		container_of(cb, struct vc4_async_flip_state, cb.seqno);
+	struct vc4_bo *bo = NULL;
 
-	/* Increment the BO usecnt here, so that we never end up with an
-	 * unbalanced number of vc4_bo_{dec,inc}_usecnt() calls when the
-	 * plane is later updated through the non-async path.
-	 * FIXME: we should move to generic async-page-flip when it's
-	 * available, so that we can get rid of this hand-made prepare_fb()
-	 * logic.
+	if (flip_state->old_fb) {
+		struct drm_gem_dma_object *dma_bo =
+			drm_fb_dma_get_gem_obj(flip_state->old_fb, 0);
+		bo = to_vc4_bo(&dma_bo->base);
+	}
+
+	vc4_async_page_flip_complete(flip_state);
+
+	/*
+	 * Decrement the BO usecnt in order to keep the inc/dec
+	 * calls balanced when the planes are updated through
+	 * the async update path.
+	 *
+	 * FIXME: we should move to generic async-page-flip when
+	 * it's available, so that we can get rid of this
+	 * hand-made cleanup_fb() logic.
 	 */
-	ret = vc4_bo_inc_usecnt(bo);
+	if (bo)
+		vc4_bo_dec_usecnt(bo);
+}
+
+static void vc4_async_page_flip_fence_complete(struct dma_fence *fence,
+					       struct dma_fence_cb *cb)
+{
+	struct vc4_async_flip_state *flip_state =
+		container_of(cb, struct vc4_async_flip_state, cb.fence);
+
+	vc4_async_page_flip_complete(flip_state);
+	dma_fence_put(fence);
+}
+
+static int vc4_async_set_fence_cb(struct drm_device *dev,
+				  struct vc4_async_flip_state *flip_state)
+{
+	struct drm_framebuffer *fb = flip_state->fb;
+	struct drm_gem_dma_object *dma_bo = drm_fb_dma_get_gem_obj(fb, 0);
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct dma_fence *fence;
+	int ret;
+
+	if (!vc4->is_vc5) {
+		struct vc4_bo *bo = to_vc4_bo(&dma_bo->base);
+
+		return vc4_queue_seqno_cb(dev, &flip_state->cb.seqno, bo->seqno,
+					  vc4_async_page_flip_seqno_complete);
+	}
+
+	ret = dma_resv_get_singleton(dma_bo->base.resv, DMA_RESV_USAGE_READ, &fence);
 	if (ret)
 		return ret;
 
-	flip_state = kzalloc(sizeof(*flip_state), GFP_KERNEL);
-	if (!flip_state) {
-		vc4_bo_dec_usecnt(bo);
-		return -ENOMEM;
+	/* If there's no fence, complete the page flip immediately */
+	if (!fence) {
+		vc4_async_page_flip_fence_complete(fence, &flip_state->cb.fence);
+		return 0;
 	}
+
+	/* If the fence has already been completed, complete the page flip */
+	if (dma_fence_add_callback(fence, &flip_state->cb.fence,
+				   vc4_async_page_flip_fence_complete))
+		vc4_async_page_flip_fence_complete(fence, &flip_state->cb.fence);
+
+	return 0;
+}
+
+static int
+vc4_async_page_flip_common(struct drm_crtc *crtc,
+			   struct drm_framebuffer *fb,
+			   struct drm_pending_vblank_event *event,
+			   uint32_t flags)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_plane *plane = crtc->primary;
+	struct vc4_async_flip_state *flip_state;
+
+	flip_state = kzalloc(sizeof(*flip_state), GFP_KERNEL);
+	if (!flip_state)
+		return -ENOMEM;
 
 	drm_framebuffer_get(fb);
 	flip_state->fb = fb;
 	flip_state->crtc = crtc;
 	flip_state->event = event;
-
-	/* Make sure all other async modesetes have landed. */
-	ret = down_interruptible(&vc4->async_modeset);
-	if (ret) {
-		drm_framebuffer_put(fb);
-		vc4_bo_dec_usecnt(bo);
-		kfree(flip_state);
-		return ret;
-	}
 
 	/* Save the current FB before it's replaced by the new one in
 	 * drm_atomic_set_fb_for_plane(). We'll need the old FB in
@@ -953,26 +977,82 @@ static int vc4_async_page_flip(struct drm_crtc *crtc,
 	 */
 	drm_atomic_set_fb_for_plane(plane->state, fb);
 
-	vc4_queue_seqno_cb(dev, &flip_state->cb, bo->seqno,
-			   vc4_async_page_flip_complete);
+	vc4_async_set_fence_cb(dev, flip_state);
 
 	/* Driver takes ownership of state on successful async commit. */
 	return 0;
 }
 
-static int vc4_page_flip(struct drm_crtc *crtc,
-			 struct drm_framebuffer *fb,
-			 struct drm_pending_vblank_event *event,
-			 uint32_t flags,
-			 struct drm_modeset_acquire_ctx *ctx)
+/* Implements async (non-vblank-synced) page flips.
+ *
+ * The page flip ioctl needs to return immediately, so we grab the
+ * modeset semaphore on the pipe, and queue the address update for
+ * when V3D is done with the BO being flipped to.
+ */
+static int vc4_async_page_flip(struct drm_crtc *crtc,
+			       struct drm_framebuffer *fb,
+			       struct drm_pending_vblank_event *event,
+			       uint32_t flags)
 {
-	if (flags & DRM_MODE_PAGE_FLIP_ASYNC)
-		return vc4_async_page_flip(crtc, fb, event, flags);
-	else
-		return drm_atomic_helper_page_flip(crtc, fb, event, flags, ctx);
+	struct drm_device *dev = crtc->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct drm_gem_dma_object *dma_bo = drm_fb_dma_get_gem_obj(fb, 0);
+	struct vc4_bo *bo = to_vc4_bo(&dma_bo->base);
+	int ret;
+
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return -ENODEV;
+
+	/*
+	 * Increment the BO usecnt here, so that we never end up with an
+	 * unbalanced number of vc4_bo_{dec,inc}_usecnt() calls when the
+	 * plane is later updated through the non-async path.
+	 *
+	 * FIXME: we should move to generic async-page-flip when
+	 * it's available, so that we can get rid of this
+	 * hand-made prepare_fb() logic.
+	 */
+	ret = vc4_bo_inc_usecnt(bo);
+	if (ret)
+		return ret;
+
+	ret = vc4_async_page_flip_common(crtc, fb, event, flags);
+	if (ret) {
+		vc4_bo_dec_usecnt(bo);
+		return ret;
+	}
+
+	return 0;
 }
 
-static struct drm_crtc_state *vc4_crtc_duplicate_state(struct drm_crtc *crtc)
+static int vc5_async_page_flip(struct drm_crtc *crtc,
+			       struct drm_framebuffer *fb,
+			       struct drm_pending_vblank_event *event,
+			       uint32_t flags)
+{
+	return vc4_async_page_flip_common(crtc, fb, event, flags);
+}
+
+int vc4_page_flip(struct drm_crtc *crtc,
+		  struct drm_framebuffer *fb,
+		  struct drm_pending_vblank_event *event,
+		  uint32_t flags,
+		  struct drm_modeset_acquire_ctx *ctx)
+{
+	if (flags & DRM_MODE_PAGE_FLIP_ASYNC) {
+		struct drm_device *dev = crtc->dev;
+		struct vc4_dev *vc4 = to_vc4_dev(dev);
+
+		if (vc4->is_vc5)
+			return vc5_async_page_flip(crtc, fb, event, flags);
+		else
+			return vc4_async_page_flip(crtc, fb, event, flags);
+	} else {
+		return drm_atomic_helper_page_flip(crtc, fb, event, flags, ctx);
+	}
+}
+
+struct drm_crtc_state *vc4_crtc_duplicate_state(struct drm_crtc *crtc)
 {
 	struct vc4_crtc_state *vc4_state, *old_vc4_state;
 
@@ -981,20 +1061,20 @@ static struct drm_crtc_state *vc4_crtc_duplicate_state(struct drm_crtc *crtc)
 		return NULL;
 
 	old_vc4_state = to_vc4_crtc_state(crtc->state);
-	vc4_state->feed_txp = old_vc4_state->feed_txp;
 	vc4_state->margins = old_vc4_state->margins;
+	vc4_state->assigned_channel = old_vc4_state->assigned_channel;
 
 	__drm_atomic_helper_crtc_duplicate_state(crtc, &vc4_state->base);
 	return &vc4_state->base;
 }
 
-static void vc4_crtc_destroy_state(struct drm_crtc *crtc,
-				   struct drm_crtc_state *state)
+void vc4_crtc_destroy_state(struct drm_crtc *crtc,
+			    struct drm_crtc_state *state)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(crtc->dev);
 	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(state);
 
-	if (vc4_state->mm.allocated) {
+	if (drm_mm_node_allocated(&vc4_state->mm)) {
 		unsigned long flags;
 
 		spin_lock_irqsave(&vc4->hvs->mm_lock, flags);
@@ -1006,20 +1086,37 @@ static void vc4_crtc_destroy_state(struct drm_crtc *crtc,
 	drm_atomic_helper_crtc_destroy_state(crtc, state);
 }
 
-static void
-vc4_crtc_reset(struct drm_crtc *crtc)
+void vc4_crtc_reset(struct drm_crtc *crtc)
 {
+	struct vc4_crtc_state *vc4_crtc_state;
+
 	if (crtc->state)
 		vc4_crtc_destroy_state(crtc, crtc->state);
 
-	crtc->state = kzalloc(sizeof(struct vc4_crtc_state), GFP_KERNEL);
-	if (crtc->state)
-		crtc->state->crtc = crtc;
+	vc4_crtc_state = kzalloc(sizeof(*vc4_crtc_state), GFP_KERNEL);
+	if (!vc4_crtc_state) {
+		crtc->state = NULL;
+		return;
+	}
+
+	vc4_crtc_state->assigned_channel = VC4_HVS_CHANNEL_DISABLED;
+	__drm_atomic_helper_crtc_reset(crtc, &vc4_crtc_state->base);
+}
+
+int vc4_crtc_late_register(struct drm_crtc *crtc)
+{
+	struct drm_device *drm = crtc->dev;
+	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
+	const struct vc4_crtc_data *crtc_data = vc4_crtc_to_vc4_crtc_data(vc4_crtc);
+
+	vc4_debugfs_add_regset32(drm, crtc_data->debugfs_name,
+				 &vc4_crtc->regset);
+
+	return 0;
 }
 
 static const struct drm_crtc_funcs vc4_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
-	.destroy = vc4_crtc_destroy,
 	.page_flip = vc4_page_flip,
 	.set_property = NULL,
 	.cursor_set = NULL, /* handled by drm_mode_cursor_universal */
@@ -1027,51 +1124,148 @@ static const struct drm_crtc_funcs vc4_crtc_funcs = {
 	.reset = vc4_crtc_reset,
 	.atomic_duplicate_state = vc4_crtc_duplicate_state,
 	.atomic_destroy_state = vc4_crtc_destroy_state,
-	.gamma_set = drm_atomic_helper_legacy_gamma_set,
 	.enable_vblank = vc4_enable_vblank,
 	.disable_vblank = vc4_disable_vblank,
+	.get_vblank_timestamp = drm_crtc_vblank_helper_get_vblank_timestamp,
+	.late_register = vc4_crtc_late_register,
 };
 
 static const struct drm_crtc_helper_funcs vc4_crtc_helper_funcs = {
-	.mode_set_nofb = vc4_crtc_mode_set_nofb,
 	.mode_valid = vc4_crtc_mode_valid,
 	.atomic_check = vc4_crtc_atomic_check,
-	.atomic_flush = vc4_crtc_atomic_flush,
+	.atomic_begin = vc4_hvs_atomic_begin,
+	.atomic_flush = vc4_hvs_atomic_flush,
 	.atomic_enable = vc4_crtc_atomic_enable,
 	.atomic_disable = vc4_crtc_atomic_disable,
+	.get_scanout_position = vc4_crtc_get_scanout_position,
 };
 
-static const struct vc4_crtc_data pv0_data = {
-	.hvs_channel = 0,
-	.debugfs_name = "crtc0_regs",
+const struct vc4_pv_data bcm2835_pv0_data = {
+	.base = {
+		.name = "pixelvalve-0",
+		.debugfs_name = "crtc0_regs",
+		.hvs_available_channels = BIT(0),
+		.hvs_output = 0,
+	},
+	.fifo_depth = 64,
+	.pixels_per_clock = 1,
 	.encoder_types = {
 		[PV_CONTROL_CLK_SELECT_DSI] = VC4_ENCODER_TYPE_DSI0,
 		[PV_CONTROL_CLK_SELECT_DPI_SMI_HDMI] = VC4_ENCODER_TYPE_DPI,
 	},
 };
 
-static const struct vc4_crtc_data pv1_data = {
-	.hvs_channel = 2,
-	.debugfs_name = "crtc1_regs",
+const struct vc4_pv_data bcm2835_pv1_data = {
+	.base = {
+		.name = "pixelvalve-1",
+		.debugfs_name = "crtc1_regs",
+		.hvs_available_channels = BIT(2),
+		.hvs_output = 2,
+	},
+	.fifo_depth = 64,
+	.pixels_per_clock = 1,
 	.encoder_types = {
 		[PV_CONTROL_CLK_SELECT_DSI] = VC4_ENCODER_TYPE_DSI1,
 		[PV_CONTROL_CLK_SELECT_DPI_SMI_HDMI] = VC4_ENCODER_TYPE_SMI,
 	},
 };
 
-static const struct vc4_crtc_data pv2_data = {
-	.hvs_channel = 1,
-	.debugfs_name = "crtc2_regs",
+const struct vc4_pv_data bcm2835_pv2_data = {
+	.base = {
+		.name = "pixelvalve-2",
+		.debugfs_name = "crtc2_regs",
+		.hvs_available_channels = BIT(1),
+		.hvs_output = 1,
+	},
+	.fifo_depth = 64,
+	.pixels_per_clock = 1,
 	.encoder_types = {
-		[PV_CONTROL_CLK_SELECT_DPI_SMI_HDMI] = VC4_ENCODER_TYPE_HDMI,
+		[PV_CONTROL_CLK_SELECT_DPI_SMI_HDMI] = VC4_ENCODER_TYPE_HDMI0,
 		[PV_CONTROL_CLK_SELECT_VEC] = VC4_ENCODER_TYPE_VEC,
 	},
 };
 
+const struct vc4_pv_data bcm2711_pv0_data = {
+	.base = {
+		.name = "pixelvalve-0",
+		.debugfs_name = "crtc0_regs",
+		.hvs_available_channels = BIT(0),
+		.hvs_output = 0,
+	},
+	.fifo_depth = 64,
+	.pixels_per_clock = 1,
+	.encoder_types = {
+		[0] = VC4_ENCODER_TYPE_DSI0,
+		[1] = VC4_ENCODER_TYPE_DPI,
+	},
+};
+
+const struct vc4_pv_data bcm2711_pv1_data = {
+	.base = {
+		.name = "pixelvalve-1",
+		.debugfs_name = "crtc1_regs",
+		.hvs_available_channels = BIT(0) | BIT(1) | BIT(2),
+		.hvs_output = 3,
+	},
+	.fifo_depth = 64,
+	.pixels_per_clock = 1,
+	.encoder_types = {
+		[0] = VC4_ENCODER_TYPE_DSI1,
+		[1] = VC4_ENCODER_TYPE_SMI,
+	},
+};
+
+const struct vc4_pv_data bcm2711_pv2_data = {
+	.base = {
+		.name = "pixelvalve-2",
+		.debugfs_name = "crtc2_regs",
+		.hvs_available_channels = BIT(0) | BIT(1) | BIT(2),
+		.hvs_output = 4,
+	},
+	.fifo_depth = 256,
+	.pixels_per_clock = 2,
+	.encoder_types = {
+		[0] = VC4_ENCODER_TYPE_HDMI0,
+	},
+};
+
+const struct vc4_pv_data bcm2711_pv3_data = {
+	.base = {
+		.name = "pixelvalve-3",
+		.debugfs_name = "crtc3_regs",
+		.hvs_available_channels = BIT(1),
+		.hvs_output = 1,
+	},
+	.fifo_depth = 64,
+	.pixels_per_clock = 1,
+	.encoder_types = {
+		[PV_CONTROL_CLK_SELECT_VEC] = VC4_ENCODER_TYPE_VEC,
+	},
+};
+
+const struct vc4_pv_data bcm2711_pv4_data = {
+	.base = {
+		.name = "pixelvalve-4",
+		.debugfs_name = "crtc4_regs",
+		.hvs_available_channels = BIT(0) | BIT(1) | BIT(2),
+		.hvs_output = 5,
+	},
+	.fifo_depth = 64,
+	.pixels_per_clock = 2,
+	.encoder_types = {
+		[0] = VC4_ENCODER_TYPE_HDMI1,
+	},
+};
+
 static const struct of_device_id vc4_crtc_dt_match[] = {
-	{ .compatible = "brcm,bcm2835-pixelvalve0", .data = &pv0_data },
-	{ .compatible = "brcm,bcm2835-pixelvalve1", .data = &pv1_data },
-	{ .compatible = "brcm,bcm2835-pixelvalve2", .data = &pv2_data },
+	{ .compatible = "brcm,bcm2835-pixelvalve0", .data = &bcm2835_pv0_data },
+	{ .compatible = "brcm,bcm2835-pixelvalve1", .data = &bcm2835_pv1_data },
+	{ .compatible = "brcm,bcm2835-pixelvalve2", .data = &bcm2835_pv2_data },
+	{ .compatible = "brcm,bcm2711-pixelvalve0", .data = &bcm2711_pv0_data },
+	{ .compatible = "brcm,bcm2711-pixelvalve1", .data = &bcm2711_pv1_data },
+	{ .compatible = "brcm,bcm2711-pixelvalve2", .data = &bcm2711_pv2_data },
+	{ .compatible = "brcm,bcm2711-pixelvalve3", .data = &bcm2711_pv3_data },
+	{ .compatible = "brcm,bcm2711-pixelvalve4", .data = &bcm2711_pv4_data },
 	{}
 };
 
@@ -1079,23 +1273,19 @@ static void vc4_set_crtc_possible_masks(struct drm_device *drm,
 					struct drm_crtc *crtc)
 {
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
-	const struct vc4_crtc_data *crtc_data = vc4_crtc->data;
-	const enum vc4_encoder_type *encoder_types = crtc_data->encoder_types;
+	const struct vc4_pv_data *pv_data = vc4_crtc_to_vc4_pv_data(vc4_crtc);
+	const enum vc4_encoder_type *encoder_types = pv_data->encoder_types;
 	struct drm_encoder *encoder;
 
 	drm_for_each_encoder(encoder, drm) {
 		struct vc4_encoder *vc4_encoder;
 		int i;
 
-		/* HVS FIFO2 can feed the TXP IP. */
-		if (crtc_data->hvs_channel == 2 &&
-		    encoder->encoder_type == DRM_MODE_ENCODER_VIRTUAL) {
-			encoder->possible_crtcs |= drm_crtc_mask(crtc);
+		if (encoder->encoder_type == DRM_MODE_ENCODER_VIRTUAL)
 			continue;
-		}
 
 		vc4_encoder = to_vc4_encoder(encoder);
-		for (i = 0; i < ARRAY_SIZE(crtc_data->encoder_types); i++) {
+		for (i = 0; i < ARRAY_SIZE(pv_data->encoder_types); i++) {
 			if (vc4_encoder->type == encoder_types[i]) {
 				vc4_encoder->clock_select = i;
 				encoder->possible_crtcs |= drm_crtc_mask(crtc);
@@ -1105,42 +1295,111 @@ static void vc4_set_crtc_possible_masks(struct drm_device *drm,
 	}
 }
 
-static void
-vc4_crtc_get_cob_allocation(struct vc4_crtc *vc4_crtc)
+/**
+ * __vc4_crtc_init - Initializes a CRTC
+ * @drm: DRM Device
+ * @pdev: CRTC Platform Device
+ * @vc4_crtc: CRTC Object to Initialize
+ * @data: Configuration data associated with this CRTC
+ * @primary_plane: Primary plane for CRTC
+ * @crtc_funcs: Callbacks for the new CRTC
+ * @crtc_helper_funcs: Helper Callbacks for the new CRTC
+ * @feeds_txp: Is this CRTC connected to the TXP?
+ *
+ * Initializes our private CRTC structure. This function is mostly
+ * relevant for KUnit testing, all other users should use
+ * vc4_crtc_init() instead.
+ *
+ * Returns:
+ * 0 on success, a negative error code on failure.
+ */
+int __vc4_crtc_init(struct drm_device *drm,
+		    struct platform_device *pdev,
+		    struct vc4_crtc *vc4_crtc,
+		    const struct vc4_crtc_data *data,
+		    struct drm_plane *primary_plane,
+		    const struct drm_crtc_funcs *crtc_funcs,
+		    const struct drm_crtc_helper_funcs *crtc_helper_funcs,
+		    bool feeds_txp)
 {
-	struct drm_device *drm = vc4_crtc->base.dev;
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
-	u32 dispbase = HVS_READ(SCALER_DISPBASEX(vc4_crtc->channel));
-	/* Top/base are supposed to be 4-pixel aligned, but the
-	 * Raspberry Pi firmware fills the low bits (which are
-	 * presumably ignored).
-	 */
-	u32 top = VC4_GET_FIELD(dispbase, SCALER_DISPBASEX_TOP) & ~3;
-	u32 base = VC4_GET_FIELD(dispbase, SCALER_DISPBASEX_BASE) & ~3;
+	struct drm_crtc *crtc = &vc4_crtc->base;
+	unsigned int i;
+	int ret;
 
-	vc4_crtc->cob_size = top - base + 4;
+	vc4_crtc->data = data;
+	vc4_crtc->pdev = pdev;
+	vc4_crtc->feeds_txp = feeds_txp;
+	spin_lock_init(&vc4_crtc->irq_lock);
+	ret = drmm_crtc_init_with_planes(drm, crtc, primary_plane, NULL,
+					 crtc_funcs, data->name);
+	if (ret)
+		return ret;
+
+	drm_crtc_helper_add(crtc, crtc_helper_funcs);
+
+	if (!vc4->is_vc5) {
+		drm_mode_crtc_set_gamma_size(crtc, ARRAY_SIZE(vc4_crtc->lut_r));
+
+		drm_crtc_enable_color_mgmt(crtc, 0, false, crtc->gamma_size);
+
+		/* We support CTM, but only for one CRTC at a time. It's therefore
+		 * implemented as private driver state in vc4_kms, not here.
+		 */
+		drm_crtc_enable_color_mgmt(crtc, 0, true, crtc->gamma_size);
+	}
+
+	for (i = 0; i < crtc->gamma_size; i++) {
+		vc4_crtc->lut_r[i] = i;
+		vc4_crtc->lut_g[i] = i;
+		vc4_crtc->lut_b[i] = i;
+	}
+
+	return 0;
+}
+
+int vc4_crtc_init(struct drm_device *drm, struct platform_device *pdev,
+		  struct vc4_crtc *vc4_crtc,
+		  const struct vc4_crtc_data *data,
+		  const struct drm_crtc_funcs *crtc_funcs,
+		  const struct drm_crtc_helper_funcs *crtc_helper_funcs,
+		  bool feeds_txp)
+{
+	struct drm_plane *primary_plane;
+
+	/* For now, we create just the primary and the legacy cursor
+	 * planes.  We should be able to stack more planes on easily,
+	 * but to do that we would need to compute the bandwidth
+	 * requirement of the plane configuration, and reject ones
+	 * that will take too much.
+	 */
+	primary_plane = vc4_plane_init(drm, DRM_PLANE_TYPE_PRIMARY, 0);
+	if (IS_ERR(primary_plane)) {
+		dev_err(drm->dev, "failed to construct primary plane\n");
+		return PTR_ERR(primary_plane);
+	}
+
+	return __vc4_crtc_init(drm, pdev, vc4_crtc, data, primary_plane,
+			       crtc_funcs, crtc_helper_funcs, feeds_txp);
 }
 
 static int vc4_crtc_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct drm_device *drm = dev_get_drvdata(master);
+	const struct vc4_pv_data *pv_data;
 	struct vc4_crtc *vc4_crtc;
 	struct drm_crtc *crtc;
-	struct drm_plane *primary_plane, *cursor_plane, *destroy_plane, *temp;
-	const struct of_device_id *match;
-	int ret, i;
+	int ret;
 
-	vc4_crtc = devm_kzalloc(dev, sizeof(*vc4_crtc), GFP_KERNEL);
+	vc4_crtc = drmm_kzalloc(drm, sizeof(*vc4_crtc), GFP_KERNEL);
 	if (!vc4_crtc)
 		return -ENOMEM;
 	crtc = &vc4_crtc->base;
 
-	match = of_match_device(vc4_crtc_dt_match, dev);
-	if (!match)
+	pv_data = of_device_get_match_data(dev);
+	if (!pv_data)
 		return -ENODEV;
-	vc4_crtc->data = match->data;
-	vc4_crtc->pdev = pdev;
 
 	vc4_crtc->regs = vc4_ioremap_regs(pdev, 0);
 	if (IS_ERR(vc4_crtc->regs))
@@ -1150,92 +1409,25 @@ static int vc4_crtc_bind(struct device *dev, struct device *master, void *data)
 	vc4_crtc->regset.regs = crtc_regs;
 	vc4_crtc->regset.nregs = ARRAY_SIZE(crtc_regs);
 
-	/* For now, we create just the primary and the legacy cursor
-	 * planes.  We should be able to stack more planes on easily,
-	 * but to do that we would need to compute the bandwidth
-	 * requirement of the plane configuration, and reject ones
-	 * that will take too much.
-	 */
-	primary_plane = vc4_plane_init(drm, DRM_PLANE_TYPE_PRIMARY);
-	if (IS_ERR(primary_plane)) {
-		dev_err(dev, "failed to construct primary plane\n");
-		ret = PTR_ERR(primary_plane);
-		goto err;
-	}
-
-	drm_crtc_init_with_planes(drm, crtc, primary_plane, NULL,
-				  &vc4_crtc_funcs, NULL);
-	drm_crtc_helper_add(crtc, &vc4_crtc_helper_funcs);
-	vc4_crtc->channel = vc4_crtc->data->hvs_channel;
-	drm_mode_crtc_set_gamma_size(crtc, ARRAY_SIZE(vc4_crtc->lut_r));
-	drm_crtc_enable_color_mgmt(crtc, 0, false, crtc->gamma_size);
-
-	/* We support CTM, but only for one CRTC at a time. It's therefore
-	 * implemented as private driver state in vc4_kms, not here.
-	 */
-	drm_crtc_enable_color_mgmt(crtc, 0, true, crtc->gamma_size);
-
-	/* Set up some arbitrary number of planes.  We're not limited
-	 * by a set number of physical registers, just the space in
-	 * the HVS (16k) and how small an plane can be (28 bytes).
-	 * However, each plane we set up takes up some memory, and
-	 * increases the cost of looping over planes, which atomic
-	 * modesetting does quite a bit.  As a result, we pick a
-	 * modest number of planes to expose, that should hopefully
-	 * still cover any sane usecase.
-	 */
-	for (i = 0; i < 8; i++) {
-		struct drm_plane *plane =
-			vc4_plane_init(drm, DRM_PLANE_TYPE_OVERLAY);
-
-		if (IS_ERR(plane))
-			continue;
-
-		plane->possible_crtcs = drm_crtc_mask(crtc);
-	}
-
-	/* Set up the legacy cursor after overlay initialization,
-	 * since we overlay planes on the CRTC in the order they were
-	 * initialized.
-	 */
-	cursor_plane = vc4_plane_init(drm, DRM_PLANE_TYPE_CURSOR);
-	if (!IS_ERR(cursor_plane)) {
-		cursor_plane->possible_crtcs = drm_crtc_mask(crtc);
-		crtc->cursor = cursor_plane;
-	}
-
-	vc4_crtc_get_cob_allocation(vc4_crtc);
+	ret = vc4_crtc_init(drm, pdev, vc4_crtc, &pv_data->base,
+			    &vc4_crtc_funcs, &vc4_crtc_helper_funcs,
+			    false);
+	if (ret)
+		return ret;
+	vc4_set_crtc_possible_masks(drm, crtc);
 
 	CRTC_WRITE(PV_INTEN, 0);
 	CRTC_WRITE(PV_INTSTAT, PV_INT_VFP_START);
 	ret = devm_request_irq(dev, platform_get_irq(pdev, 0),
-			       vc4_crtc_irq_handler, 0, "vc4 crtc", vc4_crtc);
+			       vc4_crtc_irq_handler,
+			       IRQF_SHARED,
+			       "vc4 crtc", vc4_crtc);
 	if (ret)
-		goto err_destroy_planes;
-
-	vc4_set_crtc_possible_masks(drm, crtc);
-
-	for (i = 0; i < crtc->gamma_size; i++) {
-		vc4_crtc->lut_r[i] = i;
-		vc4_crtc->lut_g[i] = i;
-		vc4_crtc->lut_b[i] = i;
-	}
+		return ret;
 
 	platform_set_drvdata(pdev, vc4_crtc);
 
-	vc4_debugfs_add_regset32(drm, vc4_crtc->data->debugfs_name,
-				 &vc4_crtc->regset);
-
 	return 0;
-
-err_destroy_planes:
-	list_for_each_entry_safe(destroy_plane, temp,
-				 &drm->mode_config.plane_list, head) {
-		if (destroy_plane->possible_crtcs == drm_crtc_mask(crtc))
-		    destroy_plane->funcs->destroy(destroy_plane);
-	}
-err:
-	return ret;
 }
 
 static void vc4_crtc_unbind(struct device *dev, struct device *master,
@@ -1243,8 +1435,6 @@ static void vc4_crtc_unbind(struct device *dev, struct device *master,
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct vc4_crtc *vc4_crtc = dev_get_drvdata(dev);
-
-	vc4_crtc_destroy(&vc4_crtc->base);
 
 	CRTC_WRITE(PV_INTEN, 0);
 
@@ -1261,15 +1451,14 @@ static int vc4_crtc_dev_probe(struct platform_device *pdev)
 	return component_add(&pdev->dev, &vc4_crtc_ops);
 }
 
-static int vc4_crtc_dev_remove(struct platform_device *pdev)
+static void vc4_crtc_dev_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &vc4_crtc_ops);
-	return 0;
 }
 
 struct platform_driver vc4_crtc_driver = {
 	.probe = vc4_crtc_dev_probe,
-	.remove = vc4_crtc_dev_remove,
+	.remove_new = vc4_crtc_dev_remove,
 	.driver = {
 		.name = "vc4_crtc",
 		.of_match_table = vc4_crtc_dt_match,

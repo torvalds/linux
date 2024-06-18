@@ -4,6 +4,8 @@
 #include <linux/audit.h>
 #include <asm/unistd.h>
 
+#include "audit_32.h"
+
 static unsigned dir_class[] = {
 #include <asm-generic/audit_dir_write.h>
 ~0U
@@ -41,21 +43,22 @@ int audit_classify_arch(int arch)
 int audit_classify_syscall(int abi, unsigned syscall)
 {
 #ifdef CONFIG_PPC64
-	extern int ppc32_classify_syscall(unsigned);
 	if (abi == AUDIT_ARCH_PPC)
 		return ppc32_classify_syscall(syscall);
 #endif
 	switch(syscall) {
 	case __NR_open:
-		return 2;
+		return AUDITSC_OPEN;
 	case __NR_openat:
-		return 3;
+		return AUDITSC_OPENAT;
 	case __NR_socketcall:
-		return 4;
+		return AUDITSC_SOCKETCALL;
 	case __NR_execve:
-		return 5;
+		return AUDITSC_EXECVE;
+	case __NR_openat2:
+		return AUDITSC_OPENAT2;
 	default:
-		return 0;
+		return AUDITSC_NATIVE;
 	}
 }
 

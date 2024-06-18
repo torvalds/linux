@@ -1,16 +1,3 @@
 cat <<EOF
-/**
- * ${atomic}_sub_and_test - subtract value from variable and test result
- * @i: integer value to subtract
- * @v: pointer of type ${atomic}_t
- *
- * Atomically subtracts @i from @v and returns
- * true if the result is zero, or false for all
- * other cases.
- */
-static inline bool
-${atomic}_sub_and_test(${int} i, ${atomic}_t *v)
-{
-	return ${atomic}_sub_return(i, v) == 0;
-}
+	return raw_${atomic}_sub_return(i, v) == 0;
 EOF

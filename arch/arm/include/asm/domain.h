@@ -8,8 +8,8 @@
 #define __ASM_PROC_DOMAIN_H
 
 #ifndef __ASSEMBLY__
+#include <linux/thread_info.h>
 #include <asm/barrier.h>
-#include <asm/thread_info.h>
 #endif
 
 /*
@@ -82,7 +82,7 @@
 #ifndef __ASSEMBLY__
 
 #ifdef CONFIG_CPU_CP15_MMU
-static inline unsigned int get_domain(void)
+static __always_inline unsigned int get_domain(void)
 {
 	unsigned int domain;
 
@@ -94,7 +94,7 @@ static inline unsigned int get_domain(void)
 	return domain;
 }
 
-static inline void set_domain(unsigned val)
+static __always_inline void set_domain(unsigned int val)
 {
 	asm volatile(
 	"mcr	p15, 0, %0, c3, c0	@ set domain"
@@ -102,27 +102,14 @@ static inline void set_domain(unsigned val)
 	isb();
 }
 #else
-static inline unsigned int get_domain(void)
+static __always_inline unsigned int get_domain(void)
 {
 	return 0;
 }
 
-static inline void set_domain(unsigned val)
+static __always_inline void set_domain(unsigned int val)
 {
 }
-#endif
-
-#ifdef CONFIG_CPU_USE_DOMAINS
-#define modify_domain(dom,type)					\
-	do {							\
-		unsigned int domain = get_domain();		\
-		domain &= ~domain_mask(dom);			\
-		domain = domain | domain_val(dom, type);	\
-		set_domain(domain);				\
-	} while (0)
-
-#else
-static inline void modify_domain(unsigned dom, unsigned type)	{ }
 #endif
 
 /*

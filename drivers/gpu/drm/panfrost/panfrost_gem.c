@@ -19,29 +19,99 @@ static void panfrost_gem_free_object(struct drm_gem_object *obj)
 	struct panfrost_gem_object *bo = to_panfrost_bo(obj);
 	struct panfrost_device *pfdev = obj->dev->dev_private;
 
+	/*
+	 * Make sure the BO is no longer inserted in the shrinker list before
+	 * taking care of the destruction itself. If we don't do that we have a
+	 * race condition between this function and what's done in
+	 * panfrost_gem_shrinker_scan().
+	 */
+	mutex_lock(&pfdev->shrinker_lock);
+	list_del_init(&bo->base.madv_list);
+	mutex_unlock(&pfdev->shrinker_lock);
+
+	/*
+	 * If we still have mappings attached to the BO, there's a problem in
+	 * our refcounting.
+	 */
+	WARN_ON_ONCE(!list_empty(&bo->mappings.list));
+
 	if (bo->sgts) {
 		int i;
 		int n_sgt = bo->base.base.size / SZ_2M;
 
 		for (i = 0; i < n_sgt; i++) {
 			if (bo->sgts[i].sgl) {
-				dma_unmap_sg(pfdev->dev, bo->sgts[i].sgl,
-					     bo->sgts[i].nents, DMA_BIDIRECTIONAL);
+				dma_unmap_sgtable(pfdev->dev, &bo->sgts[i],
+						  DMA_BIDIRECTIONAL, 0);
 				sg_free_table(&bo->sgts[i]);
 			}
 		}
-		kfree(bo->sgts);
+		kvfree(bo->sgts);
 	}
 
-	mutex_lock(&pfdev->shrinker_lock);
-	if (!list_empty(&bo->base.madv_list))
-		list_del(&bo->base.madv_list);
-	mutex_unlock(&pfdev->shrinker_lock);
-
-	drm_gem_shmem_free_object(obj);
+	drm_gem_shmem_free(&bo->base);
 }
 
-static int panfrost_gem_open(struct drm_gem_object *obj, struct drm_file *file_priv)
+struct panfrost_gem_mapping *
+panfrost_gem_mapping_get(struct panfrost_gem_object *bo,
+			 struct panfrost_file_priv *priv)
+{
+	struct panfrost_gem_mapping *iter, *mapping = NULL;
+
+	mutex_lock(&bo->mappings.lock);
+	list_for_each_entry(iter, &bo->mappings.list, node) {
+		if (iter->mmu == priv->mmu) {
+			kref_get(&iter->refcount);
+			mapping = iter;
+			break;
+		}
+	}
+	mutex_unlock(&bo->mappings.lock);
+
+	return mapping;
+}
+
+static void
+panfrost_gem_teardown_mapping(struct panfrost_gem_mapping *mapping)
+{
+	if (mapping->active)
+		panfrost_mmu_unmap(mapping);
+
+	spin_lock(&mapping->mmu->mm_lock);
+	if (drm_mm_node_allocated(&mapping->mmnode))
+		drm_mm_remove_node(&mapping->mmnode);
+	spin_unlock(&mapping->mmu->mm_lock);
+}
+
+static void panfrost_gem_mapping_release(struct kref *kref)
+{
+	struct panfrost_gem_mapping *mapping;
+
+	mapping = container_of(kref, struct panfrost_gem_mapping, refcount);
+
+	panfrost_gem_teardown_mapping(mapping);
+	drm_gem_object_put(&mapping->obj->base.base);
+	panfrost_mmu_ctx_put(mapping->mmu);
+	kfree(mapping);
+}
+
+void panfrost_gem_mapping_put(struct panfrost_gem_mapping *mapping)
+{
+	if (!mapping)
+		return;
+
+	kref_put(&mapping->refcount, panfrost_gem_mapping_release);
+}
+
+void panfrost_gem_teardown_mappings_locked(struct panfrost_gem_object *bo)
+{
+	struct panfrost_gem_mapping *mapping;
+
+	list_for_each_entry(mapping, &bo->mappings.list, node)
+		panfrost_gem_teardown_mapping(mapping);
+}
+
+int panfrost_gem_open(struct drm_gem_object *obj, struct drm_file *file_priv)
 {
 	int ret;
 	size_t size = obj->size;
@@ -49,6 +119,16 @@ static int panfrost_gem_open(struct drm_gem_object *obj, struct drm_file *file_p
 	struct panfrost_gem_object *bo = to_panfrost_bo(obj);
 	unsigned long color = bo->noexec ? PANFROST_BO_NOEXEC : 0;
 	struct panfrost_file_priv *priv = file_priv->driver_priv;
+	struct panfrost_gem_mapping *mapping;
+
+	mapping = kzalloc(sizeof(*mapping), GFP_KERNEL);
+	if (!mapping)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&mapping->node);
+	kref_init(&mapping->refcount);
+	drm_gem_object_get(obj);
+	mapping->obj = bo;
 
 	/*
 	 * Executable buffers cannot cross a 16MB boundary as the program
@@ -61,57 +141,101 @@ static int panfrost_gem_open(struct drm_gem_object *obj, struct drm_file *file_p
 	else
 		align = size >= SZ_2M ? SZ_2M >> PAGE_SHIFT : 0;
 
-	bo->mmu = &priv->mmu;
-	spin_lock(&priv->mm_lock);
-	ret = drm_mm_insert_node_generic(&priv->mm, &bo->node,
+	mapping->mmu = panfrost_mmu_ctx_get(priv->mmu);
+	spin_lock(&mapping->mmu->mm_lock);
+	ret = drm_mm_insert_node_generic(&mapping->mmu->mm, &mapping->mmnode,
 					 size >> PAGE_SHIFT, align, color, 0);
-	spin_unlock(&priv->mm_lock);
+	spin_unlock(&mapping->mmu->mm_lock);
 	if (ret)
-		return ret;
+		goto err;
 
 	if (!bo->is_heap) {
-		ret = panfrost_mmu_map(bo);
-		if (ret) {
-			spin_lock(&priv->mm_lock);
-			drm_mm_remove_node(&bo->node);
-			spin_unlock(&priv->mm_lock);
-		}
+		ret = panfrost_mmu_map(mapping);
+		if (ret)
+			goto err;
 	}
+
+	mutex_lock(&bo->mappings.lock);
+	WARN_ON(bo->base.madv != PANFROST_MADV_WILLNEED);
+	list_add_tail(&mapping->node, &bo->mappings.list);
+	mutex_unlock(&bo->mappings.lock);
+
+err:
+	if (ret)
+		panfrost_gem_mapping_put(mapping);
 	return ret;
 }
 
-static void panfrost_gem_close(struct drm_gem_object *obj, struct drm_file *file_priv)
+void panfrost_gem_close(struct drm_gem_object *obj, struct drm_file *file_priv)
 {
-	struct panfrost_gem_object *bo = to_panfrost_bo(obj);
 	struct panfrost_file_priv *priv = file_priv->driver_priv;
+	struct panfrost_gem_object *bo = to_panfrost_bo(obj);
+	struct panfrost_gem_mapping *mapping = NULL, *iter;
 
-	if (bo->is_mapped)
-		panfrost_mmu_unmap(bo);
+	mutex_lock(&bo->mappings.lock);
+	list_for_each_entry(iter, &bo->mappings.list, node) {
+		if (iter->mmu == priv->mmu) {
+			mapping = iter;
+			list_del(&iter->node);
+			break;
+		}
+	}
+	mutex_unlock(&bo->mappings.lock);
 
-	spin_lock(&priv->mm_lock);
-	if (drm_mm_node_allocated(&bo->node))
-		drm_mm_remove_node(&bo->node);
-	spin_unlock(&priv->mm_lock);
+	panfrost_gem_mapping_put(mapping);
 }
 
 static int panfrost_gem_pin(struct drm_gem_object *obj)
 {
-	if (to_panfrost_bo(obj)->is_heap)
+	struct panfrost_gem_object *bo = to_panfrost_bo(obj);
+
+	if (bo->is_heap)
 		return -EINVAL;
 
-	return drm_gem_shmem_pin(obj);
+	return drm_gem_shmem_pin_locked(&bo->base);
+}
+
+static enum drm_gem_object_status panfrost_gem_status(struct drm_gem_object *obj)
+{
+	struct panfrost_gem_object *bo = to_panfrost_bo(obj);
+	enum drm_gem_object_status res = 0;
+
+	if (bo->base.base.import_attach || bo->base.pages)
+		res |= DRM_GEM_OBJECT_RESIDENT;
+
+	if (bo->base.madv == PANFROST_MADV_DONTNEED)
+		res |= DRM_GEM_OBJECT_PURGEABLE;
+
+	return res;
+}
+
+static size_t panfrost_gem_rss(struct drm_gem_object *obj)
+{
+	struct panfrost_gem_object *bo = to_panfrost_bo(obj);
+
+	if (bo->is_heap) {
+		return bo->heap_rss_size;
+	} else if (bo->base.pages) {
+		WARN_ON(bo->heap_rss_size);
+		return bo->base.base.size;
+	}
+
+	return 0;
 }
 
 static const struct drm_gem_object_funcs panfrost_gem_funcs = {
 	.free = panfrost_gem_free_object,
 	.open = panfrost_gem_open,
 	.close = panfrost_gem_close,
-	.print_info = drm_gem_shmem_print_info,
+	.print_info = drm_gem_shmem_object_print_info,
 	.pin = panfrost_gem_pin,
-	.unpin = drm_gem_shmem_unpin,
-	.get_sg_table = drm_gem_shmem_get_sg_table,
-	.vmap = drm_gem_shmem_vmap,
-	.vunmap = drm_gem_shmem_vunmap,
+	.unpin = drm_gem_shmem_object_unpin,
+	.get_sg_table = drm_gem_shmem_object_get_sg_table,
+	.vmap = drm_gem_shmem_object_vmap,
+	.vunmap = drm_gem_shmem_object_vunmap,
+	.mmap = drm_gem_shmem_object_mmap,
+	.status = panfrost_gem_status,
+	.rss = panfrost_gem_rss,
 	.vm_ops = &drm_gem_shmem_vm_ops,
 };
 
@@ -125,24 +249,24 @@ static const struct drm_gem_object_funcs panfrost_gem_funcs = {
  */
 struct drm_gem_object *panfrost_gem_create_object(struct drm_device *dev, size_t size)
 {
+	struct panfrost_device *pfdev = dev->dev_private;
 	struct panfrost_gem_object *obj;
 
 	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
 	if (!obj)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
+	INIT_LIST_HEAD(&obj->mappings.list);
+	mutex_init(&obj->mappings.lock);
 	obj->base.base.funcs = &panfrost_gem_funcs;
+	obj->base.map_wc = !pfdev->coherent;
 
 	return &obj->base.base;
 }
 
 struct panfrost_gem_object *
-panfrost_gem_create_with_handle(struct drm_file *file_priv,
-				struct drm_device *dev, size_t size,
-				u32 flags,
-				uint32_t *handle)
+panfrost_gem_create(struct drm_device *dev, size_t size, u32 flags)
 {
-	int ret;
 	struct drm_gem_shmem_object *shmem;
 	struct panfrost_gem_object *bo;
 
@@ -157,16 +281,6 @@ panfrost_gem_create_with_handle(struct drm_file *file_priv,
 	bo = to_panfrost_bo(&shmem->base);
 	bo->noexec = !!(flags & PANFROST_BO_NOEXEC);
 	bo->is_heap = !!(flags & PANFROST_BO_HEAP);
-
-	/*
-	 * Allocate an id of idr table where the obj is registered
-	 * and handle has the id what user can see.
-	 */
-	ret = drm_gem_handle_create(file_priv, &shmem->base, handle);
-	/* drop reference from allocate - handle holds it now. */
-	drm_gem_object_put_unlocked(&shmem->base);
-	if (ret)
-		return ERR_PTR(ret);
 
 	return bo;
 }

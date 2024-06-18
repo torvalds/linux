@@ -1,0 +1,80 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/sp810.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ARM Versatile Express SP810 System Controller
+
+maintainers:
+  - Andre Przywara <andre.przywara@arm.com>
+
+description:
+  The Arm SP810 system controller provides clocks, timers and a watchdog.
+
+# We need a select here so we don't match all nodes with 'arm,primecell'
+select:
+  properties:
+    compatible:
+      contains:
+        const: arm,sp810
+  required:
+    - compatible
+
+properties:
+  compatible:
+    items:
+      - const: arm,sp810
+      - const: arm,primecell
+
+  reg:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: refclk
+      - const: timclk
+      - const: apb_pclk
+
+  clocks:
+    items:
+      - description: reference clock
+      - description: timer clock
+      - description: APB register access clock
+
+  "#clock-cells":
+    const: 1
+
+  clock-output-names:
+    maxItems: 4
+
+  assigned-clocks:
+    maxItems: 4
+
+  assigned-clock-parents:
+    maxItems: 4
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - "#clock-cells"
+
+examples:
+  - |
+    sysctl@20000 {
+        compatible = "arm,sp810", "arm,primecell";
+        reg = <0x020000 0x1000>;
+        clocks = <&v2m_refclk32khz>, <&v2m_refclk1mhz>, <&smbclk>;
+        clock-names = "refclk", "timclk", "apb_pclk";
+        #clock-cells = <1>;
+        clock-output-names = "timerclken0", "timerclken1",
+                             "timerclken2", "timerclken3";
+        assigned-clocks = <&v2m_sysctl 0>, <&v2m_sysctl 1>,
+                          <&v2m_sysctl 3>, <&v2m_sysctl 3>;
+        assigned-clock-parents = <&v2m_refclk1mhz>, <&v2m_refclk1mhz>,
+                                 <&v2m_refclk1mhz>, <&v2m_refclk1mhz>;
+    };

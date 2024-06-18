@@ -7,7 +7,6 @@
 
 #ifndef __AOA_H
 #define __AOA_H
-#include <asm/prom.h>
 #include <linux/module.h>
 #include <sound/core.h>
 #include <sound/asound.h>
@@ -116,7 +115,7 @@ struct aoa_card {
 };
         
 extern int aoa_snd_device_new(enum snd_device_type type,
-	void * device_data, struct snd_device_ops * ops);
+	void *device_data, const struct snd_device_ops *ops);
 extern struct snd_card *aoa_get_card(void);
 extern int aoa_snd_ctl_add(struct snd_kcontrol* control);
 

@@ -9,6 +9,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
 
 #include <linux/pinctrl/pinctrl.h>
 
@@ -28,18 +29,7 @@
 	}
 
 #define DNV_COMMUNITY(b, s, e, g)			\
-	{						\
-		.barno = (b),				\
-		.padown_offset = DNV_PAD_OWN,		\
-		.padcfglock_offset = DNV_PADCFGLOCK,	\
-		.hostown_offset = DNV_HOSTSW_OWN,	\
-		.is_offset = DNV_GPI_IS,		\
-		.ie_offset = DNV_GPI_IE,		\
-		.pin_base = (s),			\
-		.npins = ((e) - (s) + 1),		\
-		.gpps = (g),				\
-		.ngpps = ARRAY_SIZE(g),			\
-	}
+	INTEL_COMMUNITY_GPPS(b, s, e, g, DNV)
 
 /* Denverton */
 static const struct pinctrl_pin_desc dnv_pins[] = {
@@ -260,21 +250,26 @@ static const struct intel_pinctrl_soc_data dnv_soc_data = {
 	.ncommunities = ARRAY_SIZE(dnv_communities),
 };
 
-static INTEL_PINCTRL_PM_OPS(dnv_pinctrl_pm_ops);
-
 static const struct acpi_device_id dnv_pinctrl_acpi_match[] = {
 	{ "INTC3000", (kernel_ulong_t)&dnv_soc_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, dnv_pinctrl_acpi_match);
 
+static const struct platform_device_id dnv_pinctrl_platform_ids[] = {
+	{ "denverton-pinctrl", (kernel_ulong_t)&dnv_soc_data },
+	{ }
+};
+MODULE_DEVICE_TABLE(platform, dnv_pinctrl_platform_ids);
+
 static struct platform_driver dnv_pinctrl_driver = {
 	.probe = intel_pinctrl_probe_by_hid,
 	.driver = {
 		.name = "denverton-pinctrl",
 		.acpi_match_table = dnv_pinctrl_acpi_match,
-		.pm = &dnv_pinctrl_pm_ops,
+		.pm = pm_sleep_ptr(&intel_pinctrl_pm_ops),
 	},
+	.id_table = dnv_pinctrl_platform_ids,
 };
 
 static int __init dnv_pinctrl_init(void)
@@ -292,3 +287,4 @@ module_exit(dnv_pinctrl_exit);
 MODULE_AUTHOR("Mika Westerberg <mika.westerberg@linux.intel.com>");
 MODULE_DESCRIPTION("Intel Denverton SoC pinctrl/GPIO driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(PINCTRL_INTEL);

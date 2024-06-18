@@ -34,40 +34,24 @@
 #include <linux/gfp.h>
 #include <linux/in.h>
 #include <net/tcp.h>
+#include <trace/events/sock.h>
 
 #include "rds.h"
 #include "tcp.h"
 
-int rds_tcp_keepalive(struct socket *sock)
+void rds_tcp_keepalive(struct socket *sock)
 {
 	/* values below based on xs_udp_default_timeout */
 	int keepidle = 5; /* send a probe 'keepidle' secs after last data */
 	int keepcnt = 5; /* number of unack'ed probes before declaring dead */
-	int keepalive = 1;
-	int ret = 0;
 
-	ret = kernel_setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE,
-				(char *)&keepalive, sizeof(keepalive));
-	if (ret < 0)
-		goto bail;
-
-	ret = kernel_setsockopt(sock, IPPROTO_TCP, TCP_KEEPCNT,
-				(char *)&keepcnt, sizeof(keepcnt));
-	if (ret < 0)
-		goto bail;
-
-	ret = kernel_setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE,
-				(char *)&keepidle, sizeof(keepidle));
-	if (ret < 0)
-		goto bail;
-
+	sock_set_keepalive(sock->sk);
+	tcp_sock_set_keepcnt(sock->sk, keepcnt);
+	tcp_sock_set_keepidle(sock->sk, keepidle);
 	/* KEEPINTVL is the interval between successive probes. We follow
 	 * the model in xs_tcp_finish_connecting() and re-use keepidle.
 	 */
-	ret = kernel_setsockopt(sock, IPPROTO_TCP, TCP_KEEPINTVL,
-				(char *)&keepidle, sizeof(keepidle));
-bail:
-	return ret;
+	tcp_sock_set_keepintvl(sock->sk, keepidle);
 }
 
 /* rds_tcp_accept_one_path(): if accepting on cp_index > 0, make sure the
@@ -111,17 +95,6 @@ struct rds_tcp_connection *rds_tcp_accept_one_path(struct rds_connection *conn)
 	return NULL;
 }
 
-void rds_tcp_set_linger(struct socket *sock)
-{
-	struct linger no_linger = {
-		.l_onoff = 1,
-		.l_linger = 0,
-	};
-
-	kernel_setsockopt(sock, SOL_SOCKET, SO_LINGER,
-			  (char *)&no_linger, sizeof(no_linger));
-}
-
 int rds_tcp_accept_one(struct socket *sock)
 {
 	struct socket *new_sock = NULL;
@@ -132,6 +105,10 @@ int rds_tcp_accept_one(struct socket *sock)
 	int conn_state;
 	struct rds_conn_path *cp;
 	struct in6_addr *my_addr, *peer_addr;
+	struct proto_accept_arg arg = {
+		.flags = O_NONBLOCK,
+		.kern = true,
+	};
 #if !IS_ENABLED(CONFIG_IPV6)
 	struct in6_addr saddr, daddr;
 #endif
@@ -146,7 +123,7 @@ int rds_tcp_accept_one(struct socket *sock)
 	if (ret)
 		goto out;
 
-	ret = sock->ops->accept(sock, new_sock, O_NONBLOCK, true);
+	ret = sock->ops->accept(sock, new_sock, &arg);
 	if (ret < 0)
 		goto out;
 
@@ -160,11 +137,11 @@ int rds_tcp_accept_one(struct socket *sock)
 	new_sock->ops = sock->ops;
 	__module_get(new_sock->ops->owner);
 
-	ret = rds_tcp_keepalive(new_sock);
-	if (ret < 0)
+	rds_tcp_keepalive(new_sock);
+	if (!rds_tcp_tune(new_sock)) {
+		ret = -EINVAL;
 		goto out;
-
-	rds_tcp_tune(new_sock);
+	}
 
 	inet = inet_sk(new_sock->sk);
 
@@ -192,11 +169,17 @@ int rds_tcp_accept_one(struct socket *sock)
 		struct ipv6_pinfo *inet6;
 
 		inet6 = inet6_sk(new_sock->sk);
-		dev_if = inet6->mcast_oif;
+		dev_if = READ_ONCE(inet6->mcast_oif);
 	} else {
 		dev_if = new_sock->sk->sk_bound_dev_if;
 	}
 #endif
+
+	if (!rds_tcp_laddr_check(sock_net(sock->sk), peer_addr, dev_if)) {
+		/* local address connection is only allowed via loopback */
+		ret = -EOPNOTSUPP;
+		goto out;
+	}
 
 	conn = rds_conn_create(sock_net(sock->sk),
 			       my_addr, peer_addr,
@@ -241,7 +224,7 @@ rst_nsk:
 	 * be pending on it. By setting linger, we achieve the side-effect
 	 * of avoiding TIME_WAIT state on new_sock.
 	 */
-	rds_tcp_set_linger(new_sock);
+	sock_no_linger(new_sock->sk);
 	kernel_sock_shutdown(new_sock, SHUT_RDWR);
 	ret = 0;
 out:
@@ -256,6 +239,7 @@ void rds_tcp_listen_data_ready(struct sock *sk)
 {
 	void (*ready)(struct sock *sk);
 
+	trace_sk_data_ready(sk);
 	rdsdebug("listen data ready sk %p\n", sk);
 
 	read_lock_bh(&sk->sk_callback_lock);
@@ -303,7 +287,7 @@ struct socket *rds_tcp_listen_init(struct net *net, bool isv6)
 	}
 
 	sock->sk->sk_reuse = SK_CAN_REUSE;
-	rds_tcp_nonagle(sock);
+	tcp_sock_set_nodelay(sock->sk);
 
 	write_lock_bh(&sock->sk->sk_callback_lock);
 	sock->sk->sk_user_data = sock->sk->sk_data_ready;
@@ -326,7 +310,7 @@ struct socket *rds_tcp_listen_init(struct net *net, bool isv6)
 		addr_len = sizeof(*sin);
 	}
 
-	ret = sock->ops->bind(sock, (struct sockaddr *)&ss, addr_len);
+	ret = kernel_bind(sock, (struct sockaddr *)&ss, addr_len);
 	if (ret < 0) {
 		rdsdebug("could not bind %s listener socket: %d\n",
 			 isv6 ? "IPv6" : "IPv4", ret);

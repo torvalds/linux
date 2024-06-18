@@ -13,9 +13,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/regulator/mt6397-regulator.h>
 #include <linux/regulator/of_regulator.h>
-
-#define MT6397_BUCK_MODE_AUTO	0
-#define MT6397_BUCK_MODE_FORCE_PWM	1
+#include <dt-bindings/regulator/mediatek,mt6397-regulator.h>
 
 /*
  * MT6397 regulators' information
@@ -34,7 +32,6 @@ struct mt6397_regulator_info {
 	u32 vselctrl_mask;
 	u32 modeset_reg;
 	u32 modeset_mask;
-	u32 modeset_shift;
 };
 
 #define MT6397_BUCK(match, vreg, min, max, step, volt_ranges, enreg,	\
@@ -55,6 +52,7 @@ struct mt6397_regulator_info {
 		.vsel_mask = vosel_mask,				\
 		.enable_reg = enreg,					\
 		.enable_mask = BIT(0),					\
+		.of_map_mode = mt6397_map_mode,				\
 	},								\
 	.qi = BIT(13),							\
 	.vselon_reg = voselon,						\
@@ -62,7 +60,6 @@ struct mt6397_regulator_info {
 	.vselctrl_mask = BIT(1),					\
 	.modeset_reg = _modeset_reg,					\
 	.modeset_mask = BIT(_modeset_shift),				\
-	.modeset_shift = _modeset_shift					\
 }
 
 #define MT6397_LDO(match, vreg, ldo_volt_table, enreg, enbit, vosel,	\
@@ -102,15 +99,15 @@ struct mt6397_regulator_info {
 	.qi = BIT(15),							\
 }
 
-static const struct regulator_linear_range buck_volt_range1[] = {
+static const struct linear_range buck_volt_range1[] = {
 	REGULATOR_LINEAR_RANGE(700000, 0, 0x7f, 6250),
 };
 
-static const struct regulator_linear_range buck_volt_range2[] = {
+static const struct linear_range buck_volt_range2[] = {
 	REGULATOR_LINEAR_RANGE(800000, 0, 0x7f, 6250),
 };
 
-static const struct regulator_linear_range buck_volt_range3[] = {
+static const struct linear_range buck_volt_range3[] = {
 	REGULATOR_LINEAR_RANGE(1500000, 0, 0x1f, 20000),
 };
 
@@ -146,6 +143,18 @@ static const unsigned int ldo_volt_table7[] = {
 	1300000, 1500000, 1800000, 2000000, 2500000, 2800000, 3000000, 3300000,
 };
 
+static unsigned int mt6397_map_mode(unsigned int mode)
+{
+	switch (mode) {
+	case MT6397_BUCK_MODE_AUTO:
+		return REGULATOR_MODE_NORMAL;
+	case MT6397_BUCK_MODE_FORCE_PWM:
+		return REGULATOR_MODE_FAST;
+	default:
+		return REGULATOR_MODE_INVALID;
+	}
+}
+
 static int mt6397_regulator_set_mode(struct regulator_dev *rdev,
 				     unsigned int mode)
 {
@@ -164,11 +173,11 @@ static int mt6397_regulator_set_mode(struct regulator_dev *rdev,
 		goto err_mode;
 	}
 
-	dev_dbg(&rdev->dev, "mt6397 buck set_mode %#x, %#x, %#x, %#x\n",
-		info->modeset_reg, info->modeset_mask,
-		info->modeset_shift, val);
+	dev_dbg(&rdev->dev, "mt6397 buck set_mode %#x, %#x, %#x\n",
+		info->modeset_reg, info->modeset_mask, val);
 
-	val <<= info->modeset_shift;
+	val <<= ffs(info->modeset_mask) - 1;
+
 	ret = regmap_update_bits(rdev->regmap, info->modeset_reg,
 				 info->modeset_mask, val);
 err_mode:
@@ -193,7 +202,10 @@ static unsigned int mt6397_regulator_get_mode(struct regulator_dev *rdev)
 		return ret;
 	}
 
-	switch ((regval & info->modeset_mask) >> info->modeset_shift) {
+	regval &= info->modeset_mask;
+	regval >>= ffs(info->modeset_mask) - 1;
+
+	switch (regval) {
 	case MT6397_BUCK_MODE_AUTO:
 		return REGULATOR_MODE_NORMAL;
 	case MT6397_BUCK_MODE_FORCE_PWM:
@@ -385,7 +397,7 @@ static const struct platform_device_id mt6397_platform_ids[] = {
 };
 MODULE_DEVICE_TABLE(platform, mt6397_platform_ids);
 
-static const struct of_device_id mt6397_of_match[] = {
+static const struct of_device_id mt6397_of_match[] __maybe_unused = {
 	{ .compatible = "mediatek,mt6397-regulator", },
 	{ /* sentinel */ },
 };
@@ -394,6 +406,7 @@ MODULE_DEVICE_TABLE(of, mt6397_of_match);
 static struct platform_driver mt6397_regulator_driver = {
 	.driver = {
 		.name = "mt6397-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(mt6397_of_match),
 	},
 	.probe = mt6397_regulator_probe,

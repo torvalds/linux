@@ -15,7 +15,6 @@
 #include <linux/firmware.h>
 #include <linux/sched.h>
 #include <linux/delay.h>
-#include <linux/pm_runtime.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
@@ -23,7 +22,6 @@
 #include <asm/platform_sst_audio.h>
 #include "../sst-mfld-platform.h"
 #include "sst.h"
-#include "../../common/sst-dsp.h"
 
 int sst_alloc_stream_mrfld(struct intel_sst_drv *sst_drv_ctx, void *params)
 {
@@ -92,8 +90,8 @@ int sst_alloc_stream_mrfld(struct intel_sst_drv *sst_drv_ctx, void *params)
 
 /**
  * sst_realloc_stream - Send msg for (re-)allocating a stream using the
- * @sst_drv_ctx  intel_sst_drv context pointer
- * @str_id:	 stream ID
+ * @sst_drv_ctx: intel_sst_drv context pointer
+ * @str_id: stream ID
  *
  * Send a msg for (re-)allocating a stream using the parameters previously
  * passed to sst_alloc_stream_mrfld() for the same stream ID.
@@ -142,12 +140,13 @@ out:
 }
 
 /**
-* sst_start_stream - Send msg for a starting stream
-* @str_id:	 stream ID
-*
-* This function is called by any function which wants to start
-* a stream.
-*/
+ * sst_start_stream - Send msg for a starting stream
+ * @sst_drv_ctx: intel_sst_drv context pointer
+ * @str_id: stream ID
+ *
+ * This function is called by any function which wants to start
+ * a stream.
+ */
 int sst_start_stream(struct intel_sst_drv *sst_drv_ctx, int str_id)
 {
 	int retval = 0;
@@ -174,10 +173,11 @@ int sst_send_byte_stream_mrfld(struct intel_sst_drv *sst_drv_ctx,
 	u32 length;
 	int pvt_id, ret = 0;
 	struct sst_block *block = NULL;
+	u8 bytes_block = bytes->block;
 
 	dev_dbg(sst_drv_ctx->dev,
 		"type:%u ipc_msg:%u block:%u task_id:%u pipe: %#x length:%#x\n",
-		bytes->type, bytes->ipc_msg, bytes->block, bytes->task_id,
+		bytes->type, bytes->ipc_msg, bytes_block, bytes->task_id,
 		bytes->pipe_id, bytes->len);
 
 	if (sst_create_ipc_msg(&msg, true))
@@ -186,12 +186,12 @@ int sst_send_byte_stream_mrfld(struct intel_sst_drv *sst_drv_ctx,
 	pvt_id = sst_assign_pvt_id(sst_drv_ctx);
 	sst_fill_header_mrfld(&msg->mrfld_header, bytes->ipc_msg,
 			bytes->task_id, 1, pvt_id);
-	msg->mrfld_header.p.header_high.part.res_rqd = bytes->block;
+	msg->mrfld_header.p.header_high.part.res_rqd = bytes_block;
 	length = bytes->len;
 	msg->mrfld_header.p.header_low_payload = length;
 	dev_dbg(sst_drv_ctx->dev, "length is %d\n", length);
 	memcpy(msg->mailbox_data, &bytes->bytes, bytes->len);
-	if (bytes->block) {
+	if (bytes_block) {
 		block = sst_create_block(sst_drv_ctx, bytes->ipc_msg, pvt_id);
 		if (block == NULL) {
 			kfree(msg);
@@ -204,7 +204,7 @@ int sst_send_byte_stream_mrfld(struct intel_sst_drv *sst_drv_ctx,
 	dev_dbg(sst_drv_ctx->dev, "msg->mrfld_header.p.header_low_payload:%d",
 			msg->mrfld_header.p.header_low_payload);
 
-	if (bytes->block) {
+	if (bytes_block) {
 		ret = sst_wait_timeout(sst_drv_ctx, block);
 		if (ret) {
 			dev_err(sst_drv_ctx->dev, "fw returned err %d\n", ret);
@@ -217,7 +217,7 @@ int sst_send_byte_stream_mrfld(struct intel_sst_drv *sst_drv_ctx,
 		 * copy the reply and send back
 		 * we need to update only sz and payload
 		 */
-		if (bytes->block) {
+		if (bytes_block) {
 			unsigned char *r = block->data;
 
 			dev_dbg(sst_drv_ctx->dev, "read back %d bytes",
@@ -225,7 +225,7 @@ int sst_send_byte_stream_mrfld(struct intel_sst_drv *sst_drv_ctx,
 			memcpy(bytes->bytes, r, bytes->len);
 		}
 	}
-	if (bytes->block)
+	if (bytes_block)
 		sst_free_block(sst_drv_ctx, block);
 out:
 	test_and_clear_bit(pvt_id, &sst_drv_ctx->pvt_id);
@@ -234,7 +234,8 @@ out:
 
 /**
  * sst_pause_stream - Send msg for a pausing stream
- * @str_id:	 stream ID
+ * @sst_drv_ctx: intel_sst_drv context pointer
+ * @str_id: stream ID
  *
  * This function is called by any function which wants to pause
  * an already running stream.
@@ -278,7 +279,8 @@ int sst_pause_stream(struct intel_sst_drv *sst_drv_ctx, int str_id)
 
 /**
  * sst_resume_stream - Send msg for resuming stream
- * @str_id:		stream ID
+ * @sst_drv_ctx: intel_sst_drv context pointer
+ * @str_id: stream ID
  *
  * This function is called by any function which wants to resume
  * an already paused stream.
@@ -345,7 +347,8 @@ int sst_resume_stream(struct intel_sst_drv *sst_drv_ctx, int str_id)
 
 /**
  * sst_drop_stream - Send msg for stopping stream
- * @str_id:		stream ID
+ * @sst_drv_ctx: intel_sst_drv context pointer
+ * @str_id: stream ID
  *
  * This function is called by any function which wants to stop
  * a stream.
@@ -377,12 +380,14 @@ int sst_drop_stream(struct intel_sst_drv *sst_drv_ctx, int str_id)
 }
 
 /**
-* sst_drain_stream - Send msg for draining stream
-* @str_id:		stream ID
-*
-* This function is called by any function which wants to drain
-* a stream.
-*/
+ * sst_drain_stream - Send msg for draining stream
+ * @sst_drv_ctx: intel_sst_drv context pointer
+ * @str_id: stream ID
+ * @partial_drain: boolean indicating if a gapless transition is taking place
+ *
+ * This function is called by any function which wants to drain
+ * a stream.
+ */
 int sst_drain_stream(struct intel_sst_drv *sst_drv_ctx,
 			int str_id, bool partial_drain)
 {
@@ -415,7 +420,8 @@ int sst_drain_stream(struct intel_sst_drv *sst_drv_ctx,
 
 /**
  * sst_free_stream - Frees a stream
- * @str_id:		stream ID
+ * @sst_drv_ctx: intel_sst_drv context pointer
+ * @str_id: stream ID
  *
  * This function is called by any function which wants to free
  * a stream.

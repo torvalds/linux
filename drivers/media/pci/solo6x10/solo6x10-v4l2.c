@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2010-2013 Bluecherry, LLC <http://www.bluecherrydvr.com>
+ * Copyright (C) 2010-2013 Bluecherry, LLC <https://www.bluecherrydvr.com>
  *
  * Original author:
  * Ben Collins <bcollins@ubuntu.com>
@@ -372,12 +372,8 @@ static const struct vb2_ops solo_video_qops = {
 static int solo_querycap(struct file *file, void  *priv,
 			 struct v4l2_capability *cap)
 {
-	struct solo_dev *solo_dev = video_drvdata(file);
-
 	strscpy(cap->driver, SOLO6X10_NAME, sizeof(cap->driver));
 	strscpy(cap->card, "Softlogic 6x10", sizeof(cap->card));
-	snprintf(cap->bus_info, sizeof(cap->bus_info), "PCI:%s",
-		 pci_name(solo_dev->pdev));
 	return 0;
 }
 
@@ -692,7 +688,7 @@ int solo_v4l2_init(struct solo_dev *solo_dev, unsigned nr)
 	while (erase_off(solo_dev))
 		/* Do nothing */;
 
-	ret = video_register_device(solo_dev->vfd, VFL_TYPE_GRABBER, nr);
+	ret = video_register_device(solo_dev->vfd, VFL_TYPE_VIDEO, nr);
 	if (ret < 0)
 		goto fail;
 

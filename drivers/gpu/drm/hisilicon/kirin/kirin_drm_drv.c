@@ -3,7 +3,7 @@
  * Hisilicon Kirin SoCs drm master driver
  *
  * Copyright (c) 2016 Linaro Limited.
- * Copyright (c) 2014-2016 Hisilicon Limited.
+ * Copyright (c) 2014-2016 HiSilicon Limited.
  *
  * Author:
  *	Xinliang Liu <z.liuxinliang@hisilicon.com>
@@ -11,18 +11,18 @@
  *	Xinwei Kong <kong.kongxinwei@hisilicon.com>
  */
 
-#include <linux/of_platform.h>
 #include <linux/component.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fb_cma_helper.h>
-#include <drm/drm_fb_helper.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_fbdev_generic.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_module.h>
 #include <drm/drm_of.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
@@ -185,8 +185,6 @@ static int kirin_drm_kms_init(struct drm_device *dev,
 		DRM_ERROR("failed to initialize vblank.\n");
 		goto err_unbind_all;
 	}
-	/* with irq_enabled = true, we can use the vblank feature. */
-	dev->irq_enabled = true;
 
 	/* reset all the states of crtc/plane/encoder/connector */
 	drm_mode_config_reset(dev);
@@ -205,52 +203,14 @@ err_mode_config_cleanup:
 	return ret;
 }
 
-static int compare_of(struct device *dev, void *data)
-{
-	return dev->of_node == data;
-}
-
 static int kirin_drm_kms_cleanup(struct drm_device *dev)
 {
 	drm_kms_helper_poll_fini(dev);
+	drm_atomic_helper_shutdown(dev);
 	kirin_drm_private_cleanup(dev);
 	drm_mode_config_cleanup(dev);
 
 	return 0;
-}
-
-static int kirin_drm_connectors_register(struct drm_device *dev)
-{
-	struct drm_connector *connector;
-	struct drm_connector *failed_connector;
-	struct drm_connector_list_iter conn_iter;
-	int ret;
-
-	mutex_lock(&dev->mode_config.mutex);
-	drm_connector_list_iter_begin(dev, &conn_iter);
-	drm_for_each_connector_iter(connector, &conn_iter) {
-		ret = drm_connector_register(connector);
-		if (ret) {
-			failed_connector = connector;
-			goto err;
-		}
-	}
-	drm_connector_list_iter_end(&conn_iter);
-	mutex_unlock(&dev->mode_config.mutex);
-
-	return 0;
-
-err:
-	drm_connector_list_iter_begin(dev, &conn_iter);
-	drm_for_each_connector_iter(connector, &conn_iter) {
-		if (failed_connector == connector)
-			break;
-		drm_connector_unregister(connector);
-	}
-	drm_connector_list_iter_end(&conn_iter);
-	mutex_unlock(&dev->mode_config.mutex);
-
-	return ret;
 }
 
 static int kirin_drm_bind(struct device *dev)
@@ -279,21 +239,13 @@ static int kirin_drm_bind(struct device *dev)
 
 	drm_fbdev_generic_setup(drm_dev, 32);
 
-	/* connectors should be registered after drm device register */
-	if (driver_data->register_connects) {
-		ret = kirin_drm_connectors_register(drm_dev);
-		if (ret)
-			goto err_drm_dev_unregister;
-	}
-
 	return 0;
 
-err_drm_dev_unregister:
-	drm_dev_unregister(drm_dev);
 err_kms_cleanup:
 	kirin_drm_kms_cleanup(drm_dev);
 err_drm_dev_put:
 	drm_dev_put(drm_dev);
+	dev_set_drvdata(dev, NULL);
 
 	return ret;
 }
@@ -305,6 +257,7 @@ static void kirin_drm_unbind(struct device *dev)
 	drm_dev_unregister(drm_dev);
 	kirin_drm_kms_cleanup(drm_dev);
 	drm_dev_put(drm_dev);
+	dev_set_drvdata(dev, NULL);
 }
 
 static const struct component_master_ops kirin_drm_ops = {
@@ -323,16 +276,20 @@ static int kirin_drm_platform_probe(struct platform_device *pdev)
 	if (!remote)
 		return -ENODEV;
 
-	drm_of_component_match_add(dev, &match, compare_of, remote);
+	drm_of_component_match_add(dev, &match, component_compare_of, remote);
 	of_node_put(remote);
 
 	return component_master_add_with_match(dev, &kirin_drm_ops, match);
 }
 
-static int kirin_drm_platform_remove(struct platform_device *pdev)
+static void kirin_drm_platform_remove(struct platform_device *pdev)
 {
 	component_master_del(&pdev->dev, &kirin_drm_ops);
-	return 0;
+}
+
+static void kirin_drm_platform_shutdown(struct platform_device *pdev)
+{
+	drm_atomic_helper_shutdown(platform_get_drvdata(pdev));
 }
 
 static const struct of_device_id kirin_drm_dt_ids[] = {
@@ -345,14 +302,15 @@ MODULE_DEVICE_TABLE(of, kirin_drm_dt_ids);
 
 static struct platform_driver kirin_drm_platform_driver = {
 	.probe = kirin_drm_platform_probe,
-	.remove = kirin_drm_platform_remove,
+	.remove_new = kirin_drm_platform_remove,
+	.shutdown = kirin_drm_platform_shutdown,
 	.driver = {
 		.name = "kirin-drm",
 		.of_match_table = kirin_drm_dt_ids,
 	},
 };
 
-module_platform_driver(kirin_drm_platform_driver);
+drm_module_platform_driver(kirin_drm_platform_driver);
 
 MODULE_AUTHOR("Xinliang Liu <xinliang.liu@linaro.org>");
 MODULE_AUTHOR("Xinliang Liu <z.liuxinliang@hisilicon.com>");

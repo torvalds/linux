@@ -16,7 +16,8 @@
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/reset.h>
 
 #define REG_SM0CFG2_REG		0x28
@@ -270,37 +271,29 @@ static void mtk_i2c_init(struct mtk_i2c *i2c)
 
 static int mtk_i2c_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	struct mtk_i2c *i2c;
 	struct i2c_adapter *adap;
 	int ret;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
 	i2c = devm_kzalloc(&pdev->dev, sizeof(struct mtk_i2c), GFP_KERNEL);
 	if (!i2c)
 		return -ENOMEM;
 
-	i2c->base = devm_ioremap_resource(&pdev->dev, res);
+	i2c->base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(i2c->base))
 		return PTR_ERR(i2c->base);
 
-	i2c->clk = devm_clk_get(&pdev->dev, NULL);
+	i2c->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(i2c->clk)) {
-		dev_err(&pdev->dev, "no clock defined\n");
+		dev_err(&pdev->dev, "Failed to enable clock\n");
 		return PTR_ERR(i2c->clk);
-	}
-	ret = clk_prepare_enable(i2c->clk);
-	if (ret) {
-		dev_err(&pdev->dev, "Unable to enable clock\n");
-		return ret;
 	}
 
 	i2c->dev = &pdev->dev;
 
 	if (of_property_read_u32(pdev->dev.of_node, "clock-frequency",
 				 &i2c->bus_freq))
-		i2c->bus_freq = 100000;
+		i2c->bus_freq = I2C_MAX_STANDARD_MODE_FREQ;
 
 	if (i2c->bus_freq == 0) {
 		dev_warn(i2c->dev, "clock-frequency 0 not supported\n");
@@ -314,7 +307,7 @@ static int mtk_i2c_probe(struct platform_device *pdev)
 	adap->dev.parent = &pdev->dev;
 	i2c_set_adapdata(adap, i2c);
 	adap->dev.of_node = pdev->dev.of_node;
-	strlcpy(adap->name, dev_name(&pdev->dev), sizeof(adap->name));
+	strscpy(adap->name, dev_name(&pdev->dev), sizeof(adap->name));
 
 	platform_set_drvdata(pdev, i2c);
 
@@ -326,22 +319,19 @@ static int mtk_i2c_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "clock %u kHz\n", i2c->bus_freq / 1000);
 
-	return ret;
+	return 0;
 }
 
-static int mtk_i2c_remove(struct platform_device *pdev)
+static void mtk_i2c_remove(struct platform_device *pdev)
 {
 	struct mtk_i2c *i2c = platform_get_drvdata(pdev);
 
-	clk_disable_unprepare(i2c->clk);
 	i2c_del_adapter(&i2c->adap);
-
-	return 0;
 }
 
 static struct platform_driver mtk_i2c_driver = {
 	.probe		= mtk_i2c_probe,
-	.remove		= mtk_i2c_remove,
+	.remove_new	= mtk_i2c_remove,
 	.driver		= {
 		.name	= "i2c-mt7621",
 		.of_match_table = i2c_mtk_dt_ids,

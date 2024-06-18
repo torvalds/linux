@@ -13,6 +13,7 @@ struct ip_callchain;
 struct map;
 struct perf_sample;
 struct thread;
+struct hists;
 
 #define HELP_PAD "\t\t\t\t"
 
@@ -115,22 +116,22 @@ extern struct callchain_param callchain_param;
 extern struct callchain_param callchain_param_default;
 
 struct callchain_list {
+	struct list_head	list;
 	u64			ip;
 	struct map_symbol	ms;
+	const char		*srcline;
+	u64			branch_count;
+	u64			from_count;
+	u64			cycles_count;
+	u64			iter_count;
+	u64			iter_cycles;
+	struct branch_type_stat *brtype_stat;
+	u64			predicted_count;
+	u64			abort_count;
 	struct /* for TUI */ {
 		bool		unfolded;
 		bool		has_children;
 	};
-	u64			branch_count;
-	u64			from_count;
-	u64			predicted_count;
-	u64			abort_count;
-	u64			cycles_count;
-	u64			iter_count;
-	u64			iter_cycles;
-	struct branch_type_stat brtype_stat;
-	const char		*srcline;
-	struct list_head	list;
 };
 
 /*
@@ -141,15 +142,22 @@ struct callchain_list {
  */
 struct callchain_cursor_node {
 	u64				ip;
-	struct map			*map;
-	struct symbol			*sym;
+	struct map_symbol		ms;
 	const char			*srcline;
+	/* Indicate valid cursor node for LBR stitch */
+	bool				valid;
+
 	bool				branch;
 	struct branch_flags		branch_flags;
 	u64				branch_from;
 	int				nr_loop_iter;
 	u64				iter_cycles;
 	struct callchain_cursor_node	*next;
+};
+
+struct stitch_list {
+	struct list_head		node;
+	struct callchain_cursor_node	cursor;
 };
 
 struct callchain_cursor {
@@ -159,8 +167,6 @@ struct callchain_cursor {
 	u64				pos;
 	struct callchain_cursor_node	*curr;
 };
-
-extern __thread struct callchain_cursor callchain_cursor;
 
 static inline void callchain_init(struct callchain_root *root)
 {
@@ -195,7 +201,7 @@ int callchain_merge(struct callchain_cursor *cursor,
 void callchain_cursor_reset(struct callchain_cursor *cursor);
 
 int callchain_cursor_append(struct callchain_cursor *cursor, u64 ip,
-			    struct map *map, struct symbol *sym,
+			    struct map_symbol *ms,
 			    bool branch, struct branch_flags *flags,
 			    int nr_loop_iter, u64 iter_cycles, u64 branch_from,
 			    const char *srcline);
@@ -203,6 +209,8 @@ int callchain_cursor_append(struct callchain_cursor *cursor, u64 ip,
 /* Close a cursor writing session. Initialize for the reader */
 static inline void callchain_cursor_commit(struct callchain_cursor *cursor)
 {
+	if (cursor == NULL)
+		return;
 	cursor->curr = cursor->first;
 	cursor->pos = 0;
 }
@@ -211,7 +219,7 @@ static inline void callchain_cursor_commit(struct callchain_cursor *cursor)
 static inline struct callchain_cursor_node *
 callchain_cursor_current(struct callchain_cursor *cursor)
 {
-	if (cursor->pos == cursor->nr)
+	if (cursor == NULL || cursor->pos == cursor->nr)
 		return NULL;
 
 	return cursor->curr;
@@ -222,6 +230,8 @@ static inline void callchain_cursor_advance(struct callchain_cursor *cursor)
 	cursor->curr = cursor->curr->next;
 	cursor->pos++;
 }
+
+struct callchain_cursor *get_tls_callchain_cursor(void);
 
 int callchain_cursor__copy(struct callchain_cursor *dst,
 			   struct callchain_cursor *src);
@@ -272,6 +282,8 @@ static inline int arch_skip_callchain_idx(struct thread *thread __maybe_unused,
 }
 #endif
 
+void arch__add_leaf_frame_record_opts(struct record_opts *opts);
+
 char *callchain_list__sym_name(struct callchain_list *cl,
 			       char *bf, size_t bfsize, bool show_dso);
 char *callchain_node__scnprintf_value(struct callchain_node *node,
@@ -289,5 +301,14 @@ int callchain_node__make_parent_list(struct callchain_node *node);
 int callchain_branch_counts(struct callchain_root *root,
 			    u64 *branch_count, u64 *predicted_count,
 			    u64 *abort_count, u64 *cycles_count);
+
+void callchain_param_setup(u64 sample_type, const char *arch);
+
+bool callchain_cnode_matched(struct callchain_node *base_cnode,
+			     struct callchain_node *pair_cnode);
+
+u64 callchain_total_hits(struct hists *hists);
+
+s64 callchain_avg_cycles(struct callchain_node *cnode);
 
 #endif	/* __PERF_CALLCHAIN_H */

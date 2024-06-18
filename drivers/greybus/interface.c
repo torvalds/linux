@@ -131,9 +131,8 @@ static int gb_interface_route_create(struct gb_interface *intf)
 	int ret;
 
 	/* Allocate an interface device id. */
-	ret = ida_simple_get(&svc->device_id_map,
-			     GB_SVC_DEVICE_ID_MIN, GB_SVC_DEVICE_ID_MAX + 1,
-			     GFP_KERNEL);
+	ret = ida_alloc_range(&svc->device_id_map, GB_SVC_DEVICE_ID_MIN,
+			      GB_SVC_DEVICE_ID_MAX, GFP_KERNEL);
 	if (ret < 0) {
 		dev_err(&intf->dev, "failed to allocate device id: %d\n", ret);
 		return ret;
@@ -165,7 +164,7 @@ err_svc_id_free:
 	 * XXX anymore.
 	 */
 err_ida_remove:
-	ida_simple_remove(&svc->device_id_map, device_id);
+	ida_free(&svc->device_id_map, device_id);
 
 	return ret;
 }
@@ -178,7 +177,7 @@ static void gb_interface_route_destroy(struct gb_interface *intf)
 		return;
 
 	gb_svc_route_destroy(svc, svc->ap_intf_id, intf->interface_id);
-	ida_simple_remove(&svc->device_id_map, intf->device_id);
+	ida_free(&svc->device_id_map, intf->device_id);
 	intf->device_id = GB_INTERFACE_DEVICE_ID_BAD;
 }
 
@@ -620,7 +619,7 @@ static struct attribute *interface_common_attrs[] = {
 static umode_t interface_unipro_is_visible(struct kobject *kobj,
 					   struct attribute *attr, int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct gb_interface *intf = to_gb_interface(dev);
 
 	switch (intf->type) {
@@ -635,7 +634,7 @@ static umode_t interface_unipro_is_visible(struct kobject *kobj,
 static umode_t interface_greybus_is_visible(struct kobject *kobj,
 					    struct attribute *attr, int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct gb_interface *intf = to_gb_interface(dev);
 
 	switch (intf->type) {
@@ -649,7 +648,7 @@ static umode_t interface_greybus_is_visible(struct kobject *kobj,
 static umode_t interface_power_is_visible(struct kobject *kobj,
 					  struct attribute *attr, int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct gb_interface *intf = to_gb_interface(dev);
 
 	switch (intf->type) {
@@ -694,6 +693,7 @@ static void gb_interface_release(struct device *dev)
 
 	trace_gb_interface_release(intf);
 
+	cancel_work_sync(&intf->mode_switch_work);
 	kfree(intf);
 }
 
@@ -765,7 +765,7 @@ static const struct dev_pm_ops gb_interface_pm_ops = {
 			   gb_interface_runtime_idle)
 };
 
-struct device_type greybus_interface_type = {
+const struct device_type greybus_interface_type = {
 	.name =		"greybus_interface",
 	.release =	gb_interface_release,
 	.pm =		&gb_interface_pm_ops,
@@ -1233,7 +1233,7 @@ int gb_interface_add(struct gb_interface *intf)
 	case GB_INTERFACE_TYPE_GREYBUS:
 		dev_info(&intf->dev, "GMP VID=0x%08x, PID=0x%08x\n",
 			 intf->vendor_id, intf->product_id);
-		/* fall-through */
+		fallthrough;
 	case GB_INTERFACE_TYPE_UNIPRO:
 		dev_info(&intf->dev, "DDBL1 Manufacturer=0x%08x, Product=0x%08x\n",
 			 intf->ddbl1_manufacturer_id,

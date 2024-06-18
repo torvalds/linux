@@ -12,10 +12,9 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_platform.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
 
@@ -63,7 +62,7 @@ struct rockchip_pcie_data {
 };
 
 struct rockchip_pcie_phy {
-	struct rockchip_pcie_data *phy_data;
+	const struct rockchip_pcie_data *phy_data;
 	struct regmap *reg_base;
 	struct phy_pcie_instance {
 		struct phy *phy;
@@ -83,7 +82,7 @@ static struct rockchip_pcie_phy *to_pcie_phy(struct phy_pcie_instance *inst)
 }
 
 static struct phy *rockchip_pcie_phy_of_xlate(struct device *dev,
-					      struct of_phandle_args *args)
+					      const struct of_phandle_args *args)
 {
 	struct rockchip_pcie_phy *rk_phy = dev_get_drvdata(dev);
 
@@ -117,21 +116,6 @@ static inline void phy_wr_cfg(struct rockchip_pcie_phy *rk_phy,
 		     HIWORD_UPDATE(PHY_CFG_WR_DISABLE,
 				   PHY_CFG_WR_MASK,
 				   PHY_CFG_WR_SHIFT));
-}
-
-static inline u32 phy_rd_cfg(struct rockchip_pcie_phy *rk_phy,
-			     u32 addr)
-{
-	u32 val;
-
-	regmap_write(rk_phy->reg_base, rk_phy->phy_data->pcie_conf,
-		     HIWORD_UPDATE(addr,
-				   PHY_CFG_RD_MASK,
-				   PHY_CFG_ADDR_SHIFT));
-	regmap_read(rk_phy->reg_base,
-		    rk_phy->phy_data->pcie_status,
-		    &val);
-	return val;
 }
 
 static int rockchip_pcie_phy_power_off(struct phy *phy)
@@ -365,7 +349,6 @@ static int rockchip_pcie_phy_probe(struct platform_device *pdev)
 	struct rockchip_pcie_phy *rk_phy;
 	struct phy_provider *phy_provider;
 	struct regmap *grf;
-	const struct of_device_id *of_id;
 	int i;
 	u32 phy_num;
 
@@ -379,11 +362,10 @@ static int rockchip_pcie_phy_probe(struct platform_device *pdev)
 	if (!rk_phy)
 		return -ENOMEM;
 
-	of_id = of_match_device(rockchip_pcie_phy_dt_ids, &pdev->dev);
-	if (!of_id)
+	rk_phy->phy_data = device_get_match_data(&pdev->dev);
+	if (!rk_phy->phy_data)
 		return -EINVAL;
 
-	rk_phy->phy_data = (struct rockchip_pcie_data *)of_id->data;
 	rk_phy->reg_base = grf;
 
 	mutex_init(&rk_phy->pcie_mutex);

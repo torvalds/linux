@@ -17,6 +17,15 @@ config MTK_CMDQ
 	  time limitation, such as updating display configuration during the
 	  vblank.
 
+config MTK_DEVAPC
+	tristate "Mediatek Device APC Support"
+	help
+	  Say yes here to enable support for Mediatek Device APC driver.
+	  This driver is mainly used to handle the violation which catches
+	  unexpected transaction.
+	  The violation information is logged for further analysis or
+	  countermeasures.
+
 config MTK_INFRACFG
 	bool "MediaTek INFRACFG Support"
 	select REGMAP
@@ -28,20 +37,45 @@ config MTK_INFRACFG
 config MTK_PMIC_WRAP
 	tristate "MediaTek PMIC Wrapper Support"
 	depends on RESET_CONTROLLER
+	depends on OF
 	select REGMAP
 	help
 	  Say yes here to add support for MediaTek PMIC Wrapper found
 	  on different MediaTek SoCs. The PMIC wrapper is a proprietary
 	  hardware to connect the PMIC.
 
-config MTK_SCPSYS
-	bool "MediaTek SCPSYS Support"
+config MTK_REGULATOR_COUPLER
+	bool "MediaTek SoC Regulator Coupler" if COMPILE_TEST
 	default ARCH_MEDIATEK
-	select REGMAP
-	select MTK_INFRACFG
-	select PM_GENERIC_DOMAINS if PM
+	depends on REGULATOR
+
+config MTK_MMSYS
+	tristate "MediaTek MMSYS Support"
+	default ARCH_MEDIATEK
+	depends on HAS_IOMEM
+	depends on MTK_CMDQ || MTK_CMDQ=n
 	help
-	  Say yes here to add support for the MediaTek SCPSYS power domain
-	  driver.
+	  Say yes here to add support for the MediaTek Multimedia
+	  Subsystem (MMSYS).
+
+config MTK_SVS
+	tristate "MediaTek Smart Voltage Scaling(SVS)"
+	depends on NVMEM_MTK_EFUSE && NVMEM
+	help
+	  The Smart Voltage Scaling(SVS) engine is a piece of hardware
+	  which has several controllers(banks) for calculating suitable
+	  voltage to different power domains(CPU/GPU/CCI) according to
+	  chip process corner, temperatures and other factors. Then DVFS
+	  driver could apply SVS bank voltage to PMIC/Buck.
+
+config MTK_SOCINFO
+	tristate "MediaTek SoC Information"
+	default y
+	depends on NVMEM_MTK_EFUSE
+	select SOC_BUS
+	help
+	  The MediaTek SoC Information (mtk-socinfo) driver provides
+	  information about the SoC to the userspace including the
+	  manufacturer name, marketing name and soc name.
 
 endmenu

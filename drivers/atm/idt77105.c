@@ -192,7 +192,7 @@ static int idt77105_ioctl(struct atm_dev *dev,unsigned int cmd,void __user *arg)
 	switch (cmd) {
 		case IDT77105_GETSTATZ:
 			if (!capable(CAP_NET_ADMIN)) return -EPERM;
-			/* fall through */
+			fallthrough;
 		case IDT77105_GETSTAT:
 			return fetch_stats(dev, arg, cmd == IDT77105_GETSTATZ);
 		case ATM_SETLOOP:
@@ -262,7 +262,7 @@ static int idt77105_start(struct atm_dev *dev)
 {
 	unsigned long flags;
 
-	if (!(dev->dev_data = kmalloc(sizeof(struct idt77105_priv),GFP_KERNEL)))
+	if (!(dev->phy_data = kmalloc(sizeof(struct idt77105_priv),GFP_KERNEL)))
 		return -ENOMEM;
 	PRIV(dev)->dev = dev;
 	spin_lock_irqsave(&idt77105_priv_lock, flags);
@@ -337,7 +337,7 @@ static int idt77105_stop(struct atm_dev *dev)
                 else
                     idt77105_all = walk->next;
 	        dev->phy = NULL;
-                dev->dev_data = NULL;
+                dev->phy_data = NULL;
                 kfree(walk);
                 break;
             }
@@ -372,4 +372,5 @@ static void __exit idt77105_exit(void)
 
 module_exit(idt77105_exit);
 
+MODULE_DESCRIPTION("IDT77105 PHY driver");
 MODULE_LICENSE("GPL");

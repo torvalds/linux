@@ -1,47 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
 
-humanize()
-{
-	local speed=$1; shift
-
-	for unit in bps Kbps Mbps Gbps; do
-		if (($(echo "$speed < 1024" | bc))); then
-			break
-		fi
-
-		speed=$(echo "scale=1; $speed / 1024" | bc)
-	done
-
-	echo "$speed${unit}"
-}
-
-rate()
-{
-	local t0=$1; shift
-	local t1=$1; shift
-	local interval=$1; shift
-
-	echo $((8 * (t1 - t0) / interval))
-}
-
-start_traffic()
-{
-	local h_in=$1; shift    # Where the traffic egresses the host
-	local sip=$1; shift
-	local dip=$1; shift
-	local dmac=$1; shift
-
-	$MZ $h_in -p 8000 -A $sip -B $dip -c 0 \
-		-a own -b $dmac -t udp -q &
-	sleep 1
-}
-
-stop_traffic()
-{
-	# Suppress noise from killing mausezahn.
-	{ kill %% && wait %%; } 2>/dev/null
-}
-
 check_rate()
 {
 	local rate=$1; shift

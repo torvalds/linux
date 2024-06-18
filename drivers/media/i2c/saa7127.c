@@ -708,9 +708,9 @@ static const struct v4l2_subdev_ops saa7127_ops = {
 
 /* ----------------------------------------------------------------------- */
 
-static int saa7127_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int saa7127_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct saa7127_state *state;
 	struct v4l2_subdev *sd;
 	struct v4l2_sliced_vbi_data vbi = { 0, 0, 0, 0 };  /* set to disabled */
@@ -785,14 +785,13 @@ static int saa7127_probe(struct i2c_client *client,
 
 /* ----------------------------------------------------------------------- */
 
-static int saa7127_remove(struct i2c_client *client)
+static void saa7127_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 
 	v4l2_device_unregister_subdev(sd);
 	/* Turn off TV output */
 	saa7127_set_video_enable(sd, 0);
-	return 0;
 }
 
 /* ----------------------------------------------------------------------- */

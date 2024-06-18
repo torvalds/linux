@@ -4,6 +4,7 @@
  * Copyright 2005-2006, Devicescape Software, Inc.
  * Copyright (c) 2006 Jiri Benc <jbenc@suse.cz>
  * Copyright 2017	Intel Deutschland GmbH
+ * Copyright (C) 2019, 2022-2024 Intel Corporation
  */
 
 #include <linux/kernel.h>
@@ -36,20 +37,27 @@ void rate_control_rate_init(struct sta_info *sta)
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 
-	ieee80211_sta_set_rx_nss(sta);
+	ieee80211_sta_init_nss(&sta->deflink);
 
 	if (!ref)
 		return;
 
 	rcu_read_lock();
 
-	chanctx_conf = rcu_dereference(sta->sdata->vif.chanctx_conf);
+	chanctx_conf = rcu_dereference(sta->sdata->vif.bss_conf.chanctx_conf);
 	if (WARN_ON(!chanctx_conf)) {
 		rcu_read_unlock();
 		return;
 	}
 
 	sband = local->hw.wiphy->bands[chanctx_conf->def.chan->band];
+
+	/* TODO: check for minstrel_s1g ? */
+	if (sband->band == NL80211_BAND_S1GHZ) {
+		ieee80211_s1g_sta_rate_init(sta);
+		rcu_read_unlock();
+		return;
+	}
 
 	spin_lock_bh(&sta->rate_ctrl_lock);
 	ref->ops->rate_init(ref->priv, sband, &chanctx_conf->def, ista,
@@ -60,15 +68,17 @@ void rate_control_rate_init(struct sta_info *sta)
 }
 
 void rate_control_tx_status(struct ieee80211_local *local,
-			    struct ieee80211_supported_band *sband,
 			    struct ieee80211_tx_status *st)
 {
 	struct rate_control_ref *ref = local->rate_ctrl;
 	struct sta_info *sta = container_of(st->sta, struct sta_info, sta);
 	void *priv_sta = sta->rate_ctrl_priv;
+	struct ieee80211_supported_band *sband;
 
 	if (!ref || !test_sta_flag(sta, WLAN_STA_RATE_CONTROL))
 		return;
+
+	sband = local->hw.wiphy->bands[st->info->band];
 
 	spin_lock_bh(&sta->rate_ctrl_lock);
 	if (ref->ops->tx_status_ext)
@@ -82,18 +92,21 @@ void rate_control_tx_status(struct ieee80211_local *local,
 }
 
 void rate_control_rate_update(struct ieee80211_local *local,
-				    struct ieee80211_supported_band *sband,
-				    struct sta_info *sta, u32 changed)
+			      struct ieee80211_supported_band *sband,
+			      struct sta_info *sta, unsigned int link_id,
+			      u32 changed)
 {
 	struct rate_control_ref *ref = local->rate_ctrl;
 	struct ieee80211_sta *ista = &sta->sta;
 	void *priv_sta = sta->rate_ctrl_priv;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 
+	WARN_ON(link_id != 0);
+
 	if (ref && ref->ops->rate_update) {
 		rcu_read_lock();
 
-		chanctx_conf = rcu_dereference(sta->sdata->vif.chanctx_conf);
+		chanctx_conf = rcu_dereference(sta->sdata->vif.bss_conf.chanctx_conf);
 		if (WARN_ON(!chanctx_conf)) {
 			rcu_read_unlock();
 			return;
@@ -105,7 +118,9 @@ void rate_control_rate_update(struct ieee80211_local *local,
 		spin_unlock_bh(&sta->rate_ctrl_lock);
 		rcu_read_unlock();
 	}
-	drv_sta_rc_update(local, sta->sdata, &sta->sta, changed);
+
+	if (sta->uploaded)
+		drv_sta_rc_update(local, sta->sdata, &sta->sta, changed);
 }
 
 int ieee80211_rate_control_register(const struct rate_control_ops *ops)
@@ -214,17 +229,16 @@ static ssize_t rcname_read(struct file *file, char __user *userbuf,
 				       ref->ops->name, len);
 }
 
-static const struct file_operations rcname_ops = {
+const struct file_operations rcname_ops = {
 	.read = rcname_read,
 	.open = simple_open,
 	.llseek = default_llseek,
 };
 #endif
 
-static struct rate_control_ref *rate_control_alloc(const char *name,
-					    struct ieee80211_local *local)
+static struct rate_control_ref *
+rate_control_alloc(const char *name, struct ieee80211_local *local)
 {
-	struct dentry *debugfsdir = NULL;
 	struct rate_control_ref *ref;
 
 	ref = kmalloc(sizeof(struct rate_control_ref), GFP_KERNEL);
@@ -234,13 +248,7 @@ static struct rate_control_ref *rate_control_alloc(const char *name,
 	if (!ref->ops)
 		goto free;
 
-#ifdef CONFIG_MAC80211_DEBUGFS
-	debugfsdir = debugfs_create_dir("rc", local->hw.wiphy->debugfsdir);
-	local->debugfs.rcdir = debugfsdir;
-	debugfs_create_file("name", 0400, debugfsdir, ref, &rcname_ops);
-#endif
-
-	ref->priv = ref->ops->alloc(&local->hw, debugfsdir);
+	ref->priv = ref->ops->alloc(&local->hw);
 	if (!ref->priv)
 		goto free;
 	return ref;
@@ -263,20 +271,26 @@ static void rate_control_free(struct ieee80211_local *local,
 	kfree(ctrl_ref);
 }
 
-void ieee80211_check_rate_mask(struct ieee80211_sub_if_data *sdata)
+void ieee80211_check_rate_mask(struct ieee80211_link_data *link)
 {
+	struct ieee80211_sub_if_data *sdata = link->sdata;
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_supported_band *sband;
-	u32 user_mask, basic_rates = sdata->vif.bss_conf.basic_rates;
+	u32 user_mask, basic_rates = link->conf->basic_rates;
 	enum nl80211_band band;
 
-	if (WARN_ON(!sdata->vif.bss_conf.chandef.chan))
+	if (WARN_ON(!link->conf->chanreq.oper.chan))
 		return;
+
+	band = link->conf->chanreq.oper.chan->band;
+	if (band == NL80211_BAND_S1GHZ) {
+		/* TODO */
+		return;
+	}
 
 	if (WARN_ON_ONCE(!basic_rates))
 		return;
 
-	band = sdata->vif.bss_conf.chandef.chan->band;
 	user_mask = sdata->rc_rateidx_mask[band];
 	sband = local->hw.wiphy->bands[band];
 
@@ -292,32 +306,36 @@ void ieee80211_check_rate_mask(struct ieee80211_sub_if_data *sdata)
 static bool rc_no_data_or_no_ack_use_min(struct ieee80211_tx_rate_control *txrc)
 {
 	struct sk_buff *skb = txrc->skb;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	__le16 fc;
-
-	fc = hdr->frame_control;
 
 	return (info->flags & (IEEE80211_TX_CTL_NO_ACK |
 			       IEEE80211_TX_CTL_USE_MINRATE)) ||
-		!ieee80211_is_data(fc);
+		!ieee80211_is_tx_data(skb);
 }
 
-static void rc_send_low_basicrate(s8 *idx, u32 basic_rates,
+static void rc_send_low_basicrate(struct ieee80211_tx_rate *rate,
+				  u32 basic_rates,
 				  struct ieee80211_supported_band *sband)
 {
 	u8 i;
 
+	if (sband->band == NL80211_BAND_S1GHZ) {
+		/* TODO */
+		rate->flags |= IEEE80211_TX_RC_S1G_MCS;
+		rate->idx = 0;
+		return;
+	}
+
 	if (basic_rates == 0)
 		return; /* assume basic rates unknown and accept rate */
-	if (*idx < 0)
+	if (rate->idx < 0)
 		return;
-	if (basic_rates & (1 << *idx))
+	if (basic_rates & (1 << rate->idx))
 		return; /* selected rate is a basic rate */
 
-	for (i = *idx + 1; i <= sband->n_bitrates; i++) {
+	for (i = rate->idx + 1; i <= sband->n_bitrates; i++) {
 		if (basic_rates & (1 << i)) {
-			*idx = i;
+			rate->idx = i;
 			return;
 		}
 	}
@@ -334,6 +352,12 @@ static void __rate_control_send_low(struct ieee80211_hw *hw,
 	int i;
 	u32 rate_flags =
 		ieee80211_chandef_rate_flags(&hw->conf.chandef);
+
+	if (sband->band == NL80211_BAND_S1GHZ) {
+		info->control.rates[0].flags |= IEEE80211_TX_RC_S1G_MCS;
+		info->control.rates[0].idx = 0;
+		return;
+	}
 
 	if ((sband->band == NL80211_BAND_2GHZ) &&
 	    (info->flags & IEEE80211_TX_CTL_NO_CCK_RATE))
@@ -356,7 +380,7 @@ static void __rate_control_send_low(struct ieee80211_hw *hw,
 	WARN_ONCE(i == sband->n_bitrates,
 		  "no supported rates for sta %pM (0x%x, band %d) in rate_mask 0x%x with flags 0x%x\n",
 		  sta ? sta->addr : NULL,
-		  sta ? sta->supp_rates[sband->band] : -1,
+		  sta ? sta->deflink.supp_rates[sband->band] : -1,
 		  sband->band,
 		  rate_mask, rate_flags);
 
@@ -395,7 +419,7 @@ static bool rate_control_send_low(struct ieee80211_sta *pubsta,
 		}
 
 		if (use_basicrate)
-			rc_send_low_basicrate(&info->control.rates[0].idx,
+			rc_send_low_basicrate(&info->control.rates[0],
 					      txrc->bss_conf->basic_rates,
 					      sband);
 
@@ -738,7 +762,7 @@ static bool rate_control_cap_mask(struct ieee80211_sub_if_data *sdata,
 	u32 i, flags;
 
 	*mask = sdata->rc_rateidx_mask[sband->band];
-	flags = ieee80211_chandef_rate_flags(&sdata->vif.bss_conf.chandef);
+	flags = ieee80211_chandef_rate_flags(&sdata->vif.bss_conf.chanreq.oper);
 	for (i = 0; i < sband->n_bitrates; i++) {
 		if ((flags & sband->bitrates[i].flags) != flags)
 			*mask &= ~BIT(i);
@@ -766,11 +790,11 @@ static bool rate_control_cap_mask(struct ieee80211_sub_if_data *sdata,
 		u16 sta_vht_mask[NL80211_VHT_NSS_MAX];
 
 		/* Filter out rates that the STA does not support */
-		*mask &= sta->supp_rates[sband->band];
+		*mask &= sta->deflink.supp_rates[sband->band];
 		for (i = 0; i < IEEE80211_HT_MCS_MASK_LEN; i++)
-			mcs_mask[i] &= sta->ht_cap.mcs.rx_mask[i];
+			mcs_mask[i] &= sta->deflink.ht_cap.mcs.rx_mask[i];
 
-		sta_vht_cap = sta->vht_cap.vht_mcs.rx_mcs_map;
+		sta_vht_cap = sta->deflink.vht_cap.vht_mcs.rx_mcs_map;
 		ieee80211_get_vht_mask_from_cap(sta_vht_cap, sta_vht_mask);
 		for (i = 0; i < NL80211_VHT_NSS_MAX; i++)
 			vht_mask[i] &= sta_vht_mask[i];
@@ -794,7 +818,7 @@ rate_control_apply_mask_ratetbl(struct sta_info *sta,
 				   mcs_mask, vht_mask))
 		return;
 
-	chan_width = sta->sdata->vif.bss_conf.chandef.width;
+	chan_width = sta->sdata->vif.bss_conf.chanreq.oper.width;
 	for (i = 0; i < IEEE80211_TX_RATE_TABLE_SIZE; i++) {
 		if (rates->rate[i].idx < 0)
 			break;
@@ -831,7 +855,7 @@ static void rate_control_apply_mask(struct ieee80211_sub_if_data *sdata,
 	 * included in the configured mask and change the rate indexes
 	 * if needed.
 	 */
-	chan_width = sdata->vif.bss_conf.chandef.width;
+	chan_width = sdata->vif.bss_conf.chanreq.oper.width;
 	for (i = 0; i < max_rates; i++) {
 		/* Skip invalid rates */
 		if (rates[i].idx < 0)
@@ -851,9 +875,9 @@ void ieee80211_get_tx_rates(struct ieee80211_vif *vif,
 			    int max_rates)
 {
 	struct ieee80211_sub_if_data *sdata;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_supported_band *sband;
+	u32 mask = ~0;
 
 	rate_control_fill_sta_table(sta, info, dest, max_rates);
 
@@ -863,12 +887,15 @@ void ieee80211_get_tx_rates(struct ieee80211_vif *vif,
 	sdata = vif_to_sdata(vif);
 	sband = sdata->local->hw.wiphy->bands[info->band];
 
-	if (ieee80211_is_data(hdr->frame_control))
+	if (ieee80211_is_tx_data(skb))
 		rate_control_apply_mask(sdata, sta, sband, dest, max_rates);
+
+	if (!(info->control.flags & IEEE80211_TX_CTRL_SCAN_TX))
+		mask = sdata->rc_rateidx_mask[info->band];
 
 	if (dest[0].idx < 0)
 		__rate_control_send_low(&sdata->local->hw, sband, sta, info,
-					sdata->rc_rateidx_mask[info->band]);
+					mask);
 
 	if (sta)
 		rate_fixup_ratelist(vif, sband, info, dest, max_rates);
@@ -941,7 +968,8 @@ int rate_control_set_rates(struct ieee80211_hw *hw,
 	if (old)
 		kfree_rcu(old, rcu_head);
 
-	drv_sta_rate_tbl_update(hw_to_local(hw), sta->sdata, pubsta);
+	if (sta->uploaded)
+		drv_sta_rate_tbl_update(hw_to_local(hw), sta->sdata, pubsta);
 
 	ieee80211_sta_set_expected_throughput(pubsta, sta_get_expected_throughput(sta));
 

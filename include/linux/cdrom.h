@@ -13,6 +13,7 @@
 
 #include <linux/fs.h>		/* not really needed, later.. */
 #include <linux/list.h>
+#include <linux/blkdev.h>
 #include <scsi/scsi_common.h>
 #include <uapi/linux/cdrom.h>
 
@@ -61,9 +62,10 @@ struct cdrom_device_info {
 	__u8 last_sense;
 	__u8 media_written;		/* dirty flag, DVD+RW bookkeeping */
 	unsigned short mmc3_profile;	/* current MMC3 profile */
-	int for_data;
 	int (*exit)(struct cdrom_device_info *);
 	int mrw_mode_page;
+	bool opened_for_data;
+	__s64 last_media_change_ms;
 };
 
 struct cdrom_device_ops {
@@ -73,11 +75,9 @@ struct cdrom_device_ops {
 	int (*drive_status) (struct cdrom_device_info *, int);
 	unsigned int (*check_events) (struct cdrom_device_info *cdi,
 				      unsigned int clearing, int slot);
-	int (*media_changed) (struct cdrom_device_info *, int);
 	int (*tray_move) (struct cdrom_device_info *, int);
 	int (*lock_door) (struct cdrom_device_info *, int);
-	int (*select_speed) (struct cdrom_device_info *, int);
-	int (*select_disc) (struct cdrom_device_info *, int);
+	int (*select_speed) (struct cdrom_device_info *, unsigned long);
 	int (*get_last_session) (struct cdrom_device_info *,
 				 struct cdrom_multisession *);
 	int (*get_mcn) (struct cdrom_device_info *,
@@ -87,24 +87,29 @@ struct cdrom_device_ops {
 	/* play stuff */
 	int (*audio_ioctl) (struct cdrom_device_info *,unsigned int, void *);
 
-/* driver specifications */
-	const int capability;   /* capability flags */
 	/* handle uniform packets for scsi type devices (scsi,atapi) */
 	int (*generic_packet) (struct cdrom_device_info *,
 			       struct packet_command *);
+	int (*read_cdda_bpc)(struct cdrom_device_info *cdi, void __user *ubuf,
+			       u32 lba, u32 nframes, u8 *last_sense);
+/* driver specifications */
+	const int capability;   /* capability flags */
 };
 
+int cdrom_multisession(struct cdrom_device_info *cdi,
+		struct cdrom_multisession *info);
+int cdrom_read_tocentry(struct cdrom_device_info *cdi,
+		struct cdrom_tocentry *entry);
+
 /* the general block_device operations structure: */
-extern int cdrom_open(struct cdrom_device_info *cdi, struct block_device *bdev,
-			fmode_t mode);
-extern void cdrom_release(struct cdrom_device_info *cdi, fmode_t mode);
-extern int cdrom_ioctl(struct cdrom_device_info *cdi, struct block_device *bdev,
-		       fmode_t mode, unsigned int cmd, unsigned long arg);
+int cdrom_open(struct cdrom_device_info *cdi, blk_mode_t mode);
+void cdrom_release(struct cdrom_device_info *cdi);
+int cdrom_ioctl(struct cdrom_device_info *cdi, struct block_device *bdev,
+		unsigned int cmd, unsigned long arg);
 extern unsigned int cdrom_check_events(struct cdrom_device_info *cdi,
 				       unsigned int clearing);
-extern int cdrom_media_changed(struct cdrom_device_info *);
 
-extern int register_cdrom(struct cdrom_device_info *cdi);
+extern int register_cdrom(struct gendisk *disk, struct cdrom_device_info *cdi);
 extern void unregister_cdrom(struct cdrom_device_info *cdi);
 
 typedef struct {

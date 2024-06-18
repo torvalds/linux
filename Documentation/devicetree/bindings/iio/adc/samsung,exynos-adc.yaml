@@ -1,0 +1,168 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/adc/samsung,exynos-adc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung Exynos Analog to Digital Converter (ADC)
+
+maintainers:
+  - Krzysztof Kozlowski <krzk@kernel.org>
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - samsung,exynos-adc-v1                 # Exynos5250
+          - samsung,exynos-adc-v2
+          - samsung,exynos3250-adc
+          - samsung,exynos4212-adc                # Exynos4212 and Exynos4412
+          - samsung,exynos7-adc
+          - samsung,s3c2410-adc
+          - samsung,s3c2416-adc
+          - samsung,s3c2440-adc
+          - samsung,s3c2443-adc
+          - samsung,s3c6410-adc
+          - samsung,s5pv210-adc
+      - items:
+          - enum:
+              - samsung,exynos5433-adc
+          - const: samsung,exynos7-adc
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    description:
+      Phandle to ADC bus clock. For Exynos3250 additional clock is needed.
+    minItems: 1
+    maxItems: 2
+
+  clock-names:
+    description:
+      Must contain clock names (adc, sclk) matching phandles in clocks
+      property.
+    minItems: 1
+    maxItems: 2
+
+  interrupts:
+    description:
+      ADC interrupt followed by optional touchscreen interrupt.
+    minItems: 1
+    maxItems: 2
+
+  "#io-channel-cells":
+    const: 1
+
+  vdd-supply: true
+
+  samsung,syscon-phandle:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Phandle to the PMU system controller node (to access the ADC_PHY
+      register on Exynos3250/4x12/5250/5420/5800).
+
+  has-touchscreen:
+    description:
+      If present, indicates that a touchscreen is connected and usable.
+    type: boolean
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - interrupts
+  - "#io-channel-cells"
+  - vdd-supply
+
+additionalProperties:
+  type: object
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - samsung,exynos-adc-v1
+              - samsung,exynos-adc-v2
+              - samsung,exynos3250-adc
+              - samsung,exynos4212-adc
+    then:
+      required:
+        - samsung,syscon-phandle
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - samsung,exynos3250-adc
+    then:
+      properties:
+        clocks:
+          minItems: 2
+          maxItems: 2
+        clock-names:
+          items:
+            - const: adc
+            - const: sclk
+    else:
+      properties:
+        clocks:
+          minItems: 1
+          maxItems: 1
+        clock-names:
+          items:
+            - const: adc
+
+  - if:
+      required:
+        - has-touchscreen
+    then:
+      properties:
+        interrupts:
+          minItems: 2
+          maxItems: 2
+
+examples:
+  - |
+    adc: adc@12d10000 {
+        compatible = "samsung,exynos-adc-v1";
+        reg = <0x12d10000 0x100>;
+        interrupts = <0 106 0>;
+        #io-channel-cells = <1>;
+
+        clocks = <&clock 303>;
+        clock-names = "adc";
+
+        vdd-supply = <&buck5_reg>;
+        samsung,syscon-phandle = <&pmu_system_controller>;
+
+        /* NTC thermistor is a hwmon device */
+        thermistor {
+            compatible = "murata,ncp15wb473";
+            pullup-uv = <1800000>;
+            pullup-ohm = <47000>;
+            pulldown-ohm = <0>;
+            io-channels = <&adc 4>;
+        };
+    };
+
+  - |
+    #include <dt-bindings/clock/exynos3250.h>
+
+    adc@126c0000 {
+        compatible = "samsung,exynos3250-adc";
+        reg = <0x126c0000 0x100>;
+        interrupts = <0 137 0>;
+        #io-channel-cells = <1>;
+
+        clocks = <&cmu CLK_TSADC>,
+                 <&cmu CLK_SCLK_TSADC>;
+        clock-names = "adc", "sclk";
+
+        vdd-supply = <&buck5_reg>;
+        samsung,syscon-phandle = <&pmu_system_controller>;
+    };

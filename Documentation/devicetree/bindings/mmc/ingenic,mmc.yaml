@@ -1,0 +1,107 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mmc/ingenic,mmc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Ingenic SoCs MMC Controller
+
+maintainers:
+  - Paul Cercueil <paul@crapouillou.net>
+
+allOf:
+  - $ref: mmc-controller.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - ingenic,jz4740-mmc
+          - ingenic,jz4725b-mmc
+          - ingenic,jz4760-mmc
+          - ingenic,jz4775-mmc
+          - ingenic,jz4780-mmc
+          - ingenic,x1000-mmc
+      - items:
+          - const: ingenic,jz4770-mmc
+          - const: ingenic,jz4760-mmc
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    const: mmc
+
+  dmas:
+    minItems: 1
+    maxItems: 2
+
+  dma-names:
+    oneOf:
+      - items:
+          - const: rx
+          - const: tx
+      - const: tx-rx
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - dmas
+  - dma-names
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/ingenic,jz4780-cgu.h>
+    #include <dt-bindings/dma/jz4780-dma.h>
+    mmc0: mmc@13450000 {
+      compatible = "ingenic,jz4780-mmc";
+      reg = <0x13450000 0x1000>;
+
+      interrupt-parent = <&intc>;
+      interrupts = <37>;
+
+      clocks = <&cgu JZ4780_CLK_MSC0>;
+      clock-names = "mmc";
+
+      cap-sd-highspeed;
+      cap-mmc-highspeed;
+      cap-sdio-irq;
+      dmas = <&dma JZ4780_DMA_MSC0_RX 0xffffffff>,
+             <&dma JZ4780_DMA_MSC0_TX 0xffffffff>;
+      dma-names = "rx", "tx";
+    };
+  - |
+    #include <dt-bindings/clock/ingenic,jz4780-cgu.h>
+    #include <dt-bindings/dma/jz4780-dma.h>
+    /*
+     * Alternative version of the example above,
+     * but using one single DMA channel for both
+     * TX and RX.
+     */
+    mmc1: mmc@13460000 {
+      compatible = "ingenic,jz4780-mmc";
+      reg = <0x13460000 0x1000>;
+
+      interrupt-parent = <&intc>;
+      interrupts = <36>;
+
+      clocks = <&cgu JZ4780_CLK_MSC1>;
+      clock-names = "mmc";
+
+      cap-sd-highspeed;
+      cap-mmc-highspeed;
+      cap-sdio-irq;
+      dmas = <&dma JZ4780_DMA_MSC1_TX JZ4780_DMA_MSC1_RX 0xffffffff>;
+      dma-names = "tx-rx";
+    };

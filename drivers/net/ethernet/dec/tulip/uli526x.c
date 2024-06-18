@@ -7,8 +7,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #define DRV_NAME	"uli526x"
-#define DRV_VERSION	"0.9.3"
-#define DRV_RELDATE	"2005-7-29"
 
 #include <linux/module.h>
 
@@ -196,10 +194,6 @@ enum uli526x_CR6_bits {
 };
 
 /* Global variable declaration ----------------------------- */
-static int printed_version;
-static const char version[] =
-	"ULi M5261/M5263 net driver, version " DRV_VERSION " (" DRV_RELDATE ")";
-
 static int uli526x_debug;
 static unsigned char uli526x_media_mode = ULI526X_AUTO;
 static u32 uli526x_cr6_user_set;
@@ -278,12 +272,10 @@ static int uli526x_init_one(struct pci_dev *pdev,
 	struct uli526x_board_info *db;	/* board information structure */
 	struct net_device *dev;
 	void __iomem *ioaddr;
+	u8 addr[ETH_ALEN];
 	int i, err;
 
 	ULI526X_DBUG(0, "uli526x_init_one()", 0);
-
-	if (!printed_version++)
-		pr_info("%s\n", version);
 
 	/* Init network device */
 	dev = alloc_etherdev(sizeof(*db));
@@ -291,7 +283,7 @@ static int uli526x_init_one(struct pci_dev *pdev,
 		return -ENOMEM;
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
-	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
+	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
 		pr_warn("32-bit PCI DMA not available\n");
 		err = -ENODEV;
 		goto err_out_free;
@@ -326,11 +318,15 @@ static int uli526x_init_one(struct pci_dev *pdev,
 	/* Allocate Tx/Rx descriptor memory */
 	err = -ENOMEM;
 
-	db->desc_pool_ptr = pci_alloc_consistent(pdev, sizeof(struct tx_desc) * DESC_ALL_CNT + 0x20, &db->desc_pool_dma_ptr);
+	db->desc_pool_ptr = dma_alloc_coherent(&pdev->dev,
+					       sizeof(struct tx_desc) * DESC_ALL_CNT + 0x20,
+					       &db->desc_pool_dma_ptr, GFP_KERNEL);
 	if (!db->desc_pool_ptr)
 		goto err_out_release;
 
-	db->buf_pool_ptr = pci_alloc_consistent(pdev, TX_BUF_ALLOC * TX_DESC_CNT + 4, &db->buf_pool_dma_ptr);
+	db->buf_pool_ptr = dma_alloc_coherent(&pdev->dev,
+					      TX_BUF_ALLOC * TX_DESC_CNT + 4,
+					      &db->buf_pool_dma_ptr, GFP_KERNEL);
 	if (!db->buf_pool_ptr)
 		goto err_out_free_tx_desc;
 
@@ -384,7 +380,7 @@ static int uli526x_init_one(struct pci_dev *pdev,
 		uw32(DCR13, 0x1b0);	//Select ID Table access port
 		//Read MAC address from CR14
 		for (i = 0; i < 6; i++)
-			dev->dev_addr[i] = ur32(DCR14);
+			addr[i] = ur32(DCR14);
 		//Read end
 		uw32(DCR13, 0);		//Clear CR13
 		uw32(DCR0, 0);		//Clear CR0
@@ -393,8 +389,10 @@ static int uli526x_init_one(struct pci_dev *pdev,
 	else		/*Exist SROM*/
 	{
 		for (i = 0; i < 6; i++)
-			dev->dev_addr[i] = db->srom[20 + i];
+			addr[i] = db->srom[20 + i];
 	}
+	eth_hw_addr_set(dev, addr);
+
 	err = register_netdev (dev);
 	if (err)
 		goto err_out_unmap;
@@ -410,11 +408,12 @@ static int uli526x_init_one(struct pci_dev *pdev,
 err_out_unmap:
 	pci_iounmap(pdev, db->ioaddr);
 err_out_free_tx_buf:
-	pci_free_consistent(pdev, TX_BUF_ALLOC * TX_DESC_CNT + 4,
-			    db->buf_pool_ptr, db->buf_pool_dma_ptr);
+	dma_free_coherent(&pdev->dev, TX_BUF_ALLOC * TX_DESC_CNT + 4,
+			  db->buf_pool_ptr, db->buf_pool_dma_ptr);
 err_out_free_tx_desc:
-	pci_free_consistent(pdev, sizeof(struct tx_desc) * DESC_ALL_CNT + 0x20,
-			    db->desc_pool_ptr, db->desc_pool_dma_ptr);
+	dma_free_coherent(&pdev->dev,
+			  sizeof(struct tx_desc) * DESC_ALL_CNT + 0x20,
+			  db->desc_pool_ptr, db->desc_pool_dma_ptr);
 err_out_release:
 	pci_release_regions(pdev);
 err_out_disable:
@@ -433,11 +432,11 @@ static void uli526x_remove_one(struct pci_dev *pdev)
 
 	unregister_netdev(dev);
 	pci_iounmap(pdev, db->ioaddr);
-	pci_free_consistent(db->pdev, sizeof(struct tx_desc) *
-				DESC_ALL_CNT + 0x20, db->desc_pool_ptr,
- 				db->desc_pool_dma_ptr);
-	pci_free_consistent(db->pdev, TX_BUF_ALLOC * TX_DESC_CNT + 4,
-				db->buf_pool_ptr, db->buf_pool_dma_ptr);
+	dma_free_coherent(&db->pdev->dev,
+			  sizeof(struct tx_desc) * DESC_ALL_CNT + 0x20,
+			  db->desc_pool_ptr, db->desc_pool_dma_ptr);
+	dma_free_coherent(&db->pdev->dev, TX_BUF_ALLOC * TX_DESC_CNT + 4,
+			  db->buf_pool_ptr, db->buf_pool_dma_ptr);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	free_netdev(dev);
@@ -784,7 +783,7 @@ static void uli526x_free_tx_pkt(struct net_device *dev,
 			}
 		}
 
-    		txptr = txptr->next_tx_desc;
+		txptr = txptr->next_tx_desc;
 	}/* End of while */
 
 	/* Update TX remove pointer to next */
@@ -819,7 +818,8 @@ static void uli526x_rx_packet(struct net_device *dev, struct uli526x_board_info 
 		db->rx_avail_cnt--;
 		db->interval_rx_cnt++;
 
-		pci_unmap_single(db->pdev, le32_to_cpu(rxptr->rdes2), RX_ALLOC_SIZE, PCI_DMA_FROMDEVICE);
+		dma_unmap_single(&db->pdev->dev, le32_to_cpu(rxptr->rdes2),
+				 RX_ALLOC_SIZE, DMA_FROM_DEVICE);
 		if ( (rdes0 & 0x300) != 0x300) {
 			/* A packet without First/Last flag */
 			/* reuse this SKB */
@@ -971,9 +971,8 @@ static void netdev_get_drvinfo(struct net_device *dev,
 {
 	struct uli526x_board_info *np = netdev_priv(dev);
 
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
-	strlcpy(info->bus_info, pci_name(np->pdev), sizeof(info->bus_info));
+	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strscpy(info->bus_info, pci_name(np->pdev), sizeof(info->bus_info));
 }
 
 static int netdev_get_link_ksettings(struct net_device *dev,
@@ -1019,7 +1018,7 @@ static void uli526x_timer(struct timer_list *t)
 	struct net_device *dev = pci_get_drvdata(db->pdev);
 	struct uli_phy_ops *phy = &db->phy;
 	void __iomem *ioaddr = db->ioaddr;
- 	unsigned long flags;
+	unsigned long flags;
 	u8 tmp_cr12 = 0;
 	u32 tmp_cr8;
 
@@ -1173,22 +1172,15 @@ static void uli526x_dynamic_reset(struct net_device *dev)
 	netif_wake_queue(dev);
 }
 
-
-#ifdef CONFIG_PM
-
 /*
  *	Suspend the interface.
  */
 
-static int uli526x_suspend(struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused uli526x_suspend(struct device *dev_d)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
-	pci_power_t power_state;
-	int err;
+	struct net_device *dev = dev_get_drvdata(dev_d);
 
 	ULI526X_DBUG(0, "uli526x_suspend", 0);
-
-	pci_save_state(pdev);
 
 	if (!netif_running(dev))
 		return 0;
@@ -1196,41 +1188,24 @@ static int uli526x_suspend(struct pci_dev *pdev, pm_message_t state)
 	netif_device_detach(dev);
 	uli526x_reset_prepare(dev);
 
-	power_state = pci_choose_state(pdev, state);
-	pci_enable_wake(pdev, power_state, 0);
-	err = pci_set_power_state(pdev, power_state);
-	if (err) {
-		netif_device_attach(dev);
-		/* Re-initialize ULI526X board */
-		uli526x_init(dev);
-		/* Restart upper layer interface */
-		netif_wake_queue(dev);
-	}
+	device_set_wakeup_enable(dev_d, 0);
 
-	return err;
+	return 0;
 }
 
 /*
  *	Resume the interface.
  */
 
-static int uli526x_resume(struct pci_dev *pdev)
+static int __maybe_unused uli526x_resume(struct device *dev_d)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
-	int err;
+	struct net_device *dev = dev_get_drvdata(dev_d);
 
 	ULI526X_DBUG(0, "uli526x_resume", 0);
 
-	pci_restore_state(pdev);
 
 	if (!netif_running(dev))
 		return 0;
-
-	err = pci_set_power_state(pdev, PCI_D0);
-	if (err) {
-		netdev_warn(dev, "Could not put device into D0\n");
-		return err;
-	}
 
 	netif_device_attach(dev);
 	/* Re-initialize ULI526X board */
@@ -1240,14 +1215,6 @@ static int uli526x_resume(struct pci_dev *pdev)
 
 	return 0;
 }
-
-#else /* !CONFIG_PM */
-
-#define uli526x_suspend	NULL
-#define uli526x_resume	NULL
-
-#endif /* !CONFIG_PM */
-
 
 /*
  *	free all allocated rx buffer
@@ -1276,10 +1243,8 @@ static void uli526x_reuse_skb(struct uli526x_board_info *db, struct sk_buff * sk
 
 	if (!(rxptr->rdes0 & cpu_to_le32(0x80000000))) {
 		rxptr->rx_skb_ptr = skb;
-		rxptr->rdes2 = cpu_to_le32(pci_map_single(db->pdev,
-							  skb_tail_pointer(skb),
-							  RX_ALLOC_SIZE,
-							  PCI_DMA_FROMDEVICE));
+		rxptr->rdes2 = cpu_to_le32(dma_map_single(&db->pdev->dev, skb_tail_pointer(skb),
+							  RX_ALLOC_SIZE, DMA_FROM_DEVICE));
 		wmb();
 		rxptr->rdes0 = cpu_to_le32(0x80000000);
 		db->rx_avail_cnt++;
@@ -1381,7 +1346,7 @@ static void send_filter_frame(struct net_device *dev, int mc_cnt)
 	void __iomem *ioaddr = db->ioaddr;
 	struct netdev_hw_addr *ha;
 	struct tx_desc *txptr;
-	u16 * addrptr;
+	const u16 * addrptr;
 	u32 * suptr;
 	int i;
 
@@ -1391,7 +1356,7 @@ static void send_filter_frame(struct net_device *dev, int mc_cnt)
 	suptr = (u32 *) txptr->tx_buf_ptr;
 
 	/* Node address */
-	addrptr = (u16 *) dev->dev_addr;
+	addrptr = (const u16 *) dev->dev_addr;
 	*suptr++ = addrptr[0] << FLT_SHIFT;
 	*suptr++ = addrptr[1] << FLT_SHIFT;
 	*suptr++ = addrptr[2] << FLT_SHIFT;
@@ -1451,10 +1416,8 @@ static void allocate_rx_buffer(struct net_device *dev)
 		if (skb == NULL)
 			break;
 		rxptr->rx_skb_ptr = skb; /* FIXME (?) */
-		rxptr->rdes2 = cpu_to_le32(pci_map_single(db->pdev,
-							  skb_tail_pointer(skb),
-							  RX_ALLOC_SIZE,
-							  PCI_DMA_FROMDEVICE));
+		rxptr->rdes2 = cpu_to_le32(dma_map_single(&db->pdev->dev, skb_tail_pointer(skb),
+							  RX_ALLOC_SIZE, DMA_FROM_DEVICE));
 		wmb();
 		rxptr->rdes0 = cpu_to_le32(0x80000000);
 		rxptr = rxptr->next_rx_desc;
@@ -1575,14 +1538,14 @@ static void uli526x_set_phyxcer(struct uli526x_board_info *db)
 
 	}
 
-  	/* Write new capability to Phyxcer Reg4 */
+	/* Write new capability to Phyxcer Reg4 */
 	if ( !(phy_reg & 0x01e0)) {
 		phy_reg|=db->PHY_reg4;
 		db->media_mode|=ULI526X_AUTO;
 	}
 	phy->write(db, db->phy_addr, 4, phy_reg);
 
- 	/* Restart Auto-Negotiation */
+	/* Restart Auto-Negotiation */
 	phy->write(db, db->phy_addr, 0, 0x1200);
 	udelay(50);
 }
@@ -1590,7 +1553,7 @@ static void uli526x_set_phyxcer(struct uli526x_board_info *db)
 
 /*
  *	Process op-mode
- 	AUTO mode : PHY controller in Auto-negotiation Mode
+	AUTO mode : PHY controller in Auto-negotiation Mode
  *	Force mode: PHY controller in force mode with HUB
  *			N-way force capability with SWITCH
  */
@@ -1771,14 +1734,14 @@ static const struct pci_device_id uli526x_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, uli526x_pci_tbl);
 
+static SIMPLE_DEV_PM_OPS(uli526x_pm_ops, uli526x_suspend, uli526x_resume);
 
 static struct pci_driver uli526x_driver = {
 	.name		= "uli526x",
 	.id_table	= uli526x_pci_tbl,
 	.probe		= uli526x_init_one,
 	.remove		= uli526x_remove_one,
-	.suspend	= uli526x_suspend,
-	.resume		= uli526x_resume,
+	.driver.pm	= &uli526x_pm_ops,
 };
 
 MODULE_AUTHOR("Peer Chen, peer.chen@uli.com.tw");
@@ -1799,9 +1762,6 @@ MODULE_PARM_DESC(mode, "ULi M5261/M5263: Bit 0: 10/100Mbps, bit 2: duplex, bit 8
 static int __init uli526x_init_module(void)
 {
 
-	pr_info("%s\n", version);
-	printed_version = 1;
-
 	ULI526X_DBUG(0, "init_module() ", debug);
 
 	if (debug)
@@ -1809,8 +1769,8 @@ static int __init uli526x_init_module(void)
 	if (cr6set)
 		uli526x_cr6_user_set = cr6set;
 
- 	switch (mode) {
-   	case ULI526X_10MHF:
+	switch (mode) {
+	case ULI526X_10MHF:
 	case ULI526X_100MHF:
 	case ULI526X_10MFD:
 	case ULI526X_100MFD:

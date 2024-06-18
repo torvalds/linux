@@ -10,6 +10,7 @@
 
 #undef DEBUG
 
+#include <linux/aperture.h>
 #include <linux/fb.h>
 #include <linux/delay.h>
 #include <linux/uaccess.h>
@@ -17,9 +18,11 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
-#if defined(CONFIG_OF)
-#include <linux/of_platform.h>
-#endif
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
+#include <linux/platform_device.h>
+
 #include "mb862xxfb.h"
 #include "mb862xx_reg.h"
 
@@ -28,15 +31,6 @@
 #define CORALP_MEM_SIZE		0x2000000
 #define CARMINE_MEM_SIZE	0x8000000
 #define DRV_NAME		"mb862xxfb"
-
-#if defined(CONFIG_SOCRATES)
-static struct mb862xx_gc_mode socrates_gc_mode = {
-	/* Mode for Prime View PM070WL4 TFT LCD Panel */
-	{ "800x480", 45, 800, 480, 40000, 86, 42, 33, 10, 128, 2, 0, 0, 0 },
-	/* 16 bits/pixel, 16MB, 133MHz, SDRAM memory mode value */
-	16, 0x1000000, GC_CCF_COT_133, 0x4157ba63
-};
-#endif
 
 /* Helpers */
 static inline int h_total(struct fb_var_screeninfo *var)
@@ -109,8 +103,7 @@ static int mb862xxfb_check_var(struct fb_var_screeninfo *var,
 {
 	unsigned long tmp;
 
-	if (fbi->dev)
-		dev_dbg(fbi->dev, "%s\n", __func__);
+	fb_dbg(fbi, "%s\n", __func__);
 
 	/* check if these values fit into the registers */
 	if (var->hsync_len > 255 || var->vsync_len > 255)
@@ -194,6 +187,8 @@ static int mb862xxfb_check_var(struct fb_var_screeninfo *var,
 	return 0;
 }
 
+static struct fb_ops mb862xxfb_ops;
+
 /*
  * set display parameters
  */
@@ -204,7 +199,7 @@ static int mb862xxfb_set_par(struct fb_info *fbi)
 
 	dev_dbg(par->dev, "%s\n", __func__);
 	if (par->type == BT_CORALP)
-		mb862xxfb_init_accel(fbi, fbi->var.xres);
+		mb862xxfb_init_accel(fbi, &mb862xxfb_ops, fbi->var.xres);
 
 	if (par->pre_init)
 		return 0;
@@ -285,7 +280,7 @@ static int mb862xxfb_blank(int mode, struct fb_info *fbi)
 	struct mb862xxfb_par  *par = fbi->par;
 	unsigned long reg;
 
-	dev_dbg(fbi->dev, "blank mode=%d\n", mode);
+	fb_dbg(fbi, "blank mode=%d\n", mode);
 
 	switch (mode) {
 	case FB_BLANK_POWERDOWN:
@@ -403,14 +398,12 @@ static int mb862xxfb_ioctl(struct fb_info *fbi, unsigned int cmd,
 /* framebuffer ops */
 static struct fb_ops mb862xxfb_ops = {
 	.owner		= THIS_MODULE,
+	FB_DEFAULT_IOMEM_OPS,
 	.fb_check_var	= mb862xxfb_check_var,
 	.fb_set_par	= mb862xxfb_set_par,
 	.fb_setcolreg	= mb862xxfb_setcolreg,
 	.fb_blank	= mb862xxfb_blank,
 	.fb_pan_display	= mb862xxfb_pan,
-	.fb_fillrect	= cfb_fillrect,
-	.fb_copyarea	= cfb_copyarea,
-	.fb_imageblit	= cfb_imageblit,
 	.fb_ioctl	= mb862xxfb_ioctl,
 };
 
@@ -497,7 +490,7 @@ static int mb862xxfb_init_fbinfo(struct fb_info *fbi)
 	fbi->var.accel_flags = 0;
 	fbi->var.vmode = FB_VMODE_NONINTERLACED;
 	fbi->var.activate = FB_ACTIVATE_NOW;
-	fbi->flags = FBINFO_DEFAULT |
+	fbi->flags =
 #ifdef __BIG_ENDIAN
 		     FBINFO_FOREIGN_ENDIAN |
 #endif
@@ -540,8 +533,8 @@ static int mb862xxfb_init_fbinfo(struct fb_info *fbi)
 /*
  * show some display controller and cursor registers
  */
-static ssize_t mb862xxfb_show_dispregs(struct device *dev,
-				       struct device_attribute *attr, char *buf)
+static ssize_t dispregs_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct mb862xxfb_par *par = fbi->par;
@@ -575,7 +568,7 @@ static ssize_t mb862xxfb_show_dispregs(struct device *dev,
 	return ptr - buf;
 }
 
-static DEVICE_ATTR(dispregs, 0444, mb862xxfb_show_dispregs, NULL);
+static DEVICE_ATTR_RO(dispregs);
 
 static irqreturn_t mb862xx_intr(int irq, void *dev_id)
 {
@@ -664,6 +657,15 @@ static int mb862xx_gdc_init(struct mb862xxfb_par *par)
 	return 0;
 }
 
+#if defined(CONFIG_SOCRATES)
+static struct mb862xx_gc_mode socrates_gc_mode = {
+	/* Mode for Prime View PM070WL4 TFT LCD Panel */
+	{ "800x480", 45, 800, 480, 40000, 86, 42, 33, 10, 128, 2, 0, 0, 0 },
+	/* 16 bits/pixel, 16MB, 133MHz, SDRAM memory mode value */
+	16, 0x1000000, GC_CCF_COT_133, 0x4157ba63
+};
+#endif
+
 static int of_platform_mb862xx_probe(struct platform_device *ofdev)
 {
 	struct device_node *np = ofdev->dev.of_node;
@@ -688,7 +690,7 @@ static int of_platform_mb862xx_probe(struct platform_device *ofdev)
 	par->dev = dev;
 
 	par->irq = irq_of_parse_and_map(np, 0);
-	if (par->irq == NO_IRQ) {
+	if (!par->irq) {
 		dev_err(dev, "failed to map irq\n");
 		ret = -ENODEV;
 		goto fbrel;
@@ -779,14 +781,14 @@ fbrel:
 	return ret;
 }
 
-static int of_platform_mb862xx_remove(struct platform_device *ofdev)
+static void of_platform_mb862xx_remove(struct platform_device *ofdev)
 {
 	struct fb_info *fbi = dev_get_drvdata(&ofdev->dev);
 	struct mb862xxfb_par *par = fbi->par;
 	resource_size_t res_size = resource_size(par->res);
 	unsigned long reg;
 
-	dev_dbg(fbi->dev, "%s release\n", fbi->fix.id);
+	fb_dbg(fbi, "%s release\n", fbi->fix.id);
 
 	/* display off */
 	reg = inreg(disp, GC_DCM1);
@@ -809,7 +811,6 @@ static int of_platform_mb862xx_remove(struct platform_device *ofdev)
 
 	release_mem_region(par->res->start, res_size);
 	framebuffer_release(fbi);
-	return 0;
 }
 
 /*
@@ -833,7 +834,7 @@ static struct platform_driver of_platform_mb862xxfb_driver = {
 		.of_match_table = of_platform_mb862xx_tbl,
 	},
 	.probe		= of_platform_mb862xx_probe,
-	.remove		= of_platform_mb862xx_remove,
+	.remove_new	= of_platform_mb862xx_remove,
 };
 #endif
 
@@ -995,6 +996,10 @@ static int mb862xx_pci_probe(struct pci_dev *pdev,
 	struct device *dev = &pdev->dev;
 	int ret;
 
+	ret = aperture_remove_conflicting_pci_devices(pdev, "mb862xxfb");
+	if (ret)
+		return ret;
+
 	ret = pci_enable_device(pdev);
 	if (ret < 0) {
 		dev_err(dev, "Cannot enable PCI device\n");
@@ -1130,7 +1135,7 @@ static void mb862xx_pci_remove(struct pci_dev *pdev)
 	struct mb862xxfb_par *par = fbi->par;
 	unsigned long reg;
 
-	dev_dbg(fbi->dev, "%s release\n", fbi->fix.id);
+	fb_dbg(fbi, "%s release\n", fbi->fix.id);
 
 	/* display off */
 	reg = inreg(disp, GC_DCM1);
@@ -1171,6 +1176,9 @@ static struct pci_driver mb862xxfb_pci_driver = {
 static int mb862xxfb_init(void)
 {
 	int ret = -ENODEV;
+
+	if (fb_modesetting_disabled(DRV_NAME))
+		return -ENODEV;
 
 #if defined(CONFIG_FB_MB862XX_LIME)
 	ret = platform_driver_register(&of_platform_mb862xxfb_driver);

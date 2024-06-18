@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * udc.c - Core UDC Framework
  *
  * Copyright (C) 2016 Intel Corporation
@@ -91,6 +91,11 @@ DEFINE_EVENT(udc_log_gadget, usb_gadget_wakeup,
 	TP_ARGS(g, ret)
 );
 
+DEFINE_EVENT(udc_log_gadget, usb_gadget_set_remote_wakeup,
+	TP_PROTO(struct usb_gadget *g, int ret),
+	TP_ARGS(g, ret)
+);
+
 DEFINE_EVENT(udc_log_gadget, usb_gadget_set_selfpowered,
 	TP_PROTO(struct usb_gadget *g, int ret),
 	TP_ARGS(g, ret)
@@ -140,7 +145,7 @@ DECLARE_EVENT_CLASS(udc_log_ep,
 	TP_PROTO(struct usb_ep *ep, int ret),
 	TP_ARGS(ep, ret),
 	TP_STRUCT__entry(
-		__dynamic_array(char, name, UDC_TRACE_STR_MAX)
+		__string(name, ep->name)
 		__field(unsigned, maxpacket)
 		__field(unsigned, maxpacket_limit)
 		__field(unsigned, max_streams)
@@ -152,7 +157,7 @@ DECLARE_EVENT_CLASS(udc_log_ep,
 		__field(int, ret)
 	),
 	TP_fast_assign(
-		snprintf(__get_str(name), UDC_TRACE_STR_MAX, "%s", ep->name);
+		__assign_str(name);
 		__entry->maxpacket = ep->maxpacket;
 		__entry->maxpacket_limit = ep->maxpacket_limit;
 		__entry->max_streams = ep->max_streams;
@@ -214,7 +219,7 @@ DECLARE_EVENT_CLASS(udc_log_req,
 	TP_PROTO(struct usb_ep *ep, struct usb_request *req, int ret),
 	TP_ARGS(ep, req, ret),
 	TP_STRUCT__entry(
-		__dynamic_array(char, name, UDC_TRACE_STR_MAX)
+		__string(name, ep->name)
 		__field(unsigned, length)
 		__field(unsigned, actual)
 		__field(unsigned, num_sgs)
@@ -228,7 +233,7 @@ DECLARE_EVENT_CLASS(udc_log_req,
 		__field(struct usb_request *, req)
 	),
 	TP_fast_assign(
-		snprintf(__get_str(name), UDC_TRACE_STR_MAX, "%s", ep->name);
+		__assign_str(name);
 		__entry->length = req->length;
 		__entry->actual = req->actual;
 		__entry->num_sgs = req->num_sgs;

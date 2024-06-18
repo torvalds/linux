@@ -72,31 +72,29 @@ static int probe(struct pci_dev *pdev,
 			   const struct pci_device_id *id)
 {
 	struct uio_pci_generic_dev *gdev;
+	struct uio_mem *uiomem;
 	int err;
+	int i;
 
-	err = pci_enable_device(pdev);
+	err = pcim_enable_device(pdev);
 	if (err) {
 		dev_err(&pdev->dev, "%s: pci_enable_device failed: %d\n",
 			__func__, err);
 		return err;
 	}
 
-	if (pdev->irq && !pci_intx_mask_supported(pdev)) {
-		err = -ENODEV;
-		goto err_verify;
-	}
+	if (pdev->irq && !pci_intx_mask_supported(pdev))
+		return -ENODEV;
 
-	gdev = kzalloc(sizeof(struct uio_pci_generic_dev), GFP_KERNEL);
-	if (!gdev) {
-		err = -ENOMEM;
-		goto err_alloc;
-	}
+	gdev = devm_kzalloc(&pdev->dev, sizeof(struct uio_pci_generic_dev), GFP_KERNEL);
+	if (!gdev)
+		return -ENOMEM;
 
 	gdev->info.name = "uio_pci_generic";
 	gdev->info.version = DRIVER_VERSION;
 	gdev->info.release = release;
 	gdev->pdev = pdev;
-	if (pdev->irq) {
+	if (pdev->irq && (pdev->irq != IRQ_NOTCONNECTED)) {
 		gdev->info.irq = pdev->irq;
 		gdev->info.irq_flags = IRQF_SHARED;
 		gdev->info.handler = irqhandler;
@@ -105,34 +103,43 @@ static int probe(struct pci_dev *pdev,
 			 "no support for interrupts?\n");
 	}
 
-	err = uio_register_device(&pdev->dev, &gdev->info);
-	if (err)
-		goto err_register;
-	pci_set_drvdata(pdev, gdev);
+	uiomem = &gdev->info.mem[0];
+	for (i = 0; i < MAX_UIO_MAPS; ++i) {
+		struct resource *r = &pdev->resource[i];
 
-	return 0;
-err_register:
-	kfree(gdev);
-err_alloc:
-err_verify:
-	pci_disable_device(pdev);
-	return err;
-}
+		if (r->flags != (IORESOURCE_SIZEALIGN | IORESOURCE_MEM))
+			continue;
 
-static void remove(struct pci_dev *pdev)
-{
-	struct uio_pci_generic_dev *gdev = pci_get_drvdata(pdev);
+		if (uiomem >= &gdev->info.mem[MAX_UIO_MAPS]) {
+			dev_warn(
+				&pdev->dev,
+				"device has more than " __stringify(
+					MAX_UIO_MAPS) " I/O memory resources.\n");
+			break;
+		}
 
-	uio_unregister_device(&gdev->info);
-	pci_disable_device(pdev);
-	kfree(gdev);
+		uiomem->memtype = UIO_MEM_PHYS;
+		uiomem->addr = r->start & PAGE_MASK;
+		uiomem->offs = r->start & ~PAGE_MASK;
+		uiomem->size =
+			(uiomem->offs + resource_size(r) + PAGE_SIZE - 1) &
+			PAGE_MASK;
+		uiomem->name = r->name;
+		++uiomem;
+	}
+
+	while (uiomem < &gdev->info.mem[MAX_UIO_MAPS]) {
+		uiomem->size = 0;
+		++uiomem;
+	}
+
+	return devm_uio_register_device(&pdev->dev, &gdev->info);
 }
 
 static struct pci_driver uio_pci_driver = {
 	.name = "uio_pci_generic",
 	.id_table = NULL, /* only dynamic id's */
 	.probe = probe,
-	.remove = remove,
 };
 
 module_pci_driver(uio_pci_driver);

@@ -28,20 +28,21 @@ static int scmdev_probe(struct device *dev)
 	return scmdrv->probe ? scmdrv->probe(scmdev) : -ENODEV;
 }
 
-static int scmdev_remove(struct device *dev)
+static void scmdev_remove(struct device *dev)
 {
 	struct scm_device *scmdev = to_scm_dev(dev);
 	struct scm_driver *scmdrv = to_scm_drv(dev->driver);
 
-	return scmdrv->remove ? scmdrv->remove(scmdev) : -ENODEV;
+	if (scmdrv->remove)
+		scmdrv->remove(scmdev);
 }
 
-static int scmdev_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int scmdev_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
 	return add_uevent_var(env, "MODALIAS=scm:scmdev");
 }
 
-static struct bus_type scm_bus_type = {
+static const struct bus_type scm_bus_type = {
 	.name  = "scm",
 	.probe = scmdev_probe,
 	.remove = scmdev_remove,
@@ -227,7 +228,7 @@ int scm_update_information(void)
 	size_t num;
 	int ret;
 
-	scm_info = (void *)__get_free_page(GFP_KERNEL | GFP_DMA);
+	scm_info = (void *)__get_free_page(GFP_KERNEL);
 	if (!scm_info)
 		return -ENOMEM;
 

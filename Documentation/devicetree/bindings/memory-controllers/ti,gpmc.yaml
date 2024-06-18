@@ -1,0 +1,190 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/memory-controllers/ti,gpmc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments GPMC Memory Controller
+
+maintainers:
+  - Tony Lindgren <tony@atomide.com>
+  - Roger Quadros <rogerq@kernel.org>
+
+description:
+  The GPMC is a unified memory controller dedicated for interfacing
+  with external memory devices like
+  - Asynchronous SRAM-like memories and ASICs
+  - Asynchronous, synchronous, and page mode burst NOR flash
+  - NAND flash
+  - Pseudo-SRAM devices
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - ti,am3352-gpmc
+          - ti,am64-gpmc
+          - ti,omap2420-gpmc
+          - ti,omap2430-gpmc
+          - ti,omap3430-gpmc
+          - ti,omap4430-gpmc
+
+  reg:
+    minItems: 1
+    maxItems: 2
+
+  reg-names:
+    items:
+      - const: cfg
+      - const: data
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+    description: |
+      Functional clock. Used for bus timing calculations and
+      GPMC configuration.
+
+  clock-names:
+    items:
+      - const: fck
+
+  power-domains:
+    maxItems: 1
+
+  dmas:
+    items:
+      - description: DMA channel for GPMC NAND prefetch
+
+  dma-names:
+    items:
+      - const: rxtx
+
+  "#address-cells": true
+
+  "#size-cells": true
+
+  gpmc,num-cs:
+    description: maximum number of supported chip-select lines.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  gpmc,num-waitpins:
+    description: maximum number of supported wait pins.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  ranges:
+    minItems: 1
+    description: |
+      Must be set up to reflect the memory layout with four
+      integer values for each chip-select line in use,
+      <cs-number> 0 <physical address of mapping> <size>
+    items:
+      - description: NAND bank 0
+      - description: NOR/SRAM bank 0
+      - description: NOR/SRAM bank 1
+
+  '#interrupt-cells':
+    const: 2
+
+  interrupt-controller:
+    description: |
+      The GPMC driver implements an interrupt controller for
+      the NAND events "fifoevent" and "termcount" plus the
+      rising/falling edges on the GPMC_WAIT pins.
+      The interrupt number mapping is as follows
+      0 - NAND_fifoevent
+      1 - NAND_termcount
+      2 - GPMC_WAIT0 pin edge
+      3 - GPMC_WAIT1 pin edge, and so on.
+
+  '#gpio-cells':
+    const: 2
+
+  gpio-controller:
+    description: |
+      The GPMC driver implements a GPIO controller for the
+      GPMC WAIT pins that can be used as general purpose inputs.
+      0 maps to GPMC_WAIT0 pin.
+
+  ti,hwmods:
+    description:
+      Name of the HWMOD associated with GPMC. This is for legacy
+      omap2/3 platforms only.
+    $ref: /schemas/types.yaml#/definitions/string
+    deprecated: true
+
+  ti,no-idle-on-init:
+    description:
+      Prevent idling the module at init. This is for legacy omap2/3
+      platforms only.
+    type: boolean
+    deprecated: true
+
+patternProperties:
+  "@[0-7],[a-f0-9]+$":
+    type: object
+    description: |
+      The child device node represents the device connected to the GPMC
+      bus. The device can be a NAND chip, SRAM device, NOR device
+      or an ASIC.
+    $ref: ti,gpmc-child.yaml
+    additionalProperties: true
+
+required:
+  - compatible
+  - reg
+  - gpmc,num-cs
+  - gpmc,num-waitpins
+  - "#address-cells"
+  - "#size-cells"
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ti,am64-gpmc
+    then:
+      required:
+        - reg-names
+        - power-domains
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/gpio/gpio.h>
+
+    gpmc: memory-controller@50000000 {
+      compatible = "ti,am3352-gpmc";
+      reg = <0x50000000 0x2000>;
+      interrupts = <100>;
+      clocks = <&l3s_clkctrl>;
+      clock-names = "fck";
+      dmas = <&edma 52 0>;
+      dma-names = "rxtx";
+      gpmc,num-cs = <8>;
+      gpmc,num-waitpins = <2>;
+      #address-cells = <2>;
+      #size-cells = <1>;
+      ranges = <0 0 0x08000000 0x10000000>; /* CS0 @addr 0x8000000, size 0x10000000 */
+      interrupt-controller;
+      #interrupt-cells = <2>;
+      gpio-controller;
+      #gpio-cells = <2>;
+
+      nand@0,0 {
+        compatible = "ti,omap2-nand";
+        reg = <0 0 4>;
+        interrupt-parent = <&gpmc>;
+        interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
+                     <1 IRQ_TYPE_NONE>; /* termcount */
+        ti,nand-xfer-type = "prefetch-dma";
+        ti,nand-ecc-opt = "bch16";
+        ti,elm-id = <&elm>;
+        rb-gpios = <&gpmc 0 GPIO_ACTIVE_HIGH>; /* gpmc_wait0 pin */
+      };
+    };

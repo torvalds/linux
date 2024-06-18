@@ -25,13 +25,12 @@
 #include <linux/completion.h>
 #include <linux/interrupt.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/mtd/lpc32xx_mlc.h>
 #include <linux/io.h>
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
-#include <linux/mtd/nand_ecc.h>
 
 #define DRV_NAME "lpc32xx_mlc"
 
@@ -123,7 +122,6 @@ struct lpc32xx_nand_cfg_mlc {
 	uint32_t rd_low;
 	uint32_t wr_high;
 	uint32_t wr_low;
-	int wp_gpio;
 	struct mtd_partition *parts;
 	unsigned num_parts;
 };
@@ -178,6 +176,7 @@ struct lpc32xx_nand_host {
 	struct nand_chip	nand_chip;
 	struct lpc32xx_mlc_platform_data *pdata;
 	struct clk		*clk;
+	struct gpio_desc	*wp_gpio;
 	void __iomem		*io_base;
 	int			irq;
 	struct lpc32xx_nand_cfg_mlc	*ncfg;
@@ -304,8 +303,9 @@ static int lpc32xx_nand_device_ready(struct nand_chip *nand_chip)
 	return 0;
 }
 
-static irqreturn_t lpc3xxx_nand_irq(int irq, struct lpc32xx_nand_host *host)
+static irqreturn_t lpc3xxx_nand_irq(int irq, void *data)
 {
+	struct lpc32xx_nand_host *host = data;
 	uint8_t sr;
 
 	/* Clear interrupt flag by reading status */
@@ -371,8 +371,8 @@ static int lpc32xx_waitfunc(struct nand_chip *chip)
  */
 static void lpc32xx_wp_enable(struct lpc32xx_nand_host *host)
 {
-	if (gpio_is_valid(host->ncfg->wp_gpio))
-		gpio_set_value(host->ncfg->wp_gpio, 0);
+	if (host->wp_gpio)
+		gpiod_set_value_cansleep(host->wp_gpio, 1);
 }
 
 /*
@@ -380,8 +380,8 @@ static void lpc32xx_wp_enable(struct lpc32xx_nand_host *host)
  */
 static void lpc32xx_wp_disable(struct lpc32xx_nand_host *host)
 {
-	if (gpio_is_valid(host->ncfg->wp_gpio))
-		gpio_set_value(host->ncfg->wp_gpio, 1);
+	if (host->wp_gpio)
+		gpiod_set_value_cansleep(host->wp_gpio, 0);
 }
 
 static void lpc32xx_dma_complete_func(void *completion)
@@ -637,8 +637,6 @@ static struct lpc32xx_nand_cfg_mlc *lpc32xx_parse_dt(struct device *dev)
 		return NULL;
 	}
 
-	ncfg->wp_gpio = of_get_named_gpio(np, "gpios", 0);
-
 	return ncfg;
 }
 
@@ -648,6 +646,9 @@ static int lpc32xx_nand_attach_chip(struct nand_chip *chip)
 	struct lpc32xx_nand_host *host = nand_get_controller_data(chip);
 	struct device *dev = &host->pdev->dev;
 
+	if (chip->ecc.engine_type != NAND_ECC_ENGINE_TYPE_ON_HOST)
+		return 0;
+
 	host->dma_buf = devm_kzalloc(dev, mtd->writesize, GFP_KERNEL);
 	if (!host->dma_buf)
 		return -ENOMEM;
@@ -656,8 +657,17 @@ static int lpc32xx_nand_attach_chip(struct nand_chip *chip)
 	if (!host->dummy_buf)
 		return -ENOMEM;
 
-	chip->ecc.mode = NAND_ECC_HW;
 	chip->ecc.size = 512;
+	chip->ecc.hwctl = lpc32xx_ecc_enable;
+	chip->ecc.read_page_raw = lpc32xx_read_page;
+	chip->ecc.read_page = lpc32xx_read_page;
+	chip->ecc.write_page_raw = lpc32xx_write_page_lowlevel;
+	chip->ecc.write_page = lpc32xx_write_page_lowlevel;
+	chip->ecc.write_oob = lpc32xx_write_oob;
+	chip->ecc.read_oob = lpc32xx_read_oob;
+	chip->ecc.strength = 4;
+	chip->ecc.bytes = 10;
+
 	mtd_set_ooblayout(mtd, &lpc32xx_ooblayout_ops);
 	host->mlcsubpages = mtd->writesize / 512;
 
@@ -686,8 +696,7 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 
 	host->pdev = pdev;
 
-	rc = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	host->io_base = devm_ioremap_resource(&pdev->dev, rc);
+	host->io_base = devm_platform_get_and_ioremap_resource(pdev, 0, &rc);
 	if (IS_ERR(host->io_base))
 		return PTR_ERR(host->io_base);
 
@@ -702,14 +711,18 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 			"Missing or bad NAND config from device tree\n");
 		return -ENOENT;
 	}
-	if (host->ncfg->wp_gpio == -EPROBE_DEFER)
-		return -EPROBE_DEFER;
-	if (gpio_is_valid(host->ncfg->wp_gpio) &&
-			gpio_request(host->ncfg->wp_gpio, "NAND WP")) {
-		dev_err(&pdev->dev, "GPIO not available\n");
-		return -EBUSY;
+
+	/* Start with WP disabled, if available */
+	host->wp_gpio = gpiod_get_optional(&pdev->dev, NULL, GPIOD_OUT_LOW);
+	res = PTR_ERR_OR_ZERO(host->wp_gpio);
+	if (res) {
+		if (res != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "WP GPIO is not available: %d\n",
+				res);
+		return res;
 	}
-	lpc32xx_wp_disable(host);
+
+	gpiod_set_consumer_name(host->wp_gpio, "NAND WP");
 
 	host->pdata = dev_get_platdata(&pdev->dev);
 
@@ -741,15 +754,6 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, host);
 
 	/* Initialize function pointers */
-	nand_chip->ecc.hwctl = lpc32xx_ecc_enable;
-	nand_chip->ecc.read_page_raw = lpc32xx_read_page;
-	nand_chip->ecc.read_page = lpc32xx_read_page;
-	nand_chip->ecc.write_page_raw = lpc32xx_write_page_lowlevel;
-	nand_chip->ecc.write_page = lpc32xx_write_page_lowlevel;
-	nand_chip->ecc.write_oob = lpc32xx_write_oob;
-	nand_chip->ecc.read_oob = lpc32xx_read_oob;
-	nand_chip->ecc.strength = 4;
-	nand_chip->ecc.bytes = 10;
 	nand_chip->legacy.waitfunc = lpc32xx_waitfunc;
 
 	nand_chip->options = NAND_NO_SUBPAGE_WRITE;
@@ -773,12 +777,11 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 
 	host->irq = platform_get_irq(pdev, 0);
 	if (host->irq < 0) {
-		dev_err(&pdev->dev, "failed to get platform irq\n");
 		res = -EINVAL;
 		goto release_dma_chan;
 	}
 
-	if (request_irq(host->irq, (irq_handler_t)&lpc3xxx_nand_irq,
+	if (request_irq(host->irq, &lpc3xxx_nand_irq,
 			IRQF_TRIGGER_HIGH, DRV_NAME, host)) {
 		dev_err(&pdev->dev, "Error requesting NAND IRQ\n");
 		res = -ENXIO;
@@ -816,7 +819,7 @@ put_clk:
 	clk_put(host->clk);
 free_gpio:
 	lpc32xx_wp_enable(host);
-	gpio_free(host->ncfg->wp_gpio);
+	gpiod_put(host->wp_gpio);
 
 	return res;
 }
@@ -824,11 +827,16 @@ free_gpio:
 /*
  * Remove NAND device
  */
-static int lpc32xx_nand_remove(struct platform_device *pdev)
+static void lpc32xx_nand_remove(struct platform_device *pdev)
 {
 	struct lpc32xx_nand_host *host = platform_get_drvdata(pdev);
+	struct nand_chip *chip = &host->nand_chip;
+	int ret;
 
-	nand_release(&host->nand_chip);
+	ret = mtd_device_unregister(nand_to_mtd(chip));
+	WARN_ON(ret);
+	nand_cleanup(chip);
+
 	free_irq(host->irq, host);
 	if (use_dma)
 		dma_release_channel(host->dma_chan);
@@ -837,12 +845,9 @@ static int lpc32xx_nand_remove(struct platform_device *pdev)
 	clk_put(host->clk);
 
 	lpc32xx_wp_enable(host);
-	gpio_free(host->ncfg->wp_gpio);
-
-	return 0;
+	gpiod_put(host->wp_gpio);
 }
 
-#ifdef CONFIG_PM
 static int lpc32xx_nand_resume(struct platform_device *pdev)
 {
 	struct lpc32xx_nand_host *host = platform_get_drvdata(pdev);
@@ -874,11 +879,6 @@ static int lpc32xx_nand_suspend(struct platform_device *pdev, pm_message_t pm)
 	return 0;
 }
 
-#else
-#define lpc32xx_nand_resume NULL
-#define lpc32xx_nand_suspend NULL
-#endif
-
 static const struct of_device_id lpc32xx_nand_match[] = {
 	{ .compatible = "nxp,lpc3220-mlc" },
 	{ /* sentinel */ },
@@ -887,9 +887,9 @@ MODULE_DEVICE_TABLE(of, lpc32xx_nand_match);
 
 static struct platform_driver lpc32xx_nand_driver = {
 	.probe		= lpc32xx_nand_probe,
-	.remove		= lpc32xx_nand_remove,
-	.resume		= lpc32xx_nand_resume,
-	.suspend	= lpc32xx_nand_suspend,
+	.remove_new	= lpc32xx_nand_remove,
+	.resume		= pm_ptr(lpc32xx_nand_resume),
+	.suspend	= pm_ptr(lpc32xx_nand_suspend),
 	.driver		= {
 		.name	= DRV_NAME,
 		.of_match_table = lpc32xx_nand_match,

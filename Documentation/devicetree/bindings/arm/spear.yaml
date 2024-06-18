@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/spear.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: ST SPEAr Platforms Device Tree Bindings
+title: ST SPEAr Platforms
 
 maintainers:
   - Viresh Kumar <vireshk@kernel.org>
@@ -22,4 +22,7 @@ properties:
           - st,spear320
           - st,spear1310
           - st,spear1340
+
+additionalProperties: true
+
 ...

@@ -14,7 +14,8 @@
  */
 
 #include <linux/mm.h>
-#include <crypto/sha.h>
+#include <crypto/sha2.h>
+#include <crypto/sha512_base.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/module.h>
@@ -72,40 +73,6 @@ static void octeon_sha512_transform(const void *_block)
 	write_octeon_64bit_block_sha512(block[13], 13);
 	write_octeon_64bit_block_sha512(block[14], 14);
 	octeon_sha512_start(block[15]);
-}
-
-static int octeon_sha512_init(struct shash_desc *desc)
-{
-	struct sha512_state *sctx = shash_desc_ctx(desc);
-
-	sctx->state[0] = SHA512_H0;
-	sctx->state[1] = SHA512_H1;
-	sctx->state[2] = SHA512_H2;
-	sctx->state[3] = SHA512_H3;
-	sctx->state[4] = SHA512_H4;
-	sctx->state[5] = SHA512_H5;
-	sctx->state[6] = SHA512_H6;
-	sctx->state[7] = SHA512_H7;
-	sctx->count[0] = sctx->count[1] = 0;
-
-	return 0;
-}
-
-static int octeon_sha384_init(struct shash_desc *desc)
-{
-	struct sha512_state *sctx = shash_desc_ctx(desc);
-
-	sctx->state[0] = SHA384_H0;
-	sctx->state[1] = SHA384_H1;
-	sctx->state[2] = SHA384_H2;
-	sctx->state[3] = SHA384_H3;
-	sctx->state[4] = SHA384_H4;
-	sctx->state[5] = SHA384_H5;
-	sctx->state[6] = SHA384_H6;
-	sctx->state[7] = SHA384_H7;
-	sctx->count[0] = sctx->count[1] = 0;
-
-	return 0;
 }
 
 static void __octeon_sha512_update(struct sha512_state *sctx, const u8 *data,
@@ -223,7 +190,7 @@ static int octeon_sha384_final(struct shash_desc *desc, u8 *hash)
 
 static struct shash_alg octeon_sha512_algs[2] = { {
 	.digestsize	=	SHA512_DIGEST_SIZE,
-	.init		=	octeon_sha512_init,
+	.init		=	sha512_base_init,
 	.update		=	octeon_sha512_update,
 	.final		=	octeon_sha512_final,
 	.descsize	=	sizeof(struct sha512_state),
@@ -236,7 +203,7 @@ static struct shash_alg octeon_sha512_algs[2] = { {
 	}
 }, {
 	.digestsize	=	SHA384_DIGEST_SIZE,
-	.init		=	octeon_sha384_init,
+	.init		=	sha384_base_init,
 	.update		=	octeon_sha512_update,
 	.final		=	octeon_sha384_final,
 	.descsize	=	sizeof(struct sha512_state),

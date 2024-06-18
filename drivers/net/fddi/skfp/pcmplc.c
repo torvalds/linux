@@ -45,10 +45,6 @@
 #define KERNEL
 #include "h/smtstate.h"
 
-#ifndef	lint
-static const char ID_sccs[] = "@(#)pcmplc.c	2.55 99/08/05 (C) SK " ;
-#endif
-
 #ifdef	FDDI_MIB
 extern int snmp_fddi_trap(
 #ifdef	ANSIC
@@ -847,7 +843,7 @@ static void pcm_fsm(struct s_smc *smc, struct s_phy *phy, int cmd)
 
 	case ACTIONS(PC5_SIGNAL) :
 		ACTIONS_DONE() ;
-		/* fall through */
+		fallthrough;
 	case PC5_SIGNAL :
 		if ((cmd != PC_SIGNAL) && (cmd != PC_TIMEOUT_LCT))
 			break ;
@@ -946,7 +942,7 @@ static void pcm_fsm(struct s_smc *smc, struct s_phy *phy, int cmd)
 		SETMASK(PLC(np,PL_CNTRL_B),PL_PC_JOIN,PL_PC_JOIN) ;
 		ACTIONS_DONE() ;
 		cmd = 0 ;
-		/* fall thru */
+		fallthrough;
 	case PC6_JOIN :
 		switch (plc->p_state) {
 		case PS_ACTIVE:

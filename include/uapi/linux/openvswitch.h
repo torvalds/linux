@@ -70,10 +70,14 @@ enum ovs_datapath_cmd {
  * set on the datapath port (for OVS_ACTION_ATTR_MISS).  Only valid on
  * %OVS_DP_CMD_NEW requests. A value of zero indicates that upcalls should
  * not be sent.
+ * @OVS_DP_ATTR_PER_CPU_PIDS: Per-cpu array of PIDs for upcalls when
+ * OVS_DP_F_DISPATCH_UPCALL_PER_CPU feature is set.
  * @OVS_DP_ATTR_STATS: Statistics about packets that have passed through the
  * datapath.  Always present in notifications.
  * @OVS_DP_ATTR_MEGAFLOW_STATS: Statistics about mega flow masks usage for the
  * datapath. Always present in notifications.
+ * @OVS_DP_ATTR_IFINDEX: Interface index for a new datapath netdev. Only
+ * valid for %OVS_DP_CMD_NEW requests.
  *
  * These attributes follow the &struct ovs_header within the Generic Netlink
  * payload for %OVS_DP_* commands.
@@ -86,6 +90,11 @@ enum ovs_datapath_attr {
 	OVS_DP_ATTR_MEGAFLOW_STATS,	/* struct ovs_dp_megaflow_stats */
 	OVS_DP_ATTR_USER_FEATURES,	/* OVS_DP_F_*  */
 	OVS_DP_ATTR_PAD,
+	OVS_DP_ATTR_MASKS_CACHE_SIZE,
+	OVS_DP_ATTR_PER_CPU_PIDS,   /* Netlink PIDS to receive upcalls in
+				     * per-cpu dispatch mode
+				     */
+	OVS_DP_ATTR_IFINDEX,
 	__OVS_DP_ATTR_MAX
 };
 
@@ -102,8 +111,8 @@ struct ovs_dp_megaflow_stats {
 	__u64 n_mask_hit;	 /* Number of masks used for flow lookups. */
 	__u32 n_masks;		 /* Number of masks for the datapath. */
 	__u32 pad0;		 /* Pad for future expension. */
+	__u64 n_cache_hit;       /* Number of cache matches for flow lookups. */
 	__u64 pad1;		 /* Pad for future expension. */
-	__u64 pad2;		 /* Pad for future expension. */
 };
 
 struct ovs_vport_stats {
@@ -125,6 +134,9 @@ struct ovs_vport_stats {
 
 /* Allow tc offload recirc sharing */
 #define OVS_DP_F_TC_RECIRC_SHARING	(1 << 2)
+
+/* Allow per-cpu dispatch of upcalls */
+#define OVS_DP_F_DISPATCH_UPCALL_PER_CPU	(1 << 3)
 
 /* Fixed logical ports. */
 #define OVSP_LOCAL      ((__u32)0)
@@ -173,6 +185,7 @@ enum ovs_packet_cmd {
  * @OVS_PACKET_ATTR_LEN: Packet size before truncation.
  * %OVS_PACKET_ATTR_USERSPACE action specify the Maximum received fragment
  * size.
+ * @OVS_PACKET_ATTR_HASH: Packet hash info (e.g. hash, sw_hash and l4_hash in skb).
  *
  * These attributes follow the &struct ovs_header within the Generic Netlink
  * payload for %OVS_PACKET_* commands.
@@ -190,7 +203,8 @@ enum ovs_packet_attr {
 	OVS_PACKET_ATTR_PROBE,      /* Packet operation is a feature probe,
 				       error logging should be suppressed. */
 	OVS_PACKET_ATTR_MRU,	    /* Maximum received IP fragment size. */
-	OVS_PACKET_ATTR_LEN,		/* Packet size before truncation. */
+	OVS_PACKET_ATTR_LEN,	    /* Packet size before truncation. */
+	OVS_PACKET_ATTR_HASH,	    /* Packet hash. */
 	__OVS_PACKET_ATTR_MAX
 };
 
@@ -263,10 +277,24 @@ enum ovs_vport_attr {
 	OVS_VPORT_ATTR_PAD,
 	OVS_VPORT_ATTR_IFINDEX,
 	OVS_VPORT_ATTR_NETNSID,
+	OVS_VPORT_ATTR_UPCALL_STATS,
 	__OVS_VPORT_ATTR_MAX
 };
 
 #define OVS_VPORT_ATTR_MAX (__OVS_VPORT_ATTR_MAX - 1)
+
+/**
+ * enum ovs_vport_upcall_attr - attributes for %OVS_VPORT_UPCALL* commands
+ * @OVS_VPORT_UPCALL_SUCCESS: 64-bit upcall success packets.
+ * @OVS_VPORT_UPCALL_FAIL: 64-bit upcall fail packets.
+ */
+enum ovs_vport_upcall_attr {
+	OVS_VPORT_UPCALL_ATTR_SUCCESS,
+	OVS_VPORT_UPCALL_ATTR_FAIL,
+	__OVS_VPORT_UPCALL_ATTR_MAX
+};
+
+#define OVS_VPORT_UPCALL_ATTR_MAX (__OVS_VPORT_UPCALL_ATTR_MAX - 1)
 
 enum {
 	OVS_VXLAN_EXT_UNSPEC,
@@ -341,9 +369,20 @@ enum ovs_key_attr {
 	OVS_KEY_ATTR_CT_ORIG_TUPLE_IPV6,   /* struct ovs_key_ct_tuple_ipv6 */
 	OVS_KEY_ATTR_NSH,       /* Nested set of ovs_nsh_key_* */
 
-#ifdef __KERNEL__
-	OVS_KEY_ATTR_TUNNEL_INFO,  /* struct ip_tunnel_info */
-#endif
+	/* User space decided to squat on types 29 and 30.  They are defined
+	 * below, but should not be sent to the kernel.
+	 *
+	 * WARNING: No new types should be added unless they are defined
+	 *          for both kernel and user space (no 'ifdef's).  It's hard
+	 *          to keep compatibility otherwise.
+	 */
+	OVS_KEY_ATTR_PACKET_TYPE,   /* be32 packet type */
+	OVS_KEY_ATTR_ND_EXTENSIONS, /* IPv6 Neighbor Discovery extensions */
+
+	OVS_KEY_ATTR_TUNNEL_INFO,   /* struct ip_tunnel_info.
+				     * For in-kernel use only.
+				     */
+	OVS_KEY_ATTR_IPV6_EXTHDRS,  /* struct ovs_key_ipv6_exthdr */
 	__OVS_KEY_ATTR_MAX
 };
 
@@ -417,6 +456,11 @@ struct ovs_key_ipv6 {
 	__u8   ipv6_tclass;
 	__u8   ipv6_hlimit;
 	__u8   ipv6_frag;	/* One of OVS_FRAG_TYPE_*. */
+};
+
+/* separate structure to support backward compatibility with older user space */
+struct ovs_key_ipv6_exthdrs {
+	__u16  hdrs;
 };
 
 struct ovs_key_tcp {
@@ -671,6 +715,32 @@ struct ovs_action_push_mpls {
 };
 
 /**
+ * struct ovs_action_add_mpls - %OVS_ACTION_ATTR_ADD_MPLS action
+ * argument.
+ * @mpls_lse: MPLS label stack entry to push.
+ * @mpls_ethertype: Ethertype to set in the encapsulating ethernet frame.
+ * @tun_flags: MPLS tunnel attributes.
+ *
+ * The only values @mpls_ethertype should ever be given are %ETH_P_MPLS_UC and
+ * %ETH_P_MPLS_MC, indicating MPLS unicast or multicast. Other are rejected.
+ */
+struct ovs_action_add_mpls {
+	__be32 mpls_lse;
+	__be16 mpls_ethertype; /* Either %ETH_P_MPLS_UC or %ETH_P_MPLS_MC */
+	__u16 tun_flags;
+};
+
+#define OVS_MPLS_L3_TUNNEL_FLAG_MASK  (1 << 0) /* Flag to specify the place of
+						* insertion of MPLS header.
+						* When false, the MPLS header
+						* will be inserted at the start
+						* of the packet.
+						* When true, the MPLS header
+						* will be inserted at the start
+						* of the l3 header.
+						*/
+
+/**
  * struct ovs_action_push_vlan - %OVS_ACTION_ATTR_PUSH_VLAN action argument.
  * @vlan_tpid: Tag protocol identifier (TPID) to push.
  * @vlan_tci: Tag control identifier (TCI) to push.  The CFI bit must be set
@@ -695,6 +765,7 @@ struct ovs_action_push_vlan {
  */
 enum ovs_hash_alg {
 	OVS_HASH_ALG_L4,
+	OVS_HASH_ALG_SYM_L4,
 };
 
 /*
@@ -890,6 +961,11 @@ struct check_pkt_len_arg {
  * @OVS_ACTION_ATTR_CHECK_PKT_LEN: Check the packet length and execute a set
  * of actions if greater than the specified packet length, else execute
  * another set of actions.
+ * @OVS_ACTION_ATTR_ADD_MPLS: Push a new MPLS label stack entry at the
+ * start of the packet or at the start of the l3 header depending on the value
+ * of l3 tunnel flag in the tun_flags field of OVS_ACTION_ATTR_ADD_MPLS
+ * argument.
+ * @OVS_ACTION_ATTR_DROP: Explicit drop action.
  *
  * Only a single header can be set with a single %OVS_ACTION_ATTR_SET.  Not all
  * fields within a header are modifiable, e.g. the IPv4 protocol and fragment
@@ -925,6 +1001,9 @@ enum ovs_action_attr {
 	OVS_ACTION_ATTR_METER,        /* u32 meter ID. */
 	OVS_ACTION_ATTR_CLONE,        /* Nested OVS_CLONE_ATTR_*.  */
 	OVS_ACTION_ATTR_CHECK_PKT_LEN, /* Nested OVS_CHECK_PKT_LEN_ATTR_*. */
+	OVS_ACTION_ATTR_ADD_MPLS,     /* struct ovs_action_add_mpls. */
+	OVS_ACTION_ATTR_DEC_TTL,      /* Nested OVS_DEC_TTL_ATTR_*. */
+	OVS_ACTION_ATTR_DROP,         /* u32 error code. */
 
 	__OVS_ACTION_ATTR_MAX,	      /* Nothing past this will be accepted
 				       * from userspace. */
@@ -1016,5 +1095,13 @@ struct ovs_zone_limit {
 	__u32 limit;
 	__u32 count;
 };
+
+enum ovs_dec_ttl_attr {
+	OVS_DEC_TTL_ATTR_UNSPEC,
+	OVS_DEC_TTL_ATTR_ACTION,	/* Nested struct nlattr */
+	__OVS_DEC_TTL_ATTR_MAX
+};
+
+#define OVS_DEC_TTL_ATTR_MAX (__OVS_DEC_TTL_ATTR_MAX - 1)
 
 #endif /* _LINUX_OPENVSWITCH_H */

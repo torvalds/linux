@@ -27,7 +27,7 @@ struct ag6xx_data {
 struct pbn_entry {
 	__le32 addr;
 	__le32 plen;
-	__u8 data[0];
+	__u8 data[];
 } __packed;
 
 static int ag6xx_open(struct hci_uart *hu)
@@ -199,7 +199,6 @@ static int ag6xx_setup(struct hci_uart *hu)
 			   fwname, err);
 		goto patch;
 	}
-	fw_ptr = fw->data;
 
 	bt_dev_info(hdev, "Applying bddata (%s)", fwname);
 

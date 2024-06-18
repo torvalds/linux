@@ -2,6 +2,8 @@
 #ifndef __ACPI_BATTERY_H
 #define __ACPI_BATTERY_H
 
+#include <linux/power_supply.h>
+
 #define ACPI_BATTERY_CLASS "battery"
 
 #define ACPI_BATTERY_NOTIFY_STATUS	0x80
@@ -10,8 +12,8 @@
 
 struct acpi_battery_hook {
 	const char *name;
-	int (*add_battery)(struct power_supply *battery);
-	int (*remove_battery)(struct power_supply *battery);
+	int (*add_battery)(struct power_supply *battery, struct acpi_battery_hook *hook);
+	int (*remove_battery)(struct power_supply *battery, struct acpi_battery_hook *hook);
 	struct list_head list;
 };
 

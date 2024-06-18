@@ -58,7 +58,7 @@ static struct nf_hook_entries *allocate_hook_entries_size(u16 num)
 	if (num == 0)
 		return NULL;
 
-	e = kvzalloc(alloc, GFP_KERNEL);
+	e = kvzalloc(alloc, GFP_KERNEL_ACCOUNT);
 	if (e)
 		e->num_hook_entries = num;
 	return e;
@@ -119,6 +119,18 @@ nf_hook_entries_grow(const struct nf_hook_entries *old,
 		for (i = 0; i < old_entries; i++) {
 			if (orig_ops[i] != &dummy_ops)
 				alloc_entries++;
+
+			/* Restrict BPF hook type to force a unique priority, not
+			 * shared at attach time.
+			 *
+			 * This is mainly to avoid ordering issues between two
+			 * different bpf programs, this doesn't prevent a normal
+			 * hook at same priority as a bpf one (we don't want to
+			 * prevent defrag, conntrack, iptables etc from attaching).
+			 */
+			if (reg->priority == orig_ops[i]->priority &&
+			    reg->hook_ops_type == NF_HOOK_OP_BPF)
+				return ERR_PTR(-EBUSY);
 		}
 	}
 
@@ -282,6 +294,16 @@ nf_hook_entry_head(struct net *net, int pf, unsigned int hooknum,
 			return NULL;
 		return net->nf.hooks_bridge + hooknum;
 #endif
+#ifdef CONFIG_NETFILTER_INGRESS
+	case NFPROTO_INET:
+		if (WARN_ON_ONCE(hooknum != NF_INET_INGRESS))
+			return NULL;
+		if (!dev || dev_net(dev) != net) {
+			WARN_ON_ONCE(1);
+			return NULL;
+		}
+		return &dev->nf_hooks_ingress;
+#endif
 	case NFPROTO_IPV4:
 		if (WARN_ON_ONCE(ARRAY_SIZE(net->nf.hooks_ipv4) <= hooknum))
 			return NULL;
@@ -290,12 +312,6 @@ nf_hook_entry_head(struct net *net, int pf, unsigned int hooknum,
 		if (WARN_ON_ONCE(ARRAY_SIZE(net->nf.hooks_ipv6) <= hooknum))
 			return NULL;
 		return net->nf.hooks_ipv6 + hooknum;
-#if IS_ENABLED(CONFIG_DECNET)
-	case NFPROTO_DECNET:
-		if (WARN_ON_ONCE(ARRAY_SIZE(net->nf.hooks_decnet) <= hooknum))
-			return NULL;
-		return net->nf.hooks_decnet + hooknum;
-#endif
 	default:
 		WARN_ON_ONCE(1);
 		return NULL;
@@ -307,8 +323,74 @@ nf_hook_entry_head(struct net *net, int pf, unsigned int hooknum,
 			return &dev->nf_hooks_ingress;
 	}
 #endif
+#ifdef CONFIG_NETFILTER_EGRESS
+	if (hooknum == NF_NETDEV_EGRESS) {
+		if (dev && dev_net(dev) == net)
+			return &dev->nf_hooks_egress;
+	}
+#endif
 	WARN_ON_ONCE(1);
 	return NULL;
+}
+
+static int nf_ingress_check(struct net *net, const struct nf_hook_ops *reg,
+			    int hooknum)
+{
+#ifndef CONFIG_NETFILTER_INGRESS
+	if (reg->hooknum == hooknum)
+		return -EOPNOTSUPP;
+#endif
+	if (reg->hooknum != hooknum ||
+	    !reg->dev || dev_net(reg->dev) != net)
+		return -EINVAL;
+
+	return 0;
+}
+
+static inline bool __maybe_unused nf_ingress_hook(const struct nf_hook_ops *reg,
+						  int pf)
+{
+	if ((pf == NFPROTO_NETDEV && reg->hooknum == NF_NETDEV_INGRESS) ||
+	    (pf == NFPROTO_INET && reg->hooknum == NF_INET_INGRESS))
+		return true;
+
+	return false;
+}
+
+static inline bool __maybe_unused nf_egress_hook(const struct nf_hook_ops *reg,
+						 int pf)
+{
+	return pf == NFPROTO_NETDEV && reg->hooknum == NF_NETDEV_EGRESS;
+}
+
+static void nf_static_key_inc(const struct nf_hook_ops *reg, int pf)
+{
+#ifdef CONFIG_JUMP_LABEL
+	int hooknum;
+
+	if (pf == NFPROTO_INET && reg->hooknum == NF_INET_INGRESS) {
+		pf = NFPROTO_NETDEV;
+		hooknum = NF_NETDEV_INGRESS;
+	} else {
+		hooknum = reg->hooknum;
+	}
+	static_key_slow_inc(&nf_hooks_needed[pf][hooknum]);
+#endif
+}
+
+static void nf_static_key_dec(const struct nf_hook_ops *reg, int pf)
+{
+#ifdef CONFIG_JUMP_LABEL
+	int hooknum;
+
+	if (pf == NFPROTO_INET && reg->hooknum == NF_INET_INGRESS) {
+		pf = NFPROTO_NETDEV;
+		hooknum = NF_NETDEV_INGRESS;
+	} else {
+		hooknum = reg->hooknum;
+	}
+	static_key_slow_dec(&nf_hooks_needed[pf][hooknum]);
+#endif
 }
 
 static int __nf_register_net_hook(struct net *net, int pf,
@@ -316,15 +398,31 @@ static int __nf_register_net_hook(struct net *net, int pf,
 {
 	struct nf_hook_entries *p, *new_hooks;
 	struct nf_hook_entries __rcu **pp;
+	int err;
 
-	if (pf == NFPROTO_NETDEV) {
+	switch (pf) {
+	case NFPROTO_NETDEV:
 #ifndef CONFIG_NETFILTER_INGRESS
 		if (reg->hooknum == NF_NETDEV_INGRESS)
 			return -EOPNOTSUPP;
 #endif
-		if (reg->hooknum != NF_NETDEV_INGRESS ||
+#ifndef CONFIG_NETFILTER_EGRESS
+		if (reg->hooknum == NF_NETDEV_EGRESS)
+			return -EOPNOTSUPP;
+#endif
+		if ((reg->hooknum != NF_NETDEV_INGRESS &&
+		     reg->hooknum != NF_NETDEV_EGRESS) ||
 		    !reg->dev || dev_net(reg->dev) != net)
 			return -EINVAL;
+		break;
+	case NFPROTO_INET:
+		if (reg->hooknum != NF_INET_INGRESS)
+			break;
+
+		err = nf_ingress_check(net, reg, NF_INET_INGRESS);
+		if (err < 0)
+			return err;
+		break;
 	}
 
 	pp = nf_hook_entry_head(net, pf, reg->hooknum, reg->dev);
@@ -336,21 +434,25 @@ static int __nf_register_net_hook(struct net *net, int pf,
 	p = nf_entry_dereference(*pp);
 	new_hooks = nf_hook_entries_grow(p, reg);
 
-	if (!IS_ERR(new_hooks))
+	if (!IS_ERR(new_hooks)) {
+		hooks_validate(new_hooks);
 		rcu_assign_pointer(*pp, new_hooks);
+	}
 
 	mutex_unlock(&nf_hook_mutex);
 	if (IS_ERR(new_hooks))
 		return PTR_ERR(new_hooks);
 
-	hooks_validate(new_hooks);
 #ifdef CONFIG_NETFILTER_INGRESS
-	if (pf == NFPROTO_NETDEV && reg->hooknum == NF_NETDEV_INGRESS)
+	if (nf_ingress_hook(reg, pf))
 		net_inc_ingress_queue();
 #endif
-#ifdef CONFIG_JUMP_LABEL
-	static_key_slow_inc(&nf_hooks_needed[pf][reg->hooknum]);
+#ifdef CONFIG_NETFILTER_EGRESS
+	if (nf_egress_hook(reg, pf))
+		net_inc_egress_queue();
 #endif
+	nf_static_key_inc(reg, pf);
+
 	BUG_ON(p == new_hooks);
 	nf_hook_entries_free(p);
 	return 0;
@@ -376,7 +478,7 @@ static bool nf_remove_net_hook(struct nf_hook_entries *old,
 		if (orig_ops[i] != unreg)
 			continue;
 		WRITE_ONCE(old->hooks[i].hook, accept_all);
-		WRITE_ONCE(orig_ops[i], &dummy_ops);
+		WRITE_ONCE(orig_ops[i], (void *)&dummy_ops);
 		return true;
 	}
 
@@ -403,12 +505,14 @@ static void __nf_unregister_net_hook(struct net *net, int pf,
 
 	if (nf_remove_net_hook(p, reg)) {
 #ifdef CONFIG_NETFILTER_INGRESS
-		if (pf == NFPROTO_NETDEV && reg->hooknum == NF_NETDEV_INGRESS)
+		if (nf_ingress_hook(reg, pf))
 			net_dec_ingress_queue();
 #endif
-#ifdef CONFIG_JUMP_LABEL
-		static_key_slow_dec(&nf_hooks_needed[pf][reg->hooknum]);
+#ifdef CONFIG_NETFILTER_EGRESS
+		if (nf_egress_hook(reg, pf))
+			net_dec_egress_queue();
 #endif
+		nf_static_key_dec(reg, pf);
 	} else {
 		WARN_ONCE(1, "hook not found, pf %d num %d", pf, reg->hooknum);
 	}
@@ -425,8 +529,12 @@ static void __nf_unregister_net_hook(struct net *net, int pf,
 void nf_unregister_net_hook(struct net *net, const struct nf_hook_ops *reg)
 {
 	if (reg->pf == NFPROTO_INET) {
-		__nf_unregister_net_hook(net, NFPROTO_IPV4, reg);
-		__nf_unregister_net_hook(net, NFPROTO_IPV6, reg);
+		if (reg->hooknum == NF_INET_INGRESS) {
+			__nf_unregister_net_hook(net, NFPROTO_INET, reg);
+		} else {
+			__nf_unregister_net_hook(net, NFPROTO_IPV4, reg);
+			__nf_unregister_net_hook(net, NFPROTO_IPV6, reg);
+		}
 	} else {
 		__nf_unregister_net_hook(net, reg->pf, reg);
 	}
@@ -451,14 +559,20 @@ int nf_register_net_hook(struct net *net, const struct nf_hook_ops *reg)
 	int err;
 
 	if (reg->pf == NFPROTO_INET) {
-		err = __nf_register_net_hook(net, NFPROTO_IPV4, reg);
-		if (err < 0)
-			return err;
+		if (reg->hooknum == NF_INET_INGRESS) {
+			err = __nf_register_net_hook(net, NFPROTO_INET, reg);
+			if (err < 0)
+				return err;
+		} else {
+			err = __nf_register_net_hook(net, NFPROTO_IPV4, reg);
+			if (err < 0)
+				return err;
 
-		err = __nf_register_net_hook(net, NFPROTO_IPV6, reg);
-		if (err < 0) {
-			__nf_unregister_net_hook(net, NFPROTO_IPV4, reg);
-			return err;
+			err = __nf_register_net_hook(net, NFPROTO_IPV6, reg);
+			if (err < 0) {
+				__nf_unregister_net_hook(net, NFPROTO_IPV4, reg);
+				return err;
+			}
 		}
 	} else {
 		err = __nf_register_net_hook(net, reg->pf, reg);
@@ -514,7 +628,8 @@ int nf_hook_slow(struct sk_buff *skb, struct nf_hook_state *state,
 		case NF_ACCEPT:
 			break;
 		case NF_DROP:
-			kfree_skb(skb);
+			kfree_skb_reason(skb,
+					 SKB_DROP_REASON_NETFILTER_DROP);
 			ret = NF_DROP_GETERR(verdict);
 			if (ret == 0)
 				ret = -EPERM;
@@ -524,10 +639,10 @@ int nf_hook_slow(struct sk_buff *skb, struct nf_hook_state *state,
 			if (ret == 1)
 				continue;
 			return ret;
+		case NF_STOLEN:
+			return NF_DROP_GETERR(verdict);
 		default:
-			/* Implicit handling for NF_STOLEN, as well as any other
-			 * non conventional verdicts.
-			 */
+			WARN_ON_ONCE(1);
 			return 0;
 		}
 	}
@@ -536,35 +651,61 @@ int nf_hook_slow(struct sk_buff *skb, struct nf_hook_state *state,
 }
 EXPORT_SYMBOL(nf_hook_slow);
 
+void nf_hook_slow_list(struct list_head *head, struct nf_hook_state *state,
+		       const struct nf_hook_entries *e)
+{
+	struct sk_buff *skb, *next;
+	struct list_head sublist;
+	int ret;
+
+	INIT_LIST_HEAD(&sublist);
+
+	list_for_each_entry_safe(skb, next, head, list) {
+		skb_list_del_init(skb);
+		ret = nf_hook_slow(skb, state, e, 0);
+		if (ret == 1)
+			list_add_tail(&skb->list, &sublist);
+	}
+	/* Put passed packets back on main list */
+	list_splice(&sublist, head);
+}
+EXPORT_SYMBOL(nf_hook_slow_list);
+
 /* This needs to be compiled in any case to avoid dependencies between the
  * nfnetlink_queue code and nf_conntrack.
  */
-struct nfnl_ct_hook __rcu *nfnl_ct_hook __read_mostly;
+const struct nfnl_ct_hook __rcu *nfnl_ct_hook __read_mostly;
 EXPORT_SYMBOL_GPL(nfnl_ct_hook);
 
-struct nf_ct_hook __rcu *nf_ct_hook __read_mostly;
+const struct nf_ct_hook __rcu *nf_ct_hook __read_mostly;
 EXPORT_SYMBOL_GPL(nf_ct_hook);
 
-#if IS_ENABLED(CONFIG_NF_CONNTRACK)
-/* This does not belong here, but locally generated errors need it if connection
-   tracking in use: without this, connection may not be in hash table, and hence
-   manufactured ICMP or RST packets will not be associated with it. */
-void (*ip_ct_attach)(struct sk_buff *, const struct sk_buff *)
-		__rcu __read_mostly;
-EXPORT_SYMBOL(ip_ct_attach);
+const struct nf_defrag_hook __rcu *nf_defrag_v4_hook __read_mostly;
+EXPORT_SYMBOL_GPL(nf_defrag_v4_hook);
 
-struct nf_nat_hook __rcu *nf_nat_hook __read_mostly;
+const struct nf_defrag_hook __rcu *nf_defrag_v6_hook __read_mostly;
+EXPORT_SYMBOL_GPL(nf_defrag_v6_hook);
+
+#if IS_ENABLED(CONFIG_NF_CONNTRACK)
+u8 nf_ctnetlink_has_listener;
+EXPORT_SYMBOL_GPL(nf_ctnetlink_has_listener);
+
+const struct nf_nat_hook __rcu *nf_nat_hook __read_mostly;
 EXPORT_SYMBOL_GPL(nf_nat_hook);
 
+/* This does not belong here, but locally generated errors need it if connection
+ * tracking in use: without this, connection may not be in hash table, and hence
+ * manufactured ICMP or RST packets will not be associated with it.
+ */
 void nf_ct_attach(struct sk_buff *new, const struct sk_buff *skb)
 {
-	void (*attach)(struct sk_buff *, const struct sk_buff *);
+	const struct nf_ct_hook *ct_hook;
 
 	if (skb->_nfct) {
 		rcu_read_lock();
-		attach = rcu_dereference(ip_ct_attach);
-		if (attach)
-			attach(new, skb);
+		ct_hook = rcu_dereference(nf_ct_hook);
+		if (ct_hook)
+			ct_hook->attach(new, skb);
 		rcu_read_unlock();
 	}
 }
@@ -572,20 +713,38 @@ EXPORT_SYMBOL(nf_ct_attach);
 
 void nf_conntrack_destroy(struct nf_conntrack *nfct)
 {
-	struct nf_ct_hook *ct_hook;
+	const struct nf_ct_hook *ct_hook;
 
 	rcu_read_lock();
 	ct_hook = rcu_dereference(nf_ct_hook);
-	BUG_ON(ct_hook == NULL);
-	ct_hook->destroy(nfct);
+	if (ct_hook)
+		ct_hook->destroy(nfct);
 	rcu_read_unlock();
+
+	WARN_ON(!ct_hook);
 }
 EXPORT_SYMBOL(nf_conntrack_destroy);
+
+void nf_ct_set_closing(struct nf_conntrack *nfct)
+{
+	const struct nf_ct_hook *ct_hook;
+
+	if (!nfct)
+		return;
+
+	rcu_read_lock();
+	ct_hook = rcu_dereference(nf_ct_hook);
+	if (ct_hook)
+		ct_hook->set_closing(nfct);
+
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL_GPL(nf_ct_set_closing);
 
 bool nf_ct_get_tuple_skb(struct nf_conntrack_tuple *dst_tuple,
 			 const struct sk_buff *skb)
 {
-	struct nf_ct_hook *ct_hook;
+	const struct nf_ct_hook *ct_hook;
 	bool ret = false;
 
 	rcu_read_lock();
@@ -624,10 +783,6 @@ static int __net_init netfilter_net_init(struct net *net)
 #ifdef CONFIG_NETFILTER_FAMILY_BRIDGE
 	__netfilter_net_init(net->nf.hooks_bridge, ARRAY_SIZE(net->nf.hooks_bridge));
 #endif
-#if IS_ENABLED(CONFIG_DECNET)
-	__netfilter_net_init(net->nf.hooks_decnet, ARRAY_SIZE(net->nf.hooks_decnet));
-#endif
-
 #ifdef CONFIG_PROC_FS
 	net->nf.proc_netfilter = proc_net_mkdir(net, "netfilter",
 						net->proc_net);

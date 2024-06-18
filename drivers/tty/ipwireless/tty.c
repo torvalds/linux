@@ -54,7 +54,6 @@ struct ipw_tty {
 	unsigned int control_lines;
 	struct mutex ipw_tty_mutex;
 	int tx_bytes_queued;
-	int closing;
 };
 
 static struct ipw_tty *ttys[IPWIRELESS_PCMCIA_MINORS];
@@ -101,7 +100,6 @@ static int ipw_open(struct tty_struct *linux_tty, struct file *filp)
 
 	tty->port.tty = linux_tty;
 	linux_tty->driver_data = tty;
-	tty->port.low_latency = 1;
 
 	if (tty->tty_type == TTYTYPE_MODEM)
 		ipwireless_ppp_open(tty->network);
@@ -188,8 +186,8 @@ static void ipw_write_packet_sent_callback(void *callback_data,
 	tty->tx_bytes_queued -= packet_length;
 }
 
-static int ipw_write(struct tty_struct *linux_tty,
-		     const unsigned char *buf, int count)
+static ssize_t ipw_write(struct tty_struct *linux_tty, const u8 *buf,
+			 size_t count)
 {
 	struct ipw_tty *tty = linux_tty->driver_data;
 	int room, ret;
@@ -218,7 +216,7 @@ static int ipw_write(struct tty_struct *linux_tty,
 	ret = ipwireless_send_packet(tty->hardware, IPW_CHANNEL_RAS,
 			       buf, count,
 			       ipw_write_packet_sent_callback, tty);
-	if (ret == -1) {
+	if (ret < 0) {
 		mutex_unlock(&tty->ipw_tty_mutex);
 		return 0;
 	}
@@ -229,17 +227,17 @@ static int ipw_write(struct tty_struct *linux_tty,
 	return count;
 }
 
-static int ipw_write_room(struct tty_struct *linux_tty)
+static unsigned int ipw_write_room(struct tty_struct *linux_tty)
 {
 	struct ipw_tty *tty = linux_tty->driver_data;
 	int room;
 
 	/* FIXME: Exactly how is the tty object locked here .. */
 	if (!tty)
-		return -ENODEV;
+		return 0;
 
 	if (!tty->port.count)
-		return -EINVAL;
+		return 0;
 
 	room = IPWIRELESS_TX_QUEUE_SIZE - tty->tx_bytes_queued;
 	if (room < 0)
@@ -271,7 +269,7 @@ static int ipwireless_set_serial_info(struct tty_struct *linux_tty,
 	return 0;	/* Keeps the PCMCIA scripts happy. */
 }
 
-static int ipw_chars_in_buffer(struct tty_struct *linux_tty)
+static unsigned int ipw_chars_in_buffer(struct tty_struct *linux_tty)
 {
 	struct ipw_tty *tty = linux_tty->driver_data;
 
@@ -526,7 +524,6 @@ void ipwireless_tty_free(struct ipw_tty *tty)
 				printk(KERN_INFO IPWIRELESS_PCCARD_NAME
 				       ": deregistering %s device ttyIPWp%d\n",
 				       tty_type_name(ttyj->tty_type), j);
-			ttyj->closing = 1;
 			if (ttyj->port.tty != NULL) {
 				mutex_unlock(&ttyj->ipw_tty_mutex);
 				tty_vhangup(ttyj->port.tty);
@@ -567,9 +564,10 @@ int ipwireless_tty_init(void)
 {
 	int result;
 
-	ipw_tty_driver = alloc_tty_driver(IPWIRELESS_PCMCIA_MINORS);
-	if (!ipw_tty_driver)
-		return -ENOMEM;
+	ipw_tty_driver = tty_alloc_driver(IPWIRELESS_PCMCIA_MINORS,
+			TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV);
+	if (IS_ERR(ipw_tty_driver))
+		return PTR_ERR(ipw_tty_driver);
 
 	ipw_tty_driver->driver_name = IPWIRELESS_PCCARD_NAME;
 	ipw_tty_driver->name = "ttyIPWp";
@@ -577,7 +575,6 @@ int ipwireless_tty_init(void)
 	ipw_tty_driver->minor_start = IPWIRELESS_PCMCIA_START;
 	ipw_tty_driver->type = TTY_DRIVER_TYPE_SERIAL;
 	ipw_tty_driver->subtype = SERIAL_TYPE_NORMAL;
-	ipw_tty_driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 	ipw_tty_driver->init_termios = tty_std_termios;
 	ipw_tty_driver->init_termios.c_cflag =
 	    B9600 | CS8 | CREAD | HUPCL | CLOCAL;
@@ -588,7 +585,7 @@ int ipwireless_tty_init(void)
 	if (result) {
 		printk(KERN_ERR IPWIRELESS_PCCARD_NAME
 		       ": failed to register tty driver\n");
-		put_tty_driver(ipw_tty_driver);
+		tty_driver_kref_put(ipw_tty_driver);
 		return result;
 	}
 
@@ -597,13 +594,8 @@ int ipwireless_tty_init(void)
 
 void ipwireless_tty_release(void)
 {
-	int ret;
-
-	ret = tty_unregister_driver(ipw_tty_driver);
-	put_tty_driver(ipw_tty_driver);
-	if (ret != 0)
-		printk(KERN_ERR IPWIRELESS_PCCARD_NAME
-			": tty_unregister_driver failed with code %d\n", ret);
+	tty_unregister_driver(ipw_tty_driver);
+	tty_driver_kref_put(ipw_tty_driver);
 }
 
 int ipwireless_tty_is_modem(struct ipw_tty *tty)

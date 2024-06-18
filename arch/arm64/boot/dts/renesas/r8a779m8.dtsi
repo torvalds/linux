@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Device Tree Source for the R-Car H3Ne (R8A779M8) SoC
+ *
+ * Copyright (C) 2021 Glider bv
+ */
+
+#include "r8a77951.dtsi"
+
+/ {
+	compatible = "renesas,r8a779m8", "renesas,r8a7795";
+};
+
+&cluster0_opp {
+	/delete-node/ opp-1600000000;
+	/delete-node/ opp-1700000000;
+};

@@ -1,7 +1,0 @@
-LG 9.7" (2048x1536 pixels) TFT LCD panel
-
-Required properties:
-- compatible: should be "lg,lp097qx1-spa1"
-
-This binding is compatible with the simple-panel binding, which is specified
-in simple-panel.txt in this directory.

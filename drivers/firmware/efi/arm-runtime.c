@@ -18,23 +18,21 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/pgtable.h>
 
 #include <asm/cacheflush.h>
 #include <asm/efi.h>
 #include <asm/mmu.h>
 #include <asm/pgalloc.h>
-#include <asm/pgtable.h>
 
-extern u64 efi_system_table;
-
-#ifdef CONFIG_ARM64_PTDUMP_DEBUGFS
+#if defined(CONFIG_PTDUMP_DEBUGFS) || defined(CONFIG_ARM_PTDUMP_DEBUGFS)
 #include <asm/ptdump.h>
 
 static struct ptdump_info efi_ptdump_info = {
 	.mm		= &efi_mm,
 	.markers	= (struct addr_marker[]){
 		{ 0,				"UEFI runtime start" },
-		{ DEFAULT_MAP_WINDOW_64,	"UEFI runtime end" },
+		{ EFI_RUNTIME_MAP_END,		"UEFI runtime end" },
 		{ -1,				NULL }
 	},
 	.base_addr	= 0,
@@ -54,20 +52,18 @@ device_initcall(ptdump_init);
 static bool __init efi_virtmap_init(void)
 {
 	efi_memory_desc_t *md;
-	bool systab_found;
 
 	efi_mm.pgd = pgd_alloc(&efi_mm);
 	mm_init_cpumask(&efi_mm);
 	init_new_context(NULL, &efi_mm);
 
-	systab_found = false;
 	for_each_efi_memory_desc(md) {
 		phys_addr_t phys = md->phys_addr;
 		int ret;
 
 		if (!(md->attribute & EFI_MEMORY_RUNTIME))
 			continue;
-		if (md->virt_addr == 0)
+		if (md->virt_addr == U64_MAX)
 			return false;
 
 		ret = efi_create_mapping(&efi_mm, md);
@@ -76,20 +72,6 @@ static bool __init efi_virtmap_init(void)
 				&phys, ret);
 			return false;
 		}
-		/*
-		 * If this entry covers the address of the UEFI system table,
-		 * calculate and record its virtual address.
-		 */
-		if (efi_system_table >= phys &&
-		    efi_system_table < phys + (md->num_pages * EFI_PAGE_SIZE)) {
-			efi.systab = (void *)(unsigned long)(efi_system_table -
-							     phys + md->virt_addr);
-			systab_found = true;
-		}
-	}
-	if (!systab_found) {
-		pr_err("No virtual mapping found for the UEFI System Table\n");
-		return false;
 	}
 
 	if (efi_memattr_apply_permissions(&efi_mm, efi_set_mapping_permissions))
@@ -119,6 +101,30 @@ static int __init arm_enable_runtime_services(void)
 	if (efi_memmap_init_late(efi.memmap.phys_map, mapsize)) {
 		pr_err("Failed to remap EFI memory map\n");
 		return 0;
+	}
+
+	if (efi_soft_reserve_enabled()) {
+		efi_memory_desc_t *md;
+
+		for_each_efi_memory_desc(md) {
+			u64 md_size = md->num_pages << EFI_PAGE_SHIFT;
+			struct resource *res;
+
+			if (!(md->attribute & EFI_MEMORY_SP))
+				continue;
+
+			res = kzalloc(sizeof(*res), GFP_KERNEL);
+			if (WARN_ON(!res))
+				break;
+
+			res->start	= md->phys_addr;
+			res->end	= md->phys_addr + md_size - 1;
+			res->name	= "Soft Reserved";
+			res->flags	= IORESOURCE_MEM;
+			res->desc	= IORES_DESC_SOFT_RESERVED;
+
+			insert_resource(&iomem_resource, res);
+		}
 	}
 
 	if (efi_runtime_disabled()) {

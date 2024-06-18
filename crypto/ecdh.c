@@ -6,11 +6,11 @@
  */
 
 #include <linux/module.h>
+#include <crypto/internal/ecc.h>
 #include <crypto/internal/kpp.h>
 #include <crypto/kpp.h>
 #include <crypto/ecdh.h>
 #include <linux/scatterlist.h>
-#include "ecc.h"
 
 struct ecdh_ctx {
 	unsigned int curve_id;
@@ -23,43 +23,33 @@ static inline struct ecdh_ctx *ecdh_get_ctx(struct crypto_kpp *tfm)
 	return kpp_tfm_ctx(tfm);
 }
 
-static unsigned int ecdh_supported_curve(unsigned int curve_id)
-{
-	switch (curve_id) {
-	case ECC_CURVE_NIST_P192: return ECC_CURVE_NIST_P192_DIGITS;
-	case ECC_CURVE_NIST_P256: return ECC_CURVE_NIST_P256_DIGITS;
-	default: return 0;
-	}
-}
-
 static int ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
 			   unsigned int len)
 {
 	struct ecdh_ctx *ctx = ecdh_get_ctx(tfm);
 	struct ecdh params;
-	unsigned int ndigits;
+	int ret = 0;
 
-	if (crypto_ecdh_decode_key(buf, len, &params) < 0)
+	if (crypto_ecdh_decode_key(buf, len, &params) < 0 ||
+	    params.key_size > sizeof(u64) * ctx->ndigits)
 		return -EINVAL;
 
-	ndigits = ecdh_supported_curve(params.curve_id);
-	if (!ndigits)
-		return -EINVAL;
-
-	ctx->curve_id = params.curve_id;
-	ctx->ndigits = ndigits;
+	memset(ctx->private_key, 0, sizeof(ctx->private_key));
 
 	if (!params.key || !params.key_size)
 		return ecc_gen_privkey(ctx->curve_id, ctx->ndigits,
 				       ctx->private_key);
 
+	ecc_digits_from_bytes(params.key, params.key_size,
+			      ctx->private_key, ctx->ndigits);
+
 	if (ecc_is_key_valid(ctx->curve_id, ctx->ndigits,
-			     (const u64 *)params.key, params.key_size) < 0)
-		return -EINVAL;
+			     ctx->private_key, params.key_size) < 0) {
+		memzero_explicit(ctx->private_key, params.key_size);
+		ret = -EINVAL;
+	}
 
-	memcpy(ctx->private_key, params.key, params.key_size);
-
-	return 0;
+	return ret;
 }
 
 static int ecdh_compute_value(struct kpp_request *req)
@@ -124,7 +114,7 @@ static int ecdh_compute_value(struct kpp_request *req)
 
 	/* fall through */
 free_all:
-	kzfree(shared_secret);
+	kfree_sensitive(shared_secret);
 free_pubkey:
 	kfree(public_key);
 	return ret;
@@ -138,28 +128,116 @@ static unsigned int ecdh_max_size(struct crypto_kpp *tfm)
 	return ctx->ndigits << (ECC_DIGITS_TO_BYTES_SHIFT + 1);
 }
 
-static struct kpp_alg ecdh = {
+static int ecdh_nist_p192_init_tfm(struct crypto_kpp *tfm)
+{
+	struct ecdh_ctx *ctx = ecdh_get_ctx(tfm);
+
+	ctx->curve_id = ECC_CURVE_NIST_P192;
+	ctx->ndigits = ECC_CURVE_NIST_P192_DIGITS;
+
+	return 0;
+}
+
+static struct kpp_alg ecdh_nist_p192 = {
 	.set_secret = ecdh_set_secret,
 	.generate_public_key = ecdh_compute_value,
 	.compute_shared_secret = ecdh_compute_value,
 	.max_size = ecdh_max_size,
+	.init = ecdh_nist_p192_init_tfm,
 	.base = {
-		.cra_name = "ecdh",
-		.cra_driver_name = "ecdh-generic",
+		.cra_name = "ecdh-nist-p192",
+		.cra_driver_name = "ecdh-nist-p192-generic",
 		.cra_priority = 100,
 		.cra_module = THIS_MODULE,
 		.cra_ctxsize = sizeof(struct ecdh_ctx),
 	},
 };
 
-static int ecdh_init(void)
+static int ecdh_nist_p256_init_tfm(struct crypto_kpp *tfm)
 {
-	return crypto_register_kpp(&ecdh);
+	struct ecdh_ctx *ctx = ecdh_get_ctx(tfm);
+
+	ctx->curve_id = ECC_CURVE_NIST_P256;
+	ctx->ndigits = ECC_CURVE_NIST_P256_DIGITS;
+
+	return 0;
 }
 
-static void ecdh_exit(void)
+static struct kpp_alg ecdh_nist_p256 = {
+	.set_secret = ecdh_set_secret,
+	.generate_public_key = ecdh_compute_value,
+	.compute_shared_secret = ecdh_compute_value,
+	.max_size = ecdh_max_size,
+	.init = ecdh_nist_p256_init_tfm,
+	.base = {
+		.cra_name = "ecdh-nist-p256",
+		.cra_driver_name = "ecdh-nist-p256-generic",
+		.cra_priority = 100,
+		.cra_module = THIS_MODULE,
+		.cra_ctxsize = sizeof(struct ecdh_ctx),
+	},
+};
+
+static int ecdh_nist_p384_init_tfm(struct crypto_kpp *tfm)
 {
-	crypto_unregister_kpp(&ecdh);
+	struct ecdh_ctx *ctx = ecdh_get_ctx(tfm);
+
+	ctx->curve_id = ECC_CURVE_NIST_P384;
+	ctx->ndigits = ECC_CURVE_NIST_P384_DIGITS;
+
+	return 0;
+}
+
+static struct kpp_alg ecdh_nist_p384 = {
+	.set_secret = ecdh_set_secret,
+	.generate_public_key = ecdh_compute_value,
+	.compute_shared_secret = ecdh_compute_value,
+	.max_size = ecdh_max_size,
+	.init = ecdh_nist_p384_init_tfm,
+	.base = {
+		.cra_name = "ecdh-nist-p384",
+		.cra_driver_name = "ecdh-nist-p384-generic",
+		.cra_priority = 100,
+		.cra_module = THIS_MODULE,
+		.cra_ctxsize = sizeof(struct ecdh_ctx),
+	},
+};
+
+static bool ecdh_nist_p192_registered;
+
+static int __init ecdh_init(void)
+{
+	int ret;
+
+	/* NIST p192 will fail to register in FIPS mode */
+	ret = crypto_register_kpp(&ecdh_nist_p192);
+	ecdh_nist_p192_registered = ret == 0;
+
+	ret = crypto_register_kpp(&ecdh_nist_p256);
+	if (ret)
+		goto nist_p256_error;
+
+	ret = crypto_register_kpp(&ecdh_nist_p384);
+	if (ret)
+		goto nist_p384_error;
+
+	return 0;
+
+nist_p384_error:
+	crypto_unregister_kpp(&ecdh_nist_p256);
+
+nist_p256_error:
+	if (ecdh_nist_p192_registered)
+		crypto_unregister_kpp(&ecdh_nist_p192);
+	return ret;
+}
+
+static void __exit ecdh_exit(void)
+{
+	if (ecdh_nist_p192_registered)
+		crypto_unregister_kpp(&ecdh_nist_p192);
+	crypto_unregister_kpp(&ecdh_nist_p256);
+	crypto_unregister_kpp(&ecdh_nist_p384);
 }
 
 subsys_initcall(ecdh_init);

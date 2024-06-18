@@ -1,0 +1,425 @@
+// SPDX-License-Identifier: GPL-2.0
+
+/ {
+	pch: bus@10000000 {
+		compatible = "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges = <0 0x10000000 0 0x10000000 0 0x10000000 /* PIO & CONF & APB */
+				0 0x20000000 0 0x20000000 0 0x10000000
+				0 0x40000000 0 0x40000000 0 0x40000000 /* PCI MEM */
+				0xe00 0x00000000 0xe00 0x00000000 0x100 0x0000000>;
+
+		pic: interrupt-controller@10000000 {
+			compatible = "loongson,pch-pic-1.0";
+			reg = <0 0x10000000 0 0x400>;
+			interrupt-controller;
+			interrupt-parent = <&htvec>;
+			loongson,pic-base-vec = <0>;
+			#interrupt-cells = <2>;
+		};
+
+		rtc0: rtc@100d0100 {
+			compatible = "loongson,ls7a-rtc";
+			reg = <0 0x100d0100 0 0x78>;
+			interrupt-parent = <&pic>;
+			interrupts = <52 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		ls7a_uart0: serial@10080000 {
+			compatible = "ns16550a";
+			reg = <0 0x10080000 0 0x100>;
+			clock-frequency = <50000000>;
+			interrupt-parent = <&pic>;
+			interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
+			no-loopback-test;
+		};
+
+		ls7a_uart1: serial@10080100 {
+			status = "disabled";
+			compatible = "ns16550a";
+			reg = <0 0x10080100 0 0x100>;
+			clock-frequency = <50000000>;
+			interrupt-parent = <&pic>;
+			interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
+			no-loopback-test;
+		};
+
+		ls7a_uart2: serial@10080200 {
+			status = "disabled";
+			compatible = "ns16550a";
+			reg = <0 0x10080200 0 0x100>;
+			clock-frequency = <50000000>;
+			interrupt-parent = <&pic>;
+			interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
+			no-loopback-test;
+		};
+
+		ls7a_uart3: serial@10080300 {
+			status = "disabled";
+			compatible = "ns16550a";
+			reg = <0 0x10080300 0 0x100>;
+			clock-frequency = <50000000>;
+			interrupt-parent = <&pic>;
+			interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
+			no-loopback-test;
+		};
+
+		pci@1a000000 {
+			compatible = "loongson,ls7a-pci";
+			device_type = "pci";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			#interrupt-cells = <2>;
+			msi-parent = <&msi>;
+
+			reg = <0 0x1a000000 0 0x02000000>,
+				<0xefe 0x00000000 0 0x20000000>;
+
+			ranges = <0x01000000 0x0 0x00020000 0x0 0x18020000 0x0 0x00020000>,
+				 <0x02000000 0x0 0x40000000 0x0 0x40000000 0x0 0x40000000>;
+
+			ohci@4,0 {
+				compatible = "pci0014,7a24.0",
+						   "pci0014,7a24",
+						   "pciclass0c0310",
+						   "pciclass0c03";
+
+				reg = <0x2000 0x0 0x0 0x0 0x0>;
+				interrupts = <49 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&pic>;
+			};
+
+			ehci@4,1 {
+				compatible = "pci0014,7a14.0",
+						   "pci0014,7a14",
+						   "pciclass0c0320",
+						   "pciclass0c03";
+
+				reg = <0x2100 0x0 0x0 0x0 0x0>;
+				interrupts = <48 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&pic>;
+			};
+
+			ohci@5,0 {
+				compatible = "pci0014,7a24.0",
+						   "pci0014,7a24",
+						   "pciclass0c0310",
+						   "pciclass0c03";
+
+				reg = <0x2800 0x0 0x0 0x0 0x0>;
+				interrupts = <51 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&pic>;
+			};
+
+			ehci@5,1 {
+				compatible = "pci0014,7a14.0",
+						   "pci0014,7a14",
+						   "pciclass0c0320",
+						   "pciclass0c03";
+
+				reg = <0x2900 0x0 0x0 0x0 0x0>;
+				interrupts = <50 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&pic>;
+			};
+
+			sata@8,0 {
+				compatible = "pci0014,7a08.0",
+						   "pci0014,7a08",
+						   "pciclass010601",
+						   "pciclass0106";
+
+				reg = <0x4000 0x0 0x0 0x0 0x0>;
+				interrupts = <16 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&pic>;
+			};
+
+			sata@8,1 {
+				compatible = "pci0014,7a08.0",
+						   "pci0014,7a08",
+						   "pciclass010601",
+						   "pciclass0106";
+
+				reg = <0x4100 0x0 0x0 0x0 0x0>;
+				interrupts = <17 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&pic>;
+			};
+
+			sata@8,2 {
+				compatible = "pci0014,7a08.0",
+						   "pci0014,7a08",
+						   "pciclass010601",
+						   "pciclass0106";
+
+				reg = <0x4200 0x0 0x0 0x0 0x0>;
+				interrupts = <18 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&pic>;
+			};
+
+			gpu@6,0 {
+				compatible = "pci0014,7a15.0",
+						   "pci0014,7a15",
+						   "pciclass030200",
+						   "pciclass0302";
+
+				reg = <0x3000 0x0 0x0 0x0 0x0>;
+				interrupts = <29 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&pic>;
+			};
+
+			dc@6,1 {
+				compatible = "pci0014,7a06.0",
+						   "pci0014,7a06",
+						   "pciclass030000",
+						   "pciclass0300";
+
+				reg = <0x3100 0x0 0x0 0x0 0x0>;
+				interrupts = <28 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&pic>;
+			};
+
+			hda@7,0 {
+				compatible = "pci0014,7a07.0",
+						   "pci0014,7a07",
+						   "pciclass040300",
+						   "pciclass0403";
+
+				reg = <0x3800 0x0 0x0 0x0 0x0>;
+				interrupts = <58 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&pic>;
+			};
+
+			gmac@3,0 {
+				compatible = "pci0014,7a03.0",
+						   "pci0014,7a03",
+						   "pciclass020000",
+						   "pciclass0200";
+
+				reg = <0x1800 0x0 0x0 0x0 0x0>;
+				interrupts = <12 IRQ_TYPE_LEVEL_HIGH>,
+					     <13 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "macirq", "eth_lpi";
+				interrupt-parent = <&pic>;
+				phy-mode = "rgmii";
+				mdio {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					compatible = "snps,dwmac-mdio";
+					phy0: ethernet-phy@0 {
+						reg = <0>;
+					};
+				};
+			};
+
+			gmac@3,1 {
+				compatible = "pci0014,7a03.0",
+						   "pci0014,7a03",
+						   "pciclass020000",
+						   "pciclass0200",
+						   "loongson, pci-gmac";
+
+				reg = <0x1900 0x0 0x0 0x0 0x0>;
+				interrupts = <14 IRQ_TYPE_LEVEL_HIGH>,
+					     <15 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "macirq", "eth_lpi";
+				interrupt-parent = <&pic>;
+				phy-mode = "rgmii";
+				mdio {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					compatible = "snps,dwmac-mdio";
+					phy1: ethernet-phy@1 {
+						reg = <0>;
+					};
+				};
+			};
+
+			pci_bridge@9,0 {
+				compatible = "pci0014,7a19.1",
+						   "pci0014,7a19",
+						   "pciclass060400",
+						   "pciclass0604";
+
+				reg = <0x4800 0x0 0x0 0x0 0x0>;
+				interrupts = <32 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&pic>;
+
+				#interrupt-cells = <1>;
+				interrupt-map-mask = <0 0 0 0>;
+				interrupt-map = <0 0 0 0 &pic 32 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			pci_bridge@a,0 {
+				compatible = "pci0014,7a09.1",
+						   "pci0014,7a09",
+						   "pciclass060400",
+						   "pciclass0604";
+
+				reg = <0x5000 0x0 0x0 0x0 0x0>;
+				interrupts = <33 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&pic>;
+
+				#interrupt-cells = <1>;
+				interrupt-map-mask = <0 0 0 0>;
+				interrupt-map = <0 0 0 0 &pic 33 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			pci_bridge@b,0 {
+				compatible = "pci0014,7a09.1",
+						   "pci0014,7a09",
+						   "pciclass060400",
+						   "pciclass0604";
+
+				reg = <0x5800 0x0 0x0 0x0 0x0>;
+				interrupts = <34 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&pic>;
+
+				#interrupt-cells = <1>;
+				interrupt-map-mask = <0 0 0 0>;
+				interrupt-map = <0 0 0 0 &pic 34 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			pci_bridge@c,0 {
+				compatible = "pci0014,7a09.1",
+						   "pci0014,7a09",
+						   "pciclass060400",
+						   "pciclass0604";
+
+				reg = <0x6000 0x0 0x0 0x0 0x0>;
+				interrupts = <35 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&pic>;
+
+				#interrupt-cells = <1>;
+				interrupt-map-mask = <0 0 0 0>;
+				interrupt-map = <0 0 0 0 &pic 35 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			pci_bridge@d,0 {
+				compatible = "pci0014,7a19.1",
+						   "pci0014,7a19",
+						   "pciclass060400",
+						   "pciclass0604";
+
+				reg = <0x6800 0x0 0x0 0x0 0x0>;
+				interrupts = <36 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&pic>;
+
+				#interrupt-cells = <1>;
+				interrupt-map-mask = <0 0 0 0>;
+				interrupt-map = <0 0 0 0 &pic 36 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			pci_bridge@e,0 {
+				compatible = "pci0014,7a09.1",
+						   "pci0014,7a09",
+						   "pciclass060400",
+						   "pciclass0604";
+
+				reg = <0x7000 0x0 0x0 0x0 0x0>;
+				interrupts = <37 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&pic>;
+
+				#interrupt-cells = <1>;
+				interrupt-map-mask = <0 0 0 0>;
+				interrupt-map = <0 0 0 0 &pic 37 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			pci_bridge@f,0 {
+				compatible = "pci0014,7a29.1",
+						   "pci0014,7a29",
+						   "pciclass060400",
+						   "pciclass0604";
+
+				reg = <0x7800 0x0 0x0 0x0 0x0>;
+				interrupts = <40 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&pic>;
+
+				#interrupt-cells = <1>;
+				interrupt-map-mask = <0 0 0 0>;
+				interrupt-map = <0 0 0 0 &pic 40 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			pci_bridge@10,0 {
+				compatible = "pci0014,7a19.1",
+						   "pci0014,7a19",
+						   "pciclass060400",
+						   "pciclass0604";
+
+				reg = <0x8000 0x0 0x0 0x0 0x0>;
+				interrupts = <41 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&pic>;
+
+				#interrupt-cells = <1>;
+				interrupt-map-mask = <0 0 0 0>;
+				interrupt-map = <0 0 0 0 &pic 41 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			pci_bridge@11,0 {
+				compatible = "pci0014,7a29.1",
+						   "pci0014,7a29",
+						   "pciclass060400",
+						   "pciclass0604";
+
+				reg = <0x8800 0x0 0x0 0x0 0x0>;
+				interrupts = <42 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&pic>;
+
+				#interrupt-cells = <1>;
+				interrupt-map-mask = <0 0 0 0>;
+				interrupt-map = <0 0 0 0 &pic 42 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			pci_bridge@12,0 {
+				compatible = "pci0014,7a19.1",
+						   "pci0014,7a19",
+						   "pciclass060400",
+						   "pciclass0604";
+
+				reg = <0x9000 0x0 0x0 0x0 0x0>;
+				interrupts = <43 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&pic>;
+
+				#interrupt-cells = <1>;
+				interrupt-map-mask = <0 0 0 0>;
+				interrupt-map = <0 0 0 0 &pic 43 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			pci_bridge@13,0 {
+				compatible = "pci0014,7a29.1",
+						   "pci0014,7a29",
+						   "pciclass060400",
+						   "pciclass0604";
+
+				reg = <0x9800 0x0 0x0 0x0 0x0>;
+				interrupts = <38 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&pic>;
+
+				#interrupt-cells = <1>;
+				interrupt-map-mask = <0 0 0 0>;
+				interrupt-map = <0 0 0 0 &pic 38 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			pci_bridge@14,0 {
+				compatible = "pci0014,7a19.1",
+						   "pci0014,7a19",
+						   "pciclass060400",
+						   "pciclass0604";
+
+				reg = <0xa000 0x0 0x0 0x0 0x0>;
+				interrupts = <39 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&pic>;
+
+				#interrupt-cells = <1>;
+				interrupt-map-mask = <0 0 0 0>;
+				interrupt-map = <0 0 0 0 &pic 39 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
+		isa@18000000 {
+			compatible = "isa";
+			#address-cells = <2>;
+			#size-cells = <1>;
+			ranges = <1 0 0 0x18000000 0x20000>;
+		};
+	};
+};

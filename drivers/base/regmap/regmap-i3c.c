@@ -40,7 +40,7 @@ static int regmap_i3c_read(void *context,
 	return i3c_device_do_priv_xfers(i3c, xfers, 2);
 }
 
-static struct regmap_bus regmap_i3c = {
+static const struct regmap_bus regmap_i3c = {
 	.write = regmap_i3c_write,
 	.read = regmap_i3c_read,
 };
@@ -56,5 +56,5 @@ struct regmap *__devm_regmap_init_i3c(struct i3c_device *i3c,
 EXPORT_SYMBOL_GPL(__devm_regmap_init_i3c);
 
 MODULE_AUTHOR("Vitor Soares <vitor.soares@synopsys.com>");
-MODULE_DESCRIPTION("Regmap I3C Module");
+MODULE_DESCRIPTION("regmap I3C Module");
 MODULE_LICENSE("GPL v2");

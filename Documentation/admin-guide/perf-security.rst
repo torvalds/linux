@@ -1,6 +1,6 @@
 .. _perf_security:
 
-Perf Events and tool security
+Perf events and tool security
 =============================
 
 Overview
@@ -42,11 +42,11 @@ categories:
 Data that belong to the fourth category can potentially contain
 sensitive process data. If PMUs in some monitoring modes capture values
 of execution context registers or data from process memory then access
-to such monitoring capabilities requires to be ordered and secured
-properly. So, perf_events/Perf performance monitoring is the subject for
-security access control management [5]_ .
+to such monitoring modes requires to be ordered and secured properly.
+So, perf_events performance monitoring and observability operations are
+the subject for security access control management [5]_ .
 
-perf_events/Perf access control
+perf_events access control
 -------------------------------
 
 To perform security checks, the Linux implementation splits processes
@@ -66,15 +66,32 @@ into distinct units, known as capabilities [6]_ , which can be
 independently enabled and disabled on per-thread basis for processes and
 files of unprivileged users.
 
-Unprivileged processes with enabled CAP_SYS_ADMIN capability are treated
+Unprivileged processes with enabled CAP_PERFMON capability are treated
 as privileged processes with respect to perf_events performance
-monitoring and bypass *scope* permissions checks in the kernel.
+monitoring and observability operations, thus, bypass *scope* permissions
+checks in the kernel. CAP_PERFMON implements the principle of least
+privilege [13]_ (POSIX 1003.1e: 2.2.2.39) for performance monitoring and
+observability operations in the kernel and provides a secure approach to
+performance monitoring and observability in the system.
 
-Unprivileged processes using perf_events system call API is also subject
-for PTRACE_MODE_READ_REALCREDS ptrace access mode check [7]_ , whose
-outcome determines whether monitoring is permitted. So unprivileged
-processes provided with CAP_SYS_PTRACE capability are effectively
-permitted to pass the check.
+For backward compatibility reasons the access to perf_events monitoring and
+observability operations is also open for CAP_SYS_ADMIN privileged
+processes but CAP_SYS_ADMIN usage for secure monitoring and observability
+use cases is discouraged with respect to the CAP_PERFMON capability.
+If system audit records [14]_ for a process using perf_events system call
+API contain denial records of acquiring both CAP_PERFMON and CAP_SYS_ADMIN
+capabilities then providing the process with CAP_PERFMON capability singly
+is recommended as the preferred secure approach to resolve double access
+denial logging related to usage of performance monitoring and observability.
+
+Prior Linux v5.9 unprivileged processes using perf_events system call
+are also subject for PTRACE_MODE_READ_REALCREDS ptrace access mode check
+[7]_ , whose outcome determines whether monitoring is permitted.
+So unprivileged processes provided with CAP_SYS_PTRACE capability are
+effectively permitted to pass the check. Starting from Linux v5.9
+CAP_SYS_PTRACE capability is not required and CAP_PERFMON is enough to
+be provided for processes to make performance monitoring and observability
+operations.
 
 Other capabilities being granted to unprivileged processes can
 effectively enable capturing of additional data required for later
@@ -82,14 +99,14 @@ performance analysis of monitored processes or a system. For example,
 CAP_SYSLOG capability permits reading kernel space memory addresses from
 /proc/kallsyms file.
 
-perf_events/Perf privileged users
+Privileged Perf users groups
 ---------------------------------
 
-Mechanisms of capabilities, privileged capability-dumb files [6]_ and
-file system ACLs [10]_ can be used to create a dedicated group of
-perf_events/Perf privileged users who are permitted to execute
-performance monitoring without scope limits. The following steps can be
-taken to create such a group of privileged Perf users.
+Mechanisms of capabilities, privileged capability-dumb files [6]_,
+file system ACLs [10]_ and sudo [15]_ utility can be used to create
+dedicated groups of privileged Perf users who are permitted to execute
+performance monitoring and observability without limits. The following
+steps can be taken to create such groups of privileged Perf users.
 
 1. Create perf_users group of privileged Perf users, assign perf_users
    group to Perf tool executable and limit access to the executable for
@@ -108,30 +125,105 @@ taken to create such a group of privileged Perf users.
    -rwxr-x---  2 root perf_users  11M Oct 19 15:12 perf
 
 2. Assign the required capabilities to the Perf tool executable file and
-   enable members of perf_users group with performance monitoring
+   enable members of perf_users group with monitoring and observability
    privileges [6]_ :
 
 ::
 
-   # setcap "cap_sys_admin,cap_sys_ptrace,cap_syslog=ep" perf
-   # setcap -v "cap_sys_admin,cap_sys_ptrace,cap_syslog=ep" perf
+   # setcap "cap_perfmon,cap_sys_ptrace,cap_syslog=ep" perf
+   # setcap -v "cap_perfmon,cap_sys_ptrace,cap_syslog=ep" perf
    perf: OK
    # getcap perf
-   perf = cap_sys_ptrace,cap_sys_admin,cap_syslog+ep
+   perf = cap_sys_ptrace,cap_syslog,cap_perfmon+ep
+
+If the libcap [16]_ installed doesn't yet support "cap_perfmon", use "38" instead,
+i.e.:
+
+::
+
+   # setcap "38,cap_ipc_lock,cap_sys_ptrace,cap_syslog=ep" perf
+
+Note that you may need to have 'cap_ipc_lock' in the mix for tools such as
+'perf top', alternatively use 'perf top -m N', to reduce the memory that
+it uses for the perf ring buffer, see the memory allocation section below.
+
+Using a libcap without support for CAP_PERFMON will make cap_get_flag(caps, 38,
+CAP_EFFECTIVE, &val) fail, which will lead the default event to be 'cycles:u',
+so as a workaround explicitly ask for the 'cycles' event, i.e.:
+
+::
+
+  # perf top -e cycles
+
+To get kernel and user samples with a perf binary with just CAP_PERFMON.
 
 As a result, members of perf_users group are capable of conducting
-performance monitoring by using functionality of the configured Perf
-tool executable that, when executes, passes perf_events subsystem scope
-checks.
+performance monitoring and observability by using functionality of the
+configured Perf tool executable that, when executes, passes perf_events
+subsystem scope checks.
+
+In case Perf tool executable can't be assigned required capabilities (e.g.
+file system is mounted with nosuid option or extended attributes are
+not supported by the file system) then creation of the capabilities
+privileged environment, naturally shell, is possible. The shell provides
+inherent processes with CAP_PERFMON and other required capabilities so that
+performance monitoring and observability operations are available in the
+environment without limits. Access to the environment can be open via sudo
+utility for members of perf_users group only. In order to create such
+environment:
+
+1. Create shell script that uses capsh utility [16]_ to assign CAP_PERFMON
+   and other required capabilities into ambient capability set of the shell
+   process, lock the process security bits after enabling SECBIT_NO_SETUID_FIXUP,
+   SECBIT_NOROOT and SECBIT_NO_CAP_AMBIENT_RAISE bits and then change
+   the process identity to sudo caller of the script who should essentially
+   be a member of perf_users group:
+
+::
+
+   # ls -alh /usr/local/bin/perf.shell
+   -rwxr-xr-x. 1 root root 83 Oct 13 23:57 /usr/local/bin/perf.shell
+   # cat /usr/local/bin/perf.shell
+   exec /usr/sbin/capsh --iab=^cap_perfmon --secbits=239 --user=$SUDO_USER -- -l
+
+2. Extend sudo policy at /etc/sudoers file with a rule for perf_users group:
+
+::
+
+   # grep perf_users /etc/sudoers
+   %perf_users    ALL=/usr/local/bin/perf.shell
+
+3. Check that members of perf_users group have access to the privileged
+   shell and have CAP_PERFMON and other required capabilities enabled
+   in permitted, effective and ambient capability sets of an inherent process:
+
+::
+
+  $ id
+  uid=1003(capsh_test) gid=1004(capsh_test) groups=1004(capsh_test),1000(perf_users) context=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023
+  $ sudo perf.shell
+  [sudo] password for capsh_test:
+  $ grep Cap /proc/self/status
+  CapInh:        0000004000000000
+  CapPrm:        0000004000000000
+  CapEff:        0000004000000000
+  CapBnd:        000000ffffffffff
+  CapAmb:        0000004000000000
+  $ capsh --decode=0000004000000000
+  0x0000004000000000=cap_perfmon
+
+As a result, members of perf_users group have access to the privileged
+environment where they can use tools employing performance monitoring APIs
+governed by CAP_PERFMON Linux capability.
 
 This specific access control management is only available to superuser
 or root running processes with CAP_SETPCAP, CAP_SETFCAP [6]_
 capabilities.
 
-perf_events/Perf unprivileged users
+Unprivileged users
 -----------------------------------
 
-perf_events/Perf *scope* and *access* control for unprivileged processes
+perf_events *scope* and *access* control for unprivileged processes
 is governed by perf_event_paranoid [2]_ setting:
 
 -1:
@@ -166,7 +258,7 @@ is governed by perf_event_paranoid [2]_ setting:
      perf_event_mlock_kb locking limit is imposed but ignored for
      unprivileged processes with CAP_IPC_LOCK capability.
 
-perf_events/Perf resource control
+Resource control
 ---------------------------------
 
 Open file descriptors
@@ -227,4 +319,7 @@ Bibliography
 .. [10] `<http://man7.org/linux/man-pages/man5/acl.5.html>`_
 .. [11] `<http://man7.org/linux/man-pages/man2/getrlimit.2.html>`_
 .. [12] `<http://man7.org/linux/man-pages/man5/limits.conf.5.html>`_
-
+.. [13] `<https://sites.google.com/site/fullycapable>`_
+.. [14] `<http://man7.org/linux/man-pages/man8/auditd.8.html>`_
+.. [15] `<https://man7.org/linux/man-pages/man8/sudo.8.html>`_
+.. [16] `<https://git.kernel.org/pub/scm/libs/libcap/libcap.git/>`_

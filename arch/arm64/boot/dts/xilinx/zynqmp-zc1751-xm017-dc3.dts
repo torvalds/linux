@@ -2,15 +2,16 @@
 /*
  * dts file for Xilinx ZynqMP zc1751-xm017-dc3
  *
- * (C) Copyright 2016 - 2018, Xilinx, Inc.
+ * (C) Copyright 2016 - 2021, Xilinx, Inc.
  *
- * Michal Simek <michal.simek@xilinx.com>
+ * Michal Simek <michal.simek@amd.com>
  */
 
 /dts-v1/;
 
 #include "zynqmp.dtsi"
-#include "zynqmp-clk.dtsi"
+#include "zynqmp-clk-ccf.dtsi"
+#include <dt-bindings/phy/phy.h>
 
 / {
 	model = "ZynqMP zc1751-xm017-dc3 RevA";
@@ -24,6 +25,8 @@
 		rtc0 = &rtc;
 		serial0 = &uart0;
 		serial1 = &uart1;
+		usb0 = &usb0;
+		usb1 = &usb1;
 	};
 
 	chosen {
@@ -34,6 +37,18 @@
 	memory@0 {
 		device_type = "memory";
 		reg = <0x0 0x0 0x0 0x80000000>, <0x8 0x00000000 0x0 0x80000000>;
+	};
+
+	clock_si5338_2: clk26 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <26000000>;
+	};
+
+	clock_si5338_3: clk125 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <125000000>;
 	};
 };
 
@@ -73,8 +88,12 @@
 	status = "okay";
 	phy-handle = <&phy0>;
 	phy-mode = "rgmii-id";
-	phy0: phy@0 { /* VSC8211 */
-		reg = <0>;
+	mdio: mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		phy0: ethernet-phy@0 { /* VSC8211 */
+			reg = <0>;
+		};
 	};
 };
 
@@ -107,6 +126,20 @@
 	clock-frequency = <400000>;
 };
 
+/* MT29F64G08AECDBJ4-6 */
+&nand0 {
+	status = "okay";
+	arasan,has-mdma;
+	num-cs = <2>;
+};
+
+&psgtr {
+	status = "okay";
+	/* usb3, sata */
+	clocks = <&clock_si5338_2>, <&clock_si5338_3>;
+	clock-names = "ref2", "ref3";
+};
+
 &rtc {
 	status = "okay";
 };
@@ -122,6 +155,8 @@
 	ceva,p1-comwake-params = /bits/ 8 <0x06 0x19 0x08 0x0E>;
 	ceva,p1-burst-params = /bits/ 8 <0x13 0x08 0x4A 0x06>;
 	ceva,p1-retry-params = /bits/ 16 <0x96A4 0x3FFC>;
+	phy-names = "sata-phy";
+	phys = <&psgtr 2 PHY_TYPE_SATA 0 3>;
 };
 
 &sdhci1 { /* emmc with some settings */
@@ -140,11 +175,27 @@
 
 &usb0 {
 	status = "okay";
+	phy-names = "usb3-phy";
+	phys = <&psgtr 0 PHY_TYPE_USB3 0 2>;
+};
+
+&dwc3_0 {
+	status = "okay";
 	dr_mode = "host";
+	snps,usb3_lpm_capable;
+	maximum-speed = "super-speed";
 };
 
 /* ULPI SMSC USB3320 */
 &usb1 {
 	status = "okay";
+	phy-names = "usb3-phy";
+	phys = <&psgtr 3 PHY_TYPE_USB3 1 2>;
+};
+
+&dwc3_1 {
+	status = "okay";
 	dr_mode = "host";
+	snps,usb3_lpm_capable;
+	maximum-speed = "super-speed";
 };

@@ -30,7 +30,6 @@
 MODULE_AUTHOR("Adrian McMenamin <adrian@mcmen.demon.co.uk>");
 MODULE_DESCRIPTION("Maple bus driver for Dreamcast");
 MODULE_LICENSE("GPL v2");
-MODULE_SUPPORTED_DEVICE("{{SEGA, Dreamcast/Maple}}");
 
 static void maple_dma_handler(struct work_struct *work);
 static void maple_vblank_handler(struct work_struct *work);
@@ -60,6 +59,7 @@ struct maple_device_specify {
 static bool checked[MAPLE_PORTS];
 static bool empty[MAPLE_PORTS];
 static struct maple_device *baseunits[MAPLE_PORTS];
+static const struct bus_type maple_bus_type;
 
 /**
  * maple_driver_register - register a maple driver
@@ -761,12 +761,6 @@ static int maple_match_bus_driver(struct device *devptr,
 	return 0;
 }
 
-static int maple_bus_uevent(struct device *dev,
-			    struct kobj_uevent_env *env)
-{
-	return 0;
-}
-
 static void maple_bus_release(struct device *dev)
 {
 }
@@ -780,12 +774,10 @@ static struct maple_driver maple_unsupported_device = {
 /*
  * maple_bus_type - core maple bus structure
  */
-struct bus_type maple_bus_type = {
+static const struct bus_type maple_bus_type = {
 	.name = "maple",
 	.match = maple_match_bus_driver,
-	.uevent = maple_bus_uevent,
 };
-EXPORT_SYMBOL_GPL(maple_bus_type);
 
 static struct device maple_bus = {
 	.init_name = "maple",
@@ -835,8 +827,10 @@ static int __init maple_bus_init(void)
 
 	maple_queue_cache = KMEM_CACHE(maple_buffer, SLAB_HWCACHE_ALIGN);
 
-	if (!maple_queue_cache)
+	if (!maple_queue_cache) {
+		retval = -ENOMEM;
 		goto cleanup_bothirqs;
+	}
 
 	INIT_LIST_HEAD(&maple_waitq);
 	INIT_LIST_HEAD(&maple_sentq);
@@ -849,6 +843,7 @@ static int __init maple_bus_init(void)
 		if (!mdev[i]) {
 			while (i-- > 0)
 				maple_free_dev(mdev[i]);
+			retval = -ENOMEM;
 			goto cleanup_cache;
 		}
 		baseunits[i] = mdev[i];

@@ -1,66 +1,9 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018        Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018        Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+/*
+ * Copyright (C) 2012-2014, 2018-2019, 2021-2023 Intel Corporation
+ * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
+ * Copyright (C) 2016-2017 Intel Deutschland GmbH
+ */
 #include <linux/firmware.h>
 #include <linux/rtnetlink.h>
 #include "iwl-trans.h"
@@ -178,7 +121,7 @@ static int iwl_nvm_read_chunk(struct iwl_mvm *mvm, u16 section,
 		} else {
 			IWL_DEBUG_EEPROM(mvm->trans->dev,
 					 "NVM access command failed with status %d (device: %s)\n",
-					 ret, mvm->cfg->name);
+					 ret, mvm->trans->name);
 			ret = -ENODATA;
 		}
 		goto exit;
@@ -277,11 +220,12 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 	struct iwl_nvm_section *sections = mvm->nvm_sections;
 	const __be16 *hw;
 	const __le16 *sw, *calib, *regulatory, *mac_override, *phy_sku;
-	bool lar_enabled;
+	u8 tx_ant = mvm->fw->valid_tx_ant;
+	u8 rx_ant = mvm->fw->valid_rx_ant;
 	int regulatory_type;
 
 	/* Checking for required sections */
-	if (mvm->trans->cfg->nvm_type != IWL_NVM_EXT) {
+	if (mvm->trans->cfg->nvm_type == IWL_NVM) {
 		if (!mvm->nvm_sections[NVM_SECTION_TYPE_SW].data ||
 		    !mvm->nvm_sections[mvm->cfg->nvm_hw_section_num].data) {
 			IWL_ERR(mvm, "Can't parse empty OTP/NVM sections\n");
@@ -309,7 +253,8 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 		}
 
 		/* PHY_SKU section is mandatory in B0 */
-		if (!mvm->nvm_sections[NVM_SECTION_TYPE_PHY_SKU].data) {
+		if (mvm->trans->cfg->nvm_type == IWL_NVM_EXT &&
+		    !mvm->nvm_sections[NVM_SECTION_TYPE_PHY_SKU].data) {
 			IWL_ERR(mvm,
 				"Can't parse phy_sku in B0, empty sections\n");
 			return NULL;
@@ -327,14 +272,15 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 		(const __le16 *)sections[NVM_SECTION_TYPE_REGULATORY_SDP].data :
 		(const __le16 *)sections[NVM_SECTION_TYPE_REGULATORY].data;
 
-	lar_enabled = !iwlwifi_mod_params.lar_disable &&
-		      fw_has_capa(&mvm->fw->ucode_capa,
-				  IWL_UCODE_TLV_CAPA_LAR_SUPPORT);
+	if (mvm->set_tx_ant)
+		tx_ant &= mvm->set_tx_ant;
 
-	return iwl_parse_nvm_data(mvm->trans, mvm->cfg, hw, sw, calib,
+	if (mvm->set_rx_ant)
+		rx_ant &= mvm->set_rx_ant;
+
+	return iwl_parse_nvm_data(mvm->trans, mvm->cfg, mvm->fw, hw, sw, calib,
 				  regulatory, mac_override, phy_sku,
-				  mvm->fw->valid_tx_ant, mvm->fw->valid_rx_ant,
-				  lar_enabled);
+				  tx_ant, rx_ant);
 }
 
 /* Loads the NVM data stored in mvm->nvm_sections into the NIC */
@@ -466,7 +412,7 @@ int iwl_nvm_init(struct iwl_mvm *mvm)
 	return ret < 0 ? ret : 0;
 }
 
-struct iwl_mcc_update_resp *
+struct iwl_mcc_update_resp_v8 *
 iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
 		   enum iwl_mcc_source src_id)
 {
@@ -474,15 +420,15 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
 		.mcc = cpu_to_le16(alpha2[0] << 8 | alpha2[1]),
 		.source_id = (u8)src_id,
 	};
-	struct iwl_mcc_update_resp *resp_cp;
+	struct iwl_mcc_update_resp_v8 *resp_cp;
 	struct iwl_rx_packet *pkt;
 	struct iwl_host_cmd cmd = {
 		.id = MCC_UPDATE_CMD,
-		.flags = CMD_WANT_SKB,
+		.flags = CMD_WANT_SKB | CMD_SEND_IN_RFKILL,
 		.data = { &mcc_update_cmd },
 	};
 
-	int ret;
+	int ret, resp_ver;
 	u32 status;
 	int resp_len, n_channels;
 	u16 mcc;
@@ -501,25 +447,70 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
 
 	pkt = cmd.resp_pkt;
 
-	/* Extract MCC response */
-	if (fw_has_capa(&mvm->fw->ucode_capa,
-			IWL_UCODE_TLV_CAPA_MCC_UPDATE_11AX_SUPPORT)) {
-		struct iwl_mcc_update_resp *mcc_resp = (void *)pkt->data;
+	resp_ver = iwl_fw_lookup_notif_ver(mvm->fw, IWL_ALWAYS_LONG_GROUP,
+					   MCC_UPDATE_CMD, 0);
 
-		n_channels =  __le32_to_cpu(mcc_resp->n_channels);
-		resp_len = sizeof(struct iwl_mcc_update_resp) +
-			   n_channels * sizeof(__le32);
-		resp_cp = kmemdup(mcc_resp, resp_len, GFP_KERNEL);
+	/* Extract MCC response */
+	if (resp_ver >= 8) {
+		struct iwl_mcc_update_resp_v8 *mcc_resp_v8 = (void *)pkt->data;
+
+		n_channels =  __le32_to_cpu(mcc_resp_v8->n_channels);
+		if (iwl_rx_packet_payload_len(pkt) !=
+		    struct_size(mcc_resp_v8, channels, n_channels)) {
+			resp_cp = ERR_PTR(-EINVAL);
+			goto exit;
+		}
+		resp_len = struct_size(resp_cp, channels, n_channels);
+		resp_cp = kzalloc(resp_len, GFP_KERNEL);
 		if (!resp_cp) {
 			resp_cp = ERR_PTR(-ENOMEM);
 			goto exit;
 		}
+		resp_cp->status = mcc_resp_v8->status;
+		resp_cp->mcc = mcc_resp_v8->mcc;
+		resp_cp->cap = mcc_resp_v8->cap;
+		resp_cp->source_id = mcc_resp_v8->source_id;
+		resp_cp->time = mcc_resp_v8->time;
+		resp_cp->geo_info = mcc_resp_v8->geo_info;
+		resp_cp->n_channels = mcc_resp_v8->n_channels;
+		memcpy(resp_cp->channels, mcc_resp_v8->channels,
+		       n_channels * sizeof(__le32));
+	} else if (fw_has_capa(&mvm->fw->ucode_capa,
+			       IWL_UCODE_TLV_CAPA_MCC_UPDATE_11AX_SUPPORT)) {
+		struct iwl_mcc_update_resp_v4 *mcc_resp_v4 = (void *)pkt->data;
+
+		n_channels =  __le32_to_cpu(mcc_resp_v4->n_channels);
+		if (iwl_rx_packet_payload_len(pkt) !=
+		    struct_size(mcc_resp_v4, channels, n_channels)) {
+			resp_cp = ERR_PTR(-EINVAL);
+			goto exit;
+		}
+		resp_len = struct_size(resp_cp, channels, n_channels);
+		resp_cp = kzalloc(resp_len, GFP_KERNEL);
+		if (!resp_cp) {
+			resp_cp = ERR_PTR(-ENOMEM);
+			goto exit;
+		}
+
+		resp_cp->status = mcc_resp_v4->status;
+		resp_cp->mcc = mcc_resp_v4->mcc;
+		resp_cp->cap = cpu_to_le32(le16_to_cpu(mcc_resp_v4->cap));
+		resp_cp->source_id = mcc_resp_v4->source_id;
+		resp_cp->time = mcc_resp_v4->time;
+		resp_cp->geo_info = mcc_resp_v4->geo_info;
+		resp_cp->n_channels = mcc_resp_v4->n_channels;
+		memcpy(resp_cp->channels, mcc_resp_v4->channels,
+		       n_channels * sizeof(__le32));
 	} else {
 		struct iwl_mcc_update_resp_v3 *mcc_resp_v3 = (void *)pkt->data;
 
 		n_channels =  __le32_to_cpu(mcc_resp_v3->n_channels);
-		resp_len = sizeof(struct iwl_mcc_update_resp) +
-			   n_channels * sizeof(__le32);
+		if (iwl_rx_packet_payload_len(pkt) !=
+		    struct_size(mcc_resp_v3, channels, n_channels)) {
+			resp_cp = ERR_PTR(-EINVAL);
+			goto exit;
+		}
+		resp_len = struct_size(resp_cp, channels, n_channels);
 		resp_cp = kzalloc(resp_len, GFP_KERNEL);
 		if (!resp_cp) {
 			resp_cp = ERR_PTR(-ENOMEM);
@@ -528,7 +519,7 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
 
 		resp_cp->status = mcc_resp_v3->status;
 		resp_cp->mcc = mcc_resp_v3->mcc;
-		resp_cp->cap = cpu_to_le16(mcc_resp_v3->cap);
+		resp_cp->cap = cpu_to_le32(mcc_resp_v3->cap);
 		resp_cp->source_id = mcc_resp_v3->source_id;
 		resp_cp->time = mcc_resp_v3->time;
 		resp_cp->geo_info = mcc_resp_v3->geo_info;
@@ -582,7 +573,7 @@ int iwl_mvm_init_mcc(struct iwl_mvm *mvm)
 	 * try to replay the last set MCC to FW. If it doesn't exist,
 	 * queue an update to cfg80211 to retrieve the default alpha2 from FW.
 	 */
-	retval = iwl_mvm_init_fw_regd(mvm);
+	retval = iwl_mvm_init_fw_regd(mvm, true);
 	if (retval != -ENOENT)
 		return retval;
 
@@ -599,7 +590,7 @@ int iwl_mvm_init_mcc(struct iwl_mvm *mvm)
 		return -EIO;
 
 	if (iwl_mvm_is_wifi_mcc_supported(mvm) &&
-	    !iwl_acpi_get_mcc(mvm->dev, mcc)) {
+	    !iwl_bios_get_mcc(&mvm->fwrt, mcc)) {
 		kfree(regd);
 		regd = iwl_mvm_get_regdomain(mvm->hw->wiphy, mcc,
 					     MCC_SOURCE_BIOS, NULL);
@@ -607,7 +598,7 @@ int iwl_mvm_init_mcc(struct iwl_mvm *mvm)
 			return -EIO;
 	}
 
-	retval = regulatory_set_wiphy_regd_sync_rtnl(mvm->hw->wiphy, regd);
+	retval = regulatory_set_wiphy_regd_sync(mvm->hw->wiphy, regd);
 	kfree(regd);
 	return retval;
 }
@@ -645,8 +636,9 @@ void iwl_mvm_rx_chub_update_mcc(struct iwl_mvm *mvm,
 		return;
 
 	wgds_tbl_idx = iwl_mvm_get_sar_geo_profile(mvm);
-	if (wgds_tbl_idx < 0)
-		IWL_DEBUG_INFO(mvm, "SAR WGDS is disabled (%d)\n",
+	if (wgds_tbl_idx < 1)
+		IWL_DEBUG_INFO(mvm,
+			       "SAR WGDS is disabled or error received (%d)\n",
 			       wgds_tbl_idx);
 	else
 		IWL_DEBUG_INFO(mvm, "SAR WGDS: geo profile %d is configured\n",

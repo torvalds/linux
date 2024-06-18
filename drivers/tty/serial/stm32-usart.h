@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) Maxime Coquelin 2015
  * Copyright (C) STMicroelectronics SA 2017
@@ -9,25 +9,27 @@
 #define DRIVER_NAME "stm32-usart"
 
 struct stm32_usart_offsets {
-	u8 cr1;
-	u8 cr2;
-	u8 cr3;
-	u8 brr;
-	u8 gtpr;
-	u8 rtor;
-	u8 rqr;
-	u8 isr;
-	u8 icr;
-	u8 rdr;
-	u8 tdr;
+	u16 cr1;
+	u16 cr2;
+	u16 cr3;
+	u16 brr;
+	u16 gtpr;
+	u16 rtor;
+	u16 rqr;
+	u16 isr;
+	u16 icr;
+	u16 rdr;
+	u16 tdr;
+	u16 presc;
+	u16 hwcfgr1;
 };
 
 struct stm32_usart_config {
 	u8 uart_enable_bit; /* USART_CR1_UE */
 	bool has_7bits_data;
+	bool has_swap;
 	bool has_wakeup;
 	bool has_fifo;
-	int fifosize;
 };
 
 struct stm32_usart_info {
@@ -35,78 +37,12 @@ struct stm32_usart_info {
 	struct stm32_usart_config cfg;
 };
 
-#define UNDEF_REG 0xff
-
-/* Register offsets */
-struct stm32_usart_info stm32f4_info = {
-	.ofs = {
-		.isr	= 0x00,
-		.rdr	= 0x04,
-		.tdr	= 0x04,
-		.brr	= 0x08,
-		.cr1	= 0x0c,
-		.cr2	= 0x10,
-		.cr3	= 0x14,
-		.gtpr	= 0x18,
-		.rtor	= UNDEF_REG,
-		.rqr	= UNDEF_REG,
-		.icr	= UNDEF_REG,
-	},
-	.cfg = {
-		.uart_enable_bit = 13,
-		.has_7bits_data = false,
-		.fifosize = 1,
-	}
-};
-
-struct stm32_usart_info stm32f7_info = {
-	.ofs = {
-		.cr1	= 0x00,
-		.cr2	= 0x04,
-		.cr3	= 0x08,
-		.brr	= 0x0c,
-		.gtpr	= 0x10,
-		.rtor	= 0x14,
-		.rqr	= 0x18,
-		.isr	= 0x1c,
-		.icr	= 0x20,
-		.rdr	= 0x24,
-		.tdr	= 0x28,
-	},
-	.cfg = {
-		.uart_enable_bit = 0,
-		.has_7bits_data = true,
-		.fifosize = 1,
-	}
-};
-
-struct stm32_usart_info stm32h7_info = {
-	.ofs = {
-		.cr1	= 0x00,
-		.cr2	= 0x04,
-		.cr3	= 0x08,
-		.brr	= 0x0c,
-		.gtpr	= 0x10,
-		.rtor	= 0x14,
-		.rqr	= 0x18,
-		.isr	= 0x1c,
-		.icr	= 0x20,
-		.rdr	= 0x24,
-		.tdr	= 0x28,
-	},
-	.cfg = {
-		.uart_enable_bit = 0,
-		.has_7bits_data = true,
-		.has_wakeup = true,
-		.has_fifo = true,
-		.fifosize = 16,
-	}
-};
+#define UNDEF_REG 0xffff
 
 /* USART_SR (F4) / USART_ISR (F7) */
 #define USART_SR_PE		BIT(0)
 #define USART_SR_FE		BIT(1)
-#define USART_SR_NF		BIT(2)
+#define USART_SR_NE		BIT(2)		/* F7 (NF for F4) */
 #define USART_SR_ORE		BIT(3)
 #define USART_SR_IDLE		BIT(4)
 #define USART_SR_RXNE		BIT(5)
@@ -123,12 +59,10 @@ struct stm32_usart_info stm32h7_info = {
 #define USART_SR_SBKF		BIT(18)		/* F7 */
 #define USART_SR_WUF		BIT(20)		/* H7 */
 #define USART_SR_TEACK		BIT(21)		/* F7 */
-#define USART_SR_ERR_MASK	(USART_SR_ORE | USART_SR_FE | USART_SR_PE)
+#define USART_SR_ERR_MASK	(USART_SR_ORE | USART_SR_NE | USART_SR_FE |\
+				 USART_SR_PE)
 /* Dummy bits */
 #define USART_SR_DUMMY_RX	BIT(16)
-
-/* USART_ICR (F7) */
-#define USART_CR_TC		BIT(6)
 
 /* USART_DR */
 #define USART_DR_MASK		GENMASK(8, 0)
@@ -138,6 +72,7 @@ struct stm32_usart_info stm32h7_info = {
 #define USART_BRR_DIV_M_MASK	GENMASK(15, 4)
 #define USART_BRR_DIV_M_SHIFT	4
 #define USART_BRR_04_R_SHIFT	1
+#define USART_BRR_MASK		(USART_BRR_DIV_M_MASK | USART_BRR_DIV_F_MASK)
 
 /* USART_CR1 */
 #define USART_CR1_SBK		BIT(0)
@@ -216,12 +151,6 @@ struct stm32_usart_info stm32h7_info = {
 #define USART_CR3_TXFTCFG_MASK	GENMASK(31, 29)	/* H7 */
 #define USART_CR3_TXFTCFG_SHIFT	29		/* H7 */
 
-/* TX FIFO threashold set to half of its depth */
-#define USART_CR3_TXFTCFG_HALF	0x2
-
-/* RX FIFO threashold set to half of its depth */
-#define USART_CR3_RXFTCFG_HALF	0x2
-
 /* USART_GTPR */
 #define USART_GTPR_PSC_MASK	GENMASK(7, 0)
 #define USART_GTPR_GT_MASK	GENMASK(15, 8)
@@ -249,17 +178,27 @@ struct stm32_usart_info stm32h7_info = {
 #define USART_ICR_CMCF		BIT(17)		/* F7 */
 #define USART_ICR_WUCF		BIT(20)		/* H7 */
 
-#define STM32_SERIAL_NAME "ttySTM"
-#define STM32_MAX_PORTS 8
+/* USART_PRESC */
+#define USART_PRESC		GENMASK(3, 0)	/* H7 */
+#define USART_PRESC_MAX		0b1011
 
-#define RX_BUF_L 200		 /* dma rx buffer length     */
-#define RX_BUF_P RX_BUF_L	 /* dma rx buffer period     */
-#define TX_BUF_L 200		 /* dma tx buffer length     */
+/* USART_HWCFCR1 */
+#define USART_HWCFGR1_CFG8	GENMASK(31, 28)	/* MP1 */
+
+#define STM32_SERIAL_NAME "ttySTM"
+#define STM32_MAX_PORTS 9
+#define STM32H7_USART_FIFO_SIZE 16
+
+#define RX_BUF_L 4096		 /* dma rx buffer length     */
+#define RX_BUF_P (RX_BUF_L / 2)	 /* dma rx buffer period     */
+#define TX_BUF_L RX_BUF_L	 /* dma tx buffer length     */
+
+#define STM32_USART_TIMEOUT_USEC USEC_PER_SEC /* 1s timeout in µs */
 
 struct stm32_port {
 	struct uart_port port;
 	struct clk *clk;
-	struct stm32_usart_info *info;
+	const struct stm32_usart_info *info;
 	struct dma_chan *rx_ch;  /* dma rx channel            */
 	dma_addr_t rx_dma_buf;   /* dma rx buffer bus address */
 	unsigned char *rx_buf;   /* dma rx buffer cpu address */
@@ -269,11 +208,18 @@ struct stm32_port {
 	u32 cr1_irq;		 /* USART_CR1_RXNEIE or RTOIE */
 	u32 cr3_irq;		 /* USART_CR3_RXFTIE */
 	int last_res;
-	bool tx_dma_busy;	 /* dma tx busy               */
+	bool tx_dma_busy;	 /* dma tx transaction in progress */
+	bool rx_dma_busy;	 /* dma rx transaction in progress */
+	bool throttled;		 /* port throttled            */
 	bool hw_flow_control;
+	bool swap;		 /* swap RX & TX pins */
 	bool fifoen;
-	int wakeirq;
+	int rxftcfg;		/* RX FIFO threshold CFG      */
+	int txftcfg;		/* TX FIFO threshold CFG      */
+	bool wakeup_src;
 	int rdr_mask;		/* receive data register mask */
+	struct mctrl_gpios *gpios; /* modem control gpios */
+	struct dma_tx_state rx_dma_state;
 };
 
 static struct stm32_port stm32_ports[STM32_MAX_PORTS];

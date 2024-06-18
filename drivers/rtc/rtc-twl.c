@@ -487,11 +487,24 @@ static const struct rtc_class_ops twl_rtc_ops = {
 	.alarm_irq_enable = twl_rtc_alarm_irq_enable,
 };
 
+static int twl_nvram_read(void *priv, unsigned int offset, void *val,
+			  size_t bytes)
+{
+	return twl_i2c_read((long)priv, val, offset, bytes);
+}
+
+static int twl_nvram_write(void *priv, unsigned int offset, void *val,
+			   size_t bytes)
+{
+	return twl_i2c_write((long)priv, val, offset, bytes);
+}
+
 /*----------------------------------------------------------------------*/
 
 static int twl_rtc_probe(struct platform_device *pdev)
 {
 	struct twl_rtc *twl_rtc;
+	struct nvmem_config nvmem_cfg;
 	struct device_node *np = pdev->dev.of_node;
 	int ret = -EINVAL;
 	int irq = platform_get_irq(pdev, 0);
@@ -542,7 +555,6 @@ static int twl_rtc_probe(struct platform_device *pdev)
 			REG_INT_MSK_STS_A);
 	}
 
-	dev_info(&pdev->dev, "Enabling TWL-RTC\n");
 	ret = twl_rtc_write_u8(twl_rtc, BIT_RTC_CTRL_REG_STOP_RTC_M,
 			       REG_RTC_CTRL_REG);
 	if (ret < 0)
@@ -564,11 +576,8 @@ static int twl_rtc_probe(struct platform_device *pdev)
 
 	twl_rtc->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
 					&twl_rtc_ops, THIS_MODULE);
-	if (IS_ERR(twl_rtc->rtc)) {
-		dev_err(&pdev->dev, "can't register RTC device, err %ld\n",
-			PTR_ERR(twl_rtc->rtc));
+	if (IS_ERR(twl_rtc->rtc))
 		return PTR_ERR(twl_rtc->rtc);
-	}
 
 	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 					twl_rtc_interrupt,
@@ -579,6 +588,30 @@ static int twl_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	memset(&nvmem_cfg, 0, sizeof(nvmem_cfg));
+	nvmem_cfg.name = "twl-secured-";
+	nvmem_cfg.type = NVMEM_TYPE_BATTERY_BACKED;
+	nvmem_cfg.reg_read = twl_nvram_read,
+	nvmem_cfg.reg_write = twl_nvram_write,
+	nvmem_cfg.word_size = 1;
+	nvmem_cfg.stride = 1;
+	if (twl_class_is_4030()) {
+		/* 20 bytes SECURED_REG area */
+		nvmem_cfg.size = 20;
+		nvmem_cfg.priv = (void *)TWL_MODULE_SECURED_REG;
+		devm_rtc_nvmem_register(twl_rtc->rtc, &nvmem_cfg);
+		/* 8 bytes BACKUP area */
+		nvmem_cfg.name = "twl-backup-";
+		nvmem_cfg.size = 8;
+		nvmem_cfg.priv = (void *)TWL4030_MODULE_BACKUP;
+		devm_rtc_nvmem_register(twl_rtc->rtc, &nvmem_cfg);
+	} else {
+		/* 8 bytes SECURED_REG area */
+		nvmem_cfg.size = 8;
+		nvmem_cfg.priv = (void *)TWL_MODULE_SECURED_REG;
+		devm_rtc_nvmem_register(twl_rtc->rtc, &nvmem_cfg);
+	}
+
 	return 0;
 }
 
@@ -586,7 +619,7 @@ static int twl_rtc_probe(struct platform_device *pdev)
  * Disable all TWL RTC module interrupts.
  * Sets status flag to free.
  */
-static int twl_rtc_remove(struct platform_device *pdev)
+static void twl_rtc_remove(struct platform_device *pdev)
 {
 	struct twl_rtc *twl_rtc = platform_get_drvdata(pdev);
 
@@ -599,8 +632,6 @@ static int twl_rtc_remove(struct platform_device *pdev)
 		twl6030_interrupt_mask(TWL6030_RTC_INT_MASK,
 			REG_INT_MSK_STS_A);
 	}
-
-	return 0;
 }
 
 static void twl_rtc_shutdown(struct platform_device *pdev)
@@ -642,7 +673,7 @@ MODULE_DEVICE_TABLE(of, twl_rtc_of_match);
 
 static struct platform_driver twl4030rtc_driver = {
 	.probe		= twl_rtc_probe,
-	.remove		= twl_rtc_remove,
+	.remove_new	= twl_rtc_remove,
 	.shutdown	= twl_rtc_shutdown,
 	.driver		= {
 		.name		= "twl_rtc",

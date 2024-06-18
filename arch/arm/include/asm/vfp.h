@@ -9,6 +9,7 @@
 #ifndef __ASM_VFP_H
 #define __ASM_VFP_H
 
+#ifndef CONFIG_AS_VFP_VMRS_FPINST
 #define FPSID			cr0
 #define FPSCR			cr1
 #define MVFR1			cr6
@@ -16,6 +17,7 @@
 #define FPEXC			cr8
 #define FPINST			cr9
 #define FPINST2			cr10
+#endif
 
 /* FPSID bits */
 #define FPSID_IMPLEMENTER_BIT	(24)
@@ -84,6 +86,12 @@
 #define MVFR0_SP_MASK		(0xf << MVFR0_SP_BIT)
 #define MVFR0_DP_BIT		(8)
 #define MVFR0_DP_MASK		(0xf << MVFR0_DP_BIT)
+
+/* MVFR1 bits */
+#define MVFR1_ASIMDHP_BIT	(20)
+#define MVFR1_ASIMDHP_MASK	(0xf << MVFR1_ASIMDHP_BIT)
+#define MVFR1_FPHP_BIT		(24)
+#define MVFR1_FPHP_MASK		(0xf << MVFR1_FPHP_BIT)
 
 /* Bit patterns for decoding the packaged operation descriptors */
 #define VFPOPDESC_LENGTH_BIT	(9)

@@ -81,6 +81,8 @@ enum skl_s_freq {
 	SKL_FS_INVALID
 };
 
+#define SKL_MAX_PARAMS_TYPES	4
+
 enum skl_widget_type {
 	SKL_WIDGET_VMIXER = 1,
 	SKL_WIDGET_MIXER = 2,
@@ -97,7 +99,7 @@ struct skl_audio_data_format {
 	u8 number_of_channels;
 	u8 valid_bit_depth;
 	u8 sample_type;
-	u8 reserved[1];
+	u8 reserved;
 } __packed;
 
 struct skl_base_cfg {
@@ -113,13 +115,16 @@ struct skl_cpr_gtw_cfg {
 	u32 dma_buffer_size;
 	u32 config_length;
 	/* not mandatory; required only for DMIC/I2S */
-	u32 config_data[1];
+	struct {
+		u32 gtw_attrs;
+		u32 data[];
+	} config_data;
 } __packed;
 
 struct skl_dma_control {
 	u32 node_id;
 	u32 config_length;
-	u32 config_data[0];
+	u32 config_data[];
 } __packed;
 
 struct skl_cpr_cfg {
@@ -150,9 +155,24 @@ struct skl_up_down_mixer_cfg {
 	u32 ch_map;
 } __packed;
 
+struct skl_pin_format {
+	u32 pin_idx;
+	u32 buf_size;
+	struct skl_audio_data_format audio_fmt;
+} __packed;
+
+struct skl_base_cfg_ext {
+	u16 nr_input_pins;
+	u16 nr_output_pins;
+	u8 reserved[8];
+	u32 priv_param_length;
+	/* Input pin formats followed by output ones. */
+	struct skl_pin_format pins_fmt[];
+} __packed;
+
 struct skl_algo_cfg {
 	struct skl_base_cfg  base_cfg;
-	char params[0];
+	char params[];
 } __packed;
 
 struct skl_base_outfmt_cfg {
@@ -216,8 +236,8 @@ struct skl_uuid_inst_map {
 struct skl_kpb_params {
 	u32 num_modules;
 	union {
-		struct skl_mod_inst_map map[0];
-		struct skl_uuid_inst_map map_uuid[0];
+		DECLARE_FLEX_ARRAY(struct skl_mod_inst_map, map);
+		DECLARE_FLEX_ARRAY(struct skl_uuid_inst_map, map_uuid);
 	} u;
 };
 
@@ -267,6 +287,7 @@ struct skl_pipe_params {
 	u32 ch;
 	u32 s_freq;
 	u32 s_fmt;
+	u32 s_cont;
 	u8 linktype;
 	snd_pcm_format_t format;
 	int link_index;
@@ -310,10 +331,8 @@ struct skl_pipe {
 
 enum skl_module_state {
 	SKL_MODULE_UNINIT = 0,
-	SKL_MODULE_LOADED = 1,
-	SKL_MODULE_INIT_DONE = 2,
-	SKL_MODULE_BIND_DONE = 3,
-	SKL_MODULE_UNLOADED = 4,
+	SKL_MODULE_INIT_DONE = 1,
+	SKL_MODULE_BIND_DONE = 2,
 };
 
 enum d0i3_capability {
@@ -372,6 +391,7 @@ struct skl_module_cfg {
 	struct skl_module *module;
 	int res_idx;
 	int fmt_idx;
+	int fmt_cfg_idx;
 	u8 domain;
 	bool homogenous_inputs;
 	bool homogenous_outputs;
@@ -402,7 +422,7 @@ struct skl_module_cfg {
 	enum skl_hw_conn_type  hw_conn_type;
 	enum skl_module_state m_state;
 	struct skl_pipe *pipe;
-	struct skl_specific_cfg formats_config;
+	struct skl_specific_cfg formats_config[SKL_MAX_PARAMS_TYPES];
 	struct skl_pipe_mcfg mod_cfg[SKL_MAX_MODULES_IN_PIPE];
 };
 
@@ -452,7 +472,7 @@ int skl_dsp_set_dma_control(struct skl_dev *skl, u32 *caps,
 void skl_tplg_set_be_dmic_config(struct snd_soc_dai *dai,
 	struct skl_pipe_params *params, int stream);
 int skl_tplg_init(struct snd_soc_component *component,
-				struct hdac_bus *ebus);
+				struct hdac_bus *bus);
 void skl_tplg_exit(struct snd_soc_component *component,
 				struct hdac_bus *bus);
 struct skl_module_cfg *skl_tplg_fe_get_cpr_module(
@@ -475,13 +495,13 @@ int skl_stop_pipe(struct skl_dev *skl, struct skl_pipe *pipe);
 
 int skl_reset_pipe(struct skl_dev *skl, struct skl_pipe *pipe);
 
-int skl_init_module(struct skl_dev *skl, struct skl_module_cfg *module_config);
+int skl_init_module(struct skl_dev *skl, struct skl_module_cfg *mconfig);
 
 int skl_bind_modules(struct skl_dev *skl, struct skl_module_cfg
-	*src_module, struct skl_module_cfg *dst_module);
+	*src_mcfg, struct skl_module_cfg *dst_mcfg);
 
 int skl_unbind_modules(struct skl_dev *skl, struct skl_module_cfg
-	*src_module, struct skl_module_cfg *dst_module);
+	*src_mcfg, struct skl_module_cfg *dst_mcfg);
 
 int skl_set_module_params(struct skl_dev *skl, u32 *params, int size,
 			u32 param_id, struct skl_module_cfg *mcfg);

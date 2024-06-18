@@ -4,6 +4,7 @@
  * Author: Wendell Lin <wendell.lin@mediatek.com>
  */
 
+#include <linux/module.h>
 #include <linux/clk-provider.h>
 #include <linux/platform_device.h>
 #include <dt-bindings/clock/mt6779-clk.h>
@@ -84,30 +85,25 @@ static const struct mtk_gate mm_clks[] = {
 	GATE_MM1(CLK_MM_DISP_OVL_FBDC, "mm_disp_ovl_fbdc", "mm_sel", 16),
 };
 
-static const struct of_device_id of_match_clk_mt6779_mm[] = {
-	{ .compatible = "mediatek,mt6779-mmsys", },
-	{}
+static const struct mtk_clk_desc mm_desc = {
+	.clks = mm_clks,
+	.num_clks = ARRAY_SIZE(mm_clks),
 };
 
-static int clk_mt6779_mm_probe(struct platform_device *pdev)
-{
-	struct clk_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
-
-	clk_data = mtk_alloc_clk_data(CLK_MM_NR_CLK);
-
-	mtk_clk_register_gates(node, mm_clks, ARRAY_SIZE(mm_clks),
-			       clk_data);
-
-	return of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
-}
+static const struct platform_device_id clk_mt6779_mm_id_table[] = {
+	{ .name = "clk-mt6779-mm", .driver_data = (kernel_ulong_t)&mm_desc },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(platform, clk_mt6779_mm_id_table);
 
 static struct platform_driver clk_mt6779_mm_drv = {
-	.probe = clk_mt6779_mm_probe,
+	.probe = mtk_clk_pdev_probe,
+	.remove_new = mtk_clk_pdev_remove,
 	.driver = {
 		.name = "clk-mt6779-mm",
-		.of_match_table = of_match_clk_mt6779_mm,
 	},
+	.id_table = clk_mt6779_mm_id_table,
 };
 
-builtin_platform_driver(clk_mt6779_mm_drv);
+module_platform_driver(clk_mt6779_mm_drv);
+MODULE_LICENSE("GPL");

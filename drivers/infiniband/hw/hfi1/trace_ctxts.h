@@ -1,49 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
-* Copyright(c) 2015, 2016 Intel Corporation.
-*
-* This file is provided under a dual BSD/GPLv2 license.  When using or
-* redistributing this file, you may do so under either license.
-*
-* GPL LICENSE SUMMARY
-*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of version 2 of the GNU General Public License as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but
-* WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-* General Public License for more details.
-*
-* BSD LICENSE
-*
-* Redistribution and use in source and binary forms, with or without
-* modification, are permitted provided that the following conditions
-* are met:
-*
-*  - Redistributions of source code must retain the above copyright
-*    notice, this list of conditions and the following disclaimer.
-*  - Redistributions in binary form must reproduce the above copyright
-*    notice, this list of conditions and the following disclaimer in
-*    the documentation and/or other materials provided with the
-*    distribution.
-*  - Neither the name of Intel Corporation nor the names of its
-*    contributors may be used to endorse or promote products derived
-*    from this software without specific prior written permission.
-*
-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-* "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-* LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-* A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-* OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-* SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-* LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-* THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*
+* Copyright(c) 2015 - 2020 Intel Corporation.
 */
+
 #if !defined(__HFI1_TRACE_CTXTS_H) || defined(TRACE_HEADER_MULTI_READ)
 #define __HFI1_TRACE_CTXTS_H
 
@@ -80,7 +39,7 @@ TRACE_EVENT(hfi1_uctxtdata,
 			   __entry->credits = uctxt->sc->credits;
 			   __entry->hw_free = le64_to_cpu(*uctxt->sc->hw_free);
 			   __entry->piobase = uctxt->sc->base_addr;
-			   __entry->rcvhdrq_cnt = uctxt->rcvhdrq_cnt;
+			   __entry->rcvhdrq_cnt = get_hdrq_cnt(uctxt);
 			   __entry->rcvhdrq_dma = uctxt->rcvhdrq_dma;
 			   __entry->eager_cnt = uctxt->egrbufs.alloced;
 			   __entry->rcvegr_dma = uctxt->egrbufs.rcvtids[0].dma;
@@ -136,6 +95,15 @@ TRACE_EVENT(hfi1_ctxt_info,
 		      __entry->rcvhdrq_size,
 		      __entry->sdma_ring_size
 		      )
+);
+
+const char *hfi1_trace_print_rsm_hist(struct trace_seq *p, unsigned int ctxt);
+TRACE_EVENT(ctxt_rsm_hist,
+	    TP_PROTO(unsigned int ctxt),
+	    TP_ARGS(ctxt),
+	    TP_STRUCT__entry(__field(unsigned int, ctxt)),
+	    TP_fast_assign(__entry->ctxt = ctxt;),
+	    TP_printk("%s", hfi1_trace_print_rsm_hist(p, __entry->ctxt))
 );
 
 #endif /* __HFI1_TRACE_CTXTS_H */

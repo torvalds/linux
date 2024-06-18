@@ -34,8 +34,6 @@
 #include "prm2xxx_3xxx.h"
 #include "pm.h"
 
-u32 enable_off_mode;
-
 #ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
@@ -170,8 +168,8 @@ static int pwrdm_suspend_set(void *data, u64 val)
 	return -EINVAL;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(pwrdm_suspend_fops, pwrdm_suspend_get,
-			pwrdm_suspend_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(pwrdm_suspend_fops, pwrdm_suspend_get,
+			  pwrdm_suspend_set, "%llu\n");
 
 static int __init pwrdms_setup(struct powerdomain *pwrdm, void *dir)
 {

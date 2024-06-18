@@ -13,15 +13,17 @@
 
 #include "ssm2602.h"
 
+static const struct i2c_device_id ssm2602_i2c_id[];
+
 /*
  * ssm2602 2 wire address is determined by GPIO5
  * state during powerup.
  *    low  = 0x1a
  *    high = 0x1b
  */
-static int ssm2602_i2c_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int ssm2602_i2c_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_match_id(ssm2602_i2c_id, client);
 	return ssm2602_probe(&client->dev, id->driver_data,
 		devm_regmap_init_i2c(client, &ssm2602_regmap_config));
 }

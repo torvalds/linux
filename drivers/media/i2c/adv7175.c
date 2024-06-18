@@ -288,7 +288,7 @@ static int adv7175_s_routing(struct v4l2_subdev *sd,
 }
 
 static int adv7175_enum_mbus_code(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->pad || code->index >= ARRAY_SIZE(adv7175_codes))
@@ -299,7 +299,7 @@ static int adv7175_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int adv7175_get_fmt(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *mf = &format->format;
@@ -322,7 +322,7 @@ static int adv7175_get_fmt(struct v4l2_subdev *sd,
 }
 
 static int adv7175_set_fmt(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *mf = &format->format;
@@ -389,8 +389,7 @@ static const struct v4l2_subdev_ops adv7175_ops = {
 
 /* ----------------------------------------------------------------------- */
 
-static int adv7175_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int adv7175_probe(struct i2c_client *client)
 {
 	int i;
 	struct adv7175 *encoder;
@@ -423,12 +422,11 @@ static int adv7175_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int adv7175_remove(struct i2c_client *client)
+static void adv7175_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 
 	v4l2_device_unregister_subdev(sd);
-	return 0;
 }
 
 /* ----------------------------------------------------------------------- */

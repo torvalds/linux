@@ -3,7 +3,7 @@
  *
  * Name: aclocal.h - Internal data types used across the ACPI subsystem
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2023, Intel Corp.
  *
  *****************************************************************************/
 
@@ -454,11 +454,18 @@ struct acpi_gpe_event_info {
 	u8 disable_for_dispatch;	/* Masked during dispatching */
 };
 
+/* GPE register address */
+
+struct acpi_gpe_address {
+	u8 space_id;	/* Address space where the register exists */
+	u64 address;	/* 64-bit address of the register */
+};
+
 /* Information about a GPE register pair, one per each status/enable pair in an array */
 
 struct acpi_gpe_register_info {
-	struct acpi_generic_address status_address;	/* Address of status reg */
-	struct acpi_generic_address enable_address;	/* Address of enable reg */
+	struct acpi_gpe_address status_address;	/* Address of status reg */
+	struct acpi_gpe_address enable_address;	/* Address of enable reg */
 	u16 base_gpe_number;	/* Base GPE number for this register */
 	u8 enable_for_wake;	/* GPEs to keep enabled when sleeping */
 	u8 enable_for_run;	/* GPEs to keep enabled when running */
@@ -536,6 +543,14 @@ struct acpi_field_info {
 	u32 pkg_length;
 };
 
+/* Information about the interrupt ID and _EVT of a GED device */
+
+struct acpi_ged_handler_info {
+	struct acpi_ged_handler_info *next;
+	u32 int_id;		/* The interrupt ID that triggers the execution of the evt_method. */
+	struct acpi_namespace_node *evt_method;	/* The _EVT method to be executed when an interrupt with ID = int_ID is received */
+};
+
 /*****************************************************************************
  *
  * Generic "state" object for stacks
@@ -553,25 +568,28 @@ struct acpi_field_info {
 	u8                              descriptor_type; /* To differentiate various internal objs */\
 	u8                              flags; \
 	u16                             value; \
-	u16                             state;
+	u16                             state
 
 	/* There are 2 bytes available here until the next natural alignment boundary */
 
 struct acpi_common_state {
-ACPI_STATE_COMMON};
+	ACPI_STATE_COMMON;
+};
 
 /*
  * Update state - used to traverse complex objects such as packages
  */
 struct acpi_update_state {
-	ACPI_STATE_COMMON union acpi_operand_object *object;
+	ACPI_STATE_COMMON;
+	union acpi_operand_object *object;
 };
 
 /*
  * Pkg state - used to traverse nested package structures
  */
 struct acpi_pkg_state {
-	ACPI_STATE_COMMON u32 index;
+	ACPI_STATE_COMMON;
+	u32 index;
 	union acpi_operand_object *source_object;
 	union acpi_operand_object *dest_object;
 	struct acpi_walk_state *walk_state;
@@ -584,7 +602,8 @@ struct acpi_pkg_state {
  * Allows nesting of these constructs
  */
 struct acpi_control_state {
-	ACPI_STATE_COMMON u16 opcode;
+	ACPI_STATE_COMMON;
+	u16 opcode;
 	union acpi_parse_object *predicate_op;
 	u8 *aml_predicate_start;	/* Start of if/while predicate */
 	u8 *package_end;	/* End of if/while block */
@@ -595,11 +614,13 @@ struct acpi_control_state {
  * Scope state - current scope during namespace lookups
  */
 struct acpi_scope_state {
-	ACPI_STATE_COMMON struct acpi_namespace_node *node;
+	ACPI_STATE_COMMON;
+	struct acpi_namespace_node *node;
 };
 
 struct acpi_pscope_state {
-	ACPI_STATE_COMMON u32 arg_count;	/* Number of fixed arguments */
+	ACPI_STATE_COMMON;
+	u32 arg_count;		/* Number of fixed arguments */
 	union acpi_parse_object *op;	/* Current op being parsed */
 	u8 *arg_end;		/* Current argument end */
 	u8 *pkg_end;		/* Current package end */
@@ -611,7 +632,8 @@ struct acpi_pscope_state {
  * states are created when there are nested control methods executing.
  */
 struct acpi_thread_state {
-	ACPI_STATE_COMMON u8 current_sync_level;	/* Mutex Sync (nested acquire) level */
+	ACPI_STATE_COMMON;
+	u8 current_sync_level;	/* Mutex Sync (nested acquire) level */
 	struct acpi_walk_state *walk_state_list;	/* Head of list of walk_states for this thread */
 	union acpi_operand_object *acquired_mutex_list;	/* List of all currently acquired mutexes */
 	acpi_thread_id thread_id;	/* Running thread ID */
@@ -622,8 +644,8 @@ struct acpi_thread_state {
  * AML arguments
  */
 struct acpi_result_values {
-	ACPI_STATE_COMMON
-	    union acpi_operand_object *obj_desc[ACPI_RESULTS_FRAME_OBJ_NUM];
+	ACPI_STATE_COMMON;
+	union acpi_operand_object *obj_desc[ACPI_RESULTS_FRAME_OBJ_NUM];
 };
 
 typedef
@@ -645,7 +667,8 @@ struct acpi_global_notify_handler {
  * handler/dispatcher.
  */
 struct acpi_notify_info {
-	ACPI_STATE_COMMON u8 handler_list_id;
+	ACPI_STATE_COMMON;
+	u8 handler_list_id;
 	struct acpi_namespace_node *node;
 	union acpi_operand_object *handler_list_head;
 	struct acpi_global_notify_handler *global;
@@ -1115,7 +1138,8 @@ struct acpi_port_info {
 #define ACPI_RESOURCE_NAME_PIN_GROUP            0x90
 #define ACPI_RESOURCE_NAME_PIN_GROUP_FUNCTION   0x91
 #define ACPI_RESOURCE_NAME_PIN_GROUP_CONFIG     0x92
-#define ACPI_RESOURCE_NAME_LARGE_MAX            0x92
+#define ACPI_RESOURCE_NAME_CLOCK_INPUT          0x93
+#define ACPI_RESOURCE_NAME_LARGE_MAX            0x94
 
 /*****************************************************************************
  *

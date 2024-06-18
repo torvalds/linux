@@ -1,31 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2000-2001 Christoph Hellwig.
  * Copyright (c) 2016 Krzysztof Blaszkowski
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL").
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
  */
 
 /*
@@ -133,12 +109,9 @@ static inline void dip2vip_cpy(struct vxfs_sb_info *sbi,
 	set_nlink(inode, vip->vii_nlink);
 	inode->i_size = vip->vii_size;
 
-	inode->i_atime.tv_sec = vip->vii_atime;
-	inode->i_ctime.tv_sec = vip->vii_ctime;
-	inode->i_mtime.tv_sec = vip->vii_mtime;
-	inode->i_atime.tv_nsec = 0;
-	inode->i_ctime.tv_nsec = 0;
-	inode->i_mtime.tv_nsec = 0;
+	inode_set_atime(inode, vip->vii_atime, 0);
+	inode_set_ctime(inode, vip->vii_ctime, 0);
+	inode_set_mtime(inode, vip->vii_mtime, 0);
 
 	inode->i_blocks = vip->vii_blocks;
 	inode->i_generation = vip->vii_gen;

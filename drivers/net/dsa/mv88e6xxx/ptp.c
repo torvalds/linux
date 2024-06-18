@@ -11,6 +11,7 @@
  */
 
 #include "chip.h"
+#include "global1.h"
 #include "global2.h"
 #include "hwtstamp.h"
 #include "ptp.h"
@@ -181,6 +182,10 @@ static void mv88e6352_tai_event_work(struct work_struct *ugly)
 	mv88e6xxx_reg_lock(chip);
 	err = mv88e6xxx_tai_write(chip, MV88E6XXX_TAI_EVENT_STATUS, status[0]);
 	mv88e6xxx_reg_unlock(chip);
+	if (err) {
+		dev_err(chip->dev, "failed to write TAI status register\n");
+		return;
+	}
 
 	/* This is an external timestamp */
 	ev.type = PTP_CLOCK_EXTTS;
@@ -272,6 +277,19 @@ static int mv88e6352_ptp_enable_extts(struct mv88e6xxx_chip *chip,
 	int func;
 	int pin;
 	int err;
+
+	/* Reject requests with unsupported flags */
+	if (rq->extts.flags & ~(PTP_ENABLE_FEATURE |
+				PTP_RISING_EDGE |
+				PTP_FALLING_EDGE |
+				PTP_STRICT_FLAGS))
+		return -EOPNOTSUPP;
+
+	/* Reject requests to enable time stamping on both edges. */
+	if ((rq->extts.flags & PTP_STRICT_FLAGS) &&
+	    (rq->extts.flags & PTP_ENABLE_FEATURE) &&
+	    (rq->extts.flags & PTP_EXTTS_EDGES) == PTP_EXTTS_EDGES)
+		return -EOPNOTSUPP;
 
 	pin = ptp_find_pin(chip->ptp_clock, PTP_PF_EXTTS, rq->extts.index);
 
@@ -406,6 +424,34 @@ const struct mv88e6xxx_ptp_ops mv88e6352_ptp_ops = {
 	.cc_mult_dem = MV88E6XXX_CC_MULT_DEM,
 };
 
+const struct mv88e6xxx_ptp_ops mv88e6390_ptp_ops = {
+	.clock_read = mv88e6352_ptp_clock_read,
+	.ptp_enable = mv88e6352_ptp_enable,
+	.ptp_verify = mv88e6352_ptp_verify,
+	.event_work = mv88e6352_tai_event_work,
+	.port_enable = mv88e6352_hwtstamp_port_enable,
+	.port_disable = mv88e6352_hwtstamp_port_disable,
+	.set_ptp_cpu_port = mv88e6390_g1_set_ptp_cpu_port,
+	.n_ext_ts = 1,
+	.arr0_sts_reg = MV88E6XXX_PORT_PTP_ARR0_STS,
+	.arr1_sts_reg = MV88E6XXX_PORT_PTP_ARR1_STS,
+	.dep_sts_reg = MV88E6XXX_PORT_PTP_DEP_STS,
+	.rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
+		(1 << HWTSTAMP_FILTER_PTP_V2_L4_EVENT) |
+		(1 << HWTSTAMP_FILTER_PTP_V2_L4_SYNC) |
+		(1 << HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ) |
+		(1 << HWTSTAMP_FILTER_PTP_V2_L2_EVENT) |
+		(1 << HWTSTAMP_FILTER_PTP_V2_L2_SYNC) |
+		(1 << HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ) |
+		(1 << HWTSTAMP_FILTER_PTP_V2_EVENT) |
+		(1 << HWTSTAMP_FILTER_PTP_V2_SYNC) |
+		(1 << HWTSTAMP_FILTER_PTP_V2_DELAY_REQ),
+	.cc_shift = MV88E6XXX_CC_SHIFT,
+	.cc_mult = MV88E6XXX_CC_MULT,
+	.cc_mult_num = MV88E6XXX_CC_MULT_NUM,
+	.cc_mult_dem = MV88E6XXX_CC_MULT_DEM,
+};
+
 static u64 mv88e6xxx_ptp_clock_read(const struct cyclecounter *cc)
 {
 	struct mv88e6xxx_chip *chip = cc_to_chip(cc);
@@ -477,6 +523,23 @@ int mv88e6xxx_ptp_setup(struct mv88e6xxx_chip *chip)
 	chip->ptp_clock_info.enable	= ptp_ops->ptp_enable;
 	chip->ptp_clock_info.verify	= ptp_ops->ptp_verify;
 	chip->ptp_clock_info.do_aux_work = mv88e6xxx_hwtstamp_work;
+
+	if (ptp_ops->set_ptp_cpu_port) {
+		struct dsa_port *dp;
+		int upstream = 0;
+		int err;
+
+		dsa_switch_for_each_user_port(dp, chip->ds) {
+			upstream = dsa_upstream_port(chip->ds, dp->index);
+			break;
+		}
+
+		err = ptp_ops->set_ptp_cpu_port(chip, upstream);
+		if (err) {
+			dev_err(chip->dev, "Failed to set PTP CPU destination port!\n");
+			return err;
+		}
+	}
 
 	chip->ptp_clock = ptp_clock_register(&chip->ptp_clock_info, chip->dev);
 	if (IS_ERR(chip->ptp_clock))

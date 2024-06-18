@@ -54,7 +54,7 @@ fetch_apply_bitfield(struct fetch_insn *code, void *buf)
  * If dest is NULL, don't store result and return required dynamic data size.
  */
 static int
-process_fetch_insn(struct fetch_insn *code, struct pt_regs *regs,
+process_fetch_insn(struct fetch_insn *code, void *rec, void *edata,
 		   void *dest, void *base);
 static nokprobe_inline int fetch_store_strlen(unsigned long addr);
 static nokprobe_inline int
@@ -66,6 +66,57 @@ static nokprobe_inline int
 probe_mem_read(void *dest, void *src, size_t size);
 static nokprobe_inline int
 probe_mem_read_user(void *dest, void *src, size_t size);
+
+static nokprobe_inline int
+fetch_store_symstrlen(unsigned long addr)
+{
+	char namebuf[KSYM_SYMBOL_LEN];
+	int ret;
+
+	ret = sprint_symbol(namebuf, addr);
+	if (ret < 0)
+		return 0;
+
+	return ret + 1;
+}
+
+/*
+ * Fetch a null-terminated symbol string + offset. Caller MUST set *(u32 *)buf
+ * with max length and relative data location.
+ */
+static nokprobe_inline int
+fetch_store_symstring(unsigned long addr, void *dest, void *base)
+{
+	int maxlen = get_loc_len(*(u32 *)dest);
+	void *__dest;
+
+	if (unlikely(!maxlen))
+		return -ENOMEM;
+
+	__dest = get_loc_data(dest, base);
+
+	return sprint_symbol(__dest, addr);
+}
+
+/* common part of process_fetch_insn*/
+static nokprobe_inline int
+process_common_fetch_insn(struct fetch_insn *code, unsigned long *val)
+{
+	switch (code->op) {
+	case FETCH_OP_IMM:
+		*val = code->immediate;
+		break;
+	case FETCH_OP_COMM:
+		*val = (unsigned long)current->comm;
+		break;
+	case FETCH_OP_DATA:
+		*val = (unsigned long)code->data;
+		break;
+	default:
+		return -EILSEQ;
+	}
+	return 0;
+}
 
 /* From the 2nd stage, routine is same */
 static nokprobe_inline int
@@ -99,16 +150,22 @@ stage2:
 stage3:
 	/* 3rd stage: store value to buffer */
 	if (unlikely(!dest)) {
-		if (code->op == FETCH_OP_ST_STRING) {
+		switch (code->op) {
+		case FETCH_OP_ST_STRING:
 			ret = fetch_store_strlen(val + code->offset);
 			code++;
 			goto array;
-		} else if (code->op == FETCH_OP_ST_USTRING) {
-			ret += fetch_store_strlen_user(val + code->offset);
+		case FETCH_OP_ST_USTRING:
+			ret = fetch_store_strlen_user(val + code->offset);
 			code++;
 			goto array;
-		} else
+		case FETCH_OP_ST_SYMSTR:
+			ret = fetch_store_symstrlen(val + code->offset);
+			code++;
+			goto array;
+		default:
 			return -EILSEQ;
+		}
 	}
 
 	switch (code->op) {
@@ -129,6 +186,10 @@ stage3:
 		loc = *(u32 *)dest;
 		ret = fetch_store_string_user(val + code->offset, dest, base);
 		break;
+	case FETCH_OP_ST_SYMSTR:
+		loc = *(u32 *)dest;
+		ret = fetch_store_symstring(val + code->offset, dest, base);
+		break;
 	default:
 		return -EILSEQ;
 	}
@@ -143,6 +204,8 @@ stage3:
 array:
 	/* the last stage: Loop on array */
 	if (code->op == FETCH_OP_LP_ARRAY) {
+		if (ret < 0)
+			ret = 0;
 		total += ret;
 		if (++i < code->param) {
 			code = s3;
@@ -167,9 +230,9 @@ array:
 	return code->op == FETCH_OP_END ? ret : -EILSEQ;
 }
 
-/* Sum up total data length for dynamic arraies (strings) */
+/* Sum up total data length for dynamic arrays (strings) */
 static nokprobe_inline int
-__get_data_size(struct trace_probe *tp, struct pt_regs *regs)
+__get_data_size(struct trace_probe *tp, struct pt_regs *regs, void *edata)
 {
 	struct probe_arg *arg;
 	int i, len, ret = 0;
@@ -177,7 +240,7 @@ __get_data_size(struct trace_probe *tp, struct pt_regs *regs)
 	for (i = 0; i < tp->nr_args; i++) {
 		arg = tp->args + i;
 		if (unlikely(arg->dynamic)) {
-			len = process_fetch_insn(arg->code, regs, NULL, NULL);
+			len = process_fetch_insn(arg->code, regs, edata, NULL, NULL);
 			if (len > 0)
 				ret += len;
 		}
@@ -188,7 +251,7 @@ __get_data_size(struct trace_probe *tp, struct pt_regs *regs)
 
 /* Store the value of each argument */
 static nokprobe_inline void
-store_trace_args(void *data, struct trace_probe *tp, struct pt_regs *regs,
+store_trace_args(void *data, struct trace_probe *tp, void *rec, void *edata,
 		 int header_size, int maxlen)
 {
 	struct probe_arg *arg;
@@ -203,40 +266,10 @@ store_trace_args(void *data, struct trace_probe *tp, struct pt_regs *regs,
 		/* Point the dynamic data area if needed */
 		if (unlikely(arg->dynamic))
 			*dl = make_data_loc(maxlen, dyndata - base);
-		ret = process_fetch_insn(arg->code, regs, dl, base);
-		if (unlikely(ret < 0 && arg->dynamic)) {
-			*dl = make_data_loc(0, dyndata - base);
-		} else {
+		ret = process_fetch_insn(arg->code, rec, edata, dl, base);
+		if (arg->dynamic && likely(ret > 0)) {
 			dyndata += ret;
 			maxlen -= ret;
 		}
 	}
-}
-
-static inline int
-print_probe_args(struct trace_seq *s, struct probe_arg *args, int nr_args,
-		 u8 *data, void *field)
-{
-	void *p;
-	int i, j;
-
-	for (i = 0; i < nr_args; i++) {
-		struct probe_arg *a = args + i;
-
-		trace_seq_printf(s, " %s=", a->name);
-		if (likely(!a->count)) {
-			if (!a->type->print(s, data + a->offset, field))
-				return -ENOMEM;
-			continue;
-		}
-		trace_seq_putc(s, '{');
-		p = data + a->offset;
-		for (j = 0; j < a->count; j++) {
-			if (!a->type->print(s, p, field))
-				return -ENOMEM;
-			trace_seq_putc(s, j == a->count - 1 ? '}' : ',');
-			p += a->type->size;
-		}
-	}
-	return 0;
 }

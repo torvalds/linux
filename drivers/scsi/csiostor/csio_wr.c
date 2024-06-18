@@ -808,7 +808,7 @@ csio_wr_destroy_queues(struct csio_hw *hw, bool cmd)
 
 				csio_q_eqid(hw, i) = CSIO_MAX_QID;
 			}
-			/* fall through */
+			fallthrough;
 		case CSIO_INGRESS:
 			if (csio_q_iqid(hw, i) != CSIO_MAX_QID) {
 				csio_wr_cleanup_iq_ftr(hw, i);
@@ -830,6 +830,7 @@ csio_wr_destroy_queues(struct csio_hw *hw, bool cmd)
 				if (flq_idx != -1)
 					csio_q_flid(hw, flq_idx) = CSIO_MAX_QID;
 			}
+			break;
 		default:
 			break;
 		}
@@ -1050,7 +1051,6 @@ csio_wr_process_fl(struct csio_hw *hw, struct csio_q *q,
 	struct csio_fl_dma_buf flb;
 	struct csio_dma_buf *buf, *fbuf;
 	uint32_t bufsz, len, lastlen = 0;
-	int n;
 	struct csio_q *flq = hw->wrm.q_arr[q->un.iq.flq_idx];
 
 	CSIO_DB_ASSERT(flq != NULL);
@@ -1070,7 +1070,7 @@ csio_wr_process_fl(struct csio_hw *hw, struct csio_q *q,
 	flb.totlen = len;
 
 	/* Consume all freelist buffers used for len bytes */
-	for (n = 0, fbuf = flb.flbufs; ; n++, fbuf++) {
+	for (fbuf = flb.flbufs; ; fbuf++) {
 		buf = &flq->un.fl.bufs[flq->cidx];
 		bufsz = csio_wr_fl_bufsz(sge, buf);
 

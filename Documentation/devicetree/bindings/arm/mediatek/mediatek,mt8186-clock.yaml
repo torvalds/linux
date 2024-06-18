@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/mediatek/mediatek,mt8186-clock.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MediaTek Functional Clock Controller for MT8186
+
+maintainers:
+  - Chun-Jie Chen <chun-jie.chen@mediatek.com>
+
+description: |
+  The clock architecture in MediaTek like below
+  PLLs -->
+          dividers -->
+                      muxes
+                           -->
+                              clock gate
+
+  The devices provide clock gate control in different IP blocks.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - mediatek,mt8186-imp_iic_wrap
+          - mediatek,mt8186-mfgsys
+          - mediatek,mt8186-wpesys
+          - mediatek,mt8186-imgsys1
+          - mediatek,mt8186-imgsys2
+          - mediatek,mt8186-vdecsys
+          - mediatek,mt8186-vencsys
+          - mediatek,mt8186-camsys
+          - mediatek,mt8186-camsys_rawa
+          - mediatek,mt8186-camsys_rawb
+          - mediatek,mt8186-mdpsys
+          - mediatek,mt8186-ipesys
+  reg:
+    maxItems: 1
+
+  '#clock-cells':
+    const: 1
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    imp_iic_wrap: clock-controller@11017000 {
+        compatible = "mediatek,mt8186-imp_iic_wrap";
+        reg = <0x11017000 0x1000>;
+        #clock-cells = <1>;
+    };

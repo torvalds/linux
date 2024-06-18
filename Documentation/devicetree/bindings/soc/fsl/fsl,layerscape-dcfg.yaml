@@ -1,0 +1,68 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/soc/fsl/fsl,layerscape-dcfg.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale Layerscape Device Configuration Unit
+
+maintainers:
+  - Shawn Guo <shawnguo@kernel.org>
+  - Li Yang <leoyang.li@nxp.com>
+
+description: |
+  DCFG is the device configuration unit, that provides general purpose
+  configuration and status for the device. Such as setting the secondary
+  core start address and release the secondary core from holdoff and
+  startup.
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - fsl,ls1012a-dcfg
+              - fsl,ls1021a-dcfg
+              - fsl,ls1043a-dcfg
+              - fsl,ls1046a-dcfg
+              - fsl,ls1088a-dcfg
+              - fsl,ls2080a-dcfg
+              - fsl,lx2160a-dcfg
+          - const: syscon
+
+      - items:
+          - enum:
+              - fsl,ls1028a-dcfg
+          - const: syscon
+          - const: simple-mfd
+
+  reg:
+    maxItems: 1
+
+  little-endian: true
+  big-endian: true
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 1
+
+  ranges: true
+
+patternProperties:
+  "^clock-controller@[0-9a-f]+$":
+    $ref: /schemas/clock/fsl,flexspi-clock.yaml#
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    syscon@1ee0000 {
+        compatible = "fsl,ls1021a-dcfg", "syscon";
+        reg = <0x1ee0000 0x10000>;
+    };

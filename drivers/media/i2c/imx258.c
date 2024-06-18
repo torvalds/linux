@@ -2,12 +2,14 @@
 // Copyright (C) 2018 Intel Corporation
 
 #include <linux/acpi.h>
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-fwnode.h>
 #include <asm/unaligned.h>
 
 #define IMX258_REG_VALUE_08BIT		1
@@ -22,7 +24,7 @@
 #define IMX258_CHIP_ID			0x0258
 
 /* V_TIMING internal */
-#define IMX258_VTS_30FPS		0x0c98
+#define IMX258_VTS_30FPS		0x0c50
 #define IMX258_VTS_30FPS_2K		0x0638
 #define IMX258_VTS_30FPS_VGA		0x034c
 #define IMX258_VTS_MAX			0xffff
@@ -46,7 +48,7 @@
 /* Analog gain control */
 #define IMX258_REG_ANALOG_GAIN		0x0204
 #define IMX258_ANA_GAIN_MIN		0
-#define IMX258_ANA_GAIN_MAX		0x1fff
+#define IMX258_ANA_GAIN_MAX		480
 #define IMX258_ANA_GAIN_STEP		1
 #define IMX258_ANA_GAIN_DEFAULT		0x0
 
@@ -60,6 +62,15 @@
 #define IMX258_DGTL_GAIN_DEFAULT	1024
 #define IMX258_DGTL_GAIN_STEP		1
 
+/* HDR control */
+#define IMX258_REG_HDR			0x0220
+#define IMX258_HDR_ON			BIT(0)
+#define IMX258_REG_HDR_RATIO		0x0222
+#define IMX258_HDR_RATIO_MIN		0
+#define IMX258_HDR_RATIO_MAX		5
+#define IMX258_HDR_RATIO_STEP		1
+#define IMX258_HDR_RATIO_DEFAULT	0x0
+
 /* Test Pattern Control */
 #define IMX258_REG_TEST_PATTERN		0x0600
 
@@ -67,6 +78,9 @@
 #define REG_MIRROR_FLIP_CONTROL		0x0101
 #define REG_CONFIG_MIRROR_FLIP		0x03
 #define REG_CONFIG_FLIP_TEST_PATTERN	0x02
+
+/* Input clock frequency in Hz */
+#define IMX258_INPUT_CLOCK_FREQ		19200000
 
 struct imx258_reg {
 	u16 address;
@@ -608,8 +622,7 @@ struct imx258 {
 	 */
 	struct mutex mutex;
 
-	/* Streaming on/off */
-	bool streaming;
+	struct clk *clk;
 };
 
 static inline struct imx258 *to_imx258(struct v4l2_subdev *_sd)
@@ -695,7 +708,7 @@ static int imx258_write_regs(struct imx258 *imx258,
 static int imx258_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct v4l2_mbus_framefmt *try_fmt =
-		v4l2_subdev_get_try_format(sd, fh->pad, 0);
+		v4l2_subdev_state_get_format(fh->state, 0);
 
 	/* Initialize try_fmt */
 	try_fmt->width = supported_modes[0].width;
@@ -771,6 +784,22 @@ static int imx258_set_ctrl(struct v4l2_ctrl *ctrl)
 				!ctrl->val ? REG_CONFIG_MIRROR_FLIP :
 				REG_CONFIG_FLIP_TEST_PATTERN);
 		break;
+	case V4L2_CID_WIDE_DYNAMIC_RANGE:
+		if (!ctrl->val) {
+			ret = imx258_write_reg(imx258, IMX258_REG_HDR,
+					       IMX258_REG_VALUE_08BIT,
+					       IMX258_HDR_RATIO_MIN);
+		} else {
+			ret = imx258_write_reg(imx258, IMX258_REG_HDR,
+					       IMX258_REG_VALUE_08BIT,
+					       IMX258_HDR_ON);
+			if (ret)
+				break;
+			ret = imx258_write_reg(imx258, IMX258_REG_HDR_RATIO,
+					       IMX258_REG_VALUE_08BIT,
+					       BIT(IMX258_HDR_RATIO_MAX));
+		}
+		break;
 	default:
 		dev_info(&client->dev,
 			 "ctrl(id:0x%x,val:0x%x) is not handled\n",
@@ -789,7 +818,7 @@ static const struct v4l2_ctrl_ops imx258_ctrl_ops = {
 };
 
 static int imx258_enum_mbus_code(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	/* Only one bayer order(GRBG) is supported */
@@ -802,7 +831,7 @@ static int imx258_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int imx258_enum_frame_size(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
 	if (fse->index >= ARRAY_SIZE(supported_modes))
@@ -829,12 +858,12 @@ static void imx258_update_pad_format(const struct imx258_mode *mode,
 }
 
 static int __imx258_get_pad_format(struct imx258 *imx258,
-				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_format *fmt)
 {
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		fmt->format = *v4l2_subdev_get_try_format(&imx258->sd, cfg,
-							  fmt->pad);
+		fmt->format = *v4l2_subdev_state_get_format(sd_state,
+							    fmt->pad);
 	else
 		imx258_update_pad_format(imx258->cur_mode, fmt);
 
@@ -842,21 +871,21 @@ static int __imx258_get_pad_format(struct imx258 *imx258,
 }
 
 static int imx258_get_pad_format(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_format *fmt)
 {
 	struct imx258 *imx258 = to_imx258(sd);
 	int ret;
 
 	mutex_lock(&imx258->mutex);
-	ret = __imx258_get_pad_format(imx258, cfg, fmt);
+	ret = __imx258_get_pad_format(imx258, sd_state, fmt);
 	mutex_unlock(&imx258->mutex);
 
 	return ret;
 }
 
 static int imx258_set_pad_format(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_format *fmt)
 {
 	struct imx258 *imx258 = to_imx258(sd);
@@ -878,7 +907,7 @@ static int imx258_set_pad_format(struct v4l2_subdev *sd,
 		fmt->format.width, fmt->format.height);
 	imx258_update_pad_format(mode, fmt);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		framefmt = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+		framefmt = v4l2_subdev_state_get_format(sd_state, fmt->pad);
 		*framefmt = fmt->format;
 	} else {
 		imx258->cur_mode = mode;
@@ -972,6 +1001,29 @@ static int imx258_stop_streaming(struct imx258 *imx258)
 	return 0;
 }
 
+static int imx258_power_on(struct device *dev)
+{
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+	struct imx258 *imx258 = to_imx258(sd);
+	int ret;
+
+	ret = clk_prepare_enable(imx258->clk);
+	if (ret)
+		dev_err(dev, "failed to enable clock\n");
+
+	return ret;
+}
+
+static int imx258_power_off(struct device *dev)
+{
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+	struct imx258 *imx258 = to_imx258(sd);
+
+	clk_disable_unprepare(imx258->clk);
+
+	return 0;
+}
+
 static int imx258_set_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct imx258 *imx258 = to_imx258(sd);
@@ -979,17 +1031,11 @@ static int imx258_set_stream(struct v4l2_subdev *sd, int enable)
 	int ret = 0;
 
 	mutex_lock(&imx258->mutex);
-	if (imx258->streaming == enable) {
-		mutex_unlock(&imx258->mutex);
-		return 0;
-	}
 
 	if (enable) {
-		ret = pm_runtime_get_sync(&client->dev);
-		if (ret < 0) {
-			pm_runtime_put_noidle(&client->dev);
+		ret = pm_runtime_resume_and_get(&client->dev);
+		if (ret < 0)
 			goto err_unlock;
-		}
 
 		/*
 		 * Apply default & customized values
@@ -1003,7 +1049,6 @@ static int imx258_set_stream(struct v4l2_subdev *sd, int enable)
 		pm_runtime_put(&client->dev);
 	}
 
-	imx258->streaming = enable;
 	mutex_unlock(&imx258->mutex);
 
 	return ret;
@@ -1013,39 +1058,6 @@ err_rpm_put:
 err_unlock:
 	mutex_unlock(&imx258->mutex);
 
-	return ret;
-}
-
-static int __maybe_unused imx258_suspend(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct imx258 *imx258 = to_imx258(sd);
-
-	if (imx258->streaming)
-		imx258_stop_streaming(imx258);
-
-	return 0;
-}
-
-static int __maybe_unused imx258_resume(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct imx258 *imx258 = to_imx258(sd);
-	int ret;
-
-	if (imx258->streaming) {
-		ret = imx258_start_streaming(imx258);
-		if (ret)
-			goto error;
-	}
-
-	return 0;
-
-error:
-	imx258_stop_streaming(imx258);
-	imx258->streaming = 0;
 	return ret;
 }
 
@@ -1097,7 +1109,9 @@ static const struct v4l2_subdev_internal_ops imx258_internal_ops = {
 static int imx258_init_controls(struct imx258 *imx258)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&imx258->sd);
+	struct v4l2_fwnode_device_properties props;
 	struct v4l2_ctrl_handler *ctrl_hdlr;
+	struct v4l2_ctrl *vflip, *hflip;
 	s64 vblank_def;
 	s64 vblank_min;
 	s64 pixel_rate_min;
@@ -1105,7 +1119,7 @@ static int imx258_init_controls(struct imx258 *imx258)
 	int ret;
 
 	ctrl_hdlr = &imx258->ctrl_handler;
-	ret = v4l2_ctrl_handler_init(ctrl_hdlr, 8);
+	ret = v4l2_ctrl_handler_init(ctrl_hdlr, 13);
 	if (ret)
 		return ret;
 
@@ -1120,6 +1134,17 @@ static int imx258_init_controls(struct imx258 *imx258)
 
 	if (imx258->link_freq)
 		imx258->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+
+	/* The driver only supports one bayer order and flips by default. */
+	hflip = v4l2_ctrl_new_std(ctrl_hdlr, &imx258_ctrl_ops,
+				  V4L2_CID_HFLIP, 1, 1, 1, 1);
+	if (hflip)
+		hflip->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+
+	vflip = v4l2_ctrl_new_std(ctrl_hdlr, &imx258_ctrl_ops,
+				  V4L2_CID_VFLIP, 1, 1, 1, 1);
+	if (vflip)
+		vflip->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
 	pixel_rate_max = link_freq_to_pixel_rate(link_freq_menu_items[0]);
 	pixel_rate_min = link_freq_to_pixel_rate(link_freq_menu_items[1]);
@@ -1166,6 +1191,9 @@ static int imx258_init_controls(struct imx258 *imx258)
 				IMX258_DGTL_GAIN_STEP,
 				IMX258_DGTL_GAIN_DEFAULT);
 
+	v4l2_ctrl_new_std(ctrl_hdlr, &imx258_ctrl_ops, V4L2_CID_WIDE_DYNAMIC_RANGE,
+				0, 1, 1, IMX258_HDR_RATIO_DEFAULT);
+
 	v4l2_ctrl_new_std_menu_items(ctrl_hdlr, &imx258_ctrl_ops,
 				V4L2_CID_TEST_PATTERN,
 				ARRAY_SIZE(imx258_test_pattern_menu) - 1,
@@ -1177,6 +1205,15 @@ static int imx258_init_controls(struct imx258 *imx258)
 				__func__, ret);
 		goto error;
 	}
+
+	ret = v4l2_fwnode_device_parse(&client->dev, &props);
+	if (ret)
+		goto error;
+
+	ret = v4l2_ctrl_new_fwnode_properties(ctrl_hdlr, &imx258_ctrl_ops,
+					      &props);
+	if (ret)
+		goto error;
 
 	imx258->sd.ctrl_handler = ctrl_hdlr;
 
@@ -1201,36 +1238,46 @@ static int imx258_probe(struct i2c_client *client)
 	int ret;
 	u32 val = 0;
 
-	device_property_read_u32(&client->dev, "clock-frequency", &val);
-	if (val != 19200000)
-		return -EINVAL;
-
-	/*
-	 * Check that the device is mounted upside down. The driver only
-	 * supports a single pixel order right now.
-	 */
-	ret = device_property_read_u32(&client->dev, "rotation", &val);
-	if (ret || val != 180)
-		return -EINVAL;
-
 	imx258 = devm_kzalloc(&client->dev, sizeof(*imx258), GFP_KERNEL);
 	if (!imx258)
 		return -ENOMEM;
 
+	imx258->clk = devm_clk_get_optional(&client->dev, NULL);
+	if (IS_ERR(imx258->clk))
+		return dev_err_probe(&client->dev, PTR_ERR(imx258->clk),
+				     "error getting clock\n");
+	if (!imx258->clk) {
+		dev_dbg(&client->dev,
+			"no clock provided, using clock-frequency property\n");
+
+		device_property_read_u32(&client->dev, "clock-frequency", &val);
+	} else {
+		val = clk_get_rate(imx258->clk);
+	}
+	if (val != IMX258_INPUT_CLOCK_FREQ) {
+		dev_err(&client->dev, "input clock frequency not supported\n");
+		return -EINVAL;
+	}
+
 	/* Initialize subdev */
 	v4l2_i2c_subdev_init(&imx258->sd, client, &imx258_subdev_ops);
+
+	/* Will be powered off via pm_runtime_idle */
+	ret = imx258_power_on(&client->dev);
+	if (ret)
+		return ret;
 
 	/* Check module identity */
 	ret = imx258_identify_module(imx258);
 	if (ret)
-		return ret;
+		goto error_identify;
 
 	/* Set default mode to max resolution */
 	imx258->cur_mode = &supported_modes[0];
 
 	ret = imx258_init_controls(imx258);
 	if (ret)
-		return ret;
+		goto error_identify;
 
 	/* Initialize subdev */
 	imx258->sd.internal_ops = &imx258_internal_ops;
@@ -1244,7 +1291,7 @@ static int imx258_probe(struct i2c_client *client)
 	if (ret)
 		goto error_handler_free;
 
-	ret = v4l2_async_register_subdev_sensor_common(&imx258->sd);
+	ret = v4l2_async_register_subdev_sensor(&imx258->sd);
 	if (ret < 0)
 		goto error_media_entity;
 
@@ -1260,10 +1307,13 @@ error_media_entity:
 error_handler_free:
 	imx258_free_controls(imx258);
 
+error_identify:
+	imx258_power_off(&client->dev);
+
 	return ret;
 }
 
-static int imx258_remove(struct i2c_client *client)
+static void imx258_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct imx258 *imx258 = to_imx258(sd);
@@ -1273,13 +1323,13 @@ static int imx258_remove(struct i2c_client *client)
 	imx258_free_controls(imx258);
 
 	pm_runtime_disable(&client->dev);
+	if (!pm_runtime_status_suspended(&client->dev))
+		imx258_power_off(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
-
-	return 0;
 }
 
 static const struct dev_pm_ops imx258_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(imx258_suspend, imx258_resume)
+	SET_RUNTIME_PM_OPS(imx258_power_off, imx258_power_on, NULL)
 };
 
 #ifdef CONFIG_ACPI
@@ -1291,20 +1341,27 @@ static const struct acpi_device_id imx258_acpi_ids[] = {
 MODULE_DEVICE_TABLE(acpi, imx258_acpi_ids);
 #endif
 
+static const struct of_device_id imx258_dt_ids[] = {
+	{ .compatible = "sony,imx258" },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, imx258_dt_ids);
+
 static struct i2c_driver imx258_i2c_driver = {
 	.driver = {
 		.name = "imx258",
 		.pm = &imx258_pm_ops,
 		.acpi_match_table = ACPI_PTR(imx258_acpi_ids),
+		.of_match_table	= imx258_dt_ids,
 	},
-	.probe_new = imx258_probe,
+	.probe = imx258_probe,
 	.remove = imx258_remove,
 };
 
 module_i2c_driver(imx258_i2c_driver);
 
 MODULE_AUTHOR("Yeh, Andy <andy.yeh@intel.com>");
-MODULE_AUTHOR("Chiang, Alan <alanx.chiang@intel.com>");
-MODULE_AUTHOR("Chen, Jason <jasonx.z.chen@intel.com>");
+MODULE_AUTHOR("Chiang, Alan");
+MODULE_AUTHOR("Chen, Jason");
 MODULE_DESCRIPTION("Sony IMX258 sensor driver");
 MODULE_LICENSE("GPL v2");

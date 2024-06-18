@@ -5,8 +5,12 @@
 #include "../core.h"
 #include "../pci.h"
 #include "../base.h"
-#include "reg.h"
-#include "def.h"
+#include "../rtl8192d/reg.h"
+#include "../rtl8192d/def.h"
+#include "../rtl8192d/dm_common.h"
+#include "../rtl8192d/hw_common.h"
+#include "../rtl8192d/phy_common.h"
+#include "../rtl8192d/trx_common.h"
 #include "phy.h"
 #include "dm.h"
 #include "hw.h"
@@ -20,9 +24,6 @@ static void rtl92d_init_aspm_vars(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
-
-	/*close ASPM for AMD defaultly */
-	rtlpci->const_amdpci_aspm = 0;
 
 	/*
 	 * ASPM PS mode.
@@ -210,22 +211,24 @@ static struct rtl_hal_ops rtl8192de_hal_ops = {
 	.radio_onoff_checking = rtl92de_gpio_radio_on_off_checking,
 	.set_bw_mode = rtl92d_phy_set_bw_mode,
 	.switch_channel = rtl92d_phy_sw_chnl,
-	.dm_watchdog = rtl92d_dm_watchdog,
+	.dm_watchdog = rtl92de_dm_watchdog,
 	.scan_operation_backup = rtl_phy_scan_operation_backup,
 	.set_rf_power_state = rtl92d_phy_set_rf_power_state,
 	.led_control = rtl92de_led_control,
 	.set_desc = rtl92de_set_desc,
 	.get_desc = rtl92de_get_desc,
+	.is_tx_desc_closed = rtl92de_is_tx_desc_closed,
 	.tx_polling = rtl92de_tx_polling,
 	.enable_hw_sec = rtl92de_enable_hw_security_config,
 	.set_key = rtl92de_set_key,
-	.init_sw_leds = rtl92de_init_sw_leds,
 	.get_bbreg = rtl92d_phy_query_bb_reg,
 	.set_bbreg = rtl92d_phy_set_bb_reg,
 	.get_rfreg = rtl92d_phy_query_rf_reg,
 	.set_rfreg = rtl92d_phy_set_rf_reg,
 	.linked_set_reg = rtl92d_linked_set_reg,
 	.get_btc_status = rtl_btc_status_false,
+	.phy_iq_calibrate = rtl92d_phy_iq_calibrate,
+	.phy_lc_calibrate = rtl92d_phy_lc_calibrate,
 };
 
 static struct rtl_mod_params rtl92de_mod_params = {
@@ -371,17 +374,13 @@ static struct pci_driver rtl92de_driver = {
 
 /* add global spin lock to solve the problem that
  * Dul mac register operation on the same time */
-spinlock_t globalmutex_power;
-spinlock_t globalmutex_for_fwdownload;
-spinlock_t globalmutex_for_power_and_efuse;
+DEFINE_SPINLOCK(globalmutex_power);
+DEFINE_SPINLOCK(globalmutex_for_fwdownload);
+DEFINE_SPINLOCK(globalmutex_for_power_and_efuse);
 
 static int __init rtl92de_module_init(void)
 {
 	int ret = 0;
-
-	spin_lock_init(&globalmutex_power);
-	spin_lock_init(&globalmutex_for_fwdownload);
-	spin_lock_init(&globalmutex_for_power_and_efuse);
 
 	ret = pci_register_driver(&rtl92de_driver);
 	if (ret)

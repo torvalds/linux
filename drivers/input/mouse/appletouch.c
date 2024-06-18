@@ -458,7 +458,7 @@ static int atp_status_check(struct urb *urb)
 				dev->info->datalen, dev->urb->actual_length);
 			dev->overflow_warned = true;
 		}
-		/* fall through */
+		fallthrough;
 	case -ECONNRESET:
 	case -ENOENT:
 	case -ESHUTDOWN:
@@ -916,14 +916,14 @@ static int atp_probe(struct usb_interface *iface,
 	set_bit(BTN_TOOL_TRIPLETAP, input_dev->keybit);
 	set_bit(BTN_LEFT, input_dev->keybit);
 
+	INIT_WORK(&dev->work, atp_reinit);
+
 	error = input_register_device(dev->input);
 	if (error)
 		goto err_free_buffer;
 
 	/* save our data pointer in this interface device */
 	usb_set_intfdata(iface, dev);
-
-	INIT_WORK(&dev->work, atp_reinit);
 
 	return 0;
 

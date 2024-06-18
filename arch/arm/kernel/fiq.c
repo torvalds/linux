@@ -45,6 +45,7 @@
 #include <asm/cacheflush.h>
 #include <asm/cp15.h>
 #include <asm/fiq.h>
+#include <asm/mach/irq.h>
 #include <asm/irq.h>
 #include <asm/traps.h>
 
@@ -98,8 +99,8 @@ void set_fiq_handler(void *start, unsigned int length)
 
 	memcpy(base + offset, start, length);
 	if (!cache_is_vipt_nonaliasing())
-		flush_icache_range((unsigned long)base + offset, offset +
-				   length);
+		flush_icache_range((unsigned long)base + offset,
+				   (unsigned long)base + offset + length);
 	flush_icache_range(0xffff0000 + offset, 0xffff0000 + offset + length);
 }
 

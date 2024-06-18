@@ -33,14 +33,14 @@ static void not_configged_close(int fd, void *data)
 	       "UML\n");
 }
 
-static int not_configged_read(int fd, char *c_out, void *data)
+static int not_configged_read(int fd, u8 *c_out, void *data)
 {
 	printk(KERN_ERR "Using a channel type which is configured out of "
 	       "UML\n");
 	return -EIO;
 }
 
-static int not_configged_write(int fd, const char *buf, int len, void *data)
+static int not_configged_write(int fd, const u8 *buf, size_t len, void *data)
 {
 	printk(KERN_ERR "Using a channel type which is configured out of "
 	       "UML\n");
@@ -133,7 +133,7 @@ static void line_timer_cb(struct work_struct *work)
 	struct line *line = container_of(work, struct line, task.work);
 
 	if (!line->throttled)
-		chan_interrupt(line, line->driver->read_irq);
+		chan_interrupt(line, line->read_irq);
 }
 
 int enable_chan(struct line *line)
@@ -195,9 +195,9 @@ void free_irqs(void)
 		chan = list_entry(ele, struct chan, free_list);
 
 		if (chan->input && chan->enabled)
-			um_free_irq(chan->line->driver->read_irq, chan);
+			um_free_irq(chan->line->read_irq, chan);
 		if (chan->output && chan->enabled)
-			um_free_irq(chan->line->driver->write_irq, chan);
+			um_free_irq(chan->line->write_irq, chan);
 		chan->enabled = 0;
 	}
 }
@@ -215,9 +215,9 @@ static void close_one_chan(struct chan *chan, int delay_free_irq)
 		spin_unlock_irqrestore(&irqs_to_free_lock, flags);
 	} else {
 		if (chan->input && chan->enabled)
-			um_free_irq(chan->line->driver->read_irq, chan);
+			um_free_irq(chan->line->read_irq, chan);
 		if (chan->output && chan->enabled)
-			um_free_irq(chan->line->driver->write_irq, chan);
+			um_free_irq(chan->line->write_irq, chan);
 		chan->enabled = 0;
 	}
 	if (chan->ops->close != NULL)
@@ -247,8 +247,7 @@ void deactivate_chan(struct chan *chan, int irq)
 		deactivate_fd(chan->fd, irq);
 }
 
-int write_chan(struct chan *chan, const char *buf, int len,
-	       int write_irq)
+int write_chan(struct chan *chan, const u8 *buf, size_t len, int write_irq)
 {
 	int n, ret = 0;
 
@@ -540,7 +539,7 @@ void chan_interrupt(struct line *line, int irq)
 	struct tty_port *port = &line->port;
 	struct chan *chan = line->chan_in;
 	int err;
-	char c;
+	u8 c;
 
 	if (!chan || !chan->ops->read)
 		goto out;

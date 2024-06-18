@@ -2,11 +2,16 @@
 #ifndef __ACPI_PROCESSOR_H
 #define __ACPI_PROCESSOR_H
 
-#include <linux/kernel.h>
 #include <linux/cpu.h>
 #include <linux/cpufreq.h>
 #include <linux/pm_qos.h>
+#include <linux/printk.h>
+#include <linux/sched.h>
+#include <linux/smp.h>
 #include <linux/thermal.h>
+#include <linux/types.h>
+#include <linux/workqueue.h>
+
 #include <asm/acpi.h>
 
 #define ACPI_PROCESSOR_CLASS		"processor"
@@ -232,8 +237,8 @@ struct acpi_processor {
 	struct acpi_processor_limit limit;
 	struct thermal_cooling_device *cdev;
 	struct device *dev; /* Processor device. */
-	struct dev_pm_qos_request perflib_req;
-	struct dev_pm_qos_request thermal_req;
+	struct freq_qos_request perflib_req;
+	struct freq_qos_request thermal_req;
 };
 
 struct acpi_processor_errata {
@@ -297,13 +302,21 @@ static inline void acpi_processor_ffh_cstate_enter(struct acpi_processor_cx
 }
 #endif
 
+static inline int call_on_cpu(int cpu, long (*fn)(void *), void *arg,
+			      bool direct)
+{
+	if (direct || (is_percpu_thread() && cpu == smp_processor_id()))
+		return fn(arg);
+	return work_on_cpu(cpu, fn, arg);
+}
+
 /* in processor_perflib.c */
 
 #ifdef CONFIG_CPU_FREQ
 extern bool acpi_processor_cpufreq_init;
 void acpi_processor_ignore_ppc_init(void);
-void acpi_processor_ppc_init(int cpu);
-void acpi_processor_ppc_exit(int cpu);
+void acpi_processor_ppc_init(struct cpufreq_policy *policy);
+void acpi_processor_ppc_exit(struct cpufreq_policy *policy);
 void acpi_processor_ppc_has_changed(struct acpi_processor *pr, int event_flag);
 extern int acpi_processor_get_bios_limit(int cpu, unsigned int *limit);
 #else
@@ -311,11 +324,11 @@ static inline void acpi_processor_ignore_ppc_init(void)
 {
 	return;
 }
-static inline void acpi_processor_ppc_init(int cpu)
+static inline void acpi_processor_ppc_init(struct cpufreq_policy *policy)
 {
 	return;
 }
-static inline void acpi_processor_ppc_exit(int cpu)
+static inline void acpi_processor_ppc_exit(struct cpufreq_policy *policy)
 {
 	return;
 }
@@ -428,20 +441,28 @@ static inline int acpi_processor_hotplug(struct acpi_processor *pr)
 #endif /* CONFIG_ACPI_PROCESSOR_IDLE */
 
 /* in processor_thermal.c */
-int acpi_processor_get_limit_info(struct acpi_processor *pr);
+int acpi_processor_thermal_init(struct acpi_processor *pr,
+				struct acpi_device *device);
+void acpi_processor_thermal_exit(struct acpi_processor *pr,
+				 struct acpi_device *device);
 extern const struct thermal_cooling_device_ops processor_cooling_ops;
-#if defined(CONFIG_ACPI_CPU_FREQ_PSS) & defined(CONFIG_CPU_FREQ)
-void acpi_thermal_cpufreq_init(int cpu);
-void acpi_thermal_cpufreq_exit(int cpu);
+#ifdef CONFIG_CPU_FREQ
+void acpi_thermal_cpufreq_init(struct cpufreq_policy *policy);
+void acpi_thermal_cpufreq_exit(struct cpufreq_policy *policy);
 #else
-static inline void acpi_thermal_cpufreq_init(int cpu)
+static inline void acpi_thermal_cpufreq_init(struct cpufreq_policy *policy)
 {
 	return;
 }
-static inline void acpi_thermal_cpufreq_exit(int cpu)
+static inline void acpi_thermal_cpufreq_exit(struct cpufreq_policy *policy)
 {
 	return;
 }
-#endif	/* CONFIG_ACPI_CPU_FREQ_PSS */
+#endif	/* CONFIG_CPU_FREQ */
+
+#ifdef CONFIG_ACPI_PROCESSOR_IDLE
+extern int acpi_processor_ffh_lpi_probe(unsigned int cpu);
+extern int acpi_processor_ffh_lpi_enter(struct acpi_lpi_state *lpi);
+#endif
 
 #endif

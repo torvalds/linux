@@ -5,15 +5,14 @@
  * 2011 (c) Aeroflex Gaisler AB
  *
  * Full documentation of the core can be found here:
- * http://www.gaisler.com/products/grlib/grip.pdf
+ * https://www.gaisler.com/products/grlib/grip.pdf
  *
  * Contributors: Kristoffer Glembo <kristoffer@gaisler.com>
  */
 
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
-#include <linux/of_platform.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -251,15 +250,13 @@ static int grvga_pan_display(struct fb_var_screeninfo *var,
 	return 0;
 }
 
-static struct fb_ops grvga_ops = {
+static const struct fb_ops grvga_ops = {
 	.owner          = THIS_MODULE,
+	FB_DEFAULT_IOMEM_OPS,
 	.fb_check_var   = grvga_check_var,
 	.fb_set_par	= grvga_set_par,
 	.fb_setcolreg   = grvga_setcolreg,
 	.fb_pan_display = grvga_pan_display,
-	.fb_fillrect	= cfb_fillrect,
-	.fb_copyarea	= cfb_copyarea,
-	.fb_imageblit	= cfb_imageblit
 };
 
 static int grvga_parse_custom(char *options,
@@ -377,7 +374,7 @@ static int grvga_probe(struct platform_device *dev)
 	info->fbops = &grvga_ops;
 	info->fix = grvga_fix;
 	info->pseudo_palette = par->color_palette;
-	info->flags = FBINFO_DEFAULT | FBINFO_PARTIAL_PAN_OK | FBINFO_HWACCEL_YPAN;
+	info->flags = FBINFO_PARTIAL_PAN_OK | FBINFO_HWACCEL_YPAN;
 	info->fix.smem_len = grvga_mem_size;
 
 	if (!devm_request_mem_region(&dev->dev, dev->resource[0].start,
@@ -504,7 +501,7 @@ free_fb:
 	return retval;
 }
 
-static int grvga_remove(struct platform_device *device)
+static void grvga_remove(struct platform_device *device)
 {
 	struct fb_info *info = dev_get_drvdata(&device->dev);
 	struct grvga_par *par;
@@ -524,8 +521,6 @@ static int grvga_remove(struct platform_device *device)
 
 		framebuffer_release(info);
 	}
-
-	return 0;
 }
 
 static struct of_device_id svgactrl_of_match[] = {
@@ -545,7 +540,7 @@ static struct platform_driver grvga_driver = {
 		.of_match_table = svgactrl_of_match,
 	},
 	.probe		= grvga_probe,
-	.remove		= grvga_remove,
+	.remove_new	= grvga_remove,
 };
 
 module_platform_driver(grvga_driver);

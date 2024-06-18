@@ -17,6 +17,7 @@
 
 	aliases {
 		serial0 = &uarta;
+		serial3 = &uartd;
 	};
 
 	chosen {
@@ -24,15 +25,47 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x0 0x80000000 0x0 0xc0000000>;
 	};
 
 	host1x@50000000 {
+		dsia: dsi@54300000 {
+			avdd-dsi-csi-supply = <&vdd_dsi_csi>;
+			status = "okay";
+
+			link2: panel@0 {
+				compatible = "jdi,lpm102a188a";
+				reg = <0>;
+			};
+		};
+
+		dsib: dsi@54400000 {
+			avdd-dsi-csi-supply = <&vdd_dsi_csi>;
+			nvidia,ganged-mode = <&dsia>;
+			status = "okay";
+
+			link1: panel@0 {
+				compatible = "jdi,lpm102a188a";
+				reg = <0>;
+				power-supply = <&pplcd_vdd>;
+				ddi-supply = <&pp1800_lcdio>;
+				enable-gpios = <&gpio TEGRA_GPIO(V, 1) GPIO_ACTIVE_HIGH>;
+				reset-gpios = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_LOW>;
+				link2 = <&link2>;
+				backlight = <&backlight>;
+			};
+		};
+
 		dpaux: dpaux@545c0000 {
 			status = "okay";
 		};
+	};
+
+	gpu@57000000 {
+		vdd-supply = <&max77621_gpu>;
+		status = "okay";
 	};
 
 	pinmux: pinmux@700008d4 {
@@ -1306,7 +1339,27 @@
 	};
 
 	serial@70006000 {
+		/delete-property/ dmas;
+		/delete-property/ dma-names;
 		status = "okay";
+	};
+
+	uartd: serial@70006300 {
+		compatible = "nvidia,tegra30-hsuart";
+		reset-names = "serial";
+		/delete-property/ reg-shift;
+		status = "okay";
+
+		bluetooth {
+			compatible = "brcm,bcm43540-bt";
+			max-speed = <4000000>;
+			brcm,bt-pcm-int-params = [01 02 00 01 01];
+			device-wakeup-gpios = <&gpio TEGRA_GPIO(H, 3) GPIO_ACTIVE_HIGH>;
+			shutdown-gpios = <&gpio TEGRA_GPIO(H, 4) GPIO_ACTIVE_HIGH>;
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(H, 5) IRQ_TYPE_LEVEL_LOW>;
+			interrupt-names = "host-wakeup";
+		};
 	};
 
 	i2c@7000c400 {
@@ -1330,7 +1383,6 @@
 				battery: bq27742@55 {
 					compatible = "ti,bq27742";
 					reg = <0x55>;
-					battery-name = "battery";
 				};
 			};
 		};
@@ -1354,12 +1406,27 @@
 			maxim,dvs-default-state = <1>;
 			maxim,enable-active-discharge;
 			maxim,enable-bias-control;
-			maxim,enable-etr;
-			maxim,enable-gpio = <&max77620 5 0>;
+			maxim,enable-gpio = <&pmic 5 0>;
 			maxim,externally-enable;
 		};
 
-		max77620: max77620@3c {
+		max77621_gpu: regulator@1c {
+			compatible = "maxim,max77621";
+			reg = <0x1c>;
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(A, 6) IRQ_TYPE_LEVEL_LOW>;
+			regulator-min-microvolt = <840000>;
+			regulator-max-microvolt = <1150000>;
+			regulator-name = "PPVAR_GPU";
+			regulator-ramp-delay = <12500>;
+			maxim,dvs-default-state = <1>;
+			maxim,enable-active-discharge;
+			maxim,enable-bias-control;
+			maxim,enable-gpio = <&pmic 6 GPIO_ACTIVE_HIGH>;
+			maxim,externally-enable;
+		};
+
+		pmic: pmic@3c {
 			compatible = "maxim,max77620";
 			reg = <0x3c>;
 			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
@@ -1372,38 +1439,6 @@
 
 			pinctrl-names = "default";
 			pinctrl-0 = <&max77620_default>;
-
-			max77620_default: pinmux@0 {
-				pin_gpio {
-					pins = "gpio0", "gpio1", "gpio2", "gpio7";
-					function = "gpio";
-				};
-
-				/*
-				 * GPIO3 is used to en_pp3300, and it is part of power
-				 * sequence, So it must be sequenced up (automatically
-				 * set by OTP) and down properly.
-				 */
-				pin_gpio3 {
-					pins = "gpio3";
-					function = "fps-out";
-					drive-open-drain = <1>;
-					maxim,active-fps-source = <MAX77620_FPS_SRC_0>;
-					maxim,active-fps-power-up-slot = <4>;
-					maxim,active-fps-power-down-slot = <2>;
-				};
-
-				pin_gpio5_6 {
-					pins = "gpio5", "gpio6";
-					function = "gpio";
-					drive-push-pull = <1>;
-				};
-
-				pin_32k {
-					pins = "gpio4";
-					function = "32k-out1";
-				};
-			};
 
 			fps {
 				fps0 {
@@ -1419,6 +1454,38 @@
 
 				fps2 {
 					maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN0>;
+				};
+			};
+
+			max77620_default: pinmux {
+				gpio0_1_2_7 {
+					pins = "gpio0", "gpio1", "gpio2", "gpio7";
+					function = "gpio";
+				};
+
+				/*
+				 * GPIO3 is used to en_pp3300, and it is part of power
+				 * sequence, So it must be sequenced up (automatically
+				 * set by OTP) and down properly.
+				 */
+				gpio3 {
+					pins = "gpio3";
+					function = "fps-out";
+					drive-open-drain = <1>;
+					maxim,active-fps-source = <MAX77620_FPS_SRC_0>;
+					maxim,active-fps-power-up-slot = <4>;
+					maxim,active-fps-power-down-slot = <2>;
+				};
+
+				gpio4 {
+					pins = "gpio4";
+					function = "32k-out1";
+				};
+
+				gpio5_6 {
+					pins = "gpio5", "gpio6";
+					function = "gpio";
+					drive-push-pull = <1>;
 				};
 			};
 
@@ -1592,7 +1659,7 @@
 			reg = <0x1a>;
 			interrupt-parent = <&gpio>;
 			interrupts = <TEGRA_GPIO(E, 6) IRQ_TYPE_LEVEL_LOW>;
-			clocks = <&tegra_car TEGRA210_CLK_CLK_OUT_2>;
+			clocks = <&tegra_pmc TEGRA_PMC_CLK_OUT_2>;
 			clock-names = "mclk";
 
 			nuvoton,jkdet-enable;
@@ -1609,6 +1676,37 @@
 			nuvoton,jack-insert-debounce = <7>;
 			nuvoton,jack-eject-debounce = <7>;
 			status = "okay";
+		};
+
+		backlight: backlight@2c {
+			compatible = "ti,lp8557";
+			reg = <0x2c>;
+			power-supply = <&pplcd_vdd>;
+			enable-supply = <&pp1800_lcdio>;
+			bl-name = "lp8557-backlight";
+			dev-ctrl = /bits/ 8 <0x01>;
+			init-brt = /bits/ 8 <0x80>;
+
+			/* Full scale current, 20mA */
+			rom-11h {
+				rom-addr = /bits/ 8 <0x11>;
+				rom-val = /bits/ 8 <0x05>;
+			};
+			/* Frequency = 4.9kHz, magic undocumented val */
+			rom-12h {
+				rom-addr = /bits/ 8 <0x12>;
+				rom-val = /bits/ 8 <0x29>;
+			};
+			/* Boost freq = 1MHz, BComp option = 1 */
+			rom-13h {
+				rom-addr = /bits/ 8 <0x13>;
+				rom-val = /bits/ 8 <0x03>;
+			};
+			/* 4V OV, 6 output LED string enabled */
+			rom-14h {
+				rom-addr = /bits/ 8 <0x14>;
+				rom-val = /bits/ 8 <0xbf>;
+			};
 		};
 
 		audio-codec@2d {
@@ -1643,10 +1741,6 @@
 		dvddio-pex-supply = <&avddio_1v05>;
 		hvddio-pex-supply = <&pp1800>;
 		avdd-usb-supply = <&pp3300>;
-		avdd-pll-utmip-supply = <&pp1800>;
-		avdd-pll-uerefe-supply = <&pp1050_avdd>;
-		dvdd-pex-pll-supply = <&avddio_1v05>;
-		hvdd-pex-pll-e-supply = <&pp1800>;
 
 		status = "okay";
 	};
@@ -1697,7 +1791,26 @@
 		};
 	};
 
-	sdhci@700b0600 {
+	mmc@700b0200 {
+		power-gpios = <&gpio TEGRA_GPIO(H, 1) GPIO_ACTIVE_HIGH>;
+		bus-width = <4>;
+		non-removable;
+		vqmmc-supply = <&pp1800>;
+		vmmc-supply = <&pp3300>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "okay";
+
+		wifi@1 {
+			compatible = "brcm,bcm4354-fmac", "brcm,bcm4329-fmac";
+			reg = <1>;
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(H, 2) IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "host-wake";
+		};
+	};
+
+	mmc@700b0600 {
 		bus-width = <8>;
 		non-removable;
 		status = "okay";
@@ -1718,26 +1831,19 @@
 	aconnect@702c0000 {
 		status = "okay";
 
-		dma@702e2000 {
+		dma-controller@702e2000 {
 			status = "okay";
 		};
 
-		agic@702f9000 {
+		interrupt-controller@702f9000 {
 			status = "okay";
 		};
 	};
 
-	clocks {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		clk32k_in: clock@0 {
-			compatible = "fixed-clock";
-			reg = <0>;
-			#clock-cells = <0>;
-			clock-frequency = <32768>;
-		};
+	clk32k_in: clock-32k {
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+		#clock-cells = <0>;
 	};
 
 	cpus {
@@ -1768,7 +1874,7 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		power {
+		key-power {
 			label = "Power";
 			gpios = <&gpio TEGRA_GPIO(X, 5) GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
@@ -1776,7 +1882,19 @@
 			wakeup-source;
 		};
 
-		lid {
+		key-volume-down {
+			label = "Volume Down";
+			gpios = <&gpio TEGRA_GPIO(X, 7) GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEDOWN>;
+		};
+
+		key-volume-up {
+			label = "Volume Up";
+			gpios = <&gpio TEGRA_GPIO(M, 4) GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEUP>;
+		};
+
+		switch-lid {
 			label = "Lid";
 			gpios = <&gpio TEGRA_GPIO(B, 4) GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_SW>;
@@ -1784,24 +1902,12 @@
 			wakeup-source;
 		};
 
-		tablet_mode {
+		switch-tablet-mode {
 			label = "Tablet Mode";
 			gpios = <&gpio TEGRA_GPIO(Z, 2) GPIO_ACTIVE_HIGH>;
 			linux,input-type = <EV_SW>;
 			linux,code = <SW_TABLET_MODE>;
 			wakeup-source;
-		};
-
-		volume_down {
-			label = "Volume Down";
-			gpios = <&gpio TEGRA_GPIO(X, 7) GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_VOLUMEDOWN>;
-		};
-
-		volume_up {
-			label = "Volume Up";
-			gpios = <&gpio TEGRA_GPIO(M, 4) GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_VOLUMEUP>;
 		};
 	};
 
@@ -1815,88 +1921,81 @@
 		method = "smc";
 	};
 
-	regulators {
-		compatible = "simple-bus";
-		device_type = "fixed-regulators";
-		#address-cells = <1>;
-		#size-cells = <0>;
+	ppvar_sys: regulator-ppvar-sys {
+		compatible = "regulator-fixed";
+		regulator-name = "PPVAR_SYS";
+		regulator-min-microvolt = <4400000>;
+		regulator-max-microvolt = <4400000>;
+		regulator-always-on;
+	};
 
-		ppvar_sys: regulator@0 {
-			compatible = "regulator-fixed";
-			reg = <0>;
-			regulator-name = "PPVAR_SYS";
-			regulator-min-microvolt = <4400000>;
-			regulator-max-microvolt = <4400000>;
-			regulator-always-on;
-		};
+	pplcd_vdd: regulator-pplcd-vdd {
+		compatible = "regulator-fixed";
+		regulator-name = "PPLCD_VDD";
+		regulator-min-microvolt = <4400000>;
+		regulator-max-microvolt = <4400000>;
+		gpio = <&gpio TEGRA_GPIO(V, 4) 0>;
+		enable-active-high;
+		regulator-boot-on;
+	};
 
-		pplcd_vdd: regulator@1 {
-			compatible = "regulator-fixed";
-			reg = <1>;
-			regulator-name = "PPLCD_VDD";
-			regulator-min-microvolt = <4400000>;
-			regulator-max-microvolt = <4400000>;
-			gpio = <&gpio TEGRA_GPIO(V, 4) 0>;
-			enable-active-high;
-			regulator-boot-on;
-		};
+	pp3000_always: regulator-pp3000-always {
+		compatible = "regulator-fixed";
+		regulator-name = "PP3000_ALWAYS";
+		regulator-min-microvolt = <3000000>;
+		regulator-max-microvolt = <3000000>;
+		regulator-always-on;
+	};
 
-		pp3000_always: regulator@2 {
-			compatible = "regulator-fixed";
-			reg = <2>;
-			regulator-name = "PP3000_ALWAYS";
-			regulator-min-microvolt = <3000000>;
-			regulator-max-microvolt = <3000000>;
-			regulator-always-on;
-		};
+	pp3300: regulator-pp3000 {
+		compatible = "regulator-fixed";
+		regulator-name = "PP3300";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		regulator-always-on;
+		enable-active-high;
+	};
 
-		pp3300: regulator@3 {
-			compatible = "regulator-fixed";
-			reg = <3>;
-			regulator-name = "PP3300";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			regulator-boot-on;
-			regulator-always-on;
-			enable-active-high;
-		};
+	pp5000: regulator-pp5000 {
+		compatible = "regulator-fixed";
+		regulator-name = "PP5000";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+	};
 
-		pp5000: regulator@4 {
-			compatible = "regulator-fixed";
-			reg = <4>;
-			regulator-name = "PP5000";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			regulator-always-on;
-		};
+	pp1800_lcdio: regulator-pp1800-lcdio {
+		compatible = "regulator-fixed";
+		regulator-name = "PP1800_LCDIO";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&gpio TEGRA_GPIO(V, 3) 0>;
+		enable-active-high;
+		regulator-boot-on;
+	};
 
-		pp1800_lcdio: regulator@5 {
-			compatible = "regulator-fixed";
-			reg = <5>;
-			regulator-name = "PP1800_LCDIO";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			gpio = <&gpio TEGRA_GPIO(V, 3) 0>;
-			enable-active-high;
-			regulator-boot-on;
-		};
+	pp1800_cam: regulator-pp1800-cam {
+		compatible = "regulator-fixed";
+		regulator-name = "PP1800_CAM";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&gpio TEGRA_GPIO(K, 3) 0>;
+		enable-active-high;
+	};
 
-		pp1800_cam: regulator@6 {
-			compatible = "regulator-fixed";
-			reg= <6>;
-			regulator-name = "PP1800_CAM";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			gpio = <&gpio TEGRA_GPIO(K, 3) 0>;
-			enable-active-high;
-		};
+	usbc_vbus: regulator-usbc-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "USBC_VBUS";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+	};
 
-		usbc_vbus: regulator@7 {
-			compatible = "regulator-fixed";
-			reg = <7>;
-			regulator-name = "USBC_VBUS";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-		};
+	vdd_dsi_csi: regulator-vdd-dsi-csi {
+		compatible = "regulator-fixed";
+		regulator-name = "AVDD_DSI_CSI_1V2";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		vin-supply = <&pp1200_avdd>;
 	};
 };

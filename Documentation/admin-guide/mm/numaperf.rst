@@ -1,6 +1,7 @@
-.. _numaperf:
+=======================
+NUMA Memory Performance
+=======================
 
-=============
 NUMA Locality
 =============
 
@@ -56,7 +57,11 @@ nodes' access characteristics share the same performance relative to other
 linked initiator nodes. Each target within an initiator's access class,
 though, do not necessarily perform the same as each other.
 
-================
+The access class "1" is used to allow differentiation between initiators
+that are CPUs and hence suitable for generic task scheduling, and
+IO initiators such as GPUs and NICs.  Unlike access class 0, only
+nodes containing CPUs are considered.
+
 NUMA Performance
 ================
 
@@ -69,7 +74,7 @@ memory node's access class 0 initiators as follows::
 	/sys/devices/system/node/nodeY/access0/initiators/
 
 These attributes apply only when accessed from nodes that have the
-are linked under the this access's inititiators.
+are linked under the this access's initiators.
 
 The performance characteristics the kernel provides for the local initiators
 are exported are as follows::
@@ -88,7 +93,9 @@ The latency attributes are provided in nanoseconds.
 The values reported here correspond to the rated latency and bandwidth
 for the platform.
 
-==========
+Access class 1 takes the same form but only includes values for CPU to
+memory activity.
+
 NUMA Cache
 ==========
 
@@ -129,7 +136,7 @@ will create the following directory::
 
 	/sys/devices/system/node/nodeX/memory_side_cache/
 
-If that directory is not present, the system either does not not provide
+If that directory is not present, the system either does not provide
 a memory-side cache, or that information is not accessible to the kernel.
 
 The attributes for each level of cache is provided under its cache
@@ -143,7 +150,7 @@ Each cache level's directory provides its attributes. For example, the
 following shows a single cache level and the attributes available for
 software to query::
 
-	# tree sys/devices/system/node/node0/memory_side_cache/
+	# tree /sys/devices/system/node/node0/memory_side_cache/
 	/sys/devices/system/node/node0/memory_side_cache/
 	|-- index1
 	|   |-- indexing
@@ -162,7 +169,6 @@ The "size" is the number of bytes provided by this cache level.
 The "write_policy" will be 0 for write-back, and non-zero for
 write-through caching.
 
-========
 See Also
 ========
 

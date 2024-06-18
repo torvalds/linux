@@ -11,9 +11,10 @@
  * Copyright (C) 2000, 2001, 2002, 2007	 Maciej W. Rozycki
  */
 #include <linux/init.h>
+#include <linux/cpu.h>
+#include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/export.h>
-#include <linux/screen_info.h>
 #include <linux/memblock.h>
 #include <linux/initrd.h>
 #include <linux/root_dev.h>
@@ -24,10 +25,11 @@
 #include <linux/kexec.h>
 #include <linux/sizes.h>
 #include <linux/device.h>
-#include <linux/dma-contiguous.h>
+#include <linux/dma-map-ops.h>
 #include <linux/decompress/generic.h>
 #include <linux/of_fdt.h>
-#include <linux/of_reserved_mem.h>
+#include <linux/dmi.h>
+#include <linux/crash_dump.h>
 
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>
@@ -36,23 +38,21 @@
 #include <asm/cdmm.h>
 #include <asm/cpu.h>
 #include <asm/debug.h>
-#include <asm/dma-coherence.h>
+#include <asm/mmzone.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/smp-ops.h>
+#include <asm/mips-cps.h>
 #include <asm/prom.h>
+#include <asm/fw/fw.h>
 
 #ifdef CONFIG_MIPS_ELF_APPENDED_DTB
-const char __section(.appended_dtb) __appended_dtb[0x100000];
+char __section(".appended_dtb") __appended_dtb[0x100000];
 #endif /* CONFIG_MIPS_ELF_APPENDED_DTB */
 
 struct cpuinfo_mips cpu_data[NR_CPUS] __read_mostly;
 
 EXPORT_SYMBOL(cpu_data);
-
-#ifdef CONFIG_VT
-struct screen_info screen_info;
-#endif
 
 /*
  * Setup information
@@ -67,7 +67,9 @@ static char __initdata command_line[COMMAND_LINE_SIZE];
 char __initdata arcs_cmdline[COMMAND_LINE_SIZE];
 
 #ifdef CONFIG_CMDLINE_BOOL
-static char __initdata builtin_cmdline[COMMAND_LINE_SIZE] = CONFIG_CMDLINE;
+static const char builtin_cmdline[] __initconst = CONFIG_CMDLINE;
+#else
+static const char builtin_cmdline[] __initconst = "";
 #endif
 
 /*
@@ -81,51 +83,15 @@ static struct resource code_resource = { .name = "Kernel code", };
 static struct resource data_resource = { .name = "Kernel data", };
 static struct resource bss_resource = { .name = "Kernel bss", };
 
+unsigned long __kaslr_offset __ro_after_init;
+EXPORT_SYMBOL(__kaslr_offset);
+
 static void *detect_magic __initdata = detect_memory_region;
 
 #ifdef CONFIG_MIPS_AUTO_PFN_OFFSET
 unsigned long ARCH_PFN_OFFSET;
 EXPORT_SYMBOL(ARCH_PFN_OFFSET);
 #endif
-
-void __init add_memory_region(phys_addr_t start, phys_addr_t size, long type)
-{
-	/*
-	 * Note: This function only exists for historical reason,
-	 * new code should use memblock_add or memblock_add_node instead.
-	 */
-
-	/*
-	 * If the region reaches the top of the physical address space, adjust
-	 * the size slightly so that (start + size) doesn't overflow
-	 */
-	if (start + size - 1 == PHYS_ADDR_MAX)
-		--size;
-
-	/* Sanity check */
-	if (start + size < start) {
-		pr_warn("Trying to add an invalid memory region, skipped\n");
-		return;
-	}
-
-	if (start < PHYS_OFFSET)
-		return;
-
-	memblock_add(start, size);
-	/* Reserve any memory except the ordinary RAM ranges. */
-	switch (type) {
-	case BOOT_MEM_RAM:
-		break;
-
-	case BOOT_MEM_NOMAP: /* Discard the range from the system. */
-		memblock_remove(start, size);
-		break;
-
-	default: /* Reserve the rest of the memory types at boot time */
-		memblock_reserve(start, size);
-		break;
-	}
-}
 
 void __init detect_memory_region(phys_addr_t start, phys_addr_t sz_min, phys_addr_t sz_max)
 {
@@ -143,7 +109,7 @@ void __init detect_memory_region(phys_addr_t start, phys_addr_t sz_min, phys_add
 		((unsigned long long) sz_min) / SZ_1M,
 		((unsigned long long) sz_max) / SZ_1M);
 
-	add_memory_region(start, size, BOOT_MEM_RAM);
+	memblock_add(start, size);
 }
 
 /*
@@ -181,17 +147,13 @@ static unsigned long __init init_initrd(void)
 	/*
 	 * Board specific code or command line parser should have
 	 * already set up initrd_start and initrd_end. In these cases
-	 * perfom sanity checks and use them if all looks good.
+	 * perform sanity checks and use them if all looks good.
 	 */
 	if (!initrd_start || initrd_end <= initrd_start)
 		goto disable;
 
 	if (initrd_start & ~PAGE_MASK) {
 		pr_err("initrd start must be page aligned\n");
-		goto disable;
-	}
-	if (initrd_start < PAGE_OFFSET) {
-		pr_err("initrd start < PAGE_OFFSET\n");
 		goto disable;
 	}
 
@@ -205,6 +167,11 @@ static unsigned long __init init_initrd(void)
 	end = __pa(initrd_end);
 	initrd_end = (unsigned long)__va(end);
 	initrd_start = (unsigned long)__va(__pa(initrd_start));
+
+	if (initrd_start < PAGE_OFFSET) {
+		pr_err("initrd start < PAGE_OFFSET\n");
+		goto disable;
+	}
 
 	ROOT_DEV = Root_RAM0;
 	return PFN_UP(end);
@@ -285,7 +252,7 @@ static unsigned long __init init_initrd(void)
  * Initialize the bootmem allocator. It also setup initrd related data
  * if needed.
  */
-#if defined(CONFIG_SGI_IP27) || (defined(CONFIG_CPU_LOONGSON3) && defined(CONFIG_NUMA))
+#if defined(CONFIG_SGI_IP27) || (defined(CONFIG_CPU_LOONGSON64) && defined(CONFIG_NUMA))
 
 static void __init bootmem_init(void)
 {
@@ -297,8 +264,9 @@ static void __init bootmem_init(void)
 
 static void __init bootmem_init(void)
 {
-	struct memblock_region *mem;
 	phys_addr_t ramstart, ramend;
+	unsigned long start, end;
+	int i;
 
 	ramstart = memblock_start_of_DRAM();
 	ramend = memblock_end_of_DRAM();
@@ -335,18 +303,13 @@ static void __init bootmem_init(void)
 
 	min_low_pfn = ARCH_PFN_OFFSET;
 	max_pfn = PFN_DOWN(ramend);
-	for_each_memblock(memory, mem) {
-		unsigned long start = memblock_region_memory_base_pfn(mem);
-		unsigned long end = memblock_region_memory_end_pfn(mem);
-
+	for_each_mem_pfn_range(i, MAX_NUMNODES, &start, &end, NULL) {
 		/*
 		 * Skip highmem here so we get an accurate max_low_pfn if low
 		 * memory stops short of high memory.
 		 * If the region overlaps HIGHMEM_START, end is clipped so
 		 * max_pfn excludes the highmem portion.
 		 */
-		if (memblock_is_nomap(mem))
-			continue;
 		if (start >= PFN_DOWN(HIGHMEM_START))
 			continue;
 		if (end > PFN_DOWN(HIGHMEM_START))
@@ -359,22 +322,14 @@ static void __init bootmem_init(void)
 		panic("Incorrect memory mapping !!!");
 
 	if (max_pfn > PFN_DOWN(HIGHMEM_START)) {
+		max_low_pfn = PFN_DOWN(HIGHMEM_START);
 #ifdef CONFIG_HIGHMEM
-		highstart_pfn = PFN_DOWN(HIGHMEM_START);
+		highstart_pfn = max_low_pfn;
 		highend_pfn = max_pfn;
 #else
-		max_low_pfn = PFN_DOWN(HIGHMEM_START);
 		max_pfn = max_low_pfn;
 #endif
 	}
-
-
-	/*
-	 * In any case the added to the memblock memory regions
-	 * (highmem/lowmem, available/reserved, etc) are considered
-	 * as present, so inform sparsemem about them.
-	 */
-	memblocks_present();
 
 	/*
 	 * Reserve initrd memory if needed.
@@ -389,6 +344,11 @@ static int usermem __initdata;
 static int __init early_parse_mem(char *p)
 {
 	phys_addr_t start, size;
+
+	if (!p) {
+		pr_err("mem parameter is empty, do nothing\n");
+		return -EINVAL;
+	}
 
 	/*
 	 * If a user specifies memory size, we
@@ -405,7 +365,10 @@ static int __init early_parse_mem(char *p)
 	if (*p == '@')
 		start = memparse(p + 1, &p);
 
-	add_memory_region(start, size, BOOT_MEM_RAM);
+	if (IS_ENABLED(CONFIG_NUMA))
+		memblock_add_node(start, size, pa_to_nid(start), MEMBLOCK_NONE);
+	else
+		memblock_add(start, size);
 
 	return 0;
 }
@@ -431,13 +394,14 @@ static int __init early_parse_memmap(char *p)
 
 	if (*p == '@') {
 		start_at = memparse(p+1, &p);
-		add_memory_region(start_at, mem_size, BOOT_MEM_RAM);
+		memblock_add(start_at, mem_size);
 	} else if (*p == '#') {
 		pr_err("\"memmap=nn#ss\" (force ACPI data) invalid on MIPS\n");
 		return -EINVAL;
 	} else if (*p == '$') {
 		start_at = memparse(p+1, &p);
-		add_memory_region(start_at, mem_size, BOOT_MEM_RESERVED);
+		memblock_add(start_at, mem_size);
+		memblock_reserve(start_at, mem_size);
 	} else {
 		pr_err("\"memmap\" invalid format!\n");
 		return -EINVAL;
@@ -451,52 +415,71 @@ static int __init early_parse_memmap(char *p)
 }
 early_param("memmap", early_parse_memmap);
 
-#ifdef CONFIG_PROC_VMCORE
-unsigned long setup_elfcorehdr, setup_elfcorehdr_size;
-static int __init early_parse_elfcorehdr(char *p)
+static void __init mips_reserve_vmcore(void)
 {
-	struct memblock_region *mem;
+#ifdef CONFIG_PROC_VMCORE
+	phys_addr_t start, end;
+	u64 i;
 
-	setup_elfcorehdr = memparse(p, &p);
-
-	 for_each_memblock(memory, mem) {
-		unsigned long start = mem->base;
-		unsigned long end = start + mem->size;
-		if (setup_elfcorehdr >= start && setup_elfcorehdr < end) {
-			/*
-			 * Reserve from the elf core header to the end of
-			 * the memory segment, that should all be kdump
-			 * reserved memory.
-			 */
-			setup_elfcorehdr_size = end - setup_elfcorehdr;
-			break;
+	if (!elfcorehdr_size) {
+		for_each_mem_range(i, &start, &end) {
+			if (elfcorehdr_addr >= start && elfcorehdr_addr < end) {
+				/*
+				 * Reserve from the elf core header to the end of
+				 * the memory segment, that should all be kdump
+				 * reserved memory.
+				 */
+				elfcorehdr_size = end - elfcorehdr_addr;
+				break;
+			}
 		}
 	}
-	/*
-	 * If we don't find it in the memory map, then we shouldn't
-	 * have to worry about it, as the new kernel won't use it.
-	 */
-	return 0;
-}
-early_param("elfcorehdr", early_parse_elfcorehdr);
-#endif
 
-#ifdef CONFIG_KEXEC
+	pr_info("Reserving %ldKB of memory at %ldKB for kdump\n",
+		(unsigned long)elfcorehdr_size >> 10, (unsigned long)elfcorehdr_addr >> 10);
+
+	memblock_reserve(elfcorehdr_addr, elfcorehdr_size);
+#endif
+}
+
+/* 64M alignment for crash kernel regions */
+#define CRASH_ALIGN	SZ_64M
+#define CRASH_ADDR_MAX	SZ_512M
+
 static void __init mips_parse_crashkernel(void)
 {
 	unsigned long long total_mem;
 	unsigned long long crash_size, crash_base;
 	int ret;
 
+	if (!IS_ENABLED(CONFIG_CRASH_RESERVE))
+		return;
+
 	total_mem = memblock_phys_mem_size();
 	ret = parse_crashkernel(boot_command_line, total_mem,
-				&crash_size, &crash_base);
+				&crash_size, &crash_base,
+				NULL, NULL);
 	if (ret != 0 || crash_size <= 0)
 		return;
 
-	if (!memblock_find_in_range(crash_base, crash_base + crash_size, crash_size, 0)) {
-		pr_warn("Invalid memory region reserved for crash kernel\n");
-		return;
+	if (crash_base <= 0) {
+		crash_base = memblock_phys_alloc_range(crash_size, CRASH_ALIGN,
+						       CRASH_ALIGN,
+						       CRASH_ADDR_MAX);
+		if (!crash_base) {
+			pr_warn("crashkernel reservation failed - No suitable area found.\n");
+			return;
+		}
+	} else {
+		unsigned long long start;
+
+		start = memblock_phys_alloc_range(crash_size, 1,
+						  crash_base,
+						  crash_base + crash_size);
+		if (start != crash_base) {
+			pr_warn("Invalid memory region reserved for crash kernel\n");
+			return;
+		}
 	}
 
 	crashk_res.start = crash_base;
@@ -507,30 +490,23 @@ static void __init request_crashkernel(struct resource *res)
 {
 	int ret;
 
+	if (!IS_ENABLED(CONFIG_CRASH_RESERVE))
+		return;
+
 	if (crashk_res.start == crashk_res.end)
 		return;
 
 	ret = request_resource(res, &crashk_res);
 	if (!ret)
 		pr_info("Reserving %ldMB of memory at %ldMB for crashkernel\n",
-			(unsigned long)((crashk_res.end -
-					 crashk_res.start + 1) >> 20),
+			(unsigned long)(resource_size(&crashk_res) >> 20),
 			(unsigned long)(crashk_res.start  >> 20));
 }
-#else /* !defined(CONFIG_KEXEC)		*/
-static void __init mips_parse_crashkernel(void)
-{
-}
-
-static void __init request_crashkernel(struct resource *res)
-{
-}
-#endif /* !defined(CONFIG_KEXEC)  */
 
 static void __init check_kernel_sections_mem(void)
 {
-	phys_addr_t start = PFN_PHYS(PFN_DOWN(__pa_symbol(&_text)));
-	phys_addr_t size = PFN_PHYS(PFN_UP(__pa_symbol(&_end))) - start;
+	phys_addr_t start = __pa_symbol(&_text);
+	phys_addr_t size = __pa_symbol(&_end) - start;
 
 	if (!memblock_is_region_memory(start, size)) {
 		pr_info("Kernel sections are not in the memory maps\n");
@@ -538,17 +514,101 @@ static void __init check_kernel_sections_mem(void)
 	}
 }
 
-#define USE_PROM_CMDLINE	IS_ENABLED(CONFIG_MIPS_CMDLINE_FROM_BOOTLOADER)
-#define USE_DTB_CMDLINE		IS_ENABLED(CONFIG_MIPS_CMDLINE_FROM_DTB)
-#define EXTEND_WITH_PROM	IS_ENABLED(CONFIG_MIPS_CMDLINE_DTB_EXTEND)
-#define BUILTIN_EXTEND_WITH_PROM	\
-	IS_ENABLED(CONFIG_MIPS_CMDLINE_BUILTIN_EXTEND)
+static void __init bootcmdline_append(const char *s, size_t max)
+{
+	if (!s[0] || !max)
+		return;
+
+	if (boot_command_line[0])
+		strlcat(boot_command_line, " ", COMMAND_LINE_SIZE);
+
+	strlcat(boot_command_line, s, max);
+}
+
+#ifdef CONFIG_OF_EARLY_FLATTREE
+
+static int __init bootcmdline_scan_chosen(unsigned long node, const char *uname,
+					  int depth, void *data)
+{
+	bool *dt_bootargs = data;
+	const char *p;
+	int l;
+
+	if (depth != 1 || !data ||
+	    (strcmp(uname, "chosen") != 0 && strcmp(uname, "chosen@0") != 0))
+		return 0;
+
+	p = of_get_flat_dt_prop(node, "bootargs", &l);
+	if (p != NULL && l > 0) {
+		bootcmdline_append(p, min(l, COMMAND_LINE_SIZE));
+		*dt_bootargs = true;
+	}
+
+	return 1;
+}
+
+#endif /* CONFIG_OF_EARLY_FLATTREE */
+
+static void __init bootcmdline_init(void)
+{
+	bool dt_bootargs = false;
+
+	/*
+	 * If CMDLINE_OVERRIDE is enabled then initializing the command line is
+	 * trivial - we simply use the built-in command line unconditionally &
+	 * unmodified.
+	 */
+	if (IS_ENABLED(CONFIG_CMDLINE_OVERRIDE)) {
+		strscpy(boot_command_line, builtin_cmdline, COMMAND_LINE_SIZE);
+		return;
+	}
+
+	/*
+	 * If the user specified a built-in command line &
+	 * MIPS_CMDLINE_BUILTIN_EXTEND, then the built-in command line is
+	 * prepended to arguments from the bootloader or DT so we'll copy them
+	 * to the start of boot_command_line here. Otherwise, empty
+	 * boot_command_line to undo anything early_init_dt_scan_chosen() did.
+	 */
+	if (IS_ENABLED(CONFIG_MIPS_CMDLINE_BUILTIN_EXTEND))
+		strscpy(boot_command_line, builtin_cmdline, COMMAND_LINE_SIZE);
+	else
+		boot_command_line[0] = 0;
+
+#ifdef CONFIG_OF_EARLY_FLATTREE
+	/*
+	 * If we're configured to take boot arguments from DT, look for those
+	 * now.
+	 */
+	if (IS_ENABLED(CONFIG_MIPS_CMDLINE_FROM_DTB) ||
+	    IS_ENABLED(CONFIG_MIPS_CMDLINE_DTB_EXTEND))
+		of_scan_flat_dt(bootcmdline_scan_chosen, &dt_bootargs);
+#endif
+
+	/*
+	 * If we didn't get any arguments from DT (regardless of whether that's
+	 * because we weren't configured to look for them, or because we looked
+	 * & found none) then we'll take arguments from the bootloader.
+	 * plat_mem_setup() should have filled arcs_cmdline with arguments from
+	 * the bootloader.
+	 */
+	if (IS_ENABLED(CONFIG_MIPS_CMDLINE_DTB_EXTEND) || !dt_bootargs)
+		bootcmdline_append(arcs_cmdline, COMMAND_LINE_SIZE);
+
+	/*
+	 * If the user specified a built-in command line & we didn't already
+	 * prepend it, we append it to boot_command_line here.
+	 */
+	if (IS_ENABLED(CONFIG_CMDLINE_BOOL) &&
+	    !IS_ENABLED(CONFIG_MIPS_CMDLINE_BUILTIN_EXTEND))
+		bootcmdline_append(builtin_cmdline, COMMAND_LINE_SIZE);
+}
 
 /*
  * arch_mem_init - initialize memory management subsystem
  *
  *  o plat_mem_setup() detects the memory configuration and will record detected
- *    memory areas using add_memory_region.
+ *    memory areas using memblock_add.
  *
  * At this stage the memory configuration of the system is known to the
  * kernel but generic memory management system is still entirely uninitialized.
@@ -568,50 +628,12 @@ static void __init check_kernel_sections_mem(void)
  */
 static void __init arch_mem_init(char **cmdline_p)
 {
-	extern void plat_mem_setup(void);
-
-	/*
-	 * Initialize boot_command_line to an innocuous but non-empty string in
-	 * order to prevent early_init_dt_scan_chosen() from copying
-	 * CONFIG_CMDLINE into it without our knowledge. We handle
-	 * CONFIG_CMDLINE ourselves below & don't want to duplicate its
-	 * content because repeating arguments can be problematic.
-	 */
-	strlcpy(boot_command_line, " ", COMMAND_LINE_SIZE);
-
 	/* call board setup routine */
 	plat_mem_setup();
 	memblock_set_bottom_up(true);
 
-#if defined(CONFIG_CMDLINE_BOOL) && defined(CONFIG_CMDLINE_OVERRIDE)
-	strlcpy(boot_command_line, builtin_cmdline, COMMAND_LINE_SIZE);
-#else
-	if ((USE_PROM_CMDLINE && arcs_cmdline[0]) ||
-	    (USE_DTB_CMDLINE && !boot_command_line[0]))
-		strlcpy(boot_command_line, arcs_cmdline, COMMAND_LINE_SIZE);
-
-	if (EXTEND_WITH_PROM && arcs_cmdline[0]) {
-		if (boot_command_line[0])
-			strlcat(boot_command_line, " ", COMMAND_LINE_SIZE);
-		strlcat(boot_command_line, arcs_cmdline, COMMAND_LINE_SIZE);
-	}
-
-#if defined(CONFIG_CMDLINE_BOOL)
-	if (builtin_cmdline[0]) {
-		if (boot_command_line[0])
-			strlcat(boot_command_line, " ", COMMAND_LINE_SIZE);
-		strlcat(boot_command_line, builtin_cmdline, COMMAND_LINE_SIZE);
-	}
-
-	if (BUILTIN_EXTEND_WITH_PROM && arcs_cmdline[0]) {
-		if (boot_command_line[0])
-			strlcat(boot_command_line, " ", COMMAND_LINE_SIZE);
-		strlcat(boot_command_line, arcs_cmdline, COMMAND_LINE_SIZE);
-	}
-#endif
-#endif
-	strlcpy(command_line, boot_command_line, COMMAND_LINE_SIZE);
-
+	bootcmdline_init();
+	strscpy(command_line, boot_command_line, COMMAND_LINE_SIZE);
 	*cmdline_p = command_line;
 
 	parse_early_param();
@@ -638,22 +660,21 @@ static void __init arch_mem_init(char **cmdline_p)
 	 */
 	memblock_set_current_limit(PFN_PHYS(max_low_pfn));
 
-#ifdef CONFIG_PROC_VMCORE
-	if (setup_elfcorehdr && setup_elfcorehdr_size) {
-		printk(KERN_INFO "kdump reserved memory at %lx-%lx\n",
-		       setup_elfcorehdr, setup_elfcorehdr_size);
-		memblock_reserve(setup_elfcorehdr, setup_elfcorehdr_size);
-	}
-#endif
+	mips_reserve_vmcore();
 
 	mips_parse_crashkernel();
-#ifdef CONFIG_KEXEC
-	if (crashk_res.start != crashk_res.end)
-		memblock_reserve(crashk_res.start,
-				 crashk_res.end - crashk_res.start + 1);
-#endif
 	device_tree_init();
+
+	/*
+	 * In order to reduce the possibility of kernel panic when failed to
+	 * get IO TLB memory under CONFIG_SWIOTLB, it is better to allocate
+	 * low memory as small as possible before plat_swiotlb_setup(), so
+	 * make sparse_init() using top-down allocation.
+	 */
+	memblock_set_bottom_up(false);
 	sparse_init();
+	memblock_set_bottom_up(true);
+
 	plat_swiotlb_setup();
 
 	dma_contiguous_reserve(PFN_PHYS(max_low_pfn));
@@ -662,16 +683,13 @@ static void __init arch_mem_init(char **cmdline_p)
 	memblock_reserve(__pa_symbol(&__nosave_begin),
 		__pa_symbol(&__nosave_end) - __pa_symbol(&__nosave_begin));
 
-	fdt_init_reserved_mem();
-
-	memblock_dump_all();
-
 	early_memtest(PFN_PHYS(ARCH_PFN_OFFSET), PFN_PHYS(max_low_pfn));
 }
 
 static void __init resource_init(void)
 {
-	struct memblock_region *region;
+	phys_addr_t start, end;
+	u64 i;
 
 	if (UNCAC_BASE != IO_BASE)
 		return;
@@ -683,9 +701,7 @@ static void __init resource_init(void)
 	bss_resource.start = __pa_symbol(&__bss_start);
 	bss_resource.end = __pa_symbol(&__bss_stop) - 1;
 
-	for_each_memblock(memory, region) {
-		phys_addr_t start = PFN_PHYS(memblock_region_memory_base_pfn(region));
-		phys_addr_t end = PFN_PHYS(memblock_region_memory_end_pfn(region)) - 1;
+	for_each_mem_range(i, &start, &end) {
 		struct resource *res;
 
 		res = memblock_alloc(sizeof(struct resource), SMP_CACHE_BYTES);
@@ -694,7 +710,12 @@ static void __init resource_init(void)
 			      sizeof(struct resource));
 
 		res->start = start;
-		res->end = end;
+		/*
+		 * In memblock, end points to the first byte after the
+		 * range while in resourses, end points to the last byte in
+		 * the range.
+		 */
+		res->end = end - 1;
 		res->flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
 		res->name = "System RAM";
 
@@ -725,11 +746,29 @@ static void __init prefill_possible_map(void)
 	for (; i < NR_CPUS; i++)
 		set_cpu_possible(i, false);
 
-	nr_cpu_ids = possible;
+	set_nr_cpu_ids(possible);
 }
 #else
 static inline void prefill_possible_map(void) {}
 #endif
+
+static void __init setup_rng_seed(void)
+{
+	char *rng_seed_hex = fw_getenv("rngseed");
+	u8 rng_seed[512];
+	size_t len;
+
+	if (!rng_seed_hex)
+		return;
+
+	len = min(sizeof(rng_seed), strlen(rng_seed_hex) / 2);
+	if (hex2bin(rng_seed, rng_seed_hex, len))
+		return;
+
+	add_bootloader_randomness(rng_seed, len);
+	memzero_explicit(rng_seed, len);
+	memzero_explicit(rng_seed_hex, len * 2);
+}
 
 void __init setup_arch(char **cmdline_p)
 {
@@ -742,17 +781,11 @@ void __init setup_arch(char **cmdline_p)
 	setup_early_printk();
 #endif
 	cpu_report();
-	check_bugs_early();
-
-#if defined(CONFIG_VT)
-#if defined(CONFIG_VGA_CONSOLE)
-	conswitchp = &vga_con;
-#elif defined(CONFIG_DUMMY_CONSOLE)
-	conswitchp = &dummy_con;
-#endif
-#endif
+	if (IS_ENABLED(CONFIG_CPU_R4X00_BUGS64))
+		check_bugs64_early();
 
 	arch_mem_init(cmdline_p);
+	dmi_setup();
 
 	resource_init();
 	plat_smp_setup();
@@ -760,14 +793,14 @@ void __init setup_arch(char **cmdline_p)
 
 	cpu_cache_init();
 	paging_init();
+
+	memblock_dump_all();
+
+	setup_rng_seed();
 }
 
 unsigned long kernelsp[NR_CPUS];
 unsigned long fw_arg0, fw_arg1, fw_arg2, fw_arg3;
-
-#ifdef CONFIG_USE_OF
-unsigned long fw_passed_dtb;
-#endif
 
 #ifdef CONFIG_DEBUG_FS
 struct dentry *mips_debugfs_dir;
@@ -779,15 +812,10 @@ static int __init debugfs_mips(void)
 arch_initcall(debugfs_mips);
 #endif
 
-#ifdef CONFIG_DMA_MAYBE_COHERENT
-/* User defined DMA coherency from command line. */
-enum coherent_io_user_state coherentio = IO_COHERENCE_DEFAULT;
-EXPORT_SYMBOL_GPL(coherentio);
-int hw_coherentio = 0;	/* Actual hardware supported DMA coherency setting. */
-
+#ifdef CONFIG_DMA_NONCOHERENT
 static int __init setcoherentio(char *str)
 {
-	coherentio = IO_COHERENCE_ENABLED;
+	dma_default_coherent = true;
 	pr_info("Hardware DMA cache coherency (command line)\n");
 	return 0;
 }
@@ -795,9 +823,20 @@ early_param("coherentio", setcoherentio);
 
 static int __init setnocoherentio(char *str)
 {
-	coherentio = IO_COHERENCE_DISABLED;
+	dma_default_coherent = false;
 	pr_info("Software DMA cache coherency (command line)\n");
 	return 0;
 }
 early_param("nocoherentio", setnocoherentio);
 #endif
+
+void __init arch_cpu_finalize_init(void)
+{
+	unsigned int cpu = smp_processor_id();
+
+	cpu_data[cpu].udelay_val = loops_per_jiffy;
+	check_bugs32();
+
+	if (IS_ENABLED(CONFIG_CPU_R4X00_BUGS64))
+		check_bugs64();
+}

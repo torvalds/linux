@@ -56,16 +56,11 @@ static ssize_t vol_attribute_show(struct device *dev,
 {
 	int ret;
 	struct ubi_volume *vol = container_of(dev, struct ubi_volume, dev);
-	struct ubi_device *ubi;
-
-	ubi = ubi_get_device(vol->ubi->ubi_num);
-	if (!ubi)
-		return -ENODEV;
+	struct ubi_device *ubi = vol->ubi;
 
 	spin_lock(&ubi->volumes_lock);
-	if (!ubi->volumes[vol->vol_id]) {
+	if (!ubi->volumes[vol->vol_id] || ubi->volumes[vol->vol_id]->is_dead) {
 		spin_unlock(&ubi->volumes_lock);
-		ubi_put_device(ubi);
 		return -ENODEV;
 	}
 	/* Take a reference to prevent volume removal */
@@ -103,7 +98,6 @@ static ssize_t vol_attribute_show(struct device *dev,
 	vol->ref_count -= 1;
 	ubi_assert(vol->ref_count >= 0);
 	spin_unlock(&ubi->volumes_lock);
-	ubi_put_device(ubi);
 	return ret;
 }
 
@@ -128,6 +122,31 @@ static void vol_release(struct device *dev)
 	ubi_eba_replace_table(vol, NULL);
 	ubi_fastmap_destroy_checkmap(vol);
 	kfree(vol);
+}
+
+static struct fwnode_handle *find_volume_fwnode(struct ubi_volume *vol)
+{
+	struct fwnode_handle *fw_vols, *fw_vol;
+	const char *volname;
+	u32 volid;
+
+	fw_vols = device_get_named_child_node(vol->dev.parent->parent, "volumes");
+	if (!fw_vols)
+		return NULL;
+
+	fwnode_for_each_child_node(fw_vols, fw_vol) {
+		if (!fwnode_property_read_string(fw_vol, "volname", &volname) &&
+		    strncmp(volname, vol->name, vol->name_len))
+			continue;
+
+		if (!fwnode_property_read_u32(fw_vol, "volid", &volid) &&
+		    vol->vol_id != volid)
+			continue;
+
+		return fw_vol;
+	}
+
+	return NULL;
 }
 
 /**
@@ -195,7 +214,7 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 
 	/* Ensure that the name is unique */
 	for (i = 0; i < ubi->vtbl_slots; i++)
-		if (ubi->volumes[i] &&
+		if (ubi->volumes[i] && !ubi->volumes[i]->is_dead &&
 		    ubi->volumes[i]->name_len == req->name_len &&
 		    !strcmp(ubi->volumes[i]->name, req->name)) {
 			ubi_err(ubi, "volume \"%s\" exists (ID %d)",
@@ -229,6 +248,7 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 	vol->name_len  = req->name_len;
 	memcpy(vol->name, req->name, vol->name_len);
 	vol->ubi = ubi;
+	device_set_node(&vol->dev, find_volume_fwnode(vol));
 
 	/*
 	 * Finish all pending erases because there may be some LEBs belonging
@@ -315,7 +335,6 @@ out_mapping:
 	ubi->volumes[vol_id] = NULL;
 	ubi->vol_count -= 1;
 	spin_unlock(&ubi->volumes_lock);
-	ubi_eba_destroy_table(eba_tbl);
 out_acc:
 	spin_lock(&ubi->volumes_lock);
 	ubi->rsvd_pebs -= vol->reserved_pebs;
@@ -359,6 +378,19 @@ int ubi_remove_volume(struct ubi_volume_desc *desc, int no_vtbl)
 		err = -EBUSY;
 		goto out_unlock;
 	}
+
+	/*
+	 * Mark volume as dead at this point to prevent that anyone
+	 * can take a reference to the volume from now on.
+	 * This is necessary as we have to release the spinlock before
+	 * calling ubi_volume_notify.
+	 */
+	vol->is_dead = true;
+	spin_unlock(&ubi->volumes_lock);
+
+	ubi_volume_notify(ubi, vol, UBI_VOLUME_SHUTDOWN);
+
+	spin_lock(&ubi->volumes_lock);
 	ubi->volumes[vol_id] = NULL;
 	spin_unlock(&ubi->volumes_lock);
 
@@ -415,6 +447,7 @@ int ubi_resize_volume(struct ubi_volume_desc *desc, int reserved_pebs)
 	struct ubi_device *ubi = vol->ubi;
 	struct ubi_vtbl_record vtbl_rec;
 	struct ubi_eba_table *new_eba_tbl = NULL;
+	struct ubi_eba_table *old_eba_tbl = NULL;
 	int vol_id = vol->vol_id;
 
 	if (ubi->ro_mode)
@@ -460,10 +493,13 @@ int ubi_resize_volume(struct ubi_volume_desc *desc, int reserved_pebs)
 			err = -ENOSPC;
 			goto out_free;
 		}
+
 		ubi->avail_pebs -= pebs;
 		ubi->rsvd_pebs += pebs;
 		ubi_eba_copy_table(vol, new_eba_tbl, vol->reserved_pebs);
-		ubi_eba_replace_table(vol, new_eba_tbl);
+		old_eba_tbl = vol->eba_tbl;
+		vol->eba_tbl = new_eba_tbl;
+		vol->reserved_pebs = reserved_pebs;
 		spin_unlock(&ubi->volumes_lock);
 	}
 
@@ -471,14 +507,16 @@ int ubi_resize_volume(struct ubi_volume_desc *desc, int reserved_pebs)
 		for (i = 0; i < -pebs; i++) {
 			err = ubi_eba_unmap_leb(ubi, vol, reserved_pebs + i);
 			if (err)
-				goto out_acc;
+				goto out_free;
 		}
 		spin_lock(&ubi->volumes_lock);
 		ubi->rsvd_pebs += pebs;
 		ubi->avail_pebs -= pebs;
 		ubi_update_reserved(ubi);
 		ubi_eba_copy_table(vol, new_eba_tbl, reserved_pebs);
-		ubi_eba_replace_table(vol, new_eba_tbl);
+		old_eba_tbl = vol->eba_tbl;
+		vol->eba_tbl = new_eba_tbl;
+		vol->reserved_pebs = reserved_pebs;
 		spin_unlock(&ubi->volumes_lock);
 	}
 
@@ -500,7 +538,6 @@ int ubi_resize_volume(struct ubi_volume_desc *desc, int reserved_pebs)
 	if (err)
 		goto out_acc;
 
-	vol->reserved_pebs = reserved_pebs;
 	if (vol->vol_type == UBI_DYNAMIC_VOLUME) {
 		vol->used_ebs = reserved_pebs;
 		vol->last_eb_bytes = vol->usable_leb_size;
@@ -508,19 +545,25 @@ int ubi_resize_volume(struct ubi_volume_desc *desc, int reserved_pebs)
 			(long long)vol->used_ebs * vol->usable_leb_size;
 	}
 
+	/* destroy old table */
+	ubi_eba_destroy_table(old_eba_tbl);
 	ubi_volume_notify(ubi, vol, UBI_VOLUME_RESIZED);
 	self_check_volumes(ubi);
 	return err;
 
 out_acc:
-	if (pebs > 0) {
-		spin_lock(&ubi->volumes_lock);
-		ubi->rsvd_pebs -= pebs;
-		ubi->avail_pebs += pebs;
-		spin_unlock(&ubi->volumes_lock);
-	}
+	spin_lock(&ubi->volumes_lock);
+	vol->reserved_pebs = reserved_pebs - pebs;
+	ubi->rsvd_pebs -= pebs;
+	ubi->avail_pebs += pebs;
+	if (pebs > 0)
+		ubi_eba_copy_table(vol, old_eba_tbl, vol->reserved_pebs);
+	else
+		ubi_eba_copy_table(vol, old_eba_tbl, reserved_pebs);
+	vol->eba_tbl = old_eba_tbl;
+	spin_unlock(&ubi->volumes_lock);
 out_free:
-	kfree(new_eba_tbl);
+	ubi_eba_destroy_table(new_eba_tbl);
 	return err;
 }
 
@@ -587,6 +630,7 @@ int ubi_add_volume(struct ubi_device *ubi, struct ubi_volume *vol)
 	if (err) {
 		ubi_err(ubi, "cannot add character device for volume %d, error %d",
 			vol_id, err);
+		vol_release(&vol->dev);
 		return err;
 	}
 
@@ -596,15 +640,15 @@ int ubi_add_volume(struct ubi_device *ubi, struct ubi_volume *vol)
 	vol->dev.class = &ubi_class;
 	vol->dev.groups = volume_dev_groups;
 	dev_set_name(&vol->dev, "%s_%d", ubi->ubi_name, vol->vol_id);
+	device_set_node(&vol->dev, find_volume_fwnode(vol));
 	err = device_register(&vol->dev);
-	if (err)
-		goto out_cdev;
+	if (err) {
+		cdev_del(&vol->cdev);
+		put_device(&vol->dev);
+		return err;
+	}
 
 	self_check_volumes(ubi);
-	return err;
-
-out_cdev:
-	cdev_del(&vol->cdev);
 	return err;
 }
 
@@ -630,7 +674,7 @@ void ubi_free_volume(struct ubi_device *ubi, struct ubi_volume *vol)
  * @ubi: UBI device description object
  * @vol_id: volume ID
  *
- * Returns zero if volume is all right and a a negative error code if not.
+ * Returns zero if volume is all right and a negative error code if not.
  */
 static int self_check_volume(struct ubi_device *ubi, int vol_id)
 {
@@ -783,7 +827,7 @@ fail:
  * self_check_volumes - check information about all volumes.
  * @ubi: UBI device description object
  *
- * Returns zero if volumes are all right and a a negative error code if not.
+ * Returns zero if volumes are all right and a negative error code if not.
  */
 static int self_check_volumes(struct ubi_device *ubi)
 {

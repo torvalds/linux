@@ -22,13 +22,13 @@
 #include <linux/of_mdio.h>
 #include <linux/prefetch.h>
 #include <linux/phy.h>
+#include <linux/platform_device.h>
 #include <net/ip.h>
 #include "mac.h"
 #include "enet.h"
 #include "ring.h"
 #include "ethtool.h"
 
-#define XGENE_ENET_V2_VERSION	"v1.0"
 #define XGENE_ENET_STD_MTU	1536
 #define XGENE_ENET_MIN_FRAME	60
 #define IRQ_ID_SIZE             16

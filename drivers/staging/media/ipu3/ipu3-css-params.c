@@ -49,14 +49,13 @@ imgu_css_scaler_setup_lut(unsigned int taps, unsigned int input_width,
 	int tap, phase, phase_sum_left, phase_sum_right;
 	int exponent = imgu_css_scaler_get_exp(output_width, input_width);
 	int mantissa = (1 << exponent) * output_width;
-	unsigned int phase_step;
+	unsigned int phase_step, phase_taps;
 
 	if (input_width == output_width) {
 		for (phase = 0; phase < IMGU_SCALER_PHASES; phase++) {
-			for (tap = 0; tap < taps; tap++) {
-				coeff_lut[phase * IMGU_SCALER_FILTER_TAPS + tap]
-					= 0;
-			}
+			phase_taps = phase * IMGU_SCALER_FILTER_TAPS;
+			for (tap = 0; tap < taps; tap++)
+				coeff_lut[phase_taps + tap] = 0;
 		}
 
 		info->phase_step = IMGU_SCALER_PHASES *
@@ -71,6 +70,7 @@ imgu_css_scaler_setup_lut(unsigned int taps, unsigned int input_width,
 	}
 
 	for (phase = 0; phase < IMGU_SCALER_PHASES; phase++) {
+		phase_taps = phase * IMGU_SCALER_FILTER_TAPS;
 		for (tap = 0; tap < taps; tap++) {
 			/* flip table to for convolution reverse indexing */
 			s64 coeff = coeffs[coeffs_size -
@@ -81,9 +81,7 @@ imgu_css_scaler_setup_lut(unsigned int taps, unsigned int input_width,
 			/* Add +"0.5" */
 			coeff += 1 << (IMGU_SCALER_COEFF_BITS - 1);
 			coeff >>= IMGU_SCALER_COEFF_BITS;
-
-			coeff_lut[phase * IMGU_SCALER_FILTER_TAPS + tap] =
-				coeff;
+			coeff_lut[phase_taps + tap] = coeff;
 		}
 	}
 
@@ -161,7 +159,7 @@ imgu_css_scaler_calc(u32 input_width, u32 input_height, u32 target_width,
 
 	memset(&cfg->scaler_coeffs_chroma, 0,
 	       sizeof(cfg->scaler_coeffs_chroma));
-	memset(&cfg->scaler_coeffs_luma, 0, sizeof(*cfg->scaler_coeffs_luma));
+	memset(&cfg->scaler_coeffs_luma, 0, sizeof(cfg->scaler_coeffs_luma));
 	do {
 		phase_step_correction++;
 
@@ -773,7 +771,6 @@ static int imgu_css_osys_calc_frame_and_stripe_params(
 		 */
 		{
 			unsigned int i;
-			int pin_scale = 0;
 			/*Input resolution */
 
 			stripe_params[s].input_width = stripe_input_width_y;
@@ -793,8 +790,6 @@ static int imgu_css_osys_calc_frame_and_stripe_params(
 						reso.pin_height[i];
 					stripe_params[s].output_offset[i] =
 						stripe_offset_out_y;
-
-					pin_scale += frame_params[i].scaled;
 				} else {
 					/* Unscaled pin */
 					stripe_params[s].output_width[i] =
@@ -2430,15 +2425,15 @@ int imgu_css_cfg_acc(struct imgu_css *css, unsigned int pipe,
 					acc->awb_fr.stripes[1].grid_cfg.width,
 					b_w_log2);
 		acc->awb_fr.stripes[1].grid_cfg.x_end = end;
-
-		/*
-		 * To reduce complexity of debubbling and loading
-		 * statistics fix grid_height_per_slice to 1 for both
-		 * stripes.
-		 */
-		for (i = 0; i < stripes; i++)
-			acc->awb_fr.stripes[i].grid_cfg.height_per_slice = 1;
 	}
+
+	/*
+	 * To reduce complexity of debubbling and loading
+	 * statistics fix grid_height_per_slice to 1 for both
+	 * stripes.
+	 */
+	for (i = 0; i < stripes; i++)
+		acc->awb_fr.stripes[i].grid_cfg.height_per_slice = 1;
 
 	if (imgu_css_awb_fr_ops_calc(css, pipe, &acc->awb_fr))
 		return -EINVAL;
@@ -2561,6 +2556,15 @@ int imgu_css_cfg_acc(struct imgu_css *css, unsigned int pipe,
 		/* Enable only for rightmost stripe, disable left */
 		acc->af.stripes[0].grid_cfg.y_start &=
 			~IPU3_UAPI_GRID_Y_START_EN;
+		acc->af.stripes[1].grid_cfg.x_start =
+			(acc->af.stripes[1].grid_cfg.x_start -
+			 acc->stripe.down_scaled_stripes[1].offset) &
+			IPU3_UAPI_GRID_START_MASK;
+		b_w_log2 = acc->af.stripes[1].grid_cfg.block_width_log2;
+		acc->af.stripes[1].grid_cfg.x_end =
+			imgu_css_grid_end(acc->af.stripes[1].grid_cfg.x_start,
+					  acc->af.stripes[1].grid_cfg.width,
+					  b_w_log2);
 	} else if (acc->af.config.grid_cfg.x_end <=
 		   acc->stripe.bds_out_stripes[0].width - min_overlap) {
 		/* Enable only for leftmost stripe, disable right */
@@ -2593,14 +2597,14 @@ int imgu_css_cfg_acc(struct imgu_css *css, unsigned int pipe,
 			imgu_css_grid_end(acc->af.stripes[1].grid_cfg.x_start,
 					  acc->af.stripes[1].grid_cfg.width,
 					  b_w_log2);
-
-		/*
-		 * To reduce complexity of debubbling and loading statistics
-		 * fix grid_height_per_slice to 1 for both stripes
-		 */
-		for (i = 0; i < stripes; i++)
-			acc->af.stripes[i].grid_cfg.height_per_slice = 1;
 	}
+
+	/*
+	 * To reduce complexity of debubbling and loading statistics
+	 * fix grid_height_per_slice to 1 for both stripes
+	 */
+	for (i = 0; i < stripes; i++)
+		acc->af.stripes[i].grid_cfg.height_per_slice = 1;
 
 	if (imgu_css_af_ops_calc(css, pipe, &acc->af))
 		return -EINVAL;
@@ -2632,6 +2636,17 @@ int imgu_css_cfg_acc(struct imgu_css *css, unsigned int pipe,
 	    acc->stripe.down_scaled_stripes[1].offset + min_overlap) {
 		/* Enable only for rightmost stripe, disable left */
 		acc->awb.stripes[0].rgbs_thr_b &= ~IPU3_UAPI_AWB_RGBS_THR_B_EN;
+
+		acc->awb.stripes[1].grid.x_start =
+			(acc->awb.stripes[1].grid.x_start -
+			 acc->stripe.down_scaled_stripes[1].offset) &
+			IPU3_UAPI_GRID_START_MASK;
+
+		b_w_log2 = acc->awb.stripes[1].grid.block_width_log2;
+		acc->awb.stripes[1].grid.x_end =
+			imgu_css_grid_end(acc->awb.stripes[1].grid.x_start,
+					  acc->awb.stripes[1].grid.width,
+					  b_w_log2);
 	} else if (acc->awb.config.grid.x_end <=
 		   acc->stripe.bds_out_stripes[0].width - min_overlap) {
 		/* Enable only for leftmost stripe, disable right */
@@ -2662,14 +2677,14 @@ int imgu_css_cfg_acc(struct imgu_css *css, unsigned int pipe,
 			imgu_css_grid_end(acc->awb.stripes[1].grid.x_start,
 					  acc->awb.stripes[1].grid.width,
 					  b_w_log2);
-
-		/*
-		 * To reduce complexity of debubbling and loading statistics
-		 * fix grid_height_per_slice to 1 for both stripes
-		 */
-		for (i = 0; i < stripes; i++)
-			acc->awb.stripes[i].grid.height_per_slice = 1;
 	}
+
+	/*
+	 * To reduce complexity of debubbling and loading statistics
+	 * fix grid_height_per_slice to 1 for both stripes
+	 */
+	for (i = 0; i < stripes; i++)
+		acc->awb.stripes[i].grid.height_per_slice = 1;
 
 	if (imgu_css_awb_ops_calc(css, pipe, &acc->awb))
 		return -EINVAL;

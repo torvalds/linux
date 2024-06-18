@@ -9,7 +9,6 @@
 
 #include <linux/types.h>
 #include <linux/module.h>
-#include <linux/ip.h>
 #include <linux/in.h>
 #include <net/ip.h>
 #include <net/sock.h>
@@ -40,15 +39,16 @@ int __ip4_datagram_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len
 	saddr = inet->inet_saddr;
 	if (ipv4_is_multicast(usin->sin_addr.s_addr)) {
 		if (!oif || netif_index_is_l3_master(sock_net(sk), oif))
-			oif = inet->mc_index;
+			oif = READ_ONCE(inet->mc_index);
 		if (!saddr)
-			saddr = inet->mc_addr;
+			saddr = READ_ONCE(inet->mc_addr);
+	} else if (!oif) {
+		oif = READ_ONCE(inet->uc_index);
 	}
 	fl4 = &inet->cork.fl.u.ip4;
-	rt = ip_route_connect(fl4, usin->sin_addr.s_addr, saddr,
-			      RT_CONN_FLAGS(sk), oif,
-			      sk->sk_protocol,
-			      inet->inet_sport, usin->sin_port, sk);
+	rt = ip_route_connect(fl4, usin->sin_addr.s_addr, saddr, oif,
+			      sk->sk_protocol, inet->inet_sport,
+			      usin->sin_port, sk);
 	if (IS_ERR(rt)) {
 		err = PTR_ERR(rt);
 		if (err == -ENETUNREACH)
@@ -70,10 +70,10 @@ int __ip4_datagram_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len
 	}
 	inet->inet_daddr = fl4->daddr;
 	inet->inet_dport = usin->sin_port;
-	reuseport_has_conns(sk, true);
+	reuseport_has_conns_set(sk);
 	sk->sk_state = TCP_ESTABLISHED;
 	sk_set_txhash(sk);
-	inet->inet_id = jiffies;
+	atomic_set(&inet->inet_id, get_random_u16());
 
 	sk_dst_set(sk, &rt->dst);
 	err = 0;
@@ -119,7 +119,7 @@ void ip4_datagram_release_cb(struct sock *sk)
 	rt = ip_route_output_ports(sock_net(sk), &fl4, sk, daddr,
 				   inet->inet_saddr, inet->inet_dport,
 				   inet->inet_sport, sk->sk_protocol,
-				   RT_CONN_FLAGS(sk), sk->sk_bound_dev_if);
+				   ip_sock_rt_tos(sk), sk->sk_bound_dev_if);
 
 	dst = !IS_ERR(rt) ? &rt->dst : NULL;
 	sk_dst_set(sk, dst);

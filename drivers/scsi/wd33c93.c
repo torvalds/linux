@@ -162,65 +162,6 @@ module_param(setup_strings, charp, 0);
 
 static void wd33c93_execute(struct Scsi_Host *instance);
 
-#ifdef CONFIG_WD33C93_PIO
-static inline uchar
-read_wd33c93(const wd33c93_regs regs, uchar reg_num)
-{
-	uchar data;
-
-	outb(reg_num, regs.SASR);
-	data = inb(regs.SCMD);
-	return data;
-}
-
-static inline unsigned long
-read_wd33c93_count(const wd33c93_regs regs)
-{
-	unsigned long value;
-
-	outb(WD_TRANSFER_COUNT_MSB, regs.SASR);
-	value = inb(regs.SCMD) << 16;
-	value |= inb(regs.SCMD) << 8;
-	value |= inb(regs.SCMD);
-	return value;
-}
-
-static inline uchar
-read_aux_stat(const wd33c93_regs regs)
-{
-	return inb(regs.SASR);
-}
-
-static inline void
-write_wd33c93(const wd33c93_regs regs, uchar reg_num, uchar value)
-{
-      outb(reg_num, regs.SASR);
-      outb(value, regs.SCMD);
-}
-
-static inline void
-write_wd33c93_count(const wd33c93_regs regs, unsigned long value)
-{
-	outb(WD_TRANSFER_COUNT_MSB, regs.SASR);
-	outb((value >> 16) & 0xff, regs.SCMD);
-	outb((value >> 8) & 0xff, regs.SCMD);
-	outb( value & 0xff, regs.SCMD);
-}
-
-#define write_wd33c93_cmd(regs, cmd) \
-	write_wd33c93((regs), WD_COMMAND, (cmd))
-
-static inline void
-write_wd33c93_cdb(const wd33c93_regs regs, uint len, uchar cmnd[])
-{
-	int i;
-
-	outb(WD_CDB_1, regs.SASR);
-	for (i=0; i<len; i++)
-		outb(cmnd[i], regs.SCMD);
-}
-
-#else /* CONFIG_WD33C93_PIO */
 static inline uchar
 read_wd33c93(const wd33c93_regs regs, uchar reg_num)
 {
@@ -287,7 +228,6 @@ write_wd33c93_cdb(const wd33c93_regs regs, uint len, uchar cmnd[])
 	for (i = 0; i < len; i++)
 		*regs.SCMD = cmnd[i];
 }
-#endif /* CONFIG_WD33C93_PIO */
 
 static inline uchar
 read_1_byte(const wd33c93_regs regs)
@@ -362,10 +302,9 @@ calc_sync_msg(unsigned int period, unsigned int offset, unsigned int fast,
 	msg[1] = offset;
 }
 
-static int
-wd33c93_queuecommand_lck(struct scsi_cmnd *cmd,
-		void (*done)(struct scsi_cmnd *))
+static int wd33c93_queuecommand_lck(struct scsi_cmnd *cmd)
 {
+	struct scsi_pointer *scsi_pointer = WD33C93_scsi_pointer(cmd);
 	struct WD33C93_hostdata *hostdata;
 	struct scsi_cmnd *tmp;
 
@@ -376,11 +315,9 @@ wd33c93_queuecommand_lck(struct scsi_cmnd *cmd,
 
 /* Set up a few fields in the scsi_cmnd structure for our own use:
  *  - host_scribble is the pointer to the next cmd in the input queue
- *  - scsi_done points to the routine we call when a cmd is finished
  *  - result is what you'd expect
  */
 	cmd->host_scribble = NULL;
-	cmd->scsi_done = done;
 	cmd->result = 0;
 
 /* We use the Scsi_Pointer structure that's included with each command
@@ -399,15 +336,15 @@ wd33c93_queuecommand_lck(struct scsi_cmnd *cmd,
  */
 
 	if (scsi_bufflen(cmd)) {
-		cmd->SCp.buffer = scsi_sglist(cmd);
-		cmd->SCp.buffers_residual = scsi_sg_count(cmd) - 1;
-		cmd->SCp.ptr = sg_virt(cmd->SCp.buffer);
-		cmd->SCp.this_residual = cmd->SCp.buffer->length;
+		scsi_pointer->buffer = scsi_sglist(cmd);
+		scsi_pointer->buffers_residual = scsi_sg_count(cmd) - 1;
+		scsi_pointer->ptr = sg_virt(scsi_pointer->buffer);
+		scsi_pointer->this_residual = scsi_pointer->buffer->length;
 	} else {
-		cmd->SCp.buffer = NULL;
-		cmd->SCp.buffers_residual = 0;
-		cmd->SCp.ptr = NULL;
-		cmd->SCp.this_residual = 0;
+		scsi_pointer->buffer = NULL;
+		scsi_pointer->buffers_residual = 0;
+		scsi_pointer->ptr = NULL;
+		scsi_pointer->this_residual = 0;
 	}
 
 /* WD docs state that at the conclusion of a "LEVEL2" command, the
@@ -427,7 +364,7 @@ wd33c93_queuecommand_lck(struct scsi_cmnd *cmd,
  * status byte is stored.
  */
 
-	cmd->SCp.Status = ILLEGAL_STATUS_BYTE;
+	scsi_pointer->Status = ILLEGAL_STATUS_BYTE;
 
 	/*
 	 * Add the cmd to the end of 'input_Q'. Note that REQUEST SENSE
@@ -474,6 +411,7 @@ DEF_SCSI_QCMD(wd33c93_queuecommand)
 static void
 wd33c93_execute(struct Scsi_Host *instance)
 {
+	struct scsi_pointer *scsi_pointer;
 	struct WD33C93_hostdata *hostdata =
 	    (struct WD33C93_hostdata *) instance->hostdata;
 	const wd33c93_regs regs = hostdata->regs;
@@ -550,7 +488,8 @@ wd33c93_execute(struct Scsi_Host *instance)
  * to change around and experiment with for now.
  */
 
-	cmd->SCp.phase = 0;	/* assume no disconnect */
+	scsi_pointer = WD33C93_scsi_pointer(cmd);
+	scsi_pointer->phase = 0;	/* assume no disconnect */
 	if (hostdata->disconnect == DIS_NEVER)
 		goto no;
 	if (hostdata->disconnect == DIS_ALWAYS)
@@ -567,7 +506,7 @@ wd33c93_execute(struct Scsi_Host *instance)
 		    (prev->device->lun != cmd->device->lun)) {
 			for (prev = (struct scsi_cmnd *) hostdata->input_Q; prev;
 			     prev = (struct scsi_cmnd *) prev->host_scribble)
-				prev->SCp.phase = 1;
+				WD33C93_scsi_pointer(prev)->phase = 1;
 			goto yes;
 		}
 	}
@@ -575,7 +514,7 @@ wd33c93_execute(struct Scsi_Host *instance)
 	goto no;
 
  yes:
-	cmd->SCp.phase = 1;
+	scsi_pointer->phase = 1;
 
 #ifdef PROC_STATISTICS
 	hostdata->disc_allowed_cnt[cmd->device->id]++;
@@ -583,7 +522,7 @@ wd33c93_execute(struct Scsi_Host *instance)
 
  no:
 
-	write_wd33c93(regs, WD_SOURCE_ID, ((cmd->SCp.phase) ? SRCID_ER : 0));
+	write_wd33c93(regs, WD_SOURCE_ID, scsi_pointer->phase ? SRCID_ER : 0);
 
 	write_wd33c93(regs, WD_TARGET_LUN, (u8)cmd->device->lun);
 	write_wd33c93(regs, WD_SYNCHRONOUS_TRANSFER,
@@ -652,14 +591,14 @@ wd33c93_execute(struct Scsi_Host *instance)
 		 * up ahead of time.
 		 */
 
-		if ((cmd->SCp.phase == 0) && (hostdata->no_dma == 0)) {
+		if (scsi_pointer->phase == 0 && hostdata->no_dma == 0) {
 			if (hostdata->dma_setup(cmd,
 			    (cmd->sc_data_direction == DMA_TO_DEVICE) ?
 			     DATA_OUT_DIR : DATA_IN_DIR))
 				write_wd33c93_count(regs, 0);	/* guarantee a DATA_PHASE interrupt */
 			else {
 				write_wd33c93_count(regs,
-						    cmd->SCp.this_residual);
+						scsi_pointer->this_residual);
 				write_wd33c93(regs, WD_CONTROL,
 					      CTRL_IDI | CTRL_EDI | hostdata->dma_mode);
 				hostdata->dma = D_DMA_RUNNING;
@@ -679,7 +618,7 @@ wd33c93_execute(struct Scsi_Host *instance)
 	 */
 
 	DB(DB_EXECUTE,
-	   printk("%s)EX-2 ", (cmd->SCp.phase) ? "d:" : ""))
+	   printk("%s)EX-2 ", scsi_pointer->phase ? "d:" : ""))
 }
 
 static void
@@ -721,6 +660,7 @@ static void
 transfer_bytes(const wd33c93_regs regs, struct scsi_cmnd *cmd,
 		int data_in_dir)
 {
+	struct scsi_pointer *scsi_pointer = WD33C93_scsi_pointer(cmd);
 	struct WD33C93_hostdata *hostdata;
 	unsigned long length;
 
@@ -734,13 +674,13 @@ transfer_bytes(const wd33c93_regs regs, struct scsi_cmnd *cmd,
  * now we need to setup the next scatter-gather buffer as the
  * source or destination for THIS transfer.
  */
-	if (!cmd->SCp.this_residual && cmd->SCp.buffers_residual) {
-		cmd->SCp.buffer = sg_next(cmd->SCp.buffer);
-		--cmd->SCp.buffers_residual;
-		cmd->SCp.this_residual = cmd->SCp.buffer->length;
-		cmd->SCp.ptr = sg_virt(cmd->SCp.buffer);
+	if (!scsi_pointer->this_residual && scsi_pointer->buffers_residual) {
+		scsi_pointer->buffer = sg_next(scsi_pointer->buffer);
+		--scsi_pointer->buffers_residual;
+		scsi_pointer->this_residual = scsi_pointer->buffer->length;
+		scsi_pointer->ptr = sg_virt(scsi_pointer->buffer);
 	}
-	if (!cmd->SCp.this_residual) /* avoid bogus setups */
+	if (!scsi_pointer->this_residual) /* avoid bogus setups */
 		return;
 
 	write_wd33c93(regs, WD_SYNCHRONOUS_TRANSFER,
@@ -754,11 +694,12 @@ transfer_bytes(const wd33c93_regs regs, struct scsi_cmnd *cmd,
 #ifdef PROC_STATISTICS
 		hostdata->pio_cnt++;
 #endif
-		transfer_pio(regs, (uchar *) cmd->SCp.ptr,
-			     cmd->SCp.this_residual, data_in_dir, hostdata);
-		length = cmd->SCp.this_residual;
-		cmd->SCp.this_residual = read_wd33c93_count(regs);
-		cmd->SCp.ptr += (length - cmd->SCp.this_residual);
+		transfer_pio(regs, (uchar *) scsi_pointer->ptr,
+			     scsi_pointer->this_residual, data_in_dir,
+			     hostdata);
+		length = scsi_pointer->this_residual;
+		scsi_pointer->this_residual = read_wd33c93_count(regs);
+		scsi_pointer->ptr += length - scsi_pointer->this_residual;
 	}
 
 /* We are able to do DMA (in fact, the Amiga hardware is
@@ -775,10 +716,10 @@ transfer_bytes(const wd33c93_regs regs, struct scsi_cmnd *cmd,
 		hostdata->dma_cnt++;
 #endif
 		write_wd33c93(regs, WD_CONTROL, CTRL_IDI | CTRL_EDI | hostdata->dma_mode);
-		write_wd33c93_count(regs, cmd->SCp.this_residual);
+		write_wd33c93_count(regs, scsi_pointer->this_residual);
 
 		if ((hostdata->level2 >= L2_DATA) ||
-		    (hostdata->level2 == L2_BASIC && cmd->SCp.phase == 0)) {
+		    (hostdata->level2 == L2_BASIC && scsi_pointer->phase == 0)) {
 			write_wd33c93(regs, WD_COMMAND_PHASE, 0x45);
 			write_wd33c93_cmd(regs, WD_CMD_SEL_ATN_XFER);
 			hostdata->state = S_RUNNING_LEVEL2;
@@ -792,6 +733,7 @@ transfer_bytes(const wd33c93_regs regs, struct scsi_cmnd *cmd,
 void
 wd33c93_intr(struct Scsi_Host *instance)
 {
+	struct scsi_pointer *scsi_pointer;
 	struct WD33C93_hostdata *hostdata =
 	    (struct WD33C93_hostdata *) instance->hostdata;
 	const wd33c93_regs regs = hostdata->regs;
@@ -810,6 +752,7 @@ wd33c93_intr(struct Scsi_Host *instance)
 #endif
 
 	cmd = (struct scsi_cmnd *) hostdata->connected;	/* assume we're connected */
+	scsi_pointer = WD33C93_scsi_pointer(cmd);
 	sr = read_wd33c93(regs, WD_SCSI_STATUS);	/* clear the interrupt */
 	phs = read_wd33c93(regs, WD_COMMAND_PHASE);
 
@@ -831,14 +774,14 @@ wd33c93_intr(struct Scsi_Host *instance)
  */
 	    if (hostdata->dma == D_DMA_RUNNING) {
 		DB(DB_TRANSFER,
-		   printk("[%p/%d:", cmd->SCp.ptr, cmd->SCp.this_residual))
+		   printk("[%p/%d:", scsi_pointer->ptr, scsi_pointer->this_residual))
 		    hostdata->dma_stop(cmd->device->host, cmd, 1);
 		hostdata->dma = D_DMA_OFF;
-		length = cmd->SCp.this_residual;
-		cmd->SCp.this_residual = read_wd33c93_count(regs);
-		cmd->SCp.ptr += (length - cmd->SCp.this_residual);
+		length = scsi_pointer->this_residual;
+		scsi_pointer->this_residual = read_wd33c93_count(regs);
+		scsi_pointer->ptr += length - scsi_pointer->this_residual;
 		DB(DB_TRANSFER,
-		   printk("%p/%d]", cmd->SCp.ptr, cmd->SCp.this_residual))
+		   printk("%p/%d]", scsi_pointer->ptr, scsi_pointer->this_residual))
 	}
 
 /* Respond to the specific WD3393 interrupt - there are quite a few! */
@@ -856,7 +799,7 @@ wd33c93_intr(struct Scsi_Host *instance)
 		cmd->result = DID_NO_CONNECT << 16;
 		hostdata->busy[cmd->device->id] &= ~(1 << (cmd->device->lun & 0xff));
 		hostdata->state = S_UNCONNECTED;
-		cmd->scsi_done(cmd);
+		scsi_done(cmd);
 
 		/* From esp.c:
 		 * There is a window of time within the scsi_done() path
@@ -888,7 +831,7 @@ wd33c93_intr(struct Scsi_Host *instance)
 		/* construct an IDENTIFY message with correct disconnect bit */
 
 		hostdata->outgoing_msg[0] = IDENTIFY(0, cmd->device->lun);
-		if (cmd->SCp.phase)
+		if (scsi_pointer->phase)
 			hostdata->outgoing_msg[0] |= 0x40;
 
 		if (hostdata->sync_stat[cmd->device->id] == SS_FIRST) {
@@ -930,8 +873,8 @@ wd33c93_intr(struct Scsi_Host *instance)
 	case CSR_UNEXP | PHS_DATA_IN:
 	case CSR_SRV_REQ | PHS_DATA_IN:
 		DB(DB_INTR,
-		   printk("IN-%d.%d", cmd->SCp.this_residual,
-			  cmd->SCp.buffers_residual))
+		   printk("IN-%d.%d", scsi_pointer->this_residual,
+			  scsi_pointer->buffers_residual))
 		    transfer_bytes(regs, cmd, DATA_IN_DIR);
 		if (hostdata->state != S_RUNNING_LEVEL2)
 			hostdata->state = S_CONNECTED;
@@ -942,8 +885,8 @@ wd33c93_intr(struct Scsi_Host *instance)
 	case CSR_UNEXP | PHS_DATA_OUT:
 	case CSR_SRV_REQ | PHS_DATA_OUT:
 		DB(DB_INTR,
-		   printk("OUT-%d.%d", cmd->SCp.this_residual,
-			  cmd->SCp.buffers_residual))
+		   printk("OUT-%d.%d", scsi_pointer->this_residual,
+			  scsi_pointer->buffers_residual))
 		    transfer_bytes(regs, cmd, DATA_OUT_DIR);
 		if (hostdata->state != S_RUNNING_LEVEL2)
 			hostdata->state = S_CONNECTED;
@@ -966,8 +909,8 @@ wd33c93_intr(struct Scsi_Host *instance)
 	case CSR_UNEXP | PHS_STATUS:
 	case CSR_SRV_REQ | PHS_STATUS:
 		DB(DB_INTR, printk("STATUS="))
-		cmd->SCp.Status = read_1_byte(regs);
-		DB(DB_INTR, printk("%02x", cmd->SCp.Status))
+		scsi_pointer->Status = read_1_byte(regs);
+		DB(DB_INTR, printk("%02x", scsi_pointer->Status))
 		    if (hostdata->level2 >= L2_BASIC) {
 			sr = read_wd33c93(regs, WD_SCSI_STATUS);	/* clear interrupt */
 			udelay(7);
@@ -995,7 +938,7 @@ wd33c93_intr(struct Scsi_Host *instance)
 		else
 			hostdata->incoming_ptr = 0;
 
-		cmd->SCp.Message = msg;
+		scsi_pointer->Message = msg;
 		switch (msg) {
 
 		case COMMAND_COMPLETE:
@@ -1167,23 +1110,23 @@ wd33c93_intr(struct Scsi_Host *instance)
 		write_wd33c93(regs, WD_SOURCE_ID, SRCID_ER);
 		if (phs == 0x60) {
 			DB(DB_INTR, printk("SX-DONE"))
-			    cmd->SCp.Message = COMMAND_COMPLETE;
+			    scsi_pointer->Message = COMMAND_COMPLETE;
 			lun = read_wd33c93(regs, WD_TARGET_LUN);
-			DB(DB_INTR, printk(":%d.%d", cmd->SCp.Status, lun))
+			DB(DB_INTR, printk(":%d.%d", scsi_pointer->Status, lun))
 			    hostdata->connected = NULL;
 			hostdata->busy[cmd->device->id] &= ~(1 << (cmd->device->lun & 0xff));
 			hostdata->state = S_UNCONNECTED;
-			if (cmd->SCp.Status == ILLEGAL_STATUS_BYTE)
-				cmd->SCp.Status = lun;
+			if (scsi_pointer->Status == ILLEGAL_STATUS_BYTE)
+				scsi_pointer->Status = lun;
 			if (cmd->cmnd[0] == REQUEST_SENSE
-			    && cmd->SCp.Status != GOOD)
-				cmd->result =
-				    (cmd->
-				     result & 0x00ffff) | (DID_ERROR << 16);
-			else
-				cmd->result =
-				    cmd->SCp.Status | (cmd->SCp.Message << 8);
-			cmd->scsi_done(cmd);
+			    && scsi_pointer->Status != SAM_STAT_GOOD) {
+				set_host_byte(cmd, DID_ERROR);
+			} else {
+				set_host_byte(cmd, DID_OK);
+				scsi_msg_to_host_byte(cmd, scsi_pointer->Message);
+				set_status_byte(cmd, scsi_pointer->Status);
+			}
+			scsi_done(cmd);
 
 /* We are no longer  connected to a target - check to see if
  * there are commands waiting to be executed.
@@ -1262,12 +1205,15 @@ wd33c93_intr(struct Scsi_Host *instance)
 		    hostdata->connected = NULL;
 		hostdata->busy[cmd->device->id] &= ~(1 << (cmd->device->lun & 0xff));
 		hostdata->state = S_UNCONNECTED;
-		if (cmd->cmnd[0] == REQUEST_SENSE && cmd->SCp.Status != GOOD)
-			cmd->result =
-			    (cmd->result & 0x00ffff) | (DID_ERROR << 16);
-		else
-			cmd->result = cmd->SCp.Status | (cmd->SCp.Message << 8);
-		cmd->scsi_done(cmd);
+		if (cmd->cmnd[0] == REQUEST_SENSE &&
+		    scsi_pointer->Status != SAM_STAT_GOOD) {
+			set_host_byte(cmd, DID_ERROR);
+		} else {
+			set_host_byte(cmd, DID_OK);
+			scsi_msg_to_host_byte(cmd, scsi_pointer->Message);
+			set_status_byte(cmd, scsi_pointer->Status);
+		}
+		scsi_done(cmd);
 
 /* We are no longer connected to a target - check to see if
  * there are commands waiting to be executed.
@@ -1294,16 +1240,16 @@ wd33c93_intr(struct Scsi_Host *instance)
 			hostdata->connected = NULL;
 			hostdata->busy[cmd->device->id] &= ~(1 << (cmd->device->lun & 0xff));
 			hostdata->state = S_UNCONNECTED;
-			DB(DB_INTR, printk(":%d", cmd->SCp.Status))
-			    if (cmd->cmnd[0] == REQUEST_SENSE
-				&& cmd->SCp.Status != GOOD)
-				cmd->result =
-				    (cmd->
-				     result & 0x00ffff) | (DID_ERROR << 16);
-			else
-				cmd->result =
-				    cmd->SCp.Status | (cmd->SCp.Message << 8);
-			cmd->scsi_done(cmd);
+			DB(DB_INTR, printk(":%d", scsi_pointer->Status))
+			if (cmd->cmnd[0] == REQUEST_SENSE
+			    && scsi_pointer->Status != SAM_STAT_GOOD) {
+				set_host_byte(cmd, DID_ERROR);
+			} else {
+				set_host_byte(cmd, DID_OK);
+				scsi_msg_to_host_byte(cmd, scsi_pointer->Message);
+				set_status_byte(cmd, scsi_pointer->Status);
+			}
+			scsi_done(cmd);
 			break;
 		case S_PRE_TMP_DISC:
 		case S_RUNNING_LEVEL2:
@@ -1633,7 +1579,7 @@ wd33c93_abort(struct scsi_cmnd * cmd)
 			    ("scsi%d: Abort - removing command from input_Q. ",
 			     instance->host_no);
 			enable_irq(cmd->device->host->irq);
-			cmd->scsi_done(cmd);
+			scsi_done(cmd);
 			return SUCCESS;
 		}
 		prev = tmp;
@@ -1708,7 +1654,7 @@ wd33c93_abort(struct scsi_cmnd * cmd)
 		wd33c93_execute(instance);
 
 		enable_irq(cmd->device->host->irq);
-		cmd->scsi_done(cmd);
+		scsi_done(cmd);
 		return SUCCESS;
 	}
 
@@ -1775,9 +1721,7 @@ wd33c93_setup(char *str)
 	p1 = setup_buffer;
 	*p1 = '\0';
 	if (str)
-		strncpy(p1, str, SETUP_BUFFER_SIZE - strlen(setup_buffer));
-	setup_buffer[SETUP_BUFFER_SIZE - 1] = '\0';
-	p1 = setup_buffer;
+		strscpy(p1, str, SETUP_BUFFER_SIZE);
 	i = 0;
 	while (*p1 && (i < MAX_SETUP_ARGS)) {
 		p2 = strchr(p1, ',');
@@ -1854,7 +1798,7 @@ round_4(unsigned int x)
 		case 1: --x;
 			break;
 		case 2: ++x;
-			/* fall through */
+			fallthrough;
 		case 3: ++x;
 	}
 	return x;

@@ -430,13 +430,13 @@ fifo_expire_async
 -----------------
 
 This parameter is used to set the timeout of asynchronous requests. Default
-value of this is 248ms.
+value of this is 250ms.
 
 fifo_expire_sync
 ----------------
 
 This parameter is used to set the timeout of synchronous requests. Default
-value of this is 124ms. In case to favor synchronous requests over asynchronous
+value of this is 125ms. In case to favor synchronous requests over asynchronous
 one, this value should be decreased relative to fifo_expire_async.
 
 low_latency
@@ -491,13 +491,6 @@ setting max_budget to a higher value than 0. In particular, they have
 set max_budget to higher values than those to which BFQ would have set
 it with auto-tuning. An alternative way to achieve this goal is to
 just increase the value of timeout_sync, leaving max_budget equal to 0.
-
-weights
--------
-
-Read-only parameter, used to show the weights of the currently active
-BFQ queues.
-
 
 4. Group scheduling with BFQ
 ============================
@@ -560,20 +553,36 @@ throughput sustainable with bfq, because updating the blkio.bfq.*
 stats is rather costly, especially for some of the stats enabled by
 CONFIG_BFQ_CGROUP_DEBUG.
 
-Parameters to set
------------------
+Parameters
+----------
 
-For each group, there is only the following parameter to set.
+For each group, the following parameters can be set:
 
-weight (namely blkio.bfq.weight or io.bfq-weight): the weight of the
-group inside its parent. Available values: 1..10000 (default 100). The
-linear mapping between ioprio and weights, described at the beginning
-of the tunable section, is still valid, but all weights higher than
-IOPRIO_BE_NR*10 are mapped to ioprio 0.
+  weight
+        This specifies the default weight for the cgroup inside its parent.
+        Available values: 1..1000 (default: 100).
 
-Recall that, if low-latency is set, then BFQ automatically raises the
-weight of the queues associated with interactive and soft real-time
-applications. Unset this tunable if you need/want to control weights.
+        For cgroup v1, it is set by writing the value to `blkio.bfq.weight`.
+
+        For cgroup v2, it is set by writing the value to `io.bfq.weight`.
+        (with an optional prefix of `default` and a space).
+
+        The linear mapping between ioprio and weights, described at the beginning
+        of the tunable section, is still valid, but all weights higher than
+        IOPRIO_BE_NR*10 are mapped to ioprio 0.
+
+        Recall that, if low-latency is set, then BFQ automatically raises the
+        weight of the queues associated with interactive and soft real-time
+        applications. Unset this tunable if you need/want to control weights.
+
+  weight_device
+        This specifies a per-device weight for the cgroup. The syntax is
+        `minor:major weight`. A weight of `0` may be used to reset to the default
+        weight.
+
+        For cgroup v1, it is set by writing the value to `blkio.bfq.weight_device`.
+
+        For cgroup v2, the file name is `io.bfq.weight`.
 
 
 [1]

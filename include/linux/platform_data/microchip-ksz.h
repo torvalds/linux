@@ -19,11 +19,33 @@
 #ifndef __MICROCHIP_KSZ_H
 #define __MICROCHIP_KSZ_H
 
-#include <linux/kernel.h>
+#include <linux/types.h>
+#include <linux/platform_data/dsa.h>
+
+enum ksz_chip_id {
+	KSZ8563_CHIP_ID = 0x8563,
+	KSZ8795_CHIP_ID = 0x8795,
+	KSZ8794_CHIP_ID = 0x8794,
+	KSZ8765_CHIP_ID = 0x8765,
+	KSZ8830_CHIP_ID = 0x8830,
+	KSZ9477_CHIP_ID = 0x00947700,
+	KSZ9896_CHIP_ID = 0x00989600,
+	KSZ9897_CHIP_ID = 0x00989700,
+	KSZ9893_CHIP_ID = 0x00989300,
+	KSZ9563_CHIP_ID = 0x00956300,
+	KSZ8567_CHIP_ID = 0x00856700,
+	KSZ9567_CHIP_ID = 0x00956700,
+	LAN9370_CHIP_ID = 0x00937000,
+	LAN9371_CHIP_ID = 0x00937100,
+	LAN9372_CHIP_ID = 0x00937200,
+	LAN9373_CHIP_ID = 0x00937300,
+	LAN9374_CHIP_ID = 0x00937400,
+};
 
 struct ksz_platform_data {
+	/* Must be first such that dsa_register_switch() can access it */
+	struct dsa_chip_data cd;
 	u32 chip_id;
-	u16 enabled_ports;
 };
 
 #endif

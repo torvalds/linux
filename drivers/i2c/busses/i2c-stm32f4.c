@@ -232,10 +232,10 @@ static void stm32f4_i2c_set_speed_mode(struct stm32f4_i2c_dev *i2c_dev)
 		 * In standard mode:
 		 * t_scl_high = t_scl_low = CCR * I2C parent clk period
 		 * So to reach 100 kHz, we have:
-		 * CCR = I2C parent rate / 100 kHz >> 1
+		 * CCR = I2C parent rate / (100 kHz * 2)
 		 *
 		 * For example with parent rate = 2 MHz:
-		 * CCR = 2000000 / (100000 << 1) = 10
+		 * CCR = 2000000 / (100000 * 2) = 10
 		 * t_scl_high = t_scl_low = 10 * (1 / 2000000) = 5000 ns
 		 * t_scl_high + t_scl_low = 10000 ns so 100 kHz is reached
 		 *
@@ -243,7 +243,7 @@ static void stm32f4_i2c_set_speed_mode(struct stm32f4_i2c_dev *i2c_dev)
 		 * parent rate is not higher than 46 MHz . As a result val
 		 * is at most 8 bits wide and so fits into the CCR bits [11:0].
 		 */
-		val = i2c_dev->parent_rate / (100000 << 1);
+		val = i2c_dev->parent_rate / (I2C_MAX_STANDARD_MODE_FREQ * 2);
 	} else {
 		/*
 		 * In fast mode, we compute CCR with duty = 0 as with low
@@ -263,7 +263,7 @@ static void stm32f4_i2c_set_speed_mode(struct stm32f4_i2c_dev *i2c_dev)
 		 * parent rate is not higher than 46 MHz . As a result val
 		 * is at most 6 bits wide and so fits into the CCR bits [11:0].
 		 */
-		val = DIV_ROUND_UP(i2c_dev->parent_rate, 400000 * 3);
+		val = DIV_ROUND_UP(i2c_dev->parent_rate, I2C_MAX_FAST_MODE_FREQ * 3);
 
 		/* Select Fast mode */
 		ccr |= STM32F4_I2C_CCR_FS;
@@ -313,7 +313,7 @@ static int stm32f4_i2c_wait_free_bus(struct stm32f4_i2c_dev *i2c_dev)
 }
 
 /**
- * stm32f4_i2c_write_ byte() - Write a byte in the data register
+ * stm32f4_i2c_write_byte() - Write a byte in the data register
  * @i2c_dev: Controller's private data
  * @byte: Data to write in the register
  */
@@ -534,7 +534,7 @@ static void stm32f4_i2c_handle_rx_addr(struct stm32f4_i2c_dev *i2c_dev)
 	default:
 		/*
 		 * N-byte reception:
-		 * Enable ACK, reset POS (ACK postion) and clear ADDR flag.
+		 * Enable ACK, reset POS (ACK position) and clear ADDR flag.
 		 * In that way, ACK will be sent as soon as the current byte
 		 * will be received in the shift register
 		 */
@@ -681,7 +681,7 @@ static int stm32f4_i2c_xfer_msg(struct stm32f4_i2c_dev *i2c_dev,
 {
 	struct stm32f4_i2c_msg *f4_msg = &i2c_dev->msg;
 	void __iomem *reg = i2c_dev->base + STM32F4_I2C_CR1;
-	unsigned long timeout;
+	unsigned long time_left;
 	u32 mask;
 	int ret;
 
@@ -706,11 +706,11 @@ static int stm32f4_i2c_xfer_msg(struct stm32f4_i2c_dev *i2c_dev,
 		stm32f4_i2c_set_bits(reg, STM32F4_I2C_CR1_START);
 	}
 
-	timeout = wait_for_completion_timeout(&i2c_dev->complete,
-					      i2c_dev->adap.timeout);
+	time_left = wait_for_completion_timeout(&i2c_dev->complete,
+						i2c_dev->adap.timeout);
 	ret = f4_msg->result;
 
-	if (!timeout)
+	if (!time_left)
 		ret = -ETIMEDOUT;
 
 	return ret;
@@ -767,8 +767,7 @@ static int stm32f4_i2c_probe(struct platform_device *pdev)
 	if (!i2c_dev)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	i2c_dev->base = devm_ioremap_resource(&pdev->dev, res);
+	i2c_dev->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(i2c_dev->base))
 		return PTR_ERR(i2c_dev->base);
 
@@ -784,30 +783,24 @@ static int stm32f4_i2c_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	i2c_dev->clk = devm_clk_get(&pdev->dev, NULL);
+	i2c_dev->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(i2c_dev->clk)) {
-		dev_err(&pdev->dev, "Error: Missing controller clock\n");
+		dev_err(&pdev->dev, "Failed to enable clock\n");
 		return PTR_ERR(i2c_dev->clk);
-	}
-	ret = clk_prepare_enable(i2c_dev->clk);
-	if (ret) {
-		dev_err(i2c_dev->dev, "Failed to prepare_enable clock\n");
-		return ret;
 	}
 
 	rst = devm_reset_control_get_exclusive(&pdev->dev, NULL);
-	if (IS_ERR(rst)) {
-		dev_err(&pdev->dev, "Error: Missing controller reset\n");
-		ret = PTR_ERR(rst);
-		goto clk_free;
-	}
+	if (IS_ERR(rst))
+		return dev_err_probe(&pdev->dev, PTR_ERR(rst),
+				     "Error: Missing reset ctrl\n");
+
 	reset_control_assert(rst);
 	udelay(2);
 	reset_control_deassert(rst);
 
 	i2c_dev->speed = STM32_I2C_SPEED_STANDARD;
 	ret = of_property_read_u32(np, "clock-frequency", &clk_rate);
-	if (!ret && clk_rate >= 400000)
+	if (!ret && clk_rate >= I2C_MAX_FAST_MODE_FREQ)
 		i2c_dev->speed = STM32_I2C_SPEED_FAST;
 
 	i2c_dev->dev = &pdev->dev;
@@ -817,7 +810,7 @@ static int stm32f4_i2c_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to request irq event %i\n",
 			irq_event);
-		goto clk_free;
+		return ret;
 	}
 
 	ret = devm_request_irq(&pdev->dev, irq_error, stm32f4_i2c_isr_error, 0,
@@ -825,12 +818,12 @@ static int stm32f4_i2c_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to request irq error %i\n",
 			irq_error);
-		goto clk_free;
+		return ret;
 	}
 
 	ret = stm32f4_i2c_hw_config(i2c_dev);
 	if (ret)
-		goto clk_free;
+		return ret;
 
 	adap = &i2c_dev->adap;
 	i2c_set_adapdata(adap, i2c_dev);
@@ -846,7 +839,7 @@ static int stm32f4_i2c_probe(struct platform_device *pdev)
 
 	ret = i2c_add_adapter(adap);
 	if (ret)
-		goto clk_free;
+		return ret;
 
 	platform_set_drvdata(pdev, i2c_dev);
 
@@ -855,21 +848,13 @@ static int stm32f4_i2c_probe(struct platform_device *pdev)
 	dev_info(i2c_dev->dev, "STM32F4 I2C driver registered\n");
 
 	return 0;
-
-clk_free:
-	clk_disable_unprepare(i2c_dev->clk);
-	return ret;
 }
 
-static int stm32f4_i2c_remove(struct platform_device *pdev)
+static void stm32f4_i2c_remove(struct platform_device *pdev)
 {
 	struct stm32f4_i2c_dev *i2c_dev = platform_get_drvdata(pdev);
 
 	i2c_del_adapter(&i2c_dev->adap);
-
-	clk_unprepare(i2c_dev->clk);
-
-	return 0;
 }
 
 static const struct of_device_id stm32f4_i2c_match[] = {
@@ -884,7 +869,7 @@ static struct platform_driver stm32f4_i2c_driver = {
 		.of_match_table = stm32f4_i2c_match,
 	},
 	.probe = stm32f4_i2c_probe,
-	.remove = stm32f4_i2c_remove,
+	.remove_new = stm32f4_i2c_remove,
 };
 
 module_platform_driver(stm32f4_i2c_driver);

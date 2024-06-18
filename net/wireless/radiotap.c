@@ -59,6 +59,7 @@ static const struct ieee80211_radiotap_namespace radiotap_ns = {
  * @iterator: radiotap_iterator to initialize
  * @radiotap_header: radiotap header to parse
  * @max_length: total length we can parse into (eg, whole packet length)
+ * @vns: vendor namespaces to parse
  *
  * Returns: 0 or a negative error code if there is a problem.
  *
@@ -90,7 +91,7 @@ static const struct ieee80211_radiotap_namespace radiotap_ns = {
  * iterator.this_arg for type "type" safely on all arches.
  *
  * Example code:
- * See Documentation/networking/radiotap-headers.txt
+ * See Documentation/networking/radiotap-headers.rst
  */
 
 int ieee80211_radiotap_iterator_init(
@@ -114,23 +115,22 @@ int ieee80211_radiotap_iterator_init(
 	iterator->_max_length = get_unaligned_le16(&radiotap_header->it_len);
 	iterator->_arg_index = 0;
 	iterator->_bitmap_shifter = get_unaligned_le32(&radiotap_header->it_present);
-	iterator->_arg = (uint8_t *)radiotap_header + sizeof(*radiotap_header);
+	iterator->_arg = (uint8_t *)radiotap_header->it_optional;
 	iterator->_reset_on_ext = 0;
-	iterator->_next_bitmap = &radiotap_header->it_present;
-	iterator->_next_bitmap++;
+	iterator->_next_bitmap = radiotap_header->it_optional;
 	iterator->_vns = vns;
 	iterator->current_namespace = &radiotap_ns;
 	iterator->is_radiotap_ns = 1;
 
 	/* find payload start allowing for extended bitmap(s) */
 
-	if (iterator->_bitmap_shifter & (1<<IEEE80211_RADIOTAP_EXT)) {
+	if (iterator->_bitmap_shifter & (BIT(IEEE80211_RADIOTAP_EXT))) {
 		if ((unsigned long)iterator->_arg -
 		    (unsigned long)iterator->_rtheader + sizeof(uint32_t) >
 		    (unsigned long)iterator->_max_length)
 			return -EINVAL;
 		while (get_unaligned_le32(iterator->_arg) &
-					(1 << IEEE80211_RADIOTAP_EXT)) {
+					(BIT(IEEE80211_RADIOTAP_EXT))) {
 			iterator->_arg += sizeof(uint32_t);
 
 			/*

@@ -61,10 +61,18 @@ static DEVICE_ATTR(userimask, S_IRUSR | S_IWUSR,
 
 static int __init userimask_sysdev_init(void)
 {
+	struct device *dev_root;
+	int ret = 0;
+
 	if (unlikely(!uimask))
 		return -ENXIO;
 
-	return device_create_file(intc_subsys.dev_root, &dev_attr_userimask);
+	dev_root = bus_get_dev_root(&intc_subsys);
+	if (dev_root) {
+		ret = device_create_file(dev_root, &dev_attr_userimask);
+		put_device(dev_root);
+	}
+	return ret;
 }
 late_initcall(userimask_sysdev_init);
 
@@ -73,7 +81,7 @@ int register_intc_userimask(unsigned long addr)
 	if (unlikely(uimask))
 		return -EBUSY;
 
-	uimask = ioremap_nocache(addr, SZ_4K);
+	uimask = ioremap(addr, SZ_4K);
 	if (unlikely(!uimask))
 		return -ENOMEM;
 

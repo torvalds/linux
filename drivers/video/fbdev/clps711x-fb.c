@@ -153,15 +153,13 @@ static int clps711x_fb_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops clps711x_fb_ops = {
+static const struct fb_ops clps711x_fb_ops = {
 	.owner		= THIS_MODULE,
+	FB_DEFAULT_IOMEM_OPS,
 	.fb_setcolreg	= clps711x_fb_setcolreg,
 	.fb_check_var	= clps711x_fb_check_var,
 	.fb_set_par	= clps711x_fb_set_par,
 	.fb_blank	= clps711x_fb_blank,
-	.fb_fillrect	= sys_fillrect,
-	.fb_copyarea	= sys_copyarea,
-	.fb_imageblit	= sys_imageblit,
 };
 
 static int clps711x_lcd_check_fb(struct lcd_device *lcddev, struct fb_info *fi)
@@ -199,7 +197,7 @@ static int clps711x_lcd_set_power(struct lcd_device *lcddev, int blank)
 	return 0;
 }
 
-static struct lcd_ops clps711x_lcd_ops = {
+static const struct lcd_ops clps711x_lcd_ops = {
 	.check_fb	= clps711x_lcd_check_fb,
 	.get_power	= clps711x_lcd_get_power,
 	.set_power	= clps711x_lcd_set_power,
@@ -238,8 +236,7 @@ static int clps711x_fb_probe(struct platform_device *pdev)
 	info->fix.mmio_start = res->start;
 	info->fix.mmio_len = resource_size(res);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	info->screen_base = devm_ioremap_resource(dev, res);
+	info->screen_base = devm_platform_get_and_ioremap_resource(pdev, 1, &res);
 	if (IS_ERR(info->screen_base)) {
 		ret = PTR_ERR(info->screen_base);
 		goto out_fb_release;
@@ -251,16 +248,8 @@ static int clps711x_fb_probe(struct platform_device *pdev)
 		goto out_fb_release;
 	}
 
-	info->apertures = alloc_apertures(1);
-	if (!info->apertures) {
-		ret = -ENOMEM;
-		goto out_fb_release;
-	}
-
 	cfb->buffsize = resource_size(res);
 	info->fix.smem_start = res->start;
-	info->apertures->ranges[0].base = info->fix.smem_start;
-	info->apertures->ranges[0].size = cfb->buffsize;
 
 	cfb->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(cfb->clk)) {
@@ -268,8 +257,7 @@ static int clps711x_fb_probe(struct platform_device *pdev)
 		goto out_fb_release;
 	}
 
-	cfb->syscon =
-		syscon_regmap_lookup_by_compatible("cirrus,ep7209-syscon1");
+	cfb->syscon = syscon_regmap_lookup_by_phandle(np, "syscon");
 	if (IS_ERR(cfb->syscon)) {
 		ret = PTR_ERR(cfb->syscon);
 		goto out_fb_release;
@@ -320,14 +308,13 @@ static int clps711x_fb_probe(struct platform_device *pdev)
 	}
 
 	info->fbops = &clps711x_fb_ops;
-	info->flags = FBINFO_DEFAULT;
 	info->var.activate = FB_ACTIVATE_FORCE | FB_ACTIVATE_NOW;
 	info->var.height = -1;
 	info->var.width = -1;
 	info->var.vmode = FB_VMODE_NONINTERLACED;
 	info->fix.type = FB_TYPE_PACKED_PIXELS;
 	info->fix.accel = FB_ACCEL_NONE;
-	strlcpy(info->fix.id, CLPS711X_FB_NAME, sizeof(info->fix.id));
+	strscpy(info->fix.id, CLPS711X_FB_NAME, sizeof(info->fix.id));
 	fb_videomode_to_var(&info->var, &cfb->mode);
 
 	ret = fb_alloc_cmap(&info->cmap, BIT(CLPS711X_FB_BPP_MAX), 0);
@@ -346,7 +333,7 @@ static int clps711x_fb_probe(struct platform_device *pdev)
 				       &clps711x_lcd_ops);
 	if (!IS_ERR(lcd))
 		return 0;
-	
+
 	ret = PTR_ERR(lcd);
 	unregister_framebuffer(info);
 
@@ -360,7 +347,7 @@ out_fb_release:
 	return ret;
 }
 
-static int clps711x_fb_remove(struct platform_device *pdev)
+static void clps711x_fb_remove(struct platform_device *pdev)
 {
 	struct fb_info *info = platform_get_drvdata(pdev);
 	struct clps711x_fb_info *cfb = info->par;
@@ -370,8 +357,6 @@ static int clps711x_fb_remove(struct platform_device *pdev)
 	unregister_framebuffer(info);
 	fb_dealloc_cmap(&info->cmap);
 	framebuffer_release(info);
-
-	return 0;
 }
 
 static const struct of_device_id clps711x_fb_dt_ids[] = {
@@ -386,7 +371,7 @@ static struct platform_driver clps711x_fb_driver = {
 		.of_match_table	= clps711x_fb_dt_ids,
 	},
 	.probe	= clps711x_fb_probe,
-	.remove	= clps711x_fb_remove,
+	.remove_new = clps711x_fb_remove,
 };
 module_platform_driver(clps711x_fb_driver);
 

@@ -12,6 +12,8 @@
 #include <linux/mfd/syscon/atmel-mc.h>
 #include <soc/at91/at91sam9_ddrsdr.h>
 #include <soc/at91/at91sam9_sdramc.h>
+#include <soc/at91/sama7-ddr.h>
+#include <soc/at91/sama7-sfrbu.h>
 
 #define AT91_MEMCTRL_MC		0
 #define AT91_MEMCTRL_SDRAMC	1
@@ -19,13 +21,15 @@
 
 #define	AT91_PM_STANDBY		0x00
 #define AT91_PM_ULP0		0x01
-#define AT91_PM_ULP1		0x02
-#define	AT91_PM_BACKUP		0x03
+#define AT91_PM_ULP0_FAST	0x02
+#define AT91_PM_ULP1		0x03
+#define	AT91_PM_BACKUP		0x04
 
 #ifndef __ASSEMBLY__
 struct at91_pm_data {
 	void __iomem *pmc;
 	void __iomem *ramc[2];
+	void __iomem *ramc_phy;
 	unsigned long uhp_udp_mask;
 	unsigned int memctrl;
 	unsigned int mode;
@@ -33,6 +37,8 @@ struct at91_pm_data {
 	void __iomem *sfrbu;
 	unsigned int standby_mode;
 	unsigned int suspend_mode;
+	unsigned int pmc_mckr_offset;
+	unsigned int pmc_version;
 };
 #endif
 

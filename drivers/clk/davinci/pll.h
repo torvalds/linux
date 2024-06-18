@@ -122,19 +122,8 @@ int of_davinci_pll_init(struct device *dev, struct device_node *node,
 
 /* Platform-specific callbacks */
 
-#ifdef CONFIG_ARCH_DAVINCI_DA850
 int da850_pll1_init(struct device *dev, void __iomem *base, struct regmap *cfgchip);
 void of_da850_pll0_init(struct device_node *node);
 int of_da850_pll1_init(struct device *dev, void __iomem *base, struct regmap *cfgchip);
-#endif
-#ifdef CONFIG_ARCH_DAVINCI_DM355
-int dm355_pll2_init(struct device *dev, void __iomem *base, struct regmap *cfgchip);
-#endif
-#ifdef CONFIG_ARCH_DAVINCI_DM644x
-int dm644x_pll2_init(struct device *dev, void __iomem *base, struct regmap *cfgchip);
-#endif
-#ifdef CONFIG_ARCH_DAVINCI_DM646x
-int dm646x_pll2_init(struct device *dev, void __iomem *base, struct regmap *cfgchip);
-#endif
 
 #endif /* __CLK_DAVINCI_PLL_H___ */

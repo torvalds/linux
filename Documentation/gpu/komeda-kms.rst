@@ -41,7 +41,7 @@ Compositor blends multiple layers or pixel data flows into one single display
 frame. its output frame can be fed into post image processor for showing it on
 the monitor or fed into wb_layer and written to memory at the same time.
 user can also insert a scaler between compositor and wb_layer to down scale
-the display frame first and and then write to memory.
+the display frame first and then write to memory.
 
 Writeback Layer (wb_layer)
 --------------------------
@@ -328,7 +328,7 @@ of course we’d better share as much as possible between different products. To
 achieve this, split the komeda device into two layers: CORE and CHIP.
 
 -   CORE: for common features and capabilities handling.
--   CHIP: for register programing and HW specific feature (limitation) handling.
+-   CHIP: for register programming and HW specific feature (limitation) handling.
 
 CORE can access CHIP by three chip function structures:
 
@@ -481,7 +481,7 @@ Build komeda to be a Linux module driver
 Now we have two level devices:
 
 -   komeda_dev: describes the real display hardware.
--   komeda_kms_dev: attachs or connects komeda_dev to DRM-KMS.
+-   komeda_kms_dev: attaches or connects komeda_dev to DRM-KMS.
 
 All komeda operations are supplied or operated by komeda_dev or komeda_kms_dev,
 the module driver is only a simple wrapper to pass the Linux command

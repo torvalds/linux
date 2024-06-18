@@ -3,7 +3,6 @@
  * Extract CPU cache information and expose them via sysfs.
  *
  *    Copyright IBM Corp. 2012
- *    Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>
  */
 
 #include <linux/seq_file.h>
@@ -47,7 +46,7 @@ struct cache_info {
 #define CACHE_MAX_LEVEL 8
 union cache_topology {
 	struct cache_info ci[CACHE_MAX_LEVEL];
-	unsigned long long raw;
+	unsigned long raw;
 };
 
 static const char * const cache_type_string[] = {
@@ -71,8 +70,6 @@ void show_cacheinfo(struct seq_file *m)
 	struct cacheinfo *cache;
 	int idx;
 
-	if (!test_facility(34))
-		return;
 	this_cpu_ci = get_cpu_cacheinfo(cpumask_any(cpu_online_mask));
 	for (idx = 0; idx < this_cpu_ci->num_leaves; idx++) {
 		cache = this_cpu_ci->info_list + idx;
@@ -132,8 +129,6 @@ int init_cache_level(unsigned int cpu)
 	union cache_topology ct;
 	enum cache_type ctype;
 
-	if (!test_facility(34))
-		return -EOPNOTSUPP;
 	if (!this_cpu_ci)
 		return -EINVAL;
 	ct.raw = ecag(EXTRACT_TOPOLOGY, 0, 0);
@@ -157,8 +152,6 @@ int populate_cache_leaves(unsigned int cpu)
 	union cache_topology ct;
 	enum cache_type ctype;
 
-	if (!test_facility(34))
-		return -EOPNOTSUPP;
 	ct.raw = ecag(EXTRACT_TOPOLOGY, 0, 0);
 	for (idx = 0, level = 0; level < this_cpu_ci->num_levels &&
 	     idx < this_cpu_ci->num_leaves; idx++, level++) {
@@ -173,5 +166,6 @@ int populate_cache_leaves(unsigned int cpu)
 			ci_leaf_init(this_leaf++, pvt, ctype, level, cpu);
 		}
 	}
+	this_cpu_ci->cpu_map_populated = true;
 	return 0;
 }

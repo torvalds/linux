@@ -27,6 +27,7 @@
 #include <sound/tlv.h>
 #include <sound/cs42l73.h>
 #include "cs42l73.h"
+#include "cirrus_legacy.h"
 
 struct sp_config {
 	u8 spc, mmcc, spfs;
@@ -938,8 +939,8 @@ static int cs42l73_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	unsigned int inv, format;
 	u8 spc, mmcc;
 
-	spc = snd_soc_component_read32(component, CS42L73_SPC(id));
-	mmcc = snd_soc_component_read32(component, CS42L73_MMCC(id));
+	spc = snd_soc_component_read(component, CS42L73_SPC(id));
+	mmcc = snd_soc_component_read(component, CS42L73_MMCC(id));
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
@@ -1181,7 +1182,7 @@ static struct snd_soc_dai_driver cs42l73_dai[] = {
 			.formats = CS42L73_FORMATS,
 		},
 		.ops = &cs42l73_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	 },
 	{
 		.name = "cs42l73-asp",
@@ -1201,7 +1202,7 @@ static struct snd_soc_dai_driver cs42l73_dai[] = {
 			.formats = CS42L73_FORMATS,
 		},
 		.ops = &cs42l73_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	 },
 	{
 		.name = "cs42l73-vsp",
@@ -1221,7 +1222,7 @@ static struct snd_soc_dai_driver cs42l73_dai[] = {
 			.formats = CS42L73_FORMATS,
 		},
 		.ops = &cs42l73_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	 }
 };
 
@@ -1255,7 +1256,6 @@ static const struct snd_soc_component_driver soc_component_dev_cs42l73 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config cs42l73_regmap = {
@@ -1267,16 +1267,17 @@ static const struct regmap_config cs42l73_regmap = {
 	.num_reg_defaults = ARRAY_SIZE(cs42l73_reg_defaults),
 	.volatile_reg = cs42l73_volatile_register,
 	.readable_reg = cs42l73_readable_register,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
+
+	.use_single_read = true,
+	.use_single_write = true,
 };
 
-static int cs42l73_i2c_probe(struct i2c_client *i2c_client,
-			     const struct i2c_device_id *id)
+static int cs42l73_i2c_probe(struct i2c_client *i2c_client)
 {
 	struct cs42l73_private *cs42l73;
 	struct cs42l73_platform_data *pdata = dev_get_platdata(&i2c_client->dev);
-	int ret;
-	unsigned int devid = 0;
+	int ret, devid;
 	unsigned int reg;
 	u32 val32;
 
@@ -1326,27 +1327,25 @@ static int cs42l73_i2c_probe(struct i2c_client *i2c_client,
 	}
 
 	/* initialize codec */
-	ret = regmap_read(cs42l73->regmap, CS42L73_DEVID_AB, &reg);
-	devid = (reg & 0xFF) << 12;
-
-	ret = regmap_read(cs42l73->regmap, CS42L73_DEVID_CD, &reg);
-	devid |= (reg & 0xFF) << 4;
-
-	ret = regmap_read(cs42l73->regmap, CS42L73_DEVID_E, &reg);
-	devid |= (reg & 0xF0) >> 4;
+	devid = cirrus_read_device_id(cs42l73->regmap, CS42L73_DEVID_AB);
+	if (devid < 0) {
+		ret = devid;
+		dev_err(&i2c_client->dev, "Failed to read device ID: %d\n", ret);
+		goto err_reset;
+	}
 
 	if (devid != CS42L73_DEVID) {
 		ret = -ENODEV;
 		dev_err(&i2c_client->dev,
 			"CS42L73 Device ID (%X). Expected %X\n",
 			devid, CS42L73_DEVID);
-		return ret;
+		goto err_reset;
 	}
 
 	ret = regmap_read(cs42l73->regmap, CS42L73_REVID, &reg);
 	if (ret < 0) {
 		dev_err(&i2c_client->dev, "Get Revision ID failed\n");
-		return ret;
+		goto err_reset;
 	}
 
 	dev_info(&i2c_client->dev,
@@ -1356,8 +1355,14 @@ static int cs42l73_i2c_probe(struct i2c_client *i2c_client,
 			&soc_component_dev_cs42l73, cs42l73_dai,
 			ARRAY_SIZE(cs42l73_dai));
 	if (ret < 0)
-		return ret;
+		goto err_reset;
+
 	return 0;
+
+err_reset:
+	gpio_set_value_cansleep(cs42l73->pdata.reset_gpio, 0);
+
+	return ret;
 }
 
 static const struct of_device_id cs42l73_of_match[] = {
@@ -1367,7 +1372,7 @@ static const struct of_device_id cs42l73_of_match[] = {
 MODULE_DEVICE_TABLE(of, cs42l73_of_match);
 
 static const struct i2c_device_id cs42l73_id[] = {
-	{"cs42l73", 0},
+	{"cs42l73"},
 	{}
 };
 

@@ -4,13 +4,13 @@
  * Copyright (C) 2012 Wolfram Sang, Pengutronix <kernel@pengutronix.de>
  */
 
-#include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/irq.h>
 #include <linux/i2c.h>
-#include <linux/interrupt.h>
+#include <linux/input.h>
 #include <linux/input/matrix_keypad.h>
 #include <linux/input/lm8333.h>
+#include <linux/interrupt.h>
+#include <linux/module.h>
+#include <linux/slab.h>
 
 #define LM8333_FIFO_READ		0x20
 #define LM8333_DEBOUNCE			0x22
@@ -125,8 +125,7 @@ static irqreturn_t lm8333_irq_thread(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int lm8333_probe(struct i2c_client *client,
-				  const struct i2c_device_id *id)
+static int lm8333_probe(struct i2c_client *client)
 {
 	const struct lm8333_platform_data *pdata =
 			dev_get_platdata(&client->dev);
@@ -143,18 +142,18 @@ static int lm8333_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	lm8333 = kzalloc(sizeof(*lm8333), GFP_KERNEL);
-	input = input_allocate_device();
-	if (!lm8333 || !input) {
-		err = -ENOMEM;
-		goto free_mem;
-	}
+	lm8333 = devm_kzalloc(&client->dev, sizeof(*lm8333), GFP_KERNEL);
+	if (!lm8333)
+		return -ENOMEM;
+
+	input = devm_input_allocate_device(&client->dev);
+	if (!input)
+		return -ENOMEM;
 
 	lm8333->client = client;
 	lm8333->input = input;
 
 	input->name = client->name;
-	input->dev.parent = &client->dev;
 	input->id.bustype = BUS_I2C;
 
 	input_set_capability(input, EV_MSC, MSC_SCAN);
@@ -163,7 +162,7 @@ static int lm8333_probe(struct i2c_client *client,
 					 LM8333_NUM_ROWS, LM8333_NUM_COLS,
 					 lm8333->keycodes, input);
 	if (err)
-		goto free_mem;
+		return err;
 
 	if (pdata->debounce_time) {
 		err = lm8333_write8(lm8333, LM8333_DEBOUNCE,
@@ -179,40 +178,23 @@ static int lm8333_probe(struct i2c_client *client,
 			dev_warn(&client->dev, "Unable to set active time\n");
 	}
 
-	err = request_threaded_irq(client->irq, NULL, lm8333_irq_thread,
-				   IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-				   "lm8333", lm8333);
+	err = devm_request_threaded_irq(&client->dev, client->irq,
+					NULL, lm8333_irq_thread,
+					IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+					"lm8333", lm8333);
 	if (err)
-		goto free_mem;
+		return err;
 
 	err = input_register_device(input);
 	if (err)
-		goto free_irq;
+		return err;
 
 	i2c_set_clientdata(client, lm8333);
-	return 0;
-
- free_irq:
-	free_irq(client->irq, lm8333);
- free_mem:
-	input_free_device(input);
-	kfree(lm8333);
-	return err;
-}
-
-static int lm8333_remove(struct i2c_client *client)
-{
-	struct lm8333 *lm8333 = i2c_get_clientdata(client);
-
-	free_irq(client->irq, lm8333);
-	input_unregister_device(lm8333->input);
-	kfree(lm8333);
-
 	return 0;
 }
 
 static const struct i2c_device_id lm8333_id[] = {
-	{ "lm8333", 0 },
+	{ "lm8333" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm8333_id);
@@ -222,7 +204,6 @@ static struct i2c_driver lm8333_driver = {
 		.name		= "lm8333",
 	},
 	.probe		= lm8333_probe,
-	.remove		= lm8333_remove,
 	.id_table	= lm8333_id,
 };
 module_i2c_driver(lm8333_driver);

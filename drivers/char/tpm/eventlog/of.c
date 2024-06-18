@@ -10,12 +10,43 @@
  * Read the event log created by the firmware on PPC64
  */
 
+#include <linux/device.h>
 #include <linux/slab.h>
+#include <linux/io.h>
+#include <linux/ioport.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/tpm_eventlog.h>
 
 #include "../tpm.h"
 #include "common.h"
+
+static int tpm_read_log_memory_region(struct tpm_chip *chip)
+{
+	struct device_node *node;
+	struct resource res;
+	int rc;
+
+	node = of_parse_phandle(chip->dev.parent->of_node, "memory-region", 0);
+	if (!node)
+		return -ENODEV;
+
+	rc = of_address_to_resource(node, 0, &res);
+	of_node_put(node);
+	if (rc)
+		return rc;
+
+	chip->log.bios_event_log = devm_memremap(&chip->dev, res.start, resource_size(&res),
+						 MEMREMAP_WB);
+	if (IS_ERR(chip->log.bios_event_log))
+		return -ENOMEM;
+
+	chip->log.bios_event_log_end = chip->log.bios_event_log + resource_size(&res);
+
+	return chip->flags & TPM_CHIP_FLAG_TPM2 ? EFI_TCG2_EVENT_LOG_FORMAT_TCG_2 :
+		EFI_TCG2_EVENT_LOG_FORMAT_TCG_1_2;
+}
 
 int tpm_read_log_of(struct tpm_chip *chip)
 {
@@ -38,7 +69,7 @@ int tpm_read_log_of(struct tpm_chip *chip)
 	sizep = of_get_property(np, "linux,sml-size", NULL);
 	basep = of_get_property(np, "linux,sml-base", NULL);
 	if (sizep == NULL && basep == NULL)
-		return -ENODEV;
+		return tpm_read_log_memory_region(chip);
 	if (sizep == NULL || basep == NULL)
 		return -EIO;
 
@@ -51,7 +82,8 @@ int tpm_read_log_of(struct tpm_chip *chip)
 	 * endian format. For this reason, vtpm doesn't need conversion
 	 * but physical tpm needs the conversion.
 	 */
-	if (of_property_match_string(np, "compatible", "IBM,vtpm") < 0) {
+	if (of_property_match_string(np, "compatible", "IBM,vtpm") < 0 &&
+	    of_property_match_string(np, "compatible", "IBM,vtpm20") < 0) {
 		size = be32_to_cpup((__force __be32 *)sizep);
 		base = be64_to_cpup((__force __be64 *)basep);
 	} else {
@@ -64,7 +96,7 @@ int tpm_read_log_of(struct tpm_chip *chip)
 		return -EIO;
 	}
 
-	log->bios_event_log = kmemdup(__va(base), size, GFP_KERNEL);
+	log->bios_event_log = devm_kmemdup(&chip->dev, __va(base), size, GFP_KERNEL);
 	if (!log->bios_event_log)
 		return -ENOMEM;
 

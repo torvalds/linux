@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/panel/asus,z00t-tm5p5-nt35596.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ASUS Z00T TM5P5 NT35596 5.5" 1080×1920 LCD Panel
+
+maintainers:
+  - Konrad Dybcio <konradybcio@gmail.com>
+
+description: |+
+  This panel seems to only be found in the Asus Z00T
+  smartphone and we have no straightforward way of
+  actually getting the correct model number,
+  as no schematics are released publicly.
+
+allOf:
+  - $ref: panel-common.yaml#
+
+properties:
+  compatible:
+    const: asus,z00t-tm5p5-n35596
+
+  reg:
+    maxItems: 1
+
+  reset-gpios: true
+  vdd-supply:
+    description: core voltage supply
+  vddio-supply:
+    description: vddio supply
+
+required:
+  - compatible
+  - reg
+  - vdd-supply
+  - vddio-supply
+  - reset-gpios
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    dsi {
+            #address-cells = <1>;
+            #size-cells = <0>;
+            panel@0 {
+                    reg = <0>;
+
+                    compatible = "asus,z00t-tm5p5-n35596";
+
+                    vdd-supply = <&pm8916_l8>;
+                    vddio-supply = <&pm8916_l6>;
+                    reset-gpios = <&msmgpio 25 GPIO_ACTIVE_HIGH>;
+            };
+    };

@@ -11,31 +11,18 @@
 # Copyright (C) 1995-2001 by Russell King
 
 LDFLAGS_vmlinux	:=--no-undefined -X
-CPPFLAGS_vmlinux.lds = -DTEXT_OFFSET=$(TEXT_OFFSET)
-GZFLAGS		:=-9
 
 ifeq ($(CONFIG_RELOCATABLE), y)
 # Pass --no-apply-dynamic-relocs to restore pre-binutils-2.27 behaviour
 # for relative relocs, since this leads to better Image compression
 # with the relocation offsets always being zero.
-LDFLAGS_vmlinux		+= -shared -Bsymbolic -z notext -z norelro \
+LDFLAGS_vmlinux		+= -shared -Bsymbolic -z notext \
 			$(call ld-option, --no-apply-dynamic-relocs)
 endif
 
 ifeq ($(CONFIG_ARM64_ERRATUM_843419),y)
-  ifeq ($(call ld-option, --fix-cortex-a53-843419),)
-$(warning ld does not support --fix-cortex-a53-843419; kernel may be susceptible to erratum)
-  else
+  ifeq ($(CONFIG_ARM64_LD_HAS_FIX_ERRATUM_843419),y)
 LDFLAGS_vmlinux	+= --fix-cortex-a53-843419
-  endif
-endif
-
-# Check for binutils support for specific extensions
-lseinstr := $(call as-instr,.arch_extension lse,-DCONFIG_AS_LSE=1)
-
-ifeq ($(CONFIG_ARM64_LSE_ATOMICS), y)
-  ifeq ($(lseinstr),)
-$(warning LSE atomics not supported by binutils)
   endif
 endif
 
@@ -45,38 +32,35 @@ cc_has_k_constraint := $(call try-run,echo				\
 		return 0;						\
 	}' | $(CC) -S -x c -o "$$TMP" -,,-DCONFIG_CC_HAS_K_CONSTRAINT=1)
 
-ifeq ($(CONFIG_ARM64), y)
-brokengasinst := $(call as-instr,1:\n.inst 0\n.rept . - 1b\n\nnop\n.endr\n,,-DCONFIG_BROKEN_GAS_INST=1)
-
-  ifneq ($(brokengasinst),)
+ifeq ($(CONFIG_BROKEN_GAS_INST),y)
 $(warning Detected assembler with broken .inst; disassembly will be unreliable)
-  endif
 endif
 
-ifeq ($(CONFIG_GENERIC_COMPAT_VDSO), y)
-  CROSS_COMPILE_COMPAT ?= $(CONFIG_CROSS_COMPILE_COMPAT_VDSO:"%"=%)
+# The GCC option -ffreestanding is required in order to compile code containing
+# ARM/NEON intrinsics in a non C99-compliant environment (such as the kernel)
+CC_FLAGS_FPU	:= -ffreestanding
+# Enable <arm_neon.h>
+CC_FLAGS_FPU	+= -isystem $(shell $(CC) -print-file-name=include)
+CC_FLAGS_NO_FPU	:= -mgeneral-regs-only
 
-  ifeq ($(CONFIG_CC_IS_CLANG), y)
-    $(warning CROSS_COMPILE_COMPAT is clang, the compat vDSO will not be built)
-  else ifeq ($(strip $(CROSS_COMPILE_COMPAT)),)
-    $(warning CROSS_COMPILE_COMPAT not defined or empty, the compat vDSO will not be built)
-  else ifeq ($(shell which $(CROSS_COMPILE_COMPAT)gcc 2> /dev/null),)
-    $(error $(CROSS_COMPILE_COMPAT)gcc not found, check CROSS_COMPILE_COMPAT)
-  else
-    export CROSS_COMPILE_COMPAT
-    export CONFIG_COMPAT_VDSO := y
-    compat_vdso := -DCONFIG_COMPAT_VDSO=1
-  endif
-endif
-
-KBUILD_CFLAGS	+= -mgeneral-regs-only $(lseinstr) $(brokengasinst)	\
+KBUILD_CFLAGS	+= $(CC_FLAGS_NO_FPU) \
 		   $(compat_vdso) $(cc_has_k_constraint)
-KBUILD_CFLAGS	+= -fno-asynchronous-unwind-tables
 KBUILD_CFLAGS	+= $(call cc-disable-warning, psabi)
-KBUILD_AFLAGS	+= $(lseinstr) $(brokengasinst) $(compat_vdso)
+KBUILD_AFLAGS	+= $(compat_vdso)
+
+KBUILD_RUSTFLAGS += --target=aarch64-unknown-none -Ctarget-feature="-neon"
 
 KBUILD_CFLAGS	+= $(call cc-option,-mabi=lp64)
 KBUILD_AFLAGS	+= $(call cc-option,-mabi=lp64)
+
+# Avoid generating .eh_frame* sections.
+ifneq ($(CONFIG_UNWIND_TABLES),y)
+KBUILD_CFLAGS	+= -fno-asynchronous-unwind-tables -fno-unwind-tables
+KBUILD_AFLAGS	+= -fno-asynchronous-unwind-tables -fno-unwind-tables
+else
+KBUILD_CFLAGS	+= -fasynchronous-unwind-tables
+KBUILD_AFLAGS	+= -fasynchronous-unwind-tables
+endif
 
 ifeq ($(CONFIG_STACKPROTECTOR_PER_TASK),y)
 prepare: stack_protector_prepare
@@ -88,44 +72,82 @@ stack_protector_prepare: prepare0
 					include/generated/asm-offsets.h))
 endif
 
+ifeq ($(CONFIG_ARM64_BTI_KERNEL),y)
+  KBUILD_CFLAGS += -mbranch-protection=pac-ret+bti
+  KBUILD_RUSTFLAGS += -Zbranch-protection=bti,pac-ret
+else ifeq ($(CONFIG_ARM64_PTR_AUTH_KERNEL),y)
+  KBUILD_RUSTFLAGS += -Zbranch-protection=pac-ret
+  ifeq ($(CONFIG_CC_HAS_BRANCH_PROT_PAC_RET),y)
+    KBUILD_CFLAGS += -mbranch-protection=pac-ret
+  else
+    KBUILD_CFLAGS += -msign-return-address=non-leaf
+  endif
+else
+  KBUILD_CFLAGS += $(call cc-option,-mbranch-protection=none)
+endif
+
+# Tell the assembler to support instructions from the latest target
+# architecture.
+#
+# For non-integrated assemblers we'll pass this on the command line, and for
+# integrated assemblers we'll define ARM64_ASM_ARCH and ARM64_ASM_PREAMBLE for
+# inline usage.
+#
+# We cannot pass the same arch flag to the compiler as this would allow it to
+# freely generate instructions which are not supported by earlier architecture
+# versions, which would prevent a single kernel image from working on earlier
+# hardware.
+ifeq ($(CONFIG_AS_HAS_ARMV8_5), y)
+  asm-arch := armv8.5-a
+else ifeq ($(CONFIG_AS_HAS_ARMV8_4), y)
+  asm-arch := armv8.4-a
+else ifeq ($(CONFIG_AS_HAS_ARMV8_3), y)
+  asm-arch := armv8.3-a
+else ifeq ($(CONFIG_AS_HAS_ARMV8_2), y)
+  asm-arch := armv8.2-a
+endif
+
+ifdef asm-arch
+KBUILD_CFLAGS	+= -Wa,-march=$(asm-arch) \
+		   -DARM64_ASM_ARCH='"$(asm-arch)"'
+endif
+
+ifeq ($(CONFIG_SHADOW_CALL_STACK), y)
+KBUILD_CFLAGS	+= -ffixed-x18
+endif
+
 ifeq ($(CONFIG_CPU_BIG_ENDIAN), y)
 KBUILD_CPPFLAGS	+= -mbig-endian
 CHECKFLAGS	+= -D__AARCH64EB__
-AS		+= -EB
 # Prefer the baremetal ELF build target, but not all toolchains include
 # it so fall back to the standard linux version if needed.
-KBUILD_LDFLAGS	+= -EB $(call ld-option, -maarch64elfb, -maarch64linuxb)
+KBUILD_LDFLAGS	+= -EB $(call ld-option, -maarch64elfb, -maarch64linuxb -z norelro)
 UTS_MACHINE	:= aarch64_be
 else
 KBUILD_CPPFLAGS	+= -mlittle-endian
 CHECKFLAGS	+= -D__AARCH64EL__
-AS		+= -EL
 # Same as above, prefer ELF but fall back to linux target if needed.
-KBUILD_LDFLAGS	+= -EL $(call ld-option, -maarch64elf, -maarch64linux)
+KBUILD_LDFLAGS	+= -EL $(call ld-option, -maarch64elf, -maarch64linux -z norelro)
 UTS_MACHINE	:= aarch64
+endif
+
+ifeq ($(CONFIG_LD_IS_LLD), y)
+KBUILD_LDFLAGS	+= -z norelro
 endif
 
 CHECKFLAGS	+= -D__aarch64__
 
-ifeq ($(CONFIG_ARM64_MODULE_PLTS),y)
-KBUILD_LDS_MODULE	+= $(srctree)/arch/arm64/kernel/module.lds
-endif
-
-# Default value
-head-y		:= arch/arm64/kernel/head.o
-
-# The byte offset of the kernel image in RAM from the start of RAM.
-ifeq ($(CONFIG_ARM64_RANDOMIZE_TEXT_OFFSET), y)
-TEXT_OFFSET := $(shell awk "BEGIN {srand(); printf \"0x%06x\n\", \
-		 int(2 * 1024 * 1024 / (2 ^ $(CONFIG_ARM64_PAGE_SHIFT)) * \
-		 rand()) * (2 ^ $(CONFIG_ARM64_PAGE_SHIFT))}")
-else
-TEXT_OFFSET := 0x00080000
+ifeq ($(CONFIG_DYNAMIC_FTRACE_WITH_CALL_OPS),y)
+  KBUILD_CPPFLAGS += -DCC_USING_PATCHABLE_FUNCTION_ENTRY
+  CC_FLAGS_FTRACE := -fpatchable-function-entry=4,2
+else ifeq ($(CONFIG_DYNAMIC_FTRACE_WITH_ARGS),y)
+  KBUILD_CPPFLAGS += -DCC_USING_PATCHABLE_FUNCTION_ENTRY
+  CC_FLAGS_FTRACE := -fpatchable-function-entry=2
 endif
 
 ifeq ($(CONFIG_KASAN_SW_TAGS), y)
 KASAN_SHADOW_SCALE_SHIFT := 4
-else
+else ifeq ($(CONFIG_KASAN_GENERIC), y)
 KASAN_SHADOW_SCALE_SHIFT := 3
 endif
 
@@ -133,35 +155,49 @@ KBUILD_CFLAGS += -DKASAN_SHADOW_SCALE_SHIFT=$(KASAN_SHADOW_SCALE_SHIFT)
 KBUILD_CPPFLAGS += -DKASAN_SHADOW_SCALE_SHIFT=$(KASAN_SHADOW_SCALE_SHIFT)
 KBUILD_AFLAGS += -DKASAN_SHADOW_SCALE_SHIFT=$(KASAN_SHADOW_SCALE_SHIFT)
 
-export	TEXT_OFFSET GZFLAGS
-
-core-y		+= arch/arm64/
 libs-y		:= arch/arm64/lib/ $(libs-y)
-core-$(CONFIG_EFI_STUB) += $(objtree)/drivers/firmware/efi/libstub/lib.a
+libs-$(CONFIG_EFI_STUB) += $(objtree)/drivers/firmware/efi/libstub/lib.a
 
 # Default target when executing plain make
 boot		:= arch/arm64/boot
+
+BOOT_TARGETS	:= Image vmlinuz.efi image.fit
+
+PHONY += $(BOOT_TARGETS)
+
+ifeq ($(CONFIG_EFI_ZBOOT),)
 KBUILD_IMAGE	:= $(boot)/Image.gz
+else
+KBUILD_IMAGE	:= $(boot)/vmlinuz.efi
+endif
 
-all:	Image.gz
+all:	$(notdir $(KBUILD_IMAGE))
 
+image.fit: dtbs
 
-Image: vmlinux
+vmlinuz.efi image.fit: Image
+$(BOOT_TARGETS): vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
 Image.%: Image
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
-zinstall install:
-	$(Q)$(MAKE) $(build)=$(boot) $@
+install: KBUILD_IMAGE := $(boot)/Image
+install zinstall:
+	$(call cmd,install)
 
-PHONY += vdso_install
-vdso_install:
-	$(Q)$(MAKE) $(build)=arch/arm64/kernel/vdso $@
-
-# We use MRPROPER_FILES and CLEAN_FILES now
-archclean:
-	$(Q)$(MAKE) $(clean)=$(boot)
+archprepare:
+	$(Q)$(MAKE) $(build)=arch/arm64/tools kapi
+ifeq ($(CONFIG_ARM64_ERRATUM_843419),y)
+  ifneq ($(CONFIG_ARM64_LD_HAS_FIX_ERRATUM_843419),y)
+	@echo "warning: ld does not support --fix-cortex-a53-843419; kernel may be susceptible to erratum" >&2
+  endif
+endif
+ifeq ($(CONFIG_ARM64_USE_LSE_ATOMICS),y)
+  ifneq ($(CONFIG_ARM64_LSE_ATOMICS),y)
+	@echo "warning: LSE atomics not supported by binutils" >&2
+  endif
+endif
 
 ifeq ($(KBUILD_EXTMOD),)
 # We need to generate vdso-offsets.h before compiling certain files in kernel/.
@@ -172,15 +208,27 @@ ifeq ($(KBUILD_EXTMOD),)
 # this hack.
 prepare: vdso_prepare
 vdso_prepare: prepare0
-	$(Q)$(MAKE) $(build)=arch/arm64/kernel/vdso include/generated/vdso-offsets.h
-	$(if $(CONFIG_COMPAT_VDSO),$(Q)$(MAKE) \
-		$(build)=arch/arm64/kernel/vdso32  \
-		include/generated/vdso32-offsets.h)
+	$(Q)$(MAKE) $(build)=arch/arm64/kernel/vdso \
+	include/generated/vdso-offsets.h arch/arm64/kernel/vdso/vdso.so
+ifdef CONFIG_COMPAT_VDSO
+	$(Q)$(MAKE) $(build)=arch/arm64/kernel/vdso32 \
+	arch/arm64/kernel/vdso32/vdso.so
 endif
+endif
+
+vdso-install-y				+= arch/arm64/kernel/vdso/vdso.so.dbg
+vdso-install-$(CONFIG_COMPAT_VDSO)	+= arch/arm64/kernel/vdso32/vdso32.so.dbg
+
+include $(srctree)/scripts/Makefile.defconf
+
+PHONY += virtconfig
+virtconfig:
+	$(call merge_into_defconfig_override,defconfig,virt)
 
 define archhelp
   echo  '* Image.gz      - Compressed kernel image (arch/$(ARCH)/boot/Image.gz)'
   echo  '  Image         - Uncompressed kernel image (arch/$(ARCH)/boot/Image)'
+  echo  '  image.fit     - Flat Image Tree (arch/$(ARCH)/boot/image.fit)'
   echo  '  install       - Install uncompressed kernel'
   echo  '  zinstall      - Install compressed kernel'
   echo  '                  Install using (your) ~/bin/installkernel or'

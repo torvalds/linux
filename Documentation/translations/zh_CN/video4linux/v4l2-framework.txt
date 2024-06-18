@@ -1,4 +1,4 @@
-Chinese translated version of Documentation/media/media_kapi.rst
+Chinese translated version of Documentation/driver-api/media/index.rst
 
 If you have any comment or update to the content, please contact the
 original document maintainer directly.  However, if you have a problem
@@ -9,7 +9,7 @@ or if there is a problem with the translation.
 Maintainer: Mauro Carvalho Chehab <mchehab@kernel.org>
 Chinese maintainer: Fu Wei <tekkamanninja@gmail.com>
 ---------------------------------------------------------------------
-Documentation/media/media_kapi.rst 的中文翻译
+Documentation/driver-api/media/index.rst 的中文翻译
 
 如果想评论或更新本文的内容，请直接联系原文档的维护者。如果你使用英文
 交流有困难的话，也可以向中文版维护者求助。如果本翻译更新不及时或者翻
@@ -488,7 +488,7 @@ struct v4l2_subdev *sd = v4l2_i2c_new_subdev(v4l2_dev, adapter,
 
 这个函数会加载给定的模块（如果没有模块需要加载，可以为 NULL），
 并用给定的 i2c 适配器结构体指针（i2c_adapter）和 器件地址（chip/address）
-作为参数调用 i2c_new_device()。如果一切顺利，则就在 v4l2_device
+作为参数调用 i2c_new_client_device()。如果一切顺利，则就在 v4l2_device
 中注册了子设备。
 
 你也可以利用 v4l2_i2c_new_subdev()的最后一个参数，传递一个可能的
@@ -649,7 +649,7 @@ video_device注册
 
 接下来你需要注册视频设备：这会为你创建一个字符设备。
 
-	err = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+	err = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	if (err) {
 		video_device_release(vdev); /* or kfree(my_vdev); */
 		return err;
@@ -660,7 +660,7 @@ video_device注册
 
 注册哪种设备是根据类型（type）参数。存在以下类型：
 
-VFL_TYPE_GRABBER: 用于视频输入/输出设备的 videoX
+VFL_TYPE_VIDEO: 用于视频输入/输出设备的 videoX
 VFL_TYPE_VBI: 用于垂直消隐数据的 vbiX (例如，隐藏式字幕，图文电视)
 VFL_TYPE_RADIO: 用于广播调谐器的 radioX
 
@@ -767,18 +767,6 @@ const char *video_device_node_name(struct video_device *vdev);
 这个名字被用户空间工具（例如 udev）作为提示信息使用。应尽可能使用
 此功能，而非访问 video_device::num 和 video_device::minor 域。
 
-
-视频缓冲辅助函数
----------------
-
-v4l2 核心 API 提供了一个处理视频缓冲的标准方法(称为“videobuf”)。
-这些方法使驱动可以通过统一的方式实现 read()、mmap() 和 overlay()。
-目前在设备上支持视频缓冲的方法有分散/聚集 DMA(videobuf-dma-sg)、
-线性 DMA(videobuf-dma-contig)以及大多用于 USB 设备的用 vmalloc
-分配的缓冲(videobuf-vmalloc)。
-
-请参阅 Documentation/media/kapi/v4l2-videobuf.rst，以获得更多关于 videobuf
-层的使用信息。
 
 v4l2_fh 结构体
 -------------

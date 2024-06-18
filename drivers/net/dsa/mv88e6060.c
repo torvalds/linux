@@ -43,7 +43,8 @@ static const char *mv88e6060_get_name(struct mii_bus *bus, int sw_addr)
 }
 
 static enum dsa_tag_protocol mv88e6060_get_tag_protocol(struct dsa_switch *ds,
-							int port)
+							int port,
+							enum dsa_tag_protocol m)
 {
 	return DSA_TAG_PROTO_TRAILER;
 }
@@ -116,6 +117,9 @@ static int mv88e6060_setup_port(struct mv88e6060_priv *priv, int p)
 {
 	int addr = REG_PORT(p);
 	int ret;
+
+	if (dsa_is_unused_port(priv->ds, p))
+		return 0;
 
 	/* Do not force flow control, disable Ingress and Egress
 	 * Header tagging, disable VLAN tunneling, and set the port
@@ -243,11 +247,56 @@ mv88e6060_phy_write(struct dsa_switch *ds, int port, int regnum, u16 val)
 	return reg_write(priv, addr, regnum, val);
 }
 
+static void mv88e6060_phylink_get_caps(struct dsa_switch *ds, int port,
+				       struct phylink_config *config)
+{
+	unsigned long *interfaces = config->supported_interfaces;
+	struct mv88e6060_priv *priv = ds->priv;
+	int addr = REG_PORT(port);
+	int ret;
+
+	ret = reg_read(priv, addr, PORT_STATUS);
+	if (ret < 0) {
+		dev_err(ds->dev,
+			"port %d: unable to read status register: %pe\n",
+			port, ERR_PTR(ret));
+		return;
+	}
+
+	/* If the port is configured in SNI mode (acts as a 10Mbps PHY),
+	 * it should have phy-mode = "sni", but that doesn't yet exist, so
+	 * forcibly fail validation until the need arises to introduce it.
+	 */
+	if (!(ret & PORT_STATUS_PORTMODE)) {
+		dev_warn(ds->dev, "port %d: SNI mode not supported\n", port);
+		return;
+	}
+
+	config->mac_capabilities = MAC_100 | MAC_10 | MAC_SYM_PAUSE;
+
+	if (port >= 4) {
+		/* Ports 4 and 5 can support MII, REVMII and REVRMII modes */
+		__set_bit(PHY_INTERFACE_MODE_MII, interfaces);
+		__set_bit(PHY_INTERFACE_MODE_REVMII, interfaces);
+		__set_bit(PHY_INTERFACE_MODE_REVRMII, interfaces);
+	}
+	if (port <= 4) {
+		/* Ports 0 to 3 have internal PHYs, and port 4 can optionally
+		 * use an internal PHY.
+		 */
+		/* Internal PHY */
+		__set_bit(PHY_INTERFACE_MODE_INTERNAL, interfaces);
+		/* Default phylib interface mode */
+		__set_bit(PHY_INTERFACE_MODE_GMII, interfaces);
+	}
+}
+
 static const struct dsa_switch_ops mv88e6060_switch_ops = {
 	.get_tag_protocol = mv88e6060_get_tag_protocol,
 	.setup		= mv88e6060_setup,
 	.phy_read	= mv88e6060_phy_read,
 	.phy_write	= mv88e6060_phy_write,
+	.phylink_get_caps = mv88e6060_phylink_get_caps,
 };
 
 static int mv88e6060_probe(struct mdio_device *mdiodev)
@@ -270,10 +319,12 @@ static int mv88e6060_probe(struct mdio_device *mdiodev)
 
 	dev_info(dev, "switch %s detected\n", name);
 
-	ds = dsa_switch_alloc(dev, MV88E6060_PORTS);
+	ds = devm_kzalloc(dev, sizeof(*ds), GFP_KERNEL);
 	if (!ds)
 		return -ENOMEM;
 
+	ds->dev = dev;
+	ds->num_ports = MV88E6060_PORTS;
 	ds->priv = priv;
 	ds->dev = dev;
 	ds->ops = &mv88e6060_switch_ops;
@@ -287,7 +338,22 @@ static void mv88e6060_remove(struct mdio_device *mdiodev)
 {
 	struct dsa_switch *ds = dev_get_drvdata(&mdiodev->dev);
 
+	if (!ds)
+		return;
+
 	dsa_unregister_switch(ds);
+}
+
+static void mv88e6060_shutdown(struct mdio_device *mdiodev)
+{
+	struct dsa_switch *ds = dev_get_drvdata(&mdiodev->dev);
+
+	if (!ds)
+		return;
+
+	dsa_switch_shutdown(ds);
+
+	dev_set_drvdata(&mdiodev->dev, NULL);
 }
 
 static const struct of_device_id mv88e6060_of_match[] = {
@@ -300,6 +366,7 @@ static const struct of_device_id mv88e6060_of_match[] = {
 static struct mdio_driver mv88e6060_driver = {
 	.probe	= mv88e6060_probe,
 	.remove = mv88e6060_remove,
+	.shutdown = mv88e6060_shutdown,
 	.mdiodrv.driver = {
 		.name = "mv88e6060",
 		.of_match_table = mv88e6060_of_match,

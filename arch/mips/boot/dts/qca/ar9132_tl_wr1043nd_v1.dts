@@ -23,17 +23,15 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
-		button@0 {
+		button-0 {
 			label = "reset";
 			linux,code = <KEY_RESTART>;
 			gpios = <&gpio 3 GPIO_ACTIVE_LOW>;
 			debounce-interval = <60>;
 		};
 
-		button@1 {
+		button-1 {
 			label = "qss";
 			linux,code = <KEY_WPS_BUTTON>;
 			gpios = <&gpio 7 GPIO_ACTIVE_LOW>;
@@ -43,23 +41,23 @@
 
 	leds {
 		compatible = "gpio-leds";
-		led@0 {
+		led-0 {
 			label = "tp-link:green:usb";
 			gpios = <&gpio 1 GPIO_ACTIVE_LOW>;
 		};
 
-		led@1 {
+		led-1 {
 			label = "tp-link:green:system";
 			gpios = <&gpio 2 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "heartbeat";
 		};
 
-		led@2 {
+		led-2 {
 			label = "tp-link:green:qss";
 			gpios = <&gpio 5 GPIO_ACTIVE_HIGH>;
 		};
 
-		led@3 {
+		led-3 {
 			label = "tp-link:green:wlan";
 			gpios = <&gpio 9 GPIO_ACTIVE_LOW>;
 		};

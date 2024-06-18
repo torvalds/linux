@@ -42,7 +42,7 @@
 	cfi_restore \reg \offset \docfi
 	.endm
 
-#if defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX)
+#if defined(CONFIG_CPU_R3000)
 #define STATMASK 0x3f
 #else
 #define STATMASK 0x1f
@@ -308,17 +308,12 @@
 		jal	octeon_mult_restore
 #endif
 #ifdef CONFIG_CPU_HAS_SMARTMIPS
-		LONG_L	$24, PT_ACX(sp)
-		mtlhx	$24
-		LONG_L	$24, PT_HI(sp)
-		mtlhx	$24
+		LONG_L	$14, PT_ACX(sp)
 		LONG_L	$24, PT_LO(sp)
-		mtlhx	$24
+		LONG_L	$15, PT_HI(sp)
 #elif !defined(CONFIG_CPU_MIPSR6)
 		LONG_L	$24, PT_LO(sp)
-		mtlo	$24
-		LONG_L	$24, PT_HI(sp)
-		mthi	$24
+		LONG_L	$15, PT_HI(sp)
 #endif
 #ifdef CONFIG_32BIT
 		cfi_ld	$8, PT_R8, \docfi
@@ -327,6 +322,14 @@
 		cfi_ld	$10, PT_R10, \docfi
 		cfi_ld	$11, PT_R11, \docfi
 		cfi_ld	$12, PT_R12, \docfi
+#ifdef CONFIG_CPU_HAS_SMARTMIPS
+		mtlhx	$14
+		mtlhx	$15
+		mtlhx	$24
+#elif !defined(CONFIG_CPU_MIPSR6)
+		mtlo	$24
+		mthi	$15
+#endif
 		cfi_ld	$13, PT_R13, \docfi
 		cfi_ld	$14, PT_R14, \docfi
 		cfi_ld	$15, PT_R15, \docfi
@@ -349,7 +352,7 @@
 		cfi_ld	sp, PT_R29, \docfi
 		.endm
 
-#if defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX)
+#if defined(CONFIG_CPU_R3000)
 
 		.macro	RESTORE_SOME docfi=0
 		.set	push
@@ -424,7 +427,7 @@
 
 		.macro	RESTORE_SP_AND_RET docfi=0
 		RESTORE_SP \docfi
-#ifdef CONFIG_CPU_MIPSR6
+#if defined(CONFIG_CPU_MIPSR5) || defined(CONFIG_CPU_MIPSR6)
 		eretnc
 #else
 		.set	push
@@ -450,7 +453,7 @@
  */
 		.macro	CLI
 		mfc0	t0, CP0_STATUS
-		li	t1, ST0_CU0 | STATMASK
+		li	t1, ST0_KERNEL_CUMASK | STATMASK
 		or	t0, t1
 		xori	t0, STATMASK
 		mtc0	t0, CP0_STATUS
@@ -463,7 +466,7 @@
  */
 		.macro	STI
 		mfc0	t0, CP0_STATUS
-		li	t1, ST0_CU0 | STATMASK
+		li	t1, ST0_KERNEL_CUMASK | STATMASK
 		or	t0, t1
 		xori	t0, STATMASK & ~1
 		mtc0	t0, CP0_STATUS
@@ -477,8 +480,8 @@
  */
 		.macro	KMODE
 		mfc0	t0, CP0_STATUS
-		li	t1, ST0_CU0 | (STATMASK & ~1)
-#if defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX)
+		li	t1, ST0_KERNEL_CUMASK | (STATMASK & ~1)
+#if defined(CONFIG_CPU_R3000)
 		andi	t2, t0, ST0_IEP
 		srl	t2, 2
 		or	t0, t2

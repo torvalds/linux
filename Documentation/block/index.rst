@@ -8,18 +8,17 @@ Block
    :maxdepth: 1
 
    bfq-iosched
-   biodoc
    biovecs
-   capability
+   blk-mq
    cmdline-partition
    data-integrity
    deadline-iosched
+   inline-encryption
    ioprio
    kyber-iosched
    null_blk
    pr
-   queue-sysfs
-   request
    stat
    switching-sched
    writeback_cache_control
+   ublk

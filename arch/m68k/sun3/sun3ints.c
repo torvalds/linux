@@ -11,14 +11,13 @@
 #include <linux/sched.h>
 #include <linux/kernel_stat.h>
 #include <linux/interrupt.h>
-#include <asm/segment.h>
 #include <asm/intersil.h>
 #include <asm/oplib.h>
 #include <asm/sun3ints.h>
 #include <asm/irq_regs.h>
 #include <linux/seq_file.h>
 
-extern void sun3_leds (unsigned char);
+#include "sun3.h"
 
 void sun3_disable_interrupts(void)
 {
@@ -30,11 +29,11 @@ void sun3_enable_interrupts(void)
 	sun3_enable_irq(0);
 }
 
-static int led_pattern[8] = {
-       ~(0x80), ~(0x01),
-       ~(0x40), ~(0x02),
-       ~(0x20), ~(0x04),
-       ~(0x10), ~(0x08)
+static unsigned char led_pattern[8] = {
+	(u8)~(0x80), (u8)~(0x01),
+	(u8)~(0x40), (u8)~(0x02),
+	(u8)~(0x20), (u8)~(0x04),
+	(u8)~(0x10), (u8)~(0x08)
 };
 
 volatile unsigned char* sun3_intreg;
@@ -73,8 +72,7 @@ static irqreturn_t sun3_int5(int irq, void *dev_id)
 #ifdef CONFIG_SUN3
 	intersil_clear();
 #endif
-	xtime_update(1);
-	update_process_times(user_mode(get_irq_regs()));
+	legacy_timer_tick(1);
 	cnt = kstat_irqs_cpu(irq, 0);
 	if (!(cnt % 20))
 		sun3_leds(led_pattern[cnt % 160 / 20]);

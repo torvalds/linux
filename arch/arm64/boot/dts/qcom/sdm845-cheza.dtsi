@@ -5,7 +5,6 @@
  * Copyright 2018 Google LLC.
  */
 
-#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 #include "sdm845.dtsi"
@@ -17,7 +16,7 @@
 / {
 	aliases {
 		bluetooth0 = &bluetooth;
-		hsuart0 = &uart6;
+		serial1 = &uart6;
 		serial0 = &uart9;
 		wifi0 = &wifi;
 	};
@@ -120,7 +119,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pen_eject_odl>;
 
-		pen-insert {
+		switch-pen-insert {
 			label = "Pen Insert";
 			/* Insert = low, eject = high */
 			gpios = <&tlmm 119 GPIO_ACTIVE_LOW>;
@@ -131,19 +130,161 @@
 	};
 
 	panel: panel {
-		compatible ="innolux,p120zdg-bf1";
+		compatible = "innolux,p120zdg-bf1";
 		power-supply = <&pp3300_dx_edp>;
 		backlight = <&backlight>;
 		no-hpd;
 
-		ports {
-			panel_in: port {
-				panel_in_edp: endpoint {
-					remote-endpoint = <&sn65dsi86_out>;
-				};
+		panel_in: port {
+			panel_in_edp: endpoint {
+				remote-endpoint = <&sn65dsi86_out>;
 			};
 		};
 	};
+};
+
+&cpufreq_hw {
+	/delete-property/ interrupts-extended; /* reference to lmh_cluster[01] */
+};
+
+&psci {
+	/delete-node/ power-domain-cpu0;
+	/delete-node/ power-domain-cpu1;
+	/delete-node/ power-domain-cpu2;
+	/delete-node/ power-domain-cpu3;
+	/delete-node/ power-domain-cpu4;
+	/delete-node/ power-domain-cpu5;
+	/delete-node/ power-domain-cpu6;
+	/delete-node/ power-domain-cpu7;
+	/delete-node/ power-domain-cluster;
+};
+
+&cpus {
+	/delete-node/ domain-idle-states;
+};
+
+&cpu_idle_states {
+	LITTLE_CPU_SLEEP_0: cpu-sleep-0-0 {
+		compatible = "arm,idle-state";
+		idle-state-name = "little-power-down";
+		arm,psci-suspend-param = <0x40000003>;
+		entry-latency-us = <350>;
+		exit-latency-us = <461>;
+		min-residency-us = <1890>;
+		local-timer-stop;
+	};
+
+	LITTLE_CPU_SLEEP_1: cpu-sleep-0-1 {
+		compatible = "arm,idle-state";
+		idle-state-name = "little-rail-power-down";
+		arm,psci-suspend-param = <0x40000004>;
+		entry-latency-us = <360>;
+		exit-latency-us = <531>;
+		min-residency-us = <3934>;
+		local-timer-stop;
+	};
+
+	BIG_CPU_SLEEP_0: cpu-sleep-1-0 {
+		compatible = "arm,idle-state";
+		idle-state-name = "big-power-down";
+		arm,psci-suspend-param = <0x40000003>;
+		entry-latency-us = <264>;
+		exit-latency-us = <621>;
+		min-residency-us = <952>;
+		local-timer-stop;
+	};
+
+	BIG_CPU_SLEEP_1: cpu-sleep-1-1 {
+		compatible = "arm,idle-state";
+		idle-state-name = "big-rail-power-down";
+		arm,psci-suspend-param = <0x40000004>;
+		entry-latency-us = <702>;
+		exit-latency-us = <1061>;
+		min-residency-us = <4488>;
+		local-timer-stop;
+	};
+
+	CLUSTER_SLEEP_0: cluster-sleep-0 {
+		compatible = "arm,idle-state";
+		idle-state-name = "cluster-power-down";
+		arm,psci-suspend-param = <0x400000F4>;
+		entry-latency-us = <3263>;
+		exit-latency-us = <6562>;
+		min-residency-us = <9987>;
+		local-timer-stop;
+	};
+};
+
+&CPU0 {
+	/delete-property/ power-domains;
+	/delete-property/ power-domain-names;
+	cpu-idle-states = <&LITTLE_CPU_SLEEP_0
+			   &LITTLE_CPU_SLEEP_1
+			   &CLUSTER_SLEEP_0>;
+};
+
+&CPU1 {
+	/delete-property/ power-domains;
+	/delete-property/ power-domain-names;
+	cpu-idle-states = <&LITTLE_CPU_SLEEP_0
+			   &LITTLE_CPU_SLEEP_1
+			   &CLUSTER_SLEEP_0>;
+};
+
+&CPU2 {
+	/delete-property/ power-domains;
+	/delete-property/ power-domain-names;
+	cpu-idle-states = <&LITTLE_CPU_SLEEP_0
+			   &LITTLE_CPU_SLEEP_1
+			   &CLUSTER_SLEEP_0>;
+};
+
+&CPU3 {
+	/delete-property/ power-domains;
+	/delete-property/ power-domain-names;
+	cpu-idle-states = <&LITTLE_CPU_SLEEP_0
+			   &LITTLE_CPU_SLEEP_1
+			   &CLUSTER_SLEEP_0>;
+};
+
+&CPU4 {
+	/delete-property/ power-domains;
+	/delete-property/ power-domain-names;
+	cpu-idle-states = <&BIG_CPU_SLEEP_0
+			   &BIG_CPU_SLEEP_1
+			   &CLUSTER_SLEEP_0>;
+};
+
+&CPU5 {
+	/delete-property/ power-domains;
+	/delete-property/ power-domain-names;
+	cpu-idle-states = <&BIG_CPU_SLEEP_0
+			   &BIG_CPU_SLEEP_1
+			   &CLUSTER_SLEEP_0>;
+};
+
+&CPU6 {
+	/delete-property/ power-domains;
+	/delete-property/ power-domain-names;
+	cpu-idle-states = <&BIG_CPU_SLEEP_0
+			   &BIG_CPU_SLEEP_1
+			   &CLUSTER_SLEEP_0>;
+};
+
+&CPU7 {
+	/delete-property/ power-domains;
+	/delete-property/ power-domain-names;
+	cpu-idle-states = <&BIG_CPU_SLEEP_0
+			   &BIG_CPU_SLEEP_1
+			   &CLUSTER_SLEEP_0>;
+};
+
+&lmh_cluster0 {
+	status = "disabled";
+};
+
+&lmh_cluster1 {
+	status = "disabled";
 };
 
 /*
@@ -165,6 +306,7 @@
 /delete-node/ &venus_mem;
 /delete-node/ &cdsp_mem;
 /delete-node/ &cdsp_pas;
+/delete-node/ &gpu_mem;
 
 /* Increase the size from 120 MB to 128 MB */
 &mpss_region {
@@ -187,8 +329,9 @@
 
 &qspi {
 	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&qspi_clk &qspi_cs0 &qspi_data01>;
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&qspi_clk>, <&qspi_cs0>, <&qspi_data0>, <&qspi_data1>;
+	pinctrl-1 = <&qspi_sleep>;
 
 	flash@0 {
 		compatible = "jedec,spi-nor";
@@ -207,7 +350,9 @@
 
 
 &apps_rsc {
-	pm8998-rpmh-regulators {
+	/delete-property/ power-domains;
+
+	regulators-0 {
 		compatible = "qcom,pm8998-rpmh-regulators";
 		qcom,pmic-id = "a";
 
@@ -489,7 +634,7 @@
 		};
 	};
 
-	pm8005-rpmh-regulators {
+	regulators-1 {
 		compatible = "qcom,pm8005-rpmh-regulators";
 		qcom,pmic-id = "c";
 
@@ -503,25 +648,6 @@
 			regulator-max-microvolt = <600000>;
 		};
 	};
-};
-
-&dsi0 {
-	status = "okay";
-	vdda-supply = <&vdda_mipi_dsi0_1p2>;
-
-	ports {
-		port@1 {
-			endpoint {
-				remote-endpoint = <&sn65dsi86_in>;
-				data-lanes = <0 1 2 3>;
-			};
-		};
-	};
-};
-
-&dsi0_phy {
-	status = "okay";
-	vdds-supply = <&vdda_mipi_dsi0_pll>;
 };
 
 edp_brij_i2c: &i2c3 {
@@ -547,6 +673,8 @@ edp_brij_i2c: &i2c3 {
 		clocks = <&rpmhcc RPMH_LN_BB_CLK2>;
 		clock-names = "refclk";
 
+		no-hpd;
+
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -554,7 +682,7 @@ edp_brij_i2c: &i2c3 {
 			port@0 {
 				reg = <0>;
 				sn65dsi86_in: endpoint {
-					remote-endpoint = <&dsi0_out>;
+					remote-endpoint = <&mdss_dsi0_out>;
 				};
 			};
 
@@ -613,6 +741,19 @@ ap_ts_i2c: &i2c14 {
 	};
 };
 
+&gmu {
+	status = "okay";
+};
+
+&gpu {
+	status = "okay";
+};
+
+&ipa {
+	qcom,gsi-loader = "modem";
+	status = "okay";
+};
+
 &lpasscc {
 	status = "okay";
 };
@@ -621,16 +762,53 @@ ap_ts_i2c: &i2c14 {
 	status = "okay";
 };
 
-&mdss_mdp {
+&mdss_dsi0 {
 	status = "okay";
+	vdda-supply = <&vdda_mipi_dsi0_1p2>;
+
+	ports {
+		port@1 {
+			endpoint {
+				remote-endpoint = <&sn65dsi86_in>;
+				data-lanes = <0 1 2 3>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_phy {
+	status = "okay";
+	vdds-supply = <&vdda_mipi_dsi0_pll>;
+};
+
+/*
+ * Cheza fw does not properly program the GPU aperture to allow the
+ * GPU to update the SMMU pagetables for context switches.  Work
+ * around this by dropping the "qcom,adreno-smmu" compat string.
+ */
+&adreno_smmu {
+	compatible = "qcom,sdm845-smmu-v2", "qcom,smmu-v2";
+};
+
+&mss_pil {
+	status = "okay";
+
+	iommus = <&apps_smmu 0x781 0x0>,
+		 <&apps_smmu 0x724 0x3>;
+};
+
+&pm8998_pwrkey {
+	status = "disabled";
 };
 
 &qupv3_id_0 {
 	status = "okay";
+	iommus = <&apps_smmu 0x0 0x3>;
 };
 
 &qupv3_id_1 {
 	status = "okay";
+	iommus = <&apps_smmu 0x6c0 0x3>;
 };
 
 &sdhc_2 {
@@ -649,6 +827,20 @@ ap_ts_i2c: &i2c14 {
 	status = "okay";
 };
 
+&spi5 {
+	status = "okay";
+
+	tpm@0 {
+		compatible = "google,cr50";
+		reg = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&h1_ap_int_odl>;
+		spi-max-frequency = <800000>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <129 IRQ_TYPE_EDGE_RISING>;
+	};
+};
+
 &spi10 {
 	status = "okay";
 
@@ -660,8 +852,9 @@ ap_ts_i2c: &i2c14 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&ec_ap_int_l>;
 		spi-max-frequency = <3000000>;
+		wakeup-source;
 
-		cros_ec_pwm: ec-pwm {
+		cros_ec_pwm: pwm {
 			compatible = "google,cros-ec-pwm";
 			#pwm-cells = <1>;
 		};
@@ -672,10 +865,6 @@ ap_ts_i2c: &i2c14 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
-
-		pdupdate {
-			compatible = "google,cros-ec-pd-update";
-		};
 	};
 };
 
@@ -685,7 +874,9 @@ ap_ts_i2c: &i2c14 {
 &uart6 {
 	status = "okay";
 
-	bluetooth: wcn3990-bt {
+	pinctrl-0 = <&qup_uart6_4pin>;
+
+	bluetooth: bluetooth {
 		compatible = "qcom,wcn3990-bt";
 		vddio-supply = <&src_pp1800_s4a>;
 		vddxo-supply = <&pp1800_l7a_wcn3990>;
@@ -701,9 +892,8 @@ ap_ts_i2c: &i2c14 {
 
 &ufs_mem_hc {
 	status = "okay";
-	pinctrl-names = "init", "default";
-	pinctrl-0 = <&ufs_dev_reset_assert>;
-	pinctrl-1 = <&ufs_dev_reset_deassert>;
+
+	reset-gpios = <&tlmm 150 GPIO_ACTIVE_LOW>;
 
 	vcc-supply = <&src_pp2950_l20a>;
 	vcc-max-microamp = <600000>;
@@ -819,143 +1009,76 @@ ap_ts_i2c: &i2c14 {
 /* PINCTRL - additions to nodes defined in sdm845.dtsi */
 
 &qspi_cs0 {
-	pinconf {
-		pins = "gpio90";
-		bias-disable;
-	};
+	bias-disable;		/* External pullup */
 };
 
 &qspi_clk {
-	pinconf {
-		pins = "gpio95";
-		bias-disable;
-	};
+	bias-disable;		/* Rely on Cr50 internal pulldown */
 };
 
-&qspi_data01 {
-	pinconf {
-		pins = "gpio91", "gpio92";
+&qspi_data0 {
+	bias-disable;		/* Rely on Cr50 internal pulldown */
+};
 
-		/* High-Z when no transfers; nice to park the lines */
-		bias-pull-up;
-	};
+&qspi_data1 {
+	bias-pull-down;
 };
 
 &qup_i2c3_default {
-	pinconf {
-		pins = "gpio41", "gpio42";
-		drive-strength = <2>;
+	drive-strength = <2>;
 
-		/* Has external pullup */
-		bias-disable;
-	};
+	/* Has external pullup */
+	bias-disable;
 };
 
 &qup_i2c11_default {
-	pinconf {
-		pins = "gpio31", "gpio32";
-		drive-strength = <2>;
+	drive-strength = <2>;
 
-		/* Has external pullup */
-		bias-disable;
-	};
+	/* Has external pullup */
+	bias-disable;
 };
 
 &qup_i2c12_default {
-	pinconf {
-		pins = "gpio49", "gpio50";
-		drive-strength = <2>;
+	drive-strength = <2>;
 
-		/* Has external pullup */
-		bias-disable;
-	};
+	/* Has external pullup */
+	bias-disable;
 };
 
 &qup_i2c14_default {
-	pinconf {
-		pins = "gpio33", "gpio34";
-		drive-strength = <2>;
+	drive-strength = <2>;
 
-		/* Has external pullup */
-		bias-disable;
-	};
+	/* Has external pullup */
+	bias-disable;
 };
 
 &qup_spi0_default {
-	pinconf {
-		pins = "gpio0", "gpio1", "gpio2", "gpio3";
-		drive-strength = <2>;
-		bias-disable;
-	};
+	drive-strength = <2>;
+	bias-disable;
 };
 
 &qup_spi5_default {
-	pinconf {
-		pins = "gpio85", "gpio86", "gpio87", "gpio88";
-		drive-strength = <2>;
-		bias-disable;
-	};
+	drive-strength = <2>;
+	bias-disable;
 };
 
 &qup_spi10_default {
-	pinconf {
-		pins = "gpio53", "gpio54", "gpio55", "gpio56";
-		drive-strength = <2>;
-		bias-disable;
-	};
+	drive-strength = <2>;
+	bias-disable;
 };
 
-&qup_uart6_default {
-	/* Change pinmux to all 4 pins since CTS and RTS are connected */
-	pinmux {
-		pins = "gpio45", "gpio46",
-		       "gpio47", "gpio48";
-	};
-
-	pinconf-cts {
-		/*
-		 * Configure a pull-down on 45 (CTS) to match the pull of
-		 * the Bluetooth module.
-		 */
-		pins = "gpio45";
-		bias-pull-down;
-	};
-
-	pinconf-rts-tx {
-		/* We'll drive 46 (RTS) and 47 (TX), so no pull */
-		pins = "gpio46", "gpio47";
-		drive-strength = <2>;
-		bias-disable;
-	};
-
-	pinconf-rx {
-		/*
-		 * Configure a pull-up on 48 (RX). This is needed to avoid
-		 * garbage data when the TX pin of the Bluetooth module is
-		 * in tri-state (module powered off or not driving the
-		 * signal yet).
-		 */
-		pins = "gpio48";
-		bias-pull-up;
-	};
+&qup_uart9_rx {
+	drive-strength = <2>;
+	bias-pull-up;
 };
 
-&qup_uart9_default {
-	pinconf-tx {
-		pins = "gpio4";
-		drive-strength = <2>;
-		bias-disable;
-	};
-
-	pinconf-rx {
-		pins = "gpio5";
-		drive-strength = <2>;
-		bias-pull-up;
-	};
+&qup_uart9_tx {
+	drive-strength = <2>;
+	bias-disable;
 };
 
 /* PINCTRL - board-specific pinctrl */
-&pm8005_gpio {
+&pm8005_gpios {
 	gpio-line-names = "",
 			  "",
 			  "SLB",
@@ -963,33 +1086,33 @@ ap_ts_i2c: &i2c14 {
 };
 
 &pm8998_adc {
-	adc-chan@4d {
+	channel@4d {
 		reg = <ADC5_AMUX_THM1_100K_PU>;
 		label = "sdm_temp";
 	};
 
-	adc-chan@4e {
+	channel@4e {
 		reg = <ADC5_AMUX_THM2_100K_PU>;
 		label = "quiet_temp";
 	};
 
-	adc-chan@4f {
+	channel@4f {
 		reg = <ADC5_AMUX_THM3_100K_PU>;
 		label = "lte_temp_1";
 	};
 
-	adc-chan@50 {
+	channel@50 {
 		reg = <ADC5_AMUX_THM4_100K_PU>;
 		label = "lte_temp_2";
 	};
 
-	adc-chan@51 {
+	channel@51 {
 		reg = <ADC5_AMUX_THM5_100K_PU>;
 		label = "charger_temp";
 	};
 };
 
-&pm8998_gpio {
+&pm8998_gpios {
 	gpio-line-names = "",
 			  "",
 			  "SW_CTRL",
@@ -1039,288 +1162,173 @@ ap_ts_i2c: &i2c14 {
 		output-low;
 	};
 
-	ap_edp_bklten: ap-edp-bklten {
-		pinmux {
-			pins = "gpio37";
-			function = "gpio";
-		};
-
-		pinconf {
-			pins = "gpio37";
-			drive-strength = <2>;
-			bias-disable;
-		};
+	ap_edp_bklten: ap-edp-bklten-state {
+		pins = "gpio37";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
 	};
 
-	bios_flash_wp_r_l: bios-flash-wp-r-l {
-		pinmux {
-			pins = "gpio128";
-			function = "gpio";
-			input-enable;
-		};
-
-		pinconf {
-			pins = "gpio128";
-			bias-disable;
-		};
+	bios_flash_wp_r_l: bios-flash-wp-r-l-state {
+		pins = "gpio128";
+		function = "gpio";
+		bias-disable;
 	};
 
-	ec_ap_int_l: ec-ap-int-l {
-		pinmux {
-		       pins = "gpio122";
-		       function = "gpio";
-		       input-enable;
-		};
-
-		pinconf {
-		       pins = "gpio122";
-		       bias-pull-up;
-		};
+	ec_ap_int_l: ec-ap-int-l-state {
+	       pins = "gpio122";
+	       function = "gpio";
+	       bias-pull-up;
 	};
 
-	edp_brij_en: edp-brij-en {
-		pinmux {
-			pins = "gpio102";
-			function = "gpio";
-		};
-
-		pinconf {
-			pins = "gpio102";
-			drive-strength = <2>;
-			bias-disable;
-		};
+	edp_brij_en: edp-brij-en-state {
+		pins = "gpio102";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
 	};
 
-	edp_brij_irq: edp-brij-irq {
-		pinmux {
-			pins = "gpio10";
-			function = "gpio";
-		};
-
-		pinconf {
-			pins = "gpio10";
-			drive-strength = <2>;
-			bias-pull-down;
-		};
+	edp_brij_irq: edp-brij-irq-state {
+		pins = "gpio10";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
 	};
 
-	en_pp3300_dx_edp: en-pp3300-dx-edp {
-		pinmux {
-			pins = "gpio43";
-			function = "gpio";
-		};
-
-		pinconf {
-			pins = "gpio43";
-			drive-strength = <2>;
-			bias-disable;
-		};
+	en_pp3300_dx_edp: en-pp3300-dx-edp-state {
+		pins = "gpio43";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
 	};
 
-	h1_ap_int_odl: h1-ap-int-odl {
-		pinmux {
-			pins = "gpio129";
-			function = "gpio";
-			input-enable;
-		};
-
-		pinconf {
-			pins = "gpio129";
-			bias-pull-up;
-		};
+	h1_ap_int_odl: h1-ap-int-odl-state {
+		pins = "gpio129";
+		function = "gpio";
+		bias-pull-up;
 	};
 
-	pen_eject_odl: pen-eject-odl {
-		pinmux {
-			pins = "gpio119";
-			function = "gpio";
-			bias-pull-up;
-		};
+	pen_eject_odl: pen-eject-odl-state {
+		pins = "gpio119";
+		function = "gpio";
+		bias-pull-up;
 	};
 
-	pen_irq_l: pen-irq-l {
-		pinmux {
-			pins = "gpio24";
-			function = "gpio";
-		};
+	pen_irq_l: pen-irq-l-state {
+		pins = "gpio24";
+		function = "gpio";
 
-		pinconf {
-			pins = "gpio24";
-
-			/* Has external pullup */
-			bias-disable;
-		};
+		/* Has external pullup */
+		bias-disable;
 	};
 
-	pen_pdct_l: pen-pdct-l {
-		pinmux {
-			pins = "gpio63";
-			function = "gpio";
-		};
+	pen_pdct_l: pen-pdct-l-state {
+		pins = "gpio63";
+		function = "gpio";
 
-		pinconf {
-			pins = "gpio63";
-
-			/* Has external pullup */
-			bias-disable;
-		};
+		/* Has external pullup */
+		bias-disable;
 	};
 
-	pen_rst_l: pen-rst-l {
-		pinmux  {
-			pins = "gpio23";
-			function = "gpio";
-		};
+	pen_rst_l: pen-rst-l-state {
+		pins = "gpio23";
+		function = "gpio";
+		bias-disable;
+		drive-strength = <2>;
 
-		pinconf {
-			pins = "gpio23";
-			bias-disable;
-			drive-strength = <2>;
-
-			/*
-			 * The pen driver doesn't currently support
-			 * driving this reset line.  By specifying
-			 * output-high here we're relying on the fact
-			 * that this pin has a default pulldown at boot
-			 * (which makes sure the pen was in reset if it
-			 * was powered) and then we set it high here to
-			 * take it out of reset.  Better would be if the
-			 * pen driver could control this and we could
-			 * remove "output-high" here.
-			 */
-			output-high;
-		};
+		/*
+		 * The pen driver doesn't currently support
+		 * driving this reset line.  By specifying
+		 * output-high here we're relying on the fact
+		 * that this pin has a default pulldown at boot
+		 * (which makes sure the pen was in reset if it
+		 * was powered) and then we set it high here to
+		 * take it out of reset.  Better would be if the
+		 * pen driver could control this and we could
+		 * remove "output-high" here.
+		 */
+		output-high;
 	};
 
-	sdc2_clk: sdc2-clk {
-		pinconf {
-			pins = "sdc2_clk";
-			bias-disable;
+	qspi_sleep: qspi-sleep-state {
+		pins = "gpio90", "gpio91", "gpio92", "gpio95";
 
-			/*
-			 * It seems that mmc_test reports errors if drive
-			 * strength is not 16.
-			 */
-			drive-strength = <16>;
-		};
+		/*
+		 * When we're not actively transferring we want pins as GPIOs
+		 * with output disabled so that the quad SPI IP block stops
+		 * driving them. We rely on the normal pulls configured in
+		 * the active state and don't redefine them here. Also note
+		 * that we don't need the reverse (output-enable) in the
+		 * normal mode since the "output-enable" only matters for
+		 * GPIO function.
+		 */
+		function = "gpio";
+		output-disable;
 	};
 
-	sdc2_cmd: sdc2-cmd {
-		pinconf {
-			pins = "sdc2_cmd";
-			bias-pull-up;
-			drive-strength = <16>;
-		};
+	sdc2_clk: sdc2-clk-state {
+		pins = "sdc2_clk";
+		bias-disable;
+
+		/*
+		 * It seems that mmc_test reports errors if drive
+		 * strength is not 16.
+		 */
+		drive-strength = <16>;
 	};
 
-	sdc2_data: sdc2-data {
-		pinconf {
-			pins = "sdc2_data";
-			bias-pull-up;
-			drive-strength = <16>;
-		};
+	sdc2_cmd: sdc2-cmd-state {
+		pins = "sdc2_cmd";
+		bias-pull-up;
+		drive-strength = <16>;
 	};
 
-	sd_cd_odl: sd-cd-odl {
-		pinmux {
-			pins = "gpio44";
-			function = "gpio";
-		};
-
-		pinconf {
-			pins = "gpio44";
-			bias-pull-up;
-		};
+	sdc2_data: sdc2-data-state {
+		pins = "sdc2_data";
+		bias-pull-up;
+		drive-strength = <16>;
 	};
 
-	ts_int_l: ts-int-l {
-		pinmux  {
-			pins = "gpio125";
-			function = "gpio";
-		};
-
-		pinconf {
-			pins = "gpio125";
-			bias-pull-up;
-		};
+	sd_cd_odl: sd-cd-odl-state {
+		pins = "gpio44";
+		function = "gpio";
+		bias-pull-up;
 	};
 
-	ts_reset_l: ts-reset-l {
-		pinmux  {
-			pins = "gpio118";
-			function = "gpio";
-		};
-
-		pinconf {
-			pins = "gpio118";
-			bias-disable;
-			drive-strength = <2>;
-		};
+	ts_int_l: ts-int-l-state {
+		pins = "gpio125";
+		function = "gpio";
+		bias-pull-up;
 	};
 
-	ufs_dev_reset_assert: ufs_dev_reset_assert {
-		config {
-			pins = "ufs_reset";
-			bias-pull-down;		/* default: pull down */
-			/*
-			 * UFS_RESET driver strengths are having
-			 * different values/steps compared to typical
-			 * GPIO drive strengths.
-			 *
-			 * Following table clarifies:
-			 *
-			 * HDRV value | UFS_RESET | Typical GPIO
-			 *   (dec)    |   (mA)    |    (mA)
-			 *     0      |   0.8     |    2
-			 *     1      |   1.55    |    4
-			 *     2      |   2.35    |    6
-			 *     3      |   3.1     |    8
-			 *     4      |   3.9     |    10
-			 *     5      |   4.65    |    12
-			 *     6      |   5.4     |    14
-			 *     7      |   6.15    |    16
-			 *
-			 * POR value for UFS_RESET HDRV is 3 which means
-			 * 3.1mA and we want to use that. Hence just
-			 * specify 8mA to "drive-strength" binding and
-			 * that should result into writing 3 to HDRV
-			 * field.
-			 */
-			drive-strength = <8>;	/* default: 3.1 mA */
-			output-low; /* active low reset */
-		};
+	ts_reset_l: ts-reset-l-state {
+		pins = "gpio118";
+		function = "gpio";
+		bias-disable;
+		drive-strength = <2>;
 	};
 
-	ufs_dev_reset_deassert: ufs_dev_reset_deassert {
-		config {
-			pins = "ufs_reset";
-			bias-pull-down;		/* default: pull down */
-			/*
-			 * default: 3.1 mA
-			 * check comments under ufs_dev_reset_assert
-			 */
-			drive-strength = <8>;
-			output-high; /* active low reset */
-		};
+	ap_suspend_l_assert: ap-suspend-l-assert-state {
+		pins = "gpio126";
+		function = "gpio";
+		bias-disable;
+		drive-strength = <2>;
+		output-low;
 	};
 
-	ap_suspend_l_assert: ap_suspend_l_assert {
-		config {
-			pins = "gpio126";
-			function = "gpio";
-			bias-no-pull;
-			drive-strength = <2>;
-			output-low;
-		};
+	ap_suspend_l_deassert: ap-suspend-l-deassert-state {
+		pins = "gpio126";
+		function = "gpio";
+		bias-disable;
+		drive-strength = <2>;
+		output-high;
 	};
+};
 
-	ap_suspend_l_deassert: ap_suspend_l_deassert {
-		config {
-			pins = "gpio126";
-			function = "gpio";
-			bias-no-pull;
-			drive-strength = <2>;
-			output-high;
-		};
+&venus {
+	status = "okay";
+
+	video-firmware {
+		iommus = <&apps_smmu 0x10b2 0x0>;
 	};
 };

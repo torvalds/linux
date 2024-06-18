@@ -1,0 +1,222 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/allwinner,sun6i-a31-prcm.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Allwinner A31 PRCM
+
+maintainers:
+  - Chen-Yu Tsai <wens@csie.org>
+  - Maxime Ripard <mripard@kernel.org>
+
+deprecated: true
+
+properties:
+  compatible:
+    const: allwinner,sun6i-a31-prcm
+
+  reg:
+    maxItems: 1
+
+patternProperties:
+  "^.*-(clk|rst)$":
+    type: object
+    unevaluatedProperties: false
+
+    properties:
+      compatible:
+        enum:
+          - allwinner,sun4i-a10-mod0-clk
+          - allwinner,sun6i-a31-apb0-clk
+          - allwinner,sun6i-a31-apb0-gates-clk
+          - allwinner,sun6i-a31-ar100-clk
+          - allwinner,sun6i-a31-clock-reset
+          - fixed-factor-clock
+
+    required:
+      - compatible
+
+    allOf:
+      - if:
+          properties:
+            compatible:
+              contains:
+                const: fixed-factor-clock
+
+        then:
+          $ref: /schemas/clock/fixed-factor-clock.yaml#
+
+      - if:
+          properties:
+            compatible:
+              contains:
+                const: allwinner,sun4i-a10-mod0-clk
+
+        then:
+          properties:
+            "#clock-cells":
+              const: 0
+
+            clocks:
+              maxItems: 2
+
+            clock-output-names:
+              maxItems: 1
+
+          required:
+            - "#clock-cells"
+            - clocks
+            - clock-output-names
+
+      - if:
+          properties:
+            compatible:
+              contains:
+                const: allwinner,sun6i-a31-apb0-clk
+
+        then:
+          properties:
+            "#clock-cells":
+              const: 0
+
+            clocks:
+              maxItems: 1
+
+            clock-output-names:
+              maxItems: 1
+
+          required:
+            - "#clock-cells"
+            - clocks
+            - clock-output-names
+
+      - if:
+          properties:
+            compatible:
+              contains:
+                const: allwinner,sun6i-a31-apb0-gates-clk
+
+        then:
+          properties:
+            "#clock-cells":
+              const: 1
+              description: >
+                This additional argument passed to that clock is the
+                offset of the bit controlling this particular gate in
+                the register.
+
+            clocks:
+              maxItems: 1
+
+            clock-output-names:
+              minItems: 1
+              maxItems: 32
+
+          required:
+            - "#clock-cells"
+            - clocks
+            - clock-output-names
+
+      - if:
+          properties:
+            compatible:
+              contains:
+                const: allwinner,sun6i-a31-ar100-clk
+
+        then:
+          properties:
+            "#clock-cells":
+              const: 0
+
+            clocks:
+              maxItems: 4
+              description: >
+                The parent order must match the hardware programming
+                order.
+
+            clock-output-names:
+              maxItems: 1
+
+          required:
+            - "#clock-cells"
+            - clocks
+            - clock-output-names
+
+      - if:
+          properties:
+            compatible:
+              contains:
+                const: allwinner,sun6i-a31-clock-reset
+
+        then:
+          properties:
+            "#reset-cells":
+              const: 1
+
+          required:
+            - "#reset-cells"
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/sun6i-a31-ccu.h>
+
+    prcm@1f01400 {
+        compatible = "allwinner,sun6i-a31-prcm";
+        reg = <0x01f01400 0x200>;
+
+        ar100: ar100-clk {
+            compatible = "allwinner,sun6i-a31-ar100-clk";
+            #clock-cells = <0>;
+            clocks = <&rtc 0>, <&osc24M>,
+                     <&ccu CLK_PLL_PERIPH>,
+                     <&ccu CLK_PLL_PERIPH>;
+            clock-output-names = "ar100";
+        };
+
+        ahb0: ahb0-clk {
+            compatible = "fixed-factor-clock";
+            #clock-cells = <0>;
+            clock-div = <1>;
+            clock-mult = <1>;
+            clocks = <&ar100>;
+            clock-output-names = "ahb0";
+        };
+
+        apb0: apb0-clk {
+            compatible = "allwinner,sun6i-a31-apb0-clk";
+            #clock-cells = <0>;
+            clocks = <&ahb0>;
+            clock-output-names = "apb0";
+        };
+
+        apb0_gates: apb0-gates-clk {
+            compatible = "allwinner,sun6i-a31-apb0-gates-clk";
+            #clock-cells = <1>;
+            clocks = <&apb0>;
+            clock-output-names = "apb0_pio", "apb0_ir",
+                                 "apb0_timer", "apb0_p2wi",
+                                 "apb0_uart", "apb0_1wire",
+                                 "apb0_i2c";
+        };
+
+        ir_clk: ir-clk {
+            #clock-cells = <0>;
+            compatible = "allwinner,sun4i-a10-mod0-clk";
+            clocks = <&rtc 0>, <&osc24M>;
+            clock-output-names = "ir";
+        };
+
+        apb0_rst: apb0-rst {
+            compatible = "allwinner,sun6i-a31-clock-reset";
+            #reset-cells = <1>;
+        };
+    };
+
+...

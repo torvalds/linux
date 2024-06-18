@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mmc/mmc-controller.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: MMC Controller Generic Binding
+title: MMC Controller Common Properties
 
 maintainers:
   - Ulf Hansson <ulf.hansson@linaro.org>
@@ -13,6 +13,10 @@ description: |
   These properties are common to multiple MMC host controllers. Any host
   that requires the respective functionality should implement them using
   these definitions.
+
+  It is possible to assign a fixed index mmcN to an MMC host controller
+  (and the corresponding mmcblkN devices) by defining an alias in the
+  /aliases device tree node.
 
 properties:
   $nodename:
@@ -36,6 +40,7 @@ properties:
       There is no card detection available; polling must be used.
 
   cd-gpios:
+    maxItems: 1
     description:
       The card detection will be done using the GPIO provided.
 
@@ -76,33 +81,38 @@ properties:
   # Other properties
 
   bus-width:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [1, 4, 8]
-        default: 1
     description:
       Number of data lines.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [1, 4, 8]
+    default: 1
 
   max-frequency:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - minimum: 400000
-      - maximum: 200000000
-    description:
-      Maximum operating frequency of the bus.
+    description: |
+      Maximum operating frequency of the bus:
+        - for eMMC, the maximum supported frequency is 200MHz,
+        - for SD/SDIO cards the SDR104 mode has a max supported
+          frequency of 208MHz,
+        - some mmc host controllers do support a max frequency upto
+          384MHz.
+      So, lets keep the maximum supported value here.
+
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 400000
+    maximum: 384000000
 
   disable-wp:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
       When set, no physical write-protect line is present. This
       property should only be specified when the controller has a
-      dedicated write-protect detection logic. If a GPIO is always
-      used for the write-protect detection. If a GPIO is always used
+      dedicated write-protect detection logic. If a GPIO is always used
       for the write-protect detection logic, it is sufficient to not
       specify the wp-gpios property in the absence of a write-protect
-      line.
+      line. Not used in combination with eMMC or SDIO.
 
   wp-gpios:
+    maxItems: 1
     description:
       GPIO to use for the write-protect detection.
 
@@ -172,6 +182,11 @@ properties:
     description:
       Full power cycle of the card is supported.
 
+  full-pwr-cycle-in-suspend:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      Full power cycle of the card in suspend is supported.
+
   mmc-ddr-1_2v:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
@@ -212,14 +227,18 @@ properties:
     description:
       eMMC HS400 enhanced strobe mode is supported
 
+  no-mmc-hs400:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      All eMMC HS400 modes are not supported.
+
   dsr:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - minimum: 0
-      - maximum: 0xffff
     description:
       Value the card Driver Stage Register (DSR) should be programmed
       with.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 0xffff
 
   no-sdio:
     $ref: /schemas/types.yaml#/definitions/flag
@@ -239,25 +258,22 @@ properties:
       initialization.
 
   fixed-emmc-driver-type:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - minimum: 0
-      - maximum: 4
     description:
       For non-removable eMMC, enforce this driver type. The value is
       the driver type as specified in the eMMC specification (table
       206 in spec version 5.1)
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 4
 
   post-power-on-delay-ms:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - default: 10
     description:
       It was invented for MMC pwrseq-simple which could be referred to
-      mmc-pwrseq-simple.txt. But now it\'s reused as a tunable delay
+      mmc-pwrseq-simple.yaml. But now it\'s reused as a tunable delay
       waiting for I/O signalling and card power supply to be stable,
       regardless of whether pwrseq-simple is used. Default to 10ms if
       no available.
+    default: 10
 
   supports-cqe:
     $ref: /schemas/types.yaml#/definitions/flag
@@ -277,7 +293,6 @@ properties:
     description:
       SDIO only. Preserves card power during a suspend/resume cycle.
 
-  # Deprecated: enable-sdio-wakeup
   wakeup-source:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
@@ -289,7 +304,10 @@ properties:
 
   vqmmc-supply:
     description:
-      Supply for the bus IO line power
+      Supply for the bus IO line power, such as a level shifter.
+      If the level shifter is controlled by a GPIO line, this shall
+      be modeled as a "regulator-fixed" with a GPIO line for
+      switching the level shifter on/off.
 
   mmc-pwrseq:
     $ref: /schemas/types.yaml#/definitions/phandle
@@ -324,39 +342,34 @@ patternProperties:
               subnode describes. A value of 0 denotes the memory SD
               function, values from 1 to 7 denote the SDIO functions.
 
-      broken-hpi:
-        $ref: /schemas/types.yaml#/definitions/flag
-        description:
-          Use this to indicate that the mmc-card has a broken hpi
-          implementation, and that hpi should not be used.
-
     required:
       - reg
+
+  "^clk-phase-(legacy|sd-hs|mmc-(hs|hs[24]00|ddr52)|uhs-(sdr(12|25|50|104)|ddr50))$":
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+
+    minItems: 2
+    maxItems: 2
+    items:
+      minimum: 0
+      maximum: 359
+      description:
+        Set the clock (phase) delays which are to be configured in the
+        controller while switching to particular speed mode. These values
+        are in pair of degrees.
 
 dependencies:
   cd-debounce-delay-ms: [ cd-gpios ]
   fixed-emmc-driver-type: [ non-removable ]
 
-examples:
-  - |
-    sdhci@ab000000 {
-        compatible = "sdhci";
-        reg = <0xab000000 0x200>;
-        interrupts = <23>;
-        bus-width = <4>;
-        cd-gpios = <&gpio 69 0>;
-        cd-inverted;
-        wp-gpios = <&gpio 70 0>;
-        max-frequency = <50000000>;
-        keep-power-in-suspend;
-        wakeup-source;
-        mmc-pwrseq = <&sdhci0_pwrseq>;
-    };
+additionalProperties: true
 
+examples:
   - |
     mmc3: mmc@1c12000 {
         #address-cells = <1>;
         #size-cells = <0>;
+        reg = <0x1c12000 0x200>;
         pinctrl-names = "default";
         pinctrl-0 = <&mmc3_pins_a>;
         vmmc-supply = <&reg_vmmc3>;
@@ -364,9 +377,9 @@ examples:
         non-removable;
         mmc-pwrseq = <&sdhci0_pwrseq>;
 
-        brcmf: bcrmf@1 {
+        brcmf: wifi@1 {
             reg = <1>;
-            compatible = "brcm,bcm43xx-fmac";
+            compatible = "brcm,bcm4329-fmac";
             interrupt-parent = <&pio>;
             interrupts = <10 8>;
             interrupt-names = "host-wake";

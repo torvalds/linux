@@ -1,16 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Bestcomm ATA task driver
- *
  *
  * Patterned after bestcomm/fec.c by Dale Farnsworth <dfarnsworth@mvista.com>
  *                                   2003-2004 (c) MontaVista, Software, Inc.
  *
  * Copyright (C) 2006-2007 Sylvain Munaut <tnt@246tNt.com>
  * Copyright (C) 2006      Freescale - John Rigby
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2. This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
  */
 
 #include <linux/kernel.h>
@@ -133,7 +129,7 @@ void bcom_ata_reset_bd(struct bcom_task *tsk)
 	struct bcom_ata_var *var;
 
 	/* Reset all BD */
-	memset(tsk->bd, 0x00, tsk->num_bd * tsk->bd_size);
+	memset_io(tsk->bd, 0x00, tsk->num_bd * tsk->bd_size);
 
 	tsk->index = 0;
 	tsk->outdex = 0;
@@ -154,4 +150,3 @@ EXPORT_SYMBOL_GPL(bcom_ata_release);
 MODULE_DESCRIPTION("BestComm ATA task driver");
 MODULE_AUTHOR("John Rigby");
 MODULE_LICENSE("GPL v2");
-

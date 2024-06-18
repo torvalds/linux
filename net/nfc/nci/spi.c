@@ -27,7 +27,7 @@
 
 #define CRC_INIT		0xFFFF
 
-static int __nci_spi_send(struct nci_spi *nspi, struct sk_buff *skb,
+static int __nci_spi_send(struct nci_spi *nspi, const struct sk_buff *skb,
 			  int cs_change)
 {
 	struct spi_message m;
@@ -44,7 +44,8 @@ static int __nci_spi_send(struct nci_spi *nspi, struct sk_buff *skb,
 		t.len = 0;
 	}
 	t.cs_change = cs_change;
-	t.delay_usecs = nspi->xfer_udelay;
+	t.delay.value = nspi->xfer_udelay;
+	t.delay.unit = SPI_DELAY_UNIT_USECS;
 	t.speed_hz = nspi->xfer_speed_hz;
 
 	spi_message_init(&m);
@@ -150,6 +151,8 @@ static int send_acknowledge(struct nci_spi *nspi, u8 acknowledge)
 	int ret;
 
 	skb = nci_skb_alloc(nspi->ndev, 0, GFP_KERNEL);
+	if (!skb)
+		return -ENOMEM;
 
 	/* add the NCI SPI header to the start of the buffer */
 	hdr = skb_push(skb, NCI_SPI_HDR_LEN);
@@ -216,7 +219,8 @@ static struct sk_buff *__nci_spi_read(struct nci_spi *nspi)
 	rx.rx_buf = skb_put(skb, rx_len);
 	rx.len = rx_len;
 	rx.cs_change = 0;
-	rx.delay_usecs = nspi->xfer_udelay;
+	rx.delay.value = nspi->xfer_udelay;
+	rx.delay.unit = SPI_DELAY_UNIT_USECS;
 	rx.speed_hz = nspi->xfer_speed_hz;
 	spi_message_add_tail(&rx, &m);
 
@@ -315,4 +319,5 @@ done:
 }
 EXPORT_SYMBOL_GPL(nci_spi_read);
 
+MODULE_DESCRIPTION("NFC Controller Interface (NCI) SPI link layer");
 MODULE_LICENSE("GPL");

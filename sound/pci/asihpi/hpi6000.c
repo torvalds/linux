@@ -388,7 +388,7 @@ void HPI_6000(struct hpi_message *phm, struct hpi_response *phr)
 /* SUBSYSTEM */
 
 /* create an adapter object and initialise it based on resource information
- * passed in in the message
+ * passed in the message
  * NOTE - you cannot use this function AND the FindAdapters function at the
  * same time, the application must use only one of them to get the adapters
  */
@@ -1253,7 +1253,6 @@ static u16 hpi6000_dsp_block_read32(struct hpi_adapter_obj *pao,
 	int local_count = count;
 	int xfer_size;
 	u32 *pdata = dest;
-	u32 loop_count = 0;
 
 	while (local_count) {
 		if (local_count > c6711_burst_size)
@@ -1273,7 +1272,6 @@ static u16 hpi6000_dsp_block_read32(struct hpi_adapter_obj *pao,
 		pdata += xfer_size;
 		local_hpi_address += sizeof(u32) * xfer_size;
 		local_count -= xfer_size;
-		loop_count++;
 	}
 
 	if (time_out)

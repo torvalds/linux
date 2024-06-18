@@ -1,0 +1,3681 @@
+[
+    {
+        "BriefDescription": "Free running counter that increments for every 32 bytes of data sent from the IO agent to the SOC",
+        "EventCode": "0xff",
+        "EventName": "UNC_IIO_BANDWIDTH_IN.PART0_FREERUN",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "iio_free_running"
+    },
+    {
+        "BriefDescription": "Free running counter that increments for every 32 bytes of data sent from the IO agent to the SOC",
+        "EventCode": "0xff",
+        "EventName": "UNC_IIO_BANDWIDTH_IN.PART1_FREERUN",
+        "PerPkg": "1",
+        "UMask": "0x21",
+        "Unit": "iio_free_running"
+    },
+    {
+        "BriefDescription": "Free running counter that increments for every 32 bytes of data sent from the IO agent to the SOC",
+        "EventCode": "0xff",
+        "EventName": "UNC_IIO_BANDWIDTH_IN.PART2_FREERUN",
+        "PerPkg": "1",
+        "UMask": "0x22",
+        "Unit": "iio_free_running"
+    },
+    {
+        "BriefDescription": "Free running counter that increments for every 32 bytes of data sent from the IO agent to the SOC",
+        "EventCode": "0xff",
+        "EventName": "UNC_IIO_BANDWIDTH_IN.PART3_FREERUN",
+        "PerPkg": "1",
+        "UMask": "0x23",
+        "Unit": "iio_free_running"
+    },
+    {
+        "BriefDescription": "Free running counter that increments for every 32 bytes of data sent from the IO agent to the SOC",
+        "EventCode": "0xff",
+        "EventName": "UNC_IIO_BANDWIDTH_IN.PART4_FREERUN",
+        "PerPkg": "1",
+        "UMask": "0x24",
+        "Unit": "iio_free_running"
+    },
+    {
+        "BriefDescription": "Free running counter that increments for every 32 bytes of data sent from the IO agent to the SOC",
+        "EventCode": "0xff",
+        "EventName": "UNC_IIO_BANDWIDTH_IN.PART5_FREERUN",
+        "PerPkg": "1",
+        "UMask": "0x25",
+        "Unit": "iio_free_running"
+    },
+    {
+        "BriefDescription": "Free running counter that increments for every 32 bytes of data sent from the IO agent to the SOC",
+        "EventCode": "0xff",
+        "EventName": "UNC_IIO_BANDWIDTH_IN.PART6_FREERUN",
+        "PerPkg": "1",
+        "UMask": "0x26",
+        "Unit": "iio_free_running"
+    },
+    {
+        "BriefDescription": "Free running counter that increments for every 32 bytes of data sent from the IO agent to the SOC",
+        "EventCode": "0xff",
+        "EventName": "UNC_IIO_BANDWIDTH_IN.PART7_FREERUN",
+        "PerPkg": "1",
+        "UMask": "0x27",
+        "Unit": "iio_free_running"
+    },
+    {
+        "BriefDescription": "Free running counter that increments for every 32 bytes of data sent from the IO agent to the SOC",
+        "EventCode": "0xff",
+        "EventName": "UNC_IIO_BANDWIDTH_OUT.PART0_FREERUN",
+        "PerPkg": "1",
+        "UMask": "0x30",
+        "Unit": "iio_free_running"
+    },
+    {
+        "BriefDescription": "Free running counter that increments for every 32 bytes of data sent from the IO agent to the SOC",
+        "EventCode": "0xff",
+        "EventName": "UNC_IIO_BANDWIDTH_OUT.PART1_FREERUN",
+        "PerPkg": "1",
+        "UMask": "0x31",
+        "Unit": "iio_free_running"
+    },
+    {
+        "BriefDescription": "Free running counter that increments for every 32 bytes of data sent from the IO agent to the SOC",
+        "EventCode": "0xff",
+        "EventName": "UNC_IIO_BANDWIDTH_OUT.PART2_FREERUN",
+        "PerPkg": "1",
+        "UMask": "0x32",
+        "Unit": "iio_free_running"
+    },
+    {
+        "BriefDescription": "Free running counter that increments for every 32 bytes of data sent from the IO agent to the SOC",
+        "EventCode": "0xff",
+        "EventName": "UNC_IIO_BANDWIDTH_OUT.PART3_FREERUN",
+        "PerPkg": "1",
+        "UMask": "0x33",
+        "Unit": "iio_free_running"
+    },
+    {
+        "BriefDescription": "Free running counter that increments for every 32 bytes of data sent from the IO agent to the SOC",
+        "EventCode": "0xff",
+        "EventName": "UNC_IIO_BANDWIDTH_OUT.PART4_FREERUN",
+        "PerPkg": "1",
+        "UMask": "0x34",
+        "Unit": "iio_free_running"
+    },
+    {
+        "BriefDescription": "Free running counter that increments for every 32 bytes of data sent from the IO agent to the SOC",
+        "EventCode": "0xff",
+        "EventName": "UNC_IIO_BANDWIDTH_OUT.PART5_FREERUN",
+        "PerPkg": "1",
+        "UMask": "0x35",
+        "Unit": "iio_free_running"
+    },
+    {
+        "BriefDescription": "Free running counter that increments for every 32 bytes of data sent from the IO agent to the SOC",
+        "EventCode": "0xff",
+        "EventName": "UNC_IIO_BANDWIDTH_OUT.PART6_FREERUN",
+        "PerPkg": "1",
+        "UMask": "0x36",
+        "Unit": "iio_free_running"
+    },
+    {
+        "BriefDescription": "Free running counter that increments for every 32 bytes of data sent from the IO agent to the SOC",
+        "EventCode": "0xff",
+        "EventName": "UNC_IIO_BANDWIDTH_OUT.PART7_FREERUN",
+        "PerPkg": "1",
+        "UMask": "0x37",
+        "Unit": "iio_free_running"
+    },
+    {
+        "BriefDescription": "IIO Clockticks",
+        "EventCode": "0x01",
+        "EventName": "UNC_IIO_CLOCKTICKS",
+        "PerPkg": "1",
+        "PortMask": "0x0000",
+        "PublicDescription": "Number of IIO clock cycles while the event is enabled",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Free running counter that increments for IIO clocktick",
+        "EventCode": "0xff",
+        "EventName": "UNC_IIO_CLOCKTICKS_FREERUN",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iio_free_running"
+    },
+    {
+        "BriefDescription": "PCIe Completion Buffer Inserts of completions with data: Part 0-7",
+        "EventCode": "0xc2",
+        "EventName": "UNC_IIO_COMP_BUF_INSERTS.CMPD.ALL_PARTS",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0xff",
+        "PublicDescription": "PCIe Completion Buffer Inserts of completions with data : Part 0-7",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PCIe Completion Buffer Inserts of completions with data: Part 0",
+        "EventCode": "0xc2",
+        "EventName": "UNC_IIO_COMP_BUF_INSERTS.CMPD.PART0",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0001",
+        "PublicDescription": "PCIe Completion Buffer Inserts of completions with data : Part 0 : x16 card plugged in to Lane 0/1/2/3, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "UMask": "0x7001004",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PCIe Completion Buffer Inserts of completions with data: Part 1",
+        "EventCode": "0xc2",
+        "EventName": "UNC_IIO_COMP_BUF_INSERTS.CMPD.PART1",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0002",
+        "PublicDescription": "PCIe Completion Buffer Inserts of completions with data : Part 1 : x16 card plugged in to Lane 0/1/2/3, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 1",
+        "UMask": "0x7002004",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PCIe Completion Buffer Inserts of completions with data: Part 2",
+        "EventCode": "0xc2",
+        "EventName": "UNC_IIO_COMP_BUF_INSERTS.CMPD.PART2",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0004",
+        "PublicDescription": "PCIe Completion Buffer Inserts of completions with data : Part 2 : x16 card plugged in to Lane 0/1/2/3, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 2",
+        "UMask": "0x7004004",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PCIe Completion Buffer Inserts of completions with data: Part 3",
+        "EventCode": "0xc2",
+        "EventName": "UNC_IIO_COMP_BUF_INSERTS.CMPD.PART3",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0008",
+        "PublicDescription": "PCIe Completion Buffer Inserts of completions with data : Part 2 : x16 card plugged in to Lane 0/1/2/3, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 3",
+        "UMask": "0x7008004",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PCIe Completion Buffer Inserts of completions with data: Part 4",
+        "EventCode": "0xc2",
+        "EventName": "UNC_IIO_COMP_BUF_INSERTS.CMPD.PART4",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0010",
+        "PublicDescription": "PCIe Completion Buffer Inserts of completions with data : Part 0 : x16 card plugged in to Lane 0/1/2/3, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 4",
+        "UMask": "0x7010004",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PCIe Completion Buffer Inserts of completions with data: Part 5",
+        "EventCode": "0xc2",
+        "EventName": "UNC_IIO_COMP_BUF_INSERTS.CMPD.PART5",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0020",
+        "PublicDescription": "PCIe Completion Buffer Inserts of completions with data : Part 1 : x16 card plugged in to Lane 0/1/2/3, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 5",
+        "UMask": "0x7020004",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PCIe Completion Buffer Inserts of completions with data: Part 6",
+        "EventCode": "0xc2",
+        "EventName": "UNC_IIO_COMP_BUF_INSERTS.CMPD.PART6",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0040",
+        "PublicDescription": "PCIe Completion Buffer Inserts of completions with data : Part 2 : x16 card plugged in to Lane 0/1/2/3, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 6",
+        "UMask": "0x7040004",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PCIe Completion Buffer Inserts of completions with data: Part 7",
+        "EventCode": "0xc2",
+        "EventName": "UNC_IIO_COMP_BUF_INSERTS.CMPD.PART7",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0080",
+        "PublicDescription": "PCIe Completion Buffer Inserts of completions with data : Part 2 : x16 card plugged in to Lane 0/1/2/3, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 7",
+        "UMask": "0x7080004",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "UNC_IIO_COMP_BUF_OCCUPANCY.CMPD.ALL_PARTS",
+        "EventCode": "0xd5",
+        "EventName": "UNC_IIO_COMP_BUF_OCCUPANCY.CMPD.ALL_PARTS",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "UMask": "0xff",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PCIe Completion Buffer Occupancy : Part 0",
+        "EventCode": "0xd5",
+        "EventName": "UNC_IIO_COMP_BUF_OCCUPANCY.CMPD.PART0",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0000",
+        "PublicDescription": "x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "UMask": "0x7000001",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PCIe Completion Buffer Occupancy : Part 1",
+        "EventCode": "0xd5",
+        "EventName": "UNC_IIO_COMP_BUF_OCCUPANCY.CMPD.PART1",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0000",
+        "PublicDescription": "x4 card is plugged in to slot 1",
+        "UMask": "0x7000002",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PCIe Completion Buffer Occupancy : Part 2",
+        "EventCode": "0xd5",
+        "EventName": "UNC_IIO_COMP_BUF_OCCUPANCY.CMPD.PART2",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0000",
+        "PublicDescription": "x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 1",
+        "UMask": "0x7000004",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PCIe Completion Buffer Occupancy : Part 3",
+        "EventCode": "0xd5",
+        "EventName": "UNC_IIO_COMP_BUF_OCCUPANCY.CMPD.PART3",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0000",
+        "PublicDescription": "x4 card is plugged in to slot 3",
+        "UMask": "0x7000008",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PCIe Completion Buffer Occupancy : Part 4",
+        "EventCode": "0xd5",
+        "EventName": "UNC_IIO_COMP_BUF_OCCUPANCY.CMPD.PART4",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0000",
+        "PublicDescription": "x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "UMask": "0x7000010",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PCIe Completion Buffer Occupancy : Part 5",
+        "EventCode": "0xd5",
+        "EventName": "UNC_IIO_COMP_BUF_OCCUPANCY.CMPD.PART5",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0000",
+        "PublicDescription": "x4 card is plugged in to slot 1",
+        "UMask": "0x7000020",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PCIe Completion Buffer Occupancy : Part 6",
+        "EventCode": "0xd5",
+        "EventName": "UNC_IIO_COMP_BUF_OCCUPANCY.CMPD.PART6",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0000",
+        "PublicDescription": "x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 1",
+        "UMask": "0x7000040",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PCIe Completion Buffer Occupancy : Part 7",
+        "EventCode": "0xd5",
+        "EventName": "UNC_IIO_COMP_BUF_OCCUPANCY.CMPD.PART7",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0000",
+        "PublicDescription": "x4 card is plugged in to slot 3",
+        "UMask": "0x7000080",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Read request for 4 bytes made by the CPU to IIO Part0-7",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_READ.ALL_PARTS",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00ff",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Read request for 4 bytes made by the CPU to IIO Part0",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_READ.PART0",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0001",
+        "PublicDescription": "Data requested by the CPU : Core reading from Card's MMIO space : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "UMask": "0x7001004",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Read request for 4 bytes made by the CPU to IIO Part1",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_READ.PART1",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0002",
+        "PublicDescription": "Data requested by the CPU : Core reading from Card's MMIO space : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 1",
+        "UMask": "0x7002004",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Read request for 4 bytes made by the CPU to IIO Part2",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_READ.PART2",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0004",
+        "PublicDescription": "Data requested by the CPU : Core reading from Card's MMIO space : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 1",
+        "UMask": "0x7004004",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Read request for 4 bytes made by the CPU to IIO Part3",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_READ.PART3",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0008",
+        "PublicDescription": "Data requested by the CPU : Core reading from Card's MMIO space : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 3",
+        "UMask": "0x7008004",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested by the CPU : Core reading from Cards MMIO space",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_READ.PART4",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0010",
+        "PublicDescription": "Data requested by the CPU : Core reading from Cards MMIO space : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "UMask": "0x7010004",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested by the CPU : Core reading from Cards MMIO space",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_READ.PART5",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0020",
+        "PublicDescription": "Data requested by the CPU : Core reading from Cards MMIO space : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 1",
+        "UMask": "0x7020004",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested by the CPU : Core reading from Cards MMIO space",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_READ.PART6",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0040",
+        "PublicDescription": "Data requested by the CPU : Core reading from Cards MMIO space : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 1",
+        "UMask": "0x7040004",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested by the CPU : Core reading from Cards MMIO space",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_READ.PART7",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0080",
+        "PublicDescription": "Data requested by the CPU : Core reading from Cards MMIO space : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 3",
+        "UMask": "0x7080004",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Write request of 4 bytes made to IIO Part0-7 by the CPU",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_WRITE.ALL_PARTS",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00ff",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested by the CPU : Core writing to Cards MMIO space",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_WRITE.IOMMU0",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0100",
+        "PublicDescription": "Data requested by the CPU : Core writing to Cards MMIO space : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : IOMMU - Type 0",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested by the CPU : Core writing to Cards MMIO space",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_WRITE.IOMMU1",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0200",
+        "PublicDescription": "Data requested by the CPU : Core writing to Cards MMIO space : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : IOMMU - Type 1",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Write request of 4 bytes made to IIO Part0 by the CPU",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_WRITE.PART0",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0001",
+        "PublicDescription": "Data requested by the CPU : Core writing to Card's MMIO space : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Write request of 4 bytes made to IIO Part1 by the CPU",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_WRITE.PART1",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0002",
+        "PublicDescription": "Data requested by the CPU : Core writing to Card's MMIO space : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 1",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Write request of 4 bytes made to IIO Part2 by the CPU",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_WRITE.PART2",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0004",
+        "PublicDescription": "Data requested by the CPU : Core writing to Card's MMIO space : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 1",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Write request of 4 bytes made to IIO Part3 by the CPU",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_WRITE.PART3",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0008",
+        "PublicDescription": "Data requested by the CPU : Core writing to Card's MMIO space : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 3",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested by the CPU : Core writing to Cards MMIO space",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_WRITE.PART4",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0010",
+        "PublicDescription": "Data requested by the CPU : Core writing to Cards MMIO space : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested by the CPU : Core writing to Cards MMIO space",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_WRITE.PART5",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0020",
+        "PublicDescription": "Data requested by the CPU : Core writing to Cards MMIO space : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 1",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested by the CPU : Core writing to Cards MMIO space",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_WRITE.PART6",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0040",
+        "PublicDescription": "Data requested by the CPU : Core writing to Cards MMIO space : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 1",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested by the CPU : Core writing to Cards MMIO space",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_WRITE.PART7",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0080",
+        "PublicDescription": "Data requested by the CPU : Core writing to Cards MMIO space : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 3",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer read request for 4 bytes made by a different IIO unit to IIO Part0",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.PEER_READ.PART0",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0001",
+        "PublicDescription": "Data requested by the CPU : Another card (different IIO stack) reading from this card. : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "UMask": "0x7001008",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer read request for 4 bytes made by a different IIO unit to IIO Part0",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.PEER_READ.PART1",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0002",
+        "PublicDescription": "Data requested by the CPU : Another card (different IIO stack) reading from this card. : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 1",
+        "UMask": "0x7002008",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer read request for 4 bytes made by a different IIO unit to IIO Part0",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.PEER_READ.PART2",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0004",
+        "PublicDescription": "Data requested by the CPU : Another card (different IIO stack) reading from this card. : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 1",
+        "UMask": "0x7004008",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer read request for 4 bytes made by a different IIO unit to IIO Part0",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.PEER_READ.PART3",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0008",
+        "PublicDescription": "Data requested by the CPU : Another card (different IIO stack) reading from this card. : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 3",
+        "UMask": "0x7008008",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested by the CPU : Another card (different IIO stack) reading from this card.",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.PEER_READ.PART4",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0010",
+        "PublicDescription": "Data requested by the CPU : Another card (different IIO stack) reading from this card. : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "UMask": "0x7010008",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested by the CPU : Another card (different IIO stack) reading from this card.",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.PEER_READ.PART5",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0020",
+        "PublicDescription": "Data requested by the CPU : Another card (different IIO stack) reading from this card. : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 1",
+        "UMask": "0x7020008",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested by the CPU : Another card (different IIO stack) reading from this card.",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.PEER_READ.PART6",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0040",
+        "PublicDescription": "Data requested by the CPU : Another card (different IIO stack) reading from this card. : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 1",
+        "UMask": "0x7040008",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested by the CPU : Another card (different IIO stack) reading from this card.",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.PEER_READ.PART7",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0080",
+        "PublicDescription": "Data requested by the CPU : Another card (different IIO stack) reading from this card. : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 3",
+        "UMask": "0x7080008",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer write request of 4 bytes made to IIO Part0 by a different IIO unit",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.PEER_WRITE.PART0",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0001",
+        "PublicDescription": "Data requested by the CPU : Another card (different IIO stack) writing to this card. : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "UMask": "0x7001002",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer write request of 4 bytes made to IIO Part0 by a different IIO unit",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.PEER_WRITE.PART1",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0002",
+        "PublicDescription": "Data requested by the CPU : Another card (different IIO stack) writing to this card. : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 1",
+        "UMask": "0x7002002",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer write request of 4 bytes made to IIO Part0 by a different IIO unit",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.PEER_WRITE.PART2",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0004",
+        "PublicDescription": "Data requested by the CPU : Another card (different IIO stack) writing to this card. : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 1",
+        "UMask": "0x7004002",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer write request of 4 bytes made to IIO Part0 by a different IIO unit",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.PEER_WRITE.PART3",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0008",
+        "PublicDescription": "Data requested by the CPU : Another card (different IIO stack) writing to this card. : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 3",
+        "UMask": "0x7008002",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested by the CPU : Another card (different IIO stack) writing to this card.",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.PEER_WRITE.PART4",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0010",
+        "PublicDescription": "Data requested by the CPU : Another card (different IIO stack) writing to this card. : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "UMask": "0x7010002",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested by the CPU : Another card (different IIO stack) writing to this card.",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.PEER_WRITE.PART5",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0020",
+        "PublicDescription": "Data requested by the CPU : Another card (different IIO stack) writing to this card. : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 1",
+        "UMask": "0x7020002",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested by the CPU : Another card (different IIO stack) writing to this card.",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.PEER_WRITE.PART6",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0040",
+        "PublicDescription": "Data requested by the CPU : Another card (different IIO stack) writing to this card. : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 1",
+        "UMask": "0x7040002",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested by the CPU : Another card (different IIO stack) writing to this card.",
+        "EventCode": "0xc0",
+        "EventName": "UNC_IIO_DATA_REQ_BY_CPU.PEER_WRITE.PART7",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0080",
+        "PublicDescription": "Data requested by the CPU : Another card (different IIO stack) writing to this card. : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 3",
+        "UMask": "0x7080002",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested of the CPU : CmpD - device sending completion to CPU request",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.CMPD.ALL_PARTS",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0xff",
+        "PublicDescription": "Data requested of the CPU : CmpD - device sending completion to CPU request : Number of DWs (4 bytes) the card requests of the main die.    Includes all requests initiated by the Card, including reads and writes. : x16 card plugged in to Lane 0/1/2/3, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "UMask": "0x80",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested of the CPU : CmpD - device sending completion to CPU request",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.CMPD.PART0",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0001",
+        "PublicDescription": "Data requested of the CPU : CmpD - device sending completion to CPU request : Number of DWs (4 bytes) the card requests of the main die.    Includes all requests initiated by the Card, including reads and writes. : x16 card plugged in to Lane 0/1/2/3, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "UMask": "0x80",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested of the CPU : CmpD - device sending completion to CPU request",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.CMPD.PART1",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0002",
+        "PublicDescription": "Data requested of the CPU : CmpD - device sending completion to CPU request : Number of DWs (4 bytes) the card requests of the main die.    Includes all requests initiated by the Card, including reads and writes. : x4 card is plugged in to slot 1",
+        "UMask": "0x80",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested of the CPU : CmpD - device sending completion to CPU request",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.CMPD.PART2",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0004",
+        "PublicDescription": "Data requested of the CPU : CmpD - device sending completion to CPU request : Number of DWs (4 bytes) the card requests of the main die.    Includes all requests initiated by the Card, including reads and writes. : x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 2",
+        "UMask": "0x80",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested of the CPU : CmpD - device sending completion to CPU request",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.CMPD.PART3",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0008",
+        "PublicDescription": "Data requested of the CPU : CmpD - device sending completion to CPU request : Number of DWs (4 bytes) the card requests of the main die.    Includes all requests initiated by the Card, including reads and writes. : x4 card is plugged in to slot 3",
+        "UMask": "0x80",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested of the CPU : CmpD - device sending completion to CPU request",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.CMPD.PART4",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0010",
+        "PublicDescription": "Data requested of the CPU : CmpD - device sending completion to CPU request : Number of DWs (4 bytes) the card requests of the main die.    Includes all requests initiated by the Card, including reads and writes. : x16 card plugged in to Lane 4/5/6/7, Or x8 card plugged in to Lane 4/5, Or x4 card is plugged in to slot 4",
+        "UMask": "0x80",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested of the CPU : CmpD - device sending completion to CPU request",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.CMPD.PART5",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0020",
+        "PublicDescription": "Data requested of the CPU : CmpD - device sending completion to CPU request : Number of DWs (4 bytes) the card requests of the main die.    Includes all requests initiated by the Card, including reads and writes. : x4 card is plugged in to slot 5",
+        "UMask": "0x80",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested of the CPU : CmpD - device sending completion to CPU request",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.CMPD.PART6",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0040",
+        "PublicDescription": "Data requested of the CPU : CmpD - device sending completion to CPU request : Number of DWs (4 bytes) the card requests of the main die.    Includes all requests initiated by the Card, including reads and writes. : x8 card plugged in to Lane 6/7, Or x4 card is plugged in to slot 6",
+        "UMask": "0x80",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested of the CPU : CmpD - device sending completion to CPU request",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.CMPD.PART7",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0080",
+        "PublicDescription": "Data requested of the CPU : CmpD - device sending completion to CPU request : Number of DWs (4 bytes) the card requests of the main die.    Includes all requests initiated by the Card, including reads and writes. : x4 card is plugged in to slot 7",
+        "UMask": "0x80",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Read request for 4 bytes made by IIO Part0-7 to Memory",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.ALL_PARTS",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00ff",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Read request for 4 bytes made by IIO Part0 to Memory",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART0",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0001",
+        "PublicDescription": "Data requested of the CPU : Card reading from DRAM : Number of DWs (4 bytes) the card requests of the main die.    Includes all requests initiated by the Card, including reads and writes. : x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Read request for 4 bytes made by IIO Part1 to Memory",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART1",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0002",
+        "PublicDescription": "Data requested of the CPU : Card reading from DRAM : Number of DWs (4 bytes) the card requests of the main die.    Includes all requests initiated by the Card, including reads and writes. : x4 card is plugged in to slot 1",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Read request for 4 bytes made by IIO Part2 to Memory",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART2",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0004",
+        "PublicDescription": "Data requested of the CPU : Card reading from DRAM : Number of DWs (4 bytes) the card requests of the main die.    Includes all requests initiated by the Card, including reads and writes. : x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 1",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Read request for 4 bytes made by IIO Part3 to Memory",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART3",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0008",
+        "PublicDescription": "Data requested of the CPU : Card reading from DRAM : Number of DWs (4 bytes) the card requests of the main die.    Includes all requests initiated by the Card, including reads and writes. : x4 card is plugged in to slot 3",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested of the CPU : Card reading from DRAM",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART4",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0010",
+        "PublicDescription": "Data requested of the CPU : Card reading from DRAM : Number of DWs (4 bytes) the card requests of the main die.    Includes all requests initiated by the Card, including reads and writes. : x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested of the CPU : Card reading from DRAM",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART5",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0020",
+        "PublicDescription": "Data requested of the CPU : Card reading from DRAM : Number of DWs (4 bytes) the card requests of the main die.    Includes all requests initiated by the Card, including reads and writes. : x4 card is plugged in to slot 1",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested of the CPU : Card reading from DRAM",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART6",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0040",
+        "PublicDescription": "Data requested of the CPU : Card reading from DRAM : Number of DWs (4 bytes) the card requests of the main die.    Includes all requests initiated by the Card, including reads and writes. : x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 1",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested of the CPU : Card reading from DRAM",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART7",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0080",
+        "PublicDescription": "Data requested of the CPU : Card reading from DRAM : Number of DWs (4 bytes) the card requests of the main die.    Includes all requests initiated by the Card, including reads and writes. : x4 card is plugged in to slot 3",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Write request of 4 bytes made by IIO Part0-7 to Memory",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.ALL_PARTS",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00ff",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Write request of 4 bytes made by IIO Part0 to Memory",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART0",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0001",
+        "PublicDescription": "Data requested of the CPU : Card writing to DRAM : Number of DWs (4 bytes) the card requests of the main die.    Includes all requests initiated by the Card, including reads and writes. : x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Write request of 4 bytes made by IIO Part1 to Memory",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART1",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0002",
+        "PublicDescription": "Data requested of the CPU : Card writing to DRAM : Number of DWs (4 bytes) the card requests of the main die.    Includes all requests initiated by the Card, including reads and writes. : x4 card is plugged in to slot 1",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Write request of 4 bytes made by IIO Part2 to Memory",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART2",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0004",
+        "PublicDescription": "Data requested of the CPU : Card writing to DRAM : Number of DWs (4 bytes) the card requests of the main die.    Includes all requests initiated by the Card, including reads and writes. : x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 1",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Write request of 4 bytes made by IIO Part3 to Memory",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART3",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0008",
+        "PublicDescription": "Data requested of the CPU : Card writing to DRAM : Number of DWs (4 bytes) the card requests of the main die.    Includes all requests initiated by the Card, including reads and writes. : x4 card is plugged in to slot 3",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested of the CPU : Card writing to DRAM",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART4",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0010",
+        "PublicDescription": "Data requested of the CPU : Card writing to DRAM : Number of DWs (4 bytes) the card requests of the main die.    Includes all requests initiated by the Card, including reads and writes. : x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested of the CPU : Card writing to DRAM",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART5",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0020",
+        "PublicDescription": "Data requested of the CPU : Card writing to DRAM : Number of DWs (4 bytes) the card requests of the main die.    Includes all requests initiated by the Card, including reads and writes. : x4 card is plugged in to slot 1",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested of the CPU : Card writing to DRAM",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART6",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0040",
+        "PublicDescription": "Data requested of the CPU : Card writing to DRAM : Number of DWs (4 bytes) the card requests of the main die.    Includes all requests initiated by the Card, including reads and writes. : x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 1",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested of the CPU : Card writing to DRAM",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART7",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0080",
+        "PublicDescription": "Data requested of the CPU : Card writing to DRAM : Number of DWs (4 bytes) the card requests of the main die.    Includes all requests initiated by the Card, including reads and writes. : x4 card is plugged in to slot 3",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer write request of 4 bytes made by IIO Part0 to an IIO target",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_WRITE.PART0",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0001",
+        "PublicDescription": "Data requested of the CPU : Card writing to another Card (same or different stack) : Number of DWs (4 bytes) the card requests of the main die.    Includes all requests initiated by the Card, including reads and writes. : x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "UMask": "0x2",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer write request of 4 bytes made by IIO Part0 to an IIO target",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_WRITE.PART1",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0002",
+        "PublicDescription": "Data requested of the CPU : Card writing to another Card (same or different stack) : Number of DWs (4 bytes) the card requests of the main die.    Includes all requests initiated by the Card, including reads and writes. : x4 card is plugged in to slot 1",
+        "UMask": "0x2",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer write request of 4 bytes made by IIO Part0 to an IIO target",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_WRITE.PART2",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0004",
+        "PublicDescription": "Data requested of the CPU : Card writing to another Card (same or different stack) : Number of DWs (4 bytes) the card requests of the main die.    Includes all requests initiated by the Card, including reads and writes. : x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 1",
+        "UMask": "0x2",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Peer to peer write request of 4 bytes made by IIO Part0 to an IIO target",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_WRITE.PART3",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0008",
+        "PublicDescription": "Data requested of the CPU : Card writing to another Card (same or different stack) : Number of DWs (4 bytes) the card requests of the main die.    Includes all requests initiated by the Card, including reads and writes. : x4 card is plugged in to slot 3",
+        "UMask": "0x2",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested of the CPU : Card writing to another Card (same or different stack)",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_WRITE.PART4",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0010",
+        "PublicDescription": "Data requested of the CPU : Card writing to another Card (same or different stack) : Number of DWs (4 bytes) the card requests of the main die.    Includes all requests initiated by the Card, including reads and writes. : x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "UMask": "0x2",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested of the CPU : Card writing to another Card (same or different stack)",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_WRITE.PART5",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0020",
+        "PublicDescription": "Data requested of the CPU : Card writing to another Card (same or different stack) : Number of DWs (4 bytes) the card requests of the main die.    Includes all requests initiated by the Card, including reads and writes. : x4 card is plugged in to slot 1",
+        "UMask": "0x2",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested of the CPU : Card writing to another Card (same or different stack)",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_WRITE.PART6",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0040",
+        "PublicDescription": "Data requested of the CPU : Card writing to another Card (same or different stack) : Number of DWs (4 bytes) the card requests of the main die.    Includes all requests initiated by the Card, including reads and writes. : x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 1",
+        "UMask": "0x2",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Data requested of the CPU : Card writing to another Card (same or different stack)",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_WRITE.PART7",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0080",
+        "PublicDescription": "Data requested of the CPU : Card writing to another Card (same or different stack) : Number of DWs (4 bytes) the card requests of the main die.    Includes all requests initiated by the Card, including reads and writes. : x4 card is plugged in to slot 3",
+        "UMask": "0x2",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Incoming arbitration requests : Passing data to be written",
+        "EventCode": "0x86",
+        "EventName": "UNC_IIO_INBOUND_ARB_REQ.DATA",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00FF",
+        "PublicDescription": "Incoming arbitration requests : Passing data to be written : How often different queues (e.g. channel / fc) ask to send request into pipeline : Only for posted requests",
+        "UMask": "0x70ff020",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Incoming arbitration requests : Issuing final read or write of line",
+        "EventCode": "0x86",
+        "EventName": "UNC_IIO_INBOUND_ARB_REQ.FINAL_RD_WR",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00FF",
+        "PublicDescription": "Incoming arbitration requests : Issuing final read or write of line : How often different queues (e.g. channel / fc) ask to send request into pipeline",
+        "UMask": "0x8",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Incoming arbitration requests : Processing response from IOMMU",
+        "EventCode": "0x86",
+        "EventName": "UNC_IIO_INBOUND_ARB_REQ.IOMMU_HIT",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00FF",
+        "PublicDescription": "Incoming arbitration requests : Processing response from IOMMU : How often different queues (e.g. channel / fc) ask to send request into pipeline",
+        "UMask": "0x2",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Incoming arbitration requests : Issuing to IOMMU",
+        "EventCode": "0x86",
+        "EventName": "UNC_IIO_INBOUND_ARB_REQ.IOMMU_REQ",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00FF",
+        "PublicDescription": "Incoming arbitration requests : Issuing to IOMMU : How often different queues (e.g. channel / fc) ask to send request into pipeline",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Incoming arbitration requests : Request Ownership",
+        "EventCode": "0x86",
+        "EventName": "UNC_IIO_INBOUND_ARB_REQ.REQ_OWN",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00FF",
+        "PublicDescription": "Incoming arbitration requests : Request Ownership : How often different queues (e.g. channel / fc) ask to send request into pipeline : Only for posted requests",
+        "UMask": "0x70ff004",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Incoming arbitration requests : Writing line",
+        "EventCode": "0x86",
+        "EventName": "UNC_IIO_INBOUND_ARB_REQ.WR",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00FF",
+        "PublicDescription": "Incoming arbitration requests : Writing line : How often different queues (e.g. channel / fc) ask to send request into pipeline : Only for posted requests",
+        "UMask": "0x70ff010",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Incoming arbitration requests granted : Passing data to be written",
+        "EventCode": "0x87",
+        "EventName": "UNC_IIO_INBOUND_ARB_WON.DATA",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00FF",
+        "PublicDescription": "Incoming arbitration requests granted : Passing data to be written : How often different queues (e.g. channel / fc) are allowed to send request into pipeline : Only for posted requests",
+        "UMask": "0x70ff020",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Incoming arbitration requests granted : Issuing final read or write of line",
+        "EventCode": "0x87",
+        "EventName": "UNC_IIO_INBOUND_ARB_WON.FINAL_RD_WR",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00FF",
+        "PublicDescription": "Incoming arbitration requests granted : Issuing final read or write of line : How often different queues (e.g. channel / fc) are allowed to send request into pipeline",
+        "UMask": "0x70ff008",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Incoming arbitration requests granted : Processing response from IOMMU",
+        "EventCode": "0x87",
+        "EventName": "UNC_IIO_INBOUND_ARB_WON.IOMMU_HIT",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00FF",
+        "PublicDescription": "Incoming arbitration requests granted : Processing response from IOMMU : How often different queues (e.g. channel / fc) are allowed to send request into pipeline",
+        "UMask": "0x70ff002",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Incoming arbitration requests granted : Issuing to IOMMU",
+        "EventCode": "0x87",
+        "EventName": "UNC_IIO_INBOUND_ARB_WON.IOMMU_REQ",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00FF",
+        "PublicDescription": "Incoming arbitration requests granted : Issuing to IOMMU : How often different queues (e.g. channel / fc) are allowed to send request into pipeline",
+        "UMask": "0x70ff001",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Incoming arbitration requests granted : Request Ownership",
+        "EventCode": "0x87",
+        "EventName": "UNC_IIO_INBOUND_ARB_WON.REQ_OWN",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00FF",
+        "PublicDescription": "Incoming arbitration requests granted : Request Ownership : How often different queues (e.g. channel / fc) are allowed to send request into pipeline : Only for posted requests",
+        "UMask": "0x70ff004",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Incoming arbitration requests granted : Writing line",
+        "EventCode": "0x87",
+        "EventName": "UNC_IIO_INBOUND_ARB_WON.WR",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00FF",
+        "PublicDescription": "Incoming arbitration requests granted : Writing line : How often different queues (e.g. channel / fc) are allowed to send request into pipeline : Only for posted requests",
+        "UMask": "0x70ff010",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": ": IOTLB Hits to a 1G Page",
+        "EventCode": "0x40",
+        "EventName": "UNC_IIO_IOMMU0.1G_HITS",
+        "PerPkg": "1",
+        "PortMask": "0x0000",
+        "PublicDescription": ": IOTLB Hits to a 1G Page : Counts if a transaction to a 1G page, on its first lookup, hits the IOTLB.",
+        "UMask": "0x10",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": ": IOTLB Hits to a 2M Page",
+        "EventCode": "0x40",
+        "EventName": "UNC_IIO_IOMMU0.2M_HITS",
+        "PerPkg": "1",
+        "PortMask": "0x0000",
+        "PublicDescription": ": IOTLB Hits to a 2M Page : Counts if a transaction to a 2M page, on its first lookup, hits the IOTLB.",
+        "UMask": "0x8",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": ": IOTLB Hits to a 4K Page",
+        "EventCode": "0x40",
+        "EventName": "UNC_IIO_IOMMU0.4K_HITS",
+        "PerPkg": "1",
+        "PortMask": "0x0000",
+        "PublicDescription": ": IOTLB Hits to a 4K Page : Counts if a transaction to a 4K page, on its first lookup, hits the IOTLB.",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": ": Context cache hits",
+        "EventCode": "0x40",
+        "EventName": "UNC_IIO_IOMMU0.CTXT_CACHE_HITS",
+        "PerPkg": "1",
+        "PortMask": "0x0000",
+        "PublicDescription": ": Context cache hits : Counts each time a first look up of the transaction hits the RCC.",
+        "UMask": "0x80",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": ": Context cache lookups",
+        "EventCode": "0x40",
+        "EventName": "UNC_IIO_IOMMU0.CTXT_CACHE_LOOKUPS",
+        "PerPkg": "1",
+        "PortMask": "0x0000",
+        "PublicDescription": ": Context cache lookups : Counts each time a transaction looks up root context cache.",
+        "UMask": "0x40",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": ": IOTLB lookups first",
+        "EventCode": "0x40",
+        "EventName": "UNC_IIO_IOMMU0.FIRST_LOOKUPS",
+        "PerPkg": "1",
+        "PortMask": "0x0000",
+        "PublicDescription": ": IOTLB lookups first : Some transactions have to look up IOTLB multiple times.  Counts the first time a request looks up IOTLB.",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "IOTLB Fills (same as IOTLB miss)",
+        "EventCode": "0x40",
+        "EventName": "UNC_IIO_IOMMU0.MISSES",
+        "PerPkg": "1",
+        "PortMask": "0x0000",
+        "PublicDescription": "IOTLB Fills (same as IOTLB miss) : When a transaction misses IOTLB, it does a page walk to look up memory and bring in the relevant page translation. Counts when this page translation is written to IOTLB.",
+        "UMask": "0x20",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": ": IOMMU memory access",
+        "EventCode": "0x41",
+        "EventName": "UNC_IIO_IOMMU1.NUM_MEM_ACCESSES",
+        "PerPkg": "1",
+        "PublicDescription": ": IOMMU memory access : IOMMU sends out memory fetches when it misses the cache look up which is indicated by this signal.  M2IOSF only uses low priority channel",
+        "UMask": "0xc0",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": ": PWC Hit to a 2M page",
+        "EventCode": "0x41",
+        "EventName": "UNC_IIO_IOMMU1.PWC_1G_HITS",
+        "PerPkg": "1",
+        "PublicDescription": ": PWC Hit to a 2M page : Counts each time a transaction's first look up hits the SLPWC at the 2M level",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": ": PWT Hit to a 256T page",
+        "EventCode": "0x41",
+        "EventName": "UNC_IIO_IOMMU1.PWC_256T_HITS",
+        "PerPkg": "1",
+        "PublicDescription": ": PWT Hit to a 256T page : Counts each time a transaction's first look up hits the SLPWC at the 512G level",
+        "UMask": "0x10",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": ": PWC Hit to a 4K page",
+        "EventCode": "0x41",
+        "EventName": "UNC_IIO_IOMMU1.PWC_2M_HITS",
+        "PerPkg": "1",
+        "PublicDescription": ": PWC Hit to a 4K page : Counts each time a transaction's first look up hits the SLPWC at the 4K level",
+        "UMask": "0x2",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": ": PWC Hit to a 1G page",
+        "EventCode": "0x41",
+        "EventName": "UNC_IIO_IOMMU1.PWC_512G_HITS",
+        "PerPkg": "1",
+        "PublicDescription": ": PWC Hit to a 1G page : Counts each time a transaction's first look up hits the SLPWC at the 1G level",
+        "UMask": "0x8",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": ": PageWalk cache fill",
+        "EventCode": "0x41",
+        "EventName": "UNC_IIO_IOMMU1.PWC_CACHE_FILLS",
+        "PerPkg": "1",
+        "PublicDescription": ": PageWalk cache fill : When a transaction misses SLPWC, it does a page walk to look up memory and bring in the relevant page translation. When this page translation is written to SLPWC, ObsPwcFillValid_nnnH is asserted.",
+        "UMask": "0x20",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": ": PageWalk cache lookup",
+        "EventCode": "0x41",
+        "EventName": "UNC_IIO_IOMMU1.PWT_CACHE_LOOKUPS",
+        "PerPkg": "1",
+        "PublicDescription": ": PageWalk cache lookup : Counts each time a transaction looks up second level page walk cache.",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": ": PWC Hit to a 2M page",
+        "EventCode": "0x41",
+        "EventName": "UNC_IIO_IOMMU1.SLPWC_1G_HITS",
+        "PerPkg": "1",
+        "PublicDescription": ": PWC Hit to a 2M page : Counts each time a transaction's first look up hits the SLPWC at the 2M level",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": ": PWC Hit to a 2M page",
+        "EventCode": "0x41",
+        "EventName": "UNC_IIO_IOMMU1.SLPWC_256T_HITS",
+        "PerPkg": "1",
+        "PublicDescription": ": PWC Hit to a 2M page : Counts each time a transaction's first look up hits the SLPWC at the 2M level",
+        "UMask": "0x10",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": ": PWC Hit to a 1G page",
+        "EventCode": "0x41",
+        "EventName": "UNC_IIO_IOMMU1.SLPWC_512G_HITS",
+        "PerPkg": "1",
+        "PublicDescription": ": PWC Hit to a 1G page : Counts each time a transaction's first look up hits the SLPWC at the 1G level",
+        "UMask": "0x8",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": ": Global IOTLB invalidation cycles",
+        "EventCode": "0x43",
+        "EventName": "UNC_IIO_IOMMU3.PWT_OCCUPANCY_MSB",
+        "PerPkg": "1",
+        "PortMask": "0x0000",
+        "PublicDescription": ": Global IOTLB invalidation cycles : Indicates that IOMMU is doing global invalidation.",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "AND Mask/match for debug bus : Non-PCIE bus",
+        "EventCode": "0x02",
+        "EventName": "UNC_IIO_MASK_MATCH_AND.BUS0",
+        "PerPkg": "1",
+        "PortMask": "0x0000",
+        "PublicDescription": "AND Mask/match for debug bus : Non-PCIE bus : Asserted if all bits specified by mask match",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "AND Mask/match for debug bus : Non-PCIE bus and PCIE bus",
+        "EventCode": "0x02",
+        "EventName": "UNC_IIO_MASK_MATCH_AND.BUS0_BUS1",
+        "PerPkg": "1",
+        "PortMask": "0x0000",
+        "PublicDescription": "AND Mask/match for debug bus : Non-PCIE bus and PCIE bus : Asserted if all bits specified by mask match",
+        "UMask": "0x8",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "AND Mask/match for debug bus : Non-PCIE bus and !(PCIE bus)",
+        "EventCode": "0x02",
+        "EventName": "UNC_IIO_MASK_MATCH_AND.BUS0_NOT_BUS1",
+        "PerPkg": "1",
+        "PortMask": "0x0000",
+        "PublicDescription": "AND Mask/match for debug bus : Non-PCIE bus and !(PCIE bus) : Asserted if all bits specified by mask match",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "AND Mask/match for debug bus : PCIE bus",
+        "EventCode": "0x02",
+        "EventName": "UNC_IIO_MASK_MATCH_AND.BUS1",
+        "PerPkg": "1",
+        "PortMask": "0x0000",
+        "PublicDescription": "AND Mask/match for debug bus : PCIE bus : Asserted if all bits specified by mask match",
+        "UMask": "0x2",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "AND Mask/match for debug bus : !(Non-PCIE bus) and PCIE bus",
+        "EventCode": "0x02",
+        "EventName": "UNC_IIO_MASK_MATCH_AND.NOT_BUS0_BUS1",
+        "PerPkg": "1",
+        "PortMask": "0x0000",
+        "PublicDescription": "AND Mask/match for debug bus : !(Non-PCIE bus) and PCIE bus : Asserted if all bits specified by mask match",
+        "UMask": "0x10",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "AND Mask/match for debug bus : !(Non-PCIE bus) and !(PCIE bus)",
+        "EventCode": "0x02",
+        "EventName": "UNC_IIO_MASK_MATCH_AND.NOT_BUS0_NOT_BUS1",
+        "PerPkg": "1",
+        "PortMask": "0x0000",
+        "PublicDescription": "AND Mask/match for debug bus : !(Non-PCIE bus) and !(PCIE bus) : Asserted if all bits specified by mask match",
+        "UMask": "0x20",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "OR Mask/match for debug bus : Non-PCIE bus",
+        "EventCode": "0x03",
+        "EventName": "UNC_IIO_MASK_MATCH_OR.BUS0",
+        "PerPkg": "1",
+        "PortMask": "0x0000",
+        "PublicDescription": "OR Mask/match for debug bus : Non-PCIE bus : Asserted if any bits specified by mask match",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "OR Mask/match for debug bus : Non-PCIE bus and PCIE bus",
+        "EventCode": "0x03",
+        "EventName": "UNC_IIO_MASK_MATCH_OR.BUS0_BUS1",
+        "PerPkg": "1",
+        "PortMask": "0x0000",
+        "PublicDescription": "OR Mask/match for debug bus : Non-PCIE bus and PCIE bus : Asserted if any bits specified by mask match",
+        "UMask": "0x8",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "OR Mask/match for debug bus : Non-PCIE bus and !(PCIE bus)",
+        "EventCode": "0x03",
+        "EventName": "UNC_IIO_MASK_MATCH_OR.BUS0_NOT_BUS1",
+        "PerPkg": "1",
+        "PortMask": "0x0000",
+        "PublicDescription": "OR Mask/match for debug bus : Non-PCIE bus and !(PCIE bus) : Asserted if any bits specified by mask match",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "OR Mask/match for debug bus : PCIE bus",
+        "EventCode": "0x03",
+        "EventName": "UNC_IIO_MASK_MATCH_OR.BUS1",
+        "PerPkg": "1",
+        "PortMask": "0x0000",
+        "PublicDescription": "OR Mask/match for debug bus : PCIE bus : Asserted if any bits specified by mask match",
+        "UMask": "0x2",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "OR Mask/match for debug bus : !(Non-PCIE bus) and PCIE bus",
+        "EventCode": "0x03",
+        "EventName": "UNC_IIO_MASK_MATCH_OR.NOT_BUS0_BUS1",
+        "PerPkg": "1",
+        "PortMask": "0x0000",
+        "PublicDescription": "OR Mask/match for debug bus : !(Non-PCIE bus) and PCIE bus : Asserted if any bits specified by mask match",
+        "UMask": "0x10",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "OR Mask/match for debug bus : !(Non-PCIE bus) and !(PCIE bus)",
+        "EventCode": "0x03",
+        "EventName": "UNC_IIO_MASK_MATCH_OR.NOT_BUS0_NOT_BUS1",
+        "PerPkg": "1",
+        "PortMask": "0x0000",
+        "PublicDescription": "OR Mask/match for debug bus : !(Non-PCIE bus) and !(PCIE bus) : Asserted if any bits specified by mask match",
+        "UMask": "0x20",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number requests PCIe makes of the main die : All",
+        "EventCode": "0x85",
+        "EventName": "UNC_IIO_NUM_REQ_OF_CPU.COMMIT.ALL",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0FFF",
+        "PublicDescription": "Number requests PCIe makes of the main die : All : Counts full PCIe requests before they're broken into a series of cache-line size requests as measured by DATA_REQ_OF_CPU and TXN_REQ_OF_CPU.",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Num requests sent by PCIe - by target : Abort",
+        "EventCode": "0x8e",
+        "EventName": "UNC_IIO_NUM_REQ_OF_CPU_BY_TGT.ABORT",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00FF",
+        "UMask": "0x80",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Num requests sent by PCIe - by target : Confined P2P",
+        "EventCode": "0x8e",
+        "EventName": "UNC_IIO_NUM_REQ_OF_CPU_BY_TGT.CONFINED_P2P",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00FF",
+        "UMask": "0x40",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Num requests sent by PCIe - by target : Local P2P",
+        "EventCode": "0x8e",
+        "EventName": "UNC_IIO_NUM_REQ_OF_CPU_BY_TGT.LOC_P2P",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00FF",
+        "UMask": "0x20",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Num requests sent by PCIe - by target : Multi-cast",
+        "EventCode": "0x8e",
+        "EventName": "UNC_IIO_NUM_REQ_OF_CPU_BY_TGT.MCAST",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00FF",
+        "UMask": "0x2",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Num requests sent by PCIe - by target : Memory",
+        "EventCode": "0x8e",
+        "EventName": "UNC_IIO_NUM_REQ_OF_CPU_BY_TGT.MEM",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00FF",
+        "UMask": "0x8",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Num requests sent by PCIe - by target : MsgB",
+        "EventCode": "0x8e",
+        "EventName": "UNC_IIO_NUM_REQ_OF_CPU_BY_TGT.MSGB",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00FF",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Num requests sent by PCIe - by target : Remote P2P",
+        "EventCode": "0x8e",
+        "EventName": "UNC_IIO_NUM_REQ_OF_CPU_BY_TGT.REM_P2P",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00FF",
+        "UMask": "0x10",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Num requests sent by PCIe - by target : Ubox",
+        "EventCode": "0x8e",
+        "EventName": "UNC_IIO_NUM_REQ_OF_CPU_BY_TGT.UBOX",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00FF",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "ITC address map 1",
+        "EventCode": "0x8f",
+        "EventName": "UNC_IIO_NUM_TGT_MATCHED_REQ_OF_CPU",
+        "PerPkg": "1",
+        "PortMask": "0x0000",
+        "PublicDescription": "UNC_IIO_NUM_TGT_MATCHED_REQ_OF_CPU",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Outbound cacheline requests issued : 64B requests issued to device",
+        "EventCode": "0xd0",
+        "EventName": "UNC_IIO_OUTBOUND_CL_REQS_ISSUED.TO_IO",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00FF",
+        "PublicDescription": "Outbound cacheline requests issued : 64B requests issued to device : Each outbound cacheline granular request may need to make multiple passes through the pipeline.  Each time a cacheline completes all its passes it advances line",
+        "UMask": "0x8",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Outbound TLP (transaction layer packet) requests issued : To device",
+        "EventCode": "0xd1",
+        "EventName": "UNC_IIO_OUTBOUND_TLP_REQS_ISSUED.TO_IO",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00FF",
+        "PublicDescription": "Outbound TLP (transaction layer packet) requests issued : To device : Each time an outbound completes all its passes it advances the pointer",
+        "UMask": "0x8",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PWT occupancy.  Does not include 9th bit of occupancy (will undercount if PWT is greater than 255 per cycle).",
+        "EventCode": "0x42",
+        "EventName": "UNC_IIO_PWT_OCCUPANCY",
+        "PerPkg": "1",
+        "PortMask": "0x0000",
+        "PublicDescription": "PWT occupancy : Indicates how many page walks are outstanding at any point in time.",
+        "UMask": "0xff",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Request Ownership : PCIe Request complete",
+        "EventCode": "0x91",
+        "EventName": "UNC_IIO_REQ_FROM_PCIE_CL_CMPL.DATA",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00FF",
+        "PublicDescription": "Request Ownership : PCIe Request complete : Only for posted requests : Each PCIe request is broken down into a series of cacheline granular requests and each cacheline size request may need to make multiple passes through the pipeline (e.g. for posted interrupts or multi-cast).   Each time a single PCIe request completes all its cacheline granular requests, it advances pointer.",
+        "UMask": "0x70ff020",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Request Ownership : Writing line",
+        "EventCode": "0x91",
+        "EventName": "UNC_IIO_REQ_FROM_PCIE_CL_CMPL.FINAL_RD_WR",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00FF",
+        "PublicDescription": "Request Ownership : Writing line : Only for posted requests : Only for posted requests",
+        "UMask": "0x70ff008",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Request Ownership : Issuing final read or write of line",
+        "EventCode": "0x91",
+        "EventName": "UNC_IIO_REQ_FROM_PCIE_CL_CMPL.REQ_OWN",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00FF",
+        "PublicDescription": "Request Ownership : Issuing final read or write of line : Only for posted requests",
+        "UMask": "0x70ff004",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Request Ownership : Passing data to be written",
+        "EventCode": "0x91",
+        "EventName": "UNC_IIO_REQ_FROM_PCIE_CL_CMPL.WR",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00FF",
+        "PublicDescription": "Request Ownership : Passing data to be written : Only for posted requests : Only for posted requests",
+        "UMask": "0x70ff010",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Processing response from IOMMU : Passing data to be written",
+        "EventCode": "0x92",
+        "EventName": "UNC_IIO_REQ_FROM_PCIE_CMPL.FINAL_RD_WR",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00FF",
+        "PublicDescription": "Processing response from IOMMU : Passing data to be written : Only for posted requests",
+        "UMask": "0x70ff008",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Processing response from IOMMU : Issuing final read or write of line",
+        "EventCode": "0x92",
+        "EventName": "UNC_IIO_REQ_FROM_PCIE_CMPL.IOMMU_HIT",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00FF",
+        "UMask": "0x70ff002",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Processing response from IOMMU : Request Ownership",
+        "EventCode": "0x92",
+        "EventName": "UNC_IIO_REQ_FROM_PCIE_CMPL.IOMMU_REQ",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00FF",
+        "PublicDescription": "Processing response from IOMMU : Request Ownership : Only for posted requests",
+        "UMask": "0x70ff001",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Processing response from IOMMU : Writing line",
+        "EventCode": "0x92",
+        "EventName": "UNC_IIO_REQ_FROM_PCIE_CMPL.REQ_OWN",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00FF",
+        "PublicDescription": "Processing response from IOMMU : Writing line : Only for posted requests",
+        "UMask": "0x70ff004",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PCIe Request - pass complete : Passing data to be written",
+        "EventCode": "0x90",
+        "EventName": "UNC_IIO_REQ_FROM_PCIE_PASS_CMPL.DATA",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00FF",
+        "PublicDescription": "PCIe Request - pass complete : Passing data to be written : Each PCIe request is broken down into a series of cacheline granular requests and each cacheline size request may need to make multiple passes through the pipeline (e.g. for posted interrupts or multi-cast).   Each time a cacheline completes a single pass (e.g. posts a write to single multi-cast target) it advances state : Only for posted requests",
+        "UMask": "0x70ff020",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PCIe Request - pass complete : Issuing final read or write of line",
+        "EventCode": "0x90",
+        "EventName": "UNC_IIO_REQ_FROM_PCIE_PASS_CMPL.FINAL_RD_WR",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00FF",
+        "PublicDescription": "PCIe Request - pass complete : Issuing final read or write of line : Each PCIe request is broken down into a series of cacheline granular requests and each cacheline size request may need to make multiple passes through the pipeline (e.g. for posted interrupts or multi-cast).   Each time a cacheline completes a single pass (e.g. posts a write to single multi-cast target) it advances state",
+        "UMask": "0x8",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PCIe Request - pass complete : Request Ownership",
+        "EventCode": "0x90",
+        "EventName": "UNC_IIO_REQ_FROM_PCIE_PASS_CMPL.REQ_OWN",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00FF",
+        "PublicDescription": "PCIe Request - pass complete : Request Ownership : Each PCIe request is broken down into a series of cacheline granular requests and each cacheline size request may need to make multiple passes through the pipeline (e.g. for posted interrupts or multi-cast).   Each time a cacheline completes a single pass (e.g. posts a write to single multi-cast target) it advances state : Only for posted requests",
+        "UMask": "0x70ff004",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PCIe Request - pass complete : Writing line",
+        "EventCode": "0x90",
+        "EventName": "UNC_IIO_REQ_FROM_PCIE_PASS_CMPL.WR",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00FF",
+        "PublicDescription": "PCIe Request - pass complete : Writing line : Each PCIe request is broken down into a series of cacheline granular requests and each cacheline size request may need to make multiple passes through the pipeline (e.g. for posted interrupts or multi-cast).   Each time a cacheline completes a single pass (e.g. posts a write to single multi-cast target) it advances state : Only for posted requests",
+        "UMask": "0x70ff010",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Read request for up to a 64 byte transaction is made by the CPU to IIO Part0",
+        "EventCode": "0xc1",
+        "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_READ.PART0",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0001",
+        "PublicDescription": "Number Transactions requested by the CPU : Core reading from Card's MMIO space : Also known as Outbound.  Number of requests initiated by the main die, including reads and writes. : x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Read request for up to a 64 byte transaction is made by the CPU to IIO Part1",
+        "EventCode": "0xc1",
+        "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_READ.PART1",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0002",
+        "PublicDescription": "Number Transactions requested by the CPU : Core reading from Card's MMIO space : Also known as Outbound.  Number of requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 1",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Read request for up to a 64 byte transaction is made by the CPU to IIO Part2",
+        "EventCode": "0xc1",
+        "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_READ.PART2",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0004",
+        "PublicDescription": "Number Transactions requested by the CPU : Core reading from Card's MMIO space : Also known as Outbound.  Number of requests initiated by the main die, including reads and writes. : x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 1",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Read request for up to a 64 byte transaction is made by the CPU to IIO Part3",
+        "EventCode": "0xc1",
+        "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_READ.PART3",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0008",
+        "PublicDescription": "Number Transactions requested by the CPU : Core reading from Card's MMIO space : Also known as Outbound.  Number of requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 3",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested by the CPU : Core reading from Cards MMIO space",
+        "EventCode": "0xc1",
+        "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_READ.PART4",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0010",
+        "PublicDescription": "Number Transactions requested by the CPU : Core reading from Cards MMIO space : Also known as Outbound.  Number of requests initiated by the main die, including reads and writes. : x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested by the CPU : Core reading from Cards MMIO space",
+        "EventCode": "0xc1",
+        "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_READ.PART5",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0020",
+        "PublicDescription": "Number Transactions requested by the CPU : Core reading from Cards MMIO space : Also known as Outbound.  Number of requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 1",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested by the CPU : Core reading from Cards MMIO space",
+        "EventCode": "0xc1",
+        "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_READ.PART6",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0040",
+        "PublicDescription": "Number Transactions requested by the CPU : Core reading from Cards MMIO space : Also known as Outbound.  Number of requests initiated by the main die, including reads and writes. : x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 1",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested by the CPU : Core reading from Cards MMIO space",
+        "EventCode": "0xc1",
+        "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_READ.PART7",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0080",
+        "PublicDescription": "Number Transactions requested by the CPU : Core reading from Cards MMIO space : Also known as Outbound.  Number of requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 3",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Write request of up to a 64 byte transaction is made to IIO Part0 by the CPU",
+        "EventCode": "0xc1",
+        "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_WRITE.PART0",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0001",
+        "PublicDescription": "Number Transactions requested by the CPU : Core writing to Card's MMIO space : Also known as Outbound.  Number of requests initiated by the main die, including reads and writes. : x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Write request of up to a 64 byte transaction is made to IIO Part1 by the CPU",
+        "EventCode": "0xc1",
+        "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_WRITE.PART1",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0002",
+        "PublicDescription": "Number Transactions requested by the CPU : Core writing to Card's MMIO space : Also known as Outbound.  Number of requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 1",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Write request of up to a 64 byte transaction is made to IIO Part2 by the CPU",
+        "EventCode": "0xc1",
+        "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_WRITE.PART2",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0004",
+        "PublicDescription": "Number Transactions requested by the CPU : Core writing to Card's MMIO space : Also known as Outbound.  Number of requests initiated by the main die, including reads and writes. : x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 1",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Write request of up to a 64 byte transaction is made to IIO Part3 by the CPU",
+        "EventCode": "0xc1",
+        "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_WRITE.PART3",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0008",
+        "PublicDescription": "Number Transactions requested by the CPU : Core writing to Card's MMIO space : Also known as Outbound.  Number of requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 3",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested by the CPU : Core writing to Cards MMIO space",
+        "EventCode": "0xc1",
+        "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_WRITE.PART4",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0010",
+        "PublicDescription": "Number Transactions requested by the CPU : Core writing to Cards MMIO space : Also known as Outbound.  Number of requests initiated by the main die, including reads and writes. : x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested by the CPU : Core writing to Cards MMIO space",
+        "EventCode": "0xc1",
+        "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_WRITE.PART5",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0020",
+        "PublicDescription": "Number Transactions requested by the CPU : Core writing to Cards MMIO space : Also known as Outbound.  Number of requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 1",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested by the CPU : Core writing to Cards MMIO space",
+        "EventCode": "0xc1",
+        "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_WRITE.PART6",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0040",
+        "PublicDescription": "Number Transactions requested by the CPU : Core writing to Cards MMIO space : Also known as Outbound.  Number of requests initiated by the main die, including reads and writes. : x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 1",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested by the CPU : Core writing to Cards MMIO space",
+        "EventCode": "0xc1",
+        "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_WRITE.PART7",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0080",
+        "PublicDescription": "Number Transactions requested by the CPU : Core writing to Cards MMIO space : Also known as Outbound.  Number of requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 3",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested by the CPU : Another card (different IIO stack) writing to this card.",
+        "EventCode": "0xc1",
+        "EventName": "UNC_IIO_TXN_REQ_BY_CPU.PEER_WRITE.PART0",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0001",
+        "PublicDescription": "Number Transactions requested by the CPU : Another card (different IIO stack) writing to this card. : Also known as Outbound.  Number of requests initiated by the main die, including reads and writes. : x16 card plugged in to Lane 0/1/2/3, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "UMask": "0x7001002",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested by the CPU : Another card (different IIO stack) writing to this card.",
+        "EventCode": "0xc1",
+        "EventName": "UNC_IIO_TXN_REQ_BY_CPU.PEER_WRITE.PART1",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0002",
+        "PublicDescription": "Number Transactions requested by the CPU : Another card (different IIO stack) writing to this card. : Also known as Outbound.  Number of requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 1",
+        "UMask": "0x7002002",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested by the CPU : Another card (different IIO stack) writing to this card.",
+        "EventCode": "0xc1",
+        "EventName": "UNC_IIO_TXN_REQ_BY_CPU.PEER_WRITE.PART2",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0004",
+        "PublicDescription": "Number Transactions requested by the CPU : Another card (different IIO stack) writing to this card. : Also known as Outbound.  Number of requests initiated by the main die, including reads and writes. : x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 2",
+        "UMask": "0x7004002",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested by the CPU : Another card (different IIO stack) writing to this card.",
+        "EventCode": "0xc1",
+        "EventName": "UNC_IIO_TXN_REQ_BY_CPU.PEER_WRITE.PART3",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0008",
+        "PublicDescription": "Number Transactions requested by the CPU : Another card (different IIO stack) writing to this card. : Also known as Outbound.  Number of requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 3",
+        "UMask": "0x7008002",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested by the CPU : Another card (different IIO stack) writing to this card.",
+        "EventCode": "0xc1",
+        "EventName": "UNC_IIO_TXN_REQ_BY_CPU.PEER_WRITE.PART4",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0010",
+        "PublicDescription": "Number Transactions requested by the CPU : Another card (different IIO stack) writing to this card. : Also known as Outbound.  Number of requests initiated by the main die, including reads and writes. : x16 card plugged in to Lane 4/5/6/7, Or x8 card plugged in to Lane 4/5, Or x4 card is plugged in to slot 4",
+        "UMask": "0x7010002",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested by the CPU : Another card (different IIO stack) writing to this card.",
+        "EventCode": "0xc1",
+        "EventName": "UNC_IIO_TXN_REQ_BY_CPU.PEER_WRITE.PART5",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0020",
+        "PublicDescription": "Number Transactions requested by the CPU : Another card (different IIO stack) writing to this card. : Also known as Outbound.  Number of requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 5",
+        "UMask": "0x7020002",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested by the CPU : Another card (different IIO stack) writing to this card.",
+        "EventCode": "0xc1",
+        "EventName": "UNC_IIO_TXN_REQ_BY_CPU.PEER_WRITE.PART6",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0040",
+        "PublicDescription": "Number Transactions requested by the CPU : Another card (different IIO stack) writing to this card. : Also known as Outbound.  Number of requests initiated by the main die, including reads and writes. : x8 card plugged in to Lane 6/7, Or x4 card is plugged in to slot 6",
+        "UMask": "0x7040002",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested by the CPU : Another card (different IIO stack) writing to this card.",
+        "EventCode": "0xc1",
+        "EventName": "UNC_IIO_TXN_REQ_BY_CPU.PEER_WRITE.PART7",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0080",
+        "PublicDescription": "Number Transactions requested by the CPU : Another card (different IIO stack) writing to this card. : Also known as Outbound.  Number of requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 7",
+        "UMask": "0x7080002",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested of the CPU : CmpD - device sending completion to CPU request",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.CMPD.PART0",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0001",
+        "PublicDescription": "Number Transactions requested of the CPU : CmpD - device sending completion to CPU request : Also known as Inbound.  Number of 64B cache line requests initiated by the Card, including reads and writes. : x16 card plugged in to Lane 0/1/2/3, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "UMask": "0x80",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested of the CPU : CmpD - device sending completion to CPU request",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.CMPD.PART1",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0002",
+        "PublicDescription": "Number Transactions requested of the CPU : CmpD - device sending completion to CPU request : Also known as Inbound.  Number of 64B cache line requests initiated by the Card, including reads and writes. : x4 card is plugged in to slot 1",
+        "UMask": "0x80",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested of the CPU : CmpD - device sending completion to CPU request",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.CMPD.PART2",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0004",
+        "PublicDescription": "Number Transactions requested of the CPU : CmpD - device sending completion to CPU request : Also known as Inbound.  Number of 64B cache line requests initiated by the Card, including reads and writes. : x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 2",
+        "UMask": "0x80",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested of the CPU : CmpD - device sending completion to CPU request",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.CMPD.PART3",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0008",
+        "PublicDescription": "Number Transactions requested of the CPU : CmpD - device sending completion to CPU request : Also known as Inbound.  Number of 64B cache line requests initiated by the Card, including reads and writes. : x4 card is plugged in to slot 3",
+        "UMask": "0x80",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested of the CPU : CmpD - device sending completion to CPU request",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.CMPD.PART4",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0010",
+        "PublicDescription": "Number Transactions requested of the CPU : CmpD - device sending completion to CPU request : Also known as Inbound.  Number of 64B cache line requests initiated by the Card, including reads and writes. : x16 card plugged in to Lane 4/5/6/7, Or x8 card plugged in to Lane 4/5, Or x4 card is plugged in to slot 4",
+        "UMask": "0x80",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested of the CPU : CmpD - device sending completion to CPU request",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.CMPD.PART5",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0020",
+        "PublicDescription": "Number Transactions requested of the CPU : CmpD - device sending completion to CPU request : Also known as Inbound.  Number of 64B cache line requests initiated by the Card, including reads and writes. : x4 card is plugged in to slot 5",
+        "UMask": "0x80",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested of the CPU : CmpD - device sending completion to CPU request",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.CMPD.PART6",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0040",
+        "PublicDescription": "Number Transactions requested of the CPU : CmpD - device sending completion to CPU request : Also known as Inbound.  Number of 64B cache line requests initiated by the Card, including reads and writes. : x8 card plugged in to Lane 6/7, Or x4 card is plugged in to slot 6",
+        "UMask": "0x80",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested of the CPU : CmpD - device sending completion to CPU request",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.CMPD.PART7",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0080",
+        "PublicDescription": "Number Transactions requested of the CPU : CmpD - device sending completion to CPU request : Also known as Inbound.  Number of 64B cache line requests initiated by the Card, including reads and writes. : x4 card is plugged in to slot 7",
+        "UMask": "0x80",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Read request for up to a 64 byte transaction is made by IIO Part0 to Memory",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.MEM_READ.PART0",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0001",
+        "PublicDescription": "Number Transactions requested of the CPU : Card reading from DRAM : Also known as Inbound.  Number of 64B cache line requests initiated by the Card, including reads and writes. : x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Read request for up to a 64 byte transaction is  made by IIO Part1 to Memory",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.MEM_READ.PART1",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0002",
+        "PublicDescription": "Number Transactions requested of the CPU : Card reading from DRAM : Also known as Inbound.  Number of 64B cache line requests initiated by the Card, including reads and writes. : x4 card is plugged in to slot 1",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Read request for up to a 64 byte transaction is made by IIO Part2 to Memory",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.MEM_READ.PART2",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0004",
+        "PublicDescription": "Number Transactions requested of the CPU : Card reading from DRAM : Also known as Inbound.  Number of 64B cache line requests initiated by the Card, including reads and writes. : x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 1",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Read request for up to a 64 byte transaction is made by IIO Part3 to Memory",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.MEM_READ.PART3",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0008",
+        "PublicDescription": "Number Transactions requested of the CPU : Card reading from DRAM : Also known as Inbound.  Number of 64B cache line requests initiated by the Card, including reads and writes. : x4 card is plugged in to slot 3",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested of the CPU : Card reading from DRAM",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.MEM_READ.PART4",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0010",
+        "PublicDescription": "Number Transactions requested of the CPU : Card reading from DRAM : Also known as Inbound.  Number of 64B cache line requests initiated by the Card, including reads and writes. : x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested of the CPU : Card reading from DRAM",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.MEM_READ.PART5",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0020",
+        "PublicDescription": "Number Transactions requested of the CPU : Card reading from DRAM : Also known as Inbound.  Number of 64B cache line requests initiated by the Card, including reads and writes. : x4 card is plugged in to slot 1",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested of the CPU : Card reading from DRAM",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.MEM_READ.PART6",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0040",
+        "PublicDescription": "Number Transactions requested of the CPU : Card reading from DRAM : Also known as Inbound.  Number of 64B cache line requests initiated by the Card, including reads and writes. : x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 1",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested of the CPU : Card reading from DRAM",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.MEM_READ.PART7",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0080",
+        "PublicDescription": "Number Transactions requested of the CPU : Card reading from DRAM : Also known as Inbound.  Number of 64B cache line requests initiated by the Card, including reads and writes. : x4 card is plugged in to slot 3",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Write request of up to a 64 byte transaction is made by IIO Part0 to Memory",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.MEM_WRITE.PART0",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0001",
+        "PublicDescription": "Number Transactions requested of the CPU : Card writing to DRAM : Also known as Inbound.  Number of 64B cache line requests initiated by the Card, including reads and writes. : x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Write request of up to a 64 byte transaction is made by IIO Part1 to Memory",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.MEM_WRITE.PART1",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0002",
+        "PublicDescription": "Number Transactions requested of the CPU : Card writing to DRAM : Also known as Inbound.  Number of 64B cache line requests initiated by the Card, including reads and writes. : x4 card is plugged in to slot 1",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Write request of up to a 64 byte transaction is made by IIO Part2 to Memory",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.MEM_WRITE.PART2",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0004",
+        "PublicDescription": "Number Transactions requested of the CPU : Card writing to DRAM : Also known as Inbound.  Number of 64B cache line requests initiated by the Card, including reads and writes. : x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 1",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Write request of up to a 64 byte transaction is made by IIO Part3 to Memory",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.MEM_WRITE.PART3",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0008",
+        "PublicDescription": "Number Transactions requested of the CPU : Card writing to DRAM : Also known as Inbound.  Number of 64B cache line requests initiated by the Card, including reads and writes. : x4 card is plugged in to slot 3",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested of the CPU : Card writing to DRAM",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.MEM_WRITE.PART4",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0010",
+        "PublicDescription": "Number Transactions requested of the CPU : Card writing to DRAM : Also known as Inbound.  Number of 64B cache line requests initiated by the Card, including reads and writes. : x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested of the CPU : Card writing to DRAM",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.MEM_WRITE.PART5",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0020",
+        "PublicDescription": "Number Transactions requested of the CPU : Card writing to DRAM : Also known as Inbound.  Number of 64B cache line requests initiated by the Card, including reads and writes. : x4 card is plugged in to slot 1",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested of the CPU : Card writing to DRAM",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.MEM_WRITE.PART6",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0040",
+        "PublicDescription": "Number Transactions requested of the CPU : Card writing to DRAM : Also known as Inbound.  Number of 64B cache line requests initiated by the Card, including reads and writes. : x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 1",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested of the CPU : Card writing to DRAM",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.MEM_WRITE.PART7",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0080",
+        "PublicDescription": "Number Transactions requested of the CPU : Card writing to DRAM : Also known as Inbound.  Number of 64B cache line requests initiated by the Card, including reads and writes. : x4 card is plugged in to slot 3",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested of the CPU : Card writing to another Card (same or different stack)",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_WRITE.PART0",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0001",
+        "PublicDescription": "Number Transactions requested of the CPU : Card writing to another Card (same or different stack) : Also known as Inbound.  Number of 64B cache line requests initiated by the Card, including reads and writes. : x16 card plugged in to Lane 0/1/2/3, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "UMask": "0x2",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested of the CPU : Card writing to another Card (same or different stack)",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_WRITE.PART1",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0002",
+        "PublicDescription": "Number Transactions requested of the CPU : Card writing to another Card (same or different stack) : Also known as Inbound.  Number of 64B cache line requests initiated by the Card, including reads and writes. : x4 card is plugged in to slot 1",
+        "UMask": "0x2",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested of the CPU : Card writing to another Card (same or different stack)",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_WRITE.PART2",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0004",
+        "PublicDescription": "Number Transactions requested of the CPU : Card writing to another Card (same or different stack) : Also known as Inbound.  Number of 64B cache line requests initiated by the Card, including reads and writes. : x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 2",
+        "UMask": "0x2",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested of the CPU : Card writing to another Card (same or different stack)",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_WRITE.PART3",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0008",
+        "PublicDescription": "Number Transactions requested of the CPU : Card writing to another Card (same or different stack) : Also known as Inbound.  Number of 64B cache line requests initiated by the Card, including reads and writes. : x4 card is plugged in to slot 3",
+        "UMask": "0x2",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested of the CPU : Card writing to another Card (same or different stack)",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_WRITE.PART4",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0010",
+        "PublicDescription": "Number Transactions requested of the CPU : Card writing to another Card (same or different stack) : Also known as Inbound.  Number of 64B cache line requests initiated by the Card, including reads and writes. : x16 card plugged in to Lane 4/5/6/7, Or x8 card plugged in to Lane 4/5, Or x4 card is plugged in to slot 4",
+        "UMask": "0x2",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested of the CPU : Card writing to another Card (same or different stack)",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_WRITE.PART5",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0020",
+        "PublicDescription": "Number Transactions requested of the CPU : Card writing to another Card (same or different stack) : Also known as Inbound.  Number of 64B cache line requests initiated by the Card, including reads and writes. : x4 card is plugged in to slot 5",
+        "UMask": "0x2",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested of the CPU : Card writing to another Card (same or different stack)",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_WRITE.PART6",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0040",
+        "PublicDescription": "Number Transactions requested of the CPU : Card writing to another Card (same or different stack) : Also known as Inbound.  Number of 64B cache line requests initiated by the Card, including reads and writes. : x8 card plugged in to Lane 6/7, Or x4 card is plugged in to slot 6",
+        "UMask": "0x2",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Number Transactions requested of the CPU : Card writing to another Card (same or different stack)",
+        "EventCode": "0x84",
+        "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_WRITE.PART7",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x0080",
+        "PublicDescription": "Number Transactions requested of the CPU : Card writing to another Card (same or different stack) : Also known as Inbound.  Number of 64B cache line requests initiated by the Card, including reads and writes. : x4 card is plugged in to slot 7",
+        "UMask": "0x2",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "M2P Clockticks",
+        "EventCode": "0x01",
+        "EventName": "UNC_M2P_CLOCKTICKS",
+        "PerPkg": "1",
+        "PublicDescription": "Number of M2P clock cycles while the event is enabled",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "CMS Clockticks",
+        "EventCode": "0xc0",
+        "EventName": "UNC_M2P_CMS_CLOCKTICKS",
+        "PerPkg": "1",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Egress Blocking due to Ordering requirements : Down",
+        "EventCode": "0xba",
+        "EventName": "UNC_M2P_EGRESS_ORDERING.IV_SNOOPGO_DN",
+        "PerPkg": "1",
+        "PublicDescription": "Egress Blocking due to Ordering requirements : Down : Counts number of cycles IV was blocked in the TGR Egress due to SNP/GO Ordering requirements",
+        "UMask": "0x4",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Egress Blocking due to Ordering requirements : Up",
+        "EventCode": "0xba",
+        "EventName": "UNC_M2P_EGRESS_ORDERING.IV_SNOOPGO_UP",
+        "PerPkg": "1",
+        "PublicDescription": "Egress Blocking due to Ordering requirements : Up : Counts number of cycles IV was blocked in the TGR Egress due to SNP/GO Ordering requirements",
+        "UMask": "0x1",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "M2PCIe IIO Credit Acquired : DRS",
+        "EventCode": "0x33",
+        "EventName": "UNC_M2P_IIO_CREDITS_ACQUIRED.DRS_0",
+        "PerPkg": "1",
+        "PublicDescription": "M2PCIe IIO Credit Acquired : DRS : Counts the number of credits that are acquired in the M2PCIe agent for sending transactions into the IIO on either NCB or NCS are in use.  Transactions from the BL ring going into the IIO Agent must first acquire a credit.  These credits are for either the NCB or NCS message classes.  NCB, or non-coherent bypass messages are used to transmit data without coherency (and are common).  NCS is used for reads to PCIe (and should be used sparingly). : Credits for transfer through CMS Port 0 to the IIO for the DRS message class.",
+        "UMask": "0x1",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "M2PCIe IIO Credit Acquired : DRS",
+        "EventCode": "0x33",
+        "EventName": "UNC_M2P_IIO_CREDITS_ACQUIRED.DRS_1",
+        "PerPkg": "1",
+        "PublicDescription": "M2PCIe IIO Credit Acquired : DRS : Counts the number of credits that are acquired in the M2PCIe agent for sending transactions into the IIO on either NCB or NCS are in use.  Transactions from the BL ring going into the IIO Agent must first acquire a credit.  These credits are for either the NCB or NCS message classes.  NCB, or non-coherent bypass messages are used to transmit data without coherency (and are common).  NCS is used for reads to PCIe (and should be used sparingly). : Credits for transfer through CMS Port 0 to the IIO for the DRS message class.",
+        "UMask": "0x2",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "M2PCIe IIO Credit Acquired : NCB",
+        "EventCode": "0x33",
+        "EventName": "UNC_M2P_IIO_CREDITS_ACQUIRED.NCB_0",
+        "PerPkg": "1",
+        "PublicDescription": "M2PCIe IIO Credit Acquired : NCB : Counts the number of credits that are acquired in the M2PCIe agent for sending transactions into the IIO on either NCB or NCS are in use.  Transactions from the BL ring going into the IIO Agent must first acquire a credit.  These credits are for either the NCB or NCS message classes.  NCB, or non-coherent bypass messages are used to transmit data without coherency (and are common).  NCS is used for reads to PCIe (and should be used sparingly). : Credits for transfer through CMS Port 0 to the IIO for the NCB message class.",
+        "UMask": "0x4",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "M2PCIe IIO Credit Acquired : NCB",
+        "EventCode": "0x33",
+        "EventName": "UNC_M2P_IIO_CREDITS_ACQUIRED.NCB_1",
+        "PerPkg": "1",
+        "PublicDescription": "M2PCIe IIO Credit Acquired : NCB : Counts the number of credits that are acquired in the M2PCIe agent for sending transactions into the IIO on either NCB or NCS are in use.  Transactions from the BL ring going into the IIO Agent must first acquire a credit.  These credits are for either the NCB or NCS message classes.  NCB, or non-coherent bypass messages are used to transmit data without coherency (and are common).  NCS is used for reads to PCIe (and should be used sparingly). : Credits for transfer through CMS Port 0 to the IIO for the NCB message class.",
+        "UMask": "0x8",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "M2PCIe IIO Credit Acquired : NCS",
+        "EventCode": "0x33",
+        "EventName": "UNC_M2P_IIO_CREDITS_ACQUIRED.NCS_0",
+        "PerPkg": "1",
+        "PublicDescription": "M2PCIe IIO Credit Acquired : NCS : Counts the number of credits that are acquired in the M2PCIe agent for sending transactions into the IIO on either NCB or NCS are in use.  Transactions from the BL ring going into the IIO Agent must first acquire a credit.  These credits are for either the NCB or NCS message classes.  NCB, or non-coherent bypass messages are used to transmit data without coherency (and are common).  NCS is used for reads to PCIe (and should be used sparingly). : Credits for transfer through CMS Port 0 to the IIO for the NCS message class.",
+        "UMask": "0x10",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "M2PCIe IIO Credit Acquired : NCS",
+        "EventCode": "0x33",
+        "EventName": "UNC_M2P_IIO_CREDITS_ACQUIRED.NCS_1",
+        "PerPkg": "1",
+        "PublicDescription": "M2PCIe IIO Credit Acquired : NCS : Counts the number of credits that are acquired in the M2PCIe agent for sending transactions into the IIO on either NCB or NCS are in use.  Transactions from the BL ring going into the IIO Agent must first acquire a credit.  These credits are for either the NCB or NCS message classes.  NCB, or non-coherent bypass messages are used to transmit data without coherency (and are common).  NCS is used for reads to PCIe (and should be used sparingly). : Credit for transfer through CMS Port 0s to the IIO for the NCS message class.",
+        "UMask": "0x20",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "M2PCIe IIO Failed to Acquire a Credit : DRS",
+        "EventCode": "0x34",
+        "EventName": "UNC_M2P_IIO_CREDITS_REJECT.DRS",
+        "PerPkg": "1",
+        "PublicDescription": "M2PCIe IIO Failed to Acquire a Credit : DRS : Counts the number of times that a request pending in the BL Ingress attempted to acquire either a NCB or NCS credit to transmit into the IIO, but was rejected because no credits were available.  NCB, or non-coherent bypass messages are used to transmit data without coherency (and are common).  NCS is used for reads to PCIe (and should be used sparingly). : Credits to the IIO for the DRS message class.",
+        "UMask": "0x8",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "M2PCIe IIO Failed to Acquire a Credit : NCB",
+        "EventCode": "0x34",
+        "EventName": "UNC_M2P_IIO_CREDITS_REJECT.NCB",
+        "PerPkg": "1",
+        "PublicDescription": "M2PCIe IIO Failed to Acquire a Credit : NCB : Counts the number of times that a request pending in the BL Ingress attempted to acquire either a NCB or NCS credit to transmit into the IIO, but was rejected because no credits were available.  NCB, or non-coherent bypass messages are used to transmit data without coherency (and are common).  NCS is used for reads to PCIe (and should be used sparingly). : Credits to the IIO for the NCB message class.",
+        "UMask": "0x10",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "M2PCIe IIO Failed to Acquire a Credit : NCS",
+        "EventCode": "0x34",
+        "EventName": "UNC_M2P_IIO_CREDITS_REJECT.NCS",
+        "PerPkg": "1",
+        "PublicDescription": "M2PCIe IIO Failed to Acquire a Credit : NCS : Counts the number of times that a request pending in the BL Ingress attempted to acquire either a NCB or NCS credit to transmit into the IIO, but was rejected because no credits were available.  NCB, or non-coherent bypass messages are used to transmit data without coherency (and are common).  NCS is used for reads to PCIe (and should be used sparingly). : Credits to the IIO for the NCS message class.",
+        "UMask": "0x20",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "M2PCIe IIO Credits in Use : DRS to CMS Port 0",
+        "EventCode": "0x32",
+        "EventName": "UNC_M2P_IIO_CREDITS_USED.DRS_0",
+        "PerPkg": "1",
+        "PublicDescription": "M2PCIe IIO Credits in Use : DRS to CMS Port 0 : Counts the number of cycles when one or more credits in the M2PCIe agent for sending transactions into the IIO on either NCB or NCS are in use.  Transactions from the BL ring going into the IIO Agent must first acquire a credit.  These credits are for either the NCB or NCS message classes.  NCB, or non-coherent bypass messages are used to transmit data without coherency (and are common).  NCS is used for reads to PCIe (and should be used sparingly). : Credits for transfer through CMS Port 0 to the IIO for the DRS message class.",
+        "UMask": "0x1",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "M2PCIe IIO Credits in Use : DRS to CMS Port 1",
+        "EventCode": "0x32",
+        "EventName": "UNC_M2P_IIO_CREDITS_USED.DRS_1",
+        "PerPkg": "1",
+        "PublicDescription": "M2PCIe IIO Credits in Use : DRS to CMS Port 1 : Counts the number of cycles when one or more credits in the M2PCIe agent for sending transactions into the IIO on either NCB or NCS are in use.  Transactions from the BL ring going into the IIO Agent must first acquire a credit.  These credits are for either the NCB or NCS message classes.  NCB, or non-coherent bypass messages are used to transmit data without coherency (and are common).  NCS is used for reads to PCIe (and should be used sparingly). : Credits for transfer through CMS Port 0 to the IIO for the DRS message class.",
+        "UMask": "0x2",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "M2PCIe IIO Credits in Use : NCB to CMS Port 0",
+        "EventCode": "0x32",
+        "EventName": "UNC_M2P_IIO_CREDITS_USED.NCB_0",
+        "PerPkg": "1",
+        "PublicDescription": "M2PCIe IIO Credits in Use : NCB to CMS Port 0 : Counts the number of cycles when one or more credits in the M2PCIe agent for sending transactions into the IIO on either NCB or NCS are in use.  Transactions from the BL ring going into the IIO Agent must first acquire a credit.  These credits are for either the NCB or NCS message classes.  NCB, or non-coherent bypass messages are used to transmit data without coherency (and are common).  NCS is used for reads to PCIe (and should be used sparingly). : Credits for transfer through CMS Port 0 to the IIO for the NCB message class.",
+        "UMask": "0x4",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "M2PCIe IIO Credits in Use : NCB to CMS Port 1",
+        "EventCode": "0x32",
+        "EventName": "UNC_M2P_IIO_CREDITS_USED.NCB_1",
+        "PerPkg": "1",
+        "PublicDescription": "M2PCIe IIO Credits in Use : NCB to CMS Port 1 : Counts the number of cycles when one or more credits in the M2PCIe agent for sending transactions into the IIO on either NCB or NCS are in use.  Transactions from the BL ring going into the IIO Agent must first acquire a credit.  These credits are for either the NCB or NCS message classes.  NCB, or non-coherent bypass messages are used to transmit data without coherency (and are common).  NCS is used for reads to PCIe (and should be used sparingly). : Credits for transfer through CMS Port 0 to the IIO for the NCB message class.",
+        "UMask": "0x8",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "M2PCIe IIO Credits in Use : NCS to CMS Port 0",
+        "EventCode": "0x32",
+        "EventName": "UNC_M2P_IIO_CREDITS_USED.NCS_0",
+        "PerPkg": "1",
+        "PublicDescription": "M2PCIe IIO Credits in Use : NCS to CMS Port 0 : Counts the number of cycles when one or more credits in the M2PCIe agent for sending transactions into the IIO on either NCB or NCS are in use.  Transactions from the BL ring going into the IIO Agent must first acquire a credit.  These credits are for either the NCB or NCS message classes.  NCB, or non-coherent bypass messages are used to transmit data without coherency (and are common).  NCS is used for reads to PCIe (and should be used sparingly). : Credits for transfer through CMS Port 0 to the IIO for the NCS message class.",
+        "UMask": "0x10",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "M2PCIe IIO Credits in Use : NCS to CMS Port 1",
+        "EventCode": "0x32",
+        "EventName": "UNC_M2P_IIO_CREDITS_USED.NCS_1",
+        "PerPkg": "1",
+        "PublicDescription": "M2PCIe IIO Credits in Use : NCS to CMS Port 1 : Counts the number of cycles when one or more credits in the M2PCIe agent for sending transactions into the IIO on either NCB or NCS are in use.  Transactions from the BL ring going into the IIO Agent must first acquire a credit.  These credits are for either the NCB or NCS message classes.  NCB, or non-coherent bypass messages are used to transmit data without coherency (and are common).  NCS is used for reads to PCIe (and should be used sparingly). : Credit for transfer through CMS Port 0s to the IIO for the NCS message class.",
+        "UMask": "0x20",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local Dedicated P2P Credit Taken - 0 : M2IOSF0 - NCB",
+        "EventCode": "0x46",
+        "EventName": "UNC_M2P_LOCAL_DED_P2P_CRD_TAKEN_0.M2IOSF0_NCB",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local Dedicated P2P Credit Taken - 0 : M2IOSF0 - NCS",
+        "EventCode": "0x46",
+        "EventName": "UNC_M2P_LOCAL_DED_P2P_CRD_TAKEN_0.M2IOSF0_NCS",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local Dedicated P2P Credit Taken - 0 : M2IOSF1 - NCB",
+        "EventCode": "0x46",
+        "EventName": "UNC_M2P_LOCAL_DED_P2P_CRD_TAKEN_0.M2IOSF1_NCB",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local Dedicated P2P Credit Taken - 0 : M2IOSF1 - NCS",
+        "EventCode": "0x46",
+        "EventName": "UNC_M2P_LOCAL_DED_P2P_CRD_TAKEN_0.M2IOSF1_NCS",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local Dedicated P2P Credit Taken - 0 : M2IOSF2 - NCB",
+        "EventCode": "0x46",
+        "EventName": "UNC_M2P_LOCAL_DED_P2P_CRD_TAKEN_0.M2IOSF2_NCB",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local Dedicated P2P Credit Taken - 0 : M2IOSF2 - NCS",
+        "EventCode": "0x46",
+        "EventName": "UNC_M2P_LOCAL_DED_P2P_CRD_TAKEN_0.M2IOSF2_NCS",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local Dedicated P2P Credit Taken - 0 : M2IOSF3 - NCB",
+        "EventCode": "0x46",
+        "EventName": "UNC_M2P_LOCAL_DED_P2P_CRD_TAKEN_0.M2IOSF3_NCB",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local Dedicated P2P Credit Taken - 0 : M2IOSF3 - NCS",
+        "EventCode": "0x46",
+        "EventName": "UNC_M2P_LOCAL_DED_P2P_CRD_TAKEN_0.M2IOSF3_NCS",
+        "PerPkg": "1",
+        "UMask": "0x80",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local Dedicated P2P Credit Taken - 1 : M2IOSF4 - NCB",
+        "EventCode": "0x47",
+        "EventName": "UNC_M2P_LOCAL_DED_P2P_CRD_TAKEN_1.M2IOSF4_NCB",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local Dedicated P2P Credit Taken - 1 : M2IOSF4 - NCS",
+        "EventCode": "0x47",
+        "EventName": "UNC_M2P_LOCAL_DED_P2P_CRD_TAKEN_1.M2IOSF4_NCS",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local Dedicated P2P Credit Taken - 1 : M2IOSF5 - NCB",
+        "EventCode": "0x47",
+        "EventName": "UNC_M2P_LOCAL_DED_P2P_CRD_TAKEN_1.M2IOSF5_NCB",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local Dedicated P2P Credit Taken - 1 : M2IOSF5 - NCS",
+        "EventCode": "0x47",
+        "EventName": "UNC_M2P_LOCAL_DED_P2P_CRD_TAKEN_1.M2IOSF5_NCS",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local P2P Dedicated Credits Returned - 0 : M2IOSF0 - NCB",
+        "EventCode": "0x19",
+        "EventName": "UNC_M2P_LOCAL_P2P_DED_RETURNED_0.MS2IOSF0_NCB",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local P2P Dedicated Credits Returned - 0 : M2IOSF0 - NCS",
+        "EventCode": "0x19",
+        "EventName": "UNC_M2P_LOCAL_P2P_DED_RETURNED_0.MS2IOSF0_NCS",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local P2P Dedicated Credits Returned - 0 : M2IOSF1 - NCB",
+        "EventCode": "0x19",
+        "EventName": "UNC_M2P_LOCAL_P2P_DED_RETURNED_0.MS2IOSF1_NCB",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local P2P Dedicated Credits Returned - 0 : M2IOSF1 - NCS",
+        "EventCode": "0x19",
+        "EventName": "UNC_M2P_LOCAL_P2P_DED_RETURNED_0.MS2IOSF1_NCS",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local P2P Dedicated Credits Returned - 0 : M2IOSF2 - NCB",
+        "EventCode": "0x19",
+        "EventName": "UNC_M2P_LOCAL_P2P_DED_RETURNED_0.MS2IOSF2_NCB",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local P2P Dedicated Credits Returned - 0 : M2IOSF2 - NCS",
+        "EventCode": "0x19",
+        "EventName": "UNC_M2P_LOCAL_P2P_DED_RETURNED_0.MS2IOSF2_NCS",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local P2P Dedicated Credits Returned - 0 : M2IOSF3 - NCB",
+        "EventCode": "0x19",
+        "EventName": "UNC_M2P_LOCAL_P2P_DED_RETURNED_0.MS2IOSF3_NCB",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local P2P Dedicated Credits Returned - 0 : M2IOSF3 - NCS",
+        "EventCode": "0x19",
+        "EventName": "UNC_M2P_LOCAL_P2P_DED_RETURNED_0.MS2IOSF3_NCS",
+        "PerPkg": "1",
+        "UMask": "0x80",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local P2P Dedicated Credits Returned - 1 : M2IOSF4 - NCB",
+        "EventCode": "0x1a",
+        "EventName": "UNC_M2P_LOCAL_P2P_DED_RETURNED_1.MS2IOSF4_NCB",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local P2P Dedicated Credits Returned - 1 : M2IOSF4 - NCS",
+        "EventCode": "0x1a",
+        "EventName": "UNC_M2P_LOCAL_P2P_DED_RETURNED_1.MS2IOSF4_NCS",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local P2P Dedicated Credits Returned - 1 : M2IOSF5 - NCB",
+        "EventCode": "0x1a",
+        "EventName": "UNC_M2P_LOCAL_P2P_DED_RETURNED_1.MS2IOSF5_NCB",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local P2P Dedicated Credits Returned - 1 : M2IOSF5 - NCS",
+        "EventCode": "0x1a",
+        "EventName": "UNC_M2P_LOCAL_P2P_DED_RETURNED_1.MS2IOSF5_NCS",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local P2P Shared Credits Returned : Agent0",
+        "EventCode": "0x17",
+        "EventName": "UNC_M2P_LOCAL_P2P_SHAR_RETURNED.AGENT_0",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local P2P Shared Credits Returned : Agent1",
+        "EventCode": "0x17",
+        "EventName": "UNC_M2P_LOCAL_P2P_SHAR_RETURNED.AGENT_1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local P2P Shared Credits Returned : Agent2",
+        "EventCode": "0x17",
+        "EventName": "UNC_M2P_LOCAL_P2P_SHAR_RETURNED.AGENT_2",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local Shared P2P Credit Returned to credit ring : Agent0",
+        "EventCode": "0x44",
+        "EventName": "UNC_M2P_LOCAL_SHAR_P2P_CRD_RETURNED.AGENT_0",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local Shared P2P Credit Returned to credit ring : Agent1",
+        "EventCode": "0x44",
+        "EventName": "UNC_M2P_LOCAL_SHAR_P2P_CRD_RETURNED.AGENT_1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local Shared P2P Credit Returned to credit ring : Agent2",
+        "EventCode": "0x44",
+        "EventName": "UNC_M2P_LOCAL_SHAR_P2P_CRD_RETURNED.AGENT_2",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local Shared P2P Credit Returned to credit ring : Agent3",
+        "EventCode": "0x44",
+        "EventName": "UNC_M2P_LOCAL_SHAR_P2P_CRD_RETURNED.AGENT_3",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local Shared P2P Credit Returned to credit ring : Agent4",
+        "EventCode": "0x44",
+        "EventName": "UNC_M2P_LOCAL_SHAR_P2P_CRD_RETURNED.AGENT_4",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local Shared P2P Credit Returned to credit ring : Agent5",
+        "EventCode": "0x44",
+        "EventName": "UNC_M2P_LOCAL_SHAR_P2P_CRD_RETURNED.AGENT_5",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local Shared P2P Credit Taken - 0 : M2IOSF0 - NCB",
+        "EventCode": "0x40",
+        "EventName": "UNC_M2P_LOCAL_SHAR_P2P_CRD_TAKEN_0.M2IOSF0_NCB",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local Shared P2P Credit Taken - 0 : M2IOSF0 - NCS",
+        "EventCode": "0x40",
+        "EventName": "UNC_M2P_LOCAL_SHAR_P2P_CRD_TAKEN_0.M2IOSF0_NCS",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local Shared P2P Credit Taken - 0 : M2IOSF1 - NCB",
+        "EventCode": "0x40",
+        "EventName": "UNC_M2P_LOCAL_SHAR_P2P_CRD_TAKEN_0.M2IOSF1_NCB",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local Shared P2P Credit Taken - 0 : M2IOSF1 - NCS",
+        "EventCode": "0x40",
+        "EventName": "UNC_M2P_LOCAL_SHAR_P2P_CRD_TAKEN_0.M2IOSF1_NCS",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local Shared P2P Credit Taken - 0 : M2IOSF2 - NCB",
+        "EventCode": "0x40",
+        "EventName": "UNC_M2P_LOCAL_SHAR_P2P_CRD_TAKEN_0.M2IOSF2_NCB",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local Shared P2P Credit Taken - 0 : M2IOSF2 - NCS",
+        "EventCode": "0x40",
+        "EventName": "UNC_M2P_LOCAL_SHAR_P2P_CRD_TAKEN_0.M2IOSF2_NCS",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local Shared P2P Credit Taken - 0 : M2IOSF3 - NCB",
+        "EventCode": "0x40",
+        "EventName": "UNC_M2P_LOCAL_SHAR_P2P_CRD_TAKEN_0.M2IOSF3_NCB",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local Shared P2P Credit Taken - 0 : M2IOSF3 - NCS",
+        "EventCode": "0x40",
+        "EventName": "UNC_M2P_LOCAL_SHAR_P2P_CRD_TAKEN_0.M2IOSF3_NCS",
+        "PerPkg": "1",
+        "UMask": "0x80",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local Shared P2P Credit Taken - 1 : M2IOSF4 - NCB",
+        "EventCode": "0x41",
+        "EventName": "UNC_M2P_LOCAL_SHAR_P2P_CRD_TAKEN_1.M2IOSF4_NCB",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local Shared P2P Credit Taken - 1 : M2IOSF4 - NCS",
+        "EventCode": "0x41",
+        "EventName": "UNC_M2P_LOCAL_SHAR_P2P_CRD_TAKEN_1.M2IOSF4_NCS",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local Shared P2P Credit Taken - 1 : M2IOSF5 - NCB",
+        "EventCode": "0x41",
+        "EventName": "UNC_M2P_LOCAL_SHAR_P2P_CRD_TAKEN_1.M2IOSF5_NCB",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Local Shared P2P Credit Taken - 1 : M2IOSF5 - NCS",
+        "EventCode": "0x41",
+        "EventName": "UNC_M2P_LOCAL_SHAR_P2P_CRD_TAKEN_1.M2IOSF5_NCS",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Waiting on Local Shared P2P Credit - 0 : M2IOSF0 - NCB",
+        "EventCode": "0x4a",
+        "EventName": "UNC_M2P_LOCAL_SHAR_P2P_CRD_WAIT_0.M2IOSF0_NCB",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Waiting on Local Shared P2P Credit - 0 : M2IOSF0 - NCS",
+        "EventCode": "0x4a",
+        "EventName": "UNC_M2P_LOCAL_SHAR_P2P_CRD_WAIT_0.M2IOSF0_NCS",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Waiting on Local Shared P2P Credit - 0 : M2IOSF1 - NCB",
+        "EventCode": "0x4a",
+        "EventName": "UNC_M2P_LOCAL_SHAR_P2P_CRD_WAIT_0.M2IOSF1_NCB",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Waiting on Local Shared P2P Credit - 0 : M2IOSF1 - NCS",
+        "EventCode": "0x4a",
+        "EventName": "UNC_M2P_LOCAL_SHAR_P2P_CRD_WAIT_0.M2IOSF1_NCS",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Waiting on Local Shared P2P Credit - 0 : M2IOSF2 - NCB",
+        "EventCode": "0x4a",
+        "EventName": "UNC_M2P_LOCAL_SHAR_P2P_CRD_WAIT_0.M2IOSF2_NCB",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Waiting on Local Shared P2P Credit - 0 : M2IOSF2 - NCS",
+        "EventCode": "0x4a",
+        "EventName": "UNC_M2P_LOCAL_SHAR_P2P_CRD_WAIT_0.M2IOSF2_NCS",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Waiting on Local Shared P2P Credit - 0 : M2IOSF3 - NCB",
+        "EventCode": "0x4a",
+        "EventName": "UNC_M2P_LOCAL_SHAR_P2P_CRD_WAIT_0.M2IOSF3_NCB",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Waiting on Local Shared P2P Credit - 0 : M2IOSF3 - NCS",
+        "EventCode": "0x4a",
+        "EventName": "UNC_M2P_LOCAL_SHAR_P2P_CRD_WAIT_0.M2IOSF3_NCS",
+        "PerPkg": "1",
+        "UMask": "0x80",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Waiting on Local Shared P2P Credit - 1 : M2IOSF4 - NCB",
+        "EventCode": "0x4b",
+        "EventName": "UNC_M2P_LOCAL_SHAR_P2P_CRD_WAIT_1.M2IOSF4_NCB",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Waiting on Local Shared P2P Credit - 1 : M2IOSF4 - NCS",
+        "EventCode": "0x4b",
+        "EventName": "UNC_M2P_LOCAL_SHAR_P2P_CRD_WAIT_1.M2IOSF4_NCS",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Waiting on Local Shared P2P Credit - 1 : M2IOSF5 - NCB",
+        "EventCode": "0x4b",
+        "EventName": "UNC_M2P_LOCAL_SHAR_P2P_CRD_WAIT_1.M2IOSF5_NCB",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Waiting on Local Shared P2P Credit - 1 : M2IOSF5 - NCS",
+        "EventCode": "0x4b",
+        "EventName": "UNC_M2P_LOCAL_SHAR_P2P_CRD_WAIT_1.M2IOSF5_NCS",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "P2P Credit Occupancy : All",
+        "EventCode": "0x14",
+        "EventName": "UNC_M2P_P2P_CRD_OCCUPANCY.ALL",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "P2P Credit Occupancy : Local NCB",
+        "EventCode": "0x14",
+        "EventName": "UNC_M2P_P2P_CRD_OCCUPANCY.LOCAL_NCB",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "P2P Credit Occupancy : Local NCS",
+        "EventCode": "0x14",
+        "EventName": "UNC_M2P_P2P_CRD_OCCUPANCY.LOCAL_NCS",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "P2P Credit Occupancy : Remote NCB",
+        "EventCode": "0x14",
+        "EventName": "UNC_M2P_P2P_CRD_OCCUPANCY.REMOTE_NCB",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "P2P Credit Occupancy : Remote NCS",
+        "EventCode": "0x14",
+        "EventName": "UNC_M2P_P2P_CRD_OCCUPANCY.REMOTE_NCS",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Dedicated Credits Received : All",
+        "EventCode": "0x16",
+        "EventName": "UNC_M2P_P2P_DED_RECEIVED.ALL",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Dedicated Credits Received : Local NCB",
+        "EventCode": "0x16",
+        "EventName": "UNC_M2P_P2P_DED_RECEIVED.LOCAL_NCB",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Dedicated Credits Received : Local NCS",
+        "EventCode": "0x16",
+        "EventName": "UNC_M2P_P2P_DED_RECEIVED.LOCAL_NCS",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Dedicated Credits Received : Remote NCB",
+        "EventCode": "0x16",
+        "EventName": "UNC_M2P_P2P_DED_RECEIVED.REMOTE_NCB",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Dedicated Credits Received : Remote NCS",
+        "EventCode": "0x16",
+        "EventName": "UNC_M2P_P2P_DED_RECEIVED.REMOTE_NCS",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Shared Credits  Received : All",
+        "EventCode": "0x15",
+        "EventName": "UNC_M2P_P2P_SHAR_RECEIVED.ALL",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Shared Credits  Received : Local NCB",
+        "EventCode": "0x15",
+        "EventName": "UNC_M2P_P2P_SHAR_RECEIVED.LOCAL_NCB",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Shared Credits  Received : Local NCS",
+        "EventCode": "0x15",
+        "EventName": "UNC_M2P_P2P_SHAR_RECEIVED.LOCAL_NCS",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Shared Credits  Received : Remote NCB",
+        "EventCode": "0x15",
+        "EventName": "UNC_M2P_P2P_SHAR_RECEIVED.REMOTE_NCB",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Shared Credits  Received : Remote NCS",
+        "EventCode": "0x15",
+        "EventName": "UNC_M2P_P2P_SHAR_RECEIVED.REMOTE_NCS",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Remote Dedicated P2P Credit Taken - 0 : UPI0 - DRS",
+        "EventCode": "0x48",
+        "EventName": "UNC_M2P_REMOTE_DED_P2P_CRD_TAKEN_0.UPI0_DRS",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Remote Dedicated P2P Credit Taken - 0 : UPI0 - NCB",
+        "EventCode": "0x48",
+        "EventName": "UNC_M2P_REMOTE_DED_P2P_CRD_TAKEN_0.UPI0_NCB",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Remote Dedicated P2P Credit Taken - 0 : UPI0 - NCS",
+        "EventCode": "0x48",
+        "EventName": "UNC_M2P_REMOTE_DED_P2P_CRD_TAKEN_0.UPI0_NCS",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Remote Dedicated P2P Credit Taken - 0 : UPI1 - DRS",
+        "EventCode": "0x48",
+        "EventName": "UNC_M2P_REMOTE_DED_P2P_CRD_TAKEN_0.UPI1_DRS",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Remote Dedicated P2P Credit Taken - 0 : UPI1 - NCB",
+        "EventCode": "0x48",
+        "EventName": "UNC_M2P_REMOTE_DED_P2P_CRD_TAKEN_0.UPI1_NCB",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Remote Dedicated P2P Credit Taken - 0 : UPI1 - NCS",
+        "EventCode": "0x48",
+        "EventName": "UNC_M2P_REMOTE_DED_P2P_CRD_TAKEN_0.UPI1_NCS",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Remote Dedicated P2P Credit Taken - 1 : UPI2 - DRS",
+        "EventCode": "0x49",
+        "EventName": "UNC_M2P_REMOTE_DED_P2P_CRD_TAKEN_1.UPI2_DRS",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Remote Dedicated P2P Credit Taken - 1 : UPI2 - NCB",
+        "EventCode": "0x49",
+        "EventName": "UNC_M2P_REMOTE_DED_P2P_CRD_TAKEN_1.UPI2_NCB",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Remote Dedicated P2P Credit Taken - 1 : UPI2 - NCS",
+        "EventCode": "0x49",
+        "EventName": "UNC_M2P_REMOTE_DED_P2P_CRD_TAKEN_1.UPI2_NCS",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Remote P2P Dedicated Credits Returned : UPI0 - NCB",
+        "EventCode": "0x1b",
+        "EventName": "UNC_M2P_REMOTE_P2P_DED_RETURNED.UPI0_NCB",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Remote P2P Dedicated Credits Returned : UPI0 - NCS",
+        "EventCode": "0x1b",
+        "EventName": "UNC_M2P_REMOTE_P2P_DED_RETURNED.UPI0_NCS",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Remote P2P Dedicated Credits Returned : UPI1 - NCB",
+        "EventCode": "0x1b",
+        "EventName": "UNC_M2P_REMOTE_P2P_DED_RETURNED.UPI1_NCB",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Remote P2P Dedicated Credits Returned : UPI1 - NCS",
+        "EventCode": "0x1b",
+        "EventName": "UNC_M2P_REMOTE_P2P_DED_RETURNED.UPI1_NCS",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Remote P2P Dedicated Credits Returned : UPI2 - NCB",
+        "EventCode": "0x1b",
+        "EventName": "UNC_M2P_REMOTE_P2P_DED_RETURNED.UPI2_NCB",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Remote P2P Dedicated Credits Returned : UPI2 - NCS",
+        "EventCode": "0x1b",
+        "EventName": "UNC_M2P_REMOTE_P2P_DED_RETURNED.UPI2_NCS",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Remote P2P Shared Credits Returned : Agent0",
+        "EventCode": "0x18",
+        "EventName": "UNC_M2P_REMOTE_P2P_SHAR_RETURNED.AGENT_0",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Remote P2P Shared Credits Returned : Agent1",
+        "EventCode": "0x18",
+        "EventName": "UNC_M2P_REMOTE_P2P_SHAR_RETURNED.AGENT_1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Remote P2P Shared Credits Returned : Agent2",
+        "EventCode": "0x18",
+        "EventName": "UNC_M2P_REMOTE_P2P_SHAR_RETURNED.AGENT_2",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Remote Shared P2P Credit Returned to credit ring : Agent0",
+        "EventCode": "0x45",
+        "EventName": "UNC_M2P_REMOTE_SHAR_P2P_CRD_RETURNED.AGENT_0",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Remote Shared P2P Credit Returned to credit ring : Agent1",
+        "EventCode": "0x45",
+        "EventName": "UNC_M2P_REMOTE_SHAR_P2P_CRD_RETURNED.AGENT_1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Remote Shared P2P Credit Returned to credit ring : Agent2",
+        "EventCode": "0x45",
+        "EventName": "UNC_M2P_REMOTE_SHAR_P2P_CRD_RETURNED.AGENT_2",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Remote Shared P2P Credit Taken - 0 : UPI0 - DRS",
+        "EventCode": "0x42",
+        "EventName": "UNC_M2P_REMOTE_SHAR_P2P_CRD_TAKEN_0.UPI0_DRS",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Remote Shared P2P Credit Taken - 0 : UPI0 - NCB",
+        "EventCode": "0x42",
+        "EventName": "UNC_M2P_REMOTE_SHAR_P2P_CRD_TAKEN_0.UPI0_NCB",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Remote Shared P2P Credit Taken - 0 : UPI0 - NCS",
+        "EventCode": "0x42",
+        "EventName": "UNC_M2P_REMOTE_SHAR_P2P_CRD_TAKEN_0.UPI0_NCS",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Remote Shared P2P Credit Taken - 0 : UPI1 - DRS",
+        "EventCode": "0x42",
+        "EventName": "UNC_M2P_REMOTE_SHAR_P2P_CRD_TAKEN_0.UPI1_DRS",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Remote Shared P2P Credit Taken - 0 : UPI1 - NCB",
+        "EventCode": "0x42",
+        "EventName": "UNC_M2P_REMOTE_SHAR_P2P_CRD_TAKEN_0.UPI1_NCB",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Remote Shared P2P Credit Taken - 0 : UPI1 - NCS",
+        "EventCode": "0x42",
+        "EventName": "UNC_M2P_REMOTE_SHAR_P2P_CRD_TAKEN_0.UPI1_NCS",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Remote Shared P2P Credit Taken - 1 : UPI2 - DRS",
+        "EventCode": "0x43",
+        "EventName": "UNC_M2P_REMOTE_SHAR_P2P_CRD_TAKEN_1.UPI2_DRS",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Remote Shared P2P Credit Taken - 1 : UPI2 - NCB",
+        "EventCode": "0x43",
+        "EventName": "UNC_M2P_REMOTE_SHAR_P2P_CRD_TAKEN_1.UPI2_NCB",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Remote Shared P2P Credit Taken - 1 : UPI2 - NCS",
+        "EventCode": "0x43",
+        "EventName": "UNC_M2P_REMOTE_SHAR_P2P_CRD_TAKEN_1.UPI2_NCS",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Waiting on Remote Shared P2P Credit - 0 : UPI0 - DRS",
+        "EventCode": "0x4c",
+        "EventName": "UNC_M2P_REMOTE_SHAR_P2P_CRD_WAIT_0.UPI0_DRS",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Waiting on Remote Shared P2P Credit - 0 : UPI0 - NCB",
+        "EventCode": "0x4c",
+        "EventName": "UNC_M2P_REMOTE_SHAR_P2P_CRD_WAIT_0.UPI0_NCB",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Waiting on Remote Shared P2P Credit - 0 : UPI0 - NCS",
+        "EventCode": "0x4c",
+        "EventName": "UNC_M2P_REMOTE_SHAR_P2P_CRD_WAIT_0.UPI0_NCS",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Waiting on Remote Shared P2P Credit - 0 : UPI1 - DRS",
+        "EventCode": "0x4c",
+        "EventName": "UNC_M2P_REMOTE_SHAR_P2P_CRD_WAIT_0.UPI1_DRS",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Waiting on Remote Shared P2P Credit - 0 : UPI1 - NCB",
+        "EventCode": "0x4c",
+        "EventName": "UNC_M2P_REMOTE_SHAR_P2P_CRD_WAIT_0.UPI1_NCB",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Waiting on Remote Shared P2P Credit - 0 : UPI1 - NCS",
+        "EventCode": "0x4c",
+        "EventName": "UNC_M2P_REMOTE_SHAR_P2P_CRD_WAIT_0.UPI1_NCS",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Waiting on Remote Shared P2P Credit - 1 : UPI2 - DRS",
+        "EventCode": "0x4d",
+        "EventName": "UNC_M2P_REMOTE_SHAR_P2P_CRD_WAIT_1.UPI2_DRS",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Waiting on Remote Shared P2P Credit - 1 : UPI2 - NCB",
+        "EventCode": "0x4d",
+        "EventName": "UNC_M2P_REMOTE_SHAR_P2P_CRD_WAIT_1.UPI2_NCB",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Waiting on Remote Shared P2P Credit - 1 : UPI2 - NCS",
+        "EventCode": "0x4d",
+        "EventName": "UNC_M2P_REMOTE_SHAR_P2P_CRD_WAIT_1.UPI2_NCS",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Ingress (from CMS) Queue Cycles Not Empty",
+        "EventCode": "0x10",
+        "EventName": "UNC_M2P_RxC_CYCLES_NE.ALL",
+        "PerPkg": "1",
+        "PublicDescription": "Ingress (from CMS) Queue Cycles Not Empty : Counts the number of cycles when the M2PCIe Ingress is not empty.",
+        "UMask": "0x80",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Ingress (from CMS) Queue Cycles Not Empty",
+        "EventCode": "0x10",
+        "EventName": "UNC_M2P_RxC_CYCLES_NE.CHA_IDI",
+        "PerPkg": "1",
+        "PublicDescription": "Ingress (from CMS) Queue Cycles Not Empty : Counts the number of cycles when the M2PCIe Ingress is not empty.",
+        "UMask": "0x1",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Ingress (from CMS) Queue Cycles Not Empty",
+        "EventCode": "0x10",
+        "EventName": "UNC_M2P_RxC_CYCLES_NE.CHA_NCB",
+        "PerPkg": "1",
+        "PublicDescription": "Ingress (from CMS) Queue Cycles Not Empty : Counts the number of cycles when the M2PCIe Ingress is not empty.",
+        "UMask": "0x2",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Ingress (from CMS) Queue Cycles Not Empty",
+        "EventCode": "0x10",
+        "EventName": "UNC_M2P_RxC_CYCLES_NE.CHA_NCS",
+        "PerPkg": "1",
+        "PublicDescription": "Ingress (from CMS) Queue Cycles Not Empty : Counts the number of cycles when the M2PCIe Ingress is not empty.",
+        "UMask": "0x4",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Ingress (from CMS) Queue Cycles Not Empty",
+        "EventCode": "0x10",
+        "EventName": "UNC_M2P_RxC_CYCLES_NE.IIO_NCB",
+        "PerPkg": "1",
+        "PublicDescription": "Ingress (from CMS) Queue Cycles Not Empty : Counts the number of cycles when the M2PCIe Ingress is not empty.",
+        "UMask": "0x20",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Ingress (from CMS) Queue Cycles Not Empty",
+        "EventCode": "0x10",
+        "EventName": "UNC_M2P_RxC_CYCLES_NE.IIO_NCS",
+        "PerPkg": "1",
+        "PublicDescription": "Ingress (from CMS) Queue Cycles Not Empty : Counts the number of cycles when the M2PCIe Ingress is not empty.",
+        "UMask": "0x40",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Ingress (from CMS) Queue Cycles Not Empty",
+        "EventCode": "0x10",
+        "EventName": "UNC_M2P_RxC_CYCLES_NE.UPI_NCB",
+        "PerPkg": "1",
+        "PublicDescription": "Ingress (from CMS) Queue Cycles Not Empty : Counts the number of cycles when the M2PCIe Ingress is not empty.",
+        "UMask": "0x8",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Ingress (from CMS) Queue Cycles Not Empty",
+        "EventCode": "0x10",
+        "EventName": "UNC_M2P_RxC_CYCLES_NE.UPI_NCS",
+        "PerPkg": "1",
+        "PublicDescription": "Ingress (from CMS) Queue Cycles Not Empty : Counts the number of cycles when the M2PCIe Ingress is not empty.",
+        "UMask": "0x10",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Ingress (from CMS) Queue Inserts",
+        "EventCode": "0x11",
+        "EventName": "UNC_M2P_RxC_INSERTS.ALL",
+        "PerPkg": "1",
+        "PublicDescription": "Ingress (from CMS) Queue Inserts : Counts the number of entries inserted into the M2PCIe Ingress Queue.  This can be used in conjunction with the M2PCIe Ingress Occupancy Accumulator event in order to calculate average queue latency.",
+        "UMask": "0x80",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Ingress (from CMS) Queue Inserts",
+        "EventCode": "0x11",
+        "EventName": "UNC_M2P_RxC_INSERTS.CHA_IDI",
+        "PerPkg": "1",
+        "PublicDescription": "Ingress (from CMS) Queue Inserts : Counts the number of entries inserted into the M2PCIe Ingress Queue.  This can be used in conjunction with the M2PCIe Ingress Occupancy Accumulator event in order to calculate average queue latency.",
+        "UMask": "0x1",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Ingress (from CMS) Queue Inserts",
+        "EventCode": "0x11",
+        "EventName": "UNC_M2P_RxC_INSERTS.CHA_NCB",
+        "PerPkg": "1",
+        "PublicDescription": "Ingress (from CMS) Queue Inserts : Counts the number of entries inserted into the M2PCIe Ingress Queue.  This can be used in conjunction with the M2PCIe Ingress Occupancy Accumulator event in order to calculate average queue latency.",
+        "UMask": "0x2",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Ingress (from CMS) Queue Inserts",
+        "EventCode": "0x11",
+        "EventName": "UNC_M2P_RxC_INSERTS.CHA_NCS",
+        "PerPkg": "1",
+        "PublicDescription": "Ingress (from CMS) Queue Inserts : Counts the number of entries inserted into the M2PCIe Ingress Queue.  This can be used in conjunction with the M2PCIe Ingress Occupancy Accumulator event in order to calculate average queue latency.",
+        "UMask": "0x4",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Ingress (from CMS) Queue Inserts",
+        "EventCode": "0x11",
+        "EventName": "UNC_M2P_RxC_INSERTS.IIO_NCB",
+        "PerPkg": "1",
+        "PublicDescription": "Ingress (from CMS) Queue Inserts : Counts the number of entries inserted into the M2PCIe Ingress Queue.  This can be used in conjunction with the M2PCIe Ingress Occupancy Accumulator event in order to calculate average queue latency.",
+        "UMask": "0x20",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Ingress (from CMS) Queue Inserts",
+        "EventCode": "0x11",
+        "EventName": "UNC_M2P_RxC_INSERTS.IIO_NCS",
+        "PerPkg": "1",
+        "PublicDescription": "Ingress (from CMS) Queue Inserts : Counts the number of entries inserted into the M2PCIe Ingress Queue.  This can be used in conjunction with the M2PCIe Ingress Occupancy Accumulator event in order to calculate average queue latency.",
+        "UMask": "0x40",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Ingress (from CMS) Queue Inserts",
+        "EventCode": "0x11",
+        "EventName": "UNC_M2P_RxC_INSERTS.UPI_NCB",
+        "PerPkg": "1",
+        "PublicDescription": "Ingress (from CMS) Queue Inserts : Counts the number of entries inserted into the M2PCIe Ingress Queue.  This can be used in conjunction with the M2PCIe Ingress Occupancy Accumulator event in order to calculate average queue latency.",
+        "UMask": "0x8",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Ingress (from CMS) Queue Inserts",
+        "EventCode": "0x11",
+        "EventName": "UNC_M2P_RxC_INSERTS.UPI_NCS",
+        "PerPkg": "1",
+        "PublicDescription": "Ingress (from CMS) Queue Inserts : Counts the number of entries inserted into the M2PCIe Ingress Queue.  This can be used in conjunction with the M2PCIe Ingress Occupancy Accumulator event in order to calculate average queue latency.",
+        "UMask": "0x10",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "UNC_M2P_TxC_CREDITS.PMM",
+        "EventCode": "0x2d",
+        "EventName": "UNC_M2P_TxC_CREDITS.PMM",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "UNC_M2P_TxC_CREDITS.PRQ",
+        "EventCode": "0x2d",
+        "EventName": "UNC_M2P_TxC_CREDITS.PRQ",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Egress (to CMS) Cycles Full",
+        "EventCode": "0x25",
+        "EventName": "UNC_M2P_TxC_CYCLES_FULL.PMM_BLOCK_0",
+        "FCMask": "0x00000000",
+        "PerPkg": "1",
+        "PortMask": "0x00000000",
+        "PublicDescription": "Egress (to CMS) Cycles Full : Counts the number of cycles when the M2PCIe Egress is full.  This tracks messages for one of the two CMS ports that are used by the M2PCIe agent.",
+        "UMask": "0x80",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Egress (to CMS) Cycles Full",
+        "EventCode": "0x25",
+        "EventName": "UNC_M2P_TxC_CYCLES_FULL.PMM_BLOCK_1",
+        "FCMask": "0x00000000",
+        "PerPkg": "1",
+        "PortMask": "0x00000000",
+        "PublicDescription": "Egress (to CMS) Cycles Full : Counts the number of cycles when the M2PCIe Egress is full.  This tracks messages for one of the two CMS ports that are used by the M2PCIe agent.",
+        "UMask": "0x8",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Egress (to CMS) Cycles Not Empty",
+        "EventCode": "0x23",
+        "EventName": "UNC_M2P_TxC_CYCLES_NE.PMM_DISTRESS_0",
+        "FCMask": "0x00000000",
+        "PerPkg": "1",
+        "PortMask": "0x00000000",
+        "PublicDescription": "Egress (to CMS) Cycles Not Empty : Counts the number of cycles when the M2PCIe Egress is not empty.  This tracks messages for one of the two CMS ports that are used by the M2PCIe agent.  This can be used in conjunction with the M2PCIe Ingress Occupancy Accumulator event in order to calculate average queue occupancy.  Multiple egress buffers can be tracked at a given time using multiple counters.",
+        "UMask": "0x80",
+        "Unit": "M2PCIe"
+    },
+    {
+        "BriefDescription": "Egress (to CMS) Cycles Not Empty",
+        "EventCode": "0x23",
+        "EventName": "UNC_M2P_TxC_CYCLES_NE.PMM_DISTRESS_1",
+        "FCMask": "0x00000000",
+        "PerPkg": "1",
+        "PortMask": "0x00000000",
+        "PublicDescription": "Egress (to CMS) Cycles Not Empty : Counts the number of cycles when the M2PCIe Egress is not empty.  This tracks messages for one of the two CMS ports that are used by the M2PCIe agent.  This can be used in conjunction with the M2PCIe Ingress Occupancy Accumulator event in order to calculate average queue occupancy.  Multiple egress buffers can be tracked at a given time using multiple counters.",
+        "UMask": "0x8",
+        "Unit": "M2PCIe"
+    }
+]

@@ -23,13 +23,6 @@
 #ifndef __MMHUB_V2_0_H__
 #define __MMHUB_V2_0_H__
 
-int mmhub_v2_0_gart_enable(struct amdgpu_device *adev);
-void mmhub_v2_0_gart_disable(struct amdgpu_device *adev);
-void mmhub_v2_0_set_fault_enable_default(struct amdgpu_device *adev,
-					 bool value);
-void mmhub_v2_0_init(struct amdgpu_device *adev);
-int mmhub_v2_0_set_clockgating(struct amdgpu_device *adev,
-			       enum amd_clockgating_state state);
-void mmhub_v2_0_get_clockgating(struct amdgpu_device *adev, u32 *flags);
+extern const struct amdgpu_mmhub_funcs mmhub_v2_0_funcs;
 
 #endif

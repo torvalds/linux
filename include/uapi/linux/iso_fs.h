@@ -137,7 +137,7 @@ struct iso_path_table{
 	__u8  name_len[2];	/* 721 */
 	__u8  extent[4];	/* 731 */
 	__u8  parent[2];	/* 721 */
-	char name[0];
+	char name[];
 } __attribute__((packed));
 
 /* high sierra is identical to iso, except that the date is only 6 bytes, and
@@ -154,7 +154,7 @@ struct iso_directory_record {
 	__u8 interleave			[ISODCL (28, 28)]; /* 711 */
 	__u8 volume_sequence_number	[ISODCL (29, 32)]; /* 723 */
 	__u8 name_len			[ISODCL (33, 33)]; /* 711 */
-	char name			[0];
+	char name			[];
 } __attribute__((packed));
 
 #define ISOFS_BLOCK_BITS 11

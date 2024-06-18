@@ -9,6 +9,7 @@
 #include <linux/clk.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 
@@ -68,10 +69,13 @@ static struct ingenic_ecc *ingenic_ecc_get(struct device_node *np)
 	struct ingenic_ecc *ecc;
 
 	pdev = of_find_device_by_node(np);
-	if (!pdev || !platform_get_drvdata(pdev))
+	if (!pdev)
 		return ERR_PTR(-EPROBE_DEFER);
 
-	get_device(&pdev->dev);
+	if (!platform_get_drvdata(pdev)) {
+		put_device(&pdev->dev);
+		return ERR_PTR(-EPROBE_DEFER);
+	}
 
 	ecc = platform_get_drvdata(pdev);
 	clk_prepare_enable(ecc->clk);
@@ -124,7 +128,6 @@ int ingenic_ecc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct ingenic_ecc *ecc;
-	struct resource *res;
 
 	ecc = devm_kzalloc(dev, sizeof(*ecc), GFP_KERNEL);
 	if (!ecc)
@@ -134,8 +137,7 @@ int ingenic_ecc_probe(struct platform_device *pdev)
 	if (!ecc->ops)
 		return -EINVAL;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ecc->base = devm_ioremap_resource(dev, res);
+	ecc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ecc->base))
 		return PTR_ERR(ecc->base);
 

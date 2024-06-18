@@ -160,7 +160,7 @@ static int pnp_dock_thread(void *unused)
 			 * No dock to manage
 			 */
 		case PNP_FUNCTION_NOT_SUPPORTED:
-			complete_and_exit(&unload_sem, 0);
+			kthread_complete_and_exit(&unload_sem, 0);
 		case PNP_SYSTEM_NOT_DOCKED:
 			d = 0;
 			break;
@@ -170,7 +170,7 @@ static int pnp_dock_thread(void *unused)
 		default:
 			pnpbios_print_status("pnp_dock_thread", status);
 			printk(KERN_WARNING "PnPBIOS: disabling dock monitoring.\n");
-			complete_and_exit(&unload_sem, 0);
+			kthread_complete_and_exit(&unload_sem, 0);
 		}
 		if (d != docked) {
 			if (pnp_dock_event(d, &now) == 0) {
@@ -183,7 +183,7 @@ static int pnp_dock_thread(void *unused)
 			}
 		}
 	}
-	complete_and_exit(&unload_sem, 0);
+	kthread_complete_and_exit(&unload_sem, 0);
 }
 
 static int pnpbios_get_resources(struct pnp_dev *dev)
@@ -298,14 +298,12 @@ struct pnp_protocol pnpbios_protocol = {
 
 static int __init insert_device(struct pnp_bios_node *node)
 {
-	struct list_head *pos;
 	struct pnp_dev *dev;
 	char id[8];
 	int error;
 
 	/* check if the device is already added */
-	list_for_each(pos, &pnpbios_protocol.devices) {
-		dev = list_entry(pos, struct pnp_dev, protocol_list);
+	list_for_each_entry(dev, &pnpbios_protocol.devices, protocol_list) {
 		if (dev->number == node->handle)
 			return -EEXIST;
 	}

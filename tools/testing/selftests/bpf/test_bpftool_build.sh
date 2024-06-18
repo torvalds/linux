@@ -1,18 +1,6 @@
 #!/bin/bash
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 
-ERROR=0
-TMPDIR=
-
-# If one build fails, continue but return non-0 on exit.
-return_value() {
-	if [ -d "$TMPDIR" ] ; then
-		rm -rf -- $TMPDIR
-	fi
-	exit $ERROR
-}
-trap return_value EXIT
-
 case $1 in
 	-h|--help)
 		echo -e "$0 [-j <n>]"
@@ -20,7 +8,7 @@ case $1 in
 		echo -e ""
 		echo -e "\tOptions:"
 		echo -e "\t\t-j <n>:\tPass -j flag to 'make'."
-		exit
+		exit 0
 		;;
 esac
 
@@ -32,6 +20,22 @@ SCRIPT_REL_PATH=$(realpath --relative-to=$PWD $0)
 SCRIPT_REL_DIR=$(dirname $SCRIPT_REL_PATH)
 KDIR_ROOT_DIR=$(realpath $PWD/$SCRIPT_REL_DIR/../../../../)
 cd $KDIR_ROOT_DIR
+if [ ! -e tools/bpf/bpftool/Makefile ]; then
+	echo -e "skip:    bpftool files not found!\n"
+	exit 4 # KSFT_SKIP=4
+fi
+
+ERROR=0
+TMPDIR=
+
+# If one build fails, continue but return non-0 on exit.
+return_value() {
+	if [ -d "$TMPDIR" ] ; then
+		rm -rf -- $TMPDIR
+	fi
+	exit $ERROR
+}
+trap return_value EXIT
 
 check() {
 	local dir=$(realpath $1)
@@ -86,6 +90,10 @@ echo -e "... through kbuild\n"
 
 if [ -f ".config" ] ; then
 	make_and_clean tools/bpf
+	## "make tools/bpf" sets $(OUTPUT) to ...tools/bpf/runqslower for
+	## runqslower, but the default (used for the "clean" target) is .output.
+	## Let's make sure we clean runqslower's directory properly.
+	make -C tools/bpf/runqslower OUTPUT=${KDIR_ROOT_DIR}/tools/bpf/runqslower/ clean
 
 	## $OUTPUT is overwritten in kbuild Makefile, and thus cannot be passed
 	## down from toplevel Makefile to bpftool's Makefile.

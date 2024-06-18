@@ -11,18 +11,19 @@
  * - Pin pad configuration (pull up/down, strength)
  */
 
-#include <linux/init.h>
-#include <linux/platform_device.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
-#include <linux/io.h>
 #include <linux/gpio/driver.h>
+#include <linux/init.h>
+#include <linux/io.h>
+#include <linux/mod_devicetable.h>
+#include <linux/platform_device.h>
 #include <linux/spinlock.h>
+
 #include <linux/pinctrl/machine.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
+
 #include "pinctrl-utils.h"
 
 #define DRIVER_NAME	"pinctrl-digicolor"
@@ -233,7 +234,7 @@ static void dc_gpio_set(struct gpio_chip *chip, unsigned gpio, int value)
 	spin_unlock_irqrestore(&pmap->lock, flags);
 }
 
-static int dc_gpiochip_add(struct dc_pinmap *pmap, struct device_node *np)
+static int dc_gpiochip_add(struct dc_pinmap *pmap)
 {
 	struct gpio_chip *chip = &pmap->chip;
 	int ret;
@@ -248,8 +249,6 @@ static int dc_gpiochip_add(struct dc_pinmap *pmap, struct device_node *np)
 	chip->set		= dc_gpio_set;
 	chip->base		= -1;
 	chip->ngpio		= PINS_COUNT;
-	chip->of_node		= np;
-	chip->of_gpio_n_cells	= 2;
 
 	spin_lock_init(&pmap->lock);
 
@@ -270,7 +269,6 @@ static int dc_gpiochip_add(struct dc_pinmap *pmap, struct device_node *np)
 static int dc_pinctrl_probe(struct platform_device *pdev)
 {
 	struct dc_pinmap *pmap;
-	struct resource *r;
 	struct pinctrl_pin_desc *pins;
 	struct pinctrl_desc *pctl_desc;
 	char *pin_names;
@@ -281,8 +279,7 @@ static int dc_pinctrl_probe(struct platform_device *pdev)
 	if (!pmap)
 		return -ENOMEM;
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pmap->regs = devm_ioremap_resource(&pdev->dev, r);
+	pmap->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pmap->regs))
 		return PTR_ERR(pmap->regs);
 
@@ -328,7 +325,7 @@ static int dc_pinctrl_probe(struct platform_device *pdev)
 		return PTR_ERR(pmap->pctl);
 	}
 
-	return dc_gpiochip_add(pmap, pdev->dev.of_node);
+	return dc_gpiochip_add(pmap);
 }
 
 static const struct of_device_id dc_pinctrl_ids[] = {

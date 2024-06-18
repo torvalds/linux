@@ -45,15 +45,15 @@ typedef void (*exitcall_t)(void);
 
 /* These are for everybody (although not all archs will actually
    discard it in modules) */
-#define __init		__section(.init.text)
-#define __initdata	__section(.init.data)
-#define __exitdata	__section(.exit.data)
-#define __exit_call	__used __section(.exitcall.exit)
+#define __init		__section(".init.text")
+#define __initdata	__section(".init.data")
+#define __exitdata	__section(".exit.data")
+#define __exit_call	__used __section(".exitcall.exit")
 
 #ifdef MODULE
-#define __exit		__section(.exit.text)
+#define __exit		__section(".exit.text")
 #else
-#define __exit		__used __section(.exit.text)
+#define __exit		__used __section(".exit.text")
 #endif
 
 #endif
@@ -102,10 +102,10 @@ extern struct uml_param __uml_setup_start, __uml_setup_end;
  * Mark functions and data as being only used at initialization
  * or exit time.
  */
-#define __uml_init_setup	__used __section(.uml.setup.init)
-#define __uml_setup_help	__used __section(.uml.help.init)
-#define __uml_postsetup_call	__used __section(.uml.postsetup.init)
-#define __uml_exit_call		__used __section(.uml.exitcall.exit)
+#define __uml_init_setup	__used __section(".uml.setup.init")
+#define __uml_setup_help	__used __section(".uml.help.init")
+#define __uml_postsetup_call	__used __section(".uml.postsetup.init")
+#define __uml_exit_call		__used __section(".uml.exitcall.exit")
 
 #ifdef __UM_HOST__
 
@@ -120,7 +120,7 @@ extern struct uml_param __uml_setup_start, __uml_setup_end;
 
 #define __exitcall(fn) static exitcall_t __exitcall_##fn __exit_call = fn
 
-#define __init_call	__used __section(.initcall.init)
+#define __init_call	__used __section(".initcall.init")
 
 #endif
 

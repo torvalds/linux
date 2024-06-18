@@ -12,20 +12,22 @@
 #include <linux/uaccess.h>
 #include <linux/mm_types.h>
 #include <asm/tlbflush.h>
-#include <asm/ctl_reg.h>
+#include <asm/ctlreg.h>
 #include <asm-generic/mm_hooks.h>
 
+#define init_new_context init_new_context
 static inline int init_new_context(struct task_struct *tsk,
 				   struct mm_struct *mm)
 {
+	unsigned long asce_type, init_entry;
+
 	spin_lock_init(&mm->context.lock);
-	INIT_LIST_HEAD(&mm->context.pgtable_list);
 	INIT_LIST_HEAD(&mm->context.gmap_list);
 	cpumask_clear(&mm->context.cpu_attach_mask);
 	atomic_set(&mm->context.flush_count, 0);
+	atomic_set(&mm->context.protected_count, 0);
 	mm->context.gmap_asce = 0;
 	mm->context.flush_mm = 0;
-	mm->context.compat_mm = test_thread_flag(TIF_31BIT);
 #ifdef CONFIG_PGSTE
 	mm->context.alloc_pgste = page_table_allocate_pgste ||
 		test_thread_flag(TIF_PGSTE) ||
@@ -33,76 +35,66 @@ static inline int init_new_context(struct task_struct *tsk,
 	mm->context.has_pgste = 0;
 	mm->context.uses_skeys = 0;
 	mm->context.uses_cmm = 0;
+	mm->context.allow_cow_sharing = 1;
 	mm->context.allow_gmap_hpage_1m = 0;
 #endif
 	switch (mm->context.asce_limit) {
-	case _REGION2_SIZE:
+	default:
 		/*
-		 * forked 3-level task, fall through to set new asce with new
-		 * mm->pgd
+		 * context created by exec, the value of asce_limit can
+		 * only be zero in this case
 		 */
-	case 0:
-		/* context created by exec, set asce limit to 4TB */
-		mm->context.asce_limit = STACK_TOP_MAX;
-		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
-				   _ASCE_USER_BITS | _ASCE_TYPE_REGION3;
+		VM_BUG_ON(mm->context.asce_limit);
+		/* continue as 3-level task */
+		mm->context.asce_limit = _REGION2_SIZE;
+		fallthrough;
+	case _REGION2_SIZE:
+		/* forked 3-level task */
+		init_entry = _REGION3_ENTRY_EMPTY;
+		asce_type = _ASCE_TYPE_REGION3;
 		break;
-	case -PAGE_SIZE:
-		/* forked 5-level task, set new asce with new_mm->pgd */
-		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
-			_ASCE_USER_BITS | _ASCE_TYPE_REGION1;
+	case TASK_SIZE_MAX:
+		/* forked 5-level task */
+		init_entry = _REGION1_ENTRY_EMPTY;
+		asce_type = _ASCE_TYPE_REGION1;
 		break;
 	case _REGION1_SIZE:
-		/* forked 4-level task, set new asce with new mm->pgd */
-		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
-				   _ASCE_USER_BITS | _ASCE_TYPE_REGION2;
+		/* forked 4-level task */
+		init_entry = _REGION2_ENTRY_EMPTY;
+		asce_type = _ASCE_TYPE_REGION2;
 		break;
-	case _REGION3_SIZE:
-		/* forked 2-level compat task, set new asce with new mm->pgd */
-		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
-				   _ASCE_USER_BITS | _ASCE_TYPE_SEGMENT;
 	}
-	crst_table_init((unsigned long *) mm->pgd, pgd_entry_type(mm));
+	mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
+			   _ASCE_USER_BITS | asce_type;
+	crst_table_init((unsigned long *) mm->pgd, init_entry);
 	return 0;
 }
 
-#define destroy_context(mm)             do { } while (0)
-
-static inline void set_user_asce(struct mm_struct *mm)
+static inline void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
+				      struct task_struct *tsk)
 {
-	S390_lowcore.user_asce = mm->context.asce;
-	__ctl_load(S390_lowcore.user_asce, 1, 1);
-	clear_cpu_flag(CIF_ASCE_PRIMARY);
-}
+	int cpu = smp_processor_id();
 
-static inline void clear_user_asce(void)
-{
-	S390_lowcore.user_asce = S390_lowcore.kernel_asce;
-	__ctl_load(S390_lowcore.kernel_asce, 1, 1);
-	set_cpu_flag(CIF_ASCE_PRIMARY);
+	if (next == &init_mm)
+		S390_lowcore.user_asce = s390_invalid_asce;
+	else
+		S390_lowcore.user_asce.val = next->context.asce;
+	cpumask_set_cpu(cpu, &next->context.cpu_attach_mask);
+	/* Clear previous user-ASCE from CR7 */
+	local_ctl_load(7, &s390_invalid_asce);
+	if (prev != next)
+		cpumask_clear_cpu(cpu, &prev->context.cpu_attach_mask);
 }
-
-mm_segment_t enable_sacf_uaccess(void);
-void disable_sacf_uaccess(mm_segment_t old_fs);
+#define switch_mm_irqs_off switch_mm_irqs_off
 
 static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 			     struct task_struct *tsk)
 {
-	int cpu = smp_processor_id();
+	unsigned long flags;
 
-	S390_lowcore.user_asce = next->context.asce;
-	cpumask_set_cpu(cpu, &next->context.cpu_attach_mask);
-	/* Clear previous user-ASCE from CR1 and CR7 */
-	if (!test_cpu_flag(CIF_ASCE_PRIMARY)) {
-		__ctl_load(S390_lowcore.kernel_asce, 1, 1);
-		set_cpu_flag(CIF_ASCE_PRIMARY);
-	}
-	if (test_cpu_flag(CIF_ASCE_SECONDARY)) {
-		__ctl_load(S390_lowcore.vdso_asce, 7, 7);
-		clear_cpu_flag(CIF_ASCE_SECONDARY);
-	}
-	if (prev != next)
-		cpumask_clear_cpu(cpu, &prev->context.cpu_attach_mask);
+	local_irq_save(flags);
+	switch_mm_irqs_off(prev, next, tsk);
+	local_irq_restore(flags);
 }
 
 #define finish_arch_post_lock_switch finish_arch_post_lock_switch
@@ -119,18 +111,18 @@ static inline void finish_arch_post_lock_switch(void)
 		__tlb_flush_mm_lazy(mm);
 		preempt_enable();
 	}
-	set_fs(current->thread.mm_segment);
+	local_ctl_load(7, &S390_lowcore.user_asce);
 }
 
-#define enter_lazy_tlb(mm,tsk)	do { } while (0)
-#define deactivate_mm(tsk,mm)	do { } while (0)
-
+#define activate_mm activate_mm
 static inline void activate_mm(struct mm_struct *prev,
                                struct mm_struct *next)
 {
 	switch_mm(prev, next, current);
 	cpumask_set_cpu(smp_processor_id(), mm_cpumask(next));
-	set_user_asce(next);
+	local_ctl_load(7, &S390_lowcore.user_asce);
 }
+
+#include <asm-generic/mmu_context.h>
 
 #endif /* __S390_MMU_CONTEXT_H */

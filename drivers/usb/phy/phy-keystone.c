@@ -2,7 +2,7 @@
 /*
  * phy-keystone - USB PHY, talking to dwc3 controller in Keystone.
  *
- * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2013 Texas Instruments Incorporated - https://www.ti.com
  *
  * Author: WingMan Kwok <w-kwok2@ti.com>
  */
@@ -59,26 +59,24 @@ static void keystone_usbphy_shutdown(struct usb_phy *phy)
 
 	val  = keystone_usbphy_readl(k_phy->phy_ctrl, USB_PHY_CTL_CLOCK);
 	keystone_usbphy_writel(k_phy->phy_ctrl, USB_PHY_CTL_CLOCK,
-				val &= ~PHY_REF_SSP_EN);
+				val & ~PHY_REF_SSP_EN);
 }
 
 static int keystone_usbphy_probe(struct platform_device *pdev)
 {
 	struct device		*dev = &pdev->dev;
 	struct keystone_usbphy	*k_phy;
-	struct resource		*res;
 	int ret;
 
 	k_phy = devm_kzalloc(dev, sizeof(*k_phy), GFP_KERNEL);
 	if (!k_phy)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	k_phy->phy_ctrl = devm_ioremap_resource(dev, res);
+	k_phy->phy_ctrl = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(k_phy->phy_ctrl))
 		return PTR_ERR(k_phy->phy_ctrl);
 
-	ret = usb_phy_gen_create_phy(dev, &k_phy->usb_phy_gen, NULL);
+	ret = usb_phy_gen_create_phy(dev, &k_phy->usb_phy_gen);
 	if (ret)
 		return ret;
 
@@ -90,13 +88,11 @@ static int keystone_usbphy_probe(struct platform_device *pdev)
 	return usb_add_phy_dev(&k_phy->usb_phy_gen.phy);
 }
 
-static int keystone_usbphy_remove(struct platform_device *pdev)
+static void keystone_usbphy_remove(struct platform_device *pdev)
 {
 	struct keystone_usbphy *k_phy = platform_get_drvdata(pdev);
 
 	usb_remove_phy(&k_phy->usb_phy_gen.phy);
-
-	return 0;
 }
 
 static const struct of_device_id keystone_usbphy_ids[] = {
@@ -107,7 +103,7 @@ MODULE_DEVICE_TABLE(of, keystone_usbphy_ids);
 
 static struct platform_driver keystone_usbphy_driver = {
 	.probe          = keystone_usbphy_probe,
-	.remove         = keystone_usbphy_remove,
+	.remove_new     = keystone_usbphy_remove,
 	.driver         = {
 		.name   = "keystone-usbphy",
 		.of_match_table = keystone_usbphy_ids,

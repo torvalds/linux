@@ -19,7 +19,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
-#include <linux/genhd.h>
+#include <linux/blkdev.h>
 #include <linux/swap.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
@@ -323,7 +323,7 @@ static int mtdswap_read_markers(struct mtdswap_dev *d, struct swap_eb *eb)
 	struct mtdswap_oobdata *data, *data2;
 	int ret;
 	loff_t offset;
-	struct mtd_oob_ops ops;
+	struct mtd_oob_ops ops = { };
 
 	offset = mtdswap_eb_offset(d, eb);
 
@@ -370,7 +370,7 @@ static int mtdswap_write_marker(struct mtdswap_dev *d, struct swap_eb *eb,
 	struct mtdswap_oobdata n;
 	int ret;
 	loff_t offset;
-	struct mtd_oob_ops ops;
+	struct mtd_oob_ops ops = { };
 
 	ops.ooboffs = 0;
 	ops.oobbuf = (uint8_t *)&n;
@@ -716,7 +716,6 @@ retry:
 		return ret;
 	}
 
-	eb = d->eb_data + *newblock / d->pages_per_eblk;
 	d->page_data[page] = *newblock;
 	d->revmap[oldblock] = PAGE_UNDEF;
 	eb = d->eb_data + oldblock / d->pages_per_eblk;
@@ -879,7 +878,7 @@ static unsigned int mtdswap_eblk_passes(struct mtdswap_dev *d,
 	loff_t base, pos;
 	unsigned int *p1 = (unsigned int *)d->page_buf;
 	unsigned char *p2 = (unsigned char *)d->oob_buf;
-	struct mtd_oob_ops ops;
+	struct mtd_oob_ops ops = { };
 	int ret;
 
 	ops.mode = MTD_OPS_AUTO_OOB;
@@ -1053,7 +1052,6 @@ static int mtdswap_writesect(struct mtd_blktrans_dev *dev,
 	if (ret < 0)
 		return ret;
 
-	eb = d->eb_data + (newblock / d->pages_per_eblk);
 	d->page_data[page] = newblock;
 
 	return 0;
@@ -1257,7 +1255,6 @@ DEFINE_SHOW_ATTRIBUTE(mtdswap);
 static int mtdswap_add_debugfs(struct mtdswap_dev *d)
 {
 	struct dentry *root = d->mtd->dbg.dfs_dir;
-	struct dentry *dent;
 
 	if (!IS_ENABLED(CONFIG_DEBUG_FS))
 		return 0;
@@ -1265,12 +1262,7 @@ static int mtdswap_add_debugfs(struct mtdswap_dev *d)
 	if (IS_ERR_OR_NULL(root))
 		return -1;
 
-	dent = debugfs_create_file("mtdswap_stats", S_IRUSR, root, d,
-				&mtdswap_fops);
-	if (!dent) {
-		dev_err(d->dev, "debugfs_create_file failed\n");
-		return -1;
-	}
+	debugfs_create_file("mtdswap_stats", S_IRUSR, root, d, &mtdswap_fops);
 
 	return 0;
 }
@@ -1491,19 +1483,7 @@ static struct mtd_blktrans_ops mtdswap_ops = {
 	.owner		= THIS_MODULE,
 };
 
-static int __init mtdswap_modinit(void)
-{
-	return register_mtd_blktrans(&mtdswap_ops);
-}
-
-static void __exit mtdswap_modexit(void)
-{
-	deregister_mtd_blktrans(&mtdswap_ops);
-}
-
-module_init(mtdswap_modinit);
-module_exit(mtdswap_modexit);
-
+module_mtd_blktrans(mtdswap_ops);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jarkko Lavinen <jarkko.lavinen@nokia.com>");

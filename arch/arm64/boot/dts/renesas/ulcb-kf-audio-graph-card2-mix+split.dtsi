@@ -1,0 +1,184 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree for ULCB + Kingfisher + Audio Graph Card2 (MIX + TDM Split)
+ *
+ * Copyright (C) 2022 Renesas Electronics Corp.
+ */
+
+/*
+ * Note:
+ * The HDMI output is ignored due to the limited number of subdevices
+ *
+ *	(A) CPU0 (2ch) <----> (2ch) (X)	ak4613	   (MIX-0)
+ *	(B) CPU1 (2ch)  --/			   (MIX-1)
+ *	(C) CPU3 (2ch)  ----> (8ch) (Y)	PCM3168A-p (TDM-0 : 0,1ch)
+ *	(D) CPU2 (2ch)  --/			   (TDM-1 : 2,3ch)
+ *	(E) CPU4 (2ch)  --/			   (TDM-2 : 4,5ch)
+ *	(F) CPU5 (2ch)  --/			   (TDM-3 : 6,7ch)
+ *	(G) CPU6 (6ch) <----  (6ch) (Z)	PCM3168A-c
+ *
+ *	(A) aplay   -D plughw:0,0 xxx.wav (MIX-0)
+ *	(B) aplay   -D plughw:0,1 xxx.wav (MIX-1)
+ *	(C) aplay   -D plughw:1,0 xxx.wav (TDM-0)
+ *	(D) aplay   -D plughw:1,1 xxx.wav (TDM-1)
+ *	(E) aplay   -D plughw:1,2 xxx.wav (TDM-2)
+ *	(F) aplay   -D plughw:1,3 xxx.wav (TDM-3)
+ *
+ *	(A) arecord -D plughw:0,0 xxx.wav
+ *	(G) arecord -D plughw:1,4 xxx.wav
+ */
+/ {
+	sound_card_kf: expand-sound {
+		compatible = "audio-graph-card2";
+		label = "snd-kf-split";
+
+		routing = "pcm3168a Playback", "DAI2 Playback",
+			  "pcm3168a Playback", "DAI3 Playback",
+			  "pcm3168a Playback", "DAI4 Playback",
+			  "pcm3168a Playback", "DAI5 Playback",
+			  "DAI6 Capture",      "pcm3168a Capture";
+
+		links = <&fe_c		/* (C) CPU2	  */
+			 &fe_d		/* (D) CPU3	  */
+			 &fe_e		/* (E) CPU4	  */
+			 &fe_f		/* (F) CPU5	  */
+			 &rsnd_g	/* (G) CPU6	  */
+			 &be_y		/* (Y) PCM3168A-p */
+		>;
+
+		dpcm {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			ports@0 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0>;
+
+				/*
+				 * FE
+				 *
+				 * (C) CPU2
+				 * (D) CPU3
+				 * (E) CPU4
+				 * (F) CPU5
+				 */
+			fe_c:	port@2 { reg = <2>; fe_c_ep: endpoint { remote-endpoint = <&rsnd_c_ep>; }; };
+			fe_d:	port@3 { reg = <3>; fe_d_ep: endpoint { remote-endpoint = <&rsnd_d_ep>; }; };
+			fe_e:	port@4 { reg = <4>; fe_e_ep: endpoint { remote-endpoint = <&rsnd_e_ep>; }; };
+			fe_f:	port@5 { reg = <5>; fe_f_ep: endpoint { remote-endpoint = <&rsnd_f_ep>; }; };
+			};
+
+			ports@1 {
+				reg = <1>;
+				/*
+				 * BE
+				 *
+				 * (Y) PCM3168A-p
+				 */
+			be_y:	port { be_y_ep: endpoint { remote-endpoint = <&pcm3168a_y_ep>; }; };
+			};
+		};
+	};
+};
+
+&pcm3168a {
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		mclk-fs = <512>;
+		prefix = "pcm3168a";
+
+		/*
+		 * (Y) PCM3168A-p
+		 */
+		port@0 {
+			reg = <0>;
+			convert-channels = <8>; /* to 8ch TDM */
+			pcm3168a_y_ep: endpoint {
+				remote-endpoint = <&be_y_ep>;
+				clocks = <&clksndsel>;
+			};
+		};
+		/*
+		 * (Z) PCM3168A-c
+		 */
+		port@1 {
+			reg = <1>;
+			pcm3168a_z_ep: endpoint {
+				remote-endpoint = <&rsnd_g_ep>;
+				clocks = <&clksndsel>;
+			};
+		};
+	};
+};
+
+&rcar_sound {
+	ports@1 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <1>;
+
+		/*
+		 * (C) CPU2
+		 */
+		port@2 {
+			reg = <2>;
+			rsnd_c_ep: endpoint {
+				remote-endpoint = <&fe_c_ep>;
+				bitclock-master;
+				frame-master;
+				playback = <&ssiu30 &ssi3>;
+			};
+		};
+		/*
+		 * (D) CPU3
+		 */
+		port@3 {
+			reg = <3>;
+			rsnd_d_ep: endpoint {
+				remote-endpoint = <&fe_d_ep>;
+				bitclock-master;
+				frame-master;
+				playback = <&ssiu31 &ssi3>;
+			};
+		};
+		/*
+		 * (E) CPU4
+		 */
+		port@4 {
+			reg = <4>;
+			rsnd_e_ep: endpoint {
+				remote-endpoint = <&fe_e_ep>;
+				bitclock-master;
+				frame-master;
+				playback = <&ssiu32 &ssi3>;
+			};
+		};
+		/*
+		 * (F) CPU5
+		 */
+		port@5 {
+			reg = <5>;
+			rsnd_f_ep: endpoint {
+				remote-endpoint = <&fe_f_ep>;
+				bitclock-master;
+				frame-master;
+				playback = <&ssiu33 &ssi3>;
+			};
+		};
+		/*
+		 * (G) CPU6
+		 */
+		rsnd_g: port@6 {
+			reg = <6>;
+			rsnd_g_ep: endpoint {
+				remote-endpoint = <&pcm3168a_z_ep>;
+				bitclock-master;
+				frame-master;
+				capture = <&ssi4>;
+			};
+		};
+	};
+};

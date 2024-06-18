@@ -12,6 +12,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/notifier.h>
+#include <linux/panic_notifier.h>
 #include <linux/reboot.h>
 #include <linux/sched/debug.h>
 #include <linux/proc_fs.h>
@@ -35,6 +36,8 @@
 #include "mconsole.h"
 #include "mconsole_kern.h"
 #include <os.h>
+
+static struct vfsmount *proc_mnt = NULL;
 
 static int do_unlink_socket(struct notifier_block *notifier,
 			    unsigned long what, void *data)
@@ -123,7 +126,7 @@ void mconsole_log(struct mc_request *req)
 
 void mconsole_proc(struct mc_request *req)
 {
-	struct vfsmount *mnt = task_active_pid_ns(current)->proc_mnt;
+	struct vfsmount *mnt = proc_mnt;
 	char *buf;
 	int len;
 	struct file *file;
@@ -134,7 +137,11 @@ void mconsole_proc(struct mc_request *req)
 	ptr += strlen("proc");
 	ptr = skip_spaces(ptr);
 
-	file = file_open_root(mnt->mnt_root, mnt, ptr, O_RDONLY, 0);
+	if (!mnt) {
+		mconsole_reply(req, "Proc not available", 1, 0);
+		goto out;
+	}
+	file = file_open_root_mnt(mnt, ptr, O_RDONLY, 0);
 	if (IS_ERR(file)) {
 		mconsole_reply(req, "Failed to open file", 1, 0);
 		printk(KERN_ERR "open /proc/%s: %ld\n", ptr, PTR_ERR(file));
@@ -217,7 +224,7 @@ void mconsole_go(struct mc_request *req)
 
 void mconsole_stop(struct mc_request *req)
 {
-	deactivate_fd(req->originating_fd, MCONSOLE_IRQ);
+	block_signals();
 	os_set_fd_block(req->originating_fd, 1);
 	mconsole_reply(req, "stopped", 0, 0);
 	for (;;) {
@@ -240,6 +247,7 @@ void mconsole_stop(struct mc_request *req)
 	}
 	os_set_fd_block(req->originating_fd, 0);
 	mconsole_reply(req, "", 0, 0);
+	unblock_signals();
 }
 
 static DEFINE_SPINLOCK(mc_devices_lock);
@@ -275,7 +283,7 @@ struct unplugged_pages {
 };
 
 static DEFINE_MUTEX(plug_mem_mutex);
-static unsigned long long unplugged_pages_count = 0;
+static unsigned long long unplugged_pages_count;
 static LIST_HEAD(unplugged_pages);
 static int unplug_index = UNPLUGGED_PER_PAGE;
 
@@ -546,7 +554,7 @@ struct mconsole_output {
 
 static DEFINE_SPINLOCK(client_lock);
 static LIST_HEAD(clients);
-static char console_buf[MCONSOLE_MAX_DATA];
+static char console_buf[MCONSOLE_MAX_DATA] __nonstring;
 
 static void console_write(struct console *console, const char *string,
 			  unsigned int len)
@@ -559,7 +567,7 @@ static void console_write(struct console *console, const char *string,
 
 	while (len > 0) {
 		n = min((size_t) len, ARRAY_SIZE(console_buf));
-		strncpy(console_buf, string, n);
+		memcpy(console_buf, string, n);
 		string += n;
 		len -= n;
 
@@ -642,7 +650,7 @@ static void stack_proc(void *arg)
 {
 	struct task_struct *task = arg;
 
-	show_stack(task, NULL);
+	show_stack(task, NULL, KERN_INFO);
 }
 
 /*
@@ -683,6 +691,24 @@ void mconsole_stack(struct mc_request *req)
 	with_console(req, stack_proc, to);
 }
 
+static int __init mount_proc(void)
+{
+	struct file_system_type *proc_fs_type;
+	struct vfsmount *mnt;
+
+	proc_fs_type = get_fs_type("proc");
+	if (!proc_fs_type)
+		return -ENODEV;
+
+	mnt = kern_mount(proc_fs_type);
+	put_filesystem(proc_fs_type);
+	if (IS_ERR(mnt))
+		return PTR_ERR(mnt);
+
+	proc_mnt = mnt;
+	return 0;
+}
+
 /*
  * Changed by mconsole_setup, which is __setup, and called before SMP is
  * active.
@@ -695,6 +721,8 @@ static int __init mconsole_init(void)
 	long sock;
 	int err;
 	char file[UNIX_PATH_MAX];
+
+	mount_proc();
 
 	if (umid_file_name("mconsole", file, sizeof(file)))
 		return -1;
@@ -712,7 +740,7 @@ static int __init mconsole_init(void)
 
 	err = um_request_irq(MCONSOLE_IRQ, sock, IRQ_READ, mconsole_interrupt,
 			     IRQF_SHARED, "mconsole", (void *)sock);
-	if (err) {
+	if (err < 0) {
 		printk(KERN_ERR "Failed to get IRQ for management console\n");
 		goto out;
 	}
@@ -752,10 +780,9 @@ static ssize_t mconsole_proc_write(struct file *file,
 	return count;
 }
 
-static const struct file_operations mconsole_proc_fops = {
-	.owner		= THIS_MODULE,
-	.write		= mconsole_proc_write,
-	.llseek		= noop_llseek,
+static const struct proc_ops mconsole_proc_ops = {
+	.proc_write	= mconsole_proc_write,
+	.proc_lseek	= noop_llseek,
 };
 
 static int create_proc_mconsole(void)
@@ -765,7 +792,7 @@ static int create_proc_mconsole(void)
 	if (notify_socket == NULL)
 		return 0;
 
-	ent = proc_create("mconsole", 0200, NULL, &mconsole_proc_fops);
+	ent = proc_create("mconsole", 0200, NULL, &mconsole_proc_ops);
 	if (ent == NULL) {
 		printk(KERN_INFO "create_proc_mconsole : proc_create failed\n");
 		return 0;
@@ -819,13 +846,12 @@ static int notify_panic(struct notifier_block *self, unsigned long unused1,
 
 	mconsole_notify(notify_socket, MCONSOLE_PANIC, message,
 			strlen(message) + 1);
-	return 0;
+	return NOTIFY_DONE;
 }
 
 static struct notifier_block panic_exit_notifier = {
-	.notifier_call 		= notify_panic,
-	.next 			= NULL,
-	.priority 		= 1
+	.notifier_call	= notify_panic,
+	.priority	= INT_MAX, /* run as soon as possible */
 };
 
 static int add_notifier(void)

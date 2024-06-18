@@ -25,10 +25,9 @@
 void __tlb_remove_table(void *_table);
 static inline void tlb_flush(struct mmu_gather *tlb);
 static inline bool __tlb_remove_page_size(struct mmu_gather *tlb,
-					  struct page *page, int page_size);
-
-#define tlb_start_vma(tlb, vma)			do { } while (0)
-#define tlb_end_vma(tlb, vma)			do { } while (0)
+		struct page *page, bool delay_rmap, int page_size);
+static inline bool __tlb_remove_folio_pages(struct mmu_gather *tlb,
+		struct page *page, unsigned int nr_pages, bool delay_rmap);
 
 #define tlb_flush tlb_flush
 #define pte_free_tlb pte_free_tlb
@@ -36,7 +35,6 @@ static inline bool __tlb_remove_page_size(struct mmu_gather *tlb,
 #define p4d_free_tlb p4d_free_tlb
 #define pud_free_tlb pud_free_tlb
 
-#include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 #include <asm-generic/tlb.h>
 
@@ -44,11 +42,30 @@ static inline bool __tlb_remove_page_size(struct mmu_gather *tlb,
  * Release the page cache reference for a pte removed by
  * tlb_ptep_clear_flush. In both flush modes the tlb for a page cache page
  * has already been freed, so just do free_page_and_swap_cache.
+ *
+ * s390 doesn't delay rmap removal.
  */
 static inline bool __tlb_remove_page_size(struct mmu_gather *tlb,
-					  struct page *page, int page_size)
+		struct page *page, bool delay_rmap, int page_size)
 {
+	VM_WARN_ON_ONCE(delay_rmap);
+
 	free_page_and_swap_cache(page);
+	return false;
+}
+
+static inline bool __tlb_remove_folio_pages(struct mmu_gather *tlb,
+		struct page *page, unsigned int nr_pages, bool delay_rmap)
+{
+	struct encoded_page *encoded_pages[] = {
+		encode_page(page, ENCODED_PAGE_BIT_NR_PAGES_NEXT),
+		encode_nr_pages(nr_pages),
+	};
+
+	VM_WARN_ON_ONCE(delay_rmap);
+	VM_WARN_ON_ONCE(page_folio(page) != page_folio(page + nr_pages - 1));
+
+	free_pages_and_swap_cache(encoded_pages, ARRAY_SIZE(encoded_pages));
 	return false;
 }
 
@@ -67,13 +84,10 @@ static inline void pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
 	__tlb_adjust_range(tlb, address, PAGE_SIZE);
 	tlb->mm->context.flush_mm = 1;
 	tlb->freed_tables = 1;
-	tlb->cleared_ptes = 1;
-	/*
-	 * page_table_free_rcu takes care of the allocation bit masks
-	 * of the 2K table fragments in the 4K page table page,
-	 * then calls tlb_remove_table.
-	 */
-	page_table_free_rcu(tlb, (unsigned long *) pte, address);
+	tlb->cleared_pmds = 1;
+	if (mm_alloc_pgste(tlb->mm))
+		gmap_unlink(tlb->mm, (unsigned long *)pte, address);
+	tlb_remove_ptdesc(tlb, pte);
 }
 
 /*
@@ -88,12 +102,12 @@ static inline void pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd,
 {
 	if (mm_pmd_folded(tlb->mm))
 		return;
-	pgtable_pmd_page_dtor(virt_to_page(pmd));
+	pagetable_pmd_dtor(virt_to_ptdesc(pmd));
 	__tlb_adjust_range(tlb, address, PAGE_SIZE);
 	tlb->mm->context.flush_mm = 1;
 	tlb->freed_tables = 1;
 	tlb->cleared_puds = 1;
-	tlb_remove_table(tlb, pmd);
+	tlb_remove_ptdesc(tlb, pmd);
 }
 
 /*
@@ -111,8 +125,7 @@ static inline void p4d_free_tlb(struct mmu_gather *tlb, p4d_t *p4d,
 	__tlb_adjust_range(tlb, address, PAGE_SIZE);
 	tlb->mm->context.flush_mm = 1;
 	tlb->freed_tables = 1;
-	tlb->cleared_p4ds = 1;
-	tlb_remove_table(tlb, p4d);
+	tlb_remove_ptdesc(tlb, p4d);
 }
 
 /*
@@ -129,8 +142,8 @@ static inline void pud_free_tlb(struct mmu_gather *tlb, pud_t *pud,
 		return;
 	tlb->mm->context.flush_mm = 1;
 	tlb->freed_tables = 1;
-	tlb->cleared_puds = 1;
-	tlb_remove_table(tlb, pud);
+	tlb->cleared_p4ds = 1;
+	tlb_remove_ptdesc(tlb, pud);
 }
 
 

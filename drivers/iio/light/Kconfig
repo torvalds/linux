@@ -32,6 +32,27 @@ config ADJD_S311
 	  This driver can also be built as a module.  If so, the module
 	  will be called adjd_s311.
 
+config ADUX1020
+	tristate "ADUX1020 photometric sensor"
+	select REGMAP_I2C
+	depends on I2C
+	help
+	 Say Y here if you want to build a driver for the Analog Devices
+	 ADUX1020 photometric sensor.
+
+	 To compile this driver as a module, choose M here: the
+	 module will be called adux1020.
+
+config AL3010
+	tristate "AL3010 ambient light sensor"
+	depends on I2C
+	help
+	  Say Y here if you want to build a driver for the Dyna Image AL3010
+	  ambient light sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called al3010.
+
 config AL3320A
 	tristate "AL3320A ambient light sensor"
 	depends on I2C
@@ -52,6 +73,18 @@ config APDS9300
 	  To compile this driver as a module, choose M here: the
 	  module will be called apds9300.
 
+config APDS9306
+	tristate "Avago APDS9306 Ambient Light Sensor"
+	depends on I2C
+	select REGMAP_I2C
+	select IIO_GTS_HELPER
+	help
+	  If you say Y or M here, you get support for Avago APDS9306
+	  Ambient Light Sensor.
+
+	  If built as a dynamically linked module, it will be called
+	  apds9306.
+
 config APDS9960
 	tristate "Avago APDS9960 gesture/RGB/ALS/proximity sensor"
 	select REGMAP_I2C
@@ -64,6 +97,22 @@ config APDS9960
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called apds9960
+
+config AS73211
+	tristate "AMS AS73211 XYZ color sensor and AMS AS7331 UV sensor"
+	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	 If you say yes here you get support for the AMS AS73211
+	 JENCOLOR(R) Digital XYZ and the AMS AS7331 UVA, UVB and UVC
+	 ultraviolet sensors.
+
+	 For triggered measurements, you will need an additional trigger driver
+	 like IIO_HRTIMER_TRIGGER or IIO_SYSFS_TRIGGER.
+
+	 This driver can also be built as a module.  If so, the module
+	 will be called as73211.
 
 config BH1750
 	tristate "ROHM BH1750 ambient light sensor"
@@ -119,7 +168,6 @@ config CM3323
 
 config CM3605
 	tristate "Capella CM3605 ambient light and proximity sensor"
-	depends on OF
 	help
 	  Say Y here if you want to build a driver for Capella CM3605
 	  ambient light and short range proximity sensor.
@@ -148,6 +196,17 @@ config IIO_CROS_EC_LIGHT_PROX
 	  To compile this driver as a module, choose M here:
 	  the module will be called cros_ec_light_prox.
 
+config GP2AP002
+	tristate "Sharp GP2AP002 Proximity/ALS sensor"
+	depends on I2C
+	select REGMAP
+	help
+	  Say Y here if you have a Sharp GP2AP002 proximity/ALS combo-chip
+	  hooked to an I2C bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gp2ap002.
+
 config GP2AP020A00F
 	tristate "Sharp GP2AP020A00F Proximity/ALS sensor"
 	depends on I2C
@@ -161,6 +220,16 @@ config GP2AP020A00F
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called gp2ap020a00f.
+
+config IQS621_ALS
+	tristate "Azoteq IQS621/622 ambient light sensors"
+	depends on MFD_IQS62X || COMPILE_TEST
+	help
+	  Say Y here if you want to build support for the Azoteq IQS621
+	  and IQS622 ambient light sensors.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called iqs621-als.
 
 config SENSORS_ISL29018
 	tristate "Intersil 29018 light and proximity sensor"
@@ -196,10 +265,24 @@ config ISL29125
 	  To compile this driver as a module, choose M here: the module will be
 	  called isl29125.
 
+config ISL76682
+	tristate "Intersil ISL76682 Light Sensor"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say Y here if you want to build a driver for the Intersil ISL76682
+	  Ambient Light Sensor and IR Intensity sensor. This driver provides
+	  the readouts via standard IIO sysfs and device interface. Both ALS
+	  illuminance and IR illuminance are provided raw with separate scale
+	  setting which can be configured via sysfs, the default scale is 1000
+	  lux, other options are 4000/16000/64000 lux.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called isl76682.
+
 config HID_SENSOR_ALS
 	depends on HID_SENSOR_HUB
 	select IIO_BUFFER
-	select IIO_TRIGGERED_BUFFER
 	select HID_SENSOR_IIO_COMMON
 	select HID_SENSOR_IIO_TRIGGER
 	tristate "HID ALS"
@@ -213,7 +296,6 @@ config HID_SENSOR_ALS
 config HID_SENSOR_PROX
 	depends on HID_SENSOR_HUB
 	select IIO_BUFFER
-	select IIO_TRIGGERED_BUFFER
 	select HID_SENSOR_IIO_COMMON
 	select HID_SENSOR_IIO_TRIGGER
 	tristate "HID PROX"
@@ -235,10 +317,40 @@ config JSA1212
 	  To compile this driver as a module, choose M here:
 	  the module will be called jsa1212.
 
+config ROHM_BU27008
+	tristate "ROHM BU27008 color (RGB+C/IR) sensor"
+	depends on I2C
+	select REGMAP_I2C
+	select IIO_GTS_HELPER
+	help
+	  Enable support for the ROHM BU27008 color sensor.
+	  The ROHM BU27008 is a sensor with 5 photodiodes (red, green,
+	  blue, clear and IR) with four configurable channels. Red and
+	  green being always available and two out of the rest three
+	  (blue, clear, IR) can be selected to be simultaneously measured.
+	  Typical application is adjusting LCD backlight of TVs,
+	  mobile phones and tablet PCs.
+
+config ROHM_BU27034
+	tristate "ROHM BU27034 ambient light sensor"
+	depends on I2C
+	select REGMAP_I2C
+	select IIO_GTS_HELPER
+	select IIO_BUFFER
+	select IIO_KFIFO_BUF
+	help
+	  Enable support for the ROHM BU27034 ambient light sensor. ROHM BU27034
+	  is an ambient light sesnor with 3 channels and 3 photo diodes capable
+	  of detecting a very wide range of illuminance.
+	  Typical application is adjusting LCD and backlight power of TVs and
+	  mobile phones.
+
 config RPR0521
 	tristate "ROHM RPR0521 ALS and proximity sensor driver"
 	depends on I2C
 	select REGMAP_I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
 	help
 	  Say Y here if you want to build support for ROHM's RPR0521
 	  ambient light and proximity sensor device.
@@ -263,6 +375,17 @@ config SENSORS_LM3533
 	  changes. The ALS-control output values can be set per zone for the
 	  three current output channels.
 
+config LTR390
+	tristate "LTR-390UV-01 ambient light and UV sensor"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for the Lite-On LTR-390UV-01
+	  ambient light and UV sensor.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called ltr390.
+
 config LTR501
 	tristate "LTR-501ALS-01 light sensor"
 	depends on I2C
@@ -276,6 +399,17 @@ config LTR501
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called ltr501.
+
+config LTRF216A
+	tristate "Liteon LTRF216A Light Sensor"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say Y or M here, you get support for Liteon LTRF216A
+	  Ambient Light Sensor.
+
+	  If built as a dynamically linked module, it will be called
+	  ltrf216a.
 
 config LV0104CS
 	tristate "LV0104CS Ambient Light Sensor"
@@ -314,6 +448,7 @@ config MAX44009
 config NOA1305
 	tristate "ON Semiconductor NOA1305 ambient light sensor"
 	depends on I2C
+	select REGMAP_I2C
 	help
 	 Say Y here if you want to build support for the ON Semiconductor
 	 NOA1305 ambient light sensor.
@@ -330,6 +465,17 @@ config OPT3001
 
 	  If built as a dynamically linked module, it will be called
 	  opt3001.
+
+config OPT4001
+	tristate "Texas Instruments OPT4001 Light Sensor"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say Y or M here, you get support for Texas Instruments
+	  OPT4001 Ambient Light Sensor.
+
+	  If built as a dynamically linked module, it will be called
+	  opt4001.
 
 config PA12203001
 	tristate "TXC PA12203001 light and proximity sensor"
@@ -443,6 +589,17 @@ config TSL2583
 	  Provides support for the TAOS tsl2580, tsl2581 and tsl2583 devices.
 	  Access ALS data via iio, sysfs.
 
+config TSL2591
+        tristate "TAOS TSL2591 ambient light sensor"
+        depends on I2C
+        help
+          Select Y here for support of the AMS/TAOS TSL2591 ambient light sensor,
+          featuring channels for combined visible + IR intensity and lux illuminance.
+          Access data via iio and sysfs. Supports iio_events.
+
+          To compile this driver as a module, select M: the
+          module will be called tsl2591.
+
 config TSL2772
 	tristate "TAOS TSL/TMD2x71 and TSL/TMD2x72 Family of light and proximity sensors"
 	depends on I2C
@@ -473,6 +630,8 @@ config US5182D
 
 config VCNL4000
 	tristate "VCNL4000/4010/4020/4200 combined ALS and proximity sensor"
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
 	depends on I2C
 	help
 	  Say Y here if you want to build a driver for the Vishay VCNL4000,
@@ -484,6 +643,7 @@ config VCNL4000
 
 config VCNL4035
 	tristate "VCNL4035 combined ALS and proximity sensor"
+	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	select REGMAP_I2C
 	depends on I2C
@@ -495,6 +655,17 @@ config VCNL4035
 	  To compile this driver as a module, choose M here: the
 	  module will be called vcnl4035.
 
+config VEML6030
+	tristate "VEML6030 ambient light sensor"
+	select REGMAP_I2C
+	depends on I2C
+	help
+	  Say Y here if you want to build a driver for the Vishay VEML6030
+	  ambient light sensor (ALS).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called veml6030.
+
 config VEML6070
 	tristate "VEML6070 UV A light sensor"
 	depends on I2C
@@ -504,6 +675,17 @@ config VEML6070
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called veml6070.
+
+config VEML6075
+	tristate "VEML6075 UVA and UVB light sensor"
+	select REGMAP_I2C
+	depends on I2C
+	help
+	  Say Y here if you want to build a driver for the Vishay VEML6075 UVA
+	  and UVB light sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called veml6075.
 
 config VL6180
 	tristate "VL6180 ALS, range and proximity sensor"

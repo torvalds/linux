@@ -14,10 +14,10 @@
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/spi/spi.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
-#include <linux/of_device.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -364,7 +364,7 @@ static int wm8741_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	return 0;
 }
 
-static int wm8741_mute(struct snd_soc_dai *codec_dai, int mute)
+static int wm8741_mute(struct snd_soc_dai *codec_dai, int mute, int direction)
 {
 	struct snd_soc_component *component = codec_dai->component;
 
@@ -386,7 +386,8 @@ static const struct snd_soc_dai_ops wm8741_dai_ops = {
 	.hw_params	= wm8741_hw_params,
 	.set_sysclk	= wm8741_set_dai_sysclk,
 	.set_fmt	= wm8741_set_dai_fmt,
-	.digital_mute   = wm8741_mute,
+	.mute_stream	= wm8741_mute,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8741_dai = {
@@ -527,7 +528,6 @@ static const struct snd_soc_component_driver soc_component_dev_wm8741 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct of_device_id wm8741_of_match[] = {
@@ -543,7 +543,7 @@ static const struct regmap_config wm8741_regmap = {
 
 	.reg_defaults = wm8741_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8741_reg_defaults),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static int wm8741_set_pdata(struct device *dev, struct wm8741_priv *wm8741)
@@ -564,8 +564,7 @@ static int wm8741_set_pdata(struct device *dev, struct wm8741_priv *wm8741)
 }
 
 #if IS_ENABLED(CONFIG_I2C)
-static int wm8741_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int wm8741_i2c_probe(struct i2c_client *i2c)
 {
 	struct wm8741_priv *wm8741;
 	int ret, i;
@@ -607,7 +606,7 @@ static int wm8741_i2c_probe(struct i2c_client *i2c,
 }
 
 static const struct i2c_device_id wm8741_i2c_id[] = {
-	{ "wm8741", 0 },
+	{ "wm8741" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm8741_i2c_id);
@@ -617,7 +616,7 @@ static struct i2c_driver wm8741_i2c_driver = {
 		.name = "wm8741",
 		.of_match_table = wm8741_of_match,
 	},
-	.probe =    wm8741_i2c_probe,
+	.probe = wm8741_i2c_probe,
 	.id_table = wm8741_i2c_id,
 };
 #endif

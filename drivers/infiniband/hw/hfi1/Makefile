@@ -22,11 +22,16 @@ hfi1-y := \
 	init.o \
 	intr.o \
 	iowait.o \
+	ipoib_main.o \
+	ipoib_rx.o \
+	ipoib_tx.o \
 	mad.o \
 	mmu_rb.o \
 	msix.o \
+	netdev_rx.o \
 	opfn.o \
 	pcie.o \
+	pin_system.o \
 	pio.o \
 	pio_copy.o \
 	platform.o \

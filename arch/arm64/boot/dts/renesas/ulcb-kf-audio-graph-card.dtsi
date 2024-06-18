@@ -1,0 +1,93 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree for ULCB + Kingfisher + Audio Graph Card
+ *
+ * Copyright (C) 2022 Renesas Electronics Corp.
+ */
+
+/*
+ *	(A) CPU0 <----> ak4613
+ *	(B) CPU1  ----> HDMI
+ *	(C) CPU2  ----> PCM3168A-p (8ch)
+ *	(D) CPU3 <----  PCM3168A-c (6ch)
+ *
+ *	(A) aplay   -D plughw:0,0 xxx.wav
+ *	(B) aplay   -D plughw:0,1 xxx.wav
+ *	(C) aplay   -D plughw:1,0 xxx.wav
+ *
+ *	(A) arecord -D plughw:0,0 xxx.wav
+ *	(D) arecord -D plughw:1,1 xxx.wav
+ */
+/ {
+	sound_card_kf: expand-sound {
+		compatible = "audio-graph-card";
+		label = "snd-kf";
+
+		dais = <&snd_kf1 /* (C) CPU2  -> PCM3168A-p */
+			&snd_kf2 /* (D) CPU3 <-  PCM3168A-c */
+		>;
+	};
+};
+
+&pcm3168a {
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		mclk-fs = <512>;
+		/*
+		 * (C) CPU2 -> PCM3168A-p
+		 */
+		port@0 {
+			reg = <0>;
+			pcm3168a_endpoint_p: endpoint {
+				remote-endpoint = <&rsnd_for_pcm3168a_play>;
+				clocks = <&clksndsel>;
+			};
+		};
+		/*
+		 * (D) CPU3 <- PCM3168A-c
+		 */
+		port@1 {
+			reg = <1>;
+			pcm3168a_endpoint_c: endpoint {
+				remote-endpoint = <&rsnd_for_pcm3168a_capture>;
+				clocks = <&clksndsel>;
+			};
+		};
+	};
+};
+
+&rcar_sound {
+	ports@1 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <1>;
+
+		/*
+		 * (C) CPU2 -> PCM3168A-p
+		 */
+		snd_kf1: port@2 {
+			reg = <2>;
+			rsnd_for_pcm3168a_play: endpoint {
+				remote-endpoint = <&pcm3168a_endpoint_p>;
+				bitclock-master;
+				frame-master;
+				dai-tdm-slot-num = <8>;
+				playback = <&ssi3>;
+			};
+		};
+		/*
+		 * (D) CPU3 <- PCM3168A-c
+		 */
+		snd_kf2: port@3 {
+			reg = <3>;
+			rsnd_for_pcm3168a_capture: endpoint {
+				remote-endpoint = <&pcm3168a_endpoint_c>;
+				bitclock-master;
+				frame-master;
+				dai-tdm-slot-num = <6>;
+				capture = <&ssi4>;
+			};
+		};
+	};
+};

@@ -5,7 +5,8 @@
 
 config QUICC_ENGINE
 	bool "QUICC Engine (QE) framework support"
-	depends on FSL_SOC && PPC32
+	depends on OF && HAS_IOMEM
+	depends on PPC || ARM || ARM64 || COMPILE_TEST
 	select GENERIC_ALLOCATOR
 	select CRC32
 	help
@@ -32,12 +33,36 @@ config UCC
 	bool
 	default y if UCC_FAST || UCC_SLOW
 
+config CPM_TSA
+	tristate "CPM TSA support"
+	depends on OF && HAS_IOMEM
+	depends on CPM1 || (CPM && COMPILE_TEST)
+	help
+	  Freescale CPM Time Slot Assigner (TSA)
+	  controller.
+
+	  This option enables support for this
+	  controller
+
+config CPM_QMC
+	tristate "CPM QMC support"
+	depends on OF && HAS_IOMEM
+	depends on CPM1 || (FSL_SOC && CPM && COMPILE_TEST)
+	depends on CPM_TSA
+	help
+	  Freescale CPM QUICC Multichannel Controller
+	  (QMC)
+
+	  This option enables support for this
+	  controller
+
 config QE_TDM
 	bool
 	default y if FSL_UCC_HDLC
 
 config QE_USB
 	bool
+	depends on QUICC_ENGINE
 	default y if USB_FSL_QE
 	help
 	  QE USB Controller support

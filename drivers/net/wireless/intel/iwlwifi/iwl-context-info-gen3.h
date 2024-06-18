@@ -1,53 +1,7 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2018 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * BSD LICENSE
- *
- * Copyright(c) 2018 Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
+/*
+ * Copyright (C) 2018, 2020-2024 Intel Corporation
+ */
 #ifndef __iwl_context_info_file_gen3_h__
 #define __iwl_context_info_file_gen3_h__
 
@@ -58,6 +12,8 @@
 #define CSR_IML_DATA_ADDR               0x120
 #define CSR_IML_SIZE_ADDR               0x128
 #define CSR_IML_RESP_ADDR               0x12c
+
+#define UNFRAGMENTED_PNVM_PAYLOADS_NUMBER 2
 
 /* Set bit for enabling automatic function boot */
 #define CSR_AUTO_FUNC_BOOT_ENA          BIT(1)
@@ -80,6 +36,7 @@ enum iwl_prph_scratch_mtr_format {
 
 /**
  * enum iwl_prph_scratch_flags - PRPH scratch control flags
+ * @IWL_PRPH_SCRATCH_IMR_DEBUG_EN: IMR support for debug
  * @IWL_PRPH_SCRATCH_EARLY_DEBUG_EN: enable early debug conf
  * @IWL_PRPH_SCRATCH_EDBG_DEST_DRAM: use DRAM, with size allocated
  *	in hwm config.
@@ -87,14 +44,23 @@ enum iwl_prph_scratch_mtr_format {
  * @IWL_PRPH_SCRATCH_EDBG_DEST_ST_ARBITER: use st arbiter, mainly for
  *	multicomm.
  * @IWL_PRPH_SCRATCH_EDBG_DEST_TB22DTF: route debug data to SoC HW
- * @IWL_PRPH_SCTATCH_RB_SIZE_4K: Use 4K RB size (the default is 2K)
+ * @IWL_PRPH_SCRATCH_RB_SIZE_4K: Use 4K RB size (the default is 2K)
  * @IWL_PRPH_SCRATCH_MTR_MODE: format used for completion - 0: for
  *	completion descriptor, 1 for responses (legacy)
  * @IWL_PRPH_SCRATCH_MTR_FORMAT: a mask for the size of the tfd.
  *	There are 4 optional values: 0: 16 bit, 1: 32 bit, 2: 64 bit,
  *	3: 256 bit.
+ * @IWL_PRPH_SCRATCH_RB_SIZE_EXT_MASK: RB size full information, ignored
+ *	by older firmware versions, so set IWL_PRPH_SCRATCH_RB_SIZE_4K
+ *	appropriately; use the below values for this.
+ * @IWL_PRPH_SCRATCH_RB_SIZE_EXT_8K: 8kB RB size
+ * @IWL_PRPH_SCRATCH_RB_SIZE_EXT_12K: 12kB RB size
+ * @IWL_PRPH_SCRATCH_RB_SIZE_EXT_16K: 16kB RB size
+ * @IWL_PRPH_SCRATCH_SCU_FORCE_ACTIVE: Indicate fw to set SCU_FORCE_ACTIVE
+ *	upon reset.
  */
 enum iwl_prph_scratch_flags {
+	IWL_PRPH_SCRATCH_IMR_DEBUG_EN		= BIT(1),
 	IWL_PRPH_SCRATCH_EARLY_DEBUG_EN		= BIT(4),
 	IWL_PRPH_SCRATCH_EDBG_DEST_DRAM		= BIT(8),
 	IWL_PRPH_SCRATCH_EDBG_DEST_INTERNAL	= BIT(9),
@@ -103,6 +69,11 @@ enum iwl_prph_scratch_flags {
 	IWL_PRPH_SCRATCH_RB_SIZE_4K		= BIT(16),
 	IWL_PRPH_SCRATCH_MTR_MODE		= BIT(17),
 	IWL_PRPH_SCRATCH_MTR_FORMAT		= BIT(18) | BIT(19),
+	IWL_PRPH_SCRATCH_RB_SIZE_EXT_MASK	= 0xf << 20,
+	IWL_PRPH_SCRATCH_RB_SIZE_EXT_8K		= 8 << 20,
+	IWL_PRPH_SCRATCH_RB_SIZE_EXT_12K	= 9 << 20,
+	IWL_PRPH_SCRATCH_RB_SIZE_EXT_16K	= 10 << 20,
+	IWL_PRPH_SCRATCH_SCU_FORCE_ACTIVE	= BIT(29),
 };
 
 /*
@@ -130,27 +101,35 @@ struct iwl_prph_scratch_control {
 } __packed; /* PERIPH_SCRATCH_CONTROL_S */
 
 /*
- * struct iwl_prph_scratch_ror_cfg - ror config
- * @ror_base_addr: ror start address
- * @ror_size: ror size in DWs
+ * struct iwl_prph_scratch_pnvm_cfg - PNVM scratch
+ * @pnvm_base_addr: PNVM start address
+ * @pnvm_size: the size of the PNVM image in bytes
  * @reserved: reserved
  */
-struct iwl_prph_scratch_ror_cfg {
-	__le64 ror_base_addr;
-	__le32 ror_size;
+struct iwl_prph_scratch_pnvm_cfg {
+	__le64 pnvm_base_addr;
+	__le32 pnvm_size;
 	__le32 reserved;
-} __packed; /* PERIPH_SCRATCH_ROR_CFG_S */
+} __packed; /* PERIPH_SCRATCH_PNVM_CFG_S */
 
+/**
+ * struct iwl_prph_scrath_mem_desc_addr_array
+ * @mem_descs: array of dram addresses.
+ * Each address is the beggining of a pnvm payload.
+ */
+struct iwl_prph_scrath_mem_desc_addr_array {
+	__le64 mem_descs[IPC_DRAM_MAP_ENTRY_NUM_MAX];
+} __packed; /* PERIPH_SCRATCH_MEM_DESC_ADDR_ARRAY_S_VER_1 */
 /*
  * struct iwl_prph_scratch_hwm_cfg - hwm config
  * @hwm_base_addr: hwm start address
  * @hwm_size: hwm size in DWs
- * @reserved: reserved
+ * @debug_token_config: debug preset
  */
 struct iwl_prph_scratch_hwm_cfg {
 	__le64 hwm_base_addr;
 	__le32 hwm_size;
-	__le32 reserved;
+	__le32 debug_token_config;
 } __packed; /* PERIPH_SCRATCH_HWM_CFG_S */
 
 /*
@@ -164,30 +143,62 @@ struct iwl_prph_scratch_rbd_cfg {
 } __packed; /* PERIPH_SCRATCH_RBD_CFG_S */
 
 /*
+ * struct iwl_prph_scratch_uefi_cfg - prph scratch reduce power table
+ * @base_addr: reduce power table address
+ * @size: the size of the entire power table image
+ */
+struct iwl_prph_scratch_uefi_cfg {
+	__le64 base_addr;
+	__le32 size;
+	__le32 reserved;
+} __packed; /* PERIPH_SCRATCH_UEFI_CFG_S */
+
+/*
+ * struct iwl_prph_scratch_step_cfg - prph scratch step configuration
+ * @mbx_addr_0: [0:7] revision,
+ *		[8:15] cnvi_to_cnvr length,
+ *		[16:23] cnvr_to_cnvi channel length,
+ *		[24:31] radio1 reserved
+ * @mbx_addr_1: [0:7] radio2 reserved
+ */
+
+struct iwl_prph_scratch_step_cfg {
+	__le32 mbx_addr_0;
+	__le32 mbx_addr_1;
+} __packed;
+
+/*
  * struct iwl_prph_scratch_ctrl_cfg - prph scratch ctrl and config
  * @version: version information of context info and HW
  * @control: control flags of FH configurations
- * @ror_cfg: ror configuration
+ * @pnvm_cfg: ror configuration
  * @hwm_cfg: hwm configuration
  * @rbd_cfg: default RX queue configuration
+ * @step_cfg: step configuration
  */
 struct iwl_prph_scratch_ctrl_cfg {
 	struct iwl_prph_scratch_version version;
 	struct iwl_prph_scratch_control control;
-	struct iwl_prph_scratch_ror_cfg ror_cfg;
+	struct iwl_prph_scratch_pnvm_cfg pnvm_cfg;
 	struct iwl_prph_scratch_hwm_cfg hwm_cfg;
 	struct iwl_prph_scratch_rbd_cfg rbd_cfg;
+	struct iwl_prph_scratch_uefi_cfg reduce_power_cfg;
+	struct iwl_prph_scratch_step_cfg step_cfg;
 } __packed; /* PERIPH_SCRATCH_CTRL_CFG_S */
 
 /*
  * struct iwl_prph_scratch - peripheral scratch mapping
  * @ctrl_cfg: control and configuration of prph scratch
  * @dram: firmware images addresses in DRAM
+ * @fseq_override: FSEQ override parameters
+ * @step_analog_params: STEP analog calibration values
  * @reserved: reserved
  */
 struct iwl_prph_scratch {
 	struct iwl_prph_scratch_ctrl_cfg ctrl_cfg;
-	__le32 reserved[16];
+	__le32 fseq_override;
+	__le32 step_analog_params;
+	__le32 reserved[8];
 	struct iwl_context_info_dram dram;
 } __packed; /* PERIPH_SCRATCH_S */
 
@@ -281,6 +292,20 @@ struct iwl_context_info_gen3 {
 
 int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 				 const struct fw_img *fw);
-void iwl_pcie_ctxt_info_gen3_free(struct iwl_trans *trans);
+void iwl_pcie_ctxt_info_gen3_free(struct iwl_trans *trans, bool alive);
 
+int iwl_trans_pcie_ctx_info_gen3_load_pnvm(struct iwl_trans *trans,
+					   const struct iwl_pnvm_image *pnvm_payloads,
+					   const struct iwl_ucode_capabilities *capa);
+void iwl_trans_pcie_ctx_info_gen3_set_pnvm(struct iwl_trans *trans,
+					   const struct iwl_ucode_capabilities *capa);
+int
+iwl_trans_pcie_ctx_info_gen3_load_reduce_power(struct iwl_trans *trans,
+					       const struct iwl_pnvm_image *payloads,
+					       const struct iwl_ucode_capabilities *capa);
+void
+iwl_trans_pcie_ctx_info_gen3_set_reduce_power(struct iwl_trans *trans,
+					      const struct iwl_ucode_capabilities *capa);
+int iwl_trans_pcie_ctx_info_gen3_set_step(struct iwl_trans *trans,
+					  u32 mbx_addr_0_step, u32 mbx_addr_1_step);
 #endif /* __iwl_context_info_file_gen3_h__ */

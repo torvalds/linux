@@ -192,7 +192,7 @@ void rt2x00link_update_stats(struct rt2x00_dev *rt2x00dev,
 		return;
 
 	/*
-	 * Frame was received successfully since non-succesfull
+	 * Frame was received successfully since non-successful
 	 * frames would have been dropped by the hardware.
 	 */
 	qual->rx_success++;
@@ -384,7 +384,7 @@ void rt2x00link_start_watchdog(struct rt2x00_dev *rt2x00dev)
 	struct link *link = &rt2x00dev->link;
 
 	if (test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags) &&
-	    rt2x00dev->ops->lib->watchdog && !link->watchdog_disabled)
+	    rt2x00dev->ops->lib->watchdog && link->watchdog)
 		ieee80211_queue_delayed_work(rt2x00dev->hw,
 					     &link->watchdog_work,
 					     link->watchdog_interval);

@@ -30,7 +30,6 @@
  * SOFTWARE.
  */
 
-#include <linux/module.h>
 #include <linux/sched/signal.h>
 
 #include <linux/init.h>
@@ -40,15 +39,15 @@
 
 #include "ipoib.h"
 
-static ssize_t show_parent(struct device *d, struct device_attribute *attr,
+static ssize_t parent_show(struct device *d, struct device_attribute *attr,
 			   char *buf)
 {
 	struct net_device *dev = to_net_dev(d);
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
-	return sprintf(buf, "%s\n", priv->parent->name);
+	return sysfs_emit(buf, "%s\n", priv->parent->name);
 }
-static DEVICE_ATTR(parent, S_IRUGO, show_parent, NULL);
+static DEVICE_ATTR_RO(parent);
 
 static bool is_child_unique(struct ipoib_dev_priv *ppriv,
 			    struct ipoib_dev_priv *priv)
@@ -97,6 +96,7 @@ int __ipoib_vlan_add(struct ipoib_dev_priv *ppriv, struct ipoib_dev_priv *priv,
 {
 	struct net_device *ndev = priv->dev;
 	int result;
+	struct rdma_netdev *rn = netdev_priv(ndev);
 
 	ASSERT_RTNL();
 
@@ -116,6 +116,8 @@ int __ipoib_vlan_add(struct ipoib_dev_priv *ppriv, struct ipoib_dev_priv *priv,
 		result = -EINVAL;
 		goto out_early;
 	}
+
+	rn->mtu = priv->mcast_mtu;
 
 	priv->parent = ppriv->dev;
 	priv->pkey = pkey;
@@ -182,8 +184,12 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 
 	ppriv = ipoib_priv(pdev);
 
-	snprintf(intf_name, sizeof(intf_name), "%s.%04x",
-		 ppriv->dev->name, pkey);
+	/* If you increase IFNAMSIZ, update snprintf below
+	 * to allow longer names.
+	 */
+	BUILD_BUG_ON(IFNAMSIZ != 16);
+	snprintf(intf_name, sizeof(intf_name), "%.10s.%04x", ppriv->dev->name,
+		 pkey);
 
 	ndev = ipoib_intf_alloc(ppriv->ca, ppriv->port, intf_name);
 	if (IS_ERR(ndev)) {
@@ -191,6 +197,8 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 		goto out;
 	}
 	priv = ipoib_priv(ndev);
+
+	ndev->rtnl_link_ops = ipoib_get_link_ops();
 
 	result = __ipoib_vlan_add(ppriv, priv, pkey, IPOIB_LEGACY_CHILD);
 

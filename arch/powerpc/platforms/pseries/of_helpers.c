@@ -45,14 +45,14 @@ struct device_node *pseries_of_derive_parent(const char *path)
 int of_read_drc_info_cell(struct property **prop, const __be32 **curval,
 			struct of_drc_info *data)
 {
-	const char *p;
+	const char *p = (char *)(*curval);
 	const __be32 *p2;
 
 	if (!data)
 		return -EINVAL;
 
 	/* Get drc-type:encode-string */
-	p = data->drc_type = (char*) (*curval);
+	data->drc_type = (char *)p;
 	p = of_prop_next_string(*prop, p);
 	if (!p)
 		return -EINVAL;
@@ -65,9 +65,7 @@ int of_read_drc_info_cell(struct property **prop, const __be32 **curval,
 
 	/* Get drc-index-start:encode-int */
 	p2 = (const __be32 *)p;
-	p2 = of_prop_next_u32(*prop, p2, &data->drc_index_start);
-	if (!p2)
-		return -EINVAL;
+	data->drc_index_start = be32_to_cpu(*p2);
 
 	/* Get drc-name-suffix-start:encode-int */
 	p2 = of_prop_next_u32(*prop, p2, &data->drc_name_suffix_start);
@@ -90,7 +88,7 @@ int of_read_drc_info_cell(struct property **prop, const __be32 **curval,
 		return -EINVAL;
 
 	/* Should now know end of current entry */
-	(*curval) = (void *)p2;
+	(*curval) = (void *)(++p2);
 	data->last_drc_index = data->drc_index_start +
 		((data->num_sequential_elems - 1) * data->sequential_inc);
 

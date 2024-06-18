@@ -40,11 +40,11 @@
 #define FTDI_SIO_READ_PINS		0x0c /* Read immediate value of pins */
 #define FTDI_SIO_READ_EEPROM		0x90 /* Read EEPROM */
 
-/* Interface indices for FT2232, FT2232H and FT4232H devices */
-#define INTERFACE_A		1
-#define INTERFACE_B		2
-#define INTERFACE_C		3
-#define INTERFACE_D		4
+/* Channel indices for FT2232, FT2232H and FT4232H devices */
+#define CHANNEL_A		1
+#define CHANNEL_B		2
+#define CHANNEL_C		3
+#define CHANNEL_D		4
 
 
 /*
@@ -152,18 +152,6 @@
  * (1.5), this needs to be replaced with 0x0001 (1) (but this divisor value is
  * not supported by the FT8U232AM).
  */
-
-enum ftdi_chip_type {
-	SIO = 1,
-	FT8U232AM = 2,
-	FT232BM = 3,
-	FT2232C = 4,
-	FT232RL = 5,
-	FT2232H = 6,
-	FT4232H = 7,
-	FT232H  = 8,
-	FTX     = 9,
-};
 
 enum ftdi_sio_baudrate {
 	ftdi_sio_b300 = 0,
@@ -302,7 +290,7 @@ enum ftdi_sio_baudrate {
 /*
  * FTDI_SIO_GET_LATENCY_TIMER
  *
- * Set the timeout interval. The FTDI collects data from the slave
+ * Set the timeout interval. The FTDI collects data from the
  * device, transmitting it to the host when either A) 62 bytes are
  * received, or B) the timeout interval has elapsed and the buffer
  * contains at least 1 byte.  Setting this value to a small number
@@ -324,7 +312,7 @@ enum ftdi_sio_baudrate {
 /*
  * FTDI_SIO_SET_LATENCY_TIMER
  *
- * Set the timeout interval. The FTDI collects data from the slave
+ * Set the timeout interval. The FTDI collects data from the
  * device, transmitting it to the host when either A) 62 bytes are
  * received, or B) the timeout interval has elapsed and the buffer
  * contains at least 1 byte.  Setting this value to a small number

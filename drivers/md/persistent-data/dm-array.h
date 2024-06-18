@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2012 Red Hat, Inc.
  *
@@ -198,7 +199,7 @@ struct dm_array_cursor {
 
 	struct dm_block *block;
 	struct array_block *ab;
-	unsigned index;
+	unsigned int index;
 };
 
 int dm_array_cursor_begin(struct dm_array_info *info,

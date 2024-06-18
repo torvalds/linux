@@ -5,7 +5,7 @@ NXP SJA1105 switch driver
 Overview
 ========
 
-The NXP SJA1105 is a family of 6 devices:
+The NXP SJA1105 is a family of 10 SPI-managed automotive switches:
 
 - SJA1105E: First generation, no TTEthernet
 - SJA1105T: First generation, TTEthernet
@@ -13,9 +13,11 @@ The NXP SJA1105 is a family of 6 devices:
 - SJA1105Q: Second generation, TTEthernet, no SGMII
 - SJA1105R: Second generation, no TTEthernet, SGMII
 - SJA1105S: Second generation, TTEthernet, SGMII
-
-These are SPI-managed automotive switches, with all ports being gigabit
-capable, and supporting MII/RMII/RGMII and optionally SGMII on one port.
+- SJA1110A: Third generation, TTEthernet, SGMII, integrated 100base-T1 and
+  100base-TX PHYs
+- SJA1110B: Third generation, TTEthernet, SGMII, 100base-T1, 100base-TX
+- SJA1110C: Third generation, TTEthernet, SGMII, 100base-T1, 100base-TX
+- SJA1110D: Third generation, TTEthernet, SGMII, 100base-T1
 
 Being automotive parts, their configuration interface is geared towards
 set-and-forget use, with minimal dynamic interaction at runtime. They
@@ -63,38 +65,6 @@ If that changed setting can be transmitted to the switch through the dynamic
 reconfiguration interface, it is; otherwise the switch is reset and
 reprogrammed with the updated static configuration.
 
-Traffic support
-===============
-
-The switches do not support switch tagging in hardware. But they do support
-customizing the TPID by which VLAN traffic is identified as such. The switch
-driver is leveraging ``CONFIG_NET_DSA_TAG_8021Q`` by requesting that special
-VLANs (with a custom TPID of ``ETH_P_EDSA`` instead of ``ETH_P_8021Q``) are
-installed on its ports when not in ``vlan_filtering`` mode. This does not
-interfere with the reception and transmission of real 802.1Q-tagged traffic,
-because the switch does no longer parse those packets as VLAN after the TPID
-change.
-The TPID is restored when ``vlan_filtering`` is requested by the user through
-the bridge layer, and general IP termination becomes no longer possible through
-the switch netdevices in this mode.
-
-The switches have two programmable filters for link-local destination MACs.
-These are used to trap BPDUs and PTP traffic to the master netdevice, and are
-further used to support STP and 1588 ordinary clock/boundary clock
-functionality.
-
-The following traffic modes are supported over the switch netdevices:
-
-+--------------------+------------+------------------+------------------+
-|                    | Standalone | Bridged with     | Bridged with     |
-|                    | ports      | vlan_filtering 0 | vlan_filtering 1 |
-+====================+============+==================+==================+
-| Regular traffic    |     Yes    |       Yes        |  No (use master) |
-+--------------------+------------+------------------+------------------+
-| Management traffic |     Yes    |       Yes        |       Yes        |
-| (BPDU, PTP)        |            |                  |                  |
-+--------------------+------------+------------------+------------------+
-
 Switching features
 ==================
 
@@ -109,7 +79,7 @@ The hardware tags all traffic internally with a port-based VLAN (pvid), or it
 decodes the VLAN information from the 802.1Q tag. Advanced VLAN classification
 is not possible. Once attributed a VLAN tag, frames are checked against the
 port's membership rules and dropped at ingress if they don't match any VLAN.
-This behavior is available when switch ports are enslaved to a bridge with
+This behavior is available when switch ports join a bridge with
 ``vlan_filtering 1``.
 
 Normally the hardware is not configurable with respect to VLAN awareness, but
@@ -119,32 +89,9 @@ untagged), and therefore this mode is also supported.
 
 Segregating the switch ports in multiple bridges is supported (e.g. 2 + 2), but
 all bridges should have the same level of VLAN awareness (either both have
-``vlan_filtering`` 0, or both 1). Also an inevitable limitation of the fact
-that VLAN awareness is global at the switch level is that once a bridge with
-``vlan_filtering`` enslaves at least one switch port, the other un-bridged
-ports are no longer available for standalone traffic termination.
+``vlan_filtering`` 0, or both 1).
 
 Topology and loop detection through STP is supported.
-
-L2 FDB manipulation (add/delete/dump) is currently possible for the first
-generation devices. Aging time of FDB entries, as well as enabling fully static
-management (no address learning and no flooding of unknown traffic) is not yet
-configurable in the driver.
-
-A special comment about bridging with other netdevices (illustrated with an
-example):
-
-A board has eth0, eth1, swp0@eth1, swp1@eth1, swp2@eth1, swp3@eth1.
-The switch ports (swp0-3) are under br0.
-It is desired that eth0 is turned into another switched port that communicates
-with swp0-3.
-
-If br0 has vlan_filtering 0, then eth0 can simply be added to br0 with the
-intended results.
-If br0 has vlan_filtering 1, then a new br1 interface needs to be created that
-enslaves eth0 and eth1 (the DSA master of the switch ports). This is because in
-this mode, the switch ports beneath br0 are not capable of regular traffic, and
-are only used as a conduit for switchdev operations.
 
 Offloads
 ========
@@ -175,7 +122,7 @@ on egress. Using ``vlan_filtering=1``, the behavior is the other way around:
 offloaded flows can be steered to TX queues based on the VLAN PCP, but the DSA
 net devices are no longer able to do that. To inject frames into a hardware TX
 queue with VLAN awareness active, it is necessary to create a VLAN
-sub-interface on the DSA master port, and send normal (0x8100) VLAN-tagged
+sub-interface on the DSA conduit port, and send normal (0x8100) VLAN-tagged
 towards the switch, with the VLAN PCP bits set appropriately.
 
 Management traffic (having DMAC 01-80-C2-xx-xx-xx or 01-19-1B-xx-xx-xx) is the
@@ -230,16 +177,153 @@ simultaneously on two ports. The driver checks the consistency of the schedules
 against this restriction and errors out when appropriate. Schedule analysis is
 needed to avoid this, which is outside the scope of the document.
 
-At the moment, the time-aware scheduler can only be triggered based on a
-standalone clock and not based on PTP time. This means the base-time argument
-from tc-taprio is ignored and the schedule starts right away. It also means it
-is more difficult to phase-align the scheduler with the other devices in the
-network.
+Routing actions (redirect, trap, drop)
+--------------------------------------
+
+The switch is able to offload flow-based redirection of packets to a set of
+destination ports specified by the user. Internally, this is implemented by
+making use of Virtual Links, a TTEthernet concept.
+
+The driver supports 2 types of keys for Virtual Links:
+
+- VLAN-aware virtual links: these match on destination MAC address, VLAN ID and
+  VLAN PCP.
+- VLAN-unaware virtual links: these match on destination MAC address only.
+
+The VLAN awareness state of the bridge (vlan_filtering) cannot be changed while
+there are virtual link rules installed.
+
+Composing multiple actions inside the same rule is supported. When only routing
+actions are requested, the driver creates a "non-critical" virtual link. When
+the action list also contains tc-gate (more details below), the virtual link
+becomes "time-critical" (draws frame buffers from a reserved memory partition,
+etc).
+
+The 3 routing actions that are supported are "trap", "drop" and "redirect".
+
+Example 1: send frames received on swp2 with a DA of 42:be:24:9b:76:20 to the
+CPU and to swp3. This type of key (DA only) when the port's VLAN awareness
+state is off::
+
+  tc qdisc add dev swp2 clsact
+  tc filter add dev swp2 ingress flower skip_sw dst_mac 42:be:24:9b:76:20 \
+          action mirred egress redirect dev swp3 \
+          action trap
+
+Example 2: drop frames received on swp2 with a DA of 42:be:24:9b:76:20, a VID
+of 100 and a PCP of 0::
+
+  tc filter add dev swp2 ingress protocol 802.1Q flower skip_sw \
+          dst_mac 42:be:24:9b:76:20 vlan_id 100 vlan_prio 0 action drop
+
+Time-based ingress policing
+---------------------------
+
+The TTEthernet hardware abilities of the switch can be constrained to act
+similarly to the Per-Stream Filtering and Policing (PSFP) clause specified in
+IEEE 802.1Q-2018 (formerly 802.1Qci). This means it can be used to perform
+tight timing-based admission control for up to 1024 flows (identified by a
+tuple composed of destination MAC address, VLAN ID and VLAN PCP). Packets which
+are received outside their expected reception window are dropped.
+
+This capability can be managed through the offload of the tc-gate action. As
+routing actions are intrinsic to virtual links in TTEthernet (which performs
+explicit routing of time-critical traffic and does not leave that in the hands
+of the FDB, flooding etc), the tc-gate action may never appear alone when
+asking sja1105 to offload it. One (or more) redirect or trap actions must also
+follow along.
+
+Example: create a tc-taprio schedule that is phase-aligned with a tc-gate
+schedule (the clocks must be synchronized by a 1588 application stack, which is
+outside the scope of this document). No packet delivered by the sender will be
+dropped. Note that the reception window is larger than the transmission window
+(and much more so, in this example) to compensate for the packet propagation
+delay of the link (which can be determined by the 1588 application stack).
+
+Receiver (sja1105)::
+
+  tc qdisc add dev swp2 clsact
+  now=$(phc_ctl /dev/ptp1 get | awk '/clock time is/ {print $5}') && \
+          sec=$(echo $now | awk -F. '{print $1}') && \
+          base_time="$(((sec + 2) * 1000000000))" && \
+          echo "base time ${base_time}"
+  tc filter add dev swp2 ingress flower skip_sw \
+          dst_mac 42:be:24:9b:76:20 \
+          action gate base-time ${base_time} \
+          sched-entry OPEN  60000 -1 -1 \
+          sched-entry CLOSE 40000 -1 -1 \
+          action trap
+
+Sender::
+
+  now=$(phc_ctl /dev/ptp0 get | awk '/clock time is/ {print $5}') && \
+          sec=$(echo $now | awk -F. '{print $1}') && \
+          base_time="$(((sec + 2) * 1000000000))" && \
+          echo "base time ${base_time}"
+  tc qdisc add dev eno0 parent root taprio \
+          num_tc 8 \
+          map 0 1 2 3 4 5 6 7 \
+          queues 1@0 1@1 1@2 1@3 1@4 1@5 1@6 1@7 \
+          base-time ${base_time} \
+          sched-entry S 01  50000 \
+          sched-entry S 00  50000 \
+          flags 2
+
+The engine used to schedule the ingress gate operations is the same that the
+one used for the tc-taprio offload. Therefore, the restrictions regarding the
+fact that no two gate actions (either tc-gate or tc-taprio gates) may fire at
+the same time (during the same 200 ns slot) still apply.
+
+To come in handy, it is possible to share time-triggered virtual links across
+more than 1 ingress port, via flow blocks. In this case, the restriction of
+firing at the same time does not apply because there is a single schedule in
+the system, that of the shared virtual link::
+
+  tc qdisc add dev swp2 ingress_block 1 clsact
+  tc qdisc add dev swp3 ingress_block 1 clsact
+  tc filter add block 1 flower skip_sw dst_mac 42:be:24:9b:76:20 \
+          action gate index 2 \
+          base-time 0 \
+          sched-entry OPEN 50000000 -1 -1 \
+          sched-entry CLOSE 50000000 -1 -1 \
+          action trap
+
+Hardware statistics for each flow are also available ("pkts" counts the number
+of dropped frames, which is a sum of frames dropped due to timing violations,
+lack of destination ports and MTU enforcement checks). Byte-level counters are
+not available.
+
+Limitations
+===========
+
+The SJA1105 switch family always performs VLAN processing. When configured as
+VLAN-unaware, frames carry a different VLAN tag internally, depending on
+whether the port is standalone or under a VLAN-unaware bridge.
+
+The virtual link keys are always fixed at {MAC DA, VLAN ID, VLAN PCP}, but the
+driver asks for the VLAN ID and VLAN PCP when the port is under a VLAN-aware
+bridge. Otherwise, it fills in the VLAN ID and PCP automatically, based on
+whether the port is standalone or in a VLAN-unaware bridge, and accepts only
+"VLAN-unaware" tc-flower keys (MAC DA).
+
+The existing tc-flower keys that are offloaded using virtual links are no
+longer operational after one of the following happens:
+
+- port was standalone and joins a bridge (VLAN-aware or VLAN-unaware)
+- port is part of a bridge whose VLAN awareness state changes
+- port was part of a bridge and becomes standalone
+- port was standalone, but another port joins a VLAN-aware bridge and this
+  changes the global VLAN awareness state of the bridge
+
+The driver cannot veto all these operations, and it cannot update/remove the
+existing tc-flower filters either. So for proper operation, the tc-flower
+filters should be installed only after the forwarding configuration of the port
+has been made, and removed by user space before making any changes to it.
 
 Device Tree bindings and board design
 =====================================
 
-This section references ``Documentation/devicetree/bindings/net/dsa/sja1105.txt``
+This section references ``Documentation/devicetree/bindings/net/dsa/nxp,sja1105.yaml``
 and aims to showcase some potential switch caveats.
 
 RMII PHY role and out-of-band signaling
@@ -305,6 +389,57 @@ MDIO bus and PHY management
 The SJA1105 does not have an MDIO bus and does not perform in-band AN either.
 Therefore there is no link state notification coming from the switch device.
 A board would need to hook up the PHYs connected to the switch to any other
-MDIO bus available to Linux within the system (e.g. to the DSA master's MDIO
+MDIO bus available to Linux within the system (e.g. to the DSA conduit's MDIO
 bus). Link state management then works by the driver manually keeping in sync
 (over SPI commands) the MAC link speed with the settings negotiated by the PHY.
+
+By comparison, the SJA1110 supports an MDIO slave access point over which its
+internal 100base-T1 PHYs can be accessed from the host. This is, however, not
+used by the driver, instead the internal 100base-T1 and 100base-TX PHYs are
+accessed through SPI commands, modeled in Linux as virtual MDIO buses.
+
+The microcontroller attached to the SJA1110 port 0 also has an MDIO controller
+operating in master mode, however the driver does not support this either,
+since the microcontroller gets disabled when the Linux driver operates.
+Discrete PHYs connected to the switch ports should have their MDIO interface
+attached to an MDIO controller from the host system and not to the switch,
+similar to SJA1105.
+
+Port compatibility matrix
+-------------------------
+
+The SJA1105 port compatibility matrix is:
+
+===== ============== ============== ==============
+Port   SJA1105E/T     SJA1105P/Q     SJA1105R/S
+===== ============== ============== ==============
+0      xMII           xMII           xMII
+1      xMII           xMII           xMII
+2      xMII           xMII           xMII
+3      xMII           xMII           xMII
+4      xMII           xMII           SGMII
+===== ============== ============== ==============
+
+
+The SJA1110 port compatibility matrix is:
+
+===== ============== ============== ============== ==============
+Port   SJA1110A       SJA1110B       SJA1110C       SJA1110D
+===== ============== ============== ============== ==============
+0      RevMII (uC)    RevMII (uC)    RevMII (uC)    RevMII (uC)
+1      100base-TX     100base-TX     100base-TX
+       or SGMII                                     SGMII
+2      xMII           xMII           xMII           xMII
+       or SGMII                                     or SGMII
+3      xMII           xMII           xMII
+       or SGMII       or SGMII                      SGMII
+       or 2500base-X  or 2500base-X                 or 2500base-X
+4      SGMII          SGMII          SGMII          SGMII
+       or 2500base-X  or 2500base-X  or 2500base-X  or 2500base-X
+5      100base-T1     100base-T1     100base-T1     100base-T1
+6      100base-T1     100base-T1     100base-T1     100base-T1
+7      100base-T1     100base-T1     100base-T1     100base-T1
+8      100base-T1     100base-T1     n/a            n/a
+9      100base-T1     100base-T1     n/a            n/a
+10     100base-T1     n/a            n/a            n/a
+===== ============== ============== ============== ==============

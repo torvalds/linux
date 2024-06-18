@@ -2,7 +2,7 @@
 /**
  * dts file for Hisilicon D05 Development Board
  *
- * Copyright (C) 2016 Hisilicon Ltd.
+ * Copyright (C) 2016 HiSilicon Ltd.
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -842,66 +842,98 @@
 
 		cluster0_l2: l2-cache0 {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 
 		cluster1_l2: l2-cache1 {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 
 		cluster2_l2: l2-cache2 {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 
 		cluster3_l2: l2-cache3 {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 
 		cluster4_l2: l2-cache4 {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 
 		cluster5_l2: l2-cache5 {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 
 		cluster6_l2: l2-cache6 {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 
 		cluster7_l2: l2-cache7 {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 
 		cluster8_l2: l2-cache8 {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 
 		cluster9_l2: l2-cache9 {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 
 		cluster10_l2: l2-cache10 {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 
 		cluster11_l2: l2-cache11 {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 
 		cluster12_l2: l2-cache12 {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 
 		cluster13_l2: l2-cache13 {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 
 		cluster14_l2: l2-cache14 {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 
 		cluster15_l2: l2-cache15 {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 	};
 
@@ -924,61 +956,97 @@
 		      <0x0 0xfe020000 0x0 0x10000>;	/* GICV */
 		interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
 
-		p0_its_peri_a: interrupt-controller@4c000000 {
+		p0_its_peri_a: msi-controller@4c000000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			#msi-cells = <1>;
 			reg = <0x0 0x4c000000 0x0 0x40000>;
 		};
 
-		p0_its_peri_b: interrupt-controller@6c000000 {
+		p0_its_peri_b: msi-controller@6c000000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			#msi-cells = <1>;
 			reg = <0x0 0x6c000000 0x0 0x40000>;
 		};
 
-		p0_its_dsa_a: interrupt-controller@c6000000 {
+		p0_its_dsa_a: msi-controller@c6000000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			#msi-cells = <1>;
 			reg = <0x0 0xc6000000 0x0 0x40000>;
 		};
 
-		p0_its_dsa_b: interrupt-controller@8,c6000000 {
+		p0_its_dsa_b: msi-controller@8c6000000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			#msi-cells = <1>;
 			reg = <0x8 0xc6000000 0x0 0x40000>;
 		};
 
-		p1_its_peri_a: interrupt-controller@400,4c000000 {
+		p1_its_peri_a: msi-controller@4004c000000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			#msi-cells = <1>;
 			reg = <0x400 0x4c000000 0x0 0x40000>;
 		};
 
-		p1_its_peri_b: interrupt-controller@400,6c000000 {
+		p1_its_peri_b: msi-controller@4006c000000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			#msi-cells = <1>;
 			reg = <0x400 0x6c000000 0x0 0x40000>;
 		};
 
-		p1_its_dsa_a: interrupt-controller@400,c6000000 {
+		p1_its_dsa_a: msi-controller@400c6000000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			#msi-cells = <1>;
 			reg = <0x400 0xc6000000 0x0 0x40000>;
 		};
 
-		p1_its_dsa_b: interrupt-controller@408,c6000000 {
+		p1_its_dsa_b: msi-controller@408c6000000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			#msi-cells = <1>;
 			reg = <0x408 0xc6000000 0x0 0x40000>;
 		};
+	};
+
+	eth0: ethernet-0 {
+		compatible = "hisilicon,hns-nic-v2";
+		ae-handle = <&dsaf0>;
+		port-idx-in-ae = <4>;
+		local-mac-address = [00 00 00 00 00 00];
+		status = "disabled";
+		dma-coherent;
+	};
+
+	eth1: ethernet-1 {
+		compatible = "hisilicon,hns-nic-v2";
+		ae-handle = <&dsaf0>;
+		port-idx-in-ae = <5>;
+		local-mac-address = [00 00 00 00 00 00];
+		status = "disabled";
+		dma-coherent;
+	};
+
+	eth2: ethernet-2 {
+		compatible = "hisilicon,hns-nic-v2";
+		ae-handle = <&dsaf0>;
+		port-idx-in-ae = <0>;
+		local-mac-address = [00 00 00 00 00 00];
+		status = "disabled";
+		dma-coherent;
+	};
+
+	eth3: ethernet-3 {
+		compatible = "hisilicon,hns-nic-v2";
+		ae-handle = <&dsaf0>;
+		port-idx-in-ae = <1>;
+		local-mac-address = [00 00 00 00 00 00];
+		status = "disabled";
+		dma-coherent;
 	};
 
 	timer {
@@ -1161,16 +1229,15 @@
 	 *  when iommu-map entry is used along with the PCIe node.
 	 *  Refer:https://www.spinics.net/lists/arm-kernel/msg602812.html
 	 */
-	smmu0: smmu_pcie {
+	smmu0: iommu@a0040000 {
 		compatible = "arm,smmu-v3";
 		reg = <0x0 0xa0040000 0x0 0x20000>;
 		#iommu-cells = <1>;
 		dma-coherent;
-		smmu-cb-memtype = <0x0 0x1>;
 		hisilicon,broken-prefetch-cmd;
 		status = "disabled";
 	};
-	p0_smmu_alg_a: smmu_alg@d0040000 {
+	p0_smmu_alg_a: iommu@d0040000 {
 		compatible = "arm,smmu-v3";
 		reg = <0x0 0xd0040000 0x0 0x20000>;
 		interrupt-parent = <&p0_mbigen_smmu_alg_a>;
@@ -1181,9 +1248,8 @@
 		#iommu-cells = <1>;
 		dma-coherent;
 		hisilicon,broken-prefetch-cmd;
-		/* smmu-cb-memtype = <0x0 0x1>;*/
 	};
-	p0_smmu_alg_b: smmu_alg@8,d0040000 {
+	p0_smmu_alg_b: iommu@8d0040000 {
 		compatible = "arm,smmu-v3";
 		reg = <0x8 0xd0040000 0x0 0x20000>;
 		interrupt-parent = <&p0_mbigen_smmu_alg_b>;
@@ -1194,9 +1260,8 @@
 		#iommu-cells = <1>;
 		dma-coherent;
 		hisilicon,broken-prefetch-cmd;
-		/* smmu-cb-memtype = <0x0 0x1>;*/
 	};
-	p1_smmu_alg_a: smmu_alg@400,d0040000 {
+	p1_smmu_alg_a: iommu@400d0040000 {
 		compatible = "arm,smmu-v3";
 		reg = <0x400 0xd0040000 0x0 0x20000>;
 		interrupt-parent = <&p1_mbigen_smmu_alg_a>;
@@ -1207,9 +1272,8 @@
 		#iommu-cells = <1>;
 		dma-coherent;
 		hisilicon,broken-prefetch-cmd;
-		/* smmu-cb-memtype = <0x0 0x1>;*/
 	};
-	p1_smmu_alg_b: smmu_alg@408,d0040000 {
+	p1_smmu_alg_b: iommu@408d0040000 {
 		compatible = "arm,smmu-v3";
 		reg = <0x408 0xd0040000 0x0 0x20000>;
 		interrupt-parent = <&p1_mbigen_smmu_alg_b>;
@@ -1220,7 +1284,6 @@
 		#iommu-cells = <1>;
 		dma-coherent;
 		hisilicon,broken-prefetch-cmd;
-		/* smmu-cb-memtype = <0x0 0x1>;*/
 	};
 
 	soc {
@@ -1243,7 +1306,7 @@
 			};
 		};
 
-		uart0: uart@602b0000 {
+		uart0: serial@602b0000 {
 			compatible = "arm,sbsa-uart";
 			reg = <0x0 0x602b0000 0x0 0x1000>;
 			interrupt-parent = <&mbigen_uart>;
@@ -1253,7 +1316,7 @@
 			status = "disabled";
 		};
 
-		usb_ohci: ohci@a7030000 {
+		usb_ohci: usb@a7030000 {
 			compatible = "generic-ohci";
 			reg = <0x0 0xa7030000 0x0 0x10000>;
 			interrupt-parent = <&mbigen_usb>;
@@ -1262,7 +1325,7 @@
 			status = "disabled";
 		};
 
-		usb_ehci: ehci@a7020000 {
+		usb_ehci: usb@a7020000 {
 			compatible = "generic-ehci";
 			reg = <0x0 0xa7020000 0x0 0x10000>;
 			interrupt-parent = <&mbigen_usb>;
@@ -1316,13 +1379,13 @@
 			};
 		};
 
-		dsaf0: dsa@c7000000 {
+		dsaf0: dsa@c5000000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "hisilicon,hns-dsaf-v2";
 			mode = "6port-16rss";
-			reg = <0x0 0xc5000000 0x0 0x890000
-			       0x0 0xc7000000 0x0 0x600000>;
+			reg = <0x0 0xc5000000 0x0 0x890000>,
+			      <0x0 0xc7000000 0x0 0x600000>;
 			reg-names = "ppe-base", "dsaf-base";
 			interrupt-parent = <&mbigen_dsaf0>;
 			subctrl-syscon = <&dsa_subctrl>;
@@ -1427,7 +1490,7 @@
 
 			port@1 {
 				reg = <1>;
-				serdes-syscon= <&serdes_ctrl>;
+				serdes-syscon = <&serdes_ctrl>;
 				cpld-syscon = <&dsa_cpld 0x4>;
 				port-rst-offset = <1>;
 				port-mode-offset = <1>;
@@ -1438,7 +1501,7 @@
 			port@4 {
 				reg = <4>;
 				phy-handle = <&phy0>;
-				serdes-syscon= <&serdes_ctrl>;
+				serdes-syscon = <&serdes_ctrl>;
 				port-rst-offset = <4>;
 				port-mode-offset = <2>;
 				mc-mac-mask = [ff f0 00 00 00 00];
@@ -1448,48 +1511,12 @@
 			port@5 {
 				reg = <5>;
 				phy-handle = <&phy1>;
-				serdes-syscon= <&serdes_ctrl>;
+				serdes-syscon = <&serdes_ctrl>;
 				port-rst-offset = <5>;
 				port-mode-offset = <3>;
 				mc-mac-mask = [ff f0 00 00 00 00];
 				media-type = "copper";
 			};
-		};
-
-		eth0: ethernet@4{
-			compatible = "hisilicon,hns-nic-v2";
-			ae-handle = <&dsaf0>;
-			port-idx-in-ae = <4>;
-			local-mac-address = [00 00 00 00 00 00];
-			status = "disabled";
-			dma-coherent;
-		};
-
-		eth1: ethernet@5{
-			compatible = "hisilicon,hns-nic-v2";
-			ae-handle = <&dsaf0>;
-			port-idx-in-ae = <5>;
-			local-mac-address = [00 00 00 00 00 00];
-			status = "disabled";
-			dma-coherent;
-		};
-
-		eth2: ethernet@0{
-			compatible = "hisilicon,hns-nic-v2";
-			ae-handle = <&dsaf0>;
-			port-idx-in-ae = <0>;
-			local-mac-address = [00 00 00 00 00 00];
-			status = "disabled";
-			dma-coherent;
-		};
-
-		eth3: ethernet@1{
-			compatible = "hisilicon,hns-nic-v2";
-			ae-handle = <&dsaf0>;
-			port-idx-in-ae = <1>;
-			local-mac-address = [00 00 00 00 00 00];
-			status = "disabled";
-			dma-coherent;
 		};
 
 		infiniband@c4000000 {
@@ -1697,7 +1724,7 @@
 			status = "disabled";
 		};
 
-		p0_pcie2_a: pcie@a00a0000 {
+		p0_pcie2_a: pcie@af800000 {
 			compatible = "hisilicon,hip07-pcie-ecam";
 			reg = <0 0xaf800000 0 0x800000>,
 			      <0 0xa00a0000 0 0x10000>;
@@ -1708,8 +1735,8 @@
 			#size-cells = <2>;
 			device_type = "pci";
 			dma-coherent;
-			ranges = <0x02000000 0 0xa8000000 0 0xa8000000 0 0x77f0000
-				  0x01000000 0 0 0 0xaf7f0000 0 0x10000>;
+			ranges = <0x02000000 0 0xa8000000 0 0xa8000000 0 0x77f0000>,
+				 <0x01000000 0 0 0 0xaf7f0000 0 0x10000>;
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0xf800 0 0 7>;
 			interrupt-map = <0x0 0 0 1 &mbigen_pcie2_a 671 4
@@ -1718,26 +1745,26 @@
 					 0x0 0 0 4 &mbigen_pcie2_a 671 4>;
 			status = "disabled";
 		};
-		p0_sec_a: crypto@d2000000 {
+		p0_sec_a: crypto@d0000000 {
 			compatible = "hisilicon,hip07-sec";
-			reg = <0x0 0xd0000000 0x0 0x10000
-			       0x0 0xd2000000 0x0 0x10000
-			       0x0 0xd2010000 0x0 0x10000
-			       0x0 0xd2020000 0x0 0x10000
-			       0x0 0xd2030000 0x0 0x10000
-			       0x0 0xd2040000 0x0 0x10000
-			       0x0 0xd2050000 0x0 0x10000
-			       0x0 0xd2060000 0x0 0x10000
-			       0x0 0xd2070000 0x0 0x10000
-			       0x0 0xd2080000 0x0 0x10000
-			       0x0 0xd2090000 0x0 0x10000
-			       0x0 0xd20a0000 0x0 0x10000
-			       0x0 0xd20b0000 0x0 0x10000
-			       0x0 0xd20c0000 0x0 0x10000
-			       0x0 0xd20d0000 0x0 0x10000
-			       0x0 0xd20e0000 0x0 0x10000
-			       0x0 0xd20f0000 0x0 0x10000
-			       0x0 0xd2100000 0x0 0x10000>;
+			reg = <0x0 0xd0000000 0x0 0x10000>,
+			      <0x0 0xd2000000 0x0 0x10000>,
+			      <0x0 0xd2010000 0x0 0x10000>,
+			      <0x0 0xd2020000 0x0 0x10000>,
+			      <0x0 0xd2030000 0x0 0x10000>,
+			      <0x0 0xd2040000 0x0 0x10000>,
+			      <0x0 0xd2050000 0x0 0x10000>,
+			      <0x0 0xd2060000 0x0 0x10000>,
+			      <0x0 0xd2070000 0x0 0x10000>,
+			      <0x0 0xd2080000 0x0 0x10000>,
+			      <0x0 0xd2090000 0x0 0x10000>,
+			      <0x0 0xd20a0000 0x0 0x10000>,
+			      <0x0 0xd20b0000 0x0 0x10000>,
+			      <0x0 0xd20c0000 0x0 0x10000>,
+			      <0x0 0xd20d0000 0x0 0x10000>,
+			      <0x0 0xd20e0000 0x0 0x10000>,
+			      <0x0 0xd20f0000 0x0 0x10000>,
+			      <0x0 0xd2100000 0x0 0x10000>;
 			interrupt-parent = <&p0_mbigen_sec_a>;
 			iommus = <&p0_smmu_alg_a 0x600>;
 			dma-coherent;
@@ -1759,26 +1786,26 @@
 				     <605 1>, <606 4>,
 				     <607 1>, <608 4>;
 		};
-		p0_sec_b: crypto@8,d2000000 {
+		p0_sec_b: crypto@8d0000000 {
 			compatible = "hisilicon,hip07-sec";
-			reg = <0x8 0xd0000000 0x0 0x10000
-			       0x8 0xd2000000 0x0 0x10000
-			       0x8 0xd2010000 0x0 0x10000
-			       0x8 0xd2020000 0x0 0x10000
-			       0x8 0xd2030000 0x0 0x10000
-			       0x8 0xd2040000 0x0 0x10000
-			       0x8 0xd2050000 0x0 0x10000
-			       0x8 0xd2060000 0x0 0x10000
-			       0x8 0xd2070000 0x0 0x10000
-			       0x8 0xd2080000 0x0 0x10000
-			       0x8 0xd2090000 0x0 0x10000
-			       0x8 0xd20a0000 0x0 0x10000
-			       0x8 0xd20b0000 0x0 0x10000
-			       0x8 0xd20c0000 0x0 0x10000
-			       0x8 0xd20d0000 0x0 0x10000
-			       0x8 0xd20e0000 0x0 0x10000
-			       0x8 0xd20f0000 0x0 0x10000
-			       0x8 0xd2100000 0x0 0x10000>;
+			reg = <0x8 0xd0000000 0x0 0x10000>,
+			      <0x8 0xd2000000 0x0 0x10000>,
+			      <0x8 0xd2010000 0x0 0x10000>,
+			      <0x8 0xd2020000 0x0 0x10000>,
+			      <0x8 0xd2030000 0x0 0x10000>,
+			      <0x8 0xd2040000 0x0 0x10000>,
+			      <0x8 0xd2050000 0x0 0x10000>,
+			      <0x8 0xd2060000 0x0 0x10000>,
+			      <0x8 0xd2070000 0x0 0x10000>,
+			      <0x8 0xd2080000 0x0 0x10000>,
+			      <0x8 0xd2090000 0x0 0x10000>,
+			      <0x8 0xd20a0000 0x0 0x10000>,
+			      <0x8 0xd20b0000 0x0 0x10000>,
+			      <0x8 0xd20c0000 0x0 0x10000>,
+			      <0x8 0xd20d0000 0x0 0x10000>,
+			      <0x8 0xd20e0000 0x0 0x10000>,
+			      <0x8 0xd20f0000 0x0 0x10000>,
+			      <0x8 0xd2100000 0x0 0x10000>;
 			interrupt-parent = <&p0_mbigen_sec_b>;
 			iommus = <&p0_smmu_alg_b 0x600>;
 			dma-coherent;
@@ -1800,26 +1827,26 @@
 				     <605 1>, <606 4>,
 				     <607 1>, <608 4>;
 		};
-		p1_sec_a: crypto@400,d2000000 {
+		p1_sec_a: crypto@400d0000000 {
 			compatible = "hisilicon,hip07-sec";
-			reg = <0x400 0xd0000000 0x0 0x10000
-			       0x400 0xd2000000 0x0 0x10000
-			       0x400 0xd2010000 0x0 0x10000
-			       0x400 0xd2020000 0x0 0x10000
-			       0x400 0xd2030000 0x0 0x10000
-			       0x400 0xd2040000 0x0 0x10000
-			       0x400 0xd2050000 0x0 0x10000
-			       0x400 0xd2060000 0x0 0x10000
-			       0x400 0xd2070000 0x0 0x10000
-			       0x400 0xd2080000 0x0 0x10000
-			       0x400 0xd2090000 0x0 0x10000
-			       0x400 0xd20a0000 0x0 0x10000
-			       0x400 0xd20b0000 0x0 0x10000
-			       0x400 0xd20c0000 0x0 0x10000
-			       0x400 0xd20d0000 0x0 0x10000
-			       0x400 0xd20e0000 0x0 0x10000
-			       0x400 0xd20f0000 0x0 0x10000
-			       0x400 0xd2100000 0x0 0x10000>;
+			reg = <0x400 0xd0000000 0x0 0x10000>,
+			      <0x400 0xd2000000 0x0 0x10000>,
+			      <0x400 0xd2010000 0x0 0x10000>,
+			      <0x400 0xd2020000 0x0 0x10000>,
+			      <0x400 0xd2030000 0x0 0x10000>,
+			      <0x400 0xd2040000 0x0 0x10000>,
+			      <0x400 0xd2050000 0x0 0x10000>,
+			      <0x400 0xd2060000 0x0 0x10000>,
+			      <0x400 0xd2070000 0x0 0x10000>,
+			      <0x400 0xd2080000 0x0 0x10000>,
+			      <0x400 0xd2090000 0x0 0x10000>,
+			      <0x400 0xd20a0000 0x0 0x10000>,
+			      <0x400 0xd20b0000 0x0 0x10000>,
+			      <0x400 0xd20c0000 0x0 0x10000>,
+			      <0x400 0xd20d0000 0x0 0x10000>,
+			      <0x400 0xd20e0000 0x0 0x10000>,
+			      <0x400 0xd20f0000 0x0 0x10000>,
+			      <0x400 0xd2100000 0x0 0x10000>;
 			interrupt-parent = <&p1_mbigen_sec_a>;
 			iommus = <&p1_smmu_alg_a 0x600>;
 			dma-coherent;
@@ -1841,26 +1868,26 @@
 				     <605 1>, <606 4>,
 				     <607 1>, <608 4>;
 		};
-		p1_sec_b: crypto@408,d2000000 {
+		p1_sec_b: crypto@408d0000000 {
 			compatible = "hisilicon,hip07-sec";
-			reg = <0x408 0xd0000000 0x0 0x10000
-			       0x408 0xd2000000 0x0 0x10000
-			       0x408 0xd2010000 0x0 0x10000
-			       0x408 0xd2020000 0x0 0x10000
-			       0x408 0xd2030000 0x0 0x10000
-			       0x408 0xd2040000 0x0 0x10000
-			       0x408 0xd2050000 0x0 0x10000
-			       0x408 0xd2060000 0x0 0x10000
-			       0x408 0xd2070000 0x0 0x10000
-			       0x408 0xd2080000 0x0 0x10000
-			       0x408 0xd2090000 0x0 0x10000
-			       0x408 0xd20a0000 0x0 0x10000
-			       0x408 0xd20b0000 0x0 0x10000
-			       0x408 0xd20c0000 0x0 0x10000
-			       0x408 0xd20d0000 0x0 0x10000
-			       0x408 0xd20e0000 0x0 0x10000
-			       0x408 0xd20f0000 0x0 0x10000
-			       0x408 0xd2100000 0x0 0x10000>;
+			reg = <0x408 0xd0000000 0x0 0x10000>,
+			      <0x408 0xd2000000 0x0 0x10000>,
+			      <0x408 0xd2010000 0x0 0x10000>,
+			      <0x408 0xd2020000 0x0 0x10000>,
+			      <0x408 0xd2030000 0x0 0x10000>,
+			      <0x408 0xd2040000 0x0 0x10000>,
+			      <0x408 0xd2050000 0x0 0x10000>,
+			      <0x408 0xd2060000 0x0 0x10000>,
+			      <0x408 0xd2070000 0x0 0x10000>,
+			      <0x408 0xd2080000 0x0 0x10000>,
+			      <0x408 0xd2090000 0x0 0x10000>,
+			      <0x408 0xd20a0000 0x0 0x10000>,
+			      <0x408 0xd20b0000 0x0 0x10000>,
+			      <0x408 0xd20c0000 0x0 0x10000>,
+			      <0x408 0xd20d0000 0x0 0x10000>,
+			      <0x408 0xd20e0000 0x0 0x10000>,
+			      <0x408 0xd20f0000 0x0 0x10000>,
+			      <0x408 0xd2100000 0x0 0x10000>;
 			interrupt-parent = <&p1_mbigen_sec_b>;
 			iommus = <&p1_smmu_alg_b 0x600>;
 			dma-coherent;

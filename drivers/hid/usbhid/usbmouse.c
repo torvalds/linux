@@ -123,14 +123,14 @@ static int usb_mouse_probe(struct usb_interface *intf, const struct usb_device_i
 		return -ENODEV;
 
 	pipe = usb_rcvintpipe(dev, endpoint->bEndpointAddress);
-	maxp = usb_maxpacket(dev, pipe, usb_pipeout(pipe));
+	maxp = usb_maxpacket(dev, pipe);
 
 	mouse = kzalloc(sizeof(struct usb_mouse), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!mouse || !input_dev)
 		goto fail1;
 
-	mouse->data = usb_alloc_coherent(dev, 8, GFP_ATOMIC, &mouse->data_dma);
+	mouse->data = usb_alloc_coherent(dev, 8, GFP_KERNEL, &mouse->data_dma);
 	if (!mouse->data)
 		goto fail1;
 
@@ -142,7 +142,7 @@ static int usb_mouse_probe(struct usb_interface *intf, const struct usb_device_i
 	mouse->dev = input_dev;
 
 	if (dev->manufacturer)
-		strlcpy(mouse->name, dev->manufacturer, sizeof(mouse->name));
+		strscpy(mouse->name, dev->manufacturer, sizeof(mouse->name));
 
 	if (dev->product) {
 		if (dev->manufacturer)

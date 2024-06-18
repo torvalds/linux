@@ -749,37 +749,37 @@ static const struct regulator_ops s2mps15_reg_buck_ops = {
 }
 
 /* voltage range for s2mps15 LDO 3, 5, 15, 16, 18, 20, 23 and 27 */
-static const struct regulator_linear_range s2mps15_ldo_voltage_ranges1[] = {
+static const struct linear_range s2mps15_ldo_voltage_ranges1[] = {
 	REGULATOR_LINEAR_RANGE(1000000, 0xc, 0x38, 25000),
 };
 
 /* voltage range for s2mps15 LDO 2, 6, 14, 17, 19, 21, 24 and 25 */
-static const struct regulator_linear_range s2mps15_ldo_voltage_ranges2[] = {
+static const struct linear_range s2mps15_ldo_voltage_ranges2[] = {
 	REGULATOR_LINEAR_RANGE(1800000, 0x0, 0x3f, 25000),
 };
 
 /* voltage range for s2mps15 LDO 4, 11, 12, 13, 22 and 26 */
-static const struct regulator_linear_range s2mps15_ldo_voltage_ranges3[] = {
+static const struct linear_range s2mps15_ldo_voltage_ranges3[] = {
 	REGULATOR_LINEAR_RANGE(700000, 0x0, 0x34, 12500),
 };
 
 /* voltage range for s2mps15 LDO 7, 8, 9 and 10 */
-static const struct regulator_linear_range s2mps15_ldo_voltage_ranges4[] = {
+static const struct linear_range s2mps15_ldo_voltage_ranges4[] = {
 	REGULATOR_LINEAR_RANGE(700000, 0x10, 0x20, 25000),
 };
 
 /* voltage range for s2mps15 LDO 1 */
-static const struct regulator_linear_range s2mps15_ldo_voltage_ranges5[] = {
+static const struct linear_range s2mps15_ldo_voltage_ranges5[] = {
 	REGULATOR_LINEAR_RANGE(500000, 0x0, 0x20, 12500),
 };
 
 /* voltage range for s2mps15 BUCK 1, 2, 3, 4, 5, 6 and 7 */
-static const struct regulator_linear_range s2mps15_buck_voltage_ranges1[] = {
+static const struct linear_range s2mps15_buck_voltage_ranges1[] = {
 	REGULATOR_LINEAR_RANGE(500000, 0x20, 0xc0, 6250),
 };
 
 /* voltage range for s2mps15 BUCK 8, 9 and 10 */
-static const struct regulator_linear_range s2mps15_buck_voltage_ranges2[] = {
+static const struct linear_range s2mps15_buck_voltage_ranges2[] = {
 	REGULATOR_LINEAR_RANGE(1000000, 0x20, 0x78, 12500),
 };
 
@@ -844,10 +844,9 @@ static void s2mps14_pmic_dt_parse_ext_control_gpio(struct platform_device *pdev,
 		if (!rdata[reg].init_data || !rdata[reg].of_node)
 			continue;
 
-		gpio[reg] = devm_gpiod_get_from_of_node(&pdev->dev,
-				rdata[reg].of_node,
-				"samsung,ext-control-gpios",
-				0,
+		gpio[reg] = devm_fwnode_gpiod_get(&pdev->dev,
+				of_fwnode_handle(rdata[reg].of_node),
+				"samsung,ext-control",
 				GPIOD_OUT_HIGH | GPIOD_FLAGS_BIT_NONEXCLUSIVE,
 				"s2mps11-regulator");
 		if (PTR_ERR(gpio[reg]) == -ENOENT)
@@ -1121,7 +1120,6 @@ static const struct regulator_desc s2mpu02_regulators[] = {
 static int s2mps11_pmic_probe(struct platform_device *pdev)
 {
 	struct sec_pmic_dev *iodev = dev_get_drvdata(pdev->dev.parent);
-	struct sec_platform_data *pdata = NULL;
 	struct of_regulator_match *rdata = NULL;
 	struct regulator_config config = { };
 	struct s2mps11_info *s2mps11;
@@ -1172,17 +1170,6 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
 	if (!s2mps11->ext_control_gpiod)
 		return -ENOMEM;
 
-	if (!iodev->dev->of_node) {
-		if (iodev->pdata) {
-			pdata = iodev->pdata;
-			goto common_reg;
-		} else {
-			dev_err(pdev->dev.parent,
-				"Platform data or DT node not supplied\n");
-			return -ENODEV;
-		}
-	}
-
 	rdata = kcalloc(rdev_num, sizeof(*rdata), GFP_KERNEL);
 	if (!rdata)
 		return -ENOMEM;
@@ -1194,7 +1181,6 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
 	if (ret)
 		goto out;
 
-common_reg:
 	platform_set_drvdata(pdev, s2mps11);
 
 	config.dev = &pdev->dev;
@@ -1203,13 +1189,8 @@ common_reg:
 	for (i = 0; i < rdev_num; i++) {
 		struct regulator_dev *regulator;
 
-		if (pdata) {
-			config.init_data = pdata->regulators[i].initdata;
-			config.of_node = pdata->regulators[i].reg_node;
-		} else {
-			config.init_data = rdata[i].init_data;
-			config.of_node = rdata[i].of_node;
-		}
+		config.init_data = rdata[i].init_data;
+		config.of_node = rdata[i].of_node;
 		config.ena_gpiod = s2mps11->ext_control_gpiod[i];
 		/*
 		 * Hand the GPIO descriptor management over to the regulator
@@ -1257,6 +1238,7 @@ MODULE_DEVICE_TABLE(platform, s2mps11_pmic_id);
 static struct platform_driver s2mps11_pmic_driver = {
 	.driver = {
 		.name = "s2mps11-pmic",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = s2mps11_pmic_probe,
 	.id_table = s2mps11_pmic_id,
@@ -1266,5 +1248,5 @@ module_platform_driver(s2mps11_pmic_driver);
 
 /* Module information */
 MODULE_AUTHOR("Sangbeom Kim <sbkim73@samsung.com>");
-MODULE_DESCRIPTION("SAMSUNG S2MPS11/S2MPS14/S2MPS15/S2MPU02 Regulator Driver");
+MODULE_DESCRIPTION("Samsung S2MPS11/S2MPS14/S2MPS15/S2MPU02 Regulator Driver");
 MODULE_LICENSE("GPL");

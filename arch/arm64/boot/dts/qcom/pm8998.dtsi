@@ -9,7 +9,7 @@
 
 / {
 	thermal-zones {
-		pm8998 {
+		pm8998-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
@@ -45,12 +45,20 @@
 			mode-bootloader = <0x2>;
 			mode-recovery = <0x1>;
 
-			pwrkey {
+			pm8998_pwrkey: pwrkey {
 				compatible = "qcom,pm8941-pwrkey";
 				interrupts = <0x0 0x8 0 IRQ_TYPE_EDGE_BOTH>;
 				debounce = <15625>;
 				bias-pull-up;
 				linux,code = <KEY_POWER>;
+			};
+
+			pm8998_resin: resin {
+				compatible = "qcom,pm8941-resin";
+				interrupts = <0x0 0x8 1 IRQ_TYPE_EDGE_BOTH>;
+				debounce = <15625>;
+				bias-pull-up;
+				status = "disabled";
 			};
 		};
 
@@ -63,8 +71,8 @@
 			#thermal-sensor-cells = <0>;
 		};
 
-		pm8998_coincell: coincell@2800 {
-			compatible = "qcom,pm8941-coincell";
+		pm8998_coincell: charger@2800 {
+			compatible = "qcom,pm8998-coincell", "qcom,pm8941-coincell";
 			reg = <0x2800>;
 
 			status = "disabled";
@@ -78,10 +86,20 @@
 			#size-cells = <0>;
 			#io-channel-cells = <1>;
 
-			adc-chan@6 {
+			channel@6 {
 				reg = <ADC5_DIE_TEMP>;
 				label = "die_temp";
 			};
+		};
+
+		pm8998_adc_tm: adc-tm@3400 {
+			compatible = "qcom,spmi-adc-tm-hc";
+			reg = <0x3400>;
+			interrupts = <0x0 0x34 0x0 IRQ_TYPE_EDGE_RISING>;
+			#thermal-sensor-cells = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
 		};
 
 		rtc@6000 {
@@ -91,11 +109,11 @@
 			interrupts = <0x0 0x61 0x1 IRQ_TYPE_EDGE_RISING>;
 		};
 
-		pm8998_gpio: gpios@c000 {
+		pm8998_gpios: gpio@c000 {
 			compatible = "qcom,pm8998-gpio", "qcom,spmi-gpio";
 			reg = <0xc000>;
 			gpio-controller;
-			gpio-ranges = <&pm8998_gpio 0 0 26>;
+			gpio-ranges = <&pm8998_gpios 0 0 26>;
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;

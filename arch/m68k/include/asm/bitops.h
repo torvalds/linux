@@ -65,8 +65,11 @@ static inline void bfset_mem_set_bit(int nr, volatile unsigned long *vaddr)
 				bfset_mem_set_bit(nr, vaddr))
 #endif
 
-#define __set_bit(nr, vaddr)	set_bit(nr, vaddr)
-
+static __always_inline void
+arch___set_bit(unsigned long nr, volatile unsigned long *addr)
+{
+	set_bit(nr, addr);
+}
 
 static inline void bclr_reg_clear_bit(int nr, volatile unsigned long *vaddr)
 {
@@ -105,8 +108,11 @@ static inline void bfclr_mem_clear_bit(int nr, volatile unsigned long *vaddr)
 				bfclr_mem_clear_bit(nr, vaddr))
 #endif
 
-#define __clear_bit(nr, vaddr)	clear_bit(nr, vaddr)
-
+static __always_inline void
+arch___clear_bit(unsigned long nr, volatile unsigned long *addr)
+{
+	clear_bit(nr, addr);
+}
 
 static inline void bchg_reg_change_bit(int nr, volatile unsigned long *vaddr)
 {
@@ -145,14 +151,14 @@ static inline void bfchg_mem_change_bit(int nr, volatile unsigned long *vaddr)
 				bfchg_mem_change_bit(nr, vaddr))
 #endif
 
-#define __change_bit(nr, vaddr)	change_bit(nr, vaddr)
-
-
-static inline int test_bit(int nr, const volatile unsigned long *vaddr)
+static __always_inline void
+arch___change_bit(unsigned long nr, volatile unsigned long *addr)
 {
-	return (vaddr[nr >> 5] & (1UL << (nr & 31))) != 0;
+	change_bit(nr, addr);
 }
 
+#define arch_test_bit generic_test_bit
+#define arch_test_bit_acquire generic_test_bit_acquire
 
 static inline int bset_reg_test_and_set_bit(int nr,
 					    volatile unsigned long *vaddr)
@@ -201,8 +207,11 @@ static inline int bfset_mem_test_and_set_bit(int nr,
 					bfset_mem_test_and_set_bit(nr, vaddr))
 #endif
 
-#define __test_and_set_bit(nr, vaddr)	test_and_set_bit(nr, vaddr)
-
+static __always_inline bool
+arch___test_and_set_bit(unsigned long nr, volatile unsigned long *addr)
+{
+	return test_and_set_bit(nr, addr);
+}
 
 static inline int bclr_reg_test_and_clear_bit(int nr,
 					      volatile unsigned long *vaddr)
@@ -251,8 +260,11 @@ static inline int bfclr_mem_test_and_clear_bit(int nr,
 					bfclr_mem_test_and_clear_bit(nr, vaddr))
 #endif
 
-#define __test_and_clear_bit(nr, vaddr)	test_and_clear_bit(nr, vaddr)
-
+static __always_inline bool
+arch___test_and_clear_bit(unsigned long nr, volatile unsigned long *addr)
+{
+	return test_and_clear_bit(nr, addr);
+}
 
 static inline int bchg_reg_test_and_change_bit(int nr,
 					       volatile unsigned long *vaddr)
@@ -301,8 +313,32 @@ static inline int bfchg_mem_test_and_change_bit(int nr,
 					bfchg_mem_test_and_change_bit(nr, vaddr))
 #endif
 
-#define __test_and_change_bit(nr, vaddr) test_and_change_bit(nr, vaddr)
+static __always_inline bool
+arch___test_and_change_bit(unsigned long nr, volatile unsigned long *addr)
+{
+	return test_and_change_bit(nr, addr);
+}
 
+static inline bool xor_unlock_is_negative_byte(unsigned long mask,
+		volatile unsigned long *p)
+{
+#ifdef CONFIG_COLDFIRE
+	__asm__ __volatile__ ("eorl %1, %0"
+		: "+m" (*p)
+		: "d" (mask)
+		: "memory");
+	return *p & (1 << 7);
+#else
+	char result;
+	char *cp = (char *)p + 3;	/* m68k is big-endian */
+
+	__asm__ __volatile__ ("eor.b %1, %2; smi %0"
+		: "=d" (result)
+		: "di" (mask), "o" (*cp)
+		: "memory");
+	return result;
+#endif
+}
 
 /*
  *	The true 68020 and more advanced processors support the "bfffo"
@@ -440,8 +476,6 @@ static inline unsigned long ffz(unsigned long word)
 
 #endif
 
-#include <asm-generic/bitops/find.h>
-
 #ifdef __KERNEL__
 
 #if defined(CONFIG_CPU_HAS_NO_BITFIELDS)
@@ -453,7 +487,7 @@ static inline unsigned long ffz(unsigned long word)
  *	generic functions for those.
  */
 #if (defined(__mcfisaaplus__) || defined(__mcfisac__)) && \
-	!defined(CONFIG_M68000) && !defined(CONFIG_MCPU32)
+	!defined(CONFIG_M68000)
 static inline unsigned long __ffs(unsigned long x)
 {
 	__asm__ __volatile__ ("bitrev %0; ff1 %0"
@@ -512,7 +546,7 @@ static inline int fls(unsigned int x)
 	return 32 - cnt;
 }
 
-static inline int __fls(int x)
+static inline unsigned long __fls(unsigned long x)
 {
 	return fls(x) - 1;
 }
@@ -524,11 +558,12 @@ static inline int __fls(int x)
 #define clear_bit_unlock	clear_bit
 #define __clear_bit_unlock	clear_bit_unlock
 
+#include <asm-generic/bitops/non-instrumented-non-atomic.h>
 #include <asm-generic/bitops/ext2-atomic.h>
-#include <asm-generic/bitops/le.h>
 #include <asm-generic/bitops/fls64.h>
 #include <asm-generic/bitops/sched.h>
 #include <asm-generic/bitops/hweight.h>
+#include <asm-generic/bitops/le.h>
 #endif /* __KERNEL__ */
 
 #endif /* _M68K_BITOPS_H */

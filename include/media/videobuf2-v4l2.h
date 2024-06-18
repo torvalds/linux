@@ -23,6 +23,8 @@
 #error VB2_MAX_PLANES != VIDEO_MAX_PLANES
 #endif
 
+struct video_device;
+
 /**
  * struct vb2_v4l2_buffer - video buffer information for v4l2.
  *
@@ -33,6 +35,7 @@
  * @timecode:	frame timecode.
  * @sequence:	sequence count of this frame.
  * @request_fd:	the request_fd associated with this buffer
+ * @is_held:	if true, then this capture buffer was held
  * @planes:	plane information (userptr/fd, length, bytesused, data_offset).
  *
  * Should contain enough information to be able to cover all the fields
@@ -46,8 +49,12 @@ struct vb2_v4l2_buffer {
 	struct v4l2_timecode	timecode;
 	__u32			sequence;
 	__s32			request_fd;
+	bool			is_held;
 	struct vb2_plane	planes[VB2_MAX_PLANES];
 };
+
+/* VB2 V4L2 flags as set in vb2_queue.subsystem_flags */
+#define VB2_V4L2_FL_SUPPORTS_M2M_HOLD_CAPTURE_BUF (1 << 0)
 
 /*
  * to_vb2_v4l2_buffer() - cast struct vb2_buffer * to struct vb2_v4l2_buffer *
@@ -56,20 +63,14 @@ struct vb2_v4l2_buffer {
 	container_of(vb, struct vb2_v4l2_buffer, vb2_buf)
 
 /**
- * vb2_find_timestamp() - Find buffer with given timestamp in the queue
+ * vb2_find_buffer() - Find a buffer with given timestamp
  *
  * @q:		pointer to &struct vb2_queue with videobuf2 queue.
  * @timestamp:	the timestamp to find.
- * @start_idx:	the start index (usually 0) in the buffer array to start
- *		searching from. Note that there may be multiple buffers
- *		with the same timestamp value, so you can restart the search
- *		by setting @start_idx to the previously found index + 1.
  *
- * Returns the buffer index of the buffer with the given @timestamp, or
- * -1 if no buffer with @timestamp was found.
+ * Returns the buffer with the given @timestamp, or NULL if not found.
  */
-int vb2_find_timestamp(const struct vb2_queue *q, u64 timestamp,
-		       unsigned int start_idx);
+struct vb2_buffer *vb2_find_buffer(struct vb2_queue *q, u64 timestamp);
 
 int vb2_querybuf(struct vb2_queue *q, struct v4l2_buffer *b);
 
@@ -232,6 +233,19 @@ int vb2_streamoff(struct vb2_queue *q, enum v4l2_buf_type type);
 int __must_check vb2_queue_init(struct vb2_queue *q);
 
 /**
+ * vb2_queue_init_name() - initialize a videobuf2 queue with a name
+ * @q:		pointer to &struct vb2_queue with videobuf2 queue.
+ * @name:	the queue name
+ *
+ * This function initializes the vb2_queue exactly like vb2_queue_init(),
+ * and additionally sets the queue name. The queue name is used for logging
+ * purpose, and should uniquely identify the queue within the context of the
+ * device it belongs to. This is useful to attribute kernel log messages to the
+ * right queue for m2m devices or other devices that handle multiple queues.
+ */
+int __must_check vb2_queue_init_name(struct vb2_queue *q, const char *name);
+
+/**
  * vb2_queue_release() - stop streaming, release the queue and free memory
  * @q:		pointer to &struct vb2_queue with videobuf2 queue.
  *
@@ -240,6 +254,22 @@ int __must_check vb2_queue_init(struct vb2_queue *q);
  * the vb2_queue structure itself.
  */
 void vb2_queue_release(struct vb2_queue *q);
+
+/**
+ * vb2_queue_change_type() - change the type of an inactive vb2_queue
+ * @q:		pointer to &struct vb2_queue with videobuf2 queue.
+ * @type:	the type to change to (V4L2_BUF_TYPE_VIDEO_*)
+ *
+ * This function changes the type of the vb2_queue. This is only possible
+ * if the queue is not busy (i.e. no buffers have been allocated).
+ *
+ * vb2_queue_change_type() can be used to support multiple buffer types using
+ * the same queue. The driver can implement v4l2_ioctl_ops.vidioc_reqbufs and
+ * v4l2_ioctl_ops.vidioc_create_bufs functions and call vb2_queue_change_type()
+ * before calling vb2_ioctl_reqbufs() or vb2_ioctl_create_bufs(), and thus
+ * "lock" the buffer type until the buffers have been released.
+ */
+int vb2_queue_change_type(struct vb2_queue *q, unsigned int type);
 
 /**
  * vb2_poll() - implements poll userspace operation
@@ -266,9 +296,28 @@ __poll_t vb2_poll(struct vb2_queue *q, struct file *file, poll_table *wait);
  * The following functions are not part of the vb2 core API, but are simple
  * helper functions that you can use in your struct v4l2_file_operations,
  * struct v4l2_ioctl_ops and struct vb2_ops. They will serialize if vb2_queue->lock
- * or video_device->lock is set, and they will set and test vb2_queue->owner
- * to check if the calling filehandle is permitted to do the queuing operation.
+ * or video_device->lock is set, and they will set and test the queue owner
+ * (vb2_queue->owner) to check if the calling filehandle is permitted to do the
+ * queuing operation.
  */
+
+/**
+ * vb2_queue_is_busy() - check if the queue is busy
+ * @q:		pointer to &struct vb2_queue with videobuf2 queue.
+ * @file:	file through which the vb2 queue access is performed
+ *
+ * The queue is considered busy if it has an owner and the owner is not the
+ * @file.
+ *
+ * Queue ownership is acquired and checked by some of the v4l2_ioctl_ops helpers
+ * below. Drivers can also use this function directly when they need to
+ * open-code ioctl handlers, for instance to add additional checks between the
+ * queue ownership test and the call to the corresponding vb2 operation.
+ */
+static inline bool vb2_queue_is_busy(struct vb2_queue *q, struct file *file)
+{
+	return q->owner && q->owner != file->private_data;
+}
 
 /* struct v4l2_ioctl_ops helpers */
 
@@ -285,6 +334,8 @@ int vb2_ioctl_streamon(struct file *file, void *priv, enum v4l2_buf_type i);
 int vb2_ioctl_streamoff(struct file *file, void *priv, enum v4l2_buf_type i);
 int vb2_ioctl_expbuf(struct file *file, void *priv,
 	struct v4l2_exportbuffer *p);
+int vb2_ioctl_remove_bufs(struct file *file, void *priv,
+			  struct v4l2_remove_buffers *p);
 
 /* struct v4l2_file_operations helpers */
 
@@ -300,6 +351,21 @@ __poll_t vb2_fop_poll(struct file *file, poll_table *wait);
 unsigned long vb2_fop_get_unmapped_area(struct file *file, unsigned long addr,
 		unsigned long len, unsigned long pgoff, unsigned long flags);
 #endif
+
+/**
+ * vb2_video_unregister_device - unregister the video device and release queue
+ *
+ * @vdev: pointer to &struct video_device
+ *
+ * If the driver uses vb2_fop_release()/_vb2_fop_release(), then it should use
+ * vb2_video_unregister_device() instead of video_unregister_device().
+ *
+ * This function will call video_unregister_device() and then release the
+ * vb2_queue if streaming is in progress. This will stop streaming and
+ * this will simplify the unbind sequence since after this call all subdevs
+ * will have stopped streaming as well.
+ */
+void vb2_video_unregister_device(struct video_device *vdev);
 
 /**
  * vb2_ops_wait_prepare - helper function to lock a struct &vb2_queue

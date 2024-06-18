@@ -46,15 +46,16 @@ struct am33xx_pm_sram_addr {
 };
 
 struct am33xx_pm_platform_data {
-	int	(*init)(void);
+	int     (*init)(int (*idle)(u32 wfi_flags));
+	int     (*deinit)(void);
 	int	(*soc_suspend)(unsigned int state, int (*fn)(unsigned long),
 			       unsigned long args);
+	int	(*cpu_suspend)(int (*fn)(unsigned long), unsigned long args);
+	void    (*begin_suspend)(void);
+	void    (*finish_suspend)(void);
 	struct  am33xx_pm_sram_addr *(*get_sram_addrs)(void);
-	void __iomem *(*get_rtc_base_addr)(void);
 	void (*save_context)(void);
 	void (*restore_context)(void);
-	void (*prepare_rtc_suspend)(void);
-	void (*prepare_rtc_resume)(void);
 	int (*check_off_mode_enable)(void);
 };
 

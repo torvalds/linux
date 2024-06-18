@@ -64,6 +64,8 @@
 
 		l2: cache {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 
 		idle-states {
@@ -86,7 +88,7 @@
 	};
 
 	pmu {
-		compatible = "arm,cortex-a53-pmu", "arm,armv8-pmuv3";
+		compatible = "arm,cortex-a53-pmu";
 		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>,
@@ -140,7 +142,7 @@
 					compatible = "snps,dw-apb-gpio-port";
 					gpio-controller;
 					#gpio-cells = <2>;
-					snps,nr-gpios = <32>;
+					ngpios = <32>;
 					reg = <0>;
 					interrupt-controller;
 					#interrupt-cells = <2>;
@@ -158,7 +160,7 @@
 					compatible = "snps,dw-apb-gpio-port";
 					gpio-controller;
 					#gpio-cells = <2>;
-					snps,nr-gpios = <32>;
+					ngpios = <32>;
 					reg = <0>;
 					interrupt-controller;
 					#interrupt-cells = <2>;
@@ -176,7 +178,7 @@
 					compatible = "snps,dw-apb-gpio-port";
 					gpio-controller;
 					#gpio-cells = <2>;
-					snps,nr-gpios = <32>;
+					ngpios = <32>;
 					reg = <0>;
 					interrupt-controller;
 					#interrupt-cells = <2>;
@@ -194,7 +196,7 @@
 					compatible = "snps,dw-apb-gpio-port";
 					gpio-controller;
 					#gpio-cells = <2>;
-					snps,nr-gpios = <32>;
+					ngpios = <32>;
 					reg = <0>;
 					interrupt-controller;
 					#interrupt-cells = <2>;
@@ -269,7 +271,7 @@
 					compatible = "snps,dw-apb-gpio-port";
 					gpio-controller;
 					#gpio-cells = <2>;
-					snps,nr-gpios = <32>;
+					ngpios = <32>;
 					reg = <0>;
 				};
 			};
@@ -284,12 +286,12 @@
 					compatible = "snps,dw-apb-gpio-port";
 					gpio-controller;
 					#gpio-cells = <2>;
-					snps,nr-gpios = <32>;
+					ngpios = <32>;
 					reg = <0>;
 				};
 			};
 
-			uart0: uart@d000 {
+			uart0: serial@d000 {
 				compatible = "snps,dw-apb-uart";
 				reg = <0xd000 0x100>;
 				interrupts = <8>;

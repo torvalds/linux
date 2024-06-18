@@ -19,16 +19,18 @@
 #include <linux/if_arp.h>
 #include <net/net_namespace.h>
 #include <net/netlink.h>
+#include <net/dst.h>
 #include <net/pkt_sched.h>
 #include <net/pkt_cls.h>
 #include <linux/tc_act/tc_mirred.h>
 #include <net/tc_act/tc_mirred.h>
+#include <net/tc_wrapper.h>
 
 static LIST_HEAD(mirred_list);
 static DEFINE_SPINLOCK(mirred_list_lock);
 
-#define MIRRED_RECURSION_LIMIT    4
-static DEFINE_PER_CPU(unsigned int, mirred_rec_level);
+#define MIRRED_NEST_LIMIT    4
+static DEFINE_PER_CPU(unsigned int, mirred_nest_level);
 
 static bool tcf_mirred_is_act_redirect(int action)
 {
@@ -78,30 +80,38 @@ static void tcf_mirred_release(struct tc_action *a)
 
 	/* last reference to action, no need to lock */
 	dev = rcu_dereference_protected(m->tcfm_dev, 1);
-	if (dev)
-		dev_put(dev);
+	netdev_put(dev, &m->tcfm_dev_tracker);
 }
 
 static const struct nla_policy mirred_policy[TCA_MIRRED_MAX + 1] = {
 	[TCA_MIRRED_PARMS]	= { .len = sizeof(struct tc_mirred) },
+	[TCA_MIRRED_BLOCKID]	= NLA_POLICY_MIN(NLA_U32, 1),
 };
 
-static unsigned int mirred_net_id;
 static struct tc_action_ops act_mirred_ops;
+
+static void tcf_mirred_replace_dev(struct tcf_mirred *m,
+				   struct net_device *ndev)
+{
+	struct net_device *odev;
+
+	odev = rcu_replace_pointer(m->tcfm_dev, ndev,
+				   lockdep_is_held(&m->tcf_lock));
+	netdev_put(odev, &m->tcfm_dev_tracker);
+}
 
 static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 			   struct nlattr *est, struct tc_action **a,
-			   int ovr, int bind, bool rtnl_held,
 			   struct tcf_proto *tp,
-			   struct netlink_ext_ack *extack)
+			   u32 flags, struct netlink_ext_ack *extack)
 {
-	struct tc_action_net *tn = net_generic(net, mirred_net_id);
+	struct tc_action_net *tn = net_generic(net, act_mirred_ops.net_id);
+	bool bind = flags & TCA_ACT_FLAGS_BIND;
 	struct nlattr *tb[TCA_MIRRED_MAX + 1];
 	struct tcf_chain *goto_ch = NULL;
 	bool mac_header_xmit = false;
 	struct tc_mirred *parm;
 	struct tcf_mirred *m;
-	struct net_device *dev;
 	bool exists = false;
 	int ret, err;
 	u32 index;
@@ -125,7 +135,18 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 		return err;
 	exists = err;
 	if (exists && bind)
-		return 0;
+		return ACT_P_BOUND;
+
+	if (tb[TCA_MIRRED_BLOCKID] && parm->ifindex) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Cannot specify Block ID and dev simultaneously");
+		if (exists)
+			tcf_idr_release(*a, bind);
+		else
+			tcf_idr_cleanup(tn, index);
+
+		return -EINVAL;
+	}
 
 	switch (parm->eaction) {
 	case TCA_EGRESS_MIRROR:
@@ -143,19 +164,20 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 	}
 
 	if (!exists) {
-		if (!parm->ifindex) {
+		if (!parm->ifindex && !tb[TCA_MIRRED_BLOCKID]) {
 			tcf_idr_cleanup(tn, index);
-			NL_SET_ERR_MSG_MOD(extack, "Specified device does not exist");
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Must specify device or block");
 			return -EINVAL;
 		}
-		ret = tcf_idr_create(tn, index, est, a,
-				     &act_mirred_ops, bind, true);
+		ret = tcf_idr_create_from_flags(tn, index, est, a,
+						&act_mirred_ops, bind, flags);
 		if (ret) {
 			tcf_idr_cleanup(tn, index);
 			return ret;
 		}
 		ret = ACT_P_CREATED;
-	} else if (!ovr) {
+	} else if (!(flags & TCA_ACT_FLAGS_REPLACE)) {
 		tcf_idr_release(*a, bind);
 		return -EEXIST;
 	}
@@ -171,18 +193,23 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 	spin_lock_bh(&m->tcf_lock);
 
 	if (parm->ifindex) {
-		dev = dev_get_by_index(net, parm->ifindex);
-		if (!dev) {
+		struct net_device *ndev;
+
+		ndev = dev_get_by_index(net, parm->ifindex);
+		if (!ndev) {
 			spin_unlock_bh(&m->tcf_lock);
 			err = -ENODEV;
 			goto put_chain;
 		}
-		mac_header_xmit = dev_is_mac_header_xmit(dev);
-		rcu_swap_protected(m->tcfm_dev, dev,
-				   lockdep_is_held(&m->tcf_lock));
-		if (dev)
-			dev_put(dev);
+		mac_header_xmit = dev_is_mac_header_xmit(ndev);
+		tcf_mirred_replace_dev(m, ndev);
+		netdev_tracker_alloc(ndev, &m->tcfm_dev_tracker, GFP_ATOMIC);
 		m->tcfm_mac_header_xmit = mac_header_xmit;
+		m->tcfm_blockid = 0;
+	} else if (tb[TCA_MIRRED_BLOCKID]) {
+		tcf_mirred_replace_dev(m, NULL);
+		m->tcfm_mac_header_xmit = false;
+		m->tcfm_blockid = nla_get_u32(tb[TCA_MIRRED_BLOCKID]);
 	}
 	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
 	m->tcfm_eaction = parm->eaction;
@@ -194,8 +221,6 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 		spin_lock(&mirred_list_lock);
 		list_add(&m->tcfm_list, &mirred_list);
 		spin_unlock(&mirred_list_lock);
-
-		tcf_idr_insert(tn, *a);
 	}
 
 	return ret;
@@ -207,121 +232,240 @@ release_idr:
 	return err;
 }
 
-static int tcf_mirred_act(struct sk_buff *skb, const struct tc_action *a,
-			  struct tcf_result *res)
+static int
+tcf_mirred_forward(bool at_ingress, bool want_ingress, struct sk_buff *skb)
 {
-	struct tcf_mirred *m = to_mirred(a);
-	struct sk_buff *skb2 = skb;
-	bool m_mac_header_xmit;
-	struct net_device *dev;
-	unsigned int rec_level;
-	int retval, err = 0;
-	bool use_reinsert;
+	int err;
+
+	if (!want_ingress)
+		err = tcf_dev_queue_xmit(skb, dev_queue_xmit);
+	else if (!at_ingress)
+		err = netif_rx(skb);
+	else
+		err = netif_receive_skb(skb);
+
+	return err;
+}
+
+static int tcf_mirred_to_dev(struct sk_buff *skb, struct tcf_mirred *m,
+			     struct net_device *dev,
+			     const bool m_mac_header_xmit, int m_eaction,
+			     int retval)
+{
+	struct sk_buff *skb_to_send = skb;
 	bool want_ingress;
 	bool is_redirect;
-	int m_eaction;
+	bool expects_nh;
+	bool at_ingress;
+	bool dont_clone;
 	int mac_len;
+	bool at_nh;
+	int err;
 
-	rec_level = __this_cpu_inc_return(mirred_rec_level);
-	if (unlikely(rec_level > MIRRED_RECURSION_LIMIT)) {
-		net_warn_ratelimited("Packet exceeded mirred recursion limit on dev %s\n",
-				     netdev_name(skb->dev));
-		__this_cpu_dec(mirred_rec_level);
-		return TC_ACT_SHOT;
-	}
-
-	tcf_lastuse_update(&m->tcf_tm);
-	bstats_cpu_update(this_cpu_ptr(m->common.cpu_bstats), skb);
-
-	m_mac_header_xmit = READ_ONCE(m->tcfm_mac_header_xmit);
-	m_eaction = READ_ONCE(m->tcfm_eaction);
-	retval = READ_ONCE(m->tcf_action);
-	dev = rcu_dereference_bh(m->tcfm_dev);
-	if (unlikely(!dev)) {
-		pr_notice_once("tc mirred: target device is gone\n");
-		goto out;
-	}
-
-	if (unlikely(!(dev->flags & IFF_UP))) {
+	is_redirect = tcf_mirred_is_act_redirect(m_eaction);
+	if (unlikely(!(dev->flags & IFF_UP)) || !netif_carrier_ok(dev)) {
 		net_notice_ratelimited("tc mirred to Houston: device %s is down\n",
 				       dev->name);
-		goto out;
+		goto err_cant_do;
 	}
 
 	/* we could easily avoid the clone only if called by ingress and clsact;
 	 * since we can't easily detect the clsact caller, skip clone only for
 	 * ingress - that covers the TC S/W datapath.
 	 */
-	is_redirect = tcf_mirred_is_act_redirect(m_eaction);
-	use_reinsert = skb_at_tc_ingress(skb) && is_redirect &&
-		       tcf_mirred_can_reinsert(retval);
-	if (!use_reinsert) {
-		skb2 = skb_clone(skb, GFP_ATOMIC);
-		if (!skb2)
-			goto out;
+	at_ingress = skb_at_tc_ingress(skb);
+	dont_clone = skb_at_tc_ingress(skb) && is_redirect &&
+		tcf_mirred_can_reinsert(retval);
+	if (!dont_clone) {
+		skb_to_send = skb_clone(skb, GFP_ATOMIC);
+		if (!skb_to_send)
+			goto err_cant_do;
 	}
 
-	/* If action's target direction differs than filter's direction,
-	 * and devices expect a mac header on xmit, then mac push/pull is
-	 * needed.
-	 */
 	want_ingress = tcf_mirred_act_wants_ingress(m_eaction);
-	if (skb_at_tc_ingress(skb) != want_ingress && m_mac_header_xmit) {
-		if (!skb_at_tc_ingress(skb)) {
-			/* caught at egress, act ingress: pull mac */
-			mac_len = skb_network_header(skb) - skb_mac_header(skb);
-			skb_pull_rcsum(skb2, mac_len);
+
+	/* All mirred/redirected skbs should clear previous ct info */
+	nf_reset_ct(skb_to_send);
+	if (want_ingress && !at_ingress) /* drop dst for egress -> ingress */
+		skb_dst_drop(skb_to_send);
+
+	expects_nh = want_ingress || !m_mac_header_xmit;
+	at_nh = skb->data == skb_network_header(skb);
+	if (at_nh != expects_nh) {
+		mac_len = at_ingress ? skb->mac_len :
+			  skb_network_offset(skb);
+		if (expects_nh) {
+			/* target device/action expect data at nh */
+			skb_pull_rcsum(skb_to_send, mac_len);
 		} else {
-			/* caught at ingress, act egress: push mac */
-			skb_push_rcsum(skb2, skb->mac_len);
+			/* target device/action expect data at mac */
+			skb_push_rcsum(skb_to_send, mac_len);
 		}
 	}
 
-	skb2->skb_iif = skb->dev->ifindex;
-	skb2->dev = dev;
+	skb_to_send->skb_iif = skb->dev->ifindex;
+	skb_to_send->dev = dev;
 
-	/* mirror is always swallowed */
 	if (is_redirect) {
-		skb2->tc_redirected = 1;
-		skb2->tc_from_ingress = skb2->tc_at_ingress;
-		if (skb2->tc_from_ingress)
-			skb2->tstamp = 0;
-		/* let's the caller reinsert the packet, if possible */
-		if (use_reinsert) {
-			res->ingress = want_ingress;
-			res->qstats = this_cpu_ptr(m->common.cpu_qstats);
-			skb_tc_reinsert(skb, res);
-			__this_cpu_dec(mirred_rec_level);
-			return TC_ACT_CONSUMED;
-		}
+		if (skb == skb_to_send)
+			retval = TC_ACT_CONSUMED;
+
+		skb_set_redirected(skb_to_send, skb_to_send->tc_at_ingress);
+
+		err = tcf_mirred_forward(at_ingress, want_ingress, skb_to_send);
+	} else {
+		err = tcf_mirred_forward(at_ingress, want_ingress, skb_to_send);
+	}
+	if (err)
+		tcf_action_inc_overlimit_qstats(&m->common);
+
+	return retval;
+
+err_cant_do:
+	if (is_redirect)
+		retval = TC_ACT_SHOT;
+	tcf_action_inc_overlimit_qstats(&m->common);
+	return retval;
+}
+
+static int tcf_blockcast_redir(struct sk_buff *skb, struct tcf_mirred *m,
+			       struct tcf_block *block, int m_eaction,
+			       const u32 exception_ifindex, int retval)
+{
+	struct net_device *dev_prev = NULL;
+	struct net_device *dev = NULL;
+	unsigned long index;
+	int mirred_eaction;
+
+	mirred_eaction = tcf_mirred_act_wants_ingress(m_eaction) ?
+		TCA_INGRESS_MIRROR : TCA_EGRESS_MIRROR;
+
+	xa_for_each(&block->ports, index, dev) {
+		if (index == exception_ifindex)
+			continue;
+
+		if (!dev_prev)
+			goto assign_prev;
+
+		tcf_mirred_to_dev(skb, m, dev_prev,
+				  dev_is_mac_header_xmit(dev),
+				  mirred_eaction, retval);
+assign_prev:
+		dev_prev = dev;
 	}
 
-	if (!want_ingress)
-		err = dev_queue_xmit(skb2);
-	else
-		err = netif_receive_skb(skb2);
-
-	if (err) {
-out:
-		qstats_overlimit_inc(this_cpu_ptr(m->common.cpu_qstats));
-		if (tcf_mirred_is_act_redirect(m_eaction))
-			retval = TC_ACT_SHOT;
-	}
-	__this_cpu_dec(mirred_rec_level);
+	if (dev_prev)
+		return tcf_mirred_to_dev(skb, m, dev_prev,
+					 dev_is_mac_header_xmit(dev_prev),
+					 m_eaction, retval);
 
 	return retval;
 }
 
-static void tcf_stats_update(struct tc_action *a, u64 bytes, u32 packets,
-			     u64 lastuse, bool hw)
+static int tcf_blockcast_mirror(struct sk_buff *skb, struct tcf_mirred *m,
+				struct tcf_block *block, int m_eaction,
+				const u32 exception_ifindex, int retval)
+{
+	struct net_device *dev = NULL;
+	unsigned long index;
+
+	xa_for_each(&block->ports, index, dev) {
+		if (index == exception_ifindex)
+			continue;
+
+		tcf_mirred_to_dev(skb, m, dev,
+				  dev_is_mac_header_xmit(dev),
+				  m_eaction, retval);
+	}
+
+	return retval;
+}
+
+static int tcf_blockcast(struct sk_buff *skb, struct tcf_mirred *m,
+			 const u32 blockid, struct tcf_result *res,
+			 int retval)
+{
+	const u32 exception_ifindex = skb->dev->ifindex;
+	struct tcf_block *block;
+	bool is_redirect;
+	int m_eaction;
+
+	m_eaction = READ_ONCE(m->tcfm_eaction);
+	is_redirect = tcf_mirred_is_act_redirect(m_eaction);
+
+	/* we are already under rcu protection, so can call block lookup
+	 * directly.
+	 */
+	block = tcf_block_lookup(dev_net(skb->dev), blockid);
+	if (!block || xa_empty(&block->ports)) {
+		tcf_action_inc_overlimit_qstats(&m->common);
+		return retval;
+	}
+
+	if (is_redirect)
+		return tcf_blockcast_redir(skb, m, block, m_eaction,
+					   exception_ifindex, retval);
+
+	/* If it's not redirect, it is mirror */
+	return tcf_blockcast_mirror(skb, m, block, m_eaction, exception_ifindex,
+				    retval);
+}
+
+TC_INDIRECT_SCOPE int tcf_mirred_act(struct sk_buff *skb,
+				     const struct tc_action *a,
+				     struct tcf_result *res)
+{
+	struct tcf_mirred *m = to_mirred(a);
+	int retval = READ_ONCE(m->tcf_action);
+	unsigned int nest_level;
+	bool m_mac_header_xmit;
+	struct net_device *dev;
+	int m_eaction;
+	u32 blockid;
+
+	nest_level = __this_cpu_inc_return(mirred_nest_level);
+	if (unlikely(nest_level > MIRRED_NEST_LIMIT)) {
+		net_warn_ratelimited("Packet exceeded mirred recursion limit on dev %s\n",
+				     netdev_name(skb->dev));
+		retval = TC_ACT_SHOT;
+		goto dec_nest_level;
+	}
+
+	tcf_lastuse_update(&m->tcf_tm);
+	tcf_action_update_bstats(&m->common, skb);
+
+	blockid = READ_ONCE(m->tcfm_blockid);
+	if (blockid) {
+		retval = tcf_blockcast(skb, m, blockid, res, retval);
+		goto dec_nest_level;
+	}
+
+	dev = rcu_dereference_bh(m->tcfm_dev);
+	if (unlikely(!dev)) {
+		pr_notice_once("tc mirred: target device is gone\n");
+		tcf_action_inc_overlimit_qstats(&m->common);
+		goto dec_nest_level;
+	}
+
+	m_mac_header_xmit = READ_ONCE(m->tcfm_mac_header_xmit);
+	m_eaction = READ_ONCE(m->tcfm_eaction);
+
+	retval = tcf_mirred_to_dev(skb, m, dev, m_mac_header_xmit, m_eaction,
+				   retval);
+
+dec_nest_level:
+	__this_cpu_dec(mirred_nest_level);
+
+	return retval;
+}
+
+static void tcf_stats_update(struct tc_action *a, u64 bytes, u64 packets,
+			     u64 drops, u64 lastuse, bool hw)
 {
 	struct tcf_mirred *m = to_mirred(a);
 	struct tcf_t *tm = &m->tcf_tm;
 
-	_bstats_cpu_update(this_cpu_ptr(a->cpu_bstats), bytes, packets);
-	if (hw)
-		_bstats_cpu_update(this_cpu_ptr(a->cpu_bstats_hw),
-				   bytes, packets);
+	tcf_action_update_stats(a, bytes, packets, drops, hw);
 	tm->lastuse = max_t(u64, tm->lastuse, lastuse);
 }
 
@@ -337,6 +481,7 @@ static int tcf_mirred_dump(struct sk_buff *skb, struct tc_action *a, int bind,
 	};
 	struct net_device *dev;
 	struct tcf_t t;
+	u32 blockid;
 
 	spin_lock_bh(&m->tcf_lock);
 	opt.action = m->tcf_action;
@@ -346,6 +491,10 @@ static int tcf_mirred_dump(struct sk_buff *skb, struct tc_action *a, int bind,
 		opt.ifindex = dev->ifindex;
 
 	if (nla_put(skb, TCA_MIRRED_PARMS, sizeof(opt), &opt))
+		goto nla_put_failure;
+
+	blockid = m->tcfm_blockid;
+	if (blockid && nla_put_u32(skb, TCA_MIRRED_BLOCKID, blockid))
 		goto nla_put_failure;
 
 	tcf_tm_dump(&t, &m->tcf_tm);
@@ -361,23 +510,6 @@ nla_put_failure:
 	return -1;
 }
 
-static int tcf_mirred_walker(struct net *net, struct sk_buff *skb,
-			     struct netlink_callback *cb, int type,
-			     const struct tc_action_ops *ops,
-			     struct netlink_ext_ack *extack)
-{
-	struct tc_action_net *tn = net_generic(net, mirred_net_id);
-
-	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
-}
-
-static int tcf_mirred_search(struct net *net, struct tc_action **a, u32 index)
-{
-	struct tc_action_net *tn = net_generic(net, mirred_net_id);
-
-	return tcf_idr_search(tn, a, index);
-}
-
 static int mirred_device_event(struct notifier_block *unused,
 			       unsigned long event, void *ptr)
 {
@@ -390,7 +522,7 @@ static int mirred_device_event(struct notifier_block *unused,
 		list_for_each_entry(m, &mirred_list, tcfm_list) {
 			spin_lock_bh(&m->tcf_lock);
 			if (tcf_mirred_dev_dereference(m) == dev) {
-				dev_put(dev);
+				netdev_put(dev, &m->tcfm_dev_tracker);
 				/* Note : no rcu grace period necessary, as
 				 * net_device are already rcu protected.
 				 */
@@ -438,6 +570,57 @@ static size_t tcf_mirred_get_fill_size(const struct tc_action *act)
 	return nla_total_size(sizeof(struct tc_mirred));
 }
 
+static void tcf_offload_mirred_get_dev(struct flow_action_entry *entry,
+				       const struct tc_action *act)
+{
+	entry->dev = act->ops->get_dev(act, &entry->destructor);
+	if (!entry->dev)
+		return;
+	entry->destructor_priv = entry->dev;
+}
+
+static int tcf_mirred_offload_act_setup(struct tc_action *act, void *entry_data,
+					u32 *index_inc, bool bind,
+					struct netlink_ext_ack *extack)
+{
+	if (bind) {
+		struct flow_action_entry *entry = entry_data;
+
+		if (is_tcf_mirred_egress_redirect(act)) {
+			entry->id = FLOW_ACTION_REDIRECT;
+			tcf_offload_mirred_get_dev(entry, act);
+		} else if (is_tcf_mirred_egress_mirror(act)) {
+			entry->id = FLOW_ACTION_MIRRED;
+			tcf_offload_mirred_get_dev(entry, act);
+		} else if (is_tcf_mirred_ingress_redirect(act)) {
+			entry->id = FLOW_ACTION_REDIRECT_INGRESS;
+			tcf_offload_mirred_get_dev(entry, act);
+		} else if (is_tcf_mirred_ingress_mirror(act)) {
+			entry->id = FLOW_ACTION_MIRRED_INGRESS;
+			tcf_offload_mirred_get_dev(entry, act);
+		} else {
+			NL_SET_ERR_MSG_MOD(extack, "Unsupported mirred offload");
+			return -EOPNOTSUPP;
+		}
+		*index_inc = 1;
+	} else {
+		struct flow_offload_action *fl_action = entry_data;
+
+		if (is_tcf_mirred_egress_redirect(act))
+			fl_action->id = FLOW_ACTION_REDIRECT;
+		else if (is_tcf_mirred_egress_mirror(act))
+			fl_action->id = FLOW_ACTION_MIRRED;
+		else if (is_tcf_mirred_ingress_redirect(act))
+			fl_action->id = FLOW_ACTION_REDIRECT_INGRESS;
+		else if (is_tcf_mirred_ingress_mirror(act))
+			fl_action->id = FLOW_ACTION_MIRRED_INGRESS;
+		else
+			return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 static struct tc_action_ops act_mirred_ops = {
 	.kind		=	"mirred",
 	.id		=	TCA_ID_MIRRED,
@@ -447,29 +630,29 @@ static struct tc_action_ops act_mirred_ops = {
 	.dump		=	tcf_mirred_dump,
 	.cleanup	=	tcf_mirred_release,
 	.init		=	tcf_mirred_init,
-	.walk		=	tcf_mirred_walker,
-	.lookup		=	tcf_mirred_search,
 	.get_fill_size	=	tcf_mirred_get_fill_size,
+	.offload_act_setup =	tcf_mirred_offload_act_setup,
 	.size		=	sizeof(struct tcf_mirred),
 	.get_dev	=	tcf_mirred_get_dev,
 };
+MODULE_ALIAS_NET_ACT("mirred");
 
 static __net_init int mirred_init_net(struct net *net)
 {
-	struct tc_action_net *tn = net_generic(net, mirred_net_id);
+	struct tc_action_net *tn = net_generic(net, act_mirred_ops.net_id);
 
 	return tc_action_net_init(net, tn, &act_mirred_ops);
 }
 
 static void __net_exit mirred_exit_net(struct list_head *net_list)
 {
-	tc_action_net_exit(net_list, mirred_net_id);
+	tc_action_net_exit(net_list, act_mirred_ops.net_id);
 }
 
 static struct pernet_operations mirred_net_ops = {
 	.init = mirred_init_net,
 	.exit_batch = mirred_exit_net,
-	.id   = &mirred_net_id,
+	.id   = &act_mirred_ops.net_id,
 	.size = sizeof(struct tc_action_net),
 };
 
@@ -484,7 +667,11 @@ static int __init mirred_init_module(void)
 		return err;
 
 	pr_info("Mirror/redirect action on\n");
-	return tcf_register_action(&act_mirred_ops, &mirred_net_ops);
+	err = tcf_register_action(&act_mirred_ops, &mirred_net_ops);
+	if (err)
+		unregister_netdevice_notifier(&mirred_device_notifier);
+
+	return err;
 }
 
 static void __exit mirred_cleanup_module(void)

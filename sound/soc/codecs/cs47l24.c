@@ -37,21 +37,21 @@ struct cs47l24_priv {
 	struct arizona_fll fll[2];
 };
 
-static const struct wm_adsp_region cs47l24_dsp2_regions[] = {
+static const struct cs_dsp_region cs47l24_dsp2_regions[] = {
 	{ .type = WMFW_ADSP2_PM, .base = 0x200000 },
 	{ .type = WMFW_ADSP2_ZM, .base = 0x280000 },
 	{ .type = WMFW_ADSP2_XM, .base = 0x290000 },
 	{ .type = WMFW_ADSP2_YM, .base = 0x2a8000 },
 };
 
-static const struct wm_adsp_region cs47l24_dsp3_regions[] = {
+static const struct cs_dsp_region cs47l24_dsp3_regions[] = {
 	{ .type = WMFW_ADSP2_PM, .base = 0x300000 },
 	{ .type = WMFW_ADSP2_ZM, .base = 0x380000 },
 	{ .type = WMFW_ADSP2_XM, .base = 0x390000 },
 	{ .type = WMFW_ADSP2_YM, .base = 0x3a8000 },
 };
 
-static const struct wm_adsp_region *cs47l24_dsp_regions[] = {
+static const struct cs_dsp_region *cs47l24_dsp_regions[] = {
 	cs47l24_dsp2_regions,
 	cs47l24_dsp3_regions,
 };
@@ -957,6 +957,10 @@ static int cs47l24_set_fll(struct snd_soc_component *component, int fll_id,
 #define CS47L24_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 			 SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
+static const struct snd_soc_dai_ops cs47l24_dai_ops = {
+	.compress_new = snd_soc_new_compress,
+};
+
 static struct snd_soc_dai_driver cs47l24_dai[] = {
 	{
 		.name = "cs47l24-aif1",
@@ -977,8 +981,8 @@ static struct snd_soc_dai_driver cs47l24_dai[] = {
 			 .formats = CS47L24_FORMATS,
 		 },
 		.ops = &arizona_dai_ops,
-		.symmetric_rates = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_rate = 1,
+		.symmetric_sample_bits = 1,
 	},
 	{
 		.name = "cs47l24-aif2",
@@ -999,8 +1003,8 @@ static struct snd_soc_dai_driver cs47l24_dai[] = {
 			 .formats = CS47L24_FORMATS,
 		 },
 		.ops = &arizona_dai_ops,
-		.symmetric_rates = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_rate = 1,
+		.symmetric_sample_bits = 1,
 	},
 	{
 		.name = "cs47l24-aif3",
@@ -1021,8 +1025,8 @@ static struct snd_soc_dai_driver cs47l24_dai[] = {
 			 .formats = CS47L24_FORMATS,
 		 },
 		.ops = &arizona_dai_ops,
-		.symmetric_rates = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_rate = 1,
+		.symmetric_sample_bits = 1,
 	},
 	{
 		.name = "cs47l24-cpu-voicectrl",
@@ -1033,7 +1037,7 @@ static struct snd_soc_dai_driver cs47l24_dai[] = {
 			.rates = CS47L24_RATES,
 			.formats = CS47L24_FORMATS,
 		},
-		.compress_new = snd_soc_new_compress,
+		.ops = &cs47l24_dai_ops,
 	},
 	{
 		.name = "cs47l24-dsp-voicectrl",
@@ -1054,7 +1058,7 @@ static struct snd_soc_dai_driver cs47l24_dai[] = {
 			.rates = CS47L24_RATES,
 			.formats = CS47L24_FORMATS,
 		},
-		.compress_new = snd_soc_new_compress,
+		.ops = &cs47l24_dai_ops,
 	},
 	{
 		.name = "cs47l24-dsp-trace",
@@ -1068,22 +1072,22 @@ static struct snd_soc_dai_driver cs47l24_dai[] = {
 	},
 };
 
-static int cs47l24_open(struct snd_compr_stream *stream)
+static int cs47l24_open(struct snd_soc_component *component,
+			struct snd_compr_stream *stream)
 {
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct cs47l24_priv *priv = snd_soc_component_get_drvdata(component);
 	struct arizona *arizona = priv->core.arizona;
 	int n_adsp;
 
-	if (strcmp(rtd->codec_dai->name, "cs47l24-dsp-voicectrl") == 0) {
+	if (strcmp(snd_soc_rtd_to_codec(rtd, 0)->name, "cs47l24-dsp-voicectrl") == 0) {
 		n_adsp = 2;
-	} else if (strcmp(rtd->codec_dai->name, "cs47l24-dsp-trace") == 0) {
+	} else if (strcmp(snd_soc_rtd_to_codec(rtd, 0)->name, "cs47l24-dsp-trace") == 0) {
 		n_adsp = 1;
 	} else {
 		dev_err(arizona->dev,
 			"No suitable compressed stream for DAI '%s'\n",
-			rtd->codec_dai->name);
+			snd_soc_rtd_to_codec(rtd, 0)->name);
 		return -EINVAL;
 	}
 
@@ -1178,7 +1182,7 @@ static unsigned int cs47l24_digital_vu[] = {
 	ARIZONA_DAC_DIGITAL_VOLUME_4L,
 };
 
-static struct snd_compr_ops cs47l24_compr_ops = {
+static const struct snd_compress_ops cs47l24_compress_ops = {
 	.open		= cs47l24_open,
 	.free		= wm_adsp_compr_free,
 	.set_params	= wm_adsp_compr_set_params,
@@ -1194,7 +1198,7 @@ static const struct snd_soc_component_driver soc_component_dev_cs47l24 = {
 	.set_sysclk		= arizona_set_sysclk,
 	.set_pll		= cs47l24_set_fll,
 	.name			= DRV_NAME,
-	.compr_ops		= &cs47l24_compr_ops,
+	.compress_ops		= &cs47l24_compress_ops,
 	.controls		= cs47l24_snd_controls,
 	.num_controls		= ARRAY_SIZE(cs47l24_snd_controls),
 	.dapm_widgets		= cs47l24_dapm_widgets,
@@ -1203,7 +1207,6 @@ static const struct snd_soc_component_driver soc_component_dev_cs47l24 = {
 	.num_dapm_routes	= ARRAY_SIZE(cs47l24_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static int cs47l24_probe(struct platform_device *pdev)
@@ -1234,15 +1237,15 @@ static int cs47l24_probe(struct platform_device *pdev)
 
 	for (i = 1; i <= 2; i++) {
 		cs47l24->core.adsp[i].part = "cs47l24";
-		cs47l24->core.adsp[i].num = i + 1;
-		cs47l24->core.adsp[i].type = WMFW_ADSP2;
-		cs47l24->core.adsp[i].dev = arizona->dev;
-		cs47l24->core.adsp[i].regmap = arizona->regmap;
+		cs47l24->core.adsp[i].cs_dsp.num = i + 1;
+		cs47l24->core.adsp[i].cs_dsp.type = WMFW_ADSP2;
+		cs47l24->core.adsp[i].cs_dsp.dev = arizona->dev;
+		cs47l24->core.adsp[i].cs_dsp.regmap = arizona->regmap;
 
-		cs47l24->core.adsp[i].base = ARIZONA_DSP1_CONTROL_1 +
+		cs47l24->core.adsp[i].cs_dsp.base = ARIZONA_DSP1_CONTROL_1 +
 					     (0x100 * i);
-		cs47l24->core.adsp[i].mem = cs47l24_dsp_regions[i - 1];
-		cs47l24->core.adsp[i].num_mems =
+		cs47l24->core.adsp[i].cs_dsp.mem = cs47l24_dsp_regions[i - 1];
+		cs47l24->core.adsp[i].cs_dsp.num_mems =
 				ARRAY_SIZE(cs47l24_dsp2_regions);
 
 		ret = wm_adsp2_init(&cs47l24->core.adsp[i]);
@@ -1320,7 +1323,7 @@ err_dsp_irq:
 	return ret;
 }
 
-static int cs47l24_remove(struct platform_device *pdev)
+static void cs47l24_remove(struct platform_device *pdev)
 {
 	struct cs47l24_priv *cs47l24 = platform_get_drvdata(pdev);
 	struct arizona *arizona = cs47l24->core.arizona;
@@ -1334,8 +1337,6 @@ static int cs47l24_remove(struct platform_device *pdev)
 
 	arizona_set_irq_wake(arizona, ARIZONA_IRQ_DSP_IRQ1, 0);
 	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, cs47l24);
-
-	return 0;
 }
 
 static struct platform_driver cs47l24_codec_driver = {
@@ -1343,7 +1344,7 @@ static struct platform_driver cs47l24_codec_driver = {
 		.name = "cs47l24-codec",
 	},
 	.probe = cs47l24_probe,
-	.remove = cs47l24_remove,
+	.remove_new = cs47l24_remove,
 };
 
 module_platform_driver(cs47l24_codec_driver);

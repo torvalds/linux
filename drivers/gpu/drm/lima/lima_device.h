@@ -6,8 +6,12 @@
 
 #include <drm/drm_device.h>
 #include <linux/delay.h>
+#include <linux/list.h>
+#include <linux/mutex.h>
 
 #include "lima_sched.h"
+#include "lima_dump.h"
+#include "lima_devfreq.h"
 
 enum lima_gpu_id {
 	lima_gpu_mali400 = 0,
@@ -60,6 +64,8 @@ struct lima_ip {
 		bool async_reset;
 		/* l2 cache */
 		spinlock_t lock;
+		/* pmu/bcast */
+		u32 mask;
 	} data;
 };
 
@@ -72,7 +78,6 @@ enum lima_pipe_id {
 struct lima_device {
 	struct device *dev;
 	struct drm_device *ddev;
-	struct platform_device *pdev;
 
 	enum lima_gpu_id id;
 	u32 gp_version;
@@ -94,6 +99,13 @@ struct lima_device {
 
 	u32 *dlbu_cpu;
 	dma_addr_t dlbu_dma;
+
+	struct lima_devfreq devfreq;
+
+	/* debug info */
+	struct lima_dump_head dump;
+	struct list_head error_task_list;
+	struct mutex error_task_list_lock;
 };
 
 static inline struct lima_device *
@@ -127,5 +139,8 @@ static inline int lima_poll_timeout(struct lima_ip *ip, lima_poll_func_t func,
 	}
 	return 0;
 }
+
+int lima_device_suspend(struct device *dev);
+int lima_device_resume(struct device *dev);
 
 #endif

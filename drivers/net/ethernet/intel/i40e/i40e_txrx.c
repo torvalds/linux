@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2013 - 2018 Intel Corporation. */
 
-#include <linux/prefetch.h>
 #include <linux/bpf_trace.h>
+#include <linux/net/intel/libie/rx.h>
+#include <linux/prefetch.h>
+#include <linux/sctp.h>
+#include <net/mpls.h>
 #include <net/xdp.h>
-#include "i40e.h"
-#include "i40e_trace.h"
-#include "i40e_prototype.h"
 #include "i40e_txrx_common.h"
+#include "i40e_trace.h"
 #include "i40e_xsk.h"
 
 #define I40E_TXD_CMD (I40E_TX_DESC_CMD_EOP | I40E_TX_DESC_CMD_RS)
@@ -23,7 +24,7 @@ static void i40e_fdir(struct i40e_ring *tx_ring,
 {
 	struct i40e_filter_program_desc *fdir_desc;
 	struct i40e_pf *pf = tx_ring->vsi->back;
-	u32 flex_ptype, dtype_cmd;
+	u32 flex_ptype, dtype_cmd, vsi_id;
 	u16 i;
 
 	/* grab the next descriptor */
@@ -33,22 +34,16 @@ static void i40e_fdir(struct i40e_ring *tx_ring,
 	i++;
 	tx_ring->next_to_use = (i < tx_ring->count) ? i : 0;
 
-	flex_ptype = I40E_TXD_FLTR_QW0_QINDEX_MASK &
-		     (fdata->q_index << I40E_TXD_FLTR_QW0_QINDEX_SHIFT);
+	flex_ptype = FIELD_PREP(I40E_TXD_FLTR_QW0_QINDEX_MASK, fdata->q_index);
 
-	flex_ptype |= I40E_TXD_FLTR_QW0_FLEXOFF_MASK &
-		      (fdata->flex_off << I40E_TXD_FLTR_QW0_FLEXOFF_SHIFT);
+	flex_ptype |= FIELD_PREP(I40E_TXD_FLTR_QW0_FLEXOFF_MASK,
+				 fdata->flex_off);
 
-	flex_ptype |= I40E_TXD_FLTR_QW0_PCTYPE_MASK &
-		      (fdata->pctype << I40E_TXD_FLTR_QW0_PCTYPE_SHIFT);
-
-	flex_ptype |= I40E_TXD_FLTR_QW0_PCTYPE_MASK &
-		      (fdata->flex_offset << I40E_TXD_FLTR_QW0_FLEXOFF_SHIFT);
+	flex_ptype |= FIELD_PREP(I40E_TXD_FLTR_QW0_PCTYPE_MASK, fdata->pctype);
 
 	/* Use LAN VSI Id if not programmed by user */
-	flex_ptype |= I40E_TXD_FLTR_QW0_DEST_VSI_MASK &
-		      ((u32)(fdata->dest_vsi ? : pf->vsi[pf->lan_vsi]->id) <<
-		       I40E_TXD_FLTR_QW0_DEST_VSI_SHIFT);
+	vsi_id = fdata->dest_vsi ? : i40e_pf_get_main_vsi(pf)->id;
+	flex_ptype |= FIELD_PREP(I40E_TXD_FLTR_QW0_DEST_VSI_MASK, vsi_id);
 
 	dtype_cmd = I40E_TX_DESC_DTYPE_FILTER_PROG;
 
@@ -58,17 +53,15 @@ static void i40e_fdir(struct i40e_ring *tx_ring,
 		     I40E_FILTER_PROGRAM_DESC_PCMD_REMOVE <<
 		     I40E_TXD_FLTR_QW1_PCMD_SHIFT;
 
-	dtype_cmd |= I40E_TXD_FLTR_QW1_DEST_MASK &
-		     (fdata->dest_ctl << I40E_TXD_FLTR_QW1_DEST_SHIFT);
+	dtype_cmd |= FIELD_PREP(I40E_TXD_FLTR_QW1_DEST_MASK, fdata->dest_ctl);
 
-	dtype_cmd |= I40E_TXD_FLTR_QW1_FD_STATUS_MASK &
-		     (fdata->fd_status << I40E_TXD_FLTR_QW1_FD_STATUS_SHIFT);
+	dtype_cmd |= FIELD_PREP(I40E_TXD_FLTR_QW1_FD_STATUS_MASK,
+				fdata->fd_status);
 
 	if (fdata->cnt_index) {
 		dtype_cmd |= I40E_TXD_FLTR_QW1_CNT_ENA_MASK;
-		dtype_cmd |= I40E_TXD_FLTR_QW1_CNTINDEX_MASK &
-			     ((u32)fdata->cnt_index <<
-			      I40E_TXD_FLTR_QW1_CNTINDEX_SHIFT);
+		dtype_cmd |= FIELD_PREP(I40E_TXD_FLTR_QW1_CNTINDEX_MASK,
+					fdata->cnt_index);
 	}
 
 	fdir_desc->qindex_flex_ptype_vsi = cpu_to_le32(flex_ptype);
@@ -160,59 +153,180 @@ dma_fail:
 	return -1;
 }
 
-#define IP_HEADER_OFFSET 14
-#define I40E_UDPIP_DUMMY_PACKET_LEN 42
 /**
- * i40e_add_del_fdir_udpv4 - Add/Remove UDPv4 filters
- * @vsi: pointer to the targeted VSI
- * @fd_data: the flow director data required for the FDir descriptor
- * @add: true adds a filter, false removes it
+ * i40e_create_dummy_packet - Constructs dummy packet for HW
+ * @dummy_packet: preallocated space for dummy packet
+ * @ipv4: is layer 3 packet of version 4 or 6
+ * @l4proto: next level protocol used in data portion of l3
+ * @data: filter data
  *
- * Returns 0 if the filters were successfully added or removed
+ * Returns address of layer 4 protocol dummy packet.
  **/
-static int i40e_add_del_fdir_udpv4(struct i40e_vsi *vsi,
-				   struct i40e_fdir_filter *fd_data,
-				   bool add)
+static char *i40e_create_dummy_packet(u8 *dummy_packet, bool ipv4, u8 l4proto,
+				      struct i40e_fdir_filter *data)
 {
-	struct i40e_pf *pf = vsi->back;
+	bool is_vlan = !!data->vlan_tag;
+	struct vlan_hdr vlan = {};
+	struct ipv6hdr ipv6 = {};
+	struct ethhdr eth = {};
+	struct iphdr ip = {};
+	u8 *tmp;
+
+	if (ipv4) {
+		eth.h_proto = cpu_to_be16(ETH_P_IP);
+		ip.protocol = l4proto;
+		ip.version = 0x4;
+		ip.ihl = 0x5;
+
+		ip.daddr = data->dst_ip;
+		ip.saddr = data->src_ip;
+	} else {
+		eth.h_proto = cpu_to_be16(ETH_P_IPV6);
+		ipv6.nexthdr = l4proto;
+		ipv6.version = 0x6;
+
+		memcpy(&ipv6.saddr.in6_u.u6_addr32, data->src_ip6,
+		       sizeof(__be32) * 4);
+		memcpy(&ipv6.daddr.in6_u.u6_addr32, data->dst_ip6,
+		       sizeof(__be32) * 4);
+	}
+
+	if (is_vlan) {
+		vlan.h_vlan_TCI = data->vlan_tag;
+		vlan.h_vlan_encapsulated_proto = eth.h_proto;
+		eth.h_proto = data->vlan_etype;
+	}
+
+	tmp = dummy_packet;
+	memcpy(tmp, &eth, sizeof(eth));
+	tmp += sizeof(eth);
+
+	if (is_vlan) {
+		memcpy(tmp, &vlan, sizeof(vlan));
+		tmp += sizeof(vlan);
+	}
+
+	if (ipv4) {
+		memcpy(tmp, &ip, sizeof(ip));
+		tmp += sizeof(ip);
+	} else {
+		memcpy(tmp, &ipv6, sizeof(ipv6));
+		tmp += sizeof(ipv6);
+	}
+
+	return tmp;
+}
+
+/**
+ * i40e_create_dummy_udp_packet - helper function to create UDP packet
+ * @raw_packet: preallocated space for dummy packet
+ * @ipv4: is layer 3 packet of version 4 or 6
+ * @l4proto: next level protocol used in data portion of l3
+ * @data: filter data
+ *
+ * Helper function to populate udp fields.
+ **/
+static void i40e_create_dummy_udp_packet(u8 *raw_packet, bool ipv4, u8 l4proto,
+					 struct i40e_fdir_filter *data)
+{
 	struct udphdr *udp;
-	struct iphdr *ip;
-	u8 *raw_packet;
+	u8 *tmp;
+
+	tmp = i40e_create_dummy_packet(raw_packet, ipv4, IPPROTO_UDP, data);
+	udp = (struct udphdr *)(tmp);
+	udp->dest = data->dst_port;
+	udp->source = data->src_port;
+}
+
+/**
+ * i40e_create_dummy_tcp_packet - helper function to create TCP packet
+ * @raw_packet: preallocated space for dummy packet
+ * @ipv4: is layer 3 packet of version 4 or 6
+ * @l4proto: next level protocol used in data portion of l3
+ * @data: filter data
+ *
+ * Helper function to populate tcp fields.
+ **/
+static void i40e_create_dummy_tcp_packet(u8 *raw_packet, bool ipv4, u8 l4proto,
+					 struct i40e_fdir_filter *data)
+{
+	struct tcphdr *tcp;
+	u8 *tmp;
+	/* Dummy tcp packet */
+	static const char tcp_packet[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0x50, 0x11, 0x0, 0x72, 0, 0, 0, 0};
+
+	tmp = i40e_create_dummy_packet(raw_packet, ipv4, IPPROTO_TCP, data);
+
+	tcp = (struct tcphdr *)tmp;
+	memcpy(tcp, tcp_packet, sizeof(tcp_packet));
+	tcp->dest = data->dst_port;
+	tcp->source = data->src_port;
+}
+
+/**
+ * i40e_create_dummy_sctp_packet - helper function to create SCTP packet
+ * @raw_packet: preallocated space for dummy packet
+ * @ipv4: is layer 3 packet of version 4 or 6
+ * @l4proto: next level protocol used in data portion of l3
+ * @data: filter data
+ *
+ * Helper function to populate sctp fields.
+ **/
+static void i40e_create_dummy_sctp_packet(u8 *raw_packet, bool ipv4,
+					  u8 l4proto,
+					  struct i40e_fdir_filter *data)
+{
+	struct sctphdr *sctp;
+	u8 *tmp;
+
+	tmp = i40e_create_dummy_packet(raw_packet, ipv4, IPPROTO_SCTP, data);
+
+	sctp = (struct sctphdr *)tmp;
+	sctp->dest = data->dst_port;
+	sctp->source = data->src_port;
+}
+
+/**
+ * i40e_prepare_fdir_filter - Prepare and program fdir filter
+ * @pf: physical function to attach filter to
+ * @fd_data: filter data
+ * @add: add or delete filter
+ * @packet_addr: address of dummy packet, used in filtering
+ * @payload_offset: offset from dummy packet address to user defined data
+ * @pctype: Packet type for which filter is used
+ *
+ * Helper function to offset data of dummy packet, program it and
+ * handle errors.
+ **/
+static int i40e_prepare_fdir_filter(struct i40e_pf *pf,
+				    struct i40e_fdir_filter *fd_data,
+				    bool add, char *packet_addr,
+				    int payload_offset, u8 pctype)
+{
 	int ret;
-	static char packet[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x08, 0,
-		0x45, 0, 0, 0x1c, 0, 0, 0x40, 0, 0x40, 0x11, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-
-	raw_packet = kzalloc(I40E_FDIR_MAX_RAW_PACKET_SIZE, GFP_KERNEL);
-	if (!raw_packet)
-		return -ENOMEM;
-	memcpy(raw_packet, packet, I40E_UDPIP_DUMMY_PACKET_LEN);
-
-	ip = (struct iphdr *)(raw_packet + IP_HEADER_OFFSET);
-	udp = (struct udphdr *)(raw_packet + IP_HEADER_OFFSET
-	      + sizeof(struct iphdr));
-
-	ip->daddr = fd_data->dst_ip;
-	udp->dest = fd_data->dst_port;
-	ip->saddr = fd_data->src_ip;
-	udp->source = fd_data->src_port;
 
 	if (fd_data->flex_filter) {
-		u8 *payload = raw_packet + I40E_UDPIP_DUMMY_PACKET_LEN;
+		u8 *payload;
 		__be16 pattern = fd_data->flex_word;
 		u16 off = fd_data->flex_offset;
+
+		payload = packet_addr + payload_offset;
+
+		/* If user provided vlan, offset payload by vlan header length */
+		if (!!fd_data->vlan_tag)
+			payload += VLAN_HLEN;
 
 		*((__force __be16 *)(payload + off)) = pattern;
 	}
 
-	fd_data->pctype = I40E_FILTER_PCTYPE_NONF_IPV4_UDP;
-	ret = i40e_program_fdir_filter(fd_data, raw_packet, pf, add);
+	fd_data->pctype = pctype;
+	ret = i40e_program_fdir_filter(fd_data, packet_addr, pf, add);
 	if (ret) {
 		dev_info(&pf->pdev->dev,
 			 "PCTYPE:%d, Filter command send failed for fd_id:%d (ret = %d)\n",
 			 fd_data->pctype, fd_data->fd_id, ret);
 		/* Free the packet buffer since it wasn't added to the ring */
-		kfree(raw_packet);
 		return -EOPNOTSUPP;
 	} else if (I40E_DEBUG_FD & pf->hw.debug_mask) {
 		if (add)
@@ -225,238 +339,242 @@ static int i40e_add_del_fdir_udpv4(struct i40e_vsi *vsi,
 				 fd_data->pctype, fd_data->fd_id);
 	}
 
-	if (add)
-		pf->fd_udp4_filter_cnt++;
-	else
-		pf->fd_udp4_filter_cnt--;
-
-	return 0;
+	return ret;
 }
 
-#define I40E_TCPIP_DUMMY_PACKET_LEN 54
 /**
- * i40e_add_del_fdir_tcpv4 - Add/Remove TCPv4 filters
+ * i40e_change_filter_num - Prepare and program fdir filter
+ * @ipv4: is layer 3 packet of version 4 or 6
+ * @add: add or delete filter
+ * @ipv4_filter_num: field to update
+ * @ipv6_filter_num: field to update
+ *
+ * Update filter number field for pf.
+ **/
+static void i40e_change_filter_num(bool ipv4, bool add, u16 *ipv4_filter_num,
+				   u16 *ipv6_filter_num)
+{
+	if (add) {
+		if (ipv4)
+			(*ipv4_filter_num)++;
+		else
+			(*ipv6_filter_num)++;
+	} else {
+		if (ipv4)
+			(*ipv4_filter_num)--;
+		else
+			(*ipv6_filter_num)--;
+	}
+}
+
+#define I40E_UDPIP_DUMMY_PACKET_LEN	42
+#define I40E_UDPIP6_DUMMY_PACKET_LEN	62
+/**
+ * i40e_add_del_fdir_udp - Add/Remove UDP filters
  * @vsi: pointer to the targeted VSI
  * @fd_data: the flow director data required for the FDir descriptor
  * @add: true adds a filter, false removes it
+ * @ipv4: true is v4, false is v6
  *
  * Returns 0 if the filters were successfully added or removed
  **/
-static int i40e_add_del_fdir_tcpv4(struct i40e_vsi *vsi,
-				   struct i40e_fdir_filter *fd_data,
-				   bool add)
+static int i40e_add_del_fdir_udp(struct i40e_vsi *vsi,
+				 struct i40e_fdir_filter *fd_data,
+				 bool add,
+				 bool ipv4)
 {
 	struct i40e_pf *pf = vsi->back;
-	struct tcphdr *tcp;
-	struct iphdr *ip;
 	u8 *raw_packet;
 	int ret;
-	/* Dummy packet */
-	static char packet[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x08, 0,
-		0x45, 0, 0, 0x28, 0, 0, 0x40, 0, 0x40, 0x6, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x80, 0x11,
-		0x0, 0x72, 0, 0, 0, 0};
 
 	raw_packet = kzalloc(I40E_FDIR_MAX_RAW_PACKET_SIZE, GFP_KERNEL);
 	if (!raw_packet)
 		return -ENOMEM;
-	memcpy(raw_packet, packet, I40E_TCPIP_DUMMY_PACKET_LEN);
 
-	ip = (struct iphdr *)(raw_packet + IP_HEADER_OFFSET);
-	tcp = (struct tcphdr *)(raw_packet + IP_HEADER_OFFSET
-	      + sizeof(struct iphdr));
+	i40e_create_dummy_udp_packet(raw_packet, ipv4, IPPROTO_UDP, fd_data);
 
-	ip->daddr = fd_data->dst_ip;
-	tcp->dest = fd_data->dst_port;
-	ip->saddr = fd_data->src_ip;
-	tcp->source = fd_data->src_port;
+	if (ipv4)
+		ret = i40e_prepare_fdir_filter
+			(pf, fd_data, add, raw_packet,
+			 I40E_UDPIP_DUMMY_PACKET_LEN,
+			 I40E_FILTER_PCTYPE_NONF_IPV4_UDP);
+	else
+		ret = i40e_prepare_fdir_filter
+			(pf, fd_data, add, raw_packet,
+			 I40E_UDPIP6_DUMMY_PACKET_LEN,
+			 I40E_FILTER_PCTYPE_NONF_IPV6_UDP);
 
-	if (fd_data->flex_filter) {
-		u8 *payload = raw_packet + I40E_TCPIP_DUMMY_PACKET_LEN;
-		__be16 pattern = fd_data->flex_word;
-		u16 off = fd_data->flex_offset;
-
-		*((__force __be16 *)(payload + off)) = pattern;
-	}
-
-	fd_data->pctype = I40E_FILTER_PCTYPE_NONF_IPV4_TCP;
-	ret = i40e_program_fdir_filter(fd_data, raw_packet, pf, add);
 	if (ret) {
-		dev_info(&pf->pdev->dev,
-			 "PCTYPE:%d, Filter command send failed for fd_id:%d (ret = %d)\n",
-			 fd_data->pctype, fd_data->fd_id, ret);
-		/* Free the packet buffer since it wasn't added to the ring */
 		kfree(raw_packet);
-		return -EOPNOTSUPP;
-	} else if (I40E_DEBUG_FD & pf->hw.debug_mask) {
-		if (add)
-			dev_info(&pf->pdev->dev, "Filter OK for PCTYPE %d loc = %d)\n",
-				 fd_data->pctype, fd_data->fd_id);
-		else
-			dev_info(&pf->pdev->dev,
-				 "Filter deleted for PCTYPE %d loc = %d\n",
-				 fd_data->pctype, fd_data->fd_id);
+		return ret;
 	}
+
+	i40e_change_filter_num(ipv4, add, &pf->fd_udp4_filter_cnt,
+			       &pf->fd_udp6_filter_cnt);
+
+	return 0;
+}
+
+#define I40E_TCPIP_DUMMY_PACKET_LEN	54
+#define I40E_TCPIP6_DUMMY_PACKET_LEN	74
+/**
+ * i40e_add_del_fdir_tcp - Add/Remove TCPv4 filters
+ * @vsi: pointer to the targeted VSI
+ * @fd_data: the flow director data required for the FDir descriptor
+ * @add: true adds a filter, false removes it
+ * @ipv4: true is v4, false is v6
+ *
+ * Returns 0 if the filters were successfully added or removed
+ **/
+static int i40e_add_del_fdir_tcp(struct i40e_vsi *vsi,
+				 struct i40e_fdir_filter *fd_data,
+				 bool add,
+				 bool ipv4)
+{
+	struct i40e_pf *pf = vsi->back;
+	u8 *raw_packet;
+	int ret;
+
+	raw_packet = kzalloc(I40E_FDIR_MAX_RAW_PACKET_SIZE, GFP_KERNEL);
+	if (!raw_packet)
+		return -ENOMEM;
+
+	i40e_create_dummy_tcp_packet(raw_packet, ipv4, IPPROTO_TCP, fd_data);
+	if (ipv4)
+		ret = i40e_prepare_fdir_filter
+			(pf, fd_data, add, raw_packet,
+			 I40E_TCPIP_DUMMY_PACKET_LEN,
+			 I40E_FILTER_PCTYPE_NONF_IPV4_TCP);
+	else
+		ret = i40e_prepare_fdir_filter
+			(pf, fd_data, add, raw_packet,
+			 I40E_TCPIP6_DUMMY_PACKET_LEN,
+			 I40E_FILTER_PCTYPE_NONF_IPV6_TCP);
+
+	if (ret) {
+		kfree(raw_packet);
+		return ret;
+	}
+
+	i40e_change_filter_num(ipv4, add, &pf->fd_tcp4_filter_cnt,
+			       &pf->fd_tcp6_filter_cnt);
 
 	if (add) {
-		pf->fd_tcp4_filter_cnt++;
-		if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
+		if (test_bit(I40E_FLAG_FD_ATR_ENA, pf->flags) &&
 		    I40E_DEBUG_FD & pf->hw.debug_mask)
 			dev_info(&pf->pdev->dev, "Forcing ATR off, sideband rules for TCP/IPv4 flow being applied\n");
 		set_bit(__I40E_FD_ATR_AUTO_DISABLED, pf->state);
-	} else {
-		pf->fd_tcp4_filter_cnt--;
 	}
-
 	return 0;
 }
 
-#define I40E_SCTPIP_DUMMY_PACKET_LEN 46
+#define I40E_SCTPIP_DUMMY_PACKET_LEN	46
+#define I40E_SCTPIP6_DUMMY_PACKET_LEN	66
 /**
- * i40e_add_del_fdir_sctpv4 - Add/Remove SCTPv4 Flow Director filters for
+ * i40e_add_del_fdir_sctp - Add/Remove SCTPv4 Flow Director filters for
  * a specific flow spec
  * @vsi: pointer to the targeted VSI
  * @fd_data: the flow director data required for the FDir descriptor
  * @add: true adds a filter, false removes it
+ * @ipv4: true is v4, false is v6
  *
  * Returns 0 if the filters were successfully added or removed
  **/
-static int i40e_add_del_fdir_sctpv4(struct i40e_vsi *vsi,
-				    struct i40e_fdir_filter *fd_data,
-				    bool add)
+static int i40e_add_del_fdir_sctp(struct i40e_vsi *vsi,
+				  struct i40e_fdir_filter *fd_data,
+				  bool add,
+				  bool ipv4)
 {
 	struct i40e_pf *pf = vsi->back;
-	struct sctphdr *sctp;
-	struct iphdr *ip;
 	u8 *raw_packet;
 	int ret;
-	/* Dummy packet */
-	static char packet[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x08, 0,
-		0x45, 0, 0, 0x20, 0, 0, 0x40, 0, 0x40, 0x84, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 	raw_packet = kzalloc(I40E_FDIR_MAX_RAW_PACKET_SIZE, GFP_KERNEL);
 	if (!raw_packet)
 		return -ENOMEM;
-	memcpy(raw_packet, packet, I40E_SCTPIP_DUMMY_PACKET_LEN);
 
-	ip = (struct iphdr *)(raw_packet + IP_HEADER_OFFSET);
-	sctp = (struct sctphdr *)(raw_packet + IP_HEADER_OFFSET
-	      + sizeof(struct iphdr));
+	i40e_create_dummy_sctp_packet(raw_packet, ipv4, IPPROTO_SCTP, fd_data);
 
-	ip->daddr = fd_data->dst_ip;
-	sctp->dest = fd_data->dst_port;
-	ip->saddr = fd_data->src_ip;
-	sctp->source = fd_data->src_port;
-
-	if (fd_data->flex_filter) {
-		u8 *payload = raw_packet + I40E_SCTPIP_DUMMY_PACKET_LEN;
-		__be16 pattern = fd_data->flex_word;
-		u16 off = fd_data->flex_offset;
-
-		*((__force __be16 *)(payload + off)) = pattern;
-	}
-
-	fd_data->pctype = I40E_FILTER_PCTYPE_NONF_IPV4_SCTP;
-	ret = i40e_program_fdir_filter(fd_data, raw_packet, pf, add);
-	if (ret) {
-		dev_info(&pf->pdev->dev,
-			 "PCTYPE:%d, Filter command send failed for fd_id:%d (ret = %d)\n",
-			 fd_data->pctype, fd_data->fd_id, ret);
-		/* Free the packet buffer since it wasn't added to the ring */
-		kfree(raw_packet);
-		return -EOPNOTSUPP;
-	} else if (I40E_DEBUG_FD & pf->hw.debug_mask) {
-		if (add)
-			dev_info(&pf->pdev->dev,
-				 "Filter OK for PCTYPE %d loc = %d\n",
-				 fd_data->pctype, fd_data->fd_id);
-		else
-			dev_info(&pf->pdev->dev,
-				 "Filter deleted for PCTYPE %d loc = %d\n",
-				 fd_data->pctype, fd_data->fd_id);
-	}
-
-	if (add)
-		pf->fd_sctp4_filter_cnt++;
+	if (ipv4)
+		ret = i40e_prepare_fdir_filter
+			(pf, fd_data, add, raw_packet,
+			 I40E_SCTPIP_DUMMY_PACKET_LEN,
+			 I40E_FILTER_PCTYPE_NONF_IPV4_SCTP);
 	else
-		pf->fd_sctp4_filter_cnt--;
+		ret = i40e_prepare_fdir_filter
+			(pf, fd_data, add, raw_packet,
+			 I40E_SCTPIP6_DUMMY_PACKET_LEN,
+			 I40E_FILTER_PCTYPE_NONF_IPV6_SCTP);
+
+	if (ret) {
+		kfree(raw_packet);
+		return ret;
+	}
+
+	i40e_change_filter_num(ipv4, add, &pf->fd_sctp4_filter_cnt,
+			       &pf->fd_sctp6_filter_cnt);
 
 	return 0;
 }
 
-#define I40E_IP_DUMMY_PACKET_LEN 34
+#define I40E_IP_DUMMY_PACKET_LEN	34
+#define I40E_IP6_DUMMY_PACKET_LEN	54
 /**
- * i40e_add_del_fdir_ipv4 - Add/Remove IPv4 Flow Director filters for
+ * i40e_add_del_fdir_ip - Add/Remove IPv4 Flow Director filters for
  * a specific flow spec
  * @vsi: pointer to the targeted VSI
  * @fd_data: the flow director data required for the FDir descriptor
  * @add: true adds a filter, false removes it
+ * @ipv4: true is v4, false is v6
  *
  * Returns 0 if the filters were successfully added or removed
  **/
-static int i40e_add_del_fdir_ipv4(struct i40e_vsi *vsi,
-				  struct i40e_fdir_filter *fd_data,
-				  bool add)
+static int i40e_add_del_fdir_ip(struct i40e_vsi *vsi,
+				struct i40e_fdir_filter *fd_data,
+				bool add,
+				bool ipv4)
 {
 	struct i40e_pf *pf = vsi->back;
-	struct iphdr *ip;
+	int payload_offset;
 	u8 *raw_packet;
+	int iter_start;
+	int iter_end;
 	int ret;
 	int i;
-	static char packet[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x08, 0,
-		0x45, 0, 0, 0x14, 0, 0, 0x40, 0, 0x40, 0x10, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0};
 
-	for (i = I40E_FILTER_PCTYPE_NONF_IPV4_OTHER;
-	     i <= I40E_FILTER_PCTYPE_FRAG_IPV4;	i++) {
+	if (ipv4) {
+		iter_start = I40E_FILTER_PCTYPE_NONF_IPV4_OTHER;
+		iter_end = I40E_FILTER_PCTYPE_FRAG_IPV4;
+	} else {
+		iter_start = I40E_FILTER_PCTYPE_NONF_IPV6_OTHER;
+		iter_end = I40E_FILTER_PCTYPE_FRAG_IPV6;
+	}
+
+	for (i = iter_start; i <= iter_end; i++) {
 		raw_packet = kzalloc(I40E_FDIR_MAX_RAW_PACKET_SIZE, GFP_KERNEL);
 		if (!raw_packet)
 			return -ENOMEM;
-		memcpy(raw_packet, packet, I40E_IP_DUMMY_PACKET_LEN);
-		ip = (struct iphdr *)(raw_packet + IP_HEADER_OFFSET);
 
-		ip->saddr = fd_data->src_ip;
-		ip->daddr = fd_data->dst_ip;
-		ip->protocol = 0;
+		/* IPv6 no header option differs from IPv4 */
+		(void)i40e_create_dummy_packet
+			(raw_packet, ipv4, (ipv4) ? IPPROTO_IP : IPPROTO_NONE,
+			 fd_data);
 
-		if (fd_data->flex_filter) {
-			u8 *payload = raw_packet + I40E_IP_DUMMY_PACKET_LEN;
-			__be16 pattern = fd_data->flex_word;
-			u16 off = fd_data->flex_offset;
-
-			*((__force __be16 *)(payload + off)) = pattern;
-		}
-
-		fd_data->pctype = i;
-		ret = i40e_program_fdir_filter(fd_data, raw_packet, pf, add);
-		if (ret) {
-			dev_info(&pf->pdev->dev,
-				 "PCTYPE:%d, Filter command send failed for fd_id:%d (ret = %d)\n",
-				 fd_data->pctype, fd_data->fd_id, ret);
-			/* The packet buffer wasn't added to the ring so we
-			 * need to free it now.
-			 */
-			kfree(raw_packet);
-			return -EOPNOTSUPP;
-		} else if (I40E_DEBUG_FD & pf->hw.debug_mask) {
-			if (add)
-				dev_info(&pf->pdev->dev,
-					 "Filter OK for PCTYPE %d loc = %d\n",
-					 fd_data->pctype, fd_data->fd_id);
-			else
-				dev_info(&pf->pdev->dev,
-					 "Filter deleted for PCTYPE %d loc = %d\n",
-					 fd_data->pctype, fd_data->fd_id);
-		}
+		payload_offset = (ipv4) ? I40E_IP_DUMMY_PACKET_LEN :
+			I40E_IP6_DUMMY_PACKET_LEN;
+		ret = i40e_prepare_fdir_filter(pf, fd_data, add, raw_packet,
+					       payload_offset, i);
+		if (ret)
+			goto err;
 	}
 
-	if (add)
-		pf->fd_ip4_filter_cnt++;
-	else
-		pf->fd_ip4_filter_cnt--;
+	i40e_change_filter_num(ipv4, add, &pf->fd_ip4_filter_cnt,
+			       &pf->fd_ip6_filter_cnt);
 
 	return 0;
+err:
+	kfree(raw_packet);
+	return ret;
 }
 
 /**
@@ -469,37 +587,68 @@ static int i40e_add_del_fdir_ipv4(struct i40e_vsi *vsi,
 int i40e_add_del_fdir(struct i40e_vsi *vsi,
 		      struct i40e_fdir_filter *input, bool add)
 {
+	enum ip_ver { ipv6 = 0, ipv4 = 1 };
 	struct i40e_pf *pf = vsi->back;
 	int ret;
 
 	switch (input->flow_type & ~FLOW_EXT) {
 	case TCP_V4_FLOW:
-		ret = i40e_add_del_fdir_tcpv4(vsi, input, add);
+		ret = i40e_add_del_fdir_tcp(vsi, input, add, ipv4);
 		break;
 	case UDP_V4_FLOW:
-		ret = i40e_add_del_fdir_udpv4(vsi, input, add);
+		ret = i40e_add_del_fdir_udp(vsi, input, add, ipv4);
 		break;
 	case SCTP_V4_FLOW:
-		ret = i40e_add_del_fdir_sctpv4(vsi, input, add);
+		ret = i40e_add_del_fdir_sctp(vsi, input, add, ipv4);
+		break;
+	case TCP_V6_FLOW:
+		ret = i40e_add_del_fdir_tcp(vsi, input, add, ipv6);
+		break;
+	case UDP_V6_FLOW:
+		ret = i40e_add_del_fdir_udp(vsi, input, add, ipv6);
+		break;
+	case SCTP_V6_FLOW:
+		ret = i40e_add_del_fdir_sctp(vsi, input, add, ipv6);
 		break;
 	case IP_USER_FLOW:
-		switch (input->ip4_proto) {
+		switch (input->ipl4_proto) {
 		case IPPROTO_TCP:
-			ret = i40e_add_del_fdir_tcpv4(vsi, input, add);
+			ret = i40e_add_del_fdir_tcp(vsi, input, add, ipv4);
 			break;
 		case IPPROTO_UDP:
-			ret = i40e_add_del_fdir_udpv4(vsi, input, add);
+			ret = i40e_add_del_fdir_udp(vsi, input, add, ipv4);
 			break;
 		case IPPROTO_SCTP:
-			ret = i40e_add_del_fdir_sctpv4(vsi, input, add);
+			ret = i40e_add_del_fdir_sctp(vsi, input, add, ipv4);
 			break;
 		case IPPROTO_IP:
-			ret = i40e_add_del_fdir_ipv4(vsi, input, add);
+			ret = i40e_add_del_fdir_ip(vsi, input, add, ipv4);
 			break;
 		default:
 			/* We cannot support masking based on protocol */
 			dev_info(&pf->pdev->dev, "Unsupported IPv4 protocol 0x%02x\n",
-				 input->ip4_proto);
+				 input->ipl4_proto);
+			return -EINVAL;
+		}
+		break;
+	case IPV6_USER_FLOW:
+		switch (input->ipl4_proto) {
+		case IPPROTO_TCP:
+			ret = i40e_add_del_fdir_tcp(vsi, input, add, ipv6);
+			break;
+		case IPPROTO_UDP:
+			ret = i40e_add_del_fdir_udp(vsi, input, add, ipv6);
+			break;
+		case IPPROTO_SCTP:
+			ret = i40e_add_del_fdir_sctp(vsi, input, add, ipv6);
+			break;
+		case IPPROTO_IP:
+			ret = i40e_add_del_fdir_ip(vsi, input, add, ipv6);
+			break;
+		default:
+			/* We cannot support masking based on protocol */
+			dev_info(&pf->pdev->dev, "Unsupported IPv6 protocol 0x%02x\n",
+				 input->ipl4_proto);
 			return -EINVAL;
 		}
 		break;
@@ -521,28 +670,28 @@ int i40e_add_del_fdir(struct i40e_vsi *vsi,
 /**
  * i40e_fd_handle_status - check the Programming Status for FD
  * @rx_ring: the Rx ring for this descriptor
- * @rx_desc: the Rx descriptor for programming Status, not a packet descriptor.
+ * @qword0_raw: qword0
+ * @qword1: qword1 after le_to_cpu
  * @prog_id: the id originally used for programming
  *
  * This is used to verify if the FD programming or invalidation
  * requested by SW to the HW is successful or not and take actions accordingly.
  **/
-void i40e_fd_handle_status(struct i40e_ring *rx_ring,
-			   union i40e_rx_desc *rx_desc, u8 prog_id)
+static void i40e_fd_handle_status(struct i40e_ring *rx_ring, u64 qword0_raw,
+				  u64 qword1, u8 prog_id)
 {
 	struct i40e_pf *pf = rx_ring->vsi->back;
 	struct pci_dev *pdev = pf->pdev;
+	struct i40e_16b_rx_wb_qw0 *qw0;
 	u32 fcnt_prog, fcnt_avail;
 	u32 error;
-	u64 qw;
 
-	qw = le64_to_cpu(rx_desc->wb.qword1.status_error_len);
-	error = (qw & I40E_RX_PROG_STATUS_DESC_QW1_ERROR_MASK) >>
-		I40E_RX_PROG_STATUS_DESC_QW1_ERROR_SHIFT;
+	qw0 = (struct i40e_16b_rx_wb_qw0 *)&qword0_raw;
+	error = FIELD_GET(I40E_RX_PROG_STATUS_DESC_QW1_ERROR_MASK, qword1);
 
 	if (error == BIT(I40E_RX_PROG_STATUS_DESC_FD_TBL_FULL_SHIFT)) {
-		pf->fd_inv = le32_to_cpu(rx_desc->wb.qword0.hi_dword.fd_id);
-		if ((rx_desc->wb.qword0.hi_dword.fd_id != 0) ||
+		pf->fd_inv = le32_to_cpu(qw0->hi_dword.fd_id);
+		if (qw0->hi_dword.fd_id != 0 ||
 		    (I40E_DEBUG_FD & pf->hw.debug_mask))
 			dev_warn(&pdev->dev, "ntuple filter loc = %d, could not be added\n",
 				 pf->fd_inv);
@@ -560,7 +709,7 @@ void i40e_fd_handle_status(struct i40e_ring *rx_ring,
 		/* store the current atr filter count */
 		pf->fd_atr_cnt = i40e_get_current_atr_cnt(pf);
 
-		if ((rx_desc->wb.qword0.hi_dword.fd_id == 0) &&
+		if (qw0->hi_dword.fd_id == 0 &&
 		    test_bit(__I40E_FD_SB_AUTO_DISABLED, pf->state)) {
 			/* These set_bit() calls aren't atomic with the
 			 * test_bit() here, but worse case we potentially
@@ -580,7 +729,7 @@ void i40e_fd_handle_status(struct i40e_ring *rx_ring,
 		 * FD ATR/SB and then re-enable it when there is room.
 		 */
 		if (fcnt_prog >= (fcnt_avail - I40E_FDIR_BUFFER_FULL_MARGIN)) {
-			if ((pf->flags & I40E_FLAG_FD_SB_ENABLED) &&
+			if (test_bit(I40E_FLAG_FD_SB_ENA, pf->flags) &&
 			    !test_and_set_bit(__I40E_FD_SB_AUTO_DISABLED,
 					      pf->state))
 				if (I40E_DEBUG_FD & pf->hw.debug_mask)
@@ -589,7 +738,7 @@ void i40e_fd_handle_status(struct i40e_ring *rx_ring,
 	} else if (error == BIT(I40E_RX_PROG_STATUS_DESC_NO_FD_ENTRY_SHIFT)) {
 		if (I40E_DEBUG_FD & pf->hw.debug_mask)
 			dev_info(&pdev->dev, "ntuple filter fd_id = %d, could not be removed\n",
-				 rx_desc->wb.qword0.hi_dword.fd_id);
+				 qw0->hi_dword.fd_id);
 	}
 }
 
@@ -635,7 +784,7 @@ void i40e_clean_tx_ring(struct i40e_ring *tx_ring)
 	unsigned long bi_size;
 	u16 i;
 
-	if (ring_is_xdp(tx_ring) && tx_ring->xsk_umem) {
+	if (ring_is_xdp(tx_ring) && tx_ring->xsk_pool) {
 		i40e_xsk_clean_tx_ring(tx_ring);
 	} else {
 		/* ring already cleared, nothing to do */
@@ -712,13 +861,15 @@ u32 i40e_get_tx_pending(struct i40e_ring *ring, bool in_sw)
 
 /**
  * i40e_detect_recover_hung - Function to detect and recover hung_queues
- * @vsi:  pointer to vsi struct with tx queues
+ * @pf: pointer to PF struct
  *
- * VSI has netdev and netdev has TX queues. This function is to check each of
- * those TX queues if they are hung, trigger recovery by issuing SW interrupt.
+ * LAN VSI has netdev and netdev has TX queues. This function is to check
+ * each of those TX queues if they are hung, trigger recovery by issuing
+ * SW interrupt.
  **/
-void i40e_detect_recover_hung(struct i40e_vsi *vsi)
+void i40e_detect_recover_hung(struct i40e_pf *pf)
 {
+	struct i40e_vsi *vsi = i40e_pf_get_main_vsi(pf);
 	struct i40e_ring *tx_ring = NULL;
 	struct net_device *netdev;
 	unsigned int i;
@@ -768,11 +919,13 @@ void i40e_detect_recover_hung(struct i40e_vsi *vsi)
  * @vsi: the VSI we care about
  * @tx_ring: Tx ring to clean
  * @napi_budget: Used to determine if we are in netpoll
+ * @tx_cleaned: Out parameter set to the number of TXes cleaned
  *
  * Returns true if there's any budget left (e.g. the clean is finished)
  **/
 static bool i40e_clean_tx_irq(struct i40e_vsi *vsi,
-			      struct i40e_ring *tx_ring, int napi_budget)
+			      struct i40e_ring *tx_ring, int napi_budget,
+			      unsigned int *tx_cleaned)
 {
 	int i = tx_ring->next_to_clean;
 	struct i40e_tx_buffer *tx_buf;
@@ -893,6 +1046,7 @@ static bool i40e_clean_tx_irq(struct i40e_vsi *vsi,
 		}
 	}
 
+	*tx_cleaned = total_packets;
 	return !!budget;
 }
 
@@ -914,7 +1068,7 @@ static void i40e_enable_wb_on_itr(struct i40e_vsi *vsi,
 	if (q_vector->arm_wb_state)
 		return;
 
-	if (vsi->back->flags & I40E_FLAG_MSIX_ENABLED) {
+	if (test_bit(I40E_FLAG_MSIX_ENA, vsi->back->flags)) {
 		val = I40E_PFINT_DYN_CTLN_WB_ON_ITR_MASK |
 		      I40E_PFINT_DYN_CTLN_ITR_INDX_MASK; /* set noitr */
 
@@ -938,7 +1092,7 @@ static void i40e_enable_wb_on_itr(struct i40e_vsi *vsi,
  **/
 void i40e_force_wb(struct i40e_vsi *vsi, struct i40e_q_vector *q_vector)
 {
-	if (vsi->back->flags & I40E_FLAG_MSIX_ENABLED) {
+	if (test_bit(I40E_FLAG_MSIX_ENA, vsi->back->flags)) {
 		u32 val = I40E_PFINT_DYN_CTLN_INTENA_MASK |
 			  I40E_PFINT_DYN_CTLN_ITR_INDX_MASK | /* set noitr */
 			  I40E_PFINT_DYN_CTLN_SWINT_TRIG_MASK |
@@ -1195,6 +1349,11 @@ clear_counts:
 	rc->total_packets = 0;
 }
 
+static struct i40e_rx_buffer *i40e_rx_bi(struct i40e_ring *rx_ring, u32 idx)
+{
+	return &rx_ring->rx_bi[idx];
+}
+
 /**
  * i40e_reuse_rx_page - page flip buffer and store it back on the ring
  * @rx_ring: rx descriptor ring to store buffers on
@@ -1208,7 +1367,7 @@ static void i40e_reuse_rx_page(struct i40e_ring *rx_ring,
 	struct i40e_rx_buffer *new_buff;
 	u16 nta = rx_ring->next_to_alloc;
 
-	new_buff = &rx_ring->rx_bi[nta];
+	new_buff = i40e_rx_bi(rx_ring, nta);
 
 	/* update, and store next to alloc */
 	nta++;
@@ -1220,36 +1379,15 @@ static void i40e_reuse_rx_page(struct i40e_ring *rx_ring,
 	new_buff->page_offset	= old_buff->page_offset;
 	new_buff->pagecnt_bias	= old_buff->pagecnt_bias;
 
-	rx_ring->rx_stats.page_reuse_count++;
-
 	/* clear contents of buffer_info */
 	old_buff->page = NULL;
 }
 
 /**
- * i40e_rx_is_programming_status - check for programming status descriptor
- * @qw: qword representing status_error_len in CPU ordering
- *
- * The value of in the descriptor length field indicate if this
- * is a programming status descriptor for flow director or FCoE
- * by the value of I40E_RX_PROG_STATUS_DESC_LENGTH, otherwise
- * it is a packet descriptor.
- **/
-static inline bool i40e_rx_is_programming_status(u64 qw)
-{
-	/* The Rx filter programming status and SPH bit occupy the same
-	 * spot in the descriptor. Since we don't support packet split we
-	 * can just reuse the bit as an indication that this is a
-	 * programming status descriptor.
-	 */
-	return qw & I40E_RXD_QW1_LENGTH_SPH_MASK;
-}
-
-/**
- * i40e_clean_programming_status - try clean the programming status descriptor
+ * i40e_clean_programming_status - clean the programming status descriptor
  * @rx_ring: the rx ring that has this descriptor
- * @rx_desc: the rx descriptor written back by HW
- * @qw: qword representing status_error_len in CPU ordering
+ * @qword0_raw: qword0
+ * @qword1: qword1 representing status_error_len in CPU ordering
  *
  * Flow director should handle FD_FILTER_STATUS to check its filter programming
  * status being successful or not and take actions accordingly. FCoE should
@@ -1257,34 +1395,15 @@ static inline bool i40e_rx_is_programming_status(u64 qw)
  *
  * Returns an i40e_rx_buffer to reuse if the cleanup occurred, otherwise NULL.
  **/
-struct i40e_rx_buffer *i40e_clean_programming_status(
-	struct i40e_ring *rx_ring,
-	union i40e_rx_desc *rx_desc,
-	u64 qw)
+void i40e_clean_programming_status(struct i40e_ring *rx_ring, u64 qword0_raw,
+				   u64 qword1)
 {
-	struct i40e_rx_buffer *rx_buffer;
-	u32 ntc;
 	u8 id;
 
-	if (!i40e_rx_is_programming_status(qw))
-		return NULL;
-
-	ntc = rx_ring->next_to_clean;
-
-	/* fetch, update, and store next to clean */
-	rx_buffer = &rx_ring->rx_bi[ntc++];
-	ntc = (ntc < rx_ring->count) ? ntc : 0;
-	rx_ring->next_to_clean = ntc;
-
-	prefetch(I40E_RX_DESC(rx_ring, ntc));
-
-	id = (qw & I40E_RX_PROG_STATUS_DESC_QW1_PROGID_MASK) >>
-		  I40E_RX_PROG_STATUS_DESC_QW1_PROGID_SHIFT;
+	id = FIELD_GET(I40E_RX_PROG_STATUS_DESC_QW1_PROGID_MASK, qword1);
 
 	if (id == I40E_RX_PROG_STATUS_DESC_FD_FILTER_STATUS)
-		i40e_fd_handle_status(rx_ring, rx_desc, id);
-
-	return rx_buffer;
+		i40e_fd_handle_status(rx_ring, qword0_raw, qword1, id);
 }
 
 /**
@@ -1336,32 +1455,31 @@ err:
 	return -ENOMEM;
 }
 
+static void i40e_clear_rx_bi(struct i40e_ring *rx_ring)
+{
+	memset(rx_ring->rx_bi, 0, sizeof(*rx_ring->rx_bi) * rx_ring->count);
+}
+
 /**
  * i40e_clean_rx_ring - Free Rx buffers
  * @rx_ring: ring to be cleaned
  **/
 void i40e_clean_rx_ring(struct i40e_ring *rx_ring)
 {
-	unsigned long bi_size;
 	u16 i;
 
 	/* ring already cleared, nothing to do */
 	if (!rx_ring->rx_bi)
 		return;
 
-	if (rx_ring->skb) {
-		dev_kfree_skb(rx_ring->skb);
-		rx_ring->skb = NULL;
-	}
-
-	if (rx_ring->xsk_umem) {
+	if (rx_ring->xsk_pool) {
 		i40e_xsk_clean_rx_ring(rx_ring);
 		goto skip_free;
 	}
 
 	/* Free all the Rx ring sk_buffs */
 	for (i = 0; i < rx_ring->count; i++) {
-		struct i40e_rx_buffer *rx_bi = &rx_ring->rx_bi[i];
+		struct i40e_rx_buffer *rx_bi = i40e_rx_bi(rx_ring, i);
 
 		if (!rx_bi->page)
 			continue;
@@ -1388,14 +1506,17 @@ void i40e_clean_rx_ring(struct i40e_ring *rx_ring)
 	}
 
 skip_free:
-	bi_size = sizeof(struct i40e_rx_buffer) * rx_ring->count;
-	memset(rx_ring->rx_bi, 0, bi_size);
+	if (rx_ring->xsk_pool)
+		i40e_clear_rx_bi_zc(rx_ring);
+	else
+		i40e_clear_rx_bi(rx_ring);
 
 	/* Zero out the descriptor ring */
 	memset(rx_ring->desc, 0, rx_ring->size);
 
 	rx_ring->next_to_alloc = 0;
 	rx_ring->next_to_clean = 0;
+	rx_ring->next_to_process = 0;
 	rx_ring->next_to_use = 0;
 }
 
@@ -1430,20 +1551,11 @@ void i40e_free_rx_resources(struct i40e_ring *rx_ring)
 int i40e_setup_rx_descriptors(struct i40e_ring *rx_ring)
 {
 	struct device *dev = rx_ring->dev;
-	int err = -ENOMEM;
-	int bi_size;
-
-	/* warn if we are about to overwrite the pointer */
-	WARN_ON(rx_ring->rx_bi);
-	bi_size = sizeof(struct i40e_rx_buffer) * rx_ring->count;
-	rx_ring->rx_bi = kzalloc(bi_size, GFP_KERNEL);
-	if (!rx_ring->rx_bi)
-		goto err;
 
 	u64_stats_init(&rx_ring->syncp);
 
 	/* Round up to nearest 4K */
-	rx_ring->size = rx_ring->count * sizeof(union i40e_32byte_rx_desc);
+	rx_ring->size = rx_ring->count * sizeof(union i40e_rx_desc);
 	rx_ring->size = ALIGN(rx_ring->size, 4096);
 	rx_ring->desc = dma_alloc_coherent(dev, rx_ring->size,
 					   &rx_ring->dma, GFP_KERNEL);
@@ -1451,28 +1563,22 @@ int i40e_setup_rx_descriptors(struct i40e_ring *rx_ring)
 	if (!rx_ring->desc) {
 		dev_info(dev, "Unable to allocate memory for the Rx descriptor ring, size=%d\n",
 			 rx_ring->size);
-		goto err;
+		return -ENOMEM;
 	}
 
 	rx_ring->next_to_alloc = 0;
 	rx_ring->next_to_clean = 0;
+	rx_ring->next_to_process = 0;
 	rx_ring->next_to_use = 0;
-
-	/* XDP RX-queue info only needed for RX rings exposed to XDP */
-	if (rx_ring->vsi->type == I40E_VSI_MAIN) {
-		err = xdp_rxq_info_reg(&rx_ring->xdp_rxq, rx_ring->netdev,
-				       rx_ring->queue_index);
-		if (err < 0)
-			goto err;
-	}
 
 	rx_ring->xdp_prog = rx_ring->vsi->xdp_prog;
 
+	rx_ring->rx_bi =
+		kcalloc(rx_ring->count, sizeof(*rx_ring->rx_bi), GFP_KERNEL);
+	if (!rx_ring->rx_bi)
+		return -ENOMEM;
+
 	return 0;
-err:
-	kfree(rx_ring->rx_bi);
-	rx_ring->rx_bi = NULL;
-	return err;
 }
 
 /**
@@ -1496,16 +1602,19 @@ void i40e_release_rx_desc(struct i40e_ring *rx_ring, u32 val)
 	writel(val, rx_ring->tail);
 }
 
-/**
- * i40e_rx_offset - Return expected offset into page to access data
- * @rx_ring: Ring we are requesting offset of
- *
- * Returns the offset value for ring into the data buffer.
- */
-static inline unsigned int i40e_rx_offset(struct i40e_ring *rx_ring)
+#if (PAGE_SIZE >= 8192)
+static unsigned int i40e_rx_frame_truesize(struct i40e_ring *rx_ring,
+					   unsigned int size)
 {
-	return ring_uses_build_skb(rx_ring) ? I40E_SKB_PAD : 0;
+	unsigned int truesize;
+
+	truesize = rx_ring->rx_offset ?
+		SKB_DATA_ALIGN(size + rx_ring->rx_offset) +
+		SKB_DATA_ALIGN(sizeof(struct skb_shared_info)) :
+		SKB_DATA_ALIGN(size);
+	return truesize;
 }
+#endif
 
 /**
  * i40e_alloc_mapped_page - recycle or make a new page
@@ -1534,6 +1643,8 @@ static bool i40e_alloc_mapped_page(struct i40e_ring *rx_ring,
 		return false;
 	}
 
+	rx_ring->rx_stats.page_alloc_count++;
+
 	/* map page for use */
 	dma = dma_map_page_attrs(rx_ring->dev, page, 0,
 				 i40e_rx_pg_size(rx_ring),
@@ -1551,7 +1662,7 @@ static bool i40e_alloc_mapped_page(struct i40e_ring *rx_ring,
 
 	bi->dma = dma;
 	bi->page = page;
-	bi->page_offset = i40e_rx_offset(rx_ring);
+	bi->page_offset = rx_ring->rx_offset;
 	page_ref_add(page, USHRT_MAX - 1);
 	bi->pagecnt_bias = USHRT_MAX;
 
@@ -1576,7 +1687,7 @@ bool i40e_alloc_rx_buffers(struct i40e_ring *rx_ring, u16 cleaned_count)
 		return false;
 
 	rx_desc = I40E_RX_DESC(rx_ring, ntu);
-	bi = &rx_ring->rx_bi[ntu];
+	bi = i40e_rx_bi(rx_ring, ntu);
 
 	do {
 		if (!i40e_alloc_mapped_page(rx_ring, bi))
@@ -1598,7 +1709,7 @@ bool i40e_alloc_rx_buffers(struct i40e_ring *rx_ring, u16 cleaned_count)
 		ntu++;
 		if (unlikely(ntu == rx_ring->count)) {
 			rx_desc = I40E_RX_DESC(rx_ring, 0);
-			bi = rx_ring->rx_bi;
+			bi = i40e_rx_bi(rx_ring, 0);
 			ntu = 0;
 		}
 
@@ -1633,40 +1744,30 @@ static inline void i40e_rx_checksum(struct i40e_vsi *vsi,
 				    struct sk_buff *skb,
 				    union i40e_rx_desc *rx_desc)
 {
-	struct i40e_rx_ptype_decoded decoded;
+	struct libeth_rx_pt decoded;
 	u32 rx_error, rx_status;
 	bool ipv4, ipv6;
 	u8 ptype;
 	u64 qword;
 
-	qword = le64_to_cpu(rx_desc->wb.qword1.status_error_len);
-	ptype = (qword & I40E_RXD_QW1_PTYPE_MASK) >> I40E_RXD_QW1_PTYPE_SHIFT;
-	rx_error = (qword & I40E_RXD_QW1_ERROR_MASK) >>
-		   I40E_RXD_QW1_ERROR_SHIFT;
-	rx_status = (qword & I40E_RXD_QW1_STATUS_MASK) >>
-		    I40E_RXD_QW1_STATUS_SHIFT;
-	decoded = decode_rx_desc_ptype(ptype);
-
 	skb->ip_summed = CHECKSUM_NONE;
 
-	skb_checksum_none_assert(skb);
+	qword = le64_to_cpu(rx_desc->wb.qword1.status_error_len);
+	ptype = FIELD_GET(I40E_RXD_QW1_PTYPE_MASK, qword);
 
-	/* Rx csum enabled and ip headers found? */
-	if (!(vsi->netdev->features & NETIF_F_RXCSUM))
+	decoded = libie_rx_pt_parse(ptype);
+	if (!libeth_rx_pt_has_checksum(vsi->netdev, decoded))
 		return;
+
+	rx_error = FIELD_GET(I40E_RXD_QW1_ERROR_MASK, qword);
+	rx_status = FIELD_GET(I40E_RXD_QW1_STATUS_MASK, qword);
 
 	/* did the hardware decode the packet and checksum? */
 	if (!(rx_status & BIT(I40E_RX_DESC_STATUS_L3L4P_SHIFT)))
 		return;
 
-	/* both known and outer_ip must be set for the below code to work */
-	if (!(decoded.known && decoded.outer_ip))
-		return;
-
-	ipv4 = (decoded.outer_ip == I40E_RX_PTYPE_OUTER_IP) &&
-	       (decoded.outer_ip_ver == I40E_RX_PTYPE_OUTER_IPV4);
-	ipv6 = (decoded.outer_ip == I40E_RX_PTYPE_OUTER_IP) &&
-	       (decoded.outer_ip_ver == I40E_RX_PTYPE_OUTER_IPV6);
+	ipv4 = libeth_rx_pt_get_ip_ver(decoded) == LIBETH_RX_PT_OUTER_IPV4;
+	ipv6 = libeth_rx_pt_get_ip_ver(decoded) == LIBETH_RX_PT_OUTER_IPV6;
 
 	if (ipv4 &&
 	    (rx_error & (BIT(I40E_RX_DESC_ERROR_IPE_SHIFT) |
@@ -1694,47 +1795,14 @@ static inline void i40e_rx_checksum(struct i40e_vsi *vsi,
 	 * we need to bump the checksum level by 1 to reflect the fact that
 	 * we are indicating we validated the inner checksum.
 	 */
-	if (decoded.tunnel_type >= I40E_RX_PTYPE_TUNNEL_IP_GRENAT)
+	if (decoded.tunnel_type >= LIBETH_RX_PT_TUNNEL_IP_GRENAT)
 		skb->csum_level = 1;
 
-	/* Only report checksum unnecessary for TCP, UDP, or SCTP */
-	switch (decoded.inner_prot) {
-	case I40E_RX_PTYPE_INNER_PROT_TCP:
-	case I40E_RX_PTYPE_INNER_PROT_UDP:
-	case I40E_RX_PTYPE_INNER_PROT_SCTP:
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
-		/* fall though */
-	default:
-		break;
-	}
-
+	skb->ip_summed = CHECKSUM_UNNECESSARY;
 	return;
 
 checksum_fail:
 	vsi->back->hw_csum_rx_error++;
-}
-
-/**
- * i40e_ptype_to_htype - get a hash type
- * @ptype: the ptype value from the descriptor
- *
- * Returns a hash type to be used by skb_set_hash
- **/
-static inline int i40e_ptype_to_htype(u8 ptype)
-{
-	struct i40e_rx_ptype_decoded decoded = decode_rx_desc_ptype(ptype);
-
-	if (!decoded.known)
-		return PKT_HASH_TYPE_NONE;
-
-	if (decoded.outer_ip == I40E_RX_PTYPE_OUTER_IP &&
-	    decoded.payload_layer == I40E_RX_PTYPE_PAYLOAD_LAYER_PAY4)
-		return PKT_HASH_TYPE_L4;
-	else if (decoded.outer_ip == I40E_RX_PTYPE_OUTER_IP &&
-		 decoded.payload_layer == I40E_RX_PTYPE_PAYLOAD_LAYER_PAY3)
-		return PKT_HASH_TYPE_L3;
-	else
-		return PKT_HASH_TYPE_L2;
 }
 
 /**
@@ -1749,17 +1817,19 @@ static inline void i40e_rx_hash(struct i40e_ring *ring,
 				struct sk_buff *skb,
 				u8 rx_ptype)
 {
+	struct libeth_rx_pt decoded;
 	u32 hash;
 	const __le64 rss_mask =
 		cpu_to_le64((u64)I40E_RX_DESC_FLTSTAT_RSS_HASH <<
 			    I40E_RX_DESC_STATUS_FLTSTAT_SHIFT);
 
-	if (!(ring->netdev->features & NETIF_F_RXHASH))
+	decoded = libie_rx_pt_parse(rx_ptype);
+	if (!libeth_rx_pt_has_hash(ring->netdev, decoded))
 		return;
 
 	if ((rx_desc->wb.qword1.status_error_len & rss_mask) == rss_mask) {
 		hash = le32_to_cpu(rx_desc->wb.qword0.hi_dword.rss);
-		skb_set_hash(skb, hash, i40e_ptype_to_htype(rx_ptype));
+		libeth_rx_pt_set_hash(skb, hash, decoded);
 	}
 }
 
@@ -1768,7 +1838,6 @@ static inline void i40e_rx_hash(struct i40e_ring *ring,
  * @rx_ring: rx descriptor ring packet is being transacted on
  * @rx_desc: pointer to the EOP Rx descriptor
  * @skb: pointer to current skb being populated
- * @rx_ptype: the packet type decoded by hardware
  *
  * This function checks the ring, descriptor, and packet information in
  * order to populate the hash, checksum, VLAN, protocol, and
@@ -1778,13 +1847,10 @@ void i40e_process_skb_fields(struct i40e_ring *rx_ring,
 			     union i40e_rx_desc *rx_desc, struct sk_buff *skb)
 {
 	u64 qword = le64_to_cpu(rx_desc->wb.qword1.status_error_len);
-	u32 rx_status = (qword & I40E_RXD_QW1_STATUS_MASK) >>
-			I40E_RXD_QW1_STATUS_SHIFT;
+	u32 rx_status = FIELD_GET(I40E_RXD_QW1_STATUS_MASK, qword);
 	u32 tsynvalid = rx_status & I40E_RXD_QW1_STATUS_TSYNVALID_MASK;
-	u32 tsyn = (rx_status & I40E_RXD_QW1_STATUS_TSYNINDX_MASK) >>
-		   I40E_RXD_QW1_STATUS_TSYNINDX_SHIFT;
-	u8 rx_ptype = (qword & I40E_RXD_QW1_PTYPE_MASK) >>
-		      I40E_RXD_QW1_PTYPE_SHIFT;
+	u32 tsyn = FIELD_GET(I40E_RXD_QW1_STATUS_TSYNINDX_MASK, rx_status);
+	u8 rx_ptype = FIELD_GET(I40E_RXD_QW1_PTYPE_MASK, qword);
 
 	if (unlikely(tsynvalid))
 		i40e_ptp_rx_hwtstamp(rx_ring->vsi->back, skb, tsyn);
@@ -1796,7 +1862,7 @@ void i40e_process_skb_fields(struct i40e_ring *rx_ring,
 	skb_record_rx_queue(skb, rx_ring->queue_index);
 
 	if (qword & BIT(I40E_RX_DESC_STATUS_L2TAG1P_SHIFT)) {
-		u16 vlan_tag = rx_desc->wb.qword0.lo_dword.l2tag1;
+		__le16 vlan_tag = rx_desc->wb.qword0.lo_dword.l2tag1;
 
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
 				       le16_to_cpu(vlan_tag));
@@ -1812,9 +1878,6 @@ void i40e_process_skb_fields(struct i40e_ring *rx_ring,
  * @skb: pointer to current skb being fixed
  * @rx_desc: pointer to the EOP Rx descriptor
  *
- * Also address the case where we are pulling data in on pages only
- * and as such no data is present in the skb header.
- *
  * In addition if skb is not at least 60 bytes we need to pad it so that
  * it is large enough to qualify as a valid Ethernet frame.
  *
@@ -1824,10 +1887,6 @@ static bool i40e_cleanup_headers(struct i40e_ring *rx_ring, struct sk_buff *skb,
 				 union i40e_rx_desc *rx_desc)
 
 {
-	/* XDP packets use error pointer so abort at this point */
-	if (IS_ERR(skb))
-		return true;
-
 	/* ERR_MASK will only have valid bits if EOP set, and
 	 * what we are doing here is actually checking
 	 * I40E_RX_DESC_ERROR_RXE_SHIFT, since it is the zeroth bit in
@@ -1847,63 +1906,43 @@ static bool i40e_cleanup_headers(struct i40e_ring *rx_ring, struct sk_buff *skb,
 }
 
 /**
- * i40e_page_is_reusable - check if any reuse is possible
- * @page: page struct to check
- *
- * A page is not reusable if it was allocated under low memory
- * conditions, or it's not in the same NUMA node as this CPU.
- */
-static inline bool i40e_page_is_reusable(struct page *page)
-{
-	return (page_to_nid(page) == numa_mem_id()) &&
-		!page_is_pfmemalloc(page);
-}
-
-/**
- * i40e_can_reuse_rx_page - Determine if this page can be reused by
- * the adapter for another receive
- *
+ * i40e_can_reuse_rx_page - Determine if page can be reused for another Rx
  * @rx_buffer: buffer containing the page
+ * @rx_stats: rx stats structure for the rx ring
  *
- * If page is reusable, rx_buffer->page_offset is adjusted to point to
- * an unused region in the page.
+ * If page is reusable, we have a green light for calling i40e_reuse_rx_page,
+ * which will assign the current buffer to the buffer that next_to_alloc is
+ * pointing to; otherwise, the DMA mapping needs to be destroyed and
+ * page freed.
  *
- * For small pages, @truesize will be a constant value, half the size
- * of the memory at page.  We'll attempt to alternate between high and
- * low halves of the page, with one half ready for use by the hardware
- * and the other half being consumed by the stack.  We use the page
- * ref count to determine whether the stack has finished consuming the
- * portion of this page that was passed up with a previous packet.  If
- * the page ref count is >1, we'll assume the "other" half page is
- * still busy, and this page cannot be reused.
- *
- * For larger pages, @truesize will be the actual space used by the
- * received packet (adjusted upward to an even multiple of the cache
- * line size).  This will advance through the page by the amount
- * actually consumed by the received packets while there is still
- * space for a buffer.  Each region of larger pages will be used at
- * most once, after which the page will not be reused.
- *
- * In either case, if the page is reusable its refcount is increased.
- **/
-static bool i40e_can_reuse_rx_page(struct i40e_rx_buffer *rx_buffer)
+ * rx_stats will be updated to indicate whether the page was waived
+ * or busy if it could not be reused.
+ */
+static bool i40e_can_reuse_rx_page(struct i40e_rx_buffer *rx_buffer,
+				   struct i40e_rx_queue_stats *rx_stats)
 {
 	unsigned int pagecnt_bias = rx_buffer->pagecnt_bias;
 	struct page *page = rx_buffer->page;
 
 	/* Is any reuse possible? */
-	if (unlikely(!i40e_page_is_reusable(page)))
+	if (!dev_page_is_reusable(page)) {
+		rx_stats->page_waive_count++;
 		return false;
+	}
 
 #if (PAGE_SIZE < 8192)
 	/* if we are only owner of page we can reuse it */
-	if (unlikely((page_count(page) - pagecnt_bias) > 1))
+	if (unlikely((rx_buffer->page_count - pagecnt_bias) > 1)) {
+		rx_stats->page_busy_count++;
 		return false;
+	}
 #else
 #define I40E_LAST_OFFSET \
 	(SKB_WITH_OVERHEAD(PAGE_SIZE) - I40E_RXBUFFER_2048)
-	if (rx_buffer->page_offset > I40E_LAST_OFFSET)
+	if (rx_buffer->page_offset > I40E_LAST_OFFSET) {
+		rx_stats->page_busy_count++;
 		return false;
+	}
 #endif
 
 	/* If we have drained the page fragment pool we need to update
@@ -1919,32 +1958,13 @@ static bool i40e_can_reuse_rx_page(struct i40e_rx_buffer *rx_buffer)
 }
 
 /**
- * i40e_add_rx_frag - Add contents of Rx buffer to sk_buff
- * @rx_ring: rx descriptor ring to transact packets on
- * @rx_buffer: buffer containing page to add
- * @skb: sk_buff to place the data into
- * @size: packet length from rx_desc
- *
- * This function will add the data contained in rx_buffer->page to the skb.
- * It will just attach the page as a frag to the skb.
- *
- * The function will then update the page offset.
+ * i40e_rx_buffer_flip - adjusted rx_buffer to point to an unused region
+ * @rx_buffer: Rx buffer to adjust
+ * @truesize: Size of adjustment
  **/
-static void i40e_add_rx_frag(struct i40e_ring *rx_ring,
-			     struct i40e_rx_buffer *rx_buffer,
-			     struct sk_buff *skb,
-			     unsigned int size)
+static void i40e_rx_buffer_flip(struct i40e_rx_buffer *rx_buffer,
+				unsigned int truesize)
 {
-#if (PAGE_SIZE < 8192)
-	unsigned int truesize = i40e_rx_pg_size(rx_ring) / 2;
-#else
-	unsigned int truesize = SKB_DATA_ALIGN(size + i40e_rx_offset(rx_ring));
-#endif
-
-	skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, rx_buffer->page,
-			rx_buffer->page_offset, size, truesize);
-
-	/* page is being used so we must update the page offset */
 #if (PAGE_SIZE < 8192)
 	rx_buffer->page_offset ^= truesize;
 #else
@@ -1965,8 +1985,14 @@ static struct i40e_rx_buffer *i40e_get_rx_buffer(struct i40e_ring *rx_ring,
 {
 	struct i40e_rx_buffer *rx_buffer;
 
-	rx_buffer = &rx_ring->rx_bi[rx_ring->next_to_clean];
-	prefetchw(rx_buffer->page);
+	rx_buffer = i40e_rx_bi(rx_ring, rx_ring->next_to_process);
+	rx_buffer->page_count =
+#if (PAGE_SIZE < 8192)
+		page_count(rx_buffer->page);
+#else
+		0;
+#endif
+	prefetch_page_address(rx_buffer->page);
 
 	/* we are reusing so sync this buffer for CPU use */
 	dma_sync_single_range_for_cpu(rx_ring->dev,
@@ -1982,9 +2008,70 @@ static struct i40e_rx_buffer *i40e_get_rx_buffer(struct i40e_ring *rx_ring,
 }
 
 /**
- * i40e_construct_skb - Allocate skb and populate it
+ * i40e_put_rx_buffer - Clean up used buffer and either recycle or free
  * @rx_ring: rx descriptor ring to transact packets on
  * @rx_buffer: rx buffer to pull data from
+ *
+ * This function will clean up the contents of the rx_buffer.  It will
+ * either recycle the buffer or unmap it and free the associated resources.
+ */
+static void i40e_put_rx_buffer(struct i40e_ring *rx_ring,
+			       struct i40e_rx_buffer *rx_buffer)
+{
+	if (i40e_can_reuse_rx_page(rx_buffer, &rx_ring->rx_stats)) {
+		/* hand second half of page back to the ring */
+		i40e_reuse_rx_page(rx_ring, rx_buffer);
+	} else {
+		/* we are not reusing the buffer so unmap it */
+		dma_unmap_page_attrs(rx_ring->dev, rx_buffer->dma,
+				     i40e_rx_pg_size(rx_ring),
+				     DMA_FROM_DEVICE, I40E_RX_DMA_ATTR);
+		__page_frag_cache_drain(rx_buffer->page,
+					rx_buffer->pagecnt_bias);
+		/* clear contents of buffer_info */
+		rx_buffer->page = NULL;
+	}
+}
+
+/**
+ * i40e_process_rx_buffs- Processing of buffers post XDP prog or on error
+ * @rx_ring: Rx descriptor ring to transact packets on
+ * @xdp_res: Result of the XDP program
+ * @xdp: xdp_buff pointing to the data
+ **/
+static void i40e_process_rx_buffs(struct i40e_ring *rx_ring, int xdp_res,
+				  struct xdp_buff *xdp)
+{
+	u32 nr_frags = xdp_get_shared_info_from_buff(xdp)->nr_frags;
+	u32 next = rx_ring->next_to_clean, i = 0;
+	struct i40e_rx_buffer *rx_buffer;
+
+	xdp->flags = 0;
+
+	while (1) {
+		rx_buffer = i40e_rx_bi(rx_ring, next);
+		if (++next == rx_ring->count)
+			next = 0;
+
+		if (!rx_buffer->page)
+			continue;
+
+		if (xdp_res != I40E_XDP_CONSUMED)
+			i40e_rx_buffer_flip(rx_buffer, xdp->frame_sz);
+		else if (i++ <= nr_frags)
+			rx_buffer->pagecnt_bias++;
+
+		/* EOP buffer will be put in i40e_clean_rx_irq() */
+		if (next == rx_ring->next_to_process)
+			return;
+
+		i40e_put_rx_buffer(rx_ring, rx_buffer);
+	}
+}
+
+/**
+ * i40e_construct_skb - Allocate skb and populate it
+ * @rx_ring: rx descriptor ring to transact packets on
  * @xdp: xdp_buff pointing to the data
  *
  * This function allocates an skb.  It then populates it with the page
@@ -1992,23 +2079,18 @@ static struct i40e_rx_buffer *i40e_get_rx_buffer(struct i40e_ring *rx_ring,
  * skb correctly.
  */
 static struct sk_buff *i40e_construct_skb(struct i40e_ring *rx_ring,
-					  struct i40e_rx_buffer *rx_buffer,
 					  struct xdp_buff *xdp)
 {
 	unsigned int size = xdp->data_end - xdp->data;
-#if (PAGE_SIZE < 8192)
-	unsigned int truesize = i40e_rx_pg_size(rx_ring) / 2;
-#else
-	unsigned int truesize = SKB_DATA_ALIGN(size);
-#endif
+	struct i40e_rx_buffer *rx_buffer;
+	struct skb_shared_info *sinfo;
 	unsigned int headlen;
 	struct sk_buff *skb;
+	u32 nr_frags = 0;
 
 	/* prefetch first cache line of first page */
-	prefetch(xdp->data);
-#if L1_CACHE_BYTES < 128
-	prefetch(xdp->data + L1_CACHE_BYTES);
-#endif
+	net_prefetch(xdp->data);
+
 	/* Note, we get here by enabling legacy-rx via:
 	 *
 	 *    ethtool --set-priv-flags <dev> legacy-rx on
@@ -2026,9 +2108,7 @@ static struct sk_buff *i40e_construct_skb(struct i40e_ring *rx_ring,
 	 */
 
 	/* allocate a skb to store the frags */
-	skb = __napi_alloc_skb(&rx_ring->q_vector->napi,
-			       I40E_RX_HDR_SIZE,
-			       GFP_ATOMIC | __GFP_NOWARN);
+	skb = napi_alloc_skb(&rx_ring->q_vector->napi, I40E_RX_HDR_SIZE);
 	if (unlikely(!skb))
 		return NULL;
 
@@ -2042,22 +2122,44 @@ static struct sk_buff *i40e_construct_skb(struct i40e_ring *rx_ring,
 	memcpy(__skb_put(skb, headlen), xdp->data,
 	       ALIGN(headlen, sizeof(long)));
 
+	if (unlikely(xdp_buff_has_frags(xdp))) {
+		sinfo = xdp_get_shared_info_from_buff(xdp);
+		nr_frags = sinfo->nr_frags;
+	}
+	rx_buffer = i40e_rx_bi(rx_ring, rx_ring->next_to_clean);
 	/* update all of the pointers */
 	size -= headlen;
 	if (size) {
+		if (unlikely(nr_frags >= MAX_SKB_FRAGS)) {
+			dev_kfree_skb(skb);
+			return NULL;
+		}
 		skb_add_rx_frag(skb, 0, rx_buffer->page,
 				rx_buffer->page_offset + headlen,
-				size, truesize);
-
+				size, xdp->frame_sz);
 		/* buffer is used by skb, update page_offset */
-#if (PAGE_SIZE < 8192)
-		rx_buffer->page_offset ^= truesize;
-#else
-		rx_buffer->page_offset += truesize;
-#endif
+		i40e_rx_buffer_flip(rx_buffer, xdp->frame_sz);
 	} else {
 		/* buffer is unused, reset bias back to rx_buffer */
 		rx_buffer->pagecnt_bias++;
+	}
+
+	if (unlikely(xdp_buff_has_frags(xdp))) {
+		struct skb_shared_info *skinfo = skb_shinfo(skb);
+
+		memcpy(&skinfo->frags[skinfo->nr_frags], &sinfo->frags[0],
+		       sizeof(skb_frag_t) * nr_frags);
+
+		xdp_update_skb_shared_info(skb, skinfo->nr_frags + nr_frags,
+					   sinfo->xdp_frags_size,
+					   nr_frags * xdp->frame_sz,
+					   xdp_buff_is_frag_pfmemalloc(xdp));
+
+		/* First buffer has already been processed, so bump ntc */
+		if (++rx_ring->next_to_clean == rx_ring->count)
+			rx_ring->next_to_clean = 0;
+
+		i40e_process_rx_buffs(rx_ring, I40E_XDP_PASS, xdp);
 	}
 
 	return skb;
@@ -2066,37 +2168,33 @@ static struct sk_buff *i40e_construct_skb(struct i40e_ring *rx_ring,
 /**
  * i40e_build_skb - Build skb around an existing buffer
  * @rx_ring: Rx descriptor ring to transact packets on
- * @rx_buffer: Rx buffer to pull data from
  * @xdp: xdp_buff pointing to the data
  *
  * This function builds an skb around an existing Rx buffer, taking care
  * to set up the skb correctly and avoid any memcpy overhead.
  */
 static struct sk_buff *i40e_build_skb(struct i40e_ring *rx_ring,
-				      struct i40e_rx_buffer *rx_buffer,
 				      struct xdp_buff *xdp)
 {
 	unsigned int metasize = xdp->data - xdp->data_meta;
-#if (PAGE_SIZE < 8192)
-	unsigned int truesize = i40e_rx_pg_size(rx_ring) / 2;
-#else
-	unsigned int truesize = SKB_DATA_ALIGN(sizeof(struct skb_shared_info)) +
-				SKB_DATA_ALIGN(xdp->data_end -
-					       xdp->data_hard_start);
-#endif
+	struct skb_shared_info *sinfo;
 	struct sk_buff *skb;
+	u32 nr_frags;
 
 	/* Prefetch first cache line of first page. If xdp->data_meta
 	 * is unused, this points exactly as xdp->data, otherwise we
 	 * likely have a consumer accessing first few bytes of meta
 	 * data, and then actual data.
 	 */
-	prefetch(xdp->data_meta);
-#if L1_CACHE_BYTES < 128
-	prefetch(xdp->data_meta + L1_CACHE_BYTES);
-#endif
+	net_prefetch(xdp->data_meta);
+
+	if (unlikely(xdp_buff_has_frags(xdp))) {
+		sinfo = xdp_get_shared_info_from_buff(xdp);
+		nr_frags = sinfo->nr_frags;
+	}
+
 	/* build an skb around the page buffer */
-	skb = build_skb(xdp->data_hard_start, truesize);
+	skb = napi_build_skb(xdp->data_hard_start, xdp->frame_sz);
 	if (unlikely(!skb))
 		return NULL;
 
@@ -2106,65 +2204,35 @@ static struct sk_buff *i40e_build_skb(struct i40e_ring *rx_ring,
 	if (metasize)
 		skb_metadata_set(skb, metasize);
 
-	/* buffer is used by skb, update page_offset */
-#if (PAGE_SIZE < 8192)
-	rx_buffer->page_offset ^= truesize;
-#else
-	rx_buffer->page_offset += truesize;
-#endif
+	if (unlikely(xdp_buff_has_frags(xdp))) {
+		xdp_update_skb_shared_info(skb, nr_frags,
+					   sinfo->xdp_frags_size,
+					   nr_frags * xdp->frame_sz,
+					   xdp_buff_is_frag_pfmemalloc(xdp));
+
+		i40e_process_rx_buffs(rx_ring, I40E_XDP_PASS, xdp);
+	} else {
+		struct i40e_rx_buffer *rx_buffer;
+
+		rx_buffer = i40e_rx_bi(rx_ring, rx_ring->next_to_clean);
+		/* buffer is used by skb, update page_offset */
+		i40e_rx_buffer_flip(rx_buffer, xdp->frame_sz);
+	}
 
 	return skb;
-}
-
-/**
- * i40e_put_rx_buffer - Clean up used buffer and either recycle or free
- * @rx_ring: rx descriptor ring to transact packets on
- * @rx_buffer: rx buffer to pull data from
- *
- * This function will clean up the contents of the rx_buffer.  It will
- * either recycle the buffer or unmap it and free the associated resources.
- */
-static void i40e_put_rx_buffer(struct i40e_ring *rx_ring,
-			       struct i40e_rx_buffer *rx_buffer)
-{
-	if (i40e_can_reuse_rx_page(rx_buffer)) {
-		/* hand second half of page back to the ring */
-		i40e_reuse_rx_page(rx_ring, rx_buffer);
-	} else {
-		/* we are not reusing the buffer so unmap it */
-		dma_unmap_page_attrs(rx_ring->dev, rx_buffer->dma,
-				     i40e_rx_pg_size(rx_ring),
-				     DMA_FROM_DEVICE, I40E_RX_DMA_ATTR);
-		__page_frag_cache_drain(rx_buffer->page,
-					rx_buffer->pagecnt_bias);
-		/* clear contents of buffer_info */
-		rx_buffer->page = NULL;
-	}
 }
 
 /**
  * i40e_is_non_eop - process handling of non-EOP buffers
  * @rx_ring: Rx ring being processed
  * @rx_desc: Rx descriptor for current buffer
- * @skb: Current socket buffer containing buffer in progress
  *
- * This function updates next to clean.  If the buffer is an EOP buffer
- * this function exits returning false, otherwise it will place the
- * sk_buff in the next buffer to be chained and return true indicating
- * that this is in fact a non-EOP buffer.
- **/
-static bool i40e_is_non_eop(struct i40e_ring *rx_ring,
-			    union i40e_rx_desc *rx_desc,
-			    struct sk_buff *skb)
+ * If the buffer is an EOP buffer, this function exits returning false,
+ * otherwise return true indicating that this is in fact a non-EOP buffer.
+ */
+bool i40e_is_non_eop(struct i40e_ring *rx_ring,
+		     union i40e_rx_desc *rx_desc)
 {
-	u32 ntc = rx_ring->next_to_clean + 1;
-
-	/* fetch, update, and store next to clean */
-	ntc = (ntc < rx_ring->count) ? ntc : 0;
-	rx_ring->next_to_clean = ntc;
-
-	prefetch(I40E_RX_DESC(rx_ring, ntc));
-
 	/* if we are the last buffer then there is nothing else to do */
 #define I40E_RXD_EOF BIT(I40E_RX_DESC_STATUS_EOF_SHIFT)
 	if (likely(i40e_test_staterr(rx_desc, I40E_RXD_EOF)))
@@ -2180,7 +2248,7 @@ static int i40e_xmit_xdp_ring(struct xdp_frame *xdpf,
 
 int i40e_xmit_xdp_tx_ring(struct xdp_buff *xdp, struct i40e_ring *xdp_ring)
 {
-	struct xdp_frame *xdpf = convert_to_xdp_frame(xdp);
+	struct xdp_frame *xdpf = xdp_convert_buff_to_frame(xdp);
 
 	if (unlikely(!xdpf))
 		return I40E_XDP_CONSUMED;
@@ -2192,17 +2260,13 @@ int i40e_xmit_xdp_tx_ring(struct xdp_buff *xdp, struct i40e_ring *xdp_ring)
  * i40e_run_xdp - run an XDP program
  * @rx_ring: Rx ring being processed
  * @xdp: XDP buffer containing the frame
+ * @xdp_prog: XDP program to run
  **/
-static struct sk_buff *i40e_run_xdp(struct i40e_ring *rx_ring,
-				    struct xdp_buff *xdp)
+static int i40e_run_xdp(struct i40e_ring *rx_ring, struct xdp_buff *xdp, struct bpf_prog *xdp_prog)
 {
 	int err, result = I40E_XDP_PASS;
 	struct i40e_ring *xdp_ring;
-	struct bpf_prog *xdp_prog;
 	u32 act;
-
-	rcu_read_lock();
-	xdp_prog = READ_ONCE(rx_ring->xdp_prog);
 
 	if (!xdp_prog)
 		goto xdp_out;
@@ -2216,45 +2280,28 @@ static struct sk_buff *i40e_run_xdp(struct i40e_ring *rx_ring,
 	case XDP_TX:
 		xdp_ring = rx_ring->vsi->xdp_rings[rx_ring->queue_index];
 		result = i40e_xmit_xdp_tx_ring(xdp, xdp_ring);
+		if (result == I40E_XDP_CONSUMED)
+			goto out_failure;
 		break;
 	case XDP_REDIRECT:
 		err = xdp_do_redirect(rx_ring->netdev, xdp, xdp_prog);
-		result = !err ? I40E_XDP_REDIR : I40E_XDP_CONSUMED;
+		if (err)
+			goto out_failure;
+		result = I40E_XDP_REDIR;
 		break;
 	default:
-		bpf_warn_invalid_xdp_action(act);
-		/* fall through */
+		bpf_warn_invalid_xdp_action(rx_ring->netdev, xdp_prog, act);
+		fallthrough;
 	case XDP_ABORTED:
+out_failure:
 		trace_xdp_exception(rx_ring->netdev, xdp_prog, act);
-		/* fall through -- handle aborts by dropping packet */
+		fallthrough; /* handle aborts by dropping packet */
 	case XDP_DROP:
 		result = I40E_XDP_CONSUMED;
 		break;
 	}
 xdp_out:
-	rcu_read_unlock();
-	return ERR_PTR(-result);
-}
-
-/**
- * i40e_rx_buffer_flip - adjusted rx_buffer to point to an unused region
- * @rx_ring: Rx ring
- * @rx_buffer: Rx buffer to adjust
- * @size: Size of adjustment
- **/
-static void i40e_rx_buffer_flip(struct i40e_ring *rx_ring,
-				struct i40e_rx_buffer *rx_buffer,
-				unsigned int size)
-{
-#if (PAGE_SIZE < 8192)
-	unsigned int truesize = i40e_rx_pg_size(rx_ring) / 2;
-
-	rx_buffer->page_offset ^= truesize;
-#else
-	unsigned int truesize = SKB_DATA_ALIGN(i40e_rx_offset(rx_ring) + size);
-
-	rx_buffer->page_offset += truesize;
-#endif
+	return result;
 }
 
 /**
@@ -2304,7 +2351,7 @@ void i40e_update_rx_stats(struct i40e_ring *rx_ring,
 void i40e_finalize_xdp_rx(struct i40e_ring *rx_ring, unsigned int xdp_res)
 {
 	if (xdp_res & I40E_XDP_REDIR)
-		xdp_do_flush_map();
+		xdp_do_flush();
 
 	if (xdp_res & I40E_XDP_TX) {
 		struct i40e_ring *xdp_ring =
@@ -2315,9 +2362,72 @@ void i40e_finalize_xdp_rx(struct i40e_ring *rx_ring, unsigned int xdp_res)
 }
 
 /**
+ * i40e_inc_ntp: Advance the next_to_process index
+ * @rx_ring: Rx ring
+ **/
+static void i40e_inc_ntp(struct i40e_ring *rx_ring)
+{
+	u32 ntp = rx_ring->next_to_process + 1;
+
+	ntp = (ntp < rx_ring->count) ? ntp : 0;
+	rx_ring->next_to_process = ntp;
+	prefetch(I40E_RX_DESC(rx_ring, ntp));
+}
+
+/**
+ * i40e_add_xdp_frag: Add a frag to xdp_buff
+ * @xdp: xdp_buff pointing to the data
+ * @nr_frags: return number of buffers for the packet
+ * @rx_buffer: rx_buffer holding data of the current frag
+ * @size: size of data of current frag
+ */
+static int i40e_add_xdp_frag(struct xdp_buff *xdp, u32 *nr_frags,
+			     struct i40e_rx_buffer *rx_buffer, u32 size)
+{
+	struct skb_shared_info *sinfo = xdp_get_shared_info_from_buff(xdp);
+
+	if (!xdp_buff_has_frags(xdp)) {
+		sinfo->nr_frags = 0;
+		sinfo->xdp_frags_size = 0;
+		xdp_buff_set_frags_flag(xdp);
+	} else if (unlikely(sinfo->nr_frags >= MAX_SKB_FRAGS)) {
+		/* Overflowing packet: All frags need to be dropped */
+		return -ENOMEM;
+	}
+
+	__skb_fill_page_desc_noacc(sinfo, sinfo->nr_frags++, rx_buffer->page,
+				   rx_buffer->page_offset, size);
+
+	sinfo->xdp_frags_size += size;
+
+	if (page_is_pfmemalloc(rx_buffer->page))
+		xdp_buff_set_frag_pfmemalloc(xdp);
+	*nr_frags = sinfo->nr_frags;
+
+	return 0;
+}
+
+/**
+ * i40e_consume_xdp_buff - Consume all the buffers of the packet and update ntc
+ * @rx_ring: rx descriptor ring to transact packets on
+ * @xdp: xdp_buff pointing to the data
+ * @rx_buffer: rx_buffer of eop desc
+ */
+static void i40e_consume_xdp_buff(struct i40e_ring *rx_ring,
+				  struct xdp_buff *xdp,
+				  struct i40e_rx_buffer *rx_buffer)
+{
+	i40e_process_rx_buffs(rx_ring, I40E_XDP_CONSUMED, xdp);
+	i40e_put_rx_buffer(rx_ring, rx_buffer);
+	rx_ring->next_to_clean = rx_ring->next_to_process;
+	xdp->data = NULL;
+}
+
+/**
  * i40e_clean_rx_irq - Clean completed descriptors from Rx ring - bounce buf
  * @rx_ring: rx descriptor ring to transact packets on
  * @budget: Total limit on number of packets to process
+ * @rx_cleaned: Out parameter of the number of packets processed
  *
  * This function provides a "bounce buffer" approach to Rx interrupt
  * processing.  The advantage to this is that on systems that have
@@ -2326,31 +2436,39 @@ void i40e_finalize_xdp_rx(struct i40e_ring *rx_ring, unsigned int xdp_res)
  *
  * Returns amount of work completed
  **/
-static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
+static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget,
+			     unsigned int *rx_cleaned)
 {
 	unsigned int total_rx_bytes = 0, total_rx_packets = 0;
-	struct sk_buff *skb = rx_ring->skb;
 	u16 cleaned_count = I40E_DESC_UNUSED(rx_ring);
+	u16 clean_threshold = rx_ring->count / 2;
+	unsigned int offset = rx_ring->rx_offset;
+	struct xdp_buff *xdp = &rx_ring->xdp;
 	unsigned int xdp_xmit = 0;
+	struct bpf_prog *xdp_prog;
 	bool failure = false;
-	struct xdp_buff xdp;
+	int xdp_res = 0;
 
-	xdp.rxq = &rx_ring->xdp_rxq;
+	xdp_prog = READ_ONCE(rx_ring->xdp_prog);
 
 	while (likely(total_rx_packets < (unsigned int)budget)) {
+		u16 ntp = rx_ring->next_to_process;
 		struct i40e_rx_buffer *rx_buffer;
 		union i40e_rx_desc *rx_desc;
+		struct sk_buff *skb;
 		unsigned int size;
+		u32 nfrags = 0;
+		bool neop;
 		u64 qword;
 
 		/* return some buffers to hardware, one at a time is too slow */
-		if (cleaned_count >= I40E_RX_BUFFER_WRITE) {
+		if (cleaned_count >= clean_threshold) {
 			failure = failure ||
 				  i40e_alloc_rx_buffers(rx_ring, cleaned_count);
 			cleaned_count = 0;
 		}
 
-		rx_desc = I40E_RX_DESC(rx_ring, rx_ring->next_to_clean);
+		rx_desc = I40E_RX_DESC(rx_ring, ntp);
 
 		/* status_error_len will always be zero for unused descriptors
 		 * because it's cleared in cleanup, and overlaps with hdr_addr
@@ -2365,95 +2483,131 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 		 */
 		dma_rmb();
 
-		rx_buffer = i40e_clean_programming_status(rx_ring, rx_desc,
-							  qword);
-		if (unlikely(rx_buffer)) {
+		if (i40e_rx_is_programming_status(qword)) {
+			i40e_clean_programming_status(rx_ring,
+						      rx_desc->raw.qword[0],
+						      qword);
+			rx_buffer = i40e_rx_bi(rx_ring, ntp);
+			i40e_inc_ntp(rx_ring);
 			i40e_reuse_rx_page(rx_ring, rx_buffer);
-			cleaned_count++;
+			/* Update ntc and bump cleaned count if not in the
+			 * middle of mb packet.
+			 */
+			if (rx_ring->next_to_clean == ntp) {
+				rx_ring->next_to_clean =
+					rx_ring->next_to_process;
+				cleaned_count++;
+			}
 			continue;
 		}
 
-		size = (qword & I40E_RXD_QW1_LENGTH_PBUF_MASK) >>
-		       I40E_RXD_QW1_LENGTH_PBUF_SHIFT;
+		size = FIELD_GET(I40E_RXD_QW1_LENGTH_PBUF_MASK, qword);
 		if (!size)
 			break;
 
-		i40e_trace(clean_rx_irq, rx_ring, rx_desc, skb);
+		i40e_trace(clean_rx_irq, rx_ring, rx_desc, xdp);
+		/* retrieve a buffer from the ring */
 		rx_buffer = i40e_get_rx_buffer(rx_ring, size);
 
-		/* retrieve a buffer from the ring */
-		if (!skb) {
-			xdp.data = page_address(rx_buffer->page) +
-				   rx_buffer->page_offset;
-			xdp.data_meta = xdp.data;
-			xdp.data_hard_start = xdp.data -
-					      i40e_rx_offset(rx_ring);
-			xdp.data_end = xdp.data + size;
+		neop = i40e_is_non_eop(rx_ring, rx_desc);
+		i40e_inc_ntp(rx_ring);
 
-			skb = i40e_run_xdp(rx_ring, &xdp);
+		if (!xdp->data) {
+			unsigned char *hard_start;
+
+			hard_start = page_address(rx_buffer->page) +
+				     rx_buffer->page_offset - offset;
+			xdp_prepare_buff(xdp, hard_start, offset, size, true);
+#if (PAGE_SIZE > 4096)
+			/* At larger PAGE_SIZE, frame_sz depend on len size */
+			xdp->frame_sz = i40e_rx_frame_truesize(rx_ring, size);
+#endif
+		} else if (i40e_add_xdp_frag(xdp, &nfrags, rx_buffer, size) &&
+			   !neop) {
+			/* Overflowing packet: Drop all frags on EOP */
+			i40e_consume_xdp_buff(rx_ring, xdp, rx_buffer);
+			break;
 		}
 
-		if (IS_ERR(skb)) {
-			unsigned int xdp_res = -PTR_ERR(skb);
+		if (neop)
+			continue;
 
-			if (xdp_res & (I40E_XDP_TX | I40E_XDP_REDIR)) {
-				xdp_xmit |= xdp_res;
-				i40e_rx_buffer_flip(rx_ring, rx_buffer, size);
+		xdp_res = i40e_run_xdp(rx_ring, xdp, xdp_prog);
+
+		if (xdp_res) {
+			xdp_xmit |= xdp_res & (I40E_XDP_TX | I40E_XDP_REDIR);
+
+			if (unlikely(xdp_buff_has_frags(xdp))) {
+				i40e_process_rx_buffs(rx_ring, xdp_res, xdp);
+				size = xdp_get_buff_len(xdp);
+			} else if (xdp_res & (I40E_XDP_TX | I40E_XDP_REDIR)) {
+				i40e_rx_buffer_flip(rx_buffer, xdp->frame_sz);
 			} else {
 				rx_buffer->pagecnt_bias++;
 			}
 			total_rx_bytes += size;
-			total_rx_packets++;
-		} else if (skb) {
-			i40e_add_rx_frag(rx_ring, rx_buffer, skb, size);
-		} else if (ring_uses_build_skb(rx_ring)) {
-			skb = i40e_build_skb(rx_ring, rx_buffer, &xdp);
 		} else {
-			skb = i40e_construct_skb(rx_ring, rx_buffer, &xdp);
+			if (ring_uses_build_skb(rx_ring))
+				skb = i40e_build_skb(rx_ring, xdp);
+			else
+				skb = i40e_construct_skb(rx_ring, xdp);
+
+			/* drop if we failed to retrieve a buffer */
+			if (!skb) {
+				rx_ring->rx_stats.alloc_buff_failed++;
+				i40e_consume_xdp_buff(rx_ring, xdp, rx_buffer);
+				break;
+			}
+
+			if (i40e_cleanup_headers(rx_ring, skb, rx_desc))
+				goto process_next;
+
+			/* probably a little skewed due to removing CRC */
+			total_rx_bytes += skb->len;
+
+			/* populate checksum, VLAN, and protocol */
+			i40e_process_skb_fields(rx_ring, rx_desc, skb);
+
+			i40e_trace(clean_rx_irq_rx, rx_ring, rx_desc, xdp);
+			napi_gro_receive(&rx_ring->q_vector->napi, skb);
 		}
-
-		/* exit if we failed to retrieve a buffer */
-		if (!skb) {
-			rx_ring->rx_stats.alloc_buff_failed++;
-			rx_buffer->pagecnt_bias++;
-			break;
-		}
-
-		i40e_put_rx_buffer(rx_ring, rx_buffer);
-		cleaned_count++;
-
-		if (i40e_is_non_eop(rx_ring, rx_desc, skb))
-			continue;
-
-		if (i40e_cleanup_headers(rx_ring, skb, rx_desc)) {
-			skb = NULL;
-			continue;
-		}
-
-		/* probably a little skewed due to removing CRC */
-		total_rx_bytes += skb->len;
-
-		/* populate checksum, VLAN, and protocol */
-		i40e_process_skb_fields(rx_ring, rx_desc, skb);
-
-		i40e_trace(clean_rx_irq_rx, rx_ring, rx_desc, skb);
-		napi_gro_receive(&rx_ring->q_vector->napi, skb);
-		skb = NULL;
 
 		/* update budget accounting */
 		total_rx_packets++;
+process_next:
+		cleaned_count += nfrags + 1;
+		i40e_put_rx_buffer(rx_ring, rx_buffer);
+		rx_ring->next_to_clean = rx_ring->next_to_process;
+
+		xdp->data = NULL;
 	}
 
 	i40e_finalize_xdp_rx(rx_ring, xdp_xmit);
-	rx_ring->skb = skb;
 
 	i40e_update_rx_stats(rx_ring, total_rx_bytes, total_rx_packets);
+
+	*rx_cleaned = total_rx_packets;
 
 	/* guarantee a trip back through this routine if there was a failure */
 	return failure ? budget : (int)total_rx_packets;
 }
 
-static inline u32 i40e_buildreg_itr(const int type, u16 itr)
+/**
+ * i40e_buildreg_itr - build a value for writing to I40E_PFINT_DYN_CTLN register
+ * @itr_idx: interrupt throttling index
+ * @interval: interrupt throttling interval value in usecs
+ * @force_swint: force software interrupt
+ *
+ * The function builds a value for I40E_PFINT_DYN_CTLN register that
+ * is used to update interrupt throttling interval for specified ITR index
+ * and optionally enforces a software interrupt. If the @itr_idx is equal
+ * to I40E_ITR_NONE then no interval change is applied and only @force_swint
+ * parameter is taken into account. If the interval change and enforced
+ * software interrupt are not requested then the built value just enables
+ * appropriate vector interrupt.
+ **/
+static u32 i40e_buildreg_itr(enum i40e_dyn_idx itr_idx, u16 interval,
+			     bool force_swint)
 {
 	u32 val;
 
@@ -2467,22 +2621,32 @@ static inline u32 i40e_buildreg_itr(const int type, u16 itr)
 	 * an event in the PBA anyway so we need to rely on the automask
 	 * to hold pending events for us until the interrupt is re-enabled
 	 *
-	 * The itr value is reported in microseconds, and the register
-	 * value is recorded in 2 microsecond units. For this reason we
-	 * only need to shift by the interval shift - 1 instead of the
-	 * full value.
+	 * We have to shift the given value as it is reported in microseconds
+	 * and the register value is recorded in 2 microsecond units.
 	 */
-	itr &= I40E_ITR_MASK;
+	interval >>= 1;
 
+	/* 1. Enable vector interrupt
+	 * 2. Update the interval for the specified ITR index
+	 *    (I40E_ITR_NONE in the register is used to indicate that
+	 *     no interval update is requested)
+	 */
 	val = I40E_PFINT_DYN_CTLN_INTENA_MASK |
-	      (type << I40E_PFINT_DYN_CTLN_ITR_INDX_SHIFT) |
-	      (itr << (I40E_PFINT_DYN_CTLN_INTERVAL_SHIFT - 1));
+	      FIELD_PREP(I40E_PFINT_DYN_CTLN_ITR_INDX_MASK, itr_idx) |
+	      FIELD_PREP(I40E_PFINT_DYN_CTLN_INTERVAL_MASK, interval);
+
+	/* 3. Enforce software interrupt trigger if requested
+	 *    (These software interrupts rate is limited by ITR2 that is
+	 *     set to 20K interrupts per second)
+	 */
+	if (force_swint)
+		val |= I40E_PFINT_DYN_CTLN_SWINT_TRIG_MASK |
+		       I40E_PFINT_DYN_CTLN_SW_ITR_INDX_ENA_MASK |
+		       FIELD_PREP(I40E_PFINT_DYN_CTLN_SW_ITR_INDX_MASK,
+				  I40E_SW_ITR);
 
 	return val;
 }
-
-/* a small macro to shorten up some long lines */
-#define INTREG I40E_PFINT_DYN_CTLN
 
 /* The act of updating the ITR will cause it to immediately trigger. In order
  * to prevent this from throwing off adaptive update statistics we defer the
@@ -2502,11 +2666,13 @@ static inline u32 i40e_buildreg_itr(const int type, u16 itr)
 static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 					  struct i40e_q_vector *q_vector)
 {
+	enum i40e_dyn_idx itr_idx = I40E_ITR_NONE;
 	struct i40e_hw *hw = &vsi->back->hw;
-	u32 intval;
+	u16 interval = 0;
+	u32 itr_val;
 
 	/* If we don't have MSIX, then we only need to re-enable icr0 */
-	if (!(vsi->back->flags & I40E_FLAG_MSIX_ENABLED)) {
+	if (!test_bit(I40E_FLAG_MSIX_ENA, vsi->back->flags)) {
 		i40e_irq_dynamic_enable_icr0(vsi->back);
 		return;
 	}
@@ -2525,8 +2691,8 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 	 */
 	if (q_vector->rx.target_itr < q_vector->rx.current_itr) {
 		/* Rx ITR needs to be reduced, this is highest priority */
-		intval = i40e_buildreg_itr(I40E_RX_ITR,
-					   q_vector->rx.target_itr);
+		itr_idx = I40E_RX_ITR;
+		interval = q_vector->rx.target_itr;
 		q_vector->rx.current_itr = q_vector->rx.target_itr;
 		q_vector->itr_countdown = ITR_COUNTDOWN_START;
 	} else if ((q_vector->tx.target_itr < q_vector->tx.current_itr) ||
@@ -2535,25 +2701,36 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 		/* Tx ITR needs to be reduced, this is second priority
 		 * Tx ITR needs to be increased more than Rx, fourth priority
 		 */
-		intval = i40e_buildreg_itr(I40E_TX_ITR,
-					   q_vector->tx.target_itr);
+		itr_idx = I40E_TX_ITR;
+		interval = q_vector->tx.target_itr;
 		q_vector->tx.current_itr = q_vector->tx.target_itr;
 		q_vector->itr_countdown = ITR_COUNTDOWN_START;
 	} else if (q_vector->rx.current_itr != q_vector->rx.target_itr) {
 		/* Rx ITR needs to be increased, third priority */
-		intval = i40e_buildreg_itr(I40E_RX_ITR,
-					   q_vector->rx.target_itr);
+		itr_idx = I40E_RX_ITR;
+		interval = q_vector->rx.target_itr;
 		q_vector->rx.current_itr = q_vector->rx.target_itr;
 		q_vector->itr_countdown = ITR_COUNTDOWN_START;
 	} else {
 		/* No ITR update, lowest priority */
-		intval = i40e_buildreg_itr(I40E_ITR_NONE, 0);
 		if (q_vector->itr_countdown)
 			q_vector->itr_countdown--;
 	}
 
-	if (!test_bit(__I40E_VSI_DOWN, vsi->state))
-		wr32(hw, INTREG(q_vector->reg_idx), intval);
+	/* Do not update interrupt control register if VSI is down */
+	if (test_bit(__I40E_VSI_DOWN, vsi->state))
+		return;
+
+	/* Update ITR interval if necessary and enforce software interrupt
+	 * if we are exiting busy poll.
+	 */
+	if (q_vector->in_busy_poll) {
+		itr_val = i40e_buildreg_itr(itr_idx, interval, true);
+		q_vector->in_busy_poll = false;
+	} else {
+		itr_val = i40e_buildreg_itr(itr_idx, interval, false);
+	}
+	wr32(hw, I40E_PFINT_DYN_CTLN(q_vector->reg_idx), itr_val);
 }
 
 /**
@@ -2571,6 +2748,10 @@ int i40e_napi_poll(struct napi_struct *napi, int budget)
 			       container_of(napi, struct i40e_q_vector, napi);
 	struct i40e_vsi *vsi = q_vector->vsi;
 	struct i40e_ring *ring;
+	bool tx_clean_complete = true;
+	bool rx_clean_complete = true;
+	unsigned int tx_cleaned = 0;
+	unsigned int rx_cleaned = 0;
 	bool clean_complete = true;
 	bool arm_wb = false;
 	int budget_per_ring;
@@ -2585,12 +2766,12 @@ int i40e_napi_poll(struct napi_struct *napi, int budget)
 	 * budget and be more aggressive about cleaning up the Tx descriptors.
 	 */
 	i40e_for_each_ring(ring, q_vector->tx) {
-		bool wd = ring->xsk_umem ?
-			  i40e_clean_xdp_tx_irq(vsi, ring, budget) :
-			  i40e_clean_tx_irq(vsi, ring, budget);
+		bool wd = ring->xsk_pool ?
+			  i40e_clean_xdp_tx_irq(vsi, ring) :
+			  i40e_clean_tx_irq(vsi, ring, budget, &tx_cleaned);
 
 		if (!wd) {
-			clean_complete = false;
+			clean_complete = tx_clean_complete = false;
 			continue;
 		}
 		arm_wb |= ring->arm_wb;
@@ -2601,21 +2782,31 @@ int i40e_napi_poll(struct napi_struct *napi, int budget)
 	if (budget <= 0)
 		goto tx_only;
 
-	/* We attempt to distribute budget to each Rx queue fairly, but don't
-	 * allow the budget to go below 1 because that would exit polling early.
-	 */
-	budget_per_ring = max(budget/q_vector->num_ringpairs, 1);
+	/* normally we have 1 Rx ring per q_vector */
+	if (unlikely(q_vector->num_ringpairs > 1))
+		/* We attempt to distribute budget to each Rx queue fairly, but
+		 * don't allow the budget to go below 1 because that would exit
+		 * polling early.
+		 */
+		budget_per_ring = max_t(int, budget / q_vector->num_ringpairs, 1);
+	else
+		/* Max of 1 Rx ring in this q_vector so give it the budget */
+		budget_per_ring = budget;
 
 	i40e_for_each_ring(ring, q_vector->rx) {
-		int cleaned = ring->xsk_umem ?
+		int cleaned = ring->xsk_pool ?
 			      i40e_clean_rx_irq_zc(ring, budget_per_ring) :
-			      i40e_clean_rx_irq(ring, budget_per_ring);
+			      i40e_clean_rx_irq(ring, budget_per_ring, &rx_cleaned);
 
 		work_done += cleaned;
 		/* if we clean as many as budgeted, we must not be done */
 		if (cleaned >= budget_per_ring)
-			clean_complete = false;
+			clean_complete = rx_clean_complete = false;
 	}
+
+	if (!i40e_enabled_xdp_vsi(vsi))
+		trace_i40e_napi_poll(napi, q_vector, budget, budget_per_ring, rx_cleaned,
+				     tx_cleaned, rx_clean_complete, tx_clean_complete);
 
 	/* If work not completed, return budget and polling will return */
 	if (!clean_complete) {
@@ -2646,7 +2837,7 @@ tx_only:
 		return budget;
 	}
 
-	if (vsi->back->flags & I40E_TXR_FLAGS_WB_ON_ITR)
+	if (q_vector->tx.ring[0].flags & I40E_TXR_FLAGS_WB_ON_ITR)
 		q_vector->arm_wb_state = false;
 
 	/* Exit the polling mode, but don't re-enable interrupts if stack might
@@ -2654,6 +2845,8 @@ tx_only:
 	 */
 	if (likely(napi_complete_done(napi, work_done)))
 		i40e_update_enable_itr(vsi, q_vector);
+	else
+		q_vector->in_busy_poll = true;
 
 	return min(work_done, budget - 1);
 }
@@ -2681,7 +2874,7 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	u16 i;
 
 	/* make sure ATR is enabled */
-	if (!(pf->flags & I40E_FLAG_FD_ATR_ENABLED))
+	if (!test_bit(I40E_FLAG_FD_ATR_ENA, pf->flags))
 		return;
 
 	if (test_bit(__I40E_FD_ATR_AUTO_DISABLED, pf->state))
@@ -2726,7 +2919,7 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	/* Due to lack of space, no more new filters can be programmed */
 	if (th->syn && test_bit(__I40E_FD_ATR_AUTO_DISABLED, pf->state))
 		return;
-	if (pf->flags & I40E_FLAG_HW_ATR_EVICT_ENABLED) {
+	if (test_bit(I40E_FLAG_HW_ATR_EVICT_ENA, pf->flags)) {
 		/* HW ATR eviction will take care of removing filters on FIN
 		 * and RST packets.
 		 */
@@ -2752,8 +2945,8 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	i++;
 	tx_ring->next_to_use = (i < tx_ring->count) ? i : 0;
 
-	flex_ptype = (tx_ring->queue_index << I40E_TXD_FLTR_QW0_QINDEX_SHIFT) &
-		      I40E_TXD_FLTR_QW0_QINDEX_MASK;
+	flex_ptype = FIELD_PREP(I40E_TXD_FLTR_QW0_QINDEX_MASK,
+				tx_ring->queue_index);
 	flex_ptype |= (tx_flags & I40E_TX_FLAGS_IPV4) ?
 		      (I40E_FILTER_PCTYPE_NONF_IPV4_TCP <<
 		       I40E_TXD_FLTR_QW0_PCTYPE_SHIFT) :
@@ -2779,16 +2972,14 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	dtype_cmd |= I40E_TXD_FLTR_QW1_CNT_ENA_MASK;
 	if (!(tx_flags & I40E_TX_FLAGS_UDP_TUNNEL))
 		dtype_cmd |=
-			((u32)I40E_FD_ATR_STAT_IDX(pf->hw.pf_id) <<
-			I40E_TXD_FLTR_QW1_CNTINDEX_SHIFT) &
-			I40E_TXD_FLTR_QW1_CNTINDEX_MASK;
+			FIELD_PREP(I40E_TXD_FLTR_QW1_CNTINDEX_MASK,
+				   I40E_FD_ATR_STAT_IDX(pf->hw.pf_id));
 	else
 		dtype_cmd |=
-			((u32)I40E_FD_ATR_TUNNEL_STAT_IDX(pf->hw.pf_id) <<
-			I40E_TXD_FLTR_QW1_CNTINDEX_SHIFT) &
-			I40E_TXD_FLTR_QW1_CNTINDEX_MASK;
+			FIELD_PREP(I40E_TXD_FLTR_QW1_CNTINDEX_MASK,
+				   I40E_FD_ATR_TUNNEL_STAT_IDX(pf->hw.pf_id));
 
-	if (pf->flags & I40E_FLAG_HW_ATR_EVICT_ENABLED)
+	if (test_bit(I40E_FLAG_HW_ATR_EVICT_ENA, pf->flags))
 		dtype_cmd |= I40E_TXD_FLTR_QW1_ATR_MASK;
 
 	fdir_desc->qindex_flex_ptype_vsi = cpu_to_le32(flex_ptype);
@@ -2846,7 +3037,7 @@ static inline int i40e_tx_prepare_vlan_flags(struct sk_buff *skb,
 		tx_flags |= I40E_TX_FLAGS_SW_VLAN;
 	}
 
-	if (!(tx_ring->vsi->back->flags & I40E_FLAG_DCB_ENABLED))
+	if (!test_bit(I40E_FLAG_DCB_ENA, tx_ring->vsi->back->flags))
 		goto out;
 
 	/* Insert 802.1p priority into VLAN header */
@@ -2862,7 +3053,7 @@ static inline int i40e_tx_prepare_vlan_flags(struct sk_buff *skb,
 			rc = skb_cow_head(skb, 0);
 			if (rc < 0)
 				return rc;
-			vhdr = (struct vlan_ethhdr *)skb->data;
+			vhdr = skb_vlan_eth_hdr(skb);
 			vhdr->h_vlan_TCI = htons(tx_flags >>
 						 I40E_TX_FLAGS_VLAN_SHIFT);
 		} else {
@@ -2888,6 +3079,7 @@ static int i40e_tso(struct i40e_tx_buffer *first, u8 *hdr_len,
 {
 	struct sk_buff *skb = first->skb;
 	u64 cd_cmd, cd_tso_len, cd_mss;
+	__be16 protocol;
 	union {
 		struct iphdr *v4;
 		struct ipv6hdr *v6;
@@ -2899,7 +3091,7 @@ static int i40e_tso(struct i40e_tx_buffer *first, u8 *hdr_len,
 		unsigned char *hdr;
 	} l4;
 	u32 paylen, l4_offset;
-	u16 gso_segs, gso_size;
+	u16 gso_size;
 	int err;
 
 	if (skb->ip_summed != CHECKSUM_PARTIAL)
@@ -2912,15 +3104,23 @@ static int i40e_tso(struct i40e_tx_buffer *first, u8 *hdr_len,
 	if (err < 0)
 		return err;
 
-	ip.hdr = skb_network_header(skb);
-	l4.hdr = skb_transport_header(skb);
+	protocol = vlan_get_protocol(skb);
+
+	if (eth_p_mpls(protocol))
+		ip.hdr = skb_inner_network_header(skb);
+	else
+		ip.hdr = skb_network_header(skb);
+	l4.hdr = skb_checksum_start(skb);
 
 	/* initialize outer IP header fields */
 	if (ip.v4->version == 4) {
 		ip.v4->tot_len = 0;
 		ip.v4->check = 0;
+
+		first->tx_flags |= I40E_TX_FLAGS_TSO;
 	} else {
 		ip.v6->payload_len = 0;
+		first->tx_flags |= I40E_TX_FLAGS_TSO;
 	}
 
 	if (skb_shinfo(skb)->gso_type & (SKB_GSO_GRE |
@@ -2960,17 +3160,22 @@ static int i40e_tso(struct i40e_tx_buffer *first, u8 *hdr_len,
 
 	/* remove payload length from inner checksum */
 	paylen = skb->len - l4_offset;
-	csum_replace_by_diff(&l4.tcp->check, (__force __wsum)htonl(paylen));
 
-	/* compute length of segmentation header */
-	*hdr_len = (l4.tcp->doff * 4) + l4_offset;
+	if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4) {
+		csum_replace_by_diff(&l4.udp->check, (__force __wsum)htonl(paylen));
+		/* compute length of segmentation header */
+		*hdr_len = sizeof(*l4.udp) + l4_offset;
+	} else {
+		csum_replace_by_diff(&l4.tcp->check, (__force __wsum)htonl(paylen));
+		/* compute length of segmentation header */
+		*hdr_len = (l4.tcp->doff * 4) + l4_offset;
+	}
 
 	/* pull values out of skb_shinfo */
 	gso_size = skb_shinfo(skb)->gso_size;
-	gso_segs = skb_shinfo(skb)->gso_segs;
 
 	/* update GSO size and bytecount with header size */
-	first->gso_segs = gso_segs;
+	first->gso_segs = skb_shinfo(skb)->gso_segs;
 	first->bytecount += (first->gso_segs - 1) * *hdr_len;
 
 	/* find the field values */
@@ -3008,7 +3213,7 @@ static int i40e_tsyn(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	 * we are not already transmitting a packet to be timestamped
 	 */
 	pf = i40e_netdev_to_pf(tx_ring->netdev);
-	if (!(pf->flags & I40E_FLAG_PTP))
+	if (!test_bit(I40E_FLAG_PTP_ENA, pf->flags))
 		return 0;
 
 	if (pf->ptp_tx &&
@@ -3054,13 +3259,29 @@ static int i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
 	unsigned char *exthdr;
 	u32 offset, cmd = 0;
 	__be16 frag_off;
+	__be16 protocol;
 	u8 l4_proto = 0;
 
 	if (skb->ip_summed != CHECKSUM_PARTIAL)
 		return 0;
 
-	ip.hdr = skb_network_header(skb);
-	l4.hdr = skb_transport_header(skb);
+	protocol = vlan_get_protocol(skb);
+
+	if (eth_p_mpls(protocol)) {
+		ip.hdr = skb_inner_network_header(skb);
+		l4.hdr = skb_checksum_start(skb);
+	} else {
+		ip.hdr = skb_network_header(skb);
+		l4.hdr = skb_transport_header(skb);
+	}
+
+	/* set the tx_flags to indicate the IP protocol type. this is
+	 * required so that checksum header computation below is accurate.
+	 */
+	if (ip.v4->version == 4)
+		*tx_flags |= I40E_TX_FLAGS_IPV4;
+	else
+		*tx_flags |= I40E_TX_FLAGS_IPV6;
 
 	/* compute outer L2 header size */
 	offset = ((ip.hdr - skb->data) / 2) << I40E_TX_DESC_LENGTH_MACLEN_SHIFT;
@@ -3075,13 +3296,16 @@ static int i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
 
 			l4_proto = ip.v4->protocol;
 		} else if (*tx_flags & I40E_TX_FLAGS_IPV6) {
+			int ret;
+
 			tunnel |= I40E_TX_CTX_EXT_IP_IPV6;
 
 			exthdr = ip.hdr + sizeof(*ip.v6);
 			l4_proto = ip.v6->nexthdr;
-			if (l4.hdr != exthdr)
-				ipv6_skip_exthdr(skb, exthdr - skb->data,
-						 &l4_proto, &frag_off);
+			ret = ipv6_skip_exthdr(skb, exthdr - skb->data,
+					       &l4_proto, &frag_off);
+			if (ret < 0)
+				return -1;
 		}
 
 		/* define outer transport */
@@ -3194,7 +3418,7 @@ static int i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
 }
 
 /**
- * i40e_create_tx_ctx Build the Tx context descriptor
+ * i40e_create_tx_ctx - Build the Tx context descriptor
  * @tx_ring:  ring to create the descriptor on
  * @cd_type_cmd_tso_mss: Quad Word 1
  * @cd_tunneling: Quad Word 0 - bits 0-31
@@ -3236,6 +3460,8 @@ int __i40e_maybe_stop_tx(struct i40e_ring *tx_ring, int size)
 	netif_stop_subqueue(tx_ring->netdev, tx_ring->queue_index);
 	/* Memory barrier before checking head and tail */
 	smp_mb();
+
+	++tx_ring->tx_stats.tx_stopped;
 
 	/* Check again in a case another CPU has just made room available. */
 	if (likely(I40E_DESC_UNUSED(tx_ring) < size))
@@ -3359,8 +3585,7 @@ static inline int i40e_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 
 	if (tx_flags & I40E_TX_FLAGS_HW_VLAN) {
 		td_cmd |= I40E_TX_DESC_CMD_IL2TAG1;
-		td_tag = (tx_flags & I40E_TX_FLAGS_VLAN_MASK) >>
-			 I40E_TX_FLAGS_VLAN_SHIFT;
+		td_tag = FIELD_GET(I40E_TX_FLAGS_VLAN_MASK, tx_flags);
 	}
 
 	first->tx_flags = tx_flags;
@@ -3495,57 +3720,144 @@ dma_error:
 	return -1;
 }
 
+static u16 i40e_swdcb_skb_tx_hash(struct net_device *dev,
+				  const struct sk_buff *skb,
+				  u16 num_tx_queues)
+{
+	u32 jhash_initval_salt = 0xd631614b;
+	u32 hash;
+
+	if (skb->sk && skb->sk->sk_hash)
+		hash = skb->sk->sk_hash;
+	else
+		hash = (__force u16)skb->protocol ^ skb->hash;
+
+	hash = jhash_1word(hash, jhash_initval_salt);
+
+	return (u16)(((u64)hash * num_tx_queues) >> 32);
+}
+
+u16 i40e_lan_select_queue(struct net_device *netdev,
+			  struct sk_buff *skb,
+			  struct net_device __always_unused *sb_dev)
+{
+	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_vsi *vsi = np->vsi;
+	struct i40e_hw *hw;
+	u16 qoffset;
+	u16 qcount;
+	u8 tclass;
+	u16 hash;
+	u8 prio;
+
+	/* is DCB enabled at all? */
+	if (vsi->tc_config.numtc == 1 ||
+	    i40e_is_tc_mqprio_enabled(vsi->back))
+		return netdev_pick_tx(netdev, skb, sb_dev);
+
+	prio = skb->priority;
+	hw = &vsi->back->hw;
+	tclass = hw->local_dcbx_config.etscfg.prioritytable[prio];
+	/* sanity check */
+	if (unlikely(!(vsi->tc_config.enabled_tc & BIT(tclass))))
+		tclass = 0;
+
+	/* select a queue assigned for the given TC */
+	qcount = vsi->tc_config.tc_info[tclass].qcount;
+	hash = i40e_swdcb_skb_tx_hash(netdev, skb, qcount);
+
+	qoffset = vsi->tc_config.tc_info[tclass].qoffset;
+	return qoffset + hash;
+}
+
 /**
  * i40e_xmit_xdp_ring - transmits an XDP buffer to an XDP Tx ring
- * @xdp: data to transmit
+ * @xdpf: data to transmit
  * @xdp_ring: XDP Tx ring
  **/
 static int i40e_xmit_xdp_ring(struct xdp_frame *xdpf,
 			      struct i40e_ring *xdp_ring)
 {
-	u16 i = xdp_ring->next_to_use;
-	struct i40e_tx_buffer *tx_bi;
-	struct i40e_tx_desc *tx_desc;
+	struct skb_shared_info *sinfo = xdp_get_shared_info_from_frame(xdpf);
+	u8 nr_frags = unlikely(xdp_frame_has_frags(xdpf)) ? sinfo->nr_frags : 0;
+	u16 i = 0, index = xdp_ring->next_to_use;
+	struct i40e_tx_buffer *tx_head = &xdp_ring->tx_bi[index];
+	struct i40e_tx_buffer *tx_bi = tx_head;
+	struct i40e_tx_desc *tx_desc = I40E_TX_DESC(xdp_ring, index);
 	void *data = xdpf->data;
 	u32 size = xdpf->len;
-	dma_addr_t dma;
 
-	if (!unlikely(I40E_DESC_UNUSED(xdp_ring))) {
+	if (unlikely(I40E_DESC_UNUSED(xdp_ring) < 1 + nr_frags)) {
 		xdp_ring->tx_stats.tx_busy++;
 		return I40E_XDP_CONSUMED;
 	}
-	dma = dma_map_single(xdp_ring->dev, data, size, DMA_TO_DEVICE);
-	if (dma_mapping_error(xdp_ring->dev, dma))
-		return I40E_XDP_CONSUMED;
 
-	tx_bi = &xdp_ring->tx_bi[i];
-	tx_bi->bytecount = size;
-	tx_bi->gso_segs = 1;
-	tx_bi->xdpf = xdpf;
+	tx_head->bytecount = xdp_get_frame_len(xdpf);
+	tx_head->gso_segs = 1;
+	tx_head->xdpf = xdpf;
 
-	/* record length, and DMA address */
-	dma_unmap_len_set(tx_bi, len, size);
-	dma_unmap_addr_set(tx_bi, dma, dma);
+	for (;;) {
+		dma_addr_t dma;
 
-	tx_desc = I40E_TX_DESC(xdp_ring, i);
-	tx_desc->buffer_addr = cpu_to_le64(dma);
-	tx_desc->cmd_type_offset_bsz = build_ctob(I40E_TX_DESC_CMD_ICRC
-						  | I40E_TXD_CMD,
-						  0, size, 0);
+		dma = dma_map_single(xdp_ring->dev, data, size, DMA_TO_DEVICE);
+		if (dma_mapping_error(xdp_ring->dev, dma))
+			goto unmap;
+
+		/* record length, and DMA address */
+		dma_unmap_len_set(tx_bi, len, size);
+		dma_unmap_addr_set(tx_bi, dma, dma);
+
+		tx_desc->buffer_addr = cpu_to_le64(dma);
+		tx_desc->cmd_type_offset_bsz =
+			build_ctob(I40E_TX_DESC_CMD_ICRC, 0, size, 0);
+
+		if (++index == xdp_ring->count)
+			index = 0;
+
+		if (i == nr_frags)
+			break;
+
+		tx_bi = &xdp_ring->tx_bi[index];
+		tx_desc = I40E_TX_DESC(xdp_ring, index);
+
+		data = skb_frag_address(&sinfo->frags[i]);
+		size = skb_frag_size(&sinfo->frags[i]);
+		i++;
+	}
+
+	tx_desc->cmd_type_offset_bsz |=
+		cpu_to_le64(I40E_TXD_CMD << I40E_TXD_QW1_CMD_SHIFT);
 
 	/* Make certain all of the status bits have been updated
 	 * before next_to_watch is written.
 	 */
 	smp_wmb();
 
-	i++;
-	if (i == xdp_ring->count)
-		i = 0;
+	xdp_ring->xdp_tx_active++;
 
-	tx_bi->next_to_watch = tx_desc;
-	xdp_ring->next_to_use = i;
+	tx_head->next_to_watch = tx_desc;
+	xdp_ring->next_to_use = index;
 
 	return I40E_XDP_TX;
+
+unmap:
+	for (;;) {
+		tx_bi = &xdp_ring->tx_bi[index];
+		if (dma_unmap_len(tx_bi, len))
+			dma_unmap_page(xdp_ring->dev,
+				       dma_unmap_addr(tx_bi, dma),
+				       dma_unmap_len(tx_bi, len),
+				       DMA_TO_DEVICE);
+		dma_unmap_len_set(tx_bi, len, 0);
+		if (tx_bi == tx_head)
+			break;
+
+		if (!index)
+			index += xdp_ring->count;
+		index--;
+	}
+
+	return I40E_XDP_CONSUMED;
 }
 
 /**
@@ -3563,7 +3875,6 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 	struct i40e_tx_buffer *first;
 	u32 td_offset = 0;
 	u32 tx_flags = 0;
-	__be16 protocol;
 	u32 td_cmd = 0;
 	u8 hdr_len = 0;
 	int tso, count;
@@ -3604,15 +3915,6 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 	/* prepare the xmit flags */
 	if (i40e_tx_prepare_vlan_flags(skb, tx_ring, &tx_flags))
 		goto out_drop;
-
-	/* obtain protocol of skb */
-	protocol = vlan_get_protocol(skb);
-
-	/* setup IPv4/IPv6 offloads */
-	if (protocol == htons(ETH_P_IP))
-		tx_flags |= I40E_TX_FLAGS_IPV4;
-	else if (protocol == htons(ETH_P_IPV6))
-		tx_flags |= I40E_TX_FLAGS_IPV6;
 
 	tso = i40e_tso(first, &hdr_len, &cd_type_cmd_tso_mss);
 
@@ -3691,10 +3993,12 @@ netdev_tx_t i40e_lan_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 /**
  * i40e_xdp_xmit - Implements ndo_xdp_xmit
  * @dev: netdev
- * @xdp: XDP buffer
+ * @n: number of frames
+ * @frames: array of XDP buffer pointers
+ * @flags: XDP extra info
  *
- * Returns number of frames successfully sent. Frames that fail are
- * free'ed via XDP return API.
+ * Returns number of frames successfully sent. Failed frames
+ * will be free'ed by XDP core.
  *
  * For error cases, a negative errno code is returned and no-frames
  * are transmitted (caller must handle freeing frames).
@@ -3707,7 +4011,7 @@ int i40e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_pf *pf = vsi->back;
 	struct i40e_ring *xdp_ring;
-	int drops = 0;
+	int nxmit = 0;
 	int i;
 
 	if (test_bit(__I40E_VSI_DOWN, vsi->state))
@@ -3727,14 +4031,13 @@ int i40e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 		int err;
 
 		err = i40e_xmit_xdp_ring(xdpf, xdp_ring);
-		if (err != I40E_XDP_TX) {
-			xdp_return_frame_rx_napi(xdpf);
-			drops++;
-		}
+		if (err != I40E_XDP_TX)
+			break;
+		nxmit++;
 	}
 
 	if (unlikely(flags & XDP_XMIT_FLUSH))
 		i40e_xdp_ring_update_tail(xdp_ring);
 
-	return n - drops;
+	return nxmit;
 }

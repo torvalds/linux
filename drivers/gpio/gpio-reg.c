@@ -4,11 +4,19 @@
  *
  * Copyright (C) 2016 Russell King
  */
-#include <linux/gpio/driver.h>
-#include <linux/gpio/gpio-reg.h>
+#include <linux/bits.h>
+#include <linux/container_of.h>
+#include <linux/device.h>
+#include <linux/err.h>
+#include <linux/errno.h>
 #include <linux/io.h>
+#include <linux/irqdomain.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/types.h>
+
+#include <linux/gpio/driver.h>
+#include <linux/gpio/gpio-reg.h>
 
 struct gpio_reg {
 	struct gpio_chip gc;
@@ -26,7 +34,8 @@ static int gpio_reg_get_direction(struct gpio_chip *gc, unsigned offset)
 {
 	struct gpio_reg *r = to_gpio_reg(gc);
 
-	return r->direction & BIT(offset) ? 1 : 0;
+	return r->direction & BIT(offset) ? GPIO_LINE_DIRECTION_IN :
+					    GPIO_LINE_DIRECTION_OUT;
 }
 
 static int gpio_reg_direction_output(struct gpio_chip *gc, unsigned offset,

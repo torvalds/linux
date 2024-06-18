@@ -7,7 +7,6 @@
 #include <crypto/aead.h>
 #include <crypto/authenc.h>
 #include <crypto/des.h>
-#include <crypto/sha.h>
 #include <crypto/internal/aead.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/gcm.h>
@@ -40,16 +39,14 @@ static int nitrox_aes_gcm_setkey(struct crypto_aead *aead, const u8 *key,
 	union fc_ctx_flags flags;
 
 	aes_keylen = flexi_aes_keylen(keylen);
-	if (aes_keylen < 0) {
-		crypto_aead_set_flags(aead, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (aes_keylen < 0)
 		return -EINVAL;
-	}
 
 	/* fill crypto context */
 	fctx = nctx->u.fctx;
-	flags.f = be64_to_cpu(fctx->flags.f);
+	flags.fu = be64_to_cpu(fctx->flags.f);
 	flags.w0.aes_keylen = aes_keylen;
-	fctx->flags.f = cpu_to_be64(flags.f);
+	fctx->flags.f = cpu_to_be64(flags.fu);
 
 	/* copy enc key to context */
 	memset(&fctx->crypto, 0, sizeof(fctx->crypto));
@@ -65,13 +62,32 @@ static int nitrox_aead_setauthsize(struct crypto_aead *aead,
 	struct flexi_crypto_context *fctx = nctx->u.fctx;
 	union fc_ctx_flags flags;
 
-	flags.f = be64_to_cpu(fctx->flags.f);
+	flags.fu = be64_to_cpu(fctx->flags.f);
 	flags.w0.mac_len = authsize;
-	fctx->flags.f = cpu_to_be64(flags.f);
+	fctx->flags.f = cpu_to_be64(flags.fu);
 
 	aead->authsize = authsize;
 
 	return 0;
+}
+
+static int nitrox_aes_gcm_setauthsize(struct crypto_aead *aead,
+				      unsigned int authsize)
+{
+	switch (authsize) {
+	case 4:
+	case 8:
+	case 12:
+	case 13:
+	case 14:
+	case 15:
+	case 16:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return nitrox_aead_setauthsize(aead, authsize);
 }
 
 static int alloc_src_sglist(struct nitrox_kcrypt_request *nkreq,
@@ -183,7 +199,15 @@ static void nitrox_aead_callback(void *arg, int err)
 		err = -EINVAL;
 	}
 
-	areq->base.complete(&areq->base, err);
+	aead_request_complete(areq, err);
+}
+
+static inline bool nitrox_aes_gcm_assoclen_supported(unsigned int assoclen)
+{
+	if (assoclen <= 512)
+		return true;
+
+	return false;
 }
 
 static int nitrox_aes_gcm_enc(struct aead_request *areq)
@@ -194,6 +218,9 @@ static int nitrox_aes_gcm_enc(struct aead_request *areq)
 	struct se_crypto_request *creq = &rctx->nkreq.creq;
 	struct flexi_crypto_context *fctx = nctx->u.fctx;
 	int ret;
+
+	if (!nitrox_aes_gcm_assoclen_supported(areq->assoclen))
+		return -EINVAL;
 
 	memcpy(fctx->crypto.iv, areq->iv, GCM_AES_SALT_SIZE);
 
@@ -225,6 +252,9 @@ static int nitrox_aes_gcm_dec(struct aead_request *areq)
 	struct se_crypto_request *creq = &rctx->nkreq.creq;
 	struct flexi_crypto_context *fctx = nctx->u.fctx;
 	int ret;
+
+	if (!nitrox_aes_gcm_assoclen_supported(areq->assoclen))
+		return -EINVAL;
 
 	memcpy(fctx->crypto.iv, areq->iv, GCM_AES_SALT_SIZE);
 
@@ -288,7 +318,7 @@ static int nitrox_gcm_common_init(struct crypto_aead *aead)
 	flags->w0.iv_source = IV_FROM_DPTR;
 	/* ask microcode to calculate ipad/opad */
 	flags->w0.auth_input_type = 1;
-	flags->f = be64_to_cpu(flags->f);
+	flags->f = cpu_to_be64(flags->fu);
 
 	return 0;
 }
@@ -362,7 +392,7 @@ static int nitrox_rfc4106_setauthsize(struct crypto_aead *aead,
 
 static int nitrox_rfc4106_set_aead_rctx_sglist(struct aead_request *areq)
 {
-	struct nitrox_rfc4106_rctx *rctx = aead_request_ctx(areq);
+	struct nitrox_rfc4106_rctx *rctx = aead_request_ctx_dma(areq);
 	struct nitrox_aead_rctx *aead_rctx = &rctx->base;
 	unsigned int assoclen = areq->assoclen - GCM_RFC4106_IV_SIZE;
 	struct scatterlist *sg;
@@ -394,7 +424,7 @@ static int nitrox_rfc4106_set_aead_rctx_sglist(struct aead_request *areq)
 static void nitrox_rfc4106_callback(void *arg, int err)
 {
 	struct aead_request *areq = arg;
-	struct nitrox_rfc4106_rctx *rctx = aead_request_ctx(areq);
+	struct nitrox_rfc4106_rctx *rctx = aead_request_ctx_dma(areq);
 	struct nitrox_kcrypt_request *nkreq = &rctx->base.nkreq;
 
 	free_src_sglist(nkreq);
@@ -404,14 +434,14 @@ static void nitrox_rfc4106_callback(void *arg, int err)
 		err = -EINVAL;
 	}
 
-	areq->base.complete(&areq->base, err);
+	aead_request_complete(areq, err);
 }
 
 static int nitrox_rfc4106_enc(struct aead_request *areq)
 {
 	struct crypto_aead *aead = crypto_aead_reqtfm(areq);
 	struct nitrox_crypto_ctx *nctx = crypto_aead_ctx(aead);
-	struct nitrox_rfc4106_rctx *rctx = aead_request_ctx(areq);
+	struct nitrox_rfc4106_rctx *rctx = aead_request_ctx_dma(areq);
 	struct nitrox_aead_rctx *aead_rctx = &rctx->base;
 	struct se_crypto_request *creq = &aead_rctx->nkreq.creq;
 	int ret;
@@ -442,7 +472,7 @@ static int nitrox_rfc4106_enc(struct aead_request *areq)
 static int nitrox_rfc4106_dec(struct aead_request *areq)
 {
 	struct crypto_aead *aead = crypto_aead_reqtfm(areq);
-	struct nitrox_crypto_ctx *nctx = crypto_aead_ctx(aead);
+	struct nitrox_crypto_ctx *nctx = crypto_aead_ctx_dma(aead);
 	struct nitrox_rfc4106_rctx *rctx = aead_request_ctx(areq);
 	struct nitrox_aead_rctx *aead_rctx = &rctx->base;
 	struct se_crypto_request *creq = &aead_rctx->nkreq.creq;
@@ -480,8 +510,8 @@ static int nitrox_rfc4106_init(struct crypto_aead *aead)
 	if (ret)
 		return ret;
 
-	crypto_aead_set_reqsize(aead, sizeof(struct aead_request) +
-				sizeof(struct nitrox_rfc4106_rctx));
+	crypto_aead_set_reqsize_dma(aead, sizeof(struct aead_request) +
+					  sizeof(struct nitrox_rfc4106_rctx));
 
 	return 0;
 }
@@ -491,14 +521,14 @@ static struct aead_alg nitrox_aeads[] = { {
 		.cra_name = "gcm(aes)",
 		.cra_driver_name = "n5_aes_gcm",
 		.cra_priority = PRIO,
-		.cra_flags = CRYPTO_ALG_ASYNC,
-		.cra_blocksize = AES_BLOCK_SIZE,
+		.cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_ALLOCATES_MEMORY,
+		.cra_blocksize = 1,
 		.cra_ctxsize = sizeof(struct nitrox_crypto_ctx),
 		.cra_alignmask = 0,
 		.cra_module = THIS_MODULE,
 	},
 	.setkey = nitrox_aes_gcm_setkey,
-	.setauthsize = nitrox_aead_setauthsize,
+	.setauthsize = nitrox_aes_gcm_setauthsize,
 	.encrypt = nitrox_aes_gcm_enc,
 	.decrypt = nitrox_aes_gcm_dec,
 	.init = nitrox_aes_gcm_init,
@@ -510,8 +540,8 @@ static struct aead_alg nitrox_aeads[] = { {
 		.cra_name = "rfc4106(gcm(aes))",
 		.cra_driver_name = "n5_rfc4106",
 		.cra_priority = PRIO,
-		.cra_flags = CRYPTO_ALG_ASYNC,
-		.cra_blocksize = AES_BLOCK_SIZE,
+		.cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_ALLOCATES_MEMORY,
+		.cra_blocksize = 1,
 		.cra_ctxsize = sizeof(struct nitrox_crypto_ctx),
 		.cra_alignmask = 0,
 		.cra_module = THIS_MODULE,

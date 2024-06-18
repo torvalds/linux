@@ -14,8 +14,7 @@
 #include <linux/module.h>
 #include <linux/libata.h>
 #include <linux/bitops.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/clk.h>
 #include "sata_gemini.h"
 
@@ -84,7 +83,7 @@ struct ftide010 {
 #define FTIDE010_CLK_MOD_DEV0_UDMA_EN	BIT(4)
 #define FTIDE010_CLK_MOD_DEV1_UDMA_EN	BIT(5)
 
-static struct scsi_host_template pata_ftide010_sht = {
+static const struct scsi_host_template pata_ftide010_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 
@@ -470,11 +469,7 @@ static int pata_ftide010_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-
-	ftide->base = devm_ioremap_resource(dev, res);
+	ftide->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(ftide->base))
 		return PTR_ERR(ftide->base);
 
@@ -536,40 +531,36 @@ static int pata_ftide010_probe(struct platform_device *pdev)
 	return 0;
 
 err_dis_clk:
-	if (!IS_ERR(ftide->pclk))
-		clk_disable_unprepare(ftide->pclk);
+	clk_disable_unprepare(ftide->pclk);
+
 	return ret;
 }
 
-static int pata_ftide010_remove(struct platform_device *pdev)
+static void pata_ftide010_remove(struct platform_device *pdev)
 {
 	struct ata_host *host = platform_get_drvdata(pdev);
 	struct ftide010 *ftide = host->private_data;
 
 	ata_host_detach(ftide->host);
-	if (!IS_ERR(ftide->pclk))
-		clk_disable_unprepare(ftide->pclk);
-
-	return 0;
+	clk_disable_unprepare(ftide->pclk);
 }
 
 static const struct of_device_id pata_ftide010_of_match[] = {
-	{
-		.compatible = "faraday,ftide010",
-	},
-	{},
+	{ .compatible = "faraday,ftide010", },
+	{ /* sentinel */ }
 };
 
 static struct platform_driver pata_ftide010_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.of_match_table = of_match_ptr(pata_ftide010_of_match),
+		.of_match_table = pata_ftide010_of_match,
 	},
 	.probe = pata_ftide010_probe,
-	.remove = pata_ftide010_remove,
+	.remove_new = pata_ftide010_remove,
 };
 module_platform_driver(pata_ftide010_driver);
 
+MODULE_DESCRIPTION("low level driver for Faraday Technology FTIDE010");
 MODULE_AUTHOR("Linus Walleij <linus.walleij@linaro.org>");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRV_NAME);

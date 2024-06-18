@@ -7,10 +7,10 @@
 
 #ifndef __ASSEMBLY__
 
+#include <asm/alternative.h>
+#include <asm/barrier.h>
 #include <asm/unistd.h>
-#include <uapi/linux/time.h>
-
-#define __VDSO_USE_SYSCALL		ULLONG_MAX
+#include <asm/sysreg.h>
 
 #define VDSO_HAS_CLOCK_GETRES		1
 
@@ -66,28 +66,35 @@ int clock_getres_fallback(clockid_t _clkid, struct __kernel_timespec *_ts)
 	return ret;
 }
 
-static __always_inline u64 __arch_get_hw_counter(s32 clock_mode)
+static __always_inline u64 __arch_get_hw_counter(s32 clock_mode,
+						 const struct vdso_data *vd)
 {
 	u64 res;
 
 	/*
-	 * clock_mode == 0 implies that vDSO are enabled otherwise
-	 * fallback on syscall.
+	 * Core checks for mode already, so this raced against a concurrent
+	 * update. Return something. Core will do another round and then
+	 * see the mode change and fallback to the syscall.
 	 */
-	if (clock_mode)
-		return __VDSO_USE_SYSCALL;
+	if (clock_mode == VDSO_CLOCKMODE_NONE)
+		return 0;
 
 	/*
-	 * This isb() is required to prevent that the counter value
+	 * If FEAT_ECV is available, use the self-synchronizing counter.
+	 * Otherwise the isb is required to prevent that the counter value
 	 * is speculated.
-	 */
-	isb();
-	asm volatile("mrs %0, cntvct_el0" : "=r" (res) :: "memory");
-	/*
-	 * This isb() is required to prevent that the seq lock is
-	 * speculated.#
-	 */
-	isb();
+	*/
+	asm volatile(
+	ALTERNATIVE("isb\n"
+		    "mrs %0, cntvct_el0",
+		    "nop\n"
+		    __mrs_s("%0", SYS_CNTVCTSS_EL0),
+		    ARM64_HAS_ECV)
+	: "=r" (res)
+	:
+	: "memory");
+
+	arch_counter_enforce_ordering(res);
 
 	return res;
 }
@@ -97,6 +104,14 @@ const struct vdso_data *__arch_get_vdso_data(void)
 {
 	return _vdso_data;
 }
+
+#ifdef CONFIG_TIME_NS
+static __always_inline
+const struct vdso_data *__arch_get_timens_vdso_data(const struct vdso_data *vd)
+{
+	return _timens_data;
+}
+#endif
 
 #endif /* !__ASSEMBLY__ */
 

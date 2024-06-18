@@ -1,14 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
 * Copyright (C) 2015 Broadcom Corporation
 *
-* This program is free software; you can redistribute it and/or
-* modify it under the terms of the GNU General Public License as
-* published by the Free Software Foundation version 2.
-*
-* This program is distributed "as is" WITHOUT ANY WARRANTY of any
-* kind, whether express or implied; without even the implied warranty
-* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU General Public License for more details.
 */
 #include <linux/module.h>
 #include <linux/init.h>
@@ -518,7 +511,7 @@ static struct platform_driver iproc_ts_driver = {
 	.probe = iproc_ts_probe,
 	.driver = {
 		.name	= IPROC_TS_NAME,
-		.of_match_table = of_match_ptr(iproc_ts_of_match),
+		.of_match_table = iproc_ts_of_match,
 	},
 };
 

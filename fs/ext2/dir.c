@@ -66,12 +66,6 @@ static inline unsigned ext2_chunk_size(struct inode *inode)
 	return inode->i_sb->s_blocksize;
 }
 
-static inline void ext2_put_page(struct page *page)
-{
-	kunmap(page);
-	put_page(page);
-}
-
 /*
  * Return the offset into page `page_nr' of the last valid
  * byte in that page, plus one.
@@ -87,45 +81,34 @@ ext2_last_byte(struct inode *inode, unsigned long page_nr)
 	return last_byte;
 }
 
-static int ext2_commit_chunk(struct page *page, loff_t pos, unsigned len)
+static void ext2_commit_chunk(struct folio *folio, loff_t pos, unsigned len)
 {
-	struct address_space *mapping = page->mapping;
+	struct address_space *mapping = folio->mapping;
 	struct inode *dir = mapping->host;
-	int err = 0;
 
 	inode_inc_iversion(dir);
-	block_write_end(NULL, mapping, pos, len, len, page, NULL);
+	block_write_end(NULL, mapping, pos, len, len, &folio->page, NULL);
 
 	if (pos+len > dir->i_size) {
 		i_size_write(dir, pos+len);
 		mark_inode_dirty(dir);
 	}
-
-	if (IS_DIRSYNC(dir)) {
-		err = write_one_page(page);
-		if (!err)
-			err = sync_inode_metadata(dir, 1);
-	} else {
-		unlock_page(page);
-	}
-
-	return err;
+	folio_unlock(folio);
 }
 
-static bool ext2_check_page(struct page *page, int quiet)
+static bool ext2_check_folio(struct folio *folio, int quiet, char *kaddr)
 {
-	struct inode *dir = page->mapping->host;
+	struct inode *dir = folio->mapping->host;
 	struct super_block *sb = dir->i_sb;
 	unsigned chunk_size = ext2_chunk_size(dir);
-	char *kaddr = page_address(page);
 	u32 max_inumber = le32_to_cpu(EXT2_SB(sb)->s_es->s_inodes_count);
 	unsigned offs, rec_len;
-	unsigned limit = PAGE_SIZE;
+	unsigned limit = folio_size(folio);
 	ext2_dirent *p;
 	char *error;
 
-	if ((dir->i_size >> PAGE_SHIFT) == page->index) {
-		limit = dir->i_size & ~PAGE_MASK;
+	if (dir->i_size < folio_pos(folio) + limit) {
+		limit = offset_in_folio(folio, dir->i_size);
 		if (limit & (chunk_size - 1))
 			goto Ebadsize;
 		if (!limit)
@@ -149,7 +132,7 @@ static bool ext2_check_page(struct page *page, int quiet)
 	if (offs != limit)
 		goto Eend;
 out:
-	SetPageChecked(page);
+	folio_set_checked(folio);
 	return true;
 
 	/* Too bad, we had an error */
@@ -177,41 +160,51 @@ Einumber:
 bad_entry:
 	if (!quiet)
 		ext2_error(sb, __func__, "bad entry in directory #%lu: : %s - "
-			"offset=%lu, inode=%lu, rec_len=%d, name_len=%d",
-			dir->i_ino, error, (page->index<<PAGE_SHIFT)+offs,
+			"offset=%llu, inode=%lu, rec_len=%d, name_len=%d",
+			dir->i_ino, error, folio_pos(folio) + offs,
 			(unsigned long) le32_to_cpu(p->inode),
 			rec_len, p->name_len);
 	goto fail;
 Eend:
 	if (!quiet) {
 		p = (ext2_dirent *)(kaddr + offs);
-		ext2_error(sb, "ext2_check_page",
+		ext2_error(sb, "ext2_check_folio",
 			"entry in directory #%lu spans the page boundary"
-			"offset=%lu, inode=%lu",
-			dir->i_ino, (page->index<<PAGE_SHIFT)+offs,
+			"offset=%llu, inode=%lu",
+			dir->i_ino, folio_pos(folio) + offs,
 			(unsigned long) le32_to_cpu(p->inode));
 	}
 fail:
-	SetPageError(page);
 	return false;
 }
 
-static struct page * ext2_get_page(struct inode *dir, unsigned long n,
-				   int quiet)
+/*
+ * Calls to ext2_get_folio()/folio_release_kmap() must be nested according
+ * to the rules documented in kmap_local_folio()/kunmap_local().
+ *
+ * NOTE: ext2_find_entry() and ext2_dotdot() act as a call
+ * to folio_release_kmap() and should be treated as a call to
+ * folio_release_kmap() for nesting purposes.
+ */
+static void *ext2_get_folio(struct inode *dir, unsigned long n,
+				   int quiet, struct folio **foliop)
 {
 	struct address_space *mapping = dir->i_mapping;
-	struct page *page = read_mapping_page(mapping, n, NULL);
-	if (!IS_ERR(page)) {
-		kmap(page);
-		if (unlikely(!PageChecked(page))) {
-			if (PageError(page) || !ext2_check_page(page, quiet))
-				goto fail;
-		}
+	struct folio *folio = read_mapping_folio(mapping, n, NULL);
+	void *kaddr;
+
+	if (IS_ERR(folio))
+		return ERR_CAST(folio);
+	kaddr = kmap_local_folio(folio, 0);
+	if (unlikely(!folio_test_checked(folio))) {
+		if (!ext2_check_folio(folio, quiet, kaddr))
+			goto fail;
 	}
-	return page;
+	*foliop = folio;
+	return kaddr;
 
 fail:
-	ext2_put_page(page);
+	folio_release_kmap(folio, kaddr);
 	return ERR_PTR(-EIO);
 }
 
@@ -249,7 +242,7 @@ ext2_validate_entry(char *base, unsigned offset, unsigned mask)
 			break;
 		p = ext2_next_entry(p);
 	}
-	return (char *)p - base;
+	return offset_in_page(p);
 }
 
 static inline void ext2_set_de_type(ext2_dirent *de, struct inode *inode)
@@ -280,18 +273,18 @@ ext2_readdir(struct file *file, struct dir_context *ctx)
 		EXT2_HAS_INCOMPAT_FEATURE(sb, EXT2_FEATURE_INCOMPAT_FILETYPE);
 
 	for ( ; n < npages; n++, offset = 0) {
-		char *kaddr, *limit;
 		ext2_dirent *de;
-		struct page *page = ext2_get_page(inode, n, 0);
+		struct folio *folio;
+		char *kaddr = ext2_get_folio(inode, n, 0, &folio);
+		char *limit;
 
-		if (IS_ERR(page)) {
+		if (IS_ERR(kaddr)) {
 			ext2_error(sb, __func__,
 				   "bad page in #%lu",
 				   inode->i_ino);
 			ctx->pos += PAGE_SIZE - offset;
-			return PTR_ERR(page);
+			return PTR_ERR(kaddr);
 		}
-		kaddr = page_address(page);
 		if (unlikely(need_revalidate)) {
 			if (offset) {
 				offset = ext2_validate_entry(kaddr, offset, chunk_mask);
@@ -306,7 +299,7 @@ ext2_readdir(struct file *file, struct dir_context *ctx)
 			if (de->rec_len == 0) {
 				ext2_error(sb, __func__,
 					"zero-length directory entry");
-				ext2_put_page(page);
+				folio_release_kmap(folio, de);
 				return -EIO;
 			}
 			if (de->inode) {
@@ -318,13 +311,13 @@ ext2_readdir(struct file *file, struct dir_context *ctx)
 				if (!dir_emit(ctx, de->name, de->name_len,
 						le32_to_cpu(de->inode),
 						d_type)) {
-					ext2_put_page(page);
+					folio_release_kmap(folio, de);
 					return 0;
 				}
 			}
 			ctx->pos += ext2_rec_len_from_disk(de->rec_len);
 		}
-		ext2_put_page(page);
+		folio_release_kmap(folio, kaddr);
 	}
 	return 0;
 }
@@ -336,55 +329,57 @@ ext2_readdir(struct file *file, struct dir_context *ctx)
  * returns the page in which the entry was found (as a parameter - res_page),
  * and the entry itself. Page is returned mapped and unlocked.
  * Entry is guaranteed to be valid.
+ *
+ * On Success folio_release_kmap() should be called on *foliop.
+ *
+ * NOTE: Calls to ext2_get_folio()/folio_release_kmap() must be nested
+ * according to the rules documented in kmap_local_folio()/kunmap_local().
+ *
+ * ext2_find_entry() and ext2_dotdot() act as a call to ext2_get_folio()
+ * and should be treated as a call to ext2_get_folio() for nesting
+ * purposes.
  */
 struct ext2_dir_entry_2 *ext2_find_entry (struct inode *dir,
-			const struct qstr *child, struct page **res_page)
+			const struct qstr *child, struct folio **foliop)
 {
 	const char *name = child->name;
 	int namelen = child->len;
 	unsigned reclen = EXT2_DIR_REC_LEN(namelen);
 	unsigned long start, n;
 	unsigned long npages = dir_pages(dir);
-	struct page *page = NULL;
 	struct ext2_inode_info *ei = EXT2_I(dir);
 	ext2_dirent * de;
-	int dir_has_error = 0;
 
 	if (npages == 0)
 		goto out;
-
-	/* OFFSET_CACHE */
-	*res_page = NULL;
 
 	start = ei->i_dir_start_lookup;
 	if (start >= npages)
 		start = 0;
 	n = start;
 	do {
-		char *kaddr;
-		page = ext2_get_page(dir, n, dir_has_error);
-		if (!IS_ERR(page)) {
-			kaddr = page_address(page);
-			de = (ext2_dirent *) kaddr;
-			kaddr += ext2_last_byte(dir, n) - reclen;
-			while ((char *) de <= kaddr) {
-				if (de->rec_len == 0) {
-					ext2_error(dir->i_sb, __func__,
-						"zero-length directory entry");
-					ext2_put_page(page);
-					goto out;
-				}
-				if (ext2_match (namelen, name, de))
-					goto found;
-				de = ext2_next_entry(de);
+		char *kaddr = ext2_get_folio(dir, n, 0, foliop);
+		if (IS_ERR(kaddr))
+			return ERR_CAST(kaddr);
+
+		de = (ext2_dirent *) kaddr;
+		kaddr += ext2_last_byte(dir, n) - reclen;
+		while ((char *) de <= kaddr) {
+			if (de->rec_len == 0) {
+				ext2_error(dir->i_sb, __func__,
+					"zero-length directory entry");
+				folio_release_kmap(*foliop, de);
+				goto out;
 			}
-			ext2_put_page(page);
-		} else
-			dir_has_error = 1;
+			if (ext2_match(namelen, name, de))
+				goto found;
+			de = ext2_next_entry(de);
+		}
+		folio_release_kmap(*foliop, kaddr);
 
 		if (++n >= npages)
 			n = 0;
-		/* next page is past the blocks we've got */
+		/* next folio is past the blocks we've got */
 		if (unlikely(n > (dir->i_blocks >> (PAGE_SHIFT - 9)))) {
 			ext2_error(dir->i_sb, __func__,
 				"dir %lu size %lld exceeds block count %llu",
@@ -394,65 +389,85 @@ struct ext2_dir_entry_2 *ext2_find_entry (struct inode *dir,
 		}
 	} while (n != start);
 out:
-	return NULL;
+	return ERR_PTR(-ENOENT);
 
 found:
-	*res_page = page;
 	ei->i_dir_start_lookup = n;
 	return de;
 }
 
-struct ext2_dir_entry_2 * ext2_dotdot (struct inode *dir, struct page **p)
+/*
+ * Return the '..' directory entry and the page in which the entry was found
+ * (as a parameter - p).
+ *
+ * On Success folio_release_kmap() should be called on *foliop.
+ *
+ * NOTE: Calls to ext2_get_folio()/folio_release_kmap() must be nested
+ * according to the rules documented in kmap_local_folio()/kunmap_local().
+ *
+ * ext2_find_entry() and ext2_dotdot() act as a call to ext2_get_folio()
+ * and should be treated as a call to ext2_get_folio() for nesting
+ * purposes.
+ */
+struct ext2_dir_entry_2 *ext2_dotdot(struct inode *dir, struct folio **foliop)
 {
-	struct page *page = ext2_get_page(dir, 0, 0);
-	ext2_dirent *de = NULL;
+	ext2_dirent *de = ext2_get_folio(dir, 0, 0, foliop);
 
-	if (!IS_ERR(page)) {
-		de = ext2_next_entry((ext2_dirent *) page_address(page));
-		*p = page;
-	}
-	return de;
+	if (!IS_ERR(de))
+		return ext2_next_entry(de);
+	return NULL;
 }
 
-ino_t ext2_inode_by_name(struct inode *dir, const struct qstr *child)
+int ext2_inode_by_name(struct inode *dir, const struct qstr *child, ino_t *ino)
 {
-	ino_t res = 0;
 	struct ext2_dir_entry_2 *de;
-	struct page *page;
-	
-	de = ext2_find_entry (dir, child, &page);
-	if (de) {
-		res = le32_to_cpu(de->inode);
-		ext2_put_page(page);
-	}
-	return res;
+	struct folio *folio;
+
+	de = ext2_find_entry(dir, child, &folio);
+	if (IS_ERR(de))
+		return PTR_ERR(de);
+
+	*ino = le32_to_cpu(de->inode);
+	folio_release_kmap(folio, de);
+	return 0;
 }
 
-static int ext2_prepare_chunk(struct page *page, loff_t pos, unsigned len)
+static int ext2_prepare_chunk(struct folio *folio, loff_t pos, unsigned len)
 {
-	return __block_write_begin(page, pos, len, ext2_get_block);
+	return __block_write_begin(&folio->page, pos, len, ext2_get_block);
 }
 
-/* Releases the page */
-void ext2_set_link(struct inode *dir, struct ext2_dir_entry_2 *de,
-		   struct page *page, struct inode *inode, int update_times)
+static int ext2_handle_dirsync(struct inode *dir)
 {
-	loff_t pos = page_offset(page) +
-			(char *) de - (char *) page_address(page);
+	int err;
+
+	err = filemap_write_and_wait(dir->i_mapping);
+	if (!err)
+		err = sync_inode_metadata(dir, 1);
+	return err;
+}
+
+int ext2_set_link(struct inode *dir, struct ext2_dir_entry_2 *de,
+		struct folio *folio, struct inode *inode, bool update_times)
+{
+	loff_t pos = folio_pos(folio) + offset_in_folio(folio, de);
 	unsigned len = ext2_rec_len_from_disk(de->rec_len);
 	int err;
 
-	lock_page(page);
-	err = ext2_prepare_chunk(page, pos, len);
-	BUG_ON(err);
+	folio_lock(folio);
+	err = ext2_prepare_chunk(folio, pos, len);
+	if (err) {
+		folio_unlock(folio);
+		return err;
+	}
 	de->inode = cpu_to_le32(inode->i_ino);
 	ext2_set_de_type(de, inode);
-	err = ext2_commit_chunk(page, pos, len);
-	ext2_put_page(page);
+	ext2_commit_chunk(folio, pos, len);
 	if (update_times)
-		dir->i_mtime = dir->i_ctime = current_time(dir);
+		inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 	EXT2_I(dir)->i_flags &= ~EXT2_BTREE_FL;
 	mark_inode_dirty(dir);
+	return ext2_handle_dirsync(dir);
 }
 
 /*
@@ -466,31 +481,28 @@ int ext2_add_link (struct dentry *dentry, struct inode *inode)
 	unsigned chunk_size = ext2_chunk_size(dir);
 	unsigned reclen = EXT2_DIR_REC_LEN(namelen);
 	unsigned short rec_len, name_len;
-	struct page *page = NULL;
+	struct folio *folio = NULL;
 	ext2_dirent * de;
 	unsigned long npages = dir_pages(dir);
 	unsigned long n;
-	char *kaddr;
 	loff_t pos;
 	int err;
 
 	/*
 	 * We take care of directory expansion in the same loop.
-	 * This code plays outside i_size, so it locks the page
+	 * This code plays outside i_size, so it locks the folio
 	 * to protect that region.
 	 */
 	for (n = 0; n <= npages; n++) {
+		char *kaddr = ext2_get_folio(dir, n, 0, &folio);
 		char *dir_end;
 
-		page = ext2_get_page(dir, n, 0);
-		err = PTR_ERR(page);
-		if (IS_ERR(page))
-			goto out;
-		lock_page(page);
-		kaddr = page_address(page);
+		if (IS_ERR(kaddr))
+			return PTR_ERR(kaddr);
+		folio_lock(folio);
 		dir_end = kaddr + ext2_last_byte(dir, n);
 		de = (ext2_dirent *)kaddr;
-		kaddr += PAGE_SIZE - reclen;
+		kaddr += folio_size(folio) - reclen;
 		while ((char *)de <= kaddr) {
 			if ((char *)de == dir_end) {
 				/* We hit i_size */
@@ -517,16 +529,15 @@ int ext2_add_link (struct dentry *dentry, struct inode *inode)
 				goto got_it;
 			de = (ext2_dirent *) ((char *) de + rec_len);
 		}
-		unlock_page(page);
-		ext2_put_page(page);
+		folio_unlock(folio);
+		folio_release_kmap(folio, kaddr);
 	}
 	BUG();
 	return -EINVAL;
 
 got_it:
-	pos = page_offset(page) +
-		(char*)de - (char*)page_address(page);
-	err = ext2_prepare_chunk(page, pos, rec_len);
+	pos = folio_pos(folio) + offset_in_folio(folio, de);
+	err = ext2_prepare_chunk(folio, pos, rec_len);
 	if (err)
 		goto out_unlock;
 	if (de->inode) {
@@ -539,62 +550,65 @@ got_it:
 	memcpy(de->name, name, namelen);
 	de->inode = cpu_to_le32(inode->i_ino);
 	ext2_set_de_type (de, inode);
-	err = ext2_commit_chunk(page, pos, rec_len);
-	dir->i_mtime = dir->i_ctime = current_time(dir);
+	ext2_commit_chunk(folio, pos, rec_len);
+	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 	EXT2_I(dir)->i_flags &= ~EXT2_BTREE_FL;
 	mark_inode_dirty(dir);
+	err = ext2_handle_dirsync(dir);
 	/* OFFSET_CACHE */
 out_put:
-	ext2_put_page(page);
-out:
+	folio_release_kmap(folio, de);
 	return err;
 out_unlock:
-	unlock_page(page);
+	folio_unlock(folio);
 	goto out_put;
 }
 
 /*
  * ext2_delete_entry deletes a directory entry by merging it with the
- * previous entry. Page is up-to-date. Releases the page.
+ * previous entry. Page is up-to-date.
  */
-int ext2_delete_entry (struct ext2_dir_entry_2 * dir, struct page * page )
+int ext2_delete_entry(struct ext2_dir_entry_2 *dir, struct folio *folio)
 {
-	struct inode *inode = page->mapping->host;
-	char *kaddr = page_address(page);
-	unsigned from = ((char*)dir - kaddr) & ~(ext2_chunk_size(inode)-1);
-	unsigned to = ((char *)dir - kaddr) +
-				ext2_rec_len_from_disk(dir->rec_len);
+	struct inode *inode = folio->mapping->host;
+	size_t from, to;
+	char *kaddr;
 	loff_t pos;
-	ext2_dirent * pde = NULL;
-	ext2_dirent * de = (ext2_dirent *) (kaddr + from);
+	ext2_dirent *de, *pde = NULL;
 	int err;
+
+	from = offset_in_folio(folio, dir);
+	to = from + ext2_rec_len_from_disk(dir->rec_len);
+	kaddr = (char *)dir - from;
+	from &= ~(ext2_chunk_size(inode)-1);
+	de = (ext2_dirent *)(kaddr + from);
 
 	while ((char*)de < (char*)dir) {
 		if (de->rec_len == 0) {
 			ext2_error(inode->i_sb, __func__,
 				"zero-length directory entry");
-			err = -EIO;
-			goto out;
+			return -EIO;
 		}
 		pde = de;
 		de = ext2_next_entry(de);
 	}
 	if (pde)
-		from = (char*)pde - (char*)page_address(page);
-	pos = page_offset(page) + from;
-	lock_page(page);
-	err = ext2_prepare_chunk(page, pos, to - from);
-	BUG_ON(err);
+		from = offset_in_folio(folio, pde);
+	pos = folio_pos(folio) + from;
+	folio_lock(folio);
+	err = ext2_prepare_chunk(folio, pos, to - from);
+	if (err) {
+		folio_unlock(folio);
+		return err;
+	}
 	if (pde)
 		pde->rec_len = ext2_rec_len_to_disk(to - from);
 	dir->inode = 0;
-	err = ext2_commit_chunk(page, pos, to - from);
-	inode->i_ctime = inode->i_mtime = current_time(inode);
+	ext2_commit_chunk(folio, pos, to - from);
+	inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
 	EXT2_I(inode)->i_flags &= ~EXT2_BTREE_FL;
 	mark_inode_dirty(inode);
-out:
-	ext2_put_page(page);
-	return err;
+	return ext2_handle_dirsync(inode);
 }
 
 /*
@@ -602,21 +616,21 @@ out:
  */
 int ext2_make_empty(struct inode *inode, struct inode *parent)
 {
-	struct page *page = grab_cache_page(inode->i_mapping, 0);
+	struct folio *folio = filemap_grab_folio(inode->i_mapping, 0);
 	unsigned chunk_size = ext2_chunk_size(inode);
 	struct ext2_dir_entry_2 * de;
 	int err;
 	void *kaddr;
 
-	if (!page)
-		return -ENOMEM;
+	if (IS_ERR(folio))
+		return PTR_ERR(folio);
 
-	err = ext2_prepare_chunk(page, 0, chunk_size);
+	err = ext2_prepare_chunk(folio, 0, chunk_size);
 	if (err) {
-		unlock_page(page);
+		folio_unlock(folio);
 		goto fail;
 	}
-	kaddr = kmap_atomic(page);
+	kaddr = kmap_local_folio(folio, 0);
 	memset(kaddr, 0, chunk_size);
 	de = (struct ext2_dir_entry_2 *)kaddr;
 	de->name_len = 1;
@@ -631,33 +645,30 @@ int ext2_make_empty(struct inode *inode, struct inode *parent)
 	de->inode = cpu_to_le32(parent->i_ino);
 	memcpy (de->name, "..\0", 4);
 	ext2_set_de_type (de, inode);
-	kunmap_atomic(kaddr);
-	err = ext2_commit_chunk(page, 0, chunk_size);
+	kunmap_local(kaddr);
+	ext2_commit_chunk(folio, 0, chunk_size);
+	err = ext2_handle_dirsync(inode);
 fail:
-	put_page(page);
+	folio_put(folio);
 	return err;
 }
 
 /*
  * routine to check that the specified directory is empty (for rmdir)
  */
-int ext2_empty_dir (struct inode * inode)
+int ext2_empty_dir(struct inode *inode)
 {
-	struct page *page = NULL;
+	struct folio *folio;
+	char *kaddr;
 	unsigned long i, npages = dir_pages(inode);
-	int dir_has_error = 0;
 
 	for (i = 0; i < npages; i++) {
-		char *kaddr;
-		ext2_dirent * de;
-		page = ext2_get_page(inode, i, dir_has_error);
+		ext2_dirent *de;
 
-		if (IS_ERR(page)) {
-			dir_has_error = 1;
-			continue;
-		}
+		kaddr = ext2_get_folio(inode, i, 0, &folio);
+		if (IS_ERR(kaddr))
+			return 0;
 
-		kaddr = page_address(page);
 		de = (ext2_dirent *)kaddr;
 		kaddr += ext2_last_byte(inode, i) - EXT2_DIR_REC_LEN(1);
 
@@ -683,12 +694,12 @@ int ext2_empty_dir (struct inode * inode)
 			}
 			de = ext2_next_entry(de);
 		}
-		ext2_put_page(page);
+		folio_release_kmap(folio, kaddr);
 	}
 	return 1;
 
 not_empty:
-	ext2_put_page(page);
+	folio_release_kmap(folio, kaddr);
 	return 0;
 }
 

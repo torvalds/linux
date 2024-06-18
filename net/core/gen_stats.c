@@ -6,7 +6,7 @@
  *           Jamal Hadi Salim
  *           Alexey Kuznetsov, <kuznet@ms2.inr.ac.ru>
  *
- * See Documentation/networking/gen_stats.txt
+ * See Documentation/networking/gen_stats.rst
  */
 
 #include <linux/types.h>
@@ -18,7 +18,7 @@
 #include <linux/gen_stats.h>
 #include <net/netlink.h>
 #include <net/gen_stats.h>
-
+#include <net/sch_generic.h>
 
 static inline int
 gnet_stats_copy(struct gnet_dump *d, int type, void *buf, int size, int padattr)
@@ -114,84 +114,141 @@ gnet_stats_start_copy(struct sk_buff *skb, int type, spinlock_t *lock,
 }
 EXPORT_SYMBOL(gnet_stats_start_copy);
 
-static void
-__gnet_stats_copy_basic_cpu(struct gnet_stats_basic_packed *bstats,
-			    struct gnet_stats_basic_cpu __percpu *cpu)
+/* Must not be inlined, due to u64_stats seqcount_t lockdep key */
+void gnet_stats_basic_sync_init(struct gnet_stats_basic_sync *b)
 {
+	u64_stats_set(&b->bytes, 0);
+	u64_stats_set(&b->packets, 0);
+	u64_stats_init(&b->syncp);
+}
+EXPORT_SYMBOL(gnet_stats_basic_sync_init);
+
+static void gnet_stats_add_basic_cpu(struct gnet_stats_basic_sync *bstats,
+				     struct gnet_stats_basic_sync __percpu *cpu)
+{
+	u64 t_bytes = 0, t_packets = 0;
 	int i;
 
 	for_each_possible_cpu(i) {
-		struct gnet_stats_basic_cpu *bcpu = per_cpu_ptr(cpu, i);
+		struct gnet_stats_basic_sync *bcpu = per_cpu_ptr(cpu, i);
 		unsigned int start;
-		u64 bytes;
-		u32 packets;
+		u64 bytes, packets;
 
 		do {
-			start = u64_stats_fetch_begin_irq(&bcpu->syncp);
-			bytes = bcpu->bstats.bytes;
-			packets = bcpu->bstats.packets;
-		} while (u64_stats_fetch_retry_irq(&bcpu->syncp, start));
+			start = u64_stats_fetch_begin(&bcpu->syncp);
+			bytes = u64_stats_read(&bcpu->bytes);
+			packets = u64_stats_read(&bcpu->packets);
+		} while (u64_stats_fetch_retry(&bcpu->syncp, start));
 
-		bstats->bytes += bytes;
-		bstats->packets += packets;
+		t_bytes += bytes;
+		t_packets += packets;
 	}
+	_bstats_update(bstats, t_bytes, t_packets);
 }
 
-void
-__gnet_stats_copy_basic(const seqcount_t *running,
-			struct gnet_stats_basic_packed *bstats,
-			struct gnet_stats_basic_cpu __percpu *cpu,
-			struct gnet_stats_basic_packed *b)
+void gnet_stats_add_basic(struct gnet_stats_basic_sync *bstats,
+			  struct gnet_stats_basic_sync __percpu *cpu,
+			  struct gnet_stats_basic_sync *b, bool running)
 {
-	unsigned int seq;
+	unsigned int start;
+	u64 bytes = 0;
+	u64 packets = 0;
+
+	WARN_ON_ONCE((cpu || running) && in_hardirq());
 
 	if (cpu) {
-		__gnet_stats_copy_basic_cpu(bstats, cpu);
+		gnet_stats_add_basic_cpu(bstats, cpu);
 		return;
 	}
 	do {
 		if (running)
-			seq = read_seqcount_begin(running);
-		bstats->bytes = b->bytes;
-		bstats->packets = b->packets;
-	} while (running && read_seqcount_retry(running, seq));
+			start = u64_stats_fetch_begin(&b->syncp);
+		bytes = u64_stats_read(&b->bytes);
+		packets = u64_stats_read(&b->packets);
+	} while (running && u64_stats_fetch_retry(&b->syncp, start));
+
+	_bstats_update(bstats, bytes, packets);
 }
-EXPORT_SYMBOL(__gnet_stats_copy_basic);
+EXPORT_SYMBOL(gnet_stats_add_basic);
+
+static void gnet_stats_read_basic(u64 *ret_bytes, u64 *ret_packets,
+				  struct gnet_stats_basic_sync __percpu *cpu,
+				  struct gnet_stats_basic_sync *b, bool running)
+{
+	unsigned int start;
+
+	if (cpu) {
+		u64 t_bytes = 0, t_packets = 0;
+		int i;
+
+		for_each_possible_cpu(i) {
+			struct gnet_stats_basic_sync *bcpu = per_cpu_ptr(cpu, i);
+			unsigned int start;
+			u64 bytes, packets;
+
+			do {
+				start = u64_stats_fetch_begin(&bcpu->syncp);
+				bytes = u64_stats_read(&bcpu->bytes);
+				packets = u64_stats_read(&bcpu->packets);
+			} while (u64_stats_fetch_retry(&bcpu->syncp, start));
+
+			t_bytes += bytes;
+			t_packets += packets;
+		}
+		*ret_bytes = t_bytes;
+		*ret_packets = t_packets;
+		return;
+	}
+	do {
+		if (running)
+			start = u64_stats_fetch_begin(&b->syncp);
+		*ret_bytes = u64_stats_read(&b->bytes);
+		*ret_packets = u64_stats_read(&b->packets);
+	} while (running && u64_stats_fetch_retry(&b->syncp, start));
+}
 
 static int
-___gnet_stats_copy_basic(const seqcount_t *running,
-			 struct gnet_dump *d,
-			 struct gnet_stats_basic_cpu __percpu *cpu,
-			 struct gnet_stats_basic_packed *b,
-			 int type)
+___gnet_stats_copy_basic(struct gnet_dump *d,
+			 struct gnet_stats_basic_sync __percpu *cpu,
+			 struct gnet_stats_basic_sync *b,
+			 int type, bool running)
 {
-	struct gnet_stats_basic_packed bstats = {0};
+	u64 bstats_bytes, bstats_packets;
 
-	__gnet_stats_copy_basic(running, &bstats, cpu, b);
+	gnet_stats_read_basic(&bstats_bytes, &bstats_packets, cpu, b, running);
 
 	if (d->compat_tc_stats && type == TCA_STATS_BASIC) {
-		d->tc_stats.bytes = bstats.bytes;
-		d->tc_stats.packets = bstats.packets;
+		d->tc_stats.bytes = bstats_bytes;
+		d->tc_stats.packets = bstats_packets;
 	}
 
 	if (d->tail) {
 		struct gnet_stats_basic sb;
+		int res;
 
 		memset(&sb, 0, sizeof(sb));
-		sb.bytes = bstats.bytes;
-		sb.packets = bstats.packets;
-		return gnet_stats_copy(d, type, &sb, sizeof(sb),
-				       TCA_STATS_PAD);
+		sb.bytes = bstats_bytes;
+		sb.packets = bstats_packets;
+		res = gnet_stats_copy(d, type, &sb, sizeof(sb), TCA_STATS_PAD);
+		if (res < 0 || sb.packets == bstats_packets)
+			return res;
+		/* emit 64bit stats only if needed */
+		return gnet_stats_copy(d, TCA_STATS_PKT64, &bstats_packets,
+				       sizeof(bstats_packets), TCA_STATS_PAD);
 	}
 	return 0;
 }
 
 /**
  * gnet_stats_copy_basic - copy basic statistics into statistic TLV
- * @running: seqcount_t pointer
  * @d: dumping handle
  * @cpu: copy statistic per cpu
  * @b: basic statistics
+ * @running: true if @b represents a running qdisc, thus @b's
+ *           internal values might change during basic reads.
+ *           Only used if @cpu is NULL
+ *
+ * Context: task; must not be run from IRQ or BH contexts
  *
  * Appends the basic statistics to the top level TLV created by
  * gnet_stats_start_copy().
@@ -200,22 +257,25 @@ ___gnet_stats_copy_basic(const seqcount_t *running,
  * if the room in the socket buffer was not sufficient.
  */
 int
-gnet_stats_copy_basic(const seqcount_t *running,
-		      struct gnet_dump *d,
-		      struct gnet_stats_basic_cpu __percpu *cpu,
-		      struct gnet_stats_basic_packed *b)
+gnet_stats_copy_basic(struct gnet_dump *d,
+		      struct gnet_stats_basic_sync __percpu *cpu,
+		      struct gnet_stats_basic_sync *b,
+		      bool running)
 {
-	return ___gnet_stats_copy_basic(running, d, cpu, b,
-					TCA_STATS_BASIC);
+	return ___gnet_stats_copy_basic(d, cpu, b, TCA_STATS_BASIC, running);
 }
 EXPORT_SYMBOL(gnet_stats_copy_basic);
 
 /**
  * gnet_stats_copy_basic_hw - copy basic hw statistics into statistic TLV
- * @running: seqcount_t pointer
  * @d: dumping handle
  * @cpu: copy statistic per cpu
  * @b: basic statistics
+ * @running: true if @b represents a running qdisc, thus @b's
+ *           internal values might change during basic reads.
+ *           Only used if @cpu is NULL
+ *
+ * Context: task; must not be run from IRQ or BH contexts
  *
  * Appends the basic statistics to the top level TLV created by
  * gnet_stats_start_copy().
@@ -224,13 +284,12 @@ EXPORT_SYMBOL(gnet_stats_copy_basic);
  * if the room in the socket buffer was not sufficient.
  */
 int
-gnet_stats_copy_basic_hw(const seqcount_t *running,
-			 struct gnet_dump *d,
-			 struct gnet_stats_basic_cpu __percpu *cpu,
-			 struct gnet_stats_basic_packed *b)
+gnet_stats_copy_basic_hw(struct gnet_dump *d,
+			 struct gnet_stats_basic_sync __percpu *cpu,
+			 struct gnet_stats_basic_sync *b,
+			 bool running)
 {
-	return ___gnet_stats_copy_basic(running, d, cpu, b,
-					TCA_STATS_BASIC_HW);
+	return ___gnet_stats_copy_basic(d, cpu, b, TCA_STATS_BASIC_HW, running);
 }
 EXPORT_SYMBOL(gnet_stats_copy_basic_hw);
 
@@ -278,16 +337,15 @@ gnet_stats_copy_rate_est(struct gnet_dump *d,
 }
 EXPORT_SYMBOL(gnet_stats_copy_rate_est);
 
-static void
-__gnet_stats_copy_queue_cpu(struct gnet_stats_queue *qstats,
-			    const struct gnet_stats_queue __percpu *q)
+static void gnet_stats_add_queue_cpu(struct gnet_stats_queue *qstats,
+				     const struct gnet_stats_queue __percpu *q)
 {
 	int i;
 
 	for_each_possible_cpu(i) {
 		const struct gnet_stats_queue *qcpu = per_cpu_ptr(q, i);
 
-		qstats->qlen = 0;
+		qstats->qlen += qcpu->qlen;
 		qstats->backlog += qcpu->backlog;
 		qstats->drops += qcpu->drops;
 		qstats->requeues += qcpu->requeues;
@@ -295,24 +353,21 @@ __gnet_stats_copy_queue_cpu(struct gnet_stats_queue *qstats,
 	}
 }
 
-void __gnet_stats_copy_queue(struct gnet_stats_queue *qstats,
-			     const struct gnet_stats_queue __percpu *cpu,
-			     const struct gnet_stats_queue *q,
-			     __u32 qlen)
+void gnet_stats_add_queue(struct gnet_stats_queue *qstats,
+			  const struct gnet_stats_queue __percpu *cpu,
+			  const struct gnet_stats_queue *q)
 {
 	if (cpu) {
-		__gnet_stats_copy_queue_cpu(qstats, cpu);
+		gnet_stats_add_queue_cpu(qstats, cpu);
 	} else {
-		qstats->qlen = q->qlen;
-		qstats->backlog = q->backlog;
-		qstats->drops = q->drops;
-		qstats->requeues = q->requeues;
-		qstats->overlimits = q->overlimits;
+		qstats->qlen += q->qlen;
+		qstats->backlog += q->backlog;
+		qstats->drops += q->drops;
+		qstats->requeues += q->requeues;
+		qstats->overlimits += q->overlimits;
 	}
-
-	qstats->qlen = qlen;
 }
-EXPORT_SYMBOL(__gnet_stats_copy_queue);
+EXPORT_SYMBOL(gnet_stats_add_queue);
 
 /**
  * gnet_stats_copy_queue - copy queue statistics into statistics TLV
@@ -335,7 +390,8 @@ gnet_stats_copy_queue(struct gnet_dump *d,
 {
 	struct gnet_stats_queue qstats = {0};
 
-	__gnet_stats_copy_queue(&qstats, cpu_q, q, qlen);
+	gnet_stats_add_queue(&qstats, cpu_q, q);
+	qstats.qlen = qlen;
 
 	if (d->compat_tc_stats) {
 		d->tc_stats.drops = qstats.drops;

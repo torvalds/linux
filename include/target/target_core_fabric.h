@@ -89,6 +89,7 @@ struct target_core_fabric_ops {
 	void (*add_wwn_groups)(struct se_wwn *);
 	struct se_portal_group *(*fabric_make_tpg)(struct se_wwn *,
 						   const char *);
+	int (*fabric_enable_tpg)(struct se_portal_group *se_tpg, bool enable);
 	void (*fabric_drop_tpg)(struct se_portal_group *);
 	int (*fabric_post_link)(struct se_portal_group *,
 				struct se_lun *);
@@ -112,11 +113,20 @@ struct target_core_fabric_ops {
 	struct configfs_attribute **tfc_tpg_nacl_param_attrs;
 
 	/*
-	 * Set this member variable to true if the SCSI transport protocol
+	 * Set this member variable if the SCSI transport protocol
 	 * (e.g. iSCSI) requires that the Data-Out buffer is transferred in
 	 * its entirety before a command is aborted.
 	 */
-	bool write_pending_must_be_called;
+	unsigned int write_pending_must_be_called:1;
+	/*
+	 * Set this if the driver supports submitting commands to the backend
+	 * from target_submit/target_submit_cmd.
+	 */
+	unsigned int direct_submit_supp:1;
+	/*
+	 * Set this to a target_submit_type value.
+	 */
+	u8 default_submit_type;
 };
 
 int target_register_template(const struct target_core_fabric_ops *fo);
@@ -132,7 +142,12 @@ struct se_session *target_setup_session(struct se_portal_group *,
 				struct se_session *, void *));
 void target_remove_session(struct se_session *);
 
-int transport_init_session(struct se_session *se_sess);
+void target_stop_cmd_counter(struct target_cmd_counter *cmd_cnt);
+void target_wait_for_cmds(struct target_cmd_counter *cmd_cnt);
+struct target_cmd_counter *target_alloc_cmd_counter(void);
+void target_free_cmd_counter(struct target_cmd_counter *cmd_cnt);
+
+void transport_init_session(struct se_session *se_sess);
 struct se_session *transport_alloc_session(enum target_prot_op);
 int transport_alloc_session_tags(struct se_session *, unsigned int,
 		unsigned int);
@@ -148,22 +163,30 @@ void	transport_deregister_session_configfs(struct se_session *);
 void	transport_deregister_session(struct se_session *);
 
 
-void	transport_init_se_cmd(struct se_cmd *,
-		const struct target_core_fabric_ops *,
-		struct se_session *, u32, int, int, unsigned char *);
-sense_reason_t transport_lookup_cmd_lun(struct se_cmd *, u64);
-sense_reason_t target_setup_cmd_from_cdb(struct se_cmd *, unsigned char *);
-int	target_submit_cmd_map_sgls(struct se_cmd *, struct se_session *,
-		unsigned char *, unsigned char *, u64, u32, int, int, int,
-		struct scatterlist *, u32, struct scatterlist *, u32,
-		struct scatterlist *, u32);
-int	target_submit_cmd(struct se_cmd *, struct se_session *, unsigned char *,
+void	__target_init_cmd(struct se_cmd *cmd,
+		const struct target_core_fabric_ops *tfo,
+		struct se_session *sess, u32 data_length, int data_direction,
+		int task_attr, unsigned char *sense_buffer, u64 unpacked_lun,
+		struct target_cmd_counter *cmd_cnt);
+int	target_init_cmd(struct se_cmd *se_cmd, struct se_session *se_sess,
+		unsigned char *sense, u64 unpacked_lun, u32 data_length,
+		int task_attr, int data_dir, int flags);
+int	target_submit_prep(struct se_cmd *se_cmd, unsigned char *cdb,
+		struct scatterlist *sgl, u32 sgl_count,
+		struct scatterlist *sgl_bidi, u32 sgl_bidi_count,
+		struct scatterlist *sgl_prot, u32 sgl_prot_count, gfp_t gfp);
+int	target_submit(struct se_cmd *se_cmd);
+sense_reason_t transport_lookup_cmd_lun(struct se_cmd *);
+sense_reason_t target_cmd_init_cdb(struct se_cmd *se_cmd, unsigned char *cdb,
+				   gfp_t gfp);
+sense_reason_t target_cmd_parse_cdb(struct se_cmd *);
+void	target_submit_cmd(struct se_cmd *, struct se_session *, unsigned char *,
 		unsigned char *, u64, u32, int, int, int);
+
 int	target_submit_tmr(struct se_cmd *se_cmd, struct se_session *se_sess,
 		unsigned char *sense, u64 unpacked_lun,
 		void *fabric_tmr_ptr, unsigned char tm_type,
 		gfp_t, u64, int);
-int	transport_handle_cdb_direct(struct se_cmd *);
 sense_reason_t	transport_generic_new_cmd(struct se_cmd *);
 
 void	target_put_cmd_and_wait(struct se_cmd *cmd);
@@ -177,17 +200,15 @@ int	transport_send_check_condition_and_sense(struct se_cmd *,
 int	target_send_busy(struct se_cmd *cmd);
 int	target_get_sess_cmd(struct se_cmd *, bool);
 int	target_put_sess_cmd(struct se_cmd *);
-void	target_sess_cmd_list_set_waiting(struct se_session *);
+void	target_stop_session(struct se_session *se_sess);
 void	target_wait_for_sess_cmds(struct se_session *);
 void	target_show_cmd(const char *pfx, struct se_cmd *cmd);
-
-int	core_alua_check_nonop_delay(struct se_cmd *);
 
 int	core_tmr_alloc_req(struct se_cmd *, void *, u8, gfp_t);
 void	core_tmr_release_req(struct se_tmr_req *);
 int	transport_generic_handle_tmr(struct se_cmd *);
 void	transport_generic_request_failure(struct se_cmd *, sense_reason_t);
-int	transport_lookup_tmr_lun(struct se_cmd *, u64);
+int	transport_lookup_tmr_lun(struct se_cmd *);
 void	core_allocate_nexus_loss_ua(struct se_node_acl *acl);
 
 struct se_node_acl *core_tpg_get_initiator_node_acl(struct se_portal_group *tpg,

@@ -29,12 +29,15 @@
 #include <linux/notifier.h>
 #include <linux/hrtimer.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/types.h>
 
-#include "i915_reg.h"
+#include "i915_reg_defs.h"
 
+struct drm_device;
 struct drm_i915_private;
 struct intel_runtime_pm;
 struct intel_uncore;
+struct intel_gt;
 
 struct intel_uncore_mmio_debug {
 	spinlock_t lock; /** lock is also taken in irq contexts. */
@@ -45,38 +48,52 @@ struct intel_uncore_mmio_debug {
 
 enum forcewake_domain_id {
 	FW_DOMAIN_ID_RENDER = 0,
-	FW_DOMAIN_ID_BLITTER,
+	FW_DOMAIN_ID_GT,        /* also includes blitter engine */
 	FW_DOMAIN_ID_MEDIA,
 	FW_DOMAIN_ID_MEDIA_VDBOX0,
 	FW_DOMAIN_ID_MEDIA_VDBOX1,
 	FW_DOMAIN_ID_MEDIA_VDBOX2,
 	FW_DOMAIN_ID_MEDIA_VDBOX3,
+	FW_DOMAIN_ID_MEDIA_VDBOX4,
+	FW_DOMAIN_ID_MEDIA_VDBOX5,
+	FW_DOMAIN_ID_MEDIA_VDBOX6,
+	FW_DOMAIN_ID_MEDIA_VDBOX7,
 	FW_DOMAIN_ID_MEDIA_VEBOX0,
 	FW_DOMAIN_ID_MEDIA_VEBOX1,
+	FW_DOMAIN_ID_MEDIA_VEBOX2,
+	FW_DOMAIN_ID_MEDIA_VEBOX3,
+	FW_DOMAIN_ID_GSC,
 
 	FW_DOMAIN_ID_COUNT
 };
 
 enum forcewake_domains {
 	FORCEWAKE_RENDER	= BIT(FW_DOMAIN_ID_RENDER),
-	FORCEWAKE_BLITTER	= BIT(FW_DOMAIN_ID_BLITTER),
+	FORCEWAKE_GT		= BIT(FW_DOMAIN_ID_GT),
 	FORCEWAKE_MEDIA		= BIT(FW_DOMAIN_ID_MEDIA),
 	FORCEWAKE_MEDIA_VDBOX0	= BIT(FW_DOMAIN_ID_MEDIA_VDBOX0),
 	FORCEWAKE_MEDIA_VDBOX1	= BIT(FW_DOMAIN_ID_MEDIA_VDBOX1),
 	FORCEWAKE_MEDIA_VDBOX2	= BIT(FW_DOMAIN_ID_MEDIA_VDBOX2),
 	FORCEWAKE_MEDIA_VDBOX3	= BIT(FW_DOMAIN_ID_MEDIA_VDBOX3),
+	FORCEWAKE_MEDIA_VDBOX4	= BIT(FW_DOMAIN_ID_MEDIA_VDBOX4),
+	FORCEWAKE_MEDIA_VDBOX5	= BIT(FW_DOMAIN_ID_MEDIA_VDBOX5),
+	FORCEWAKE_MEDIA_VDBOX6	= BIT(FW_DOMAIN_ID_MEDIA_VDBOX6),
+	FORCEWAKE_MEDIA_VDBOX7	= BIT(FW_DOMAIN_ID_MEDIA_VDBOX7),
 	FORCEWAKE_MEDIA_VEBOX0	= BIT(FW_DOMAIN_ID_MEDIA_VEBOX0),
 	FORCEWAKE_MEDIA_VEBOX1	= BIT(FW_DOMAIN_ID_MEDIA_VEBOX1),
+	FORCEWAKE_MEDIA_VEBOX2	= BIT(FW_DOMAIN_ID_MEDIA_VEBOX2),
+	FORCEWAKE_MEDIA_VEBOX3	= BIT(FW_DOMAIN_ID_MEDIA_VEBOX3),
+	FORCEWAKE_GSC		= BIT(FW_DOMAIN_ID_GSC),
 
-	FORCEWAKE_ALL = BIT(FW_DOMAIN_ID_COUNT) - 1
+	FORCEWAKE_ALL = BIT(FW_DOMAIN_ID_COUNT) - 1,
+};
+
+struct intel_uncore_fw_get {
+	void (*force_wake_get)(struct intel_uncore *uncore,
+			       enum forcewake_domains domains);
 };
 
 struct intel_uncore_funcs {
-	void (*force_wake_get)(struct intel_uncore *uncore,
-			       enum forcewake_domains domains);
-	void (*force_wake_put)(struct intel_uncore *uncore,
-			       enum forcewake_domains domains);
-
 	enum forcewake_domains (*read_fw_domains)(struct intel_uncore *uncore,
 						  i915_reg_t r);
 	enum forcewake_domains (*write_fw_domains)(struct intel_uncore *uncore,
@@ -106,24 +123,50 @@ struct intel_forcewake_range {
 	enum forcewake_domains domains;
 };
 
+/* Other register ranges (e.g., shadow tables, MCR tables, etc.) */
+struct i915_range {
+	u32 start;
+	u32 end;
+};
+
 struct intel_uncore {
 	void __iomem *regs;
 
 	struct drm_i915_private *i915;
+	struct intel_gt *gt;
 	struct intel_runtime_pm *rpm;
 
 	spinlock_t lock; /** lock is also taken in irq contexts. */
+
+	/*
+	 * Do we need to apply an additional offset to reach the beginning
+	 * of the basic non-engine GT registers (referred to as "GSI" on
+	 * newer platforms, or "GT block" on older platforms)?  If so, we'll
+	 * track that here and apply it transparently to registers in the
+	 * appropriate range to maintain compatibility with our existing
+	 * register definitions and GT code.
+	 */
+	u32 gsi_offset;
 
 	unsigned int flags;
 #define UNCORE_HAS_FORCEWAKE		BIT(0)
 #define UNCORE_HAS_FPGA_DBG_UNCLAIMED	BIT(1)
 #define UNCORE_HAS_DBG_UNCLAIMED	BIT(2)
 #define UNCORE_HAS_FIFO			BIT(3)
+#define UNCORE_NEEDS_FLR_ON_FINI	BIT(4)
 
 	const struct intel_forcewake_range *fw_domains_table;
 	unsigned int fw_domains_table_entries;
 
+	/*
+	 * Shadowed registers are special cases where we can safely write
+	 * to the register *without* grabbing forcewake.
+	 */
+	const struct i915_range *shadowed_reg_table;
+	unsigned int shadowed_reg_table_entries;
+
 	struct notifier_block pmic_bus_access_nb;
+	const struct intel_uncore_fw_get *fw_get_funcs;
 	struct intel_uncore_funcs funcs;
 
 	unsigned int fifo_count;
@@ -181,15 +224,29 @@ intel_uncore_has_fifo(const struct intel_uncore *uncore)
 	return uncore->flags & UNCORE_HAS_FIFO;
 }
 
-void
-intel_uncore_mmio_debug_init_early(struct intel_uncore_mmio_debug *mmio_debug);
+static inline bool
+intel_uncore_needs_flr_on_fini(const struct intel_uncore *uncore)
+{
+	return uncore->flags & UNCORE_NEEDS_FLR_ON_FINI;
+}
+
+static inline bool
+intel_uncore_set_flr_on_fini(struct intel_uncore *uncore)
+{
+	return uncore->flags |= UNCORE_NEEDS_FLR_ON_FINI;
+}
+
+void intel_uncore_mmio_debug_init_early(struct drm_i915_private *i915);
 void intel_uncore_init_early(struct intel_uncore *uncore,
-			     struct drm_i915_private *i915);
+			     struct intel_gt *gt);
+int intel_uncore_setup_mmio(struct intel_uncore *uncore, phys_addr_t phys_addr);
 int intel_uncore_init_mmio(struct intel_uncore *uncore);
-void intel_uncore_prune_mmio_domains(struct intel_uncore *uncore);
+void intel_uncore_prune_engine_fw_domains(struct intel_uncore *uncore,
+					  struct intel_gt *gt);
 bool intel_uncore_unclaimed_mmio(struct intel_uncore *uncore);
 bool intel_uncore_arm_unclaimed_mmio_detection(struct intel_uncore *uncore);
-void intel_uncore_fini_mmio(struct intel_uncore *uncore);
+void intel_uncore_cleanup_mmio(struct intel_uncore *uncore);
+void intel_uncore_fini_mmio(struct drm_device *dev, void *data);
 void intel_uncore_suspend(struct intel_uncore *uncore);
 void intel_uncore_resume_early(struct intel_uncore *uncore);
 void intel_uncore_runtime_resume(struct intel_uncore *uncore);
@@ -209,8 +266,14 @@ void intel_uncore_forcewake_get(struct intel_uncore *uncore,
 				enum forcewake_domains domains);
 void intel_uncore_forcewake_put(struct intel_uncore *uncore,
 				enum forcewake_domains domains);
-/* Like above but the caller must manage the uncore.lock itself.
- * Must be used with I915_READ_FW and friends.
+void intel_uncore_forcewake_put_delayed(struct intel_uncore *uncore,
+					enum forcewake_domains domains);
+void intel_uncore_forcewake_flush(struct intel_uncore *uncore,
+				  enum forcewake_domains fw_domains);
+
+/*
+ * Like above but the caller must manage the uncore.lock itself.
+ * Must be used with intel_uncore_read_fw() and friends.
  */
 void intel_uncore_forcewake_get__locked(struct intel_uncore *uncore,
 					enum forcewake_domains domains);
@@ -256,19 +319,27 @@ intel_wait_for_register_fw(struct intel_uncore *uncore,
 					    2, timeout_ms, NULL);
 }
 
+#define IS_GSI_REG(reg) ((reg) < 0x40000)
+
 /* register access functions */
 #define __raw_read(x__, s__) \
 static inline u##x__ __raw_uncore_read##x__(const struct intel_uncore *uncore, \
 					    i915_reg_t reg) \
 { \
-	return read##s__(uncore->regs + i915_mmio_reg_offset(reg)); \
+	u32 offset = i915_mmio_reg_offset(reg); \
+	if (IS_GSI_REG(offset)) \
+		offset += uncore->gsi_offset; \
+	return read##s__(uncore->regs + offset); \
 }
 
 #define __raw_write(x__, s__) \
 static inline void __raw_uncore_write##x__(const struct intel_uncore *uncore, \
 					   i915_reg_t reg, u##x__ val) \
 { \
-	write##s__(val, uncore->regs + i915_mmio_reg_offset(reg)); \
+	u32 offset = i915_mmio_reg_offset(reg); \
+	if (IS_GSI_REG(offset)) \
+		offset += uncore->gsi_offset; \
+	write##s__(val, uncore->regs + offset); \
 }
 __raw_read(8, b)
 __raw_read(16, w)
@@ -312,8 +383,8 @@ __uncore_write(write_notrace, 32, l, false)
  * will be implemented using 2 32-bit writes in an arbitrary order with
  * an arbitrary delay between them. This can cause the hardware to
  * act upon the intermediate value, possibly leading to corruption and
- * machine death. For this reason we do not support I915_WRITE64, or
- * uncore->funcs.mmio_writeq.
+ * machine death. For this reason we do not support intel_uncore_write64,
+ * or uncore->funcs.mmio_writeq.
  *
  * When reading a 64-bit value as two 32-bit values, the delay may cause
  * the two reads to mismatch, e.g. a timestamp overflowing. Also note that
@@ -323,20 +394,6 @@ __uncore_write(write_notrace, 32, l, false)
  * You have been warned.
  */
 __uncore_read(read64, 64, q, true)
-
-static inline u64
-intel_uncore_read64_2x32(struct intel_uncore *uncore,
-			 i915_reg_t lower_reg, i915_reg_t upper_reg)
-{
-	u32 upper, lower, old_upper, loop = 0;
-	upper = intel_uncore_read(uncore, upper_reg);
-	do {
-		old_upper = upper;
-		lower = intel_uncore_read(uncore, lower_reg);
-		upper = intel_uncore_read(uncore, upper_reg);
-	} while (upper != old_upper && loop++ < 2);
-	return (u64)upper << 32 | lower;
-}
 
 #define intel_uncore_posting_read(...) ((void)intel_uncore_read_notrace(__VA_ARGS__))
 #define intel_uncore_posting_read16(...) ((void)intel_uncore_read16_notrace(__VA_ARGS__))
@@ -375,26 +432,56 @@ intel_uncore_read64_2x32(struct intel_uncore *uncore,
 #define intel_uncore_write64_fw(...) __raw_uncore_write64(__VA_ARGS__)
 #define intel_uncore_posting_read_fw(...) ((void)intel_uncore_read_fw(__VA_ARGS__))
 
-static inline void intel_uncore_rmw(struct intel_uncore *uncore,
-				    i915_reg_t reg, u32 clear, u32 set)
+static inline u32 intel_uncore_rmw(struct intel_uncore *uncore,
+				   i915_reg_t reg, u32 clear, u32 set)
 {
-	u32 val;
+	u32 old, val;
 
-	val = intel_uncore_read(uncore, reg);
-	val &= ~clear;
-	val |= set;
+	old = intel_uncore_read(uncore, reg);
+	val = (old & ~clear) | set;
 	intel_uncore_write(uncore, reg, val);
+	return old;
 }
 
 static inline void intel_uncore_rmw_fw(struct intel_uncore *uncore,
 				       i915_reg_t reg, u32 clear, u32 set)
 {
-	u32 val;
+	u32 old, val;
 
-	val = intel_uncore_read_fw(uncore, reg);
-	val &= ~clear;
-	val |= set;
-	intel_uncore_write_fw(uncore, reg, val);
+	old = intel_uncore_read_fw(uncore, reg);
+	val = (old & ~clear) | set;
+	if (val != old)
+		intel_uncore_write_fw(uncore, reg, val);
+}
+
+static inline u64
+intel_uncore_read64_2x32(struct intel_uncore *uncore,
+			 i915_reg_t lower_reg, i915_reg_t upper_reg)
+{
+	u32 upper, lower, old_upper, loop = 0;
+	enum forcewake_domains fw_domains;
+	unsigned long flags;
+
+	fw_domains = intel_uncore_forcewake_for_reg(uncore, lower_reg,
+						    FW_REG_READ);
+
+	fw_domains |= intel_uncore_forcewake_for_reg(uncore, upper_reg,
+						    FW_REG_READ);
+
+	spin_lock_irqsave(&uncore->lock, flags);
+	intel_uncore_forcewake_get__locked(uncore, fw_domains);
+
+	upper = intel_uncore_read_fw(uncore, upper_reg);
+	do {
+		old_upper = upper;
+		lower = intel_uncore_read_fw(uncore, lower_reg);
+		upper = intel_uncore_read_fw(uncore, upper_reg);
+	} while (upper != old_upper && loop++ < 2);
+
+	intel_uncore_forcewake_put__locked(uncore, fw_domains);
+	spin_unlock_irqrestore(&uncore->lock, flags);
+
+	return (u64)upper << 32 | lower;
 }
 
 static inline int intel_uncore_write_and_verify(struct intel_uncore *uncore,
@@ -409,6 +496,23 @@ static inline int intel_uncore_write_and_verify(struct intel_uncore *uncore,
 	return (reg_val & mask) != expected_val ? -EINVAL : 0;
 }
 
+static inline void __iomem *intel_uncore_regs(struct intel_uncore *uncore)
+{
+	return uncore->regs;
+}
+
+/*
+ * The raw_reg_{read,write} macros are intended as a micro-optimization for
+ * interrupt handlers so that the pointer indirection on uncore->regs can
+ * be computed once (and presumably cached in a register) instead of generating
+ * extra load instructions for each MMIO access.
+ *
+ * Given that these macros are only intended for non-GSI interrupt registers
+ * (and the goal is to avoid extra instructions generated by the compiler),
+ * these macros do not account for uncore->gsi_offset.  Any caller that needs
+ * to use these macros on a GSI register is responsible for adding the
+ * appropriate GSI offset to the 'base' parameter.
+ */
 #define raw_reg_read(base, reg) \
 	readl(base + i915_mmio_reg_offset(reg))
 #define raw_reg_write(base, reg, value) \

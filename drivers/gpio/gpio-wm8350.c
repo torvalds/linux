@@ -8,13 +8,12 @@
  *
  */
 
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/module.h>
 #include <linux/gpio/driver.h>
+#include <linux/kernel.h>
 #include <linux/mfd/core.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/seq_file.h>
+#include <linux/slab.h>
 
 #include <linux/mfd/wm8350/core.h>
 #include <linux/mfd/wm8350/gpio.h>
@@ -105,7 +104,6 @@ static int wm8350_gpio_probe(struct platform_device *pdev)
 	struct wm8350 *wm8350 = dev_get_drvdata(pdev->dev.parent);
 	struct wm8350_platform_data *pdata = dev_get_platdata(wm8350->dev);
 	struct wm8350_gpio_data *wm8350_gpio;
-	int ret;
 
 	wm8350_gpio = devm_kzalloc(&pdev->dev, sizeof(*wm8350_gpio),
 				   GFP_KERNEL);
@@ -121,16 +119,7 @@ static int wm8350_gpio_probe(struct platform_device *pdev)
 	else
 		wm8350_gpio->gpio_chip.base = -1;
 
-	ret = devm_gpiochip_add_data(&pdev->dev, &wm8350_gpio->gpio_chip,
-				     wm8350_gpio);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not register gpiochip, %d\n", ret);
-		return ret;
-	}
-
-	platform_set_drvdata(pdev, wm8350_gpio);
-
-	return ret;
+	return devm_gpiochip_add_data(&pdev->dev, &wm8350_gpio->gpio_chip, wm8350_gpio);
 }
 
 static struct platform_driver wm8350_gpio_driver = {

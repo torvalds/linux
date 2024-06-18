@@ -8,7 +8,7 @@
 #include "rc-core-priv.h"
 
 #define NEC_NBITS		32
-#define NEC_UNIT		562500  /* ns */
+#define NEC_UNIT		563  /* us */
 #define NEC_HEADER_PULSE	(16 * NEC_UNIT)
 #define NECX_HEADER_PULSE	(8  * NEC_UNIT) /* Less common NEC variant */
 #define NEC_HEADER_SPACE	(8  * NEC_UNIT)
@@ -44,13 +44,13 @@ static int ir_nec_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	u8 address, not_address, command, not_command;
 
 	if (!is_timing_event(ev)) {
-		if (ev.reset)
+		if (ev.overflow)
 			data->state = STATE_INACTIVE;
 		return 0;
 	}
 
 	dev_dbg(&dev->dev, "NEC decode started at state %d (%uus %s)\n",
-		data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+		data->state, ev.duration, TO_STR(ev.pulse));
 
 	switch (data->state) {
 
@@ -163,7 +163,7 @@ static int ir_nec_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	}
 
 	dev_dbg(&dev->dev, "NEC decode failed at count %d state %d (%uus %s)\n",
-		data->count, data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+		data->count, data->state, ev.duration, TO_STR(ev.pulse));
 	data->state = STATE_INACTIVE;
 	return -EINVAL;
 }

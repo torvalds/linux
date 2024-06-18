@@ -37,7 +37,7 @@
 #include <uapi/linux/qemu_fw_cfg.h>
 #include <linux/delay.h>
 #include <linux/crash_dump.h>
-#include <linux/crash_core.h>
+#include <linux/vmcore_info.h>
 
 MODULE_AUTHOR("Gabriel L. Somlo <somlo@cmu.edu>");
 MODULE_DESCRIPTION("QEMU fw_cfg sysfs support");
@@ -67,7 +67,7 @@ static void fw_cfg_sel_endianness(u16 key)
 		iowrite16(key, fw_cfg_reg_ctrl);
 }
 
-#ifdef CONFIG_CRASH_CORE
+#ifdef CONFIG_VMCORE_INFO
 static inline bool fw_cfg_dma_enabled(void)
 {
 	return (fw_cfg_rev & FW_CFG_VERSION_DMA) && fw_cfg_reg_dma;
@@ -156,7 +156,7 @@ static ssize_t fw_cfg_read_blob(u16 key,
 	return count;
 }
 
-#ifdef CONFIG_CRASH_CORE
+#ifdef CONFIG_VMCORE_INFO
 /* write chunk of given fw_cfg blob (caller responsible for sanity-check) */
 static ssize_t fw_cfg_write_blob(u16 key,
 				 void *buf, loff_t pos, size_t count)
@@ -195,7 +195,7 @@ end:
 
 	return ret;
 }
-#endif /* CONFIG_CRASH_CORE */
+#endif /* CONFIG_VMCORE_INFO */
 
 /* clean up fw_cfg device i/o */
 static void fw_cfg_io_cleanup(void)
@@ -211,10 +211,13 @@ static void fw_cfg_io_cleanup(void)
 
 /* arch-specific ctrl & data register offsets are not available in ACPI, DT */
 #if !(defined(FW_CFG_CTRL_OFF) && defined(FW_CFG_DATA_OFF))
-# if (defined(CONFIG_ARM) || defined(CONFIG_ARM64))
+# if (defined(CONFIG_ARM) || defined(CONFIG_ARM64) || defined(CONFIG_RISCV))
 #  define FW_CFG_CTRL_OFF 0x08
 #  define FW_CFG_DATA_OFF 0x00
 #  define FW_CFG_DMA_OFF 0x10
+# elif defined(CONFIG_PARISC)	/* parisc */
+#  define FW_CFG_CTRL_OFF 0x00
+#  define FW_CFG_DATA_OFF 0x04
 # elif (defined(CONFIG_PPC_PMAC) || defined(CONFIG_SPARC32)) /* ppc/mac,sun4m */
 #  define FW_CFG_CTRL_OFF 0x00
 #  define FW_CFG_DATA_OFF 0x02
@@ -296,15 +299,13 @@ static int fw_cfg_do_platform_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static ssize_t fw_cfg_showrev(struct kobject *k, struct attribute *a, char *buf)
+static ssize_t fw_cfg_showrev(struct kobject *k, struct kobj_attribute *a,
+			      char *buf)
 {
 	return sprintf(buf, "%u\n", fw_cfg_rev);
 }
 
-static const struct {
-	struct attribute attr;
-	ssize_t (*show)(struct kobject *k, struct attribute *a, char *buf);
-} fw_cfg_rev_attr = {
+static const struct kobj_attribute fw_cfg_rev_attr = {
 	.attr = { .name = "rev", .mode = S_IRUSR },
 	.show = fw_cfg_showrev,
 };
@@ -318,7 +319,7 @@ struct fw_cfg_sysfs_entry {
 	struct list_head list;
 };
 
-#ifdef CONFIG_CRASH_CORE
+#ifdef CONFIG_VMCORE_INFO
 static ssize_t fw_cfg_write_vmcoreinfo(const struct fw_cfg_file *f)
 {
 	static struct fw_cfg_vmcoreinfo *data;
@@ -342,7 +343,7 @@ static ssize_t fw_cfg_write_vmcoreinfo(const struct fw_cfg_file *f)
 	kfree(data);
 	return ret;
 }
-#endif /* CONFIG_CRASH_CORE */
+#endif /* CONFIG_VMCORE_INFO */
 
 /* get fw_cfg_sysfs_entry from kobject member */
 static inline struct fw_cfg_sysfs_entry *to_entry(struct kobject *kobj)
@@ -387,14 +388,13 @@ static void fw_cfg_sysfs_cache_cleanup(void)
 	struct fw_cfg_sysfs_entry *entry, *next;
 
 	list_for_each_entry_safe(entry, next, &fw_cfg_entry_cache, list) {
-		/* will end up invoking fw_cfg_sysfs_cache_delist()
-		 * via each object's release() method (i.e. destructor)
-		 */
+		fw_cfg_sysfs_cache_delist(entry);
+		kobject_del(&entry->kobj);
 		kobject_put(&entry->kobj);
 	}
 }
 
-/* default_attrs: per-entry attributes and show methods */
+/* per-entry attributes and show methods */
 
 #define FW_CFG_SYSFS_ATTR(_attr) \
 struct fw_cfg_sysfs_attribute fw_cfg_sysfs_attr_##_attr = { \
@@ -427,6 +427,7 @@ static struct attribute *fw_cfg_sysfs_entry_attrs[] = {
 	&fw_cfg_sysfs_attr_name.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(fw_cfg_sysfs_entry);
 
 /* sysfs_ops: find fw_cfg_[entry, attribute] and call appropriate show method */
 static ssize_t fw_cfg_sysfs_attr_show(struct kobject *kobj, struct attribute *a,
@@ -447,13 +448,12 @@ static void fw_cfg_sysfs_release_entry(struct kobject *kobj)
 {
 	struct fw_cfg_sysfs_entry *entry = to_entry(kobj);
 
-	fw_cfg_sysfs_cache_delist(entry);
 	kfree(entry);
 }
 
 /* kobj_type: ties together all properties required to register an entry */
 static struct kobj_type fw_cfg_sysfs_entry_ktype = {
-	.default_attrs = fw_cfg_sysfs_entry_attrs,
+	.default_groups = fw_cfg_sysfs_entry_groups,
 	.sysfs_ops = &fw_cfg_sysfs_attr_ops,
 	.release = fw_cfg_sysfs_release_entry,
 };
@@ -583,7 +583,7 @@ static int fw_cfg_register_file(const struct fw_cfg_file *f)
 	int err;
 	struct fw_cfg_sysfs_entry *entry;
 
-#ifdef CONFIG_CRASH_CORE
+#ifdef CONFIG_VMCORE_INFO
 	if (fw_cfg_dma_enabled() &&
 		strcmp(f->name, FW_CFG_VMCOREINFO_FILENAME) == 0 &&
 		!is_kdump_kernel()) {
@@ -600,18 +600,18 @@ static int fw_cfg_register_file(const struct fw_cfg_file *f)
 	/* set file entry information */
 	entry->size = be32_to_cpu(f->size);
 	entry->select = be16_to_cpu(f->select);
-	memcpy(entry->name, f->name, FW_CFG_MAX_FILE_PATH);
+	strscpy(entry->name, f->name, FW_CFG_MAX_FILE_PATH);
 
 	/* register entry under "/sys/firmware/qemu_fw_cfg/by_key/" */
 	err = kobject_init_and_add(&entry->kobj, &fw_cfg_sysfs_entry_ktype,
 				   fw_cfg_sel_ko, "%d", entry->select);
 	if (err)
-		goto err_register;
+		goto err_put_entry;
 
 	/* add raw binary content access */
 	err = sysfs_create_bin_file(&entry->kobj, &fw_cfg_sysfs_attr_raw);
 	if (err)
-		goto err_add_raw;
+		goto err_del_entry;
 
 	/* try adding "/sys/firmware/qemu_fw_cfg/by_name/" symlink */
 	fw_cfg_build_symlink(fw_cfg_fname_kset, &entry->kobj, entry->name);
@@ -620,10 +620,10 @@ static int fw_cfg_register_file(const struct fw_cfg_file *f)
 	fw_cfg_sysfs_cache_enlist(entry);
 	return 0;
 
-err_add_raw:
+err_del_entry:
 	kobject_del(&entry->kobj);
-err_register:
-	kfree(entry);
+err_put_entry:
+	kobject_put(&entry->kobj);
 	return err;
 }
 
@@ -731,7 +731,7 @@ err_sel:
 	return err;
 }
 
-static int fw_cfg_sysfs_remove(struct platform_device *pdev)
+static void fw_cfg_sysfs_remove(struct platform_device *pdev)
 {
 	pr_debug("fw_cfg: unloading.\n");
 	fw_cfg_sysfs_cache_cleanup();
@@ -739,7 +739,6 @@ static int fw_cfg_sysfs_remove(struct platform_device *pdev)
 	fw_cfg_io_cleanup();
 	fw_cfg_kset_unregister_recursive(fw_cfg_fname_kset);
 	fw_cfg_kobj_cleanup(fw_cfg_sel_ko);
-	return 0;
 }
 
 static const struct of_device_id fw_cfg_sysfs_mmio_match[] = {
@@ -758,7 +757,7 @@ MODULE_DEVICE_TABLE(acpi, fw_cfg_sysfs_acpi_match);
 
 static struct platform_driver fw_cfg_sysfs_driver = {
 	.probe = fw_cfg_sysfs_probe,
-	.remove = fw_cfg_sysfs_remove,
+	.remove_new = fw_cfg_sysfs_remove,
 	.driver = {
 		.name = "fw_cfg",
 		.of_match_table = fw_cfg_sysfs_mmio_match,

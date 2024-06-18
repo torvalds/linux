@@ -11,32 +11,12 @@
 #include <sysdep/ptrace_user.h>
 #include <registers.h>
 
-int save_registers(int pid, struct uml_pt_regs *regs)
-{
-	int err;
-
-	err = ptrace(PTRACE_GETREGS, pid, 0, regs->gp);
-	if (err < 0)
-		return -errno;
-	return 0;
-}
-
-int restore_registers(int pid, struct uml_pt_regs *regs)
-{
-	int err;
-
-	err = ptrace(PTRACE_SETREGS, pid, 0, regs->gp);
-	if (err < 0)
-		return -errno;
-	return 0;
-}
-
 /* This is set once at boot time and not changed thereafter */
 
 static unsigned long exec_regs[MAX_REG_NR];
 static unsigned long exec_fp_regs[FP_SIZE];
 
-int init_registers(int pid)
+int init_pid_registers(int pid)
 {
 	int err;
 

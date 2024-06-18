@@ -69,7 +69,7 @@ static int si476x_codec_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	int err;
 	u16 format = 0;
 
-	if ((fmt & SND_SOC_DAIFMT_MASTER_MASK) != SND_SOC_DAIFMT_CBS_CFS)
+	if ((fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) != SND_SOC_DAIFMT_CBC_CFC)
 		return -EINVAL;
 
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
@@ -239,7 +239,6 @@ static const struct snd_soc_component_driver soc_component_dev_si476x = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static int si476x_platform_probe(struct platform_device *pdev)

@@ -10,6 +10,7 @@
 #define _ASM_S390_CPU_MF_H
 
 #include <linux/errno.h>
+#include <asm/asm-extable.h>
 #include <asm/facility.h>
 
 asm(".include \"asm/cpu_mf-insn.h\"\n");
@@ -40,7 +41,6 @@ static inline int cpum_sf_avail(void)
 {
 	return test_facility(40) && test_facility(68);
 }
-
 
 struct cpumf_ctr_info {
 	u16   cfvn;
@@ -109,7 +109,9 @@ struct hws_basic_entry {
 	unsigned int AS:2;	    /* 29-30 PSW address-space control	 */
 	unsigned int I:1;	    /* 31 entry valid or invalid	 */
 	unsigned int CL:2;	    /* 32-33 Configuration Level	 */
-	unsigned int:14;
+	unsigned int H:1;	    /* 34 Host Indicator		 */
+	unsigned int LS:1;	    /* 35 Limited Sampling		 */
+	unsigned int:12;
 	unsigned int prim_asn:16;   /* primary ASN			 */
 	unsigned long long ia;	    /* Instruction Address		 */
 	unsigned long long gpp;     /* Guest Program Parameter		 */
@@ -128,19 +130,21 @@ struct hws_combined_entry {
 	struct hws_diag_entry	diag;	/* Diagnostic-sampling data entry */
 } __packed;
 
-struct hws_trailer_entry {
-	union {
-		struct {
-			unsigned int f:1;	/* 0 - Block Full Indicator   */
-			unsigned int a:1;	/* 1 - Alert request control  */
-			unsigned int t:1;	/* 2 - Timestamp format	      */
-			unsigned int :29;	/* 3 - 31: Reserved	      */
-			unsigned int bsdes:16;	/* 32-47: size of basic SDE   */
-			unsigned int dsdes:16;	/* 48-63: size of diagnostic SDE */
-		};
-		unsigned long long flags;	/* 0 - 63: All indicators     */
+union hws_trailer_header {
+	struct {
+		unsigned int f:1;	/* 0 - Block Full Indicator   */
+		unsigned int a:1;	/* 1 - Alert request control  */
+		unsigned int t:1;	/* 2 - Timestamp format	      */
+		unsigned int :29;	/* 3 - 31: Reserved	      */
+		unsigned int bsdes:16;	/* 32-47: size of basic SDE   */
+		unsigned int dsdes:16;	/* 48-63: size of diagnostic SDE */
+		unsigned long long overflow; /* 64 - Overflow Count   */
 	};
-	unsigned long long overflow;	 /* 64 - sample Overflow count	      */
+	u128 val;
+};
+
+struct hws_trailer_entry {
+	union hws_trailer_header header; /* 0 - 15 Flags + Overflow Count     */
 	unsigned char timestamp[16];	 /* 16 - 31 timestamp		      */
 	unsigned long long reserved1;	 /* 32 -Reserved		      */
 	unsigned long long reserved2;	 /*				      */
@@ -157,7 +161,7 @@ struct hws_trailer_entry {
 /* Load program parameter */
 static inline void lpp(void *pp)
 {
-	asm volatile(".insn s,0xb2800000,0(%0)\n":: "a" (pp) : "memory");
+	asm volatile("lpp 0(%0)\n" :: "a" (pp) : "memory");
 }
 
 /* Query counter information */
@@ -166,7 +170,7 @@ static inline int qctri(struct cpumf_ctr_info *info)
 	int rc = -EINVAL;
 
 	asm volatile (
-		"0:	.insn	s,0xb28e0000,%1\n"
+		"0:	qctri	%1\n"
 		"1:	lhi	%0,0\n"
 		"2:\n"
 		EX_TABLE(1b, 2b)
@@ -180,7 +184,7 @@ static inline int lcctl(u64 ctl)
 	int cc;
 
 	asm volatile (
-		"	.insn	s,0xb2840000,%1\n"
+		"	lcctl	%1\n"
 		"	ipm	%0\n"
 		"	srl	%0,28\n"
 		: "=d" (cc) : "Q" (ctl) : "cc");
@@ -194,7 +198,7 @@ static inline int __ecctr(u64 ctr, u64 *content)
 	int cc;
 
 	asm volatile (
-		"	.insn	rre,0xb2e40000,%0,%2\n"
+		"	ecctr	%0,%2\n"
 		"	ipm	%1\n"
 		"	srl	%1,28\n"
 		: "=d" (_content), "=d" (cc) : "d" (ctr) : "cc");
@@ -244,7 +248,7 @@ static inline int qsi(struct hws_qsi_info_block *info)
 	int cc = 1;
 
 	asm volatile(
-		"0:	.insn	s,0xb2860000,%1\n"
+		"0:	qsi	%1\n"
 		"1:	lhi	%0,0\n"
 		"2:\n"
 		EX_TABLE(0b, 2b) EX_TABLE(1b, 2b)
@@ -259,7 +263,7 @@ static inline int lsctl(struct hws_lsctl_request_block *req)
 
 	cc = 1;
 	asm volatile(
-		"0:	.insn	s,0xb2870000,0(%1)\n"
+		"0:	lsctl	0(%1)\n"
 		"1:	ipm	%0\n"
 		"	srl	%0,28\n"
 		"2:\n"
@@ -269,60 +273,5 @@ static inline int lsctl(struct hws_lsctl_request_block *req)
 		: "cc", "memory");
 
 	return cc ? -EINVAL : 0;
-}
-
-/* Sampling control helper functions */
-
-#include <linux/time.h>
-
-static inline unsigned long freq_to_sample_rate(struct hws_qsi_info_block *qsi,
-						unsigned long freq)
-{
-	return (USEC_PER_SEC / freq) * qsi->cpu_speed;
-}
-
-static inline unsigned long sample_rate_to_freq(struct hws_qsi_info_block *qsi,
-						unsigned long rate)
-{
-	return USEC_PER_SEC * qsi->cpu_speed / rate;
-}
-
-#define SDB_TE_ALERT_REQ_MASK	0x4000000000000000UL
-#define SDB_TE_BUFFER_FULL_MASK 0x8000000000000000UL
-
-/* Return TOD timestamp contained in an trailer entry */
-static inline unsigned long long trailer_timestamp(struct hws_trailer_entry *te)
-{
-	/* TOD in STCKE format */
-	if (te->t)
-		return *((unsigned long long *) &te->timestamp[1]);
-
-	/* TOD in STCK format */
-	return *((unsigned long long *) &te->timestamp[0]);
-}
-
-/* Return pointer to trailer entry of an sample data block */
-static inline unsigned long *trailer_entry_ptr(unsigned long v)
-{
-	void *ret;
-
-	ret = (void *) v;
-	ret += PAGE_SIZE;
-	ret -= sizeof(struct hws_trailer_entry);
-
-	return (unsigned long *) ret;
-}
-
-/* Return if the entry in the sample data block table (sdbt)
- * is a link to the next sdbt */
-static inline int is_link_entry(unsigned long *s)
-{
-	return *s & 0x1ul ? 1 : 0;
-}
-
-/* Return pointer to the linked sdbt */
-static inline unsigned long *get_next_sdbt(unsigned long *s)
-{
-	return (unsigned long *) (*s & ~0x1ul);
 }
 #endif /* _ASM_S390_CPU_MF_H */

@@ -91,14 +91,14 @@
 
 struct falcon_sflash {
 	u32 sfcmd; /* for caching of opcode, direction, ... */
-	struct spi_master *master;
+	struct spi_controller *host;
 };
 
 int falcon_sflash_xfer(struct spi_device *spi, struct spi_transfer *t,
 		unsigned long flags)
 {
 	struct device *dev = &spi->dev;
-	struct falcon_sflash *priv = spi_master_get_devdata(spi->master);
+	struct falcon_sflash *priv = spi_controller_get_devdata(spi->controller);
 	const u8 *txp = t->tx_buf;
 	u8 *rxp = t->rx_buf;
 	unsigned int bytelen = ((8 * t->len + 7) / 8);
@@ -131,7 +131,7 @@ int falcon_sflash_xfer(struct spi_device *spi, struct spi_transfer *t,
 				 * especially alen and dumlen.
 				 */
 
-				priv->sfcmd = ((spi->chip_select
+				priv->sfcmd = ((spi_get_chipselect(spi, 0)
 						<< SFCMD_CS_OFFSET)
 					       & SFCMD_CS_MASK);
 				priv->sfcmd |= SFCMD_KEEP_CS_KEEP_SELECTED;
@@ -351,10 +351,10 @@ static int falcon_sflash_setup(struct spi_device *spi)
 	return 0;
 }
 
-static int falcon_sflash_xfer_one(struct spi_master *master,
+static int falcon_sflash_xfer_one(struct spi_controller *host,
 					struct spi_message *m)
 {
-	struct falcon_sflash *priv = spi_master_get_devdata(master);
+	struct falcon_sflash *priv = spi_controller_get_devdata(host);
 	struct spi_transfer *t;
 	unsigned long spi_flags;
 	unsigned long flags;
@@ -377,12 +377,12 @@ static int falcon_sflash_xfer_one(struct spi_master *master,
 
 		m->actual_length += t->len;
 
-		WARN_ON(t->delay_usecs || t->cs_change);
+		WARN_ON(t->delay.value || t->cs_change);
 		spi_flags = 0;
 	}
 
 	m->status = ret;
-	spi_finalize_current_message(master);
+	spi_finalize_current_message(host);
 
 	return 0;
 }
@@ -390,25 +390,25 @@ static int falcon_sflash_xfer_one(struct spi_master *master,
 static int falcon_sflash_probe(struct platform_device *pdev)
 {
 	struct falcon_sflash *priv;
-	struct spi_master *master;
+	struct spi_controller *host;
 	int ret;
 
-	master = spi_alloc_master(&pdev->dev, sizeof(*priv));
-	if (!master)
+	host = spi_alloc_host(&pdev->dev, sizeof(*priv));
+	if (!host)
 		return -ENOMEM;
 
-	priv = spi_master_get_devdata(master);
-	priv->master = master;
+	priv = spi_controller_get_devdata(host);
+	priv->host = host;
 
-	master->mode_bits = SPI_MODE_3;
-	master->flags = SPI_MASTER_HALF_DUPLEX;
-	master->setup = falcon_sflash_setup;
-	master->transfer_one_message = falcon_sflash_xfer_one;
-	master->dev.of_node = pdev->dev.of_node;
+	host->mode_bits = SPI_MODE_3;
+	host->flags = SPI_CONTROLLER_HALF_DUPLEX;
+	host->setup = falcon_sflash_setup;
+	host->transfer_one_message = falcon_sflash_xfer_one;
+	host->dev.of_node = pdev->dev.of_node;
 
-	ret = devm_spi_register_master(&pdev->dev, master);
+	ret = devm_spi_register_controller(&pdev->dev, host);
 	if (ret)
-		spi_master_put(master);
+		spi_controller_put(host);
 	return ret;
 }
 

@@ -16,7 +16,7 @@
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
 #include <linux/slab.h>
-#include <linux/crash_core.h>
+#include <linux/vmcore_info.h>
 #include <linux/of.h>
 
 #include <asm/page.h>
@@ -71,6 +71,7 @@ static LIST_HEAD(opalcore_list);
 static struct opalcore_config *oc_conf;
 static const struct opal_mpipl_fadump *opalc_metadata;
 static const struct opal_mpipl_fadump *opalc_cpu_metadata;
+static struct kobject *mpipl_kobj;
 
 /*
  * Set crashing CPU's signal to SIGUSR1. if the kernel is triggered
@@ -88,7 +89,7 @@ static inline int is_opalcore_usable(void)
 	return (oc_conf && oc_conf->opalcorebuf != NULL) ? 1 : 0;
 }
 
-static Elf64_Word *append_elf64_note(Elf64_Word *buf, char *name,
+static Elf64_Word *__init append_elf64_note(Elf64_Word *buf, char *name,
 				     u32 type, void *data,
 				     size_t data_len)
 {
@@ -107,19 +108,19 @@ static Elf64_Word *append_elf64_note(Elf64_Word *buf, char *name,
 	return buf;
 }
 
-static void fill_prstatus(struct elf_prstatus *prstatus, int pir,
+static void __init fill_prstatus(struct elf_prstatus *prstatus, int pir,
 			  struct pt_regs *regs)
 {
 	memset(prstatus, 0, sizeof(struct elf_prstatus));
-	elf_core_copy_kernel_regs(&(prstatus->pr_reg), regs);
+	elf_core_copy_regs(&(prstatus->pr_reg), regs);
 
 	/*
 	 * Overload PID with PIR value.
 	 * As a PIR value could also be '0', add an offset of '100'
 	 * to every PIR to avoid misinterpretations in GDB.
 	 */
-	prstatus->pr_pid  = cpu_to_be32(100 + pir);
-	prstatus->pr_ppid = cpu_to_be32(1);
+	prstatus->common.pr_pid  = cpu_to_be32(100 + pir);
+	prstatus->common.pr_ppid = cpu_to_be32(1);
 
 	/*
 	 * Indicate SIGUSR1 for crash initiated from kernel.
@@ -129,11 +130,11 @@ static void fill_prstatus(struct elf_prstatus *prstatus, int pir,
 		short sig;
 
 		sig = kernel_initiated ? SIGUSR1 : SIGTERM;
-		prstatus->pr_cursig = cpu_to_be16(sig);
+		prstatus->common.pr_cursig = cpu_to_be16(sig);
 	}
 }
 
-static Elf64_Word *auxv_to_elf64_notes(Elf64_Word *buf,
+static Elf64_Word *__init auxv_to_elf64_notes(Elf64_Word *buf,
 				       u64 opal_boot_entry)
 {
 	Elf64_Off *bufp = (Elf64_Off *)oc_conf->auxv_buf;
@@ -347,6 +348,8 @@ static int __init create_opalcore(void)
 	if (!dn || ret)
 		pr_warn("WARNING: Failed to read OPAL base & entry values\n");
 
+	of_node_put(dn);
+
 	/* Use count to keep track of the program headers */
 	count = 0;
 
@@ -428,7 +431,7 @@ static void opalcore_cleanup(void)
 		return;
 
 	/* Remove OPAL core sysfs file */
-	sysfs_remove_bin_file(opal_kobj, &opal_core_attr);
+	sysfs_remove_bin_file(mpipl_kobj, &opal_core_attr);
 	oc_conf->ptload_phdr = NULL;
 	oc_conf->ptload_cnt = 0;
 
@@ -509,7 +512,7 @@ static void __init opalcore_config_init(void)
 	idx = be32_to_cpu(opalc_metadata->region_cnt);
 	if (idx > MAX_PT_LOAD_CNT) {
 		pr_warn("WARNING: OPAL regions count (%d) adjusted to limit (%d)",
-			MAX_PT_LOAD_CNT, idx);
+			idx, MAX_PT_LOAD_CNT);
 		idx = MAX_PT_LOAD_CNT;
 	}
 	for (i = 0; i < idx; i++) {
@@ -563,9 +566,9 @@ error_out:
 	of_node_put(np);
 }
 
-static ssize_t fadump_release_opalcore_store(struct kobject *kobj,
-					     struct kobj_attribute *attr,
-					     const char *buf, size_t count)
+static ssize_t release_core_store(struct kobject *kobj,
+				  struct kobj_attribute *attr,
+				  const char *buf, size_t count)
 {
 	int input = -1;
 
@@ -589,9 +592,23 @@ static ssize_t fadump_release_opalcore_store(struct kobject *kobj,
 	return count;
 }
 
-static struct kobj_attribute opalcore_rel_attr = __ATTR(fadump_release_opalcore,
-						0200, NULL,
-						fadump_release_opalcore_store);
+static struct kobj_attribute opalcore_rel_attr = __ATTR_WO(release_core);
+
+static struct attribute *mpipl_attr[] = {
+	&opalcore_rel_attr.attr,
+	NULL,
+};
+
+static struct bin_attribute *mpipl_bin_attr[] = {
+	&opal_core_attr,
+	NULL,
+
+};
+
+static const struct attribute_group mpipl_group = {
+	.attrs = mpipl_attr,
+	.bin_attrs =  mpipl_bin_attr,
+};
 
 static int __init opalcore_init(void)
 {
@@ -609,7 +626,7 @@ static int __init opalcore_init(void)
 	 * then capture the dump.
 	 */
 	if (!(is_opalcore_usable())) {
-		pr_err("Failed to export /sys/firmware/opal/core\n");
+		pr_err("Failed to export /sys/firmware/opal/mpipl/core\n");
 		opalcore_cleanup();
 		return rc;
 	}
@@ -617,18 +634,28 @@ static int __init opalcore_init(void)
 	/* Set OPAL core file size */
 	opal_core_attr.size = oc_conf->opalcore_size;
 
+	mpipl_kobj = kobject_create_and_add("mpipl", opal_kobj);
+	if (!mpipl_kobj) {
+		pr_err("unable to create mpipl kobject\n");
+		return -ENOMEM;
+	}
+
 	/* Export OPAL core sysfs file */
-	rc = sysfs_create_bin_file(opal_kobj, &opal_core_attr);
-	if (rc != 0) {
-		pr_err("Failed to export /sys/firmware/opal/core\n");
+	rc = sysfs_create_group(mpipl_kobj, &mpipl_group);
+	if (rc) {
+		pr_err("mpipl sysfs group creation failed (%d)", rc);
 		opalcore_cleanup();
 		return rc;
 	}
-
-	rc = sysfs_create_file(kernel_kobj, &opalcore_rel_attr.attr);
+	/* The /sys/firmware/opal/core is moved to /sys/firmware/opal/mpipl/
+	 * directory, need to create symlink at old location to maintain
+	 * backward compatibility.
+	 */
+	rc = compat_only_sysfs_link_entry_to_kobj(opal_kobj, mpipl_kobj,
+						  "core", NULL);
 	if (rc) {
-		pr_warn("unable to create sysfs file fadump_release_opalcore (%d)\n",
-			rc);
+		pr_err("unable to create core symlink (%d)\n", rc);
+		return rc;
 	}
 
 	return 0;

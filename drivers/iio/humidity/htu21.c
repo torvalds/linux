@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/stat.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 
@@ -176,9 +177,9 @@ static const struct iio_info htu21_info = {
 	.attrs = &htu21_attribute_group,
 };
 
-static int htu21_probe(struct i2c_client *client,
-		       const struct i2c_device_id *id)
+static int htu21_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct ms_ht_dev *dev_data;
 	struct iio_dev *indio_dev;
 	int ret;
@@ -204,7 +205,6 @@ static int htu21_probe(struct i2c_client *client,
 
 	indio_dev->info = &htu21_info;
 	indio_dev->name = id->name;
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	if (id->driver_data == MS8607) {
@@ -248,7 +248,7 @@ static struct i2c_driver htu21_driver = {
 	.id_table = htu21_id,
 	.driver = {
 		   .name = "htu21",
-		   .of_match_table = of_match_ptr(htu21_of_match),
+		   .of_match_table = htu21_of_match,
 		   },
 };
 
@@ -258,3 +258,4 @@ MODULE_DESCRIPTION("Measurement-Specialties htu21 temperature and humidity drive
 MODULE_AUTHOR("William Markezana <william.markezana@meas-spec.com>");
 MODULE_AUTHOR("Ludovic Tancerel <ludovic.tancerel@maplehightech.com>");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_MEAS_SPEC_SENSORS);

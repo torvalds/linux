@@ -6,7 +6,7 @@
 config NET_VENDOR_AQUANTIA
 	bool "aQuantia devices"
 	default y
-	---help---
+	help
 	  Set this to y if you have an Ethernet network cards that uses the aQuantia
 	  AQC107/AQC108 chipset.
 
@@ -19,8 +19,8 @@ if NET_VENDOR_AQUANTIA
 config AQTION
 	tristate "aQuantia AQtion(tm) Support"
 	depends on PCI
-	depends on X86_64 || ARM64 || COMPILE_TEST
-	---help---
+	depends on MACSEC || MACSEC=n
+	help
 	  This enables the support for the aQuantia AQtion(tm) Ethernet card.
 
 endif # NET_VENDOR_AQUANTIA

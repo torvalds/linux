@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/brcm,misc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom's MISC block
+
+maintainers:
+  - Rafał Miłecki <rafal@milecki.pl>
+
+description: |
+  Broadcom's MISC is a hardware block used on some SoCs (e.g. bcm63xx and
+  bcm4908). It's used to implement some simple functions like a watchdog, PCIe
+  reset, UniMAC control and more.
+
+properties:
+  compatible:
+    items:
+      - const: brcm,misc
+      - const: simple-mfd
+
+  reg:
+    description: MISC block registers
+
+  ranges: true
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 1
+
+patternProperties:
+  '^reset-controller@[a-f0-9]+$':
+    $ref: /schemas/reset/brcm,bcm4908-misc-pcie-reset.yaml
+
+additionalProperties: false
+
+required:
+  - reg
+  - '#address-cells'
+  - '#size-cells'
+
+examples:
+  - |
+    misc@ff802600 {
+        compatible = "brcm,misc", "simple-mfd";
+        reg = <0xff802600 0xe4>;
+
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges = <0x0 0x0 0xe4>;
+
+        reset-controller@44 {
+            compatible = "brcm,bcm4908-misc-pcie-reset";
+            reg = <0x44 0x4>;
+            #reset-cells = <1>;
+        };
+    };

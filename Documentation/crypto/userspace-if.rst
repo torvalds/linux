@@ -23,7 +23,7 @@ user space, however. This includes the difference between synchronous
 and asynchronous invocations. The user space API call is fully
 synchronous.
 
-[1] http://www.chronox.de/libkcapi.html
+[1] https://www.chronox.de/libkcapi.html
 
 User Space API General Remarks
 ------------------------------
@@ -131,9 +131,9 @@ from the kernel crypto API. If the buffer is too small for the message
 digest, the flag MSG_TRUNC is set by the kernel.
 
 In order to set a message digest key, the calling application must use
-the setsockopt() option of ALG_SET_KEY. If the key is not set the HMAC
-operation is performed without the initial HMAC state change caused by
-the key.
+the setsockopt() option of ALG_SET_KEY or ALG_SET_KEY_BY_KEY_SERIAL. If the
+key is not set the HMAC operation is performed without the initial HMAC state
+change caused by the key.
 
 Symmetric Cipher API
 --------------------
@@ -296,15 +296,16 @@ follows:
 
     struct sockaddr_alg sa = {
         .salg_family = AF_ALG,
-        .salg_type = "rng", /* this selects the symmetric cipher */
-        .salg_name = "drbg_nopr_sha256" /* this is the cipher name */
+        .salg_type = "rng", /* this selects the random number generator */
+        .salg_name = "drbg_nopr_sha256" /* this is the RNG name */
     };
 
 
 Depending on the RNG type, the RNG must be seeded. The seed is provided
 using the setsockopt interface to set the key. For example, the
 ansi_cprng requires a seed. The DRBGs do not require a seed, but may be
-seeded.
+seeded. The seed is also known as a *Personalization String* in NIST SP 800-90A
+standard.
 
 Using the read()/recvmsg() system calls, random numbers can be obtained.
 The kernel generates at most 128 bytes in one call. If user space
@@ -313,6 +314,16 @@ requires more data, multiple calls to read()/recvmsg() must be made.
 WARNING: The user space caller may invoke the initially mentioned accept
 system call multiple times. In this case, the returned file descriptors
 have the same state.
+
+Following CAVP testing interfaces are enabled when kernel is built with
+CRYPTO_USER_API_RNG_CAVP option:
+
+-  the concatenation of *Entropy* and *Nonce* can be provided to the RNG via
+   ALG_SET_DRBG_ENTROPY setsockopt interface. Setting the entropy requires
+   CAP_SYS_ADMIN permission.
+
+-  *Additional Data* can be provided using the send()/sendmsg() system calls,
+   but only after the entropy has been set.
 
 Zero-Copy Interface
 -------------------
@@ -371,11 +382,23 @@ mentioned optname:
 
    -  the RNG cipher type to provide the seed
 
+- ALG_SET_KEY_BY_KEY_SERIAL -- Setting the key via keyring key_serial_t.
+   This operation behaves the same as ALG_SET_KEY. The decrypted
+   data is copied from a keyring key, and uses that data as the
+   key for symmetric encryption.
+
+   The passed in key_serial_t must have the KEY_(POS|USR|GRP|OTH)_SEARCH
+   permission set, otherwise -EPERM is returned. Supports key types: user,
+   logon, encrypted, and trusted.
+
 -  ALG_SET_AEAD_AUTHSIZE -- Setting the authentication tag size for
    AEAD ciphers. For a encryption operation, the authentication tag of
    the given size will be generated. For a decryption operation, the
    provided ciphertext is assumed to contain an authentication tag of
    the given size (see section about AEAD memory layout below).
+
+-  ALG_SET_DRBG_ENTROPY -- Setting the entropy of the random number generator.
+   This option is applicable to RNG cipher type only.
 
 User space API example
 ----------------------
@@ -384,4 +407,4 @@ Please see [1] for libkcapi which provides an easy-to-use wrapper around
 the aforementioned Netlink kernel interface. [1] also contains a test
 application that invokes all libkcapi API calls.
 
-[1] http://www.chronox.de/libkcapi.html
+[1] https://www.chronox.de/libkcapi.html

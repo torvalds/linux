@@ -52,8 +52,8 @@ int mantis_dma_exit(struct mantis_pci *mantis)
 			 mantis->buf_cpu,
 			 MANTIS_BUF_SIZE);
 
-		pci_free_consistent(mantis->pdev, MANTIS_BUF_SIZE,
-				    mantis->buf_cpu, mantis->buf_dma);
+		dma_free_coherent(&mantis->pdev->dev, MANTIS_BUF_SIZE,
+				  mantis->buf_cpu, mantis->buf_dma);
 
 		mantis->buf_cpu = NULL;
 	}
@@ -64,8 +64,8 @@ int mantis_dma_exit(struct mantis_pci *mantis)
 			mantis->risc_cpu,
 			MANTIS_RISC_SIZE);
 
-		pci_free_consistent(mantis->pdev, MANTIS_RISC_SIZE,
-				    mantis->risc_cpu, mantis->risc_dma);
+		dma_free_coherent(&mantis->pdev->dev, MANTIS_RISC_SIZE,
+				  mantis->risc_cpu, mantis->risc_dma);
 
 		mantis->risc_cpu = NULL;
 	}
@@ -77,9 +77,9 @@ EXPORT_SYMBOL_GPL(mantis_dma_exit);
 static inline int mantis_alloc_buffers(struct mantis_pci *mantis)
 {
 	if (!mantis->buf_cpu) {
-		mantis->buf_cpu = pci_alloc_consistent(mantis->pdev,
-						       MANTIS_BUF_SIZE,
-						       &mantis->buf_dma);
+		mantis->buf_cpu = dma_alloc_coherent(&mantis->pdev->dev,
+						     MANTIS_BUF_SIZE,
+						     &mantis->buf_dma, GFP_KERNEL);
 		if (!mantis->buf_cpu) {
 			dprintk(MANTIS_ERROR, 1,
 				"DMA buffer allocation failed");
@@ -92,9 +92,9 @@ static inline int mantis_alloc_buffers(struct mantis_pci *mantis)
 			mantis->buf_cpu, MANTIS_BUF_SIZE);
 	}
 	if (!mantis->risc_cpu) {
-		mantis->risc_cpu = pci_alloc_consistent(mantis->pdev,
-							MANTIS_RISC_SIZE,
-							&mantis->risc_dma);
+		mantis->risc_cpu = dma_alloc_coherent(&mantis->pdev->dev,
+						      MANTIS_RISC_SIZE,
+						      &mantis->risc_dma, GFP_KERNEL);
 
 		if (!mantis->risc_cpu) {
 			dprintk(MANTIS_ERROR, 1,
@@ -200,9 +200,9 @@ void mantis_dma_stop(struct mantis_pci *mantis)
 }
 
 
-void mantis_dma_xfer(unsigned long data)
+void mantis_dma_xfer(struct tasklet_struct *t)
 {
-	struct mantis_pci *mantis = (struct mantis_pci *) data;
+	struct mantis_pci *mantis = from_tasklet(mantis, t, tasklet);
 	struct mantis_hwconfig *config = mantis->hwconfig;
 
 	while (mantis->last_block != mantis->busy_block) {

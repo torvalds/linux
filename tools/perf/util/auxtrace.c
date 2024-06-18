@@ -26,12 +26,15 @@
 #include <linux/list.h>
 #include <linux/zalloc.h>
 
+#include "config.h"
 #include "evlist.h"
 #include "dso.h"
 #include "map.h"
 #include "pmu.h"
 #include "evsel.h"
+#include "evsel_config.h"
 #include "symbol.h"
+#include "util/perf_api_probe.h"
 #include "util/synthetic-events.h"
 #include "thread_map.h"
 #include "asm/bug.h"
@@ -49,13 +52,59 @@
 #include "intel-pt.h"
 #include "intel-bts.h"
 #include "arm-spe.h"
+#include "hisi-ptt.h"
 #include "s390-cpumsf.h"
 #include "util/mmap.h"
 
 #include <linux/ctype.h>
-#include <linux/kernel.h>
 #include "symbol/kallsyms.h"
 #include <internal/lib.h>
+#include "util/sample.h"
+
+/*
+ * Make a group from 'leader' to 'last', requiring that the events were not
+ * already grouped to a different leader.
+ */
+static int evlist__regroup(struct evlist *evlist, struct evsel *leader, struct evsel *last)
+{
+	struct evsel *evsel;
+	bool grp;
+
+	if (!evsel__is_group_leader(leader))
+		return -EINVAL;
+
+	grp = false;
+	evlist__for_each_entry(evlist, evsel) {
+		if (grp) {
+			if (!(evsel__leader(evsel) == leader ||
+			     (evsel__leader(evsel) == evsel &&
+			      evsel->core.nr_members <= 1)))
+				return -EINVAL;
+		} else if (evsel == leader) {
+			grp = true;
+		}
+		if (evsel == last)
+			break;
+	}
+
+	grp = false;
+	evlist__for_each_entry(evlist, evsel) {
+		if (grp) {
+			if (!evsel__has_leader(evsel, leader)) {
+				evsel__set_leader(evsel, leader);
+				if (leader->core.nr_members < 1)
+					leader->core.nr_members = 1;
+				leader->core.nr_members += 1;
+			}
+		} else if (evsel == leader) {
+			grp = true;
+		}
+		if (evsel == last)
+			break;
+	}
+
+	return 0;
+}
 
 static bool auxtrace__dont_decode(struct perf_session *session)
 {
@@ -77,17 +126,12 @@ int auxtrace_mmap__mmap(struct auxtrace_mmap *mm,
 	mm->prev = 0;
 	mm->idx = mp->idx;
 	mm->tid = mp->tid;
-	mm->cpu = mp->cpu;
+	mm->cpu = mp->cpu.cpu;
 
-	if (!mp->len) {
+	if (!mp->len || !mp->mmap_needed) {
 		mm->base = NULL;
 		return 0;
 	}
-
-#if BITS_PER_LONG != 64 && !defined(HAVE_SYNC_COMPARE_AND_SWAP_SUPPORT)
-	pr_err("Cannot use AUX area tracing mmaps\n");
-	return -1;
-#endif
 
 	pc->aux_offset = mp->offset;
 	pc->aux_size = mp->len;
@@ -127,19 +171,26 @@ void auxtrace_mmap_params__init(struct auxtrace_mmap_params *mp,
 }
 
 void auxtrace_mmap_params__set_idx(struct auxtrace_mmap_params *mp,
-				   struct evlist *evlist, int idx,
-				   bool per_cpu)
+				   struct evlist *evlist,
+				   struct evsel *evsel, int idx)
 {
+	bool per_cpu = !perf_cpu_map__has_any_cpu(evlist->core.user_requested_cpus);
+
+	mp->mmap_needed = evsel->needs_auxtrace_mmap;
+
+	if (!mp->mmap_needed)
+		return;
+
 	mp->idx = idx;
 
 	if (per_cpu) {
-		mp->cpu = evlist->core.cpus->map[idx];
+		mp->cpu = perf_cpu_map__cpu(evlist->core.all_cpus, idx);
 		if (evlist->core.threads)
 			mp->tid = perf_thread_map__pid(evlist->core.threads, 0);
 		else
 			mp->tid = -1;
 	} else {
-		mp->cpu = -1;
+		mp->cpu.cpu = -1;
 		mp->tid = perf_thread_map__pid(evlist->core.threads, idx);
 	}
 }
@@ -167,13 +218,18 @@ static struct auxtrace_queue *auxtrace_alloc_queue_array(unsigned int nr_queues)
 	return queue_array;
 }
 
-int auxtrace_queues__init(struct auxtrace_queues *queues)
+int auxtrace_queues__init_nr(struct auxtrace_queues *queues, int nr_queues)
 {
-	queues->nr_queues = AUXTRACE_INIT_NR_QUEUES;
+	queues->nr_queues = nr_queues;
 	queues->queue_array = auxtrace_alloc_queue_array(queues->nr_queues);
 	if (!queues->queue_array)
 		return -ENOMEM;
 	return 0;
+}
+
+int auxtrace_queues__init(struct auxtrace_queues *queues)
+{
+	return auxtrace_queues__init_nr(queues, AUXTRACE_INIT_NR_QUEUES);
 }
 
 static int auxtrace_queues__grow(struct auxtrace_queues *queues,
@@ -251,11 +307,7 @@ static int auxtrace_queues__queue_buffer(struct auxtrace_queues *queues,
 	if (!queue->set) {
 		queue->set = true;
 		queue->tid = buffer->tid;
-		queue->cpu = buffer->cpu;
-	} else if (buffer->cpu != queue->cpu || buffer->tid != queue->tid) {
-		pr_err("auxtrace queue conflict: cpu %d, tid %d vs cpu %d, tid %d\n",
-		       queue->cpu, queue->tid, buffer->cpu, buffer->tid);
-		return -EINVAL;
+		queue->cpu = buffer->cpu.cpu;
 	}
 
 	buffer->buffer_nr = queues->next_buffer_nr++;
@@ -302,11 +354,11 @@ static int auxtrace_queues__split_buffer(struct auxtrace_queues *queues,
 	return 0;
 }
 
-static bool filter_cpu(struct perf_session *session, int cpu)
+static bool filter_cpu(struct perf_session *session, struct perf_cpu cpu)
 {
 	unsigned long *cpu_bitmap = session->itrace_synth_opts->cpu_bitmap;
 
-	return cpu_bitmap && cpu != -1 && !test_bit(cpu, cpu_bitmap);
+	return cpu_bitmap && cpu.cpu != -1 && !test_bit(cpu.cpu, cpu_bitmap);
 }
 
 static int auxtrace_queues__add_buffer(struct auxtrace_queues *queues,
@@ -362,7 +414,7 @@ int auxtrace_queues__add_event(struct auxtrace_queues *queues,
 	struct auxtrace_buffer buffer = {
 		.pid = -1,
 		.tid = event->auxtrace.tid,
-		.cpu = event->auxtrace.cpu,
+		.cpu = { event->auxtrace.cpu },
 		.data_offset = data_offset,
 		.offset = event->auxtrace.offset,
 		.reference = event->auxtrace.reference,
@@ -562,8 +614,10 @@ int auxtrace_record__options(struct auxtrace_record *itr,
 			     struct evlist *evlist,
 			     struct record_opts *opts)
 {
-	if (itr)
+	if (itr) {
+		itr->evlist = evlist;
 		return itr->recording_options(itr, evlist, opts);
+	}
 	return 0;
 }
 
@@ -590,11 +644,185 @@ int auxtrace_parse_snapshot_options(struct auxtrace_record *itr,
 		break;
 	}
 
-	if (itr)
+	if (itr && itr->parse_snapshot_options)
 		return itr->parse_snapshot_options(itr, opts, str);
 
 	pr_err("No AUX area tracing to snapshot\n");
 	return -EINVAL;
+}
+
+static int evlist__enable_event_idx(struct evlist *evlist, struct evsel *evsel, int idx)
+{
+	bool per_cpu_mmaps = !perf_cpu_map__has_any_cpu(evlist->core.user_requested_cpus);
+
+	if (per_cpu_mmaps) {
+		struct perf_cpu evlist_cpu = perf_cpu_map__cpu(evlist->core.all_cpus, idx);
+		int cpu_map_idx = perf_cpu_map__idx(evsel->core.cpus, evlist_cpu);
+
+		if (cpu_map_idx == -1)
+			return -EINVAL;
+		return perf_evsel__enable_cpu(&evsel->core, cpu_map_idx);
+	}
+
+	return perf_evsel__enable_thread(&evsel->core, idx);
+}
+
+int auxtrace_record__read_finish(struct auxtrace_record *itr, int idx)
+{
+	struct evsel *evsel;
+
+	if (!itr->evlist || !itr->pmu)
+		return -EINVAL;
+
+	evlist__for_each_entry(itr->evlist, evsel) {
+		if (evsel->core.attr.type == itr->pmu->type) {
+			if (evsel->disabled)
+				return 0;
+			return evlist__enable_event_idx(itr->evlist, evsel, idx);
+		}
+	}
+	return -EINVAL;
+}
+
+/*
+ * Event record size is 16-bit which results in a maximum size of about 64KiB.
+ * Allow about 4KiB for the rest of the sample record, to give a maximum
+ * AUX area sample size of 60KiB.
+ */
+#define MAX_AUX_SAMPLE_SIZE (60 * 1024)
+
+/* Arbitrary default size if no other default provided */
+#define DEFAULT_AUX_SAMPLE_SIZE (4 * 1024)
+
+static int auxtrace_validate_aux_sample_size(struct evlist *evlist,
+					     struct record_opts *opts)
+{
+	struct evsel *evsel;
+	bool has_aux_leader = false;
+	u32 sz;
+
+	evlist__for_each_entry(evlist, evsel) {
+		sz = evsel->core.attr.aux_sample_size;
+		if (evsel__is_group_leader(evsel)) {
+			has_aux_leader = evsel__is_aux_event(evsel);
+			if (sz) {
+				if (has_aux_leader)
+					pr_err("Cannot add AUX area sampling to an AUX area event\n");
+				else
+					pr_err("Cannot add AUX area sampling to a group leader\n");
+				return -EINVAL;
+			}
+		}
+		if (sz > MAX_AUX_SAMPLE_SIZE) {
+			pr_err("AUX area sample size %u too big, max. %d\n",
+			       sz, MAX_AUX_SAMPLE_SIZE);
+			return -EINVAL;
+		}
+		if (sz) {
+			if (!has_aux_leader) {
+				pr_err("Cannot add AUX area sampling because group leader is not an AUX area event\n");
+				return -EINVAL;
+			}
+			evsel__set_sample_bit(evsel, AUX);
+			opts->auxtrace_sample_mode = true;
+		} else {
+			evsel__reset_sample_bit(evsel, AUX);
+		}
+	}
+
+	if (!opts->auxtrace_sample_mode) {
+		pr_err("AUX area sampling requires an AUX area event group leader plus other events to which to add samples\n");
+		return -EINVAL;
+	}
+
+	if (!perf_can_aux_sample()) {
+		pr_err("AUX area sampling is not supported by kernel\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int auxtrace_parse_sample_options(struct auxtrace_record *itr,
+				  struct evlist *evlist,
+				  struct record_opts *opts, const char *str)
+{
+	struct evsel_config_term *term;
+	struct evsel *aux_evsel;
+	bool has_aux_sample_size = false;
+	bool has_aux_leader = false;
+	struct evsel *evsel;
+	char *endptr;
+	unsigned long sz;
+
+	if (!str)
+		goto no_opt;
+
+	if (!itr) {
+		pr_err("No AUX area event to sample\n");
+		return -EINVAL;
+	}
+
+	sz = strtoul(str, &endptr, 0);
+	if (*endptr || sz > UINT_MAX) {
+		pr_err("Bad AUX area sampling option: '%s'\n", str);
+		return -EINVAL;
+	}
+
+	if (!sz)
+		sz = itr->default_aux_sample_size;
+
+	if (!sz)
+		sz = DEFAULT_AUX_SAMPLE_SIZE;
+
+	/* Set aux_sample_size based on --aux-sample option */
+	evlist__for_each_entry(evlist, evsel) {
+		if (evsel__is_group_leader(evsel)) {
+			has_aux_leader = evsel__is_aux_event(evsel);
+		} else if (has_aux_leader) {
+			evsel->core.attr.aux_sample_size = sz;
+		}
+	}
+no_opt:
+	aux_evsel = NULL;
+	/* Override with aux_sample_size from config term */
+	evlist__for_each_entry(evlist, evsel) {
+		if (evsel__is_aux_event(evsel))
+			aux_evsel = evsel;
+		term = evsel__get_config_term(evsel, AUX_SAMPLE_SIZE);
+		if (term) {
+			has_aux_sample_size = true;
+			evsel->core.attr.aux_sample_size = term->val.aux_sample_size;
+			/* If possible, group with the AUX event */
+			if (aux_evsel && evsel->core.attr.aux_sample_size)
+				evlist__regroup(evlist, aux_evsel, evsel);
+		}
+	}
+
+	if (!str && !has_aux_sample_size)
+		return 0;
+
+	if (!itr) {
+		pr_err("No AUX area event to sample\n");
+		return -EINVAL;
+	}
+
+	return auxtrace_validate_aux_sample_size(evlist, opts);
+}
+
+void auxtrace_regroup_aux_output(struct evlist *evlist)
+{
+	struct evsel *evsel, *aux_evsel = NULL;
+	struct evsel_config_term *term;
+
+	evlist__for_each_entry(evlist, evsel) {
+		if (evsel__is_aux_event(evsel))
+			aux_evsel = evsel;
+		term = evsel__get_config_term(evsel, AUX_OUTPUT);
+		/* If possible, group with the AUX event */
+		if (term && aux_evsel)
+			evlist__regroup(evlist, aux_evsel, evsel);
+	}
 }
 
 struct auxtrace_record *__weak
@@ -811,8 +1039,119 @@ struct auxtrace_buffer *auxtrace_buffer__next(struct auxtrace_queue *queue,
 	}
 }
 
-void *auxtrace_buffer__get_data(struct auxtrace_buffer *buffer, int fd)
+struct auxtrace_queue *auxtrace_queues__sample_queue(struct auxtrace_queues *queues,
+						     struct perf_sample *sample,
+						     struct perf_session *session)
 {
+	struct perf_sample_id *sid;
+	unsigned int idx;
+	u64 id;
+
+	id = sample->id;
+	if (!id)
+		return NULL;
+
+	sid = evlist__id2sid(session->evlist, id);
+	if (!sid)
+		return NULL;
+
+	idx = sid->idx;
+
+	if (idx >= queues->nr_queues)
+		return NULL;
+
+	return &queues->queue_array[idx];
+}
+
+int auxtrace_queues__add_sample(struct auxtrace_queues *queues,
+				struct perf_session *session,
+				struct perf_sample *sample, u64 data_offset,
+				u64 reference)
+{
+	struct auxtrace_buffer buffer = {
+		.pid = -1,
+		.data_offset = data_offset,
+		.reference = reference,
+		.size = sample->aux_sample.size,
+	};
+	struct perf_sample_id *sid;
+	u64 id = sample->id;
+	unsigned int idx;
+
+	if (!id)
+		return -EINVAL;
+
+	sid = evlist__id2sid(session->evlist, id);
+	if (!sid)
+		return -ENOENT;
+
+	idx = sid->idx;
+	buffer.tid = sid->tid;
+	buffer.cpu = sid->cpu;
+
+	return auxtrace_queues__add_buffer(queues, session, idx, &buffer, NULL);
+}
+
+struct queue_data {
+	bool samples;
+	bool events;
+};
+
+static int auxtrace_queue_data_cb(struct perf_session *session,
+				  union perf_event *event, u64 offset,
+				  void *data)
+{
+	struct queue_data *qd = data;
+	struct perf_sample sample;
+	int err;
+
+	if (qd->events && event->header.type == PERF_RECORD_AUXTRACE) {
+		if (event->header.size < sizeof(struct perf_record_auxtrace))
+			return -EINVAL;
+		offset += event->header.size;
+		return session->auxtrace->queue_data(session, NULL, event,
+						     offset);
+	}
+
+	if (!qd->samples || event->header.type != PERF_RECORD_SAMPLE)
+		return 0;
+
+	err = evlist__parse_sample(session->evlist, event, &sample);
+	if (err)
+		return err;
+
+	if (!sample.aux_sample.size)
+		return 0;
+
+	offset += sample.aux_sample.data - (void *)event;
+
+	return session->auxtrace->queue_data(session, &sample, NULL, offset);
+}
+
+int auxtrace_queue_data(struct perf_session *session, bool samples, bool events)
+{
+	struct queue_data qd = {
+		.samples = samples,
+		.events = events,
+	};
+
+	if (auxtrace__dont_decode(session))
+		return 0;
+
+	if (perf_data__is_pipe(session->data))
+		return 0;
+
+	if (!session->auxtrace || !session->auxtrace->queue_data)
+		return -EINVAL;
+
+	return perf_session__peek_events(session, session->header.data_offset,
+					 session->header.data_size,
+					 auxtrace_queue_data_cb, &qd);
+}
+
+void *auxtrace_buffer__get_data_rw(struct auxtrace_buffer *buffer, int fd, bool rw)
+{
+	int prot = rw ? PROT_READ | PROT_WRITE : PROT_READ;
 	size_t adj = buffer->data_offset & (page_size - 1);
 	size_t size = buffer->size + adj;
 	off_t file_offset = buffer->data_offset - adj;
@@ -821,7 +1160,7 @@ void *auxtrace_buffer__get_data(struct auxtrace_buffer *buffer, int fd)
 	if (buffer->data)
 		return buffer->data;
 
-	addr = mmap(NULL, size, PROT_READ, MAP_SHARED, fd, file_offset);
+	addr = mmap(NULL, size, prot, MAP_SHARED, fd, file_offset);
 	if (addr == MAP_FAILED)
 		return NULL;
 
@@ -861,9 +1200,10 @@ void auxtrace_buffer__free(struct auxtrace_buffer *buffer)
 	free(buffer);
 }
 
-void auxtrace_synth_error(struct perf_record_auxtrace_error *auxtrace_error, int type,
-			  int code, int cpu, pid_t pid, pid_t tid, u64 ip,
-			  const char *msg, u64 timestamp)
+void auxtrace_synth_guest_error(struct perf_record_auxtrace_error *auxtrace_error, int type,
+				int code, int cpu, pid_t pid, pid_t tid, u64 ip,
+				const char *msg, u64 timestamp,
+				pid_t machine_pid, int vcpu)
 {
 	size_t size;
 
@@ -879,10 +1219,24 @@ void auxtrace_synth_error(struct perf_record_auxtrace_error *auxtrace_error, int
 	auxtrace_error->ip = ip;
 	auxtrace_error->time = timestamp;
 	strlcpy(auxtrace_error->msg, msg, MAX_AUXTRACE_ERROR_MSG);
-
-	size = (void *)auxtrace_error->msg - (void *)auxtrace_error +
-	       strlen(auxtrace_error->msg) + 1;
+	if (machine_pid) {
+		auxtrace_error->fmt = 2;
+		auxtrace_error->machine_pid = machine_pid;
+		auxtrace_error->vcpu = vcpu;
+		size = sizeof(*auxtrace_error);
+	} else {
+		size = (void *)auxtrace_error->msg - (void *)auxtrace_error +
+		       strlen(auxtrace_error->msg) + 1;
+	}
 	auxtrace_error->header.size = PERF_ALIGN(size, sizeof(u64));
+}
+
+void auxtrace_synth_error(struct perf_record_auxtrace_error *auxtrace_error, int type,
+			  int code, int cpu, pid_t pid, pid_t tid, u64 ip,
+			  const char *msg, u64 timestamp)
+{
+	auxtrace_synth_guest_error(auxtrace_error, type, code, cpu, pid, tid,
+				   ip, msg, timestamp, 0, -1);
 }
 
 int perf_event__synthesize_auxtrace_info(struct auxtrace_record *itr,
@@ -914,29 +1268,82 @@ out_free:
 	return err;
 }
 
+static void unleader_evsel(struct evlist *evlist, struct evsel *leader)
+{
+	struct evsel *new_leader = NULL;
+	struct evsel *evsel;
+
+	/* Find new leader for the group */
+	evlist__for_each_entry(evlist, evsel) {
+		if (!evsel__has_leader(evsel, leader) || evsel == leader)
+			continue;
+		if (!new_leader)
+			new_leader = evsel;
+		evsel__set_leader(evsel, new_leader);
+	}
+
+	/* Update group information */
+	if (new_leader) {
+		zfree(&new_leader->group_name);
+		new_leader->group_name = leader->group_name;
+		leader->group_name = NULL;
+
+		new_leader->core.nr_members = leader->core.nr_members - 1;
+		leader->core.nr_members = 1;
+	}
+}
+
+static void unleader_auxtrace(struct perf_session *session)
+{
+	struct evsel *evsel;
+
+	evlist__for_each_entry(session->evlist, evsel) {
+		if (auxtrace__evsel_is_auxtrace(session, evsel) &&
+		    evsel__is_group_leader(evsel)) {
+			unleader_evsel(session->evlist, evsel);
+		}
+	}
+}
+
 int perf_event__process_auxtrace_info(struct perf_session *session,
 				      union perf_event *event)
 {
 	enum auxtrace_type type = event->auxtrace_info.type;
+	int err;
 
 	if (dump_trace)
 		fprintf(stdout, " type: %u\n", type);
 
 	switch (type) {
 	case PERF_AUXTRACE_INTEL_PT:
-		return intel_pt_process_auxtrace_info(event, session);
+		err = intel_pt_process_auxtrace_info(event, session);
+		break;
 	case PERF_AUXTRACE_INTEL_BTS:
-		return intel_bts_process_auxtrace_info(event, session);
+		err = intel_bts_process_auxtrace_info(event, session);
+		break;
 	case PERF_AUXTRACE_ARM_SPE:
-		return arm_spe_process_auxtrace_info(event, session);
+		err = arm_spe_process_auxtrace_info(event, session);
+		break;
 	case PERF_AUXTRACE_CS_ETM:
-		return cs_etm__process_auxtrace_info(event, session);
+		err = cs_etm__process_auxtrace_info(event, session);
+		break;
 	case PERF_AUXTRACE_S390_CPUMSF:
-		return s390_cpumsf_process_auxtrace_info(event, session);
+		err = s390_cpumsf_process_auxtrace_info(event, session);
+		break;
+	case PERF_AUXTRACE_HISI_PTT:
+		err = hisi_ptt_process_auxtrace_info(event, session);
+		break;
 	case PERF_AUXTRACE_UNKNOWN:
 	default:
 		return -EINVAL;
 	}
+
+	if (err)
+		return err;
+
+	unleader_auxtrace(session);
+
+	return 0;
 }
 
 s64 perf_event__process_auxtrace(struct perf_session *session,
@@ -978,13 +1385,21 @@ void itrace_synth_opts__set_default(struct itrace_synth_opts *synth_opts,
 	synth_opts->ptwrites = true;
 	synth_opts->pwr_events = true;
 	synth_opts->other_events = true;
+	synth_opts->intr_events = true;
 	synth_opts->errors = true;
+	synth_opts->flc = true;
+	synth_opts->llc = true;
+	synth_opts->tlb = true;
+	synth_opts->mem = true;
+	synth_opts->remote_access = true;
+
 	if (no_sample) {
 		synth_opts->period_type = PERF_ITRACE_PERIOD_INSTRUCTIONS;
 		synth_opts->period = 1;
 		synth_opts->calls = true;
 	} else {
 		synth_opts->instructions = true;
+		synth_opts->cycles = true;
 		synth_opts->period_type = PERF_ITRACE_DEFAULT_PERIOD_TYPE;
 		synth_opts->period = PERF_ITRACE_DEFAULT_PERIOD;
 	}
@@ -993,19 +1408,70 @@ void itrace_synth_opts__set_default(struct itrace_synth_opts *synth_opts,
 	synth_opts->initial_skip = 0;
 }
 
+static int get_flag(const char **ptr, unsigned int *flags)
+{
+	while (1) {
+		char c = **ptr;
+
+		if (c >= 'a' && c <= 'z') {
+			*flags |= 1 << (c - 'a');
+			++*ptr;
+			return 0;
+		} else if (c == ' ') {
+			++*ptr;
+			continue;
+		} else {
+			return -1;
+		}
+	}
+}
+
+static int get_flags(const char **ptr, unsigned int *plus_flags, unsigned int *minus_flags)
+{
+	while (1) {
+		switch (**ptr) {
+		case '+':
+			++*ptr;
+			if (get_flag(ptr, plus_flags))
+				return -1;
+			break;
+		case '-':
+			++*ptr;
+			if (get_flag(ptr, minus_flags))
+				return -1;
+			break;
+		case ' ':
+			++*ptr;
+			break;
+		default:
+			return 0;
+		}
+	}
+}
+
+#define ITRACE_DFLT_LOG_ON_ERROR_SZ 16384
+
+static unsigned int itrace_log_on_error_size(void)
+{
+	unsigned int sz = 0;
+
+	perf_config_scan("itrace.debug-log-buffer-size", "%u", &sz);
+	return sz ?: ITRACE_DFLT_LOG_ON_ERROR_SZ;
+}
+
 /*
  * Please check tools/perf/Documentation/perf-script.txt for information
  * about the options parsed here, which is introduced after this cset,
  * when support in 'perf script' for these options is introduced.
  */
-int itrace_parse_synth_opts(const struct option *opt, const char *str,
-			    int unset)
+int itrace_do_parse_synth_opts(struct itrace_synth_opts *synth_opts,
+			       const char *str, int unset)
 {
-	struct itrace_synth_opts *synth_opts = opt->value;
 	const char *p;
 	char *endptr;
 	bool period_type_set = false;
 	bool period_set = false;
+	bool iy = false;
 
 	synth_opts->set = true;
 
@@ -1023,7 +1489,12 @@ int itrace_parse_synth_opts(const struct option *opt, const char *str,
 	for (p = str; *p;) {
 		switch (*p++) {
 		case 'i':
-			synth_opts->instructions = true;
+		case 'y':
+			iy = true;
+			if (p[-1] == 'y')
+				synth_opts->cycles = true;
+			else
+				synth_opts->instructions = true;
 			while (*p == ' ' || *p == ',')
 				p += 1;
 			if (isdigit(*p)) {
@@ -1078,11 +1549,22 @@ int itrace_parse_synth_opts(const struct option *opt, const char *str,
 		case 'o':
 			synth_opts->other_events = true;
 			break;
+		case 'I':
+			synth_opts->intr_events = true;
+			break;
 		case 'e':
 			synth_opts->errors = true;
+			if (get_flags(&p, &synth_opts->error_plus_flags,
+				      &synth_opts->error_minus_flags))
+				goto out_err;
 			break;
 		case 'd':
 			synth_opts->log = true;
+			if (get_flags(&p, &synth_opts->log_plus_flags,
+				      &synth_opts->log_minus_flags))
+				goto out_err;
+			if (synth_opts->log_plus_flags & AUXTRACE_LOG_FLG_ON_ERROR)
+				synth_opts->log_on_error_size = itrace_log_on_error_size();
 			break;
 		case 'c':
 			synth_opts->branches = true;
@@ -1092,8 +1574,12 @@ int itrace_parse_synth_opts(const struct option *opt, const char *str,
 			synth_opts->branches = true;
 			synth_opts->returns = true;
 			break;
+		case 'G':
 		case 'g':
-			synth_opts->callchain = true;
+			if (p[-1] == 'G')
+				synth_opts->add_callchain = true;
+			else
+				synth_opts->callchain = true;
 			synth_opts->callchain_sz =
 					PERF_ITRACE_DEFAULT_CALLCHAIN_SZ;
 			while (*p == ' ' || *p == ',')
@@ -1108,8 +1594,12 @@ int itrace_parse_synth_opts(const struct option *opt, const char *str,
 				synth_opts->callchain_sz = val;
 			}
 			break;
+		case 'L':
 		case 'l':
-			synth_opts->last_branch = true;
+			if (p[-1] == 'L')
+				synth_opts->add_last_branch = true;
+			else
+				synth_opts->last_branch = true;
 			synth_opts->last_branch_sz =
 					PERF_ITRACE_DEFAULT_LAST_BRANCH_SZ;
 			while (*p == ' ' || *p == ',')
@@ -1131,6 +1621,33 @@ int itrace_parse_synth_opts(const struct option *opt, const char *str,
 				goto out_err;
 			p = endptr;
 			break;
+		case 'f':
+			synth_opts->flc = true;
+			break;
+		case 'm':
+			synth_opts->llc = true;
+			break;
+		case 't':
+			synth_opts->tlb = true;
+			break;
+		case 'a':
+			synth_opts->remote_access = true;
+			break;
+		case 'M':
+			synth_opts->mem = true;
+			break;
+		case 'q':
+			synth_opts->quick += 1;
+			break;
+		case 'A':
+			synth_opts->approx_ipc = true;
+			break;
+		case 'Z':
+			synth_opts->timeless_decoding = true;
+			break;
+		case 'T':
+			synth_opts->use_timestamp = true;
+			break;
 		case ' ':
 		case ',':
 			break;
@@ -1139,7 +1656,7 @@ int itrace_parse_synth_opts(const struct option *opt, const char *str,
 		}
 	}
 out:
-	if (synth_opts->instructions) {
+	if (iy) {
 		if (!period_type_set)
 			synth_opts->period_type =
 					PERF_ITRACE_DEFAULT_PERIOD_TYPE;
@@ -1152,6 +1669,11 @@ out:
 out_err:
 	pr_err("Bad Instruction Tracing options '%s'\n", str);
 	return -EINVAL;
+}
+
+int itrace_parse_synth_opts(const struct option *opt, const char *str, int unset)
+{
+	return itrace_do_parse_synth_opts(opt->value, str, unset);
 }
 
 static const char * const auxtrace_error_type_name[] = {
@@ -1191,6 +1713,9 @@ size_t perf_event__fprintf_auxtrace_error(union perf_event *event, FILE *fp)
 	if (!e->fmt)
 		msg = (const char *)&e->time;
 
+	if (e->fmt >= 2 && e->machine_pid)
+		ret += fprintf(fp, " machine_pid %d vcpu %d", e->machine_pid, e->vcpu);
+
 	ret += fprintf(fp, " cpu %d pid %d tid %d ip %#"PRI_lx64" code %u: %s\n",
 		       e->cpu, e->pid, e->tid, e->ip, e->code, msg);
 	return ret;
@@ -1228,6 +1753,82 @@ int perf_event__process_auxtrace_error(struct perf_session *session,
 	return 0;
 }
 
+/*
+ * In the compat mode kernel runs in 64-bit and perf tool runs in 32-bit mode,
+ * 32-bit perf tool cannot access 64-bit value atomically, which might lead to
+ * the issues caused by the below sequence on multiple CPUs: when perf tool
+ * accesses either the load operation or the store operation for 64-bit value,
+ * on some architectures the operation is divided into two instructions, one
+ * is for accessing the low 32-bit value and another is for the high 32-bit;
+ * thus these two user operations can give the kernel chances to access the
+ * 64-bit value, and thus leads to the unexpected load values.
+ *
+ *   kernel (64-bit)                        user (32-bit)
+ *
+ *   if (LOAD ->aux_tail) { --,             LOAD ->aux_head_lo
+ *       STORE $aux_data      |       ,--->
+ *       FLUSH $aux_data      |       |     LOAD ->aux_head_hi
+ *       STORE ->aux_head   --|-------`     smp_rmb()
+ *   }                        |             LOAD $data
+ *                            |             smp_mb()
+ *                            |             STORE ->aux_tail_lo
+ *                            `----------->
+ *                                          STORE ->aux_tail_hi
+ *
+ * For this reason, it's impossible for the perf tool to work correctly when
+ * the AUX head or tail is bigger than 4GB (more than 32 bits length); and we
+ * can not simply limit the AUX ring buffer to less than 4GB, the reason is
+ * the pointers can be increased monotonically, whatever the buffer size it is,
+ * at the end the head and tail can be bigger than 4GB and carry out to the
+ * high 32-bit.
+ *
+ * To mitigate the issues and improve the user experience, we can allow the
+ * perf tool working in certain conditions and bail out with error if detect
+ * any overflow cannot be handled.
+ *
+ * For reading the AUX head, it reads out the values for three times, and
+ * compares the high 4 bytes of the values between the first time and the last
+ * time, if there has no change for high 4 bytes injected by the kernel during
+ * the user reading sequence, it's safe for use the second value.
+ *
+ * When compat_auxtrace_mmap__write_tail() detects any carrying in the high
+ * 32 bits, it means there have two store operations in user space and it cannot
+ * promise the atomicity for 64-bit write, so return '-1' in this case to tell
+ * the caller an overflow error has happened.
+ */
+u64 __weak compat_auxtrace_mmap__read_head(struct auxtrace_mmap *mm)
+{
+	struct perf_event_mmap_page *pc = mm->userpg;
+	u64 first, second, last;
+	u64 mask = (u64)(UINT32_MAX) << 32;
+
+	do {
+		first = READ_ONCE(pc->aux_head);
+		/* Ensure all reads are done after we read the head */
+		smp_rmb();
+		second = READ_ONCE(pc->aux_head);
+		/* Ensure all reads are done after we read the head */
+		smp_rmb();
+		last = READ_ONCE(pc->aux_head);
+	} while ((first & mask) != (last & mask));
+
+	return second;
+}
+
+int __weak compat_auxtrace_mmap__write_tail(struct auxtrace_mmap *mm, u64 tail)
+{
+	struct perf_event_mmap_page *pc = mm->userpg;
+	u64 mask = (u64)(UINT32_MAX) << 32;
+
+	if (tail & mask)
+		return -1;
+
+	/* Ensure all reads are done before we write the tail out */
+	smp_mb();
+	WRITE_ONCE(pc->aux_tail, tail);
+	return 0;
+}
+
 static int __auxtrace_mmap__read(struct mmap *map,
 				 struct auxtrace_record *itr,
 				 struct perf_tool *tool, process_auxtrace_t fn,
@@ -1239,15 +1840,13 @@ static int __auxtrace_mmap__read(struct mmap *map,
 	size_t size, head_off, old_off, len1, len2, padding;
 	union perf_event ev;
 	void *data1, *data2;
+	int kernel_is_64_bit = perf_env__kernel_is_64_bit(evsel__env(NULL));
 
-	if (snapshot) {
-		head = auxtrace_mmap__read_snapshot_head(mm);
-		if (auxtrace_record__find_snapshot(itr, mm->idx, mm, data,
-						   &head, &old))
-			return -1;
-	} else {
-		head = auxtrace_mmap__read_head(mm);
-	}
+	head = auxtrace_mmap__read_head(mm, kernel_is_64_bit);
+
+	if (snapshot &&
+	    auxtrace_record__find_snapshot(itr, mm->idx, mm, data, &head, &old))
+		return -1;
 
 	if (old == head)
 		return 0;
@@ -1326,10 +1925,13 @@ static int __auxtrace_mmap__read(struct mmap *map,
 	mm->prev = head;
 
 	if (!snapshot) {
-		auxtrace_mmap__write_tail(mm, head);
-		if (itr->read_finish) {
-			int err;
+		int err;
 
+		err = auxtrace_mmap__write_tail(mm, head, kernel_is_64_bit);
+		if (err < 0)
+			return err;
+
+		if (itr->read_finish) {
 			err = itr->read_finish(itr, mm->idx);
 			if (err < 0)
 				return err;
@@ -1455,6 +2057,34 @@ int auxtrace_cache__add(struct auxtrace_cache *c, u32 key,
 	hlist_add_head(&entry->hash, &c->hashtable[hash_32(key, c->bits)]);
 
 	return 0;
+}
+
+static struct auxtrace_cache_entry *auxtrace_cache__rm(struct auxtrace_cache *c,
+						       u32 key)
+{
+	struct auxtrace_cache_entry *entry;
+	struct hlist_head *hlist;
+	struct hlist_node *n;
+
+	if (!c)
+		return NULL;
+
+	hlist = &c->hashtable[hash_32(key, c->bits)];
+	hlist_for_each_entry_safe(entry, n, hlist, hash) {
+		if (entry->key == key) {
+			hlist_del(&entry->hash);
+			return entry;
+		}
+	}
+
+	return NULL;
+}
+
+void auxtrace_cache__remove(struct auxtrace_cache *c, u32 key)
+{
+	struct auxtrace_cache_entry *entry = auxtrace_cache__rm(c, key);
+
+	auxtrace_cache__free_entry(c, entry);
 }
 
 void *auxtrace_cache__lookup(struct auxtrace_cache *c, u32 key)
@@ -1714,11 +2344,19 @@ struct sym_args {
 	bool		near;
 };
 
+static bool kern_sym_name_match(const char *kname, const char *name)
+{
+	size_t n = strlen(name);
+
+	return !strcmp(kname, name) ||
+	       (!strncmp(kname, name, n) && kname[n] == '\t');
+}
+
 static bool kern_sym_match(struct sym_args *args, const char *name, char type)
 {
 	/* A function with the same name, and global or the n'th found or any */
 	return kallsyms__is_function(type) &&
-	       !strcmp(name, args->name) &&
+	       kern_sym_name_match(name, args->name) &&
 	       ((args->global && isupper(type)) ||
 		(args->selected && ++(args->cnt) == args->idx) ||
 		(!args->global && !args->selected));
@@ -1821,6 +2459,7 @@ static int find_entire_kern_cb(void *arg, const char *name __maybe_unused,
 			       char type, u64 start)
 {
 	struct sym_args *args = arg;
+	u64 size;
 
 	if (!kallsyms__is_function(type))
 		return 0;
@@ -1830,7 +2469,9 @@ static int find_entire_kern_cb(void *arg, const char *name __maybe_unused,
 		args->start = start;
 	}
 	/* Don't know exactly where the kernel ends, so we add a page */
-	args->size = round_up(start, page_size) + page_size - args->start;
+	size = round_up(start, page_size) + page_size - args->start;
+	if (size > args->size)
+		args->size = size;
 
 	return 0;
 }
@@ -1929,7 +2570,7 @@ static struct dso *load_dso(const char *name)
 	if (map__load(map) < 0)
 		pr_err("File '%s' not found or has no symbols.\n", name);
 
-	dso = dso__get(map->dso);
+	dso = dso__get(map__dso(map));
 
 	map__put(map);
 
@@ -1991,7 +2632,7 @@ static int find_dso_sym(struct dso *dso, const char *sym_name, u64 *start,
 				*size = sym->start - *start;
 			if (idx > 0) {
 				if (*size)
-					return 1;
+					return 0;
 			} else if (dso_sym_match(sym, sym_name, &cnt, idx)) {
 				print_duplicate_syms(dso, sym_name);
 				return -EINVAL;
@@ -2018,7 +2659,7 @@ static int addr_filter__entire_dso(struct addr_filter *filt, struct dso *dso)
 	}
 
 	filt->addr = 0;
-	filt->size = dso->data.file_size;
+	filt->size = dso__data(dso)->file_size;
 
 	return 0;
 }
@@ -2134,7 +2775,7 @@ static int parse_addr_filter(struct evsel *evsel, const char *filter,
 			goto out_exit;
 		}
 
-		if (perf_evsel__append_addr_filter(evsel, new_filter)) {
+		if (evsel__append_addr_filter(evsel, new_filter)) {
 			err = -ENOMEM;
 			goto out_exit;
 		}
@@ -2152,21 +2793,9 @@ out_exit:
 	return err;
 }
 
-static struct perf_pmu *perf_evsel__find_pmu(struct evsel *evsel)
+static int evsel__nr_addr_filter(struct evsel *evsel)
 {
-	struct perf_pmu *pmu = NULL;
-
-	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
-		if (pmu->type == evsel->core.attr.type)
-			break;
-	}
-
-	return pmu;
-}
-
-static int perf_evsel__nr_addr_filter(struct evsel *evsel)
-{
-	struct perf_pmu *pmu = perf_evsel__find_pmu(evsel);
+	struct perf_pmu *pmu = evsel__find_pmu(evsel);
 	int nr_addr_filters = 0;
 
 	if (!pmu)
@@ -2185,7 +2814,7 @@ int auxtrace_parse_filters(struct evlist *evlist)
 
 	evlist__for_each_entry(evlist, evsel) {
 		filter = evsel->filter;
-		max_nr = perf_evsel__nr_addr_filter(evsel);
+		max_nr = evsel__nr_addr_filter(evsel);
 		if (!filter || !max_nr)
 			continue;
 		evsel->filter = NULL;
@@ -2206,6 +2835,16 @@ int auxtrace__process_event(struct perf_session *session, union perf_event *even
 		return 0;
 
 	return session->auxtrace->process_event(session, event, sample, tool);
+}
+
+void auxtrace__dump_auxtrace_sample(struct perf_session *session,
+				    struct perf_sample *sample)
+{
+	if (!session->auxtrace || !session->auxtrace->dump_auxtrace_sample ||
+	    auxtrace__dont_decode(session))
+		return;
+
+	session->auxtrace->dump_auxtrace_sample(session, sample);
 }
 
 int auxtrace__flush_events(struct perf_session *session, struct perf_tool *tool)
@@ -2230,4 +2869,13 @@ void auxtrace__free(struct perf_session *session)
 		return;
 
 	return session->auxtrace->free(session);
+}
+
+bool auxtrace__evsel_is_auxtrace(struct perf_session *session,
+				 struct evsel *evsel)
+{
+	if (!session->auxtrace || !session->auxtrace->evsel_is_auxtrace)
+		return false;
+
+	return session->auxtrace->evsel_is_auxtrace(session, evsel);
 }

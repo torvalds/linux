@@ -1,0 +1,101 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/aspeed/aspeed.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Aspeed SoC based boards
+
+maintainers:
+  - Joel Stanley <joel@jms.id.au>
+
+properties:
+  $nodename:
+    const: '/'
+  compatible:
+    oneOf:
+      - description: AST2400 based boards
+        items:
+          - enum:
+              - delta,ahe50dc-bmc
+              - facebook,galaxy100-bmc
+              - facebook,wedge100-bmc
+              - facebook,wedge40-bmc
+              - microsoft,olympus-bmc
+              - quanta,q71l-bmc
+              - tyan,palmetto-bmc
+              - yadro,vesnin-bmc
+          - const: aspeed,ast2400
+
+      - description: AST2500 based boards
+        items:
+          - enum:
+              - amd,daytonax-bmc
+              - amd,ethanolx-bmc
+              - ampere,mtjade-bmc
+              - aspeed,ast2500-evb
+              - asrock,e3c246d4i-bmc
+              - asrock,e3c256d4i-bmc
+              - asrock,romed8hm3-bmc
+              - asrock,spc621d8hm3-bmc
+              - asrock,x570d4u-bmc
+              - bytedance,g220a-bmc
+              - facebook,cmm-bmc
+              - facebook,minipack-bmc
+              - facebook,tiogapass-bmc
+              - facebook,yamp-bmc
+              - facebook,yosemitev2-bmc
+              - facebook,wedge400-bmc
+              - hxt,stardragon4800-rep2-bmc
+              - ibm,mihawk-bmc
+              - ibm,mowgli-bmc
+              - ibm,romulus-bmc
+              - ibm,swift-bmc
+              - ibm,witherspoon-bmc
+              - ingrasys,zaius-bmc
+              - inspur,fp5280g2-bmc
+              - inspur,nf5280m6-bmc
+              - inspur,on5263m5-bmc
+              - intel,s2600wf-bmc
+              - inventec,lanyang-bmc
+              - lenovo,hr630-bmc
+              - lenovo,hr855xg2-bmc
+              - portwell,neptune-bmc
+              - qcom,centriq2400-rep-bmc
+              - supermicro,x11spi-bmc
+              - tyan,s7106-bmc
+              - tyan,s8036-bmc
+              - yadro,nicole-bmc
+              - yadro,vegman-n110-bmc
+              - yadro,vegman-rx20-bmc
+              - yadro,vegman-sx20-bmc
+          - const: aspeed,ast2500
+
+      - description: AST2600 based boards
+        items:
+          - enum:
+              - ampere,mtmitchell-bmc
+              - aspeed,ast2600-evb
+              - aspeed,ast2600-evb-a1
+              - asus,x4tf-bmc
+              - facebook,bletchley-bmc
+              - facebook,cloudripper-bmc
+              - facebook,elbert-bmc
+              - facebook,fuji-bmc
+              - facebook,greatlakes-bmc
+              - facebook,harma-bmc
+              - facebook,minerva-cmc
+              - facebook,yosemite4-bmc
+              - ibm,everest-bmc
+              - ibm,rainier-bmc
+              - ibm,system1-bmc
+              - ibm,tacoma-bmc
+              - inventec,starscream-bmc
+              - inventec,transformer-bmc
+              - jabil,rbp-bmc
+              - qcom,dc-scm-v1-bmc
+              - quanta,s6q-bmc
+              - ufispace,ncplite-bmc
+          - const: aspeed,ast2600
+
+additionalProperties: true

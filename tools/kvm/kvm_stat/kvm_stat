@@ -25,24 +25,30 @@ import sys
 import locale
 import os
 import time
-import optparse
+import argparse
 import ctypes
 import fcntl
 import resource
 import struct
 import re
 import subprocess
+import signal
 from collections import defaultdict, namedtuple
+from functools import reduce
+from datetime import datetime
 
 VMX_EXIT_REASONS = {
     'EXCEPTION_NMI':        0,
     'EXTERNAL_INTERRUPT':   1,
     'TRIPLE_FAULT':         2,
-    'PENDING_INTERRUPT':    7,
+    'INIT_SIGNAL':          3,
+    'SIPI_SIGNAL':          4,
+    'INTERRUPT_WINDOW':     7,
     'NMI_WINDOW':           8,
     'TASK_SWITCH':          9,
     'CPUID':                10,
     'HLT':                  12,
+    'INVD':                 13,
     'INVLPG':               14,
     'RDPMC':                15,
     'RDTSC':                16,
@@ -62,26 +68,48 @@ VMX_EXIT_REASONS = {
     'MSR_READ':             31,
     'MSR_WRITE':            32,
     'INVALID_STATE':        33,
+    'MSR_LOAD_FAIL':        34,
     'MWAIT_INSTRUCTION':    36,
+    'MONITOR_TRAP_FLAG':    37,
     'MONITOR_INSTRUCTION':  39,
     'PAUSE_INSTRUCTION':    40,
     'MCE_DURING_VMENTRY':   41,
     'TPR_BELOW_THRESHOLD':  43,
     'APIC_ACCESS':          44,
+    'EOI_INDUCED':          45,
+    'GDTR_IDTR':            46,
+    'LDTR_TR':              47,
     'EPT_VIOLATION':        48,
     'EPT_MISCONFIG':        49,
+    'INVEPT':               50,
+    'RDTSCP':               51,
+    'PREEMPTION_TIMER':     52,
+    'INVVPID':              53,
     'WBINVD':               54,
     'XSETBV':               55,
     'APIC_WRITE':           56,
+    'RDRAND':               57,
     'INVPCID':              58,
+    'VMFUNC':               59,
+    'ENCLS':                60,
+    'RDSEED':               61,
+    'PML_FULL':             62,
+    'XSAVES':               63,
+    'XRSTORS':              64,
+    'UMWAIT':               67,
+    'TPAUSE':               68,
+    'BUS_LOCK':             74,
+    'NOTIFY':               75,
 }
 
 SVM_EXIT_REASONS = {
     'READ_CR0':       0x000,
+    'READ_CR2':       0x002,
     'READ_CR3':       0x003,
     'READ_CR4':       0x004,
     'READ_CR8':       0x008,
     'WRITE_CR0':      0x010,
+    'WRITE_CR2':      0x012,
     'WRITE_CR3':      0x013,
     'WRITE_CR4':      0x014,
     'WRITE_CR8':      0x018,
@@ -102,6 +130,7 @@ SVM_EXIT_REASONS = {
     'WRITE_DR6':      0x036,
     'WRITE_DR7':      0x037,
     'EXCP_BASE':      0x040,
+    'LAST_EXCP':      0x05f,
     'INTR':           0x060,
     'NMI':            0x061,
     'SMI':            0x062,
@@ -148,21 +177,45 @@ SVM_EXIT_REASONS = {
     'MWAIT':          0x08b,
     'MWAIT_COND':     0x08c,
     'XSETBV':         0x08d,
+    'RDPRU':          0x08e,
+    'EFER_WRITE_TRAP':           0x08f,
+    'CR0_WRITE_TRAP':            0x090,
+    'CR1_WRITE_TRAP':            0x091,
+    'CR2_WRITE_TRAP':            0x092,
+    'CR3_WRITE_TRAP':            0x093,
+    'CR4_WRITE_TRAP':            0x094,
+    'CR5_WRITE_TRAP':            0x095,
+    'CR6_WRITE_TRAP':            0x096,
+    'CR7_WRITE_TRAP':            0x097,
+    'CR8_WRITE_TRAP':            0x098,
+    'CR9_WRITE_TRAP':            0x099,
+    'CR10_WRITE_TRAP':           0x09a,
+    'CR11_WRITE_TRAP':           0x09b,
+    'CR12_WRITE_TRAP':           0x09c,
+    'CR13_WRITE_TRAP':           0x09d,
+    'CR14_WRITE_TRAP':           0x09e,
+    'CR15_WRITE_TRAP':           0x09f,
+    'INVPCID':        0x0a2,
     'NPF':            0x400,
+    'AVIC_INCOMPLETE_IPI':       0x401,
+    'AVIC_UNACCELERATED_ACCESS': 0x402,
+    'VMGEXIT':        0x403,
 }
 
-# EC definition of HSR (from arch/arm64/include/asm/kvm_arm.h)
+# EC definition of HSR (from arch/arm64/include/asm/esr.h)
 AARCH64_EXIT_REASONS = {
     'UNKNOWN':      0x00,
-    'WFI':          0x01,
+    'WFx':          0x01,
     'CP15_32':      0x03,
     'CP15_64':      0x04,
     'CP14_MR':      0x05,
     'CP14_LS':      0x06,
     'FP_ASIMD':     0x07,
     'CP10_ID':      0x08,
+    'PAC':          0x09,
     'CP14_64':      0x0C,
-    'ILL_ISS':      0x0E,
+    'BTI':          0x0D,
+    'ILL':          0x0E,
     'SVC32':        0x11,
     'HVC32':        0x12,
     'SMC32':        0x13,
@@ -170,21 +223,26 @@ AARCH64_EXIT_REASONS = {
     'HVC64':        0x16,
     'SMC64':        0x17,
     'SYS64':        0x18,
-    'IABT':         0x20,
-    'IABT_HYP':     0x21,
+    'SVE':          0x19,
+    'ERET':         0x1A,
+    'FPAC':         0x1C,
+    'SME':          0x1D,
+    'IMP_DEF':      0x1F,
+    'IABT_LOW':     0x20,
+    'IABT_CUR':     0x21,
     'PC_ALIGN':     0x22,
-    'DABT':         0x24,
-    'DABT_HYP':     0x25,
+    'DABT_LOW':     0x24,
+    'DABT_CUR':     0x25,
     'SP_ALIGN':     0x26,
     'FP_EXC32':     0x28,
     'FP_EXC64':     0x2C,
     'SERROR':       0x2F,
-    'BREAKPT':      0x30,
-    'BREAKPT_HYP':  0x31,
-    'SOFTSTP':      0x32,
-    'SOFTSTP_HYP':  0x33,
-    'WATCHPT':      0x34,
-    'WATCHPT_HYP':  0x35,
+    'BREAKPT_LOW':  0x30,
+    'BREAKPT_CUR':  0x31,
+    'SOFTSTP_LOW':  0x32,
+    'SOFTSTP_CUR':  0x33,
+    'WATCHPT_LOW':  0x34,
+    'WATCHPT_CUR':  0x35,
     'BKPT32':       0x38,
     'VECTOR32':     0x3A,
     'BRK64':        0x3C,
@@ -217,6 +275,19 @@ USERSPACE_EXIT_REASONS = {
     'S390_TSCH':        22,
     'EPR':              23,
     'SYSTEM_EVENT':     24,
+    'S390_STSI':        25,
+    'IOAPIC_EOI':       26,
+    'HYPERV':           27,
+    'ARM_NISV':         28,
+    'X86_RDMSR':        29,
+    'X86_WRMSR':        30,
+    'DIRTY_RING_FULL':  31,
+    'AP_RESET_HOLD':    32,
+    'X86_BUS_LOCK':     33,
+    'XEN':              34,
+    'RISCV_SBI':        35,
+    'RISCV_CSR':        36,
+    'NOTIFY':           37,
 }
 
 IOCTL_NUMBERS = {
@@ -225,6 +296,8 @@ IOCTL_NUMBERS = {
     'DISABLE':     0x00002401,
     'RESET':       0x00002403,
 }
+
+signal_received = False
 
 ENCODING = locale.getpreferredencoding(False)
 TRACE_FILTER = re.compile(r'^[^\(]*$')
@@ -270,6 +343,7 @@ class ArchX86(Arch):
     def __init__(self, exit_reasons):
         self.sc_perf_evt_open = 298
         self.ioctl_numbers = IOCTL_NUMBERS
+        self.exit_reason_field = 'exit_reason'
         self.exit_reasons = exit_reasons
 
     def debugfs_is_child(self, field):
@@ -289,6 +363,7 @@ class ArchPPC(Arch):
         # numbers depend on the wordsize.
         char_ptr_size = ctypes.sizeof(ctypes.c_char_p)
         self.ioctl_numbers['SET_FILTER'] = 0x80002406 | char_ptr_size << 16
+        self.exit_reason_field = 'exit_nr'
         self.exit_reasons = {}
 
     def debugfs_is_child(self, field):
@@ -300,6 +375,7 @@ class ArchA64(Arch):
     def __init__(self):
         self.sc_perf_evt_open = 241
         self.ioctl_numbers = IOCTL_NUMBERS
+        self.exit_reason_field = 'esr_ec'
         self.exit_reasons = AARCH64_EXIT_REASONS
 
     def debugfs_is_child(self, field):
@@ -311,6 +387,7 @@ class ArchS390(Arch):
     def __init__(self):
         self.sc_perf_evt_open = 331
         self.ioctl_numbers = IOCTL_NUMBERS
+        self.exit_reason_field = None
         self.exit_reasons = None
 
     def debugfs_is_child(self, field):
@@ -541,8 +618,8 @@ class TracepointProvider(Provider):
         """
         filters = {}
         filters['kvm_userspace_exit'] = ('reason', USERSPACE_EXIT_REASONS)
-        if ARCH.exit_reasons:
-            filters['kvm_exit'] = ('exit_reason', ARCH.exit_reasons)
+        if ARCH.exit_reason_field and ARCH.exit_reasons:
+            filters['kvm_exit'] = (ARCH.exit_reason_field, ARCH.exit_reasons)
         return filters
 
     def _get_available_fields(self):
@@ -550,7 +627,7 @@ class TracepointProvider(Provider):
         name)'.
 
         All available events have directories under
-        /sys/kernel/debug/tracing/events/ which export information
+        /sys/kernel/tracing/events/ which export information
         about the specific event. Therefore, listing the dirs gives us
         a list of all available events.
 
@@ -733,7 +810,11 @@ class DebugfsProvider(Provider):
         The fields are all available KVM debugfs files
 
         """
-        return self.walkdir(PATH_DEBUGFS_KVM)[2]
+        exempt_list = ['halt_poll_fail_ns', 'halt_poll_success_ns', 'halt_wait_ns']
+        fields = [field for field in self.walkdir(PATH_DEBUGFS_KVM)[2]
+                  if field not in exempt_list]
+
+        return fields
 
     def update_fields(self, fields_filter):
         """Refresh fields, applying fields_filter"""
@@ -869,7 +950,7 @@ class Stats(object):
 
         if options.debugfs:
             providers.append(DebugfsProvider(options.pid, options.fields,
-                                             options.dbgfs_include_past))
+                                             options.debugfs_include_past))
         if options.tracepoints or not providers:
             providers.append(TracepointProvider(options.pid, options.fields))
 
@@ -970,15 +1051,17 @@ DELAY_DEFAULT = 3.0
 MAX_GUEST_NAME_LEN = 48
 MAX_REGEX_LEN = 44
 SORT_DEFAULT = 0
+MIN_DELAY = 0.1
+MAX_DELAY = 25.5
 
 
 class Tui(object):
     """Instruments curses to draw a nice text ui."""
-    def __init__(self, stats):
+    def __init__(self, stats, opts):
         self.stats = stats
         self.screen = None
         self._delay_initial = 0.25
-        self._delay_regular = DELAY_DEFAULT
+        self._delay_regular = opts.set_delay
         self._sorting = SORT_DEFAULT
         self._display_guests = 0
 
@@ -1179,7 +1262,7 @@ class Tui(object):
 
         if not self._is_running_guest(self.stats.pid_filter):
             if self._gname:
-                try: # ...to identify the guest by name in case it's back
+                try:  # ...to identify the guest by name in case it's back
                     pids = self.get_pid_from_gname(self._gname)
                     if len(pids) == 1:
                         self._refresh_header(pids[0])
@@ -1278,7 +1361,8 @@ class Tui(object):
                '   p     filter by guest name/PID',
                '   q     quit',
                '   r     reset stats',
-               '   s     set update interval',
+               '   s     set delay between refreshs (value range: '
+               '%s-%s secs)' % (MIN_DELAY, MAX_DELAY),
                '   x     toggle reporting of stats for individual child trace'
                ' events',
                'Any other key refreshes statistics immediately')
@@ -1332,8 +1416,8 @@ class Tui(object):
         msg = ''
         while True:
             self.screen.erase()
-            self.screen.addstr(0, 0, 'Set update interval (defaults to %.1fs).' %
-                               DELAY_DEFAULT, curses.A_BOLD)
+            self.screen.addstr(0, 0, 'Set update interval (defaults to %.1fs).'
+                               % DELAY_DEFAULT, curses.A_BOLD)
             self.screen.addstr(4, 0, msg)
             self.screen.addstr(2, 0, 'Change delay from %.1fs to ' %
                                self._delay_regular)
@@ -1344,11 +1428,9 @@ class Tui(object):
             try:
                 if len(val) > 0:
                     delay = float(val)
-                    if delay < 0.1:
-                        msg = '"' + str(val) + '": Value must be >=0.1'
-                        continue
-                    if delay > 25.5:
-                        msg = '"' + str(val) + '": Value must be <=25.5'
+                    err = is_delay_valid(delay)
+                    if err is not None:
+                        msg = err
                         continue
                 else:
                     delay = DELAY_DEFAULT
@@ -1484,31 +1566,105 @@ def batch(stats):
         pass
 
 
-def log(stats):
+class StdFormat(object):
+    def __init__(self, keys):
+        self._banner = ''
+        for key in keys:
+            self._banner += key.split(' ')[0] + ' '
+
+    def get_banner(self):
+        return self._banner
+
+    def get_statline(self, keys, s):
+        res = ''
+        for key in keys:
+            res += ' %9d' % s[key].delta
+        return res
+
+
+class CSVFormat(object):
+    def __init__(self, keys):
+        self._banner = 'timestamp'
+        self._banner += reduce(lambda res, key: "{},{!s}".format(res,
+                               key.split(' ')[0]), keys, '')
+
+    def get_banner(self):
+        return self._banner
+
+    def get_statline(self, keys, s):
+        return reduce(lambda res, key: "{},{!s}".format(res, s[key].delta),
+                      keys, '')
+
+
+def log(stats, opts, frmt, keys):
     """Prints statistics as reiterating key block, multiple value blocks."""
-    keys = sorted(stats.get().keys())
-
-    def banner():
-        for key in keys:
-            print(key.split(' ')[0], end=' ')
-        print()
-
-    def statline():
-        s = stats.get()
-        for key in keys:
-            print(' %9d' % s[key].delta, end=' ')
-        print()
+    global signal_received
     line = 0
     banner_repeat = 20
+    f = None
+
+    def do_banner(opts):
+        nonlocal f
+        if opts.log_to_file:
+            if not f:
+                try:
+                     f = open(opts.log_to_file, 'a')
+                except (IOError, OSError):
+                    sys.exit("Error: Could not open file: %s" %
+                             opts.log_to_file)
+                if isinstance(frmt, CSVFormat) and f.tell() != 0:
+                    return
+        print(frmt.get_banner(), file=f or sys.stdout)
+
+    def do_statline(opts, values):
+        statline = datetime.now().strftime("%Y-%m-%d %H:%M:%S") + \
+                   frmt.get_statline(keys, values)
+        print(statline, file=f or sys.stdout)
+
+    do_banner(opts)
+    banner_printed = True
     while True:
         try:
-            time.sleep(1)
-            if line % banner_repeat == 0:
-                banner()
-            statline()
-            line += 1
+            time.sleep(opts.set_delay)
+            if signal_received:
+                banner_printed = True
+                line = 0
+                f.close()
+                do_banner(opts)
+                signal_received = False
+            if (line % banner_repeat == 0 and not banner_printed and
+                not (opts.log_to_file and isinstance(frmt, CSVFormat))):
+                do_banner(opts)
+                banner_printed = True
+            values = stats.get()
+            if (not opts.skip_zero_records or
+                any(values[k].delta != 0 for k in keys)):
+                do_statline(opts, values)
+                line += 1
+                banner_printed = False
         except KeyboardInterrupt:
             break
+
+    if opts.log_to_file:
+        f.close()
+
+
+def handle_signal(sig, frame):
+    global signal_received
+
+    signal_received = True
+
+    return
+
+
+def is_delay_valid(delay):
+    """Verify delay is in valid value range."""
+    msg = None
+    if delay < MIN_DELAY:
+        msg = '"' + str(delay) + '": Delay must be >=%s' % MIN_DELAY
+    if delay > MAX_DELAY:
+        msg = '"' + str(delay) + '": Delay must be <=%s' % MAX_DELAY
+    return msg
 
 
 def get_options():
@@ -1541,89 +1697,98 @@ Interactive Commands:
    p     filter by PID
    q     quit
    r     reset stats
-   s     set update interval
+   s     set update interval (value range: 0.1-25.5 secs)
    x     toggle reporting of stats for individual child trace events
 Press any other key to refresh statistics immediately.
 """ % (PATH_DEBUGFS_KVM, PATH_DEBUGFS_TRACING)
 
-    class PlainHelpFormatter(optparse.IndentedHelpFormatter):
-        def format_description(self, description):
-            if description:
-                return description + "\n"
-            else:
-                return ""
+    class Guest_to_pid(argparse.Action):
+        def __call__(self, parser, namespace, values, option_string=None):
+            try:
+                pids = Tui.get_pid_from_gname(values)
+            except:
+                sys.exit('Error while searching for guest "{}". Use "-p" to '
+                         'specify a pid instead?'.format(values))
+            if len(pids) == 0:
+                sys.exit('Error: No guest by the name "{}" found'
+                         .format(values))
+            if len(pids) > 1:
+                sys.exit('Error: Multiple processes found (pids: {}). Use "-p"'
+                         ' to specify the desired pid'
+                         .format(" ".join(map(str, pids))))
+            namespace.pid = pids[0]
 
-    def cb_guest_to_pid(option, opt, val, parser):
-        try:
-            pids = Tui.get_pid_from_gname(val)
-        except:
-            sys.exit('Error while searching for guest "{}". Use "-p" to '
-                     'specify a pid instead?'.format(val))
-        if len(pids) == 0:
-            sys.exit('Error: No guest by the name "{}" found'.format(val))
-        if len(pids) > 1:
-            sys.exit('Error: Multiple processes found (pids: {}). Use "-p" '
-                     'to specify the desired pid'.format(" ".join(pids)))
-        parser.values.pid = pids[0]
-
-    optparser = optparse.OptionParser(description=description_text,
-                                      formatter=PlainHelpFormatter())
-    optparser.add_option('-1', '--once', '--batch',
-                         action='store_true',
-                         default=False,
-                         dest='once',
-                         help='run in batch mode for one second',
-                         )
-    optparser.add_option('-i', '--debugfs-include-past',
-                         action='store_true',
-                         default=False,
-                         dest='dbgfs_include_past',
-                         help='include all available data on past events for '
-                              'debugfs',
-                         )
-    optparser.add_option('-l', '--log',
-                         action='store_true',
-                         default=False,
-                         dest='log',
-                         help='run in logging mode (like vmstat)',
-                         )
-    optparser.add_option('-t', '--tracepoints',
-                         action='store_true',
-                         default=False,
-                         dest='tracepoints',
-                         help='retrieve statistics from tracepoints',
-                         )
-    optparser.add_option('-d', '--debugfs',
-                         action='store_true',
-                         default=False,
-                         dest='debugfs',
-                         help='retrieve statistics from debugfs',
-                         )
-    optparser.add_option('-f', '--fields',
-                         action='store',
-                         default='',
-                         dest='fields',
-                         help='''fields to display (regex)
-                                 "-f help" for a list of available events''',
-                         )
-    optparser.add_option('-p', '--pid',
-                         action='store',
-                         default=0,
-                         type='int',
-                         dest='pid',
-                         help='restrict statistics to pid',
-                         )
-    optparser.add_option('-g', '--guest',
-                         action='callback',
-                         type='string',
-                         dest='pid',
-                         metavar='GUEST',
-                         help='restrict statistics to guest by name',
-                         callback=cb_guest_to_pid,
-                         )
-    options, unkn = optparser.parse_args(sys.argv)
-    if len(unkn) != 1:
-        sys.exit('Error: Extra argument(s): ' + ' '.join(unkn[1:]))
+    argparser = argparse.ArgumentParser(description=description_text,
+                                        formatter_class=argparse
+                                        .RawTextHelpFormatter)
+    argparser.add_argument('-1', '--once', '--batch',
+                           action='store_true',
+                           default=False,
+                           help='run in batch mode for one second',
+                           )
+    argparser.add_argument('-c', '--csv',
+                           action='store_true',
+                           default=False,
+                           help='log in csv format - requires option -l/-L',
+                           )
+    argparser.add_argument('-d', '--debugfs',
+                           action='store_true',
+                           default=False,
+                           help='retrieve statistics from debugfs',
+                           )
+    argparser.add_argument('-f', '--fields',
+                           default='',
+                           help='''fields to display (regex)
+"-f help" for a list of available events''',
+                           )
+    argparser.add_argument('-g', '--guest',
+                           type=str,
+                           help='restrict statistics to guest by name',
+                           action=Guest_to_pid,
+                           )
+    argparser.add_argument('-i', '--debugfs-include-past',
+                           action='store_true',
+                           default=False,
+                           help='include all available data on past events for'
+                                ' debugfs',
+                           )
+    argparser.add_argument('-l', '--log',
+                           action='store_true',
+                           default=False,
+                           help='run in logging mode (like vmstat)',
+                           )
+    argparser.add_argument('-L', '--log-to-file',
+                           type=str,
+                           metavar='FILE',
+                           help="like '--log', but logging to a file"
+                           )
+    argparser.add_argument('-p', '--pid',
+                           type=int,
+                           default=0,
+                           help='restrict statistics to pid',
+                           )
+    argparser.add_argument('-s', '--set-delay',
+                           type=float,
+                           default=DELAY_DEFAULT,
+                           metavar='DELAY',
+                           help='set delay between refreshs (value range: '
+                                '%s-%s secs)' % (MIN_DELAY, MAX_DELAY),
+                           )
+    argparser.add_argument('-t', '--tracepoints',
+                           action='store_true',
+                           default=False,
+                           help='retrieve statistics from tracepoints',
+                           )
+    argparser.add_argument('-z', '--skip-zero-records',
+                           action='store_true',
+                           default=False,
+                           help='omit records with all zeros in logging mode',
+                           )
+    options = argparser.parse_args()
+    if options.csv and not (options.log or options.log_to_file):
+        sys.exit('Error: Option -c/--csv requires -l/--log')
+    if options.skip_zero_records and not (options.log or options.log_to_file):
+        sys.exit('Error: Option -z/--skip-zero-records requires -l/-L')
     try:
         # verify that we were passed a valid regex up front
         re.compile(options.fields)
@@ -1659,7 +1824,7 @@ def assign_globals():
 
     debugfs = ''
     for line in open('/proc/mounts'):
-        if line.split(' ')[0] == 'debugfs':
+        if line.split(' ')[2] == 'debugfs':
             debugfs = line.split(' ')[1]
             break
     if debugfs == '':
@@ -1689,6 +1854,10 @@ def main():
         sys.stderr.write('Did you use a (unsupported) tid instead of a pid?\n')
         sys.exit('Specified pid does not exist.')
 
+    err = is_delay_valid(options.set_delay)
+    if err is not None:
+        sys.exit('Error: ' + err)
+
     stats = Stats(options)
 
     if options.fields == 'help':
@@ -1699,13 +1868,21 @@ def main():
         sys.stdout.write('  ' + '\n  '.join(sorted(set(event_list))) + '\n')
         sys.exit(0)
 
-    if options.log:
-        log(stats)
+    if options.log or options.log_to_file:
+        if options.log_to_file:
+            signal.signal(signal.SIGHUP, handle_signal)
+        keys = sorted(stats.get().keys())
+        if options.csv:
+            frmt = CSVFormat(keys)
+        else:
+            frmt = StdFormat(keys)
+        log(stats, options, frmt, keys)
     elif not options.once:
-        with Tui(stats) as tui:
+        with Tui(stats, options) as tui:
             tui.show_stats()
     else:
         batch(stats)
+
 
 if __name__ == "__main__":
     main()

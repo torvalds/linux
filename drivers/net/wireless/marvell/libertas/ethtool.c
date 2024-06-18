@@ -20,8 +20,8 @@ static void lbs_ethtool_get_drvinfo(struct net_device *dev,
 		priv->fwrelease >> 16 & 0xff,
 		priv->fwrelease >>  8 & 0xff,
 		priv->fwrelease       & 0xff);
-	strlcpy(info->driver, "libertas", sizeof(info->driver));
-	strlcpy(info->version, lbs_driver_version, sizeof(info->version));
+	strscpy(info->driver, "libertas", sizeof(info->driver));
+	strscpy(info->version, lbs_driver_version, sizeof(info->version));
 }
 
 /*
@@ -43,10 +43,8 @@ static int lbs_ethtool_get_eeprom(struct net_device *dev,
 	int ret;
 
 	if (eeprom->offset + eeprom->len > LBS_EEPROM_LEN ||
-	    eeprom->len > LBS_EEPROM_READ_LEN) {
-		ret = -EINVAL;
-		goto out;
-	}
+	    eeprom->len > LBS_EEPROM_READ_LEN)
+		return -EINVAL;
 
 	cmd.hdr.size = cpu_to_le16(sizeof(struct cmd_ds_802_11_eeprom_access) -
 		LBS_EEPROM_READ_LEN + eeprom->len);
@@ -57,8 +55,7 @@ static int lbs_ethtool_get_eeprom(struct net_device *dev,
 	if (!ret)
 		memcpy(bytes, cmd.value, eeprom->len);
 
-out:
-        return ret;
+	return ret;
 }
 
 static void lbs_ethtool_get_wol(struct net_device *dev,

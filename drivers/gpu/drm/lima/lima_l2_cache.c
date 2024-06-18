@@ -21,7 +21,8 @@ static int lima_l2_cache_wait_idle(struct lima_ip *ip)
 				 !(v & LIMA_L2_CACHE_STATUS_COMMAND_BUSY),
 				 0, 1000);
 	if (err) {
-		dev_err(dev->dev, "l2 cache wait command timeout\n");
+		dev_err(dev->dev, "%s wait command timeout\n",
+			lima_ip_name(ip));
 		return err;
 	}
 	return 0;
@@ -38,9 +39,35 @@ int lima_l2_cache_flush(struct lima_ip *ip)
 	return ret;
 }
 
+static int lima_l2_cache_hw_init(struct lima_ip *ip)
+{
+	int err;
+
+	err = lima_l2_cache_flush(ip);
+	if (err)
+		return err;
+
+	l2_cache_write(LIMA_L2_CACHE_ENABLE,
+		       LIMA_L2_CACHE_ENABLE_ACCESS |
+		       LIMA_L2_CACHE_ENABLE_READ_ALLOCATE);
+	l2_cache_write(LIMA_L2_CACHE_MAX_READS, 0x1c);
+
+	return 0;
+}
+
+int lima_l2_cache_resume(struct lima_ip *ip)
+{
+	return lima_l2_cache_hw_init(ip);
+}
+
+void lima_l2_cache_suspend(struct lima_ip *ip)
+{
+
+}
+
 int lima_l2_cache_init(struct lima_ip *ip)
 {
-	int i, err;
+	int i;
 	u32 size;
 	struct lima_device *dev = ip->dev;
 
@@ -57,21 +84,14 @@ int lima_l2_cache_init(struct lima_ip *ip)
 	spin_lock_init(&ip->data.lock);
 
 	size = l2_cache_read(LIMA_L2_CACHE_SIZE);
-	dev_info(dev->dev, "l2 cache %uK, %u-way, %ubyte cache line, %ubit external bus\n",
+	dev_info(dev->dev, "%s %uK, %u-way, %ubyte cache line, %ubit external bus\n",
+		 lima_ip_name(ip),
 		 1 << (((size >> 16) & 0xff) - 10),
 		 1 << ((size >> 8) & 0xff),
 		 1 << (size & 0xff),
 		 1 << ((size >> 24) & 0xff));
 
-	err = lima_l2_cache_flush(ip);
-	if (err)
-		return err;
-
-	l2_cache_write(LIMA_L2_CACHE_ENABLE,
-		       LIMA_L2_CACHE_ENABLE_ACCESS|LIMA_L2_CACHE_ENABLE_READ_ALLOCATE);
-	l2_cache_write(LIMA_L2_CACHE_MAX_READS, 0x1c);
-
-	return 0;
+	return lima_l2_cache_hw_init(ip);
 }
 
 void lima_l2_cache_fini(struct lima_ip *ip)

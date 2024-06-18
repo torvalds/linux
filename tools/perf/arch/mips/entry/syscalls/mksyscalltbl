@@ -1,0 +1,32 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
+#
+# Generate system call table for perf. Derived from
+# s390 script.
+#
+# Author(s):  Hendrik Brueckner <brueckner@linux.vnet.ibm.com>
+# Changed by: Tiezhu Yang <yangtiezhu@loongson.cn>
+
+SYSCALL_TBL=$1
+
+if ! test -r $SYSCALL_TBL; then
+	echo "Could not read input file" >&2
+	exit 1
+fi
+
+create_table()
+{
+	local max_nr nr abi sc discard
+
+	echo 'static const char *const syscalltbl_mips_n64[] = {'
+	while read nr abi sc discard; do
+		printf '\t[%d] = "%s",\n' $nr $sc
+		max_nr=$nr
+	done
+	echo '};'
+	echo "#define SYSCALLTBL_MIPS_N64_MAX_ID $max_nr"
+}
+
+grep -E "^[[:digit:]]+[[:space:]]+(n64)" $SYSCALL_TBL	\
+	|sort -k1 -n					\
+	|create_table

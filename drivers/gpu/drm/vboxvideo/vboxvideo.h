@@ -43,7 +43,7 @@
  * VBE_DISPI_INDEX_VBOX_VIDEO is used to read the configuration information
  * from the host and issue commands to the host.
  *
- * The guest writes the VBE_DISPI_INDEX_VBOX_VIDEO index register, the the
+ * The guest writes the VBE_DISPI_INDEX_VBOX_VIDEO index register, the
  * following operations with the VBE data register can be performed:
  *
  * Operation            Result
@@ -138,7 +138,7 @@ struct vbva_buffer {
 
 	u32 data_len;
 	/* variable size for the rest of the vbva_buffer area in VRAM. */
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 #define VBVA_MAX_RECORD_SIZE (128 * 1024 * 1024)

@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Marvell Wireless LAN device driver: WMM
+ * NXP Wireless LAN device driver: WMM
  *
- * Copyright (C) 2011-2014, Marvell International Ltd.
- *
- * This software file (the "File") is distributed by Marvell International
- * Ltd. under the terms of the GNU General Public License Version 2, June 1991
- * (the "License").  You may use, redistribute and/or modify this File in
- * accordance with the terms and conditions of the License, a copy of which
- * is available by writing to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or on the
- * worldwide web at http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
- *
- * THE FILE IS DISTRIBUTED AS-IS, WITHOUT WARRANTY OF ANY KIND, AND THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE
- * ARE EXPRESSLY DISCLAIMED.  The License provides additional details about
- * this warranty disclaimer.
+ * Copyright 2011-2020 NXP
  */
 
 #include "decl.h"
@@ -39,6 +27,21 @@
 
 static bool disable_tx_amsdu;
 module_param(disable_tx_amsdu, bool, 0644);
+
+/* This table inverses the tos_to_tid operation to get a priority
+ * which is in sequential order, and can be compared.
+ * Use this to compare the priority of two different TIDs.
+ */
+const u8 tos_to_tid_inv[] = {
+	0x02,  /* from tos_to_tid[2] = 0 */
+	0x00,  /* from tos_to_tid[0] = 1 */
+	0x01,  /* from tos_to_tid[1] = 2 */
+	0x03,
+	0x04,
+	0x05,
+	0x06,
+	0x07
+};
 
 /* WMM information IE */
 static const u8 wmm_info_ie[] = { WLAN_EID_VENDOR_SPECIFIC, 0x07,
@@ -868,7 +871,7 @@ mwifiex_wmm_add_buf_txqueue(struct mwifiex_private *priv,
 		}
 	} else {
 		memcpy(ra, skb->data, ETH_ALEN);
-		if (ra[0] & 0x01 || mwifiex_is_skb_mgmt_frame(skb))
+		if (is_multicast_ether_addr(ra) || mwifiex_is_skb_mgmt_frame(skb))
 			eth_broadcast_addr(ra);
 		ra_list = mwifiex_wmm_get_queue_raptr(priv, tid_down, ra);
 	}
@@ -969,6 +972,10 @@ int mwifiex_ret_wmm_get_status(struct mwifiex_private *priv,
 				    "info: CMD_RESP: WMM_GET_STATUS:\t"
 				    "WMM Parameter Set Count: %d\n",
 				    wmm_param_ie->qos_info_bitmap & mask);
+
+			if (wmm_param_ie->vend_hdr.len + 2 >
+				sizeof(struct ieee_types_wmm_parameter))
+				break;
 
 			memcpy((u8 *) &priv->curr_bss_params.bss_descriptor.
 			       wmm_ie, wmm_param_ie,
@@ -1377,6 +1384,7 @@ mwifiex_send_processed_packet(struct mwifiex_private *priv,
 		break;
 	case 0:
 		mwifiex_write_data_complete(adapter, skb, 0, ret);
+		break;
 	default:
 		break;
 	}

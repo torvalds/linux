@@ -87,16 +87,22 @@ static unsigned long mpll_recalc_rate(struct clk_hw *hw,
 	return rate < 0 ? 0 : rate;
 }
 
-static long mpll_round_rate(struct clk_hw *hw,
-			    unsigned long rate,
-			    unsigned long *parent_rate)
+static int mpll_determine_rate(struct clk_hw *hw, struct clk_rate_request *req)
 {
 	struct clk_regmap *clk = to_clk_regmap(hw);
 	struct meson_clk_mpll_data *mpll = meson_clk_mpll_data(clk);
 	unsigned int sdm, n2;
+	long rate;
 
-	params_from_rate(rate, *parent_rate, &sdm, &n2, mpll->flags);
-	return rate_from_params(*parent_rate, sdm, n2);
+	params_from_rate(req->rate, req->best_parent_rate, &sdm, &n2,
+			 mpll->flags);
+
+	rate = rate_from_params(req->best_parent_rate, sdm, n2);
+	if (rate < 0)
+		return rate;
+
+	req->rate = rate;
+	return 0;
 }
 
 static int mpll_set_rate(struct clk_hw *hw,
@@ -129,7 +135,7 @@ static int mpll_set_rate(struct clk_hw *hw,
 	return 0;
 }
 
-static void mpll_init(struct clk_hw *hw)
+static int mpll_init(struct clk_hw *hw)
 {
 	struct clk_regmap *clk = to_clk_regmap(hw);
 	struct meson_clk_mpll_data *mpll = meson_clk_mpll_data(clk);
@@ -151,17 +157,19 @@ static void mpll_init(struct clk_hw *hw)
 	/* Set the magic misc bit if required */
 	if (MESON_PARM_APPLICABLE(&mpll->misc))
 		meson_parm_write(clk->map, &mpll->misc, 1);
+
+	return 0;
 }
 
 const struct clk_ops meson_clk_mpll_ro_ops = {
 	.recalc_rate	= mpll_recalc_rate,
-	.round_rate	= mpll_round_rate,
+	.determine_rate	= mpll_determine_rate,
 };
 EXPORT_SYMBOL_GPL(meson_clk_mpll_ro_ops);
 
 const struct clk_ops meson_clk_mpll_ops = {
 	.recalc_rate	= mpll_recalc_rate,
-	.round_rate	= mpll_round_rate,
+	.determine_rate	= mpll_determine_rate,
 	.set_rate	= mpll_set_rate,
 	.init		= mpll_init,
 };
@@ -169,4 +177,4 @@ EXPORT_SYMBOL_GPL(meson_clk_mpll_ops);
 
 MODULE_DESCRIPTION("Amlogic MPLL driver");
 MODULE_AUTHOR("Michael Turquette <mturquette@baylibre.com>");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");

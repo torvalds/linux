@@ -16,7 +16,7 @@ static inline u32 get_cap(struct venus_inst *inst, u32 type, u32 which)
 {
 	struct venus_core *core = inst->core;
 	struct hfi_capability *cap = NULL;
-	struct venus_caps *caps;
+	struct hfi_plat_caps *caps;
 	unsigned int i;
 
 	caps = venus_caps_by_codec(core, inst->hfi_codec, inst->session_type);
@@ -105,6 +105,16 @@ static inline u32 frate_max(struct venus_inst *inst)
 static inline u32 frate_step(struct venus_inst *inst)
 {
 	return cap_step(inst, HFI_CAPABILITY_FRAMERATE);
+}
+
+static inline u32 core_num_max(struct venus_inst *inst)
+{
+	return cap_max(inst, HFI_CAPABILITY_MAX_VIDEOCORES);
+}
+
+static inline u32 mbs_per_frame_max(struct venus_inst *inst)
+{
+	return cap_max(inst, HFI_CAPABILITY_MBS_PER_FRAME);
 }
 
 #endif

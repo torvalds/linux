@@ -5,6 +5,7 @@
 // Copyright (C) 2012 Samsung Electrnoics
 // Chanwoo Choi <cw00.choi@samsung.com>
 
+#include <linux/devm-helpers.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
@@ -1127,7 +1128,10 @@ static int max77693_muic_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, info);
 	mutex_init(&info->mutex);
 
-	INIT_WORK(&info->irq_work, max77693_muic_irq_work);
+	ret = devm_work_autocancel(&pdev->dev, &info->irq_work,
+				   max77693_muic_irq_work);
+	if (ret)
+		return ret;
 
 	/* Support irq domain for MAX77693 MUIC device */
 	for (i = 0; i < ARRAY_SIZE(muic_irqs); i++) {
@@ -1157,7 +1161,7 @@ static int max77693_muic_probe(struct platform_device *pdev)
 					      max77693_extcon_cable);
 	if (IS_ERR(info->edev)) {
 		dev_err(&pdev->dev, "failed to allocate memory for extcon\n");
-		return -ENOMEM;
+		return PTR_ERR(info->edev);
 	}
 
 	ret = devm_extcon_dev_register(&pdev->dev, info->edev);
@@ -1254,22 +1258,18 @@ static int max77693_muic_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int max77693_muic_remove(struct platform_device *pdev)
-{
-	struct max77693_muic_info *info = platform_get_drvdata(pdev);
-
-	cancel_work_sync(&info->irq_work);
-	input_unregister_device(info->dock);
-
-	return 0;
-}
+static const struct of_device_id of_max77693_muic_dt_match[] = {
+	{ .compatible = "maxim,max77693-muic", },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, of_max77693_muic_dt_match);
 
 static struct platform_driver max77693_muic_driver = {
 	.driver		= {
 		.name	= DEV_NAME,
+		.of_match_table = of_max77693_muic_dt_match,
 	},
 	.probe		= max77693_muic_probe,
-	.remove		= max77693_muic_remove,
 };
 
 module_platform_driver(max77693_muic_driver);
@@ -1277,4 +1277,4 @@ module_platform_driver(max77693_muic_driver);
 MODULE_DESCRIPTION("Maxim MAX77693 Extcon driver");
 MODULE_AUTHOR("Chanwoo Choi <cw00.choi@samsung.com>");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:extcon-max77693");
+MODULE_ALIAS("platform:max77693-muic");

@@ -46,7 +46,7 @@
  * The Screen position of the top left corner of the displayed
  * cursor is specificed by CURS_HORZ_VERT_POSN. Care must be taken
  * when the cursor hot spot is not the top left corner and the
- * physical cursor position becomes negative. It will be be displayed
+ * physical cursor position becomes negative. It will be displayed
  * if either the horizontal or vertical cursor position is negative
  *
  * If x becomes negative the cursor manager must adjust the CURS_HORZ_OFFSET
@@ -153,7 +153,7 @@ static int atyfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 	    u8 m, b;
 
 	    // Clear cursor image with 1010101010...
-	    fb_memset(dst, 0xaa, 1024);
+	    fb_memset_io(dst, 0xaa, 1024);
 
 	    offset = align - width*2;
 
@@ -194,7 +194,7 @@ static int atyfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 	return 0;
 }
 
-int aty_init_cursor(struct fb_info *info)
+int aty_init_cursor(struct fb_info *info, struct fb_ops *atyfb_ops)
 {
 	unsigned long addr;
 
@@ -219,7 +219,7 @@ int aty_init_cursor(struct fb_info *info)
 	info->sprite.buf_align = 16; 	/* and 64 lines tall. */
 	info->sprite.flags = FB_PIXMAP_IO;
 
-	info->fbops->fb_cursor = atyfb_cursor;
+	atyfb_ops->fb_cursor = atyfb_cursor;
 
 	return 0;
 }

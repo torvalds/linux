@@ -70,6 +70,8 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 	 */
 	count = INIT_TABLE_LENGTH(info);
 	while (count) {
+		target = NULL;
+
 		/*
 		 * Source is the external AML byte stream buffer,
 		 * destination is the internal resource descriptor
@@ -118,6 +120,14 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 			 */
 			ACPI_SET8(destination,
 				  ((ACPI_GET8(source) >> info->value) & 0x07));
+			break;
+
+		case ACPI_RSC_6BITFLAG:
+			/*
+			 * Mask and shift the flag bits
+			 */
+			ACPI_SET8(destination,
+				  ((ACPI_GET8(source) >> info->value) & 0x3F));
 			break;
 
 		case ACPI_RSC_COUNT:
@@ -184,7 +194,8 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 
 		case ACPI_RSC_COUNT_SERIAL_VEN:
 
-			item_count = ACPI_GET16(source) - info->value;
+			ACPI_MOVE_16_TO_16(&temp16, source);
+			item_count = temp16 - info->value;
 
 			resource->length = resource->length + item_count;
 			ACPI_SET16(destination, item_count);
@@ -192,9 +203,10 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 
 		case ACPI_RSC_COUNT_SERIAL_RES:
 
+			ACPI_MOVE_16_TO_16(&temp16, source);
 			item_count = (aml_resource_length +
 				      sizeof(struct aml_resource_large_header))
-			    - ACPI_GET16(source) - info->value;
+			    - temp16 - info->value;
 
 			resource->length = resource->length + item_count;
 			ACPI_SET16(destination, item_count);
@@ -279,9 +291,9 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 
 			/* Copy the resource_source string */
 
+			ACPI_MOVE_16_TO_16(&temp16, source);
 			source =
-			    ACPI_ADD_PTR(void, aml,
-					 (ACPI_GET16(source) + info->value));
+			    ACPI_ADD_PTR(void, aml, (temp16 + info->value));
 			acpi_rs_move_data(target, source, item_count,
 					  info->opcode);
 			break;
@@ -506,6 +518,15 @@ acpi_rs_convert_resource_to_aml(struct acpi_resource *resource,
 			 */
 			ACPI_SET_BIT(*ACPI_CAST8(destination), (u8)
 				     ((ACPI_GET8(source) & 0x07) << info->
+				      value));
+			break;
+
+		case ACPI_RSC_6BITFLAG:
+			/*
+			 * Mask and shift the flag bits
+			 */
+			ACPI_SET_BIT(*ACPI_CAST8(destination), (u8)
+				     ((ACPI_GET8(source) & 0x3F) << info->
 				      value));
 			break;
 

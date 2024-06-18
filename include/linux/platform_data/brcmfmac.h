@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 201 Broadcom Corporation
+ * Copyright (c) 2016 Broadcom Corporation
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -125,7 +125,7 @@ struct brcmfmac_pd_cc_entry {
  */
 struct brcmfmac_pd_cc {
 	int				table_size;
-	struct brcmfmac_pd_cc_entry	table[0];
+	struct brcmfmac_pd_cc_entry	table[];
 };
 
 /**
@@ -178,7 +178,7 @@ struct brcmfmac_platform_data {
 	void	(*power_off)(void);
 	char	*fw_alternative_path;
 	int	device_count;
-	struct brcmfmac_pd_device devices[0];
+	struct brcmfmac_pd_device devices[];
 };
 
 

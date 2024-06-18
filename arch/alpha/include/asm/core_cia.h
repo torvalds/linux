@@ -342,7 +342,7 @@ struct el_CIA_sysdata_mcheck {
 #define vuip	volatile unsigned int __force *
 #define vulp	volatile unsigned long __force *
 
-__EXTERN_INLINE unsigned int cia_ioread8(void __iomem *xaddr)
+__EXTERN_INLINE u8 cia_ioread8(const void __iomem *xaddr)
 {
 	unsigned long addr = (unsigned long) xaddr;
 	unsigned long result, base_and_type;
@@ -374,7 +374,7 @@ __EXTERN_INLINE void cia_iowrite8(u8 b, void __iomem *xaddr)
 	*(vuip) ((addr << 5) + base_and_type) = w;
 }
 
-__EXTERN_INLINE unsigned int cia_ioread16(void __iomem *xaddr)
+__EXTERN_INLINE u16 cia_ioread16(const void __iomem *xaddr)
 {
 	unsigned long addr = (unsigned long) xaddr;
 	unsigned long result, base_and_type;
@@ -404,7 +404,7 @@ __EXTERN_INLINE void cia_iowrite16(u16 b, void __iomem *xaddr)
 	*(vuip) ((addr << 5) + base_and_type) = w;
 }
 
-__EXTERN_INLINE unsigned int cia_ioread32(void __iomem *xaddr)
+__EXTERN_INLINE u32 cia_ioread32(const void __iomem *xaddr)
 {
 	unsigned long addr = (unsigned long) xaddr;
 	if (addr < CIA_DENSE_MEM)
@@ -418,6 +418,22 @@ __EXTERN_INLINE void cia_iowrite32(u32 b, void __iomem *xaddr)
 	if (addr < CIA_DENSE_MEM)
 		addr = ((addr - CIA_IO) << 5) + CIA_IO + 0x18;
 	*(vuip)addr = b;
+}
+
+__EXTERN_INLINE u64 cia_ioread64(const void __iomem *xaddr)
+{
+	unsigned long addr = (unsigned long) xaddr;
+	if (addr < CIA_DENSE_MEM)
+		addr = ((addr - CIA_IO) << 5) + CIA_IO + 0x18;
+	return *(vulp)addr;
+}
+
+__EXTERN_INLINE void cia_iowrite64(u64 b, void __iomem *xaddr)
+{
+	unsigned long addr = (unsigned long) xaddr;
+	if (addr < CIA_DENSE_MEM)
+		addr = ((addr - CIA_IO) << 5) + CIA_IO + 0x18;
+	*(vulp)addr = b;
 }
 
 __EXTERN_INLINE void __iomem *cia_ioportmap(unsigned long addr)

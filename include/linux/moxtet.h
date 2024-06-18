@@ -2,7 +2,7 @@
 /*
  * Turris Mox module configuration bus driver
  *
- * Copyright (C) 2019 Marek Behun <marek.behun@nic.cz>
+ * Copyright (C) 2019 Marek Behún <kabel@kernel.org>
  */
 
 #ifndef __LINUX_MOXTET_H
@@ -34,8 +34,6 @@ enum turris_mox_module_id {
 };
 
 #define MOXTET_NIRQS	16
-
-extern struct bus_type moxtet_type;
 
 struct moxtet {
 	struct device			*dev;

@@ -5,7 +5,7 @@ menuconfig TARGET_CORE
 	depends on BLOCK
 	select CONFIGFS_FS
 	select CRC_T10DIF
-	select BLK_SCSI_REQUEST
+	select SCSI_COMMON
 	select SGL_ALLOC
 	default n
 	help
@@ -47,5 +47,6 @@ source "drivers/target/loopback/Kconfig"
 source "drivers/target/tcm_fc/Kconfig"
 source "drivers/target/iscsi/Kconfig"
 source "drivers/target/sbp/Kconfig"
+source "drivers/target/tcm_remote/Kconfig"
 
 endif

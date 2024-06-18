@@ -1,52 +1,13 @@
-#ifndef _HFI1_KERNEL_H
-#define _HFI1_KERNEL_H
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright(c) 2015-2018 Intel Corporation.
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * BSD LICENSE
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
+ * Copyright(c) 2020-2023 Cornelis Networks, Inc.
+ * Copyright(c) 2015-2020 Intel Corporation.
  */
 
+#ifndef _HFI1_KERNEL_H
+#define _HFI1_KERNEL_H
+
+#include <linux/refcount.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
@@ -68,7 +29,6 @@
 #include <rdma/ib_hdrs.h>
 #include <rdma/opa_addr.h>
 #include <linux/rhashtable.h>
-#include <linux/netdevice.h>
 #include <rdma/rdma_vt.h>
 
 #include "chip_registers.h"
@@ -197,7 +157,9 @@ struct exp_tid_set {
 	u32 count;
 };
 
-typedef int (*rhf_rcv_function_ptr)(struct hfi1_packet *packet);
+struct hfi1_ctxtdata;
+typedef int (*intr_handler)(struct hfi1_ctxtdata *rcd, int data);
+typedef void (*rhf_rcv_function_ptr)(struct hfi1_packet *packet);
 
 struct tid_queue {
 	struct list_head queue_head;
@@ -226,7 +188,13 @@ struct hfi1_ctxtdata {
 	 * be valid. Worst case is we process an extra interrupt and up to 64
 	 * packets with the wrong interrupt handler.
 	 */
-	int (*do_interrupt)(struct hfi1_ctxtdata *rcd, int threaded);
+	intr_handler do_interrupt;
+	/** fast handler after autoactive */
+	intr_handler fast_handler;
+	/** slow handler */
+	intr_handler slow_handler;
+	/* napi pointer assiociated with netdev */
+	struct napi_struct *napi;
 	/* verbs rx_stats per rcd */
 	struct hfi1_opcode_stats_perctx *opstats;
 	/* clear interrupt mask */
@@ -377,11 +345,11 @@ struct hfi1_packet {
 	u32 rhqoff;
 	u32 dlid;
 	u32 slid;
+	int numpkt;
 	u16 tlen;
 	s16 etail;
 	u16 pkey;
 	u8 hlen;
-	u8 numpkt;
 	u8 rsize;
 	u8 updegr;
 	u8 etype;
@@ -708,12 +676,6 @@ static inline void incr_cntr64(u64 *cntr)
 		(*cntr)++;
 }
 
-static inline void incr_cntr32(u32 *cntr)
-{
-	if (*cntr < (u32)-1LL)
-		(*cntr)++;
-}
-
 #define MAX_NAME_SIZE 64
 struct hfi1_msix_entry {
 	enum irq_type type;
@@ -770,10 +732,6 @@ struct hfi1_pportdata {
 	struct hfi1_ibport ibport_data;
 
 	struct hfi1_devdata *dd;
-	struct kobject pport_cc_kobj;
-	struct kobject sc2vl_kobj;
-	struct kobject sl2sc_kobj;
-	struct kobject vl2mtu_kobj;
 
 	/* PHY support */
 	struct qsfp_data qsfp_info;
@@ -855,7 +813,7 @@ struct hfi1_pportdata {
 	u8 rx_pol_inv;
 
 	u8 hw_pidx;     /* physical port index */
-	u8 port;        /* IB port number and index into dd->pports - 1 */
+	u32 port;        /* IB port number and index into dd->pports - 1 */
 	/* type of neighbor node */
 	u8 neighbor_type;
 	u8 neighbor_normal;
@@ -979,7 +937,7 @@ typedef void (*hfi1_make_req)(struct rvt_qp *qp,
 			      struct hfi1_pkt_state *ps,
 			      struct rvt_swqe *wqe);
 extern const rhf_rcv_function_ptr normal_rhf_rcv_functions[];
-
+extern const rhf_rcv_function_ptr netdev_rhf_rcv_functions[];
 
 /* return values for the RHF receive functions */
 #define RHF_RCV_CONTINUE  0	/* keep going */
@@ -1039,23 +997,10 @@ struct hfi1_asic_data {
 #define NUM_MAP_ENTRIES	 256
 #define NUM_MAP_REGS      32
 
-/*
- * Number of VNIC contexts used. Ensure it is less than or equal to
- * max queues supported by VNIC (HFI1_VNIC_MAX_QUEUE).
- */
-#define HFI1_NUM_VNIC_CTXT   8
-
-/* Number of VNIC RSM entries */
-#define NUM_VNIC_MAP_ENTRIES 8
-
 /* Virtual NIC information */
 struct hfi1_vnic_data {
-	struct hfi1_ctxtdata *ctxt[HFI1_NUM_VNIC_CTXT];
 	struct kmem_cache *txreq_cache;
-	struct xarray vesws;
 	u8 num_vports;
-	u8 rmt_start;
-	u8 num_ctxt;
 };
 
 struct hfi1_vnic_vport_info;
@@ -1070,6 +1015,7 @@ struct sdma_vl_map;
 #define SERIAL_MAX 16 /* length of the serial number */
 
 typedef int (*send_routine)(struct rvt_qp *, struct hfi1_pkt_state *, u64);
+struct hfi1_netdev_rx;
 struct hfi1_devdata {
 	struct hfi1_ibdev verbs_dev;     /* must be first */
 	/* pointers to related structs for this device */
@@ -1153,14 +1099,16 @@ struct hfi1_devdata {
 
 	char *boardname; /* human readable board info */
 
+	u64 ctx0_seq_drop;
+
 	/* reset value */
 	u64 z_int_counter;
 	u64 z_rcv_limit;
 	u64 z_send_schedule;
 
 	u64 __percpu *send_schedule;
-	/* number of reserved contexts for VNIC usage */
-	u16 num_vnic_contexts;
+	/* number of reserved contexts for netdev usage */
+	u16 num_netdev_contexts;
 	/* number of receive contexts in use by the driver */
 	u32 num_rcv_contexts;
 	/* number of pio send contexts in use by the driver */
@@ -1310,7 +1258,7 @@ struct hfi1_devdata {
 	struct err_info_constraint err_info_xmit_constraint;
 
 	atomic_t drop_packet;
-	u8 do_drop;
+	bool do_drop;
 	u8 err_info_uncorrectable;
 	u8 err_info_fmconfig;
 
@@ -1396,7 +1344,7 @@ struct hfi1_devdata {
 	/* Number of verbs contexts which have disabled ASPM */
 	atomic_t aspm_disabled_cnt;
 	/* Keeps track of user space clients */
-	atomic_t user_refcount;
+	refcount_t user_refcount;
 	/* Used to wait for outstanding user space clients before dev removal */
 	struct completion user_comp;
 
@@ -1405,18 +1353,17 @@ struct hfi1_devdata {
 	bool aspm_enabled;	/* ASPM state: enabled/disabled */
 	struct rhashtable *sdma_rht;
 
-	struct kobject kobj;
-
 	/* vnic data */
 	struct hfi1_vnic_data vnic;
 	/* Lock to protect IRQ SRC register access */
 	spinlock_t irq_src_lock;
-};
+	int vnic_num_vports;
+	struct hfi1_netdev_rx *netdev_rx;
+	struct hfi1_affinity_node *affinity_entry;
 
-static inline bool hfi1_vnic_is_rsm_full(struct hfi1_devdata *dd, int spare)
-{
-	return (dd->vnic.rmt_start + spare) > NUM_MAP_ENTRIES;
-}
+	/* Keeps track of IPoIB RSM rule users */
+	atomic_t ipoib_rsm_usr_num;
+};
 
 /* 8051 firmware version helper */
 #define dc8051_ver(a, b, c) ((a) << 16 | (b) << 8 | (c))
@@ -1431,20 +1378,21 @@ static inline bool hfi1_vnic_is_rsm_full(struct hfi1_devdata *dd, int spare)
 #define PT_INVALID        3
 
 struct tid_rb_node;
-struct mmu_rb_node;
-struct mmu_rb_handler;
 
 /* Private data for file operations */
 struct hfi1_filedata {
+	struct srcu_struct pq_srcu;
 	struct hfi1_devdata *dd;
 	struct hfi1_ctxtdata *uctxt;
 	struct hfi1_user_sdma_comp_q *cq;
-	struct hfi1_user_sdma_pkt_q *pq;
+	/* update side lock for SRCU */
+	spinlock_t pq_rcu_lock;
+	struct hfi1_user_sdma_pkt_q __rcu *pq;
 	u16 subctxt;
 	/* for cpu affinity; -1 if none */
 	int rec_cpu_num;
 	u32 tid_n_pinned;
-	struct mmu_rb_handler *handler;
+	bool use_mn;
 	struct tid_rb_node **entry_to_rb;
 	spinlock_t tid_lock; /* protect tid_[limit,used] counters */
 	u32 tid_limit;
@@ -1453,7 +1401,6 @@ struct hfi1_filedata {
 	u32 invalid_tid_idx;
 	/* protect invalid_tids array and invalid_tid_idx */
 	spinlock_t invalid_lock;
-	struct mm_struct *mm;
 };
 
 extern struct xarray hfi1_dev_table;
@@ -1481,7 +1428,7 @@ int hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, int numa,
 			 struct hfi1_ctxtdata **rcd);
 void hfi1_free_ctxt(struct hfi1_ctxtdata *rcd);
 void hfi1_init_pportdata(struct pci_dev *pdev, struct hfi1_pportdata *ppd,
-			 struct hfi1_devdata *dd, u8 hw_pidx, u8 port);
+			 struct hfi1_devdata *dd, u8 hw_pidx, u32 port);
 void hfi1_free_ctxtdata(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd);
 int hfi1_rcd_put(struct hfi1_ctxtdata *rcd);
 int hfi1_rcd_get(struct hfi1_ctxtdata *rcd);
@@ -1491,6 +1438,8 @@ struct hfi1_ctxtdata *hfi1_rcd_get_by_index(struct hfi1_devdata *dd, u16 ctxt);
 int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread);
 int handle_receive_interrupt_nodma_rtail(struct hfi1_ctxtdata *rcd, int thread);
 int handle_receive_interrupt_dma_rtail(struct hfi1_ctxtdata *rcd, int thread);
+int handle_receive_interrupt_napi_fp(struct hfi1_ctxtdata *rcd, int budget);
+int handle_receive_interrupt_napi_sp(struct hfi1_ctxtdata *rcd, int budget);
 void set_all_slowpath(struct hfi1_devdata *dd);
 
 extern const struct pci_device_id hfi1_pci_tbl[];
@@ -1507,10 +1456,146 @@ void hfi1_make_ud_req_16B(struct rvt_qp *qp,
 #define RCV_PKT_LIMIT   0x1 /* stop, hit limit, start thread */
 #define RCV_PKT_DONE    0x2 /* stop, no more packets detected */
 
+/**
+ * hfi1_rcd_head - add accessor for rcd head
+ * @rcd: the context
+ */
+static inline u32 hfi1_rcd_head(struct hfi1_ctxtdata *rcd)
+{
+	return rcd->head;
+}
+
+/**
+ * hfi1_set_rcd_head - add accessor for rcd head
+ * @rcd: the context
+ * @head: the new head
+ */
+static inline void hfi1_set_rcd_head(struct hfi1_ctxtdata *rcd, u32 head)
+{
+	rcd->head = head;
+}
+
 /* calculate the current RHF address */
 static inline __le32 *get_rhf_addr(struct hfi1_ctxtdata *rcd)
 {
 	return (__le32 *)rcd->rcvhdrq + rcd->head + rcd->rhf_offset;
+}
+
+/* return DMA_RTAIL configuration */
+static inline bool get_dma_rtail_setting(struct hfi1_ctxtdata *rcd)
+{
+	return !!HFI1_CAP_KGET_MASK(rcd->flags, DMA_RTAIL);
+}
+
+/**
+ * hfi1_seq_incr_wrap - wrapping increment for sequence
+ * @seq: the current sequence number
+ *
+ * Returns: the incremented seq
+ */
+static inline u8 hfi1_seq_incr_wrap(u8 seq)
+{
+	if (++seq > RHF_MAX_SEQ)
+		seq = 1;
+	return seq;
+}
+
+/**
+ * hfi1_seq_cnt - return seq_cnt member
+ * @rcd: the receive context
+ *
+ * Return seq_cnt member
+ */
+static inline u8 hfi1_seq_cnt(struct hfi1_ctxtdata *rcd)
+{
+	return rcd->seq_cnt;
+}
+
+/**
+ * hfi1_set_seq_cnt - return seq_cnt member
+ * @rcd: the receive context
+ *
+ * Return seq_cnt member
+ */
+static inline void hfi1_set_seq_cnt(struct hfi1_ctxtdata *rcd, u8 cnt)
+{
+	rcd->seq_cnt = cnt;
+}
+
+/**
+ * last_rcv_seq - is last
+ * @rcd: the receive context
+ * @seq: sequence
+ *
+ * return true if last packet
+ */
+static inline bool last_rcv_seq(struct hfi1_ctxtdata *rcd, u32 seq)
+{
+	return seq != rcd->seq_cnt;
+}
+
+/**
+ * rcd_seq_incr - increment context sequence number
+ * @rcd: the receive context
+ * @seq: the current sequence number
+ *
+ * Returns: true if the this was the last packet
+ */
+static inline bool hfi1_seq_incr(struct hfi1_ctxtdata *rcd, u32 seq)
+{
+	rcd->seq_cnt = hfi1_seq_incr_wrap(rcd->seq_cnt);
+	return last_rcv_seq(rcd, seq);
+}
+
+/**
+ * get_hdrqentsize - return hdrq entry size
+ * @rcd: the receive context
+ */
+static inline u8 get_hdrqentsize(struct hfi1_ctxtdata *rcd)
+{
+	return rcd->rcvhdrqentsize;
+}
+
+/**
+ * get_hdrq_cnt - return hdrq count
+ * @rcd: the receive context
+ */
+static inline u16 get_hdrq_cnt(struct hfi1_ctxtdata *rcd)
+{
+	return rcd->rcvhdrq_cnt;
+}
+
+/**
+ * hfi1_is_slowpath - check if this context is slow path
+ * @rcd: the receive context
+ */
+static inline bool hfi1_is_slowpath(struct hfi1_ctxtdata *rcd)
+{
+	return rcd->do_interrupt == rcd->slow_handler;
+}
+
+/**
+ * hfi1_is_fastpath - check if this context is fast path
+ * @rcd: the receive context
+ */
+static inline bool hfi1_is_fastpath(struct hfi1_ctxtdata *rcd)
+{
+	if (rcd->ctxt == HFI1_CTRL_CTXT)
+		return false;
+
+	return rcd->do_interrupt == rcd->fast_handler;
+}
+
+/**
+ * hfi1_set_fast - change to the fast handler
+ * @rcd: the receive context
+ */
+static inline void hfi1_set_fast(struct hfi1_ctxtdata *rcd)
+{
+	if (unlikely(!rcd))
+		return;
+	if (unlikely(!hfi1_is_fastpath(rcd)))
+		rcd->do_interrupt = rcd->fast_handler;
 }
 
 int hfi1_reset_device(int);
@@ -1633,7 +1718,7 @@ static inline void pause_for_credit_return(struct hfi1_devdata *dd)
 }
 
 /**
- * sc_to_vlt() reverse lookup sc to vl
+ * sc_to_vlt() - reverse lookup sc to vl
  * @dd - devdata
  * @sc5 - 5 bit sc
  */
@@ -1839,10 +1924,10 @@ static inline struct hfi1_ibdev *dev_from_rdi(struct rvt_dev_info *rdi)
 	return container_of(rdi, struct hfi1_ibdev, rdi);
 }
 
-static inline struct hfi1_ibport *to_iport(struct ib_device *ibdev, u8 port)
+static inline struct hfi1_ibport *to_iport(struct ib_device *ibdev, u32 port)
 {
 	struct hfi1_devdata *dd = dd_from_ibdev(ibdev);
-	unsigned pidx = port - 1; /* IB number port from 1, hdw from 0 */
+	u32 pidx = port - 1; /* IB number port from 1, hdw from 0 */
 
 	WARN_ON(pidx >= dd->num_pports);
 	return &dd->pport[pidx].ibport_data;
@@ -2015,9 +2100,21 @@ int hfi1_acquire_user_pages(struct mm_struct *mm, unsigned long vaddr,
 void hfi1_release_user_pages(struct mm_struct *mm, struct page **p,
 			     size_t npages, bool dirty);
 
+/**
+ * hfi1_rcvhdrtail_kvaddr - return tail kvaddr
+ * @rcd - the receive context
+ */
+static inline __le64 *hfi1_rcvhdrtail_kvaddr(const struct hfi1_ctxtdata *rcd)
+{
+	return (__le64 *)rcd->rcvhdrtail_kvaddr;
+}
+
 static inline void clear_rcvhdrtail(const struct hfi1_ctxtdata *rcd)
 {
-	*((u64 *)rcd->rcvhdrtail_kvaddr) = 0ULL;
+	u64 *kv = (u64 *)hfi1_rcvhdrtail_kvaddr(rcd);
+
+	if (kv)
+		*kv = 0ULL;
 }
 
 static inline u32 get_rcvhdrtail(const struct hfi1_ctxtdata *rcd)
@@ -2026,7 +2123,17 @@ static inline u32 get_rcvhdrtail(const struct hfi1_ctxtdata *rcd)
 	 * volatile because it's a DMA target from the chip, routine is
 	 * inlined, and don't want register caching or reordering.
 	 */
-	return (u32)le64_to_cpu(*rcd->rcvhdrtail_kvaddr);
+	return (u32)le64_to_cpu(*hfi1_rcvhdrtail_kvaddr(rcd));
+}
+
+static inline bool hfi1_packet_present(struct hfi1_ctxtdata *rcd)
+{
+	if (likely(!rcd->rcvhdrtail_kvaddr)) {
+		u32 seq = rhf_rcv_seq(rhf_to_cpu(get_rhf_addr(rcd)));
+
+		return !last_rcv_seq(rcd, seq);
+	}
+	return hfi1_rcd_head(rcd) != get_rcvhdrtail(rcd);
 }
 
 /*
@@ -2035,12 +2142,11 @@ static inline u32 get_rcvhdrtail(const struct hfi1_ctxtdata *rcd)
 
 extern const char ib_hfi1_version[];
 extern const struct attribute_group ib_hfi1_attr_group;
+extern const struct attribute_group *hfi1_attr_port_groups[];
 
 int hfi1_device_create(struct hfi1_devdata *dd);
 void hfi1_device_remove(struct hfi1_devdata *dd);
 
-int hfi1_create_port_files(struct ib_device *ibdev, u8 port_num,
-			   struct kobject *kobj);
 int hfi1_verbs_register_sysfs(struct hfi1_devdata *dd);
 void hfi1_verbs_unregister_sysfs(struct hfi1_devdata *dd);
 /* Hook for sysfs read of QSFP */
@@ -2083,7 +2189,6 @@ extern int num_user_contexts;
 extern unsigned long n_krcvqs;
 extern uint krcvqs[];
 extern int krcvqsset;
-extern uint kdeth_qp;
 extern uint loopback;
 extern uint quick_linkup;
 extern uint rcv_intr_timeout;
@@ -2298,10 +2403,29 @@ static inline bool is_integrated(struct hfi1_devdata *dd)
 	return dd->pcidev->device == PCI_DEVICE_ID_INTEL1;
 }
 
+/**
+ * hfi1_need_drop - detect need for drop
+ * @dd: - the device
+ *
+ * In some cases, the first packet needs to be dropped.
+ *
+ * Return true is the current packet needs to be dropped and false otherwise.
+ */
+static inline bool hfi1_need_drop(struct hfi1_devdata *dd)
+{
+	if (unlikely(dd->do_drop &&
+		     atomic_xchg(&dd->drop_packet, DROP_PACKET_OFF) ==
+		     DROP_PACKET_ON)) {
+		dd->do_drop = false;
+		return true;
+	}
+	return false;
+}
+
 int hfi1_tempsense_rd(struct hfi1_devdata *dd, struct hfi1_temp *temp);
 
 #define DD_DEV_ENTRY(dd)       __string(dev, dev_name(&(dd)->pcidev->dev))
-#define DD_DEV_ASSIGN(dd)      __assign_str(dev, dev_name(&(dd)->pcidev->dev))
+#define DD_DEV_ASSIGN(dd)      __assign_str(dev)
 
 static inline void hfi1_update_ah_attr(struct ib_device *ibdev,
 				       struct rdma_ah_attr *attr)
@@ -2435,7 +2559,7 @@ static inline bool hfi1_get_hdr_type(u32 lid, struct rdma_ah_attr *attr)
 			HFI1_PKT_TYPE_16B : HFI1_PKT_TYPE_9B;
 
 	/*
-	 * Return a 16B header type if either the the destination
+	 * Return a 16B header type if either the destination
 	 * or source lid is extended.
 	 */
 	if (hfi1_get_packet_type(rdma_ah_get_dlid(attr)) == HFI1_PKT_TYPE_16B)

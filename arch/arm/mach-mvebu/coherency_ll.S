@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Coherency fabric: low level functions
  *
  * Copyright (C) 2012 Marvell
  *
  * Gregory CLEMENT <gregory.clement@free-electrons.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  *
  * This file implements the assembly function to add a CPU to the
  * coherency fabric. This function is called by each of the secondary
@@ -23,6 +20,7 @@
 #include <asm/assembler.h>
 #include <asm/cp15.h>
 
+	.arch armv7-a
 	.text
 /*
  * Returns the coherency base address in r1 (r0 is untouched), or 0 if
@@ -35,13 +33,8 @@ ENTRY(ll_get_coherency_base)
 
 	/*
 	 * MMU is disabled, use the physical address of the coherency
-	 * base address. However, if the coherency fabric isn't mapped
-	 * (i.e its virtual address is zero), it means coherency is
-	 * not enabled, so we return 0.
+	 * base address, (or 0x0 if the coherency fabric is not mapped)
 	 */
-	ldr	r1, =coherency_base
-	cmp	r1, #0
-	beq	2f
 	adr	r1, 3f
 	ldr	r3, [r1]
 	ldr	r1, [r1, r3]

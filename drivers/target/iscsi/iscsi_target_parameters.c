@@ -15,7 +15,7 @@
 #include "iscsi_target_parameters.h"
 
 int iscsi_login_rx_data(
-	struct iscsi_conn *conn,
+	struct iscsit_conn *conn,
 	char *buf,
 	int length)
 {
@@ -37,7 +37,7 @@ int iscsi_login_rx_data(
 }
 
 int iscsi_login_tx_data(
-	struct iscsi_conn *conn,
+	struct iscsit_conn *conn,
 	char *pdu_buf,
 	char *text_buf,
 	int text_length)
@@ -726,8 +726,8 @@ static int iscsi_add_notunderstood_response(
 	}
 	INIT_LIST_HEAD(&extra_response->er_list);
 
-	strlcpy(extra_response->key, key, sizeof(extra_response->key));
-	strlcpy(extra_response->value, NOTUNDERSTOOD,
+	strscpy(extra_response->key, key, sizeof(extra_response->key));
+	strscpy(extra_response->value, NOTUNDERSTOOD,
 		sizeof(extra_response->value));
 
 	list_add_tail(&extra_response->er_list,
@@ -955,7 +955,7 @@ out:
 }
 
 static int iscsi_check_acceptor_state(struct iscsi_param *param, char *value,
-				struct iscsi_conn *conn)
+				struct iscsit_conn *conn)
 {
 	u8 acceptor_boolean_value = 0, proposer_boolean_value = 0;
 	char *negotiated_value = NULL;
@@ -1262,18 +1262,20 @@ static struct iscsi_param *iscsi_check_key(
 		return param;
 
 	if (!(param->phase & phase)) {
-		pr_err("Key \"%s\" may not be negotiated during ",
-				param->name);
+		char *phase_name;
+
 		switch (phase) {
 		case PHASE_SECURITY:
-			pr_debug("Security phase.\n");
+			phase_name = "Security";
 			break;
 		case PHASE_OPERATIONAL:
-			pr_debug("Operational phase.\n");
+			phase_name = "Operational";
 			break;
 		default:
-			pr_debug("Unknown phase.\n");
+			phase_name = "Unknown";
 		}
+		pr_err("Key \"%s\" may not be negotiated during %s phase.\n",
+				param->name, phase_name);
 		return NULL;
 	}
 
@@ -1352,19 +1354,17 @@ int iscsi_decode_text_input(
 	u8 sender,
 	char *textbuf,
 	u32 length,
-	struct iscsi_conn *conn)
+	struct iscsit_conn *conn)
 {
 	struct iscsi_param_list *param_list = conn->param_list;
 	char *tmpbuf, *start = NULL, *end = NULL;
 
-	tmpbuf = kzalloc(length + 1, GFP_KERNEL);
+	tmpbuf = kmemdup_nul(textbuf, length, GFP_KERNEL);
 	if (!tmpbuf) {
 		pr_err("Unable to allocate %u + 1 bytes for tmpbuf.\n", length);
 		return -ENOMEM;
 	}
 
-	memcpy(tmpbuf, textbuf, length);
-	tmpbuf[length] = '\0';
 	start = tmpbuf;
 	end = (start + length);
 

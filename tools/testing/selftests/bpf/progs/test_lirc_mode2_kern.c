@@ -5,7 +5,7 @@
 
 #include <linux/bpf.h>
 #include <linux/lirc.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 SEC("lirc_mode2")
 int bpf_decoder(unsigned int *sample)

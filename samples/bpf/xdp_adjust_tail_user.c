@@ -14,15 +14,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <net/if.h>
-#include <sys/resource.h>
 #include <arpa/inet.h>
 #include <netinet/ether.h>
 #include <unistd.h>
 #include <time.h>
-#include "bpf.h"
-#include "libbpf.h"
+#include <bpf/bpf.h>
+#include <bpf/libbpf.h>
 
 #define STATS_INTERVAL_S 2U
+#define MAX_PCKT_SIZE 600
 
 static int ifindex = -1;
 static __u32 xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
@@ -33,12 +33,12 @@ static void int_exit(int sig)
 	__u32 curr_prog_id = 0;
 
 	if (ifindex > -1) {
-		if (bpf_get_link_xdp_id(ifindex, &curr_prog_id, xdp_flags)) {
-			printf("bpf_get_link_xdp_id failed\n");
+		if (bpf_xdp_query_id(ifindex, xdp_flags, &curr_prog_id)) {
+			printf("bpf_xdp_query_id failed\n");
 			exit(1);
 		}
 		if (prog_id == curr_prog_id)
-			bpf_set_link_xdp_fd(ifindex, -1, xdp_flags);
+			bpf_xdp_detach(ifindex, xdp_flags, NULL);
 		else if (!curr_prog_id)
 			printf("couldn't find a prog id on a given iface\n");
 		else
@@ -72,6 +72,7 @@ static void usage(const char *cmd)
 	printf("Usage: %s [...]\n", cmd);
 	printf("    -i <ifname|ifindex> Interface\n");
 	printf("    -T <stop-after-X-seconds> Default: 0 (forever)\n");
+	printf("    -P <MAX_PCKT_SIZE> Default: %u\n", MAX_PCKT_SIZE);
 	printf("    -S use skb-mode\n");
 	printf("    -N enforce native mode\n");
 	printf("    -F force loading prog\n");
@@ -80,18 +81,16 @@ static void usage(const char *cmd)
 
 int main(int argc, char **argv)
 {
-	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
-	struct bpf_prog_load_attr prog_load_attr = {
-		.prog_type	= BPF_PROG_TYPE_XDP,
-	};
 	unsigned char opt_flags[256] = {};
-	const char *optstr = "i:T:SNFh";
+	const char *optstr = "i:T:P:SNFh";
 	struct bpf_prog_info info = {};
 	__u32 info_len = sizeof(info);
 	unsigned int kill_after_s = 0;
 	int i, prog_fd, map_fd, opt;
+	struct bpf_program *prog;
 	struct bpf_object *obj;
-	struct bpf_map *map;
+	__u32 max_pckt_size = 0;
+	__u32 key = 0;
 	char filename[256];
 	int err;
 
@@ -110,11 +109,14 @@ int main(int argc, char **argv)
 		case 'T':
 			kill_after_s = atoi(optarg);
 			break;
+		case 'P':
+			max_pckt_size = atoi(optarg);
+			break;
 		case 'S':
 			xdp_flags |= XDP_FLAGS_SKB_MODE;
 			break;
 		case 'N':
-			xdp_flags |= XDP_FLAGS_DRV_MODE;
+			/* default, set below */
 			break;
 		case 'F':
 			xdp_flags &= ~XDP_FLAGS_UPDATE_IF_NOEXIST;
@@ -126,6 +128,9 @@ int main(int argc, char **argv)
 		opt_flags[opt] = 0;
 	}
 
+	if (!(xdp_flags & XDP_FLAGS_SKB_MODE))
+		xdp_flags |= XDP_FLAGS_DRV_MODE;
+
 	for (i = 0; i < strlen(optstr); i++) {
 		if (opt_flags[(unsigned int)optstr[i]]) {
 			fprintf(stderr, "Missing argument -%c\n", optstr[i]);
@@ -134,43 +139,52 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if (setrlimit(RLIMIT_MEMLOCK, &r)) {
-		perror("setrlimit(RLIMIT_MEMLOCK, RLIM_INFINITY)");
-		return 1;
-	}
-
 	if (!ifindex) {
 		fprintf(stderr, "Invalid ifname\n");
 		return 1;
 	}
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
-	prog_load_attr.file = filename;
 
-	if (bpf_prog_load_xattr(&prog_load_attr, &obj, &prog_fd))
+	obj = bpf_object__open_file(filename, NULL);
+	if (libbpf_get_error(obj))
 		return 1;
 
-	map = bpf_map__next(NULL, obj);
-	if (!map) {
-		printf("finding a map in obj file failed\n");
+	prog = bpf_object__next_program(obj, NULL);
+	bpf_program__set_type(prog, BPF_PROG_TYPE_XDP);
+
+	err = bpf_object__load(obj);
+	if (err)
 		return 1;
+
+	prog_fd = bpf_program__fd(prog);
+
+	/* static global var 'max_pcktsz' is accessible from .data section */
+	if (max_pckt_size) {
+		map_fd = bpf_object__find_map_fd_by_name(obj, "xdp_adju.data");
+		if (map_fd < 0) {
+			printf("finding a max_pcktsz map in obj file failed\n");
+			return 1;
+		}
+		bpf_map_update_elem(map_fd, &key, &max_pckt_size, BPF_ANY);
 	}
-	map_fd = bpf_map__fd(map);
 
-	if (!prog_fd) {
-		printf("load_bpf_file: %s\n", strerror(errno));
+	/* fetch icmpcnt map */
+	map_fd = bpf_object__find_map_fd_by_name(obj, "icmpcnt");
+	if (map_fd < 0) {
+		printf("finding a icmpcnt map in obj file failed\n");
 		return 1;
 	}
 
 	signal(SIGINT, int_exit);
 	signal(SIGTERM, int_exit);
 
-	if (bpf_set_link_xdp_fd(ifindex, prog_fd, xdp_flags) < 0) {
+	if (bpf_xdp_attach(ifindex, prog_fd, xdp_flags, NULL) < 0) {
 		printf("link set xdp fd failed\n");
 		return 1;
 	}
 
-	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
+	err = bpf_prog_get_info_by_fd(prog_fd, &info, &info_len);
 	if (err) {
 		printf("can't get prog info - %s\n", strerror(errno));
 		return 1;

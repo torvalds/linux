@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * u_midi.h
  *
@@ -29,8 +29,8 @@ struct f_midi_opts {
 	 * Protect the data form concurrent access by read/write
 	 * and create symlink/remove symlink.
 	 */
-	 struct mutex			lock;
-	 int				refcnt;
+	struct mutex			lock;
+	int				refcnt;
 };
 
 #endif /* U_MIDI_H */

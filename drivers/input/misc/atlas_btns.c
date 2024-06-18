@@ -106,7 +106,7 @@ static int atlas_acpi_button_add(struct acpi_device *device)
 	return err;
 }
 
-static int atlas_acpi_button_remove(struct acpi_device *device)
+static void atlas_acpi_button_remove(struct acpi_device *device)
 {
 	acpi_status status;
 
@@ -116,8 +116,6 @@ static int atlas_acpi_button_remove(struct acpi_device *device)
 		pr_err("error removing addr spc handler\n");
 
 	input_unregister_device(input_dev);
-
-	return 0;
 }
 
 static const struct acpi_device_id atlas_device_ids[] = {
@@ -129,7 +127,6 @@ MODULE_DEVICE_TABLE(acpi, atlas_device_ids);
 static struct acpi_driver atlas_acpi_driver = {
 	.name	= ACPI_ATLAS_NAME,
 	.class	= ACPI_ATLAS_CLASS,
-	.owner	= THIS_MODULE,
 	.ids	= atlas_device_ids,
 	.ops	= {
 		.add	= atlas_acpi_button_add,

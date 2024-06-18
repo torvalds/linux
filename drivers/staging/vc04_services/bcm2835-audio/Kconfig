@@ -1,9 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0
 config SND_BCM2835
-        tristate "BCM2835 Audio"
-        depends on (ARCH_BCM2835 || COMPILE_TEST) && SND
-        select SND_PCM
-        select BCM2835_VCHIQ
-        help
-          Say Y or M if you want to support BCM2835 built in audio
-
+	tristate "BCM2835 Audio"
+	depends on (ARCH_BCM2835 || COMPILE_TEST) && SND
+	select SND_PCM
+	select BCM2835_VCHIQ if HAS_DMA
+	help
+	  Say Y or M if you want to support BCM2835 built in audio.
+	  This driver handles both 3.5mm and HDMI audio, by leveraging
+	  the VCHIQ messaging interface between the kernel and the firmware
+	  running on VideoCore.

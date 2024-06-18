@@ -40,15 +40,11 @@ static int zynqmp_fpga_ops_write_init(struct fpga_manager *mgr,
 static int zynqmp_fpga_ops_write(struct fpga_manager *mgr,
 				 const char *buf, size_t size)
 {
-	const struct zynqmp_eemi_ops *eemi_ops = zynqmp_pm_get_eemi_ops();
 	struct zynqmp_fpga_priv *priv;
 	dma_addr_t dma_addr;
 	u32 eemi_flags = 0;
 	char *kbuf;
 	int ret;
-
-	if (IS_ERR_OR_NULL(eemi_ops) || !eemi_ops->fpga_load)
-		return -ENXIO;
 
 	priv = mgr->priv;
 
@@ -63,39 +59,48 @@ static int zynqmp_fpga_ops_write(struct fpga_manager *mgr,
 	if (priv->flags & FPGA_MGR_PARTIAL_RECONFIG)
 		eemi_flags |= XILINX_ZYNQMP_PM_FPGA_PARTIAL;
 
-	ret = eemi_ops->fpga_load(dma_addr, size, eemi_flags);
+	ret = zynqmp_pm_fpga_load(dma_addr, size, eemi_flags);
 
 	dma_free_coherent(priv->dev, size, kbuf, dma_addr);
 
 	return ret;
 }
 
-static int zynqmp_fpga_ops_write_complete(struct fpga_manager *mgr,
-					  struct fpga_image_info *info)
-{
-	return 0;
-}
-
 static enum fpga_mgr_states zynqmp_fpga_ops_state(struct fpga_manager *mgr)
 {
-	const struct zynqmp_eemi_ops *eemi_ops = zynqmp_pm_get_eemi_ops();
-	u32 status;
+	u32 status = 0;
 
-	if (IS_ERR_OR_NULL(eemi_ops) || !eemi_ops->fpga_get_status)
-		return FPGA_MGR_STATE_UNKNOWN;
-
-	eemi_ops->fpga_get_status(&status);
+	zynqmp_pm_fpga_get_status(&status);
 	if (status & IXR_FPGA_DONE_MASK)
 		return FPGA_MGR_STATE_OPERATING;
 
 	return FPGA_MGR_STATE_UNKNOWN;
 }
 
+static ssize_t status_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
+{
+	u32 status;
+	int ret;
+
+	ret = zynqmp_pm_fpga_get_config_status(&status);
+	if (ret)
+		return ret;
+
+	return sysfs_emit(buf, "0x%x\n", status);
+}
+static DEVICE_ATTR_RO(status);
+
+static struct attribute *zynqmp_fpga_attrs[] = {
+	&dev_attr_status.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(zynqmp_fpga);
+
 static const struct fpga_manager_ops zynqmp_fpga_ops = {
 	.state = zynqmp_fpga_ops_state,
 	.write_init = zynqmp_fpga_ops_write_init,
 	.write = zynqmp_fpga_ops_write,
-	.write_complete = zynqmp_fpga_ops_write_complete,
 };
 
 static int zynqmp_fpga_probe(struct platform_device *pdev)
@@ -103,7 +108,6 @@ static int zynqmp_fpga_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct zynqmp_fpga_priv *priv;
 	struct fpga_manager *mgr;
-	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -111,44 +115,25 @@ static int zynqmp_fpga_probe(struct platform_device *pdev)
 
 	priv->dev = dev;
 
-	mgr = devm_fpga_mgr_create(dev, "Xilinx ZynqMP FPGA Manager",
-				   &zynqmp_fpga_ops, priv);
-	if (!mgr)
-		return -ENOMEM;
-
-	platform_set_drvdata(pdev, mgr);
-
-	ret = fpga_mgr_register(mgr);
-	if (ret) {
-		dev_err(dev, "unable to register FPGA manager");
-		return ret;
-	}
-
-	return 0;
+	mgr = devm_fpga_mgr_register(dev, "Xilinx ZynqMP FPGA Manager",
+				     &zynqmp_fpga_ops, priv);
+	return PTR_ERR_OR_ZERO(mgr);
 }
 
-static int zynqmp_fpga_remove(struct platform_device *pdev)
-{
-	struct fpga_manager *mgr = platform_get_drvdata(pdev);
-
-	fpga_mgr_unregister(mgr);
-
-	return 0;
-}
-
+#ifdef CONFIG_OF
 static const struct of_device_id zynqmp_fpga_of_match[] = {
 	{ .compatible = "xlnx,zynqmp-pcap-fpga", },
 	{},
 };
-
 MODULE_DEVICE_TABLE(of, zynqmp_fpga_of_match);
+#endif
 
 static struct platform_driver zynqmp_fpga_driver = {
 	.probe = zynqmp_fpga_probe,
-	.remove = zynqmp_fpga_remove,
 	.driver = {
 		.name = "zynqmp_fpga_manager",
 		.of_match_table = of_match_ptr(zynqmp_fpga_of_match),
+		.dev_groups = zynqmp_fpga_groups,
 	},
 };
 

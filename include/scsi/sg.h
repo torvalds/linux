@@ -24,14 +24,10 @@
  *	http://sg.danny.cz/sg  [alternatively check the MAINTAINERS file]
  * The documentation for the sg version 3 driver can be found at:
  *	http://sg.danny.cz/sg/p/sg_v3_ho.html
- * Also see: <kernel_source>/Documentation/scsi/scsi-generic.txt
+ * Also see: <kernel_source>/Documentation/scsi/scsi-generic.rst
  *
  * For utility and test programs see: http://sg.danny.cz/sg/sg3_utils.html
  */
-
-#ifdef __KERNEL__
-extern int sg_big_buff; /* for sysctl */
-#endif
 
 
 typedef struct sg_iovec /* same structure as used by readv() Linux system */
@@ -68,6 +64,36 @@ typedef struct sg_io_hdr
     unsigned int info;          /* [o] auxiliary information */
 } sg_io_hdr_t;  /* 64 bytes long (on i386) */
 
+#if defined(__KERNEL__)
+#include <linux/compat.h>
+
+struct compat_sg_io_hdr {
+	compat_int_t interface_id;	/* [i] 'S' for SCSI generic (required) */
+	compat_int_t dxfer_direction;	/* [i] data transfer direction  */
+	unsigned char cmd_len;		/* [i] SCSI command length ( <= 16 bytes) */
+	unsigned char mx_sb_len;	/* [i] max length to write to sbp */
+	unsigned short iovec_count;	/* [i] 0 implies no scatter gather */
+	compat_uint_t dxfer_len;	/* [i] byte count of data transfer */
+	compat_uint_t dxferp;		/* [i], [*io] points to data transfer memory
+						or scatter gather list */
+	compat_uptr_t cmdp;		/* [i], [*i] points to command to perform */
+	compat_uptr_t sbp;		/* [i], [*o] points to sense_buffer memory */
+	compat_uint_t timeout;		/* [i] MAX_UINT->no timeout (unit: millisec) */
+	compat_uint_t flags;		/* [i] 0 -> default, see SG_FLAG... */
+	compat_int_t pack_id;		/* [i->o] unused internally (normally) */
+	compat_uptr_t usr_ptr;		/* [i->o] unused internally */
+	unsigned char status;		/* [o] scsi status */
+	unsigned char masked_status;	/* [o] shifted, masked scsi status */
+	unsigned char msg_status;	/* [o] messaging level data (optional) */
+	unsigned char sb_len_wr;	/* [o] byte count actually written to sbp */
+	unsigned short host_status;	/* [o] errors from host adapter */
+	unsigned short driver_status;	/* [o] errors from software driver */
+	compat_int_t resid;		/* [o] dxfer_len - actual_transferred */
+	compat_uint_t duration;		/* [o] time taken by cmd (unit: millisec) */
+	compat_uint_t info;		/* [o] auxiliary information */
+};
+#endif
+
 #define SG_INTERFACE_ID_ORIG 'S'
 
 /* Use negative values to flag difference from original sg_header structure */
@@ -101,6 +127,39 @@ typedef struct sg_io_hdr
 #define SG_INFO_DIRECT_IO 0x2   /* direct IO requested and performed */
 #define SG_INFO_MIXED_IO 0x4    /* part direct, part indirect IO */
 
+/*
+ * Obsolete DRIVER_SENSE driver byte
+ *
+ * Originally the SCSI midlayer would set the DRIVER_SENSE driver byte when
+ * a sense code was generated and a sense buffer was allocated.
+ * However, as nowadays every scsi command has a sense code allocated this
+ * distinction became moot as one could check the sense buffer directly.
+ * Consequently this byte is not set anymore from the midlayer, but SG will
+ * keep setting this byte to be compatible with previous releases.
+ */
+#define DRIVER_SENSE 0x08
+/* Obsolete driver_byte() declaration */
+#define driver_byte(result) (((result) >> 24) & 0xff)
+
+/*
+ *  Original linux SCSI Status codes. They are shifted 1 bit right
+ *  from those found in the SCSI standards.
+ */
+
+#define GOOD                 0x00
+#define CHECK_CONDITION      0x01
+#define CONDITION_GOOD       0x02
+#define BUSY                 0x04
+#define INTERMEDIATE_GOOD    0x08
+#define INTERMEDIATE_C_GOOD  0x0a
+#define RESERVATION_CONFLICT 0x0c
+#define COMMAND_TERMINATED   0x11
+#define QUEUE_FULL           0x14
+#define ACA_ACTIVE           0x18
+#define TASK_ABORTED         0x20
+
+/* Obsolete status_byte() declaration */
+#define sg_status_byte(result) (((result) >> 1) & 0x7f)
 
 typedef struct sg_scsi_id { /* used by SG_GET_SCSI_ID ioctl() */
     int host_no;        /* as in "scsi<n>" where 'n' is one of 0, 1, 2 etc */
@@ -115,7 +174,7 @@ typedef struct sg_scsi_id { /* used by SG_GET_SCSI_ID ioctl() */
 
 typedef struct sg_req_info { /* used by SG_GET_REQUEST_TABLE ioctl() */
     char req_state;     /* 0 -> not used, 1 -> written, 2 -> ready to read */
-    char orphan;        /* 0 -> normal request, 1 -> from interruped SG_IO */
+    char orphan;        /* 0 -> normal request, 1 -> from interrupted SG_IO */
     char sg_io_owned;   /* 0 -> complete with read(), 1 -> owned by SG_IO */
     char problem;       /* 0 -> no problem detected, 1 -> error to report */
     int pack_id;        /* pack_id associated with request */

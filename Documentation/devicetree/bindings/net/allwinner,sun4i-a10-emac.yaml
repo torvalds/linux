@@ -4,14 +4,14 @@
 $id: http://devicetree.org/schemas/net/allwinner,sun4i-a10-emac.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A10 EMAC Ethernet Controller Device Tree Bindings
+title: Allwinner A10 EMAC Ethernet Controller
 
 allOf:
-  - $ref: "ethernet-controller.yaml#"
+  - $ref: ethernet-controller.yaml#
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
-  - Maxime Ripard <maxime.ripard@bootlin.com>
+  - Maxime Ripard <mripard@kernel.org>
 
 properties:
   compatible:
@@ -29,6 +29,10 @@ properties:
   allwinner,sram:
     description: Phandle to the device SRAM
     $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: phandle to SRAM
+          - description: register value for device
 
 required:
   - compatible
@@ -37,6 +41,8 @@ required:
   - clocks
   - phy-handle
   - allwinner,sram
+
+unevaluatedProperties: false
 
 examples:
   - |
@@ -48,9 +54,5 @@ examples:
         phy-handle = <&phy0>;
         allwinner,sram = <&emac_sram 1>;
     };
-
-# FIXME: We should set it, but it would report all the generic
-# properties as additional properties.
-# additionalProperties: false
 
 ...

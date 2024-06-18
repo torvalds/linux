@@ -3,7 +3,7 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_connector.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_edid.h>
 #include <drm/drm_probe_helper.h>
 
 #include "aspeed_gfx.h"
@@ -28,7 +28,7 @@ static const struct drm_connector_funcs aspeed_gfx_connector_funcs = {
 
 int aspeed_gfx_create_output(struct drm_device *drm)
 {
-	struct aspeed_gfx *priv = drm->dev_private;
+	struct aspeed_gfx *priv = to_aspeed_gfx(drm);
 	int ret;
 
 	priv->connector.dpms = DRM_MODE_DPMS_OFF;

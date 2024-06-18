@@ -257,6 +257,7 @@ extern int rbv_present,via_alt_mapping;
 
 struct irq_desc;
 
+extern void via_l2_flush(int writeback);
 extern void via_register_interrupts(void);
 extern void via_irq_enable(int);
 extern void via_irq_disable(int);
@@ -265,14 +266,6 @@ extern void via_nubus_irq_shutdown(int irq);
 extern void via1_irq(struct irq_desc *desc);
 extern void via1_set_head(int);
 extern int via2_scsi_drq_pending(void);
-
-static inline int rbv_set_video_bpp(int bpp)
-{
-	char val = (bpp==1)?0:(bpp==2)?1:(bpp==4)?2:(bpp==8)?3:-1;
-	if (!rbv_present || val<0) return -1;
-	via2[rMonP] = (via2[rMonP] & ~RBV_DEPTH) | val;
-	return 0;
-}
 
 #endif /* __ASSEMBLY__ */
 

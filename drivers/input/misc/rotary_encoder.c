@@ -236,12 +236,8 @@ static int rotary_encoder_probe(struct platform_device *pdev)
 		device_property_read_bool(dev, "rotary-encoder,relative-axis");
 
 	encoder->gpios = devm_gpiod_get_array(dev, NULL, GPIOD_IN);
-	if (IS_ERR(encoder->gpios)) {
-		err = PTR_ERR(encoder->gpios);
-		if (err != -EPROBE_DEFER)
-			dev_err(dev, "unable to get gpios: %d\n", err);
-		return err;
-	}
+	if (IS_ERR(encoder->gpios))
+		return dev_err_probe(dev, PTR_ERR(encoder->gpios), "unable to get gpios\n");
 	if (encoder->gpios->ndescs < 2) {
 		dev_err(dev, "not enough gpios found\n");
 		return -EINVAL;
@@ -255,7 +251,6 @@ static int rotary_encoder_probe(struct platform_device *pdev)
 
 	input->name = pdev->name;
 	input->id.bustype = BUS_HOST;
-	input->dev.parent = dev;
 
 	if (encoder->relative_axis)
 		input_set_capability(input, EV_REL, encoder->axis);
@@ -317,7 +312,7 @@ static int rotary_encoder_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused rotary_encoder_suspend(struct device *dev)
+static int rotary_encoder_suspend(struct device *dev)
 {
 	struct rotary_encoder *encoder = dev_get_drvdata(dev);
 	unsigned int i;
@@ -330,7 +325,7 @@ static int __maybe_unused rotary_encoder_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused rotary_encoder_resume(struct device *dev)
+static int rotary_encoder_resume(struct device *dev)
 {
 	struct rotary_encoder *encoder = dev_get_drvdata(dev);
 	unsigned int i;
@@ -343,8 +338,8 @@ static int __maybe_unused rotary_encoder_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(rotary_encoder_pm_ops,
-			 rotary_encoder_suspend, rotary_encoder_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(rotary_encoder_pm_ops,
+				rotary_encoder_suspend, rotary_encoder_resume);
 
 #ifdef CONFIG_OF
 static const struct of_device_id rotary_encoder_of_match[] = {
@@ -358,7 +353,7 @@ static struct platform_driver rotary_encoder_driver = {
 	.probe		= rotary_encoder_probe,
 	.driver		= {
 		.name	= DRV_NAME,
-		.pm	= &rotary_encoder_pm_ops,
+		.pm	= pm_sleep_ptr(&rotary_encoder_pm_ops),
 		.of_match_table = of_match_ptr(rotary_encoder_of_match),
 	}
 };

@@ -18,11 +18,8 @@
 
 struct pci_dev;
 
-struct aer_header_log_regs {
-	unsigned int dw0;
-	unsigned int dw1;
-	unsigned int dw2;
-	unsigned int dw3;
+struct pcie_tlp_log {
+	u32 dw[4];
 };
 
 struct aer_capability_regs {
@@ -33,39 +30,27 @@ struct aer_capability_regs {
 	u32 cor_status;
 	u32 cor_mask;
 	u32 cap_control;
-	struct aer_header_log_regs header_log;
+	struct pcie_tlp_log header_log;
 	u32 root_command;
 	u32 root_status;
 	u16 cor_err_source;
 	u16 uncor_err_source;
 };
 
+int pcie_read_tlp_log(struct pci_dev *dev, int where, struct pcie_tlp_log *log);
+
 #if defined(CONFIG_PCIEAER)
-/* PCIe port driver needs this function to enable AER */
-int pci_enable_pcie_error_reporting(struct pci_dev *dev);
-int pci_disable_pcie_error_reporting(struct pci_dev *dev);
-int pci_cleanup_aer_uncorrect_error_status(struct pci_dev *dev);
-int pci_cleanup_aer_error_status_regs(struct pci_dev *dev);
+int pci_aer_clear_nonfatal_status(struct pci_dev *dev);
+int pcie_aer_is_native(struct pci_dev *dev);
 #else
-static inline int pci_enable_pcie_error_reporting(struct pci_dev *dev)
+static inline int pci_aer_clear_nonfatal_status(struct pci_dev *dev)
 {
 	return -EINVAL;
 }
-static inline int pci_disable_pcie_error_reporting(struct pci_dev *dev)
-{
-	return -EINVAL;
-}
-static inline int pci_cleanup_aer_uncorrect_error_status(struct pci_dev *dev)
-{
-	return -EINVAL;
-}
-static inline int pci_cleanup_aer_error_status_regs(struct pci_dev *dev)
-{
-	return -EINVAL;
-}
+static inline int pcie_aer_is_native(struct pci_dev *dev) { return 0; }
 #endif
 
-void cper_print_aer(struct pci_dev *dev, int aer_severity,
+void pci_print_aer(struct pci_dev *dev, int aer_severity,
 		    struct aer_capability_regs *aer);
 int cper_severity_to_aer(int cper_severity);
 void aer_recover_queue(int domain, unsigned int bus, unsigned int devfn,

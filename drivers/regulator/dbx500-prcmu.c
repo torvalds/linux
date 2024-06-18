@@ -67,8 +67,6 @@ static int power_state_active_get(void)
 
 static struct ux500_regulator_debug {
 	struct dentry *dir;
-	struct dentry *status_file;
-	struct dentry *power_state_cnt_file;
 	struct dbx500_regulator_info *regulator_array;
 	int num_regulators;
 	u8 *state_before_suspend;
@@ -110,13 +108,6 @@ static int ux500_regulator_status_show(struct seq_file *s, void *p)
 }
 DEFINE_SHOW_ATTRIBUTE(ux500_regulator_status);
 
-int __attribute__((weak)) dbx500_regulator_testcase(
-	struct dbx500_regulator_info *regulator_info,
-	int num_regulators)
-{
-	return 0;
-}
-
 int
 ux500_regulator_debug_init(struct platform_device *pdev,
 	struct dbx500_regulator_info *regulator_info,
@@ -124,22 +115,14 @@ ux500_regulator_debug_init(struct platform_device *pdev,
 {
 	/* create directory */
 	rdebug.dir = debugfs_create_dir("ux500-regulator", NULL);
-	if (!rdebug.dir)
-		goto exit_no_debugfs;
 
 	/* create "status" file */
-	rdebug.status_file = debugfs_create_file("status",
-		S_IRUGO, rdebug.dir, &pdev->dev,
-		&ux500_regulator_status_fops);
-	if (!rdebug.status_file)
-		goto exit_destroy_dir;
+	debugfs_create_file("status", 0444, rdebug.dir, &pdev->dev,
+			    &ux500_regulator_status_fops);
 
 	/* create "power-state-count" file */
-	rdebug.power_state_cnt_file = debugfs_create_file("power-state-count",
-		S_IRUGO, rdebug.dir, &pdev->dev,
-		&ux500_regulator_power_state_cnt_fops);
-	if (!rdebug.power_state_cnt_file)
-		goto exit_destroy_status;
+	debugfs_create_file("power-state-count", 0444, rdebug.dir,
+			    &pdev->dev, &ux500_regulator_power_state_cnt_fops);
 
 	rdebug.regulator_array = regulator_info;
 	rdebug.num_regulators = num_regulators;
@@ -152,19 +135,12 @@ ux500_regulator_debug_init(struct platform_device *pdev,
 	if (!rdebug.state_after_suspend)
 		goto exit_free;
 
-	dbx500_regulator_testcase(regulator_info, num_regulators);
 	return 0;
 
 exit_free:
 	kfree(rdebug.state_before_suspend);
 exit_destroy_power_state:
-	debugfs_remove(rdebug.power_state_cnt_file);
-exit_destroy_status:
-	debugfs_remove(rdebug.status_file);
-exit_destroy_dir:
-	debugfs_remove(rdebug.dir);
-exit_no_debugfs:
-	dev_err(&pdev->dev, "failed to create debugfs entries.\n");
+	debugfs_remove_recursive(rdebug.dir);
 	return -ENOMEM;
 }
 

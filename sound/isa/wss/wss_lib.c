@@ -38,7 +38,7 @@ MODULE_LICENSE("GPL");
  *  Some variables
  */
 
-static unsigned char freq_bits[14] = {
+static const unsigned char freq_bits[14] = {
 	/* 5510 */	0x00 | CS4231_XTAL2,
 	/* 6620 */	0x0E | CS4231_XTAL2,
 	/* 8000 */	0x00 | CS4231_XTAL1,
@@ -72,7 +72,7 @@ static int snd_wss_xrate(struct snd_pcm_runtime *runtime)
 					  &hw_constraints_rates);
 }
 
-static unsigned char snd_wss_original_image[32] =
+static const unsigned char snd_wss_original_image[32] =
 {
 	0x00,			/* 00/00 - lic */
 	0x00,			/* 01/01 - ric */
@@ -108,7 +108,7 @@ static unsigned char snd_wss_original_image[32] =
 	0x00,			/* 1f/31 - cbrl */
 };
 
-static unsigned char snd_opti93x_original_image[32] =
+static const unsigned char snd_opti93x_original_image[32] =
 {
 	0x00,		/* 00/00 - l_mixout_outctrl */
 	0x00,		/* 01/01 - r_mixout_outctrl */
@@ -961,7 +961,7 @@ static int snd_wss_timer_close(struct snd_timer *timer)
 	return 0;
 }
 
-static struct snd_timer_hardware snd_wss_timer_table =
+static const struct snd_timer_hardware snd_wss_timer_table =
 {
 	.flags =	SNDRV_TIMER_HW_AUTO,
 	.resolution =	9945,
@@ -982,20 +982,12 @@ static int snd_wss_playback_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_wss *chip = snd_pcm_substream_chip(substream);
 	unsigned char new_pdfr;
-	int err;
 
-	if ((err = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params))) < 0)
-		return err;
 	new_pdfr = snd_wss_get_format(chip, params_format(hw_params),
 				params_channels(hw_params)) |
 				snd_wss_get_rate(params_rate(hw_params));
 	chip->set_playback_format(chip, hw_params, new_pdfr);
 	return 0;
-}
-
-static int snd_wss_playback_hw_free(struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
 }
 
 static int snd_wss_playback_prepare(struct snd_pcm_substream *substream)
@@ -1025,20 +1017,12 @@ static int snd_wss_capture_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_wss *chip = snd_pcm_substream_chip(substream);
 	unsigned char new_cdfr;
-	int err;
 
-	if ((err = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params))) < 0)
-		return err;
 	new_cdfr = snd_wss_get_format(chip, params_format(hw_params),
 			   params_channels(hw_params)) |
 			   snd_wss_get_rate(params_rate(hw_params));
 	chip->set_capture_format(chip, hw_params, new_cdfr);
 	return 0;
-}
-
-static int snd_wss_capture_hw_free(struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
 }
 
 static int snd_wss_capture_prepare(struct snd_pcm_substream *substream)
@@ -1509,7 +1493,8 @@ static int snd_wss_playback_open(struct snd_pcm_substream *substream)
 	snd_pcm_limit_isa_dma_size(chip->dma1, &runtime->hw.period_bytes_max);
 
 	if (chip->claim_dma) {
-		if ((err = chip->claim_dma(chip, chip->dma_private_data, chip->dma1)) < 0)
+		err = chip->claim_dma(chip, chip->dma_private_data, chip->dma1);
+		if (err < 0)
 			return err;
 	}
 
@@ -1549,7 +1534,8 @@ static int snd_wss_capture_open(struct snd_pcm_substream *substream)
 	snd_pcm_limit_isa_dma_size(chip->dma2, &runtime->hw.period_bytes_max);
 
 	if (chip->claim_dma) {
-		if ((err = chip->claim_dma(chip, chip->dma_private_data, chip->dma2)) < 0)
+		err = chip->claim_dma(chip, chip->dma_private_data, chip->dma2);
+		if (err < 0)
 			return err;
 	}
 
@@ -1669,36 +1655,6 @@ static void snd_wss_resume(struct snd_wss *chip)
 }
 #endif /* CONFIG_PM */
 
-static int snd_wss_free(struct snd_wss *chip)
-{
-	release_and_free_resource(chip->res_port);
-	release_and_free_resource(chip->res_cport);
-	if (chip->irq >= 0) {
-		disable_irq(chip->irq);
-		if (!(chip->hwshare & WSS_HWSHARE_IRQ))
-			free_irq(chip->irq, (void *) chip);
-	}
-	if (!(chip->hwshare & WSS_HWSHARE_DMA1) && chip->dma1 >= 0) {
-		snd_dma_disable(chip->dma1);
-		free_dma(chip->dma1);
-	}
-	if (!(chip->hwshare & WSS_HWSHARE_DMA2) &&
-	    chip->dma2 >= 0 && chip->dma2 != chip->dma1) {
-		snd_dma_disable(chip->dma2);
-		free_dma(chip->dma2);
-	}
-	if (chip->timer)
-		snd_device_free(chip->card, chip->timer);
-	kfree(chip);
-	return 0;
-}
-
-static int snd_wss_dev_free(struct snd_device *device)
-{
-	struct snd_wss *chip = device->device_data;
-	return snd_wss_free(chip);
-}
-
 const char *snd_wss_chip_id(struct snd_wss *chip)
 {
 	switch (chip->hardware) {
@@ -1752,7 +1708,7 @@ static int snd_wss_new(struct snd_card *card,
 	struct snd_wss *chip;
 
 	*rchip = NULL;
-	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc(card->dev, sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
 		return -ENOMEM;
 	chip->hardware = hardware;
@@ -1788,9 +1744,6 @@ int snd_wss_create(struct snd_card *card,
 		      unsigned short hwshare,
 		      struct snd_wss **rchip)
 {
-	static struct snd_device_ops ops = {
-		.dev_free =	snd_wss_dev_free,
-	};
 	struct snd_wss *chip;
 	int err;
 
@@ -1802,41 +1755,39 @@ int snd_wss_create(struct snd_card *card,
 	chip->dma1 = -1;
 	chip->dma2 = -1;
 
-	chip->res_port = request_region(port, 4, "WSS");
+	chip->res_port = devm_request_region(card->dev, port, 4, "WSS");
 	if (!chip->res_port) {
 		snd_printk(KERN_ERR "wss: can't grab port 0x%lx\n", port);
-		snd_wss_free(chip);
 		return -EBUSY;
 	}
 	chip->port = port;
 	if ((long)cport >= 0) {
-		chip->res_cport = request_region(cport, 8, "CS4232 Control");
+		chip->res_cport = devm_request_region(card->dev, cport, 8,
+						      "CS4232 Control");
 		if (!chip->res_cport) {
 			snd_printk(KERN_ERR
 				"wss: can't grab control port 0x%lx\n", cport);
-			snd_wss_free(chip);
 			return -ENODEV;
 		}
 	}
 	chip->cport = cport;
 	if (!(hwshare & WSS_HWSHARE_IRQ))
-		if (request_irq(irq, snd_wss_interrupt, 0,
-				"WSS", (void *) chip)) {
+		if (devm_request_irq(card->dev, irq, snd_wss_interrupt, 0,
+				     "WSS", (void *) chip)) {
 			snd_printk(KERN_ERR "wss: can't grab IRQ %d\n", irq);
-			snd_wss_free(chip);
 			return -EBUSY;
 		}
 	chip->irq = irq;
-	if (!(hwshare & WSS_HWSHARE_DMA1) && request_dma(dma1, "WSS - 1")) {
+	card->sync_irq = chip->irq;
+	if (!(hwshare & WSS_HWSHARE_DMA1) &&
+	    snd_devm_request_dma(card->dev, dma1, "WSS - 1")) {
 		snd_printk(KERN_ERR "wss: can't grab DMA1 %d\n", dma1);
-		snd_wss_free(chip);
 		return -EBUSY;
 	}
 	chip->dma1 = dma1;
-	if (!(hwshare & WSS_HWSHARE_DMA2) && dma1 != dma2 &&
-	      dma2 >= 0 && request_dma(dma2, "WSS - 2")) {
+	if (!(hwshare & WSS_HWSHARE_DMA2) && dma1 != dma2 && dma2 >= 0 &&
+	    snd_devm_request_dma(card->dev, dma2, "WSS - 2")) {
 		snd_printk(KERN_ERR "wss: can't grab DMA2 %d\n", dma2);
-		snd_wss_free(chip);
 		return -EBUSY;
 	}
 	if (dma1 == dma2 || dma2 < 0) {
@@ -1852,10 +1803,8 @@ int snd_wss_create(struct snd_card *card,
 	}
 
 	/* global setup */
-	if (snd_wss_probe(chip) < 0) {
-		snd_wss_free(chip);
+	if (snd_wss_probe(chip) < 0)
 		return -ENODEV;
-	}
 	snd_wss_init(chip);
 
 #if 0
@@ -1865,13 +1814,6 @@ int snd_wss_create(struct snd_card *card,
 				   "not accessible\n");
 	}
 #endif
-
-	/* Register device */
-	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
-	if (err < 0) {
-		snd_wss_free(chip);
-		return err;
-	}
 
 #ifdef CONFIG_PM
 	/* Power Management */
@@ -1887,9 +1829,7 @@ EXPORT_SYMBOL(snd_wss_create);
 static const struct snd_pcm_ops snd_wss_playback_ops = {
 	.open =		snd_wss_playback_open,
 	.close =	snd_wss_playback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_wss_playback_hw_params,
-	.hw_free =	snd_wss_playback_hw_free,
 	.prepare =	snd_wss_playback_prepare,
 	.trigger =	snd_wss_trigger,
 	.pointer =	snd_wss_playback_pointer,
@@ -1898,9 +1838,7 @@ static const struct snd_pcm_ops snd_wss_playback_ops = {
 static const struct snd_pcm_ops snd_wss_capture_ops = {
 	.open =		snd_wss_capture_open,
 	.close =	snd_wss_capture_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_wss_capture_hw_params,
-	.hw_free =	snd_wss_capture_hw_free,
 	.prepare =	snd_wss_capture_prepare,
 	.trigger =	snd_wss_trigger,
 	.pointer =	snd_wss_capture_pointer,
@@ -1927,9 +1865,8 @@ int snd_wss_pcm(struct snd_wss *chip, int device)
 		pcm->info_flags |= SNDRV_PCM_INFO_JOINT_DUPLEX;
 	strcpy(pcm->name, snd_wss_chip_id(chip));
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      chip->card->dev,
-					      64*1024, chip->dma1 > 3 || chip->dma2 > 3 ? 128*1024 : 64*1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV, chip->card->dev,
+				       64*1024, chip->dma1 > 3 || chip->dma2 > 3 ? 128*1024 : 64*1024);
 
 	chip->pcm = pcm;
 	return 0;
@@ -1954,7 +1891,8 @@ int snd_wss_timer(struct snd_wss *chip, int device)
 	tid.card = chip->card->number;
 	tid.device = device;
 	tid.subdevice = 0;
-	if ((err = snd_timer_new(chip->card, "CS4231", &tid, &timer)) < 0)
+	err = snd_timer_new(chip->card, "CS4231", &tid, &timer);
+	if (err < 0)
 		return err;
 	strcpy(timer->name, snd_wss_chip_id(chip));
 	timer->private_data = chip;
@@ -2177,7 +2115,7 @@ static const DECLARE_TLV_DB_SCALE(db_scale_5bit_12db_max, -3450, 150, 0);
 static const DECLARE_TLV_DB_SCALE(db_scale_rec_gain, 0, 150, 0);
 static const DECLARE_TLV_DB_SCALE(db_scale_4bit, -4500, 300, 0);
 
-static struct snd_kcontrol_new snd_wss_controls[] = {
+static const struct snd_kcontrol_new snd_wss_controls[] = {
 WSS_DOUBLE("PCM Playback Switch", 0,
 		CS4231_LEFT_OUTPUT, CS4231_RIGHT_OUTPUT, 7, 7, 1, 1),
 WSS_DOUBLE_TLV("PCM Playback Volume", 0,

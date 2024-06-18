@@ -22,41 +22,21 @@
 #include "common.h"
 #include "sh73a0.h"
 
-static struct map_desc sh73a0_io_desc[] __initdata = {
-	/* create a 1:1 identity mapping for 0xe6xxxxxx
-	 * used by CPGA, INTC and PFC.
-	 */
-	{
-		.virtual	= 0xe6000000,
-		.pfn		= __phys_to_pfn(0xe6000000),
-		.length		= 256 << 20,
-		.type		= MT_DEVICE_NONSHARED
-	},
-};
-
-static void __init sh73a0_map_io(void)
-{
-	debug_ll_io_init();
-	iotable_init(sh73a0_io_desc, ARRAY_SIZE(sh73a0_io_desc));
-}
-
 static void __init sh73a0_generic_init(void)
 {
 #ifdef CONFIG_CACHE_L2X0
 	/* Shared attribute override enable, 64K*8way */
-	l2x0_init(IOMEM(0xf0100000), 0x00400000, 0xc20f0fff);
+	l2x0_init(ioremap(0xf0100000, PAGE_SIZE), 0x00400000, 0xc20f0fff);
 #endif
 }
 
 static const char *const sh73a0_boards_compat_dt[] __initconst = {
 	"renesas,sh73a0",
-	NULL,
+	NULL
 };
 
 DT_MACHINE_START(SH73A0_DT, "Generic SH73A0 (Flattened Device Tree)")
 	.smp		= smp_ops(sh73a0_smp_ops),
-	.map_io		= sh73a0_map_io,
-	.init_early	= shmobile_init_delay,
 	.init_machine	= sh73a0_generic_init,
 	.init_late	= shmobile_init_late,
 	.dt_compat	= sh73a0_boards_compat_dt,

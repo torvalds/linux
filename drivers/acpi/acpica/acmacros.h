@@ -3,7 +3,7 @@
  *
  * Name: acmacros.h - C macros for the entire subsystem.
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2023, Intel Corp.
  *
  *****************************************************************************/
 
@@ -477,7 +477,7 @@
 #define ASL_CV_PRINT_ONE_COMMENT(a,b,c,d) cv_print_one_comment_type (a,b,c,d);
 #define ASL_CV_PRINT_ONE_COMMENT_LIST(a,b) cv_print_one_comment_list (a,b);
 #define ASL_CV_FILE_HAS_SWITCHED(a)       cv_file_has_switched(a)
-#define ASL_CV_INIT_FILETREE(a,b,c)      cv_init_file_tree(a,b,c);
+#define ASL_CV_INIT_FILETREE(a,b)      cv_init_file_tree(a,b);
 
 #else
 
@@ -492,7 +492,7 @@
 #define ASL_CV_PRINT_ONE_COMMENT(a,b,c,d)
 #define ASL_CV_PRINT_ONE_COMMENT_LIST(a,b)
 #define ASL_CV_FILE_HAS_SWITCHED(a)       0
-#define ASL_CV_INIT_FILETREE(a,b,c)
+#define ASL_CV_INIT_FILETREE(a,b)
 
 #endif
 

@@ -22,12 +22,14 @@
 #include <linux/ptrace.h>
 #include <linux/audit.h>
 #include <linux/regset.h>
-#include <linux/tracehook.h>
 #include <linux/elf.h>
 
 #include <asm/thread_info.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
+
+asmlinkage long do_syscall_trace_enter(struct pt_regs *regs);
+
+asmlinkage void do_syscall_trace_leave(struct pt_regs *regs);
 
 /*
  * Copy the thread state to a regset that can be interpreted by userspace.
@@ -45,29 +47,15 @@
  */
 static int genregs_get(struct task_struct *target,
 		       const struct user_regset *regset,
-		       unsigned int pos, unsigned int count,
-		       void *kbuf, void __user * ubuf)
+		       struct membuf to)
 {
 	const struct pt_regs *regs = task_pt_regs(target);
-	int ret;
 
 	/* r0 */
-	ret = user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf, 0, 4);
-
-	if (!ret)
-		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-					  regs->gpr+1, 4, 4*32);
-	if (!ret)
-		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				  &regs->pc, 4*32, 4*33);
-	if (!ret)
-		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-					  &regs->sr, 4*33, 4*34);
-	if (!ret)
-		ret = user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf,
-					       4*34, -1);
-
-	return ret;
+	membuf_zero(&to, 4);
+	membuf_write(&to, regs->gpr + 1, 31 * 4);
+	membuf_store(&to, regs->pc);
+	return membuf_store(&to, regs->sr);
 }
 
 /*
@@ -82,10 +70,9 @@ static int genregs_set(struct task_struct *target,
 	int ret;
 
 	/* ignore r0 */
-	ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf, 0, 4);
+	user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf, 0, 4);
 	/* r1 - r31 */
-	if (!ret)
-		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 					 regs->gpr+1, 4, 4*32);
 	/* PC */
 	if (!ret)
@@ -96,17 +83,43 @@ static int genregs_set(struct task_struct *target,
 	 * the Supervision register
 	 */
 	if (!ret)
-		ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
-						4*33, -1);
+		user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf, 4*33, -1);
 
 	return ret;
 }
+
+#ifdef CONFIG_FPU
+/*
+ * As OpenRISC shares GPRs and floating point registers we don't need to export
+ * the floating point registers again.  So here we only export the fpcsr special
+ * purpose register.
+ */
+static int fpregs_get(struct task_struct *target,
+		       const struct user_regset *regset,
+		       struct membuf to)
+{
+	return membuf_store(&to, target->thread.fpcsr);
+}
+
+static int fpregs_set(struct task_struct *target,
+		       const struct user_regset *regset,
+		       unsigned int pos, unsigned int count,
+		       const void *kbuf, const void __user *ubuf)
+{
+	/* FPCSR */
+	return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				  &target->thread.fpcsr, 0, 4);
+}
+#endif
 
 /*
  * Define the register sets available on OpenRISC under Linux
  */
 enum or1k_regset {
 	REGSET_GENERAL,
+#ifdef CONFIG_FPU
+	REGSET_FPU,
+#endif
 };
 
 static const struct user_regset or1k_regsets[] = {
@@ -115,9 +128,19 @@ static const struct user_regset or1k_regsets[] = {
 			    .n = ELF_NGREG,
 			    .size = sizeof(long),
 			    .align = sizeof(long),
-			    .get = genregs_get,
+			    .regset_get = genregs_get,
 			    .set = genregs_set,
 			    },
+#ifdef CONFIG_FPU
+	[REGSET_FPU] = {
+			    .core_note_type = NT_PRFPREG,
+			    .n = sizeof(struct __or1k_fpu_state) / sizeof(long),
+			    .size = sizeof(long),
+			    .align = sizeof(long),
+			    .regset_get = fpregs_get,
+			    .set = fpregs_set,
+			    },
+#endif
 };
 
 static const struct user_regset_view user_or1k_native_view = {
@@ -174,7 +197,7 @@ asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 	long ret = 0;
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
-	    tracehook_report_syscall_entry(regs))
+	    ptrace_report_syscall_entry(regs))
 		/*
 		 * Tracing decided this syscall should not happen.
 		 * We'll return a bogus call number to get an ENOSYS
@@ -196,5 +219,5 @@ asmlinkage void do_syscall_trace_leave(struct pt_regs *regs)
 
 	step = test_thread_flag(TIF_SINGLESTEP);
 	if (step || test_thread_flag(TIF_SYSCALL_TRACE))
-		tracehook_report_syscall_exit(regs, step);
+		ptrace_report_syscall_exit(regs, step);
 }

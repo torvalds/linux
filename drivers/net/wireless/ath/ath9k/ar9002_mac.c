@@ -21,7 +21,7 @@
 
 static void ar9002_hw_rx_enable(struct ath_hw *ah)
 {
-	REG_WRITE(ah, AR_CR, AR_CR_RXE);
+	REG_WRITE(ah, AR_CR, AR_CR_RXE(ah));
 }
 
 static void ar9002_hw_set_desc_link(void *ds, u32 ds_link)
@@ -40,14 +40,14 @@ static bool ar9002_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked,
 	struct ath_common *common = ath9k_hw_common(ah);
 
 	if (!AR_SREV_9100(ah)) {
-		if (REG_READ(ah, AR_INTR_ASYNC_CAUSE) & AR_INTR_MAC_IRQ) {
-			if ((REG_READ(ah, AR_RTC_STATUS) & AR_RTC_STATUS_M)
+		if (REG_READ(ah, AR_INTR_ASYNC_CAUSE(ah)) & AR_INTR_MAC_IRQ) {
+			if ((REG_READ(ah, AR_RTC_STATUS(ah)) & AR_RTC_STATUS_M(ah))
 			    == AR_RTC_STATUS_ON) {
 				isr = REG_READ(ah, AR_ISR);
 			}
 		}
 
-		sync_cause = REG_READ(ah, AR_INTR_SYNC_CAUSE) &
+		sync_cause = REG_READ(ah, AR_INTR_SYNC_CAUSE(ah)) &
 			AR_INTR_SYNC_DEFAULT;
 
 		*masked = 0;
@@ -120,7 +120,7 @@ static bool ar9002_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked,
 					 AR_ISR_TXEOL);
 			}
 
-			ah->intr_txqs |= MS(s0_s, AR_ISR_S0_QCU_TXOK);
+			ah->intr_txqs = MS(s0_s, AR_ISR_S0_QCU_TXOK);
 			ah->intr_txqs |= MS(s0_s, AR_ISR_S0_QCU_TXDESC);
 			ah->intr_txqs |= MS(s1_s, AR_ISR_S1_QCU_TXERR);
 			ah->intr_txqs |= MS(s1_s, AR_ISR_S1_QCU_TXEOL);
@@ -138,7 +138,7 @@ static bool ar9002_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked,
 		u32 s5_s;
 
 		if (pCap->hw_caps & ATH9K_HW_CAP_RAC_SUPPORTED) {
-			s5_s = REG_READ(ah, AR_ISR_S5_S);
+			s5_s = REG_READ(ah, AR_ISR_S5_S(ah));
 		} else {
 			s5_s = REG_READ(ah, AR_ISR_S5);
 		}
@@ -201,8 +201,8 @@ static bool ar9002_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked,
 				"AR_INTR_SYNC_LOCAL_TIMEOUT\n");
 		}
 
-		REG_WRITE(ah, AR_INTR_SYNC_CAUSE_CLR, sync_cause);
-		(void) REG_READ(ah, AR_INTR_SYNC_CAUSE_CLR);
+		REG_WRITE(ah, AR_INTR_SYNC_CAUSE_CLR(ah), sync_cause);
+		(void) REG_READ(ah, AR_INTR_SYNC_CAUSE_CLR(ah));
 	}
 
 	return true;
@@ -267,7 +267,7 @@ ar9002_set_txdesc(struct ath_hw *ah, void *ds, struct ath_tx_info *i)
 	switch (i->aggr) {
 	case AGGR_BUF_FIRST:
 		ctl6 |= SM(i->aggr_len, AR_AggrLen);
-		/* fall through */
+		fallthrough;
 	case AGGR_BUF_MIDDLE:
 		ctl1 |= AR_IsAggr | AR_MoreAggr;
 		ctl6 |= SM(i->ndelim, AR_PadDelim);
@@ -301,10 +301,11 @@ ar9002_set_txdesc(struct ath_hw *ah, void *ds, struct ath_tx_info *i)
 	WRITE_ONCE(ads->ds_ctl5, set11nPktDurRTSCTS(i->rates, 2)
 		| set11nPktDurRTSCTS(i->rates, 3));
 
-	WRITE_ONCE(ads->ds_ctl7, set11nRateFlags(i->rates, 0)
-		| set11nRateFlags(i->rates, 1)
-		| set11nRateFlags(i->rates, 2)
-		| set11nRateFlags(i->rates, 3)
+	WRITE_ONCE(ads->ds_ctl7,
+		  set11nRateFlags(i->rates, 0) | set11nChainSel(i->rates, 0)
+		| set11nRateFlags(i->rates, 1) | set11nChainSel(i->rates, 1)
+		| set11nRateFlags(i->rates, 2) | set11nChainSel(i->rates, 2)
+		| set11nRateFlags(i->rates, 3) | set11nChainSel(i->rates, 3)
 		| SM(i->rtscts_rate, AR_RTSCTSRate));
 
 	WRITE_ONCE(ads->ds_ctl9, SM(i->txpower[1], AR_XmitPower1));

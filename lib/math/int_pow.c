@@ -6,7 +6,7 @@
  */
 
 #include <linux/export.h>
-#include <linux/kernel.h>
+#include <linux/math.h>
 #include <linux/types.h>
 
 /**

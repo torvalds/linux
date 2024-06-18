@@ -23,8 +23,6 @@
 #include "hid-roccat-common.h"
 #include "hid-roccat-arvo.h"
 
-static struct class *arvo_class;
-
 static ssize_t arvo_sysfs_show_mode_key(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -42,7 +40,7 @@ static ssize_t arvo_sysfs_show_mode_key(struct device *dev,
 	if (retval)
 		return retval;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", temp_buf.state);
+	return sysfs_emit(buf, "%d\n", temp_buf.state);
 }
 
 static ssize_t arvo_sysfs_set_mode_key(struct device *dev,
@@ -92,7 +90,7 @@ static ssize_t arvo_sysfs_show_key_mask(struct device *dev,
 	if (retval)
 		return retval;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", temp_buf.key_mask);
+	return sysfs_emit(buf, "%d\n", temp_buf.key_mask);
 }
 
 static ssize_t arvo_sysfs_set_key_mask(struct device *dev,
@@ -146,7 +144,7 @@ static ssize_t arvo_sysfs_show_actual_profile(struct device *dev,
 	struct arvo_device *arvo =
 			hid_get_drvdata(dev_get_drvdata(dev->parent->parent));
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", arvo->actual_profile);
+	return sysfs_emit(buf, "%d\n", arvo->actual_profile);
 }
 
 static ssize_t arvo_sysfs_set_actual_profile(struct device *dev,
@@ -268,6 +266,11 @@ static const struct attribute_group *arvo_groups[] = {
 	NULL,
 };
 
+static const struct class arvo_class = {
+	.name = "arvo",
+	.dev_groups = arvo_groups,
+};
+
 static int arvo_init_arvo_device_struct(struct usb_device *usb_dev,
 		struct arvo_device *arvo)
 {
@@ -309,7 +312,7 @@ static int arvo_init_specials(struct hid_device *hdev)
 		goto exit_free;
 	}
 
-	retval = roccat_connect(arvo_class, hdev,
+	retval = roccat_connect(&arvo_class, hdev,
 			sizeof(struct arvo_roccat_report));
 	if (retval < 0) {
 		hid_err(hdev, "couldn't init char dev\n");
@@ -343,6 +346,9 @@ static int arvo_probe(struct hid_device *hdev,
 		const struct hid_device_id *id)
 {
 	int retval;
+
+	if (!hid_is_usb(hdev))
+		return -EINVAL;
 
 	retval = hid_parse(hdev);
 	if (retval) {
@@ -430,21 +436,20 @@ static int __init arvo_init(void)
 {
 	int retval;
 
-	arvo_class = class_create(THIS_MODULE, "arvo");
-	if (IS_ERR(arvo_class))
-		return PTR_ERR(arvo_class);
-	arvo_class->dev_groups = arvo_groups;
+	retval = class_register(&arvo_class);
+	if (retval)
+		return retval;
 
 	retval = hid_register_driver(&arvo_driver);
 	if (retval)
-		class_destroy(arvo_class);
+		class_unregister(&arvo_class);
 	return retval;
 }
 
 static void __exit arvo_exit(void)
 {
 	hid_unregister_driver(&arvo_driver);
-	class_destroy(arvo_class);
+	class_unregister(&arvo_class);
 }
 
 module_init(arvo_init);

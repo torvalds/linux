@@ -15,7 +15,7 @@
  *
  *  returns SUCCESS if it successfully read message from buffer
  **/
-s32 ixgbe_read_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size, u16 mbx_id)
+int ixgbe_read_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size, u16 mbx_id)
 {
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
 
@@ -24,7 +24,7 @@ s32 ixgbe_read_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size, u16 mbx_id)
 		size = mbx->size;
 
 	if (!mbx->ops)
-		return IXGBE_ERR_MBX;
+		return -EIO;
 
 	return mbx->ops->read(hw, msg, size, mbx_id);
 }
@@ -38,15 +38,15 @@ s32 ixgbe_read_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size, u16 mbx_id)
  *
  *  returns SUCCESS if it successfully copied message into the buffer
  **/
-s32 ixgbe_write_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size, u16 mbx_id)
+int ixgbe_write_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size, u16 mbx_id)
 {
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
 
 	if (size > mbx->size)
-		return IXGBE_ERR_MBX;
+		return -EINVAL;
 
 	if (!mbx->ops)
-		return IXGBE_ERR_MBX;
+		return -EIO;
 
 	return mbx->ops->write(hw, msg, size, mbx_id);
 }
@@ -58,12 +58,12 @@ s32 ixgbe_write_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size, u16 mbx_id)
  *
  *  returns SUCCESS if the Status bit was found or else ERR_MBX
  **/
-s32 ixgbe_check_for_msg(struct ixgbe_hw *hw, u16 mbx_id)
+int ixgbe_check_for_msg(struct ixgbe_hw *hw, u16 mbx_id)
 {
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
 
 	if (!mbx->ops)
-		return IXGBE_ERR_MBX;
+		return -EIO;
 
 	return mbx->ops->check_for_msg(hw, mbx_id);
 }
@@ -75,12 +75,12 @@ s32 ixgbe_check_for_msg(struct ixgbe_hw *hw, u16 mbx_id)
  *
  *  returns SUCCESS if the Status bit was found or else ERR_MBX
  **/
-s32 ixgbe_check_for_ack(struct ixgbe_hw *hw, u16 mbx_id)
+int ixgbe_check_for_ack(struct ixgbe_hw *hw, u16 mbx_id)
 {
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
 
 	if (!mbx->ops)
-		return IXGBE_ERR_MBX;
+		return -EIO;
 
 	return mbx->ops->check_for_ack(hw, mbx_id);
 }
@@ -92,12 +92,12 @@ s32 ixgbe_check_for_ack(struct ixgbe_hw *hw, u16 mbx_id)
  *
  *  returns SUCCESS if the Status bit was found or else ERR_MBX
  **/
-s32 ixgbe_check_for_rst(struct ixgbe_hw *hw, u16 mbx_id)
+int ixgbe_check_for_rst(struct ixgbe_hw *hw, u16 mbx_id)
 {
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
 
 	if (!mbx->ops)
-		return IXGBE_ERR_MBX;
+		return -EIO;
 
 	return mbx->ops->check_for_rst(hw, mbx_id);
 }
@@ -109,18 +109,18 @@ s32 ixgbe_check_for_rst(struct ixgbe_hw *hw, u16 mbx_id)
  *
  *  returns SUCCESS if it successfully received a message notification
  **/
-static s32 ixgbe_poll_for_msg(struct ixgbe_hw *hw, u16 mbx_id)
+static int ixgbe_poll_for_msg(struct ixgbe_hw *hw, u16 mbx_id)
 {
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
 	int countdown = mbx->timeout;
 
 	if (!countdown || !mbx->ops)
-		return IXGBE_ERR_MBX;
+		return -EIO;
 
 	while (mbx->ops->check_for_msg(hw, mbx_id)) {
 		countdown--;
 		if (!countdown)
-			return IXGBE_ERR_MBX;
+			return -EIO;
 		udelay(mbx->usec_delay);
 	}
 
@@ -134,18 +134,18 @@ static s32 ixgbe_poll_for_msg(struct ixgbe_hw *hw, u16 mbx_id)
  *
  *  returns SUCCESS if it successfully received a message acknowledgement
  **/
-static s32 ixgbe_poll_for_ack(struct ixgbe_hw *hw, u16 mbx_id)
+static int ixgbe_poll_for_ack(struct ixgbe_hw *hw, u16 mbx_id)
 {
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
 	int countdown = mbx->timeout;
 
 	if (!countdown || !mbx->ops)
-		return IXGBE_ERR_MBX;
+		return -EIO;
 
 	while (mbx->ops->check_for_ack(hw, mbx_id)) {
 		countdown--;
 		if (!countdown)
-			return IXGBE_ERR_MBX;
+			return -EIO;
 		udelay(mbx->usec_delay);
 	}
 
@@ -162,14 +162,14 @@ static s32 ixgbe_poll_for_ack(struct ixgbe_hw *hw, u16 mbx_id)
  *  returns SUCCESS if it successfully received a message notification and
  *  copied it into the receive buffer.
  **/
-static s32 ixgbe_read_posted_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size,
+static int ixgbe_read_posted_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size,
 				 u16 mbx_id)
 {
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
-	s32 ret_val;
+	int ret_val;
 
 	if (!mbx->ops)
-		return IXGBE_ERR_MBX;
+		return -EIO;
 
 	ret_val = ixgbe_poll_for_msg(hw, mbx_id);
 	if (ret_val)
@@ -189,15 +189,15 @@ static s32 ixgbe_read_posted_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size,
  *  returns SUCCESS if it successfully copied message into the buffer and
  *  received an ack to that message within delay * timeout period
  **/
-static s32 ixgbe_write_posted_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size,
-			   u16 mbx_id)
+static int ixgbe_write_posted_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size,
+				  u16 mbx_id)
 {
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
-	s32 ret_val;
+	int ret_val;
 
 	/* exit if either we can't write or there isn't a defined timeout */
 	if (!mbx->ops || !mbx->timeout)
-		return IXGBE_ERR_MBX;
+		return -EIO;
 
 	/* send msg */
 	ret_val = mbx->ops->write(hw, msg, size, mbx_id);
@@ -208,7 +208,7 @@ static s32 ixgbe_write_posted_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size,
 	return ixgbe_poll_for_ack(hw, mbx_id);
 }
 
-static s32 ixgbe_check_for_bit_pf(struct ixgbe_hw *hw, u32 mask, s32 index)
+static int ixgbe_check_for_bit_pf(struct ixgbe_hw *hw, u32 mask, s32 index)
 {
 	u32 mbvficr = IXGBE_READ_REG(hw, IXGBE_MBVFICR(index));
 
@@ -217,7 +217,7 @@ static s32 ixgbe_check_for_bit_pf(struct ixgbe_hw *hw, u32 mask, s32 index)
 		return 0;
 	}
 
-	return IXGBE_ERR_MBX;
+	return -EIO;
 }
 
 /**
@@ -227,9 +227,9 @@ static s32 ixgbe_check_for_bit_pf(struct ixgbe_hw *hw, u32 mask, s32 index)
  *
  *  returns SUCCESS if the VF has set the Status bit or else ERR_MBX
  **/
-static s32 ixgbe_check_for_msg_pf(struct ixgbe_hw *hw, u16 vf_number)
+static int ixgbe_check_for_msg_pf(struct ixgbe_hw *hw, u16 vf_number)
 {
-	s32 index = IXGBE_MBVFICR_INDEX(vf_number);
+	int index = IXGBE_MBVFICR_INDEX(vf_number);
 	u32 vf_bit = vf_number % 16;
 
 	if (!ixgbe_check_for_bit_pf(hw, IXGBE_MBVFICR_VFREQ_VF1 << vf_bit,
@@ -238,7 +238,7 @@ static s32 ixgbe_check_for_msg_pf(struct ixgbe_hw *hw, u16 vf_number)
 		return 0;
 	}
 
-	return IXGBE_ERR_MBX;
+	return -EIO;
 }
 
 /**
@@ -248,9 +248,9 @@ static s32 ixgbe_check_for_msg_pf(struct ixgbe_hw *hw, u16 vf_number)
  *
  *  returns SUCCESS if the VF has set the Status bit or else ERR_MBX
  **/
-static s32 ixgbe_check_for_ack_pf(struct ixgbe_hw *hw, u16 vf_number)
+static int ixgbe_check_for_ack_pf(struct ixgbe_hw *hw, u16 vf_number)
 {
-	s32 index = IXGBE_MBVFICR_INDEX(vf_number);
+	int index = IXGBE_MBVFICR_INDEX(vf_number);
 	u32 vf_bit = vf_number % 16;
 
 	if (!ixgbe_check_for_bit_pf(hw, IXGBE_MBVFICR_VFACK_VF1 << vf_bit,
@@ -259,7 +259,7 @@ static s32 ixgbe_check_for_ack_pf(struct ixgbe_hw *hw, u16 vf_number)
 		return 0;
 	}
 
-	return IXGBE_ERR_MBX;
+	return -EIO;
 }
 
 /**
@@ -269,7 +269,7 @@ static s32 ixgbe_check_for_ack_pf(struct ixgbe_hw *hw, u16 vf_number)
  *
  *  returns SUCCESS if the VF has set the Status bit or else ERR_MBX
  **/
-static s32 ixgbe_check_for_rst_pf(struct ixgbe_hw *hw, u16 vf_number)
+static int ixgbe_check_for_rst_pf(struct ixgbe_hw *hw, u16 vf_number)
 {
 	u32 reg_offset = (vf_number < 32) ? 0 : 1;
 	u32 vf_shift = vf_number % 32;
@@ -295,7 +295,7 @@ static s32 ixgbe_check_for_rst_pf(struct ixgbe_hw *hw, u16 vf_number)
 		return 0;
 	}
 
-	return IXGBE_ERR_MBX;
+	return -EIO;
 }
 
 /**
@@ -305,7 +305,7 @@ static s32 ixgbe_check_for_rst_pf(struct ixgbe_hw *hw, u16 vf_number)
  *
  *  return SUCCESS if we obtained the mailbox lock
  **/
-static s32 ixgbe_obtain_mbx_lock_pf(struct ixgbe_hw *hw, u16 vf_number)
+static int ixgbe_obtain_mbx_lock_pf(struct ixgbe_hw *hw, u16 vf_number)
 {
 	u32 p2v_mailbox;
 
@@ -317,7 +317,7 @@ static s32 ixgbe_obtain_mbx_lock_pf(struct ixgbe_hw *hw, u16 vf_number)
 	if (p2v_mailbox & IXGBE_PFMAILBOX_PFU)
 		return 0;
 
-	return IXGBE_ERR_MBX;
+	return -EIO;
 }
 
 /**
@@ -329,10 +329,10 @@ static s32 ixgbe_obtain_mbx_lock_pf(struct ixgbe_hw *hw, u16 vf_number)
  *
  *  returns SUCCESS if it successfully copied message into the buffer
  **/
-static s32 ixgbe_write_mbx_pf(struct ixgbe_hw *hw, u32 *msg, u16 size,
+static int ixgbe_write_mbx_pf(struct ixgbe_hw *hw, u32 *msg, u16 size,
 			      u16 vf_number)
 {
-	s32 ret_val;
+	int ret_val;
 	u16 i;
 
 	/* lock the mailbox to prevent pf/vf race condition */
@@ -368,10 +368,10 @@ static s32 ixgbe_write_mbx_pf(struct ixgbe_hw *hw, u32 *msg, u16 size,
  *  memory buffer.  The presumption is that the caller knows that there was
  *  a message due to a VF request so no polling for message is needed.
  **/
-static s32 ixgbe_read_mbx_pf(struct ixgbe_hw *hw, u32 *msg, u16 size,
+static int ixgbe_read_mbx_pf(struct ixgbe_hw *hw, u32 *msg, u16 size,
 			     u16 vf_number)
 {
-	s32 ret_val;
+	int ret_val;
 	u16 i;
 
 	/* lock the mailbox to prevent pf/vf race condition */

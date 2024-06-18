@@ -2,7 +2,7 @@
 /*
  * linux/can/core.h
  *
- * Protoypes and definitions for CAN protocol modules using the PF_CAN core
+ * Prototypes and definitions for CAN protocol modules using the PF_CAN core
  *
  * Authors: Oliver Hartkopp <oliver.hartkopp@volkswagen.de>
  *          Urs Thuermann   <urs.thuermann@volkswagen.de>
@@ -17,13 +17,6 @@
 #include <linux/can.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
-
-#define CAN_VERSION "20170425"
-
-/* increment this number each time you change some user-space interface */
-#define CAN_ABI_VERSION "9"
-
-#define CAN_VERSION_STRING "rev " CAN_VERSION " abi " CAN_ABI_VERSION
 
 #define DNAME(dev) ((dev) ? (dev)->name : "any")
 
@@ -65,5 +58,6 @@ extern void can_rx_unregister(struct net *net, struct net_device *dev,
 			      void *data);
 
 extern int can_send(struct sk_buff *skb, int loop);
+void can_sock_destruct(struct sock *sk);
 
 #endif /* !_CAN_CORE_H */

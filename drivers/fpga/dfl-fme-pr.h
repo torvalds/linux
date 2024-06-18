@@ -58,7 +58,7 @@ struct dfl_fme_bridge {
 };
 
 /**
- * struct dfl_fme_bridge_pdata - platform data for FME bridge platform device.
+ * struct dfl_fme_br_pdata - platform data for FME bridge platform device.
  *
  * @cdev: container device.
  * @port_id: port id.

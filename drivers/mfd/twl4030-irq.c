@@ -14,6 +14,7 @@
  * by syed khasim <x0khasim@ti.com>
  */
 
+#include <linux/device.h>
 #include <linux/export.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -477,7 +478,7 @@ static void twl4030_sih_bus_sync_unlock(struct irq_data *data)
 
 	if (agent->imr_change_pending) {
 		union {
-			u32	word;
+			__le32	word;
 			u8	bytes[4];
 		} imr;
 
@@ -561,7 +562,7 @@ static inline int sih_read_isr(const struct sih *sih)
 	int status;
 	union {
 		u8 bytes[4];
-		u32 word;
+		__le32 word;
 	} isr;
 
 	/* FIXME need retry-on-error ... */
@@ -753,14 +754,11 @@ fail:
 	return status;
 }
 
-int twl4030_exit_irq(void)
+void twl4030_exit_irq(void)
 {
 	/* FIXME undo twl_init_irq() */
-	if (twl4030_irq_base) {
+	if (twl4030_irq_base)
 		pr_err("twl4030: can't yet clean up IRQs?\n");
-		return -ENOSYS;
-	}
-	return 0;
 }
 
 int twl4030_init_chip_irq(const char *chip)

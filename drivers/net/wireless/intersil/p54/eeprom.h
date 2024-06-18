@@ -24,7 +24,7 @@
 struct pda_entry {
 	__le16 len;	/* includes both code and data */
 	__le16 code;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 struct eeprom_pda_wrap {
@@ -32,7 +32,7 @@ struct eeprom_pda_wrap {
 	__le16 pad;
 	__le16 len;
 	__le32 arm_opcode;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 struct p54_iq_autocal_entry {
@@ -87,7 +87,7 @@ struct pda_pa_curve_data {
 	u8 channels;
 	u8 points_per_channel;
 	u8 padding;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 struct pda_rssi_cal_ext_entry {
@@ -108,10 +108,10 @@ struct pda_country {
 } __packed;
 
 struct pda_antenna_gain {
-	struct {
+	DECLARE_FLEX_ARRAY(struct {
 		u8 gain_5GHz;	/* 0.25 dBi units */
 		u8 gain_2GHz;	/* 0.25 dBi units */
-	} __packed antenna[0];
+	} __packed, antenna);
 } __packed;
 
 struct pda_custom_wrapper {
@@ -119,7 +119,7 @@ struct pda_custom_wrapper {
 	__le16 entry_size;
 	__le16 offset;
 	__le16 len;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 /*

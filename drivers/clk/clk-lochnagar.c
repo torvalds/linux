@@ -12,14 +12,14 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 
 #include <linux/mfd/lochnagar1_regs.h>
 #include <linux/mfd/lochnagar2_regs.h>
 
-#include <dt-bindings/clk/lochnagar.h>
+#include <dt-bindings/clock/lochnagar.h>
 
 #define LOCHNAGAR_NUM_CLOCKS	(LOCHNAGAR_SPDIF_CLKOUT + 1)
 
@@ -209,6 +209,7 @@ static u8 lochnagar_clk_get_parent(struct clk_hw *hw)
 static const struct clk_ops lochnagar_clk_ops = {
 	.prepare = lochnagar_clk_prepare,
 	.unprepare = lochnagar_clk_unprepare,
+	.determine_rate = clk_hw_determine_rate_no_reparent,
 	.set_parent = lochnagar_clk_set_parent,
 	.get_parent = lochnagar_clk_get_parent,
 };
@@ -241,14 +242,9 @@ static int lochnagar_clk_probe(struct platform_device *pdev)
 	};
 	struct device *dev = &pdev->dev;
 	struct lochnagar_clk_priv *priv;
-	const struct of_device_id *of_id;
 	struct lochnagar_clk *lclk;
 	struct lochnagar_config *conf;
 	int ret, i;
-
-	of_id = of_match_device(lochnagar_of_match, dev);
-	if (!of_id)
-		return -EINVAL;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -256,7 +252,7 @@ static int lochnagar_clk_probe(struct platform_device *pdev)
 
 	priv->dev = dev;
 	priv->regmap = dev_get_regmap(dev->parent, NULL);
-	conf = (struct lochnagar_config *)of_id->data;
+	conf = (struct lochnagar_config *)device_get_match_data(dev);
 
 	memcpy(priv->lclks, conf->clks, sizeof(priv->lclks));
 

@@ -261,13 +261,6 @@ static int mxuport_send_ctrl_data_urb(struct usb_serial *serial,
 		return status;
 	}
 
-	if (status != size) {
-		dev_err(&serial->interface->dev,
-			"%s - short write (%d / %zd)\n",
-			__func__, status, size);
-		return -EIO;
-	}
-
 	return 0;
 }
 
@@ -327,14 +320,14 @@ static void mxuport_process_read_urb_data(struct usb_serial_port *port,
 {
 	int i;
 
-	if (!port->port.console || !port->sysrq) {
-		tty_insert_flip_string(&port->port, data, size);
-	} else {
+	if (port->sysrq) {
 		for (i = 0; i < size; i++, data++) {
 			if (!usb_serial_handle_sysrq_char(port, *data))
 				tty_insert_flip_char(&port->port, *data,
 						     TTY_NORMAL);
 		}
+	} else {
+		tty_insert_flip_string(&port->port, data, size);
 	}
 	tty_flip_buffer_push(&port->port);
 }
@@ -767,7 +760,7 @@ static int mxuport_tiocmget(struct tty_struct *tty)
 }
 
 static int mxuport_set_termios_flow(struct tty_struct *tty,
-				    struct ktermios *old_termios,
+				    const struct ktermios *old_termios,
 				    struct usb_serial_port *port,
 				    struct usb_serial *serial)
 {
@@ -841,7 +834,7 @@ out:
 
 static void mxuport_set_termios(struct tty_struct *tty,
 				struct usb_serial_port *port,
-				struct ktermios *old_termios)
+				const struct ktermios *old_termios)
 {
 	struct usb_serial *serial = port->serial;
 	u8 *buf;
@@ -1237,7 +1230,7 @@ static void mxuport_close(struct usb_serial_port *port)
 }
 
 /* Send a break to the port. */
-static void mxuport_break_ctl(struct tty_struct *tty, int break_state)
+static int mxuport_break_ctl(struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct usb_serial *serial = port->serial;
@@ -1251,8 +1244,8 @@ static void mxuport_break_ctl(struct tty_struct *tty, int break_state)
 		dev_dbg(&port->dev, "%s - clearing break\n", __func__);
 	}
 
-	mxuport_send_ctrl_urb(serial, RQ_VENDOR_SET_BREAK,
-			      enable, port->port_number);
+	return mxuport_send_ctrl_urb(serial, RQ_VENDOR_SET_BREAK,
+				     enable, port->port_number);
 }
 
 static int mxuport_resume(struct usb_serial *serial)

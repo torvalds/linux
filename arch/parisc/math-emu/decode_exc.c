@@ -46,7 +46,7 @@
 #define SIGNALCODE(signal, code) ((signal) << 24 | (code))
 #define copropbit	1<<31-2	/* bit position 2 */
 #define opclass		9	/* bits 21 & 22 */
-#define fmt		11	/* bits 19 & 20 */
+#define fmtbits		11	/* bits 19 & 20 */
 #define df		13	/* bits 17 & 18 */
 #define twobits		3	/* mask low-order 2 bits */
 #define fivebits	31	/* mask low-order 5 bits */
@@ -57,7 +57,7 @@
 #define Excp_instr(index) Instructionfield(Fpu_register[index])
 #define Clear_excp_register(index) Allexception(Fpu_register[index]) = 0
 #define Excp_format() \
-    (current_ir >> ((current_ir>>opclass & twobits)==1 ? df : fmt) & twobits)
+	(current_ir >> ((current_ir>>opclass & twobits) == 1 ? df : fmtbits) & twobits)
 
 /* Miscellaneous definitions */
 #define Fpu_sgl(index) Fpu_register[index*2]
@@ -102,7 +102,7 @@ decode_fpu(unsigned int Fpu_register[], unsigned int trap_counts[])
      * that happen.  Want to keep this overhead low, but still provide
      * some information to the customer.  All exits from this routine
      * need to restore Fpu_register[0]
-    */
+     */
 
     bflags=(Fpu_register[0] & 0xf8000000);
     Fpu_register[0] &= 0x07ffffff;

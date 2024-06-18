@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 Oracle.  All rights reserved.
+ * Copyright (c) 2006, 2020 Oracle and/or its affiliates.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -104,9 +104,9 @@ static void rds_rm_zerocopy_callback(struct rds_sock *rs,
 	spin_lock_irqsave(&q->lock, flags);
 	head = &q->zcookie_head;
 	if (!list_empty(head)) {
-		info = list_entry(head, struct rds_msg_zcopy_info,
-				  rs_zcookie_next);
-		if (info && rds_zcookie_add(info, cookie)) {
+		info = list_first_entry(head, struct rds_msg_zcopy_info,
+					rs_zcookie_next);
+		if (rds_zcookie_add(info, cookie)) {
 			spin_unlock_irqrestore(&q->lock, flags);
 			kfree(rds_info_from_znotifier(znotif));
 			/* caller invokes rds_wake_sk_sleep() */
@@ -118,7 +118,7 @@ static void rds_rm_zerocopy_callback(struct rds_sock *rs,
 	ck = &info->zcookies;
 	memset(ck, 0, sizeof(*ck));
 	WARN_ON(!rds_zcookie_add(info, cookie));
-	list_add_tail(&q->zcookie_head, &info->rs_zcookie_next);
+	list_add_tail(&info->rs_zcookie_next, &q->zcookie_head);
 
 	spin_unlock_irqrestore(&q->lock, flags);
 	/* caller invokes rds_wake_sk_sleep() */
@@ -162,12 +162,12 @@ static void rds_message_purge(struct rds_message *rm)
 	if (rm->rdma.op_active)
 		rds_rdma_free_op(&rm->rdma);
 	if (rm->rdma.op_rdma_mr)
-		rds_mr_put(rm->rdma.op_rdma_mr);
+		kref_put(&rm->rdma.op_rdma_mr->r_kref, __rds_put_mr_final);
 
 	if (rm->atomic.op_active)
 		rds_atomic_free_op(&rm->atomic);
 	if (rm->atomic.op_rdma_mr)
-		rds_mr_put(rm->atomic.op_rdma_mr);
+		kref_put(&rm->atomic.op_rdma_mr->r_kref, __rds_put_mr_final);
 }
 
 void rds_message_put(struct rds_message *rm)
@@ -308,26 +308,20 @@ out:
 /*
  * RDS ops use this to grab SG entries from the rm's sg pool.
  */
-struct scatterlist *rds_message_alloc_sgs(struct rds_message *rm, int nents,
-					  int *ret)
+struct scatterlist *rds_message_alloc_sgs(struct rds_message *rm, int nents)
 {
 	struct scatterlist *sg_first = (struct scatterlist *) &rm[1];
 	struct scatterlist *sg_ret;
 
-	if (WARN_ON(!ret))
-		return NULL;
-
 	if (nents <= 0) {
 		pr_warn("rds: alloc sgs failed! nents <= 0\n");
-		*ret = -EINVAL;
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	if (rm->m_used_sgs + nents > rm->m_total_sgs) {
 		pr_warn("rds: alloc sgs failed! total %d used %d nents %d\n",
 			rm->m_total_sgs, rm->m_used_sgs, nents);
-		*ret = -ENOMEM;
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	sg_ret = &sg_first[rm->m_used_sgs];
@@ -343,7 +337,6 @@ struct rds_message *rds_message_map_pages(unsigned long *page_addrs, unsigned in
 	unsigned int i;
 	int num_sgs = DIV_ROUND_UP(total_len, PAGE_SIZE);
 	int extra_bytes = num_sgs * sizeof(struct scatterlist);
-	int ret;
 
 	rm = rds_message_alloc(extra_bytes, GFP_NOWAIT);
 	if (!rm)
@@ -352,15 +345,16 @@ struct rds_message *rds_message_map_pages(unsigned long *page_addrs, unsigned in
 	set_bit(RDS_MSG_PAGEVEC, &rm->m_flags);
 	rm->m_inc.i_hdr.h_len = cpu_to_be32(total_len);
 	rm->data.op_nents = DIV_ROUND_UP(total_len, PAGE_SIZE);
-	rm->data.op_sg = rds_message_alloc_sgs(rm, num_sgs, &ret);
-	if (!rm->data.op_sg) {
+	rm->data.op_sg = rds_message_alloc_sgs(rm, num_sgs);
+	if (IS_ERR(rm->data.op_sg)) {
+		void *err = ERR_CAST(rm->data.op_sg);
 		rds_message_put(rm);
-		return ERR_PTR(ret);
+		return err;
 	}
 
 	for (i = 0; i < rm->data.op_nents; ++i) {
 		sg_set_page(&rm->data.op_sg[i],
-				virt_to_page(page_addrs[i]),
+				virt_to_page((void *)page_addrs[i]),
 				PAGE_SIZE, 0);
 	}
 
@@ -372,7 +366,6 @@ static int rds_message_zcopy_from_user(struct rds_message *rm, struct iov_iter *
 	struct scatterlist *sg;
 	int ret = 0;
 	int length = iov_iter_count(from);
-	int total_copied = 0;
 	struct rds_msg_zcopy_info *info;
 
 	rm->m_inc.i_hdr.h_len = cpu_to_be32(iov_iter_count(from));
@@ -397,7 +390,7 @@ static int rds_message_zcopy_from_user(struct rds_message *rm, struct iov_iter *
 		size_t start;
 		ssize_t copied;
 
-		copied = iov_iter_get_pages(from, &pages, PAGE_SIZE,
+		copied = iov_iter_get_pages2(from, &pages, PAGE_SIZE,
 					    1, &start);
 		if (copied < 0) {
 			struct mmpin *mmp;
@@ -410,8 +403,6 @@ static int rds_message_zcopy_from_user(struct rds_message *rm, struct iov_iter *
 			ret = -EFAULT;
 			goto err;
 		}
-		total_copied += copied;
-		iov_iter_advance(from, copied);
 		length -= copied;
 		sg_set_page(sg, pages, copied, start);
 		rm->data.op_nents++;

@@ -1,23 +1,19 @@
 [
     {
-        "ArchStdEvent": "BR_IMMED_SPEC",
+        "ArchStdEvent": "BR_IMMED_SPEC"
     },
     {
-        "ArchStdEvent": "BR_RETURN_SPEC",
+        "ArchStdEvent": "BR_RETURN_SPEC"
     },
     {
-        "ArchStdEvent": "BR_INDIRECT_SPEC",
+        "ArchStdEvent": "BR_INDIRECT_SPEC"
     },
     {
-        "PublicDescription": "Mispredicted or not predicted branch speculatively executed",
-        "EventCode": "0x10",
-        "EventName": "BR_MIS_PRED",
+        "ArchStdEvent": "BR_MIS_PRED",
         "BriefDescription": "Branch mispredicted"
     },
     {
-        "PublicDescription": "Predictable branch speculatively executed",
-        "EventCode": "0x12",
-        "EventName": "BR_PRED",
+        "ArchStdEvent": "BR_PRED",
         "BriefDescription": "Predictable branch"
-    },
+    }
 ]

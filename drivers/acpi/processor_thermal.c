@@ -17,11 +17,7 @@
 #include <acpi/processor.h>
 #include <linux/uaccess.h>
 
-#define PREFIX "ACPI: "
-
-#define ACPI_PROCESSOR_CLASS            "processor"
-#define _COMPONENT              ACPI_PROCESSOR_COMPONENT
-ACPI_MODULE_NAME("processor_thermal");
+#include "internal.h"
 
 #ifdef CONFIG_CPU_FREQ
 
@@ -32,12 +28,21 @@ ACPI_MODULE_NAME("processor_thermal");
  */
 
 #define CPUFREQ_THERMAL_MIN_STEP 0
-#define CPUFREQ_THERMAL_MAX_STEP 3
 
-static DEFINE_PER_CPU(unsigned int, cpufreq_thermal_reduction_pctg);
+static int cpufreq_thermal_max_step __read_mostly = 3;
 
-#define reduction_pctg(cpu) \
-	per_cpu(cpufreq_thermal_reduction_pctg, phys_package_first_cpu(cpu))
+/*
+ * Minimum throttle percentage for processor_thermal cooling device.
+ * The processor_thermal driver uses it to calculate the percentage amount by
+ * which cpu frequency must be reduced for each cooling state. This is also used
+ * to calculate the maximum number of throttling steps or cooling states.
+ */
+static int cpufreq_thermal_reduction_pctg __read_mostly = 20;
+
+static DEFINE_PER_CPU(unsigned int, cpufreq_thermal_reduction_step);
+
+#define reduction_step(cpu) \
+	per_cpu(cpufreq_thermal_reduction_step, phys_package_first_cpu(cpu))
 
 /*
  * Emulate "per package data" using per cpu data (which should really be
@@ -59,10 +64,17 @@ static int phys_package_first_cpu(int cpu)
 
 static int cpu_has_cpufreq(unsigned int cpu)
 {
-	struct cpufreq_policy policy;
-	if (!acpi_processor_cpufreq_init || cpufreq_get_policy(&policy, cpu))
+	struct cpufreq_policy *policy;
+
+	if (!acpi_processor_cpufreq_init)
 		return 0;
-	return 1;
+
+	policy = cpufreq_cpu_get(cpu);
+	if (policy) {
+		cpufreq_cpu_put(policy);
+		return 1;
+	}
+	return 0;
 }
 
 static int cpufreq_get_max_state(unsigned int cpu)
@@ -70,7 +82,7 @@ static int cpufreq_get_max_state(unsigned int cpu)
 	if (!cpu_has_cpufreq(cpu))
 		return 0;
 
-	return CPUFREQ_THERMAL_MAX_STEP;
+	return cpufreq_thermal_max_step;
 }
 
 static int cpufreq_get_cur_state(unsigned int cpu)
@@ -78,7 +90,7 @@ static int cpufreq_get_cur_state(unsigned int cpu)
 	if (!cpu_has_cpufreq(cpu))
 		return 0;
 
-	return reduction_pctg(cpu);
+	return reduction_step(cpu);
 }
 
 static int cpufreq_set_cur_state(unsigned int cpu, int state)
@@ -91,7 +103,7 @@ static int cpufreq_set_cur_state(unsigned int cpu, int state)
 	if (!cpu_has_cpufreq(cpu))
 		return 0;
 
-	reduction_pctg(cpu) = state;
+	reduction_step(cpu) = state;
 
 	/*
 	 * Update all the CPUs in the same package because they all
@@ -105,18 +117,19 @@ static int cpufreq_set_cur_state(unsigned int cpu, int state)
 
 		pr = per_cpu(processors, i);
 
-		if (unlikely(!dev_pm_qos_request_active(&pr->thermal_req)))
+		if (unlikely(!freq_qos_request_active(&pr->thermal_req)))
 			continue;
 
 		policy = cpufreq_cpu_get(i);
 		if (!policy)
 			return -EINVAL;
 
-		max_freq = (policy->cpuinfo.max_freq * (100 - reduction_pctg(i) * 20)) / 100;
+		max_freq = (policy->cpuinfo.max_freq *
+			    (100 - reduction_step(i) * cpufreq_thermal_reduction_pctg)) / 100;
 
 		cpufreq_cpu_put(policy);
 
-		ret = dev_pm_qos_update_request(&pr->thermal_req, max_freq);
+		ret = freq_qos_update_request(&pr->thermal_req, max_freq);
 		if (ret < 0) {
 			pr_warn("Failed to update thermal freq constraint: CPU%d (%d)\n",
 				pr->id, ret);
@@ -125,26 +138,63 @@ static int cpufreq_set_cur_state(unsigned int cpu, int state)
 	return 0;
 }
 
-void acpi_thermal_cpufreq_init(int cpu)
+static void acpi_thermal_cpufreq_config(void)
 {
-	struct acpi_processor *pr = per_cpu(processors, cpu);
-	int ret;
+	int cpufreq_pctg = acpi_arch_thermal_cpufreq_pctg();
 
-	ret = dev_pm_qos_add_request(get_cpu_device(cpu),
-				     &pr->thermal_req, DEV_PM_QOS_MAX_FREQUENCY,
-				     INT_MAX);
-	if (ret < 0) {
-		pr_err("Failed to add freq constraint for CPU%d (%d)\n", cpu,
-		       ret);
+	if (!cpufreq_pctg)
 		return;
+
+	cpufreq_thermal_reduction_pctg = cpufreq_pctg;
+
+	/*
+	 * Derive the MAX_STEP from minimum throttle percentage so that the reduction
+	 * percentage doesn't end up becoming negative. Also, cap the MAX_STEP so that
+	 * the CPU performance doesn't become 0.
+	 */
+	cpufreq_thermal_max_step = (100 / cpufreq_pctg) - 2;
+}
+
+void acpi_thermal_cpufreq_init(struct cpufreq_policy *policy)
+{
+	unsigned int cpu;
+
+	acpi_thermal_cpufreq_config();
+
+	for_each_cpu(cpu, policy->related_cpus) {
+		struct acpi_processor *pr = per_cpu(processors, cpu);
+		int ret;
+
+		if (!pr)
+			continue;
+
+		ret = freq_qos_add_request(&policy->constraints,
+					   &pr->thermal_req,
+					   FREQ_QOS_MAX, INT_MAX);
+		if (ret < 0) {
+			pr_err("Failed to add freq constraint for CPU%d (%d)\n",
+			       cpu, ret);
+			continue;
+		}
+
+		thermal_cooling_device_update(pr->cdev);
 	}
 }
 
-void acpi_thermal_cpufreq_exit(int cpu)
+void acpi_thermal_cpufreq_exit(struct cpufreq_policy *policy)
 {
-	struct acpi_processor *pr = per_cpu(processors, cpu);
+	unsigned int cpu;
 
-	dev_pm_qos_remove_request(&pr->thermal_req);
+	for_each_cpu(cpu, policy->related_cpus) {
+		struct acpi_processor *pr = per_cpu(processors, cpu);
+
+		if (!pr)
+			continue;
+
+		freq_qos_remove_request(&pr->thermal_req);
+
+		thermal_cooling_device_update(pr->cdev);
+	}
 }
 #else				/* ! CONFIG_CPU_FREQ */
 static int cpufreq_get_max_state(unsigned int cpu)
@@ -171,7 +221,7 @@ static int acpi_processor_max_state(struct acpi_processor *pr)
 
 	/*
 	 * There exists four states according to
-	 * cpufreq_thermal_reduction_pctg. 0, 1, 2, 3
+	 * cpufreq_thermal_reduction_step. 0, 1, 2, 3
 	 */
 	max_state += cpufreq_get_max_state(pr->id);
 	if (pr->flags.throttling)
@@ -255,3 +305,57 @@ const struct thermal_cooling_device_ops processor_cooling_ops = {
 	.get_cur_state = processor_get_cur_state,
 	.set_cur_state = processor_set_cur_state,
 };
+
+int acpi_processor_thermal_init(struct acpi_processor *pr,
+				struct acpi_device *device)
+{
+	int result = 0;
+
+	pr->cdev = thermal_cooling_device_register("Processor", device,
+						   &processor_cooling_ops);
+	if (IS_ERR(pr->cdev)) {
+		result = PTR_ERR(pr->cdev);
+		return result;
+	}
+
+	dev_dbg(&device->dev, "registered as cooling_device%d\n",
+		pr->cdev->id);
+
+	result = sysfs_create_link(&device->dev.kobj,
+				   &pr->cdev->device.kobj,
+				   "thermal_cooling");
+	if (result) {
+		dev_err(&device->dev,
+			"Failed to create sysfs link 'thermal_cooling'\n");
+		goto err_thermal_unregister;
+	}
+
+	result = sysfs_create_link(&pr->cdev->device.kobj,
+				   &device->dev.kobj,
+				   "device");
+	if (result) {
+		dev_err(&pr->cdev->device,
+			"Failed to create sysfs link 'device'\n");
+		goto err_remove_sysfs_thermal;
+	}
+
+	return 0;
+
+err_remove_sysfs_thermal:
+	sysfs_remove_link(&device->dev.kobj, "thermal_cooling");
+err_thermal_unregister:
+	thermal_cooling_device_unregister(pr->cdev);
+
+	return result;
+}
+
+void acpi_processor_thermal_exit(struct acpi_processor *pr,
+				 struct acpi_device *device)
+{
+	if (pr->cdev) {
+		sysfs_remove_link(&device->dev.kobj, "thermal_cooling");
+		sysfs_remove_link(&pr->cdev->device.kobj, "device");
+		thermal_cooling_device_unregister(pr->cdev);
+		pr->cdev = NULL;
+	}
+}

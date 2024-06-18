@@ -121,7 +121,10 @@ struct dcn_hubbub_registers {
 	uint32_t DCN_VM_AGP_BASE;
 	uint32_t DCN_VM_PROTECTION_FAULT_DEFAULT_ADDR_MSB;
 	uint32_t DCN_VM_PROTECTION_FAULT_DEFAULT_ADDR_LSB;
-#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
+	uint32_t DCN_VM_FAULT_ADDR_MSB;
+	uint32_t DCN_VM_FAULT_ADDR_LSB;
+	uint32_t DCN_VM_FAULT_CNTL;
+	uint32_t DCN_VM_FAULT_STATUS;
 	uint32_t DCHUBBUB_ARB_FRAC_URG_BW_NOM_A;
 	uint32_t DCHUBBUB_ARB_FRAC_URG_BW_NOM_B;
 	uint32_t DCHUBBUB_ARB_FRAC_URG_BW_NOM_C;
@@ -140,8 +143,66 @@ struct dcn_hubbub_registers {
 	uint32_t DCHVM_CLK_CTRL;
 	uint32_t DCHVM_RIOMMU_CTRL0;
 	uint32_t DCHVM_RIOMMU_STAT0;
-#endif
+	uint32_t DCHUBBUB_DET0_CTRL;
+	uint32_t DCHUBBUB_DET1_CTRL;
+	uint32_t DCHUBBUB_DET2_CTRL;
+	uint32_t DCHUBBUB_DET3_CTRL;
+	uint32_t DCHUBBUB_COMPBUF_CTRL;
+	uint32_t COMPBUF_RESERVED_SPACE;
+	uint32_t DCHUBBUB_DEBUG_CTRL_0;
+	uint32_t DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_Z8_A;
+	uint32_t DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_Z8_A;
+	uint32_t DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_Z8_B;
+	uint32_t DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_Z8_B;
+	uint32_t DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_Z8_C;
+	uint32_t DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_Z8_C;
+	uint32_t DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_Z8_D;
+	uint32_t DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_Z8_D;
+	uint32_t DCHUBBUB_ARB_USR_RETRAINING_CNTL;
+	uint32_t DCHUBBUB_ARB_USR_RETRAINING_WATERMARK_A;
+	uint32_t DCHUBBUB_ARB_USR_RETRAINING_WATERMARK_B;
+	uint32_t DCHUBBUB_ARB_USR_RETRAINING_WATERMARK_C;
+	uint32_t DCHUBBUB_ARB_USR_RETRAINING_WATERMARK_D;
+	uint32_t DCHUBBUB_ARB_UCLK_PSTATE_CHANGE_WATERMARK_A;
+	uint32_t DCHUBBUB_ARB_UCLK_PSTATE_CHANGE_WATERMARK_B;
+	uint32_t DCHUBBUB_ARB_UCLK_PSTATE_CHANGE_WATERMARK_C;
+	uint32_t DCHUBBUB_ARB_UCLK_PSTATE_CHANGE_WATERMARK_D;
+	uint32_t DCHUBBUB_ARB_FCLK_PSTATE_CHANGE_WATERMARK_A;
+	uint32_t DCHUBBUB_ARB_FCLK_PSTATE_CHANGE_WATERMARK_B;
+	uint32_t DCHUBBUB_ARB_FCLK_PSTATE_CHANGE_WATERMARK_C;
+	uint32_t DCHUBBUB_ARB_FCLK_PSTATE_CHANGE_WATERMARK_D;
+	uint32_t DCHUBBUB_ARB_MALL_CNTL;
+	uint32_t SDPIF_REQUEST_RATE_LIMIT;
+	uint32_t DCHUBBUB_SDPIF_CFG0;
+	uint32_t DCHUBBUB_SDPIF_CFG1;
+	uint32_t DCHUBBUB_CLOCK_CNTL;
+	uint32_t DCHUBBUB_MEM_PWR_MODE_CTRL;
+	uint32_t DCHUBBUB_ARB_QOS_FORCE;
 };
+
+#define HUBBUB_REG_FIELD_LIST_DCN32(type) \
+		type DCHUBBUB_ARB_ALLOW_USR_RETRAINING_FORCE_VALUE;\
+		type DCHUBBUB_ARB_ALLOW_USR_RETRAINING_FORCE_ENABLE;\
+		type DCHUBBUB_ARB_DO_NOT_FORCE_ALLOW_USR_RETRAINING_DURING_PSTATE_CHANGE_REQUEST;\
+		type DCHUBBUB_ARB_DO_NOT_FORCE_ALLOW_USR_RETRAINING_DURING_PRE_CSTATE;\
+		type DCHUBBUB_ARB_USR_RETRAINING_WATERMARK_A;\
+		type DCHUBBUB_ARB_USR_RETRAINING_WATERMARK_B;\
+		type DCHUBBUB_ARB_USR_RETRAINING_WATERMARK_C;\
+		type DCHUBBUB_ARB_USR_RETRAINING_WATERMARK_D;\
+		type DCHUBBUB_ARB_UCLK_PSTATE_CHANGE_WATERMARK_A;\
+		type DCHUBBUB_ARB_UCLK_PSTATE_CHANGE_WATERMARK_B;\
+		type DCHUBBUB_ARB_UCLK_PSTATE_CHANGE_WATERMARK_C;\
+		type DCHUBBUB_ARB_UCLK_PSTATE_CHANGE_WATERMARK_D;\
+		type DCHUBBUB_ARB_FCLK_PSTATE_CHANGE_WATERMARK_A;\
+		type DCHUBBUB_ARB_FCLK_PSTATE_CHANGE_WATERMARK_B;\
+		type DCHUBBUB_ARB_FCLK_PSTATE_CHANGE_WATERMARK_C;\
+		type DCHUBBUB_ARB_FCLK_PSTATE_CHANGE_WATERMARK_D;\
+		type MALL_PREFETCH_COMPLETE;\
+		type MALL_IN_USE
+
+ #define HUBBUB_REG_FIELD_LIST_DCN35(type) \
+		type DCHUBBUB_FGCG_REP_DIS;\
+		type DCHUBBUB_ARB_ALLOW_CSTATE_DEEPSLEEP_LEGACY_MODE
 
 /* set field name */
 #define HUBBUB_SF(reg_name, field_name, post_fix)\
@@ -220,7 +281,19 @@ struct dcn_hubbub_registers {
 		type DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_C;\
 		type DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_D;\
 		type DCN_VM_PROTECTION_FAULT_DEFAULT_ADDR_MSB;\
-		type DCN_VM_PROTECTION_FAULT_DEFAULT_ADDR_LSB
+		type DCN_VM_PROTECTION_FAULT_DEFAULT_ADDR_LSB;\
+		type DCN_VM_FAULT_ADDR_MSB;\
+		type DCN_VM_FAULT_ADDR_LSB;\
+		type DCN_VM_ERROR_STATUS_CLEAR;\
+		type DCN_VM_ERROR_STATUS_MODE;\
+		type DCN_VM_ERROR_INTERRUPT_ENABLE;\
+		type DCN_VM_RANGE_FAULT_DISABLE;\
+		type DCN_VM_PRQ_FAULT_DISABLE;\
+		type DCN_VM_ERROR_STATUS;\
+		type DCN_VM_ERROR_VMID;\
+		type DCN_VM_ERROR_TABLE_LEVEL;\
+		type DCN_VM_ERROR_PIPE;\
+		type DCN_VM_ERROR_INTERRUPT_STATUS
 
 #define HUBBUB_STUTTER_REG_FIELD_LIST(type) \
 		type DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_A;\
@@ -232,7 +305,6 @@ struct dcn_hubbub_registers {
 		type DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_C;\
 		type DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_D
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 #define HUBBUB_HVM_REG_FIELD_LIST(type) \
 		type DCHUBBUB_ARB_MIN_REQ_OUTSTAND_COMMIT_THRESHOLD;\
 		type DCHUBBUB_ARB_VM_ROW_URGENCY_WATERMARK_A;\
@@ -278,22 +350,55 @@ struct dcn_hubbub_registers {
 		type HOSTVM_POWERSTATUS; \
 		type RIOMMU_ACTIVE; \
 		type HOSTVM_PREFETCH_DONE
-#endif
+
+#define HUBBUB_RET_REG_FIELD_LIST(type) \
+		type DET_DEPTH;\
+		type DET0_SIZE;\
+		type DET1_SIZE;\
+		type DET2_SIZE;\
+		type DET3_SIZE;\
+		type DET0_SIZE_CURRENT;\
+		type DET1_SIZE_CURRENT;\
+		type DET2_SIZE_CURRENT;\
+		type DET3_SIZE_CURRENT;\
+		type COMPBUF_SIZE;\
+		type COMPBUF_SIZE_CURRENT;\
+		type CONFIG_ERROR;\
+		type COMPBUF_RESERVED_SPACE_64B;\
+		type COMPBUF_RESERVED_SPACE_ZS;\
+		type DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_Z8_A;\
+		type DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_Z8_A;\
+		type DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_Z8_B;\
+		type DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_Z8_B;\
+		type DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_Z8_C;\
+		type DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_Z8_C;\
+		type DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_Z8_D;\
+		type DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_Z8_D;\
+		type SDPIF_REQUEST_RATE_LIMIT;\
+		type DISPCLK_R_DCHUBBUB_GATE_DIS;\
+		type DCFCLK_R_DCHUBBUB_GATE_DIS;\
+		type SDPIF_MAX_NUM_OUTSTANDING;\
+		type DCHUBBUB_ARB_MAX_REQ_OUTSTAND;\
+		type SDPIF_PORT_CONTROL;\
+		type DET_MEM_PWR_LS_MODE
+
 
 struct dcn_hubbub_shift {
 	DCN_HUBBUB_REG_FIELD_LIST(uint8_t);
 	HUBBUB_STUTTER_REG_FIELD_LIST(uint8_t);
-#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 	HUBBUB_HVM_REG_FIELD_LIST(uint8_t);
-#endif
+	HUBBUB_RET_REG_FIELD_LIST(uint8_t);
+	HUBBUB_REG_FIELD_LIST_DCN32(uint8_t);
+	HUBBUB_REG_FIELD_LIST_DCN35(uint8_t);
 };
 
 struct dcn_hubbub_mask {
 	DCN_HUBBUB_REG_FIELD_LIST(uint32_t);
 	HUBBUB_STUTTER_REG_FIELD_LIST(uint32_t);
-#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 	HUBBUB_HVM_REG_FIELD_LIST(uint32_t);
-#endif
+	HUBBUB_RET_REG_FIELD_LIST(uint32_t);
+	HUBBUB_REG_FIELD_LIST_DCN32(uint32_t);
+	HUBBUB_REG_FIELD_LIST_DCN35(uint32_t);
 };
 
 struct dc;
@@ -304,7 +409,7 @@ struct dcn10_hubbub {
 	const struct dcn_hubbub_shift *shifts;
 	const struct dcn_hubbub_mask *masks;
 	unsigned int debug_test_index_pstate;
-	struct dcn_watermark_set watermarks;
+	union dcn_watermark_set watermarks;
 };
 
 void hubbub1_update_dchub(
@@ -316,9 +421,9 @@ bool hubbub1_verify_allow_pstate_change_high(
 
 void hubbub1_wm_change_req_wa(struct hubbub *hubbub);
 
-void hubbub1_program_watermarks(
+bool hubbub1_program_watermarks(
 		struct hubbub *hubbub,
-		struct dcn_watermark_set *watermarks,
+		union dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
 		bool safe_to_lower);
 
@@ -339,19 +444,19 @@ void hubbub1_construct(struct hubbub *hubbub,
 	const struct dcn_hubbub_shift *hubbub_shift,
 	const struct dcn_hubbub_mask *hubbub_mask);
 
-void hubbub1_program_urgent_watermarks(
+bool hubbub1_program_urgent_watermarks(
 		struct hubbub *hubbub,
-		struct dcn_watermark_set *watermarks,
+		union dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
 		bool safe_to_lower);
-void hubbub1_program_stutter_watermarks(
+bool hubbub1_program_stutter_watermarks(
 		struct hubbub *hubbub,
-		struct dcn_watermark_set *watermarks,
+		union dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
 		bool safe_to_lower);
-void hubbub1_program_pstate_watermarks(
+bool hubbub1_program_pstate_watermarks(
 		struct hubbub *hubbub,
-		struct dcn_watermark_set *watermarks,
+		union dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
 		bool safe_to_lower);
 

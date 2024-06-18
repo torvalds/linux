@@ -14,7 +14,6 @@
 #define NUM_PRESSES_REBOOT 2	/* How many presses to activate shutdown */
 #define BUTTON_DELAY 30 	/* How many jiffies for sequence to end */
 #define VERSION "0.3"		/* Driver version number */
-#define BUTTON_MINOR 158	/* Major 10, Minor 158, /dev/nwbutton */
 
 /* Structure definitions: */
 

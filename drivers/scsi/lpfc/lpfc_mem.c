@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2023 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2014 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -31,8 +31,6 @@
 #include <scsi/scsi_transport_fc.h>
 #include <scsi/fc/fc_fs.h>
 
-#include <linux/nvme-fc-driver.h>
-
 #include "lpfc_hw4.h"
 #include "lpfc_hw.h"
 #include "lpfc_sli.h"
@@ -41,14 +39,37 @@
 #include "lpfc_disc.h"
 #include "lpfc.h"
 #include "lpfc_scsi.h"
-#include "lpfc_nvme.h"
-#include "lpfc_nvmet.h"
 #include "lpfc_crtn.h"
 #include "lpfc_logmsg.h"
 
 #define LPFC_MBUF_POOL_SIZE     64      /* max elements in MBUF safety pool */
 #define LPFC_MEM_POOL_SIZE      64      /* max elem in non-DMA safety pool */
 #define LPFC_DEVICE_DATA_POOL_SIZE 64   /* max elements in device data pool */
+#define LPFC_RRQ_POOL_SIZE	256	/* max elements in non-DMA  pool */
+#define LPFC_MBX_POOL_SIZE	256	/* max elements in MBX non-DMA pool */
+
+/* lpfc_mbox_free_sli_mbox
+ *
+ * @phba: HBA to free memory for
+ * @mbox: mailbox command to free
+ *
+ * This routine detects the mbox type and calls the correct
+ * free routine to fully release all associated memory.
+ */
+static void
+lpfc_mem_free_sli_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
+{
+	/* Detect if the caller's mbox is an SLI4_CONFIG type.  If so, this
+	 * mailbox type requires a different cleanup routine.  Otherwise, the
+	 * mailbox is just an mbuf and mem_pool release.
+	 */
+	if (phba->sli_rev == LPFC_SLI_REV4 &&
+	    bf_get(lpfc_mqe_command, &mbox->u.mqe) == MBX_SLI4_CONFIG) {
+		lpfc_sli4_mbox_cmd_free(phba, mbox);
+	} else {
+		lpfc_mbox_rsrc_cleanup(phba, mbox, MBOX_THD_UNLOCKED);
+	}
+}
 
 int
 lpfc_mem_alloc_active_rrq_pool_s4(struct lpfc_hba *phba) {
@@ -71,6 +92,7 @@ lpfc_mem_alloc_active_rrq_pool_s4(struct lpfc_hba *phba) {
 /**
  * lpfc_mem_alloc - create and allocate all PCI and memory pools
  * @phba: HBA to allocate pools for
+ * @align: alignment requirement for blocks; must be a power of two
  *
  * Description: Creates and allocates PCI pools lpfc_mbuf_pool,
  * lpfc_hrb_pool.  Creates and allocates kmalloc-backed mempools
@@ -113,8 +135,8 @@ lpfc_mem_alloc(struct lpfc_hba *phba, int align)
 		pool->current_count++;
 	}
 
-	phba->mbox_mem_pool = mempool_create_kmalloc_pool(LPFC_MEM_POOL_SIZE,
-							 sizeof(LPFC_MBOXQ_t));
+	phba->mbox_mem_pool = mempool_create_kmalloc_pool(LPFC_MBX_POOL_SIZE,
+							  sizeof(LPFC_MBOXQ_t));
 	if (!phba->mbox_mem_pool)
 		goto fail_free_mbuf_pool;
 
@@ -125,7 +147,7 @@ lpfc_mem_alloc(struct lpfc_hba *phba, int align)
 
 	if (phba->sli_rev == LPFC_SLI_REV4) {
 		phba->rrq_pool =
-			mempool_create_kmalloc_pool(LPFC_MEM_POOL_SIZE,
+			mempool_create_kmalloc_pool(LPFC_RRQ_POOL_SIZE,
 						sizeof(struct lpfc_node_rrq));
 		if (!phba->rrq_pool)
 			goto fail_free_nlp_mem_pool;
@@ -230,9 +252,6 @@ lpfc_mem_free(struct lpfc_hba *phba)
 	dma_pool_destroy(phba->lpfc_hrb_pool);
 	phba->lpfc_hrb_pool = NULL;
 
-	dma_pool_destroy(phba->txrdy_payload_pool);
-	phba->txrdy_payload_pool = NULL;
-
 	dma_pool_destroy(phba->lpfc_hbq_pool);
 	phba->lpfc_hbq_pool = NULL;
 
@@ -292,27 +311,16 @@ lpfc_mem_free_all(struct lpfc_hba *phba)
 {
 	struct lpfc_sli *psli = &phba->sli;
 	LPFC_MBOXQ_t *mbox, *next_mbox;
-	struct lpfc_dmabuf   *mp;
 
 	/* Free memory used in mailbox queue back to mailbox memory pool */
 	list_for_each_entry_safe(mbox, next_mbox, &psli->mboxq, list) {
-		mp = (struct lpfc_dmabuf *)(mbox->ctx_buf);
-		if (mp) {
-			lpfc_mbuf_free(phba, mp->virt, mp->phys);
-			kfree(mp);
-		}
 		list_del(&mbox->list);
-		mempool_free(mbox, phba->mbox_mem_pool);
+		lpfc_mem_free_sli_mbox(phba, mbox);
 	}
 	/* Free memory used in mailbox cmpl list back to mailbox memory pool */
 	list_for_each_entry_safe(mbox, next_mbox, &psli->mboxq_cmpl, list) {
-		mp = (struct lpfc_dmabuf *)(mbox->ctx_buf);
-		if (mp) {
-			lpfc_mbuf_free(phba, mp->virt, mp->phys);
-			kfree(mp);
-		}
 		list_del(&mbox->list);
-		mempool_free(mbox, phba->mbox_mem_pool);
+		lpfc_mem_free_sli_mbox(phba, mbox);
 	}
 	/* Free the active mailbox command back to the mailbox memory pool */
 	spin_lock_irq(&phba->hbalock);
@@ -320,12 +328,7 @@ lpfc_mem_free_all(struct lpfc_hba *phba)
 	spin_unlock_irq(&phba->hbalock);
 	if (psli->mbox_active) {
 		mbox = psli->mbox_active;
-		mp = (struct lpfc_dmabuf *)(mbox->ctx_buf);
-		if (mp) {
-			lpfc_mbuf_free(phba, mp->virt, mp->phys);
-			kfree(mp);
-		}
-		mempool_free(mbox, phba->mbox_mem_pool);
+		lpfc_mem_free_sli_mbox(phba, mbox);
 		psli->mbox_active = NULL;
 	}
 
@@ -338,6 +341,22 @@ lpfc_mem_free_all(struct lpfc_hba *phba)
 
 	dma_pool_destroy(phba->lpfc_cmd_rsp_buf_pool);
 	phba->lpfc_cmd_rsp_buf_pool = NULL;
+
+	/* Free Congestion Data buffer */
+	if (phba->cgn_i) {
+		dma_free_coherent(&phba->pcidev->dev,
+				  sizeof(struct lpfc_cgn_info),
+				  phba->cgn_i->virt, phba->cgn_i->phys);
+		kfree(phba->cgn_i);
+		phba->cgn_i = NULL;
+	}
+
+	/* Free RX Monitor */
+	if (phba->rx_monitor) {
+		lpfc_rx_monitor_destroy_ring(phba->rx_monitor);
+		kfree(phba->rx_monitor);
+		phba->rx_monitor = NULL;
+	}
 
 	/* Free the iocb lookup array */
 	kfree(psli->iocbq_lookup);
@@ -593,8 +612,6 @@ lpfc_sli4_rb_free(struct lpfc_hba *phba, struct hbq_dmabuf *dmab)
  * Description: Allocates a DMA-mapped receive buffer from the lpfc_hrb_pool PCI
  * pool along a non-DMA-mapped container for it.
  *
- * Notes: Not interrupt-safe.  Must be called with no locks held.
- *
  * Returns:
  *   pointer to HBQ on success
  *   NULL on failure
@@ -604,7 +621,7 @@ lpfc_sli4_nvmet_alloc(struct lpfc_hba *phba)
 {
 	struct rqb_dmabuf *dma_buf;
 
-	dma_buf = kzalloc(sizeof(struct rqb_dmabuf), GFP_KERNEL);
+	dma_buf = kzalloc(sizeof(*dma_buf), GFP_KERNEL);
 	if (!dma_buf)
 		return NULL;
 
@@ -727,7 +744,6 @@ lpfc_rq_buf_free(struct lpfc_hba *phba, struct lpfc_dmabuf *mp)
 	drqe.address_hi = putPaddrHigh(rqb_entry->dbuf.phys);
 	rc = lpfc_sli4_rq_put(rqb_entry->hrq, rqb_entry->drq, &hrqe, &drqe);
 	if (rc < 0) {
-		(rqbp->rqb_free_buffer)(phba, rqb_entry);
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"6409 Cannot post to HRQ %d: %x %x %x "
 				"DRQ %x %x\n",
@@ -737,6 +753,7 @@ lpfc_rq_buf_free(struct lpfc_hba *phba, struct lpfc_dmabuf *mp)
 				rqb_entry->hrq->entry_count,
 				rqb_entry->drq->host_index,
 				rqb_entry->drq->hba_index);
+		(rqbp->rqb_free_buffer)(phba, rqb_entry);
 	} else {
 		list_add_tail(&rqb_entry->hbuf.list, &rqbp->rqb_buffer_list);
 		rqbp->buffer_count++;

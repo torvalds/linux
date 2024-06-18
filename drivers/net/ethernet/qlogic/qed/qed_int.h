@@ -1,33 +1,7 @@
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause) */
 /* QLogic qed NIC Driver
  * Copyright (c) 2015-2017  QLogic Corporation
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and /or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Copyright (c) 2019-2020 Marvell International Ltd.
  */
 
 #ifndef _QED_INT_H
@@ -37,14 +11,14 @@
 #include <linux/slab.h>
 #include "qed.h"
 
-/* Fields of IGU PF CONFIGRATION REGISTER */
+/* Fields of IGU PF CONFIGURATION REGISTER */
 #define IGU_PF_CONF_FUNC_EN       (0x1 << 0)    /* function enable        */
 #define IGU_PF_CONF_MSI_MSIX_EN   (0x1 << 1)    /* MSI/MSIX enable        */
 #define IGU_PF_CONF_INT_LINE_EN   (0x1 << 2)    /* INT enable             */
 #define IGU_PF_CONF_ATTN_BIT_EN   (0x1 << 3)    /* attention enable       */
 #define IGU_PF_CONF_SINGLE_ISR_EN (0x1 << 4)    /* single ISR mode enable */
 #define IGU_PF_CONF_SIMD_MODE     (0x1 << 5)    /* simd all ones mode     */
-/* Fields of IGU VF CONFIGRATION REGISTER */
+/* Fields of IGU VF CONFIGURATION REGISTER */
 #define IGU_VF_CONF_FUNC_EN        (0x1 << 0)	/* function enable        */
 #define IGU_VF_CONF_MSI_MSIX_EN    (0x1 << 1)	/* MSI/MSIX enable        */
 #define IGU_VF_CONF_SINGLE_ISR_EN  (0x1 << 4)	/* single ISR mode enable */
@@ -79,51 +53,54 @@ enum qed_coalescing_fsm {
 };
 
 /**
- * @brief qed_int_igu_enable_int - enable device interrupts
+ * qed_int_igu_enable_int(): Enable device interrupts.
  *
- * @param p_hwfn
- * @param p_ptt
- * @param int_mode - interrupt mode to use
+ * @p_hwfn: HW device data.
+ * @p_ptt: P_ptt.
+ * @int_mode: Interrupt mode to use.
+ *
+ * Return: Void.
  */
 void qed_int_igu_enable_int(struct qed_hwfn *p_hwfn,
 			    struct qed_ptt *p_ptt,
 			    enum qed_int_mode int_mode);
 
 /**
- * @brief qed_int_igu_disable_int - disable device interrupts
+ * qed_int_igu_disable_int():  Disable device interrupts.
  *
- * @param p_hwfn
- * @param p_ptt
+ * @p_hwfn: HW device data.
+ * @p_ptt: P_ptt.
+ *
+ * Return: Void.
  */
 void qed_int_igu_disable_int(struct qed_hwfn *p_hwfn,
 			     struct qed_ptt *p_ptt);
 
 /**
- * @brief qed_int_igu_read_sisr_reg - Reads the single isr multiple dpc
- *        register from igu.
+ * qed_int_igu_read_sisr_reg(): Reads the single isr multiple dpc
+ *                             register from igu.
  *
- * @param p_hwfn
+ * @p_hwfn: HW device data.
  *
- * @return u64
+ * Return: u64.
  */
 u64 qed_int_igu_read_sisr_reg(struct qed_hwfn *p_hwfn);
 
 #define QED_SP_SB_ID 0xffff
 /**
- * @brief qed_int_sb_init - Initializes the sb_info structure.
+ * qed_int_sb_init(): Initializes the sb_info structure.
  *
- * once the structure is initialized it can be passed to sb related functions.
+ * @p_hwfn: HW device data.
+ * @p_ptt: P_ptt.
+ * @sb_info: points to an uninitialized (but allocated) sb_info structure
+ * @sb_virt_addr: SB Virtual address.
+ * @sb_phy_addr: SB Physial address.
+ * @sb_id: the sb_id to be used (zero based in driver)
+ *           should use QED_SP_SB_ID for SP Status block
  *
- * @param p_hwfn
- * @param p_ptt
- * @param sb_info	points to an uninitialized (but
- *			allocated) sb_info structure
- * @param sb_virt_addr
- * @param sb_phy_addr
- * @param sb_id	the sb_id to be used (zero based in driver)
- *			should use QED_SP_SB_ID for SP Status block
+ * Return: int.
  *
- * @return int
+ * Once the structure is initialized it can be passed to sb related functions.
  */
 int qed_int_sb_init(struct qed_hwfn *p_hwfn,
 		    struct qed_ptt *p_ptt,
@@ -132,71 +109,104 @@ int qed_int_sb_init(struct qed_hwfn *p_hwfn,
 		    dma_addr_t sb_phy_addr,
 		    u16 sb_id);
 /**
- * @brief qed_int_sb_setup - Setup the sb.
+ * qed_int_sb_setup(): Setup the sb.
  *
- * @param p_hwfn
- * @param p_ptt
- * @param sb_info	initialized sb_info structure
+ * @p_hwfn: HW device data.
+ * @p_ptt: P_ptt.
+ * @sb_info: Initialized sb_info structure.
+ *
+ * Return: Void.
  */
 void qed_int_sb_setup(struct qed_hwfn *p_hwfn,
 		      struct qed_ptt *p_ptt,
 		      struct qed_sb_info *sb_info);
 
 /**
- * @brief qed_int_sb_release - releases the sb_info structure.
+ * qed_int_sb_release(): Releases the sb_info structure.
  *
- * once the structure is released, it's memory can be freed
+ * @p_hwfn: HW device data.
+ * @sb_info: Points to an allocated sb_info structure.
+ * @sb_id: The sb_id to be used (zero based in driver)
+ *         should never be equal to QED_SP_SB_ID
+ *         (SP Status block).
  *
- * @param p_hwfn
- * @param sb_info	points to an allocated sb_info structure
- * @param sb_id		the sb_id to be used (zero based in driver)
- *			should never be equal to QED_SP_SB_ID
- *			(SP Status block)
+ * Return: int.
  *
- * @return int
+ * Once the structure is released, it's memory can be freed.
  */
 int qed_int_sb_release(struct qed_hwfn *p_hwfn,
 		       struct qed_sb_info *sb_info,
 		       u16 sb_id);
 
 /**
- * @brief qed_int_sp_dpc - To be called when an interrupt is received on the
- *        default status block.
+ * qed_int_sp_dpc(): To be called when an interrupt is received on the
+ *                   default status block.
  *
- * @param p_hwfn - pointer to hwfn
+ * @t: Tasklet.
+ *
+ * Return: Void.
  *
  */
-void qed_int_sp_dpc(unsigned long hwfn_cookie);
+void qed_int_sp_dpc(struct tasklet_struct *t);
 
 /**
- * @brief qed_int_get_num_sbs - get the number of status
- *        blocks configured for this funciton in the igu.
+ * qed_int_get_num_sbs(): Get the number of status blocks configured
+ *                        for this funciton in the igu.
  *
- * @param p_hwfn
- * @param p_sb_cnt_info
+ * @p_hwfn: HW device data.
+ * @p_sb_cnt_info: Pointer to SB count info.
  *
- * @return int - number of status blocks configured
+ * Return: Void.
  */
 void qed_int_get_num_sbs(struct qed_hwfn	*p_hwfn,
 			 struct qed_sb_cnt_info *p_sb_cnt_info);
 
 /**
- * @brief qed_int_disable_post_isr_release - performs the cleanup post ISR
+ * qed_int_disable_post_isr_release(): Performs the cleanup post ISR
  *        release. The API need to be called after releasing all slowpath IRQs
  *        of the device.
  *
- * @param cdev
+ * @cdev: Qed dev pointer.
  *
+ * Return: Void.
  */
 void qed_int_disable_post_isr_release(struct qed_dev *cdev);
 
 /**
- * @brief - Doorbell Recovery handler.
+ * qed_int_attn_clr_enable: Sets whether the general behavior is
+ *        preventing attentions from being reasserted, or following the
+ *        attributes of the specific attention.
+ *
+ * @cdev: Qed dev pointer.
+ * @clr_enable: Clear enable
+ *
+ * Return: Void.
+ *
+ */
+void qed_int_attn_clr_enable(struct qed_dev *cdev, bool clr_enable);
+
+/**
+ * qed_int_get_sb_dbg: Read debug information regarding a given SB
+ *
+ * @p_hwfn: hw function pointer
+ * @p_ptt: ptt resource
+ * @p_sb: pointer to status block for which we want to get info
+ * @p_info: pointer to struct to fill with information regarding SB
+ *
+ * Return: 0 with status block info filled on success, otherwise return error
+ */
+int qed_int_get_sb_dbg(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+		       struct qed_sb_info *p_sb, struct qed_sb_info_dbg *p_info);
+
+/**
+ * qed_db_rec_handler(): Doorbell Recovery handler.
  *          Run doorbell recovery in case of PF overflow (and flush DORQ if
  *          needed).
  *
- * @param p_hwfn
- * @param p_ptt
+ * @p_hwfn: HW device data.
+ * @p_ptt: P_ptt.
+ *
+ * Return: Int.
  */
 int qed_db_rec_handler(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 
@@ -207,7 +217,7 @@ int qed_db_rec_handler(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 #define QED_SB_EVENT_MASK       0x0003
 
 #define SB_ALIGNED_SIZE(p_hwfn)	\
-	ALIGNED_TYPE_SIZE(struct status_block_e4, p_hwfn)
+	ALIGNED_TYPE_SIZE(struct status_block, p_hwfn)
 
 #define QED_SB_INVALID_IDX      0xffff
 
@@ -238,30 +248,34 @@ struct qed_igu_info {
 };
 
 /**
- * @brief - Make sure the IGU CAM reflects the resources provided by MFW
+ * qed_int_igu_reset_cam(): Make sure the IGU CAM reflects the resources
+ *                          provided by MFW.
  *
- * @param p_hwfn
- * @param p_ptt
+ * @p_hwfn: HW device data.
+ * @p_ptt: P_ptt.
+ *
+ * Return: Void.
  */
 int qed_int_igu_reset_cam(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 
 /**
- * @brief Translate the weakly-defined client sb-id into an IGU sb-id
+ * qed_get_igu_sb_id(): Translate the weakly-defined client sb-id into
+ *                      an IGU sb-id
  *
- * @param p_hwfn
- * @param sb_id - user provided sb_id
+ * @p_hwfn: HW device data.
+ * @sb_id: user provided sb_id.
  *
- * @return an index inside IGU CAM where the SB resides
+ * Return: An index inside IGU CAM where the SB resides.
  */
 u16 qed_get_igu_sb_id(struct qed_hwfn *p_hwfn, u16 sb_id);
 
 /**
- * @brief return a pointer to an unused valid SB
+ * qed_get_igu_free_sb(): Return a pointer to an unused valid SB
  *
- * @param p_hwfn
- * @param b_is_pf - true iff we want a SB belonging to a PF
+ * @p_hwfn: HW device data.
+ * @b_is_pf: True iff we want a SB belonging to a PF.
  *
- * @return point to an igu_block, NULL if none is available
+ * Return: Point to an igu_block, NULL if none is available.
  */
 struct qed_igu_block *qed_get_igu_free_sb(struct qed_hwfn *p_hwfn,
 					  bool b_is_pf);
@@ -274,15 +288,15 @@ void qed_int_igu_init_pure_rt(struct qed_hwfn *p_hwfn,
 void qed_int_igu_init_rt(struct qed_hwfn *p_hwfn);
 
 /**
- * @brief qed_int_igu_read_cam - Reads the IGU CAM.
+ * qed_int_igu_read_cam():  Reads the IGU CAM.
  *	This function needs to be called during hardware
  *	prepare. It reads the info from igu cam to know which
  *	status block is the default / base status block etc.
  *
- * @param p_hwfn
- * @param p_ptt
+ * @p_hwfn: HW device data.
+ * @p_ptt: P_ptt.
  *
- * @return int
+ * Return: Int.
  */
 int qed_int_igu_read_cam(struct qed_hwfn *p_hwfn,
 			 struct qed_ptt *p_ptt);
@@ -290,24 +304,22 @@ int qed_int_igu_read_cam(struct qed_hwfn *p_hwfn,
 typedef int (*qed_int_comp_cb_t)(struct qed_hwfn *p_hwfn,
 				 void *cookie);
 /**
- * @brief qed_int_register_cb - Register callback func for
- *      slowhwfn statusblock.
+ * qed_int_register_cb(): Register callback func for slowhwfn statusblock.
  *
- *	Every protocol that uses the slowhwfn status block
- *	should register a callback function that will be called
- *	once there is an update of the sp status block.
+ * @p_hwfn: HW device data.
+ * @comp_cb: Function to be called when there is an
+ *           interrupt on the sp sb
+ * @cookie: Passed to the callback function
+ * @sb_idx: (OUT) parameter which gives the chosen index
+ *           for this protocol.
+ * @p_fw_cons: Pointer to the actual address of the
+ *             consumer for this protocol.
  *
- * @param p_hwfn
- * @param comp_cb - function to be called when there is an
- *                  interrupt on the sp sb
+ * Return: Int.
  *
- * @param cookie  - passed to the callback function
- * @param sb_idx  - OUT parameter which gives the chosen index
- *                  for this protocol.
- * @param p_fw_cons  - pointer to the actual address of the
- *                     consumer for this protocol.
- *
- * @return int
+ * Every protocol that uses the slowhwfn status block
+ * should register a callback function that will be called
+ * once there is an update of the sp status block.
  */
 int qed_int_register_cb(struct qed_hwfn *p_hwfn,
 			qed_int_comp_cb_t comp_cb,
@@ -316,37 +328,40 @@ int qed_int_register_cb(struct qed_hwfn *p_hwfn,
 			__le16 **p_fw_cons);
 
 /**
- * @brief qed_int_unregister_cb - Unregisters callback
- *      function from sp sb.
- *      Partner of qed_int_register_cb -> should be called
- *      when no longer required.
+ * qed_int_unregister_cb(): Unregisters callback function from sp sb.
  *
- * @param p_hwfn
- * @param pi
+ * @p_hwfn: HW device data.
+ * @pi: Producer Index.
  *
- * @return int
+ * Return: Int.
+ *
+ * Partner of qed_int_register_cb -> should be called
+ * when no longer required.
  */
 int qed_int_unregister_cb(struct qed_hwfn *p_hwfn,
 			  u8 pi);
 
 /**
- * @brief qed_int_get_sp_sb_id - Get the slowhwfn sb id.
+ * qed_int_get_sp_sb_id(): Get the slowhwfn sb id.
  *
- * @param p_hwfn
+ * @p_hwfn: HW device data.
  *
- * @return u16
+ * Return: u16.
  */
 u16 qed_int_get_sp_sb_id(struct qed_hwfn *p_hwfn);
 
 /**
- * @brief Status block cleanup. Should be called for each status
- *        block that will be used -> both PF / VF
+ * qed_int_igu_init_pure_rt_single(): Status block cleanup.
+ *                                    Should be called for each status
+ *                                    block that will be used -> both PF / VF.
  *
- * @param p_hwfn
- * @param p_ptt
- * @param igu_sb_id	- igu status block id
- * @param opaque	- opaque fid of the sb owner.
- * @param b_set		- set(1) / clear(0)
+ * @p_hwfn: HW device data.
+ * @p_ptt: P_ptt.
+ * @igu_sb_id: IGU status block id.
+ * @opaque: Opaque fid of the sb owner.
+ * @b_set: Set(1) / Clear(0).
+ *
+ * Return: Void.
  */
 void qed_int_igu_init_pure_rt_single(struct qed_hwfn *p_hwfn,
 				     struct qed_ptt *p_ptt,
@@ -355,15 +370,16 @@ void qed_int_igu_init_pure_rt_single(struct qed_hwfn *p_hwfn,
 				     bool b_set);
 
 /**
- * @brief qed_int_cau_conf - configure cau for a given status
- *        block
+ * qed_int_cau_conf_sb(): Configure cau for a given status block.
  *
- * @param p_hwfn
- * @param ptt
- * @param sb_phys
- * @param igu_sb_id
- * @param vf_number
- * @param vf_valid
+ * @p_hwfn: HW device data.
+ * @p_ptt: P_ptt.
+ * @sb_phys: SB Physical.
+ * @igu_sb_id: IGU status block id.
+ * @vf_number: VF number
+ * @vf_valid: VF valid or not.
+ *
+ * Return: Void.
  */
 void qed_int_cau_conf_sb(struct qed_hwfn *p_hwfn,
 			 struct qed_ptt *p_ptt,
@@ -373,52 +389,58 @@ void qed_int_cau_conf_sb(struct qed_hwfn *p_hwfn,
 			 u8 vf_valid);
 
 /**
- * @brief qed_int_alloc
+ * qed_int_alloc(): QED interrupt alloc.
  *
- * @param p_hwfn
- * @param p_ptt
+ * @p_hwfn: HW device data.
+ * @p_ptt: P_ptt.
  *
- * @return int
+ * Return: Int.
  */
 int qed_int_alloc(struct qed_hwfn *p_hwfn,
 		  struct qed_ptt *p_ptt);
 
 /**
- * @brief qed_int_free
+ * qed_int_free(): QED interrupt free.
  *
- * @param p_hwfn
+ * @p_hwfn: HW device data.
+ *
+ * Return: Void.
  */
 void qed_int_free(struct qed_hwfn *p_hwfn);
 
 /**
- * @brief qed_int_setup
+ * qed_int_setup(): QED interrupt setup.
  *
- * @param p_hwfn
- * @param p_ptt
+ * @p_hwfn: HW device data.
+ * @p_ptt: P_ptt.
+ *
+ * Return: Void.
  */
 void qed_int_setup(struct qed_hwfn *p_hwfn,
 		   struct qed_ptt *p_ptt);
 
 /**
- * @brief - Enable Interrupt & Attention for hw function
+ * qed_int_igu_enable(): Enable Interrupt & Attention for hw function.
  *
- * @param p_hwfn
- * @param p_ptt
- * @param int_mode
+ * @p_hwfn: HW device data.
+ * @p_ptt: P_ptt.
+ * @int_mode: Interrut mode
  *
- * @return int
+ * Return: Int.
  */
 int qed_int_igu_enable(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 		       enum qed_int_mode int_mode);
 
 /**
- * @brief - Initialize CAU status block entry
+ * qed_init_cau_sb_entry(): Initialize CAU status block entry.
  *
- * @param p_hwfn
- * @param p_sb_entry
- * @param pf_id
- * @param vf_number
- * @param vf_valid
+ * @p_hwfn: HW device data.
+ * @p_sb_entry: Pointer SB entry.
+ * @pf_id: PF number
+ * @vf_number: VF number
+ * @vf_valid: VF valid or not.
+ *
+ * Return: Void.
  */
 void qed_init_cau_sb_entry(struct qed_hwfn *p_hwfn,
 			   struct cau_sb_entry *p_sb_entry,
@@ -431,7 +453,7 @@ int qed_int_set_timer_res(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 
 #define QED_MAPPING_MEMORY_SIZE(dev)	(NUM_OF_SBS(dev))
 
-int qed_pglueb_rbc_attn_handler(struct qed_hwfn *p_hwfn,
-				struct qed_ptt *p_ptt);
+int qed_pglueb_rbc_attn_handler(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+				bool hw_init);
 
 #endif

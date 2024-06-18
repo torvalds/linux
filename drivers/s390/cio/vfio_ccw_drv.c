@@ -12,20 +12,21 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/device.h>
 #include <linux/slab.h>
-#include <linux/uuid.h>
 #include <linux/mdev.h>
 
 #include <asm/isc.h>
 
+#include "chp.h"
 #include "ioasm.h"
 #include "css.h"
 #include "vfio_ccw_private.h"
 
 struct workqueue_struct *vfio_ccw_work_q;
-static struct kmem_cache *vfio_ccw_io_region;
-static struct kmem_cache *vfio_ccw_cmd_region;
+struct kmem_cache *vfio_ccw_io_region;
+struct kmem_cache *vfio_ccw_cmd_region;
+struct kmem_cache *vfio_ccw_schib_region;
+struct kmem_cache *vfio_ccw_crw_region;
 
 debug_info_t *vfio_ccw_debug_msg_id;
 debug_info_t *vfio_ccw_debug_trace_id;
@@ -35,16 +36,18 @@ debug_info_t *vfio_ccw_debug_trace_id;
  */
 int vfio_ccw_sch_quiesce(struct subchannel *sch)
 {
-	struct vfio_ccw_private *private = dev_get_drvdata(&sch->dev);
+	struct vfio_ccw_parent *parent = dev_get_drvdata(&sch->dev);
+	struct vfio_ccw_private *private = dev_get_drvdata(&parent->dev);
 	DECLARE_COMPLETION_ONSTACK(completion);
 	int iretry, ret = 0;
 
-	spin_lock_irq(sch->lock);
-	if (!sch->schib.pmcw.ena)
-		goto out_unlock;
-	ret = cio_disable_subchannel(sch);
-	if (ret != -EBUSY)
-		goto out_unlock;
+	/*
+	 * Probably an impossible situation, after being called through
+	 * FSM callbacks. But in the event it did, register a warning
+	 * and return as if things were fine.
+	 */
+	if (WARN_ON(!private))
+		return 0;
 
 	iretry = 255;
 	do {
@@ -62,27 +65,26 @@ int vfio_ccw_sch_quiesce(struct subchannel *sch)
 		 * cancel/halt/clear completion.
 		 */
 		private->completion = &completion;
-		spin_unlock_irq(sch->lock);
+		spin_unlock_irq(&sch->lock);
 
 		if (ret == -EBUSY)
 			wait_for_completion_timeout(&completion, 3*HZ);
 
 		private->completion = NULL;
 		flush_workqueue(vfio_ccw_work_q);
-		spin_lock_irq(sch->lock);
+		spin_lock_irq(&sch->lock);
 		ret = cio_disable_subchannel(sch);
 	} while (ret == -EBUSY);
-out_unlock:
-	private->state = VFIO_CCW_STATE_NOT_OPER;
-	spin_unlock_irq(sch->lock);
+
 	return ret;
 }
 
-static void vfio_ccw_sch_io_todo(struct work_struct *work)
+void vfio_ccw_sch_io_todo(struct work_struct *work)
 {
 	struct vfio_ccw_private *private;
 	struct irb *irb;
 	bool is_final;
+	bool cp_is_finished = false;
 
 	private = container_of(work, struct vfio_ccw_private, io_work);
 	irb = &private->irb;
@@ -91,18 +93,36 @@ static void vfio_ccw_sch_io_todo(struct work_struct *work)
 		     (SCSW_ACTL_DEVACT | SCSW_ACTL_SCHACT));
 	if (scsw_is_solicited(&irb->scsw)) {
 		cp_update_scsw(&private->cp, &irb->scsw);
-		if (is_final && private->state == VFIO_CCW_STATE_CP_PENDING)
+		if (is_final && private->state == VFIO_CCW_STATE_CP_PENDING) {
 			cp_free(&private->cp);
+			cp_is_finished = true;
+		}
 	}
 	mutex_lock(&private->io_mutex);
 	memcpy(private->io_region->irb_area, irb, sizeof(*irb));
 	mutex_unlock(&private->io_mutex);
 
-	if (private->mdev && is_final)
+	/*
+	 * Reset to IDLE only if processing of a channel program
+	 * has finished. Do not overwrite a possible processing
+	 * state if the interrupt was unsolicited, or if the final
+	 * interrupt was for HSCH or CSCH.
+	 */
+	if (cp_is_finished)
 		private->state = VFIO_CCW_STATE_IDLE;
 
 	if (private->io_trigger)
-		eventfd_signal(private->io_trigger, 1);
+		eventfd_signal(private->io_trigger);
+}
+
+void vfio_ccw_crw_todo(struct work_struct *work)
+{
+	struct vfio_ccw_private *private;
+
+	private = container_of(work, struct vfio_ccw_private, crw_work);
+
+	if (!list_empty(&private->crw) && private->crw_trigger)
+		eventfd_signal(private->crw_trigger);
 }
 
 /*
@@ -110,16 +130,39 @@ static void vfio_ccw_sch_io_todo(struct work_struct *work)
  */
 static void vfio_ccw_sch_irq(struct subchannel *sch)
 {
-	struct vfio_ccw_private *private = dev_get_drvdata(&sch->dev);
+	struct vfio_ccw_parent *parent = dev_get_drvdata(&sch->dev);
+	struct vfio_ccw_private *private = dev_get_drvdata(&parent->dev);
+
+	/*
+	 * The subchannel should still be disabled at this point,
+	 * so an interrupt would be quite surprising. As with an
+	 * interrupt while the FSM is closed, let's attempt to
+	 * disable the subchannel again.
+	 */
+	if (!private) {
+		VFIO_CCW_MSG_EVENT(2, "sch %x.%x.%04x: unexpected interrupt\n",
+				   sch->schid.cssid, sch->schid.ssid,
+				   sch->schid.sch_no);
+
+		cio_disable_subchannel(sch);
+		return;
+	}
 
 	inc_irq_stat(IRQIO_CIO);
 	vfio_ccw_fsm_event(private, VFIO_CCW_EVENT_INTERRUPT);
 }
 
+static void vfio_ccw_free_parent(struct device *dev)
+{
+	struct vfio_ccw_parent *parent = container_of(dev, struct vfio_ccw_parent, dev);
+
+	kfree(parent);
+}
+
 static int vfio_ccw_sch_probe(struct subchannel *sch)
 {
 	struct pmcw *pmcw = &sch->schib.pmcw;
-	struct vfio_ccw_private *private;
+	struct vfio_ccw_parent *parent;
 	int ret = -ENOMEM;
 
 	if (pmcw->qf) {
@@ -128,87 +171,65 @@ static int vfio_ccw_sch_probe(struct subchannel *sch)
 		return -ENODEV;
 	}
 
-	private = kzalloc(sizeof(*private), GFP_KERNEL | GFP_DMA);
-	if (!private)
+	parent = kzalloc(struct_size(parent, mdev_types, 1), GFP_KERNEL);
+	if (!parent)
 		return -ENOMEM;
 
-	private->cp.guest_cp = kcalloc(CCWCHAIN_LEN_MAX, sizeof(struct ccw1),
-				       GFP_KERNEL);
-	if (!private->cp.guest_cp)
-		goto out_free;
-
-	private->io_region = kmem_cache_zalloc(vfio_ccw_io_region,
-					       GFP_KERNEL | GFP_DMA);
-	if (!private->io_region)
-		goto out_free;
-
-	private->cmd_region = kmem_cache_zalloc(vfio_ccw_cmd_region,
-						GFP_KERNEL | GFP_DMA);
-	if (!private->cmd_region)
-		goto out_free;
-
-	private->sch = sch;
-	dev_set_drvdata(&sch->dev, private);
-	mutex_init(&private->io_mutex);
-
-	spin_lock_irq(sch->lock);
-	private->state = VFIO_CCW_STATE_NOT_OPER;
-	sch->isc = VFIO_CCW_ISC;
-	ret = cio_enable_subchannel(sch, (u32)(unsigned long)sch);
-	spin_unlock_irq(sch->lock);
+	dev_set_name(&parent->dev, "parent");
+	parent->dev.parent = &sch->dev;
+	parent->dev.release = &vfio_ccw_free_parent;
+	ret = device_register(&parent->dev);
 	if (ret)
 		goto out_free;
 
-	INIT_WORK(&private->io_work, vfio_ccw_sch_io_todo);
-	atomic_set(&private->avail, 1);
-	private->state = VFIO_CCW_STATE_STANDBY;
+	dev_set_drvdata(&sch->dev, parent);
 
-	ret = vfio_ccw_mdev_reg(sch);
+	parent->mdev_type.sysfs_name = "io";
+	parent->mdev_type.pretty_name = "I/O subchannel (Non-QDIO)";
+	parent->mdev_types[0] = &parent->mdev_type;
+	ret = mdev_register_parent(&parent->parent, &sch->dev,
+				   &vfio_ccw_mdev_driver,
+				   parent->mdev_types, 1);
 	if (ret)
-		goto out_disable;
+		goto out_unreg;
 
 	VFIO_CCW_MSG_EVENT(4, "bound to subchannel %x.%x.%04x\n",
 			   sch->schid.cssid, sch->schid.ssid,
 			   sch->schid.sch_no);
 	return 0;
 
-out_disable:
-	cio_disable_subchannel(sch);
+out_unreg:
+	device_del(&parent->dev);
 out_free:
+	put_device(&parent->dev);
 	dev_set_drvdata(&sch->dev, NULL);
-	if (private->cmd_region)
-		kmem_cache_free(vfio_ccw_cmd_region, private->cmd_region);
-	if (private->io_region)
-		kmem_cache_free(vfio_ccw_io_region, private->io_region);
-	kfree(private->cp.guest_cp);
-	kfree(private);
 	return ret;
 }
 
-static int vfio_ccw_sch_remove(struct subchannel *sch)
+static void vfio_ccw_sch_remove(struct subchannel *sch)
 {
-	struct vfio_ccw_private *private = dev_get_drvdata(&sch->dev);
+	struct vfio_ccw_parent *parent = dev_get_drvdata(&sch->dev);
 
-	vfio_ccw_sch_quiesce(sch);
+	mdev_unregister_parent(&parent->parent);
 
-	vfio_ccw_mdev_unreg(sch);
-
+	device_unregister(&parent->dev);
 	dev_set_drvdata(&sch->dev, NULL);
-
-	kmem_cache_free(vfio_ccw_cmd_region, private->cmd_region);
-	kmem_cache_free(vfio_ccw_io_region, private->io_region);
-	kfree(private->cp.guest_cp);
-	kfree(private);
 
 	VFIO_CCW_MSG_EVENT(4, "unbound from subchannel %x.%x.%04x\n",
 			   sch->schid.cssid, sch->schid.ssid,
 			   sch->schid.sch_no);
-	return 0;
 }
 
 static void vfio_ccw_sch_shutdown(struct subchannel *sch)
 {
-	vfio_ccw_sch_quiesce(sch);
+	struct vfio_ccw_parent *parent = dev_get_drvdata(&sch->dev);
+	struct vfio_ccw_private *private = dev_get_drvdata(&parent->dev);
+
+	if (!private)
+		return;
+
+	vfio_ccw_fsm_event(private, VFIO_CCW_EVENT_CLOSE);
+	vfio_ccw_fsm_event(private, VFIO_CCW_EVENT_NOT_OPER);
 }
 
 /**
@@ -223,34 +244,107 @@ static void vfio_ccw_sch_shutdown(struct subchannel *sch)
  */
 static int vfio_ccw_sch_event(struct subchannel *sch, int process)
 {
-	struct vfio_ccw_private *private = dev_get_drvdata(&sch->dev);
+	struct vfio_ccw_parent *parent = dev_get_drvdata(&sch->dev);
+	struct vfio_ccw_private *private = dev_get_drvdata(&parent->dev);
 	unsigned long flags;
 	int rc = -EAGAIN;
 
-	spin_lock_irqsave(sch->lock, flags);
+	spin_lock_irqsave(&sch->lock, flags);
 	if (!device_is_registered(&sch->dev))
 		goto out_unlock;
 
 	if (work_pending(&sch->todo_work))
 		goto out_unlock;
 
-	if (cio_update_schib(sch)) {
-		vfio_ccw_fsm_event(private, VFIO_CCW_EVENT_NOT_OPER);
-		rc = 0;
-		goto out_unlock;
-	}
-
-	private = dev_get_drvdata(&sch->dev);
-	if (private->state == VFIO_CCW_STATE_NOT_OPER) {
-		private->state = private->mdev ? VFIO_CCW_STATE_IDLE :
-				 VFIO_CCW_STATE_STANDBY;
-	}
 	rc = 0;
 
+	if (cio_update_schib(sch)) {
+		if (private)
+			vfio_ccw_fsm_event(private, VFIO_CCW_EVENT_NOT_OPER);
+	}
+
 out_unlock:
-	spin_unlock_irqrestore(sch->lock, flags);
+	spin_unlock_irqrestore(&sch->lock, flags);
 
 	return rc;
+}
+
+static void vfio_ccw_queue_crw(struct vfio_ccw_private *private,
+			       unsigned int rsc,
+			       unsigned int erc,
+			       unsigned int rsid)
+{
+	struct vfio_ccw_crw *crw;
+
+	/*
+	 * If unable to allocate a CRW, just drop the event and
+	 * carry on.  The guest will either see a later one or
+	 * learn when it issues its own store subchannel.
+	 */
+	crw = kzalloc(sizeof(*crw), GFP_ATOMIC);
+	if (!crw)
+		return;
+
+	/*
+	 * Build the CRW based on the inputs given to us.
+	 */
+	crw->crw.rsc = rsc;
+	crw->crw.erc = erc;
+	crw->crw.rsid = rsid;
+
+	list_add_tail(&crw->next, &private->crw);
+	queue_work(vfio_ccw_work_q, &private->crw_work);
+}
+
+static int vfio_ccw_chp_event(struct subchannel *sch,
+			      struct chp_link *link, int event)
+{
+	struct vfio_ccw_parent *parent = dev_get_drvdata(&sch->dev);
+	struct vfio_ccw_private *private = dev_get_drvdata(&parent->dev);
+	int mask = chp_ssd_get_mask(&sch->ssd_info, link);
+	int retry = 255;
+
+	if (!private || !mask)
+		return 0;
+
+	trace_vfio_ccw_chp_event(sch->schid, mask, event);
+	VFIO_CCW_MSG_EVENT(2, "sch %x.%x.%04x: mask=0x%x event=%d\n",
+			   sch->schid.cssid,
+			   sch->schid.ssid, sch->schid.sch_no,
+			   mask, event);
+
+	if (cio_update_schib(sch))
+		return -ENODEV;
+
+	switch (event) {
+	case CHP_VARY_OFF:
+		/* Path logically turned off */
+		sch->opm &= ~mask;
+		sch->lpm &= ~mask;
+		if (sch->schib.pmcw.lpum & mask)
+			cio_cancel_halt_clear(sch, &retry);
+		break;
+	case CHP_OFFLINE:
+		/* Path is gone */
+		if (sch->schib.pmcw.lpum & mask)
+			cio_cancel_halt_clear(sch, &retry);
+		vfio_ccw_queue_crw(private, CRW_RSC_CPATH, CRW_ERC_PERRN,
+				   link->chpid.id);
+		break;
+	case CHP_VARY_ON:
+		/* Path logically turned on */
+		sch->opm |= mask;
+		sch->lpm |= mask;
+		break;
+	case CHP_ONLINE:
+		/* Path became available */
+		sch->lpm |= mask & sch->opm;
+		vfio_ccw_queue_crw(private, CRW_RSC_CPATH, CRW_ERC_INIT,
+				   link->chpid.id);
+		break;
+	}
+
+	return 0;
 }
 
 static struct css_device_id vfio_ccw_sch_ids[] = {
@@ -270,6 +364,7 @@ static struct css_driver vfio_ccw_sch_driver = {
 	.remove = vfio_ccw_sch_remove,
 	.shutdown = vfio_ccw_sch_shutdown,
 	.sch_event = vfio_ccw_sch_event,
+	.chp_event = vfio_ccw_chp_event,
 };
 
 static int __init vfio_ccw_debug_init(void)
@@ -299,6 +394,14 @@ static void vfio_ccw_debug_exit(void)
 	debug_unregister(vfio_ccw_debug_trace_id);
 }
 
+static void vfio_ccw_destroy_regions(void)
+{
+	kmem_cache_destroy(vfio_ccw_crw_region);
+	kmem_cache_destroy(vfio_ccw_schib_region);
+	kmem_cache_destroy(vfio_ccw_cmd_region);
+	kmem_cache_destroy(vfio_ccw_io_region);
+}
+
 static int __init vfio_ccw_sch_init(void)
 {
 	int ret;
@@ -310,7 +413,7 @@ static int __init vfio_ccw_sch_init(void)
 	vfio_ccw_work_q = create_singlethread_workqueue("vfio-ccw");
 	if (!vfio_ccw_work_q) {
 		ret = -ENOMEM;
-		goto out_err;
+		goto out_regions;
 	}
 
 	vfio_ccw_io_region = kmem_cache_create_usercopy("vfio_ccw_io_region",
@@ -319,7 +422,7 @@ static int __init vfio_ccw_sch_init(void)
 					sizeof(struct ccw_io_region), NULL);
 	if (!vfio_ccw_io_region) {
 		ret = -ENOMEM;
-		goto out_err;
+		goto out_regions;
 	}
 
 	vfio_ccw_cmd_region = kmem_cache_create_usercopy("vfio_ccw_cmd_region",
@@ -328,21 +431,46 @@ static int __init vfio_ccw_sch_init(void)
 					sizeof(struct ccw_cmd_region), NULL);
 	if (!vfio_ccw_cmd_region) {
 		ret = -ENOMEM;
-		goto out_err;
+		goto out_regions;
 	}
+
+	vfio_ccw_schib_region = kmem_cache_create_usercopy("vfio_ccw_schib_region",
+					sizeof(struct ccw_schib_region), 0,
+					SLAB_ACCOUNT, 0,
+					sizeof(struct ccw_schib_region), NULL);
+
+	if (!vfio_ccw_schib_region) {
+		ret = -ENOMEM;
+		goto out_regions;
+	}
+
+	vfio_ccw_crw_region = kmem_cache_create_usercopy("vfio_ccw_crw_region",
+					sizeof(struct ccw_crw_region), 0,
+					SLAB_ACCOUNT, 0,
+					sizeof(struct ccw_crw_region), NULL);
+
+	if (!vfio_ccw_crw_region) {
+		ret = -ENOMEM;
+		goto out_regions;
+	}
+
+	ret = mdev_register_driver(&vfio_ccw_mdev_driver);
+	if (ret)
+		goto out_regions;
 
 	isc_register(VFIO_CCW_ISC);
 	ret = css_driver_register(&vfio_ccw_sch_driver);
 	if (ret) {
 		isc_unregister(VFIO_CCW_ISC);
-		goto out_err;
+		goto out_driver;
 	}
 
 	return ret;
 
-out_err:
-	kmem_cache_destroy(vfio_ccw_cmd_region);
-	kmem_cache_destroy(vfio_ccw_io_region);
+out_driver:
+	mdev_unregister_driver(&vfio_ccw_mdev_driver);
+out_regions:
+	vfio_ccw_destroy_regions();
 	destroy_workqueue(vfio_ccw_work_q);
 	vfio_ccw_debug_exit();
 	return ret;
@@ -351,9 +479,9 @@ out_err:
 static void __exit vfio_ccw_sch_exit(void)
 {
 	css_driver_unregister(&vfio_ccw_sch_driver);
+	mdev_unregister_driver(&vfio_ccw_mdev_driver);
 	isc_unregister(VFIO_CCW_ISC);
-	kmem_cache_destroy(vfio_ccw_io_region);
-	kmem_cache_destroy(vfio_ccw_cmd_region);
+	vfio_ccw_destroy_regions();
 	destroy_workqueue(vfio_ccw_work_q);
 	vfio_ccw_debug_exit();
 }

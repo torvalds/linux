@@ -19,24 +19,23 @@ static int bmg160_spi_probe(struct spi_device *spi)
 
 	regmap = devm_regmap_init_spi(spi, &bmg160_regmap_spi_conf);
 	if (IS_ERR(regmap)) {
-		dev_err(&spi->dev, "Failed to register spi regmap %d\n",
-			(int)PTR_ERR(regmap));
+		dev_err(&spi->dev, "Failed to register spi regmap: %pe\n",
+			regmap);
 		return PTR_ERR(regmap);
 	}
 
 	return bmg160_core_probe(&spi->dev, regmap, spi->irq, id->name);
 }
 
-static int bmg160_spi_remove(struct spi_device *spi)
+static void bmg160_spi_remove(struct spi_device *spi)
 {
 	bmg160_core_remove(&spi->dev);
-
-	return 0;
 }
 
 static const struct spi_device_id bmg160_spi_id[] = {
 	{"bmg160", 0},
 	{"bmi055_gyro", 0},
+	{"bmi088_gyro", 0},
 	{}
 };
 

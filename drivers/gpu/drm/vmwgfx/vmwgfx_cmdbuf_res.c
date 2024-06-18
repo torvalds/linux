@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright 2014-2015 VMware, Inc., Palo Alto, CA., USA
+ * Copyright 2014-2022 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -28,6 +28,8 @@
 #include "vmwgfx_drv.h"
 #include "vmwgfx_resource_priv.h"
 
+#include <linux/hashtable.h>
+
 #define VMW_CMDBUF_RES_MAN_HT_ORDER 12
 
 /**
@@ -36,13 +38,13 @@
  * @res: Refcounted pointer to a struct vmw_resource.
  * @hash: Hash entry for the manager hash table.
  * @head: List head used either by the staging list or the manager list
- * of commited resources.
+ * of committed resources.
  * @state: Staging state of this resource entry.
  * @man: Pointer to a resource manager for this entry.
  */
 struct vmw_cmdbuf_res {
 	struct vmw_resource *res;
-	struct drm_hash_item hash;
+	struct vmwgfx_hash_item hash;
 	struct list_head head;
 	enum vmw_cmdbuf_res_state state;
 	struct vmw_cmdbuf_res_manager *man;
@@ -51,15 +53,15 @@ struct vmw_cmdbuf_res {
 /**
  * struct vmw_cmdbuf_res_manager - Command buffer resource manager.
  *
- * @resources: Hash table containing staged and commited command buffer
+ * @resources: Hash table containing staged and committed command buffer
  * resources
- * @list: List of commited command buffer resources.
+ * @list: List of committed command buffer resources.
  * @dev_priv: Pointer to a device private structure.
  *
  * @resources and @list are protected by the cmdbuf mutex for now.
  */
 struct vmw_cmdbuf_res_manager {
-	struct drm_open_hash resources;
+	DECLARE_HASHTABLE(resources, VMW_CMDBUF_RES_MAN_HT_ORDER);
 	struct list_head list;
 	struct vmw_private *dev_priv;
 };
@@ -69,7 +71,7 @@ struct vmw_cmdbuf_res_manager {
  * vmw_cmdbuf_res_lookup - Look up a command buffer resource
  *
  * @man: Pointer to the command buffer resource manager
- * @resource_type: The resource type, that combined with the user key
+ * @res_type: The resource type, that combined with the user key
  * identifies the resource.
  * @user_key: The user key.
  *
@@ -81,15 +83,14 @@ vmw_cmdbuf_res_lookup(struct vmw_cmdbuf_res_manager *man,
 		      enum vmw_cmdbuf_res_type res_type,
 		      u32 user_key)
 {
-	struct drm_hash_item *hash;
-	int ret;
+	struct vmwgfx_hash_item *hash;
 	unsigned long key = user_key | (res_type << 24);
 
-	ret = drm_ht_find_item(&man->resources, key, &hash);
-	if (unlikely(ret != 0))
-		return ERR_PTR(ret);
-
-	return drm_hash_entry(hash, struct vmw_cmdbuf_res, hash)->res;
+	hash_for_each_possible_rcu(man->resources, hash, head, key) {
+		if (hash->key == key)
+			return hlist_entry(hash, struct vmw_cmdbuf_res, hash)->res;
+	}
+	return ERR_PTR(-EINVAL);
 }
 
 /**
@@ -105,7 +106,7 @@ static void vmw_cmdbuf_res_free(struct vmw_cmdbuf_res_manager *man,
 				struct vmw_cmdbuf_res *entry)
 {
 	list_del(&entry->head);
-	WARN_ON(drm_ht_remove_item(&man->resources, &entry->hash));
+	hash_del_rcu(&entry->hash.head);
 	vmw_resource_unreference(&entry->res);
 	kfree(entry);
 }
@@ -118,7 +119,7 @@ static void vmw_cmdbuf_res_free(struct vmw_cmdbuf_res_manager *man,
  * This function commits a list of command buffer resource
  * additions or removals.
  * It is typically called when the execbuf ioctl call triggering these
- * actions has commited the fifo contents to the device.
+ * actions has committed the fifo contents to the device.
  */
 void vmw_cmdbuf_res_commit(struct list_head *list)
 {
@@ -148,7 +149,6 @@ void vmw_cmdbuf_res_commit(struct list_head *list)
 /**
  * vmw_cmdbuf_res_revert - Revert a list of command buffer resource actions
  *
- * @man: Pointer to the command buffer resource manager
  * @list: Caller's list of command buffer resource action
  *
  * This function reverts a list of command buffer resource
@@ -160,7 +160,6 @@ void vmw_cmdbuf_res_commit(struct list_head *list)
 void vmw_cmdbuf_res_revert(struct list_head *list)
 {
 	struct vmw_cmdbuf_res *entry, *next;
-	int ret;
 
 	list_for_each_entry_safe(entry, next, list, head) {
 		switch (entry->state) {
@@ -168,10 +167,9 @@ void vmw_cmdbuf_res_revert(struct list_head *list)
 			vmw_cmdbuf_res_free(entry->man, entry);
 			break;
 		case VMW_CMDBUF_RES_DEL:
-			ret = drm_ht_insert_item(&entry->man->resources,
-						 &entry->hash);
-			list_del(&entry->head);
-			list_add_tail(&entry->head, &entry->man->list);
+			hash_add_rcu(entry->man->resources, &entry->hash.head,
+						entry->hash.key);
+			list_move_tail(&entry->head, &entry->man->list);
 			entry->state = VMW_CMDBUF_RES_COMMITTED;
 			break;
 		default:
@@ -201,24 +199,20 @@ int vmw_cmdbuf_res_add(struct vmw_cmdbuf_res_manager *man,
 		       struct list_head *list)
 {
 	struct vmw_cmdbuf_res *cres;
-	int ret;
 
 	cres = kzalloc(sizeof(*cres), GFP_KERNEL);
 	if (unlikely(!cres))
 		return -ENOMEM;
 
 	cres->hash.key = user_key | (res_type << 24);
-	ret = drm_ht_insert_item(&man->resources, &cres->hash);
-	if (unlikely(ret != 0))
-		goto out_invalid_key;
+	hash_add_rcu(man->resources, &cres->hash.head, cres->hash.key);
 
 	cres->state = VMW_CMDBUF_RES_ADD;
 	cres->res = vmw_resource_reference(res);
 	cres->man = man;
 	list_add_tail(&cres->head, list);
 
-out_invalid_key:
-	return ret;
+	return 0;
 }
 
 /**
@@ -243,16 +237,18 @@ int vmw_cmdbuf_res_remove(struct vmw_cmdbuf_res_manager *man,
 			  struct list_head *list,
 			  struct vmw_resource **res_p)
 {
-	struct vmw_cmdbuf_res *entry;
-	struct drm_hash_item *hash;
-	int ret;
+	struct vmw_cmdbuf_res *entry = NULL;
+	struct vmwgfx_hash_item *hash;
+	unsigned long key = user_key | (res_type << 24);
 
-	ret = drm_ht_find_item(&man->resources, user_key | (res_type << 24),
-			       &hash);
-	if (likely(ret != 0))
+	hash_for_each_possible_rcu(man->resources, hash, head, key) {
+		if (hash->key == key) {
+			entry = hlist_entry(hash, struct vmw_cmdbuf_res, hash);
+			break;
+		}
+	}
+	if (unlikely(!entry))
 		return -EINVAL;
-
-	entry = drm_hash_entry(hash, struct vmw_cmdbuf_res, hash);
 
 	switch (entry->state) {
 	case VMW_CMDBUF_RES_ADD:
@@ -260,7 +256,7 @@ int vmw_cmdbuf_res_remove(struct vmw_cmdbuf_res_manager *man,
 		*res_p = NULL;
 		break;
 	case VMW_CMDBUF_RES_COMMITTED:
-		(void) drm_ht_remove_item(&man->resources, &entry->hash);
+		hash_del_rcu(&entry->hash.head);
 		list_del(&entry->head);
 		entry->state = VMW_CMDBUF_RES_DEL;
 		list_add_tail(&entry->head, list);
@@ -287,7 +283,6 @@ struct vmw_cmdbuf_res_manager *
 vmw_cmdbuf_res_man_create(struct vmw_private *dev_priv)
 {
 	struct vmw_cmdbuf_res_manager *man;
-	int ret;
 
 	man = kzalloc(sizeof(*man), GFP_KERNEL);
 	if (!man)
@@ -295,12 +290,8 @@ vmw_cmdbuf_res_man_create(struct vmw_private *dev_priv)
 
 	man->dev_priv = dev_priv;
 	INIT_LIST_HEAD(&man->list);
-	ret = drm_ht_create(&man->resources, VMW_CMDBUF_RES_MAN_HT_ORDER);
-	if (ret == 0)
-		return man;
-
-	kfree(man);
-	return ERR_PTR(ret);
+	hash_init(man->resources);
+	return man;
 }
 
 /**
@@ -320,27 +311,6 @@ void vmw_cmdbuf_res_man_destroy(struct vmw_cmdbuf_res_manager *man)
 	list_for_each_entry_safe(entry, next, &man->list, head)
 		vmw_cmdbuf_res_free(man, entry);
 
-	drm_ht_remove(&man->resources);
 	kfree(man);
 }
 
-/**
- *
- * vmw_cmdbuf_res_man_size - Return the size of a command buffer managed
- * resource manager
- *
- * Returns the approximate allocation size of a command buffer managed
- * resource manager.
- */
-size_t vmw_cmdbuf_res_man_size(void)
-{
-	static size_t res_man_size;
-
-	if (unlikely(res_man_size == 0))
-		res_man_size =
-			ttm_round_pot(sizeof(struct vmw_cmdbuf_res_manager)) +
-			ttm_round_pot(sizeof(struct hlist_head) <<
-				      VMW_CMDBUF_RES_MAN_HT_ORDER);
-
-	return res_man_size;
-}

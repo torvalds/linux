@@ -13,10 +13,9 @@
 #ifndef __LINUX_ATA_H__
 #define __LINUX_ATA_H__
 
-#include <linux/kernel.h>
+#include <linux/bits.h>
 #include <linux/string.h>
 #include <linux/types.h>
-#include <asm/byteorder.h>
 
 /* defines only for the constants which don't work well as enums */
 #define ATA_DMA_BOUNDARY	0xffffUL
@@ -323,14 +322,21 @@ enum {
 	ATA_LOG_SATA_NCQ	= 0x10,
 	ATA_LOG_NCQ_NON_DATA	= 0x12,
 	ATA_LOG_NCQ_SEND_RECV	= 0x13,
+	ATA_LOG_CDL		= 0x18,
+	ATA_LOG_CDL_SIZE	= ATA_SECT_SIZE,
 	ATA_LOG_IDENTIFY_DEVICE	= 0x30,
+	ATA_LOG_SENSE_NCQ	= 0x0F,
+	ATA_LOG_SENSE_NCQ_SIZE	= ATA_SECT_SIZE * 2,
+	ATA_LOG_CONCURRENT_POSITIONING_RANGES = 0x47,
 
 	/* Identify device log pages: */
+	ATA_LOG_SUPPORTED_CAPABILITIES	= 0x03,
+	ATA_LOG_CURRENT_SETTINGS  = 0x04,
 	ATA_LOG_SECURITY	  = 0x06,
 	ATA_LOG_SATA_SETTINGS	  = 0x08,
 	ATA_LOG_ZONED_INFORMATION = 0x09,
 
-	/* Identify device SATA settings log:*/
+	/* Identify device SATA settings log: */
 	ATA_LOG_DEVSLP_OFFSET	  = 0x30,
 	ATA_LOG_DEVSLP_SIZE	  = 0x08,
 	ATA_LOG_DEVSLP_MDAT	  = 0x00,
@@ -415,6 +421,8 @@ enum {
 	SETFEATURES_SATA_ENABLE = 0x10, /* Enable use of SATA feature */
 	SETFEATURES_SATA_DISABLE = 0x90, /* Disable use of SATA feature */
 
+	SETFEATURES_CDL		= 0x0d, /* Enable/disable cmd duration limits */
+
 	/* SETFEATURE Sector counts for SATA features */
 	SATA_FPDMA_OFFSET	= 0x01,	/* FPDMA non-zero buffer offsets */
 	SATA_FPDMA_AA		= 0x02, /* FPDMA Setup FIS Auto-Activate */
@@ -425,6 +433,7 @@ enum {
 	SATA_DEVSLP		= 0x09,	/* Device Sleep */
 
 	SETFEATURE_SENSE_DATA	= 0xC3, /* Sense Data Reporting feature */
+	SETFEATURE_SENSE_DATA_SUCC_NCQ = 0xC4, /* Sense Data for successful NCQ commands */
 
 	/* feature values for SET_MAX */
 	ATA_SET_MAX_ADDR	= 0x00,
@@ -565,6 +574,18 @@ struct ata_bmdma_prd {
 	((((id)[ATA_ID_SATA_CAPABILITY] != 0x0000) && \
 	  ((id)[ATA_ID_SATA_CAPABILITY] != 0xffff)) && \
 	 ((id)[ATA_ID_FEATURE_SUPP] & (1 << 2)))
+#define ata_id_has_devslp(id)	\
+	((((id)[ATA_ID_SATA_CAPABILITY] != 0x0000) && \
+	  ((id)[ATA_ID_SATA_CAPABILITY] != 0xffff)) && \
+	 ((id)[ATA_ID_FEATURE_SUPP] & (1 << 8)))
+#define ata_id_has_ncq_autosense(id) \
+	((((id)[ATA_ID_SATA_CAPABILITY] != 0x0000) && \
+	  ((id)[ATA_ID_SATA_CAPABILITY] != 0xffff)) && \
+	 ((id)[ATA_ID_FEATURE_SUPP] & (1 << 7)))
+#define ata_id_has_dipm(id)	\
+	((((id)[ATA_ID_SATA_CAPABILITY] != 0x0000) && \
+	  ((id)[ATA_ID_SATA_CAPABILITY] != 0xffff)) && \
+	 ((id)[ATA_ID_FEATURE_SUPP] & (1 << 3)))
 #define ata_id_iordy_disable(id) ((id)[ATA_ID_CAPABILITY] & (1 << 10))
 #define ata_id_has_iordy(id) ((id)[ATA_ID_CAPABILITY] & (1 << 11))
 #define ata_id_u32(id,n)	\
@@ -577,9 +598,6 @@ struct ata_bmdma_prd {
 
 #define ata_id_cdb_intr(id)	(((id)[ATA_ID_CONFIG] & 0x60) == 0x20)
 #define ata_id_has_da(id)	((id)[ATA_ID_SATA_CAPABILITY_2] & (1 << 4))
-#define ata_id_has_devslp(id)	((id)[ATA_ID_FEATURE_SUPP] & (1 << 8))
-#define ata_id_has_ncq_autosense(id) \
-				((id)[ATA_ID_FEATURE_SUPP] & (1 << 7))
 
 static inline bool ata_id_has_hipm(const u16 *id)
 {
@@ -590,17 +608,6 @@ static inline bool ata_id_has_hipm(const u16 *id)
 
 	return val & (1 << 9);
 }
-
-static inline bool ata_id_has_dipm(const u16 *id)
-{
-	u16 val = id[ATA_ID_FEATURE_SUPP];
-
-	if (val == 0 || val == 0xffff)
-		return false;
-
-	return val & (1 << 3);
-}
-
 
 static inline bool ata_id_has_fua(const u16 *id)
 {
@@ -616,33 +623,11 @@ static inline bool ata_id_has_flush(const u16 *id)
 	return id[ATA_ID_COMMAND_SET_2] & (1 << 12);
 }
 
-static inline bool ata_id_flush_enabled(const u16 *id)
-{
-	if (ata_id_has_flush(id) == 0)
-		return false;
-	if ((id[ATA_ID_CSF_DEFAULT] & 0xC000) != 0x4000)
-		return false;
-	return id[ATA_ID_CFS_ENABLE_2] & (1 << 12);
-}
-
 static inline bool ata_id_has_flush_ext(const u16 *id)
 {
 	if ((id[ATA_ID_COMMAND_SET_2] & 0xC000) != 0x4000)
 		return false;
 	return id[ATA_ID_COMMAND_SET_2] & (1 << 13);
-}
-
-static inline bool ata_id_flush_ext_enabled(const u16 *id)
-{
-	if (ata_id_has_flush_ext(id) == 0)
-		return false;
-	if ((id[ATA_ID_CSF_DEFAULT] & 0xC000) != 0x4000)
-		return false;
-	/*
-	 * some Maxtor disks have bit 13 defined incorrectly
-	 * so check bit 10 too
-	 */
-	return (id[ATA_ID_CFS_ENABLE_2] & 0x2400) == 0x2400;
 }
 
 static inline u32 ata_id_logical_sector_size(const u16 *id)
@@ -697,15 +682,6 @@ static inline bool ata_id_has_lba48(const u16 *id)
 	if (!ata_id_u64(id, ATA_ID_LBA_CAPACITY_2))
 		return false;
 	return id[ATA_ID_COMMAND_SET_2] & (1 << 10);
-}
-
-static inline bool ata_id_lba48_enabled(const u16 *id)
-{
-	if (ata_id_has_lba48(id) == 0)
-		return false;
-	if ((id[ATA_ID_CSF_DEFAULT] & 0xC000) != 0x4000)
-		return false;
-	return id[ATA_ID_CFS_ENABLE_2] & (1 << 10);
 }
 
 static inline bool ata_id_hpa_enabled(const u16 *id)
@@ -770,16 +746,21 @@ static inline bool ata_id_has_read_log_dma_ext(const u16 *id)
 
 static inline bool ata_id_has_sense_reporting(const u16 *id)
 {
-	if (!(id[ATA_ID_CFS_ENABLE_2] & (1 << 15)))
+	if (!(id[ATA_ID_CFS_ENABLE_2] & BIT(15)))
 		return false;
-	return id[ATA_ID_COMMAND_SET_3] & (1 << 6);
+	if ((id[ATA_ID_COMMAND_SET_3] & (BIT(15) | BIT(14))) != BIT(14))
+		return false;
+	return id[ATA_ID_COMMAND_SET_3] & BIT(6);
 }
 
 static inline bool ata_id_sense_reporting_enabled(const u16 *id)
 {
-	if (!(id[ATA_ID_CFS_ENABLE_2] & (1 << 15)))
+	if (!ata_id_has_sense_reporting(id))
 		return false;
-	return id[ATA_ID_COMMAND_SET_4] & (1 << 6);
+	/* ata_id_has_sense_reporting() == true, word 86 must have bit 15 set */
+	if ((id[ATA_ID_COMMAND_SET_4] & (BIT(15) | BIT(14))) != BIT(14))
+		return false;
+	return id[ATA_ID_COMMAND_SET_4] & BIT(6);
 }
 
 /**
@@ -1042,76 +1023,6 @@ static inline int atapi_command_packet_set(const u16 *dev_id)
 static inline bool atapi_id_dmadir(const u16 *dev_id)
 {
 	return ata_id_major_version(dev_id) >= 7 && (dev_id[62] & 0x8000);
-}
-
-/*
- * ata_id_is_lba_capacity_ok() performs a sanity check on
- * the claimed LBA capacity value for the device.
- *
- * Returns 1 if LBA capacity looks sensible, 0 otherwise.
- *
- * It is called only once for each device.
- */
-static inline bool ata_id_is_lba_capacity_ok(u16 *id)
-{
-	unsigned long lba_sects, chs_sects, head, tail;
-
-	/* No non-LBA info .. so valid! */
-	if (id[ATA_ID_CYLS] == 0)
-		return true;
-
-	lba_sects = ata_id_u32(id, ATA_ID_LBA_CAPACITY);
-
-	/*
-	 * The ATA spec tells large drives to return
-	 * C/H/S = 16383/16/63 independent of their size.
-	 * Some drives can be jumpered to use 15 heads instead of 16.
-	 * Some drives can be jumpered to use 4092 cyls instead of 16383.
-	 */
-	if ((id[ATA_ID_CYLS] == 16383 ||
-	     (id[ATA_ID_CYLS] == 4092 && id[ATA_ID_CUR_CYLS] == 16383)) &&
-	    id[ATA_ID_SECTORS] == 63 &&
-	    (id[ATA_ID_HEADS] == 15 || id[ATA_ID_HEADS] == 16) &&
-	    (lba_sects >= 16383 * 63 * id[ATA_ID_HEADS]))
-		return true;
-
-	chs_sects = id[ATA_ID_CYLS] * id[ATA_ID_HEADS] * id[ATA_ID_SECTORS];
-
-	/* perform a rough sanity check on lba_sects: within 10% is OK */
-	if (lba_sects - chs_sects < chs_sects/10)
-		return true;
-
-	/* some drives have the word order reversed */
-	head = (lba_sects >> 16) & 0xffff;
-	tail = lba_sects & 0xffff;
-	lba_sects = head | (tail << 16);
-
-	if (lba_sects - chs_sects < chs_sects/10) {
-		*(__le32 *)&id[ATA_ID_LBA_CAPACITY] = __cpu_to_le32(lba_sects);
-		return true;	/* LBA capacity is (now) good */
-	}
-
-	return false;	/* LBA capacity value may be bad */
-}
-
-static inline void ata_id_to_hd_driveid(u16 *id)
-{
-#ifdef __BIG_ENDIAN
-	/* accessed in struct hd_driveid as 8-bit values */
-	id[ATA_ID_MAX_MULTSECT]	 = __cpu_to_le16(id[ATA_ID_MAX_MULTSECT]);
-	id[ATA_ID_CAPABILITY]	 = __cpu_to_le16(id[ATA_ID_CAPABILITY]);
-	id[ATA_ID_OLD_PIO_MODES] = __cpu_to_le16(id[ATA_ID_OLD_PIO_MODES]);
-	id[ATA_ID_OLD_DMA_MODES] = __cpu_to_le16(id[ATA_ID_OLD_DMA_MODES]);
-	id[ATA_ID_MULTSECT]	 = __cpu_to_le16(id[ATA_ID_MULTSECT]);
-
-	/* as 32-bit values */
-	*(u32 *)&id[ATA_ID_LBA_CAPACITY] = ata_id_u32(id, ATA_ID_LBA_CAPACITY);
-	*(u32 *)&id[ATA_ID_SPG]		 = ata_id_u32(id, ATA_ID_SPG);
-
-	/* as 64-bit value */
-	*(u64 *)&id[ATA_ID_LBA_CAPACITY_2] =
-		ata_id_u64(id, ATA_ID_LBA_CAPACITY_2);
-#endif
 }
 
 static inline bool ata_ok(u8 status)

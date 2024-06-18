@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2011 Red Hat, Inc.
  *
@@ -48,6 +49,7 @@ static int sm_disk_extend(struct dm_space_map *sm, dm_block_t extra_blocks)
 static int sm_disk_get_nr_blocks(struct dm_space_map *sm, dm_block_t *count)
 {
 	struct sm_disk *smd = container_of(sm, struct sm_disk, sm);
+
 	*count = smd->old_ll.nr_blocks;
 
 	return 0;
@@ -56,6 +58,7 @@ static int sm_disk_get_nr_blocks(struct dm_space_map *sm, dm_block_t *count)
 static int sm_disk_get_nr_free(struct dm_space_map *sm, dm_block_t *count)
 {
 	struct sm_disk *smd = container_of(sm, struct sm_disk, sm);
+
 	*count = (smd->old_ll.nr_blocks - smd->old_ll.nr_allocated) - smd->nr_allocated_this_transaction;
 
 	return 0;
@@ -65,6 +68,7 @@ static int sm_disk_get_count(struct dm_space_map *sm, dm_block_t b,
 			     uint32_t *result)
 {
 	struct sm_disk *smd = container_of(sm, struct sm_disk, sm);
+
 	return sm_ll_lookup(&smd->ll, b, result);
 }
 
@@ -87,76 +91,38 @@ static int sm_disk_set_count(struct dm_space_map *sm, dm_block_t b,
 			     uint32_t count)
 {
 	int r;
-	uint32_t old_count;
-	enum allocation_event ev;
+	int32_t nr_allocations;
 	struct sm_disk *smd = container_of(sm, struct sm_disk, sm);
 
-	r = sm_ll_insert(&smd->ll, b, count, &ev);
-	if (!r) {
-		switch (ev) {
-		case SM_NONE:
-			break;
-
-		case SM_ALLOC:
-			/*
-			 * This _must_ be free in the prior transaction
-			 * otherwise we've lost atomicity.
-			 */
-			smd->nr_allocated_this_transaction++;
-			break;
-
-		case SM_FREE:
-			/*
-			 * It's only free if it's also free in the last
-			 * transaction.
-			 */
-			r = sm_ll_lookup(&smd->old_ll, b, &old_count);
-			if (r)
-				return r;
-
-			if (!old_count)
-				smd->nr_allocated_this_transaction--;
-			break;
-		}
-	}
+	r = sm_ll_insert(&smd->ll, b, count, &nr_allocations);
+	if (!r)
+		smd->nr_allocated_this_transaction += nr_allocations;
 
 	return r;
 }
 
-static int sm_disk_inc_block(struct dm_space_map *sm, dm_block_t b)
+static int sm_disk_inc_blocks(struct dm_space_map *sm, dm_block_t b, dm_block_t e)
 {
 	int r;
-	enum allocation_event ev;
+	int32_t nr_allocations;
 	struct sm_disk *smd = container_of(sm, struct sm_disk, sm);
 
-	r = sm_ll_inc(&smd->ll, b, &ev);
-	if (!r && (ev == SM_ALLOC))
-		/*
-		 * This _must_ be free in the prior transaction
-		 * otherwise we've lost atomicity.
-		 */
-		smd->nr_allocated_this_transaction++;
+	r = sm_ll_inc(&smd->ll, b, e, &nr_allocations);
+	if (!r)
+		smd->nr_allocated_this_transaction += nr_allocations;
 
 	return r;
 }
 
-static int sm_disk_dec_block(struct dm_space_map *sm, dm_block_t b)
+static int sm_disk_dec_blocks(struct dm_space_map *sm, dm_block_t b, dm_block_t e)
 {
 	int r;
-	uint32_t old_count;
-	enum allocation_event ev;
+	int32_t nr_allocations;
 	struct sm_disk *smd = container_of(sm, struct sm_disk, sm);
 
-	r = sm_ll_dec(&smd->ll, b, &ev);
-	if (!r && (ev == SM_FREE)) {
-		/*
-		 * It's only free if it's also free in the last
-		 * transaction.
-		 */
-		r = sm_ll_lookup(&smd->old_ll, b, &old_count);
-		if (!r && !old_count)
-			smd->nr_allocated_this_transaction--;
-	}
+	r = sm_ll_dec(&smd->ll, b, e, &nr_allocations);
+	if (!r)
+		smd->nr_allocated_this_transaction += nr_allocations;
 
 	return r;
 }
@@ -164,20 +130,27 @@ static int sm_disk_dec_block(struct dm_space_map *sm, dm_block_t b)
 static int sm_disk_new_block(struct dm_space_map *sm, dm_block_t *b)
 {
 	int r;
-	enum allocation_event ev;
+	int32_t nr_allocations;
 	struct sm_disk *smd = container_of(sm, struct sm_disk, sm);
 
-	/* FIXME: we should loop round a couple of times */
-	r = sm_ll_find_free_block(&smd->old_ll, smd->begin, smd->old_ll.nr_blocks, b);
+	/*
+	 * Any block we allocate has to be free in both the old and current ll.
+	 */
+	r = sm_ll_find_common_free_block(&smd->old_ll, &smd->ll, smd->begin, smd->ll.nr_blocks, b);
+	if (r == -ENOSPC)
+		/*
+		 * There's no free block between smd->begin and the end of the metadata device.
+		 * We search before smd->begin in case something has been freed.
+		 */
+		r = sm_ll_find_common_free_block(&smd->old_ll, &smd->ll, 0, smd->begin, b);
+
 	if (r)
 		return r;
 
 	smd->begin = *b + 1;
-	r = sm_ll_inc(&smd->ll, *b, &ev);
-	if (!r) {
-		BUG_ON(ev != SM_ALLOC);
-		smd->nr_allocated_this_transaction++;
-	}
+	r = sm_ll_inc(&smd->ll, *b, *b + 1, &nr_allocations);
+	if (!r)
+		smd->nr_allocated_this_transaction += nr_allocations;
 
 	return r;
 }
@@ -185,24 +158,14 @@ static int sm_disk_new_block(struct dm_space_map *sm, dm_block_t *b)
 static int sm_disk_commit(struct dm_space_map *sm)
 {
 	int r;
-	dm_block_t nr_free;
 	struct sm_disk *smd = container_of(sm, struct sm_disk, sm);
-
-	r = sm_disk_get_nr_free(sm, &nr_free);
-	if (r)
-		return r;
 
 	r = sm_ll_commit(&smd->ll);
 	if (r)
 		return r;
 
 	memcpy(&smd->old_ll, &smd->ll, sizeof(smd->old_ll));
-	smd->begin = 0;
 	smd->nr_allocated_this_transaction = 0;
-
-	r = sm_disk_get_nr_free(sm, &nr_free);
-	if (r)
-		return r;
 
 	return 0;
 }
@@ -242,8 +205,8 @@ static struct dm_space_map ops = {
 	.get_count = sm_disk_get_count,
 	.count_is_more_than_one = sm_disk_count_is_more_than_one,
 	.set_count = sm_disk_set_count,
-	.inc_block = sm_disk_inc_block,
-	.dec_block = sm_disk_dec_block,
+	.inc_blocks = sm_disk_inc_blocks,
+	.dec_blocks = sm_disk_dec_blocks,
 	.new_block = sm_disk_new_block,
 	.commit = sm_disk_commit,
 	.root_size = sm_disk_root_size,

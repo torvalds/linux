@@ -69,8 +69,9 @@ static struct fiq_handler fh = {
 	.name		= DRV_NAME,
 };
 
-static int snd_imx_pcm_hw_params(struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *params)
+static int snd_imx_pcm_hw_params(struct snd_soc_component *component,
+				 struct snd_pcm_substream *substream,
+				 struct snd_pcm_hw_params *params)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct imx_pcm_runtime_data *iprtd = runtime->private_data;
@@ -80,12 +81,12 @@ static int snd_imx_pcm_hw_params(struct snd_pcm_substream *substream,
 	iprtd->offset = 0;
 	iprtd->poll_time_ns = 1000000000 / params_rate(params) *
 				params_period_size(params);
-	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
 
 	return 0;
 }
 
-static int snd_imx_pcm_prepare(struct snd_pcm_substream *substream)
+static int snd_imx_pcm_prepare(struct snd_soc_component *component,
+			       struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct imx_pcm_runtime_data *iprtd = runtime->private_data;
@@ -104,7 +105,8 @@ static int snd_imx_pcm_prepare(struct snd_pcm_substream *substream)
 
 static int imx_pcm_fiq;
 
-static int snd_imx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
+static int snd_imx_pcm_trigger(struct snd_soc_component *component,
+			       struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct imx_pcm_runtime_data *iprtd = runtime->private_data;
@@ -141,7 +143,9 @@ static int snd_imx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	return 0;
 }
 
-static snd_pcm_uframes_t snd_imx_pcm_pointer(struct snd_pcm_substream *substream)
+static snd_pcm_uframes_t
+snd_imx_pcm_pointer(struct snd_soc_component *component,
+		    struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct imx_pcm_runtime_data *iprtd = runtime->private_data;
@@ -165,7 +169,8 @@ static const struct snd_pcm_hardware snd_imx_hardware = {
 	.fifo_size = 0,
 };
 
-static int snd_imx_open(struct snd_pcm_substream *substream)
+static int snd_imx_open(struct snd_soc_component *component,
+			struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct imx_pcm_runtime_data *iprtd;
@@ -194,7 +199,8 @@ static int snd_imx_open(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int snd_imx_close(struct snd_pcm_substream *substream)
+static int snd_imx_close(struct snd_soc_component *component,
+			 struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct imx_pcm_runtime_data *iprtd = runtime->private_data;
@@ -202,50 +208,6 @@ static int snd_imx_close(struct snd_pcm_substream *substream)
 	hrtimer_cancel(&iprtd->hrt);
 
 	kfree(iprtd);
-
-	return 0;
-}
-
-static int snd_imx_pcm_mmap(struct snd_pcm_substream *substream,
-		struct vm_area_struct *vma)
-{
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	int ret;
-
-	ret = dma_mmap_wc(substream->pcm->card->dev, vma, runtime->dma_area,
-			  runtime->dma_addr, runtime->dma_bytes);
-
-	pr_debug("%s: ret: %d %p %pad 0x%08zx\n", __func__, ret,
-			runtime->dma_area,
-			&runtime->dma_addr,
-			runtime->dma_bytes);
-	return ret;
-}
-
-static const struct snd_pcm_ops imx_pcm_ops = {
-	.open		= snd_imx_open,
-	.close		= snd_imx_close,
-	.ioctl		= snd_pcm_lib_ioctl,
-	.hw_params	= snd_imx_pcm_hw_params,
-	.prepare	= snd_imx_pcm_prepare,
-	.trigger	= snd_imx_pcm_trigger,
-	.pointer	= snd_imx_pcm_pointer,
-	.mmap		= snd_imx_pcm_mmap,
-};
-
-static int imx_pcm_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
-{
-	struct snd_pcm_substream *substream = pcm->streams[stream].substream;
-	struct snd_dma_buffer *buf = &substream->dma_buffer;
-	size_t size = IMX_SSI_DMABUF_SIZE;
-
-	buf->dev.type = SNDRV_DMA_TYPE_DEV;
-	buf->dev.dev = pcm->card->dev;
-	buf->private_data = NULL;
-	buf->area = dma_alloc_wc(pcm->card->dev, size, &buf->addr, GFP_KERNEL);
-	if (!buf->area)
-		return -ENOMEM;
-	buf->bytes = size;
 
 	return 0;
 }
@@ -260,26 +222,15 @@ static int imx_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	if (ret)
 		return ret;
 
-	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream) {
-		ret = imx_pcm_preallocate_dma_buffer(pcm,
-			SNDRV_PCM_STREAM_PLAYBACK);
-		if (ret)
-			return ret;
-	}
-
-	if (pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream) {
-		ret = imx_pcm_preallocate_dma_buffer(pcm,
-			SNDRV_PCM_STREAM_CAPTURE);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
+	return snd_pcm_set_fixed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV_WC,
+					    pcm->card->dev,
+					    IMX_SSI_DMABUF_SIZE);
 }
 
 static int ssi_irq;
 
-static int imx_pcm_fiq_new(struct snd_soc_pcm_runtime *rtd)
+static int snd_imx_pcm_new(struct snd_soc_component *component,
+			   struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_pcm *pcm = rtd->pcm;
 	struct snd_pcm_substream *substream;
@@ -309,37 +260,22 @@ static int imx_pcm_fiq_new(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static void imx_pcm_free(struct snd_pcm *pcm)
-{
-	struct snd_pcm_substream *substream;
-	struct snd_dma_buffer *buf;
-	int stream;
-
-	for (stream = 0; stream < 2; stream++) {
-		substream = pcm->streams[stream].substream;
-		if (!substream)
-			continue;
-
-		buf = &substream->dma_buffer;
-		if (!buf->area)
-			continue;
-
-		dma_free_wc(pcm->card->dev, buf->bytes, buf->area, buf->addr);
-		buf->area = NULL;
-	}
-}
-
-static void imx_pcm_fiq_free(struct snd_pcm *pcm)
+static void snd_imx_pcm_free(struct snd_soc_component *component,
+			     struct snd_pcm *pcm)
 {
 	mxc_set_irq_fiq(ssi_irq, 0);
 	release_fiq(&fh);
-	imx_pcm_free(pcm);
 }
 
 static const struct snd_soc_component_driver imx_soc_component_fiq = {
-	.ops		= &imx_pcm_ops,
-	.pcm_new	= imx_pcm_fiq_new,
-	.pcm_free	= imx_pcm_fiq_free,
+	.open		= snd_imx_open,
+	.close		= snd_imx_close,
+	.hw_params	= snd_imx_pcm_hw_params,
+	.prepare	= snd_imx_pcm_prepare,
+	.trigger	= snd_imx_pcm_trigger,
+	.pointer	= snd_imx_pcm_pointer,
+	.pcm_construct	= snd_imx_pcm_new,
+	.pcm_destruct	= snd_imx_pcm_free,
 };
 
 int imx_pcm_fiq_init(struct platform_device *pdev,

@@ -39,14 +39,15 @@
  * Function prototypes
  */
 static int  mct_u232_port_probe(struct usb_serial_port *port);
-static int  mct_u232_port_remove(struct usb_serial_port *remove);
+static void mct_u232_port_remove(struct usb_serial_port *remove);
 static int  mct_u232_open(struct tty_struct *tty, struct usb_serial_port *port);
 static void mct_u232_close(struct usb_serial_port *port);
 static void mct_u232_dtr_rts(struct usb_serial_port *port, int on);
 static void mct_u232_read_int_callback(struct urb *urb);
 static void mct_u232_set_termios(struct tty_struct *tty,
-			struct usb_serial_port *port, struct ktermios *old);
-static void mct_u232_break_ctl(struct tty_struct *tty, int break_state);
+				 struct usb_serial_port *port,
+				 const struct ktermios *old_termios);
+static int  mct_u232_break_ctl(struct tty_struct *tty, int break_state);
 static int  mct_u232_tiocmget(struct tty_struct *tty);
 static int  mct_u232_tiocmset(struct tty_struct *tty,
 			unsigned int set, unsigned int clear);
@@ -400,14 +401,12 @@ static int mct_u232_port_probe(struct usb_serial_port *port)
 	return 0;
 }
 
-static int mct_u232_port_remove(struct usb_serial_port *port)
+static void mct_u232_port_remove(struct usb_serial_port *port)
 {
 	struct mct_u232_private *priv;
 
 	priv = usb_get_serial_port_data(port);
 	kfree(priv);
-
-	return 0;
 }
 
 static int  mct_u232_open(struct tty_struct *tty, struct usb_serial_port *port)
@@ -595,7 +594,7 @@ exit:
 
 static void mct_u232_set_termios(struct tty_struct *tty,
 				 struct usb_serial_port *port,
-				 struct ktermios *old_termios)
+				 const struct ktermios *old_termios)
 {
 	struct usb_serial *serial = port->serial;
 	struct mct_u232_private *priv = usb_get_serial_port_data(port);
@@ -678,7 +677,7 @@ static void mct_u232_set_termios(struct tty_struct *tty,
 	spin_unlock_irqrestore(&priv->lock, flags);
 } /* mct_u232_set_termios */
 
-static void mct_u232_break_ctl(struct tty_struct *tty, int break_state)
+static int mct_u232_break_ctl(struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct mct_u232_private *priv = usb_get_serial_port_data(port);
@@ -692,7 +691,7 @@ static void mct_u232_break_ctl(struct tty_struct *tty, int break_state)
 		lcr |= MCT_U232_SET_BREAK;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	mct_u232_set_line_ctrl(port, lcr);
+	return mct_u232_set_line_ctrl(port, lcr);
 } /* mct_u232_break_ctl */
 
 

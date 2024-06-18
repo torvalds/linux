@@ -16,6 +16,7 @@
 #include <linux/dcache.h>
 #include <linux/workqueue.h>
 
+
 struct aa_load_ent {
 	struct list_head list;
 	struct aa_profile *new;
@@ -28,11 +29,14 @@ void aa_load_ent_free(struct aa_load_ent *ent);
 struct aa_load_ent *aa_load_ent_alloc(void);
 
 #define PACKED_FLAG_HAT		1
+#define PACKED_FLAG_DEBUG1	2
+#define PACKED_FLAG_DEBUG2	4
 
 #define PACKED_MODE_ENFORCE	0
 #define PACKED_MODE_COMPLAIN	1
 #define PACKED_MODE_KILL	2
 #define PACKED_MODE_UNCONFINED	3
+#define PACKED_MODE_USER	4
 
 struct aa_ns;
 
@@ -41,8 +45,46 @@ enum {
 	AAFS_LOADDATA_REVISION,
 	AAFS_LOADDATA_HASH,
 	AAFS_LOADDATA_DATA,
+	AAFS_LOADDATA_COMPRESSED_SIZE,
 	AAFS_LOADDATA_DIR,		/* must be last actual entry */
 	AAFS_LOADDATA_NDENTS		/* count of entries */
+};
+
+/*
+ * The AppArmor interface treats data as a type byte followed by the
+ * actual data.  The interface has the notion of a named entry
+ * which has a name (AA_NAME typecode followed by name string) followed by
+ * the entries typecode and data.  Named types allow for optional
+ * elements and extensions to be added and tested for without breaking
+ * backwards compatibility.
+ */
+
+enum aa_code {
+	AA_U8,
+	AA_U16,
+	AA_U32,
+	AA_U64,
+	AA_NAME,		/* same as string except it is items name */
+	AA_STRING,
+	AA_BLOB,
+	AA_STRUCT,
+	AA_STRUCTEND,
+	AA_LIST,
+	AA_LISTEND,
+	AA_ARRAY,
+	AA_ARRAYEND,
+};
+
+/*
+ * aa_ext is the read of the buffer containing the serialized profile.  The
+ * data is copied into a kernel buffer in apparmorfs and then handed off to
+ * the unpack routines.
+ */
+struct aa_ext {
+	void *start;
+	void *end;
+	void *pos;		/* pointer to current position in the buffer */
+	u32 version;
 };
 
 /*
@@ -61,11 +103,16 @@ struct aa_loaddata {
 	struct dentry *dents[AAFS_LOADDATA_NDENTS];
 	struct aa_ns *ns;
 	char *name;
-	size_t size;
+	size_t size;			/* the original size of the payload */
+	size_t compressed_size;		/* the compressed size of the payload */
 	long revision;			/* the ns policy revision this caused */
 	int abi;
 	unsigned char *hash;
 
+	/* Pointer to payload. If @compressed_size > 0, then this is the
+	 * compressed version of the payload, else it is the uncompressed
+	 * version (with the size indicated by @size).
+	 */
 	char *data;
 };
 
@@ -117,5 +164,18 @@ static inline void aa_put_loaddata(struct aa_loaddata *data)
 	if (data)
 		kref_put(&data->count, aa_loaddata_kref);
 }
+
+#if IS_ENABLED(CONFIG_KUNIT)
+bool aa_inbounds(struct aa_ext *e, size_t size);
+size_t aa_unpack_u16_chunk(struct aa_ext *e, char **chunk);
+bool aa_unpack_X(struct aa_ext *e, enum aa_code code);
+bool aa_unpack_nameX(struct aa_ext *e, enum aa_code code, const char *name);
+bool aa_unpack_u32(struct aa_ext *e, u32 *data, const char *name);
+bool aa_unpack_u64(struct aa_ext *e, u64 *data, const char *name);
+bool aa_unpack_array(struct aa_ext *e, const char *name, u16 *size);
+size_t aa_unpack_blob(struct aa_ext *e, char **blob, const char *name);
+int aa_unpack_str(struct aa_ext *e, const char **string, const char *name);
+int aa_unpack_strdup(struct aa_ext *e, char **string, const char *name);
+#endif
 
 #endif /* __POLICY_INTERFACE_H */

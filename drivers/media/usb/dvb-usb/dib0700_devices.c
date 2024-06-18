@@ -12,7 +12,7 @@
 #include "dib9000.h"
 #include "mt2060.h"
 #include "mt2266.h"
-#include "tuner-xc2028.h"
+#include "xc2028.h"
 #include "xc5000.h"
 #include "xc4000.h"
 #include "s5h1411.h"
@@ -1659,14 +1659,14 @@ static int dib8096_set_param_override(struct dvb_frontend *fe)
 
 	switch (band) {
 	default:
-			deb_info("Warning : Rf frequency  (%iHz) is not in the supported range, using VHF switch ", fe->dtv_property_cache.frequency);
-			/* fall through */
+		deb_info("Warning : Rf frequency  (%iHz) is not in the supported range, using VHF switch ", fe->dtv_property_cache.frequency);
+		fallthrough;
 	case BAND_VHF:
-			state->dib8000_ops.set_gpio(fe, 3, 0, 1);
-			break;
+		state->dib8000_ops.set_gpio(fe, 3, 0, 1);
+		break;
 	case BAND_UHF:
-			state->dib8000_ops.set_gpio(fe, 3, 0, 0);
-			break;
+		state->dib8000_ops.set_gpio(fe, 3, 0, 0);
+		break;
 	}
 
 	ret = state->set_param_save(fe);
@@ -1738,14 +1738,9 @@ static int dib809x_tuner_attach(struct dvb_usb_adapter *adap)
 	struct dib0700_adapter_state *st = adap->priv;
 	struct i2c_adapter *tun_i2c = st->dib8000_ops.get_i2c_master(adap->fe_adap[0].fe, DIBX000_I2C_INTERFACE_TUNER, 1);
 
-	if (adap->id == 0) {
-		if (dvb_attach(dib0090_register, adap->fe_adap[0].fe, tun_i2c, &dib809x_dib0090_config) == NULL)
-			return -ENODEV;
-	} else {
-		/* FIXME: check if it is fe_adap[1] */
-		if (dvb_attach(dib0090_register, adap->fe_adap[0].fe, tun_i2c, &dib809x_dib0090_config) == NULL)
-			return -ENODEV;
-	}
+	/* FIXME: if adap->id != 0, check if it is fe_adap[1] */
+	if (!dvb_attach(dib0090_register, adap->fe_adap[0].fe, tun_i2c, &dib809x_dib0090_config))
+		return -ENODEV;
 
 	st->set_param_save = adap->fe_adap[0].fe->ops.tuner_ops.set_params;
 	adap->fe_adap[0].fe->ops.tuner_ops.set_params = dib8096_set_param_override;
@@ -2027,13 +2022,6 @@ static struct dib0090_config tfe8096p_dib0090_config = {
 	.low_if					= NULL,
 	.in_soc					= 1,
 	.force_cband_input		= 0,
-};
-
-struct dibx090p_adc {
-	u32 freq;			/* RF freq MHz */
-	u32 timf;			/* New Timf */
-	u32 pll_loopdiv;	/* New prediv */
-	u32 pll_prediv;		/* New loopdiv */
 };
 
 struct dibx090p_best_adc {
@@ -2424,7 +2412,12 @@ static int stk9090m_frontend_attach(struct dvb_usb_adapter *adap)
 
 	adap->fe_adap[0].fe = dvb_attach(dib9000_attach, &adap->dev->i2c_adap, 0x80, &stk9090m_config);
 
-	return adap->fe_adap[0].fe == NULL ?  -ENODEV : 0;
+	if (!adap->fe_adap[0].fe) {
+		release_firmware(state->frontend_firmware);
+		return -ENODEV;
+	}
+
+	return 0;
 }
 
 static int dib9090_tuner_attach(struct dvb_usb_adapter *adap)
@@ -2497,8 +2490,10 @@ static int nim9090md_frontend_attach(struct dvb_usb_adapter *adap)
 	dib9000_i2c_enumeration(&adap->dev->i2c_adap, 1, 0x20, 0x80);
 	adap->fe_adap[0].fe = dvb_attach(dib9000_attach, &adap->dev->i2c_adap, 0x80, &nim9090md_config[0]);
 
-	if (adap->fe_adap[0].fe == NULL)
+	if (!adap->fe_adap[0].fe) {
+		release_firmware(state->frontend_firmware);
 		return -ENODEV;
+	}
 
 	i2c = dib9000_get_i2c_master(adap->fe_adap[0].fe, DIBX000_I2C_INTERFACE_GPIO_3_4, 0);
 	dib9000_i2c_enumeration(i2c, 1, 0x12, 0x82);
@@ -2506,7 +2501,12 @@ static int nim9090md_frontend_attach(struct dvb_usb_adapter *adap)
 	fe_slave = dvb_attach(dib9000_attach, i2c, 0x82, &nim9090md_config[1]);
 	dib9000_set_slave_frontend(adap->fe_adap[0].fe, fe_slave);
 
-	return fe_slave == NULL ?  -ENODEV : 0;
+	if (!fe_slave) {
+		release_firmware(state->frontend_firmware);
+		return -ENODEV;
+	}
+
+	return 0;
 }
 
 static int nim9090md_tuner_attach(struct dvb_usb_adapter *adap)
@@ -3079,8 +3079,8 @@ static int nim7090_tuner_attach(struct dvb_usb_adapter *adap)
 	struct dib0700_adapter_state *st = adap->priv;
 	struct i2c_adapter *tun_i2c = st->dib7000p_ops.get_i2c_tuner(adap->fe_adap[0].fe);
 
-	nim7090_dib0090_config.reset = st->dib7000p_ops.tuner_sleep,
-	nim7090_dib0090_config.sleep = st->dib7000p_ops.tuner_sleep,
+	nim7090_dib0090_config.reset = st->dib7000p_ops.tuner_sleep;
+	nim7090_dib0090_config.sleep = st->dib7000p_ops.tuner_sleep;
 	nim7090_dib0090_config.get_adc_power = st->dib7000p_ops.get_adc_power;
 
 	if (dvb_attach(dib0090_register, adap->fe_adap[0].fe, tun_i2c, &nim7090_dib0090_config) == NULL)
@@ -3772,8 +3772,8 @@ static int xbox_one_attach(struct dvb_usb_adapter *adap)
 	info.addr = 0x18;
 	info.platform_data = &mn88472_config;
 	request_module(info.type);
-	client_demod = i2c_new_device(&d->i2c_adap, &info);
-	if (client_demod == NULL || client_demod->dev.driver == NULL)
+	client_demod = i2c_new_client_device(&d->i2c_adap, &info);
+	if (!i2c_client_has_driver(client_demod))
 		goto fail_demod_device;
 	if (!try_module_get(client_demod->dev.driver->owner))
 		goto fail_demod_module;
@@ -3800,8 +3800,8 @@ static int xbox_one_attach(struct dvb_usb_adapter *adap)
 	info.platform_data = &tda18250_config;
 
 	request_module(info.type);
-	client_tuner = i2c_new_device(&adap->dev->i2c_adap, &info);
-	if (client_tuner == NULL || client_tuner->dev.driver == NULL)
+	client_tuner = i2c_new_client_device(&adap->dev->i2c_adap, &info);
+	if (!i2c_client_has_driver(client_tuner))
 		goto fail_tuner_device;
 	if (!try_module_get(client_tuner->dev.driver->owner))
 		goto fail_tuner_module;
@@ -3821,99 +3821,187 @@ fail_demod_device:
 
 
 /* DVB-USB and USB stuff follows */
-struct usb_device_id dib0700_usb_id_table[] = {
-/* 0 */	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_STK7700P) },
-	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_STK7700P_PC) },
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_NOVA_T_500) },
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_NOVA_T_500_2) },
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_NOVA_T_STICK) },
-/* 5 */	{ USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_VOLAR) },
-	{ USB_DEVICE(USB_VID_COMPRO,    USB_PID_COMPRO_VIDEOMATE_U500) },
-	{ USB_DEVICE(USB_VID_UNIWILL,   USB_PID_UNIWILL_STK7700P) },
-	{ USB_DEVICE(USB_VID_LEADTEK,   USB_PID_WINFAST_DTV_DONGLE_STK7700P) },
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_NOVA_T_STICK_2) },
-/* 10 */{ USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_VOLAR_2) },
-	{ USB_DEVICE(USB_VID_PINNACLE,  USB_PID_PINNACLE_PCTV2000E) },
-	{ USB_DEVICE(USB_VID_TERRATEC,
-			USB_PID_TERRATEC_CINERGY_DT_XS_DIVERSITY) },
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_NOVA_TD_STICK) },
-	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_STK7700D) },
-/* 15 */{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_STK7070P) },
-	{ USB_DEVICE(USB_VID_PINNACLE,  USB_PID_PINNACLE_PCTV_DVB_T_FLASH) },
-	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_STK7070PD) },
-	{ USB_DEVICE(USB_VID_PINNACLE,
-			USB_PID_PINNACLE_PCTV_DUAL_DIVERSITY_DVB_T) },
-	{ USB_DEVICE(USB_VID_COMPRO,    USB_PID_COMPRO_VIDEOMATE_U500_PC) },
-/* 20 */{ USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_EXPRESS) },
-	{ USB_DEVICE(USB_VID_GIGABYTE,  USB_PID_GIGABYTE_U7000) },
-	{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC, USB_PID_ARTEC_T14BR) },
-	{ USB_DEVICE(USB_VID_ASUS,      USB_PID_ASUS_U3000) },
-	{ USB_DEVICE(USB_VID_ASUS,      USB_PID_ASUS_U3100) },
-/* 25 */{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_NOVA_T_STICK_3) },
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_MYTV_T) },
-	{ USB_DEVICE(USB_VID_TERRATEC,  USB_PID_TERRATEC_CINERGY_HT_USB_XE) },
-	{ USB_DEVICE(USB_VID_PINNACLE,	USB_PID_PINNACLE_EXPRESSCARD_320CX) },
-	{ USB_DEVICE(USB_VID_PINNACLE,	USB_PID_PINNACLE_PCTV72E) },
-/* 30 */{ USB_DEVICE(USB_VID_PINNACLE,	USB_PID_PINNACLE_PCTV73E) },
-	{ USB_DEVICE(USB_VID_YUAN,	USB_PID_YUAN_EC372S) },
-	{ USB_DEVICE(USB_VID_TERRATEC,	USB_PID_TERRATEC_CINERGY_HT_EXPRESS) },
-	{ USB_DEVICE(USB_VID_TERRATEC,	USB_PID_TERRATEC_CINERGY_T_XXS) },
-	{ USB_DEVICE(USB_VID_LEADTEK,   USB_PID_WINFAST_DTV_DONGLE_STK7700P_2) },
-/* 35 */{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_NOVA_TD_STICK_52009) },
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_NOVA_T_500_3) },
-	{ USB_DEVICE(USB_VID_GIGABYTE,  USB_PID_GIGABYTE_U8000) },
-	{ USB_DEVICE(USB_VID_YUAN,      USB_PID_YUAN_STK7700PH) },
-	{ USB_DEVICE(USB_VID_ASUS,	USB_PID_ASUS_U3000H) },
-/* 40 */{ USB_DEVICE(USB_VID_PINNACLE,  USB_PID_PINNACLE_PCTV801E) },
-	{ USB_DEVICE(USB_VID_PINNACLE,  USB_PID_PINNACLE_PCTV801E_SE) },
-	{ USB_DEVICE(USB_VID_TERRATEC,	USB_PID_TERRATEC_CINERGY_T_EXPRESS) },
-	{ USB_DEVICE(USB_VID_TERRATEC,
-			USB_PID_TERRATEC_CINERGY_DT_XS_DIVERSITY_2) },
-	{ USB_DEVICE(USB_VID_SONY,	USB_PID_SONY_PLAYTV) },
-/* 45 */{ USB_DEVICE(USB_VID_YUAN,      USB_PID_YUAN_PD378S) },
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_TIGER_ATSC) },
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_TIGER_ATSC_B210) },
-	{ USB_DEVICE(USB_VID_YUAN,	USB_PID_YUAN_MC770) },
-	{ USB_DEVICE(USB_VID_ELGATO,	USB_PID_ELGATO_EYETV_DTT) },
-/* 50 */{ USB_DEVICE(USB_VID_ELGATO,	USB_PID_ELGATO_EYETV_DTT_Dlx) },
-	{ USB_DEVICE(USB_VID_LEADTEK,   USB_PID_WINFAST_DTV_DONGLE_H) },
-	{ USB_DEVICE(USB_VID_TERRATEC,	USB_PID_TERRATEC_T3) },
-	{ USB_DEVICE(USB_VID_TERRATEC,	USB_PID_TERRATEC_T5) },
-	{ USB_DEVICE(USB_VID_YUAN,      USB_PID_YUAN_STK7700D) },
-/* 55 */{ USB_DEVICE(USB_VID_YUAN,	USB_PID_YUAN_STK7700D_2) },
-	{ USB_DEVICE(USB_VID_PINNACLE,	USB_PID_PINNACLE_PCTV73A) },
-	{ USB_DEVICE(USB_VID_PCTV,	USB_PID_PINNACLE_PCTV73ESE) },
-	{ USB_DEVICE(USB_VID_PCTV,	USB_PID_PINNACLE_PCTV282E) },
-	{ USB_DEVICE(USB_VID_DIBCOM,	USB_PID_DIBCOM_STK7770P) },
-/* 60 */{ USB_DEVICE(USB_VID_TERRATEC,	USB_PID_TERRATEC_CINERGY_T_XXS_2) },
-	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_STK807XPVR) },
-	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_STK807XP) },
-	{ USB_DEVICE_VER(USB_VID_PIXELVIEW, USB_PID_PIXELVIEW_SBTVD, 0x000, 0x3f00) },
-	{ USB_DEVICE(USB_VID_EVOLUTEPC, USB_PID_TVWAY_PLUS) },
-/* 65 */{ USB_DEVICE(USB_VID_PINNACLE,	USB_PID_PINNACLE_PCTV73ESE) },
-	{ USB_DEVICE(USB_VID_PINNACLE,	USB_PID_PINNACLE_PCTV282E) },
-	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_STK8096GP) },
-	{ USB_DEVICE(USB_VID_ELGATO,    USB_PID_ELGATO_EYETV_DIVERSITY) },
-	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_NIM9090M) },
-/* 70 */{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_NIM8096MD) },
-	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_NIM9090MD) },
-	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_NIM7090) },
-	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_TFE7090PVR) },
-	{ USB_DEVICE(USB_VID_TECHNISAT, USB_PID_TECHNISAT_AIRSTAR_TELESTICK_2) },
-/* 75 */{ USB_DEVICE(USB_VID_MEDION,    USB_PID_CREATIX_CTX1921) },
-	{ USB_DEVICE(USB_VID_PINNACLE,  USB_PID_PINNACLE_PCTV340E) },
-	{ USB_DEVICE(USB_VID_PINNACLE,  USB_PID_PINNACLE_PCTV340E_SE) },
-	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_TFE7790P) },
-	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_TFE8096P) },
-/* 80 */{ USB_DEVICE(USB_VID_ELGATO,	USB_PID_ELGATO_EYETV_DTT_2) },
-	{ USB_DEVICE(USB_VID_PCTV,      USB_PID_PCTV_2002E) },
-	{ USB_DEVICE(USB_VID_PCTV,      USB_PID_PCTV_2002E_SE) },
-	{ USB_DEVICE(USB_VID_PCTV,      USB_PID_DIBCOM_STK8096PVR) },
-	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_STK8096PVR) },
-/* 85 */{ USB_DEVICE(USB_VID_HAMA,	USB_PID_HAMA_DVBT_HYBRID) },
-	{ USB_DEVICE(USB_VID_MICROSOFT,	USB_PID_XBOX_ONE_TUNER) },
-	{ 0 }		/* Terminating entry */
+enum {
+	DIBCOM_STK7700P,
+	DIBCOM_STK7700P_PC,
+	HAUPPAUGE_NOVA_T_500,
+	HAUPPAUGE_NOVA_T_500_2,
+	HAUPPAUGE_NOVA_T_STICK,
+	AVERMEDIA_VOLAR,
+	COMPRO_VIDEOMATE_U500,
+	UNIWILL_STK7700P,
+	LEADTEK_WINFAST_DTV_DONGLE_STK7700P,
+	HAUPPAUGE_NOVA_T_STICK_2,
+	AVERMEDIA_VOLAR_2,
+	PINNACLE_PCTV2000E,
+	TERRATEC_CINERGY_DT_XS_DIVERSITY,
+	HAUPPAUGE_NOVA_TD_STICK,
+	DIBCOM_STK7700D,
+	DIBCOM_STK7070P,
+	PINNACLE_PCTV_DVB_T_FLASH,
+	DIBCOM_STK7070PD,
+	PINNACLE_PCTV_DUAL_DIVERSITY_DVB_T,
+	COMPRO_VIDEOMATE_U500_PC,
+	AVERMEDIA_EXPRESS,
+	GIGABYTE_U7000,
+	ULTIMA_ARTEC_T14BR,
+	ASUS_U3000,
+	ASUS_U3100,
+	HAUPPAUGE_NOVA_T_STICK_3,
+	HAUPPAUGE_MYTV_T,
+	TERRATEC_CINERGY_HT_USB_XE,
+	PINNACLE_EXPRESSCARD_320CX,
+	PINNACLE_PCTV72E,
+	PINNACLE_PCTV73E,
+	YUAN_EC372S,
+	TERRATEC_CINERGY_HT_EXPRESS,
+	TERRATEC_CINERGY_T_XXS,
+	LEADTEK_WINFAST_DTV_DONGLE_STK7700P_2,
+	HAUPPAUGE_NOVA_TD_STICK_52009,
+	HAUPPAUGE_NOVA_T_500_3,
+	GIGABYTE_U8000,
+	YUAN_STK7700PH,
+	ASUS_U3000H,
+	PINNACLE_PCTV801E,
+	PINNACLE_PCTV801E_SE,
+	TERRATEC_CINERGY_T_EXPRESS,
+	TERRATEC_CINERGY_DT_XS_DIVERSITY_2,
+	SONY_PLAYTV,
+	YUAN_PD378S,
+	HAUPPAUGE_TIGER_ATSC,
+	HAUPPAUGE_TIGER_ATSC_B210,
+	YUAN_MC770,
+	ELGATO_EYETV_DTT,
+	ELGATO_EYETV_DTT_Dlx,
+	LEADTEK_WINFAST_DTV_DONGLE_H,
+	TERRATEC_T3,
+	TERRATEC_T5,
+	YUAN_STK7700D,
+	YUAN_STK7700D_2,
+	PINNACLE_PCTV73A,
+	PCTV_PINNACLE_PCTV73ESE,
+	PCTV_PINNACLE_PCTV282E,
+	DIBCOM_STK7770P,
+	TERRATEC_CINERGY_T_XXS_2,
+	DIBCOM_STK807XPVR,
+	DIBCOM_STK807XP,
+	PIXELVIEW_SBTVD,
+	EVOLUTEPC_TVWAY_PLUS,
+	PINNACLE_PCTV73ESE,
+	PINNACLE_PCTV282E,
+	DIBCOM_STK8096GP,
+	ELGATO_EYETV_DIVERSITY,
+	DIBCOM_NIM9090M,
+	DIBCOM_NIM8096MD,
+	DIBCOM_NIM9090MD,
+	DIBCOM_NIM7090,
+	DIBCOM_TFE7090PVR,
+	TECHNISAT_AIRSTAR_TELESTICK_2,
+	MEDION_CREATIX_CTX1921,
+	PINNACLE_PCTV340E,
+	PINNACLE_PCTV340E_SE,
+	DIBCOM_TFE7790P,
+	DIBCOM_TFE8096P,
+	ELGATO_EYETV_DTT_2,
+	PCTV_2002E,
+	PCTV_2002E_SE,
+	PCTV_DIBCOM_STK8096PVR,
+	DIBCOM_STK8096PVR,
+	HAMA_DVBT_HYBRID,
+	MICROSOFT_XBOX_ONE_TUNER,
 };
+
+struct usb_device_id dib0700_usb_id_table[] = {
+	DVB_USB_DEV(DIBCOM, DIBCOM_STK7700P),
+	DVB_USB_DEV(DIBCOM, DIBCOM_STK7700P_PC),
+	DVB_USB_DEV(HAUPPAUGE, HAUPPAUGE_NOVA_T_500),
+	DVB_USB_DEV(HAUPPAUGE, HAUPPAUGE_NOVA_T_500_2),
+	DVB_USB_DEV(HAUPPAUGE, HAUPPAUGE_NOVA_T_STICK),
+	DVB_USB_DEV(AVERMEDIA, AVERMEDIA_VOLAR),
+	DVB_USB_DEV(COMPRO, COMPRO_VIDEOMATE_U500),
+	DVB_USB_DEV(UNIWILL, UNIWILL_STK7700P),
+	DVB_USB_DEV(LEADTEK, LEADTEK_WINFAST_DTV_DONGLE_STK7700P),
+	DVB_USB_DEV(HAUPPAUGE, HAUPPAUGE_NOVA_T_STICK_2),
+	DVB_USB_DEV(AVERMEDIA, AVERMEDIA_VOLAR_2),
+	DVB_USB_DEV(PINNACLE, PINNACLE_PCTV2000E),
+	DVB_USB_DEV(TERRATEC, TERRATEC_CINERGY_DT_XS_DIVERSITY),
+	DVB_USB_DEV(HAUPPAUGE, HAUPPAUGE_NOVA_TD_STICK),
+	DVB_USB_DEV(DIBCOM, DIBCOM_STK7700D),
+	DVB_USB_DEV(DIBCOM, DIBCOM_STK7070P),
+	DVB_USB_DEV(PINNACLE, PINNACLE_PCTV_DVB_T_FLASH),
+	DVB_USB_DEV(DIBCOM, DIBCOM_STK7070PD),
+	DVB_USB_DEV(PINNACLE, PINNACLE_PCTV_DUAL_DIVERSITY_DVB_T),
+	DVB_USB_DEV(COMPRO, COMPRO_VIDEOMATE_U500_PC),
+	DVB_USB_DEV(AVERMEDIA, AVERMEDIA_EXPRESS),
+	DVB_USB_DEV(GIGABYTE, GIGABYTE_U7000),
+	DVB_USB_DEV(ULTIMA_ELECTRONIC, ULTIMA_ARTEC_T14BR),
+	DVB_USB_DEV(ASUS, ASUS_U3000),
+	DVB_USB_DEV(ASUS, ASUS_U3100),
+	DVB_USB_DEV(HAUPPAUGE, HAUPPAUGE_NOVA_T_STICK_3),
+	DVB_USB_DEV(HAUPPAUGE, HAUPPAUGE_MYTV_T),
+	DVB_USB_DEV(TERRATEC, TERRATEC_CINERGY_HT_USB_XE),
+	DVB_USB_DEV(PINNACLE, PINNACLE_EXPRESSCARD_320CX),
+	DVB_USB_DEV(PINNACLE, PINNACLE_PCTV72E),
+	DVB_USB_DEV(PINNACLE, PINNACLE_PCTV73E),
+	DVB_USB_DEV(YUAN, YUAN_EC372S),
+	DVB_USB_DEV(TERRATEC, TERRATEC_CINERGY_HT_EXPRESS),
+	DVB_USB_DEV(TERRATEC, TERRATEC_CINERGY_T_XXS),
+	DVB_USB_DEV(LEADTEK, LEADTEK_WINFAST_DTV_DONGLE_STK7700P_2),
+	DVB_USB_DEV(HAUPPAUGE, HAUPPAUGE_NOVA_TD_STICK_52009),
+	DVB_USB_DEV(HAUPPAUGE, HAUPPAUGE_NOVA_T_500_3),
+	DVB_USB_DEV(GIGABYTE, GIGABYTE_U8000),
+	DVB_USB_DEV(YUAN, YUAN_STK7700PH),
+	DVB_USB_DEV(ASUS, ASUS_U3000H),
+	DVB_USB_DEV(PINNACLE, PINNACLE_PCTV801E),
+	DVB_USB_DEV(PINNACLE, PINNACLE_PCTV801E_SE),
+	DVB_USB_DEV(TERRATEC, TERRATEC_CINERGY_T_EXPRESS),
+	DVB_USB_DEV(TERRATEC, TERRATEC_CINERGY_DT_XS_DIVERSITY_2),
+	DVB_USB_DEV(SONY, SONY_PLAYTV),
+	DVB_USB_DEV(YUAN, YUAN_PD378S),
+	DVB_USB_DEV(HAUPPAUGE, HAUPPAUGE_TIGER_ATSC),
+	DVB_USB_DEV(HAUPPAUGE, HAUPPAUGE_TIGER_ATSC_B210),
+	DVB_USB_DEV(YUAN, YUAN_MC770),
+	DVB_USB_DEV(ELGATO, ELGATO_EYETV_DTT),
+	DVB_USB_DEV(ELGATO, ELGATO_EYETV_DTT_Dlx),
+	DVB_USB_DEV(LEADTEK, LEADTEK_WINFAST_DTV_DONGLE_H),
+	DVB_USB_DEV(TERRATEC, TERRATEC_T3),
+	DVB_USB_DEV(TERRATEC, TERRATEC_T5),
+	DVB_USB_DEV(YUAN, YUAN_STK7700D),
+	DVB_USB_DEV(YUAN, YUAN_STK7700D_2),
+	DVB_USB_DEV(PINNACLE, PINNACLE_PCTV73A),
+	DVB_USB_DEV(PCTV, PCTV_PINNACLE_PCTV73ESE),
+	DVB_USB_DEV(PCTV, PCTV_PINNACLE_PCTV282E),
+	DVB_USB_DEV(DIBCOM, DIBCOM_STK7770P),
+	DVB_USB_DEV(TERRATEC, TERRATEC_CINERGY_T_XXS_2),
+	DVB_USB_DEV(DIBCOM, DIBCOM_STK807XPVR),
+	DVB_USB_DEV(DIBCOM, DIBCOM_STK807XP),
+	DVB_USB_DEV_VER(PIXELVIEW, PIXELVIEW_SBTVD, 0x000, 0x3f00),
+	DVB_USB_DEV(EVOLUTEPC, EVOLUTEPC_TVWAY_PLUS),
+	DVB_USB_DEV(PINNACLE, PINNACLE_PCTV73ESE),
+	DVB_USB_DEV(PINNACLE, PINNACLE_PCTV282E),
+	DVB_USB_DEV(DIBCOM, DIBCOM_STK8096GP),
+	DVB_USB_DEV(ELGATO, ELGATO_EYETV_DIVERSITY),
+	DVB_USB_DEV(DIBCOM, DIBCOM_NIM9090M),
+	DVB_USB_DEV(DIBCOM, DIBCOM_NIM8096MD),
+	DVB_USB_DEV(DIBCOM, DIBCOM_NIM9090MD),
+	DVB_USB_DEV(DIBCOM, DIBCOM_NIM7090),
+	DVB_USB_DEV(DIBCOM, DIBCOM_TFE7090PVR),
+	DVB_USB_DEV(TECHNISAT, TECHNISAT_AIRSTAR_TELESTICK_2),
+	DVB_USB_DEV(MEDION, MEDION_CREATIX_CTX1921),
+	DVB_USB_DEV(PINNACLE, PINNACLE_PCTV340E),
+	DVB_USB_DEV(PINNACLE, PINNACLE_PCTV340E_SE),
+	DVB_USB_DEV(DIBCOM, DIBCOM_TFE7790P),
+	DVB_USB_DEV(DIBCOM, DIBCOM_TFE8096P),
+	DVB_USB_DEV(ELGATO, ELGATO_EYETV_DTT_2),
+	DVB_USB_DEV(PCTV, PCTV_2002E),
+	DVB_USB_DEV(PCTV, PCTV_2002E_SE),
+	DVB_USB_DEV(PCTV, PCTV_DIBCOM_STK8096PVR),
+	DVB_USB_DEV(DIBCOM, DIBCOM_STK8096PVR),
+	DVB_USB_DEV(HAMA, HAMA_DVBT_HYBRID),
+	DVB_USB_DEV(MICROSOFT, MICROSOFT_XBOX_ONE_TUNER),
+	{ }
+};
+
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
 
 #define DIB0700_DEFAULT_DEVICE_PROPERTIES \
@@ -3967,35 +4055,35 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_device_descs = 8,
 		.devices = {
 			{   "DiBcom STK7700P reference design",
-				{ &dib0700_usb_id_table[0], &dib0700_usb_id_table[1] },
+				{ &dib0700_usb_id_table[DIBCOM_STK7700P], &dib0700_usb_id_table[DIBCOM_STK7700P_PC] },
 				{ NULL },
 			},
 			{   "Hauppauge Nova-T Stick",
-				{ &dib0700_usb_id_table[4], &dib0700_usb_id_table[9], NULL },
+				{ &dib0700_usb_id_table[HAUPPAUGE_NOVA_T_STICK], &dib0700_usb_id_table[HAUPPAUGE_NOVA_T_STICK_2], NULL },
 				{ NULL },
 			},
 			{   "AVerMedia AVerTV DVB-T Volar",
-				{ &dib0700_usb_id_table[5], &dib0700_usb_id_table[10] },
+				{ &dib0700_usb_id_table[AVERMEDIA_VOLAR], &dib0700_usb_id_table[AVERMEDIA_VOLAR_2] },
 				{ NULL },
 			},
 			{   "Compro Videomate U500",
-				{ &dib0700_usb_id_table[6], &dib0700_usb_id_table[19] },
+				{ &dib0700_usb_id_table[COMPRO_VIDEOMATE_U500], &dib0700_usb_id_table[COMPRO_VIDEOMATE_U500_PC] },
 				{ NULL },
 			},
 			{   "Uniwill STK7700P based (Hama and others)",
-				{ &dib0700_usb_id_table[7], NULL },
+				{ &dib0700_usb_id_table[UNIWILL_STK7700P], NULL },
 				{ NULL },
 			},
 			{   "Leadtek Winfast DTV Dongle (STK7700P based)",
-				{ &dib0700_usb_id_table[8], &dib0700_usb_id_table[34] },
+				{ &dib0700_usb_id_table[LEADTEK_WINFAST_DTV_DONGLE_STK7700P], &dib0700_usb_id_table[LEADTEK_WINFAST_DTV_DONGLE_STK7700P_2] },
 				{ NULL },
 			},
 			{   "AVerMedia AVerTV DVB-T Express",
-				{ &dib0700_usb_id_table[20] },
+				{ &dib0700_usb_id_table[AVERMEDIA_EXPRESS] },
 				{ NULL },
 			},
 			{   "Gigabyte U7000",
-				{ &dib0700_usb_id_table[21], NULL },
+				{ &dib0700_usb_id_table[GIGABYTE_U7000], NULL },
 				{ NULL },
 			}
 		},
@@ -4035,7 +4123,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_device_descs = 1,
 		.devices = {
 			{   "Hauppauge Nova-T 500 Dual DVB-T",
-				{ &dib0700_usb_id_table[2], &dib0700_usb_id_table[3], NULL },
+				{ &dib0700_usb_id_table[HAUPPAUGE_NOVA_T_500], &dib0700_usb_id_table[HAUPPAUGE_NOVA_T_500_2], NULL },
 				{ NULL },
 			},
 		},
@@ -4083,23 +4171,23 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_device_descs = 5,
 		.devices = {
 			{   "Pinnacle PCTV 2000e",
-				{ &dib0700_usb_id_table[11], NULL },
+				{ &dib0700_usb_id_table[PINNACLE_PCTV2000E], NULL },
 				{ NULL },
 			},
 			{   "Terratec Cinergy DT XS Diversity",
-				{ &dib0700_usb_id_table[12], NULL },
+				{ &dib0700_usb_id_table[TERRATEC_CINERGY_DT_XS_DIVERSITY], NULL },
 				{ NULL },
 			},
 			{   "Hauppauge Nova-TD Stick/Elgato Eye-TV Diversity",
-				{ &dib0700_usb_id_table[13], NULL },
+				{ &dib0700_usb_id_table[HAUPPAUGE_NOVA_TD_STICK], NULL },
 				{ NULL },
 			},
 			{   "DiBcom STK7700D reference design",
-				{ &dib0700_usb_id_table[14], NULL },
+				{ &dib0700_usb_id_table[DIBCOM_STK7700D], NULL },
 				{ NULL },
 			},
 			{   "YUAN High-Tech DiBcom STK7700D",
-				{ &dib0700_usb_id_table[55], NULL },
+				{ &dib0700_usb_id_table[YUAN_STK7700D_2], NULL },
 				{ NULL },
 			},
 
@@ -4136,15 +4224,15 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_device_descs = 3,
 		.devices = {
 			{   "ASUS My Cinema U3000 Mini DVBT Tuner",
-				{ &dib0700_usb_id_table[23], NULL },
+				{ &dib0700_usb_id_table[ASUS_U3000], NULL },
 				{ NULL },
 			},
 			{   "Yuan EC372S",
-				{ &dib0700_usb_id_table[31], NULL },
+				{ &dib0700_usb_id_table[YUAN_EC372S], NULL },
 				{ NULL },
 			},
 			{   "Terratec Cinergy T Express",
-				{ &dib0700_usb_id_table[42], NULL },
+				{ &dib0700_usb_id_table[TERRATEC_CINERGY_T_EXPRESS], NULL },
 				{ NULL },
 			}
 		},
@@ -4181,51 +4269,51 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_device_descs = 12,
 		.devices = {
 			{   "DiBcom STK7070P reference design",
-				{ &dib0700_usb_id_table[15], NULL },
+				{ &dib0700_usb_id_table[DIBCOM_STK7070P], NULL },
 				{ NULL },
 			},
 			{   "Pinnacle PCTV DVB-T Flash Stick",
-				{ &dib0700_usb_id_table[16], NULL },
+				{ &dib0700_usb_id_table[PINNACLE_PCTV_DVB_T_FLASH], NULL },
 				{ NULL },
 			},
 			{   "Artec T14BR DVB-T",
-				{ &dib0700_usb_id_table[22], NULL },
+				{ &dib0700_usb_id_table[ULTIMA_ARTEC_T14BR], NULL },
 				{ NULL },
 			},
 			{   "ASUS My Cinema U3100 Mini DVBT Tuner",
-				{ &dib0700_usb_id_table[24], NULL },
+				{ &dib0700_usb_id_table[ASUS_U3100], NULL },
 				{ NULL },
 			},
 			{   "Hauppauge Nova-T Stick",
-				{ &dib0700_usb_id_table[25], NULL },
+				{ &dib0700_usb_id_table[HAUPPAUGE_NOVA_T_STICK_3], NULL },
 				{ NULL },
 			},
 			{   "Hauppauge Nova-T MyTV.t",
-				{ &dib0700_usb_id_table[26], NULL },
+				{ &dib0700_usb_id_table[HAUPPAUGE_MYTV_T], NULL },
 				{ NULL },
 			},
 			{   "Pinnacle PCTV 72e",
-				{ &dib0700_usb_id_table[29], NULL },
+				{ &dib0700_usb_id_table[PINNACLE_PCTV72E], NULL },
 				{ NULL },
 			},
 			{   "Pinnacle PCTV 73e",
-				{ &dib0700_usb_id_table[30], NULL },
+				{ &dib0700_usb_id_table[PINNACLE_PCTV73E], NULL },
 				{ NULL },
 			},
 			{   "Elgato EyeTV DTT",
-				{ &dib0700_usb_id_table[49], NULL },
+				{ &dib0700_usb_id_table[ELGATO_EYETV_DTT], NULL },
 				{ NULL },
 			},
 			{   "Yuan PD378S",
-				{ &dib0700_usb_id_table[45], NULL },
+				{ &dib0700_usb_id_table[YUAN_PD378S], NULL },
 				{ NULL },
 			},
 			{   "Elgato EyeTV Dtt Dlx PD378S",
-				{ &dib0700_usb_id_table[50], NULL },
+				{ &dib0700_usb_id_table[ELGATO_EYETV_DTT_Dlx], NULL },
 				{ NULL },
 			},
 			{   "Elgato EyeTV DTT rev. 2",
-				{ &dib0700_usb_id_table[80], NULL },
+				{ &dib0700_usb_id_table[ELGATO_EYETV_DTT_2], NULL },
 				{ NULL },
 			},
 		},
@@ -4262,15 +4350,15 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_device_descs = 3,
 		.devices = {
 			{   "Pinnacle PCTV 73A",
-				{ &dib0700_usb_id_table[56], NULL },
+				{ &dib0700_usb_id_table[PINNACLE_PCTV73A], NULL },
 				{ NULL },
 			},
 			{   "Pinnacle PCTV 73e SE",
-				{ &dib0700_usb_id_table[57], &dib0700_usb_id_table[65], NULL },
+				{ &dib0700_usb_id_table[PCTV_PINNACLE_PCTV73ESE], &dib0700_usb_id_table[PINNACLE_PCTV73ESE], NULL },
 				{ NULL },
 			},
 			{   "Pinnacle PCTV 282e",
-				{ &dib0700_usb_id_table[58], &dib0700_usb_id_table[66], NULL },
+				{ &dib0700_usb_id_table[PCTV_PINNACLE_PCTV282E], &dib0700_usb_id_table[PINNACLE_PCTV282E], NULL },
 				{ NULL },
 			},
 		},
@@ -4319,15 +4407,15 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_device_descs = 3,
 		.devices = {
 			{   "Hauppauge Nova-TD Stick (52009)",
-				{ &dib0700_usb_id_table[35], NULL },
+				{ &dib0700_usb_id_table[HAUPPAUGE_NOVA_TD_STICK_52009], NULL },
 				{ NULL },
 			},
 			{   "PCTV 2002e",
-				{ &dib0700_usb_id_table[81], NULL },
+				{ &dib0700_usb_id_table[PCTV_2002E], NULL },
 				{ NULL },
 			},
 			{   "PCTV 2002e SE",
-				{ &dib0700_usb_id_table[82], NULL },
+				{ &dib0700_usb_id_table[PCTV_2002E_SE], NULL },
 				{ NULL },
 			},
 		},
@@ -4376,24 +4464,24 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_device_descs = 5,
 		.devices = {
 			{   "DiBcom STK7070PD reference design",
-				{ &dib0700_usb_id_table[17], NULL },
+				{ &dib0700_usb_id_table[DIBCOM_STK7070PD], NULL },
 				{ NULL },
 			},
 			{   "Pinnacle PCTV Dual DVB-T Diversity Stick",
-				{ &dib0700_usb_id_table[18], NULL },
+				{ &dib0700_usb_id_table[PINNACLE_PCTV_DUAL_DIVERSITY_DVB_T], NULL },
 				{ NULL },
 			},
 			{   "Hauppauge Nova-TD-500 (84xxx)",
-				{ &dib0700_usb_id_table[36], NULL },
+				{ &dib0700_usb_id_table[HAUPPAUGE_NOVA_T_500_3], NULL },
 				{ NULL },
 			},
 			{  "Terratec Cinergy DT USB XS Diversity/ T5",
-				{ &dib0700_usb_id_table[43],
-					&dib0700_usb_id_table[53], NULL},
+				{ &dib0700_usb_id_table[TERRATEC_CINERGY_DT_XS_DIVERSITY_2],
+					&dib0700_usb_id_table[TERRATEC_T5], NULL},
 				{ NULL },
 			},
 			{  "Sony PlayTV",
-				{ &dib0700_usb_id_table[44], NULL },
+				{ &dib0700_usb_id_table[SONY_PLAYTV], NULL },
 				{ NULL },
 			},
 		},
@@ -4442,7 +4530,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_device_descs = 1,
 		.devices = {
 			{   "Elgato EyeTV Diversity",
-				{ &dib0700_usb_id_table[68], NULL },
+				{ &dib0700_usb_id_table[ELGATO_EYETV_DIVERSITY], NULL },
 				{ NULL },
 			},
 		},
@@ -4479,43 +4567,43 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_device_descs = 10,
 		.devices = {
 			{   "Terratec Cinergy HT USB XE",
-				{ &dib0700_usb_id_table[27], NULL },
+				{ &dib0700_usb_id_table[TERRATEC_CINERGY_HT_USB_XE], NULL },
 				{ NULL },
 			},
 			{   "Pinnacle Expresscard 320cx",
-				{ &dib0700_usb_id_table[28], NULL },
+				{ &dib0700_usb_id_table[PINNACLE_EXPRESSCARD_320CX], NULL },
 				{ NULL },
 			},
 			{   "Terratec Cinergy HT Express",
-				{ &dib0700_usb_id_table[32], NULL },
+				{ &dib0700_usb_id_table[TERRATEC_CINERGY_HT_EXPRESS], NULL },
 				{ NULL },
 			},
 			{   "Gigabyte U8000-RH",
-				{ &dib0700_usb_id_table[37], NULL },
+				{ &dib0700_usb_id_table[GIGABYTE_U8000], NULL },
 				{ NULL },
 			},
 			{   "YUAN High-Tech STK7700PH",
-				{ &dib0700_usb_id_table[38], NULL },
+				{ &dib0700_usb_id_table[YUAN_STK7700PH], NULL },
 				{ NULL },
 			},
 			{   "Asus My Cinema-U3000Hybrid",
-				{ &dib0700_usb_id_table[39], NULL },
+				{ &dib0700_usb_id_table[ASUS_U3000H], NULL },
 				{ NULL },
 			},
 			{   "YUAN High-Tech MC770",
-				{ &dib0700_usb_id_table[48], NULL },
+				{ &dib0700_usb_id_table[YUAN_MC770], NULL },
 				{ NULL },
 			},
 			{   "Leadtek WinFast DTV Dongle H",
-				{ &dib0700_usb_id_table[51], NULL },
+				{ &dib0700_usb_id_table[LEADTEK_WINFAST_DTV_DONGLE_H], NULL },
 				{ NULL },
 			},
 			{   "YUAN High-Tech STK7700D",
-				{ &dib0700_usb_id_table[54], NULL },
+				{ &dib0700_usb_id_table[YUAN_STK7700D], NULL },
 				{ NULL },
 			},
 			{   "Hama DVB=T Hybrid USB Stick",
-				{ &dib0700_usb_id_table[85], NULL },
+				{ &dib0700_usb_id_table[HAMA_DVBT_HYBRID], NULL },
 				{ NULL },
 			},
 		},
@@ -4547,11 +4635,11 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_device_descs = 2,
 		.devices = {
 			{   "Pinnacle PCTV HD Pro USB Stick",
-				{ &dib0700_usb_id_table[40], NULL },
+				{ &dib0700_usb_id_table[PINNACLE_PCTV801E], NULL },
 				{ NULL },
 			},
 			{   "Pinnacle PCTV HD USB Stick",
-				{ &dib0700_usb_id_table[41], NULL },
+				{ &dib0700_usb_id_table[PINNACLE_PCTV801E_SE], NULL },
 				{ NULL },
 			},
 		},
@@ -4583,11 +4671,11 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_device_descs = 2,
 		.devices = {
 			{   "Hauppauge ATSC MiniCard (B200)",
-				{ &dib0700_usb_id_table[46], NULL },
+				{ &dib0700_usb_id_table[HAUPPAUGE_TIGER_ATSC], NULL },
 				{ NULL },
 			},
 			{   "Hauppauge ATSC MiniCard (B210)",
-				{ &dib0700_usb_id_table[47], NULL },
+				{ &dib0700_usb_id_table[HAUPPAUGE_TIGER_ATSC_B210], NULL },
 				{ NULL },
 			},
 		},
@@ -4613,21 +4701,21 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_device_descs = 4,
 		.devices = {
 			{   "DiBcom STK7770P reference design",
-				{ &dib0700_usb_id_table[59], NULL },
+				{ &dib0700_usb_id_table[DIBCOM_STK7770P], NULL },
 				{ NULL },
 			},
 			{   "Terratec Cinergy T USB XXS (HD)/ T3",
-				{ &dib0700_usb_id_table[33],
-					&dib0700_usb_id_table[52],
-					&dib0700_usb_id_table[60], NULL},
+				{ &dib0700_usb_id_table[TERRATEC_CINERGY_T_XXS],
+					&dib0700_usb_id_table[TERRATEC_T3],
+					&dib0700_usb_id_table[TERRATEC_CINERGY_T_XXS_2], NULL},
 				{ NULL },
 			},
 			{   "TechniSat AirStar TeleStick 2",
-				{ &dib0700_usb_id_table[74], NULL },
+				{ &dib0700_usb_id_table[TECHNISAT_AIRSTAR_TELESTICK_2], NULL },
 				{ NULL },
 			},
 			{   "Medion CTX1921 DVB-T USB",
-				{ &dib0700_usb_id_table[75], NULL },
+				{ &dib0700_usb_id_table[MEDION_CREATIX_CTX1921], NULL },
 				{ NULL },
 			},
 		},
@@ -4663,15 +4751,15 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_device_descs = 3,
 		.devices = {
 			{   "DiBcom STK807xP reference design",
-				{ &dib0700_usb_id_table[62], NULL },
+				{ &dib0700_usb_id_table[DIBCOM_STK807XP], NULL },
 				{ NULL },
 			},
 			{   "Prolink Pixelview SBTVD",
-				{ &dib0700_usb_id_table[63], NULL },
+				{ &dib0700_usb_id_table[PIXELVIEW_SBTVD], NULL },
 				{ NULL },
 			},
 			{   "EvolutePC TVWay+",
-				{ &dib0700_usb_id_table[64], NULL },
+				{ &dib0700_usb_id_table[EVOLUTEPC_TVWAY_PLUS], NULL },
 				{ NULL },
 			},
 		},
@@ -4720,7 +4808,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_device_descs = 1,
 		.devices = {
 			{   "DiBcom STK807xPVR reference design",
-				{ &dib0700_usb_id_table[61], NULL },
+				{ &dib0700_usb_id_table[DIBCOM_STK807XPVR], NULL },
 				{ NULL },
 			},
 		},
@@ -4757,7 +4845,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_device_descs = 1,
 		.devices = {
 			{   "DiBcom STK8096GP reference design",
-				{ &dib0700_usb_id_table[67], NULL },
+				{ &dib0700_usb_id_table[DIBCOM_STK8096GP], NULL },
 				{ NULL },
 			},
 		},
@@ -4794,7 +4882,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_device_descs = 1,
 		.devices = {
 			{   "DiBcom STK9090M reference design",
-				{ &dib0700_usb_id_table[69], NULL },
+				{ &dib0700_usb_id_table[DIBCOM_NIM9090M], NULL },
 				{ NULL },
 			},
 		},
@@ -4831,7 +4919,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_device_descs = 1,
 		.devices = {
 			{   "DiBcom NIM8096MD reference design",
-				{ &dib0700_usb_id_table[70], NULL },
+				{ &dib0700_usb_id_table[DIBCOM_NIM8096MD], NULL },
 				{ NULL },
 			},
 		},
@@ -4868,7 +4956,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_device_descs = 1,
 		.devices = {
 			{   "DiBcom NIM9090MD reference design",
-				{ &dib0700_usb_id_table[71], NULL },
+				{ &dib0700_usb_id_table[DIBCOM_NIM9090MD], NULL },
 				{ NULL },
 			},
 		},
@@ -4905,7 +4993,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_device_descs = 1,
 		.devices = {
 			{   "DiBcom NIM7090 reference design",
-				{ &dib0700_usb_id_table[72], NULL },
+				{ &dib0700_usb_id_table[DIBCOM_NIM7090], NULL },
 				{ NULL },
 			},
 		},
@@ -4956,7 +5044,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_device_descs = 1,
 		.devices = {
 			{   "DiBcom TFE7090PVR reference design",
-				{ &dib0700_usb_id_table[73], NULL },
+				{ &dib0700_usb_id_table[DIBCOM_TFE7090PVR], NULL },
 				{ NULL },
 			},
 		},
@@ -4988,11 +5076,11 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_device_descs = 2,
 		.devices = {
 			{   "Pinnacle PCTV 340e HD Pro USB Stick",
-				{ &dib0700_usb_id_table[76], NULL },
+				{ &dib0700_usb_id_table[PINNACLE_PCTV340E], NULL },
 				{ NULL },
 			},
 			{   "Pinnacle PCTV Hybrid Stick Solo",
-				{ &dib0700_usb_id_table[77], NULL },
+				{ &dib0700_usb_id_table[PINNACLE_PCTV340E_SE], NULL },
 				{ NULL },
 			},
 		},
@@ -5028,7 +5116,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_device_descs = 1,
 		.devices = {
 			{   "DiBcom TFE7790P reference design",
-				{ &dib0700_usb_id_table[78], NULL },
+				{ &dib0700_usb_id_table[DIBCOM_TFE7790P], NULL },
 				{ NULL },
 			},
 		},
@@ -5066,7 +5154,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_device_descs = 1,
 		.devices = {
 			{   "DiBcom TFE8096P reference design",
-				{ &dib0700_usb_id_table[79], NULL },
+				{ &dib0700_usb_id_table[DIBCOM_TFE8096P], NULL },
 				{ NULL },
 			},
 		},
@@ -5119,8 +5207,8 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_device_descs = 1,
 		.devices = {
 			{   "DiBcom STK8096-PVR reference design",
-				{ &dib0700_usb_id_table[83],
-					&dib0700_usb_id_table[84], NULL},
+				{ &dib0700_usb_id_table[PCTV_DIBCOM_STK8096PVR],
+					&dib0700_usb_id_table[DIBCOM_STK8096PVR], NULL},
 				{ NULL },
 			},
 		},
@@ -5150,7 +5238,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_device_descs = 1,
 		.devices = {
 			{ "Microsoft Xbox One Digital TV Tuner",
-				{ &dib0700_usb_id_table[86], NULL },
+				{ &dib0700_usb_id_table[MICROSOFT_XBOX_ONE_TUNER], NULL },
 				{ NULL },
 			},
 		},

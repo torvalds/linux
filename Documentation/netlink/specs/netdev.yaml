@@ -1,0 +1,628 @@
+# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+
+name: netdev
+
+doc:
+  netdev configuration over generic netlink.
+
+definitions:
+  -
+    type: flags
+    name: xdp-act
+    render-max: true
+    entries:
+      -
+        name: basic
+        doc:
+          XDP features set supported by all drivers
+          (XDP_ABORTED, XDP_DROP, XDP_PASS, XDP_TX)
+      -
+        name: redirect
+        doc:
+          The netdev supports XDP_REDIRECT
+      -
+        name: ndo-xmit
+        doc:
+          This feature informs if netdev implements ndo_xdp_xmit callback.
+      -
+        name: xsk-zerocopy
+        doc:
+          This feature informs if netdev supports AF_XDP in zero copy mode.
+      -
+        name: hw-offload
+        doc:
+         This feature informs if netdev supports XDP hw offloading.
+      -
+        name: rx-sg
+        doc:
+          This feature informs if netdev implements non-linear XDP buffer
+          support in the driver napi callback.
+      -
+        name: ndo-xmit-sg
+        doc:
+          This feature informs if netdev implements non-linear XDP buffer
+          support in ndo_xdp_xmit callback.
+  -
+    type: flags
+    name: xdp-rx-metadata
+    entries:
+      -
+        name: timestamp
+        doc:
+          Device is capable of exposing receive HW timestamp via bpf_xdp_metadata_rx_timestamp().
+      -
+        name: hash
+        doc:
+          Device is capable of exposing receive packet hash via bpf_xdp_metadata_rx_hash().
+      -
+        name: vlan-tag
+        doc:
+          Device is capable of exposing receive packet VLAN tag via bpf_xdp_metadata_rx_vlan_tag().
+  -
+    type: flags
+    name: xsk-flags
+    entries:
+      -
+        name: tx-timestamp
+        doc:
+          HW timestamping egress packets is supported by the driver.
+      -
+        name: tx-checksum
+        doc:
+          L3 checksum HW offload is supported by the driver.
+  -
+    name: queue-type
+    type: enum
+    entries: [ rx, tx ]
+  -
+    name: qstats-scope
+    type: flags
+    entries: [ queue ]
+
+attribute-sets:
+  -
+    name: dev
+    attributes:
+      -
+        name: ifindex
+        doc: netdev ifindex
+        type: u32
+        checks:
+          min: 1
+      -
+        name: pad
+        type: pad
+      -
+        name: xdp-features
+        doc: Bitmask of enabled xdp-features.
+        type: u64
+        enum: xdp-act
+      -
+        name: xdp-zc-max-segs
+        doc: max fragment count supported by ZC driver
+        type: u32
+        checks:
+          min: 1
+      -
+        name: xdp-rx-metadata-features
+        doc: Bitmask of supported XDP receive metadata features.
+             See Documentation/networking/xdp-rx-metadata.rst for more details.
+        type: u64
+        enum: xdp-rx-metadata
+      -
+        name: xsk-features
+        doc: Bitmask of enabled AF_XDP features.
+        type: u64
+        enum: xsk-flags
+  -
+    name: page-pool
+    attributes:
+      -
+        name: id
+        doc: Unique ID of a Page Pool instance.
+        type: uint
+        checks:
+          min: 1
+          max: u32-max
+      -
+        name: ifindex
+        doc: |
+          ifindex of the netdev to which the pool belongs.
+          May be reported as 0 if the page pool was allocated for a netdev
+          which got destroyed already (page pools may outlast their netdevs
+          because they wait for all memory to be returned).
+        type: u32
+        checks:
+          min: 1
+          max: s32-max
+      -
+        name: napi-id
+        doc: Id of NAPI using this Page Pool instance.
+        type: uint
+        checks:
+          min: 1
+          max: u32-max
+      -
+        name: inflight
+        type: uint
+        doc: |
+          Number of outstanding references to this page pool (allocated
+          but yet to be freed pages). Allocated pages may be held in
+          socket receive queues, driver receive ring, page pool recycling
+          ring, the page pool cache, etc.
+      -
+        name: inflight-mem
+        type: uint
+        doc: |
+          Amount of memory held by inflight pages.
+      -
+        name: detach-time
+        type: uint
+        doc: |
+          Seconds in CLOCK_BOOTTIME of when Page Pool was detached by
+          the driver. Once detached Page Pool can no longer be used to
+          allocate memory.
+          Page Pools wait for all the memory allocated from them to be freed
+          before truly disappearing. "Detached" Page Pools cannot be
+          "re-attached", they are just waiting to disappear.
+          Attribute is absent if Page Pool has not been detached, and
+          can still be used to allocate new memory.
+  -
+    name: page-pool-info
+    subset-of: page-pool
+    attributes:
+      -
+        name: id
+      -
+        name: ifindex
+  -
+    name: page-pool-stats
+    doc: |
+      Page pool statistics, see docs for struct page_pool_stats
+      for information about individual statistics.
+    attributes:
+      -
+        name: info
+        doc: Page pool identifying information.
+        type: nest
+        nested-attributes: page-pool-info
+      -
+        name: alloc-fast
+        type: uint
+        value: 8 # reserve some attr ids in case we need more metadata later
+      -
+        name: alloc-slow
+        type: uint
+      -
+        name: alloc-slow-high-order
+        type: uint
+      -
+        name: alloc-empty
+        type: uint
+      -
+        name: alloc-refill
+        type: uint
+      -
+        name: alloc-waive
+        type: uint
+      -
+        name: recycle-cached
+        type: uint
+      -
+        name: recycle-cache-full
+        type: uint
+      -
+        name: recycle-ring
+        type: uint
+      -
+        name: recycle-ring-full
+        type: uint
+      -
+        name: recycle-released-refcnt
+        type: uint
+
+  -
+    name: napi
+    attributes:
+      -
+        name: ifindex
+        doc: ifindex of the netdevice to which NAPI instance belongs.
+        type: u32
+        checks:
+          min: 1
+      -
+        name: id
+        doc: ID of the NAPI instance.
+        type: u32
+      -
+        name: irq
+        doc: The associated interrupt vector number for the napi
+        type: u32
+      -
+        name: pid
+        doc: PID of the napi thread, if NAPI is configured to operate in
+             threaded mode. If NAPI is not in threaded mode (i.e. uses normal
+             softirq context), the attribute will be absent.
+        type: u32
+  -
+    name: queue
+    attributes:
+      -
+        name: id
+        doc: Queue index; most queue types are indexed like a C array, with
+             indexes starting at 0 and ending at queue count - 1. Queue indexes
+             are scoped to an interface and queue type.
+        type: u32
+      -
+        name: ifindex
+        doc: ifindex of the netdevice to which the queue belongs.
+        type: u32
+        checks:
+          min: 1
+      -
+        name: type
+        doc: Queue type as rx, tx. Each queue type defines a separate ID space.
+        type: u32
+        enum: queue-type
+      -
+        name: napi-id
+        doc: ID of the NAPI instance which services this queue.
+        type: u32
+
+  -
+    name: qstats
+    doc: |
+      Get device statistics, scoped to a device or a queue.
+      These statistics extend (and partially duplicate) statistics available
+      in struct rtnl_link_stats64.
+      Value of the `scope` attribute determines how statistics are
+      aggregated. When aggregated for the entire device the statistics
+      represent the total number of events since last explicit reset of
+      the device (i.e. not a reconfiguration like changing queue count).
+      When reported per-queue, however, the statistics may not add
+      up to the total number of events, will only be reported for currently
+      active objects, and will likely report the number of events since last
+      reconfiguration.
+    attributes:
+      -
+        name: ifindex
+        doc: ifindex of the netdevice to which stats belong.
+        type: u32
+        checks:
+          min: 1
+      -
+        name: queue-type
+        doc: Queue type as rx, tx, for queue-id.
+        type: u32
+        enum: queue-type
+      -
+        name: queue-id
+        doc: Queue ID, if stats are scoped to a single queue instance.
+        type: u32
+      -
+        name: scope
+        doc: |
+          What object type should be used to iterate over the stats.
+        type: uint
+        enum: qstats-scope
+      -
+        name: rx-packets
+        doc: |
+          Number of wire packets successfully received and passed to the stack.
+          For drivers supporting XDP, XDP is considered the first layer
+          of the stack, so packets consumed by XDP are still counted here.
+        type: uint
+        value: 8 # reserve some attr ids in case we need more metadata later
+      -
+        name: rx-bytes
+        doc: Successfully received bytes, see `rx-packets`.
+        type: uint
+      -
+        name: tx-packets
+        doc: |
+          Number of wire packets successfully sent. Packet is considered to be
+          successfully sent once it is in device memory (usually this means
+          the device has issued a DMA completion for the packet).
+        type: uint
+      -
+        name: tx-bytes
+        doc: Successfully sent bytes, see `tx-packets`.
+        type: uint
+      -
+        name: rx-alloc-fail
+        doc: |
+          Number of times skb or buffer allocation failed on the Rx datapath.
+          Allocation failure may, or may not result in a packet drop, depending
+          on driver implementation and whether system recovers quickly.
+        type: uint
+      -
+        name: rx-hw-drops
+        doc: |
+          Number of all packets which entered the device, but never left it,
+          including but not limited to: packets dropped due to lack of buffer
+          space, processing errors, explicit or implicit policies and packet
+          filters.
+        type: uint
+      -
+        name: rx-hw-drop-overruns
+        doc: |
+          Number of packets dropped due to transient lack of resources, such as
+          buffer space, host descriptors etc.
+        type: uint
+      -
+        name: rx-csum-complete
+        doc: Number of packets that were marked as CHECKSUM_COMPLETE.
+        type: uint
+      -
+        name: rx-csum-unnecessary
+        doc: Number of packets that were marked as CHECKSUM_UNNECESSARY.
+        type: uint
+      -
+        name: rx-csum-none
+        doc: Number of packets that were not checksummed by device.
+        type: uint
+      -
+        name: rx-csum-bad
+        doc: |
+          Number of packets with bad checksum. The packets are not discarded,
+          but still delivered to the stack.
+        type: uint
+      -
+        name: rx-hw-gro-packets
+        doc: |
+          Number of packets that were coalesced from smaller packets by the device.
+          Counts only packets coalesced with the HW-GRO netdevice feature,
+          LRO-coalesced packets are not counted.
+        type: uint
+      -
+        name: rx-hw-gro-bytes
+        doc: See `rx-hw-gro-packets`.
+        type: uint
+      -
+        name: rx-hw-gro-wire-packets
+        doc: |
+          Number of packets that were coalesced to bigger packetss with the HW-GRO
+          netdevice feature. LRO-coalesced packets are not counted.
+        type: uint
+      -
+        name: rx-hw-gro-wire-bytes
+        doc: See `rx-hw-gro-wire-packets`.
+        type: uint
+      -
+        name: rx-hw-drop-ratelimits
+        doc: |
+          Number of the packets dropped by the device due to the received
+          packets bitrate exceeding the device rate limit.
+        type: uint
+      -
+        name: tx-hw-drops
+        doc: |
+          Number of packets that arrived at the device but never left it,
+          encompassing packets dropped for reasons such as processing errors, as
+          well as those affected by explicitly defined policies and packet
+          filtering criteria.
+        type: uint
+      -
+        name: tx-hw-drop-errors
+        doc: Number of packets dropped because they were invalid or malformed.
+        type: uint
+      -
+        name: tx-csum-none
+        doc: |
+          Number of packets that did not require the device to calculate the
+          checksum.
+        type: uint
+      -
+        name: tx-needs-csum
+        doc: |
+          Number of packets that required the device to calculate the checksum.
+        type: uint
+      -
+        name: tx-hw-gso-packets
+        doc: |
+          Number of packets that necessitated segmentation into smaller packets
+          by the device.
+        type: uint
+      -
+        name: tx-hw-gso-bytes
+        doc: See `tx-hw-gso-packets`.
+        type: uint
+      -
+        name: tx-hw-gso-wire-packets
+        doc: |
+          Number of wire-sized packets generated by processing
+          `tx-hw-gso-packets`
+        type: uint
+      -
+        name: tx-hw-gso-wire-bytes
+        doc: See `tx-hw-gso-wire-packets`.
+        type: uint
+      -
+        name: tx-hw-drop-ratelimits
+        doc: |
+          Number of the packets dropped by the device due to the transmit
+          packets bitrate exceeding the device rate limit.
+        type: uint
+      -
+        name: tx-stop
+        doc: |
+          Number of times driver paused accepting new tx packets
+          from the stack to this queue, because the queue was full.
+          Note that if BQL is supported and enabled on the device
+          the networking stack will avoid queuing a lot of data at once.
+        type: uint
+      -
+        name: tx-wake
+        doc: |
+          Number of times driver re-started accepting send
+          requests to this queue from the stack.
+        type: uint
+
+operations:
+  list:
+    -
+      name: dev-get
+      doc: Get / dump information about a netdev.
+      attribute-set: dev
+      do:
+        request:
+          attributes:
+            - ifindex
+        reply: &dev-all
+          attributes:
+            - ifindex
+            - xdp-features
+            - xdp-zc-max-segs
+            - xdp-rx-metadata-features
+            - xsk-features
+      dump:
+        reply: *dev-all
+    -
+      name: dev-add-ntf
+      doc: Notification about device appearing.
+      notify: dev-get
+      mcgrp: mgmt
+    -
+      name: dev-del-ntf
+      doc: Notification about device disappearing.
+      notify: dev-get
+      mcgrp: mgmt
+    -
+      name: dev-change-ntf
+      doc: Notification about device configuration being changed.
+      notify: dev-get
+      mcgrp: mgmt
+    -
+      name: page-pool-get
+      doc: |
+        Get / dump information about Page Pools.
+        (Only Page Pools associated with a net_device can be listed.)
+      attribute-set: page-pool
+      do:
+        request:
+          attributes:
+            - id
+        reply: &pp-reply
+          attributes:
+            - id
+            - ifindex
+            - napi-id
+            - inflight
+            - inflight-mem
+            - detach-time
+      dump:
+        reply: *pp-reply
+      config-cond: page-pool
+    -
+      name: page-pool-add-ntf
+      doc: Notification about page pool appearing.
+      notify: page-pool-get
+      mcgrp: page-pool
+      config-cond: page-pool
+    -
+      name: page-pool-del-ntf
+      doc: Notification about page pool disappearing.
+      notify: page-pool-get
+      mcgrp: page-pool
+      config-cond: page-pool
+    -
+      name: page-pool-change-ntf
+      doc: Notification about page pool configuration being changed.
+      notify: page-pool-get
+      mcgrp: page-pool
+      config-cond: page-pool
+    -
+      name: page-pool-stats-get
+      doc: Get page pool statistics.
+      attribute-set: page-pool-stats
+      do:
+        request:
+          attributes:
+            - info
+        reply: &pp-stats-reply
+          attributes:
+            - info
+            - alloc-fast
+            - alloc-slow
+            - alloc-slow-high-order
+            - alloc-empty
+            - alloc-refill
+            - alloc-waive
+            - recycle-cached
+            - recycle-cache-full
+            - recycle-ring
+            - recycle-ring-full
+            - recycle-released-refcnt
+      dump:
+        reply: *pp-stats-reply
+      config-cond: page-pool-stats
+    -
+      name: queue-get
+      doc: Get queue information from the kernel.
+           Only configured queues will be reported (as opposed to all available
+           hardware queues).
+      attribute-set: queue
+      do:
+        request:
+          attributes:
+            - ifindex
+            - type
+            - id
+        reply: &queue-get-op
+          attributes:
+            - id
+            - type
+            - napi-id
+            - ifindex
+      dump:
+        request:
+          attributes:
+            - ifindex
+        reply: *queue-get-op
+    -
+      name: napi-get
+      doc: Get information about NAPI instances configured on the system.
+      attribute-set: napi
+      do:
+        request:
+          attributes:
+            - id
+        reply: &napi-get-op
+          attributes:
+            - id
+            - ifindex
+            - irq
+            - pid
+      dump:
+        request:
+          attributes:
+            - ifindex
+        reply: *napi-get-op
+    -
+      name: qstats-get
+      doc: |
+        Get / dump fine grained statistics. Which statistics are reported
+        depends on the device and the driver, and whether the driver stores
+        software counters per-queue.
+      attribute-set: qstats
+      dump:
+        request:
+          attributes:
+            - ifindex
+            - scope
+        reply:
+          attributes:
+            - ifindex
+            - queue-type
+            - queue-id
+            - rx-packets
+            - rx-bytes
+            - tx-packets
+            - tx-bytes
+
+mcast-groups:
+  list:
+    -
+      name: mgmt
+    -
+      name: page-pool

@@ -42,6 +42,7 @@ static unsigned int sc520_freq_get_cpu_frequency(unsigned int cpu)
 	default:
 		pr_err("error: cpuctl register has unexpected value %02x\n",
 		       clockspeed_reg);
+		fallthrough;
 	case 0x01:
 		return 100000;
 	case 0x02:
@@ -95,7 +96,7 @@ static struct cpufreq_driver sc520_freq_driver = {
 };
 
 static const struct x86_cpu_id sc520_ids[] = {
-	{ X86_VENDOR_AMD, 4, 9 },
+	X86_MATCH_VENDOR_FAM_MODEL(AMD, 4, 9, NULL),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, sc520_ids);

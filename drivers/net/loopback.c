@@ -44,6 +44,7 @@
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/ethtool.h>
+#include <net/sch_generic.h>
 #include <net/sock.h>
 #include <net/checksum.h>
 #include <linux/if_ether.h>	/* For the statistics structure. */
@@ -68,43 +69,35 @@ EXPORT_SYMBOL(blackhole_netdev);
 static netdev_tx_t loopback_xmit(struct sk_buff *skb,
 				 struct net_device *dev)
 {
-	struct pcpu_lstats *lb_stats;
 	int len;
 
 	skb_tx_timestamp(skb);
 
 	/* do not fool net_timestamp_check() with various clock bases */
-	skb->tstamp = 0;
+	skb_clear_tstamp(skb);
 
 	skb_orphan(skb);
 
-	/* Before queueing this packet to netif_rx(),
+	/* Before queueing this packet to __netif_rx(),
 	 * make sure dst is refcounted.
 	 */
 	skb_dst_force(skb);
 
 	skb->protocol = eth_type_trans(skb, dev);
 
-	/* it's OK to use per_cpu_ptr() because BHs are off */
-	lb_stats = this_cpu_ptr(dev->lstats);
-
 	len = skb->len;
-	if (likely(netif_rx(skb) == NET_RX_SUCCESS)) {
-		u64_stats_update_begin(&lb_stats->syncp);
-		lb_stats->bytes += len;
-		lb_stats->packets++;
-		u64_stats_update_end(&lb_stats->syncp);
-	}
+	if (likely(__netif_rx(skb) == NET_RX_SUCCESS))
+		dev_lstats_add(dev, len);
 
 	return NETDEV_TX_OK;
 }
 
-static void loopback_get_stats64(struct net_device *dev,
-				 struct rtnl_link_stats64 *stats)
+void dev_lstats_read(struct net_device *dev, u64 *packets, u64 *bytes)
 {
-	u64 bytes = 0;
-	u64 packets = 0;
 	int i;
+
+	*packets = 0;
+	*bytes = 0;
 
 	for_each_possible_cpu(i) {
 		const struct pcpu_lstats *lb_stats;
@@ -113,13 +106,23 @@ static void loopback_get_stats64(struct net_device *dev,
 
 		lb_stats = per_cpu_ptr(dev->lstats, i);
 		do {
-			start = u64_stats_fetch_begin_irq(&lb_stats->syncp);
-			tbytes = lb_stats->bytes;
-			tpackets = lb_stats->packets;
-		} while (u64_stats_fetch_retry_irq(&lb_stats->syncp, start));
-		bytes   += tbytes;
-		packets += tpackets;
+			start = u64_stats_fetch_begin(&lb_stats->syncp);
+			tpackets = u64_stats_read(&lb_stats->packets);
+			tbytes = u64_stats_read(&lb_stats->bytes);
+		} while (u64_stats_fetch_retry(&lb_stats->syncp, start));
+		*bytes   += tbytes;
+		*packets += tpackets;
 	}
+}
+EXPORT_SYMBOL(dev_lstats_read);
+
+static void loopback_get_stats64(struct net_device *dev,
+				 struct rtnl_link_stats64 *stats)
+{
+	u64 packets, bytes;
+
+	dev_lstats_read(dev, &packets, &bytes);
+
 	stats->rx_packets = packets;
 	stats->tx_packets = packets;
 	stats->rx_bytes   = bytes;
@@ -138,16 +141,13 @@ static const struct ethtool_ops loopback_ethtool_ops = {
 
 static int loopback_dev_init(struct net_device *dev)
 {
-	dev->lstats = netdev_alloc_pcpu_stats(struct pcpu_lstats);
-	if (!dev->lstats)
-		return -ENOMEM;
+	netdev_lockdep_set_classes(dev);
 	return 0;
 }
 
 static void loopback_dev_free(struct net_device *dev)
 {
 	dev_net(dev)->loopback_dev = NULL;
-	free_percpu(dev->lstats);
 }
 
 static const struct net_device_ops loopback_ops = {
@@ -187,7 +187,10 @@ static void gen_lo_setup(struct net_device *dev,
 	dev->header_ops		= hdr_ops;
 	dev->netdev_ops		= dev_ops;
 	dev->needs_free_netdev	= true;
+	dev->pcpu_stat_type	= NETDEV_PCPU_STAT_LSTATS;
 	dev->priv_destructor	= dev_destructor;
+
+	netif_set_tso_max_size(dev, GSO_MAX_SIZE);
 }
 
 /* The loopback device is special. There is only one instance
@@ -206,7 +209,7 @@ static __net_init int loopback_net_init(struct net *net)
 	int err;
 
 	err = -ENOMEM;
-	dev = alloc_netdev(0, "lo", NET_NAME_UNKNOWN, loopback_setup);
+	dev = alloc_netdev(0, "lo", NET_NAME_PREDICTABLE, loopback_setup);
 	if (!dev)
 		goto out;
 

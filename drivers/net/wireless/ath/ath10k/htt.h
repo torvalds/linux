@@ -3,6 +3,7 @@
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021, 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _HTT_H_
@@ -69,7 +70,7 @@ struct htt_ver_req {
  * The HTT tx descriptor is defined in two manners: by a struct with
  * bitfields, and by a series of [dword offset, bit mask, bit shift]
  * definitions.
- * The target should use the struct def, for simplicitly and clarity,
+ * The target should use the struct def, for simplicity and clarity,
  * but the host shall use the bit-mast + bit-shift defs, to be endian-
  * neutral.  Specifically, the host shall use the get/set macros built
  * around the mask + shift defs.
@@ -150,8 +151,18 @@ enum htt_data_tx_desc_flags1 {
 	HTT_DATA_TX_DESC_FLAGS1_MORE_IN_BATCH    = 1 << 12,
 	HTT_DATA_TX_DESC_FLAGS1_CKSUM_L3_OFFLOAD = 1 << 13,
 	HTT_DATA_TX_DESC_FLAGS1_CKSUM_L4_OFFLOAD = 1 << 14,
-	HTT_DATA_TX_DESC_FLAGS1_RSVD1            = 1 << 15
+	HTT_DATA_TX_DESC_FLAGS1_TX_COMPLETE      = 1 << 15
 };
+
+#define HTT_TX_CREDIT_DELTA_ABS_M      0xffff0000
+#define HTT_TX_CREDIT_DELTA_ABS_S      16
+#define HTT_TX_CREDIT_DELTA_ABS_GET(word) \
+	    (((word) & HTT_TX_CREDIT_DELTA_ABS_M) >> HTT_TX_CREDIT_DELTA_ABS_S)
+
+#define HTT_TX_CREDIT_SIGN_BIT_M       0x00000100
+#define HTT_TX_CREDIT_SIGN_BIT_S       8
+#define HTT_TX_CREDIT_SIGN_BIT_GET(word) \
+	    (((word) & HTT_TX_CREDIT_SIGN_BIT_M) >> HTT_TX_CREDIT_SIGN_BIT_S)
 
 enum htt_data_tx_ext_tid {
 	HTT_DATA_TX_EXT_TID_NON_QOS_MCAST_BCAST = 16,
@@ -230,14 +241,7 @@ enum htt_rx_ring_flags {
 #define HTT_RX_RING_FILL_LEVEL (((HTT_RX_RING_SIZE) / 2) - 1)
 #define HTT_RX_RING_FILL_LEVEL_DUAL_MAC (HTT_RX_RING_SIZE - 1)
 
-struct htt_rx_ring_setup_ring32 {
-	__le32 fw_idx_shadow_reg_paddr;
-	__le32 rx_ring_base_paddr;
-	__le16 rx_ring_len; /* in 4-byte words */
-	__le16 rx_ring_bufsize; /* rx skb size - in bytes */
-	__le16 flags; /* %HTT_RX_RING_FLAGS_ */
-	__le16 fw_idx_init_val;
-
+struct htt_rx_ring_rx_desc_offsets {
 	/* the following offsets are in 4-byte units */
 	__le16 mac80211_hdr_offset;
 	__le16 msdu_payload_offset;
@@ -249,6 +253,17 @@ struct htt_rx_ring_setup_ring32 {
 	__le16 msdu_end_offset;
 	__le16 rx_attention_offset;
 	__le16 frag_info_offset;
+} __packed;
+
+struct htt_rx_ring_setup_ring32 {
+	__le32 fw_idx_shadow_reg_paddr;
+	__le32 rx_ring_base_paddr;
+	__le16 rx_ring_len; /* in 4-byte words */
+	__le16 rx_ring_bufsize; /* rx skb size - in bytes */
+	__le16 flags; /* %HTT_RX_RING_FLAGS_ */
+	__le16 fw_idx_init_val;
+
+	struct htt_rx_ring_rx_desc_offsets offsets;
 } __packed;
 
 struct htt_rx_ring_setup_ring64 {
@@ -259,17 +274,7 @@ struct htt_rx_ring_setup_ring64 {
 	__le16 flags; /* %HTT_RX_RING_FLAGS_ */
 	__le16 fw_idx_init_val;
 
-	/* the following offsets are in 4-byte units */
-	__le16 mac80211_hdr_offset;
-	__le16 msdu_payload_offset;
-	__le16 ppdu_start_offset;
-	__le16 ppdu_end_offset;
-	__le16 mpdu_start_offset;
-	__le16 mpdu_end_offset;
-	__le16 msdu_start_offset;
-	__le16 msdu_end_offset;
-	__le16 rx_attention_offset;
-	__le16 frag_info_offset;
+	struct htt_rx_ring_rx_desc_offsets offsets;
 } __packed;
 
 struct htt_rx_ring_setup_hdr {
@@ -279,12 +284,12 @@ struct htt_rx_ring_setup_hdr {
 
 struct htt_rx_ring_setup_32 {
 	struct htt_rx_ring_setup_hdr hdr;
-	struct htt_rx_ring_setup_ring32 rings[0];
+	struct htt_rx_ring_setup_ring32 rings[];
 } __packed;
 
 struct htt_rx_ring_setup_64 {
 	struct htt_rx_ring_setup_hdr hdr;
-	struct htt_rx_ring_setup_ring64 rings[0];
+	struct htt_rx_ring_setup_ring64 rings[];
 } __packed;
 
 /*
@@ -703,7 +708,7 @@ struct htt_rx_indication_prefix {
 	__le16 fw_rx_desc_bytes;
 	u8 pad0;
 	u8 pad1;
-};
+} __packed;
 
 struct htt_rx_indication {
 	struct htt_rx_indication_hdr hdr;
@@ -722,7 +727,7 @@ struct htt_rx_indication {
 	 * %mpdu_ranges starts after &%prefix + roundup(%fw_rx_desc_bytes, 4)
 	 * and has %num_mpdu_ranges elements.
 	 */
-	struct htt_rx_indication_mpdu_range mpdu_ranges[0];
+	struct htt_rx_indication_mpdu_range mpdu_ranges[];
 } __packed;
 
 /* High latency version of the RX indication */
@@ -731,7 +736,7 @@ struct htt_rx_indication_hl {
 	struct htt_rx_indication_ppdu ppdu;
 	struct htt_rx_indication_prefix prefix;
 	struct fw_rx_desc_hl fw_desc;
-	struct htt_rx_indication_mpdu_range mpdu_ranges[0];
+	struct htt_rx_indication_mpdu_range mpdu_ranges[];
 } __packed;
 
 struct htt_hl_rx_desc {
@@ -835,6 +840,7 @@ enum htt_security_types {
 
 #define ATH10K_HTT_TXRX_PEER_SECURITY_MAX 2
 #define ATH10K_TXRX_NUM_EXT_TIDS 19
+#define ATH10K_TXRX_NON_QOS_TID 16
 
 enum htt_security_flags {
 #define HTT_SECURITY_TYPE_MASK 0x7F
@@ -875,8 +881,7 @@ enum htt_data_tx_status {
 	HTT_DATA_TX_STATUS_OK            = 0,
 	HTT_DATA_TX_STATUS_DISCARD       = 1,
 	HTT_DATA_TX_STATUS_NO_ACK        = 2,
-	HTT_DATA_TX_STATUS_POSTPONE      = 3, /* HL only */
-	HTT_DATA_TX_STATUS_DOWNLOAD_FAIL = 128
+	HTT_DATA_TX_STATUS_POSTPONE      = 3 /* HL only */
 };
 
 enum htt_data_tx_flags {
@@ -898,10 +903,10 @@ struct htt_append_retries {
 struct htt_data_tx_completion_ext {
 	struct htt_append_retries a_retries;
 	__le32 t_stamp;
-	__le16 msdus_rssi[0];
+	__le16 msdus_rssi[];
 } __packed;
 
-/**
+/*
  * @brief target -> host TX completion indication message definition
  *
  * @details
@@ -982,7 +987,7 @@ struct htt_data_tx_completion {
 	} __packed;
 	u8 num_msdus;
 	u8 flags2; /* HTT_TX_CMPL_FLAG_DATA_RSSI */
-	__le16 msdus[0]; /* variable length based on %num_msdus */
+	__le16 msdus[]; /* variable length based on %num_msdus */
 } __packed;
 
 #define HTT_TX_PPDU_DUR_INFO0_PEER_ID_MASK	GENMASK(15, 0)
@@ -997,7 +1002,7 @@ struct htt_data_tx_ppdu_dur {
 
 struct htt_data_tx_compl_ppdu_dur {
 	__le32 info0; /* HTT_TX_COMPL_PPDU_DUR_INFO0_ */
-	struct htt_data_tx_ppdu_dur ppdu_dur[0];
+	struct htt_data_tx_ppdu_dur ppdu_dur[];
 } __packed;
 
 struct htt_tx_compl_ind_base {
@@ -1023,7 +1028,7 @@ struct htt_rc_update {
 	u8 addr[6];
 	u8 num_elems;
 	u8 rsvd0;
-	struct htt_rc_tx_done_params params[0]; /* variable length %num_elems */
+	struct htt_rc_tx_done_params params[]; /* variable length %num_elems */
 } __packed;
 
 /* see htt_rx_indication for similar fields and descriptions */
@@ -1040,7 +1045,7 @@ struct htt_rx_fragment_indication {
 	__le16 fw_rx_desc_bytes;
 	__le16 rsvd0;
 
-	u8 fw_msdu_rx_desc[0];
+	u8 fw_msdu_rx_desc[];
 } __packed;
 
 #define ATH10K_IEEE80211_EXTIV               BIT(5)
@@ -1065,7 +1070,7 @@ struct htt_rx_pn_ind {
 	u8 seqno_end;
 	u8 pn_ie_count;
 	u8 reserved;
-	u8 pn_ies[0];
+	u8 pn_ies[];
 } __packed;
 
 struct htt_rx_offload_msdu {
@@ -1074,7 +1079,7 @@ struct htt_rx_offload_msdu {
 	u8 vdev_id;
 	u8 tid;
 	u8 fw_desc;
-	u8 payload[0];
+	u8 payload[];
 } __packed;
 
 struct htt_rx_offload_ind {
@@ -1103,8 +1108,10 @@ struct htt_rx_in_ord_ind {
 	u8 reserved;
 	__le16 msdu_count;
 	union {
-		struct htt_rx_in_ord_msdu_desc msdu_descs32[0];
-		struct htt_rx_in_ord_msdu_desc_ext msdu_descs64[0];
+		DECLARE_FLEX_ARRAY(struct htt_rx_in_ord_msdu_desc,
+				   msdu_descs32);
+		DECLARE_FLEX_ARRAY(struct htt_rx_in_ord_msdu_desc_ext,
+				   msdu_descs64);
 	} __packed;
 } __packed;
 
@@ -1157,7 +1164,7 @@ struct htt_rx_test {
 	 *  a) num_ints * sizeof(__le32)
 	 *  b) num_chars * sizeof(u8) aligned to 4bytes
 	 */
-	u8 payload[0];
+	u8 payload[];
 } __packed;
 
 static inline __le32 *htt_rx_test_get_ints(struct htt_rx_test *rx_test)
@@ -1191,7 +1198,7 @@ static inline u8 *htt_rx_test_get_chars(struct htt_rx_test *rx_test)
  */
 struct htt_pktlog_msg {
 	u8 pad[3];
-	u8 payload[0];
+	u8 payload[];
 } __packed;
 
 struct htt_dbg_stats_rx_reorder_stats {
@@ -1272,8 +1279,8 @@ struct htt_dbg_stats_wal_tx_stats {
 	/* Num PPDUs cleaned up in TX abort */
 	__le32 tx_abort;
 
-	/* Num MPDUs requed by SW */
-	__le32 mpdus_requed;
+	/* Num MPDUs requeued by SW */
+	__le32 mpdus_requeued;
 
 	/* excessive retries */
 	__le32 tx_ko;
@@ -1390,115 +1397,6 @@ enum htt_dbg_stats_status {
 };
 
 /*
- * target -> host statistics upload
- *
- * The following field definitions describe the format of the HTT target
- * to host stats upload confirmation message.
- * The message contains a cookie echoed from the HTT host->target stats
- * upload request, which identifies which request the confirmation is
- * for, and a series of tag-length-value stats information elements.
- * The tag-length header for each stats info element also includes a
- * status field, to indicate whether the request for the stat type in
- * question was fully met, partially met, unable to be met, or invalid
- * (if the stat type in question is disabled in the target).
- * A special value of all 1's in this status field is used to indicate
- * the end of the series of stats info elements.
- *
- *
- * |31                         16|15           8|7   5|4       0|
- * |------------------------------------------------------------|
- * |                  reserved                  |    msg type   |
- * |------------------------------------------------------------|
- * |                        cookie LSBs                         |
- * |------------------------------------------------------------|
- * |                        cookie MSBs                         |
- * |------------------------------------------------------------|
- * |      stats entry length     |   reserved   |  S  |stat type|
- * |------------------------------------------------------------|
- * |                                                            |
- * |                  type-specific stats info                  |
- * |                                                            |
- * |------------------------------------------------------------|
- * |      stats entry length     |   reserved   |  S  |stat type|
- * |------------------------------------------------------------|
- * |                                                            |
- * |                  type-specific stats info                  |
- * |                                                            |
- * |------------------------------------------------------------|
- * |              n/a            |   reserved   | 111 |   n/a   |
- * |------------------------------------------------------------|
- * Header fields:
- *  - MSG_TYPE
- *    Bits 7:0
- *    Purpose: identifies this is a statistics upload confirmation message
- *    Value: 0x9
- *  - COOKIE_LSBS
- *    Bits 31:0
- *    Purpose: Provide a mechanism to match a target->host stats confirmation
- *        message with its preceding host->target stats request message.
- *    Value: LSBs of the opaque cookie specified by the host-side requestor
- *  - COOKIE_MSBS
- *    Bits 31:0
- *    Purpose: Provide a mechanism to match a target->host stats confirmation
- *        message with its preceding host->target stats request message.
- *    Value: MSBs of the opaque cookie specified by the host-side requestor
- *
- * Stats Information Element tag-length header fields:
- *  - STAT_TYPE
- *    Bits 4:0
- *    Purpose: identifies the type of statistics info held in the
- *        following information element
- *    Value: htt_dbg_stats_type
- *  - STATUS
- *    Bits 7:5
- *    Purpose: indicate whether the requested stats are present
- *    Value: htt_dbg_stats_status, including a special value (0x7) to mark
- *        the completion of the stats entry series
- *  - LENGTH
- *    Bits 31:16
- *    Purpose: indicate the stats information size
- *    Value: This field specifies the number of bytes of stats information
- *       that follows the element tag-length header.
- *       It is expected but not required that this length is a multiple of
- *       4 bytes.  Even if the length is not an integer multiple of 4, the
- *       subsequent stats entry header will begin on a 4-byte aligned
- *       boundary.
- */
-
-#define HTT_STATS_CONF_ITEM_INFO_STAT_TYPE_MASK 0x1F
-#define HTT_STATS_CONF_ITEM_INFO_STAT_TYPE_LSB  0
-#define HTT_STATS_CONF_ITEM_INFO_STATUS_MASK    0xE0
-#define HTT_STATS_CONF_ITEM_INFO_STATUS_LSB     5
-
-struct htt_stats_conf_item {
-	union {
-		u8 info;
-		struct {
-			u8 stat_type:5; /* %HTT_DBG_STATS_ */
-			u8 status:3; /* %HTT_DBG_STATS_STATUS_ */
-		} __packed;
-	} __packed;
-	u8 pad;
-	__le16 length;
-	u8 payload[0]; /* roundup(length, 4) long */
-} __packed;
-
-struct htt_stats_conf {
-	u8 pad[3];
-	__le32 cookie_lsb;
-	__le32 cookie_msb;
-
-	/* each item has variable length! */
-	struct htt_stats_conf_item items[0];
-} __packed;
-
-static inline struct htt_stats_conf_item *htt_stats_conf_next_item(
-					const struct htt_stats_conf_item *item)
-{
-	return (void *)item + sizeof(*item) + roundup(item->length, 4);
-}
-
-/*
  * host -> target FRAG DESCRIPTOR/MSDU_EXT DESC bank
  *
  * The following field definitions describe the format of the HTT host
@@ -1576,15 +1474,19 @@ enum htt_q_depth_type {
 #define HTT_TX_Q_STATE_ENTRY_MULTIPLIER		0
 
 /**
- * htt_q_state_conf - part of htt_frag_desc_bank_cfg for host q state config
+ * struct htt_q_state_conf - part of htt_frag_desc_bank_cfg for host q state config
  *
  * Defines host q state format and behavior. See htt_q_state.
  *
+ * @paddr: Queue physical address
+ * @num_peers: Number of supported peers
+ * @num_tids: Number of supported TIDs
  * @record_size: Defines the size of each host q entry in bytes. In practice
  *	however firmware (at least 10.4.3-00191) ignores this host
  *	configuration value and uses hardcoded value of 1.
  * @record_multiplier: This is valid only when q depth type is MSDUs. It
  *	defines the exponent for the power of 2 multiplication.
+ * @pad: struct padding for 32-bit alignment
  */
 struct htt_q_state_conf {
 	__le32 paddr;
@@ -1620,7 +1522,7 @@ struct htt_frag_desc_bank_cfg64 {
 #define HTT_TX_Q_STATE_ENTRY_EXP_LSB		6
 
 /**
- * htt_q_state - shared between host and firmware via DMA
+ * struct htt_q_state - shared between host and firmware via DMA
  *
  * This structure is used for the host to expose it's software queue state to
  * firmware so that its rate control can schedule fetch requests for optimized
@@ -1663,8 +1565,11 @@ struct htt_tx_fetch_ind {
 	__le32 token;
 	__le16 num_resp_ids;
 	__le16 num_records;
-	struct htt_tx_fetch_record records[0];
-	__le32 resp_ids[0]; /* ath10k_htt_get_tx_fetch_ind_resp_ids() */
+	union {
+		/* ath10k_htt_get_tx_fetch_ind_resp_ids() */
+		DECLARE_FLEX_ARRAY(__le32, resp_ids);
+		DECLARE_FLEX_ARRAY(struct htt_tx_fetch_record, records);
+	} __packed;
 } __packed;
 
 static inline void *
@@ -1679,13 +1584,13 @@ struct htt_tx_fetch_resp {
 	__le16 fetch_seq_num;
 	__le16 num_records;
 	__le32 token;
-	struct htt_tx_fetch_record records[0];
+	struct htt_tx_fetch_record records[];
 } __packed;
 
 struct htt_tx_fetch_confirm {
 	u8 pad0;
 	__le16 num_resp_ids;
-	__le32 resp_ids[0];
+	__le32 resp_ids[];
 } __packed;
 
 enum htt_tx_mode_switch_mode {
@@ -1717,7 +1622,7 @@ struct htt_tx_mode_switch_ind {
 	__le16 info0; /* HTT_TX_MODE_SWITCH_IND_INFO0_ */
 	__le16 info1; /* HTT_TX_MODE_SWITCH_IND_INFO1_ */
 	u8 pad1[2];
-	struct htt_tx_mode_switch_record records[0];
+	struct htt_tx_mode_switch_record records[];
 } __packed;
 
 struct htt_channel_change {
@@ -1747,7 +1652,7 @@ struct htt_peer_tx_stats {
 	u8 num_ppdu;
 	u8 ppdu_len;
 	u8 version;
-	u8 payload[0];
+	u8 payload[];
 } __packed;
 
 #define ATH10K_10_2_TX_STATS_OFFSET	136
@@ -1814,7 +1719,6 @@ struct htt_resp {
 		struct htt_rc_update rc_update;
 		struct htt_rx_test rx_test;
 		struct htt_pktlog_msg pktlog_msg;
-		struct htt_stats_conf stats_conf;
 		struct htt_rx_pn_ind rx_pn_ind;
 		struct htt_rx_offload_ind rx_offload_ind;
 		struct htt_rx_in_ord_ind rx_in_ord_ind;
@@ -1823,7 +1727,7 @@ struct htt_resp {
 		struct htt_tx_mode_switch_ind tx_mode_switch_ind;
 		struct htt_channel_change chan_change;
 		struct htt_peer_tx_stats peer_tx_stats;
-	};
+	} __packed;
 } __packed;
 
 /*** host side structures follow ***/
@@ -1868,6 +1772,8 @@ struct ath10k_htt_txbuf_64 {
 struct ath10k_htt {
 	struct ath10k *ar;
 	enum ath10k_htc_ep_id eid;
+
+	struct sk_buff_head rx_indication_head;
 
 	u8 target_version_major;
 	u8 target_version_minor;
@@ -2019,6 +1925,10 @@ struct ath10k_htt {
 	bool tx_mem_allocated;
 	const struct ath10k_htt_tx_ops *tx_ops;
 	const struct ath10k_htt_rx_ops *rx_ops;
+	bool disable_tx_comp;
+	bool bundle_tx;
+	struct sk_buff_head tx_req_head;
+	struct sk_buff_head tx_complete_head;
 };
 
 struct ath10k_htt_tx_ops {
@@ -2033,6 +1943,7 @@ struct ath10k_htt_tx_ops {
 	int (*htt_h2t_aggr_cfg_msg)(struct ath10k_htt *htt,
 				    u8 max_subfrms_ampdu,
 				    u8 max_subfrms_amsdu);
+	void (*htt_flush_tx)(struct ath10k_htt *htt);
 };
 
 static inline int ath10k_htt_send_rx_ring_cfg(struct ath10k_htt *htt)
@@ -2070,6 +1981,12 @@ static inline int ath10k_htt_tx(struct ath10k_htt *htt,
 				struct sk_buff *msdu)
 {
 	return htt->tx_ops->htt_tx(htt, txmode, msdu);
+}
+
+static inline void ath10k_htt_flush_tx(struct ath10k_htt *htt)
+{
+	if (htt->tx_ops->htt_flush_tx)
+		htt->tx_ops->htt_flush_tx(htt);
 }
 
 static inline int ath10k_htt_alloc_txbuff(struct ath10k_htt *htt)
@@ -2158,12 +2075,22 @@ static inline bool ath10k_htt_rx_proc_rx_frag_ind(struct ath10k_htt *htt,
 	return htt->rx_ops->htt_rx_proc_rx_frag_ind(htt, rx, skb);
 }
 
+/* the driver strongly assumes that the rx header status be 64 bytes long,
+ * so all possible rx_desc structures must respect this assumption.
+ */
 #define RX_HTT_HDR_STATUS_LEN 64
 
-/* This structure layout is programmed via rx ring setup
+/* The rx descriptor structure layout is programmed via rx ring setup
  * so that FW knows how to transfer the rx descriptor to the host.
- * Buffers like this are placed on the rx ring.
+ * Unfortunately, though, QCA6174's firmware doesn't currently behave correctly
+ * when modifying the structure layout of the rx descriptor beyond what it expects
+ * (even if it correctly programmed during the rx ring setup).
+ * Therefore we must keep two different memory layouts, abstract the rx descriptor
+ * representation and use ath10k_rx_desc_ops
+ * for correctly accessing rx descriptor data.
  */
+
+/* base struct used for abstracting the rx descriptor representation */
 struct htt_rx_desc {
 	union {
 		/* This field is filled on the host using the msdu buffer
@@ -2172,6 +2099,13 @@ struct htt_rx_desc {
 		struct fw_rx_desc_base fw_desc;
 		u32 pad;
 	} __packed;
+} __packed;
+
+/* rx descriptor for wcn3990 and possibly extensible for newer cards
+ * Buffers like this are placed on the rx ring.
+ */
+struct htt_rx_desc_v2 {
+	struct htt_rx_desc base;
 	struct {
 		struct rx_attention attention;
 		struct rx_frag_info frag_info;
@@ -2183,8 +2117,242 @@ struct htt_rx_desc {
 		struct rx_ppdu_end ppdu_end;
 	} __packed;
 	u8 rx_hdr_status[RX_HTT_HDR_STATUS_LEN];
-	u8 msdu_payload[0];
+	u8 msdu_payload[];
 };
+
+/* QCA6174, QCA988x, QCA99x0 dedicated rx descriptor to make sure their firmware
+ * works correctly. We keep a single rx descriptor for all these three
+ * families of cards because from tests it seems to be the most stable solution,
+ * e.g. having a rx descriptor only for QCA6174 seldom caused firmware crashes
+ * during some tests.
+ * Buffers like this are placed on the rx ring.
+ */
+struct htt_rx_desc_v1 {
+	struct htt_rx_desc base;
+	struct {
+		struct rx_attention attention;
+		struct rx_frag_info_v1 frag_info;
+		struct rx_mpdu_start mpdu_start;
+		struct rx_msdu_start_v1 msdu_start;
+		struct rx_msdu_end_v1 msdu_end;
+		struct rx_mpdu_end mpdu_end;
+		struct rx_ppdu_start ppdu_start;
+		struct rx_ppdu_end_v1 ppdu_end;
+	} __packed;
+	u8 rx_hdr_status[RX_HTT_HDR_STATUS_LEN];
+	u8 msdu_payload[];
+};
+
+/* rx_desc abstraction */
+struct ath10k_htt_rx_desc_ops {
+	/* These fields are mandatory, they must be specified in any instance */
+
+	/* sizeof() of the rx_desc structure used by this hw */
+	size_t rx_desc_size;
+
+	/* offset of msdu_payload inside the rx_desc structure used by this hw */
+	size_t rx_desc_msdu_payload_offset;
+
+	/* These fields are options.
+	 * When a field is not provided the default implementation gets used
+	 * (see the ath10k_rx_desc_* operations below for more info about the defaults)
+	 */
+	bool (*rx_desc_get_msdu_limit_error)(struct htt_rx_desc *rxd);
+	int (*rx_desc_get_l3_pad_bytes)(struct htt_rx_desc *rxd);
+
+	/* Safely cast from a void* buffer containing an rx descriptor
+	 * to the proper rx_desc structure
+	 */
+	struct htt_rx_desc *(*rx_desc_from_raw_buffer)(void *buff);
+
+	void (*rx_desc_get_offsets)(struct htt_rx_ring_rx_desc_offsets *offs);
+	struct rx_attention *(*rx_desc_get_attention)(struct htt_rx_desc *rxd);
+	struct rx_frag_info_common *(*rx_desc_get_frag_info)(struct htt_rx_desc *rxd);
+	struct rx_mpdu_start *(*rx_desc_get_mpdu_start)(struct htt_rx_desc *rxd);
+	struct rx_mpdu_end *(*rx_desc_get_mpdu_end)(struct htt_rx_desc *rxd);
+	struct rx_msdu_start_common *(*rx_desc_get_msdu_start)(struct htt_rx_desc *rxd);
+	struct rx_msdu_end_common *(*rx_desc_get_msdu_end)(struct htt_rx_desc *rxd);
+	struct rx_ppdu_start *(*rx_desc_get_ppdu_start)(struct htt_rx_desc *rxd);
+	struct rx_ppdu_end_common *(*rx_desc_get_ppdu_end)(struct htt_rx_desc *rxd);
+	u8 *(*rx_desc_get_rx_hdr_status)(struct htt_rx_desc *rxd);
+	u8 *(*rx_desc_get_msdu_payload)(struct htt_rx_desc *rxd);
+};
+
+extern const struct ath10k_htt_rx_desc_ops qca988x_rx_desc_ops;
+extern const struct ath10k_htt_rx_desc_ops qca99x0_rx_desc_ops;
+extern const struct ath10k_htt_rx_desc_ops wcn3990_rx_desc_ops;
+
+static inline int
+ath10k_htt_rx_desc_get_l3_pad_bytes(struct ath10k_hw_params *hw, struct htt_rx_desc *rxd)
+{
+	if (hw->rx_desc_ops->rx_desc_get_l3_pad_bytes)
+		return hw->rx_desc_ops->rx_desc_get_l3_pad_bytes(rxd);
+	return 0;
+}
+
+static inline bool
+ath10k_htt_rx_desc_msdu_limit_error(struct ath10k_hw_params *hw, struct htt_rx_desc *rxd)
+{
+	if (hw->rx_desc_ops->rx_desc_get_msdu_limit_error)
+		return hw->rx_desc_ops->rx_desc_get_msdu_limit_error(rxd);
+	return false;
+}
+
+/* The default implementation of all these getters is using the old rx_desc,
+ * so that it is easier to define the ath10k_htt_rx_desc_ops instances.
+ * But probably, if new wireless cards must be supported, it would be better
+ * to switch the default implementation to the new rx_desc, since this would
+ * make the extension easier .
+ */
+static inline struct htt_rx_desc *
+ath10k_htt_rx_desc_from_raw_buffer(struct ath10k_hw_params *hw,	void *buff)
+{
+	if (hw->rx_desc_ops->rx_desc_from_raw_buffer)
+		return hw->rx_desc_ops->rx_desc_from_raw_buffer(buff);
+	return &((struct htt_rx_desc_v1 *)buff)->base;
+}
+
+static inline void
+ath10k_htt_rx_desc_get_offsets(struct ath10k_hw_params *hw,
+			       struct htt_rx_ring_rx_desc_offsets *off)
+{
+	if (hw->rx_desc_ops->rx_desc_get_offsets) {
+		hw->rx_desc_ops->rx_desc_get_offsets(off);
+	} else {
+#define	desc_offset(x) (offsetof(struct	htt_rx_desc_v1, x)	/ 4)
+		off->mac80211_hdr_offset = __cpu_to_le16(desc_offset(rx_hdr_status));
+		off->msdu_payload_offset = __cpu_to_le16(desc_offset(msdu_payload));
+		off->ppdu_start_offset = __cpu_to_le16(desc_offset(ppdu_start));
+		off->ppdu_end_offset = __cpu_to_le16(desc_offset(ppdu_end));
+		off->mpdu_start_offset = __cpu_to_le16(desc_offset(mpdu_start));
+		off->mpdu_end_offset = __cpu_to_le16(desc_offset(mpdu_end));
+		off->msdu_start_offset = __cpu_to_le16(desc_offset(msdu_start));
+		off->msdu_end_offset = __cpu_to_le16(desc_offset(msdu_end));
+		off->rx_attention_offset = __cpu_to_le16(desc_offset(attention));
+		off->frag_info_offset =	__cpu_to_le16(desc_offset(frag_info));
+#undef desc_offset
+	}
+}
+
+static inline struct rx_attention *
+ath10k_htt_rx_desc_get_attention(struct	ath10k_hw_params *hw, struct htt_rx_desc *rxd)
+{
+	struct htt_rx_desc_v1 *rx_desc;
+
+	if (hw->rx_desc_ops->rx_desc_get_attention)
+		return hw->rx_desc_ops->rx_desc_get_attention(rxd);
+
+	rx_desc = container_of(rxd, struct htt_rx_desc_v1, base);
+	return &rx_desc->attention;
+}
+
+static inline struct rx_frag_info_common *
+ath10k_htt_rx_desc_get_frag_info(struct	ath10k_hw_params *hw, struct htt_rx_desc *rxd)
+{
+	struct htt_rx_desc_v1 *rx_desc;
+
+	if (hw->rx_desc_ops->rx_desc_get_frag_info)
+		return hw->rx_desc_ops->rx_desc_get_frag_info(rxd);
+
+	rx_desc = container_of(rxd, struct htt_rx_desc_v1, base);
+	return &rx_desc->frag_info.common;
+}
+
+static inline struct rx_mpdu_start *
+ath10k_htt_rx_desc_get_mpdu_start(struct ath10k_hw_params *hw, struct htt_rx_desc *rxd)
+{
+	struct htt_rx_desc_v1 *rx_desc;
+
+	if (hw->rx_desc_ops->rx_desc_get_mpdu_start)
+		return hw->rx_desc_ops->rx_desc_get_mpdu_start(rxd);
+
+	rx_desc = container_of(rxd, struct htt_rx_desc_v1, base);
+	return &rx_desc->mpdu_start;
+}
+
+static inline struct rx_mpdu_end *
+ath10k_htt_rx_desc_get_mpdu_end(struct ath10k_hw_params	*hw, struct htt_rx_desc	*rxd)
+{
+	struct htt_rx_desc_v1 *rx_desc;
+
+	if (hw->rx_desc_ops->rx_desc_get_mpdu_end)
+		return hw->rx_desc_ops->rx_desc_get_mpdu_end(rxd);
+
+	rx_desc = container_of(rxd, struct htt_rx_desc_v1, base);
+	return &rx_desc->mpdu_end;
+}
+
+static inline struct rx_msdu_start_common *
+ath10k_htt_rx_desc_get_msdu_start(struct ath10k_hw_params *hw, struct htt_rx_desc *rxd)
+{
+	struct htt_rx_desc_v1 *rx_desc;
+
+	if (hw->rx_desc_ops->rx_desc_get_msdu_start)
+		return hw->rx_desc_ops->rx_desc_get_msdu_start(rxd);
+
+	rx_desc = container_of(rxd, struct htt_rx_desc_v1, base);
+	return &rx_desc->msdu_start.common;
+}
+
+static inline struct rx_msdu_end_common	*
+ath10k_htt_rx_desc_get_msdu_end(struct ath10k_hw_params	*hw, struct htt_rx_desc	*rxd)
+{
+	struct htt_rx_desc_v1 *rx_desc;
+
+	if (hw->rx_desc_ops->rx_desc_get_msdu_end)
+		return hw->rx_desc_ops->rx_desc_get_msdu_end(rxd);
+
+	rx_desc = container_of(rxd, struct htt_rx_desc_v1, base);
+	return &rx_desc->msdu_end.common;
+}
+
+static inline struct rx_ppdu_start *
+ath10k_htt_rx_desc_get_ppdu_start(struct ath10k_hw_params *hw, struct htt_rx_desc *rxd)
+{
+	struct htt_rx_desc_v1 *rx_desc;
+
+	if (hw->rx_desc_ops->rx_desc_get_ppdu_start)
+		return hw->rx_desc_ops->rx_desc_get_ppdu_start(rxd);
+
+	rx_desc = container_of(rxd, struct htt_rx_desc_v1, base);
+	return &rx_desc->ppdu_start;
+}
+
+static inline struct rx_ppdu_end_common	*
+ath10k_htt_rx_desc_get_ppdu_end(struct ath10k_hw_params	*hw, struct htt_rx_desc	*rxd)
+{
+	struct htt_rx_desc_v1 *rx_desc;
+
+	if (hw->rx_desc_ops->rx_desc_get_ppdu_end)
+		return hw->rx_desc_ops->rx_desc_get_ppdu_end(rxd);
+
+	rx_desc = container_of(rxd, struct htt_rx_desc_v1, base);
+	return &rx_desc->ppdu_end.common;
+}
+
+static inline u8 *
+ath10k_htt_rx_desc_get_rx_hdr_status(struct ath10k_hw_params *hw, struct htt_rx_desc *rxd)
+{
+	struct htt_rx_desc_v1 *rx_desc;
+
+	if (hw->rx_desc_ops->rx_desc_get_rx_hdr_status)
+		return hw->rx_desc_ops->rx_desc_get_rx_hdr_status(rxd);
+
+	rx_desc = container_of(rxd, struct htt_rx_desc_v1, base);
+	return rx_desc->rx_hdr_status;
+}
+
+static inline u8 *
+ath10k_htt_rx_desc_get_msdu_payload(struct ath10k_hw_params *hw, struct	htt_rx_desc *rxd)
+{
+	struct htt_rx_desc_v1 *rx_desc;
+
+	if (hw->rx_desc_ops->rx_desc_get_msdu_payload)
+		return hw->rx_desc_ops->rx_desc_get_msdu_payload(rxd);
+
+	rx_desc = container_of(rxd, struct htt_rx_desc_v1, base);
+	return rx_desc->msdu_payload;
+}
 
 #define HTT_RX_DESC_HL_INFO_SEQ_NUM_MASK           0x00000fff
 #define HTT_RX_DESC_HL_INFO_SEQ_NUM_LSB            0
@@ -2218,8 +2386,15 @@ struct htt_rx_chan_info {
  * Should be: sizeof(struct htt_host_rx_desc) + max rx MSDU size,
  * rounded up to a cache line size.
  */
-#define HTT_RX_BUF_SIZE 1920
-#define HTT_RX_MSDU_SIZE (HTT_RX_BUF_SIZE - (int)sizeof(struct htt_rx_desc))
+#define HTT_RX_BUF_SIZE 2048
+
+/* The HTT_RX_MSDU_SIZE can't be statically computed anymore,
+ * because it depends on the underlying device rx_desc representation
+ */
+static inline int ath10k_htt_rx_msdu_size(struct ath10k_hw_params *hw)
+{
+	return HTT_RX_BUF_SIZE - (int)hw->rx_desc_ops->rx_desc_size;
+}
 
 /* Refill a bunch of RX buffers for each refill round so that FW/HW can handle
  * aggregated traffic more nicely.
@@ -2265,6 +2440,7 @@ int ath10k_htt_tx_fetch_resp(struct ath10k *ar,
 			     __le16 fetch_seq_num,
 			     struct htt_tx_fetch_record *records,
 			     size_t num_records);
+void ath10k_htt_op_ep_tx_credits(struct ath10k *ar);
 
 void ath10k_htt_tx_txq_update(struct ieee80211_hw *hw,
 			      struct ieee80211_txq *txq);
@@ -2283,6 +2459,7 @@ int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu);
 void ath10k_htt_rx_pktlog_completion_handler(struct ath10k *ar,
 					     struct sk_buff *skb);
 int ath10k_htt_txrx_compl_task(struct ath10k *ar, int budget);
+int ath10k_htt_rx_hl_indication(struct ath10k *ar, int budget);
 void ath10k_htt_set_tx_ops(struct ath10k_htt *htt);
 void ath10k_htt_set_rx_ops(struct ath10k_htt *htt);
 #endif

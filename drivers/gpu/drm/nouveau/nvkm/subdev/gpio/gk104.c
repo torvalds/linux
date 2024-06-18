@@ -23,6 +23,8 @@
  */
 #include "priv.h"
 
+#include <subdev/gsp.h>
+
 static void
 gk104_gpio_intr_stat(struct nvkm_gpio *gpio, u32 *hi, u32 *lo)
 {
@@ -68,7 +70,11 @@ gk104_gpio = {
 };
 
 int
-gk104_gpio_new(struct nvkm_device *device, int index, struct nvkm_gpio **pgpio)
+gk104_gpio_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	       struct nvkm_gpio **pgpio)
 {
-	return nvkm_gpio_new_(&gk104_gpio, device, index, pgpio);
+	if (nvkm_gsp_rm(device->gsp))
+		return -ENODEV;
+
+	return nvkm_gpio_new_(&gk104_gpio, device, type, inst, pgpio);
 }

@@ -23,25 +23,55 @@
 struct icc_path;
 struct device;
 
+/**
+ * struct icc_bulk_data - Data used for bulk icc operations.
+ *
+ * @path: reference to the interconnect path (internal use)
+ * @name: the name from the "interconnect-names" DT property
+ * @avg_bw: average bandwidth in icc units
+ * @peak_bw: peak bandwidth in icc units
+ */
+struct icc_bulk_data {
+	struct icc_path	*path;
+	const char *name;
+	u32 avg_bw;
+	u32 peak_bw;
+};
+
 #if IS_ENABLED(CONFIG_INTERCONNECT)
 
-struct icc_path *icc_get(struct device *dev, const int src_id,
-			 const int dst_id);
 struct icc_path *of_icc_get(struct device *dev, const char *name);
+struct icc_path *devm_of_icc_get(struct device *dev, const char *name);
+int devm_of_icc_bulk_get(struct device *dev, int num_paths, struct icc_bulk_data *paths);
+struct icc_path *of_icc_get_by_index(struct device *dev, int idx);
 void icc_put(struct icc_path *path);
+int icc_enable(struct icc_path *path);
+int icc_disable(struct icc_path *path);
 int icc_set_bw(struct icc_path *path, u32 avg_bw, u32 peak_bw);
 void icc_set_tag(struct icc_path *path, u32 tag);
+const char *icc_get_name(struct icc_path *path);
+int __must_check of_icc_bulk_get(struct device *dev, int num_paths,
+				 struct icc_bulk_data *paths);
+void icc_bulk_put(int num_paths, struct icc_bulk_data *paths);
+int icc_bulk_set_bw(int num_paths, const struct icc_bulk_data *paths);
+int icc_bulk_enable(int num_paths, const struct icc_bulk_data *paths);
+void icc_bulk_disable(int num_paths, const struct icc_bulk_data *paths);
 
 #else
 
-static inline struct icc_path *icc_get(struct device *dev, const int src_id,
-				       const int dst_id)
+static inline struct icc_path *of_icc_get(struct device *dev,
+					  const char *name)
 {
 	return NULL;
 }
 
-static inline struct icc_path *of_icc_get(struct device *dev,
-					  const char *name)
+static inline struct icc_path *devm_of_icc_get(struct device *dev,
+						const char *name)
+{
+	return NULL;
+}
+
+static inline struct icc_path *of_icc_get_by_index(struct device *dev, int idx)
 {
 	return NULL;
 }
@@ -50,12 +80,56 @@ static inline void icc_put(struct icc_path *path)
 {
 }
 
+static inline int icc_enable(struct icc_path *path)
+{
+	return 0;
+}
+
+static inline int icc_disable(struct icc_path *path)
+{
+	return 0;
+}
+
 static inline int icc_set_bw(struct icc_path *path, u32 avg_bw, u32 peak_bw)
 {
 	return 0;
 }
 
 static inline void icc_set_tag(struct icc_path *path, u32 tag)
+{
+}
+
+static inline const char *icc_get_name(struct icc_path *path)
+{
+	return NULL;
+}
+
+static inline int of_icc_bulk_get(struct device *dev, int num_paths, struct icc_bulk_data *paths)
+{
+	return 0;
+}
+
+static inline int devm_of_icc_bulk_get(struct device *dev, int num_paths,
+				       struct icc_bulk_data *paths)
+{
+	return 0;
+}
+
+static inline void icc_bulk_put(int num_paths, struct icc_bulk_data *paths)
+{
+}
+
+static inline int icc_bulk_set_bw(int num_paths, const struct icc_bulk_data *paths)
+{
+	return 0;
+}
+
+static inline int icc_bulk_enable(int num_paths, const struct icc_bulk_data *paths)
+{
+	return 0;
+}
+
+static inline void icc_bulk_disable(int num_paths, const struct icc_bulk_data *paths)
 {
 }
 

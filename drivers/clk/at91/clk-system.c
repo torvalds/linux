@@ -20,6 +20,7 @@
 struct clk_system {
 	struct clk_hw hw;
 	struct regmap *regmap;
+	struct at91_clk_pms pms;
 	u8 id;
 };
 
@@ -34,7 +35,7 @@ static inline bool clk_system_ready(struct regmap *regmap, int id)
 
 	regmap_read(regmap, AT91_PMC_SR, &status);
 
-	return status & (1 << id) ? 1 : 0;
+	return !!(status & (1 << id));
 }
 
 static int clk_system_prepare(struct clk_hw *hw)
@@ -74,25 +75,45 @@ static int clk_system_is_prepared(struct clk_hw *hw)
 
 	regmap_read(sys->regmap, AT91_PMC_SR, &status);
 
-	return status & (1 << sys->id) ? 1 : 0;
+	return !!(status & (1 << sys->id));
+}
+
+static int clk_system_save_context(struct clk_hw *hw)
+{
+	struct clk_system *sys = to_clk_system(hw);
+
+	sys->pms.status = clk_system_is_prepared(hw);
+
+	return 0;
+}
+
+static void clk_system_restore_context(struct clk_hw *hw)
+{
+	struct clk_system *sys = to_clk_system(hw);
+
+	if (sys->pms.status)
+		clk_system_prepare(&sys->hw);
 }
 
 static const struct clk_ops system_ops = {
 	.prepare = clk_system_prepare,
 	.unprepare = clk_system_unprepare,
 	.is_prepared = clk_system_is_prepared,
+	.save_context = clk_system_save_context,
+	.restore_context = clk_system_restore_context,
 };
 
 struct clk_hw * __init
 at91_clk_register_system(struct regmap *regmap, const char *name,
-			 const char *parent_name, u8 id)
+			 const char *parent_name, struct clk_hw *parent_hw, u8 id,
+			 unsigned long flags)
 {
 	struct clk_system *sys;
 	struct clk_hw *hw;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	int ret;
 
-	if (!parent_name || id > SYSTEM_MAX_ID)
+	if (!(parent_name || parent_hw) || id > SYSTEM_MAX_ID)
 		return ERR_PTR(-EINVAL);
 
 	sys = kzalloc(sizeof(*sys), GFP_KERNEL);
@@ -101,9 +122,12 @@ at91_clk_register_system(struct regmap *regmap, const char *name,
 
 	init.name = name;
 	init.ops = &system_ops;
-	init.parent_names = &parent_name;
+	if (parent_hw)
+		init.parent_hws = (const struct clk_hw **)&parent_hw;
+	else
+		init.parent_names = &parent_name;
 	init.num_parents = 1;
-	init.flags = CLK_SET_RATE_PARENT;
+	init.flags = CLK_SET_RATE_PARENT | flags;
 
 	sys->id = id;
 	sys->hw.init = &init;

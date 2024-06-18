@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * MOXA ART RTC driver.
  *
@@ -7,20 +8,17 @@
  *
  * Based on code from
  * Moxa Technology Co., Ltd. <www.moxa.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
+#include <linux/err.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/rtc.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
-#include <linux/gpio.h>
-#include <linux/of_gpio.h>
+#include <linux/mod_devicetable.h>
+#include <linux/gpio/consumer.h>
 
 #define GPIO_RTC_RESERVED			0x0C
 #define GPIO_RTC_DATA_SET			0x10
@@ -58,7 +56,9 @@
 struct moxart_rtc {
 	struct rtc_device *rtc;
 	spinlock_t rtc_lock;
-	int gpio_data, gpio_sclk, gpio_reset;
+	struct gpio_desc *gpio_data;
+	struct gpio_desc *gpio_sclk;
+	struct gpio_desc *gpio_reset;
 };
 
 static int day_of_year[12] =	{ 0, 31, 59, 90, 120, 151, 181,
@@ -70,10 +70,10 @@ static void moxart_rtc_write_byte(struct device *dev, u8 data)
 	int i;
 
 	for (i = 0; i < 8; i++, data >>= 1) {
-		gpio_set_value(moxart_rtc->gpio_sclk, 0);
-		gpio_set_value(moxart_rtc->gpio_data, ((data & 1) == 1));
+		gpiod_set_value(moxart_rtc->gpio_sclk, 0);
+		gpiod_set_value(moxart_rtc->gpio_data, ((data & 1) == 1));
 		udelay(GPIO_RTC_DELAY_TIME);
-		gpio_set_value(moxart_rtc->gpio_sclk, 1);
+		gpiod_set_value(moxart_rtc->gpio_sclk, 1);
 		udelay(GPIO_RTC_DELAY_TIME);
 	}
 }
@@ -85,11 +85,11 @@ static u8 moxart_rtc_read_byte(struct device *dev)
 	u8 data = 0;
 
 	for (i = 0; i < 8; i++) {
-		gpio_set_value(moxart_rtc->gpio_sclk, 0);
+		gpiod_set_value(moxart_rtc->gpio_sclk, 0);
 		udelay(GPIO_RTC_DELAY_TIME);
-		gpio_set_value(moxart_rtc->gpio_sclk, 1);
+		gpiod_set_value(moxart_rtc->gpio_sclk, 1);
 		udelay(GPIO_RTC_DELAY_TIME);
-		if (gpio_get_value(moxart_rtc->gpio_data))
+		if (gpiod_get_value(moxart_rtc->gpio_data))
 			data |= (1 << i);
 		udelay(GPIO_RTC_DELAY_TIME);
 	}
@@ -104,15 +104,15 @@ static u8 moxart_rtc_read_register(struct device *dev, u8 cmd)
 
 	local_irq_save(flags);
 
-	gpio_direction_output(moxart_rtc->gpio_data, 0);
-	gpio_set_value(moxart_rtc->gpio_reset, 1);
+	gpiod_direction_output(moxart_rtc->gpio_data, 0);
+	gpiod_set_value(moxart_rtc->gpio_reset, 1);
 	udelay(GPIO_RTC_DELAY_TIME);
 	moxart_rtc_write_byte(dev, cmd);
-	gpio_direction_input(moxart_rtc->gpio_data);
+	gpiod_direction_input(moxart_rtc->gpio_data);
 	udelay(GPIO_RTC_DELAY_TIME);
 	data = moxart_rtc_read_byte(dev);
-	gpio_set_value(moxart_rtc->gpio_sclk, 0);
-	gpio_set_value(moxart_rtc->gpio_reset, 0);
+	gpiod_set_value(moxart_rtc->gpio_sclk, 0);
+	gpiod_set_value(moxart_rtc->gpio_reset, 0);
 	udelay(GPIO_RTC_DELAY_TIME);
 
 	local_irq_restore(flags);
@@ -127,13 +127,13 @@ static void moxart_rtc_write_register(struct device *dev, u8 cmd, u8 data)
 
 	local_irq_save(flags);
 
-	gpio_direction_output(moxart_rtc->gpio_data, 0);
-	gpio_set_value(moxart_rtc->gpio_reset, 1);
+	gpiod_direction_output(moxart_rtc->gpio_data, 0);
+	gpiod_set_value(moxart_rtc->gpio_reset, 1);
 	udelay(GPIO_RTC_DELAY_TIME);
 	moxart_rtc_write_byte(dev, cmd);
 	moxart_rtc_write_byte(dev, data);
-	gpio_set_value(moxart_rtc->gpio_sclk, 0);
-	gpio_set_value(moxart_rtc->gpio_reset, 0);
+	gpiod_set_value(moxart_rtc->gpio_sclk, 0);
+	gpiod_set_value(moxart_rtc->gpio_reset, 0);
 	udelay(GPIO_RTC_DELAY_TIME);
 
 	local_irq_restore(flags);
@@ -250,52 +250,32 @@ static int moxart_rtc_probe(struct platform_device *pdev)
 	if (!moxart_rtc)
 		return -ENOMEM;
 
-	moxart_rtc->gpio_data = of_get_named_gpio(pdev->dev.of_node,
-						  "gpio-rtc-data", 0);
-	if (!gpio_is_valid(moxart_rtc->gpio_data)) {
-		dev_err(&pdev->dev, "invalid gpio (data): %d\n",
-			moxart_rtc->gpio_data);
-		return moxart_rtc->gpio_data;
+	moxart_rtc->gpio_data = devm_gpiod_get(&pdev->dev, "rtc-data",
+					       GPIOD_IN);
+	ret = PTR_ERR_OR_ZERO(moxart_rtc->gpio_data);
+	if (ret) {
+		dev_err(&pdev->dev, "can't get rtc data gpio: %d\n", ret);
+		return ret;
 	}
 
-	moxart_rtc->gpio_sclk = of_get_named_gpio(pdev->dev.of_node,
-						  "gpio-rtc-sclk", 0);
-	if (!gpio_is_valid(moxart_rtc->gpio_sclk)) {
-		dev_err(&pdev->dev, "invalid gpio (sclk): %d\n",
-			moxart_rtc->gpio_sclk);
-		return moxart_rtc->gpio_sclk;
+	moxart_rtc->gpio_sclk = devm_gpiod_get(&pdev->dev, "rtc-sclk",
+					       GPIOD_ASIS);
+	ret = PTR_ERR_OR_ZERO(moxart_rtc->gpio_sclk);
+	if (ret) {
+		dev_err(&pdev->dev, "can't get rtc sclk gpio: %d\n", ret);
+		return ret;
 	}
 
-	moxart_rtc->gpio_reset = of_get_named_gpio(pdev->dev.of_node,
-						   "gpio-rtc-reset", 0);
-	if (!gpio_is_valid(moxart_rtc->gpio_reset)) {
-		dev_err(&pdev->dev, "invalid gpio (reset): %d\n",
-			moxart_rtc->gpio_reset);
-		return moxart_rtc->gpio_reset;
+	moxart_rtc->gpio_reset = devm_gpiod_get(&pdev->dev, "rtc-reset",
+						GPIOD_ASIS);
+	ret = PTR_ERR_OR_ZERO(moxart_rtc->gpio_reset);
+	if (ret) {
+		dev_err(&pdev->dev, "can't get rtc reset gpio: %d\n", ret);
+		return ret;
 	}
 
 	spin_lock_init(&moxart_rtc->rtc_lock);
 	platform_set_drvdata(pdev, moxart_rtc);
-
-	ret = devm_gpio_request(&pdev->dev, moxart_rtc->gpio_data, "rtc_data");
-	if (ret) {
-		dev_err(&pdev->dev, "can't get rtc_data gpio\n");
-		return ret;
-	}
-
-	ret = devm_gpio_request_one(&pdev->dev, moxart_rtc->gpio_sclk,
-				    GPIOF_DIR_OUT, "rtc_sclk");
-	if (ret) {
-		dev_err(&pdev->dev, "can't get rtc_sclk gpio\n");
-		return ret;
-	}
-
-	ret = devm_gpio_request_one(&pdev->dev, moxart_rtc->gpio_reset,
-				    GPIOF_DIR_OUT, "rtc_reset");
-	if (ret) {
-		dev_err(&pdev->dev, "can't get rtc_reset gpio\n");
-		return ret;
-	}
 
 	moxart_rtc->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
 						   &moxart_rtc_ops,

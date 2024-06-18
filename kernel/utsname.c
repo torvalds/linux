@@ -33,7 +33,7 @@ static struct uts_namespace *create_uts_ns(void)
 
 	uts_ns = kmem_cache_alloc(uts_ns_cache, GFP_KERNEL);
 	if (uts_ns)
-		kref_init(&uts_ns->kref);
+		refcount_set(&uts_ns->ns.count, 1);
 	return uts_ns;
 }
 
@@ -103,11 +103,8 @@ struct uts_namespace *copy_utsname(unsigned long flags,
 	return new_ns;
 }
 
-void free_uts_ns(struct kref *kref)
+void free_uts_ns(struct uts_namespace *ns)
 {
-	struct uts_namespace *ns;
-
-	ns = container_of(kref, struct uts_namespace, kref);
 	dec_uts_namespaces(ns->ucounts);
 	put_user_ns(ns->user_ns);
 	ns_free_inum(&ns->ns);
@@ -140,12 +137,13 @@ static void utsns_put(struct ns_common *ns)
 	put_uts_ns(to_uts_ns(ns));
 }
 
-static int utsns_install(struct nsproxy *nsproxy, struct ns_common *new)
+static int utsns_install(struct nsset *nsset, struct ns_common *new)
 {
+	struct nsproxy *nsproxy = nsset->nsproxy;
 	struct uts_namespace *ns = to_uts_ns(new);
 
 	if (!ns_capable(ns->user_ns, CAP_SYS_ADMIN) ||
-	    !ns_capable(current_user_ns(), CAP_SYS_ADMIN))
+	    !ns_capable(nsset->cred->user_ns, CAP_SYS_ADMIN))
 		return -EPERM;
 
 	get_uts_ns(ns);

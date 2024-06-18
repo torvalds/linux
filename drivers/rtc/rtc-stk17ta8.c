@@ -256,7 +256,6 @@ static int stk17ta8_nvram_write(void *priv, unsigned int pos, void *val,
 
 static int stk17ta8_rtc_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	unsigned int cal;
 	unsigned int flags;
 	struct rtc_plat_data *pdata;
@@ -275,8 +274,7 @@ static int stk17ta8_rtc_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	ioaddr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ioaddr))
 		return PTR_ERR(ioaddr);
 	pdata->ioaddr = ioaddr;
@@ -313,14 +311,13 @@ static int stk17ta8_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(pdata->rtc);
 
 	pdata->rtc->ops = &stk17ta8_rtc_ops;
-	pdata->rtc->nvram_old_abi = true;
 
 	nvmem_cfg.priv = pdata;
-	ret = rtc_nvmem_register(pdata->rtc, &nvmem_cfg);
+	ret = devm_rtc_nvmem_register(pdata->rtc, &nvmem_cfg);
 	if (ret)
 		return ret;
 
-	return rtc_register_device(pdata->rtc);
+	return devm_rtc_register_device(pdata->rtc);
 }
 
 /* work with hotplug and coldplug */

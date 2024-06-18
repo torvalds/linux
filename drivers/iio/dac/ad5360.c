@@ -67,6 +67,7 @@ struct ad5360_chip_info {
  * @chip_info:		chip model specific constants, available modes etc
  * @vref_reg:		vref supply regulators
  * @ctrl:		control register cache
+ * @lock:		lock to protect the data buffer during SPI ops
  * @data:		spi transfer buffers
  */
 
@@ -75,15 +76,16 @@ struct ad5360_state {
 	const struct ad5360_chip_info	*chip_info;
 	struct regulator_bulk_data	vref_reg[3];
 	unsigned int			ctrl;
+	struct mutex			lock;
 
 	/*
-	 * DMA (thus cache coherency maintenance) requires the
+	 * DMA (thus cache coherency maintenance) may require the
 	 * transfer buffers to live in their own cache lines.
 	 */
 	union {
 		__be32 d32;
 		u8 d8[4];
-	} data[2] ____cacheline_aligned;
+	} data[2] __aligned(IIO_DMA_MINALIGN);
 };
 
 enum ad5360_type {
@@ -205,10 +207,11 @@ static int ad5360_write(struct iio_dev *indio_dev, unsigned int cmd,
 	unsigned int addr, unsigned int val, unsigned int shift)
 {
 	int ret;
+	struct ad5360_state *st = iio_priv(indio_dev);
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&st->lock);
 	ret = ad5360_write_unlocked(indio_dev, cmd, addr, val, shift);
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&st->lock);
 
 	return ret;
 }
@@ -229,7 +232,7 @@ static int ad5360_read(struct iio_dev *indio_dev, unsigned int type,
 		},
 	};
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&st->lock);
 
 	st->data[0].d32 = cpu_to_be32(AD5360_CMD(AD5360_CMD_SPECIAL_FUNCTION) |
 		AD5360_ADDR(AD5360_REG_SF_READBACK) |
@@ -240,7 +243,7 @@ static int ad5360_read(struct iio_dev *indio_dev, unsigned int type,
 	if (ret >= 0)
 		ret = be32_to_cpu(st->data[1].d32) & 0xffff;
 
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&st->lock);
 
 	return ret;
 }
@@ -252,7 +255,7 @@ static ssize_t ad5360_read_dac_powerdown(struct device *dev,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad5360_state *st = iio_priv(indio_dev);
 
-	return sprintf(buf, "%d\n", (bool)(st->ctrl & AD5360_SF_CTRL_PWR_DOWN));
+	return sysfs_emit(buf, "%d\n", (bool)(st->ctrl & AD5360_SF_CTRL_PWR_DOWN));
 }
 
 static int ad5360_update_ctrl(struct iio_dev *indio_dev, unsigned int set,
@@ -261,7 +264,7 @@ static int ad5360_update_ctrl(struct iio_dev *indio_dev, unsigned int set,
 	struct ad5360_state *st = iio_priv(indio_dev);
 	unsigned int ret;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&st->lock);
 
 	st->ctrl |= set;
 	st->ctrl &= ~clr;
@@ -269,7 +272,7 @@ static int ad5360_update_ctrl(struct iio_dev *indio_dev, unsigned int set,
 	ret = ad5360_write_unlocked(indio_dev, AD5360_CMD_SPECIAL_FUNCTION,
 			AD5360_REG_SF_CTRL, st->ctrl, 0);
 
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&st->lock);
 
 	return ret;
 }
@@ -281,7 +284,7 @@ static ssize_t ad5360_write_dac_powerdown(struct device *dev,
 	bool pwr_down;
 	int ret;
 
-	ret = strtobool(buf, &pwr_down);
+	ret = kstrtobool(buf, &pwr_down);
 	if (ret)
 		return ret;
 
@@ -473,11 +476,12 @@ static int ad5360_probe(struct spi_device *spi)
 	st->chip_info = &ad5360_chip_info_tbl[type];
 	st->spi = spi;
 
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->info = &ad5360_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->num_channels = st->chip_info->num_channels;
+
+	mutex_init(&st->lock);
 
 	ret = ad5360_alloc_channels(indio_dev);
 	if (ret) {
@@ -517,7 +521,7 @@ error_free_channels:
 	return ret;
 }
 
-static int ad5360_remove(struct spi_device *spi)
+static void ad5360_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad5360_state *st = iio_priv(indio_dev);
@@ -527,8 +531,6 @@ static int ad5360_remove(struct spi_device *spi)
 	kfree(indio_dev->channels);
 
 	regulator_bulk_disable(st->chip_info->num_vrefs, st->vref_reg);
-
-	return 0;
 }
 
 static const struct spi_device_id ad5360_ids[] = {

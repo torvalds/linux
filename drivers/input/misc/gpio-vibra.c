@@ -18,7 +18,7 @@
 #include <linux/input.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/regulator/consumer.h>
@@ -113,22 +113,14 @@ static int gpio_vibrator_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	vibrator->vcc = devm_regulator_get(&pdev->dev, "vcc");
-	err = PTR_ERR_OR_ZERO(vibrator->vcc);
-	if (err) {
-		if (err != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Failed to request regulator: %d\n",
-				err);
-		return err;
-	}
+	if (IS_ERR(vibrator->vcc))
+		return dev_err_probe(&pdev->dev, PTR_ERR(vibrator->vcc),
+				     "Failed to request regulator\n");
 
 	vibrator->gpio = devm_gpiod_get(&pdev->dev, "enable", GPIOD_OUT_LOW);
-	err = PTR_ERR_OR_ZERO(vibrator->gpio);
-	if (err) {
-		if (err != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Failed to request main gpio: %d\n",
-				err);
-		return err;
-	}
+	if (IS_ERR(vibrator->gpio))
+		return dev_err_probe(&pdev->dev, PTR_ERR(vibrator->gpio),
+				     "Failed to request main gpio\n");
 
 	INIT_WORK(&vibrator->play_work, gpio_vibrator_play_work);
 
@@ -157,7 +149,7 @@ static int gpio_vibrator_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused gpio_vibrator_suspend(struct device *dev)
+static int gpio_vibrator_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct gpio_vibrator *vibrator = platform_get_drvdata(pdev);
@@ -169,7 +161,7 @@ static int __maybe_unused gpio_vibrator_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused gpio_vibrator_resume(struct device *dev)
+static int gpio_vibrator_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct gpio_vibrator *vibrator = platform_get_drvdata(pdev);
@@ -180,8 +172,8 @@ static int __maybe_unused gpio_vibrator_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(gpio_vibrator_pm_ops,
-			 gpio_vibrator_suspend, gpio_vibrator_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(gpio_vibrator_pm_ops,
+				gpio_vibrator_suspend, gpio_vibrator_resume);
 
 #ifdef CONFIG_OF
 static const struct of_device_id gpio_vibra_dt_match_table[] = {
@@ -195,7 +187,7 @@ static struct platform_driver gpio_vibrator_driver = {
 	.probe	= gpio_vibrator_probe,
 	.driver	= {
 		.name	= "gpio-vibrator",
-		.pm	= &gpio_vibrator_pm_ops,
+		.pm	= pm_sleep_ptr(&gpio_vibrator_pm_ops),
 		.of_match_table = of_match_ptr(gpio_vibra_dt_match_table),
 	},
 };

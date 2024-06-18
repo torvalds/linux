@@ -8,7 +8,7 @@
 
 #include <asm/page.h>
 
-#ifdef CONFIG_NEED_MULTIPLE_NODES
+#ifdef CONFIG_NUMA
 # include <mmzone.h>
 #endif
 
@@ -20,10 +20,6 @@
 #define nid_to_addrbase(nid) 0
 #endif
 
-#ifdef CONFIG_DISCONTIGMEM
-
-#define pfn_to_nid(pfn)		pa_to_nid((pfn) << PAGE_SHIFT)
-
-#endif /* CONFIG_DISCONTIGMEM */
+extern void setup_zero_pages(void);
 
 #endif /* _ASM_MMZONE_H_ */

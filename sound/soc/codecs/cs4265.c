@@ -150,7 +150,6 @@ static const struct snd_kcontrol_new cs4265_snd_controls[] = {
 	SOC_SINGLE("E to F Buffer Disable Switch", CS4265_SPDIF_CTL1,
 				6, 1, 0),
 	SOC_ENUM("C Data Access", cam_mode_enum),
-	SOC_SINGLE("SPDIF Switch", CS4265_SPDIF_CTL2, 5, 1, 1),
 	SOC_SINGLE("Validity Bit Control Switch", CS4265_SPDIF_CTL2,
 				3, 1, 0),
 	SOC_ENUM("SPDIF Mono/Stereo", spdif_mono_stereo_enum),
@@ -186,7 +185,7 @@ static const struct snd_soc_dapm_widget cs4265_dapm_widgets[] = {
 
 	SND_SOC_DAPM_SWITCH("Loopback", SND_SOC_NOPM, 0, 0,
 			&loopback_ctl),
-	SND_SOC_DAPM_SWITCH("SPDIF", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("SPDIF", CS4265_SPDIF_CTL2, 5, 1,
 			&spdif_switch),
 	SND_SOC_DAPM_SWITCH("DAC", CS4265_PWRCTL, 1, 1,
 			&dac_switch),
@@ -378,7 +377,7 @@ static int cs4265_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	return 0;
 }
 
-static int cs4265_digital_mute(struct snd_soc_dai *dai, int mute)
+static int cs4265_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 
@@ -498,9 +497,10 @@ static int cs4265_set_bias_level(struct snd_soc_component *component,
 
 static const struct snd_soc_dai_ops cs4265_ops = {
 	.hw_params	= cs4265_pcm_hw_params,
-	.digital_mute	= cs4265_digital_mute,
+	.mute_stream	= cs4265_mute,
 	.set_fmt	= cs4265_set_fmt,
 	.set_sysclk	= cs4265_set_sysclk,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver cs4265_dai[] = {
@@ -553,7 +553,6 @@ static const struct snd_soc_component_driver soc_component_cs4265 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config cs4265_regmap = {
@@ -565,14 +564,13 @@ static const struct regmap_config cs4265_regmap = {
 	.num_reg_defaults = ARRAY_SIZE(cs4265_reg_defaults),
 	.readable_reg = cs4265_readable_register,
 	.volatile_reg = cs4265_volatile_register,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
-static int cs4265_i2c_probe(struct i2c_client *i2c_client,
-			     const struct i2c_device_id *id)
+static int cs4265_i2c_probe(struct i2c_client *i2c_client)
 {
 	struct cs4265_private *cs4265;
-	int ret = 0;
+	int ret;
 	unsigned int devid = 0;
 	unsigned int reg;
 
@@ -601,12 +599,17 @@ static int cs4265_i2c_probe(struct i2c_client *i2c_client,
 	i2c_set_clientdata(i2c_client, cs4265);
 
 	ret = regmap_read(cs4265->regmap, CS4265_CHIP_ID, &reg);
+	if (ret) {
+		dev_err(&i2c_client->dev, "Failed to read chip ID: %d\n", ret);
+		return ret;
+	}
+
 	devid = reg & CS4265_CHIP_ID_MASK;
 	if (devid != CS4265_CHIP_ID_VAL) {
 		ret = -ENODEV;
 		dev_err(&i2c_client->dev,
-			"CS4265 Device ID (%X). Expected %X\n",
-			devid, CS4265_CHIP_ID);
+			"CS4265 Part Number ID: 0x%x Expected: 0x%x\n",
+			devid >> 4, CS4265_CHIP_ID_VAL >> 4);
 		return ret;
 	}
 	dev_info(&i2c_client->dev,
@@ -615,10 +618,17 @@ static int cs4265_i2c_probe(struct i2c_client *i2c_client,
 
 	regmap_write(cs4265->regmap, CS4265_PWRCTL, 0x0F);
 
-	ret = devm_snd_soc_register_component(&i2c_client->dev,
+	return devm_snd_soc_register_component(&i2c_client->dev,
 			&soc_component_cs4265, cs4265_dai,
 			ARRAY_SIZE(cs4265_dai));
-	return ret;
+}
+
+static void cs4265_i2c_remove(struct i2c_client *i2c)
+{
+	struct cs4265_private *cs4265 = i2c_get_clientdata(i2c);
+
+	if (cs4265->reset_gpio)
+		gpiod_set_value_cansleep(cs4265->reset_gpio, 0);
 }
 
 static const struct of_device_id cs4265_of_match[] = {
@@ -628,7 +638,7 @@ static const struct of_device_id cs4265_of_match[] = {
 MODULE_DEVICE_TABLE(of, cs4265_of_match);
 
 static const struct i2c_device_id cs4265_id[] = {
-	{ "cs4265", 0 },
+	{ "cs4265" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, cs4265_id);
@@ -640,6 +650,7 @@ static struct i2c_driver cs4265_i2c_driver = {
 	},
 	.id_table = cs4265_id,
 	.probe =    cs4265_i2c_probe,
+	.remove =   cs4265_i2c_remove,
 };
 
 module_i2c_driver(cs4265_i2c_driver);

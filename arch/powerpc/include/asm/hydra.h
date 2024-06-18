@@ -10,7 +10,7 @@
  *
  *	© Copyright 1995 Apple Computer, Inc. All rights reserved.
  *
- *  It's available online from http://www.cpu.lu/~mlan/ftp/MacTech.pdf
+ *  It's available online from https://www.cpu.lu/~mlan/ftp/MacTech.pdf
  *  You can obtain paper copies of this book from computer bookstores or by
  *  writing Morgan Kaufmann Publishers, Inc., 340 Pine Street, Sixth Floor, San
  *  Francisco, CA 94104. Reference ISBN 1-55860-393-X.
@@ -93,8 +93,6 @@ extern volatile struct Hydra __iomem *Hydra;
 #define HYDRA_INT_EXT6		17	/* IDE Secondary */
 #define HYDRA_INT_EXT7		18	/* Power Off Request */
 #define HYDRA_INT_SPARE		19
-
-extern int hydra_init(void);
 
 #endif /* __KERNEL__ */
 

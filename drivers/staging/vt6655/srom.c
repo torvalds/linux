@@ -3,8 +3,6 @@
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
  *
- * File: srom.c
- *
  * Purpose:Implement functions to access eeprom
  *
  * Author: Jerry Chen
@@ -29,8 +27,7 @@
  *
  */
 
-#include "upc.h"
-#include "tmacro.h"
+#include "device.h"
 #include "mac.h"
 #include "srom.h"
 
@@ -52,7 +49,7 @@
  * Parameters:
  *  In:
  *      iobase          - I/O base address
- *      byContntOffset  - address of EEPROM
+ *      contnt_offset  - address of EEPROM
  *  Out:
  *      none
  *
@@ -60,37 +57,36 @@
  *
  */
 unsigned char SROMbyReadEmbedded(void __iomem *iobase,
-				 unsigned char byContntOffset)
+				 unsigned char contnt_offset)
 {
 	unsigned short wDelay, wNoACK;
 	unsigned char byWait;
 	unsigned char byData;
 	unsigned char byOrg;
 
-	byData = 0xFF;
-	VNSvInPortB(iobase + MAC_REG_I2MCFG, &byOrg);
+	byOrg = ioread8(iobase + MAC_REG_I2MCFG);
 	/* turn off hardware retry for getting NACK */
-	VNSvOutPortB(iobase + MAC_REG_I2MCFG, (byOrg & (~I2MCFG_NORETRY)));
+	iowrite8(byOrg & (~I2MCFG_NORETRY), iobase + MAC_REG_I2MCFG);
 	for (wNoACK = 0; wNoACK < W_MAX_I2CRETRY; wNoACK++) {
-		VNSvOutPortB(iobase + MAC_REG_I2MTGID, EEP_I2C_DEV_ID);
-		VNSvOutPortB(iobase + MAC_REG_I2MTGAD, byContntOffset);
+		iowrite8(EEP_I2C_DEV_ID, iobase + MAC_REG_I2MTGID);
+		iowrite8(contnt_offset, iobase + MAC_REG_I2MTGAD);
 
 		/* issue read command */
-		VNSvOutPortB(iobase + MAC_REG_I2MCSR, I2MCSR_EEMR);
+		iowrite8(I2MCSR_EEMR, iobase + MAC_REG_I2MCSR);
 		/* wait DONE be set */
 		for (wDelay = 0; wDelay < W_MAX_TIMEOUT; wDelay++) {
-			VNSvInPortB(iobase + MAC_REG_I2MCSR, &byWait);
+			byWait = ioread8(iobase + MAC_REG_I2MCSR);
 			if (byWait & (I2MCSR_DONE | I2MCSR_NACK))
 				break;
-			PCAvDelayByIO(CB_DELAY_LOOP_WAIT);
+			udelay(CB_DELAY_LOOP_WAIT);
 		}
 		if ((wDelay < W_MAX_TIMEOUT) &&
 		    (!(byWait & I2MCSR_NACK))) {
 			break;
 		}
 	}
-	VNSvInPortB(iobase + MAC_REG_I2MDIPT, &byData);
-	VNSvOutPortB(iobase + MAC_REG_I2MCFG, byOrg);
+	byData = ioread8(iobase + MAC_REG_I2MDIPT);
+	iowrite8(byOrg, iobase + MAC_REG_I2MCFG);
 	return byData;
 }
 

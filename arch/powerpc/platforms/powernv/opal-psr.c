@@ -13,11 +13,11 @@
 
 #include <asm/opal.h>
 
-DEFINE_MUTEX(psr_mutex);
+static DEFINE_MUTEX(psr_mutex);
 
 static struct kobject *psr_kobj;
 
-struct psr_attr {
+static struct psr_attr {
 	u32 handle;
 	struct kobj_attribute attr;
 } *psr_attrs;
@@ -135,7 +135,7 @@ void __init opal_psr_init(void)
 	psr_attrs = kcalloc(of_get_child_count(psr), sizeof(*psr_attrs),
 			    GFP_KERNEL);
 	if (!psr_attrs)
-		return;
+		goto out_put_psr;
 
 	psr_kobj = kobject_create_and_add("psr", opal_kobj);
 	if (!psr_kobj) {
@@ -162,10 +162,14 @@ void __init opal_psr_init(void)
 		}
 		i++;
 	}
+	of_node_put(psr);
 
 	return;
 out_kobj:
+	of_node_put(node);
 	kobject_put(psr_kobj);
 out:
 	kfree(psr_attrs);
+out_put_psr:
+	of_node_put(psr);
 }

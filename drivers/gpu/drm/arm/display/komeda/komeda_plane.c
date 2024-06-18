@@ -6,7 +6,7 @@
  */
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_plane_helper.h>
+#include <drm/drm_blend.h>
 #include <drm/drm_print.h>
 #include "komeda_dev.h"
 #include "komeda_kms.h"
@@ -49,10 +49,8 @@ komeda_plane_init_data_flow(struct drm_plane_state *st,
 
 	dflow->rot = drm_rotation_simplify(st->rotation, caps->supported_rots);
 	if (!has_bits(dflow->rot, caps->supported_rots)) {
-		DRM_DEBUG_ATOMIC("rotation(0x%x) isn't supported by %s.\n",
-				 dflow->rot,
-				 komeda_get_format_name(caps->fourcc,
-							fb->modifier));
+		DRM_DEBUG_ATOMIC("rotation(0x%x) isn't supported by %p4cc with modifier: 0x%llx.\n",
+				 dflow->rot, &caps->fourcc, fb->modifier);
 		return -EINVAL;
 	}
 
@@ -71,20 +69,23 @@ komeda_plane_init_data_flow(struct drm_plane_state *st,
  */
 static int
 komeda_plane_atomic_check(struct drm_plane *plane,
-			  struct drm_plane_state *state)
+			  struct drm_atomic_state *state)
 {
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
+										 plane);
 	struct komeda_plane *kplane = to_kplane(plane);
-	struct komeda_plane_state *kplane_st = to_kplane_st(state);
+	struct komeda_plane_state *kplane_st = to_kplane_st(new_plane_state);
 	struct komeda_layer *layer = kplane->layer;
 	struct drm_crtc_state *crtc_st;
 	struct komeda_crtc_state *kcrtc_st;
 	struct komeda_data_flow_cfg dflow;
 	int err;
 
-	if (!state->crtc || !state->fb)
+	if (!new_plane_state->crtc || !new_plane_state->fb)
 		return 0;
 
-	crtc_st = drm_atomic_get_crtc_state(state->state, state->crtc);
+	crtc_st = drm_atomic_get_crtc_state(state,
+					    new_plane_state->crtc);
 	if (IS_ERR(crtc_st) || !crtc_st->enable) {
 		DRM_DEBUG_ATOMIC("Cannot update plane on a disabled CRTC.\n");
 		return -EINVAL;
@@ -96,7 +97,7 @@ komeda_plane_atomic_check(struct drm_plane *plane,
 
 	kcrtc_st = to_kcrtc_st(crtc_st);
 
-	err = komeda_plane_init_data_flow(state, kcrtc_st, &dflow);
+	err = komeda_plane_init_data_flow(new_plane_state, kcrtc_st, &dflow);
 	if (err)
 		return err;
 
@@ -115,7 +116,7 @@ komeda_plane_atomic_check(struct drm_plane *plane,
  */
 static void
 komeda_plane_atomic_update(struct drm_plane *plane,
-			   struct drm_plane_state *old_state)
+			   struct drm_atomic_state *state)
 {
 }
 
@@ -134,7 +135,6 @@ static void komeda_plane_destroy(struct drm_plane *plane)
 static void komeda_plane_reset(struct drm_plane *plane)
 {
 	struct komeda_plane_state *state;
-	struct komeda_plane *kplane = to_kplane(plane);
 
 	if (plane->state)
 		__drm_atomic_helper_plane_destroy_state(plane->state);
@@ -143,16 +143,8 @@ static void komeda_plane_reset(struct drm_plane *plane)
 	plane->state = NULL;
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
-	if (state) {
-		state->base.rotation = DRM_MODE_ROTATE_0;
-		state->base.pixel_blend_mode = DRM_MODE_BLEND_PREMULTI;
-		state->base.alpha = DRM_BLEND_ALPHA_OPAQUE;
-		state->base.zpos = kplane->layer->base.id;
-		state->base.color_encoding = DRM_COLOR_YCBCR_BT601;
-		state->base.color_range = DRM_COLOR_YCBCR_LIMITED_RANGE;
-		plane->state = &state->base;
-		plane->state->plane = plane;
-	}
+	if (state)
+		__drm_atomic_helper_plane_reset(plane, &state->base);
 }
 
 static struct drm_plane_state *
@@ -264,6 +256,10 @@ static int komeda_plane_add(struct komeda_kms_dev *kms,
 
 	formats = komeda_get_layer_fourcc_list(&mdev->fmt_tbl,
 					       layer->layer_type, &n_formats);
+	if (!formats) {
+		kfree(kplane);
+		return -ENOMEM;
+	}
 
 	err = drm_universal_plane_init(&kms->base, plane,
 			get_possible_crtcs(kms, c->pipeline),
@@ -274,8 +270,10 @@ static int komeda_plane_add(struct komeda_kms_dev *kms,
 
 	komeda_put_fourcc_list(formats);
 
-	if (err)
-		goto cleanup;
+	if (err) {
+		kfree(kplane);
+		return err;
+	}
 
 	drm_plane_helper_add(plane, &komeda_plane_helper_funcs);
 

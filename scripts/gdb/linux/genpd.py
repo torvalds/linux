@@ -5,7 +5,7 @@
 import gdb
 import sys
 
-from linux.utils import CachedType
+from linux.utils import CachedType, gdb_eval_or_none
 from linux.lists import list_for_each_entry
 
 generic_pm_domain_type = CachedType('struct generic_pm_domain')
@@ -49,17 +49,17 @@ Output is similar to /sys/kernel/debug/pm_genpd/pm_genpd_summary'''
         else:
             status_string = 'off-{}'.format(genpd['state_idx'])
 
-        slave_names = []
+        child_names = []
         for link in list_for_each_entry(
-                genpd['master_links'],
+                genpd['parent_links'],
                 device_link_type.get_type().pointer(),
-                'master_node'):
-            slave_names.apend(link['slave']['name'])
+                'parent_node'):
+            child_names.append(link['child']['name'])
 
         gdb.write('%-30s  %-15s %s\n' % (
                 genpd['name'].string(),
                 status_string,
-                ', '.join(slave_names)))
+                ', '.join(child_names)))
 
         # Print devices in domain
         for pm_data in list_for_each_entry(genpd['dev_list'],
@@ -70,7 +70,9 @@ Output is similar to /sys/kernel/debug/pm_genpd/pm_genpd_summary'''
             gdb.write('    %-50s  %s\n' % (kobj_path, rtpm_status_str(dev)))
 
     def invoke(self, arg, from_tty):
-        gdb.write('domain                          status          slaves\n');
+        if gdb_eval_or_none("&gpd_list") is None:
+            raise gdb.GdbError("No power domain(s) registered")
+        gdb.write('domain                          status          children\n');
         gdb.write('    /device                                             runtime status\n');
         gdb.write('----------------------------------------------------------------------\n');
         for genpd in list_for_each_entry(

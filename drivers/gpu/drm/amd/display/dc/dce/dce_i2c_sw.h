@@ -49,9 +49,9 @@ bool dce_i2c_submit_command_sw(
 	struct i2c_command *cmd,
 	struct dce_i2c_sw *dce_i2c_sw);
 
-struct dce_i2c_sw *dce_i2c_acquire_i2c_sw_engine(
-	struct resource_pool *pool,
-	struct ddc *ddc);
+bool dce_i2c_engine_acquire_sw(
+	struct dce_i2c_sw *dce_i2c_sw,
+	struct ddc *ddc_handle);
 
 #endif
 

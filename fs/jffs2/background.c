@@ -44,8 +44,8 @@ int jffs2_start_garbage_collect_thread(struct jffs2_sb_info *c)
 
 	tsk = kthread_run(jffs2_garbage_collect_thread, c, "jffs2_gcd_mtd%d", c->mtd->index);
 	if (IS_ERR(tsk)) {
-		pr_warn("fork failed for JFFS2 garbage collect thread: %ld\n",
-			-PTR_ERR(tsk));
+		pr_warn("fork failed for JFFS2 garbage collect thread: %pe\n",
+			tsk);
 		complete(&c->gc_thread_exit);
 		ret = PTR_ERR(tsk);
 	} else {
@@ -161,5 +161,5 @@ static int jffs2_garbage_collect_thread(void *_c)
 	spin_lock(&c->erase_completion_lock);
 	c->gc_task = NULL;
 	spin_unlock(&c->erase_completion_lock);
-	complete_and_exit(&c->gc_thread_exit, 0);
+	kthread_complete_and_exit(&c->gc_thread_exit, 0);
 }

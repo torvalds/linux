@@ -5,10 +5,10 @@
  */
 
 #include <linux/clk.h>
-#include <linux/clk-provider.h>
 #include <linux/clocksource.h>
 #include <linux/init.h>
 #include <linux/irqchip.h>
+#include <linux/of_clk.h>
 #include <linux/of_fdt.h>
 
 #include <asm/bootinfo.h>
@@ -20,9 +20,9 @@
 #include <asm/smp-ops.h>
 #include <asm/time.h>
 
-static __initdata const void *fdt;
-static __initdata const struct mips_machine *mach;
-static __initdata const void *mach_match_data;
+static __initconst const void *fdt;
+static __initconst const struct mips_machine *mach;
+static __initconst const void *mach_match_data;
 
 void __init prom_init(void)
 {
@@ -39,15 +39,13 @@ void __init *plat_get_fdt(void)
 		/* Already set up */
 		return (void *)fdt;
 
-	if ((fw_arg0 == -2) && !fdt_check_header((void *)fw_passed_dtb)) {
+	fdt = (void *)get_fdt();
+	if (fdt && !fdt_check_header(fdt)) {
 		/*
-		 * We booted using the UHI boot protocol, so we have been
-		 * provided with the appropriate device tree for the board.
-		 * Make use of it & search for any machine struct based upon
-		 * the root compatible string.
+		 * We have been provided with the appropriate device tree for
+		 * the board. Make use of it & search for any machine struct
+		 * based upon the root compatible string.
 		 */
-		fdt = (void *)fw_passed_dtb;
-
 		for_each_mips_machine(check_mach) {
 			match = mips_machine_is_compatible(check_mach, fdt);
 			if (match) {
@@ -106,20 +104,21 @@ void __init plat_mem_setup(void)
 	if (mach && mach->fixup_fdt)
 		fdt = mach->fixup_fdt(fdt, mach_match_data);
 
-	strlcpy(arcs_cmdline, boot_command_line, COMMAND_LINE_SIZE);
+	fw_init_cmdline();
 	__dt_setup_arch((void *)fdt);
 }
 
 void __init device_tree_init(void)
 {
-	int err;
-
 	unflatten_and_copy_device_tree();
 	mips_cpc_probe();
 
-	err = register_cps_smp_ops();
-	if (err)
-		err = register_up_smp_ops();
+	if (!register_cps_smp_ops())
+		return;
+	if (!register_vsmp_smp_ops())
+		return;
+
+	register_up_smp_ops();
 }
 
 int __init apply_mips_fdt_fixups(void *fdt_out, size_t fdt_out_size,
@@ -202,8 +201,4 @@ void __init arch_init_irq(void)
 	of_node_put(intc_node);
 
 	irqchip_init();
-}
-
-void __init prom_free_prom_memory(void)
-{
 }

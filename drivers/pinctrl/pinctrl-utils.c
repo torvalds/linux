@@ -1,45 +1,34 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Utils functions to implement the pincontrol driver.
  *
  * Copyright (c) 2013, NVIDIA Corporation.
  *
  * Author: Laxman Dewangan <ldewangan@nvidia.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any kind,
- * whether express or implied; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
- * 02111-1307, USA
  */
+#include <linux/array_size.h>
 #include <linux/device.h>
 #include <linux/export.h>
-#include <linux/kernel.h>
-#include <linux/pinctrl/pinctrl.h>
 #include <linux/of.h>
 #include <linux/slab.h>
+
+#include <linux/pinctrl/pinctrl.h>
+
 #include "core.h"
 #include "pinctrl-utils.h"
 
 int pinctrl_utils_reserve_map(struct pinctrl_dev *pctldev,
-		struct pinctrl_map **map, unsigned *reserved_maps,
-		unsigned *num_maps, unsigned reserve)
+		struct pinctrl_map **map, unsigned int *reserved_maps,
+		unsigned int *num_maps, unsigned int reserve)
 {
-	unsigned old_num = *reserved_maps;
-	unsigned new_num = *num_maps + reserve;
+	unsigned int old_num = *reserved_maps;
+	unsigned int new_num = *num_maps + reserve;
 	struct pinctrl_map *new_map;
 
 	if (old_num >= new_num)
 		return 0;
 
-	new_map = krealloc(*map, sizeof(*new_map) * new_num, GFP_KERNEL);
+	new_map = krealloc_array(*map, new_num, sizeof(*new_map), GFP_KERNEL);
 	if (!new_map) {
 		dev_err(pctldev->dev, "krealloc(map) failed\n");
 		return -ENOMEM;
@@ -54,8 +43,8 @@ int pinctrl_utils_reserve_map(struct pinctrl_dev *pctldev,
 EXPORT_SYMBOL_GPL(pinctrl_utils_reserve_map);
 
 int pinctrl_utils_add_map_mux(struct pinctrl_dev *pctldev,
-		struct pinctrl_map **map, unsigned *reserved_maps,
-		unsigned *num_maps, const char *group,
+		struct pinctrl_map **map, unsigned int *reserved_maps,
+		unsigned int *num_maps, const char *group,
 		const char *function)
 {
 	if (WARN_ON(*num_maps == *reserved_maps))
@@ -71,9 +60,9 @@ int pinctrl_utils_add_map_mux(struct pinctrl_dev *pctldev,
 EXPORT_SYMBOL_GPL(pinctrl_utils_add_map_mux);
 
 int pinctrl_utils_add_map_configs(struct pinctrl_dev *pctldev,
-		struct pinctrl_map **map, unsigned *reserved_maps,
-		unsigned *num_maps, const char *group,
-		unsigned long *configs, unsigned num_configs,
+		struct pinctrl_map **map, unsigned int *reserved_maps,
+		unsigned int *num_maps, const char *group,
+		unsigned long *configs, unsigned int num_configs,
 		enum pinctrl_map_type type)
 {
 	unsigned long *dup_configs;
@@ -97,11 +86,11 @@ int pinctrl_utils_add_map_configs(struct pinctrl_dev *pctldev,
 EXPORT_SYMBOL_GPL(pinctrl_utils_add_map_configs);
 
 int pinctrl_utils_add_config(struct pinctrl_dev *pctldev,
-		unsigned long **configs, unsigned *num_configs,
+		unsigned long **configs, unsigned int *num_configs,
 		unsigned long config)
 {
-	unsigned old_num = *num_configs;
-	unsigned new_num = old_num + 1;
+	unsigned int old_num = *num_configs;
+	unsigned int new_num = old_num + 1;
 	unsigned long *new_configs;
 
 	new_configs = krealloc(*configs, sizeof(*new_configs) * new_num,
@@ -121,7 +110,7 @@ int pinctrl_utils_add_config(struct pinctrl_dev *pctldev,
 EXPORT_SYMBOL_GPL(pinctrl_utils_add_config);
 
 void pinctrl_utils_free_map(struct pinctrl_dev *pctldev,
-	      struct pinctrl_map *map, unsigned num_maps)
+	      struct pinctrl_map *map, unsigned int num_maps)
 {
 	int i;
 

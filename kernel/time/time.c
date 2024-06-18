@@ -59,9 +59,9 @@ EXPORT_SYMBOL(sys_tz);
  * why not move it into the appropriate arch directory (for those
  * architectures that need it).
  */
-SYSCALL_DEFINE1(time, time_t __user *, tloc)
+SYSCALL_DEFINE1(time, __kernel_old_time_t __user *, tloc)
 {
-	time_t i = (time_t)ktime_get_real_seconds();
+	__kernel_old_time_t i = (__kernel_old_time_t)ktime_get_real_seconds();
 
 	if (tloc) {
 		if (put_user(i,tloc))
@@ -78,7 +78,7 @@ SYSCALL_DEFINE1(time, time_t __user *, tloc)
  * architectures that need it).
  */
 
-SYSCALL_DEFINE1(stime, time_t __user *, tptr)
+SYSCALL_DEFINE1(stime, __kernel_old_time_t __user *, tptr)
 {
 	struct timespec64 tv;
 	int err;
@@ -137,7 +137,7 @@ SYSCALL_DEFINE1(stime32, old_time32_t __user *, tptr)
 #endif /* __ARCH_WANT_SYS_TIME32 */
 #endif
 
-SYSCALL_DEFINE2(gettimeofday, struct timeval __user *, tv,
+SYSCALL_DEFINE2(gettimeofday, struct __kernel_old_timeval __user *, tv,
 		struct timezone __user *, tz)
 {
 	if (likely(tv != NULL)) {
@@ -179,7 +179,7 @@ int do_sys_settimeofday64(const struct timespec64 *tv, const struct timezone *tz
 		return error;
 
 	if (tz) {
-		/* Verify we're witin the +-15 hrs range */
+		/* Verify we're within the +-15 hrs range */
 		if (tz->tz_minuteswest > 15*60 || tz->tz_minuteswest < -15*60)
 			return -EINVAL;
 
@@ -196,22 +196,21 @@ int do_sys_settimeofday64(const struct timespec64 *tv, const struct timezone *tz
 	return 0;
 }
 
-SYSCALL_DEFINE2(settimeofday, struct timeval __user *, tv,
+SYSCALL_DEFINE2(settimeofday, struct __kernel_old_timeval __user *, tv,
 		struct timezone __user *, tz)
 {
 	struct timespec64 new_ts;
-	struct timeval user_tv;
 	struct timezone new_tz;
 
 	if (tv) {
-		if (copy_from_user(&user_tv, tv, sizeof(*tv)))
+		if (get_user(new_ts.tv_sec, &tv->tv_sec) ||
+		    get_user(new_ts.tv_nsec, &tv->tv_usec))
 			return -EFAULT;
 
-		if (!timeval_valid(&user_tv))
+		if (new_ts.tv_nsec > USEC_PER_SEC || new_ts.tv_nsec < 0)
 			return -EINVAL;
 
-		new_ts.tv_sec = user_tv.tv_sec;
-		new_ts.tv_nsec = user_tv.tv_usec * NSEC_PER_USEC;
+		new_ts.tv_nsec *= NSEC_PER_USEC;
 	}
 	if (tz) {
 		if (copy_from_user(&new_tz, tz, sizeof(*tz)))
@@ -245,18 +244,17 @@ COMPAT_SYSCALL_DEFINE2(settimeofday, struct old_timeval32 __user *, tv,
 		       struct timezone __user *, tz)
 {
 	struct timespec64 new_ts;
-	struct timeval user_tv;
 	struct timezone new_tz;
 
 	if (tv) {
-		if (compat_get_timeval(&user_tv, tv))
+		if (get_user(new_ts.tv_sec, &tv->tv_sec) ||
+		    get_user(new_ts.tv_nsec, &tv->tv_usec))
 			return -EFAULT;
 
-		if (!timeval_valid(&user_tv))
+		if (new_ts.tv_nsec > USEC_PER_SEC || new_ts.tv_nsec < 0)
 			return -EINVAL;
 
-		new_ts.tv_sec = user_tv.tv_sec;
-		new_ts.tv_nsec = user_tv.tv_usec * NSEC_PER_USEC;
+		new_ts.tv_nsec *= NSEC_PER_USEC;
 	}
 	if (tz) {
 		if (copy_from_user(&new_tz, tz, sizeof(*tz)))
@@ -267,7 +265,7 @@ COMPAT_SYSCALL_DEFINE2(settimeofday, struct old_timeval32 __user *, tv,
 }
 #endif
 
-#if !defined(CONFIG_64BIT_TIME) || defined(CONFIG_64BIT)
+#ifdef CONFIG_64BIT
 SYSCALL_DEFINE1(adjtimex, struct __kernel_timex __user *, txc_p)
 {
 	struct __kernel_timex txc;		/* Local copy of parameter */
@@ -367,11 +365,14 @@ SYSCALL_DEFINE1(adjtimex_time32, struct old_timex32 __user *, utp)
 }
 #endif
 
-/*
- * Convert jiffies to milliseconds and back.
+/**
+ * jiffies_to_msecs - Convert jiffies to milliseconds
+ * @j: jiffies value
  *
  * Avoid unnecessary multiplications/divisions in the
- * two most common HZ cases:
+ * two most common HZ cases.
+ *
+ * Return: milliseconds value
  */
 unsigned int jiffies_to_msecs(const unsigned long j)
 {
@@ -390,6 +391,12 @@ unsigned int jiffies_to_msecs(const unsigned long j)
 }
 EXPORT_SYMBOL(jiffies_to_msecs);
 
+/**
+ * jiffies_to_usecs - Convert jiffies to microseconds
+ * @j: jiffies value
+ *
+ * Return: microseconds value
+ */
 unsigned int jiffies_to_usecs(const unsigned long j)
 {
 	/*
@@ -410,8 +417,15 @@ unsigned int jiffies_to_usecs(const unsigned long j)
 }
 EXPORT_SYMBOL(jiffies_to_usecs);
 
-/*
+/**
  * mktime64 - Converts date to seconds.
+ * @year0: year to convert
+ * @mon0: month to convert
+ * @day: day to convert
+ * @hour: hour to convert
+ * @min: minute to convert
+ * @sec: second to convert
+ *
  * Converts Gregorian date to seconds since 1970-01-01 00:00:00.
  * Assumes input in normal date format, i.e. 1980-12-31 23:59:59
  * => year=1980, mon=12, day=31, hour=23, min=59, sec=59.
@@ -429,6 +443,8 @@ EXPORT_SYMBOL(jiffies_to_usecs);
  *
  * An encoding of midnight at the end of the day as 24:00:00 - ie. midnight
  * tomorrow - (allowable under ISO 8601) is supported.
+ *
+ * Return: seconds since the epoch time for the given input date
  */
 time64_t mktime64(const unsigned int year0, const unsigned int mon0,
 		const unsigned int day, const unsigned int hour,
@@ -451,50 +467,7 @@ time64_t mktime64(const unsigned int year0, const unsigned int mon0,
 }
 EXPORT_SYMBOL(mktime64);
 
-/**
- * ns_to_timespec - Convert nanoseconds to timespec
- * @nsec:       the nanoseconds value to be converted
- *
- * Returns the timespec representation of the nsec parameter.
- */
-struct timespec ns_to_timespec(const s64 nsec)
-{
-	struct timespec ts;
-	s32 rem;
-
-	if (!nsec)
-		return (struct timespec) {0, 0};
-
-	ts.tv_sec = div_s64_rem(nsec, NSEC_PER_SEC, &rem);
-	if (unlikely(rem < 0)) {
-		ts.tv_sec--;
-		rem += NSEC_PER_SEC;
-	}
-	ts.tv_nsec = rem;
-
-	return ts;
-}
-EXPORT_SYMBOL(ns_to_timespec);
-
-/**
- * ns_to_timeval - Convert nanoseconds to timeval
- * @nsec:       the nanoseconds value to be converted
- *
- * Returns the timeval representation of the nsec parameter.
- */
-struct timeval ns_to_timeval(const s64 nsec)
-{
-	struct timespec ts = ns_to_timespec(nsec);
-	struct timeval tv;
-
-	tv.tv_sec = ts.tv_sec;
-	tv.tv_usec = (suseconds_t) ts.tv_nsec / 1000;
-
-	return tv;
-}
-EXPORT_SYMBOL(ns_to_timeval);
-
-struct __kernel_old_timeval ns_to_kernel_old_timeval(const s64 nsec)
+struct __kernel_old_timeval ns_to_kernel_old_timeval(s64 nsec)
 {
 	struct timespec64 ts = ns_to_timespec64(nsec);
 	struct __kernel_old_timeval tv;
@@ -507,7 +480,7 @@ struct __kernel_old_timeval ns_to_kernel_old_timeval(const s64 nsec)
 EXPORT_SYMBOL(ns_to_kernel_old_timeval);
 
 /**
- * set_normalized_timespec - set timespec sec and nsec parts and normalize
+ * set_normalized_timespec64 - set timespec sec and nsec parts and normalize
  *
  * @ts:		pointer to timespec variable to be set
  * @sec:	seconds to set
@@ -516,8 +489,7 @@ EXPORT_SYMBOL(ns_to_kernel_old_timeval);
  * Set seconds and nanoseconds field of a timespec variable and
  * normalize to the timespec storage format
  *
- * Note: The tv_nsec part is always in the range of
- *	0 <= tv_nsec < NSEC_PER_SEC
+ * Note: The tv_nsec part is always in the range of 0 <= tv_nsec < NSEC_PER_SEC.
  * For negative values only the tv_sec field is negative !
  */
 void set_normalized_timespec64(struct timespec64 *ts, time64_t sec, s64 nsec)
@@ -546,29 +518,32 @@ EXPORT_SYMBOL(set_normalized_timespec64);
  * ns_to_timespec64 - Convert nanoseconds to timespec64
  * @nsec:       the nanoseconds value to be converted
  *
- * Returns the timespec64 representation of the nsec parameter.
+ * Return: the timespec64 representation of the nsec parameter.
  */
-struct timespec64 ns_to_timespec64(const s64 nsec)
+struct timespec64 ns_to_timespec64(s64 nsec)
 {
-	struct timespec64 ts;
+	struct timespec64 ts = { 0, 0 };
 	s32 rem;
 
-	if (!nsec)
-		return (struct timespec64) {0, 0};
-
-	ts.tv_sec = div_s64_rem(nsec, NSEC_PER_SEC, &rem);
-	if (unlikely(rem < 0)) {
-		ts.tv_sec--;
-		rem += NSEC_PER_SEC;
+	if (likely(nsec > 0)) {
+		ts.tv_sec = div_u64_rem(nsec, NSEC_PER_SEC, &rem);
+		ts.tv_nsec = rem;
+	} else if (nsec < 0) {
+		/*
+		 * With negative times, tv_sec points to the earlier
+		 * second, and tv_nsec counts the nanoseconds since
+		 * then, so tv_nsec is always a positive number.
+		 */
+		ts.tv_sec = -div_u64_rem(-nsec - 1, NSEC_PER_SEC, &rem) - 1;
+		ts.tv_nsec = NSEC_PER_SEC - rem - 1;
 	}
-	ts.tv_nsec = rem;
 
 	return ts;
 }
 EXPORT_SYMBOL(ns_to_timespec64);
 
 /**
- * msecs_to_jiffies: - convert milliseconds to jiffies
+ * __msecs_to_jiffies: - convert milliseconds to jiffies
  * @m:	time in milliseconds
  *
  * conversion is done as follows:
@@ -583,13 +558,15 @@ EXPORT_SYMBOL(ns_to_timespec64);
  *   handling any 32-bit overflows.
  *   for the details see __msecs_to_jiffies()
  *
- * msecs_to_jiffies() checks for the passed in value being a constant
+ * __msecs_to_jiffies() checks for the passed in value being a constant
  * via __builtin_constant_p() allowing gcc to eliminate most of the
  * code, __msecs_to_jiffies() is called if the value passed does not
  * allow constant folding and the actual conversion must be done at
  * runtime.
- * the _msecs_to_jiffies helpers are the HZ dependent conversion
+ * The _msecs_to_jiffies helpers are the HZ dependent conversion
  * routines found in include/linux/jiffies.h
+ *
+ * Return: jiffies value
  */
 unsigned long __msecs_to_jiffies(const unsigned int m)
 {
@@ -602,6 +579,12 @@ unsigned long __msecs_to_jiffies(const unsigned int m)
 }
 EXPORT_SYMBOL(__msecs_to_jiffies);
 
+/**
+ * __usecs_to_jiffies: - convert microseconds to jiffies
+ * @u:	time in milliseconds
+ *
+ * Return: jiffies value
+ */
 unsigned long __usecs_to_jiffies(const unsigned int u)
 {
 	if (u > jiffies_to_usecs(MAX_JIFFY_OFFSET))
@@ -610,10 +593,13 @@ unsigned long __usecs_to_jiffies(const unsigned int u)
 }
 EXPORT_SYMBOL(__usecs_to_jiffies);
 
-/*
+/**
+ * timespec64_to_jiffies - convert a timespec64 value to jiffies
+ * @value: pointer to &struct timespec64
+ *
  * The TICK_NSEC - 1 rounds up the value to the next resolution.  Note
  * that a remainder subtract here would not do the right thing as the
- * resolution values don't fall on second boundries.  I.e. the line:
+ * resolution values don't fall on second boundaries.  I.e. the line:
  * nsec -= nsec % TICK_NSEC; is NOT a correct resolution rounding.
  * Note that due to the small error in the multiplier here, this
  * rounding is incorrect for sufficiently large values of tv_nsec, but
@@ -624,11 +610,14 @@ EXPORT_SYMBOL(__usecs_to_jiffies);
  *
  * The >> (NSEC_JIFFIE_SC - SEC_JIFFIE_SC) converts the scaled nsec
  * value to a scaled second value.
+ *
+ * Return: jiffies value
  */
-static unsigned long
-__timespec64_to_jiffies(u64 sec, long nsec)
+unsigned long
+timespec64_to_jiffies(const struct timespec64 *value)
 {
-	nsec = nsec + TICK_NSEC - 1;
+	u64 sec = value->tv_sec;
+	long nsec = value->tv_nsec + TICK_NSEC - 1;
 
 	if (sec >= MAX_SEC_IN_JIFFIES){
 		sec = MAX_SEC_IN_JIFFIES;
@@ -639,20 +628,13 @@ __timespec64_to_jiffies(u64 sec, long nsec)
 		 (NSEC_JIFFIE_SC - SEC_JIFFIE_SC))) >> SEC_JIFFIE_SC;
 
 }
-
-static unsigned long
-__timespec_to_jiffies(unsigned long sec, long nsec)
-{
-	return __timespec64_to_jiffies((u64)sec, nsec);
-}
-
-unsigned long
-timespec64_to_jiffies(const struct timespec64 *value)
-{
-	return __timespec64_to_jiffies(value->tv_sec, value->tv_nsec);
-}
 EXPORT_SYMBOL(timespec64_to_jiffies);
 
+/**
+ * jiffies_to_timespec64 - convert jiffies value to &struct timespec64
+ * @jiffies: jiffies value
+ * @value: pointer to &struct timespec64
+ */
 void
 jiffies_to_timespec64(const unsigned long jiffies, struct timespec64 *value)
 {
@@ -668,45 +650,14 @@ jiffies_to_timespec64(const unsigned long jiffies, struct timespec64 *value)
 EXPORT_SYMBOL(jiffies_to_timespec64);
 
 /*
- * We could use a similar algorithm to timespec_to_jiffies (with a
- * different multiplier for usec instead of nsec). But this has a
- * problem with rounding: we can't exactly add TICK_NSEC - 1 to the
- * usec value, since it's not necessarily integral.
- *
- * We could instead round in the intermediate scaled representation
- * (i.e. in units of 1/2^(large scale) jiffies) but that's also
- * perilous: the scaling introduces a small positive error, which
- * combined with a division-rounding-upward (i.e. adding 2^(scale) - 1
- * units to the intermediate before shifting) leads to accidental
- * overflow and overestimates.
- *
- * At the cost of one additional multiplication by a constant, just
- * use the timespec implementation.
- */
-unsigned long
-timeval_to_jiffies(const struct timeval *value)
-{
-	return __timespec_to_jiffies(value->tv_sec,
-				     value->tv_usec * NSEC_PER_USEC);
-}
-EXPORT_SYMBOL(timeval_to_jiffies);
-
-void jiffies_to_timeval(const unsigned long jiffies, struct timeval *value)
-{
-	/*
-	 * Convert jiffies to nanoseconds and separate with
-	 * one divide.
-	 */
-	u32 rem;
-
-	value->tv_sec = div_u64_rem((u64)jiffies * TICK_NSEC,
-				    NSEC_PER_SEC, &rem);
-	value->tv_usec = rem / NSEC_PER_USEC;
-}
-EXPORT_SYMBOL(jiffies_to_timeval);
-
-/*
  * Convert jiffies/jiffies_64 to clock_t and back.
+ */
+
+/**
+ * jiffies_to_clock_t - Convert jiffies to clock_t
+ * @x: jiffies value
+ *
+ * Return: jiffies converted to clock_t (CLOCKS_PER_SEC)
  */
 clock_t jiffies_to_clock_t(unsigned long x)
 {
@@ -722,6 +673,12 @@ clock_t jiffies_to_clock_t(unsigned long x)
 }
 EXPORT_SYMBOL(jiffies_to_clock_t);
 
+/**
+ * clock_t_to_jiffies - Convert clock_t to jiffies
+ * @x: clock_t value
+ *
+ * Return: clock_t value converted to jiffies
+ */
 unsigned long clock_t_to_jiffies(unsigned long x)
 {
 #if (HZ % USER_HZ)==0
@@ -739,6 +696,12 @@ unsigned long clock_t_to_jiffies(unsigned long x)
 }
 EXPORT_SYMBOL(clock_t_to_jiffies);
 
+/**
+ * jiffies_64_to_clock_t - Convert jiffies_64 to clock_t
+ * @x: jiffies_64 value
+ *
+ * Return: jiffies_64 value converted to 64-bit "clock_t" (CLOCKS_PER_SEC)
+ */
 u64 jiffies_64_to_clock_t(u64 x)
 {
 #if (TICK_NSEC % (NSEC_PER_SEC / USER_HZ)) == 0
@@ -761,6 +724,12 @@ u64 jiffies_64_to_clock_t(u64 x)
 }
 EXPORT_SYMBOL(jiffies_64_to_clock_t);
 
+/**
+ * nsec_to_clock_t - Convert nsec value to clock_t
+ * @x: nsec value
+ *
+ * Return: nsec value converted to 64-bit "clock_t" (CLOCKS_PER_SEC)
+ */
 u64 nsec_to_clock_t(u64 x)
 {
 #if (NSEC_PER_SEC % USER_HZ) == 0
@@ -777,6 +746,12 @@ u64 nsec_to_clock_t(u64 x)
 #endif
 }
 
+/**
+ * jiffies64_to_nsecs - Convert jiffies64 to nanoseconds
+ * @j: jiffies64 value
+ *
+ * Return: nanoseconds value
+ */
 u64 jiffies64_to_nsecs(u64 j)
 {
 #if !(NSEC_PER_SEC % HZ)
@@ -787,6 +762,12 @@ u64 jiffies64_to_nsecs(u64 j)
 }
 EXPORT_SYMBOL(jiffies64_to_nsecs);
 
+/**
+ * jiffies64_to_msecs - Convert jiffies64 to milliseconds
+ * @j: jiffies64 value
+ *
+ * Return: milliseconds value
+ */
 u64 jiffies64_to_msecs(const u64 j)
 {
 #if HZ <= MSEC_PER_SEC && !(MSEC_PER_SEC % HZ)
@@ -809,6 +790,8 @@ EXPORT_SYMBOL(jiffies64_to_msecs);
  * note:
  *   NSEC_PER_SEC = 10^9 = (5^9 * 2^9) = (1953125 * 512)
  *   ULLONG_MAX ns = 18446744073.709551615 secs = about 584 years
+ *
+ * Return: nsecs converted to jiffies64 value
  */
 u64 nsecs_to_jiffies64(u64 n)
 {
@@ -840,6 +823,8 @@ EXPORT_SYMBOL(nsecs_to_jiffies64);
  * note:
  *   NSEC_PER_SEC = 10^9 = (5^9 * 2^9) = (1953125 * 512)
  *   ULLONG_MAX ns = 18446744073.709551615 secs = about 584 years
+ *
+ * Return: nsecs converted to jiffies value
  */
 unsigned long nsecs_to_jiffies(u64 n)
 {
@@ -847,10 +832,16 @@ unsigned long nsecs_to_jiffies(u64 n)
 }
 EXPORT_SYMBOL_GPL(nsecs_to_jiffies);
 
-/*
- * Add two timespec64 values and do a safety check for overflow.
+/**
+ * timespec64_add_safe - Add two timespec64 values and do a safety check
+ * for overflow.
+ * @lhs: first (left) timespec64 to add
+ * @rhs: second (right) timespec64 to add
+ *
  * It's assumed that both values are valid (>= 0).
  * And, each timespec64 is in normalized form.
+ *
+ * Return: sum of @lhs + @rhs
  */
 struct timespec64 timespec64_add_safe(const struct timespec64 lhs,
 				const struct timespec64 rhs)
@@ -868,6 +859,15 @@ struct timespec64 timespec64_add_safe(const struct timespec64 lhs,
 	return res;
 }
 
+/**
+ * get_timespec64 - get user's time value into kernel space
+ * @ts: destination &struct timespec64
+ * @uts: user's time value as &struct __kernel_timespec
+ *
+ * Handles compat or 32-bit modes.
+ *
+ * Return: %0 on success or negative errno on error
+ */
 int get_timespec64(struct timespec64 *ts,
 		   const struct __kernel_timespec __user *uts)
 {
@@ -880,16 +880,25 @@ int get_timespec64(struct timespec64 *ts,
 
 	ts->tv_sec = kts.tv_sec;
 
-	/* Zero out the padding for 32 bit systems or in compat mode */
-	if (IS_ENABLED(CONFIG_64BIT_TIME) && in_compat_syscall())
+	/* Zero out the padding in compat mode */
+	if (in_compat_syscall())
 		kts.tv_nsec &= 0xFFFFFFFFUL;
 
+	/* In 32-bit mode, this drops the padding */
 	ts->tv_nsec = kts.tv_nsec;
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(get_timespec64);
 
+/**
+ * put_timespec64 - convert timespec64 value to __kernel_timespec format and
+ * 		    copy the latter to userspace
+ * @ts: input &struct timespec64
+ * @uts: user's &struct __kernel_timespec
+ *
+ * Return: %0 on success or negative errno on error
+ */
 int put_timespec64(const struct timespec64 *ts,
 		   struct __kernel_timespec __user *uts)
 {
@@ -928,6 +937,15 @@ static int __put_old_timespec32(const struct timespec64 *ts64,
 	return copy_to_user(cts, &ts, sizeof(ts)) ? -EFAULT : 0;
 }
 
+/**
+ * get_old_timespec32 - get user's old-format time value into kernel space
+ * @ts: destination &struct timespec64
+ * @uts: user's old-format time value (&struct old_timespec32)
+ *
+ * Handles X86_X32_ABI compatibility conversion.
+ *
+ * Return: %0 on success or negative errno on error
+ */
 int get_old_timespec32(struct timespec64 *ts, const void __user *uts)
 {
 	if (COMPAT_USE_64BIT_TIME)
@@ -937,6 +955,16 @@ int get_old_timespec32(struct timespec64 *ts, const void __user *uts)
 }
 EXPORT_SYMBOL_GPL(get_old_timespec32);
 
+/**
+ * put_old_timespec32 - convert timespec64 value to &struct old_timespec32 and
+ * 			copy the latter to userspace
+ * @ts: input &struct timespec64
+ * @uts: user's &struct old_timespec32
+ *
+ * Handles X86_X32_ABI compatibility conversion.
+ *
+ * Return: %0 on success or negative errno on error
+ */
 int put_old_timespec32(const struct timespec64 *ts, void __user *uts)
 {
 	if (COMPAT_USE_64BIT_TIME)
@@ -946,6 +974,13 @@ int put_old_timespec32(const struct timespec64 *ts, void __user *uts)
 }
 EXPORT_SYMBOL_GPL(put_old_timespec32);
 
+/**
+ * get_itimerspec64 - get user's &struct __kernel_itimerspec into kernel space
+ * @it: destination &struct itimerspec64
+ * @uit: user's &struct __kernel_itimerspec
+ *
+ * Return: %0 on success or negative errno on error
+ */
 int get_itimerspec64(struct itimerspec64 *it,
 			const struct __kernel_itimerspec __user *uit)
 {
@@ -961,6 +996,14 @@ int get_itimerspec64(struct itimerspec64 *it,
 }
 EXPORT_SYMBOL_GPL(get_itimerspec64);
 
+/**
+ * put_itimerspec64 - convert &struct itimerspec64 to __kernel_itimerspec format
+ * 		      and copy the latter to userspace
+ * @it: input &struct itimerspec64
+ * @uit: user's &struct __kernel_itimerspec
+ *
+ * Return: %0 on success or negative errno on error
+ */
 int put_itimerspec64(const struct itimerspec64 *it,
 			struct __kernel_itimerspec __user *uit)
 {
@@ -976,6 +1019,13 @@ int put_itimerspec64(const struct itimerspec64 *it,
 }
 EXPORT_SYMBOL_GPL(put_itimerspec64);
 
+/**
+ * get_old_itimerspec32 - get user's &struct old_itimerspec32 into kernel space
+ * @its: destination &struct itimerspec64
+ * @uits: user's &struct old_itimerspec32
+ *
+ * Return: %0 on success or negative errno on error
+ */
 int get_old_itimerspec32(struct itimerspec64 *its,
 			const struct old_itimerspec32 __user *uits)
 {
@@ -987,6 +1037,14 @@ int get_old_itimerspec32(struct itimerspec64 *its,
 }
 EXPORT_SYMBOL_GPL(get_old_itimerspec32);
 
+/**
+ * put_old_itimerspec32 - convert &struct itimerspec64 to &struct
+ *			  old_itimerspec32 and copy the latter to userspace
+ * @its: input &struct itimerspec64
+ * @uits: user's &struct old_itimerspec32
+ *
+ * Return: %0 on success or negative errno on error
+ */
 int put_old_itimerspec32(const struct itimerspec64 *its,
 			struct old_itimerspec32 __user *uits)
 {

@@ -1,21 +1,14 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright 2002 Andi Kleen */
 
+#include <linux/export.h>
 #include <linux/linkage.h>
+#include <linux/cfi_types.h>
 #include <asm/errno.h>
 #include <asm/cpufeatures.h>
-#include <asm/mcsafe_test.h>
-#include <asm/alternative-asm.h>
-#include <asm/export.h>
+#include <asm/alternative.h>
 
-/*
- * We build a jump to memcpy_orig by default which gets NOPped out on
- * the majority of x86 CPUs which set REP_GOOD. In addition, CPUs which
- * have the enhanced REP MOVSB/STOSB feature (ERMS), change those NOPs
- * to a jmp to memcpy_erms which does the REP; MOVSB mem copy.
- */
-
-.weak memcpy
+.section .noinstr.text, "ax"
 
 /*
  * memcpy - Copy a memory block.
@@ -27,37 +20,30 @@
  *
  * Output:
  * rax original destination
+ *
+ * The FSRM alternative should be done inline (avoiding the call and
+ * the disgusting return handling), but that would require some help
+ * from the compiler for better calling conventions.
+ *
+ * The 'rep movsb' itself is small enough to replace the call, but the
+ * two register moves blow up the code. And one of them is "needed"
+ * only for the return value that is the same as the source input,
+ * which the compiler could/should do much better anyway.
  */
-ENTRY(__memcpy)
-ENTRY(memcpy)
-	ALTERNATIVE_2 "jmp memcpy_orig", "", X86_FEATURE_REP_GOOD, \
-		      "jmp memcpy_erms", X86_FEATURE_ERMS
+SYM_TYPED_FUNC_START(__memcpy)
+	ALTERNATIVE "jmp memcpy_orig", "", X86_FEATURE_FSRM
 
 	movq %rdi, %rax
 	movq %rdx, %rcx
-	shrq $3, %rcx
-	andl $7, %edx
-	rep movsq
-	movl %edx, %ecx
 	rep movsb
-	ret
-ENDPROC(memcpy)
-ENDPROC(__memcpy)
-EXPORT_SYMBOL(memcpy)
+	RET
+SYM_FUNC_END(__memcpy)
 EXPORT_SYMBOL(__memcpy)
 
-/*
- * memcpy_erms() - enhanced fast string memcpy. This is faster and
- * simpler than memcpy. Use memcpy_erms when possible.
- */
-ENTRY(memcpy_erms)
-	movq %rdi, %rax
-	movq %rdx, %rcx
-	rep movsb
-	ret
-ENDPROC(memcpy_erms)
+SYM_FUNC_ALIAS_MEMFUNC(memcpy, __memcpy)
+EXPORT_SYMBOL(memcpy)
 
-ENTRY(memcpy_orig)
+SYM_FUNC_START_LOCAL(memcpy_orig)
 	movq %rdi, %rax
 
 	cmpq $0x20, %rdx
@@ -138,7 +124,7 @@ ENTRY(memcpy_orig)
 	movq %r9,	1*8(%rdi)
 	movq %r10,	-2*8(%rdi, %rdx)
 	movq %r11,	-1*8(%rdi, %rdx)
-	retq
+	RET
 	.p2align 4
 .Lless_16bytes:
 	cmpl $8,	%edx
@@ -150,7 +136,7 @@ ENTRY(memcpy_orig)
 	movq -1*8(%rsi, %rdx),	%r9
 	movq %r8,	0*8(%rdi)
 	movq %r9,	-1*8(%rdi, %rdx)
-	retq
+	RET
 	.p2align 4
 .Lless_8bytes:
 	cmpl $4,	%edx
@@ -163,7 +149,7 @@ ENTRY(memcpy_orig)
 	movl -4(%rsi, %rdx), %r8d
 	movl %ecx, (%rdi)
 	movl %r8d, -4(%rdi, %rdx)
-	retq
+	RET
 	.p2align 4
 .Lless_3bytes:
 	subl $1, %edx
@@ -181,119 +167,6 @@ ENTRY(memcpy_orig)
 	movb %cl, (%rdi)
 
 .Lend:
-	retq
-ENDPROC(memcpy_orig)
+	RET
+SYM_FUNC_END(memcpy_orig)
 
-#ifndef CONFIG_UML
-
-MCSAFE_TEST_CTL
-
-/*
- * __memcpy_mcsafe - memory copy with machine check exception handling
- * Note that we only catch machine checks when reading the source addresses.
- * Writes to target are posted and don't generate machine checks.
- */
-ENTRY(__memcpy_mcsafe)
-	cmpl $8, %edx
-	/* Less than 8 bytes? Go to byte copy loop */
-	jb .L_no_whole_words
-
-	/* Check for bad alignment of source */
-	testl $7, %esi
-	/* Already aligned */
-	jz .L_8byte_aligned
-
-	/* Copy one byte at a time until source is 8-byte aligned */
-	movl %esi, %ecx
-	andl $7, %ecx
-	subl $8, %ecx
-	negl %ecx
-	subl %ecx, %edx
-.L_read_leading_bytes:
-	movb (%rsi), %al
-	MCSAFE_TEST_SRC %rsi 1 .E_leading_bytes
-	MCSAFE_TEST_DST %rdi 1 .E_leading_bytes
-.L_write_leading_bytes:
-	movb %al, (%rdi)
-	incq %rsi
-	incq %rdi
-	decl %ecx
-	jnz .L_read_leading_bytes
-
-.L_8byte_aligned:
-	movl %edx, %ecx
-	andl $7, %edx
-	shrl $3, %ecx
-	jz .L_no_whole_words
-
-.L_read_words:
-	movq (%rsi), %r8
-	MCSAFE_TEST_SRC %rsi 8 .E_read_words
-	MCSAFE_TEST_DST %rdi 8 .E_write_words
-.L_write_words:
-	movq %r8, (%rdi)
-	addq $8, %rsi
-	addq $8, %rdi
-	decl %ecx
-	jnz .L_read_words
-
-	/* Any trailing bytes? */
-.L_no_whole_words:
-	andl %edx, %edx
-	jz .L_done_memcpy_trap
-
-	/* Copy trailing bytes */
-	movl %edx, %ecx
-.L_read_trailing_bytes:
-	movb (%rsi), %al
-	MCSAFE_TEST_SRC %rsi 1 .E_trailing_bytes
-	MCSAFE_TEST_DST %rdi 1 .E_trailing_bytes
-.L_write_trailing_bytes:
-	movb %al, (%rdi)
-	incq %rsi
-	incq %rdi
-	decl %ecx
-	jnz .L_read_trailing_bytes
-
-	/* Copy successful. Return zero */
-.L_done_memcpy_trap:
-	xorl %eax, %eax
-.L_done:
-	ret
-ENDPROC(__memcpy_mcsafe)
-EXPORT_SYMBOL_GPL(__memcpy_mcsafe)
-
-	.section .fixup, "ax"
-	/*
-	 * Return number of bytes not copied for any failure. Note that
-	 * there is no "tail" handling since the source buffer is 8-byte
-	 * aligned and poison is cacheline aligned.
-	 */
-.E_read_words:
-	shll	$3, %ecx
-.E_leading_bytes:
-	addl	%edx, %ecx
-.E_trailing_bytes:
-	mov	%ecx, %eax
-	jmp	.L_done
-
-	/*
-	 * For write fault handling, given the destination is unaligned,
-	 * we handle faults on multi-byte writes with a byte-by-byte
-	 * copy up to the write-protected page.
-	 */
-.E_write_words:
-	shll	$3, %ecx
-	addl	%edx, %ecx
-	movl	%ecx, %edx
-	jmp mcsafe_handle_tail
-
-	.previous
-
-	_ASM_EXTABLE_FAULT(.L_read_leading_bytes, .E_leading_bytes)
-	_ASM_EXTABLE_FAULT(.L_read_words, .E_read_words)
-	_ASM_EXTABLE_FAULT(.L_read_trailing_bytes, .E_trailing_bytes)
-	_ASM_EXTABLE(.L_write_leading_bytes, .E_leading_bytes)
-	_ASM_EXTABLE(.L_write_words, .E_write_words)
-	_ASM_EXTABLE(.L_write_trailing_bytes, .E_trailing_bytes)
-#endif

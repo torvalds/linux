@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/**
+/*
  * eCryptfs: Linux filesystem encryption layer
  * In-kernel key management code.  Includes functions to parse and
  * write authentication token-related packets with the underlying
@@ -21,7 +21,7 @@
 #include <linux/slab.h>
 #include "ecryptfs_kernel.h"
 
-/**
+/*
  * request_key returned an error instead of a valid key address;
  * determine the type of error, make appropriate log entries, and
  * return an error code.
@@ -300,9 +300,11 @@ write_tag_66_packet(char *signature, u8 cipher_code,
 	 *         | Key Identifier Size      | 1 or 2 bytes |
 	 *         | Key Identifier           | arbitrary    |
 	 *         | File Encryption Key Size | 1 or 2 bytes |
+	 *         | Cipher Code              | 1 byte       |
 	 *         | File Encryption Key      | arbitrary    |
+	 *         | Checksum                 | 2 bytes      |
 	 */
-	data_len = (5 + ECRYPTFS_SIG_SIZE_HEX + crypt_stat->key_size);
+	data_len = (8 + ECRYPTFS_SIG_SIZE_HEX + crypt_stat->key_size);
 	*packet = kmalloc(data_len, GFP_KERNEL);
 	message = *packet;
 	if (!message) {
@@ -536,8 +538,9 @@ out:
 
 /**
  * ecryptfs_find_auth_tok_for_sig
+ * @auth_tok_key: key containing the authentication token
  * @auth_tok: Set to the matching auth_tok; NULL if not found
- * @crypt_stat: inode crypt_stat crypto context
+ * @mount_crypt_stat: inode crypt_stat crypto context
  * @sig: Sig of auth_tok to find
  *
  * For now, this function simply looks at the registered auth_tok's
@@ -576,7 +579,7 @@ ecryptfs_find_auth_tok_for_sig(
 	return rc;
 }
 
-/**
+/*
  * write_tag_70_packet can gobble a lot of stack space. We stuff most
  * of the function's parameters in a kmalloc'd struct to help reduce
  * eCryptfs' overall stack usage.
@@ -604,7 +607,7 @@ struct ecryptfs_write_tag_70_packet_silly_stack {
 	struct shash_desc *hash_desc;
 };
 
-/**
+/*
  * write_tag_70_packet - Write encrypted filename (EFN) packet against FNEK
  * @filename: NULL-terminated filename string
  *
@@ -838,7 +841,7 @@ ecryptfs_write_tag_70_packet(char *dest, size_t *remaining_bytes,
 out_release_free_unlock:
 	crypto_free_shash(s->hash_tfm);
 out_free_unlock:
-	kzfree(s->block_aligned_filename);
+	kfree_sensitive(s->block_aligned_filename);
 out_unlock:
 	mutex_unlock(s->tfm_mutex);
 out:
@@ -847,7 +850,7 @@ out:
 		key_put(auth_tok_key);
 	}
 	skcipher_request_free(s->skcipher_req);
-	kzfree(s->hash_desc);
+	kfree_sensitive(s->hash_desc);
 	kfree(s);
 	return rc;
 }
@@ -873,7 +876,7 @@ struct ecryptfs_parse_tag_70_packet_silly_stack {
 };
 
 /**
- * parse_tag_70_packet - Parse and process FNEK-encrypted passphrase packet
+ * ecryptfs_parse_tag_70_packet - Parse and process FNEK-encrypted passphrase packet
  * @filename: This function kmalloc's the memory for the filename
  * @filename_size: This function sets this to the amount of memory
  *                 kmalloc'd for the filename
@@ -1172,7 +1175,7 @@ decrypt_pki_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
 	rc = ecryptfs_cipher_code_to_string(crypt_stat->cipher, cipher_code);
 	if (rc) {
 		ecryptfs_printk(KERN_ERR, "Cipher code [%d] is invalid\n",
-				cipher_code)
+				cipher_code);
 		goto out;
 	}
 	crypt_stat->flags |= ECRYPTFS_KEY_VALID;
@@ -1304,7 +1307,7 @@ parse_tag_1_packet(struct ecryptfs_crypt_stat *crypt_stat,
 		printk(KERN_WARNING "Tag 1 packet contains key larger "
 		       "than ECRYPTFS_MAX_ENCRYPTED_KEY_BYTES\n");
 		rc = -EINVAL;
-		goto out;
+		goto out_free;
 	}
 	memcpy((*new_auth_tok)->session_key.encrypted_key,
 	       &data[(*packet_size)], (body_size - (ECRYPTFS_SIG_SIZE + 2)));
@@ -2204,9 +2207,9 @@ write_tag_3_packet(char *dest, size_t *remaining_bytes,
 	if (mount_crypt_stat->global_default_cipher_key_size == 0) {
 		printk(KERN_WARNING "No key size specified at mount; "
 		       "defaulting to [%d]\n",
-		       crypto_skcipher_default_keysize(tfm));
+		       crypto_skcipher_max_keysize(tfm));
 		mount_crypt_stat->global_default_cipher_key_size =
-			crypto_skcipher_default_keysize(tfm);
+			crypto_skcipher_max_keysize(tfm);
 	}
 	if (crypt_stat->key_size == 0)
 		crypt_stat->key_size =

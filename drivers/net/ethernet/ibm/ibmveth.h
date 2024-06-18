@@ -46,23 +46,23 @@
 #define h_add_logical_lan_buffer(ua, buf) \
   plpar_hcall_norets(H_ADD_LOGICAL_LAN_BUFFER, ua, buf)
 
+/* FW allows us to send 6 descriptors but we only use one so mark
+ * the other 5 as unused (0)
+ */
 static inline long h_send_logical_lan(unsigned long unit_address,
-		unsigned long desc1, unsigned long desc2, unsigned long desc3,
-		unsigned long desc4, unsigned long desc5, unsigned long desc6,
-		unsigned long corellator_in, unsigned long *corellator_out,
-		unsigned long mss, unsigned long large_send_support)
+		unsigned long desc, unsigned long corellator_in,
+		unsigned long *corellator_out, unsigned long mss,
+		unsigned long large_send_support)
 {
 	long rc;
 	unsigned long retbuf[PLPAR_HCALL9_BUFSIZE];
 
 	if (large_send_support)
 		rc = plpar_hcall9(H_SEND_LOGICAL_LAN, retbuf, unit_address,
-				  desc1, desc2, desc3, desc4, desc5, desc6,
-				  corellator_in, mss);
+				  desc, 0, 0, 0, 0, 0, corellator_in, mss);
 	else
 		rc = plpar_hcall9(H_SEND_LOGICAL_LAN, retbuf, unit_address,
-				  desc1, desc2, desc3, desc4, desc5, desc6,
-				  corellator_in);
+				  desc, 0, 0, 0, 0, 0, corellator_in);
 
 	*corellator_out = retbuf[0];
 
@@ -98,6 +98,9 @@ static inline long h_illan_attributes(unsigned long unit_address,
 #define IBMVETH_BUFF_LIST_SIZE 4096
 #define IBMVETH_FILT_LIST_SIZE 4096
 #define IBMVETH_MAX_BUF_SIZE (1024 * 128)
+#define IBMVETH_MAX_TX_BUF_SIZE (1024 * 64)
+#define IBMVETH_MAX_QUEUES 16U
+#define IBMVETH_DEFAULT_QUEUES 8U
 
 static int pool_size[] = { 512, 1024 * 2, 1024 * 16, 1024 * 32, 1024 * 64 };
 static int pool_count[] = { 256, 512, 256, 256, 256 };
@@ -137,16 +140,16 @@ struct ibmveth_adapter {
     unsigned int mcastFilterSize;
     void * buffer_list_addr;
     void * filter_list_addr;
+    void *tx_ltb_ptr[IBMVETH_MAX_QUEUES];
+    unsigned int tx_ltb_size;
+    dma_addr_t tx_ltb_dma[IBMVETH_MAX_QUEUES];
     dma_addr_t buffer_list_dma;
     dma_addr_t filter_list_dma;
     struct ibmveth_buff_pool rx_buff_pool[IBMVETH_NUM_BUFF_POOLS];
     struct ibmveth_rx_q rx_queue;
-    int pool_config;
     int rx_csum;
     int large_send;
     bool is_active_trunk;
-    void *bounce_buffer;
-    dma_addr_t bounce_buffer_dma;
 
     u64 fw_ipv6_csum_support;
     u64 fw_ipv4_csum_support;
@@ -162,6 +165,9 @@ struct ibmveth_adapter {
     u64 tx_send_failed;
     u64 tx_large_packets;
     u64 rx_large_packets;
+    /* Ethtool settings */
+	u8 duplex;
+	u32 speed;
 };
 
 /*

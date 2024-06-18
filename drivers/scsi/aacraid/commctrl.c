@@ -25,6 +25,7 @@
 #include <linux/completion.h>
 #include <linux/dma-mapping.h>
 #include <linux/blkdev.h>
+#include <linux/compat.h>
 #include <linux/delay.h> /* ssleep prototype */
 #include <linux/kthread.h>
 #include <linux/uaccess.h>
@@ -32,6 +33,8 @@
 
 #include "aacraid.h"
 
+# define AAC_DEBUG_PREAMBLE	KERN_INFO
+# define AAC_DEBUG_POSTAMBLE
 /**
  *	ioctl_send_fib	-	send a FIB from userspace
  *	@dev:	adapter is being processed
@@ -40,9 +43,6 @@
  *	This routine sends a fib to the adapter on behalf of a user level
  *	program.
  */
-# define AAC_DEBUG_PREAMBLE	KERN_INFO
-# define AAC_DEBUG_POSTAMBLE
-
 static int ioctl_send_fib(struct aac_dev * dev, void __user *arg)
 {
 	struct hw_fib * kfib;
@@ -158,11 +158,12 @@ cleanup:
 
 /**
  *	open_getadapter_fib	-	Get the next fib
+ *	@dev:	adapter is being processed
+ *	@arg:	arguments to the open call
  *
  *	This routine will get the next Fib, if available, from the AdapterFibContext
  *	passed in from the user.
  */
-
 static int open_getadapter_fib(struct aac_dev * dev, void __user *arg)
 {
 	struct aac_fib_context * fibctx;
@@ -226,6 +227,12 @@ static int open_getadapter_fib(struct aac_dev * dev, void __user *arg)
 	return status;
 }
 
+struct compat_fib_ioctl {
+	u32	fibctx;
+	s32	wait;
+	compat_uptr_t fib;
+};
+
 /**
  *	next_getadapter_fib	-	get the next fib
  *	@dev: adapter to use
@@ -234,7 +241,6 @@ static int open_getadapter_fib(struct aac_dev * dev, void __user *arg)
  *	This routine will get the next Fib, if available, from the AdapterFibContext
  *	passed in from the user.
  */
-
 static int next_getadapter_fib(struct aac_dev * dev, void __user *arg)
 {
 	struct fib_ioctl f;
@@ -244,8 +250,19 @@ static int next_getadapter_fib(struct aac_dev * dev, void __user *arg)
 	struct list_head * entry;
 	unsigned long flags;
 
-	if(copy_from_user((void *)&f, arg, sizeof(struct fib_ioctl)))
-		return -EFAULT;
+	if (in_compat_syscall()) {
+		struct compat_fib_ioctl cf;
+
+		if (copy_from_user(&cf, arg, sizeof(struct compat_fib_ioctl)))
+			return -EFAULT;
+
+		f.fibctx = cf.fibctx;
+		f.wait = cf.wait;
+		f.fib = compat_ptr(cf.fib);
+	} else {
+		if (copy_from_user(&f, arg, sizeof(struct fib_ioctl)))
+			return -EFAULT;
+	}
 	/*
 	 *	Verify that the HANDLE passed in was a valid AdapterFibContext
 	 *
@@ -455,11 +472,10 @@ static int check_revision(struct aac_dev *dev, void __user *arg)
 
 
 /**
- *
- * aac_send_raw_scb
- *
+ * aac_send_raw_srb()
+ *	@dev:	adapter is being processed
+ *	@arg:	arguments to the send call
  */
-
 static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 {
 	struct fib* srbfib;
@@ -513,15 +529,10 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 		goto cleanup;
 	}
 
-	user_srbcmd = kmalloc(fibsize, GFP_KERNEL);
-	if (!user_srbcmd) {
-		dprintk((KERN_DEBUG"aacraid: Could not make a copy of the srb\n"));
-		rcode = -ENOMEM;
-		goto cleanup;
-	}
-	if(copy_from_user(user_srbcmd, user_srb,fibsize)){
-		dprintk((KERN_DEBUG"aacraid: Could not copy srb from user\n"));
-		rcode = -EFAULT;
+	user_srbcmd = memdup_user(user_srb, fibsize);
+	if (IS_ERR(user_srbcmd)) {
+		rcode = PTR_ERR(user_srbcmd);
+		user_srbcmd = NULL;
 		goto cleanup;
 	}
 
@@ -677,8 +688,8 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 					goto cleanup;
 				}
 			}
-			addr = pci_map_single(dev->pdev, p, sg_count[i],
-						data_dir);
+			addr = dma_map_single(&dev->pdev->dev, p, sg_count[i],
+					      data_dir);
 			hbacmd->sge[i].addr_hi = cpu_to_le32((u32)(addr>>32));
 			hbacmd->sge[i].addr_lo = cpu_to_le32(
 						(u32)(addr & 0xffffffff));
@@ -739,8 +750,8 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 						goto cleanup;
 					}
 				}
-				addr = pci_map_single(dev->pdev, p,
-							sg_count[i], data_dir);
+				addr = dma_map_single(&dev->pdev->dev, p,
+						      sg_count[i], data_dir);
 
 				psg->sg[i].addr[0] = cpu_to_le32(addr & 0xffffffff);
 				psg->sg[i].addr[1] = cpu_to_le32(addr>>32);
@@ -795,8 +806,8 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 						goto cleanup;
 					}
 				}
-				addr = pci_map_single(dev->pdev, p,
-							sg_count[i], data_dir);
+				addr = dma_map_single(&dev->pdev->dev, p,
+						      sg_count[i], data_dir);
 
 				psg->sg[i].addr[0] = cpu_to_le32(addr & 0xffffffff);
 				psg->sg[i].addr[1] = cpu_to_le32(addr>>32);
@@ -851,7 +862,9 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 						goto cleanup;
 					}
 				}
-				addr = pci_map_single(dev->pdev, p, usg->sg[i].count, data_dir);
+				addr = dma_map_single(&dev->pdev->dev, p,
+						      usg->sg[i].count,
+						      data_dir);
 
 				psg->sg[i].addr = cpu_to_le32(addr & 0xffffffff);
 				byte_count += usg->sg[i].count;
@@ -890,8 +903,8 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 						goto cleanup;
 					}
 				}
-				addr = pci_map_single(dev->pdev, p,
-					sg_count[i], data_dir);
+				addr = dma_map_single(&dev->pdev->dev, p,
+						      sg_count[i], data_dir);
 
 				psg->sg[i].addr = cpu_to_le32(addr);
 				byte_count += sg_count[i];

@@ -17,6 +17,7 @@
 /**
  * struct ingenic_cgu_pll_info - information about a PLL
  * @reg: the offset of the PLL's control register within the CGU
+ * @rate_multiplier: the multiplier needed by pll rate calculation
  * @m_shift: the number of bits to shift the multiplier value by (ie. the
  *           index of the lowest bit of the multiplier value in the PLL's
  *           control register)
@@ -32,26 +33,38 @@
  * @od_shift: the number of bits to shift the post-VCO divider value by (ie.
  *            the index of the lowest bit of the post-VCO divider value in
  *            the PLL's control register)
- * @od_bits: the size of the post-VCO divider field in bits
+ * @od_bits: the size of the post-VCO divider field in bits, or 0 if no
+ *	     OD field exists (then the OD is fixed to 1)
  * @od_max: the maximum post-VCO divider value
  * @od_encoding: a pointer to an array mapping post-VCO divider values to
  *               their encoded values in the PLL control register, or -1 for
  *               unsupported values
- * @bypass_bit: the index of the bypass bit in the PLL control register
- * @enable_bit: the index of the enable bit in the PLL control register
- * @stable_bit: the index of the stable bit in the PLL control register
- * @no_bypass_bit: if set, the PLL has no bypass functionality
+ * @bypass_reg: the offset of the bypass control register within the CGU
+ * @bypass_bit: the index of the bypass bit in the PLL control register, or
+ *              -1 if there is no bypass bit
+ * @enable_bit: the index of the enable bit in the PLL control register, or
+ *		-1 if there is no enable bit (ie, the PLL is always on)
+ * @stable_bit: the index of the stable bit in the PLL control register, or
+ *		-1 if there is no stable bit
+ * @set_rate_hook: hook called immediately after updating the CGU register,
+ *		   before releasing the spinlock
  */
 struct ingenic_cgu_pll_info {
 	unsigned reg;
+	unsigned rate_multiplier;
 	const s8 *od_encoding;
 	u8 m_shift, m_bits, m_offset;
 	u8 n_shift, n_bits, n_offset;
 	u8 od_shift, od_bits, od_max;
-	u8 bypass_bit;
-	u8 enable_bit;
-	u8 stable_bit;
-	bool no_bypass_bit;
+	unsigned bypass_reg;
+	s8 bypass_bit;
+	s8 enable_bit;
+	s8 stable_bit;
+	void (*calc_m_n_od)(const struct ingenic_cgu_pll_info *pll_info,
+			    unsigned long rate, unsigned long parent_rate,
+			    unsigned int *m, unsigned int *n, unsigned int *od);
+	void (*set_rate_hook)(const struct ingenic_cgu_pll_info *pll_info,
+			      unsigned long rate, unsigned long parent_rate);
 };
 
 /**
@@ -80,6 +93,7 @@ struct ingenic_cgu_mux_info {
  *          isn't one
  * @busy_bit: the index of the busy bit within reg, or -1 if there isn't one
  * @stop_bit: the index of the stop bit within reg, or -1 if there isn't one
+ * @bypass_mask: mask of parent clocks for which the divider does not apply
  * @div_table: optional table to map the value read from the register to the
  *             actual divider value
  */
@@ -91,6 +105,7 @@ struct ingenic_cgu_div_info {
 	s8 ce_bit;
 	s8 busy_bit;
 	s8 stop_bit;
+	u8 bypass_mask;
 	const u8 *div_table;
 };
 
@@ -128,6 +143,7 @@ struct ingenic_cgu_custom_info {
  * struct ingenic_cgu_clk_info - information about a clock
  * @name: name of the clock
  * @type: a bitmask formed from CGU_CLK_* values
+ * @flags: common clock flags to set on this clock
  * @parents: an array of the indices of potential parents of this clock
  *           within the clock_info array of the CGU, or -1 in entries
  *           which correspond to no valid parent
@@ -152,6 +168,8 @@ struct ingenic_cgu_clk_info {
 		CGU_CLK_FIXDIV		= BIT(6),
 		CGU_CLK_CUSTOM		= BIT(7),
 	} type;
+
+	unsigned long flags;
 
 	int parents[4];
 

@@ -389,7 +389,7 @@ static const struct regulator_ops as3722_ldo6_extcntrl_ops = {
 	.set_bypass = regulator_set_bypass_regmap,
 };
 
-static const struct regulator_linear_range as3722_ldo_ranges[] = {
+static const struct linear_range as3722_ldo_ranges[] = {
 	REGULATOR_LINEAR_RANGE(0, 0x00, 0x00, 0),
 	REGULATOR_LINEAR_RANGE(825000, 0x01, 0x24, 25000),
 	REGULATOR_LINEAR_RANGE(1725000, 0x40, 0x7F, 25000),
@@ -455,7 +455,8 @@ static int as3722_sd_set_mode(struct regulator_dev *rdev,
 	switch (mode) {
 	case REGULATOR_MODE_FAST:
 		val = as3722_reg_lookup[id].mode_mask;
-	case REGULATOR_MODE_NORMAL: /* fall down */
+		fallthrough;
+	case REGULATOR_MODE_NORMAL:
 		break;
 	default:
 		return -EINVAL;
@@ -487,7 +488,7 @@ static bool as3722_sd0_is_low_voltage(struct as3722_regulators *as3722_regs)
 	return false;
 }
 
-static const struct regulator_linear_range as3722_sd2345_ranges[] = {
+static const struct linear_range as3722_sd2345_ranges[] = {
 	REGULATOR_LINEAR_RANGE(0, 0x00, 0x00, 0),
 	REGULATOR_LINEAR_RANGE(612500, 0x01, 0x40, 12500),
 	REGULATOR_LINEAR_RANGE(1425000, 0x41, 0x70, 25000),
@@ -830,6 +831,7 @@ MODULE_DEVICE_TABLE(of, of_as3722_regulator_match);
 static struct platform_driver as3722_regulator_driver = {
 	.driver = {
 		.name = "as3722-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_as3722_regulator_match,
 	},
 	.probe = as3722_regulator_probe,

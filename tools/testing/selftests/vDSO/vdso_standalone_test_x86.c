@@ -16,9 +16,7 @@
 #include <unistd.h>
 #include <stdint.h>
 
-extern void *vdso_sym(const char *version, const char *name);
-extern void vdso_init_from_sysinfo_ehdr(uintptr_t base);
-extern void vdso_init_from_auxv(void *auxv);
+#include "parse_vdso.h"
 
 /* We need a libc functions... */
 int strcmp(const char *a, const char *b)

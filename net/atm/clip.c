@@ -89,7 +89,7 @@ static void unlink_clip_vcc(struct clip_vcc *clip_vcc)
 	struct clip_vcc **walk;
 
 	if (!entry) {
-		pr_crit("!clip_vcc->entry (clip_vcc %p)\n", clip_vcc);
+		pr_err("!clip_vcc->entry (clip_vcc %p)\n", clip_vcc);
 		return;
 	}
 	netif_tx_lock_bh(entry->neigh->dev);	/* block clip_start_xmit() */
@@ -109,10 +109,10 @@ static void unlink_clip_vcc(struct clip_vcc *clip_vcc)
 			error = neigh_update(entry->neigh, NULL, NUD_NONE,
 					     NEIGH_UPDATE_F_ADMIN, 0);
 			if (error)
-				pr_crit("neigh_update failed with %d\n", error);
+				pr_err("neigh_update failed with %d\n", error);
 			goto out;
 		}
-	pr_crit("ATMARP: failed (entry %p, vcc 0x%p)\n", entry, clip_vcc);
+	pr_err("ATMARP: failed (entry %p, vcc 0x%p)\n", entry, clip_vcc);
 out:
 	netif_tx_unlock_bh(entry->neigh->dev);
 }
@@ -345,7 +345,7 @@ static netdev_tx_t clip_start_xmit(struct sk_buff *skb,
 		dev->stats.tx_dropped++;
 		return NETDEV_TX_OK;
 	}
-	rt = (struct rtable *) dst;
+	rt = dst_rtable(dst);
 	if (rt->rt_gw_family == AF_INET)
 		daddr = &rt->rt_gw4;
 	else
@@ -463,7 +463,7 @@ static int clip_setentry(struct atm_vcc *vcc, __be32 ip)
 		unlink_clip_vcc(clip_vcc);
 		return 0;
 	}
-	rt = ip_route_output(&init_net, ip, 0, 1, 0);
+	rt = ip_route_output(&init_net, ip, 0, 0, 0, RT_SCOPE_LINK);
 	if (IS_ERR(rt))
 		return PTR_ERR(rt);
 	neigh = __neigh_lookup(&arp_tbl, &ip, rt->dst.dev, 1);

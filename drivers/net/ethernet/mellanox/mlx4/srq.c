@@ -272,19 +272,14 @@ EXPORT_SYMBOL_GPL(mlx4_srq_query);
 int mlx4_init_srq_table(struct mlx4_dev *dev)
 {
 	struct mlx4_srq_table *srq_table = &mlx4_priv(dev)->srq_table;
-	int err;
 
 	spin_lock_init(&srq_table->lock);
 	INIT_RADIX_TREE(&srq_table->tree, GFP_ATOMIC);
 	if (mlx4_is_slave(dev))
 		return 0;
 
-	err = mlx4_bitmap_init(&srq_table->bitmap, dev->caps.num_srqs,
-			       dev->caps.num_srqs - 1, dev->caps.reserved_srqs, 0);
-	if (err)
-		return err;
-
-	return 0;
+	return mlx4_bitmap_init(&srq_table->bitmap, dev->caps.num_srqs,
+				dev->caps.num_srqs - 1, dev->caps.reserved_srqs, 0);
 }
 
 void mlx4_cleanup_srq_table(struct mlx4_dev *dev)

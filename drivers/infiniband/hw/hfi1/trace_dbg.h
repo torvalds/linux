@@ -1,49 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
 * Copyright(c) 2015 - 2018 Intel Corporation.
-*
-* This file is provided under a dual BSD/GPLv2 license.  When using or
-* redistributing this file, you may do so under either license.
-*
-* GPL LICENSE SUMMARY
-*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of version 2 of the GNU General Public License as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but
-* WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-* General Public License for more details.
-*
-* BSD LICENSE
-*
-* Redistribution and use in source and binary forms, with or without
-* modification, are permitted provided that the following conditions
-* are met:
-*
-*  - Redistributions of source code must retain the above copyright
-*    notice, this list of conditions and the following disclaimer.
-*  - Redistributions in binary form must reproduce the above copyright
-*    notice, this list of conditions and the following disclaimer in
-*    the documentation and/or other materials provided with the
-*    distribution.
-*  - Neither the name of Intel Corporation nor the names of its
-*    contributors may be used to endorse or promote products derived
-*    from this software without specific prior written permission.
-*
-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-* "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-* LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-* A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-* OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-* SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-* LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-* THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*
 */
+
 #if !defined(__HFI1_TRACE_EXTRA_H) || defined(TRACE_HEADER_MULTI_READ)
 #define __HFI1_TRACE_EXTRA_H
 
@@ -63,23 +22,26 @@
 
 #define MAX_MSG_LEN 512
 
+#pragma GCC diagnostic push
+#ifndef __clang__
+#pragma GCC diagnostic ignored "-Wsuggest-attribute=format"
+#endif
+
 DECLARE_EVENT_CLASS(hfi1_trace_template,
 		    TP_PROTO(const char *function, struct va_format *vaf),
 		    TP_ARGS(function, vaf),
 		    TP_STRUCT__entry(__string(function, function)
-				     __dynamic_array(char, msg, MAX_MSG_LEN)
+				     __vstring(msg, vaf->fmt, vaf->va)
 				     ),
-		    TP_fast_assign(__assign_str(function, function);
-				   WARN_ON_ONCE(vsnprintf
-						(__get_dynamic_array(msg),
-						 MAX_MSG_LEN, vaf->fmt,
-						 *vaf->va) >=
-						MAX_MSG_LEN);
+		    TP_fast_assign(__assign_str(function);
+				   __assign_vstr(msg, vaf->fmt, vaf->va);
 				   ),
 		    TP_printk("(%s) %s",
 			      __get_str(function),
 			      __get_str(msg))
 );
+
+#pragma GCC diagnostic pop
 
 /*
  * It may be nice to macroize the __hfi1_trace but the va_* stuff requires an

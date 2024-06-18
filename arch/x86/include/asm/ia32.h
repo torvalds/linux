@@ -2,7 +2,6 @@
 #ifndef _ASM_X86_IA32_H
 #define _ASM_X86_IA32_H
 
-
 #ifdef CONFIG_IA32_EMULATION
 
 #include <linux/compat.h>
@@ -57,17 +56,37 @@ struct stat64 {
 	unsigned long long	st_ino;
 } __attribute__((packed));
 
-#define IA32_STACK_TOP IA32_PAGE_OFFSET
+extern bool __ia32_enabled;
 
-#ifdef __KERNEL__
-struct linux_binprm;
-extern int ia32_setup_arg_pages(struct linux_binprm *bprm,
-				unsigned long stack_top, int exec_stack);
-struct mm_struct;
-extern void ia32_pick_mmap_layout(struct mm_struct *mm);
+static __always_inline bool ia32_enabled(void)
+{
+	return __ia32_enabled;
+}
+
+static inline void ia32_disable(void)
+{
+	__ia32_enabled = false;
+}
+
+#else /* !CONFIG_IA32_EMULATION */
+
+static __always_inline bool ia32_enabled(void)
+{
+	return IS_ENABLED(CONFIG_X86_32);
+}
+
+static inline void ia32_disable(void) {}
 
 #endif
 
-#endif /* !CONFIG_IA32_SUPPORT */
+static inline bool ia32_enabled_verbose(void)
+{
+	bool enabled = ia32_enabled();
+
+	if (IS_ENABLED(CONFIG_IA32_EMULATION) && !enabled)
+		pr_notice_once("32-bit emulation disabled. You can reenable with ia32_emulation=on\n");
+
+	return enabled;
+}
 
 #endif /* _ASM_X86_IA32_H */

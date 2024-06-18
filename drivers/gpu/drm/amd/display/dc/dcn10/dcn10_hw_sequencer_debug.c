@@ -27,12 +27,12 @@
 #include "core_types.h"
 #include "resource.h"
 #include "custom_float.h"
-#include "dcn10_hw_sequencer.h"
-#include "dce110/dce110_hw_sequencer.h"
+#include "dcn10/dcn10_hwseq.h"
+#include "dce110/dce110_hwseq.h"
 #include "dce/dce_hwseq.h"
 #include "abm.h"
 #include "dmcu.h"
-#include "dcn10_optc.h"
+#include "dcn10/dcn10_optc.h"
 #include "dcn10/dcn10_dpp.h"
 #include "dcn10/dcn10_mpc.h"
 #include "timing_generator.h"
@@ -45,23 +45,24 @@
 #include "dcn10_cm_common.h"
 #include "clk_mgr.h"
 
-unsigned int snprintf_count(char *pBuf, unsigned int bufSize, char *fmt, ...)
+__printf(3, 4)
+unsigned int snprintf_count(char *pbuf, unsigned int bufsize, char *fmt, ...)
 {
-	unsigned int ret_vsnprintf;
+	int ret_vsnprintf;
 	unsigned int chars_printed;
 
 	va_list args;
 	va_start(args, fmt);
 
-	ret_vsnprintf = vsnprintf(pBuf, bufSize, fmt, args);
+	ret_vsnprintf = vsnprintf(pbuf, bufsize, fmt, args);
 
 	va_end(args);
 
 	if (ret_vsnprintf > 0) {
-		if (ret_vsnprintf < bufSize)
+		if (ret_vsnprintf < bufsize)
 			chars_printed = ret_vsnprintf;
 		else
-			chars_printed = bufSize - 1;
+			chars_printed = bufsize - 1;
 	} else
 		chars_printed = 0;
 
@@ -83,7 +84,7 @@ static unsigned int dcn10_get_hubbub_state(struct dc *dc, char *pBuf, unsigned i
 	memset(&wm, 0, sizeof(struct dcn_hubbub_wm));
 	dc->res_pool->hubbub->funcs->wm_read_state(dc->res_pool->hubbub, &wm);
 
-	chars_printed = snprintf_count(pBuf, remaining_buffer, "wm_set_index,data_urgent,pte_meta_urgent,sr_enter,sr_exit,dram_clk_chanage\n");
+	chars_printed = snprintf_count(pBuf, remaining_buffer, "wm_set_index,data_urgent,pte_meta_urgent,sr_enter,sr_exit,dram_clk_change\n");
 	remaining_buffer -= chars_printed;
 	pBuf += chars_printed;
 
@@ -98,7 +99,7 @@ static unsigned int dcn10_get_hubbub_state(struct dc *dc, char *pBuf, unsigned i
 			(s->pte_meta_urgent * frac) / ref_clk_mhz / frac, (s->pte_meta_urgent * frac) / ref_clk_mhz % frac,
 			(s->sr_enter * frac) / ref_clk_mhz / frac, (s->sr_enter * frac) / ref_clk_mhz % frac,
 			(s->sr_exit * frac) / ref_clk_mhz / frac, (s->sr_exit * frac) / ref_clk_mhz % frac,
-			(s->dram_clk_chanage * frac) / ref_clk_mhz / frac, (s->dram_clk_chanage * frac) / ref_clk_mhz % frac);
+			(s->dram_clk_change * frac) / ref_clk_mhz / frac, (s->dram_clk_change * frac) / ref_clk_mhz % frac);
 		remaining_buffer -= chars_printed;
 		pBuf += chars_printed;
 	}
@@ -391,7 +392,7 @@ static unsigned int dcn10_get_mpcc_states(struct dc *dc, char *pBuf, unsigned in
 	remaining_buffer -= chars_printed;
 	pBuf += chars_printed;
 
-	for (i = 0; i < pool->pipe_count; i++) {
+	for (i = 0; i < pool->mpcc_count; i++) {
 		struct mpcc_state s = {0};
 
 		pool->mpc->funcs->read_mpcc_state(pool->mpc, i, &s);

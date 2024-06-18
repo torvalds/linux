@@ -4,7 +4,9 @@ The Atmel PIO4 controller is used to select the function of a pin and to
 configure it.
 
 Required properties:
-- compatible: "atmel,sama5d2-pinctrl".
+- compatible:
+	"atmel,sama5d2-pinctrl"
+	"microchip,sama7g5-pinctrl"
 - reg: base address and length of the PIO controller.
 - interrupts: interrupt outputs from the controller, one for each bank.
 - interrupt-controller: mark the device node as an interrupt controller.
@@ -33,9 +35,12 @@ ioset settings. Use the macros from boot/dts/<soc>-pinfunc.h file to get the
 right representation of the pin.
 
 Optional properties:
-- GENERIC_PINCONFIG: generic pinconfig options to use, bias-disable,
-bias-pull-down, bias-pull-up, drive-open-drain, input-schmitt-enable,
-input-debounce, output-low, output-high.
+- GENERIC_PINCONFIG: generic pinconfig options to use:
+	- bias-disable, bias-pull-down, bias-pull-up, drive-open-drain,
+	 drive-push-pull input-schmitt-enable, input-debounce, output-low,
+	 output-high.
+	- for microchip,sama7g5-pinctrl only:
+		- slew-rate: 0 - disabled, 1 - enabled (default)
 - atmel,drive-strength: 0 or 1 for low drive, 2 for medium drive and 3 for
 high drive. The default value is low drive.
 

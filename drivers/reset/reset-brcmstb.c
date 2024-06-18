@@ -90,14 +90,7 @@ static int brcmstb_reset_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!IS_ALIGNED(res->start, SW_INIT_BANK_SIZE) ||
-	    !IS_ALIGNED(resource_size(res), SW_INIT_BANK_SIZE)) {
-		dev_err(kdev, "incorrect register range\n");
-		return -EINVAL;
-	}
-
-	priv->base = devm_ioremap_resource(kdev, res);
+	priv->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
@@ -117,6 +110,7 @@ static const struct of_device_id brcmstb_reset_of_match[] = {
 	{ .compatible = "brcm,brcmstb-reset" },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, brcmstb_reset_of_match);
 
 static struct platform_driver brcmstb_reset_driver = {
 	.probe	= brcmstb_reset_probe,

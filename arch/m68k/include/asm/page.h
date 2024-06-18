@@ -7,11 +7,7 @@
 #include <asm/page_offset.h>
 
 /* PAGE_SHIFT determines the page size */
-#if defined(CONFIG_SUN3) || defined(CONFIG_COLDFIRE)
-#define PAGE_SHIFT	13
-#else
-#define PAGE_SHIFT	12
-#endif
+#define PAGE_SHIFT	CONFIG_PAGE_SHIFT
 #define PAGE_SIZE	(_AC(1, UL) << PAGE_SHIFT)
 #define PAGE_MASK	(~(PAGE_SIZE-1))
 #define PAGE_OFFSET	(PAGE_OFFSET_RAW)
@@ -21,19 +17,32 @@
 /*
  * These are used to make use of C type-checking..
  */
+#if !defined(CONFIG_MMU) || CONFIG_PGTABLE_LEVELS == 3
+typedef struct { unsigned long pmd; } pmd_t;
+#define pmd_val(x)	((&x)->pmd)
+#define __pmd(x)	((pmd_t) { (x) } )
+#endif
+
 typedef struct { unsigned long pte; } pte_t;
-typedef struct { unsigned long pmd[16]; } pmd_t;
 typedef struct { unsigned long pgd; } pgd_t;
 typedef struct { unsigned long pgprot; } pgprot_t;
+
+#if defined(CONFIG_SUN3)
+/*
+ * Sun3 still uses the asm-generic/pgalloc.h code and thus needs this
+ * definition. It would be possible to unify Sun3 and ColdFire pgalloc and have
+ * all of m68k use the same type.
+ */
 typedef struct page *pgtable_t;
+#else
+typedef pte_t *pgtable_t;
+#endif
 
 #define pte_val(x)	((x).pte)
-#define pmd_val(x)	((&x)->pmd[0])
 #define pgd_val(x)	((x).pgd)
 #define pgprot_val(x)	((x).pgprot)
 
 #define __pte(x)	((pte_t) { (x) } )
-#define __pmd(x)	((pmd_t) { { (x) }, })
 #define __pgd(x)	((pgd_t) { (x) } )
 #define __pgprot(x)	((pgprot_t) { (x) } )
 
@@ -49,12 +58,7 @@ extern unsigned long _ramend;
 #include <asm/page_no.h>
 #endif
 
-#define __phys_to_pfn(paddr)	((unsigned long)((paddr) >> PAGE_SHIFT))
-#define __pfn_to_phys(pfn)	PFN_PHYS(pfn)
-
-#define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \
-				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
-
 #include <asm-generic/getorder.h>
+#include <asm-generic/memory_model.h>
 
 #endif /* _M68K_PAGE_H */

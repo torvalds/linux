@@ -46,6 +46,8 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 
+#include "../kselftest.h"
+
 static inline long sys_execveat(int dirfd, const char *pathname, char **argv, char **envp, int flags)
 {
 	return syscall(SYS_execveat, dirfd, pathname, argv, envp, flags);
@@ -209,19 +211,28 @@ static int make_exe(const uint8_t *payload, size_t len)
 }
 #endif
 
-static bool g_vsyscall = false;
+/*
+ * 0: vsyscall VMA doesn't exist	vsyscall=none
+ * 1: vsyscall VMA is --xp		vsyscall=xonly
+ * 2: vsyscall VMA is r-xp		vsyscall=emulate
+ */
+static volatile int g_vsyscall;
+static const char *str_vsyscall;
 
-static const char str_vsyscall[] =
+static const char str_vsyscall_0[] = "";
+static const char str_vsyscall_1[] =
+"ffffffffff600000-ffffffffff601000 --xp 00000000 00:00 0                  [vsyscall]\n";
+static const char str_vsyscall_2[] =
 "ffffffffff600000-ffffffffff601000 r-xp 00000000 00:00 0                  [vsyscall]\n";
 
 #ifdef __x86_64__
 static void sigaction_SIGSEGV(int _, siginfo_t *__, void *___)
 {
-	_exit(1);
+	_exit(g_vsyscall);
 }
 
 /*
- * vsyscall page can't be unmapped, probe it with memory load.
+ * vsyscall page can't be unmapped, probe it directly.
  */
 static void vsyscall(void)
 {
@@ -244,12 +255,28 @@ static void vsyscall(void)
 		act.sa_sigaction = sigaction_SIGSEGV;
 		(void)sigaction(SIGSEGV, &act, NULL);
 
+		g_vsyscall = 0;
+		/* gettimeofday(NULL, NULL); */
+		uint64_t rax = 0xffffffffff600000;
+		asm volatile (
+			"call *%[rax]"
+			: [rax] "+a" (rax)
+			: "D" (NULL), "S" (NULL)
+			: "rcx", "r11"
+		);
+
+		g_vsyscall = 1;
 		*(volatile int *)0xffffffffff600000UL;
-		exit(0);
+
+		g_vsyscall = 2;
+		exit(g_vsyscall);
 	}
 	waitpid(pid, &wstatus, 0);
-	if (WIFEXITED(wstatus) && WEXITSTATUS(wstatus) == 0) {
-		g_vsyscall = true;
+	if (WIFEXITED(wstatus)) {
+		g_vsyscall = WEXITSTATUS(wstatus);
+	} else {
+		fprintf(stderr, "error: wstatus %08x\n", wstatus);
+		exit(1);
 	}
 }
 
@@ -259,6 +286,19 @@ int main(void)
 	int exec_fd;
 
 	vsyscall();
+	switch (g_vsyscall) {
+	case 0:
+		str_vsyscall = str_vsyscall_0;
+		break;
+	case 1:
+		str_vsyscall = str_vsyscall_1;
+		break;
+	case 2:
+		str_vsyscall = str_vsyscall_2;
+		break;
+	default:
+		abort();
+	}
 
 	atexit(ate);
 
@@ -312,7 +352,7 @@ int main(void)
 
 	/* Test /proc/$PID/maps */
 	{
-		const size_t len = strlen(buf0) + (g_vsyscall ? strlen(str_vsyscall) : 0);
+		const size_t len = strlen(buf0) + strlen(str_vsyscall);
 		char buf[256];
 		ssize_t rv;
 		int fd;
@@ -325,7 +365,7 @@ int main(void)
 		rv = read(fd, buf, sizeof(buf));
 		assert(rv == len);
 		assert(memcmp(buf, buf0, strlen(buf0)) == 0);
-		if (g_vsyscall) {
+		if (g_vsyscall > 0) {
 			assert(memcmp(buf + strlen(buf0), str_vsyscall, strlen(str_vsyscall)) == 0);
 		}
 	}
@@ -368,11 +408,11 @@ int main(void)
 		};
 		int i;
 
-		for (i = 0; i < sizeof(S)/sizeof(S[0]); i++) {
+		for (i = 0; i < ARRAY_SIZE(S); i++) {
 			assert(memmem(buf, rv, S[i], strlen(S[i])));
 		}
 
-		if (g_vsyscall) {
+		if (g_vsyscall > 0) {
 			assert(memmem(buf, rv, str_vsyscall, strlen(str_vsyscall)));
 		}
 	}
@@ -417,7 +457,7 @@ int main(void)
 		};
 		int i;
 
-		for (i = 0; i < sizeof(S)/sizeof(S[0]); i++) {
+		for (i = 0; i < ARRAY_SIZE(S); i++) {
 			assert(memmem(buf, rv, S[i], strlen(S[i])));
 		}
 	}

@@ -4,6 +4,8 @@
 #ifndef _I40E_LAN_HMC_H_
 #define _I40E_LAN_HMC_H_
 
+#include "i40e_hmc.h"
+
 /* forward-declare the HW struct for the compiler */
 struct i40e_hw;
 
@@ -137,22 +139,22 @@ struct i40e_hmc_lan_delete_obj_info {
 	u32 count;
 };
 
-i40e_status i40e_init_lan_hmc(struct i40e_hw *hw, u32 txq_num,
-					u32 rxq_num, u32 fcoe_cntx_num,
-					u32 fcoe_filt_num);
-i40e_status i40e_configure_lan_hmc(struct i40e_hw *hw,
-					     enum i40e_hmc_model model);
-i40e_status i40e_shutdown_lan_hmc(struct i40e_hw *hw);
+int i40e_init_lan_hmc(struct i40e_hw *hw, u32 txq_num,
+		      u32 rxq_num, u32 fcoe_cntx_num,
+		      u32 fcoe_filt_num);
+int i40e_configure_lan_hmc(struct i40e_hw *hw,
+			   enum i40e_hmc_model model);
+int i40e_shutdown_lan_hmc(struct i40e_hw *hw);
 
-i40e_status i40e_clear_lan_tx_queue_context(struct i40e_hw *hw,
-						      u16 queue);
-i40e_status i40e_set_lan_tx_queue_context(struct i40e_hw *hw,
-						    u16 queue,
-						    struct i40e_hmc_obj_txq *s);
-i40e_status i40e_clear_lan_rx_queue_context(struct i40e_hw *hw,
-						      u16 queue);
-i40e_status i40e_set_lan_rx_queue_context(struct i40e_hw *hw,
-						    u16 queue,
-						    struct i40e_hmc_obj_rxq *s);
+int i40e_clear_lan_tx_queue_context(struct i40e_hw *hw,
+				    u16 queue);
+int i40e_set_lan_tx_queue_context(struct i40e_hw *hw,
+				  u16 queue,
+				  struct i40e_hmc_obj_txq *s);
+int i40e_clear_lan_rx_queue_context(struct i40e_hw *hw,
+				    u16 queue);
+int i40e_set_lan_rx_queue_context(struct i40e_hw *hw,
+				  u16 queue,
+				  struct i40e_hmc_obj_rxq *s);
 
 #endif /* _I40E_LAN_HMC_H_ */

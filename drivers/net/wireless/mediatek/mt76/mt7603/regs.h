@@ -212,6 +212,9 @@
 #define MT_AGG_PCR_RTS_THR		GENMASK(19, 0)
 #define MT_AGG_PCR_RTS_PKT_THR		GENMASK(31, 25)
 
+#define MT_AGG_ASRCR			MT_WF_AGG(0x060)
+#define MT_AGG_ASRCR_RANGE(val, n)	(((val) >> ((n) << 3)) & GENMASK(5, 0))
+
 #define MT_AGG_CONTROL			MT_WF_AGG(0x070)
 #define MT_AGG_CONTROL_NO_BA_RULE	BIT(0)
 #define MT_AGG_CONTROL_NO_BA_AR_RULE	BIT(1)
@@ -305,6 +308,13 @@ enum {
 #define MT_WF_ARB_TX_FLUSH_1		MT_WF_ARB(0x10c)
 #define MT_WF_ARB_TX_STOP_0		MT_WF_ARB(0x110)
 #define MT_WF_ARB_TX_STOP_1		MT_WF_ARB(0x114)
+
+#define MT_WF_ARB_TX_FLUSH_AC0		BIT(0)
+#define MT_WF_ARB_TX_FLUSH_AC1		BIT(5)
+#define MT_WF_ARB_TX_FLUSH_AC2		BIT(10)
+#define MT_WF_ARB_TX_FLUSH_AC3		BIT(16)
+#define MT_WF_ARB_TX_FLUSH_AC4		BIT(21)
+#define MT_WF_ARB_TX_FLUSH_AC5		BIT(26)
 
 #define MT_WF_ARB_BCN_START		MT_WF_ARB(0x118)
 #define MT_WF_ARB_BCN_START_BSSn(n)	BIT(0 + (n))
@@ -459,6 +469,11 @@ enum {
 #define MT_WF_SEC_BASE			0x21a00
 #define MT_WF_SEC(ofs)			(MT_WF_SEC_BASE + (ofs))
 
+#define MT_WF_CFG_OFF_BASE		0x21e00
+#define MT_WF_CFG_OFF(ofs)		(MT_WF_CFG_OFF_BASE + (ofs))
+#define MT_WF_CFG_OFF_WOCCR		MT_WF_CFG_OFF(0x004)
+#define MT_WF_CFG_OFF_WOCCR_TMAC_GC_DIS	BIT(4)
+
 #define MT_SEC_SCR			MT_WF_SEC(0x004)
 #define MT_SEC_SCR_MASK_ORDER		GENMASK(1, 0)
 
@@ -555,6 +570,8 @@ enum {
 #define MT_MIB_STAT_PSCCA		MT_MIB_STAT(16)
 #define MT_MIB_STAT_PSCCA_MASK		GENMASK(23, 0)
 
+#define MT_TX_AGG_CNT(n)		MT_MIB(0xa8 + ((n) << 2))
+
 #define MT_MIB_STAT_ED			MT_MIB_STAT(18)
 #define MT_MIB_STAT_ED_MASK		GENMASK(23, 0)
 
@@ -580,18 +597,9 @@ enum {
 
 #define MT_LED_STATUS_0(_n)		MT_LED_PHYS(0x10 + ((_n) * 8))
 #define MT_LED_STATUS_1(_n)		MT_LED_PHYS(0x14 + ((_n) * 8))
-#define MT_LED_STATUS_OFF_MASK		GENMASK(31, 24)
-#define MT_LED_STATUS_OFF(_v)		(((_v) << \
-					  __ffs(MT_LED_STATUS_OFF_MASK)) & \
-					 MT_LED_STATUS_OFF_MASK)
-#define MT_LED_STATUS_ON_MASK		GENMASK(23, 16)
-#define MT_LED_STATUS_ON(_v)		(((_v) << \
-					  __ffs(MT_LED_STATUS_ON_MASK)) & \
-					 MT_LED_STATUS_ON_MASK)
-#define MT_LED_STATUS_DURATION_MASK	GENMASK(15, 0)
-#define MT_LED_STATUS_DURATION(_v)	(((_v) << \
-					  __ffs(MT_LED_STATUS_DURATION_MASK)) &\
-					 MT_LED_STATUS_DURATION_MASK)
+#define MT_LED_STATUS_OFF		GENMASK(31, 24)
+#define MT_LED_STATUS_ON		GENMASK(23, 16)
+#define MT_LED_STATUS_DURATION		GENMASK(15, 0)
 
 #define MT_CLIENT_BASE_PHYS_ADDR	0x800c0000
 
@@ -768,17 +776,5 @@ enum {
 
 #define MT_WTBL1_OR			(MT_WTBL1_BASE + 0x2300)
 #define MT_WTBL1_OR_PSM_WRITE		BIT(31)
-
-enum mt7603_cipher_type {
-	MT_CIPHER_NONE,
-	MT_CIPHER_WEP40,
-	MT_CIPHER_TKIP,
-	MT_CIPHER_TKIP_NO_MIC,
-	MT_CIPHER_AES_CCMP,
-	MT_CIPHER_WEP104,
-	MT_CIPHER_BIP_CMAC_128,
-	MT_CIPHER_WEP128,
-	MT_CIPHER_WAPI,
-};
 
 #endif

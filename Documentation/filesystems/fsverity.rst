@@ -11,9 +11,9 @@ Introduction
 
 fs-verity (``fs/verity/``) is a support layer that filesystems can
 hook into to support transparent integrity and authenticity protection
-of read-only files.  Currently, it is supported by the ext4 and f2fs
-filesystems.  Like fscrypt, not too much filesystem-specific code is
-needed to support fs-verity.
+of read-only files.  Currently, it is supported by the ext4, f2fs, and
+btrfs filesystems.  Like fscrypt, not too much filesystem-specific
+code is needed to support fs-verity.
 
 fs-verity is similar to `dm-verity
 <https://www.kernel.org/doc/Documentation/device-mapper/verity.txt>`_
@@ -27,9 +27,9 @@ automatically verified against the file's Merkle tree.  Reads of any
 corrupted data, including mmap reads, will fail.
 
 Userspace can use another ioctl to retrieve the root hash (actually
-the "file measurement", which is a hash that includes the root hash)
-that fs-verity is enforcing for the file.  This ioctl executes in
-constant time, regardless of the file size.
+the "fs-verity file digest", which is a hash that includes the Merkle
+tree root hash) that fs-verity is enforcing for the file.  This ioctl
+executes in constant time, regardless of the file size.
 
 fs-verity is essentially a way to hash a file in constant time,
 subject to the caveat that reads which would violate the hash will
@@ -38,19 +38,13 @@ fail at runtime.
 Use cases
 =========
 
-By itself, the base fs-verity feature only provides integrity
-protection, i.e. detection of accidental (non-malicious) corruption.
+By itself, fs-verity only provides integrity protection, i.e.
+detection of accidental (non-malicious) corruption.
 
 However, because fs-verity makes retrieving the file hash extremely
 efficient, it's primarily meant to be used as a tool to support
 authentication (detection of malicious modifications) or auditing
 (logging file hashes before use).
-
-Trusted userspace code (e.g. operating system code running on a
-read-only partition that is itself authenticated by dm-verity) can
-authenticate the contents of an fs-verity file by using the
-`FS_IOC_MEASURE_VERITY`_ ioctl to retrieve its hash, then verifying a
-digital signature of it.
 
 A standard file hash could be used instead of fs-verity.  However,
 this is inefficient if the file is large and only a small portion may
@@ -69,13 +63,31 @@ still be used on read-only filesystems.  fs-verity is for files that
 must live on a read-write filesystem because they are independently
 updated and potentially user-installed, so dm-verity cannot be used.
 
-The base fs-verity feature is a hashing mechanism only; actually
-authenticating the files is up to userspace.  However, to meet some
-users' needs, fs-verity optionally supports a simple signature
-verification mechanism where users can configure the kernel to require
-that all fs-verity files be signed by a key loaded into a keyring; see
-`Built-in signature verification`_.  Support for fs-verity file hashes
-in IMA (Integrity Measurement Architecture) policies is also planned.
+fs-verity does not mandate a particular scheme for authenticating its
+file hashes.  (Similarly, dm-verity does not mandate a particular
+scheme for authenticating its block device root hashes.)  Options for
+authenticating fs-verity file hashes include:
+
+- Trusted userspace code.  Often, the userspace code that accesses
+  files can be trusted to authenticate them.  Consider e.g. an
+  application that wants to authenticate data files before using them,
+  or an application loader that is part of the operating system (which
+  is already authenticated in a different way, such as by being loaded
+  from a read-only partition that uses dm-verity) and that wants to
+  authenticate applications before loading them.  In these cases, this
+  trusted userspace code can authenticate a file's contents by
+  retrieving its fs-verity digest using `FS_IOC_MEASURE_VERITY`_, then
+  verifying a signature of it using any userspace cryptographic
+  library that supports digital signatures.
+
+- Integrity Measurement Architecture (IMA).  IMA supports fs-verity
+  file digests as an alternative to its traditional full file digests.
+  "IMA appraisal" enforces that files contain a valid, matching
+  signature in their "security.ima" extended attribute, as controlled
+  by the IMA policy.  For more information, see the IMA documentation.
+
+- Trusted userspace code in combination with `Built-in signature
+  verification`_.  This approach should be used only with great care.
 
 User API
 ========
@@ -84,7 +96,7 @@ FS_IOC_ENABLE_VERITY
 --------------------
 
 The FS_IOC_ENABLE_VERITY ioctl enables fs-verity on a file.  It takes
-in a pointer to a :c:type:`struct fsverity_enable_arg`, defined as
+in a pointer to a struct fsverity_enable_arg, defined as
 follows::
 
     struct fsverity_enable_arg {
@@ -100,29 +112,31 @@ follows::
     };
 
 This structure contains the parameters of the Merkle tree to build for
-the file, and optionally contains a signature.  It must be initialized
-as follows:
+the file.  It must be initialized as follows:
 
 - ``version`` must be 1.
 - ``hash_algorithm`` must be the identifier for the hash algorithm to
   use for the Merkle tree, such as FS_VERITY_HASH_ALG_SHA256.  See
   ``include/uapi/linux/fsverity.h`` for the list of possible values.
-- ``block_size`` must be the Merkle tree block size.  Currently, this
-  must be equal to the system page size, which is usually 4096 bytes.
-  Other sizes may be supported in the future.  This value is not
-  necessarily the same as the filesystem block size.
+- ``block_size`` is the Merkle tree block size, in bytes.  In Linux
+  v6.3 and later, this can be any power of 2 between (inclusively)
+  1024 and the minimum of the system page size and the filesystem
+  block size.  In earlier versions, the page size was the only allowed
+  value.
 - ``salt_size`` is the size of the salt in bytes, or 0 if no salt is
   provided.  The salt is a value that is prepended to every hashed
   block; it can be used to personalize the hashing for a particular
   file or device.  Currently the maximum salt size is 32 bytes.
 - ``salt_ptr`` is the pointer to the salt, or NULL if no salt is
   provided.
-- ``sig_size`` is the size of the signature in bytes, or 0 if no
-  signature is provided.  Currently the signature is (somewhat
-  arbitrarily) limited to 16128 bytes.  See `Built-in signature
-  verification`_ for more information.
-- ``sig_ptr``  is the pointer to the signature, or NULL if no
-  signature is provided.
+- ``sig_size`` is the size of the builtin signature in bytes, or 0 if no
+  builtin signature is provided.  Currently the builtin signature is
+  (somewhat arbitrarily) limited to 16128 bytes.
+- ``sig_ptr``  is the pointer to the builtin signature, or NULL if no
+  builtin signature is provided.  A builtin signature is only needed
+  if the `Built-in signature verification`_ feature is being used.  It
+  is not needed for IMA appraisal, and it is not needed if the file
+  signature is being handled entirely in userspace.
 - All reserved fields must be zeroed.
 
 FS_IOC_ENABLE_VERITY causes the filesystem to build a Merkle tree for
@@ -146,19 +160,20 @@ fatal signal), no changes are made to the file.
 FS_IOC_ENABLE_VERITY can fail with the following errors:
 
 - ``EACCES``: the process does not have write access to the file
-- ``EBADMSG``: the signature is malformed
+- ``EBADMSG``: the builtin signature is malformed
 - ``EBUSY``: this ioctl is already running on the file
 - ``EEXIST``: the file already has verity enabled
 - ``EFAULT``: the caller provided inaccessible memory
+- ``EFBIG``: the file is too large to enable verity on
 - ``EINTR``: the operation was interrupted by a fatal signal
 - ``EINVAL``: unsupported version, hash algorithm, or block size; or
   reserved bits are set; or the file descriptor refers to neither a
   regular file nor a directory.
 - ``EISDIR``: the file descriptor refers to a directory
-- ``EKEYREJECTED``: the signature doesn't match the file
-- ``EMSGSIZE``: the salt or signature is too long
-- ``ENOKEY``: the fs-verity keyring doesn't contain the certificate
-  needed to verify the signature
+- ``EKEYREJECTED``: the builtin signature doesn't match the file
+- ``EMSGSIZE``: the salt or builtin signature is too long
+- ``ENOKEY``: the ".fs-verity" keyring doesn't contain the certificate
+  needed to verify the builtin signature
 - ``ENOPKG``: fs-verity recognizes the hash algorithm, but it's not
   available in the kernel's crypto API as currently configured (e.g.
   for SHA-512, missing CONFIG_CRYPTO_SHA512).
@@ -167,8 +182,8 @@ FS_IOC_ENABLE_VERITY can fail with the following errors:
   support; or the filesystem superblock has not had the 'verity'
   feature enabled on it; or the filesystem does not support fs-verity
   on this file.  (See `Filesystem support`_.)
-- ``EPERM``: the file is append-only; or, a signature is required and
-  one was not provided.
+- ``EPERM``: the file is append-only; or, a builtin signature is
+  required and one was not provided.
 - ``EROFS``: the filesystem is read-only
 - ``ETXTBSY``: someone has the file open for writing.  This can be the
   caller's file descriptor, another open file descriptor, or the file
@@ -177,9 +192,10 @@ FS_IOC_ENABLE_VERITY can fail with the following errors:
 FS_IOC_MEASURE_VERITY
 ---------------------
 
-The FS_IOC_MEASURE_VERITY ioctl retrieves the measurement of a verity
-file.  The file measurement is a digest that cryptographically
-identifies the file contents that are being enforced on reads.
+The FS_IOC_MEASURE_VERITY ioctl retrieves the digest of a verity file.
+The fs-verity file digest is a cryptographic digest that identifies
+the file contents that are being enforced on reads; it is computed via
+a Merkle tree and is different from a traditional full-file digest.
 
 This ioctl takes in a pointer to a variable-length structure::
 
@@ -197,7 +213,7 @@ On success, 0 is returned and the kernel fills in the structure as
 follows:
 
 - ``digest_algorithm`` will be the hash algorithm used for the file
-  measurement.  It will match ``fsverity_enable_arg::hash_algorithm``.
+  digest.  It will match ``fsverity_enable_arg::hash_algorithm``.
 - ``digest_size`` will be the size of the digest in bytes, e.g. 32
   for SHA-256.  (This can be redundant with ``digest_algorithm``.)
 - ``digest`` will be the actual bytes of the digest.
@@ -216,6 +232,82 @@ FS_IOC_MEASURE_VERITY can fail with the following errors:
 - ``EOVERFLOW``: the digest is longer than the specified
   ``digest_size`` bytes.  Try providing a larger buffer.
 
+FS_IOC_READ_VERITY_METADATA
+---------------------------
+
+The FS_IOC_READ_VERITY_METADATA ioctl reads verity metadata from a
+verity file.  This ioctl is available since Linux v5.12.
+
+This ioctl allows writing a server program that takes a verity file
+and serves it to a client program, such that the client can do its own
+fs-verity compatible verification of the file.  This only makes sense
+if the client doesn't trust the server and if the server needs to
+provide the storage for the client.
+
+This is a fairly specialized use case, and most fs-verity users won't
+need this ioctl.
+
+This ioctl takes in a pointer to the following structure::
+
+   #define FS_VERITY_METADATA_TYPE_MERKLE_TREE     1
+   #define FS_VERITY_METADATA_TYPE_DESCRIPTOR      2
+   #define FS_VERITY_METADATA_TYPE_SIGNATURE       3
+
+   struct fsverity_read_metadata_arg {
+           __u64 metadata_type;
+           __u64 offset;
+           __u64 length;
+           __u64 buf_ptr;
+           __u64 __reserved;
+   };
+
+``metadata_type`` specifies the type of metadata to read:
+
+- ``FS_VERITY_METADATA_TYPE_MERKLE_TREE`` reads the blocks of the
+  Merkle tree.  The blocks are returned in order from the root level
+  to the leaf level.  Within each level, the blocks are returned in
+  the same order that their hashes are themselves hashed.
+  See `Merkle tree`_ for more information.
+
+- ``FS_VERITY_METADATA_TYPE_DESCRIPTOR`` reads the fs-verity
+  descriptor.  See `fs-verity descriptor`_.
+
+- ``FS_VERITY_METADATA_TYPE_SIGNATURE`` reads the builtin signature
+  which was passed to FS_IOC_ENABLE_VERITY, if any.  See `Built-in
+  signature verification`_.
+
+The semantics are similar to those of ``pread()``.  ``offset``
+specifies the offset in bytes into the metadata item to read from, and
+``length`` specifies the maximum number of bytes to read from the
+metadata item.  ``buf_ptr`` is the pointer to the buffer to read into,
+cast to a 64-bit integer.  ``__reserved`` must be 0.  On success, the
+number of bytes read is returned.  0 is returned at the end of the
+metadata item.  The returned length may be less than ``length``, for
+example if the ioctl is interrupted.
+
+The metadata returned by FS_IOC_READ_VERITY_METADATA isn't guaranteed
+to be authenticated against the file digest that would be returned by
+`FS_IOC_MEASURE_VERITY`_, as the metadata is expected to be used to
+implement fs-verity compatible verification anyway (though absent a
+malicious disk, the metadata will indeed match).  E.g. to implement
+this ioctl, the filesystem is allowed to just read the Merkle tree
+blocks from disk without actually verifying the path to the root node.
+
+FS_IOC_READ_VERITY_METADATA can fail with the following errors:
+
+- ``EFAULT``: the caller provided inaccessible memory
+- ``EINTR``: the ioctl was interrupted before any data was read
+- ``EINVAL``: reserved fields were set, or ``offset + length``
+  overflowed
+- ``ENODATA``: the file is not a verity file, or
+  FS_VERITY_METADATA_TYPE_SIGNATURE was requested but the file doesn't
+  have a builtin signature
+- ``ENOTTY``: this type of filesystem does not implement fs-verity, or
+  this ioctl is not yet implemented on it
+- ``EOPNOTSUPP``: the kernel was not configured with fs-verity
+  support, or the filesystem superblock has not had the 'verity'
+  feature enabled on it.  (See `Filesystem support`_.)
+
 FS_IOC_GETFLAGS
 ---------------
 
@@ -225,6 +317,16 @@ To do so, check for FS_VERITY_FL (0x00100000) in the returned flags.
 
 The verity flag is not settable via FS_IOC_SETFLAGS.  You must use
 FS_IOC_ENABLE_VERITY instead, since parameters must be provided.
+
+statx
+-----
+
+Since Linux v5.5, the statx() system call sets STATX_ATTR_VERITY if
+the file has fs-verity enabled.  This can perform better than
+FS_IOC_GETFLAGS and FS_IOC_MEASURE_VERITY because it doesn't require
+opening the file, and opening verity files can be expensive.
+
+.. _accessing_verity_files:
 
 Accessing verity files
 ======================
@@ -249,25 +351,24 @@ non-verity one, with the following exceptions:
   with EIO (for read()) or SIGBUS (for mmap() reads).
 
 - If the sysctl "fs.verity.require_signatures" is set to 1 and the
-  file's verity measurement is not signed by a key in the fs-verity
-  keyring, then opening the file will fail.  See `Built-in signature
-  verification`_.
+  file is not signed by a key in the ".fs-verity" keyring, then
+  opening the file will fail.  See `Built-in signature verification`_.
 
 Direct access to the Merkle tree is not supported.  Therefore, if a
 verity file is copied, or is backed up and restored, then it will lose
 its "verity"-ness.  fs-verity is primarily meant for files like
 executables that are managed by a package manager.
 
-File measurement computation
-============================
+File digest computation
+=======================
 
 This section describes how fs-verity hashes the file contents using a
-Merkle tree to produce the "file measurement" which cryptographically
-identifies the file contents.  This algorithm is the same for all
-filesystems that support fs-verity.
+Merkle tree to produce the digest which cryptographically identifies
+the file contents.  This algorithm is the same for all filesystems
+that support fs-verity.
 
 Userspace only needs to be aware of this algorithm if it needs to
-compute the file measurement itself, e.g. in order to sign the file.
+compute fs-verity file digests itself, e.g. in order to sign files.
 
 .. _fsverity_merkle_tree:
 
@@ -317,74 +418,128 @@ can't a distinguish a large file from a small second file whose data
 is exactly the top-level hash block of the first file.  Ambiguities
 also arise from the convention of padding to the next block boundary.
 
-To solve this problem, the verity file measurement is actually
-computed as a hash of the following structure, which contains the
-Merkle tree root hash as well as other fields such as the file size::
+To solve this problem, the fs-verity file digest is actually computed
+as a hash of the following structure, which contains the Merkle tree
+root hash as well as other fields such as the file size::
 
     struct fsverity_descriptor {
             __u8 version;           /* must be 1 */
             __u8 hash_algorithm;    /* Merkle tree hash algorithm */
             __u8 log_blocksize;     /* log2 of size of data and tree blocks */
             __u8 salt_size;         /* size of salt in bytes; 0 if none */
-            __le32 sig_size;        /* must be 0 */
+            __le32 __reserved_0x04; /* must be 0 */
             __le64 data_size;       /* size of file the Merkle tree is built over */
             __u8 root_hash[64];     /* Merkle tree root hash */
             __u8 salt[32];          /* salt prepended to each hashed block */
             __u8 __reserved[144];   /* must be 0's */
     };
 
-Note that the ``sig_size`` field must be set to 0 for the purpose of
-computing the file measurement, even if a signature was provided (or
-will be provided) to `FS_IOC_ENABLE_VERITY`_.
-
 Built-in signature verification
 ===============================
 
-With CONFIG_FS_VERITY_BUILTIN_SIGNATURES=y, fs-verity supports putting
-a portion of an authentication policy (see `Use cases`_) in the
-kernel.  Specifically, it adds support for:
+CONFIG_FS_VERITY_BUILTIN_SIGNATURES=y adds supports for in-kernel
+verification of fs-verity builtin signatures.
 
-1. At fs-verity module initialization time, a keyring ".fs-verity" is
-   created.  The root user can add trusted X.509 certificates to this
-   keyring using the add_key() system call, then (when done)
-   optionally use keyctl_restrict_keyring() to prevent additional
-   certificates from being added.
+**IMPORTANT**!  Please take great care before using this feature.
+It is not the only way to do signatures with fs-verity, and the
+alternatives (such as userspace signature verification, and IMA
+appraisal) can be much better.  It's also easy to fall into a trap
+of thinking this feature solves more problems than it actually does.
+
+Enabling this option adds the following:
+
+1. At boot time, the kernel creates a keyring named ".fs-verity".  The
+   root user can add trusted X.509 certificates to this keyring using
+   the add_key() system call.
 
 2. `FS_IOC_ENABLE_VERITY`_ accepts a pointer to a PKCS#7 formatted
-   detached signature in DER format of the file measurement.  On
-   success, this signature is persisted alongside the Merkle tree.
-   Then, any time the file is opened, the kernel will verify the
-   file's actual measurement against this signature, using the
-   certificates in the ".fs-verity" keyring.
+   detached signature in DER format of the file's fs-verity digest.
+   On success, the ioctl persists the signature alongside the Merkle
+   tree.  Then, any time the file is opened, the kernel verifies the
+   file's actual digest against this signature, using the certificates
+   in the ".fs-verity" keyring.
 
 3. A new sysctl "fs.verity.require_signatures" is made available.
    When set to 1, the kernel requires that all verity files have a
-   correctly signed file measurement as described in (2).
+   correctly signed digest as described in (2).
 
-File measurements must be signed in the following format, which is
-similar to the structure used by `FS_IOC_MEASURE_VERITY`_::
+The data that the signature as described in (2) must be a signature of
+is the fs-verity file digest in the following format::
 
-    struct fsverity_signed_digest {
+    struct fsverity_formatted_digest {
             char magic[8];                  /* must be "FSVerity" */
             __le16 digest_algorithm;
             __le16 digest_size;
             __u8 digest[];
     };
 
-fs-verity's built-in signature verification support is meant as a
-relatively simple mechanism that can be used to provide some level of
-authenticity protection for verity files, as an alternative to doing
-the signature verification in userspace or using IMA-appraisal.
-However, with this mechanism, userspace programs still need to check
-that the verity bit is set, and there is no protection against verity
-files being swapped around.
+That's it.  It should be emphasized again that fs-verity builtin
+signatures are not the only way to do signatures with fs-verity.  See
+`Use cases`_ for an overview of ways in which fs-verity can be used.
+fs-verity builtin signatures have some major limitations that should
+be carefully considered before using them:
+
+- Builtin signature verification does *not* make the kernel enforce
+  that any files actually have fs-verity enabled.  Thus, it is not a
+  complete authentication policy.  Currently, if it is used, the only
+  way to complete the authentication policy is for trusted userspace
+  code to explicitly check whether files have fs-verity enabled with a
+  signature before they are accessed.  (With
+  fs.verity.require_signatures=1, just checking whether fs-verity is
+  enabled suffices.)  But, in this case the trusted userspace code
+  could just store the signature alongside the file and verify it
+  itself using a cryptographic library, instead of using this feature.
+
+- A file's builtin signature can only be set at the same time that
+  fs-verity is being enabled on the file.  Changing or deleting the
+  builtin signature later requires re-creating the file.
+
+- Builtin signature verification uses the same set of public keys for
+  all fs-verity enabled files on the system.  Different keys cannot be
+  trusted for different files; each key is all or nothing.
+
+- The sysctl fs.verity.require_signatures applies system-wide.
+  Setting it to 1 only works when all users of fs-verity on the system
+  agree that it should be set to 1.  This limitation can prevent
+  fs-verity from being used in cases where it would be helpful.
+
+- Builtin signature verification can only use signature algorithms
+  that are supported by the kernel.  For example, the kernel does not
+  yet support Ed25519, even though this is often the signature
+  algorithm that is recommended for new cryptographic designs.
+
+- fs-verity builtin signatures are in PKCS#7 format, and the public
+  keys are in X.509 format.  These formats are commonly used,
+  including by some other kernel features (which is why the fs-verity
+  builtin signatures use them), and are very feature rich.
+  Unfortunately, history has shown that code that parses and handles
+  these formats (which are from the 1990s and are based on ASN.1)
+  often has vulnerabilities as a result of their complexity.  This
+  complexity is not inherent to the cryptography itself.
+
+  fs-verity users who do not need advanced features of X.509 and
+  PKCS#7 should strongly consider using simpler formats, such as plain
+  Ed25519 keys and signatures, and verifying signatures in userspace.
+
+  fs-verity users who choose to use X.509 and PKCS#7 anyway should
+  still consider that verifying those signatures in userspace is more
+  flexible (for other reasons mentioned earlier in this document) and
+  eliminates the need to enable CONFIG_FS_VERITY_BUILTIN_SIGNATURES
+  and its associated increase in kernel attack surface.  In some cases
+  it can even be necessary, since advanced X.509 and PKCS#7 features
+  do not always work as intended with the kernel.  For example, the
+  kernel does not check X.509 certificate validity times.
+
+  Note: IMA appraisal, which supports fs-verity, does not use PKCS#7
+  for its signatures, so it partially avoids the issues discussed
+  here.  IMA appraisal does use X.509.
 
 Filesystem support
 ==================
 
-fs-verity is currently supported by the ext4 and f2fs filesystems.
-The CONFIG_FS_VERITY kconfig option must be enabled to use fs-verity
-on either filesystem.
+fs-verity is supported by several filesystems, described below.  The
+CONFIG_FS_VERITY kconfig option must be enabled to use fs-verity on
+any of these filesystems.
 
 ``include/linux/fsverity.h`` declares the interface between the
 ``fs/verity/`` support layer and filesystems.  Briefly, filesystems
@@ -398,23 +553,25 @@ pages have been read into the pagecache.  (See `Verifying data`_.)
 ext4
 ----
 
-ext4 supports fs-verity since Linux TODO and e2fsprogs v1.45.2.
+ext4 supports fs-verity since Linux v5.4 and e2fsprogs v1.45.2.
 
 To create verity files on an ext4 filesystem, the filesystem must have
 been formatted with ``-O verity`` or had ``tune2fs -O verity`` run on
 it.  "verity" is an RO_COMPAT filesystem feature, so once set, old
 kernels will only be able to mount the filesystem readonly, and old
-versions of e2fsck will be unable to check the filesystem.  Moreover,
-currently ext4 only supports mounting a filesystem with the "verity"
-feature when its block size is equal to PAGE_SIZE (often 4096 bytes).
+versions of e2fsck will be unable to check the filesystem.
+
+Originally, an ext4 filesystem with the "verity" feature could only be
+mounted when its block size was equal to the system page size
+(typically 4096 bytes).  In Linux v6.3, this limitation was removed.
 
 ext4 sets the EXT4_VERITY_FL on-disk inode flag on verity files.  It
 can only be set by `FS_IOC_ENABLE_VERITY`_, and it cannot be cleared.
 
 ext4 also supports encryption, which can be used simultaneously with
 fs-verity.  In this case, the plaintext data is verified rather than
-the ciphertext.  This is necessary in order to make the file
-measurement meaningful, since every file is encrypted differently.
+the ciphertext.  This is necessary in order to make the fs-verity file
+digest meaningful, since every file is encrypted differently.
 
 ext4 stores the verity metadata (Merkle tree and fsverity_descriptor)
 past the end of the file, starting at the first 64K boundary beyond
@@ -427,14 +584,12 @@ support paging multi-gigabyte xattrs into memory, and to support
 encrypting xattrs.  Note that the verity metadata *must* be encrypted
 when the file is, since it contains hashes of the plaintext data.
 
-Currently, ext4 verity only supports the case where the Merkle tree
-block size, filesystem block size, and page size are all the same.  It
-also only supports extent-based files.
+ext4 only allows verity on extent-based files.
 
 f2fs
 ----
 
-f2fs supports fs-verity since Linux TODO and f2fs-tools v1.11.0.
+f2fs supports fs-verity since Linux v5.4 and f2fs-tools v1.11.0.
 
 To create verity files on an f2fs filesystem, the filesystem must have
 been formatted with ``-O verity``.
@@ -447,11 +602,17 @@ Like ext4, f2fs stores the verity metadata (Merkle tree and
 fsverity_descriptor) past the end of the file, starting at the first
 64K boundary beyond i_size.  See explanation for ext4 above.
 Moreover, f2fs supports at most 4096 bytes of xattr entries per inode
-which wouldn't be enough for even a single Merkle tree block.
+which usually wouldn't be enough for even a single Merkle tree block.
 
-Currently, f2fs verity only supports a Merkle tree block size of 4096.
-Also, f2fs doesn't support enabling verity on files that currently
-have atomic or volatile writes pending.
+f2fs doesn't support enabling verity on files that currently have
+atomic or volatile writes pending.
+
+btrfs
+-----
+
+btrfs supports fs-verity since Linux v5.15.  Verity-enabled inodes are
+marked with a RO_COMPAT inode flag, and the verity metadata is stored
+in separate btree items.
 
 Implementation details
 ======================
@@ -468,52 +629,49 @@ already verified).  Below, we describe how filesystems implement this.
 Pagecache
 ~~~~~~~~~
 
-For filesystems using Linux's pagecache, the ``->readpage()`` and
-``->readpages()`` methods must be modified to verify pages before they
-are marked Uptodate.  Merely hooking ``->read_iter()`` would be
+For filesystems using Linux's pagecache, the ``->read_folio()`` and
+``->readahead()`` methods must be modified to verify folios before
+they are marked Uptodate.  Merely hooking ``->read_iter()`` would be
 insufficient, since ``->read_iter()`` is not used for memory maps.
 
-Therefore, fs/verity/ provides a function fsverity_verify_page() which
-verifies a page that has been read into the pagecache of a verity
-inode, but is still locked and not Uptodate, so it's not yet readable
-by userspace.  As needed to do the verification,
-fsverity_verify_page() will call back into the filesystem to read
-Merkle tree pages via fsverity_operations::read_merkle_tree_page().
+Therefore, fs/verity/ provides the function fsverity_verify_blocks()
+which verifies data that has been read into the pagecache of a verity
+inode.  The containing folio must still be locked and not Uptodate, so
+it's not yet readable by userspace.  As needed to do the verification,
+fsverity_verify_blocks() will call back into the filesystem to read
+hash blocks via fsverity_operations::read_merkle_tree_page().
 
-fsverity_verify_page() returns false if verification failed; in this
-case, the filesystem must not set the page Uptodate.  Following this,
+fsverity_verify_blocks() returns false if verification failed; in this
+case, the filesystem must not set the folio Uptodate.  Following this,
 as per the usual Linux pagecache behavior, attempts by userspace to
-read() from the part of the file containing the page will fail with
-EIO, and accesses to the page within a memory map will raise SIGBUS.
+read() from the part of the file containing the folio will fail with
+EIO, and accesses to the folio within a memory map will raise SIGBUS.
 
-fsverity_verify_page() currently only supports the case where the
-Merkle tree block size is equal to PAGE_SIZE (often 4096 bytes).
-
-In principle, fsverity_verify_page() verifies the entire path in the
-Merkle tree from the data page to the root hash.  However, for
-efficiency the filesystem may cache the hash pages.  Therefore,
-fsverity_verify_page() only ascends the tree reading hash pages until
-an already-verified hash page is seen, as indicated by the PageChecked
-bit being set.  It then verifies the path to that page.
+In principle, verifying a data block requires verifying the entire
+path in the Merkle tree from the data block to the root hash.
+However, for efficiency the filesystem may cache the hash blocks.
+Therefore, fsverity_verify_blocks() only ascends the tree reading hash
+blocks until an already-verified hash block is seen.  It then verifies
+the path to that block.
 
 This optimization, which is also used by dm-verity, results in
 excellent sequential read performance.  This is because usually (e.g.
-127 in 128 times for 4K blocks and SHA-256) the hash page from the
+127 in 128 times for 4K blocks and SHA-256) the hash block from the
 bottom level of the tree will already be cached and checked from
-reading a previous data page.  However, random reads perform worse.
+reading a previous data block.  However, random reads perform worse.
 
 Block device based filesystems
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Block device based filesystems (e.g. ext4 and f2fs) in Linux also use
 the pagecache, so the above subsection applies too.  However, they
-also usually read many pages from a file at once, grouped into a
+also usually read many data blocks from a file at once, grouped into a
 structure called a "bio".  To make it easier for these types of
 filesystems to support fs-verity, fs/verity/ also provides a function
-fsverity_verify_bio() which verifies all pages in a bio.
+fsverity_verify_bio() which verifies all data blocks in a bio.
 
 ext4 and f2fs also support encryption.  If a verity file is also
-encrypted, the pages must be decrypted before being verified.  To
+encrypted, the data must be decrypted before being verified.  To
 support this, these filesystems allocate a "post-read context" for
 each bio and store it in ``->bi_private``::
 
@@ -528,17 +686,17 @@ each bio and store it in ``->bi_private``::
 verity, or both is enabled.  After the bio completes, for each needed
 postprocessing step the filesystem enqueues the bio_post_read_ctx on a
 workqueue, and then the workqueue work does the decryption or
-verification.  Finally, pages where no decryption or verity error
-occurred are marked Uptodate, and the pages are unlocked.
+verification.  Finally, folios where no decryption or verity error
+occurred are marked Uptodate, and the folios are unlocked.
 
-Files on ext4 and f2fs may contain holes.  Normally, ``->readpages()``
-simply zeroes holes and sets the corresponding pages Uptodate; no bios
-are issued.  To prevent this case from bypassing fs-verity, these
-filesystems use fsverity_verify_page() to verify hole pages.
+On many filesystems, files can contain holes.  Normally,
+``->readahead()`` simply zeroes hole blocks and considers the
+corresponding data to be up-to-date; no bios are issued.  To prevent
+this case from bypassing fs-verity, filesystems use
+fsverity_verify_blocks() to verify hole blocks.
 
-ext4 and f2fs disable direct I/O on verity files, since otherwise
-direct I/O would bypass fs-verity.  (They also do the same for
-encrypted files.)
+Filesystems also disable direct I/O on verity files, since otherwise
+direct I/O would bypass fs-verity.
 
 Userspace utility
 =================
@@ -546,7 +704,7 @@ Userspace utility
 This document focuses on the kernel, but a userspace utility for
 fs-verity can be found at:
 
-	https://git.kernel.org/pub/scm/linux/kernel/git/ebiggers/fsverity-utils.git
+	https://git.kernel.org/pub/scm/fs/fsverity/fsverity-utils.git
 
 See the README.md file in the fsverity-utils source tree for details,
 including examples of setting up fs-verity protected files.
@@ -557,7 +715,7 @@ Tests
 To test fs-verity, use xfstests.  For example, using `kvm-xfstests
 <https://github.com/tytso/xfstests-bld/blob/master/Documentation/kvm-quickstart.md>`_::
 
-    kvm-xfstests -c ext4,f2fs -g verity
+    kvm-xfstests -c ext4,f2fs,btrfs -g verity
 
 FAQ
 ===
@@ -573,19 +731,19 @@ weren't already directly answered in other parts of this document.
     hashed and what to do with those hashes, such as log them,
     authenticate them, or add them to a measurement list.
 
-    IMA is planned to support the fs-verity hashing mechanism as an
-    alternative to doing full file hashes, for people who want the
-    performance and security benefits of the Merkle tree based hash.
-    But it doesn't make sense to force all uses of fs-verity to be
-    through IMA.  As a standalone filesystem feature, fs-verity
-    already meets many users' needs, and it's testable like other
+    IMA supports the fs-verity hashing mechanism as an alternative
+    to full file hashes, for those who want the performance and
+    security benefits of the Merkle tree based hash.  However, it
+    doesn't make sense to force all uses of fs-verity to be through
+    IMA.  fs-verity already meets many users' needs even as a
+    standalone filesystem feature, and it's testable like other
     filesystem features e.g. with xfstests.
 
 :Q: Isn't fs-verity useless because the attacker can just modify the
     hashes in the Merkle tree, which is stored on-disk?
 :A: To verify the authenticity of an fs-verity file you must verify
-    the authenticity of the "file measurement", which is basically the
-    root hash of the Merkle tree.  See `Use cases`_.
+    the authenticity of the "fs-verity file digest", which
+    incorporates the root hash of the Merkle tree.  See `Use cases`_.
 
 :Q: Isn't fs-verity useless because the attacker can just replace a
     verity file with a non-verity one?
@@ -651,7 +809,7 @@ weren't already directly answered in other parts of this document.
       retrofit existing filesystems with new consistency mechanisms.
       Data journalling is available on ext4, but is very slow.
 
-    - Rebuilding the the Merkle tree after every write, which would be
+    - Rebuilding the Merkle tree after every write, which would be
       extremely inefficient.  Alternatively, a different authenticated
       dictionary structure such as an "authenticated skiplist" could
       be used.  However, this would be far more complex.
@@ -680,25 +838,25 @@ weren't already directly answered in other parts of this document.
     e.g. magically trigger construction of a Merkle tree.
 
 :Q: Does fs-verity support remote filesystems?
-:A: Only ext4 and f2fs support is implemented currently, but in
-    principle any filesystem that can store per-file verity metadata
-    can support fs-verity, regardless of whether it's local or remote.
-    Some filesystems may have fewer options of where to store the
-    verity metadata; one possibility is to store it past the end of
-    the file and "hide" it from userspace by manipulating i_size.  The
-    data verification functions provided by ``fs/verity/`` also assume
-    that the filesystem uses the Linux pagecache, but both local and
-    remote filesystems normally do so.
+:A: So far all filesystems that have implemented fs-verity support are
+    local filesystems, but in principle any filesystem that can store
+    per-file verity metadata can support fs-verity, regardless of
+    whether it's local or remote.  Some filesystems may have fewer
+    options of where to store the verity metadata; one possibility is
+    to store it past the end of the file and "hide" it from userspace
+    by manipulating i_size.  The data verification functions provided
+    by ``fs/verity/`` also assume that the filesystem uses the Linux
+    pagecache, but both local and remote filesystems normally do so.
 
 :Q: Why is anything filesystem-specific at all?  Shouldn't fs-verity
     be implemented entirely at the VFS level?
 :A: There are many reasons why this is not possible or would be very
     difficult, including the following:
 
-    - To prevent bypassing verification, pages must not be marked
+    - To prevent bypassing verification, folios must not be marked
       Uptodate until they've been verified.  Currently, each
-      filesystem is responsible for marking pages Uptodate via
-      ``->readpages()``.  Therefore, currently it's not possible for
+      filesystem is responsible for marking folios Uptodate via
+      ``->readahead()``.  Therefore, currently it's not possible for
       the VFS to do the verification on its own.  Changing this would
       require significant changes to the VFS and all filesystems.
 

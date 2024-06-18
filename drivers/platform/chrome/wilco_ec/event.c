@@ -58,7 +58,6 @@
 #define DRV_NAME		EVENT_DEV_NAME
 #define EVENT_DEV_NAME_FMT	(EVENT_DEV_NAME "%d")
 static struct class event_class = {
-	.owner	= THIS_MODULE,
 	.name	= EVENT_CLASS_NAME,
 };
 
@@ -79,7 +78,7 @@ static DEFINE_IDA(event_ida);
 struct ec_event {
 	u16 size;
 	u16 type;
-	u16 event[0];
+	u16 event[];
 } __packed;
 
 #define ec_event_num_words(ev) (ev->size - 1)
@@ -96,7 +95,7 @@ struct ec_event_queue {
 	int capacity;
 	int head;
 	int tail;
-	struct ec_event *entries[0];
+	struct ec_event *entries[] __counted_by(capacity);
 };
 
 /* Maximum number of events to store in ec_event_queue */
@@ -343,7 +342,7 @@ static __poll_t event_poll(struct file *filp, poll_table *wait)
  *
  * Removes the first event from the queue, places it in the passed buffer.
  *
- * If there are no events in the the queue, then one of two things happens,
+ * If there are no events in the queue, then one of two things happens,
  * depending on if the file was opened in nonblocking mode: If in nonblocking
  * mode, then return -EAGAIN to say there's no data. If in blocking mode, then
  * block until an event is available.
@@ -496,19 +495,17 @@ static int event_device_add(struct acpi_device *adev)
 free_dev_data:
 	hangup_device(dev_data);
 free_minor:
-	ida_simple_remove(&event_ida, minor);
+	ida_free(&event_ida, minor);
 	return error;
 }
 
-static int event_device_remove(struct acpi_device *adev)
+static void event_device_remove(struct acpi_device *adev)
 {
 	struct event_device_data *dev_data = adev->driver_data;
 
 	cdev_device_del(&dev_data->cdev, &dev_data->dev);
-	ida_simple_remove(&event_ida, MINOR(dev_data->dev.devt));
+	ida_free(&event_ida, MINOR(dev_data->dev.devt));
 	hangup_device(dev_data);
-
-	return 0;
 }
 
 static const struct acpi_device_id event_acpi_ids[] = {
@@ -526,7 +523,6 @@ static struct acpi_driver event_driver = {
 		.notify = event_device_notify,
 		.remove = event_device_remove,
 	},
-	.owner = THIS_MODULE,
 };
 
 static int __init event_module_init(void)
@@ -578,4 +574,3 @@ module_exit(event_module_exit);
 MODULE_AUTHOR("Nick Crews <ncrews@chromium.org>");
 MODULE_DESCRIPTION("Wilco EC ACPI event driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:" DRV_NAME);

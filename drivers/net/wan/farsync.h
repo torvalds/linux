@@ -43,7 +43,7 @@
  *      This version number is incremented with each official release of the
  *      package and is a simplified number for normal user reference.
  *      Individual files are tracked by the version control system and may
- *      have individual versions (or IDs) that move much faster than the
+ *      have individual versions (or IDs) that move much faster than
  *      the release version as individual updates are tracked.
  */
 #define FST_USER_VERSION        "1.04"
@@ -65,7 +65,7 @@
 struct fstioc_write {
         unsigned int  size;
         unsigned int  offset;
-        unsigned char data[0];
+	unsigned char data[];
 };
 
 

@@ -15,7 +15,7 @@
 #include <linux/pagemap.h>
 #include <linux/swap.h>
 #include <linux/slab.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 #include "appldata.h"
 
@@ -29,10 +29,6 @@
  * the structure version (product ID, see appldata_base.c) needs to be changed
  * as well and all documentation and z/VM applications using it must be
  * updated.
- *
- * The record layout is documented in the Linux for zSeries Device Drivers
- * book:
- * http://oss.software.ibm.com/developerworks/opensource/linux390/index.shtml
  */
 struct appldata_mem_data {
 	u64 timestamp;

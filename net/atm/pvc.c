@@ -63,7 +63,7 @@ static int pvc_connect(struct socket *sock, struct sockaddr *sockaddr,
 }
 
 static int pvc_setsockopt(struct socket *sock, int level, int optname,
-			  char __user *optval, unsigned int optlen)
+			  sockptr_t optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	int error;
@@ -126,7 +126,6 @@ static const struct proto_ops pvc_proto_ops = {
 	.sendmsg =	vcc_sendmsg,
 	.recvmsg =	vcc_recvmsg,
 	.mmap =		sock_no_mmap,
-	.sendpage =	sock_no_sendpage,
 };
 
 

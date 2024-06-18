@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/rng/intel,ixp46x-rng.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Intel IXP46x RNG
+
+description: |
+  The Intel IXP46x has a random number generator at a fixed physical
+  location in memory. Each read is guaranteed to provide a unique
+  32 bit random number.
+
+maintainers:
+  - Linus Walleij <linus.walleij@linaro.org>
+
+properties:
+  compatible:
+    const: intel,ixp46x-rng
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    rng@70002100 {
+      compatible = "intel,ixp46x-rng";
+      reg = <0x70002100 4>;
+    };

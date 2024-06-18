@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/mps,mp886x.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Monolithic Power Systems MP8867/MP8869 voltage regulator
+
+maintainers:
+  - Jisheng Zhang <jszhang@kernel.org>
+
+allOf:
+  - $ref: regulator.yaml#
+
+properties:
+  compatible:
+    enum:
+      - mps,mp8867
+      - mps,mp8869
+
+  reg:
+    maxItems: 1
+
+  enable-gpios:
+    description: GPIO to enable/disable the regulator.
+    maxItems: 1
+
+  mps,fb-voltage-divider:
+    description: An array of two integers containing the resistor
+      values R1 and R2 of the feedback voltage divider in kilo ohms.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    maxItems: 2
+
+  mps,switch-frequency-hz:
+    description: The valid switch frequency in Hertz.
+    enum: [500000, 750000, 1000000, 1250000, 1500000]
+
+required:
+  - compatible
+  - reg
+  - enable-gpios
+  - mps,fb-voltage-divider
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        regulator@62 {
+          compatible = "mps,mp8869";
+          regulator-name = "vcpu";
+          regulator-min-microvolt = <800000>;
+          regulator-max-microvolt = <1150000>;
+          enable-gpios = <&porta 1 GPIO_ACTIVE_LOW>;
+          mps,fb-voltage-divider = <80 240>;
+          reg = <0x62>;
+        };
+    };
+
+...

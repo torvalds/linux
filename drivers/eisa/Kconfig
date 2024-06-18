@@ -9,7 +9,7 @@ config HAVE_EISA
 menuconfig EISA
 	bool "EISA support"
 	depends on HAVE_EISA
-	---help---
+	help
 	  The Extended Industry Standard Architecture (EISA) bus was
 	  developed as an open alternative to the IBM MicroChannel bus.
 
@@ -26,7 +26,7 @@ config EISA_VLB_PRIMING
 	bool "Vesa Local Bus priming"
 	depends on X86 && EISA
 	default n
-	---help---
+	help
 	  Activate this option if your system contains a Vesa Local
 	  Bus (VLB) card that identify itself as an EISA card (such as
 	  the Adaptec AHA-284x).
@@ -37,24 +37,23 @@ config EISA_PCI_EISA
 	bool "Generic PCI/EISA bridge"
 	depends on !PARISC && PCI && EISA
 	default y
-	---help---
+	help
 	  Activate this option if your system contains a PCI to EISA
 	  bridge. If your system have both PCI and EISA slots, you
 	  certainly need this option.
 
 	  When in doubt, say Y.
 
-# Using EISA_VIRTUAL_ROOT on something other than an Alpha or
-# an X86 may lead to crashes...
+# Using EISA_VIRTUAL_ROOT on something other than an X86 may lead
+# to crashes...
 
 config EISA_VIRTUAL_ROOT
 	bool "EISA virtual root device"
-	depends on EISA && (ALPHA || X86)
+	depends on EISA && X86
 	default y
-	---help---
+	help
 	  Activate this option if your system only have EISA bus
-	  (no PCI slots). The Alpha Jensen is an example of such
-	  a system.
+	  (no PCI slots).
 
 	  When in doubt, say Y.
 
@@ -62,7 +61,7 @@ config EISA_NAMES
 	bool "EISA device name database"
 	depends on EISA
 	default y
-	---help---
+	help
 	  By default, the kernel contains a database of all known EISA
 	  device names to make the information in sysfs comprehensible
 	  to the user. This database increases size of the kernel

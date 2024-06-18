@@ -14,7 +14,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/lcd.h>
 
-#include <mach/hardware.h>
+#include <linux/soc/ti/omap1-io.h>
 
 #include "omapfb.h"
 
@@ -76,7 +76,7 @@ static int ams_delta_lcd_get_contrast(struct lcd_device *dev)
 	return ams_delta_lcd & AMS_DELTA_MAX_CONTRAST;
 }
 
-static struct lcd_ops ams_delta_lcd_ops = {
+static const struct lcd_ops ams_delta_lcd_ops = {
 	.get_power = ams_delta_lcd_get_power,
 	.set_power = ams_delta_lcd_set_power,
 	.get_contrast = ams_delta_lcd_get_contrast,
@@ -128,28 +128,24 @@ static struct lcd_panel ams_delta_panel = {
 static int ams_delta_panel_probe(struct platform_device *pdev)
 {
 	struct lcd_device *lcd_device = NULL;
-	int ret;
 
 	gpiod_vblen = devm_gpiod_get(&pdev->dev, "vblen", GPIOD_OUT_LOW);
-	if (IS_ERR(gpiod_vblen)) {
-		ret = PTR_ERR(gpiod_vblen);
-		dev_err(&pdev->dev, "VBLEN GPIO request failed (%d)\n", ret);
-		return ret;
-	}
+	if (IS_ERR(gpiod_vblen))
+		return dev_err_probe(&pdev->dev, PTR_ERR(gpiod_vblen),
+				     "VBLEN GPIO request failed\n");
 
 	gpiod_ndisp = devm_gpiod_get(&pdev->dev, "ndisp", GPIOD_OUT_LOW);
-	if (IS_ERR(gpiod_ndisp)) {
-		ret = PTR_ERR(gpiod_ndisp);
-		dev_err(&pdev->dev, "NDISP GPIO request failed (%d)\n", ret);
-		return ret;
-	}
+	if (IS_ERR(gpiod_ndisp))
+		return dev_err_probe(&pdev->dev, PTR_ERR(gpiod_ndisp),
+				     "NDISP GPIO request failed\n");
 
 #ifdef CONFIG_LCD_CLASS_DEVICE
 	lcd_device = lcd_device_register("omapfb", &pdev->dev, NULL,
 						&ams_delta_lcd_ops);
 
 	if (IS_ERR(lcd_device)) {
-		ret = PTR_ERR(lcd_device);
+		int ret = PTR_ERR(lcd_device);
+
 		dev_err(&pdev->dev, "failed to register device\n");
 		return ret;
 	}

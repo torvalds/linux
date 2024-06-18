@@ -28,7 +28,7 @@
 #include <media/i2c/wm8775.h>
 
 #include "cx88-reg.h"
-#include "tuner-xc2028.h"
+#include "xc2028.h"
 
 #include <linux/mutex.h>
 
@@ -228,6 +228,7 @@ extern const struct sram_channel cx88_sram_channels[];
 #define CX88_BOARD_WINFAST_DTV1800H_XC4000 88
 #define CX88_BOARD_WINFAST_TV2000_XP_GLOBAL_6F36 89
 #define CX88_BOARD_WINFAST_TV2000_XP_GLOBAL_6F43 90
+#define CX88_BOARD_NOTONLYTV_LV3H          91
 
 enum cx88_itype {
 	CX88_VMUX_COMPOSITE1 = 1,

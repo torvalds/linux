@@ -25,9 +25,9 @@ static const struct usb_device_id id_table[] = {
 	{ },
 };
 
-static unsigned char device_cmd_prefix[] = {0x03, 0x00};
+static const unsigned char device_cmd_prefix[] = {0x03, 0x00};
 
-static unsigned char bcd2000_init_sequence[] = {
+static const unsigned char bcd2000_init_sequence[] = {
 	0x07, 0x00, 0x00, 0x00, 0x78, 0x48, 0x1c, 0x81,
 	0xc4, 0x00, 0x00, 0x00, 0x5e, 0x53, 0x4a, 0xf7,
 	0x18, 0xfa, 0x11, 0xff, 0x6c, 0xf3, 0x90, 0xff,
@@ -300,7 +300,7 @@ static int bcd2000_init_midi(struct bcd2000 *bcd2k)
 	if (ret < 0)
 		return ret;
 
-	strlcpy(rmidi->name, bcd2k->card->shortname, sizeof(rmidi->name));
+	strscpy(rmidi->name, bcd2k->card->shortname, sizeof(rmidi->name));
 
 	rmidi->info_flags = SNDRV_RAWMIDI_INFO_DUPLEX;
 	rmidi->private_data = bcd2k;
@@ -348,7 +348,8 @@ static int bcd2000_init_midi(struct bcd2000 *bcd2k)
 static void bcd2000_free_usb_related_resources(struct bcd2000 *bcd2k,
 						struct usb_interface *interface)
 {
-	/* usb_kill_urb not necessary, urb is aborted automatically */
+	usb_kill_urb(bcd2k->midi_out_urb);
+	usb_kill_urb(bcd2k->midi_in_urb);
 
 	usb_free_urb(bcd2k->midi_out_urb);
 	usb_free_urb(bcd2k->midi_in_urb);
@@ -394,8 +395,8 @@ static int bcd2000_probe(struct usb_interface *interface,
 
 	snd_card_set_dev(card, &interface->dev);
 
-	strncpy(card->driver, "snd-bcd2000", sizeof(card->driver));
-	strncpy(card->shortname, "BCD2000", sizeof(card->shortname));
+	strscpy(card->driver, "snd-bcd2000", sizeof(card->driver));
+	strscpy(card->shortname, "BCD2000", sizeof(card->shortname));
 	usb_make_path(bcd2k->dev, usb_path, sizeof(usb_path));
 	snprintf(bcd2k->card->longname, sizeof(bcd2k->card->longname),
 		    "Behringer BCD2000 at %s",

@@ -1,19 +1,5 @@
-/*
- * Copyright 2014 Cisco Systems, Inc.  All rights reserved.
- *
- * This program is free software; you may redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: GPL-2.0-only
+// Copyright 2014 Cisco Systems, Inc.  All rights reserved.
 
 #include <linux/errno.h>
 #include <linux/mempool.h>
@@ -100,7 +86,7 @@ snic_queue_report_tgt_req(struct snic *snic)
 	SNIC_BUG_ON(ntgts == 0);
 	buf_len = ntgts * sizeof(struct snic_tgt_id) + SNIC_SG_DESC_ALIGN;
 
-	buf = kzalloc(buf_len, GFP_KERNEL|GFP_DMA);
+	buf = kzalloc(buf_len, GFP_KERNEL);
 	if (!buf) {
 		snic_req_free(snic, rqi);
 		SNIC_HOST_ERR(snic->shost, "Resp Buf Alloc Failed.\n");
@@ -228,7 +214,7 @@ snic_tgt_del(struct work_struct *work)
 		scsi_flush_work(shost);
 
 	/* Block IOs on child devices, stops new IOs */
-	scsi_target_block(&tgt->dev);
+	scsi_block_targets(shost, &tgt->dev);
 
 	/* Cleanup IOs */
 	snic_tgt_scsi_abort_io(tgt);
@@ -318,7 +304,10 @@ snic_tgt_create(struct snic *snic, struct snic_tgt_id *tgtid)
 			      ret);
 
 		put_device(&snic->shost->shost_gendev);
-		kfree(tgt);
+		spin_lock_irqsave(snic->shost->host_lock, flags);
+		list_del(&tgt->list);
+		spin_unlock_irqrestore(snic->shost->host_lock, flags);
+		put_device(&tgt->dev);
 		tgt = NULL;
 
 		return tgt;

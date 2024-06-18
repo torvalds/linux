@@ -3,25 +3,39 @@
 #define __KVM_X86_VMX_NESTED_H
 
 #include "kvm_cache_regs.h"
+#include "hyperv.h"
 #include "vmcs12.h"
 #include "vmx.h"
 
+/*
+ * Status returned by nested_vmx_enter_non_root_mode():
+ */
+enum nvmx_vmentry_status {
+	NVMX_VMENTRY_SUCCESS,		/* Entered VMX non-root mode */
+	NVMX_VMENTRY_VMFAIL,		/* Consistency check VMFail */
+	NVMX_VMENTRY_VMEXIT,		/* Consistency check VMExit */
+	NVMX_VMENTRY_KVM_INTERNAL_ERROR,/* KVM internal error */
+};
+
 void vmx_leave_nested(struct kvm_vcpu *vcpu);
-void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs, u32 ept_caps,
-				bool apicv);
+void nested_vmx_setup_ctls_msrs(struct vmcs_config *vmcs_conf, u32 ept_caps);
 void nested_vmx_hardware_unsetup(void);
 __init int nested_vmx_hardware_setup(int (*exit_handlers[])(struct kvm_vcpu *));
-void nested_vmx_vcpu_setup(void);
+void nested_vmx_set_vmcs_shadowing_bitmap(void);
 void nested_vmx_free_vcpu(struct kvm_vcpu *vcpu);
-int nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu, bool from_vmentry);
-bool nested_vmx_exit_reflected(struct kvm_vcpu *vcpu, u32 exit_reason);
-void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
+enum nvmx_vmentry_status nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu,
+						     bool from_vmentry);
+bool nested_vmx_reflect_vmexit(struct kvm_vcpu *vcpu);
+void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 vm_exit_reason,
 		       u32 exit_intr_info, unsigned long exit_qualification);
 void nested_sync_vmcs12_to_shadow(struct kvm_vcpu *vcpu);
 int vmx_set_vmx_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data);
 int vmx_get_vmx_msr(struct nested_vmx_msrs *msrs, u32 msr_index, u64 *pdata);
 int get_vmx_mem_address(struct kvm_vcpu *vcpu, unsigned long exit_qualification,
 			u32 vmx_instruction_info, bool wr, int len, gva_t *ret);
+void nested_mark_vmcs12_pages_dirty(struct kvm_vcpu *vcpu);
+bool nested_vmx_check_io_bitmaps(struct kvm_vcpu *vcpu, unsigned int port,
+				 int size);
 
 static inline struct vmcs12 *get_vmcs12(struct kvm_vcpu *vcpu)
 {
@@ -33,21 +47,28 @@ static inline struct vmcs12 *get_shadow_vmcs12(struct kvm_vcpu *vcpu)
 	return to_vmx(vcpu)->nested.cached_shadow_vmcs12;
 }
 
+/*
+ * Note: the same condition is checked against the state provided by userspace
+ * in vmx_set_nested_state; if it is satisfied, the nested state must include
+ * the VMCS12.
+ */
 static inline int vmx_has_valid_vmcs12(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
-	/*
-	 * In case we do two consecutive get/set_nested_state()s while L2 was
-	 * running hv_evmcs may end up not being mapped (we map it from
-	 * nested_vmx_run()/vmx_vcpu_run()). Check is_guest_mode() as we always
-	 * have vmcs12 if it is true.
-	 */
-	return is_guest_mode(vcpu) || vmx->nested.current_vmptr != -1ull ||
-		vmx->nested.hv_evmcs;
+	/* 'hv_evmcs_vmptr' can also be EVMPTR_MAP_PENDING here */
+	return vmx->nested.current_vmptr != -1ull ||
+		nested_vmx_is_evmptr12_set(vmx);
 }
 
-static inline unsigned long nested_ept_get_cr3(struct kvm_vcpu *vcpu)
+static inline u16 nested_get_vpid02(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+
+	return vmx->nested.vpid02 ? vmx->nested.vpid02 : vmx->vpid;
+}
+
+static inline unsigned long nested_ept_get_eptp(struct kvm_vcpu *vcpu)
 {
 	/* return the page table to be shadowed - in our case, EPT12 */
 	return get_vmcs12(vcpu)->ept_pointer;
@@ -55,41 +76,14 @@ static inline unsigned long nested_ept_get_cr3(struct kvm_vcpu *vcpu)
 
 static inline bool nested_ept_ad_enabled(struct kvm_vcpu *vcpu)
 {
-	return nested_ept_get_cr3(vcpu) & VMX_EPTP_AD_ENABLE_BIT;
+	return nested_ept_get_eptp(vcpu) & VMX_EPTP_AD_ENABLE_BIT;
 }
 
 /*
- * Reflect a VM Exit into L1.
- */
-static inline int nested_vmx_reflect_vmexit(struct kvm_vcpu *vcpu,
-					    u32 exit_reason)
-{
-	u32 exit_intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
-
-	/*
-	 * At this point, the exit interruption info in exit_intr_info
-	 * is only valid for EXCEPTION_NMI exits.  For EXTERNAL_INTERRUPT
-	 * we need to query the in-kernel LAPIC.
-	 */
-	WARN_ON(exit_reason == EXIT_REASON_EXTERNAL_INTERRUPT);
-	if ((exit_intr_info &
-	     (INTR_INFO_VALID_MASK | INTR_INFO_DELIVER_CODE_MASK)) ==
-	    (INTR_INFO_VALID_MASK | INTR_INFO_DELIVER_CODE_MASK)) {
-		struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
-
-		vmcs12->vm_exit_intr_error_code =
-			vmcs_read32(VM_EXIT_INTR_ERROR_CODE);
-	}
-
-	nested_vmx_vmexit(vcpu, exit_reason, exit_intr_info,
-			  vmcs_readl(EXIT_QUALIFICATION));
-	return 1;
-}
-
-/*
- * Return the cr0 value that a nested guest would read. This is a combination
- * of the real cr0 used to run the guest (guest_cr0), and the bits shadowed by
- * its hypervisor (cr0_read_shadow).
+ * Return the cr0/4 value that a nested guest would read. This is a combination
+ * of L1's "real" cr0 used to run the guest (guest_cr0), and the bits shadowed
+ * by the L1 hypervisor (cr0_read_shadow).  KVM must emulate CPU behavior as
+ * the value+mask loaded into vmcs02 may not match the vmcs12 fields.
  */
 static inline unsigned long nested_read_cr0(struct vmcs12 *fields)
 {
@@ -163,6 +157,11 @@ static inline bool nested_cpu_has_virtual_nmis(struct vmcs12 *vmcs12)
 	return vmcs12->pin_based_vm_exec_control & PIN_BASED_VIRTUAL_NMIS;
 }
 
+static inline int nested_cpu_has_mtf(struct vmcs12 *vmcs12)
+{
+	return nested_cpu_has(vmcs12, CPU_BASED_MONITOR_TRAP_FLAG);
+}
+
 static inline int nested_cpu_has_ept(struct vmcs12 *vmcs12)
 {
 	return nested_cpu_has2(vmcs12, SECONDARY_EXEC_ENABLE_EPT);
@@ -170,7 +169,7 @@ static inline int nested_cpu_has_ept(struct vmcs12 *vmcs12)
 
 static inline bool nested_cpu_has_xsaves(struct vmcs12 *vmcs12)
 {
-	return nested_cpu_has2(vmcs12, SECONDARY_EXEC_XSAVES);
+	return nested_cpu_has2(vmcs12, SECONDARY_EXEC_ENABLE_XSAVES);
 }
 
 static inline bool nested_cpu_has_pml(struct vmcs12 *vmcs12)
@@ -226,6 +225,11 @@ static inline bool nested_cpu_has_save_preemption_timer(struct vmcs12 *vmcs12)
 	    VM_EXIT_SAVE_VMX_PREEMPTION_TIMER;
 }
 
+static inline bool nested_exit_on_nmi(struct kvm_vcpu *vcpu)
+{
+	return nested_cpu_has_nmi_exiting(get_vmcs12(vcpu));
+}
+
 /*
  * In nested virtualization, check if L1 asked to exit on external interrupts.
  * For most existing hypervisors, this will always return true.
@@ -234,6 +238,11 @@ static inline bool nested_exit_on_intr(struct kvm_vcpu *vcpu)
 {
 	return get_vmcs12(vcpu)->pin_based_vm_exec_control &
 		PIN_BASED_EXT_INTR_MASK;
+}
+
+static inline bool nested_cpu_has_encls_exit(struct vmcs12 *vmcs12)
+{
+	return nested_cpu_has2(vmcs12, SECONDARY_EXEC_ENCLS_EXITING);
 }
 
 /*
@@ -245,7 +254,7 @@ static inline bool fixed_bits_valid(u64 val, u64 fixed0, u64 fixed1)
 	return ((val & fixed1) | fixed0) == val;
 }
 
-static bool nested_guest_cr0_valid(struct kvm_vcpu *vcpu, unsigned long val)
+static inline bool nested_guest_cr0_valid(struct kvm_vcpu *vcpu, unsigned long val)
 {
 	u64 fixed0 = to_vmx(vcpu)->nested.msrs.cr0_fixed0;
 	u64 fixed1 = to_vmx(vcpu)->nested.msrs.cr0_fixed1;
@@ -259,7 +268,7 @@ static bool nested_guest_cr0_valid(struct kvm_vcpu *vcpu, unsigned long val)
 	return fixed_bits_valid(val, fixed0, fixed1);
 }
 
-static bool nested_host_cr0_valid(struct kvm_vcpu *vcpu, unsigned long val)
+static inline bool nested_host_cr0_valid(struct kvm_vcpu *vcpu, unsigned long val)
 {
 	u64 fixed0 = to_vmx(vcpu)->nested.msrs.cr0_fixed0;
 	u64 fixed1 = to_vmx(vcpu)->nested.msrs.cr0_fixed1;
@@ -267,16 +276,19 @@ static bool nested_host_cr0_valid(struct kvm_vcpu *vcpu, unsigned long val)
 	return fixed_bits_valid(val, fixed0, fixed1);
 }
 
-static bool nested_cr4_valid(struct kvm_vcpu *vcpu, unsigned long val)
+static inline bool nested_cr4_valid(struct kvm_vcpu *vcpu, unsigned long val)
 {
 	u64 fixed0 = to_vmx(vcpu)->nested.msrs.cr4_fixed0;
 	u64 fixed1 = to_vmx(vcpu)->nested.msrs.cr4_fixed1;
 
-	return fixed_bits_valid(val, fixed0, fixed1);
+	return fixed_bits_valid(val, fixed0, fixed1) &&
+	       __kvm_is_valid_cr4(vcpu, val);
 }
 
 /* No difference in the restrictions on guest and host CR4 in VMX operation. */
 #define nested_guest_cr4_valid	nested_cr4_valid
 #define nested_host_cr4_valid	nested_cr4_valid
+
+extern struct kvm_x86_nested_ops vmx_nested_ops;
 
 #endif /* __KVM_X86_VMX_NESTED_H */

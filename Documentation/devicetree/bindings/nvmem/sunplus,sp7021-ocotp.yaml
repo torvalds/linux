@@ -1,0 +1,79 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (C) Sunplus Co., Ltd. 2021
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/nvmem/sunplus,sp7021-ocotp.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: On-Chip OTP Memory for Sunplus SP7021
+
+maintainers:
+  - Vincent Shih <vincent.sunplus@gmail.com>
+
+allOf:
+  - $ref: nvmem.yaml#
+  - $ref: nvmem-deprecated-cells.yaml#
+
+properties:
+  compatible:
+    const: sunplus,sp7021-ocotp
+
+  reg:
+    maxItems: 2
+
+  reg-names:
+    items:
+      - const: hb_gpio
+      - const: otprx
+
+  clocks:
+    maxItems: 1
+
+  thermal-calibration:
+    type: object
+    description: thermal calibration values
+
+  disconnect-voltage:
+    type: object
+    description: disconnect voltages of usb2 port 0 and port 1
+
+  mac-address0:
+    type: object
+    description: MAC address of ethernet port 0
+
+  mac-address1:
+    type: object
+    description: MAC address of ethernet port 1
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - clocks
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    otp: otp@9c00af00 {
+        compatible = "sunplus,sp7021-ocotp";
+        reg = <0x9c00af00 0x34>, <0x9c00af80 0x58>;
+        reg-names = "hb_gpio", "otprx";
+        clocks = <&clkc 0x15>;
+
+        #address-cells = <1>;
+        #size-cells = <1>;
+        therm_calib: thermal-calibration@14 {
+          reg = <0x14 0x3>;
+        };
+        disc_vol: disconnect-voltage@18 {
+          reg = <0x18 0x2>;
+        };
+        mac_addr0: mac-address0@34 {
+          reg = <0x34 0x6>;
+        };
+        mac_addr1: mac-address1@3a {
+          reg = <0x3a 0x6>;
+        };
+    };
+...

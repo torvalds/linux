@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "builtin.h"
-#include "perf.h"
 
 #include "util/dso.h"
 #include "util/evlist.h"
@@ -24,8 +23,10 @@
 
 #include "util/debug.h"
 #include "util/string2.h"
+#include "util/util.h"
 
 #include <linux/kernel.h>
+#include <linux/numa.h>
 #include <linux/rbtree.h>
 #include <linux/string.h>
 #include <linux/zalloc.h>
@@ -35,6 +36,7 @@
 #include <regex.h>
 
 #include <linux/ctype.h>
+#include <traceevent/event-parse.h>
 
 static int	kmem_slab;
 static int	kmem_page;
@@ -169,13 +171,12 @@ static int insert_caller_stat(unsigned long call_site,
 	return 0;
 }
 
-static int perf_evsel__process_alloc_event(struct evsel *evsel,
-					   struct perf_sample *sample)
+static int evsel__process_alloc_event(struct evsel *evsel, struct perf_sample *sample)
 {
-	unsigned long ptr = perf_evsel__intval(evsel, sample, "ptr"),
-		      call_site = perf_evsel__intval(evsel, sample, "call_site");
-	int bytes_req = perf_evsel__intval(evsel, sample, "bytes_req"),
-	    bytes_alloc = perf_evsel__intval(evsel, sample, "bytes_alloc");
+	unsigned long ptr = evsel__intval(evsel, sample, "ptr"),
+		      call_site = evsel__intval(evsel, sample, "call_site");
+	int bytes_req = evsel__intval(evsel, sample, "bytes_req"),
+	    bytes_alloc = evsel__intval(evsel, sample, "bytes_alloc");
 
 	if (insert_alloc_stat(call_site, ptr, bytes_req, bytes_alloc, sample->cpu) ||
 	    insert_caller_stat(call_site, bytes_req, bytes_alloc))
@@ -185,23 +186,33 @@ static int perf_evsel__process_alloc_event(struct evsel *evsel,
 	total_allocated += bytes_alloc;
 
 	nr_allocs++;
-	return 0;
-}
 
-static int perf_evsel__process_alloc_node_event(struct evsel *evsel,
-						struct perf_sample *sample)
-{
-	int ret = perf_evsel__process_alloc_event(evsel, sample);
+	/*
+	 * Commit 11e9734bcb6a ("mm/slab_common: unify NUMA and UMA
+	 * version of tracepoints") adds the field "node" into the
+	 * tracepoints 'kmalloc' and 'kmem_cache_alloc'.
+	 *
+	 * The legacy tracepoints 'kmalloc_node' and 'kmem_cache_alloc_node'
+	 * also contain the field "node".
+	 *
+	 * If the tracepoint contains the field "node" the tool stats the
+	 * cross allocation.
+	 */
+	if (evsel__field(evsel, "node")) {
+		int node1, node2;
 
-	if (!ret) {
-		int node1 = cpu__get_node(sample->cpu),
-		    node2 = perf_evsel__intval(evsel, sample, "node");
+		node1 = cpu__get_node((struct perf_cpu){.cpu = sample->cpu});
+		node2 = evsel__intval(evsel, sample, "node");
 
-		if (node1 != node2)
+		/*
+		 * If the field "node" is NUMA_NO_NODE (-1), we don't take it
+		 * as a cross allocation.
+		 */
+		if ((node2 != NUMA_NO_NODE) && (node1 != node2))
 			nr_cross_allocs++;
 	}
 
-	return ret;
+	return 0;
 }
 
 static int ptr_cmp(void *, void *);
@@ -232,10 +243,9 @@ static struct alloc_stat *search_alloc_stat(unsigned long ptr,
 	return NULL;
 }
 
-static int perf_evsel__process_free_event(struct evsel *evsel,
-					  struct perf_sample *sample)
+static int evsel__process_free_event(struct evsel *evsel, struct perf_sample *sample)
 {
-	unsigned long ptr = perf_evsel__intval(evsel, sample, "ptr");
+	unsigned long ptr = evsel__intval(evsel, sample, "ptr");
 	struct alloc_stat *s_alloc, *s_caller;
 
 	s_alloc = search_alloc_stat(ptr, 0, &root_alloc_stat, ptr_cmp);
@@ -389,21 +399,29 @@ static u64 find_callsite(struct evsel *evsel, struct perf_sample *sample)
 	struct addr_location al;
 	struct machine *machine = &kmem_session->machines.host;
 	struct callchain_cursor_node *node;
+	struct callchain_cursor *cursor;
+	u64 result = sample->ip;
 
+	addr_location__init(&al);
 	if (alloc_func_list == NULL) {
 		if (build_alloc_func_list() < 0)
 			goto out;
 	}
 
 	al.thread = machine__findnew_thread(machine, sample->pid, sample->tid);
-	sample__resolve_callchain(sample, &callchain_cursor, NULL, evsel, &al, 16);
 
-	callchain_cursor_commit(&callchain_cursor);
+	cursor = get_tls_callchain_cursor();
+	if (cursor == NULL)
+		goto out;
+
+	sample__resolve_callchain(sample, cursor, NULL, evsel, &al, 16);
+
+	callchain_cursor_commit(cursor);
 	while (true) {
 		struct alloc_func key, *caller;
 		u64 addr;
 
-		node = callchain_cursor_current(&callchain_cursor);
+		node = callchain_cursor_current(cursor);
 		if (node == NULL)
 			break;
 
@@ -412,21 +430,23 @@ static u64 find_callsite(struct evsel *evsel, struct perf_sample *sample)
 				 sizeof(key), callcmp);
 		if (!caller) {
 			/* found */
-			if (node->map)
-				addr = map__unmap_ip(node->map, node->ip);
+			if (node->ms.map)
+				addr = map__dso_unmap_ip(node->ms.map, node->ip);
 			else
 				addr = node->ip;
 
-			return addr;
+			result = addr;
+			goto out;
 		} else
 			pr_debug3("skipping alloc function: %s\n", caller->name);
 
-		callchain_cursor_advance(&callchain_cursor);
+		callchain_cursor_advance(cursor);
 	}
 
-out:
 	pr_debug2("unknown callsite: %"PRIx64 "\n", sample->ip);
-	return sample->ip;
+out:
+	addr_location__exit(&al);
+	return result;
 }
 
 struct sort_dimension {
@@ -643,7 +663,6 @@ static const struct {
 	{ "__GFP_HIGHMEM",		"HM" },
 	{ "GFP_DMA32",			"D32" },
 	{ "__GFP_HIGH",			"H" },
-	{ "__GFP_ATOMIC",		"_A" },
 	{ "__GFP_IO",			"I" },
 	{ "__GFP_FS",			"F" },
 	{ "__GFP_NOWARN",		"NWR" },
@@ -691,6 +710,7 @@ static char *compact_gfp_flags(char *gfp_flags)
 			new = realloc(new_flags, len + strlen(cpt) + 2);
 			if (new == NULL) {
 				free(new_flags);
+				free(orig_flags);
 				return NULL;
 			}
 
@@ -783,13 +803,12 @@ static int parse_gfp_flags(struct evsel *evsel, struct perf_sample *sample,
 	return 0;
 }
 
-static int perf_evsel__process_page_alloc_event(struct evsel *evsel,
-						struct perf_sample *sample)
+static int evsel__process_page_alloc_event(struct evsel *evsel, struct perf_sample *sample)
 {
 	u64 page;
-	unsigned int order = perf_evsel__intval(evsel, sample, "order");
-	unsigned int gfp_flags = perf_evsel__intval(evsel, sample, "gfp_flags");
-	unsigned int migrate_type = perf_evsel__intval(evsel, sample,
+	unsigned int order = evsel__intval(evsel, sample, "order");
+	unsigned int gfp_flags = evsel__intval(evsel, sample, "gfp_flags");
+	unsigned int migrate_type = evsel__intval(evsel, sample,
 						       "migratetype");
 	u64 bytes = kmem_page_size << order;
 	u64 callsite;
@@ -801,9 +820,9 @@ static int perf_evsel__process_page_alloc_event(struct evsel *evsel,
 	};
 
 	if (use_pfn)
-		page = perf_evsel__intval(evsel, sample, "pfn");
+		page = evsel__intval(evsel, sample, "pfn");
 	else
-		page = perf_evsel__intval(evsel, sample, "page");
+		page = evsel__intval(evsel, sample, "page");
 
 	nr_page_allocs++;
 	total_page_alloc_bytes += bytes;
@@ -856,11 +875,10 @@ static int perf_evsel__process_page_alloc_event(struct evsel *evsel,
 	return 0;
 }
 
-static int perf_evsel__process_page_free_event(struct evsel *evsel,
-						struct perf_sample *sample)
+static int evsel__process_page_free_event(struct evsel *evsel, struct perf_sample *sample)
 {
 	u64 page;
-	unsigned int order = perf_evsel__intval(evsel, sample, "order");
+	unsigned int order = evsel__intval(evsel, sample, "order");
 	u64 bytes = kmem_page_size << order;
 	struct page_stat *pstat;
 	struct page_stat this = {
@@ -868,9 +886,9 @@ static int perf_evsel__process_page_free_event(struct evsel *evsel,
 	};
 
 	if (use_pfn)
-		page = perf_evsel__intval(evsel, sample, "pfn");
+		page = evsel__intval(evsel, sample, "pfn");
 	else
-		page = perf_evsel__intval(evsel, sample, "page");
+		page = evsel__intval(evsel, sample, "page");
 
 	nr_page_frees++;
 	total_page_free_bytes += bytes;
@@ -956,7 +974,7 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 	if (perf_kmem__skip_sample(sample))
 		return 0;
 
-	dump_printf(" ... thread: %s:%d\n", thread__comm_str(thread), thread->tid);
+	dump_printf(" ... thread: %s:%d\n", thread__comm_str(thread), thread__tid(thread));
 
 	if (evsel->handler != NULL) {
 		tracepoint_handler f = evsel->handler;
@@ -1016,7 +1034,7 @@ static void __print_slab_result(struct rb_root *root,
 
 		if (sym != NULL)
 			snprintf(buf, sizeof(buf), "%s+%" PRIx64 "", sym->name,
-				 addr - map->unmap_ip(map, sym->start));
+				 addr - map__unmap_ip(map, sym->start));
 		else
 			snprintf(buf, sizeof(buf), "%#" PRIx64 "", addr);
 		printf(" %-34s |", buf);
@@ -1370,15 +1388,15 @@ static int __cmd_kmem(struct perf_session *session)
 	struct evsel *evsel;
 	const struct evsel_str_handler kmem_tracepoints[] = {
 		/* slab allocator */
-		{ "kmem:kmalloc",		perf_evsel__process_alloc_event, },
-    		{ "kmem:kmem_cache_alloc",	perf_evsel__process_alloc_event, },
-		{ "kmem:kmalloc_node",		perf_evsel__process_alloc_node_event, },
-    		{ "kmem:kmem_cache_alloc_node", perf_evsel__process_alloc_node_event, },
-		{ "kmem:kfree",			perf_evsel__process_free_event, },
-    		{ "kmem:kmem_cache_free",	perf_evsel__process_free_event, },
+		{ "kmem:kmalloc",		evsel__process_alloc_event, },
+		{ "kmem:kmem_cache_alloc",	evsel__process_alloc_event, },
+		{ "kmem:kmalloc_node",		evsel__process_alloc_event, },
+		{ "kmem:kmem_cache_alloc_node", evsel__process_alloc_event, },
+		{ "kmem:kfree",			evsel__process_free_event, },
+		{ "kmem:kmem_cache_free",	evsel__process_free_event, },
 		/* page allocator */
-		{ "kmem:mm_page_alloc",		perf_evsel__process_page_alloc_event, },
-		{ "kmem:mm_page_free",		perf_evsel__process_page_free_event, },
+		{ "kmem:mm_page_alloc",		evsel__process_page_alloc_event, },
+		{ "kmem:mm_page_free",		evsel__process_page_free_event, },
 	};
 
 	if (!perf_session__has_traces(session, "kmem record"))
@@ -1390,8 +1408,8 @@ static int __cmd_kmem(struct perf_session *session)
 	}
 
 	evlist__for_each_entry(session->evlist, evsel) {
-		if (!strcmp(perf_evsel__name(evsel), "kmem:mm_page_alloc") &&
-		    perf_evsel__field(evsel, "pfn")) {
+		if (evsel__name_is(evsel, "kmem:mm_page_alloc") &&
+		    evsel__field(evsel, "pfn")) {
 			use_pfn = true;
 			break;
 		}
@@ -1827,6 +1845,19 @@ static int parse_line_opt(const struct option *opt __maybe_unused,
 	return 0;
 }
 
+static bool slab_legacy_tp_is_exposed(void)
+{
+	/*
+	 * The tracepoints "kmem:kmalloc_node" and
+	 * "kmem:kmem_cache_alloc_node" have been removed on the latest
+	 * kernel, if the tracepoint "kmem:kmalloc_node" is existed it
+	 * means the tool is running on an old kernel, we need to
+	 * rollback to support these legacy tracepoints.
+	 */
+	return IS_ERR(trace_event__tp_format("kmem", "kmalloc_node")) ?
+		false : true;
+}
+
 static int __cmd_record(int argc, const char **argv)
 {
 	const char * const record_args[] = {
@@ -1834,11 +1865,13 @@ static int __cmd_record(int argc, const char **argv)
 	};
 	const char * const slab_events[] = {
 	"-e", "kmem:kmalloc",
-	"-e", "kmem:kmalloc_node",
 	"-e", "kmem:kfree",
 	"-e", "kmem:kmem_cache_alloc",
-	"-e", "kmem:kmem_cache_alloc_node",
 	"-e", "kmem:kmem_cache_free",
+	};
+	const char * const slab_legacy_events[] = {
+	"-e", "kmem:kmalloc_node",
+	"-e", "kmem:kmem_cache_alloc_node",
 	};
 	const char * const page_events[] = {
 	"-e", "kmem:mm_page_alloc",
@@ -1846,10 +1879,14 @@ static int __cmd_record(int argc, const char **argv)
 	};
 	unsigned int rec_argc, i, j;
 	const char **rec_argv;
+	unsigned int slab_legacy_tp_exposed = slab_legacy_tp_is_exposed();
 
 	rec_argc = ARRAY_SIZE(record_args) + argc - 1;
-	if (kmem_slab)
+	if (kmem_slab) {
 		rec_argc += ARRAY_SIZE(slab_events);
+		if (slab_legacy_tp_exposed)
+			rec_argc += ARRAY_SIZE(slab_legacy_events);
+	}
 	if (kmem_page)
 		rec_argc += ARRAY_SIZE(page_events) + 1; /* for -g */
 
@@ -1864,6 +1901,10 @@ static int __cmd_record(int argc, const char **argv)
 	if (kmem_slab) {
 		for (j = 0; j < ARRAY_SIZE(slab_events); j++, i++)
 			rec_argv[i] = strdup(slab_events[j]);
+		if (slab_legacy_tp_exposed) {
+			for (j = 0; j < ARRAY_SIZE(slab_legacy_events); j++, i++)
+				rec_argv[i] = strdup(slab_legacy_events[j]);
+		}
 	}
 	if (kmem_page) {
 		rec_argv[i++] = strdup("-g");
@@ -1937,7 +1978,8 @@ int cmd_kmem(int argc, const char **argv)
 		return ret;
 
 	argc = parse_options_subcommand(argc, argv, kmem_options,
-					kmem_subcommands, kmem_usage, 0);
+					kmem_subcommands, kmem_usage,
+					PARSE_OPT_STOP_AT_NON_OPTION);
 
 	if (!argc)
 		usage_with_options(kmem_usage, kmem_options);
@@ -1949,32 +1991,29 @@ int cmd_kmem(int argc, const char **argv)
 			kmem_page = 1;
 	}
 
-	if (!strncmp(argv[0], "rec", 3)) {
+	if (strlen(argv[0]) > 2 && strstarts("record", argv[0])) {
 		symbol__init(NULL);
 		return __cmd_record(argc, argv);
 	}
 
 	data.path = input_name;
 
-	kmem_session = session = perf_session__new(&data, false, &perf_kmem);
+	kmem_session = session = perf_session__new(&data, &perf_kmem);
 	if (IS_ERR(session))
 		return PTR_ERR(session);
 
 	ret = -1;
 
 	if (kmem_slab) {
-		if (!perf_evlist__find_tracepoint_by_name(session->evlist,
-							  "kmem:kmalloc")) {
+		if (!evlist__find_tracepoint_by_name(session->evlist, "kmem:kmalloc")) {
 			pr_err(errmsg, "slab", "slab");
 			goto out_delete;
 		}
 	}
 
 	if (kmem_page) {
-		struct evsel *evsel;
+		struct evsel *evsel = evlist__find_tracepoint_by_name(session->evlist, "kmem:mm_page_alloc");
 
-		evsel = perf_evlist__find_tracepoint_by_name(session->evlist,
-							     "kmem:mm_page_alloc");
 		if (evsel == NULL) {
 			pr_err(errmsg, "page", "page");
 			goto out_delete;

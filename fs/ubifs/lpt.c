@@ -275,7 +275,7 @@ uint32_t ubifs_unpack_bits(const struct ubifs_info *c, uint8_t **addr, int *pos,
 	const int k = 32 - nrbits;
 	uint8_t *p = *addr;
 	int b = *pos;
-	uint32_t uninitialized_var(val);
+	uint32_t val;
 	const int bytes = (nrbits + b + 7) >> 3;
 
 	ubifs_assert(c, nrbits > 0);
@@ -851,7 +851,7 @@ int ubifs_create_dflt_lpt(struct ubifs_info *c, int *main_lebs, int lpt_first,
 	dbg_lp("lsave_sz %d", c->lsave_sz);
 	dbg_lp("lsave_cnt %d", c->lsave_cnt);
 	dbg_lp("lpt_hght %d", c->lpt_hght);
-	dbg_lp("big_lpt %d", c->big_lpt);
+	dbg_lp("big_lpt %u", c->big_lpt);
 	dbg_lp("LPT root is at %d:%d", c->lpt_lnum, c->lpt_offs);
 	dbg_lp("LPT head is at %d:%d", c->nhead_lnum, c->nhead_offs);
 	dbg_lp("LPT ltab is at %d:%d", c->ltab_lnum, c->ltab_offs);
@@ -1824,7 +1824,7 @@ static int lpt_init_rd(struct ubifs_info *c)
 	dbg_lp("lsave_sz %d", c->lsave_sz);
 	dbg_lp("lsave_cnt %d", c->lsave_cnt);
 	dbg_lp("lpt_hght %d", c->lpt_hght);
-	dbg_lp("big_lpt %d", c->big_lpt);
+	dbg_lp("big_lpt %u", c->big_lpt);
 	dbg_lp("LPT root is at %d:%d", c->lpt_lnum, c->lpt_offs);
 	dbg_lp("LPT head is at %d:%d", c->nhead_lnum, c->nhead_offs);
 	dbg_lp("LPT ltab is at %d:%d", c->ltab_lnum, c->ltab_offs);

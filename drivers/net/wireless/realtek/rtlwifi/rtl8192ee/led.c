@@ -6,23 +6,15 @@
 #include "reg.h"
 #include "led.h"
 
-static void _rtl92ee_init_led(struct ieee80211_hw *hw,
-			      struct rtl_led *pled, enum rtl_led_pin ledpin)
-{
-	pled->hw = hw;
-	pled->ledpin = ledpin;
-	pled->ledon = false;
-}
-
-void rtl92ee_sw_led_on(struct ieee80211_hw *hw, struct rtl_led *pled)
+void rtl92ee_sw_led_on(struct ieee80211_hw *hw, enum rtl_led_pin pin)
 {
 	u32 ledcfg;
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
-	RT_TRACE(rtlpriv, COMP_LED, DBG_LOUD,
-		 "LedAddr:%X ledpin=%d\n", REG_LEDCFG2, pled->ledpin);
+	rtl_dbg(rtlpriv, COMP_LED, DBG_LOUD,
+		"LedAddr:%X ledpin=%d\n", REG_LEDCFG2, pin);
 
-	switch (pled->ledpin) {
+	switch (pin) {
 	case LED_PIN_GPIO0:
 		break;
 	case LED_PIN_LED0:
@@ -38,22 +30,21 @@ void rtl92ee_sw_led_on(struct ieee80211_hw *hw, struct rtl_led *pled)
 
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-			 "switch case %#x not processed\n", pled->ledpin);
+		rtl_dbg(rtlpriv, COMP_ERR, DBG_LOUD,
+			"switch case %#x not processed\n", pin);
 		break;
 	}
-	pled->ledon = true;
 }
 
-void rtl92ee_sw_led_off(struct ieee80211_hw *hw, struct rtl_led *pled)
+void rtl92ee_sw_led_off(struct ieee80211_hw *hw, enum rtl_led_pin pin)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u32 ledcfg;
 
-	RT_TRACE(rtlpriv, COMP_LED, DBG_LOUD,
-		 "LedAddr:%X ledpin=%d\n", REG_LEDCFG2, pled->ledpin);
+	rtl_dbg(rtlpriv, COMP_LED, DBG_LOUD,
+		"LedAddr:%X ledpin=%d\n", REG_LEDCFG2, pin);
 
-	switch (pled->ledpin) {
+	switch (pin) {
 	case LED_PIN_GPIO0:
 		break;
 	case LED_PIN_LED0:
@@ -68,35 +59,26 @@ void rtl92ee_sw_led_off(struct ieee80211_hw *hw, struct rtl_led *pled)
 
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-			 "switch case %#x not processed\n", pled->ledpin);
+		rtl_dbg(rtlpriv, COMP_ERR, DBG_LOUD,
+			"switch case %#x not processed\n", pin);
 		break;
 	}
-	pled->ledon = false;
-}
-
-void rtl92ee_init_sw_leds(struct ieee80211_hw *hw)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-
-	_rtl92ee_init_led(hw, &rtlpriv->ledctl.sw_led0, LED_PIN_LED0);
-	_rtl92ee_init_led(hw, &rtlpriv->ledctl.sw_led1, LED_PIN_LED1);
 }
 
 static void _rtl92ee_sw_led_control(struct ieee80211_hw *hw,
 				    enum led_ctl_mode ledaction)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_led *pled0 = &rtlpriv->ledctl.sw_led0;
+	enum rtl_led_pin pin0 = rtlpriv->ledctl.sw_led0;
 
 	switch (ledaction) {
 	case LED_CTL_POWER_ON:
 	case LED_CTL_LINK:
 	case LED_CTL_NO_LINK:
-		rtl92ee_sw_led_on(hw, pled0);
+		rtl92ee_sw_led_on(hw, pin0);
 		break;
 	case LED_CTL_POWER_OFF:
-		rtl92ee_sw_led_off(hw, pled0);
+		rtl92ee_sw_led_off(hw, pin0);
 		break;
 	default:
 		break;
@@ -118,6 +100,6 @@ void rtl92ee_led_control(struct ieee80211_hw *hw, enum led_ctl_mode ledaction)
 	     ledaction == LED_CTL_POWER_ON)) {
 		return;
 	}
-	RT_TRACE(rtlpriv, COMP_LED, DBG_TRACE, "ledaction %d,\n", ledaction);
+	rtl_dbg(rtlpriv, COMP_LED, DBG_TRACE, "ledaction %d,\n", ledaction);
 	_rtl92ee_sw_led_control(hw, ledaction);
 }

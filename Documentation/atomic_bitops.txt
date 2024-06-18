@@ -58,13 +58,11 @@ Like with atomic_t, the rule of thumb is:
 
  - RMW operations that have a return value are fully ordered.
 
- - RMW operations that are conditional are unordered on FAILURE,
-   otherwise the above rules apply. In the case of test_and_{}_bit() operations,
-   if the bit in memory is unchanged by the operation then it is deemed to have
-   failed.
+ - RMW operations that are conditional are fully ordered.
 
-Except for a successful test_and_set_bit_lock() which has ACQUIRE semantics and
-clear_bit_unlock() which has RELEASE semantics.
+Except for a successful test_and_set_bit_lock() which has ACQUIRE semantics,
+clear_bit_unlock() which has RELEASE semantics and test_bit_acquire which has
+ACQUIRE semantics.
 
 Since a platform only has a single means of achieving atomic operations
 the same barriers as for atomic_t are used, see atomic_t.txt.

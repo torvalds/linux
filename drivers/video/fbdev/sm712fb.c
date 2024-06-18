@@ -18,6 +18,7 @@
  * Framebuffer driver for Silicon Motion SM710, SM712, SM721 and SM722 chips
  */
 
+#include <linux/aperture.h>
 #include <linux/io.h>
 #include <linux/fb.h>
 #include <linux/pci.h>
@@ -26,11 +27,16 @@
 #include <linux/uaccess.h>
 #include <linux/module.h>
 #include <linux/console.h>
-#include <linux/screen_info.h>
 
 #include <linux/pm.h>
 
 #include "sm712.h"
+
+struct smtcfb_screen_info {
+	u16 lfb_width;
+	u16 lfb_height;
+	u16 lfb_depth;
+};
 
 /*
  * Private structure
@@ -828,7 +834,7 @@ static const struct modeinit vgamode[] = {
 	},
 };
 
-static struct screen_info smtc_scr_info;
+static struct smtcfb_screen_info smtc_scr_info;
 
 static char *mode_option;
 
@@ -1027,11 +1033,8 @@ static ssize_t smtcfb_read(struct fb_info *info, char __user *buf,
 	int c, i, cnt = 0, err = 0;
 	unsigned long total_size;
 
-	if (!info || !info->screen_base)
+	if (!info->screen_base)
 		return -ENODEV;
-
-	if (info->state != FBINFO_STATE_RUNNING)
-		return -EPERM;
 
 	total_size = info->screen_size;
 
@@ -1047,7 +1050,7 @@ static ssize_t smtcfb_read(struct fb_info *info, char __user *buf,
 	if (count + p > total_size)
 		count = total_size - p;
 
-	buffer = kmalloc((count > PAGE_SIZE) ? PAGE_SIZE : count, GFP_KERNEL);
+	buffer = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -1059,24 +1062,13 @@ static ssize_t smtcfb_read(struct fb_info *info, char __user *buf,
 	while (count) {
 		c = (count > PAGE_SIZE) ? PAGE_SIZE : count;
 		dst = buffer;
-		for (i = c >> 2; i--;) {
-			*dst = fb_readl(src++);
-			*dst = big_swap(*dst);
-			dst++;
-		}
-		if (c & 3) {
-			u8 *dst8 = (u8 *)dst;
-			u8 __iomem *src8 = (u8 __iomem *)src;
+		for (i = (c + 3) >> 2; i--;) {
+			u32 val;
 
-			for (i = c & 3; i--;) {
-				if (i & 1) {
-					*dst8++ = fb_readb(++src8);
-				} else {
-					*dst8++ = fb_readb(--src8);
-					src8 += 2;
-				}
-			}
-			src = (u32 __iomem *)src8;
+			val = fb_readl(src);
+			*dst = big_swap(val);
+			src++;
+			dst++;
 		}
 
 		if (copy_to_user(buf, buffer, c)) {
@@ -1104,11 +1096,8 @@ static ssize_t smtcfb_write(struct fb_info *info, const char __user *buf,
 	int c, i, cnt = 0, err = 0;
 	unsigned long total_size;
 
-	if (!info || !info->screen_base)
+	if (!info->screen_base)
 		return -ENODEV;
-
-	if (info->state != FBINFO_STATE_RUNNING)
-		return -EPERM;
 
 	total_size = info->screen_size;
 
@@ -1130,7 +1119,7 @@ static ssize_t smtcfb_write(struct fb_info *info, const char __user *buf,
 		count = total_size - p;
 	}
 
-	buffer = kmalloc((count > PAGE_SIZE) ? PAGE_SIZE : count, GFP_KERNEL);
+	buffer = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -1148,23 +1137,10 @@ static ssize_t smtcfb_write(struct fb_info *info, const char __user *buf,
 			break;
 		}
 
-		for (i = c >> 2; i--;) {
-			fb_writel(big_swap(*src), dst++);
+		for (i = (c + 3) >> 2; i--;) {
+			fb_writel(big_swap(*src), dst);
+			dst++;
 			src++;
-		}
-		if (c & 3) {
-			u8 *src8 = (u8 *)src;
-			u8 __iomem *dst8 = (u8 __iomem *)dst;
-
-			for (i = c & 3; i--;) {
-				if (i & 1) {
-					fb_writeb(*src8++, ++dst8);
-				} else {
-					fb_writeb(*src8++, --dst8);
-					dst8 += 2;
-				}
-			}
-			dst = (u32 __iomem *)dst8;
 		}
 
 		*ppos += c;
@@ -1369,17 +1345,16 @@ static int smtc_set_par(struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops smtcfb_ops = {
+static const struct fb_ops smtcfb_ops = {
 	.owner        = THIS_MODULE,
 	.fb_check_var = smtc_check_var,
 	.fb_set_par   = smtc_set_par,
 	.fb_setcolreg = smtc_setcolreg,
 	.fb_blank     = smtc_blank,
-	.fb_fillrect  = cfb_fillrect,
-	.fb_imageblit = cfb_imageblit,
-	.fb_copyarea  = cfb_copyarea,
+	__FB_DEFAULT_IOMEM_OPS_DRAW,
 	.fb_read      = smtcfb_read,
 	.fb_write     = smtcfb_write,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 };
 
 /*
@@ -1429,6 +1404,8 @@ static int smtc_map_smem(struct smtcfb_info *sfb,
 static void smtc_unmap_smem(struct smtcfb_info *sfb)
 {
 	if (sfb && sfb->fb->screen_base) {
+		if (sfb->chip_id == 0x720)
+			sfb->fb->screen_base -= 0x00200000;
 		iounmap(sfb->fb->screen_base);
 		sfb->fb->screen_base = NULL;
 	}
@@ -1524,6 +1501,10 @@ static int smtcfb_pci_probe(struct pci_dev *pdev,
 
 	dev_info(&pdev->dev, "Silicon Motion display driver.\n");
 
+	err = aperture_remove_conflicting_pci_devices(pdev, "smtcfb");
+	if (err)
+		return err;
+
 	err = pci_enable_device(pdev);	/* enable SMTC chip */
 	if (err)
 		return err;
@@ -1546,7 +1527,6 @@ static int smtcfb_pci_probe(struct pci_dev *pdev,
 	sfb->fb = info;
 	sfb->chip_id = ent->device;
 	sfb->pdev = pdev;
-	info->flags = FBINFO_FLAG_DEFAULT;
 	info->fbops = &smtcfb_ops;
 	info->fix = smtcfb_fix;
 	info->var = smtcfb_var;
@@ -1602,6 +1582,14 @@ static int smtcfb_pci_probe(struct pci_dev *pdev,
 		sfb->fb->fix.mmio_start = mmio_base;
 		sfb->fb->fix.mmio_len = 0x00200000;
 		sfb->dp_regs = ioremap(mmio_base, 0x00200000 + smem_size);
+		if (!sfb->dp_regs) {
+			dev_err(&pdev->dev,
+				"%s: unable to map memory mapped IO!\n",
+				sfb->fb->fix.id);
+			err = -ENOMEM;
+			goto failed_fb;
+		}
+
 		sfb->lfb = sfb->dp_regs + 0x00200000;
 		sfb->mmio = (smtc_regbaseaddress =
 		    sfb->dp_regs + 0x000c0000);
@@ -1614,7 +1602,7 @@ static int smtcfb_pci_probe(struct pci_dev *pdev,
 	default:
 		dev_err(&pdev->dev,
 			"No valid Silicon Motion display chip was detected!\n");
-
+		err = -ENODEV;
 		goto failed_fb;
 	}
 
@@ -1764,6 +1752,9 @@ static struct pci_driver smtcfb_driver = {
 static int __init sm712fb_init(void)
 {
 	char *option = NULL;
+
+	if (fb_modesetting_disabled("sm712fb"))
+		return -ENODEV;
 
 	if (fb_get_options("sm712fb", &option))
 		return -ENODEV;

@@ -10,7 +10,6 @@
 #include "dm.h"
 #include "hw.h"
 #include "fw.h"
-#include "sw.h"
 #include "trx.h"
 #include "led.h"
 #include "table.h"
@@ -23,9 +22,6 @@ static void rtl8821ae_init_aspm_vars(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
-
-	/*close ASPM for AMD defaultly */
-	rtlpci->const_amdpci_aspm = 0;
 
 	/**
 	 * ASPM PS mode.
@@ -65,7 +61,7 @@ static void rtl8821ae_init_aspm_vars(struct ieee80211_hw *hw)
 }
 
 /*InitializeVariables8812E*/
-int rtl8821ae_init_sw_vars(struct ieee80211_hw *hw)
+static int rtl8821ae_init_sw_vars(struct ieee80211_hw *hw)
 {
 	int err = 0;
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -77,9 +73,9 @@ int rtl8821ae_init_sw_vars(struct ieee80211_hw *hw)
 	rtl8821ae_bt_reg_init(hw);
 	rtlpriv->btcoexist.btc_ops = rtl_btc_get_ops_pointer();
 
-	rtlpriv->dm.dm_initialgain_enable = 1;
+	rtlpriv->dm.dm_initialgain_enable = true;
 	rtlpriv->dm.dm_flag = 0;
-	rtlpriv->dm.disable_framebursting = 0;
+	rtlpriv->dm.disable_framebursting = false;
 	rtlpriv->dm.thermalvalue = 0;
 	rtlpci->transmit_config = CFENDFORM | BIT(15) | BIT(24) | BIT(25);
 
@@ -211,7 +207,7 @@ int rtl8821ae_init_sw_vars(struct ieee80211_hw *hw)
 	return 0;
 }
 
-void rtl8821ae_deinit_sw_vars(struct ieee80211_hw *hw)
+static void rtl8821ae_deinit_sw_vars(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
@@ -228,7 +224,7 @@ void rtl8821ae_deinit_sw_vars(struct ieee80211_hw *hw)
 }
 
 /* get bt coexist status */
-bool rtl8821ae_get_btc_status(void)
+static bool rtl8821ae_get_btc_status(void)
 {
 	return true;
 }
@@ -270,7 +266,6 @@ static struct rtl_hal_ops rtl8821ae_hal_ops = {
 	.tx_polling = rtl8821ae_tx_polling,
 	.enable_hw_sec = rtl8821ae_enable_hw_security_config,
 	.set_key = rtl8821ae_set_key,
-	.init_sw_leds = rtl8821ae_init_sw_leds,
 	.get_bbreg = rtl8821ae_phy_query_bb_reg,
 	.set_bbreg = rtl8821ae_phy_set_bb_reg,
 	.get_rfreg = rtl8821ae_phy_query_rf_reg,

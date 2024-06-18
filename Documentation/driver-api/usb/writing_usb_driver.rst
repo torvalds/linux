@@ -57,9 +57,12 @@ structure. The skeleton driver declares a :c:type:`usb_driver` as::
 	    .name        = "skeleton",
 	    .probe       = skel_probe,
 	    .disconnect  = skel_disconnect,
-	    .fops        = &skel_fops,
-	    .minor       = USB_SKEL_MINOR_BASE,
+	    .suspend     = skel_suspend,
+	    .resume      = skel_resume,
+	    .pre_reset   = skel_pre_reset,
+	    .post_reset  = skel_post_reset,
 	    .id_table    = skel_table,
+	    .supports_autosuspend = 1,
     };
 
 
@@ -81,7 +84,7 @@ this user-space interaction. The skeleton driver needs this kind of
 interface, so it provides a minor starting number and a pointer to its
 :c:type:`file_operations` functions.
 
-The USB driver is then registered with a call to :c:func:`usb_register`,
+The USB driver is then registered with a call to usb_register(),
 usually in the driver's init function, as shown here::
 
     static int __init usb_skel_init(void)
@@ -91,8 +94,8 @@ usually in the driver's init function, as shown here::
 	    /* register this driver with the USB subsystem */
 	    result = usb_register(&skel_driver);
 	    if (result < 0) {
-		    err("usb_register failed for the "__FILE__ "driver."
-			"Error number %d", result);
+		    pr_err("usb_register failed for the %s driver. Error number %d\n",
+		           skel_driver.name, result);
 		    return -1;
 	    }
 
@@ -102,7 +105,7 @@ usually in the driver's init function, as shown here::
 
 
 When the driver is unloaded from the system, it needs to deregister
-itself with the USB subsystem. This is done with the :c:func:`usb_deregister`
+itself with the USB subsystem. This is done with usb_deregister()
 function::
 
     static void __exit usb_skel_exit(void)
@@ -167,8 +170,8 @@ structure. This is done so that future calls to file operations will
 enable the driver to determine which device the user is addressing. All
 of this is done with the following code::
 
-    /* increment our usage count for the module */
-    ++skel->open_count;
+    /* increment our usage count for the device */
+    kref_get(&dev->kref);
 
     /* save our object in the file's private structure */
     file->private_data = dev;
@@ -185,24 +188,26 @@ space, points the urb to the data and submits the urb to the USB
 subsystem. This can be seen in the following code::
 
     /* we can only write as much as 1 urb will hold */
-    bytes_written = (count > skel->bulk_out_size) ? skel->bulk_out_size : count;
+    size_t writesize = min_t(size_t, count, MAX_TRANSFER);
 
     /* copy the data from user space into our urb */
-    copy_from_user(skel->write_urb->transfer_buffer, buffer, bytes_written);
+    copy_from_user(buf, user_buffer, writesize);
 
     /* set up our urb */
-    usb_fill_bulk_urb(skel->write_urb,
-		      skel->dev,
-		      usb_sndbulkpipe(skel->dev, skel->bulk_out_endpointAddr),
-		      skel->write_urb->transfer_buffer,
-		      bytes_written,
+    usb_fill_bulk_urb(urb,
+		      dev->udev,
+		      usb_sndbulkpipe(dev->udev, dev->bulk_out_endpointAddr),
+		      buf,
+		      writesize,
 		      skel_write_bulk_callback,
-		      skel);
+		      dev);
 
     /* send the data out the bulk port */
-    result = usb_submit_urb(skel->write_urb);
-    if (result) {
-	    err("Failed submitting write urb, error %d", result);
+    retval = usb_submit_urb(urb, GFP_KERNEL);
+    if (retval) {
+	    dev_err(&dev->interface->dev,
+                "%s - failed submitting write urb, error %d\n",
+                __func__, retval);
     }
 
 
@@ -231,7 +236,7 @@ error message. This can be shown with the following code::
 			   skel->bulk_in_endpointAddr),
 			   skel->bulk_in_buffer,
 			   skel->bulk_in_size,
-			   &count, HZ*10);
+			   &count, 5000);
     /* if the read was successful, copy the data to user space */
     if (!retval) {
 	    if (copy_to_user (buffer, skel->bulk_in_buffer, count))
@@ -314,13 +319,10 @@ http://www.linux-usb.org/
 Linux Hotplug Project:
 http://linux-hotplug.sourceforge.net/
 
-Linux USB Working Devices List:
-http://www.qbik.ch/usb/devices/
-
-linux-usb-devel Mailing List Archives:
-http://marc.theaimsgroup.com/?l=linux-usb-devel
+linux-usb Mailing List Archives:
+https://lore.kernel.org/linux-usb/
 
 Programming Guide for Linux USB Device Drivers:
-http://lmu.web.psi.ch/docu/manuals/software_manuals/linux_sl/usb_linux_programming_guide.pdf
+https://lmu.web.psi.ch/docu/manuals/software_manuals/linux_sl/usb_linux_programming_guide.pdf
 
-USB Home Page: http://www.usb.org
+USB Home Page: https://www.usb.org

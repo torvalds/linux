@@ -38,7 +38,7 @@
 struct mlx5_flow_cmds {
 	int (*create_flow_table)(struct mlx5_flow_root_namespace *ns,
 				 struct mlx5_flow_table *ft,
-				 unsigned int log_size,
+				 struct mlx5_flow_table_attr *ft_attr,
 				 struct mlx5_flow_table *next_ft);
 	int (*destroy_flow_table)(struct mlx5_flow_root_namespace *ns,
 				  struct mlx5_flow_table *ft);
@@ -77,9 +77,7 @@ struct mlx5_flow_cmds {
 			      bool disconnect);
 
 	int (*packet_reformat_alloc)(struct mlx5_flow_root_namespace *ns,
-				     int reformat_type,
-				     size_t size,
-				     void *reformat_data,
+				     struct mlx5_pkt_reformat_params *params,
 				     enum mlx5_flow_namespace_type namespace,
 				     struct mlx5_pkt_reformat *pkt_reformat);
 
@@ -95,10 +93,18 @@ struct mlx5_flow_cmds {
 				      struct mlx5_modify_hdr *modify_hdr);
 
 	int (*set_peer)(struct mlx5_flow_root_namespace *ns,
-			struct mlx5_flow_root_namespace *peer_ns);
+			struct mlx5_flow_root_namespace *peer_ns,
+			u16 peer_vhca_id);
 
 	int (*create_ns)(struct mlx5_flow_root_namespace *ns);
 	int (*destroy_ns)(struct mlx5_flow_root_namespace *ns);
+	int (*create_match_definer)(struct mlx5_flow_root_namespace *ns,
+				    u16 format_id, u32 *match_mask);
+	int (*destroy_match_definer)(struct mlx5_flow_root_namespace *ns,
+				     int definer_id);
+
+	u32 (*get_capabilities)(struct mlx5_flow_root_namespace *ns,
+				enum fs_flow_table_type ft_type);
 };
 
 int mlx5_cmd_fc_alloc(struct mlx5_core_dev *dev, u32 *id);
@@ -116,4 +122,6 @@ int mlx5_cmd_fc_bulk_query(struct mlx5_core_dev *dev, u32 base_id, int bulk_len,
 const struct mlx5_flow_cmds *mlx5_fs_cmd_get_default(enum fs_flow_table_type type);
 const struct mlx5_flow_cmds *mlx5_fs_cmd_get_fw_cmds(void);
 
+int mlx5_fs_cmd_set_l2table_entry_silent(struct mlx5_core_dev *dev, u8 silent_mode);
+int mlx5_fs_cmd_set_tx_flow_table_root(struct mlx5_core_dev *dev, u32 ft_id, bool disconnect);
 #endif

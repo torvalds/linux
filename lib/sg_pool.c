@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/scatterlist.h>
 #include <linux/mempool.h>
 #include <linux/slab.h>
@@ -90,7 +90,8 @@ void sg_free_table_chained(struct sg_table *table,
 	if (nents_first_chunk == 1)
 		nents_first_chunk = 0;
 
-	__sg_free_table(table, SG_CHUNK_SIZE, nents_first_chunk, sg_pool_free);
+	__sg_free_table(table, SG_CHUNK_SIZE, nents_first_chunk, sg_pool_free,
+			table->orig_nents);
 }
 EXPORT_SYMBOL_GPL(sg_free_table_chained);
 
@@ -176,16 +177,4 @@ cleanup_sdb:
 	return -ENOMEM;
 }
 
-static __exit void sg_pool_exit(void)
-{
-	int i;
-
-	for (i = 0; i < SG_MEMPOOL_NR; i++) {
-		struct sg_pool *sgp = sg_pools + i;
-		mempool_destroy(sgp->pool);
-		kmem_cache_destroy(sgp->slab);
-	}
-}
-
-module_init(sg_pool_init);
-module_exit(sg_pool_exit);
+subsys_initcall(sg_pool_init);

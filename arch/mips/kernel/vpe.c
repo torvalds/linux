@@ -6,9 +6,9 @@
  * Copyright (C) 2004, 2005 MIPS Technologies, Inc.  All rights reserved.
  * Copyright (C) 2013 Imagination Technologies Ltd.
  *
- * VPE spport module for loading a MIPS SP program into VPE1. The SP
+ * VPE support module for loading a MIPS SP program into VPE1. The SP
  * environment is rather simple since there are no TLBs. It needs
- * to be relocatable (or partiall linked). Initialize your stack in
+ * to be relocatable (or partially linked). Initialize your stack in
  * the startup-code. The loader looks for the symbol __start and sets
  * up the execution to resume from there. To load and run, simply do
  * a cat SP 'binary' to the /dev/vpe1 device.
@@ -134,7 +134,7 @@ void release_vpe(struct vpe *v)
 {
 	list_del(&v->list);
 	if (v->load_addr)
-		release_progmem(v);
+		release_progmem(v->load_addr);
 	kfree(v);
 }
 
@@ -199,18 +199,17 @@ static void layout_sections(struct module *mod, const Elf_Ehdr *hdr,
 	for (m = 0; m < ARRAY_SIZE(masks); ++m) {
 		for (i = 0; i < hdr->e_shnum; ++i) {
 			Elf_Shdr *s = &sechdrs[i];
+			struct module_memory *mod_mem;
+
+			mod_mem = &mod->mem[MOD_TEXT];
 
 			if ((s->sh_flags & masks[m][0]) != masks[m][0]
 			    || (s->sh_flags & masks[m][1])
 			    || s->sh_entsize != ~0UL)
 				continue;
 			s->sh_entsize =
-				get_offset((unsigned long *)&mod->core_layout.size, s);
+				get_offset((unsigned long *)&mod_mem->size, s);
 		}
-
-		if (m == 0)
-			mod->core_layout.text_size = mod->core_layout.size;
-
 	}
 }
 
@@ -641,7 +640,7 @@ static int vpe_elfload(struct vpe *v)
 		layout_sections(&mod, hdr, sechdrs, secstrings);
 	}
 
-	v->load_addr = alloc_progmem(mod.core_layout.size);
+	v->load_addr = alloc_progmem(mod.mem[MOD_TEXT].size);
 	if (!v->load_addr)
 		return -ENOMEM;
 
@@ -746,28 +745,12 @@ static int vpe_elfload(struct vpe *v)
 	return 0;
 }
 
-static int getcwd(char *buff, int size)
-{
-	mm_segment_t old_fs;
-	int ret;
-
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-
-	ret = sys_getcwd(buff, size);
-
-	set_fs(old_fs);
-
-	return ret;
-}
-
 /* checks VPE is unused and gets ready to load program	*/
 static int vpe_open(struct inode *inode, struct file *filp)
 {
 	enum vpe_state state;
 	struct vpe_notifications *notifier;
 	struct vpe *v;
-	int ret;
 
 	if (VPE_MODULE_MINOR != iminor(inode)) {
 		/* assume only 1 device at the moment. */
@@ -803,12 +786,6 @@ static int vpe_open(struct inode *inode, struct file *filp)
 	v->plen = P_SIZE;
 	v->load_addr = NULL;
 	v->len = 0;
-
-	v->cwd[0] = 0;
-	ret = getcwd(v->cwd, VPE_PATH_MAX);
-	if (ret < 0)
-		pr_warn("VPE loader: open, getcwd returned %d\n", ret);
-
 	v->shared_ptr = NULL;
 	v->__start = 0;
 
@@ -817,7 +794,7 @@ static int vpe_open(struct inode *inode, struct file *filp)
 
 static int vpe_release(struct inode *inode, struct file *filp)
 {
-#if defined(CONFIG_MIPS_VPE_LOADER_MT) || defined(CONFIG_MIPS_VPE_LOADER_CMP)
+#ifdef CONFIG_MIPS_VPE_LOADER_MT
 	struct vpe *v;
 	Elf_Ehdr *hdr;
 	int ret = 0;
@@ -914,17 +891,6 @@ int vpe_notify(int index, struct vpe_notifications *notify)
 	return 0;
 }
 EXPORT_SYMBOL(vpe_notify);
-
-char *vpe_getcwd(int index)
-{
-	struct vpe *v = get_vpe(index);
-
-	if (v == NULL)
-		return NULL;
-
-	return v->cwd;
-}
-EXPORT_SYMBOL(vpe_getcwd);
 
 module_init(vpe_module_init);
 module_exit(vpe_module_exit);

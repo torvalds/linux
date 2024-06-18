@@ -39,6 +39,7 @@ enum {
 	MAX8998_ENVICHG,
 	MAX8998_ESAFEOUT1,
 	MAX8998_ESAFEOUT2,
+	MAX8998_CHARGER,
 };
 
 /**
@@ -64,10 +65,7 @@ struct max8998_regulator_data {
  *   be other than the preset values.
  * @buck1_voltage: BUCK1 DVS mode 1 voltage registers
  * @buck2_voltage: BUCK2 DVS mode 2 voltage registers
- * @buck1_set1: BUCK1 gpio pin 1 to set output voltage
- * @buck1_set2: BUCK1 gpio pin 2 to set output voltage
  * @buck1_default_idx: Default for BUCK1 gpio pin 1, 2
- * @buck2_set3: BUCK2 gpio pin to set output voltage
  * @buck2_default_idx: Default for BUCK2 gpio pin.
  * @wakeup: Allow to wake up from suspend
  * @rtc_delay: LP3974 RTC chip bug that requires delay after a register
@@ -90,10 +88,7 @@ struct max8998_platform_data {
 	bool				buck_voltage_lock;
 	int				buck1_voltage[4];
 	int				buck2_voltage[2];
-	int				buck1_set1;
-	int				buck1_set2;
 	int				buck1_default_idx;
-	int				buck2_set3;
 	int				buck2_default_idx;
 	bool				wakeup;
 	bool				rtc_delay;

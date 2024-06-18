@@ -18,6 +18,10 @@ Required properties:
 Optional properties:
 	- enable-gpios : gpio pin to enable/disable the device.
 	- vled-supply : LED supply
+	- ti,ovp-microvolt: Overvoltage protection in
+	    micro-volt, can be 17000000, 21000000, 25000000 or
+	    29000000. If ti,ovp-microvolt is not specified it
+	    defaults to 29000000.
 
 Required child properties:
 	- reg : 0 - Will enable all LED sync paths
@@ -30,6 +34,8 @@ Optional child properties:
 	- color : see Documentation/devicetree/bindings/leds/common.txt
 	- label : see Documentation/devicetree/bindings/leds/common.txt (deprecated)
 	- linux,default-trigger :
+	   see Documentation/devicetree/bindings/leds/common.txt
+	- led-max-microamp :
 	   see Documentation/devicetree/bindings/leds/common.txt
 
 Example:
@@ -44,14 +50,16 @@ led-controller@36 {
 
 	enable-gpios = <&gpio1 28 GPIO_ACTIVE_HIGH>;
 	vled-supply = <&vbatt>;
+	ti,ovp-microvolt = <29000000>;
 
 	led@0 {
 		reg = <0>;
 		function = LED_FUNCTION_BACKLIGHT;
 		color = <LED_COLOR_ID_WHITE>;
 		linux,default-trigger = "backlight";
+		led-max-microamp = <20000>;
 	};
 }
 
 For more product information please see the link below:
-http://www.ti.com/lit/ds/snvsa29/snvsa29.pdf
+https://www.ti.com/lit/ds/snvsa29/snvsa29.pdf

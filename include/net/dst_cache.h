@@ -76,8 +76,19 @@ struct dst_entry *dst_cache_get_ip6(struct dst_cache *dst_cache,
  */
 static inline void dst_cache_reset(struct dst_cache *dst_cache)
 {
-	dst_cache->reset_ts = jiffies;
+	WRITE_ONCE(dst_cache->reset_ts, jiffies);
 }
+
+/**
+ *	dst_cache_reset_now - invalidate the cache contents immediately
+ *	@dst_cache: the cache
+ *
+ *	The caller must be sure there are no concurrent users, as this frees
+ *	all dst_cache users immediately, rather than waiting for the next
+ *	per-cpu usage like dst_cache_reset does. Most callers should use the
+ *	higher speed lazily-freed dst_cache_reset function instead.
+ */
+void dst_cache_reset_now(struct dst_cache *dst_cache);
 
 /**
  *	dst_cache_init - initialize the cache, allocating the required storage

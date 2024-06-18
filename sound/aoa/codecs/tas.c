@@ -58,13 +58,12 @@
  *    and up to the hardware designer to not wire
  *    them up in some weird unusable way.
  */
-#include <stddef.h>
 #include <linux/i2c.h>
 #include <asm/pmac_low_i2c.h>
-#include <asm/prom.h>
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/of.h>
 #include <linux/slab.h>
 
 MODULE_AUTHOR("Johannes Berg <johannes@sipsolutions.net>");
@@ -217,7 +216,7 @@ static int tas_dev_register(struct snd_device *dev)
 	return 0;
 }
 
-static struct snd_device_ops ops = {
+static const struct snd_device_ops ops = {
 	.dev_register = tas_dev_register,
 };
 
@@ -369,7 +368,7 @@ static int tas_snd_mixer_put(struct snd_kcontrol *kcontrol,
 }
 
 #define MIXER_CONTROL(n,descr,idx)			\
-static struct snd_kcontrol_new n##_control = {		\
+static const struct snd_kcontrol_new n##_control = {	\
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,		\
 	.name = descr " Playback Volume",		\
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,	\
@@ -876,8 +875,7 @@ static void tas_exit_codec(struct aoa_codec *codec)
 }
 
 
-static int tas_i2c_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int tas_i2c_probe(struct i2c_client *client)
 {
 	struct device_node *node = client->dev.of_node;
 	struct tas *tas;
@@ -894,7 +892,7 @@ static int tas_i2c_probe(struct i2c_client *client,
 	/* seems that half is a saner default */
 	tas->drc_range = TAS3004_DRC_MAX / 2;
 
-	strlcpy(tas->codec.name, "tas", MAX_CODEC_NAME_LEN);
+	strscpy(tas->codec.name, "tas", MAX_CODEC_NAME_LEN);
 	tas->codec.owner = THIS_MODULE;
 	tas->codec.init = tas_init_codec;
 	tas->codec.exit = tas_exit_codec;
@@ -913,7 +911,7 @@ static int tas_i2c_probe(struct i2c_client *client,
 	return -EINVAL;
 }
 
-static int tas_i2c_remove(struct i2c_client *client)
+static void tas_i2c_remove(struct i2c_client *client)
 {
 	struct tas *tas = i2c_get_clientdata(client);
 	u8 tmp = TAS_ACR_ANALOG_PDOWN;
@@ -926,7 +924,6 @@ static int tas_i2c_remove(struct i2c_client *client)
 
 	mutex_destroy(&tas->mtx);
 	kfree(tas);
-	return 0;
 }
 
 static const struct i2c_device_id tas_i2c_id[] = {

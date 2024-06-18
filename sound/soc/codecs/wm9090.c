@@ -139,7 +139,7 @@ static void wait_for_dc_servo(struct snd_soc_component *component)
 	do {
 		count++;
 		msleep(1);
-		reg = snd_soc_component_read32(component, WM9090_DC_SERVO_READBACK_0);
+		reg = snd_soc_component_read(component, WM9090_DC_SERVO_READBACK_0);
 		dev_dbg(component->dev, "DC servo status: %x\n", reg);
 	} while ((reg & WM9090_DCS_CAL_COMPLETE_MASK)
 		 != WM9090_DCS_CAL_COMPLETE_MASK && count < 1000);
@@ -239,7 +239,7 @@ static int hp_ev(struct snd_soc_dapm_widget *w,
 		 struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
-	unsigned int reg = snd_soc_component_read32(component, WM9090_ANALOGUE_HP_0);
+	unsigned int reg = snd_soc_component_read(component, WM9090_ANALOGUE_HP_0);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -543,8 +543,6 @@ static const struct snd_soc_component_driver soc_component_dev_wm9090 = {
 	.suspend_bias_off	= 1,
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
-	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config wm9090_regmap = {
@@ -555,14 +553,13 @@ static const struct regmap_config wm9090_regmap = {
 	.volatile_reg = wm9090_volatile,
 	.readable_reg = wm9090_readable,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = wm9090_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm9090_reg_defaults),
 };
 
 
-static int wm9090_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int wm9090_i2c_probe(struct i2c_client *i2c)
 {
 	struct wm9090_priv *wm9090;
 	unsigned int reg;
@@ -609,8 +606,8 @@ static int wm9090_i2c_probe(struct i2c_client *i2c,
 }
 
 static const struct i2c_device_id wm9090_id[] = {
-	{ "wm9090", 0 },
-	{ "wm9093", 0 },
+	{ "wm9090" },
+	{ "wm9093" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm9090_id);

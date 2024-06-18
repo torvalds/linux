@@ -1,52 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright(c) 2015 - 2018 Intel Corporation.
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * BSD LICENSE
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
+ * Copyright(c) 2015 - 2020 Intel Corporation.
  */
 #define CREATE_TRACE_POINTS
 #include "trace.h"
 #include "exp_rcv.h"
+#include "ipoib.h"
 
 static u8 __get_ib_hdr_len(struct ib_header *hdr)
 {
@@ -126,6 +85,7 @@ const char *hfi1_trace_get_packet_l2_str(u8 l2)
 #define RETH_PRN "reth vaddr:0x%.16llx rkey:0x%.8x dlen:0x%.8x"
 #define AETH_PRN "aeth syn:0x%.2x %s msn:0x%.8x"
 #define DETH_PRN "deth qkey:0x%.8x sqpn:0x%.6x"
+#define DETH_ENTROPY_PRN "deth qkey:0x%.8x sqpn:0x%.6x entropy:0x%.2x"
 #define IETH_PRN "ieth rkey:0x%.8x"
 #define ATOMICACKETH_PRN "origdata:%llx"
 #define ATOMICETH_PRN "vaddr:0x%llx rkey:0x%.8x sdata:%llx cdata:%llx"
@@ -185,6 +145,11 @@ void hfi1_trace_parse_16b_bth(struct ib_other_headers *ohdr,
 	*tver = ib_bth_get_tver(ohdr);
 	*psn = mask_psn(ib_bth_get_psn(ohdr));
 	*qpn = ib_bth_get_qpn(ohdr);
+}
+
+static u16 ib_get_len(const struct ib_header *hdr)
+{
+	return be16_to_cpu(hdr->lrh[2]);
 }
 
 void hfi1_trace_parse_9b_hdr(struct ib_header *hdr, bool sc5,
@@ -444,6 +409,12 @@ const char *parse_everbs_hdrs(
 		break;
 	/* deth */
 	case OP(UD, SEND_ONLY):
+		trace_seq_printf(p, DETH_ENTROPY_PRN,
+				 be32_to_cpu(eh->ud.deth[0]),
+				 be32_to_cpu(eh->ud.deth[1]) & RVT_QPN_MASK,
+				 be32_to_cpu(eh->ud.deth[1]) >>
+					     HFI1_IPOIB_ENTROPY_SHIFT);
+		break;
 	case OP(UD, SEND_ONLY_WITH_IMMEDIATE):
 		trace_seq_printf(p, DETH_PRN,
 				 be32_to_cpu(eh->ud.deth[0]),
@@ -510,6 +481,38 @@ u16 hfi1_trace_get_tid_len(u32 ent)
 u16 hfi1_trace_get_tid_idx(u32 ent)
 {
 	return EXP_TID_GET(ent, IDX);
+}
+
+struct hfi1_ctxt_hist {
+	atomic_t count;
+	atomic_t data[255];
+};
+
+static struct hfi1_ctxt_hist hist = {
+	.count = ATOMIC_INIT(0)
+};
+
+const char *hfi1_trace_print_rsm_hist(struct trace_seq *p, unsigned int ctxt)
+{
+	int i, len = ARRAY_SIZE(hist.data);
+	const char *ret = trace_seq_buffer_ptr(p);
+	unsigned long packet_count = atomic_fetch_inc(&hist.count);
+
+	trace_seq_printf(p, "packet[%lu]", packet_count);
+	for (i = 0; i < len; ++i) {
+		unsigned long val;
+		atomic_t *count = &hist.data[i];
+
+		if (ctxt == i)
+			val = atomic_fetch_inc(count);
+		else
+			val = atomic_read(count);
+
+		if (val)
+			trace_seq_printf(p, "(%d:%lu)", i, val);
+	}
+	trace_seq_putc(p, 0);
+	return ret;
 }
 
 __hfi1_trace_fn(AFFINITY);

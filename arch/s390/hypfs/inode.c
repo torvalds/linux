@@ -53,7 +53,7 @@ static void hypfs_update_update(struct super_block *sb)
 	struct inode *inode = d_inode(sb_info->update_file);
 
 	sb_info->last_update = ktime_get_seconds();
-	inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
+	simple_inode_init_ts(inode);
 }
 
 /* directory tree removal functions */
@@ -101,7 +101,7 @@ static struct inode *hypfs_make_inode(struct super_block *sb, umode_t mode)
 		ret->i_mode = mode;
 		ret->i_uid = hypfs_info->uid;
 		ret->i_gid = hypfs_info->gid;
-		ret->i_atime = ret->i_mtime = ret->i_ctime = current_time(ret);
+		simple_inode_init_ts(ret);
 		if (S_ISDIR(mode))
 			set_nlink(ret, 2);
 	}
@@ -209,15 +209,10 @@ static int hypfs_release(struct inode *inode, struct file *filp)
 
 enum { Opt_uid, Opt_gid, };
 
-static const struct fs_parameter_spec hypfs_param_specs[] = {
+static const struct fs_parameter_spec hypfs_fs_parameters[] = {
 	fsparam_u32("gid", Opt_gid),
 	fsparam_u32("uid", Opt_uid),
 	{}
-};
-
-static const struct fs_parameter_description hypfs_fs_parameters = {
-	.name		= "hypfs",
-	.specs		= hypfs_param_specs,
 };
 
 static int hypfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
@@ -228,7 +223,7 @@ static int hypfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	kgid_t gid;
 	int opt;
 
-	opt = fs_parse(fc, &hypfs_fs_parameters, param, &result);
+	opt = fs_parse(fc, hypfs_fs_parameters, param, &result);
 	if (opt < 0)
 		return opt;
 
@@ -455,7 +450,7 @@ static struct file_system_type hypfs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "s390_hypfs",
 	.init_fs_context = hypfs_init_fs_context,
-	.parameters	= &hypfs_fs_parameters,
+	.parameters	= hypfs_fs_parameters,
 	.kill_sb	= hypfs_kill_super
 };
 
@@ -465,45 +460,18 @@ static const struct super_operations hypfs_s_ops = {
 	.show_options	= hypfs_show_options,
 };
 
-static int __init hypfs_init(void)
+int __init __hypfs_fs_init(void)
 {
 	int rc;
 
-	hypfs_dbfs_init();
-
-	if (hypfs_diag_init()) {
-		rc = -ENODATA;
-		goto fail_dbfs_exit;
-	}
-	if (hypfs_vm_init()) {
-		rc = -ENODATA;
-		goto fail_hypfs_diag_exit;
-	}
-	hypfs_sprp_init();
-	if (hypfs_diag0c_init()) {
-		rc = -ENODATA;
-		goto fail_hypfs_sprp_exit;
-	}
 	rc = sysfs_create_mount_point(hypervisor_kobj, "s390");
 	if (rc)
-		goto fail_hypfs_diag0c_exit;
+		return rc;
 	rc = register_filesystem(&hypfs_type);
 	if (rc)
-		goto fail_filesystem;
+		goto fail;
 	return 0;
-
-fail_filesystem:
+fail:
 	sysfs_remove_mount_point(hypervisor_kobj, "s390");
-fail_hypfs_diag0c_exit:
-	hypfs_diag0c_exit();
-fail_hypfs_sprp_exit:
-	hypfs_sprp_exit();
-	hypfs_vm_exit();
-fail_hypfs_diag_exit:
-	hypfs_diag_exit();
-fail_dbfs_exit:
-	hypfs_dbfs_exit();
-	pr_err("Initialization of hypfs failed with rc=%i\n", rc);
 	return rc;
 }
-device_initcall(hypfs_init)

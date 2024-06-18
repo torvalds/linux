@@ -3,6 +3,7 @@
  * Freescale Management Complex (MC) bus public interface
  *
  * Copyright (C) 2014-2016 Freescale Semiconductor, Inc.
+ * Copyright 2019-2020 NXP
  * Author: German Rivera <German.Rivera@freescale.com>
  *
  */
@@ -12,6 +13,7 @@
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
 #include <linux/interrupt.h>
+#include <uapi/linux/fsl_mc.h>
 
 #define FSL_MC_VENDOR_FREESCALE	0x1957
 
@@ -30,6 +32,13 @@ struct fsl_mc_io;
  * @shutdown: Function called at shutdown time to quiesce the device
  * @suspend: Function called when a device is stopped
  * @resume: Function called when a device is resumed
+ * @driver_managed_dma: Device driver doesn't use kernel DMA API for DMA.
+ *		For most device drivers, no need to care about this flag
+ *		as long as all DMAs are handled through the kernel DMA API.
+ *		For some special ones, for example VFIO drivers, they know
+ *		how to manage the DMA themselves and set this flag so that
+ *		the IOMMU layer will allow them to setup and manage their
+ *		own I/O address space.
  *
  * Generic DPAA device driver object for device drivers that are registered
  * with a DPRC bus. This structure is to be embedded in each device-specific
@@ -39,10 +48,11 @@ struct fsl_mc_driver {
 	struct device_driver driver;
 	const struct fsl_mc_device_id *match_id_table;
 	int (*probe)(struct fsl_mc_device *dev);
-	int (*remove)(struct fsl_mc_device *dev);
+	void (*remove)(struct fsl_mc_device *dev);
 	void (*shutdown)(struct fsl_mc_device *dev);
 	int (*suspend)(struct fsl_mc_device *dev, pm_message_t state);
 	int (*resume)(struct fsl_mc_device *dev);
+	bool driver_managed_dma;
 };
 
 #define to_fsl_mc_driver(_drv) \
@@ -89,13 +99,13 @@ struct fsl_mc_resource {
 
 /**
  * struct fsl_mc_device_irq - MC object device message-based interrupt
- * @msi_desc: pointer to MSI descriptor allocated by fsl_mc_msi_alloc_descs()
+ * @virq: Linux virtual interrupt number
  * @mc_dev: MC object device that owns this interrupt
  * @dev_irq_index: device-relative IRQ index
  * @resource: MC generic resource associated with the interrupt
  */
 struct fsl_mc_device_irq {
-	struct msi_desc *msi_desc;
+	unsigned int virq;
 	struct fsl_mc_device *mc_dev;
 	u8 dev_irq_index;
 	struct fsl_mc_resource resource;
@@ -148,6 +158,13 @@ struct fsl_mc_obj_desc {
  */
 #define FSL_MC_IS_DPRC	0x0001
 
+/* Region flags */
+/* Indicates that region can be mapped as cacheable */
+#define FSL_MC_REGION_CACHEABLE	0x00000001
+
+/* Indicates that region can be mapped as shareable */
+#define FSL_MC_REGION_SHAREABLE	0x00000002
+
 /**
  * struct fsl_mc_device - MC object device object
  * @dev: Linux driver model device object
@@ -161,6 +178,9 @@ struct fsl_mc_obj_desc {
  * @regions: pointer to array of MMIO region entries
  * @irqs: pointer to array of pointers to interrupts allocated to this device
  * @resource: generic resource associated with this MC object device, if any.
+ * @driver_override: driver name to force a match; do not set directly,
+ *                   because core frees it; use driver_set_override() to
+ *                   set or clear it.
  *
  * Generic device object for MC object devices that are "attached" to a
  * MC bus.
@@ -186,7 +206,7 @@ struct fsl_mc_device {
 	struct device dev;
 	u64 dma_mask;
 	u16 flags;
-	u16 icid;
+	u32 icid;
 	u16 mc_handle;
 	struct fsl_mc_io *mc_io;
 	struct fsl_mc_obj_desc obj_desc;
@@ -194,12 +214,11 @@ struct fsl_mc_device {
 	struct fsl_mc_device_irq **irqs;
 	struct fsl_mc_resource *resource;
 	struct device_link *consumer_link;
+	const char *driver_override;
 };
 
 #define to_fsl_mc_device(_dev) \
 	container_of(_dev, struct fsl_mc_device, dev)
-
-#define MC_CMD_NUM_OF_PARAMS	7
 
 struct mc_cmd_header {
 	u8 src_id;
@@ -208,11 +227,6 @@ struct mc_cmd_header {
 	u8 flags_sw;
 	__le16 token;
 	__le16 cmd_id;
-};
-
-struct fsl_mc_command {
-	__le64 header;
-	__le64 params[MC_CMD_NUM_OF_PARAMS];
 };
 
 enum mc_cmd_status {
@@ -339,7 +353,7 @@ struct fsl_mc_io {
 		 * This field is only meaningful if the
 		 * FSL_MC_IO_ATOMIC_CONTEXT_PORTAL flag is set
 		 */
-		spinlock_t spinlock;	/* serializes mc_send_command() */
+		raw_spinlock_t spinlock; /* serializes mc_send_command() */
 	};
 };
 
@@ -381,6 +395,22 @@ int __must_check __fsl_mc_driver_register(struct fsl_mc_driver *fsl_mc_driver,
 
 void fsl_mc_driver_unregister(struct fsl_mc_driver *driver);
 
+/**
+ * struct fsl_mc_version
+ * @major: Major version number: incremented on API compatibility changes
+ * @minor: Minor version number: incremented on API additions (that are
+ *		backward compatible); reset when major version is incremented
+ * @revision: Internal revision number: incremented on implementation changes
+ *		and/or bug fixes that have no impact on API
+ */
+struct fsl_mc_version {
+	u32 major;
+	u32 minor;
+	u32 revision;
+};
+
+struct fsl_mc_version *fsl_mc_get_version(void);
+
 int __must_check fsl_mc_portal_allocate(struct fsl_mc_device *mc_dev,
 					u16 mc_io_flags,
 					struct fsl_mc_io **new_mc_io);
@@ -403,6 +433,9 @@ int __must_check fsl_mc_allocate_irqs(struct fsl_mc_device *mc_dev);
 
 void fsl_mc_free_irqs(struct fsl_mc_device *mc_dev);
 
+struct fsl_mc_device *fsl_mc_get_endpoint(struct fsl_mc_device *mc_dev,
+					  u16 if_id);
+
 extern struct bus_type fsl_mc_bus_type;
 
 extern struct device_type fsl_mc_bus_dprc_type;
@@ -415,6 +448,11 @@ extern struct device_type fsl_mc_bus_dpmcp_type;
 extern struct device_type fsl_mc_bus_dpmac_type;
 extern struct device_type fsl_mc_bus_dprtc_type;
 extern struct device_type fsl_mc_bus_dpseci_type;
+extern struct device_type fsl_mc_bus_dpdmux_type;
+extern struct device_type fsl_mc_bus_dpdcei_type;
+extern struct device_type fsl_mc_bus_dpaiop_type;
+extern struct device_type fsl_mc_bus_dpci_type;
+extern struct device_type fsl_mc_bus_dpdmai_type;
 
 static inline bool is_fsl_mc_bus_dprc(const struct fsl_mc_device *mc_dev)
 {
@@ -434,6 +472,11 @@ static inline bool is_fsl_mc_bus_dpio(const struct fsl_mc_device *mc_dev)
 static inline bool is_fsl_mc_bus_dpsw(const struct fsl_mc_device *mc_dev)
 {
 	return mc_dev->dev.type == &fsl_mc_bus_dpsw_type;
+}
+
+static inline bool is_fsl_mc_bus_dpdmux(const struct fsl_mc_device *mc_dev)
+{
+	return mc_dev->dev.type == &fsl_mc_bus_dpdmux_type;
 }
 
 static inline bool is_fsl_mc_bus_dpbp(const struct fsl_mc_device *mc_dev)
@@ -465,6 +508,55 @@ static inline bool is_fsl_mc_bus_dpseci(const struct fsl_mc_device *mc_dev)
 {
 	return mc_dev->dev.type == &fsl_mc_bus_dpseci_type;
 }
+
+static inline bool is_fsl_mc_bus_dpdcei(const struct fsl_mc_device *mc_dev)
+{
+	return mc_dev->dev.type == &fsl_mc_bus_dpdcei_type;
+}
+
+static inline bool is_fsl_mc_bus_dpaiop(const struct fsl_mc_device *mc_dev)
+{
+	return mc_dev->dev.type == &fsl_mc_bus_dpaiop_type;
+}
+
+static inline bool is_fsl_mc_bus_dpci(const struct fsl_mc_device *mc_dev)
+{
+	return mc_dev->dev.type == &fsl_mc_bus_dpci_type;
+}
+
+static inline bool is_fsl_mc_bus_dpdmai(const struct fsl_mc_device *mc_dev)
+{
+	return mc_dev->dev.type == &fsl_mc_bus_dpdmai_type;
+}
+
+#define DPRC_RESET_OPTION_NON_RECURSIVE                0x00000001
+int dprc_reset_container(struct fsl_mc_io *mc_io,
+			 u32 cmd_flags,
+			 u16 token,
+			 int child_container_id,
+			 u32 options);
+
+int dprc_scan_container(struct fsl_mc_device *mc_bus_dev,
+			bool alloc_interrupts);
+
+void dprc_remove_devices(struct fsl_mc_device *mc_bus_dev,
+			 struct fsl_mc_obj_desc *obj_desc_array,
+			 int num_child_objects_in_mc);
+
+int dprc_cleanup(struct fsl_mc_device *mc_dev);
+
+int dprc_setup(struct fsl_mc_device *mc_dev);
+
+/**
+ * Maximum number of total IRQs that can be pre-allocated for an MC bus'
+ * IRQ pool
+ */
+#define FSL_MC_IRQ_POOL_MAX_TOTAL_IRQS	256
+
+int fsl_mc_populate_irq_pool(struct fsl_mc_device *mc_bus_dev,
+			     unsigned int irq_count);
+
+void fsl_mc_cleanup_irq_pool(struct fsl_mc_device *mc_bus_dev);
 
 /*
  * Data Path Buffer Pool (DPBP) API
@@ -537,6 +629,20 @@ int dpcon_disable(struct fsl_mc_io *mc_io,
 int dpcon_reset(struct fsl_mc_io *mc_io,
 		u32 cmd_flags,
 		u16 token);
+
+int fsl_mc_obj_open(struct fsl_mc_io *mc_io,
+		    u32 cmd_flags,
+		    int obj_id,
+		    char *obj_type,
+		    u16 *token);
+
+int fsl_mc_obj_close(struct fsl_mc_io *mc_io,
+		     u32 cmd_flags,
+		     u16 token);
+
+int fsl_mc_obj_reset(struct fsl_mc_io *mc_io,
+		     u32 cmd_flags,
+		     u16 token);
 
 /**
  * struct dpcon_attr - Structure representing DPCON attributes

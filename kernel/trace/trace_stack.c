@@ -5,6 +5,7 @@
  */
 #include <linux/sched/task_stack.h>
 #include <linux/stacktrace.h>
+#include <linux/security.h>
 #include <linux/kallsyms.h>
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
@@ -282,9 +283,14 @@ static void check_stack(unsigned long ip, unsigned long *stack)
 	local_irq_restore(flags);
 }
 
+/* Some archs may not define MCOUNT_INSN_SIZE */
+#ifndef MCOUNT_INSN_SIZE
+# define MCOUNT_INSN_SIZE 0
+#endif
+
 static void
 stack_trace_call(unsigned long ip, unsigned long parent_ip,
-		 struct ftrace_ops *op, struct pt_regs *pt_regs)
+		 struct ftrace_ops *op, struct ftrace_regs *fregs)
 {
 	unsigned long stack;
 
@@ -312,7 +318,6 @@ stack_trace_call(unsigned long ip, unsigned long parent_ip,
 static struct ftrace_ops trace_ops __read_mostly =
 {
 	.func = stack_trace_call,
-	.flags = FTRACE_OPS_FL_RECURSION_SAFE,
 };
 
 static ssize_t
@@ -470,6 +475,12 @@ static const struct seq_operations stack_trace_seq_ops = {
 
 static int stack_trace_open(struct inode *inode, struct file *file)
 {
+	int ret;
+
+	ret = security_locked_down(LOCKDOWN_TRACEFS);
+	if (ret)
+		return ret;
+
 	return seq_open(file, &stack_trace_seq_ops);
 }
 
@@ -487,6 +498,7 @@ stack_trace_filter_open(struct inode *inode, struct file *file)
 {
 	struct ftrace_ops *ops = inode->i_private;
 
+	/* Checks for tracefs lockdown */
 	return ftrace_regex_open(ops, FTRACE_ITER_FILTER,
 				 inode, file);
 }
@@ -502,9 +514,8 @@ static const struct file_operations stack_trace_filter_fops = {
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
 int
-stack_trace_sysctl(struct ctl_table *table, int write,
-		   void __user *buffer, size_t *lenp,
-		   loff_t *ppos)
+stack_trace_sysctl(struct ctl_table *table, int write, void *buffer,
+		   size_t *lenp, loff_t *ppos)
 {
 	int was_enabled;
 	int ret;
@@ -542,20 +553,20 @@ __setup("stacktrace", enable_stacktrace);
 
 static __init int stack_trace_init(void)
 {
-	struct dentry *d_tracer;
+	int ret;
 
-	d_tracer = tracing_init_dentry();
-	if (IS_ERR(d_tracer))
+	ret = tracing_init_dentry();
+	if (ret)
 		return 0;
 
-	trace_create_file("stack_max_size", 0644, d_tracer,
+	trace_create_file("stack_max_size", TRACE_MODE_WRITE, NULL,
 			&stack_trace_max_size, &stack_max_size_fops);
 
-	trace_create_file("stack_trace", 0444, d_tracer,
+	trace_create_file("stack_trace", TRACE_MODE_READ, NULL,
 			NULL, &stack_trace_fops);
 
 #ifdef CONFIG_DYNAMIC_FTRACE
-	trace_create_file("stack_trace_filter", 0644, d_tracer,
+	trace_create_file("stack_trace_filter", TRACE_MODE_WRITE, NULL,
 			  &trace_ops, &stack_trace_filter_fops);
 #endif
 

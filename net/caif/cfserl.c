@@ -31,6 +31,11 @@ static int cfserl_transmit(struct cflayer *layr, struct cfpkt *pkt);
 static void cfserl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
 			   int phyid);
 
+void cfserl_release(struct cflayer *layer)
+{
+	kfree(layer);
+}
+
 struct cflayer *cfserl_create(int instance, bool use_stx)
 {
 	struct cfserl *this = kzalloc(sizeof(struct cfserl), GFP_ATOMIC);
@@ -123,7 +128,6 @@ static int cfserl_receive(struct cflayer *l, struct cfpkt *newpkt)
 				if (pkt != NULL)
 					cfpkt_destroy(pkt);
 				layr->incomplete_frm = NULL;
-				expectlen = 0;
 				spin_unlock(&layr->sync);
 				return -EPROTO;
 			}

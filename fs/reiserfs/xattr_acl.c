@@ -18,13 +18,15 @@ static int __reiserfs_set_acl(struct reiserfs_transaction_handle *th,
 
 
 int
-reiserfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+reiserfs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
+		 struct posix_acl *acl, int type)
 {
 	int error, error2;
 	struct reiserfs_transaction_handle th;
 	size_t jcreate_blocks;
 	int size = acl ? posix_acl_xattr_size(acl->a_count) : 0;
 	int update_mode = 0;
+	struct inode *inode = d_inode(dentry);
 	umode_t mode = inode->i_mode;
 
 	/*
@@ -40,7 +42,8 @@ reiserfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	reiserfs_write_unlock(inode->i_sb);
 	if (error == 0) {
 		if (type == ACL_TYPE_ACCESS && acl) {
-			error = posix_acl_update_mode(inode, &mode, &acl);
+			error = posix_acl_update_mode(&nop_mnt_idmap, inode,
+						      &mode, &acl);
 			if (error)
 				goto unlock;
 			update_mode = 1;
@@ -188,12 +191,15 @@ fail:
  * inode->i_mutex: down
  * BKL held [before 2.5.x]
  */
-struct posix_acl *reiserfs_get_acl(struct inode *inode, int type)
+struct posix_acl *reiserfs_get_acl(struct inode *inode, int type, bool rcu)
 {
 	char *name, *value;
 	struct posix_acl *acl;
 	int size;
 	int retval;
+
+	if (rcu)
+		return ERR_PTR(-ECHILD);
 
 	switch (type) {
 	case ACL_TYPE_ACCESS:
@@ -279,7 +285,7 @@ __reiserfs_set_acl(struct reiserfs_transaction_handle *th, struct inode *inode,
 	if (error == -ENODATA) {
 		error = 0;
 		if (type == ACL_TYPE_ACCESS) {
-			inode->i_ctime = current_time(inode);
+			inode_set_ctime_current(inode);
 			mark_inode_dirty(inode);
 		}
 	}
@@ -320,10 +326,8 @@ reiserfs_inherit_default_acl(struct reiserfs_transaction_handle *th,
 	 * would be useless since permissions are ignored, and a pain because
 	 * it introduces locking cycles
 	 */
-	if (IS_PRIVATE(dir)) {
-		inode->i_flags |= S_PRIVATE;
+	if (IS_PRIVATE(inode))
 		goto apply_umask;
-	}
 
 	err = posix_acl_create(dir, &inode->i_mode, &default_acl, &acl);
 	if (err)
@@ -368,14 +372,14 @@ int reiserfs_cache_default_acl(struct inode *inode)
 	if (IS_PRIVATE(inode))
 		return 0;
 
-	acl = get_acl(inode, ACL_TYPE_DEFAULT);
+	acl = get_inode_acl(inode, ACL_TYPE_DEFAULT);
 
 	if (acl && !IS_ERR(acl)) {
 		int size = reiserfs_acl_size(acl->a_count);
 
 		/* Other xattrs can be created during inode creation. We don't
 		 * want to claim too many blocks, so we check to see if we
-		 * we need to create the tree to the xattrs, and then we
+		 * need to create the tree to the xattrs, and then we
 		 * just want two files. */
 		nblocks = reiserfs_xattr_jcreate_nblocks(inode);
 		nblocks += JOURNAL_BLOCKS_PER_OBJECT(inode->i_sb);
@@ -393,13 +397,15 @@ int reiserfs_cache_default_acl(struct inode *inode)
 /*
  * Called under i_mutex
  */
-int reiserfs_acl_chmod(struct inode *inode)
+int reiserfs_acl_chmod(struct dentry *dentry)
 {
+	struct inode *inode = d_inode(dentry);
+
 	if (IS_PRIVATE(inode))
 		return 0;
 	if (get_inode_sd_version(inode) == STAT_DATA_V1 ||
 	    !reiserfs_posixacl(inode->i_sb))
 		return 0;
 
-	return posix_acl_chmod(inode, inode->i_mode);
+	return posix_acl_chmod(&nop_mnt_idmap, dentry, inode->i_mode);
 }

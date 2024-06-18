@@ -19,39 +19,42 @@ static struct ctl_table unix_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
 	},
-	{ }
 };
 
 int __net_init unix_sysctl_register(struct net *net)
 {
 	struct ctl_table *table;
 
-	table = kmemdup(unix_table, sizeof(unix_table), GFP_KERNEL);
-	if (table == NULL)
-		goto err_alloc;
+	if (net_eq(net, &init_net)) {
+		table = unix_table;
+	} else {
+		table = kmemdup(unix_table, sizeof(unix_table), GFP_KERNEL);
+		if (!table)
+			goto err_alloc;
 
-	/* Don't export sysctls to unprivileged users */
-	if (net->user_ns != &init_user_ns)
-		table[0].procname = NULL;
+		table[0].data = &net->unx.sysctl_max_dgram_qlen;
+	}
 
-	table[0].data = &net->unx.sysctl_max_dgram_qlen;
-	net->unx.ctl = register_net_sysctl(net, "net/unix", table);
+	net->unx.ctl = register_net_sysctl_sz(net, "net/unix", table,
+					      ARRAY_SIZE(unix_table));
 	if (net->unx.ctl == NULL)
 		goto err_reg;
 
 	return 0;
 
 err_reg:
-	kfree(table);
+	if (!net_eq(net, &init_net))
+		kfree(table);
 err_alloc:
 	return -ENOMEM;
 }
 
 void unix_sysctl_unregister(struct net *net)
 {
-	struct ctl_table *table;
+	const struct ctl_table *table;
 
 	table = net->unx.ctl->ctl_table_arg;
 	unregister_net_sysctl_table(net->unx.ctl);
-	kfree(table);
+	if (!net_eq(net, &init_net))
+		kfree(table);
 }

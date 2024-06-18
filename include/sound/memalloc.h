@@ -9,21 +9,22 @@
 #ifndef __SOUND_MEMALLOC_H
 #define __SOUND_MEMALLOC_H
 
+#include <linux/dma-direction.h>
 #include <asm/page.h>
 
 struct device;
+struct vm_area_struct;
+struct sg_table;
 
 /*
  * buffer device info
  */
 struct snd_dma_device {
 	int type;			/* SNDRV_DMA_TYPE_XXX */
+	enum dma_data_direction dir;	/* DMA direction */
+	bool need_sync;			/* explicit sync needed? */
 	struct device *dev;		/* generic device */
 };
-
-#define snd_dma_pci_data(pci)	(&(pci)->dev)
-#define snd_dma_continuous_data(x)	((struct device *)(__force unsigned long)(x))
-
 
 /*
  * buffer types
@@ -31,18 +32,26 @@ struct snd_dma_device {
 #define SNDRV_DMA_TYPE_UNKNOWN		0	/* not defined */
 #define SNDRV_DMA_TYPE_CONTINUOUS	1	/* continuous no-DMA memory */
 #define SNDRV_DMA_TYPE_DEV		2	/* generic device continuous */
-#define SNDRV_DMA_TYPE_DEV_UC		5	/* continuous non-cahced */
-#ifdef CONFIG_SND_DMA_SGBUF
-#define SNDRV_DMA_TYPE_DEV_SG		3	/* generic device SG-buffer */
-#define SNDRV_DMA_TYPE_DEV_UC_SG	6	/* SG non-cached */
-#else
-#define SNDRV_DMA_TYPE_DEV_SG	SNDRV_DMA_TYPE_DEV /* no SG-buf support */
-#define SNDRV_DMA_TYPE_DEV_UC_SG	SNDRV_DMA_TYPE_DEV_UC
-#endif
+#define SNDRV_DMA_TYPE_DEV_WC		5	/* continuous write-combined */
 #ifdef CONFIG_GENERIC_ALLOCATOR
 #define SNDRV_DMA_TYPE_DEV_IRAM		4	/* generic device iram-buffer */
 #else
 #define SNDRV_DMA_TYPE_DEV_IRAM	SNDRV_DMA_TYPE_DEV
+#endif
+#define SNDRV_DMA_TYPE_VMALLOC		7	/* vmalloc'ed buffer */
+#define SNDRV_DMA_TYPE_NONCONTIG	8	/* non-coherent SG buffer */
+#define SNDRV_DMA_TYPE_NONCOHERENT	9	/* non-coherent buffer */
+#ifdef CONFIG_SND_DMA_SGBUF
+#define SNDRV_DMA_TYPE_DEV_SG		SNDRV_DMA_TYPE_NONCONTIG
+#define SNDRV_DMA_TYPE_DEV_WC_SG	6	/* SG write-combined */
+#else
+#define SNDRV_DMA_TYPE_DEV_SG	SNDRV_DMA_TYPE_DEV /* no SG-buf support */
+#define SNDRV_DMA_TYPE_DEV_WC_SG	SNDRV_DMA_TYPE_DEV_WC
+#endif
+/* fallback types, don't use those directly */
+#ifdef CONFIG_SND_DMA_SGBUF
+#define SNDRV_DMA_TYPE_DEV_SG_FALLBACK		10
+#define SNDRV_DMA_TYPE_DEV_WC_SG_FALLBACK	11
 #endif
 
 /*
@@ -64,77 +73,53 @@ static inline unsigned int snd_sgbuf_aligned_pages(size_t size)
 	return (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 }
 
-#ifdef CONFIG_SND_DMA_SGBUF
-/*
- * Scatter-Gather generic device pages
- */
-void *snd_malloc_sgbuf_pages(struct device *device,
-			     size_t size, struct snd_dma_buffer *dmab,
-			     size_t *res_size);
-int snd_free_sgbuf_pages(struct snd_dma_buffer *dmab);
-
-struct snd_sg_page {
-	void *buf;
-	dma_addr_t addr;
-};
-
-struct snd_sg_buf {
-	int size;	/* allocated byte size */
-	int pages;	/* allocated pages */
-	int tblsize;	/* allocated table size */
-	struct snd_sg_page *table;	/* address table */
-	struct page **page_table;	/* page table (for vmap/vunmap) */
-	struct device *dev;
-};
-
-/*
- * return the physical address at the corresponding offset
- */
-static inline dma_addr_t snd_sgbuf_get_addr(struct snd_dma_buffer *dmab,
-					   size_t offset)
-{
-	struct snd_sg_buf *sgbuf = dmab->private_data;
-	dma_addr_t addr = sgbuf->table[offset >> PAGE_SHIFT].addr;
-	addr &= ~((dma_addr_t)PAGE_SIZE - 1);
-	return addr + offset % PAGE_SIZE;
-}
-
-/*
- * return the virtual address at the corresponding offset
- */
-static inline void *snd_sgbuf_get_ptr(struct snd_dma_buffer *dmab,
-				     size_t offset)
-{
-	struct snd_sg_buf *sgbuf = dmab->private_data;
-	return sgbuf->table[offset >> PAGE_SHIFT].buf + offset % PAGE_SIZE;
-}
-
-unsigned int snd_sgbuf_get_chunk_size(struct snd_dma_buffer *dmab,
-				      unsigned int ofs, unsigned int size);
-#else
-/* non-SG versions */
-static inline dma_addr_t snd_sgbuf_get_addr(struct snd_dma_buffer *dmab,
-					    size_t offset)
-{
-	return dmab->addr + offset;
-}
-
-static inline void *snd_sgbuf_get_ptr(struct snd_dma_buffer *dmab,
-				      size_t offset)
-{
-	return dmab->area + offset;
-}
-
-#define snd_sgbuf_get_chunk_size(dmab, ofs, size)	(size)
-
-#endif /* CONFIG_SND_DMA_SGBUF */
-
 /* allocate/release a buffer */
-int snd_dma_alloc_pages(int type, struct device *dev, size_t size,
-			struct snd_dma_buffer *dmab);
+int snd_dma_alloc_dir_pages(int type, struct device *dev,
+			    enum dma_data_direction dir, size_t size,
+			    struct snd_dma_buffer *dmab);
+
+static inline int snd_dma_alloc_pages(int type, struct device *dev,
+				      size_t size, struct snd_dma_buffer *dmab)
+{
+	return snd_dma_alloc_dir_pages(type, dev, DMA_BIDIRECTIONAL, size, dmab);
+}
+
 int snd_dma_alloc_pages_fallback(int type, struct device *dev, size_t size,
                                  struct snd_dma_buffer *dmab);
 void snd_dma_free_pages(struct snd_dma_buffer *dmab);
+int snd_dma_buffer_mmap(struct snd_dma_buffer *dmab,
+			struct vm_area_struct *area);
+
+enum snd_dma_sync_mode { SNDRV_DMA_SYNC_CPU, SNDRV_DMA_SYNC_DEVICE };
+#ifdef CONFIG_HAS_DMA
+void snd_dma_buffer_sync(struct snd_dma_buffer *dmab,
+			 enum snd_dma_sync_mode mode);
+#else
+static inline void snd_dma_buffer_sync(struct snd_dma_buffer *dmab,
+				       enum snd_dma_sync_mode mode) {}
+#endif
+
+dma_addr_t snd_sgbuf_get_addr(struct snd_dma_buffer *dmab, size_t offset);
+struct page *snd_sgbuf_get_page(struct snd_dma_buffer *dmab, size_t offset);
+unsigned int snd_sgbuf_get_chunk_size(struct snd_dma_buffer *dmab,
+				      unsigned int ofs, unsigned int size);
+
+/* device-managed memory allocator */
+struct snd_dma_buffer *snd_devm_alloc_dir_pages(struct device *dev, int type,
+						enum dma_data_direction dir,
+						size_t size);
+
+static inline struct snd_dma_buffer *
+snd_devm_alloc_pages(struct device *dev, int type, size_t size)
+{
+	return snd_devm_alloc_dir_pages(dev, type, DMA_BIDIRECTIONAL, size);
+}
+
+static inline struct sg_table *
+snd_dma_noncontig_sg_table(struct snd_dma_buffer *dmab)
+{
+	return dmab->private_data;
+}
 
 #endif /* __SOUND_MEMALLOC_H */
 

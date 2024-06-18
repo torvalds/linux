@@ -33,7 +33,7 @@
 #include <linux/hwmon.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/sysfs.h>
 #include <linux/types.h>
 
@@ -139,7 +139,7 @@ struct lm63_data {
 	struct i2c_client *client;
 	struct mutex update_lock;
 	const struct attribute_group *groups[5];
-	char valid; /* zero until following fields are valid */
+	bool valid; /* false until following fields are valid */
 	char lut_valid; /* zero until lut fields are valid */
 	unsigned long last_updated; /* in jiffies */
 	unsigned long lut_last_updated; /* in jiffies */
@@ -289,7 +289,7 @@ static struct lm63_data *lm63_update_device(struct device *dev)
 			       LM63_REG_ALERT_STATUS) & 0x7F;
 
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	lm63_update_lut(data);
@@ -714,7 +714,7 @@ static ssize_t temp2_type_store(struct device *dev,
 	reg = i2c_smbus_read_byte_data(client, LM96163_REG_TRUTHERM) & ~0x02;
 	i2c_smbus_write_byte_data(client, LM96163_REG_TRUTHERM,
 				  reg | (data->trutherm ? 0x02 : 0x00));
-	data->valid = 0;
+	data->valid = false;
 	mutex_unlock(&data->update_lock);
 
 	return count;
@@ -931,7 +931,7 @@ static const struct attribute_group lm63_group_extra_lut = {
 static umode_t lm63_attribute_mode(struct kobject *kobj,
 				   struct attribute *attr, int index)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct lm63_data *data = dev_get_drvdata(dev);
 
 	if (attr == &sensor_dev_attr_temp2_crit.dev_attr.attr
@@ -996,11 +996,11 @@ static int lm63_detect(struct i2c_client *client,
 	}
 
 	if (chip_id == 0x41 && address == 0x4c)
-		strlcpy(info->type, "lm63", I2C_NAME_SIZE);
+		strscpy(info->type, "lm63", I2C_NAME_SIZE);
 	else if (chip_id == 0x51 && (address == 0x18 || address == 0x4e))
-		strlcpy(info->type, "lm64", I2C_NAME_SIZE);
+		strscpy(info->type, "lm64", I2C_NAME_SIZE);
 	else if (chip_id == 0x49 && address == 0x4c)
-		strlcpy(info->type, "lm96163", I2C_NAME_SIZE);
+		strscpy(info->type, "lm96163", I2C_NAME_SIZE);
 	else
 		return -ENODEV;
 
@@ -1087,8 +1087,9 @@ static void lm63_init_client(struct lm63_data *data)
 		(data->config_fan & 0x20) ? "manual" : "auto");
 }
 
-static int lm63_probe(struct i2c_client *client,
-		      const struct i2c_device_id *id)
+static const struct i2c_device_id lm63_id[];
+
+static int lm63_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device *hwmon_dev;
@@ -1104,9 +1105,9 @@ static int lm63_probe(struct i2c_client *client,
 
 	/* Set the device type */
 	if (client->dev.of_node)
-		data->kind = (enum chips)of_device_get_match_data(&client->dev);
+		data->kind = (uintptr_t)of_device_get_match_data(&client->dev);
 	else
-		data->kind = id->driver_data;
+		data->kind = i2c_match_id(lm63_id, client)->driver_data;
 	if (data->kind == lm64)
 		data->temp2_offset = 16000;
 

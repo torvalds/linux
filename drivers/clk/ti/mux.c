@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TI Multiplexer Clock
  *
  * Copyright (C) 2013 Texas Instruments, Inc.
  *
  * Tero Kristo <t-kristo@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk-provider.h>
@@ -126,7 +118,7 @@ const struct clk_ops ti_clk_mux_ops = {
 	.restore_context = clk_mux_restore_context,
 };
 
-static struct clk *_register_mux(struct device *dev, const char *name,
+static struct clk *_register_mux(struct device_node *node, const char *name,
 				 const char * const *parent_names,
 				 u8 num_parents, unsigned long flags,
 				 struct clk_omap_reg *reg, u8 shift, u32 mask,
@@ -156,7 +148,7 @@ static struct clk *_register_mux(struct device *dev, const char *name,
 	mux->table = table;
 	mux->hw.init = &init;
 
-	clk = ti_clk_register(dev, &mux->hw, name);
+	clk = of_ti_clk_register(node, &mux->hw, name);
 
 	if (IS_ERR(clk))
 		kfree(mux);
@@ -176,6 +168,7 @@ static void of_mux_clk_setup(struct device_node *node)
 	struct clk_omap_reg reg;
 	unsigned int num_parents;
 	const char **parent_names;
+	const char *name;
 	u8 clk_mux_flags = 0;
 	u32 mask = 0;
 	u32 shift = 0;
@@ -196,7 +189,7 @@ static void of_mux_clk_setup(struct device_node *node)
 	if (ti_clk_get_reg_addr(node, 0, &reg))
 		goto cleanup;
 
-	of_property_read_u32(node, "ti,bit-shift", &shift);
+	shift = reg.bit;
 
 	of_property_read_u32(node, "ti,latch-bit", &latch);
 
@@ -213,7 +206,8 @@ static void of_mux_clk_setup(struct device_node *node)
 
 	mask = (1 << fls(mask)) - 1;
 
-	clk = _register_mux(NULL, node->name, parent_names, num_parents,
+	name = ti_dt_clk_name(node);
+	clk = _register_mux(node, name, parent_names, num_parents,
 			    flags, &reg, shift, mask, latch, clk_mux_flags,
 			    NULL);
 
@@ -258,7 +252,6 @@ static void __init of_ti_composite_mux_clk_setup(struct device_node *node)
 {
 	struct clk_omap_mux *mux;
 	unsigned int num_parents;
-	u32 val;
 
 	mux = kzalloc(sizeof(*mux), GFP_KERNEL);
 	if (!mux)
@@ -267,8 +260,7 @@ static void __init of_ti_composite_mux_clk_setup(struct device_node *node)
 	if (ti_clk_get_reg_addr(node, 0, &mux->reg))
 		goto cleanup;
 
-	if (!of_property_read_u32(node, "ti,bit-shift", &val))
-		mux->shift = val;
+	mux->shift = mux->reg.bit;
 
 	if (of_property_read_bool(node, "ti,index-starts-at-one"))
 		mux->flags |= CLK_MUX_INDEX_ONE;

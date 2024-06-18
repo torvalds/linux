@@ -1,35 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
  * Copyright (c) 2005 Network Appliance, Inc. All rights reserved.
  * Copyright (c) 2005 Open Grid Computing, Inc. All rights reserved.
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
+
 #ifndef IW_CM_H
 #define IW_CM_H
 
@@ -96,6 +70,7 @@ struct iw_cm_id {
 	u8  tos;
 	bool tos_set:1;
 	bool mapped:1;
+	bool afonly:1;
 };
 
 struct iw_cm_conn_param {
@@ -138,27 +113,6 @@ struct iw_cm_id *iw_create_cm_id(struct ib_device *device,
  * this function returns.
  */
 void iw_destroy_cm_id(struct iw_cm_id *cm_id);
-
-/**
- * iw_cm_bind_qp - Unbind the specified IW CM identifier and QP
- *
- * @cm_id: The IW CM idenfier to unbind from the QP.
- * @qp: The QP
- *
- * This is called by the provider when destroying the QP to ensure
- * that any references held by the IWCM are released. It may also
- * be called by the IWCM when destroying a CM_ID to that any
- * references held by the provider are released.
- */
-void iw_cm_unbind_qp(struct iw_cm_id *cm_id, struct ib_qp *qp);
-
-/**
- * iw_cm_get_qp - Return the ib_qp associated with a QPN
- *
- * @ib_device: The IB device
- * @qpn: The queue pair number
- */
-struct ib_qp *iw_cm_get_qp(struct ib_device *device, int qpn);
 
 /**
  * iw_cm_listen - Listen for incoming connection requests on the

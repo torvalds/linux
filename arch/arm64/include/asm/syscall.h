@@ -29,25 +29,36 @@ static inline void syscall_rollback(struct task_struct *task,
 	regs->regs[0] = regs->orig_x0;
 }
 
+static inline long syscall_get_return_value(struct task_struct *task,
+					    struct pt_regs *regs)
+{
+	unsigned long val = regs->regs[0];
+
+	if (is_compat_thread(task_thread_info(task)))
+		val = sign_extend64(val, 31);
+
+	return val;
+}
 
 static inline long syscall_get_error(struct task_struct *task,
 				     struct pt_regs *regs)
 {
-	unsigned long error = regs->regs[0];
-	return IS_ERR_VALUE(error) ? error : 0;
-}
+	unsigned long error = syscall_get_return_value(task, regs);
 
-static inline long syscall_get_return_value(struct task_struct *task,
-					    struct pt_regs *regs)
-{
-	return regs->regs[0];
+	return IS_ERR_VALUE(error) ? error : 0;
 }
 
 static inline void syscall_set_return_value(struct task_struct *task,
 					    struct pt_regs *regs,
 					    int error, long val)
 {
-	regs->regs[0] = (long) error ? error : val;
+	if (error)
+		val = error;
+
+	if (is_compat_thread(task_thread_info(task)))
+		val = lower_32_bits(val);
+
+	regs->regs[0] = val;
 }
 
 #define SYSCALL_MAX_ARGS 6
@@ -62,16 +73,6 @@ static inline void syscall_get_arguments(struct task_struct *task,
 	memcpy(args, &regs->regs[1], 5 * sizeof(args[0]));
 }
 
-static inline void syscall_set_arguments(struct task_struct *task,
-					 struct pt_regs *regs,
-					 const unsigned long *args)
-{
-	regs->orig_x0 = args[0];
-	args++;
-
-	memcpy(&regs->regs[1], args, 5 * sizeof(args[0]));
-}
-
 /*
  * We don't care about endianness (__AUDIT_ARCH_LE bit) here because
  * AArch64 has the same system calls both on little- and big- endian.
@@ -83,5 +84,8 @@ static inline int syscall_get_arch(struct task_struct *task)
 
 	return AUDIT_ARCH_AARCH64;
 }
+
+int syscall_trace_enter(struct pt_regs *regs);
+void syscall_trace_exit(struct pt_regs *regs);
 
 #endif	/* __ASM_SYSCALL_H */

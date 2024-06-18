@@ -29,18 +29,20 @@ static char *gDviCtrlChipName = "Silicon Image SiI 164";
 #endif
 
 /*
- *  sii164GetVendorID
+ *  sii164_get_vendor_id
  *      This function gets the vendor ID of the DVI controller chip.
  *
  *  Output:
  *      Vendor ID
  */
-unsigned short sii164GetVendorID(void)
+unsigned short sii164_get_vendor_id(void)
 {
 	unsigned short vendorID;
 
-	vendorID = ((unsigned short)i2cReadReg(SII164_I2C_ADDRESS, SII164_VENDOR_ID_HIGH) << 8) |
-		    (unsigned short)i2cReadReg(SII164_I2C_ADDRESS, SII164_VENDOR_ID_LOW);
+	vendorID = ((unsigned short)i2cReadReg(SII164_I2C_ADDRESS,
+					       SII164_VENDOR_ID_HIGH) << 8) |
+		   (unsigned short)i2cReadReg(SII164_I2C_ADDRESS,
+					      SII164_VENDOR_ID_LOW);
 
 	return vendorID;
 }
@@ -56,16 +58,21 @@ unsigned short sii164GetDeviceID(void)
 {
 	unsigned short deviceID;
 
-	deviceID = ((unsigned short)i2cReadReg(SII164_I2C_ADDRESS, SII164_DEVICE_ID_HIGH) << 8) |
-		    (unsigned short)i2cReadReg(SII164_I2C_ADDRESS, SII164_DEVICE_ID_LOW);
+	deviceID = ((unsigned short)i2cReadReg(SII164_I2C_ADDRESS,
+					       SII164_DEVICE_ID_HIGH) << 8) |
+		   (unsigned short)i2cReadReg(SII164_I2C_ADDRESS,
+					      SII164_DEVICE_ID_LOW);
 
 	return deviceID;
 }
 
-/* DVI.C will handle all SiI164 chip stuffs and try it best to make code minimal and useful */
+/*
+ *  DVI.C will handle all SiI164 chip stuffs and try its best to make code
+ *  minimal and useful
+ */
 
 /*
- *  sii164InitChip
+ *  sii164_init_chip
  *      This function initialize and detect the DVI controller chip.
  *
  *  Input:
@@ -111,16 +118,16 @@ unsigned short sii164GetDeviceID(void)
  *      0   - Success
  *     -1   - Fail.
  */
-long sii164InitChip(unsigned char edge_select,
-		    unsigned char bus_select,
-		    unsigned char dual_edge_clk_select,
-		    unsigned char hsync_enable,
-		    unsigned char vsync_enable,
-		    unsigned char deskew_enable,
-		    unsigned char deskew_setting,
-		    unsigned char continuous_sync_enable,
-		    unsigned char pll_filter_enable,
-		    unsigned char pll_filter_value)
+long sii164_init_chip(unsigned char edge_select,
+		      unsigned char bus_select,
+		      unsigned char dual_edge_clk_select,
+		      unsigned char hsync_enable,
+		      unsigned char vsync_enable,
+		      unsigned char deskew_enable,
+		      unsigned char deskew_setting,
+		      unsigned char continuous_sync_enable,
+		      unsigned char pll_filter_enable,
+		      unsigned char pll_filter_value)
 {
 	unsigned char config;
 
@@ -133,7 +140,8 @@ long sii164InitChip(unsigned char edge_select,
 #endif
 
 	/* Check if SII164 Chip exists */
-	if ((sii164GetVendorID() == SII164_VENDOR_ID) && (sii164GetDeviceID() == SII164_DEVICE_ID)) {
+	if ((sii164_get_vendor_id() == SII164_VENDOR_ID) &&
+	    (sii164GetDeviceID() == SII164_DEVICE_ID)) {
 		/*
 		 *  Initialize SII164 controller chip.
 		 */
@@ -254,7 +262,9 @@ void sii164ResetChip(void)
 
 /*
  * sii164GetChipString
- *      This function returns a char string name of the current DVI Controller chip.
+ *      This function returns a char string name of the current DVI Controller
+ *      chip.
+ *
  *      It's convenient for application need to display the chip name.
  */
 char *sii164GetChipString(void)
@@ -330,8 +340,8 @@ void sii164EnableHotPlugDetection(unsigned char enableHotPlug)
 
 	detectReg = i2cReadReg(SII164_I2C_ADDRESS, SII164_DETECT);
 
-	/* Depending on each DVI controller, need to enable the hot plug based on each
-	 * individual chip design.
+	/* Depending on each DVI controller, need to enable the hot plug based
+	 * on each individual chip design.
 	 */
 	if (enableHotPlug != 0)
 		sii164SelectHotPlugDetectionMode(SII164_HOTPLUG_USE_MDI);

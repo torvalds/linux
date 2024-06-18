@@ -8,8 +8,7 @@
 struct device;
 
 struct bd6107_platform_data {
-	struct device *fbdev;
-	int reset;			/* Reset GPIO */
+	struct device *dev;
 	unsigned int def_value;
 };
 

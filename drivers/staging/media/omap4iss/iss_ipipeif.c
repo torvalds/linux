@@ -357,24 +357,24 @@ static int ipipeif_set_stream(struct v4l2_subdev *sd, int enable)
 
 static struct v4l2_mbus_framefmt *
 __ipipeif_get_format(struct iss_ipipeif_device *ipipeif,
-		     struct v4l2_subdev_pad_config *cfg, unsigned int pad,
+		     struct v4l2_subdev_state *sd_state, unsigned int pad,
 		     enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(&ipipeif->subdev, cfg, pad);
+		return v4l2_subdev_state_get_format(sd_state, pad);
 	return &ipipeif->formats[pad];
 }
 
 /*
  * ipipeif_try_format - Try video format on a pad
  * @ipipeif: ISS IPIPEIF device
- * @cfg: V4L2 subdev pad config
+ * @sd_state: V4L2 subdev state
  * @pad: Pad number
  * @fmt: Format
  */
 static void
 ipipeif_try_format(struct iss_ipipeif_device *ipipeif,
-		   struct v4l2_subdev_pad_config *cfg, unsigned int pad,
+		   struct v4l2_subdev_state *sd_state, unsigned int pad,
 		   struct v4l2_mbus_framefmt *fmt,
 		   enum v4l2_subdev_format_whence which)
 {
@@ -403,7 +403,8 @@ ipipeif_try_format(struct iss_ipipeif_device *ipipeif,
 		break;
 
 	case IPIPEIF_PAD_SOURCE_ISIF_SF:
-		format = __ipipeif_get_format(ipipeif, cfg, IPIPEIF_PAD_SINK,
+		format = __ipipeif_get_format(ipipeif, sd_state,
+					      IPIPEIF_PAD_SINK,
 					      which);
 		memcpy(fmt, format, sizeof(*fmt));
 
@@ -418,7 +419,8 @@ ipipeif_try_format(struct iss_ipipeif_device *ipipeif,
 		break;
 
 	case IPIPEIF_PAD_SOURCE_VP:
-		format = __ipipeif_get_format(ipipeif, cfg, IPIPEIF_PAD_SINK,
+		format = __ipipeif_get_format(ipipeif, sd_state,
+					      IPIPEIF_PAD_SINK,
 					      which);
 		memcpy(fmt, format, sizeof(*fmt));
 
@@ -437,12 +439,12 @@ ipipeif_try_format(struct iss_ipipeif_device *ipipeif,
 /*
  * ipipeif_enum_mbus_code - Handle pixel format enumeration
  * @sd     : pointer to v4l2 subdev structure
- * @cfg    : V4L2 subdev pad config
+ * @sd_state: V4L2 subdev state
  * @code   : pointer to v4l2_subdev_mbus_code_enum structure
  * return -EINVAL or zero on success
  */
 static int ipipeif_enum_mbus_code(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct iss_ipipeif_device *ipipeif = v4l2_get_subdevdata(sd);
@@ -462,7 +464,8 @@ static int ipipeif_enum_mbus_code(struct v4l2_subdev *sd,
 		if (code->index != 0)
 			return -EINVAL;
 
-		format = __ipipeif_get_format(ipipeif, cfg, IPIPEIF_PAD_SINK,
+		format = __ipipeif_get_format(ipipeif, sd_state,
+					      IPIPEIF_PAD_SINK,
 					      code->which);
 
 		code->code = format->code;
@@ -476,7 +479,7 @@ static int ipipeif_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int ipipeif_enum_frame_size(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct iss_ipipeif_device *ipipeif = v4l2_get_subdevdata(sd);
@@ -488,7 +491,7 @@ static int ipipeif_enum_frame_size(struct v4l2_subdev *sd,
 	format.code = fse->code;
 	format.width = 1;
 	format.height = 1;
-	ipipeif_try_format(ipipeif, cfg, fse->pad, &format, fse->which);
+	ipipeif_try_format(ipipeif, sd_state, fse->pad, &format, fse->which);
 	fse->min_width = format.width;
 	fse->min_height = format.height;
 
@@ -498,7 +501,7 @@ static int ipipeif_enum_frame_size(struct v4l2_subdev *sd,
 	format.code = fse->code;
 	format.width = -1;
 	format.height = -1;
-	ipipeif_try_format(ipipeif, cfg, fse->pad, &format, fse->which);
+	ipipeif_try_format(ipipeif, sd_state, fse->pad, &format, fse->which);
 	fse->max_width = format.width;
 	fse->max_height = format.height;
 
@@ -508,20 +511,20 @@ static int ipipeif_enum_frame_size(struct v4l2_subdev *sd,
 /*
  * ipipeif_get_format - Retrieve the video format on a pad
  * @sd : ISP IPIPEIF V4L2 subdevice
- * @cfg: V4L2 subdev pad config
+ * @sd_state: V4L2 subdev state
  * @fmt: Format
  *
  * Return 0 on success or -EINVAL if the pad is invalid or doesn't correspond
  * to the format type.
  */
 static int ipipeif_get_format(struct v4l2_subdev *sd,
-			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_state *sd_state,
 			      struct v4l2_subdev_format *fmt)
 {
 	struct iss_ipipeif_device *ipipeif = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
 
-	format = __ipipeif_get_format(ipipeif, cfg, fmt->pad, fmt->which);
+	format = __ipipeif_get_format(ipipeif, sd_state, fmt->pad, fmt->which);
 	if (!format)
 		return -EINVAL;
 
@@ -532,40 +535,43 @@ static int ipipeif_get_format(struct v4l2_subdev *sd,
 /*
  * ipipeif_set_format - Set the video format on a pad
  * @sd : ISP IPIPEIF V4L2 subdevice
- * @cfg: V4L2 subdev pad config
+ * @sd_state: V4L2 subdev state
  * @fmt: Format
  *
  * Return 0 on success or -EINVAL if the pad is invalid or doesn't correspond
  * to the format type.
  */
 static int ipipeif_set_format(struct v4l2_subdev *sd,
-			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_state *sd_state,
 			      struct v4l2_subdev_format *fmt)
 {
 	struct iss_ipipeif_device *ipipeif = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
 
-	format = __ipipeif_get_format(ipipeif, cfg, fmt->pad, fmt->which);
+	format = __ipipeif_get_format(ipipeif, sd_state, fmt->pad, fmt->which);
 	if (!format)
 		return -EINVAL;
 
-	ipipeif_try_format(ipipeif, cfg, fmt->pad, &fmt->format, fmt->which);
+	ipipeif_try_format(ipipeif, sd_state, fmt->pad, &fmt->format,
+			   fmt->which);
 	*format = fmt->format;
 
 	/* Propagate the format from sink to source */
 	if (fmt->pad == IPIPEIF_PAD_SINK) {
-		format = __ipipeif_get_format(ipipeif, cfg,
+		format = __ipipeif_get_format(ipipeif, sd_state,
 					      IPIPEIF_PAD_SOURCE_ISIF_SF,
 					      fmt->which);
 		*format = fmt->format;
-		ipipeif_try_format(ipipeif, cfg, IPIPEIF_PAD_SOURCE_ISIF_SF,
+		ipipeif_try_format(ipipeif, sd_state,
+				   IPIPEIF_PAD_SOURCE_ISIF_SF,
 				   format, fmt->which);
 
-		format = __ipipeif_get_format(ipipeif, cfg,
+		format = __ipipeif_get_format(ipipeif, sd_state,
 					      IPIPEIF_PAD_SOURCE_VP,
 					      fmt->which);
 		*format = fmt->format;
-		ipipeif_try_format(ipipeif, cfg, IPIPEIF_PAD_SOURCE_VP, format,
+		ipipeif_try_format(ipipeif, sd_state, IPIPEIF_PAD_SOURCE_VP,
+				   format,
 				   fmt->which);
 	}
 
@@ -608,7 +614,7 @@ static int ipipeif_init_formats(struct v4l2_subdev *sd,
 	format.format.code = MEDIA_BUS_FMT_SGRBG10_1X10;
 	format.format.width = 4096;
 	format.format.height = 4096;
-	ipipeif_set_format(sd, fh ? fh->pad : NULL, &format);
+	ipipeif_set_format(sd, fh ? fh->state : NULL, &format);
 
 	return 0;
 }

@@ -17,15 +17,15 @@ struct jfs_ea {
 	u8 flag;	/* Unused? */
 	u8 namelen;	/* Length of name */
 	__le16 valuelen;	/* Length of value */
-	char name[0];	/* Attribute name (includes null-terminator) */
+	char name[];	/* Attribute name (includes null-terminator) */
 };			/* Value immediately follows name */
 
 struct jfs_ea_list {
 	__le32 size;		/* overall size */
-	struct jfs_ea ea[0];	/* Variable length list */
+	struct jfs_ea ea[];	/* Variable length list */
 };
 
-/* Macros for defining maxiumum number of bytes supported for EAs */
+/* Macros for defining maximum number of bytes supported for EAs */
 #define MAXEASIZE	65535
 #define MAXEALISTSIZE	MAXEASIZE
 
@@ -46,7 +46,7 @@ extern int __jfs_setxattr(tid_t, struct inode *, const char *, const void *,
 extern ssize_t __jfs_getxattr(struct inode *, const char *, void *, size_t);
 extern ssize_t jfs_listxattr(struct dentry *, char *, size_t);
 
-extern const struct xattr_handler *jfs_xattr_handlers[];
+extern const struct xattr_handler * const jfs_xattr_handlers[];
 
 #ifdef CONFIG_JFS_SECURITY
 extern int jfs_init_security(tid_t, struct inode *, struct inode *,

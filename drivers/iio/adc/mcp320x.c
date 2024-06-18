@@ -27,13 +27,13 @@
  * MCP3553
  *
  * Datasheet can be found here:
- * http://ww1.microchip.com/downloads/en/DeviceDoc/21293C.pdf  mcp3001
- * http://ww1.microchip.com/downloads/en/DeviceDoc/21294E.pdf  mcp3002
- * http://ww1.microchip.com/downloads/en/DeviceDoc/21295d.pdf  mcp3004/08
+ * https://ww1.microchip.com/downloads/en/DeviceDoc/21293C.pdf  mcp3001
+ * https://ww1.microchip.com/downloads/en/DeviceDoc/21294E.pdf  mcp3002
+ * https://ww1.microchip.com/downloads/en/DeviceDoc/21295d.pdf  mcp3004/08
  * http://ww1.microchip.com/downloads/en/DeviceDoc/21290D.pdf  mcp3201
  * http://ww1.microchip.com/downloads/en/DeviceDoc/21034D.pdf  mcp3202
  * http://ww1.microchip.com/downloads/en/DeviceDoc/21298c.pdf  mcp3204/08
- * http://ww1.microchip.com/downloads/en/DeviceDoc/21700E.pdf  mcp3301
+ * https://ww1.microchip.com/downloads/en/DeviceDoc/21700E.pdf  mcp3301
  * http://ww1.microchip.com/downloads/en/DeviceDoc/21950D.pdf  mcp3550/1/3
  */
 
@@ -41,6 +41,7 @@
 #include <linux/delay.h>
 #include <linux/spi/spi.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/iio/iio.h>
 #include <linux/regulator/consumer.h>
 
@@ -91,7 +92,7 @@ struct mcp320x {
 	struct mutex lock;
 	const struct mcp320x_chip_info *chip_info;
 
-	u8 tx_buf ____cacheline_aligned;
+	u8 tx_buf __aligned(IIO_DMA_MINALIGN);
 	u8 rx_buf[4];
 };
 
@@ -164,7 +165,7 @@ static int mcp320x_adc_conversion(struct mcp320x *adc, u8 channel,
 	case mcp3550_60:
 	case mcp3551:
 	case mcp3553: {
-		u32 raw = be32_to_cpup((u32 *)adc->rx_buf);
+		u32 raw = be32_to_cpup((__be32 *)adc->rx_buf);
 
 		if (!(adc->spi->mode & SPI_CPOL))
 			raw <<= 1; /* strip Data Ready bit in SPI mode 0,0 */
@@ -370,6 +371,11 @@ static const struct mcp320x_chip_info mcp320x_chip_infos[] = {
 	},
 };
 
+static void mcp320x_regulator_disable(void *reg)
+{
+	regulator_disable(reg);
+}
+
 static int mcp320x_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
@@ -384,12 +390,9 @@ static int mcp320x_probe(struct spi_device *spi)
 	adc = iio_priv(indio_dev);
 	adc->spi = spi;
 
-	indio_dev->dev.parent = &spi->dev;
-	indio_dev->dev.of_node = spi->dev.of_node;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &mcp320x_info;
-	spi_set_drvdata(spi, indio_dev);
 
 	device_index = spi_get_device_id(spi)->driver_data;
 	chip_info = &mcp320x_chip_infos[device_index];
@@ -421,7 +424,8 @@ static int mcp320x_probe(struct spi_device *spi)
 			adc->transfer[1].len++;
 
 		/* conversions are started by asserting CS pin for 8 usec */
-		adc->start_conv_transfer.delay_usecs = 8;
+		adc->start_conv_transfer.delay.value = 8;
+		adc->start_conv_transfer.delay.unit = SPI_DELAY_UNIT_USECS;
 		spi_message_init_with_transfers(&adc->start_conv_msg,
 						&adc->start_conv_transfer, 1);
 
@@ -445,32 +449,15 @@ static int mcp320x_probe(struct spi_device *spi)
 	if (ret < 0)
 		return ret;
 
+	ret = devm_add_action_or_reset(&spi->dev, mcp320x_regulator_disable, adc->reg);
+	if (ret < 0)
+		return ret;
+
 	mutex_init(&adc->lock);
 
-	ret = iio_device_register(indio_dev);
-	if (ret < 0)
-		goto reg_disable;
-
-	return 0;
-
-reg_disable:
-	regulator_disable(adc->reg);
-
-	return ret;
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
-static int mcp320x_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-	struct mcp320x *adc = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	regulator_disable(adc->reg);
-
-	return 0;
-}
-
-#if defined(CONFIG_OF)
 static const struct of_device_id mcp320x_dt_ids[] = {
 	/* NOTE: The use of compatibles with no vendor prefix is deprecated. */
 	{ .compatible = "mcp3001" },
@@ -498,7 +485,6 @@ static const struct of_device_id mcp320x_dt_ids[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(of, mcp320x_dt_ids);
-#endif
 
 static const struct spi_device_id mcp320x_id[] = {
 	{ "mcp3001", mcp3001 },
@@ -521,10 +507,9 @@ MODULE_DEVICE_TABLE(spi, mcp320x_id);
 static struct spi_driver mcp320x_driver = {
 	.driver = {
 		.name = "mcp320x",
-		.of_match_table = of_match_ptr(mcp320x_dt_ids),
+		.of_match_table = mcp320x_dt_ids,
 	},
 	.probe = mcp320x_probe,
-	.remove = mcp320x_remove,
 	.id_table = mcp320x_id,
 };
 module_spi_driver(mcp320x_driver);

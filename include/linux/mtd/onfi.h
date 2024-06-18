@@ -11,6 +11,7 @@
 #define __LINUX_MTD_ONFI_H
 
 #include <linux/types.h>
+#include <linux/bitfield.h>
 
 /* ONFI version bits */
 #define ONFI_VERSION_1_0		BIT(1)
@@ -24,17 +25,22 @@
 #define ONFI_VERSION_4_0		BIT(9)
 
 /* ONFI features */
-#define ONFI_FEATURE_16_BIT_BUS		(1 << 0)
-#define ONFI_FEATURE_EXT_PARAM_PAGE	(1 << 7)
+#define ONFI_FEATURE_16_BIT_BUS		BIT(0)
+#define ONFI_FEATURE_NV_DDR		BIT(5)
+#define ONFI_FEATURE_EXT_PARAM_PAGE	BIT(7)
 
 /* ONFI timing mode, used in both asynchronous and synchronous mode */
-#define ONFI_TIMING_MODE_0		(1 << 0)
-#define ONFI_TIMING_MODE_1		(1 << 1)
-#define ONFI_TIMING_MODE_2		(1 << 2)
-#define ONFI_TIMING_MODE_3		(1 << 3)
-#define ONFI_TIMING_MODE_4		(1 << 4)
-#define ONFI_TIMING_MODE_5		(1 << 5)
-#define ONFI_TIMING_MODE_UNKNOWN	(1 << 6)
+#define ONFI_DATA_INTERFACE_SDR		0
+#define ONFI_DATA_INTERFACE_NVDDR	BIT(4)
+#define ONFI_DATA_INTERFACE_NVDDR2	BIT(5)
+#define ONFI_TIMING_MODE_0		BIT(0)
+#define ONFI_TIMING_MODE_1		BIT(1)
+#define ONFI_TIMING_MODE_2		BIT(2)
+#define ONFI_TIMING_MODE_3		BIT(3)
+#define ONFI_TIMING_MODE_4		BIT(4)
+#define ONFI_TIMING_MODE_5		BIT(5)
+#define ONFI_TIMING_MODE_UNKNOWN	BIT(6)
+#define ONFI_TIMING_MODE_PARAM(x)	FIELD_GET(GENMASK(3, 0), (x))
 
 /* ONFI feature number/address */
 #define ONFI_FEATURE_NUMBER		256
@@ -49,7 +55,8 @@
 #define ONFI_SUBFEATURE_PARAM_LEN	4
 
 /* ONFI optional commands SET/GET FEATURES supported? */
-#define ONFI_OPT_CMD_SET_GET_FEATURES	(1 << 2)
+#define ONFI_OPT_CMD_READ_CACHE		BIT(1)
+#define ONFI_OPT_CMD_SET_GET_FEATURES	BIT(2)
 
 struct nand_onfi_params {
 	/* rev info and features block */
@@ -93,14 +100,15 @@ struct nand_onfi_params {
 
 	/* electrical parameter block */
 	u8 io_pin_capacitance_max;
-	__le16 async_timing_mode;
+	__le16 sdr_timing_modes;
 	__le16 program_cache_timing_mode;
 	__le16 t_prog;
 	__le16 t_bers;
 	__le16 t_r;
 	__le16 t_ccs;
-	__le16 src_sync_timing_mode;
-	u8 src_ssync_features;
+	u8 nvddr_timing_modes;
+	u8 nvddr2_timing_modes;
+	u8 nvddr_nvddr2_features;
 	__le16 clk_pin_capacitance_typ;
 	__le16 io_pin_capacitance_typ;
 	__le16 input_pin_capacitance_typ;
@@ -160,7 +168,9 @@ struct onfi_ext_param_page {
  * @tBERS: Block erase time
  * @tR: Page read time
  * @tCCS: Change column setup time
- * @async_timing_mode: Supported asynchronous timing mode
+ * @fast_tCAD: Command/Address/Data slow or fast delay (NV-DDR only)
+ * @sdr_timing_modes: Supported asynchronous/SDR timing modes
+ * @nvddr_timing_modes: Supported source synchronous/NV-DDR timing modes
  * @vendor_revision: Vendor specific revision number
  * @vendor: Vendor specific data
  */
@@ -170,7 +180,9 @@ struct onfi_params {
 	u16 tBERS;
 	u16 tR;
 	u16 tCCS;
-	u16 async_timing_mode;
+	bool fast_tCAD;
+	u16 sdr_timing_modes;
+	u16 nvddr_timing_modes;
 	u16 vendor_revision;
 	u8 vendor[88];
 };

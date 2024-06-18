@@ -6,11 +6,11 @@
  */
 
 #include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/lcd.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
-#include <linux/of_gpio.h>
+#include <linux/property.h>
 #include <linux/spi/spi.h>
 
 #define HX8357_NUM_IM_PINS	3
@@ -83,11 +83,10 @@
 #define HX8369_SET_GAMMA_CURVE_RELATED		0xe0
 
 struct hx8357_data {
-	unsigned		im_pins[HX8357_NUM_IM_PINS];
-	unsigned		reset;
+	struct gpio_descs	*im_pins;
+	struct gpio_desc	*reset;
 	struct spi_device	*spi;
 	int			state;
-	bool			use_im_pins;
 };
 
 static u8 hx8357_seq_power[] = {
@@ -321,11 +320,11 @@ static void hx8357_lcd_reset(struct lcd_device *lcdev)
 	struct hx8357_data *lcd = lcd_get_data(lcdev);
 
 	/* Reset the screen */
-	gpio_set_value(lcd->reset, 1);
+	gpiod_set_value(lcd->reset, 0);
 	usleep_range(10000, 12000);
-	gpio_set_value(lcd->reset, 0);
+	gpiod_set_value(lcd->reset, 1);
 	usleep_range(10000, 12000);
-	gpio_set_value(lcd->reset, 1);
+	gpiod_set_value(lcd->reset, 0);
 
 	/* The controller needs 120ms to recover from reset */
 	msleep(120);
@@ -340,10 +339,10 @@ static int hx8357_lcd_init(struct lcd_device *lcdev)
 	 * Set the interface selection pins to SPI mode, with three
 	 * wires
 	 */
-	if (lcd->use_im_pins) {
-		gpio_set_value_cansleep(lcd->im_pins[0], 1);
-		gpio_set_value_cansleep(lcd->im_pins[1], 0);
-		gpio_set_value_cansleep(lcd->im_pins[2], 1);
+	if (lcd->im_pins) {
+		gpiod_set_value_cansleep(lcd->im_pins->desc[0], 1);
+		gpiod_set_value_cansleep(lcd->im_pins->desc[1], 0);
+		gpiod_set_value_cansleep(lcd->im_pins->desc[2], 1);
 	}
 
 	ret = hx8357_spi_write_array(lcdev, hx8357_seq_power,
@@ -560,10 +559,68 @@ static int hx8357_get_power(struct lcd_device *lcdev)
 	return lcd->state;
 }
 
-static struct lcd_ops hx8357_ops = {
+static const struct lcd_ops hx8357_ops = {
 	.set_power	= hx8357_set_power,
 	.get_power	= hx8357_get_power,
 };
+
+typedef int (*hx8357_init_fn)(struct lcd_device *);
+
+static int hx8357_probe(struct spi_device *spi)
+{
+	struct device *dev = &spi->dev;
+	struct lcd_device *lcdev;
+	struct hx8357_data *lcd;
+	hx8357_init_fn init_fn;
+	int i, ret;
+
+	lcd = devm_kzalloc(dev, sizeof(*lcd), GFP_KERNEL);
+	if (!lcd)
+		return -ENOMEM;
+
+	ret = spi_setup(spi);
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "SPI setup failed.\n");
+
+	lcd->spi = spi;
+
+	init_fn = device_get_match_data(dev);
+	if (!init_fn)
+		return -EINVAL;
+
+	lcd->reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
+	if (IS_ERR(lcd->reset))
+		return dev_err_probe(dev, PTR_ERR(lcd->reset), "failed to request reset GPIO\n");
+	gpiod_set_consumer_name(lcd->reset, "hx8357-reset");
+
+	lcd->im_pins = devm_gpiod_get_array_optional(dev, "im", GPIOD_OUT_LOW);
+	if (IS_ERR(lcd->im_pins))
+		return dev_err_probe(dev, PTR_ERR(lcd->im_pins), "failed to request im GPIOs\n");
+	if (lcd->im_pins) {
+		if (lcd->im_pins->ndescs < HX8357_NUM_IM_PINS)
+			return dev_err_probe(dev, -EINVAL, "not enough im GPIOs\n");
+
+		for (i = 0; i < HX8357_NUM_IM_PINS; i++)
+			gpiod_set_consumer_name(lcd->im_pins->desc[i], "im_pins");
+	}
+
+	lcdev = devm_lcd_device_register(dev, "mxsfb", dev, lcd, &hx8357_ops);
+	if (IS_ERR(lcdev)) {
+		ret = PTR_ERR(lcdev);
+		return ret;
+	}
+	spi_set_drvdata(spi, lcdev);
+
+	hx8357_lcd_reset(lcdev);
+
+	ret = init_fn(lcdev);
+	if (ret)
+		return dev_err_probe(dev, ret, "Couldn't initialize panel\n");
+
+	dev_info(dev, "Panel probed\n");
+
+	return 0;
+}
 
 static const struct of_device_id hx8357_dt_ids[] = {
 	{
@@ -574,97 +631,9 @@ static const struct of_device_id hx8357_dt_ids[] = {
 		.compatible = "himax,hx8369",
 		.data = hx8369_lcd_init,
 	},
-	{},
+	{}
 };
 MODULE_DEVICE_TABLE(of, hx8357_dt_ids);
-
-static int hx8357_probe(struct spi_device *spi)
-{
-	struct lcd_device *lcdev;
-	struct hx8357_data *lcd;
-	const struct of_device_id *match;
-	int i, ret;
-
-	lcd = devm_kzalloc(&spi->dev, sizeof(*lcd), GFP_KERNEL);
-	if (!lcd)
-		return -ENOMEM;
-
-	ret = spi_setup(spi);
-	if (ret < 0) {
-		dev_err(&spi->dev, "SPI setup failed.\n");
-		return ret;
-	}
-
-	lcd->spi = spi;
-
-	match = of_match_device(hx8357_dt_ids, &spi->dev);
-	if (!match || !match->data)
-		return -EINVAL;
-
-	lcd->reset = of_get_named_gpio(spi->dev.of_node, "gpios-reset", 0);
-	if (!gpio_is_valid(lcd->reset)) {
-		dev_err(&spi->dev, "Missing dt property: gpios-reset\n");
-		return -EINVAL;
-	}
-
-	ret = devm_gpio_request_one(&spi->dev, lcd->reset,
-				    GPIOF_OUT_INIT_HIGH,
-				    "hx8357-reset");
-	if (ret) {
-		dev_err(&spi->dev,
-			"failed to request gpio %d: %d\n",
-			lcd->reset, ret);
-		return -EINVAL;
-	}
-
-	if (of_find_property(spi->dev.of_node, "im-gpios", NULL)) {
-		lcd->use_im_pins = 1;
-
-		for (i = 0; i < HX8357_NUM_IM_PINS; i++) {
-			lcd->im_pins[i] = of_get_named_gpio(spi->dev.of_node,
-							    "im-gpios", i);
-			if (lcd->im_pins[i] == -EPROBE_DEFER) {
-				dev_info(&spi->dev, "GPIO requested is not here yet, deferring the probe\n");
-				return -EPROBE_DEFER;
-			}
-			if (!gpio_is_valid(lcd->im_pins[i])) {
-				dev_err(&spi->dev, "Missing dt property: im-gpios\n");
-				return -EINVAL;
-			}
-
-			ret = devm_gpio_request_one(&spi->dev, lcd->im_pins[i],
-						    GPIOF_OUT_INIT_LOW,
-						    "im_pins");
-			if (ret) {
-				dev_err(&spi->dev, "failed to request gpio %d: %d\n",
-					lcd->im_pins[i], ret);
-				return -EINVAL;
-			}
-		}
-	} else {
-		lcd->use_im_pins = 0;
-	}
-
-	lcdev = devm_lcd_device_register(&spi->dev, "mxsfb", &spi->dev, lcd,
-					&hx8357_ops);
-	if (IS_ERR(lcdev)) {
-		ret = PTR_ERR(lcdev);
-		return ret;
-	}
-	spi_set_drvdata(spi, lcdev);
-
-	hx8357_lcd_reset(lcdev);
-
-	ret = ((int (*)(struct lcd_device *))match->data)(lcdev);
-	if (ret) {
-		dev_err(&spi->dev, "Couldn't initialize panel\n");
-		return ret;
-	}
-
-	dev_info(&spi->dev, "Panel probed\n");
-
-	return 0;
-}
 
 static struct spi_driver hx8357_driver = {
 	.probe  = hx8357_probe,

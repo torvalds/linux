@@ -1,0 +1,85 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/mediatek/mediatek,infracfg.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MediaTek Infrastructure System Configuration Controller
+
+maintainers:
+  - Matthias Brugger <matthias.bgg@gmail.com>
+
+description:
+  The Mediatek infracfg controller provides various clocks and reset outputs
+  to the system. The clock values can be found in <dt-bindings/clock/mt*-clk.h>,
+  and reset values in <dt-bindings/reset/mt*-reset.h> and
+  <dt-bindings/reset/mt*-resets.h>.
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - mediatek,mt2701-infracfg
+              - mediatek,mt2712-infracfg
+              - mediatek,mt6765-infracfg
+              - mediatek,mt6795-infracfg
+              - mediatek,mt6779-infracfg_ao
+              - mediatek,mt6797-infracfg
+              - mediatek,mt7622-infracfg
+              - mediatek,mt7629-infracfg
+              - mediatek,mt7981-infracfg
+              - mediatek,mt7986-infracfg
+              - mediatek,mt7988-infracfg
+              - mediatek,mt8135-infracfg
+              - mediatek,mt8167-infracfg
+              - mediatek,mt8173-infracfg
+              - mediatek,mt8183-infracfg
+              - mediatek,mt8516-infracfg
+          - const: syscon
+      - items:
+          - const: mediatek,mt7623-infracfg
+          - const: mediatek,mt2701-infracfg
+          - const: syscon
+
+  reg:
+    maxItems: 1
+
+  '#clock-cells':
+    const: 1
+
+  '#reset-cells':
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - '#clock-cells'
+
+if:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - mediatek,mt2701-infracfg
+          - mediatek,mt2712-infracfg
+          - mediatek,mt6795-infracfg
+          - mediatek,mt7622-infracfg
+          - mediatek,mt7986-infracfg
+          - mediatek,mt8135-infracfg
+          - mediatek,mt8173-infracfg
+          - mediatek,mt8183-infracfg
+then:
+  required:
+    - '#reset-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    infracfg: clock-controller@10001000 {
+        compatible = "mediatek,mt8173-infracfg", "syscon";
+        reg = <0x10001000 0x1000>;
+        #clock-cells = <1>;
+        #reset-cells = <1>;
+    };

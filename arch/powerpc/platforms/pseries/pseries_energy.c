@@ -36,6 +36,7 @@ static int sysfs_entries;
 static u32 cpu_to_drc_index(int cpu)
 {
 	struct device_node *dn = NULL;
+	struct property *info;
 	int thread_index;
 	int rc = 1;
 	u32 ret = 0;
@@ -47,20 +48,18 @@ static u32 cpu_to_drc_index(int cpu)
 	/* Convert logical cpu number to core number */
 	thread_index = cpu_core_index_of_thread(cpu);
 
-	if (firmware_has_feature(FW_FEATURE_DRC_INFO)) {
-		struct property *info = NULL;
+	info = of_find_property(dn, "ibm,drc-info", NULL);
+	if (info) {
 		struct of_drc_info drc;
 		int j;
 		u32 num_set_entries;
 		const __be32 *value;
 
-		info = of_find_property(dn, "ibm,drc-info", NULL);
-		if (info == NULL)
-			goto err_of_node_put;
-
 		value = of_prop_next_u32(info, NULL, &num_set_entries);
 		if (!value)
 			goto err_of_node_put;
+		else
+			value++;
 
 		for (j = 0; j < num_set_entries; j++) {
 
@@ -110,6 +109,7 @@ err:
 static int drc_index_to_cpu(u32 drc_index)
 {
 	struct device_node *dn = NULL;
+	struct property *info;
 	const int *indexes;
 	int thread_index = 0, cpu = 0;
 	int rc = 1;
@@ -117,21 +117,18 @@ static int drc_index_to_cpu(u32 drc_index)
 	dn = of_find_node_by_path("/cpus");
 	if (dn == NULL)
 		goto err;
-
-	if (firmware_has_feature(FW_FEATURE_DRC_INFO)) {
-		struct property *info = NULL;
+	info = of_find_property(dn, "ibm,drc-info", NULL);
+	if (info) {
 		struct of_drc_info drc;
 		int j;
 		u32 num_set_entries;
 		const __be32 *value;
 
-		info = of_find_property(dn, "ibm,drc-info", NULL);
-		if (info == NULL)
-			goto err_of_node_put;
-
 		value = of_prop_next_u32(info, NULL, &num_set_entries);
 		if (!value)
 			goto err_of_node_put;
+		else
+			value++;
 
 		for (j = 0; j < num_set_entries; j++) {
 
@@ -303,20 +300,22 @@ static struct device_attribute attr_percpu_deactivate_hint =
 static int __init pseries_energy_init(void)
 {
 	int cpu, err;
-	struct device *cpu_dev;
+	struct device *cpu_dev, *dev_root;
 
 	if (!firmware_has_feature(FW_FEATURE_BEST_ENERGY))
 		return 0; /* H_BEST_ENERGY hcall not supported */
 
 	/* Create the sysfs files */
-	err = device_create_file(cpu_subsys.dev_root,
-				&attr_cpu_activate_hint_list);
-	if (!err)
-		err = device_create_file(cpu_subsys.dev_root,
-				&attr_cpu_deactivate_hint_list);
+	dev_root = bus_get_dev_root(&cpu_subsys);
+	if (dev_root) {
+		err = device_create_file(dev_root, &attr_cpu_activate_hint_list);
+		if (!err)
+			err = device_create_file(dev_root, &attr_cpu_deactivate_hint_list);
+		put_device(dev_root);
+		if (err)
+			return err;
+	}
 
-	if (err)
-		return err;
 	for_each_possible_cpu(cpu) {
 		cpu_dev = get_cpu_device(cpu);
 		err = device_create_file(cpu_dev,
@@ -340,14 +339,18 @@ static int __init pseries_energy_init(void)
 static void __exit pseries_energy_cleanup(void)
 {
 	int cpu;
-	struct device *cpu_dev;
+	struct device *cpu_dev, *dev_root;
 
 	if (!sysfs_entries)
 		return;
 
 	/* Remove the sysfs files */
-	device_remove_file(cpu_subsys.dev_root, &attr_cpu_activate_hint_list);
-	device_remove_file(cpu_subsys.dev_root, &attr_cpu_deactivate_hint_list);
+	dev_root = bus_get_dev_root(&cpu_subsys);
+	if (dev_root) {
+		device_remove_file(dev_root, &attr_cpu_activate_hint_list);
+		device_remove_file(dev_root, &attr_cpu_deactivate_hint_list);
+		put_device(dev_root);
+	}
 
 	for_each_possible_cpu(cpu) {
 		cpu_dev = get_cpu_device(cpu);

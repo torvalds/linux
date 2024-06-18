@@ -1,0 +1,152 @@
+What:		/sys/bus/platform/devices/MLNXBF04:00/lifecycle_state
+Date:		Oct 2019
+KernelVersion:	5.5
+Contact:	"Liming Sun <lsun@mellanox.com>"
+Description:
+		The Life-cycle state of the SoC, which could be one of the
+		following values.
+
+		==============  =============================================
+		Production      Production state and can be updated to secure
+		GA Secured      Secure chip and not able to change state
+		GA Non-Secured  Non-Secure chip and not able to change state
+		RMA             Return Merchandise Authorization
+		==============  =============================================
+
+What:		/sys/bus/platform/devices/MLNXBF04:00/post_reset_wdog
+Date:		Oct 2019
+KernelVersion:	5.5
+Contact:	"Liming Sun <lsun@mellanox.com>"
+Description:
+		The watchdog setting in seconds for the next booting. It's used
+		to reboot the chip and recover it to the old state if the new
+		boot partition fails.
+
+What:		/sys/bus/platform/devices/MLNXBF04:00/reset_action
+Date:		Oct 2019
+KernelVersion:	5.5
+Contact:	"Liming Sun <lsun@mellanox.com>"
+Description:
+		The source of the boot stream for the next reset. It could be
+		one of the following values:
+
+		===========  ===============================================
+		external     boot from external source (USB or PCIe)
+		emmc         boot from the onchip eMMC
+		emmc_legacy  boot from the onchip eMMC in legacy (slow) mode
+		===========  ===============================================
+
+What:		/sys/bus/platform/devices/MLNXBF04:00/second_reset_action
+Date:		Oct 2019
+KernelVersion:	5.5
+Contact:	"Liming Sun <lsun@mellanox.com>"
+Description:
+		Update the source of the boot stream after next reset. It could
+		be one of the following values and will be applied after next
+		reset.
+
+		===========  ===============================================
+		external     boot from external source (USB or PCIe)
+		emmc         boot from the onchip eMMC
+		emmc_legacy  boot from the onchip eMMC in legacy (slow) mode
+		swap_emmc    swap the primary / secondary boot partition
+		none         cancel the action
+		===========  ===============================================
+
+What:		/sys/bus/platform/devices/MLNXBF04:00/secure_boot_fuse_state
+Date:		Oct 2019
+KernelVersion:	5.5
+Contact:	"Liming Sun <lsun@mellanox.com>"
+Description:
+		The state of eFuse versions with the following values.
+
+		=======  ===============================================
+		InUse    burnt, valid and currently in use
+		Used     burnt and valid
+		Free     not burnt and free to use
+		Skipped  not burnt but not free (skipped)
+		Wasted   burnt and invalid
+		Invalid  not burnt but marked as valid (error state).
+		=======  ===============================================
+
+What:		/sys/bus/platform/devices/MLNXBF04:00/bootfifo
+Date:		Apr 2023
+KernelVersion:	6.4
+Contact:	"Liming Sun <limings@nvidia.com>"
+Description:
+		The file used to access the BlueField boot fifo.
+
+What:		/sys/bus/platform/devices/MLNXBF04:00/rsh_log
+Date:		May 2023
+KernelVersion:	6.4
+Contact:	"Liming Sun <limings@nvidia.com>"
+Description:
+		The file used to write BlueField boot log with the format
+                "[INFO|WARN|ERR|ASSERT ]<msg>". Log level 'INFO' is used by
+                default if not specified.
+
+What:		/sys/bus/platform/devices/MLNXBF04:00/oob_mac
+Date:		August 2023
+KernelVersion:	6.5
+Contact:	"David Thompson <davthompson@nvidia.com>"
+Description:
+		The "oob_mac" sysfs attribute holds the MAC address for
+                the out-of-band 1Gbps Ethernet port.  This MAC address is
+                provided on a board-level label.
+
+What:		/sys/bus/platform/devices/MLNXBF04:00/opn
+Date:		August 2023
+KernelVersion:	6.5
+Contact:	"David Thompson <davthompson@nvidia.com>"
+Description:
+		The "opn" sysfs attribute holds the board's part number.
+                This value is provided on a board-level label.
+
+What:		/sys/bus/platform/devices/MLNXBF04:00/sku
+Date:		August 2023
+KernelVersion:	6.5
+Contact:	"David Thompson <davthompson@nvidia.com>"
+Description:
+		The "sku" sysfs attribute holds the board's SKU number.
+                This value is provided on a board-level label.
+
+What:		/sys/bus/platform/devices/MLNXBF04:00/modl
+Date:		August 2023
+KernelVersion:	6.5
+Contact:	"David Thompson <davthompson@nvidia.com>"
+Description:
+		The "modl" sysfs attribute holds the board's model number.
+                This value is provided on a board-level label.
+
+What:		/sys/bus/platform/devices/MLNXBF04:00/sn
+Date:		August 2023
+KernelVersion:	6.5
+Contact:	"David Thompson <davthompson@nvidia.com>"
+Description:
+		The "sn" sysfs attribute holds the board's serial number.
+                This value is provided on a board-level label.
+
+What:		/sys/bus/platform/devices/MLNXBF04:00/uuid
+Date:		August 2023
+KernelVersion:	6.5
+Contact:	"David Thompson <davthompson@nvidia.com>"
+Description:
+		The "uuid" sysfs attribute holds the board's UUID.
+                This value is provided by the manufacturing team.
+
+What:		/sys/bus/platform/devices/MLNXBF04:00/rev
+Date:		August 2023
+KernelVersion:	6.5
+Contact:	"David Thompson <davthompson@nvidia.com>"
+Description:
+		The "rev" sysfs attribute holds the board's revision.
+                This value is provided on a board-level label.
+
+What:		/sys/bus/platform/devices/MLNXBF04:00/mfg_lock
+Date:		August 2023
+KernelVersion:	6.5
+Contact:	"David Thompson <davthompson@nvidia.com>"
+Description:
+		The "mfg_lock" sysfs attribute is write-only.
+                A successful write to this attribute will latch the
+                board-level attributes into EEPROM, making them read-only.

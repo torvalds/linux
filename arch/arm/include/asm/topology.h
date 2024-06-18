@@ -7,14 +7,24 @@
 #include <linux/cpumask.h>
 #include <linux/arch_topology.h>
 
+/* big.LITTLE switcher is incompatible with frequency invariance */
+#ifndef CONFIG_BL_SWITCHER
 /* Replace task scheduler's default frequency-invariant accounting */
+#define arch_set_freq_scale topology_set_freq_scale
 #define arch_scale_freq_capacity topology_get_freq_scale
+#define arch_scale_freq_invariant topology_scale_freq_invariant
+#define arch_scale_freq_ref topology_get_freq_ref
+#endif
 
 /* Replace task scheduler's default cpu-invariant accounting */
 #define arch_scale_cpu_capacity topology_get_cpu_scale
 
 /* Enable topology flag updates */
 #define arch_update_cpu_topology topology_update_cpu_topology
+
+/* Replace task scheduler's default HW pressure API */
+#define arch_scale_hw_pressure topology_get_hw_pressure
+#define arch_update_hw_pressure	topology_update_hw_pressure
 
 #else
 

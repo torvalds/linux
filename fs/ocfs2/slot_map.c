@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
- *
+/*
  * slot_map.c
  *
  * Copyright (C) 2002, 2004 Oracle.  All rights reserved.
@@ -39,7 +37,7 @@ struct ocfs2_slot_info {
 	unsigned int si_blocks;
 	struct buffer_head **si_bh;
 	unsigned int si_num_slots;
-	struct ocfs2_slot si_slots[];
+	struct ocfs2_slot si_slots[] __counted_by(si_num_slots);
 };
 
 

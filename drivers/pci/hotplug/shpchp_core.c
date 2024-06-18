@@ -32,7 +32,6 @@ int shpchp_poll_time;
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_LICENSE("GPL");
 
 module_param(shpchp_debug, bool, 0644);
 module_param(shpchp_poll_mode, bool, 0644);
@@ -312,7 +311,7 @@ static void shpc_remove(struct pci_dev *dev)
 }
 
 static const struct pci_device_id shpcd_pci_tbl[] = {
-	{PCI_DEVICE_CLASS(((PCI_CLASS_BRIDGE_PCI << 8) | 0x00), ~0)},
+	{PCI_DEVICE_CLASS(PCI_CLASS_BRIDGE_PCI_NORMAL, ~0)},
 	{ /* end: all zeroes */ }
 };
 MODULE_DEVICE_TABLE(pci, shpcd_pci_tbl);

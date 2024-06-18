@@ -65,9 +65,9 @@ netxen_nic_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
 	u32 fw_minor = 0;
 	u32 fw_build = 0;
 
-	strlcpy(drvinfo->driver, netxen_nic_driver_name,
+	strscpy(drvinfo->driver, netxen_nic_driver_name,
 		sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, NETXEN_NIC_LINUX_VERSIONID,
+	strscpy(drvinfo->version, NETXEN_NIC_LINUX_VERSIONID,
 		sizeof(drvinfo->version));
 	fw_major = NXRD32(adapter, NETXEN_FW_VERSION_MAJOR);
 	fw_minor = NXRD32(adapter, NETXEN_FW_VERSION_MINOR);
@@ -75,7 +75,7 @@ netxen_nic_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
 		"%d.%d.%d", fw_major, fw_minor, fw_build);
 
-	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
+	strscpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));
 }
 
@@ -153,7 +153,7 @@ skip:
 	case NETXEN_BRDTYPE_P3_4_GB_MM:
 		supported |= SUPPORTED_Autoneg;
 		advertising |= ADVERTISED_Autoneg;
-		/* fall through */
+		fallthrough;
 	case NETXEN_BRDTYPE_P2_SB31_10G_CX4:
 	case NETXEN_BRDTYPE_P3_10G_CX4:
 	case NETXEN_BRDTYPE_P3_10G_CX4_LP:
@@ -182,7 +182,7 @@ skip:
 		supported |= SUPPORTED_TP;
 		check_sfp_module = netif_running(dev) &&
 			adapter->has_link_events;
-		/* fall through */
+		fallthrough;
 	case NETXEN_BRDTYPE_P2_SB31_10G:
 	case NETXEN_BRDTYPE_P3_10G_XFP:
 		supported |= SUPPORTED_FIBRE;
@@ -392,7 +392,9 @@ netxen_nic_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 
 static void
 netxen_nic_get_ringparam(struct net_device *dev,
-		struct ethtool_ringparam *ring)
+			 struct ethtool_ringparam *ring,
+			 struct kernel_ethtool_ringparam *kernel_ring,
+			 struct netlink_ext_ack *extack)
 {
 	struct netxen_adapter *adapter = netdev_priv(dev);
 
@@ -430,7 +432,9 @@ netxen_validate_ringparam(u32 val, u32 min, u32 max, char *r_name)
 
 static int
 netxen_nic_set_ringparam(struct net_device *dev,
-		struct ethtool_ringparam *ring)
+			 struct ethtool_ringparam *ring,
+			 struct kernel_ethtool_ringparam *kernel_ring,
+			 struct netlink_ext_ack *extack)
 {
 	struct netxen_adapter *adapter = netdev_priv(dev);
 	u16 max_rcv_desc = MAX_RCV_DESCRIPTORS_10G;
@@ -731,7 +735,9 @@ netxen_nic_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
  * firmware coalescing to default.
  */
 static int netxen_set_intr_coalesce(struct net_device *netdev,
-			struct ethtool_coalesce *ethcoal)
+				    struct ethtool_coalesce *ethcoal,
+				    struct kernel_ethtool_coalesce *kernel_coal,
+				    struct netlink_ext_ack *extack)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
 
@@ -748,24 +754,7 @@ static int netxen_set_intr_coalesce(struct net_device *netdev,
 	if (ethcoal->rx_coalesce_usecs > 0xffff ||
 		ethcoal->rx_max_coalesced_frames > 0xffff ||
 		ethcoal->tx_coalesce_usecs > 0xffff ||
-		ethcoal->tx_max_coalesced_frames > 0xffff ||
-		ethcoal->rx_coalesce_usecs_irq ||
-		ethcoal->rx_max_coalesced_frames_irq ||
-		ethcoal->tx_coalesce_usecs_irq ||
-		ethcoal->tx_max_coalesced_frames_irq ||
-		ethcoal->stats_block_coalesce_usecs ||
-		ethcoal->use_adaptive_rx_coalesce ||
-		ethcoal->use_adaptive_tx_coalesce ||
-		ethcoal->pkt_rate_low ||
-		ethcoal->rx_coalesce_usecs_low ||
-		ethcoal->rx_max_coalesced_frames_low ||
-		ethcoal->tx_coalesce_usecs_low ||
-		ethcoal->tx_max_coalesced_frames_low ||
-		ethcoal->pkt_rate_high ||
-		ethcoal->rx_coalesce_usecs_high ||
-		ethcoal->rx_max_coalesced_frames_high ||
-		ethcoal->tx_coalesce_usecs_high ||
-		ethcoal->tx_max_coalesced_frames_high)
+		ethcoal->tx_max_coalesced_frames > 0xffff)
 		return -EINVAL;
 
 	if (!ethcoal->rx_coalesce_usecs ||
@@ -792,7 +781,9 @@ static int netxen_set_intr_coalesce(struct net_device *netdev,
 }
 
 static int netxen_get_intr_coalesce(struct net_device *netdev,
-			struct ethtool_coalesce *ethcoal)
+				    struct ethtool_coalesce *ethcoal,
+				    struct kernel_ethtool_coalesce *kernel_coal,
+				    struct netlink_ext_ack *extack)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
 
@@ -830,6 +821,9 @@ netxen_get_dump_flag(struct net_device *netdev, struct ethtool_dump *dump)
 	dump->version = adapter->fw_version;
 	return 0;
 }
+
+/* Fw dump levels */
+static const u32 FW_DUMP_LEVELS[] = { 0x3, 0x7, 0xf, 0x1f, 0x3f, 0x7f, 0xff };
 
 static int
 netxen_set_dump(struct net_device *netdev, struct ethtool_dump *val)
@@ -923,6 +917,8 @@ netxen_get_dump_data(struct net_device *netdev, struct ethtool_dump *dump,
 }
 
 const struct ethtool_ops netxen_nic_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_MAX_FRAMES,
 	.get_drvinfo = netxen_nic_get_drvinfo,
 	.get_regs_len = netxen_nic_get_regs_len,
 	.get_regs = netxen_nic_get_regs,

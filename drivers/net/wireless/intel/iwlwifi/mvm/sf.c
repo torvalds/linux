@@ -1,70 +1,14 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2013 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright (C) 2018 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2013 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright (C) 2018 Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+/*
+ * Copyright (C) 2013-2014, 2018-2019, 2022-2024 Intel Corporation
+ * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
+ */
 #include "mvm.h"
 
 /* For counting bound interfaces */
 struct iwl_mvm_active_iface_iterator_data {
 	struct ieee80211_vif *ignore_vif;
-	u8 sta_vif_ap_sta_id;
+	struct ieee80211_sta *sta_vif_ap_sta;
 	enum iwl_sf_state sta_vif_state;
 	u32 num_active_macs;
 };
@@ -79,15 +23,15 @@ static void iwl_mvm_bound_iface_iterator(void *_data, u8 *mac,
 	struct iwl_mvm_active_iface_iterator_data *data = _data;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-	if (vif == data->ignore_vif || !mvmvif->phy_ctxt ||
+	if (vif == data->ignore_vif || !mvmvif->deflink.phy_ctxt ||
 	    vif->type == NL80211_IFTYPE_P2P_DEVICE)
 		return;
 
 	data->num_active_macs++;
 
 	if (vif->type == NL80211_IFTYPE_STATION) {
-		data->sta_vif_ap_sta_id = mvmvif->ap_sta_id;
-		if (vif->bss_conf.assoc)
+		data->sta_vif_ap_sta = mvmvif->ap_sta;
+		if (vif->cfg.assoc)
 			data->sta_vif_state = SF_FULL_ON;
 		else
 			data->sta_vif_state = SF_INIT_OFF;
@@ -154,6 +98,10 @@ static void iwl_mvm_fill_sf_command(struct iwl_mvm *mvm,
 				    struct ieee80211_sta *sta)
 {
 	int i, j, watermark;
+	u8 max_rx_nss = 0;
+	bool is_legacy = true;
+	struct ieee80211_link_sta *link_sta;
+	unsigned int link_id;
 
 	sf_cmd->watermark[SF_LONG_DELAY_ON] = cpu_to_le32(SF_W_MARK_SCAN);
 
@@ -162,8 +110,25 @@ static void iwl_mvm_fill_sf_command(struct iwl_mvm *mvm,
 	 * capabilities of the AP station, and choose the watermark accordingly.
 	 */
 	if (sta) {
-		if (sta->ht_cap.ht_supported || sta->vht_cap.vht_supported) {
-			switch (sta->rx_nss) {
+		/* find the maximal NSS number among all links (if relevant) */
+		rcu_read_lock();
+		for (link_id = 0; link_id < ARRAY_SIZE(sta->link); link_id++) {
+			link_sta = rcu_dereference(sta->link[link_id]);
+			if (!link_sta)
+				continue;
+
+			if (link_sta->ht_cap.ht_supported ||
+			    link_sta->vht_cap.vht_supported ||
+			    link_sta->eht_cap.has_eht ||
+			    link_sta->he_cap.has_he) {
+				is_legacy = false;
+				max_rx_nss = max(max_rx_nss, link_sta->rx_nss);
+			}
+		}
+		rcu_read_unlock();
+
+		if (!is_legacy) {
+			switch (max_rx_nss) {
 			case 1:
 				watermark = SF_W_MARK_SISO;
 				break;
@@ -205,20 +170,15 @@ static void iwl_mvm_fill_sf_command(struct iwl_mvm *mvm,
 		memcpy(sf_cmd->full_on_timeouts, sf_full_timeout_def,
 		       sizeof(sf_full_timeout_def));
 	}
-
 }
 
-static int iwl_mvm_sf_config(struct iwl_mvm *mvm, u8 sta_id,
+static int iwl_mvm_sf_config(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			     enum iwl_sf_state new_state)
 {
 	struct iwl_sf_cfg_cmd sf_cmd = {
 		.state = cpu_to_le32(new_state),
 	};
-	struct ieee80211_sta *sta;
 	int ret = 0;
-
-	if (mvm->cfg->disable_dummy_notification)
-		sf_cmd.state |= cpu_to_le32(SF_CFG_DUMMY_NOTIF_OFF);
 
 	/*
 	 * If an associated AP sta changed its antenna configuration, the state
@@ -232,20 +192,12 @@ static int iwl_mvm_sf_config(struct iwl_mvm *mvm, u8 sta_id,
 		iwl_mvm_fill_sf_command(mvm, &sf_cmd, NULL);
 		break;
 	case SF_FULL_ON:
-		if (sta_id == IWL_MVM_INVALID_STA) {
+		if (!sta) {
 			IWL_ERR(mvm,
 				"No station: Cannot switch SF to FULL_ON\n");
 			return -EINVAL;
 		}
-		rcu_read_lock();
-		sta = rcu_dereference(mvm->fw_id_to_mac_id[sta_id]);
-		if (IS_ERR_OR_NULL(sta)) {
-			IWL_ERR(mvm, "Invalid station id\n");
-			rcu_read_unlock();
-			return -EINVAL;
-		}
 		iwl_mvm_fill_sf_command(mvm, &sf_cmd, sta);
-		rcu_read_unlock();
 		break;
 	case SF_INIT_OFF:
 		iwl_mvm_fill_sf_command(mvm, &sf_cmd, NULL);
@@ -273,14 +225,16 @@ int iwl_mvm_sf_update(struct iwl_mvm *mvm, struct ieee80211_vif *changed_vif,
 		      bool remove_vif)
 {
 	enum iwl_sf_state new_state;
-	u8 sta_id = IWL_MVM_INVALID_STA;
 	struct iwl_mvm_vif *mvmvif = NULL;
 	struct iwl_mvm_active_iface_iterator_data data = {
 		.ignore_vif = changed_vif,
 		.sta_vif_state = SF_UNINIT,
-		.sta_vif_ap_sta_id = IWL_MVM_INVALID_STA,
 	};
+	struct ieee80211_sta *sta = NULL;
 
+	if (fw_has_api(&mvm->fw->ucode_capa,
+		       IWL_UCODE_TLV_API_SMART_FIFO_OFFLOAD))
+		return 0;
 	/*
 	 * Ignore the call if we are in HW Restart flow, or if the handled
 	 * vif is a p2p device.
@@ -309,16 +263,16 @@ int iwl_mvm_sf_update(struct iwl_mvm *mvm, struct ieee80211_vif *changed_vif,
 			 * and we filled the relevant data during iteration
 			 */
 			new_state = data.sta_vif_state;
-			sta_id = data.sta_vif_ap_sta_id;
+			sta = data.sta_vif_ap_sta;
 		} else {
 			if (WARN_ON(!changed_vif))
 				return -EINVAL;
 			if (changed_vif->type != NL80211_IFTYPE_STATION) {
 				new_state = SF_UNINIT;
-			} else if (changed_vif->bss_conf.assoc &&
+			} else if (changed_vif->cfg.assoc &&
 				   changed_vif->bss_conf.dtim_period) {
 				mvmvif = iwl_mvm_vif_from_mac80211(changed_vif);
-				sta_id = mvmvif->ap_sta_id;
+				sta = mvmvif->ap_sta;
 				new_state = SF_FULL_ON;
 			} else {
 				new_state = SF_INIT_OFF;
@@ -329,5 +283,6 @@ int iwl_mvm_sf_update(struct iwl_mvm *mvm, struct ieee80211_vif *changed_vif,
 		/* If there are multiple active macs - change to SF_UNINIT */
 		new_state = SF_UNINIT;
 	}
-	return iwl_mvm_sf_config(mvm, sta_id, new_state);
+
+	return iwl_mvm_sf_config(mvm, sta, new_state);
 }

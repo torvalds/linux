@@ -12,13 +12,12 @@
 #include <linux/delay.h>
 #include <linux/seq_file.h>
 #include <linux/interrupt.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 
 #include <asm/time.h>
 #include <asm/machdep.h>
 #include <asm/pci-bridge.h>
 #include <mm/mmu_decl.h>
-#include <asm/prom.h>
 #include <asm/udbg.h>
 #include <asm/mpic.h>
 #include <asm/swiotlb.h>
@@ -28,7 +27,7 @@
 
 #include "mpc85xx.h"
 
-void __init mpc8536_ds_pic_init(void)
+static void __init mpc8536_ds_pic_init(void)
 {
 	struct mpic *mpic = mpic_alloc(NULL, 0, MPIC_BIG_ENDIAN,
 			0, 256, " OpenPIC  ");
@@ -53,17 +52,9 @@ static void __init mpc8536_ds_setup_arch(void)
 
 machine_arch_initcall(mpc8536_ds, mpc85xx_common_publish_devices);
 
-/*
- * Called very early, device-tree isn't unflattened
- */
-static int __init mpc8536_ds_probe(void)
-{
-	return of_machine_is_compatible("fsl,mpc8536ds");
-}
-
 define_machine(mpc8536_ds) {
 	.name			= "MPC8536 DS",
-	.probe			= mpc8536_ds_probe,
+	.compatible		= "fsl,mpc8536ds",
 	.setup_arch		= mpc8536_ds_setup_arch,
 	.init_IRQ		= mpc8536_ds_pic_init,
 #ifdef CONFIG_PCI
@@ -71,6 +62,5 @@ define_machine(mpc8536_ds) {
 	.pcibios_fixup_phb      = fsl_pcibios_fixup_phb,
 #endif
 	.get_irq		= mpic_get_irq,
-	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
 };

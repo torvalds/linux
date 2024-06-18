@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/fsl,qoriq-mc-dpmac.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: DPAA2 MAC
+
+maintainers:
+  - Ioana Ciornei <ioana.ciornei@nxp.com>
+
+description:
+  This binding represents the DPAA2 MAC objects found on the fsl-mc bus and
+  located under the 'dpmacs' node for the fsl-mc bus DTS node.
+
+allOf:
+  - $ref: ethernet-controller.yaml#
+
+properties:
+  compatible:
+    const: fsl,qoriq-mc-dpmac
+
+  reg:
+    maxItems: 1
+    description: The DPMAC number
+
+  phy-handle: true
+
+  phy-connection-type: true
+
+  phy-mode: true
+
+  pcs-handle:
+    maxItems: 1
+    description:
+      A reference to a node representing a PCS PHY device found on
+      the internal MDIO bus.
+
+  managed: true
+
+required:
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    dpmacs {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      ethernet@4 {
+        compatible = "fsl,qoriq-mc-dpmac";
+        reg = <0x4>;
+        phy-handle = <&mdio1_phy6>;
+        phy-connection-type = "qsgmii";
+        managed = "in-band-status";
+        pcs-handle = <&pcs3_1>;
+      };
+    };

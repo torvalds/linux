@@ -15,3 +15,11 @@ Description:
 		information with description of all internal kernel types. See
 		Documentation/bpf/btf.rst for detailed description of format
 		itself.
+
+What:		/sys/kernel/btf/<module-name>
+Date:		Nov 2020
+KernelVersion:	5.11
+Contact:	bpf@vger.kernel.org
+Description:
+		Read-only binary attribute exposing kernel module's BTF type
+		information as an add-on to the kernel's BTF (/sys/kernel/btf/vmlinux).

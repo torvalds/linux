@@ -32,20 +32,35 @@
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/moduleparam.h>
+#include <linux/dynamic_debug.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_atomic_uapi.h>
+#include <drm/drm_bridge.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_encoder.h>
-#include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
-#include <drm/drm_plane_helper.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_print.h>
 #include <drm/drm_vblank.h>
+
+#include "drm_crtc_helper_internal.h"
+
+DECLARE_DYNDBG_CLASSMAP(drm_debug_classes, DD_CLASS_TYPE_DISJOINT_BITS, 0,
+			"DRM_UT_CORE",
+			"DRM_UT_DRIVER",
+			"DRM_UT_KMS",
+			"DRM_UT_PRIME",
+			"DRM_UT_ATOMIC",
+			"DRM_UT_VBL",
+			"DRM_UT_STATE",
+			"DRM_UT_LEASE",
+			"DRM_UT_DP",
+			"DRM_UT_DRMRES");
 
 /**
  * DOC: overview
@@ -95,15 +110,15 @@ bool drm_helper_encoder_in_use(struct drm_encoder *encoder)
 	struct drm_connector_list_iter conn_iter;
 	struct drm_device *dev = encoder->dev;
 
-	WARN_ON(drm_drv_uses_atomic_modeset(dev));
+	drm_WARN_ON(dev, drm_drv_uses_atomic_modeset(dev));
 
 	/*
 	 * We can expect this mutex to be locked if we are not panicking.
 	 * Locking is currently fubar in the panic handler.
 	 */
 	if (!oops_in_progress) {
-		WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
-		WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
+		drm_WARN_ON(dev, !mutex_is_locked(&dev->mode_config.mutex));
+		drm_WARN_ON(dev, !drm_modeset_is_locked(&dev->mode_config.connection_mutex));
 	}
 
 
@@ -135,14 +150,14 @@ bool drm_helper_crtc_in_use(struct drm_crtc *crtc)
 	struct drm_encoder *encoder;
 	struct drm_device *dev = crtc->dev;
 
-	WARN_ON(drm_drv_uses_atomic_modeset(dev));
+	drm_WARN_ON(dev, drm_drv_uses_atomic_modeset(dev));
 
 	/*
 	 * We can expect this mutex to be locked if we are not panicking.
 	 * Locking is currently fubar in the panic handler.
 	 */
 	if (!oops_in_progress)
-		WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
+		drm_WARN_ON(dev, !mutex_is_locked(&dev->mode_config.mutex));
 
 	drm_for_each_encoder(encoder, dev)
 		if (encoder->crtc == crtc && drm_helper_encoder_in_use(encoder))
@@ -182,6 +197,7 @@ static void __drm_helper_disable_unused_functions(struct drm_device *dev)
 
 	drm_for_each_crtc(crtc, dev) {
 		const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+
 		crtc->enabled = drm_helper_crtc_in_use(crtc);
 		if (!crtc->enabled) {
 			if (crtc_funcs->disable)
@@ -214,7 +230,7 @@ static void __drm_helper_disable_unused_functions(struct drm_device *dev)
  */
 void drm_helper_disable_unused_functions(struct drm_device *dev)
 {
-	WARN_ON(drm_drv_uses_atomic_modeset(dev));
+	drm_WARN_ON(dev, drm_drv_uses_atomic_modeset(dev));
 
 	drm_modeset_lock_all(dev);
 	__drm_helper_disable_unused_functions(dev);
@@ -240,10 +256,6 @@ drm_crtc_prepare_encoders(struct drm_device *dev)
 
 		/* Disable unused encoders */
 		if (encoder->crtc == NULL)
-			drm_encoder_disable(encoder);
-		/* Disable encoders whose CRTC is about to change */
-		if (encoder_funcs->get_crtc &&
-		    encoder->crtc != (*encoder_funcs->get_crtc)(encoder))
 			drm_encoder_disable(encoder);
 	}
 }
@@ -282,7 +294,7 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 	struct drm_encoder *encoder;
 	bool ret = true;
 
-	WARN_ON(drm_drv_uses_atomic_modeset(dev));
+	drm_WARN_ON(dev, drm_drv_uses_atomic_modeset(dev));
 
 	drm_warn_on_modeset_not_all_locked(dev);
 
@@ -297,15 +309,15 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 		return false;
 	}
 
-	saved_mode = crtc->mode;
-	saved_hwmode = crtc->hwmode;
+	drm_mode_init(&saved_mode, &crtc->mode);
+	drm_mode_init(&saved_hwmode, &crtc->hwmode);
 	saved_x = crtc->x;
 	saved_y = crtc->y;
 
 	/* Update crtc values up front so the driver can rely on them for mode
 	 * setting.
 	 */
-	crtc->mode = *mode;
+	drm_mode_copy(&crtc->mode, mode);
 	crtc->x = x;
 	crtc->y = y;
 
@@ -326,7 +338,8 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 		if (encoder_funcs->mode_fixup) {
 			if (!(ret = encoder_funcs->mode_fixup(encoder, mode,
 							      adjusted_mode))) {
-				DRM_DEBUG_KMS("Encoder fixup failed\n");
+				drm_dbg_kms(dev, "[ENCODER:%d:%s] mode fixup failed\n",
+					    encoder->base.id, encoder->name);
 				goto done;
 			}
 		}
@@ -335,13 +348,14 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 	if (crtc_funcs->mode_fixup) {
 		if (!(ret = crtc_funcs->mode_fixup(crtc, mode,
 						adjusted_mode))) {
-			DRM_DEBUG_KMS("CRTC fixup failed\n");
+			drm_dbg_kms(dev, "[CRTC:%d:%s] mode fixup failed\n",
+				    crtc->base.id, crtc->name);
 			goto done;
 		}
 	}
-	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
+	drm_dbg_kms(dev, "[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
 
-	crtc->hwmode = *adjusted_mode;
+	drm_mode_copy(&crtc->hwmode, adjusted_mode);
 
 	/* Prepare the encoders and CRTCs before setting the mode. */
 	drm_for_each_encoder(encoder, dev) {
@@ -378,8 +392,8 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 		if (!encoder_funcs)
 			continue;
 
-		DRM_DEBUG_KMS("[ENCODER:%d:%s] set [MODE:%s]\n",
-			encoder->base.id, encoder->name, mode->name);
+		drm_dbg_kms(dev, "[ENCODER:%d:%s] set [MODE:%s]\n",
+			    encoder->base.id, encoder->name, mode->name);
 		if (encoder_funcs->mode_set)
 			encoder_funcs->mode_set(encoder, mode, adjusted_mode);
 	}
@@ -411,8 +425,8 @@ done:
 	drm_mode_destroy(dev, adjusted_mode);
 	if (!ret) {
 		crtc->enabled = saved_enabled;
-		crtc->mode = saved_mode;
-		crtc->hwmode = saved_hwmode;
+		drm_mode_copy(&crtc->mode, &saved_mode);
+		drm_mode_copy(&crtc->hwmode, &saved_hwmode);
 		crtc->x = saved_x;
 		crtc->y = saved_y;
 	}
@@ -420,6 +434,29 @@ done:
 	return ret;
 }
 EXPORT_SYMBOL(drm_crtc_helper_set_mode);
+
+/**
+ * drm_crtc_helper_atomic_check() - Helper to check CRTC atomic-state
+ * @crtc: CRTC to check
+ * @state: atomic state object
+ *
+ * Provides a default CRTC-state check handler for CRTCs that only have
+ * one primary plane attached to it. This is often the case for the CRTC
+ * of simple framebuffers.
+ *
+ * RETURNS:
+ * Zero on success, or an errno code otherwise.
+ */
+int drm_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *state)
+{
+	struct drm_crtc_state *new_crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+
+	if (!new_crtc_state->enable)
+		return 0;
+
+	return drm_atomic_helper_check_crtc_primary_plane(new_crtc_state);
+}
+EXPORT_SYMBOL(drm_crtc_helper_atomic_check);
 
 static void
 drm_crtc_helper_disable(struct drm_crtc *crtc)
@@ -457,6 +494,22 @@ drm_crtc_helper_disable(struct drm_crtc *crtc)
 	}
 
 	__drm_helper_disable_unused_functions(dev);
+}
+
+/*
+ * For connectors that support multiple encoders, either the
+ * .atomic_best_encoder() or .best_encoder() operation must be implemented.
+ */
+struct drm_encoder *
+drm_connector_get_single_encoder(struct drm_connector *connector)
+{
+	struct drm_encoder *encoder;
+
+	drm_WARN_ON(connector->dev, hweight32(connector->possible_encoders) > 1);
+	drm_connector_for_each_possible_encoder(connector, encoder)
+		return encoder;
+
+	return NULL;
 }
 
 /**
@@ -513,8 +566,6 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set,
 	int ret;
 	int i;
 
-	DRM_DEBUG_KMS("\n");
-
 	BUG_ON(!set);
 	BUG_ON(!set->crtc);
 	BUG_ON(!set->crtc->helper_private);
@@ -526,19 +577,22 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set,
 	crtc_funcs = set->crtc->helper_private;
 
 	dev = set->crtc->dev;
-	WARN_ON(drm_drv_uses_atomic_modeset(dev));
+
+	drm_dbg_kms(dev, "\n");
+
+	drm_WARN_ON(dev, drm_drv_uses_atomic_modeset(dev));
 
 	if (!set->mode)
 		set->fb = NULL;
 
 	if (set->fb) {
-		DRM_DEBUG_KMS("[CRTC:%d:%s] [FB:%d] #connectors=%d (x y) (%i %i)\n",
-			      set->crtc->base.id, set->crtc->name,
-			      set->fb->base.id,
-			      (int)set->num_connectors, set->x, set->y);
+		drm_dbg_kms(dev, "[CRTC:%d:%s] [FB:%d] #connectors=%d (x y) (%i %i)\n",
+			    set->crtc->base.id, set->crtc->name,
+			    set->fb->base.id,
+			    (int)set->num_connectors, set->x, set->y);
 	} else {
-		DRM_DEBUG_KMS("[CRTC:%d:%s] [NOFB]\n",
-			      set->crtc->base.id, set->crtc->name);
+		drm_dbg_kms(dev, "[CRTC:%d:%s] [NOFB]\n",
+			    set->crtc->base.id, set->crtc->name);
 		drm_crtc_helper_disable(set->crtc);
 		return 0;
 	}
@@ -588,7 +642,8 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set,
 	if (set->crtc->primary->fb != set->fb) {
 		/* If we have no fb then treat it as a full mode set */
 		if (set->crtc->primary->fb == NULL) {
-			DRM_DEBUG_KMS("crtc has no fb, full mode set\n");
+			drm_dbg_kms(dev, "[CRTC:%d:%s] no fb, full mode set\n",
+				    set->crtc->base.id, set->crtc->name);
 			mode_changed = true;
 		} else if (set->fb->format != set->crtc->primary->fb->format) {
 			mode_changed = true;
@@ -600,9 +655,10 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set,
 		fb_changed = true;
 
 	if (!drm_mode_equal(set->mode, &set->crtc->mode)) {
-		DRM_DEBUG_KMS("modes are different, full mode set\n");
-		drm_mode_debug_printmodeline(&set->crtc->mode);
-		drm_mode_debug_printmodeline(set->mode);
+		drm_dbg_kms(dev, "[CRTC:%d:%s] modes are different, full mode set:\n",
+			    set->crtc->base.id, set->crtc->name);
+		drm_dbg_kms(dev, DRM_MODE_FMT "\n", DRM_MODE_ARG(&set->crtc->mode));
+		drm_dbg_kms(dev, DRM_MODE_FMT "\n", DRM_MODE_ARG(set->mode));
 		mode_changed = true;
 	}
 
@@ -624,7 +680,11 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set,
 		new_encoder = connector->encoder;
 		for (ro = 0; ro < set->num_connectors; ro++) {
 			if (set->connectors[ro] == connector) {
-				new_encoder = connector_funcs->best_encoder(connector);
+				if (connector_funcs->best_encoder)
+					new_encoder = connector_funcs->best_encoder(connector);
+				else
+					new_encoder = drm_connector_get_single_encoder(connector);
+
 				/* if we can't get an encoder for a connector
 				   we are setting now - then fail */
 				if (new_encoder == NULL)
@@ -632,7 +692,8 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set,
 					fail = 1;
 
 				if (connector->dpms != DRM_MODE_DPMS_ON) {
-					DRM_DEBUG_KMS("connector dpms not on, full mode switch\n");
+					drm_dbg_kms(dev, "[CONNECTOR:%d:%s] DPMS not on, full mode switch\n",
+						    connector->base.id, connector->name);
 					mode_changed = true;
 				}
 
@@ -641,7 +702,8 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set,
 		}
 
 		if (new_encoder != connector->encoder) {
-			DRM_DEBUG_KMS("encoder changed, full mode switch\n");
+			drm_dbg_kms(dev, "[CONNECTOR:%d:%s] encoder changed, full mode switch\n",
+				    connector->base.id, connector->name);
 			mode_changed = true;
 			/* If the encoder is reused for another connector, then
 			 * the appropriate crtc will be set later.
@@ -682,17 +744,18 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set,
 			goto fail;
 		}
 		if (new_crtc != connector->encoder->crtc) {
-			DRM_DEBUG_KMS("crtc changed, full mode switch\n");
+			drm_dbg_kms(dev, "[CONNECTOR:%d:%s] CRTC changed, full mode switch\n",
+				    connector->base.id, connector->name);
 			mode_changed = true;
 			connector->encoder->crtc = new_crtc;
 		}
 		if (new_crtc) {
-			DRM_DEBUG_KMS("[CONNECTOR:%d:%s] to [CRTC:%d:%s]\n",
-				      connector->base.id, connector->name,
-				      new_crtc->base.id, new_crtc->name);
+			drm_dbg_kms(dev, "[CONNECTOR:%d:%s] to [CRTC:%d:%s]\n",
+				    connector->base.id, connector->name,
+				    new_crtc->base.id, new_crtc->name);
 		} else {
-			DRM_DEBUG_KMS("[CONNECTOR:%d:%s] to [NOCRTC]\n",
-				      connector->base.id, connector->name);
+			drm_dbg_kms(dev, "[CONNECTOR:%d:%s] to [NOCRTC]\n",
+				    connector->base.id, connector->name);
 		}
 	}
 	drm_connector_list_iter_end(&conn_iter);
@@ -703,23 +766,23 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set,
 
 	if (mode_changed) {
 		if (drm_helper_crtc_in_use(set->crtc)) {
-			DRM_DEBUG_KMS("attempting to set mode from"
-					" userspace\n");
-			drm_mode_debug_printmodeline(set->mode);
+			drm_dbg_kms(dev, "[CRTC:%d:%s] attempting to set mode from userspace: " DRM_MODE_FMT "\n",
+				    set->crtc->base.id, set->crtc->name, DRM_MODE_ARG(set->mode));
 			set->crtc->primary->fb = set->fb;
 			if (!drm_crtc_helper_set_mode(set->crtc, set->mode,
 						      set->x, set->y,
 						      save_set.fb)) {
-				DRM_ERROR("failed to set mode on [CRTC:%d:%s]\n",
-					  set->crtc->base.id, set->crtc->name);
+				drm_err(dev, "[CRTC:%d:%s] failed to set mode\n",
+					set->crtc->base.id, set->crtc->name);
 				set->crtc->primary->fb = save_set.fb;
 				ret = -EINVAL;
 				goto fail;
 			}
-			DRM_DEBUG_KMS("Setting connector DPMS state to on\n");
+			drm_dbg_kms(dev, "[CRTC:%d:%s] Setting connector DPMS state to on\n",
+				    set->crtc->base.id, set->crtc->name);
 			for (i = 0; i < set->num_connectors; i++) {
-				DRM_DEBUG_KMS("\t[CONNECTOR:%d:%s] set DPMS on\n", set->connectors[i]->base.id,
-					      set->connectors[i]->name);
+				drm_dbg_kms(dev, "\t[CONNECTOR:%d:%s] set DPMS on\n", set->connectors[i]->base.id,
+					    set->connectors[i]->name);
 				set->connectors[i]->funcs->dpms(set->connectors[i], DRM_MODE_DPMS_ON);
 			}
 		}
@@ -768,7 +831,7 @@ fail:
 	if (mode_changed &&
 	    !drm_crtc_helper_set_mode(save_set.crtc, save_set.mode, save_set.x,
 				      save_set.y, save_set.fb))
-		DRM_ERROR("failed to restore config after modeset failure\n");
+		drm_err(dev, "failed to restore config after modeset failure\n");
 
 	kfree(save_connector_encoders);
 	kfree(save_encoder_crtcs);
@@ -850,7 +913,7 @@ int drm_helper_connector_dpms(struct drm_connector *connector, int mode)
 	struct drm_crtc *crtc = encoder ? encoder->crtc : NULL;
 	int old_dpms, encoder_dpms = DRM_MODE_DPMS_OFF;
 
-	WARN_ON(drm_drv_uses_atomic_modeset(connector->dev));
+	drm_WARN_ON(connector->dev, drm_drv_uses_atomic_modeset(connector->dev));
 
 	if (mode == connector->dpms)
 		return 0;
@@ -865,6 +928,7 @@ int drm_helper_connector_dpms(struct drm_connector *connector, int mode)
 	if (mode < old_dpms) {
 		if (crtc) {
 			const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+
 			if (crtc_funcs->dpms)
 				(*crtc_funcs->dpms) (crtc,
 						     drm_helper_choose_crtc_dpms(crtc));
@@ -879,6 +943,7 @@ int drm_helper_connector_dpms(struct drm_connector *connector, int mode)
 			drm_helper_encoder_dpms(encoder, encoder_dpms);
 		if (crtc) {
 			const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+
 			if (crtc_funcs->dpms)
 				(*crtc_funcs->dpms) (crtc,
 						     drm_helper_choose_crtc_dpms(crtc));
@@ -923,7 +988,7 @@ void drm_helper_resume_force_mode(struct drm_device *dev)
 	int encoder_dpms;
 	bool ret;
 
-	WARN_ON(drm_drv_uses_atomic_modeset(dev));
+	drm_WARN_ON(dev, drm_drv_uses_atomic_modeset(dev));
 
 	drm_modeset_lock_all(dev);
 	drm_for_each_crtc(crtc, dev) {
@@ -936,7 +1001,7 @@ void drm_helper_resume_force_mode(struct drm_device *dev)
 
 		/* Restoring the old config should never fail! */
 		if (ret == false)
-			DRM_ERROR("failed to set mode on crtc %p\n", crtc);
+			drm_err(dev, "failed to set mode on crtc %p\n", crtc);
 
 		/* Turn off outputs that were already powered off */
 		if (drm_helper_choose_crtc_dpms(crtc)) {

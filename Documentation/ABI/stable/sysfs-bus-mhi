@@ -1,0 +1,44 @@
+What:		/sys/bus/mhi/devices/.../serialnumber
+Date:		Sept 2020
+KernelVersion:	5.10
+Contact:	mhi@lists.linux.dev
+Description:	The file holds the serial number of the client device obtained
+		using a BHI (Boot Host Interface) register read after at least
+		one attempt to power up the device has been done. If read
+		without having the device power on at least once, the file will
+		read all 0's.
+Users:		Any userspace application or clients interested in device info.
+
+What:		/sys/bus/mhi/devices/.../oem_pk_hash
+Date:		Sept 2020
+KernelVersion:	5.10
+Contact:	mhi@lists.linux.dev
+Description:	The file holds the OEM PK Hash value of the endpoint device
+		obtained using a BHI (Boot Host Interface) register read after
+		at least one attempt to power up the device has been done. If
+		read without having the device power on at least once, the file
+		will read all 0's.
+Users:		Any userspace application or clients interested in device info.
+
+What:           /sys/bus/mhi/devices/.../soc_reset
+Date:           April 2022
+KernelVersion:  5.19
+Contact:        mhi@lists.linux.dev
+Description:	Initiates a SoC reset on the MHI controller.  A SoC reset is
+                a reset of last resort, and will require a complete re-init.
+                This can be useful as a method of recovery if the device is
+                non-responsive, or as a means of loading new firmware as a
+                system administration task.
+
+What:           /sys/bus/mhi/devices/.../trigger_edl
+Date:           April 2024
+KernelVersion:  6.10
+Contact:        mhi@lists.linux.dev
+Description:    Writing a non-zero value to this file will force devices to
+                enter EDL (Emergency Download) mode. This entry only exists for
+                devices capable of entering the EDL mode using the standard EDL
+                triggering mechanism defined in the MHI spec v1.2. Once in EDL
+                mode, the flash programmer image can be downloaded to the
+                device to enter the flash programmer execution environment.
+                This can be useful if user wants to use QDL (Qualcomm Download,
+                which is used to download firmware over EDL) to update firmware.

@@ -13,6 +13,7 @@
 #include <linux/phy.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
+#include <linux/of_mdio.h>
 #include <linux/of_net.h>
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
@@ -172,7 +173,7 @@ static void cvm_oct_configure_common_hw(void)
  */
 int cvm_oct_free_work(void *work_queue_entry)
 {
-	cvmx_wqe_t *work = work_queue_entry;
+	struct cvmx_wqe *work = work_queue_entry;
 
 	int segments = work->word2.s.bufs;
 	union cvmx_buf_ptr segment_ptr = work->packet_ptr;
@@ -349,7 +350,7 @@ static int cvm_oct_set_mac_filter(struct net_device *dev)
 	    (cvmx_helper_interface_get_mode(interface) !=
 		CVMX_HELPER_INTERFACE_MODE_SPI)) {
 		int i;
-		u8 *ptr = dev->dev_addr;
+		const u8 *ptr = dev->dev_addr;
 		u64 mac = 0;
 		int index = INDEX(priv->port);
 
@@ -406,14 +407,10 @@ static int cvm_oct_common_set_mac_address(struct net_device *dev, void *addr)
 int cvm_oct_common_init(struct net_device *dev)
 {
 	struct octeon_ethernet *priv = netdev_priv(dev);
-	const u8 *mac = NULL;
+	int ret;
 
-	if (priv->of_node)
-		mac = of_get_mac_address(priv->of_node);
-
-	if (!IS_ERR_OR_NULL(mac))
-		ether_addr_copy(dev->dev_addr, mac);
-	else
+	ret = of_get_ethdev_address(priv->of_node, dev);
+	if (ret)
 		eth_hw_addr_random(dev);
 
 	/*
@@ -460,7 +457,7 @@ int cvm_oct_common_open(struct net_device *dev,
 	struct octeon_ethernet *priv = netdev_priv(dev);
 	int interface = INTERFACE(priv->port);
 	int index = INDEX(priv->port);
-	cvmx_helper_link_info_t link_info;
+	union cvmx_helper_link_info link_info;
 	int rv;
 
 	rv = cvm_oct_phy_setup_device(dev);
@@ -496,7 +493,7 @@ int cvm_oct_common_open(struct net_device *dev,
 void cvm_oct_link_poll(struct net_device *dev)
 {
 	struct octeon_ethernet *priv = netdev_priv(dev);
-	cvmx_helper_link_info_t link_info;
+	union cvmx_helper_link_info link_info;
 
 	link_info = cvmx_helper_link_get(priv->port);
 	if (link_info.u64 == priv->link_info)
@@ -527,7 +524,7 @@ static const struct net_device_ops cvm_oct_npi_netdev_ops = {
 	.ndo_start_xmit		= cvm_oct_xmit,
 	.ndo_set_rx_mode	= cvm_oct_common_set_multicast_list,
 	.ndo_set_mac_address	= cvm_oct_common_set_mac_address,
-	.ndo_do_ioctl		= cvm_oct_ioctl,
+	.ndo_eth_ioctl		= cvm_oct_ioctl,
 	.ndo_change_mtu		= cvm_oct_common_change_mtu,
 	.ndo_get_stats		= cvm_oct_common_get_stats,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -543,7 +540,7 @@ static const struct net_device_ops cvm_oct_xaui_netdev_ops = {
 	.ndo_start_xmit		= cvm_oct_xmit,
 	.ndo_set_rx_mode	= cvm_oct_common_set_multicast_list,
 	.ndo_set_mac_address	= cvm_oct_common_set_mac_address,
-	.ndo_do_ioctl		= cvm_oct_ioctl,
+	.ndo_eth_ioctl		= cvm_oct_ioctl,
 	.ndo_change_mtu		= cvm_oct_common_change_mtu,
 	.ndo_get_stats		= cvm_oct_common_get_stats,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -559,7 +556,7 @@ static const struct net_device_ops cvm_oct_sgmii_netdev_ops = {
 	.ndo_start_xmit		= cvm_oct_xmit,
 	.ndo_set_rx_mode	= cvm_oct_common_set_multicast_list,
 	.ndo_set_mac_address	= cvm_oct_common_set_mac_address,
-	.ndo_do_ioctl		= cvm_oct_ioctl,
+	.ndo_eth_ioctl		= cvm_oct_ioctl,
 	.ndo_change_mtu		= cvm_oct_common_change_mtu,
 	.ndo_get_stats		= cvm_oct_common_get_stats,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -573,7 +570,7 @@ static const struct net_device_ops cvm_oct_spi_netdev_ops = {
 	.ndo_start_xmit		= cvm_oct_xmit,
 	.ndo_set_rx_mode	= cvm_oct_common_set_multicast_list,
 	.ndo_set_mac_address	= cvm_oct_common_set_mac_address,
-	.ndo_do_ioctl		= cvm_oct_ioctl,
+	.ndo_eth_ioctl		= cvm_oct_ioctl,
 	.ndo_change_mtu		= cvm_oct_common_change_mtu,
 	.ndo_get_stats		= cvm_oct_common_get_stats,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -589,7 +586,7 @@ static const struct net_device_ops cvm_oct_rgmii_netdev_ops = {
 	.ndo_start_xmit		= cvm_oct_xmit,
 	.ndo_set_rx_mode	= cvm_oct_common_set_multicast_list,
 	.ndo_set_mac_address	= cvm_oct_common_set_mac_address,
-	.ndo_do_ioctl		= cvm_oct_ioctl,
+	.ndo_eth_ioctl		= cvm_oct_ioctl,
 	.ndo_change_mtu		= cvm_oct_common_change_mtu,
 	.ndo_get_stats		= cvm_oct_common_get_stats,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -602,7 +599,7 @@ static const struct net_device_ops cvm_oct_pow_netdev_ops = {
 	.ndo_start_xmit		= cvm_oct_xmit_pow,
 	.ndo_set_rx_mode	= cvm_oct_common_set_multicast_list,
 	.ndo_set_mac_address	= cvm_oct_common_set_mac_address,
-	.ndo_do_ioctl		= cvm_oct_ioctl,
+	.ndo_eth_ioctl		= cvm_oct_ioctl,
 	.ndo_change_mtu		= cvm_oct_common_change_mtu,
 	.ndo_get_stats		= cvm_oct_common_get_stats,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -613,14 +610,11 @@ static const struct net_device_ops cvm_oct_pow_netdev_ops = {
 static struct device_node *cvm_oct_of_get_child
 				(const struct device_node *parent, int reg_val)
 {
-	struct device_node *node = NULL;
-	int size;
+	struct device_node *node;
 	const __be32 *addr;
+	int size;
 
-	for (;;) {
-		node = of_get_next_child(parent, node);
-		if (!node)
-			break;
+	for_each_child_of_node(parent, node) {
 		addr = of_get_property(node, "reg", &size);
 		if (addr && (be32_to_cpu(*addr) == reg_val))
 			break;
@@ -688,8 +682,6 @@ static int cvm_oct_probe(struct platform_device *pdev)
 #if IS_ENABLED(CONFIG_VLAN_8021Q)
 	mtu_overhead += VLAN_HLEN;
 #endif
-
-	octeon_mdiobus_force_mod_depencency();
 
 	pip = pdev->dev.of_node;
 	if (!pip) {
@@ -894,6 +886,14 @@ static int cvm_oct_probe(struct platform_device *pdev)
 				break;
 			}
 
+			if (priv->of_node && of_phy_is_fixed_link(priv->of_node)) {
+				if (of_phy_register_fixed_link(priv->of_node)) {
+					netdev_err(dev, "Failed to register fixed link for interface %d, port %d\n",
+						   interface, priv->port);
+					dev->netdev_ops = NULL;
+				}
+			}
+
 			if (!dev->netdev_ops) {
 				free_netdev(dev);
 			} else if (register_netdev(dev) < 0) {
@@ -924,7 +924,7 @@ static int cvm_oct_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int cvm_oct_remove(struct platform_device *pdev)
+static void cvm_oct_remove(struct platform_device *pdev)
 {
 	int port;
 
@@ -965,7 +965,6 @@ static int cvm_oct_remove(struct platform_device *pdev)
 	if (CVMX_FPA_OUTPUT_BUFFER_POOL != CVMX_FPA_PACKET_POOL)
 		cvm_oct_mem_empty_fpa(CVMX_FPA_OUTPUT_BUFFER_POOL,
 				      CVMX_FPA_OUTPUT_BUFFER_POOL_SIZE, 128);
-	return 0;
 }
 
 static const struct of_device_id cvm_oct_match[] = {
@@ -978,7 +977,7 @@ MODULE_DEVICE_TABLE(of, cvm_oct_match);
 
 static struct platform_driver cvm_oct_driver = {
 	.probe		= cvm_oct_probe,
-	.remove		= cvm_oct_remove,
+	.remove_new	= cvm_oct_remove,
 	.driver		= {
 		.name	= KBUILD_MODNAME,
 		.of_match_table = cvm_oct_match,
@@ -987,6 +986,7 @@ static struct platform_driver cvm_oct_driver = {
 
 module_platform_driver(cvm_oct_driver);
 
+MODULE_SOFTDEP("pre: mdio-cavium");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Cavium Networks <support@caviumnetworks.com>");
 MODULE_DESCRIPTION("Cavium Networks Octeon ethernet driver.");

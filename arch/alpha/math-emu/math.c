@@ -4,6 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <asm/ptrace.h>
+#include <asm/fpu.h>
 
 #include <linux/uaccess.h>
 
@@ -45,12 +46,6 @@
 #define MISC_TRAPB	0x0000
 #define MISC_EXCB	0x0400
 
-extern unsigned long alpha_read_fp_reg (unsigned long reg);
-extern void alpha_write_fp_reg (unsigned long reg, unsigned long val);
-extern unsigned long alpha_read_fp_reg_s (unsigned long reg);
-extern void alpha_write_fp_reg_s (unsigned long reg, unsigned long val);
-
-
 #ifdef MODULE
 
 MODULE_DESCRIPTION("FP Software completion module");
@@ -65,7 +60,7 @@ static long (*save_emul) (unsigned long pc);
 long do_alpha_fp_emul_imprecise(struct pt_regs *, unsigned long);
 long do_alpha_fp_emul(unsigned long);
 
-int init_module(void)
+static int alpha_fp_emul_init_module(void)
 {
 	save_emul_imprecise = alpha_fp_emul_imprecise;
 	save_emul = alpha_fp_emul;
@@ -73,12 +68,14 @@ int init_module(void)
 	alpha_fp_emul = do_alpha_fp_emul;
 	return 0;
 }
+module_init(alpha_fp_emul_init_module);
 
-void cleanup_module(void)
+static void alpha_fp_emul_cleanup_module(void)
 {
 	alpha_fp_emul_imprecise = save_emul_imprecise;
 	alpha_fp_emul = save_emul;
 }
+module_exit(alpha_fp_emul_cleanup_module);
 
 #undef  alpha_fp_emul_imprecise
 #define alpha_fp_emul_imprecise		do_alpha_fp_emul_imprecise

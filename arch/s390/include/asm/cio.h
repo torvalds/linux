@@ -5,10 +5,11 @@
 #ifndef _ASM_S390_CIO_H_
 #define _ASM_S390_CIO_H_
 
-#include <linux/spinlock.h>
 #include <linux/bitops.h>
 #include <linux/genalloc.h>
+#include <asm/dma-types.h>
 #include <asm/types.h>
+#include <asm/tpi.h>
 
 #define LPM_ANYPATH 0xff
 #define __MAX_CSSID 0
@@ -32,7 +33,7 @@ struct ccw1 {
 	__u8  cmd_code;
 	__u8  flags;
 	__u16 count;
-	__u32 cda;
+	dma32_t cda;
 } __attribute__ ((packed,aligned(8)));
 
 /**
@@ -152,8 +153,8 @@ struct sublog {
 struct esw0 {
 	struct sublog sublog;
 	struct erw erw;
-	__u32  faddr[2];
-	__u32  saddr;
+	dma32_t faddr[2];
+	dma32_t saddr;
 } __attribute__ ((packed));
 
 /**
@@ -329,7 +330,7 @@ struct ccw_dev_id {
 };
 
 /**
- * ccw_device_id_is_equal() - compare two ccw_dev_ids
+ * ccw_dev_id_is_equal() - compare two ccw_dev_ids
  * @dev_id1: a ccw_dev_id
  * @dev_id2: another ccw_dev_id
  * Returns:
@@ -356,7 +357,6 @@ static inline u8 pathmask_to_pos(u8 mask)
 	return 8 - ffs(mask);
 }
 
-void channel_subsystem_reinit(void);
 extern void css_schedule_reprobe(void);
 
 extern void *cio_dma_zalloc(size_t size);
@@ -365,13 +365,17 @@ extern struct device *cio_get_dma_css_dev(void);
 
 void *cio_gp_dma_zalloc(struct gen_pool *gp_dma, struct device *dma_dev,
 			size_t size);
+void *__cio_gp_dma_zalloc(struct gen_pool *gp_dma, struct device *dma_dev,
+			  size_t size, dma32_t *dma_handle);
 void cio_gp_dma_free(struct gen_pool *gp_dma, void *cpu_addr, size_t size);
 void cio_gp_dma_destroy(struct gen_pool *gp_dma, struct device *dma_dev);
 struct gen_pool *cio_gp_dma_create(struct device *dma_dev, int nr_pages);
 
 /* Function from drivers/s390/cio/chsc.c */
-int chsc_sstpc(void *page, unsigned int op, u16 ctrl, u64 *clock_delta);
+int chsc_sstpc(void *page, unsigned int op, u16 ctrl, long *clock_delta);
 int chsc_sstpi(void *page, void *result, size_t size);
+int chsc_stzi(void *page, void *result, size_t size);
 int chsc_sgib(u32 origin);
+int chsc_scud(u16 cu, u64 *esm, u8 *esm_valid);
 
 #endif

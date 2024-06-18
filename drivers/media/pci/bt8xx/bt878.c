@@ -13,9 +13,9 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
+#include <linux/pgtable.h>
 #include <asm/io.h>
 #include <linux/ioport.h>
-#include <asm/pgtable.h>
 #include <asm/page.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
@@ -67,14 +67,14 @@ EXPORT_SYMBOL(bt878);
 static void bt878_mem_free(struct bt878 *bt)
 {
 	if (bt->buf_cpu) {
-		pci_free_consistent(bt->dev, bt->buf_size, bt->buf_cpu,
-				    bt->buf_dma);
+		dma_free_coherent(&bt->dev->dev, bt->buf_size, bt->buf_cpu,
+				  bt->buf_dma);
 		bt->buf_cpu = NULL;
 	}
 
 	if (bt->risc_cpu) {
-		pci_free_consistent(bt->dev, bt->risc_size, bt->risc_cpu,
-				    bt->risc_dma);
+		dma_free_coherent(&bt->dev->dev, bt->risc_size, bt->risc_cpu,
+				  bt->risc_dma);
 		bt->risc_cpu = NULL;
 	}
 }
@@ -84,16 +84,16 @@ static int bt878_mem_alloc(struct bt878 *bt)
 	if (!bt->buf_cpu) {
 		bt->buf_size = 128 * 1024;
 
-		bt->buf_cpu = pci_zalloc_consistent(bt->dev, bt->buf_size,
-						    &bt->buf_dma);
+		bt->buf_cpu = dma_alloc_coherent(&bt->dev->dev, bt->buf_size,
+						 &bt->buf_dma, GFP_KERNEL);
 		if (!bt->buf_cpu)
 			return -ENOMEM;
 	}
 
 	if (!bt->risc_cpu) {
 		bt->risc_size = PAGE_SIZE;
-		bt->risc_cpu = pci_zalloc_consistent(bt->dev, bt->risc_size,
-						     &bt->risc_dma);
+		bt->risc_cpu = dma_alloc_coherent(&bt->dev->dev, bt->risc_size,
+						  &bt->risc_dma, GFP_KERNEL);
 		if (!bt->risc_cpu) {
 			bt878_mem_free(bt);
 			return -ENOMEM;
@@ -300,7 +300,8 @@ static irqreturn_t bt878_irq(int irq, void *dev_id)
 		}
 		if (astat & BT878_ARISCI) {
 			bt->finished_block = (stat & BT878_ARISCS) >> 28;
-			tasklet_schedule(&bt->tasklet);
+			if (bt->tasklet.callback)
+				tasklet_schedule(&bt->tasklet);
 			break;
 		}
 		count++;
@@ -476,6 +477,9 @@ static int bt878_probe(struct pci_dev *dev, const struct pci_device_id *pci_id)
 	bt878_make_risc(bt);
 	btwrite(0, BT878_AINT_MASK);
 	bt878_num++;
+
+	if (!bt->tasklet.func)
+		tasklet_disable(&bt->tasklet);
 
 	return 0;
 

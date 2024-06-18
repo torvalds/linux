@@ -285,9 +285,9 @@ static bool rt5651_readable_register(struct device *dev, unsigned int reg)
 }
 
 static const DECLARE_TLV_DB_SCALE(out_vol_tlv, -4650, 150, 0);
-static const DECLARE_TLV_DB_SCALE(dac_vol_tlv, -65625, 375, 0);
+static const DECLARE_TLV_DB_MINMAX(dac_vol_tlv, -6562, 0);
 static const DECLARE_TLV_DB_SCALE(in_vol_tlv, -3450, 150, 0);
-static const DECLARE_TLV_DB_SCALE(adc_vol_tlv, -17625, 375, 0);
+static const DECLARE_TLV_DB_MINMAX(adc_vol_tlv, -1762, 3000);
 static const DECLARE_TLV_DB_SCALE(adc_bst_tlv, 0, 1200, 0);
 
 /* {0, +20, +24, +30, +35, +40, +44, +50, +52} dB */
@@ -1487,7 +1487,7 @@ static int rt5651_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 
 	ret = rl6231_pll_calc(freq_in, freq_out, &pll_code);
 	if (ret < 0) {
-		dev_err(component->dev, "Unsupport input clock %d\n", freq_in);
+		dev_err(component->dev, "Unsupported input clock %d\n", freq_in);
 		return ret;
 	}
 
@@ -1498,8 +1498,8 @@ static int rt5651_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 	snd_soc_component_write(component, RT5651_PLL_CTRL1,
 		pll_code.n_code << RT5651_PLL_N_SFT | pll_code.k_code);
 	snd_soc_component_write(component, RT5651_PLL_CTRL2,
-		(pll_code.m_bp ? 0 : pll_code.m_code) << RT5651_PLL_M_SFT |
-		pll_code.m_bp << RT5651_PLL_M_BP_SFT);
+		((pll_code.m_bp ? 0 : pll_code.m_code) << RT5651_PLL_M_SFT) |
+		(pll_code.m_bp << RT5651_PLL_M_BP_SFT));
 
 	rt5651->pll_in = freq_in;
 	rt5651->pll_out = freq_out;
@@ -1514,7 +1514,7 @@ static int rt5651_set_bias_level(struct snd_soc_component *component,
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
 		if (SND_SOC_BIAS_STANDBY == snd_soc_component_get_bias_level(component)) {
-			if (snd_soc_component_read32(component, RT5651_PLL_MODE_1) & 0x9200)
+			if (snd_soc_component_read(component, RT5651_PLL_MODE_1) & 0x9200)
 				snd_soc_component_update_bits(component, RT5651_D_MISC,
 						    0xc00, 0xc00);
 		}
@@ -1608,7 +1608,7 @@ static bool rt5651_micbias1_ovcd(struct snd_soc_component *component)
 {
 	int val;
 
-	val = snd_soc_component_read32(component, RT5651_IRQ_CTRL2);
+	val = snd_soc_component_read(component, RT5651_IRQ_CTRL2);
 	dev_dbg(component->dev, "irq ctrl2 %#04x\n", val);
 
 	return (val & RT5651_MB1_OC_CLR);
@@ -1625,7 +1625,7 @@ static bool rt5651_jack_inserted(struct snd_soc_component *component)
 		return val;
 	}
 
-	val = snd_soc_component_read32(component, RT5651_INT_IRQ_ST);
+	val = snd_soc_component_read(component, RT5651_INT_IRQ_ST);
 	dev_dbg(component->dev, "irq status %#04x\n", val);
 
 	switch (rt5651->jd_src) {
@@ -1770,6 +1770,9 @@ static int rt5651_detect_headset(struct snd_soc_component *component)
 
 static bool rt5651_support_button_press(struct rt5651_priv *rt5651)
 {
+	if (!rt5651->hp_jack)
+		return false;
+
 	/* Button press support only works with internal jack-detection */
 	return (rt5651->hp_jack->status & SND_JACK_MICROPHONE) &&
 		rt5651->gpiod_hp_det == NULL;
@@ -1780,7 +1783,7 @@ static void rt5651_jack_detect_work(struct work_struct *work)
 	struct rt5651_priv *rt5651 =
 		container_of(work, struct rt5651_priv, jack_detect_work);
 	struct snd_soc_component *component = rt5651->component;
-	int report = 0;
+	int report;
 
 	if (!rt5651_jack_inserted(component)) {
 		/* Jack removed, or spurious IRQ? */
@@ -2158,7 +2161,6 @@ static const struct snd_soc_component_driver soc_component_dev_rt5651 = {
 	.num_dapm_routes	= ARRAY_SIZE(rt5651_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config rt5651_regmap = {
@@ -2170,7 +2172,7 @@ static const struct regmap_config rt5651_regmap = {
 	.volatile_reg = rt5651_volatile_register,
 	.readable_reg = rt5651_readable_register,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = rt5651_reg,
 	.num_reg_defaults = ARRAY_SIZE(rt5651_reg),
 	.ranges = rt5651_ranges,
@@ -2197,7 +2199,7 @@ MODULE_DEVICE_TABLE(acpi, rt5651_acpi_match);
 #endif
 
 static const struct i2c_device_id rt5651_i2c_id[] = {
-	{ "rt5651", 0 },
+	{ "rt5651" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rt5651_i2c_id);
@@ -2206,8 +2208,7 @@ MODULE_DEVICE_TABLE(i2c, rt5651_i2c_id);
  * Note this function MUST not look at device-properties, see the comment
  * above rt5651_apply_properties().
  */
-static int rt5651_i2c_probe(struct i2c_client *i2c,
-		    const struct i2c_device_id *id)
+static int rt5651_i2c_probe(struct i2c_client *i2c)
 {
 	struct rt5651_priv *rt5651;
 	int ret;
@@ -2258,12 +2259,9 @@ static int rt5651_i2c_probe(struct i2c_client *i2c,
 
 	ret = devm_request_irq(&i2c->dev, rt5651->irq, rt5651_irq,
 			       IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING
-			       | IRQF_ONESHOT, "rt5651", rt5651);
-	if (ret == 0) {
-		/* Gets re-enabled by rt5651_set_jack() */
-		disable_irq(rt5651->irq);
-	} else {
-		dev_warn(&i2c->dev, "Failed to reguest IRQ %d: %d\n",
+			       | IRQF_ONESHOT | IRQF_NO_AUTOEN, "rt5651", rt5651);
+	if (ret) {
+		dev_warn(&i2c->dev, "Failed to request IRQ %d: %d\n",
 			 rt5651->irq, ret);
 		rt5651->irq = -ENXIO;
 	}

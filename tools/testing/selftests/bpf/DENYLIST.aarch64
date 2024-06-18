@@ -1,0 +1,12 @@
+bpf_cookie/multi_kprobe_attach_api               # kprobe_multi_link_api_subtest:FAIL:fentry_raw_skel_load unexpected error: -3
+bpf_cookie/multi_kprobe_link_api                 # kprobe_multi_link_api_subtest:FAIL:fentry_raw_skel_load unexpected error: -3
+fexit_sleep                                      # The test never returns. The remaining tests cannot start.
+kprobe_multi_bench_attach                        # needs CONFIG_FPROBE
+kprobe_multi_test                                # needs CONFIG_FPROBE
+module_attach                                    # prog 'kprobe_multi': failed to auto-attach: -95
+fentry_test/fentry_many_args                     # fentry_many_args:FAIL:fentry_many_args_attach unexpected error: -524
+fexit_test/fexit_many_args                       # fexit_many_args:FAIL:fexit_many_args_attach unexpected error: -524
+fill_link_info/kprobe_multi_link_info            # bpf_program__attach_kprobe_multi_opts unexpected error: -95
+fill_link_info/kretprobe_multi_link_info         # bpf_program__attach_kprobe_multi_opts unexpected error: -95
+fill_link_info/kprobe_multi_invalid_ubuff        # bpf_program__attach_kprobe_multi_opts unexpected error: -95
+missed/kprobe_recursion                          # missed_kprobe_recursion__attach unexpected error: -95 (errno 95)

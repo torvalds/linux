@@ -1,0 +1,77 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/ingenic,mac.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MAC in Ingenic SoCs
+
+maintainers:
+  - 周琰杰 (Zhou Yanjie) <zhouyanjie@wanyeetech.com>
+
+description:
+  The Ethernet Media Access Controller in Ingenic SoCs.
+
+properties:
+  compatible:
+    enum:
+      - ingenic,jz4775-mac
+      - ingenic,x1000-mac
+      - ingenic,x1600-mac
+      - ingenic,x1830-mac
+      - ingenic,x2000-mac
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-names:
+    const: macirq
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    const: stmmaceth
+
+  mode-reg:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: An extra syscon register that control ethernet interface and timing delay
+
+  rx-clk-delay-ps:
+    description: RGMII receive clock delay defined in pico seconds
+
+  tx-clk-delay-ps:
+    description: RGMII transmit clock delay defined in pico seconds
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - interrupt-names
+  - clocks
+  - clock-names
+  - mode-reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/ingenic,x1000-cgu.h>
+
+    mac: ethernet@134b0000 {
+        compatible = "ingenic,x1000-mac";
+        reg = <0x134b0000 0x2000>;
+
+        interrupt-parent = <&intc>;
+        interrupts = <55>;
+        interrupt-names = "macirq";
+
+        clocks = <&cgu X1000_CLK_MAC>;
+        clock-names = "stmmaceth";
+
+        mode-reg = <&mac_phy_ctrl>;
+    };
+...

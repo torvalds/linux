@@ -1,0 +1,71 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/panel/samsung,s6d7aa0.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung S6D7AA0 MIPI-DSI LCD panel controller
+
+maintainers:
+  - Artur Weber <aweber.kernel@gmail.com>
+
+allOf:
+  - $ref: panel-common.yaml#
+
+properties:
+  compatible:
+    items:
+      - enum:
+          # 1280x800 LSL080AL02 panel
+          - samsung,lsl080al02
+          # 1024x768 LSL080AL03 panel
+          - samsung,lsl080al03
+          # 1024x768 LTL101AT01 panel
+          - samsung,ltl101at01
+      - const: samsung,s6d7aa0
+
+  reg:
+    maxItems: 1
+
+  backlight:
+    description:
+      Backlight to use for the panel. If this property is set on panels
+      that have DSI-based backlight control (LSL080AL03 and LTL101AT01),
+      it overrides the DSI-based backlight.
+
+  reset-gpios:
+    description: Reset GPIO pin, usually GPIO_ACTIVE_LOW.
+
+  power-supply:
+    description:
+      Main power supply for the panel; the exact voltage differs between
+      panels, and is usually somewhere around 3.3-5v.
+
+  vmipi-supply:
+    description: VMIPI supply, usually 1.8v.
+
+required:
+  - compatible
+  - reg
+  - reset-gpios
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    dsi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        panel@0 {
+            compatible = "samsung,lsl080al02", "samsung,s6d7aa0";
+            reg = <0>;
+            power-supply = <&display_3v3_supply>;
+            reset-gpios = <&gpf0 4 GPIO_ACTIVE_LOW>;
+            backlight = <&backlight>;
+        };
+    };
+
+...

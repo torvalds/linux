@@ -7,6 +7,7 @@
  */
 #include <linux/device.h>
 #include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/spi/spi.h>
@@ -41,6 +42,7 @@ struct mipid_device {
 						   when we can issue the
 						   next sleep in/out command */
 	unsigned long	hw_guard_wait;		/* max guard time in jiffies */
+	struct gpio_desc	*reset;
 
 	struct omapfb_device	*fbdev;
 	struct spi_device	*spi;
@@ -556,6 +558,12 @@ static int mipid_spi_probe(struct spi_device *spi)
 		return -ENOMEM;
 	}
 
+	/* This will de-assert RESET if active */
+	md->reset = gpiod_get(&spi->dev, "reset", GPIOD_OUT_LOW);
+	if (IS_ERR(md->reset))
+		return dev_err_probe(&spi->dev, PTR_ERR(md->reset),
+				     "no reset GPIO line\n");
+
 	spi->mode = SPI_MODE_0;
 	md->spi = spi;
 	dev_set_drvdata(&spi->dev, md);
@@ -563,21 +571,25 @@ static int mipid_spi_probe(struct spi_device *spi)
 
 	r = mipid_detect(md);
 	if (r < 0)
-		return r;
+		goto free_md;
 
 	omapfb_register_panel(&md->panel);
 
 	return 0;
+
+free_md:
+	kfree(md);
+	return r;
 }
 
-static int mipid_spi_remove(struct spi_device *spi)
+static void mipid_spi_remove(struct spi_device *spi)
 {
 	struct mipid_device *md = dev_get_drvdata(&spi->dev);
 
+	/* Asserts RESET */
+	gpiod_set_value(md->reset, 1);
 	mipid_disable(&md->panel);
 	kfree(md);
-
-	return 0;
 }
 
 static struct spi_driver mipid_spi_driver = {

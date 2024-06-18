@@ -122,6 +122,7 @@ struct l2t_entry *t4_l2t_alloc_switching(struct adapter *adap, u16 vlan,
 					 u8 port, u8 *dmac);
 struct l2t_data *t4_init_l2t(unsigned int l2t_start, unsigned int l2t_end);
 void do_l2t_write_rpl(struct adapter *p, const struct cpl_l2t_write_rpl *rpl);
+bool cxgb4_check_l2t_valid(struct l2t_entry *e);
 
 extern const struct file_operations t4_l2t_fops;
 #endif  /* __CXGB4_L2T_H */

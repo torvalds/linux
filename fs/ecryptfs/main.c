@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/**
+/*
  * eCryptfs: Linux filesystem encryption layer
  *
  * Copyright (C) 1997-2003 Erez Zadok
@@ -7,7 +7,7 @@
  * Copyright (C) 2004-2007 International Business Machines Corp.
  *   Author(s): Michael A. Halcrow <mahalcro@us.ibm.com>
  *              Michael C. Thompson <mcthomps@us.ibm.com>
- *              Tyler Hicks <tyhicks@ou.edu>
+ *              Tyler Hicks <code@tyhicks.com>
  */
 
 #include <linux/dcache.h>
@@ -24,7 +24,7 @@
 #include <linux/magic.h>
 #include "ecryptfs_kernel.h"
 
-/**
+/*
  * Module parameter that defines the ecryptfs_verbosity level.
  */
 int ecryptfs_verbosity = 0;
@@ -34,7 +34,7 @@ MODULE_PARM_DESC(ecryptfs_verbosity,
 		 "Initial verbosity level (0 or 1; defaults to "
 		 "0, which is Quiet)");
 
-/**
+/*
  * Module parameter that defines the number of message buffer elements
  */
 unsigned int ecryptfs_message_buf_len = ECRYPTFS_DEFAULT_MSG_CTX_ELEMS;
@@ -43,7 +43,7 @@ module_param(ecryptfs_message_buf_len, uint, 0);
 MODULE_PARM_DESC(ecryptfs_message_buf_len,
 		 "Number of message buffer elements");
 
-/**
+/*
  * Module parameter that defines the maximum guaranteed amount of time to wait
  * for a response from ecryptfsd.  The actual sleep time will be, more than
  * likely, a small amount greater than this specified value, but only less if
@@ -57,7 +57,7 @@ MODULE_PARM_DESC(ecryptfs_message_wait_timeout,
 		 "sleep while waiting for a message response from "
 		 "userspace");
 
-/**
+/*
  * Module parameter that is an estimate of the maximum number of users
  * that will be concurrently using eCryptfs. Set this to the right
  * value to balance performance and memory use.
@@ -80,7 +80,7 @@ void __ecryptfs_printk(const char *fmt, ...)
 	va_end(args);
 }
 
-/**
+/*
  * ecryptfs_init_lower_file
  * @ecryptfs_dentry: Fully initialized eCryptfs dentry object, with
  *                   the lower dentry and the lower mount set
@@ -105,7 +105,7 @@ static int ecryptfs_init_lower_file(struct dentry *dentry,
 				    struct file **lower_file)
 {
 	const struct cred *cred = current_cred();
-	struct path *path = ecryptfs_dentry_to_lower_path(dentry);
+	const struct path *path = ecryptfs_dentry_to_lower_path(dentry);
 	int rc;
 
 	rc = ecryptfs_privileged_open(lower_file, path->dentry, path->mnt,
@@ -221,7 +221,7 @@ static void ecryptfs_init_mount_crypt_stat(
 
 /**
  * ecryptfs_parse_options
- * @sb: The ecryptfs super block
+ * @sbi: The ecryptfs super block
  * @options: The options passed to the kernel
  * @check_ruid: set to 1 if device uid should be checked against the ruid
  *
@@ -256,11 +256,8 @@ static int ecryptfs_parse_options(struct ecryptfs_sb_info *sbi, char *options,
 	substring_t args[MAX_OPT_ARGS];
 	int token;
 	char *sig_src;
-	char *cipher_name_dst;
 	char *cipher_name_src;
-	char *fn_cipher_name_dst;
 	char *fn_cipher_name_src;
-	char *fnek_dst;
 	char *fnek_src;
 	char *cipher_key_bytes_src;
 	char *fn_cipher_key_bytes_src;
@@ -293,12 +290,8 @@ static int ecryptfs_parse_options(struct ecryptfs_sb_info *sbi, char *options,
 		case ecryptfs_opt_cipher:
 		case ecryptfs_opt_ecryptfs_cipher:
 			cipher_name_src = args[0].from;
-			cipher_name_dst =
-				mount_crypt_stat->
-				global_default_cipher_name;
-			strncpy(cipher_name_dst, cipher_name_src,
-				ECRYPTFS_MAX_CIPHER_NAME_SIZE);
-			cipher_name_dst[ECRYPTFS_MAX_CIPHER_NAME_SIZE] = '\0';
+			strscpy(mount_crypt_stat->global_default_cipher_name,
+				cipher_name_src);
 			cipher_name_set = 1;
 			break;
 		case ecryptfs_opt_ecryptfs_key_bytes:
@@ -326,11 +319,8 @@ static int ecryptfs_parse_options(struct ecryptfs_sb_info *sbi, char *options,
 			break;
 		case ecryptfs_opt_fnek_sig:
 			fnek_src = args[0].from;
-			fnek_dst =
-				mount_crypt_stat->global_default_fnek_sig;
-			strncpy(fnek_dst, fnek_src, ECRYPTFS_SIG_SIZE_HEX);
-			mount_crypt_stat->global_default_fnek_sig[
-				ECRYPTFS_SIG_SIZE_HEX] = '\0';
+			strscpy(mount_crypt_stat->global_default_fnek_sig,
+				fnek_src);
 			rc = ecryptfs_add_global_auth_tok(
 				mount_crypt_stat,
 				mount_crypt_stat->global_default_fnek_sig,
@@ -348,12 +338,8 @@ static int ecryptfs_parse_options(struct ecryptfs_sb_info *sbi, char *options,
 			break;
 		case ecryptfs_opt_fn_cipher:
 			fn_cipher_name_src = args[0].from;
-			fn_cipher_name_dst =
-				mount_crypt_stat->global_default_fn_cipher_name;
-			strncpy(fn_cipher_name_dst, fn_cipher_name_src,
-				ECRYPTFS_MAX_CIPHER_NAME_SIZE);
-			mount_crypt_stat->global_default_fn_cipher_name[
-				ECRYPTFS_MAX_CIPHER_NAME_SIZE] = '\0';
+			strscpy(mount_crypt_stat->global_default_fn_cipher_name,
+				fn_cipher_name_src);
 			fn_cipher_name_set = 1;
 			break;
 		case ecryptfs_opt_fn_cipher_key_bytes:
@@ -466,10 +452,10 @@ out:
 struct kmem_cache *ecryptfs_sb_info_cache;
 static struct file_system_type ecryptfs_fs_type;
 
-/**
- * ecryptfs_get_sb
- * @fs_type
- * @flags
+/*
+ * ecryptfs_mount
+ * @fs_type: The filesystem type that the superblock should belong to
+ * @flags: The flags associated with the mount
  * @dev_name: The path to mount over
  * @raw_data: The options passed into the kernel
  */
@@ -489,6 +475,12 @@ static struct dentry *ecryptfs_mount(struct file_system_type *fs_type, int flags
 	sbi = kmem_cache_zalloc(ecryptfs_sb_info_cache, GFP_KERNEL);
 	if (!sbi) {
 		rc = -ENOMEM;
+		goto out;
+	}
+
+	if (!dev_name) {
+		rc = -EINVAL;
+		err = "Device name cannot be null";
 		goto out;
 	}
 
@@ -528,6 +520,12 @@ static struct dentry *ecryptfs_mount(struct file_system_type *fs_type, int flags
 		printk(KERN_ERR "Mount on filesystem of type "
 			"eCryptfs explicitly disallowed due to "
 			"known incompatibilities\n");
+		goto out_free;
+	}
+
+	if (is_idmapped_mnt(path.mnt)) {
+		rc = -EINVAL;
+		printk(KERN_ERR "Mounting on idmapped mounts currently disallowed\n");
 		goto out_free;
 	}
 
@@ -629,7 +627,7 @@ static struct file_system_type ecryptfs_fs_type = {
 };
 MODULE_ALIAS_FS("ecryptfs");
 
-/**
+/*
  * inode_info_init_once
  *
  * Initializes the ecryptfs_inode_info_cache when it is created

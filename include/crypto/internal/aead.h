@@ -39,6 +39,11 @@ static inline void *crypto_aead_ctx(struct crypto_aead *tfm)
 	return crypto_tfm_ctx(&tfm->base);
 }
 
+static inline void *crypto_aead_ctx_dma(struct crypto_aead *tfm)
+{
+	return crypto_tfm_ctx_dma(&tfm->base);
+}
+
 static inline struct crypto_instance *aead_crypto_instance(
 	struct aead_instance *inst)
 {
@@ -65,9 +70,19 @@ static inline void *aead_request_ctx(struct aead_request *req)
 	return req->__ctx;
 }
 
+static inline void *aead_request_ctx_dma(struct aead_request *req)
+{
+	unsigned int align = crypto_dma_align();
+
+	if (align <= crypto_tfm_ctx_alignment())
+		align = 1;
+
+	return PTR_ALIGN(aead_request_ctx(req), align);
+}
+
 static inline void aead_request_complete(struct aead_request *req, int err)
 {
-	req->base.complete(&req->base, err);
+	crypto_request_complete(&req->base, err);
 }
 
 static inline u32 aead_request_flags(struct aead_request *req)
@@ -81,14 +96,9 @@ static inline struct aead_request *aead_request_cast(
 	return container_of(req, struct aead_request, base);
 }
 
-static inline void crypto_set_aead_spawn(
-	struct crypto_aead_spawn *spawn, struct crypto_instance *inst)
-{
-	crypto_set_spawn(&spawn->base, inst);
-}
-
-int crypto_grab_aead(struct crypto_aead_spawn *spawn, const char *name,
-		     u32 type, u32 mask);
+int crypto_grab_aead(struct crypto_aead_spawn *spawn,
+		     struct crypto_instance *inst,
+		     const char *name, u32 type, u32 mask);
 
 static inline void crypto_drop_aead(struct crypto_aead_spawn *spawn)
 {
@@ -113,45 +123,17 @@ static inline void crypto_aead_set_reqsize(struct crypto_aead *aead,
 	aead->reqsize = reqsize;
 }
 
-static inline unsigned int crypto_aead_alg_maxauthsize(struct aead_alg *alg)
+static inline void crypto_aead_set_reqsize_dma(struct crypto_aead *aead,
+					       unsigned int reqsize)
 {
-	return alg->maxauthsize;
-}
-
-static inline unsigned int crypto_aead_maxauthsize(struct crypto_aead *aead)
-{
-	return crypto_aead_alg_maxauthsize(crypto_aead_alg(aead));
+	reqsize += crypto_dma_align() & ~(crypto_tfm_ctx_alignment() - 1);
+	aead->reqsize = reqsize;
 }
 
 static inline void aead_init_queue(struct aead_queue *queue,
 				   unsigned int max_qlen)
 {
 	crypto_init_queue(&queue->base, max_qlen);
-}
-
-static inline int aead_enqueue_request(struct aead_queue *queue,
-				       struct aead_request *request)
-{
-	return crypto_enqueue_request(&queue->base, &request->base);
-}
-
-static inline struct aead_request *aead_dequeue_request(
-	struct aead_queue *queue)
-{
-	struct crypto_async_request *req;
-
-	req = crypto_dequeue_request(&queue->base);
-
-	return req ? container_of(req, struct aead_request, base) : NULL;
-}
-
-static inline struct aead_request *aead_get_backlog(struct aead_queue *queue)
-{
-	struct crypto_async_request *req;
-
-	req = crypto_get_backlog(&queue->base);
-
-	return req ? container_of(req, struct aead_request, base) : NULL;
 }
 
 static inline unsigned int crypto_aead_alg_chunksize(struct aead_alg *alg)

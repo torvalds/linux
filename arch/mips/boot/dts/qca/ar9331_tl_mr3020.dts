@@ -22,25 +22,25 @@
 	leds {
 		compatible = "gpio-leds";
 
-		wlan {
+		led-wlan {
 			label = "tp-link:green:wlan";
 			gpios = <&gpio 0 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
-		lan {
+		led-lan {
 			label = "tp-link:green:lan";
 			gpios = <&gpio 17 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
-		wps {
+		led-wps {
 			label = "tp-link:green:wps";
 			gpios = <&gpio 26 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
-		led3g {
+		led-led3g {
 			label = "tp-link:green:3g";
 			gpios = <&gpio 27 GPIO_ACTIVE_LOW>;
 			default-state = "off";
@@ -49,22 +49,20 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
-		button@0 {
+		button-0 {
 			label = "wps";
 			linux,code = <KEY_WPS_BUTTON>;
 			gpios = <&gpio 11 GPIO_ACTIVE_HIGH>;
 		};
 
-		button@1 {
+		button-1 {
 			label = "sw1";
 			linux,code = <BTN_0>;
 			gpios = <&gpio 18 GPIO_ACTIVE_HIGH>;
 		};
 
-		button@2 {
+		button-2 {
 			label = "sw2";
 			linux,code = <BTN_1>;
 			gpios = <&gpio 20 GPIO_ACTIVE_HIGH>;

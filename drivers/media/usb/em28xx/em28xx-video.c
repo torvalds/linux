@@ -11,16 +11,6 @@
 //
 //	Some parts based on SN9C10x PC Camera Controllers GPL driver made
 //		by Luca Risolia <luca.risolia@studio.unibo.it>
-//
-// This program is free software; you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation; either version 2 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
 
 #include "em28xx.h"
 
@@ -450,7 +440,7 @@ static inline void finish_buffer(struct em28xx *dev,
 }
 
 /*
- * Copy picture data from USB buffer to videobuf buffer
+ * Copy picture data from USB buffer to video buffer
  */
 static void em28xx_copy_video(struct em28xx *dev,
 			      struct em28xx_buffer *buf,
@@ -531,7 +521,7 @@ static void em28xx_copy_video(struct em28xx *dev,
 }
 
 /*
- * Copy VBI data from USB buffer to videobuf buffer
+ * Copy VBI data from USB buffer to video buffer
  */
 static void em28xx_copy_vbi(struct em28xx *dev,
 			    struct em28xx_buffer *buf,
@@ -1617,7 +1607,8 @@ static int vidioc_g_parm(struct file *file, void *priv,
 	p->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
 	if (dev->is_webcam) {
 		rc = v4l2_device_call_until_err(&v4l2->v4l2_dev, 0,
-						video, g_frame_interval, &ival);
+						pad, get_frame_interval, NULL,
+						&ival);
 		if (!rc)
 			p->parm.capture.timeperframe = ival.interval;
 	} else {
@@ -1649,7 +1640,8 @@ static int vidioc_s_parm(struct file *file, void *priv,
 	p->parm.capture.readbuffers = EM28XX_MIN_BUF;
 	p->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
 	rc = v4l2_device_call_until_err(&dev->v4l2->v4l2_dev, 0,
-					video, s_frame_interval, &ival);
+					pad, set_frame_interval, NULL,
+					&ival);
 	if (!rc)
 		p->parm.capture.timeperframe = ival.interval;
 	return rc;
@@ -2141,7 +2133,7 @@ static int em28xx_v4l2_open(struct file *filp)
 	int ret;
 
 	switch (vdev->vfl_type) {
-	case VFL_TYPE_GRABBER:
+	case VFL_TYPE_VIDEO:
 		fh_type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 		break;
 	case VFL_TYPE_VBI:
@@ -2789,7 +2781,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	}
 
 	/* register v4l2 video video_device */
-	ret = video_register_device(&v4l2->vdev, VFL_TYPE_GRABBER,
+	ret = video_register_device(&v4l2->vdev, VFL_TYPE_VIDEO,
 				    video_nr[dev->devno]);
 	if (ret) {
 		dev_err(&dev->intf->dev,

@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config MT76_CORE
 	tristate
+	select PAGE_POOL
 
 config MT76_LEDS
 	bool
@@ -12,6 +13,10 @@ config MT76_USB
 	tristate
 	depends on MT76_CORE
 
+config MT76_SDIO
+	tristate
+	depends on MT76_CORE
+
 config MT76x02_LIB
 	tristate
 	select MT76_CORE
@@ -20,7 +25,23 @@ config MT76x02_USB
 	tristate
 	select MT76_USB
 
+config MT76_CONNAC_LIB
+	tristate
+	select MT76_CORE
+
+config MT792x_LIB
+	tristate
+	select MT76_CONNAC_LIB
+
+config MT792x_USB
+	tristate
+	select MT76_USB
+
 source "drivers/net/wireless/mediatek/mt76/mt76x0/Kconfig"
 source "drivers/net/wireless/mediatek/mt76/mt76x2/Kconfig"
 source "drivers/net/wireless/mediatek/mt76/mt7603/Kconfig"
 source "drivers/net/wireless/mediatek/mt76/mt7615/Kconfig"
+source "drivers/net/wireless/mediatek/mt76/mt7915/Kconfig"
+source "drivers/net/wireless/mediatek/mt76/mt7921/Kconfig"
+source "drivers/net/wireless/mediatek/mt76/mt7996/Kconfig"
+source "drivers/net/wireless/mediatek/mt76/mt7925/Kconfig"

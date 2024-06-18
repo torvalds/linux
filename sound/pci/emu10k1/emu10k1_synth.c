@@ -22,7 +22,6 @@ static int snd_emu10k1_synth_probe(struct device *_dev)
 	struct snd_emux *emux;
 	struct snd_emu10k1 *hw;
 	struct snd_emu10k1_synth_arg *arg;
-	unsigned long flags;
 
 	arg = SNDRV_SEQ_DEVICE_ARGPTR(dev);
 	if (arg == NULL)
@@ -43,7 +42,6 @@ static int snd_emu10k1_synth_probe(struct device *_dev)
 	emux->hw = hw;
 	emux->max_voices = arg->max_voices;
 	emux->num_ports = arg->seq_ports;
-	emux->pitch_shift = -501;
 	emux->memhdr = hw->memhdr;
 	/* maximum two ports */
 	emux->midi_ports = arg->seq_ports < 2 ? arg->seq_ports : 2;
@@ -57,10 +55,10 @@ static int snd_emu10k1_synth_probe(struct device *_dev)
 		return -ENOMEM;
 	}
 
-	spin_lock_irqsave(&hw->voice_lock, flags);
+	spin_lock_irq(&hw->voice_lock);
 	hw->synth = emux;
 	hw->get_synth_voice = snd_emu10k1_synth_get_voice;
-	spin_unlock_irqrestore(&hw->voice_lock, flags);
+	spin_unlock_irq(&hw->voice_lock);
 
 	dev->driver_data = emux;
 
@@ -72,7 +70,6 @@ static int snd_emu10k1_synth_remove(struct device *_dev)
 	struct snd_seq_device *dev = to_seq_dev(_dev);
 	struct snd_emux *emux;
 	struct snd_emu10k1 *hw;
-	unsigned long flags;
 
 	if (dev->driver_data == NULL)
 		return 0; /* not registered actually */
@@ -80,10 +77,10 @@ static int snd_emu10k1_synth_remove(struct device *_dev)
 	emux = dev->driver_data;
 
 	hw = emux->hw;
-	spin_lock_irqsave(&hw->voice_lock, flags);
+	spin_lock_irq(&hw->voice_lock);
 	hw->synth = NULL;
 	hw->get_synth_voice = NULL;
-	spin_unlock_irqrestore(&hw->voice_lock, flags);
+	spin_unlock_irq(&hw->voice_lock);
 
 	snd_emux_free(emux);
 	return 0;

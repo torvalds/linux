@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * L2TP subsystem debugfs
+/* L2TP subsystem debugfs
  *
  * Copyright (c) 2010 Katalix Systems Ltd
  */
@@ -33,7 +32,8 @@
 static struct dentry *rootdir;
 
 struct l2tp_dfs_seq_data {
-	struct net *net;
+	struct net	*net;
+	netns_tracker	ns_tracker;
 	int tunnel_idx;			/* current tunnel */
 	int session_idx;		/* index of session within current tunnel */
 	struct l2tp_tunnel *tunnel;
@@ -59,11 +59,10 @@ static void l2tp_dfs_next_session(struct l2tp_dfs_seq_data *pd)
 	pd->session = l2tp_session_get_nth(pd->tunnel, pd->session_idx);
 	pd->session_idx++;
 
-	if (pd->session == NULL) {
+	if (!pd->session) {
 		pd->session_idx = 0;
 		l2tp_dfs_next_tunnel(pd);
 	}
-
 }
 
 static void *l2tp_dfs_seq_start(struct seq_file *m, loff_t *offs)
@@ -74,22 +73,24 @@ static void *l2tp_dfs_seq_start(struct seq_file *m, loff_t *offs)
 	if (!pos)
 		goto out;
 
-	BUG_ON(m->private == NULL);
+	if (WARN_ON(!m->private)) {
+		pd = NULL;
+		goto out;
+	}
 	pd = m->private;
 
-	if (pd->tunnel == NULL)
+	if (!pd->tunnel)
 		l2tp_dfs_next_tunnel(pd);
 	else
 		l2tp_dfs_next_session(pd);
 
 	/* NULL tunnel and session indicates end of list */
-	if ((pd->tunnel == NULL) && (pd->session == NULL))
+	if (!pd->tunnel && !pd->session)
 		pd = NULL;
 
 out:
 	return pd;
 }
-
 
 static void *l2tp_dfs_seq_next(struct seq_file *m, void *v, loff_t *pos)
 {
@@ -120,24 +121,21 @@ static void l2tp_dfs_seq_stop(struct seq_file *p, void *v)
 static void l2tp_dfs_seq_tunnel_show(struct seq_file *m, void *v)
 {
 	struct l2tp_tunnel *tunnel = v;
+	struct l2tp_session *session;
 	int session_count = 0;
 	int hash;
-	struct hlist_node *walk;
-	struct hlist_node *tmp;
 
-	read_lock_bh(&tunnel->hlist_lock);
+	rcu_read_lock_bh();
 	for (hash = 0; hash < L2TP_HASH_SIZE; hash++) {
-		hlist_for_each_safe(walk, tmp, &tunnel->session_hlist[hash]) {
-			struct l2tp_session *session;
-
-			session = hlist_entry(walk, struct l2tp_session, hlist);
+		hlist_for_each_entry_rcu(session, &tunnel->session_hlist[hash], hlist) {
+			/* Session ID of zero is a dummy/reserved value used by pppol2tp */
 			if (session->session_id == 0)
 				continue;
 
 			session_count++;
 		}
 	}
-	read_unlock_bh(&tunnel->hlist_lock);
+	rcu_read_unlock_bh();
 
 	seq_printf(m, "\nTUNNEL %u peer %u", tunnel->tunnel_id, tunnel->peer_tunnel_id);
 	if (tunnel->sock) {
@@ -148,11 +146,13 @@ static void l2tp_dfs_seq_tunnel_show(struct seq_file *m, void *v)
 			const struct ipv6_pinfo *np = inet6_sk(tunnel->sock);
 
 			seq_printf(m, " from %pI6c to %pI6c\n",
-				&np->saddr, &tunnel->sock->sk_v6_daddr);
-		} else
+				   &np->saddr, &tunnel->sock->sk_v6_daddr);
+		}
 #endif
-		seq_printf(m, " from %pI4 to %pI4\n",
-			   &inet->inet_saddr, &inet->inet_daddr);
+		if (tunnel->sock->sk_family == AF_INET)
+			seq_printf(m, " from %pI4 to %pI4\n",
+				   &inet->inet_saddr, &inet->inet_daddr);
+
 		if (tunnel->encap == L2TP_ENCAPTYPE_UDP)
 			seq_printf(m, " source port %hu, dest port %hu\n",
 				   ntohs(inet->inet_sport), ntohs(inet->inet_dport));
@@ -165,7 +165,7 @@ static void l2tp_dfs_seq_tunnel_show(struct seq_file *m, void *v)
 		   tunnel->sock ? refcount_read(&tunnel->sock->sk_refcnt) : 0,
 		   refcount_read(&tunnel->ref_count));
 	seq_printf(m, " %08x rx %ld/%ld/%ld rx %ld/%ld/%ld\n",
-		   tunnel->debug,
+		   0,
 		   atomic_long_read(&tunnel->stats.tx_packets),
 		   atomic_long_read(&tunnel->stats.tx_bytes),
 		   atomic_long_read(&tunnel->stats.tx_errors),
@@ -184,15 +184,15 @@ static void l2tp_dfs_seq_session_show(struct seq_file *m, void *v)
 		   session->pwtype == L2TP_PWTYPE_PPP ? "PPP" :
 		   "");
 	if (session->send_seq || session->recv_seq)
-		seq_printf(m, "   nr %hu, ns %hu\n", session->nr, session->ns);
+		seq_printf(m, "   nr %u, ns %u\n", session->nr, session->ns);
 	seq_printf(m, "   refcnt %d\n", refcount_read(&session->ref_count));
 	seq_printf(m, "   config 0/0/%c/%c/-/%s %08x %u\n",
 		   session->recv_seq ? 'R' : '-',
 		   session->send_seq ? 'S' : '-',
 		   session->lns_mode ? "LNS" : "LAC",
-		   session->debug,
+		   0,
 		   jiffies_to_msecs(session->reorder_timeout));
-	seq_printf(m, "   offset 0 l2specific %hu/%hu\n",
+	seq_printf(m, "   offset 0 l2specific %hu/%d\n",
 		   session->l2specific_type, l2tp_get_l2specific_len(session));
 	if (session->cookie_len) {
 		seq_printf(m, "   cookie %02x%02x%02x%02x",
@@ -202,7 +202,7 @@ static void l2tp_dfs_seq_session_show(struct seq_file *m, void *v)
 			seq_printf(m, "%02x%02x%02x%02x",
 				   session->cookie[4], session->cookie[5],
 				   session->cookie[6], session->cookie[7]);
-		seq_printf(m, "\n");
+		seq_puts(m, "\n");
 	}
 	if (session->peer_cookie_len) {
 		seq_printf(m, "   peer cookie %02x%02x%02x%02x",
@@ -212,10 +212,10 @@ static void l2tp_dfs_seq_session_show(struct seq_file *m, void *v)
 			seq_printf(m, "%02x%02x%02x%02x",
 				   session->peer_cookie[4], session->peer_cookie[5],
 				   session->peer_cookie[6], session->peer_cookie[7]);
-		seq_printf(m, "\n");
+		seq_puts(m, "\n");
 	}
 
-	seq_printf(m, "   %hu/%hu tx %ld/%ld/%ld rx %ld/%ld/%ld\n",
+	seq_printf(m, "   %u/%u tx %ld/%ld/%ld rx %ld/%ld/%ld\n",
 		   session->nr, session->ns,
 		   atomic_long_read(&session->stats.tx_packets),
 		   atomic_long_read(&session->stats.tx_bytes),
@@ -224,7 +224,7 @@ static void l2tp_dfs_seq_session_show(struct seq_file *m, void *v)
 		   atomic_long_read(&session->stats.rx_bytes),
 		   atomic_long_read(&session->stats.rx_errors));
 
-	if (session->show != NULL)
+	if (session->show)
 		session->show(m, session);
 }
 
@@ -271,7 +271,7 @@ static int l2tp_dfs_seq_open(struct inode *inode, struct file *file)
 	int rc = -ENOMEM;
 
 	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
-	if (pd == NULL)
+	if (!pd)
 		goto out;
 
 	/* Derive the network namespace from the pid opening the
@@ -282,7 +282,7 @@ static int l2tp_dfs_seq_open(struct inode *inode, struct file *file)
 		rc = PTR_ERR(pd->net);
 		goto err_free_pd;
 	}
-
+	netns_tracker_alloc(pd->net, &pd->ns_tracker, GFP_KERNEL);
 	rc = seq_open(file, &l2tp_dfs_seq_ops);
 	if (rc)
 		goto err_free_net;
@@ -294,7 +294,7 @@ out:
 	return rc;
 
 err_free_net:
-	put_net(pd->net);
+	put_net_track(pd->net, &pd->ns_tracker);
 err_free_pd:
 	kfree(pd);
 	goto out;
@@ -308,7 +308,7 @@ static int l2tp_dfs_seq_release(struct inode *inode, struct file *file)
 	seq = file->private_data;
 	pd = seq->private;
 	if (pd->net)
-		put_net(pd->net);
+		put_net_track(pd->net, &pd->ns_tracker);
 	kfree(pd);
 	seq_release(inode, file);
 

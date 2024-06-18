@@ -1,0 +1,71 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/rng/st,stm32-rng.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: STMicroelectronics STM32 RNG
+
+description: |
+  The STM32 hardware random number generator is a simple fixed purpose
+  IP and is fully separated from other crypto functions.
+
+maintainers:
+  - Lionel Debieve <lionel.debieve@foss.st.com>
+
+properties:
+  compatible:
+    enum:
+      - st,stm32-rng
+      - st,stm32mp13-rng
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+  clock-error-detect:
+    type: boolean
+    description: If set enable the clock detection management
+
+  st,rng-lock-conf:
+    type: boolean
+    description: If set, the RNG configuration in RNG_CR, RNG_HTCR and
+                  RNG_NSCR will be locked.
+
+  access-controllers:
+    minItems: 1
+    maxItems: 2
+
+required:
+  - compatible
+  - reg
+  - clocks
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - st,stm32-rng
+    then:
+      properties:
+        st,rng-lock-conf: false
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/stm32mp1-clks.h>
+    rng@54003000 {
+      compatible = "st,stm32-rng";
+      reg = <0x54003000 0x400>;
+      clocks = <&rcc RNG1_K>;
+    };
+
+...

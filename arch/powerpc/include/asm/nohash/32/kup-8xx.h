@@ -3,52 +3,83 @@
 #define _ASM_POWERPC_KUP_8XX_H_
 
 #include <asm/bug.h>
+#include <asm/mmu.h>
 
 #ifdef CONFIG_PPC_KUAP
 
-#ifdef __ASSEMBLY__
-
-.macro kuap_save_and_lock	sp, thread, gpr1, gpr2, gpr3
-	lis	\gpr2, MD_APG_KUAP@h	/* only APG0 and APG1 are used */
-	mfspr	\gpr1, SPRN_MD_AP
-	mtspr	SPRN_MD_AP, \gpr2
-	stw	\gpr1, STACK_REGS_KUAP(\sp)
-.endm
-
-.macro kuap_restore	sp, current, gpr1, gpr2, gpr3
-	lwz	\gpr1, STACK_REGS_KUAP(\sp)
-	mtspr	SPRN_MD_AP, \gpr1
-.endm
-
-.macro kuap_check	current, gpr
-#ifdef CONFIG_PPC_KUAP_DEBUG
-	mfspr	\gpr, SPRN_MD_AP
-	rlwinm	\gpr, \gpr, 16, 0xffff
-999:	twnei	\gpr, MD_APG_KUAP@h
-	EMIT_BUG_ENTRY 999b, __FILE__, __LINE__, (BUGFLAG_WARNING | BUGFLAG_ONCE)
-#endif
-.endm
-
-#else /* !__ASSEMBLY__ */
+#ifndef __ASSEMBLY__
 
 #include <asm/reg.h>
 
-static inline void allow_user_access(void __user *to, const void __user *from,
-				     unsigned long size)
+static __always_inline void __kuap_save_and_lock(struct pt_regs *regs)
 {
-	mtspr(SPRN_MD_AP, MD_APG_INIT);
-}
-
-static inline void prevent_user_access(void __user *to, const void __user *from,
-				       unsigned long size)
-{
+	regs->kuap = mfspr(SPRN_MD_AP);
 	mtspr(SPRN_MD_AP, MD_APG_KUAP);
 }
+#define __kuap_save_and_lock __kuap_save_and_lock
 
-static inline bool bad_kuap_fault(struct pt_regs *regs, bool is_write)
+static __always_inline void kuap_user_restore(struct pt_regs *regs)
 {
-	return WARN(!((regs->kuap ^ MD_APG_KUAP) & 0xf0000000),
-		    "Bug: fault blocked by AP register !");
+}
+
+static __always_inline void __kuap_kernel_restore(struct pt_regs *regs, unsigned long kuap)
+{
+	mtspr(SPRN_MD_AP, regs->kuap);
+}
+
+#ifdef CONFIG_PPC_KUAP_DEBUG
+static __always_inline unsigned long __kuap_get_and_assert_locked(void)
+{
+	WARN_ON_ONCE(mfspr(SPRN_MD_AP) >> 16 != MD_APG_KUAP >> 16);
+
+	return 0;
+}
+#define __kuap_get_and_assert_locked __kuap_get_and_assert_locked
+#endif
+
+static __always_inline void uaccess_begin_8xx(unsigned long val)
+{
+	asm(ASM_MMU_FTR_IFSET("mtspr %0, %1", "", %2) : :
+	    "i"(SPRN_MD_AP), "r"(val), "i"(MMU_FTR_KUAP) : "memory");
+}
+
+static __always_inline void uaccess_end_8xx(void)
+{
+	asm(ASM_MMU_FTR_IFSET("mtspr %0, %1", "", %2) : :
+	    "i"(SPRN_MD_AP), "r"(MD_APG_KUAP), "i"(MMU_FTR_KUAP) : "memory");
+}
+
+static __always_inline void allow_user_access(void __user *to, const void __user *from,
+					      unsigned long size, unsigned long dir)
+{
+	uaccess_begin_8xx(MD_APG_INIT);
+}
+
+static __always_inline void prevent_user_access(unsigned long dir)
+{
+	uaccess_end_8xx();
+}
+
+static __always_inline unsigned long prevent_user_access_return(void)
+{
+	unsigned long flags;
+
+	flags = mfspr(SPRN_MD_AP);
+
+	uaccess_end_8xx();
+
+	return flags;
+}
+
+static __always_inline void restore_user_access(unsigned long flags)
+{
+	uaccess_begin_8xx(flags);
+}
+
+static __always_inline bool
+__bad_kuap_fault(struct pt_regs *regs, unsigned long address, bool is_write)
+{
+	return !((regs->kuap ^ MD_APG_KUAP) & 0xff000000);
 }
 
 #endif /* !__ASSEMBLY__ */

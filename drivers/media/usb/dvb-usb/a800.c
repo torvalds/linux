@@ -8,7 +8,7 @@
  *   - AVerMedia who kindly provided information and
  *   - Glen Harris who suffered from my mistakes during development.
  *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 #include "dibusb.h"
 
@@ -27,8 +27,10 @@ static int a800_power_ctrl(struct dvb_usb_device *d, int onoff)
 }
 
 /* assure to put cold to 0 for iManufacturer == 1 */
-static int a800_identify_state(struct usb_device *udev, struct dvb_usb_device_properties *props,
-	struct dvb_usb_device_description **desc, int *cold)
+static int a800_identify_state(struct usb_device *udev,
+			       const struct dvb_usb_device_properties *props,
+			       const struct dvb_usb_device_description **desc,
+			       int *cold)
 {
 	*cold = udev->descriptor.iManufacturer != 1;
 	return 0;
@@ -70,11 +72,17 @@ static int a800_probe(struct usb_interface *intf,
 }
 
 /* do not change the order of the ID table */
-static struct usb_device_id a800_table [] = {
-/* 00 */	{ USB_DEVICE(USB_VID_AVERMEDIA,     USB_PID_AVERMEDIA_DVBT_USB2_COLD) },
-/* 01 */	{ USB_DEVICE(USB_VID_AVERMEDIA,     USB_PID_AVERMEDIA_DVBT_USB2_WARM) },
-			{ }		/* Terminating entry */
+enum {
+	AVERMEDIA_DVBT_USB2_COLD,
+	AVERMEDIA_DVBT_USB2_WARM,
 };
+
+static struct usb_device_id a800_table[] = {
+	DVB_USB_DEV(AVERMEDIA, AVERMEDIA_DVBT_USB2_COLD),
+	DVB_USB_DEV(AVERMEDIA, AVERMEDIA_DVBT_USB2_WARM),
+	{ }
+};
+
 MODULE_DEVICE_TABLE (usb, a800_table);
 
 static struct dvb_usb_device_properties a800_properties = {
@@ -130,8 +138,8 @@ static struct dvb_usb_device_properties a800_properties = {
 	.num_device_descs = 1,
 	.devices = {
 		{   "AVerMedia AverTV DVB-T USB 2.0 (A800)",
-			{ &a800_table[0], NULL },
-			{ &a800_table[1], NULL },
+			{ &a800_table[AVERMEDIA_DVBT_USB2_COLD], NULL },
+			{ &a800_table[AVERMEDIA_DVBT_USB2_WARM], NULL },
 		},
 	}
 };

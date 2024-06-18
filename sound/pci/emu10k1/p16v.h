@@ -2,69 +2,13 @@
 /*
  *  Copyright (c) by James Courtier-Dutton <James@superbug.demon.co.uk>
  *  Driver p16v chips
- *  Version: 0.21
- *
- *  FEATURES currently supported:
- *    Output fixed at S32_LE, 2 channel to hw:0,0
- *    Rates: 44.1, 48, 96, 192.
- *
- *  Changelog:
- *  0.8
- *    Use separate card based buffer for periods table.
- *  0.9
- *    Use 2 channel output streams instead of 8 channel.
- *       (8 channel output streams might be good for ASIO type output)
- *    Corrected speaker output, so Front -> Front etc.
- *  0.10
- *    Fixed missed interrupts.
- *  0.11
- *    Add Sound card model number and names.
- *    Add Analog volume controls.
- *  0.12
- *    Corrected playback interrupts. Now interrupt per period, instead of half period.
- *  0.13
- *    Use single trigger for multichannel.
- *  0.14
- *    Mic capture now works at fixed: S32_LE, 96000Hz, Stereo.
- *  0.15
- *    Force buffer_size / period_size == INTEGER.
- *  0.16
- *    Update p16v.c to work with changed alsa api.
- *  0.17
- *    Update p16v.c to work with changed alsa api. Removed boot_devs.
- *  0.18
- *    Merging with snd-emu10k1 driver.
- *  0.19
- *    One stereo channel at 24bit now works.
- *  0.20
- *    Added better register defines.
- *  0.21
- *    Split from p16v.c
- *
- *  BUGS:
- *    Some stability problems when unloading the snd-p16v kernel module.
- *    --
- *
- *  TODO:
- *    SPDIF out.
- *    Find out how to change capture sample rates. E.g. To record SPDIF at 48000Hz.
- *    Currently capture fixed at 48000Hz.
- *
- *    --
- *  GENERAL INFO:
- *    Model: SB0240
- *    P16V Chip: CA0151-DBS
- *    Audigy 2 Chip: CA0102-IAT
- *    AC97 Codec: STAC 9721
- *    ADC: Philips 1361T (Stereo 24bit)
- *    DAC: CS4382-K (8-channel, 24bit, 192Khz)
  *
  *  This code was initially based on code from ALSA's emu10k1x.c which is:
  *  Copyright (c) by Francisco Moraes <fmoraes@nc.rr.com>
  */
 
 /********************************************************************************************************/
-/* Audigy2 P16V pointer-offset register set, accessed through the PTR2 and DATA2 registers                     */
+/* Audigy2 P16V pointer-offset register set, accessed through the PTR2 and DATA2 registers              */
 /********************************************************************************************************/
                                                                                                                            
 /* The sample rate of the SPDIF outputs is set by modifying a register in the EMU10K2 PTR register A_SPDIF_SAMPLERATE.

@@ -8,28 +8,30 @@
 #include <net/af_rxrpc.h>
 #include "ar-internal.h"
 
-static int none_init_connection_security(struct rxrpc_connection *conn)
+static int none_init_connection_security(struct rxrpc_connection *conn,
+					 struct rxrpc_key_token *token)
 {
 	return 0;
 }
 
-static int none_prime_packet_security(struct rxrpc_connection *conn)
+/*
+ * Allocate an appropriately sized buffer for the amount of data remaining.
+ */
+static struct rxrpc_txbuf *none_alloc_txbuf(struct rxrpc_call *call, size_t remain, gfp_t gfp)
+{
+	return rxrpc_alloc_data_txbuf(call, min_t(size_t, remain, RXRPC_JUMBO_DATALEN), 1, gfp);
+}
+
+static int none_secure_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 {
 	return 0;
 }
 
-static int none_secure_packet(struct rxrpc_call *call,
-			      struct sk_buff *skb,
-			      size_t data_size,
-			      void *sechdr)
+static int none_verify_packet(struct rxrpc_call *call, struct sk_buff *skb)
 {
-	return 0;
-}
+	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 
-static int none_verify_packet(struct rxrpc_call *call, struct sk_buff *skb,
-			      unsigned int offset, unsigned int len,
-			      rxrpc_seq_t seq, u16 expected_cksum)
-{
+	sp->flags |= RXRPC_RX_VERIFIED;
 	return 0;
 }
 
@@ -37,31 +39,18 @@ static void none_free_call_crypto(struct rxrpc_call *call)
 {
 }
 
-static void none_locate_data(struct rxrpc_call *call, struct sk_buff *skb,
-			     unsigned int *_offset, unsigned int *_len)
-{
-}
-
 static int none_respond_to_challenge(struct rxrpc_connection *conn,
-				     struct sk_buff *skb,
-				     u32 *_abort_code)
+				     struct sk_buff *skb)
 {
-	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
-
-	trace_rxrpc_rx_eproto(NULL, sp->hdr.serial,
-			      tracepoint_string("chall_none"));
-	return -EPROTO;
+	return rxrpc_abort_conn(conn, skb, RX_PROTOCOL_ERROR, -EPROTO,
+				rxrpc_eproto_rxnull_challenge);
 }
 
 static int none_verify_response(struct rxrpc_connection *conn,
-				struct sk_buff *skb,
-				u32 *_abort_code)
+				struct sk_buff *skb)
 {
-	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
-
-	trace_rxrpc_rx_eproto(NULL, sp->hdr.serial,
-			      tracepoint_string("resp_none"));
-	return -EPROTO;
+	return rxrpc_abort_conn(conn, skb, RX_PROTOCOL_ERROR, -EPROTO,
+				rxrpc_eproto_rxnull_response);
 }
 
 static void none_clear(struct rxrpc_connection *conn)
@@ -86,11 +75,10 @@ const struct rxrpc_security rxrpc_no_security = {
 	.init				= none_init,
 	.exit				= none_exit,
 	.init_connection_security	= none_init_connection_security,
-	.prime_packet_security		= none_prime_packet_security,
 	.free_call_crypto		= none_free_call_crypto,
+	.alloc_txbuf			= none_alloc_txbuf,
 	.secure_packet			= none_secure_packet,
 	.verify_packet			= none_verify_packet,
-	.locate_data			= none_locate_data,
 	.respond_to_challenge		= none_respond_to_challenge,
 	.verify_response		= none_verify_response,
 	.clear				= none_clear,

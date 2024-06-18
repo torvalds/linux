@@ -5,7 +5,7 @@ In-kernel memory-mapped I/O tracing
 
 Home page and links to optional user space tools:
 
-	http://nouveau.freedesktop.org/wiki/MmioTrace
+	https://nouveau.freedesktop.org/wiki/MmioTrace
 
 MMIO tracing was originally developed by Intel around 2003 for their Fault
 Injection Test Harness. In Dec 2006 - Jan 2007, using the code from Intel,
@@ -36,11 +36,11 @@ Usage Quick Reference
 ::
 
 	$ mount -t debugfs debugfs /sys/kernel/debug
-	$ echo mmiotrace > /sys/kernel/debug/tracing/current_tracer
-	$ cat /sys/kernel/debug/tracing/trace_pipe > mydump.txt &
+	$ echo mmiotrace > /sys/kernel/tracing/current_tracer
+	$ cat /sys/kernel/tracing/trace_pipe > mydump.txt &
 	Start X or whatever.
-	$ echo "X is up" > /sys/kernel/debug/tracing/trace_marker
-	$ echo nop > /sys/kernel/debug/tracing/current_tracer
+	$ echo "X is up" > /sys/kernel/tracing/trace_marker
+	$ echo nop > /sys/kernel/tracing/current_tracer
 	Check for lost events.
 
 
@@ -56,11 +56,11 @@ Check that the driver you are about to trace is not loaded.
 
 Activate mmiotrace (requires root privileges)::
 
-	$ echo mmiotrace > /sys/kernel/debug/tracing/current_tracer
+	$ echo mmiotrace > /sys/kernel/tracing/current_tracer
 
 Start storing the trace::
 
-	$ cat /sys/kernel/debug/tracing/trace_pipe > mydump.txt &
+	$ cat /sys/kernel/tracing/trace_pipe > mydump.txt &
 
 The 'cat' process should stay running (sleeping) in the background.
 
@@ -68,14 +68,14 @@ Load the driver you want to trace and use it. Mmiotrace will only catch MMIO
 accesses to areas that are ioremapped while mmiotrace is active.
 
 During tracing you can place comments (markers) into the trace by
-$ echo "X is up" > /sys/kernel/debug/tracing/trace_marker
+$ echo "X is up" > /sys/kernel/tracing/trace_marker
 This makes it easier to see which part of the (huge) trace corresponds to
 which action. It is recommended to place descriptive markers about what you
 do.
 
 Shut down mmiotrace (requires root privileges)::
 
-	$ echo nop > /sys/kernel/debug/tracing/current_tracer
+	$ echo nop > /sys/kernel/tracing/current_tracer
 
 The 'cat' process exits. If it does not, kill it by issuing 'fg' command and
 pressing ctrl+c.
@@ -93,12 +93,12 @@ events were lost, the trace is incomplete. You should enlarge the buffers and
 try again. Buffers are enlarged by first seeing how large the current buffers
 are::
 
-	$ cat /sys/kernel/debug/tracing/buffer_size_kb
+	$ cat /sys/kernel/tracing/buffer_size_kb
 
 gives you a number. Approximately double this number and write it back, for
 instance::
 
-	$ echo 128000 > /sys/kernel/debug/tracing/buffer_size_kb
+	$ echo 128000 > /sys/kernel/tracing/buffer_size_kb
 
 Then start again from the top.
 

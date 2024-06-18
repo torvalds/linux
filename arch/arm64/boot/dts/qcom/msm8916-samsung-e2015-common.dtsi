@@ -1,0 +1,108 @@
+// SPDX-License-Identifier: GPL-2.0-only
+
+#include "msm8916-samsung-a2015-common.dtsi"
+
+/ {
+	haptic {
+		compatible = "regulator-haptic";
+		haptic-supply = <&reg_motor_vdd>;
+		min-microvolt = <3300000>;
+		max-microvolt = <3300000>;
+	};
+
+	i2c-muic {
+		/* SM5504 MUIC instead of SM5502 */
+		/delete-node/ extcon@25;
+
+		muic: extcon@14 {
+			compatible = "siliconmitus,sm5504-muic";
+			reg = <0x14>;
+
+			interrupt-parent = <&tlmm>;
+			interrupts = <12 IRQ_TYPE_EDGE_FALLING>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&muic_int_default>;
+
+			usb_con: connector {
+				compatible = "usb-b-connector";
+				label = "micro-USB";
+				type = "micro";
+			};
+		};
+	};
+
+	reg_touch_key: regulator-touch-key {
+		compatible = "regulator-fixed";
+		regulator-name = "touch_key";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpio = <&tlmm 97 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&tkey_en_default>;
+	};
+};
+
+&blsp_i2c2 {
+	/* lis2hh12 accelerometer instead of BMC150 */
+	/delete-node/ accelerometer@10;
+	/delete-node/ magnetometer@12;
+
+	accelerometer@1d {
+		compatible = "st,lis2hh12";
+		reg = <0x1d>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <115 IRQ_TYPE_LEVEL_HIGH>;
+
+		vdd-supply = <&pm8916_l5>;
+		vddio-supply = <&pm8916_l5>;
+
+		st,drdy-int-pin = <1>;
+		mount-matrix = "1", "0", "0",
+			       "0", "-1", "0",
+			       "0", "0", "1";
+
+		pinctrl-0 = <&accel_int_default>;
+		pinctrl-names = "default";
+	};
+};
+
+&mpss_mem {
+	reg = <0x0 0x86800000 0x0 0x5a00000>;
+};
+
+&reg_motor_vdd {
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
+};
+
+&touchkey {
+	vcc-supply = <&reg_touch_key>;
+	vdd-supply = <&reg_touch_key>;
+};
+
+&wcnss {
+	status = "okay";
+};
+
+&wcnss_iris {
+	compatible = "qcom,wcn3620";
+};
+
+&wcnss_mem {
+	status = "okay";
+};
+
+&tlmm {
+	tkey_en_default: tkey-en-default-state {
+		pins = "gpio97";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
+	};
+};

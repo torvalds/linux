@@ -42,8 +42,8 @@ struct ims_pcu_backlight {
 #define IMS_PCU_PART_NUMBER_LEN		15
 #define IMS_PCU_SERIAL_NUMBER_LEN	8
 #define IMS_PCU_DOM_LEN			8
-#define IMS_PCU_FW_VERSION_LEN		(9 + 1)
-#define IMS_PCU_BL_VERSION_LEN		(9 + 1)
+#define IMS_PCU_FW_VERSION_LEN		16
+#define IMS_PCU_BL_VERSION_LEN		16
 #define IMS_PCU_BL_RESET_REASON_LEN	(2 + 1)
 
 #define IMS_PCU_PCU_B_DEVICE_ID		5
@@ -335,7 +335,7 @@ static int ims_pcu_setup_gamepad(struct ims_pcu *pcu)
 err_free_mem:
 	input_free_device(input);
 	kfree(gamepad);
-	return -ENOMEM;
+	return error;
 }
 
 static void ims_pcu_destroy_gamepad(struct ims_pcu *pcu)
@@ -647,8 +647,8 @@ static int __ims_pcu_execute_command(struct ims_pcu *pcu,
 #define IMS_PCU_BL_DATA_OFFSET		3
 
 static int __ims_pcu_execute_bl_command(struct ims_pcu *pcu,
-				        u8 command, const void *data, size_t len,
-				        u8 expected_response, int response_time)
+					u8 command, const void *data, size_t len,
+					u8 expected_response, int response_time)
 {
 	int error;
 
@@ -744,7 +744,7 @@ static int ims_pcu_switch_to_bootloader(struct ims_pcu *pcu)
 	error = ims_pcu_execute_command(pcu, JUMP_TO_BTLDR, NULL, 0);
 	if (error) {
 		dev_err(pcu->dev,
-			"Failure when sending JUMP TO BOOLTLOADER command, error: %d\n",
+			"Failure when sending JUMP TO BOOTLOADER command, error: %d\n",
 			error);
 		return error;
 	}
@@ -1050,7 +1050,7 @@ static ssize_t ims_pcu_attribute_show(struct device *dev,
 			container_of(dattr, struct ims_pcu_attribute, dattr);
 	char *field = (char *)pcu + attr->field_offset;
 
-	return scnprintf(buf, PAGE_SIZE, "%.*s\n", attr->field_length, field);
+	return sysfs_emit(buf, "%.*s\n", attr->field_length, field);
 }
 
 static ssize_t ims_pcu_attribute_store(struct device *dev,
@@ -1206,7 +1206,7 @@ ims_pcu_update_firmware_status_show(struct device *dev,
 	struct usb_interface *intf = to_usb_interface(dev);
 	struct ims_pcu *pcu = usb_get_intfdata(intf);
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", pcu->update_firmware_status);
+	return sysfs_emit(buf, "%d\n", pcu->update_firmware_status);
 }
 
 static DEVICE_ATTR(update_firmware_status, S_IRUGO,
@@ -1228,7 +1228,7 @@ static struct attribute *ims_pcu_attrs[] = {
 static umode_t ims_pcu_is_attr_visible(struct kobject *kobj,
 				       struct attribute *attr, int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct usb_interface *intf = to_usb_interface(dev);
 	struct ims_pcu *pcu = usb_get_intfdata(intf);
 	umode_t mode = attr->mode;
@@ -1309,7 +1309,7 @@ static ssize_t ims_pcu_ofn_reg_data_show(struct device *dev,
 	if (error)
 		return error;
 
-	return scnprintf(buf, PAGE_SIZE, "%x\n", data);
+	return sysfs_emit(buf, "%x\n", data);
 }
 
 static ssize_t ims_pcu_ofn_reg_data_store(struct device *dev,
@@ -1344,7 +1344,7 @@ static ssize_t ims_pcu_ofn_reg_addr_show(struct device *dev,
 	int error;
 
 	mutex_lock(&pcu->cmd_mutex);
-	error = scnprintf(buf, PAGE_SIZE, "%x\n", pcu->ofn_reg_addr);
+	error = sysfs_emit(buf, "%x\n", pcu->ofn_reg_addr);
 	mutex_unlock(&pcu->cmd_mutex);
 
 	return error;
@@ -1397,7 +1397,7 @@ static ssize_t ims_pcu_ofn_bit_show(struct device *dev,
 	if (error)
 		return error;
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", !!(data & (1 << attr->nr)));
+	return sysfs_emit(buf, "%d\n", !!(data & (1 << attr->nr)));
 }
 
 static ssize_t ims_pcu_ofn_bit_store(struct device *dev,
@@ -2018,7 +2018,6 @@ static int ims_pcu_probe(struct usb_interface *intf,
 	}
 
 	usb_set_intfdata(pcu->ctrl_intf, pcu);
-	usb_set_intfdata(pcu->data_intf, pcu);
 
 	error = ims_pcu_buffers_alloc(pcu);
 	if (error)

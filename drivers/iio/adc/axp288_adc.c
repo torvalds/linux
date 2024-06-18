@@ -7,7 +7,9 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
+#include <linux/dmi.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/regmap.h>
@@ -25,6 +27,11 @@
 #define AXP288_ADC_EN_MASK				0xF0
 #define AXP288_ADC_TS_ENABLE				0x01
 
+#define AXP288_ADC_TS_BIAS_MASK				GENMASK(5, 4)
+#define AXP288_ADC_TS_BIAS_20UA				(0 << 4)
+#define AXP288_ADC_TS_BIAS_40UA				(1 << 4)
+#define AXP288_ADC_TS_BIAS_60UA				(2 << 4)
+#define AXP288_ADC_TS_BIAS_80UA				(3 << 4)
 #define AXP288_ADC_TS_CURRENT_ON_OFF_MASK		GENMASK(1, 0)
 #define AXP288_ADC_TS_CURRENT_OFF			(0 << 0)
 #define AXP288_ADC_TS_CURRENT_ON_WHEN_CHARGING		(1 << 0)
@@ -44,6 +51,8 @@ enum axp288_adc_id {
 struct axp288_adc_info {
 	int irq;
 	struct regmap *regmap;
+	/* lock to protect against multiple access to the device */
+	struct mutex lock;
 	bool ts_enabled;
 };
 
@@ -155,7 +164,7 @@ static int axp288_adc_read_raw(struct iio_dev *indio_dev,
 	int ret;
 	struct axp288_adc_info *info = iio_priv(indio_dev);
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&info->lock);
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 		if (axp288_adc_set_ts(info, AXP288_ADC_TS_CURRENT_ON_ONDEMAND,
@@ -172,14 +181,48 @@ static int axp288_adc_read_raw(struct iio_dev *indio_dev,
 	default:
 		ret = -EINVAL;
 	}
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&info->lock);
 
 	return ret;
 }
 
+/*
+ * We rely on the machine's firmware to correctly setup the TS pin bias current
+ * at boot. This lists systems with broken fw where we need to set it ourselves.
+ */
+static const struct dmi_system_id axp288_adc_ts_bias_override[] = {
+	{
+		/* Lenovo Ideapad 100S (11 inch) */
+		.matches = {
+		  DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		  DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad 100S-11IBY"),
+		},
+		.driver_data = (void *)(uintptr_t)AXP288_ADC_TS_BIAS_80UA,
+	},
+	{
+		/* Nuvision Solo 10 Draw */
+		.matches = {
+		  DMI_MATCH(DMI_SYS_VENDOR, "TMAX"),
+		  DMI_MATCH(DMI_PRODUCT_NAME, "TM101W610L"),
+		},
+		.driver_data = (void *)(uintptr_t)AXP288_ADC_TS_BIAS_80UA,
+	},
+	{}
+};
+
 static int axp288_adc_initialize(struct axp288_adc_info *info)
 {
+	const struct dmi_system_id *bias_override;
 	int ret, adc_enable_val;
+
+	bias_override = dmi_first_match(axp288_adc_ts_bias_override);
+	if (bias_override) {
+		ret = regmap_update_bits(info->regmap, AXP288_ADC_TS_PIN_CTRL,
+					 AXP288_ADC_TS_BIAS_MASK,
+					 (uintptr_t)bias_override->driver_data);
+		if (ret)
+			return ret;
+	}
 
 	/*
 	 * Determine if the TS pin is enabled and set the TS current-source
@@ -227,7 +270,7 @@ static int axp288_adc_probe(struct platform_device *pdev)
 	info->irq = platform_get_irq(pdev, 0);
 	if (info->irq < 0)
 		return info->irq;
-	platform_set_drvdata(pdev, indio_dev);
+
 	info->regmap = axp20x->regmap;
 	/*
 	 * Set ADC to enabled state at all time, including system suspend.
@@ -239,37 +282,19 @@ static int axp288_adc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->name = pdev->name;
 	indio_dev->channels = axp288_adc_channels;
 	indio_dev->num_channels = ARRAY_SIZE(axp288_adc_channels);
 	indio_dev->info = &axp288_adc_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
-	ret = iio_map_array_register(indio_dev, axp288_adc_default_maps);
+
+	ret = devm_iio_map_array_register(&pdev->dev, indio_dev, axp288_adc_default_maps);
 	if (ret < 0)
 		return ret;
 
-	ret = iio_device_register(indio_dev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "unable to register iio device\n");
-		goto err_array_unregister;
-	}
-	return 0;
+	mutex_init(&info->lock);
 
-err_array_unregister:
-	iio_map_array_unregister(indio_dev);
-
-	return ret;
-}
-
-static int axp288_adc_remove(struct platform_device *pdev)
-{
-	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
-
-	iio_device_unregister(indio_dev);
-	iio_map_array_unregister(indio_dev);
-
-	return 0;
+	return devm_iio_device_register(&pdev->dev, indio_dev);
 }
 
 static const struct platform_device_id axp288_adc_id_table[] = {
@@ -279,7 +304,6 @@ static const struct platform_device_id axp288_adc_id_table[] = {
 
 static struct platform_driver axp288_adc_driver = {
 	.probe = axp288_adc_probe,
-	.remove = axp288_adc_remove,
 	.id_table = axp288_adc_id_table,
 	.driver = {
 		.name = "axp288_adc",

@@ -7,14 +7,15 @@
  * Dave Gerlach <d-gerlach@ti.com>
  */
 
+#include <linux/debugfs.h>
 #include <linux/err.h>
+#include <linux/firmware.h>
 #include <linux/kernel.h>
 #include <linux/kthread.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/omap-mailbox.h>
 #include <linux/platform_device.h>
 #include <linux/remoteproc.h>
 #include <linux/suspend.h>
@@ -40,11 +41,29 @@
 #define M3_FW_VERSION_MASK		0xffff
 #define M3_WAKE_SRC_MASK		0xff
 
+#define IPC_MEM_TYPE_SHIFT		(0x0)
+#define IPC_MEM_TYPE_MASK		(0x7 << 0)
+#define IPC_VTT_STAT_SHIFT		(0x3)
+#define IPC_VTT_STAT_MASK		(0x1 << 3)
+#define IPC_VTT_GPIO_PIN_SHIFT		(0x4)
+#define IPC_VTT_GPIO_PIN_MASK		(0x3f << 4)
+#define IPC_IO_ISOLATION_STAT_SHIFT	(10)
+#define IPC_IO_ISOLATION_STAT_MASK	(0x1 << 10)
+
+#define IPC_DBG_HALT_SHIFT		(11)
+#define IPC_DBG_HALT_MASK		(0x1 << 11)
+
 #define M3_STATE_UNKNOWN		0
 #define M3_STATE_RESET			1
 #define M3_STATE_INITED			2
 #define M3_STATE_MSG_FOR_LP		3
 #define M3_STATE_MSG_FOR_RESET		4
+
+#define WKUP_M3_SD_FW_MAGIC		0x570C
+
+#define WKUP_M3_DMEM_START		0x80000
+#define WKUP_M3_AUXDATA_OFFSET		0x1000
+#define WKUP_M3_AUXDATA_SIZE		0xFF
 
 static struct wkup_m3_ipc *m3_ipc_state;
 
@@ -65,6 +84,148 @@ static const struct wkup_m3_wakeup_src wakeups[] = {
 	{.irq_nr = 51,	.src = "ADC_TSC"},
 	{.irq_nr = 0,	.src = "Unknown"},
 };
+
+/**
+ * wkup_m3_copy_aux_data - Copy auxiliary data to special region of m3 dmem
+ * @data - pointer to data
+ * @sz - size of data to copy (limit 256 bytes)
+ *
+ * Copies any additional blob of data to the wkup_m3 dmem to be used by the
+ * firmware
+ */
+static unsigned long wkup_m3_copy_aux_data(struct wkup_m3_ipc *m3_ipc,
+					   const void *data, int sz)
+{
+	unsigned long aux_data_dev_addr;
+	void *aux_data_addr;
+
+	aux_data_dev_addr = WKUP_M3_DMEM_START + WKUP_M3_AUXDATA_OFFSET;
+	aux_data_addr = rproc_da_to_va(m3_ipc->rproc,
+				       aux_data_dev_addr,
+				       WKUP_M3_AUXDATA_SIZE,
+				       NULL);
+	memcpy(aux_data_addr, data, sz);
+
+	return WKUP_M3_AUXDATA_OFFSET;
+}
+
+static void wkup_m3_scale_data_fw_cb(const struct firmware *fw, void *context)
+{
+	unsigned long val, aux_base;
+	struct wkup_m3_scale_data_header hdr;
+	struct wkup_m3_ipc *m3_ipc = context;
+	struct device *dev = m3_ipc->dev;
+
+	if (!fw) {
+		dev_err(dev, "Voltage scale fw name given but file missing.\n");
+		return;
+	}
+
+	memcpy(&hdr, fw->data, sizeof(hdr));
+
+	if (hdr.magic != WKUP_M3_SD_FW_MAGIC) {
+		dev_err(dev, "PM: Voltage Scale Data binary does not appear valid.\n");
+		goto release_sd_fw;
+	}
+
+	aux_base = wkup_m3_copy_aux_data(m3_ipc, fw->data + sizeof(hdr),
+					 fw->size - sizeof(hdr));
+
+	val = (aux_base + hdr.sleep_offset);
+	val |= ((aux_base + hdr.wake_offset) << 16);
+
+	m3_ipc->volt_scale_offsets = val;
+
+release_sd_fw:
+	release_firmware(fw);
+};
+
+static int wkup_m3_init_scale_data(struct wkup_m3_ipc *m3_ipc,
+				   struct device *dev)
+{
+	int ret = 0;
+
+	/*
+	 * If no name is provided, user has already been warned, pm will
+	 * still work so return 0
+	 */
+
+	if (!m3_ipc->sd_fw_name)
+		return ret;
+
+	ret = request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
+				      m3_ipc->sd_fw_name, dev, GFP_ATOMIC,
+				      m3_ipc, wkup_m3_scale_data_fw_cb);
+
+	return ret;
+}
+
+#ifdef CONFIG_DEBUG_FS
+static void wkup_m3_set_halt_late(bool enabled)
+{
+	if (enabled)
+		m3_ipc_state->halt = (1 << IPC_DBG_HALT_SHIFT);
+	else
+		m3_ipc_state->halt = 0;
+}
+
+static int option_get(void *data, u64 *val)
+{
+	u32 *option = data;
+
+	*val = *option;
+
+	return 0;
+}
+
+static int option_set(void *data, u64 val)
+{
+	u32 *option = data;
+
+	*option = val;
+
+	if (option == &m3_ipc_state->halt) {
+		if (val)
+			wkup_m3_set_halt_late(true);
+		else
+			wkup_m3_set_halt_late(false);
+	}
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(wkup_m3_ipc_option_fops, option_get, option_set,
+			"%llu\n");
+
+static int wkup_m3_ipc_dbg_init(struct wkup_m3_ipc *m3_ipc)
+{
+	m3_ipc->dbg_path = debugfs_create_dir("wkup_m3_ipc", NULL);
+
+	if (IS_ERR(m3_ipc->dbg_path))
+		return -EINVAL;
+
+	(void)debugfs_create_file("enable_late_halt", 0644,
+				  m3_ipc->dbg_path,
+				  &m3_ipc->halt,
+				  &wkup_m3_ipc_option_fops);
+
+	return 0;
+}
+
+static inline void wkup_m3_ipc_dbg_destroy(struct wkup_m3_ipc *m3_ipc)
+{
+	debugfs_remove_recursive(m3_ipc->dbg_path);
+}
+#else
+static inline int wkup_m3_ipc_dbg_init(struct wkup_m3_ipc *m3_ipc)
+{
+	return 0;
+}
+
+static inline void wkup_m3_ipc_dbg_destroy(struct wkup_m3_ipc *m3_ipc)
+{
+}
+#endif /* CONFIG_DEBUG_FS */
 
 static void am33xx_txev_eoi(struct wkup_m3_ipc *m3_ipc)
 {
@@ -130,6 +291,7 @@ static irqreturn_t wkup_m3_txev_handler(int irq, void *ipc_data)
 		}
 
 		m3_ipc->state = M3_STATE_INITED;
+		wkup_m3_init_scale_data(m3_ipc, dev);
 		complete(&m3_ipc->sync_complete);
 		break;
 	case M3_STATE_MSG_FOR_RESET:
@@ -151,7 +313,6 @@ static irqreturn_t wkup_m3_txev_handler(int irq, void *ipc_data)
 static int wkup_m3_ping(struct wkup_m3_ipc *m3_ipc)
 {
 	struct device *dev = m3_ipc->dev;
-	mbox_msg_t dummy_msg = 0;
 	int ret;
 
 	if (!m3_ipc->mbox) {
@@ -167,7 +328,7 @@ static int wkup_m3_ping(struct wkup_m3_ipc *m3_ipc)
 	 * the RX callback to avoid multiple interrupts being received
 	 * by the CM3.
 	 */
-	ret = mbox_send_message(m3_ipc->mbox, &dummy_msg);
+	ret = mbox_send_message(m3_ipc->mbox, NULL);
 	if (ret < 0) {
 		dev_err(dev, "%s: mbox_send_message() failed: %d\n",
 			__func__, ret);
@@ -189,7 +350,6 @@ static int wkup_m3_ping(struct wkup_m3_ipc *m3_ipc)
 static int wkup_m3_ping_noirq(struct wkup_m3_ipc *m3_ipc)
 {
 	struct device *dev = m3_ipc->dev;
-	mbox_msg_t dummy_msg = 0;
 	int ret;
 
 	if (!m3_ipc->mbox) {
@@ -198,7 +358,7 @@ static int wkup_m3_ping_noirq(struct wkup_m3_ipc *m3_ipc)
 		return -EIO;
 	}
 
-	ret = mbox_send_message(m3_ipc->mbox, &dummy_msg);
+	ret = mbox_send_message(m3_ipc->mbox, NULL);
 	if (ret < 0) {
 		dev_err(dev, "%s: mbox_send_message() failed: %d\n",
 			__func__, ret);
@@ -215,9 +375,21 @@ static int wkup_m3_is_available(struct wkup_m3_ipc *m3_ipc)
 		(m3_ipc->state != M3_STATE_UNKNOWN));
 }
 
+static void wkup_m3_set_vtt_gpio(struct wkup_m3_ipc *m3_ipc, int gpio)
+{
+	m3_ipc->vtt_conf = (1 << IPC_VTT_STAT_SHIFT) |
+			    (gpio << IPC_VTT_GPIO_PIN_SHIFT);
+}
+
+static void wkup_m3_set_io_isolation(struct wkup_m3_ipc *m3_ipc)
+{
+	m3_ipc->isolation_conf = (1 << IPC_IO_ISOLATION_STAT_SHIFT);
+}
+
 /* Public functions */
 /**
  * wkup_m3_set_mem_type - Pass wkup_m3 which type of memory is in use
+ * @m3_ipc: Pointer to wkup_m3_ipc context
  * @mem_type: memory type value read directly from emif
  *
  * wkup_m3 must know what memory type is in use to properly suspend
@@ -230,6 +402,7 @@ static void wkup_m3_set_mem_type(struct wkup_m3_ipc *m3_ipc, int mem_type)
 
 /**
  * wkup_m3_set_resume_address - Pass wkup_m3 resume address
+ * @m3_ipc: Pointer to wkup_m3_ipc context
  * @addr: Physical address from which resume code should execute
  */
 static void wkup_m3_set_resume_address(struct wkup_m3_ipc *m3_ipc, void *addr)
@@ -239,6 +412,7 @@ static void wkup_m3_set_resume_address(struct wkup_m3_ipc *m3_ipc, void *addr)
 
 /**
  * wkup_m3_request_pm_status - Retrieve wkup_m3 status code after suspend
+ * @m3_ipc: Pointer to wkup_m3_ipc context
  *
  * Returns code representing the status of a low power mode transition.
  *	0 - Successful transition
@@ -260,6 +434,7 @@ static int wkup_m3_request_pm_status(struct wkup_m3_ipc *m3_ipc)
 /**
  * wkup_m3_prepare_low_power - Request preparation for transition to
  *			       low power state
+ * @m3_ipc: Pointer to wkup_m3_ipc context
  * @state: A kernel suspend state to enter, either MEM or STANDBY
  *
  * Returns 0 if preparation was successful, otherwise returns error code
@@ -276,12 +451,15 @@ static int wkup_m3_prepare_low_power(struct wkup_m3_ipc *m3_ipc, int state)
 	switch (state) {
 	case WKUP_M3_DEEPSLEEP:
 		m3_power_state = IPC_CMD_DS0;
+		wkup_m3_ctrl_ipc_write(m3_ipc, m3_ipc->volt_scale_offsets, 5);
 		break;
 	case WKUP_M3_STANDBY:
 		m3_power_state = IPC_CMD_STANDBY;
+		wkup_m3_ctrl_ipc_write(m3_ipc, DS_IPC_DEFAULT, 5);
 		break;
 	case WKUP_M3_IDLE:
 		m3_power_state = IPC_CMD_IDLE;
+		wkup_m3_ctrl_ipc_write(m3_ipc, DS_IPC_DEFAULT, 5);
 		break;
 	default:
 		return 1;
@@ -290,11 +468,13 @@ static int wkup_m3_prepare_low_power(struct wkup_m3_ipc *m3_ipc, int state)
 	/* Program each required IPC register then write defaults to others */
 	wkup_m3_ctrl_ipc_write(m3_ipc, m3_ipc->resume_addr, 0);
 	wkup_m3_ctrl_ipc_write(m3_ipc, m3_power_state, 1);
-	wkup_m3_ctrl_ipc_write(m3_ipc, m3_ipc->mem_type, 4);
+	wkup_m3_ctrl_ipc_write(m3_ipc, m3_ipc->mem_type |
+			       m3_ipc->vtt_conf |
+			       m3_ipc->isolation_conf |
+			       m3_ipc->halt, 4);
 
 	wkup_m3_ctrl_ipc_write(m3_ipc, DS_IPC_DEFAULT, 2);
 	wkup_m3_ctrl_ipc_write(m3_ipc, DS_IPC_DEFAULT, 3);
-	wkup_m3_ctrl_ipc_write(m3_ipc, DS_IPC_DEFAULT, 5);
 	wkup_m3_ctrl_ipc_write(m3_ipc, DS_IPC_DEFAULT, 6);
 	wkup_m3_ctrl_ipc_write(m3_ipc, DS_IPC_DEFAULT, 7);
 
@@ -315,6 +495,7 @@ static int wkup_m3_prepare_low_power(struct wkup_m3_ipc *m3_ipc, int state)
 
 /**
  * wkup_m3_finish_low_power - Return m3 to reset state
+ * @m3_ipc: Pointer to wkup_m3_ipc context
  *
  * Returns 0 if reset was successful, otherwise returns error code
  */
@@ -362,8 +543,7 @@ static const char *wkup_m3_request_wake_src(struct wkup_m3_ipc *m3_ipc)
 
 /**
  * wkup_m3_set_rtc_only - Set the rtc_only flag
- * @wkup_m3_wakeup: struct wkup_m3_wakeup_src * gets assigned the
- *                  wakeup src value
+ * @m3_ipc: Pointer to wkup_m3_ipc context
  */
 static void wkup_m3_set_rtc_only(struct wkup_m3_ipc *m3_ipc)
 {
@@ -409,8 +589,9 @@ void wkup_m3_ipc_put(struct wkup_m3_ipc *m3_ipc)
 }
 EXPORT_SYMBOL_GPL(wkup_m3_ipc_put);
 
-static void wkup_m3_rproc_boot_thread(struct wkup_m3_ipc *m3_ipc)
+static int wkup_m3_rproc_boot_thread(void *arg)
 {
+	struct wkup_m3_ipc *m3_ipc = arg;
 	struct device *dev = m3_ipc->dev;
 	int ret;
 
@@ -419,36 +600,33 @@ static void wkup_m3_rproc_boot_thread(struct wkup_m3_ipc *m3_ipc)
 	ret = rproc_boot(m3_ipc->rproc);
 	if (ret)
 		dev_err(dev, "rproc_boot failed\n");
+	else
+		m3_ipc_state = m3_ipc;
 
-	do_exit(0);
+	return 0;
 }
 
 static int wkup_m3_ipc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	int irq, ret;
+	int irq, ret, temp;
 	phandle rproc_phandle;
 	struct rproc *m3_rproc;
-	struct resource *res;
 	struct task_struct *task;
 	struct wkup_m3_ipc *m3_ipc;
+	struct device_node *np = dev->of_node;
 
 	m3_ipc = devm_kzalloc(dev, sizeof(*m3_ipc), GFP_KERNEL);
 	if (!m3_ipc)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	m3_ipc->ipc_mem_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(m3_ipc->ipc_mem_base)) {
-		dev_err(dev, "could not ioremap ipc_mem\n");
+	m3_ipc->ipc_mem_base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(m3_ipc->ipc_mem_base))
 		return PTR_ERR(m3_ipc->ipc_mem_base);
-	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (!irq) {
-		dev_err(&pdev->dev, "no irq resource\n");
-		return -ENXIO;
-	}
+	if (irq < 0)
+		return irq;
 
 	ret = devm_request_irq(dev, irq, wkup_m3_txev_handler,
 			       0, "wkup_m3_txev", m3_ipc);
@@ -491,12 +669,28 @@ static int wkup_m3_ipc_probe(struct platform_device *pdev)
 
 	m3_ipc->ops = &ipc_ops;
 
+	if (!of_property_read_u32(np, "ti,vtt-gpio-pin", &temp)) {
+		if (temp >= 0 && temp <= 31)
+			wkup_m3_set_vtt_gpio(m3_ipc, temp);
+		else
+			dev_warn(dev, "Invalid VTT GPIO(%d) pin\n", temp);
+	}
+
+	if (of_property_read_bool(np, "ti,set-io-isolation"))
+		wkup_m3_set_io_isolation(m3_ipc);
+
+	ret = of_property_read_string(np, "firmware-name",
+				      &m3_ipc->sd_fw_name);
+	if (ret) {
+		dev_dbg(dev, "Voltage scaling data blob not provided from DT.\n");
+	}
+
 	/*
 	 * Wait for firmware loading completion in a thread so we
 	 * can boot the wkup_m3 as soon as it's ready without holding
 	 * up kernel boot
 	 */
-	task = kthread_run((void *)wkup_m3_rproc_boot_thread, m3_ipc,
+	task = kthread_run(wkup_m3_rproc_boot_thread, m3_ipc,
 			   "wkup_m3_rproc_loader");
 
 	if (IS_ERR(task)) {
@@ -505,7 +699,7 @@ static int wkup_m3_ipc_probe(struct platform_device *pdev)
 		goto err_put_rproc;
 	}
 
-	m3_ipc_state = m3_ipc;
+	wkup_m3_ipc_dbg_init(m3_ipc);
 
 	return 0;
 
@@ -516,16 +710,16 @@ err_free_mbox:
 	return ret;
 }
 
-static int wkup_m3_ipc_remove(struct platform_device *pdev)
+static void wkup_m3_ipc_remove(struct platform_device *pdev)
 {
+	wkup_m3_ipc_dbg_destroy(m3_ipc_state);
+
 	mbox_free_channel(m3_ipc_state->mbox);
 
 	rproc_shutdown(m3_ipc_state->rproc);
 	rproc_put(m3_ipc_state->rproc);
 
 	m3_ipc_state = NULL;
-
-	return 0;
 }
 
 static int __maybe_unused wkup_m3_ipc_suspend(struct device *dev)
@@ -561,7 +755,7 @@ MODULE_DEVICE_TABLE(of, wkup_m3_ipc_of_match);
 
 static struct platform_driver wkup_m3_ipc_driver = {
 	.probe = wkup_m3_ipc_probe,
-	.remove = wkup_m3_ipc_remove,
+	.remove_new = wkup_m3_ipc_remove,
 	.driver = {
 		.name = "wkup_m3_ipc",
 		.of_match_table = wkup_m3_ipc_of_match,

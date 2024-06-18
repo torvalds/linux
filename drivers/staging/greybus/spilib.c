@@ -42,7 +42,7 @@ struct gb_spilib {
 
 #define XFER_TIMEOUT_TOLERANCE		200
 
-static struct spi_master *get_master_from_spi(struct gb_spilib *spi)
+static struct spi_controller *get_controller_from_spi(struct gb_spilib *spi)
 {
 	return gb_connection_get_data(spi->connection);
 }
@@ -237,7 +237,7 @@ static struct gb_operation *gb_spi_operation_create(struct gb_spilib *spi,
 	request = operation->request->payload;
 	request->count = cpu_to_le16(count);
 	request->mode = dev->mode;
-	request->chip_select = dev->chip_select;
+	request->chip_select = spi_get_chipselect(dev, 0);
 
 	gb_xfer = &request->transfers[0];
 	tx_data = gb_xfer + count;	/* place tx data after last gb_xfer */
@@ -245,6 +245,8 @@ static struct gb_operation *gb_spi_operation_create(struct gb_spilib *spi,
 	/* Fill in the transfers array */
 	xfer = spi->first_xfer;
 	while (msg->state != GB_SPI_STATE_OP_DONE) {
+		int xfer_delay;
+
 		if (xfer == spi->last_xfer)
 			xfer_len = spi->last_xfer_size;
 		else
@@ -259,7 +261,9 @@ static struct gb_operation *gb_spi_operation_create(struct gb_spilib *spi,
 
 		gb_xfer->speed_hz = cpu_to_le32(xfer->speed_hz);
 		gb_xfer->len = cpu_to_le32(xfer_len);
-		gb_xfer->delay_usecs = cpu_to_le16(xfer->delay_usecs);
+		xfer_delay = spi_delay_to_ns(&xfer->delay, xfer) / 1000;
+		xfer_delay = clamp_t(u16, xfer_delay, 0, U16_MAX);
+		gb_xfer->delay_usecs = cpu_to_le16(xfer_delay);
 		gb_xfer->cs_change = xfer->cs_change;
 		gb_xfer->bits_per_word = xfer->bits_per_word;
 
@@ -320,10 +324,10 @@ static void gb_spi_decode_response(struct gb_spilib *spi,
 	}
 }
 
-static int gb_spi_transfer_one_message(struct spi_master *master,
+static int gb_spi_transfer_one_message(struct spi_controller *ctlr,
 				       struct spi_message *msg)
 {
-	struct gb_spilib *spi = spi_master_get_devdata(master);
+	struct gb_spilib *spi = spi_controller_get_devdata(ctlr);
 	struct gb_connection *connection = spi->connection;
 	struct gb_spi_transfer_response *response;
 	struct gb_operation *operation;
@@ -367,21 +371,21 @@ static int gb_spi_transfer_one_message(struct spi_master *master,
 out:
 	msg->status = ret;
 	clean_xfer_state(spi);
-	spi_finalize_current_message(master);
+	spi_finalize_current_message(ctlr);
 
 	return ret;
 }
 
-static int gb_spi_prepare_transfer_hardware(struct spi_master *master)
+static int gb_spi_prepare_transfer_hardware(struct spi_controller *ctlr)
 {
-	struct gb_spilib *spi = spi_master_get_devdata(master);
+	struct gb_spilib *spi = spi_controller_get_devdata(ctlr);
 
 	return spi->ops->prepare_transfer_hardware(spi->parent);
 }
 
-static int gb_spi_unprepare_transfer_hardware(struct spi_master *master)
+static int gb_spi_unprepare_transfer_hardware(struct spi_controller *ctlr)
 {
-	struct gb_spilib *spi = spi_master_get_devdata(master);
+	struct gb_spilib *spi = spi_controller_get_devdata(ctlr);
 
 	spi->ops->unprepare_transfer_hardware(spi->parent);
 
@@ -436,7 +440,7 @@ static int gb_spi_get_master_config(struct gb_spilib *spi)
 
 static int gb_spi_setup_device(struct gb_spilib *spi, u8 cs)
 {
-	struct spi_master *master = get_master_from_spi(spi);
+	struct spi_controller *ctlr = get_controller_from_spi(spi);
 	struct gb_spi_device_config_request request;
 	struct gb_spi_device_config_response response;
 	struct spi_board_info spi_board = { {0} };
@@ -455,10 +459,10 @@ static int gb_spi_setup_device(struct gb_spilib *spi, u8 cs)
 	dev_type = response.device_type;
 
 	if (dev_type == GB_SPI_SPI_DEV)
-		strlcpy(spi_board.modalias, "spidev",
+		strscpy(spi_board.modalias, "spidev",
 			sizeof(spi_board.modalias));
 	else if (dev_type == GB_SPI_SPI_NOR)
-		strlcpy(spi_board.modalias, "spi-nor",
+		strscpy(spi_board.modalias, "spi-nor",
 			sizeof(spi_board.modalias));
 	else if (dev_type == GB_SPI_SPI_MODALIAS)
 		memcpy(spi_board.modalias, response.name,
@@ -467,11 +471,11 @@ static int gb_spi_setup_device(struct gb_spilib *spi, u8 cs)
 		return -EINVAL;
 
 	spi_board.mode		= le16_to_cpu(response.mode);
-	spi_board.bus_num	= master->bus_num;
+	spi_board.bus_num	= ctlr->bus_num;
 	spi_board.chip_select	= cs;
 	spi_board.max_speed_hz	= le32_to_cpu(response.max_speed_hz);
 
-	spidev = spi_new_device(master, &spi_board);
+	spidev = spi_new_device(ctlr, &spi_board);
 	if (!spidev)
 		return -EINVAL;
 
@@ -482,52 +486,52 @@ int gb_spilib_master_init(struct gb_connection *connection, struct device *dev,
 			  struct spilib_ops *ops)
 {
 	struct gb_spilib *spi;
-	struct spi_master *master;
+	struct spi_controller *ctlr;
 	int ret;
 	u8 i;
 
 	/* Allocate master with space for data */
-	master = spi_alloc_master(dev, sizeof(*spi));
-	if (!master) {
+	ctlr = spi_alloc_master(dev, sizeof(*spi));
+	if (!ctlr) {
 		dev_err(dev, "cannot alloc SPI master\n");
 		return -ENOMEM;
 	}
 
-	spi = spi_master_get_devdata(master);
+	spi = spi_controller_get_devdata(ctlr);
 	spi->connection = connection;
-	gb_connection_set_data(connection, master);
+	gb_connection_set_data(connection, ctlr);
 	spi->parent = dev;
 	spi->ops = ops;
 
-	/* get master configuration */
+	/* get controller configuration */
 	ret = gb_spi_get_master_config(spi);
 	if (ret)
 		goto exit_spi_put;
 
-	master->bus_num = -1; /* Allow spi-core to allocate it dynamically */
-	master->num_chipselect = spi->num_chipselect;
-	master->mode_bits = spi->mode;
-	master->flags = spi->flags;
-	master->bits_per_word_mask = spi->bits_per_word_mask;
+	ctlr->bus_num = -1; /* Allow spi-core to allocate it dynamically */
+	ctlr->num_chipselect = spi->num_chipselect;
+	ctlr->mode_bits = spi->mode;
+	ctlr->flags = spi->flags;
+	ctlr->bits_per_word_mask = spi->bits_per_word_mask;
 
 	/* Attach methods */
-	master->cleanup = gb_spi_cleanup;
-	master->setup = gb_spi_setup;
-	master->transfer_one_message = gb_spi_transfer_one_message;
+	ctlr->cleanup = gb_spi_cleanup;
+	ctlr->setup = gb_spi_setup;
+	ctlr->transfer_one_message = gb_spi_transfer_one_message;
 
 	if (ops && ops->prepare_transfer_hardware) {
-		master->prepare_transfer_hardware =
+		ctlr->prepare_transfer_hardware =
 			gb_spi_prepare_transfer_hardware;
 	}
 
 	if (ops && ops->unprepare_transfer_hardware) {
-		master->unprepare_transfer_hardware =
+		ctlr->unprepare_transfer_hardware =
 			gb_spi_unprepare_transfer_hardware;
 	}
 
-	master->auto_runtime_pm = true;
+	ctlr->auto_runtime_pm = true;
 
-	ret = spi_register_master(master);
+	ret = spi_register_controller(ctlr);
 	if (ret < 0)
 		goto exit_spi_put;
 
@@ -544,12 +548,12 @@ int gb_spilib_master_init(struct gb_connection *connection, struct device *dev,
 	return 0;
 
 exit_spi_put:
-	spi_master_put(master);
+	spi_controller_put(ctlr);
 
 	return ret;
 
 exit_spi_unregister:
-	spi_unregister_master(master);
+	spi_unregister_controller(ctlr);
 
 	return ret;
 }
@@ -557,9 +561,9 @@ EXPORT_SYMBOL_GPL(gb_spilib_master_init);
 
 void gb_spilib_master_exit(struct gb_connection *connection)
 {
-	struct spi_master *master = gb_connection_get_data(connection);
+	struct spi_controller *ctlr = gb_connection_get_data(connection);
 
-	spi_unregister_master(master);
+	spi_unregister_controller(ctlr);
 }
 EXPORT_SYMBOL_GPL(gb_spilib_master_exit);
 

@@ -2,7 +2,7 @@
 // Copyright (c) 2018 Facebook
 
 #include <linux/bpf.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 #ifndef PERF_MAX_STACK_DEPTH
 #define PERF_MAX_STACK_DEPTH         127
@@ -28,8 +28,8 @@ struct {
 	__uint(type, BPF_MAP_TYPE_STACK_TRACE);
 	__uint(max_entries, 128);
 	__uint(map_flags, BPF_F_STACK_BUILD_ID);
-	__uint(key_size, sizeof(__u32));
-	__uint(value_size, sizeof(stack_trace_t));
+	__type(key, __u32);
+	__type(value, stack_trace_t);
 } stackmap SEC(".maps");
 
 struct {
@@ -39,16 +39,8 @@ struct {
 	__type(value, stack_trace_t);
 } stack_amap SEC(".maps");
 
-/* taken from /sys/kernel/debug/tracing/events/random/urandom_read/format */
-struct random_urandom_args {
-	unsigned long long pad;
-	int got_bits;
-	int pool_left;
-	int input_left;
-};
-
-SEC("tracepoint/random/urandom_read")
-int oncpu(struct random_urandom_args *args)
+SEC("kprobe/urandom_read_iter")
+int oncpu(struct pt_regs *args)
 {
 	__u32 max_len = sizeof(struct bpf_stack_build_id)
 			* PERF_MAX_STACK_DEPTH;
@@ -73,4 +65,3 @@ int oncpu(struct random_urandom_args *args)
 }
 
 char _license[] SEC("license") = "GPL";
-__u32 _version SEC("version") = 1; /* ignored by tracepoints, required by libbpf.a */

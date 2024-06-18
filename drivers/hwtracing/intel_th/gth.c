@@ -154,9 +154,9 @@ static ssize_t master_attr_show(struct device *dev,
 	spin_unlock(&gth->gth_lock);
 
 	if (port >= 0)
-		count = snprintf(buf, PAGE_SIZE, "%x\n", port);
+		count = sysfs_emit(buf, "%x\n", port);
 	else
-		count = snprintf(buf, PAGE_SIZE, "disabled\n");
+		count = sysfs_emit(buf, "disabled\n");
 
 	return count;
 }
@@ -332,8 +332,8 @@ static ssize_t output_attr_show(struct device *dev,
 	pm_runtime_get_sync(dev);
 
 	spin_lock(&gth->gth_lock);
-	count = snprintf(buf, PAGE_SIZE, "%x\n",
-			 gth_output_parm_get(gth, oa->port, oa->parm));
+	count = sysfs_emit(buf, "%x\n",
+			   gth_output_parm_get(gth, oa->port, oa->parm));
 	spin_unlock(&gth->gth_lock);
 
 	pm_runtime_put(dev);
@@ -543,7 +543,7 @@ static void intel_th_gth_disable(struct intel_th_device *thdev,
 	output->active = false;
 
 	for_each_set_bit(master, gth->output[output->port].master,
-			 TH_CONFIGURABLE_MASTERS) {
+			 TH_CONFIGURABLE_MASTERS + 1) {
 		gth_master_set(gth, master, -1);
 	}
 	spin_unlock(&gth->gth_lock);
@@ -562,6 +562,21 @@ static void gth_tscu_resync(struct gth_device *gth)
 	reg = ioread32(gth->base + REG_TSCU_TSUCTRL);
 	reg &= ~TSUCTRL_CTCRESYNC;
 	iowrite32(reg, gth->base + REG_TSCU_TSUCTRL);
+}
+
+static void intel_th_gth_prepare(struct intel_th_device *thdev,
+				 struct intel_th_output *output)
+{
+	struct gth_device *gth = dev_get_drvdata(&thdev->dev);
+	int count;
+
+	/*
+	 * Wait until the output port is in reset before we start
+	 * programming it.
+	 */
+	for (count = GTH_PLE_WAITLOOP_DEPTH;
+	     count && !(gth_output_get(gth, output->port) & BIT(5)); count--)
+		cpu_relax();
 }
 
 /**
@@ -625,6 +640,9 @@ static void intel_th_gth_switch(struct intel_th_device *thdev,
 	}
 	if (!count)
 		dev_dbg(&thdev->dev, "timeout waiting for CTS Trigger\n");
+
+	/* De-assert the trigger */
+	iowrite32(0, gth->base + REG_CTS_CTL);
 
 	intel_th_gth_stop(gth, output, false);
 	intel_th_gth_start(gth, output);
@@ -694,7 +712,7 @@ static void intel_th_gth_unassign(struct intel_th_device *thdev,
 	othdev->output.port = -1;
 	othdev->output.active = false;
 	gth->output[port].output = NULL;
-	for (master = 0; master <= TH_CONFIGURABLE_MASTERS; master++)
+	for (master = 0; master < TH_CONFIGURABLE_MASTERS + 1; master++)
 		if (gth->master[master] == port)
 			gth->master[master] = -1;
 	spin_unlock(&gth->gth_lock);
@@ -812,6 +830,7 @@ static struct intel_th_driver intel_th_gth_driver = {
 	.assign		= intel_th_gth_assign,
 	.unassign	= intel_th_gth_unassign,
 	.set_output	= intel_th_gth_set_output,
+	.prepare	= intel_th_gth_prepare,
 	.enable		= intel_th_gth_enable,
 	.trig_switch	= intel_th_gth_switch,
 	.disable	= intel_th_gth_disable,

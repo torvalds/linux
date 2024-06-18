@@ -3,7 +3,7 @@
  *
  * Module Name: evgpeinit - System GPE initialization and update
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2023, Intel Corp.
  *
  *****************************************************************************/
 
@@ -32,6 +32,16 @@ ACPI_MODULE_NAME("evgpeinit")
  * kernel boot time as well.
  */
 
+#ifdef ACPI_GPE_USE_LOGICAL_ADDRESSES
+#define ACPI_FADT_GPE_BLOCK_ADDRESS(N)	\
+	acpi_gbl_FADT.xgpe##N##_block.space_id == \
+					ACPI_ADR_SPACE_SYSTEM_MEMORY ? \
+		(u64)acpi_gbl_xgpe##N##_block_logical_address : \
+		acpi_gbl_FADT.xgpe##N##_block.address
+#else
+#define ACPI_FADT_GPE_BLOCK_ADDRESS(N)	acpi_gbl_FADT.xgpe##N##_block.address
+#endif		/* ACPI_GPE_USE_LOGICAL_ADDRESSES */
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ev_gpe_initialize
@@ -49,6 +59,7 @@ acpi_status acpi_ev_gpe_initialize(void)
 	u32 register_count1 = 0;
 	u32 gpe_number_max = 0;
 	acpi_status status;
+	u64 address;
 
 	ACPI_FUNCTION_TRACE(ev_gpe_initialize);
 
@@ -85,8 +96,9 @@ acpi_status acpi_ev_gpe_initialize(void)
 	 * If EITHER the register length OR the block address are zero, then that
 	 * particular block is not supported.
 	 */
-	if (acpi_gbl_FADT.gpe0_block_length &&
-	    acpi_gbl_FADT.xgpe0_block.address) {
+	address = ACPI_FADT_GPE_BLOCK_ADDRESS(0);
+
+	if (acpi_gbl_FADT.gpe0_block_length && address) {
 
 		/* GPE block 0 exists (has both length and address > 0) */
 
@@ -97,7 +109,6 @@ acpi_status acpi_ev_gpe_initialize(void)
 		/* Install GPE Block 0 */
 
 		status = acpi_ev_create_gpe_block(acpi_gbl_fadt_gpe_device,
-						  acpi_gbl_FADT.xgpe0_block.
 						  address,
 						  acpi_gbl_FADT.xgpe0_block.
 						  space_id, register_count0, 0,
@@ -110,8 +121,9 @@ acpi_status acpi_ev_gpe_initialize(void)
 		}
 	}
 
-	if (acpi_gbl_FADT.gpe1_block_length &&
-	    acpi_gbl_FADT.xgpe1_block.address) {
+	address = ACPI_FADT_GPE_BLOCK_ADDRESS(1);
+
+	if (acpi_gbl_FADT.gpe1_block_length && address) {
 
 		/* GPE block 1 exists (has both length and address > 0) */
 
@@ -137,7 +149,6 @@ acpi_status acpi_ev_gpe_initialize(void)
 
 			status =
 			    acpi_ev_create_gpe_block(acpi_gbl_fadt_gpe_device,
-						     acpi_gbl_FADT.xgpe1_block.
 						     address,
 						     acpi_gbl_FADT.xgpe1_block.
 						     space_id, register_count1,
@@ -156,8 +167,6 @@ acpi_status acpi_ev_gpe_initialize(void)
 			 * GPE0 and GPE1 do not have to be contiguous in the GPE number
 			 * space. However, GPE0 always starts at GPE number zero.
 			 */
-			gpe_number_max = acpi_gbl_FADT.gpe1_base +
-			    ((register_count1 * ACPI_GPE_REGISTER_WIDTH) - 1);
 		}
 	}
 
@@ -169,7 +178,6 @@ acpi_status acpi_ev_gpe_initialize(void)
 
 		ACPI_DEBUG_PRINT((ACPI_DB_INIT,
 				  "There are no GPE blocks defined in the FADT\n"));
-		status = AE_OK;
 		goto cleanup;
 	}
 
@@ -405,6 +413,7 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
 	gpe_event_info->flags &= ~(ACPI_GPE_DISPATCH_MASK);
 	gpe_event_info->flags |= (u8)(type | ACPI_GPE_DISPATCH_METHOD);
 	gpe_event_info->dispatch.method_node = method_node;
+	walk_info->count++;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_LOAD,
 			  "Registered GPE method %s as GPE number 0x%.2X\n",

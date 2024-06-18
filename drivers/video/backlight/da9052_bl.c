@@ -117,6 +117,7 @@ static int da9052_backlight_probe(struct platform_device *pdev)
 	wleds->led_reg = platform_get_device_id(pdev)->driver_data;
 	wleds->state = DA9052_WLEDS_OFF;
 
+	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_RAW;
 	props.max_brightness = DA9052_MAX_BRIGHTNESS;
 
@@ -135,7 +136,7 @@ static int da9052_backlight_probe(struct platform_device *pdev)
 	return da9052_adjust_wled_brightness(wleds);
 }
 
-static int da9052_backlight_remove(struct platform_device *pdev)
+static void da9052_backlight_remove(struct platform_device *pdev)
 {
 	struct backlight_device *bl = platform_get_drvdata(pdev);
 	struct da9052_bl *wleds = bl_get_data(bl);
@@ -143,8 +144,6 @@ static int da9052_backlight_remove(struct platform_device *pdev)
 	wleds->brightness = 0;
 	wleds->state = DA9052_WLEDS_OFF;
 	da9052_adjust_wled_brightness(wleds);
-
-	return 0;
 }
 
 static const struct platform_device_id da9052_wled_ids[] = {
@@ -166,7 +165,7 @@ MODULE_DEVICE_TABLE(platform, da9052_wled_ids);
 
 static struct platform_driver da9052_wled_driver = {
 	.probe		= da9052_backlight_probe,
-	.remove		= da9052_backlight_remove,
+	.remove_new	= da9052_backlight_remove,
 	.id_table	= da9052_wled_ids,
 	.driver	= {
 		.name	= "da9052-wled",

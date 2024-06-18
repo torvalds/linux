@@ -9,44 +9,11 @@
 #include <linux/slab.h>
 
 #include <asm/pgalloc.h>
-#include <asm/pgtable.h>
 #include <asm/sections.h>
+#include <asm/mmu_context.h>
 #include <as-layout.h>
 #include <os.h>
 #include <skas.h>
-
-static int init_stub_pte(struct mm_struct *mm, unsigned long proc,
-			 unsigned long kernel)
-{
-	pgd_t *pgd;
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *pte;
-
-	pgd = pgd_offset(mm, proc);
-	pud = pud_alloc(mm, pgd, proc);
-	if (!pud)
-		goto out;
-
-	pmd = pmd_alloc(mm, pud, proc);
-	if (!pmd)
-		goto out_pmd;
-
-	pte = pte_alloc_map(mm, pmd, proc);
-	if (!pte)
-		goto out_pte;
-
-	*pte = mk_pte(virt_to_page(kernel), __pgprot(_PAGE_PRESENT));
-	*pte = pte_mkread(*pte);
-	return 0;
-
- out_pte:
-	pmd_free(mm, pmd);
- out_pmd:
-	pud_free(mm, pud);
- out:
-	return -ENOMEM;
-}
 
 int init_new_context(struct task_struct *task, struct mm_struct *mm)
 {
@@ -55,7 +22,7 @@ int init_new_context(struct task_struct *task, struct mm_struct *mm)
 	unsigned long stack = 0;
 	int ret = -ENOMEM;
 
-	stack = get_zeroed_page(GFP_KERNEL);
+	stack = __get_free_pages(GFP_KERNEL | __GFP_ZERO, ilog2(STUB_DATA_PAGES));
 	if (stack == 0)
 		goto out;
 
@@ -86,55 +53,9 @@ int init_new_context(struct task_struct *task, struct mm_struct *mm)
 
  out_free:
 	if (to_mm->id.stack != 0)
-		free_page(to_mm->id.stack);
+		free_pages(to_mm->id.stack, ilog2(STUB_DATA_PAGES));
  out:
 	return ret;
-}
-
-void uml_setup_stubs(struct mm_struct *mm)
-{
-	int err, ret;
-
-	ret = init_stub_pte(mm, STUB_CODE,
-			    (unsigned long) __syscall_stub_start);
-	if (ret)
-		goto out;
-
-	ret = init_stub_pte(mm, STUB_DATA, mm->context.id.stack);
-	if (ret)
-		goto out;
-
-	mm->context.stub_pages[0] = virt_to_page(__syscall_stub_start);
-	mm->context.stub_pages[1] = virt_to_page(mm->context.id.stack);
-
-	/* dup_mmap already holds mmap_sem */
-	err = install_special_mapping(mm, STUB_START, STUB_END - STUB_START,
-				      VM_READ | VM_MAYREAD | VM_EXEC |
-				      VM_MAYEXEC | VM_DONTCOPY | VM_PFNMAP,
-				      mm->context.stub_pages);
-	if (err) {
-		printk(KERN_ERR "install_special_mapping returned %d\n", err);
-		goto out;
-	}
-	return;
-
-out:
-	force_sigsegv(SIGSEGV);
-}
-
-void arch_exit_mmap(struct mm_struct *mm)
-{
-	pte_t *pte;
-
-	pte = virt_to_pte(mm, STUB_CODE);
-	if (pte != NULL)
-		pte_clear(mm, STUB_CODE, pte);
-
-	pte = virt_to_pte(mm, STUB_DATA);
-	if (pte == NULL)
-		return;
-
-	pte_clear(mm, STUB_DATA, pte);
 }
 
 void destroy_context(struct mm_struct *mm)
@@ -154,6 +75,6 @@ void destroy_context(struct mm_struct *mm)
 	}
 	os_kill_ptraced_process(mmu->id.u.pid, 1);
 
-	free_page(mmu->id.stack);
+	free_pages(mmu->id.stack, ilog2(STUB_DATA_PAGES));
 	free_ldt(mmu);
 }

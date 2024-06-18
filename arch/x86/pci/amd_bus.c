@@ -51,6 +51,14 @@ static struct pci_root_info __init *find_pci_root_info(int node, int link)
 	return NULL;
 }
 
+static inline resource_size_t cap_resource(u64 val)
+{
+	if (val > RESOURCE_SIZE_MAX)
+		return RESOURCE_SIZE_MAX;
+
+	return val;
+}
+
 /**
  * early_root_info_init()
  * called before pcibios_scan_root and pci_scan_bus
@@ -126,7 +134,7 @@ static int __init early_root_info_init(void)
 		node = (reg >> 4) & 0x07;
 		link = (reg >> 8) & 0x03;
 
-		info = alloc_pci_root_info(min_bus, max_bus, node, link);
+		alloc_pci_root_info(min_bus, max_bus, node, link);
 	}
 
 	/*
@@ -284,7 +292,7 @@ static int __init early_root_info_init(void)
 
 	/* need to take out [4G, TOM2) for RAM*/
 	/* SYS_CFG */
-	address = MSR_K8_SYSCFG;
+	address = MSR_AMD64_SYSCFG;
 	rdmsrl(address, val);
 	/* TOP_MEM2 is enabled? */
 	if (val & (1<<21)) {

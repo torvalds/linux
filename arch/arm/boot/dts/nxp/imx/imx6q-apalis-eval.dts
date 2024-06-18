@@ -1,0 +1,68 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright 2014-2022 Toradex
+ * Copyright 2012 Freescale Semiconductor, Inc.
+ * Copyright 2011 Linaro Ltd.
+ */
+
+/dts-v1/;
+
+#include "imx6q-apalis-eval.dtsi"
+
+/ {
+	model = "Toradex Apalis iMX6Q/D Module on Apalis Evaluation Board";
+	compatible = "toradex,apalis_imx6q-eval", "toradex,apalis_imx6q",
+		     "fsl,imx6q";
+
+	reg_pcie_switch: regulator-pcie-switch {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+		regulator-max-microvolt = <1800000>;
+		regulator-min-microvolt = <1800000>;
+		regulator-name = "pcie_switch";
+		startup-delay-us = <100000>;
+		status = "okay";
+	};
+};
+
+&can1 {
+	xceiver-supply = <&reg_3v3_sw>;
+	status = "okay";
+};
+
+&can2 {
+	xceiver-supply = <&reg_3v3_sw>;
+	status = "okay";
+};
+
+/* I2C1_SDA/SCL on MXM3 209/211 (e.g. RTC on carrier board) */
+&i2c1 {
+	/* PCIe Switch */
+	pcie-switch@58 {
+		compatible = "plx,pex8605";
+		reg = <0x58>;
+	};
+};
+
+&pcie {
+	vpcie-supply = <&reg_pcie_switch>;
+	status = "okay";
+};
+
+&sound_spdif {
+	status = "okay";
+};
+
+/* MMC1 */
+&usdhc1 {
+	status = "okay";
+};
+
+/* SD1 */
+&usdhc2 {
+	cd-gpios = <&gpio6 14 GPIO_ACTIVE_LOW>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc2 &pinctrl_sd_cd>;
+	status = "okay";
+};

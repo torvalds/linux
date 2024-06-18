@@ -27,8 +27,6 @@
  * Pre-requisites: headers required by header of this unit
  */
 
-#include <linux/slab.h>
-
 #include "dm_services.h"
 #include "include/gpio_interface.h"
 #include "include/gpio_service_interface.h"
@@ -53,8 +51,8 @@
  */
 
 struct gpio_service *dal_gpio_service_create(
-	enum dce_version dce_version_major,
-	enum dce_version dce_version_minor,
+	enum dce_version dce_version,
+	enum dce_environment dce_environment,
 	struct dc_context *ctx)
 {
 	struct gpio_service *service;
@@ -67,14 +65,14 @@ struct gpio_service *dal_gpio_service_create(
 		return NULL;
 	}
 
-	if (!dal_hw_translate_init(&service->translate, dce_version_major,
-			dce_version_minor)) {
+	if (!dal_hw_translate_init(&service->translate, dce_version,
+			dce_environment)) {
 		BREAK_TO_DEBUGGER();
 		goto failure_1;
 	}
 
-	if (!dal_hw_factory_init(&service->factory, dce_version_major,
-			dce_version_minor)) {
+	if (!dal_hw_factory_init(&service->factory, dce_version,
+			dce_environment)) {
 		BREAK_TO_DEBUGGER();
 		goto failure_1;
 	}
@@ -130,7 +128,7 @@ struct gpio *dal_gpio_service_create_irq(
 	uint32_t offset,
 	uint32_t mask)
 {
-	enum gpio_id id;
+	enum gpio_id id = 0;
 	uint32_t en;
 
 	if (!service->translate.funcs->offset_to_id(offset, mask, &id, &en)) {
@@ -146,7 +144,7 @@ struct gpio *dal_gpio_service_create_generic_mux(
 	uint32_t offset,
 	uint32_t mask)
 {
-	enum gpio_id id;
+	enum gpio_id id = 0;
 	uint32_t en;
 	struct gpio *generic;
 
@@ -169,7 +167,6 @@ void dal_gpio_destroy_generic_mux(
 		return;
 	}
 
-	dal_gpio_close(*mux);
 	dal_gpio_destroy(mux);
 	kfree(*mux);
 
@@ -181,7 +178,7 @@ struct gpio_pin_info dal_gpio_get_generic_pin_info(
 	enum gpio_id id,
 	uint32_t en)
 {
-	struct gpio_pin_info pin;
+	struct gpio_pin_info pin = {0};
 
 	if (service->translate.funcs->id_to_offset) {
 		service->translate.funcs->id_to_offset(id, en, &pin);
@@ -460,7 +457,6 @@ void dal_gpio_destroy_irq(
 		return;
 	}
 
-	dal_gpio_close(*irq);
 	dal_gpio_destroy(irq);
 	kfree(*irq);
 
@@ -649,7 +645,9 @@ enum gpio_result dal_ddc_set_config(
 void dal_ddc_close(
 	struct ddc *ddc)
 {
-	dal_gpio_close(ddc->pin_clock);
-	dal_gpio_close(ddc->pin_data);
+	if (ddc != NULL) {
+		dal_gpio_close(ddc->pin_clock);
+		dal_gpio_close(ddc->pin_data);
+	}
 }
 

@@ -15,31 +15,7 @@ static u32 __ipv6_select_ident(struct net *net,
 			       const struct in6_addr *dst,
 			       const struct in6_addr *src)
 {
-	const struct {
-		struct in6_addr dst;
-		struct in6_addr src;
-	} __aligned(SIPHASH_ALIGNMENT) combined = {
-		.dst = *dst,
-		.src = *src,
-	};
-	u32 hash, id;
-
-	/* Note the following code is not safe, but this is okay. */
-	if (unlikely(siphash_key_is_zero(&net->ipv4.ip_id_key)))
-		get_random_bytes(&net->ipv4.ip_id_key,
-				 sizeof(net->ipv4.ip_id_key));
-
-	hash = siphash(&combined, sizeof(combined), &net->ipv4.ip_id_key);
-
-	/* Treat id of 0 as unset and if we get 0 back from ip_idents_reserve,
-	 * set the hight order instead thus minimizing possible future
-	 * collisions.
-	 */
-	id = ip_idents_reserve(hash, 1);
-	if (unlikely(!id))
-		id = 1 << 31;
-
-	return id;
+	return get_random_u32_above(0);
 }
 
 /* This function exists only for tap drivers that must support broken
@@ -135,9 +111,9 @@ int ip6_dst_hoplimit(struct dst_entry *dst)
 		rcu_read_lock();
 		idev = __in6_dev_get(dev);
 		if (idev)
-			hoplimit = idev->cnf.hop_limit;
+			hoplimit = READ_ONCE(idev->cnf.hop_limit);
 		else
-			hoplimit = dev_net(dev)->ipv6.devconf_all->hop_limit;
+			hoplimit = READ_ONCE(dev_net(dev)->ipv6.devconf_all->hop_limit);
 		rcu_read_unlock();
 	}
 	return hoplimit;

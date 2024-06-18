@@ -1,0 +1,753 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Copyright 2018-2019 NXP
+ *	Dong Aisheng <aisheng.dong@nxp.com>
+ */
+
+#include <dt-bindings/clock/imx8-clock.h>
+#include <dt-bindings/clock/imx8-lpcg.h>
+#include <dt-bindings/dma/fsl-edma.h>
+#include <dt-bindings/firmware/imx/rsrc.h>
+
+audio_ipg_clk: clock-audio-ipg {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <120000000>;
+	clock-output-names = "audio_ipg_clk";
+};
+
+clk_ext_aud_mclk0: clock-ext-aud-mclk0 {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <0>;
+	clock-output-names = "ext_aud_mclk0";
+};
+
+clk_ext_aud_mclk1: clock-ext-aud-mclk1 {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <0>;
+	clock-output-names = "ext_aud_mclk1";
+};
+
+clk_esai0_rx_clk: clock-esai0-rx {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <0>;
+	clock-output-names = "esai0_rx_clk";
+};
+
+clk_esai0_rx_hf_clk: clock-esai0-rx-hf {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <0>;
+	clock-output-names = "esai0_rx_hf_clk";
+};
+
+clk_esai0_tx_clk: clock-esai0-tx {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <0>;
+	clock-output-names = "esai0_tx_clk";
+};
+
+clk_esai0_tx_hf_clk: clock-esai0-tx-hf {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <0>;
+	clock-output-names = "esai0_tx_hf_clk";
+};
+
+clk_spdif0_rx: clock-spdif0-rx {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <0>;
+	clock-output-names = "spdif0_rx";
+};
+
+clk_sai0_rx_bclk: clock-sai0-rx-bclk {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <0>;
+	clock-output-names = "sai0_rx_bclk";
+};
+
+clk_sai0_tx_bclk: clock-sai0-tx-bclk {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <0>;
+	clock-output-names = "sai0_tx_bclk";
+};
+
+clk_sai1_rx_bclk: clock-sai1-rx-bclk {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <0>;
+	clock-output-names = "sai1_rx_bclk";
+};
+
+clk_sai1_tx_bclk: clock-sai1-tx-bclk {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <0>;
+	clock-output-names = "sai1_tx_bclk";
+};
+
+clk_sai2_rx_bclk: clock-sai2-rx-bclk {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <0>;
+	clock-output-names = "sai2_rx_bclk";
+};
+
+clk_sai3_rx_bclk: clock-sai3-rx-bclk {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <0>;
+	clock-output-names = "sai3_rx_bclk";
+};
+
+clk_sai4_rx_bclk: clock-sai4-rx-bclk {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <0>;
+	clock-output-names = "sai4_rx_bclk";
+};
+
+audio_subsys: bus@59000000 {
+	compatible = "simple-bus";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	ranges = <0x59000000 0x0 0x59000000 0x1000000>;
+
+	asrc0: asrc@59000000 {
+		compatible = "fsl,imx8qm-asrc";
+		reg = <0x59000000 0x10000>;
+		interrupts = <GIC_SPI 372 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&asrc0_lpcg IMX_LPCG_CLK_0>,
+			 <&asrc0_lpcg IMX_LPCG_CLK_0>,
+			 <&aud_pll_div0_lpcg IMX_LPCG_CLK_4>,
+			 <&aud_pll_div1_lpcg IMX_LPCG_CLK_4>,
+			 <&acm IMX_ADMA_ACM_AUD_CLK0_SEL>,
+			 <&acm IMX_ADMA_ACM_AUD_CLK1_SEL>,
+			 <&clk_dummy>,
+			 <&clk_dummy>,
+			 <&clk_dummy>,
+			 <&clk_dummy>,
+			 <&clk_dummy>,
+			 <&clk_dummy>,
+			 <&clk_dummy>,
+			 <&clk_dummy>,
+			 <&clk_dummy>,
+			 <&clk_dummy>,
+			 <&clk_dummy>,
+			 <&clk_dummy>,
+			 <&clk_dummy>;
+		clock-names = "mem", "ipg",
+			      "asrck_0", "asrck_1", "asrck_2", "asrck_3",
+			      "asrck_4", "asrck_5", "asrck_6", "asrck_7",
+			      "asrck_8", "asrck_9", "asrck_a", "asrck_b",
+			      "asrck_c", "asrck_d", "asrck_e", "asrck_f",
+			      "spba";
+		dmas = <&edma0 0 0 0>,
+		       <&edma0 1 0 0>,
+		       <&edma0 2 0 0>,
+		       <&edma0 3 0 FSL_EDMA_RX>,
+		       <&edma0 4 0 FSL_EDMA_RX>,
+		       <&edma0 5 0 FSL_EDMA_RX>;
+		/* tx* is output channel of asrc, it is rx channel for eDMA */
+		dma-names = "rxa", "rxb", "rxc", "txa", "txb", "txc";
+		fsl,asrc-rate = <8000>;
+		fsl,asrc-width = <16>;
+		fsl,asrc-clk-map = <0>;
+		power-domains = <&pd IMX_SC_R_ASRC_0>;
+		status = "disabled";
+	};
+
+	esai0: esai@59010000 {
+		compatible = "fsl,imx8qm-esai";
+		reg = <0x59010000 0x10000>;
+		interrupts = <GIC_SPI 409 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&esai0_lpcg IMX_LPCG_CLK_4>,
+			 <&esai0_lpcg IMX_LPCG_CLK_0>,
+			 <&esai0_lpcg IMX_LPCG_CLK_4>,
+			 <&clk_dummy>;
+		clock-names = "core", "extal", "fsys", "spba";
+		dmas = <&edma0 6 0 FSL_EDMA_RX>, <&edma0 7 0 0>;
+		dma-names = "rx", "tx";
+		power-domains = <&pd IMX_SC_R_ESAI_0>;
+		status = "disabled";
+	};
+
+	spdif0: spdif@59020000 {
+		compatible = "fsl,imx8qm-spdif";
+		reg = <0x59020000 0x10000>;
+		interrupts = <GIC_SPI 456 IRQ_TYPE_LEVEL_HIGH>, /* rx */
+			     <GIC_SPI 458 IRQ_TYPE_LEVEL_HIGH>; /* tx */
+		clocks = <&spdif0_lpcg IMX_LPCG_CLK_4>,	/* core */
+			 <&clk_dummy>,			/* rxtx0 */
+			 <&spdif0_lpcg IMX_LPCG_CLK_0>,	/* rxtx1 */
+			 <&clk_dummy>,			/* rxtx2 */
+			 <&clk_dummy>,			/* rxtx3 */
+			 <&clk_dummy>,			/* rxtx4 */
+			 <&audio_ipg_clk>,		/* rxtx5 */
+			 <&clk_dummy>,			/* rxtx6 */
+			 <&clk_dummy>,			/* rxtx7 */
+			 <&clk_dummy>;			/* spba */
+		clock-names = "core", "rxtx0", "rxtx1", "rxtx2", "rxtx3", "rxtx4",
+			      "rxtx5", "rxtx6", "rxtx7", "spba";
+		dmas = <&edma0 8 0 (FSL_EDMA_MULTI_FIFO | FSL_EDMA_RX)>,
+		       <&edma0 9 0 FSL_EDMA_MULTI_FIFO>;
+		dma-names = "rx", "tx";
+		power-domains = <&pd IMX_SC_R_SPDIF_0>;
+		status = "disabled";
+	};
+
+	sai0: sai@59040000 {
+		compatible = "fsl,imx8qm-sai";
+		reg = <0x59040000 0x10000>;
+		interrupts = <GIC_SPI 314 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&sai0_lpcg IMX_LPCG_CLK_4>,
+			 <&clk_dummy>,
+			 <&sai0_lpcg IMX_LPCG_CLK_0>,
+			 <&clk_dummy>,
+			 <&clk_dummy>;
+		clock-names = "bus", "mclk0", "mclk1", "mclk2", "mclk3";
+		dma-names = "rx", "tx";
+		dmas = <&edma0 12 0 1>, <&edma0 13 0 0>;
+		power-domains = <&pd IMX_SC_R_SAI_0>;
+		status = "disabled";
+	};
+
+	sai1: sai@59050000 {
+		compatible = "fsl,imx8qm-sai";
+		reg = <0x59050000 0x10000>;
+		interrupts = <GIC_SPI 316 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&sai1_lpcg IMX_LPCG_CLK_4>,
+			 <&clk_dummy>,
+			 <&sai1_lpcg IMX_LPCG_CLK_0>,
+			 <&clk_dummy>,
+			 <&clk_dummy>;
+		clock-names = "bus", "mclk0", "mclk1", "mclk2", "mclk3";
+		dma-names = "rx", "tx";
+		dmas = <&edma0 14 0 1>, <&edma0 15 0 0>;
+		power-domains = <&pd IMX_SC_R_SAI_1>;
+		status = "disabled";
+	};
+
+	sai2: sai@59060000 {
+		compatible = "fsl,imx8qm-sai";
+		reg = <0x59060000 0x10000>;
+		interrupts = <GIC_SPI 318 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&sai2_lpcg IMX_LPCG_CLK_4>,
+			 <&clk_dummy>,
+			 <&sai2_lpcg IMX_LPCG_CLK_0>,
+			 <&clk_dummy>,
+			 <&clk_dummy>;
+		clock-names = "bus", "mclk0", "mclk1", "mclk2", "mclk3";
+		dma-names = "rx";
+		dmas = <&edma0 16 0 1>;
+		power-domains = <&pd IMX_SC_R_SAI_2>;
+		status = "disabled";
+	};
+
+	sai3: sai@59070000 {
+		compatible = "fsl,imx8qm-sai";
+		reg = <0x59070000 0x10000>;
+		interrupts = <GIC_SPI 323 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&sai3_lpcg IMX_LPCG_CLK_4>,
+			 <&clk_dummy>,
+			 <&sai3_lpcg IMX_LPCG_CLK_0>,
+			 <&clk_dummy>,
+			 <&clk_dummy>;
+		clock-names = "bus", "mclk0", "mclk1", "mclk2", "mclk3";
+		dma-names = "rx";
+		dmas = <&edma0 17 0 1>;
+		power-domains = <&pd IMX_SC_R_SAI_3>;
+		status = "disabled";
+	};
+
+	edma0: dma-controller@591f0000 {
+		compatible = "fsl,imx8qm-edma";
+		reg = <0x591f0000 0x190000>;
+		#dma-cells = <3>;
+		dma-channels = <24>;
+		dma-channel-mask = <0x5c0c00>;
+		interrupts = <GIC_SPI 374 IRQ_TYPE_LEVEL_HIGH>, /* 0 asrc 0 */
+			     <GIC_SPI 375 IRQ_TYPE_LEVEL_HIGH>, /* 1 */
+			     <GIC_SPI 376 IRQ_TYPE_LEVEL_HIGH>, /* 2 */
+			     <GIC_SPI 377 IRQ_TYPE_LEVEL_HIGH>, /* 3 */
+			     <GIC_SPI 378 IRQ_TYPE_LEVEL_HIGH>, /* 4 */
+			     <GIC_SPI 379 IRQ_TYPE_LEVEL_HIGH>, /* 5 */
+			     <GIC_SPI 410 IRQ_TYPE_LEVEL_HIGH>, /* 6 esai0 */
+			     <GIC_SPI 410 IRQ_TYPE_LEVEL_HIGH>, /* 7 */
+			     <GIC_SPI 457 IRQ_TYPE_LEVEL_HIGH>, /* 8 spdif0 */
+			     <GIC_SPI 459 IRQ_TYPE_LEVEL_HIGH>, /* 9 */
+			     <GIC_SPI 0   IRQ_TYPE_LEVEL_HIGH>, /* 10 unused */
+			     <GIC_SPI 0   IRQ_TYPE_LEVEL_HIGH>, /* 11 unused */
+			     <GIC_SPI 315 IRQ_TYPE_LEVEL_HIGH>, /* 12 sai0 */
+			     <GIC_SPI 315 IRQ_TYPE_LEVEL_HIGH>, /* 13 */
+			     <GIC_SPI 317 IRQ_TYPE_LEVEL_HIGH>, /* 14 sai1 */
+			     <GIC_SPI 317 IRQ_TYPE_LEVEL_HIGH>, /* 15 */
+			     <GIC_SPI 319 IRQ_TYPE_LEVEL_HIGH>, /* 16 sai2 */
+			     <GIC_SPI 324 IRQ_TYPE_LEVEL_HIGH>, /* 17 sai3 */
+			     <GIC_SPI 0   IRQ_TYPE_LEVEL_HIGH>, /* 18 unused */
+			     <GIC_SPI 0   IRQ_TYPE_LEVEL_HIGH>, /* 19 unused */
+			     <GIC_SPI 0   IRQ_TYPE_LEVEL_HIGH>, /* 20 unused */
+			     <GIC_SPI 391 IRQ_TYPE_LEVEL_HIGH>, /* 21 */
+			     <GIC_SPI 0   IRQ_TYPE_LEVEL_HIGH>, /* 22 unused */
+			     <GIC_SPI 393 IRQ_TYPE_LEVEL_HIGH>; /* 23 unused */
+		power-domains = <&pd IMX_SC_R_DMA_0_CH0>,
+				<&pd IMX_SC_R_DMA_0_CH1>,
+				<&pd IMX_SC_R_DMA_0_CH2>,
+				<&pd IMX_SC_R_DMA_0_CH3>,
+				<&pd IMX_SC_R_DMA_0_CH4>,
+				<&pd IMX_SC_R_DMA_0_CH5>,
+				<&pd IMX_SC_R_DMA_0_CH6>,
+				<&pd IMX_SC_R_DMA_0_CH7>,
+				<&pd IMX_SC_R_DMA_0_CH8>,
+				<&pd IMX_SC_R_DMA_0_CH9>,
+				<&pd IMX_SC_R_DMA_0_CH10>,
+				<&pd IMX_SC_R_DMA_0_CH11>,
+				<&pd IMX_SC_R_DMA_0_CH12>,
+				<&pd IMX_SC_R_DMA_0_CH13>,
+				<&pd IMX_SC_R_DMA_0_CH14>,
+				<&pd IMX_SC_R_DMA_0_CH15>,
+				<&pd IMX_SC_R_DMA_0_CH16>,
+				<&pd IMX_SC_R_DMA_0_CH17>,
+				<&pd IMX_SC_R_DMA_0_CH18>,
+				<&pd IMX_SC_R_DMA_0_CH19>,
+				<&pd IMX_SC_R_DMA_0_CH20>,
+				<&pd IMX_SC_R_DMA_0_CH21>,
+				<&pd IMX_SC_R_DMA_0_CH22>,
+				<&pd IMX_SC_R_DMA_0_CH23>;
+	};
+
+	asrc0_lpcg: clock-controller@59400000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x59400000 0x10000>;
+		#clock-cells = <1>;
+		clocks = <&audio_ipg_clk>;
+		clock-indices = <IMX_LPCG_CLK_4>;
+		clock-output-names = "asrc0_lpcg_ipg_clk";
+		power-domains = <&pd IMX_SC_R_ASRC_0>;
+	};
+
+	esai0_lpcg: clock-controller@59410000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x59410000 0x10000>;
+		#clock-cells = <1>;
+		clocks = <&acm IMX_ADMA_ACM_ESAI0_MCLK_SEL>,
+			 <&audio_ipg_clk>;
+		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_4>;
+		clock-output-names = "esai0_lpcg_extal_clk",
+				     "esai0_lpcg_ipg_clk";
+		power-domains = <&pd IMX_SC_R_ESAI_0>;
+	};
+
+	spdif0_lpcg: clock-controller@59420000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x59420000 0x10000>;
+		#clock-cells = <1>;
+		clocks = <&acm IMX_ADMA_ACM_SPDIF0_TX_CLK_SEL>,
+			 <&audio_ipg_clk>;
+		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_4>;
+		clock-output-names = "spdif0_lpcg_tx_clk",
+				     "spdif0_lpcg_gclkw";
+		power-domains = <&pd IMX_SC_R_SPDIF_0>;
+	};
+
+	sai0_lpcg: clock-controller@59440000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x59440000 0x10000>;
+		#clock-cells = <1>;
+		clocks = <&acm IMX_ADMA_ACM_SAI0_MCLK_SEL>,
+			 <&audio_ipg_clk>;
+		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_4>;
+		clock-output-names = "sai0_lpcg_mclk",
+				     "sai0_lpcg_ipg_clk";
+		power-domains = <&pd IMX_SC_R_SAI_0>;
+	};
+
+	sai1_lpcg: clock-controller@59450000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x59450000 0x10000>;
+		#clock-cells = <1>;
+		clocks = <&acm IMX_ADMA_ACM_SAI1_MCLK_SEL>,
+			 <&audio_ipg_clk>;
+		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_4>;
+		clock-output-names = "sai1_lpcg_mclk",
+				     "sai1_lpcg_ipg_clk";
+		power-domains = <&pd IMX_SC_R_SAI_1>;
+	};
+
+	sai2_lpcg: clock-controller@59460000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x59460000 0x10000>;
+		#clock-cells = <1>;
+		clocks = <&acm IMX_ADMA_ACM_SAI2_MCLK_SEL>,
+			 <&audio_ipg_clk>;
+		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_4>;
+		clock-output-names = "sai2_lpcg_mclk",
+				     "sai2_lpcg_ipg_clk";
+		power-domains = <&pd IMX_SC_R_SAI_2>;
+	};
+
+	sai3_lpcg: clock-controller@59470000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x59470000 0x10000>;
+		#clock-cells = <1>;
+		clocks = <&acm IMX_ADMA_ACM_SAI3_MCLK_SEL>,
+			 <&audio_ipg_clk>;
+		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_4>;
+		clock-output-names = "sai3_lpcg_mclk",
+				     "sai3_lpcg_ipg_clk";
+		power-domains = <&pd IMX_SC_R_SAI_3>;
+	};
+
+	dsp_lpcg: clock-controller@59580000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x59580000 0x10000>;
+		#clock-cells = <1>;
+		clocks = <&audio_ipg_clk>,
+			 <&audio_ipg_clk>,
+			 <&audio_ipg_clk>;
+		clock-indices = <IMX_LPCG_CLK_4>, <IMX_LPCG_CLK_5>,
+				<IMX_LPCG_CLK_7>;
+		clock-output-names = "dsp_lpcg_adb_clk",
+				     "dsp_lpcg_ipg_clk",
+				     "dsp_lpcg_core_clk";
+		power-domains = <&pd IMX_SC_R_DSP>;
+	};
+
+	dsp_ram_lpcg: clock-controller@59590000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x59590000 0x10000>;
+		#clock-cells = <1>;
+		clocks = <&audio_ipg_clk>;
+		clock-indices = <IMX_LPCG_CLK_4>;
+		clock-output-names = "dsp_ram_lpcg_ipg_clk";
+		power-domains = <&pd IMX_SC_R_DSP_RAM>;
+	};
+
+	dsp: dsp@596e8000 {
+		compatible = "fsl,imx8qxp-dsp";
+		reg = <0x596e8000 0x88000>;
+		clocks = <&dsp_lpcg IMX_LPCG_CLK_5>,
+			 <&dsp_ram_lpcg IMX_LPCG_CLK_4>,
+			 <&dsp_lpcg IMX_LPCG_CLK_7>;
+		clock-names = "ipg", "ocram", "core";
+		power-domains = <&pd IMX_SC_R_MU_13A>,
+			<&pd IMX_SC_R_MU_13B>,
+			<&pd IMX_SC_R_DSP>,
+			<&pd IMX_SC_R_DSP_RAM>;
+		mbox-names = "txdb0", "txdb1",
+			"rxdb0", "rxdb1";
+		mboxes = <&lsio_mu13 2 0>,
+			<&lsio_mu13 2 1>,
+			<&lsio_mu13 3 0>,
+			<&lsio_mu13 3 1>;
+		memory-region = <&dsp_reserved>;
+		status = "disabled";
+	};
+
+	asrc1: asrc@59800000 {
+		compatible = "fsl,imx8qm-asrc";
+		reg = <0x59800000 0x10000>;
+		interrupts = <GIC_SPI 380 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&asrc1_lpcg IMX_LPCG_CLK_4>,
+			 <&asrc1_lpcg IMX_LPCG_CLK_4>,
+			 <&aud_pll_div0_lpcg IMX_LPCG_CLK_0>,
+			 <&aud_pll_div1_lpcg IMX_LPCG_CLK_0>,
+			 <&acm IMX_ADMA_ACM_AUD_CLK0_SEL>,
+			 <&acm IMX_ADMA_ACM_AUD_CLK1_SEL>,
+			 <&clk_dummy>,
+			 <&clk_dummy>,
+			 <&clk_dummy>,
+			 <&clk_dummy>,
+			 <&clk_dummy>,
+			 <&clk_dummy>,
+			 <&clk_dummy>,
+			 <&clk_dummy>,
+			 <&clk_dummy>,
+			 <&clk_dummy>,
+			 <&clk_dummy>,
+			 <&clk_dummy>,
+			 <&clk_dummy>;
+		clock-names = "mem", "ipg",
+			      "asrck_0", "asrck_1", "asrck_2", "asrck_3",
+			      "asrck_4", "asrck_5", "asrck_6", "asrck_7",
+			      "asrck_8", "asrck_9", "asrck_a", "asrck_b",
+			      "asrck_c", "asrck_d", "asrck_e", "asrck_f",
+			      "spba";
+		dmas = <&edma1 0 0 0>,
+		       <&edma1 1 0 0>,
+		       <&edma1 2 0 0>,
+		       <&edma1 3 0 FSL_EDMA_RX>,
+		       <&edma1 4 0 FSL_EDMA_RX>,
+		       <&edma1 5 0 FSL_EDMA_RX>;
+		/* tx* is output channel of asrc, it is rx channel for eDMA */
+		dma-names = "rxa", "rxb", "rxc", "txa", "txb", "txc";
+		fsl,asrc-rate = <8000>;
+		fsl,asrc-width = <16>;
+		fsl,asrc-clk-map = <1>;
+		power-domains = <&pd IMX_SC_R_ASRC_1>;
+		status = "disabled";
+	};
+
+	sai4: sai@59820000 {
+		compatible = "fsl,imx8qm-sai";
+		reg = <0x59820000 0x10000>;
+		interrupts = <GIC_SPI 329 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&sai4_lpcg IMX_LPCG_CLK_4>,
+			 <&clk_dummy>,
+			 <&sai4_lpcg IMX_LPCG_CLK_0>,
+			 <&clk_dummy>,
+			 <&clk_dummy>;
+		clock-names = "bus", "mclk0", "mclk1", "mclk2", "mclk3";
+		dmas = <&edma1 8 0 FSL_EDMA_RX>, <&edma1 9 0 0>;
+		dma-names = "rx", "tx";
+		power-domains = <&pd IMX_SC_R_SAI_4>;
+		status = "disabled";
+	};
+
+	sai5: sai@59830000 {
+		compatible = "fsl,imx8qm-sai";
+		reg = <0x59830000 0x10000>;
+		interrupts = <GIC_SPI 331 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&sai5_lpcg IMX_LPCG_CLK_4>,
+			 <&clk_dummy>,
+			 <&sai5_lpcg IMX_LPCG_CLK_0>,
+			 <&clk_dummy>,
+			 <&clk_dummy>;
+		clock-names = "bus", "mclk0", "mclk1", "mclk2", "mclk3";
+		dmas = <&edma1 10 0 0>;
+		dma-names = "tx";
+		power-domains = <&pd IMX_SC_R_SAI_5>;
+		status = "disabled";
+	};
+
+	amix: amix@59840000 {
+		compatible = "fsl,imx8qm-audmix";
+		reg = <0x59840000 0x10000>;
+		clocks = <&amix_lpcg IMX_LPCG_CLK_0>;
+		clock-names = "ipg";
+		power-domains = <&pd IMX_SC_R_AMIX>;
+		dais = <&sai4>, <&sai5>;
+		status = "disabled";
+	};
+
+	mqs: mqs@59850000 {
+		compatible = "fsl,imx8qm-mqs";
+		reg = <0x59850000 0x10000>;
+		clocks = <&mqs0_lpcg IMX_LPCG_CLK_4>, <&mqs0_lpcg IMX_LPCG_CLK_0>;
+		clock-names = "mclk", "core";
+		power-domains = <&pd IMX_SC_R_MQS_0>;
+		status = "disabled";
+	};
+
+	edma1: dma-controller@599f0000 {
+		compatible = "fsl,imx8qm-edma";
+		reg = <0x599f0000 0xc0000>;
+		#dma-cells = <3>;
+		dma-channels = <11>;
+		dma-channel-mask = <0xc0>;
+		interrupts = <GIC_SPI 382 IRQ_TYPE_LEVEL_HIGH>, /* 0 asrc 1 */
+			     <GIC_SPI 383 IRQ_TYPE_LEVEL_HIGH>, /* 1 */
+			     <GIC_SPI 384 IRQ_TYPE_LEVEL_HIGH>, /* 2 */
+			     <GIC_SPI 385 IRQ_TYPE_LEVEL_HIGH>, /* 3 */
+			     <GIC_SPI 386 IRQ_TYPE_LEVEL_HIGH>, /* 4 */
+			     <GIC_SPI 387 IRQ_TYPE_LEVEL_HIGH>, /* 5 */
+			     <GIC_SPI 0   IRQ_TYPE_LEVEL_HIGH>, /* 6 unused */
+			     <GIC_SPI 0   IRQ_TYPE_LEVEL_HIGH>, /* 7 unused */
+			     <GIC_SPI 330 IRQ_TYPE_LEVEL_HIGH>, /* sai4 */
+			     <GIC_SPI 330 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 332 IRQ_TYPE_LEVEL_HIGH>; /* sai5 */
+		power-domains = <&pd IMX_SC_R_DMA_1_CH0>,
+				<&pd IMX_SC_R_DMA_1_CH1>,
+				<&pd IMX_SC_R_DMA_1_CH2>,
+				<&pd IMX_SC_R_DMA_1_CH3>,
+				<&pd IMX_SC_R_DMA_1_CH4>,
+				<&pd IMX_SC_R_DMA_1_CH5>,
+				<&pd IMX_SC_R_DMA_1_CH6>,
+				<&pd IMX_SC_R_DMA_1_CH7>,
+				<&pd IMX_SC_R_DMA_1_CH8>,
+				<&pd IMX_SC_R_DMA_1_CH9>,
+				<&pd IMX_SC_R_DMA_1_CH10>;
+	};
+
+	aud_rec0_lpcg: clock-controller@59d00000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x59d00000 0x10000>;
+		#clock-cells = <1>;
+		clocks = <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_MST_BUS>;
+		clock-indices = <IMX_LPCG_CLK_0>;
+		clock-output-names = "aud_rec_clk0_lpcg_clk";
+		power-domains = <&pd IMX_SC_R_AUDIO_PLL_0>;
+	};
+
+	aud_rec1_lpcg: clock-controller@59d10000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x59d10000 0x10000>;
+		#clock-cells = <1>;
+		clocks = <&clk IMX_SC_R_AUDIO_PLL_1 IMX_SC_PM_CLK_MST_BUS>;
+		clock-indices = <IMX_LPCG_CLK_0>;
+		clock-output-names = "aud_rec_clk1_lpcg_clk";
+		power-domains = <&pd IMX_SC_R_AUDIO_PLL_1>;
+	};
+
+	aud_pll_div0_lpcg: clock-controller@59d20000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x59d20000 0x10000>;
+		#clock-cells = <1>;
+		clocks = <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_SLV_BUS>;
+		clock-indices = <IMX_LPCG_CLK_0>;
+		clock-output-names = "aud_pll_div_clk0_lpcg_clk";
+		power-domains = <&pd IMX_SC_R_AUDIO_PLL_0>;
+	};
+
+	aud_pll_div1_lpcg: clock-controller@59d30000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x59d30000 0x10000>;
+		#clock-cells = <1>;
+		clocks = <&clk IMX_SC_R_AUDIO_PLL_1 IMX_SC_PM_CLK_SLV_BUS>;
+		clock-indices = <IMX_LPCG_CLK_0>;
+		clock-output-names = "aud_pll_div_clk1_lpcg_clk";
+		power-domains = <&pd IMX_SC_R_AUDIO_PLL_1>;
+	};
+
+	mclkout0_lpcg: clock-controller@59d50000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x59d50000 0x10000>;
+		#clock-cells = <1>;
+		clocks = <&acm IMX_ADMA_ACM_MCLKOUT0_SEL>;
+		clock-indices = <IMX_LPCG_CLK_0>;
+		clock-output-names = "mclkout0_lpcg_clk";
+		power-domains = <&pd IMX_SC_R_MCLK_OUT_0>;
+	};
+
+	mclkout1_lpcg: clock-controller@59d60000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x59d60000 0x10000>;
+		#clock-cells = <1>;
+		clocks = <&acm IMX_ADMA_ACM_MCLKOUT1_SEL>;
+		clock-indices = <IMX_LPCG_CLK_0>;
+		clock-output-names = "mclkout1_lpcg_clk";
+		power-domains = <&pd IMX_SC_R_MCLK_OUT_1>;
+	};
+
+	acm: acm@59e00000 {
+		compatible = "fsl,imx8qxp-acm";
+		reg = <0x59e00000 0x1d0000>;
+		#clock-cells = <1>;
+		power-domains = <&pd IMX_SC_R_AUDIO_CLK_0>,
+				<&pd IMX_SC_R_AUDIO_CLK_1>,
+				<&pd IMX_SC_R_MCLK_OUT_0>,
+				<&pd IMX_SC_R_MCLK_OUT_1>,
+				<&pd IMX_SC_R_AUDIO_PLL_0>,
+				<&pd IMX_SC_R_AUDIO_PLL_1>,
+				<&pd IMX_SC_R_ASRC_0>,
+				<&pd IMX_SC_R_ASRC_1>,
+				<&pd IMX_SC_R_ESAI_0>,
+				<&pd IMX_SC_R_SAI_0>,
+				<&pd IMX_SC_R_SAI_1>,
+				<&pd IMX_SC_R_SAI_2>,
+				<&pd IMX_SC_R_SAI_3>,
+				<&pd IMX_SC_R_SAI_4>,
+				<&pd IMX_SC_R_SAI_5>,
+				<&pd IMX_SC_R_SPDIF_0>,
+				<&pd IMX_SC_R_MQS_0>;
+		clocks = <&aud_rec0_lpcg IMX_LPCG_CLK_0>,
+			 <&aud_rec1_lpcg IMX_LPCG_CLK_0>,
+			 <&aud_pll_div0_lpcg IMX_LPCG_CLK_0>,
+			 <&aud_pll_div1_lpcg IMX_LPCG_CLK_0>,
+			 <&clk_ext_aud_mclk0>,
+			 <&clk_ext_aud_mclk1>,
+			 <&clk_esai0_rx_clk>,
+			 <&clk_esai0_rx_hf_clk>,
+			 <&clk_esai0_tx_clk>,
+			 <&clk_esai0_tx_hf_clk>,
+			 <&clk_spdif0_rx>,
+			 <&clk_sai0_rx_bclk>,
+			 <&clk_sai0_tx_bclk>,
+			 <&clk_sai1_rx_bclk>,
+			 <&clk_sai1_tx_bclk>,
+			 <&clk_sai2_rx_bclk>,
+			 <&clk_sai3_rx_bclk>,
+			 <&clk_sai4_rx_bclk>;
+		clock-names = "aud_rec_clk0_lpcg_clk",
+			      "aud_rec_clk1_lpcg_clk",
+			      "aud_pll_div_clk0_lpcg_clk",
+			      "aud_pll_div_clk1_lpcg_clk",
+			      "ext_aud_mclk0",
+			      "ext_aud_mclk1",
+			      "esai0_rx_clk",
+			      "esai0_rx_hf_clk",
+			      "esai0_tx_clk",
+			      "esai0_tx_hf_clk",
+			      "spdif0_rx",
+			      "sai0_rx_bclk",
+			      "sai0_tx_bclk",
+			      "sai1_rx_bclk",
+			      "sai1_tx_bclk",
+			      "sai2_rx_bclk",
+			      "sai3_rx_bclk",
+			      "sai4_rx_bclk";
+	};
+
+	asrc1_lpcg: clock-controller@59c00000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x59c00000 0x10000>;
+		#clock-cells = <1>;
+		clocks = <&audio_ipg_clk>;
+		clock-indices = <IMX_LPCG_CLK_4>;
+		clock-output-names = "asrc1_lpcg_ipg_clk";
+		power-domains = <&pd IMX_SC_R_ASRC_1>;
+	};
+
+	sai4_lpcg: clock-controller@59c20000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x59c20000 0x10000>;
+		#clock-cells = <1>;
+		clocks = <&acm IMX_ADMA_ACM_SAI4_MCLK_SEL>,
+			 <&audio_ipg_clk>;
+		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_4>;
+		clock-output-names = "sai4_lpcg_mclk",
+				     "sai4_lpcg_ipg_clk";
+		power-domains = <&pd IMX_SC_R_SAI_4>;
+	};
+
+	sai5_lpcg: clock-controller@59c30000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x59c30000 0x10000>;
+		#clock-cells = <1>;
+		clocks = <&acm IMX_ADMA_ACM_SAI5_MCLK_SEL>,
+			 <&audio_ipg_clk>;
+		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_4>;
+		clock-output-names = "sai5_lpcg_mclk",
+				     "sai5_lpcg_ipg_clk";
+		power-domains = <&pd IMX_SC_R_SAI_5>;
+	};
+
+	amix_lpcg: clock-controller@59c40000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x59c40000 0x10000>;
+		#clock-cells = <1>;
+		clocks = <&audio_ipg_clk>;
+		clock-indices = <IMX_LPCG_CLK_0>;
+		clock-output-names = "amix_lpcg_ipg_clk";
+		power-domains = <&pd IMX_SC_R_AMIX>;
+	};
+
+	mqs0_lpcg: clock-controller@59c50000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x59c50000 0x10000>;
+		#clock-cells = <1>;
+		clocks = <&acm IMX_ADMA_ACM_MQS_TX_CLK_SEL>,
+			 <&audio_ipg_clk>;
+		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_4>;
+		clock-output-names = "mqs0_lpcg_mclk",
+				     "mqs0_lpcg_ipg_clk";
+		power-domains = <&pd IMX_SC_R_MQS_0>;
+	};
+};

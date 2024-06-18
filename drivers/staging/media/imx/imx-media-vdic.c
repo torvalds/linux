@@ -49,8 +49,8 @@ struct vdic_pipeline_ops {
 /*
  * Min/Max supported width and heights.
  */
-#define MIN_W       176
-#define MIN_H       144
+#define MIN_W        32
+#define MIN_H        32
 #define MAX_W_VDIC  968
 #define MAX_H_VDIC 2048
 #define W_ALIGN    4 /* multiple of 16 pixels */
@@ -246,7 +246,7 @@ static int setup_vdi_channel(struct vdic_priv *priv,
 	ipu_cpmem_zero(channel);
 
 	memset(&image, 0, sizeof(image));
-	image.pix = vdev->fmt.fmt.pix;
+	image.pix = vdev->fmt;
 	image.rect = vdev->compose;
 	/* one field to VDIC channels */
 	image.pix.height /= 2;
@@ -532,27 +532,28 @@ out:
 }
 
 static struct v4l2_mbus_framefmt *
-__vdic_get_fmt(struct vdic_priv *priv, struct v4l2_subdev_pad_config *cfg,
+__vdic_get_fmt(struct vdic_priv *priv, struct v4l2_subdev_state *sd_state,
 	       unsigned int pad, enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(&priv->sd, cfg, pad);
+		return v4l2_subdev_state_get_format(sd_state, pad);
 	else
 		return &priv->format_mbus[pad];
 }
 
 static int vdic_enum_mbus_code(struct v4l2_subdev *sd,
-			       struct v4l2_subdev_pad_config *cfg,
+			       struct v4l2_subdev_state *sd_state,
 			       struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->pad >= VDIC_NUM_PADS)
 		return -EINVAL;
 
-	return imx_media_enum_ipu_format(&code->code, code->index, CS_SEL_YUV);
+	return imx_media_enum_ipu_formats(&code->code, code->index,
+					  PIXFMT_SEL_YUV);
 }
 
 static int vdic_get_fmt(struct v4l2_subdev *sd,
-			struct v4l2_subdev_pad_config *cfg,
+			struct v4l2_subdev_state *sd_state,
 			struct v4l2_subdev_format *sdformat)
 {
 	struct vdic_priv *priv = v4l2_get_subdevdata(sd);
@@ -564,7 +565,7 @@ static int vdic_get_fmt(struct v4l2_subdev *sd,
 
 	mutex_lock(&priv->lock);
 
-	fmt = __vdic_get_fmt(priv, cfg, sdformat->pad, sdformat->which);
+	fmt = __vdic_get_fmt(priv, sd_state, sdformat->pad, sdformat->which);
 	if (!fmt) {
 		ret = -EINVAL;
 		goto out;
@@ -577,22 +578,23 @@ out:
 }
 
 static void vdic_try_fmt(struct vdic_priv *priv,
-			 struct v4l2_subdev_pad_config *cfg,
+			 struct v4l2_subdev_state *sd_state,
 			 struct v4l2_subdev_format *sdformat,
 			 const struct imx_media_pixfmt **cc)
 {
 	struct v4l2_mbus_framefmt *infmt;
 
-	*cc = imx_media_find_ipu_format(sdformat->format.code, CS_SEL_YUV);
+	*cc = imx_media_find_ipu_format(sdformat->format.code,
+					PIXFMT_SEL_YUV);
 	if (!*cc) {
 		u32 code;
 
-		imx_media_enum_ipu_format(&code, 0, CS_SEL_YUV);
-		*cc = imx_media_find_ipu_format(code, CS_SEL_YUV);
+		imx_media_enum_ipu_formats(&code, 0, PIXFMT_SEL_YUV);
+		*cc = imx_media_find_ipu_format(code, PIXFMT_SEL_YUV);
 		sdformat->format.code = (*cc)->codes[0];
 	}
 
-	infmt = __vdic_get_fmt(priv, cfg, priv->active_input_pad,
+	infmt = __vdic_get_fmt(priv, sd_state, priv->active_input_pad,
 			       sdformat->which);
 
 	switch (sdformat->pad) {
@@ -618,7 +620,7 @@ static void vdic_try_fmt(struct vdic_priv *priv,
 }
 
 static int vdic_set_fmt(struct v4l2_subdev *sd,
-			struct v4l2_subdev_pad_config *cfg,
+			struct v4l2_subdev_state *sd_state,
 			struct v4l2_subdev_format *sdformat)
 {
 	struct vdic_priv *priv = v4l2_get_subdevdata(sd);
@@ -636,9 +638,9 @@ static int vdic_set_fmt(struct v4l2_subdev *sd,
 		goto out;
 	}
 
-	vdic_try_fmt(priv, cfg, sdformat, &cc);
+	vdic_try_fmt(priv, sd_state, sdformat, &cc);
 
-	fmt = __vdic_get_fmt(priv, cfg, sdformat->pad, sdformat->which);
+	fmt = __vdic_get_fmt(priv, sd_state, sdformat->pad, sdformat->which);
 	*fmt = sdformat->format;
 
 	/* propagate format to source pad */
@@ -651,9 +653,9 @@ static int vdic_set_fmt(struct v4l2_subdev *sd,
 		format.pad = VDIC_SRC_PAD_DIRECT;
 		format.which = sdformat->which;
 		format.format = sdformat->format;
-		vdic_try_fmt(priv, cfg, &format, &outcc);
+		vdic_try_fmt(priv, sd_state, &format, &outcc);
 
-		outfmt = __vdic_get_fmt(priv, cfg, VDIC_SRC_PAD_DIRECT,
+		outfmt = __vdic_get_fmt(priv, sd_state, VDIC_SRC_PAD_DIRECT,
 					sdformat->which);
 		*outfmt = format.format;
 		if (sdformat->which == V4L2_SUBDEV_FORMAT_ACTIVE)
@@ -778,10 +780,18 @@ static int vdic_link_validate(struct v4l2_subdev *sd,
 	return ret;
 }
 
-static int vdic_g_frame_interval(struct v4l2_subdev *sd,
-				struct v4l2_subdev_frame_interval *fi)
+static int vdic_get_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
+				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct vdic_priv *priv = v4l2_get_subdevdata(sd);
+
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	if (fi->pad >= VDIC_NUM_PADS)
 		return -EINVAL;
@@ -795,12 +805,20 @@ static int vdic_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int vdic_s_frame_interval(struct v4l2_subdev *sd,
-				struct v4l2_subdev_frame_interval *fi)
+static int vdic_set_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
+				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct vdic_priv *priv = v4l2_get_subdevdata(sd);
 	struct v4l2_fract *input_fi, *output_fi;
 	int ret = 0;
+
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	mutex_lock(&priv->lock);
 
@@ -841,9 +859,6 @@ out:
 	return ret;
 }
 
-/*
- * retrieve our pads parsed from the OF graph by the media device
- */
 static int vdic_registered(struct v4l2_subdev *sd)
 {
 	struct vdic_priv *priv = v4l2_get_subdevdata(sd);
@@ -851,17 +866,15 @@ static int vdic_registered(struct v4l2_subdev *sd)
 	u32 code;
 
 	for (i = 0; i < VDIC_NUM_PADS; i++) {
-		priv->pad[i].flags = (i == VDIC_SRC_PAD_DIRECT) ?
-			MEDIA_PAD_FL_SOURCE : MEDIA_PAD_FL_SINK;
-
 		code = 0;
 		if (i != VDIC_SINK_PAD_IDMAC)
-			imx_media_enum_ipu_format(&code, 0, CS_SEL_YUV);
+			imx_media_enum_ipu_formats(&code, 0, PIXFMT_SEL_YUV);
 
 		/* set a default mbus format  */
 		ret = imx_media_init_mbus_fmt(&priv->format_mbus[i],
-					      640, 480, code, V4L2_FIELD_NONE,
-					      &priv->cc[i]);
+					      IMX_MEDIA_DEF_PIX_WIDTH,
+					      IMX_MEDIA_DEF_PIX_HEIGHT, code,
+					      V4L2_FIELD_NONE, &priv->cc[i]);
 		if (ret)
 			return ret;
 
@@ -874,15 +887,7 @@ static int vdic_registered(struct v4l2_subdev *sd)
 
 	priv->active_input_pad = VDIC_SINK_PAD_DIRECT;
 
-	ret = vdic_init_controls(priv);
-	if (ret)
-		return ret;
-
-	ret = media_entity_pads_init(&sd->entity, VDIC_NUM_PADS, priv->pad);
-	if (ret)
-		v4l2_ctrl_handler_free(&priv->ctrl_hdlr);
-
-	return ret;
+	return vdic_init_controls(priv);
 }
 
 static void vdic_unregistered(struct v4l2_subdev *sd)
@@ -893,16 +898,15 @@ static void vdic_unregistered(struct v4l2_subdev *sd)
 }
 
 static const struct v4l2_subdev_pad_ops vdic_pad_ops = {
-	.init_cfg = imx_media_init_cfg,
 	.enum_mbus_code = vdic_enum_mbus_code,
 	.get_fmt = vdic_get_fmt,
 	.set_fmt = vdic_set_fmt,
+	.get_frame_interval = vdic_get_frame_interval,
+	.set_frame_interval = vdic_set_frame_interval,
 	.link_validate = vdic_link_validate,
 };
 
 static const struct v4l2_subdev_video_ops vdic_video_ops = {
-	.g_frame_interval = vdic_g_frame_interval,
-	.s_frame_interval = vdic_s_frame_interval,
 	.s_stream = vdic_s_stream,
 };
 
@@ -917,6 +921,7 @@ static const struct v4l2_subdev_ops vdic_subdev_ops = {
 };
 
 static const struct v4l2_subdev_internal_ops vdic_internal_ops = {
+	.init_state = imx_media_init_state,
 	.registered = vdic_registered,
 	.unregistered = vdic_unregistered,
 };
@@ -927,7 +932,7 @@ struct v4l2_subdev *imx_media_vdic_register(struct v4l2_device *v4l2_dev,
 					    u32 grp_id)
 {
 	struct vdic_priv *priv;
-	int ret;
+	int i, ret;
 
 	priv = devm_kzalloc(ipu_dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -948,6 +953,15 @@ struct v4l2_subdev *imx_media_vdic_register(struct v4l2_device *v4l2_dev,
 				    priv->sd.grp_id, ipu_get_num(ipu));
 
 	mutex_init(&priv->lock);
+
+	for (i = 0; i < VDIC_NUM_PADS; i++)
+		priv->pad[i].flags = (i == VDIC_SRC_PAD_DIRECT) ?
+			MEDIA_PAD_FL_SOURCE : MEDIA_PAD_FL_SINK;
+
+	ret = media_entity_pads_init(&priv->sd.entity, VDIC_NUM_PADS,
+				     priv->pad);
+	if (ret)
+		goto free;
 
 	ret = v4l2_device_register_subdev(v4l2_dev, &priv->sd);
 	if (ret)

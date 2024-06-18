@@ -23,6 +23,7 @@
 #include <asm/barrier.h>
 #include <asm/local64.h>
 #include <asm/sysreg.h>
+#include <soc/qcom/kryo-l2-accessors.h>
 
 #define MAX_L2_CTRS             9
 
@@ -79,8 +80,6 @@
 #define L2_COUNTER_RELOAD       BIT_ULL(31)
 #define L2_CYCLE_COUNTER_RELOAD BIT_ULL(63)
 
-#define L2CPUSRSELR_EL1         sys_reg(3, 3, 15, 0, 6)
-#define L2CPUSRDR_EL1           sys_reg(3, 3, 15, 0, 7)
 
 #define reg_idx(reg, i)         (((i) * IA_L2_REG_OFFSET) + reg##_BASE)
 
@@ -99,48 +98,7 @@
 #define L2_EVENT_STREX                     0x421
 #define L2_EVENT_CLREX                     0x422
 
-static DEFINE_RAW_SPINLOCK(l2_access_lock);
 
-/**
- * set_l2_indirect_reg: write value to an L2 register
- * @reg: Address of L2 register.
- * @value: Value to be written to register.
- *
- * Use architecturally required barriers for ordering between system register
- * accesses
- */
-static void set_l2_indirect_reg(u64 reg, u64 val)
-{
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&l2_access_lock, flags);
-	write_sysreg_s(reg, L2CPUSRSELR_EL1);
-	isb();
-	write_sysreg_s(val, L2CPUSRDR_EL1);
-	isb();
-	raw_spin_unlock_irqrestore(&l2_access_lock, flags);
-}
-
-/**
- * get_l2_indirect_reg: read an L2 register value
- * @reg: Address of L2 register.
- *
- * Use architecturally required barriers for ordering between system register
- * accesses
- */
-static u64 get_l2_indirect_reg(u64 reg)
-{
-	u64 val;
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&l2_access_lock, flags);
-	write_sysreg_s(reg, L2CPUSRSELR_EL1);
-	isb();
-	val = read_sysreg_s(L2CPUSRDR_EL1);
-	raw_spin_unlock_irqrestore(&l2_access_lock, flags);
-
-	return val;
-}
 
 struct cluster_pmu;
 
@@ -211,28 +169,28 @@ static inline struct cluster_pmu *get_cluster_pmu(
 static void cluster_pmu_reset(void)
 {
 	/* Reset all counters */
-	set_l2_indirect_reg(L2PMCR, L2PMCR_RESET_ALL);
-	set_l2_indirect_reg(L2PMCNTENCLR, l2_counter_present_mask);
-	set_l2_indirect_reg(L2PMINTENCLR, l2_counter_present_mask);
-	set_l2_indirect_reg(L2PMOVSCLR, l2_counter_present_mask);
+	kryo_l2_set_indirect_reg(L2PMCR, L2PMCR_RESET_ALL);
+	kryo_l2_set_indirect_reg(L2PMCNTENCLR, l2_counter_present_mask);
+	kryo_l2_set_indirect_reg(L2PMINTENCLR, l2_counter_present_mask);
+	kryo_l2_set_indirect_reg(L2PMOVSCLR, l2_counter_present_mask);
 }
 
 static inline void cluster_pmu_enable(void)
 {
-	set_l2_indirect_reg(L2PMCR, L2PMCR_COUNTERS_ENABLE);
+	kryo_l2_set_indirect_reg(L2PMCR, L2PMCR_COUNTERS_ENABLE);
 }
 
 static inline void cluster_pmu_disable(void)
 {
-	set_l2_indirect_reg(L2PMCR, L2PMCR_COUNTERS_DISABLE);
+	kryo_l2_set_indirect_reg(L2PMCR, L2PMCR_COUNTERS_DISABLE);
 }
 
 static inline void cluster_pmu_counter_set_value(u32 idx, u64 value)
 {
 	if (idx == l2_cycle_ctr_idx)
-		set_l2_indirect_reg(L2PMCCNTR, value);
+		kryo_l2_set_indirect_reg(L2PMCCNTR, value);
 	else
-		set_l2_indirect_reg(reg_idx(IA_L2PMXEVCNTR, idx), value);
+		kryo_l2_set_indirect_reg(reg_idx(IA_L2PMXEVCNTR, idx), value);
 }
 
 static inline u64 cluster_pmu_counter_get_value(u32 idx)
@@ -240,46 +198,46 @@ static inline u64 cluster_pmu_counter_get_value(u32 idx)
 	u64 value;
 
 	if (idx == l2_cycle_ctr_idx)
-		value = get_l2_indirect_reg(L2PMCCNTR);
+		value = kryo_l2_get_indirect_reg(L2PMCCNTR);
 	else
-		value = get_l2_indirect_reg(reg_idx(IA_L2PMXEVCNTR, idx));
+		value = kryo_l2_get_indirect_reg(reg_idx(IA_L2PMXEVCNTR, idx));
 
 	return value;
 }
 
 static inline void cluster_pmu_counter_enable(u32 idx)
 {
-	set_l2_indirect_reg(L2PMCNTENSET, idx_to_reg_bit(idx));
+	kryo_l2_set_indirect_reg(L2PMCNTENSET, idx_to_reg_bit(idx));
 }
 
 static inline void cluster_pmu_counter_disable(u32 idx)
 {
-	set_l2_indirect_reg(L2PMCNTENCLR, idx_to_reg_bit(idx));
+	kryo_l2_set_indirect_reg(L2PMCNTENCLR, idx_to_reg_bit(idx));
 }
 
 static inline void cluster_pmu_counter_enable_interrupt(u32 idx)
 {
-	set_l2_indirect_reg(L2PMINTENSET, idx_to_reg_bit(idx));
+	kryo_l2_set_indirect_reg(L2PMINTENSET, idx_to_reg_bit(idx));
 }
 
 static inline void cluster_pmu_counter_disable_interrupt(u32 idx)
 {
-	set_l2_indirect_reg(L2PMINTENCLR, idx_to_reg_bit(idx));
+	kryo_l2_set_indirect_reg(L2PMINTENCLR, idx_to_reg_bit(idx));
 }
 
 static inline void cluster_pmu_set_evccntcr(u32 val)
 {
-	set_l2_indirect_reg(L2PMCCNTCR, val);
+	kryo_l2_set_indirect_reg(L2PMCCNTCR, val);
 }
 
 static inline void cluster_pmu_set_evcntcr(u32 ctr, u32 val)
 {
-	set_l2_indirect_reg(reg_idx(IA_L2PMXEVCNTCR, ctr), val);
+	kryo_l2_set_indirect_reg(reg_idx(IA_L2PMXEVCNTCR, ctr), val);
 }
 
 static inline void cluster_pmu_set_evtyper(u32 ctr, u32 val)
 {
-	set_l2_indirect_reg(reg_idx(IA_L2PMXEVTYPER, ctr), val);
+	kryo_l2_set_indirect_reg(reg_idx(IA_L2PMXEVTYPER, ctr), val);
 }
 
 static void cluster_pmu_set_resr(struct cluster_pmu *cluster,
@@ -295,11 +253,11 @@ static void cluster_pmu_set_resr(struct cluster_pmu *cluster,
 
 	spin_lock_irqsave(&cluster->pmu_lock, flags);
 
-	resr_val = get_l2_indirect_reg(L2PMRESR);
+	resr_val = kryo_l2_get_indirect_reg(L2PMRESR);
 	resr_val &= ~(L2PMRESR_GROUP_MASK << shift);
 	resr_val |= field;
 	resr_val |= L2PMRESR_EN;
-	set_l2_indirect_reg(L2PMRESR, resr_val);
+	kryo_l2_set_indirect_reg(L2PMRESR, resr_val);
 
 	spin_unlock_irqrestore(&cluster->pmu_lock, flags);
 }
@@ -315,14 +273,14 @@ static inline void cluster_pmu_set_evfilter_sys_mode(u32 ctr)
 		   L2PMXEVFILTER_ORGFILTER_IDINDEP |
 		   L2PMXEVFILTER_ORGFILTER_ALL;
 
-	set_l2_indirect_reg(reg_idx(IA_L2PMXEVFILTER, ctr), val);
+	kryo_l2_set_indirect_reg(reg_idx(IA_L2PMXEVFILTER, ctr), val);
 }
 
 static inline u32 cluster_pmu_getreset_ovsr(void)
 {
-	u32 result = get_l2_indirect_reg(L2PMOVSSET);
+	u32 result = kryo_l2_get_indirect_reg(L2PMOVSSET);
 
-	set_l2_indirect_reg(L2PMOVSCLR, result);
+	kryo_l2_set_indirect_reg(L2PMOVSCLR, result);
 	return result;
 }
 
@@ -691,7 +649,7 @@ static struct attribute *l2_cache_pmu_cpumask_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group l2_cache_pmu_cpumask_group = {
+static const struct attribute_group l2_cache_pmu_cpumask_group = {
 	.attrs = l2_cache_pmu_cpumask_attrs,
 };
 
@@ -707,7 +665,7 @@ static struct attribute *l2_cache_pmu_formats[] = {
 	NULL,
 };
 
-static struct attribute_group l2_cache_pmu_format_group = {
+static const struct attribute_group l2_cache_pmu_format_group = {
 	.name = "format",
 	.attrs = l2_cache_pmu_formats,
 };
@@ -718,14 +676,11 @@ static ssize_t l2cache_pmu_event_show(struct device *dev,
 	struct perf_pmu_events_attr *pmu_attr;
 
 	pmu_attr = container_of(attr, struct perf_pmu_events_attr, attr);
-	return sprintf(page, "event=0x%02llx\n", pmu_attr->id);
+	return sysfs_emit(page, "event=0x%02llx\n", pmu_attr->id);
 }
 
-#define L2CACHE_EVENT_ATTR(_name, _id)					     \
-	(&((struct perf_pmu_events_attr[]) {				     \
-		{ .attr = __ATTR(_name, 0444, l2cache_pmu_event_show, NULL), \
-		  .id = _id, }						     \
-	})[0].attr.attr)
+#define L2CACHE_EVENT_ATTR(_name, _id)			    \
+	PMU_EVENT_ATTR_ID(_name, l2cache_pmu_event_show, _id)
 
 static struct attribute *l2_cache_pmu_events[] = {
 	L2CACHE_EVENT_ATTR(cycles, L2_EVENT_CYCLES),
@@ -742,7 +697,7 @@ static struct attribute *l2_cache_pmu_events[] = {
 	NULL
 };
 
-static struct attribute_group l2_cache_pmu_events_group = {
+static const struct attribute_group l2_cache_pmu_events_group = {
 	.name = "events",
 	.attrs = l2_cache_pmu_events,
 };
@@ -767,7 +722,7 @@ static int get_num_counters(void)
 {
 	int val;
 
-	val = get_l2_indirect_reg(L2PMCR);
+	val = kryo_l2_get_indirect_reg(L2PMCR);
 
 	/*
 	 * Read number of counters from L2PMCR and add 1
@@ -781,7 +736,7 @@ static struct cluster_pmu *l2_cache_associate_cpu_with_cluster(
 {
 	u64 mpidr;
 	int cpu_cluster_id;
-	struct cluster_pmu *cluster = NULL;
+	struct cluster_pmu *cluster;
 
 	/*
 	 * This assumes that the cluster_id is in MPIDR[aff1] for
@@ -803,10 +758,10 @@ static struct cluster_pmu *l2_cache_associate_cpu_with_cluster(
 			 cluster->cluster_id);
 		cpumask_set_cpu(cpu, &cluster->cluster_cpus);
 		*per_cpu_ptr(l2cache_pmu->pmu_cluster, cpu) = cluster;
-		break;
+		return cluster;
 	}
 
-	return cluster;
+	return NULL;
 }
 
 static int l2cache_pmu_online_cpu(unsigned int cpu, struct hlist_node *node)
@@ -846,9 +801,8 @@ static int l2cache_pmu_online_cpu(unsigned int cpu, struct hlist_node *node)
 
 static int l2cache_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
 {
-	struct cluster_pmu *cluster;
 	struct l2cache_pmu *l2cache_pmu;
-	cpumask_t cluster_online_cpus;
+	struct cluster_pmu *cluster;
 	unsigned int target;
 
 	l2cache_pmu = hlist_entry_safe(node, struct l2cache_pmu, node);
@@ -865,9 +819,8 @@ static int l2cache_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
 	cluster->on_cpu = -1;
 
 	/* Any other CPU for this cluster which is still online */
-	cpumask_and(&cluster_online_cpus, &cluster->cluster_cpus,
-		    cpu_online_mask);
-	target = cpumask_any_but(&cluster_online_cpus, cpu);
+	target = cpumask_any_and_but(&cluster->cluster_cpus,
+				     cpu_online_mask, cpu);
 	if (target >= nr_cpu_ids) {
 		disable_irq(cluster->irq);
 		return 0;
@@ -887,17 +840,14 @@ static int l2_cache_pmu_probe_cluster(struct device *dev, void *data)
 	struct platform_device *sdev = to_platform_device(dev);
 	struct l2cache_pmu *l2cache_pmu = data;
 	struct cluster_pmu *cluster;
-	struct acpi_device *device;
-	unsigned long fw_cluster_id;
+	u64 fw_cluster_id;
 	int err;
 	int irq;
 
-	if (acpi_bus_get_device(ACPI_HANDLE(dev), &device))
-		return -ENODEV;
-
-	if (kstrtoul(device->pnp.unique_id, 10, &fw_cluster_id) < 0) {
+	err = acpi_dev_uid_to_integer(ACPI_COMPANION(dev), &fw_cluster_id);
+	if (err) {
 		dev_err(&pdev->dev, "unable to read ACPI uid\n");
-		return -ENODEV;
+		return err;
 	}
 
 	cluster = devm_kzalloc(&pdev->dev, sizeof(*cluster), GFP_KERNEL);
@@ -905,20 +855,19 @@ static int l2_cache_pmu_probe_cluster(struct device *dev, void *data)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&cluster->next);
-	list_add(&cluster->next, &l2cache_pmu->clusters);
 	cluster->cluster_id = fw_cluster_id;
 
 	irq = platform_get_irq(sdev, 0);
 	if (irq < 0)
 		return irq;
-	irq_set_status_flags(irq, IRQ_NOAUTOEN);
 	cluster->irq = irq;
 
 	cluster->l2cache_pmu = l2cache_pmu;
 	cluster->on_cpu = -1;
 
 	err = devm_request_irq(&pdev->dev, irq, l2_cache_handle_irq,
-			       IRQF_NOBALANCING | IRQF_NO_THREAD,
+			       IRQF_NOBALANCING | IRQF_NO_THREAD |
+			       IRQF_NO_AUTOEN,
 			       "l2-cache-pmu", cluster);
 	if (err) {
 		dev_err(&pdev->dev,
@@ -927,10 +876,11 @@ static int l2_cache_pmu_probe_cluster(struct device *dev, void *data)
 	}
 
 	dev_info(&pdev->dev,
-		"Registered L2 cache PMU cluster %ld\n", fw_cluster_id);
+		 "Registered L2 cache PMU cluster %lld\n", fw_cluster_id);
 
 	spin_lock_init(&cluster->pmu_lock);
 
+	list_add(&cluster->next, &l2cache_pmu->clusters);
 	l2cache_pmu->num_pmus++;
 
 	return 0;
@@ -952,6 +902,7 @@ static int l2_cache_pmu_probe(struct platform_device *pdev)
 	l2cache_pmu->pmu = (struct pmu) {
 		/* suffix is instance id for future use with multiple sockets */
 		.name		= "l2cache_0",
+		.parent		= &pdev->dev,
 		.task_ctx_nr    = perf_invalid_context,
 		.pmu_enable	= l2_cache_pmu_enable,
 		.pmu_disable	= l2_cache_pmu_disable,
@@ -1013,7 +964,7 @@ out_unregister:
 	return err;
 }
 
-static int l2_cache_pmu_remove(struct platform_device *pdev)
+static void l2_cache_pmu_remove(struct platform_device *pdev)
 {
 	struct l2cache_pmu *l2cache_pmu =
 		to_l2cache_pmu(platform_get_drvdata(pdev));
@@ -1021,16 +972,16 @@ static int l2_cache_pmu_remove(struct platform_device *pdev)
 	perf_pmu_unregister(&l2cache_pmu->pmu);
 	cpuhp_state_remove_instance(CPUHP_AP_PERF_ARM_QCOM_L2_ONLINE,
 				    &l2cache_pmu->node);
-	return 0;
 }
 
 static struct platform_driver l2_cache_pmu_driver = {
 	.driver = {
 		.name = "qcom-l2cache-pmu",
 		.acpi_match_table = ACPI_PTR(l2_cache_pmu_acpi_match),
+		.suppress_bind_attrs = true,
 	},
 	.probe = l2_cache_pmu_probe,
-	.remove = l2_cache_pmu_remove,
+	.remove_new = l2_cache_pmu_remove,
 };
 
 static int __init register_l2_cache_pmu_driver(void)

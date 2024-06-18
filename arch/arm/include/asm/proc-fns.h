@@ -147,8 +147,6 @@ static inline void init_proc_vtable(const struct processor *p)
 
 extern void cpu_resume(void);
 
-#include <asm/memory.h>
-
 #ifdef CONFIG_MMU
 
 #define cpu_switch_mm(pgd,mm) cpu_do_switch_mm(virt_to_phys(pgd),mm)
@@ -179,6 +177,18 @@ extern void cpu_resume(void);
 		(pgd_t *)phys_to_virt(pg);		\
 	})
 #endif
+
+static inline unsigned int cpu_get_ttbcr(void)
+{
+	unsigned int ttbcr;
+	asm("mrc p15, 0, %0, c2, c0, 2" : "=r" (ttbcr));
+	return ttbcr;
+}
+
+static inline void cpu_set_ttbcr(unsigned int ttbcr)
+{
+	asm volatile("mcr p15, 0, %0, c2, c0, 2" : : "r" (ttbcr) : "memory");
+}
 
 #else	/*!CONFIG_MMU */
 

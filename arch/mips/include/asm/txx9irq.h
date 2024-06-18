@@ -21,11 +21,7 @@
 #endif
 #endif
 
-#ifdef CONFIG_CPU_TX39XX
-#define TXx9_MAX_IR 16
-#else
 #define TXx9_MAX_IR 32
-#endif
 
 void txx9_irq_init(unsigned long baseaddr);
 int txx9_irq(void);

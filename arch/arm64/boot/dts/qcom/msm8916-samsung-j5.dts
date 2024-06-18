@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: GPL-2.0-only
+
+/dts-v1/;
+
+#include "msm8916-samsung-j5-common.dtsi"
+
+/ {
+	model = "Samsung Galaxy J5 (2015)";
+	compatible = "samsung,j5", "qcom,msm8916";
+	chassis-type = "handset";
+};
+
+&accelerometer {
+	vdd-supply = <&pm8916_l5>;
+	vddio-supply = <&pm8916_l5>;
+};
+
+&blsp_i2c5 {
+	status = "disabled";
+};
+
+&pm8916_codec {
+	qcom,micbias1-ext-cap;
+};
+
+&touchscreen {
+	/* FIXME: Missing sm5703-mfd driver to power up vdd-supply */
+};
+
+&usb_hs_phy {
+	qcom,init-seq = /bits/ 8 <0x1 0x19 0x2 0x0b>;
+};

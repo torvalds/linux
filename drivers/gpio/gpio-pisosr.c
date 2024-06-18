@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2015 Texas Instruments Incorporated - http://www.ti.com/
- *	Andrew F. Davis <afd@ti.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether expressed or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License version 2 for more details.
+ * Copyright (C) 2015-2023 Texas Instruments Incorporated - https://www.ti.com/
+ *	Andrew Davis <afd@ti.com>
  */
 
 #include <linux/bitmap.h>
@@ -65,7 +57,7 @@ static int pisosr_gpio_get_direction(struct gpio_chip *chip,
 				     unsigned offset)
 {
 	/* This device always input */
-	return 1;
+	return GPIO_LINE_DIRECTION_IN;
 }
 
 static int pisosr_gpio_direction_input(struct gpio_chip *chip,
@@ -96,16 +88,16 @@ static int pisosr_gpio_get_multiple(struct gpio_chip *chip,
 				    unsigned long *mask, unsigned long *bits)
 {
 	struct pisosr_gpio *gpio = gpiochip_get_data(chip);
-	unsigned int nbytes = DIV_ROUND_UP(chip->ngpio, 8);
-	unsigned int i, j;
+	unsigned long offset;
+	unsigned long gpio_mask;
+	unsigned long buffer_state;
 
 	pisosr_gpio_refresh(gpio);
 
 	bitmap_zero(bits, chip->ngpio);
-	for (i = 0; i < nbytes; i++) {
-		j = i / sizeof(unsigned long);
-		bits[j] |= ((unsigned long) gpio->buffer[i])
-			   << (8 * (i % sizeof(unsigned long)));
+	for_each_set_clump8(offset, gpio_mask, mask, chip->ngpio) {
+		buffer_state = gpio->buffer[offset / 8] & gpio_mask;
+		bitmap_set_value8(bits, buffer_state, offset);
 	}
 
 	return 0;
@@ -124,6 +116,11 @@ static const struct gpio_chip template_chip = {
 	.can_sleep		= true,
 };
 
+static void pisosr_mutex_destroy(void *lock)
+{
+	mutex_destroy(lock);
+}
+
 static int pisosr_gpio_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
@@ -133,8 +130,6 @@ static int pisosr_gpio_probe(struct spi_device *spi)
 	gpio = devm_kzalloc(dev, sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
 		return -ENOMEM;
-
-	spi_set_drvdata(spi, gpio);
 
 	gpio->chip = template_chip;
 	gpio->chip.parent = dev;
@@ -148,31 +143,20 @@ static int pisosr_gpio_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	gpio->load_gpio = devm_gpiod_get_optional(dev, "load", GPIOD_OUT_LOW);
-	if (IS_ERR(gpio->load_gpio)) {
-		ret = PTR_ERR(gpio->load_gpio);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "Unable to allocate load GPIO\n");
-		return ret;
-	}
+	if (IS_ERR(gpio->load_gpio))
+		return dev_err_probe(dev, PTR_ERR(gpio->load_gpio),
+				     "Unable to allocate load GPIO\n");
 
 	mutex_init(&gpio->lock);
+	ret = devm_add_action_or_reset(dev, pisosr_mutex_destroy, &gpio->lock);
+	if (ret)
+		return ret;
 
-	ret = gpiochip_add_data(&gpio->chip, gpio);
+	ret = devm_gpiochip_add_data(dev, &gpio->chip, gpio);
 	if (ret < 0) {
 		dev_err(dev, "Unable to register gpiochip\n");
 		return ret;
 	}
-
-	return 0;
-}
-
-static int pisosr_gpio_remove(struct spi_device *spi)
-{
-	struct pisosr_gpio *gpio = spi_get_drvdata(spi);
-
-	gpiochip_remove(&gpio->chip);
-
-	mutex_destroy(&gpio->lock);
 
 	return 0;
 }
@@ -195,11 +179,10 @@ static struct spi_driver pisosr_gpio_driver = {
 		.of_match_table = pisosr_gpio_of_match_table,
 	},
 	.probe = pisosr_gpio_probe,
-	.remove = pisosr_gpio_remove,
 	.id_table = pisosr_gpio_id_table,
 };
 module_spi_driver(pisosr_gpio_driver);
 
-MODULE_AUTHOR("Andrew F. Davis <afd@ti.com>");
+MODULE_AUTHOR("Andrew Davis <afd@ti.com>");
 MODULE_DESCRIPTION("SPI Compatible PISO Shift Register GPIO Driver");
 MODULE_LICENSE("GPL v2");

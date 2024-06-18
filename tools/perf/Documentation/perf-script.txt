@@ -79,6 +79,9 @@ OPTIONS
 --dump-raw-trace=::
         Display verbose dump of the trace data.
 
+--dump-unsorted-raw-trace=::
+        Same as --dump-raw-trace but not sorted in time order.
+
 -L::
 --Latency=::
         Show latency attributes (irqs/preemption disabled, etc).
@@ -98,6 +101,18 @@ OPTIONS
         Generate perf-script.[ext] starter script for given language,
         using current perf.data.
 
+--dlfilter=<file>::
+	Filter sample events using the given shared object file.
+	Refer linkperf:perf-dlfilter[1]
+
+--dlarg=<arg>::
+	Pass 'arg' as an argument to the dlfilter. --dlarg may be repeated
+	to add more arguments.
+
+--list-dlfilters::
+        Display a list of available dlfilters. Use with option -v (must come
+        before option --list-dlfilters) to show long descriptions.
+
 -a::
         Force system-wide collection.  Scripts run without a <command>
         normally use -a by default, while scripts run with a <command>
@@ -115,9 +130,12 @@ OPTIONS
 -F::
 --fields::
         Comma separated list of fields to print. Options are:
-        comm, tid, pid, time, cpu, event, trace, ip, sym, dso, addr, symoff,
-        srcline, period, iregs, uregs, brstack, brstacksym, flags, bpf-output, brstackinsn,
-        brstackoff, callindent, insn, insnlen, synth, phys_addr, metric, misc, srccode, ipc.
+        comm, tid, pid, time, cpu, event, trace, ip, sym, dso, dsoff, addr, symoff,
+        srcline, period, iregs, uregs, brstack, brstacksym, flags, bpf-output,
+        brstackinsn, brstackinsnlen, brstackdisasm, brstackoff, callindent, insn, disasm,
+        insnlen, synth, phys_addr, metric, misc, srccode, ipc, data_page_size,
+        code_page_size, ins_lat, machine_pid, vcpu, cgroup, retire_lat,
+
         Field list can be prepended with the type, trace, sw or hw,
         to indicate to which event type the field list applies.
         e.g., -F sw:comm,tid,time,ip,sym  and -F trace:time,cpu,trace
@@ -182,29 +200,40 @@ OPTIONS
 	At this point usage is displayed, and perf-script exits.
 
 	The flags field is synthesized and may have a value when Instruction
-	Trace decoding. The flags are "bcrosyiABEx" which stand for branch,
+	Trace decoding. The flags are "bcrosyiABExghDt" which stand for branch,
 	call, return, conditional, system, asynchronous, interrupt,
-	transaction abort, trace begin, trace end, and in transaction,
-	respectively. Known combinations of flags are printed more nicely e.g.
+	transaction abort, trace begin, trace end, in transaction, VM-Entry,
+	VM-Exit, interrupt disabled and interrupt disable toggle respectively.
+	Known combinations of flags are printed more nicely e.g.
 	"call" for "bc", "return" for "br", "jcc" for "bo", "jmp" for "b",
 	"int" for "bci", "iret" for "bri", "syscall" for "bcs", "sysret" for "brs",
 	"async" for "by", "hw int" for "bcyi", "tx abrt" for "bA", "tr strt" for "bB",
-	"tr end" for "bE". However the "x" flag will be display separately in those
-	cases e.g. "jcc     (x)" for a condition branch within a transaction.
+	"tr end" for "bE", "vmentry" for "bcg", "vmexit" for "bch".
+	However the "x", "D" and "t" flags will be displayed separately in those
+	cases e.g. "jcc     (xD)" for a condition branch within a transaction
+	with interrupts disabled. Note, interrupts becoming disabled is "t",
+	whereas interrupts becoming enabled is "Dt".
 
 	The callindent field is synthesized and may have a value when
 	Instruction Trace decoding. For calls and returns, it will display the
 	name of the symbol indented with spaces to reflect the stack depth.
 
-	When doing instruction trace decoding insn and insnlen give the
-	instruction bytes and the instruction length of the current
-	instruction.
+	When doing instruction trace decoding, insn, disasm and insnlen give the
+	instruction bytes, disassembled instructions (requires libcapstone support)
+	and the instruction length of the current instruction respectively.
 
 	The synth field is used by synthesized events which may be created when
 	Instruction Trace decoding.
 
 	The ipc (instructions per cycle) field is synthesized and may have a value when
 	Instruction Trace decoding.
+
+	The machine_pid and vcpu fields are derived from data resulting from using
+	perf inject to insert a perf.data file recorded inside a virtual machine into
+	a perf.data file recorded on the host at the same time.
+
+	The cgroup fields requires sample having the cgroup id which is saved
+	when "--all-cgroups" option is passed to 'perf record'.
 
 	Finally, a user may not set fields to none for all event types.
 	i.e., -F "" is not allowed.
@@ -223,6 +252,13 @@ OPTIONS
 	When brstackinsn is specified the full assembler sequences of branch sequences for each sample
 	is printed. This is the full execution path leading to the sample. This is only supported when the
 	sample was recorded with perf record -b or -j any.
+
+	Use brstackinsnlen to print the brstackinsn lenght. For example, you
+	can’t know the next sequential instruction after an unconditional branch unless
+	you calculate that based on its length.
+
+	brstackdisasm acts like brstackinsn, but will print disassembled instructions if
+	perf is built with the capstone library.
 
 	The brstackoff field will print an offset into a specific dso/binary.
 
@@ -319,6 +355,13 @@ OPTIONS
 --show-bpf-events
 	Display bpf events i.e. events of type PERF_RECORD_KSYMBOL and PERF_RECORD_BPF_EVENT.
 
+--show-cgroup-events
+	Display cgroup events i.e. events of type PERF_RECORD_CGROUP.
+
+--show-text-poke-events
+	Display text poke events i.e. events of type PERF_RECORD_TEXT_POKE and
+	PERF_RECORD_KSYMBOL.
+
 --demangle::
 	Demangle symbol names to human readable form. It's enabled by default,
 	disable with --no-demangle.
@@ -390,6 +433,9 @@ include::itrace.txt[]
 --reltime::
 	Print time stamps relative to trace start.
 
+--deltatime::
+	Print time stamps relative to previous event.
+
 --per-event-dump::
 	Create per event files with a "perf.data.EVENT.dump" name instead of
         printing to stdout, useful, for instance, for generating flamegraphs.
@@ -399,12 +445,44 @@ include::itrace.txt[]
 	will be printed. Each entry has function name and file/line. Enabled by
 	default, disable with --no-inline.
 
---insn-trace::
-	Show instruction stream for intel_pt traces. Combine with --xed to
-	show disassembly.
+--insn-trace[=<raw|disasm>]::
+	Show instruction stream in bytes (raw) or disassembled (disasm)
+	for intel_pt traces. The default is 'raw'. To use xed, combine
+	'raw' with --xed to show disassembly done by xed.
 
 --xed::
 	Run xed disassembler on output. Requires installing the xed disassembler.
+
+-S::
+--symbols=symbol[,symbol...]::
+	Only consider the listed symbols. Symbols are typically a name
+	but they may also be hexadecimal address.
+
+	The hexadecimal address may be the start address of a symbol or
+	any other address to filter the trace records
+
+	For example, to select the symbol noploop or the address 0x4007a0:
+	perf script --symbols=noploop,0x4007a0
+
+	Support filtering trace records by symbol name, start address of
+	symbol, any hexadecimal address and address range.
+
+	The comparison order is:
+
+	1. symbol name comparison
+	2. symbol start address comparison.
+	3. any hexadecimal address comparison.
+	4. address range comparison (see --addr-range).
+
+--addr-range::
+       Use with -S or --symbols to list traced records within address range.
+
+       For example, to list the traced records within the address range
+       [0x4007a0, 0x0x4007a9]:
+       perf script -S 0x4007a0 --addr-range 10
+
+--dsos=::
+	Only consider symbols in these DSOs.
 
 --call-trace::
 	Show call stream for intel_pt traces. The CPUs are interleaved, but
@@ -426,7 +504,23 @@ include::itrace.txt[]
 --show-on-off-events::
 	Show the --switch-on/off events too.
 
+--stitch-lbr::
+	Show callgraph with stitched LBRs, which may have more complete
+	callgraph. The perf.data file must have been obtained using
+	perf record --call-graph lbr.
+	Disabled by default. In common cases with call stack overflows,
+	it can recreate better call stacks than the default lbr call stack
+	output. But this approach is not foolproof. There can be cases
+	where it creates incorrect call stacks from incorrect matches.
+	The known limitations include exception handing such as
+	setjmp/longjmp will have calls/returns not match.
+
+:GMEXAMPLECMD: script
+:GMEXAMPLESUBCMD:
+include::guest-files.txt[]
+
 SEE ALSO
 --------
 linkperf:perf-record[1], linkperf:perf-script-perl[1],
-linkperf:perf-script-python[1]
+linkperf:perf-script-python[1], linkperf:perf-intel-pt[1],
+linkperf:perf-dlfilter[1]

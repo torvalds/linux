@@ -12,6 +12,7 @@
 #include <asm/mipsregs.h>
 #include <asm/r4kcache.h>
 #include <asm/hazards.h>
+#include <asm/spram.h>
 
 /*
  * These definitions are correct for the 24K/34K/74K SPRAM sample
@@ -209,11 +210,11 @@ void spram_config(void)
 	case CPU_P6600:
 		config0 = read_c0_config();
 		/* FIXME: addresses are Malta specific */
-		if (config0 & (1<<24)) {
+		if (config0 & MIPS_CONF_ISP) {
 			probe_spram("ISPRAM", 0x1c000000,
 				    &ispram_load_tag, &ispram_store_tag);
 		}
-		if (config0 & (1<<23))
+		if (config0 & MIPS_CONF_DSP)
 			probe_spram("DSPRAM", 0x1c100000,
 				    &dspram_load_tag, &dspram_store_tag);
 	}

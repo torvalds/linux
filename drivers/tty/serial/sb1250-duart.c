@@ -15,10 +15,6 @@
  *	"BCM1250/BCM1125/BCM1125H User Manual", Broadcom Corporation
  */
 
-#if defined(CONFIG_SERIAL_SB1250_DUART_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
-#define SUPPORT_SYSRQ
-#endif
-
 #include <linux/compiler.h>
 #include <linux/console.h>
 #include <linux/delay.h>
@@ -38,15 +34,14 @@
 #include <linux/types.h>
 
 #include <linux/refcount.h>
-#include <asm/io.h>
-#include <asm/war.h>
+#include <linux/io.h>
 
 #include <asm/sibyte/sb1250.h>
 #include <asm/sibyte/sb1250_uart.h>
 #include <asm/sibyte/swarm.h>
 
 
-#if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
+#if defined(CONFIG_SIBYTE_BCM1x80)
 #include <asm/sibyte/bcm1480_regs.h>
 #include <asm/sibyte/bcm1480_int.h>
 
@@ -161,7 +156,7 @@ static unsigned char read_sbdchn(struct sbd_port *sport, int reg)
 	unsigned char retval;
 
 	retval = __read_sbdchn(sport, reg);
-	if (SIBYTE_1956_WAR)
+	if (IS_ENABLED(CONFIG_SB1_PASS_2_WORKAROUNDS))
 		__war_sbd1956(sport);
 	return retval;
 }
@@ -171,7 +166,7 @@ static unsigned char read_sbdshr(struct sbd_port *sport, int reg)
 	unsigned char retval;
 
 	retval = __read_sbdshr(sport, reg);
-	if (SIBYTE_1956_WAR)
+	if (IS_ENABLED(CONFIG_SB1_PASS_2_WORKAROUNDS))
 		__war_sbd1956(sport);
 	return retval;
 }
@@ -179,14 +174,14 @@ static unsigned char read_sbdshr(struct sbd_port *sport, int reg)
 static void write_sbdchn(struct sbd_port *sport, int reg, unsigned int value)
 {
 	__write_sbdchn(sport, reg, value);
-	if (SIBYTE_1956_WAR)
+	if (IS_ENABLED(CONFIG_SB1_PASS_2_WORKAROUNDS))
 		__war_sbd1956(sport);
 }
 
 static void write_sbdshr(struct sbd_port *sport, int reg, unsigned int value)
 {
 	__write_sbdshr(sport, reg, value);
-	if (SIBYTE_1956_WAR)
+	if (IS_ENABLED(CONFIG_SB1_PASS_2_WORKAROUNDS))
 		__war_sbd1956(sport);
 }
 
@@ -336,8 +331,9 @@ static void sbd_receive_chars(struct sbd_port *sport)
 {
 	struct uart_port *uport = &sport->port;
 	struct uart_icount *icount;
-	unsigned int status, ch, flag;
+	unsigned int status;
 	int count;
+	u8 ch, flag;
 
 	for (count = 16; count; count--) {
 		status = read_sbdchn(sport, R_DUART_STATUS);
@@ -386,7 +382,8 @@ static void sbd_receive_chars(struct sbd_port *sport)
 static void sbd_transmit_chars(struct sbd_port *sport)
 {
 	struct uart_port *uport = &sport->port;
-	struct circ_buf *xmit = &sport->port.state->xmit;
+	struct tty_port *tport = &sport->port.state->port;
+	unsigned char ch;
 	unsigned int mask;
 	int stop_tx;
 
@@ -399,20 +396,19 @@ static void sbd_transmit_chars(struct sbd_port *sport)
 	}
 
 	/* If nothing to do or stopped or hardware stopped.  */
-	stop_tx = (uart_circ_empty(xmit) || uart_tx_stopped(&sport->port));
+	stop_tx = uart_tx_stopped(&sport->port) ||
+		!uart_fifo_get(&sport->port, &ch);
 
 	/* Send char.  */
 	if (!stop_tx) {
-		write_sbdchn(sport, R_DUART_TX_HOLD, xmit->buf[xmit->tail]);
-		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
-		sport->port.icount.tx++;
+		write_sbdchn(sport, R_DUART_TX_HOLD, ch);
 
-		if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+		if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 			uart_write_wakeup(&sport->port);
 	}
 
 	/* Are we are done?  */
-	if (stop_tx || uart_circ_empty(xmit)) {
+	if (stop_tx || kfifo_is_empty(&tport->xmit_fifo)) {
 		/* Disable tx interrupts.  */
 		mask = read_sbdshr(sport, R_DUART_IMRREG((uport->line) % 2));
 		mask &= ~M_DUART_IMR_TX;
@@ -536,7 +532,7 @@ static void sbd_init_port(struct sbd_port *sport)
 }
 
 static void sbd_set_termios(struct uart_port *uport, struct ktermios *termios,
-			    struct ktermios *old_termios)
+			    const struct ktermios *old_termios)
 {
 	struct sbd_port *sport = to_sport(uport);
 	unsigned int mode1 = 0, mode2 = 0, aux = 0;
@@ -615,7 +611,7 @@ static void sbd_set_termios(struct uart_port *uport, struct ktermios *termios,
 	else
 		aux &= ~M_DUART_CTS_CHNG_ENA;
 
-	spin_lock(&uport->lock);
+	uart_port_lock(uport);
 
 	if (sport->tx_stopped)
 		command |= M_DUART_TX_DIS;
@@ -637,7 +633,7 @@ static void sbd_set_termios(struct uart_port *uport, struct ktermios *termios,
 
 	write_sbdchn(sport, R_DUART_CMD, command);
 
-	spin_unlock(&uport->lock);
+	uart_port_unlock(uport);
 }
 
 
@@ -668,7 +664,7 @@ static int sbd_map_port(struct uart_port *uport)
 	struct sbd_duart *duart = sport->duart;
 
 	if (!uport->membase)
-		uport->membase = ioremap_nocache(uport->mapbase,
+		uport->membase = ioremap(uport->mapbase,
 						 DUART_CHANREG_SPACING);
 	if (!uport->membase) {
 		printk(err);
@@ -676,7 +672,7 @@ static int sbd_map_port(struct uart_port *uport)
 	}
 
 	if (!sport->memctrl)
-		sport->memctrl = ioremap_nocache(duart->mapctrl,
+		sport->memctrl = ioremap(duart->mapctrl,
 						 DUART_CHANREG_SPACING);
 	if (!sport->memctrl) {
 		printk(err);
@@ -813,6 +809,7 @@ static void __init sbd_probe_duarts(void)
 			uport->ops	= &sbd_ops;
 			uport->line	= line;
 			uport->mapbase	= SBD_CHANREGS(line);
+			uport->has_sysrq = IS_ENABLED(CONFIG_SERIAL_SB1250_DUART_CONSOLE);
 		}
 	}
 }
@@ -824,7 +821,7 @@ static void __init sbd_probe_duarts(void)
  * console output.  The console_lock is held by the caller, so we
  * shouldn't be interrupted for more console activity.
  */
-static void sbd_console_putchar(struct uart_port *uport, int ch)
+static void sbd_console_putchar(struct uart_port *uport, unsigned char ch)
 {
 	struct sbd_port *sport = to_sport(uport);
 
@@ -843,22 +840,22 @@ static void sbd_console_write(struct console *co, const char *s,
 	unsigned int mask;
 
 	/* Disable transmit interrupts and enable the transmitter. */
-	spin_lock_irqsave(&uport->lock, flags);
+	uart_port_lock_irqsave(uport, &flags);
 	mask = read_sbdshr(sport, R_DUART_IMRREG((uport->line) % 2));
 	write_sbdshr(sport, R_DUART_IMRREG((uport->line) % 2),
 		     mask & ~M_DUART_IMR_TX);
 	write_sbdchn(sport, R_DUART_CMD, M_DUART_TX_EN);
-	spin_unlock_irqrestore(&uport->lock, flags);
+	uart_port_unlock_irqrestore(uport, flags);
 
 	uart_console_write(&sport->port, s, count, sbd_console_putchar);
 
 	/* Restore transmit interrupts and the transmitter enable. */
-	spin_lock_irqsave(&uport->lock, flags);
+	uart_port_lock_irqsave(uport, &flags);
 	sbd_line_drain(sport);
 	if (sport->tx_stopped)
 		write_sbdchn(sport, R_DUART_CMD, M_DUART_TX_DIS);
 	write_sbdshr(sport, R_DUART_IMRREG((uport->line) % 2), mask);
-	spin_unlock_irqrestore(&uport->lock, flags);
+	uart_port_unlock_irqrestore(uport, flags);
 }
 
 static int __init sbd_console_setup(struct console *co, char *options)

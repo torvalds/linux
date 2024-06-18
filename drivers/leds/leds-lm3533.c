@@ -314,7 +314,7 @@ static ssize_t show_id(struct device *dev,
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct lm3533_led *led = to_lm3533_led(led_cdev);
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", led->id);
+	return sysfs_emit(buf, "%d\n", led->id);
 }
 
 /*
@@ -344,7 +344,7 @@ static ssize_t show_risefalltime(struct device *dev,
 	if (ret)
 		return ret;
 
-	return scnprintf(buf, PAGE_SIZE, "%x\n", val);
+	return sysfs_emit(buf, "%x\n", val);
 }
 
 static ssize_t show_risetime(struct device *dev,
@@ -415,7 +415,7 @@ static ssize_t show_als_channel(struct device *dev,
 
 	channel = (val & LM3533_REG_CTRLBANK_BCONF_ALS_CHANNEL_MASK) + 1;
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n", channel);
+	return sysfs_emit(buf, "%u\n", channel);
 }
 
 static ssize_t store_als_channel(struct device *dev,
@@ -465,7 +465,7 @@ static ssize_t show_als_en(struct device *dev,
 
 	enable = val & LM3533_REG_CTRLBANK_BCONF_ALS_EN_MASK;
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", enable);
+	return sysfs_emit(buf, "%d\n", enable);
 }
 
 static ssize_t store_als_en(struct device *dev,
@@ -518,7 +518,7 @@ static ssize_t show_linear(struct device *dev,
 	else
 		linear = 0;
 
-	return scnprintf(buf, PAGE_SIZE, "%x\n", linear);
+	return sysfs_emit(buf, "%x\n", linear);
 }
 
 static ssize_t store_linear(struct device *dev,
@@ -564,7 +564,7 @@ static ssize_t show_pwm(struct device *dev,
 	if (ret)
 		return ret;
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n", val);
+	return sysfs_emit(buf, "%u\n", val);
 }
 
 static ssize_t store_pwm(struct device *dev,
@@ -608,7 +608,7 @@ static struct attribute *lm3533_led_attributes[] = {
 static umode_t lm3533_led_attr_is_visible(struct kobject *kobj,
 					     struct attribute *attr, int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct lm3533_led *led = to_lm3533_led(led_cdev);
 	umode_t mode = attr->mode;
@@ -679,7 +679,7 @@ static int lm3533_led_probe(struct platform_device *pdev)
 	led->cdev.brightness_get = lm3533_led_get;
 	led->cdev.blink_set = lm3533_led_blink_set;
 	led->cdev.brightness = LED_OFF;
-	led->cdev.groups = lm3533_led_attribute_groups,
+	led->cdev.groups = lm3533_led_attribute_groups;
 	led->id = pdev->id;
 
 	mutex_init(&led->mutex);
@@ -694,7 +694,7 @@ static int lm3533_led_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, led);
 
-	ret = devm_led_classdev_register(pdev->dev.parent, &led->cdev);
+	ret = led_classdev_register(pdev->dev.parent, &led->cdev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register LED %d\n", pdev->id);
 		return ret;
@@ -704,24 +704,28 @@ static int lm3533_led_probe(struct platform_device *pdev)
 
 	ret = lm3533_led_setup(led, pdata);
 	if (ret)
-		return ret;
+		goto err_deregister;
 
 	ret = lm3533_ctrlbank_enable(&led->cb);
 	if (ret)
-		return ret;
+		goto err_deregister;
 
 	return 0;
+
+err_deregister:
+	led_classdev_unregister(&led->cdev);
+
+	return ret;
 }
 
-static int lm3533_led_remove(struct platform_device *pdev)
+static void lm3533_led_remove(struct platform_device *pdev)
 {
 	struct lm3533_led *led = platform_get_drvdata(pdev);
 
 	dev_dbg(&pdev->dev, "%s\n", __func__);
 
 	lm3533_ctrlbank_disable(&led->cb);
-
-	return 0;
+	led_classdev_unregister(&led->cdev);
 }
 
 static void lm3533_led_shutdown(struct platform_device *pdev)
@@ -740,7 +744,7 @@ static struct platform_driver lm3533_led_driver = {
 		.name = "lm3533-leds",
 	},
 	.probe		= lm3533_led_probe,
-	.remove		= lm3533_led_remove,
+	.remove_new	= lm3533_led_remove,
 	.shutdown	= lm3533_led_shutdown,
 };
 module_platform_driver(lm3533_led_driver);

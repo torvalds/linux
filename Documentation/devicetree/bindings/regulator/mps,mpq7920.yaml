@@ -1,0 +1,117 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/mps,mpq7920.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Monolithic Power System MPQ7920 PMIC
+
+maintainers:
+  - Saravanan Sekar <sravanhome@gmail.com>
+
+properties:
+  $nodename:
+    pattern: "pmic@[0-9a-f]{1,2}"
+  compatible:
+    enum:
+      - mps,mpq7920
+
+  reg:
+    maxItems: 1
+
+  regulators:
+    type: object
+
+    description: |
+      list of regulators provided by this controller, must be named
+      after their hardware counterparts BUCK[1-4], one LDORTC, and LDO[2-5]
+
+    properties:
+      mps,switch-freq:
+        $ref: /schemas/types.yaml#/definitions/uint8
+        enum: [0, 1, 2, 3]
+        default: 2
+        description: |
+          switching frequency must be one of following corresponding value
+          1.1MHz, 1.65MHz, 2.2MHz, 2.75MHz
+
+      ldortc:
+        type: object
+        $ref: regulator.yaml#
+        unevaluatedProperties: false
+
+    patternProperties:
+      "^ldo[1-4]$":
+        type: object
+        $ref: regulator.yaml#
+        unevaluatedProperties: false
+
+      "^buck[1-4]$":
+        type: object
+        $ref: regulator.yaml#
+
+        properties:
+          mps,buck-softstart:
+            $ref: /schemas/types.yaml#/definitions/uint8
+            enum: [0, 1, 2, 3]
+            description: |
+              defines the soft start time of this buck, must be one of the following
+              corresponding values 150us, 300us, 610us, 920us
+
+          mps,buck-phase-delay:
+            $ref: /schemas/types.yaml#/definitions/uint8
+            enum: [0, 1, 2, 3]
+            description: |
+              defines the phase delay of this buck, must be one of the following
+              corresponding values 0deg, 90deg, 180deg, 270deg
+
+          mps,buck-ovp-disable:
+            type: boolean
+            description: |
+              disables over voltage protection of this buck
+
+        unevaluatedProperties: false
+
+    additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - regulators
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        pmic@69 {
+          compatible = "mps,mpq7920";
+          reg = <0x69>;
+
+          regulators {
+            mps,switch-freq = /bits/ 8 <1>;
+
+            buck1 {
+             regulator-name = "buck1";
+             regulator-min-microvolt = <400000>;
+             regulator-max-microvolt = <3587500>;
+             regulator-min-microamp = <460000>;
+             regulator-max-microamp = <7600000>;
+             regulator-boot-on;
+             mps,buck-ovp-disable;
+             mps,buck-phase-delay = /bits/ 8 <2>;
+             mps,buck-softstart = /bits/ 8 <1>;
+            };
+
+            ldo2 {
+             regulator-name = "ldo2";
+             regulator-min-microvolt = <650000>;
+             regulator-max-microvolt = <3587500>;
+            };
+         };
+       };
+     };
+...

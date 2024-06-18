@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2014 Linaro Ltd.
- * Copyright (c) 2014 Hisilicon Limited.
+ * Copyright (c) 2014 HiSilicon Limited.
  *
  * Now only support 7 bit address.
  */
@@ -67,8 +67,6 @@
 #define I2C_ACK_INTR		BIT(2)
 #define I2C_ARBITRATE_INTR	BIT(1)
 #define I2C_OVER_INTR		BIT(0)
-
-#define HIX5I2C_MAX_FREQ	400000		/* 400k */
 
 enum hix5hd2_i2c_state {
 	HIX5I2C_STAT_RW_ERR = -1,
@@ -316,7 +314,7 @@ static void hix5hd2_i2c_message_start(struct hix5hd2_i2c_priv *priv, int stop)
 static int hix5hd2_i2c_xfer_msg(struct hix5hd2_i2c_priv *priv,
 				struct i2c_msg *msgs, int stop)
 {
-	unsigned long timeout;
+	unsigned long time_left;
 	int ret;
 
 	priv->msg = msgs;
@@ -329,9 +327,9 @@ static int hix5hd2_i2c_xfer_msg(struct hix5hd2_i2c_priv *priv,
 	reinit_completion(&priv->msg_complete);
 	hix5hd2_i2c_message_start(priv, stop);
 
-	timeout = wait_for_completion_timeout(&priv->msg_complete,
-					      priv->adap.timeout);
-	if (timeout == 0) {
+	time_left = wait_for_completion_timeout(&priv->msg_complete,
+						priv->adap.timeout);
+	if (time_left == 0) {
 		priv->state = HIX5I2C_STAT_RW_ERR;
 		priv->err = -ETIMEDOUT;
 		dev_warn(priv->dev, "%s timeout=%d\n",
@@ -362,7 +360,11 @@ static int hix5hd2_i2c_xfer(struct i2c_adapter *adap,
 	pm_runtime_get_sync(priv->dev);
 
 	for (i = 0; i < num; i++, msgs++) {
-		stop = (i == num - 1);
+		if ((i == num - 1) || (msgs->flags & I2C_M_STOP))
+			stop = 1;
+		else
+			stop = 0;
+
 		ret = hix5hd2_i2c_xfer_msg(priv, msgs, stop);
 		if (ret < 0)
 			goto out;
@@ -390,7 +392,6 @@ static int hix5hd2_i2c_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct hix5hd2_i2c_priv *priv;
-	struct resource *mem;
 	unsigned int freq;
 	int irq, ret;
 
@@ -400,36 +401,32 @@ static int hix5hd2_i2c_probe(struct platform_device *pdev)
 
 	if (of_property_read_u32(np, "clock-frequency", &freq)) {
 		/* use 100k as default value */
-		priv->freq = 100000;
+		priv->freq = I2C_MAX_STANDARD_MODE_FREQ;
 	} else {
-		if (freq > HIX5I2C_MAX_FREQ) {
-			priv->freq = HIX5I2C_MAX_FREQ;
+		if (freq > I2C_MAX_FAST_MODE_FREQ) {
+			priv->freq = I2C_MAX_FAST_MODE_FREQ;
 			dev_warn(priv->dev, "use max freq %d instead\n",
-				 HIX5I2C_MAX_FREQ);
+				 I2C_MAX_FAST_MODE_FREQ);
 		} else {
 			priv->freq = freq;
 		}
 	}
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->regs = devm_ioremap_resource(&pdev->dev, mem);
+	priv->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->regs))
 		return PTR_ERR(priv->regs);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0) {
-		dev_err(&pdev->dev, "cannot find HS-I2C IRQ\n");
+	if (irq < 0)
 		return irq;
-	}
 
-	priv->clk = devm_clk_get(&pdev->dev, NULL);
+	priv->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(priv->clk)) {
-		dev_err(&pdev->dev, "cannot get clock\n");
+		dev_err(&pdev->dev, "cannot enable clock\n");
 		return PTR_ERR(priv->clk);
 	}
-	clk_prepare_enable(priv->clk);
 
-	strlcpy(priv->adap.name, "hix5hd2-i2c", sizeof(priv->adap.name));
+	strscpy(priv->adap.name, "hix5hd2-i2c", sizeof(priv->adap.name));
 	priv->dev = &pdev->dev;
 	priv->adap.owner = THIS_MODULE;
 	priv->adap.algo = &hix5hd2_i2c_algorithm;
@@ -448,7 +445,7 @@ static int hix5hd2_i2c_probe(struct platform_device *pdev)
 			       IRQF_NO_SUSPEND, dev_name(&pdev->dev), priv);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "cannot request HS-I2C IRQ %d\n", irq);
-		goto err_clk;
+		return ret;
 	}
 
 	pm_runtime_set_autosuspend_delay(priv->dev, MSEC_PER_SEC);
@@ -465,23 +462,19 @@ static int hix5hd2_i2c_probe(struct platform_device *pdev)
 err_runtime:
 	pm_runtime_disable(priv->dev);
 	pm_runtime_set_suspended(priv->dev);
-err_clk:
-	clk_disable_unprepare(priv->clk);
+
 	return ret;
 }
 
-static int hix5hd2_i2c_remove(struct platform_device *pdev)
+static void hix5hd2_i2c_remove(struct platform_device *pdev)
 {
 	struct hix5hd2_i2c_priv *priv = platform_get_drvdata(pdev);
 
 	i2c_del_adapter(&priv->adap);
 	pm_runtime_disable(priv->dev);
 	pm_runtime_set_suspended(priv->dev);
-
-	return 0;
 }
 
-#ifdef CONFIG_PM
 static int hix5hd2_i2c_runtime_suspend(struct device *dev)
 {
 	struct hix5hd2_i2c_priv *priv = dev_get_drvdata(dev);
@@ -500,12 +493,11 @@ static int hix5hd2_i2c_runtime_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops hix5hd2_i2c_pm_ops = {
-	SET_RUNTIME_PM_OPS(hix5hd2_i2c_runtime_suspend,
-			      hix5hd2_i2c_runtime_resume,
-			      NULL)
+	RUNTIME_PM_OPS(hix5hd2_i2c_runtime_suspend,
+		       hix5hd2_i2c_runtime_resume,
+		       NULL)
 };
 
 static const struct of_device_id hix5hd2_i2c_match[] = {
@@ -516,10 +508,10 @@ MODULE_DEVICE_TABLE(of, hix5hd2_i2c_match);
 
 static struct platform_driver hix5hd2_i2c_driver = {
 	.probe		= hix5hd2_i2c_probe,
-	.remove		= hix5hd2_i2c_remove,
+	.remove_new	= hix5hd2_i2c_remove,
 	.driver		= {
 		.name	= "hix5hd2-i2c",
-		.pm	= &hix5hd2_i2c_pm_ops,
+		.pm	= pm_ptr(&hix5hd2_i2c_pm_ops),
 		.of_match_table = hix5hd2_i2c_match,
 	},
 };

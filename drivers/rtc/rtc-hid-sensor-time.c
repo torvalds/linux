@@ -238,7 +238,9 @@ static int hid_time_probe(struct platform_device *pdev)
 
 	ret = hid_sensor_parse_common_attributes(hsdev,
 				HID_USAGE_SENSOR_TIME,
-				&time_state->common_attributes);
+				&time_state->common_attributes,
+				NULL,
+				0);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to setup common attributes!\n");
 		return ret;
@@ -294,14 +296,12 @@ err_open:
 	return ret;
 }
 
-static int hid_time_remove(struct platform_device *pdev)
+static void hid_time_remove(struct platform_device *pdev)
 {
 	struct hid_sensor_hub_device *hsdev = dev_get_platdata(&pdev->dev);
 
 	sensor_hub_device_close(hsdev);
 	sensor_hub_remove_callback(hsdev, HID_USAGE_SENSOR_TIME);
-
-	return 0;
 }
 
 static const struct platform_device_id hid_time_ids[] = {
@@ -319,10 +319,11 @@ static struct platform_driver hid_time_platform_driver = {
 		.name	= KBUILD_MODNAME,
 	},
 	.probe		= hid_time_probe,
-	.remove		= hid_time_remove,
+	.remove_new	= hid_time_remove,
 };
 module_platform_driver(hid_time_platform_driver);
 
 MODULE_DESCRIPTION("HID Sensor Time");
 MODULE_AUTHOR("Alexander Holler <holler@ahsoftware.de>");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(IIO_HID);

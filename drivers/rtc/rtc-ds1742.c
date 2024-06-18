@@ -16,7 +16,6 @@
 #include <linux/jiffies.h>
 #include <linux/rtc.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -158,8 +157,7 @@ static int ds1742_rtc_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	ioaddr = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(ioaddr))
 		return PTR_ERR(ioaddr);
 
@@ -190,14 +188,12 @@ static int ds1742_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(rtc);
 
 	rtc->ops = &ds1742_rtc_ops;
-	rtc->nvram_old_abi = true;
 
-	ret = rtc_register_device(rtc);
+	ret = devm_rtc_register_device(rtc);
 	if (ret)
 		return ret;
 
-	if (rtc_nvmem_register(rtc, &nvmem_cfg))
-		dev_err(&pdev->dev, "Unable to register nvmem\n");
+	devm_rtc_nvmem_register(rtc, &nvmem_cfg);
 
 	return 0;
 }

@@ -155,7 +155,7 @@ static const struct regulator_desc max77836_supported_regulators[] = {
 	[MAX77836_LDO2] = MAX77836_LDO_REG(2),
 };
 
-/**
+/*
  * Registers for regulators of max77836 use different I2C slave addresses so
  * different regmaps must be used for them.
  *
@@ -241,6 +241,7 @@ MODULE_DEVICE_TABLE(platform, max14577_regulator_id);
 static struct platform_driver max14577_regulator_driver = {
 	.driver = {
 		   .name = "max14577-regulator",
+		   .probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		   },
 	.probe		= max14577_regulator_probe,
 	.id_table	= max14577_regulator_id,

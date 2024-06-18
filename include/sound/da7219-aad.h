@@ -44,6 +44,11 @@ enum da7219_aad_jack_ins_deb {
 	DA7219_AAD_JACK_INS_DEB_1S,
 };
 
+enum da7219_aad_jack_ins_det_pty {
+	DA7219_AAD_JACK_INS_DET_PTY_LOW = 0,
+	DA7219_AAD_JACK_INS_DET_PTY_HIGH,
+};
+
 enum da7219_aad_jack_det_rate {
 	DA7219_AAD_JACK_DET_RATE_32_64MS = 0,
 	DA7219_AAD_JACK_DET_RATE_64_128MS,
@@ -80,6 +85,7 @@ struct da7219_aad_pdata {
 	enum da7219_aad_btn_cfg btn_cfg;
 	enum da7219_aad_mic_det_thr mic_det_thr;
 	enum da7219_aad_jack_ins_deb jack_ins_deb;
+	enum da7219_aad_jack_ins_det_pty jack_ins_det_pty;
 	enum da7219_aad_jack_det_rate jack_det_rate;
 	enum da7219_aad_jack_rem_deb jack_rem_deb;
 

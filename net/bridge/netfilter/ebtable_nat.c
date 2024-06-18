@@ -43,82 +43,77 @@ static struct ebt_replace_kernel initial_table = {
 	.entries	= (char *)initial_chains,
 };
 
-static int check(const struct ebt_table_info *info, unsigned int valid_hooks)
-{
-	if (valid_hooks & ~NAT_VALID_HOOKS)
-		return -EINVAL;
-	return 0;
-}
-
 static const struct ebt_table frame_nat = {
 	.name		= "nat",
 	.table		= &initial_table,
 	.valid_hooks	= NAT_VALID_HOOKS,
-	.check		= check,
 	.me		= THIS_MODULE,
 };
 
-static unsigned int
-ebt_nat_in(void *priv, struct sk_buff *skb,
-	   const struct nf_hook_state *state)
-{
-	return ebt_do_table(skb, state, state->net->xt.frame_nat);
-}
-
-static unsigned int
-ebt_nat_out(void *priv, struct sk_buff *skb,
-	    const struct nf_hook_state *state)
-{
-	return ebt_do_table(skb, state, state->net->xt.frame_nat);
-}
-
 static const struct nf_hook_ops ebt_ops_nat[] = {
 	{
-		.hook		= ebt_nat_out,
+		.hook		= ebt_do_table,
 		.pf		= NFPROTO_BRIDGE,
 		.hooknum	= NF_BR_LOCAL_OUT,
 		.priority	= NF_BR_PRI_NAT_DST_OTHER,
 	},
 	{
-		.hook		= ebt_nat_out,
+		.hook		= ebt_do_table,
 		.pf		= NFPROTO_BRIDGE,
 		.hooknum	= NF_BR_POST_ROUTING,
 		.priority	= NF_BR_PRI_NAT_SRC,
 	},
 	{
-		.hook		= ebt_nat_in,
+		.hook		= ebt_do_table,
 		.pf		= NFPROTO_BRIDGE,
 		.hooknum	= NF_BR_PRE_ROUTING,
 		.priority	= NF_BR_PRI_NAT_DST_BRIDGED,
 	},
 };
 
-static int __net_init frame_nat_net_init(struct net *net)
+static int frame_nat_table_init(struct net *net)
 {
-	return ebt_register_table(net, &frame_nat, ebt_ops_nat,
-				  &net->xt.frame_nat);
+	return ebt_register_table(net, &frame_nat, ebt_ops_nat);
+}
+
+static void __net_exit frame_nat_net_pre_exit(struct net *net)
+{
+	ebt_unregister_table_pre_exit(net, "nat");
 }
 
 static void __net_exit frame_nat_net_exit(struct net *net)
 {
-	ebt_unregister_table(net, net->xt.frame_nat, ebt_ops_nat);
+	ebt_unregister_table(net, "nat");
 }
 
 static struct pernet_operations frame_nat_net_ops = {
-	.init = frame_nat_net_init,
 	.exit = frame_nat_net_exit,
+	.pre_exit = frame_nat_net_pre_exit,
 };
 
 static int __init ebtable_nat_init(void)
 {
-	return register_pernet_subsys(&frame_nat_net_ops);
+	int ret = ebt_register_template(&frame_nat, frame_nat_table_init);
+
+	if (ret)
+		return ret;
+
+	ret = register_pernet_subsys(&frame_nat_net_ops);
+	if (ret) {
+		ebt_unregister_template(&frame_nat);
+		return ret;
+	}
+
+	return ret;
 }
 
 static void __exit ebtable_nat_fini(void)
 {
 	unregister_pernet_subsys(&frame_nat_net_ops);
+	ebt_unregister_template(&frame_nat);
 }
 
 module_init(ebtable_nat_init);
 module_exit(ebtable_nat_fini);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("ebtables legacy stateless nat table");

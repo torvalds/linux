@@ -1,0 +1,50 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (C) 2012 Texas Instruments Incorporated - https://www.ti.com/
+ * Copyright (C) 2021 SanCloud Ltd
+ */
+/dts-v1/;
+
+#include "am33xx.dtsi"
+#include "am335x-bone-common.dtsi"
+#include "am335x-boneblack-common.dtsi"
+#include "am335x-sancloud-bbe-common.dtsi"
+
+/ {
+	model = "SanCloud BeagleBone Enhanced Lite";
+	compatible = "sancloud,am335x-boneenhanced",
+		     "ti,am335x-bone-black",
+		     "ti,am335x-bone",
+		     "ti,am33xx";
+};
+
+&am33xx_pinmux {
+	bb_spi0_pins: bb-spi0-pins {
+		pinctrl-single,pins = <
+			AM33XX_PADCONF(AM335X_PIN_SPI0_SCLK, PIN_INPUT, MUX_MODE0)
+			AM33XX_PADCONF(AM335X_PIN_SPI0_D0, PIN_INPUT, MUX_MODE0)
+			AM33XX_PADCONF(AM335X_PIN_SPI0_D1, PIN_INPUT, MUX_MODE0)
+			AM33XX_PADCONF(AM335X_PIN_SPI0_CS0, PIN_INPUT, MUX_MODE0)
+		>;
+	};
+};
+
+&spi0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&bb_spi0_pins>;
+
+	channel@0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		compatible = "micron,spi-authenta";
+
+		reg = <0>;
+		spi-max-frequency = <16000000>;
+		spi-cpha;
+	};
+};

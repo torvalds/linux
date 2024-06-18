@@ -11,8 +11,6 @@
 #include <net/netfilter/nf_conntrack_ecache.h>
 #include <net/netfilter/nf_conntrack_labels.h>
 
-static DEFINE_SPINLOCK(nf_connlabels_lock);
-
 static int replace_u32(u32 *address, u32 mask, u32 new)
 {
 	u32 old, tmp;
@@ -60,12 +58,15 @@ EXPORT_SYMBOL_GPL(nf_connlabels_replace);
 
 int nf_connlabels_get(struct net *net, unsigned int bits)
 {
+	int v;
+
 	if (BIT_WORD(bits) >= NF_CT_LABELS_MAX_SIZE / sizeof(long))
 		return -ERANGE;
 
-	spin_lock(&nf_connlabels_lock);
-	net->ct.labels_used++;
-	spin_unlock(&nf_connlabels_lock);
+	BUILD_BUG_ON(NF_CT_LABELS_MAX_SIZE / sizeof(long) >= U8_MAX);
+
+	v = atomic_inc_return_relaxed(&net->ct.labels_used);
+	WARN_ON_ONCE(v <= 0);
 
 	return 0;
 }
@@ -73,26 +74,8 @@ EXPORT_SYMBOL_GPL(nf_connlabels_get);
 
 void nf_connlabels_put(struct net *net)
 {
-	spin_lock(&nf_connlabels_lock);
-	net->ct.labels_used--;
-	spin_unlock(&nf_connlabels_lock);
+	int v = atomic_dec_return_relaxed(&net->ct.labels_used);
+
+	WARN_ON_ONCE(v < 0);
 }
 EXPORT_SYMBOL_GPL(nf_connlabels_put);
-
-static const struct nf_ct_ext_type labels_extend = {
-	.len    = sizeof(struct nf_conn_labels),
-	.align  = __alignof__(struct nf_conn_labels),
-	.id     = NF_CT_EXT_LABELS,
-};
-
-int nf_conntrack_labels_init(void)
-{
-	BUILD_BUG_ON(NF_CT_LABELS_MAX_SIZE / sizeof(long) >= U8_MAX);
-
-	return nf_ct_extend_register(&labels_extend);
-}
-
-void nf_conntrack_labels_fini(void)
-{
-	nf_ct_extend_unregister(&labels_extend);
-}

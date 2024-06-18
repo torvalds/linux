@@ -20,7 +20,7 @@
 struct vport;
 struct vport_parms;
 
-/* The following definitions are for users of the vport subsytem: */
+/* The following definitions are for users of the vport subsystem: */
 
 int ovs_vport_init(void);
 void ovs_vport_exit(void);
@@ -31,6 +31,8 @@ void ovs_vport_del(struct vport *);
 struct vport *ovs_vport_locate(const struct net *net, const char *name);
 
 void ovs_vport_get_stats(struct vport *, struct ovs_vport_stats *);
+
+int ovs_vport_get_upcall_stats(struct vport *vport, struct sk_buff *skb);
 
 int ovs_vport_set_options(struct vport *, struct nlattr *options);
 int ovs_vport_get_options(const struct vport *, struct sk_buff *);
@@ -58,17 +60,20 @@ struct vport_portids {
 /**
  * struct vport - one port within a datapath
  * @dev: Pointer to net_device.
+ * @dev_tracker: refcount tracker for @dev reference
  * @dp: Datapath to which this port belongs.
  * @upcall_portids: RCU protected 'struct vport_portids'.
  * @port_no: Index into @dp's @ports array.
  * @hash_node: Element in @dev_table hash table in vport.c.
  * @dp_hash_node: Element in @datapath->ports hash table in datapath.c.
  * @ops: Class structure.
+ * @upcall_stats: Upcall stats of every ports.
  * @detach_list: list used for detaching vport in net-exit call.
  * @rcu: RCU callback head for deferred destruction.
  */
 struct vport {
 	struct net_device *dev;
+	netdevice_tracker dev_tracker;
 	struct datapath	*dp;
 	struct vport_portids __rcu *upcall_portids;
 	u16 port_no;
@@ -76,6 +81,7 @@ struct vport {
 	struct hlist_node hash_node;
 	struct hlist_node dp_hash_node;
 	const struct vport_ops *ops;
+	struct vport_upcall_stats_percpu __percpu *upcall_stats;
 
 	struct list_head detach_list;
 	struct rcu_head rcu;
@@ -88,12 +94,14 @@ struct vport {
  * @type: New vport's type.
  * @options: %OVS_VPORT_ATTR_OPTIONS attribute from Netlink message, %NULL if
  * none was supplied.
+ * @desired_ifindex: New vport's ifindex.
  * @dp: New vport's datapath.
  * @port_no: New vport's port number.
  */
 struct vport_parms {
 	const char *name;
 	enum ovs_vport_type type;
+	int desired_ifindex;
 	struct nlattr *options;
 
 	/* For ovs_vport_alloc(). */
@@ -128,9 +136,21 @@ struct vport_ops {
 	int (*set_options)(struct vport *, struct nlattr *);
 	int (*get_options)(const struct vport *, struct sk_buff *);
 
-	netdev_tx_t (*send) (struct sk_buff *skb);
+	int (*send)(struct sk_buff *skb);
 	struct module *owner;
 	struct list_head list;
+};
+
+/**
+ * struct vport_upcall_stats_percpu - per-cpu packet upcall statistics for
+ * a given vport.
+ * @n_success: Number of packets that upcall to userspace succeed.
+ * @n_fail:    Number of packets that upcall to userspace failed.
+ */
+struct vport_upcall_stats_percpu {
+	struct u64_stats_sync syncp;
+	u64_stats_t n_success;
+	u64_stats_t n_fail;
 };
 
 struct vport *ovs_vport_alloc(int priv_size, const struct vport_ops *,

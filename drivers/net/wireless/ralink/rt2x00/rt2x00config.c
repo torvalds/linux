@@ -32,7 +32,6 @@ void rt2x00lib_config_intf(struct rt2x00_dev *rt2x00dev,
 		break;
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_MESH_POINT:
-	case NL80211_IFTYPE_WDS:
 		conf.sync = TSF_SYNC_AP_NONE;
 		break;
 	case NL80211_IFTYPE_STATION:
@@ -71,6 +70,8 @@ void rt2x00lib_config_erp(struct rt2x00_dev *rt2x00dev,
 			  struct ieee80211_bss_conf *bss_conf,
 			  u32 changed)
 {
+	struct ieee80211_vif *vif = container_of(bss_conf, struct ieee80211_vif,
+						 bss_conf);
 	struct rt2x00lib_erp erp;
 
 	memset(&erp, 0, sizeof(erp));
@@ -88,7 +89,7 @@ void rt2x00lib_config_erp(struct rt2x00_dev *rt2x00dev,
 	erp.beacon_int = bss_conf->beacon_int;
 
 	/* Update the AID, this is needed for dynamic PS support */
-	rt2x00dev->aid = bss_conf->assoc ? bss_conf->aid : 0;
+	rt2x00dev->aid = vif->cfg.assoc ? vif->cfg.aid : 0;
 	rt2x00dev->last_beacon = bss_conf->sync_tsf;
 
 	/* Update global beacon interval time, this is needed for PS support */

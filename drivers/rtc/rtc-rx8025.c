@@ -19,6 +19,7 @@
 #include <linux/bitops.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
+#include <linux/kstrtox.h>
 #include <linux/module.h>
 #include <linux/rtc.h>
 
@@ -55,21 +56,32 @@
 #define RX8025_BIT_CTRL2_XST	BIT(5)
 #define RX8025_BIT_CTRL2_VDET	BIT(6)
 
+#define RX8035_BIT_HOUR_1224	BIT(7)
+
 /* Clock precision adjustment */
 #define RX8025_ADJ_RESOLUTION	3050 /* in ppb */
 #define RX8025_ADJ_DATA_MAX	62
 #define RX8025_ADJ_DATA_MIN	-62
 
+enum rx_model {
+	model_rx_unknown,
+	model_rx_8025,
+	model_rx_8035,
+	model_last
+};
+
 static const struct i2c_device_id rx8025_id[] = {
-	{ "rx8025", 0 },
+	{ "rx8025", model_rx_8025 },
+	{ "rx8035", model_rx_8035 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rx8025_id);
 
 struct rx8025_data {
-	struct i2c_client *client;
 	struct rtc_device *rtc;
+	enum rx_model model;
 	u8 ctrl1;
+	int is_24;
 };
 
 static s32 rx8025_read_reg(const struct i2c_client *client, u8 number)
@@ -101,12 +113,28 @@ static s32 rx8025_write_regs(const struct i2c_client *client,
 					      length, values);
 }
 
+static int rx8025_is_osc_stopped(enum rx_model model, int ctrl2)
+{
+	int xstp = ctrl2 & RX8025_BIT_CTRL2_XST;
+	/* XSTP bit has different polarity on RX-8025 vs RX-8035.
+	 * RX-8025: 0 == oscillator stopped
+	 * RX-8035: 1 == oscillator stopped
+	 */
+
+	if (model == model_rx_8025)
+		xstp = !xstp;
+
+	return xstp;
+}
+
 static int rx8025_check_validity(struct device *dev)
 {
-	struct rx8025_data *rx8025 = dev_get_drvdata(dev);
+	struct i2c_client *client = to_i2c_client(dev);
+	struct rx8025_data *drvdata = dev_get_drvdata(dev);
 	int ctrl2;
+	int xstp;
 
-	ctrl2 = rx8025_read_reg(rx8025->client, RX8025_REG_CTRL2);
+	ctrl2 = rx8025_read_reg(client, RX8025_REG_CTRL2);
 	if (ctrl2 < 0)
 		return ctrl2;
 
@@ -118,7 +146,8 @@ static int rx8025_check_validity(struct device *dev)
 		return -EINVAL;
 	}
 
-	if (!(ctrl2 & RX8025_BIT_CTRL2_XST)) {
+	xstp = rx8025_is_osc_stopped(drvdata->model, ctrl2);
+	if (xstp) {
 		dev_warn(dev, "crystal stopped, date is invalid\n");
 		return -EINVAL;
 	}
@@ -128,6 +157,7 @@ static int rx8025_check_validity(struct device *dev)
 
 static int rx8025_reset_validity(struct i2c_client *client)
 {
+	struct rx8025_data *drvdata = i2c_get_clientdata(client);
 	int ctrl2 = rx8025_read_reg(client, RX8025_REG_CTRL2);
 
 	if (ctrl2 < 0)
@@ -135,23 +165,28 @@ static int rx8025_reset_validity(struct i2c_client *client)
 
 	ctrl2 &= ~(RX8025_BIT_CTRL2_PON | RX8025_BIT_CTRL2_VDET);
 
+	if (drvdata->model == model_rx_8025)
+		ctrl2 |= RX8025_BIT_CTRL2_XST;
+	else
+		ctrl2 &= ~(RX8025_BIT_CTRL2_XST);
+
 	return rx8025_write_reg(client, RX8025_REG_CTRL2,
-				ctrl2 | RX8025_BIT_CTRL2_XST);
+				ctrl2);
 }
 
 static irqreturn_t rx8025_handle_irq(int irq, void *dev_id)
 {
 	struct i2c_client *client = dev_id;
 	struct rx8025_data *rx8025 = i2c_get_clientdata(client);
-	struct mutex *lock = &rx8025->rtc->ops_lock;
-	int status;
+	int status, xstp;
 
-	mutex_lock(lock);
+	rtc_lock(rx8025->rtc);
 	status = rx8025_read_reg(client, RX8025_REG_CTRL2);
 	if (status < 0)
 		goto out;
 
-	if (!(status & RX8025_BIT_CTRL2_XST))
+	xstp = rx8025_is_osc_stopped(rx8025->model, status);
+	if (xstp)
 		dev_warn(&client->dev, "Oscillation stop was detected,"
 			 "you may have to readjust the clock\n");
 
@@ -171,13 +206,14 @@ static irqreturn_t rx8025_handle_irq(int irq, void *dev_id)
 	}
 
 out:
-	mutex_unlock(lock);
+	rtc_unlock(rx8025->rtc);
 
 	return IRQ_HANDLED;
 }
 
 static int rx8025_get_time(struct device *dev, struct rtc_time *dt)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct rx8025_data *rx8025 = dev_get_drvdata(dev);
 	u8 date[7];
 	int err;
@@ -186,7 +222,7 @@ static int rx8025_get_time(struct device *dev, struct rtc_time *dt)
 	if (err)
 		return err;
 
-	err = rx8025_read_regs(rx8025->client, RX8025_REG_SEC, 7, date);
+	err = rx8025_read_regs(client, RX8025_REG_SEC, 7, date);
 	if (err)
 		return err;
 
@@ -194,7 +230,7 @@ static int rx8025_get_time(struct device *dev, struct rtc_time *dt)
 
 	dt->tm_sec = bcd2bin(date[RX8025_REG_SEC] & 0x7f);
 	dt->tm_min = bcd2bin(date[RX8025_REG_MIN] & 0x7f);
-	if (rx8025->ctrl1 & RX8025_BIT_CTRL1_1224)
+	if (rx8025->is_24)
 		dt->tm_hour = bcd2bin(date[RX8025_REG_HOUR] & 0x3f);
 	else
 		dt->tm_hour = bcd2bin(date[RX8025_REG_HOUR] & 0x1f) % 12
@@ -211,12 +247,10 @@ static int rx8025_get_time(struct device *dev, struct rtc_time *dt)
 
 static int rx8025_set_time(struct device *dev, struct rtc_time *dt)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct rx8025_data *rx8025 = dev_get_drvdata(dev);
 	u8 date[7];
 	int ret;
-
-	if ((dt->tm_year < 100) || (dt->tm_year > 199))
-		return -EINVAL;
 
 	/*
 	 * Here the read-only bits are written as "0".  I'm not sure if that
@@ -224,7 +258,7 @@ static int rx8025_set_time(struct device *dev, struct rtc_time *dt)
 	 */
 	date[RX8025_REG_SEC] = bin2bcd(dt->tm_sec);
 	date[RX8025_REG_MIN] = bin2bcd(dt->tm_min);
-	if (rx8025->ctrl1 & RX8025_BIT_CTRL1_1224)
+	if (rx8025->is_24)
 		date[RX8025_REG_HOUR] = bin2bcd(dt->tm_hour);
 	else
 		date[RX8025_REG_HOUR] = (dt->tm_hour >= 12 ? 0x20 : 0)
@@ -237,11 +271,11 @@ static int rx8025_set_time(struct device *dev, struct rtc_time *dt)
 
 	dev_dbg(dev, "%s: write %7ph\n", __func__, date);
 
-	ret = rx8025_write_regs(rx8025->client, RX8025_REG_SEC, 7, date);
+	ret = rx8025_write_regs(client, RX8025_REG_SEC, 7, date);
 	if (ret < 0)
 		return ret;
 
-	return rx8025_reset_validity(rx8025->client);
+	return rx8025_reset_validity(client);
 }
 
 static int rx8025_init_client(struct i2c_client *client)
@@ -249,9 +283,10 @@ static int rx8025_init_client(struct i2c_client *client)
 	struct rx8025_data *rx8025 = i2c_get_clientdata(client);
 	u8 ctrl[2], ctrl2;
 	int need_clear = 0;
+	int hour_reg;
 	int err;
 
-	err = rx8025_read_regs(rx8025->client, RX8025_REG_CTRL1, 2, ctrl);
+	err = rx8025_read_regs(client, RX8025_REG_CTRL1, 2, ctrl);
 	if (err)
 		goto out;
 
@@ -273,6 +308,16 @@ static int rx8025_init_client(struct i2c_client *client)
 
 		err = rx8025_write_reg(client, RX8025_REG_CTRL2, ctrl2);
 	}
+
+	if (rx8025->model == model_rx_8035) {
+		/* In RX-8035, 12/24 flag is in the hour register */
+		hour_reg = rx8025_read_reg(client, RX8025_REG_HOUR);
+		if (hour_reg < 0)
+			return hour_reg;
+		rx8025->is_24 = (hour_reg & RX8035_BIT_HOUR_1224);
+	} else {
+		rx8025->is_24 = (ctrl[1] & RX8025_BIT_CTRL1_1224);
+	}
 out:
 	return err;
 }
@@ -280,13 +325,10 @@ out:
 /* Alarm support */
 static int rx8025_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct rx8025_data *rx8025 = dev_get_drvdata(dev);
-	struct i2c_client *client = rx8025->client;
 	u8 ald[2];
 	int ctrl2, err;
-
-	if (client->irq <= 0)
-		return -EINVAL;
 
 	err = rx8025_read_regs(client, RX8025_REG_ALDMIN, 2, ald);
 	if (err)
@@ -302,7 +344,7 @@ static int rx8025_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 	/* Hardware alarms precision is 1 minute! */
 	t->time.tm_sec = 0;
 	t->time.tm_min = bcd2bin(ald[0] & 0x7f);
-	if (rx8025->ctrl1 & RX8025_BIT_CTRL1_1224)
+	if (rx8025->is_24)
 		t->time.tm_hour = bcd2bin(ald[1] & 0x3f);
 	else
 		t->time.tm_hour = bcd2bin(ald[1] & 0x1f) % 12
@@ -322,22 +364,8 @@ static int rx8025_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	u8 ald[2];
 	int err;
 
-	if (client->irq <= 0)
-		return -EINVAL;
-
-	/*
-	 * Hardware alarm precision is 1 minute!
-	 * round up to nearest minute
-	 */
-	if (t->time.tm_sec) {
-		time64_t alarm_time = rtc_tm_to_time64(&t->time);
-
-		alarm_time += 60 - t->time.tm_sec;
-		rtc_time64_to_tm(alarm_time, &t->time);
-	}
-
 	ald[0] = bin2bcd(t->time.tm_min);
-	if (rx8025->ctrl1 & RX8025_BIT_CTRL1_1224)
+	if (rx8025->is_24)
 		ald[1] = bin2bcd(t->time.tm_hour);
 	else
 		ald[1] = (t->time.tm_hour >= 12 ? 0x20 : 0)
@@ -347,18 +375,18 @@ static int rx8025_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 
 	if (rx8025->ctrl1 & RX8025_BIT_CTRL1_DALE) {
 		rx8025->ctrl1 &= ~RX8025_BIT_CTRL1_DALE;
-		err = rx8025_write_reg(rx8025->client, RX8025_REG_CTRL1,
+		err = rx8025_write_reg(client, RX8025_REG_CTRL1,
 				       rx8025->ctrl1);
 		if (err)
 			return err;
 	}
-	err = rx8025_write_regs(rx8025->client, RX8025_REG_ALDMIN, 2, ald);
+	err = rx8025_write_regs(client, RX8025_REG_ALDMIN, 2, ald);
 	if (err)
 		return err;
 
 	if (t->enabled) {
 		rx8025->ctrl1 |= RX8025_BIT_CTRL1_DALE;
-		err = rx8025_write_reg(rx8025->client, RX8025_REG_CTRL1,
+		err = rx8025_write_reg(client, RX8025_REG_CTRL1,
 				       rx8025->ctrl1);
 		if (err)
 			return err;
@@ -369,6 +397,7 @@ static int rx8025_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 
 static int rx8025_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct rx8025_data *rx8025 = dev_get_drvdata(dev);
 	u8 ctrl1;
 	int err;
@@ -381,7 +410,7 @@ static int rx8025_alarm_irq_enable(struct device *dev, unsigned int enabled)
 
 	if (ctrl1 != rx8025->ctrl1) {
 		rx8025->ctrl1 = ctrl1;
-		err = rx8025_write_reg(rx8025->client, RX8025_REG_CTRL1,
+		err = rx8025_write_reg(client, RX8025_REG_CTRL1,
 				       rx8025->ctrl1);
 		if (err)
 			return err;
@@ -389,17 +418,7 @@ static int rx8025_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	return 0;
 }
 
-static const struct rtc_class_ops rx8025_rtc_ops = {
-	.read_time = rx8025_get_time,
-	.set_time = rx8025_set_time,
-	.read_alarm = rx8025_read_alarm,
-	.set_alarm = rx8025_set_alarm,
-	.alarm_irq_enable = rx8025_alarm_irq_enable,
-};
-
 /*
- * Clock precision adjustment support
- *
  * According to the RX8025 SA/NB application manual the frequency and
  * temperature characteristics can be approximated using the following
  * equation:
@@ -410,11 +429,8 @@ static const struct rtc_class_ops rx8025_rtc_ops = {
  *   a : Coefficient = (-35 +-5) * 10**-9
  *   ut: Ultimate temperature in degree = +25 +-5 degree
  *   t : Any temperature in degree
- *
- * Note that the clock adjustment in ppb must be entered (which is
- * the negative value of the deviation).
  */
-static int rx8025_get_clock_adjust(struct device *dev, int *adj)
+static int rx8025_read_offset(struct device *dev, long *offset)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	int digoff;
@@ -423,63 +439,70 @@ static int rx8025_get_clock_adjust(struct device *dev, int *adj)
 	if (digoff < 0)
 		return digoff;
 
-	*adj = digoff >= 64 ? digoff - 128 : digoff;
-	if (*adj > 0)
-		(*adj)--;
-	*adj *= -RX8025_ADJ_RESOLUTION;
+	*offset = digoff >= 64 ? digoff - 128 : digoff;
+	if (*offset > 0)
+		(*offset)--;
+	*offset *= RX8025_ADJ_RESOLUTION;
 
 	return 0;
 }
 
-static int rx8025_set_clock_adjust(struct device *dev, int adj)
+static int rx8025_set_offset(struct device *dev, long offset)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	u8 digoff;
-	int err;
 
-	adj /= -RX8025_ADJ_RESOLUTION;
-	if (adj > RX8025_ADJ_DATA_MAX)
-		adj = RX8025_ADJ_DATA_MAX;
-	else if (adj < RX8025_ADJ_DATA_MIN)
-		adj = RX8025_ADJ_DATA_MIN;
-	else if (adj > 0)
-		adj++;
-	else if (adj < 0)
-		adj += 128;
-	digoff = adj;
+	offset /= RX8025_ADJ_RESOLUTION;
+	if (offset > RX8025_ADJ_DATA_MAX)
+		offset = RX8025_ADJ_DATA_MAX;
+	else if (offset < RX8025_ADJ_DATA_MIN)
+		offset = RX8025_ADJ_DATA_MIN;
+	else if (offset > 0)
+		offset++;
+	else if (offset < 0)
+		offset += 128;
+	digoff = offset;
 
-	err = rx8025_write_reg(client, RX8025_REG_DIGOFF, digoff);
-	if (err)
-		return err;
-
-	dev_dbg(dev, "%s: write 0x%02x\n", __func__, digoff);
-
-	return 0;
+	return rx8025_write_reg(client, RX8025_REG_DIGOFF, digoff);
 }
+
+static const struct rtc_class_ops rx8025_rtc_ops = {
+	.read_time = rx8025_get_time,
+	.set_time = rx8025_set_time,
+	.read_alarm = rx8025_read_alarm,
+	.set_alarm = rx8025_set_alarm,
+	.alarm_irq_enable = rx8025_alarm_irq_enable,
+	.read_offset = rx8025_read_offset,
+	.set_offset = rx8025_set_offset,
+};
 
 static ssize_t rx8025_sysfs_show_clock_adjust(struct device *dev,
 					      struct device_attribute *attr,
 					      char *buf)
 {
-	int err, adj;
+	long adj;
+	int err;
 
-	err = rx8025_get_clock_adjust(dev, &adj);
+	dev_warn_once(dev, "clock_adjust_ppb is deprecated, use offset\n");
+	err = rx8025_read_offset(dev, &adj);
 	if (err)
 		return err;
 
-	return sprintf(buf, "%d\n", adj);
+	return sprintf(buf, "%ld\n", -adj);
 }
 
 static ssize_t rx8025_sysfs_store_clock_adjust(struct device *dev,
 					       struct device_attribute *attr,
 					       const char *buf, size_t count)
 {
-	int adj, err;
+	long adj;
+	int err;
 
-	if (sscanf(buf, "%i", &adj) != 1)
+	dev_warn_once(dev, "clock_adjust_ppb is deprecated, use offset\n");
+	if (kstrtol(buf, 10, &adj) != 0)
 		return -EINVAL;
 
-	err = rx8025_set_clock_adjust(dev, adj);
+	err = rx8025_set_offset(dev, -adj);
 
 	return err ? err : count;
 }
@@ -488,19 +511,18 @@ static DEVICE_ATTR(clock_adjust_ppb, S_IRUGO | S_IWUSR,
 		   rx8025_sysfs_show_clock_adjust,
 		   rx8025_sysfs_store_clock_adjust);
 
-static int rx8025_sysfs_register(struct device *dev)
-{
-	return device_create_file(dev, &dev_attr_clock_adjust_ppb);
-}
+static struct attribute *rx8025_attrs[] = {
+	&dev_attr_clock_adjust_ppb.attr,
+	NULL
+};
 
-static void rx8025_sysfs_unregister(struct device *dev)
-{
-	device_remove_file(dev, &dev_attr_clock_adjust_ppb);
-}
+static const struct attribute_group rx8025_attr_group = {
+	.attrs	= rx8025_attrs,
+};
 
-static int rx8025_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int rx8025_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_match_id(rx8025_id, client);
 	struct i2c_adapter *adapter = client->adapter;
 	struct rx8025_data *rx8025;
 	int err = 0;
@@ -516,19 +538,22 @@ static int rx8025_probe(struct i2c_client *client,
 	if (!rx8025)
 		return -ENOMEM;
 
-	rx8025->client = client;
 	i2c_set_clientdata(client, rx8025);
+
+	if (id)
+		rx8025->model = id->driver_data;
 
 	err = rx8025_init_client(client);
 	if (err)
 		return err;
 
-	rx8025->rtc = devm_rtc_device_register(&client->dev, client->name,
-					  &rx8025_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rx8025->rtc)) {
-		dev_err(&client->dev, "unable to register the class device\n");
+	rx8025->rtc = devm_rtc_allocate_device(&client->dev);
+	if (IS_ERR(rx8025->rtc))
 		return PTR_ERR(rx8025->rtc);
-	}
+
+	rx8025->rtc->ops = &rx8025_rtc_ops;
+	rx8025->rtc->range_min = RTC_TIMESTAMP_BEGIN_1900;
+	rx8025->rtc->range_max = RTC_TIMESTAMP_END_2099;
 
 	if (client->irq > 0) {
 		dev_info(&client->dev, "IRQ %d supplied\n", client->irq);
@@ -536,25 +561,20 @@ static int rx8025_probe(struct i2c_client *client,
 						rx8025_handle_irq,
 						IRQF_ONESHOT,
 						"rx8025", client);
-		if (err) {
-			dev_err(&client->dev, "unable to request IRQ, alarms disabled\n");
-			client->irq = 0;
-		}
+		if (err)
+			clear_bit(RTC_FEATURE_ALARM, rx8025->rtc->features);
 	}
 
 	rx8025->rtc->max_user_freq = 1;
 
-	/* the rx8025 alarm only supports a minute accuracy */
-	rx8025->rtc->uie_unsupported = 1;
+	set_bit(RTC_FEATURE_ALARM_RES_MINUTE, rx8025->rtc->features);
+	clear_bit(RTC_FEATURE_UPDATE_INTERRUPT, rx8025->rtc->features);
 
-	err = rx8025_sysfs_register(&client->dev);
-	return err;
-}
+	err = rtc_add_group(rx8025->rtc, &rx8025_attr_group);
+	if (err)
+		return err;
 
-static int rx8025_remove(struct i2c_client *client)
-{
-	rx8025_sysfs_unregister(&client->dev);
-	return 0;
+	return devm_rtc_register_device(rx8025->rtc);
 }
 
 static struct i2c_driver rx8025_driver = {
@@ -562,7 +582,6 @@ static struct i2c_driver rx8025_driver = {
 		.name = "rtc-rx8025",
 	},
 	.probe		= rx8025_probe,
-	.remove		= rx8025_remove,
 	.id_table	= rx8025_id,
 };
 

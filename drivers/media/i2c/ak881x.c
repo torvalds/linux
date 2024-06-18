@@ -91,7 +91,7 @@ static int ak881x_s_register(struct v4l2_subdev *sd,
 #endif
 
 static int ak881x_fill_fmt(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *mf = &format->format;
@@ -111,7 +111,7 @@ static int ak881x_fill_fmt(struct v4l2_subdev *sd,
 }
 
 static int ak881x_enum_mbus_code(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->pad || code->index)
@@ -122,7 +122,7 @@ static int ak881x_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int ak881x_get_selection(struct v4l2_subdev *sd,
-				struct v4l2_subdev_pad_config *cfg,
+				struct v4l2_subdev_state *sd_state,
 				struct v4l2_subdev_selection *sel)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -226,8 +226,7 @@ static const struct v4l2_subdev_ops ak881x_subdev_ops = {
 	.pad	= &ak881x_subdev_pad_ops,
 };
 
-static int ak881x_probe(struct i2c_client *client,
-			const struct i2c_device_id *did)
+static int ak881x_probe(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	struct ak881x *ak881x;
@@ -297,13 +296,11 @@ static int ak881x_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int ak881x_remove(struct i2c_client *client)
+static void ak881x_remove(struct i2c_client *client)
 {
 	struct ak881x *ak881x = to_ak881x(client);
 
 	v4l2_device_unregister_subdev(&ak881x->subdev);
-
-	return 0;
 }
 
 static const struct i2c_device_id ak881x_id[] = {

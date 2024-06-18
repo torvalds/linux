@@ -285,7 +285,7 @@ static inline int macscsi_pread(struct NCR5380_hostdata *hostdata,
 
 	while (!NCR5380_poll_politely(hostdata, BUS_AND_STATUS_REG,
 	                              BASR_DRQ | BASR_PHASE_MATCH,
-	                              BASR_DRQ | BASR_PHASE_MATCH, HZ / 64)) {
+	                              BASR_DRQ | BASR_PHASE_MATCH, 0)) {
 		int bytes;
 
 		if (macintosh_config->ident == MAC_MODEL_IIFX)
@@ -304,7 +304,7 @@ static inline int macscsi_pread(struct NCR5380_hostdata *hostdata,
 
 		if (NCR5380_poll_politely2(hostdata, STATUS_REG, SR_REQ, SR_REQ,
 		                           BUS_AND_STATUS_REG, BASR_ACK,
-		                           BASR_ACK, HZ / 64) < 0)
+		                           BASR_ACK, 0) < 0)
 			scmd_printk(KERN_DEBUG, hostdata->connected,
 			            "%s: !REQ and !ACK\n", __func__);
 		if (!(NCR5380_read(BUS_AND_STATUS_REG) & BASR_PHASE_MATCH))
@@ -344,7 +344,7 @@ static inline int macscsi_pwrite(struct NCR5380_hostdata *hostdata,
 
 	while (!NCR5380_poll_politely(hostdata, BUS_AND_STATUS_REG,
 	                              BASR_DRQ | BASR_PHASE_MATCH,
-	                              BASR_DRQ | BASR_PHASE_MATCH, HZ / 64)) {
+	                              BASR_DRQ | BASR_PHASE_MATCH, 0)) {
 		int bytes;
 
 		if (macintosh_config->ident == MAC_MODEL_IIFX)
@@ -362,7 +362,7 @@ static inline int macscsi_pwrite(struct NCR5380_hostdata *hostdata,
 			if (NCR5380_poll_politely(hostdata, TARGET_COMMAND_REG,
 			                          TCR_LAST_BYTE_SENT,
 			                          TCR_LAST_BYTE_SENT,
-			                          HZ / 64) < 0) {
+			                          0) < 0) {
 				scmd_printk(KERN_ERR, hostdata->connected,
 				            "%s: Last Byte Sent timeout\n", __func__);
 				result = -1;
@@ -372,7 +372,7 @@ static inline int macscsi_pwrite(struct NCR5380_hostdata *hostdata,
 
 		if (NCR5380_poll_politely2(hostdata, STATUS_REG, SR_REQ, SR_REQ,
 		                           BUS_AND_STATUS_REG, BASR_ACK,
-		                           BASR_ACK, HZ / 64) < 0)
+		                           BASR_ACK, 0) < 0)
 			scmd_printk(KERN_DEBUG, hostdata->connected,
 			            "%s: !REQ and !ACK\n", __func__);
 		if (!(NCR5380_read(BUS_AND_STATUS_REG) & BASR_PHASE_MATCH))
@@ -404,11 +404,12 @@ out:
 static int macscsi_dma_xfer_len(struct NCR5380_hostdata *hostdata,
                                 struct scsi_cmnd *cmd)
 {
-	if (hostdata->flags & FLAG_NO_PSEUDO_DMA ||
-	    cmd->SCp.this_residual < setup_use_pdma)
+	int resid = NCR5380_to_ncmd(cmd)->this_residual;
+
+	if (hostdata->flags & FLAG_NO_PSEUDO_DMA || resid < setup_use_pdma)
 		return 0;
 
-	return cmd->SCp.this_residual;
+	return resid;
 }
 
 static int macscsi_dma_residual(struct NCR5380_hostdata *hostdata)
@@ -434,7 +435,7 @@ static struct scsi_host_template mac_scsi_template = {
 	.sg_tablesize		= 1,
 	.cmd_per_lun		= 2,
 	.dma_boundary		= PAGE_SIZE - 1,
-	.cmd_size		= NCR5380_CMD_SIZE,
+	.cmd_size		= sizeof(struct NCR5380_cmd),
 	.max_sectors		= 128,
 };
 
@@ -464,7 +465,7 @@ static int __init mac_scsi_probe(struct platform_device *pdev)
 		mac_scsi_template.can_queue = setup_can_queue;
 	if (setup_cmd_per_lun > 0)
 		mac_scsi_template.cmd_per_lun = setup_cmd_per_lun;
-	if (setup_sg_tablesize >= 0)
+	if (setup_sg_tablesize > 0)
 		mac_scsi_template.sg_tablesize = setup_sg_tablesize;
 	if (setup_hostid >= 0)
 		mac_scsi_template.this_id = setup_hostid & 7;
@@ -522,7 +523,7 @@ fail_init:
 	return error;
 }
 
-static int __exit mac_scsi_remove(struct platform_device *pdev)
+static void __exit mac_scsi_remove(struct platform_device *pdev)
 {
 	struct Scsi_Host *instance = platform_get_drvdata(pdev);
 
@@ -531,11 +532,16 @@ static int __exit mac_scsi_remove(struct platform_device *pdev)
 		free_irq(instance->irq, instance);
 	NCR5380_exit(instance);
 	scsi_host_put(instance);
-	return 0;
 }
 
-static struct platform_driver mac_scsi_driver = {
-	.remove = __exit_p(mac_scsi_remove),
+/*
+ * mac_scsi_remove() lives in .exit.text. For drivers registered via
+ * module_platform_driver_probe() this is ok because they cannot get unbound at
+ * runtime. So mark the driver struct with __refdata to prevent modpost
+ * triggering a section mismatch warning.
+ */
+static struct platform_driver mac_scsi_driver __refdata = {
+	.remove_new = __exit_p(mac_scsi_remove),
 	.driver = {
 		.name	= DRV_MODULE_NAME,
 	},

@@ -52,7 +52,7 @@ int cxl_context_init(struct cxl_context *ctx, struct cxl_afu *afu, bool master)
 		 * can always access it when dereferenced from IDR. For the same
 		 * reason, the segment table is only destroyed after the context is
 		 * removed from the IDR.  Access to this in the IOCTL is protected by
-		 * Linux filesytem symantics (can't IOCTL until open is complete).
+		 * Linux filesystem semantics (can't IOCTL until open is complete).
 		 */
 		i = cxl_alloc_sst(ctx);
 		if (i)
@@ -220,7 +220,7 @@ int cxl_context_iomap(struct cxl_context *ctx, struct vm_area_struct *vma)
 	pr_devel("%s: mmio physical: %llx pe: %i master:%i\n", __func__,
 		 ctx->psn_phys, ctx->pe , ctx->master);
 
-	vma->vm_flags |= VM_IO | VM_PFNMAP;
+	vm_flags_set(vma, VM_IO | VM_PFNMAP);
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 	vma->vm_ops = &cxl_mmap_vmops;
 	return 0;
@@ -331,7 +331,7 @@ static void reclaim_ctx(struct rcu_head *rcu)
 		__free_page(ctx->ff_page);
 	ctx->sstp = NULL;
 
-	kfree(ctx->irq_bitmap);
+	bitmap_free(ctx->irq_bitmap);
 
 	/* Drop ref to the afu device taken during cxl_context_init */
 	cxl_afu_put(ctx->afu);
@@ -352,7 +352,7 @@ void cxl_context_free(struct cxl_context *ctx)
 void cxl_context_mm_count_get(struct cxl_context *ctx)
 {
 	if (ctx->mm)
-		atomic_inc(&ctx->mm->mm_count);
+		mmgrab(ctx->mm);
 }
 
 void cxl_context_mm_count_put(struct cxl_context *ctx)

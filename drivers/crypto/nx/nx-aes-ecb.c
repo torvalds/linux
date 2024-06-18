@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * AES ECB routines supporting the Power 7+ Nest Accelerators driver
  *
  * Copyright (C) 2011-2012 International Business Machines Inc.
@@ -18,11 +18,11 @@
 #include "nx.h"
 
 
-static int ecb_aes_nx_set_key(struct crypto_tfm *tfm,
-			      const u8          *in_key,
-			      unsigned int       key_len)
+static int ecb_aes_nx_set_key(struct crypto_skcipher *tfm,
+			      const u8               *in_key,
+			      unsigned int            key_len)
 {
-	struct nx_crypto_ctx *nx_ctx = crypto_tfm_ctx(tfm);
+	struct nx_crypto_ctx *nx_ctx = crypto_skcipher_ctx(tfm);
 	struct nx_csbcpb *csbcpb = (struct nx_csbcpb *)nx_ctx->csbcpb;
 
 	nx_ctx_init(nx_ctx, HCOP_FC_AES);
@@ -50,13 +50,11 @@ static int ecb_aes_nx_set_key(struct crypto_tfm *tfm,
 	return 0;
 }
 
-static int ecb_aes_nx_crypt(struct blkcipher_desc *desc,
-			    struct scatterlist    *dst,
-			    struct scatterlist    *src,
-			    unsigned int           nbytes,
-			    int                    enc)
+static int ecb_aes_nx_crypt(struct skcipher_request *req,
+			    int                      enc)
 {
-	struct nx_crypto_ctx *nx_ctx = crypto_blkcipher_ctx(desc->tfm);
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct nx_crypto_ctx *nx_ctx = crypto_skcipher_ctx(tfm);
 	struct nx_csbcpb *csbcpb = nx_ctx->csbcpb;
 	unsigned long irq_flags;
 	unsigned int processed = 0, to_process;
@@ -70,10 +68,10 @@ static int ecb_aes_nx_crypt(struct blkcipher_desc *desc,
 		NX_CPB_FDM(csbcpb) &= ~NX_FDM_ENDE_ENCRYPT;
 
 	do {
-		to_process = nbytes - processed;
+		to_process = req->cryptlen - processed;
 
-		rc = nx_build_sg_lists(nx_ctx, desc, dst, src, &to_process,
-				processed, NULL);
+		rc = nx_build_sg_lists(nx_ctx, NULL, req->dst, req->src,
+				       &to_process, processed, NULL);
 		if (rc)
 			goto out;
 
@@ -83,55 +81,45 @@ static int ecb_aes_nx_crypt(struct blkcipher_desc *desc,
 		}
 
 		rc = nx_hcall_sync(nx_ctx, &nx_ctx->op,
-				   desc->flags & CRYPTO_TFM_REQ_MAY_SLEEP);
+				   req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP);
 		if (rc)
 			goto out;
 
 		atomic_inc(&(nx_ctx->stats->aes_ops));
-		atomic64_add(csbcpb->csb.processed_byte_count,
+		atomic64_add(be32_to_cpu(csbcpb->csb.processed_byte_count),
 			     &(nx_ctx->stats->aes_bytes));
 
 		processed += to_process;
-	} while (processed < nbytes);
+	} while (processed < req->cryptlen);
 
 out:
 	spin_unlock_irqrestore(&nx_ctx->lock, irq_flags);
 	return rc;
 }
 
-static int ecb_aes_nx_encrypt(struct blkcipher_desc *desc,
-			      struct scatterlist    *dst,
-			      struct scatterlist    *src,
-			      unsigned int           nbytes)
+static int ecb_aes_nx_encrypt(struct skcipher_request *req)
 {
-	return ecb_aes_nx_crypt(desc, dst, src, nbytes, 1);
+	return ecb_aes_nx_crypt(req, 1);
 }
 
-static int ecb_aes_nx_decrypt(struct blkcipher_desc *desc,
-			      struct scatterlist    *dst,
-			      struct scatterlist    *src,
-			      unsigned int           nbytes)
+static int ecb_aes_nx_decrypt(struct skcipher_request *req)
 {
-	return ecb_aes_nx_crypt(desc, dst, src, nbytes, 0);
+	return ecb_aes_nx_crypt(req, 0);
 }
 
-struct crypto_alg nx_ecb_aes_alg = {
-	.cra_name        = "ecb(aes)",
-	.cra_driver_name = "ecb-aes-nx",
-	.cra_priority    = 300,
-	.cra_flags       = CRYPTO_ALG_TYPE_BLKCIPHER,
-	.cra_blocksize   = AES_BLOCK_SIZE,
-	.cra_alignmask   = 0xf,
-	.cra_ctxsize     = sizeof(struct nx_crypto_ctx),
-	.cra_type        = &crypto_blkcipher_type,
-	.cra_module      = THIS_MODULE,
-	.cra_init        = nx_crypto_ctx_aes_ecb_init,
-	.cra_exit        = nx_crypto_ctx_exit,
-	.cra_blkcipher = {
-		.min_keysize = AES_MIN_KEY_SIZE,
-		.max_keysize = AES_MAX_KEY_SIZE,
-		.setkey      = ecb_aes_nx_set_key,
-		.encrypt     = ecb_aes_nx_encrypt,
-		.decrypt     = ecb_aes_nx_decrypt,
-	}
+struct skcipher_alg nx_ecb_aes_alg = {
+	.base.cra_name		= "ecb(aes)",
+	.base.cra_driver_name	= "ecb-aes-nx",
+	.base.cra_priority	= 300,
+	.base.cra_blocksize	= AES_BLOCK_SIZE,
+	.base.cra_alignmask	= 0xf,
+	.base.cra_ctxsize	= sizeof(struct nx_crypto_ctx),
+	.base.cra_module	= THIS_MODULE,
+	.init			= nx_crypto_ctx_aes_ecb_init,
+	.exit			= nx_crypto_ctx_skcipher_exit,
+	.min_keysize		= AES_MIN_KEY_SIZE,
+	.max_keysize		= AES_MAX_KEY_SIZE,
+	.setkey			= ecb_aes_nx_set_key,
+	.encrypt		= ecb_aes_nx_encrypt,
+	.decrypt		= ecb_aes_nx_decrypt,
 };

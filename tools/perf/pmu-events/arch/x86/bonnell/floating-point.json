@@ -1,261 +1,224 @@
 [
     {
-        "EventCode": "0x10",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "X87_COMP_OPS_EXE.ANY.S",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "Floating point computational micro-ops executed."
-    },
-    {
-        "PEBS": "2",
-        "EventCode": "0x10",
-        "Counter": "0,1",
-        "UMask": "0x81",
-        "EventName": "X87_COMP_OPS_EXE.ANY.AR",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "Floating point computational micro-ops retired."
-    },
-    {
-        "EventCode": "0x10",
-        "Counter": "0,1",
-        "UMask": "0x2",
-        "EventName": "X87_COMP_OPS_EXE.FXCH.S",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "FXCH uops executed."
-    },
-    {
-        "PEBS": "2",
-        "EventCode": "0x10",
-        "Counter": "0,1",
-        "UMask": "0x82",
-        "EventName": "X87_COMP_OPS_EXE.FXCH.AR",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "FXCH uops retired."
-    },
-    {
+        "BriefDescription": "Floating point assists for retired operations.",
         "EventCode": "0x11",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "FP_ASSIST.S",
-        "SampleAfterValue": "10000",
-        "BriefDescription": "Floating point assists."
-    },
-    {
-        "EventCode": "0x11",
-        "Counter": "0,1",
-        "UMask": "0x81",
         "EventName": "FP_ASSIST.AR",
         "SampleAfterValue": "10000",
-        "BriefDescription": "Floating point assists for retired operations."
+        "UMask": "0x81"
     },
     {
-        "EventCode": "0xB0",
-        "Counter": "0,1",
-        "UMask": "0x0",
-        "EventName": "SIMD_UOPS_EXEC.S",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "SIMD micro-ops executed (excluding stores)."
+        "BriefDescription": "Floating point assists.",
+        "EventCode": "0x11",
+        "EventName": "FP_ASSIST.S",
+        "SampleAfterValue": "10000",
+        "UMask": "0x1"
     },
     {
-        "PEBS": "2",
-        "EventCode": "0xB0",
-        "Counter": "0,1",
-        "UMask": "0x80",
-        "EventName": "SIMD_UOPS_EXEC.AR",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "SIMD micro-ops retired (excluding stores)."
+        "BriefDescription": "SIMD assists invoked.",
+        "EventCode": "0xCD",
+        "EventName": "SIMD_ASSIST",
+        "SampleAfterValue": "100000"
     },
     {
-        "EventCode": "0xB1",
-        "Counter": "0,1",
-        "UMask": "0x0",
-        "EventName": "SIMD_SAT_UOP_EXEC.S",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "SIMD saturated arithmetic micro-ops executed."
-    },
-    {
-        "EventCode": "0xB1",
-        "Counter": "0,1",
-        "UMask": "0x80",
-        "EventName": "SIMD_SAT_UOP_EXEC.AR",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "SIMD saturated arithmetic micro-ops retired."
-    },
-    {
-        "EventCode": "0xB3",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "SIMD_UOP_TYPE_EXEC.MUL.S",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "SIMD packed multiply micro-ops executed"
-    },
-    {
-        "EventCode": "0xB3",
-        "Counter": "0,1",
-        "UMask": "0x81",
-        "EventName": "SIMD_UOP_TYPE_EXEC.MUL.AR",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "SIMD packed multiply micro-ops retired"
-    },
-    {
-        "EventCode": "0xB3",
-        "Counter": "0,1",
-        "UMask": "0x2",
-        "EventName": "SIMD_UOP_TYPE_EXEC.SHIFT.S",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "SIMD packed shift micro-ops executed"
-    },
-    {
-        "EventCode": "0xB3",
-        "Counter": "0,1",
-        "UMask": "0x82",
-        "EventName": "SIMD_UOP_TYPE_EXEC.SHIFT.AR",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "SIMD packed shift micro-ops retired"
-    },
-    {
-        "EventCode": "0xB3",
-        "Counter": "0,1",
-        "UMask": "0x4",
-        "EventName": "SIMD_UOP_TYPE_EXEC.PACK.S",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "SIMD packed micro-ops executed"
-    },
-    {
-        "EventCode": "0xB3",
-        "Counter": "0,1",
-        "UMask": "0x84",
-        "EventName": "SIMD_UOP_TYPE_EXEC.PACK.AR",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "SIMD packed micro-ops retired"
-    },
-    {
-        "EventCode": "0xB3",
-        "Counter": "0,1",
-        "UMask": "0x8",
-        "EventName": "SIMD_UOP_TYPE_EXEC.UNPACK.S",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "SIMD unpacked micro-ops executed"
-    },
-    {
-        "EventCode": "0xB3",
-        "Counter": "0,1",
-        "UMask": "0x88",
-        "EventName": "SIMD_UOP_TYPE_EXEC.UNPACK.AR",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "SIMD unpacked micro-ops retired"
-    },
-    {
-        "EventCode": "0xB3",
-        "Counter": "0,1",
-        "UMask": "0x10",
-        "EventName": "SIMD_UOP_TYPE_EXEC.LOGICAL.S",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "SIMD packed logical micro-ops executed"
-    },
-    {
-        "EventCode": "0xB3",
-        "Counter": "0,1",
-        "UMask": "0x90",
-        "EventName": "SIMD_UOP_TYPE_EXEC.LOGICAL.AR",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "SIMD packed logical micro-ops retired"
-    },
-    {
-        "EventCode": "0xB3",
-        "Counter": "0,1",
-        "UMask": "0x20",
-        "EventName": "SIMD_UOP_TYPE_EXEC.ARITHMETIC.S",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "SIMD packed arithmetic micro-ops executed"
-    },
-    {
-        "EventCode": "0xB3",
-        "Counter": "0,1",
-        "UMask": "0xa0",
-        "EventName": "SIMD_UOP_TYPE_EXEC.ARITHMETIC.AR",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "SIMD packed arithmetic micro-ops retired"
-    },
-    {
-        "EventCode": "0xC7",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "SIMD_INST_RETIRED.PACKED_SINGLE",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "Retired Streaming SIMD Extensions (SSE) packed-single instructions."
-    },
-    {
-        "EventCode": "0xC7",
-        "Counter": "0,1",
-        "UMask": "0x2",
-        "EventName": "SIMD_INST_RETIRED.SCALAR_SINGLE",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "Retired Streaming SIMD Extensions (SSE) scalar-single instructions."
-    },
-    {
-        "EventCode": "0xC7",
-        "Counter": "0,1",
-        "UMask": "0x8",
-        "EventName": "SIMD_INST_RETIRED.SCALAR_DOUBLE",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "Retired Streaming SIMD Extensions 2 (SSE2) scalar-double instructions."
-    },
-    {
-        "EventCode": "0xC7",
-        "Counter": "0,1",
-        "UMask": "0x10",
-        "EventName": "SIMD_INST_RETIRED.VECTOR",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "Retired Streaming SIMD Extensions 2 (SSE2) vector instructions."
-    },
-    {
+        "BriefDescription": "Retired computational Streaming SIMD Extensions (SSE) packed-single instructions.",
         "EventCode": "0xCA",
-        "Counter": "0,1",
-        "UMask": "0x1",
         "EventName": "SIMD_COMP_INST_RETIRED.PACKED_SINGLE",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Retired computational Streaming SIMD Extensions (SSE) packed-single instructions."
+        "UMask": "0x1"
     },
     {
+        "BriefDescription": "Retired computational Streaming SIMD Extensions 2 (SSE2) scalar-double instructions.",
         "EventCode": "0xCA",
-        "Counter": "0,1",
-        "UMask": "0x2",
-        "EventName": "SIMD_COMP_INST_RETIRED.SCALAR_SINGLE",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "Retired computational Streaming SIMD Extensions (SSE) scalar-single instructions."
-    },
-    {
-        "EventCode": "0xCA",
-        "Counter": "0,1",
-        "UMask": "0x8",
         "EventName": "SIMD_COMP_INST_RETIRED.SCALAR_DOUBLE",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Retired computational Streaming SIMD Extensions 2 (SSE2) scalar-double instructions."
+        "UMask": "0x8"
     },
     {
-        "EventCode": "0xCD",
-        "Counter": "0,1",
-        "UMask": "0x0",
-        "EventName": "SIMD_ASSIST",
-        "SampleAfterValue": "100000",
-        "BriefDescription": "SIMD assists invoked."
+        "BriefDescription": "Retired computational Streaming SIMD Extensions (SSE) scalar-single instructions.",
+        "EventCode": "0xCA",
+        "EventName": "SIMD_COMP_INST_RETIRED.SCALAR_SINGLE",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x2"
     },
     {
+        "BriefDescription": "SIMD Instructions retired.",
         "EventCode": "0xCE",
-        "Counter": "0,1",
-        "UMask": "0x0",
         "EventName": "SIMD_INSTR_RETIRED",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "SIMD Instructions retired."
+        "SampleAfterValue": "2000000"
     },
     {
-        "EventCode": "0xCF",
-        "Counter": "0,1",
-        "UMask": "0x0",
-        "EventName": "SIMD_SAT_INSTR_RETIRED",
+        "BriefDescription": "Retired Streaming SIMD Extensions (SSE) packed-single instructions.",
+        "EventCode": "0xC7",
+        "EventName": "SIMD_INST_RETIRED.PACKED_SINGLE",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Saturated arithmetic instructions retired."
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Retired Streaming SIMD Extensions 2 (SSE2) scalar-double instructions.",
+        "EventCode": "0xC7",
+        "EventName": "SIMD_INST_RETIRED.SCALAR_DOUBLE",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x8"
+    },
+    {
+        "BriefDescription": "Retired Streaming SIMD Extensions (SSE) scalar-single instructions.",
+        "EventCode": "0xC7",
+        "EventName": "SIMD_INST_RETIRED.SCALAR_SINGLE",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "Retired Streaming SIMD Extensions 2 (SSE2) vector instructions.",
+        "EventCode": "0xC7",
+        "EventName": "SIMD_INST_RETIRED.VECTOR",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x10"
+    },
+    {
+        "BriefDescription": "Saturated arithmetic instructions retired.",
+        "EventCode": "0xCF",
+        "EventName": "SIMD_SAT_INSTR_RETIRED",
+        "SampleAfterValue": "2000000"
+    },
+    {
+        "BriefDescription": "SIMD saturated arithmetic micro-ops retired.",
+        "EventCode": "0xB1",
+        "EventName": "SIMD_SAT_UOP_EXEC.AR",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x80"
+    },
+    {
+        "BriefDescription": "SIMD saturated arithmetic micro-ops executed.",
+        "EventCode": "0xB1",
+        "EventName": "SIMD_SAT_UOP_EXEC.S",
+        "SampleAfterValue": "2000000"
+    },
+    {
+        "BriefDescription": "SIMD micro-ops retired (excluding stores).",
+        "EventCode": "0xB0",
+        "EventName": "SIMD_UOPS_EXEC.AR",
+        "PEBS": "2",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x80"
+    },
+    {
+        "BriefDescription": "SIMD micro-ops executed (excluding stores).",
+        "EventCode": "0xB0",
+        "EventName": "SIMD_UOPS_EXEC.S",
+        "SampleAfterValue": "2000000"
+    },
+    {
+        "BriefDescription": "SIMD packed arithmetic micro-ops retired",
+        "EventCode": "0xB3",
+        "EventName": "SIMD_UOP_TYPE_EXEC.ARITHMETIC.AR",
+        "SampleAfterValue": "2000000",
+        "UMask": "0xa0"
+    },
+    {
+        "BriefDescription": "SIMD packed arithmetic micro-ops executed",
+        "EventCode": "0xB3",
+        "EventName": "SIMD_UOP_TYPE_EXEC.ARITHMETIC.S",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x20"
+    },
+    {
+        "BriefDescription": "SIMD packed logical micro-ops retired",
+        "EventCode": "0xB3",
+        "EventName": "SIMD_UOP_TYPE_EXEC.LOGICAL.AR",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x90"
+    },
+    {
+        "BriefDescription": "SIMD packed logical micro-ops executed",
+        "EventCode": "0xB3",
+        "EventName": "SIMD_UOP_TYPE_EXEC.LOGICAL.S",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x10"
+    },
+    {
+        "BriefDescription": "SIMD packed multiply micro-ops retired",
+        "EventCode": "0xB3",
+        "EventName": "SIMD_UOP_TYPE_EXEC.MUL.AR",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x81"
+    },
+    {
+        "BriefDescription": "SIMD packed multiply micro-ops executed",
+        "EventCode": "0xB3",
+        "EventName": "SIMD_UOP_TYPE_EXEC.MUL.S",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "SIMD packed micro-ops retired",
+        "EventCode": "0xB3",
+        "EventName": "SIMD_UOP_TYPE_EXEC.PACK.AR",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x84"
+    },
+    {
+        "BriefDescription": "SIMD packed micro-ops executed",
+        "EventCode": "0xB3",
+        "EventName": "SIMD_UOP_TYPE_EXEC.PACK.S",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x4"
+    },
+    {
+        "BriefDescription": "SIMD packed shift micro-ops retired",
+        "EventCode": "0xB3",
+        "EventName": "SIMD_UOP_TYPE_EXEC.SHIFT.AR",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x82"
+    },
+    {
+        "BriefDescription": "SIMD packed shift micro-ops executed",
+        "EventCode": "0xB3",
+        "EventName": "SIMD_UOP_TYPE_EXEC.SHIFT.S",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "SIMD unpacked micro-ops retired",
+        "EventCode": "0xB3",
+        "EventName": "SIMD_UOP_TYPE_EXEC.UNPACK.AR",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x88"
+    },
+    {
+        "BriefDescription": "SIMD unpacked micro-ops executed",
+        "EventCode": "0xB3",
+        "EventName": "SIMD_UOP_TYPE_EXEC.UNPACK.S",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x8"
+    },
+    {
+        "BriefDescription": "Floating point computational micro-ops retired.",
+        "EventCode": "0x10",
+        "EventName": "X87_COMP_OPS_EXE.ANY.AR",
+        "PEBS": "2",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x81"
+    },
+    {
+        "BriefDescription": "Floating point computational micro-ops executed.",
+        "EventCode": "0x10",
+        "EventName": "X87_COMP_OPS_EXE.ANY.S",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "FXCH uops retired.",
+        "EventCode": "0x10",
+        "EventName": "X87_COMP_OPS_EXE.FXCH.AR",
+        "PEBS": "2",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x82"
+    },
+    {
+        "BriefDescription": "FXCH uops executed.",
+        "EventCode": "0x10",
+        "EventName": "X87_COMP_OPS_EXE.FXCH.S",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x2"
     }
 ]

@@ -16,8 +16,7 @@
 
 #include "tlv320aic23.h"
 
-static int tlv320aic23_i2c_probe(struct i2c_client *i2c,
-				 const struct i2c_device_id *i2c_id)
+static int tlv320aic23_i2c_probe(struct i2c_client *i2c)
 {
 	struct regmap *regmap;
 
@@ -29,17 +28,19 @@ static int tlv320aic23_i2c_probe(struct i2c_client *i2c,
 }
 
 static const struct i2c_device_id tlv320aic23_id[] = {
-	{"tlv320aic23", 0},
+	{"tlv320aic23"},
 	{}
 };
 
 MODULE_DEVICE_TABLE(i2c, tlv320aic23_id);
 
+#ifdef CONFIG_OF
 static const struct of_device_id tlv320aic23_of_match[] = {
 	{ .compatible = "ti,tlv320aic23", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, tlv320aic23_of_match);
+#endif
 
 static struct i2c_driver tlv320aic23_i2c_driver = {
 	.driver = {

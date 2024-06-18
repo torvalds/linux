@@ -96,6 +96,8 @@
 
 /* DMA default interrupt mask */
 #define DMA_INTR_DEFAULT_MASK	(DMA_INTR_NORMAL | DMA_INTR_ABNORMAL)
+#define DMA_INTR_DEFAULT_RX	(DMA_INTR_ENA_RIE)
+#define DMA_INTR_DEFAULT_TX	(DMA_INTR_ENA_TIE)
 
 /* DMA Status register defines */
 #define DMA_STATUS_GLPII	0x40000000	/* GMAC LPI interrupt */
@@ -126,18 +128,45 @@
 #define DMA_STATUS_TI	0x00000001	/* Transmit Interrupt */
 #define DMA_CONTROL_FTF		0x00100000	/* Flush transmit FIFO */
 
+#define DMA_STATUS_MSK_COMMON		(DMA_STATUS_NIS | \
+					 DMA_STATUS_AIS | \
+					 DMA_STATUS_FBI)
+
+#define DMA_STATUS_MSK_RX		(DMA_STATUS_ERI | \
+					 DMA_STATUS_RWT | \
+					 DMA_STATUS_RPS | \
+					 DMA_STATUS_RU | \
+					 DMA_STATUS_RI | \
+					 DMA_STATUS_OVF | \
+					 DMA_STATUS_MSK_COMMON)
+
+#define DMA_STATUS_MSK_TX		(DMA_STATUS_ETI | \
+					 DMA_STATUS_UNF | \
+					 DMA_STATUS_TJT | \
+					 DMA_STATUS_TU | \
+					 DMA_STATUS_TPS | \
+					 DMA_STATUS_TI | \
+					 DMA_STATUS_MSK_COMMON)
+
 #define NUM_DWMAC100_DMA_REGS	9
 #define NUM_DWMAC1000_DMA_REGS	23
+#define NUM_DWMAC4_DMA_REGS	27
 
 void dwmac_enable_dma_transmission(void __iomem *ioaddr);
-void dwmac_enable_dma_irq(void __iomem *ioaddr, u32 chan);
-void dwmac_disable_dma_irq(void __iomem *ioaddr, u32 chan);
-void dwmac_dma_start_tx(void __iomem *ioaddr, u32 chan);
-void dwmac_dma_stop_tx(void __iomem *ioaddr, u32 chan);
-void dwmac_dma_start_rx(void __iomem *ioaddr, u32 chan);
-void dwmac_dma_stop_rx(void __iomem *ioaddr, u32 chan);
-int dwmac_dma_interrupt(void __iomem *ioaddr, struct stmmac_extra_stats *x,
+void dwmac_enable_dma_irq(struct stmmac_priv *priv, void __iomem *ioaddr,
+			  u32 chan, bool rx, bool tx);
+void dwmac_disable_dma_irq(struct stmmac_priv *priv, void __iomem *ioaddr,
+			   u32 chan, bool rx, bool tx);
+void dwmac_dma_start_tx(struct stmmac_priv *priv, void __iomem *ioaddr,
 			u32 chan);
+void dwmac_dma_stop_tx(struct stmmac_priv *priv, void __iomem *ioaddr,
+		       u32 chan);
+void dwmac_dma_start_rx(struct stmmac_priv *priv, void __iomem *ioaddr,
+			u32 chan);
+void dwmac_dma_stop_rx(struct stmmac_priv *priv, void __iomem *ioaddr,
+		       u32 chan);
+int dwmac_dma_interrupt(struct stmmac_priv *priv, void __iomem *ioaddr,
+			struct stmmac_extra_stats *x, u32 chan, u32 dir);
 int dwmac_dma_reset(void __iomem *ioaddr);
 
 #endif /* __DWMAC_DMA_H__ */

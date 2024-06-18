@@ -86,39 +86,6 @@
 	 KEY_CONTEXT_OPAD_PRESENT_M)
 #define KEY_CONTEXT_OPAD_PRESENT_F      KEY_CONTEXT_OPAD_PRESENT_V(1U)
 
-#define TLS_KEYCTX_RXFLIT_CNT_S 24
-#define TLS_KEYCTX_RXFLIT_CNT_V(x) ((x) << TLS_KEYCTX_RXFLIT_CNT_S)
-
-#define TLS_KEYCTX_RXPROT_VER_S 20
-#define TLS_KEYCTX_RXPROT_VER_M 0xf
-#define TLS_KEYCTX_RXPROT_VER_V(x) ((x) << TLS_KEYCTX_RXPROT_VER_S)
-
-#define TLS_KEYCTX_RXCIPH_MODE_S 16
-#define TLS_KEYCTX_RXCIPH_MODE_M 0xf
-#define TLS_KEYCTX_RXCIPH_MODE_V(x) ((x) << TLS_KEYCTX_RXCIPH_MODE_S)
-
-#define TLS_KEYCTX_RXAUTH_MODE_S 12
-#define TLS_KEYCTX_RXAUTH_MODE_M 0xf
-#define TLS_KEYCTX_RXAUTH_MODE_V(x) ((x) << TLS_KEYCTX_RXAUTH_MODE_S)
-
-#define TLS_KEYCTX_RXCIAU_CTRL_S 11
-#define TLS_KEYCTX_RXCIAU_CTRL_V(x) ((x) << TLS_KEYCTX_RXCIAU_CTRL_S)
-
-#define TLS_KEYCTX_RX_SEQCTR_S 9
-#define TLS_KEYCTX_RX_SEQCTR_M 0x3
-#define TLS_KEYCTX_RX_SEQCTR_V(x) ((x) << TLS_KEYCTX_RX_SEQCTR_S)
-
-#define TLS_KEYCTX_RX_VALID_S 8
-#define TLS_KEYCTX_RX_VALID_V(x) ((x) << TLS_KEYCTX_RX_VALID_S)
-
-#define TLS_KEYCTX_RXCK_SIZE_S 3
-#define TLS_KEYCTX_RXCK_SIZE_M 0x7
-#define TLS_KEYCTX_RXCK_SIZE_V(x) ((x) << TLS_KEYCTX_RXCK_SIZE_S)
-
-#define TLS_KEYCTX_RXMK_SIZE_S 0
-#define TLS_KEYCTX_RXMK_SIZE_M 0x7
-#define TLS_KEYCTX_RXMK_SIZE_V(x) ((x) << TLS_KEYCTX_RXMK_SIZE_S)
-
 #define CHCR_HASH_MAX_DIGEST_SIZE 64
 #define CHCR_MAX_SHA_DIGEST_SIZE 64
 
@@ -287,7 +254,7 @@ struct hash_wr_param {
 };
 
 struct cipher_wr_param {
-	struct ablkcipher_request *req;
+	struct skcipher_request *req;
 	char *iv;
 	int bytes;
 	unsigned short qid;
@@ -388,10 +355,6 @@ static inline void copy_hash_init_values(char *key, int digestsize)
 		break;
 	}
 }
-
-static const u8 sgl_lengths[20] = {
-	0, 1, 2, 3, 4, 4, 5, 6, 7, 7, 8, 9, 10, 10, 11, 12, 13, 13, 14, 15
-};
 
 /* Number of len fields(8) * size of one addr field */
 #define PHYSDSGL_MAX_LEN_SIZE 16

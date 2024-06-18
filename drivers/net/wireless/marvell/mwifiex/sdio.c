@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Marvell Wireless LAN device driver: SDIO specific handling
+ * NXP Wireless LAN device driver: SDIO specific handling
  *
- * Copyright (C) 2011-2014, Marvell International Ltd.
- *
- * This software file (the "File") is distributed by Marvell International
- * Ltd. under the terms of the GNU General Public License Version 2, June 1991
- * (the "License").  You may use, redistribute and/or modify this File in
- * accordance with the terms and conditions of the License, a copy of which
- * is available by writing to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or on the
- * worldwide web at http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
- *
- * THE FILE IS DISTRIBUTED AS-IS, WITHOUT WARRANTY OF ANY KIND, AND THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE
- * ARE EXPRESSLY DISCLAIMED.  The License provides additional details about
- * this warranty disclaimer.
+ * Copyright 2011-2020 NXP
  */
 
 #include <linux/firmware.h>
@@ -34,6 +22,466 @@
 static void mwifiex_sdio_work(struct work_struct *work);
 
 static struct mwifiex_if_ops sdio_ops;
+
+static const struct mwifiex_sdio_card_reg mwifiex_reg_sd87xx = {
+	.start_rd_port = 1,
+	.start_wr_port = 1,
+	.base_0_reg = 0x0040,
+	.base_1_reg = 0x0041,
+	.poll_reg = 0x30,
+	.host_int_enable = UP_LD_HOST_INT_MASK | DN_LD_HOST_INT_MASK,
+	.host_int_rsr_reg = 0x1,
+	.host_int_mask_reg = 0x02,
+	.host_int_status_reg = 0x03,
+	.status_reg_0 = 0x60,
+	.status_reg_1 = 0x61,
+	.sdio_int_mask = 0x3f,
+	.data_port_mask = 0x0000fffe,
+	.io_port_0_reg = 0x78,
+	.io_port_1_reg = 0x79,
+	.io_port_2_reg = 0x7A,
+	.max_mp_regs = 64,
+	.rd_bitmap_l = 0x04,
+	.rd_bitmap_u = 0x05,
+	.wr_bitmap_l = 0x06,
+	.wr_bitmap_u = 0x07,
+	.rd_len_p0_l = 0x08,
+	.rd_len_p0_u = 0x09,
+	.card_misc_cfg_reg = 0x6c,
+	.func1_dump_reg_start = 0x0,
+	.func1_dump_reg_end = 0x9,
+	.func1_scratch_reg = 0x60,
+	.func1_spec_reg_num = 5,
+	.func1_spec_reg_table = {0x28, 0x30, 0x34, 0x38, 0x3c},
+};
+
+static const struct mwifiex_sdio_card_reg mwifiex_reg_sd8897 = {
+	.start_rd_port = 0,
+	.start_wr_port = 0,
+	.base_0_reg = 0x60,
+	.base_1_reg = 0x61,
+	.poll_reg = 0x50,
+	.host_int_enable = UP_LD_HOST_INT_MASK | DN_LD_HOST_INT_MASK |
+			CMD_PORT_UPLD_INT_MASK | CMD_PORT_DNLD_INT_MASK,
+	.host_int_rsr_reg = 0x1,
+	.host_int_status_reg = 0x03,
+	.host_int_mask_reg = 0x02,
+	.status_reg_0 = 0xc0,
+	.status_reg_1 = 0xc1,
+	.sdio_int_mask = 0xff,
+	.data_port_mask = 0xffffffff,
+	.io_port_0_reg = 0xD8,
+	.io_port_1_reg = 0xD9,
+	.io_port_2_reg = 0xDA,
+	.max_mp_regs = 184,
+	.rd_bitmap_l = 0x04,
+	.rd_bitmap_u = 0x05,
+	.rd_bitmap_1l = 0x06,
+	.rd_bitmap_1u = 0x07,
+	.wr_bitmap_l = 0x08,
+	.wr_bitmap_u = 0x09,
+	.wr_bitmap_1l = 0x0a,
+	.wr_bitmap_1u = 0x0b,
+	.rd_len_p0_l = 0x0c,
+	.rd_len_p0_u = 0x0d,
+	.card_misc_cfg_reg = 0xcc,
+	.card_cfg_2_1_reg = 0xcd,
+	.cmd_rd_len_0 = 0xb4,
+	.cmd_rd_len_1 = 0xb5,
+	.cmd_rd_len_2 = 0xb6,
+	.cmd_rd_len_3 = 0xb7,
+	.cmd_cfg_0 = 0xb8,
+	.cmd_cfg_1 = 0xb9,
+	.cmd_cfg_2 = 0xba,
+	.cmd_cfg_3 = 0xbb,
+	.fw_dump_host_ready = 0xee,
+	.fw_dump_ctrl = 0xe2,
+	.fw_dump_start = 0xe3,
+	.fw_dump_end = 0xea,
+	.func1_dump_reg_start = 0x0,
+	.func1_dump_reg_end = 0xb,
+	.func1_scratch_reg = 0xc0,
+	.func1_spec_reg_num = 8,
+	.func1_spec_reg_table = {0x4C, 0x50, 0x54, 0x55, 0x58,
+				 0x59, 0x5c, 0x5d},
+};
+
+static const struct mwifiex_sdio_card_reg mwifiex_reg_sd8977 = {
+	.start_rd_port = 0,
+	.start_wr_port = 0,
+	.base_0_reg = 0xF8,
+	.base_1_reg = 0xF9,
+	.poll_reg = 0x5C,
+	.host_int_enable = UP_LD_HOST_INT_MASK | DN_LD_HOST_INT_MASK |
+		CMD_PORT_UPLD_INT_MASK | CMD_PORT_DNLD_INT_MASK,
+	.host_int_rsr_reg = 0x4,
+	.host_int_status_reg = 0x0C,
+	.host_int_mask_reg = 0x08,
+	.status_reg_0 = 0xE8,
+	.status_reg_1 = 0xE9,
+	.sdio_int_mask = 0xff,
+	.data_port_mask = 0xffffffff,
+	.io_port_0_reg = 0xE4,
+	.io_port_1_reg = 0xE5,
+	.io_port_2_reg = 0xE6,
+	.max_mp_regs = 196,
+	.rd_bitmap_l = 0x10,
+	.rd_bitmap_u = 0x11,
+	.rd_bitmap_1l = 0x12,
+	.rd_bitmap_1u = 0x13,
+	.wr_bitmap_l = 0x14,
+	.wr_bitmap_u = 0x15,
+	.wr_bitmap_1l = 0x16,
+	.wr_bitmap_1u = 0x17,
+	.rd_len_p0_l = 0x18,
+	.rd_len_p0_u = 0x19,
+	.card_misc_cfg_reg = 0xd8,
+	.card_cfg_2_1_reg = 0xd9,
+	.cmd_rd_len_0 = 0xc0,
+	.cmd_rd_len_1 = 0xc1,
+	.cmd_rd_len_2 = 0xc2,
+	.cmd_rd_len_3 = 0xc3,
+	.cmd_cfg_0 = 0xc4,
+	.cmd_cfg_1 = 0xc5,
+	.cmd_cfg_2 = 0xc6,
+	.cmd_cfg_3 = 0xc7,
+	.fw_dump_host_ready = 0xcc,
+	.fw_dump_ctrl = 0xf0,
+	.fw_dump_start = 0xf1,
+	.fw_dump_end = 0xf8,
+	.func1_dump_reg_start = 0x10,
+	.func1_dump_reg_end = 0x17,
+	.func1_scratch_reg = 0xe8,
+	.func1_spec_reg_num = 13,
+	.func1_spec_reg_table = {0x08, 0x58, 0x5C, 0x5D,
+				 0x60, 0x61, 0x62, 0x64,
+				 0x65, 0x66, 0x68, 0x69,
+				 0x6a},
+};
+
+static const struct mwifiex_sdio_card_reg mwifiex_reg_sd8997 = {
+	.start_rd_port = 0,
+	.start_wr_port = 0,
+	.base_0_reg = 0xF8,
+	.base_1_reg = 0xF9,
+	.poll_reg = 0x5C,
+	.host_int_enable = UP_LD_HOST_INT_MASK | DN_LD_HOST_INT_MASK |
+			CMD_PORT_UPLD_INT_MASK | CMD_PORT_DNLD_INT_MASK,
+	.host_int_rsr_reg = 0x4,
+	.host_int_status_reg = 0x0C,
+	.host_int_mask_reg = 0x08,
+	.host_strap_reg = 0xF4,
+	.host_strap_mask = 0x01,
+	.host_strap_value = 0x00,
+	.status_reg_0 = 0xE8,
+	.status_reg_1 = 0xE9,
+	.sdio_int_mask = 0xff,
+	.data_port_mask = 0xffffffff,
+	.io_port_0_reg = 0xE4,
+	.io_port_1_reg = 0xE5,
+	.io_port_2_reg = 0xE6,
+	.max_mp_regs = 196,
+	.rd_bitmap_l = 0x10,
+	.rd_bitmap_u = 0x11,
+	.rd_bitmap_1l = 0x12,
+	.rd_bitmap_1u = 0x13,
+	.wr_bitmap_l = 0x14,
+	.wr_bitmap_u = 0x15,
+	.wr_bitmap_1l = 0x16,
+	.wr_bitmap_1u = 0x17,
+	.rd_len_p0_l = 0x18,
+	.rd_len_p0_u = 0x19,
+	.card_misc_cfg_reg = 0xd8,
+	.card_cfg_2_1_reg = 0xd9,
+	.cmd_rd_len_0 = 0xc0,
+	.cmd_rd_len_1 = 0xc1,
+	.cmd_rd_len_2 = 0xc2,
+	.cmd_rd_len_3 = 0xc3,
+	.cmd_cfg_0 = 0xc4,
+	.cmd_cfg_1 = 0xc5,
+	.cmd_cfg_2 = 0xc6,
+	.cmd_cfg_3 = 0xc7,
+	.fw_dump_host_ready = 0xcc,
+	.fw_dump_ctrl = 0xf0,
+	.fw_dump_start = 0xf1,
+	.fw_dump_end = 0xf8,
+	.func1_dump_reg_start = 0x10,
+	.func1_dump_reg_end = 0x17,
+	.func1_scratch_reg = 0xe8,
+	.func1_spec_reg_num = 13,
+	.func1_spec_reg_table = {0x08, 0x58, 0x5C, 0x5D,
+				 0x60, 0x61, 0x62, 0x64,
+				 0x65, 0x66, 0x68, 0x69,
+				 0x6a},
+};
+
+static const struct mwifiex_sdio_card_reg mwifiex_reg_sd8887 = {
+	.start_rd_port = 0,
+	.start_wr_port = 0,
+	.base_0_reg = 0x6C,
+	.base_1_reg = 0x6D,
+	.poll_reg = 0x5C,
+	.host_int_enable = UP_LD_HOST_INT_MASK | DN_LD_HOST_INT_MASK |
+			CMD_PORT_UPLD_INT_MASK | CMD_PORT_DNLD_INT_MASK,
+	.host_int_rsr_reg = 0x4,
+	.host_int_status_reg = 0x0C,
+	.host_int_mask_reg = 0x08,
+	.status_reg_0 = 0x90,
+	.status_reg_1 = 0x91,
+	.sdio_int_mask = 0xff,
+	.data_port_mask = 0xffffffff,
+	.io_port_0_reg = 0xE4,
+	.io_port_1_reg = 0xE5,
+	.io_port_2_reg = 0xE6,
+	.max_mp_regs = 196,
+	.rd_bitmap_l = 0x10,
+	.rd_bitmap_u = 0x11,
+	.rd_bitmap_1l = 0x12,
+	.rd_bitmap_1u = 0x13,
+	.wr_bitmap_l = 0x14,
+	.wr_bitmap_u = 0x15,
+	.wr_bitmap_1l = 0x16,
+	.wr_bitmap_1u = 0x17,
+	.rd_len_p0_l = 0x18,
+	.rd_len_p0_u = 0x19,
+	.card_misc_cfg_reg = 0xd8,
+	.card_cfg_2_1_reg = 0xd9,
+	.cmd_rd_len_0 = 0xc0,
+	.cmd_rd_len_1 = 0xc1,
+	.cmd_rd_len_2 = 0xc2,
+	.cmd_rd_len_3 = 0xc3,
+	.cmd_cfg_0 = 0xc4,
+	.cmd_cfg_1 = 0xc5,
+	.cmd_cfg_2 = 0xc6,
+	.cmd_cfg_3 = 0xc7,
+	.func1_dump_reg_start = 0x10,
+	.func1_dump_reg_end = 0x17,
+	.func1_scratch_reg = 0x90,
+	.func1_spec_reg_num = 13,
+	.func1_spec_reg_table = {0x08, 0x58, 0x5C, 0x5D, 0x60,
+				 0x61, 0x62, 0x64, 0x65, 0x66,
+				 0x68, 0x69, 0x6a},
+};
+
+static const struct mwifiex_sdio_card_reg mwifiex_reg_sd89xx = {
+	.start_rd_port = 0,
+	.start_wr_port = 0,
+	.base_0_reg = 0xF8,
+	.base_1_reg = 0xF9,
+	.poll_reg = 0x5C,
+	.host_int_enable = UP_LD_HOST_INT_MASK | DN_LD_HOST_INT_MASK |
+			CMD_PORT_UPLD_INT_MASK | CMD_PORT_DNLD_INT_MASK,
+	.host_int_rsr_reg = 0x4,
+	.host_int_status_reg = 0x0C,
+	.host_int_mask_reg = 0x08,
+	.host_strap_reg = 0xF4,
+	.host_strap_mask = 0x01,
+	.host_strap_value = 0x00,
+	.status_reg_0 = 0xE8,
+	.status_reg_1 = 0xE9,
+	.sdio_int_mask = 0xff,
+	.data_port_mask = 0xffffffff,
+	.io_port_0_reg = 0xE4,
+	.io_port_1_reg = 0xE5,
+	.io_port_2_reg = 0xE6,
+	.max_mp_regs = 196,
+	.rd_bitmap_l = 0x10,
+	.rd_bitmap_u = 0x11,
+	.rd_bitmap_1l = 0x12,
+	.rd_bitmap_1u = 0x13,
+	.wr_bitmap_l = 0x14,
+	.wr_bitmap_u = 0x15,
+	.wr_bitmap_1l = 0x16,
+	.wr_bitmap_1u = 0x17,
+	.rd_len_p0_l = 0x18,
+	.rd_len_p0_u = 0x19,
+	.card_misc_cfg_reg = 0xd8,
+	.card_cfg_2_1_reg = 0xd9,
+	.cmd_rd_len_0 = 0xc0,
+	.cmd_rd_len_1 = 0xc1,
+	.cmd_rd_len_2 = 0xc2,
+	.cmd_rd_len_3 = 0xc3,
+	.cmd_cfg_0 = 0xc4,
+	.cmd_cfg_1 = 0xc5,
+	.cmd_cfg_2 = 0xc6,
+	.cmd_cfg_3 = 0xc7,
+	.fw_dump_host_ready = 0xcc,
+	.fw_dump_ctrl = 0xf9,
+	.fw_dump_start = 0xf1,
+	.fw_dump_end = 0xf8,
+	.func1_dump_reg_start = 0x10,
+	.func1_dump_reg_end = 0x17,
+	.func1_scratch_reg = 0xE8,
+	.func1_spec_reg_num = 13,
+	.func1_spec_reg_table = {0x08, 0x58, 0x5C, 0x5D, 0x60,
+				 0x61, 0x62, 0x64, 0x65, 0x66,
+				 0x68, 0x69, 0x6a},
+};
+
+static const struct mwifiex_sdio_device mwifiex_sdio_sd8786 = {
+	.firmware = SD8786_DEFAULT_FW_NAME,
+	.reg = &mwifiex_reg_sd87xx,
+	.max_ports = 16,
+	.mp_agg_pkt_limit = 8,
+	.tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K,
+	.mp_tx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_16K,
+	.mp_rx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_16K,
+	.supports_sdio_new_mode = false,
+	.has_control_mask = true,
+	.can_dump_fw = false,
+	.can_auto_tdls = false,
+	.can_ext_scan = false,
+	.fw_ready_extra_delay = false,
+};
+
+static const struct mwifiex_sdio_device mwifiex_sdio_sd8787 = {
+	.firmware = SD8787_DEFAULT_FW_NAME,
+	.reg = &mwifiex_reg_sd87xx,
+	.max_ports = 16,
+	.mp_agg_pkt_limit = 8,
+	.tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K,
+	.mp_tx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_16K,
+	.mp_rx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_16K,
+	.supports_sdio_new_mode = false,
+	.has_control_mask = true,
+	.can_dump_fw = false,
+	.can_auto_tdls = false,
+	.can_ext_scan = true,
+	.fw_ready_extra_delay = false,
+};
+
+static const struct mwifiex_sdio_device mwifiex_sdio_sd8797 = {
+	.firmware = SD8797_DEFAULT_FW_NAME,
+	.reg = &mwifiex_reg_sd87xx,
+	.max_ports = 16,
+	.mp_agg_pkt_limit = 8,
+	.tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K,
+	.mp_tx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_16K,
+	.mp_rx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_16K,
+	.supports_sdio_new_mode = false,
+	.has_control_mask = true,
+	.can_dump_fw = false,
+	.can_auto_tdls = false,
+	.can_ext_scan = true,
+	.fw_ready_extra_delay = false,
+};
+
+static const struct mwifiex_sdio_device mwifiex_sdio_sd8897 = {
+	.firmware = SD8897_DEFAULT_FW_NAME,
+	.reg = &mwifiex_reg_sd8897,
+	.max_ports = 32,
+	.mp_agg_pkt_limit = 16,
+	.tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_4K,
+	.mp_tx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_MAX,
+	.mp_rx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_MAX,
+	.supports_sdio_new_mode = true,
+	.has_control_mask = false,
+	.can_dump_fw = true,
+	.can_auto_tdls = false,
+	.can_ext_scan = true,
+	.fw_ready_extra_delay = false,
+};
+
+static const struct mwifiex_sdio_device mwifiex_sdio_sd8977 = {
+	.firmware = SD8977_DEFAULT_FW_NAME,
+	.reg = &mwifiex_reg_sd8977,
+	.max_ports = 32,
+	.mp_agg_pkt_limit = 16,
+	.tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_4K,
+	.mp_tx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_MAX,
+	.mp_rx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_MAX,
+	.supports_sdio_new_mode = true,
+	.has_control_mask = false,
+	.can_dump_fw = true,
+	.fw_dump_enh = true,
+	.can_auto_tdls = false,
+	.can_ext_scan = true,
+	.fw_ready_extra_delay = false,
+};
+
+static const struct mwifiex_sdio_device mwifiex_sdio_sd8978 = {
+	.firmware_sdiouart = SD8978_SDIOUART_FW_NAME,
+	.reg = &mwifiex_reg_sd89xx,
+	.max_ports = 32,
+	.mp_agg_pkt_limit = 16,
+	.tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_4K,
+	.mp_tx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_MAX,
+	.mp_rx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_MAX,
+	.supports_sdio_new_mode = true,
+	.has_control_mask = false,
+	.can_dump_fw = true,
+	.fw_dump_enh = true,
+	.can_auto_tdls = false,
+	.can_ext_scan = true,
+	.fw_ready_extra_delay = true,
+};
+
+static const struct mwifiex_sdio_device mwifiex_sdio_sd8997 = {
+	.firmware = SD8997_DEFAULT_FW_NAME,
+	.firmware_sdiouart = SD8997_SDIOUART_FW_NAME,
+	.reg = &mwifiex_reg_sd8997,
+	.max_ports = 32,
+	.mp_agg_pkt_limit = 16,
+	.tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_4K,
+	.mp_tx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_MAX,
+	.mp_rx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_MAX,
+	.supports_sdio_new_mode = true,
+	.has_control_mask = false,
+	.can_dump_fw = true,
+	.fw_dump_enh = true,
+	.can_auto_tdls = false,
+	.can_ext_scan = true,
+	.fw_ready_extra_delay = false,
+};
+
+static const struct mwifiex_sdio_device mwifiex_sdio_sd8887 = {
+	.firmware = SD8887_DEFAULT_FW_NAME,
+	.reg = &mwifiex_reg_sd8887,
+	.max_ports = 32,
+	.mp_agg_pkt_limit = 16,
+	.tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K,
+	.mp_tx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_32K,
+	.mp_rx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_32K,
+	.supports_sdio_new_mode = true,
+	.has_control_mask = false,
+	.can_dump_fw = false,
+	.can_auto_tdls = true,
+	.can_ext_scan = true,
+	.fw_ready_extra_delay = false,
+};
+
+static const struct mwifiex_sdio_device mwifiex_sdio_sd8987 = {
+	.firmware = SD8987_DEFAULT_FW_NAME,
+	.reg = &mwifiex_reg_sd89xx,
+	.max_ports = 32,
+	.mp_agg_pkt_limit = 16,
+	.tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K,
+	.mp_tx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_MAX,
+	.mp_rx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_MAX,
+	.supports_sdio_new_mode = true,
+	.has_control_mask = false,
+	.can_dump_fw = true,
+	.fw_dump_enh = true,
+	.can_auto_tdls = true,
+	.can_ext_scan = true,
+	.fw_ready_extra_delay = false,
+};
+
+static const struct mwifiex_sdio_device mwifiex_sdio_sd8801 = {
+	.firmware = SD8801_DEFAULT_FW_NAME,
+	.reg = &mwifiex_reg_sd87xx,
+	.max_ports = 16,
+	.mp_agg_pkt_limit = 8,
+	.supports_sdio_new_mode = false,
+	.has_control_mask = true,
+	.tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K,
+	.mp_tx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_16K,
+	.mp_rx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_16K,
+	.can_dump_fw = false,
+	.can_auto_tdls = false,
+	.can_ext_scan = true,
+	.fw_ready_extra_delay = false,
+};
 
 static struct memory_type_mapping generic_mem_type_map[] = {
 	{"DUMP", NULL, 0, 0xDD},
@@ -57,9 +505,12 @@ static struct memory_type_mapping mem_type_mapping_tbl[] = {
 	{"EXTLAST", NULL, 0, 0xFE},
 };
 
-static const struct of_device_id mwifiex_sdio_of_match_table[] = {
+static const struct of_device_id mwifiex_sdio_of_match_table[] __maybe_unused = {
+	{ .compatible = "marvell,sd8787" },
 	{ .compatible = "marvell,sd8897" },
+	{ .compatible = "marvell,sd8978" },
 	{ .compatible = "marvell,sd8997" },
+	{ .compatible = "nxp,iw416" },
 	{ }
 };
 
@@ -109,6 +560,7 @@ mwifiex_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 		struct mwifiex_sdio_device *data = (void *)id->driver_data;
 
 		card->firmware = data->firmware;
+		card->firmware_sdiouart = data->firmware_sdiouart;
 		card->reg = data->reg;
 		card->max_ports = data->max_ports;
 		card->mp_agg_pkt_limit = data->mp_agg_pkt_limit;
@@ -121,6 +573,7 @@ mwifiex_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 		card->fw_dump_enh = data->fw_dump_enh;
 		card->can_auto_tdls = data->can_auto_tdls;
 		card->can_ext_scan = data->can_ext_scan;
+		card->fw_ready_extra_delay = data->fw_ready_extra_delay;
 		INIT_WORK(&card->work, mwifiex_sdio_work);
 	}
 
@@ -324,8 +777,9 @@ mwifiex_sdio_read_fw_status(struct mwifiex_adapter *adapter, u16 *dat)
 static int mwifiex_check_fw_status(struct mwifiex_adapter *adapter,
 				   u32 poll_num)
 {
+	struct sdio_mmc_card *card = adapter->card;
 	int ret = 0;
-	u16 firmware_stat;
+	u16 firmware_stat = 0;
 	u32 tries;
 
 	for (tries = 0; tries < poll_num; tries++) {
@@ -340,6 +794,13 @@ static int mwifiex_check_fw_status(struct mwifiex_adapter *adapter,
 		msleep(100);
 		ret = -1;
 	}
+
+	if (card->fw_ready_extra_delay &&
+	    firmware_stat == FIRMWARE_READY_SDIO)
+		/* firmware might pretend to be ready, when it's not.
+		 * Wait a little bit more as a workaround.
+		 */
+		msleep(100);
 
 	return ret;
 }
@@ -444,6 +905,9 @@ static int mwifiex_sdio_suspend(struct device *dev)
 		return 0;
 	}
 
+	if (!adapter->is_up)
+		return -EBUSY;
+
 	mwifiex_enable_wake(adapter);
 
 	/* Enable the Host Sleep */
@@ -477,45 +941,27 @@ static void mwifiex_sdio_coredump(struct device *dev)
 		schedule_work(&card->work);
 }
 
-/* Device ID for SD8786 */
-#define SDIO_DEVICE_ID_MARVELL_8786   (0x9116)
-/* Device ID for SD8787 */
-#define SDIO_DEVICE_ID_MARVELL_8787   (0x9119)
-/* Device ID for SD8797 */
-#define SDIO_DEVICE_ID_MARVELL_8797   (0x9129)
-/* Device ID for SD8897 */
-#define SDIO_DEVICE_ID_MARVELL_8897   (0x912d)
-/* Device ID for SD8887 */
-#define SDIO_DEVICE_ID_MARVELL_8887   (0x9135)
-/* Device ID for SD8801 */
-#define SDIO_DEVICE_ID_MARVELL_8801   (0x9139)
-/* Device ID for SD8977 */
-#define SDIO_DEVICE_ID_MARVELL_8977   (0x9145)
-/* Device ID for SD8987 */
-#define SDIO_DEVICE_ID_MARVELL_8987   (0x9149)
-/* Device ID for SD8997 */
-#define SDIO_DEVICE_ID_MARVELL_8997   (0x9141)
-
-
 /* WLAN IDs */
 static const struct sdio_device_id mwifiex_ids[] = {
-	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8786),
+	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8786_WLAN),
 		.driver_data = (unsigned long) &mwifiex_sdio_sd8786},
-	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8787),
+	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8787_WLAN),
 		.driver_data = (unsigned long) &mwifiex_sdio_sd8787},
-	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8797),
+	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8797_WLAN),
 		.driver_data = (unsigned long) &mwifiex_sdio_sd8797},
-	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8897),
+	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8897_WLAN),
 		.driver_data = (unsigned long) &mwifiex_sdio_sd8897},
-	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8887),
+	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8887_WLAN),
 		.driver_data = (unsigned long)&mwifiex_sdio_sd8887},
-	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8801),
+	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8801_WLAN),
 		.driver_data = (unsigned long)&mwifiex_sdio_sd8801},
-	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8977),
+	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8977_WLAN),
 		.driver_data = (unsigned long)&mwifiex_sdio_sd8977},
-	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8987),
+	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8978_WLAN),
+		.driver_data = (unsigned long)&mwifiex_sdio_sd8978},
+	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8987_WLAN),
 		.driver_data = (unsigned long)&mwifiex_sdio_sd8987},
-	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8997),
+	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8997_WLAN),
 		.driver_data = (unsigned long)&mwifiex_sdio_sd8997},
 	{},
 };
@@ -533,7 +979,6 @@ static struct sdio_driver mwifiex_sdio = {
 	.probe = mwifiex_sdio_probe,
 	.remove = mwifiex_sdio_remove,
 	.drv = {
-		.owner = THIS_MODULE,
 		.coredump = mwifiex_sdio_coredump,
 		.pm = &mwifiex_sdio_pm_ops,
 	}
@@ -656,17 +1101,17 @@ cont:
 		    "info: SDIO FUNC1 IO port: %#x\n", adapter->ioport);
 
 	/* Set Host interrupt reset to read to clear */
-	if (!mwifiex_read_reg(adapter, card->reg->host_int_rsr_reg, &reg))
-		mwifiex_write_reg(adapter, card->reg->host_int_rsr_reg,
-				  reg | card->reg->sdio_int_mask);
-	else
+	if (mwifiex_read_reg(adapter, card->reg->host_int_rsr_reg, &reg))
+		return -1;
+	if (mwifiex_write_reg(adapter, card->reg->host_int_rsr_reg,
+			      reg | card->reg->sdio_int_mask))
 		return -1;
 
 	/* Dnld/Upld ready set to auto reset */
-	if (!mwifiex_read_reg(adapter, card->reg->card_misc_cfg_reg, &reg))
-		mwifiex_write_reg(adapter, card->reg->card_misc_cfg_reg,
-				  reg | AUTO_RE_ENABLE_INT);
-	else
+	if (mwifiex_read_reg(adapter, card->reg->card_misc_cfg_reg, &reg))
+		return -1;
+	if (mwifiex_write_reg(adapter, card->reg->card_misc_cfg_reg,
+			      reg | AUTO_RE_ENABLE_INT))
 		return -1;
 
 	return 0;
@@ -1129,9 +1574,9 @@ done:
 }
 
 /*
- * This function decode sdio aggreation pkt.
+ * This function decodes sdio aggregation pkt.
  *
- * Based on the the data block size and pkt_len,
+ * Based on the data block size and pkt_len,
  * skb data will be decoded to few packets.
  */
 static void mwifiex_deaggr_sdio_pkt(struct mwifiex_adapter *adapter,
@@ -1839,7 +2284,7 @@ static int mwifiex_host_to_card_mp_aggr(struct mwifiex_adapter *adapter,
 		ret = mwifiex_write_data_to_card(adapter, card->mpa_tx.buf,
 						 card->mpa_tx.buf_len, mport);
 
-		/* Save the last multi port tx aggreagation info to debug log */
+		/* Save the last multi port tx aggregation info to debug log. */
 		index = adapter->dbg.last_sdio_mp_index;
 		index = (index + 1) % MWIFIEX_DBG_SDIO_MP_NUM;
 		adapter->dbg.last_sdio_mp_index = index;
@@ -1993,6 +2438,8 @@ error:
 		kfree(card->mpa_rx.buf);
 		card->mpa_tx.buf_size = 0;
 		card->mpa_rx.buf_size = 0;
+		card->mpa_tx.buf = NULL;
+		card->mpa_rx.buf = NULL;
 	}
 
 	return ret;
@@ -2027,6 +2474,7 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 	int ret;
 	struct sdio_mmc_card *card = adapter->card;
 	struct sdio_func *func = card->func;
+	const char *firmware = card->firmware;
 
 	/* save adapter pointer in card */
 	card->adapter = adapter;
@@ -2043,7 +2491,18 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 		return ret;
 	}
 
-	strcpy(adapter->fw_name, card->firmware);
+	/* Select correct firmware (sdsd or sdiouart) firmware based on the strapping
+	 * option
+	 */
+	if (card->firmware_sdiouart) {
+		u8 val;
+
+		mwifiex_read_reg(adapter, card->reg->host_strap_reg, &val);
+		if ((val & card->reg->host_strap_mask) == card->reg->host_strap_value)
+			firmware = card->firmware_sdiouart;
+	}
+	strcpy(adapter->fw_name, firmware);
+
 	if (card->fw_dump_enh) {
 		adapter->mem_type_mapping_tbl = generic_mem_type_map;
 		adapter->num_mem_types = 1;
@@ -2084,7 +2543,8 @@ static int mwifiex_init_sdio(struct mwifiex_adapter *adapter)
 	mwifiex_read_reg(adapter, card->reg->host_int_status_reg, &sdio_ireg);
 
 	/* Get SDIO ioport */
-	mwifiex_init_sdio_ioport(adapter);
+	if (mwifiex_init_sdio_ioport(adapter))
+		return -EIO;
 
 	/* Initialize SDIO variables in card */
 	card->mp_rd_bitmap = 0;
@@ -2113,20 +2573,11 @@ static int mwifiex_init_sdio(struct mwifiex_adapter *adapter)
 	if (!card->mp_regs)
 		return -ENOMEM;
 
-	/* Allocate skb pointer buffers */
-	card->mpa_rx.skb_arr = kcalloc(card->mp_agg_pkt_limit, sizeof(void *),
-				       GFP_KERNEL);
-	if (!card->mpa_rx.skb_arr) {
-		kfree(card->mp_regs);
-		return -ENOMEM;
-	}
-
 	card->mpa_rx.len_arr = kcalloc(card->mp_agg_pkt_limit,
 				       sizeof(*card->mpa_rx.len_arr),
 				       GFP_KERNEL);
 	if (!card->mpa_rx.len_arr) {
 		kfree(card->mp_regs);
-		kfree(card->mpa_rx.skb_arr);
 		return -ENOMEM;
 	}
 
@@ -2181,7 +2632,6 @@ static void mwifiex_cleanup_sdio(struct mwifiex_adapter *adapter)
 	cancel_work_sync(&card->work);
 
 	kfree(card->mp_regs);
-	kfree(card->mpa_rx.skb_arr);
 	kfree(card->mpa_rx.len_arr);
 	kfree(card->mpa_tx.buf);
 	kfree(card->mpa_rx.buf);
@@ -2220,22 +2670,30 @@ static void mwifiex_sdio_card_reset_work(struct mwifiex_adapter *adapter)
 	struct sdio_func *func = card->func;
 	int ret;
 
+	/* Prepare the adapter for the reset. */
 	mwifiex_shutdown_sw(adapter);
-
-	/* power cycle the adapter */
-	sdio_claim_host(func);
-	mmc_hw_reset(func->card->host);
-	sdio_release_host(func);
-
-	/* Previous save_adapter won't be valid after this. We will cancel
-	 * pending work requests.
-	 */
 	clear_bit(MWIFIEX_IFACE_WORK_DEVICE_DUMP, &card->work_flags);
 	clear_bit(MWIFIEX_IFACE_WORK_CARD_RESET, &card->work_flags);
 
-	ret = mwifiex_reinit_sw(adapter);
-	if (ret)
-		dev_err(&func->dev, "reinit failed: %d\n", ret);
+	/* Run a HW reset of the SDIO interface. */
+	sdio_claim_host(func);
+	ret = mmc_hw_reset(func->card);
+	sdio_release_host(func);
+
+	switch (ret) {
+	case 1:
+		dev_dbg(&func->dev, "SDIO HW reset asynchronous\n");
+		complete_all(adapter->fw_done);
+		break;
+	case 0:
+		ret = mwifiex_reinit_sw(adapter);
+		if (ret)
+			dev_err(&func->dev, "reinit failed: %d\n", ret);
+		break;
+	default:
+		dev_err(&func->dev, "SDIO HW reset failed: %d\n", ret);
+		break;
+	}
 }
 
 /* This function read/write firmware */
@@ -2692,7 +3150,8 @@ static void mwifiex_sdio_up_dev(struct mwifiex_adapter *adapter)
 	 */
 	mwifiex_read_reg(adapter, card->reg->host_int_status_reg, &sdio_ireg);
 
-	mwifiex_init_sdio_ioport(adapter);
+	if (mwifiex_init_sdio_ioport(adapter))
+		dev_err(&card->func->dev, "error enabling SDIO port\n");
 }
 
 static struct mwifiex_if_ops sdio_ops = {
@@ -2723,7 +3182,7 @@ static struct mwifiex_if_ops sdio_ops = {
 	.up_dev = mwifiex_sdio_up_dev,
 };
 
-module_driver(mwifiex_sdio, sdio_register_driver, sdio_unregister_driver);
+module_sdio_driver(mwifiex_sdio);
 
 MODULE_AUTHOR("Marvell International Ltd.");
 MODULE_DESCRIPTION("Marvell WiFi-Ex SDIO Driver version " SDIO_VERSION);
@@ -2732,8 +3191,11 @@ MODULE_LICENSE("GPL v2");
 MODULE_FIRMWARE(SD8786_DEFAULT_FW_NAME);
 MODULE_FIRMWARE(SD8787_DEFAULT_FW_NAME);
 MODULE_FIRMWARE(SD8797_DEFAULT_FW_NAME);
+MODULE_FIRMWARE(SD8801_DEFAULT_FW_NAME);
 MODULE_FIRMWARE(SD8897_DEFAULT_FW_NAME);
 MODULE_FIRMWARE(SD8887_DEFAULT_FW_NAME);
 MODULE_FIRMWARE(SD8977_DEFAULT_FW_NAME);
+MODULE_FIRMWARE(SD8978_SDIOUART_FW_NAME);
 MODULE_FIRMWARE(SD8987_DEFAULT_FW_NAME);
 MODULE_FIRMWARE(SD8997_DEFAULT_FW_NAME);
+MODULE_FIRMWARE(SD8997_SDIOUART_FW_NAME);

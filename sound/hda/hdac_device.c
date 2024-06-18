@@ -13,6 +13,7 @@
 #include <sound/hdaudio.h>
 #include <sound/hda_regmap.h>
 #include <sound/pcm.h>
+#include <sound/pcm_params.h>
 #include "local.h"
 
 static void setup_fg_nodes(struct hdac_device *codec);
@@ -20,7 +21,7 @@ static int get_codec_vendor_name(struct hdac_device *codec);
 
 static void default_release(struct device *dev)
 {
-	snd_hdac_device_exit(container_of(dev, struct hdac_device, dev));
+	snd_hdac_device_exit(dev_to_hdac_dev(dev));
 }
 
 /**
@@ -57,6 +58,7 @@ int snd_hdac_device_init(struct hdac_device *codec, struct hdac_bus *bus,
 	codec->addr = addr;
 	codec->type = HDA_DEV_CORE;
 	mutex_init(&codec->widget_lock);
+	mutex_init(&codec->regmap_lock);
 	pm_runtime_set_active(&codec->dev);
 	pm_runtime_get_noresume(&codec->dev);
 	atomic_set(&codec->in_pm, 0);
@@ -126,6 +128,8 @@ EXPORT_SYMBOL_GPL(snd_hdac_device_init);
 void snd_hdac_device_exit(struct hdac_device *codec)
 {
 	pm_runtime_put_noidle(&codec->dev);
+	/* keep balance of runtime PM child_count in parent device */
+	pm_runtime_set_suspended(&codec->dev);
 	snd_hdac_bus_remove_device(codec->bus, codec);
 	kfree(codec->vendor_name);
 	kfree(codec->chip_name);
@@ -134,7 +138,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_device_exit);
 
 /**
  * snd_hdac_device_register - register the hd-audio codec base device
- * codec: the device to register
+ * @codec: the device to register
  */
 int snd_hdac_device_register(struct hdac_device *codec)
 {
@@ -157,7 +161,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_device_register);
 
 /**
  * snd_hdac_device_unregister - unregister the hd-audio codec base device
- * codec: the device to unregister
+ * @codec: the device to unregister
  */
 void snd_hdac_device_unregister(struct hdac_device *codec)
 {
@@ -201,9 +205,9 @@ EXPORT_SYMBOL_GPL(snd_hdac_device_set_chip_name);
  *
  * Returns the size of string, like snprintf(), or a negative error code.
  */
-int snd_hdac_codec_modalias(struct hdac_device *codec, char *buf, size_t size)
+int snd_hdac_codec_modalias(const struct hdac_device *codec, char *buf, size_t size)
 {
-	return snprintf(buf, size, "hdaudio:v%08Xr%08Xa%02X\n",
+	return scnprintf(buf, size, "hdaudio:v%08Xr%08Xa%02X\n",
 			codec->vendor_id, codec->revision_id, codec->type);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_codec_modalias);
@@ -280,6 +284,10 @@ EXPORT_SYMBOL_GPL(snd_hdac_read);
 
 /**
  * _snd_hdac_read_parm - read a parmeter
+ * @codec: the codec object
+ * @nid: NID to read a parameter
+ * @parm: parameter to read
+ * @res: pointer to store the read value
  *
  * This function returns zero or an error unlike snd_hdac_read_parm().
  */
@@ -604,7 +612,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_power_up_pm);
 int snd_hdac_keep_power_up(struct hdac_device *codec)
 {
 	if (!atomic_inc_not_zero(&codec->in_pm)) {
-		int ret = pm_runtime_get_if_in_use(&codec->dev);
+		int ret = pm_runtime_get_if_active(&codec->dev);
 		if (!ret)
 			return -1;
 		if (ret < 0)
@@ -637,7 +645,8 @@ struct hda_vendor_id {
 	const char *name;
 };
 
-static struct hda_vendor_id hda_vendor_ids[] = {
+static const struct hda_vendor_id hda_vendor_ids[] = {
+	{ 0x0014, "Loongson" },
 	{ 0x1002, "ATI" },
 	{ 0x1013, "Cirrus Logic" },
 	{ 0x1057, "Motorola" },
@@ -653,6 +662,7 @@ static struct hda_vendor_id hda_vendor_ids[] = {
 	{ 0x14f1, "Conexant" },
 	{ 0x17e8, "Chrontel" },
 	{ 0x1854, "LG" },
+	{ 0x19e5, "Huawei" },
 	{ 0x1aec, "Wolfson Microelectronics" },
 	{ 0x1af4, "QEMU" },
 	{ 0x434d, "C-Media" },
@@ -692,7 +702,7 @@ struct hda_rate_tbl {
 	(AC_FMT_BASE_##base##K | (((mult) - 1) << AC_FMT_MULT_SHIFT) | \
 	 (((div) - 1) << AC_FMT_DIV_SHIFT))
 
-static struct hda_rate_tbl rate_bits[] = {
+static const struct hda_rate_tbl rate_bits[] = {
 	/* rate in Hz, ALSA rate bitmask, HDA format value */
 
 	/* autodetected value used in snd_hda_query_supported_pcm */
@@ -716,32 +726,77 @@ static struct hda_rate_tbl rate_bits[] = {
 	{ 0 } /* terminator */
 };
 
-/**
- * snd_hdac_calc_stream_format - calculate the format bitset
- * @rate: the sample rate
- * @channels: the number of channels
- * @format: the PCM format (SNDRV_PCM_FORMAT_XXX)
- * @maxbps: the max. bps
- * @spdif_ctls: HD-audio SPDIF status bits (0 if irrelevant)
- *
- * Calculate the format bitset from the given rate, channels and th PCM format.
- *
- * Return zero if invalid.
- */
-unsigned int snd_hdac_calc_stream_format(unsigned int rate,
-					 unsigned int channels,
-					 snd_pcm_format_t format,
-					 unsigned int maxbps,
-					 unsigned short spdif_ctls)
+static snd_pcm_format_t snd_hdac_format_normalize(snd_pcm_format_t format)
 {
-	int i;
-	unsigned int val = 0;
+	switch (format) {
+	case SNDRV_PCM_FORMAT_S20_LE:
+	case SNDRV_PCM_FORMAT_S24_LE:
+		return SNDRV_PCM_FORMAT_S32_LE;
 
-	for (i = 0; rate_bits[i].hz; i++)
+	case SNDRV_PCM_FORMAT_U20_LE:
+	case SNDRV_PCM_FORMAT_U24_LE:
+		return SNDRV_PCM_FORMAT_U32_LE;
+
+	case SNDRV_PCM_FORMAT_S20_BE:
+	case SNDRV_PCM_FORMAT_S24_BE:
+		return SNDRV_PCM_FORMAT_S32_BE;
+
+	case SNDRV_PCM_FORMAT_U20_BE:
+	case SNDRV_PCM_FORMAT_U24_BE:
+		return SNDRV_PCM_FORMAT_U32_BE;
+
+	default:
+		return format;
+	}
+}
+
+/**
+ * snd_hdac_stream_format_bits - obtain bits per sample value.
+ * @format:	the PCM format.
+ * @subformat:	the PCM subformat.
+ * @maxbits:	the maximum bits per sample.
+ *
+ * Return: The number of bits per sample.
+ */
+unsigned int snd_hdac_stream_format_bits(snd_pcm_format_t format, snd_pcm_subformat_t subformat,
+					 unsigned int maxbits)
+{
+	struct snd_pcm_hw_params params;
+	unsigned int bits;
+
+	memset(&params, 0, sizeof(params));
+
+	params_set_format(&params, snd_hdac_format_normalize(format));
+	snd_mask_set(hw_param_mask(&params, SNDRV_PCM_HW_PARAM_SUBFORMAT),
+		     (__force unsigned int)subformat);
+
+	bits = snd_pcm_hw_params_bits(&params);
+	if (maxbits)
+		return min(bits, maxbits);
+	return bits;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_stream_format_bits);
+
+/**
+ * snd_hdac_stream_format - convert format parameters to SDxFMT value.
+ * @channels:	the number of channels.
+ * @bits:	bits per sample.
+ * @rate:	the sample rate.
+ *
+ * Return: The format bitset or zero if invalid.
+ */
+unsigned int snd_hdac_stream_format(unsigned int channels, unsigned int bits, unsigned int rate)
+{
+	unsigned int val = 0;
+	int i;
+
+	for (i = 0; rate_bits[i].hz; i++) {
 		if (rate_bits[i].hz == rate) {
 			val = rate_bits[i].hda_fmt;
 			break;
 		}
+	}
+
 	if (!rate_bits[i].hz)
 		return 0;
 
@@ -749,7 +804,7 @@ unsigned int snd_hdac_calc_stream_format(unsigned int rate,
 		return 0;
 	val |= channels - 1;
 
-	switch (snd_pcm_format_width(format)) {
+	switch (bits) {
 	case 8:
 		val |= AC_FMT_BITS_8;
 		break;
@@ -757,25 +812,42 @@ unsigned int snd_hdac_calc_stream_format(unsigned int rate,
 		val |= AC_FMT_BITS_16;
 		break;
 	case 20:
+		val |= AC_FMT_BITS_20;
+		break;
 	case 24:
+		val |= AC_FMT_BITS_24;
+		break;
 	case 32:
-		if (maxbps >= 32 || format == SNDRV_PCM_FORMAT_FLOAT_LE)
-			val |= AC_FMT_BITS_32;
-		else if (maxbps >= 24)
-			val |= AC_FMT_BITS_24;
-		else
-			val |= AC_FMT_BITS_20;
+		val |= AC_FMT_BITS_32;
 		break;
 	default:
 		return 0;
 	}
 
-	if (spdif_ctls & AC_DIG1_NONAUDIO)
+	return val;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_stream_format);
+
+/**
+ * snd_hdac_spdif_stream_format - convert format parameters to SDxFMT value.
+ * @channels:	the number of channels.
+ * @bits:	bits per sample.
+ * @rate:	the sample rate.
+ * @spdif_ctls:	HD-audio SPDIF status bits (0 if irrelevant).
+ *
+ * Return: The format bitset or zero if invalid.
+ */
+unsigned int snd_hdac_spdif_stream_format(unsigned int channels, unsigned int bits,
+					  unsigned int rate, unsigned short spdif_ctls)
+{
+	unsigned int val = snd_hdac_stream_format(channels, bits, rate);
+
+	if (val && spdif_ctls & AC_DIG1_NONAUDIO)
 		val |= AC_FMT_TYPE_NON_PCM;
 
 	return val;
 }
-EXPORT_SYMBOL_GPL(snd_hdac_calc_stream_format);
+EXPORT_SYMBOL_GPL(snd_hdac_spdif_stream_format);
 
 static unsigned int query_pcm_param(struct hdac_device *codec, hda_nid_t nid)
 {
@@ -808,15 +880,17 @@ static unsigned int query_stream_param(struct hdac_device *codec, hda_nid_t nid)
  * @nid: NID to query
  * @ratesp: the pointer to store the detected rate bitflags
  * @formatsp: the pointer to store the detected formats
+ * @subformatsp: the pointer to store the detected subformats for S32_LE format
  * @bpsp: the pointer to store the detected format widths
  *
- * Queries the supported PCM rates and formats.  The NULL @ratesp, @formatsp
- * or @bsps argument is ignored.
+ * Queries the supported PCM rates and formats.  The NULL @ratesp, @formatsp,
+ * @subformatsp or @bpsp argument is ignored.
  *
  * Returns 0 if successful, otherwise a negative error code.
  */
 int snd_hdac_query_supported_pcm(struct hdac_device *codec, hda_nid_t nid,
-				 u32 *ratesp, u64 *formatsp, unsigned int *bpsp)
+				 u32 *ratesp, u64 *formatsp, u32 *subformatsp,
+				 unsigned int *bpsp)
 {
 	unsigned int i, val, wcaps;
 
@@ -839,9 +913,10 @@ int snd_hdac_query_supported_pcm(struct hdac_device *codec, hda_nid_t nid,
 		*ratesp = rates;
 	}
 
-	if (formatsp || bpsp) {
-		u64 formats = 0;
+	if (formatsp || subformatsp || bpsp) {
 		unsigned int streams, bps;
+		u32 subformats = 0;
+		u64 formats = 0;
 
 		streams = query_stream_param(codec, nid);
 		if (!streams)
@@ -857,24 +932,24 @@ int snd_hdac_query_supported_pcm(struct hdac_device *codec, hda_nid_t nid,
 				formats |= SNDRV_PCM_FMTBIT_S16_LE;
 				bps = 16;
 			}
-			if (wcaps & AC_WCAP_DIGITAL) {
-				if (val & AC_SUPPCM_BITS_32)
-					formats |= SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE;
-				if (val & (AC_SUPPCM_BITS_20|AC_SUPPCM_BITS_24))
-					formats |= SNDRV_PCM_FMTBIT_S32_LE;
-				if (val & AC_SUPPCM_BITS_24)
-					bps = 24;
-				else if (val & AC_SUPPCM_BITS_20)
-					bps = 20;
-			} else if (val & (AC_SUPPCM_BITS_20|AC_SUPPCM_BITS_24|
-					  AC_SUPPCM_BITS_32)) {
+			if (val & AC_SUPPCM_BITS_20) {
 				formats |= SNDRV_PCM_FMTBIT_S32_LE;
-				if (val & AC_SUPPCM_BITS_32)
+				subformats |= SNDRV_PCM_SUBFMTBIT_MSBITS_20;
+				bps = 20;
+			}
+			if (val & AC_SUPPCM_BITS_24) {
+				formats |= SNDRV_PCM_FMTBIT_S32_LE;
+				subformats |= SNDRV_PCM_SUBFMTBIT_MSBITS_24;
+				bps = 24;
+			}
+			if (val & AC_SUPPCM_BITS_32) {
+				if (wcaps & AC_WCAP_DIGITAL) {
+					formats |= SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE;
+				} else {
+					formats |= SNDRV_PCM_FMTBIT_S32_LE;
+					subformats |= SNDRV_PCM_SUBFMTBIT_MSBITS_MAX;
 					bps = 32;
-				else if (val & AC_SUPPCM_BITS_24)
-					bps = 24;
-				else if (val & AC_SUPPCM_BITS_20)
-					bps = 20;
+				}
 			}
 		}
 #if 0 /* FIXME: CS4206 doesn't work, which is the only codec supporting float */
@@ -902,6 +977,8 @@ int snd_hdac_query_supported_pcm(struct hdac_device *codec, hda_nid_t nid,
 		}
 		if (formatsp)
 			*formatsp = formats;
+		if (subformatsp)
+			*subformatsp = subformats;
 		if (bpsp)
 			*bpsp = bps;
 	}
@@ -1061,9 +1138,9 @@ EXPORT_SYMBOL_GPL(snd_hdac_check_power_state);
  * snd_hdac_sync_power_state - wait until actual power state matches
  * with the target state
  *
- * @hdac: the HDAC device
+ * @codec: the HDAC device
  * @nid: NID to send the command
- * @target_state: target state to check for
+ * @power_state: target power state to wait for
  *
  * Return power state or PS_ERROR if codec rejects GET verb.
  */

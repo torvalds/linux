@@ -1,20 +1,22 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <linux/dma-map-ops.h>
 #include <linux/dma-direct.h>
-#include <linux/dma-debug.h>
 #include <linux/iommu.h>
 #include <linux/dmar.h>
 #include <linux/export.h>
 #include <linux/memblock.h>
 #include <linux/gfp.h>
 #include <linux/pci.h>
+#include <linux/amd-iommu.h>
 
 #include <asm/proto.h>
 #include <asm/dma.h>
 #include <asm/iommu.h>
 #include <asm/gart.h>
-#include <asm/calgary.h>
 #include <asm/x86_init.h>
-#include <asm/iommu_table.h>
+
+#include <xen/xen.h>
+#include <xen/swiotlb-xen.h>
 
 static bool disable_dac_quirk __read_mostly;
 
@@ -35,28 +37,79 @@ int no_iommu __read_mostly;
 /* Set this to 1 if there is a HW IOMMU in the system */
 int iommu_detected __read_mostly = 0;
 
-extern struct iommu_table_entry __iommu_table[], __iommu_table_end[];
+#ifdef CONFIG_SWIOTLB
+bool x86_swiotlb_enable;
+static unsigned int x86_swiotlb_flags;
+
+static void __init pci_swiotlb_detect(void)
+{
+	/* don't initialize swiotlb if iommu=off (no_iommu=1) */
+	if (!no_iommu && max_possible_pfn > MAX_DMA32_PFN)
+		x86_swiotlb_enable = true;
+
+	/*
+	 * Set swiotlb to 1 so that bounce buffers are allocated and used for
+	 * devices that can't support DMA to encrypted memory.
+	 */
+	if (cc_platform_has(CC_ATTR_HOST_MEM_ENCRYPT))
+		x86_swiotlb_enable = true;
+
+	/*
+	 * Guest with guest memory encryption currently perform all DMA through
+	 * bounce buffers as the hypervisor can't access arbitrary VM memory
+	 * that is not explicitly shared with it.
+	 */
+	if (cc_platform_has(CC_ATTR_GUEST_MEM_ENCRYPT)) {
+		x86_swiotlb_enable = true;
+		x86_swiotlb_flags |= SWIOTLB_FORCE;
+	}
+}
+#else
+static inline void __init pci_swiotlb_detect(void)
+{
+}
+#define x86_swiotlb_flags 0
+#endif /* CONFIG_SWIOTLB */
+
+#ifdef CONFIG_SWIOTLB_XEN
+static bool xen_swiotlb_enabled(void)
+{
+	return xen_initial_domain() || x86_swiotlb_enable ||
+		(IS_ENABLED(CONFIG_XEN_PCIDEV_FRONTEND) && xen_pv_pci_possible);
+}
+
+static void __init pci_xen_swiotlb_init(void)
+{
+	if (!xen_swiotlb_enabled())
+		return;
+	x86_swiotlb_enable = true;
+	x86_swiotlb_flags |= SWIOTLB_ANY;
+	swiotlb_init_remap(true, x86_swiotlb_flags, xen_swiotlb_fixup);
+	dma_ops = &xen_swiotlb_dma_ops;
+	if (IS_ENABLED(CONFIG_PCI))
+		pci_request_acs();
+}
+#else
+static inline void __init pci_xen_swiotlb_init(void)
+{
+}
+#endif /* CONFIG_SWIOTLB_XEN */
 
 void __init pci_iommu_alloc(void)
 {
-	struct iommu_table_entry *p;
-
-	sort_iommu_table(__iommu_table, __iommu_table_end);
-	check_iommu_entries(__iommu_table, __iommu_table_end);
-
-	for (p = __iommu_table; p < __iommu_table_end; p++) {
-		if (p && p->detect && p->detect() > 0) {
-			p->flags |= IOMMU_DETECTED;
-			if (p->early_init)
-				p->early_init();
-			if (p->flags & IOMMU_FINISH_IF_DETECTED)
-				break;
-		}
+	if (xen_pv_domain()) {
+		pci_xen_swiotlb_init();
+		return;
 	}
+	pci_swiotlb_detect();
+	gart_iommu_hole_init();
+	amd_iommu_detect();
+	detect_intel_iommu();
+	swiotlb_init(x86_swiotlb_enable, x86_swiotlb_flags);
 }
 
 /*
- * See <Documentation/x86/x86_64/boot-options.rst> for the iommu kernel
+ * See <Documentation/arch/x86/x86_64/boot-options.rst> for the iommu kernel
  * parameter documentation.
  */
 static __init int iommu_setup(char *p)
@@ -103,7 +156,7 @@ static __init int iommu_setup(char *p)
 		}
 #ifdef CONFIG_SWIOTLB
 		if (!strncmp(p, "soft", 4))
-			swiotlb = 1;
+			x86_swiotlb_enable = true;
 #endif
 		if (!strncmp(p, "pt", 2))
 			iommu_set_default_passthrough(true);
@@ -111,11 +164,6 @@ static __init int iommu_setup(char *p)
 			iommu_set_default_translated(true);
 
 		gart_parse_options(p);
-
-#ifdef CONFIG_CALGARY_IOMMU
-		if (!strncmp(p, "calgary", 7))
-			use_calgary = 1;
-#endif /* CONFIG_CALGARY_IOMMU */
 
 		p += strcspn(p, ",");
 		if (*p == ',')
@@ -127,14 +175,17 @@ early_param("iommu", iommu_setup);
 
 static int __init pci_iommu_init(void)
 {
-	struct iommu_table_entry *p;
-
 	x86_init.iommu.iommu_init();
 
-	for (p = __iommu_table; p < __iommu_table_end; p++) {
-		if (p && (p->flags & IOMMU_DETECTED) && p->late_init)
-			p->late_init();
+#ifdef CONFIG_SWIOTLB
+	/* An IOMMU turned us off. */
+	if (x86_swiotlb_enable) {
+		pr_info("PCI-DMA: Using software bounce buffering for IO (SWIOTLB)\n");
+		swiotlb_print_info();
+	} else {
+		swiotlb_exit();
 	}
+#endif
 
 	return 0;
 }
@@ -146,7 +197,7 @@ rootfs_initcall(pci_iommu_init);
 
 static int via_no_dac_cb(struct pci_dev *pdev, void *data)
 {
-	pdev->dev.bus_dma_mask = DMA_BIT_MASK(32);
+	pdev->dev.bus_dma_limit = DMA_BIT_MASK(32);
 	return 0;
 }
 

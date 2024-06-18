@@ -26,11 +26,11 @@
 bool llist_add_batch(struct llist_node *new_first, struct llist_node *new_last,
 		     struct llist_head *head)
 {
-	struct llist_node *first;
+	struct llist_node *first = READ_ONCE(head->first);
 
 	do {
-		new_last->next = first = READ_ONCE(head->first);
-	} while (cmpxchg(&head->first, first, new_first) != first);
+		new_last->next = first;
+	} while (!try_cmpxchg(&head->first, &first, new_first));
 
 	return !first;
 }
@@ -52,22 +52,46 @@ EXPORT_SYMBOL_GPL(llist_add_batch);
  */
 struct llist_node *llist_del_first(struct llist_head *head)
 {
-	struct llist_node *entry, *old_entry, *next;
+	struct llist_node *entry, *next;
 
 	entry = smp_load_acquire(&head->first);
-	for (;;) {
+	do {
 		if (entry == NULL)
 			return NULL;
-		old_entry = entry;
 		next = READ_ONCE(entry->next);
-		entry = cmpxchg(&head->first, old_entry, next);
-		if (entry == old_entry)
-			break;
-	}
+	} while (!try_cmpxchg(&head->first, &entry, next));
 
 	return entry;
 }
 EXPORT_SYMBOL_GPL(llist_del_first);
+
+/**
+ * llist_del_first_this - delete given entry of lock-less list if it is first
+ * @head:	the head for your lock-less list
+ * @this:	a list entry.
+ *
+ * If head of the list is given entry, delete and return %true else
+ * return %false.
+ *
+ * Multiple callers can safely call this concurrently with multiple
+ * llist_add() callers, providing all the callers offer a different @this.
+ */
+bool llist_del_first_this(struct llist_head *head,
+			  struct llist_node *this)
+{
+	struct llist_node *entry, *next;
+
+	/* acquire ensures orderig wrt try_cmpxchg() is llist_del_first() */
+	entry = smp_load_acquire(&head->first);
+	do {
+		if (entry != this)
+			return false;
+		next = READ_ONCE(entry->next);
+	} while (!try_cmpxchg(&head->first, &entry, next));
+
+	return true;
+}
+EXPORT_SYMBOL_GPL(llist_del_first_this);
 
 /**
  * llist_reverse_order - reverse order of a llist chain

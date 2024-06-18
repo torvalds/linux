@@ -6,6 +6,9 @@
             "actions",
             "csum"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action csum",
@@ -30,6 +33,9 @@
             "actions",
             "csum"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action csum",
@@ -54,6 +60,9 @@
             "actions",
             "csum"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action csum",
@@ -78,6 +87,9 @@
             "actions",
             "csum"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action csum",
@@ -102,6 +114,9 @@
             "actions",
             "csum"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action csum",
@@ -126,6 +141,9 @@
             "actions",
             "csum"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action csum",
@@ -150,6 +168,9 @@
             "actions",
             "csum"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action csum",
@@ -174,6 +195,9 @@
             "actions",
             "csum"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action csum",
@@ -198,6 +222,9 @@
             "actions",
             "csum"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action csum",
@@ -222,6 +249,9 @@
             "actions",
             "csum"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action csum",
@@ -246,6 +276,9 @@
             "actions",
             "csum"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action csum",
@@ -270,6 +303,9 @@
             "actions",
             "csum"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action csum",
@@ -294,6 +330,9 @@
             "actions",
             "csum"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action csum",
@@ -318,6 +357,9 @@
             "actions",
             "csum"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action csum",
@@ -342,6 +384,9 @@
             "actions",
             "csum"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action csum",
@@ -366,6 +411,9 @@
             "actions",
             "csum"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action csum",
@@ -390,6 +438,9 @@
             "actions",
             "csum"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action csum",
@@ -414,6 +465,9 @@
             "actions",
             "csum"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action csum",
@@ -438,6 +492,9 @@
             "actions",
             "csum"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action csum",
@@ -461,6 +518,9 @@
             "actions",
             "csum"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action csum",
@@ -469,7 +529,7 @@
                 255
             ]
         ],
-        "cmdUnderTest": "bash -c \"for i in \\`seq 1 32\\`; do cmd=\\\"action csum tcp continue index \\$i cookie aaabbbcccdddeee \\\"; args=\"\\$args\\$cmd\"; done && $TC actions add \\$args\"",
+        "cmdUnderTest": "bash -c \"for i in \\`seq 1 32\\`; do cmd=\\\"action csum tcp continue index \\$i cookie 123456789abcde \\\"; args=\"\\$args\\$cmd\"; done && $TC actions add \\$args\"",
         "expExitCode": "0",
         "verifyCmd": "$TC actions ls action csum",
         "matchPattern": "^[ \t]+index [0-9]* ref",
@@ -485,6 +545,9 @@
             "actions",
             "csum"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action csum",
@@ -492,7 +555,7 @@
                 1,
                 255
             ],
-            "bash -c \"for i in \\`seq 1 32\\`; do cmd=\\\"action csum tcp continue index \\$i cookie aaabbbcccdddeee \\\"; args=\"\\$args\\$cmd\"; done && $TC actions add \\$args\""
+            "bash -c \"for i in \\`seq 1 32\\`; do cmd=\\\"action csum tcp continue index \\$i cookie 123456789abcde \\\"; args=\"\\$args\\$cmd\"; done && $TC actions add \\$args\""
         ],
         "cmdUnderTest": "bash -c \"for i in \\`seq 1 32\\`; do cmd=\\\"action csum index \\$i \\\"; args=\"\\$args\\$cmd\"; done && $TC actions del \\$args\"",
         "expExitCode": "0",
@@ -508,6 +571,9 @@
             "actions",
             "csum"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action csum",
@@ -521,6 +587,33 @@
         "expExitCode": "255",
         "verifyCmd": "$TC actions get action csum index 90",
         "matchPattern": "action order [0-9]*: csum \\(iph\\) action pass.*index 90 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action csum"
+        ]
+    },
+    {
+        "id": "eaf0",
+        "name": "Add csum iph action with no_percpu flag",
+        "category": [
+            "actions",
+            "csum"
+        ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC actions flush action csum",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action csum iph no_percpu",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action csum",
+        "matchPattern": "action order [0-9]*: csum \\(iph\\) action pass.*no_percpu",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action csum"

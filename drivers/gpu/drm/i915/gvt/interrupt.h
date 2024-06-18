@@ -32,6 +32,14 @@
 #ifndef _GVT_INTERRUPT_H_
 #define _GVT_INTERRUPT_H_
 
+#include <linux/bitops.h>
+
+struct intel_gvt;
+struct intel_gvt_irq;
+struct intel_gvt_irq_info;
+struct intel_gvt_irq_map;
+struct intel_vgpu;
+
 enum intel_gvt_event_type {
 	RCS_MI_USER_INTERRUPT = 0,
 	RCS_DEBUG,
@@ -133,9 +141,6 @@ enum intel_gvt_event_type {
 	INTEL_GVT_EVENT_MAX,
 };
 
-struct intel_gvt_irq;
-struct intel_gvt;
-
 typedef void (*gvt_event_virt_handler_t)(struct intel_gvt_irq *irq,
 	enum intel_gvt_event_type event, struct intel_vgpu *vgpu);
 
@@ -169,50 +174,23 @@ enum intel_gvt_irq_type {
 
 #define INTEL_GVT_IRQ_BITWIDTH	32
 
-/* device specific interrupt bit definitions */
-struct intel_gvt_irq_info {
-	char *name;
-	i915_reg_t reg_base;
-	enum intel_gvt_event_type bit_to_event[INTEL_GVT_IRQ_BITWIDTH];
-	unsigned long warned;
-	int group;
-	DECLARE_BITMAP(downstream_irq_bitmap, INTEL_GVT_IRQ_BITWIDTH);
-	bool has_upstream_irq;
-};
-
 /* per-event information */
 struct intel_gvt_event_info {
 	int bit;				/* map to register bit */
-	int policy;				/* forwarding policy */
 	struct intel_gvt_irq_info *info;	/* register info */
 	gvt_event_virt_handler_t v_handler;	/* for v_event */
 };
 
-struct intel_gvt_irq_map {
-	int up_irq_group;
-	int up_irq_bit;
-	int down_irq_group;
-	u32 down_irq_bitmask;
-};
-
-struct intel_gvt_vblank_timer {
-	struct hrtimer timer;
-	u64 period;
-};
-
 /* structure containing device specific IRQ state */
 struct intel_gvt_irq {
-	struct intel_gvt_irq_ops *ops;
+	const struct intel_gvt_irq_ops *ops;
 	struct intel_gvt_irq_info *info[INTEL_GVT_IRQ_INFO_MAX];
 	DECLARE_BITMAP(irq_info_bitmap, INTEL_GVT_IRQ_INFO_MAX);
 	struct intel_gvt_event_info events[INTEL_GVT_EVENT_MAX];
-	DECLARE_BITMAP(pending_events, INTEL_GVT_EVENT_MAX);
 	struct intel_gvt_irq_map *irq_map;
-	struct intel_gvt_vblank_timer vblank_timer;
 };
 
 int intel_gvt_init_irq(struct intel_gvt *gvt);
-void intel_gvt_clean_irq(struct intel_gvt *gvt);
 
 void intel_vgpu_trigger_virtual_event(struct intel_vgpu *vgpu,
 	enum intel_gvt_event_type event);

@@ -779,9 +779,6 @@ struct il_sensitivity_ranges {
 	u16 nrg_th_cca;
 };
 
-#define KELVIN_TO_CELSIUS(x) ((x)-273)
-#define CELSIUS_TO_KELVIN(x) ((x)+273)
-
 /**
  * struct il_hw_params
  * @bcast_id: f/w broadcast station ID
@@ -1686,7 +1683,8 @@ struct il_cfg {
  ***************************/
 
 int il_mac_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		   u16 queue, const struct ieee80211_tx_queue_params *params);
+		   unsigned int link_id, u16 queue,
+		   const struct ieee80211_tx_queue_params *params);
 int il_mac_tx_last_beacon(struct ieee80211_hw *hw);
 
 void il_set_rxon_hwcrypto(struct il_priv *il, int hw_decrypt);
@@ -1950,7 +1948,7 @@ il_get_hw_mode(struct il_priv *il, enum nl80211_band band)
 int il_mac_config(struct ieee80211_hw *hw, u32 changed);
 void il_mac_reset_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 void il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			     struct ieee80211_bss_conf *bss_conf, u32 changes);
+			     struct ieee80211_bss_conf *bss_conf, u64 changes);
 void il_tx_cmd_protection(struct il_priv *il, struct ieee80211_tx_info *info,
 			  __le16 fc, __le32 *tx_flags);
 
@@ -2928,8 +2926,8 @@ do {									\
 #define IL_DBG(level, fmt, args...)					\
 do {									\
 	if (il_get_debug_level(il) & level)				\
-		dev_err(&il->hw->wiphy->dev, "%c %s " fmt,		\
-			in_interrupt() ? 'I' : 'U', __func__ , ##args); \
+		dev_err(&il->hw->wiphy->dev, "%s " fmt, __func__,	\
+			 ##args);					\
 } while (0)
 
 #define il_print_hex_dump(il, level, p, len)				\
@@ -2940,7 +2938,7 @@ do {									\
 } while (0)
 
 #else
-#define IL_DBG(level, fmt, args...)
+#define IL_DBG(level, fmt, args...) no_printk(fmt, ##args)
 static inline void
 il_print_hex_dump(struct il_priv *il, int level, const void *p, u32 len)
 {

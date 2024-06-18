@@ -40,7 +40,7 @@ struct cis_cache_entry {
 	unsigned int		addr;
 	unsigned int		len;
 	unsigned int		attr;
-	unsigned char		cache[0];
+	unsigned char		cache[];
 };
 
 struct pccard_resource_ops {
@@ -113,7 +113,7 @@ struct pcmcia_callback{
 /* cs.c */
 extern struct rw_semaphore pcmcia_socket_list_rwsem;
 extern struct list_head pcmcia_socket_list;
-extern struct class pcmcia_socket_class;
+extern const struct class pcmcia_socket_class;
 
 int pccard_register_pcmcia(struct pcmcia_socket *s, struct pcmcia_callback *c);
 struct pcmcia_socket *pcmcia_get_socket_by_nr(unsigned int nr);
@@ -132,7 +132,7 @@ void pcmcia_put_socket(struct pcmcia_socket *skt);
  * Stuff internal to module "pcmcia".
  */
 /* ds.c */
-extern struct bus_type pcmcia_bus_type;
+extern const struct bus_type pcmcia_bus_type;
 
 struct pcmcia_device;
 
@@ -163,12 +163,6 @@ int pcmcia_replace_cis(struct pcmcia_socket *s,
 		       const u8 *data, const size_t len);
 int pccard_validate_cis(struct pcmcia_socket *s, unsigned int *count);
 int verify_cis_cache(struct pcmcia_socket *s);
-
-int pccard_loop_tuple(struct pcmcia_socket *s, unsigned int function,
-		      cisdata_t code, cisparse_t *parse, void *priv_data,
-		      int (*loop_tuple) (tuple_t *tuple,
-					 cisparse_t *parse,
-					 void *priv_data));
 
 int pccard_get_first_tuple(struct pcmcia_socket *s, unsigned int function,
 			tuple_t *tuple);

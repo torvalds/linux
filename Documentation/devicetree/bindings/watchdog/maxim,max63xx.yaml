@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/watchdog/maxim,max63xx.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Maxim 63xx Watchdog Timers
+
+maintainers:
+  - Marc Zyngier <maz@kernel.org>
+  - Linus Walleij <linus.walleij@linaro.org>
+
+allOf:
+  - $ref: watchdog.yaml#
+  - $ref: /schemas/memory-controllers/mc-peripheral-props.yaml#
+
+properties:
+  compatible:
+    enum:
+      - maxim,max6369
+      - maxim,max6370
+      - maxim,max6371
+      - maxim,max6372
+      - maxim,max6373
+      - maxim,max6374
+
+  reg:
+    description: This is a 1-byte memory-mapped address
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    wdt: watchdog@50000000 {
+        compatible = "maxim,max6369";
+        reg = <0x50000000 0x1>;
+        timeout-sec = <10>;
+    };
+
+...

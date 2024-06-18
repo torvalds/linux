@@ -41,6 +41,10 @@ uninstall :
 	if [ -d $(DESTDIR)$(PREFIX)/lib/pm-graph/config ] ; then \
 		rmdir $(DESTDIR)$(PREFIX)/lib/pm-graph/config; \
 	fi;
+	rm -f $(DESTDIR)$(PREFIX)/lib/pm-graph/__pycache__/*
+	if [ -d $(DESTDIR)$(PREFIX)/lib/pm-graph/__pycache__ ] ; then \
+		rmdir $(DESTDIR)$(PREFIX)/lib/pm-graph/__pycache__; \
+	fi;
 	rm -f $(DESTDIR)$(PREFIX)/lib/pm-graph/*
 	if [ -d $(DESTDIR)$(PREFIX)/lib/pm-graph ] ; then \
 		rmdir $(DESTDIR)$(PREFIX)/lib/pm-graph; \

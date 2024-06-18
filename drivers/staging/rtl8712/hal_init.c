@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
- * hal_init.c
  *
  * Copyright(c) 2007 - 2010 Realtek Corporation. All rights reserved.
  * Linux device driver for RTL8192SU
@@ -27,25 +26,39 @@
 #include "usb_osintf.h"
 
 #define FWBUFF_ALIGN_SZ 512
-#define MAX_DUMP_FWSZ	49152 /*default = 49152 (48k)*/
+#define MAX_DUMP_FWSZ (48 * 1024)
+
+static void rtl871x_load_fw_fail(struct _adapter *adapter)
+{
+	struct usb_device *udev = adapter->dvobjpriv.pusbdev;
+	struct device *dev = &udev->dev;
+	struct device *parent = dev->parent;
+
+	complete(&adapter->rtl8712_fw_ready);
+
+	dev_err(&udev->dev, "r8712u: Firmware request failed\n");
+
+	if (parent)
+		device_lock(parent);
+
+	device_release_driver(dev);
+
+	if (parent)
+		device_unlock(parent);
+}
 
 static void rtl871x_load_fw_cb(const struct firmware *firmware, void *context)
 {
 	struct _adapter *adapter = context;
 
-	complete(&adapter->rtl8712_fw_ready);
 	if (!firmware) {
-		struct usb_device *udev = adapter->dvobjpriv.pusbdev;
-		struct usb_interface *usb_intf = adapter->pusb_intf;
-
-		dev_err(&udev->dev, "r8712u: Firmware request failed\n");
-		usb_put_dev(udev);
-		usb_set_intfdata(usb_intf, NULL);
+		rtl871x_load_fw_fail(adapter);
 		return;
 	}
 	adapter->fw = firmware;
 	/* firmware available - start netdev */
 	register_netdev(adapter->pnetdev);
+	complete(&adapter->rtl8712_fw_ready);
 }
 
 static const char firmware_file[] = "rtlwifi/rtl8712u.bin";
@@ -67,15 +80,13 @@ MODULE_FIRMWARE("rtlwifi/rtl8712u.bin");
 
 static u32 rtl871x_open_fw(struct _adapter *adapter, const u8 **mappedfw)
 {
-	const struct firmware **raw = &adapter->fw;
-
 	if (adapter->fw->size > 200000) {
-		dev_err(&adapter->pnetdev->dev, "r8172u: Badfw->size of %d\n",
-			(int)adapter->fw->size);
+		dev_err(&adapter->pnetdev->dev, "r8712u: Bad fw->size of %zu\n",
+			adapter->fw->size);
 		return 0;
 	}
-	*mappedfw = (*raw)->data;
-	return (*raw)->size;
+	*mappedfw = adapter->fw->data;
+	return adapter->fw->size;
 }
 
 static void fill_fwpriv(struct _adapter *adapter, struct fw_priv *fwpriv)
@@ -99,12 +110,12 @@ static void fill_fwpriv(struct _adapter *adapter, struct fw_priv *fwpriv)
 	default:
 		fwpriv->rf_config = RTL8712_RFC_1T2R;
 	}
-	fwpriv->mp_mode = (regpriv->mp_mode == 1) ? 1 : 0;
+	fwpriv->mp_mode = (regpriv->mp_mode == 1);
 	/* 0:off 1:on 2:auto */
 	fwpriv->vcs_type = regpriv->vrtl_carrier_sense;
 	fwpriv->vcs_mode = regpriv->vcs_type; /* 1:RTS/CTS 2:CTS to self */
 	/* default enable turbo_mode */
-	fwpriv->turbo_mode = ((regpriv->wifi_test == 1) ? 0 : 1);
+	fwpriv->turbo_mode = (regpriv->wifi_test != 1);
 	fwpriv->low_power_mode = regpriv->low_power;
 }
 
@@ -133,7 +144,7 @@ static u8 chk_fwhdr(struct fw_hdr *pfwhdr, u32 ulfilelength)
 	if (pfwhdr->fw_priv_sz != sizeof(struct fw_priv))
 		return _FAIL;
 	/* check fw_sz & image_fw_sz */
-	fwhdrsz = FIELD_OFFSET(struct fw_hdr, fwpriv) + pfwhdr->fw_priv_sz;
+	fwhdrsz = offsetof(struct fw_hdr, fwpriv) + pfwhdr->fw_priv_sz;
 	fw_sz =  fwhdrsz + pfwhdr->img_IMEM_size + pfwhdr->img_SRAM_size +
 		 pfwhdr->dmem_size;
 	if (fw_sz != ulfilelength)
@@ -173,7 +184,7 @@ static u8 rtl8712_dl_fw(struct _adapter *adapter)
 		txdesc = (struct tx_desc *)(tmpchar + FWBUFF_ALIGN_SZ -
 			    ((addr_t)(tmpchar) & (FWBUFF_ALIGN_SZ - 1)));
 		payload = (u8 *)(txdesc) + txdscp_sz;
-		ptr = (u8 *)mappedfw + FIELD_OFFSET(struct fw_hdr, fwpriv) +
+		ptr = (u8 *)mappedfw + offsetof(struct fw_hdr, fwpriv) +
 		      fwhdr.fw_priv_sz;
 		/* Download FirmWare */
 		/* 1. determine IMEM code size and Load IMEM Code Section */
@@ -343,7 +354,7 @@ uint rtl8712_hal_init(struct _adapter *padapter)
 	/* Fix the RX FIFO issue(USB error) */
 	r8712_write8(padapter, 0x1025fe5C, r8712_read8(padapter, 0x1025fe5C)
 		     | BIT(7));
-	for (i = 0; i < 6; i++)
+	for (i = 0; i < ETH_ALEN; i++)
 		padapter->eeprompriv.mac_addr[i] = r8712_read8(padapter,
 							       MACID + i);
 	return _SUCCESS;

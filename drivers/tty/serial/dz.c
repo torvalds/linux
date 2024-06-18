@@ -29,10 +29,6 @@
 
 #undef DEBUG_DZ
 
-#if defined(CONFIG_SERIAL_DZ_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
-#define SUPPORT_SYSRQ
-#endif
-
 #include <linux/bitops.h>
 #include <linux/compiler.h>
 #include <linux/console.h>
@@ -51,8 +47,8 @@
 #include <linux/tty_flip.h>
 
 #include <linux/atomic.h>
+#include <linux/io.h>
 #include <asm/bootinfo.h>
-#include <asm/io.h>
 
 #include <asm/dec/interrupts.h>
 #include <asm/dec/kn01.h>
@@ -119,7 +115,7 @@ static void dz_out(struct dz_port *dport, unsigned offset, u16 value)
  * rs_stop () and rs_start ()
  *
  * These routines are called before setting or resetting
- * tty->stopped. They enable or disable transmitter interrupts,
+ * tty->flow.stopped. They enable or disable transmitter interrupts,
  * as necessary.
  * ------------------------------------------------------------
  */
@@ -185,8 +181,8 @@ static inline void dz_receive_chars(struct dz_mux *mux)
 	struct dz_port *dport = &mux->dport[0];
 	struct uart_icount *icount;
 	int lines_rx[DZ_NB_PORT] = { [0 ... DZ_NB_PORT - 1] = 0 };
-	unsigned char ch, flag;
 	u16 status;
+	u8 ch, flag;
 	int i;
 
 	while ((status = dz_in(dport, DZ_RBUF)) & DZ_DVAL) {
@@ -256,13 +252,13 @@ static inline void dz_receive_chars(struct dz_mux *mux)
 static inline void dz_transmit_chars(struct dz_mux *mux)
 {
 	struct dz_port *dport = &mux->dport[0];
-	struct circ_buf *xmit;
+	struct tty_port *tport;
 	unsigned char tmp;
 	u16 status;
 
 	status = dz_in(dport, DZ_CSR);
 	dport = &mux->dport[LINE(status)];
-	xmit = &dport->port.state->xmit;
+	tport = &dport->port.state->port;
 
 	if (dport->port.x_char) {		/* XON/XOFF chars */
 		dz_out(dport, DZ_TDR, dport->port.x_char);
@@ -271,10 +267,11 @@ static inline void dz_transmit_chars(struct dz_mux *mux)
 		return;
 	}
 	/* If nothing to do or stopped or hardware stopped. */
-	if (uart_circ_empty(xmit) || uart_tx_stopped(&dport->port)) {
-		spin_lock(&dport->port.lock);
+	if (uart_tx_stopped(&dport->port) ||
+			!uart_fifo_get(&dport->port, &tmp)) {
+		uart_port_lock(&dport->port);
 		dz_stop_tx(&dport->port);
-		spin_unlock(&dport->port.lock);
+		uart_port_unlock(&dport->port);
 		return;
 	}
 
@@ -282,19 +279,16 @@ static inline void dz_transmit_chars(struct dz_mux *mux)
 	 * If something to do... (remember the dz has no output fifo,
 	 * so we go one char at a time) :-<
 	 */
-	tmp = xmit->buf[xmit->tail];
-	xmit->tail = (xmit->tail + 1) & (DZ_XMIT_SIZE - 1);
 	dz_out(dport, DZ_TDR, tmp);
-	dport->port.icount.tx++;
 
-	if (uart_circ_chars_pending(xmit) < DZ_WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < DZ_WAKEUP_CHARS)
 		uart_write_wakeup(&dport->port);
 
 	/* Are we are done. */
-	if (uart_circ_empty(xmit)) {
-		spin_lock(&dport->port.lock);
+	if (kfifo_is_empty(&tport->xmit_fifo)) {
+		uart_port_lock(&dport->port);
 		dz_stop_tx(&dport->port);
-		spin_unlock(&dport->port.lock);
+		uart_port_unlock(&dport->port);
 	}
 }
 
@@ -420,14 +414,14 @@ static int dz_startup(struct uart_port *uport)
 		return ret;
 	}
 
-	spin_lock_irqsave(&dport->port.lock, flags);
+	uart_port_lock_irqsave(&dport->port, &flags);
 
 	/* Enable interrupts.  */
 	tmp = dz_in(dport, DZ_CSR);
 	tmp |= DZ_RIE | DZ_TIE;
 	dz_out(dport, DZ_CSR, tmp);
 
-	spin_unlock_irqrestore(&dport->port.lock, flags);
+	uart_port_unlock_irqrestore(&dport->port, flags);
 
 	return 0;
 }
@@ -448,9 +442,9 @@ static void dz_shutdown(struct uart_port *uport)
 	int irq_guard;
 	u16 tmp;
 
-	spin_lock_irqsave(&dport->port.lock, flags);
+	uart_port_lock_irqsave(&dport->port, &flags);
 	dz_stop_tx(&dport->port);
-	spin_unlock_irqrestore(&dport->port.lock, flags);
+	uart_port_unlock_irqrestore(&dport->port, flags);
 
 	irq_guard = atomic_add_return(-1, &mux->irq_guard);
 	if (!irq_guard) {
@@ -496,14 +490,14 @@ static void dz_break_ctl(struct uart_port *uport, int break_state)
 	unsigned long flags;
 	unsigned short tmp, mask = 1 << dport->port.line;
 
-	spin_lock_irqsave(&uport->lock, flags);
+	uart_port_lock_irqsave(uport, &flags);
 	tmp = dz_in(dport, DZ_TCR);
 	if (break_state)
 		tmp |= mask;
 	else
 		tmp &= ~mask;
 	dz_out(dport, DZ_TCR, tmp);
-	spin_unlock_irqrestore(&uport->lock, flags);
+	uart_port_unlock_irqrestore(uport, flags);
 }
 
 static int dz_encode_baud_rate(unsigned int baud)
@@ -563,7 +557,7 @@ static void dz_reset(struct dz_port *dport)
 }
 
 static void dz_set_termios(struct uart_port *uport, struct ktermios *termios,
-			   struct ktermios *old_termios)
+			   const struct ktermios *old_termios)
 {
 	struct dz_port *dport = to_dport(uport);
 	unsigned long flags;
@@ -596,9 +590,12 @@ static void dz_set_termios(struct uart_port *uport, struct ktermios *termios,
 
 	baud = uart_get_baud_rate(uport, termios, old_termios, 50, 9600);
 	bflag = dz_encode_baud_rate(baud);
-	if (bflag < 0)	{			/* Try to keep unchanged.  */
-		baud = uart_get_baud_rate(uport, old_termios, NULL, 50, 9600);
-		bflag = dz_encode_baud_rate(baud);
+	if (bflag < 0)	{
+		if (old_termios) {
+			/* Keep unchanged. */
+			baud = tty_termios_baud_rate(old_termios);
+			bflag = dz_encode_baud_rate(baud);
+		}
 		if (bflag < 0)	{		/* Resort to 9600.  */
 			baud = 9600;
 			bflag = DZ_B9600;
@@ -610,7 +607,7 @@ static void dz_set_termios(struct uart_port *uport, struct ktermios *termios,
 	if (termios->c_cflag & CREAD)
 		cflag |= DZ_RXENAB;
 
-	spin_lock_irqsave(&dport->port.lock, flags);
+	uart_port_lock_irqsave(&dport->port, &flags);
 
 	uart_update_timeout(uport, termios->c_cflag, baud);
 
@@ -633,7 +630,7 @@ static void dz_set_termios(struct uart_port *uport, struct ktermios *termios,
 	if (termios->c_iflag & IGNBRK)
 		dport->port.ignore_status_mask |= DZ_BREAK;
 
-	spin_unlock_irqrestore(&dport->port.lock, flags);
+	uart_port_unlock_irqrestore(&dport->port, flags);
 }
 
 /*
@@ -647,12 +644,12 @@ static void dz_pm(struct uart_port *uport, unsigned int state,
 	struct dz_port *dport = to_dport(uport);
 	unsigned long flags;
 
-	spin_lock_irqsave(&dport->port.lock, flags);
+	uart_port_lock_irqsave(&dport->port, &flags);
 	if (state < 3)
 		dz_start_tx(&dport->port);
 	else
 		dz_stop_tx(&dport->port);
-	spin_unlock_irqrestore(&dport->port.lock, flags);
+	uart_port_unlock_irqrestore(&dport->port, flags);
 }
 
 
@@ -677,7 +674,7 @@ static void dz_release_port(struct uart_port *uport)
 static int dz_map_port(struct uart_port *uport)
 {
 	if (!uport->membase)
-		uport->membase = ioremap_nocache(uport->mapbase,
+		uport->membase = ioremap(uport->mapbase,
 						 dec_kn_slot_size);
 	if (!uport->membase) {
 		printk(KERN_ERR "dz: Cannot map MMIO\n");
@@ -787,6 +784,7 @@ static void __init dz_init_ports(void)
 		uport->ops	= &dz_ops;
 		uport->line	= line;
 		uport->mapbase	= base;
+		uport->has_sysrq = IS_ENABLED(CONFIG_SERIAL_DZ_CONSOLE);
 	}
 }
 
@@ -805,14 +803,14 @@ static void __init dz_init_ports(void)
  * restored.  Welcome to the world of PDP-11!
  * -------------------------------------------------------------------
  */
-static void dz_console_putchar(struct uart_port *uport, int ch)
+static void dz_console_putchar(struct uart_port *uport, unsigned char ch)
 {
 	struct dz_port *dport = to_dport(uport);
 	unsigned long flags;
 	unsigned short csr, tcr, trdy, mask;
 	int loops = 10000;
 
-	spin_lock_irqsave(&dport->port.lock, flags);
+	uart_port_lock_irqsave(&dport->port, &flags);
 	csr = dz_in(dport, DZ_CSR);
 	dz_out(dport, DZ_CSR, csr & ~DZ_TIE);
 	tcr = dz_in(dport, DZ_TCR);
@@ -820,7 +818,7 @@ static void dz_console_putchar(struct uart_port *uport, int ch)
 	mask = tcr;
 	dz_out(dport, DZ_TCR, mask);
 	iob();
-	spin_unlock_irqrestore(&dport->port.lock, flags);
+	uart_port_unlock_irqrestore(&dport->port, flags);
 
 	do {
 		trdy = dz_in(dport, DZ_CSR);

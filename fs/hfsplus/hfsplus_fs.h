@@ -117,7 +117,7 @@ struct hfs_bnode {
 	wait_queue_head_t lock_wq;
 	atomic_t refcnt;
 	unsigned int page_offset;
-	struct page *page[0];
+	struct page *page[];
 };
 
 #define HFS_BNODE_LOCK		0
@@ -190,6 +190,7 @@ struct hfsplus_sb_info {
 	int work_queued;               /* non-zero delayed work is queued */
 	struct delayed_work sync_work; /* FS sync delayed work */
 	spinlock_t work_lock;          /* protects sync_work and work_queued */
+	struct rcu_head rcu;
 };
 
 #define HFSPLUS_SB_WRITEBACKUP	0
@@ -198,6 +199,8 @@ struct hfsplus_sb_info {
 #define HFSPLUS_SB_HFSX		3
 #define HFSPLUS_SB_CASEFOLD	4
 #define HFSPLUS_SB_NOBARRIER	5
+#define HFSPLUS_SB_UID		6
+#define HFSPLUS_SB_GID		7
 
 static inline struct hfsplus_sb_info *HFSPLUS_SB(struct super_block *sb)
 {
@@ -345,17 +348,6 @@ static inline unsigned short hfsplus_min_io_size(struct super_block *sb)
 #define hfs_part_find hfsplus_part_find
 
 /*
- * definitions for ext2 flag ioctls (linux really needs a generic
- * interface for this).
- */
-
-/* ext2 ioctls (EXT2_IOC_GETFLAGS and EXT2_IOC_SETFLAGS) to support
- * chattr/lsattr */
-#define HFSPLUS_IOC_EXT2_GETFLAGS	FS_IOC_GETFLAGS
-#define HFSPLUS_IOC_EXT2_SETFLAGS	FS_IOC_SETFLAGS
-
-
-/*
  * hfs+-specific ioctl for making the filesystem bootable
  */
 #define HFSPLUS_IOC_BLESS _IO('h', 0x80)
@@ -479,6 +471,8 @@ extern const struct address_space_operations hfsplus_aops;
 extern const struct address_space_operations hfsplus_btree_aops;
 extern const struct dentry_operations hfsplus_dentry_operations;
 
+int hfsplus_write_begin(struct file *file, struct address_space *mapping,
+		loff_t pos, unsigned len, struct page **pagep, void **fsdata);
 struct inode *hfsplus_new_inode(struct super_block *sb, struct inode *dir,
 				umode_t mode);
 void hfsplus_delete_inode(struct inode *inode);
@@ -488,10 +482,14 @@ void hfsplus_inode_write_fork(struct inode *inode,
 			      struct hfsplus_fork_raw *fork);
 int hfsplus_cat_read_inode(struct inode *inode, struct hfs_find_data *fd);
 int hfsplus_cat_write_inode(struct inode *inode);
-int hfsplus_getattr(const struct path *path, struct kstat *stat,
-		    u32 request_mask, unsigned int query_flags);
+int hfsplus_getattr(struct mnt_idmap *idmap, const struct path *path,
+		    struct kstat *stat, u32 request_mask,
+		    unsigned int query_flags);
 int hfsplus_file_fsync(struct file *file, loff_t start, loff_t end,
 		       int datasync);
+int hfsplus_fileattr_get(struct dentry *dentry, struct fileattr *fa);
+int hfsplus_fileattr_set(struct mnt_idmap *idmap,
+			 struct dentry *dentry, struct fileattr *fa);
 
 /* ioctl.c */
 long hfsplus_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
@@ -530,16 +528,34 @@ int hfsplus_compare_dentry(const struct dentry *dentry, unsigned int len,
 
 /* wrapper.c */
 int hfsplus_submit_bio(struct super_block *sb, sector_t sector, void *buf,
-		       void **data, int op, int op_flags);
+		       void **data, blk_opf_t opf);
 int hfsplus_read_wrapper(struct super_block *sb);
 
-/* time macros */
-#define __hfsp_mt2ut(t)		(be32_to_cpu(t) - 2082844800U)
-#define __hfsp_ut2mt(t)		(cpu_to_be32(t + 2082844800U))
+/*
+ * time helpers: convert between 1904-base and 1970-base timestamps
+ *
+ * HFS+ implementations are highly inconsistent, this one matches the
+ * traditional behavior of 64-bit Linux, giving the most useful
+ * time range between 1970 and 2106, by treating any on-disk timestamp
+ * under HFSPLUS_UTC_OFFSET (Jan 1 1970) as a time between 2040 and 2106.
+ */
+#define HFSPLUS_UTC_OFFSET 2082844800U
+
+static inline time64_t __hfsp_mt2ut(__be32 mt)
+{
+	time64_t ut = (u32)(be32_to_cpu(mt) - HFSPLUS_UTC_OFFSET);
+
+	return ut;
+}
+
+static inline __be32 __hfsp_ut2mt(time64_t ut)
+{
+	return cpu_to_be32(lower_32_bits(ut) + HFSPLUS_UTC_OFFSET);
+}
 
 /* compatibility */
-#define hfsp_mt2ut(t)		(struct timespec){ .tv_sec = __hfsp_mt2ut(t) }
+#define hfsp_mt2ut(t)		(struct timespec64){ .tv_sec = __hfsp_mt2ut(t) }
 #define hfsp_ut2mt(t)		__hfsp_ut2mt((t).tv_sec)
-#define hfsp_now2mt()		__hfsp_ut2mt(get_seconds())
+#define hfsp_now2mt()		__hfsp_ut2mt(ktime_get_real_seconds())
 
 #endif

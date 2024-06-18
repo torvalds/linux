@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2012-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include <linux/module.h>
@@ -454,10 +443,10 @@ DEFINE_DEBUGFS_ATTRIBUTE(wil_fops_ulong, wil_debugfs_ulong_get,
 
 /**
  * wil6210_debugfs_init_offset - create set of debugfs files
- * @wil - driver's context, used for printing
- * @dbg - directory on the debugfs, where files will be created
- * @base - base address used in address calculation
- * @tbl - table with file descriptions. Should be terminated with empty element.
+ * @wil: driver's context, used for printing
+ * @dbg: directory on the debugfs, where files will be created
+ * @base: base address used in address calculation
+ * @tbl: table with file descriptions. Should be terminated with empty element.
  *
  * Creates files accordingly to the @tbl.
  */
@@ -1021,20 +1010,14 @@ static ssize_t wil_write_file_wmi(struct file *file, const char __user *buf,
 	void *cmd;
 	int cmdlen = len - sizeof(struct wmi_cmd_hdr);
 	u16 cmdid;
-	int rc, rc1;
+	int rc1;
 
-	if (cmdlen < 0)
+	if (cmdlen < 0 || *ppos != 0)
 		return -EINVAL;
 
-	wmi = kmalloc(len, GFP_KERNEL);
-	if (!wmi)
-		return -ENOMEM;
-
-	rc = simple_write_to_buffer(wmi, len, ppos, buf, len);
-	if (rc < 0) {
-		kfree(wmi);
-		return rc;
-	}
+	wmi = memdup_user(buf, len);
+	if (IS_ERR(wmi))
+		return PTR_ERR(wmi);
 
 	cmd = (cmdlen > 0) ? &wmi[1] : NULL;
 	cmdid = le16_to_cpu(wmi->command_id);
@@ -1044,7 +1027,7 @@ static ssize_t wil_write_file_wmi(struct file *file, const char __user *buf,
 
 	wil_info(wil, "0x%04x[%d] -> %d\n", cmdid, cmdlen, rc1);
 
-	return rc;
+	return len;
 }
 
 static const struct file_operations fops_wmi = {
@@ -1305,6 +1288,7 @@ static int bf_show(struct seq_file *s, void *data)
 
 	for (i = 0; i < wil->max_assoc_sta; i++) {
 		u32 status;
+		u8 bf_mcs;
 
 		cmd.cid = i;
 		rc = wmi_call(wil, WMI_NOTIFY_REQ_CMDID, vif->mid,
@@ -1316,9 +1300,10 @@ static int bf_show(struct seq_file *s, void *data)
 			continue;
 
 		status = le32_to_cpu(reply.evt.status);
+		bf_mcs = le16_to_cpu(reply.evt.bf_mcs);
 		seq_printf(s, "CID %d {\n"
 			   "  TSF = 0x%016llx\n"
-			   "  TxMCS = %2d TxTpt = %4d\n"
+			   "  TxMCS = %s TxTpt = %4d\n"
 			   "  SQI = %4d\n"
 			   "  RSSI = %4d\n"
 			   "  Status = 0x%08x %s\n"
@@ -1327,7 +1312,7 @@ static int bf_show(struct seq_file *s, void *data)
 			   "}\n",
 			   i,
 			   le64_to_cpu(reply.evt.tsf),
-			   le16_to_cpu(reply.evt.bf_mcs),
+			   WIL_EXTENDED_MCS_CHECK(bf_mcs),
 			   le32_to_cpu(reply.evt.tx_tpt),
 			   reply.evt.sqi,
 			   reply.evt.rssi,
@@ -1400,19 +1385,6 @@ static int temp_show(struct seq_file *s, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(temp);
 
-/*---------freq------------*/
-static int freq_show(struct seq_file *s, void *data)
-{
-	struct wil6210_priv *wil = s->private;
-	struct wireless_dev *wdev = wil->main_ndev->ieee80211_ptr;
-	u32 freq = wdev->chandef.chan ? wdev->chandef.chan->center_freq : 0;
-
-	seq_printf(s, "Freq = %d\n", freq);
-
-	return 0;
-}
-DEFINE_SHOW_ATTRIBUTE(freq);
-
 /*---------link------------*/
 static int link_show(struct seq_file *s, void *data)
 {
@@ -1454,8 +1426,10 @@ static int link_show(struct seq_file *s, void *data)
 			if (rc)
 				goto out;
 
-			seq_printf(s, "  Tx_mcs = %d\n", sinfo->txrate.mcs);
-			seq_printf(s, "  Rx_mcs = %d\n", sinfo->rxrate.mcs);
+			seq_printf(s, "  Tx_mcs = %s\n",
+				   WIL_EXTENDED_MCS_CHECK(sinfo->txrate.mcs));
+			seq_printf(s, "  Rx_mcs = %s\n",
+				   WIL_EXTENDED_MCS_CHECK(sinfo->rxrate.mcs));
 			seq_printf(s, "  SQ     = %d\n", sinfo->signal);
 		} else {
 			seq_puts(s, "  INVALID MID\n");
@@ -1859,7 +1833,7 @@ static void wil_link_stats_print_basic(struct wil6210_vif *vif,
 		snprintf(per, sizeof(per), "%d%%", basic->per_average);
 
 	seq_printf(s, "CID %d {\n"
-		   "\tTxMCS %d TxTpt %d\n"
+		   "\tTxMCS %s TxTpt %d\n"
 		   "\tGoodput(rx:tx) %d:%d\n"
 		   "\tRxBcastFrames %d\n"
 		   "\tRSSI %d SQI %d SNR %d PER %s\n"
@@ -1867,7 +1841,8 @@ static void wil_link_stats_print_basic(struct wil6210_vif *vif,
 		   "\tSectors(rx:tx) my %d:%d peer %d:%d\n"
 		   "}\n",
 		   basic->cid,
-		   basic->bf_mcs, le32_to_cpu(basic->tx_tpt),
+		   WIL_EXTENDED_MCS_CHECK(basic->bf_mcs),
+		   le32_to_cpu(basic->tx_tpt),
 		   le32_to_cpu(basic->rx_goodput),
 		   le32_to_cpu(basic->tx_goodput),
 		   le32_to_cpu(basic->rx_bcast_frames),
@@ -2179,7 +2154,7 @@ static const struct file_operations fops_led_blink_time = {
 };
 
 /*---------FW capabilities------------*/
-static int wil_fw_capabilities_debugfs_show(struct seq_file *s, void *data)
+static int fw_capabilities_show(struct seq_file *s, void *data)
 {
 	struct wil6210_priv *wil = s->private;
 
@@ -2188,22 +2163,10 @@ static int wil_fw_capabilities_debugfs_show(struct seq_file *s, void *data)
 
 	return 0;
 }
-
-static int wil_fw_capabilities_seq_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, wil_fw_capabilities_debugfs_show,
-			   inode->i_private);
-}
-
-static const struct file_operations fops_fw_capabilities = {
-	.open		= wil_fw_capabilities_seq_open,
-	.release	= single_release,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-};
+DEFINE_SHOW_ATTRIBUTE(fw_capabilities);
 
 /*---------FW version------------*/
-static int wil_fw_version_debugfs_show(struct seq_file *s, void *data)
+static int fw_version_show(struct seq_file *s, void *data)
 {
 	struct wil6210_priv *wil = s->private;
 
@@ -2214,19 +2177,7 @@ static int wil_fw_version_debugfs_show(struct seq_file *s, void *data)
 
 	return 0;
 }
-
-static int wil_fw_version_seq_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, wil_fw_version_debugfs_show,
-			   inode->i_private);
-}
-
-static const struct file_operations fops_fw_version = {
-	.open		= wil_fw_version_seq_open,
-	.release	= single_release,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-};
+DEFINE_SHOW_ATTRIBUTE(fw_version);
 
 /*---------suspend_stats---------*/
 static ssize_t wil_write_suspend_stats(struct file *file,
@@ -2386,14 +2337,13 @@ static const struct {
 	{"pmcdata",	0444,		&fops_pmcdata},
 	{"pmcring",	0444,		&fops_pmcring},
 	{"temp",	0444,		&temp_fops},
-	{"freq",	0444,		&freq_fops},
 	{"link",	0444,		&link_fops},
 	{"info",	0444,		&info_fops},
 	{"recovery", 0644,		&fops_recovery},
 	{"led_cfg",	0644,		&fops_led_cfg},
 	{"led_blink_time",	0644,	&fops_led_blink_time},
-	{"fw_capabilities",	0444,	&fops_fw_capabilities},
-	{"fw_version",	0444,		&fops_fw_version},
+	{"fw_capabilities",	0444,	&fw_capabilities_fops},
+	{"fw_version",	0444,		&fw_version_fops},
 	{"suspend_stats",	0644,	&fops_suspend_stats},
 	{"compressed_rx_status", 0644,	&fops_compressed_rx_status},
 	{"srings",	0444,		&srings_fops},

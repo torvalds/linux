@@ -88,19 +88,19 @@ TRACE_EVENT(hw_ptr_error,
 		__field( unsigned int, device )
 		__field( unsigned int, number )
 		__field( unsigned int, stream )
-		__field( const char *, reason )
+		__string( reason, why )
 	),
 	TP_fast_assign(
 		__entry->card = (substream)->pcm->card->number;
 		__entry->device = (substream)->pcm->device;
 		__entry->number = (substream)->number;
 		__entry->stream = (substream)->stream;
-		__entry->reason = (why);
+		__assign_str(reason);
 	),
 	TP_printk("pcmC%dD%d%s/sub%d: ERROR: %s",
 		  __entry->card, __entry->device,
 		  __entry->stream == SNDRV_PCM_STREAM_PLAYBACK ? "p" : "c",
-		  __entry->number, __entry->reason)
+		  __entry->number, __get_str(reason))
 );
 
 TRACE_EVENT(applptr,

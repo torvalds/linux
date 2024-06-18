@@ -116,7 +116,7 @@ static int cs4341_hw_params(struct snd_pcm_substream *substream,
 					     CS4341_MODE2_DIF, mode);
 }
 
-static int cs4341_digital_mute(struct snd_soc_dai *dai, int mute)
+static int cs4341_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	int ret;
@@ -174,7 +174,8 @@ static const struct snd_kcontrol_new cs4341_controls[] = {
 static const struct snd_soc_dai_ops cs4341_dai_ops = {
 	.set_fmt	= cs4341_set_fmt,
 	.hw_params	= cs4341_hw_params,
-	.digital_mute	= cs4341_digital_mute,
+	.mute_stream	= cs4341_mute,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver cs4341_dai = {
@@ -188,7 +189,7 @@ static struct snd_soc_dai_driver cs4341_dai = {
 				  SNDRV_PCM_FMTBIT_S24_LE,
 	},
 	.ops			= &cs4341_dai_ops,
-	.symmetric_rates	= 1,
+	.symmetric_rate		= 1,
 };
 
 static const struct snd_soc_component_driver soc_component_cs4341 = {
@@ -201,7 +202,6 @@ static const struct snd_soc_component_driver soc_component_cs4341 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct of_device_id __maybe_unused cs4341_dt_ids[] = {
@@ -224,8 +224,7 @@ static int cs4341_probe(struct device *dev)
 }
 
 #if IS_ENABLED(CONFIG_I2C)
-static int cs4341_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int cs4341_i2c_probe(struct i2c_client *i2c)
 {
 	struct cs4341_priv *cs4341;
 
@@ -249,7 +248,7 @@ static int cs4341_i2c_probe(struct i2c_client *i2c,
 }
 
 static const struct i2c_device_id cs4341_i2c_id[] = {
-	{ "cs4341", 0 },
+	{ "cs4341" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, cs4341_i2c_id);
@@ -304,12 +303,19 @@ static int cs4341_spi_probe(struct spi_device *spi)
 	return cs4341_probe(&spi->dev);
 }
 
+static const struct spi_device_id cs4341_spi_ids[] = {
+	{ "cs4341a" },
+	{ }
+};
+MODULE_DEVICE_TABLE(spi, cs4341_spi_ids);
+
 static struct spi_driver cs4341_spi_driver = {
 	.driver = {
 		.name = "cs4341-spi",
 		.of_match_table = of_match_ptr(cs4341_dt_ids),
 	},
 	.probe = cs4341_spi_probe,
+	.id_table = cs4341_spi_ids,
 };
 #endif
 

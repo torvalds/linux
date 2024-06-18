@@ -5,16 +5,15 @@
  * Copyright (c) 2011 Jussi Kivilinna <jussi.kivilinna@mbnet.fi>
  */
 
-#include <asm/crypto/glue_helper.h>
-#include <asm/crypto/twofish.h>
 #include <crypto/algapi.h>
-#include <crypto/b128ops.h>
-#include <crypto/internal/skcipher.h>
 #include <crypto/twofish.h>
 #include <linux/crypto.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/types.h>
+
+#include "twofish.h"
+#include "ecb_cbc_helpers.h"
 
 EXPORT_SYMBOL_GPL(__twofish_enc_blk_3way);
 EXPORT_SYMBOL_GPL(twofish_dec_blk_3way);
@@ -25,145 +24,53 @@ static int twofish_setkey_skcipher(struct crypto_skcipher *tfm,
 	return twofish_setkey(&tfm->base, key, keylen);
 }
 
-static inline void twofish_enc_blk_3way(struct twofish_ctx *ctx, u8 *dst,
-					const u8 *src)
+static inline void twofish_enc_blk_3way(const void *ctx, u8 *dst, const u8 *src)
 {
 	__twofish_enc_blk_3way(ctx, dst, src, false);
 }
 
-static inline void twofish_enc_blk_xor_3way(struct twofish_ctx *ctx, u8 *dst,
-					    const u8 *src)
+void twofish_dec_blk_cbc_3way(const void *ctx, u8 *dst, const u8 *src)
 {
-	__twofish_enc_blk_3way(ctx, dst, src, true);
-}
+	u8 buf[2][TF_BLOCK_SIZE];
+	const u8 *s = src;
 
-void twofish_dec_blk_cbc_3way(void *ctx, u128 *dst, const u128 *src)
-{
-	u128 ivs[2];
+	if (dst == src)
+		s = memcpy(buf, src, sizeof(buf));
+	twofish_dec_blk_3way(ctx, dst, src);
+	crypto_xor(dst + TF_BLOCK_SIZE, s, sizeof(buf));
 
-	ivs[0] = src[0];
-	ivs[1] = src[1];
-
-	twofish_dec_blk_3way(ctx, (u8 *)dst, (u8 *)src);
-
-	u128_xor(&dst[1], &dst[1], &ivs[0]);
-	u128_xor(&dst[2], &dst[2], &ivs[1]);
 }
 EXPORT_SYMBOL_GPL(twofish_dec_blk_cbc_3way);
 
-void twofish_enc_blk_ctr(void *ctx, u128 *dst, const u128 *src, le128 *iv)
-{
-	be128 ctrblk;
-
-	if (dst != src)
-		*dst = *src;
-
-	le128_to_be128(&ctrblk, iv);
-	le128_inc(iv);
-
-	twofish_enc_blk(ctx, (u8 *)&ctrblk, (u8 *)&ctrblk);
-	u128_xor(dst, dst, (u128 *)&ctrblk);
-}
-EXPORT_SYMBOL_GPL(twofish_enc_blk_ctr);
-
-void twofish_enc_blk_ctr_3way(void *ctx, u128 *dst, const u128 *src,
-			      le128 *iv)
-{
-	be128 ctrblks[3];
-
-	if (dst != src) {
-		dst[0] = src[0];
-		dst[1] = src[1];
-		dst[2] = src[2];
-	}
-
-	le128_to_be128(&ctrblks[0], iv);
-	le128_inc(iv);
-	le128_to_be128(&ctrblks[1], iv);
-	le128_inc(iv);
-	le128_to_be128(&ctrblks[2], iv);
-	le128_inc(iv);
-
-	twofish_enc_blk_xor_3way(ctx, (u8 *)dst, (u8 *)ctrblks);
-}
-EXPORT_SYMBOL_GPL(twofish_enc_blk_ctr_3way);
-
-static const struct common_glue_ctx twofish_enc = {
-	.num_funcs = 2,
-	.fpu_blocks_limit = -1,
-
-	.funcs = { {
-		.num_blocks = 3,
-		.fn_u = { .ecb = GLUE_FUNC_CAST(twofish_enc_blk_3way) }
-	}, {
-		.num_blocks = 1,
-		.fn_u = { .ecb = GLUE_FUNC_CAST(twofish_enc_blk) }
-	} }
-};
-
-static const struct common_glue_ctx twofish_ctr = {
-	.num_funcs = 2,
-	.fpu_blocks_limit = -1,
-
-	.funcs = { {
-		.num_blocks = 3,
-		.fn_u = { .ecb = GLUE_FUNC_CAST(twofish_enc_blk_ctr_3way) }
-	}, {
-		.num_blocks = 1,
-		.fn_u = { .ecb = GLUE_FUNC_CAST(twofish_enc_blk_ctr) }
-	} }
-};
-
-static const struct common_glue_ctx twofish_dec = {
-	.num_funcs = 2,
-	.fpu_blocks_limit = -1,
-
-	.funcs = { {
-		.num_blocks = 3,
-		.fn_u = { .ecb = GLUE_FUNC_CAST(twofish_dec_blk_3way) }
-	}, {
-		.num_blocks = 1,
-		.fn_u = { .ecb = GLUE_FUNC_CAST(twofish_dec_blk) }
-	} }
-};
-
-static const struct common_glue_ctx twofish_dec_cbc = {
-	.num_funcs = 2,
-	.fpu_blocks_limit = -1,
-
-	.funcs = { {
-		.num_blocks = 3,
-		.fn_u = { .cbc = GLUE_CBC_FUNC_CAST(twofish_dec_blk_cbc_3way) }
-	}, {
-		.num_blocks = 1,
-		.fn_u = { .cbc = GLUE_CBC_FUNC_CAST(twofish_dec_blk) }
-	} }
-};
-
 static int ecb_encrypt(struct skcipher_request *req)
 {
-	return glue_ecb_req_128bit(&twofish_enc, req);
+	ECB_WALK_START(req, TF_BLOCK_SIZE, -1);
+	ECB_BLOCK(3, twofish_enc_blk_3way);
+	ECB_BLOCK(1, twofish_enc_blk);
+	ECB_WALK_END();
 }
 
 static int ecb_decrypt(struct skcipher_request *req)
 {
-	return glue_ecb_req_128bit(&twofish_dec, req);
+	ECB_WALK_START(req, TF_BLOCK_SIZE, -1);
+	ECB_BLOCK(3, twofish_dec_blk_3way);
+	ECB_BLOCK(1, twofish_dec_blk);
+	ECB_WALK_END();
 }
 
 static int cbc_encrypt(struct skcipher_request *req)
 {
-	return glue_cbc_encrypt_req_128bit(GLUE_FUNC_CAST(twofish_enc_blk),
-					   req);
+	CBC_WALK_START(req, TF_BLOCK_SIZE, -1);
+	CBC_ENC_BLOCK(twofish_enc_blk);
+	CBC_WALK_END();
 }
 
 static int cbc_decrypt(struct skcipher_request *req)
 {
-	return glue_cbc_decrypt_req_128bit(&twofish_dec_cbc, req);
-}
-
-static int ctr_crypt(struct skcipher_request *req)
-{
-	return glue_ctr_req_128bit(&twofish_ctr, req);
+	CBC_WALK_START(req, TF_BLOCK_SIZE, -1);
+	CBC_DEC_BLOCK(3, twofish_dec_blk_cbc_3way);
+	CBC_DEC_BLOCK(1, twofish_dec_blk);
+	CBC_WALK_END();
 }
 
 static struct skcipher_alg tf_skciphers[] = {
@@ -192,20 +99,6 @@ static struct skcipher_alg tf_skciphers[] = {
 		.setkey			= twofish_setkey_skcipher,
 		.encrypt		= cbc_encrypt,
 		.decrypt		= cbc_decrypt,
-	}, {
-		.base.cra_name		= "ctr(twofish)",
-		.base.cra_driver_name	= "ctr-twofish-3way",
-		.base.cra_priority	= 300,
-		.base.cra_blocksize	= 1,
-		.base.cra_ctxsize	= sizeof(struct twofish_ctx),
-		.base.cra_module	= THIS_MODULE,
-		.min_keysize		= TF_MIN_KEY_SIZE,
-		.max_keysize		= TF_MAX_KEY_SIZE,
-		.ivsize			= TF_BLOCK_SIZE,
-		.chunksize		= TF_BLOCK_SIZE,
-		.setkey			= twofish_setkey_skcipher,
-		.encrypt		= ctr_crypt,
-		.decrypt		= ctr_crypt,
 	},
 };
 
@@ -224,7 +117,7 @@ static bool is_blacklisted_cpu(void)
 		 * storing blocks in 64bit registers to allow three blocks to
 		 * be processed parallel. Parallel operation then allows gaining
 		 * more performance than was trade off, on out-of-order CPUs.
-		 * However Atom does not benefit from this parallellism and
+		 * However Atom does not benefit from this parallelism and
 		 * should be blacklisted.
 		 */
 		return true;
@@ -247,7 +140,7 @@ static int force;
 module_param(force, int, 0);
 MODULE_PARM_DESC(force, "Force module load, ignore CPU blacklist");
 
-static int __init init(void)
+static int __init twofish_3way_init(void)
 {
 	if (!force && is_blacklisted_cpu()) {
 		printk(KERN_INFO
@@ -261,13 +154,13 @@ static int __init init(void)
 					 ARRAY_SIZE(tf_skciphers));
 }
 
-static void __exit fini(void)
+static void __exit twofish_3way_fini(void)
 {
 	crypto_unregister_skciphers(tf_skciphers, ARRAY_SIZE(tf_skciphers));
 }
 
-module_init(init);
-module_exit(fini);
+module_init(twofish_3way_init);
+module_exit(twofish_3way_fini);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Twofish Cipher Algorithm, 3-way parallel asm optimized");

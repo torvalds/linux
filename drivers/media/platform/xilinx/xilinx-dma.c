@@ -26,7 +26,6 @@
 #include "xilinx-vip.h"
 #include "xilinx-vipp.h"
 
-#define XVIP_DMA_DEF_FORMAT		V4L2_PIX_FMT_YUYV
 #define XVIP_DMA_DEF_WIDTH		1920
 #define XVIP_DMA_DEF_HEIGHT		1080
 
@@ -45,7 +44,7 @@ xvip_dma_remote_subdev(struct media_pad *local, u32 *pad)
 {
 	struct media_pad *remote;
 
-	remote = media_entity_remote_pad(local);
+	remote = media_pad_remote_pad_first(local);
 	if (!remote || !is_media_entity_v4l2_subdev(remote->entity))
 		return NULL;
 
@@ -57,7 +56,9 @@ xvip_dma_remote_subdev(struct media_pad *local, u32 *pad)
 
 static int xvip_dma_verify_format(struct xvip_dma *dma)
 {
-	struct v4l2_subdev_format fmt;
+	struct v4l2_subdev_format fmt = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
 	struct v4l2_subdev *subdev;
 	int ret;
 
@@ -65,7 +66,6 @@ static int xvip_dma_verify_format(struct xvip_dma *dma)
 	if (subdev == NULL)
 		return -EPIPE;
 
-	fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	ret = v4l2_subdev_call(subdev, pad, get_fmt, NULL, &fmt);
 	if (ret < 0)
 		return ret == -ENOIOCTLCMD ? -EINVAL : ret;
@@ -108,7 +108,7 @@ static int xvip_pipeline_start_stop(struct xvip_pipeline *pipe, bool start)
 		if (!(pad->flags & MEDIA_PAD_FL_SINK))
 			break;
 
-		pad = media_entity_remote_pad(pad);
+		pad = media_pad_remote_pad_first(pad);
 		if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
 			break;
 
@@ -174,31 +174,19 @@ done:
 static int xvip_pipeline_validate(struct xvip_pipeline *pipe,
 				  struct xvip_dma *start)
 {
-	struct media_graph graph;
-	struct media_entity *entity = &start->video.entity;
-	struct media_device *mdev = entity->graph_obj.mdev;
+	struct media_pipeline_pad_iter iter;
 	unsigned int num_inputs = 0;
 	unsigned int num_outputs = 0;
-	int ret;
+	struct media_pad *pad;
 
-	mutex_lock(&mdev->graph_mutex);
-
-	/* Walk the graph to locate the video nodes. */
-	ret = media_graph_walk_init(&graph, mdev);
-	if (ret) {
-		mutex_unlock(&mdev->graph_mutex);
-		return ret;
-	}
-
-	media_graph_walk_start(&graph, entity);
-
-	while ((entity = media_graph_walk_next(&graph))) {
+	/* Locate the video nodes in the pipeline. */
+	media_pipeline_for_each_pad(&pipe->pipe, &iter, pad) {
 		struct xvip_dma *dma;
 
-		if (entity->function != MEDIA_ENT_F_IO_V4L)
+		if (pad->entity->function != MEDIA_ENT_F_IO_V4L)
 			continue;
 
-		dma = to_xvip_dma(media_entity_to_video_device(entity));
+		dma = to_xvip_dma(media_entity_to_video_device(pad->entity));
 
 		if (dma->pad.flags & MEDIA_PAD_FL_SINK) {
 			pipe->output = dma;
@@ -207,10 +195,6 @@ static int xvip_pipeline_validate(struct xvip_pipeline *pipe,
 			num_inputs++;
 		}
 	}
-
-	mutex_unlock(&mdev->graph_mutex);
-
-	media_graph_walk_cleanup(&graph);
 
 	/* We need exactly one output and zero or one input. */
 	if (num_outputs != 1 || num_inputs > 1)
@@ -403,10 +387,9 @@ static int xvip_dma_start_streaming(struct vb2_queue *vq, unsigned int count)
 	 * Use the pipeline object embedded in the first DMA object that starts
 	 * streaming.
 	 */
-	pipe = dma->video.entity.pipe
-	     ? to_xvip_pipeline(&dma->video.entity) : &dma->pipe;
+	pipe = to_xvip_pipeline(&dma->video) ? : &dma->pipe;
 
-	ret = media_pipeline_start(&dma->video.entity, &pipe->pipe);
+	ret = video_device_pipeline_start(&dma->video, &pipe->pipe);
 	if (ret < 0)
 		goto error;
 
@@ -432,7 +415,7 @@ static int xvip_dma_start_streaming(struct vb2_queue *vq, unsigned int count)
 	return 0;
 
 error_stop:
-	media_pipeline_stop(&dma->video.entity);
+	video_device_pipeline_stop(&dma->video);
 
 error:
 	/* Give back all queued buffers to videobuf2. */
@@ -449,7 +432,7 @@ error:
 static void xvip_dma_stop_streaming(struct vb2_queue *vq)
 {
 	struct xvip_dma *dma = vb2_get_drv_priv(vq);
-	struct xvip_pipeline *pipe = to_xvip_pipeline(&dma->video.entity);
+	struct xvip_pipeline *pipe = to_xvip_pipeline(&dma->video);
 	struct xvip_dma_buffer *buf, *nbuf;
 
 	/* Stop the pipeline. */
@@ -460,7 +443,7 @@ static void xvip_dma_stop_streaming(struct vb2_queue *vq)
 
 	/* Cleanup the pipeline and mark it as being stopped. */
 	xvip_pipeline_cleanup(pipe);
-	media_pipeline_stop(&dma->video.entity);
+	video_device_pipeline_stop(&dma->video);
 
 	/* Give back all queued buffers to videobuf2. */
 	spin_lock_irq(&dma->queued_lock);
@@ -549,8 +532,6 @@ __xvip_dma_try_format(struct xvip_dma *dma, struct v4l2_pix_format *pix,
 	 * requested format isn't supported.
 	 */
 	info = xvip_get_format_by_fourcc(pix->pixelformat);
-	if (IS_ERR(info))
-		info = xvip_get_format_by_fourcc(XVIP_DMA_DEF_FORMAT);
 
 	pix->pixelformat = info->fourcc;
 	pix->field = V4L2_FIELD_NONE;
@@ -660,7 +641,7 @@ int xvip_dma_init(struct xvip_composite_device *xdev, struct xvip_dma *dma,
 	INIT_LIST_HEAD(&dma->queued_bufs);
 	spin_lock_init(&dma->queued_lock);
 
-	dma->fmtinfo = xvip_get_format_by_fourcc(XVIP_DMA_DEF_FORMAT);
+	dma->fmtinfo = xvip_get_format_by_fourcc(V4L2_PIX_FMT_YUYV);
 	dma->format.pixelformat = dma->fmtinfo->fourcc;
 	dma->format.colorspace = V4L2_COLORSPACE_SRGB;
 	dma->format.field = V4L2_FIELD_NONE;
@@ -685,7 +666,7 @@ int xvip_dma_init(struct xvip_composite_device *xdev, struct xvip_dma *dma,
 		 xdev->dev->of_node,
 		 type == V4L2_BUF_TYPE_VIDEO_CAPTURE ? "output" : "input",
 		 port);
-	dma->video.vfl_type = VFL_TYPE_GRABBER;
+	dma->video.vfl_type = VFL_TYPE_VIDEO;
 	dma->video.vfl_dir = type == V4L2_BUF_TYPE_VIDEO_CAPTURE
 			   ? VFL_DIR_RX : VFL_DIR_TX;
 	dma->video.release = video_device_release_empty;
@@ -725,16 +706,16 @@ int xvip_dma_init(struct xvip_composite_device *xdev, struct xvip_dma *dma,
 
 	/* ... and the DMA channel. */
 	snprintf(name, sizeof(name), "port%u", port);
-	dma->dma = dma_request_slave_channel(dma->xdev->dev, name);
-	if (dma->dma == NULL) {
-		dev_err(dma->xdev->dev, "no VDMA channel found\n");
-		ret = -ENODEV;
+	dma->dma = dma_request_chan(dma->xdev->dev, name);
+	if (IS_ERR(dma->dma)) {
+		ret = dev_err_probe(dma->xdev->dev, PTR_ERR(dma->dma),
+				    "no VDMA channel found\n");
 		goto error;
 	}
 
 	dma->align = 1 << dma->dma->device->copy_align;
 
-	ret = video_register_device(&dma->video, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(&dma->video, VFL_TYPE_VIDEO, -1);
 	if (ret < 0) {
 		dev_err(dma->xdev->dev, "failed to register video device\n");
 		goto error;
@@ -752,7 +733,7 @@ void xvip_dma_cleanup(struct xvip_dma *dma)
 	if (video_is_registered(&dma->video))
 		video_unregister_device(&dma->video);
 
-	if (dma->dma)
+	if (!IS_ERR_OR_NULL(dma->dma))
 		dma_release_channel(dma->dma);
 
 	media_entity_cleanup(&dma->video.entity);

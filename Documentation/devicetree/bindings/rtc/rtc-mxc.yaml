@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/rtc/rtc-mxc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Real Time Clock of the i.MX SoCs
+
+allOf:
+  - $ref: rtc.yaml#
+
+maintainers:
+  - Philippe Reynes <tremyfr@gmail.com>
+
+properties:
+  compatible:
+    enum:
+      - fsl,imx1-rtc
+      - fsl,imx21-rtc
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: input reference
+      - description: the SoC RTC clock
+
+  clock-names:
+    items:
+      - const: ref
+      - const: ipg
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/imx27-clock.h>
+
+    rtc@10007000 {
+        compatible = "fsl,imx21-rtc";
+        reg = <0x10007000 0x1000>;
+        interrupts = <22>;
+        clocks = <&clks IMX27_CLK_CKIL>,
+                 <&clks IMX27_CLK_RTC_IPG_GATE>;
+        clock-names = "ref", "ipg";
+    };

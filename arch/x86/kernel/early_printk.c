@@ -8,6 +8,7 @@
 #include <linux/pci_regs.h>
 #include <linux/pci_ids.h>
 #include <linux/errno.h>
+#include <linux/pgtable.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/fcntl.h>
@@ -15,12 +16,8 @@
 #include <xen/hvc-console.h>
 #include <asm/pci-direct.h>
 #include <asm/fixmap.h>
-#include <asm/intel-mid.h>
-#include <asm/pgtable.h>
 #include <linux/usb/ehci_def.h>
 #include <linux/usb/xhci-dbgp.h>
-#include <linux/efi.h>
-#include <asm/efi.h>
 #include <asm/pci_x86.h>
 
 /* Simple VGA output */
@@ -267,11 +264,11 @@ static __init void early_pci_serial_init(char *s)
 	bar0 = read_pci_config(bus, slot, func, PCI_BASE_ADDRESS_0);
 
 	/*
-	 * Verify it is a UART type device
+	 * Verify it is a 16550-UART type device
 	 */
 	if (((classcode >> 16 != PCI_CLASS_COMMUNICATION_MODEM) &&
 	     (classcode >> 16 != PCI_CLASS_COMMUNICATION_SERIAL)) ||
-	   (((classcode >> 8) & 0xff) != 0x02)) /* 16550 I/F at BAR0 */ {
+	    (((classcode >> 8) & 0xff) != PCI_SERIAL_16550_COMPATIBLE)) {
 		if (!force)
 			return;
 	}
@@ -279,22 +276,22 @@ static __init void early_pci_serial_init(char *s)
 	/*
 	 * Determine if it is IO or memory mapped
 	 */
-	if (bar0 & 0x01) {
+	if ((bar0 & PCI_BASE_ADDRESS_SPACE) == PCI_BASE_ADDRESS_SPACE_IO) {
 		/* it is IO mapped */
 		serial_in = io_serial_in;
 		serial_out = io_serial_out;
-		early_serial_base = bar0&0xfffffffc;
+		early_serial_base = bar0 & PCI_BASE_ADDRESS_IO_MASK;
 		write_pci_config(bus, slot, func, PCI_COMMAND,
-						cmdreg|PCI_COMMAND_IO);
+				 cmdreg|PCI_COMMAND_IO);
 	} else {
 		/* It is memory mapped - assume 32-bit alignment */
 		serial_in = mem32_serial_in;
 		serial_out = mem32_serial_out;
 		/* WARNING! assuming the address is always in the first 4G */
 		early_serial_base =
-			(unsigned long)early_ioremap(bar0 & 0xfffffff0, 0x10);
+			(unsigned long)early_ioremap(bar0 & PCI_BASE_ADDRESS_MEM_MASK, 0x10);
 		write_pci_config(bus, slot, func, PCI_COMMAND,
-						cmdreg|PCI_COMMAND_MEMORY);
+				 cmdreg|PCI_COMMAND_MEMORY);
 	}
 
 	/*
@@ -390,7 +387,7 @@ static int __init setup_early_printk(char *buf)
 #endif
 #ifdef CONFIG_EARLY_PRINTK_USB_XDBC
 		if (!strncmp(buf, "xdbc", 4))
-			early_xdbc_parse_parameter(buf + 4);
+			early_xdbc_parse_parameter(buf + 4, keep);
 #endif
 
 		buf++;

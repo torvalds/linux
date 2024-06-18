@@ -254,26 +254,25 @@ static void i2sbus_wait_for_stop(struct i2sbus_dev *i2sdev,
 				 struct pcm_info *pi)
 {
 	unsigned long flags;
-	struct completion done;
-	long timeout;
+	DECLARE_COMPLETION_ONSTACK(done);
+	unsigned long time_left;
 
 	spin_lock_irqsave(&i2sdev->low_lock, flags);
 	if (pi->dbdma_ring.stopping) {
-		init_completion(&done);
 		pi->stop_completion = &done;
 		spin_unlock_irqrestore(&i2sdev->low_lock, flags);
-		timeout = wait_for_completion_timeout(&done, HZ);
+		time_left = wait_for_completion_timeout(&done, HZ);
 		spin_lock_irqsave(&i2sdev->low_lock, flags);
 		pi->stop_completion = NULL;
-		if (timeout == 0) {
+		if (time_left == 0) {
 			/* timeout expired, stop dbdma forcefully */
 			printk(KERN_ERR "i2sbus_wait_for_stop: timed out\n");
 			/* make sure RUN, PAUSE and S0 bits are cleared */
 			out_le32(&pi->dbdma->control, (RUN | PAUSE | 1) << 16);
 			pi->dbdma_ring.stopping = 0;
-			timeout = 10;
+			time_left = 10;
 			while (in_le32(&pi->dbdma->status) & ACTIVE) {
-				if (--timeout <= 0)
+				if (--time_left <= 0)
 					break;
 				udelay(1);
 			}
@@ -294,12 +293,6 @@ void i2sbus_wait_for_stop_both(struct i2sbus_dev *i2sdev)
 }
 #endif
 
-static int i2sbus_hw_params(struct snd_pcm_substream *substream,
-			    struct snd_pcm_hw_params *params)
-{
-	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(params));
-}
-
 static inline int i2sbus_hw_free(struct snd_pcm_substream *substream, int in)
 {
 	struct i2sbus_dev *i2sdev = snd_pcm_substream_chip(substream);
@@ -308,7 +301,6 @@ static inline int i2sbus_hw_free(struct snd_pcm_substream *substream, int in)
 	get_pcm_info(i2sdev, in, &pi, NULL);
 	if (pi->dbdma_ring.stopping)
 		i2sbus_wait_for_stop(i2sdev, pi);
-	snd_pcm_lib_free_pages(substream);
 	return 0;
 }
 
@@ -780,8 +772,6 @@ static snd_pcm_uframes_t i2sbus_playback_pointer(struct snd_pcm_substream
 static const struct snd_pcm_ops i2sbus_playback_ops = {
 	.open =		i2sbus_playback_open,
 	.close =	i2sbus_playback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	i2sbus_hw_params,
 	.hw_free =	i2sbus_playback_hw_free,
 	.prepare =	i2sbus_playback_prepare,
 	.trigger =	i2sbus_playback_trigger,
@@ -850,8 +840,6 @@ static snd_pcm_uframes_t i2sbus_record_pointer(struct snd_pcm_substream
 static const struct snd_pcm_ops i2sbus_record_ops = {
 	.open =		i2sbus_record_open,
 	.close =	i2sbus_record_close,
-	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	i2sbus_hw_params,
 	.hw_free =	i2sbus_record_hw_free,
 	.prepare =	i2sbus_record_prepare,
 	.trigger =	i2sbus_record_trigger,
@@ -930,10 +918,8 @@ i2sbus_attach_codec(struct soundbus_dev *dev, struct snd_card *card,
 	}
 
 	cii = kzalloc(sizeof(struct codec_info_item), GFP_KERNEL);
-	if (!cii) {
-		printk(KERN_DEBUG "i2sbus: failed to allocate cii\n");
+	if (!cii)
 		return -ENOMEM;
-	}
 
 	/* use the private data to point to the codec info */
 	cii->sdev = soundbus_dev_get(dev);
@@ -986,7 +972,7 @@ i2sbus_attach_codec(struct soundbus_dev *dev, struct snd_card *card,
 			goto out_put_ci_module;
 		snd_pcm_set_ops(dev->pcm, SNDRV_PCM_STREAM_PLAYBACK,
 				&i2sbus_playback_ops);
-		dev->pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].dev.parent =
+		dev->pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].dev->parent =
 			&dev->ofdev.dev;
 		i2sdev->out.created = 1;
 	}
@@ -1003,7 +989,7 @@ i2sbus_attach_codec(struct soundbus_dev *dev, struct snd_card *card,
 			goto out_put_ci_module;
 		snd_pcm_set_ops(dev->pcm, SNDRV_PCM_STREAM_CAPTURE,
 				&i2sbus_record_ops);
-		dev->pcm->streams[SNDRV_PCM_STREAM_CAPTURE].dev.parent =
+		dev->pcm->streams[SNDRV_PCM_STREAM_CAPTURE].dev->parent =
 			&dev->ofdev.dev;
 		i2sdev->in.created = 1;
 	}
@@ -1026,9 +1012,9 @@ i2sbus_attach_codec(struct soundbus_dev *dev, struct snd_card *card,
 	dev->pcm->private_free = i2sbus_private_free;
 
 	/* well, we really should support scatter/gather DMA */
-	snd_pcm_lib_preallocate_pages_for_all(
+	snd_pcm_set_managed_buffer_all(
 		dev->pcm, SNDRV_DMA_TYPE_DEV,
-		snd_dma_pci_data(macio_get_pci_dev(i2sdev->macio)),
+		&macio_get_pci_dev(i2sdev->macio)->dev,
 		64 * 1024, 64 * 1024);
 
 	return 0;

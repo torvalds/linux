@@ -3,7 +3,7 @@
  *
  * Module Name: dsopcode - Dispatcher support for regions and fields
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2023, Intel Corp.
  *
  *****************************************************************************/
 
@@ -217,6 +217,8 @@ acpi_ds_init_buffer_field(u16 aml_opcode,
 	}
 
 	obj_desc->buffer_field.buffer_obj = buffer_desc;
+	obj_desc->buffer_field.is_create_field =
+	    aml_opcode == AML_CREATE_FIELD_OP;
 
 	/* Reference count for buffer_desc inherits obj_desc count */
 
@@ -529,6 +531,7 @@ acpi_ds_eval_table_region_operands(struct acpi_walk_state *walk_state,
 
 	obj_desc->region.address = ACPI_PTR_TO_PHYSADDR(table);
 	obj_desc->region.length = table->length;
+	obj_desc->region.pointer = table;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "RgnObj %p Addr %8.8X%8.8X Len %X\n",
 			  obj_desc,

@@ -171,7 +171,7 @@ struct usb_cdc_mdlm_detail_desc {
 
 	/* type is associated with mdlm_desc.bGUID */
 	__u8	bGuidDescriptorType;
-	__u8	bDetailData[0];
+	__u8	bDetailData[];
 } __attribute__ ((packed));
 
 /* "OBEX Control Model Functional Descriptor" */
@@ -271,6 +271,10 @@ struct usb_cdc_line_coding {
 	__u8	bDataBits;
 } __attribute__ ((packed));
 
+/* Control Signal Bitmap Values from 6.2.14 SetControlLineState */
+#define USB_CDC_CTRL_DTR			(1 << 0)
+#define USB_CDC_CTRL_RTS			(1 << 1)
+
 /* table 62; bits in multicast filter */
 #define	USB_CDC_PACKET_TYPE_PROMISCUOUS		(1 << 0)
 #define	USB_CDC_PACKET_TYPE_ALL_MULTICAST	(1 << 1) /* no filter */
@@ -301,6 +305,15 @@ struct usb_cdc_notification {
 	__le16	wIndex;
 	__le16	wLength;
 } __attribute__ ((packed));
+
+/* UART State Bitmap Values from 6.3.5 SerialState */
+#define USB_CDC_SERIAL_STATE_DCD		(1 << 0)
+#define USB_CDC_SERIAL_STATE_DSR		(1 << 1)
+#define USB_CDC_SERIAL_STATE_BREAK		(1 << 2)
+#define USB_CDC_SERIAL_STATE_RING_SIGNAL	(1 << 3)
+#define USB_CDC_SERIAL_STATE_FRAMING		(1 << 4)
+#define USB_CDC_SERIAL_STATE_PARITY		(1 << 5)
+#define USB_CDC_SERIAL_STATE_OVERRUN		(1 << 6)
 
 struct usb_cdc_speed_change {
 	__le32	DLBitRRate;	/* contains the downlink bit rate (IN pipe) */
@@ -379,7 +392,7 @@ struct usb_cdc_ncm_ndp16 {
 	__le32	dwSignature;
 	__le16	wLength;
 	__le16	wNextNdpIndex;
-	struct	usb_cdc_ncm_dpe16 dpe16[0];
+	struct	usb_cdc_ncm_dpe16 dpe16[];
 } __attribute__ ((packed));
 
 /* 32-bit NCM Datagram Pointer Entry */
@@ -395,7 +408,7 @@ struct usb_cdc_ncm_ndp32 {
 	__le16	wReserved6;
 	__le32	dwNextNdpIndex;
 	__le32	dwReserved12;
-	struct	usb_cdc_ncm_dpe32 dpe32[0];
+	struct	usb_cdc_ncm_dpe32 dpe32[];
 } __attribute__ ((packed));
 
 /* CDC NCM subclass 3.2.1 and 3.2.2 */

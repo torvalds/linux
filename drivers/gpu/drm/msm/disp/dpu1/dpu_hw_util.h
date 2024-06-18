@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+/*
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
  */
 
 #ifndef _DPU_HW_UTIL_H
@@ -8,26 +10,38 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include "dpu_hw_mdss.h"
+#include "dpu_hw_catalog.h"
 
 #define REG_MASK(n)                     ((BIT(n)) - 1)
+#define MISR_FRAME_COUNT                0x1
+#define MISR_CTRL_ENABLE                BIT(8)
+#define MISR_CTRL_STATUS                BIT(9)
+#define MISR_CTRL_STATUS_CLEAR          BIT(10)
+#define MISR_CTRL_FREE_RUN_MASK         BIT(31)
+
+#define TO_S15D16(_x_)((_x_) << 7)
+
+extern const struct dpu_csc_cfg dpu_csc_YUV2RGB_601L;
+extern const struct dpu_csc_cfg dpu_csc10_YUV2RGB_601L;
+extern const struct dpu_csc_cfg dpu_csc10_rgb2yuv_601l;
 
 /*
  * This is the common struct maintained by each sub block
  * for mapping the register offsets in this block to the
  * absoulute IO address
- * @base_off:     mdp register mapped offset
- * @blk_off:      pipe offset relative to mdss offset
- * @length        length of register block offset
- * @xin_id        xin id
- * @hwversion     mdss hw version number
+ * @blk_addr:     hw block register mapped address
+ * @log_mask:     log mask for this block
  */
 struct dpu_hw_blk_reg_map {
-	void __iomem *base_off;
-	u32 blk_off;
-	u32 length;
-	u32 xin_id;
-	u32 hwversion;
+	void __iomem *blk_addr;
 	u32 log_mask;
+};
+
+/**
+ * struct dpu_hw_blk - opaque hardware block object
+ */
+struct dpu_hw_blk {
+	/* opaque */
 };
 
 /**
@@ -97,6 +111,7 @@ struct dpu_hw_scaler3_de_cfg {
  * @ cir_lut:      pointer to circular filter LUT
  * @ sep_lut:      pointer to separable filter LUT
  * @ de: detail enhancer configuration
+ * @ dir_weight:   Directional weight
  */
 struct dpu_hw_scaler3_cfg {
 	u32 enable;
@@ -137,6 +152,8 @@ struct dpu_hw_scaler3_cfg {
 	 * Detail enhancer settings
 	 */
 	struct dpu_hw_scaler3_de_cfg de;
+
+	u32 dir_weight;
 };
 
 /**
@@ -294,6 +311,22 @@ struct dpu_drm_scaler_v2 {
 	struct dpu_drm_de_v1 de;
 };
 
+/**
+ * struct dpu_hw_qos_cfg: pipe QoS configuration
+ * @danger_lut: LUT for generate danger level based on fill level
+ * @safe_lut: LUT for generate safe level based on fill level
+ * @creq_lut: LUT for generate creq level based on fill level
+ * @creq_vblank: creq value generated to vbif during vertical blanking
+ * @danger_vblank: danger value generated during vertical blanking
+ * @vblank_en: enable creq_vblank and danger_vblank during vblank
+ * @danger_safe_en: enable danger safe generation
+ */
+struct dpu_hw_qos_cfg {
+	u32 danger_lut;
+	u32 safe_lut;
+	u64 creq_lut;
+	bool danger_safe_en;
+};
 
 u32 *dpu_hw_util_get_log_mask_ptr(void);
 
@@ -311,13 +344,32 @@ void *dpu_hw_util_get_dir(void);
 void dpu_hw_setup_scaler3(struct dpu_hw_blk_reg_map *c,
 		struct dpu_hw_scaler3_cfg *scaler3_cfg,
 		u32 scaler_offset, u32 scaler_version,
-		const struct dpu_format *format);
-
-u32 dpu_hw_get_scaler3_ver(struct dpu_hw_blk_reg_map *c,
-		u32 scaler_offset);
+		const struct msm_format *format);
 
 void dpu_hw_csc_setup(struct dpu_hw_blk_reg_map  *c,
 		u32 csc_reg_off,
-		struct dpu_csc_cfg *data, bool csc10);
+		const struct dpu_csc_cfg *data, bool csc10);
+
+void dpu_setup_cdp(struct dpu_hw_blk_reg_map *c, u32 offset,
+		   const struct msm_format *fmt, bool enable);
+
+u64 _dpu_hw_get_qos_lut(const struct dpu_qos_lut_tbl *tbl,
+		u32 total_fl);
+
+void _dpu_hw_setup_qos_lut(struct dpu_hw_blk_reg_map *c, u32 offset,
+			   bool qos_8lvl,
+			   const struct dpu_hw_qos_cfg *cfg);
+
+void dpu_hw_setup_misr(struct dpu_hw_blk_reg_map *c,
+		u32 misr_ctrl_offset, u8 input_sel);
+
+int dpu_hw_collect_misr(struct dpu_hw_blk_reg_map *c,
+		u32 misr_ctrl_offset,
+		u32 misr_signature_offset,
+		u32 *misr_value);
+
+bool dpu_hw_clk_force_ctrl(struct dpu_hw_blk_reg_map *c,
+			   const struct dpu_clk_ctrl_reg *clk_ctrl_reg,
+			   bool enable);
 
 #endif /* _DPU_HW_UTIL_H */

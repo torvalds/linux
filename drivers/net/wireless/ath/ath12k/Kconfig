@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: BSD-3-Clause-Clear
+config ATH12K
+	tristate "Qualcomm Technologies Wi-Fi 7 support (ath12k)"
+	depends on MAC80211 && HAS_DMA && PCI
+	select CRYPTO_MICHAEL_MIC
+	select QCOM_QMI_HELPERS
+	select MHI_BUS
+	select QRTR
+	select QRTR_MHI
+	help
+	  Enable support for Qualcomm Technologies Wi-Fi 7 (IEEE
+	  802.11be) family of chipsets, for example WCN7850 and
+	  QCN9274.
+
+	  If you choose to build a module, it'll be called ath12k.
+
+config ATH12K_DEBUG
+	bool "ath12k debugging"
+	depends on ATH12K
+	help
+	  Enable debug support, for example debug messages which must
+	  be enabled separately using the debug_mask module parameter.
+
+	  If unsure, say Y to make it easier to debug problems. But if
+	  you want optimal performance choose N.
+
+config ATH12K_DEBUGFS
+	bool "QTI ath12k debugfs support"
+	depends on ATH12K && MAC80211_DEBUGFS
+	help
+	  Enable ath12k debugfs support
+
+	  If unsure, say Y to make it easier to debug problems. But if
+	  you want optimal performance choose N.
+
+config ATH12K_TRACING
+	bool "ath12k tracing support"
+	depends on ATH12K && EVENT_TRACING
+	help
+	  Enable ath12k tracing infrastructure.
+
+	  If unsure, say Y to make it easier to debug problems. But if
+	  you want optimal performance choose N.

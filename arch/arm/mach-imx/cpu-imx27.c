@@ -9,6 +9,7 @@
  */
 
 #include <linux/io.h>
+#include <linux/of_address.h>
 #include <linux/module.h>
 
 #include "hardware.h"
@@ -17,16 +18,24 @@ static int mx27_cpu_rev = -1;
 static int mx27_cpu_partnumber;
 
 #define SYS_CHIP_ID             0x00    /* The offset of CHIP ID register */
+#define SYSCTRL_OFFSET		0x800	/* Offset from CCM base address */
 
 static int mx27_read_cpu_rev(void)
 {
+	void __iomem *ccm_base;
+	struct device_node *np;
 	u32 val;
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx27-ccm");
+	ccm_base = of_iomap(np, 0);
+	of_node_put(np);
+	BUG_ON(!ccm_base);
 	/*
 	 * now we have access to the IO registers. As we need
 	 * the silicon revision very early we read it here to
 	 * avoid any further hooks
 	*/
-	val = imx_readl(MX27_IO_ADDRESS(MX27_SYSCTRL_BASE_ADDR + SYS_CHIP_ID));
+	val = imx_readl(ccm_base + SYSCTRL_OFFSET + SYS_CHIP_ID);
 
 	mx27_cpu_partnumber = (int)((val >> 12) & 0xFFFF);
 

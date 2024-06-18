@@ -15,11 +15,9 @@
 #include <linux/user.h>
 #include <linux/security.h>
 #include <linux/signal.h>
-#include <linux/tracehook.h>
 #include <linux/audit.h>
 
 #include <linux/uaccess.h>
-#include <asm/pgtable.h>
 #include <asm/fpu.h>
 
 #include "proto.h"
@@ -80,6 +78,8 @@ enum {
  (PAGE_SIZE*2 - sizeof(struct pt_regs) - sizeof(struct switch_stack) \
   + offsetof(struct switch_stack, reg))
 
+#define FP_REG(reg) (offsetof(struct thread_info, reg))
+
 static int regoff[] = {
 	PT_REG(	   r0), PT_REG(	   r1), PT_REG(	   r2), PT_REG(	  r3),
 	PT_REG(	   r4), PT_REG(	   r5), PT_REG(	   r6), PT_REG(	  r7),
@@ -89,14 +89,14 @@ static int regoff[] = {
 	PT_REG(	  r20), PT_REG(	  r21), PT_REG(	  r22), PT_REG(	 r23),
 	PT_REG(	  r24), PT_REG(	  r25), PT_REG(	  r26), PT_REG(	 r27),
 	PT_REG(	  r28), PT_REG(	   gp),		   -1,		   -1,
-	SW_REG(fp[ 0]), SW_REG(fp[ 1]), SW_REG(fp[ 2]), SW_REG(fp[ 3]),
-	SW_REG(fp[ 4]), SW_REG(fp[ 5]), SW_REG(fp[ 6]), SW_REG(fp[ 7]),
-	SW_REG(fp[ 8]), SW_REG(fp[ 9]), SW_REG(fp[10]), SW_REG(fp[11]),
-	SW_REG(fp[12]), SW_REG(fp[13]), SW_REG(fp[14]), SW_REG(fp[15]),
-	SW_REG(fp[16]), SW_REG(fp[17]), SW_REG(fp[18]), SW_REG(fp[19]),
-	SW_REG(fp[20]), SW_REG(fp[21]), SW_REG(fp[22]), SW_REG(fp[23]),
-	SW_REG(fp[24]), SW_REG(fp[25]), SW_REG(fp[26]), SW_REG(fp[27]),
-	SW_REG(fp[28]), SW_REG(fp[29]), SW_REG(fp[30]), SW_REG(fp[31]),
+	FP_REG(fp[ 0]), FP_REG(fp[ 1]), FP_REG(fp[ 2]), FP_REG(fp[ 3]),
+	FP_REG(fp[ 4]), FP_REG(fp[ 5]), FP_REG(fp[ 6]), FP_REG(fp[ 7]),
+	FP_REG(fp[ 8]), FP_REG(fp[ 9]), FP_REG(fp[10]), FP_REG(fp[11]),
+	FP_REG(fp[12]), FP_REG(fp[13]), FP_REG(fp[14]), FP_REG(fp[15]),
+	FP_REG(fp[16]), FP_REG(fp[17]), FP_REG(fp[18]), FP_REG(fp[19]),
+	FP_REG(fp[20]), FP_REG(fp[21]), FP_REG(fp[22]), FP_REG(fp[23]),
+	FP_REG(fp[24]), FP_REG(fp[25]), FP_REG(fp[26]), FP_REG(fp[27]),
+	FP_REG(fp[28]), FP_REG(fp[29]), FP_REG(fp[30]), FP_REG(fp[31]),
 	PT_REG(	   pc)
 };
 
@@ -324,7 +324,7 @@ asmlinkage unsigned long syscall_trace_enter(void)
 	unsigned long ret = 0;
 	struct pt_regs *regs = current_pt_regs();
 	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
-	    tracehook_report_syscall_entry(current_pt_regs()))
+	    ptrace_report_syscall_entry(current_pt_regs()))
 		ret = -1UL;
 	audit_syscall_entry(regs->r0, regs->r16, regs->r17, regs->r18, regs->r19);
 	return ret ?: current_pt_regs()->r0;
@@ -335,5 +335,5 @@ syscall_trace_leave(void)
 {
 	audit_syscall_exit(current_pt_regs());
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
-		tracehook_report_syscall_exit(current_pt_regs(), 0);
+		ptrace_report_syscall_exit(current_pt_regs(), 0);
 }

@@ -7,17 +7,16 @@
  * Authors: Tim Howe <Tim.Howe@cirrus.com>
  */
 
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
-#include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <sound/core.h>
@@ -131,7 +130,7 @@ static int cs4349_pcm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int cs4349_digital_mute(struct snd_soc_dai *dai, int mute)
+static int cs4349_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	int reg;
@@ -223,12 +222,9 @@ static const struct snd_soc_dapm_route cs4349_routes[] = {
 	{"OutputB", NULL, "HiFi DAC"},
 };
 
-#define CS4349_PCM_FORMATS (SNDRV_PCM_FMTBIT_S8  | \
-			SNDRV_PCM_FMTBIT_S16_LE  | SNDRV_PCM_FMTBIT_S16_BE  | \
-			SNDRV_PCM_FMTBIT_S18_3LE | SNDRV_PCM_FMTBIT_S18_3BE | \
-			SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S20_3BE | \
-			SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S24_3BE | \
-			SNDRV_PCM_FMTBIT_S24_LE  | SNDRV_PCM_FMTBIT_S24_BE  | \
+#define CS4349_PCM_FORMATS (SNDRV_PCM_FMTBIT_S8  | SNDRV_PCM_FMTBIT_S16_LE  | \
+			SNDRV_PCM_FMTBIT_S18_3LE | SNDRV_PCM_FMTBIT_S20_3LE | \
+			SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S24_LE  | \
 			SNDRV_PCM_FMTBIT_S32_LE)
 
 #define CS4349_PCM_RATES SNDRV_PCM_RATE_8000_192000
@@ -236,7 +232,8 @@ static const struct snd_soc_dapm_route cs4349_routes[] = {
 static const struct snd_soc_dai_ops cs4349_dai_ops = {
 	.hw_params	= cs4349_pcm_hw_params,
 	.set_fmt	= cs4349_set_dai_fmt,
-	.digital_mute	= cs4349_digital_mute,
+	.mute_stream	= cs4349_mute,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver cs4349_dai = {
@@ -249,7 +246,7 @@ static struct snd_soc_dai_driver cs4349_dai = {
 		.formats	= CS4349_PCM_FORMATS,
 	},
 	.ops = &cs4349_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 };
 
 static const struct snd_soc_component_driver soc_component_dev_cs4349 = {
@@ -262,7 +259,6 @@ static const struct snd_soc_component_driver soc_component_dev_cs4349 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config cs4349_regmap = {
@@ -274,11 +270,10 @@ static const struct regmap_config cs4349_regmap = {
 	.num_reg_defaults	= ARRAY_SIZE(cs4349_reg_defaults),
 	.readable_reg		= cs4349_readable_register,
 	.writeable_reg		= cs4349_writeable_register,
-	.cache_type		= REGCACHE_RBTREE,
+	.cache_type		= REGCACHE_MAPLE,
 };
 
-static int cs4349_i2c_probe(struct i2c_client *client,
-				      const struct i2c_device_id *id)
+static int cs4349_i2c_probe(struct i2c_client *client)
 {
 	struct cs4349_private *cs4349;
 	int ret;
@@ -309,14 +304,12 @@ static int cs4349_i2c_probe(struct i2c_client *client,
 		&cs4349_dai, 1);
 }
 
-static int cs4349_i2c_remove(struct i2c_client *client)
+static void cs4349_i2c_remove(struct i2c_client *client)
 {
 	struct cs4349_private *cs4349 = i2c_get_clientdata(client);
 
 	/* Hold down reset */
 	gpiod_set_value_cansleep(cs4349->reset_gpio, 0);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -368,7 +361,7 @@ static const struct of_device_id cs4349_of_match[] = {
 MODULE_DEVICE_TABLE(of, cs4349_of_match);
 
 static const struct i2c_device_id cs4349_i2c_id[] = {
-	{"cs4349", 0},
+	{"cs4349"},
 	{}
 };
 

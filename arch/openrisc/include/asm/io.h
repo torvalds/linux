@@ -14,8 +14,12 @@
 #ifndef __ASM_OPENRISC_IO_H
 #define __ASM_OPENRISC_IO_H
 
+#include <linux/types.h>
+#include <asm/pgalloc.h>
+#include <asm/pgtable.h>
+
 /*
- * PCI: can we really do 0 here if we have no port IO?
+ * PCI: We do not use IO ports in OpenRISC
  */
 #define IO_SPACE_LIMIT		0
 
@@ -25,11 +29,11 @@
 #define PIO_OFFSET		0
 #define PIO_MASK		0
 
-#define ioremap_nocache ioremap
-#include <asm-generic/io.h>
-#include <asm/pgtable.h>
+/*
+ * I/O memory mapping functions.
+ */
+#define _PAGE_IOREMAP (pgprot_val(PAGE_KERNEL) | _PAGE_CI)
 
-void __iomem *ioremap(phys_addr_t offset, unsigned long size);
-extern void iounmap(void *addr);
+#include <asm-generic/io.h>
 
 #endif

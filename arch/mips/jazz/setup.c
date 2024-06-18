@@ -13,15 +13,14 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/console.h>
-#include <linux/screen_info.h>
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
 #include <linux/dma-mapping.h>
+#include <linux/pgtable.h>
 
 #include <asm/jazz.h>
 #include <asm/jazzdma.h>
 #include <asm/reboot.h>
-#include <asm/pgtable.h>
 #include <asm/tlbmisc.h>
 
 extern asmlinkage void jazz_handle_int(void);
@@ -75,14 +74,6 @@ void __init plat_mem_setup(void)
 	/* The RTC is outside the port address space */
 
 	_machine_restart = jazz_machine_restart;
-
-#ifdef CONFIG_VT
-	screen_info = (struct screen_info) {
-		.orig_video_cols	= 160,
-		.orig_video_lines	= 64,
-		.orig_video_points	= 16,
-	};
-#endif
 
 	add_preferred_console("ttyS", 0, "9600");
 }

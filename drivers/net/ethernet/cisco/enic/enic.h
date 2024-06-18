@@ -1,20 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2008-2010 Cisco Systems, Inc.  All rights reserved.
  * Copyright 2007 Nuova Systems, Inc.  All rights reserved.
- *
- * This program is free software; you may redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- *
  */
 
 #ifndef _ENIC_H_
@@ -33,8 +20,6 @@
 
 #define DRV_NAME		"enic"
 #define DRV_DESCRIPTION		"Cisco VIC Ethernet NIC Driver"
-#define DRV_VERSION		"2.3.0.53"
-#define DRV_COPYRIGHT		"Copyright 2008-2013 Cisco Systems, Inc"
 
 #define ENIC_BARS_MAX		6
 
@@ -171,6 +156,7 @@ struct enic {
 	u16 num_vfs;
 #endif
 	spinlock_t enic_api_lock;
+	bool enic_api_busy;
 	struct enic_port_profile *pp;
 
 	/* work queue cache line section */
@@ -240,21 +226,6 @@ static inline unsigned int enic_cq_wq(struct enic *enic, unsigned int wq)
 	return enic->rq_count + wq;
 }
 
-static inline unsigned int enic_legacy_io_intr(void)
-{
-	return 0;
-}
-
-static inline unsigned int enic_legacy_err_intr(void)
-{
-	return 1;
-}
-
-static inline unsigned int enic_legacy_notify_intr(void)
-{
-	return 2;
-}
-
 static inline unsigned int enic_msix_rq_intr(struct enic *enic,
 	unsigned int rq)
 {
@@ -272,6 +243,10 @@ static inline unsigned int enic_msix_err_intr(struct enic *enic)
 	return enic->rq_count + enic->wq_count;
 }
 
+#define ENIC_LEGACY_IO_INTR	0
+#define ENIC_LEGACY_ERR_INTR	1
+#define ENIC_LEGACY_NOTIFY_INTR	2
+
 static inline unsigned int enic_msix_notify_intr(struct enic *enic)
 {
 	return enic->rq_count + enic->wq_count + 1;
@@ -281,7 +256,7 @@ static inline bool enic_is_err_intr(struct enic *enic, int intr)
 {
 	switch (vnic_dev_get_intr_mode(enic->vdev)) {
 	case VNIC_DEV_INTR_MODE_INTX:
-		return intr == enic_legacy_err_intr();
+		return intr == ENIC_LEGACY_ERR_INTR;
 	case VNIC_DEV_INTR_MODE_MSIX:
 		return intr == enic_msix_err_intr(enic);
 	case VNIC_DEV_INTR_MODE_MSI:
@@ -294,7 +269,7 @@ static inline bool enic_is_notify_intr(struct enic *enic, int intr)
 {
 	switch (vnic_dev_get_intr_mode(enic->vdev)) {
 	case VNIC_DEV_INTR_MODE_INTX:
-		return intr == enic_legacy_notify_intr();
+		return intr == ENIC_LEGACY_NOTIFY_INTR;
 	case VNIC_DEV_INTR_MODE_MSIX:
 		return intr == enic_msix_notify_intr(enic);
 	case VNIC_DEV_INTR_MODE_MSI:
@@ -305,7 +280,7 @@ static inline bool enic_is_notify_intr(struct enic *enic, int intr)
 
 static inline int enic_dma_map_check(struct enic *enic, dma_addr_t dma_addr)
 {
-	if (unlikely(pci_dma_mapping_error(enic->pdev, dma_addr))) {
+	if (unlikely(dma_mapping_error(&enic->pdev->dev, dma_addr))) {
 		net_warn_ratelimited("%s: PCI dma mapping failed!\n",
 				     enic->netdev->name);
 		enic->gen_stats.dma_map_error++;

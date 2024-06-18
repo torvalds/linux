@@ -8,14 +8,14 @@
  */
 
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <dt-bindings/regulator/active-semi,8945a-regulator.h>
 
-/**
+/*
  * ACT8945A Global Register Map.
  */
 #define ACT8945A_SYS_MODE	0x00
@@ -46,13 +46,13 @@
 #define ACT8945A_LDO4_CTRL	0x65
 #define ACT8945A_LDO4_SUS	0x66
 
-/**
+/*
  * Field Definitions.
  */
 #define ACT8945A_ENA		0x80	/* ON - [7] */
 #define ACT8945A_VSEL_MASK	0x3F	/* VSET - [5:0] */
 
-/**
+/*
  * ACT8945A Voltage Number
  */
 #define ACT8945A_VOLTAGE_NUM	64
@@ -73,7 +73,7 @@ struct act8945a_pmic {
 	u32 op_mode[ACT8945A_ID_MAX];
 };
 
-static const struct regulator_linear_range act8945a_voltage_ranges[] = {
+static const struct linear_range act8945a_voltage_ranges[] = {
 	REGULATOR_LINEAR_RANGE(600000, 0, 23, 25000),
 	REGULATOR_LINEAR_RANGE(1200000, 24, 47, 50000),
 	REGULATOR_LINEAR_RANGE(2400000, 48, 63, 100000),
@@ -348,6 +348,7 @@ static void act8945a_pmic_shutdown(struct platform_device *pdev)
 static struct platform_driver act8945a_pmic_driver = {
 	.driver = {
 		.name = "act8945a-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.pm = &act8945a_pm,
 	},
 	.probe = act8945a_pmic_probe,

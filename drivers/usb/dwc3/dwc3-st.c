@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0+
-/**
+/*
  * dwc3-st.c Support for dwc3 platform devices on ST Microelectronics platforms
  *
  * This is a small driver for the dwc3 to provide the glue logic
@@ -206,8 +206,8 @@ static int st_dwc3_probe(struct platform_device *pdev)
 	if (!dwc3_data)
 		return -ENOMEM;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "reg-glue");
-	dwc3_data->glue_base = devm_ioremap_resource(dev, res);
+	dwc3_data->glue_base =
+		devm_platform_ioremap_resource_byname(pdev, "reg-glue");
 	if (IS_ERR(dwc3_data->glue_base))
 		return PTR_ERR(dwc3_data->glue_base);
 
@@ -251,7 +251,7 @@ static int st_dwc3_probe(struct platform_device *pdev)
 	/* Manage SoftReset */
 	reset_control_deassert(dwc3_data->rstc_rst);
 
-	child = of_get_child_by_name(node, "dwc3");
+	child = of_get_compatible_child(node, "snps,dwc3");
 	if (!child) {
 		dev_err(&pdev->dev, "failed to find dwc3 core node\n");
 		ret = -ENODEV;
@@ -274,7 +274,7 @@ static int st_dwc3_probe(struct platform_device *pdev)
 
 	dwc3_data->dr_mode = usb_get_dr_mode(&child_pdev->dev);
 	of_node_put(child);
-	of_dev_put(child_pdev);
+	platform_device_put(child_pdev);
 
 	/*
 	 * Configure the USB port as device or host according to the static
@@ -305,7 +305,7 @@ undo_platform_dev_alloc:
 	return ret;
 }
 
-static int st_dwc3_remove(struct platform_device *pdev)
+static void st_dwc3_remove(struct platform_device *pdev)
 {
 	struct st_dwc3 *dwc3_data = platform_get_drvdata(pdev);
 
@@ -313,8 +313,6 @@ static int st_dwc3_remove(struct platform_device *pdev)
 
 	reset_control_assert(dwc3_data->rstc_pwrdn);
 	reset_control_assert(dwc3_data->rstc_rst);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -364,7 +362,7 @@ MODULE_DEVICE_TABLE(of, st_dwc3_match);
 
 static struct platform_driver st_dwc3_driver = {
 	.probe = st_dwc3_probe,
-	.remove = st_dwc3_remove,
+	.remove_new = st_dwc3_remove,
 	.driver = {
 		.name = "usb-st-dwc3",
 		.of_match_table = st_dwc3_match,

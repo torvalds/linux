@@ -3,7 +3,7 @@
  * CAAM hardware register-level view
  *
  * Copyright 2008-2011 Freescale Semiconductor, Inc.
- * Copyright 2018 NXP
+ * Copyright 2018, 2023 NXP
  */
 
 #ifndef REGS_H
@@ -173,9 +173,14 @@ static inline u64 rd_reg64(void __iomem *reg)
 
 static inline u64 cpu_to_caam_dma64(dma_addr_t value)
 {
-	if (caam_imx)
-		return (((u64)cpu_to_caam32(lower_32_bits(value)) << 32) |
-			 (u64)cpu_to_caam32(upper_32_bits(value)));
+	if (caam_imx) {
+		u64 ret_val = (u64)cpu_to_caam32(lower_32_bits(value)) << 32;
+
+		if (IS_ENABLED(CONFIG_ARCH_DMA_ADDR_T_64BIT))
+			ret_val |= (u64)cpu_to_caam32(upper_32_bits(value));
+
+		return ret_val;
+	}
 
 	return cpu_to_caam64(value);
 }
@@ -315,7 +320,11 @@ struct version_regs {
 #define CHA_VER_VID_MASK	(0xffull << CHA_VER_VID_SHIFT)
 
 /* CHA Miscellaneous Information - AESA_MISC specific */
-#define CHA_VER_MISC_AES_GCM	BIT(1 + CHA_VER_MISC_SHIFT)
+#define CHA_VER_MISC_AES_NUM_MASK	GENMASK(7, 0)
+#define CHA_VER_MISC_AES_GCM		BIT(1 + CHA_VER_MISC_SHIFT)
+
+/* CHA Miscellaneous Information - PKHA_MISC specific */
+#define CHA_VER_MISC_PKHA_NO_CRYPT	BIT(7 + CHA_VER_MISC_SHIFT)
 
 /*
  * caam_perfmon - Performance Monitor/Secure Memory Status/
@@ -406,6 +415,7 @@ struct caam_perfmon {
 #define CTPR_MS_PG_SZ_MASK	0x10
 #define CTPR_MS_PG_SZ_SHIFT	4
 	u32 comp_parms_ms;	/* CTPR - Compile Parameters Register	*/
+#define CTPR_LS_BLOB           BIT(1)
 	u32 comp_parms_ls;	/* CTPR - Compile Parameters Register	*/
 	u64 rsvd1[2];
 
@@ -416,6 +426,9 @@ struct caam_perfmon {
 	u32 rsvd2;
 #define CSTA_PLEND		BIT(10)
 #define CSTA_ALT_PLEND		BIT(18)
+#define CSTA_MOO		GENMASK(9, 8)
+#define CSTA_MOO_SECURE	1
+#define CSTA_MOO_TRUSTED	2
 	u32 status;		/* CSTA - CAAM Status */
 	u64 rsvd3;
 
@@ -444,12 +457,6 @@ struct caam_perfmon {
 struct masterid {
 	u32 liodn_ms;	/* lock and make-trusted control bits */
 	u32 liodn_ls;	/* LIODN for non-sequence and seq access */
-};
-
-/* Partition ID for DMA configuration */
-struct partid {
-	u32 rsvd1;
-	u32 pidr;	/* partition ID, DECO */
 };
 
 /* RNGB test mode (replicated twice in some configurations) */
@@ -487,7 +494,8 @@ struct rngtst {
 
 /* RNG4 TRNG test registers */
 struct rng4tst {
-#define RTMCTL_PRGM	0x00010000	/* 1 -> program mode, 0 -> run mode */
+#define RTMCTL_ACC  BIT(5)  /* TRNG access mode */
+#define RTMCTL_PRGM BIT(16) /* 1 -> program mode, 0 -> run mode */
 #define RTMCTL_SAMP_MODE_VON_NEUMANN_ES_SC	0 /* use von Neumann data in
 						     both entropy shifter and
 						     statistical checker */
@@ -509,6 +517,8 @@ struct rng4tst {
 #define RTSDCTL_ENT_DLY_MASK (0xffff << RTSDCTL_ENT_DLY_SHIFT)
 #define RTSDCTL_ENT_DLY_MIN 3200
 #define RTSDCTL_ENT_DLY_MAX 12800
+#define RTSDCTL_SAMP_SIZE_MASK 0xffff
+#define RTSDCTL_SAMP_SIZE_VAL 512
 	u32 rtsdctl;		/* seed control register */
 	union {
 		u32 rtsblim;	/* PRGM=1: sparse bit limit register */
@@ -520,12 +530,22 @@ struct rng4tst {
 		u32 rtfrqmax;	/* PRGM=1: freq. count max. limit register */
 		u32 rtfrqcnt;	/* PRGM=0: freq. count register */
 	};
-	u32 rsvd1[40];
+	union {
+		u32 rtscmc;	/* statistical check run monobit count */
+		u32 rtscml;	/* statistical check run monobit limit */
+	};
+	union {
+		u32 rtscrc[6];	/* statistical check run length count */
+		u32 rtscrl[6];	/* statistical check run length limit */
+	};
+	u32 rsvd1[33];
 #define RDSTA_SKVT 0x80000000
 #define RDSTA_SKVN 0x40000000
+#define RDSTA_PR0 BIT(4)
+#define RDSTA_PR1 BIT(5)
 #define RDSTA_IF0 0x00000001
 #define RDSTA_IF1 0x00000002
-#define RDSTA_IFMASK (RDSTA_IF1 | RDSTA_IF0)
+#define RDSTA_MASK (RDSTA_PR1 | RDSTA_PR0 | RDSTA_IF1 | RDSTA_IF0)
 	u32 rdsta;
 	u32 rsvd2[15];
 };
@@ -564,8 +584,7 @@ struct caam_ctrl {
 	u32 deco_rsr;			/* DECORSR - Deco Request Source */
 	u32 rsvd11;
 	u32 deco_rq;			/* DECORR - DECO Request */
-	struct partid deco_mid[5];	/* DECOxLIODNR - 1 per DECO */
-	u32 rsvd5[22];
+	struct masterid deco_mid[16];	/* DECOxLIODNR - 1 per DECO */
 
 	/* DECO Availability/Reset Section			120-3ff */
 	u32 deco_avail;		/* DAR - DECO availability */

@@ -9,6 +9,7 @@
 #include <linux/acpi.h>
 #include <linux/arm-smccc.h>
 #include <linux/cpuidle.h>
+#include <linux/debugfs.h>
 #include <linux/errno.h>
 #include <linux/linkage.h>
 #include <linux/of.h>
@@ -23,6 +24,7 @@
 
 #include <asm/cpuidle.h>
 #include <asm/cputype.h>
+#include <asm/hypervisor.h>
 #include <asm/system_misc.h>
 #include <asm/smp_plat.h>
 #include <asm/suspend.h>
@@ -46,30 +48,24 @@
  * require cooperation with a Trusted OS driver.
  */
 static int resident_cpu = -1;
+struct psci_operations psci_ops;
+static enum arm_smccc_conduit psci_conduit = SMCCC_CONDUIT_NONE;
 
 bool psci_tos_resident_on(int cpu)
 {
 	return cpu == resident_cpu;
 }
 
-struct psci_operations psci_ops = {
-	.conduit = PSCI_CONDUIT_NONE,
-	.smccc_version = SMCCC_VERSION_1_0,
-};
-
 typedef unsigned long (psci_fn)(unsigned long, unsigned long,
 				unsigned long, unsigned long);
 static psci_fn *invoke_psci_fn;
 
-enum psci_function {
-	PSCI_FN_CPU_SUSPEND,
-	PSCI_FN_CPU_ON,
-	PSCI_FN_CPU_OFF,
-	PSCI_FN_MIGRATE,
-	PSCI_FN_MAX,
-};
+static struct psci_0_1_function_ids psci_0_1_function_ids;
 
-static u32 psci_function_id[PSCI_FN_MAX];
+struct psci_0_1_function_ids get_psci_0_1_function_ids(void)
+{
+	return psci_0_1_function_ids;
+}
 
 #define PSCI_0_2_POWER_STATE_MASK		\
 				(PSCI_0_2_POWER_STATE_ID_MASK | \
@@ -89,7 +85,7 @@ static inline bool psci_has_ext_power_state(void)
 				PSCI_1_0_FEATURES_CPU_SUSPEND_PF_MASK;
 }
 
-static inline bool psci_has_osi_support(void)
+bool psci_has_osi_support(void)
 {
 	return psci_cpu_suspend_feature & PSCI_1_0_OS_INITIATED;
 }
@@ -112,9 +108,10 @@ bool psci_power_state_is_valid(u32 state)
 	return !(state & ~valid_mask);
 }
 
-static unsigned long __invoke_psci_fn_hvc(unsigned long function_id,
-			unsigned long arg0, unsigned long arg1,
-			unsigned long arg2)
+static __always_inline unsigned long
+__invoke_psci_fn_hvc(unsigned long function_id,
+		     unsigned long arg0, unsigned long arg1,
+		     unsigned long arg2)
 {
 	struct arm_smccc_res res;
 
@@ -122,9 +119,10 @@ static unsigned long __invoke_psci_fn_hvc(unsigned long function_id,
 	return res.a0;
 }
 
-static unsigned long __invoke_psci_fn_smc(unsigned long function_id,
-			unsigned long arg0, unsigned long arg1,
-			unsigned long arg2)
+static __always_inline unsigned long
+__invoke_psci_fn_smc(unsigned long function_id,
+		     unsigned long arg0, unsigned long arg1,
+		     unsigned long arg2)
 {
 	struct arm_smccc_res res;
 
@@ -132,7 +130,7 @@ static unsigned long __invoke_psci_fn_smc(unsigned long function_id,
 	return res.a0;
 }
 
-static int psci_to_linux_errno(int errno)
+static __always_inline int psci_to_linux_errno(int errno)
 {
 	switch (errno) {
 	case PSCI_RET_SUCCESS:
@@ -144,54 +142,111 @@ static int psci_to_linux_errno(int errno)
 		return -EINVAL;
 	case PSCI_RET_DENIED:
 		return -EPERM;
-	};
+	}
 
 	return -EINVAL;
 }
 
-static u32 psci_get_version(void)
+static u32 psci_0_1_get_version(void)
+{
+	return PSCI_VERSION(0, 1);
+}
+
+static u32 psci_0_2_get_version(void)
 {
 	return invoke_psci_fn(PSCI_0_2_FN_PSCI_VERSION, 0, 0, 0);
 }
 
-static int psci_cpu_suspend(u32 state, unsigned long entry_point)
+int psci_set_osi_mode(bool enable)
+{
+	unsigned long suspend_mode;
+	int err;
+
+	suspend_mode = enable ? PSCI_1_0_SUSPEND_MODE_OSI :
+			PSCI_1_0_SUSPEND_MODE_PC;
+
+	err = invoke_psci_fn(PSCI_1_0_FN_SET_SUSPEND_MODE, suspend_mode, 0, 0);
+	if (err < 0)
+		pr_info(FW_BUG "failed to set %s mode: %d\n",
+				enable ? "OSI" : "PC", err);
+	return psci_to_linux_errno(err);
+}
+
+static __always_inline int
+__psci_cpu_suspend(u32 fn, u32 state, unsigned long entry_point)
 {
 	int err;
-	u32 fn;
 
-	fn = psci_function_id[PSCI_FN_CPU_SUSPEND];
 	err = invoke_psci_fn(fn, state, entry_point, 0);
 	return psci_to_linux_errno(err);
 }
 
-static int psci_cpu_off(u32 state)
+static __always_inline int
+psci_0_1_cpu_suspend(u32 state, unsigned long entry_point)
+{
+	return __psci_cpu_suspend(psci_0_1_function_ids.cpu_suspend,
+				  state, entry_point);
+}
+
+static __always_inline int
+psci_0_2_cpu_suspend(u32 state, unsigned long entry_point)
+{
+	return __psci_cpu_suspend(PSCI_FN_NATIVE(0_2, CPU_SUSPEND),
+				  state, entry_point);
+}
+
+static int __psci_cpu_off(u32 fn, u32 state)
 {
 	int err;
-	u32 fn;
 
-	fn = psci_function_id[PSCI_FN_CPU_OFF];
 	err = invoke_psci_fn(fn, state, 0, 0);
 	return psci_to_linux_errno(err);
 }
 
-static int psci_cpu_on(unsigned long cpuid, unsigned long entry_point)
+static int psci_0_1_cpu_off(u32 state)
+{
+	return __psci_cpu_off(psci_0_1_function_ids.cpu_off, state);
+}
+
+static int psci_0_2_cpu_off(u32 state)
+{
+	return __psci_cpu_off(PSCI_0_2_FN_CPU_OFF, state);
+}
+
+static int __psci_cpu_on(u32 fn, unsigned long cpuid, unsigned long entry_point)
 {
 	int err;
-	u32 fn;
 
-	fn = psci_function_id[PSCI_FN_CPU_ON];
 	err = invoke_psci_fn(fn, cpuid, entry_point, 0);
 	return psci_to_linux_errno(err);
 }
 
-static int psci_migrate(unsigned long cpuid)
+static int psci_0_1_cpu_on(unsigned long cpuid, unsigned long entry_point)
+{
+	return __psci_cpu_on(psci_0_1_function_ids.cpu_on, cpuid, entry_point);
+}
+
+static int psci_0_2_cpu_on(unsigned long cpuid, unsigned long entry_point)
+{
+	return __psci_cpu_on(PSCI_FN_NATIVE(0_2, CPU_ON), cpuid, entry_point);
+}
+
+static int __psci_migrate(u32 fn, unsigned long cpuid)
 {
 	int err;
-	u32 fn;
 
-	fn = psci_function_id[PSCI_FN_MIGRATE];
 	err = invoke_psci_fn(fn, cpuid, 0, 0);
 	return psci_to_linux_errno(err);
+}
+
+static int psci_0_1_migrate(unsigned long cpuid)
+{
+	return __psci_migrate(psci_0_1_function_ids.migrate, cpuid);
+}
+
+static int psci_0_2_migrate(unsigned long cpuid)
+{
+	return __psci_migrate(PSCI_FN_NATIVE(0_2, MIGRATE), cpuid);
 }
 
 static int psci_affinity_info(unsigned long target_affinity,
@@ -212,23 +267,23 @@ static unsigned long psci_migrate_info_up_cpu(void)
 			      0, 0, 0);
 }
 
-static void set_conduit(enum psci_conduit conduit)
+static void set_conduit(enum arm_smccc_conduit conduit)
 {
 	switch (conduit) {
-	case PSCI_CONDUIT_HVC:
+	case SMCCC_CONDUIT_HVC:
 		invoke_psci_fn = __invoke_psci_fn_hvc;
 		break;
-	case PSCI_CONDUIT_SMC:
+	case SMCCC_CONDUIT_SMC:
 		invoke_psci_fn = __invoke_psci_fn_smc;
 		break;
 	default:
 		WARN(1, "Unexpected PSCI conduit %d\n", conduit);
 	}
 
-	psci_ops.conduit = conduit;
+	psci_conduit = conduit;
 }
 
-static int get_set_conduit_method(struct device_node *np)
+static int get_set_conduit_method(const struct device_node *np)
 {
 	const char *method;
 
@@ -240,9 +295,9 @@ static int get_set_conduit_method(struct device_node *np)
 	}
 
 	if (!strcmp("hvc", method)) {
-		set_conduit(PSCI_CONDUIT_HVC);
+		set_conduit(SMCCC_CONDUIT_HVC);
 	} else if (!strcmp("smc", method)) {
-		set_conduit(PSCI_CONDUIT_SMC);
+		set_conduit(SMCCC_CONDUIT_SMC);
 	} else {
 		pr_warn("invalid \"method\" property: %s\n", method);
 		return -EINVAL;
@@ -250,7 +305,8 @@ static int get_set_conduit_method(struct device_node *np)
 	return 0;
 }
 
-static void psci_sys_reset(enum reboot_mode reboot_mode, const char *cmd)
+static int psci_sys_reset(struct notifier_block *nb, unsigned long action,
+			  void *data)
 {
 	if ((reboot_mode == REBOOT_WARM || reboot_mode == REBOOT_SOFT) &&
 	    psci_system_reset2_supported) {
@@ -263,35 +319,177 @@ static void psci_sys_reset(enum reboot_mode reboot_mode, const char *cmd)
 	} else {
 		invoke_psci_fn(PSCI_0_2_FN_SYSTEM_RESET, 0, 0, 0);
 	}
+
+	return NOTIFY_DONE;
 }
+
+static struct notifier_block psci_sys_reset_nb = {
+	.notifier_call = psci_sys_reset,
+	.priority = 129,
+};
 
 static void psci_sys_poweroff(void)
 {
 	invoke_psci_fn(PSCI_0_2_FN_SYSTEM_OFF, 0, 0, 0);
 }
 
-static int __init psci_features(u32 psci_func_id)
+static int psci_features(u32 psci_func_id)
 {
 	return invoke_psci_fn(PSCI_1_0_FN_PSCI_FEATURES,
 			      psci_func_id, 0, 0);
 }
 
+#ifdef CONFIG_DEBUG_FS
+
+#define PSCI_ID(ver, _name) \
+	{ .fn = PSCI_##ver##_FN_##_name, .name = #_name, }
+#define PSCI_ID_NATIVE(ver, _name) \
+	{ .fn = PSCI_FN_NATIVE(ver, _name), .name = #_name, }
+
+/* A table of all optional functions */
+static const struct {
+	u32 fn;
+	const char *name;
+} psci_fn_ids[] = {
+	PSCI_ID_NATIVE(0_2, MIGRATE),
+	PSCI_ID(0_2, MIGRATE_INFO_TYPE),
+	PSCI_ID_NATIVE(0_2, MIGRATE_INFO_UP_CPU),
+	PSCI_ID(1_0, CPU_FREEZE),
+	PSCI_ID_NATIVE(1_0, CPU_DEFAULT_SUSPEND),
+	PSCI_ID_NATIVE(1_0, NODE_HW_STATE),
+	PSCI_ID_NATIVE(1_0, SYSTEM_SUSPEND),
+	PSCI_ID(1_0, SET_SUSPEND_MODE),
+	PSCI_ID_NATIVE(1_0, STAT_RESIDENCY),
+	PSCI_ID_NATIVE(1_0, STAT_COUNT),
+	PSCI_ID_NATIVE(1_1, SYSTEM_RESET2),
+	PSCI_ID(1_1, MEM_PROTECT),
+	PSCI_ID_NATIVE(1_1, MEM_PROTECT_CHECK_RANGE),
+};
+
+static int psci_debugfs_read(struct seq_file *s, void *data)
+{
+	int feature, type, i;
+	u32 ver;
+
+	ver = psci_ops.get_version();
+	seq_printf(s, "PSCIv%d.%d\n",
+		   PSCI_VERSION_MAJOR(ver),
+		   PSCI_VERSION_MINOR(ver));
+
+	/* PSCI_FEATURES is available only starting from 1.0 */
+	if (PSCI_VERSION_MAJOR(ver) < 1)
+		return 0;
+
+	feature = psci_features(ARM_SMCCC_VERSION_FUNC_ID);
+	if (feature != PSCI_RET_NOT_SUPPORTED) {
+		ver = invoke_psci_fn(ARM_SMCCC_VERSION_FUNC_ID, 0, 0, 0);
+		seq_printf(s, "SMC Calling Convention v%d.%d\n",
+			   PSCI_VERSION_MAJOR(ver),
+			   PSCI_VERSION_MINOR(ver));
+	} else {
+		seq_puts(s, "SMC Calling Convention v1.0 is assumed\n");
+	}
+
+	feature = psci_features(PSCI_FN_NATIVE(0_2, CPU_SUSPEND));
+	if (feature < 0) {
+		seq_printf(s, "PSCI_FEATURES(CPU_SUSPEND) error (%d)\n", feature);
+	} else {
+		seq_printf(s, "OSI is %ssupported\n",
+			   (feature & BIT(0)) ? "" : "not ");
+		seq_printf(s, "%s StateID format is used\n",
+			   (feature & BIT(1)) ? "Extended" : "Original");
+	}
+
+	type = psci_ops.migrate_info_type();
+	if (type == PSCI_0_2_TOS_UP_MIGRATE ||
+	    type == PSCI_0_2_TOS_UP_NO_MIGRATE) {
+		unsigned long cpuid;
+
+		seq_printf(s, "Trusted OS %smigrate capable\n",
+			   type == PSCI_0_2_TOS_UP_NO_MIGRATE ? "not " : "");
+		cpuid = psci_migrate_info_up_cpu();
+		seq_printf(s, "Trusted OS resident on physical CPU 0x%lx (#%d)\n",
+			   cpuid, resident_cpu);
+	} else if (type == PSCI_0_2_TOS_MP) {
+		seq_puts(s, "Trusted OS migration not required\n");
+	} else {
+		if (type != PSCI_RET_NOT_SUPPORTED)
+			seq_printf(s, "MIGRATE_INFO_TYPE returned unknown type (%d)\n", type);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(psci_fn_ids); i++) {
+		feature = psci_features(psci_fn_ids[i].fn);
+		if (feature == PSCI_RET_NOT_SUPPORTED)
+			continue;
+		if (feature < 0)
+			seq_printf(s, "PSCI_FEATURES(%s) error (%d)\n",
+				   psci_fn_ids[i].name, feature);
+		else
+			seq_printf(s, "%s is supported\n", psci_fn_ids[i].name);
+	}
+
+	return 0;
+}
+
+static int psci_debugfs_open(struct inode *inode, struct file *f)
+{
+	return single_open(f, psci_debugfs_read, NULL);
+}
+
+static const struct file_operations psci_debugfs_ops = {
+	.owner = THIS_MODULE,
+	.open = psci_debugfs_open,
+	.release = single_release,
+	.read = seq_read,
+	.llseek = seq_lseek
+};
+
+static int __init psci_debugfs_init(void)
+{
+	if (!invoke_psci_fn || !psci_ops.get_version)
+		return 0;
+
+	return PTR_ERR_OR_ZERO(debugfs_create_file("psci", 0444, NULL, NULL,
+						   &psci_debugfs_ops));
+}
+late_initcall(psci_debugfs_init)
+#endif
+
 #ifdef CONFIG_CPU_IDLE
-static int psci_suspend_finisher(unsigned long state)
+static noinstr int psci_suspend_finisher(unsigned long state)
 {
 	u32 power_state = state;
+	phys_addr_t pa_cpu_resume;
 
-	return psci_ops.cpu_suspend(power_state, __pa_symbol(cpu_resume));
+	pa_cpu_resume = __pa_symbol_nodebug((unsigned long)cpu_resume);
+
+	return psci_ops.cpu_suspend(power_state, pa_cpu_resume);
 }
 
 int psci_cpu_suspend_enter(u32 state)
 {
 	int ret;
 
-	if (!psci_power_state_loses_context(state))
+	if (!psci_power_state_loses_context(state)) {
+		struct arm_cpuidle_irq_context context;
+
+		ct_cpuidle_enter();
+		arm_cpuidle_save_irq_context(&context);
 		ret = psci_ops.cpu_suspend(state, 0);
-	else
+		arm_cpuidle_restore_irq_context(&context);
+		ct_cpuidle_exit();
+	} else {
+		/*
+		 * ARM64 cpu_suspend() wants to do ct_cpuidle_*() itself.
+		 */
+		if (!IS_ENABLED(CONFIG_ARM64))
+			ct_cpuidle_enter();
+
 		ret = cpu_suspend(state, psci_suspend_finisher);
+
+		if (!IS_ENABLED(CONFIG_ARM64))
+			ct_cpuidle_exit();
+	}
 
 	return ret;
 }
@@ -299,8 +497,10 @@ int psci_cpu_suspend_enter(u32 state)
 
 static int psci_system_suspend(unsigned long unused)
 {
+	phys_addr_t pa_cpu_resume = __pa_symbol(cpu_resume);
+
 	return invoke_psci_fn(PSCI_FN_NATIVE(1_0, SYSTEM_SUSPEND),
-			      __pa_symbol(cpu_resume), 0, 0);
+			      pa_cpu_resume, 0, 0);
 }
 
 static int psci_system_suspend_enter(suspend_state_t state)
@@ -338,7 +538,7 @@ static void __init psci_init_system_suspend(void)
 
 static void __init psci_init_cpu_suspend(void)
 {
-	int feature = psci_features(psci_function_id[PSCI_FN_CPU_SUSPEND]);
+	int feature = psci_features(PSCI_FN_NATIVE(0_2, CPU_SUSPEND));
 
 	if (feature != PSCI_RET_NOT_SUPPORTED)
 		psci_cpu_suspend_feature = feature;
@@ -394,8 +594,8 @@ static void __init psci_init_smccc(void)
 	if (feature != PSCI_RET_NOT_SUPPORTED) {
 		u32 ret;
 		ret = invoke_psci_fn(ARM_SMCCC_VERSION_FUNC_ID, 0, 0, 0);
-		if (ret == ARM_SMCCC_VERSION_1_1) {
-			psci_ops.smccc_version = SMCCC_VERSION_1_1;
+		if (ret >= ARM_SMCCC_VERSION_1_1) {
+			arm_smccc_version_init(ret, psci_conduit);
 			ver = ret;
 		}
 	}
@@ -412,26 +612,18 @@ static void __init psci_init_smccc(void)
 static void __init psci_0_2_set_functions(void)
 {
 	pr_info("Using standard PSCI v0.2 function IDs\n");
-	psci_ops.get_version = psci_get_version;
 
-	psci_function_id[PSCI_FN_CPU_SUSPEND] =
-					PSCI_FN_NATIVE(0_2, CPU_SUSPEND);
-	psci_ops.cpu_suspend = psci_cpu_suspend;
+	psci_ops = (struct psci_operations){
+		.get_version = psci_0_2_get_version,
+		.cpu_suspend = psci_0_2_cpu_suspend,
+		.cpu_off = psci_0_2_cpu_off,
+		.cpu_on = psci_0_2_cpu_on,
+		.migrate = psci_0_2_migrate,
+		.affinity_info = psci_affinity_info,
+		.migrate_info_type = psci_migrate_info_type,
+	};
 
-	psci_function_id[PSCI_FN_CPU_OFF] = PSCI_0_2_FN_CPU_OFF;
-	psci_ops.cpu_off = psci_cpu_off;
-
-	psci_function_id[PSCI_FN_CPU_ON] = PSCI_FN_NATIVE(0_2, CPU_ON);
-	psci_ops.cpu_on = psci_cpu_on;
-
-	psci_function_id[PSCI_FN_MIGRATE] = PSCI_FN_NATIVE(0_2, MIGRATE);
-	psci_ops.migrate = psci_migrate;
-
-	psci_ops.affinity_info = psci_affinity_info;
-
-	psci_ops.migrate_info_type = psci_migrate_info_type;
-
-	arm_pm_restart = psci_sys_reset;
+	register_restart_handler(&psci_sys_reset_nb);
 
 	pm_power_off = psci_sys_poweroff;
 }
@@ -441,7 +633,7 @@ static void __init psci_0_2_set_functions(void)
  */
 static int __init psci_probe(void)
 {
-	u32 ver = psci_get_version();
+	u32 ver = psci_0_2_get_version();
 
 	pr_info("PSCIv%d.%d detected in firmware.\n",
 			PSCI_VERSION_MAJOR(ver),
@@ -461,6 +653,7 @@ static int __init psci_probe(void)
 		psci_init_cpu_suspend();
 		psci_init_system_suspend();
 		psci_init_system_reset2();
+		kvm_init_hyp_services();
 	}
 
 	return 0;
@@ -473,7 +666,7 @@ typedef int (*psci_initcall_t)(const struct device_node *);
  *
  * Probe based on PSCI PSCI_VERSION function
  */
-static int __init psci_0_2_init(struct device_node *np)
+static int __init psci_0_2_init(const struct device_node *np)
 {
 	int err;
 
@@ -494,7 +687,7 @@ static int __init psci_0_2_init(struct device_node *np)
 /*
  * PSCI < v0.2 get PSCI Function IDs via DT.
  */
-static int __init psci_0_1_init(struct device_node *np)
+static int __init psci_0_1_init(const struct device_node *np)
 {
 	u32 id;
 	int err;
@@ -505,30 +698,32 @@ static int __init psci_0_1_init(struct device_node *np)
 
 	pr_info("Using PSCI v0.1 Function IDs from DT\n");
 
+	psci_ops.get_version = psci_0_1_get_version;
+
 	if (!of_property_read_u32(np, "cpu_suspend", &id)) {
-		psci_function_id[PSCI_FN_CPU_SUSPEND] = id;
-		psci_ops.cpu_suspend = psci_cpu_suspend;
+		psci_0_1_function_ids.cpu_suspend = id;
+		psci_ops.cpu_suspend = psci_0_1_cpu_suspend;
 	}
 
 	if (!of_property_read_u32(np, "cpu_off", &id)) {
-		psci_function_id[PSCI_FN_CPU_OFF] = id;
-		psci_ops.cpu_off = psci_cpu_off;
+		psci_0_1_function_ids.cpu_off = id;
+		psci_ops.cpu_off = psci_0_1_cpu_off;
 	}
 
 	if (!of_property_read_u32(np, "cpu_on", &id)) {
-		psci_function_id[PSCI_FN_CPU_ON] = id;
-		psci_ops.cpu_on = psci_cpu_on;
+		psci_0_1_function_ids.cpu_on = id;
+		psci_ops.cpu_on = psci_0_1_cpu_on;
 	}
 
 	if (!of_property_read_u32(np, "migrate", &id)) {
-		psci_function_id[PSCI_FN_MIGRATE] = id;
-		psci_ops.migrate = psci_migrate;
+		psci_0_1_function_ids.migrate = id;
+		psci_ops.migrate = psci_0_1_migrate;
 	}
 
 	return 0;
 }
 
-static int __init psci_1_0_init(struct device_node *np)
+static int __init psci_1_0_init(const struct device_node *np)
 {
 	int err;
 
@@ -536,8 +731,12 @@ static int __init psci_1_0_init(struct device_node *np)
 	if (err)
 		return err;
 
-	if (psci_has_osi_support())
+	if (psci_has_osi_support()) {
 		pr_info("OSI mode supported.\n");
+
+		/* Default to PC mode. */
+		psci_set_osi_mode(false);
+	}
 
 	return 0;
 }
@@ -583,9 +782,9 @@ int __init psci_acpi_init(void)
 	pr_info("probing for conduit method from ACPI.\n");
 
 	if (acpi_psci_use_hvc())
-		set_conduit(PSCI_CONDUIT_HVC);
+		set_conduit(SMCCC_CONDUIT_HVC);
 	else
-		set_conduit(PSCI_CONDUIT_SMC);
+		set_conduit(SMCCC_CONDUIT_SMC);
 
 	return psci_probe();
 }

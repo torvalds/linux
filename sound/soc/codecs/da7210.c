@@ -330,7 +330,7 @@ static int da7210_put_alc_sw(struct snd_kcontrol *kcontrol,
 
 	if (ucontrol->value.integer.value[0]) {
 		/* Check if noise suppression is enabled */
-		if (snd_soc_component_read32(component, DA7210_CONTROL) & DA7210_NOISE_SUP_EN) {
+		if (snd_soc_component_read(component, DA7210_CONTROL) & DA7210_NOISE_SUP_EN) {
 			dev_dbg(component->dev,
 				"Disable noise suppression to enable ALC\n");
 			return -EINVAL;
@@ -354,27 +354,27 @@ static int da7210_put_noise_sup_sw(struct snd_kcontrol *kcontrol,
 
 	if (ucontrol->value.integer.value[0]) {
 		/* Check if ALC is enabled */
-		if (snd_soc_component_read32(component, DA7210_ADC) & DA7210_ADC_ALC_EN)
+		if (snd_soc_component_read(component, DA7210_ADC) & DA7210_ADC_ALC_EN)
 			goto err;
 
 		/* Check ZC for HP and AUX1 PGA */
-		if ((snd_soc_component_read32(component, DA7210_ZERO_CROSS) &
+		if ((snd_soc_component_read(component, DA7210_ZERO_CROSS) &
 			(DA7210_AUX1_L_ZC | DA7210_AUX1_R_ZC | DA7210_HP_L_ZC |
 			DA7210_HP_R_ZC)) != (DA7210_AUX1_L_ZC |
 			DA7210_AUX1_R_ZC | DA7210_HP_L_ZC | DA7210_HP_R_ZC))
 			goto err;
 
 		/* Check INPGA_L_VOL and INPGA_R_VOL */
-		val = snd_soc_component_read32(component, DA7210_IN_GAIN);
+		val = snd_soc_component_read(component, DA7210_IN_GAIN);
 		if (((val & DA7210_INPGA_L_VOL) < DA7210_INPGA_MIN_VOL_NS) ||
 			(((val & DA7210_INPGA_R_VOL) >> 4) <
 			DA7210_INPGA_MIN_VOL_NS))
 			goto err;
 
 		/* Check AUX1_L_VOL and AUX1_R_VOL */
-		if (((snd_soc_component_read32(component, DA7210_AUX1_L) & DA7210_AUX1_L_VOL) <
+		if (((snd_soc_component_read(component, DA7210_AUX1_L) & DA7210_AUX1_L_VOL) <
 		    DA7210_AUX1_MIN_VOL_NS) ||
-		    ((snd_soc_component_read32(component, DA7210_AUX1_R) & DA7210_AUX1_R_VOL) <
+		    ((snd_soc_component_read(component, DA7210_AUX1_R) & DA7210_AUX1_R_VOL) <
 		    DA7210_AUX1_MIN_VOL_NS))
 			goto err;
 	}
@@ -767,7 +767,7 @@ static int da7210_hw_params(struct snd_pcm_substream *substream,
 	/* Enable DAI */
 	snd_soc_component_write(component, DA7210_DAI_CFG3, DA7210_DAI_OE | DA7210_DAI_EN);
 
-	dai_cfg1 = 0xFC & snd_soc_component_read32(component, DA7210_DAI_CFG1);
+	dai_cfg1 = 0xFC & snd_soc_component_read(component, DA7210_DAI_CFG1);
 
 	switch (params_width(params)) {
 	case 16:
@@ -874,11 +874,11 @@ static int da7210_set_dai_fmt(struct snd_soc_dai *codec_dai, u32 fmt)
 	u32 dai_cfg1;
 	u32 dai_cfg3;
 
-	dai_cfg1 = 0x7f & snd_soc_component_read32(component, DA7210_DAI_CFG1);
-	dai_cfg3 = 0xfc & snd_soc_component_read32(component, DA7210_DAI_CFG3);
+	dai_cfg1 = 0x7f & snd_soc_component_read(component, DA7210_DAI_CFG1);
+	dai_cfg3 = 0xfc & snd_soc_component_read(component, DA7210_DAI_CFG3);
 
-	if ((snd_soc_component_read32(component, DA7210_PLL) & DA7210_PLL_EN) &&
-		(!(snd_soc_component_read32(component, DA7210_PLL_DIV3) & DA7210_PLL_BYP)))
+	if ((snd_soc_component_read(component, DA7210_PLL) & DA7210_PLL_EN) &&
+		(!(snd_soc_component_read(component, DA7210_PLL_DIV3) & DA7210_PLL_BYP)))
 		return -EINVAL;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
@@ -924,10 +924,10 @@ static int da7210_set_dai_fmt(struct snd_soc_dai *codec_dai, u32 fmt)
 	return 0;
 }
 
-static int da7210_mute(struct snd_soc_dai *dai, int mute)
+static int da7210_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
-	u8 mute_reg = snd_soc_component_read32(component, DA7210_DAC_HPF) & 0xFB;
+	u8 mute_reg = snd_soc_component_read(component, DA7210_DAC_HPF) & 0xFB;
 
 	if (mute)
 		snd_soc_component_write(component, DA7210_DAC_HPF, mute_reg | 0x4);
@@ -971,14 +971,16 @@ static int da7210_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 
 /**
  * da7210_set_dai_pll	:Configure the codec PLL
- * @param codec_dai	: pointer to codec DAI
- * @param pll_id	: da7210 has only one pll, so pll_id is always zero
- * @param fref		: MCLK frequency, should be < 20MHz
- * @param fout		: FsDM value, Refer page 44 & 45 of datasheet
- * @return int		: Zero for success, negative error code for error
+ * @codec_dai: pointer to codec DAI
+ * @pll_id: da7210 has only one pll, so pll_id is always zero
+ * @source: clock source
+ * @fref: MCLK frequency, should be < 20MHz
+ * @fout: FsDM value, Refer page 44 & 45 of datasheet
  *
  * Note: Supported PLL input frequencies are 12MHz, 13MHz, 13.5MHz, 14.4MHz,
  *       19.2MHz, 19.6MHz and 19.8MHz
+ *
+ * Return: Zero for success, negative error code for error
  */
 static int da7210_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 			      int source, unsigned int fref, unsigned int fout)
@@ -1034,7 +1036,8 @@ static const struct snd_soc_dai_ops da7210_dai_ops = {
 	.set_fmt	= da7210_set_dai_fmt,
 	.set_sysclk	= da7210_set_dai_sysclk,
 	.set_pll	= da7210_set_dai_pll,
-	.digital_mute	= da7210_mute,
+	.mute_stream	= da7210_mute,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver da7210_dai = {
@@ -1056,7 +1059,7 @@ static struct snd_soc_dai_driver da7210_dai = {
 		.formats = DA7210_FORMATS,
 	},
 	.ops = &da7210_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 };
 
 static int da7210_probe(struct snd_soc_component *component)
@@ -1170,7 +1173,6 @@ static const struct snd_soc_component_driver soc_component_dev_da7210 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 #if IS_ENABLED(CONFIG_I2C)
@@ -1203,8 +1205,7 @@ static const struct regmap_config da7210_regmap_config_i2c = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static int da7210_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int da7210_i2c_probe(struct i2c_client *i2c)
 {
 	struct da7210_priv *da7210;
 	int ret;
@@ -1237,7 +1238,7 @@ static int da7210_i2c_probe(struct i2c_client *i2c,
 }
 
 static const struct i2c_device_id da7210_i2c_id[] = {
-	{ "da7210", 0 },
+	{ "da7210" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, da7210_i2c_id);
@@ -1333,6 +1334,8 @@ static int __init da7210_modinit(void)
 	int ret = 0;
 #if IS_ENABLED(CONFIG_I2C)
 	ret = i2c_add_driver(&da7210_i2c_driver);
+	if (ret)
+		return ret;
 #endif
 #if defined(CONFIG_SPI_MASTER)
 	ret = spi_register_driver(&da7210_spi_driver);

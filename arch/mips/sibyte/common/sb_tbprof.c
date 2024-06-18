@@ -23,7 +23,7 @@
 #include <asm/io.h>
 #include <asm/sibyte/sb1250.h>
 
-#if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
+#ifdef CONFIG_SIBYTE_BCM1x80
 #include <asm/sibyte/bcm1480_regs.h>
 #include <asm/sibyte/bcm1480_scd.h>
 #include <asm/sibyte/bcm1480_int.h>
@@ -35,7 +35,7 @@
 #error invalid SiByte UART configuration
 #endif
 
-#if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
+#ifdef CONFIG_SIBYTE_BCM1x80
 #undef K_INT_TRACE_FREEZE
 #define K_INT_TRACE_FREEZE K_BCM1480_INT_TRACE_FREEZE
 #undef K_INT_PERF_CNT
@@ -157,7 +157,7 @@ static void arm_tb(void)
 	 * a previous interrupt request.  This means that bus profiling
 	 * requires ALL of the SCD perf counters.
 	 */
-#if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
+#ifdef CONFIG_SIBYTE_BCM1x80
 	__raw_writeq((scdperfcnt & ~M_SPC_CFG_SRC1) |
 						/* keep counters 0,2,3,4,5,6,7 as is */
 		     V_SPC_CFG_SRC1(1),		/* counter 1 counts cycles */
@@ -290,7 +290,7 @@ static int sbprof_zbprof_start(struct file *filp)
 	 *  pass them through.	I am exploiting my knowledge that
 	 *  cp0_status masks out IP[5]. krw
 	 */
-#if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
+#ifdef CONFIG_SIBYTE_BCM1x80
 	__raw_writeq(K_BCM1480_INT_MAP_I3,
 		     IOADDR(A_BCM1480_IMR_REGISTER(0, R_BCM1480_IMR_INTERRUPT_MAP_BASE_L) +
 			    ((K_BCM1480_INT_PERF_CNT & 0x3f) << 3)));
@@ -343,7 +343,7 @@ static int sbprof_zbprof_start(struct file *filp)
 	__raw_writeq(0, IOADDR(A_SCD_TRACE_SEQUENCE_7));
 
 	/* Now indicate the PERF_CNT interrupt as a trace-relevant interrupt */
-#if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
+#ifdef CONFIG_SIBYTE_BCM1x80
 	__raw_writeq(1ULL << (K_BCM1480_INT_PERF_CNT & 0x3f),
 		     IOADDR(A_BCM1480_IMR_REGISTER(0, R_BCM1480_IMR_INTERRUPT_TRACE_L)));
 #else
@@ -437,13 +437,13 @@ static int sbprof_tb_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static ssize_t sbprof_tb_read(struct file *filp, char *buf,
+static ssize_t sbprof_tb_read(struct file *filp, char __user *buf,
 			      size_t size, loff_t *offp)
 {
 	int cur_sample, sample_off, cur_count, sample_left;
 	char *src;
 	int   count   =	 0;
-	char *dest    =	 buf;
+	char __user *dest    =	 buf;
 	long  cur_off = *offp;
 
 	if (!access_ok(buf, size))
@@ -512,7 +512,7 @@ static long sbprof_tb_ioctl(struct file *filp,
 		if (err)
 			break;
 
-		err = put_user(TB_FULL, (int *) arg);
+		err = put_user(TB_FULL, (int __user *) arg);
 		break;
 	}
 
@@ -535,13 +535,14 @@ static const struct file_operations sbprof_tb_fops = {
 	.llseek		= default_llseek,
 };
 
-static struct class *tb_class;
+static const struct class tb_class = {
+	.name = "sb_tracebuffer",
+};
 static struct device *tb_dev;
 
 static int __init sbprof_tb_init(void)
 {
 	struct device *dev;
-	struct class *tbc;
 	int err;
 
 	if (register_chrdev(SBPROF_TB_MAJOR, DEVNAME, &sbprof_tb_fops)) {
@@ -550,15 +551,11 @@ static int __init sbprof_tb_init(void)
 		return -EIO;
 	}
 
-	tbc = class_create(THIS_MODULE, "sb_tracebuffer");
-	if (IS_ERR(tbc)) {
-		err = PTR_ERR(tbc);
+	err = class_register(&tb_class);
+	if (err)
 		goto out_chrdev;
-	}
 
-	tb_class = tbc;
-
-	dev = device_create(tbc, NULL, MKDEV(SBPROF_TB_MAJOR, 0), NULL, "tb");
+	dev = device_create(&tb_class, NULL, MKDEV(SBPROF_TB_MAJOR, 0), NULL, "tb");
 	if (IS_ERR(dev)) {
 		err = PTR_ERR(dev);
 		goto out_class;
@@ -573,7 +570,7 @@ static int __init sbprof_tb_init(void)
 	return 0;
 
 out_class:
-	class_destroy(tb_class);
+	class_unregister(&tb_class);
 out_chrdev:
 	unregister_chrdev(SBPROF_TB_MAJOR, DEVNAME);
 
@@ -582,9 +579,9 @@ out_chrdev:
 
 static void __exit sbprof_tb_cleanup(void)
 {
-	device_destroy(tb_class, MKDEV(SBPROF_TB_MAJOR, 0));
+	device_destroy(&tb_class, MKDEV(SBPROF_TB_MAJOR, 0));
 	unregister_chrdev(SBPROF_TB_MAJOR, DEVNAME);
-	class_destroy(tb_class);
+	class_unregister(&tb_class);
 }
 
 module_init(sbprof_tb_init);

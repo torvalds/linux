@@ -74,13 +74,12 @@ static irqreturn_t mxc_rtc_interrupt(int irq, void *dev_id)
 	struct device *dev = dev_id;
 	struct mxc_rtc_data *pdata = dev_get_drvdata(dev);
 	void __iomem *ioaddr = pdata->ioaddr;
-	unsigned long flags;
 	u32 lp_status;
 	u32 lp_cr;
 
-	spin_lock_irqsave(&pdata->lock, flags);
+	spin_lock(&pdata->lock);
 	if (clk_enable(pdata->clk)) {
-		spin_unlock_irqrestore(&pdata->lock, flags);
+		spin_unlock(&pdata->lock);
 		return IRQ_NONE;
 	}
 
@@ -104,7 +103,7 @@ static irqreturn_t mxc_rtc_interrupt(int irq, void *dev_id)
 
 	mxc_rtc_sync_lp_locked(dev, ioaddr);
 	clk_disable(pdata->clk);
-	spin_unlock_irqrestore(&pdata->lock, flags);
+	spin_unlock(&pdata->lock);
 	return IRQ_HANDLED;
 }
 
@@ -337,8 +336,10 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 	}
 
 	pdata->rtc = devm_rtc_allocate_device(&pdev->dev);
-	if (IS_ERR(pdata->rtc))
+	if (IS_ERR(pdata->rtc)) {
+		clk_disable_unprepare(pdata->clk);
 		return PTR_ERR(pdata->rtc);
+	}
 
 	pdata->rtc->ops = &mxc_rtc_ops;
 	pdata->rtc->range_max = U32_MAX;
@@ -354,25 +355,25 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = rtc_register_device(pdata->rtc);
+	ret = devm_rtc_register_device(pdata->rtc);
 	if (ret < 0)
 		clk_unprepare(pdata->clk);
 
 	return ret;
 }
 
-static int mxc_rtc_remove(struct platform_device *pdev)
+static void mxc_rtc_remove(struct platform_device *pdev)
 {
 	struct mxc_rtc_data *pdata = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(pdata->clk);
-	return 0;
 }
 
 static const struct of_device_id mxc_ids[] = {
 	{ .compatible = "fsl,imx53-rtc", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, mxc_ids);
 
 static struct platform_driver mxc_rtc_driver = {
 	.driver = {
@@ -380,7 +381,7 @@ static struct platform_driver mxc_rtc_driver = {
 		.of_match_table = mxc_ids,
 	},
 	.probe = mxc_rtc_probe,
-	.remove = mxc_rtc_remove,
+	.remove_new = mxc_rtc_remove,
 };
 
 module_platform_driver(mxc_rtc_driver);

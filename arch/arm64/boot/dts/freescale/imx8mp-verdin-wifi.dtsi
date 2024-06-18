@@ -1,0 +1,87 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright 2022 Toradex
+ */
+
+/ {
+	reg_wifi_en: regulator-wifi-en {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio2 11 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_wifi_pwr_en>;
+		regulator-max-microvolt = <3300000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-name = "PDn_AW-CM276NF";
+		startup-delay-us = <2000>;
+	};
+};
+
+&gpio5 {
+	gpio-line-names = "SODIMM_42",
+			  "SODIMM_46",
+			  "SODIMM_187",
+			  "SODIMM_20",
+			  "SODIMM_22",
+			  "SODIMM_15",
+			  "SODIMM_196",
+			  "SODIMM_200",
+			  "SODIMM_198",
+			  "SODIMM_202",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "SODIMM_55",
+			  "SODIMM_53",
+			  "SODIMM_95",
+			  "SODIMM_93",
+			  "SODIMM_14",
+			  "SODIMM_12",
+			  "SODIMM_129",
+			  "SODIMM_131",
+			  "SODIMM_137",
+			  "SODIMM_139",
+			  "SODIMM_147",
+			  "SODIMM_149",
+			  "SODIMM_151",
+			  "SODIMM_153";
+};
+
+&iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_gpio1>, <&pinctrl_gpio2>,
+		    <&pinctrl_gpio3>, <&pinctrl_gpio4>,
+		    <&pinctrl_gpio7>, <&pinctrl_gpio8>,
+		    <&pinctrl_gpio_hog2>, <&pinctrl_gpio_hog3>, <&pinctrl_gpio_hog4>,
+		    <&pinctrl_hdmi_hog>;
+};
+
+/* On-module Bluetooth */
+&uart4 {
+	uart-has-rtscts;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_bt_uart>;
+	status = "okay";
+
+	bluetooth {
+		compatible = "mrvl,88w8997";
+		max-speed = <921600>;
+	};
+};
+
+/* On-module Wi-Fi */
+&usdhc1 {
+	bus-width = <4>;
+	keep-power-in-suspend;
+	max-frequency = <100000000>;
+	non-removable;
+	pinctrl-names = "default", "state_100mhz", "state_200mhz";
+	pinctrl-0 = <&pinctrl_usdhc1>, <&pinctrl_wifi_ctrl>;
+	pinctrl-1 = <&pinctrl_usdhc1_100mhz>, <&pinctrl_wifi_ctrl>;
+	pinctrl-2 = <&pinctrl_usdhc1_200mhz>, <&pinctrl_wifi_ctrl>;
+	vmmc-supply = <&reg_wifi_en>;
+	status = "okay";
+};

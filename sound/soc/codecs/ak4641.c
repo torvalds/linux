@@ -405,7 +405,7 @@ static int ak4641_i2s_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	return snd_soc_component_write(component, AK4641_MODE1, mode1);
 }
 
-static int ak4641_mute(struct snd_soc_dai *dai, int mute)
+static int ak4641_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 
@@ -467,15 +467,17 @@ static int ak4641_set_bias_level(struct snd_soc_component *component,
 static const struct snd_soc_dai_ops ak4641_i2s_dai_ops = {
 	.hw_params    = ak4641_i2s_hw_params,
 	.set_fmt      = ak4641_i2s_set_dai_fmt,
-	.digital_mute = ak4641_mute,
+	.mute_stream  = ak4641_mute,
 	.set_sysclk   = ak4641_set_dai_sysclk,
+	.no_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops ak4641_pcm_dai_ops = {
 	.hw_params    = NULL, /* rates are controlled by BT chip */
 	.set_fmt      = ak4641_pcm_set_dai_fmt,
-	.digital_mute = ak4641_mute,
+	.mute_stream  = ak4641_mute,
 	.set_sysclk   = ak4641_set_dai_sysclk,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver ak4641_dai[] = {
@@ -497,7 +499,7 @@ static struct snd_soc_dai_driver ak4641_dai[] = {
 		.formats = AK4641_FORMATS,
 	},
 	.ops = &ak4641_i2s_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 },
 {
 	.name = "ak4641-voice",
@@ -517,7 +519,7 @@ static struct snd_soc_dai_driver ak4641_dai[] = {
 		.formats = AK4641_FORMATS,
 	},
 	.ops = &ak4641_pcm_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 },
 };
 
@@ -533,7 +535,6 @@ static const struct snd_soc_component_driver soc_component_dev_ak4641 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config ak4641_regmap = {
@@ -546,8 +547,7 @@ static const struct regmap_config ak4641_regmap = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static int ak4641_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int ak4641_i2c_probe(struct i2c_client *i2c)
 {
 	struct ak4641_platform_data *pdata = i2c->dev.platform_data;
 	struct ak4641_priv *ak4641;
@@ -604,7 +604,7 @@ err_out:
 	return ret;
 }
 
-static int ak4641_i2c_remove(struct i2c_client *i2c)
+static void ak4641_i2c_remove(struct i2c_client *i2c)
 {
 	struct ak4641_platform_data *pdata = i2c->dev.platform_data;
 
@@ -616,12 +616,10 @@ static int ak4641_i2c_remove(struct i2c_client *i2c)
 		if (gpio_is_valid(pdata->gpio_npdn))
 			gpio_free(pdata->gpio_npdn);
 	}
-
-	return 0;
 }
 
 static const struct i2c_device_id ak4641_i2c_id[] = {
-	{ "ak4641", 0 },
+	{ "ak4641" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ak4641_i2c_id);

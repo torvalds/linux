@@ -1,0 +1,114 @@
+// SPDX-License-Identifier: GPL-2.0
+#include "versatile-ab.dts"
+
+/ {
+	model = "ARM Versatile PB";
+	compatible = "arm,versatile-pb";
+
+	amba {
+		/* The Versatile PB is using more SIC IRQ lines than the AB */
+		sic: interrupt-controller@10003000 {
+			clear-mask = <0xffffffff>;
+			/*
+			 * Valid interrupt lines mask according to
+			 * figure 3-30 page 3-74 of ARM DUI 0224B
+			 */
+			valid-mask = <0x7fe003ff>;
+		};
+
+		gpio2: gpio@101e6000 {
+			compatible = "arm,pl061", "arm,primecell";
+			reg = <0x101e6000 0x1000>;
+			interrupts = <8>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			clocks = <&pclk>;
+			clock-names = "apb_pclk";
+		};
+
+		gpio3: gpio@101e7000 {
+			compatible = "arm,pl061", "arm,primecell";
+			reg = <0x101e7000 0x1000>;
+			interrupts = <9>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			clocks = <&pclk>;
+			clock-names = "apb_pclk";
+		};
+
+		pci@10001000 {
+			compatible = "arm,versatile-pci";
+			device_type = "pci";
+			reg = <0x10001000 0x1000
+			       0x41000000 0x10000
+			       0x42000000 0x100000>;
+			bus-range = <0 0xff>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			#interrupt-cells = <1>;
+
+			ranges = <0x01000000 0 0x00000000 0x43000000 0 0x00010000   /* downstream I/O */
+				  0x02000000 0 0x50000000 0x50000000 0 0x10000000   /* non-prefetchable memory */
+				  0x42000000 0 0x60000000 0x60000000 0 0x10000000>; /* prefetchable memory */
+
+			interrupt-map-mask = <0x1800 0 0 7>;
+			interrupt-map = <0x1800 0 0 1 &sic 28
+					 0x1800 0 0 2 &sic 29
+					 0x1800 0 0 3 &sic 30
+					 0x1800 0 0 4 &sic 27
+
+					 0x1000 0 0 1 &sic 27
+					 0x1000 0 0 2 &sic 28
+					 0x1000 0 0 3 &sic 29
+					 0x1000 0 0 4 &sic 30
+
+					 0x0800 0 0 1 &sic 30
+					 0x0800 0 0 2 &sic 27
+					 0x0800 0 0 3 &sic 28
+					 0x0800 0 0 4 &sic 29
+
+					 0x0000 0 0 1 &sic 29
+					 0x0000 0 0 2 &sic 30
+					 0x0000 0 0 3 &sic 27
+					 0x0000 0 0 4 &sic 28>;
+		};
+
+		fpga {
+			mmc@5000 {
+				/*
+				 * Overrides the interrupt assignment from
+				 * the Versatile AB board file.
+				 */
+				interrupts-extended = <&sic 22 &sic 23>;
+			};
+			serial@9000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0x9000 0x1000>;
+				interrupt-parent = <&sic>;
+				interrupts = <6>;
+				clocks = <&xtal24mhz>, <&pclk>;
+				clock-names = "uartclk", "apb_pclk";
+			};
+			sci@a000 {
+				compatible = "arm,primecell";
+				reg = <0xa000 0x1000>;
+				interrupt-parent = <&sic>;
+				interrupts = <5>;
+				clocks = <&xtal24mhz>;
+				clock-names = "apb_pclk";
+			};
+			mmc@b000 {
+				compatible = "arm,pl180", "arm,primecell";
+				reg = <0xb000 0x1000>;
+				interrupt-parent = <&sic>;
+				interrupts = <1>, <2>;
+				clocks = <&xtal24mhz>, <&pclk>;
+				clock-names = "mclk", "apb_pclk";
+			};
+		};
+	};
+};

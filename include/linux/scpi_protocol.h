@@ -4,6 +4,10 @@
  *
  * Copyright (C) 2014 ARM Ltd.
  */
+
+#ifndef _LINUX_SCPI_PROTOCOL_H
+#define _LINUX_SCPI_PROTOCOL_H
+
 #include <linux/types.h>
 
 struct scpi_opp {
@@ -47,6 +51,14 @@ struct scpi_sensor_info {
  *	OPP is an index to the list return by @dvfs_get_info
  * @dvfs_get_info: returns the DVFS capabilities of the given power
  *	domain. It includes the OPP list and the latency information
+ * @device_domain_id: gets the scpi domain id for a given device
+ * @get_transition_latency: gets the DVFS transition latency for a given device
+ * @add_opps_to_device: adds all the OPPs for a given device
+ * @sensor_get_capability: get the list of capabilities for the sensors
+ * @sensor_get_info: get the information of the specified sensor
+ * @sensor_get_value: gets the current value of the sensor
+ * @device_get_power_state: gets the power state of a power domain
+ * @device_set_power_state: sets the power state of a power domain
  */
 struct scpi_ops {
 	u32 (*get_version)(void);
@@ -71,3 +83,5 @@ struct scpi_ops *get_scpi_ops(void);
 #else
 static inline struct scpi_ops *get_scpi_ops(void) { return NULL; }
 #endif
+
+#endif /* _LINUX_SCPI_PROTOCOL_H */

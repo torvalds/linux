@@ -11,10 +11,11 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
+#include <drm/drm_blend.h>
 #include <drm/drm_fourcc.h>
 #include <drm/exynos_drm.h>
 
@@ -39,6 +40,7 @@ struct scaler_data {
 struct scaler_context {
 	struct exynos_drm_ipp		ipp;
 	struct drm_device		*drm_dev;
+	void				*dma_priv;
 	struct device			*dev;
 	void __iomem			*regs;
 	struct clk			*clock[SCALER_MAX_CLK];
@@ -361,15 +363,17 @@ static int scaler_commit(struct exynos_drm_ipp *ipp,
 	struct drm_exynos_ipp_task_rect *src_pos = &task->src.rect;
 	struct drm_exynos_ipp_task_rect *dst_pos = &task->dst.rect;
 	const struct scaler_format *src_fmt, *dst_fmt;
+	int ret = 0;
 
 	src_fmt = scaler_get_format(task->src.buf.fourcc);
 	dst_fmt = scaler_get_format(task->dst.buf.fourcc);
 
-	pm_runtime_get_sync(scaler->dev);
-	if (scaler_reset(scaler)) {
-		pm_runtime_put(scaler->dev);
+	ret = pm_runtime_resume_and_get(scaler->dev);
+	if (ret < 0)
+		return ret;
+
+	if (scaler_reset(scaler))
 		return -EIO;
-	}
 
 	scaler->task = task;
 
@@ -450,7 +454,7 @@ static int scaler_bind(struct device *dev, struct device *master, void *data)
 
 	scaler->drm_dev = drm_dev;
 	ipp->drm_dev = drm_dev;
-	exynos_drm_register_dma(drm_dev, dev);
+	exynos_drm_register_dma(drm_dev, dev, &scaler->dma_priv);
 
 	exynos_drm_ipp_register(dev, ipp, &ipp_funcs,
 			DRM_EXYNOS_IPP_CAP_CROP | DRM_EXYNOS_IPP_CAP_ROTATE |
@@ -470,7 +474,8 @@ static void scaler_unbind(struct device *dev, struct device *master,
 	struct exynos_drm_ipp *ipp = &scaler->ipp;
 
 	exynos_drm_ipp_unregister(dev, ipp);
-	exynos_drm_unregister_dma(scaler->drm_dev, scaler->dev);
+	exynos_drm_unregister_dma(scaler->drm_dev, scaler->dev,
+				  &scaler->dma_priv);
 }
 
 static const struct component_ops scaler_component_ops = {
@@ -481,7 +486,6 @@ static const struct component_ops scaler_component_ops = {
 static int scaler_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct resource	*regs_res;
 	struct scaler_context *scaler;
 	int irq;
 	int ret, i;
@@ -494,16 +498,13 @@ static int scaler_probe(struct platform_device *pdev)
 		(struct scaler_data *)of_device_get_match_data(dev);
 
 	scaler->dev = dev;
-	regs_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	scaler->regs = devm_ioremap_resource(dev, regs_res);
+	scaler->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(scaler->regs))
 		return PTR_ERR(scaler->regs);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "failed to get irq\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	ret = devm_request_threaded_irq(dev, irq, NULL,	scaler_irq_handler,
 					IRQF_ONESHOT, "drm_scaler", scaler);
@@ -538,18 +539,14 @@ err_ippdrv_register:
 	return ret;
 }
 
-static int scaler_remove(struct platform_device *pdev)
+static void scaler_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
 	component_del(dev, &scaler_component_ops);
 	pm_runtime_dont_use_autosuspend(dev);
 	pm_runtime_disable(dev);
-
-	return 0;
 }
-
-#ifdef CONFIG_PM
 
 static int clk_disable_unprepare_wrapper(struct clk *clk)
 {
@@ -583,13 +580,9 @@ static int scaler_runtime_resume(struct device *dev)
 
 	return  scaler_clk_ctrl(scaler, true);
 }
-#endif
 
-static const struct dev_pm_ops scaler_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
-	SET_RUNTIME_PM_OPS(scaler_runtime_suspend, scaler_runtime_resume, NULL)
-};
+static DEFINE_RUNTIME_DEV_PM_OPS(scaler_pm_ops, scaler_runtime_suspend,
+				 scaler_runtime_resume, NULL);
 
 static const struct drm_exynos_ipp_limit scaler_5420_two_pixel_hv_limits[] = {
 	{ IPP_SIZE_LIMIT(BUFFER, .h = { 16, SZ_8K }, .v = { 16, SZ_8K }) },
@@ -726,11 +719,10 @@ MODULE_DEVICE_TABLE(of, exynos_scaler_match);
 
 struct platform_driver scaler_driver = {
 	.probe		= scaler_probe,
-	.remove		= scaler_remove,
+	.remove_new	= scaler_remove,
 	.driver		= {
 		.name	= "exynos-scaler",
-		.owner	= THIS_MODULE,
-		.pm	= &scaler_pm_ops,
+		.pm	= pm_ptr(&scaler_pm_ops),
 		.of_match_table = exynos_scaler_match,
 	},
 };

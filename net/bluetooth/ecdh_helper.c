@@ -25,22 +25,6 @@
 #include <linux/scatterlist.h>
 #include <crypto/ecdh.h>
 
-struct ecdh_completion {
-	struct completion completion;
-	int err;
-};
-
-static void ecdh_complete(struct crypto_async_request *req, int err)
-{
-	struct ecdh_completion *res = req->data;
-
-	if (err == -EINPROGRESS)
-		return;
-
-	res->err = err;
-	complete(&res->completion);
-}
-
 static inline void swap_digits(u64 *in, u64 *out, unsigned int ndigits)
 {
 	int i;
@@ -60,9 +44,9 @@ static inline void swap_digits(u64 *in, u64 *out, unsigned int ndigits)
 int compute_ecdh_secret(struct crypto_kpp *tfm, const u8 public_key[64],
 			u8 secret[32])
 {
+	DECLARE_CRYPTO_WAIT(result);
 	struct kpp_request *req;
 	u8 *tmp;
-	struct ecdh_completion result;
 	struct scatterlist src, dst;
 	int err;
 
@@ -76,8 +60,6 @@ int compute_ecdh_secret(struct crypto_kpp *tfm, const u8 public_key[64],
 		goto free_tmp;
 	}
 
-	init_completion(&result.completion);
-
 	swap_digits((u64 *)public_key, (u64 *)tmp, 4); /* x */
 	swap_digits((u64 *)&public_key[32], (u64 *)&tmp[32], 4); /* y */
 
@@ -86,12 +68,9 @@ int compute_ecdh_secret(struct crypto_kpp *tfm, const u8 public_key[64],
 	kpp_request_set_input(req, &src, 64);
 	kpp_request_set_output(req, &dst, 32);
 	kpp_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
-				 ecdh_complete, &result);
+				 crypto_req_done, &result);
 	err = crypto_kpp_compute_shared_secret(req);
-	if (err == -EINPROGRESS) {
-		wait_for_completion(&result.completion);
-		err = result.err;
-	}
+	err = crypto_wait_req(err, &result);
 	if (err < 0) {
 		pr_err("alg: ecdh: compute shared secret failed. err %d\n",
 		       err);
@@ -104,7 +83,7 @@ int compute_ecdh_secret(struct crypto_kpp *tfm, const u8 public_key[64],
 free_all:
 	kpp_request_free(req);
 free_tmp:
-	kzfree(tmp);
+	kfree_sensitive(tmp);
 	return err;
 }
 
@@ -125,8 +104,6 @@ int set_ecdh_privkey(struct crypto_kpp *tfm, const u8 private_key[32])
 	unsigned int buf_len;
 	int err;
 	struct ecdh p = {0};
-
-	p.curve_id = ECC_CURVE_NIST_P256;
 
 	if (private_key) {
 		tmp = kmalloc(32, GFP_KERNEL);
@@ -151,9 +128,9 @@ int set_ecdh_privkey(struct crypto_kpp *tfm, const u8 private_key[32])
 	err = crypto_kpp_set_secret(tfm, buf, buf_len);
 	/* fall through */
 free_all:
-	kzfree(buf);
+	kfree_sensitive(buf);
 free_tmp:
-	kzfree(tmp);
+	kfree_sensitive(tmp);
 	return err;
 }
 
@@ -167,9 +144,9 @@ free_tmp:
  */
 int generate_ecdh_public_key(struct crypto_kpp *tfm, u8 public_key[64])
 {
+	DECLARE_CRYPTO_WAIT(result);
 	struct kpp_request *req;
 	u8 *tmp;
-	struct ecdh_completion result;
 	struct scatterlist dst;
 	int err;
 
@@ -183,18 +160,14 @@ int generate_ecdh_public_key(struct crypto_kpp *tfm, u8 public_key[64])
 		goto free_tmp;
 	}
 
-	init_completion(&result.completion);
 	sg_init_one(&dst, tmp, 64);
 	kpp_request_set_input(req, NULL, 0);
 	kpp_request_set_output(req, &dst, 64);
 	kpp_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
-				 ecdh_complete, &result);
+				 crypto_req_done, &result);
 
 	err = crypto_kpp_generate_public_key(req);
-	if (err == -EINPROGRESS) {
-		wait_for_completion(&result.completion);
-		err = result.err;
-	}
+	err = crypto_wait_req(err, &result);
 	if (err < 0)
 		goto free_all;
 

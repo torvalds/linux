@@ -10,7 +10,6 @@
 #include <linux/err.h>
 #include <linux/of.h>
 #include <linux/module.h>
-#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/scpi_protocol.h>
 
@@ -129,7 +128,7 @@ static const struct clk_ops scpi_dvfs_ops = {
 	.set_rate = scpi_dvfs_set_rate,
 };
 
-static const struct of_device_id scpi_clk_match[] = {
+static const struct of_device_id scpi_clk_match[] __maybe_unused = {
 	{ .compatible = "arm,scpi-dvfs-clocks", .data = &scpi_dvfs_ops, },
 	{ .compatible = "arm,scpi-variable-clocks", .data = &scpi_clk_ops, },
 	{}
@@ -246,7 +245,7 @@ static int scpi_clk_add(struct device *dev, struct device_node *np,
 	return of_clk_add_hw_provider(np, scpi_of_clk_src_get, clk_data);
 }
 
-static int scpi_clocks_remove(struct platform_device *pdev)
+static void scpi_clocks_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *child, *np = dev->of_node;
@@ -258,7 +257,6 @@ static int scpi_clocks_remove(struct platform_device *pdev)
 
 	for_each_available_child_of_node(np, child)
 		of_clk_del_provider(np);
-	return 0;
 }
 
 static int scpi_clocks_probe(struct platform_device *pdev)
@@ -305,7 +303,7 @@ static struct platform_driver scpi_clocks_driver = {
 		.of_match_table = scpi_clocks_ids,
 	},
 	.probe = scpi_clocks_probe,
-	.remove = scpi_clocks_remove,
+	.remove_new = scpi_clocks_remove,
 };
 module_platform_driver(scpi_clocks_driver);
 

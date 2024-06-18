@@ -48,10 +48,10 @@ struct inode *omfs_new_inode(struct inode *dir, umode_t mode)
 		goto fail;
 
 	inode->i_ino = new_block;
-	inode_init_owner(inode, NULL, mode);
+	inode_init_owner(&nop_mnt_idmap, inode, NULL, mode);
 	inode->i_mapping->a_ops = &omfs_aops;
 
-	inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
+	simple_inode_init_ts(inode);
 	switch (mode & S_IFMT) {
 	case S_IFDIR:
 		inode->i_op = &omfs_dir_inops;
@@ -134,8 +134,8 @@ static int __omfs_write_inode(struct inode *inode, int wait)
 	oi->i_head.h_magic = OMFS_IMAGIC;
 	oi->i_size = cpu_to_be64(inode->i_size);
 
-	ctime = inode->i_ctime.tv_sec * 1000LL +
-		((inode->i_ctime.tv_nsec + 999)/1000);
+	ctime = inode_get_ctime_sec(inode) * 1000LL +
+		((inode_get_ctime_nsec(inode) + 999)/1000);
 	oi->i_ctime = cpu_to_be64(ctime);
 
 	omfs_update_checksums(oi);
@@ -230,12 +230,9 @@ struct inode *omfs_iget(struct super_block *sb, ino_t ino)
 	ctime = be64_to_cpu(oi->i_ctime);
 	nsecs = do_div(ctime, 1000) * 1000L;
 
-	inode->i_atime.tv_sec = ctime;
-	inode->i_mtime.tv_sec = ctime;
-	inode->i_ctime.tv_sec = ctime;
-	inode->i_atime.tv_nsec = nsecs;
-	inode->i_mtime.tv_nsec = nsecs;
-	inode->i_ctime.tv_nsec = nsecs;
+	inode_set_atime(inode, ctime, nsecs);
+	inode_set_mtime(inode, ctime, nsecs);
+	inode_set_ctime(inode, ctime, nsecs);
 
 	inode->i_mapping->a_ops = &omfs_aops;
 
@@ -282,8 +279,7 @@ static int omfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_blocks = sbi->s_num_blocks;
 	buf->f_files = sbi->s_num_blocks;
 	buf->f_namelen = OMFS_NAMELEN;
-	buf->f_fsid.val[0] = (u32)id;
-	buf->f_fsid.val[1] = (u32)(id >> 32);
+	buf->f_fsid = u64_to_fsid(id);
 
 	buf->f_bfree = buf->f_bavail = buf->f_ffree =
 		omfs_count_free(s);
@@ -363,12 +359,11 @@ static int omfs_get_imap(struct super_block *sb)
 		bh = sb_bread(sb, block++);
 		if (!bh)
 			goto nomem_free;
-		*ptr = kmalloc(sb->s_blocksize, GFP_KERNEL);
+		*ptr = kmemdup(bh->b_data, sb->s_blocksize, GFP_KERNEL);
 		if (!*ptr) {
 			brelse(bh);
 			goto nomem_free;
 		}
-		memcpy(*ptr, bh->b_data, sb->s_blocksize);
 		if (count < sb->s_blocksize)
 			memset((void *)*ptr + count, 0xff,
 				sb->s_blocksize - count);

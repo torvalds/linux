@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright 2002 Andi Kleen, SuSE Labs */
 
+#include <linux/export.h>
 #include <linux/linkage.h>
 #include <asm/cpufeatures.h>
-#include <asm/alternative-asm.h>
+#include <asm/alternative.h>
 
-.weak memset
+.section .noinstr.text, "ax"
 
 /*
  * ISO C memset - set a memory block to a byte value. This function uses fast
@@ -17,55 +18,32 @@
  * rdx   count (bytes)
  *
  * rax   original destination
- */
-ENTRY(memset)
-ENTRY(__memset)
-	/*
-	 * Some CPUs support enhanced REP MOVSB/STOSB feature. It is recommended
-	 * to use it when possible. If not available, use fast string instructions.
-	 *
-	 * Otherwise, use original memset function.
-	 */
-	ALTERNATIVE_2 "jmp memset_orig", "", X86_FEATURE_REP_GOOD, \
-		      "jmp memset_erms", X86_FEATURE_ERMS
-
-	movq %rdi,%r9
-	movq %rdx,%rcx
-	andl $7,%edx
-	shrq $3,%rcx
-	/* expand byte value  */
-	movzbl %sil,%esi
-	movabs $0x0101010101010101,%rax
-	imulq %rsi,%rax
-	rep stosq
-	movl %edx,%ecx
-	rep stosb
-	movq %r9,%rax
-	ret
-ENDPROC(memset)
-ENDPROC(__memset)
-
-/*
- * ISO C memset - set a memory block to a byte value. This function uses
- * enhanced rep stosb to override the fast string function.
- * The code is simpler and shorter than the fast string function as well.
  *
- * rdi   destination
- * rsi   value (char)
- * rdx   count (bytes)
+ * The FSRS alternative should be done inline (avoiding the call and
+ * the disgusting return handling), but that would require some help
+ * from the compiler for better calling conventions.
  *
- * rax   original destination
+ * The 'rep stosb' itself is small enough to replace the call, but all
+ * the register moves blow up the code. And two of them are "needed"
+ * only for the return value that is the same as the source input,
+ * which the compiler could/should do much better anyway.
  */
-ENTRY(memset_erms)
+SYM_FUNC_START(__memset)
+	ALTERNATIVE "jmp memset_orig", "", X86_FEATURE_FSRS
+
 	movq %rdi,%r9
 	movb %sil,%al
 	movq %rdx,%rcx
 	rep stosb
 	movq %r9,%rax
-	ret
-ENDPROC(memset_erms)
+	RET
+SYM_FUNC_END(__memset)
+EXPORT_SYMBOL(__memset)
 
-ENTRY(memset_orig)
+SYM_FUNC_ALIAS_MEMFUNC(memset, __memset)
+EXPORT_SYMBOL(memset)
+
+SYM_FUNC_START_LOCAL(memset_orig)
 	movq %rdi,%r10
 
 	/* expand byte value  */
@@ -124,7 +102,7 @@ ENTRY(memset_orig)
 
 .Lende:
 	movq	%r10,%rax
-	ret
+	RET
 
 .Lbad_alignment:
 	cmpq $7,%rdx
@@ -136,4 +114,4 @@ ENTRY(memset_orig)
 	subq %r8,%rdx
 	jmp .Lafter_bad_alignment
 .Lfinal:
-ENDPROC(memset_orig)
+SYM_FUNC_END(memset_orig)

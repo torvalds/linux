@@ -108,6 +108,9 @@ enum {
 	HNS_ROCE_CMD_QUERY_CEQC		= 0x92,
 	HNS_ROCE_CMD_DESTROY_CEQC	= 0x93,
 
+	/* SCC CTX commands */
+	HNS_ROCE_CMD_QUERY_SCCC		= 0xa2,
+
 	/* SCC CTX BT commands */
 	HNS_ROCE_CMD_READ_SCCC_BT0	= 0xa4,
 	HNS_ROCE_CMD_WRITE_SCCC_BT0	= 0xa5,
@@ -115,12 +118,12 @@ enum {
 
 enum {
 	/* TPT commands */
-	HNS_ROCE_CMD_SW2HW_MPT		= 0xd,
-	HNS_ROCE_CMD_HW2SW_MPT		= 0xf,
+	HNS_ROCE_CMD_CREATE_MPT		= 0xd,
+	HNS_ROCE_CMD_DESTROY_MPT	= 0xf,
 
 	/* CQ commands */
-	HNS_ROCE_CMD_SW2HW_CQ		= 0x16,
-	HNS_ROCE_CMD_HW2SW_CQ		= 0x17,
+	HNS_ROCE_CMD_CREATE_CQC		= 0x16,
+	HNS_ROCE_CMD_DESTROY_CQC	= 0x17,
 
 	/* QP/EE commands */
 	HNS_ROCE_CMD_RST2INIT_QP	= 0x19,
@@ -129,23 +132,27 @@ enum {
 	HNS_ROCE_CMD_RTS2RTS_QP		= 0x1c,
 	HNS_ROCE_CMD_2ERR_QP		= 0x1e,
 	HNS_ROCE_CMD_RTS2SQD_QP		= 0x1f,
-	HNS_ROCE_CMD_SQD2SQD_QP		= 0x38,
 	HNS_ROCE_CMD_SQD2RTS_QP		= 0x20,
 	HNS_ROCE_CMD_2RST_QP		= 0x21,
 	HNS_ROCE_CMD_QUERY_QP		= 0x22,
-	HNS_ROCE_CMD_SW2HW_SRQ		= 0x70,
+	HNS_ROCE_CMD_SQD2SQD_QP		= 0x38,
+	HNS_ROCE_CMD_CREATE_SRQ		= 0x70,
 	HNS_ROCE_CMD_MODIFY_SRQC	= 0x72,
 	HNS_ROCE_CMD_QUERY_SRQC		= 0x73,
-	HNS_ROCE_CMD_HW2SW_SRQ		= 0x74,
+	HNS_ROCE_CMD_DESTROY_SRQ	= 0x74,
 };
 
 int hns_roce_cmd_mbox(struct hns_roce_dev *hr_dev, u64 in_param, u64 out_param,
-		      unsigned long in_modifier, u8 op_modifier, u16 op,
-		      unsigned long timeout);
+		      u8 cmd, unsigned long tag);
 
-struct hns_roce_cmd_mailbox
-	*hns_roce_alloc_cmd_mailbox(struct hns_roce_dev *hr_dev);
+struct hns_roce_cmd_mailbox *
+hns_roce_alloc_cmd_mailbox(struct hns_roce_dev *hr_dev);
 void hns_roce_free_cmd_mailbox(struct hns_roce_dev *hr_dev,
 			       struct hns_roce_cmd_mailbox *mailbox);
+int hns_roce_create_hw_ctx(struct hns_roce_dev *dev,
+			   struct hns_roce_cmd_mailbox *mailbox,
+			   u8 cmd, unsigned long idx);
+int hns_roce_destroy_hw_ctx(struct hns_roce_dev *dev, u8 cmd,
+			    unsigned long idx);
 
 #endif /* _HNS_ROCE_CMD_H */

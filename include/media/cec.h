@@ -18,9 +18,6 @@
 #include <linux/cec-funcs.h>
 #include <media/rc-core.h>
 
-/* CEC_ADAP_G_CONNECTOR_INFO is available */
-#define CEC_CAP_CONNECTOR_INFO	(1 << 8)
-
 #define CEC_CAP_DEFAULTS (CEC_CAP_LOG_ADDRS | CEC_CAP_TRANSMIT | \
 			  CEC_CAP_PASSTHROUGH | CEC_CAP_RC)
 
@@ -29,12 +26,16 @@
  * @dev:	cec device
  * @cdev:	cec character device
  * @minor:	device node minor number
+ * @lock:	lock to serialize open/release and registration
  * @registered:	the device was correctly registered
  * @unregistered: the device was unregistered
- * @fhs_lock:	lock to control access to the filehandle list
+ * @lock_fhs:	lock to control access to @fhs
  * @fhs:	the list of open filehandles (cec_fh)
  *
  * This structure represents a cec-related device node.
+ *
+ * To add or remove filehandles from @fhs the @lock must be taken first,
+ * followed by @lock_fhs. It is safe to access @fhs if either lock is held.
  *
  * The @parent is a physical device. It must be set by core or device drivers
  * before registering the node.
@@ -46,10 +47,13 @@ struct cec_devnode {
 
 	/* device info */
 	int minor;
+	/* serialize open/release and registration */
+	struct mutex lock;
 	bool registered;
 	bool unregistered;
+	/* protect access to fhs */
+	struct mutex lock_fhs;
 	struct list_head fhs;
-	struct mutex lock;
 };
 
 struct cec_adapter;
@@ -109,21 +113,25 @@ struct cec_fh {
 #define CEC_FREE_TIME_TO_USEC(ft)		((ft) * 2400)
 
 struct cec_adap_ops {
-	/* Low-level callbacks */
+	/* Low-level callbacks, called with adap->lock held */
 	int (*adap_enable)(struct cec_adapter *adap, bool enable);
 	int (*adap_monitor_all_enable)(struct cec_adapter *adap, bool enable);
 	int (*adap_monitor_pin_enable)(struct cec_adapter *adap, bool enable);
 	int (*adap_log_addr)(struct cec_adapter *adap, u8 logical_addr);
+	void (*adap_unconfigured)(struct cec_adapter *adap);
 	int (*adap_transmit)(struct cec_adapter *adap, u8 attempts,
 			     u32 signal_free_time, struct cec_msg *msg);
+	void (*adap_nb_transmit_canceled)(struct cec_adapter *adap,
+					  const struct cec_msg *msg);
 	void (*adap_status)(struct cec_adapter *adap, struct seq_file *file);
 	void (*adap_free)(struct cec_adapter *adap);
 
-	/* Error injection callbacks */
+	/* Error injection callbacks, called without adap->lock held */
 	int (*error_inj_show)(struct cec_adapter *adap, struct seq_file *sf);
 	bool (*error_inj_parse_line)(struct cec_adapter *adap, char *line);
 
-	/* High-level CEC message callback */
+	/* High-level CEC message callback, called without adap->lock held */
+	void (*configured)(struct cec_adapter *adap);
 	int (*received)(struct cec_adapter *adap, struct cec_msg *msg);
 };
 
@@ -148,33 +156,80 @@ struct cec_adap_ops {
 #define CEC_MAX_MSG_TX_QUEUE_SZ		(18 * 1)
 
 /**
- * struct cec_drm_connector_info - tells which drm connector is
- * associated with the CEC adapter.
- * @card_no: drm card number
- * @connector_id: drm connector ID
+ * struct cec_adapter - cec adapter structure
+ * @owner:		module owner
+ * @name:		name of the CEC adapter
+ * @devnode:		device node for the /dev/cecX device
+ * @lock:		mutex controlling access to this structure
+ * @rc:			remote control device
+ * @transmit_queue:	queue of pending transmits
+ * @transmit_queue_sz:	number of pending transmits
+ * @wait_queue:		queue of transmits waiting for a reply
+ * @transmitting:	CEC messages currently being transmitted
+ * @transmit_in_progress: true if a transmit is in progress
+ * @transmit_in_progress_aborted: true if a transmit is in progress is to be
+ *			aborted. This happens if the logical address is
+ *			invalidated while the transmit is ongoing. In that
+ *			case the transmit will finish, but will not retransmit
+ *			and be marked as ABORTED.
+ * @xfer_timeout_ms:	the transfer timeout in ms.
+ *			If 0, then timeout after 2100 ms.
+ * @kthread_config:	kthread used to configure a CEC adapter
+ * @config_completion:	used to signal completion of the config kthread
+ * @kthread:		main CEC processing thread
+ * @kthread_waitq:	main CEC processing wait_queue
+ * @ops:		cec adapter ops
+ * @priv:		cec driver's private data
+ * @capabilities:	cec adapter capabilities
+ * @available_log_addrs: maximum number of available logical addresses
+ * @phys_addr:		the current physical address
+ * @needs_hpd:		if true, then the HDMI HotPlug Detect pin must be high
+ *	in order to transmit or receive CEC messages. This is usually a HW
+ *	limitation.
+ * @is_enabled:		the CEC adapter is enabled
+ * @is_claiming_log_addrs:  true if cec_claim_log_addrs() is running
+ * @is_configuring:	the CEC adapter is configuring (i.e. claiming LAs)
+ * @must_reconfigure:	while configuring, the PA changed, so reclaim LAs
+ * @is_configured:	the CEC adapter is configured (i.e. has claimed LAs)
+ * @cec_pin_is_high:	if true then the CEC pin is high. Only used with the
+ *	CEC pin framework.
+ * @adap_controls_phys_addr: if true, then the CEC adapter controls the
+ *	physical address, i.e. the CEC hardware can detect HPD changes and
+ *	read the EDID and is not dependent on an external HDMI driver.
+ *	Drivers that need this can set this field to true after the
+ *	cec_allocate_adapter() call.
+ * @last_initiator:	the initiator of the last transmitted message.
+ * @monitor_all_cnt:	number of filehandles monitoring all msgs
+ * @monitor_pin_cnt:	number of filehandles monitoring pin changes
+ * @follower_cnt:	number of filehandles in follower mode
+ * @cec_follower:	filehandle of the exclusive follower
+ * @cec_initiator:	filehandle of the exclusive initiator
+ * @passthrough:	if true, then the exclusive follower is in
+ *	passthrough mode.
+ * @log_addrs:		current logical addresses
+ * @conn_info:		current connector info
+ * @tx_timeout_cnt:	count the number of Timed Out transmits.
+ *			Reset to 0 when this is reported in cec_adap_status().
+ * @tx_low_drive_cnt:	count the number of Low Drive transmits.
+ *			Reset to 0 when this is reported in cec_adap_status().
+ * @tx_error_cnt:	count the number of Error transmits.
+ *			Reset to 0 when this is reported in cec_adap_status().
+ * @tx_arb_lost_cnt:	count the number of Arb Lost transmits.
+ *			Reset to 0 when this is reported in cec_adap_status().
+ * @tx_low_drive_log_cnt: number of logged Low Drive transmits since the
+ *			adapter was enabled. Used to avoid flooding the kernel
+ *			log if this happens a lot.
+ * @tx_error_log_cnt:	number of logged Error transmits since the adapter was
+ *                      enabled. Used to avoid flooding the kernel log if this
+ *                      happens a lot.
+ * @notifier:		CEC notifier
+ * @pin:		CEC pin status struct
+ * @cec_dir:		debugfs cec directory
+ * @sequence:		transmit sequence counter
+ * @input_phys:		remote control input_phys name
+ *
+ * This structure represents a cec adapter.
  */
-struct cec_drm_connector_info {
-	__u32 card_no;
-	__u32 connector_id;
-};
-
-#define CEC_CONNECTOR_TYPE_NO_CONNECTOR	0
-#define CEC_CONNECTOR_TYPE_DRM		1
-
-/**
- * struct cec_connector_info - tells if and which connector is
- * associated with the CEC adapter.
- * @type: connector type (if any)
- * @drm: drm connector info
- */
-struct cec_connector_info {
-	__u32 type;
-	union {
-		struct cec_drm_connector_info drm;
-		__u32 raw[16];
-	};
-};
-
 struct cec_adapter {
 	struct module *owner;
 	char name[32];
@@ -187,13 +242,14 @@ struct cec_adapter {
 	struct list_head wait_queue;
 	struct cec_data *transmitting;
 	bool transmit_in_progress;
+	bool transmit_in_progress_aborted;
+	unsigned int xfer_timeout_ms;
 
 	struct task_struct *kthread_config;
 	struct completion config_completion;
 
 	struct task_struct *kthread;
 	wait_queue_head_t kthread_waitq;
-	wait_queue_head_t waitq;
 
 	const struct cec_adap_ops *ops;
 	void *priv;
@@ -202,9 +258,13 @@ struct cec_adapter {
 
 	u16 phys_addr;
 	bool needs_hpd;
+	bool is_enabled;
+	bool is_claiming_log_addrs;
 	bool is_configuring;
+	bool must_reconfigure;
 	bool is_configured;
 	bool cec_pin_is_high;
+	bool adap_controls_phys_addr;
 	u8 last_initiator;
 	u32 monitor_all_cnt;
 	u32 monitor_pin_cnt;
@@ -215,7 +275,12 @@ struct cec_adapter {
 	struct cec_log_addrs log_addrs;
 	struct cec_connector_info conn_info;
 
-	u32 tx_timeouts;
+	u32 tx_timeout_cnt;
+	u32 tx_low_drive_cnt;
+	u32 tx_error_cnt;
+	u32 tx_arb_lost_cnt;
+	u32 tx_low_drive_log_cnt;
+	u32 tx_error_log_cnt;
 
 #ifdef CONFIG_CEC_NOTIFIER
 	struct cec_notifier *notifier;
@@ -225,13 +290,10 @@ struct cec_adapter {
 #endif
 
 	struct dentry *cec_dir;
-	struct dentry *status_file;
-	struct dentry *error_inj_file;
 
-	u16 phys_addrs[15];
 	u32 sequence;
 
-	char input_phys[32];
+	char input_phys[40];
 };
 
 static inline void *cec_get_drvdata(const struct cec_adapter *adap)
@@ -413,52 +475,6 @@ cec_fill_conn_info_from_drm(struct cec_connector_info *conn_info,
 			    const struct drm_connector *connector)
 {
 	memset(conn_info, 0, sizeof(*conn_info));
-}
-
-#endif
-
-#if IS_REACHABLE(CONFIG_CEC_CORE) && IS_ENABLED(CONFIG_CEC_NOTIFIER)
-
-/**
- * cec_notifier_register - register a callback with the notifier
- * @n: the CEC notifier
- * @adap: the CEC adapter, passed as argument to the callback function
- * @callback: the callback function
- */
-void cec_notifier_register(struct cec_notifier *n,
-			   struct cec_adapter *adap,
-			   void (*callback)(struct cec_adapter *adap, u16 pa));
-
-/**
- * cec_notifier_unregister - unregister the callback from the notifier.
- * @n: the CEC notifier
- */
-void cec_notifier_unregister(struct cec_notifier *n);
-
-/**
- * cec_register_cec_notifier - register the notifier with the cec adapter.
- * @adap: the CEC adapter
- * @notifier: the CEC notifier
- */
-void cec_register_cec_notifier(struct cec_adapter *adap,
-			       struct cec_notifier *notifier);
-
-#else
-
-static inline void
-cec_notifier_register(struct cec_notifier *n,
-		      struct cec_adapter *adap,
-		      void (*callback)(struct cec_adapter *adap, u16 pa))
-{
-}
-
-static inline void cec_notifier_unregister(struct cec_notifier *n)
-{
-}
-
-static inline void cec_register_cec_notifier(struct cec_adapter *adap,
-					     struct cec_notifier *notifier)
-{
 }
 
 #endif

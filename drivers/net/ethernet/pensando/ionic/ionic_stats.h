@@ -11,6 +11,9 @@
 	.offset = IONIC_STAT_TO_OFFSET(type, stat_name) \
 }
 
+#define IONIC_PORT_STAT_DESC(stat_name) \
+	IONIC_STAT_DESC(struct ionic_port_stats, stat_name)
+
 #define IONIC_LIF_STAT_DESC(stat_name) \
 	IONIC_STAT_DESC(struct ionic_lif_sw_stats, stat_name)
 
@@ -44,6 +47,9 @@ extern const int ionic_num_stats_grps;
 
 #define IONIC_READ_STAT64(base_ptr, desc_ptr) \
 	(*((u64 *)(((u8 *)(base_ptr)) + (desc_ptr)->offset)))
+
+#define IONIC_READ_STAT_LE64(base_ptr, desc_ptr) \
+	__le64_to_cpu(*((__le64 *)(((u8 *)(base_ptr)) + (desc_ptr)->offset)))
 
 struct ionic_stat_desc {
 	char name[ETH_GSTRING_LEN];

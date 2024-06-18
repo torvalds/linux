@@ -25,13 +25,15 @@
 static int get_integer(const char *buf, size_t count)
 {
 	char tmp[10 + 1] = { 0 };
-	int ret = -EINVAL;
+	int ret = -EINVAL, res;
 
 	if (count == 0)
 		goto out;
 	count = min_t(size_t, count, 10);
 	memcpy(tmp, buf, count);
-	ret = simple_strtol(tmp, NULL, 10);
+	ret = kstrtoint(tmp, 10, &res);
+	if (!ret)
+		return res;
 out:
 	return ret;
 }
@@ -73,16 +75,14 @@ static ssize_t b43legacy_attr_interfmode_show(struct device *dev,
 
 	switch (wldev->phy.interfmode) {
 	case B43legacy_INTERFMODE_NONE:
-		count = snprintf(buf, PAGE_SIZE, "0 (No Interference"
-				 " Mitigation)\n");
+		count = sysfs_emit(buf, "0 (No Interference Mitigation)\n");
 		break;
 	case B43legacy_INTERFMODE_NONWLAN:
-		count = snprintf(buf, PAGE_SIZE, "1 (Non-WLAN Interference"
-				 " Mitigation)\n");
+		count = sysfs_emit(buf,
+				   "1 (Non-WLAN Interference Mitigation)\n");
 		break;
 	case B43legacy_INTERFMODE_MANUALWLAN:
-		count = snprintf(buf, PAGE_SIZE, "2 (WLAN Interference"
-				 " Mitigation)\n");
+		count = sysfs_emit(buf, "2 (WLAN Interference Mitigation)\n");
 		break;
 	default:
 		B43legacy_WARN_ON(1);
@@ -153,11 +153,9 @@ static ssize_t b43legacy_attr_preamble_show(struct device *dev,
 	mutex_lock(&wldev->wl->mutex);
 
 	if (wldev->short_preamble)
-		count = snprintf(buf, PAGE_SIZE, "1 (Short Preamble"
-				 " enabled)\n");
+		count = sysfs_emit(buf, "1 (Short Preamble enabled)\n");
 	else
-		count = snprintf(buf, PAGE_SIZE, "0 (Short Preamble"
-				 " disabled)\n");
+		count = sysfs_emit(buf, "0 (Short Preamble disabled)\n");
 
 	mutex_unlock(&wldev->wl->mutex);
 

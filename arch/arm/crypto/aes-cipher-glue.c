@@ -7,7 +7,7 @@
  */
 
 #include <crypto/aes.h>
-#include <linux/crypto.h>
+#include <crypto/algapi.h>
 #include <linux/module.h>
 
 asmlinkage void __aes_arm_encrypt(u32 *rk, int rounds, const u8 *in, u8 *out);

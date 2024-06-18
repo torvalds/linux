@@ -6,7 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/reset-controller.h>
@@ -56,7 +56,7 @@ static int hi3660_reset_dev(struct reset_controller_dev *rcdev,
 	return hi3660_reset_deassert(rcdev, idx);
 }
 
-static struct reset_control_ops hi3660_reset_ops = {
+static const struct reset_control_ops hi3660_reset_ops = {
 	.reset    = hi3660_reset_dev,
 	.assert   = hi3660_reset_assert,
 	.deassert = hi3660_reset_deassert,
@@ -83,10 +83,15 @@ static int hi3660_reset_probe(struct platform_device *pdev)
 	if (!rc)
 		return -ENOMEM;
 
-	rc->map = syscon_regmap_lookup_by_phandle(np, "hisi,rst-syscon");
+	rc->map = syscon_regmap_lookup_by_phandle(np, "hisilicon,rst-syscon");
+	if (rc->map == ERR_PTR(-ENODEV)) {
+		/* fall back to the deprecated compatible */
+		rc->map = syscon_regmap_lookup_by_phandle(np,
+							  "hisi,rst-syscon");
+	}
 	if (IS_ERR(rc->map)) {
-		dev_err(dev, "failed to get hi3660,rst-syscon\n");
-		return PTR_ERR(rc->map);
+		return dev_err_probe(dev, PTR_ERR(rc->map),
+			"failed to get hisilicon,rst-syscon\n");
 	}
 
 	rc->rst.ops = &hi3660_reset_ops,

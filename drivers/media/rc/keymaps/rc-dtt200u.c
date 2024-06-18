@@ -53,3 +53,4 @@ module_exit(exit_rc_map_dtt200u)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jonathan McDowell <noodles@earth.li>");
+MODULE_DESCRIPTION("Wideview WT-220U remote controller keytable");

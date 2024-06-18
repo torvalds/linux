@@ -32,6 +32,13 @@
 
 /* Globals */
 
+/* The "nubus.populate_procfs" parameter makes slot resources available in
+ * procfs. It's deprecated and disabled by default because procfs is no longer
+ * thought to be suitable for that and some board ROMs make it too expensive.
+ */
+bool nubus_populate_procfs;
+module_param_named(populate_procfs, nubus_populate_procfs, bool, 0);
+
 LIST_HEAD(nubus_func_rsrcs);
 
 /* Meaning of "bytelanes":
@@ -163,7 +170,7 @@ unsigned char *nubus_dirptr(const struct nubus_dirent *nd)
 void nubus_get_rsrc_mem(void *dest, const struct nubus_dirent *dirent,
 			unsigned int len)
 {
-	unsigned char *t = (unsigned char *)dest;
+	unsigned char *t = dest;
 	unsigned char *p = nubus_dirptr(dirent);
 
 	while (len) {
@@ -572,9 +579,9 @@ nubus_get_functional_resource(struct nubus_board *board, int slot,
 			nubus_proc_add_rsrc(dir.procdir, &ent);
 			break;
 		default:
-			/* Local/Private resources have their own
-			   function */
-			nubus_get_private_resource(fres, dir.procdir, &ent);
+			if (nubus_populate_procfs)
+				nubus_get_private_resource(fres, dir.procdir,
+							   &ent);
 		}
 	}
 

@@ -78,7 +78,7 @@ static s32 fm10k_tlv_attr_put_null_string(u32 *msg, u16 attr_id,
  *  @string: Pointer to location of destination string
  *
  *  This function pulls the string back out of the attribute and will place
- *  it in the array pointed by by string.  It will return success if provided
+ *  it in the array pointed by string.  It will return success if provided
  *  with a valid pointers.
  **/
 static s32 fm10k_tlv_attr_get_null_string(u32 *attr, unsigned char *string)
@@ -143,7 +143,7 @@ s32 fm10k_tlv_attr_put_mac_vlan(u32 *msg, u16 attr_id,
  *  @vlan: location of buffer to store VLAN
  *
  *  This function pulls the MAC address back out of the attribute and will
- *  place it in the array pointed by by mac_addr.  It will return success
+ *  place it in the array pointed by mac_addr.  It will return success
  *  if provided with a valid pointers.
  **/
 s32 fm10k_tlv_attr_get_mac_vlan(u32 *attr, u8 *mac_addr, u16 *vlan)
@@ -584,7 +584,7 @@ s32 fm10k_tlv_msg_parse(struct fm10k_hw *hw, u32 *msg,
  *  @mbx: Unused mailbox pointer
  *
  *  This function is a default handler for unrecognized messages.  At a
- *  a minimum it just indicates that the message requested was
+ *  minimum it just indicates that the message requested was
  *  unimplemented.
  **/
 s32 fm10k_tlv_msg_error(struct fm10k_hw __always_unused *hw,

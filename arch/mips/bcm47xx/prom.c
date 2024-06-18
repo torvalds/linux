@@ -27,6 +27,7 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/memblock.h>
 #include <linux/spinlock.h>
 #include <linux/ssb/ssb_driver_chipcommon.h>
 #include <linux/ssb/ssb_regs.h>
@@ -34,6 +35,7 @@
 #include <asm/bootinfo.h>
 #include <bcm47xx.h>
 #include <bcm47xx_board.h>
+#include "bcm47xx_private.h"
 
 static char bcm47xx_system_type[20] = "Broadcom BCM47XX";
 
@@ -68,7 +70,7 @@ static __init void prom_init_mem(void)
 	 * call them at the beginning of the boot.
 	 *
 	 * BCM47XX uses 128MB for addressing the ram, if the system contains
-	 * less that that amount of ram it remaps the ram more often into the
+	 * less than that amount of ram it remaps the ram more often into the
 	 * available space.
 	 */
 
@@ -85,7 +87,7 @@ static __init void prom_init_mem(void)
 			pr_debug("Assume 128MB RAM\n");
 			break;
 		}
-		if (!memcmp(prom_init, prom_init + mem, 32))
+		if (!memcmp((void *)prom_init, (void *)prom_init + mem, 32))
 			break;
 	}
 	lowmem = mem;
@@ -97,7 +99,7 @@ static __init void prom_init_mem(void)
 	 */
 	if (c->cputype == CPU_74K && (mem == (128  << 20)))
 		mem -= 0x1000;
-	add_memory_region(0, mem, BOOT_MEM_RAM);
+	memblock_add(0, mem);
 }
 
 /*
@@ -112,21 +114,17 @@ void __init prom_init(void)
 	setup_8250_early_printk_port(CKSEG1ADDR(BCM47XX_SERIAL_ADDR), 0, 0);
 }
 
-void __init prom_free_prom_memory(void)
-{
-}
-
 #if defined(CONFIG_BCM47XX_BCMA) && defined(CONFIG_HIGHMEM)
 
 #define EXTVBASE	0xc0000000
-#define ENTRYLO(x)	((pte_val(pfn_pte((x) >> _PFN_SHIFT, PAGE_KERNEL_UNCACHED)) >> 6) | 1)
+#define ENTRYLO(x)	((pte_val(pfn_pte((x) >> PFN_PTE_SHIFT, PAGE_KERNEL_UNCACHED)) >> 6) | 1)
 
 #include <asm/tlbflush.h>
 
 /* Stripped version of tlb_init, with the call to build_tlb_refill_handler
  * dropped. Calling it at this stage causes a hang.
  */
-void early_tlb_init(void)
+static void early_tlb_init(void)
 {
 	write_c0_pagemask(PM_DEFAULT_MASK);
 	write_c0_wired(0);
@@ -162,7 +160,7 @@ void __init bcm47xx_prom_highmem_init(void)
 
 	off = EXTVBASE + __pa(off);
 	for (extmem = 128 << 20; extmem < 512 << 20; extmem <<= 1) {
-		if (!memcmp(prom_init, (void *)(off + extmem), 16))
+		if (!memcmp((void *)prom_init, (void *)(off + extmem), 16))
 			break;
 	}
 	extmem -= lowmem;

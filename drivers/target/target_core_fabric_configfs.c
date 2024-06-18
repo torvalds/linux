@@ -11,6 +11,7 @@
 *
  ****************************************************************************/
 
+#include <linux/kstrtox.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/utsname.h>
@@ -520,7 +521,7 @@ static ssize_t target_fabric_port_alua_tg_pt_gp_show(struct config_item *item,
 {
 	struct se_lun *lun = item_to_lun(item);
 
-	if (!lun || !lun->lun_se_dev)
+	if (!lun->lun_se_dev)
 		return -ENODEV;
 
 	return core_alua_show_tg_pt_gp_info(lun, page);
@@ -531,7 +532,7 @@ static ssize_t target_fabric_port_alua_tg_pt_gp_store(struct config_item *item,
 {
 	struct se_lun *lun = item_to_lun(item);
 
-	if (!lun || !lun->lun_se_dev)
+	if (!lun->lun_se_dev)
 		return -ENODEV;
 
 	return core_alua_store_tg_pt_gp_info(lun, page, count);
@@ -542,7 +543,7 @@ static ssize_t target_fabric_port_alua_tg_pt_offline_show(
 {
 	struct se_lun *lun = item_to_lun(item);
 
-	if (!lun || !lun->lun_se_dev)
+	if (!lun->lun_se_dev)
 		return -ENODEV;
 
 	return core_alua_show_offline_bit(lun, page);
@@ -553,7 +554,7 @@ static ssize_t target_fabric_port_alua_tg_pt_offline_store(
 {
 	struct se_lun *lun = item_to_lun(item);
 
-	if (!lun || !lun->lun_se_dev)
+	if (!lun->lun_se_dev)
 		return -ENODEV;
 
 	return core_alua_store_offline_bit(lun, page, count);
@@ -564,7 +565,7 @@ static ssize_t target_fabric_port_alua_tg_pt_status_show(
 {
 	struct se_lun *lun = item_to_lun(item);
 
-	if (!lun || !lun->lun_se_dev)
+	if (!lun->lun_se_dev)
 		return -ENODEV;
 
 	return core_alua_show_secondary_status(lun, page);
@@ -575,7 +576,7 @@ static ssize_t target_fabric_port_alua_tg_pt_status_store(
 {
 	struct se_lun *lun = item_to_lun(item);
 
-	if (!lun || !lun->lun_se_dev)
+	if (!lun->lun_se_dev)
 		return -ENODEV;
 
 	return core_alua_store_secondary_status(lun, page, count);
@@ -586,7 +587,7 @@ static ssize_t target_fabric_port_alua_tg_pt_write_md_show(
 {
 	struct se_lun *lun = item_to_lun(item);
 
-	if (!lun || !lun->lun_se_dev)
+	if (!lun->lun_se_dev)
 		return -ENODEV;
 
 	return core_alua_show_secondary_write_metadata(lun, page);
@@ -597,7 +598,7 @@ static ssize_t target_fabric_port_alua_tg_pt_write_md_store(
 {
 	struct se_lun *lun = item_to_lun(item);
 
-	if (!lun || !lun->lun_se_dev)
+	if (!lun->lun_se_dev)
 		return -ENODEV;
 
 	return core_alua_store_secondary_write_metadata(lun, page, count);
@@ -815,8 +816,109 @@ static struct configfs_item_operations target_fabric_tpg_base_item_ops = {
 	.release		= target_fabric_tpg_release,
 };
 
-TF_CIT_SETUP_DRV(tpg_base, &target_fabric_tpg_base_item_ops, NULL);
+static ssize_t target_fabric_tpg_base_enable_show(struct config_item *item,
+						  char *page)
+{
+	return sysfs_emit(page, "%d\n", to_tpg(item)->enabled);
+}
 
+static ssize_t target_fabric_tpg_base_enable_store(struct config_item *item,
+						   const char *page,
+						   size_t count)
+{
+	struct se_portal_group *se_tpg = to_tpg(item);
+	int ret;
+	bool op;
+
+	ret = kstrtobool(page, &op);
+	if (ret)
+		return ret;
+
+	if (se_tpg->enabled == op)
+		return count;
+	if (op)
+		ret = target_tpg_enable(se_tpg);
+	else
+		ret = target_tpg_disable(se_tpg);
+	if (ret)
+		return ret;
+	return count;
+}
+static ssize_t target_fabric_tpg_base_rtpi_show(struct config_item *item, char *page)
+{
+	struct se_portal_group *se_tpg = to_tpg(item);
+
+	return sysfs_emit(page, "%#x\n", se_tpg->tpg_rtpi);
+}
+
+static ssize_t target_fabric_tpg_base_rtpi_store(struct config_item *item,
+				   const char *page, size_t count)
+{
+	struct se_portal_group *se_tpg = to_tpg(item);
+	u16 val;
+	int ret;
+
+	ret = kstrtou16(page, 0, &val);
+	if (ret < 0)
+		return ret;
+	if (val == 0)
+		return -EINVAL;
+
+	if (se_tpg->enabled) {
+		pr_info("%s_TPG[%hu] - Can not change RTPI on enabled TPG",
+			se_tpg->se_tpg_tfo->fabric_name,
+			se_tpg->se_tpg_tfo->tpg_get_tag(se_tpg));
+		return -EINVAL;
+	}
+
+	se_tpg->tpg_rtpi = val;
+	se_tpg->rtpi_manual = true;
+
+	return count;
+}
+
+CONFIGFS_ATTR(target_fabric_tpg_base_, enable);
+CONFIGFS_ATTR(target_fabric_tpg_base_, rtpi);
+
+static int
+target_fabric_setup_tpg_base_cit(struct target_fabric_configfs *tf)
+{
+	struct config_item_type *cit = &tf->tf_tpg_base_cit;
+	struct configfs_attribute **attrs = NULL;
+	size_t nr_attrs = 0;
+	int i = 0;
+
+	if (tf->tf_ops->tfc_tpg_base_attrs)
+		while (tf->tf_ops->tfc_tpg_base_attrs[nr_attrs] != NULL)
+			nr_attrs++;
+
+	if (tf->tf_ops->fabric_enable_tpg)
+		nr_attrs++;
+
+	/* + 1 for target_fabric_tpg_base_attr_rtpi */
+	nr_attrs++;
+
+	/* + 1 for final NULL in the array */
+	attrs = kcalloc(nr_attrs + 1, sizeof(*attrs), GFP_KERNEL);
+	if (!attrs)
+		return -ENOMEM;
+
+	if (tf->tf_ops->tfc_tpg_base_attrs)
+		for (; tf->tf_ops->tfc_tpg_base_attrs[i] != NULL; i++)
+			attrs[i] = tf->tf_ops->tfc_tpg_base_attrs[i];
+
+	if (tf->tf_ops->fabric_enable_tpg)
+		attrs[i++] = &target_fabric_tpg_base_attr_enable;
+
+	attrs[i++] = &target_fabric_tpg_base_attr_rtpi;
+
+	cit->ct_item_ops = &target_fabric_tpg_base_item_ops;
+	cit->ct_attrs = attrs;
+	cit->ct_owner = tf->tf_ops->module;
+	pr_debug("Setup generic tpg_base\n");
+
+	return 0;
+}
 /* End of tfc_tpg_base_cit */
 
 /* Start of tfc_tpg_cit */
@@ -892,6 +994,7 @@ static void target_fabric_release_wwn(struct config_item *item)
 	struct target_fabric_configfs *tf = wwn->wwn_tf;
 
 	configfs_remove_default_groups(&wwn->fabric_stat_group);
+	configfs_remove_default_groups(&wwn->param_group);
 	tf->tf_ops->fabric_drop_wwn(wwn);
 }
 
@@ -918,6 +1021,81 @@ TF_CIT_SETUP(wwn_fabric_stats, NULL, NULL, NULL);
 
 /* End of tfc_wwn_fabric_stats_cit */
 
+static ssize_t
+target_fabric_wwn_cmd_completion_affinity_show(struct config_item *item,
+					       char *page)
+{
+	struct se_wwn *wwn = container_of(to_config_group(item), struct se_wwn,
+					  param_group);
+	return sprintf(page, "%d\n",
+		       wwn->cmd_compl_affinity == WORK_CPU_UNBOUND ?
+		       SE_COMPL_AFFINITY_CURR_CPU : wwn->cmd_compl_affinity);
+}
+
+static ssize_t
+target_fabric_wwn_cmd_completion_affinity_store(struct config_item *item,
+						const char *page, size_t count)
+{
+	struct se_wwn *wwn = container_of(to_config_group(item), struct se_wwn,
+					  param_group);
+	int compl_val;
+
+	if (kstrtoint(page, 0, &compl_val))
+		return -EINVAL;
+
+	switch (compl_val) {
+	case SE_COMPL_AFFINITY_CPUID:
+		wwn->cmd_compl_affinity = compl_val;
+		break;
+	case SE_COMPL_AFFINITY_CURR_CPU:
+		wwn->cmd_compl_affinity = WORK_CPU_UNBOUND;
+		break;
+	default:
+		if (compl_val < 0 || compl_val >= nr_cpu_ids ||
+		    !cpu_online(compl_val)) {
+			pr_err("Command completion value must be between %d and %d or an online CPU.\n",
+			       SE_COMPL_AFFINITY_CPUID,
+			       SE_COMPL_AFFINITY_CURR_CPU);
+			return -EINVAL;
+		}
+		wwn->cmd_compl_affinity = compl_val;
+	}
+
+	return count;
+}
+CONFIGFS_ATTR(target_fabric_wwn_, cmd_completion_affinity);
+
+static ssize_t
+target_fabric_wwn_default_submit_type_show(struct config_item *item,
+					   char *page)
+{
+	struct se_wwn *wwn = container_of(to_config_group(item), struct se_wwn,
+					  param_group);
+	return sysfs_emit(page, "%u\n",
+			  wwn->wwn_tf->tf_ops->default_submit_type);
+}
+CONFIGFS_ATTR_RO(target_fabric_wwn_, default_submit_type);
+
+static ssize_t
+target_fabric_wwn_direct_submit_supported_show(struct config_item *item,
+					       char *page)
+{
+	struct se_wwn *wwn = container_of(to_config_group(item), struct se_wwn,
+					  param_group);
+	return sysfs_emit(page, "%u\n",
+			  wwn->wwn_tf->tf_ops->direct_submit_supp);
+}
+CONFIGFS_ATTR_RO(target_fabric_wwn_, direct_submit_supported);
+
+static struct configfs_attribute *target_fabric_wwn_param_attrs[] = {
+	&target_fabric_wwn_attr_cmd_completion_affinity,
+	&target_fabric_wwn_attr_default_submit_type,
+	&target_fabric_wwn_attr_direct_submit_supported,
+	NULL,
+};
+
+TF_CIT_SETUP(wwn_param, NULL, NULL, target_fabric_wwn_param_attrs);
+
 /* Start of tfc_wwn_cit */
 
 static struct config_group *target_fabric_make_wwn(
@@ -937,6 +1115,7 @@ static struct config_group *target_fabric_make_wwn(
 	if (!wwn || IS_ERR(wwn))
 		return ERR_PTR(-EINVAL);
 
+	wwn->cmd_compl_affinity = SE_COMPL_AFFINITY_CPUID;
 	wwn->wwn_tf = tf;
 
 	config_group_init_type_name(&wwn->wwn_group, name, &tf->tf_tpg_cit);
@@ -944,6 +1123,10 @@ static struct config_group *target_fabric_make_wwn(
 	config_group_init_type_name(&wwn->fabric_stat_group, "fabric_statistics",
 			&tf->tf_wwn_fabric_stats_cit);
 	configfs_add_default_group(&wwn->fabric_stat_group, &wwn->wwn_group);
+
+	config_group_init_type_name(&wwn->param_group, "param",
+			&tf->tf_wwn_param_cit);
+	configfs_add_default_group(&wwn->param_group, &wwn->wwn_group);
 
 	if (tf->tf_ops->add_wwn_groups)
 		tf->tf_ops->add_wwn_groups(wwn);
@@ -971,11 +1154,18 @@ TF_CIT_SETUP_DRV(discovery, NULL, NULL);
 
 int target_fabric_setup_cits(struct target_fabric_configfs *tf)
 {
+	int ret;
+
 	target_fabric_setup_discovery_cit(tf);
 	target_fabric_setup_wwn_cit(tf);
 	target_fabric_setup_wwn_fabric_stats_cit(tf);
+	target_fabric_setup_wwn_param_cit(tf);
 	target_fabric_setup_tpg_cit(tf);
-	target_fabric_setup_tpg_base_cit(tf);
+
+	ret = target_fabric_setup_tpg_base_cit(tf);
+	if (ret)
+		return ret;
+
 	target_fabric_setup_tpg_port_cit(tf);
 	target_fabric_setup_tpg_port_stat_cit(tf);
 	target_fabric_setup_tpg_lun_cit(tf);

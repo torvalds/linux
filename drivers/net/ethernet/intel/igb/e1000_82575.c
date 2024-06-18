@@ -222,8 +222,7 @@ static s32 igb_init_phy_params_82575(struct e1000_hw *hw)
 	}
 
 	/* set lan id */
-	hw->bus.func = (rd32(E1000_STATUS) & E1000_STATUS_FUNC_MASK) >>
-			E1000_STATUS_FUNC_SHIFT;
+	hw->bus.func = FIELD_GET(E1000_STATUS_FUNC_MASK, rd32(E1000_STATUS));
 
 	/* Set phy->phy_addr and phy->id. */
 	ret_val = igb_get_phy_id_82575(hw);
@@ -262,8 +261,8 @@ static s32 igb_init_phy_params_82575(struct e1000_hw *hw)
 			if (ret_val)
 				goto out;
 
-			data = (data & E1000_M88E1112_MAC_CTRL_1_MODE_MASK) >>
-			       E1000_M88E1112_MAC_CTRL_1_MODE_SHIFT;
+			data = FIELD_GET(E1000_M88E1112_MAC_CTRL_1_MODE_MASK,
+					 data);
 			if (data == E1000_M88E1112_AUTO_COPPER_SGMII ||
 			    data == E1000_M88E1112_AUTO_COPPER_BASEX)
 				hw->mac.ops.check_for_link =
@@ -330,8 +329,7 @@ static s32 igb_init_nvm_params_82575(struct e1000_hw *hw)
 	u32 eecd = rd32(E1000_EECD);
 	u16 size;
 
-	size = (u16)((eecd & E1000_EECD_SIZE_EX_MASK) >>
-		     E1000_EECD_SIZE_EX_SHIFT);
+	size = FIELD_GET(E1000_EECD_SIZE_EX_MASK, eecd);
 
 	/* Added to a constant, "size" becomes the left-shift value
 	 * for setting word_size.
@@ -466,7 +464,7 @@ static s32 igb_init_mac_params_82575(struct e1000_hw *hw)
 			? igb_setup_copper_link_82575
 			: igb_setup_serdes_link_82575;
 
-	if (mac->type == e1000_82580) {
+	if (mac->type == e1000_82580 || mac->type == e1000_i350) {
 		switch (hw->device_id) {
 		/* feature not supported on these id's */
 		case E1000_DEV_ID_DH89XXCC_SGMII:
@@ -530,7 +528,7 @@ static s32 igb_set_sfp_media_type_82575(struct e1000_hw *hw)
 		dev_spec->module_plugged = true;
 		if (eth_flags->e1000_base_lx || eth_flags->e1000_base_sx) {
 			hw->phy.media_type = e1000_media_type_internal_serdes;
-		} else if (eth_flags->e100_base_fx) {
+		} else if (eth_flags->e100_base_fx || eth_flags->e100_base_lx) {
 			dev_spec->sgmii_active = true;
 			hw->phy.media_type = e1000_media_type_internal_serdes;
 		} else if (eth_flags->e1000_base_t) {
@@ -638,7 +636,7 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 			dev_spec->sgmii_active = true;
 			break;
 		}
-		/* fall through - for I2C based SGMII */
+		fallthrough; /* for I2C based SGMII */
 	case E1000_CTRL_EXT_LINK_MODE_PCIE_SERDES:
 		/* read media type from SFP EEPROM */
 		ret_val = igb_set_sfp_media_type_82575(hw);
@@ -657,14 +655,10 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 			break;
 		}
 
-		/* do not change link mode for 100BaseFX */
-		if (dev_spec->eth_flags.e100_base_fx)
-			break;
-
 		/* change current link mode setting */
 		ctrl_ext &= ~E1000_CTRL_EXT_LINK_MODE_MASK;
 
-		if (hw->phy.media_type == e1000_media_type_copper)
+		if (dev_spec->sgmii_active)
 			ctrl_ext |= E1000_CTRL_EXT_LINK_MODE_SGMII;
 		else
 			ctrl_ext |= E1000_CTRL_EXT_LINK_MODE_PCIE_SERDES;
@@ -1708,7 +1702,7 @@ static s32 igb_setup_serdes_link_82575(struct e1000_hw *hw)
 	case E1000_CTRL_EXT_LINK_MODE_1000BASE_KX:
 		/* disable PCS autoneg and support parallel detect only */
 		pcs_autoneg = false;
-		/* fall through */
+		fallthrough;
 	default:
 		if (hw->mac.type == e1000_82575 ||
 		    hw->mac.type == e1000_82576) {
@@ -2211,7 +2205,7 @@ out:
  *  igb_reset_mdicnfg_82580 - Reset MDICNFG destination and com_mdio bits
  *  @hw: pointer to the HW structure
  *
- *  This resets the the MDICNFG.Destination and MDICNFG.Com_MDIO bits based on
+ *  This resets the MDICNFG.Destination and MDICNFG.Com_MDIO bits based on
  *  the values found in the EEPROM.  This addresses an issue in which these
  *  bits are not restored from EEPROM after reset.
  **/
@@ -2558,7 +2552,7 @@ out:
 /**
  *  __igb_access_emi_reg - Read/write EMI register
  *  @hw: pointer to the HW structure
- *  @addr: EMI address to program
+ *  @address: EMI address to program
  *  @data: pointer to value to read/write from/to the EMI address
  *  @read: boolean flag to indicate read or write
  **/
@@ -2594,7 +2588,7 @@ s32 igb_read_emi_reg(struct e1000_hw *hw, u16 addr, u16 *data)
  *  igb_set_eee_i350 - Enable/disable EEE support
  *  @hw: pointer to the HW structure
  *  @adv1G: boolean flag enabling 1G EEE advertisement
- *  @adv100m: boolean flag enabling 100M EEE advertisement
+ *  @adv100M: boolean flag enabling 100M EEE advertisement
  *
  *  Enable/disable EEE based on setting in dev_spec structure.
  *
@@ -2650,7 +2644,7 @@ out:
  *  igb_set_eee_i354 - Enable/disable EEE support
  *  @hw: pointer to the HW structure
  *  @adv1G: boolean flag enabling 1G EEE advertisement
- *  @adv100m: boolean flag enabling 100M EEE advertisement
+ *  @adv100M: boolean flag enabling 100M EEE advertisement
  *
  *  Enable/disable EEE legacy mode based on setting in dev_spec structure.
  *
@@ -2760,6 +2754,7 @@ out:
 	return ret_val;
 }
 
+#ifdef CONFIG_IGB_HWMON
 static const u8 e1000_emc_temp_data[4] = {
 	E1000_EMC_INTERNAL_DATA,
 	E1000_EMC_DIODE1_DATA,
@@ -2773,7 +2768,6 @@ static const u8 e1000_emc_therm_limit[4] = {
 	E1000_EMC_DIODE3_THERM_LIMIT
 };
 
-#ifdef CONFIG_IGB_HWMON
 /**
  *  igb_get_thermal_sensor_data_generic - Gathers thermal sensor data
  *  @hw: pointer to hardware structure
@@ -2802,7 +2796,7 @@ static s32 igb_get_thermal_sensor_data_generic(struct e1000_hw *hw)
 		return 0;
 
 	hw->nvm.ops.read(hw, ets_offset, 1, &ets_cfg);
-	if (((ets_cfg & NVM_ETS_TYPE_MASK) >> NVM_ETS_TYPE_SHIFT)
+	if (FIELD_GET(NVM_ETS_TYPE_MASK, ets_cfg)
 	    != NVM_ETS_TYPE_EMC)
 		return E1000_NOT_IMPLEMENTED;
 
@@ -2812,10 +2806,8 @@ static s32 igb_get_thermal_sensor_data_generic(struct e1000_hw *hw)
 
 	for (i = 1; i < num_sensors; i++) {
 		hw->nvm.ops.read(hw, (ets_offset + i), 1, &ets_sensor);
-		sensor_index = ((ets_sensor & NVM_ETS_DATA_INDEX_MASK) >>
-				NVM_ETS_DATA_INDEX_SHIFT);
-		sensor_location = ((ets_sensor & NVM_ETS_DATA_LOC_MASK) >>
-				   NVM_ETS_DATA_LOC_SHIFT);
+		sensor_index = FIELD_GET(NVM_ETS_DATA_INDEX_MASK, ets_sensor);
+		sensor_location = FIELD_GET(NVM_ETS_DATA_LOC_MASK, ets_sensor);
 
 		if (sensor_location != 0)
 			hw->phy.ops.read_i2c_byte(hw,
@@ -2863,20 +2855,17 @@ static s32 igb_init_thermal_sensor_thresh_generic(struct e1000_hw *hw)
 		return 0;
 
 	hw->nvm.ops.read(hw, ets_offset, 1, &ets_cfg);
-	if (((ets_cfg & NVM_ETS_TYPE_MASK) >> NVM_ETS_TYPE_SHIFT)
+	if (FIELD_GET(NVM_ETS_TYPE_MASK, ets_cfg)
 	    != NVM_ETS_TYPE_EMC)
 		return E1000_NOT_IMPLEMENTED;
 
-	low_thresh_delta = ((ets_cfg & NVM_ETS_LTHRES_DELTA_MASK) >>
-			    NVM_ETS_LTHRES_DELTA_SHIFT);
+	low_thresh_delta = FIELD_GET(NVM_ETS_LTHRES_DELTA_MASK, ets_cfg);
 	num_sensors = (ets_cfg & NVM_ETS_NUM_SENSORS_MASK);
 
 	for (i = 1; i <= num_sensors; i++) {
 		hw->nvm.ops.read(hw, (ets_offset + i), 1, &ets_sensor);
-		sensor_index = ((ets_sensor & NVM_ETS_DATA_INDEX_MASK) >>
-				NVM_ETS_DATA_INDEX_SHIFT);
-		sensor_location = ((ets_sensor & NVM_ETS_DATA_LOC_MASK) >>
-				   NVM_ETS_DATA_LOC_SHIFT);
+		sensor_index = FIELD_GET(NVM_ETS_DATA_INDEX_MASK, ets_sensor);
+		sensor_location = FIELD_GET(NVM_ETS_DATA_LOC_MASK, ets_sensor);
 		therm_limit = ets_sensor & NVM_ETS_DATA_HTHRESH_MASK;
 
 		hw->phy.ops.write_i2c_byte(hw,

@@ -143,7 +143,7 @@ static inline bool ad193x_has_adc(const struct ad193x_priv *ad193x)
  * DAI ops entries
  */
 
-static int ad193x_mute(struct snd_soc_dai *dai, int mute)
+static int ad193x_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct ad193x_priv *ad193x = snd_soc_component_get_drvdata(dai->component);
 
@@ -243,22 +243,22 @@ static int ad193x_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	if (fmt & SND_SOC_DAIFMT_DSP_A)
 		dac_fmt ^= AD193X_DAC_LEFT_HIGH;
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM: /* codec clk & frm master */
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
 		adc_fmt |= AD193X_ADC_LCR_MASTER;
 		adc_fmt |= AD193X_ADC_BCLK_MASTER;
 		dac_fmt |= AD193X_DAC_LCR_MASTER;
 		dac_fmt |= AD193X_DAC_BCLK_MASTER;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFM: /* codec clk slave & frm master */
+	case SND_SOC_DAIFMT_CBC_CFP:
 		adc_fmt |= AD193X_ADC_LCR_MASTER;
 		dac_fmt |= AD193X_DAC_LCR_MASTER;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFS: /* codec clk master & frame slave */
+	case SND_SOC_DAIFMT_CBP_CFC:
 		adc_fmt |= AD193X_ADC_BCLK_MASTER;
 		dac_fmt |= AD193X_DAC_BCLK_MASTER;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS: /* codec clk & frm slave */
+	case SND_SOC_DAIFMT_CBC_CFC:
 		break;
 	default:
 		return -EINVAL;
@@ -316,6 +316,13 @@ static int ad193x_hw_params(struct snd_pcm_substream *substream,
 	int word_len = 0, master_rate = 0;
 	struct snd_soc_component *component = dai->component;
 	struct ad193x_priv *ad193x = snd_soc_component_get_drvdata(component);
+	bool is_playback = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
+	u8 dacc0;
+
+	dev_dbg(dai->dev, "%s() rate=%u format=%#x width=%u channels=%u\n",
+		__func__, params_rate(params), params_format(params),
+		params_width(params), params_channels(params));
+
 
 	/* bit size */
 	switch (params_width(params)) {
@@ -346,6 +353,25 @@ static int ad193x_hw_params(struct snd_pcm_substream *substream,
 		break;
 	}
 
+	if (is_playback) {
+		switch (params_rate(params)) {
+		case 48000:
+			dacc0 = AD193X_DAC_SR_48;
+			break;
+		case 96000:
+			dacc0 = AD193X_DAC_SR_96;
+			break;
+		case 192000:
+			dacc0 = AD193X_DAC_SR_192;
+			break;
+		default:
+			dev_err(dai->dev, "invalid sampling rate: %d\n", params_rate(params));
+			return -EINVAL;
+		}
+
+		regmap_update_bits(ad193x->regmap, AD193X_DAC_CTRL0, AD193X_DAC_SR_MASK, dacc0);
+	}
+
 	regmap_update_bits(ad193x->regmap, AD193X_PLL_CLK_CTRL0,
 			    AD193X_PLL_INPUT_MASK, master_rate);
 
@@ -371,10 +397,11 @@ static int ad193x_startup(struct snd_pcm_substream *substream,
 static const struct snd_soc_dai_ops ad193x_dai_ops = {
 	.startup = ad193x_startup,
 	.hw_params = ad193x_hw_params,
-	.digital_mute = ad193x_mute,
+	.mute_stream = ad193x_mute,
 	.set_tdm_slot = ad193x_set_tdm_slot,
 	.set_sysclk	= ad193x_set_dai_sysclk,
 	.set_fmt = ad193x_set_dai_fmt,
+	.no_capture_mute = 1,
 };
 
 /* codec DAI instance */
@@ -384,7 +411,7 @@ static struct snd_soc_dai_driver ad193x_dai = {
 		.stream_name = "Playback",
 		.channels_min = 2,
 		.channels_max = 8,
-		.rates = SNDRV_PCM_RATE_48000,
+		.rates = SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_192000,
 		.formats = SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_S16_LE |
 			SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S24_LE,
 	},
@@ -406,7 +433,7 @@ static struct snd_soc_dai_driver ad193x_no_adc_dai = {
 		.stream_name = "Playback",
 		.channels_min = 2,
 		.channels_max = 8,
-		.rates = SNDRV_PCM_RATE_48000,
+		.rates = SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_192000,
 		.formats = SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_S16_LE |
 			SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S24_LE,
 	},
@@ -496,7 +523,6 @@ static const struct snd_soc_component_driver soc_component_dev_ad193x = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 const struct regmap_config ad193x_regmap_config = {

@@ -12,7 +12,7 @@
 #include <asm/div64.h>
 #include <linux/kernel.h>
 #include <linux/dvb/frontend.h>
-#include <media/dvb_math.h>
+#include <linux/int_log.h>
 #include "lgdt3306a.h"
 #include <linux/i2c-mux.h>
 
@@ -711,39 +711,6 @@ static int lgdt3306a_set_inversion_auto(struct lgdt3306a_state *state,
 	return ret;
 }
 
-static int lgdt3306a_spectral_inversion(struct lgdt3306a_state *state,
-				       struct dtv_frontend_properties *p,
-				       int inversion)
-{
-	int ret = 0;
-
-	dbg_info("(%d)\n", inversion);
-#if 0
-	/*
-	 * FGR - spectral_inversion defaults already set for VSB and QAM;
-	 * can enable later if desired
-	 */
-
-	ret = lgdt3306a_set_inversion(state, inversion);
-
-	switch (p->modulation) {
-	case VSB_8:
-		/* Manual only for VSB */
-		ret = lgdt3306a_set_inversion_auto(state, 0);
-		break;
-	case QAM_64:
-	case QAM_256:
-	case QAM_AUTO:
-		/* Auto ok for QAM */
-		ret = lgdt3306a_set_inversion_auto(state, 1);
-		break;
-	default:
-		ret = -EINVAL;
-	}
-#endif
-	return ret;
-}
-
 static int lgdt3306a_set_if(struct lgdt3306a_state *state,
 			   struct dtv_frontend_properties *p)
 {
@@ -768,7 +735,7 @@ static int lgdt3306a_set_if(struct lgdt3306a_state *state,
 	default:
 		pr_warn("IF=%d KHz is not supported, 3250 assumed\n",
 			if_freq_khz);
-		/* fallthrough */
+		fallthrough;
 	case 3250: /* 3.25Mhz */
 		nco1 = 0x34;
 		nco2 = 0x00;
@@ -846,6 +813,7 @@ static int lgdt3306a_fe_sleep(struct dvb_frontend *fe)
 static int lgdt3306a_init(struct dvb_frontend *fe)
 {
 	struct lgdt3306a_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	u8 val;
 	int ret;
 
@@ -997,6 +965,9 @@ static int lgdt3306a_init(struct dvb_frontend *fe)
 	ret = lgdt3306a_sleep(state);
 	lg_chkerr(ret);
 
+	c->cnr.len = 1;
+	c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+
 fail:
 	return ret;
 }
@@ -1044,10 +1015,7 @@ static int lgdt3306a_set_parameters(struct dvb_frontend *fe)
 	if (lg_chkerr(ret))
 		goto fail;
 
-	ret = lgdt3306a_spectral_inversion(state, p,
-					state->cfg->spectral_inversion ? 1 : 0);
-	if (lg_chkerr(ret))
-		goto fail;
+	/* spectral_inversion defaults already set for VSB and QAM */
 
 	ret = lgdt3306a_mpeg_mode(state, state->cfg->mpeg_mode);
 	if (lg_chkerr(ret))
@@ -1597,6 +1565,7 @@ static int lgdt3306a_read_status(struct dvb_frontend *fe,
 				 enum fe_status *status)
 {
 	struct lgdt3306a_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	u16 strength = 0;
 	int ret = 0;
 
@@ -1636,6 +1605,15 @@ static int lgdt3306a_read_status(struct dvb_frontend *fe,
 			break;
 		default:
 			ret = -EINVAL;
+		}
+
+		if (*status & FE_HAS_SYNC) {
+			c->cnr.len = 1;
+			c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
+			c->cnr.stat[0].svalue = lgdt3306a_calculate_snr_x100(state) * 10;
+		} else {
+			c->cnr.len = 1;
+			c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 		}
 	}
 	return ret;
@@ -1881,7 +1859,7 @@ fail:
 	kfree(state);
 	return NULL;
 }
-EXPORT_SYMBOL(lgdt3306a_attach);
+EXPORT_SYMBOL_GPL(lgdt3306a_attach);
 
 #ifdef DBG_DUMP
 
@@ -2191,13 +2169,17 @@ static int lgdt3306a_deselect(struct i2c_mux_core *muxc, u32 chan)
 	return lgdt3306a_i2c_gate_ctrl(&state->frontend, 0);
 }
 
-static int lgdt3306a_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int lgdt3306a_probe(struct i2c_client *client)
 {
 	struct lgdt3306a_config *config;
 	struct lgdt3306a_state *state;
 	struct dvb_frontend *fe;
 	int ret;
+
+	if (!client->dev.platform_data) {
+		dev_err(&client->dev, "platform data is mandatory\n");
+		return -EINVAL;
+	}
 
 	config = kmemdup(client->dev.platform_data,
 			 sizeof(struct lgdt3306a_config), GFP_KERNEL);
@@ -2226,7 +2208,7 @@ static int lgdt3306a_probe(struct i2c_client *client,
 		goto err_kfree;
 	}
 	state->muxc->priv = client;
-	ret = i2c_mux_add_adapter(state->muxc, 0, 0, 0);
+	ret = i2c_mux_add_adapter(state->muxc, 0, 0);
 	if (ret)
 		goto err_kfree;
 
@@ -2248,7 +2230,7 @@ fail:
 	return ret;
 }
 
-static int lgdt3306a_remove(struct i2c_client *client)
+static void lgdt3306a_remove(struct i2c_client *client)
 {
 	struct lgdt3306a_state *state = i2c_get_clientdata(client);
 
@@ -2259,8 +2241,6 @@ static int lgdt3306a_remove(struct i2c_client *client)
 
 	kfree(state->cfg);
 	kfree(state);
-
-	return 0;
 }
 
 static const struct i2c_device_id lgdt3306a_id_table[] = {

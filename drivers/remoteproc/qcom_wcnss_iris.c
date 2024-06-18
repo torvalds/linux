@@ -10,6 +10,7 @@
 #include <linux/clk.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
@@ -17,7 +18,7 @@
 #include "qcom_wcnss.h"
 
 struct qcom_iris {
-	struct device *dev;
+	struct device dev;
 
 	struct clk *xo_clk;
 
@@ -75,7 +76,7 @@ int qcom_iris_enable(struct qcom_iris *iris)
 
 	ret = clk_prepare_enable(iris->xo_clk);
 	if (ret) {
-		dev_err(iris->dev, "failed to enable xo clk\n");
+		dev_err(&iris->dev, "failed to enable xo clk\n");
 		goto disable_regulators;
 	}
 
@@ -93,43 +94,90 @@ void qcom_iris_disable(struct qcom_iris *iris)
 	regulator_bulk_disable(iris->num_vregs, iris->vregs);
 }
 
-static int qcom_iris_probe(struct platform_device *pdev)
+static const struct of_device_id iris_of_match[] = {
+	{ .compatible = "qcom,wcn3620", .data = &wcn3620_data },
+	{ .compatible = "qcom,wcn3660", .data = &wcn3660_data },
+	{ .compatible = "qcom,wcn3660b", .data = &wcn3680_data },
+	{ .compatible = "qcom,wcn3680", .data = &wcn3680_data },
+	{}
+};
+
+static void qcom_iris_release(struct device *dev)
 {
+	struct qcom_iris *iris = container_of(dev, struct qcom_iris, dev);
+
+	of_node_put(iris->dev.of_node);
+	kfree(iris);
+}
+
+struct qcom_iris *qcom_iris_probe(struct device *parent, bool *use_48mhz_xo)
+{
+	const struct of_device_id *match;
 	const struct iris_data *data;
-	struct qcom_wcnss *wcnss;
+	struct device_node *of_node;
 	struct qcom_iris *iris;
 	int ret;
 	int i;
 
-	iris = devm_kzalloc(&pdev->dev, sizeof(struct qcom_iris), GFP_KERNEL);
-	if (!iris)
-		return -ENOMEM;
+	of_node = of_get_child_by_name(parent->of_node, "iris");
+	if (!of_node) {
+		dev_err(parent, "No child node \"iris\" found\n");
+		return ERR_PTR(-EINVAL);
+	}
 
-	data = of_device_get_match_data(&pdev->dev);
-	wcnss = dev_get_drvdata(pdev->dev.parent);
+	iris = kzalloc(sizeof(*iris), GFP_KERNEL);
+	if (!iris) {
+		of_node_put(of_node);
+		return ERR_PTR(-ENOMEM);
+	}
 
-	iris->xo_clk = devm_clk_get(&pdev->dev, "xo");
+	device_initialize(&iris->dev);
+	iris->dev.parent = parent;
+	iris->dev.release = qcom_iris_release;
+	iris->dev.of_node = of_node;
+
+	dev_set_name(&iris->dev, "%s.iris", dev_name(parent));
+
+	ret = device_add(&iris->dev);
+	if (ret) {
+		put_device(&iris->dev);
+		return ERR_PTR(ret);
+	}
+
+	match = of_match_device(iris_of_match, &iris->dev);
+	if (!match) {
+		dev_err(&iris->dev, "no matching compatible for iris\n");
+		ret = -EINVAL;
+		goto err_device_del;
+	}
+
+	data = match->data;
+
+	iris->xo_clk = devm_clk_get(&iris->dev, "xo");
 	if (IS_ERR(iris->xo_clk)) {
-		if (PTR_ERR(iris->xo_clk) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "failed to acquire xo clk\n");
-		return PTR_ERR(iris->xo_clk);
+		ret = PTR_ERR(iris->xo_clk);
+		if (ret != -EPROBE_DEFER)
+			dev_err(&iris->dev, "failed to acquire xo clk\n");
+		goto err_device_del;
 	}
 
 	iris->num_vregs = data->num_vregs;
-	iris->vregs = devm_kcalloc(&pdev->dev,
+	iris->vregs = devm_kcalloc(&iris->dev,
 				   iris->num_vregs,
 				   sizeof(struct regulator_bulk_data),
 				   GFP_KERNEL);
-	if (!iris->vregs)
-		return -ENOMEM;
+	if (!iris->vregs) {
+		ret = -ENOMEM;
+		goto err_device_del;
+	}
 
 	for (i = 0; i < iris->num_vregs; i++)
 		iris->vregs[i].supply = data->vregs[i].name;
 
-	ret = devm_regulator_bulk_get(&pdev->dev, iris->num_vregs, iris->vregs);
+	ret = devm_regulator_bulk_get(&iris->dev, iris->num_vregs, iris->vregs);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to get regulators\n");
-		return ret;
+		dev_err(&iris->dev, "failed to get regulators\n");
+		goto err_device_del;
 	}
 
 	for (i = 0; i < iris->num_vregs; i++) {
@@ -143,33 +191,17 @@ static int qcom_iris_probe(struct platform_device *pdev)
 					   data->vregs[i].load_uA);
 	}
 
-	qcom_wcnss_assign_iris(wcnss, iris, data->use_48mhz_xo);
+	*use_48mhz_xo = data->use_48mhz_xo;
 
-	return 0;
+	return iris;
+
+err_device_del:
+	device_del(&iris->dev);
+
+	return ERR_PTR(ret);
 }
 
-static int qcom_iris_remove(struct platform_device *pdev)
+void qcom_iris_remove(struct qcom_iris *iris)
 {
-	struct qcom_wcnss *wcnss = dev_get_drvdata(pdev->dev.parent);
-
-	qcom_wcnss_assign_iris(wcnss, NULL, false);
-
-	return 0;
+	device_del(&iris->dev);
 }
-
-static const struct of_device_id iris_of_match[] = {
-	{ .compatible = "qcom,wcn3620", .data = &wcn3620_data },
-	{ .compatible = "qcom,wcn3660", .data = &wcn3660_data },
-	{ .compatible = "qcom,wcn3680", .data = &wcn3680_data },
-	{}
-};
-MODULE_DEVICE_TABLE(of, iris_of_match);
-
-struct platform_driver qcom_iris_driver = {
-	.probe = qcom_iris_probe,
-	.remove = qcom_iris_remove,
-	.driver = {
-		.name = "qcom-iris",
-		.of_match_table = iris_of_match,
-	},
-};

@@ -14,9 +14,6 @@
 
 #include "internal.h"
 
-#define _COMPONENT			ACPI_CONTAINER_COMPONENT
-ACPI_MODULE_NAME("container");
-
 static const struct acpi_device_id container_device_ids[] = {
 	{"ACPI0004", 0},
 	{"PNP0A05", 0},
@@ -26,17 +23,18 @@ static const struct acpi_device_id container_device_ids[] = {
 
 #ifdef CONFIG_ACPI_CONTAINER
 
+static int check_offline(struct acpi_device *adev, void *not_used)
+{
+	if (acpi_scan_is_offline(adev, false))
+		return 0;
+
+	return -EBUSY;
+}
+
 static int acpi_container_offline(struct container_dev *cdev)
 {
-	struct acpi_device *adev = ACPI_COMPANION(&cdev->dev);
-	struct acpi_device *child;
-
 	/* Check all of the dependent devices' physical companions. */
-	list_for_each_entry(child, &adev->children, node)
-		if (!acpi_scan_is_offline(child, false))
-			return -EBUSY;
-
-	return 0;
+	return acpi_dev_for_each_child(ACPI_COMPANION(&cdev->dev), check_offline, NULL);
 }
 
 static void acpi_container_release(struct device *dev)

@@ -8,6 +8,8 @@
 #ifndef _LINUX_SYSLOG_H
 #define _LINUX_SYSLOG_H
 
+#include <linux/wait.h>
+
 /* Close the log.  Currently a NOP. */
 #define SYSLOG_ACTION_CLOSE          0
 /* Open the log. Currently a NOP. */
@@ -35,5 +37,6 @@
 #define SYSLOG_FROM_PROC             1
 
 int do_syslog(int type, char __user *buf, int count, int source);
+extern wait_queue_head_t log_wait;
 
 #endif /* _LINUX_SYSLOG_H */

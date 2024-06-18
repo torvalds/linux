@@ -11,7 +11,7 @@
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
-#include <linux/of.h>
+#include <linux/mod_devicetable.h>
 #include <linux/regmap.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
@@ -71,8 +71,8 @@ struct lmp91000_data {
 
 	struct completion completion;
 	u8 chan_select;
-
-	u32 buffer[4]; /* 64-bit data + 64-bit timestamp */
+	/* 64-bit data + 64-bit naturally aligned timestamp */
+	u32 buffer[4] __aligned(8);
 };
 
 static const struct iio_chan_spec lmp91000_channels[] = {
@@ -118,7 +118,7 @@ static int lmp91000_read(struct lmp91000_data *data, int channel, int *val)
 
 	data->chan_select = channel != LMP91000_REG_MODECN_3LEAD;
 
-	iio_trigger_poll_chained(data->trig);
+	iio_trigger_poll_nested(data->trig);
 
 	ret = wait_for_completion_timeout(&data->completion, HZ);
 	reinit_completion(&data->completion);
@@ -205,13 +205,12 @@ static const struct iio_info lmp91000_info = {
 static int lmp91000_read_config(struct lmp91000_data *data)
 {
 	struct device *dev = data->dev;
-	struct device_node *np = dev->of_node;
 	unsigned int reg, val;
 	int i, ret;
 
-	ret = of_property_read_u32(np, "ti,tia-gain-ohm", &val);
+	ret = device_property_read_u32(dev, "ti,tia-gain-ohm", &val);
 	if (ret) {
-		if (!of_property_read_bool(np, "ti,external-tia-resistor")) {
+		if (!device_property_read_bool(dev, "ti,external-tia-resistor")) {
 			dev_err(dev, "no ti,tia-gain-ohm defined and external resistor not specified\n");
 			return ret;
 		}
@@ -232,7 +231,7 @@ static int lmp91000_read_config(struct lmp91000_data *data)
 		return ret;
 	}
 
-	ret = of_property_read_u32(np, "ti,rload-ohm", &val);
+	ret = device_property_read_u32(dev, "ti,rload-ohm", &val);
 	if (ret) {
 		val = 100;
 		dev_info(dev, "no ti,rload-ohm defined, default to %d\n", val);
@@ -272,10 +271,7 @@ static int lmp91000_buffer_cb(const void *val, void *private)
 	return 0;
 }
 
-static const struct iio_trigger_ops lmp91000_trigger_ops = {
-};
-
-static int lmp91000_buffer_preenable(struct iio_dev *indio_dev)
+static int lmp91000_buffer_postenable(struct iio_dev *indio_dev)
 {
 	struct lmp91000_data *data = iio_priv(indio_dev);
 
@@ -292,13 +288,11 @@ static int lmp91000_buffer_predisable(struct iio_dev *indio_dev)
 }
 
 static const struct iio_buffer_setup_ops lmp91000_buffer_setup_ops = {
-	.preenable = lmp91000_buffer_preenable,
-	.postenable = iio_triggered_buffer_postenable,
+	.postenable = lmp91000_buffer_postenable,
 	.predisable = lmp91000_buffer_predisable,
 };
 
-static int lmp91000_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int lmp91000_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct lmp91000_data *data;
@@ -313,7 +307,6 @@ static int lmp91000_probe(struct i2c_client *client,
 	indio_dev->channels = lmp91000_channels;
 	indio_dev->num_channels = ARRAY_SIZE(lmp91000_channels);
 	indio_dev->name = LMP91000_DRV_NAME;
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	i2c_set_clientdata(client, indio_dev);
 
@@ -325,15 +318,14 @@ static int lmp91000_probe(struct i2c_client *client,
 		return PTR_ERR(data->regmap);
 	}
 
-	data->trig = devm_iio_trigger_alloc(data->dev, "%s-mux%d",
-					    indio_dev->name, indio_dev->id);
+	data->trig = devm_iio_trigger_alloc(dev, "%s-mux%d",
+					    indio_dev->name,
+					    iio_device_id(indio_dev));
 	if (!data->trig) {
 		dev_err(dev, "cannot allocate iio trigger.\n");
 		return -ENOMEM;
 	}
 
-	data->trig->ops = &lmp91000_trigger_ops;
-	data->trig->dev.parent = dev;
 	init_completion(&data->completion);
 
 	ret = lmp91000_read_config(data);
@@ -391,7 +383,7 @@ error_unreg_trigger:
 	return ret;
 }
 
-static int lmp91000_remove(struct i2c_client *client)
+static void lmp91000_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct lmp91000_data *data = iio_priv(indio_dev);
@@ -403,8 +395,6 @@ static int lmp91000_remove(struct i2c_client *client)
 
 	iio_triggered_buffer_cleanup(indio_dev);
 	iio_trigger_unregister(data->trig);
-
-	return 0;
 }
 
 static const struct of_device_id lmp91000_of_match[] = {
@@ -424,7 +414,7 @@ MODULE_DEVICE_TABLE(i2c, lmp91000_id);
 static struct i2c_driver lmp91000_driver = {
 	.driver = {
 		.name = LMP91000_DRV_NAME,
-		.of_match_table = of_match_ptr(lmp91000_of_match),
+		.of_match_table = lmp91000_of_match,
 	},
 	.probe = lmp91000_probe,
 	.remove = lmp91000_remove,

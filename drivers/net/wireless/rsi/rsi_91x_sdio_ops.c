@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2014 Redpine Signals Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -60,41 +60,22 @@ int rsi_sdio_master_access_msword(struct rsi_hw *adapter, u16 ms_word)
 	return status;
 }
 
+static void rsi_rx_handler(struct rsi_hw *adapter);
+
 void rsi_sdio_rx_thread(struct rsi_common *common)
 {
 	struct rsi_hw *adapter = common->priv;
 	struct rsi_91x_sdiodev *sdev = adapter->rsi_dev;
-	struct sk_buff *skb;
-	int status;
 
 	do {
 		rsi_wait_event(&sdev->rx_thread.event, EVENT_WAIT_FOREVER);
 		rsi_reset_event(&sdev->rx_thread.event);
+		rsi_rx_handler(adapter);
+	} while (!atomic_read(&sdev->rx_thread.thread_done));
 
-		while (true) {
-			if (atomic_read(&sdev->rx_thread.thread_done))
-				goto out;
-
-			skb = skb_dequeue(&sdev->rx_q.head);
-			if (!skb)
-				break;
-			if (sdev->rx_q.num_rx_pkts > 0)
-				sdev->rx_q.num_rx_pkts--;
-			status = rsi_read_pkt(common, skb->data, skb->len);
-			if (status) {
-				rsi_dbg(ERR_ZONE, "Failed to read the packet\n");
-				dev_kfree_skb(skb);
-				break;
-			}
-			dev_kfree_skb(skb);
-		}
-	} while (1);
-
-out:
 	rsi_dbg(INFO_ZONE, "%s: Terminated SDIO RX thread\n", __func__);
-	skb_queue_purge(&sdev->rx_q.head);
 	atomic_inc(&sdev->rx_thread.thread_done);
-	complete_and_exit(&sdev->rx_thread.completion, 0);
+	kthread_complete_and_exit(&sdev->rx_thread.completion, 0);
 }
 
 /**
@@ -107,16 +88,11 @@ out:
 static int rsi_process_pkt(struct rsi_common *common)
 {
 	struct rsi_hw *adapter = common->priv;
-	struct rsi_91x_sdiodev *dev =
-		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
+	struct rsi_91x_sdiodev *dev = adapter->rsi_dev;
 	u8 num_blks = 0;
 	u32 rcv_pkt_len = 0;
 	int status = 0;
 	u8 value = 0;
-	struct sk_buff *skb;
-
-	if (dev->rx_q.num_rx_pkts >= RSI_MAX_RX_PKTS)
-		return 0;
 
 	num_blks = ((adapter->interrupt_status & 1) |
 			((adapter->interrupt_status >> RECV_NUM_BLOCKS) << 1));
@@ -144,22 +120,19 @@ static int rsi_process_pkt(struct rsi_common *common)
 
 	rcv_pkt_len = (num_blks * 256);
 
-	skb = dev_alloc_skb(rcv_pkt_len);
-	if (!skb)
-		return -ENOMEM;
-
-	status = rsi_sdio_host_intf_read_pkt(adapter, skb->data, rcv_pkt_len);
+	status = rsi_sdio_host_intf_read_pkt(adapter, dev->pktbuffer,
+					     rcv_pkt_len);
 	if (status) {
 		rsi_dbg(ERR_ZONE, "%s: Failed to read packet from card\n",
 			__func__);
-		dev_kfree_skb(skb);
 		return status;
 	}
-	skb_put(skb, rcv_pkt_len);
-	skb_queue_tail(&dev->rx_q.head, skb);
-	dev->rx_q.num_rx_pkts++;
 
-	rsi_set_event(&dev->rx_thread.event);
+	status = rsi_read_pkt(common, dev->pktbuffer, rcv_pkt_len);
+	if (status) {
+		rsi_dbg(ERR_ZONE, "Failed to read the packet\n");
+		return status;
+	}
 
 	return 0;
 }
@@ -173,8 +146,7 @@ static int rsi_process_pkt(struct rsi_common *common)
  */
 int rsi_init_sdio_slave_regs(struct rsi_hw *adapter)
 {
-	struct rsi_91x_sdiodev *dev =
-		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
+	struct rsi_91x_sdiodev *dev = adapter->rsi_dev;
 	u8 function = 0;
 	u8 byte;
 	int status = 0;
@@ -251,18 +223,16 @@ int rsi_init_sdio_slave_regs(struct rsi_hw *adapter)
 }
 
 /**
- * rsi_interrupt_handler() - This function read and process SDIO interrupts.
+ * rsi_rx_handler() - Read and process SDIO interrupts.
  * @adapter: Pointer to the adapter structure.
  *
  * Return: None.
  */
-void rsi_interrupt_handler(struct rsi_hw *adapter)
+static void rsi_rx_handler(struct rsi_hw *adapter)
 {
 	struct rsi_common *common = adapter->priv;
-	struct rsi_91x_sdiodev *dev =
-		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
+	struct rsi_91x_sdiodev *dev = adapter->rsi_dev;
 	int status;
-	enum sdio_interrupt_type isr_type;
 	u8 isr_status = 0;
 	u8 fw_status = 0;
 
@@ -293,73 +263,69 @@ void rsi_interrupt_handler(struct rsi_hw *adapter)
 			__func__, isr_status, (1 << MSDU_PKT_PENDING),
 			(1 << FW_ASSERT_IND));
 
-		do {
-			RSI_GET_SDIO_INTERRUPT_TYPE(isr_status, isr_type);
-
-			switch (isr_type) {
-			case BUFFER_AVAILABLE:
-				status = rsi_sdio_check_buffer_status(adapter,
-								      0);
-				if (status < 0)
-					rsi_dbg(ERR_ZONE,
-						"%s: Failed to check buffer status\n",
-						__func__);
-				rsi_sdio_ack_intr(common->priv,
-						  (1 << PKT_BUFF_AVAILABLE));
-				rsi_set_event(&common->tx_thread.event);
-
-				rsi_dbg(ISR_ZONE,
-					"%s: ==> BUFFER_AVAILABLE <==\n",
-					__func__);
-				dev->buff_status_updated = true;
-				break;
-
-			case FIRMWARE_ASSERT_IND:
+		if (isr_status & BIT(PKT_BUFF_AVAILABLE)) {
+			status = rsi_sdio_check_buffer_status(adapter, 0);
+			if (status < 0)
 				rsi_dbg(ERR_ZONE,
-					"%s: ==> FIRMWARE Assert <==\n",
+					"%s: Failed to check buffer status\n",
 					__func__);
-				status = rsi_sdio_read_register(common->priv,
+			rsi_sdio_ack_intr(common->priv,
+					  BIT(PKT_BUFF_AVAILABLE));
+			rsi_set_event(&common->tx_thread.event);
+
+			rsi_dbg(ISR_ZONE, "%s: ==> BUFFER_AVAILABLE <==\n",
+				__func__);
+			dev->buff_status_updated = true;
+
+			isr_status &= ~BIT(PKT_BUFF_AVAILABLE);
+		}
+
+		if (isr_status & BIT(FW_ASSERT_IND)) {
+			rsi_dbg(ERR_ZONE, "%s: ==> FIRMWARE Assert <==\n",
+				__func__);
+			status = rsi_sdio_read_register(common->priv,
 							SDIO_FW_STATUS_REG,
 							&fw_status);
-				if (status) {
-					rsi_dbg(ERR_ZONE,
-						"%s: Failed to read f/w reg\n",
-						__func__);
-				} else {
-					rsi_dbg(ERR_ZONE,
-						"%s: Firmware Status is 0x%x\n",
-						__func__ , fw_status);
-					rsi_sdio_ack_intr(common->priv,
-							  (1 << FW_ASSERT_IND));
-				}
-
-				common->fsm_state = FSM_CARD_NOT_READY;
-				break;
-
-			case MSDU_PACKET_PENDING:
-				rsi_dbg(ISR_ZONE, "Pkt pending interrupt\n");
-				dev->rx_info.total_sdio_msdu_pending_intr++;
-
-				status = rsi_process_pkt(common);
-				if (status) {
-					rsi_dbg(ERR_ZONE,
-						"%s: Failed to read pkt\n",
-						__func__);
-					mutex_unlock(&common->rx_lock);
-					return;
-				}
-				break;
-			default:
-				rsi_sdio_ack_intr(common->priv, isr_status);
-				dev->rx_info.total_sdio_unknown_intr++;
-				isr_status = 0;
-				rsi_dbg(ISR_ZONE,
-					"Unknown Interrupt %x\n",
-					isr_status);
-				break;
+			if (status) {
+				rsi_dbg(ERR_ZONE,
+					"%s: Failed to read f/w reg\n",
+					__func__);
+			} else {
+				rsi_dbg(ERR_ZONE,
+					"%s: Firmware Status is 0x%x\n",
+					__func__, fw_status);
+				rsi_sdio_ack_intr(common->priv,
+						  BIT(FW_ASSERT_IND));
 			}
-			isr_status ^= BIT(isr_type - 1);
-		} while (isr_status);
+
+			common->fsm_state = FSM_CARD_NOT_READY;
+
+			isr_status &= ~BIT(FW_ASSERT_IND);
+		}
+
+		if (isr_status & BIT(MSDU_PKT_PENDING)) {
+			rsi_dbg(ISR_ZONE, "Pkt pending interrupt\n");
+			dev->rx_info.total_sdio_msdu_pending_intr++;
+
+			status = rsi_process_pkt(common);
+			if (status) {
+				rsi_dbg(ERR_ZONE, "%s: Failed to read pkt\n",
+					__func__);
+				mutex_unlock(&common->rx_lock);
+				return;
+			}
+
+			isr_status &= ~BIT(MSDU_PKT_PENDING);
+		}
+
+		if (isr_status) {
+			rsi_sdio_ack_intr(common->priv, isr_status);
+			dev->rx_info.total_sdio_unknown_intr++;
+			isr_status = 0;
+			rsi_dbg(ISR_ZONE, "Unknown Interrupt %x\n",
+				isr_status);
+		}
+
 		mutex_unlock(&common->rx_lock);
 	} while (1);
 }
@@ -370,8 +336,7 @@ void rsi_interrupt_handler(struct rsi_hw *adapter)
 int rsi_sdio_check_buffer_status(struct rsi_hw *adapter, u8 q_num)
 {
 	struct rsi_common *common = adapter->priv;
-	struct rsi_91x_sdiodev *dev =
-		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
+	struct rsi_91x_sdiodev *dev = adapter->rsi_dev;
 	u8 buf_status = 0;
 	int status = 0;
 	static int counter = 4;
@@ -440,8 +405,7 @@ out:
  */
 int rsi_sdio_determine_event_timeout(struct rsi_hw *adapter)
 {
-	struct rsi_91x_sdiodev *dev =
-		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
+	struct rsi_91x_sdiodev *dev = adapter->rsi_dev;
 
 	/* Once buffer full is seen, event timeout to occur every 2 msecs */
 	if (dev->rx_info.buffer_full)

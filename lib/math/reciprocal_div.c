@@ -1,9 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <linux/bitops.h>
 #include <linux/bug.h>
-#include <linux/kernel.h>
-#include <asm/div64.h>
-#include <linux/reciprocal_div.h>
 #include <linux/export.h>
+#include <linux/limits.h>
+#include <linux/math.h>
+#include <linux/minmax.h>
+#include <linux/types.h>
+
+#include <linux/reciprocal_div.h>
 
 /*
  * For a description of the algorithm please have a look at

@@ -28,17 +28,12 @@
 /* kernel only RUI/RUD definitions */
 
 struct xfs_mount;
-struct kmem_zone;
+struct kmem_cache;
 
 /*
  * Max number of extents in fast allocation path.
  */
 #define	XFS_RUI_MAX_FAST_EXTENTS	16
-
-/*
- * Define RUI flag bits. Manipulated by set/clear/test_bit operators.
- */
-#define	XFS_RUI_RECOVERED		1
 
 /*
  * This is the "rmap update intent" log item.  It is used to log the fact that
@@ -52,7 +47,6 @@ struct xfs_rui_log_item {
 	struct xfs_log_item		rui_item;
 	atomic_t			rui_refcount;
 	atomic_t			rui_next_extent;
-	unsigned long			rui_flags;	/* misc flags */
 	struct xfs_rui_log_format	rui_format;
 };
 
@@ -74,14 +68,7 @@ struct xfs_rud_log_item {
 	struct xfs_rud_log_format	rud_format;
 };
 
-extern struct kmem_zone	*xfs_rui_zone;
-extern struct kmem_zone	*xfs_rud_zone;
-
-struct xfs_rui_log_item *xfs_rui_init(struct xfs_mount *, uint);
-int xfs_rui_copy_format(struct xfs_log_iovec *buf,
-		struct xfs_rui_log_format *dst_rui_fmt);
-void xfs_rui_item_free(struct xfs_rui_log_item *);
-void xfs_rui_release(struct xfs_rui_log_item *);
-int xfs_rui_recover(struct xfs_mount *mp, struct xfs_rui_log_item *ruip);
+extern struct kmem_cache	*xfs_rui_cache;
+extern struct kmem_cache	*xfs_rud_cache;
 
 #endif	/* __XFS_RMAP_ITEM_H__ */

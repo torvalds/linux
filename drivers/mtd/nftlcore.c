@@ -124,7 +124,7 @@ int nftl_read_oob(struct mtd_info *mtd, loff_t offs, size_t len,
 		  size_t *retlen, uint8_t *buf)
 {
 	loff_t mask = mtd->writesize - 1;
-	struct mtd_oob_ops ops;
+	struct mtd_oob_ops ops = { };
 	int res;
 
 	ops.mode = MTD_OPS_PLACE_OOB;
@@ -145,7 +145,7 @@ int nftl_write_oob(struct mtd_info *mtd, loff_t offs, size_t len,
 		   size_t *retlen, uint8_t *buf)
 {
 	loff_t mask = mtd->writesize - 1;
-	struct mtd_oob_ops ops;
+	struct mtd_oob_ops ops = { };
 	int res;
 
 	ops.mode = MTD_OPS_PLACE_OOB;
@@ -168,7 +168,7 @@ static int nftl_write(struct mtd_info *mtd, loff_t offs, size_t len,
 		      size_t *retlen, uint8_t *buf, uint8_t *oob)
 {
 	loff_t mask = mtd->writesize - 1;
-	struct mtd_oob_ops ops;
+	struct mtd_oob_ops ops = { };
 	int res;
 
 	ops.mode = MTD_OPS_PLACE_OOB;
@@ -619,7 +619,6 @@ static inline u16 NFTL_findwriteunit(struct NFTLrecord *nftl, unsigned block)
 				return BLOCK_NIL;
 			}
 			//printk("Restarting scan\n");
-			lastEUN = BLOCK_NIL;
 			continue;
 		}
 
@@ -797,18 +796,7 @@ static struct mtd_blktrans_ops nftl_tr = {
 	.owner		= THIS_MODULE,
 };
 
-static int __init init_nftl(void)
-{
-	return register_mtd_blktrans(&nftl_tr);
-}
-
-static void __exit cleanup_nftl(void)
-{
-	deregister_mtd_blktrans(&nftl_tr);
-}
-
-module_init(init_nftl);
-module_exit(cleanup_nftl);
+module_mtd_blktrans(nftl_tr);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Woodhouse <dwmw2@infradead.org>, Fabrice Bellard <fabrice.bellard@netgem.com> et al.");

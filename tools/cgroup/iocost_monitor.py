@@ -28,7 +28,8 @@ parser.add_argument('devname', metavar='DEV',
 parser.add_argument('--cgroup', action='append', metavar='REGEX',
                     help='Regex for target cgroups, ')
 parser.add_argument('--interval', '-i', metavar='SECONDS', type=float, default=1,
-                    help='Monitoring interval in seconds')
+                    help='Monitoring interval in seconds (0 exits immediately '
+                    'after checking requirements)')
 parser.add_argument('--json', action='store_true',
                     help='Output in json')
 args = parser.parse_args()
@@ -44,8 +45,7 @@ except:
     err('The kernel does not have iocost enabled')
 
 IOC_RUNNING     = prog['IOC_RUNNING'].value_()
-NR_USAGE_SLOTS  = prog['NR_USAGE_SLOTS'].value_()
-HWEIGHT_WHOLE   = prog['HWEIGHT_WHOLE'].value_()
+WEIGHT_ONE      = prog['WEIGHT_ONE'].value_()
 VTIME_PER_SEC   = prog['VTIME_PER_SEC'].value_()
 VTIME_PER_USEC  = prog['VTIME_PER_USEC'].value_()
 AUTOP_SSD_FAST  = prog['AUTOP_SSD_FAST'].value_()
@@ -61,6 +61,11 @@ autop_names = {
 }
 
 class BlkgIterator:
+    def __init__(self, root_blkcg, q_id, include_dying=False):
+        self.include_dying = include_dying
+        self.blkgs = []
+        self.walk(root_blkcg, q_id, '')
+
     def blkcg_name(blkcg):
         return blkcg.css.cgroup.kn.name.string_().decode('utf-8')
 
@@ -72,7 +77,7 @@ class BlkgIterator:
         name = BlkgIterator.blkcg_name(blkcg)
         path = parent_path + '/' + name if parent_path else name
         blkg = drgn.Object(prog, 'struct blkcg_gq',
-                           address=radix_tree_lookup(blkcg.blkg_tree, q_id))
+                           address=radix_tree_lookup(blkcg.blkg_tree.address_of_(), q_id))
         if not blkg.address_:
             return
 
@@ -81,11 +86,6 @@ class BlkgIterator:
         for c in list_for_each_entry('struct blkcg',
                                      blkcg.css.children.address_of_(), 'css.sibling'):
             self.walk(c, q_id, path)
-
-    def __init__(self, root_blkcg, q_id, include_dying=False):
-        self.include_dying = include_dying
-        self.blkgs = []
-        self.walk(root_blkcg, q_id, '')
 
     def __iter__(self):
         return iter(self.blkgs)
@@ -99,7 +99,8 @@ class IocStat:
         self.period_ms = ioc.period_us.value_() / 1_000
         self.period_at = ioc.period_at.value_() / 1_000_000
         self.vperiod_at = ioc.period_at_vtime.value_() / VTIME_PER_SEC
-        self.vrate_pct = ioc.vtime_rate.counter.value_() * 100 / VTIME_PER_USEC
+        self.vrate_pct = ioc.vtime_base_rate.value_() * 100 / VTIME_PER_USEC
+        self.ivrate_pct = ioc.vtime_rate.counter.value_() * 100 / VTIME_PER_USEC
         self.busy_level = ioc.busy_level.value_()
         self.autop_idx = ioc.autop_idx.value_()
         self.user_cost_model = ioc.user_cost_model.value_()
@@ -112,14 +113,16 @@ class IocStat:
 
     def dict(self, now):
         return { 'device'               : devname,
-                 'timestamp'            : str(now),
-                 'enabled'              : str(int(self.enabled)),
-                 'running'              : str(int(self.running)),
-                 'period_ms'            : str(self.period_ms),
-                 'period_at'            : str(self.period_at),
-                 'period_vtime_at'      : str(self.vperiod_at),
-                 'busy_level'           : str(self.busy_level),
-                 'vrate_pct'            : str(self.vrate_pct), }
+                 'timestamp'            : now,
+                 'enabled'              : self.enabled,
+                 'running'              : self.running,
+                 'period_ms'            : self.period_ms,
+                 'period_at'            : self.period_at,
+                 'period_vtime_at'      : self.vperiod_at,
+                 'busy_level'           : self.busy_level,
+                 'vrate_pct'            : self.vrate_pct,
+                 'ivrate_pct'           : self.ivrate_pct,
+                }
 
     def table_preamble_str(self):
         state = ('RUN' if self.running else 'IDLE') if self.enabled else 'OFF'
@@ -127,7 +130,7 @@ class IocStat:
                  f'per={self.period_ms}ms ' \
                  f'cur_per={self.period_at:.3f}:v{self.vperiod_at:.3f} ' \
                  f'busy={self.busy_level:+3} ' \
-                 f'vrate={self.vrate_pct:6.2f}% ' \
+                 f'vrate={self.vrate_pct:6.2f}%:{self.ivrate_pct:6.2f}% ' \
                  f'params={self.autop_name}'
         if self.user_cost_model or self.user_qos_params:
             output += f'({"C" if self.user_cost_model else ""}{"Q" if self.user_qos_params else ""})'
@@ -135,7 +138,7 @@ class IocStat:
 
     def table_header_str(self):
         return f'{"":25} active {"weight":>9} {"hweight%":>13} {"inflt%":>6} ' \
-               f'{"dbt":>3} {"delay":>6} {"usages%"}'
+               f'{"usage%":>6} {"wait":>7} {"debt":>7} {"delay":>7}'
 
 class IocgStat:
     def __init__(self, iocg):
@@ -143,11 +146,11 @@ class IocgStat:
         blkg = iocg.pd.blkg
 
         self.is_active = not list_empty(iocg.active_list.address_of_())
-        self.weight = iocg.weight.value_()
-        self.active = iocg.active.value_()
-        self.inuse = iocg.inuse.value_()
-        self.hwa_pct = iocg.hweight_active.value_() * 100 / HWEIGHT_WHOLE
-        self.hwi_pct = iocg.hweight_inuse.value_() * 100 / HWEIGHT_WHOLE
+        self.weight = iocg.weight.value_() / WEIGHT_ONE
+        self.active = iocg.active.value_() / WEIGHT_ONE
+        self.inuse = iocg.inuse.value_() / WEIGHT_ONE
+        self.hwa_pct = iocg.hweight_active.value_() * 100 / WEIGHT_ONE
+        self.hwi_pct = iocg.hweight_inuse.value_() * 100 / WEIGHT_ONE
         self.address = iocg.value_()
 
         vdone = iocg.done_vtime.counter.value_()
@@ -159,49 +162,43 @@ class IocgStat:
         else:
             self.inflight_pct = 0
 
-        self.debt_ms = iocg.abs_vdebt.counter.value_() / VTIME_PER_USEC / 1000
-        self.use_delay = blkg.use_delay.counter.value_()
-        self.delay_ms = blkg.delay_nsec.counter.value_() / 1_000_000
-
-        usage_idx = iocg.usage_idx.value_()
-        self.usages = []
-        self.usage = 0
-        for i in range(NR_USAGE_SLOTS):
-            usage = iocg.usages[(usage_idx + i) % NR_USAGE_SLOTS].value_()
-            upct = usage * 100 / HWEIGHT_WHOLE
-            self.usages.append(upct)
-            self.usage = max(self.usage, upct)
+        self.usage = (100 * iocg.usage_delta_us.value_() /
+                      ioc.period_us.value_()) if self.active else 0
+        self.wait_ms = (iocg.stat.wait_us.value_() -
+                        iocg.last_stat.wait_us.value_()) / 1000
+        self.debt_ms = iocg.abs_vdebt.value_() / VTIME_PER_USEC / 1000
+        if blkg.use_delay.counter.value_() != 0:
+            self.delay_ms = blkg.delay_nsec.counter.value_() / 1_000_000
+        else:
+            self.delay_ms = 0
 
     def dict(self, now, path):
         out = { 'cgroup'                : path,
-                'timestamp'             : str(now),
-                'is_active'             : str(int(self.is_active)),
-                'weight'                : str(self.weight),
-                'weight_active'         : str(self.active),
-                'weight_inuse'          : str(self.inuse),
-                'hweight_active_pct'    : str(self.hwa_pct),
-                'hweight_inuse_pct'     : str(self.hwi_pct),
-                'inflight_pct'          : str(self.inflight_pct),
-                'debt_ms'               : str(self.debt_ms),
-                'use_delay'             : str(self.use_delay),
-                'delay_ms'              : str(self.delay_ms),
-                'usage_pct'             : str(self.usage),
-                'address'               : str(hex(self.address)) }
-        for i in range(len(self.usages)):
-            out[f'usage_pct_{i}'] = str(self.usages[i])
+                'timestamp'             : now,
+                'is_active'             : self.is_active,
+                'weight'                : self.weight,
+                'weight_active'         : self.active,
+                'weight_inuse'          : self.inuse,
+                'hweight_active_pct'    : self.hwa_pct,
+                'hweight_inuse_pct'     : self.hwi_pct,
+                'inflight_pct'          : self.inflight_pct,
+                'usage_pct'             : self.usage,
+                'wait_ms'               : self.wait_ms,
+                'debt_ms'               : self.debt_ms,
+                'delay_ms'              : self.delay_ms,
+                'address'               : self.address }
         return out
 
     def table_row_str(self, path):
         out = f'{path[-28:]:28} ' \
               f'{"*" if self.is_active else " "} ' \
-              f'{self.inuse:5}/{self.active:5} ' \
+              f'{round(self.inuse):5}/{round(self.active):5} ' \
               f'{self.hwi_pct:6.2f}/{self.hwa_pct:6.2f} ' \
               f'{self.inflight_pct:6.2f} ' \
-              f'{min(math.ceil(self.debt_ms), 999):3} ' \
-              f'{min(self.use_delay, 99):2}*'\
-              f'{min(math.ceil(self.delay_ms), 999):03} '
-        for u in self.usages:
-            out += f'{min(round(u), 999):03d}:'
+              f'{min(self.usage, 999):6.2f} ' \
+              f'{self.wait_ms:7.2f} ' \
+              f'{self.debt_ms:7.2f} ' \
+              f'{self.delay_ms:7.2f}'
         out = out.rstrip(':')
         return out
 
@@ -228,10 +225,10 @@ q_id = None
 root_iocg = None
 ioc = None
 
-for i, ptr in radix_tree_for_each(blkcg_root.blkg_tree):
+for i, ptr in radix_tree_for_each(blkcg_root.blkg_tree.address_of_()):
     blkg = drgn.Object(prog, 'struct blkcg_gq', address=ptr)
     try:
-        if devname == blkg.q.kobj.parent.name.string_().decode('utf-8'):
+        if devname == blkg.q.mq_kobj.parent.name.string_().decode('utf-8'):
             q_id = blkg.q.id.value_()
             if blkg.pd[plid]:
                 root_iocg = container_of(blkg.pd[plid], 'struct ioc_gq', 'pd')
@@ -242,6 +239,9 @@ for i, ptr in radix_tree_for_each(blkcg_root.blkg_tree):
 
 if ioc is None:
     err(f'Could not find ioc for {devname}');
+
+if interval == 0:
+    sys.exit(0)
 
 # Keep printing
 while True:

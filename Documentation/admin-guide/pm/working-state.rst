@@ -8,6 +8,11 @@ Working-State Power Management
    :maxdepth: 2
 
    cpuidle
+   intel_idle
    cpufreq
    intel_pstate
+   amd-pstate
+   cpufreq_drivers
    intel_epb
+   intel-speed-select
+   intel_uncore_frequency_scaling

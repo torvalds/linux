@@ -14,11 +14,6 @@
 #define to_nubus_board(d)       container_of(d, struct nubus_board, dev)
 #define to_nubus_driver(d)      container_of(d, struct nubus_driver, driver)
 
-static int nubus_bus_match(struct device *dev, struct device_driver *driver)
-{
-	return 1;
-}
-
 static int nubus_device_probe(struct device *dev)
 {
 	struct nubus_driver *ndrv = to_nubus_driver(dev->driver);
@@ -29,23 +24,19 @@ static int nubus_device_probe(struct device *dev)
 	return err;
 }
 
-static int nubus_device_remove(struct device *dev)
+static void nubus_device_remove(struct device *dev)
 {
 	struct nubus_driver *ndrv = to_nubus_driver(dev->driver);
-	int err = -ENODEV;
 
-	if (dev->driver && ndrv->remove)
-		err = ndrv->remove(to_nubus_board(dev));
-	return err;
+	if (ndrv->remove)
+		ndrv->remove(to_nubus_board(dev));
 }
 
-struct bus_type nubus_bus_type = {
+static const struct bus_type nubus_bus_type = {
 	.name		= "nubus",
-	.match		= nubus_bus_match,
 	.probe		= nubus_device_probe,
 	.remove		= nubus_device_remove,
 };
-EXPORT_SYMBOL(nubus_bus_type);
 
 int nubus_driver_register(struct nubus_driver *ndrv)
 {

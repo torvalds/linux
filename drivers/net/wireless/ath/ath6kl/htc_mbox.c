@@ -364,8 +364,7 @@ static void ath6kl_htc_tx_prep_pkt(struct htc_packet *packet, u8 flags,
 	packet->buf -= HTC_HDR_LENGTH;
 	hdr =  (struct htc_frame_hdr *)packet->buf;
 
-	/* Endianess? */
-	put_unaligned((u16)packet->act_len, &hdr->payld_len);
+	put_unaligned_le16(packet->act_len, &hdr->payld_len);
 	hdr->flags = flags;
 	hdr->eid = packet->endpoint;
 	hdr->ctrl[0] = ctrl0;
@@ -1538,7 +1537,7 @@ static int ath6kl_htc_rx_alloc(struct htc_target *target,
 					     queue, n_msg);
 
 		/*
-		 * This is due to unavailabilty of buffers to rx entire data.
+		 * This is due to unavailability of buffers to rx entire data.
 		 * Return no error so that free buffers from queue can be used
 		 * to receive partial data.
 		 */
@@ -2260,19 +2259,16 @@ int ath6kl_htc_rxmsg_pending_handler(struct htc_target *target,
 static struct htc_packet *htc_wait_for_ctrl_msg(struct htc_target *target)
 {
 	struct htc_packet *packet = NULL;
-	struct htc_frame_hdr *htc_hdr;
-	u32 look_ahead;
+	struct htc_frame_look_ahead look_ahead;
 
-	if (ath6kl_hif_poll_mboxmsg_rx(target->dev, &look_ahead,
+	if (ath6kl_hif_poll_mboxmsg_rx(target->dev, &look_ahead.word,
 				       HTC_TARGET_RESPONSE_TIMEOUT))
 		return NULL;
 
 	ath6kl_dbg(ATH6KL_DBG_HTC,
-		   "htc rx wait ctrl look_ahead 0x%X\n", look_ahead);
+		   "htc rx wait ctrl look_ahead 0x%X\n", look_ahead.word);
 
-	htc_hdr = (struct htc_frame_hdr *)&look_ahead;
-
-	if (htc_hdr->eid != ENDPOINT_0)
+	if (look_ahead.eid != ENDPOINT_0)
 		return NULL;
 
 	packet = htc_get_control_buf(target, false);
@@ -2281,8 +2277,8 @@ static struct htc_packet *htc_wait_for_ctrl_msg(struct htc_target *target)
 		return NULL;
 
 	packet->info.rx.rx_flags = 0;
-	packet->info.rx.exp_hdr = look_ahead;
-	packet->act_len = le16_to_cpu(htc_hdr->payld_len) + HTC_HDR_LENGTH;
+	packet->info.rx.exp_hdr = look_ahead.word;
+	packet->act_len = le16_to_cpu(look_ahead.payld_len) + HTC_HDR_LENGTH;
 
 	if (packet->act_len > packet->buf_len)
 		goto fail_ctrl_rx;

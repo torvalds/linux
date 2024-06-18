@@ -103,7 +103,8 @@ static void buffer_finish(struct vb2_buffer *vb)
 	struct cx88_riscmem *risc = &buf->risc;
 
 	if (risc->cpu)
-		pci_free_consistent(dev->pci, risc->size, risc->cpu, risc->dma);
+		dma_free_coherent(&dev->pci->dev, risc->size, risc->cpu,
+				  risc->dma);
 	memset(risc, 0, sizeof(*risc));
 }
 
@@ -1378,6 +1379,7 @@ static int dvb_register(struct cx8802_dev *dev)
 				fe->ops.tuner_ops.set_config(fe, &ctl);
 		}
 		break;
+	case CX88_BOARD_NOTONLYTV_LV3H:
 	case CX88_BOARD_PINNACLE_HYBRID_PCTV:
 	case CX88_BOARD_WINFAST_DTV1800H:
 		fe0->dvb.frontend = dvb_attach(zl10353_attach,
@@ -1774,7 +1776,7 @@ static int cx8802_dvb_probe(struct cx8802_driver *drv)
 		q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 		q->io_modes = VB2_MMAP | VB2_USERPTR | VB2_DMABUF | VB2_READ;
 		q->gfp_flags = GFP_DMA32;
-		q->min_buffers_needed = 2;
+		q->min_queued_buffers = 2;
 		q->drv_priv = dev;
 		q->buf_struct_size = sizeof(struct cx88_buffer);
 		q->ops = &dvb_qops;

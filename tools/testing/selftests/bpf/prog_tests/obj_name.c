@@ -20,7 +20,7 @@ void test_obj_name(void)
 	__u32 duration = 0;
 	int i;
 
-	for (i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(tests); i++) {
 		size_t name_len = strlen(tests[i].name) + 1;
 		union bpf_attr attr;
 		size_t ncopy;
@@ -38,13 +38,13 @@ void test_obj_name(void)
 
 		fd = syscall(__NR_bpf, BPF_PROG_LOAD, &attr, sizeof(attr));
 		CHECK((tests[i].success && fd < 0) ||
-		      (!tests[i].success && fd != -1) ||
+		      (!tests[i].success && fd >= 0) ||
 		      (!tests[i].success && errno != tests[i].expected_errno),
 		      "check-bpf-prog-name",
 		      "fd %d(%d) errno %d(%d)\n",
 		       fd, tests[i].success, errno, tests[i].expected_errno);
 
-		if (fd != -1)
+		if (fd >= 0)
 			close(fd);
 
 		/* test different attr.map_name during BPF_MAP_CREATE */
@@ -59,13 +59,13 @@ void test_obj_name(void)
 		memcpy(attr.map_name, tests[i].name, ncopy);
 		fd = syscall(__NR_bpf, BPF_MAP_CREATE, &attr, sizeof(attr));
 		CHECK((tests[i].success && fd < 0) ||
-		      (!tests[i].success && fd != -1) ||
+		      (!tests[i].success && fd >= 0) ||
 		      (!tests[i].success && errno != tests[i].expected_errno),
 		      "check-bpf-map-name",
 		      "fd %d(%d) errno %d(%d)\n",
 		      fd, tests[i].success, errno, tests[i].expected_errno);
 
-		if (fd != -1)
+		if (fd >= 0)
 			close(fd);
 	}
 }

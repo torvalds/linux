@@ -163,13 +163,15 @@ static inline u64 time_to_avg_nsec(u32 value, u32 count)
  */
 static inline void cmf_activate(void *area, unsigned int onoff)
 {
-	register void * __gpr2 asm("2");
-	register long __gpr1 asm("1");
-
-	__gpr2 = area;
-	__gpr1 = onoff;
 	/* activate channel measurement */
-	asm("schm" : : "d" (__gpr2), "d" (__gpr1) );
+	asm volatile(
+		"	lgr	1,%[r1]\n"
+		"	lgr	2,%[mbo]\n"
+		"	schm\n"
+		:
+		: [r1] "d" ((unsigned long)onoff),
+		  [mbo] "d" (virt_to_phys(area))
+		: "1", "2");
 }
 
 static int set_schib(struct ccw_device *cdev, u32 mme, int mbfc,
@@ -500,8 +502,7 @@ static int alloc_cmb(struct ccw_device *cdev)
 		WARN_ON(!list_empty(&cmb_area.list));
 
 		spin_unlock(&cmb_area.lock);
-		mem = (void*)__get_free_pages(GFP_KERNEL | GFP_DMA,
-				 get_order(size));
+		mem = (void *)__get_free_pages(GFP_KERNEL, get_order(size));
 		spin_lock(&cmb_area.lock);
 
 		if (cmb_area.mem) {
@@ -1108,11 +1109,6 @@ static ssize_t cmb_enable_store(struct device *dev,
 	return ret ? ret : c;
 }
 DEVICE_ATTR_RW(cmb_enable);
-
-int ccw_set_cmf(struct ccw_device *cdev, int enable)
-{
-	return cmbops->set(cdev, enable ? 2 : 0);
-}
 
 /**
  * enable_cmf() - switch on the channel measurement for a specific device

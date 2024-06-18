@@ -197,13 +197,6 @@
 						reg = <0x00fa0000 0x00060000>;
 					};
 				};
-
-				SysACE_CompactFlash: sysace@1,0 {
-					compatible = "xlnx,sysace";
-					interrupt-parent = <&UIC2>;
-					interrupts = <24 0x4>;
-					reg = <0x00000001 0x00000000 0x10000>;
-				};
 			};
 
 			UART0: serial@f0000200 {
@@ -315,7 +308,7 @@
 			interrupt-map = <0x0 0x0 0x0 0x0 &UIC1 19 0x8>;
 		};
 
-		PCIE0: pciex@d00000000 {
+		PCIE0: pcie@d00000000 {
 			device_type = "pci";
 			#interrupt-cells = <1>;
 			#size-cells = <2>;
@@ -356,7 +349,7 @@
 				0x0 0x0 0x0 0x4 &UIC3 0x3 0x4 /* swizzled int D */>;
 		};
 
-		PCIE1: pciex@d20000000 {
+		PCIE1: pcie@d20000000 {
 			device_type = "pci";
 			#interrupt-cells = <1>;
 			#size-cells = <2>;

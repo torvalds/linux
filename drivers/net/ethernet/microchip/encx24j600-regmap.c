@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * Register map access API - ENCX24J600 support
  *
  * Copyright 2015 Gridpoint
@@ -16,11 +16,6 @@
 #include <linux/spi/spi.h>
 
 #include "encx24j600_hw.h"
-
-static inline bool is_bits_set(int value, int mask)
-{
-	return (value & mask) == mask;
-}
 
 static int encx24j600_switch_bank(struct encx24j600_context *ctx,
 				  int bank)
@@ -80,7 +75,7 @@ static int regmap_encx24j600_sfr_read(void *context, u8 reg, u8 *val,
 		if (unlikely(ret))
 			return ret;
 	} else {
-		/* Translate registers that are more effecient using
+		/* Translate registers that are more efficient using
 		 * 3-byte SPI commands
 		 */
 		switch (reg) {
@@ -134,7 +129,7 @@ static int regmap_encx24j600_sfr_update(struct encx24j600_context *ctx,
 		if (unlikely(ret))
 			return ret;
 	} else {
-		/* Translate registers that are more effecient using
+		/* Translate registers that are more efficient using
 		 * 3-byte SPI commands
 		 */
 		switch (reg) {
@@ -364,7 +359,7 @@ static int regmap_encx24j600_phy_reg_read(void *context, unsigned int reg,
 		goto err_out;
 
 	usleep_range(26, 100);
-	while ((ret = regmap_read(ctx->regmap, MISTAT, &mistat) != 0) &&
+	while (((ret = regmap_read(ctx->regmap, MISTAT, &mistat)) == 0) &&
 	       (mistat & BUSY))
 		cpu_relax();
 
@@ -402,7 +397,7 @@ static int regmap_encx24j600_phy_reg_write(void *context, unsigned int reg,
 		goto err_out;
 
 	usleep_range(26, 100);
-	while ((ret = regmap_read(ctx->regmap, MISTAT, &mistat) != 0) &&
+	while (((ret = regmap_read(ctx->regmap, MISTAT, &mistat)) == 0) &&
 	       (mistat & BUSY))
 		cpu_relax();
 
@@ -469,7 +464,7 @@ static struct regmap_config regcfg = {
 	.val_bits = 16,
 	.max_register = 0xee,
 	.reg_stride = 2,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.val_format_endian = REGMAP_ENDIAN_LITTLE,
 	.readable_reg = encx24j600_regmap_readable,
 	.writeable_reg = encx24j600_regmap_writeable,
@@ -490,7 +485,7 @@ static struct regmap_config phycfg = {
 	.reg_bits = 8,
 	.val_bits = 16,
 	.max_register = 0x1f,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.val_format_endian = REGMAP_ENDIAN_LITTLE,
 	.readable_reg = encx24j600_phymap_readable,
 	.writeable_reg = encx24j600_phymap_writeable,
@@ -502,14 +497,21 @@ static struct regmap_bus phymap_encx24j600 = {
 	.reg_read = regmap_encx24j600_phy_reg_read,
 };
 
-void devm_regmap_init_encx24j600(struct device *dev,
-				 struct encx24j600_context *ctx)
+int devm_regmap_init_encx24j600(struct device *dev,
+				struct encx24j600_context *ctx)
 {
 	mutex_init(&ctx->mutex);
 	regcfg.lock_arg = ctx;
 	ctx->regmap = devm_regmap_init(dev, &regmap_encx24j600, ctx, &regcfg);
+	if (IS_ERR(ctx->regmap))
+		return PTR_ERR(ctx->regmap);
 	ctx->phymap = devm_regmap_init(dev, &phymap_encx24j600, ctx, &phycfg);
+	if (IS_ERR(ctx->phymap))
+		return PTR_ERR(ctx->phymap);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(devm_regmap_init_encx24j600);
 
+MODULE_DESCRIPTION("Microchip ENCX24J600 helpers");
 MODULE_LICENSE("GPL");

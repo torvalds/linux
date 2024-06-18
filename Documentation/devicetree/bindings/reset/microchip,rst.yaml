@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/reset/microchip,rst.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Microchip Sparx5 Switch Reset Controller
+
+maintainers:
+  - Steen Hegelund <steen.hegelund@microchip.com>
+  - Lars Povlsen <lars.povlsen@microchip.com>
+
+description: |
+  The Microchip Sparx5 Switch provides reset control and implements the following
+  functions
+    - One Time Switch Core Reset (Soft Reset)
+
+properties:
+  $nodename:
+    pattern: "^reset-controller@[0-9a-f]+$"
+
+  compatible:
+    enum:
+      - microchip,sparx5-switch-reset
+      - microchip,lan966x-switch-reset
+
+  reg:
+    items:
+      - description: global control block registers
+
+  reg-names:
+    items:
+      - const: gcb
+
+  "#reset-cells":
+    const: 1
+
+  cpu-syscon:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: syscon used to access CPU reset
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - "#reset-cells"
+  - cpu-syscon
+
+additionalProperties: false
+
+examples:
+  - |
+    reset: reset-controller@11010008 {
+        compatible = "microchip,sparx5-switch-reset";
+        reg = <0x11010008 0x4>;
+        reg-names = "gcb";
+        #reset-cells = <1>;
+        cpu-syscon = <&cpu_ctrl>;
+    };

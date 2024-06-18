@@ -24,6 +24,8 @@
 #define TTB_FLAGS_SMP	TTB_IRGN_WBWA|TTB_S|TTB_NOS|TTB_RGN_OC_WBWA
 #define PMD_FLAGS_SMP	PMD_SECT_WBWA|PMD_SECT_S
 
+.arch armv7-a
+
 /*
  *	cpu_v7_switch_mm(pgd_phys, tsk)
  *
@@ -38,7 +40,7 @@
  *	even on Cortex-A8 revisions not affected by 430973.
  *	If IBE is not set, the flush BTAC/BTB won't do anything.
  */
-ENTRY(cpu_v7_switch_mm)
+SYM_TYPED_FUNC_START(cpu_v7_switch_mm)
 #ifdef CONFIG_MMU
 	mmid	r1, r1				@ get mm->context.id
 	ALT_SMP(orr	r0, r0, #TTB_FLAGS_SMP)
@@ -57,7 +59,7 @@ ENTRY(cpu_v7_switch_mm)
 	isb
 #endif
 	bx	lr
-ENDPROC(cpu_v7_switch_mm)
+SYM_FUNC_END(cpu_v7_switch_mm)
 
 /*
  *	cpu_v7_set_pte_ext(ptep, pte)
@@ -69,7 +71,7 @@ ENDPROC(cpu_v7_switch_mm)
  *	- pte   - PTE value to store
  *	- ext	- value for extended PTE bits
  */
-ENTRY(cpu_v7_set_pte_ext)
+SYM_TYPED_FUNC_START(cpu_v7_set_pte_ext)
 #ifdef CONFIG_MMU
 	str	r1, [r0]			@ linux version
 
@@ -104,7 +106,7 @@ ENTRY(cpu_v7_set_pte_ext)
 	ALT_UP (mcr	p15, 0, r0, c7, c10, 1)		@ flush_pte
 #endif
 	bx	lr
-ENDPROC(cpu_v7_set_pte_ext)
+SYM_FUNC_END(cpu_v7_set_pte_ext)
 
 	/*
 	 * Memory region attributes with SCTLR.TRE=1

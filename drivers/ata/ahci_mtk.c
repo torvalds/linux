@@ -11,6 +11,7 @@
 #include <linux/libata.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/regmap.h>
@@ -37,7 +38,7 @@ static const struct ata_port_info ahci_port_info = {
 	.port_ops	= &ahci_platform_ops,
 };
 
-static struct scsi_host_template ahci_platform_sht = {
+static const struct scsi_host_template ahci_platform_sht = {
 	AHCI_SHT(DRV_NAME),
 };
 
@@ -106,7 +107,7 @@ static int mtk_ahci_parse_property(struct ahci_host_priv *hpriv,
 	struct device_node *np = dev->of_node;
 
 	/* enable SATA function if needed */
-	if (of_find_property(np, "mediatek,phy-mode", NULL)) {
+	if (of_property_present(np, "mediatek,phy-mode")) {
 		plat->mode = syscon_regmap_lookup_by_phandle(
 					np, "mediatek,phy-mode");
 		if (IS_ERR(plat->mode)) {
@@ -117,8 +118,6 @@ static int mtk_ahci_parse_property(struct ahci_host_priv *hpriv,
 		regmap_update_bits(plat->mode, SYS_CFG, SYS_CFG_SATA_MSK,
 				   SYS_CFG_SATA_EN);
 	}
-
-	of_property_read_u32(np, "ports-implemented", &hpriv->force_port_map);
 
 	return 0;
 }
@@ -169,13 +168,13 @@ static SIMPLE_DEV_PM_OPS(ahci_pm_ops, ahci_platform_suspend,
 
 static const struct of_device_id ahci_of_match[] = {
 	{ .compatible = "mediatek,mtk-ahci", },
-	{},
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, ahci_of_match);
 
 static struct platform_driver mtk_ahci_driver = {
 	.probe = mtk_ahci_probe,
-	.remove = ata_platform_remove_one,
+	.remove_new = ata_platform_remove_one,
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = ahci_of_match,

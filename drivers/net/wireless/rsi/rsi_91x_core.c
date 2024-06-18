@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2014 Redpine Signals Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -193,8 +193,7 @@ get_queue_num:
 		if (recontend_queue)
 			goto get_queue_num;
 
-		q_num = INVALID_QUEUE;
-		return q_num;
+		return INVALID_QUEUE;
 	}
 
 	common->selected_qnum = q_num;
@@ -400,6 +399,8 @@ void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb)
 
 	info = IEEE80211_SKB_CB(skb);
 	tx_params = (struct skb_info *)info->driver_data;
+	/* info->driver_data and info->control part of union so make copy */
+	tx_params->have_key = !!info->control.hw_key;
 	wh = (struct ieee80211_hdr *)&skb->data[0];
 	tx_params->sta_id = 0;
 
@@ -419,7 +420,8 @@ void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb)
 			rsi_hal_send_sta_notify_frame(common,
 						      RSI_IFTYPE_STATION,
 						      STA_CONNECTED, bss->bssid,
-						      bss->qos, bss->aid, 0,
+						      bss->qos, vif->cfg.aid,
+						      0,
 						      vif);
 		}
 
@@ -464,7 +466,9 @@ void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb)
 							      tid, 0);
 			}
 		}
-		if (skb->protocol == cpu_to_be16(ETH_P_PAE)) {
+
+		if (IEEE80211_SKB_CB(skb)->control.flags &
+		    IEEE80211_TX_CTRL_PORT_CTRL_PROTO) {
 			q_num = MGMT_SOFT_Q;
 			skb->priority = q_num;
 		}

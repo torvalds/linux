@@ -141,14 +141,14 @@ static void do_suspend(void)
 
 	raw_notifier_call_chain(&xen_resume_notifier, 0, NULL);
 
+	xen_arch_resume();
+
 	dpm_resume_start(si.cancelled ? PMSG_THAW : PMSG_RESTORE);
 
 	if (err) {
 		pr_err("failed to start xen_suspend: %d\n", err);
 		si.cancelled = 1;
 	}
-
-	xen_arch_resume();
 
 out_resume:
 	if (!si.cancelled)
@@ -179,6 +179,7 @@ static int poweroff_nb(struct notifier_block *cb, unsigned long code, void *unus
 	case SYS_HALT:
 	case SYS_POWER_OFF:
 		shutting_down = SHUTDOWN_POWEROFF;
+		break;
 	default:
 		break;
 	}
@@ -204,7 +205,7 @@ static void do_poweroff(void)
 static void do_reboot(void)
 {
 	shutting_down = SHUTDOWN_POWEROFF; /* ? */
-	ctrl_alt_del();
+	orderly_reboot();
 }
 
 static struct shutdown_handler shutdown_handlers[] = {

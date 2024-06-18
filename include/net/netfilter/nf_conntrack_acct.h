@@ -65,9 +65,17 @@ static inline void nf_ct_set_acct(struct net *net, bool enable)
 #endif
 }
 
-void nf_conntrack_acct_pernet_init(struct net *net);
+void nf_ct_acct_add(struct nf_conn *ct, u32 dir, unsigned int packets,
+		    unsigned int bytes);
 
-int nf_conntrack_acct_init(void);
-void nf_conntrack_acct_fini(void);
+static inline void nf_ct_acct_update(struct nf_conn *ct, u32 dir,
+				     unsigned int bytes)
+{
+#if IS_ENABLED(CONFIG_NF_CONNTRACK)
+	nf_ct_acct_add(ct, dir, 1, bytes);
+#endif
+}
+
+void nf_conntrack_acct_pernet_init(struct net *net);
 
 #endif /* _NF_CONNTRACK_ACCT_H */

@@ -1,0 +1,72 @@
+/* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
+/* Copyright (c) 2017 - 2021 Intel Corporation */
+#ifndef ICRDMA_HW_H
+#define ICRDMA_HW_H
+
+#include "irdma.h"
+
+#define VFPE_CQPTAIL1		0x0000a000
+#define VFPE_CQPDB1		0x0000bc00
+#define VFPE_CCQPSTATUS1	0x0000b800
+#define VFPE_CCQPHIGH1		0x00009800
+#define VFPE_CCQPLOW1		0x0000ac00
+#define VFPE_CQARM1		0x0000b400
+#define VFPE_CQARM1		0x0000b400
+#define VFPE_CQACK1		0x0000b000
+#define VFPE_AEQALLOC1		0x0000a400
+#define VFPE_CQPERRCODES1	0x00009c00
+#define VFPE_WQEALLOC1		0x0000c000
+#define VFINT_DYN_CTLN(_i)	(0x00003800 + ((_i) * 4)) /* _i=0...63 */
+
+#define PFPE_CQPTAIL		0x00500880
+#define PFPE_CQPDB		0x00500800
+#define PFPE_CCQPSTATUS		0x0050a000
+#define PFPE_CCQPHIGH		0x0050a100
+#define PFPE_CCQPLOW		0x0050a080
+#define PFPE_CQARM		0x00502c00
+#define PFPE_CQACK		0x00502c80
+#define PFPE_AEQALLOC		0x00502d00
+#define GLINT_DYN_CTL(_INT)	(0x00160000 + ((_INT) * 4)) /* _i=0...2047 */
+#define GLPCI_LBARCTRL		0x0009de74
+#define GLPE_CPUSTATUS0		0x0050ba5c
+#define GLPE_CPUSTATUS1		0x0050ba60
+#define GLPE_CPUSTATUS2		0x0050ba64
+#define PFINT_AEQCTL		0x0016cb00
+#define PFPE_CQPERRCODES	0x0050a200
+#define PFPE_WQEALLOC		0x00504400
+#define GLINT_CEQCTL(_INT)	(0x0015c000 + ((_INT) * 4)) /* _i=0...2047 */
+#define VSIQF_PE_CTL1(_VSI)	(0x00414000 + ((_VSI) * 4)) /* _i=0...767 */
+#define PFHMC_PDINV		0x00520300
+#define GLHMC_VFPDINV(_i)	(0x00528300 + ((_i) * 4)) /* _i=0...31 */
+#define GLPE_CRITERR		0x00534000
+#define GLINT_RATE(_INT)	(0x0015A000 + ((_INT) * 4)) /* _i=0...2047 */ /* Reset Source: CORER */
+
+#define ICRDMA_DB_ADDR_OFFSET		(8 * 1024 * 1024 - 64 * 1024)
+
+#define ICRDMA_VF_DB_ADDR_OFFSET	(64 * 1024)
+
+/* shifts/masks for FLD_[LS/RS]_64 macros used in device table */
+#define ICRDMA_CCQPSTATUS_CCQP_DONE_S 0
+#define ICRDMA_CCQPSTATUS_CCQP_DONE BIT_ULL(0)
+#define ICRDMA_CCQPSTATUS_CCQP_ERR_S 31
+#define ICRDMA_CCQPSTATUS_CCQP_ERR BIT_ULL(31)
+#define ICRDMA_CQPSQ_STAG_PDID_S 46
+#define ICRDMA_CQPSQ_STAG_PDID GENMASK_ULL(63, 46)
+#define ICRDMA_CQPSQ_CQ_CEQID_S 22
+#define ICRDMA_CQPSQ_CQ_CEQID GENMASK_ULL(31, 22)
+#define ICRDMA_CQPSQ_CQ_CQID_S 0
+#define ICRDMA_CQPSQ_CQ_CQID GENMASK_ULL(18, 0)
+#define ICRDMA_COMMIT_FPM_CQCNT_S 0
+#define ICRDMA_COMMIT_FPM_CQCNT GENMASK_ULL(19, 0)
+
+enum icrdma_device_caps_const {
+	ICRDMA_MAX_STATS_COUNT = 128,
+
+	ICRDMA_MAX_IRD_SIZE			= 127,
+	ICRDMA_MAX_ORD_SIZE			= 255,
+	ICRDMA_MIN_WQ_SIZE                      = 8 /* WQEs */,
+
+};
+
+void icrdma_init_hw(struct irdma_sc_dev *dev);
+#endif /* ICRDMA_HW_H*/

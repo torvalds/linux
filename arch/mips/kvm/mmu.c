@@ -25,41 +25,9 @@
 #define KVM_MMU_CACHE_MIN_PAGES 2
 #endif
 
-static int mmu_topup_memory_cache(struct kvm_mmu_memory_cache *cache,
-				  int min, int max)
-{
-	void *page;
-
-	BUG_ON(max > KVM_NR_MEM_OBJS);
-	if (cache->nobjs >= min)
-		return 0;
-	while (cache->nobjs < max) {
-		page = (void *)__get_free_page(GFP_KERNEL);
-		if (!page)
-			return -ENOMEM;
-		cache->objects[cache->nobjs++] = page;
-	}
-	return 0;
-}
-
-static void mmu_free_memory_cache(struct kvm_mmu_memory_cache *mc)
-{
-	while (mc->nobjs)
-		free_page((unsigned long)mc->objects[--mc->nobjs]);
-}
-
-static void *mmu_memory_cache_alloc(struct kvm_mmu_memory_cache *mc)
-{
-	void *p;
-
-	BUG_ON(!mc || !mc->nobjs);
-	p = mc->objects[--mc->nobjs];
-	return p;
-}
-
 void kvm_mmu_free_memory_caches(struct kvm_vcpu *vcpu)
 {
-	mmu_free_memory_cache(&vcpu->arch.mmu_page_cache);
+	kvm_mmu_free_memory_cache(&vcpu->arch.mmu_page_cache);
 }
 
 /**
@@ -112,7 +80,7 @@ pgd_t *kvm_pgd_alloc(void)
 {
 	pgd_t *ret;
 
-	ret = (pgd_t *)__get_free_pages(GFP_KERNEL, PGD_ORDER);
+	ret = (pgd_t *)__get_free_pages(GFP_KERNEL, PGD_TABLE_ORDER);
 	if (ret)
 		kvm_pgd_init(ret);
 
@@ -136,6 +104,7 @@ pgd_t *kvm_pgd_alloc(void)
 static pte_t *kvm_mips_walk_pgd(pgd_t *pgd, struct kvm_mmu_memory_cache *cache,
 				unsigned long addr)
 {
+	p4d_t *p4d;
 	pud_t *pud;
 	pmd_t *pmd;
 
@@ -145,15 +114,15 @@ static pte_t *kvm_mips_walk_pgd(pgd_t *pgd, struct kvm_mmu_memory_cache *cache,
 		BUG();
 		return NULL;
 	}
-	pud = pud_offset(pgd, addr);
+	p4d = p4d_offset(pgd, addr);
+	pud = pud_offset(p4d, addr);
 	if (pud_none(*pud)) {
 		pmd_t *new_pmd;
 
 		if (!cache)
 			return NULL;
-		new_pmd = mmu_memory_cache_alloc(cache);
-		pmd_init((unsigned long)new_pmd,
-			 (unsigned long)invalid_pte_table);
+		new_pmd = kvm_mmu_memory_cache_alloc(cache);
+		pmd_init(new_pmd);
 		pud_populate(NULL, pud, new_pmd);
 	}
 	pmd = pmd_offset(pud, addr);
@@ -162,11 +131,11 @@ static pte_t *kvm_mips_walk_pgd(pgd_t *pgd, struct kvm_mmu_memory_cache *cache,
 
 		if (!cache)
 			return NULL;
-		new_pte = mmu_memory_cache_alloc(cache);
+		new_pte = kvm_mmu_memory_cache_alloc(cache);
 		clear_page(new_pte);
 		pmd_populate_kernel(NULL, pmd, new_pte);
 	}
-	return pte_offset(pmd, addr);
+	return pte_offset_kernel(pmd, addr);
 }
 
 /* Caller must hold kvm->mm_lock */
@@ -185,8 +154,8 @@ static pte_t *kvm_mips_pte_for_gpa(struct kvm *kvm,
 static bool kvm_mips_flush_gpa_pte(pte_t *pte, unsigned long start_gpa,
 				   unsigned long end_gpa)
 {
-	int i_min = __pte_offset(start_gpa);
-	int i_max = __pte_offset(end_gpa);
+	int i_min = pte_index(start_gpa);
+	int i_max = pte_index(end_gpa);
 	bool safe_to_remove = (i_min == 0 && i_max == PTRS_PER_PTE - 1);
 	int i;
 
@@ -204,8 +173,8 @@ static bool kvm_mips_flush_gpa_pmd(pmd_t *pmd, unsigned long start_gpa,
 {
 	pte_t *pte;
 	unsigned long end = ~0ul;
-	int i_min = __pmd_offset(start_gpa);
-	int i_max = __pmd_offset(end_gpa);
+	int i_min = pmd_index(start_gpa);
+	int i_max = pmd_index(end_gpa);
 	bool safe_to_remove = (i_min == 0 && i_max == PTRS_PER_PMD - 1);
 	int i;
 
@@ -213,7 +182,7 @@ static bool kvm_mips_flush_gpa_pmd(pmd_t *pmd, unsigned long start_gpa,
 		if (!pmd_present(pmd[i]))
 			continue;
 
-		pte = pte_offset(pmd + i, 0);
+		pte = pte_offset_kernel(pmd + i, 0);
 		if (i == i_max)
 			end = end_gpa;
 
@@ -232,8 +201,8 @@ static bool kvm_mips_flush_gpa_pud(pud_t *pud, unsigned long start_gpa,
 {
 	pmd_t *pmd;
 	unsigned long end = ~0ul;
-	int i_min = __pud_offset(start_gpa);
-	int i_max = __pud_offset(end_gpa);
+	int i_min = pud_index(start_gpa);
+	int i_max = pud_index(end_gpa);
 	bool safe_to_remove = (i_min == 0 && i_max == PTRS_PER_PUD - 1);
 	int i;
 
@@ -258,6 +227,7 @@ static bool kvm_mips_flush_gpa_pud(pud_t *pud, unsigned long start_gpa,
 static bool kvm_mips_flush_gpa_pgd(pgd_t *pgd, unsigned long start_gpa,
 				   unsigned long end_gpa)
 {
+	p4d_t *p4d;
 	pud_t *pud;
 	unsigned long end = ~0ul;
 	int i_min = pgd_index(start_gpa);
@@ -269,7 +239,8 @@ static bool kvm_mips_flush_gpa_pgd(pgd_t *pgd, unsigned long start_gpa,
 		if (!pgd_present(pgd[i]))
 			continue;
 
-		pud = pud_offset(pgd + i, 0);
+		p4d = p4d_offset(pgd, 0);
+		pud = pud_offset(p4d + i, 0);
 		if (i == i_max)
 			end = end_gpa;
 
@@ -308,8 +279,8 @@ static int kvm_mips_##name##_pte(pte_t *pte, unsigned long start,	\
 				 unsigned long end)			\
 {									\
 	int ret = 0;							\
-	int i_min = __pte_offset(start);				\
-	int i_max = __pte_offset(end);					\
+	int i_min = pte_index(start);				\
+	int i_max = pte_index(end);					\
 	int i;								\
 	pte_t old, new;							\
 									\
@@ -334,15 +305,15 @@ static int kvm_mips_##name##_pmd(pmd_t *pmd, unsigned long start,	\
 	int ret = 0;							\
 	pte_t *pte;							\
 	unsigned long cur_end = ~0ul;					\
-	int i_min = __pmd_offset(start);				\
-	int i_max = __pmd_offset(end);					\
+	int i_min = pmd_index(start);				\
+	int i_max = pmd_index(end);					\
 	int i;								\
 									\
 	for (i = i_min; i <= i_max; ++i, start = 0) {			\
 		if (!pmd_present(pmd[i]))				\
 			continue;					\
 									\
-		pte = pte_offset(pmd + i, 0);				\
+		pte = pte_offset_kernel(pmd + i, 0);				\
 		if (i == i_max)						\
 			cur_end = end;					\
 									\
@@ -357,8 +328,8 @@ static int kvm_mips_##name##_pud(pud_t *pud, unsigned long start,	\
 	int ret = 0;							\
 	pmd_t *pmd;							\
 	unsigned long cur_end = ~0ul;					\
-	int i_min = __pud_offset(start);				\
-	int i_max = __pud_offset(end);					\
+	int i_min = pud_index(start);				\
+	int i_max = pud_index(end);					\
 	int i;								\
 									\
 	for (i = i_min; i <= i_max; ++i, start = 0) {			\
@@ -378,6 +349,7 @@ static int kvm_mips_##name##_pgd(pgd_t *pgd, unsigned long start,	\
 				 unsigned long end)			\
 {									\
 	int ret = 0;							\
+	p4d_t *p4d;							\
 	pud_t *pud;							\
 	unsigned long cur_end = ~0ul;					\
 	int i_min = pgd_index(start);					\
@@ -388,7 +360,8 @@ static int kvm_mips_##name##_pgd(pgd_t *pgd, unsigned long start,	\
 		if (!pgd_present(pgd[i]))				\
 			continue;					\
 									\
-		pud = pud_offset(pgd + i, 0);				\
+		p4d = p4d_offset(pgd, 0);				\
+		pud = pud_offset(p4d + i, 0);				\
 		if (i == i_max)						\
 			cur_end = end;					\
 									\
@@ -465,128 +438,25 @@ static int kvm_mips_mkold_gpa_pt(struct kvm *kvm, gfn_t start_gfn,
 				  end_gfn << PAGE_SHIFT);
 }
 
-static int handle_hva_to_gpa(struct kvm *kvm,
-			     unsigned long start,
-			     unsigned long end,
-			     int (*handler)(struct kvm *kvm, gfn_t gfn,
-					    gpa_t gfn_end,
-					    struct kvm_memory_slot *memslot,
-					    void *data),
-			     void *data)
+bool kvm_unmap_gfn_range(struct kvm *kvm, struct kvm_gfn_range *range)
 {
-	struct kvm_memslots *slots;
-	struct kvm_memory_slot *memslot;
-	int ret = 0;
-
-	slots = kvm_memslots(kvm);
-
-	/* we only care about the pages that the guest sees */
-	kvm_for_each_memslot(memslot, slots) {
-		unsigned long hva_start, hva_end;
-		gfn_t gfn, gfn_end;
-
-		hva_start = max(start, memslot->userspace_addr);
-		hva_end = min(end, memslot->userspace_addr +
-					(memslot->npages << PAGE_SHIFT));
-		if (hva_start >= hva_end)
-			continue;
-
-		/*
-		 * {gfn(page) | page intersects with [hva_start, hva_end)} =
-		 * {gfn_start, gfn_start+1, ..., gfn_end-1}.
-		 */
-		gfn = hva_to_gfn_memslot(hva_start, memslot);
-		gfn_end = hva_to_gfn_memslot(hva_end + PAGE_SIZE - 1, memslot);
-
-		ret |= handler(kvm, gfn, gfn_end, memslot, data);
-	}
-
-	return ret;
+	kvm_mips_flush_gpa_pt(kvm, range->start, range->end);
+	return true;
 }
 
-
-static int kvm_unmap_hva_handler(struct kvm *kvm, gfn_t gfn, gfn_t gfn_end,
-				 struct kvm_memory_slot *memslot, void *data)
+bool kvm_age_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
 {
-	kvm_mips_flush_gpa_pt(kvm, gfn, gfn_end);
-	return 1;
+	return kvm_mips_mkold_gpa_pt(kvm, range->start, range->end);
 }
 
-int kvm_unmap_hva_range(struct kvm *kvm, unsigned long start, unsigned long end)
+bool kvm_test_age_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
 {
-	handle_hva_to_gpa(kvm, start, end, &kvm_unmap_hva_handler, NULL);
-
-	kvm_mips_callbacks->flush_shadow_all(kvm);
-	return 0;
-}
-
-static int kvm_set_spte_handler(struct kvm *kvm, gfn_t gfn, gfn_t gfn_end,
-				struct kvm_memory_slot *memslot, void *data)
-{
-	gpa_t gpa = gfn << PAGE_SHIFT;
-	pte_t hva_pte = *(pte_t *)data;
-	pte_t *gpa_pte = kvm_mips_pte_for_gpa(kvm, NULL, gpa);
-	pte_t old_pte;
-
-	if (!gpa_pte)
-		return 0;
-
-	/* Mapping may need adjusting depending on memslot flags */
-	old_pte = *gpa_pte;
-	if (memslot->flags & KVM_MEM_LOG_DIRTY_PAGES && !pte_dirty(old_pte))
-		hva_pte = pte_mkclean(hva_pte);
-	else if (memslot->flags & KVM_MEM_READONLY)
-		hva_pte = pte_wrprotect(hva_pte);
-
-	set_pte(gpa_pte, hva_pte);
-
-	/* Replacing an absent or old page doesn't need flushes */
-	if (!pte_present(old_pte) || !pte_young(old_pte))
-		return 0;
-
-	/* Pages swapped, aged, moved, or cleaned require flushes */
-	return !pte_present(hva_pte) ||
-	       !pte_young(hva_pte) ||
-	       pte_pfn(old_pte) != pte_pfn(hva_pte) ||
-	       (pte_dirty(old_pte) && !pte_dirty(hva_pte));
-}
-
-int kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte)
-{
-	unsigned long end = hva + PAGE_SIZE;
-	int ret;
-
-	ret = handle_hva_to_gpa(kvm, hva, end, &kvm_set_spte_handler, &pte);
-	if (ret)
-		kvm_mips_callbacks->flush_shadow_all(kvm);
-	return 0;
-}
-
-static int kvm_age_hva_handler(struct kvm *kvm, gfn_t gfn, gfn_t gfn_end,
-			       struct kvm_memory_slot *memslot, void *data)
-{
-	return kvm_mips_mkold_gpa_pt(kvm, gfn, gfn_end);
-}
-
-static int kvm_test_age_hva_handler(struct kvm *kvm, gfn_t gfn, gfn_t gfn_end,
-				    struct kvm_memory_slot *memslot, void *data)
-{
-	gpa_t gpa = gfn << PAGE_SHIFT;
+	gpa_t gpa = range->start << PAGE_SHIFT;
 	pte_t *gpa_pte = kvm_mips_pte_for_gpa(kvm, NULL, gpa);
 
 	if (!gpa_pte)
-		return 0;
+		return false;
 	return pte_young(*gpa_pte);
-}
-
-int kvm_age_hva(struct kvm *kvm, unsigned long start, unsigned long end)
-{
-	return handle_hva_to_gpa(kvm, start, end, kvm_age_hva_handler, NULL);
-}
-
-int kvm_test_age_hva(struct kvm *kvm, unsigned long hva)
-{
-	return handle_hva_to_gpa(kvm, hva, hva, kvm_test_age_hva_handler, NULL);
 }
 
 /**
@@ -692,7 +562,7 @@ static int kvm_mips_map_page(struct kvm_vcpu *vcpu, unsigned long gpa,
 	gfn_t gfn = gpa >> PAGE_SHIFT;
 	int srcu_idx, err;
 	kvm_pfn_t pfn;
-	pte_t *ptep, entry, old_pte;
+	pte_t *ptep, entry;
 	bool writeable;
 	unsigned long prot_bits;
 	unsigned long mmu_seq;
@@ -705,8 +575,7 @@ static int kvm_mips_map_page(struct kvm_vcpu *vcpu, unsigned long gpa,
 		goto out;
 
 	/* We need a minimum of cached pages ready for page table creation */
-	err = mmu_topup_memory_cache(memcache, KVM_MMU_CACHE_MIN_PAGES,
-				     KVM_NR_MEM_OBJS);
+	err = kvm_mmu_topup_memory_cache(memcache, KVM_MMU_CACHE_MIN_PAGES);
 	if (err)
 		goto out;
 
@@ -715,17 +584,17 @@ retry:
 	 * Used to check for invalidations in progress, of the pfn that is
 	 * returned by pfn_to_pfn_prot below.
 	 */
-	mmu_seq = kvm->mmu_notifier_seq;
+	mmu_seq = kvm->mmu_invalidate_seq;
 	/*
-	 * Ensure the read of mmu_notifier_seq isn't reordered with PTE reads in
-	 * gfn_to_pfn_prot() (which calls get_user_pages()), so that we don't
+	 * Ensure the read of mmu_invalidate_seq isn't reordered with PTE reads
+	 * in gfn_to_pfn_prot() (which calls get_user_pages()), so that we don't
 	 * risk the page we get a reference to getting unmapped before we have a
-	 * chance to grab the mmu_lock without mmu_notifier_retry() noticing.
+	 * chance to grab the mmu_lock without mmu_invalidate_retry() noticing.
 	 *
 	 * This smp_rmb() pairs with the effective smp_wmb() of the combination
 	 * of the pte_unmap_unlock() after the PTE is zapped, and the
 	 * spin_lock() in kvm_mmu_notifier_invalidate_<page|range_end>() before
-	 * mmu_notifier_seq is incremented.
+	 * mmu_invalidate_seq is incremented.
 	 */
 	smp_rmb();
 
@@ -738,7 +607,7 @@ retry:
 
 	spin_lock(&kvm->mmu_lock);
 	/* Check if an invalidation has taken place since we got pfn */
-	if (mmu_notifier_retry(kvm, mmu_seq)) {
+	if (mmu_invalidate_retry(kvm, mmu_seq)) {
 		/*
 		 * This can happen when mappings are changed asynchronously, but
 		 * also synchronously if a COW is triggered by
@@ -765,7 +634,6 @@ retry:
 	entry = pfn_pte(pfn, __pgprot(prot_bits));
 
 	/* Write the PTE */
-	old_pte = *ptep;
 	set_pte(ptep, entry);
 
 	err = 0;
@@ -782,208 +650,6 @@ out:
 	return err;
 }
 
-static pte_t *kvm_trap_emul_pte_for_gva(struct kvm_vcpu *vcpu,
-					unsigned long addr)
-{
-	struct kvm_mmu_memory_cache *memcache = &vcpu->arch.mmu_page_cache;
-	pgd_t *pgdp;
-	int ret;
-
-	/* We need a minimum of cached pages ready for page table creation */
-	ret = mmu_topup_memory_cache(memcache, KVM_MMU_CACHE_MIN_PAGES,
-				     KVM_NR_MEM_OBJS);
-	if (ret)
-		return NULL;
-
-	if (KVM_GUEST_KERNEL_MODE(vcpu))
-		pgdp = vcpu->arch.guest_kernel_mm.pgd;
-	else
-		pgdp = vcpu->arch.guest_user_mm.pgd;
-
-	return kvm_mips_walk_pgd(pgdp, memcache, addr);
-}
-
-void kvm_trap_emul_invalidate_gva(struct kvm_vcpu *vcpu, unsigned long addr,
-				  bool user)
-{
-	pgd_t *pgdp;
-	pte_t *ptep;
-
-	addr &= PAGE_MASK << 1;
-
-	pgdp = vcpu->arch.guest_kernel_mm.pgd;
-	ptep = kvm_mips_walk_pgd(pgdp, NULL, addr);
-	if (ptep) {
-		ptep[0] = pfn_pte(0, __pgprot(0));
-		ptep[1] = pfn_pte(0, __pgprot(0));
-	}
-
-	if (user) {
-		pgdp = vcpu->arch.guest_user_mm.pgd;
-		ptep = kvm_mips_walk_pgd(pgdp, NULL, addr);
-		if (ptep) {
-			ptep[0] = pfn_pte(0, __pgprot(0));
-			ptep[1] = pfn_pte(0, __pgprot(0));
-		}
-	}
-}
-
-/*
- * kvm_mips_flush_gva_{pte,pmd,pud,pgd,pt}.
- * Flush a range of guest physical address space from the VM's GPA page tables.
- */
-
-static bool kvm_mips_flush_gva_pte(pte_t *pte, unsigned long start_gva,
-				   unsigned long end_gva)
-{
-	int i_min = __pte_offset(start_gva);
-	int i_max = __pte_offset(end_gva);
-	bool safe_to_remove = (i_min == 0 && i_max == PTRS_PER_PTE - 1);
-	int i;
-
-	/*
-	 * There's no freeing to do, so there's no point clearing individual
-	 * entries unless only part of the last level page table needs flushing.
-	 */
-	if (safe_to_remove)
-		return true;
-
-	for (i = i_min; i <= i_max; ++i) {
-		if (!pte_present(pte[i]))
-			continue;
-
-		set_pte(pte + i, __pte(0));
-	}
-	return false;
-}
-
-static bool kvm_mips_flush_gva_pmd(pmd_t *pmd, unsigned long start_gva,
-				   unsigned long end_gva)
-{
-	pte_t *pte;
-	unsigned long end = ~0ul;
-	int i_min = __pmd_offset(start_gva);
-	int i_max = __pmd_offset(end_gva);
-	bool safe_to_remove = (i_min == 0 && i_max == PTRS_PER_PMD - 1);
-	int i;
-
-	for (i = i_min; i <= i_max; ++i, start_gva = 0) {
-		if (!pmd_present(pmd[i]))
-			continue;
-
-		pte = pte_offset(pmd + i, 0);
-		if (i == i_max)
-			end = end_gva;
-
-		if (kvm_mips_flush_gva_pte(pte, start_gva, end)) {
-			pmd_clear(pmd + i);
-			pte_free_kernel(NULL, pte);
-		} else {
-			safe_to_remove = false;
-		}
-	}
-	return safe_to_remove;
-}
-
-static bool kvm_mips_flush_gva_pud(pud_t *pud, unsigned long start_gva,
-				   unsigned long end_gva)
-{
-	pmd_t *pmd;
-	unsigned long end = ~0ul;
-	int i_min = __pud_offset(start_gva);
-	int i_max = __pud_offset(end_gva);
-	bool safe_to_remove = (i_min == 0 && i_max == PTRS_PER_PUD - 1);
-	int i;
-
-	for (i = i_min; i <= i_max; ++i, start_gva = 0) {
-		if (!pud_present(pud[i]))
-			continue;
-
-		pmd = pmd_offset(pud + i, 0);
-		if (i == i_max)
-			end = end_gva;
-
-		if (kvm_mips_flush_gva_pmd(pmd, start_gva, end)) {
-			pud_clear(pud + i);
-			pmd_free(NULL, pmd);
-		} else {
-			safe_to_remove = false;
-		}
-	}
-	return safe_to_remove;
-}
-
-static bool kvm_mips_flush_gva_pgd(pgd_t *pgd, unsigned long start_gva,
-				   unsigned long end_gva)
-{
-	pud_t *pud;
-	unsigned long end = ~0ul;
-	int i_min = pgd_index(start_gva);
-	int i_max = pgd_index(end_gva);
-	bool safe_to_remove = (i_min == 0 && i_max == PTRS_PER_PGD - 1);
-	int i;
-
-	for (i = i_min; i <= i_max; ++i, start_gva = 0) {
-		if (!pgd_present(pgd[i]))
-			continue;
-
-		pud = pud_offset(pgd + i, 0);
-		if (i == i_max)
-			end = end_gva;
-
-		if (kvm_mips_flush_gva_pud(pud, start_gva, end)) {
-			pgd_clear(pgd + i);
-			pud_free(NULL, pud);
-		} else {
-			safe_to_remove = false;
-		}
-	}
-	return safe_to_remove;
-}
-
-void kvm_mips_flush_gva_pt(pgd_t *pgd, enum kvm_mips_flush flags)
-{
-	if (flags & KMF_GPA) {
-		/* all of guest virtual address space could be affected */
-		if (flags & KMF_KERN)
-			/* useg, kseg0, seg2/3 */
-			kvm_mips_flush_gva_pgd(pgd, 0, 0x7fffffff);
-		else
-			/* useg */
-			kvm_mips_flush_gva_pgd(pgd, 0, 0x3fffffff);
-	} else {
-		/* useg */
-		kvm_mips_flush_gva_pgd(pgd, 0, 0x3fffffff);
-
-		/* kseg2/3 */
-		if (flags & KMF_KERN)
-			kvm_mips_flush_gva_pgd(pgd, 0x60000000, 0x7fffffff);
-	}
-}
-
-static pte_t kvm_mips_gpa_pte_to_gva_unmapped(pte_t pte)
-{
-	/*
-	 * Don't leak writeable but clean entries from GPA page tables. We don't
-	 * want the normal Linux tlbmod handler to handle dirtying when KVM
-	 * accesses guest memory.
-	 */
-	if (!pte_dirty(pte))
-		pte = pte_wrprotect(pte);
-
-	return pte;
-}
-
-static pte_t kvm_mips_gpa_pte_to_gva_mapped(pte_t pte, long entrylo)
-{
-	/* Guest EntryLo overrides host EntryLo */
-	if (!(entrylo & ENTRYLO_D))
-		pte = pte_mkclean(pte);
-
-	return kvm_mips_gpa_pte_to_gva_unmapped(pte);
-}
-
-#ifdef CONFIG_KVM_MIPS_VZ
 int kvm_mips_handle_vz_root_tlb_fault(unsigned long badvaddr,
 				      struct kvm_vcpu *vcpu,
 				      bool write_fault)
@@ -996,123 +662,6 @@ int kvm_mips_handle_vz_root_tlb_fault(unsigned long badvaddr,
 
 	/* Invalidate this entry in the TLB */
 	return kvm_vz_host_tlb_inv(vcpu, badvaddr);
-}
-#endif
-
-/* XXXKYMA: Must be called with interrupts disabled */
-int kvm_mips_handle_kseg0_tlb_fault(unsigned long badvaddr,
-				    struct kvm_vcpu *vcpu,
-				    bool write_fault)
-{
-	unsigned long gpa;
-	pte_t pte_gpa[2], *ptep_gva;
-	int idx;
-
-	if (KVM_GUEST_KSEGX(badvaddr) != KVM_GUEST_KSEG0) {
-		kvm_err("%s: Invalid BadVaddr: %#lx\n", __func__, badvaddr);
-		kvm_mips_dump_host_tlbs();
-		return -1;
-	}
-
-	/* Get the GPA page table entry */
-	gpa = KVM_GUEST_CPHYSADDR(badvaddr);
-	idx = (badvaddr >> PAGE_SHIFT) & 1;
-	if (kvm_mips_map_page(vcpu, gpa, write_fault, &pte_gpa[idx],
-			      &pte_gpa[!idx]) < 0)
-		return -1;
-
-	/* Get the GVA page table entry */
-	ptep_gva = kvm_trap_emul_pte_for_gva(vcpu, badvaddr & ~PAGE_SIZE);
-	if (!ptep_gva) {
-		kvm_err("No ptep for gva %lx\n", badvaddr);
-		return -1;
-	}
-
-	/* Copy a pair of entries from GPA page table to GVA page table */
-	ptep_gva[0] = kvm_mips_gpa_pte_to_gva_unmapped(pte_gpa[0]);
-	ptep_gva[1] = kvm_mips_gpa_pte_to_gva_unmapped(pte_gpa[1]);
-
-	/* Invalidate this entry in the TLB, guest kernel ASID only */
-	kvm_mips_host_tlb_inv(vcpu, badvaddr, false, true);
-	return 0;
-}
-
-int kvm_mips_handle_mapped_seg_tlb_fault(struct kvm_vcpu *vcpu,
-					 struct kvm_mips_tlb *tlb,
-					 unsigned long gva,
-					 bool write_fault)
-{
-	struct kvm *kvm = vcpu->kvm;
-	long tlb_lo[2];
-	pte_t pte_gpa[2], *ptep_buddy, *ptep_gva;
-	unsigned int idx = TLB_LO_IDX(*tlb, gva);
-	bool kernel = KVM_GUEST_KERNEL_MODE(vcpu);
-
-	tlb_lo[0] = tlb->tlb_lo[0];
-	tlb_lo[1] = tlb->tlb_lo[1];
-
-	/*
-	 * The commpage address must not be mapped to anything else if the guest
-	 * TLB contains entries nearby, or commpage accesses will break.
-	 */
-	if (!((gva ^ KVM_GUEST_COMMPAGE_ADDR) & VPN2_MASK & (PAGE_MASK << 1)))
-		tlb_lo[TLB_LO_IDX(*tlb, KVM_GUEST_COMMPAGE_ADDR)] = 0;
-
-	/* Get the GPA page table entry */
-	if (kvm_mips_map_page(vcpu, mips3_tlbpfn_to_paddr(tlb_lo[idx]),
-			      write_fault, &pte_gpa[idx], NULL) < 0)
-		return -1;
-
-	/* And its GVA buddy's GPA page table entry if it also exists */
-	pte_gpa[!idx] = pfn_pte(0, __pgprot(0));
-	if (tlb_lo[!idx] & ENTRYLO_V) {
-		spin_lock(&kvm->mmu_lock);
-		ptep_buddy = kvm_mips_pte_for_gpa(kvm, NULL,
-					mips3_tlbpfn_to_paddr(tlb_lo[!idx]));
-		if (ptep_buddy)
-			pte_gpa[!idx] = *ptep_buddy;
-		spin_unlock(&kvm->mmu_lock);
-	}
-
-	/* Get the GVA page table entry pair */
-	ptep_gva = kvm_trap_emul_pte_for_gva(vcpu, gva & ~PAGE_SIZE);
-	if (!ptep_gva) {
-		kvm_err("No ptep for gva %lx\n", gva);
-		return -1;
-	}
-
-	/* Copy a pair of entries from GPA page table to GVA page table */
-	ptep_gva[0] = kvm_mips_gpa_pte_to_gva_mapped(pte_gpa[0], tlb_lo[0]);
-	ptep_gva[1] = kvm_mips_gpa_pte_to_gva_mapped(pte_gpa[1], tlb_lo[1]);
-
-	/* Invalidate this entry in the TLB, current guest mode ASID only */
-	kvm_mips_host_tlb_inv(vcpu, gva, !kernel, kernel);
-
-	kvm_debug("@ %#lx tlb_lo0: 0x%08lx tlb_lo1: 0x%08lx\n", vcpu->arch.pc,
-		  tlb->tlb_lo[0], tlb->tlb_lo[1]);
-
-	return 0;
-}
-
-int kvm_mips_handle_commpage_tlb_fault(unsigned long badvaddr,
-				       struct kvm_vcpu *vcpu)
-{
-	kvm_pfn_t pfn;
-	pte_t *ptep;
-
-	ptep = kvm_trap_emul_pte_for_gva(vcpu, badvaddr);
-	if (!ptep) {
-		kvm_err("No ptep for commpage %lx\n", badvaddr);
-		return -1;
-	}
-
-	pfn = PFN_DOWN(virt_to_phys(vcpu->arch.kseg0_commpage));
-	/* Also set valid and dirty, so refill handler doesn't have to */
-	*ptep = pte_mkyoung(pte_mkdirty(pfn_pte(pfn, PAGE_SHARED)));
-
-	/* Invalidate this entry in the TLB, guest kernel ASID only */
-	kvm_mips_host_tlb_inv(vcpu, badvaddr, false, true);
-	return 0;
 }
 
 /**
@@ -1175,87 +724,4 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 	kvm_mips_callbacks->vcpu_put(vcpu, cpu);
 
 	local_irq_restore(flags);
-}
-
-/**
- * kvm_trap_emul_gva_fault() - Safely attempt to handle a GVA access fault.
- * @vcpu:	Virtual CPU.
- * @gva:	Guest virtual address to be accessed.
- * @write:	True if write attempted (must be dirtied and made writable).
- *
- * Safely attempt to handle a GVA fault, mapping GVA pages if necessary, and
- * dirtying the page if @write so that guest instructions can be modified.
- *
- * Returns:	KVM_MIPS_MAPPED on success.
- *		KVM_MIPS_GVA if bad guest virtual address.
- *		KVM_MIPS_GPA if bad guest physical address.
- *		KVM_MIPS_TLB if guest TLB not present.
- *		KVM_MIPS_TLBINV if guest TLB present but not valid.
- *		KVM_MIPS_TLBMOD if guest TLB read only.
- */
-enum kvm_mips_fault_result kvm_trap_emul_gva_fault(struct kvm_vcpu *vcpu,
-						   unsigned long gva,
-						   bool write)
-{
-	struct mips_coproc *cop0 = vcpu->arch.cop0;
-	struct kvm_mips_tlb *tlb;
-	int index;
-
-	if (KVM_GUEST_KSEGX(gva) == KVM_GUEST_KSEG0) {
-		if (kvm_mips_handle_kseg0_tlb_fault(gva, vcpu, write) < 0)
-			return KVM_MIPS_GPA;
-	} else if ((KVM_GUEST_KSEGX(gva) < KVM_GUEST_KSEG0) ||
-		   KVM_GUEST_KSEGX(gva) == KVM_GUEST_KSEG23) {
-		/* Address should be in the guest TLB */
-		index = kvm_mips_guest_tlb_lookup(vcpu, (gva & VPN2_MASK) |
-			  (kvm_read_c0_guest_entryhi(cop0) & KVM_ENTRYHI_ASID));
-		if (index < 0)
-			return KVM_MIPS_TLB;
-		tlb = &vcpu->arch.guest_tlb[index];
-
-		/* Entry should be valid, and dirty for writes */
-		if (!TLB_IS_VALID(*tlb, gva))
-			return KVM_MIPS_TLBINV;
-		if (write && !TLB_IS_DIRTY(*tlb, gva))
-			return KVM_MIPS_TLBMOD;
-
-		if (kvm_mips_handle_mapped_seg_tlb_fault(vcpu, tlb, gva, write))
-			return KVM_MIPS_GPA;
-	} else {
-		return KVM_MIPS_GVA;
-	}
-
-	return KVM_MIPS_MAPPED;
-}
-
-int kvm_get_inst(u32 *opc, struct kvm_vcpu *vcpu, u32 *out)
-{
-	int err;
-
-	if (WARN(IS_ENABLED(CONFIG_KVM_MIPS_VZ),
-		 "Expect BadInstr/BadInstrP registers to be used with VZ\n"))
-		return -EINVAL;
-
-retry:
-	kvm_trap_emul_gva_lockless_begin(vcpu);
-	err = get_user(*out, opc);
-	kvm_trap_emul_gva_lockless_end(vcpu);
-
-	if (unlikely(err)) {
-		/*
-		 * Try to handle the fault, maybe we just raced with a GVA
-		 * invalidation.
-		 */
-		err = kvm_trap_emul_gva_fault(vcpu, (unsigned long)opc,
-					      false);
-		if (unlikely(err)) {
-			kvm_err("%s: illegal address: %p\n",
-				__func__, opc);
-			return -EFAULT;
-		}
-
-		/* Hopefully it'll work now */
-		goto retry;
-	}
-	return 0;
 }

@@ -1,5 +1,5 @@
-Amlogic Meson Power Controller
-==============================
+Amlogic Meson Power Controller (deprecated)
+===========================================
 
 The Amlogic Meson SoCs embeds an internal Power domain controller.
 
@@ -10,7 +10,7 @@ The Video Processing Unit power domain is controlled by this power controller,
 but the domain requires some external resources to meet the correct power
 sequences.
 The bindings must respect the power domain bindings as described in the file
-power_domain.txt
+power-domain.yaml
 
 Device Tree Bindings:
 ---------------------

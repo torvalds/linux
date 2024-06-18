@@ -265,12 +265,12 @@ event_dispatch:
 	 * should be in the designated register (usually R19)
 	 *
 	 * If we were in kernel mode, we don't need to check scheduler
-	 * or signals if CONFIG_PREEMPT is not set.  If set, then it has
+	 * or signals if CONFIG_PREEMPTION is not set.  If set, then it has
 	 * to jump to a need_resched kind of block.
-	 * BTW, CONFIG_PREEMPT is not supported yet.
+	 * BTW, CONFIG_PREEMPTION is not supported yet.
 	 */
 
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 	R0 = #VM_INT_DISABLE
 	trap1(#HVM_TRAP1_VMSETIE)
 #endif
@@ -369,7 +369,7 @@ ret_from_fork:
 		R26.L = #LO(do_work_pending);
 		R0 = #VM_INT_DISABLE;
 	}
-	if P0 jump check_work_pending
+	if (P0) jump check_work_pending
 	{
 		R0 = R25;
 		callr R24

@@ -4,16 +4,29 @@
 
 #include <linux/skbuff.h>
 #include <net/ip_tunnels.h>
+#include <net/macsec.h>
 #include <net/dst.h>
 
 enum metadata_type {
 	METADATA_IP_TUNNEL,
 	METADATA_HW_PORT_MUX,
+	METADATA_MACSEC,
+	METADATA_XFRM,
 };
 
 struct hw_port_info {
 	struct net_device *lower_dev;
 	u32 port_id;
+};
+
+struct macsec_info {
+	sci_t sci;
+};
+
+struct xfrm_md_info {
+	u32 if_id;
+	int link;
+	struct dst_entry *dst_orig;
 };
 
 struct metadata_dst {
@@ -22,6 +35,8 @@ struct metadata_dst {
 	union {
 		struct ip_tunnel_info	tun_info;
 		struct hw_port_info	port_info;
+		struct macsec_info	macsec_info;
+		struct xfrm_md_info	xfrm_info;
 	} u;
 };
 
@@ -45,8 +60,31 @@ skb_tunnel_info(const struct sk_buff *skb)
 		return &md_dst->u.tun_info;
 
 	dst = skb_dst(skb);
-	if (dst && dst->lwtstate)
+	if (dst && dst->lwtstate &&
+	    (dst->lwtstate->type == LWTUNNEL_ENCAP_IP ||
+	     dst->lwtstate->type == LWTUNNEL_ENCAP_IP6))
 		return lwt_tun_info(dst->lwtstate);
+
+	return NULL;
+}
+
+static inline struct xfrm_md_info *lwt_xfrm_info(struct lwtunnel_state *lwt)
+{
+	return (struct xfrm_md_info *)lwt->data;
+}
+
+static inline struct xfrm_md_info *skb_xfrm_md_info(const struct sk_buff *skb)
+{
+	struct metadata_dst *md_dst = skb_metadata_dst(skb);
+	struct dst_entry *dst;
+
+	if (md_dst && md_dst->type == METADATA_XFRM)
+		return &md_dst->u.xfrm_info;
+
+	dst = skb_dst(skb);
+	if (dst && dst->lwtstate &&
+	    dst->lwtstate->type == LWTUNNEL_ENCAP_XFRM)
+		return lwt_xfrm_info(dst->lwtstate);
 
 	return NULL;
 }
@@ -80,6 +118,12 @@ static inline int skb_metadata_dst_cmp(const struct sk_buff *skb_a,
 		return memcmp(&a->u.tun_info, &b->u.tun_info,
 			      sizeof(a->u.tun_info) +
 					 a->u.tun_info.options_len);
+	case METADATA_MACSEC:
+		return memcmp(&a->u.macsec_info, &b->u.macsec_info,
+			      sizeof(a->u.macsec_info));
+	case METADATA_XFRM:
+		return memcmp(&a->u.xfrm_info, &b->u.xfrm_info,
+			      sizeof(a->u.xfrm_info));
 	default:
 		return 1;
 	}
@@ -121,8 +165,20 @@ static inline struct metadata_dst *tun_dst_unclone(struct sk_buff *skb)
 
 	memcpy(&new_md->u.tun_info, &md_dst->u.tun_info,
 	       sizeof(struct ip_tunnel_info) + md_size);
+#ifdef CONFIG_DST_CACHE
+	/* Unclone the dst cache if there is one */
+	if (new_md->u.tun_info.dst_cache.cache) {
+		int ret;
+
+		ret = dst_cache_init(&new_md->u.tun_info.dst_cache, GFP_ATOMIC);
+		if (ret) {
+			metadata_dst_free(new_md);
+			return ERR_PTR(ret);
+		}
+	}
+#endif
+
 	skb_dst_drop(skb);
-	dst_hold(&new_md->dst);
 	skb_dst_set(skb, &new_md->dst);
 	return new_md;
 }
@@ -142,7 +198,7 @@ static inline struct metadata_dst *__ip_tun_set_dst(__be32 saddr,
 						    __be32 daddr,
 						    __u8 tos, __u8 ttl,
 						    __be16 tp_dst,
-						    __be16 flags,
+						    const unsigned long *flags,
 						    __be64 tunnel_id,
 						    int md_size)
 {
@@ -159,7 +215,7 @@ static inline struct metadata_dst *__ip_tun_set_dst(__be32 saddr,
 }
 
 static inline struct metadata_dst *ip_tun_rx_dst(struct sk_buff *skb,
-						 __be16 flags,
+						 const unsigned long *flags,
 						 __be64 tunnel_id,
 						 int md_size)
 {
@@ -174,7 +230,7 @@ static inline struct metadata_dst *__ipv6_tun_set_dst(const struct in6_addr *sad
 						      __u8 tos, __u8 ttl,
 						      __be16 tp_dst,
 						      __be32 label,
-						      __be16 flags,
+						      const unsigned long *flags,
 						      __be64 tunnel_id,
 						      int md_size)
 {
@@ -187,7 +243,7 @@ static inline struct metadata_dst *__ipv6_tun_set_dst(const struct in6_addr *sad
 
 	info = &tun_dst->u.tun_info;
 	info->mode = IP_TUNNEL_INFO_IPV6;
-	info->key.tun_flags = flags;
+	ip_tunnel_flags_copy(info->key.tun_flags, flags);
 	info->key.tun_id = tunnel_id;
 	info->key.tp_src = 0;
 	info->key.tp_dst = tp_dst;
@@ -203,7 +259,7 @@ static inline struct metadata_dst *__ipv6_tun_set_dst(const struct in6_addr *sad
 }
 
 static inline struct metadata_dst *ipv6_tun_rx_dst(struct sk_buff *skb,
-						   __be16 flags,
+						   const unsigned long *flags,
 						   __be64 tunnel_id,
 						   int md_size)
 {

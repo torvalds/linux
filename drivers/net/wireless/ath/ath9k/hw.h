@@ -427,6 +427,7 @@ enum ath9k_cal_flags {
 	TXIQCAL_DONE,
 	TXCLCAL_DONE,
 	SW_PKDET_DONE,
+	LONGCAL_PENDING,
 };
 
 struct ath9k_hw_cal_data {
@@ -709,7 +710,7 @@ struct ath_spec_scan {
 /**
  * struct ath_hw_ops - callbacks used by hardware code and driver code
  *
- * This structure contains callbacks designed to to be used internally by
+ * This structure contains callbacks designed to be used internally by
  * hardware code and also by the lower level driver.
  *
  * @config_pci_powersave:
@@ -819,6 +820,7 @@ struct ath_hw {
 	struct ath9k_pacal_info pacal_info;
 	struct ar5416Stats stats;
 	struct ath9k_tx_queue_info txq[ATH9K_NUM_TX_QUEUES];
+	DECLARE_BITMAP(pending_del_keymap, ATH_KEYMAX);
 
 	enum ath9k_int imask;
 	u32 imrs2_reg;
@@ -833,6 +835,7 @@ struct ath_hw {
 
 	/* Calibration */
 	u32 supp_cals;
+	unsigned long cal_start_time;
 	struct ath9k_cal_list iq_caldata;
 	struct ath9k_cal_list adcgain_caldata;
 	struct ath9k_cal_list adcdc_caldata;
@@ -974,6 +977,8 @@ struct ath_hw {
 	bool disable_5ghz;
 
 	const struct firmware *eeprom_blob;
+	u16 *nvmem_blob;	/* devres managed */
+	size_t nvmem_blob_len;
 
 	struct ath_dynack dynack;
 

@@ -92,6 +92,32 @@ const struct smp_operations imx_smp_ops __initconst = {
 #endif
 };
 
+/*
+ * Initialise the CPU possible map early - this describes the CPUs
+ * which may be present or become present in the system.
+ */
+static void __init imx7_smp_init_cpus(void)
+{
+	struct device_node *np;
+	int i, ncores = 0;
+
+	/* The iMX7D SCU does not report core count, get it from DT */
+	for_each_of_cpu_node(np)
+		ncores++;
+
+	for (i = ncores; i < NR_CPUS; i++)
+		set_cpu_possible(i, false);
+}
+
+const struct smp_operations imx7_smp_ops __initconst = {
+	.smp_init_cpus		= imx7_smp_init_cpus,
+	.smp_boot_secondary	= imx_boot_secondary,
+#ifdef CONFIG_HOTPLUG_CPU
+	.cpu_die		= imx_cpu_die,
+	.cpu_kill		= imx_cpu_kill,
+#endif
+};
+
 #define DCFG_CCSR_SCRATCHRW1	0x200
 
 static int ls1021a_boot_secondary(unsigned int cpu, struct task_struct *idle)
@@ -109,6 +135,7 @@ static void __init ls1021a_smp_prepare_cpus(unsigned int max_cpus)
 
 	np = of_find_compatible_node(NULL, NULL, "fsl,ls1021a-dcfg");
 	dcfg_base = of_iomap(np, 0);
+	of_node_put(np);
 	BUG_ON(!dcfg_base);
 
 	paddr = __pa_symbol(secondary_startup);

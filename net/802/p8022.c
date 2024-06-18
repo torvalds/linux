@@ -23,7 +23,7 @@
 #include <net/p8022.h>
 
 static int p8022_request(struct datalink_proto *dl, struct sk_buff *skb,
-			 unsigned char *dest)
+			 const unsigned char *dest)
 {
 	llc_build_and_send_ui_pkt(dl->sap, skb, dest, dl->sap->laddr.lsap);
 	return 0;
@@ -60,4 +60,5 @@ void unregister_8022_client(struct datalink_proto *proto)
 EXPORT_SYMBOL(register_8022_client);
 EXPORT_SYMBOL(unregister_8022_client);
 
+MODULE_DESCRIPTION("Support for 802.2 demultiplexing off Ethernet");
 MODULE_LICENSE("GPL");

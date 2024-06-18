@@ -1,0 +1,128 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/input/touchscreen/ti,tsc2005.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments TSC2004 and TSC2005 touchscreen controller
+
+maintainers:
+  - Marek Vasut <marex@denx.de>
+  - Michael Welling <mwelling@ieee.org>
+
+properties:
+  $nodename:
+    pattern: "^touchscreen(@.*)?$"
+
+  compatible:
+    enum:
+      - ti,tsc2004
+      - ti,tsc2005
+
+  reg:
+    maxItems: 1
+    description: |
+      I2C address when used on the I2C bus, or the SPI chip select index
+      when used on the SPI bus
+
+  interrupts:
+    maxItems: 1
+
+  reset-gpios:
+    maxItems: 1
+    description: GPIO specifier for the controller reset line
+
+  spi-max-frequency:
+    description: TSC2005 SPI bus clock frequency.
+    maximum: 25000000
+
+  ti,x-plate-ohms:
+    description: resistance of the touchscreen's X plates in ohm (defaults to 280)
+
+  ti,esd-recovery-timeout-ms:
+    description: |
+        if the touchscreen does not respond after the configured time
+        (in milli seconds), the driver will reset it. This is disabled
+        by default.
+
+  vio-supply:
+    description: Regulator specifier
+
+  touchscreen-fuzz-pressure: true
+  touchscreen-fuzz-x: true
+  touchscreen-fuzz-y: true
+  touchscreen-max-pressure: true
+  touchscreen-size-x: true
+  touchscreen-size-y: true
+
+allOf:
+  - $ref: touchscreen.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ti,tsc2004
+    then:
+      properties:
+        spi-max-frequency: false
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/gpio/gpio.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        touchscreen@48 {
+            compatible = "ti,tsc2004";
+            reg = <0x48>;
+            vio-supply = <&vio>;
+
+            reset-gpios = <&gpio4 8 GPIO_ACTIVE_HIGH>;
+            interrupts-extended = <&gpio1 27 IRQ_TYPE_EDGE_RISING>;
+
+            touchscreen-fuzz-x = <4>;
+            touchscreen-fuzz-y = <7>;
+            touchscreen-fuzz-pressure = <2>;
+            touchscreen-size-x = <4096>;
+            touchscreen-size-y = <4096>;
+            touchscreen-max-pressure = <2048>;
+
+            ti,x-plate-ohms = <280>;
+            ti,esd-recovery-timeout-ms = <8000>;
+        };
+    };
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/gpio/gpio.h>
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        touchscreen@0 {
+            compatible = "ti,tsc2005";
+            spi-max-frequency = <6000000>;
+            reg = <0>;
+
+            vio-supply = <&vio>;
+
+            reset-gpios = <&gpio4 8 GPIO_ACTIVE_HIGH>; /* 104 */
+            interrupts-extended = <&gpio4 4 IRQ_TYPE_EDGE_RISING>; /* 100 */
+
+            touchscreen-fuzz-x = <4>;
+            touchscreen-fuzz-y = <7>;
+            touchscreen-fuzz-pressure = <2>;
+            touchscreen-size-x = <4096>;
+            touchscreen-size-y = <4096>;
+            touchscreen-max-pressure = <2048>;
+
+            ti,x-plate-ohms = <280>;
+            ti,esd-recovery-timeout-ms = <8000>;
+        };
+    };

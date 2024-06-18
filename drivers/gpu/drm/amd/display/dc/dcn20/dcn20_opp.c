@@ -41,10 +41,12 @@
 void opp2_set_disp_pattern_generator(
 		struct output_pixel_processor *opp,
 		enum controller_dp_test_pattern test_pattern,
+		enum controller_dp_color_space color_space,
 		enum dc_color_depth color_depth,
 		const struct tg_color *solid_color,
 		int width,
-		int height)
+		int height,
+		int offset)
 {
 	struct dcn20_opp *oppn20 = TO_DCN20_OPP(opp);
 	enum test_pattern_color_format bit_depth;
@@ -91,6 +93,11 @@ void opp2_set_disp_pattern_generator(
 		DPG_ACTIVE_WIDTH, width,
 		DPG_ACTIVE_HEIGHT, height);
 
+	/* set DPG offset */
+	REG_SET_2(DPG_OFFSET_SEGMENT, 0,
+		DPG_X_OFFSET, offset,
+		DPG_SEGMENT_WIDTH, 0);
+
 	switch (test_pattern) {
 	case CONTROLLER_DP_TEST_PATTERN_COLORSQUARES:
 	case CONTROLLER_DP_TEST_PATTERN_COLORSQUARES_CEA:
@@ -100,9 +107,22 @@ void opp2_set_disp_pattern_generator(
 				TEST_PATTERN_DYN_RANGE_CEA :
 				TEST_PATTERN_DYN_RANGE_VESA);
 
+		switch (color_space) {
+		case CONTROLLER_DP_COLOR_SPACE_YCBCR601:
+			mode = TEST_PATTERN_MODE_COLORSQUARES_YCBCR601;
+		break;
+		case CONTROLLER_DP_COLOR_SPACE_YCBCR709:
+			mode = TEST_PATTERN_MODE_COLORSQUARES_YCBCR709;
+		break;
+		case CONTROLLER_DP_COLOR_SPACE_RGB:
+		default:
+			mode = TEST_PATTERN_MODE_COLORSQUARES_RGB;
+		break;
+		}
+
 		REG_UPDATE_6(DPG_CONTROL,
 			DPG_EN, 1,
-			DPG_MODE, TEST_PATTERN_MODE_COLORSQUARES_RGB,
+			DPG_MODE, mode,
 			DPG_DYNAMIC_RANGE, dyn_range,
 			DPG_BIT_DEPTH, bit_depth,
 			DPG_VRES, 6,
@@ -270,6 +290,17 @@ void opp2_set_disp_pattern_generator(
 	}
 }
 
+void opp2_program_dpg_dimensions(
+		struct output_pixel_processor *opp,
+		int width, int height)
+{
+	struct dcn20_opp *oppn20 = TO_DCN20_OPP(opp);
+
+	REG_SET_2(DPG_DIMENSIONS, 0,
+		DPG_ACTIVE_WIDTH, width,
+		DPG_ACTIVE_HEIGHT, height);
+}
+
 void opp2_dpg_set_blank_color(
 		struct output_pixel_processor *opp,
 		const struct tg_color *color)
@@ -306,6 +337,19 @@ bool opp2_dpg_is_blanked(struct output_pixel_processor *opp)
 		(double_buffer_pending == 0);
 }
 
+bool opp2_dpg_is_pending(struct output_pixel_processor *opp)
+{
+	struct dcn20_opp *oppn20 = TO_DCN20_OPP(opp);
+	uint32_t double_buffer_pending;
+	uint32_t dpg_en;
+
+	REG_GET(DPG_CONTROL, DPG_EN, &dpg_en);
+
+	REG_GET(DPG_STATUS, DPG_DOUBLE_BUFFER_PENDING, &double_buffer_pending);
+
+	return (dpg_en == 1 && double_buffer_pending == 1);
+}
+
 void opp2_program_left_edge_extra_pixel (
 		struct output_pixel_processor *opp,
 		bool count)
@@ -330,7 +374,9 @@ static struct opp_funcs dcn20_opp_funcs = {
 		.opp_program_stereo = opp1_program_stereo,
 		.opp_pipe_clock_control = opp1_pipe_clock_control,
 		.opp_set_disp_pattern_generator = opp2_set_disp_pattern_generator,
+		.opp_program_dpg_dimensions = opp2_program_dpg_dimensions,
 		.dpg_is_blanked = opp2_dpg_is_blanked,
+		.dpg_is_pending = opp2_dpg_is_pending,
 		.opp_dpg_set_blank_color = opp2_dpg_set_blank_color,
 		.opp_destroy = opp1_destroy,
 		.opp_program_left_edge_extra_pixel = opp2_program_left_edge_extra_pixel,

@@ -8,7 +8,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
-#include <linux/of_platform.h>
 #include <linux/printk.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -20,8 +19,8 @@
 #include <linux/dma-mapping.h>
 #include <linux/sched.h>
 #include <linux/kthread.h>
-
-#include "most/core.h"
+#include <linux/most.h>
+#include <linux/of.h>
 #include "hal.h"
 #include "errors.h"
 #include "sysfs.h"
@@ -46,13 +45,12 @@ MODULE_PARM_DESC(fcnt, "Num of frames per sub-buffer for sync channels as a powe
 
 static DEFINE_SPINLOCK(dim_lock);
 
-static void dim2_tasklet_fn(unsigned long data);
-static DECLARE_TASKLET(dim2_tasklet, dim2_tasklet_fn, 0);
-
 /**
  * struct hdm_channel - private structure to keep channel specific data
+ * @name: channel name
  * @is_initialized: identifier to know whether the channel is initialized
  * @ch: HAL specific channel data
+ * @reset_dbr_size: reset DBR data buffer size
  * @pending_list: list to keep MBO's before starting transfer
  * @started_list: list to keep MBO's after starting transfer
  * @direction: channel direction (TX or RX)
@@ -69,7 +67,7 @@ struct hdm_channel {
 	enum most_channel_data_type data_type;
 };
 
-/**
+/*
  * struct dim2_hdm - private structure to keep interface specific data
  * @hch: an array of channel specific data
  * @most_iface: most interface structure
@@ -101,22 +99,27 @@ struct dim2_hdm {
 	struct medialb_bus bus;
 	void (*on_netinfo)(struct most_interface *most_iface,
 			   unsigned char link_state, unsigned char *addrs);
-	void (*disable_platform)(struct platform_device *);
+	void (*disable_platform)(struct platform_device *pdev);
 };
 
 struct dim2_platform_data {
-	int (*enable)(struct platform_device *);
-	void (*disable)(struct platform_device *);
+	int (*enable)(struct platform_device *pdev);
+	void (*disable)(struct platform_device *pdev);
+	u8 fcnt;
 };
 
-#define iface_to_hdm(iface) container_of(iface, struct dim2_hdm, most_iface)
+static inline struct dim2_hdm *iface_to_hdm(struct most_interface *iface)
+{
+	return container_of(iface, struct dim2_hdm, most_iface);
+}
 
 /* Macro to identify a network status message */
 #define PACKET_IS_NET_INFO(p)  \
 	(((p)[1] == 0x18) && ((p)[2] == 0x05) && ((p)[3] == 0x0C) && \
 	 ((p)[13] == 0x3C) && ((p)[14] == 0x00) && ((p)[15] == 0x0A))
 
-bool dim2_sysfs_get_state_cb(void)
+static ssize_t state_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
 	bool state;
 	unsigned long flags;
@@ -125,8 +128,17 @@ bool dim2_sysfs_get_state_cb(void)
 	state = dim_get_lock_state();
 	spin_unlock_irqrestore(&dim_lock, flags);
 
-	return state;
+	return sysfs_emit(buf, "%s\n", state ? "locked" : "");
 }
+
+static DEVICE_ATTR_RO(state);
+
+static struct attribute *dim2_attrs[] = {
+	&dev_attr_state.attr,
+	NULL,
+};
+
+ATTRIBUTE_GROUPS(dim2);
 
 /**
  * dimcb_on_error - callback from HAL to report miscommunication between
@@ -152,7 +164,7 @@ static int try_start_dim_transfer(struct hdm_channel *hdm_ch)
 	struct list_head *head = &hdm_ch->pending_list;
 	struct mbo *mbo;
 	unsigned long flags;
-	struct dim_ch_state_t st;
+	struct dim_ch_state st;
 
 	BUG_ON(!hdm_ch);
 	BUG_ON(!hdm_ch->is_initialized);
@@ -250,7 +262,7 @@ static void retrieve_netinfo(struct dim2_hdm *dev, struct mbo *mbo)
 static void service_done_flag(struct dim2_hdm *dev, int ch_idx)
 {
 	struct hdm_channel *hdm_ch = dev->hch + ch_idx;
-	struct dim_ch_state_t st;
+	struct dim_ch_state st;
 	struct list_head *head;
 	struct mbo *mbo;
 	int done_buffers;
@@ -349,15 +361,9 @@ static irqreturn_t dim2_mlb_isr(int irq, void *_dev)
 	return IRQ_HANDLED;
 }
 
-/**
- * dim2_tasklet_fn - tasklet function
- * @data: private data
- *
- * Service each initialized channel, if needed
- */
-static void dim2_tasklet_fn(unsigned long data)
+static irqreturn_t dim2_task_irq(int irq, void *_dev)
 {
-	struct dim2_hdm *dev = (struct dim2_hdm *)data;
+	struct dim2_hdm *dev = _dev;
 	unsigned long flags;
 	int ch_idx;
 
@@ -373,6 +379,8 @@ static void dim2_tasklet_fn(unsigned long data)
 		while (!try_start_dim_transfer(dev->hch + ch_idx))
 			continue;
 	}
+
+	return IRQ_HANDLED;
 }
 
 /**
@@ -380,8 +388,8 @@ static void dim2_tasklet_fn(unsigned long data)
  * @irq: irq number
  * @_dev: private data
  *
- * Acknowledge the interrupt and schedule a tasklet to service channels.
- * Return IRQ_HANDLED.
+ * Acknowledge the interrupt and service each initialized channel,
+ * if needed, in task context.
  */
 static irqreturn_t dim2_ahb_isr(int irq, void *_dev)
 {
@@ -393,9 +401,7 @@ static irqreturn_t dim2_ahb_isr(int irq, void *_dev)
 	dim_service_ahb_int_irq(get_active_channels(dev, buffer));
 	spin_unlock_irqrestore(&dim_lock, flags);
 
-	dim2_tasklet.data = (unsigned long)dev;
-	tasklet_schedule(&dim2_tasklet);
-	return IRQ_HANDLED;
+	return IRQ_WAKE_THREAD;
 }
 
 /**
@@ -429,9 +435,9 @@ static void complete_all_mbos(struct list_head *head)
 
 /**
  * configure_channel - initialize a channel
- * @iface: interface the channel belongs to
- * @channel: channel to be configured
- * @channel_config: structure that holds the configuration information
+ * @most_iface: interface the channel belongs to
+ * @ch_idx: channel index to be configured
+ * @ccfg: structure that holds the configuration information
  *
  * Receives configuration information from mostcore and initialize
  * the corresponding channel. Return 0 on success, negative on failure.
@@ -547,8 +553,8 @@ static int configure_channel(struct most_interface *most_iface, int ch_idx,
 
 /**
  * enqueue - enqueue a buffer for data transfer
- * @iface: intended interface
- * @channel: ID of the channel the buffer is intended for
+ * @most_iface: intended interface
+ * @ch_idx: ID of the channel the buffer is intended for
  * @mbo: pointer to the buffer object
  *
  * Push the buffer into pending_list and try to transfer one buffer from
@@ -580,8 +586,9 @@ static int enqueue(struct most_interface *most_iface, int ch_idx,
 
 /**
  * request_netinfo - triggers retrieving of network info
- * @iface: pointer to the interface
- * @channel_id: corresponding channel ID
+ * @most_iface: pointer to the interface
+ * @ch_idx: corresponding channel ID
+ * @on_netinfo: call-back used to deliver network status to mostcore
  *
  * Send a command to INIC which triggers retrieving of network info by means of
  * "Message exchange over MDP/MEP". Return 0 on success, negative on failure.
@@ -622,8 +629,8 @@ static void request_netinfo(struct most_interface *most_iface, int ch_idx,
 
 /**
  * poison_channel - poison buffers of a channel
- * @iface: pointer to the interface the channel to be poisoned belongs to
- * @channel_id: corresponding channel ID
+ * @most_iface: pointer to the interface the channel to be poisoned belongs to
+ * @ch_idx: corresponding channel ID
  *
  * Destroy a channel and complete all the buffers in both started_list &
  * pending_list. Return 0 on success, negative on failure.
@@ -641,14 +648,12 @@ static int poison_channel(struct most_interface *most_iface, int ch_idx)
 	if (!hdm_ch->is_initialized)
 		return -EPERM;
 
-	tasklet_disable(&dim2_tasklet);
 	spin_lock_irqsave(&dim_lock, flags);
 	hal_ret = dim_destroy_channel(&hdm_ch->ch);
 	hdm_ch->is_initialized = false;
 	if (ch_idx == dev->atx_idx)
 		dev->atx_idx = -1;
 	spin_unlock_irqrestore(&dim_lock, flags);
-	tasklet_enable(&dim2_tasklet);
 	if (hal_ret != DIM_NO_ERROR) {
 		pr_err("HAL Failed to close channel %s\n", hdm_ch->name);
 		ret = -EFAULT;
@@ -714,6 +719,23 @@ static int get_dim2_clk_speed(const char *clock_speed, u8 *val)
 	return -EINVAL;
 }
 
+static void dim2_release(struct device *d)
+{
+	struct dim2_hdm *dev = container_of(d, struct dim2_hdm, dev);
+	unsigned long flags;
+
+	kthread_stop(dev->netinfo_task);
+
+	spin_lock_irqsave(&dim_lock, flags);
+	dim_shutdown();
+	spin_unlock_irqrestore(&dim_lock, flags);
+
+	if (dev->disable_platform)
+		dev->disable_platform(to_platform_device(d->parent));
+
+	kfree(dev);
+}
+
 /*
  * dim2_probe - dim2 probe handler
  * @pdev: platform device structure
@@ -730,11 +752,12 @@ static int dim2_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret, i;
 	u8 hal_ret;
+	u8 dev_fcnt = fcnt;
 	int irq;
 
 	enum { MLB_INT_IDX, AHB0_INT_IDX };
 
-	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
 
@@ -746,30 +769,37 @@ static int dim2_probe(struct platform_device *pdev)
 				      "microchip,clock-speed", &clock_speed);
 	if (ret) {
 		dev_err(&pdev->dev, "missing dt property clock-speed\n");
-		return ret;
+		goto err_free_dev;
 	}
 
 	ret = get_dim2_clk_speed(clock_speed, &dev->clk_speed);
 	if (ret) {
 		dev_err(&pdev->dev, "bad dt property clock-speed\n");
-		return ret;
+		goto err_free_dev;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dev->io_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(dev->io_base))
-		return PTR_ERR(dev->io_base);
+	dev->io_base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
+	if (IS_ERR(dev->io_base)) {
+		ret = PTR_ERR(dev->io_base);
+		goto err_free_dev;
+	}
 
 	of_id = of_match_node(dim2_of_match, pdev->dev.of_node);
 	pdata = of_id->data;
-	ret = pdata && pdata->enable ? pdata->enable(pdev) : 0;
-	if (ret)
-		return ret;
+	if (pdata) {
+		if (pdata->enable) {
+			ret = pdata->enable(pdev);
+			if (ret)
+				goto err_free_dev;
+		}
+		dev->disable_platform = pdata->disable;
+		if (pdata->fcnt)
+			dev_fcnt = pdata->fcnt;
+	}
 
-	dev->disable_platform = pdata ? pdata->disable : NULL;
-
-	dev_info(&pdev->dev, "sync: num of frames per sub-buffer: %u\n", fcnt);
-	hal_ret = dim_startup(dev->io_base, dev->clk_speed, fcnt);
+	dev_info(&pdev->dev, "sync: num of frames per sub-buffer: %u\n",
+		 dev_fcnt);
+	hal_ret = dim_startup(dev->io_base, dev->clk_speed, dev_fcnt);
 	if (hal_ret != DIM_NO_ERROR) {
 		dev_err(&pdev->dev, "dim_startup failed: %d\n", hal_ret);
 		ret = -ENODEV;
@@ -782,8 +812,8 @@ static int dim2_probe(struct platform_device *pdev)
 		goto err_shutdown_dim;
 	}
 
-	ret = devm_request_irq(&pdev->dev, irq, dim2_ahb_isr, 0,
-			       "dim2_ahb0_int", dev);
+	ret = devm_request_threaded_irq(&pdev->dev, irq, dim2_ahb_isr,
+					dim2_task_irq, 0, "dim2_ahb0_int", dev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to request ahb0_int irq %d\n", irq);
 		goto err_shutdown_dim;
@@ -854,32 +884,20 @@ static int dim2_probe(struct platform_device *pdev)
 	dev->most_iface.poison_channel = poison_channel;
 	dev->most_iface.request_netinfo = request_netinfo;
 	dev->most_iface.driver_dev = &pdev->dev;
-	dev->dev.init_name = "dim2_state";
-	dev->dev.parent = &dev->most_iface.dev;
+	dev->most_iface.dev = &dev->dev;
+	dev->dev.init_name = dev->name;
+	dev->dev.parent = &pdev->dev;
+	dev->dev.release = dim2_release;
 
-	ret = most_register_interface(&dev->most_iface);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to register MOST interface\n");
-		goto err_stop_thread;
-	}
+	return most_register_interface(&dev->most_iface);
 
-	ret = dim2_sysfs_probe(&dev->dev);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to create sysfs attribute\n");
-		goto err_unreg_iface;
-	}
-
-	return 0;
-
-err_unreg_iface:
-	most_deregister_interface(&dev->most_iface);
-err_stop_thread:
-	kthread_stop(dev->netinfo_task);
 err_shutdown_dim:
 	dim_shutdown();
 err_disable_platform:
 	if (dev->disable_platform)
 		dev->disable_platform(pdev);
+err_free_dev:
+	kfree(dev);
 
 	return ret;
 }
@@ -890,23 +908,11 @@ err_disable_platform:
  *
  * Unregister the interface from mostcore
  */
-static int dim2_remove(struct platform_device *pdev)
+static void dim2_remove(struct platform_device *pdev)
 {
 	struct dim2_hdm *dev = platform_get_drvdata(pdev);
-	unsigned long flags;
 
-	dim2_sysfs_destroy(&dev->dev);
 	most_deregister_interface(&dev->most_iface);
-	kthread_stop(dev->netinfo_task);
-
-	spin_lock_irqsave(&dim_lock, flags);
-	dim_shutdown();
-	spin_unlock_irqrestore(&dim_lock, flags);
-
-	if (dev->disable_platform)
-		dev->disable_platform(pdev);
-
-	return 0;
 }
 
 /* platform specific functions [[ */
@@ -954,7 +960,7 @@ static void fsl_mx6_disable(struct platform_device *pdev)
 	clk_disable_unprepare(dev->clk);
 }
 
-static int rcar_h2_enable(struct platform_device *pdev)
+static int rcar_gen2_enable(struct platform_device *pdev)
 {
 	struct dim2_hdm *dev = platform_get_drvdata(pdev);
 	int ret;
@@ -981,7 +987,6 @@ static int rcar_h2_enable(struct platform_device *pdev)
 		writel(0x04, dev->io_base + 0x600);
 	}
 
-
 	/* BBCR = 0b11 */
 	writel(0x03, dev->io_base + 0x500);
 	writel(0x0002FF02, dev->io_base + 0x508);
@@ -989,7 +994,7 @@ static int rcar_h2_enable(struct platform_device *pdev)
 	return 0;
 }
 
-static void rcar_h2_disable(struct platform_device *pdev)
+static void rcar_gen2_disable(struct platform_device *pdev)
 {
 	struct dim2_hdm *dev = platform_get_drvdata(pdev);
 
@@ -999,7 +1004,7 @@ static void rcar_h2_disable(struct platform_device *pdev)
 	writel(0x0, dev->io_base + 0x600);
 }
 
-static int rcar_m3_enable(struct platform_device *pdev)
+static int rcar_gen3_enable(struct platform_device *pdev)
 {
 	struct dim2_hdm *dev = platform_get_drvdata(pdev);
 	u32 enable_512fs = dev->clk_speed == CLK_512FS;
@@ -1029,7 +1034,7 @@ static int rcar_m3_enable(struct platform_device *pdev)
 	return 0;
 }
 
-static void rcar_m3_disable(struct platform_device *pdev)
+static void rcar_gen3_disable(struct platform_device *pdev)
 {
 	struct dim2_hdm *dev = platform_get_drvdata(pdev);
 
@@ -1041,12 +1046,22 @@ static void rcar_m3_disable(struct platform_device *pdev)
 
 /* ]] platform specific functions */
 
-enum dim2_platforms { FSL_MX6, RCAR_H2, RCAR_M3 };
+enum dim2_platforms { FSL_MX6, RCAR_GEN2, RCAR_GEN3 };
 
 static struct dim2_platform_data plat_data[] = {
-	[FSL_MX6] = { .enable = fsl_mx6_enable, .disable = fsl_mx6_disable },
-	[RCAR_H2] = { .enable = rcar_h2_enable, .disable = rcar_h2_disable },
-	[RCAR_M3] = { .enable = rcar_m3_enable, .disable = rcar_m3_disable },
+	[FSL_MX6] = {
+		.enable = fsl_mx6_enable,
+		.disable = fsl_mx6_disable,
+	},
+	[RCAR_GEN2] = {
+		.enable = rcar_gen2_enable,
+		.disable = rcar_gen2_disable,
+	},
+	[RCAR_GEN3] = {
+		.enable = rcar_gen3_enable,
+		.disable = rcar_gen3_disable,
+		.fcnt = 3,
+	},
 };
 
 static const struct of_device_id dim2_of_match[] = {
@@ -1056,11 +1071,11 @@ static const struct of_device_id dim2_of_match[] = {
 	},
 	{
 		.compatible = "renesas,mlp",
-		.data = plat_data + RCAR_H2
+		.data = plat_data + RCAR_GEN2
 	},
 	{
-		.compatible = "rcar,medialb-dim2",
-		.data = plat_data + RCAR_M3
+		.compatible = "renesas,rcar-gen3-mlp",
+		.data = plat_data + RCAR_GEN3
 	},
 	{
 		.compatible = "xlnx,axi4-os62420_3pin-1.00.a",
@@ -1075,10 +1090,11 @@ MODULE_DEVICE_TABLE(of, dim2_of_match);
 
 static struct platform_driver dim2_driver = {
 	.probe = dim2_probe,
-	.remove = dim2_remove,
+	.remove_new = dim2_remove,
 	.driver = {
 		.name = "hdm_dim2",
 		.of_match_table = dim2_of_match,
+		.dev_groups = dim2_groups,
 	},
 };
 

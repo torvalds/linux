@@ -63,12 +63,12 @@ spider_net_ethtool_get_drvinfo(struct net_device *netdev,
 	card = netdev_priv(netdev);
 
 	/* clear and fill out info */
-	strlcpy(drvinfo->driver, spider_net_driver_name,
+	strscpy(drvinfo->driver, spider_net_driver_name,
 		sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, VERSION, sizeof(drvinfo->version));
-	strlcpy(drvinfo->fw_version, "no information",
+	strscpy(drvinfo->version, VERSION, sizeof(drvinfo->version));
+	strscpy(drvinfo->fw_version, "no information",
 		sizeof(drvinfo->fw_version));
-	strlcpy(drvinfo->bus_info, pci_name(card->pdev),
+	strscpy(drvinfo->bus_info, pci_name(card->pdev),
 		sizeof(drvinfo->bus_info));
 }
 
@@ -110,7 +110,9 @@ spider_net_ethtool_nway_reset(struct net_device *netdev)
 
 static void
 spider_net_ethtool_get_ringparam(struct net_device *netdev,
-				 struct ethtool_ringparam *ering)
+				 struct ethtool_ringparam *ering,
+				 struct kernel_ethtool_ringparam *kernel_ering,
+				 struct netlink_ext_ack *extack)
 {
 	struct spider_net_card *card = netdev_priv(netdev);
 

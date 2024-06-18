@@ -16,7 +16,7 @@
 #include <linux/mutex.h>
 #include <linux/fs.h>
 #include <linux/highmem.h>
-#include <asm/pgtable.h>
+#include <linux/pagemap.h>
 #include <asm/mmu_context.h>
 #include <asm/cache_insns.h>
 #include <asm/cacheflush.h>
@@ -107,19 +107,29 @@ static inline void flush_cache_one(unsigned long start, unsigned long phys)
  * Write back & invalidate the D-cache of the page.
  * (To avoid "alias" issues)
  */
-static void sh4_flush_dcache_page(void *arg)
+static void sh4_flush_dcache_folio(void *arg)
 {
-	struct page *page = arg;
-	unsigned long addr = (unsigned long)page_address(page);
+	struct folio *folio = arg;
 #ifndef CONFIG_SMP
-	struct address_space *mapping = page_mapping_file(page);
+	struct address_space *mapping = folio_flush_mapping(folio);
 
 	if (mapping && !mapping_mapped(mapping))
-		clear_bit(PG_dcache_clean, &page->flags);
+		clear_bit(PG_dcache_clean, &folio->flags);
 	else
 #endif
-		flush_cache_one(CACHE_OC_ADDRESS_ARRAY |
-				(addr & shm_align_mask), page_to_phys(page));
+	{
+		unsigned long pfn = folio_pfn(folio);
+		unsigned long addr = (unsigned long)folio_address(folio);
+		unsigned int i, nr = folio_nr_pages(folio);
+
+		for (i = 0; i < nr; i++) {
+			flush_cache_one(CACHE_OC_ADDRESS_ARRAY |
+						(addr & shm_align_mask),
+					pfn * PAGE_SIZE);
+			addr += PAGE_SIZE;
+			pfn++;
+		}
+	}
 
 	wmb();
 }
@@ -183,7 +193,7 @@ static void sh4_flush_cache_all(void *unused)
  * accessed with (hence cache set) is in accord with the physical
  * address (i.e. tag).  It's no different here.
  *
- * Caller takes mm->mmap_sem.
+ * Caller takes mm->mmap_lock.
  */
 static void sh4_flush_cache_mm(void *arg)
 {
@@ -208,8 +218,6 @@ static void sh4_flush_cache_page(void *args)
 	struct page *page;
 	unsigned long address, pfn, phys;
 	int map_coherent = 0;
-	pgd_t *pgd;
-	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 	void *vaddr;
@@ -223,9 +231,7 @@ static void sh4_flush_cache_page(void *args)
 	if (cpu_context(smp_processor_id(), vma->vm_mm) == NO_CONTEXT)
 		return;
 
-	pgd = pgd_offset(vma->vm_mm, address);
-	pud = pud_offset(pgd, address);
-	pmd = pmd_offset(pud, address);
+	pmd = pmd_off(vma->vm_mm, address);
 	pte = pte_offset_kernel(pmd, address);
 
 	/* If the page isn't present, there is nothing to do here. */
@@ -235,13 +241,14 @@ static void sh4_flush_cache_page(void *args)
 	if ((vma->vm_mm == current->active_mm))
 		vaddr = NULL;
 	else {
+		struct folio *folio = page_folio(page);
 		/*
 		 * Use kmap_coherent or kmap_atomic to do flushes for
 		 * another ASID than the current one.
 		 */
 		map_coherent = (current_cpu_data.dcache.n_aliases &&
-			test_bit(PG_dcache_clean, &page->flags) &&
-			page_mapcount(page));
+			test_bit(PG_dcache_clean, folio_flags(folio, 0)) &&
+			page_mapped(page));
 		if (map_coherent)
 			vaddr = kmap_coherent(page, address);
 		else
@@ -370,8 +377,6 @@ static void __flush_cache_one(unsigned long addr, unsigned long phys,
 	} while (--way_count != 0);
 }
 
-extern void __weak sh4__flush_region_init(void);
-
 /*
  * SH-4 has virtually indexed and physically tagged cache.
  */
@@ -383,7 +388,7 @@ void __init sh4_cache_init(void)
 		__raw_readl(CCN_PRR));
 
 	local_flush_icache_range	= sh4_flush_icache_range;
-	local_flush_dcache_page		= sh4_flush_dcache_page;
+	local_flush_dcache_folio	= sh4_flush_dcache_folio;
 	local_flush_cache_all		= sh4_flush_cache_all;
 	local_flush_cache_mm		= sh4_flush_cache_mm;
 	local_flush_cache_dup_mm	= sh4_flush_cache_mm;

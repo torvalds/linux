@@ -51,6 +51,7 @@
 #include <linux/if_ether.h>
 #include <linux/of_net.h>
 #include <linux/pci.h>
+#include <linux/property.h>
 #include <net/dst.h>
 #include <net/arp.h>
 #include <net/sock.h>
@@ -58,10 +59,9 @@
 #include <net/ip.h>
 #include <net/dsa.h>
 #include <net/flow_dissector.h>
+#include <net/gro.h>
 #include <linux/uaccess.h>
 #include <net/pkt_sched.h>
-
-__setup("ether=", netdev_boot_setup);
 
 /**
  * eth_header - create the Ethernet header
@@ -122,7 +122,7 @@ EXPORT_SYMBOL(eth_header);
  * Make a best effort attempt to pull the length for all of the headers for
  * a given frame in a linear buffer.
  */
-u32 eth_get_headlen(const struct net_device *dev, void *data, unsigned int len)
+u32 eth_get_headlen(const struct net_device *dev, const void *data, u32 len)
 {
 	const unsigned int flags = FLOW_DISSECTOR_F_PARSE_1ST_FRAG;
 	const struct ethhdr *eth = (const struct ethhdr *)data;
@@ -161,32 +161,16 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	skb->dev = dev;
 	skb_reset_mac_header(skb);
 
-	eth = (struct ethhdr *)skb->data;
-	skb_pull_inline(skb, ETH_HLEN);
-
-	if (unlikely(!ether_addr_equal_64bits(eth->h_dest,
-					      dev->dev_addr))) {
-		if (unlikely(is_multicast_ether_addr_64bits(eth->h_dest))) {
-			if (ether_addr_equal_64bits(eth->h_dest, dev->broadcast))
-				skb->pkt_type = PACKET_BROADCAST;
-			else
-				skb->pkt_type = PACKET_MULTICAST;
-		} else {
-			skb->pkt_type = PACKET_OTHERHOST;
-		}
-	}
+	eth = eth_skb_pull_mac(skb);
+	eth_skb_pkt_type(skb, dev);
 
 	/*
 	 * Some variants of DSA tagging don't have an ethertype field
 	 * at all, so we check here whether one of those tagging
 	 * variants has been configured on the receiving interface,
 	 * and if so, set skb->protocol without looking at the packet.
-	 * The DSA tagging protocol may be able to decode some but not all
-	 * traffic (for example only for management). In that case give it the
-	 * option to filter the packets from which it can decode source port
-	 * information.
 	 */
-	if (unlikely(netdev_uses_dsa(dev)) && dsa_can_decode(skb, dev))
+	if (unlikely(netdev_uses_dsa(dev)))
 		return htons(ETH_P_XDSA);
 
 	if (likely(eth_proto_is_802_3(eth->h_proto)))
@@ -244,7 +228,12 @@ int eth_header_cache(const struct neighbour *neigh, struct hh_cache *hh, __be16 
 	eth->h_proto = type;
 	memcpy(eth->h_source, dev->dev_addr, ETH_ALEN);
 	memcpy(eth->h_dest, neigh->ha, ETH_ALEN);
-	hh->hh_len = ETH_HLEN;
+
+	/* Pairs with READ_ONCE() in neigh_resolve_output(),
+	 * neigh_hh_output() and neigh_update_hhs().
+	 */
+	smp_store_release(&hh->hh_len, ETH_HLEN);
+
 	return 0;
 }
 EXPORT_SYMBOL(eth_header_cache);
@@ -267,7 +256,7 @@ void eth_header_cache_update(struct hh_cache *hh,
 EXPORT_SYMBOL(eth_header_cache_update);
 
 /**
- * eth_header_parser_protocol - extract protocol from L2 header
+ * eth_header_parse_protocol - extract protocol from L2 header
  * @skb: packet to extract protocol from
  */
 __be16 eth_header_parse_protocol(const struct sk_buff *skb)
@@ -304,7 +293,7 @@ void eth_commit_mac_addr_change(struct net_device *dev, void *p)
 {
 	struct sockaddr *addr = p;
 
-	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(dev, addr->sa_data);
 }
 EXPORT_SYMBOL(eth_commit_mac_addr_change);
 
@@ -329,22 +318,6 @@ int eth_mac_addr(struct net_device *dev, void *p)
 	return 0;
 }
 EXPORT_SYMBOL(eth_mac_addr);
-
-/**
- * eth_change_mtu - set new MTU size
- * @dev: network device
- * @new_mtu: new Maximum Transfer Unit
- *
- * Allow changing MTU size. Needs to be overridden for devices
- * supporting jumbo frames.
- */
-int eth_change_mtu(struct net_device *dev, int new_mtu)
-{
-	netdev_warn(dev, "%s is deprecated\n", __func__);
-	dev->mtu = new_mtu;
-	return 0;
-}
-EXPORT_SYMBOL(eth_change_mtu);
 
 int eth_validate_addr(struct net_device *dev)
 {
@@ -406,42 +379,14 @@ EXPORT_SYMBOL(ether_setup);
 struct net_device *alloc_etherdev_mqs(int sizeof_priv, unsigned int txqs,
 				      unsigned int rxqs)
 {
-	return alloc_netdev_mqs(sizeof_priv, "eth%d", NET_NAME_UNKNOWN,
+	return alloc_netdev_mqs(sizeof_priv, "eth%d", NET_NAME_ENUM,
 				ether_setup, txqs, rxqs);
 }
 EXPORT_SYMBOL(alloc_etherdev_mqs);
 
-static void devm_free_netdev(struct device *dev, void *res)
-{
-	free_netdev(*(struct net_device **)res);
-}
-
-struct net_device *devm_alloc_etherdev_mqs(struct device *dev, int sizeof_priv,
-					   unsigned int txqs, unsigned int rxqs)
-{
-	struct net_device **dr;
-	struct net_device *netdev;
-
-	dr = devres_alloc(devm_free_netdev, sizeof(*dr), GFP_KERNEL);
-	if (!dr)
-		return NULL;
-
-	netdev = alloc_etherdev_mqs(sizeof_priv, txqs, rxqs);
-	if (!netdev) {
-		devres_free(dr);
-		return NULL;
-	}
-
-	*dr = netdev;
-	devres_add(dev, dr);
-
-	return netdev;
-}
-EXPORT_SYMBOL(devm_alloc_etherdev_mqs);
-
 ssize_t sysfs_format_mac(char *buf, const unsigned char *addr, int len)
 {
-	return scnprintf(buf, PAGE_SIZE, "%*phC\n", len, addr);
+	return sysfs_emit(buf, "%*phC\n", len, addr);
 }
 EXPORT_SYMBOL(sysfs_format_mac);
 
@@ -457,12 +402,9 @@ struct sk_buff *eth_gro_receive(struct list_head *head, struct sk_buff *skb)
 
 	off_eth = skb_gro_offset(skb);
 	hlen = off_eth + sizeof(*eh);
-	eh = skb_gro_header_fast(skb, off_eth);
-	if (skb_gro_header_hard(skb, hlen)) {
-		eh = skb_gro_header_slow(skb, hlen, off_eth);
-		if (unlikely(!eh))
-			goto out;
-	}
+	eh = skb_gro_header(skb, hlen, off_eth);
+	if (unlikely(!eh))
+		goto out;
 
 	flush = 0;
 
@@ -479,19 +421,19 @@ struct sk_buff *eth_gro_receive(struct list_head *head, struct sk_buff *skb)
 
 	type = eh->h_proto;
 
-	rcu_read_lock();
 	ptype = gro_find_receive_by_type(type);
 	if (ptype == NULL) {
 		flush = 1;
-		goto out_unlock;
+		goto out;
 	}
 
 	skb_gro_pull(skb, sizeof(*eh));
 	skb_gro_postpull_rcsum(skb, eh, sizeof(*eh));
-	pp = call_gro_receive(ptype->callbacks.gro_receive, head, skb);
 
-out_unlock:
-	rcu_read_unlock();
+	pp = indirect_call_gro_receive_inet(ptype->callbacks.gro_receive,
+					    ipv6_gro_receive, inet_gro_receive,
+					    head, skb);
+
 out:
 	skb_gro_flush_final(skb, pp, flush);
 
@@ -509,13 +451,12 @@ int eth_gro_complete(struct sk_buff *skb, int nhoff)
 	if (skb->encapsulation)
 		skb_set_inner_mac_header(skb, nhoff);
 
-	rcu_read_lock();
 	ptype = gro_find_complete_by_type(type);
 	if (ptype != NULL)
-		err = ptype->callbacks.gro_complete(skb, nhoff +
-						    sizeof(struct ethhdr));
+		err = INDIRECT_CALL_INET(ptype->callbacks.gro_complete,
+					 ipv6_gro_complete, inet_gro_complete,
+					 skb, nhoff + sizeof(*eh));
 
-	rcu_read_unlock();
 	return err;
 }
 EXPORT_SYMBOL(eth_gro_complete);
@@ -545,13 +486,14 @@ unsigned char * __weak arch_get_platform_mac_address(void)
 
 int eth_platform_get_mac_address(struct device *dev, u8 *mac_addr)
 {
-	const unsigned char *addr = NULL;
+	unsigned char *addr;
+	int ret;
 
-	if (dev->of_node)
-		addr = of_get_mac_address(dev->of_node);
-	if (IS_ERR_OR_NULL(addr))
-		addr = arch_get_platform_mac_address();
+	ret = of_get_mac_address(dev->of_node, mac_addr);
+	if (!ret)
+		return 0;
 
+	addr = arch_get_platform_mac_address();
 	if (!addr)
 		return -ENODEV;
 
@@ -562,8 +504,28 @@ int eth_platform_get_mac_address(struct device *dev, u8 *mac_addr)
 EXPORT_SYMBOL(eth_platform_get_mac_address);
 
 /**
- * Obtain the MAC address from an nvmem cell named 'mac-address' associated
- * with given device.
+ * platform_get_ethdev_address - Set netdev's MAC address from a given device
+ * @dev:	Pointer to the device
+ * @netdev:	Pointer to netdev to write the address to
+ *
+ * Wrapper around eth_platform_get_mac_address() which writes the address
+ * directly to netdev->dev_addr.
+ */
+int platform_get_ethdev_address(struct device *dev, struct net_device *netdev)
+{
+	u8 addr[ETH_ALEN] __aligned(2);
+	int ret;
+
+	ret = eth_platform_get_mac_address(dev, addr);
+	if (!ret)
+		eth_hw_addr_set(netdev, addr);
+	return ret;
+}
+EXPORT_SYMBOL(platform_get_ethdev_address);
+
+/**
+ * nvmem_get_mac_address - Obtain the MAC address from an nvmem cell named
+ * 'mac-address' associated with given device.
  *
  * @dev:	Device with which the mac-address cell is associated.
  * @addrbuf:	Buffer to which the MAC address will be copied on success.
@@ -596,4 +558,81 @@ int nvmem_get_mac_address(struct device *dev, void *addrbuf)
 
 	return 0;
 }
-EXPORT_SYMBOL(nvmem_get_mac_address);
+
+static int fwnode_get_mac_addr(struct fwnode_handle *fwnode,
+			       const char *name, char *addr)
+{
+	int ret;
+
+	ret = fwnode_property_read_u8_array(fwnode, name, addr, ETH_ALEN);
+	if (ret)
+		return ret;
+
+	if (!is_valid_ether_addr(addr))
+		return -EINVAL;
+	return 0;
+}
+
+/**
+ * fwnode_get_mac_address - Get the MAC from the firmware node
+ * @fwnode:	Pointer to the firmware node
+ * @addr:	Address of buffer to store the MAC in
+ *
+ * Search the firmware node for the best MAC address to use.  'mac-address' is
+ * checked first, because that is supposed to contain to "most recent" MAC
+ * address. If that isn't set, then 'local-mac-address' is checked next,
+ * because that is the default address.  If that isn't set, then the obsolete
+ * 'address' is checked, just in case we're using an old device tree.
+ *
+ * Note that the 'address' property is supposed to contain a virtual address of
+ * the register set, but some DTS files have redefined that property to be the
+ * MAC address.
+ *
+ * All-zero MAC addresses are rejected, because those could be properties that
+ * exist in the firmware tables, but were not updated by the firmware.  For
+ * example, the DTS could define 'mac-address' and 'local-mac-address', with
+ * zero MAC addresses.  Some older U-Boots only initialized 'local-mac-address'.
+ * In this case, the real MAC is in 'local-mac-address', and 'mac-address'
+ * exists but is all zeros.
+ */
+int fwnode_get_mac_address(struct fwnode_handle *fwnode, char *addr)
+{
+	if (!fwnode_get_mac_addr(fwnode, "mac-address", addr) ||
+	    !fwnode_get_mac_addr(fwnode, "local-mac-address", addr) ||
+	    !fwnode_get_mac_addr(fwnode, "address", addr))
+		return 0;
+
+	return -ENOENT;
+}
+EXPORT_SYMBOL(fwnode_get_mac_address);
+
+/**
+ * device_get_mac_address - Get the MAC for a given device
+ * @dev:	Pointer to the device
+ * @addr:	Address of buffer to store the MAC in
+ */
+int device_get_mac_address(struct device *dev, char *addr)
+{
+	return fwnode_get_mac_address(dev_fwnode(dev), addr);
+}
+EXPORT_SYMBOL(device_get_mac_address);
+
+/**
+ * device_get_ethdev_address - Set netdev's MAC address from a given device
+ * @dev:	Pointer to the device
+ * @netdev:	Pointer to netdev to write the address to
+ *
+ * Wrapper around device_get_mac_address() which writes the address
+ * directly to netdev->dev_addr.
+ */
+int device_get_ethdev_address(struct device *dev, struct net_device *netdev)
+{
+	u8 addr[ETH_ALEN];
+	int ret;
+
+	ret = device_get_mac_address(dev, addr);
+	if (!ret)
+		eth_hw_addr_set(netdev, addr);
+	return ret;
+}
+EXPORT_SYMBOL(device_get_ethdev_address);

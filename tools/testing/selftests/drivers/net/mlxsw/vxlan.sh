@@ -4,11 +4,37 @@
 # Test various aspects of VxLAN offloading which are specific to mlxsw, such
 # as sanitization of invalid configurations and offload indication.
 
-lib_dir=$(dirname $0)/../../../net/forwarding
+: ${ADDR_FAMILY:=ipv4}
+export ADDR_FAMILY
 
-ALL_TESTS="sanitization_test offload_indication_test \
-	sanitization_vlan_aware_test offload_indication_vlan_aware_test"
+: ${LOCAL_IP_1:=198.51.100.1}
+export LOCAL_IP_1
+
+: ${LOCAL_IP_2:=198.51.100.2}
+export LOCAL_IP_2
+
+: ${PREFIX_LEN:=32}
+export PREFIX_LEN
+
+: ${UDPCSUM_FLAFS:=noudpcsum}
+export UDPCSUM_FLAFS
+
+: ${MC_IP:=239.0.0.1}
+export MC_IP
+
+: ${IP_FLAG:=""}
+export IP_FLAG
+
+: ${ALL_TESTS:="
+	sanitization_test
+	offload_indication_test
+	sanitization_vlan_aware_test
+	offload_indication_vlan_aware_test
+"}
+
+lib_dir=$(dirname $0)/../../../net/forwarding
 NUM_NETIFS=2
+: ${TIMEOUT:=20000} # ms
 source $lib_dir/lib.sh
 
 setup_prepare()
@@ -62,8 +88,8 @@ sanitization_single_dev_valid_test()
 
 	ip link add dev br0 type bridge mcast_snooping 0
 
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
-		ttl 20 tos inherit local 198.51.100.1 dstport 4789
+	ip link add name vxlan0 up type vxlan id 10 nolearning $UDPCSUM_FLAFS \
+		ttl 20 tos inherit local $LOCAL_IP_1 dstport 4789
 
 	sanitization_single_dev_test_pass
 
@@ -79,8 +105,8 @@ sanitization_single_dev_vlan_aware_test()
 
 	ip link add dev br0 type bridge mcast_snooping 0 vlan_filtering 1
 
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
-		ttl 20 tos inherit local 198.51.100.1 dstport 4789
+	ip link add name vxlan0 up type vxlan id 10 nolearning $UDPCSUM_FLAFS \
+		ttl 20 tos inherit local $LOCAL_IP_1 dstport 4789
 
 	sanitization_single_dev_test_pass
 
@@ -96,8 +122,8 @@ sanitization_single_dev_mcast_enabled_test()
 
 	ip link add dev br0 type bridge
 
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
-		ttl 20 tos inherit local 198.51.100.1 dstport 4789
+	ip link add name vxlan0 up type vxlan id 10 nolearning $UDPCSUM_FLAFS \
+		ttl 20 tos inherit local $LOCAL_IP_1 dstport 4789
 
 	sanitization_single_dev_test_fail
 
@@ -112,14 +138,16 @@ sanitization_single_dev_mcast_group_test()
 	RET=0
 
 	ip link add dev br0 type bridge mcast_snooping 0
+	ip link add name dummy1 up type dummy
 
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
-		ttl 20 tos inherit local 198.51.100.1 dstport 4789 \
-		dev $swp2 group 239.0.0.1
+	ip link add name vxlan0 up type vxlan id 10 nolearning $UDPCSUM_FLAFS \
+		ttl 20 tos inherit local $LOCAL_IP_1 dstport 4789 \
+		dev dummy1 group $MC_IP
 
 	sanitization_single_dev_test_fail
 
 	ip link del dev vxlan0
+	ip link del dev dummy1
 	ip link del dev br0
 
 	log_test "vxlan device with a multicast group"
@@ -131,7 +159,7 @@ sanitization_single_dev_no_local_ip_test()
 
 	ip link add dev br0 type bridge mcast_snooping 0
 
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
+	ip link add name vxlan0 up type vxlan id 10 nolearning $UDPCSUM_FLAFS \
 		ttl 20 tos inherit dstport 4789
 
 	sanitization_single_dev_test_fail
@@ -142,31 +170,14 @@ sanitization_single_dev_no_local_ip_test()
 	log_test "vxlan device with no local ip"
 }
 
-sanitization_single_dev_local_ipv6_test()
+sanitization_single_dev_learning_enabled_ipv4_test()
 {
 	RET=0
 
 	ip link add dev br0 type bridge mcast_snooping 0
 
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
-		ttl 20 tos inherit local 2001:db8::1 dstport 4789
-
-	sanitization_single_dev_test_fail
-
-	ip link del dev vxlan0
-	ip link del dev br0
-
-	log_test "vxlan device with local ipv6 address"
-}
-
-sanitization_single_dev_learning_enabled_test()
-{
-	RET=0
-
-	ip link add dev br0 type bridge mcast_snooping 0
-
-	ip link add name vxlan0 up type vxlan id 10 learning noudpcsum \
-		ttl 20 tos inherit local 198.51.100.1 dstport 4789
+	ip link add name vxlan0 up type vxlan id 10 learning $UDPCSUM_FLAFS \
+		ttl 20 tos inherit local $LOCAL_IP_1 dstport 4789
 
 	sanitization_single_dev_test_pass
 
@@ -181,13 +192,15 @@ sanitization_single_dev_local_interface_test()
 	RET=0
 
 	ip link add dev br0 type bridge mcast_snooping 0
+	ip link add name dummy1 up type dummy
 
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
-		ttl 20 tos inherit local 198.51.100.1 dstport 4789 dev $swp2
+	ip link add name vxlan0 up type vxlan id 10 nolearning $UDPCSUM_FLAFS \
+		ttl 20 tos inherit local $LOCAL_IP_1 dstport 4789 dev dummy1
 
 	sanitization_single_dev_test_fail
 
 	ip link del dev vxlan0
+	ip link del dev dummy1
 	ip link del dev br0
 
 	log_test "vxlan device with local interface"
@@ -199,8 +212,8 @@ sanitization_single_dev_port_range_test()
 
 	ip link add dev br0 type bridge mcast_snooping 0
 
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
-		ttl 20 tos inherit local 198.51.100.1 dstport 4789 \
+	ip link add name vxlan0 up type vxlan id 10 nolearning $UDPCSUM_FLAFS \
+		ttl 20 tos inherit local $LOCAL_IP_1 dstport 4789 \
 		srcport 4000 5000
 
 	sanitization_single_dev_test_fail
@@ -217,8 +230,8 @@ sanitization_single_dev_tos_static_test()
 
 	ip link add dev br0 type bridge mcast_snooping 0
 
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
-		ttl 20 tos 20 local 198.51.100.1 dstport 4789
+	ip link add name vxlan0 up type vxlan id 10 nolearning $UDPCSUM_FLAFS \
+		ttl 20 tos 20 local $LOCAL_IP_1 dstport 4789
 
 	sanitization_single_dev_test_fail
 
@@ -234,8 +247,8 @@ sanitization_single_dev_ttl_inherit_test()
 
 	ip link add dev br0 type bridge mcast_snooping 0
 
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
-		ttl inherit tos inherit local 198.51.100.1 dstport 4789
+	ip link add name vxlan0 up type vxlan id 10 nolearning $UDPCSUM_FLAFS \
+		ttl inherit tos inherit local $LOCAL_IP_1 dstport 4789
 
 	sanitization_single_dev_test_fail
 
@@ -245,14 +258,14 @@ sanitization_single_dev_ttl_inherit_test()
 	log_test "vxlan device with inherit ttl"
 }
 
-sanitization_single_dev_udp_checksum_test()
+sanitization_single_dev_udp_checksum_ipv4_test()
 {
 	RET=0
 
 	ip link add dev br0 type bridge mcast_snooping 0
 
 	ip link add name vxlan0 up type vxlan id 10 nolearning udpcsum \
-		ttl 20 tos inherit local 198.51.100.1 dstport 4789
+		ttl 20 tos inherit local $LOCAL_IP_1 dstport 4789
 
 	sanitization_single_dev_test_fail
 
@@ -271,13 +284,12 @@ sanitization_single_dev_test()
 	sanitization_single_dev_mcast_enabled_test
 	sanitization_single_dev_mcast_group_test
 	sanitization_single_dev_no_local_ip_test
-	sanitization_single_dev_local_ipv6_test
-	sanitization_single_dev_learning_enabled_test
+	sanitization_single_dev_learning_enabled_"$ADDR_FAMILY"_test
 	sanitization_single_dev_local_interface_test
 	sanitization_single_dev_port_range_test
 	sanitization_single_dev_tos_static_test
 	sanitization_single_dev_ttl_inherit_test
-	sanitization_single_dev_udp_checksum_test
+	sanitization_single_dev_udp_checksum_"$ADDR_FAMILY"_test
 }
 
 sanitization_multi_devs_test_pass()
@@ -329,10 +341,10 @@ sanitization_multi_devs_valid_test()
 	ip link add dev br0 type bridge mcast_snooping 0
 	ip link add dev br1 type bridge mcast_snooping 0
 
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
-		ttl 20 tos inherit local 198.51.100.1 dstport 4789
-	ip link add name vxlan1 up type vxlan id 20 nolearning noudpcsum \
-		ttl 20 tos inherit local 198.51.100.1 dstport 4789
+	ip link add name vxlan0 up type vxlan id 10 nolearning $UDPCSUM_FLAFS \
+		ttl 20 tos inherit local $LOCAL_IP_1 dstport 4789
+	ip link add name vxlan1 up type vxlan id 20 nolearning $UDPCSUM_FLAFS \
+		ttl 20 tos inherit local $LOCAL_IP_1 dstport 4789
 
 	sanitization_multi_devs_test_pass
 
@@ -351,10 +363,10 @@ sanitization_multi_devs_ttl_test()
 	ip link add dev br0 type bridge mcast_snooping 0
 	ip link add dev br1 type bridge mcast_snooping 0
 
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
-		ttl 20 tos inherit local 198.51.100.1 dstport 4789
-	ip link add name vxlan1 up type vxlan id 20 nolearning noudpcsum \
-		ttl 40 tos inherit local 198.51.100.1 dstport 4789
+	ip link add name vxlan0 up type vxlan id 10 nolearning $UDPCSUM_FLAFS \
+		ttl 20 tos inherit local $LOCAL_IP_1 dstport 4789
+	ip link add name vxlan1 up type vxlan id 20 nolearning $UDPCSUM_FLAFS \
+		ttl 40 tos inherit local $LOCAL_IP_1 dstport 4789
 
 	sanitization_multi_devs_test_fail
 
@@ -373,10 +385,10 @@ sanitization_multi_devs_udp_dstport_test()
 	ip link add dev br0 type bridge mcast_snooping 0
 	ip link add dev br1 type bridge mcast_snooping 0
 
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
-		ttl 20 tos inherit local 198.51.100.1 dstport 4789
-	ip link add name vxlan1 up type vxlan id 20 nolearning noudpcsum \
-		ttl 20 tos inherit local 198.51.100.1 dstport 5789
+	ip link add name vxlan0 up type vxlan id 10 nolearning $UDPCSUM_FLAFS \
+		ttl 20 tos inherit local $LOCAL_IP_1 dstport 4789
+	ip link add name vxlan1 up type vxlan id 20 nolearning $UDPCSUM_FLAFS \
+		ttl 20 tos inherit local $LOCAL_IP_1 dstport 5789
 
 	sanitization_multi_devs_test_fail
 
@@ -395,10 +407,10 @@ sanitization_multi_devs_local_ip_test()
 	ip link add dev br0 type bridge mcast_snooping 0
 	ip link add dev br1 type bridge mcast_snooping 0
 
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
-		ttl 20 tos inherit local 198.51.100.1 dstport 4789
-	ip link add name vxlan1 up type vxlan id 20 nolearning noudpcsum \
-		ttl 20 tos inherit local 198.51.100.2 dstport 4789
+	ip link add name vxlan0 up type vxlan id 10 nolearning $UDPCSUM_FLAFS \
+		ttl 20 tos inherit local $LOCAL_IP_1 dstport 4789
+	ip link add name vxlan1 up type vxlan id 20 nolearning $UDPCSUM_FLAFS \
+		ttl 20 tos inherit local $LOCAL_IP_2 dstport 4789
 
 	sanitization_multi_devs_test_fail
 
@@ -432,18 +444,22 @@ offload_indication_setup_create()
 {
 	# Create a simple setup with two bridges, each with a VxLAN device
 	# and one local port
-	ip link add name br0 up type bridge mcast_snooping 0
-	ip link add name br1 up type bridge mcast_snooping 0
+	ip link add name br0 type bridge mcast_snooping 0
+	ip link set dev br0 addrgenmode none
+	ip link set dev br0 up
+	ip link add name br1 type bridge mcast_snooping 0
+	ip link set dev br1 addrgenmode none
+	ip link set dev br1 up
 
 	ip link set dev $swp1 master br0
 	ip link set dev $swp2 master br1
 
-	ip address add 198.51.100.1/32 dev lo
+	ip address add $LOCAL_IP_1/$PREFIX_LEN dev lo
 
 	ip link add name vxlan0 up master br0 type vxlan id 10 nolearning \
-		noudpcsum ttl 20 tos inherit local 198.51.100.1 dstport 4789
+		$UDPCSUM_FLAFS ttl 20 tos inherit local $LOCAL_IP_1 dstport 4789
 	ip link add name vxlan1 up master br1 type vxlan id 20 nolearning \
-		noudpcsum ttl 20 tos inherit local 198.51.100.1 dstport 4789
+		$UDPCSUM_FLAFS ttl 20 tos inherit local $LOCAL_IP_1 dstport 4789
 }
 
 offload_indication_setup_destroy()
@@ -451,7 +467,7 @@ offload_indication_setup_destroy()
 	ip link del dev vxlan1
 	ip link del dev vxlan0
 
-	ip address del 198.51.100.1/32 dev lo
+	ip address del $LOCAL_IP_1/$PREFIX_LEN dev lo
 
 	ip link set dev $swp2 nomaster
 	ip link set dev $swp1 nomaster
@@ -464,10 +480,10 @@ offload_indication_fdb_flood_test()
 {
 	RET=0
 
-	bridge fdb append 00:00:00:00:00:00 dev vxlan0 self dst 198.51.100.2
+	bridge fdb append 00:00:00:00:00:00 dev vxlan0 self dst $LOCAL_IP_2
 
-	bridge fdb show brport vxlan0 | grep 00:00:00:00:00:00 \
-		| grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb 00:00:00:00:00:00 \
+		bridge fdb show brport vxlan0
 	check_err $?
 
 	bridge fdb del 00:00:00:00:00:00 dev vxlan0 self
@@ -480,13 +496,13 @@ offload_indication_fdb_bridge_test()
 	RET=0
 
 	bridge fdb add de:ad:be:ef:13:37 dev vxlan0 self master static \
-		dst 198.51.100.2
+		dst $LOCAL_IP_2
 
-	bridge fdb show brport vxlan0 | grep de:ad:be:ef:13:37 | grep self \
-		| grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb \
+		de:ad:be:ef:13:37 self bridge fdb show brport vxlan0
 	check_err $?
-	bridge fdb show brport vxlan0 | grep de:ad:be:ef:13:37 | grep -v self \
-		| grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb \
+		de:ad:be:ef:13:37 self -v bridge fdb show brport vxlan0
 	check_err $?
 
 	log_test "vxlan entry offload indication - initial state"
@@ -496,9 +512,9 @@ offload_indication_fdb_bridge_test()
 	RET=0
 
 	bridge fdb del de:ad:be:ef:13:37 dev vxlan0 master
-	bridge fdb show brport vxlan0 | grep de:ad:be:ef:13:37 | grep self \
-		| grep -q offload
-	check_fail $?
+	busywait "$TIMEOUT" not wait_for_offload grep_bridge_fdb \
+		de:ad:be:ef:13:37 self bridge fdb show brport vxlan0
+	check_err $?
 
 	log_test "vxlan entry offload indication - after removal from bridge"
 
@@ -507,11 +523,11 @@ offload_indication_fdb_bridge_test()
 	RET=0
 
 	bridge fdb add de:ad:be:ef:13:37 dev vxlan0 master static
-	bridge fdb show brport vxlan0 | grep de:ad:be:ef:13:37 | grep self \
-		| grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb \
+		de:ad:be:ef:13:37 self bridge fdb show brport vxlan0
 	check_err $?
-	bridge fdb show brport vxlan0 | grep de:ad:be:ef:13:37 | grep -v self \
-		| grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb \
+		de:ad:be:ef:13:37 self -v bridge fdb show brport vxlan0
 	check_err $?
 
 	log_test "vxlan entry offload indication - after re-add to bridge"
@@ -521,9 +537,9 @@ offload_indication_fdb_bridge_test()
 	RET=0
 
 	bridge fdb del de:ad:be:ef:13:37 dev vxlan0 self
-	bridge fdb show brport vxlan0 | grep de:ad:be:ef:13:37 | grep -v self \
-		| grep -q offload
-	check_fail $?
+	busywait "$TIMEOUT" not wait_for_offload grep_bridge_fdb \
+		de:ad:be:ef:13:37 self -v bridge fdb show brport vxlan0
+	check_err $?
 
 	log_test "vxlan entry offload indication - after removal from vxlan"
 
@@ -531,12 +547,12 @@ offload_indication_fdb_bridge_test()
 	# marked as offloaded in both drivers
 	RET=0
 
-	bridge fdb add de:ad:be:ef:13:37 dev vxlan0 self dst 198.51.100.2
-	bridge fdb show brport vxlan0 | grep de:ad:be:ef:13:37 | grep self \
-		| grep -q offload
+	bridge fdb add de:ad:be:ef:13:37 dev vxlan0 self dst $LOCAL_IP_2
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb \
+		de:ad:be:ef:13:37 self bridge fdb show brport vxlan0
 	check_err $?
-	bridge fdb show brport vxlan0 | grep de:ad:be:ef:13:37 | grep -v self \
-		| grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb \
+		de:ad:be:ef:13:37 self -v bridge fdb show brport vxlan0
 	check_err $?
 
 	log_test "vxlan entry offload indication - after re-add to vxlan"
@@ -554,39 +570,46 @@ offload_indication_decap_route_test()
 {
 	RET=0
 
-	ip route show table local | grep 198.51.100.1 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip $IP_FLAG route show table local $LOCAL_IP_1
 	check_err $?
 
 	ip link set dev vxlan0 down
-	ip route show table local | grep 198.51.100.1 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip $IP_FLAG route show table local $LOCAL_IP_1
 	check_err $?
 
 	ip link set dev vxlan1 down
-	ip route show table local | grep 198.51.100.1 | grep -q offload
-	check_fail $?
+	busywait "$TIMEOUT" not wait_for_offload \
+		ip $IP_FLAG route show table local $LOCAL_IP_1
+	check_err $?
 
 	log_test "vxlan decap route - vxlan device down"
 
 	RET=0
 
 	ip link set dev vxlan1 up
-	ip route show table local | grep 198.51.100.1 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip $IP_FLAG route show table local $LOCAL_IP_1
 	check_err $?
 
 	ip link set dev vxlan0 up
-	ip route show table local | grep 198.51.100.1 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip $IP_FLAG route show table local $LOCAL_IP_1
 	check_err $?
 
 	log_test "vxlan decap route - vxlan device up"
 
 	RET=0
 
-	ip address delete 198.51.100.1/32 dev lo
-	ip route show table local | grep 198.51.100.1 | grep -q offload
-	check_fail $?
+	ip address delete $LOCAL_IP_1/$PREFIX_LEN dev lo
+	busywait "$TIMEOUT" not wait_for_offload \
+		ip $IP_FLAG route show table local $LOCAL_IP_1
+	check_err $?
 
-	ip address add 198.51.100.1/32 dev lo
-	ip route show table local | grep 198.51.100.1 | grep -q offload
+	ip address add $LOCAL_IP_1/$PREFIX_LEN dev lo
+	busywait "$TIMEOUT" wait_for_offload \
+		ip $IP_FLAG route show table local $LOCAL_IP_1
 	check_err $?
 
 	log_test "vxlan decap route - add local route"
@@ -594,16 +617,19 @@ offload_indication_decap_route_test()
 	RET=0
 
 	ip link set dev $swp1 nomaster
-	ip route show table local | grep 198.51.100.1 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip $IP_FLAG route show table local $LOCAL_IP_1
 	check_err $?
 
 	ip link set dev $swp2 nomaster
-	ip route show table local | grep 198.51.100.1 | grep -q offload
-	check_fail $?
+	busywait "$TIMEOUT" not wait_for_offload \
+		ip $IP_FLAG route show table local $LOCAL_IP_1
+	check_err $?
 
 	ip link set dev $swp1 master br0
 	ip link set dev $swp2 master br1
-	ip route show table local | grep 198.51.100.1 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip $IP_FLAG route show table local $LOCAL_IP_1
 	check_err $?
 
 	log_test "vxlan decap route - local ports enslavement"
@@ -611,40 +637,49 @@ offload_indication_decap_route_test()
 	RET=0
 
 	ip link del dev br0
-	ip route show table local | grep 198.51.100.1 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip $IP_FLAG route show table local $LOCAL_IP_1
 	check_err $?
 
 	ip link del dev br1
-	ip route show table local | grep 198.51.100.1 | grep -q offload
-	check_fail $?
+	busywait "$TIMEOUT" not wait_for_offload \
+		ip $IP_FLAG route show table local $LOCAL_IP_1
+	check_err $?
 
 	log_test "vxlan decap route - bridge device deletion"
 
 	RET=0
 
-	ip link add name br0 up type bridge mcast_snooping 0
-	ip link add name br1 up type bridge mcast_snooping 0
+	ip link add name br0 type bridge mcast_snooping 0
+	ip link set dev br0 addrgenmode none
+	ip link set dev br0 up
+	ip link add name br1 type bridge mcast_snooping 0
+	ip link set dev br1 addrgenmode none
+	ip link set dev br1 up
 	ip link set dev $swp1 master br0
 	ip link set dev $swp2 master br1
 	ip link set dev vxlan0 master br0
 	ip link set dev vxlan1 master br1
-	ip route show table local | grep 198.51.100.1 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip $IP_FLAG route show table local $LOCAL_IP_1
 	check_err $?
 
 	ip link del dev vxlan0
-	ip route show table local | grep 198.51.100.1 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip $IP_FLAG route show table local $LOCAL_IP_1
 	check_err $?
 
 	ip link del dev vxlan1
-	ip route show table local | grep 198.51.100.1 | grep -q offload
-	check_fail $?
+	busywait "$TIMEOUT" not wait_for_offload \
+		ip $IP_FLAG route show table local $LOCAL_IP_1
+	check_err $?
 
 	log_test "vxlan decap route - vxlan device deletion"
 
 	ip link add name vxlan0 up master br0 type vxlan id 10 nolearning \
-		noudpcsum ttl 20 tos inherit local 198.51.100.1 dstport 4789
+		$UDPCSUM_FLAFS ttl 20 tos inherit local $LOCAL_IP_1 dstport 4789
 	ip link add name vxlan1 up master br1 type vxlan id 20 nolearning \
-		noudpcsum ttl 20 tos inherit local 198.51.100.1 dstport 4789
+		$UDPCSUM_FLAFS ttl 20 tos inherit local $LOCAL_IP_1 dstport 4789
 }
 
 check_fdb_offloaded()
@@ -652,12 +687,15 @@ check_fdb_offloaded()
 	local mac=00:11:22:33:44:55
 	local zmac=00:00:00:00:00:00
 
-	bridge fdb show dev vxlan0 | grep $mac | grep self | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb $mac self \
+		bridge fdb show dev vxlan0
 	check_err $?
-	bridge fdb show dev vxlan0 | grep $mac | grep master | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb $mac master \
+		bridge fdb show dev vxlan0
 	check_err $?
 
-	bridge fdb show dev vxlan0 | grep $zmac | grep self | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb $zmac self \
+		bridge fdb show dev vxlan0
 	check_err $?
 }
 
@@ -668,13 +706,15 @@ check_vxlan_fdb_not_offloaded()
 
 	bridge fdb show dev vxlan0 | grep $mac | grep -q self
 	check_err $?
-	bridge fdb show dev vxlan0 | grep $mac | grep self | grep -q offload
-	check_fail $?
+	busywait "$TIMEOUT" not wait_for_offload grep_bridge_fdb $mac self \
+		bridge fdb show dev vxlan0
+	check_err $?
 
 	bridge fdb show dev vxlan0 | grep $zmac | grep -q self
 	check_err $?
-	bridge fdb show dev vxlan0 | grep $zmac | grep self | grep -q offload
-	check_fail $?
+	busywait "$TIMEOUT" not wait_for_offload grep_bridge_fdb $zmac self \
+		bridge fdb show dev vxlan0
+	check_err $?
 }
 
 check_bridge_fdb_not_offloaded()
@@ -684,8 +724,9 @@ check_bridge_fdb_not_offloaded()
 
 	bridge fdb show dev vxlan0 | grep $mac | grep -q master
 	check_err $?
-	bridge fdb show dev vxlan0 | grep $mac | grep master | grep -q offload
-	check_fail $?
+	busywait "$TIMEOUT" not wait_for_offload grep_bridge_fdb $mac master \
+		bridge fdb show dev vxlan0
+	check_err $?
 }
 
 __offload_indication_join_vxlan_first()
@@ -695,10 +736,10 @@ __offload_indication_join_vxlan_first()
 	local mac=00:11:22:33:44:55
 	local zmac=00:00:00:00:00:00
 
-	bridge fdb append $zmac dev vxlan0 self dst 198.51.100.2
+	bridge fdb append $zmac dev vxlan0 self dst $LOCAL_IP_2
 
 	ip link set dev vxlan0 master br0
-	bridge fdb add dev vxlan0 $mac self master static dst 198.51.100.2
+	bridge fdb add dev vxlan0 $mac self master static dst $LOCAL_IP_2
 
 	RET=0
 	check_vxlan_fdb_not_offloaded
@@ -747,9 +788,11 @@ __offload_indication_join_vxlan_first()
 
 offload_indication_join_vxlan_first()
 {
-	ip link add dev br0 up type bridge mcast_snooping 0
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
-		ttl 20 tos inherit local 198.51.100.1 dstport 4789
+	ip link add dev br0 type bridge mcast_snooping 0
+	ip link set dev br0 addrgenmode none
+	ip link set dev br0 up
+	ip link add name vxlan0 up type vxlan id 10 nolearning $UDPCSUM_FLAFS \
+		ttl 20 tos inherit local $LOCAL_IP_1 dstport 4789
 
 	__offload_indication_join_vxlan_first
 
@@ -763,16 +806,18 @@ __offload_indication_join_vxlan_last()
 
 	RET=0
 
-	bridge fdb append $zmac dev vxlan0 self dst 198.51.100.2
+	bridge fdb append $zmac dev vxlan0 self dst $LOCAL_IP_2
 
 	ip link set dev $swp1 master br0
 
-	bridge fdb show dev vxlan0 | grep $zmac | grep self | grep -q offload
-	check_fail $?
+	busywait "$TIMEOUT" not wait_for_offload grep_bridge_fdb $zmac self \
+		bridge fdb show dev vxlan0
+	check_err $?
 
 	ip link set dev vxlan0 master br0
 
-	bridge fdb show dev vxlan0 | grep $zmac | grep self | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb $zmac self \
+		bridge fdb show dev vxlan0
 	check_err $?
 
 	log_test "offload indication - attach vxlan last"
@@ -780,9 +825,11 @@ __offload_indication_join_vxlan_last()
 
 offload_indication_join_vxlan_last()
 {
-	ip link add dev br0 up type bridge mcast_snooping 0
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
-		ttl 20 tos inherit local 198.51.100.1 dstport 4789
+	ip link add dev br0 type bridge mcast_snooping 0
+	ip link set dev br0 addrgenmode none
+	ip link set dev br0 up
+	ip link add name vxlan0 up type vxlan id 10 nolearning $UDPCSUM_FLAFS \
+		ttl 20 tos inherit local $LOCAL_IP_1 dstport 4789
 
 	__offload_indication_join_vxlan_last
 
@@ -807,12 +854,13 @@ sanitization_vlan_aware_test()
 	RET=0
 
 	ip link add dev br0 type bridge mcast_snooping 0 vlan_filtering 1
+	ip link set dev br0 addrgenmode none
 
 	ip link add name vxlan10 up master br0 type vxlan id 10 nolearning \
-		noudpcsum ttl 20 tos inherit local 198.51.100.1 dstport 4789
+		$UDPCSUM_FLAFS ttl 20 tos inherit local $LOCAL_IP_1 dstport 4789
 
 	ip link add name vxlan20 up master br0 type vxlan id 20 nolearning \
-		noudpcsum ttl 20 tos inherit local 198.51.100.1 dstport 4789
+		$UDPCSUM_FLAFS ttl 20 tos inherit local $LOCAL_IP_1 dstport 4789
 
 	# Test that when each VNI is mapped to a different VLAN we can enslave
 	# a port to the bridge
@@ -850,20 +898,26 @@ sanitization_vlan_aware_test()
 	bridge vlan del vid 10 dev vxlan20
 	bridge vlan add vid 20 dev vxlan20 pvid untagged
 
-	# Test that offloading of an unsupported tunnel fails when it is
-	# triggered by addition of VLAN to a local port
-	RET=0
+	# Test that when two VXLAN tunnels with conflicting configurations
+	# (i.e., different TTL) are enslaved to the same VLAN-aware bridge,
+	# then the enslavement of a port to the bridge is denied.
 
-	# TOS must be set to inherit
-	ip link set dev vxlan10 type vxlan tos 42
+	# Use the offload indication of the local route to ensure the VXLAN
+	# configuration was correctly rollbacked.
+	ip address add $LOCAL_IP_1/$PREFIX_LEN dev lo
 
-	ip link set dev $swp1 master br0
-	bridge vlan add vid 10 dev $swp1 &> /dev/null
+	ip link set dev vxlan10 type vxlan ttl 10
+	ip link set dev $swp1 master br0 &> /dev/null
 	check_fail $?
 
-	log_test "vlan-aware - failed vlan addition to a local port"
+	busywait "$TIMEOUT" not wait_for_offload \
+		ip $IP_FLAG route show table local $LOCAL_IP_1
+	check_err $?
 
-	ip link set dev vxlan10 type vxlan tos inherit
+	log_test "vlan-aware - failed enslavement to bridge due to conflict"
+
+	ip link set dev vxlan10 type vxlan ttl 20
+	ip address del $LOCAL_IP_1/$PREFIX_LEN dev lo
 
 	ip link del dev vxlan20
 	ip link del dev vxlan10
@@ -874,20 +928,22 @@ offload_indication_vlan_aware_setup_create()
 {
 	# Create a simple setup with two VxLAN devices and a single VLAN-aware
 	# bridge
-	ip link add name br0 up type bridge mcast_snooping 0 vlan_filtering 1 \
+	ip link add name br0 type bridge mcast_snooping 0 vlan_filtering 1 \
 		vlan_default_pvid 0
+	ip link set dev br0 addrgenmode none
+	ip link set dev br0 up
 
 	ip link set dev $swp1 master br0
 
 	bridge vlan add vid 10 dev $swp1
 	bridge vlan add vid 20 dev $swp1
 
-	ip address add 198.51.100.1/32 dev lo
+	ip address add $LOCAL_IP_1/$PREFIX_LEN dev lo
 
 	ip link add name vxlan10 up master br0 type vxlan id 10 nolearning \
-		noudpcsum ttl 20 tos inherit local 198.51.100.1 dstport 4789
+		$UDPCSUM_FLAFS ttl 20 tos inherit local $LOCAL_IP_1 dstport 4789
 	ip link add name vxlan20 up master br0 type vxlan id 20 nolearning \
-		noudpcsum ttl 20 tos inherit local 198.51.100.1 dstport 4789
+		$UDPCSUM_FLAFS ttl 20 tos inherit local $LOCAL_IP_1 dstport 4789
 
 	bridge vlan add vid 10 dev vxlan10 pvid untagged
 	bridge vlan add vid 20 dev vxlan20 pvid untagged
@@ -901,7 +957,7 @@ offload_indication_vlan_aware_setup_destroy()
 	ip link del dev vxlan20
 	ip link del dev vxlan10
 
-	ip address del 198.51.100.1/32 dev lo
+	ip address del $LOCAL_IP_1/$PREFIX_LEN dev lo
 
 	bridge vlan del vid 20 dev $swp1
 	bridge vlan del vid 10 dev $swp1
@@ -918,13 +974,13 @@ offload_indication_vlan_aware_fdb_test()
 	log_info "vxlan entry offload indication - vlan-aware"
 
 	bridge fdb add de:ad:be:ef:13:37 dev vxlan10 self master static \
-		dst 198.51.100.2 vlan 10
+		dst $LOCAL_IP_2 vlan 10
 
-	bridge fdb show brport vxlan10 | grep de:ad:be:ef:13:37 | grep self \
-		| grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb \
+		de:ad:be:ef:13:37 self bridge fdb show brport vxlan10
 	check_err $?
-	bridge fdb show brport vxlan10 | grep de:ad:be:ef:13:37 | grep -v self \
-		| grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb \
+		de:ad:be:ef:13:37 self -v bridge fdb show brport vxlan10
 	check_err $?
 
 	log_test "vxlan entry offload indication - initial state"
@@ -934,9 +990,9 @@ offload_indication_vlan_aware_fdb_test()
 	RET=0
 
 	bridge fdb del de:ad:be:ef:13:37 dev vxlan10 master vlan 10
-	bridge fdb show brport vxlan10 | grep de:ad:be:ef:13:37 | grep self \
-		| grep -q offload
-	check_fail $?
+	busywait "$TIMEOUT" not wait_for_offload grep_bridge_fdb \
+		de:ad:be:ef:13:37 self bridge fdb show brport vxlan10
+	check_err $?
 
 	log_test "vxlan entry offload indication - after removal from bridge"
 
@@ -945,11 +1001,11 @@ offload_indication_vlan_aware_fdb_test()
 	RET=0
 
 	bridge fdb add de:ad:be:ef:13:37 dev vxlan10 master static vlan 10
-	bridge fdb show brport vxlan10 | grep de:ad:be:ef:13:37 | grep self \
-		| grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb \
+		de:ad:be:ef:13:37 self bridge fdb show brport vxlan10
 	check_err $?
-	bridge fdb show brport vxlan10 | grep de:ad:be:ef:13:37 | grep -v self \
-		| grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb \
+		de:ad:be:ef:13:37 self -v bridge fdb show brport vxlan10
 	check_err $?
 
 	log_test "vxlan entry offload indication - after re-add to bridge"
@@ -959,9 +1015,9 @@ offload_indication_vlan_aware_fdb_test()
 	RET=0
 
 	bridge fdb del de:ad:be:ef:13:37 dev vxlan10 self
-	bridge fdb show brport vxlan10 | grep de:ad:be:ef:13:37 | grep -v self \
-		| grep -q offload
-	check_fail $?
+	busywait "$TIMEOUT" not wait_for_offload grep_bridge_fdb \
+		de:ad:be:ef:13:37 self -v bridge fdb show brport vxlan10
+	check_err $?
 
 	log_test "vxlan entry offload indication - after removal from vxlan"
 
@@ -969,12 +1025,12 @@ offload_indication_vlan_aware_fdb_test()
 	# marked as offloaded in both drivers
 	RET=0
 
-	bridge fdb add de:ad:be:ef:13:37 dev vxlan10 self dst 198.51.100.2
-	bridge fdb show brport vxlan10 | grep de:ad:be:ef:13:37 | grep self \
-		| grep -q offload
+	bridge fdb add de:ad:be:ef:13:37 dev vxlan10 self dst $LOCAL_IP_2
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb \
+		de:ad:be:ef:13:37 self bridge fdb show brport vxlan10
 	check_err $?
-	bridge fdb show brport vxlan10 | grep de:ad:be:ef:13:37 | grep -v self \
-		| grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb \
+		de:ad:be:ef:13:37 self -v bridge fdb show brport vxlan10
 	check_err $?
 
 	log_test "vxlan entry offload indication - after re-add to vxlan"
@@ -986,28 +1042,32 @@ offload_indication_vlan_aware_decap_route_test()
 {
 	RET=0
 
-	ip route show table local | grep 198.51.100.1 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip $IP_FLAG route show table local $LOCAL_IP_1
 	check_err $?
 
 	# Toggle PVID flag on one VxLAN device and make sure route is still
 	# marked as offloaded
 	bridge vlan add vid 10 dev vxlan10 untagged
 
-	ip route show table local | grep 198.51.100.1 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip $IP_FLAG route show table local $LOCAL_IP_1
 	check_err $?
 
 	# Toggle PVID flag on second VxLAN device and make sure route is no
 	# longer marked as offloaded
 	bridge vlan add vid 20 dev vxlan20 untagged
 
-	ip route show table local | grep 198.51.100.1 | grep -q offload
-	check_fail $?
+	busywait "$TIMEOUT" not wait_for_offload \
+		ip $IP_FLAG route show table local $LOCAL_IP_1
+	check_err $?
 
 	# Toggle PVID flag back and make sure route is marked as offloaded
 	bridge vlan add vid 10 dev vxlan10 pvid untagged
 	bridge vlan add vid 20 dev vxlan20 pvid untagged
 
-	ip route show table local | grep 198.51.100.1 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload ip $IP_FLAG route show table local \
+		$LOCAL_IP_1
 	check_err $?
 
 	log_test "vxlan decap route - vni map/unmap"
@@ -1015,10 +1075,12 @@ offload_indication_vlan_aware_decap_route_test()
 
 offload_indication_vlan_aware_join_vxlan_first()
 {
-	ip link add dev br0 up type bridge mcast_snooping 0 \
+	ip link add dev br0 type bridge mcast_snooping 0 \
 		vlan_filtering 1 vlan_default_pvid 1
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
-		ttl 20 tos inherit local 198.51.100.1 dstport 4789
+	ip link set dev br0 addrgenmode none
+	ip link set dev br0 up
+	ip link add name vxlan0 up type vxlan id 10 nolearning $UDPCSUM_FLAFS \
+		ttl 20 tos inherit local $LOCAL_IP_1 dstport 4789
 
 	__offload_indication_join_vxlan_first 1
 
@@ -1028,10 +1090,12 @@ offload_indication_vlan_aware_join_vxlan_first()
 
 offload_indication_vlan_aware_join_vxlan_last()
 {
-	ip link add dev br0 up type bridge mcast_snooping 0 \
+	ip link add dev br0 type bridge mcast_snooping 0 \
 		vlan_filtering 1 vlan_default_pvid 1
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
-		ttl 20 tos inherit local 198.51.100.1 dstport 4789
+	ip link set dev br0 addrgenmode none
+	ip link set dev br0 up
+	ip link add name vxlan0 up type vxlan id 10 nolearning $UDPCSUM_FLAFS \
+		ttl 20 tos inherit local $LOCAL_IP_1 dstport 4789
 
 	__offload_indication_join_vxlan_last
 
@@ -1046,49 +1110,49 @@ offload_indication_vlan_aware_l3vni_test()
 	RET=0
 
 	sysctl_set net.ipv6.conf.default.disable_ipv6 1
-	ip link add dev br0 up type bridge mcast_snooping 0 \
+	ip link add dev br0 type bridge mcast_snooping 0 \
 		vlan_filtering 1 vlan_default_pvid 0
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
-		ttl 20 tos inherit local 198.51.100.1 dstport 4789
+	ip link set dev br0 addrgenmode none
+	ip link set dev br0 up
+	ip link add name vxlan0 up type vxlan id 10 nolearning $UDPCSUM_FLAFS \
+		ttl 20 tos inherit local $LOCAL_IP_1 dstport 4789
 
 	ip link set dev $swp1 master br0
 
 	# The test will use the offload indication on the FDB entry to
 	# understand if the tunnel is offloaded or not
-	bridge fdb append $zmac dev vxlan0 self dst 192.0.2.1
+	bridge fdb append $zmac dev vxlan0 self dst $LOCAL_IP_2
 
 	ip link set dev vxlan0 master br0
 	bridge vlan add dev vxlan0 vid 10 pvid untagged
 
-	# No local port or router port is member in the VLAN, so tunnel should
-	# not be offloaded
-	bridge fdb show brport vxlan0 | grep $zmac | grep self \
-		| grep -q offload
-	check_fail $? "vxlan tunnel offloaded when should not"
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb $zmac self \
+		bridge fdb show brport vxlan0
+	check_err $? "vxlan tunnel not offloaded when should"
 
 	# Configure a VLAN interface and make sure tunnel is offloaded
 	ip link add link br0 name br10 up type vlan id 10
 	sysctl_set net.ipv6.conf.br10.disable_ipv6 0
 	ip -6 address add 2001:db8:1::1/64 dev br10
-	bridge fdb show brport vxlan0 | grep $zmac | grep self \
-		| grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb $zmac self \
+		bridge fdb show brport vxlan0
 	check_err $? "vxlan tunnel not offloaded when should"
 
 	# Unlink the VXLAN device, make sure tunnel is no longer offloaded,
 	# then add it back to the bridge and make sure it is offloaded
 	ip link set dev vxlan0 nomaster
-	bridge fdb show brport vxlan0 | grep $zmac | grep self \
-		| grep -q offload
-	check_fail $? "vxlan tunnel offloaded after unlinked from bridge"
+	busywait "$TIMEOUT" not wait_for_offload grep_bridge_fdb $zmac self \
+		bridge fdb show brport vxlan0
+	check_err $? "vxlan tunnel offloaded after unlinked from bridge"
 
 	ip link set dev vxlan0 master br0
-	bridge fdb show brport vxlan0 | grep $zmac | grep self \
-		| grep -q offload
-	check_fail $? "vxlan tunnel offloaded despite no matching vid"
+	busywait "$TIMEOUT" not wait_for_offload grep_bridge_fdb $zmac self \
+		bridge fdb show brport vxlan0
+	check_err $? "vxlan tunnel offloaded despite no matching vid"
 
 	bridge vlan add dev vxlan0 vid 10 pvid untagged
-	bridge fdb show brport vxlan0 | grep $zmac | grep self \
-		| grep -q offload
+	busywait "$TIMEOUT" wait_for_offload grep_bridge_fdb $zmac self \
+		bridge fdb show brport vxlan0
 	check_err $? "vxlan tunnel not offloaded after adding vid"
 
 	log_test "vxlan - l3 vni"

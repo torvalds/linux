@@ -417,7 +417,7 @@ static ssize_t show_thresh_either_en(struct device *dev,
 		enable = 0;
 	}
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n", enable);
+	return sysfs_emit(buf, "%u\n", enable);
 }
 
 static ssize_t store_thresh_either_en(struct device *dev,
@@ -474,7 +474,7 @@ static ssize_t show_zone(struct device *dev,
 	if (ret)
 		return ret;
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n", zone);
+	return sysfs_emit(buf, "%u\n", zone);
 }
 
 enum lm3533_als_attribute_type {
@@ -530,7 +530,7 @@ static ssize_t show_als_attr(struct device *dev,
 	if (ret)
 		return ret;
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n", val);
+	return sysfs_emit(buf, "%u\n", val);
 }
 
 static ssize_t store_als_attr(struct device *dev,
@@ -742,7 +742,7 @@ static int lm3533_als_set_resistor(struct lm3533_als *als, u8 val)
 	if (val < LM3533_ALS_RESISTOR_MIN || val > LM3533_ALS_RESISTOR_MAX) {
 		dev_err(&als->pdev->dev, "invalid resistor value\n");
 		return -EINVAL;
-	};
+	}
 
 	ret = lm3533_write(als->lm3533, LM3533_REG_ALS_RESISTOR_SELECT, val);
 	if (ret) {
@@ -852,7 +852,7 @@ static int lm3533_als_probe(struct platform_device *pdev)
 	indio_dev->channels = lm3533_als_channels;
 	indio_dev->num_channels = ARRAY_SIZE(lm3533_als_channels);
 	indio_dev->name = dev_name(&pdev->dev);
-	indio_dev->dev.parent = pdev->dev.parent;
+	iio_device_set_parent(indio_dev, pdev->dev.parent);
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	als = iio_priv(indio_dev);
@@ -895,7 +895,7 @@ err_free_irq:
 	return ret;
 }
 
-static int lm3533_als_remove(struct platform_device *pdev)
+static void lm3533_als_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 	struct lm3533_als *als = iio_priv(indio_dev);
@@ -905,8 +905,6 @@ static int lm3533_als_remove(struct platform_device *pdev)
 	lm3533_als_disable(als);
 	if (als->irq)
 		free_irq(als->irq, indio_dev);
-
-	return 0;
 }
 
 static struct platform_driver lm3533_als_driver = {
@@ -914,7 +912,7 @@ static struct platform_driver lm3533_als_driver = {
 		.name	= "lm3533-als",
 	},
 	.probe		= lm3533_als_probe,
-	.remove		= lm3533_als_remove,
+	.remove_new	= lm3533_als_remove,
 };
 module_platform_driver(lm3533_als_driver);
 

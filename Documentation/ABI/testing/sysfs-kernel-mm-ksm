@@ -34,13 +34,14 @@ Description:	Kernel Samepage Merging daemon sysfs interface
 		in a tree.
 
 		run: write 0 to disable ksm, read 0 while ksm is disabled.
-			write 1 to run ksm, read 1 while ksm is running.
-			write 2 to disable ksm and unmerge all its pages.
+
+			- write 1 to run ksm, read 1 while ksm is running.
+			- write 2 to disable ksm and unmerge all its pages.
 
 		sleep_millisecs: how many milliseconds ksm should sleep between
 		scans.
 
-		See Documentation/vm/ksm.rst for more information.
+		See Documentation/mm/ksm.rst for more information.
 
 What:		/sys/kernel/mm/ksm/merge_across_nodes
 Date:		January 2013
@@ -50,3 +51,11 @@ Description:	Control merging pages across different NUMA nodes.
 
 		When it is set to 0 only pages from the same node are merged,
 		otherwise pages from all nodes can be merged together (default).
+
+What:		/sys/kernel/mm/ksm/general_profit
+Date:		April 2023
+KernelVersion:  6.4
+Contact:	Linux memory management mailing list <linux-mm@kvack.org>
+Description:	Measure how effective KSM is.
+		general_profit: how effective is KSM. The formula for the
+		calculation is in Documentation/admin-guide/mm/ksm.rst.

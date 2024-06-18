@@ -9,17 +9,29 @@
 #define _LINUX_RADIX_TREE_H
 
 #include <linux/bitops.h>
-#include <linux/kernel.h>
+#include <linux/gfp_types.h>
 #include <linux/list.h>
+#include <linux/lockdep.h>
+#include <linux/math.h>
+#include <linux/percpu.h>
 #include <linux/preempt.h>
 #include <linux/rcupdate.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/xarray.h>
+#include <linux/local_lock.h>
 
 /* Keep unconverted code working */
 #define radix_tree_root		xarray
 #define radix_tree_node		xa_node
+
+struct radix_tree_preload {
+	local_lock_t lock;
+	unsigned nr;
+	/* nodes->parent points to next preallocated node */
+	struct radix_tree_node *nodes;
+};
+DECLARE_PER_CPU(struct radix_tree_preload, radix_tree_preloads);
 
 /*
  * The bottom two bits of the slot determine how the remaining bits in the
@@ -245,7 +257,7 @@ int radix_tree_tagged(const struct radix_tree_root *, unsigned int tag);
 
 static inline void radix_tree_preload_end(void)
 {
-	preempt_enable();
+	local_unlock(&radix_tree_preloads.lock);
 }
 
 void __rcu **idr_get_free(struct radix_tree_root *root,
@@ -316,24 +328,6 @@ radix_tree_iter_lookup(const struct radix_tree_root *root,
 }
 
 /**
- * radix_tree_iter_find - find a present entry
- * @root: radix tree root
- * @iter: iterator state
- * @index: start location
- *
- * This function returns the slot containing the entry with the lowest index
- * which is at least @index.  If @index is larger than any present entry, this
- * function returns NULL.  The @iter is updated to describe the entry found.
- */
-static inline void __rcu **
-radix_tree_iter_find(const struct radix_tree_root *root,
-			struct radix_tree_iter *iter, unsigned long index)
-{
-	radix_tree_iter_init(iter, index);
-	return radix_tree_next_chunk(root, iter, 0);
-}
-
-/**
  * radix_tree_iter_retry - retry this chunk of the iteration
  * @iter:	iterator state
  *
@@ -385,7 +379,7 @@ radix_tree_chunk_size(struct radix_tree_iter *iter)
  * radix_tree_next_slot - find next slot in chunk
  *
  * @slot:	pointer to current slot
- * @iter:	pointer to interator state
+ * @iter:	pointer to iterator state
  * @flags:	RADIX_TREE_ITER_*, should be constant
  * Returns:	pointer to next slot, or NULL if there no more left
  *

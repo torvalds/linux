@@ -1,0 +1,125 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/renesas,cpg-mssr.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Renesas Clock Pulse Generator / Module Standby and Software Reset
+
+maintainers:
+  - Geert Uytterhoeven <geert+renesas@glider.be>
+
+description: |
+  On Renesas ARM SoCs (SH/R-Mobile, R-Car, RZ), the CPG (Clock Pulse Generator)
+  and MSSR (Module Standby and Software Reset) blocks are intimately connected,
+  and share the same register block.
+
+  They provide the following functionalities:
+    - The CPG block generates various core clocks,
+    - The MSSR block provides two functions:
+        1. Module Standby, providing a Clock Domain to control the clock supply
+           to individual SoC devices,
+        2. Reset Control, to perform a software reset of individual SoC devices.
+
+properties:
+  compatible:
+    enum:
+      - renesas,r7s9210-cpg-mssr  # RZ/A2
+      - renesas,r8a7742-cpg-mssr  # RZ/G1H
+      - renesas,r8a7743-cpg-mssr  # RZ/G1M
+      - renesas,r8a7744-cpg-mssr  # RZ/G1N
+      - renesas,r8a7745-cpg-mssr  # RZ/G1E
+      - renesas,r8a77470-cpg-mssr # RZ/G1C
+      - renesas,r8a774a1-cpg-mssr # RZ/G2M
+      - renesas,r8a774b1-cpg-mssr # RZ/G2N
+      - renesas,r8a774c0-cpg-mssr # RZ/G2E
+      - renesas,r8a774e1-cpg-mssr # RZ/G2H
+      - renesas,r8a7790-cpg-mssr  # R-Car H2
+      - renesas,r8a7791-cpg-mssr  # R-Car M2-W
+      - renesas,r8a7792-cpg-mssr  # R-Car V2H
+      - renesas,r8a7793-cpg-mssr  # R-Car M2-N
+      - renesas,r8a7794-cpg-mssr  # R-Car E2
+      - renesas,r8a7795-cpg-mssr  # R-Car H3
+      - renesas,r8a7796-cpg-mssr  # R-Car M3-W
+      - renesas,r8a77961-cpg-mssr # R-Car M3-W+
+      - renesas,r8a77965-cpg-mssr # R-Car M3-N
+      - renesas,r8a77970-cpg-mssr # R-Car V3M
+      - renesas,r8a77980-cpg-mssr # R-Car V3H
+      - renesas,r8a77990-cpg-mssr # R-Car E3
+      - renesas,r8a77995-cpg-mssr # R-Car D3
+      - renesas,r8a779a0-cpg-mssr # R-Car V3U
+      - renesas,r8a779f0-cpg-mssr # R-Car S4-8
+      - renesas,r8a779g0-cpg-mssr # R-Car V4H
+      - renesas,r8a779h0-cpg-mssr # R-Car V4M
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    minItems: 1
+    maxItems: 2
+
+  clock-names:
+    minItems: 1
+    maxItems: 2
+    items:
+      enum:
+        - extal     # All
+        - extalr    # Most R-Car Gen3 and RZ/G2
+        - usb_extal # Most R-Car Gen2 and RZ/G1
+
+  '#clock-cells':
+    description: |
+      - For CPG core clocks, the two clock specifier cells must be "CPG_CORE"
+        and a core clock reference, as defined in
+        <dt-bindings/clock/*-cpg-mssr.h>
+      - For module clocks, the two clock specifier cells must be "CPG_MOD" and
+        a module number, as defined in the datasheet.
+    const: 2
+
+  '#power-domain-cells':
+    description:
+      SoC devices that are part of the CPG/MSSR Clock Domain and can be
+      power-managed through Module Standby should refer to the CPG device node
+      in their "power-domains" property, as documented by the generic PM Domain
+      bindings in Documentation/devicetree/bindings/power/power-domain.yaml.
+    const: 0
+
+  '#reset-cells':
+    description:
+      The single reset specifier cell must be the module number, as defined in
+      the datasheet.
+    const: 1
+
+if:
+  not:
+    properties:
+      compatible:
+        items:
+          enum:
+            - renesas,r7s9210-cpg-mssr
+then:
+  required:
+    - '#reset-cells'
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - '#clock-cells'
+  - '#power-domain-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    cpg: clock-controller@e6150000 {
+            compatible = "renesas,r8a7795-cpg-mssr";
+            reg = <0xe6150000 0x1000>;
+            clocks = <&extal_clk>, <&extalr_clk>;
+            clock-names = "extal", "extalr";
+            #clock-cells = <2>;
+            #power-domain-cells = <0>;
+            #reset-cells = <1>;
+    };

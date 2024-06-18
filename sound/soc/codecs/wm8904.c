@@ -317,7 +317,7 @@ static int wm8904_configure_clocking(struct snd_soc_component *component)
 	unsigned int clock0, clock2, rate;
 
 	/* Gate the clock while we're updating to avoid misclocking */
-	clock2 = snd_soc_component_read32(component, WM8904_CLOCK_RATES_2);
+	clock2 = snd_soc_component_read(component, WM8904_CLOCK_RATES_2);
 	snd_soc_component_update_bits(component, WM8904_CLOCK_RATES_2,
 			    WM8904_SYSCLK_SRC, 0);
 
@@ -374,7 +374,7 @@ static void wm8904_set_drc(struct snd_soc_component *component)
 	int save, i;
 
 	/* Save any enables; the configuration should clear them. */
-	save = snd_soc_component_read32(component, WM8904_DRC_0);
+	save = snd_soc_component_read(component, WM8904_DRC_0);
 
 	for (i = 0; i < WM8904_DRC_REGS; i++)
 		snd_soc_component_update_bits(component, WM8904_DRC_0 + i, 0xffff,
@@ -447,7 +447,7 @@ static void wm8904_set_retune_mobile(struct snd_soc_component *component)
 	/* The EQ will be disabled while reconfiguring it, remember the
 	 * current configuration. 
 	 */
-	save = snd_soc_component_read32(component, WM8904_EQ1);
+	save = snd_soc_component_read(component, WM8904_EQ1);
 
 	for (i = 0; i < WM8904_EQ_REGS; i++)
 		snd_soc_component_update_bits(component, WM8904_EQ1 + i, 0xffff,
@@ -697,6 +697,7 @@ static int out_pga_event(struct snd_soc_dapm_widget *w,
 	int dcs_mask;
 	int dcs_l, dcs_r;
 	int dcs_l_reg, dcs_r_reg;
+	int an_out_reg;
 	int timeout;
 	int pwr_reg;
 
@@ -712,6 +713,7 @@ static int out_pga_event(struct snd_soc_dapm_widget *w,
 		dcs_mask = WM8904_DCS_ENA_CHAN_0 | WM8904_DCS_ENA_CHAN_1;
 		dcs_r_reg = WM8904_DC_SERVO_8;
 		dcs_l_reg = WM8904_DC_SERVO_9;
+		an_out_reg = WM8904_ANALOGUE_OUT1_LEFT;
 		dcs_l = 0;
 		dcs_r = 1;
 		break;
@@ -720,6 +722,7 @@ static int out_pga_event(struct snd_soc_dapm_widget *w,
 		dcs_mask = WM8904_DCS_ENA_CHAN_2 | WM8904_DCS_ENA_CHAN_3;
 		dcs_r_reg = WM8904_DC_SERVO_6;
 		dcs_l_reg = WM8904_DC_SERVO_7;
+		an_out_reg = WM8904_ANALOGUE_OUT2_LEFT;
 		dcs_l = 2;
 		dcs_r = 3;
 		break;
@@ -776,7 +779,7 @@ static int out_pga_event(struct snd_soc_dapm_widget *w,
 		/* Wait for DC servo to complete */
 		dcs_mask <<= WM8904_DCS_CAL_COMPLETE_SHIFT;
 		do {
-			val = snd_soc_component_read32(component, WM8904_DC_SERVO_READBACK_0);
+			val = snd_soc_component_read(component, WM8904_DC_SERVO_READBACK_0);
 			if ((val & dcs_mask) == dcs_mask)
 				break;
 
@@ -792,6 +795,10 @@ static int out_pga_event(struct snd_soc_dapm_widget *w,
 		snd_soc_component_update_bits(component, reg,
 				    WM8904_HPL_ENA_OUTP | WM8904_HPR_ENA_OUTP,
 				    WM8904_HPL_ENA_OUTP | WM8904_HPR_ENA_OUTP);
+
+		/* Update volume, requires PGA to be powered */
+		val = snd_soc_component_read(component, an_out_reg);
+		snd_soc_component_write(component, an_out_reg, val);
 		break;
 
 	case SND_SOC_DAPM_POST_PMU:
@@ -814,8 +821,8 @@ static int out_pga_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMD:
 		/* Cache the DC servo configuration; this will be
 		 * invalidated if we change the configuration. */
-		wm8904->dcs_state[dcs_l] = snd_soc_component_read32(component, dcs_l_reg);
-		wm8904->dcs_state[dcs_r] = snd_soc_component_read32(component, dcs_r_reg);
+		wm8904->dcs_state[dcs_l] = snd_soc_component_read(component, dcs_l_reg);
+		wm8904->dcs_state[dcs_r] = snd_soc_component_read(component, dcs_r_reg);
 
 		snd_soc_component_update_bits(component, WM8904_DC_SERVO_0,
 				    dcs_mask, 0);
@@ -1410,34 +1417,6 @@ static int wm8904_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-
-static int wm8904_set_sysclk(struct snd_soc_dai *dai, int clk_id,
-			     unsigned int freq, int dir)
-{
-	struct snd_soc_component *component = dai->component;
-	struct wm8904_priv *priv = snd_soc_component_get_drvdata(component);
-
-	switch (clk_id) {
-	case WM8904_CLK_MCLK:
-		priv->sysclk_src = clk_id;
-		priv->mclk_rate = freq;
-		break;
-
-	case WM8904_CLK_FLL:
-		priv->sysclk_src = clk_id;
-		break;
-
-	default:
-		return -EINVAL;
-	}
-
-	dev_dbg(dai->dev, "Clock source is %d at %uHz\n", clk_id, freq);
-
-	wm8904_configure_clocking(component);
-
-	return 0;
-}
-
 static int wm8904_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct snd_soc_component *component = dai->component;
@@ -1464,7 +1443,7 @@ static int wm8904_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_B:
 		aif1 |= 0x3 | WM8904_AIF_LRCLK_INV;
-		/* fall through */
+		fallthrough;
 	case SND_SOC_DAIFMT_DSP_A:
 		aif1 |= 0x3;
 		break;
@@ -1699,7 +1678,7 @@ static int wm8904_set_fll(struct snd_soc_dai *dai, int fll_id, int source,
 	    Fout == wm8904->fll_fout)
 		return 0;
 
-	clock2 = snd_soc_component_read32(component, WM8904_CLOCK_RATES_2);
+	clock2 = snd_soc_component_read(component, WM8904_CLOCK_RATES_2);
 
 	if (Fout == 0) {
 		dev_dbg(component->dev, "FLL disabled\n");
@@ -1744,7 +1723,7 @@ static int wm8904_set_fll(struct snd_soc_dai *dai, int fll_id, int source,
 
 	/* Save current state then disable the FLL and SYSCLK to avoid
 	 * misclocking */
-	fll1 = snd_soc_component_read32(component, WM8904_FLL_CONTROL_1);
+	fll1 = snd_soc_component_read(component, WM8904_FLL_CONTROL_1);
 	snd_soc_component_update_bits(component, WM8904_CLOCK_RATES_2,
 			    WM8904_CLK_SYS_ENA, 0);
 	snd_soc_component_update_bits(component, WM8904_FLL_CONTROL_1,
@@ -1824,7 +1803,57 @@ out:
 	return 0;
 }
 
-static int wm8904_digital_mute(struct snd_soc_dai *codec_dai, int mute)
+static int wm8904_set_sysclk(struct snd_soc_dai *dai, int clk_id,
+			     unsigned int freq, int dir)
+{
+	struct snd_soc_component *component = dai->component;
+	struct wm8904_priv *priv = snd_soc_component_get_drvdata(component);
+	unsigned long mclk_freq;
+	int ret;
+
+	switch (clk_id) {
+	case WM8904_CLK_AUTO:
+		/* We don't have any rate constraints, so just ignore the
+		 * request to disable constraining.
+		 */
+		if (!freq)
+			return 0;
+
+		mclk_freq = clk_get_rate(priv->mclk);
+		/* enable FLL if a different sysclk is desired */
+		if (mclk_freq != freq) {
+			priv->sysclk_src = WM8904_CLK_FLL;
+			ret = wm8904_set_fll(dai, WM8904_FLL_MCLK,
+					     WM8904_FLL_MCLK,
+					     mclk_freq, freq);
+			if (ret)
+				return ret;
+			break;
+		}
+		clk_id = WM8904_CLK_MCLK;
+		fallthrough;
+
+	case WM8904_CLK_MCLK:
+		priv->sysclk_src = clk_id;
+		priv->mclk_rate = freq;
+		break;
+
+	case WM8904_CLK_FLL:
+		priv->sysclk_src = clk_id;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	dev_dbg(dai->dev, "Clock source is %d at %uHz\n", clk_id, freq);
+
+	wm8904_configure_clocking(component);
+
+	return 0;
+}
+
+static int wm8904_mute(struct snd_soc_dai *codec_dai, int mute, int direction)
 {
 	struct snd_soc_component *component = codec_dai->component;
 	int val;
@@ -1917,6 +1946,7 @@ static int wm8904_set_bias_level(struct snd_soc_component *component,
 		snd_soc_component_update_bits(component, WM8904_BIAS_CONTROL_0,
 				    WM8904_BIAS_ENA, 0);
 
+		snd_soc_component_write(component, WM8904_SW_RESET_AND_ID, 0);
 		regcache_cache_only(wm8904->regmap, true);
 		regcache_mark_dirty(wm8904->regmap);
 
@@ -1939,7 +1969,8 @@ static const struct snd_soc_dai_ops wm8904_dai_ops = {
 	.set_tdm_slot = wm8904_set_tdm_slot,
 	.set_pll = wm8904_set_fll,
 	.hw_params = wm8904_hw_params,
-	.digital_mute = wm8904_digital_mute,
+	.mute_stream = wm8904_mute,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8904_dai = {
@@ -1959,7 +1990,7 @@ static struct snd_soc_dai_driver wm8904_dai = {
 		.formats = WM8904_FORMATS,
 	},
 	.ops = &wm8904_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 };
 
 static void wm8904_handle_retune_mobile_pdata(struct snd_soc_component *component)
@@ -2107,7 +2138,6 @@ static const struct snd_soc_component_driver soc_component_dev_wm8904 = {
 	.set_bias_level		= wm8904_set_bias_level,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config wm8904_regmap = {
@@ -2118,7 +2148,7 @@ static const struct regmap_config wm8904_regmap = {
 	.volatile_reg = wm8904_volatile_register,
 	.readable_reg = wm8904_readable_register,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = wm8904_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8904_reg_defaults),
 };
@@ -2138,8 +2168,9 @@ static const struct of_device_id wm8904_of_match[] = {
 MODULE_DEVICE_TABLE(of, wm8904_of_match);
 #endif
 
-static int wm8904_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static const struct i2c_device_id wm8904_i2c_id[];
+
+static int wm8904_i2c_probe(struct i2c_client *i2c)
 {
 	struct wm8904_priv *wm8904;
 	unsigned int val;
@@ -2171,8 +2202,10 @@ static int wm8904_i2c_probe(struct i2c_client *i2c,
 		match = of_match_node(wm8904_of_match, i2c->dev.of_node);
 		if (match == NULL)
 			return -EINVAL;
-		wm8904->devtype = (enum wm8904_type)match->data;
+		wm8904->devtype = (uintptr_t)match->data;
 	} else {
+		const struct i2c_device_id *id =
+			i2c_match_id(wm8904_i2c_id, i2c);
 		wm8904->devtype = id->driver_data;
 	}
 
@@ -2275,6 +2308,9 @@ static int wm8904_i2c_probe(struct i2c_client *i2c,
 	regmap_update_bits(wm8904->regmap, WM8904_BIAS_CONTROL_0,
 			    WM8904_POBCTRL, 0);
 
+	/* Fill the cache for the ADC test register */
+	regmap_read(wm8904->regmap, WM8904_ADC_TEST_0, &val);
+
 	/* Can leave the device powered off until we need it */
 	regcache_cache_only(wm8904->regmap, true);
 	regulator_bulk_disable(ARRAY_SIZE(wm8904->supplies), wm8904->supplies);
@@ -2304,7 +2340,7 @@ static struct i2c_driver wm8904_i2c_driver = {
 		.name = "wm8904",
 		.of_match_table = of_match_ptr(wm8904_of_match),
 	},
-	.probe =    wm8904_i2c_probe,
+	.probe = wm8904_i2c_probe,
 	.id_table = wm8904_i2c_id,
 };
 

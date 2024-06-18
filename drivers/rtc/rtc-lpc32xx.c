@@ -185,7 +185,6 @@ static const struct rtc_class_ops lpc32xx_rtc_ops = {
 
 static int lpc32xx_rtc_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	struct lpc32xx_rtc *rtc;
 	int err;
 	u32 tmp;
@@ -194,8 +193,7 @@ static int lpc32xx_rtc_probe(struct platform_device *pdev)
 	if (unlikely(!rtc))
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	rtc->rtc_base = devm_ioremap_resource(&pdev->dev, res);
+	rtc->rtc_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rtc->rtc_base))
 		return PTR_ERR(rtc->rtc_base);
 
@@ -241,7 +239,7 @@ static int lpc32xx_rtc_probe(struct platform_device *pdev)
 	rtc->rtc->ops = &lpc32xx_rtc_ops;
 	rtc->rtc->range_max = U32_MAX;
 
-	err = rtc_register_device(rtc->rtc);
+	err = devm_rtc_register_device(rtc->rtc);
 	if (err)
 		return err;
 
@@ -262,16 +260,6 @@ static int lpc32xx_rtc_probe(struct platform_device *pdev)
 			device_init_wakeup(&pdev->dev, 1);
 		}
 	}
-
-	return 0;
-}
-
-static int lpc32xx_rtc_remove(struct platform_device *pdev)
-{
-	struct lpc32xx_rtc *rtc = platform_get_drvdata(pdev);
-
-	if (rtc->irq >= 0)
-		device_init_wakeup(&pdev->dev, 0);
 
 	return 0;
 }
@@ -357,7 +345,6 @@ MODULE_DEVICE_TABLE(of, lpc32xx_rtc_match);
 
 static struct platform_driver lpc32xx_rtc_driver = {
 	.probe		= lpc32xx_rtc_probe,
-	.remove		= lpc32xx_rtc_remove,
 	.driver = {
 		.name	= "rtc-lpc32xx",
 		.pm	= LPC32XX_RTC_PM_OPS,

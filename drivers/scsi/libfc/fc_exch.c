@@ -20,7 +20,6 @@
 #include <scsi/fc/fc_fc2.h>
 
 #include <scsi/libfc.h>
-#include <scsi/fc_encode.h>
 
 #include "fc_libfc.h"
 
@@ -49,6 +48,8 @@ static struct workqueue_struct *fc_exch_workqueue;
  * @total_exches: Total allocated exchanges
  * @lock:	  Exch pool lock
  * @ex_list:	  List of exchanges
+ * @left:	  Cache of free slot in exch array
+ * @right:	  Cache of free slot in exch array
  *
  * This structure manages per cpu exchanges in array of exchange pointers.
  * This array is allocated followed by struct fc_exch_pool memory for
@@ -60,7 +61,6 @@ struct fc_exch_pool {
 	u16		 next_index;
 	u16		 total_exches;
 
-	/* two cache of free slot in exch array */
 	u16		 left;
 	u16		 right;
 } ____cacheline_aligned_in_smp;
@@ -74,6 +74,7 @@ struct fc_exch_pool {
  * @ep_pool:	    Reserved exchange pointers
  * @pool_max_index: Max exch array index in exch pool
  * @pool:	    Per cpu exch pool
+ * @lport:	    Local exchange port
  * @stats:	    Statistics structure
  *
  * This structure is the center for creating exchanges and sequences.
@@ -270,7 +271,7 @@ static void fc_exch_setup_hdr(struct fc_exch *ep, struct fc_frame *fp,
 
 	if (f_ctl & FC_FC_END_SEQ) {
 		fr_eof(fp) = FC_EOF_T;
-		if (fc_sof_needs_ack(ep->class))
+		if (fc_sof_needs_ack((enum fc_sof)ep->class))
 			fr_eof(fp) = FC_EOF_N;
 		/*
 		 * From F_CTL.
@@ -702,6 +703,9 @@ int fc_seq_exch_abort(const struct fc_seq *req_sp, unsigned int timer_msec)
 
 /**
  * fc_invoke_resp() - invoke ep->resp()
+ * @ep:	   The exchange to be operated on
+ * @fp:	   The frame pointer to pass through to ->resp()
+ * @sp:	   The sequence pointer to pass through to ->resp()
  *
  * Notes:
  * It is assumed that after initialization finished (this means the
@@ -821,10 +825,9 @@ static struct fc_exch *fc_exch_em_alloc(struct fc_lport *lport,
 	}
 	memset(ep, 0, sizeof(*ep));
 
-	cpu = get_cpu();
+	cpu = raw_smp_processor_id();
 	pool = per_cpu_ptr(mp->pool, cpu);
 	spin_lock_bh(&pool->lock);
-	put_cpu();
 
 	/* peek cache of free slot */
 	if (pool->left != FC_XID_UNKNOWN) {
@@ -1619,8 +1622,13 @@ static void fc_exch_recv_seq_resp(struct fc_exch_mgr *mp, struct fc_frame *fp)
 		rc = fc_exch_done_locked(ep);
 		WARN_ON(fc_seq_exch(sp) != ep);
 		spin_unlock_bh(&ep->ex_lock);
-		if (!rc)
+		if (!rc) {
 			fc_exch_delete(ep);
+		} else {
+			FC_EXCH_DBG(ep, "ep is completed already,"
+					"hence skip calling the resp\n");
+			goto skip_resp;
+		}
 	}
 
 	/*
@@ -1639,6 +1647,7 @@ static void fc_exch_recv_seq_resp(struct fc_exch_mgr *mp, struct fc_frame *fp)
 	if (!fc_invoke_resp(ep, sp, fp))
 		fc_frame_free(fp);
 
+skip_resp:
 	fc_exch_release(ep);
 	return;
 rel:
@@ -1691,6 +1700,7 @@ static void fc_exch_abts_resp(struct fc_exch *ep, struct fc_frame *fp)
 	if (cancel_delayed_work_sync(&ep->timeout_work)) {
 		FC_EXCH_DBG(ep, "Exchange timer canceled due to ABTS response\n");
 		fc_exch_release(ep);	/* release from pending timer hold */
+		return;
 	}
 
 	spin_lock_bh(&ep->ex_lock);
@@ -1895,10 +1905,16 @@ static void fc_exch_reset(struct fc_exch *ep)
 
 	fc_exch_hold(ep);
 
-	if (!rc)
+	if (!rc) {
 		fc_exch_delete(ep);
+	} else {
+		FC_EXCH_DBG(ep, "ep is completed already,"
+				"hence skip calling the resp\n");
+		goto skip_resp;
+	}
 
 	fc_invoke_resp(ep, sp, ERR_PTR(-FC_EX_CLOSED));
+skip_resp:
 	fc_seq_set_resp(sp, NULL, ep->arg);
 	fc_exch_release(ep);
 }
@@ -2103,7 +2119,7 @@ static void fc_exch_rrq_resp(struct fc_seq *sp, struct fc_frame *fp, void *arg)
 	switch (op) {
 	case ELS_LS_RJT:
 		FC_EXCH_DBG(aborted_ep, "LS_RJT for RRQ\n");
-		/* fall through */
+		fallthrough;
 	case ELS_LS_ACC:
 		goto cleanup;
 	default:
@@ -2617,7 +2633,7 @@ void fc_exch_recv(struct fc_lport *lport, struct fc_frame *fp)
 	case FC_EOF_T:
 		if (f_ctl & FC_FC_END_SEQ)
 			skb_trim(fp_skb(fp), fr_len(fp) - FC_FC_FILL(f_ctl));
-		/* fall through */
+		fallthrough;
 	case FC_EOF_N:
 		if (fh->fh_type == FC_TYPE_BLS)
 			fc_exch_recv_bls(ema->mp, fp);

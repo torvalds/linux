@@ -13,6 +13,7 @@
 #include <linux/percpu.h>
 #include <linux/perf/arm_pmu.h>
 
+#include <asm/cpu.h>
 #include <asm/cputype.h>
 
 static DEFINE_PER_CPU(struct arm_pmu *, probed_pmus);
@@ -24,8 +25,6 @@ static int arm_pmu_acpi_register_irq(int cpu)
 	int gsi, trigger;
 
 	gicc = acpi_cpu_get_madt_gicc(cpu);
-	if (WARN_ON(!gicc))
-		return -EINVAL;
 
 	gsi = gicc->performance_interrupt;
 
@@ -64,11 +63,66 @@ static void arm_pmu_acpi_unregister_irq(int cpu)
 	int gsi;
 
 	gicc = acpi_cpu_get_madt_gicc(cpu);
-	if (!gicc)
-		return;
 
 	gsi = gicc->performance_interrupt;
-	acpi_unregister_gsi(gsi);
+	if (gsi)
+		acpi_unregister_gsi(gsi);
+}
+
+static int __maybe_unused
+arm_acpi_register_pmu_device(struct platform_device *pdev, u8 len,
+			     u16 (*parse_gsi)(struct acpi_madt_generic_interrupt *))
+{
+	int cpu, this_hetid, hetid, irq, ret;
+	u16 this_gsi = 0, gsi = 0;
+
+	/*
+	 * Ensure that platform device must have IORESOURCE_IRQ
+	 * resource to hold gsi interrupt.
+	 */
+	if (pdev->num_resources != 1)
+		return -ENXIO;
+
+	if (pdev->resource[0].flags != IORESOURCE_IRQ)
+		return -ENXIO;
+
+	/*
+	 * Sanity check all the GICC tables for the same interrupt
+	 * number. For now, only support homogeneous ACPI machines.
+	 */
+	for_each_possible_cpu(cpu) {
+		struct acpi_madt_generic_interrupt *gicc;
+
+		gicc = acpi_cpu_get_madt_gicc(cpu);
+		if (gicc->header.length < len)
+			return gsi ? -ENXIO : 0;
+
+		this_gsi = parse_gsi(gicc);
+		this_hetid = find_acpi_cpu_topology_hetero_id(cpu);
+		if (!gsi) {
+			hetid = this_hetid;
+			gsi = this_gsi;
+		} else if (hetid != this_hetid || gsi != this_gsi) {
+			pr_warn("ACPI: %s: must be homogeneous\n", pdev->name);
+			return -ENXIO;
+		}
+	}
+
+	if (!this_gsi)
+		return 0;
+
+	irq = acpi_register_gsi(NULL, gsi, ACPI_LEVEL_SENSITIVE, ACPI_ACTIVE_HIGH);
+	if (irq < 0) {
+		pr_warn("ACPI: %s Unable to register interrupt: %d\n", pdev->name, gsi);
+		return -ENXIO;
+	}
+
+	pdev->resource[0].start = irq;
+	ret = platform_device_register(pdev);
+	if (ret)
+		acpi_unregister_gsi(gsi);
+
+	return ret;
 }
 
 #if IS_ENABLED(CONFIG_ARM_SPE_PMU)
@@ -86,6 +140,11 @@ static struct platform_device spe_dev = {
 	.num_resources = ARRAY_SIZE(spe_resources)
 };
 
+static u16 arm_spe_parse_gsi(struct acpi_madt_generic_interrupt *gicc)
+{
+	return gicc->spe_interrupt;
+}
+
 /*
  * For lack of a better place, hook the normal PMU MADT walk
  * and create a SPE device if we detect a recent MADT with
@@ -93,53 +152,50 @@ static struct platform_device spe_dev = {
  */
 static void arm_spe_acpi_register_device(void)
 {
-	int cpu, hetid, irq, ret;
-	bool first = true;
-	u16 gsi = 0;
-
-	/*
-	 * Sanity check all the GICC tables for the same interrupt number.
-	 * For now, we only support homogeneous ACPI/SPE machines.
-	 */
-	for_each_possible_cpu(cpu) {
-		struct acpi_madt_generic_interrupt *gicc;
-
-		gicc = acpi_cpu_get_madt_gicc(cpu);
-		if (gicc->header.length < ACPI_MADT_GICC_SPE)
-			return;
-
-		if (first) {
-			gsi = gicc->spe_interrupt;
-			if (!gsi)
-				return;
-			hetid = find_acpi_cpu_topology_hetero_id(cpu);
-			first = false;
-		} else if ((gsi != gicc->spe_interrupt) ||
-			   (hetid != find_acpi_cpu_topology_hetero_id(cpu))) {
-			pr_warn("ACPI: SPE must be homogeneous\n");
-			return;
-		}
-	}
-
-	irq = acpi_register_gsi(NULL, gsi, ACPI_LEVEL_SENSITIVE,
-				ACPI_ACTIVE_HIGH);
-	if (irq < 0) {
-		pr_warn("ACPI: SPE Unable to register interrupt: %d\n", gsi);
-		return;
-	}
-
-	spe_resources[0].start = irq;
-	ret = platform_device_register(&spe_dev);
-	if (ret < 0) {
+	int ret = arm_acpi_register_pmu_device(&spe_dev, ACPI_MADT_GICC_SPE,
+					       arm_spe_parse_gsi);
+	if (ret)
 		pr_warn("ACPI: SPE: Unable to register device\n");
-		acpi_unregister_gsi(gsi);
-	}
 }
 #else
 static inline void arm_spe_acpi_register_device(void)
 {
 }
 #endif /* CONFIG_ARM_SPE_PMU */
+
+#if IS_ENABLED(CONFIG_CORESIGHT_TRBE)
+static struct resource trbe_resources[] = {
+	{
+		/* irq */
+		.flags          = IORESOURCE_IRQ,
+	}
+};
+
+static struct platform_device trbe_dev = {
+	.name = ARMV8_TRBE_PDEV_NAME,
+	.id = -1,
+	.resource = trbe_resources,
+	.num_resources = ARRAY_SIZE(trbe_resources)
+};
+
+static u16 arm_trbe_parse_gsi(struct acpi_madt_generic_interrupt *gicc)
+{
+	return gicc->trbe_interrupt;
+}
+
+static void arm_trbe_acpi_register_device(void)
+{
+	int ret = arm_acpi_register_pmu_device(&trbe_dev, ACPI_MADT_GICC_TRBE,
+					       arm_trbe_parse_gsi);
+	if (ret)
+		pr_warn("ACPI: TRBE: Unable to register device\n");
+}
+#else
+static inline void arm_trbe_acpi_register_device(void)
+{
+
+}
+#endif /* CONFIG_CORESIGHT_TRBE */
 
 static int arm_pmu_acpi_parse_irqs(void)
 {
@@ -162,7 +218,9 @@ static int arm_pmu_acpi_parse_irqs(void)
 		 * them with their PMUs.
 		 */
 		per_cpu(pmu_irqs, cpu) = irq;
-		armpmu_request_irq(irq, cpu);
+		err = armpmu_request_irq(irq, cpu);
+		if (err)
+			goto out_err;
 	}
 
 	return 0;
@@ -188,7 +246,7 @@ out_err:
 	return err;
 }
 
-static struct arm_pmu *arm_pmu_acpi_find_alloc_pmu(void)
+static struct arm_pmu *arm_pmu_acpi_find_pmu(void)
 {
 	unsigned long cpuid = read_cpuid_id();
 	struct arm_pmu *pmu;
@@ -202,16 +260,7 @@ static struct arm_pmu *arm_pmu_acpi_find_alloc_pmu(void)
 		return pmu;
 	}
 
-	pmu = armpmu_alloc_atomic();
-	if (!pmu) {
-		pr_warn("Unable to allocate PMU for CPU%d\n",
-			smp_processor_id());
-		return NULL;
-	}
-
-	pmu->acpi_cpuid = cpuid;
-
-	return pmu;
+	return NULL;
 }
 
 /*
@@ -243,6 +292,22 @@ static bool pmu_irq_matches(struct arm_pmu *pmu, int irq)
 	return true;
 }
 
+static void arm_pmu_acpi_associate_pmu_cpu(struct arm_pmu *pmu,
+					   unsigned int cpu)
+{
+	int irq = per_cpu(pmu_irqs, cpu);
+
+	per_cpu(probed_pmus, cpu) = pmu;
+
+	if (pmu_irq_matches(pmu, irq)) {
+		struct pmu_hw_events __percpu *hw_events;
+		hw_events = pmu->hw_events;
+		per_cpu(hw_events->irq, cpu) = irq;
+	}
+
+	cpumask_set_cpu(cpu, &pmu->supported_cpus);
+}
+
 /*
  * This must run before the common arm_pmu hotplug logic, so that we can
  * associate a CPU and its interrupt before the common code tries to manage the
@@ -255,42 +320,50 @@ static bool pmu_irq_matches(struct arm_pmu *pmu, int irq)
 static int arm_pmu_acpi_cpu_starting(unsigned int cpu)
 {
 	struct arm_pmu *pmu;
-	struct pmu_hw_events __percpu *hw_events;
-	int irq;
 
 	/* If we've already probed this CPU, we have nothing to do */
 	if (per_cpu(probed_pmus, cpu))
 		return 0;
 
-	irq = per_cpu(pmu_irqs, cpu);
-
-	pmu = arm_pmu_acpi_find_alloc_pmu();
-	if (!pmu)
-		return -ENOMEM;
-
-	per_cpu(probed_pmus, cpu) = pmu;
-
-	if (pmu_irq_matches(pmu, irq)) {
-		hw_events = pmu->hw_events;
-		per_cpu(hw_events->irq, cpu) = irq;
+	pmu = arm_pmu_acpi_find_pmu();
+	if (!pmu) {
+		pr_warn_ratelimited("Unable to associate CPU%d with a PMU\n",
+				    cpu);
+		return 0;
 	}
 
-	cpumask_set_cpu(cpu, &pmu->supported_cpus);
-
-	/*
-	 * Ideally, we'd probe the PMU here when we find the first matching
-	 * CPU. We can't do that for several reasons; see the comment in
-	 * arm_pmu_acpi_init().
-	 *
-	 * So for the time being, we're done.
-	 */
+	arm_pmu_acpi_associate_pmu_cpu(pmu, cpu);
 	return 0;
+}
+
+static void arm_pmu_acpi_probe_matching_cpus(struct arm_pmu *pmu,
+					     unsigned long cpuid)
+{
+	int cpu;
+
+	for_each_online_cpu(cpu) {
+		unsigned long cpu_cpuid = per_cpu(cpu_data, cpu).reg_midr;
+
+		if (cpu_cpuid == cpuid)
+			arm_pmu_acpi_associate_pmu_cpu(pmu, cpu);
+	}
 }
 
 int arm_pmu_acpi_probe(armpmu_init_fn init_fn)
 {
 	int pmu_idx = 0;
-	int cpu, ret;
+	unsigned int cpu;
+	int ret;
+
+	ret = arm_pmu_acpi_parse_irqs();
+	if (ret)
+		return ret;
+
+	ret = cpuhp_setup_state_nocalls(CPUHP_AP_PERF_ARM_ACPI_STARTING,
+					"perf/arm/pmu_acpi:starting",
+					arm_pmu_acpi_cpu_starting, NULL);
+	if (ret)
+		return ret;
 
 	/*
 	 * Initialise and register the set of PMUs which we know about right
@@ -305,12 +378,26 @@ int arm_pmu_acpi_probe(armpmu_init_fn init_fn)
 	 * For the moment, as with the platform/DT case, we need at least one
 	 * of a PMU's CPUs to be online at probe time.
 	 */
-	for_each_possible_cpu(cpu) {
+	for_each_online_cpu(cpu) {
 		struct arm_pmu *pmu = per_cpu(probed_pmus, cpu);
+		unsigned long cpuid;
 		char *base_name;
 
-		if (!pmu || pmu->name)
+		/* If we've already probed this CPU, we have nothing to do */
+		if (pmu)
 			continue;
+
+		pmu = armpmu_alloc();
+		if (!pmu) {
+			pr_warn("Unable to allocate PMU for CPU%d\n",
+				cpu);
+			return -ENOMEM;
+		}
+
+		cpuid = per_cpu(cpu_data, cpu).reg_midr;
+		pmu->acpi_cpuid = cpuid;
+
+		arm_pmu_acpi_probe_matching_cpus(pmu, cpuid);
 
 		ret = init_fn(pmu);
 		if (ret == -ENODEV) {
@@ -336,26 +423,17 @@ int arm_pmu_acpi_probe(armpmu_init_fn init_fn)
 		}
 	}
 
-	return 0;
+	return ret;
 }
 
 static int arm_pmu_acpi_init(void)
 {
-	int ret;
-
 	if (acpi_disabled)
 		return 0;
 
 	arm_spe_acpi_register_device();
+	arm_trbe_acpi_register_device();
 
-	ret = arm_pmu_acpi_parse_irqs();
-	if (ret)
-		return ret;
-
-	ret = cpuhp_setup_state(CPUHP_AP_PERF_ARM_ACPI_STARTING,
-				"perf/arm/pmu_acpi:starting",
-				arm_pmu_acpi_cpu_starting, NULL);
-
-	return ret;
+	return 0;
 }
 subsys_initcall(arm_pmu_acpi_init)

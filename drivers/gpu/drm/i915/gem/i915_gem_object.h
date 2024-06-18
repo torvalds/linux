@@ -11,44 +11,81 @@
 #include <drm/drm_file.h>
 #include <drm/drm_device.h>
 
-#include <drm/i915_drm.h>
-
+#include "intel_memory_region.h"
 #include "i915_gem_object_types.h"
-
 #include "i915_gem_gtt.h"
+#include "i915_gem_ww.h"
+#include "i915_vma_types.h"
 
+enum intel_region_id;
+
+#define obj_to_i915(obj__) to_i915((obj__)->base.dev)
+
+static inline bool i915_gem_object_size_2big(u64 size)
+{
+	struct drm_i915_gem_object *obj;
+
+	if (overflows_type(size, obj->base.size))
+		return true;
+
+	return false;
+}
+
+unsigned int i915_gem_get_pat_index(struct drm_i915_private *i915,
+				    enum i915_cache_level level);
+bool i915_gem_object_has_cache_level(const struct drm_i915_gem_object *obj,
+				     enum i915_cache_level lvl);
 void i915_gem_init__objects(struct drm_i915_private *i915);
+
+void i915_objects_module_exit(void);
+int i915_objects_module_init(void);
 
 struct drm_i915_gem_object *i915_gem_object_alloc(void);
 void i915_gem_object_free(struct drm_i915_gem_object *obj);
 
 void i915_gem_object_init(struct drm_i915_gem_object *obj,
-			  const struct drm_i915_gem_object_ops *ops);
+			  const struct drm_i915_gem_object_ops *ops,
+			  struct lock_class_key *key,
+			  unsigned alloc_flags);
+
+void __i915_gem_object_fini(struct drm_i915_gem_object *obj);
+
 struct drm_i915_gem_object *
-i915_gem_object_create_shmem(struct drm_i915_private *i915, u64 size);
+i915_gem_object_create_shmem(struct drm_i915_private *i915,
+			     resource_size_t size);
 struct drm_i915_gem_object *
 i915_gem_object_create_shmem_from_data(struct drm_i915_private *i915,
-				       const void *data, size_t size);
+				       const void *data, resource_size_t size);
+struct drm_i915_gem_object *
+__i915_gem_object_create_user(struct drm_i915_private *i915, u64 size,
+			      struct intel_memory_region **placements,
+			      unsigned int n_placements);
 
 extern const struct drm_i915_gem_object_ops i915_gem_shmem_ops;
+
 void __i915_gem_object_release_shmem(struct drm_i915_gem_object *obj,
 				     struct sg_table *pages,
 				     bool needs_clflush);
 
-int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj, int align);
+int i915_gem_object_pwrite_phys(struct drm_i915_gem_object *obj,
+				const struct drm_i915_gem_pwrite *args);
+int i915_gem_object_pread_phys(struct drm_i915_gem_object *obj,
+			       const struct drm_i915_gem_pread *args);
 
-void i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file);
-void i915_gem_free_object(struct drm_gem_object *obj);
+int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj, int align);
+void i915_gem_object_put_pages_shmem(struct drm_i915_gem_object *obj,
+				     struct sg_table *pages);
+void i915_gem_object_put_pages_phys(struct drm_i915_gem_object *obj,
+				    struct sg_table *pages);
 
 void i915_gem_flush_free_objects(struct drm_i915_private *i915);
 
 struct sg_table *
 __i915_gem_object_unset_pages(struct drm_i915_gem_object *obj);
-void i915_gem_object_truncate(struct drm_i915_gem_object *obj);
 
 /**
  * i915_gem_object_lookup_rcu - look up a temporary GEM object from its handle
- * @filp: DRM file private date
+ * @file: DRM file private date
  * @handle: userspace handle
  *
  * Returns:
@@ -67,14 +104,22 @@ i915_gem_object_lookup_rcu(struct drm_file *file, u32 handle)
 }
 
 static inline struct drm_i915_gem_object *
+i915_gem_object_get_rcu(struct drm_i915_gem_object *obj)
+{
+	if (obj && !kref_get_unless_zero(&obj->base.refcount))
+		obj = NULL;
+
+	return obj;
+}
+
+static inline struct drm_i915_gem_object *
 i915_gem_object_lookup(struct drm_file *file, u32 handle)
 {
 	struct drm_i915_gem_object *obj;
 
 	rcu_read_lock();
 	obj = i915_gem_object_lookup_rcu(file, handle);
-	if (obj && !kref_get_unless_zero(&obj->base.refcount))
-		obj = NULL;
+	obj = i915_gem_object_get_rcu(obj);
 	rcu_read_unlock();
 
 	return obj;
@@ -101,67 +146,171 @@ i915_gem_object_put(struct drm_i915_gem_object *obj)
 
 #define assert_object_held(obj) dma_resv_assert_held((obj)->base.resv)
 
-static inline void i915_gem_object_lock(struct drm_i915_gem_object *obj)
+/*
+ * If more than one potential simultaneous locker, assert held.
+ */
+static inline void assert_object_held_shared(const struct drm_i915_gem_object *obj)
 {
-	dma_resv_lock(obj->base.resv, NULL);
+	/*
+	 * Note mm list lookup is protected by
+	 * kref_get_unless_zero().
+	 */
+	if (IS_ENABLED(CONFIG_LOCKDEP) &&
+	    kref_read(&obj->base.refcount) > 0)
+		assert_object_held(obj);
 }
 
-static inline int
-i915_gem_object_lock_interruptible(struct drm_i915_gem_object *obj)
+static inline int __i915_gem_object_lock(struct drm_i915_gem_object *obj,
+					 struct i915_gem_ww_ctx *ww,
+					 bool intr)
 {
-	return dma_resv_lock_interruptible(obj->base.resv, NULL);
+	int ret;
+
+	if (intr)
+		ret = dma_resv_lock_interruptible(obj->base.resv, ww ? &ww->ctx : NULL);
+	else
+		ret = dma_resv_lock(obj->base.resv, ww ? &ww->ctx : NULL);
+
+	if (!ret && ww) {
+		i915_gem_object_get(obj);
+		list_add_tail(&obj->obj_link, &ww->obj_list);
+	}
+	if (ret == -EALREADY)
+		ret = 0;
+
+	if (ret == -EDEADLK) {
+		i915_gem_object_get(obj);
+		ww->contended = obj;
+	}
+
+	return ret;
+}
+
+static inline int i915_gem_object_lock(struct drm_i915_gem_object *obj,
+				       struct i915_gem_ww_ctx *ww)
+{
+	return __i915_gem_object_lock(obj, ww, ww && ww->intr);
+}
+
+static inline int i915_gem_object_lock_interruptible(struct drm_i915_gem_object *obj,
+						     struct i915_gem_ww_ctx *ww)
+{
+	WARN_ON(ww && !ww->intr);
+	return __i915_gem_object_lock(obj, ww, true);
+}
+
+static inline bool i915_gem_object_trylock(struct drm_i915_gem_object *obj,
+					   struct i915_gem_ww_ctx *ww)
+{
+	if (!ww)
+		return dma_resv_trylock(obj->base.resv);
+	else
+		return ww_mutex_trylock(&obj->base.resv->lock, &ww->ctx);
 }
 
 static inline void i915_gem_object_unlock(struct drm_i915_gem_object *obj)
 {
+	if (obj->ops->adjust_lru)
+		obj->ops->adjust_lru(obj);
+
 	dma_resv_unlock(obj->base.resv);
 }
-
-struct dma_fence *
-i915_gem_object_lock_fence(struct drm_i915_gem_object *obj);
-void i915_gem_object_unlock_fence(struct drm_i915_gem_object *obj,
-				  struct dma_fence *fence);
 
 static inline void
 i915_gem_object_set_readonly(struct drm_i915_gem_object *obj)
 {
-	obj->base.vma_node.readonly = true;
+	obj->flags |= I915_BO_READONLY;
 }
 
 static inline bool
 i915_gem_object_is_readonly(const struct drm_i915_gem_object *obj)
 {
-	return obj->base.vma_node.readonly;
+	return obj->flags & I915_BO_READONLY;
 }
 
 static inline bool
-i915_gem_object_has_struct_page(const struct drm_i915_gem_object *obj)
+i915_gem_object_is_contiguous(const struct drm_i915_gem_object *obj)
 {
-	return obj->ops->flags & I915_GEM_OBJECT_HAS_STRUCT_PAGE;
+	return obj->flags & I915_BO_ALLOC_CONTIGUOUS;
 }
+
+static inline bool
+i915_gem_object_is_volatile(const struct drm_i915_gem_object *obj)
+{
+	return obj->flags & I915_BO_ALLOC_VOLATILE;
+}
+
+static inline void
+i915_gem_object_set_volatile(struct drm_i915_gem_object *obj)
+{
+	obj->flags |= I915_BO_ALLOC_VOLATILE;
+}
+
+static inline bool
+i915_gem_object_has_tiling_quirk(struct drm_i915_gem_object *obj)
+{
+	return test_bit(I915_TILING_QUIRK_BIT, &obj->flags);
+}
+
+static inline void
+i915_gem_object_set_tiling_quirk(struct drm_i915_gem_object *obj)
+{
+	set_bit(I915_TILING_QUIRK_BIT, &obj->flags);
+}
+
+static inline void
+i915_gem_object_clear_tiling_quirk(struct drm_i915_gem_object *obj)
+{
+	clear_bit(I915_TILING_QUIRK_BIT, &obj->flags);
+}
+
+static inline bool
+i915_gem_object_is_protected(const struct drm_i915_gem_object *obj)
+{
+	return obj->flags & I915_BO_PROTECTED;
+}
+
+static inline bool
+i915_gem_object_type_has(const struct drm_i915_gem_object *obj,
+			 unsigned long flags)
+{
+	return obj->ops->flags & flags;
+}
+
+bool i915_gem_object_has_struct_page(const struct drm_i915_gem_object *obj);
+
+bool i915_gem_object_has_iomem(const struct drm_i915_gem_object *obj);
 
 static inline bool
 i915_gem_object_is_shrinkable(const struct drm_i915_gem_object *obj)
 {
-	return obj->ops->flags & I915_GEM_OBJECT_IS_SHRINKABLE;
+	/* TODO: make DPT shrinkable when it has no bound vmas */
+	return i915_gem_object_type_has(obj, I915_GEM_OBJECT_IS_SHRINKABLE) &&
+		!obj->is_dpt;
+}
+
+static inline bool
+i915_gem_object_has_self_managed_shrink_list(const struct drm_i915_gem_object *obj)
+{
+	return i915_gem_object_type_has(obj, I915_GEM_OBJECT_SELF_MANAGED_SHRINK_LIST);
 }
 
 static inline bool
 i915_gem_object_is_proxy(const struct drm_i915_gem_object *obj)
 {
-	return obj->ops->flags & I915_GEM_OBJECT_IS_PROXY;
+	return i915_gem_object_type_has(obj, I915_GEM_OBJECT_IS_PROXY);
 }
 
 static inline bool
-i915_gem_object_needs_async_cancel(const struct drm_i915_gem_object *obj)
+i915_gem_object_never_mmap(const struct drm_i915_gem_object *obj)
 {
-	return obj->ops->flags & I915_GEM_OBJECT_ASYNC_CANCEL;
+	return i915_gem_object_type_has(obj, I915_GEM_OBJECT_NO_MMAP);
 }
 
 static inline bool
 i915_gem_object_is_framebuffer(const struct drm_i915_gem_object *obj)
 {
-	return READ_ONCE(obj->frontbuffer);
+	return READ_ONCE(obj->frontbuffer) || obj->is_dpt;
 }
 
 static inline unsigned int
@@ -205,30 +354,292 @@ i915_gem_object_get_tile_row_size(const struct drm_i915_gem_object *obj)
 int i915_gem_object_set_tiling(struct drm_i915_gem_object *obj,
 			       unsigned int tiling, unsigned int stride);
 
+/**
+ * __i915_gem_object_page_iter_get_sg - helper to find the target scatterlist
+ * pointer and the target page position using pgoff_t n input argument and
+ * i915_gem_object_page_iter
+ * @obj: i915 GEM buffer object
+ * @iter: i915 GEM buffer object page iterator
+ * @n: page offset
+ * @offset: searched physical offset,
+ *          it will be used for returning physical page offset value
+ *
+ * Context: Takes and releases the mutex lock of the i915_gem_object_page_iter.
+ *          Takes and releases the RCU lock to search the radix_tree of
+ *          i915_gem_object_page_iter.
+ *
+ * Returns:
+ * The target scatterlist pointer and the target page position.
+ *
+ * Recommended to use wrapper macro: i915_gem_object_page_iter_get_sg()
+ */
 struct scatterlist *
-i915_gem_object_get_sg(struct drm_i915_gem_object *obj,
-		       unsigned int n, unsigned int *offset);
+__i915_gem_object_page_iter_get_sg(struct drm_i915_gem_object *obj,
+				   struct i915_gem_object_page_iter *iter,
+				   pgoff_t  n,
+				   unsigned int *offset);
 
+/**
+ * i915_gem_object_page_iter_get_sg - wrapper macro for
+ * __i915_gem_object_page_iter_get_sg()
+ * @obj: i915 GEM buffer object
+ * @it: i915 GEM buffer object page iterator
+ * @n: page offset
+ * @offset: searched physical offset,
+ *          it will be used for returning physical page offset value
+ *
+ * Context: Takes and releases the mutex lock of the i915_gem_object_page_iter.
+ *          Takes and releases the RCU lock to search the radix_tree of
+ *          i915_gem_object_page_iter.
+ *
+ * Returns:
+ * The target scatterlist pointer and the target page position.
+ *
+ * In order to avoid the truncation of the input parameter, it checks the page
+ * offset n's type from the input parameter before calling
+ * __i915_gem_object_page_iter_get_sg().
+ */
+#define i915_gem_object_page_iter_get_sg(obj, it, n, offset) ({	\
+	static_assert(castable_to_type(n, pgoff_t));		\
+	__i915_gem_object_page_iter_get_sg(obj, it, n, offset);	\
+})
+
+/**
+ * __i915_gem_object_get_sg - helper to find the target scatterlist
+ * pointer and the target page position using pgoff_t n input argument and
+ * drm_i915_gem_object. It uses an internal shmem scatterlist lookup function.
+ * @obj: i915 GEM buffer object
+ * @n: page offset
+ * @offset: searched physical offset,
+ *          it will be used for returning physical page offset value
+ *
+ * It uses drm_i915_gem_object's internal shmem scatterlist lookup function as
+ * i915_gem_object_page_iter and calls __i915_gem_object_page_iter_get_sg().
+ *
+ * Returns:
+ * The target scatterlist pointer and the target page position.
+ *
+ * Recommended to use wrapper macro: i915_gem_object_get_sg()
+ * See also __i915_gem_object_page_iter_get_sg()
+ */
+static inline struct scatterlist *
+__i915_gem_object_get_sg(struct drm_i915_gem_object *obj, pgoff_t n,
+			 unsigned int *offset)
+{
+	return __i915_gem_object_page_iter_get_sg(obj, &obj->mm.get_page, n, offset);
+}
+
+/**
+ * i915_gem_object_get_sg - wrapper macro for __i915_gem_object_get_sg()
+ * @obj: i915 GEM buffer object
+ * @n: page offset
+ * @offset: searched physical offset,
+ *          it will be used for returning physical page offset value
+ *
+ * Returns:
+ * The target scatterlist pointer and the target page position.
+ *
+ * In order to avoid the truncation of the input parameter, it checks the page
+ * offset n's type from the input parameter before calling
+ * __i915_gem_object_get_sg().
+ * See also __i915_gem_object_page_iter_get_sg()
+ */
+#define i915_gem_object_get_sg(obj, n, offset) ({	\
+	static_assert(castable_to_type(n, pgoff_t));	\
+	__i915_gem_object_get_sg(obj, n, offset);	\
+})
+
+/**
+ * __i915_gem_object_get_sg_dma - helper to find the target scatterlist
+ * pointer and the target page position using pgoff_t n input argument and
+ * drm_i915_gem_object. It uses an internal DMA mapped scatterlist lookup function
+ * @obj: i915 GEM buffer object
+ * @n: page offset
+ * @offset: searched physical offset,
+ *          it will be used for returning physical page offset value
+ *
+ * It uses drm_i915_gem_object's internal DMA mapped scatterlist lookup function
+ * as i915_gem_object_page_iter and calls __i915_gem_object_page_iter_get_sg().
+ *
+ * Returns:
+ * The target scatterlist pointer and the target page position.
+ *
+ * Recommended to use wrapper macro: i915_gem_object_get_sg_dma()
+ * See also __i915_gem_object_page_iter_get_sg()
+ */
+static inline struct scatterlist *
+__i915_gem_object_get_sg_dma(struct drm_i915_gem_object *obj, pgoff_t n,
+			     unsigned int *offset)
+{
+	return __i915_gem_object_page_iter_get_sg(obj, &obj->mm.get_dma_page, n, offset);
+}
+
+/**
+ * i915_gem_object_get_sg_dma - wrapper macro for __i915_gem_object_get_sg_dma()
+ * @obj: i915 GEM buffer object
+ * @n: page offset
+ * @offset: searched physical offset,
+ *          it will be used for returning physical page offset value
+ *
+ * Returns:
+ * The target scatterlist pointer and the target page position.
+ *
+ * In order to avoid the truncation of the input parameter, it checks the page
+ * offset n's type from the input parameter before calling
+ * __i915_gem_object_get_sg_dma().
+ * See also __i915_gem_object_page_iter_get_sg()
+ */
+#define i915_gem_object_get_sg_dma(obj, n, offset) ({	\
+	static_assert(castable_to_type(n, pgoff_t));	\
+	__i915_gem_object_get_sg_dma(obj, n, offset);	\
+})
+
+/**
+ * __i915_gem_object_get_page - helper to find the target page with a page offset
+ * @obj: i915 GEM buffer object
+ * @n: page offset
+ *
+ * It uses drm_i915_gem_object's internal shmem scatterlist lookup function as
+ * i915_gem_object_page_iter and calls __i915_gem_object_page_iter_get_sg()
+ * internally.
+ *
+ * Returns:
+ * The target page pointer.
+ *
+ * Recommended to use wrapper macro: i915_gem_object_get_page()
+ * See also __i915_gem_object_page_iter_get_sg()
+ */
 struct page *
-i915_gem_object_get_page(struct drm_i915_gem_object *obj,
-			 unsigned int n);
+__i915_gem_object_get_page(struct drm_i915_gem_object *obj, pgoff_t n);
 
+/**
+ * i915_gem_object_get_page - wrapper macro for __i915_gem_object_get_page
+ * @obj: i915 GEM buffer object
+ * @n: page offset
+ *
+ * Returns:
+ * The target page pointer.
+ *
+ * In order to avoid the truncation of the input parameter, it checks the page
+ * offset n's type from the input parameter before calling
+ * __i915_gem_object_get_page().
+ * See also __i915_gem_object_page_iter_get_sg()
+ */
+#define i915_gem_object_get_page(obj, n) ({		\
+	static_assert(castable_to_type(n, pgoff_t));	\
+	__i915_gem_object_get_page(obj, n);		\
+})
+
+/**
+ * __i915_gem_object_get_dirty_page - helper to find the target page with a page
+ * offset
+ * @obj: i915 GEM buffer object
+ * @n: page offset
+ *
+ * It works like i915_gem_object_get_page(), but it marks the returned page dirty.
+ *
+ * Returns:
+ * The target page pointer.
+ *
+ * Recommended to use wrapper macro: i915_gem_object_get_dirty_page()
+ * See also __i915_gem_object_page_iter_get_sg() and __i915_gem_object_get_page()
+ */
 struct page *
-i915_gem_object_get_dirty_page(struct drm_i915_gem_object *obj,
-			       unsigned int n);
+__i915_gem_object_get_dirty_page(struct drm_i915_gem_object *obj, pgoff_t n);
 
-dma_addr_t
-i915_gem_object_get_dma_address_len(struct drm_i915_gem_object *obj,
-				    unsigned long n,
-				    unsigned int *len);
+/**
+ * i915_gem_object_get_dirty_page - wrapper macro for __i915_gem_object_get_dirty_page
+ * @obj: i915 GEM buffer object
+ * @n: page offset
+ *
+ * Returns:
+ * The target page pointer.
+ *
+ * In order to avoid the truncation of the input parameter, it checks the page
+ * offset n's type from the input parameter before calling
+ * __i915_gem_object_get_dirty_page().
+ * See also __i915_gem_object_page_iter_get_sg() and __i915_gem_object_get_page()
+ */
+#define i915_gem_object_get_dirty_page(obj, n) ({	\
+	static_assert(castable_to_type(n, pgoff_t));	\
+	__i915_gem_object_get_dirty_page(obj, n);	\
+})
 
+/**
+ * __i915_gem_object_get_dma_address_len - helper to get bus addresses of
+ * targeted DMA mapped scatterlist from i915 GEM buffer object and it's length
+ * @obj: i915 GEM buffer object
+ * @n: page offset
+ * @len: DMA mapped scatterlist's DMA bus addresses length to return
+ *
+ * Returns:
+ * Bus addresses of targeted DMA mapped scatterlist
+ *
+ * Recommended to use wrapper macro: i915_gem_object_get_dma_address_len()
+ * See also __i915_gem_object_page_iter_get_sg() and __i915_gem_object_get_sg_dma()
+ */
 dma_addr_t
-i915_gem_object_get_dma_address(struct drm_i915_gem_object *obj,
-				unsigned long n);
+__i915_gem_object_get_dma_address_len(struct drm_i915_gem_object *obj, pgoff_t n,
+				      unsigned int *len);
+
+/**
+ * i915_gem_object_get_dma_address_len - wrapper macro for
+ * __i915_gem_object_get_dma_address_len
+ * @obj: i915 GEM buffer object
+ * @n: page offset
+ * @len: DMA mapped scatterlist's DMA bus addresses length to return
+ *
+ * Returns:
+ * Bus addresses of targeted DMA mapped scatterlist
+ *
+ * In order to avoid the truncation of the input parameter, it checks the page
+ * offset n's type from the input parameter before calling
+ * __i915_gem_object_get_dma_address_len().
+ * See also __i915_gem_object_page_iter_get_sg() and
+ * __i915_gem_object_get_dma_address_len()
+ */
+#define i915_gem_object_get_dma_address_len(obj, n, len) ({	\
+	static_assert(castable_to_type(n, pgoff_t));		\
+	__i915_gem_object_get_dma_address_len(obj, n, len);	\
+})
+
+/**
+ * __i915_gem_object_get_dma_address - helper to get bus addresses of
+ * targeted DMA mapped scatterlist from i915 GEM buffer object
+ * @obj: i915 GEM buffer object
+ * @n: page offset
+ *
+ * Returns:
+ * Bus addresses of targeted DMA mapped scatterlis
+ *
+ * Recommended to use wrapper macro: i915_gem_object_get_dma_address()
+ * See also __i915_gem_object_page_iter_get_sg() and __i915_gem_object_get_sg_dma()
+ */
+dma_addr_t
+__i915_gem_object_get_dma_address(struct drm_i915_gem_object *obj, pgoff_t n);
+
+/**
+ * i915_gem_object_get_dma_address - wrapper macro for
+ * __i915_gem_object_get_dma_address
+ * @obj: i915 GEM buffer object
+ * @n: page offset
+ *
+ * Returns:
+ * Bus addresses of targeted DMA mapped scatterlist
+ *
+ * In order to avoid the truncation of the input parameter, it checks the page
+ * offset n's type from the input parameter before calling
+ * __i915_gem_object_get_dma_address().
+ * See also __i915_gem_object_page_iter_get_sg() and
+ * __i915_gem_object_get_dma_address()
+ */
+#define i915_gem_object_get_dma_address(obj, n) ({	\
+	static_assert(castable_to_type(n, pgoff_t));	\
+	__i915_gem_object_get_dma_address(obj, n);	\
+})
 
 void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
-				 struct sg_table *pages,
-				 unsigned int sg_page_sizes);
+				 struct sg_table *pages);
 
 int ____i915_gem_object_get_pages(struct drm_i915_gem_object *obj);
 int __i915_gem_object_get_pages(struct drm_i915_gem_object *obj);
@@ -236,13 +647,15 @@ int __i915_gem_object_get_pages(struct drm_i915_gem_object *obj);
 static inline int __must_check
 i915_gem_object_pin_pages(struct drm_i915_gem_object *obj)
 {
-	might_lock(&obj->mm.lock);
+	assert_object_held(obj);
 
 	if (atomic_inc_not_zero(&obj->mm.pages_pin_count))
 		return 0;
 
 	return __i915_gem_object_get_pages(obj);
 }
+
+int i915_gem_object_pin_pages_unlocked(struct drm_i915_gem_object *obj);
 
 static inline bool
 i915_gem_object_has_pages(struct drm_i915_gem_object *obj)
@@ -279,23 +692,8 @@ i915_gem_object_unpin_pages(struct drm_i915_gem_object *obj)
 	__i915_gem_object_unpin_pages(obj);
 }
 
-enum i915_mm_subclass { /* lockdep subclass for obj->mm.lock/struct_mutex */
-	I915_MM_NORMAL = 0,
-	I915_MM_SHRINKER /* called "recursively" from direct-reclaim-esque */
-};
-
-int __i915_gem_object_put_pages(struct drm_i915_gem_object *obj,
-				enum i915_mm_subclass subclass);
-void i915_gem_object_truncate(struct drm_i915_gem_object *obj);
-void i915_gem_object_writeback(struct drm_i915_gem_object *obj);
-
-enum i915_map_type {
-	I915_MAP_WB = 0,
-	I915_MAP_WC,
-#define I915_MAP_OVERRIDE BIT(31)
-	I915_MAP_FORCE_WB = I915_MAP_WB | I915_MAP_OVERRIDE,
-	I915_MAP_FORCE_WC = I915_MAP_WC | I915_MAP_OVERRIDE,
-};
+int __i915_gem_object_put_pages(struct drm_i915_gem_object *obj);
+int i915_gem_object_truncate(struct drm_i915_gem_object *obj);
 
 /**
  * i915_gem_object_pin_map - return a contiguous mapping of the entire object
@@ -315,6 +713,9 @@ enum i915_map_type {
  */
 void *__must_check i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 					   enum i915_map_type type);
+
+void *__must_check i915_gem_object_pin_map_unlocked(struct drm_i915_gem_object *obj,
+						    enum i915_map_type type);
 
 void __i915_gem_object_flush_map(struct drm_i915_gem_object *obj,
 				 unsigned long offset,
@@ -338,12 +739,7 @@ static inline void i915_gem_object_unpin_map(struct drm_i915_gem_object *obj)
 	i915_gem_object_unpin_pages(obj);
 }
 
-void __i915_gem_object_release_mmap(struct drm_i915_gem_object *obj);
-void i915_gem_object_release_mmap(struct drm_i915_gem_object *obj);
-
-void
-i915_gem_object_flush_write_domain(struct drm_i915_gem_object *obj,
-				   unsigned int flush_domains);
+void __i915_gem_object_release_map(struct drm_i915_gem_object *obj);
 
 int i915_gem_object_prepare_read(struct drm_i915_gem_object *obj,
 				 unsigned int *needs_clflush);
@@ -357,29 +753,22 @@ static inline void
 i915_gem_object_finish_access(struct drm_i915_gem_object *obj)
 {
 	i915_gem_object_unpin_pages(obj);
-	i915_gem_object_unlock(obj);
 }
 
-static inline struct intel_engine_cs *
-i915_gem_object_last_write_engine(struct drm_i915_gem_object *obj)
-{
-	struct intel_engine_cs *engine = NULL;
-	struct dma_fence *fence;
-
-	rcu_read_lock();
-	fence = dma_resv_get_excl_rcu(obj->base.resv);
-	rcu_read_unlock();
-
-	if (fence && dma_fence_is_i915(fence) && !dma_fence_is_signaled(fence))
-		engine = to_request(fence)->engine;
-	dma_fence_put(fence);
-
-	return engine;
-}
+int i915_gem_object_get_moving_fence(struct drm_i915_gem_object *obj,
+				     struct dma_fence **fence);
+int i915_gem_object_wait_moving_fence(struct drm_i915_gem_object *obj,
+				      bool intr);
+bool i915_gem_object_has_unknown_state(struct drm_i915_gem_object *obj);
 
 void i915_gem_object_set_cache_coherency(struct drm_i915_gem_object *obj,
 					 unsigned int cache_level);
+void i915_gem_object_set_pat_index(struct drm_i915_gem_object *obj,
+				   unsigned int pat_index);
+bool i915_gem_object_can_bypass_llc(struct drm_i915_gem_object *obj);
 void i915_gem_object_flush_if_display(struct drm_i915_gem_object *obj);
+void i915_gem_object_flush_if_display_locked(struct drm_i915_gem_object *obj);
+bool i915_gem_cpu_write_needs_clflush(struct drm_i915_gem_object *obj);
 
 int __must_check
 i915_gem_object_set_to_wc_domain(struct drm_i915_gem_object *obj, bool write);
@@ -389,33 +778,27 @@ int __must_check
 i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write);
 struct i915_vma * __must_check
 i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
+				     struct i915_gem_ww_ctx *ww,
 				     u32 alignment,
-				     const struct i915_ggtt_view *view,
+				     const struct i915_gtt_view *view,
 				     unsigned int flags);
-void i915_gem_object_unpin_from_display_plane(struct i915_vma *vma);
 
 void i915_gem_object_make_unshrinkable(struct drm_i915_gem_object *obj);
 void i915_gem_object_make_shrinkable(struct drm_i915_gem_object *obj);
+void __i915_gem_object_make_shrinkable(struct drm_i915_gem_object *obj);
+void __i915_gem_object_make_purgeable(struct drm_i915_gem_object *obj);
 void i915_gem_object_make_purgeable(struct drm_i915_gem_object *obj);
-
-static inline bool cpu_write_needs_clflush(struct drm_i915_gem_object *obj)
-{
-	if (obj->cache_dirty)
-		return false;
-
-	if (!(obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_WRITE))
-		return true;
-
-	return obj->pin_global; /* currently in use by HW, keep flushed */
-}
 
 static inline void __start_cpu_write(struct drm_i915_gem_object *obj)
 {
 	obj->read_domains = I915_GEM_DOMAIN_CPU;
 	obj->write_domain = I915_GEM_DOMAIN_CPU;
-	if (cpu_write_needs_clflush(obj))
+	if (i915_gem_cpu_write_needs_clflush(obj))
 		obj->cache_dirty = true;
 }
+
+void i915_gem_fence_wait_priority(struct dma_fence *fence,
+				  const struct i915_sched_attr *attr);
 
 int i915_gem_object_wait(struct drm_i915_gem_object *obj,
 			 unsigned int flags,
@@ -423,6 +806,65 @@ int i915_gem_object_wait(struct drm_i915_gem_object *obj,
 int i915_gem_object_wait_priority(struct drm_i915_gem_object *obj,
 				  unsigned int flags,
 				  const struct i915_sched_attr *attr);
-#define I915_PRIORITY_DISPLAY I915_USER_PRIORITY(I915_PRIORITY_MAX)
+
+int i915_gem_object_read_from_page(struct drm_i915_gem_object *obj, u64 offset, void *dst, int size);
+
+bool i915_gem_object_is_shmem(const struct drm_i915_gem_object *obj);
+
+void __i915_gem_free_object_rcu(struct rcu_head *head);
+
+void __i915_gem_object_pages_fini(struct drm_i915_gem_object *obj);
+
+void __i915_gem_free_object(struct drm_i915_gem_object *obj);
+
+bool i915_gem_object_evictable(struct drm_i915_gem_object *obj);
+
+bool i915_gem_object_migratable(struct drm_i915_gem_object *obj);
+
+int i915_gem_object_migrate(struct drm_i915_gem_object *obj,
+			    struct i915_gem_ww_ctx *ww,
+			    enum intel_region_id id);
+int __i915_gem_object_migrate(struct drm_i915_gem_object *obj,
+			      struct i915_gem_ww_ctx *ww,
+			      enum intel_region_id id,
+			      unsigned int flags);
+
+bool i915_gem_object_can_migrate(struct drm_i915_gem_object *obj,
+				 enum intel_region_id id);
+
+int i915_gem_object_wait_migration(struct drm_i915_gem_object *obj,
+				   unsigned int flags);
+
+bool i915_gem_object_placement_possible(struct drm_i915_gem_object *obj,
+					enum intel_memory_type type);
+
+bool i915_gem_object_needs_ccs_pages(struct drm_i915_gem_object *obj);
+
+int shmem_sg_alloc_table(struct drm_i915_private *i915, struct sg_table *st,
+			 size_t size, struct intel_memory_region *mr,
+			 struct address_space *mapping,
+			 unsigned int max_segment);
+void shmem_sg_free_table(struct sg_table *st, struct address_space *mapping,
+			 bool dirty, bool backup);
+void __shmem_writeback(size_t size, struct address_space *mapping);
+
+#ifdef CONFIG_MMU_NOTIFIER
+static inline bool
+i915_gem_object_is_userptr(struct drm_i915_gem_object *obj)
+{
+	return obj->userptr.notifier.mm;
+}
+
+int i915_gem_object_userptr_submit_init(struct drm_i915_gem_object *obj);
+int i915_gem_object_userptr_submit_done(struct drm_i915_gem_object *obj);
+int i915_gem_object_userptr_validate(struct drm_i915_gem_object *obj);
+#else
+static inline bool i915_gem_object_is_userptr(struct drm_i915_gem_object *obj) { return false; }
+
+static inline int i915_gem_object_userptr_submit_init(struct drm_i915_gem_object *obj) { GEM_BUG_ON(1); return -ENODEV; }
+static inline int i915_gem_object_userptr_submit_done(struct drm_i915_gem_object *obj) { GEM_BUG_ON(1); return -ENODEV; }
+static inline int i915_gem_object_userptr_validate(struct drm_i915_gem_object *obj) { GEM_BUG_ON(1); return -ENODEV; }
+
+#endif
 
 #endif

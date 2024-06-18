@@ -284,21 +284,18 @@ static void pic32_rtc_enable(struct pic32_rtc_dev *pdata, int en)
 	clk_disable(pdata->clk);
 }
 
-static int pic32_rtc_remove(struct platform_device *pdev)
+static void pic32_rtc_remove(struct platform_device *pdev)
 {
 	struct pic32_rtc_dev *pdata = platform_get_drvdata(pdev);
 
 	pic32_rtc_setaie(&pdev->dev, 0);
 	clk_unprepare(pdata->clk);
 	pdata->clk = NULL;
-
-	return 0;
 }
 
 static int pic32_rtc_probe(struct platform_device *pdev)
 {
 	struct pic32_rtc_dev *pdata;
-	struct resource *res;
 	int ret;
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
@@ -311,8 +308,7 @@ static int pic32_rtc_probe(struct platform_device *pdev)
 	if (pdata->alarm_irq < 0)
 		return pdata->alarm_irq;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pdata->reg_base = devm_ioremap_resource(&pdev->dev, res);
+	pdata->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pdata->reg_base))
 		return PTR_ERR(pdata->reg_base);
 
@@ -326,21 +322,21 @@ static int pic32_rtc_probe(struct platform_device *pdev)
 
 	spin_lock_init(&pdata->alarm_lock);
 
+	pdata->rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(pdata->rtc))
+		return PTR_ERR(pdata->rtc);
+
 	clk_prepare_enable(pdata->clk);
 
 	pic32_rtc_enable(pdata, 1);
 
 	device_init_wakeup(&pdev->dev, 1);
 
-	pdata->rtc = devm_rtc_allocate_device(&pdev->dev);
-	if (IS_ERR(pdata->rtc))
-		return PTR_ERR(pdata->rtc);
-
 	pdata->rtc->ops = &pic32_rtcops;
 	pdata->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	pdata->rtc->range_max = RTC_TIMESTAMP_END_2099;
 
-	ret = rtc_register_device(pdata->rtc);
+	ret = devm_rtc_register_device(pdata->rtc);
 	if (ret)
 		goto err_nortc;
 
@@ -375,7 +371,7 @@ MODULE_DEVICE_TABLE(of, pic32_rtc_dt_ids);
 
 static struct platform_driver pic32_rtc_driver = {
 	.probe		= pic32_rtc_probe,
-	.remove		= pic32_rtc_remove,
+	.remove_new	= pic32_rtc_remove,
 	.driver		= {
 		.name	= "pic32-rtc",
 		.of_match_table	= of_match_ptr(pic32_rtc_dt_ids),

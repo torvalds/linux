@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/string_helpers.h>
 
 #include <asm/unaligned.h>
 
@@ -59,6 +60,7 @@
 typedef struct {
 	struct atom_context *ctx;
 	uint32_t *ps, *ws;
+	int ps_size, ws_size;
 	int ps_shift;
 	uint16_t start;
 	unsigned last_jump;
@@ -67,8 +69,8 @@ typedef struct {
 } atom_exec_context;
 
 int atom_debug = 0;
-static int atom_execute_table_locked(struct atom_context *ctx, int index, uint32_t * params);
-int atom_execute_table(struct atom_context *ctx, int index, uint32_t * params);
+static int atom_execute_table_locked(struct atom_context *ctx, int index, uint32_t *params, int params_size);
+int atom_execute_table(struct atom_context *ctx, int index, uint32_t *params, int params_size);
 
 static uint32_t atom_arg_mask[8] = {
 	0xFFFFFFFF, 0x0000FFFF, 0x00FFFF00, 0xFFFF0000,
@@ -162,13 +164,9 @@ static uint32_t atom_iio_execute(struct atom_context *ctx, int base,
 			    ~((0xFFFFFFFF >> (32 - CU8(base + 1))) <<
 			      CU8(base + 3));
 			temp |=
-			    ((ctx->
-			      io_attr >> CU8(base + 2)) & (0xFFFFFFFF >> (32 -
-									  CU8
-									  (base
-									   +
-									   1))))
-			    << CU8(base + 3);
+			    ((ctx->io_attr >> CU8(base + 2)) &
+			     (0xFFFFFFFF >> (32 - CU8(base + 1)))) <<
+			     CU8(base + 3);
 			base += 4;
 			break;
 		case ATOM_IIO_END:
@@ -224,7 +222,10 @@ static uint32_t atom_get_src_int(atom_exec_context *ctx, uint8_t attr,
 		(*ptr)++;
 		/* get_unaligned_le32 avoids unaligned accesses from atombios
 		 * tables, noticed on a DEC Alpha. */
-		val = get_unaligned_le32((u32 *)&ctx->ps[idx]);
+		if (idx < ctx->ps_size)
+			val = get_unaligned_le32((u32 *)&ctx->ps[idx]);
+		else
+			pr_info("PS index out of range: %i > %i\n", idx, ctx->ps_size);
 		if (print)
 			DEBUG("PS[0x%02X,0x%04X]", idx, val);
 		break;
@@ -262,7 +263,10 @@ static uint32_t atom_get_src_int(atom_exec_context *ctx, uint8_t attr,
 			val = gctx->reg_block;
 			break;
 		default:
-			val = ctx->ws[idx];
+			if (idx < ctx->ws_size)
+				val = ctx->ws[idx];
+			else
+				pr_info("WS index out of range: %i > %i\n", idx, ctx->ws_size);
 		}
 		break;
 	case ATOM_ARG_ID:
@@ -497,6 +501,10 @@ static void atom_put_dst(atom_exec_context *ctx, int arg, uint8_t attr,
 		idx = U8(*ptr);
 		(*ptr)++;
 		DEBUG("PS[0x%02X]", idx);
+		if (idx >= ctx->ps_size) {
+			pr_info("PS index out of range: %i > %i\n", idx, ctx->ps_size);
+			return;
+		}
 		ctx->ps[idx] = cpu_to_le32(val);
 		break;
 	case ATOM_ARG_WS:
@@ -529,6 +537,10 @@ static void atom_put_dst(atom_exec_context *ctx, int arg, uint8_t attr,
 			gctx->reg_block = val;
 			break;
 		default:
+			if (idx >= ctx->ws_size) {
+				pr_info("WS index out of range: %i > %i\n", idx, ctx->ws_size);
+				return;
+			}
 			ctx->ws[idx] = val;
 		}
 		break;
@@ -626,7 +638,7 @@ static void atom_op_calltable(atom_exec_context *ctx, int *ptr, int arg)
 	else
 		SDEBUG("   table: %d\n", idx);
 	if (U16(ctx->ctx->cmd_table + 4 + 2 * idx))
-		r = atom_execute_table_locked(ctx->ctx, idx, ctx->ps + ctx->ps_shift);
+		r = atom_execute_table_locked(ctx->ctx, idx, ctx->ps + ctx->ps_shift, ctx->ps_size - ctx->ps_shift);
 	if (r) {
 		ctx->abort = true;
 	}
@@ -722,7 +734,7 @@ static void atom_op_jump(atom_exec_context *ctx, int *ptr, int arg)
 		break;
 	}
 	if (arg != ATOM_COND_ALWAYS)
-		SDEBUG("   taken: %s\n", execute ? "yes" : "no");
+		SDEBUG("   taken: %s\n", str_yes_no(execute));
 	SDEBUG("   target: 0x%04X\n", target);
 	if (execute) {
 		if (ctx->last_jump == (ctx->start + target)) {
@@ -1155,7 +1167,7 @@ static struct {
 	atom_op_shr, ATOM_ARG_MC}, {
 atom_op_debug, 0},};
 
-static int atom_execute_table_locked(struct atom_context *ctx, int index, uint32_t * params)
+static int atom_execute_table_locked(struct atom_context *ctx, int index, uint32_t *params, int params_size)
 {
 	int base = CU16(ctx->cmd_table + 4 + 2 * index);
 	int len, ws, ps, ptr;
@@ -1177,12 +1189,16 @@ static int atom_execute_table_locked(struct atom_context *ctx, int index, uint32
 	ectx.ps_shift = ps / 4;
 	ectx.start = base;
 	ectx.ps = params;
+	ectx.ps_size = params_size;
 	ectx.abort = false;
 	ectx.last_jump = 0;
-	if (ws)
+	if (ws) {
 		ectx.ws = kcalloc(4, ws, GFP_KERNEL);
-	else
+		ectx.ws_size = ws;
+	} else {
 		ectx.ws = NULL;
+		ectx.ws_size = 0;
+	}
 
 	debug_depth++;
 	while (1) {
@@ -1211,12 +1227,11 @@ static int atom_execute_table_locked(struct atom_context *ctx, int index, uint32
 	SDEBUG("<<\n");
 
 free:
-	if (ws)
-		kfree(ectx.ws);
+	kfree(ectx.ws);
 	return ret;
 }
 
-int atom_execute_table_scratch_unlocked(struct atom_context *ctx, int index, uint32_t * params)
+int atom_execute_table_scratch_unlocked(struct atom_context *ctx, int index, uint32_t *params, int params_size)
 {
 	int r;
 
@@ -1232,16 +1247,16 @@ int atom_execute_table_scratch_unlocked(struct atom_context *ctx, int index, uin
 	/* reset divmul */
 	ctx->divmul[0] = 0;
 	ctx->divmul[1] = 0;
-	r = atom_execute_table_locked(ctx, index, params);
+	r = atom_execute_table_locked(ctx, index, params, params_size);
 	mutex_unlock(&ctx->mutex);
 	return r;
 }
 
-int atom_execute_table(struct atom_context *ctx, int index, uint32_t * params)
+int atom_execute_table(struct atom_context *ctx, int index, uint32_t *params, int params_size)
 {
 	int r;
 	mutex_lock(&ctx->scratch_mutex);
-	r = atom_execute_table_scratch_unlocked(ctx, index, params);
+	r = atom_execute_table_scratch_unlocked(ctx, index, params, params_size);
 	mutex_unlock(&ctx->scratch_mutex);
 	return r;
 }
@@ -1339,7 +1354,7 @@ int atom_asic_init(struct atom_context *ctx)
 
 	if (!CU16(ctx->cmd_table + 4 + 2 * ATOM_CMD_INIT))
 		return 1;
-	ret = atom_execute_table(ctx, ATOM_CMD_INIT, ps);
+	ret = atom_execute_table(ctx, ATOM_CMD_INIT, ps, 16);
 	if (ret)
 		return ret;
 
@@ -1347,7 +1362,7 @@ int atom_asic_init(struct atom_context *ctx)
 
 	if (rdev->family < CHIP_R600) {
 		if (CU16(ctx->cmd_table + 4 + 2 * ATOM_CMD_SPDFANCNTL))
-			atom_execute_table(ctx, ATOM_CMD_SPDFANCNTL, ps);
+			atom_execute_table(ctx, ATOM_CMD_SPDFANCNTL, ps, 16);
 	}
 	return ret;
 }
@@ -1359,8 +1374,8 @@ void atom_destroy(struct atom_context *ctx)
 }
 
 bool atom_parse_data_header(struct atom_context *ctx, int index,
-			    uint16_t * size, uint8_t * frev, uint8_t * crev,
-			    uint16_t * data_start)
+			    uint16_t *size, uint8_t *frev, uint8_t *crev,
+			    uint16_t *data_start)
 {
 	int offset = index * 2 + 4;
 	int idx = CU16(ctx->data_table + offset);
@@ -1379,8 +1394,8 @@ bool atom_parse_data_header(struct atom_context *ctx, int index,
 	return true;
 }
 
-bool atom_parse_cmd_header(struct atom_context *ctx, int index, uint8_t * frev,
-			   uint8_t * crev)
+bool atom_parse_cmd_header(struct atom_context *ctx, int index, uint8_t *frev,
+			   uint8_t *crev)
 {
 	int offset = index * 2 + 4;
 	int idx = CU16(ctx->cmd_table + offset);

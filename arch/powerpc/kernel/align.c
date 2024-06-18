@@ -24,6 +24,7 @@
 #include <asm/disassemble.h>
 #include <asm/cpu_has_feature.h>
 #include <asm/sstep.h>
+#include <asm/inst.h>
 
 struct aligninfo {
 	unsigned char len;
@@ -104,9 +105,8 @@ static struct aligninfo spe_aligninfo[32] = {
  * so we don't need the address swizzling.
  */
 static int emulate_spe(struct pt_regs *regs, unsigned int reg,
-		       unsigned int instr)
+		       ppc_inst_t ppc_instr)
 {
-	int ret;
 	union {
 		u64 ll;
 		u32 w[2];
@@ -115,8 +115,9 @@ static int emulate_spe(struct pt_regs *regs, unsigned int reg,
 	} data, temp;
 	unsigned char __user *p, *addr;
 	unsigned long *evr = &current->thread.evr[reg];
-	unsigned int nb, flags;
+	unsigned int nb, flags, instr;
 
+	instr = ppc_inst_val(ppc_instr);
 	instr = (instr >> 1) & 0x1f;
 
 	/* DAR has the operand effective address */
@@ -124,11 +125,6 @@ static int emulate_spe(struct pt_regs *regs, unsigned int reg,
 
 	nb = spe_aligninfo[instr].len;
 	flags = spe_aligninfo[instr].flags;
-
-	/* Verify the address of the operand */
-	if (unlikely(user_mode(regs) &&
-		     !access_ok(addr, nb)))
-		return -EFAULT;
 
 	/* userland only */
 	if (unlikely(!user_mode(regs)))
@@ -167,26 +163,27 @@ static int emulate_spe(struct pt_regs *regs, unsigned int reg,
 		}
 	} else {
 		temp.ll = data.ll = 0;
-		ret = 0;
 		p = addr;
+
+		if (!user_read_access_begin(addr, nb))
+			return -EFAULT;
 
 		switch (nb) {
 		case 8:
-			ret |= __get_user_inatomic(temp.v[0], p++);
-			ret |= __get_user_inatomic(temp.v[1], p++);
-			ret |= __get_user_inatomic(temp.v[2], p++);
-			ret |= __get_user_inatomic(temp.v[3], p++);
-			/* fall through */
+			unsafe_get_user(temp.v[0], p++, Efault_read);
+			unsafe_get_user(temp.v[1], p++, Efault_read);
+			unsafe_get_user(temp.v[2], p++, Efault_read);
+			unsafe_get_user(temp.v[3], p++, Efault_read);
+			fallthrough;
 		case 4:
-			ret |= __get_user_inatomic(temp.v[4], p++);
-			ret |= __get_user_inatomic(temp.v[5], p++);
-			/* fall through */
+			unsafe_get_user(temp.v[4], p++, Efault_read);
+			unsafe_get_user(temp.v[5], p++, Efault_read);
+			fallthrough;
 		case 2:
-			ret |= __get_user_inatomic(temp.v[6], p++);
-			ret |= __get_user_inatomic(temp.v[7], p++);
-			if (unlikely(ret))
-				return -EFAULT;
+			unsafe_get_user(temp.v[6], p++, Efault_read);
+			unsafe_get_user(temp.v[7], p++, Efault_read);
 		}
+		user_read_access_end();
 
 		switch (instr) {
 		case EVLDD:
@@ -253,31 +250,41 @@ static int emulate_spe(struct pt_regs *regs, unsigned int reg,
 
 	/* Store result to memory or update registers */
 	if (flags & ST) {
-		ret = 0;
 		p = addr;
+
+		if (!user_write_access_begin(addr, nb))
+			return -EFAULT;
+
 		switch (nb) {
 		case 8:
-			ret |= __put_user_inatomic(data.v[0], p++);
-			ret |= __put_user_inatomic(data.v[1], p++);
-			ret |= __put_user_inatomic(data.v[2], p++);
-			ret |= __put_user_inatomic(data.v[3], p++);
-			/* fall through */
+			unsafe_put_user(data.v[0], p++, Efault_write);
+			unsafe_put_user(data.v[1], p++, Efault_write);
+			unsafe_put_user(data.v[2], p++, Efault_write);
+			unsafe_put_user(data.v[3], p++, Efault_write);
+			fallthrough;
 		case 4:
-			ret |= __put_user_inatomic(data.v[4], p++);
-			ret |= __put_user_inatomic(data.v[5], p++);
-			/* fall through */
+			unsafe_put_user(data.v[4], p++, Efault_write);
+			unsafe_put_user(data.v[5], p++, Efault_write);
+			fallthrough;
 		case 2:
-			ret |= __put_user_inatomic(data.v[6], p++);
-			ret |= __put_user_inatomic(data.v[7], p++);
+			unsafe_put_user(data.v[6], p++, Efault_write);
+			unsafe_put_user(data.v[7], p++, Efault_write);
 		}
-		if (unlikely(ret))
-			return -EFAULT;
+		user_write_access_end();
 	} else {
 		*evr = data.w[0];
 		regs->gpr[reg] = data.w[1];
 	}
 
 	return 1;
+
+Efault_read:
+	user_read_access_end();
+	return -EFAULT;
+
+Efault_write:
+	user_write_access_end();
+	return -EFAULT;
 }
 #endif /* CONFIG_SPE */
 
@@ -293,28 +300,27 @@ static int emulate_spe(struct pt_regs *regs, unsigned int reg,
 
 int fix_alignment(struct pt_regs *regs)
 {
-	unsigned int instr;
+	ppc_inst_t instr;
 	struct instruction_op op;
 	int r, type;
 
-	/*
-	 * We require a complete register set, if not, then our assembly
-	 * is broken
-	 */
-	CHECK_FULL_REGS(regs);
+	if (is_kernel_addr(regs->nip))
+		r = copy_inst_from_kernel_nofault(&instr, (void *)regs->nip);
+	else
+		r = __get_user_instr(instr, (void __user *)regs->nip);
 
-	if (unlikely(__get_user(instr, (unsigned int __user *)regs->nip)))
+	if (unlikely(r))
 		return -EFAULT;
 	if ((regs->msr & MSR_LE) != (MSR_KERNEL & MSR_LE)) {
 		/* We don't handle PPC little-endian any more... */
 		if (cpu_has_feature(CPU_FTR_PPC_LE))
 			return -EIO;
-		instr = swab32(instr);
+		instr = ppc_inst_swab(instr);
 	}
 
 #ifdef CONFIG_SPE
-	if ((instr >> 26) == 0x4) {
-		int reg = (instr >> 21) & 0x1f;
+	if (ppc_inst_primary_opcode(instr) == 0x4) {
+		int reg = (ppc_inst_val(instr) >> 21) & 0x1f;
 		PPC_WARN_ALIGNMENT(spe, regs);
 		return emulate_spe(regs, reg, instr);
 	}
@@ -331,7 +337,7 @@ int fix_alignment(struct pt_regs *regs)
 	 * when pasting to a co-processor. Furthermore, paste_last is the
 	 * synchronisation point for preceding copy/paste sequences.
 	 */
-	if ((instr & 0xfc0006fe) == (PPC_INST_COPY & 0xfc0006fe))
+	if ((ppc_inst_val(instr) & 0xfc0006fe) == (PPC_INST_COPY & 0xfc0006fe))
 		return -EIO;
 
 	r = analyse_instr(&op, regs, instr);
@@ -343,6 +349,7 @@ int fix_alignment(struct pt_regs *regs)
 		if (op.type != CACHEOP + DCBZ)
 			return -EINVAL;
 		PPC_WARN_ALIGNMENT(dcbz, regs);
+		WARN_ON_ONCE(!user_mode(regs));
 		r = emulate_dcbz(op.ea, regs);
 	} else {
 		if (type == LARX || type == STCX)

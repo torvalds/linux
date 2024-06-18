@@ -41,7 +41,7 @@ static void marshal_virt_to_resize(struct dk_cxlflash_uvirtual *virt,
 /**
  * marshal_clone_to_rele() - translate clone to release structure
  * @clone:	Source structure from which to translate/copy.
- * @rele:	Destination structure for the translate/copy.
+ * @release:	Destination structure for the translate/copy.
  */
 static void marshal_clone_to_rele(struct dk_cxlflash_clone *clone,
 				  struct dk_cxlflash_release *release)
@@ -229,7 +229,7 @@ static u64 ba_alloc(struct ba_lun *ba_lun)
 
 /**
  * validate_alloc() - validates the specified block has been allocated
- * @ba_lun_info:	LUN info owning the block allocator.
+ * @bali:		LUN info owning the block allocator.
  * @aun:		Block to validate.
  *
  * Return: 0 on success, -1 on failure
@@ -300,7 +300,7 @@ static int ba_free(struct ba_lun *ba_lun, u64 to_free)
 /**
  * ba_clone() - Clone a chunk of the block allocation table
  * @ba_lun:	Block allocator from which to allocate a block.
- * @to_free:	Block to free.
+ * @to_clone:	Block to clone.
  *
  * Return: 0 on success, -1 on failure
  */
@@ -361,7 +361,7 @@ void cxlflash_ba_terminate(struct ba_lun *ba_lun)
 
 /**
  * init_vlun() - initializes a LUN for virtual use
- * @lun_info:	LUN information structure that owns the block allocator.
+ * @lli:	LUN information structure that owns the block allocator.
  *
  * Return: 0 on success, -errno on failure
  */
@@ -397,19 +397,19 @@ static int init_vlun(struct llun_info *lli)
  * @nblks:	Number of logical blocks to write same.
  *
  * The SCSI WRITE_SAME16 can take quite a while to complete. Should an EEH occur
- * while in scsi_execute(), the EEH handler will attempt to recover. As part of
- * the recovery, the handler drains all currently running ioctls, waiting until
- * they have completed before proceeding with a reset. As this routine is used
- * on the ioctl path, this can create a condition where the EEH handler becomes
- * stuck, infinitely waiting for this ioctl thread. To avoid this behavior,
- * temporarily unmark this thread as an ioctl thread by releasing the ioctl read
- * semaphore. This will allow the EEH handler to proceed with a recovery while
- * this thread is still running. Once the scsi_execute() returns, reacquire the
- * ioctl read semaphore and check the adapter state in case it changed while
- * inside of scsi_execute(). The state check will wait if the adapter is still
- * being recovered or return a failure if the recovery failed. In the event that
- * the adapter reset failed, simply return the failure as the ioctl would be
- * unable to continue.
+ * while in scsi_execute_cmd(), the EEH handler will attempt to recover. As
+ * part of the recovery, the handler drains all currently running ioctls,
+ * waiting until they have completed before proceeding with a reset. As this
+ * routine is used on the ioctl path, this can create a condition where the
+ * EEH handler becomes stuck, infinitely waiting for this ioctl thread. To
+ * avoid this behavior, temporarily unmark this thread as an ioctl thread by
+ * releasing the ioctl read semaphore. This will allow the EEH handler to
+ * proceed with a recovery while this thread is still running. Once the
+ * scsi_execute_cmd() returns, reacquire the ioctl read semaphore and check the
+ * adapter state in case it changed while inside of scsi_execute_cmd(). The
+ * state check will wait if the adapter is still being recovered or return a
+ * failure if the recovery failed. In the event that the adapter reset failed,
+ * simply return the failure as the ioctl would be unable to continue.
  *
  * Note that the above puts a requirement on this routine to only be called on
  * an ioctl thread.
@@ -430,8 +430,8 @@ static int write_same16(struct scsi_device *sdev,
 	struct device *dev = &cfg->dev->dev;
 	const u32 s = ilog2(sdev->sector_size) - 9;
 	const u32 to = sdev->request_queue->rq_timeout;
-	const u32 ws_limit = blk_queue_get_max_sectors(sdev->request_queue,
-						       REQ_OP_WRITE_SAME) >> s;
+	const u32 ws_limit =
+		sdev->request_queue->limits.max_write_zeroes_sectors >> s;
 
 	cmd_buf = kzalloc(CMD_BUFSIZE, GFP_KERNEL);
 	scsi_cmd = kzalloc(MAX_COMMAND_SIZE, GFP_KERNEL);
@@ -448,11 +448,11 @@ static int write_same16(struct scsi_device *sdev,
 		put_unaligned_be32(ws_limit < left ? ws_limit : left,
 				   &scsi_cmd[10]);
 
-		/* Drop the ioctl read semahpore across lengthy call */
+		/* Drop the ioctl read semaphore across lengthy call */
 		up_read(&cfg->ioctl_rwsem);
-		result = scsi_execute(sdev, scsi_cmd, DMA_TO_DEVICE, cmd_buf,
-				      CMD_BUFSIZE, NULL, NULL, to,
-				      CMD_RETRIES, 0, 0, NULL);
+		result = scsi_execute_cmd(sdev, scsi_cmd, REQ_OP_DRV_OUT,
+					  cmd_buf, CMD_BUFSIZE, to,
+					  CMD_RETRIES, NULL);
 		down_read(&cfg->ioctl_rwsem);
 		rc = check_state(cfg);
 		if (rc) {
@@ -819,8 +819,7 @@ out:
 	return rc;
 }
 
-int cxlflash_vlun_resize(struct scsi_device *sdev,
-			 struct dk_cxlflash_resize *resize)
+int cxlflash_vlun_resize(struct scsi_device *sdev, void *resize)
 {
 	return _cxlflash_vlun_resize(sdev, NULL, resize);
 }
@@ -1178,7 +1177,7 @@ err:
 /**
  * cxlflash_disk_clone() - clone a context by making snapshot of another
  * @sdev:	SCSI device associated with LUN owning virtual LUN.
- * @clone:	Clone ioctl data structure.
+ * @arg:	Clone ioctl data structure.
  *
  * This routine effectively performs cxlflash_disk_open operation for each
  * in-use virtual resource in the source context. Note that the destination
@@ -1187,9 +1186,9 @@ err:
  *
  * Return: 0 on success, -errno on failure
  */
-int cxlflash_disk_clone(struct scsi_device *sdev,
-			struct dk_cxlflash_clone *clone)
+int cxlflash_disk_clone(struct scsi_device *sdev, void *arg)
 {
+	struct dk_cxlflash_clone *clone = arg;
 	struct cxlflash_cfg *cfg = shost_priv(sdev->host);
 	struct device *dev = &cfg->dev->dev;
 	struct llun_info *lli = sdev->hostdata;

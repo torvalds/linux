@@ -207,7 +207,7 @@ repeat:
 					self_test_last_rcv = jiffies;
 					break;
 				}
-				/* FALL THROUGH */
+				fallthrough;
 
 			default:
 				break_flag = scancode & BREAK_MASK;
@@ -332,7 +332,7 @@ void ikbd_write(const char *str, int len)
 }
 
 /* Reset (without touching the clock) */
-void ikbd_reset(void)
+static void ikbd_reset(void)
 {
 	static const char cmd[2] = { 0x80, 0x01 };
 

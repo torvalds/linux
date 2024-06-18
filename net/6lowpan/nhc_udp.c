@@ -5,7 +5,7 @@
  *	Authors:
  *	Alexander Aring	<aar@pengutronix.de>
  *
- *	Orignal written by:
+ *	Original written by:
  *	Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
  *	Jon Smirl <jonsmirl@gmail.com>
  */
@@ -14,7 +14,6 @@
 
 #define LOWPAN_NHC_UDP_MASK		0xF8
 #define LOWPAN_NHC_UDP_ID		0xF0
-#define LOWPAN_NHC_UDP_IDLEN		1
 
 #define LOWPAN_NHC_UDP_4BIT_PORT	0xF0B0
 #define LOWPAN_NHC_UDP_4BIT_MASK	0xFFF0
@@ -82,7 +81,7 @@ static int udp_uncompress(struct sk_buff *skb, size_t needed)
 	if (fail)
 		return -EINVAL;
 
-	/* UDP length needs to be infered from the lower layers
+	/* UDP length needs to be inferred from the lower layers
 	 * here, we obtain the hint from the remaining size of the
 	 * frame
 	 */
@@ -169,14 +168,8 @@ static int udp_compress(struct sk_buff *skb, u8 **hc_ptr)
 	return 0;
 }
 
-static void udp_nhid_setup(struct lowpan_nhc *nhc)
-{
-	nhc->id[0] = LOWPAN_NHC_UDP_ID;
-	nhc->idmask[0] = LOWPAN_NHC_UDP_MASK;
-}
-
 LOWPAN_NHC(nhc_udp, "RFC6282 UDP", NEXTHDR_UDP, sizeof(struct udphdr),
-	   udp_nhid_setup, LOWPAN_NHC_UDP_IDLEN, udp_uncompress, udp_compress);
+	   LOWPAN_NHC_UDP_ID, LOWPAN_NHC_UDP_MASK, udp_uncompress, udp_compress);
 
 module_lowpan_nhc(nhc_udp);
 MODULE_DESCRIPTION("6LoWPAN next header RFC6282 UDP compression");

@@ -9,8 +9,6 @@
 #include <linux/list.h>
 #include <linux/completion.h>
 
-#include <generated/utsrelease.h>
-
 /**
  * enum fw_opt - options to control firmware loading behaviour
  *
@@ -27,16 +25,23 @@
  *	firmware file lookup on storage is avoided. Used for calls where the
  *	file may be too big, or where the driver takes charge of its own
  *	firmware caching mechanism.
- * @FW_OPT_NOFALLBACK: Disable the fallback mechanism. Takes precedence over
- *	&FW_OPT_UEVENT and &FW_OPT_USERHELPER.
+ * @FW_OPT_NOFALLBACK_SYSFS: Disable the sysfs fallback mechanism. Takes
+ *	precedence over &FW_OPT_UEVENT and &FW_OPT_USERHELPER.
+ * @FW_OPT_FALLBACK_PLATFORM: Enable fallback to device fw copy embedded in
+ *	the platform's main firmware. If both this fallback and the sysfs
+ *      fallback are enabled, then this fallback will be tried first.
+ * @FW_OPT_PARTIAL: Allow partial read of firmware instead of needing to read
+ *	entire file.
  */
 enum fw_opt {
-	FW_OPT_UEVENT =         BIT(0),
-	FW_OPT_NOWAIT =         BIT(1),
-	FW_OPT_USERHELPER =     BIT(2),
-	FW_OPT_NO_WARN =        BIT(3),
-	FW_OPT_NOCACHE =        BIT(4),
-	FW_OPT_NOFALLBACK =     BIT(5),
+	FW_OPT_UEVENT			= BIT(0),
+	FW_OPT_NOWAIT			= BIT(1),
+	FW_OPT_USERHELPER		= BIT(2),
+	FW_OPT_NO_WARN			= BIT(3),
+	FW_OPT_NOCACHE			= BIT(4),
+	FW_OPT_NOFALLBACK_SYSFS		= BIT(5),
+	FW_OPT_FALLBACK_PLATFORM	= BIT(6),
+	FW_OPT_PARTIAL			= BIT(7),
 };
 
 enum fw_status {
@@ -64,6 +69,8 @@ struct fw_priv {
 	void *data;
 	size_t size;
 	size_t allocated_size;
+	size_t offset;
+	u32 opt_flags;
 #ifdef CONFIG_FW_LOADER_PAGED_BUF
 	bool is_paged_buf;
 	struct page **pages;
@@ -78,6 +85,8 @@ struct fw_priv {
 };
 
 extern struct mutex fw_lock;
+extern struct firmware_cache fw_cache;
+extern bool fw_load_abort_all;
 
 static inline bool __fw_state_check(struct fw_priv *fw_priv,
 				    enum fw_status status)
@@ -108,8 +117,16 @@ static inline void __fw_state_set(struct fw_priv *fw_priv,
 
 	WRITE_ONCE(fw_st->status, status);
 
-	if (status == FW_STATUS_DONE || status == FW_STATUS_ABORTED)
+	if (status == FW_STATUS_DONE || status == FW_STATUS_ABORTED) {
+#ifdef CONFIG_FW_LOADER_USER_HELPER
+		/*
+		 * Doing this here ensures that the fw_priv is deleted from
+		 * the pending list in all abort/done paths.
+		 */
+		list_del_init(&fw_priv->pending_list);
+#endif
 		complete_all(&fw_st->completion);
+	}
 }
 
 static inline void fw_state_aborted(struct fw_priv *fw_priv)
@@ -132,17 +149,50 @@ static inline void fw_state_done(struct fw_priv *fw_priv)
 	__fw_state_set(fw_priv, FW_STATUS_DONE);
 }
 
-int assign_fw(struct firmware *fw, struct device *device,
-	      enum fw_opt opt_flags);
+static inline bool fw_state_is_done(struct fw_priv *fw_priv)
+{
+	return __fw_state_check(fw_priv, FW_STATUS_DONE);
+}
+
+static inline bool fw_state_is_loading(struct fw_priv *fw_priv)
+{
+	return __fw_state_check(fw_priv, FW_STATUS_LOADING);
+}
+
+int alloc_lookup_fw_priv(const char *fw_name, struct firmware_cache *fwc,
+			 struct fw_priv **fw_priv, void *dbuf, size_t size,
+			 size_t offset, u32 opt_flags);
+int assign_fw(struct firmware *fw, struct device *device);
+void free_fw_priv(struct fw_priv *fw_priv);
+void fw_state_init(struct fw_priv *fw_priv);
+
+#ifdef CONFIG_FW_LOADER
+bool firmware_is_builtin(const struct firmware *fw);
+bool firmware_request_builtin_buf(struct firmware *fw, const char *name,
+				  void *buf, size_t size);
+#else /* module case */
+static inline bool firmware_is_builtin(const struct firmware *fw)
+{
+	return false;
+}
+static inline bool firmware_request_builtin_buf(struct firmware *fw,
+						const char *name,
+						void *buf, size_t size)
+{
+	return false;
+}
+#endif
 
 #ifdef CONFIG_FW_LOADER_PAGED_BUF
 void fw_free_paged_buf(struct fw_priv *fw_priv);
 int fw_grow_paged_buf(struct fw_priv *fw_priv, int pages_needed);
 int fw_map_paged_buf(struct fw_priv *fw_priv);
+bool fw_is_paged_buf(struct fw_priv *fw_priv);
 #else
 static inline void fw_free_paged_buf(struct fw_priv *fw_priv) {}
 static inline int fw_grow_paged_buf(struct fw_priv *fw_priv, int pages_needed) { return -ENXIO; }
 static inline int fw_map_paged_buf(struct fw_priv *fw_priv) { return -ENXIO; }
+static inline bool fw_is_paged_buf(struct fw_priv *fw_priv) { return false; }
 #endif
 
 #endif /* __FIRMWARE_LOADER_H */

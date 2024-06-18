@@ -162,9 +162,9 @@ static void ef4_ethtool_get_drvinfo(struct net_device *net_dev,
 {
 	struct ef4_nic *efx = netdev_priv(net_dev);
 
-	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
-	strlcpy(info->version, EF4_DRIVER_VERSION, sizeof(info->version));
-	strlcpy(info->bus_info, pci_name(efx->pci_dev), sizeof(info->bus_info));
+	strscpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
+	strscpy(info->version, EF4_DRIVER_VERSION, sizeof(info->version));
+	strscpy(info->bus_info, pci_name(efx->pci_dev), sizeof(info->bus_info));
 }
 
 static int ef4_ethtool_get_regs_len(struct net_device *net_dev)
@@ -412,7 +412,7 @@ static void ef4_ethtool_get_strings(struct net_device *net_dev,
 		strings += (efx->type->describe_stats(efx, strings) *
 			    ETH_GSTRING_LEN);
 		for (i = 0; i < EF4_ETHTOOL_SW_STAT_COUNT; i++)
-			strlcpy(strings + i * ETH_GSTRING_LEN,
+			strscpy(strings + i * ETH_GSTRING_LEN,
 				ef4_sw_stat_desc[i].name, ETH_GSTRING_LEN);
 		strings += EF4_ETHTOOL_SW_STAT_COUNT * ETH_GSTRING_LEN;
 		strings += (ef4_describe_per_queue_stats(efx, strings) *
@@ -577,7 +577,9 @@ static int ef4_ethtool_nway_reset(struct net_device *net_dev)
  */
 
 static int ef4_ethtool_get_coalesce(struct net_device *net_dev,
-				    struct ethtool_coalesce *coalesce)
+				    struct ethtool_coalesce *coalesce,
+				    struct kernel_ethtool_coalesce *kernel_coal,
+				    struct netlink_ext_ack *extack)
 {
 	struct ef4_nic *efx = netdev_priv(net_dev);
 	unsigned int tx_usecs, rx_usecs;
@@ -595,16 +597,15 @@ static int ef4_ethtool_get_coalesce(struct net_device *net_dev,
 }
 
 static int ef4_ethtool_set_coalesce(struct net_device *net_dev,
-				    struct ethtool_coalesce *coalesce)
+				    struct ethtool_coalesce *coalesce,
+				    struct kernel_ethtool_coalesce *kernel_coal,
+				    struct netlink_ext_ack *extack)
 {
 	struct ef4_nic *efx = netdev_priv(net_dev);
 	struct ef4_channel *channel;
 	unsigned int tx_usecs, rx_usecs;
 	bool adaptive, rx_may_override_tx;
 	int rc;
-
-	if (coalesce->use_adaptive_tx_coalesce)
-		return -EINVAL;
 
 	ef4_get_irq_moderation(efx, &tx_usecs, &rx_usecs, &adaptive);
 
@@ -636,8 +637,11 @@ static int ef4_ethtool_set_coalesce(struct net_device *net_dev,
 	return 0;
 }
 
-static void ef4_ethtool_get_ringparam(struct net_device *net_dev,
-				      struct ethtool_ringparam *ring)
+static void
+ef4_ethtool_get_ringparam(struct net_device *net_dev,
+			  struct ethtool_ringparam *ring,
+			  struct kernel_ethtool_ringparam *kernel_ring,
+			  struct netlink_ext_ack *extack)
 {
 	struct ef4_nic *efx = netdev_priv(net_dev);
 
@@ -647,8 +651,11 @@ static void ef4_ethtool_get_ringparam(struct net_device *net_dev,
 	ring->tx_pending = efx->txq_entries;
 }
 
-static int ef4_ethtool_set_ringparam(struct net_device *net_dev,
-				     struct ethtool_ringparam *ring)
+static int
+ef4_ethtool_set_ringparam(struct net_device *net_dev,
+			  struct ethtool_ringparam *ring,
+			  struct kernel_ethtool_ringparam *kernel_ring,
+			  struct netlink_ext_ack *extack)
 {
 	struct ef4_nic *efx = netdev_priv(net_dev);
 	u32 txq_entries;
@@ -960,7 +967,7 @@ ef4_ethtool_get_rxnfc(struct net_device *net_dev,
 		switch (info->flow_type) {
 		case TCP_V4_FLOW:
 			info->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
-			/* Fall through */
+			fallthrough;
 		case UDP_V4_FLOW:
 		case SCTP_V4_FLOW:
 		case AH_ESP_V4_FLOW:
@@ -1250,31 +1257,33 @@ static u32 ef4_ethtool_get_rxfh_indir_size(struct net_device *net_dev)
 		0 : ARRAY_SIZE(efx->rx_indir_table));
 }
 
-static int ef4_ethtool_get_rxfh(struct net_device *net_dev, u32 *indir, u8 *key,
-				u8 *hfunc)
+static int ef4_ethtool_get_rxfh(struct net_device *net_dev,
+				struct ethtool_rxfh_param *rxfh)
 {
 	struct ef4_nic *efx = netdev_priv(net_dev);
 
-	if (hfunc)
-		*hfunc = ETH_RSS_HASH_TOP;
-	if (indir)
-		memcpy(indir, efx->rx_indir_table, sizeof(efx->rx_indir_table));
+	rxfh->hfunc = ETH_RSS_HASH_TOP;
+	if (rxfh->indir)
+		memcpy(rxfh->indir, efx->rx_indir_table,
+		       sizeof(efx->rx_indir_table));
 	return 0;
 }
 
-static int ef4_ethtool_set_rxfh(struct net_device *net_dev, const u32 *indir,
-				const u8 *key, const u8 hfunc)
+static int ef4_ethtool_set_rxfh(struct net_device *net_dev,
+				struct ethtool_rxfh_param *rxfh,
+				struct netlink_ext_ack *extack)
 {
 	struct ef4_nic *efx = netdev_priv(net_dev);
 
 	/* We do not allow change in unsupported parameters */
-	if (key ||
-	    (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP))
+	if (rxfh->key ||
+	    (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	     rxfh->hfunc != ETH_RSS_HASH_TOP))
 		return -EOPNOTSUPP;
-	if (!indir)
+	if (!rxfh->indir)
 		return 0;
 
-	return efx->type->rx_push_rss_config(efx, true, indir);
+	return efx->type->rx_push_rss_config(efx, true, rxfh->indir);
 }
 
 static int ef4_ethtool_get_module_eeprom(struct net_device *net_dev,
@@ -1311,6 +1320,9 @@ static int ef4_ethtool_get_module_info(struct net_device *net_dev,
 }
 
 const struct ethtool_ops ef4_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_USECS_IRQ |
+				     ETHTOOL_COALESCE_USE_ADAPTIVE_RX,
 	.get_drvinfo		= ef4_ethtool_get_drvinfo,
 	.get_regs_len		= ef4_ethtool_get_regs_len,
 	.get_regs		= ef4_ethtool_get_regs,

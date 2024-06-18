@@ -64,13 +64,13 @@ int db_export__thread(struct db_export *dbe, struct thread *thread,
 {
 	u64 main_thread_db_id = 0;
 
-	if (thread->db_id)
+	if (thread__db_id(thread))
 		return 0;
 
-	thread->db_id = ++dbe->thread_last_db_id;
+	thread__set_db_id(thread, ++dbe->thread_last_db_id);
 
 	if (main_thread)
-		main_thread_db_id = main_thread->db_id;
+		main_thread_db_id = thread__db_id(main_thread);
 
 	if (dbe->export_thread)
 		return dbe->export_thread(dbe, thread, main_thread_db_id,
@@ -146,10 +146,10 @@ int db_export__comm_thread(struct db_export *dbe, struct comm *comm,
 int db_export__dso(struct db_export *dbe, struct dso *dso,
 		   struct machine *machine)
 {
-	if (dso->db_id)
+	if (dso__db_id(dso))
 		return 0;
 
-	dso->db_id = ++dbe->dso_last_db_id;
+	dso__set_db_id(dso, ++dbe->dso_last_db_id);
 
 	if (dbe->export_dso)
 		return dbe->export_dso(dbe, dso, machine);
@@ -179,12 +179,12 @@ static int db_ids_from_al(struct db_export *dbe, struct addr_location *al,
 	int err;
 
 	if (al->map) {
-		struct dso *dso = al->map->dso;
+		struct dso *dso = map__dso(al->map);
 
-		err = db_export__dso(dbe, dso, al->machine);
+		err = db_export__dso(dbe, dso, maps__machine(al->maps));
 		if (err)
 			return err;
-		*dso_db_id = dso->db_id;
+		*dso_db_id = dso__db_id(dso);
 
 		if (!al->sym) {
 			al->sym = symbol__new(al->addr, 0, 0, 0, "unknown");
@@ -215,6 +215,7 @@ static struct call_path *call_path_from_sample(struct db_export *dbe,
 	u64 kernel_start = machine__kernel_start(machine);
 	struct call_path *current = &dbe->cpr->call_path;
 	enum chain_order saved_order = callchain_param.order;
+	struct callchain_cursor *cursor;
 	int err;
 
 	if (!symbol_conf.use_callchain || !sample->callchain)
@@ -226,36 +227,38 @@ static struct call_path *call_path_from_sample(struct db_export *dbe,
 	 * the callchain starting with the root node and ending with the leaf.
 	 */
 	callchain_param.order = ORDER_CALLER;
-	err = thread__resolve_callchain(thread, &callchain_cursor, evsel,
+	cursor = get_tls_callchain_cursor();
+	err = thread__resolve_callchain(thread, cursor, evsel,
 					sample, NULL, NULL, PERF_MAX_STACK_DEPTH);
 	if (err) {
 		callchain_param.order = saved_order;
 		return NULL;
 	}
-	callchain_cursor_commit(&callchain_cursor);
+	callchain_cursor_commit(cursor);
 
 	while (1) {
 		struct callchain_cursor_node *node;
 		struct addr_location al;
 		u64 dso_db_id = 0, sym_db_id = 0, offset = 0;
 
-		memset(&al, 0, sizeof(al));
 
-		node = callchain_cursor_current(&callchain_cursor);
+		node = callchain_cursor_current(cursor);
 		if (!node)
 			break;
+
 		/*
 		 * Handle export of symbol and dso for this node by
 		 * constructing an addr_location struct and then passing it to
 		 * db_ids_from_al() to perform the export.
 		 */
-		al.sym = node->sym;
-		al.map = node->map;
-		al.machine = machine;
+		addr_location__init(&al);
+		al.sym = node->ms.sym;
+		al.map = map__get(node->ms.map);
+		al.maps = maps__get(thread__maps(thread));
 		al.addr = node->ip;
 
 		if (al.map && !al.sym)
-			al.sym = dso__find_symbol(al.map->dso, al.addr);
+			al.sym = dso__find_symbol(map__dso(al.map), al.addr);
 
 		db_ids_from_al(dbe, &al, &dso_db_id, &sym_db_id, &offset);
 
@@ -264,7 +267,8 @@ static struct call_path *call_path_from_sample(struct db_export *dbe,
 					     al.sym, node->ip,
 					     kernel_start);
 
-		callchain_cursor_advance(&callchain_cursor);
+		callchain_cursor_advance(cursor);
+		addr_location__exit(&al);
 	}
 
 	/* Reset the callchain order to its prior value. */
@@ -321,7 +325,7 @@ static int db_export__threads(struct db_export *dbe, struct thread *thread,
 		 * For a non-main thread, db_export__comm_thread() must be
 		 * called only if thread has not previously been exported.
 		 */
-		bool export_comm_thread = comm && !thread->db_id;
+		bool export_comm_thread = comm && !thread__db_id(thread);
 
 		err = db_export__thread(dbe, thread, machine, main_thread);
 		if (err)
@@ -343,7 +347,7 @@ static int db_export__threads(struct db_export *dbe, struct thread *thread,
 
 int db_export__sample(struct db_export *dbe, union perf_event *event,
 		      struct perf_sample *sample, struct evsel *evsel,
-		      struct addr_location *al)
+		      struct addr_location *al, struct addr_location *addr_al)
 {
 	struct thread *thread = al->thread;
 	struct export_sample es = {
@@ -354,19 +358,21 @@ int db_export__sample(struct db_export *dbe, union perf_event *event,
 	};
 	struct thread *main_thread;
 	struct comm *comm = NULL;
+	struct machine *machine;
 	int err;
 
 	err = db_export__evsel(dbe, evsel);
 	if (err)
 		return err;
 
-	err = db_export__machine(dbe, al->machine);
+	machine = maps__machine(al->maps);
+	err = db_export__machine(dbe, machine);
 	if (err)
 		return err;
 
-	main_thread = thread__main_thread(al->machine, thread);
+	main_thread = thread__main_thread(machine, thread);
 
-	err = db_export__threads(dbe, thread, main_thread, al->machine, &comm);
+	err = db_export__threads(dbe, thread, main_thread, machine, &comm);
 	if (err)
 		goto out_put;
 
@@ -380,7 +386,7 @@ int db_export__sample(struct db_export *dbe, union perf_event *event,
 		goto out_put;
 
 	if (dbe->cpr) {
-		struct call_path *cp = call_path_from_sample(dbe, al->machine,
+		struct call_path *cp = call_path_from_sample(dbe, machine,
 							     thread, sample,
 							     evsel);
 		if (cp) {
@@ -389,18 +395,14 @@ int db_export__sample(struct db_export *dbe, union perf_event *event,
 		}
 	}
 
-	if ((evsel->core.attr.sample_type & PERF_SAMPLE_ADDR) &&
-	    sample_addr_correlates_sym(&evsel->core.attr)) {
-		struct addr_location addr_al;
-
-		thread__resolve(thread, &addr_al, sample);
-		err = db_ids_from_al(dbe, &addr_al, &es.addr_dso_db_id,
+	if (addr_al) {
+		err = db_ids_from_al(dbe, addr_al, &es.addr_dso_db_id,
 				     &es.addr_sym_db_id, &es.addr_offset);
 		if (err)
 			goto out_put;
 		if (dbe->crp) {
 			err = thread_stack__process(thread, comm, sample, al,
-						    &addr_al, es.db_id,
+						    addr_al, es.db_id,
 						    dbe->crp);
 			if (err)
 				goto out_put;
@@ -438,6 +440,8 @@ static struct {
 	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_TX_ABORT, "transaction abort"},
 	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_TRACE_BEGIN, "trace begin"},
 	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_TRACE_END, "trace end"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_CALL | PERF_IP_FLAG_VMENTRY, "vm entry"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_CALL | PERF_IP_FLAG_VMEXIT, "vm exit"},
 	{0, NULL}
 };
 
@@ -529,16 +533,16 @@ static int db_export__pid_tid(struct db_export *dbe, struct machine *machine,
 	struct thread *main_thread;
 	int err = 0;
 
-	if (!thread || !thread->comm_set)
+	if (!thread || !thread__comm_set(thread))
 		goto out_put;
 
-	*is_idle = !thread->pid_ && !thread->tid;
+	*is_idle = !thread__pid(thread) && !thread__tid(thread);
 
 	main_thread = thread__main_thread(machine, thread);
 
 	err = db_export__threads(dbe, thread, main_thread, machine, comm_ptr);
 
-	*db_id = thread->db_id;
+	*db_id = thread__db_id(thread);
 
 	thread__put(main_thread);
 out_put:

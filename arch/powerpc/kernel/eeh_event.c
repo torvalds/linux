@@ -143,7 +143,7 @@ int __eeh_send_failure_event(struct eeh_pe *pe)
 int eeh_send_failure_event(struct eeh_pe *pe)
 {
 	/*
-	 * If we've manually supressed recovery events via debugfs
+	 * If we've manually suppressed recovery events via debugfs
 	 * then just drop it on the floor.
 	 */
 	if (eeh_debugfs_no_recover) {

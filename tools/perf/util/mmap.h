@@ -2,19 +2,25 @@
 #define __PERF_MMAP_H 1
 
 #include <internal/mmap.h>
-#include <linux/compiler.h>
-#include <linux/refcount.h>
 #include <linux/types.h>
-#include <linux/ring_buffer.h>
-#include <stdbool.h>
-#include <pthread.h> // for cpu_set_t
+#include <linux/bitops.h>
+#include <perf/cpumap.h>
 #ifdef HAVE_AIO_SUPPORT
 #include <aio.h>
 #endif
 #include "auxtrace.h"
-#include "event.h"
+#include "util/compress.h"
 
 struct aiocb;
+
+struct mmap_cpu_mask {
+	unsigned long *bits;
+	size_t nbits;
+};
+
+#define MMAP_CPU_MASK_BYTES(m) \
+	(BITS_TO_LONGS(((struct mmap_cpu_mask *)m)->nbits) * sizeof(unsigned long))
+
 /**
  * struct mmap - perf's ring buffer mmap details
  *
@@ -31,43 +37,31 @@ struct mmap {
 		int		 nr_cblocks;
 	} aio;
 #endif
-	cpu_set_t	affinity_mask;
+	struct mmap_cpu_mask	affinity_mask;
 	void		*data;
-	int		comp_level;
+	struct perf_data_file *file;
+	struct zstd_data      zstd_data;
 };
 
 struct mmap_params {
-	int prot, mask, nr_cblocks, affinity, flush, comp_level;
+	struct perf_mmap_param core;
+	int nr_cblocks, affinity, flush, comp_level;
 	struct auxtrace_mmap_params auxtrace_mp;
 };
 
-int perf_mmap__mmap(struct mmap *map, struct mmap_params *mp, int fd, int cpu);
-void perf_mmap__munmap(struct mmap *map);
-
-void perf_mmap__get(struct mmap *map);
-void perf_mmap__put(struct mmap *map);
-
-void perf_mmap__consume(struct mmap *map);
-
-static inline u64 perf_mmap__read_head(struct mmap *mm)
-{
-	return ring_buffer_read_head(mm->core.base);
-}
-
-static inline void perf_mmap__write_tail(struct mmap *md, u64 tail)
-{
-	ring_buffer_write_tail(md->core.base, tail);
-}
+int mmap__mmap(struct mmap *map, struct mmap_params *mp, int fd, struct perf_cpu cpu);
+void mmap__munmap(struct mmap *map);
 
 union perf_event *perf_mmap__read_forward(struct mmap *map);
-
-union perf_event *perf_mmap__read_event(struct mmap *map);
 
 int perf_mmap__push(struct mmap *md, void *to,
 		    int push(struct mmap *map, void *to, void *buf, size_t size));
 
-size_t perf_mmap__mmap_len(struct mmap *map);
+size_t mmap__mmap_len(struct mmap *map);
 
-int perf_mmap__read_init(struct mmap *md);
-void perf_mmap__read_done(struct mmap *map);
+void mmap_cpu_mask__scnprintf(struct mmap_cpu_mask *mask, const char *tag);
+
+int mmap_cpu_mask__duplicate(struct mmap_cpu_mask *original,
+				struct mmap_cpu_mask *clone);
+
 #endif /*__PERF_MMAP_H */

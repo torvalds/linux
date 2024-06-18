@@ -22,7 +22,6 @@
 #include <asm/irq.h>
 #include <asm/mmu_context.h>
 #include <asm/io.h>
-#include <asm/pgtable.h>
 #include <asm/core_cia.h>
 #include <asm/tlbflush.h>
 
@@ -81,8 +80,10 @@ miata_init_irq(void)
 	init_pyxis_irqs(0x63b0000);
 
 	common_init_isa_dma();
-	setup_irq(16+2, &halt_switch_irqaction);	/* SRM only? */
-	setup_irq(16+6, &timer_cascade_irqaction);
+	if (request_irq(16 + 2, no_action, 0, "halt-switch", NULL))
+		pr_err("Failed to register halt-switch interrupt\n");
+	if (request_irq(16 + 6, no_action, 0, "timer-cascade", NULL))
+		pr_err("Failed to register timer-cascade interrupt\n");
 }
 
 
@@ -182,16 +183,17 @@ miata_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
            the 2nd 8259 controller. So we have to check for it first. */
 
 	if((slot == 7) && (PCI_FUNC(dev->devfn) == 3)) {
-		u8 irq=0;
 		struct pci_dev *pdev = pci_get_slot(dev->bus, dev->devfn & ~7);
-		if(pdev == NULL || pci_read_config_byte(pdev, 0x40,&irq) != PCIBIOS_SUCCESSFUL) {
-			pci_dev_put(pdev);
+		u8 irq = 0;
+		int ret;
+
+		if (!pdev)
 			return -1;
-		}
-		else	{
-			pci_dev_put(pdev);
-			return irq;
-		}
+
+		ret = pci_read_config_byte(pdev, 0x40, &irq);
+		pci_dev_put(pdev);
+
+		return ret == PCIBIOS_SUCCESSFUL ? irq : -1;
 	}
 
 	return COMMON_TABLE_LOOKUP;

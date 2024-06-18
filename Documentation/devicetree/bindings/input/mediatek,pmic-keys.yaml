@@ -1,0 +1,93 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/input/mediatek,pmic-keys.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MediaTek PMIC Keys
+
+maintainers:
+  - Chen Zhong <chen.zhong@mediatek.com>
+
+allOf:
+  - $ref: input.yaml#
+
+description: |
+  There are two key functions provided by MT6397, MT6323 and other MediaTek
+  PMICs: pwrkey and homekey.
+  The key functions are defined as the subnode of the function node provided
+  by the PMIC that is defined as a Multi-Function Device (MFD).
+
+  For MediaTek MT6323/MT6397 PMIC bindings see
+  Documentation/devicetree/bindings/mfd/mt6397.txt
+
+properties:
+  compatible:
+    enum:
+      - mediatek,mt6323-keys
+      - mediatek,mt6331-keys
+      - mediatek,mt6357-keys
+      - mediatek,mt6358-keys
+      - mediatek,mt6397-keys
+
+  power-off-time-sec: true
+
+  mediatek,long-press-mode:
+    description: |
+      Key long-press force shutdown setting
+      0 - disabled
+      1 - pwrkey
+      2 - pwrkey+homekey
+    $ref: /schemas/types.yaml#/definitions/uint32
+    default: 0
+    maximum: 2
+
+patternProperties:
+  "^((power|home)|(key-[a-z0-9-]+|[a-z0-9-]+-key))$":
+    $ref: input.yaml#
+
+    properties:
+      interrupts:
+        minItems: 1
+        items:
+          - description: Key press interrupt
+          - description: Key release interrupt
+
+      interrupt-names: true
+
+      linux,keycodes:
+        maxItems: 1
+
+      wakeup-source: true
+
+    required:
+      - linux,keycodes
+
+    if:
+      properties:
+        interrupt-names:
+          contains:
+            const: powerkey
+    then:
+      properties:
+        interrupt-names:
+          minItems: 1
+          items:
+            - const: powerkey
+            - const: powerkey_r
+    else:
+      properties:
+        interrupt-names:
+          minItems: 1
+          items:
+            - const: homekey
+            - const: homekey_r
+
+    unevaluatedProperties: false
+
+required:
+  - compatible
+
+unevaluatedProperties: false
+
+...

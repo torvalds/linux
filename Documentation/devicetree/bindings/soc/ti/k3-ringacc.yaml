@@ -1,0 +1,96 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (C) 2020 Texas Instruments Incorporated - http://www.ti.com/
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/soc/ti/k3-ringacc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments K3 NavigatorSS Ring Accelerator
+
+maintainers:
+  - Santosh Shilimkar <ssantosh@kernel.org>
+  - Grygorii Strashko <grygorii.strashko@ti.com>
+
+description: |
+  The Ring Accelerator (RA) is a machine which converts read/write accesses
+  from/to a constant address into corresponding read/write accesses from/to a
+  circular data structure in memory. The RA eliminates the need for each DMA
+  controller which needs to access ring elements from having to know the current
+  state of the ring (base address, current offset). The DMA controller
+  performs a read or write access to a specific address range (which maps to the
+  source interface on the RA) and the RA replaces the address for the transaction
+  with a new address which corresponds to the head or tail element of the ring
+  (head for reads, tail for writes).
+
+  The Ring Accelerator is a hardware module that is responsible for accelerating
+  management of the packet queues. The K3 SoCs can have more than one RA instances
+
+allOf:
+  - $ref: /schemas/arm/keystone/ti,k3-sci-common.yaml#
+
+properties:
+  compatible:
+    items:
+      - const: ti,am654-navss-ringacc
+
+  reg:
+    minItems: 4
+    items:
+      - description: real time registers regions
+      - description: fifos registers regions
+      - description: proxy gcfg registers regions
+      - description: proxy target registers regions
+      - description: configuration registers region
+
+  reg-names:
+    minItems: 4
+    items:
+      - const: rt
+      - const: fifos
+      - const: proxy_gcfg
+      - const: proxy_target
+      - const: cfg
+
+  msi-parent: true
+
+  ti,num-rings:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Number of rings supported by RA
+
+  ti,sci-rm-range-gp-rings:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: TI-SCI RM subtype for GP ring range
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - msi-parent
+  - ti,num-rings
+  - ti,sci-rm-range-gp-rings
+  - ti,sci
+  - ti,sci-dev-id
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    bus {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        ringacc: ringacc@3c000000 {
+            compatible = "ti,am654-navss-ringacc";
+            reg = <0x0 0x3c000000 0x0 0x400000>,
+                  <0x0 0x38000000 0x0 0x400000>,
+                  <0x0 0x31120000 0x0 0x100>,
+                  <0x0 0x33000000 0x0 0x40000>,
+                  <0x0 0x31080000 0x0 0x40000>;
+                  reg-names = "rt", "fifos", "proxy_gcfg", "proxy_target", "cfg";
+            ti,num-rings = <818>;
+            ti,sci-rm-range-gp-rings = <0x2>; /* GP ring range */
+            ti,sci = <&dmsc>;
+            ti,sci-dev-id = <187>;
+            msi-parent = <&inta_main_udmass>;
+        };
+    };

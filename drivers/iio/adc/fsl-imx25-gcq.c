@@ -12,8 +12,9 @@
 #include <linux/interrupt.h>
 #include <linux/mfd/imx25-tsadc.h>
 #include <linux/module.h>
-#include <linux/of.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 
@@ -40,6 +41,15 @@ struct mx25_gcq_priv {
 	int irq;
 	struct regulator *vref[4];
 	u32 channel_vref_mv[MX25_NUM_CFGS];
+	/*
+	 * Lock to protect the device state during a potential concurrent
+	 * read access from userspace. Reading a raw value requires a sequence
+	 * of register writes, then a wait for a completion callback,
+	 * and finally a register read, during which userspace could issue
+	 * another read request. This lock protects a read access from
+	 * ocurring before another one has finished.
+	 */
+	struct mutex lock;
 };
 
 #define MX25_CQG_CHAN(chan, id) {\
@@ -98,7 +108,7 @@ static int mx25_gcq_get_raw_value(struct device *dev,
 				  struct mx25_gcq_priv *priv,
 				  int *val)
 {
-	long timeout;
+	long time_left;
 	u32 data;
 
 	/* Setup the configuration we want to use */
@@ -111,12 +121,12 @@ static int mx25_gcq_get_raw_value(struct device *dev,
 	regmap_update_bits(priv->regs, MX25_ADCQ_CR, MX25_ADCQ_CR_FQS,
 			   MX25_ADCQ_CR_FQS);
 
-	timeout = wait_for_completion_interruptible_timeout(
+	time_left = wait_for_completion_interruptible_timeout(
 		&priv->completed, MX25_GCQ_TIMEOUT);
-	if (timeout < 0) {
+	if (time_left < 0) {
 		dev_err(dev, "ADC wait for measurement failed\n");
-		return timeout;
-	} else if (timeout == 0) {
+		return time_left;
+	} else if (time_left == 0) {
 		dev_err(dev, "ADC timed out\n");
 		return -ETIMEDOUT;
 	}
@@ -137,9 +147,9 @@ static int mx25_gcq_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		mutex_lock(&indio_dev->mlock);
+		mutex_lock(&priv->lock);
 		ret = mx25_gcq_get_raw_value(&indio_dev->dev, chan, priv, val);
-		mutex_unlock(&indio_dev->mlock);
+		mutex_unlock(&priv->lock);
 		return ret;
 
 	case IIO_CHAN_INFO_SCALE:
@@ -163,13 +173,33 @@ static const struct regmap_config mx25_gcq_regconfig = {
 	.reg_stride = 4,
 };
 
+static int mx25_gcq_ext_regulator_setup(struct device *dev,
+					struct mx25_gcq_priv *priv, u32 refp)
+{
+	char reg_name[12];
+	int ret;
+
+	if (priv->vref[refp])
+		return 0;
+
+	ret = snprintf(reg_name, sizeof(reg_name), "vref-%s",
+		       mx25_gcq_refp_names[refp]);
+	if (ret < 0)
+		return ret;
+
+	priv->vref[refp] = devm_regulator_get_optional(dev, reg_name);
+	if (IS_ERR(priv->vref[refp]))
+		return dev_err_probe(dev, PTR_ERR(priv->vref[refp]),
+				     "Error, trying to use external voltage reference without a %s regulator.",
+				     reg_name);
+
+	return 0;
+}
+
 static int mx25_gcq_setup_cfgs(struct platform_device *pdev,
 			       struct mx25_gcq_priv *priv)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *child;
 	struct device *dev = &pdev->dev;
-	unsigned int refp_used[4] = {};
 	int ret, i;
 
 	/*
@@ -185,51 +215,30 @@ static int mx25_gcq_setup_cfgs(struct platform_device *pdev,
 			     MX25_ADCQ_CFG_IN(i) |
 			     MX25_ADCQ_CFG_REFN_NGND2);
 
-	/*
-	 * First get all regulators to store them in channel_vref_mv if
-	 * necessary. Later we use that information for proper IIO scale
-	 * information.
-	 */
-	priv->vref[MX25_ADC_REFP_INT] = NULL;
-	priv->vref[MX25_ADC_REFP_EXT] =
-		devm_regulator_get_optional(&pdev->dev, "vref-ext");
-	priv->vref[MX25_ADC_REFP_XP] =
-		devm_regulator_get_optional(&pdev->dev, "vref-xp");
-	priv->vref[MX25_ADC_REFP_YP] =
-		devm_regulator_get_optional(&pdev->dev, "vref-yp");
-
-	for_each_child_of_node(np, child) {
+	device_for_each_child_node_scoped(dev, child) {
 		u32 reg;
 		u32 refp = MX25_ADCQ_CFG_REFP_INT;
 		u32 refn = MX25_ADCQ_CFG_REFN_NGND2;
 
-		ret = of_property_read_u32(child, "reg", &reg);
-		if (ret) {
-			dev_err(dev, "Failed to get reg property\n");
-			of_node_put(child);
-			return ret;
-		}
+		ret = fwnode_property_read_u32(child, "reg", &reg);
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "Failed to get reg property\n");
 
-		if (reg >= MX25_NUM_CFGS) {
-			dev_err(dev,
+		if (reg >= MX25_NUM_CFGS)
+			return dev_err_probe(dev, -EINVAL,
 				"reg value is greater than the number of available configuration registers\n");
-			of_node_put(child);
-			return -EINVAL;
-		}
 
-		of_property_read_u32(child, "fsl,adc-refp", &refp);
-		of_property_read_u32(child, "fsl,adc-refn", &refn);
+		fwnode_property_read_u32(child, "fsl,adc-refp", &refp);
+		fwnode_property_read_u32(child, "fsl,adc-refn", &refn);
 
 		switch (refp) {
 		case MX25_ADC_REFP_EXT:
 		case MX25_ADC_REFP_XP:
 		case MX25_ADC_REFP_YP:
-			if (IS_ERR(priv->vref[refp])) {
-				dev_err(dev, "Error, trying to use external voltage reference without a vref-%s regulator.",
-					mx25_gcq_refp_names[refp]);
-				of_node_put(child);
-				return PTR_ERR(priv->vref[refp]);
-			}
+			ret = mx25_gcq_ext_regulator_setup(&pdev->dev, priv, refp);
+			if (ret)
+				return ret;
 			priv->channel_vref_mv[reg] =
 				regulator_get_voltage(priv->vref[refp]);
 			/* Conversion from uV to mV */
@@ -239,12 +248,9 @@ static int mx25_gcq_setup_cfgs(struct platform_device *pdev,
 			priv->channel_vref_mv[reg] = 2500;
 			break;
 		default:
-			dev_err(dev, "Invalid positive reference %d\n", refp);
-			of_node_put(child);
-			return -EINVAL;
+			return dev_err_probe(dev, -EINVAL,
+					     "Invalid positive reference %d\n", refp);
 		}
-
-		++refp_used[refp];
 
 		/*
 		 * Shift the read values to the correct positions within the
@@ -253,16 +259,13 @@ static int mx25_gcq_setup_cfgs(struct platform_device *pdev,
 		refp = MX25_ADCQ_CFG_REFP(refp);
 		refn = MX25_ADCQ_CFG_REFN(refn);
 
-		if ((refp & MX25_ADCQ_CFG_REFP_MASK) != refp) {
-			dev_err(dev, "Invalid fsl,adc-refp property value\n");
-			of_node_put(child);
-			return -EINVAL;
-		}
-		if ((refn & MX25_ADCQ_CFG_REFN_MASK) != refn) {
-			dev_err(dev, "Invalid fsl,adc-refn property value\n");
-			of_node_put(child);
-			return -EINVAL;
-		}
+		if ((refp & MX25_ADCQ_CFG_REFP_MASK) != refp)
+			return dev_err_probe(dev, -EINVAL,
+					     "Invalid fsl,adc-refp property value\n");
+
+		if ((refn & MX25_ADCQ_CFG_REFN_MASK) != refn)
+			return dev_err_probe(dev, -EINVAL,
+					     "Invalid fsl,adc-refn property value\n");
 
 		regmap_update_bits(priv->regs, MX25_ADCQ_CFG(reg),
 				   MX25_ADCQ_CFG_REFP_MASK |
@@ -276,16 +279,18 @@ static int mx25_gcq_setup_cfgs(struct platform_device *pdev,
 	regmap_write(priv->regs, MX25_ADCQ_CR,
 		     MX25_ADCQ_CR_PDMSK | MX25_ADCQ_CR_QSM_FQS);
 
-	/* Remove unused regulators */
-	for (i = 0; i != 4; ++i) {
-		if (!refp_used[i]) {
-			if (!IS_ERR_OR_NULL(priv->vref[i]))
-				devm_regulator_put(priv->vref[i]);
-			priv->vref[i] = NULL;
-		}
-	}
-
 	return 0;
+}
+
+static void mx25_gcq_reg_disable(void *reg)
+{
+	regulator_disable(reg);
+}
+
+/* Custom handling needed as this driver doesn't own the clock */
+static void mx25_gcq_clk_disable(void *clk)
+{
+	clk_disable_unprepare(clk);
 }
 
 static int mx25_gcq_probe(struct platform_device *pdev)
@@ -294,27 +299,26 @@ static int mx25_gcq_probe(struct platform_device *pdev)
 	struct mx25_gcq_priv *priv;
 	struct mx25_tsadc *tsadc = dev_get_drvdata(pdev->dev.parent);
 	struct device *dev = &pdev->dev;
-	struct resource *res;
 	void __iomem *mem;
 	int ret;
 	int i;
 
-	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*priv));
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*priv));
 	if (!indio_dev)
 		return -ENOMEM;
 
 	priv = iio_priv(indio_dev);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mem = devm_ioremap_resource(dev, res);
+	mem = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mem))
 		return PTR_ERR(mem);
 
 	priv->regs = devm_regmap_init_mmio(dev, mem, &mx25_gcq_regconfig);
-	if (IS_ERR(priv->regs)) {
-		dev_err(dev, "Failed to initialize regmap\n");
-		return PTR_ERR(priv->regs);
-	}
+	if (IS_ERR(priv->regs))
+		return dev_err_probe(dev, PTR_ERR(priv->regs),
+				     "Failed to initialize regmap\n");
+
+	mutex_init(&priv->lock);
 
 	init_completion(&priv->completed);
 
@@ -328,73 +332,42 @@ static int mx25_gcq_probe(struct platform_device *pdev)
 
 		ret = regulator_enable(priv->vref[i]);
 		if (ret)
-			goto err_regulator_disable;
+			return ret;
+
+		ret = devm_add_action_or_reset(dev, mx25_gcq_reg_disable,
+					       priv->vref[i]);
+		if (ret)
+			return ret;
 	}
 
 	priv->clk = tsadc->clk;
 	ret = clk_prepare_enable(priv->clk);
-	if (ret) {
-		dev_err(dev, "Failed to enable clock\n");
-		goto err_vref_disable;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to enable clock\n");
 
-	priv->irq = platform_get_irq(pdev, 0);
-	if (priv->irq <= 0) {
-		ret = priv->irq;
-		if (!ret)
-			ret = -ENXIO;
-		goto err_clk_unprepare;
-	}
+	ret = devm_add_action_or_reset(dev, mx25_gcq_clk_disable,
+				       priv->clk);
+	if (ret)
+		return ret;
 
-	ret = request_irq(priv->irq, mx25_gcq_irq, 0, pdev->name, priv);
-	if (ret) {
-		dev_err(dev, "Failed requesting IRQ\n");
-		goto err_clk_unprepare;
-	}
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0)
+		return ret;
 
-	indio_dev->dev.parent = &pdev->dev;
+	priv->irq = ret;
+	ret = devm_request_irq(dev, priv->irq, mx25_gcq_irq, 0, pdev->name,
+			       priv);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed requesting IRQ\n");
+
 	indio_dev->channels = mx25_gcq_channels;
 	indio_dev->num_channels = ARRAY_SIZE(mx25_gcq_channels);
 	indio_dev->info = &mx25_gcq_iio_info;
 	indio_dev->name = driver_name;
 
-	ret = iio_device_register(indio_dev);
-	if (ret) {
-		dev_err(dev, "Failed to register iio device\n");
-		goto err_irq_free;
-	}
-
-	platform_set_drvdata(pdev, indio_dev);
-
-	return 0;
-
-err_irq_free:
-	free_irq(priv->irq, priv);
-err_clk_unprepare:
-	clk_disable_unprepare(priv->clk);
-err_vref_disable:
-	i = 4;
-err_regulator_disable:
-	for (; i-- > 0;) {
-		if (priv->vref[i])
-			regulator_disable(priv->vref[i]);
-	}
-	return ret;
-}
-
-static int mx25_gcq_remove(struct platform_device *pdev)
-{
-	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
-	struct mx25_gcq_priv *priv = iio_priv(indio_dev);
-	int i;
-
-	iio_device_unregister(indio_dev);
-	free_irq(priv->irq, priv);
-	clk_disable_unprepare(priv->clk);
-	for (i = 4; i-- > 0;) {
-		if (priv->vref[i])
-			regulator_disable(priv->vref[i]);
-	}
+	ret = devm_iio_device_register(dev, indio_dev);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to register iio device\n");
 
 	return 0;
 }
@@ -411,7 +384,6 @@ static struct platform_driver mx25_gcq_driver = {
 		.of_match_table = mx25_gcq_ids,
 	},
 	.probe		= mx25_gcq_probe,
-	.remove		= mx25_gcq_remove,
 };
 module_platform_driver(mx25_gcq_driver);
 

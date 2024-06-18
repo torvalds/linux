@@ -1,4 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
+
+#include "dt-bindings/clock/bcm6368-clock.h"
+#include "dt-bindings/reset/bcm6368-reset.h"
+
 / {
 	#address-cells = <1>;
 	#size-cells = <1>;
@@ -24,16 +28,20 @@
 	};
 
 	clocks {
-		periph_clk: periph-clk {
+		periph_osc: periph-osc {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <50000000>;
+			clock-output-names = "periph";
 		};
 	};
 
 	aliases {
+		nflash = &nflash;
+		pflash = &pflash;
 		serial0 = &uart0;
 		serial1 = &uart1;
+		spi0 = &lsspi;
 	};
 
 	cpu_intc: interrupt-controller {
@@ -51,23 +59,28 @@
 		compatible = "simple-bus";
 		ranges;
 
-		clkctl: clock-controller@10000004 {
+		periph_clk: clock-controller@10000004 {
 			compatible = "brcm,bcm6368-clocks";
 			reg = <0x10000004 0x4>;
 			#clock-cells = <1>;
 		};
 
-		periph_cntl: syscon@100000008 {
+		pll_cntl: syscon@100000008 {
 			compatible = "syscon";
-			reg = <0x10000000 0xc>;
+			reg = <0x10000008 0x4>;
 			native-endian;
+
+			reboot {
+				compatible = "syscon-reboot";
+				offset = <0x0>;
+				mask = <0x1>;
+			};
 		};
 
-		reboot: syscon-reboot@10000008 {
-			compatible = "syscon-reboot";
-			regmap = <&periph_cntl>;
-			offset = <0x0>;
-			mask = <0x1>;
+		periph_rst: reset-controller@10000010 {
+			compatible = "brcm,bcm6345-reset";
+			reg = <0x10000010 0x4>;
+			#reset-cells = <1>;
 		};
 
 		periph_intc: interrupt-controller@10000020 {
@@ -82,31 +95,88 @@
 			interrupts = <2>, <3>;
 		};
 
+		wdt: watchdog@1000005c {
+			compatible = "brcm,bcm7038-wdt";
+			reg = <0x1000005c 0xc>;
+
+			clocks = <&periph_osc>;
+			clock-names = "refclk";
+
+			timeout-sec = <30>;
+		};
+
 		leds0: led-controller@100000d0 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "brcm,bcm6358-leds";
 			reg = <0x100000d0 0x8>;
+
 			status = "disabled";
 		};
 
 		uart0: serial@10000100 {
 			compatible = "brcm,bcm6345-uart";
 			reg = <0x10000100 0x18>;
+
 			interrupt-parent = <&periph_intc>;
 			interrupts = <2>;
-			clocks = <&periph_clk>;
+
+			clocks = <&periph_osc>;
 			clock-names = "refclk";
+
 			status = "disabled";
 		};
 
 		uart1: serial@10000120 {
 			compatible = "brcm,bcm6345-uart";
 			reg = <0x10000120 0x18>;
+
 			interrupt-parent = <&periph_intc>;
 			interrupts = <3>;
-			clocks = <&periph_clk>;
+
+			clocks = <&periph_osc>;
 			clock-names = "refclk";
+
+			status = "disabled";
+		};
+
+		nflash: nand@10000200 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "brcm,nand-bcm6368",
+				     "brcm,brcmnand-v2.1",
+				     "brcm,brcmnand";
+			reg = <0x10000200 0x180>,
+			      <0x10000600 0x200>,
+			      <0x10000070 0x10>;
+			reg-names = "nand",
+				    "nand-cache",
+				    "nand-int-base";
+
+			interrupt-parent = <&periph_intc>;
+			interrupts = <10>;
+
+			clocks = <&periph_clk BCM6368_CLK_NAND>;
+			clock-names = "nand";
+
+			status = "disabled";
+		};
+
+		lsspi: spi@10000800 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "brcm,bcm6358-spi";
+			reg = <0x10000800 0x70c>;
+
+			interrupt-parent = <&periph_intc>;
+			interrupts = <1>;
+
+			clocks = <&periph_clk BCM6368_CLK_SPI>;
+			clock-names = "spi";
+
+			resets = <&periph_rst BCM6368_RST_SPI>;
+			reset-names = "spi";
+
 			status = "disabled";
 		};
 
@@ -114,8 +184,13 @@
 			compatible = "brcm,bcm6368-ehci", "generic-ehci";
 			reg = <0x10001500 0x100>;
 			big-endian;
+
 			interrupt-parent = <&periph_intc>;
 			interrupts = <7>;
+
+			phys = <&usbh 0>;
+			phy-names = "usb";
+
 			status = "disabled";
 		};
 
@@ -124,9 +199,49 @@
 			reg = <0x10001600 0x100>;
 			big-endian;
 			no-big-frame-no;
+
 			interrupt-parent = <&periph_intc>;
 			interrupts = <5>;
+
+			phys = <&usbh 0>;
+			phy-names = "usb";
+
 			status = "disabled";
 		};
+
+		usbh: usb-phy@10001700 {
+			compatible = "brcm,bcm6368-usbh-phy";
+			reg = <0x10001700 0x38>;
+			#phy-cells = <1>;
+
+			clocks = <&periph_clk BCM6368_CLK_USBH>;
+			clock-names = "usbh";
+
+			resets = <&periph_rst BCM6368_RST_USBH>;
+			reset-names = "usbh";
+
+			status = "disabled";
+		};
+
+		random: rng@10004180 {
+			compatible = "brcm,bcm6368-rng";
+			reg = <0x10004180 0x14>;
+
+			clocks = <&periph_clk BCM6368_CLK_IPSEC>;
+			clock-names = "ipsec";
+
+			resets = <&periph_rst BCM6368_RST_IPSEC>;
+			reset-names = "ipsec";
+		};
+	};
+
+	pflash: nor@18000000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "cfi-flash";
+		reg = <0x18000000 0x2000000>;
+		bank-width = <2>;
+
+		status = "disabled";
 	};
 };

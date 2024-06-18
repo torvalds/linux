@@ -1,19 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AM33XX CM functions
  *
- * Copyright (C) 2011-2012 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2011-2012 Texas Instruments Incorporated - https://www.ti.com/
  * Vaibhav Hiremath <hvaibhav@ti.com>
  *
- * Reference taken from from OMAP4 cminst44xx.c
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * Reference taken from OMAP4 cminst44xx.c
  */
 
 #include <linux/kernel.h>
@@ -365,7 +357,7 @@ static int am33xx_clkdm_save_context(struct clockdomain *clkdm)
 }
 
 /**
- * am33xx_restore_save_context - Restore the clockdomain transition context
+ * am33xx_clkdm_restore_context - Restore the clockdomain transition context
  * @clkdm: The clockdomain pointer whose context needs to be restored
  *
  * Restore the clockdomain transition context.

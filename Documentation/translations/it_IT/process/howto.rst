@@ -44,7 +44,7 @@ altro, utili riferimenti:
 - "C:  A Reference Manual" di Harbison and Steele [Prentice Hall]
 
 Il kernel è stato scritto usando GNU C e la toolchain GNU.
-Sebbene si attenga allo standard ISO C89, esso utilizza una serie di
+Sebbene si attenga allo standard ISO C11, esso utilizza una serie di
 estensioni che non sono previste in questo standard. Il kernel è un
 ambiente C indipendente, che non ha alcuna dipendenza dalle librerie
 C standard, così alcune parti del C standard non sono supportate.
@@ -85,8 +85,8 @@ relativi file di documentatione che spiegano come usarele.
 Quando un cambiamento del kernel genera anche un cambiamento nell'interfaccia
 con lo spazio utente, è raccomandabile che inviate una notifica o una
 correzione alle pagine *man* spiegando tale modifica agli amministratori di
-queste pagine all'indirizzo mtk.manpages@gmail.com, aggiungendo
-in CC la lista linux-api@vger.kernel.org.
+queste pagine all'indirizzo alx@kernel.org, aggiungendo in CC la
+lista linux-api@vger.kernel.org.
 
 Di seguito una lista di file che sono presenti nei sorgente del kernel e che
 è richiesto che voi leggiate:
@@ -109,8 +109,7 @@ Di seguito una lista di file che sono presenti nei sorgente del kernel e che
     accetteranno patch solo se queste osserveranno tali regole, e molte
     persone revisioneranno il codice solo se scritto nello stile appropriato.
 
-  :ref:`Documentation/translations/it_IT/process/submitting-patches.rst <it_submittingpatches>` e
-  :ref:`Documentation/translations/it_IT/process/submitting-drivers.rst <it_submittingdrivers>`
+  :ref:`Documentation/translations/it_IT/process/submitting-patches.rst <it_submittingpatches>`
 
     Questo file descrive dettagliatamente come creare ed inviare una patch
     con successo, includendo (ma non solo questo):
@@ -145,7 +144,7 @@ Di seguito una lista di file che sono presenti nei sorgente del kernel e che
     dello sviluppo di Linux ed è molto importante per le persone che arrivano
     da esperienze con altri Sistemi Operativi.
 
-  :ref:`Documentation/translations/it_IT/admin-guide/security-bugs.rst <it_securitybugs>`
+  :ref:`Documentation/translations/it_IT/process/security-bugs.rst <it_securitybugs>`
     Se ritenete di aver trovato un problema di sicurezza nel kernel Linux,
     seguite i passaggi scritti in questo documento per notificarlo agli
     sviluppatori del kernel, ed aiutare la risoluzione del problema.
@@ -357,17 +356,10 @@ benvenuti.
 Riportare Bug
 -------------
 
-https://bugzilla.kernel.org è dove gli sviluppatori del kernel Linux tracciano
-i bachi del kernel. Gli utenti sono incoraggiati nel riportare tutti i bachi
-che trovano utilizzando questo strumento.
-Per maggiori dettagli su come usare il bugzilla del kernel, guardare:
-
-	https://bugzilla.kernel.org/page.cgi?id=faq.html
-
-Il file admin-guide/reporting-bugs.rst nella cartella principale del kernel
-fornisce un buon modello sul come segnalare un baco nel kernel, e spiega quali
-informazioni sono necessarie agli sviluppatori per poter aiutare il
-rintracciamento del problema.
+Il file 'Documentation/admin-guide/reporting-issues.rst' nella
+cartella principale del kernel spiega come segnalare un baco nel
+kernel, e fornisce dettagli su quali informazioni sono necessarie agli
+sviluppatori del kernel per poter studiare il problema.
 
 Gestire i rapporti sui bug
 --------------------------
@@ -380,8 +372,14 @@ al corrente della vostra presenza. Riparare bachi è una delle migliori vie per
 acquisire meriti tra gli altri sviluppatori, perchè non a molte persone piace
 perdere tempo a sistemare i bachi di altri.
 
-Per lavorare sui rapporti di bachi già riportati, andate su
-https://bugzilla.kernel.org.
+Per lavorare sui bachi già segnalati, per prima cosa cercate il
+sottosistema che vi interessa. Poi, verificate nel file MAINTAINERS
+dove vengono collezionati solitamente i bachi per quel sottosistema;
+spesso sarà una lista di discussione, raramente un bugtracker. Cercate
+bachi nell'archivio e aiutate dove credete di poterlo fare. Potete
+anche consultare https://bugzilla.kernel.org; però, solo una manciata di
+sottosistemi lo usano attivamente, ciò nonostante i bachi che
+coinvolgono l'intero kernel sono sempre riportati lì.
 
 Liste di discussione
 --------------------
@@ -396,7 +394,7 @@ trovati al sito:
 Ci sono diversi archivi della lista di discussione. Usate un qualsiasi motore
 di ricerca per trovarli. Per esempio:
 
-	http://dir.gmane.org/gmane.linux.kernel
+	https://lore.kernel.org/lkml/
 
 É caldamente consigliata una ricerca in questi archivi sul tema che volete
 sollevare, prima di pubblicarlo sulla lista. Molte cose sono già state

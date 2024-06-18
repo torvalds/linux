@@ -34,6 +34,8 @@ enum tis_status {
 	TPM_STS_GO = 0x20,
 	TPM_STS_DATA_AVAIL = 0x10,
 	TPM_STS_DATA_EXPECT = 0x08,
+	TPM_STS_RESPONSE_RETRY = 0x02,
+	TPM_STS_READ_ZERO = 0x23, /* bits that must be zero on read */
 };
 
 enum tis_int_flags {
@@ -53,6 +55,8 @@ enum tis_defaults {
 	TIS_MEM_LEN = 0x5000,
 	TIS_SHORT_TIMEOUT = 750,	/* ms */
 	TIS_LONG_TIMEOUT = 2000,	/* 2 sec */
+	TIS_TIMEOUT_MIN_ATML = 14700,	/* usecs */
+	TIS_TIMEOUT_MAX_ATML = 15000,	/* usecs */
 };
 
 /* Some timeout values are needed before it is known whether the chip is
@@ -81,77 +85,132 @@ enum tis_defaults {
 #define ILB_REMAP_SIZE			0x100
 
 enum tpm_tis_flags {
-	TPM_TIS_ITPM_WORKAROUND		= BIT(0),
+	TPM_TIS_ITPM_WORKAROUND		= 0,
+	TPM_TIS_INVALID_STATUS		= 1,
+	TPM_TIS_DEFAULT_CANCELLATION	= 2,
+	TPM_TIS_IRQ_TESTED		= 3,
 };
 
 struct tpm_tis_data {
+	struct tpm_chip *chip;
 	u16 manufacturer_id;
+	struct mutex locality_count_mutex;
+	unsigned int locality_count;
 	int locality;
 	int irq;
-	bool irq_tested;
-	unsigned int flags;
+	struct work_struct free_irq_work;
+	unsigned long last_unhandled_irq;
+	unsigned int unhandled_irqs;
+	unsigned int int_mask;
+	unsigned long flags;
 	void __iomem *ilb_base_addr;
 	u16 clkrun_enabled;
 	wait_queue_head_t int_queue;
 	wait_queue_head_t read_queue;
 	const struct tpm_tis_phy_ops *phy_ops;
 	unsigned short rng_quality;
+	unsigned int timeout_min; /* usecs */
+	unsigned int timeout_max; /* usecs */
+};
+
+/*
+ * IO modes to indicate how many bytes should be read/written at once in the
+ * tpm_tis_phy_ops read_bytes/write_bytes calls. Use TPM_TIS_PHYS_8 to
+ * receive/transmit byte-wise, TPM_TIS_PHYS_16 for two bytes etc.
+ */
+enum tpm_tis_io_mode {
+	TPM_TIS_PHYS_8,
+	TPM_TIS_PHYS_16,
+	TPM_TIS_PHYS_32,
 };
 
 struct tpm_tis_phy_ops {
+	/* data is passed in little endian */
 	int (*read_bytes)(struct tpm_tis_data *data, u32 addr, u16 len,
-			  u8 *result);
+			  u8 *result, enum tpm_tis_io_mode mode);
 	int (*write_bytes)(struct tpm_tis_data *data, u32 addr, u16 len,
-			   const u8 *value);
-	int (*read16)(struct tpm_tis_data *data, u32 addr, u16 *result);
-	int (*read32)(struct tpm_tis_data *data, u32 addr, u32 *result);
-	int (*write32)(struct tpm_tis_data *data, u32 addr, u32 src);
+			   const u8 *value, enum tpm_tis_io_mode mode);
+	int (*verify_crc)(struct tpm_tis_data *data, size_t len,
+			  const u8 *value);
 };
 
 static inline int tpm_tis_read_bytes(struct tpm_tis_data *data, u32 addr,
 				     u16 len, u8 *result)
 {
-	return data->phy_ops->read_bytes(data, addr, len, result);
+	return data->phy_ops->read_bytes(data, addr, len, result,
+					 TPM_TIS_PHYS_8);
 }
 
 static inline int tpm_tis_read8(struct tpm_tis_data *data, u32 addr, u8 *result)
 {
-	return data->phy_ops->read_bytes(data, addr, 1, result);
+	return data->phy_ops->read_bytes(data, addr, 1, result, TPM_TIS_PHYS_8);
 }
 
 static inline int tpm_tis_read16(struct tpm_tis_data *data, u32 addr,
 				 u16 *result)
 {
-	return data->phy_ops->read16(data, addr, result);
+	__le16 result_le;
+	int rc;
+
+	rc = data->phy_ops->read_bytes(data, addr, sizeof(u16),
+				       (u8 *)&result_le, TPM_TIS_PHYS_16);
+	if (!rc)
+		*result = le16_to_cpu(result_le);
+
+	return rc;
 }
 
 static inline int tpm_tis_read32(struct tpm_tis_data *data, u32 addr,
 				 u32 *result)
 {
-	return data->phy_ops->read32(data, addr, result);
+	__le32 result_le;
+	int rc;
+
+	rc = data->phy_ops->read_bytes(data, addr, sizeof(u32),
+				       (u8 *)&result_le, TPM_TIS_PHYS_32);
+	if (!rc)
+		*result = le32_to_cpu(result_le);
+
+	return rc;
 }
 
 static inline int tpm_tis_write_bytes(struct tpm_tis_data *data, u32 addr,
 				      u16 len, const u8 *value)
 {
-	return data->phy_ops->write_bytes(data, addr, len, value);
+	return data->phy_ops->write_bytes(data, addr, len, value,
+					  TPM_TIS_PHYS_8);
 }
 
 static inline int tpm_tis_write8(struct tpm_tis_data *data, u32 addr, u8 value)
 {
-	return data->phy_ops->write_bytes(data, addr, 1, &value);
+	return data->phy_ops->write_bytes(data, addr, 1, &value,
+					  TPM_TIS_PHYS_8);
 }
 
 static inline int tpm_tis_write32(struct tpm_tis_data *data, u32 addr,
 				  u32 value)
 {
-	return data->phy_ops->write32(data, addr, value);
+	__le32 value_le;
+	int rc;
+
+	value_le = cpu_to_le32(value);
+	rc =  data->phy_ops->write_bytes(data, addr, sizeof(u32),
+					 (u8 *)&value_le, TPM_TIS_PHYS_32);
+	return rc;
+}
+
+static inline int tpm_tis_verify_crc(struct tpm_tis_data *data, size_t len,
+				     const u8 *value)
+{
+	if (!data->phy_ops->verify_crc)
+		return 0;
+	return data->phy_ops->verify_crc(data, len, value);
 }
 
 static inline bool is_bsw(void)
 {
 #ifdef CONFIG_X86
-	return ((boot_cpu_data.x86_model == INTEL_FAM6_ATOM_AIRMONT) ? 1 : 0);
+	return (boot_cpu_data.x86_vfm == INTEL_ATOM_AIRMONT) ? 1 : 0;
 #else
 	return false;
 #endif

@@ -35,7 +35,6 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/vmalloc.h>
-#include <linux/aer.h>
 #include <linux/module.h>
 
 #include "qib.h"
@@ -90,35 +89,21 @@ int qib_pcie_init(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto bail;
 	}
 
-	ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
+	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (ret) {
 		/*
 		 * If the 64 bit setup fails, try 32 bit.  Some systems
 		 * do not setup 64 bit maps on systems with 2GB or less
 		 * memory installed.
 		 */
-		ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (ret) {
 			qib_devinfo(pdev, "Unable to set DMA mask: %d\n", ret);
 			goto bail;
 		}
-		ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
-	} else
-		ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
-	if (ret) {
-		qib_early_err(&pdev->dev,
-			      "Unable to set DMA consistent mask: %d\n", ret);
-		goto bail;
 	}
 
 	pci_set_master(pdev);
-	ret = pci_enable_pcie_error_reporting(pdev);
-	if (ret) {
-		qib_early_err(&pdev->dev,
-			      "Unable to enable pcie error reporting: %d\n",
-			      ret);
-		ret = 0;
-	}
 	goto done;
 
 bail:
@@ -145,7 +130,7 @@ int qib_pcie_ddinit(struct qib_devdata *dd, struct pci_dev *pdev,
 	addr = pci_resource_start(pdev, 0);
 	len = pci_resource_len(pdev, 0);
 
-	dd->kregbase = ioremap_nocache(addr, len);
+	dd->kregbase = ioremap(addr, len);
 	if (!dd->kregbase)
 		return -ENOMEM;
 
@@ -188,7 +173,7 @@ void qib_pcie_ddcleanup(struct qib_devdata *dd)
 	pci_set_drvdata(dd->pcidev, NULL);
 }
 
-/**
+/*
  * We save the msi lo and hi values, so we can restore them after
  * chip reset (the kernel PCI infrastructure doesn't yet handle that
  * correctly.
@@ -225,7 +210,7 @@ int qib_pcie_params(struct qib_devdata *dd, u32 minw, u32 *nent)
 	}
 
 	if (dd->flags & QIB_HAS_INTX)
-		flags |= PCI_IRQ_LEGACY;
+		flags |= PCI_IRQ_INTX;
 	maxvec = (nent && *nent) ? *nent : 1;
 	nvec = pci_alloc_irq_vectors(dd->pcidev, 1, maxvec, flags);
 	if (nvec < 0)
@@ -302,7 +287,7 @@ void qib_free_irq(struct qib_devdata *dd)
  * Setup pcie interrupt stuff again after a reset.  I'd like to just call
  * pci_enable_msi() again for msi, but when I do that,
  * the MSI enable bit doesn't get set in the command word, and
- * we switch to to a different interrupt vector, which is confusing,
+ * we switch to a different interrupt vector, which is confusing,
  * so I instead just do it all inline.  Perhaps somehow can tie this
  * into the PCIe hotplug support at some point
  */

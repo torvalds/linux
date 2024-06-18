@@ -8,6 +8,7 @@
  * should be used to determine that a VM is running under KVM.
  */
 #define KVM_CPUID_SIGNATURE	0x40000000
+#define KVM_SIGNATURE "KVMKVMKVM\0\0\0"
 
 /* This CPUID returns two feature bitmaps in eax, edx. Before enabling
  * a particular paravirtualization, the appropriate feature bit should
@@ -31,6 +32,10 @@
 #define KVM_FEATURE_PV_SEND_IPI	11
 #define KVM_FEATURE_POLL_CONTROL	12
 #define KVM_FEATURE_PV_SCHED_YIELD	13
+#define KVM_FEATURE_ASYNC_PF_INT	14
+#define KVM_FEATURE_MSI_EXT_DEST_ID	15
+#define KVM_FEATURE_HC_MAP_GPA_RANGE	16
+#define KVM_FEATURE_MIGRATION_CONTROL	17
 
 #define KVM_HINTS_REALTIME      0
 
@@ -50,6 +55,9 @@
 #define MSR_KVM_STEAL_TIME  0x4b564d03
 #define MSR_KVM_PV_EOI_EN      0x4b564d04
 #define MSR_KVM_POLL_CONTROL	0x4b564d05
+#define MSR_KVM_ASYNC_PF_INT	0x4b564d06
+#define MSR_KVM_ASYNC_PF_ACK	0x4b564d07
+#define MSR_KVM_MIGRATION_CONTROL	0x4b564d08
 
 struct kvm_steal_time {
 	__u64 steal;
@@ -81,6 +89,21 @@ struct kvm_clock_pairing {
 #define KVM_ASYNC_PF_ENABLED			(1 << 0)
 #define KVM_ASYNC_PF_SEND_ALWAYS		(1 << 1)
 #define KVM_ASYNC_PF_DELIVERY_AS_PF_VMEXIT	(1 << 2)
+#define KVM_ASYNC_PF_DELIVERY_AS_INT		(1 << 3)
+
+/* MSR_KVM_ASYNC_PF_INT */
+#define KVM_ASYNC_PF_VEC_MASK			__GENMASK(7, 0)
+
+/* MSR_KVM_MIGRATION_CONTROL */
+#define KVM_MIGRATION_READY		(1 << 0)
+
+/* KVM_HC_MAP_GPA_RANGE */
+#define KVM_MAP_GPA_RANGE_PAGE_SZ_4K	0
+#define KVM_MAP_GPA_RANGE_PAGE_SZ_2M	(1 << 0)
+#define KVM_MAP_GPA_RANGE_PAGE_SZ_1G	(1 << 1)
+#define KVM_MAP_GPA_RANGE_ENC_STAT(n)	(n << 4)
+#define KVM_MAP_GPA_RANGE_ENCRYPTED	KVM_MAP_GPA_RANGE_ENC_STAT(1)
+#define KVM_MAP_GPA_RANGE_DECRYPTED	KVM_MAP_GPA_RANGE_ENC_STAT(0)
 
 /* Operations for KVM_HC_MMU_OP */
 #define KVM_MMU_OP_WRITE_PTE            1
@@ -112,9 +135,13 @@ struct kvm_mmu_op_release_pt {
 #define KVM_PV_REASON_PAGE_READY 2
 
 struct kvm_vcpu_pv_apf_data {
-	__u32 reason;
-	__u8 pad[60];
-	__u32 enabled;
+	/* Used for 'page not present' events delivered via #PF */
+	__u32 flags;
+
+	/* Used for 'page ready' events delivered via interrupt notification */
+	__u32 token;
+
+	__u8 pad[56];
 };
 
 #define KVM_PV_EOI_BIT 0

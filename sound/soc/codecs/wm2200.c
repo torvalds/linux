@@ -14,7 +14,7 @@
 #include <linux/pm.h>
 #include <linux/firmware.h>
 #include <linux/gcd.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
@@ -30,7 +30,6 @@
 #include <sound/wm2200.h>
 
 #include "wm2200.h"
-#include "wmfw.h"
 #include "wm_adsp.h"
 
 #define WM2200_DSP_CONTROL_1                   0x00
@@ -72,13 +71,6 @@ static const char *wm2200_core_supply_names[WM2200_NUM_CORE_SUPPLIES] = {
 	"LDOVDD",
 };
 
-struct wm2200_fll {
-	int fref;
-	int fout;
-	int src;
-	struct completion lock;
-};
-
 /* codec private data */
 struct wm2200_priv {
 	struct wm_adsp dsp[2];
@@ -87,6 +79,8 @@ struct wm2200_priv {
 	struct snd_soc_component *component;
 	struct wm2200_pdata pdata;
 	struct regulator_bulk_data core_supplies[WM2200_NUM_CORE_SUPPLIES];
+	struct gpio_desc *ldo_ena;
+	struct gpio_desc *reset;
 
 	struct completion fll_lock;
 	int fll_fout;
@@ -153,13 +147,13 @@ static const struct regmap_range_cfg wm2200_ranges[] = {
 	  .window_start = WM2200_DSP2_ZM_0, .window_len = 1024, },
 };
 
-static const struct wm_adsp_region wm2200_dsp1_regions[] = {
+static const struct cs_dsp_region wm2200_dsp1_regions[] = {
 	{ .type = WMFW_ADSP1_PM, .base = WM2200_DSP1_PM_BASE },
 	{ .type = WMFW_ADSP1_DM, .base = WM2200_DSP1_DM_BASE },
 	{ .type = WMFW_ADSP1_ZM, .base = WM2200_DSP1_ZM_BASE },
 };
 
-static const struct wm_adsp_region wm2200_dsp2_regions[] = {
+static const struct cs_dsp_region wm2200_dsp2_regions[] = {
 	{ .type = WMFW_ADSP1_PM, .base = WM2200_DSP2_PM_BASE },
 	{ .type = WMFW_ADSP1_DM, .base = WM2200_DSP2_DM_BASE },
 	{ .type = WMFW_ADSP1_ZM, .base = WM2200_DSP2_ZM_BASE },
@@ -983,9 +977,10 @@ static const struct reg_sequence wm2200_reva_patch[] = {
 
 static int wm2200_reset(struct wm2200_priv *wm2200)
 {
-	if (wm2200->pdata.reset) {
-		gpio_set_value_cansleep(wm2200->pdata.reset, 0);
-		gpio_set_value_cansleep(wm2200->pdata.reset, 1);
+	if (wm2200->reset) {
+		/* Descriptor flagged active low, so this will be inverted */
+		gpiod_set_value_cansleep(wm2200->reset, 1);
+		gpiod_set_value_cansleep(wm2200->reset, 0);
 
 		return 0;
 	} else {
@@ -1778,11 +1773,6 @@ static int wm2200_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static const struct snd_soc_dai_ops wm2200_dai_ops = {
-	.set_fmt = wm2200_set_fmt,
-	.hw_params = wm2200_hw_params,
-};
-
 static int wm2200_set_sysclk(struct snd_soc_component *component, int clk_id,
 			     int source, unsigned int freq, int dir)
 {
@@ -2027,7 +2017,7 @@ static int wm2200_set_fll(struct snd_soc_component *component, int fll_id, int s
 			msleep(1);
 		}
 
-		ret = snd_soc_component_read32(component,
+		ret = snd_soc_component_read(component,
 				   WM2200_INTERRUPT_RAW_STATUS_2);
 		if (ret < 0) {
 			dev_err(component->dev,
@@ -2060,7 +2050,7 @@ static int wm2200_dai_probe(struct snd_soc_dai *dai)
 	unsigned int val = 0;
 	int ret;
 
-	ret = snd_soc_component_read32(component, WM2200_GPIO_CTRL_1);
+	ret = snd_soc_component_read(component, WM2200_GPIO_CTRL_1);
 	if (ret >= 0) {
 		if ((ret & WM2200_GP1_FN_MASK) != 0) {
 			wm2200->symmetric_rates = true;
@@ -2076,6 +2066,12 @@ static int wm2200_dai_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
+static const struct snd_soc_dai_ops wm2200_dai_ops = {
+	.probe = wm2200_dai_probe,
+	.set_fmt = wm2200_set_fmt,
+	.hw_params = wm2200_hw_params,
+};
+
 #define WM2200_RATES SNDRV_PCM_RATE_8000_48000
 
 #define WM2200_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
@@ -2083,7 +2079,6 @@ static int wm2200_dai_probe(struct snd_soc_dai *dai)
 
 static struct snd_soc_dai_driver wm2200_dai = {
 	.name = "wm2200",
-	.probe = wm2200_dai_probe,
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 2,
@@ -2112,7 +2107,6 @@ static const struct snd_soc_component_driver soc_component_wm2200 = {
 	.dapm_routes		= wm2200_dapm_routes,
 	.num_dapm_routes	= ARRAY_SIZE(wm2200_dapm_routes),
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static irqreturn_t wm2200_irq(int irq, void *data)
@@ -2160,7 +2154,7 @@ static const struct regmap_config wm2200_regmap = {
 	.num_reg_defaults = ARRAY_SIZE(wm2200_reg_defaults),
 	.volatile_reg = wm2200_volatile_register,
 	.readable_reg = wm2200_readable_register,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.ranges = wm2200_ranges,
 	.num_ranges = ARRAY_SIZE(wm2200_ranges),
 };
@@ -2184,8 +2178,7 @@ static const unsigned int wm2200_mic_ctrl_reg[] = {
 	WM2200_IN3L_CONTROL,
 };
 
-static int wm2200_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int wm2200_i2c_probe(struct i2c_client *i2c)
 {
 	struct wm2200_pdata *pdata = dev_get_platdata(&i2c->dev);
 	struct wm2200_priv *wm2200;
@@ -2210,23 +2203,23 @@ static int wm2200_i2c_probe(struct i2c_client *i2c,
 	}
 
 	for (i = 0; i < 2; i++) {
-		wm2200->dsp[i].type = WMFW_ADSP1;
+		wm2200->dsp[i].cs_dsp.type = WMFW_ADSP1;
 		wm2200->dsp[i].part = "wm2200";
-		wm2200->dsp[i].num = i + 1;
-		wm2200->dsp[i].dev = &i2c->dev;
-		wm2200->dsp[i].regmap = wm2200->regmap;
-		wm2200->dsp[i].sysclk_reg = WM2200_CLOCKING_3;
-		wm2200->dsp[i].sysclk_mask = WM2200_SYSCLK_FREQ_MASK;
-		wm2200->dsp[i].sysclk_shift =  WM2200_SYSCLK_FREQ_SHIFT;
+		wm2200->dsp[i].cs_dsp.num = i + 1;
+		wm2200->dsp[i].cs_dsp.dev = &i2c->dev;
+		wm2200->dsp[i].cs_dsp.regmap = wm2200->regmap;
+		wm2200->dsp[i].cs_dsp.sysclk_reg = WM2200_CLOCKING_3;
+		wm2200->dsp[i].cs_dsp.sysclk_mask = WM2200_SYSCLK_FREQ_MASK;
+		wm2200->dsp[i].cs_dsp.sysclk_shift =  WM2200_SYSCLK_FREQ_SHIFT;
 	}
 
-	wm2200->dsp[0].base = WM2200_DSP1_CONTROL_1;
-	wm2200->dsp[0].mem = wm2200_dsp1_regions;
-	wm2200->dsp[0].num_mems = ARRAY_SIZE(wm2200_dsp1_regions);
+	wm2200->dsp[0].cs_dsp.base = WM2200_DSP1_CONTROL_1;
+	wm2200->dsp[0].cs_dsp.mem = wm2200_dsp1_regions;
+	wm2200->dsp[0].cs_dsp.num_mems = ARRAY_SIZE(wm2200_dsp1_regions);
 
-	wm2200->dsp[1].base = WM2200_DSP2_CONTROL_1;
-	wm2200->dsp[1].mem = wm2200_dsp2_regions;
-	wm2200->dsp[1].num_mems = ARRAY_SIZE(wm2200_dsp2_regions);
+	wm2200->dsp[1].cs_dsp.base = WM2200_DSP2_CONTROL_1;
+	wm2200->dsp[1].cs_dsp.mem = wm2200_dsp2_regions;
+	wm2200->dsp[1].cs_dsp.num_mems = ARRAY_SIZE(wm2200_dsp2_regions);
 
 	for (i = 0; i < ARRAY_SIZE(wm2200->dsp); i++)
 		wm_adsp1_init(&wm2200->dsp[i]);
@@ -2256,28 +2249,28 @@ static int wm2200_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
-	if (wm2200->pdata.ldo_ena) {
-		ret = devm_gpio_request_one(&i2c->dev, wm2200->pdata.ldo_ena,
-					    GPIOF_OUT_INIT_HIGH,
-					    "WM2200 LDOENA");
-		if (ret < 0) {
-			dev_err(&i2c->dev, "Failed to request LDOENA %d: %d\n",
-				wm2200->pdata.ldo_ena, ret);
-			goto err_enable;
-		}
+	wm2200->ldo_ena = devm_gpiod_get_optional(&i2c->dev, "wlf,ldo1ena",
+						  GPIOD_OUT_HIGH);
+	if (IS_ERR(wm2200->ldo_ena)) {
+		ret = PTR_ERR(wm2200->ldo_ena);
+		dev_err(&i2c->dev, "Failed to request LDOENA GPIO %d\n",
+			ret);
+		goto err_enable;
+	}
+	if (wm2200->ldo_ena) {
+		gpiod_set_consumer_name(wm2200->ldo_ena, "WM2200 LDOENA");
 		msleep(2);
 	}
 
-	if (wm2200->pdata.reset) {
-		ret = devm_gpio_request_one(&i2c->dev, wm2200->pdata.reset,
-					    GPIOF_OUT_INIT_HIGH,
-					    "WM2200 /RESET");
-		if (ret < 0) {
-			dev_err(&i2c->dev, "Failed to request /RESET %d: %d\n",
-				wm2200->pdata.reset, ret);
-			goto err_ldo;
-		}
+	wm2200->reset = devm_gpiod_get_optional(&i2c->dev, "reset",
+						GPIOD_OUT_LOW);
+	if (IS_ERR(wm2200->reset)) {
+		ret = PTR_ERR(wm2200->reset);
+		dev_err(&i2c->dev, "Failed to request RESET GPIO %d\n",
+			ret);
+		goto err_ldo;
 	}
+	gpiod_set_consumer_name(wm2200->reset, "WM2200 /RESET");
 
 	ret = regmap_read(wm2200->regmap, WM2200_SOFTWARE_RESET, &reg);
 	if (ret < 0) {
@@ -2410,30 +2403,30 @@ static int wm2200_i2c_probe(struct i2c_client *i2c,
 
 err_pm_runtime:
 	pm_runtime_disable(&i2c->dev);
+	if (i2c->irq)
+		free_irq(i2c->irq, wm2200);
 err_reset:
-	if (wm2200->pdata.reset)
-		gpio_set_value_cansleep(wm2200->pdata.reset, 0);
+	gpiod_set_value_cansleep(wm2200->reset, 1);
 err_ldo:
-	if (wm2200->pdata.ldo_ena)
-		gpio_set_value_cansleep(wm2200->pdata.ldo_ena, 0);
+	gpiod_set_value_cansleep(wm2200->ldo_ena, 0);
 err_enable:
 	regulator_bulk_disable(ARRAY_SIZE(wm2200->core_supplies),
 			       wm2200->core_supplies);
 	return ret;
 }
 
-static int wm2200_i2c_remove(struct i2c_client *i2c)
+static void wm2200_i2c_remove(struct i2c_client *i2c)
 {
 	struct wm2200_priv *wm2200 = i2c_get_clientdata(i2c);
 
+	pm_runtime_disable(&i2c->dev);
 	if (i2c->irq)
 		free_irq(i2c->irq, wm2200);
-	if (wm2200->pdata.reset)
-		gpio_set_value_cansleep(wm2200->pdata.reset, 0);
-	if (wm2200->pdata.ldo_ena)
-		gpio_set_value_cansleep(wm2200->pdata.ldo_ena, 0);
-
-	return 0;
+	/* Assert RESET, disable LDO */
+	gpiod_set_value_cansleep(wm2200->reset, 1);
+	gpiod_set_value_cansleep(wm2200->ldo_ena, 0);
+	regulator_bulk_disable(ARRAY_SIZE(wm2200->core_supplies),
+			       wm2200->core_supplies);
 }
 
 #ifdef CONFIG_PM
@@ -2443,8 +2436,7 @@ static int wm2200_runtime_suspend(struct device *dev)
 
 	regcache_cache_only(wm2200->regmap, true);
 	regcache_mark_dirty(wm2200->regmap);
-	if (wm2200->pdata.ldo_ena)
-		gpio_set_value_cansleep(wm2200->pdata.ldo_ena, 0);
+	gpiod_set_value_cansleep(wm2200->ldo_ena, 0);
 	regulator_bulk_disable(ARRAY_SIZE(wm2200->core_supplies),
 			       wm2200->core_supplies);
 
@@ -2464,8 +2456,8 @@ static int wm2200_runtime_resume(struct device *dev)
 		return ret;
 	}
 
-	if (wm2200->pdata.ldo_ena) {
-		gpio_set_value_cansleep(wm2200->pdata.ldo_ena, 1);
+	if (wm2200->ldo_ena) {
+		gpiod_set_value_cansleep(wm2200->ldo_ena, 1);
 		msleep(2);
 	}
 
@@ -2482,7 +2474,7 @@ static const struct dev_pm_ops wm2200_pm = {
 };
 
 static const struct i2c_device_id wm2200_i2c_id[] = {
-	{ "wm2200", 0 },
+	{ "wm2200" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm2200_i2c_id);

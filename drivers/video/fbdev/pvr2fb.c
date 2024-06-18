@@ -45,6 +45,7 @@
 
 #undef DEBUG
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -646,16 +647,33 @@ static ssize_t pvr2fb_write(struct fb_info *info, const char *buf,
 	struct page **pages;
 	int ret, i;
 
+	if (!info->screen_base)
+		return -ENODEV;
+
 	nr_pages = (count + PAGE_SIZE - 1) >> PAGE_SHIFT;
 
 	pages = kmalloc_array(nr_pages, sizeof(struct page *), GFP_KERNEL);
 	if (!pages)
 		return -ENOMEM;
 
-	ret = get_user_pages_fast((unsigned long)buf, nr_pages, FOLL_WRITE, pages);
+	ret = pin_user_pages_fast((unsigned long)buf, nr_pages, FOLL_WRITE, pages);
 	if (ret < nr_pages) {
-		nr_pages = ret;
-		ret = -EINVAL;
+		if (ret < 0) {
+			/*
+			 *  Clamp the unsigned nr_pages to zero so that the
+			 *  error handling works. And leave ret at whatever
+			 *  -errno value was returned from GUP.
+			 */
+			nr_pages = 0;
+		} else {
+			nr_pages = ret;
+			/*
+			 * Use -EINVAL to represent a mildly desperate guess at
+			 * why we got fewer pages (maybe even zero pages) than
+			 * requested.
+			 */
+			ret = -EINVAL;
+		}
 		goto out_unmap;
 	}
 
@@ -698,27 +716,27 @@ out:
 	ret = count;
 
 out_unmap:
-	for (i = 0; i < nr_pages; i++)
-		put_page(pages[i]);
-
+	unpin_user_pages(pages, nr_pages);
 	kfree(pages);
 
 	return ret;
 }
 #endif /* CONFIG_PVR2_DMA */
 
-static struct fb_ops pvr2fb_ops = {
+static const struct fb_ops pvr2fb_ops = {
 	.owner		= THIS_MODULE,
+#ifdef CONFIG_PVR2_DMA
+	.fb_read	= fb_io_read,
+	.fb_write	= pvr2fb_write,
+#else
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
+#endif
 	.fb_setcolreg	= pvr2fb_setcolreg,
 	.fb_blank	= pvr2fb_blank,
+	__FB_DEFAULT_IOMEM_OPS_DRAW,
 	.fb_check_var	= pvr2fb_check_var,
 	.fb_set_par	= pvr2fb_set_par,
-#ifdef CONFIG_PVR2_DMA
-	.fb_write	= pvr2fb_write,
-#endif
-	.fb_fillrect	= cfb_fillrect,
-	.fb_copyarea	= cfb_copyarea,
-	.fb_imageblit	= cfb_imageblit,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 };
 
 #ifndef MODULE
@@ -770,7 +788,7 @@ static int __maybe_unused pvr2fb_common_init(void)
 	struct pvr2fb_par *par = currentpar;
 	unsigned long modememused, rev;
 
-	fb_info->screen_base = ioremap_nocache(pvr2_fix.smem_start,
+	fb_info->screen_base = ioremap(pvr2_fix.smem_start,
 					       pvr2_fix.smem_len);
 
 	if (!fb_info->screen_base) {
@@ -778,14 +796,14 @@ static int __maybe_unused pvr2fb_common_init(void)
 		goto out_err;
 	}
 
-	par->mmio_base = ioremap_nocache(pvr2_fix.mmio_start,
+	par->mmio_base = ioremap(pvr2_fix.mmio_start,
 					 pvr2_fix.mmio_len);
 	if (!par->mmio_base) {
 		printk(KERN_ERR "pvr2fb: Failed to remap mmio space\n");
 		goto out_err;
 	}
 
-	fb_memset(fb_info->screen_base, 0, pvr2_fix.smem_len);
+	fb_memset_io(fb_info->screen_base, 0, pvr2_fix.smem_len);
 
 	pvr2_fix.ypanstep	= nopan  ? 0 : 1;
 	pvr2_fix.ywrapstep	= nowrap ? 0 : 1;
@@ -794,7 +812,7 @@ static int __maybe_unused pvr2fb_common_init(void)
 	fb_info->fix		= pvr2_fix;
 	fb_info->par		= currentpar;
 	fb_info->pseudo_palette	= currentpar->palette;
-	fb_info->flags		= FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN;
+	fb_info->flags		= FBINFO_HWACCEL_YPAN;
 
 	if (video_output == VO_VGA)
 		defmode = DEFMODE_VGA;
@@ -930,6 +948,10 @@ static int pvr2fb_pci_probe(struct pci_dev *pdev,
 {
 	int ret;
 
+	ret = aperture_remove_conflicting_pci_devices(pdev, "pvrfb");
+	if (ret)
+		return ret;
+
 	ret = pci_enable_device(pdev);
 	if (ret) {
 		printk(KERN_ERR "pvr2fb: PCI enable failed\n");
@@ -1016,6 +1038,8 @@ static int __init pvr2fb_setup(char *options)
 	if (!options || !*options)
 		return 0;
 
+	cable_arg[0] = output_arg[0] = 0;
+
 	while ((this_opt = strsep(&options, ","))) {
 		if (!*this_opt)
 			continue;
@@ -1063,7 +1087,12 @@ static int __init pvr2fb_init(void)
 
 #ifndef MODULE
 	char *option = NULL;
+#endif
 
+	if (fb_modesetting_disabled("pvr2fb"))
+		return -ENODEV;
+
+#ifndef MODULE
 	if (fb_get_options("pvr2fb", &option))
 		return -ENODEV;
 	pvr2fb_setup(option);

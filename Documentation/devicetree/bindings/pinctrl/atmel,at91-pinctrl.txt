@@ -20,6 +20,7 @@ such as pull-up, multi drive, etc.
 Required properties for iomux controller:
 - compatible: "atmel,at91rm9200-pinctrl" or "atmel,at91sam9x5-pinctrl"
 		or "atmel,sama5d3-pinctrl" or "microchip,sam9x60-pinctrl"
+		or "microchip,sam9x7-pinctrl", "microchip,sam9x60-pinctrl"
 - atmel,mux-mask: array of mask (periph per bank) to describe if a pin can be
   configured in this periph mode. All the periph and bank need to be describe.
 
@@ -38,7 +39,7 @@ Bank: 3 (A, B and C)
   0xffffffff 0x7fff3ccf  /* pioB */
   0xffffffff 0x007fffff  /* pioC */
 
-For each peripheral/bank we will descibe in a u32 if a pin can be
+For each peripheral/bank we will describe in a u32 if a pin can be
 configured in it by putting 1 to the pin bit (1 << pin)
 
 Let's take the pioA on peripheral B
@@ -120,6 +121,7 @@ Some requirements for using atmel,at91rm9200-pinctrl binding:
 For each bank the required properties are:
 - compatible: "atmel,at91sam9x5-gpio" or "atmel,at91rm9200-gpio" or
   "microchip,sam9x60-gpio"
+  or "microchip,sam9x7-gpio", "microchip,sam9x60-gpio", "atmel,at91rm9200-gpio"
 - reg: physical base address and length of the controller's registers
 - interrupts: interrupt outputs from the controller
 - interrupt-controller: marks the device node as an interrupt controller

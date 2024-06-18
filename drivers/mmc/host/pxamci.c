@@ -30,11 +30,10 @@
 #include <linux/gpio/consumer.h>
 #include <linux/gfp.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/soc/pxa/cpu.h>
 
 #include <linux/sizes.h>
 
-#include <mach/hardware.h>
 #include <linux/platform_data/mmc-pxamci.h>
 
 #include "pxamci.h"
@@ -612,7 +611,6 @@ static int pxamci_probe(struct platform_device *pdev)
 	struct resource *r;
 	int ret, irq;
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
@@ -648,7 +646,7 @@ static int pxamci_probe(struct platform_device *pdev)
 
 	ret = pxamci_of_init(pdev, mmc);
 	if (ret)
-		return ret;
+		goto out;
 
 	host = mmc_priv(mmc);
 	host->mmc = mmc;
@@ -672,7 +670,7 @@ static int pxamci_probe(struct platform_device *pdev)
 
 	ret = pxamci_init_ocr(host);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	mmc->caps = 0;
 	host->cmdat = 0;
@@ -685,14 +683,14 @@ static int pxamci_probe(struct platform_device *pdev)
 	}
 
 	spin_lock_init(&host->lock);
-	host->res = r;
 	host->imask = MMC_I_MASK_ALL;
 
-	host->base = devm_ioremap_resource(dev, r);
+	host->base = devm_platform_get_and_ioremap_resource(pdev, 0, &r);
 	if (IS_ERR(host->base)) {
 		ret = PTR_ERR(host->base);
 		goto out;
 	}
+	host->res = r;
 
 	/*
 	 * Ensure that the host controller is shut down, and setup
@@ -710,17 +708,19 @@ static int pxamci_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, mmc);
 
-	host->dma_chan_rx = dma_request_slave_channel(dev, "rx");
-	if (host->dma_chan_rx == NULL) {
+	host->dma_chan_rx = dma_request_chan(dev, "rx");
+	if (IS_ERR(host->dma_chan_rx)) {
 		dev_err(dev, "unable to request rx dma channel\n");
-		ret = -ENODEV;
+		ret = PTR_ERR(host->dma_chan_rx);
+		host->dma_chan_rx = NULL;
 		goto out;
 	}
 
-	host->dma_chan_tx = dma_request_slave_channel(dev, "tx");
-	if (host->dma_chan_tx == NULL) {
+	host->dma_chan_tx = dma_request_chan(dev, "tx");
+	if (IS_ERR(host->dma_chan_tx)) {
 		dev_err(dev, "unable to request tx dma channel\n");
-		ret = -ENODEV;
+		ret = PTR_ERR(host->dma_chan_tx);
+		host->dma_chan_tx = NULL;
 		goto out;
 	}
 
@@ -729,27 +729,28 @@ static int pxamci_probe(struct platform_device *pdev)
 
 		host->power = devm_gpiod_get_optional(dev, "power", GPIOD_OUT_LOW);
 		if (IS_ERR(host->power)) {
+			ret = PTR_ERR(host->power);
 			dev_err(dev, "Failed requesting gpio_power\n");
 			goto out;
 		}
 
 		/* FIXME: should we pass detection delay to debounce? */
-		ret = mmc_gpiod_request_cd(mmc, "cd", 0, false, 0, NULL);
+		ret = mmc_gpiod_request_cd(mmc, "cd", 0, false, 0);
 		if (ret && ret != -ENOENT) {
 			dev_err(dev, "Failed requesting gpio_cd\n");
 			goto out;
 		}
 
-		ret = mmc_gpiod_request_ro(mmc, "wp", 0, 0, NULL);
+		if (!host->pdata->gpio_card_ro_invert)
+			mmc->caps2 |= MMC_CAP2_RO_ACTIVE_HIGH;
+
+		ret = mmc_gpiod_request_ro(mmc, "wp", 0, 0);
 		if (ret && ret != -ENOENT) {
 			dev_err(dev, "Failed requesting gpio_ro\n");
 			goto out;
 		}
-		if (!ret) {
+		if (!ret)
 			host->use_ro_gpio = true;
-			mmc->caps2 |= host->pdata->gpio_card_ro_invert ?
-				0 : MMC_CAP2_RO_ACTIVE_HIGH;
-		}
 
 		if (host->pdata->init)
 			host->pdata->init(dev, pxamci_detect_irq, mmc);
@@ -760,7 +761,12 @@ static int pxamci_probe(struct platform_device *pdev)
 			dev_warn(dev, "gpio_ro and get_ro() both defined\n");
 	}
 
-	mmc_add_host(mmc);
+	ret = mmc_add_host(mmc);
+	if (ret) {
+		if (host->pdata && host->pdata->exit)
+			host->pdata->exit(dev, mmc);
+		goto out;
+	}
 
 	return 0;
 
@@ -776,7 +782,7 @@ out:
 	return ret;
 }
 
-static int pxamci_remove(struct platform_device *pdev)
+static void pxamci_remove(struct platform_device *pdev)
 {
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 
@@ -800,15 +806,14 @@ static int pxamci_remove(struct platform_device *pdev)
 
 		mmc_free_host(mmc);
 	}
-
-	return 0;
 }
 
 static struct platform_driver pxamci_driver = {
 	.probe		= pxamci_probe,
-	.remove		= pxamci_remove,
+	.remove_new	= pxamci_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(pxa_mmc_dt_ids),
 	},
 };

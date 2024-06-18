@@ -339,7 +339,7 @@ void __kprobes disasm_instr(unsigned long addr, struct disasm_state *state,
 
 	case op_LDWX_S:	/* LDWX_S c, [b, u6] */
 		state->x = 1;
-		/* intentional fall-through */
+		fallthrough;
 
 	case op_LDW_S:	/* LDW_S c, [b, u6] */
 		state->zz = 2;
@@ -366,7 +366,7 @@ void __kprobes disasm_instr(unsigned long addr, struct disasm_state *state,
 	case op_SP:	/* LD_S|LDB_S b,[sp,u7], ST_S|STB_S b,[sp,u7] */
 		/* note: we are ignoring possibility of:
 		 * ADD_S, SUB_S, PUSH_S, POP_S as these should not
-		 * cause unaliged exception anyway */
+		 * cause unaligned exception anyway */
 		state->write = BITS(state->words[0], 6, 6);
 		state->zz = BITS(state->words[0], 5, 5);
 		if (state->zz)
@@ -434,14 +434,31 @@ long __kprobes get_reg(int reg, struct pt_regs *regs,
 {
 	long *p;
 
+#if defined(CONFIG_ISA_ARCOMPACT)
 	if (reg <= 12) {
 		p = &regs->r0;
 		return p[-reg];
 	}
+#else /* CONFIG_ISA_ARCV2 */
+	if (reg <= 11) {
+		p = &regs->r0;
+		return p[reg];
+	}
 
+	if (reg == 12)
+		return regs->r12;
+	if (reg == 30)
+		return regs->r30;
+#ifdef CONFIG_ARC_HAS_ACCL_REGS
+	if (reg == 58)
+		return regs->r58;
+	if (reg == 59)
+		return regs->r59;
+#endif
+#endif
 	if (cregs && (reg <= 25)) {
 		p = &cregs->r13;
-		return p[13-reg];
+		return p[13 - reg];
 	}
 
 	if (reg == 26)
@@ -461,6 +478,7 @@ void __kprobes set_reg(int reg, long val, struct pt_regs *regs,
 {
 	long *p;
 
+#if defined(CONFIG_ISA_ARCOMPACT)
 	switch (reg) {
 	case 0 ... 12:
 		p = &regs->r0;
@@ -469,7 +487,7 @@ void __kprobes set_reg(int reg, long val, struct pt_regs *regs,
 	case 13 ... 25:
 		if (cregs) {
 			p = &cregs->r13;
-			p[13-reg] = val;
+			p[13 - reg] = val;
 		}
 		break;
 	case 26:
@@ -487,6 +505,48 @@ void __kprobes set_reg(int reg, long val, struct pt_regs *regs,
 	default:
 		break;
 	}
+#else /* CONFIG_ISA_ARCV2 */
+	switch (reg) {
+	case 0 ... 11:
+		p = &regs->r0;
+		p[reg] = val;
+		break;
+	case 12:
+		regs->r12 = val;
+		break;
+	case 13 ... 25:
+		if (cregs) {
+			p = &cregs->r13;
+			p[13 - reg] = val;
+		}
+		break;
+	case 26:
+		regs->r26 = val;
+		break;
+	case 27:
+		regs->fp = val;
+		break;
+	case 28:
+		regs->sp = val;
+		break;
+	case 30:
+		regs->r30 = val;
+		break;
+	case 31:
+		regs->blink = val;
+		break;
+#ifdef CONFIG_ARC_HAS_ACCL_REGS
+	case 58:
+		regs->r58 = val;
+		break;
+	case 59:
+		regs->r59 = val;
+		break;
+#endif
+	default:
+		break;
+	}
+#endif
 }
 
 /*
@@ -503,7 +563,6 @@ int __kprobes disasm_next_pc(unsigned long pc, struct pt_regs *regs,
 {
 	struct disasm_state instr;
 
-	memset(&instr, 0, sizeof(struct disasm_state));
 	disasm_instr(pc, &instr, 0, regs, cregs);
 
 	*next_pc = pc + instr.instr_len;

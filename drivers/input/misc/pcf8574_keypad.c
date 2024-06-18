@@ -80,7 +80,7 @@ static irqreturn_t pcf8574_kp_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int pcf8574_kp_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int pcf8574_kp_probe(struct i2c_client *client)
 {
 	int i, ret;
 	struct input_dev *idev;
@@ -157,7 +157,7 @@ static int pcf8574_kp_probe(struct i2c_client *client, const struct i2c_device_i
 	return ret;
 }
 
-static int pcf8574_kp_remove(struct i2c_client *client)
+static void pcf8574_kp_remove(struct i2c_client *client)
 {
 	struct kp_data *lp = i2c_get_clientdata(client);
 
@@ -165,11 +165,8 @@ static int pcf8574_kp_remove(struct i2c_client *client)
 
 	input_unregister_device(lp->idev);
 	kfree(lp);
-
-	return 0;
 }
 
-#ifdef CONFIG_PM
 static int pcf8574_kp_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -188,18 +185,11 @@ static int pcf8574_kp_suspend(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops pcf8574_kp_pm_ops = {
-	.suspend	= pcf8574_kp_suspend,
-	.resume		= pcf8574_kp_resume,
-};
-
-#else
-# define pcf8574_kp_resume  NULL
-# define pcf8574_kp_suspend NULL
-#endif
+static DEFINE_SIMPLE_DEV_PM_OPS(pcf8574_kp_pm_ops,
+				pcf8574_kp_suspend, pcf8574_kp_resume);
 
 static const struct i2c_device_id pcf8574_kp_id[] = {
-	{ DRV_NAME, 0 },
+	{ DRV_NAME },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pcf8574_kp_id);
@@ -207,9 +197,7 @@ MODULE_DEVICE_TABLE(i2c, pcf8574_kp_id);
 static struct i2c_driver pcf8574_kp_driver = {
 	.driver = {
 		.name  = DRV_NAME,
-#ifdef CONFIG_PM
-		.pm = &pcf8574_kp_pm_ops,
-#endif
+		.pm = pm_sleep_ptr(&pcf8574_kp_pm_ops),
 	},
 	.probe    = pcf8574_kp_probe,
 	.remove   = pcf8574_kp_remove,

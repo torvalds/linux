@@ -1,0 +1,327 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/dlg,da9063.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Dialog DA906{3L,3,2,1} Power Management Integrated Circuit (PMIC)
+
+maintainers:
+  - Steve Twiss <stwiss.opensource@diasemi.com>
+
+description: |
+  For device-tree bindings of other sub-modules refer to the binding documents
+  under the respective sub-system directories.
+  Using regulator-{uv,ov}-{warn,error,protection}-microvolt requires special
+  handling: First, when GP_FB2 is used, it must be ensured that there is no
+  moment where all voltage monitors are disabled. Next, as da9063 only supports
+  UV *and* OV monitoring, both must be set to the same severity and value
+  (0: disable, 1: enable).
+  Product information for the DA906{3L,3,2,1} devices can be found here:
+  - https://www.dialog-semiconductor.com/products/da9063l
+  - https://www.dialog-semiconductor.com/products/da9063
+  - https://www.dialog-semiconductor.com/products/da9062
+  - https://www.dialog-semiconductor.com/products/da9061
+
+properties:
+  compatible:
+    enum:
+      - dlg,da9061
+      - dlg,da9062
+      - dlg,da9063
+      - dlg,da9063l
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-controller: true
+
+  "#interrupt-cells":
+    const: 2
+
+  gpio-controller: true
+
+  "#gpio-cells":
+    const: 2
+
+  gpio:
+    type: object
+    additionalProperties: false
+    properties:
+      compatible:
+        const: dlg,da9062-gpio
+
+  onkey:
+    $ref: /schemas/input/dlg,da9062-onkey.yaml
+
+  regulators:
+    type: object
+    additionalProperties: false
+    patternProperties:
+      "^(ldo([1-9]|1[01])|bcore([1-2]|s-merged)|b(pro|mem|io|peri)|bmem-bio-merged|buck[1-4])$":
+        $ref: /schemas/regulator/regulator.yaml
+        unevaluatedProperties: false
+
+  rtc:
+    type: object
+    $ref: /schemas/rtc/rtc.yaml#
+    unevaluatedProperties: false
+    properties:
+      compatible:
+        enum:
+          - dlg,da9062-rtc
+          - dlg,da9063-rtc
+
+  thermal:
+    $ref: /schemas/thermal/dlg,da9062-thermal.yaml
+
+  watchdog:
+    $ref: /schemas/watchdog/dlg,da9062-watchdog.yaml
+
+patternProperties:
+  "^(.+-hog(-[0-9]+)?)$":
+    type: object
+
+    required:
+      - gpio-hog
+
+required:
+  - compatible
+  - reg
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - dlg,da9063
+              - dlg,da9063l
+    then:
+      properties:
+        gpio-controller: false
+        "#gpio-cells": false
+        gpio: false
+        regulators:
+          patternProperties:
+            "^buck[1-4]$": false
+        thermal: false
+      required:
+        - interrupts
+        - interrupt-controller
+        - '#interrupt-cells'
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - dlg,da9062
+    then:
+      properties:
+        regulators:
+          patternProperties:
+            "^(ldo([5-9]|10|11)|bcore([1-2]|s-merged)|b(pro|mem|io|peri)|bmem-bio-merged)$": false
+      required:
+        - gpio
+        - onkey
+        - rtc
+        - thermal
+        - watchdog
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - dlg,da9061
+    then:
+      properties:
+        gpio-controller: false
+        "#gpio-cells": false
+        gpio: false
+        regulators:
+          patternProperties:
+            "^(ldo([5-9]|10|11)|bcore([1-2]|s-merged)|b(pro|mem|io|peri)|bmem-bio-merged|buck4)$": false
+        rtc: false
+      required:
+        - onkey
+        - thermal
+        - watchdog
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+      pmic@58 {
+        compatible = "dlg,da9063";
+        reg = <0x58>;
+        interrupt-parent = <&gpio6>;
+        interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
+        interrupt-controller;
+        #interrupt-cells = <2>;
+
+        rtc {
+          compatible = "dlg,da9063-rtc";
+        };
+
+        watchdog {
+          compatible = "dlg,da9063-watchdog";
+        };
+
+        onkey {
+          compatible = "dlg,da9063-onkey";
+          dlg,disable-key-power;
+        };
+
+        regulators {
+          bcore1 {
+            regulator-name = "BCORE1";
+            regulator-min-microvolt = <300000>;
+            regulator-max-microvolt = <1570000>;
+            regulator-min-microamp = <500000>;
+            regulator-max-microamp = <2000000>;
+            regulator-boot-on;
+          };
+          ldo6 {
+            /* UNUSED */
+            regulator-name = "LDO_6";
+            regulator-uv-protection-microvolt = <0>;
+            regulator-ov-protection-microvolt = <0>;
+          };
+          ldo11 {
+            regulator-name = "LDO_11";
+            regulator-min-microvolt = <900000>;
+            regulator-max-microvolt = <900000>;
+            regulator-uv-protection-microvolt = <1>;
+            regulator-ov-protection-microvolt = <1>;
+            regulator-always-on;
+          };
+        };
+      };
+    };
+
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/regulator/dlg,da9063-regulator.h>
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+      pmic@58 {
+        compatible = "dlg,da9062";
+        reg = <0x58>;
+        gpio-controller;
+        #gpio-cells = <2>;
+
+        sd0-pwr-sel-hog {
+          gpio-hog;
+          gpios = <1 0>;
+          input;
+          line-name = "SD0_PWR_SEL";
+        };
+
+        sd1-pwr-sel-hog {
+          gpio-hog;
+          gpios = <2 0>;
+          input;
+          line-name = "SD1_PWR_SEL";
+        };
+
+        sw-et0-en-hog {
+          gpio-hog;
+          gpios = <3 0>;
+          input;
+          line-name = "SW_ET0_EN#";
+        };
+
+        pmic-good-hog {
+          gpio-hog;
+          gpios = <4 0>;
+          output-high;
+          line-name = "PMIC_PGOOD";
+        };
+
+        gpio {
+          compatible = "dlg,da9062-gpio";
+        };
+
+        onkey {
+          compatible = "dlg,da9062-onkey";
+        };
+
+        regulators {
+          buck1 {
+            regulator-name = "vdd_arm";
+            regulator-min-microvolt = <925000>;
+            regulator-max-microvolt = <1380000>;
+            regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
+            regulator-always-on;
+          };
+          buck2 {
+            regulator-name = "vdd_soc";
+            regulator-min-microvolt = <1150000>;
+            regulator-max-microvolt = <1380000>;
+            regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
+            regulator-always-on;
+          };
+          buck3 {
+            regulator-name = "vdd_ddr3";
+            regulator-min-microvolt = <1500000>;
+            regulator-max-microvolt = <1500000>;
+            regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
+            regulator-always-on;
+          };
+          buck4 {
+            regulator-name = "vdd_eth";
+            regulator-min-microvolt = <1200000>;
+            regulator-max-microvolt = <1200000>;
+            regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
+            regulator-always-on;
+          };
+          ldo1 {
+            regulator-name = "vdd_snvs";
+            regulator-min-microvolt = <3000000>;
+            regulator-max-microvolt = <3000000>;
+            regulator-always-on;
+          };
+          ldo2 {
+            regulator-name = "vdd_high";
+            regulator-min-microvolt = <3000000>;
+            regulator-max-microvolt = <3000000>;
+            regulator-always-on;
+          };
+          ldo3 {
+            regulator-name = "vdd_eth_io";
+            regulator-min-microvolt = <2500000>;
+            regulator-max-microvolt = <2500000>;
+          };
+          ldo4 {
+            regulator-name = "vdd_emmc";
+            regulator-min-microvolt = <1800000>;
+            regulator-max-microvolt = <1800000>;
+            regulator-always-on;
+          };
+        };
+
+        rtc {
+          compatible = "dlg,da9062-rtc";
+        };
+
+        thermal {
+          compatible = "dlg,da9062-thermal";
+        };
+
+        watchdog {
+          compatible = "dlg,da9062-watchdog";
+          dlg,use-sw-pm;
+        };
+      };
+    };
+...

@@ -60,6 +60,7 @@
 #define   SD_EXIST			(1 << 16)
 #define   DELINK_INT			GPIO0_INT
 #define   MS_OC_INT			(1 << 23)
+#define   SD_OVP_INT		(1 << 23)
 #define   SD_OC_INT			(1 << 22)
 
 #define CARD_INT		(XD_INT | MS_INT | SD_INT)
@@ -80,8 +81,10 @@
 #define   OC_INT_EN			(1 << 23)
 #define   DELINK_INT_EN			GPIO0_INT_EN
 #define   MS_OC_INT_EN			(1 << 23)
+#define   SD_OVP_INT_EN			(1 << 23)
 #define   SD_OC_INT_EN			(1 << 22)
 
+#define RTSX_DUM_REG			0x1C
 
 /*
  * macros for easy use
@@ -98,18 +101,6 @@
 	iowrite8(value, (pcr)->remap_addr + reg)
 #define rtsx_pci_readb(pcr, reg) \
 	ioread8((pcr)->remap_addr + reg)
-
-#define rtsx_pci_read_config_byte(pcr, where, val) \
-	pci_read_config_byte((pcr)->pci, where, val)
-
-#define rtsx_pci_write_config_byte(pcr, where, val) \
-	pci_write_config_byte((pcr)->pci, where, val)
-
-#define rtsx_pci_read_config_dword(pcr, where, val) \
-	pci_read_config_dword((pcr)->pci, where, val)
-
-#define rtsx_pci_write_config_dword(pcr, where, val) \
-	pci_write_config_dword((pcr)->pci, where, val)
 
 #define STATE_TRANS_NONE		0
 #define STATE_TRANS_CMD			1
@@ -305,6 +296,8 @@
 #define   SD30_CLK_STOP_CFG0		0x01
 #define REG_PRE_RW_MODE			0xFD70
 #define EN_INFINITE_MODE		0x01
+#define REG_CRC_DUMMY_0		0xFD71
+#define CFG_SD_POW_AUTO_PD		(1<<0)
 
 #define SRCTL				0xFC13
 
@@ -592,6 +585,7 @@
 #define   OBFF_DISABLE			0x00
 
 #define CDRESUMECTL			0xFE52
+#define CDGW				0xFE53
 #define WAKE_SEL_CTL			0xFE54
 #define PCLK_CTL			0xFE55
 #define   PCLK_MODE_SEL			0x20
@@ -599,6 +593,7 @@
 
 #define ASPM_FORCE_CTL			0xFE57
 #define   FORCE_ASPM_CTL0		0x10
+#define   FORCE_ASPM_CTL1		0x20
 #define   FORCE_ASPM_VAL_MASK		0x03
 #define   FORCE_ASPM_L1_EN		0x02
 #define   FORCE_ASPM_L0_EN		0x01
@@ -667,6 +662,28 @@
 #define   PM_WAKE_EN			0x01
 #define PM_CTRL4			0xFF47
 
+/* FW config info register */
+#define RTS5261_FW_CFG_INFO0		0xFF50
+#define   RTS5261_FW_EXPRESS_TEST_MASK	(0x01 << 0)
+#define   RTS5261_FW_EA_MODE_MASK	(0x01 << 5)
+#define RTS5261_FW_CFG0			0xFF54
+#define   RTS5261_FW_ENTER_EXPRESS	(0x01 << 0)
+
+#define RTS5261_FW_CFG1			0xFF55
+#define   RTS5261_SYS_CLK_SEL_MCU_CLK	(0x01 << 7)
+#define   RTS5261_CRC_CLK_SEL_MCU_CLK	(0x01 << 6)
+#define   RTS5261_FAKE_MCU_CLOCK_GATING	(0x01 << 5)
+#define   RTS5261_MCU_BUS_SEL_MASK	(0x01 << 4)
+#define   RTS5261_MCU_CLOCK_SEL_MASK	(0x03 << 2)
+#define   RTS5261_MCU_CLOCK_SEL_16M	(0x01 << 2)
+#define   RTS5261_MCU_CLOCK_GATING	(0x01 << 1)
+#define   RTS5261_DRIVER_ENABLE_FW	(0x01 << 0)
+
+#define REG_CFG_OOBS_OFF_TIMER 0xFEA6
+#define REG_CFG_OOBS_ON_TIMER 0xFEA7
+#define REG_CFG_VCM_ON_TIMER 0xFEA8
+#define REG_CFG_OOBS_POLLING 0xFEA9
+
 /* Memory mapping */
 #define SRAM_BASE			0xE600
 #define RBUF_BASE			0xF400
@@ -704,6 +721,13 @@
 /*RTS5260*/
 #define   RTS5260_DVCC_TUNE_MASK	0x70
 #define   RTS5260_DVCC_33		0x70
+
+/*RTS5261*/
+#define RTS5261_LDO1_CFG0		0xFF72
+#define   RTS5261_LDO1_OCP_THD_MASK	(0x07 << 5)
+#define   RTS5261_LDO1_OCP_EN		(0x01 << 4)
+#define   RTS5261_LDO1_OCP_LMT_THD_MASK	(0x03 << 2)
+#define   RTS5261_LDO1_OCP_LMT_EN	(0x01 << 1)
 
 #define LDO_VCC_CFG1			0xFF73
 #define   LDO_VCC_REF_TUNE_MASK		0x30
@@ -743,8 +767,13 @@
 #define   SD_VIO_LDO_1V8		0x40
 #define   SD_VIO_LDO_3V3		0x70
 
+#define RTS5264_AUTOLOAD_CFG2		0xFF7D
+#define RTS5264_CHIP_RST_N_SEL		(1 << 6)
+
 #define RTS5260_AUTOLOAD_CFG4		0xFF7F
 #define   RTS5260_MIMO_DISABLE		0x8A
+/*RTS5261*/
+#define   RTS5261_AUX_CLK_16M_EN		(1 << 5)
 
 #define RTS5260_REG_GPIO_CTL0		0xFC1A
 #define   RTS5260_REG_GPIO_MASK		0x01
@@ -1041,13 +1070,12 @@
 #define   PHY_DIG1E_RX_EN_KEEP		0x0001
 #define PHY_DUM_REG			0x1F
 
-#define PCR_ASPM_SETTING_REG1		0x160
-#define PCR_ASPM_SETTING_REG2		0x168
-#define PCR_ASPM_SETTING_5260		0x178
-
 #define PCR_SETTING_REG1		0x724
 #define PCR_SETTING_REG2		0x814
 #define PCR_SETTING_REG3		0x747
+#define PCR_SETTING_REG4		0x818
+#define PCR_SETTING_REG5		0x81C
+
 
 #define rtsx_pci_init_cmd(pcr)		((pcr)->ci = 0)
 
@@ -1076,15 +1104,11 @@ struct pcr_ops {
 	unsigned int	(*cd_deglitch)(struct rtsx_pcr *pcr);
 	int		(*conv_clk_and_div_n)(int clk, int dir);
 	void		(*fetch_vendor_settings)(struct rtsx_pcr *pcr);
-	void		(*force_power_down)(struct rtsx_pcr *pcr, u8 pm_state);
+	void		(*force_power_down)(struct rtsx_pcr *pcr, u8 pm_state, bool runtime);
 	void		(*stop_cmd)(struct rtsx_pcr *pcr);
 
 	void (*set_aspm)(struct rtsx_pcr *pcr, bool enable);
-	int (*set_ltr_latency)(struct rtsx_pcr *pcr, u32 latency);
-	int (*set_l1off_sub)(struct rtsx_pcr *pcr, u8 val);
 	void (*set_l1off_cfg_sub_d0)(struct rtsx_pcr *pcr, int active);
-	void (*full_on)(struct rtsx_pcr *pcr);
-	void (*power_saving)(struct rtsx_pcr *pcr);
 	void (*enable_ocp)(struct rtsx_pcr *pcr);
 	void (*disable_ocp)(struct rtsx_pcr *pcr);
 	void (*init_ocp)(struct rtsx_pcr *pcr);
@@ -1094,11 +1118,7 @@ struct pcr_ops {
 };
 
 enum PDEV_STAT  {PDEV_STAT_IDLE, PDEV_STAT_RUN};
-
-#define ASPM_L1_1_EN_MASK		BIT(3)
-#define ASPM_L1_2_EN_MASK		BIT(2)
-#define PM_L1_1_EN_MASK		BIT(1)
-#define PM_L1_2_EN_MASK		BIT(0)
+enum ASPM_MODE  {ASPM_MODE_CFG, ASPM_MODE_REG};
 
 #define ASPM_L1_1_EN			BIT(0)
 #define ASPM_L1_2_EN			BIT(1)
@@ -1107,13 +1127,6 @@ enum PDEV_STAT  {PDEV_STAT_IDLE, PDEV_STAT_RUN};
 #define LTR_L1SS_PWR_GATE_EN	BIT(4)
 #define L1_SNOOZE_TEST_EN		BIT(5)
 #define LTR_L1SS_PWR_GATE_CHECK_CARD_EN	BIT(6)
-
-enum dev_aspm_mode {
-	DEV_ASPM_DYNAMIC,
-	DEV_ASPM_BACKDOOR,
-	DEV_ASPM_STATIC,
-	DEV_ASPM_DISABLE,
-};
 
 /*
  * struct rtsx_cr_option  - card reader option
@@ -1125,7 +1138,6 @@ enum dev_aspm_mode {
  * @ltr_active_latency: ltr mode active latency
  * @ltr_idle_latency: ltr mode idle latency
  * @ltr_l1off_latency: ltr mode l1off latency
- * @dev_aspm_mode: device aspm mode
  * @l1_snooze_delay: l1 snooze delay
  * @ltr_l1off_sspwrgate: ltr l1off sspwrgate
  * @ltr_l1off_snooze_sspwrgate: ltr l1off snooze sspwrgate
@@ -1142,7 +1154,6 @@ struct rtsx_cr_option {
 	u32 ltr_active_latency;
 	u32 ltr_idle_latency;
 	u32 ltr_l1off_latency;
-	enum dev_aspm_mode dev_aspm_mode;
 	u32 l1_snooze_delay;
 	u8 ltr_l1off_sspwrgate;
 	u8 ltr_l1off_snooze_sspwrgate;
@@ -1171,7 +1182,6 @@ struct rtsx_hw_param {
 struct rtsx_pcr {
 	struct pci_dev			*pci;
 	unsigned int			id;
-	int				pcie_cap;
 	struct rtsx_cr_option	option;
 	struct rtsx_hw_param hw_param;
 
@@ -1200,7 +1210,6 @@ struct rtsx_pcr {
 	unsigned int			card_exist;
 
 	struct delayed_work		carddet_work;
-	struct delayed_work		idle_work;
 
 	spinlock_t			lock;
 	struct mutex			pcr_mutex;
@@ -1217,6 +1226,8 @@ struct rtsx_pcr {
 #define EXTRA_CAPS_MMC_HSDDR		(1 << 3)
 #define EXTRA_CAPS_MMC_HS200		(1 << 4)
 #define EXTRA_CAPS_MMC_8BIT		(1 << 5)
+#define EXTRA_CAPS_NO_MMC		(1 << 7)
+#define EXTRA_CAPS_SD_EXPRESS		(1 << 8)
 	u32				extra_caps;
 
 #define IC_VER_A			0
@@ -1230,6 +1241,7 @@ struct rtsx_pcr {
 	u8				card_drive_sel;
 #define ASPM_L1_EN			0x02
 	u8				aspm_en;
+	enum ASPM_MODE			aspm_mode;
 	bool				aspm_enabled;
 
 #define PCR_MS_PMOS			(1 << 0)
@@ -1255,6 +1267,8 @@ struct rtsx_pcr {
 	u8				dma_error_count;
 	u8			ocp_stat;
 	u8			ocp_stat2;
+	u8			ovp_stat;
+	u8			rtd3_en;
 };
 
 #define PID_524A	0x524A
@@ -1262,12 +1276,17 @@ struct rtsx_pcr {
 #define PID_5250	0x5250
 #define PID_525A	0x525A
 #define PID_5260	0x5260
+#define PID_5261	0x5261
+#define PID_5228	0x5228
+#define PID_5264	0x5264
 
 #define CHK_PCI_PID(pcr, pid)		((pcr)->pci->device == (pid))
 #define PCI_VID(pcr)			((pcr)->pci->vendor)
 #define PCI_PID(pcr)			((pcr)->pci->device)
 #define is_version(pcr, pid, ver)				\
 	(CHK_PCI_PID(pcr, pid) && (pcr)->ic_version == (ver))
+#define is_version_higher_than(pcr, pid, ver)			\
+	(CHK_PCI_PID(pcr, pid) && (pcr)->ic_version > (ver))
 #define pcr_dbg(pcr, fmt, arg...)				\
 	dev_dbg(&(pcr)->pci->dev, fmt, ##arg)
 
@@ -1317,18 +1336,6 @@ void rtsx_pci_complete_unfinished_transfer(struct rtsx_pcr *pcr);
 static inline u8 *rtsx_pci_get_cmd_data(struct rtsx_pcr *pcr)
 {
 	return (u8 *)(pcr->host_cmds_ptr);
-}
-
-static inline int rtsx_pci_update_cfg_byte(struct rtsx_pcr *pcr, int addr,
-		u8 mask, u8 append)
-{
-	int err;
-	u8 val;
-
-	err = pci_read_config_byte(pcr->pci, addr, &val);
-	if (err < 0)
-		return err;
-	return pci_write_config_byte(pcr->pci, addr, (val & mask) | append);
 }
 
 static inline void rtsx_pci_write_be32(struct rtsx_pcr *pcr, u16 reg, u32 val)

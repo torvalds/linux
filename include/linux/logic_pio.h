@@ -39,9 +39,6 @@ struct logic_pio_host_ops {
 
 #ifdef CONFIG_INDIRECT_PIO
 u8 logic_inb(unsigned long addr);
-void logic_outb(u8 value, unsigned long addr);
-void logic_outw(u16 value, unsigned long addr);
-void logic_outl(u32 value, unsigned long addr);
 u16 logic_inw(unsigned long addr);
 u32 logic_inl(unsigned long addr);
 void logic_outb(u8 value, unsigned long addr);
@@ -108,10 +105,10 @@ void logic_outsl(unsigned long addr, const void *buffer, unsigned int count);
  * area by redefining the macro below.
  */
 #define PIO_INDIRECT_SIZE 0x4000
-#define MMIO_UPPER_LIMIT (IO_SPACE_LIMIT - PIO_INDIRECT_SIZE)
 #else
-#define MMIO_UPPER_LIMIT IO_SPACE_LIMIT
+#define PIO_INDIRECT_SIZE 0
 #endif /* CONFIG_INDIRECT_PIO */
+#define MMIO_UPPER_LIMIT (IO_SPACE_LIMIT - PIO_INDIRECT_SIZE)
 
 struct logic_pio_hwaddr *find_io_range_by_fwnode(struct fwnode_handle *fwnode);
 unsigned long logic_pio_trans_hwaddr(struct fwnode_handle *fwnode,

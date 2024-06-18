@@ -27,6 +27,7 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
 #include <drm/drm_framebuffer.h>
+#include <drm/drm_print.h>
 #include <drm/drm_property.h>
 
 #include "drm_crtc_internal.h"
@@ -43,7 +44,7 @@
  * property types and ranges.
  *
  * Properties don't store the current value directly, but need to be
- * instatiated by attaching them to a &drm_mode_object with
+ * instantiated by attaching them to a &drm_mode_object with
  * drm_object_attach_property().
  *
  * Property values are only 64bit. To support bigger piles of data (like gamma
@@ -127,8 +128,7 @@ struct drm_property *drm_property_create(struct drm_device *dev,
 	property->num_values = num_values;
 	INIT_LIST_HEAD(&property->enum_list);
 
-	strncpy(property->name, name, DRM_PROP_NAME_LEN);
-	property->name[DRM_PROP_NAME_LEN-1] = '\0';
+	strscpy_pad(property->name, name, DRM_PROP_NAME_LEN);
 
 	list_add_tail(&property->head, &dev->mode_config.property_list);
 
@@ -421,8 +421,7 @@ int drm_property_add_enum(struct drm_property *property,
 	if (!prop_enum)
 		return -ENOMEM;
 
-	strncpy(prop_enum->name, name, DRM_PROP_NAME_LEN);
-	prop_enum->name[DRM_PROP_NAME_LEN-1] = '\0';
+	strscpy_pad(prop_enum->name, name, DRM_PROP_NAME_LEN);
 	prop_enum->value = value;
 
 	property->values[index] = value;
@@ -434,7 +433,7 @@ EXPORT_SYMBOL(drm_property_add_enum);
 /**
  * drm_property_destroy - destroy a drm property
  * @dev: drm device
- * @property: property to destry
+ * @property: property to destroy
  *
  * This function frees a property including any attached resources like
  * enumeration values.
@@ -475,8 +474,7 @@ int drm_mode_getproperty_ioctl(struct drm_device *dev,
 	if (!property)
 		return -ENOENT;
 
-	strncpy(out_resp->name, property->name, DRM_PROP_NAME_LEN);
-	out_resp->name[DRM_PROP_NAME_LEN-1] = 0;
+	strscpy_pad(out_resp->name, property->name, DRM_PROP_NAME_LEN);
 	out_resp->flags = property->flags;
 
 	value_count = property->num_values;
@@ -561,7 +559,7 @@ drm_property_create_blob(struct drm_device *dev, size_t length,
 	struct drm_property_blob *blob;
 	int ret;
 
-	if (!length || length > ULONG_MAX - sizeof(struct drm_property_blob))
+	if (!length || length > INT_MAX - sizeof(struct drm_property_blob))
 		return ERR_PTR(-EINVAL);
 
 	blob = kvzalloc(sizeof(struct drm_property_blob)+length, GFP_KERNEL);
@@ -644,7 +642,7 @@ EXPORT_SYMBOL(drm_property_blob_get);
  * @id: id of the blob property
  *
  * If successful, this takes an additional reference to the blob property.
- * callers need to make sure to eventually unreference the returned property
+ * callers need to make sure to eventually unreferenced the returned property
  * again, using drm_property_blob_put().
  *
  * Return:
@@ -753,6 +751,64 @@ bool drm_property_replace_blob(struct drm_property_blob **blob,
 	return true;
 }
 EXPORT_SYMBOL(drm_property_replace_blob);
+
+/**
+ * drm_property_replace_blob_from_id - replace a blob property taking a reference
+ * @dev: DRM device
+ * @blob: a pointer to the member blob to be replaced
+ * @blob_id: the id of the new blob to replace with
+ * @expected_size: expected size of the blob property
+ * @expected_elem_size: expected size of an element in the blob property
+ * @replaced: if the blob was in fact replaced
+ *
+ * Look up the new blob from id, take its reference, check expected sizes of
+ * the blob and its element and replace the old blob by the new one. Advertise
+ * if the replacement operation was successful.
+ *
+ * Return: true if the blob was in fact replaced. -EINVAL if the new blob was
+ * not found or sizes don't match.
+ */
+int drm_property_replace_blob_from_id(struct drm_device *dev,
+					 struct drm_property_blob **blob,
+					 uint64_t blob_id,
+					 ssize_t expected_size,
+					 ssize_t expected_elem_size,
+					 bool *replaced)
+{
+	struct drm_property_blob *new_blob = NULL;
+
+	if (blob_id != 0) {
+		new_blob = drm_property_lookup_blob(dev, blob_id);
+		if (new_blob == NULL) {
+			drm_dbg_atomic(dev,
+				       "cannot find blob ID %llu\n", blob_id);
+			return -EINVAL;
+		}
+
+		if (expected_size > 0 &&
+		    new_blob->length != expected_size) {
+			drm_dbg_atomic(dev,
+				       "[BLOB:%d] length %zu different from expected %zu\n",
+				       new_blob->base.id, new_blob->length, expected_size);
+			drm_property_blob_put(new_blob);
+			return -EINVAL;
+		}
+		if (expected_elem_size > 0 &&
+		    new_blob->length % expected_elem_size != 0) {
+			drm_dbg_atomic(dev,
+				       "[BLOB:%d] length %zu not divisible by element size %zu\n",
+				       new_blob->base.id, new_blob->length, expected_elem_size);
+			drm_property_blob_put(new_blob);
+			return -EINVAL;
+		}
+	}
+
+	*replaced |= drm_property_replace_blob(blob, new_blob);
+	drm_property_blob_put(new_blob);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_property_replace_blob_from_id);
 
 int drm_mode_getblob_ioctl(struct drm_device *dev,
 			   void *data, struct drm_file *file_priv)

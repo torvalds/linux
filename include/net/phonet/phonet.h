@@ -10,6 +10,10 @@
 #ifndef AF_PHONET_H
 #define AF_PHONET_H
 
+#include <linux/phonet.h>
+#include <linux/skbuff.h>
+#include <net/sock.h>
+
 /*
  * The lower layers may not require more space, ever. Make sure it's
  * enough.
@@ -105,4 +109,25 @@ void phonet_sysctl_exit(void);
 int isi_register(void);
 void isi_unregister(void);
 
+static inline bool sk_is_phonet(struct sock *sk)
+{
+	return sk->sk_family == PF_PHONET;
+}
+
+static inline int phonet_sk_ioctl(struct sock *sk, unsigned int cmd,
+				  void __user *arg)
+{
+	int karg;
+
+	switch (cmd) {
+	case SIOCPNADDRESOURCE:
+	case SIOCPNDELRESOURCE:
+		if (get_user(karg, (int __user *)arg))
+			return -EFAULT;
+
+		return sk->sk_prot->ioctl(sk, cmd, &karg);
+	}
+	/* A positive return value means that the ioctl was not processed */
+	return 1;
+}
 #endif

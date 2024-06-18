@@ -7,39 +7,45 @@ config AMIGA
 	bool "Amiga support"
 	depends on MMU
 	select MMU_MOTOROLA if MMU
+	select LEGACY_TIMER_TICK
 	help
 	  This option enables support for the Amiga series of computers. If
 	  you plan to use this kernel on an Amiga, say Y here and browse the
-	  material available in <file:Documentation/m68k>; otherwise say N.
+	  material available in <file:Documentation/arch/m68k>; otherwise say N.
 
 config ATARI
 	bool "Atari support"
 	depends on MMU
 	select MMU_MOTOROLA if MMU
 	select HAVE_ARCH_NVRAM_OPS
+	select LEGACY_TIMER_TICK
 	help
 	  This option enables support for the 68000-based Atari series of
 	  computers (including the TT, Falcon and Medusa). If you plan to use
 	  this kernel on an Atari, say Y here and browse the material
-	  available in <file:Documentation/m68k>; otherwise say N.
+	  available in <file:Documentation/arch/m68k>; otherwise say N.
+
+config ATARI_KBD_CORE
+	bool
 
 config MAC
 	bool "Macintosh support"
 	depends on MMU
 	select MMU_MOTOROLA if MMU
 	select HAVE_ARCH_NVRAM_OPS
+	select HAVE_PATA_PLATFORM
+	select LEGACY_TIMER_TICK
 	help
 	  This option enables support for the Apple Macintosh series of
-	  computers (yes, there is experimental support now, at least for part
-	  of the series).
-
-	  Say N unless you're willing to code the remaining necessary support.
-	  ;)
+	  computers. If you plan to use this kernel on a Mac, say Y here and
+	  browse the documentation available at <http://www.mac.linux-m68k.org/>;
+	  otherwise say N.
 
 config APOLLO
 	bool "Apollo support"
 	depends on MMU
 	select MMU_MOTOROLA if MMU
+	select LEGACY_TIMER_TICK
 	help
 	  Say Y here if you want to run Linux on an MC680x0-based Apollo
 	  Domain workstation such as the DN3500.
@@ -58,6 +64,7 @@ config MVME147
 	bool "MVME147 support"
 	depends on MMU
 	depends on VME
+	select LEGACY_TIMER_TICK
 	help
 	  Say Y to include support for early Motorola VME boards.  This will
 	  build a kernel which can run on MVME147 single-board computers.  If
@@ -68,6 +75,7 @@ config MVME16x
 	bool "MVME162, 166 and 167 support"
 	depends on MMU
 	depends on VME
+	select LEGACY_TIMER_TICK
 	help
 	  Say Y to include support for Motorola VME boards.  This will build a
 	  kernel which can run on MVME162, MVME166, MVME167, MVME172, and
@@ -79,6 +87,7 @@ config BVME6000
 	bool "BVME4000 and BVME6000 support"
 	depends on MMU
 	depends on VME
+	select LEGACY_TIMER_TICK
 	help
 	  Say Y to include support for VME boards from BVM Ltd.  This will
 	  build a kernel which can run on BVME4000 and BVME6000 boards.  If
@@ -89,6 +98,7 @@ config HP300
 	bool "HP9000/300 and HP9000/400 support"
 	depends on MMU
 	select MMU_MOTOROLA if MMU
+	select LEGACY_TIMER_TICK
 	help
 	  This option enables support for the HP9000/300 and HP9000/400 series
 	  of workstations. Support for these machines is still somewhat
@@ -99,6 +109,7 @@ config HP300
 config SUN3X
 	bool "Sun3x support"
 	depends on MMU
+	select LEGACY_TIMER_TICK
 	select MMU_MOTOROLA if MMU
 	select M68030
 	help
@@ -114,6 +125,7 @@ config Q40
 	bool "Q40/Q60 support"
 	depends on MMU
 	select MMU_MOTOROLA if MMU
+	select LEGACY_TIMER_TICK
 	help
 	  The Q40 is a Motorola 68040-based successor to the Sinclair QL
 	  manufactured in Germany.  There is an official Q40 home page at
@@ -126,6 +138,8 @@ config SUN3
 	depends on MMU
 	depends on !MMU_MOTOROLA
 	select MMU_SUN3 if MMU
+	select LEGACY_TIMER_TICK
+	select NO_DMA
 	select M68020
 	help
 	  This option enables support for the Sun 3 series of workstations
@@ -135,14 +149,31 @@ config SUN3
 
 	  If you don't want to compile a kernel exclusively for a Sun 3, say N.
 
-endif # M68KCLASSIC
+config VIRT
+	bool "Virtual M68k Machine support"
+	depends on MMU
+	select GENERIC_CLOCKEVENTS
+	select GOLDFISH
+	select GOLDFISH_TIMER
+	select GOLDFISH_TTY
+	select M68040
+	select MMU_MOTOROLA if MMU
+	select RTC_CLASS
+	select RTC_DRV_GOLDFISH
+	select TTY
+	select VIRTIO_MENU
+	select VIRTIO_MMIO
+	help
+	  This options enable a pure virtual machine based on m68k,
+	  VIRTIO MMIO devices and GOLDFISH interfaces (TTY, RTC, PIC).
 
 config PILOT
 	bool
 
 config PILOT3
 	bool "Pilot 1000/5000, PalmPilot Personal/Pro, or PalmIII support"
-	depends on M68328
+	depends on !MMU
+	select M68328
 	select PILOT
 	help
 	  Support for the Palm Pilot 1000/5000, Personal/Pro and PalmIII.
@@ -155,21 +186,24 @@ config XCOPILOT_BUGS
 
 config UCSIMM
 	bool "uCsimm module support"
-	depends on M68EZ328
+	depends on !MMU
+	select M68EZ328
 	help
 	  Support for the Arcturus Networks uCsimm module.
 
 config UCDIMM
-	bool "uDsimm module support"
-	depends on M68VZ328
+	bool "uCdimm module support"
+	depends on !MMU
+	select M68VZ328
 	help
-	  Support for the Arcturus Networks uDsimm module.
+	  Support for the Arcturus Networks uCdimm module.
 
 config DRAGEN2
-	bool "DragenEngine II board support"
-	depends on M68VZ328
+	bool "DragonEngine II board support"
+	depends on !MMU
+	select M68VZ328
 	help
-	  Support for the DragenEngine II board.
+	  Support for the DragonEngine II board.
 
 config DIRECT_IO_ACCESS
 	bool "Allow user to access IO directly"
@@ -187,8 +221,11 @@ config INIT_LCD
 config MEMORY_RESERVE
 	int "Memory reservation (MiB)"
 	depends on (UCSIMM || UCDIMM)
+	default 0
 	help
 	  Reserve certain memory regions on 68x328 based boards.
+
+endif # M68KCLASSIC
 
 config ARN5206
 	bool "Arnewsh 5206 board support"
@@ -269,10 +306,10 @@ config AMCORE
 	  Support for the Sysam AMCORE open-hardware generic board.
 
 config STMARK2
-        bool "Sysam stmark2 board support"
-        depends on M5441x
-        help
-          Support for the Sysam stmark2 open-hardware generic board.
+	bool "Sysam stmark2 board support"
+	depends on M5441x
+	help
+	  Support for the Sysam stmark2 open-hardware generic board.
 
 config FIREBEE
 	bool "FireBee board support"
@@ -316,6 +353,7 @@ comment "Machine Options"
 
 config UBOOT
 	bool "Support for U-Boot command line parameters"
+	depends on COLDFIRE
 	help
 	  If you say Y here kernel will try to collect command
 	  line parameters from the initial u-boot stack.
@@ -401,18 +439,9 @@ config ROM
 	  that can be stored in flash, with possibly the text, and data
 	  regions being copied out to RAM at startup.
 
-config ROMBASE
-	hex "Address of the base of ROM device"
-	default "0"
-	depends on ROM
-	help
-	  Define the address that the ROM region starts at. Some platforms
-	  use this to set their chip select region accordingly for the boot
-	  device.
-
 config ROMVEC
 	hex "Address of the base of the ROM vectors"
-	default "0"
+	default "0x10c10000"
 	depends on ROM
 	help
 	  This is almost always the same as the base of the ROM. Since on all
@@ -421,23 +450,15 @@ config ROMVEC
 
 config ROMSTART
 	hex "Address of the base of system image in ROM"
-	default "0x400"
+	default "0x10c10400"
 	depends on ROM
 	help
 	  Define the start address of the system image in ROM. Commonly this
 	  is strait after the ROM vectors.
 
-config ROMSIZE
-	hex "Size of the ROM device"
-	default "0x100000"
-	depends on ROM
-	help
-	  Size of the ROM device. On some platforms this is used to setup
-	  the chip select that controls the boot ROM device.
-
 choice
 	prompt "Kernel executes from"
-	---help---
+	help
 	  Choose the memory type that the kernel will be running in.
 
 config RAMKERNEL
@@ -447,6 +468,7 @@ config RAMKERNEL
 
 config ROMKERNEL
 	bool "ROM"
+	depends on ROM
 	help
 	  The kernel will be resident in FLASH/ROM when running. This is
 	  often referred to as Execute-in-Place (XIP), since the kernel
@@ -454,4 +476,4 @@ config ROMKERNEL
 
 endchoice
 
-endif
+endif # !MMU || COLDFIRE

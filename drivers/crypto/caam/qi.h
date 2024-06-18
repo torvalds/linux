@@ -3,12 +3,14 @@
  * Public definitions for the CAAM/QI (Queue Interface) backend.
  *
  * Copyright 2013-2016 Freescale Semiconductor, Inc.
- * Copyright 2016-2017 NXP
+ * Copyright 2016-2017, 2020 NXP
  */
 
 #ifndef __QI_H__
 #define __QI_H__
 
+#include <crypto/algapi.h>
+#include <linux/compiler_attributes.h>
 #include <soc/fsl/qman.h>
 #include "compat.h"
 #include "desc.h"
@@ -52,20 +54,24 @@ enum optype {
  * @context_a: shared descriptor dma address
  * @req_fq: to-CAAM request frame queue
  * @rsp_fq: from-CAAM response frame queue
+ * @refcnt: reference counter incremented for each frame enqueued in to-CAAM FQ
  * @cpu: cpu on which to receive CAAM response
  * @op_type: operation type
  * @qidev: device pointer for CAAM/QI backend
  */
 struct caam_drv_ctx {
-	u32 prehdr[2];
-	u32 sh_desc[MAX_SDLEN];
+	struct {
+		u32 prehdr[2];
+		u32 sh_desc[MAX_SDLEN];
+	} __aligned(CRYPTO_DMA_ALIGN);
 	dma_addr_t context_a;
 	struct qman_fq *req_fq;
 	struct qman_fq *rsp_fq;
+	refcount_t refcnt;
 	int cpu;
 	enum optype op_type;
 	struct device *qidev;
-} ____cacheline_aligned;
+};
 
 /**
  * caam_drv_req - The request structure the driver application should fill while
@@ -86,7 +92,7 @@ struct caam_drv_req {
 	struct caam_drv_ctx *drv_ctx;
 	caam_qi_cbk cbk;
 	void *app_ctx;
-} ____cacheline_aligned;
+} __aligned(CRYPTO_DMA_ALIGN);
 
 /**
  * caam_drv_ctx_init - Initialise a CAAM/QI driver context
@@ -147,7 +153,6 @@ int caam_drv_ctx_update(struct caam_drv_ctx *drv_ctx, u32 *sh_desc);
 void caam_drv_ctx_rel(struct caam_drv_ctx *drv_ctx);
 
 int caam_qi_init(struct platform_device *pdev);
-void caam_qi_shutdown(struct device *dev);
 
 /**
  * qi_cache_alloc - Allocate buffers from CAAM-QI cache

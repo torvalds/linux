@@ -1,68 +1,20 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *****************************************************************************/
-
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
+/*
+ * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
+ * Copyright (C) 2015-2017 Intel Deutschland GmbH
+ */
 #ifndef __iwl_fw_api_d3_h__
 #define __iwl_fw_api_d3_h__
+#include <iwl-trans.h>
+
+/**
+ * enum iwl_d0i3_flags - d0i3 flags
+ * @IWL_D0I3_RESET_REQUIRE: FW require reset upon resume
+ */
+enum iwl_d0i3_flags {
+	IWL_D0I3_RESET_REQUIRE = BIT(0),
+};
 
 /**
  * enum iwl_d3_wakeup_flags - D3 manager wakeup flags
@@ -95,12 +47,14 @@ struct iwl_d3_manager_config {
  * @IWL_D3_PROTO_OFFLOAD_NS: NS (Neighbor Solicitation) is enabled
  * @IWL_D3_PROTO_IPV4_VALID: IPv4 data is valid
  * @IWL_D3_PROTO_IPV6_VALID: IPv6 data is valid
+ * @IWL_D3_PROTO_OFFLOAD_BTM: BTM offload is enabled
  */
 enum iwl_proto_offloads {
 	IWL_D3_PROTO_OFFLOAD_ARP = BIT(0),
 	IWL_D3_PROTO_OFFLOAD_NS = BIT(1),
 	IWL_D3_PROTO_IPV4_VALID = BIT(2),
 	IWL_D3_PROTO_IPV6_VALID = BIT(3),
+	IWL_D3_PROTO_OFFLOAD_BTM = BIT(4),
 };
 
 #define IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V1	2
@@ -207,6 +161,22 @@ struct iwl_proto_offload_cmd_v3_large {
 	struct iwl_targ_addr targ_addrs[IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V3L];
 	struct iwl_ns_config ns_config[IWL_PROTO_OFFLOAD_NUM_NS_CONFIG_V3L];
 } __packed; /* PROT_OFFLOAD_CONFIG_CMD_DB_S_VER_3 */
+
+/**
+ * struct iwl_proto_offload_cmd_v4 - ARP/NS offload configuration
+ * @sta_id: station id
+ * @common: common/IPv4 configuration
+ * @num_valid_ipv6_addrs: number of valid IPv6 addresses
+ * @targ_addrs: target IPv6 addresses
+ * @ns_config: NS offload configurations
+ */
+struct iwl_proto_offload_cmd_v4 {
+	__le32 sta_id;
+	struct iwl_proto_offload_cmd_common common;
+	__le32 num_valid_ipv6_addrs;
+	struct iwl_targ_addr targ_addrs[IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V3L];
+	struct iwl_ns_config ns_config[IWL_PROTO_OFFLOAD_NUM_NS_CONFIG_V3L];
+} __packed; /* PROT_OFFLOAD_CONFIG_CMD_DB_S_VER_4 */
 
 /*
  * WOWLAN_PATTERNS
@@ -351,13 +321,23 @@ struct iwl_wowlan_patterns_cmd {
 	/**
 	 * @n_patterns: number of patterns
 	 */
-	__le32 n_patterns;
+	u8 n_patterns;
+
+	/**
+	 * @sta_id: sta_id
+	 */
+	u8 sta_id;
+
+	/**
+	 * @reserved: reserved for alignment
+	 */
+	__le16 reserved;
 
 	/**
 	 * @patterns: the patterns, array length in @n_patterns
 	 */
 	struct iwl_wowlan_pattern_v2 patterns[];
-} __packed; /* WOWLAN_PATTERN_ARRAY_API_S_VER_2 */
+} __packed; /* WOWLAN_PATTERN_ARRAY_API_S_VER_3 */
 
 enum iwl_wowlan_wakeup_filters {
 	IWL_WOWLAN_WAKEUP_MAGIC_PACKET			= BIT(0),
@@ -388,9 +368,10 @@ enum iwl_wowlan_flags {
 };
 
 /**
- * struct iwl_wowlan_config_cmd - WoWLAN configuration
+ * struct iwl_wowlan_config_cmd - WoWLAN configuration (versions 5 and 6)
  * @wakeup_filter: filter from &enum iwl_wowlan_wakeup_filters
- * @non_qos_seq: non-QoS sequence counter to use next
+ * @non_qos_seq: non-QoS sequence counter to use next.
+ *               Reserved if the struct has version >= 6.
  * @qos_seq: QoS sequence counters to use next
  * @wowlan_ba_teardown_tids: bitmap of BA sessions to tear down
  * @is_11n_connection: indicates HT connection
@@ -411,11 +392,17 @@ struct iwl_wowlan_config_cmd {
 	u8 reserved;
 } __packed; /* WOWLAN_CONFIG_API_S_VER_5 */
 
+#define IWL_NUM_RSC	16
+#define WOWLAN_KEY_MAX_SIZE	32
+#define WOWLAN_GTK_KEYS_NUM     2
+#define WOWLAN_IGTK_KEYS_NUM	2
+#define WOWLAN_IGTK_MIN_INDEX	4
+#define WOWLAN_BIGTK_KEYS_NUM	2
+#define WOWLAN_BIGTK_MIN_INDEX	6
+
 /*
  * WOWLAN_TSC_RSC_PARAMS
  */
-#define IWL_NUM_RSC	16
-
 struct tkip_sc {
 	__le16 iv16;
 	__le16 pad;
@@ -443,9 +430,22 @@ union iwl_all_tsc_rsc {
 	struct iwl_aes_rsc_tsc aes;
 }; /* ALL_TSC_RSC_API_S_VER_2 */
 
-struct iwl_wowlan_rsc_tsc_params_cmd {
+struct iwl_wowlan_rsc_tsc_params_cmd_ver_2 {
 	union iwl_all_tsc_rsc all_tsc_rsc;
 } __packed; /* ALL_TSC_RSC_API_S_VER_2 */
+
+struct iwl_wowlan_rsc_tsc_params_cmd_v4 {
+	struct iwl_wowlan_rsc_tsc_params_cmd_ver_2 params;
+	__le32 sta_id;
+} __packed; /* ALL_TSC_RSC_API_S_VER_4 */
+
+struct iwl_wowlan_rsc_tsc_params_cmd {
+	__le64 ucast_rsc[IWL_MAX_TID_COUNT];
+	__le64 mcast_rsc[WOWLAN_GTK_KEYS_NUM][IWL_MAX_TID_COUNT];
+	__le32 sta_id;
+#define IWL_MCAST_KEY_MAP_INVALID	0xff
+	u8 mcast_key_id_map[4];
+} __packed; /* ALL_TSC_RSC_API_S_VER_5 */
 
 #define IWL_MIC_KEY_SIZE	8
 struct iwl_mic_keys {
@@ -461,23 +461,61 @@ struct iwl_p1k_cache {
 
 #define IWL_NUM_RX_P1K_CACHE	2
 
-struct iwl_wowlan_tkip_params_cmd {
+struct iwl_wowlan_tkip_params_cmd_ver_1 {
 	struct iwl_mic_keys mic_keys;
 	struct iwl_p1k_cache tx;
 	struct iwl_p1k_cache rx_uni[IWL_NUM_RX_P1K_CACHE];
 	struct iwl_p1k_cache rx_multi[IWL_NUM_RX_P1K_CACHE];
 } __packed; /* WOWLAN_TKIP_SETTING_API_S_VER_1 */
 
+struct iwl_wowlan_tkip_params_cmd {
+	struct iwl_mic_keys mic_keys;
+	struct iwl_p1k_cache tx;
+	struct iwl_p1k_cache rx_uni[IWL_NUM_RX_P1K_CACHE];
+	struct iwl_p1k_cache rx_multi[IWL_NUM_RX_P1K_CACHE];
+	u8     reversed[2];
+	__le32 sta_id;
+} __packed; /* WOWLAN_TKIP_SETTING_API_S_VER_2 */
+
 #define IWL_KCK_MAX_SIZE	32
 #define IWL_KEK_MAX_SIZE	32
 
-struct iwl_wowlan_kek_kck_material_cmd {
+struct iwl_wowlan_kek_kck_material_cmd_v2 {
 	u8	kck[IWL_KCK_MAX_SIZE];
 	u8	kek[IWL_KEK_MAX_SIZE];
 	__le16	kck_len;
 	__le16	kek_len;
 	__le64	replay_ctr;
 } __packed; /* KEK_KCK_MATERIAL_API_S_VER_2 */
+
+struct iwl_wowlan_kek_kck_material_cmd_v3 {
+	u8	kck[IWL_KCK_MAX_SIZE];
+	u8	kek[IWL_KEK_MAX_SIZE];
+	__le16	kck_len;
+	__le16	kek_len;
+	__le64	replay_ctr;
+	__le32  akm;
+	__le32  gtk_cipher;
+	__le32  igtk_cipher;
+	__le32  bigtk_cipher;
+} __packed; /* KEK_KCK_MATERIAL_API_S_VER_3 */
+
+struct iwl_wowlan_kek_kck_material_cmd_v4 {
+	__le32  sta_id;
+	u8	kck[IWL_KCK_MAX_SIZE];
+	u8	kek[IWL_KEK_MAX_SIZE];
+	__le16	kck_len;
+	__le16	kek_len;
+	__le64	replay_ctr;
+	__le32  akm;
+	__le32  gtk_cipher;
+	__le32  igtk_cipher;
+	__le32  bigtk_cipher;
+} __packed; /* KEK_KCK_MATERIAL_API_S_VER_4 */
+
+struct iwl_wowlan_get_status_cmd {
+	__le32  sta_id;
+} __packed; /* WOWLAN_GET_STATUSES_CMD_API_S_VER_1 */
 
 #define RF_KILL_INDICATOR_FOR_WOWLAN	0x87
 
@@ -517,15 +555,11 @@ struct iwl_wowlan_gtk_status_v1 {
 	u8 reserved[3];
 	u8 decrypt_key[16];
 	u8 tkip_mic_key[8];
-	struct iwl_wowlan_rsc_tsc_params_cmd rsc;
+	struct iwl_wowlan_rsc_tsc_params_cmd_ver_2 rsc;
 } __packed; /* WOWLAN_GTK_MATERIAL_VER_1 */
 
-#define WOWLAN_KEY_MAX_SIZE	32
-#define WOWLAN_GTK_KEYS_NUM     2
-#define WOWLAN_IGTK_KEYS_NUM	2
-
 /**
- * struct iwl_wowlan_gtk_status - GTK status
+ * struct iwl_wowlan_gtk_status_v2 - GTK status
  * @key: GTK material
  * @key_len: GTK legth, if set to 0, the key is not available
  * @key_flags: information about the key:
@@ -536,16 +570,52 @@ struct iwl_wowlan_gtk_status_v1 {
  * @tkip_mic_key: TKIP RX MIC key
  * @rsc: TSC RSC counters
  */
-struct iwl_wowlan_gtk_status {
+struct iwl_wowlan_gtk_status_v2 {
 	u8 key[WOWLAN_KEY_MAX_SIZE];
 	u8 key_len;
 	u8 key_flags;
 	u8 reserved[2];
 	u8 tkip_mic_key[8];
-	struct iwl_wowlan_rsc_tsc_params_cmd rsc;
+	struct iwl_wowlan_rsc_tsc_params_cmd_ver_2 rsc;
 } __packed; /* WOWLAN_GTK_MATERIAL_VER_2 */
 
+/**
+ * struct iwl_wowlan_all_rsc_tsc_v5 - key counters
+ * @ucast_rsc: unicast RSC values
+ * @mcast_rsc: multicast RSC values (per key map value)
+ * @sta_id: station ID
+ * @mcast_key_id_map: map of key id to @mcast_rsc entry
+ */
+struct iwl_wowlan_all_rsc_tsc_v5 {
+	__le64 ucast_rsc[IWL_MAX_TID_COUNT];
+	__le64 mcast_rsc[2][IWL_MAX_TID_COUNT];
+	__le32 sta_id;
+	u8 mcast_key_id_map[4];
+} __packed; /* ALL_TSC_RSC_API_S_VER_5 */
+
+/**
+ * struct iwl_wowlan_gtk_status_v3 - GTK status
+ * @key: GTK material
+ * @key_len: GTK length, if set to 0, the key is not available
+ * @key_flags: information about the key:
+ *	bits[0:1]:  key index assigned by the AP
+ *	bits[2:6]:  GTK index of the key in the internal DB
+ *	bit[7]:     Set iff this is the currently used GTK
+ * @reserved: padding
+ * @tkip_mic_key: TKIP RX MIC key
+ * @sc: RSC/TSC counters
+ */
+struct iwl_wowlan_gtk_status_v3 {
+	u8 key[WOWLAN_KEY_MAX_SIZE];
+	u8 key_len;
+	u8 key_flags;
+	u8 reserved[2];
+	u8 tkip_mic_key[IWL_MIC_KEY_SIZE];
+	struct iwl_wowlan_all_rsc_tsc_v5 sc;
+} __packed; /* WOWLAN_GTK_MATERIAL_VER_3 */
+
 #define IWL_WOWLAN_GTK_IDX_MASK		(BIT(0) | BIT(1))
+#define IWL_WOWLAN_IGTK_BIGTK_IDX_MASK	(BIT(0))
 
 /**
  * struct iwl_wowlan_igtk_status - IGTK status
@@ -553,9 +623,10 @@ struct iwl_wowlan_gtk_status {
  * @ipn: the IGTK packet number (replay counter)
  * @key_len: IGTK length, if set to 0, the key is not available
  * @key_flags: information about the key:
- *	bits[0]:    key index assigned by the AP (0: index 4, 1: index 5)
- *	bits[1:5]:  IGTK index of the key in the internal DB
- *	bit[6]:     Set iff this is the currently used IGTK
+ *	bits[0]: key index assigned by the AP (0: index 4, 1: index 5)
+ *	(0: index 6, 1: index 7 with bigtk)
+ *	bits[1:5]: IGTK index of the key in the internal DB
+ *	bit[6]: Set iff this is the currently used IGTK
  */
 struct iwl_wowlan_igtk_status {
 	u8 key[WOWLAN_KEY_MAX_SIZE];
@@ -595,7 +666,7 @@ struct iwl_wowlan_status_v6 {
 } __packed; /* WOWLAN_STATUSES_API_S_VER_6 */
 
 /**
- * struct iwl_wowlan_status - WoWLAN status
+ * struct iwl_wowlan_status_v7 - WoWLAN status
  * @gtk: GTK data
  * @igtk: IGTK data
  * @replay_ctr: GTK rekey replay counter
@@ -610,8 +681,8 @@ struct iwl_wowlan_status_v6 {
  * @wake_packet_bufsize: wakeup packet buffer size
  * @wake_packet: wakeup packet
  */
-struct iwl_wowlan_status {
-	struct iwl_wowlan_gtk_status gtk[WOWLAN_GTK_KEYS_NUM];
+struct iwl_wowlan_status_v7 {
+	struct iwl_wowlan_gtk_status_v2 gtk[WOWLAN_GTK_KEYS_NUM];
 	struct iwl_wowlan_igtk_status igtk[WOWLAN_IGTK_KEYS_NUM];
 	__le64 replay_ctr;
 	__le16 pattern_number;
@@ -626,59 +697,259 @@ struct iwl_wowlan_status {
 	u8 wake_packet[]; /* can be truncated from _length to _bufsize */
 } __packed; /* WOWLAN_STATUSES_API_S_VER_7 */
 
-static inline u8 iwlmvm_wowlan_gtk_idx(struct iwl_wowlan_gtk_status *gtk)
-{
-	return gtk->key_flags & IWL_WOWLAN_GTK_IDX_MASK;
-}
+/**
+ * struct iwl_wowlan_status_v9 - WoWLAN status (versions 9 and 10)
+ * @gtk: GTK data
+ * @igtk: IGTK data
+ * @replay_ctr: GTK rekey replay counter
+ * @pattern_number: number of the matched pattern
+ * @non_qos_seq_ctr: non-QoS sequence counter to use next.
+ *                   Reserved if the struct has version >= 10.
+ * @qos_seq_ctr: QoS sequence counters to use next
+ * @wakeup_reasons: wakeup reasons, see &enum iwl_wowlan_wakeup_reason
+ * @num_of_gtk_rekeys: number of GTK rekeys
+ * @transmitted_ndps: number of transmitted neighbor discovery packets
+ * @received_beacons: number of received beacons
+ * @wake_packet_length: wakeup packet length
+ * @wake_packet_bufsize: wakeup packet buffer size
+ * @tid_tear_down: bit mask of tids whose BA sessions were closed
+ *		   in suspend state
+ * @reserved: unused
+ * @wake_packet: wakeup packet
+ */
+struct iwl_wowlan_status_v9 {
+	struct iwl_wowlan_gtk_status_v2 gtk[WOWLAN_GTK_KEYS_NUM];
+	struct iwl_wowlan_igtk_status igtk[WOWLAN_IGTK_KEYS_NUM];
+	__le64 replay_ctr;
+	__le16 pattern_number;
+	__le16 non_qos_seq_ctr;
+	__le16 qos_seq_ctr[8];
+	__le32 wakeup_reasons;
+	__le32 num_of_gtk_rekeys;
+	__le32 transmitted_ndps;
+	__le32 received_beacons;
+	__le32 wake_packet_length;
+	__le32 wake_packet_bufsize;
+	u8 tid_tear_down;
+	u8 reserved[3];
+	u8 wake_packet[]; /* can be truncated from _length to _bufsize */
+} __packed; /* WOWLAN_STATUSES_RSP_API_S_VER_9 */
 
-#define IWL_WOWLAN_TCP_MAX_PACKET_LEN		64
-#define IWL_WOWLAN_REMOTE_WAKE_MAX_PACKET_LEN	128
-#define IWL_WOWLAN_REMOTE_WAKE_MAX_TOKENS	2048
+/**
+ * struct iwl_wowlan_status_v12 - WoWLAN status
+ * @gtk: GTK data
+ * @igtk: IGTK data
+ * @replay_ctr: GTK rekey replay counter
+ * @pattern_number: number of the matched pattern
+ * @non_qos_seq_ctr: non-QoS sequence counter to use next.
+ *                   Reserved if the struct has version >= 10.
+ * @qos_seq_ctr: QoS sequence counters to use next
+ * @wakeup_reasons: wakeup reasons, see &enum iwl_wowlan_wakeup_reason
+ * @num_of_gtk_rekeys: number of GTK rekeys
+ * @transmitted_ndps: number of transmitted neighbor discovery packets
+ * @received_beacons: number of received beacons
+ * @wake_packet_length: wakeup packet length
+ * @wake_packet_bufsize: wakeup packet buffer size
+ * @tid_tear_down: bit mask of tids whose BA sessions were closed
+ *		   in suspend state
+ * @reserved: unused
+ * @wake_packet: wakeup packet
+ */
+struct iwl_wowlan_status_v12 {
+	struct iwl_wowlan_gtk_status_v3 gtk[WOWLAN_GTK_KEYS_NUM];
+	struct iwl_wowlan_igtk_status igtk[WOWLAN_IGTK_KEYS_NUM];
+	__le64 replay_ctr;
+	__le16 pattern_number;
+	__le16 non_qos_seq_ctr;
+	__le16 qos_seq_ctr[8];
+	__le32 wakeup_reasons;
+	__le32 num_of_gtk_rekeys;
+	__le32 transmitted_ndps;
+	__le32 received_beacons;
+	__le32 wake_packet_length;
+	__le32 wake_packet_bufsize;
+	u8 tid_tear_down;
+	u8 reserved[3];
+	u8 wake_packet[]; /* can be truncated from _length to _bufsize */
+} __packed; /* WOWLAN_STATUSES_RSP_API_S_VER_12 */
 
-struct iwl_tcp_packet_info {
-	__le16 tcp_pseudo_header_checksum;
-	__le16 tcp_payload_length;
-} __packed; /* TCP_PACKET_INFO_API_S_VER_2 */
+/**
+ * struct iwl_wowlan_info_notif_v1 - WoWLAN information notification
+ * @gtk: GTK data
+ * @igtk: IGTK data
+ * @replay_ctr: GTK rekey replay counter
+ * @pattern_number: number of the matched patterns
+ * @reserved1: reserved
+ * @qos_seq_ctr: QoS sequence counters to use next
+ * @wakeup_reasons: wakeup reasons, see &enum iwl_wowlan_wakeup_reason
+ * @num_of_gtk_rekeys: number of GTK rekeys
+ * @transmitted_ndps: number of transmitted neighbor discovery packets
+ * @received_beacons: number of received beacons
+ * @wake_packet_length: wakeup packet length
+ * @wake_packet_bufsize: wakeup packet buffer size
+ * @tid_tear_down: bit mask of tids whose BA sessions were closed
+ *	in suspend state
+ * @station_id: station id
+ * @reserved2: reserved
+ */
+struct iwl_wowlan_info_notif_v1 {
+	struct iwl_wowlan_gtk_status_v3 gtk[WOWLAN_GTK_KEYS_NUM];
+	struct iwl_wowlan_igtk_status igtk[WOWLAN_IGTK_KEYS_NUM];
+	__le64 replay_ctr;
+	__le16 pattern_number;
+	__le16 reserved1;
+	__le16 qos_seq_ctr[8];
+	__le32 wakeup_reasons;
+	__le32 num_of_gtk_rekeys;
+	__le32 transmitted_ndps;
+	__le32 received_beacons;
+	__le32 wake_packet_length;
+	__le32 wake_packet_bufsize;
+	u8 tid_tear_down;
+	u8 station_id;
+	u8 reserved2[2];
+} __packed; /* WOWLAN_INFO_NTFY_API_S_VER_1 */
 
-struct iwl_tcp_packet {
-	struct iwl_tcp_packet_info info;
-	u8 rx_mask[IWL_WOWLAN_MAX_PATTERN_LEN / 8];
-	u8 data[IWL_WOWLAN_TCP_MAX_PACKET_LEN];
-} __packed; /* TCP_PROTOCOL_PACKET_API_S_VER_1 */
+/**
+ * struct iwl_wowlan_info_notif_v2 - WoWLAN information notification
+ * @gtk: GTK data
+ * @igtk: IGTK data
+ * @replay_ctr: GTK rekey replay counter
+ * @pattern_number: number of the matched patterns
+ * @reserved1: reserved
+ * @qos_seq_ctr: QoS sequence counters to use next
+ * @wakeup_reasons: wakeup reasons, see &enum iwl_wowlan_wakeup_reason
+ * @num_of_gtk_rekeys: number of GTK rekeys
+ * @transmitted_ndps: number of transmitted neighbor discovery packets
+ * @received_beacons: number of received beacons
+ * @tid_tear_down: bit mask of tids whose BA sessions were closed
+ *	in suspend state
+ * @station_id: station id
+ * @reserved2: reserved
+ */
+struct iwl_wowlan_info_notif_v2 {
+	struct iwl_wowlan_gtk_status_v3 gtk[WOWLAN_GTK_KEYS_NUM];
+	struct iwl_wowlan_igtk_status igtk[WOWLAN_IGTK_KEYS_NUM];
+	__le64 replay_ctr;
+	__le16 pattern_number;
+	__le16 reserved1;
+	__le16 qos_seq_ctr[8];
+	__le32 wakeup_reasons;
+	__le32 num_of_gtk_rekeys;
+	__le32 transmitted_ndps;
+	__le32 received_beacons;
+	u8 tid_tear_down;
+	u8 station_id;
+	u8 reserved2[2];
+} __packed; /* WOWLAN_INFO_NTFY_API_S_VER_2 */
 
-struct iwl_remote_wake_packet {
-	struct iwl_tcp_packet_info info;
-	u8 rx_mask[IWL_WOWLAN_MAX_PATTERN_LEN / 8];
-	u8 data[IWL_WOWLAN_REMOTE_WAKE_MAX_PACKET_LEN];
-} __packed; /* TCP_PROTOCOL_PACKET_API_S_VER_1 */
+/* MAX MLO keys of non-active links that can arrive in the notification */
+#define WOWLAN_MAX_MLO_KEYS 18
 
-struct iwl_wowlan_remote_wake_config {
-	__le32 connection_max_time; /* unused */
-	/* TCP_PROTOCOL_CONFIG_API_S_VER_1 */
-	u8 max_syn_retries;
-	u8 max_data_retries;
-	u8 tcp_syn_ack_timeout;
-	u8 tcp_ack_timeout;
+/**
+ * enum iwl_wowlan_mlo_gtk_type - GTK types
+ * @WOWLAN_MLO_GTK_KEY_TYPE_GTK: GTK
+ * @WOWLAN_MLO_GTK_KEY_TYPE_IGTK: IGTK
+ * @WOWLAN_MLO_GTK_KEY_TYPE_BIGTK: BIGTK
+ * @WOWLAN_MLO_GTK_KEY_NUM_TYPES: number of key types
+ */
+enum iwl_wowlan_mlo_gtk_type {
+	WOWLAN_MLO_GTK_KEY_TYPE_GTK,
+	WOWLAN_MLO_GTK_KEY_TYPE_IGTK,
+	WOWLAN_MLO_GTK_KEY_TYPE_BIGTK,
+	WOWLAN_MLO_GTK_KEY_NUM_TYPES
+}; /* WOWLAN_MLO_GTK_KEY_TYPE_API_E_VER_1 */
 
-	struct iwl_tcp_packet syn_tx;
-	struct iwl_tcp_packet synack_rx;
-	struct iwl_tcp_packet keepalive_ack_rx;
-	struct iwl_tcp_packet fin_tx;
+/**
+ * enum iwl_wowlan_mlo_gtk_flag - MLO GTK flags
+ * @WOWLAN_MLO_GTK_FLAG_KEY_LEN_MSK: 0 for len 16, 1 for len 32
+ * @WOWLAN_MLO_GTK_FLAG_KEY_ID_MSK: key id (ranges from 0 to 7)
+ * @WOWLAN_MLO_GTK_FLAG_LINK_ID_MSK: spec link id of the key
+ * @WOWLAN_MLO_GTK_FLAG_KEY_TYPE_MSK: &enum iwl_wowlan_mlo_gtk_type
+ * @WOWLAN_MLO_GTK_FLAG_LAST_KEY_MSK: is this the last given key per
+ *	key-type / link-id - the currently used key
+ */
+enum iwl_wowlan_mlo_gtk_flag {
+	WOWLAN_MLO_GTK_FLAG_KEY_LEN_MSK = 0x0001,
+	WOWLAN_MLO_GTK_FLAG_KEY_ID_MSK = 0x000E,
+	WOWLAN_MLO_GTK_FLAG_LINK_ID_MSK = 0x00F0,
+	WOWLAN_MLO_GTK_FLAG_KEY_TYPE_MSK = 0x0300,
+	WOWLAN_MLO_GTK_FLAG_LAST_KEY_MSK = 0x0400
+}; /* WOWLAN_MLO_GTK_FLAG_API_E_VER_1 */
 
-	struct iwl_remote_wake_packet keepalive_tx;
-	struct iwl_remote_wake_packet wake_rx;
+/**
+ * struct iwl_wowlan_mlo_gtk - MLO GTK info
+ * @key: key material
+ * @flags: &enum iwl_wowlan_mlo_gtk_flag
+ * @pn: packet number
+ */
+struct iwl_wowlan_mlo_gtk {
+	u8 key[WOWLAN_KEY_MAX_SIZE];
+	__le16 flags;
+	u8 pn[6];
+} __packed; /* WOWLAN_MLO_GTK_KEY_API_S_VER_1 */
 
-	/* REMOTE_WAKE_OFFSET_INFO_API_S_VER_1 */
-	u8 sequence_number_offset;
-	u8 sequence_number_length;
-	u8 token_offset;
-	u8 token_length;
-	/* REMOTE_WAKE_PROTOCOL_PARAMS_API_S_VER_1 */
-	__le32 initial_sequence_number;
-	__le16 keepalive_interval;
-	__le16 num_tokens;
-	u8 tokens[IWL_WOWLAN_REMOTE_WAKE_MAX_TOKENS];
-} __packed; /* REMOTE_WAKE_CONFIG_API_S_VER_2 */
+/**
+ * struct iwl_wowlan_info_notif - WoWLAN information notification
+ * @gtk: GTK data
+ * @igtk: IGTK data
+ * @bigtk: BIGTK data
+ * @replay_ctr: GTK rekey replay counter
+ * @pattern_number: number of the matched patterns
+ * @reserved1: reserved
+ * @qos_seq_ctr: QoS sequence counters to use next
+ * @wakeup_reasons: wakeup reasons, see &enum iwl_wowlan_wakeup_reason
+ * @num_of_gtk_rekeys: number of GTK rekeys
+ * @transmitted_ndps: number of transmitted neighbor discovery packets
+ * @received_beacons: number of received beacons
+ * @tid_tear_down: bit mask of tids whose BA sessions were closed
+ *	in suspend state
+ * @station_id: station id
+ * @num_mlo_link_keys: number of &struct iwl_wowlan_mlo_gtk structs
+ *	following this notif, or reserved in version < 4
+ * @reserved2: reserved
+ * @mlo_gtks: array of GTKs of size num_mlo_link_keys for version >= 4
+ */
+struct iwl_wowlan_info_notif {
+	struct iwl_wowlan_gtk_status_v3 gtk[WOWLAN_GTK_KEYS_NUM];
+	struct iwl_wowlan_igtk_status igtk[WOWLAN_IGTK_KEYS_NUM];
+	struct iwl_wowlan_igtk_status bigtk[WOWLAN_BIGTK_KEYS_NUM];
+	__le64 replay_ctr;
+	__le16 pattern_number;
+	__le16 reserved1;
+	__le16 qos_seq_ctr[8];
+	__le32 wakeup_reasons;
+	__le32 num_of_gtk_rekeys;
+	__le32 transmitted_ndps;
+	__le32 received_beacons;
+	u8 tid_tear_down;
+	u8 station_id;
+	u8 num_mlo_link_keys;
+	u8 reserved2;
+	struct iwl_wowlan_mlo_gtk mlo_gtks[];
+} __packed; /* WOWLAN_INFO_NTFY_API_S_VER_3, _VER_4 */
+
+/**
+ * struct iwl_wowlan_wake_pkt_notif - WoWLAN wake packet notification
+ * @wake_packet_length: wakeup packet length
+ * @station_id: station id
+ * @reserved: unused
+ * @wake_packet: wakeup packet
+ */
+struct iwl_wowlan_wake_pkt_notif {
+	__le32 wake_packet_length;
+	u8 station_id;
+	u8 reserved[3];
+	u8 wake_packet[1];
+} __packed; /* WOWLAN_WAKE_PKT_NTFY_API_S_VER_1 */
+
+/**
+ * struct iwl_mvm_d3_end_notif -  d3 end notification
+ * @flags: See &enum iwl_d0i3_flags
+ */
+struct iwl_mvm_d3_end_notif {
+	__le32 flags;
+} __packed;
 
 /* TODO: NetDetect API */
 

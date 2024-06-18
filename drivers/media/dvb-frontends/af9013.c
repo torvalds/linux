@@ -597,7 +597,7 @@ static int af9013_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			state->strength_en = 2;
 			break;
 		}
-		/* Fall through */
+		fallthrough;
 	case 1:
 		if (time_is_after_jiffies(state->strength_jiffies + msecs_to_jiffies(2000)))
 			break;
@@ -1430,8 +1430,7 @@ err:
 	return ret;
 }
 
-static int af9013_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int af9013_probe(struct i2c_client *client)
 {
 	struct af9013_state *state;
 	struct af9013_platform_data *pdata = client->dev.platform_data;
@@ -1481,7 +1480,7 @@ static int af9013_probe(struct i2c_client *client,
 		goto err_regmap_exit;
 	}
 	state->muxc->priv = state;
-	ret = i2c_mux_add_adapter(state->muxc, 0, 0, 0);
+	ret = i2c_mux_add_adapter(state->muxc, 0, 0);
 	if (ret)
 		goto err_regmap_exit;
 
@@ -1540,7 +1539,7 @@ err:
 	return ret;
 }
 
-static int af9013_remove(struct i2c_client *client)
+static void af9013_remove(struct i2c_client *client)
 {
 	struct af9013_state *state = i2c_get_clientdata(client);
 
@@ -1551,8 +1550,6 @@ static int af9013_remove(struct i2c_client *client)
 	regmap_exit(state->regmap);
 
 	kfree(state);
-
-	return 0;
 }
 
 static const struct i2c_device_id af9013_id_table[] = {

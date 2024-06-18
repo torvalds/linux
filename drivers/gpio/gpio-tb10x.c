@@ -62,14 +62,14 @@ static inline void tb10x_set_bits(struct tb10x_gpio *gpio, unsigned int offs,
 	u32 r;
 	unsigned long flags;
 
-	spin_lock_irqsave(&gpio->gc.bgpio_lock, flags);
+	raw_spin_lock_irqsave(&gpio->gc.bgpio_lock, flags);
 
 	r = tb10x_reg_read(gpio, offs);
 	r = (r & ~mask) | (val & mask);
 
 	tb10x_reg_write(gpio, offs, r);
 
-	spin_unlock_irqrestore(&gpio->gc.bgpio_lock, flags);
+	raw_spin_unlock_irqrestore(&gpio->gc.bgpio_lock, flags);
 }
 
 static int tb10x_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
@@ -100,7 +100,7 @@ static irqreturn_t tb10x_gpio_irq_cascade(int irq, void *data)
 	int i;
 
 	for_each_set_bit(i, &bits, 32)
-		generic_handle_irq(irq_find_mapping(tb10x_gpio->domain, i));
+		generic_handle_domain_irq(tb10x_gpio->domain, i);
 
 	return IRQ_HANDLED;
 }
@@ -167,7 +167,7 @@ static int tb10x_gpio_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, tb10x_gpio);
 
-	if (of_find_property(np, "interrupt-controller", NULL)) {
+	if (of_property_read_bool(np, "interrupt-controller")) {
 		struct irq_chip_generic *gc;
 
 		ret = platform_get_irq(pdev, 0);
@@ -195,7 +195,7 @@ static int tb10x_gpio_probe(struct platform_device *pdev)
 				handle_edge_irq, IRQ_NOREQUEST, IRQ_NOPROBE,
 				IRQ_GC_INIT_MASK_CACHE);
 		if (ret)
-			return ret;
+			goto err_remove_domain;
 
 		gc = tb10x_gpio->domain->gc->gc[0];
 		gc->reg_base                         = tb10x_gpio->base;
@@ -209,9 +209,13 @@ static int tb10x_gpio_probe(struct platform_device *pdev)
 	}
 
 	return 0;
+
+err_remove_domain:
+	irq_domain_remove(tb10x_gpio->domain);
+	return ret;
 }
 
-static int tb10x_gpio_remove(struct platform_device *pdev)
+static void tb10x_gpio_remove(struct platform_device *pdev)
 {
 	struct tb10x_gpio *tb10x_gpio = platform_get_drvdata(pdev);
 
@@ -221,8 +225,6 @@ static int tb10x_gpio_remove(struct platform_device *pdev)
 		kfree(tb10x_gpio->domain->gc);
 		irq_domain_remove(tb10x_gpio->domain);
 	}
-
-	return 0;
 }
 
 static const struct of_device_id tb10x_gpio_dt_ids[] = {
@@ -233,7 +235,7 @@ MODULE_DEVICE_TABLE(of, tb10x_gpio_dt_ids);
 
 static struct platform_driver tb10x_gpio_driver = {
 	.probe		= tb10x_gpio_probe,
-	.remove		= tb10x_gpio_remove,
+	.remove_new	= tb10x_gpio_remove,
 	.driver = {
 		.name	= "tb10x-gpio",
 		.of_match_table = tb10x_gpio_dt_ids,
@@ -243,4 +245,3 @@ static struct platform_driver tb10x_gpio_driver = {
 module_platform_driver(tb10x_gpio_driver);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("tb10x gpio.");
-MODULE_VERSION("0.0.1");

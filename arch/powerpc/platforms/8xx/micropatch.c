@@ -16,7 +16,6 @@
 #include <linux/interrupt.h>
 #include <asm/irq.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/8xx_immap.h>
 #include <asm/cpm.h>
 #include <asm/cpm1.h>
@@ -360,6 +359,17 @@ void __init cpm_load_patch(cpm8xx_t *cp)
 
 	if (IS_ENABLED(CONFIG_SMC_UCODE_PATCH)) {
 		smc_uart_t *smp;
+
+		if (IS_ENABLED(CONFIG_PPC_EARLY_DEBUG_CPM)) {
+			int i;
+
+			for (i = 0; i < sizeof(*smp); i += 4) {
+				u32 __iomem *src = (u32 __iomem *)&cp->cp_dparam[PROFF_SMC1 + i];
+				u32 __iomem *dst = (u32 __iomem *)&cp->cp_dparam[PROFF_DSP1 + i];
+
+				out_be32(dst, in_be32(src));
+			}
+		}
 
 		smp = (smc_uart_t *)&cp->cp_dparam[PROFF_SMC1];
 		out_be16(&smp->smc_rpbase, 0x1ec0);

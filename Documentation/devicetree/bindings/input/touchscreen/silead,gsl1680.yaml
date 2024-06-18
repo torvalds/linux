@@ -1,0 +1,91 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/input/touchscreen/silead,gsl1680.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Silead GSL1680 Touchscreen Controller
+
+maintainers:
+  - Dmitry Torokhov <dmitry.torokhov@gmail.com>
+
+allOf:
+  - $ref: touchscreen.yaml#
+
+properties:
+  compatible:
+    enum:
+      - silead,gsl1680
+      - silead,gsl1688
+      - silead,gsl3670
+      - silead,gsl3675
+      - silead,gsl3692
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  power-gpios:
+    maxItems: 1
+
+  firmware-name:
+    maxItems: 1
+    description: >
+      File basename for board specific firmware
+
+  silead,max-fingers:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 5
+    description: >
+      Maximum number of fingers the touchscreen can detect
+
+  silead,home-button:
+    type: boolean
+    description: >
+      Does the device have a capacitive home-button build into the
+      touchscreen?
+
+  avdd-supply:
+    description: >
+      Regulator phandle for controller AVDD
+
+  vddio-supply:
+    description: >
+      Regulator phandle for controller VDDIO
+
+unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - power-gpios
+  - touchscreen-size-x
+  - touchscreen-size-y
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        touchscreen@40 {
+            compatible = "silead,gsl1680";
+            reg = <0x40>;
+            interrupt-parent = <&pio>;
+            interrupts = <6 11 IRQ_TYPE_EDGE_FALLING>;
+            power-gpios = <&pio 1 3 GPIO_ACTIVE_HIGH>;
+            touchscreen-size-x = <480>;
+            touchscreen-size-y = <800>;
+            touchscreen-inverted-x;
+            touchscreen-swapped-x-y;
+            silead,max-fingers = <5>;
+        };
+    };
+
+...

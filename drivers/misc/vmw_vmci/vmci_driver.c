@@ -28,6 +28,10 @@ MODULE_PARM_DESC(disable_guest,
 static bool vmci_guest_personality_initialized;
 static bool vmci_host_personality_initialized;
 
+static DEFINE_MUTEX(vmci_vsock_mutex); /* protects vmci_vsock_transport_cb */
+static vmci_vsock_cb vmci_vsock_transport_cb;
+static bool vmci_vsock_cb_host_called;
+
 /*
  * vmci_get_context_id() - Gets the current context ID.
  *
@@ -44,6 +48,69 @@ u32 vmci_get_context_id(void)
 	return VMCI_INVALID_ID;
 }
 EXPORT_SYMBOL_GPL(vmci_get_context_id);
+
+/*
+ * vmci_register_vsock_callback() - Register the VSOCK vmci_transport callback.
+ *
+ * The callback will be called when the first host or guest becomes active,
+ * or if they are already active when this function is called.
+ * To unregister the callback, call this function with NULL parameter.
+ *
+ * Returns 0 on success. -EBUSY if a callback is already registered.
+ */
+int vmci_register_vsock_callback(vmci_vsock_cb callback)
+{
+	int err = 0;
+
+	mutex_lock(&vmci_vsock_mutex);
+
+	if (vmci_vsock_transport_cb && callback) {
+		err = -EBUSY;
+		goto out;
+	}
+
+	vmci_vsock_transport_cb = callback;
+
+	if (!vmci_vsock_transport_cb) {
+		vmci_vsock_cb_host_called = false;
+		goto out;
+	}
+
+	if (vmci_guest_code_active())
+		vmci_vsock_transport_cb(false);
+
+	if (vmci_host_users() > 0) {
+		vmci_vsock_cb_host_called = true;
+		vmci_vsock_transport_cb(true);
+	}
+
+out:
+	mutex_unlock(&vmci_vsock_mutex);
+	return err;
+}
+EXPORT_SYMBOL_GPL(vmci_register_vsock_callback);
+
+void vmci_call_vsock_callback(bool is_host)
+{
+	mutex_lock(&vmci_vsock_mutex);
+
+	if (!vmci_vsock_transport_cb)
+		goto out;
+
+	/* In the host, this function could be called multiple times,
+	 * but we want to register it only once.
+	 */
+	if (is_host) {
+		if (vmci_vsock_cb_host_called)
+			goto out;
+
+		vmci_vsock_cb_host_called = true;
+	}
+
+	vmci_vsock_transport_cb(is_host);
+out:
+	mutex_unlock(&vmci_vsock_mutex);
+}
 
 static int __init vmci_drv_init(void)
 {

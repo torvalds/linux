@@ -11,7 +11,7 @@ Supported chips:
 
     Datasheet: Publicly available at the Texas Instruments website
 
-	       http://www.ti.com/
+	       https://www.ti.com/
 
   * Texas Instruments INA220
 
@@ -21,7 +21,7 @@ Supported chips:
 
     Datasheet: Publicly available at the Texas Instruments website
 
-	       http://www.ti.com/
+	       https://www.ti.com/
 
   * Texas Instruments INA226
 
@@ -31,7 +31,7 @@ Supported chips:
 
     Datasheet: Publicly available at the Texas Instruments website
 
-	       http://www.ti.com/
+	       https://www.ti.com/
 
   * Texas Instruments INA230
 
@@ -41,7 +41,7 @@ Supported chips:
 
     Datasheet: Publicly available at the Texas Instruments website
 
-	       http://www.ti.com/
+	       https://www.ti.com/
 
   * Texas Instruments INA231
 
@@ -51,7 +51,7 @@ Supported chips:
 
     Datasheet: Publicly available at the Texas Instruments website
 
-	       http://www.ti.com/
+	       https://www.ti.com/
 
 Author: Lothar Felten <lothar.felten@gmail.com>
 
@@ -74,7 +74,7 @@ bus supply voltage.
 
 The shunt value in micro-ohms can be set via platform data or device tree at
 compile-time or via the shunt_resistor attribute in sysfs at run-time. Please
-refer to the Documentation/devicetree/bindings/hwmon/ina2xx.txt for bindings
+refer to the Documentation/devicetree/bindings/hwmon/ti,ina2xx.yaml for bindings
 if the device tree is used.
 
 Additionally ina226 supports update_interval attribute as described in
@@ -99,6 +99,25 @@ Sysfs entries for ina226, ina230 and ina231 only
 ------------------------------------------------
 
 ======================= ====================================================
+in0_lcrit		Critical low shunt voltage
+in0_crit		Critical high shunt voltage
+in0_lcrit_alarm		Shunt voltage critical low alarm
+in0_crit_alarm		Shunt voltage critical high alarm
+in1_lcrit		Critical low bus voltage
+in1_crit		Critical high bus voltage
+in1_lcrit_alarm		Bus voltage critical low alarm
+in1_crit_alarm		Bus voltage critical high alarm
+power1_crit		Critical high power
+power1_crit_alarm	Power critical high alarm
 update_interval		data conversion time; affects number of samples used
 			to average results for shunt and bus voltages.
 ======================= ====================================================
+
+.. note::
+
+   - Configure `shunt_resistor` before configure `power1_crit`, because power
+     value is calculated based on `shunt_resistor` set.
+   - Because of the underlying register implementation, only one `*crit` setting
+     and its `alarm` can be active. Writing to one `*crit` setting clears other
+     `*crit` settings and alarms. Writing 0 to any `*crit` setting clears all
+     `*crit` settings and alarms.

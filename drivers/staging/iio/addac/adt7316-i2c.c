@@ -93,9 +93,9 @@ static int adt7316_i2c_multi_write(void *client, u8 reg, u8 count, u8 *data)
  * device probe and remove
  */
 
-static int adt7316_i2c_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int adt7316_i2c_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct adt7316_bus bus = {
 		.client = client,
 		.irq = client->irq,

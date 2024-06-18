@@ -62,5 +62,18 @@
 					| NFSEXP_ALLSQUASH \
 					| NFSEXP_INSECURE_PORT)
 
+/*
+ * Transport layer security policies that are permitted to access
+ * an export
+ */
+#define NFSEXP_XPRTSEC_NONE	0x0001
+#define NFSEXP_XPRTSEC_TLS	0x0002
+#define NFSEXP_XPRTSEC_MTLS	0x0004
+
+#define NFSEXP_XPRTSEC_NUM	(3)
+
+#define NFSEXP_XPRTSEC_ALL	(NFSEXP_XPRTSEC_NONE | \
+				 NFSEXP_XPRTSEC_TLS | \
+				 NFSEXP_XPRTSEC_MTLS)
 
 #endif /* _UAPINFSD_EXPORT_H */

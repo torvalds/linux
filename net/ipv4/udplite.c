@@ -17,6 +17,15 @@
 struct udp_table 	udplite_table __read_mostly;
 EXPORT_SYMBOL(udplite_table);
 
+/* Designate sk as UDP-Lite socket */
+static int udplite_sk_init(struct sock *sk)
+{
+	udp_init_sock(sk);
+	pr_warn_once("UDP-Lite is deprecated and scheduled to be removed in 2025, "
+		     "please contact the netdev mailing list\n");
+	return 0;
+}
+
 static int udplite_rcv(struct sk_buff *skb)
 {
 	return __udp4_lib_rcv(skb, &udplite_table, IPPROTO_UDPLITE);
@@ -31,7 +40,6 @@ static const struct net_protocol udplite_protocol = {
 	.handler	= udplite_rcv,
 	.err_handler	= udplite_err,
 	.no_policy	= 1,
-	.netns_ok	= 1,
 };
 
 struct proto 	udplite_prot = {
@@ -47,19 +55,19 @@ struct proto 	udplite_prot = {
 	.getsockopt	   = udp_getsockopt,
 	.sendmsg	   = udp_sendmsg,
 	.recvmsg	   = udp_recvmsg,
-	.sendpage	   = udp_sendpage,
 	.hash		   = udp_lib_hash,
 	.unhash		   = udp_lib_unhash,
 	.rehash		   = udp_v4_rehash,
 	.get_port	   = udp_v4_get_port,
+
 	.memory_allocated  = &udp_memory_allocated,
+	.per_cpu_fw_alloc  = &udp_memory_per_cpu_fw_alloc,
+
 	.sysctl_mem	   = sysctl_udp_mem,
+	.sysctl_wmem_offset = offsetof(struct net, ipv4.sysctl_udp_wmem_min),
+	.sysctl_rmem_offset = offsetof(struct net, ipv4.sysctl_udp_rmem_min),
 	.obj_size	   = sizeof(struct udp_sock),
 	.h.udp_table	   = &udplite_table,
-#ifdef CONFIG_COMPAT
-	.compat_setsockopt = compat_udp_setsockopt,
-	.compat_getsockopt = compat_udp_getsockopt,
-#endif
 };
 EXPORT_SYMBOL(udplite_prot);
 

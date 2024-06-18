@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/net/ethernet-phy.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Ethernet PHY Generic Binding
+title: Ethernet PHY Common Properties
 
 maintainers:
   - Andrew Lunn <andrew@lunn.ch>
@@ -45,6 +45,9 @@ properties:
           bits of a vendor specific ID.
       - items:
           - pattern: "^ethernet-phy-id[a-f0-9]{4}\\.[a-f0-9]{4}$"
+          - const: ethernet-phy-ieee802.3-c22
+      - items:
+          - pattern: "^ethernet-phy-id[a-f0-9]{4}\\.[a-f0-9]{4}$"
           - const: ethernet-phy-ieee802.3-c45
 
   reg:
@@ -74,57 +77,87 @@ properties:
     description:
       Maximum PHY supported speed in Mbits / seconds.
 
+  phy-10base-t1l-2.4vpp:
+    description: |
+      tristate, request/disable 2.4 Vpp operating mode. The values are:
+      0: Disable 2.4 Vpp operating mode.
+      1: Request 2.4 Vpp operating mode from link partner.
+      Absence of this property will leave configuration to default values.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1]
+
   broken-turn-around:
-    $ref: /schemas/types.yaml#definitions/flag
+    $ref: /schemas/types.yaml#/definitions/flag
     description:
       If set, indicates the PHY device does not correctly release
-      the turn around line low at the end of a MDIO transaction.
+      the turn around line low at end of the control phase of the
+      MDIO transaction.
+
+  clocks:
+    maxItems: 1
+    description:
+      External clock connected to the PHY. If not specified it is assumed
+      that the PHY uses a fixed crystal or an internal oscillator.
 
   enet-phy-lane-swap:
-    $ref: /schemas/types.yaml#definitions/flag
+    $ref: /schemas/types.yaml#/definitions/flag
     description:
       If set, indicates the PHY will swap the TX/RX lanes to
       compensate for the board being designed with the lanes
       swapped.
 
+  enet-phy-lane-no-swap:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      If set, indicates that PHY will disable swap of the
+      TX/RX lanes. This property allows the PHY to work correctly after
+      e.g. wrong bootstrap configuration caused by issues in PCB
+      layout design.
+
   eee-broken-100tx:
-    $ref: /schemas/types.yaml#definitions/flag
+    $ref: /schemas/types.yaml#/definitions/flag
     description:
       Mark the corresponding energy efficient ethernet mode as
       broken and request the ethernet to stop advertising it.
 
   eee-broken-1000t:
-    $ref: /schemas/types.yaml#definitions/flag
+    $ref: /schemas/types.yaml#/definitions/flag
     description:
       Mark the corresponding energy efficient ethernet mode as
       broken and request the ethernet to stop advertising it.
 
   eee-broken-10gt:
-    $ref: /schemas/types.yaml#definitions/flag
+    $ref: /schemas/types.yaml#/definitions/flag
     description:
       Mark the corresponding energy efficient ethernet mode as
       broken and request the ethernet to stop advertising it.
 
   eee-broken-1000kx:
-    $ref: /schemas/types.yaml#definitions/flag
+    $ref: /schemas/types.yaml#/definitions/flag
     description:
       Mark the corresponding energy efficient ethernet mode as
       broken and request the ethernet to stop advertising it.
 
   eee-broken-10gkx4:
-    $ref: /schemas/types.yaml#definitions/flag
+    $ref: /schemas/types.yaml#/definitions/flag
     description:
       Mark the corresponding energy efficient ethernet mode as
       broken and request the ethernet to stop advertising it.
 
   eee-broken-10gkr:
-    $ref: /schemas/types.yaml#definitions/flag
+    $ref: /schemas/types.yaml#/definitions/flag
     description:
       Mark the corresponding energy efficient ethernet mode as
       broken and request the ethernet to stop advertising it.
 
+  pses:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    maxItems: 1
+    description:
+      Specifies a reference to a node representing a Power Sourcing Equipment.
+
   phy-is-integrated:
-    $ref: /schemas/types.yaml#definitions/flag
+    $ref: /schemas/types.yaml#/definitions/flag
     description:
       If set, indicates that the PHY is integrated into the same
       physical package as the Ethernet MAC. If needed, muxers
@@ -153,11 +186,61 @@ properties:
       Delay after the reset was deasserted in microseconds. If
       this property is missing the delay will be skipped.
 
+  sfp:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Specifies a reference to a node representing a SFP cage.
+
+  rx-internal-delay-ps:
+    description: |
+      RGMII Receive PHY Clock Delay defined in pico seconds.  This is used for
+      PHY's that have configurable RX internal delays.  If this property is
+      present then the PHY applies the RX delay.
+
+  tx-internal-delay-ps:
+    description: |
+      RGMII Transmit PHY Clock Delay defined in pico seconds.  This is used for
+      PHY's that have configurable TX internal delays. If this property is
+      present then the PHY applies the TX delay.
+
+  leds:
+    type: object
+
+    properties:
+      '#address-cells':
+        const: 1
+
+      '#size-cells':
+        const: 0
+
+    patternProperties:
+      '^led@[a-f0-9]+$':
+        $ref: /schemas/leds/common.yaml#
+
+        properties:
+          reg:
+            maxItems: 1
+            description:
+              This define the LED index in the PHY or the MAC. It's really
+              driver dependent and required for ports that define multiple
+              LED for the same port.
+
+        required:
+          - reg
+
+        unevaluatedProperties: false
+
+    additionalProperties: false
+
 required:
   - reg
 
+additionalProperties: true
+
 examples:
   - |
+    #include <dt-bindings/leds/common.h>
+
     ethernet {
         #address-cells = <1>;
         #size-cells = <0>;
@@ -173,5 +256,17 @@ examples:
             reset-gpios = <&gpio1 4 1>;
             reset-assert-us = <1000>;
             reset-deassert-us = <2000>;
+
+            leds {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                led@0 {
+                    reg = <0>;
+                    color = <LED_COLOR_ID_WHITE>;
+                    function = LED_FUNCTION_LAN;
+                    default-state = "keep";
+                };
+            };
         };
     };

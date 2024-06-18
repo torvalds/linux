@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config RADIO_SI470X
-        tristate "Silicon Labs Si470x FM Radio Receiver support"
-        depends on VIDEO_V4L2
+	tristate "Silicon Labs Si470x FM Radio Receiver support"
+	depends on VIDEO_DEV
 	help
 	  This is a driver for devices with the Silicon Labs SI470x
 	  chip (either via USB or I2C buses).
@@ -30,7 +30,7 @@ config USB_SI470X
 
 	  Please have a look at the documentation, especially on how
 	  to redirect the audio stream from the radio to your sound device:
-	  Documentation/media/v4l-drivers/si470x.rst
+	  Documentation/admin-guide/media/si470x.rst
 
 	  Say Y here if you want to connect this type of radio to your
 	  computer's USB port.

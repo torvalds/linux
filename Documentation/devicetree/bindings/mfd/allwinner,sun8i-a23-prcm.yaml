@@ -1,0 +1,168 @@
+# SPDX-License-Identifier: GPL-2.0+
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/allwinner,sun8i-a23-prcm.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Allwinner A23 PRCM
+
+maintainers:
+  - Chen-Yu Tsai <wens@csie.org>
+  - Maxime Ripard <mripard@kernel.org>
+
+deprecated: true
+
+properties:
+  compatible:
+    const: allwinner,sun8i-a23-prcm
+
+  reg:
+    maxItems: 1
+
+patternProperties:
+  "^.*(clk|rst|codec).*$":
+    type: object
+    unevaluatedProperties: false
+
+    properties:
+      compatible:
+        enum:
+          - fixed-factor-clock
+          - allwinner,sun8i-a23-apb0-clk
+          - allwinner,sun8i-a23-apb0-gates-clk
+          - allwinner,sun6i-a31-clock-reset
+          - allwinner,sun8i-a23-codec-analog
+
+    required:
+      - compatible
+
+    allOf:
+      - if:
+          properties:
+            compatible:
+              contains:
+                const: fixed-factor-clock
+
+        then:
+          $ref: /schemas/clock/fixed-factor-clock.yaml#
+
+      - if:
+          properties:
+            compatible:
+              contains:
+                const: allwinner,sun8i-a23-apb0-clk
+
+        then:
+          properties:
+            "#clock-cells":
+              const: 0
+
+            clocks:
+              maxItems: 1
+
+            clock-output-names:
+              maxItems: 1
+
+          required:
+            - "#clock-cells"
+            - clocks
+            - clock-output-names
+
+      - if:
+          properties:
+            compatible:
+              contains:
+                const: allwinner,sun8i-a23-apb0-gates-clk
+
+        then:
+          properties:
+            "#clock-cells":
+              const: 1
+              description: >
+                This additional argument passed to that clock is the
+                offset of the bit controlling this particular gate in
+                the register.
+
+            clocks:
+              maxItems: 1
+
+            clock-output-names:
+              minItems: 1
+              maxItems: 32
+
+          required:
+            - "#clock-cells"
+            - clocks
+            - clock-output-names
+
+      - if:
+          properties:
+            compatible:
+              contains:
+                const: allwinner,sun6i-a31-clock-reset
+
+        then:
+          properties:
+            "#reset-cells":
+              const: 1
+
+          required:
+            - "#reset-cells"
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    prcm@1f01400 {
+        compatible = "allwinner,sun8i-a23-prcm";
+        reg = <0x01f01400 0x200>;
+
+        ar100: ar100_clk {
+            compatible = "fixed-factor-clock";
+            #clock-cells = <0>;
+            clock-div = <1>;
+            clock-mult = <1>;
+            clocks = <&osc24M>;
+            clock-output-names = "ar100";
+        };
+
+        ahb0: ahb0_clk {
+            compatible = "fixed-factor-clock";
+            #clock-cells = <0>;
+            clock-div = <1>;
+            clock-mult = <1>;
+            clocks = <&ar100>;
+            clock-output-names = "ahb0";
+        };
+
+        apb0: apb0_clk {
+            compatible = "allwinner,sun8i-a23-apb0-clk";
+            #clock-cells = <0>;
+            clocks = <&ahb0>;
+            clock-output-names = "apb0";
+        };
+
+        apb0_gates: apb0_gates_clk {
+            compatible = "allwinner,sun8i-a23-apb0-gates-clk";
+            #clock-cells = <1>;
+            clocks = <&apb0>;
+            clock-output-names = "apb0_pio", "apb0_timer",
+                                 "apb0_rsb", "apb0_uart",
+                                 "apb0_i2c";
+        };
+
+        apb0_rst: apb0_rst {
+            compatible = "allwinner,sun6i-a31-clock-reset";
+            #reset-cells = <1>;
+        };
+
+        codec_analog: codec-analog {
+            compatible = "allwinner,sun8i-a23-codec-analog";
+        };
+    };
+
+...

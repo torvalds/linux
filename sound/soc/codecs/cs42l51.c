@@ -51,17 +51,14 @@ struct cs42l51_private {
 	struct regmap *regmap;
 };
 
-#define CS42L51_FORMATS ( \
-		SNDRV_PCM_FMTBIT_S16_LE  | SNDRV_PCM_FMTBIT_S16_BE  | \
-		SNDRV_PCM_FMTBIT_S18_3LE | SNDRV_PCM_FMTBIT_S18_3BE | \
-		SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S20_3BE | \
-		SNDRV_PCM_FMTBIT_S24_LE  | SNDRV_PCM_FMTBIT_S24_BE)
+#define CS42L51_FORMATS (SNDRV_PCM_FMTBIT_S16_LE  | SNDRV_PCM_FMTBIT_S18_3LE | \
+			 SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S24_LE)
 
 static int cs42l51_get_chan_mix(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
-	unsigned long value = snd_soc_component_read32(component, CS42L51_PCM_MIXER)&3;
+	unsigned long value = snd_soc_component_read(component, CS42L51_PCM_MIXER)&3;
 
 	switch (value) {
 	default:
@@ -122,6 +119,9 @@ static const char *chan_mix[] = {
 	"R L",
 };
 
+static const DECLARE_TLV_DB_SCALE(pga_tlv, -300, 50, 0);
+static const DECLARE_TLV_DB_SCALE(adc_att_tlv, -9600, 100, 0);
+
 static SOC_ENUM_SINGLE_EXT_DECL(cs42l51_chan_mix, chan_mix);
 
 static const struct snd_kcontrol_new cs42l51_snd_controls[] = {
@@ -138,6 +138,12 @@ static const struct snd_kcontrol_new cs42l51_snd_controls[] = {
 			0, 0x19, 0x7F, adc_pcm_tlv),
 	SOC_DOUBLE_R("ADC Mixer Switch",
 			CS42L51_ADCA_VOL, CS42L51_ADCB_VOL, 7, 1, 1),
+	SOC_DOUBLE_R_SX_TLV("ADC Attenuator Volume",
+			CS42L51_ADCA_ATT, CS42L51_ADCB_ATT,
+			0, 0xA0, 96, adc_att_tlv),
+	SOC_DOUBLE_R_SX_TLV("PGA Volume",
+			CS42L51_ALC_PGA_CTL, CS42L51_ALC_PGB_CTL,
+			0, 0x1A, 30, pga_tlv),
 	SOC_SINGLE("Playback Deemphasis Switch", CS42L51_DAC_CTL, 3, 1, 0),
 	SOC_SINGLE("Auto-Mute Switch", CS42L51_DAC_CTL, 2, 1, 0),
 	SOC_SINGLE("Soft Ramp Switch", CS42L51_DAC_CTL, 1, 1, 0),
@@ -214,12 +220,10 @@ static const struct snd_soc_dapm_widget cs42l51_dapm_widgets[] = {
 	SND_SOC_DAPM_ADC_E("Right ADC", "Right HiFi Capture",
 		CS42L51_POWER_CTL1, 2, 1,
 		cs42l51_pdn_event, SND_SOC_DAPM_PRE_POST_PMD),
-	SND_SOC_DAPM_DAC_E("Left DAC", "Left HiFi Playback",
-		CS42L51_POWER_CTL1, 5, 1,
-		cs42l51_pdn_event, SND_SOC_DAPM_PRE_POST_PMD),
-	SND_SOC_DAPM_DAC_E("Right DAC", "Right HiFi Playback",
-		CS42L51_POWER_CTL1, 6, 1,
-		cs42l51_pdn_event, SND_SOC_DAPM_PRE_POST_PMD),
+	SND_SOC_DAPM_DAC_E("Left DAC", NULL, CS42L51_POWER_CTL1, 5, 1,
+			   cs42l51_pdn_event, SND_SOC_DAPM_PRE_POST_PMD),
+	SND_SOC_DAPM_DAC_E("Right DAC", NULL, CS42L51_POWER_CTL1, 6, 1,
+			   cs42l51_pdn_event, SND_SOC_DAPM_PRE_POST_PMD),
 
 	/* analog/mic */
 	SND_SOC_DAPM_INPUT("AIN1L"),
@@ -247,13 +251,39 @@ static const struct snd_soc_dapm_widget cs42l51_dapm_widgets[] = {
 		&cs42l51_adcr_mux_controls),
 };
 
+static int mclk_event(struct snd_soc_dapm_widget *w,
+		      struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *comp = snd_soc_dapm_to_component(w->dapm);
+	struct cs42l51_private *cs42l51 = snd_soc_component_get_drvdata(comp);
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		return clk_prepare_enable(cs42l51->mclk_handle);
+	case SND_SOC_DAPM_POST_PMD:
+		/* Delay mclk shutdown to fulfill power-down sequence requirements */
+		msleep(20);
+		clk_disable_unprepare(cs42l51->mclk_handle);
+		break;
+	}
+
+	return 0;
+}
+
 static const struct snd_soc_dapm_widget cs42l51_dapm_mclk_widgets[] = {
-	SND_SOC_DAPM_CLOCK_SUPPLY("MCLK")
+	SND_SOC_DAPM_SUPPLY("MCLK", SND_SOC_NOPM, 0, 0, mclk_event,
+			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 };
 
 static const struct snd_soc_dapm_route cs42l51_routes[] = {
 	{"HPL", NULL, "Left DAC"},
 	{"HPR", NULL, "Right DAC"},
+
+	{"Right DAC", NULL, "DAC Mux"},
+	{"Left DAC", NULL, "DAC Mux"},
+
+	{"DAC Mux", "Direct PCM", "Playback"},
+	{"DAC Mux", "DSP PCM", "Playback"},
 
 	{"Left ADC", NULL, "Left PGA"},
 	{"Right ADC", NULL, "Right PGA"},
@@ -403,8 +433,8 @@ static int cs42l51_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	intf_ctl = snd_soc_component_read32(component, CS42L51_INTF_CTL);
-	power_ctl = snd_soc_component_read32(component, CS42L51_MIC_POWER_CTL);
+	intf_ctl = snd_soc_component_read(component, CS42L51_INTF_CTL);
+	power_ctl = snd_soc_component_read(component, CS42L51_MIC_POWER_CTL);
 
 	intf_ctl &= ~(CS42L51_INTF_CTL_MASTER | CS42L51_INTF_CTL_ADC_I2S
 			| CS42L51_INTF_CTL_DAC_FORMAT(7));
@@ -480,13 +510,13 @@ static int cs42l51_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int cs42l51_dai_mute(struct snd_soc_dai *dai, int mute)
+static int cs42l51_dai_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	int reg;
 	int mask = CS42L51_DAC_OUT_CTL_DACA_MUTE|CS42L51_DAC_OUT_CTL_DACB_MUTE;
 
-	reg = snd_soc_component_read32(component, CS42L51_DAC_OUT_CTL);
+	reg = snd_soc_component_read(component, CS42L51_DAC_OUT_CTL);
 
 	if (mute)
 		reg |= mask;
@@ -507,7 +537,8 @@ static const struct snd_soc_dai_ops cs42l51_dai_ops = {
 	.hw_params      = cs42l51_hw_params,
 	.set_sysclk     = cs42l51_set_dai_sysclk,
 	.set_fmt        = cs42l51_set_dai_fmt,
-	.digital_mute   = cs42l51_dai_mute,
+	.mute_stream    = cs42l51_dai_mute,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver cs42l51_dai = {
@@ -569,7 +600,6 @@ static const struct snd_soc_component_driver soc_component_device_cs42l51 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static bool cs42l51_writeable_reg(struct device *dev, unsigned int reg)
@@ -673,7 +703,7 @@ const struct regmap_config cs42l51_regmap = {
 	.volatile_reg = cs42l51_volatile_reg,
 	.writeable_reg = cs42l51_writeable_reg,
 	.max_register = CS42L51_CHARGE_FREQ,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 EXPORT_SYMBOL_GPL(cs42l51_regmap);
 
@@ -694,12 +724,9 @@ int cs42l51_probe(struct device *dev, struct regmap *regmap)
 	dev_set_drvdata(dev, cs42l51);
 	cs42l51->regmap = regmap;
 
-	cs42l51->mclk_handle = devm_clk_get(dev, "MCLK");
-	if (IS_ERR(cs42l51->mclk_handle)) {
-		if (PTR_ERR(cs42l51->mclk_handle) != -ENOENT)
-			return PTR_ERR(cs42l51->mclk_handle);
-		cs42l51->mclk_handle = NULL;
-	}
+	cs42l51->mclk_handle = devm_clk_get_optional(dev, "MCLK");
+	if (IS_ERR(cs42l51->mclk_handle))
+		return PTR_ERR(cs42l51->mclk_handle);
 
 	for (i = 0; i < ARRAY_SIZE(cs42l51->supplies); i++)
 		cs42l51->supplies[i].supply = cs42l51_supply_names[i];
@@ -759,14 +786,19 @@ error:
 }
 EXPORT_SYMBOL_GPL(cs42l51_probe);
 
-int cs42l51_remove(struct device *dev)
+void cs42l51_remove(struct device *dev)
 {
 	struct cs42l51_private *cs42l51 = dev_get_drvdata(dev);
+	int ret;
 
 	gpiod_set_value_cansleep(cs42l51->reset_gpio, 1);
 
-	return regulator_bulk_disable(ARRAY_SIZE(cs42l51->supplies),
-				      cs42l51->supplies);
+	ret = regulator_bulk_disable(ARRAY_SIZE(cs42l51->supplies),
+				     cs42l51->supplies);
+	if (ret)
+		dev_warn(dev, "Failed to disable all regulators (%pe)\n",
+			 ERR_PTR(ret));
+
 }
 EXPORT_SYMBOL_GPL(cs42l51_remove);
 
@@ -790,13 +822,6 @@ int __maybe_unused cs42l51_resume(struct device *dev)
 	return regcache_sync(cs42l51->regmap);
 }
 EXPORT_SYMBOL_GPL(cs42l51_resume);
-
-const struct of_device_id cs42l51_of_match[] = {
-	{ .compatible = "cirrus,cs42l51", },
-	{ }
-};
-MODULE_DEVICE_TABLE(of, cs42l51_of_match);
-EXPORT_SYMBOL_GPL(cs42l51_of_match);
 
 MODULE_AUTHOR("Arnaud Patard <arnaud.patard@rtp-net.org>");
 MODULE_DESCRIPTION("Cirrus Logic CS42L51 ALSA SoC Codec Driver");

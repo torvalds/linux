@@ -2,10 +2,9 @@
 #
 # TI's wl128x FM driver based on TI's ST driver.
 #
-menu "Texas Instruments WL128x FM driver (ST based)"
 config RADIO_WL128X
 	tristate "Texas Instruments WL128x FM Radio"
-	depends on VIDEO_V4L2 && RFKILL && TTY && TI_ST
+	depends on VIDEO_DEV && RFKILL && TTY && TI_ST
 	depends on GPIOLIB || COMPILE_TEST
 	help
 	  Choose Y here if you have this FM radio chip.
@@ -13,6 +12,4 @@ config RADIO_WL128X
 	  In order to control your radio card, you will need to use programs
 	  that are compatible with the Video For Linux 2 API.  Information on
 	  this API and pointers to "v4l2" programs may be found at
-	  <file:Documentation/media/media_uapi.rst>.
-
-endmenu
+	  <file:Documentation/userspace-api/media/index.rst>.

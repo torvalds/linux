@@ -25,9 +25,7 @@ struct m62332_data {
 	struct regulator	*vcc;
 	struct mutex		mutex;
 	u8			raw[M62332_CHANNELS];
-#ifdef CONFIG_PM_SLEEP
 	u8			save[M62332_CHANNELS];
-#endif
 };
 
 static int m62332_set_value(struct iio_dev *indio_dev, u8 val, int channel)
@@ -124,7 +122,6 @@ static int m62332_write_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int m62332_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -156,11 +153,7 @@ static int m62332_resume(struct device *dev)
 	return m62332_set_value(indio_dev, data->save[1], 1);
 }
 
-static SIMPLE_DEV_PM_OPS(m62332_pm_ops, m62332_suspend, m62332_resume);
-#define M62332_PM_OPS (&m62332_pm_ops)
-#else
-#define M62332_PM_OPS NULL
-#endif
+static DEFINE_SIMPLE_DEV_PM_OPS(m62332_pm_ops, m62332_suspend, m62332_resume);
 
 static const struct iio_info m62332_info = {
 	.read_raw = m62332_read_raw,
@@ -183,8 +176,7 @@ static const struct iio_chan_spec m62332_channels[M62332_CHANNELS] = {
 	M62332_CHANNEL(1)
 };
 
-static int m62332_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int m62332_probe(struct i2c_client *client)
 {
 	struct m62332_data *data;
 	struct iio_dev *indio_dev;
@@ -203,9 +195,6 @@ static int m62332_probe(struct i2c_client *client,
 	data->vcc = devm_regulator_get(&client->dev, "VCC");
 	if (IS_ERR(data->vcc))
 		return PTR_ERR(data->vcc);
-
-	/* establish that the iio_dev is a child of the i2c device */
-	indio_dev->dev.parent = &client->dev;
 
 	indio_dev->num_channels = ARRAY_SIZE(m62332_channels);
 	indio_dev->channels = m62332_channels;
@@ -228,7 +217,7 @@ err:
 	return ret;
 }
 
-static int m62332_remove(struct i2c_client *client)
+static void m62332_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 
@@ -236,8 +225,6 @@ static int m62332_remove(struct i2c_client *client)
 	iio_map_array_unregister(indio_dev);
 	m62332_set_value(indio_dev, 0, 0);
 	m62332_set_value(indio_dev, 0, 1);
-
-	return 0;
 }
 
 static const struct i2c_device_id m62332_id[] = {
@@ -249,7 +236,7 @@ MODULE_DEVICE_TABLE(i2c, m62332_id);
 static struct i2c_driver m62332_driver = {
 	.driver = {
 		.name	= "m62332",
-		.pm	= M62332_PM_OPS,
+		.pm	= pm_sleep_ptr(&m62332_pm_ops),
 	},
 	.probe		= m62332_probe,
 	.remove		= m62332_remove,

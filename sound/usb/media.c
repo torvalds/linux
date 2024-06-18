@@ -35,7 +35,7 @@ int snd_media_stream_init(struct snd_usb_substream *subs, struct snd_pcm *pcm,
 {
 	struct media_device *mdev;
 	struct media_ctl *mctl;
-	struct device *pcm_dev = &pcm->streams[stream].dev;
+	struct device *pcm_dev = pcm->streams[stream].dev;
 	u32 intf_type;
 	int ret = 0;
 	u16 mixer_pad;
@@ -163,7 +163,7 @@ void snd_media_stop_pipeline(struct snd_usb_substream *subs)
 
 static int snd_media_mixer_init(struct snd_usb_audio *chip)
 {
-	struct device *ctl_dev = &chip->card->ctl_dev;
+	struct device *ctl_dev = chip->card->ctl_dev;
 	struct media_intf_devnode *ctl_intf;
 	struct usb_mixer_interface *mixer;
 	struct media_device *mdev = chip->media_dev;
@@ -285,7 +285,7 @@ snd_mixer_init:
 			ret);
 
 	if (!media_devnode_is_registered(mdev->devnode)) {
-		/* dont'register if snd_media_mixer_init() failed */
+		/* don't register if snd_media_mixer_init() failed */
 		if (ret)
 			goto create_fail;
 

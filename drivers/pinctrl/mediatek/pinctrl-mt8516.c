@@ -6,7 +6,6 @@
 
 #include <dt-bindings/pinctrl/mt65xx.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/module.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/platform_device.h>
@@ -186,13 +185,6 @@ static const struct mtk_pin_spec_pupd_set_samereg mt8516_spec_pupd[] = {
 	MTK_PIN_PUPD_SPEC_SR(120, 0xe00, 2, 1, 0),
 };
 
-static int mt8516_spec_pull_set(struct regmap *regmap, unsigned int pin,
-			unsigned char align, bool isup, unsigned int r1r0)
-{
-	return mtk_pctrl_spec_pull_set_samereg(regmap, mt8516_spec_pupd,
-		ARRAY_SIZE(mt8516_spec_pupd), pin, align, isup, r1r0);
-}
-
 static const struct mtk_pin_ies_smt_set mt8516_ies_set[] = {
 	MTK_PIN_IES_SMT_SPEC(0, 6, 0x900, 2),
 	MTK_PIN_IES_SMT_SPEC(7, 10, 0x900, 3),
@@ -292,18 +284,6 @@ static const struct mtk_pin_ies_smt_set mt8516_smt_set[] = {
 	MTK_PIN_IES_SMT_SPEC(121, 124, 0xA10, 9),
 };
 
-static int mt8516_ies_smt_set(struct regmap *regmap, unsigned int pin,
-		unsigned char align, int value, enum pin_config_param arg)
-{
-	if (arg == PIN_CONFIG_INPUT_ENABLE)
-		return mtk_pconf_spec_set_ies_smt_range(regmap, mt8516_ies_set,
-			ARRAY_SIZE(mt8516_ies_set), pin, align, value);
-	else if (arg == PIN_CONFIG_INPUT_SCHMITT_ENABLE)
-		return mtk_pconf_spec_set_ies_smt_range(regmap, mt8516_smt_set,
-			ARRAY_SIZE(mt8516_smt_set), pin, align, value);
-	return -EINVAL;
-}
-
 static const struct mtk_pinctrl_devdata mt8516_pinctrl_data = {
 	.pins = mtk_pins_mt8516,
 	.npins = ARRAY_SIZE(mtk_pins_mt8516),
@@ -311,8 +291,14 @@ static const struct mtk_pinctrl_devdata mt8516_pinctrl_data = {
 	.n_grp_cls = ARRAY_SIZE(mt8516_drv_grp),
 	.pin_drv_grp = mt8516_pin_drv,
 	.n_pin_drv_grps = ARRAY_SIZE(mt8516_pin_drv),
-	.spec_pull_set = mt8516_spec_pull_set,
-	.spec_ies_smt_set = mt8516_ies_smt_set,
+	.spec_ies = mt8516_ies_set,
+	.n_spec_ies = ARRAY_SIZE(mt8516_ies_set),
+	.spec_pupd = mt8516_spec_pupd,
+	.n_spec_pupd = ARRAY_SIZE(mt8516_spec_pupd),
+	.spec_smt = mt8516_smt_set,
+	.n_spec_smt = ARRAY_SIZE(mt8516_smt_set),
+	.spec_pull_set = mtk_pctrl_spec_pull_set_samereg,
+	.spec_ies_smt_set = mtk_pconf_spec_set_ies_smt_range,
 	.dir_offset = 0x0000,
 	.pullen_offset = 0x0500,
 	.pullsel_offset = 0x0600,
@@ -324,34 +310,31 @@ static const struct mtk_pinctrl_devdata mt8516_pinctrl_data = {
 	.port_shf = 4,
 	.port_mask = 0xf,
 	.port_align = 4,
+	.mode_mask = 0xf,
+	.mode_per_reg = 5,
+	.mode_shf = 4,
 	.eint_hw = {
 		.port_mask = 7,
 		.ports     = 6,
 		.ap_num    = 169,
 		.db_cnt    = 64,
+		.db_time   = debounce_time_mt6795,
 	},
 };
 
-static int mt8516_pinctrl_probe(struct platform_device *pdev)
-{
-	return mtk_pctrl_init(pdev, &mt8516_pinctrl_data, NULL);
-}
-
 static const struct of_device_id mt8516_pctrl_match[] = {
-	{
-		.compatible = "mediatek,mt8516-pinctrl",
-	},
+	{ .compatible = "mediatek,mt8516-pinctrl", .data = &mt8516_pinctrl_data },
 	{}
 };
 
 MODULE_DEVICE_TABLE(of, mt8516_pctrl_match);
 
 static struct platform_driver mtk_pinctrl_driver = {
-	.probe = mt8516_pinctrl_probe,
+	.probe = mtk_pctrl_common_probe,
 	.driver = {
 		.name = "mediatek-mt8516-pinctrl",
 		.of_match_table = mt8516_pctrl_match,
-		.pm = &mtk_eint_pm_ops,
+		.pm = pm_sleep_ptr(&mtk_eint_pm_ops),
 	},
 };
 

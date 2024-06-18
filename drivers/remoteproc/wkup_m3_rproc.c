@@ -12,11 +12,12 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/remoteproc.h>
+#include <linux/reset.h>
 
 #include <linux/platform_data/wkup_m3.h>
 
@@ -43,11 +44,13 @@ struct wkup_m3_mem {
  * @rproc: rproc handle
  * @pdev: pointer to platform device
  * @mem: WkupM3 memory information
+ * @rsts: reset control
  */
 struct wkup_m3_rproc {
 	struct rproc *rproc;
 	struct platform_device *pdev;
 	struct wkup_m3_mem mem[WKUPM3_MEM_MAX];
+	struct reset_control *rsts;
 };
 
 static int wkup_m3_rproc_start(struct rproc *rproc)
@@ -56,13 +59,16 @@ static int wkup_m3_rproc_start(struct rproc *rproc)
 	struct platform_device *pdev = wkupm3->pdev;
 	struct device *dev = &pdev->dev;
 	struct wkup_m3_platform_data *pdata = dev_get_platdata(dev);
+	int error = 0;
 
-	if (pdata->deassert_reset(pdev, pdata->reset_name)) {
+	error = reset_control_deassert(wkupm3->rsts);
+
+	if (!wkupm3->rsts && pdata->deassert_reset(pdev, pdata->reset_name)) {
 		dev_err(dev, "Unable to reset wkup_m3!\n");
-		return -ENODEV;
+		error = -ENODEV;
 	}
 
-	return 0;
+	return error;
 }
 
 static int wkup_m3_rproc_stop(struct rproc *rproc)
@@ -71,23 +77,26 @@ static int wkup_m3_rproc_stop(struct rproc *rproc)
 	struct platform_device *pdev = wkupm3->pdev;
 	struct device *dev = &pdev->dev;
 	struct wkup_m3_platform_data *pdata = dev_get_platdata(dev);
+	int error = 0;
 
-	if (pdata->assert_reset(pdev, pdata->reset_name)) {
+	error = reset_control_assert(wkupm3->rsts);
+
+	if (!wkupm3->rsts && pdata->assert_reset(pdev, pdata->reset_name)) {
 		dev_err(dev, "Unable to assert reset of wkup_m3!\n");
-		return -ENODEV;
+		error = -ENODEV;
 	}
 
-	return 0;
+	return error;
 }
 
-static void *wkup_m3_rproc_da_to_va(struct rproc *rproc, u64 da, int len)
+static void *wkup_m3_rproc_da_to_va(struct rproc *rproc, u64 da, size_t len, bool *is_iomem)
 {
 	struct wkup_m3_rproc *wkupm3 = rproc->priv;
 	void *va = NULL;
 	int i;
 	u32 offset;
 
-	if (len <= 0)
+	if (len == 0)
 		return NULL;
 
 	for (i = 0; i < WKUPM3_MEM_MAX; i++) {
@@ -132,12 +141,6 @@ static int wkup_m3_rproc_probe(struct platform_device *pdev)
 	int ret;
 	int i;
 
-	if (!(pdata && pdata->deassert_reset && pdata->assert_reset &&
-	      pdata->reset_name)) {
-		dev_err(dev, "Platform data missing!\n");
-		return -ENODEV;
-	}
-
 	ret = of_property_read_string(dev->of_node, "ti,pm-firmware",
 				      &fw_name);
 	if (ret) {
@@ -160,10 +163,23 @@ static int wkup_m3_rproc_probe(struct platform_device *pdev)
 	}
 
 	rproc->auto_boot = false;
+	rproc->sysfs_read_only = true;
 
 	wkupm3 = rproc->priv;
 	wkupm3->rproc = rproc;
 	wkupm3->pdev = pdev;
+
+	wkupm3->rsts = devm_reset_control_get_optional_shared(dev, "rstctrl");
+	if (IS_ERR(wkupm3->rsts))
+		return PTR_ERR(wkupm3->rsts);
+	if (!wkupm3->rsts) {
+		if (!(pdata && pdata->deassert_reset && pdata->assert_reset &&
+		      pdata->reset_name)) {
+			dev_err(dev, "Platform data missing!\n");
+			ret = -ENODEV;
+			goto err_put_rproc;
+		}
+	}
 
 	for (i = 0; i < ARRAY_SIZE(mem_names); i++) {
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
@@ -173,7 +189,7 @@ static int wkup_m3_rproc_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "devm_ioremap_resource failed for resource %d\n",
 				i);
 			ret = PTR_ERR(wkupm3->mem[i].cpu_addr);
-			goto err;
+			goto err_put_rproc;
 		}
 		wkupm3->mem[i].bus_addr = res->start;
 		wkupm3->mem[i].size = resource_size(res);
@@ -207,7 +223,7 @@ err:
 	return ret;
 }
 
-static int wkup_m3_rproc_remove(struct platform_device *pdev)
+static void wkup_m3_rproc_remove(struct platform_device *pdev)
 {
 	struct rproc *rproc = platform_get_drvdata(pdev);
 
@@ -215,8 +231,6 @@ static int wkup_m3_rproc_remove(struct platform_device *pdev)
 	rproc_free(rproc);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -237,7 +251,7 @@ static const struct dev_pm_ops wkup_m3_rproc_pm_ops = {
 
 static struct platform_driver wkup_m3_rproc_driver = {
 	.probe = wkup_m3_rproc_probe,
-	.remove = wkup_m3_rproc_remove,
+	.remove_new = wkup_m3_rproc_remove,
 	.driver = {
 		.name = "wkup_m3_rproc",
 		.of_match_table = wkup_m3_rproc_of_match,

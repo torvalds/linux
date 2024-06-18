@@ -51,7 +51,7 @@ struct b43_dfs_file *fops_to_dfs_file(struct b43_wldev *dev,
 #define fappend(fmt, x...)	\
 	do {							\
 		if (bufsize - count)				\
-			count += snprintf(buf + count,		\
+			count += scnprintf(buf + count,		\
 					  bufsize - count,	\
 					  fmt , ##x);		\
 		else						\
@@ -493,7 +493,7 @@ static ssize_t b43_debugfs_read(struct file *file, char __user *userbuf,
 	struct b43_wldev *dev;
 	struct b43_debugfs_fops *dfops;
 	struct b43_dfs_file *dfile;
-	ssize_t uninitialized_var(ret);
+	ssize_t ret;
 	char *buf;
 	const size_t bufsize = 1024 * 16; /* 16 kiB buffer */
 	const size_t buforder = get_order(bufsize);
@@ -643,24 +643,14 @@ bool b43_debug(struct b43_wldev *dev, enum b43_dyndbg feature)
 	return enabled;
 }
 
-static void b43_remove_dynamic_debug(struct b43_wldev *dev)
-{
-	struct b43_dfsentry *e = dev->dfsentry;
-	int i;
-
-	for (i = 0; i < __B43_NR_DYNDBG; i++)
-		debugfs_remove(e->dyn_debug_dentries[i]);
-}
-
 static void b43_add_dynamic_debug(struct b43_wldev *dev)
 {
 	struct b43_dfsentry *e = dev->dfsentry;
 
 #define add_dyn_dbg(name, id, initstate) do {			\
 	e->dyn_debug[id] = (initstate);				\
-	e->dyn_debug_dentries[id] =				\
-		debugfs_create_bool(name, 0600, e->subdir,	\
-				&(e->dyn_debug[id]));		\
+	debugfs_create_bool(name, 0600, e->subdir,		\
+			    &(e->dyn_debug[id]));		\
 	} while (0)
 
 	add_dyn_dbg("debug_xmitpower", B43_DBG_XMITPOWER, false);
@@ -713,10 +703,9 @@ void b43_debugfs_add_device(struct b43_wldev *dev)
 
 #define ADD_FILE(name, mode)	\
 	do {							\
-		e->file_##name.dentry =				\
-			debugfs_create_file(__stringify(name),	\
-					mode, e->subdir, dev,	\
-					&fops_##name.fops);	\
+		debugfs_create_file(__stringify(name),		\
+				mode, e->subdir, dev,		\
+				&fops_##name.fops);		\
 	} while (0)
 
 
@@ -746,19 +735,6 @@ void b43_debugfs_remove_device(struct b43_wldev *dev)
 	e = dev->dfsentry;
 	if (!e)
 		return;
-	b43_remove_dynamic_debug(dev);
-
-	debugfs_remove(e->file_shm16read.dentry);
-	debugfs_remove(e->file_shm16write.dentry);
-	debugfs_remove(e->file_shm32read.dentry);
-	debugfs_remove(e->file_shm32write.dentry);
-	debugfs_remove(e->file_mmio16read.dentry);
-	debugfs_remove(e->file_mmio16write.dentry);
-	debugfs_remove(e->file_mmio32read.dentry);
-	debugfs_remove(e->file_mmio32write.dentry);
-	debugfs_remove(e->file_txstat.dentry);
-	debugfs_remove(e->file_restart.dentry);
-	debugfs_remove(e->file_loctls.dentry);
 
 	debugfs_remove(e->subdir);
 	kfree(e->txstatlog.log);

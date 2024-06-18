@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 /******************************************************************************
  * arch-x86/mca.h
  * Guest OS machine check interface to x86 Xen.
@@ -183,7 +184,6 @@ struct mc_info {
 DEFINE_GUEST_HANDLE_STRUCT(mc_info);
 
 #define __MC_MSR_ARRAYSIZE 8
-#define __MC_MSR_MCGCAP 0
 #define __MC_NMSRS 1
 #define MC_NCAPS 7
 struct mcinfo_logical_cpu {
@@ -332,7 +332,11 @@ struct xen_mc {
 };
 DEFINE_GUEST_HANDLE_STRUCT(xen_mc);
 
-/* Fields are zero when not available */
+/*
+ * Fields are zero when not available. Also, this struct is shared with
+ * userspace mcelog and thus must keep existing fields at current offsets.
+ * Only add new fields to the end of the structure
+ */
 struct xen_mce {
 	__u64 status;
 	__u64 misc;
@@ -353,6 +357,9 @@ struct xen_mce {
 	__u32 socketid;	/* CPU socket ID */
 	__u32 apicid;	/* CPU initial apic ID */
 	__u64 mcgcap;	/* MCGCAP MSR: machine check capabilities of CPU */
+	__u64 synd;	/* MCA_SYND MSR: only valid on SMCA systems */
+	__u64 ipid;	/* MCA_IPID MSR: only valid on SMCA systems */
+	__u64 ppin;	/* Protected Processor Inventory Number */
 };
 
 /*

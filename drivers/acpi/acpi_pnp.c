@@ -11,6 +11,8 @@
 #include <linux/module.h>
 #include <linux/ctype.h>
 
+#include "internal.h"
+
 static const struct acpi_device_id acpi_pnp_device_ids[] = {
 	/* pata_isapnp */
 	{"PNP0600"},		/* Generic ESDI/IDE/ATA compatible hard disk controller */
@@ -154,8 +156,6 @@ static const struct acpi_device_id acpi_pnp_device_ids[] = {
 	{"BRI0A49"},		/* Boca Complete Ofc Communicator 14.4 Data-FAX */
 	{"BRI1400"},		/* Boca Research 33,600 ACF Modem */
 	{"BRI3400"},		/* Boca 33.6 Kbps Internal FD34FSVD */
-	{"BRI0A49"},		/* Boca 33.6 Kbps Internal FD34FSVD */
-	{"BDP3336"},		/* Best Data Products Inc. Smart One 336F PnP Modem */
 	{"CPI4050"},		/* Computer Peripherals Inc. EuroViVa CommCenter-33.6 SP PnP */
 	{"CTL3001"},		/* Creative Labs Phone Blaster 28.8 DSVD PnP Voice */
 	{"CTL3011"},		/* Creative Labs Modem Blaster 28.8 DSVD PnP Voice */
@@ -317,6 +317,9 @@ static bool matching_id(const char *idstr, const char *list_id)
 {
 	int i;
 
+	if (strlen(idstr) != strlen(list_id))
+		return false;
+
 	if (memcmp(idstr, list_id, 3))
 		return false;
 
@@ -345,10 +348,22 @@ static bool acpi_pnp_match(const char *idstr, const struct acpi_device_id **matc
 	return false;
 }
 
+/*
+ * If one of the device IDs below is present in the list of device IDs of a
+ * given ACPI device object, the PNP scan handler will not attach to that
+ * object, because there is a proper non-PNP driver in the kernel for the
+ * device represented by it.
+ */
+static const struct acpi_device_id acpi_nonpnp_device_ids[] = {
+	{"INTC1080"},
+	{"INTC1081"},
+	{""},
+};
+
 static int acpi_pnp_attach(struct acpi_device *adev,
 			   const struct acpi_device_id *id)
 {
-	return 1;
+	return !!acpi_match_device_ids(adev, acpi_nonpnp_device_ids);
 }
 
 static struct acpi_scan_handler acpi_pnp_handler = {

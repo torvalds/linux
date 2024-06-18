@@ -10,6 +10,8 @@
 #include <asm/reg.h>
 #include <asm/cputable.h>
 
+#include "internal.h"
+
 /*
  * Bits in event code for POWER6
  */
@@ -171,7 +173,8 @@ static int power6_marked_instr_event(u64 event)
  * Assign PMC numbers and compute MMCR1 value for a set of events
  */
 static int p6_compute_mmcr(u64 event[], int n_ev,
-			   unsigned int hwc[], unsigned long mmcr[], struct perf_event *pevents[])
+			   unsigned int hwc[], struct mmcr_regs *mmcr, struct perf_event *pevents[],
+			   u32 flags __maybe_unused)
 {
 	unsigned long mmcr1 = 0;
 	unsigned long mmcra = MMCRA_SDAR_DCACHE_MISS | MMCRA_SDAR_ERAT_MISS;
@@ -243,13 +246,13 @@ static int p6_compute_mmcr(u64 event[], int n_ev,
 		if (pmc < 4)
 			mmcr1 |= (unsigned long)psel << MMCR1_PMCSEL_SH(pmc);
 	}
-	mmcr[0] = 0;
+	mmcr->mmcr0 = 0;
 	if (pmc_inuse & 1)
-		mmcr[0] = MMCR0_PMC1CE;
+		mmcr->mmcr0 = MMCR0_PMC1CE;
 	if (pmc_inuse & 0xe)
-		mmcr[0] |= MMCR0_PMCjCE;
-	mmcr[1] = mmcr1;
-	mmcr[2] = mmcra;
+		mmcr->mmcr0 |= MMCR0_PMCjCE;
+	mmcr->mmcr1 = mmcr1;
+	mmcr->mmcra = mmcra;
 	return 0;
 }
 
@@ -264,7 +267,7 @@ static int p6_compute_mmcr(u64 event[], int n_ev,
  *	32-34	select field: nest (subunit) event selector
  */
 static int p6_get_constraint(u64 event, unsigned long *maskp,
-			     unsigned long *valp)
+			     unsigned long *valp, u64 event_config1 __maybe_unused)
 {
 	int pmc, byte, sh, subunit;
 	unsigned long mask = 0, value = 0;
@@ -332,26 +335,38 @@ static const unsigned int event_alternatives[][MAX_ALT] = {
 	{ 0x3000fe, 0x400056 },			/* PM_DATA_FROM_L3MISS */
 };
 
-/*
- * This could be made more efficient with a binary search on
- * a presorted list, if necessary
- */
 static int find_alternatives_list(u64 event)
 {
-	int i, j;
-	unsigned int alt;
+	const unsigned int presorted_event_table[] = {
+		0x0130e8, 0x080080, 0x080088, 0x10000a, 0x10000b, 0x10000d, 0x10000e,
+		0x100010, 0x10001a, 0x100026, 0x100054, 0x100056, 0x1000f0, 0x1000f8,
+		0x1000fc, 0x200008, 0x20000e, 0x200010, 0x200012, 0x200054, 0x2000f0,
+		0x2000f2, 0x2000f4, 0x2000f5, 0x2000f6, 0x2000f8, 0x2000fc, 0x2000fe,
+		0x2d0030, 0x30000a, 0x30000c, 0x300010, 0x300012, 0x30001a, 0x300056,
+		0x3000f0, 0x3000f2, 0x3000f6, 0x3000f8, 0x3000fc, 0x3000fe, 0x400006,
+		0x400007, 0x40000a, 0x40000e, 0x400010, 0x400018, 0x400056, 0x4000f0,
+		0x4000f8, 0x600005
+	};
+	const unsigned int event_index_table[] = {
+		0,  1,  2,  3,  4,  1, 5,  6,  7,  8,  9,  10, 11, 12, 13, 12, 14,
+		7,  15, 2,  9,  16, 3, 4,  0,  17, 10, 18, 19, 20, 1,  17, 15, 19,
+		18, 2,  16, 21, 8,  0, 22, 13, 14, 11, 21, 5,  20, 22, 1,  6,  3
+	};
+	int hi = ARRAY_SIZE(presorted_event_table) - 1;
+	int lo = 0;
 
-	for (i = 0; i < ARRAY_SIZE(event_alternatives); ++i) {
-		if (event < event_alternatives[i][0])
-			return -1;
-		for (j = 0; j < MAX_ALT; ++j) {
-			alt = event_alternatives[i][j];
-			if (!alt || event < alt)
-				break;
-			if (event == alt)
-				return i;
-		}
+	while (lo <= hi) {
+		int mid = lo + (hi - lo) / 2;
+		unsigned int alt = presorted_event_table[mid];
+
+		if (alt < event)
+			lo = mid + 1;
+		else if (alt > event)
+			hi = mid - 1;
+		else
+			return event_index_table[mid];
 	}
+
 	return -1;
 }
 
@@ -457,11 +472,11 @@ static int p6_get_alternatives(u64 event, unsigned int flags, u64 alt[])
 	return nalt;
 }
 
-static void p6_disable_pmc(unsigned int pmc, unsigned long mmcr[])
+static void p6_disable_pmc(unsigned int pmc, struct mmcr_regs *mmcr)
 {
 	/* Set PMCxSEL to 0 to disable PMCx */
 	if (pmc <= 3)
-		mmcr[1] &= ~(0xffUL << MMCR1_PMCSEL_SH(pmc));
+		mmcr->mmcr1 &= ~(0xffUL << MMCR1_PMCSEL_SH(pmc));
 }
 
 static int power6_generic_events[] = {
@@ -481,7 +496,7 @@ static int power6_generic_events[] = {
  * are event codes.
  * The "DTLB" and "ITLB" events relate to the DERAT and IERAT.
  */
-static int power6_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
+static u64 power6_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 	[C(L1D)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
 		[C(OP_READ)] = {	0x280030,	0x80080		},
 		[C(OP_WRITE)] = {	0x180032,	0x80088		},
@@ -536,10 +551,11 @@ static struct power_pmu power6_pmu = {
 	.cache_events		= &power6_cache_events,
 };
 
-int init_power6_pmu(void)
+int __init init_power6_pmu(void)
 {
-	if (!cur_cpu_spec->oprofile_cpu_type ||
-	    strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/power6"))
+	unsigned int pvr = mfspr(SPRN_PVR);
+
+	if (PVR_VER(pvr) != PVR_POWER6)
 		return -ENODEV;
 
 	return register_power_pmu(&power6_pmu);

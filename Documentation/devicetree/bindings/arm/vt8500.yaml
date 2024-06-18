@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/vt8500.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: VIA/Wondermedia VT8500 Platforms Device Tree Bindings
+title: VIA/Wondermedia VT8500 Platforms
 
 maintainers:
   - Tony Prisk <linux@prisktech.co.nz>
@@ -21,3 +21,5 @@ properties:
           - wm,wm8650
           - wm,wm8750
           - wm,wm8850
+
+additionalProperties: true

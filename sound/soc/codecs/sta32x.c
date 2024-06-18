@@ -21,8 +21,7 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
-#include <linux/of_device.h>
-#include <linux/of_gpio.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/gpio/consumer.h>
@@ -48,12 +47,9 @@
 		      SNDRV_PCM_RATE_192000)
 
 #define STA32X_FORMATS \
-	(SNDRV_PCM_FMTBIT_S16_LE  | SNDRV_PCM_FMTBIT_S16_BE  | \
-	 SNDRV_PCM_FMTBIT_S18_3LE | SNDRV_PCM_FMTBIT_S18_3BE | \
-	 SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S20_3BE | \
-	 SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S24_3BE | \
-	 SNDRV_PCM_FMTBIT_S24_LE  | SNDRV_PCM_FMTBIT_S24_BE  | \
-	 SNDRV_PCM_FMTBIT_S32_LE  | SNDRV_PCM_FMTBIT_S32_BE)
+	(SNDRV_PCM_FMTBIT_S16_LE  | SNDRV_PCM_FMTBIT_S18_3LE | \
+	 SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S24_3LE | \
+	 SNDRV_PCM_FMTBIT_S24_LE  | SNDRV_PCM_FMTBIT_S32_LE)
 
 /* Power-up register defaults */
 static const struct reg_default sta32x_regs[] = {
@@ -397,9 +393,9 @@ static void sta32x_watchdog(struct work_struct *work)
 	unsigned int confa, confa_cached;
 
 	/* check if sta32x has reset itself */
-	confa_cached = snd_soc_component_read32(component, STA32X_CONFA);
+	confa_cached = snd_soc_component_read(component, STA32X_CONFA);
 	regcache_cache_bypass(sta32x->regmap, true);
-	confa = snd_soc_component_read32(component, STA32X_CONFA);
+	confa = snd_soc_component_read(component, STA32X_CONFA);
 	regcache_cache_bypass(sta32x->regmap, false);
 	if (confa != confa_cached) {
 		regcache_mark_dirty(sta32x->regmap);
@@ -604,8 +600,8 @@ static int sta32x_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	struct sta32x_priv *sta32x = snd_soc_component_get_drvdata(component);
 	u8 confb = 0;
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBC_CFC:
 		break;
 	default:
 		return -EINVAL;
@@ -697,7 +693,7 @@ static int sta32x_hw_params(struct snd_pcm_substream *substream,
 	switch (params_width(params)) {
 	case 24:
 		dev_dbg(component->dev, "24bit\n");
-		/* fall through */
+		fallthrough;
 	case 32:
 		dev_dbg(component->dev, "24bit or 32bit\n");
 		switch (sta32x->format) {
@@ -893,13 +889,13 @@ static int sta32x_probe(struct snd_soc_component *component)
 				    sta32x->supplies);
 	if (ret != 0) {
 		dev_err(component->dev, "Failed to enable supplies: %d\n", ret);
-		return ret;
+		goto err_clk_disable_unprepare;
 	}
 
 	ret = sta32x_startup_sequence(sta32x);
 	if (ret < 0) {
 		dev_err(component->dev, "Failed to startup device\n");
-		return ret;
+		goto err_regulator_bulk_disable;
 	}
 
 	/* CONFA */
@@ -983,6 +979,13 @@ static int sta32x_probe(struct snd_soc_component *component)
 	regulator_bulk_disable(ARRAY_SIZE(sta32x->supplies), sta32x->supplies);
 
 	return 0;
+
+err_regulator_bulk_disable:
+	regulator_bulk_disable(ARRAY_SIZE(sta32x->supplies), sta32x->supplies);
+err_clk_disable_unprepare:
+	if (sta32x->xti_clk)
+		clk_disable_unprepare(sta32x->xti_clk);
+	return ret;
 }
 
 static void sta32x_remove(struct snd_soc_component *component)
@@ -1010,7 +1013,6 @@ static const struct snd_soc_component_driver sta32x_component = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config sta32x_regmap = {
@@ -1019,7 +1021,7 @@ static const struct regmap_config sta32x_regmap = {
 	.max_register =		STA32X_FDRC2,
 	.reg_defaults =		sta32x_regs,
 	.num_reg_defaults =	ARRAY_SIZE(sta32x_regs),
-	.cache_type =		REGCACHE_RBTREE,
+	.cache_type =		REGCACHE_MAPLE,
 	.wr_table =		&sta32x_write_regs,
 	.rd_table =		&sta32x_read_regs,
 	.volatile_table =	&sta32x_volatile_regs,
@@ -1051,35 +1053,32 @@ static int sta32x_probe_dt(struct device *dev, struct sta32x_priv *sta32x)
 	of_property_read_u8(np, "st,ch3-output-mapping",
 			    &pdata->ch3_output_mapping);
 
-	if (of_get_property(np, "st,fault-detect-recovery", NULL))
-		pdata->fault_detect_recovery = 1;
-	if (of_get_property(np, "st,thermal-warning-recovery", NULL))
-		pdata->thermal_warning_recovery = 1;
-	if (of_get_property(np, "st,thermal-warning-adjustment", NULL))
-		pdata->thermal_warning_adjustment = 1;
-	if (of_get_property(np, "st,needs_esd_watchdog", NULL))
-		pdata->needs_esd_watchdog = 1;
+	pdata->fault_detect_recovery =
+		of_property_read_bool(np, "st,fault-detect-recovery");
+	pdata->thermal_warning_recovery =
+		of_property_read_bool(np, "st,thermal-warning-recovery");
+	pdata->thermal_warning_adjustment =
+		of_property_read_bool(np, "st,thermal-warning-adjustment");
+	pdata->needs_esd_watchdog =
+		of_property_read_bool(np, "st,needs_esd_watchdog");
 
 	tmp = 140;
 	of_property_read_u16(np, "st,drop-compensation-ns", &tmp);
 	pdata->drop_compensation_ns = clamp_t(u16, tmp, 0, 300) / 20;
 
 	/* CONFE */
-	if (of_get_property(np, "st,max-power-use-mpcc", NULL))
-		pdata->max_power_use_mpcc = 1;
-
-	if (of_get_property(np, "st,max-power-correction", NULL))
-		pdata->max_power_correction = 1;
-
-	if (of_get_property(np, "st,am-reduction-mode", NULL))
-		pdata->am_reduction_mode = 1;
-
-	if (of_get_property(np, "st,odd-pwm-speed-mode", NULL))
-		pdata->odd_pwm_speed_mode = 1;
+	pdata->max_power_use_mpcc =
+		of_property_read_bool(np, "st,max-power-use-mpcc");
+	pdata->max_power_correction =
+		of_property_read_bool(np, "st,max-power-correction");
+	pdata->am_reduction_mode =
+		of_property_read_bool(np, "st,am-reduction-mode");
+	pdata->odd_pwm_speed_mode =
+		of_property_read_bool(np, "st,odd-pwm-speed-mode");
 
 	/* CONFF */
-	if (of_get_property(np, "st,invalid-input-detect-mute", NULL))
-		pdata->invalid_input_detect_mute = 1;
+	pdata->invalid_input_detect_mute =
+		of_property_read_bool(np, "st,invalid-input-detect-mute");
 
 	sta32x->pdata = pdata;
 
@@ -1087,8 +1086,7 @@ static int sta32x_probe_dt(struct device *dev, struct sta32x_priv *sta32x)
 }
 #endif
 
-static int sta32x_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int sta32x_i2c_probe(struct i2c_client *i2c)
 {
 	struct device *dev = &i2c->dev;
 	struct sta32x_priv *sta32x;
@@ -1156,9 +1154,9 @@ static int sta32x_i2c_probe(struct i2c_client *i2c,
 }
 
 static const struct i2c_device_id sta32x_i2c_id[] = {
-	{ "sta326", 0 },
-	{ "sta328", 0 },
-	{ "sta329", 0 },
+	{ "sta326" },
+	{ "sta328" },
+	{ "sta329" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, sta32x_i2c_id);
@@ -1168,7 +1166,7 @@ static struct i2c_driver sta32x_i2c_driver = {
 		.name = "sta32x",
 		.of_match_table = of_match_ptr(st32x_dt_ids),
 	},
-	.probe =    sta32x_i2c_probe,
+	.probe = sta32x_i2c_probe,
 	.id_table = sta32x_i2c_id,
 };
 

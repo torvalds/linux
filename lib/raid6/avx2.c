@@ -13,8 +13,6 @@
  *
  */
 
-#ifdef CONFIG_AS_AVX2
-
 #include <linux/raid/pq.h>
 #include "x86.h"
 
@@ -134,7 +132,7 @@ const struct raid6_calls raid6_avx2x1 = {
 	raid6_avx21_xor_syndrome,
 	raid6_have_avx2,
 	"avx2x1",
-	1			/* Has cache hints */
+	.priority = 2		/* Prefer AVX2 over priority 1 (SSE2 and others) */
 };
 
 /*
@@ -264,7 +262,7 @@ const struct raid6_calls raid6_avx2x2 = {
 	raid6_avx22_xor_syndrome,
 	raid6_have_avx2,
 	"avx2x2",
-	1			/* Has cache hints */
+	.priority = 2		/* Prefer AVX2 over priority 1 (SSE2 and others) */
 };
 
 #ifdef CONFIG_X86_64
@@ -467,8 +465,6 @@ const struct raid6_calls raid6_avx2x4 = {
 	raid6_avx24_xor_syndrome,
 	raid6_have_avx2,
 	"avx2x4",
-	1			/* Has cache hints */
+	.priority = 2		/* Prefer AVX2 over priority 1 (SSE2 and others) */
 };
-#endif
-
-#endif /* CONFIG_AS_AVX2 */
+#endif /* CONFIG_X86_64 */

@@ -15,7 +15,7 @@
 #define HWCAP_EDSP	(1 << 7)
 #define HWCAP_JAVA	(1 << 8)
 #define HWCAP_IWMMXT	(1 << 9)
-#define HWCAP_CRUNCH	(1 << 10)
+#define HWCAP_CRUNCH	(1 << 10)	/* Obsolete */
 #define HWCAP_THUMBEE	(1 << 11)
 #define HWCAP_NEON	(1 << 12)
 #define HWCAP_VFPv3	(1 << 13)
@@ -28,6 +28,12 @@
 #define HWCAP_IDIV	(HWCAP_IDIVA | HWCAP_IDIVT)
 #define HWCAP_LPAE	(1 << 20)
 #define HWCAP_EVTSTRM	(1 << 21)
+#define HWCAP_FPHP	(1 << 22)
+#define HWCAP_ASIMDHP	(1 << 23)
+#define HWCAP_ASIMDDP	(1 << 24)
+#define HWCAP_ASIMDFHM	(1 << 25)
+#define HWCAP_ASIMDBF16	(1 << 26)
+#define HWCAP_I8MM	(1 << 27)
 
 /*
  * HWCAP2 flags - for elf_hwcap2 (in kernel) and AT_HWCAP2
@@ -37,5 +43,7 @@
 #define HWCAP2_SHA1	(1 << 2)
 #define HWCAP2_SHA2	(1 << 3)
 #define HWCAP2_CRC32	(1 << 4)
+#define HWCAP2_SB	(1 << 5)
+#define HWCAP2_SSBS	(1 << 6)
 
 #endif /* _UAPI__ASMARM_HWCAP_H */

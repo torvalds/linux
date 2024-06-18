@@ -50,7 +50,7 @@ static ssize_t ams_show_current(struct device *dev,
 	ams_sensors(&x, &y, &z);
 	mutex_unlock(&ams_info.lock);
 
-	return snprintf(buf, PAGE_SIZE, "%d %d %d\n", x, y, z);
+	return sysfs_emit(buf, "%d %d %d\n", x, y, z);
 }
 
 static DEVICE_ATTR(current, S_IRUGO, ams_show_current, NULL);
@@ -176,7 +176,7 @@ release_freefall:
 	return result;
 }
 
-int __init ams_init(void)
+static int __init ams_init(void)
 {
 	struct device_node *np;
 

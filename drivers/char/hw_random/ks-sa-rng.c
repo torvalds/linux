@@ -2,7 +2,7 @@
 /*
  * Random Number Generator driver for the Keystone SOC
  *
- * Copyright (C) 2016 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2016 Texas Instruments Incorporated - https://www.ti.com
  *
  * Authors:	Sandeep Nair
  *		Vitaly Andrianov
@@ -21,6 +21,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/delay.h>
+#include <linux/timekeeping.h>
 
 #define SA_CMD_STATUS_OFS			0x8
 
@@ -80,18 +81,39 @@ struct trng_regs {
 };
 
 struct ks_sa_rng {
-	struct device	*dev;
 	struct hwrng	rng;
 	struct clk	*clk;
 	struct regmap	*regmap_cfg;
-	struct trng_regs *reg_rng;
+	struct trng_regs __iomem *reg_rng;
+	u64 ready_ts;
+	unsigned int refill_delay_ns;
 };
+
+static unsigned int cycles_to_ns(unsigned long clk_rate, unsigned int cycles)
+{
+	return DIV_ROUND_UP_ULL((TRNG_DEF_CLK_DIV_CYCLES + 1) * 1000000000ull *
+				cycles, clk_rate);
+}
+
+static unsigned int startup_delay_ns(unsigned long clk_rate)
+{
+	if (!TRNG_DEF_STARTUP_CYCLES)
+		return cycles_to_ns(clk_rate, BIT(24));
+	return cycles_to_ns(clk_rate, 256 * TRNG_DEF_STARTUP_CYCLES);
+}
+
+static unsigned int refill_delay_ns(unsigned long clk_rate)
+{
+	if (!TRNG_DEF_MAX_REFILL_CYCLES)
+		return cycles_to_ns(clk_rate, BIT(24));
+	return cycles_to_ns(clk_rate, 256 * TRNG_DEF_MAX_REFILL_CYCLES);
+}
 
 static int ks_sa_rng_init(struct hwrng *rng)
 {
 	u32 value;
-	struct device *dev = (struct device *)rng->priv;
-	struct ks_sa_rng *ks_sa_rng = dev_get_drvdata(dev);
+	struct ks_sa_rng *ks_sa_rng = container_of(rng, struct ks_sa_rng, rng);
+	unsigned long clk_rate = clk_get_rate(ks_sa_rng->clk);
 
 	/* Enable RNG module */
 	regmap_write_bits(ks_sa_rng->regmap_cfg, SA_CMD_STATUS_OFS,
@@ -120,13 +142,16 @@ static int ks_sa_rng_init(struct hwrng *rng)
 	value |= TRNG_CNTL_REG_TRNG_ENABLE;
 	writel(value, &ks_sa_rng->reg_rng->control);
 
+	ks_sa_rng->refill_delay_ns = refill_delay_ns(clk_rate);
+	ks_sa_rng->ready_ts = ktime_get_ns() +
+			      startup_delay_ns(clk_rate);
+
 	return 0;
 }
 
 static void ks_sa_rng_cleanup(struct hwrng *rng)
 {
-	struct device *dev = (struct device *)rng->priv;
-	struct ks_sa_rng *ks_sa_rng = dev_get_drvdata(dev);
+	struct ks_sa_rng *ks_sa_rng = container_of(rng, struct ks_sa_rng, rng);
 
 	/* Disable RNG */
 	writel(0, &ks_sa_rng->reg_rng->control);
@@ -136,25 +161,33 @@ static void ks_sa_rng_cleanup(struct hwrng *rng)
 
 static int ks_sa_rng_data_read(struct hwrng *rng, u32 *data)
 {
-	struct device *dev = (struct device *)rng->priv;
-	struct ks_sa_rng *ks_sa_rng = dev_get_drvdata(dev);
+	struct ks_sa_rng *ks_sa_rng = container_of(rng, struct ks_sa_rng, rng);
 
 	/* Read random data */
 	data[0] = readl(&ks_sa_rng->reg_rng->output_l);
 	data[1] = readl(&ks_sa_rng->reg_rng->output_h);
 
 	writel(TRNG_INTACK_REG_READY, &ks_sa_rng->reg_rng->intack);
+	ks_sa_rng->ready_ts = ktime_get_ns() + ks_sa_rng->refill_delay_ns;
 
 	return sizeof(u32) * 2;
 }
 
 static int ks_sa_rng_data_present(struct hwrng *rng, int wait)
 {
-	struct device *dev = (struct device *)rng->priv;
-	struct ks_sa_rng *ks_sa_rng = dev_get_drvdata(dev);
+	struct ks_sa_rng *ks_sa_rng = container_of(rng, struct ks_sa_rng, rng);
+	u64 now = ktime_get_ns();
 
 	u32	ready;
 	int	j;
+
+	if (wait && now < ks_sa_rng->ready_ts) {
+		/* Max delay expected here is 81920000 ns */
+		unsigned long min_delay =
+			DIV_ROUND_UP((u32)(ks_sa_rng->ready_ts - now), 1000);
+
+		usleep_range(min_delay, min_delay + SA_RNG_DATA_RETRY_DELAY);
+	}
 
 	for (j = 0; j < SA_MAX_RNG_DATA_RETRIES; j++) {
 		ready = readl(&ks_sa_rng->reg_rng->status);
@@ -174,13 +207,11 @@ static int ks_sa_rng_probe(struct platform_device *pdev)
 	struct ks_sa_rng	*ks_sa_rng;
 	struct device		*dev = &pdev->dev;
 	int			ret;
-	struct resource		*mem;
 
 	ks_sa_rng = devm_kzalloc(dev, sizeof(*ks_sa_rng), GFP_KERNEL);
 	if (!ks_sa_rng)
 		return -ENOMEM;
 
-	ks_sa_rng->dev = dev;
 	ks_sa_rng->rng = (struct hwrng) {
 		.name = "ks_sa_hwrng",
 		.init = ks_sa_rng_init,
@@ -188,10 +219,8 @@ static int ks_sa_rng_probe(struct platform_device *pdev)
 		.data_present = ks_sa_rng_data_present,
 		.cleanup = ks_sa_rng_cleanup,
 	};
-	ks_sa_rng->rng.priv = (unsigned long)dev;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ks_sa_rng->reg_rng = devm_ioremap_resource(dev, mem);
+	ks_sa_rng->reg_rng = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ks_sa_rng->reg_rng))
 		return PTR_ERR(ks_sa_rng->reg_rng);
 
@@ -199,30 +228,23 @@ static int ks_sa_rng_probe(struct platform_device *pdev)
 		syscon_regmap_lookup_by_phandle(dev->of_node,
 						"ti,syscon-sa-cfg");
 
-	if (IS_ERR(ks_sa_rng->regmap_cfg)) {
-		dev_err(dev, "syscon_node_to_regmap failed\n");
-		return -EINVAL;
-	}
+	if (IS_ERR(ks_sa_rng->regmap_cfg))
+		return dev_err_probe(dev, -EINVAL, "syscon_node_to_regmap failed\n");
 
 	pm_runtime_enable(dev);
-	ret = pm_runtime_get_sync(dev);
+	ret = pm_runtime_resume_and_get(dev);
 	if (ret < 0) {
-		dev_err(dev, "Failed to enable SA power-domain\n");
 		pm_runtime_disable(dev);
-		return ret;
+		return dev_err_probe(dev, ret, "Failed to enable SA power-domain\n");
 	}
-
-	platform_set_drvdata(pdev, ks_sa_rng);
 
 	return devm_hwrng_register(&pdev->dev, &ks_sa_rng->rng);
 }
 
-static int ks_sa_rng_remove(struct platform_device *pdev)
+static void ks_sa_rng_remove(struct platform_device *pdev)
 {
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static const struct of_device_id ks_sa_rng_dt_match[] = {
@@ -239,7 +261,7 @@ static struct platform_driver ks_sa_rng_driver = {
 		.of_match_table = ks_sa_rng_dt_match,
 	},
 	.probe		= ks_sa_rng_probe,
-	.remove		= ks_sa_rng_remove,
+	.remove_new	= ks_sa_rng_remove,
 };
 
 module_platform_driver(ks_sa_rng_driver);

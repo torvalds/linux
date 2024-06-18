@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for TPS65218 Integrated power management chipsets
  *
- * Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether expressed or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License version 2 for more details.
+ * Copyright (C) 2014 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 #include <linux/kernel.h>
@@ -23,7 +15,6 @@
 #include <linux/regmap.h>
 #include <linux/err.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
@@ -48,7 +39,7 @@ static const struct mfd_cell tps65218_cells[] = {
 /**
  * tps65218_reg_write: Write a single tps65218 register.
  *
- * @tps65218: Device to write to.
+ * @tps: Device to write to.
  * @reg: Register to write to.
  * @val: Value to write.
  * @level: Password protected level
@@ -79,7 +70,7 @@ EXPORT_SYMBOL_GPL(tps65218_reg_write);
 /**
  * tps65218_update_bits: Modify bits w.r.t mask, val and level.
  *
- * @tps65218: Device to write to.
+ * @tps: Device to write to.
  * @reg: Register to read-write to.
  * @mask: Mask.
  * @val: Value to write.
@@ -136,7 +127,7 @@ static const struct regmap_access_table tps65218_volatile_table = {
 static const struct regmap_config tps65218_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.volatile_table = &tps65218_volatile_table,
 };
 
@@ -288,8 +279,7 @@ static int tps65218_voltage_set_uvlo(struct tps65218 *tps)
 	return 0;
 }
 
-static int tps65218_probe(struct i2c_client *client,
-				const struct i2c_device_id *ids)
+static int tps65218_probe(struct i2c_client *client)
 {
 	struct tps65218 *tps;
 	int ret;

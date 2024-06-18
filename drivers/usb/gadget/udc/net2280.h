@@ -156,11 +156,13 @@ struct net2280 {
 					softconnect : 1,
 					got_irq : 1,
 					region:1,
+					added:1,
 					u1_enable:1,
 					u2_enable:1,
 					ltm_enable:1,
 					wakeup_enable:1,
 					addressed_state:1,
+					async_callbacks:1,
 					bug7734_patched:1;
 	u16				chiprev;
 	int enhanced_mode;

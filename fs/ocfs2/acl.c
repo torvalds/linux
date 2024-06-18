@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
- *
+/*
  * acl.c
  *
  * Copyright (C) 2004, 2008 Oracle.  All rights reserved.
@@ -193,10 +191,10 @@ static int ocfs2_acl_set_mode(struct inode *inode, struct buffer_head *di_bh,
 	}
 
 	inode->i_mode = new_mode;
-	inode->i_ctime = current_time(inode);
+	inode_set_ctime_current(inode);
 	di->i_mode = cpu_to_le16(inode->i_mode);
-	di->i_ctime = cpu_to_le64(inode->i_ctime.tv_sec);
-	di->i_ctime_nsec = cpu_to_le32(inode->i_ctime.tv_nsec);
+	di->i_ctime = cpu_to_le64(inode_get_ctime_sec(inode));
+	di->i_ctime_nsec = cpu_to_le32(inode_get_ctime_nsec(inode));
 	ocfs2_update_inode_fsync_trans(handle, inode, 0);
 
 	ocfs2_journal_dirty(handle, di_bh);
@@ -256,15 +254,19 @@ static int ocfs2_set_acl(handle_t *handle,
 		ret = ocfs2_xattr_set(inode, name_index, "", value, size, 0);
 
 	kfree(value);
+	if (!ret)
+		set_cached_acl(inode, type, acl);
 
 	return ret;
 }
 
-int ocfs2_iop_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+int ocfs2_iop_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
+		      struct posix_acl *acl, int type)
 {
 	struct buffer_head *bh = NULL;
 	int status, had_lock;
 	struct ocfs2_lock_holder oh;
+	struct inode *inode = d_inode(dentry);
 
 	had_lock = ocfs2_inode_lock_tracker(inode, &bh, 1, &oh);
 	if (had_lock < 0)
@@ -272,7 +274,8 @@ int ocfs2_iop_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	if (type == ACL_TYPE_ACCESS && acl) {
 		umode_t mode;
 
-		status = posix_acl_update_mode(inode, &mode, &acl);
+		status = posix_acl_update_mode(&nop_mnt_idmap, inode, &mode,
+					       &acl);
 		if (status)
 			goto unlock;
 
@@ -287,13 +290,16 @@ unlock:
 	return status;
 }
 
-struct posix_acl *ocfs2_iop_get_acl(struct inode *inode, int type)
+struct posix_acl *ocfs2_iop_get_acl(struct inode *inode, int type, bool rcu)
 {
 	struct ocfs2_super *osb;
 	struct buffer_head *di_bh = NULL;
 	struct posix_acl *acl;
 	int had_lock;
 	struct ocfs2_lock_holder oh;
+
+	if (rcu)
+		return ERR_PTR(-ECHILD);
 
 	osb = OCFS2_SB(inode->i_sb);
 	if (!(osb->s_mount_opt & OCFS2_MOUNT_POSIX_ACL))
@@ -327,8 +333,8 @@ int ocfs2_acl_chmod(struct inode *inode, struct buffer_head *bh)
 	down_read(&OCFS2_I(inode)->ip_xattr_sem);
 	acl = ocfs2_get_acl_nolock(inode, ACL_TYPE_ACCESS, bh);
 	up_read(&OCFS2_I(inode)->ip_xattr_sem);
-	if (IS_ERR(acl) || !acl)
-		return PTR_ERR(acl);
+	if (IS_ERR_OR_NULL(acl))
+		return PTR_ERR_OR_ZERO(acl);
 	ret = __posix_acl_chmod(&acl, GFP_KERNEL, inode->i_mode);
 	if (ret)
 		return ret;

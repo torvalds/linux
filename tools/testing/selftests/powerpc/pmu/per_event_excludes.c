@@ -23,12 +23,9 @@
 static int per_event_excludes(void)
 {
 	struct event *e, events[4];
-	char *platform;
 	int i;
 
-	platform = (char *)get_auxv_entry(AT_BASE_PLATFORM);
-	FAIL_IF(!platform);
-	SKIP_IF(strcmp(platform, "power8") != 0);
+	SKIP_IF(!have_hwcap2(PPC_FEATURE2_ARCH_2_07));
 
 	/*
 	 * We need to create the events disabled, otherwise the running/enabled

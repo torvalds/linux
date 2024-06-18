@@ -10,14 +10,15 @@
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
-#include <linux/clkdev.h>
 #include <linux/clk/renesas.h>
 #include <linux/device.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/pm_clock.h>
 #include <linux/pm_domain.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 
 /*
@@ -78,8 +79,8 @@ static int cpg_mstp_clock_endisable(struct clk_hw *hw, bool enable)
 	struct mstp_clock_group *group = clock->group;
 	u32 bitmask = BIT(clock->bit_index);
 	unsigned long flags;
-	unsigned int i;
 	u32 value;
+	int ret;
 
 	spin_lock_irqsave(&group->lock, flags);
 
@@ -101,19 +102,14 @@ static int cpg_mstp_clock_endisable(struct clk_hw *hw, bool enable)
 	if (!enable || !group->mstpsr)
 		return 0;
 
-	for (i = 1000; i > 0; --i) {
-		if (!(cpg_mstp_read(group, group->mstpsr) & bitmask))
-			break;
-		cpu_relax();
-	}
-
-	if (!i) {
+	/* group->width_8bit is always false if group->mstpsr is present */
+	ret = readl_poll_timeout_atomic(group->mstpsr, value,
+					!(value & bitmask), 0, 10);
+	if (ret)
 		pr_err("%s: failed to enable %p[%d]\n", __func__,
 		       group->smstpcr, clock->bit_index);
-		return -ETIMEDOUT;
-	}
 
-	return 0;
+	return ret;
 }
 
 static int cpg_mstp_clock_enable(struct clk_hw *hw)
@@ -150,7 +146,7 @@ static struct clk * __init cpg_mstp_clock_register(const char *name,
 	const char *parent_name, unsigned int index,
 	struct mstp_clock_group *group)
 {
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct mstp_clock *clock;
 	struct clk *clk;
 
@@ -189,10 +185,8 @@ static void __init cpg_mstp_clocks_init(struct device_node *np)
 	unsigned int i;
 
 	group = kzalloc(struct_size(group, clks, MSTP_MAX_CLOCKS), GFP_KERNEL);
-	if (group == NULL) {
-		kfree(group);
+	if (!group)
 		return;
-	}
 
 	clks = group->clks;
 	spin_lock_init(&group->lock);
@@ -243,22 +237,12 @@ static void __init cpg_mstp_clocks_init(struct device_node *np)
 
 		clks[clkidx] = cpg_mstp_clock_register(name, parent_name,
 						       clkidx, group);
-		if (!IS_ERR(clks[clkidx])) {
+		if (!IS_ERR(clks[clkidx]))
 			group->data.clk_num = max(group->data.clk_num,
 						  clkidx + 1);
-			/*
-			 * Register a clkdev to let board code retrieve the
-			 * clock by name and register aliases for non-DT
-			 * devices.
-			 *
-			 * FIXME: Remove this when all devices that require a
-			 * clock will be instantiated from DT.
-			 */
-			clk_register_clkdev(clks[clkidx], name, NULL);
-		} else {
+		else
 			pr_err("%s: failed to register %pOFn %s clock (%ld)\n",
 			       __func__, np, name, PTR_ERR(clks[clkidx]));
-		}
 	}
 
 	of_clk_add_provider(np, of_clk_src_onecell_get, &group->data);

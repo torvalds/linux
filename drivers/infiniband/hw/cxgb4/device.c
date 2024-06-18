@@ -242,10 +242,13 @@ static void set_ep_sin6_addrs(struct c4iw_ep *ep,
 	}
 }
 
-static int dump_qp(struct c4iw_qp *qp, struct c4iw_debugfs_data *qpd)
+static int dump_qp(unsigned long id, struct c4iw_qp *qp,
+		   struct c4iw_debugfs_data *qpd)
 {
 	int space;
 	int cc;
+	if (id != qp->wq.sq.qid)
+		return 0;
 
 	space = qpd->bufsize - qpd->pos - 1;
 	if (space == 0)
@@ -350,7 +353,7 @@ static int qp_open(struct inode *inode, struct file *file)
 
 	xa_lock_irq(&qpd->devp->qps);
 	xa_for_each(&qpd->devp->qps, index, qp)
-		dump_qp(qp, qpd);
+		dump_qp(index, qp, qpd);
 	xa_unlock_irq(&qpd->devp->qps);
 
 	qpd->buf[qpd->pos++] = 0;
@@ -950,6 +953,7 @@ void c4iw_dealloc(struct uld_ctx *ctx)
 static void c4iw_remove(struct uld_ctx *ctx)
 {
 	pr_debug("c4iw_dev %p\n", ctx->dev);
+	debugfs_remove_recursive(ctx->dev->debugfs_root);
 	c4iw_unregister_device(ctx->dev);
 	c4iw_dealloc(ctx);
 }
@@ -1558,7 +1562,6 @@ static void __exit c4iw_exit_module(void)
 		kfree(ctx);
 	}
 	mutex_unlock(&dev_mutex);
-	flush_workqueue(reg_workq);
 	destroy_workqueue(reg_workq);
 	cxgb4_unregister_uld(CXGB4_ULD_RDMA);
 	c4iw_cm_term();

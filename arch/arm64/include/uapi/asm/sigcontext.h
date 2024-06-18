@@ -62,6 +62,10 @@ struct sigcontext {
  * context. Such structures must be placed after the rt_sigframe on the stack
  * and be 16-byte aligned. The last structure must be a dummy one with the
  * magic and size set to 0.
+ *
+ * Note that the values allocated for use as magic should be chosen to
+ * be meaningful in ASCII to aid manual parsing, ZA doesn't follow this
+ * convention due to oversight but it should be observed for future additions.
  */
 struct _aarch64_ctx {
 	__u32 magic;
@@ -134,6 +138,41 @@ struct extra_context {
 struct sve_context {
 	struct _aarch64_ctx head;
 	__u16 vl;
+	__u16 flags;
+	__u16 __reserved[2];
+};
+
+#define SVE_SIG_FLAG_SM	0x1	/* Context describes streaming mode */
+
+/* TPIDR2_EL0 context */
+#define TPIDR2_MAGIC	0x54504902
+
+struct tpidr2_context {
+	struct _aarch64_ctx head;
+	__u64 tpidr2;
+};
+
+/* FPMR context */
+#define FPMR_MAGIC	0x46504d52
+
+struct fpmr_context {
+	struct _aarch64_ctx head;
+	__u64 fpmr;
+};
+
+#define ZA_MAGIC	0x54366345
+
+struct za_context {
+	struct _aarch64_ctx head;
+	__u16 vl;
+	__u16 __reserved[3];
+};
+
+#define ZT_MAGIC	0x5a544e01
+
+struct zt_context {
+	struct _aarch64_ctx head;
+	__u16 nregs;
 	__u16 __reserved[3];
 };
 
@@ -146,7 +185,7 @@ struct sve_context {
  * vector length beyond its initial architectural limit of 2048 bits
  * (16 quadwords).
  *
- * See linux/Documentation/arm64/sve.rst for a description of the VL/VQ
+ * See linux/Documentation/arch/arm64/sve.rst for a description of the VL/VQ
  * terminology.
  */
 #define SVE_VQ_BYTES		__SVE_VQ_BYTES	/* bytes per quadword */
@@ -179,16 +218,23 @@ struct sve_context {
  * The same convention applies when returning from a signal: a caller
  * will need to remove or resize the sve_context block if it wants to
  * make the SVE registers live when they were previously non-live or
- * vice-versa.  This may require the the caller to allocate fresh
+ * vice-versa.  This may require the caller to allocate fresh
  * memory and/or move other context blocks in the signal frame.
  *
  * Changing the vector length during signal return is not permitted:
  * sve_context.vl must equal the thread's current vector length when
  * doing a sigreturn.
  *
+ * On systems with support for SME the SVE register state may reflect either
+ * streaming or non-streaming mode.  In streaming mode the streaming mode
+ * vector length will be used and the flag SVE_SIG_FLAG_SM will be set in
+ * the flags field. It is permitted to enter or leave streaming mode in
+ * a signal return, applications should take care to ensure that any difference
+ * in vector length between the two modes is handled, including any resizing
+ * and movement of context blocks.
  *
- * Note: for all these macros, the "vq" argument denotes the SVE
- * vector length in quadwords (i.e., units of 128 bits).
+ * Note: for all these macros, the "vq" argument denotes the vector length
+ * in quadwords (i.e., units of 128 bits).
  *
  * The correct way to obtain vq is to use sve_vq_from_vl(vl).  The
  * result is valid if and only if sve_vl_valid(vl) is true.  This is
@@ -248,5 +294,49 @@ struct sve_context {
 
 #define SVE_SIG_CONTEXT_SIZE(vq) \
 		(SVE_SIG_REGS_OFFSET + SVE_SIG_REGS_SIZE(vq))
+
+/*
+ * If the ZA register is enabled for the thread at signal delivery then,
+ * za_context.head.size >= ZA_SIG_CONTEXT_SIZE(sve_vq_from_vl(za_context.vl))
+ * and the register data may be accessed using the ZA_SIG_*() macros.
+ *
+ * If za_context.head.size < ZA_SIG_CONTEXT_SIZE(sve_vq_from_vl(za_context.vl))
+ * then ZA was not enabled and no register data was included in which case
+ * ZA register was not enabled for the thread and no register data
+ * the ZA_SIG_*() macros should not be used except for this check.
+ *
+ * The same convention applies when returning from a signal: a caller
+ * will need to remove or resize the za_context block if it wants to
+ * enable the ZA register when it was previously non-live or vice-versa.
+ * This may require the caller to allocate fresh memory and/or move other
+ * context blocks in the signal frame.
+ *
+ * Changing the vector length during signal return is not permitted:
+ * za_context.vl must equal the thread's current SME vector length when
+ * doing a sigreturn.
+ */
+
+#define ZA_SIG_REGS_OFFSET					\
+	((sizeof(struct za_context) + (__SVE_VQ_BYTES - 1))	\
+		/ __SVE_VQ_BYTES * __SVE_VQ_BYTES)
+
+#define ZA_SIG_REGS_SIZE(vq) ((vq * __SVE_VQ_BYTES) * (vq * __SVE_VQ_BYTES))
+
+#define ZA_SIG_ZAV_OFFSET(vq, n) (ZA_SIG_REGS_OFFSET + \
+				  (SVE_SIG_ZREG_SIZE(vq) * n))
+
+#define ZA_SIG_CONTEXT_SIZE(vq) \
+		(ZA_SIG_REGS_OFFSET + ZA_SIG_REGS_SIZE(vq))
+
+#define ZT_SIG_REG_SIZE 512
+
+#define ZT_SIG_REG_BYTES (ZT_SIG_REG_SIZE / 8)
+
+#define ZT_SIG_REGS_OFFSET sizeof(struct zt_context)
+
+#define ZT_SIG_REGS_SIZE(n) (ZT_SIG_REG_BYTES * n)
+
+#define ZT_SIG_CONTEXT_SIZE(n) \
+	(sizeof(struct zt_context) + ZT_SIG_REGS_SIZE(n))
 
 #endif /* _UAPI__ASM_SIGCONTEXT_H */

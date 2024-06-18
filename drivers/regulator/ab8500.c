@@ -25,8 +25,122 @@
 #include <linux/regulator/of_regulator.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
-#include <linux/regulator/ab8500.h>
 #include <linux/slab.h>
+
+/* AB8500 regulators */
+enum ab8500_regulator_id {
+	AB8500_LDO_AUX1,
+	AB8500_LDO_AUX2,
+	AB8500_LDO_AUX3,
+	AB8500_LDO_INTCORE,
+	AB8500_LDO_TVOUT,
+	AB8500_LDO_AUDIO,
+	AB8500_LDO_ANAMIC1,
+	AB8500_LDO_ANAMIC2,
+	AB8500_LDO_DMIC,
+	AB8500_LDO_ANA,
+	AB8500_NUM_REGULATORS,
+};
+
+/* AB8505 regulators */
+enum ab8505_regulator_id {
+	AB8505_LDO_AUX1,
+	AB8505_LDO_AUX2,
+	AB8505_LDO_AUX3,
+	AB8505_LDO_AUX4,
+	AB8505_LDO_AUX5,
+	AB8505_LDO_AUX6,
+	AB8505_LDO_INTCORE,
+	AB8505_LDO_ADC,
+	AB8505_LDO_AUDIO,
+	AB8505_LDO_ANAMIC1,
+	AB8505_LDO_ANAMIC2,
+	AB8505_LDO_AUX8,
+	AB8505_LDO_ANA,
+	AB8505_NUM_REGULATORS,
+};
+
+/* AB8500 registers */
+enum ab8500_regulator_reg {
+	AB8500_REGUREQUESTCTRL2,
+	AB8500_REGUREQUESTCTRL3,
+	AB8500_REGUREQUESTCTRL4,
+	AB8500_REGUSYSCLKREQ1HPVALID1,
+	AB8500_REGUSYSCLKREQ1HPVALID2,
+	AB8500_REGUHWHPREQ1VALID1,
+	AB8500_REGUHWHPREQ1VALID2,
+	AB8500_REGUHWHPREQ2VALID1,
+	AB8500_REGUHWHPREQ2VALID2,
+	AB8500_REGUSWHPREQVALID1,
+	AB8500_REGUSWHPREQVALID2,
+	AB8500_REGUSYSCLKREQVALID1,
+	AB8500_REGUSYSCLKREQVALID2,
+	AB8500_REGUMISC1,
+	AB8500_VAUDIOSUPPLY,
+	AB8500_REGUCTRL1VAMIC,
+	AB8500_VPLLVANAREGU,
+	AB8500_VREFDDR,
+	AB8500_EXTSUPPLYREGU,
+	AB8500_VAUX12REGU,
+	AB8500_VRF1VAUX3REGU,
+	AB8500_VAUX1SEL,
+	AB8500_VAUX2SEL,
+	AB8500_VRF1VAUX3SEL,
+	AB8500_REGUCTRL2SPARE,
+	AB8500_REGUCTRLDISCH,
+	AB8500_REGUCTRLDISCH2,
+	AB8500_NUM_REGULATOR_REGISTERS,
+};
+
+/* AB8505 registers */
+enum ab8505_regulator_reg {
+	AB8505_REGUREQUESTCTRL1,
+	AB8505_REGUREQUESTCTRL2,
+	AB8505_REGUREQUESTCTRL3,
+	AB8505_REGUREQUESTCTRL4,
+	AB8505_REGUSYSCLKREQ1HPVALID1,
+	AB8505_REGUSYSCLKREQ1HPVALID2,
+	AB8505_REGUHWHPREQ1VALID1,
+	AB8505_REGUHWHPREQ1VALID2,
+	AB8505_REGUHWHPREQ2VALID1,
+	AB8505_REGUHWHPREQ2VALID2,
+	AB8505_REGUSWHPREQVALID1,
+	AB8505_REGUSWHPREQVALID2,
+	AB8505_REGUSYSCLKREQVALID1,
+	AB8505_REGUSYSCLKREQVALID2,
+	AB8505_REGUVAUX4REQVALID,
+	AB8505_REGUMISC1,
+	AB8505_VAUDIOSUPPLY,
+	AB8505_REGUCTRL1VAMIC,
+	AB8505_VSMPSAREGU,
+	AB8505_VSMPSBREGU,
+	AB8505_VSAFEREGU, /* NOTE! PRCMU register */
+	AB8505_VPLLVANAREGU,
+	AB8505_EXTSUPPLYREGU,
+	AB8505_VAUX12REGU,
+	AB8505_VRF1VAUX3REGU,
+	AB8505_VSMPSASEL1,
+	AB8505_VSMPSASEL2,
+	AB8505_VSMPSASEL3,
+	AB8505_VSMPSBSEL1,
+	AB8505_VSMPSBSEL2,
+	AB8505_VSMPSBSEL3,
+	AB8505_VSAFESEL1, /* NOTE! PRCMU register */
+	AB8505_VSAFESEL2, /* NOTE! PRCMU register */
+	AB8505_VSAFESEL3, /* NOTE! PRCMU register */
+	AB8505_VAUX1SEL,
+	AB8505_VAUX2SEL,
+	AB8505_VRF1VAUX3SEL,
+	AB8505_VAUX4REQCTRL,
+	AB8505_VAUX4REGU,
+	AB8505_VAUX4SEL,
+	AB8505_REGUCTRLDISCH,
+	AB8505_REGUCTRLDISCH2,
+	AB8505_REGUCTRLDISCH3,
+	AB8505_CTRLVAUX5,
+	AB8505_CTRLVAUX6,
+	AB8505_NUM_REGULATOR_REGISTERS,
+};
 
 /**
  * struct ab8500_shared_mode - is used when mode is shared between
@@ -59,6 +173,7 @@ struct ab8500_shared_mode {
  * @voltage_bank: bank to control regulator voltage
  * @voltage_reg: register to control regulator voltage
  * @voltage_mask: mask to control regulator voltage
+ * @expand_register: 
  */
 struct ab8500_regulator_info {
 	struct device		*dev;
@@ -79,12 +194,6 @@ struct ab8500_regulator_info {
 	u8 voltage_bank;
 	u8 voltage_reg;
 	u8 voltage_mask;
-	struct {
-		u8 voltage_limit;
-		u8 voltage_bank;
-		u8 voltage_reg;
-		u8 voltage_mask;
-	} expand_register;
 };
 
 /* voltage tables for the vauxn/vintcore supplies */
@@ -139,17 +248,6 @@ static const unsigned int ldo_vintcore_voltages[] = {
 	1350000,
 };
 
-static const unsigned int ldo_sdio_voltages[] = {
-	1160000,
-	1050000,
-	1100000,
-	1500000,
-	1800000,
-	2200000,
-	2910000,
-	3050000,
-};
-
 static const unsigned int fixed_1200000_voltage[] = {
 	1200000,
 };
@@ -164,10 +262,6 @@ static const unsigned int fixed_2000000_voltage[] = {
 
 static const unsigned int fixed_2050000_voltage[] = {
 	2050000,
-};
-
-static const unsigned int fixed_3300000_voltage[] = {
-	3300000,
 };
 
 static const unsigned int ldo_vana_voltages[] = {
@@ -190,13 +284,6 @@ static const unsigned int ldo_vaudio_voltages[] = {
 	2500000,
 	2600000,
 	2600000,	/* Duplicated in Vaudio and IsoUicc Control register. */
-};
-
-static const unsigned int ldo_vdmic_voltages[] = {
-	1800000,
-	1900000,
-	2000000,
-	2850000,
 };
 
 static DEFINE_MUTEX(shared_mode_mutex);
@@ -953,23 +1040,6 @@ static struct ab8500_regulator_info
 		.update_val_idle	= 0x82,
 		.update_val_normal	= 0x02,
 	},
-	[AB8505_LDO_USB] = {
-		.desc = {
-			.name           = "LDO-USB",
-			.ops            = &ab8500_regulator_mode_ops,
-			.type           = REGULATOR_VOLTAGE,
-			.id             = AB8505_LDO_USB,
-			.owner          = THIS_MODULE,
-			.n_voltages     = 1,
-			.volt_table	= fixed_3300000_voltage,
-		},
-		.update_bank            = 0x03,
-		.update_reg             = 0x82,
-		.update_mask            = 0x03,
-		.update_val		= 0x01,
-		.update_val_idle	= 0x03,
-		.update_val_normal	= 0x01,
-	},
 	[AB8505_LDO_AUDIO] = {
 		.desc = {
 			.name		= "LDO-AUDIO",
@@ -1667,6 +1737,7 @@ static struct platform_driver ab8500_regulator_driver = {
 	.probe = ab8500_regulator_probe,
 	.driver         = {
 		.name   = "ab8500-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
 

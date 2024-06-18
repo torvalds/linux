@@ -7,7 +7,7 @@
  *  An implementation of the DCCP protocol
  *
  *  This code has been developed by the University of Waikato WAND
- *  research group. For further information please see http://www.wand.net.nz/
+ *  research group. For further information please see https://www.wand.net.nz/
  *
  *  This code also uses code from Lulea University, rereleased as GPL by its
  *  authors:
@@ -79,6 +79,8 @@ static inline u64 rfc3390_initial_rate(struct sock *sk)
 
 /**
  * ccid3_update_send_interval  -  Calculate new t_ipi = s / X_inst
+ * @hc: socket to have the send interval updated
+ *
  * This respects the granularity of X_inst (64 * bytes/second).
  */
 static void ccid3_update_send_interval(struct ccid3_hc_tx_sock *hc)
@@ -99,6 +101,7 @@ static u32 ccid3_hc_tx_idle_rtt(struct ccid3_hc_tx_sock *hc, ktime_t now)
 
 /**
  * ccid3_hc_tx_update_x  -  Update allowed sending rate X
+ * @sk: socket to be updated
  * @stamp: most recent time if available - can be left NULL.
  *
  * This function tracks draft rfc3448bis, check there for latest details.
@@ -151,6 +154,7 @@ static void ccid3_hc_tx_update_x(struct sock *sk, ktime_t *stamp)
 
 /**
  *	ccid3_hc_tx_update_s - Track the mean packet size `s'
+ *	@hc: socket to be updated
  *	@len: DCCP packet payload size in bytes
  *
  *	cf. RFC 4342, 5.3 and  RFC 3448, 4.1
@@ -259,6 +263,7 @@ out:
 
 /**
  * ccid3_hc_tx_send_packet  -  Delay-based dequeueing of TX packets
+ * @sk: socket to send packet from
  * @skb: next packet candidate to send on @sk
  *
  * This function uses the convention of ccid_packet_dequeue_eval() and
@@ -608,7 +613,7 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk,
 		 */
 		if (hc->rx_x_recv > 0)
 			break;
-		/* fall through */
+		fallthrough;
 	case CCID3_FBACK_PERIODIC:
 		delta = ktime_us_delta(now, hc->rx_tstamp_last_feedback);
 		if (delta <= 0)
@@ -655,6 +660,7 @@ static int ccid3_hc_rx_insert_options(struct sock *sk, struct sk_buff *skb)
 
 /**
  * ccid3_first_li  -  Implements [RFC 5348, 6.3.1]
+ * @sk: socket to calculate loss interval for
  *
  * Determine the length of the first loss interval via inverse lookup.
  * Assume that X_recv can be computed by the throughput equation

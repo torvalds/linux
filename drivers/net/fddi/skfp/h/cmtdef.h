@@ -640,7 +640,6 @@ void dump_smt(struct s_smc *smc, struct smt_header *sm, char *text);
 #define	dump_smt(smc,sm,text)
 #endif
 
-char* addr_to_string(struct fddi_addr *addr);
 #ifdef	DEBUG
 void dump_hex(char *p, int len);
 #endif

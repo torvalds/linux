@@ -65,7 +65,7 @@ EXPORT_SYMBOL_GPL(inet_peer_base_init);
 #define PEER_MAX_GC 32
 
 /* Exported for sysctl_net_ipv4.  */
-int inet_peer_threshold __read_mostly = 65536 + 128;	/* start to throw entries more
+int inet_peer_threshold __read_mostly;	/* start to throw entries more
 					 * aggressively at this stage */
 int inet_peer_minttl __read_mostly = 120 * HZ;	/* TTL under high load: 120 sec */
 int inet_peer_maxttl __read_mostly = 10 * 60 * HZ;	/* usual time to live: 10 min */
@@ -73,25 +73,15 @@ int inet_peer_maxttl __read_mostly = 10 * 60 * HZ;	/* usual time to live: 10 min
 /* Called from ip_output.c:ip_init  */
 void __init inet_initpeers(void)
 {
-	struct sysinfo si;
+	u64 nr_entries;
 
-	/* Use the straight interface to information about memory. */
-	si_meminfo(&si);
-	/* The values below were suggested by Alexey Kuznetsov
-	 * <kuznet@ms2.inr.ac.ru>.  I don't have any opinion about the values
-	 * myself.  --SAW
-	 */
-	if (si.totalram <= (32768*1024)/PAGE_SIZE)
-		inet_peer_threshold >>= 1; /* max pool size about 1MB on IA32 */
-	if (si.totalram <= (16384*1024)/PAGE_SIZE)
-		inet_peer_threshold >>= 1; /* about 512KB */
-	if (si.totalram <= (8192*1024)/PAGE_SIZE)
-		inet_peer_threshold >>= 2; /* about 128KB */
+	 /* 1% of physical memory */
+	nr_entries = div64_ul((u64)totalram_pages() << PAGE_SHIFT,
+			      100 * L1_CACHE_ALIGN(sizeof(struct inet_peer)));
 
-	peer_cachep = kmem_cache_create("inet_peer_cache",
-			sizeof(struct inet_peer),
-			0, SLAB_HWCACHE_ALIGN | SLAB_PANIC,
-			NULL);
+	inet_peer_threshold = clamp_val(nr_entries, 4096, 65536 + 128);
+
+	peer_cachep = KMEM_CACHE(inet_peer, SLAB_HWCACHE_ALIGN | SLAB_PANIC);
 }
 
 /* Called with rcu_read_lock() or base->lock held */
@@ -148,19 +138,28 @@ static void inet_peer_gc(struct inet_peer_base *base,
 			 struct inet_peer *gc_stack[],
 			 unsigned int gc_cnt)
 {
+	int peer_threshold, peer_maxttl, peer_minttl;
 	struct inet_peer *p;
 	__u32 delta, ttl;
 	int i;
 
-	if (base->total >= inet_peer_threshold)
+	peer_threshold = READ_ONCE(inet_peer_threshold);
+	peer_maxttl = READ_ONCE(inet_peer_maxttl);
+	peer_minttl = READ_ONCE(inet_peer_minttl);
+
+	if (base->total >= peer_threshold)
 		ttl = 0; /* be aggressive */
 	else
-		ttl = inet_peer_maxttl
-				- (inet_peer_maxttl - inet_peer_minttl) / HZ *
-					base->total / inet_peer_threshold * HZ;
+		ttl = peer_maxttl - (peer_maxttl - peer_minttl) / HZ *
+			base->total / peer_threshold * HZ;
 	for (i = 0; i < gc_cnt; i++) {
 		p = gc_stack[i];
-		delta = (__u32)jiffies - p->dtime;
+
+		/* The READ_ONCE() pairs with the WRITE_ONCE()
+		 * in inet_putpeer()
+		 */
+		delta = (__u32)jiffies - READ_ONCE(p->dtime);
+
 		if (delta < ttl || !refcount_dec_if_one(&p->refcnt))
 			gc_stack[i] = NULL;
 	}
@@ -237,7 +236,10 @@ EXPORT_SYMBOL_GPL(inet_getpeer);
 
 void inet_putpeer(struct inet_peer *p)
 {
-	p->dtime = (__u32)jiffies;
+	/* The WRITE_ONCE() pairs with itself (we run lockless)
+	 * and the READ_ONCE() in inet_peer_gc()
+	 */
+	WRITE_ONCE(p->dtime, (__u32)jiffies);
 
 	if (refcount_dec_and_test(&p->refcnt))
 		call_rcu(&p->rcu, inetpeer_free_rcu);

@@ -89,7 +89,7 @@ void get_monotonic_and_raw(struct timespec *mon, struct timespec *raw)
 	}
 }
 
-int main(int argv, char **argc)
+int main(int argc, char **argv)
 {
 	struct timespec mon, raw, start, end;
 	long long delta1, delta2, interval, eppm, ppm;
@@ -129,8 +129,7 @@ int main(int argv, char **argc)
 	printf("%lld.%i(est)", eppm/1000, abs((int)(eppm%1000)));
 
 	/* Avg the two actual freq samples adjtimex gave us */
-	ppm = (tx1.freq + tx2.freq) * 1000 / 2;
-	ppm = (long long)tx1.freq * 1000;
+	ppm = (long long)(tx1.freq + tx2.freq) * 1000 / 2;
 	ppm = shift_right(ppm, 16);
 	printf(" %lld.%i(act)", ppm/1000, abs((int)(ppm%1000)));
 
@@ -138,11 +137,11 @@ int main(int argv, char **argc)
 		if (tx1.offset || tx2.offset ||
 		    tx1.freq != tx2.freq || tx1.tick != tx2.tick) {
 			printf("	[SKIP]\n");
-			return ksft_exit_skip("The clock was adjusted externally. Shutdown NTPd or other time sync daemons\n");
+			ksft_exit_skip("The clock was adjusted externally. Shutdown NTPd or other time sync daemons\n");
 		}
 		printf("	[FAILED]\n");
-		return ksft_exit_fail();
+		ksft_exit_fail();
 	}
 	printf("	[OK]\n");
-	return  ksft_exit_pass();
+	ksft_exit_pass();
 }

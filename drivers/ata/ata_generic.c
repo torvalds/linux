@@ -95,7 +95,7 @@ static int generic_set_mode(struct ata_link *link, struct ata_device **unused)
 	return 0;
 }
 
-static struct scsi_host_template generic_sht = {
+static const struct scsi_host_template generic_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 
@@ -151,7 +151,7 @@ static int is_intel_ider(struct pci_dev *dev)
 }
 
 /**
- *	ata_generic_init		-	attach generic IDE
+ *	ata_generic_init_one		-	attach generic IDE
  *	@dev: PCI device found
  *	@id: match entry
  *

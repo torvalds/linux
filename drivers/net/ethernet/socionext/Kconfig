@@ -2,7 +2,7 @@
 config NET_VENDOR_SOCIONEXT
 	bool "Socionext ethernet drivers"
 	default y
-	---help---
+	help
 	  Option to select ethernet drivers for Socionext platforms.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -18,7 +18,7 @@ config SNI_AVE
 	depends on HAS_IOMEM
 	select MFD_SYSCON
 	select PHYLIB
-	---help---
+	help
 	  Driver for gigabit ethernet MACs, called AVE, in the
 	  Socionext UniPhier family.
 
@@ -28,7 +28,7 @@ config SNI_NETSEC
 	select PHYLIB
 	select PAGE_POOL
 	select MII
-	---help---
+	help
 	  Enable to add support for the SocioNext NetSec Gigabit Ethernet
 	  controller + PHY, as found on the Synquacer SC2A11 SoC
 

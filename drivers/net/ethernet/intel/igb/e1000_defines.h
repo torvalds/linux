@@ -340,10 +340,10 @@
 #define I210_RXPBSIZE_PB_32KB		0x00000020
 #define I210_TXPBSIZE_DEFAULT		0x04000014 /* TXPBSIZE default */
 #define I210_TXPBSIZE_MASK		0xC0FFFFFF
-#define I210_TXPBSIZE_PB0_8KB		(8 << 0)
-#define I210_TXPBSIZE_PB1_8KB		(8 << 6)
-#define I210_TXPBSIZE_PB2_4KB		(4 << 12)
-#define I210_TXPBSIZE_PB3_4KB		(4 << 18)
+#define I210_TXPBSIZE_PB0_6KB		(6 << 0)
+#define I210_TXPBSIZE_PB1_6KB		(6 << 6)
+#define I210_TXPBSIZE_PB2_6KB		(6 << 12)
+#define I210_TXPBSIZE_PB3_6KB		(6 << 18)
 
 #define I210_DTXMXPKTSZ_DEFAULT		0x00000098
 
@@ -1032,9 +1032,6 @@
 #define E1000_VFTA_ENTRY_SHIFT               5
 #define E1000_VFTA_ENTRY_MASK                0x7F
 #define E1000_VFTA_ENTRY_BIT_SHIFT_MASK      0x1F
-
-/* DMA Coalescing register fields */
-#define E1000_PCIEMISC_LX_DECISION      0x00000080 /* Lx power on DMA coal */
 
 /* Tx Rate-Scheduler Config fields */
 #define E1000_RTTBCNRC_RS_ENA		0x80000000

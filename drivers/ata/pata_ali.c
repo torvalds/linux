@@ -37,7 +37,7 @@
 #define DRV_NAME "pata_ali"
 #define DRV_VERSION "0.7.8"
 
-static int ali_atapi_dma = 0;
+static int ali_atapi_dma;
 module_param_named(atapi_dma, ali_atapi_dma, int, 0644);
 MODULE_PARM_DESC(atapi_dma, "Enable ATAPI DMA (0=disable, 1=enable)");
 
@@ -108,14 +108,14 @@ static int ali_c2_cable_detect(struct ata_port *ap)
 
 /**
  *	ali_20_filter		-	filter for earlier ALI DMA
- *	@ap: ALi ATA port
- *	@adev: attached device
+ *	@adev: ATA device
+ *	@mask: received mask to manipulate and pass back
  *
  *	Ensure that we do not do DMA on CD devices. We may be able to
  *	fix that later on. Also ensure we do not do UDMA on WDC drives
  */
 
-static unsigned long ali_20_filter(struct ata_device *adev, unsigned long mask)
+static unsigned int ali_20_filter(struct ata_device *adev, unsigned int mask)
 {
 	char model_num[ATA_ID_PROD_LEN + 1];
 	/* No DMA on anything but a disk for now */
@@ -123,7 +123,7 @@ static unsigned long ali_20_filter(struct ata_device *adev, unsigned long mask)
 		mask &= ~(ATA_MASK_MWDMA | ATA_MASK_UDMA);
 	ata_id_c_string(adev->id, model_num, ATA_ID_PROD, sizeof(model_num));
 	if (strstr(model_num, "WDC"))
-		return mask &= ~ATA_MASK_UDMA;
+		mask &= ~ATA_MASK_UDMA;
 	return mask;
 }
 
@@ -215,7 +215,7 @@ static void ali_set_piomode(struct ata_port *ap, struct ata_device *adev)
 		struct ata_timing p;
 		ata_timing_compute(pair, pair->pio_mode, &p, T, 1);
 		ata_timing_merge(&p, &t, &t, ATA_TIMING_SETUP|ATA_TIMING_8BIT);
-		if (pair->dma_mode) {
+		if (ata_dma_enabled(pair)) {
 			ata_timing_compute(pair, pair->dma_mode, &p, T, 1);
 			ata_timing_merge(&p, &t, &t, ATA_TIMING_SETUP|ATA_TIMING_8BIT);
 		}
@@ -264,7 +264,7 @@ static void ali_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 			struct ata_timing p;
 			ata_timing_compute(pair, pair->pio_mode, &p, T, 1);
 			ata_timing_merge(&p, &t, &t, ATA_TIMING_SETUP|ATA_TIMING_8BIT);
-			if (pair->dma_mode) {
+			if (ata_dma_enabled(pair)) {
 				ata_timing_compute(pair, pair->dma_mode, &p, T, 1);
 				ata_timing_merge(&p, &t, &t, ATA_TIMING_SETUP|ATA_TIMING_8BIT);
 			}
@@ -313,7 +313,7 @@ static void ali_lock_sectors(struct ata_device *adev)
 
 /**
  *	ali_check_atapi_dma	-	DMA check for most ALi controllers
- *	@adev: Device
+ *	@qc: Command to complete
  *
  *	Called to decide whether commands should be sent by DMA or PIO
  */
@@ -355,7 +355,7 @@ static void ali_c2_c3_postreset(struct ata_link *link, unsigned int *classes)
 	ata_sff_postreset(link, classes);
 }
 
-static struct scsi_host_template ali_sht = {
+static const struct scsi_host_template ali_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 

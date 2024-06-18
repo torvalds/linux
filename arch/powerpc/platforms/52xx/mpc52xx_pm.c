@@ -2,6 +2,8 @@
 #include <linux/init.h>
 #include <linux/suspend.h>
 #include <linux/io.h>
+#include <linux/of_address.h>
+
 #include <asm/time.h>
 #include <asm/cacheflush.h>
 #include <asm/mpc52xx.h>
@@ -58,7 +60,7 @@ int mpc52xx_set_wakeup_gpio(u8 pin, u8 level)
 int mpc52xx_pm_prepare(void)
 {
 	struct device_node *np;
-	const struct of_device_id immr_ids[] = {
+	static const struct of_device_id immr_ids[] = {
 		{ .compatible = "fsl,mpc5200-immr", },
 		{ .compatible = "fsl,mpc5200b-immr", },
 		{ .type = "soc", .compatible = "mpc5200", }, /* lite5200 */

@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Regulator driver for TI TPS65912x PMICs
  *
- * Copyright (C) 2015 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2015 Texas Instruments Incorporated - https://www.ti.com/
  *	Andrew F. Davis <afd@ti.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether expressed or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License version 2 for more details.
  *
  * Based on the TPS65218 driver and the previous TPS65912 driver by
  * Margarita Olaya Cabrera <magi@slimlogic.co.uk>
@@ -46,18 +38,18 @@ enum tps65912_regulators { DCDC1, DCDC2, DCDC3, DCDC4, LDO1, LDO2, LDO3,
 		.n_linear_ranges	= ARRAY_SIZE(_lr),		\
 	}
 
-static const struct regulator_linear_range tps65912_dcdc_ranges[] = {
+static const struct linear_range tps65912_dcdc_ranges[] = {
 	REGULATOR_LINEAR_RANGE(500000, 0x0, 0x3f, 50000),
 };
 
-static const struct regulator_linear_range tps65912_ldo_ranges[] = {
+static const struct linear_range tps65912_ldo_ranges[] = {
 	REGULATOR_LINEAR_RANGE(800000, 0x0, 0x20, 25000),
 	REGULATOR_LINEAR_RANGE(1650000, 0x21, 0x3c, 50000),
 	REGULATOR_LINEAR_RANGE(3100000, 0x3d, 0x3f, 100000),
 };
 
 /* Operations permitted on DCDCx */
-static struct regulator_ops tps65912_ops_dcdc = {
+static const struct regulator_ops tps65912_ops_dcdc = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
@@ -67,7 +59,7 @@ static struct regulator_ops tps65912_ops_dcdc = {
 };
 
 /* Operations permitted on LDOx */
-static struct regulator_ops tps65912_ops_ldo = {
+static const struct regulator_ops tps65912_ops_ldo = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
@@ -158,6 +150,7 @@ MODULE_DEVICE_TABLE(platform, tps65912_regulator_id_table);
 static struct platform_driver tps65912_regulator_driver = {
 	.driver = {
 		.name = "tps65912-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = tps65912_regulator_probe,
 	.id_table = tps65912_regulator_id_table,

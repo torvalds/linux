@@ -24,185 +24,132 @@ if_enabled_echo() {
 	fi
 }
 
-create_package() {
-	local pname="$1" pdir="$2"
+install_linux_image () {
+	pname=$1
+	pdir=debian/$1
 
-	mkdir -m 755 -p "$pdir/DEBIAN"
-	mkdir -p "$pdir/usr/share/doc/$pname"
-	cp debian/copyright "$pdir/usr/share/doc/$pname/"
-	cp debian/changelog "$pdir/usr/share/doc/$pname/changelog.Debian"
-	gzip -9 "$pdir/usr/share/doc/$pname/changelog.Debian"
-	sh -c "cd '$pdir'; find . -type f ! -path './DEBIAN/*' -printf '%P\0' \
-		| xargs -r0 md5sum > DEBIAN/md5sums"
+	# Only some architectures with OF support have this target
+	if is_enabled CONFIG_OF_EARLY_FLATTREE && [ -d "${srctree}/arch/${SRCARCH}/boot/dts" ]; then
+		${MAKE} -f ${srctree}/Makefile INSTALL_DTBS_PATH="${pdir}/usr/lib/linux-image-${KERNELRELEASE}" dtbs_install
+	fi
 
-	# Fix ownership and permissions
-	chown -R root:root "$pdir"
-	chmod -R go-w "$pdir"
-	# in case we are in a restrictive umask environment like 0077
-	chmod -R a+rX "$pdir"
+	${MAKE} -f ${srctree}/Makefile INSTALL_MOD_PATH="${pdir}" INSTALL_MOD_STRIP=1 modules_install
+	rm -f "${pdir}/lib/modules/${KERNELRELEASE}/build"
 
-	# Create the package
-	dpkg-gencontrol -p$pname -P"$pdir"
-	dpkg --build "$pdir" ..
+	# Install the kernel
+	if [ "${ARCH}" = um ] ; then
+		mkdir -p "${pdir}/usr/lib/uml/modules"
+		mv "${pdir}/lib/modules/${KERNELRELEASE}" "${pdir}/usr/lib/uml/modules/${KERNELRELEASE}"
+		mkdir -p "${pdir}/usr/bin" "${pdir}/usr/share/doc/${pname}"
+		cp System.map "${pdir}/usr/lib/uml/modules/${KERNELRELEASE}/System.map"
+		cp ${KCONFIG_CONFIG} "${pdir}/usr/share/doc/${pname}/config"
+		gzip "${pdir}/usr/share/doc/${pname}/config"
+	else
+		mkdir -p "${pdir}/boot"
+		cp System.map "${pdir}/boot/System.map-${KERNELRELEASE}"
+		cp ${KCONFIG_CONFIG} "${pdir}/boot/config-${KERNELRELEASE}"
+	fi
+
+	# Not all arches have the same installed path in debian
+	# XXX: have each arch Makefile export a variable of the canonical image install
+	# path instead
+	case "${SRCARCH}" in
+	um)
+		installed_image_path="usr/bin/linux-${KERNELRELEASE}";;
+	parisc|mips|powerpc)
+		installed_image_path="boot/vmlinux-${KERNELRELEASE}";;
+	*)
+		installed_image_path="boot/vmlinuz-${KERNELRELEASE}";;
+	esac
+	cp "$(${MAKE} -s -f ${srctree}/Makefile image_name)" "${pdir}/${installed_image_path}"
+
+	# Install the maintainer scripts
+	# Note: hook scripts under /etc/kernel are also executed by official Debian
+	# kernel packages, as well as kernel packages built using make-kpkg.
+	# make-kpkg sets $INITRD to indicate whether an initramfs is wanted, and
+	# so do we; recent versions of dracut and initramfs-tools will obey this.
+	debhookdir=${KDEB_HOOKDIR:-/etc/kernel}
+	for script in postinst postrm preinst prerm; do
+		mkdir -p "${pdir}${debhookdir}/${script}.d"
+
+		mkdir -p "${pdir}/DEBIAN"
+		cat <<-EOF > "${pdir}/DEBIAN/${script}"
+
+		#!/bin/sh
+
+		set -e
+
+		# Pass maintainer script parameters to hook scripts
+		export DEB_MAINT_PARAMS="\$*"
+
+		# Tell initramfs builder whether it's wanted
+		export INITRD=$(if_enabled_echo CONFIG_BLK_DEV_INITRD Yes No)
+
+		test -d ${debhookdir}/${script}.d && run-parts --arg="${KERNELRELEASE}" --arg="/${installed_image_path}" ${debhookdir}/${script}.d
+		exit 0
+		EOF
+		chmod 755 "${pdir}/DEBIAN/${script}"
+	done
 }
 
-version=$KERNELRELEASE
-tmpdir="$objtree/debian/tmp"
-kernel_headers_dir="$objtree/debian/hdrtmp"
-libc_headers_dir="$objtree/debian/headertmp"
-dbg_dir="$objtree/debian/dbgtmp"
-packagename=linux-image-$version
-kernel_headers_packagename=linux-headers-$version
-libc_headers_packagename=linux-libc-dev
-dbg_packagename=$packagename-dbg
+install_linux_image_dbg () {
+	pdir=debian/$1
 
-if [ "$ARCH" = "um" ] ; then
-	packagename=user-mode-linux-$version
-fi
+	# Parse modules.order directly because 'make modules_install' may sign,
+	# compress modules, and then run unneeded depmod.
+	while read -r mod; do
+		mod="${mod%.o}.ko"
+		dbg="${pdir}/usr/lib/debug/lib/modules/${KERNELRELEASE}/kernel/${mod}"
+		buildid=$("${READELF}" -n "${mod}" | sed -n 's@^.*Build ID: \(..\)\(.*\)@\1/\2@p')
+		link="${pdir}/usr/lib/debug/.build-id/${buildid}.debug"
 
-# Not all arches have the same installed path in debian
-# XXX: have each arch Makefile export a variable of the canonical image install
-# path instead
-case $ARCH in
-um)
-	installed_image_path="usr/bin/linux-$version"
-	;;
-parisc|mips|powerpc)
-	installed_image_path="boot/vmlinux-$version"
-	;;
-*)
-	installed_image_path="boot/vmlinuz-$version"
-esac
+		mkdir -p "${dbg%/*}" "${link%/*}"
+		"${OBJCOPY}" --only-keep-debug "${mod}" "${dbg}"
+		ln -sf --relative "${dbg}" "${link}"
+	done < modules.order
 
-BUILD_DEBUG=$(if_enabled_echo CONFIG_DEBUG_INFO Yes)
-
-# Setup the directory structure
-rm -rf "$tmpdir" "$kernel_headers_dir" "$libc_headers_dir" "$dbg_dir" $objtree/debian/files
-mkdir -m 755 -p "$tmpdir/DEBIAN"
-mkdir -p "$tmpdir/lib" "$tmpdir/boot"
-mkdir -p "$kernel_headers_dir/lib/modules/$version/"
-
-# Build and install the kernel
-if [ "$ARCH" = "um" ] ; then
-	mkdir -p "$tmpdir/usr/lib/uml/modules/$version" "$tmpdir/usr/bin" "$tmpdir/usr/share/doc/$packagename"
-	$MAKE linux
-	cp System.map "$tmpdir/usr/lib/uml/modules/$version/System.map"
-	cp $KCONFIG_CONFIG "$tmpdir/usr/share/doc/$packagename/config"
-	gzip "$tmpdir/usr/share/doc/$packagename/config"
-else
-	cp System.map "$tmpdir/boot/System.map-$version"
-	cp $KCONFIG_CONFIG "$tmpdir/boot/config-$version"
-fi
-cp "$($MAKE -s -f $srctree/Makefile image_name)" "$tmpdir/$installed_image_path"
-
-if is_enabled CONFIG_OF_EARLY_FLATTREE; then
-	# Only some architectures with OF support have this target
-	if [ -d "${srctree}/arch/$SRCARCH/boot/dts" ]; then
-		$MAKE -f $srctree/Makefile INSTALL_DTBS_PATH="$tmpdir/usr/lib/$packagename" dtbs_install
-	fi
-fi
-
-if is_enabled CONFIG_MODULES; then
-	INSTALL_MOD_PATH="$tmpdir" $MAKE -f $srctree/Makefile modules_install
-	rm -f "$tmpdir/lib/modules/$version/build"
-	rm -f "$tmpdir/lib/modules/$version/source"
-	if [ "$ARCH" = "um" ] ; then
-		mv "$tmpdir/lib/modules/$version"/* "$tmpdir/usr/lib/uml/modules/$version/"
-		rmdir "$tmpdir/lib/modules/$version"
-	fi
-	if [ -n "$BUILD_DEBUG" ] ; then
-		for module in $(find $tmpdir/lib/modules/ -name *.ko -printf '%P\n'); do
-			module=lib/modules/$module
-			mkdir -p $(dirname $dbg_dir/usr/lib/debug/$module)
-			# only keep debug symbols in the debug file
-			$OBJCOPY --only-keep-debug $tmpdir/$module $dbg_dir/usr/lib/debug/$module
-			# strip original module from debug symbols
-			$OBJCOPY --strip-debug $tmpdir/$module
-			# then add a link to those
-			$OBJCOPY --add-gnu-debuglink=$dbg_dir/usr/lib/debug/$module $tmpdir/$module
-		done
-
-		# resign stripped modules
-		if is_enabled CONFIG_MODULE_SIG_ALL; then
-			INSTALL_MOD_PATH="$tmpdir" $MAKE -f $srctree/Makefile modules_sign
-		fi
-	fi
-fi
-
-if [ "$ARCH" != "um" ]; then
-	$MAKE -f $srctree/Makefile headers
-	$MAKE -f $srctree/Makefile headers_install INSTALL_HDR_PATH="$libc_headers_dir/usr"
-	# move asm headers to /usr/include/<libc-machine>/asm to match the structure
-	# used by Debian-based distros (to support multi-arch)
-	host_arch=$(dpkg-architecture -a$(cat debian/arch) -qDEB_HOST_MULTIARCH)
-	mkdir $libc_headers_dir/usr/include/$host_arch
-	mv $libc_headers_dir/usr/include/asm $libc_headers_dir/usr/include/$host_arch/
-fi
-
-# Install the maintainer scripts
-# Note: hook scripts under /etc/kernel are also executed by official Debian
-# kernel packages, as well as kernel packages built using make-kpkg.
-# make-kpkg sets $INITRD to indicate whether an initramfs is wanted, and
-# so do we; recent versions of dracut and initramfs-tools will obey this.
-debhookdir=${KDEB_HOOKDIR:-/etc/kernel}
-for script in postinst postrm preinst prerm ; do
-	mkdir -p "$tmpdir$debhookdir/$script.d"
-	cat <<EOF > "$tmpdir/DEBIAN/$script"
-#!/bin/sh
-
-set -e
-
-# Pass maintainer script parameters to hook scripts
-export DEB_MAINT_PARAMS="\$*"
-
-# Tell initramfs builder whether it's wanted
-export INITRD=$(if_enabled_echo CONFIG_BLK_DEV_INITRD Yes No)
-
-test -d $debhookdir/$script.d && run-parts --arg="$version" --arg="/$installed_image_path" $debhookdir/$script.d
-exit 0
-EOF
-	chmod 755 "$tmpdir/DEBIAN/$script"
-done
-
-# Build kernel header package
-(cd $srctree; find . -name Makefile\* -o -name Kconfig\* -o -name \*.pl) > "$objtree/debian/hdrsrcfiles"
-(cd $srctree; find arch/*/include include scripts -type f -o -type l) >> "$objtree/debian/hdrsrcfiles"
-(cd $srctree; find arch/$SRCARCH -name module.lds -o -name Kbuild.platforms -o -name Platform) >> "$objtree/debian/hdrsrcfiles"
-(cd $srctree; find $(find arch/$SRCARCH -name include -o -name scripts -type d) -type f) >> "$objtree/debian/hdrsrcfiles"
-if is_enabled CONFIG_STACK_VALIDATION; then
-	(cd $objtree; find tools/objtool -type f -executable) >> "$objtree/debian/hdrobjfiles"
-fi
-(cd $objtree; find arch/$SRCARCH/include Module.symvers include scripts -type f) >> "$objtree/debian/hdrobjfiles"
-if is_enabled CONFIG_GCC_PLUGINS; then
-	(cd $objtree; find scripts/gcc-plugins -name \*.so -o -name gcc-common.h) >> "$objtree/debian/hdrobjfiles"
-fi
-destdir=$kernel_headers_dir/usr/src/linux-headers-$version
-mkdir -p "$destdir"
-(cd $srctree; tar -c -f - -T -) < "$objtree/debian/hdrsrcfiles" | (cd $destdir; tar -xf -)
-(cd $objtree; tar -c -f - -T -) < "$objtree/debian/hdrobjfiles" | (cd $destdir; tar -xf -)
-(cd $objtree; cp $KCONFIG_CONFIG $destdir/.config) # copy .config manually to be where it's expected to be
-ln -sf "/usr/src/linux-headers-$version" "$kernel_headers_dir/lib/modules/$version/build"
-rm -f "$objtree/debian/hdrsrcfiles" "$objtree/debian/hdrobjfiles"
-
-if [ "$ARCH" != "um" ]; then
-	create_package "$kernel_headers_packagename" "$kernel_headers_dir"
-	create_package "$libc_headers_packagename" "$libc_headers_dir"
-fi
-
-create_package "$packagename" "$tmpdir"
-
-if [ -n "$BUILD_DEBUG" ] ; then
 	# Build debug package
 	# Different tools want the image in different locations
 	# perf
-	mkdir -p $dbg_dir/usr/lib/debug/lib/modules/$version/
-	cp vmlinux $dbg_dir/usr/lib/debug/lib/modules/$version/
+	mkdir -p ${pdir}/usr/lib/debug/lib/modules/${KERNELRELEASE}/
+	cp vmlinux ${pdir}/usr/lib/debug/lib/modules/${KERNELRELEASE}/
 	# systemtap
-	mkdir -p $dbg_dir/usr/lib/debug/boot/
-	ln -s ../lib/modules/$version/vmlinux $dbg_dir/usr/lib/debug/boot/vmlinux-$version
+	mkdir -p ${pdir}/usr/lib/debug/boot/
+	ln -s ../lib/modules/${KERNELRELEASE}/vmlinux ${pdir}/usr/lib/debug/boot/vmlinux-${KERNELRELEASE}
 	# kdump-tools
-	ln -s lib/modules/$version/vmlinux $dbg_dir/usr/lib/debug/vmlinux-$version
-	create_package "$dbg_packagename" "$dbg_dir"
-fi
+	ln -s lib/modules/${KERNELRELEASE}/vmlinux ${pdir}/usr/lib/debug/vmlinux-${KERNELRELEASE}
+}
 
-exit 0
+install_kernel_headers () {
+	pdir=debian/$1
+	version=${1#linux-headers-}
+
+	"${srctree}/scripts/package/install-extmod-build" "${pdir}/usr/src/linux-headers-${version}"
+
+	mkdir -p $pdir/lib/modules/$version/
+	ln -s /usr/src/linux-headers-$version $pdir/lib/modules/$version/build
+}
+
+install_libc_headers () {
+	pdir=debian/$1
+
+	$MAKE -f $srctree/Makefile headers_install INSTALL_HDR_PATH=$pdir/usr
+
+	# move asm headers to /usr/include/<libc-machine>/asm to match the structure
+	# used by Debian-based distros (to support multi-arch)
+	mkdir "$pdir/usr/include/${DEB_HOST_MULTIARCH}"
+	mv "$pdir/usr/include/asm" "$pdir/usr/include/${DEB_HOST_MULTIARCH}"
+}
+
+package=$1
+
+case "${package}" in
+*-dbg)
+	install_linux_image_dbg "${package}";;
+linux-image-*|user-mode-linux-*)
+	install_linux_image "${package}";;
+linux-libc-dev)
+	install_libc_headers "${package}";;
+linux-headers-*)
+	install_kernel_headers "${package}";;
+esac

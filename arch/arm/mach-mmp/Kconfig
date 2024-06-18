@@ -1,116 +1,23 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menuconfig ARCH_MMP
-	bool "Marvell PXA168/910/MMP2"
-	depends on ARCH_MULTI_V5 || ARCH_MULTI_V7
+	bool "Marvell PXA168/910/MMP2/MMP3"
+	depends on (CPU_LITTLE_ENDIAN && ARCH_MULTI_V5) || ARCH_MULTI_V7
 	select GPIO_PXA
 	select GPIOLIB
 	select PINCTRL
 	select PLAT_PXA
 	help
-	  Support for Marvell's PXA168/PXA910(MMP) and MMP2 processor line.
+	  Support for Marvell's PXA168/PXA910(MMP), MMP2, and MMP3 processor lines.
 
 if ARCH_MMP
 
 menu "Marvell PXA168/910/MMP2 Implementations"
-
-if ATAGS
-
-config MACH_ASPENITE
-	bool "Marvell's PXA168 Aspenite Development Board"
-	depends on ARCH_MULTI_V5
-	select CPU_PXA168
-	help
-	  Say 'Y' here if you want to support the Marvell PXA168-based
-	  Aspenite Development Board.
-
-config MACH_ZYLONITE2
-	bool "Marvell's PXA168 Zylonite2 Development Board"
-	depends on ARCH_MULTI_V5
-	select CPU_PXA168
-	help
-	  Say 'Y' here if you want to support the Marvell PXA168-based
-	  Zylonite2 Development Board.
-
-config MACH_AVENGERS_LITE
-	bool "Marvell's PXA168 Avengers Lite Development Board"
-	depends on ARCH_MULTI_V5
-	select CPU_PXA168
-	help
-	  Say 'Y' here if you want to support the Marvell PXA168-based
-	  Avengers Lite Development Board.
-
-config MACH_TAVOREVB
-	bool "Marvell's PXA910 TavorEVB Development Board"
-	depends on ARCH_MULTI_V5
-	select CPU_PXA910
-	help
-	  Say 'Y' here if you want to support the Marvell PXA910-based
-	  TavorEVB Development Board.
-
-config MACH_TTC_DKB
-	bool "Marvell's PXA910 TavorEVB Development Board"
-	depends on ARCH_MULTI_V5
-	select CPU_PXA910
-	help
-	  Say 'Y' here if you want to support the Marvell PXA910-based
-	  TTC_DKB Development Board.
-
-config MACH_BROWNSTONE
-	bool "Marvell's Brownstone Development Platform"
-	depends on ARCH_MULTI_V7
-	select CPU_MMP2
-	help
-	  Say 'Y' here if you want to support the Marvell MMP2-based
-	  Brown Development Platform.
-	  MMP2-based board can't be co-existed with PXA168-based &
-	  PXA910-based development board. Since MMP2 is compatible to
-	  ARMv7 architecture.
-
-config MACH_FLINT
-	bool "Marvell's Flint Development Platform"
-	depends on ARCH_MULTI_V7
-	select CPU_MMP2
-	help
-	  Say 'Y' here if you want to support the Marvell MMP2-based
-	  Flint Development Platform.
-	  MMP2-based board can't be co-existed with PXA168-based &
-	  PXA910-based development board. Since MMP2 is compatible to
-	  ARMv7 architecture.
-
-config MACH_MARVELL_JASPER
-	bool "Marvell's Jasper Development Platform"
-	depends on ARCH_MULTI_V7
-	select CPU_MMP2
-	help
-	  Say 'Y' here if you want to support the Marvell MMP2-base
-	  Jasper Development Platform.
-	  MMP2-based board can't be co-existed with PXA168-based &
-	  PXA910-based development board. Since MMP2 is compatible to
-	  ARMv7 architecture.
-
-config MACH_TETON_BGA
-	bool "Marvell's PXA168 Teton BGA Development Board"
-	depends on ARCH_MULTI_V5
-	select CPU_PXA168
-	help
-	  Say 'Y' here if you want to support the Marvell PXA168-based
-	  Teton BGA Development Board.
-
-config MACH_GPLUGD
-	bool "Marvell's PXA168 GuruPlug Display (gplugD) Board"
-	depends on ARCH_MULTI_V5
-	select CPU_PXA168
-	help
-	  Say 'Y' here if you want to support the Marvell PXA168-based
-	  GuruPlug Display (gplugD) Board
-endif
 
 config MACH_MMP_DT
 	bool "Support MMP (ARMv5) platforms from device tree"
 	depends on ARCH_MULTI_V5
 	select PINCTRL
 	select PINCTRL_SINGLE
-	select COMMON_CLK
 	select ARCH_HAS_RESET_CONTROLLER
 	select CPU_MOHAWK
 	help
@@ -125,9 +32,29 @@ config MACH_MMP2_DT
 	select PINCTRL_SINGLE
 	select ARCH_HAS_RESET_CONTROLLER
 	select CPU_PJ4
+	select PM_GENERIC_DOMAINS if PM
+	select PM_GENERIC_DOMAINS_OF if PM && OF
 	help
 	  Include support for Marvell MMP2 based platforms using
 	  the device tree.
+
+config MACH_MMP3_DT
+	bool "Support MMP3 (ARMv7) platforms"
+	depends on ARCH_MULTI_V7
+	select ARM_GIC
+	select HAVE_ARM_SCU if SMP
+	select HAVE_ARM_TWD if SMP
+	select CACHE_L2X0
+	select PINCTRL
+	select PINCTRL_SINGLE
+	select ARCH_HAS_RESET_CONTROLLER
+	select CPU_PJ4B
+	select PM_GENERIC_DOMAINS if PM
+	select PM_GENERIC_DOMAINS_OF if PM && OF
+	help
+	  Say 'Y' here if you want to include support for platforms
+	  with Marvell MMP3 processor, also known as PXA2128 or
+	  Armada 620.
 
 endmenu
 
@@ -148,14 +75,5 @@ config CPU_MMP2
 	select CPU_PJ4
 	help
 	  Select code specific to MMP2. MMP2 is ARMv7 compatible.
-
-config USB_EHCI_MV_U2O
-        bool "EHCI support for PXA USB OTG controller"
-	depends on USB_EHCI_MV
-	help
-	  Enables support for OTG controller which can be switched to host mode.
-
-config MMP_SRAM
-	bool
 
 endif

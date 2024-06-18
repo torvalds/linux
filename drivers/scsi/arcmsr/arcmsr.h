@@ -45,11 +45,12 @@
 #include <linux/interrupt.h>
 struct device_attribute;
 /*The limit of outstanding scsi command that firmware can handle*/
+#define ARCMSR_NAME			"arcmsr"
 #define ARCMSR_MAX_FREECCB_NUM		1024
 #define ARCMSR_MAX_OUTSTANDING_CMD	1024
 #define ARCMSR_DEFAULT_OUTSTANDING_CMD	128
 #define ARCMSR_MIN_OUTSTANDING_CMD	32
-#define ARCMSR_DRIVER_VERSION		"v1.40.00.10-20190116"
+#define ARCMSR_DRIVER_VERSION		"v1.51.00.14-20230915"
 #define ARCMSR_SCSI_INITIATOR_ID	255
 #define ARCMSR_MAX_XFER_SECTORS		512
 #define ARCMSR_MAX_XFER_SECTORS_B	4096
@@ -77,11 +78,17 @@ struct device_attribute;
 #ifndef PCI_DEVICE_ID_ARECA_1203
 #define PCI_DEVICE_ID_ARECA_1203	0x1203
 #endif
+#ifndef PCI_DEVICE_ID_ARECA_1883
+#define PCI_DEVICE_ID_ARECA_1883	0x1883
+#endif
 #ifndef PCI_DEVICE_ID_ARECA_1884
 #define PCI_DEVICE_ID_ARECA_1884	0x1884
 #endif
+#define PCI_DEVICE_ID_ARECA_1886_0	0x1886
+#define PCI_DEVICE_ID_ARECA_1886	0x188A
 #define	ARCMSR_HOURS			(1000 * 60 * 60 * 4)
 #define	ARCMSR_MINUTES			(1000 * 60 * 60)
+#define ARCMSR_DEFAULT_TIMEOUT		90
 /*
 **********************************************************************************
 **
@@ -436,6 +443,21 @@ struct FIRMWARE_INFO
 #define ARCMSR_HBEMU_DOORBELL_SYNC		0x100
 #define ARCMSR_ARC188X_RESET_ADAPTER		0x00000004
 #define ARCMSR_ARC1884_DiagWrite_ENABLE		0x00000080
+
+/*
+*******************************************************************************
+**                SPEC. for Areca Type F adapter
+*******************************************************************************
+*/
+#define ARCMSR_SIGNATURE_1886			0x188617D3
+// Doorbell and interrupt definition are same as Type E adapter
+/* ARC-1886 doorbell sync */
+#define ARCMSR_HBFMU_DOORBELL_SYNC		0x100
+//set host rw buffer physical address at inbound message 0, 1 (low,high)
+#define ARCMSR_HBFMU_DOORBELL_SYNC1		0x300
+#define ARCMSR_HBFMU_MESSAGE_FIRMWARE_OK	0x80000000
+#define ARCMSR_HBFMU_MESSAGE_NO_VOLUME_CHANGE	0x20000000
+
 /*
 *******************************************************************************
 **    ARECA SCSI COMMAND DESCRIPTOR BLOCK size 0x1F8 (504)
@@ -720,12 +742,103 @@ struct MessageUnit_E{
 	uint32_t	msgcode_rwbuffer[256];			/*2200 23FF*/
 };
 
+/*
+*********************************************************************
+**     Messaging Unit (MU) of Type F processor(LSI)
+*********************************************************************
+*/
+struct MessageUnit_F {
+	uint32_t	iobound_doorbell;			/*0000 0003*/
+	uint32_t	write_sequence_3xxx;			/*0004 0007*/
+	uint32_t	host_diagnostic_3xxx;			/*0008 000B*/
+	uint32_t	posted_outbound_doorbell;		/*000C 000F*/
+	uint32_t	master_error_attribute;			/*0010 0013*/
+	uint32_t	master_error_address_low;		/*0014 0017*/
+	uint32_t	master_error_address_high;		/*0018 001B*/
+	uint32_t	hcb_size;				/*001C 001F*/
+	uint32_t	inbound_doorbell;			/*0020 0023*/
+	uint32_t	diagnostic_rw_data;			/*0024 0027*/
+	uint32_t	diagnostic_rw_address_low;		/*0028 002B*/
+	uint32_t	diagnostic_rw_address_high;		/*002C 002F*/
+	uint32_t	host_int_status;			/*0030 0033*/
+	uint32_t	host_int_mask;				/*0034 0037*/
+	uint32_t	dcr_data;				/*0038 003B*/
+	uint32_t	dcr_address;				/*003C 003F*/
+	uint32_t	inbound_queueport;			/*0040 0043*/
+	uint32_t	outbound_queueport;			/*0044 0047*/
+	uint32_t	hcb_pci_address_low;			/*0048 004B*/
+	uint32_t	hcb_pci_address_high;			/*004C 004F*/
+	uint32_t	iop_int_status;				/*0050 0053*/
+	uint32_t	iop_int_mask;				/*0054 0057*/
+	uint32_t	iop_inbound_queue_port;			/*0058 005B*/
+	uint32_t	iop_outbound_queue_port;		/*005C 005F*/
+	uint32_t	inbound_free_list_index;		/*0060 0063*/
+	uint32_t	inbound_post_list_index;		/*0064 0067*/
+	uint32_t	reply_post_producer_index;		/*0068 006B*/
+	uint32_t	reply_post_consumer_index;		/*006C 006F*/
+	uint32_t	inbound_doorbell_clear;			/*0070 0073*/
+	uint32_t	i2o_message_unit_control;		/*0074 0077*/
+	uint32_t	last_used_message_source_address_low;	/*0078 007B*/
+	uint32_t	last_used_message_source_address_high;	/*007C 007F*/
+	uint32_t	pull_mode_data_byte_count[4];		/*0080 008F*/
+	uint32_t	message_dest_address_index;		/*0090 0093*/
+	uint32_t	done_queue_not_empty_int_counter_timer;	/*0094 0097*/
+	uint32_t	utility_A_int_counter_timer;		/*0098 009B*/
+	uint32_t	outbound_doorbell;			/*009C 009F*/
+	uint32_t	outbound_doorbell_clear;		/*00A0 00A3*/
+	uint32_t	message_source_address_index;		/*00A4 00A7*/
+	uint32_t	message_done_queue_index;		/*00A8 00AB*/
+	uint32_t	reserved0;				/*00AC 00AF*/
+	uint32_t	inbound_msgaddr0;			/*00B0 00B3*/
+	uint32_t	inbound_msgaddr1;			/*00B4 00B7*/
+	uint32_t	outbound_msgaddr0;			/*00B8 00BB*/
+	uint32_t	outbound_msgaddr1;			/*00BC 00BF*/
+	uint32_t	inbound_queueport_low;			/*00C0 00C3*/
+	uint32_t	inbound_queueport_high;			/*00C4 00C7*/
+	uint32_t	outbound_queueport_low;			/*00C8 00CB*/
+	uint32_t	outbound_queueport_high;		/*00CC 00CF*/
+	uint32_t	iop_inbound_queue_port_low;		/*00D0 00D3*/
+	uint32_t	iop_inbound_queue_port_high;		/*00D4 00D7*/
+	uint32_t	iop_outbound_queue_port_low;		/*00D8 00DB*/
+	uint32_t	iop_outbound_queue_port_high;		/*00DC 00DF*/
+	uint32_t	message_dest_queue_port_low;		/*00E0 00E3*/
+	uint32_t	message_dest_queue_port_high;		/*00E4 00E7*/
+	uint32_t	last_used_message_dest_address_low;	/*00E8 00EB*/
+	uint32_t	last_used_message_dest_address_high;	/*00EC 00EF*/
+	uint32_t	message_done_queue_base_address_low;	/*00F0 00F3*/
+	uint32_t	message_done_queue_base_address_high;	/*00F4 00F7*/
+	uint32_t	host_diagnostic;			/*00F8 00FB*/
+	uint32_t	write_sequence;				/*00FC 00FF*/
+	uint32_t	reserved1[46];				/*0100 01B7*/
+	uint32_t	reply_post_producer_index1;		/*01B8 01BB*/
+	uint32_t	reply_post_consumer_index1;		/*01BC 01BF*/
+};
+
+#define	MESG_RW_BUFFER_SIZE	(256 * 3)
+
 typedef struct deliver_completeQ {
 	uint16_t	cmdFlag;
 	uint16_t	cmdSMID;
 	uint16_t	cmdLMID;        // reserved (0)
 	uint16_t	cmdFlag2;       // reserved (0)
 } DeliverQ, CompletionQ, *pDeliver_Q, *pCompletion_Q;
+
+#define ARCMSR_XOR_SEG_SIZE	(1024 * 1024)
+struct HostRamBuf {
+	uint32_t	hrbSignature;	// must be "HRBS"
+	uint32_t	hrbSize;	// total sg size, be multiples of MB
+	uint32_t	hrbRes[2];	// reserved, must be set to 0
+};
+struct	Xor_sg {
+	dma_addr_t	xorPhys;
+	uint64_t	xorBufLen;
+};
+struct	XorHandle {
+	dma_addr_t	xorPhys;
+	uint64_t	xorBufLen;
+	void		*xorVirt;
+};
+
 /*
 *******************************************************************************
 **                 Adapter Control Block
@@ -739,6 +852,7 @@ struct AdapterControlBlock
 #define ACB_ADAPTER_TYPE_C		0x00000002	/* hbc L IOP */
 #define ACB_ADAPTER_TYPE_D		0x00000003	/* hbd M IOP */
 #define ACB_ADAPTER_TYPE_E		0x00000004	/* hba L IOP */
+#define ACB_ADAPTER_TYPE_F		0x00000005	/* hba L IOP */
 	u32			ioqueue_size;
 	struct pci_dev *	pdev;
 	struct Scsi_Host *	host;
@@ -760,10 +874,16 @@ struct AdapterControlBlock
 		struct MessageUnit_C __iomem *pmuC;
 		struct MessageUnit_D 	*pmuD;
 		struct MessageUnit_E __iomem *pmuE;
+		struct MessageUnit_F __iomem *pmuF;
 	};
 	/* message unit ATU inbound base address0 */
 	void __iomem		*mem_base0;
 	void __iomem		*mem_base1;
+	//0x000 - COMPORT_IN  (Host sent to ROC)
+	uint32_t		*message_wbuffer;
+	//0x100 - COMPORT_OUT (ROC sent to Host)
+	uint32_t		*message_rbuffer;
+	uint32_t		*msgcode_rwbuffer;	//0x200 - BIOS_AREA
 	uint32_t		acb_flags;
 	u16			dev_id;
 	uint8_t			adapter_index;
@@ -830,16 +950,16 @@ struct AdapterControlBlock
 	char			firm_model[12];
 	char			firm_version[20];
 	char			device_map[20];			/*21,84-99*/
+	uint32_t		firm_PicStatus;
 	struct work_struct 	arcmsr_do_message_isr_bh;
 	struct timer_list	eternal_timer;
 	unsigned short		fw_flag;
 #define	FW_NORMAL			0x0000
 #define	FW_BOG				0x0001
 #define	FW_DEADLOCK			0x0010
-	atomic_t 		rq_map_token;
-	atomic_t		ante_token_value;
 	uint32_t		maxOutstanding;
 	int			vector_count;
+	int			xor_mega;
 	uint32_t		maxFreeCCB;
 	struct timer_list	refresh_timer;
 	uint32_t		doneq_index;
@@ -848,6 +968,11 @@ struct AdapterControlBlock
 	uint32_t		out_doorbell;
 	uint32_t		completionQ_entry;
 	pCompletion_Q		pCompletionQ;
+	uint32_t		completeQ_size;
+	void			*xorVirt;
+	dma_addr_t		xorPhys;
+	unsigned int		init2cfg_size;
+	unsigned int		xorVirtOffset;
 };/* HW_DEVICE_EXTENSION */
 /*
 *******************************************************************************
@@ -944,6 +1069,6 @@ extern uint32_t arcmsr_Read_iop_rqbuffer_data(struct AdapterControlBlock *,
 	struct QBUFFER __iomem *);
 extern void arcmsr_clear_iop2drv_rqueue_buffer(struct AdapterControlBlock *);
 extern struct QBUFFER __iomem *arcmsr_get_iop_rqbuffer(struct AdapterControlBlock *);
-extern struct device_attribute *arcmsr_host_attrs[];
+extern const struct attribute_group *arcmsr_host_groups[];
 extern int arcmsr_alloc_sysfs_attr(struct AdapterControlBlock *);
 void arcmsr_free_sysfs_attr(struct AdapterControlBlock *acb);

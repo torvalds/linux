@@ -5,7 +5,7 @@
  * Authors:     Raducu Deaconu <rhadoo_io@yahoo.com>
  *
  * Scheduler implements "overflow" loadbalancing according to number of active
- * connections , will keep all conections to the node with the highest weight
+ * connections , will keep all connections to the node with the highest weight
  * and overflow to the next node if the number of connections exceeds the node's
  * weight.
  * Note that this scheduler might not be suitable for UDP because it only uses
@@ -79,3 +79,4 @@ static void __exit ip_vs_ovf_cleanup(void)
 module_init(ip_vs_ovf_init);
 module_exit(ip_vs_ovf_cleanup);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("ipvs overflow connection scheduler");

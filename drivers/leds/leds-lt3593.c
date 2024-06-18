@@ -5,11 +5,11 @@
 #include <linux/platform_device.h>
 #include <linux/leds.h>
 #include <linux/delay.h>
-#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/slab.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of.h>
+#include <linux/property.h>
 
 #define LED_LT3593_NAME "lt3593"
 
@@ -69,9 +69,6 @@ static int lt3593_led_probe(struct platform_device *pdev)
 	struct led_init_data init_data = {};
 	const char *tmp;
 
-	if (!dev->of_node)
-		return -ENODEV;
-
 	led_data = devm_kzalloc(dev, sizeof(*led_data), GFP_KERNEL);
 	if (!led_data)
 		return -ENOMEM;
@@ -87,9 +84,6 @@ static int lt3593_led_probe(struct platform_device *pdev)
 
 	child = device_get_next_child_node(dev, NULL);
 
-	fwnode_property_read_string(child, "linux,default-trigger",
-				    &led_data->cdev.default_trigger);
-
 	if (!fwnode_property_read_string(child, "default-state", &tmp)) {
 		if (!strcmp(tmp, "on"))
 			state = LEDS_GPIO_DEFSTATE_ON;
@@ -103,12 +97,10 @@ static int lt3593_led_probe(struct platform_device *pdev)
 	init_data.default_label = ":";
 
 	ret = devm_led_classdev_register_ext(dev, &led_data->cdev, &init_data);
-	if (ret < 0) {
-		fwnode_handle_put(child);
+	fwnode_handle_put(child);
+	if (ret < 0)
 		return ret;
-	}
 
-	led_data->cdev.dev->of_node = dev->of_node;
 	platform_set_drvdata(pdev, led_data);
 
 	return 0;
@@ -124,7 +116,7 @@ static struct platform_driver lt3593_led_driver = {
 	.probe		= lt3593_led_probe,
 	.driver		= {
 		.name	= "leds-lt3593",
-		.of_match_table = of_match_ptr(of_lt3593_leds_match),
+		.of_match_table = of_lt3593_leds_match,
 	},
 };
 

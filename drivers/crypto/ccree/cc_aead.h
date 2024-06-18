@@ -66,7 +66,7 @@ struct aead_req_ctx {
 	/* used to prevent cache coherence problem */
 	u8 backup_mac[MAX_MAC_SIZE];
 	u8 *backup_iv; /* store orig iv */
-	u32 assoclen; /* internal assoclen */
+	u32 assoclen; /* size of AAD buffer to authenticate */
 	dma_addr_t mac_buf_dma_addr; /* internal ICV DMA buffer */
 	/* buffer for internal ccm configurations */
 	dma_addr_t ccm_iv0_dma_addr;
@@ -79,7 +79,6 @@ struct aead_req_ctx {
 	dma_addr_t gcm_iv_inc2_dma_addr;
 	dma_addr_t hkey_dma_addr; /* Phys. address of hkey */
 	dma_addr_t gcm_block_len_dma_addr; /* Phys. address of gcm block len */
-	bool is_gcm4543;
 
 	u8 *icv_virt_addr; /* Virt. address of ICV */
 	struct async_gen_req_ctx gen_ctx;

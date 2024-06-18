@@ -337,17 +337,12 @@ static void mvebu_sei_handle_cascade_irq(struct irq_desc *desc)
 		irqmap = readl_relaxed(sei->base + GICP_SECR(idx));
 		for_each_set_bit(bit, &irqmap, SEI_IRQ_COUNT_PER_REG) {
 			unsigned long hwirq;
-			unsigned int virq;
+			int err;
 
 			hwirq = idx * SEI_IRQ_COUNT_PER_REG + bit;
-			virq = irq_find_mapping(sei->sei_domain, hwirq);
-			if (likely(virq)) {
-				generic_handle_irq(virq);
-				continue;
-			}
-
-			dev_warn(sei->dev,
-				 "Spurious IRQ detected (hwirq %lu)\n", hwirq);
+			err = generic_handle_domain_irq(sei->sei_domain, hwirq);
+			if (unlikely(err))
+				dev_warn(sei->dev, "Spurious IRQ detected (hwirq %lu)\n", hwirq);
 		}
 	}
 
@@ -382,12 +377,9 @@ static int mvebu_sei_probe(struct platform_device *pdev)
 	mutex_init(&sei->cp_msi_lock);
 	raw_spin_lock_init(&sei->mask_lock);
 
-	sei->res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	sei->base = devm_ioremap_resource(sei->dev, sei->res);
-	if (IS_ERR(sei->base)) {
-		dev_err(sei->dev, "Failed to remap SEI resource\n");
+	sei->base = devm_platform_get_and_ioremap_resource(pdev, 0, &sei->res);
+	if (IS_ERR(sei->base))
 		return PTR_ERR(sei->base);
-	}
 
 	/* Retrieve the SEI capabilities with the interrupt ranges */
 	sei->caps = of_device_get_match_data(&pdev->dev);

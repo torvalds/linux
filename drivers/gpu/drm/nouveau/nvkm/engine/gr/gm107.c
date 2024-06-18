@@ -411,10 +411,13 @@ gm107_gr = {
 	.init_tex_hww_esr = gf100_gr_init_tex_hww_esr,
 	.init_504430 = gm107_gr_init_504430,
 	.init_shader_exceptions = gm107_gr_init_shader_exceptions,
+	.init_rop_exceptions = gf100_gr_init_rop_exceptions,
+	.init_exception2 = gf100_gr_init_exception2,
 	.init_400054 = gm107_gr_init_400054,
 	.trap_mp = gf100_gr_trap_mp,
 	.mmio = gm107_gr_pack_mmio,
 	.fecs.ucode = &gm107_gr_fecs_ucode,
+	.fecs.reset = gf100_gr_fecs_reset,
 	.gpccs.ucode = &gm107_gr_gpccs_ucode,
 	.rops = gf100_gr_rops,
 	.ppc_nr = 2,
@@ -429,8 +432,15 @@ gm107_gr = {
 	}
 };
 
+static const struct gf100_gr_fwif
+gm107_gr_fwif[] = {
+	{ -1, gf100_gr_load, &gm107_gr },
+	{ -1, gf100_gr_nofw, &gm107_gr },
+	{}
+};
+
 int
-gm107_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
+gm107_gr_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_gr **pgr)
 {
-	return gf100_gr_new_(&gm107_gr, device, index, pgr);
+	return gf100_gr_new_(gm107_gr_fwif, device, type, inst, pgr);
 }

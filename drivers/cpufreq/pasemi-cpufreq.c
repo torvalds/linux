@@ -18,9 +18,10 @@
 
 #include <asm/hw_irq.h>
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/time.h>
 #include <asm/smp.h>
+
+#include <platforms/pasemi/pasemi.h>
 
 #define SDCASR_REG		0x0100
 #define SDCASR_REG_STRIDE	0x1000

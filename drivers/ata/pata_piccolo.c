@@ -62,7 +62,7 @@ static void tosh_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 }
 
 
-static struct scsi_host_template tosh_sht = {
+static const struct scsi_host_template tosh_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 
@@ -74,7 +74,7 @@ static struct ata_port_operations tosh_port_ops = {
 };
 
 /**
- *	ata_tosh_init		-	attach generic IDE
+ *	ata_tosh_init_one		-	attach generic IDE
  *	@dev: PCI device found
  *	@id: match entry
  *

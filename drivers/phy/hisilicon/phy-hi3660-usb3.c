@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
@@ -161,7 +162,7 @@ out:
 	return ret;
 }
 
-static struct phy_ops hi3660_phy_ops = {
+static const struct phy_ops hi3660_phy_ops = {
 	.init		= hi3660_phy_init,
 	.exit		= hi3660_phy_exit,
 	.owner		= THIS_MODULE,

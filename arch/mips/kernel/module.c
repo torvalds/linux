@@ -13,15 +13,13 @@
 #include <linux/elf.h>
 #include <linux/mm.h>
 #include <linux/numa.h>
-#include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 #include <linux/jump_label.h>
-
-#include <asm/pgtable.h>	/* MODULE_START */
+#include <asm/jump_label.h>
 
 struct mips_hi16 {
 	struct mips_hi16 *next;
@@ -32,31 +30,13 @@ struct mips_hi16 {
 static LIST_HEAD(dbe_list);
 static DEFINE_SPINLOCK(dbe_lock);
 
-#ifdef MODULE_START
-void *module_alloc(unsigned long size)
-{
-	return __vmalloc_node_range(size, 1, MODULE_START, MODULE_END,
-				GFP_KERNEL, PAGE_KERNEL, 0, NUMA_NO_NODE,
-				__builtin_return_address(0));
-}
-#endif
-
-static int apply_r_mips_none(struct module *me, u32 *location,
-			     u32 base, Elf_Addr v, bool rela)
-{
-	return 0;
-}
-
-static int apply_r_mips_32(struct module *me, u32 *location,
-			   u32 base, Elf_Addr v, bool rela)
+static void apply_r_mips_32(u32 *location, u32 base, Elf_Addr v)
 {
 	*location = base + v;
-
-	return 0;
 }
 
-static int apply_r_mips_26(struct module *me, u32 *location,
-			   u32 base, Elf_Addr v, bool rela)
+static int apply_r_mips_26(struct module *me, u32 *location, u32 base,
+			   Elf_Addr v)
 {
 	if (v % 4) {
 		pr_err("module %s: dangerous R_MIPS_26 relocation\n",
@@ -76,8 +56,8 @@ static int apply_r_mips_26(struct module *me, u32 *location,
 	return 0;
 }
 
-static int apply_r_mips_hi16(struct module *me, u32 *location,
-			     u32 base, Elf_Addr v, bool rela)
+static int apply_r_mips_hi16(struct module *me, u32 *location, Elf_Addr v,
+			     bool rela)
 {
 	struct mips_hi16 *n;
 
@@ -218,26 +198,25 @@ static int apply_r_mips_pc(struct module *me, u32 *location, u32 base,
 	return 0;
 }
 
-static int apply_r_mips_pc16(struct module *me, u32 *location,
-			     u32 base, Elf_Addr v, bool rela)
+static int apply_r_mips_pc16(struct module *me, u32 *location, u32 base,
+			     Elf_Addr v)
 {
 	return apply_r_mips_pc(me, location, base, v, 16);
 }
 
-static int apply_r_mips_pc21(struct module *me, u32 *location,
-			     u32 base, Elf_Addr v, bool rela)
+static int apply_r_mips_pc21(struct module *me, u32 *location, u32 base,
+			     Elf_Addr v)
 {
 	return apply_r_mips_pc(me, location, base, v, 21);
 }
 
-static int apply_r_mips_pc26(struct module *me, u32 *location,
-			     u32 base, Elf_Addr v, bool rela)
+static int apply_r_mips_pc26(struct module *me, u32 *location, u32 base,
+			     Elf_Addr v)
 {
 	return apply_r_mips_pc(me, location, base, v, 26);
 }
 
-static int apply_r_mips_64(struct module *me, u32 *location,
-			   u32 base, Elf_Addr v, bool rela)
+static int apply_r_mips_64(u32 *location, Elf_Addr v, bool rela)
 {
 	if (WARN_ON(!rela))
 		return -EINVAL;
@@ -247,8 +226,7 @@ static int apply_r_mips_64(struct module *me, u32 *location,
 	return 0;
 }
 
-static int apply_r_mips_higher(struct module *me, u32 *location,
-			       u32 base, Elf_Addr v, bool rela)
+static int apply_r_mips_higher(u32 *location, Elf_Addr v, bool rela)
 {
 	if (WARN_ON(!rela))
 		return -EINVAL;
@@ -259,8 +237,7 @@ static int apply_r_mips_higher(struct module *me, u32 *location,
 	return 0;
 }
 
-static int apply_r_mips_highest(struct module *me, u32 *location,
-				u32 base, Elf_Addr v, bool rela)
+static int apply_r_mips_highest(u32 *location, Elf_Addr v, bool rela)
 {
 	if (WARN_ON(!rela))
 		return -EINVAL;
@@ -273,12 +250,14 @@ static int apply_r_mips_highest(struct module *me, u32 *location,
 
 /**
  * reloc_handler() - Apply a particular relocation to a module
+ * @type: type of the relocation to apply
  * @me: the module to apply the reloc to
  * @location: the address at which the reloc is to be applied
  * @base: the existing value at location for REL-style; 0 for RELA-style
  * @v: the value of the reloc, with addend for RELA-style
+ * @rela: indication of is this a RELA (true) or REL (false) relocation
  *
- * Each implemented reloc_handler function applies a particular type of
+ * Each implemented relocation function applies a particular type of
  * relocation to the module @me. Relocs that may be found in either REL or RELA
  * variants can be handled by making use of the @base & @v parameters which are
  * set to values which abstract the difference away from the particular reloc
@@ -286,23 +265,40 @@ static int apply_r_mips_highest(struct module *me, u32 *location,
  *
  * Return: 0 upon success, else -ERRNO
  */
-typedef int (*reloc_handler)(struct module *me, u32 *location,
-			     u32 base, Elf_Addr v, bool rela);
+static int reloc_handler(u32 type, struct module *me, u32 *location, u32 base,
+			 Elf_Addr v, bool rela)
+{
+	switch (type) {
+	case R_MIPS_NONE:
+		break;
+	case R_MIPS_32:
+		apply_r_mips_32(location, base, v);
+		break;
+	case R_MIPS_26:
+		return apply_r_mips_26(me, location, base, v);
+	case R_MIPS_HI16:
+		return apply_r_mips_hi16(me, location, v, rela);
+	case R_MIPS_LO16:
+		return apply_r_mips_lo16(me, location, base, v, rela);
+	case R_MIPS_PC16:
+		return apply_r_mips_pc16(me, location, base, v);
+	case R_MIPS_PC21_S2:
+		return apply_r_mips_pc21(me, location, base, v);
+	case R_MIPS_PC26_S2:
+		return apply_r_mips_pc26(me, location, base, v);
+	case R_MIPS_64:
+		return apply_r_mips_64(location, v, rela);
+	case R_MIPS_HIGHER:
+		return apply_r_mips_higher(location, v, rela);
+	case R_MIPS_HIGHEST:
+		return apply_r_mips_highest(location, v, rela);
+	default:
+		pr_err("%s: Unknown relocation type %u\n", me->name, type);
+		return -EINVAL;
+	}
 
-/* The handlers for known reloc types */
-static reloc_handler reloc_handlers[] = {
-	[R_MIPS_NONE]		= apply_r_mips_none,
-	[R_MIPS_32]		= apply_r_mips_32,
-	[R_MIPS_26]		= apply_r_mips_26,
-	[R_MIPS_HI16]		= apply_r_mips_hi16,
-	[R_MIPS_LO16]		= apply_r_mips_lo16,
-	[R_MIPS_PC16]		= apply_r_mips_pc16,
-	[R_MIPS_64]		= apply_r_mips_64,
-	[R_MIPS_HIGHER]		= apply_r_mips_higher,
-	[R_MIPS_HIGHEST]	= apply_r_mips_highest,
-	[R_MIPS_PC21_S2]	= apply_r_mips_pc21,
-	[R_MIPS_PC26_S2]	= apply_r_mips_pc26,
-};
+	return 0;
+}
 
 static int __apply_relocate(Elf_Shdr *sechdrs, const char *strtab,
 			    unsigned int symindex, unsigned int relsec,
@@ -312,7 +308,6 @@ static int __apply_relocate(Elf_Shdr *sechdrs, const char *strtab,
 		Elf_Mips_Rel *rel;
 		Elf_Mips_Rela *rela;
 	} r;
-	reloc_handler handler;
 	Elf_Sym *sym;
 	u32 *location, base;
 	unsigned int i, type;
@@ -344,17 +339,6 @@ static int __apply_relocate(Elf_Shdr *sechdrs, const char *strtab,
 		}
 
 		type = ELF_MIPS_R_TYPE(*r.rel);
-		if (type < ARRAY_SIZE(reloc_handlers))
-			handler = reloc_handlers[type];
-		else
-			handler = NULL;
-
-		if (!handler) {
-			pr_err("%s: Unknown relocation type %u\n",
-			       me->name, type);
-			err = -EINVAL;
-			goto out;
-		}
 
 		if (rela) {
 			v = sym->st_value + r.rela->r_addend;
@@ -366,7 +350,7 @@ static int __apply_relocate(Elf_Shdr *sechdrs, const char *strtab,
 			r.rel = &r.rel[1];
 		}
 
-		err = handler(me, location, base, v, rela);
+		err = reloc_handler(type, me, location, base, v, rela);
 		if (err)
 			goto out;
 	}
@@ -434,8 +418,8 @@ int module_finalize(const Elf_Ehdr *hdr,
 	const Elf_Shdr *s;
 	char *secstrings = (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
 
-	/* Make jump label nops. */
-	jump_label_apply_nops(me);
+	if (IS_ENABLED(CONFIG_JUMP_LABEL))
+		jump_label_apply_nops(me);
 
 	INIT_LIST_HEAD(&me->arch.dbe_list);
 	for (s = sechdrs; s < sechdrs + hdr->e_shnum; s++) {

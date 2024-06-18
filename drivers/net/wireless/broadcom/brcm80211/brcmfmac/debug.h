@@ -60,6 +60,10 @@ void __brcmf_err(struct brcmf_bus *bus, const char *func, const char *fmt, ...);
 				  ##__VA_ARGS__);			\
 	} while (0)
 
+#define bphy_info_once(drvr, fmt, ...)					\
+	wiphy_info_once((drvr)->wiphy, "%s: " fmt, __func__,		\
+			##__VA_ARGS__)
+
 #if defined(DEBUG) || defined(CONFIG_BRCM_TRACING)
 
 /* For debug/tracing purposes treat info messages as errors */
@@ -112,12 +116,11 @@ do {									\
 
 extern int brcmf_msg_level;
 
-struct brcmf_bus;
 struct brcmf_pub;
 #ifdef DEBUG
 struct dentry *brcmf_debugfs_get_devdir(struct brcmf_pub *drvr);
-int brcmf_debugfs_add_entry(struct brcmf_pub *drvr, const char *fn,
-			    int (*read_fn)(struct seq_file *seq, void *data));
+void brcmf_debugfs_add_entry(struct brcmf_pub *drvr, const char *fn,
+			     int (*read_fn)(struct seq_file *seq, void *data));
 int brcmf_debug_create_memdump(struct brcmf_bus *bus, const void *data,
 			       size_t len);
 #else
@@ -126,11 +129,9 @@ static inline struct dentry *brcmf_debugfs_get_devdir(struct brcmf_pub *drvr)
 	return ERR_PTR(-ENOENT);
 }
 static inline
-int brcmf_debugfs_add_entry(struct brcmf_pub *drvr, const char *fn,
-			    int (*read_fn)(struct seq_file *seq, void *data))
-{
-	return 0;
-}
+void brcmf_debugfs_add_entry(struct brcmf_pub *drvr, const char *fn,
+			     int (*read_fn)(struct seq_file *seq, void *data))
+{ }
 static inline
 int brcmf_debug_create_memdump(struct brcmf_bus *bus, const void *data,
 			       size_t len)

@@ -21,21 +21,20 @@
 #include <sound/pxa2xx-lib.h>
 #include <sound/dmaengine_pcm.h>
 
-#include <mach/hardware.h>
-#include <mach/audio.h>
+#include <linux/platform_data/asoc-pxa.h>
 
 #include "pxa2xx-i2s.h"
 
 /*
  * I2S Controller Register and Bit Definitions
  */
-#define SACR0		__REG(0x40400000)  /* Global Control Register */
-#define SACR1		__REG(0x40400004)  /* Serial Audio I 2 S/MSB-Justified Control Register */
-#define SASR0		__REG(0x4040000C)  /* Serial Audio I 2 S/MSB-Justified Interface and FIFO Status Register */
-#define SAIMR		__REG(0x40400014)  /* Serial Audio Interrupt Mask Register */
-#define SAICR		__REG(0x40400018)  /* Serial Audio Interrupt Clear Register */
-#define SADIV		__REG(0x40400060)  /* Audio Clock Divider Register. */
-#define SADR		__REG(0x40400080)  /* Serial Audio Data Register (TX and RX FIFO access Register). */
+#define SACR0		(0x0000)	/* Global Control Register */
+#define SACR1		(0x0004)	/* Serial Audio I 2 S/MSB-Justified Control Register */
+#define SASR0		(0x000C)	/* Serial Audio I 2 S/MSB-Justified Interface and FIFO Status Register */
+#define SAIMR		(0x0014)	/* Serial Audio Interrupt Mask Register */
+#define SAICR		(0x0018)	/* Serial Audio Interrupt Clear Register */
+#define SADIV		(0x0060)	/* Audio Clock Divider Register. */
+#define SADR		(0x0080)	/* Serial Audio Data Register (TX and RX FIFO access Register). */
 
 #define SACR0_RFTH(x)	((x) << 12)	/* Rx FIFO Interrupt or DMA Trigger Threshold */
 #define SACR0_TFTH(x)	((x) << 8)	/* Tx FIFO Interrupt or DMA Trigger Threshold */
@@ -77,16 +76,15 @@ struct pxa_i2s_port {
 static struct pxa_i2s_port pxa_i2s;
 static struct clk *clk_i2s;
 static int clk_ena = 0;
+static void __iomem *i2s_reg_base;
 
 static struct snd_dmaengine_dai_dma_data pxa2xx_i2s_pcm_stereo_out = {
-	.addr		= __PREG(SADR),
 	.addr_width	= DMA_SLAVE_BUSWIDTH_4_BYTES,
 	.chan_name	= "tx",
 	.maxburst	= 32,
 };
 
 static struct snd_dmaengine_dai_dma_data pxa2xx_i2s_pcm_stereo_in = {
-	.addr		= __PREG(SADR),
 	.addr_width	= DMA_SLAVE_BUSWIDTH_4_BYTES,
 	.chan_name	= "rx",
 	.maxburst	= 32,
@@ -95,14 +93,14 @@ static struct snd_dmaengine_dai_dma_data pxa2xx_i2s_pcm_stereo_in = {
 static int pxa2xx_i2s_startup(struct snd_pcm_substream *substream,
 			      struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
 
 	if (IS_ERR(clk_i2s))
 		return PTR_ERR(clk_i2s);
 
-	if (!cpu_dai->active)
-		SACR0 = 0;
+	if (!snd_soc_dai_active(cpu_dai))
+		writel(0, i2s_reg_base + SACR0);
 
 	return 0;
 }
@@ -114,7 +112,7 @@ static int pxa_i2s_wait(void)
 
 	/* flush the Rx FIFO */
 	for (i = 0; i < 16; i++)
-		SADR;
+		readl(i2s_reg_base + SADR);
 	return 0;
 }
 
@@ -131,11 +129,11 @@ static int pxa2xx_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		break;
 	}
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_BP_FP:
 		pxa_i2s.master = 1;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFS:
+	case SND_SOC_DAIFMT_BC_FP:
 		pxa_i2s.master = 0;
 		break;
 	default:
@@ -174,39 +172,39 @@ static int pxa2xx_i2s_hw_params(struct snd_pcm_substream *substream,
 
 	/* is port used by another stream */
 	if (!(SACR0 & SACR0_ENB)) {
-		SACR0 = 0;
+		writel(0, i2s_reg_base + SACR0);
 		if (pxa_i2s.master)
-			SACR0 |= SACR0_BCKD;
+			writel(readl(i2s_reg_base + SACR0) | (SACR0_BCKD), i2s_reg_base + SACR0);
 
-		SACR0 |= SACR0_RFTH(14) | SACR0_TFTH(1);
-		SACR1 |= pxa_i2s.fmt;
+		writel(readl(i2s_reg_base + SACR0) | (SACR0_RFTH(14) | SACR0_TFTH(1)), i2s_reg_base + SACR0);
+		writel(readl(i2s_reg_base + SACR1) | (pxa_i2s.fmt), i2s_reg_base + SACR1);
 	}
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		SAIMR |= SAIMR_TFS;
+		writel(readl(i2s_reg_base + SAIMR) | (SAIMR_TFS), i2s_reg_base + SAIMR);
 	else
-		SAIMR |= SAIMR_RFS;
+		writel(readl(i2s_reg_base + SAIMR) | (SAIMR_RFS), i2s_reg_base + SAIMR);
 
 	switch (params_rate(params)) {
 	case 8000:
-		SADIV = 0x48;
+		writel(0x48, i2s_reg_base + SADIV);
 		break;
 	case 11025:
-		SADIV = 0x34;
+		writel(0x34, i2s_reg_base + SADIV);
 		break;
 	case 16000:
-		SADIV = 0x24;
+		writel(0x24, i2s_reg_base + SADIV);
 		break;
 	case 22050:
-		SADIV = 0x1a;
+		writel(0x1a, i2s_reg_base + SADIV);
 		break;
 	case 44100:
-		SADIV = 0xd;
+		writel(0xd, i2s_reg_base + SADIV);
 		break;
 	case 48000:
-		SADIV = 0xc;
+		writel(0xc, i2s_reg_base + SADIV);
 		break;
 	case 96000: /* not in manual and possibly slightly inaccurate */
-		SADIV = 0x6;
+		writel(0x6, i2s_reg_base + SADIV);
 		break;
 	}
 
@@ -221,10 +219,10 @@ static int pxa2xx_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			SACR1 &= ~SACR1_DRPL;
+			writel(readl(i2s_reg_base + SACR1) & (~SACR1_DRPL), i2s_reg_base + SACR1);
 		else
-			SACR1 &= ~SACR1_DREC;
-		SACR0 |= SACR0_ENB;
+			writel(readl(i2s_reg_base + SACR1) & (~SACR1_DREC), i2s_reg_base + SACR1);
+		writel(readl(i2s_reg_base + SACR0) | (SACR0_ENB), i2s_reg_base + SACR0);
 		break;
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
@@ -243,15 +241,15 @@ static void pxa2xx_i2s_shutdown(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		SACR1 |= SACR1_DRPL;
-		SAIMR &= ~SAIMR_TFS;
+		writel(readl(i2s_reg_base + SACR1) | (SACR1_DRPL), i2s_reg_base + SACR1);
+		writel(readl(i2s_reg_base + SAIMR) & (~SAIMR_TFS), i2s_reg_base + SAIMR);
 	} else {
-		SACR1 |= SACR1_DREC;
-		SAIMR &= ~SAIMR_RFS;
+		writel(readl(i2s_reg_base + SACR1) | (SACR1_DREC), i2s_reg_base + SACR1);
+		writel(readl(i2s_reg_base + SAIMR) & (~SAIMR_RFS), i2s_reg_base + SAIMR);
 	}
 
-	if ((SACR1 & (SACR1_DREC | SACR1_DRPL)) == (SACR1_DREC | SACR1_DRPL)) {
-		SACR0 &= ~SACR0_ENB;
+	if ((readl(i2s_reg_base + SACR1) & (SACR1_DREC | SACR1_DRPL)) == (SACR1_DREC | SACR1_DRPL)) {
+		writel(readl(i2s_reg_base + SACR0) & (~SACR0_ENB), i2s_reg_base + SACR0);
 		pxa_i2s_wait();
 		if (clk_ena) {
 			clk_disable_unprepare(clk_i2s);
@@ -261,37 +259,37 @@ static void pxa2xx_i2s_shutdown(struct snd_pcm_substream *substream,
 }
 
 #ifdef CONFIG_PM
-static int pxa2xx_i2s_suspend(struct snd_soc_dai *dai)
+static int pxa2xx_soc_pcm_suspend(struct snd_soc_component *component)
 {
 	/* store registers */
-	pxa_i2s.sacr0 = SACR0;
-	pxa_i2s.sacr1 = SACR1;
-	pxa_i2s.saimr = SAIMR;
-	pxa_i2s.sadiv = SADIV;
+	pxa_i2s.sacr0 = readl(i2s_reg_base + SACR0);
+	pxa_i2s.sacr1 = readl(i2s_reg_base + SACR1);
+	pxa_i2s.saimr = readl(i2s_reg_base + SAIMR);
+	pxa_i2s.sadiv = readl(i2s_reg_base + SADIV);
 
 	/* deactivate link */
-	SACR0 &= ~SACR0_ENB;
+	writel(readl(i2s_reg_base + SACR0) & (~SACR0_ENB), i2s_reg_base + SACR0);
 	pxa_i2s_wait();
 	return 0;
 }
 
-static int pxa2xx_i2s_resume(struct snd_soc_dai *dai)
+static int pxa2xx_soc_pcm_resume(struct snd_soc_component *component)
 {
 	pxa_i2s_wait();
 
-	SACR0 = pxa_i2s.sacr0 & ~SACR0_ENB;
-	SACR1 = pxa_i2s.sacr1;
-	SAIMR = pxa_i2s.saimr;
-	SADIV = pxa_i2s.sadiv;
+	writel(pxa_i2s.sacr0 & ~SACR0_ENB, i2s_reg_base + SACR0);
+	writel(pxa_i2s.sacr1, i2s_reg_base + SACR1);
+	writel(pxa_i2s.saimr, i2s_reg_base + SAIMR);
+	writel(pxa_i2s.sadiv, i2s_reg_base + SADIV);
 
-	SACR0 = pxa_i2s.sacr0;
+	writel(pxa_i2s.sacr0, i2s_reg_base + SACR0);
 
 	return 0;
 }
 
 #else
-#define pxa2xx_i2s_suspend	NULL
-#define pxa2xx_i2s_resume	NULL
+#define pxa2xx_soc_pcm_suspend	NULL
+#define pxa2xx_soc_pcm_resume	NULL
 #endif
 
 static int pxa2xx_i2s_probe(struct snd_soc_dai *dai)
@@ -306,12 +304,12 @@ static int pxa2xx_i2s_probe(struct snd_soc_dai *dai)
 	 * the SACR0[RST] bit must also be set and cleared to reset all
 	 * I2S controller registers.
 	 */
-	SACR0 = SACR0_RST;
-	SACR0 = 0;
+	writel(SACR0_RST, i2s_reg_base + SACR0);
+	writel(0, i2s_reg_base + SACR0);
 	/* Make sure RPL and REC are disabled */
-	SACR1 = SACR1_DRPL | SACR1_DREC;
+	writel(SACR1_DRPL | SACR1_DREC, i2s_reg_base + SACR1);
 	/* Along with FIFO servicing */
-	SAIMR &= ~(SAIMR_RFS | SAIMR_TFS);
+	writel(readl(i2s_reg_base + SAIMR) & (~(SAIMR_RFS | SAIMR_TFS)), i2s_reg_base + SAIMR);
 
 	snd_soc_dai_init_dma_data(dai, &pxa2xx_i2s_pcm_stereo_out,
 		&pxa2xx_i2s_pcm_stereo_in);
@@ -331,6 +329,8 @@ static int  pxa2xx_i2s_remove(struct snd_soc_dai *dai)
 		SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_96000)
 
 static const struct snd_soc_dai_ops pxa_i2s_dai_ops = {
+	.probe		= pxa2xx_i2s_probe,
+	.remove		= pxa2xx_i2s_remove,
 	.startup	= pxa2xx_i2s_startup,
 	.shutdown	= pxa2xx_i2s_shutdown,
 	.trigger	= pxa2xx_i2s_trigger,
@@ -340,10 +340,6 @@ static const struct snd_soc_dai_ops pxa_i2s_dai_ops = {
 };
 
 static struct snd_soc_dai_driver pxa_i2s_dai = {
-	.probe = pxa2xx_i2s_probe,
-	.remove = pxa2xx_i2s_remove,
-	.suspend = pxa2xx_i2s_suspend,
-	.resume = pxa2xx_i2s_resume,
 	.playback = {
 		.channels_min = 2,
 		.channels_max = 2,
@@ -355,18 +351,34 @@ static struct snd_soc_dai_driver pxa_i2s_dai = {
 		.rates = PXA2XX_I2S_RATES,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
 	.ops = &pxa_i2s_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 };
 
 static const struct snd_soc_component_driver pxa_i2s_component = {
-	.name		= "pxa-i2s",
-	.ops		= &pxa2xx_pcm_ops,
-	.pcm_new	= pxa2xx_soc_pcm_new,
-	.pcm_free	= pxa2xx_pcm_free_dma_buffers,
+	.name			= "pxa-i2s",
+	.pcm_construct		= pxa2xx_soc_pcm_new,
+	.open			= pxa2xx_soc_pcm_open,
+	.close			= pxa2xx_soc_pcm_close,
+	.hw_params		= pxa2xx_soc_pcm_hw_params,
+	.prepare		= pxa2xx_soc_pcm_prepare,
+	.trigger		= pxa2xx_soc_pcm_trigger,
+	.pointer		= pxa2xx_soc_pcm_pointer,
+	.suspend		= pxa2xx_soc_pcm_suspend,
+	.resume			= pxa2xx_soc_pcm_resume,
+	.legacy_dai_naming	= 1,
 };
 
 static int pxa2xx_i2s_drv_probe(struct platform_device *pdev)
 {
+	struct resource *res;
+
+	i2s_reg_base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
+	if (IS_ERR(i2s_reg_base))
+		return PTR_ERR(i2s_reg_base);
+
+	pxa2xx_i2s_pcm_stereo_out.addr = res->start + SADR;
+	pxa2xx_i2s_pcm_stereo_in.addr = res->start + SADR;
+
 	return devm_snd_soc_register_component(&pdev->dev, &pxa_i2s_component,
 					       &pxa_i2s_dai, 1);
 }

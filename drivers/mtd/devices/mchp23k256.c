@@ -15,7 +15,7 @@
 #include <linux/sizes.h>
 #include <linux/spi/flash.h>
 #include <linux/spi/spi.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 
 #define MAX_CMD_SIZE		4
 
@@ -64,15 +64,17 @@ static int mchp23k256_write(struct mtd_info *mtd, loff_t to, size_t len,
 	struct spi_transfer transfer[2] = {};
 	struct spi_message message;
 	unsigned char command[MAX_CMD_SIZE];
-	int ret;
+	int ret, cmd_len;
 
 	spi_message_init(&message);
+
+	cmd_len = mchp23k256_cmdsz(flash);
 
 	command[0] = MCHP23K256_CMD_WRITE;
 	mchp23k256_addr2cmd(flash, to, command);
 
 	transfer[0].tx_buf = command;
-	transfer[0].len = mchp23k256_cmdsz(flash);
+	transfer[0].len = cmd_len;
 	spi_message_add_tail(&transfer[0], &message);
 
 	transfer[1].tx_buf = buf;
@@ -88,8 +90,8 @@ static int mchp23k256_write(struct mtd_info *mtd, loff_t to, size_t len,
 	if (ret)
 		return ret;
 
-	if (retlen && message.actual_length > sizeof(command))
-		*retlen += message.actual_length - sizeof(command);
+	if (retlen && message.actual_length > cmd_len)
+		*retlen += message.actual_length - cmd_len;
 
 	return 0;
 }
@@ -101,16 +103,18 @@ static int mchp23k256_read(struct mtd_info *mtd, loff_t from, size_t len,
 	struct spi_transfer transfer[2] = {};
 	struct spi_message message;
 	unsigned char command[MAX_CMD_SIZE];
-	int ret;
+	int ret, cmd_len;
 
 	spi_message_init(&message);
+
+	cmd_len = mchp23k256_cmdsz(flash);
 
 	memset(&transfer, 0, sizeof(transfer));
 	command[0] = MCHP23K256_CMD_READ;
 	mchp23k256_addr2cmd(flash, from, command);
 
 	transfer[0].tx_buf = command;
-	transfer[0].len = mchp23k256_cmdsz(flash);
+	transfer[0].len = cmd_len;
 	spi_message_add_tail(&transfer[0], &message);
 
 	transfer[1].rx_buf = buf;
@@ -126,8 +130,8 @@ static int mchp23k256_read(struct mtd_info *mtd, loff_t from, size_t len,
 	if (ret)
 		return ret;
 
-	if (retlen && message.actual_length > sizeof(command))
-		*retlen += message.actual_length - sizeof(command);
+	if (retlen && message.actual_length > cmd_len)
+		*retlen += message.actual_length - cmd_len;
 
 	return 0;
 }
@@ -205,11 +209,11 @@ static int mchp23k256_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int mchp23k256_remove(struct spi_device *spi)
+static void mchp23k256_remove(struct spi_device *spi)
 {
 	struct mchp23k256_flash *flash = spi_get_drvdata(spi);
 
-	return mtd_device_unregister(&flash->mtd);
+	WARN_ON(mtd_device_unregister(&flash->mtd));
 }
 
 static const struct of_device_id mchp23k256_of_table[] = {
@@ -225,13 +229,27 @@ static const struct of_device_id mchp23k256_of_table[] = {
 };
 MODULE_DEVICE_TABLE(of, mchp23k256_of_table);
 
+static const struct spi_device_id mchp23k256_spi_ids[] = {
+	{
+		.name = "mchp23k256",
+		.driver_data = (kernel_ulong_t)&mchp23k256_caps,
+	},
+	{
+		.name = "mchp23lcv1024",
+		.driver_data = (kernel_ulong_t)&mchp23lcv1024_caps,
+	},
+	{}
+};
+MODULE_DEVICE_TABLE(spi, mchp23k256_spi_ids);
+
 static struct spi_driver mchp23k256_driver = {
 	.driver = {
 		.name	= "mchp23k256",
-		.of_match_table = of_match_ptr(mchp23k256_of_table),
+		.of_match_table = mchp23k256_of_table,
 	},
 	.probe		= mchp23k256_probe,
 	.remove		= mchp23k256_remove,
+	.id_table	= mchp23k256_spi_ids,
 };
 
 module_spi_driver(mchp23k256_driver);
@@ -239,4 +257,3 @@ module_spi_driver(mchp23k256_driver);
 MODULE_DESCRIPTION("MTD SPI driver for MCHP23K256 RAM chips");
 MODULE_AUTHOR("Andrew Lunn <andre@lunn.ch>");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("spi:mchp23k256");

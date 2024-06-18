@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/fs/9p/vfs_dentry.c
- *
  * This file contians vfs dentry ops for the 9P2000 protocol.
  *
  *  Copyright (C) 2004 by Eric Van Hensbergen <ericvh@gmail.com>
@@ -15,9 +13,7 @@
 #include <linux/pagemap.h>
 #include <linux/stat.h>
 #include <linux/string.h>
-#include <linux/inet.h>
 #include <linux/namei.h>
-#include <linux/idr.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <net/9p/9p.h>
@@ -52,11 +48,17 @@ static int v9fs_cached_dentry_delete(const struct dentry *dentry)
 static void v9fs_dentry_release(struct dentry *dentry)
 {
 	struct hlist_node *p, *n;
+	struct hlist_head head;
+
 	p9_debug(P9_DEBUG_VFS, " dentry: %pd (%p)\n",
 		 dentry, dentry);
-	hlist_for_each_safe(p, n, (struct hlist_head *)&dentry->d_fsdata)
-		p9_client_clunk(hlist_entry(p, struct p9_fid, dlist));
-	dentry->d_fsdata = NULL;
+
+	spin_lock(&dentry->d_lock);
+	hlist_move_list((struct hlist_head *)&dentry->d_fsdata, &head);
+	spin_unlock(&dentry->d_lock);
+
+	hlist_for_each_safe(p, n, &head)
+		p9_fid_put(hlist_entry(p, struct p9_fid, dlist));
 }
 
 static int v9fs_lookup_revalidate(struct dentry *dentry, unsigned int flags)
@@ -76,6 +78,7 @@ static int v9fs_lookup_revalidate(struct dentry *dentry, unsigned int flags)
 	if (v9inode->cache_validity & V9FS_INO_INVALID_ATTR) {
 		int retval;
 		struct v9fs_session_info *v9ses;
+
 		fid = v9fs_fid_lookup(dentry);
 		if (IS_ERR(fid))
 			return PTR_ERR(fid);
@@ -85,6 +88,8 @@ static int v9fs_lookup_revalidate(struct dentry *dentry, unsigned int flags)
 			retval = v9fs_refresh_inode_dotl(fid, inode);
 		else
 			retval = v9fs_refresh_inode(fid, inode);
+		p9_fid_put(fid);
+
 		if (retval == -ENOENT)
 			return 0;
 		if (retval < 0)

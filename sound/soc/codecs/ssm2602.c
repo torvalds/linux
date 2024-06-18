@@ -53,6 +53,18 @@ static const struct reg_default ssm2602_reg[SSM2602_CACHEREGNUM] = {
 	{ .reg = 0x09, .def = 0x0000 }
 };
 
+/*
+ * ssm2602 register patch
+ * Workaround for playback distortions after power up: activates digital
+ * core, and then powers on output, DAC, and whole chip at the same time
+ */
+
+static const struct reg_sequence ssm2602_patch[] = {
+	{ SSM2602_ACTIVE, 0x01 },
+	{ SSM2602_PWR,    0x07 },
+	{ SSM2602_RESET,  0x00 },
+};
+
 
 /*Appending several "None"s just for OSS mixer use*/
 static const char *ssm2602_input_select[] = {
@@ -280,9 +292,12 @@ static inline int ssm2602_get_coeff(int mclk, int rate)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(ssm2602_coeff_table); i++) {
-		if (ssm2602_coeff_table[i].rate == rate &&
-			ssm2602_coeff_table[i].mclk == mclk)
-			return ssm2602_coeff_table[i].srate;
+		if (ssm2602_coeff_table[i].rate == rate) {
+			if (ssm2602_coeff_table[i].mclk == mclk)
+				return ssm2602_coeff_table[i].srate;
+			if (ssm2602_coeff_table[i].mclk == mclk / 2)
+				return ssm2602_coeff_table[i].srate | SRATE_CORECLK_DIV2;
+		}
 	}
 	return -EINVAL;
 }
@@ -338,7 +353,7 @@ static int ssm2602_startup(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int ssm2602_mute(struct snd_soc_dai *dai, int mute)
+static int ssm2602_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct ssm2602_priv *ssm2602 = snd_soc_component_get_drvdata(dai->component);
 
@@ -365,18 +380,24 @@ static int ssm2602_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		switch (freq) {
 		case 12288000:
 		case 18432000:
+		case 24576000:
+		case 36864000:
 			ssm2602->sysclk_constraints = &ssm2602_constraints_12288000;
 			break;
 		case 11289600:
 		case 16934400:
+		case 22579200:
+		case 33868800:
 			ssm2602->sysclk_constraints = &ssm2602_constraints_11289600;
 			break;
 		case 12000000:
+		case 24000000:
 			ssm2602->sysclk_constraints = NULL;
 			break;
 		default:
 			return -EINVAL;
 		}
+
 		ssm2602->sysclk = freq;
 	} else {
 		unsigned int mask;
@@ -411,11 +432,11 @@ static int ssm2602_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	unsigned int iface = 0;
 
 	/* set master/slave audio interface */
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
 		iface |= 0x0040;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		break;
 	default:
 		return -EINVAL;
@@ -505,9 +526,10 @@ static int ssm2602_set_bias_level(struct snd_soc_component *component,
 static const struct snd_soc_dai_ops ssm2602_dai_ops = {
 	.startup	= ssm2602_startup,
 	.hw_params	= ssm2602_hw_params,
-	.digital_mute	= ssm2602_mute,
+	.mute_stream	= ssm2602_mute,
 	.set_sysclk	= ssm2602_set_dai_sysclk,
 	.set_fmt	= ssm2602_set_dai_fmt,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver ssm2602_dai = {
@@ -525,8 +547,8 @@ static struct snd_soc_dai_driver ssm2602_dai = {
 		.rates = SSM2602_RATES,
 		.formats = SSM2602_FORMATS,},
 	.ops = &ssm2602_dai_ops,
-	.symmetric_rates = 1,
-	.symmetric_samplebits = 1,
+	.symmetric_rate = 1,
+	.symmetric_sample_bits = 1,
 };
 
 static int ssm2602_resume(struct snd_soc_component *component)
@@ -588,6 +610,9 @@ static int ssm260x_component_probe(struct snd_soc_component *component)
 		return ret;
 	}
 
+	regmap_register_patch(ssm2602->regmap, ssm2602_patch,
+			      ARRAY_SIZE(ssm2602_patch));
+
 	/* set the update bits */
 	regmap_update_bits(ssm2602->regmap, SSM2602_LINVOL,
 			    LINVOL_LRIN_BOTH, LINVOL_LRIN_BOTH);
@@ -623,7 +648,6 @@ static const struct snd_soc_component_driver soc_component_dev_ssm2602 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static bool ssm2602_register_volatile(struct device *dev, unsigned int reg)

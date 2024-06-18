@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
+#include <linux/etherdevice.h>
 
 #include <pcmcia/cisreg.h>
 #include <pcmcia/cistpl.h>
@@ -78,9 +79,9 @@ done:
  * calls the @loop_tuple function for each entry. If the call to @loop_tuple
  * returns 0, the loop exits. Returns 0 on success or errorcode otherwise.
  */
-int pccard_loop_tuple(struct pcmcia_socket *s, unsigned int function,
-		      cisdata_t code, cisparse_t *parse, void *priv_data,
-		      int (*loop_tuple) (tuple_t *tuple,
+static int pccard_loop_tuple(struct pcmcia_socket *s, unsigned int function,
+			     cisdata_t code, cisparse_t *parse, void *priv_data,
+			     int (*loop_tuple) (tuple_t *tuple,
 					 cisparse_t *parse,
 					 void *priv_data))
 {
@@ -122,7 +123,7 @@ next_entry:
 }
 
 
-/**
+/*
  * pcmcia_io_cfg_data_width() - convert cfgtable to data path width parameter
  */
 static int pcmcia_io_cfg_data_width(unsigned int flags)
@@ -143,7 +144,7 @@ struct pcmcia_cfg_mem {
 	cistpl_cftable_entry_t dflt;
 };
 
-/**
+/*
  * pcmcia_do_loop_config() - internal helper for pcmcia_loop_config()
  *
  * pcmcia_do_loop_config() is the internal callback for the call from
@@ -289,7 +290,7 @@ struct pcmcia_loop_mem {
 			   void *priv_data);
 };
 
-/**
+/*
  * pcmcia_do_loop_tuple() - internal helper for pcmcia_loop_config()
  *
  * pcmcia_do_loop_tuple() is the internal callback for the call from
@@ -337,7 +338,7 @@ struct pcmcia_loop_get {
 	cisdata_t **buf;
 };
 
-/**
+/*
  * pcmcia_do_get_tuple() - internal helper for pcmcia_get_tuple()
  *
  * pcmcia_do_get_tuple() is the internal callback for the call from
@@ -385,8 +386,8 @@ size_t pcmcia_get_tuple(struct pcmcia_device *p_dev, cisdata_t code,
 }
 EXPORT_SYMBOL(pcmcia_get_tuple);
 
-
-/**
+#ifdef CONFIG_NET
+/*
  * pcmcia_do_get_mac() - internal helper for pcmcia_get_mac_from_cis()
  *
  * pcmcia_do_get_mac() is the internal callback for the call from
@@ -398,7 +399,6 @@ static int pcmcia_do_get_mac(struct pcmcia_device *p_dev, tuple_t *tuple,
 			     void *priv)
 {
 	struct net_device *dev = priv;
-	int i;
 
 	if (tuple->TupleData[0] != CISTPL_FUNCE_LAN_NODE_ID)
 		return -EINVAL;
@@ -412,8 +412,7 @@ static int pcmcia_do_get_mac(struct pcmcia_device *p_dev, tuple_t *tuple,
 		dev_warn(&p_dev->dev, "Invalid header for LAN_NODE_ID\n");
 		return -EINVAL;
 	}
-	for (i = 0; i < 6; i++)
-		dev->dev_addr[i] = tuple->TupleData[i+2];
+	eth_hw_addr_set(dev, &tuple->TupleData[2]);
 	return 0;
 }
 
@@ -432,3 +431,4 @@ int pcmcia_get_mac_from_cis(struct pcmcia_device *p_dev, struct net_device *dev)
 }
 EXPORT_SYMBOL(pcmcia_get_mac_from_cis);
 
+#endif /* CONFIG_NET */

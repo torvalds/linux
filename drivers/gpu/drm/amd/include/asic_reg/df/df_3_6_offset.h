@@ -27,8 +27,14 @@
 #define mmDF_PIE_AON0_DfGlobalClkGater									0x00fc
 #define mmDF_PIE_AON0_DfGlobalClkGater_BASE_IDX								0
 
+#define mmDF_CS_UMC_AON0_DfGlobalCtrl									0x00fe
+#define mmDF_CS_UMC_AON0_DfGlobalCtrl_BASE_IDX								0
+
 #define mmDF_CS_UMC_AON0_DramBaseAddress0								0x0044
 #define mmDF_CS_UMC_AON0_DramBaseAddress0_BASE_IDX							0
+
+#define mmDF_GCM_AON0_DramMegaBaseAddress0								0x0064
+#define mmDF_GCM_AON0_DramMegaBaseAddress0_BASE_IDX							0
 
 #define smnPerfMonCtlLo0					0x01d440UL
 #define smnPerfMonCtlHi0					0x01d444UL
@@ -38,6 +44,14 @@
 #define smnPerfMonCtlHi2					0x01d464UL
 #define smnPerfMonCtlLo3					0x01d470UL
 #define smnPerfMonCtlHi3					0x01d474UL
+#define smnPerfMonCtlLo4					0x01d880UL
+#define smnPerfMonCtlHi4					0x01d884UL
+#define smnPerfMonCtlLo5					0x01d888UL
+#define smnPerfMonCtlHi5					0x01d88cUL
+#define smnPerfMonCtlLo6					0x01d890UL
+#define smnPerfMonCtlHi6					0x01d894UL
+#define smnPerfMonCtlLo7					0x01d898UL
+#define smnPerfMonCtlHi7					0x01d89cUL
 
 #define smnPerfMonCtrLo0					0x01d448UL
 #define smnPerfMonCtrHi0					0x01d44cUL
@@ -47,9 +61,25 @@
 #define smnPerfMonCtrHi2					0x01d46cUL
 #define smnPerfMonCtrLo3					0x01d478UL
 #define smnPerfMonCtrHi3					0x01d47cUL
+#define smnPerfMonCtrLo4					0x01d790UL
+#define smnPerfMonCtrHi4					0x01d794UL
+#define smnPerfMonCtrLo5					0x01d798UL
+#define smnPerfMonCtrHi5					0x01d79cUL
+#define smnPerfMonCtrLo6					0x01d7a0UL
+#define smnPerfMonCtrHi6					0x01d7a4UL
+#define smnPerfMonCtrLo7					0x01d7a8UL
+#define smnPerfMonCtrHi7					0x01d7acUL
 
 #define smnDF_PIE_AON_FabricIndirectConfigAccessAddress3	0x1d05cUL
 #define smnDF_PIE_AON_FabricIndirectConfigAccessDataLo3		0x1d098UL
 #define smnDF_PIE_AON_FabricIndirectConfigAccessDataHi3		0x1d09cUL
+
+#define smnDF_CS_UMC_AON0_DramBaseAddress0 	0x1c110UL
+#define smnDF_CS_UMC_AON0_DramLimitAddress0 	0x1c114UL
+
+#define mmDF_CS_UMC_AON0_HardwareAssertMaskLow                                                         0x067e
+#define mmDF_CS_UMC_AON0_HardwareAssertMaskLow_BASE_IDX                                                0
+#define mmDF_NCS_PG0_HardwareAssertMaskHigh                                                            0x067f
+#define mmDF_NCS_PG0_HardwareAssertMaskHigh_BASE_IDX                                                   0
 
 #endif

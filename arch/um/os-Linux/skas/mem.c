@@ -17,10 +17,9 @@
 #include <skas.h>
 #include <sysdep/ptrace.h>
 #include <sysdep/stub.h>
+#include "../internal.h"
 
 extern char batch_syscall_stub[], __syscall_stub_start[];
-
-extern void wait_stub_done(int pid);
 
 static inline unsigned long *check_init_stack(struct mm_id * mm_idp,
 					      unsigned long *stack)
@@ -40,6 +39,8 @@ static int __init init_syscall_regs(void)
 	syscall_regs[REGS_IP_INDEX] = STUB_CODE +
 		((unsigned long) batch_syscall_stub -
 		 (unsigned long) __syscall_stub_start);
+	syscall_regs[REGS_SP_INDEX] = STUB_DATA;
+
 	return 0;
 }
 
@@ -58,8 +59,8 @@ static inline long do_syscall_stub(struct mm_id * mm_idp, void **addr)
 		printk(UM_KERN_ERR "Registers - \n");
 		for (i = 0; i < MAX_REG_NR; i++)
 			printk(UM_KERN_ERR "\t%d\t0x%lx\n", i, syscall_regs[i]);
-		panic("do_syscall_stub : PTRACE_SETREGS failed, errno = %d\n",
-		      -n);
+		panic("%s : PTRACE_SETREGS failed, errno = %d\n",
+		      __func__, -n);
 	}
 
 	err = ptrace(PTRACE_CONT, pid, 0, 0);
@@ -79,20 +80,17 @@ static inline long do_syscall_stub(struct mm_id * mm_idp, void **addr)
 	offset = *((unsigned long *) mm_idp->stack + 1);
 	if (offset) {
 		data = (unsigned long *)(mm_idp->stack + offset - STUB_DATA);
-		printk(UM_KERN_ERR "do_syscall_stub : ret = %ld, offset = %ld, "
-		       "data = %p\n", ret, offset, data);
+		printk(UM_KERN_ERR "%s : ret = %ld, offset = %ld, data = %p\n",
+		       __func__, ret, offset, data);
 		syscall = (unsigned long *)((unsigned long)data + data[0]);
-		printk(UM_KERN_ERR "do_syscall_stub: syscall %ld failed, "
-		       "return value = 0x%lx, expected return value = 0x%lx\n",
-		       syscall[0], ret, syscall[7]);
-		printk(UM_KERN_ERR "    syscall parameters: "
-		       "0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx\n",
+		printk(UM_KERN_ERR "%s: syscall %ld failed, return value = 0x%lx, expected return value = 0x%lx\n",
+		       __func__, syscall[0], ret, syscall[7]);
+		printk(UM_KERN_ERR "    syscall parameters: 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx\n",
 		       syscall[1], syscall[2], syscall[3],
 		       syscall[4], syscall[5], syscall[6]);
 		for (n = 1; n < data[0]/sizeof(long); n++) {
 			if (n == 1)
-				printk(UM_KERN_ERR "    additional syscall "
-				       "data:");
+				printk(UM_KERN_ERR "    additional syscall data:");
 			if (n % 4 == 1)
 				printk("\n" UM_KERN_ERR "      ");
 			printk("  0x%lx", data[n]);

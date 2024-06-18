@@ -1,0 +1,97 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * sc7280 IDP board device tree source
+ *
+ * Copyright (c) 2021, The Linux Foundation. All rights reserved.
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/iio/qcom,spmi-adc7-pmr735a.h>
+#include "sc7280-idp.dtsi"
+#include "pmr735a.dtsi"
+
+/ {
+	model = "Qualcomm Technologies, Inc. sc7280 IDP SKU1 platform";
+	compatible = "qcom,sc7280-idp", "google,senor", "qcom,sc7280";
+
+	aliases {
+		serial0 = &uart5;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+};
+
+&apps_rsc {
+	regulators-2 {
+		compatible = "qcom,pmr735a-rpmh-regulators";
+		qcom,pmic-id = "e";
+
+		vreg_l2e_1p2: ldo2 {
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1200000>;
+		};
+
+		vreg_l3e_0p9: ldo3 {
+			regulator-min-microvolt = <912000>;
+			regulator-max-microvolt = <1020000>;
+		};
+
+		vreg_l4e_1p7: ldo4 {
+			regulator-min-microvolt = <1776000>;
+			regulator-max-microvolt = <1890000>;
+		};
+
+		vreg_l5e_0p8: ldo5 {
+			regulator-min-microvolt = <800000>;
+			regulator-max-microvolt = <800000>;
+		};
+
+		vreg_l6e_0p8: ldo6 {
+			regulator-min-microvolt = <480000>;
+			regulator-max-microvolt = <904000>;
+		};
+	};
+};
+
+&bluetooth {
+	vddio-supply = <&vreg_l19b_1p8>;
+};
+
+&pmk8350_rtc {
+	status = "okay";
+};
+
+&nvme_pwren {
+	pins = "gpio19";
+};
+
+&nvme_3v3_regulator {
+	gpio = <&tlmm 19 GPIO_ACTIVE_HIGH>;
+};
+
+&pmk8350_vadc {
+	channel@403 {
+		reg = <PMR735A_ADC7_DIE_TEMP>;
+		label = "pmr735a_die_temp";
+		qcom,pre-scaling = <1 1>;
+	};
+};
+
+&usb_2 {
+	status = "okay";
+};
+
+&usb_2_dwc3 {
+	dr_mode = "otg";
+};
+
+&usb_2_hsphy {
+	status = "okay";
+
+	vdda-pll-supply = <&vreg_l10c_0p8>;
+	vdda33-supply = <&vreg_l2b_3p0>;
+	vdda18-supply = <&vreg_l1c_1p8>;
+};

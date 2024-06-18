@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
- *
+/*
  * export.c
  *
  * Functions to facilitate NFS exporting
@@ -257,9 +255,9 @@ static struct dentry *ocfs2_fh_to_dentry(struct super_block *sb,
 	if (fh_len < 3 || fh_type > 2)
 		return NULL;
 
-	handle.ih_blkno = (u64)le32_to_cpu(fid->raw[0]) << 32;
-	handle.ih_blkno |= (u64)le32_to_cpu(fid->raw[1]);
-	handle.ih_generation = le32_to_cpu(fid->raw[2]);
+	handle.ih_blkno = (u64)le32_to_cpu((__force __le32)fid->raw[0]) << 32;
+	handle.ih_blkno |= (u64)le32_to_cpu((__force __le32)fid->raw[1]);
+	handle.ih_generation = le32_to_cpu((__force __le32)fid->raw[2]);
 	return ocfs2_get_dentry(sb, &handle);
 }
 
@@ -271,9 +269,9 @@ static struct dentry *ocfs2_fh_to_parent(struct super_block *sb,
 	if (fh_type != 2 || fh_len < 6)
 		return NULL;
 
-	parent.ih_blkno = (u64)le32_to_cpu(fid->raw[3]) << 32;
-	parent.ih_blkno |= (u64)le32_to_cpu(fid->raw[4]);
-	parent.ih_generation = le32_to_cpu(fid->raw[5]);
+	parent.ih_blkno = (u64)le32_to_cpu((__force __le32)fid->raw[3]) << 32;
+	parent.ih_blkno |= (u64)le32_to_cpu((__force __le32)fid->raw[4]);
+	parent.ih_generation = le32_to_cpu((__force __le32)fid->raw[5]);
 	return ocfs2_get_dentry(sb, &parent);
 }
 
@@ -282,4 +280,5 @@ const struct export_operations ocfs2_export_ops = {
 	.fh_to_dentry	= ocfs2_fh_to_dentry,
 	.fh_to_parent	= ocfs2_fh_to_parent,
 	.get_parent	= ocfs2_get_parent,
+	.flags		= EXPORT_OP_ASYNC_LOCK,
 };

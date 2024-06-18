@@ -53,7 +53,7 @@ Nintendo Wii device tree
   - compatible : should be "nintendo,flipper-pic"
   - interrupt-controller
 
-1.c) The Digital Signal Procesor (DSP) node
+1.c) The Digital Signal Processor (DSP) node
 
   Represents the digital signal processor interface, designed to offload
   audio related tasks.
@@ -96,16 +96,6 @@ Nintendo Wii device tree
    - compatible : should be "nintendo,hollywood-exi","nintendo,flipper-exi"
    - reg : should contain the EXI registers location and length
    - interrupts : should contain the EXI interrupt
-
-1.g) The Open Host Controller Interface (OHCI) nodes
-
-  Represent the USB 1.x Open Host Controller Interfaces.
-
-  Required properties:
-
-   - compatible : should be "nintendo,hollywood-usb-ohci","usb-ohci"
-   - reg : should contain the OHCI registers location and length
-   - interrupts : should contain the OHCI interrupt
 
 1.h) The Enhanced Host Controller Interface (EHCI) node
 

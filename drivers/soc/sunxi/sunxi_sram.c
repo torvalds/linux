@@ -15,7 +15,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 
@@ -78,8 +78,8 @@ static struct sunxi_sram_desc sun4i_a10_sram_d = {
 
 static struct sunxi_sram_desc sun50i_a64_sram_c = {
 	.data	= SUNXI_SRAM_DATA("C", 0x4, 24, 1,
-				  SUNXI_SRAM_MAP(0, 1, "cpu"),
-				  SUNXI_SRAM_MAP(1, 0, "de2")),
+				  SUNXI_SRAM_MAP(1, 0, "cpu"),
+				  SUNXI_SRAM_MAP(0, 1, "de2")),
 };
 
 static const struct of_device_id sunxi_sram_dt_ids[] = {
@@ -120,6 +120,9 @@ static int sunxi_sram_show(struct seq_file *s, void *data)
 	seq_puts(s, "--------------------\n\n");
 
 	for_each_child_of_node(sram_dev->of_node, sram_node) {
+		if (!of_device_is_compatible(sram_node, "mmio-sram"))
+			continue;
+
 		sram_addr_p = of_get_address(sram_node, 0, NULL, NULL);
 
 		seq_printf(s, "sram@%08x\n",
@@ -194,7 +197,7 @@ static const struct sunxi_sram_data *sunxi_sram_of_parse(struct device_node *nod
 	if (!data) {
 		ret = -EINVAL;
 		goto err;
-	};
+	}
 
 	for (func = data->func; func->func; func++) {
 		if (val == func->val) {
@@ -254,36 +257,37 @@ int sunxi_sram_claim(struct device *dev)
 	writel(val | ((device << sram_data->offset) & mask),
 	       base + sram_data->reg);
 
+	sram_desc->claimed = true;
 	spin_unlock(&sram_lock);
 
 	return 0;
 }
 EXPORT_SYMBOL(sunxi_sram_claim);
 
-int sunxi_sram_release(struct device *dev)
+void sunxi_sram_release(struct device *dev)
 {
 	const struct sunxi_sram_data *sram_data;
 	struct sunxi_sram_desc *sram_desc;
 
 	if (!dev || !dev->of_node)
-		return -EINVAL;
+		return;
 
 	sram_data = sunxi_sram_of_parse(dev->of_node, NULL);
 	if (IS_ERR(sram_data))
-		return -EINVAL;
+		return;
 
 	sram_desc = to_sram_desc(sram_data);
 
 	spin_lock(&sram_lock);
 	sram_desc->claimed = false;
 	spin_unlock(&sram_lock);
-
-	return 0;
 }
 EXPORT_SYMBOL(sunxi_sram_release);
 
 struct sunxi_sramc_variant {
-	bool has_emac_clock;
+	int num_emac_clocks;
+	bool has_ldo_ctrl;
+	bool has_ths_offset;
 };
 
 static const struct sunxi_sramc_variant sun4i_a10_sramc_variant = {
@@ -291,39 +295,76 @@ static const struct sunxi_sramc_variant sun4i_a10_sramc_variant = {
 };
 
 static const struct sunxi_sramc_variant sun8i_h3_sramc_variant = {
-	.has_emac_clock = true,
+	.num_emac_clocks = 1,
+};
+
+static const struct sunxi_sramc_variant sun20i_d1_sramc_variant = {
+	.num_emac_clocks = 1,
+	.has_ldo_ctrl = true,
 };
 
 static const struct sunxi_sramc_variant sun50i_a64_sramc_variant = {
-	.has_emac_clock = true,
+	.num_emac_clocks = 1,
 };
 
+static const struct sunxi_sramc_variant sun50i_h616_sramc_variant = {
+	.num_emac_clocks = 2,
+	.has_ths_offset = true,
+};
+
+#define SUNXI_SRAM_THS_OFFSET_REG	0x0
 #define SUNXI_SRAM_EMAC_CLOCK_REG	0x30
+#define SUNXI_SYS_LDO_CTRL_REG		0x150
+
 static bool sunxi_sram_regmap_accessible_reg(struct device *dev,
 					     unsigned int reg)
 {
-	if (reg == SUNXI_SRAM_EMAC_CLOCK_REG)
+	const struct sunxi_sramc_variant *variant = dev_get_drvdata(dev);
+
+	if (reg == SUNXI_SRAM_THS_OFFSET_REG && variant->has_ths_offset)
 		return true;
+	if (reg >= SUNXI_SRAM_EMAC_CLOCK_REG &&
+	    reg <  SUNXI_SRAM_EMAC_CLOCK_REG + variant->num_emac_clocks * 4)
+		return true;
+	if (reg == SUNXI_SYS_LDO_CTRL_REG && variant->has_ldo_ctrl)
+		return true;
+
 	return false;
 }
 
-static struct regmap_config sunxi_sram_emac_clock_regmap = {
+static void sunxi_sram_lock(void *_lock)
+{
+	spinlock_t *lock = _lock;
+
+	spin_lock(lock);
+}
+
+static void sunxi_sram_unlock(void *_lock)
+{
+	spinlock_t *lock = _lock;
+
+	spin_unlock(lock);
+}
+
+static struct regmap_config sunxi_sram_regmap_config = {
 	.reg_bits       = 32,
 	.val_bits       = 32,
 	.reg_stride     = 4,
 	/* last defined register */
-	.max_register   = SUNXI_SRAM_EMAC_CLOCK_REG,
+	.max_register   = SUNXI_SYS_LDO_CTRL_REG,
 	/* other devices have no business accessing other registers */
 	.readable_reg	= sunxi_sram_regmap_accessible_reg,
 	.writeable_reg	= sunxi_sram_regmap_accessible_reg,
+	.lock		= sunxi_sram_lock,
+	.unlock		= sunxi_sram_unlock,
+	.lock_arg	= &sram_lock,
 };
 
-static int sunxi_sram_probe(struct platform_device *pdev)
+static int __init sunxi_sram_probe(struct platform_device *pdev)
 {
-	struct resource *res;
-	struct dentry *d;
-	struct regmap *emac_clock;
 	const struct sunxi_sramc_variant *variant;
+	struct device *dev = &pdev->dev;
+	struct regmap *regmap;
 
 	sram_dev = &pdev->dev;
 
@@ -331,25 +372,21 @@ static int sunxi_sram_probe(struct platform_device *pdev)
 	if (!variant)
 		return -EINVAL;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	dev_set_drvdata(dev, (struct sunxi_sramc_variant *)variant);
+
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
-
-	d = debugfs_create_file("sram", S_IRUGO, NULL, NULL,
-				&sunxi_sram_fops);
-	if (!d)
-		return -ENOMEM;
-
-	if (variant->has_emac_clock) {
-		emac_clock = devm_regmap_init_mmio(&pdev->dev, base,
-						   &sunxi_sram_emac_clock_regmap);
-
-		if (IS_ERR(emac_clock))
-			return PTR_ERR(emac_clock);
+	if (variant->num_emac_clocks || variant->has_ldo_ctrl) {
+		regmap = devm_regmap_init_mmio(dev, base, &sunxi_sram_regmap_config);
+		if (IS_ERR(regmap))
+			return PTR_ERR(regmap);
 	}
+
+	of_platform_populate(dev->of_node, NULL, NULL, dev);
+
+	debugfs_create_file("sram", 0444, NULL, NULL, &sunxi_sram_fops);
 
 	return 0;
 }
@@ -376,6 +413,10 @@ static const struct of_device_id sunxi_sram_dt_match[] = {
 		.data = &sun8i_h3_sramc_variant,
 	},
 	{
+		.compatible = "allwinner,sun20i-d1-system-control",
+		.data = &sun20i_d1_sramc_variant,
+	},
+	{
 		.compatible = "allwinner,sun50i-a64-sram-controller",
 		.data = &sun50i_a64_sramc_variant,
 	},
@@ -387,6 +428,10 @@ static const struct of_device_id sunxi_sram_dt_match[] = {
 		.compatible = "allwinner,sun50i-h5-system-control",
 		.data = &sun50i_a64_sramc_variant,
 	},
+	{
+		.compatible = "allwinner,sun50i-h616-system-control",
+		.data = &sun50i_h616_sramc_variant,
+	},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, sunxi_sram_dt_match);
@@ -396,10 +441,8 @@ static struct platform_driver sunxi_sram_driver = {
 		.name		= "sunxi-sram",
 		.of_match_table	= sunxi_sram_dt_match,
 	},
-	.probe	= sunxi_sram_probe,
 };
-module_platform_driver(sunxi_sram_driver);
+builtin_platform_driver_probe(sunxi_sram_driver, sunxi_sram_probe);
 
 MODULE_AUTHOR("Maxime Ripard <maxime.ripard@free-electrons.com>");
 MODULE_DESCRIPTION("Allwinner sunXi SRAM Controller Driver");
-MODULE_LICENSE("GPL");

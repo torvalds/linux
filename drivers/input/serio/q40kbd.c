@@ -10,9 +10,6 @@
  * Q40 PS/2 keyboard controller driver for Linux/m68k
  */
 
-/*
- */
-
 #include <linux/module.h>
 #include <linux/serio.h>
 #include <linux/interrupt.h>
@@ -126,8 +123,8 @@ static int q40kbd_probe(struct platform_device *pdev)
 	port->close = q40kbd_close;
 	port->port_data = q40kbd;
 	port->dev.parent = &pdev->dev;
-	strlcpy(port->name, "Q40 Kbd Port", sizeof(port->name));
-	strlcpy(port->phys, "Q40", sizeof(port->phys));
+	strscpy(port->name, "Q40 Kbd Port", sizeof(port->name));
+	strscpy(port->phys, "Q40", sizeof(port->phys));
 
 	q40kbd_stop();
 
@@ -151,7 +148,7 @@ err_free_mem:
 	return error;
 }
 
-static int q40kbd_remove(struct platform_device *pdev)
+static void q40kbd_remove(struct platform_device *pdev)
 {
 	struct q40kbd *q40kbd = platform_get_drvdata(pdev);
 
@@ -163,15 +160,13 @@ static int q40kbd_remove(struct platform_device *pdev)
 	serio_unregister_port(q40kbd->port);
 	free_irq(Q40_IRQ_KEYBOARD, q40kbd);
 	kfree(q40kbd);
-
-	return 0;
 }
 
 static struct platform_driver q40kbd_driver = {
 	.driver		= {
 		.name	= "q40kbd",
 	},
-	.remove		= q40kbd_remove,
+	.remove_new	= q40kbd_remove,
 };
 
 module_platform_driver_probe(q40kbd_driver, q40kbd_probe);

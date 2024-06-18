@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Released under the GPLv2 only.
  */
@@ -15,6 +15,7 @@ extern int usb_create_sysfs_dev_files(struct usb_device *dev);
 extern void usb_remove_sysfs_dev_files(struct usb_device *dev);
 extern void usb_create_sysfs_intf_files(struct usb_interface *intf);
 extern void usb_remove_sysfs_intf_files(struct usb_interface *intf);
+extern int usb_update_wireless_status_attr(struct usb_interface *intf);
 extern int usb_create_ep_devs(struct device *parent,
 				struct usb_host_endpoint *endpoint,
 				struct usb_device *udev);
@@ -37,16 +38,24 @@ extern void usb_authorize_interface(struct usb_interface *);
 extern void usb_detect_quirks(struct usb_device *udev);
 extern void usb_detect_interface_quirks(struct usb_device *udev);
 extern void usb_release_quirk_list(void);
+extern bool usb_endpoint_is_ignored(struct usb_device *udev,
+		struct usb_host_interface *intf,
+		struct usb_endpoint_descriptor *epd);
 extern int usb_remove_device(struct usb_device *udev);
 
-extern int usb_get_device_descriptor(struct usb_device *dev,
-		unsigned int size);
+extern struct usb_device_descriptor *usb_get_device_descriptor(
+		struct usb_device *udev);
 extern int usb_set_isoch_delay(struct usb_device *dev);
 extern int usb_get_bos_descriptor(struct usb_device *dev);
 extern void usb_release_bos_descriptor(struct usb_device *dev);
-extern char *usb_cache_string(struct usb_device *udev, int index);
 extern int usb_set_configuration(struct usb_device *dev, int configuration);
 extern int usb_choose_configuration(struct usb_device *udev);
+extern int usb_generic_driver_probe(struct usb_device *udev);
+extern void usb_generic_driver_disconnect(struct usb_device *udev);
+extern int usb_generic_driver_suspend(struct usb_device *udev,
+		pm_message_t msg);
+extern int usb_generic_driver_resume(struct usb_device *udev,
+		pm_message_t msg);
 
 static inline unsigned usb_get_max_power(struct usb_device *udev,
 		struct usb_host_config *c)
@@ -63,6 +72,10 @@ extern int usb_match_one_id_intf(struct usb_device *dev,
 				 const struct usb_device_id *id);
 extern int usb_match_device(struct usb_device *dev,
 			    const struct usb_device_id *id);
+extern const struct usb_device_id *usb_device_match_id(struct usb_device *udev,
+				const struct usb_device_id *id);
+extern bool usb_driver_applicable(struct usb_device *udev,
+				  struct usb_device_driver *udrv);
 extern void usb_forced_unbind_intf(struct usb_interface *intf);
 extern void usb_unbind_and_rebind_marked_interfaces(struct usb_device *udev);
 
@@ -128,12 +141,13 @@ static inline int usb_disable_usb2_hardware_lpm(struct usb_device *udev)
 
 #endif
 
-extern struct bus_type usb_bus_type;
+extern const struct class usbmisc_class;
+extern const struct bus_type usb_bus_type;
 extern struct mutex usb_port_peer_mutex;
-extern struct device_type usb_device_type;
-extern struct device_type usb_if_device_type;
-extern struct device_type usb_ep_device_type;
-extern struct device_type usb_port_device_type;
+extern const struct device_type usb_device_type;
+extern const struct device_type usb_if_device_type;
+extern const struct device_type usb_ep_device_type;
+extern const struct device_type usb_port_device_type;
 extern struct usb_device_driver usb_generic_driver;
 
 static inline int is_usb_device(const struct device *dev)
@@ -161,13 +175,7 @@ static inline int is_root_hub(struct usb_device *udev)
 	return (udev->parent == NULL);
 }
 
-/* Do the same for device drivers and interface drivers. */
-
-static inline int is_usb_device_driver(struct device_driver *drv)
-{
-	return container_of(drv, struct usbdrv_wrap, driver)->
-			for_devices;
-}
+extern bool is_usb_device_driver(const struct device_driver *drv);
 
 /* for labeling diagnostics */
 extern const char *usbcore_name;
@@ -180,7 +188,6 @@ extern const struct attribute_group *usb_interface_groups[];
 extern struct usb_driver usbfs_driver;
 extern const struct file_operations usbfs_devices_fops;
 extern const struct file_operations usbdev_file_operations;
-extern void usbfs_conn_disc_event(void);
 
 extern int usb_devio_init(void);
 extern void usb_devio_cleanup(void);

@@ -119,7 +119,7 @@ static int ar9002_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 				aModeRefSel = 2;
 			if (aModeRefSel)
 				break;
-			/* fall through */
+			fallthrough;
 		case 1:
 		default:
 			aModeRefSel = 0;
@@ -281,10 +281,10 @@ static void ar9002_olc_init(struct ath_hw *ah)
 {
 	u32 i;
 
-	if (!OLC_FOR_AR9280_20_LATER)
+	if (!OLC_FOR_AR9280_20_LATER(ah))
 		return;
 
-	if (OLC_FOR_AR9287_10_LATER) {
+	if (OLC_FOR_AR9287_10_LATER(ah)) {
 		REG_SET_BIT(ah, AR_PHY_TX_PWRCTRL9,
 				AR_PHY_TX_PWRCTRL9_RES_DC_REMOVAL);
 		ath9k_hw_analog_shift_rmw(ah, AR9287_AN_TXPC0,
@@ -498,7 +498,7 @@ static void ar9002_hw_spectral_scan_config(struct ath_hw *ah,
 	else
 		REG_CLR_BIT(ah, AR_PHY_SPECTRAL_SCAN, repeat_bit);
 
-	/* on AR92xx, the highest bit of count will make the the chip send
+	/* on AR92xx, the highest bit of count will make the chip send
 	 * spectral samples endlessly. Check if this really was intended,
 	 * and fix otherwise.
 	 */

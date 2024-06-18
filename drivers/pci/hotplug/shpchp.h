@@ -164,7 +164,7 @@ u8 shpchp_handle_switch_change(u8 hp_slot, struct controller *ctrl);
 u8 shpchp_handle_presence_change(u8 hp_slot, struct controller *ctrl);
 u8 shpchp_handle_power_fault(u8 hp_slot, struct controller *ctrl);
 int shpchp_configure_device(struct slot *p_slot);
-int shpchp_unconfigure_device(struct slot *p_slot);
+void shpchp_unconfigure_device(struct slot *p_slot);
 void cleanup_slots(struct controller *ctrl);
 void shpchp_queue_pushbutton_work(struct work_struct *work);
 int shpc_init(struct controller *ctrl, struct pci_dev *pdev);
@@ -311,7 +311,6 @@ struct hpc_ops {
 	int (*get_latch_status)(struct slot *slot, u8 *status);
 	int (*get_adapter_status)(struct slot *slot, u8 *status);
 	int (*get_adapter_speed)(struct slot *slot, enum pci_bus_speed *speed);
-	int (*get_mode1_ECC_cap)(struct slot *slot, u8 *mode);
 	int (*get_prog_int)(struct slot *slot, u8 *prog_int);
 	int (*query_power_fault)(struct slot *slot);
 	void (*green_led_on)(struct slot *slot);

@@ -11,11 +11,11 @@
 
 #include "affs.h"
 
-static int affs_symlink_readpage(struct file *file, struct page *page)
+static int affs_symlink_read_folio(struct file *file, struct folio *folio)
 {
 	struct buffer_head *bh;
-	struct inode *inode = page->mapping->host;
-	char *link = page_address(page);
+	struct inode *inode = folio->mapping->host;
+	char *link = folio_address(folio);
 	struct slink_front *lf;
 	int			 i, j;
 	char			 c;
@@ -57,17 +57,16 @@ static int affs_symlink_readpage(struct file *file, struct page *page)
 	}
 	link[i] = '\0';
 	affs_brelse(bh);
-	SetPageUptodate(page);
-	unlock_page(page);
+	folio_mark_uptodate(folio);
+	folio_unlock(folio);
 	return 0;
 fail:
-	SetPageError(page);
-	unlock_page(page);
+	folio_unlock(folio);
 	return -EIO;
 }
 
 const struct address_space_operations affs_symlink_aops = {
-	.readpage	= affs_symlink_readpage,
+	.read_folio	= affs_symlink_read_folio,
 };
 
 const struct inode_operations affs_symlink_inode_operations = {

@@ -64,21 +64,11 @@ int has_eflag(unsigned long mask)
 	return !!((f0^f1) & mask);
 }
 
-/* Handle x86_32 PIC using ebx. */
-#if defined(__i386__) && defined(__PIC__)
-# define EBX_REG "=r"
-#else
-# define EBX_REG "=b"
-#endif
-
-static inline void cpuid_count(u32 id, u32 count,
-		u32 *a, u32 *b, u32 *c, u32 *d)
+void cpuid_count(u32 id, u32 count, u32 *a, u32 *b, u32 *c, u32 *d)
 {
-	asm volatile(".ifnc %%ebx,%3 ; movl  %%ebx,%3 ; .endif	\n\t"
-		     "cpuid					\n\t"
-		     ".ifnc %%ebx,%3 ; xchgl %%ebx,%3 ; .endif	\n\t"
-		    : "=a" (*a), "=c" (*c), "=d" (*d), EBX_REG (*b)
-		    : "a" (id), "c" (count)
+	asm volatile("cpuid"
+		     : "=a" (*a), "=b" (*b), "=c" (*c), "=d" (*d)
+		     : "0" (id), "2" (count)
 	);
 }
 

@@ -20,9 +20,6 @@
 #ifndef __LINUX_MEDIA_H
 #define __LINUX_MEDIA_H
 
-#ifndef __KERNEL__
-#include <stdint.h>
-#endif
 #include <linux/ioctl.h>
 #include <linux/types.h>
 
@@ -127,6 +124,7 @@ struct media_device_info {
 #define MEDIA_ENT_F_PROC_VIDEO_STATISTICS	(MEDIA_ENT_F_BASE + 0x4006)
 #define MEDIA_ENT_F_PROC_VIDEO_ENCODER		(MEDIA_ENT_F_BASE + 0x4007)
 #define MEDIA_ENT_F_PROC_VIDEO_DECODER		(MEDIA_ENT_F_BASE + 0x4008)
+#define MEDIA_ENT_F_PROC_VIDEO_ISP		(MEDIA_ENT_F_BASE + 0x4009)
 
 /*
  * Switch and bridge entity functions
@@ -142,8 +140,8 @@ struct media_device_info {
 #define MEDIA_ENT_F_DV_ENCODER			(MEDIA_ENT_F_BASE + 0x6002)
 
 /* Entity flags */
-#define MEDIA_ENT_FL_DEFAULT			(1 << 0)
-#define MEDIA_ENT_FL_CONNECTOR			(1 << 1)
+#define MEDIA_ENT_FL_DEFAULT			(1U << 0)
+#define MEDIA_ENT_FL_CONNECTOR			(1U << 1)
 
 /* OR with the entity id value to find the next entity */
 #define MEDIA_ENT_ID_FLAG_NEXT			(1U << 31)
@@ -207,9 +205,9 @@ struct media_entity_desc {
 	};
 };
 
-#define MEDIA_PAD_FL_SINK			(1 << 0)
-#define MEDIA_PAD_FL_SOURCE			(1 << 1)
-#define MEDIA_PAD_FL_MUST_CONNECT		(1 << 2)
+#define MEDIA_PAD_FL_SINK			(1U << 0)
+#define MEDIA_PAD_FL_SOURCE			(1U << 1)
+#define MEDIA_PAD_FL_MUST_CONNECT		(1U << 2)
 
 struct media_pad_desc {
 	__u32 entity;		/* entity ID */
@@ -218,13 +216,14 @@ struct media_pad_desc {
 	__u32 reserved[2];
 };
 
-#define MEDIA_LNK_FL_ENABLED			(1 << 0)
-#define MEDIA_LNK_FL_IMMUTABLE			(1 << 1)
-#define MEDIA_LNK_FL_DYNAMIC			(1 << 2)
+#define MEDIA_LNK_FL_ENABLED			(1U << 0)
+#define MEDIA_LNK_FL_IMMUTABLE			(1U << 1)
+#define MEDIA_LNK_FL_DYNAMIC			(1U << 2)
 
 #define MEDIA_LNK_FL_LINK_TYPE			(0xf << 28)
-#  define MEDIA_LNK_FL_DATA_LINK		(0 << 28)
-#  define MEDIA_LNK_FL_INTERFACE_LINK		(1 << 28)
+#  define MEDIA_LNK_FL_DATA_LINK		(0U << 28)
+#  define MEDIA_LNK_FL_INTERFACE_LINK		(1U << 28)
+#  define MEDIA_LNK_FL_ANCILLARY_LINK		(2U << 28)
 
 struct media_link_desc {
 	struct media_pad_desc source;
@@ -294,7 +293,7 @@ struct media_links_enum {
  * struct media_device_info.
  */
 #define MEDIA_V2_ENTITY_HAS_FLAGS(media_version) \
-	((media_version) >= ((4 << 16) | (19 << 8) | 0))
+	((media_version) >= ((4U << 16) | (19U << 8) | 0U))
 
 struct media_v2_entity {
 	__u32 id;
@@ -329,7 +328,7 @@ struct media_v2_interface {
  * struct media_device_info.
  */
 #define MEDIA_V2_PAD_HAS_INDEX(media_version) \
-	((media_version) >= ((4 << 16) | (19 << 8) | 0))
+	((media_version) >= ((4U << 16) | (19U << 8) | 0U))
 
 struct media_v2_pad {
 	__u32 id;
@@ -433,7 +432,7 @@ struct media_v2_topology {
 #define MEDIA_INTF_T_ALSA_TIMER                (MEDIA_INTF_T_ALSA_BASE + 7)
 
 /* Obsolete symbol for media_version, no longer used in the kernel */
-#define MEDIA_API_VERSION			((0 << 16) | (1 << 8) | 0)
+#define MEDIA_API_VERSION			((0U << 16) | (1U << 8) | 0U)
 
 #endif
 

@@ -45,13 +45,12 @@ struct ad7766 {
 	struct spi_message msg;
 
 	/*
-	 * DMA (thus cache coherency maintenance) requires the
+	 * DMA (thus cache coherency maintenance) may require the
 	 * transfer buffers to live in their own cache lines.
 	 * Make the buffer large enough for one 24 bit sample and one 64 bit
 	 * aligned 64 bit timestamp.
 	 */
-	unsigned char data[ALIGN(3, sizeof(s64)) + sizeof(s64)]
-			____cacheline_aligned;
+	unsigned char data[ALIGN(3, sizeof(s64)) + sizeof(s64)]	__aligned(IIO_DMA_MINALIGN);
 };
 
 /*
@@ -178,8 +177,6 @@ static const struct ad7766_chip_info ad7766_chip_info[] = {
 
 static const struct iio_buffer_setup_ops ad7766_buffer_setup_ops = {
 	.preenable = &ad7766_preenable,
-	.postenable = &iio_triggered_buffer_postenable,
-	.predisable = &iio_triggered_buffer_predisable,
 	.postdisable = &ad7766_postdisable,
 };
 
@@ -242,7 +239,6 @@ static int ad7766_probe(struct spi_device *spi)
 	if (IS_ERR(ad7766->pd_gpio))
 		return PTR_ERR(ad7766->pd_gpio);
 
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = ad7766_channels;
@@ -251,33 +247,30 @@ static int ad7766_probe(struct spi_device *spi)
 
 	if (spi->irq > 0) {
 		ad7766->trig = devm_iio_trigger_alloc(&spi->dev, "%s-dev%d",
-			indio_dev->name, indio_dev->id);
+						      indio_dev->name,
+						      iio_device_id(indio_dev));
 		if (!ad7766->trig)
 			return -ENOMEM;
 
 		ad7766->trig->ops = &ad7766_trigger_ops;
-		ad7766->trig->dev.parent = &spi->dev;
 		iio_trigger_set_drvdata(ad7766->trig, ad7766);
-
-		ret = devm_request_irq(&spi->dev, spi->irq, ad7766_irq,
-			IRQF_TRIGGER_FALLING, dev_name(&spi->dev),
-			ad7766->trig);
-		if (ret < 0)
-			return ret;
 
 		/*
 		 * The device generates interrupts as long as it is powered up.
 		 * Some platforms might not allow the option to power it down so
-		 * disable the interrupt to avoid extra load on the system
+		 * don't enable the interrupt to avoid extra load on the system
 		 */
-		disable_irq(spi->irq);
+		ret = devm_request_irq(&spi->dev, spi->irq, ad7766_irq,
+				       IRQF_TRIGGER_FALLING | IRQF_NO_AUTOEN,
+				       dev_name(&spi->dev),
+				       ad7766->trig);
+		if (ret < 0)
+			return ret;
 
 		ret = devm_iio_trigger_register(&spi->dev, ad7766->trig);
 		if (ret)
 			return ret;
 	}
-
-	spi_set_drvdata(spi, indio_dev);
 
 	ad7766->spi = spi;
 
@@ -294,10 +287,7 @@ static int ad7766_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = devm_iio_device_register(&spi->dev, indio_dev);
-	if (ret)
-		return ret;
-	return 0;
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static const struct spi_device_id ad7766_id[] = {

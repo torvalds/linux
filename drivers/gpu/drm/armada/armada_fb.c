@@ -4,7 +4,6 @@
  */
 
 #include <drm/drm_modeset_helper.h>
-#include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 
@@ -129,12 +128,12 @@ struct drm_framebuffer *armada_fb_create(struct drm_device *dev,
 		goto err;
 	}
 
-	drm_gem_object_put_unlocked(&obj->obj);
+	drm_gem_object_put(&obj->obj);
 
 	return &dfb->fb;
 
  err_unref:
-	drm_gem_object_put_unlocked(&obj->obj);
+	drm_gem_object_put(&obj->obj);
  err:
 	DRM_ERROR("failed to initialize framebuffer: %d\n", ret);
 	return ERR_PTR(ret);

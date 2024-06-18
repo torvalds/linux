@@ -17,9 +17,12 @@
 #include <linux/export.h>
 #include <linux/gfp.h>
 #include <linux/slab.h>
+#include <linux/cpu.h>
 
 #include <asm/mmu_context.h>
 #include <asm/pgalloc.h>
+
+#include "internal.h"
 
 static DEFINE_IDA(mmu_context_ida);
 
@@ -28,7 +31,8 @@ static int alloc_context_id(int min_id, int max_id)
 	return ida_alloc_range(&mmu_context_ida, min_id, max_id, GFP_KERNEL);
 }
 
-void hash__reserve_context_id(int id)
+#ifdef CONFIG_PPC_64S_HASH_MMU
+void __init hash__reserve_context_id(int id)
 {
 	int result = ida_alloc_range(&mmu_context_ida, id, id, GFP_KERNEL);
 
@@ -47,9 +51,9 @@ int hash__alloc_context_id(void)
 	return alloc_context_id(MIN_USER_CONTEXT, max);
 }
 EXPORT_SYMBOL_GPL(hash__alloc_context_id);
+#endif
 
-void slb_setup_new_exec(void);
-
+#ifdef CONFIG_PPC_64S_HASH_MMU
 static int realloc_context_ids(mm_context_t *ctx)
 {
 	int i, id;
@@ -118,7 +122,7 @@ static int hash__init_new_context(struct mm_struct *mm)
 		/* This is fork. Copy hash_context details from current->mm */
 		memcpy(mm->context.hash_context, current->mm->context.hash_context, sizeof(struct hash_mm_context));
 #ifdef CONFIG_PPC_SUBPAGE_PROT
-		/* inherit subpage prot detalis if we have one. */
+		/* inherit subpage prot details if we have one. */
 		if (current->mm->context.hash_context->spt) {
 			mm->context.hash_context->spt = kmalloc(sizeof(struct subpage_prot_table),
 								GFP_KERNEL);
@@ -149,6 +153,13 @@ void hash__setup_new_exec(void)
 
 	slb_setup_new_exec();
 }
+#else
+static inline int hash__init_new_context(struct mm_struct *mm)
+{
+	BUILD_BUG();
+	return 0;
+}
+#endif
 
 static int radix__init_new_context(struct mm_struct *mm)
 {
@@ -174,7 +185,9 @@ static int radix__init_new_context(struct mm_struct *mm)
 	 */
 	asm volatile("ptesync;isync" : : : "memory");
 
+#ifdef CONFIG_PPC_64S_HASH_MMU
 	mm->context.hash_context = NULL;
+#endif
 
 	return index;
 }
@@ -212,28 +225,36 @@ EXPORT_SYMBOL_GPL(__destroy_context);
 
 static void destroy_contexts(mm_context_t *ctx)
 {
-	int index, context_id;
+	if (radix_enabled()) {
+		ida_free(&mmu_context_ida, ctx->id);
+	} else {
+#ifdef CONFIG_PPC_64S_HASH_MMU
+		int index, context_id;
 
-	for (index = 0; index < ARRAY_SIZE(ctx->extended_id); index++) {
-		context_id = ctx->extended_id[index];
-		if (context_id)
-			ida_free(&mmu_context_ida, context_id);
+		for (index = 0; index < ARRAY_SIZE(ctx->extended_id); index++) {
+			context_id = ctx->extended_id[index];
+			if (context_id)
+				ida_free(&mmu_context_ida, context_id);
+		}
+		kfree(ctx->hash_context);
+#else
+		BUILD_BUG(); // radix_enabled() should be constant true
+#endif
 	}
-	kfree(ctx->hash_context);
 }
 
 static void pmd_frag_destroy(void *pmd_frag)
 {
 	int count;
-	struct page *page;
+	struct ptdesc *ptdesc;
 
-	page = virt_to_page(pmd_frag);
+	ptdesc = virt_to_ptdesc(pmd_frag);
 	/* drop all the pending references */
 	count = ((unsigned long)pmd_frag & ~PAGE_MASK) >> PMD_FRAG_SIZE_SHIFT;
 	/* We allow PTE_FRAG_NR fragments from a PTE page */
-	if (atomic_sub_and_test(PMD_FRAG_NR - count, &page->pt_frag_refcount)) {
-		pgtable_pmd_page_dtor(page);
-		__free_page(page);
+	if (atomic_sub_and_test(PMD_FRAG_NR - count, &ptdesc->pt_frag_refcount)) {
+		pagetable_pmd_dtor(ptdesc);
+		pagetable_free(ptdesc);
 	}
 }
 
@@ -305,5 +326,24 @@ void radix__switch_mmu_context(struct mm_struct *prev, struct mm_struct *next)
 {
 	mtspr(SPRN_PID, next->context.id);
 	isync();
+}
+#endif
+
+/**
+ * cleanup_cpu_mmu_context - Clean up MMU details for this CPU (newly offlined)
+ *
+ * This clears the CPU from mm_cpumask for all processes, and then flushes the
+ * local TLB to ensure TLB coherency in case the CPU is onlined again.
+ *
+ * KVM guest translations are not necessarily flushed here. If KVM started
+ * using mm_cpumask or the Linux APIs which do, this would have to be resolved.
+ */
+#ifdef CONFIG_HOTPLUG_CPU
+void cleanup_cpu_mmu_context(void)
+{
+	int cpu = smp_processor_id();
+
+	clear_tasks_mm_cpumask(cpu);
+	tlbiel_all();
 }
 #endif

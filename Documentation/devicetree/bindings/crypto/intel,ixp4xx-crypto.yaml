@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+# Copyright 2018 Linaro Ltd.
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/crypto/intel,ixp4xx-crypto.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Intel IXP4xx cryptographic engine
+
+maintainers:
+  - Linus Walleij <linus.walleij@linaro.org>
+
+description: |
+  The Intel IXP4xx cryptographic engine makes use of the IXP4xx NPE
+  (Network Processing Engine). Since it is not a device on its own
+  it is defined as a subnode of the NPE, if crypto support is
+  available on the platform.
+
+properties:
+  compatible:
+    const: intel,ixp4xx-crypto
+
+  intel,npe-handle:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: phandle to the NPE this crypto engine
+          - description: the NPE instance number
+    description: phandle to the NPE this crypto engine is using, the cell
+      describing the NPE instance to be used.
+
+  queue-rx:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: phandle to the RX queue on the NPE
+          - description: the queue instance number
+    description: phandle to the RX queue on the NPE, the cell describing
+      the queue instance to be used.
+
+  queue-txready:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: phandle to the TX READY queue on the NPE
+          - description: the queue instance number
+    description: phandle to the TX READY queue on the NPE, the cell describing
+      the queue instance to be used.
+
+required:
+  - compatible
+  - intel,npe-handle
+  - queue-rx
+  - queue-txready
+
+additionalProperties: false

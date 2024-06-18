@@ -380,7 +380,7 @@ static void saa6588_configure(struct saa6588 *s)
 
 /* ---------------------------------------------------------------------- */
 
-static long saa6588_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
+static long saa6588_command(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct saa6588 *s = to_saa6588(sd);
 	struct saa6588_command *a = arg;
@@ -433,7 +433,7 @@ static int saa6588_s_tuner(struct v4l2_subdev *sd, const struct v4l2_tuner *vt)
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops saa6588_core_ops = {
-	.ioctl = saa6588_ioctl,
+	.command = saa6588_command,
 };
 
 static const struct v4l2_subdev_tuner_ops saa6588_tuner_ops = {
@@ -448,8 +448,7 @@ static const struct v4l2_subdev_ops saa6588_ops = {
 
 /* ---------------------------------------------------------------------- */
 
-static int saa6588_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int saa6588_probe(struct i2c_client *client)
 {
 	struct saa6588 *s;
 	struct v4l2_subdev *sd;
@@ -484,7 +483,7 @@ static int saa6588_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int saa6588_remove(struct i2c_client *client)
+static void saa6588_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct saa6588 *s = to_saa6588(sd);
@@ -492,8 +491,6 @@ static int saa6588_remove(struct i2c_client *client)
 	v4l2_device_unregister_subdev(sd);
 
 	cancel_delayed_work_sync(&s->work);
-
-	return 0;
 }
 
 /* ----------------------------------------------------------------------- */

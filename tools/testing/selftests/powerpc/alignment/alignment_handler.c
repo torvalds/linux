@@ -9,7 +9,8 @@
  * This selftest exercises the powerpc alignment fault handler.
  *
  * We create two sets of source and destination buffers, one in regular memory,
- * the other cache-inhibited (we use /dev/fb0 for this).
+ * the other cache-inhibited (by default we use /dev/fb0 for this, but an
+ * alterative path for cache-inhibited memory may be provided, e.g. memtrace).
  *
  * We initialise the source buffers, then use whichever set of load/store
  * instructions is under test to copy bytes from the source buffers to the
@@ -45,14 +46,16 @@
 #include <setjmp.h>
 #include <signal.h>
 
-#include <asm/cputable.h>
-
 #include "utils.h"
+#include "instructions.h"
 
 int bufsize;
 int debug;
 int testing;
 volatile int gotsig;
+bool prefixes_enabled;
+char *cipath = "/dev/fb0";
+long cioffset;
 
 void sighandler(int sig, siginfo_t *info, void *ctx)
 {
@@ -64,7 +67,12 @@ void sighandler(int sig, siginfo_t *info, void *ctx)
 	}
 	gotsig = sig;
 #ifdef __powerpc64__
-	ucp->uc_mcontext.gp_regs[PT_NIP] += 4;
+	if (prefixes_enabled) {
+		u32 inst = *(u32 *)ucp->uc_mcontext.gp_regs[PT_NIP];
+		ucp->uc_mcontext.gp_regs[PT_NIP] += ((inst >> 26 == 1) ? 8 : 4);
+	} else {
+		ucp->uc_mcontext.gp_regs[PT_NIP] += 4;
+	}
 #else
 	ucp->uc_mcontext.uc_regs->gregs[PT_NIP] += 4;
 #endif
@@ -79,6 +87,17 @@ void sighandler(int sig, siginfo_t *info, void *ctx)
 		asm volatile(					\
 			#ld_op form(ld_reg, 0)			\
 			#st_op form(st_reg, 1)			\
+			:: "r"(s), "r"(d), "r"(0)		\
+			: "memory", "vs0", "vs32", "r31");	\
+	}							\
+	rc |= do_test(#name, test_##name)
+
+#define TESTP(name, ld_op, st_op, ld_reg, st_reg)		\
+	void test_##name(char *s, char *d)			\
+	{							\
+		asm volatile(					\
+			ld_op(ld_reg, %0, 0, 0)			\
+			st_op(st_reg, %1, 0, 0)			\
 			:: "r"(s), "r"(d), "r"(0)		\
 			: "memory", "vs0", "vs32", "r31");	\
 	}							\
@@ -103,6 +122,17 @@ void sighandler(int sig, siginfo_t *info, void *ctx)
 #define LOAD_FLOAT_XFORM_TEST(op)  TEST(op, op, stfdx, XFORM, 0, 0)
 #define STORE_FLOAT_XFORM_TEST(op) TEST(op, lfdx, op, XFORM, 0, 0)
 
+#define LOAD_MLS_PREFIX_TEST(op) TESTP(op, op, PSTD, 31, 31)
+#define STORE_MLS_PREFIX_TEST(op) TESTP(op, PLD, op, 31, 31)
+
+#define LOAD_8LS_PREFIX_TEST(op) TESTP(op, op, PSTD, 31, 31)
+#define STORE_8LS_PREFIX_TEST(op) TESTP(op, PLD, op, 31, 31)
+
+#define LOAD_FLOAT_MLS_PREFIX_TEST(op) TESTP(op, op, PSTFD, 0, 0)
+#define STORE_FLOAT_MLS_PREFIX_TEST(op) TESTP(op, PLFD, op, 0, 0)
+
+#define LOAD_VSX_8LS_PREFIX_TEST(op, tail) TESTP(op, op, PSTXV ## tail, 0, 32)
+#define STORE_VSX_8LS_PREFIX_TEST(op, tail) TESTP(op, PLXV ## tail, op, 32, 0)
 
 /* FIXME: Unimplemented tests: */
 // STORE_DFORM_TEST(stq)   /* FIXME: need two registers for quad */
@@ -195,17 +225,18 @@ int do_test(char *test_name, void (*test_func)(char *, char *))
 
 	printf("\tDoing %s:\t", test_name);
 
-	fd = open("/dev/fb0", O_RDWR);
+	fd = open(cipath, O_RDWR);
 	if (fd < 0) {
 		printf("\n");
-		perror("Can't open /dev/fb0 now?");
+		perror("Can't open ci file now?");
 		return 1;
 	}
 
-	ci0 = mmap(NULL, bufsize, PROT_WRITE, MAP_SHARED,
-		   fd, 0x0);
-	ci1 = mmap(NULL, bufsize, PROT_WRITE, MAP_SHARED,
-		   fd, bufsize);
+	ci0 = mmap(NULL, bufsize, PROT_WRITE | PROT_READ, MAP_SHARED,
+		   fd, cioffset);
+	ci1 = mmap(NULL, bufsize, PROT_WRITE | PROT_READ, MAP_SHARED,
+		   fd, cioffset + bufsize);
+
 	if ((ci0 == MAP_FAILED) || (ci1 == MAP_FAILED)) {
 		printf("\n");
 		perror("mmap failed");
@@ -226,8 +257,12 @@ int do_test(char *test_name, void (*test_func)(char *, char *))
 	}
 
 	rc = 0;
-	/* offset = 0 no alignment fault, so skip */
-	for (offset = 1; offset < 16; offset++) {
+	/*
+	 * offset = 0 is aligned but tests the workaround for the P9N
+	 * DD2.1 vector CI load issue (see 5080332c2c89 "powerpc/64s:
+	 * Add workaround for P9 vector CI load issue")
+	 */
+	for (offset = 0; offset < 16; offset++) {
 		width = 16; /* vsx == 16 bytes */
 		r = 0;
 
@@ -270,11 +305,11 @@ int do_test(char *test_name, void (*test_func)(char *, char *))
 	return rc;
 }
 
-static bool can_open_fb0(void)
+static bool can_open_cifile(void)
 {
 	int fd;
 
-	fd = open("/dev/fb0", O_RDWR);
+	fd = open(cipath, O_RDWR);
 	if (fd < 0)
 		return false;
 
@@ -286,7 +321,7 @@ int test_alignment_handler_vsx_206(void)
 {
 	int rc = 0;
 
-	SKIP_IF(!can_open_fb0());
+	SKIP_IF(!can_open_cifile());
 	SKIP_IF(!have_hwcap(PPC_FEATURE_ARCH_2_06));
 
 	printf("VSX: 2.06B\n");
@@ -304,7 +339,7 @@ int test_alignment_handler_vsx_207(void)
 {
 	int rc = 0;
 
-	SKIP_IF(!can_open_fb0());
+	SKIP_IF(!can_open_cifile());
 	SKIP_IF(!have_hwcap2(PPC_FEATURE2_ARCH_2_07));
 
 	printf("VSX: 2.07B\n");
@@ -320,7 +355,7 @@ int test_alignment_handler_vsx_300(void)
 {
 	int rc = 0;
 
-	SKIP_IF(!can_open_fb0());
+	SKIP_IF(!can_open_cifile());
 
 	SKIP_IF(!have_hwcap2(PPC_FEATURE2_ARCH_3_00));
 	printf("VSX: 3.00B\n");
@@ -348,11 +383,30 @@ int test_alignment_handler_vsx_300(void)
 	return rc;
 }
 
+int test_alignment_handler_vsx_prefix(void)
+{
+	int rc = 0;
+
+	SKIP_IF(!can_open_cifile());
+	SKIP_IF(!have_hwcap2(PPC_FEATURE2_ARCH_3_1));
+
+	printf("VSX: PREFIX\n");
+	LOAD_VSX_8LS_PREFIX_TEST(PLXSD, 0);
+	LOAD_VSX_8LS_PREFIX_TEST(PLXSSP, 0);
+	LOAD_VSX_8LS_PREFIX_TEST(PLXV0, 0);
+	LOAD_VSX_8LS_PREFIX_TEST(PLXV1, 1);
+	STORE_VSX_8LS_PREFIX_TEST(PSTXSD, 0);
+	STORE_VSX_8LS_PREFIX_TEST(PSTXSSP, 0);
+	STORE_VSX_8LS_PREFIX_TEST(PSTXV0, 0);
+	STORE_VSX_8LS_PREFIX_TEST(PSTXV1, 1);
+	return rc;
+}
+
 int test_alignment_handler_integer(void)
 {
 	int rc = 0;
 
-	SKIP_IF(!can_open_fb0());
+	SKIP_IF(!can_open_cifile());
 
 	printf("Integer\n");
 	LOAD_DFORM_TEST(lbz);
@@ -380,7 +434,6 @@ int test_alignment_handler_integer(void)
 	LOAD_DFORM_TEST(ldu);
 	LOAD_XFORM_TEST(ldx);
 	LOAD_XFORM_TEST(ldux);
-	LOAD_DFORM_TEST(lmw);
 	STORE_DFORM_TEST(stb);
 	STORE_XFORM_TEST(stbx);
 	STORE_DFORM_TEST(stbu);
@@ -399,7 +452,11 @@ int test_alignment_handler_integer(void)
 	STORE_XFORM_TEST(stdx);
 	STORE_DFORM_TEST(stdu);
 	STORE_XFORM_TEST(stdux);
+
+#ifdef __BIG_ENDIAN__
+	LOAD_DFORM_TEST(lmw);
 	STORE_DFORM_TEST(stmw);
+#endif
 
 	return rc;
 }
@@ -408,7 +465,7 @@ int test_alignment_handler_integer_206(void)
 {
 	int rc = 0;
 
-	SKIP_IF(!can_open_fb0());
+	SKIP_IF(!can_open_cifile());
 	SKIP_IF(!have_hwcap(PPC_FEATURE_ARCH_2_06));
 
 	printf("Integer: 2.06\n");
@@ -419,11 +476,32 @@ int test_alignment_handler_integer_206(void)
 	return rc;
 }
 
+int test_alignment_handler_integer_prefix(void)
+{
+	int rc = 0;
+
+	SKIP_IF(!can_open_cifile());
+	SKIP_IF(!have_hwcap2(PPC_FEATURE2_ARCH_3_1));
+
+	printf("Integer: PREFIX\n");
+	LOAD_MLS_PREFIX_TEST(PLBZ);
+	LOAD_MLS_PREFIX_TEST(PLHZ);
+	LOAD_MLS_PREFIX_TEST(PLHA);
+	LOAD_MLS_PREFIX_TEST(PLWZ);
+	LOAD_8LS_PREFIX_TEST(PLWA);
+	LOAD_8LS_PREFIX_TEST(PLD);
+	STORE_MLS_PREFIX_TEST(PSTB);
+	STORE_MLS_PREFIX_TEST(PSTH);
+	STORE_MLS_PREFIX_TEST(PSTW);
+	STORE_8LS_PREFIX_TEST(PSTD);
+	return rc;
+}
+
 int test_alignment_handler_vmx(void)
 {
 	int rc = 0;
 
-	SKIP_IF(!can_open_fb0());
+	SKIP_IF(!can_open_cifile());
 	SKIP_IF(!have_hwcap(PPC_FEATURE_HAS_ALTIVEC));
 
 	printf("VMX\n");
@@ -451,7 +529,7 @@ int test_alignment_handler_fp(void)
 {
 	int rc = 0;
 
-	SKIP_IF(!can_open_fb0());
+	SKIP_IF(!can_open_cifile());
 
 	printf("Floating point\n");
 	LOAD_FLOAT_DFORM_TEST(lfd);
@@ -479,7 +557,7 @@ int test_alignment_handler_fp_205(void)
 {
 	int rc = 0;
 
-	SKIP_IF(!can_open_fb0());
+	SKIP_IF(!can_open_cifile());
 	SKIP_IF(!have_hwcap(PPC_FEATURE_ARCH_2_05));
 
 	printf("Floating point: 2.05\n");
@@ -497,7 +575,7 @@ int test_alignment_handler_fp_206(void)
 {
 	int rc = 0;
 
-	SKIP_IF(!can_open_fb0());
+	SKIP_IF(!can_open_cifile());
 	SKIP_IF(!have_hwcap(PPC_FEATURE_ARCH_2_06));
 
 	printf("Floating point: 2.06\n");
@@ -507,13 +585,32 @@ int test_alignment_handler_fp_206(void)
 	return rc;
 }
 
+
+int test_alignment_handler_fp_prefix(void)
+{
+	int rc = 0;
+
+	SKIP_IF(!can_open_cifile());
+	SKIP_IF(!have_hwcap2(PPC_FEATURE2_ARCH_3_1));
+
+	printf("Floating point: PREFIX\n");
+	LOAD_FLOAT_DFORM_TEST(lfs);
+	LOAD_FLOAT_MLS_PREFIX_TEST(PLFS);
+	LOAD_FLOAT_MLS_PREFIX_TEST(PLFD);
+	STORE_FLOAT_MLS_PREFIX_TEST(PSTFS);
+	STORE_FLOAT_MLS_PREFIX_TEST(PSTFD);
+	return rc;
+}
+
 void usage(char *prog)
 {
-	printf("Usage: %s [options]\n", prog);
+	printf("Usage: %s [options] [path [offset]]\n", prog);
 	printf("  -d	Enable debug error output\n");
 	printf("\n");
-	printf("This test requires a POWER8 or POWER9 CPU and a usable ");
-	printf("framebuffer at /dev/fb0.\n");
+	printf("This test requires a POWER8, POWER9 or POWER10 CPU ");
+	printf("and either a usable framebuffer at /dev/fb0 or ");
+	printf("the path to usable cache inhibited memory and optional ");
+	printf("offset to be provided\n");
 }
 
 int main(int argc, char *argv[])
@@ -533,6 +630,13 @@ int main(int argc, char *argv[])
 			exit(1);
 		}
 	}
+	argc -= optind;
+	argv += optind;
+
+	if (argc > 0)
+		cipath = argv[0];
+	if (argc > 1)
+		cioffset = strtol(argv[1], 0, 0x10);
 
 	bufsize = getpagesize();
 
@@ -546,16 +650,22 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+	prefixes_enabled = have_hwcap2(PPC_FEATURE2_ARCH_3_1);
+
 	rc |= test_harness(test_alignment_handler_vsx_206,
 			   "test_alignment_handler_vsx_206");
 	rc |= test_harness(test_alignment_handler_vsx_207,
 			   "test_alignment_handler_vsx_207");
 	rc |= test_harness(test_alignment_handler_vsx_300,
 			   "test_alignment_handler_vsx_300");
+	rc |= test_harness(test_alignment_handler_vsx_prefix,
+			   "test_alignment_handler_vsx_prefix");
 	rc |= test_harness(test_alignment_handler_integer,
 			   "test_alignment_handler_integer");
 	rc |= test_harness(test_alignment_handler_integer_206,
 			   "test_alignment_handler_integer_206");
+	rc |= test_harness(test_alignment_handler_integer_prefix,
+			   "test_alignment_handler_integer_prefix");
 	rc |= test_harness(test_alignment_handler_vmx,
 			   "test_alignment_handler_vmx");
 	rc |= test_harness(test_alignment_handler_fp,
@@ -564,5 +674,7 @@ int main(int argc, char *argv[])
 			   "test_alignment_handler_fp_205");
 	rc |= test_harness(test_alignment_handler_fp_206,
 			   "test_alignment_handler_fp_206");
+	rc |= test_harness(test_alignment_handler_fp_prefix,
+			   "test_alignment_handler_fp_prefix");
 	return rc;
 }

@@ -1,0 +1,74 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config CLK_STARFIVE_JH71X0
+	bool
+
+config CLK_STARFIVE_JH7100
+	bool "StarFive JH7100 clock support"
+	depends on ARCH_STARFIVE || COMPILE_TEST
+	select CLK_STARFIVE_JH71X0
+	default ARCH_STARFIVE
+	help
+	  Say yes here to support the clock controller on the StarFive JH7100
+	  SoC.
+
+config CLK_STARFIVE_JH7100_AUDIO
+	tristate "StarFive JH7100 audio clock support"
+	depends on CLK_STARFIVE_JH7100
+	select CLK_STARFIVE_JH71X0
+	default m if ARCH_STARFIVE
+	help
+	  Say Y or M here to support the audio clocks on the StarFive JH7100
+	  SoC.
+
+config CLK_STARFIVE_JH7110_PLL
+	bool "StarFive JH7110 PLL clock support"
+	depends on ARCH_STARFIVE || COMPILE_TEST
+	default ARCH_STARFIVE
+	help
+	  Say yes here to support the PLL clock controller on the
+	  StarFive JH7110 SoC.
+
+config CLK_STARFIVE_JH7110_SYS
+	bool "StarFive JH7110 system clock support"
+	depends on ARCH_STARFIVE || COMPILE_TEST
+	select AUXILIARY_BUS
+	select CLK_STARFIVE_JH71X0
+	select RESET_STARFIVE_JH7110 if RESET_CONTROLLER
+	select CLK_STARFIVE_JH7110_PLL
+	default ARCH_STARFIVE
+	help
+	  Say yes here to support the system clock controller on the
+	  StarFive JH7110 SoC.
+
+config CLK_STARFIVE_JH7110_AON
+	tristate "StarFive JH7110 always-on clock support"
+	depends on CLK_STARFIVE_JH7110_SYS
+	default m if ARCH_STARFIVE
+	help
+	  Say yes here to support the always-on clock controller on the
+	  StarFive JH7110 SoC.
+
+config CLK_STARFIVE_JH7110_STG
+	tristate "StarFive JH7110 System-Top-Group clock support"
+	depends on CLK_STARFIVE_JH7110_SYS
+	default m if ARCH_STARFIVE
+	help
+	  Say yes here to support the System-Top-Group clock controller
+	  on the StarFive JH7110 SoC.
+
+config CLK_STARFIVE_JH7110_ISP
+	tristate "StarFive JH7110 Image-Signal-Process clock support"
+	depends on CLK_STARFIVE_JH7110_SYS && JH71XX_PMU
+	default m if ARCH_STARFIVE
+	help
+	  Say yes here to support the Image-Signal-Process clock controller
+	  on the StarFive JH7110 SoC.
+
+config CLK_STARFIVE_JH7110_VOUT
+	tristate "StarFive JH7110 Video-Output clock support"
+	depends on CLK_STARFIVE_JH7110_SYS && JH71XX_PMU
+	default m if ARCH_STARFIVE
+	help
+	  Say yes here to support the Video-Output clock controller
+	  on the StarFive JH7110 SoC.

@@ -136,8 +136,7 @@ static const struct v4l2_subdev_ops cs5345_ops = {
 
 /* ----------------------------------------------------------------------- */
 
-static int cs5345_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int cs5345_probe(struct i2c_client *client)
 {
 	struct cs5345_state *state;
 	struct v4l2_subdev *sd;
@@ -178,14 +177,13 @@ static int cs5345_probe(struct i2c_client *client,
 
 /* ----------------------------------------------------------------------- */
 
-static int cs5345_remove(struct i2c_client *client)
+static void cs5345_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct cs5345_state *state = to_state(sd);
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&state->hdl);
-	return 0;
 }
 
 /* ----------------------------------------------------------------------- */

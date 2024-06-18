@@ -145,7 +145,6 @@ enum {
 
 enum {
 	SH_ETH_REG_GIGABIT,
-	SH_ETH_REG_FAST_RZ,
 	SH_ETH_REG_FAST_RCAR,
 	SH_ETH_REG_FAST_SH4,
 	SH_ETH_REG_FAST_SH3_SH2
@@ -172,7 +171,7 @@ enum GECMR_BIT {
 };
 
 /* EDMR */
-enum DMAC_M_BIT {
+enum EDMR_BIT {
 	EDMR_NBST = 0x80,
 	EDMR_EL = 0x40, /* Litte endian */
 	EDMR_DL1 = 0x20, EDMR_DL0 = 0x10,
@@ -181,13 +180,13 @@ enum DMAC_M_BIT {
 };
 
 /* EDTRR */
-enum DMAC_T_BIT {
+enum EDTRR_BIT {
 	EDTRR_TRNS_GETHER = 0x03,
 	EDTRR_TRNS_ETHER = 0x01,
 };
 
 /* EDRRR */
-enum EDRRR_R_BIT {
+enum EDRRR_BIT {
 	EDRRR_R = 0x01,
 };
 
@@ -209,7 +208,7 @@ enum PIR_BIT {
 };
 
 /* PSR */
-enum PHY_STATUS_BIT { PHY_ST_LINK = 0x01, };
+enum PSR_BIT { PSR_LMON = 0x01, };
 
 /* EESR */
 enum EESR_BIT {
@@ -289,27 +288,6 @@ enum EESIPR_BIT {
 	EESIPR_CERFIP	= 0x00000001,
 };
 
-/* Receive descriptor 0 bits */
-enum RD_STS_BIT {
-	RD_RACT = 0x80000000, RD_RDLE = 0x40000000,
-	RD_RFP1 = 0x20000000, RD_RFP0 = 0x10000000,
-	RD_RFE = 0x08000000, RD_RFS10 = 0x00000200,
-	RD_RFS9 = 0x00000100, RD_RFS8 = 0x00000080,
-	RD_RFS7 = 0x00000040, RD_RFS6 = 0x00000020,
-	RD_RFS5 = 0x00000010, RD_RFS4 = 0x00000008,
-	RD_RFS3 = 0x00000004, RD_RFS2 = 0x00000002,
-	RD_RFS1 = 0x00000001,
-};
-#define RDF1ST	RD_RFP1
-#define RDFEND	RD_RFP0
-#define RD_RFP	(RD_RFP1|RD_RFP0)
-
-/* Receive descriptor 1 bits */
-enum RD_LEN_BIT {
-	RD_RFL	= 0x0000ffff,	/* receive frame  length */
-	RD_RBL	= 0xffff0000,	/* receive buffer length */
-};
-
 /* FCFTR */
 enum FCFTR_BIT {
 	FCFTR_RFF2 = 0x00040000, FCFTR_RFF1 = 0x00020000,
@@ -319,28 +297,13 @@ enum FCFTR_BIT {
 #define DEFAULT_FIFO_F_D_RFF	(FCFTR_RFF2 | FCFTR_RFF1 | FCFTR_RFF0)
 #define DEFAULT_FIFO_F_D_RFD	(FCFTR_RFD2 | FCFTR_RFD1 | FCFTR_RFD0)
 
-/* Transmit descriptor 0 bits */
-enum TD_STS_BIT {
-	TD_TACT = 0x80000000, TD_TDLE = 0x40000000,
-	TD_TFP1 = 0x20000000, TD_TFP0 = 0x10000000,
-	TD_TFE  = 0x08000000, TD_TWBI = 0x04000000,
-};
-#define TDF1ST	TD_TFP1
-#define TDFEND	TD_TFP0
-#define TD_TFP	(TD_TFP1|TD_TFP0)
-
-/* Transmit descriptor 1 bits */
-enum TD_LEN_BIT {
-	TD_TBL	= 0xffff0000,	/* transmit buffer length */
-};
-
 /* RMCR */
 enum RMCR_BIT {
 	RMCR_RNC = 0x00000001,
 };
 
 /* ECMR */
-enum FELIC_MODE_BIT {
+enum ECMR_BIT {
 	ECMR_TRCCM = 0x04000000, ECMR_RCSC = 0x00800000,
 	ECMR_DPAD = 0x00200000, ECMR_RZPF = 0x00100000,
 	ECMR_ZPF = 0x00080000, ECMR_PFR = 0x00040000, ECMR_RXF = 0x00020000,
@@ -351,7 +314,7 @@ enum FELIC_MODE_BIT {
 };
 
 /* ECSR */
-enum ECSR_STATUS_BIT {
+enum ECSR_BIT {
 	ECSR_BRCRX = 0x20, ECSR_PSRTO = 0x10,
 	ECSR_LCHNG = 0x04,
 	ECSR_MPD = 0x02, ECSR_ICD = 0x01,
@@ -361,7 +324,7 @@ enum ECSR_STATUS_BIT {
 				 ECSR_ICD | ECSIPR_MPDIP)
 
 /* ECSIPR */
-enum ECSIPR_STATUS_MASK_BIT {
+enum ECSIPR_BIT {
 	ECSIPR_BRCRXIP = 0x20, ECSIPR_PSRTOIP = 0x10,
 	ECSIPR_LCHNGIP = 0x04,
 	ECSIPR_MPDIP = 0x02, ECSIPR_ICDIP = 0x01,
@@ -381,14 +344,20 @@ enum MPR_BIT {
 };
 
 /* TRSCER */
-enum DESC_I_BIT {
-	DESC_I_TINT4 = 0x0800, DESC_I_TINT3 = 0x0400, DESC_I_TINT2 = 0x0200,
-	DESC_I_TINT1 = 0x0100, DESC_I_RINT8 = 0x0080, DESC_I_RINT5 = 0x0010,
-	DESC_I_RINT4 = 0x0008, DESC_I_RINT3 = 0x0004, DESC_I_RINT2 = 0x0002,
-	DESC_I_RINT1 = 0x0001,
+enum TRSCER_BIT {
+	TRSCER_CNDCE	= 0x00000800,
+	TRSCER_DLCCE	= 0x00000400,
+	TRSCER_CDCE	= 0x00000200,
+	TRSCER_TROCE	= 0x00000100,
+	TRSCER_RMAFCE	= 0x00000080,
+	TRSCER_RRFCE	= 0x00000010,
+	TRSCER_RTLFCE	= 0x00000008,
+	TRSCER_RTSFCE	= 0x00000004,
+	TRSCER_PRECE	= 0x00000002,
+	TRSCER_CERFCE	= 0x00000001,
 };
 
-#define DEFAULT_TRSCER_ERR_MASK (DESC_I_RINT8 | DESC_I_RINT5 | DESC_I_TINT2)
+#define DEFAULT_TRSCER_ERR_MASK (TRSCER_RMAFCE | TRSCER_RRFCE | TRSCER_CDCE)
 
 /* RPADIR */
 enum RPADIR_BIT {
@@ -446,6 +415,24 @@ struct sh_eth_txdesc {
 	u32 pad0;		/* padding data */
 } __aligned(2) __packed;
 
+/* Transmit descriptor 0 bits */
+enum TD_STS_BIT {
+	TD_TACT	= 0x80000000,
+	TD_TDLE	= 0x40000000,
+	TD_TFP1	= 0x20000000,
+	TD_TFP0	= 0x10000000,
+	TD_TFE	= 0x08000000,
+	TD_TWBI	= 0x04000000,
+};
+#define TDF1ST	TD_TFP1
+#define TDFEND	TD_TFP0
+#define TD_TFP	(TD_TFP1 | TD_TFP0)
+
+/* Transmit descriptor 1 bits */
+enum TD_LEN_BIT {
+	TD_TBL	= 0xffff0000,	/* transmit buffer length */
+};
+
 /* The sh ether Rx buffer descriptors.
  * This structure should be 20 bytes.
  */
@@ -455,6 +442,34 @@ struct sh_eth_rxdesc {
 	u32 addr;		/* RD2 */
 	u32 pad0;		/* padding data */
 } __aligned(2) __packed;
+
+/* Receive descriptor 0 bits */
+enum RD_STS_BIT {
+	RD_RACT	= 0x80000000,
+	RD_RDLE	= 0x40000000,
+	RD_RFP1	= 0x20000000,
+	RD_RFP0	= 0x10000000,
+	RD_RFE	= 0x08000000,
+	RD_RFS10 = 0x00000200,
+	RD_RFS9	= 0x00000100,
+	RD_RFS8	= 0x00000080,
+	RD_RFS7	= 0x00000040,
+	RD_RFS6	= 0x00000020,
+	RD_RFS5	= 0x00000010,
+	RD_RFS4	= 0x00000008,
+	RD_RFS3	= 0x00000004,
+	RD_RFS2	= 0x00000002,
+	RD_RFS1	= 0x00000001,
+};
+#define RDF1ST	RD_RFP1
+#define RDFEND	RD_RFP0
+#define RD_RFP	(RD_RFP1 | RD_RFP0)
+
+/* Receive descriptor 1 bits */
+enum RD_LEN_BIT {
+	RD_RFL	= 0x0000ffff,	/* receive frame  length */
+	RD_RBL	= 0xffff0000,	/* receive buffer length */
+};
 
 /* This structure is used by each CPU dependency handling. */
 struct sh_eth_cpu_data {
@@ -490,6 +505,7 @@ struct sh_eth_cpu_data {
 	unsigned apr:1;		/* EtherC has APR */
 	unsigned mpr:1;		/* EtherC has MPR */
 	unsigned tpauser:1;	/* EtherC has TPAUSER */
+	unsigned gecmr:1;	/* EtherC has GECMR */
 	unsigned bculr:1;	/* EtherC has BCULR */
 	unsigned tsu:1;		/* EtherC has TSU */
 	unsigned hw_swap:1;	/* E-DMAC has DE bit in EDMR */

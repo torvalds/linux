@@ -80,9 +80,6 @@ struct etnaviv_gem_submit_bo {
 	u64 va;
 	struct etnaviv_gem_object *obj;
 	struct etnaviv_vram_mapping *mapping;
-	struct dma_fence *excl;
-	unsigned int nr_shared;
-	struct dma_fence **shared;
 };
 
 /* Created per submit-ioctl, to track bo's and cmdstream bufs, etc,
@@ -95,24 +92,24 @@ struct etnaviv_gem_submit {
 	struct etnaviv_file_private *ctx;
 	struct etnaviv_gpu *gpu;
 	struct etnaviv_iommu_context *mmu_context, *prev_mmu_context;
-	struct dma_fence *out_fence, *in_fence;
+	struct dma_fence *out_fence;
 	int out_fence_id;
 	struct list_head node; /* GPU active submit list */
 	struct etnaviv_cmdbuf cmdbuf;
-	bool runtime_resumed;
+	struct pid *pid;       /* submitting process */
 	u32 exec_state;
 	u32 flags;
 	unsigned int nr_pmrs;
 	struct etnaviv_perfmon_request *pmrs;
 	unsigned int nr_bos;
-	struct etnaviv_gem_submit_bo bos[0];
+	struct etnaviv_gem_submit_bo bos[];
 	/* No new members here, the previous one is variable-length! */
 };
 
 void etnaviv_submit_put(struct etnaviv_gem_submit * submit);
 
 int etnaviv_gem_wait_bo(struct etnaviv_gpu *gpu, struct drm_gem_object *obj,
-	struct timespec *timeout);
+	struct drm_etnaviv_timespec *timeout);
 int etnaviv_gem_new_private(struct drm_device *dev, size_t size, u32 flags,
 	const struct etnaviv_gem_ops *ops, struct etnaviv_gem_object **res);
 void etnaviv_gem_obj_add(struct drm_device *dev, struct drm_gem_object *obj);

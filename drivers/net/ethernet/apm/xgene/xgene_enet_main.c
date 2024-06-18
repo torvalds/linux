@@ -696,6 +696,12 @@ static int xgene_enet_rx_frame(struct xgene_enet_desc_ring *rx_ring,
 	buf_pool->rx_skb[skb_index] = NULL;
 
 	datalen = xgene_enet_get_data_len(le64_to_cpu(raw_desc->m1));
+
+	/* strip off CRC as HW isn't doing this */
+	nv = GET_VAL(NV, le64_to_cpu(raw_desc->m0));
+	if (!nv)
+		datalen -= 4;
+
 	skb_put(skb, datalen);
 	prefetch(skb->data - NET_IP_ALIGN);
 	skb->protocol = eth_type_trans(skb, ndev);
@@ -717,12 +723,8 @@ static int xgene_enet_rx_frame(struct xgene_enet_desc_ring *rx_ring,
 		}
 	}
 
-	nv = GET_VAL(NV, le64_to_cpu(raw_desc->m0));
-	if (!nv) {
-		/* strip off CRC as HW isn't doing this */
-		datalen -= 4;
+	if (!nv)
 		goto skip_jumbo;
-	}
 
 	slots = page_pool->slots - 1;
 	head = page_pool->head;
@@ -859,7 +861,7 @@ static int xgene_enet_napi(struct napi_struct *napi, const int budget)
 	return processed;
 }
 
-static void xgene_enet_timeout(struct net_device *ndev)
+static void xgene_enet_timeout(struct net_device *ndev, unsigned int txqueue)
 {
 	struct xgene_enet_pdata *pdata = netdev_priv(ndev);
 	struct netdev_queue *txq;
@@ -869,7 +871,7 @@ static void xgene_enet_timeout(struct net_device *ndev)
 
 	for (i = 0; i < pdata->txq_cnt; i++) {
 		txq = netdev_get_tx_queue(ndev, i);
-		txq->trans_start = jiffies;
+		txq_trans_cond_update(txq);
 		netif_tx_start_queue(txq);
 	}
 }
@@ -1002,8 +1004,10 @@ static int xgene_enet_open(struct net_device *ndev)
 
 	xgene_enet_napi_enable(pdata);
 	ret = xgene_enet_register_irq(ndev);
-	if (ret)
+	if (ret) {
+		xgene_enet_napi_disable(pdata);
 		return ret;
+	}
 
 	if (ndev->phydev) {
 		phy_start(ndev->phydev);
@@ -1526,7 +1530,7 @@ static int xgene_change_mtu(struct net_device *ndev, int new_mtu)
 	frame_size = (new_mtu > ETH_DATA_LEN) ? (new_mtu + 18) : 0x600;
 
 	xgene_enet_close(ndev);
-	ndev->mtu = new_mtu;
+	WRITE_ONCE(ndev->mtu, new_mtu);
 	pdata->mac_ops->set_framesize(pdata, frame_size);
 	xgene_enet_open(ndev);
 
@@ -1628,7 +1632,7 @@ static int xgene_enet_get_irqs(struct xgene_enet_pdata *pdata)
 
 	for (i = 0; i < max_irqs; i++) {
 		ret = platform_get_irq(pdev, i);
-		if (ret <= 0) {
+		if (ret < 0) {
 			if (pdata->phy_mode == PHY_INTERFACE_MODE_XGMII) {
 				max_irqs = i;
 				pdata->rxq_cnt = max_irqs / 2;
@@ -1636,7 +1640,7 @@ static int xgene_enet_get_irqs(struct xgene_enet_pdata *pdata)
 				pdata->cq_cnt = max_irqs / 2;
 				break;
 			}
-			return ret ? : -ENXIO;
+			return ret;
 		}
 		pdata->irqs[i] = ret;
 	}
@@ -1731,7 +1735,7 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 		xgene_get_port_id_acpi(dev, pdata);
 #endif
 
-	if (!device_get_mac_address(dev, ndev->dev_addr, ETH_ALEN))
+	if (device_get_ethdev_address(dev, ndev))
 		eth_hw_addr_random(ndev);
 
 	memcpy(ndev->perm_addr, ndev->dev_addr, ndev->addr_len);
@@ -1975,14 +1979,12 @@ static void xgene_enet_napi_add(struct xgene_enet_pdata *pdata)
 
 	for (i = 0; i < pdata->rxq_cnt; i++) {
 		napi = &pdata->rx_ring[i]->napi;
-		netif_napi_add(pdata->ndev, napi, xgene_enet_napi,
-			       NAPI_POLL_WEIGHT);
+		netif_napi_add(pdata->ndev, napi, xgene_enet_napi);
 	}
 
 	for (i = 0; i < pdata->cq_cnt; i++) {
 		napi = &pdata->tx_ring[i]->cp_ring->napi;
-		netif_napi_add(pdata->ndev, napi, xgene_enet_napi,
-			       NAPI_POLL_WEIGHT);
+		netif_napi_add(pdata->ndev, napi, xgene_enet_napi);
 	}
 }
 
@@ -2016,11 +2018,10 @@ static int xgene_enet_probe(struct platform_device *pdev)
 	struct xgene_enet_pdata *pdata;
 	struct device *dev = &pdev->dev;
 	void (*link_state)(struct work_struct *);
-	const struct of_device_id *of_id;
 	int ret;
 
 	ndev = alloc_etherdev_mqs(sizeof(struct xgene_enet_pdata),
-				  XGENE_NUM_RX_RING, XGENE_NUM_TX_RING);
+				  XGENE_NUM_TX_RING, XGENE_NUM_RX_RING);
 	if (!ndev)
 		return -ENOMEM;
 
@@ -2037,19 +2038,7 @@ static int xgene_enet_probe(struct platform_device *pdev)
 			  NETIF_F_GRO |
 			  NETIF_F_SG;
 
-	of_id = of_match_device(xgene_enet_of_match, &pdev->dev);
-	if (of_id) {
-		pdata->enet_id = (enum xgene_enet_id)of_id->data;
-	}
-#ifdef CONFIG_ACPI
-	else {
-		const struct acpi_device_id *acpi_id;
-
-		acpi_id = acpi_match_device(xgene_enet_acpi_match, &pdev->dev);
-		if (acpi_id)
-			pdata->enet_id = (enum xgene_enet_id) acpi_id->driver_data;
-	}
-#endif
+	pdata->enet_id = (enum xgene_enet_id)device_get_match_data(&pdev->dev);
 	if (!pdata->enet_id) {
 		ret = -ENODEV;
 		goto err;
@@ -2125,7 +2114,7 @@ err:
 	return ret;
 }
 
-static int xgene_enet_remove(struct platform_device *pdev)
+static void xgene_enet_remove(struct platform_device *pdev)
 {
 	struct xgene_enet_pdata *pdata;
 	struct net_device *ndev;
@@ -2147,8 +2136,6 @@ static int xgene_enet_remove(struct platform_device *pdev)
 	xgene_enet_delete_desc_rings(pdata);
 	pdata->port_ops->shutdown(pdata);
 	free_netdev(ndev);
-
-	return 0;
 }
 
 static void xgene_enet_shutdown(struct platform_device *pdev)
@@ -2168,18 +2155,17 @@ static void xgene_enet_shutdown(struct platform_device *pdev)
 static struct platform_driver xgene_enet_driver = {
 	.driver = {
 		   .name = "xgene-enet",
-		   .of_match_table = of_match_ptr(xgene_enet_of_match),
+		   .of_match_table = xgene_enet_of_match,
 		   .acpi_match_table = ACPI_PTR(xgene_enet_acpi_match),
 	},
 	.probe = xgene_enet_probe,
-	.remove = xgene_enet_remove,
+	.remove_new = xgene_enet_remove,
 	.shutdown = xgene_enet_shutdown,
 };
 
 module_platform_driver(xgene_enet_driver);
 
 MODULE_DESCRIPTION("APM X-Gene SoC Ethernet driver");
-MODULE_VERSION(XGENE_DRV_VERSION);
 MODULE_AUTHOR("Iyappan Subramanian <isubramanian@apm.com>");
 MODULE_AUTHOR("Keyur Chudgar <kchudgar@apm.com>");
 MODULE_LICENSE("GPL");

@@ -15,7 +15,7 @@ problem is broken BIOS, and the rest is the driver implementation.
 This document explains the brief trouble-shooting and debugging
 methods for the	HD-audio hardware.
 
-The HD-audio component consists of two parts: the controller chip and 
+The HD-audio component consists of two parts: the controller chip and
 the codec chips on the HD-audio bus.  Linux provides a single driver
 for all controllers, snd-hda-intel.  Although the driver name contains
 a word of a well-known hardware vendor, it's not specific to it but for
@@ -42,7 +42,7 @@ If you are interested in the deep debugging of HD-audio, read the
 HD-audio specification at first.  The specification is found on
 Intel's web page, for example:
 
-* http://www.intel.com/standards/hdaudio/
+* https://www.intel.com/standards/hdaudio/
 
 
 HD-Audio Controller
@@ -81,7 +81,7 @@ the wake-up timing.  It wakes up a few samples before actually
 processing the data on the buffer.  This caused a lot of problems, for
 example, with ALSA dmix or JACK.  Since 2.6.27 kernel, the driver puts
 an artificial delay to the wake up timing.  This delay is controlled
-via ``bdl_pos_adj`` option. 
+via ``bdl_pos_adj`` option.
 
 When ``bdl_pos_adj`` is a negative value (as default), it's assigned to
 an appropriate value depending on the controller chip.  For Intel
@@ -144,7 +144,7 @@ see a regression wrt the sound quality (stuttering, etc) or a lock-up
 in the recent kernel, try to pass ``enable_msi=0`` option to disable
 MSI.  If it works, you can add the known bad device to the blacklist
 defined in hda_intel.c.  In such a case, please report and give the
-patch back to the upstream developer. 
+patch back to the upstream developer.
 
 
 HD-Audio Codec
@@ -214,6 +214,17 @@ There are a few special model option values:
   parser are skipped.
 * when ``generic`` is passed, the codec-specific parser is skipped and
   only the generic parser is used.
+
+A new style for the model option that was introduced since 5.15 kernel
+is to pass the PCI or codec SSID in the form of ``model=XXXX:YYYY``
+where XXXX and YYYY are the sub-vendor and sub-device IDs in hex
+numbers, respectively.  This is a kind of aliasing to another device;
+when this form is given, the driver will refer to that SSID as a
+reference to the quirk table.  It'd be useful especially when the
+target quirk isn't listed in the model table.  For example, passing
+model=103c:8862 will apply the quirk for HP ProBook 445 G8 (which
+isn't found in the model table as of writing) as long as the device is
+handled equivalently by the same driver.
 
 
 Speaker and Headphone Output
@@ -364,7 +375,7 @@ HD-Audio Reconfiguration
 ------------------------
 This is an experimental feature to allow you re-configure the HD-audio
 codec dynamically without reloading the driver.  The following sysfs
-files are available under each codec-hwdep device directory (e.g. 
+files are available under each codec-hwdep device directory (e.g.
 /sys/class/sound/hwC0D0):
 
 vendor_id
@@ -422,7 +433,7 @@ re-configure based on that state, run like below:
 ::
 
     # echo 0x14 0x9993013f > /sys/class/sound/hwC0D0/user_pin_configs
-    # echo 1 > /sys/class/sound/hwC0D0/reconfig  
+    # echo 1 > /sys/class/sound/hwC0D0/reconfig
 
 
 Hint Strings
@@ -483,17 +494,17 @@ indep_hp (bool)
     mixer control, if available
 add_stereo_mix_input (bool)
     add the stereo mix (analog-loopback mix) to the input mux if
-    available 
+    available
 add_jack_modes (bool)
     add "xxx Jack Mode" enum controls to each I/O jack for allowing to
     change the headphone amp and mic bias VREF capabilities
 power_save_node (bool)
     advanced power management for each widget, controlling the power
-    sate (D0/D3) of each widget node depending on the actual pin and
+    state (D0/D3) of each widget node depending on the actual pin and
     stream states
 power_down_unused (bool)
     power down the unused widgets, a subset of power_save_node, and
-    will be dropped in future 
+    will be dropped in future
 add_hp_mic (bool)
     add the headphone to capture source if possible
 hp_mic_detect (bool)
@@ -592,7 +603,7 @@ present.
 
 The patch module option is specific to each card instance, and you
 need to give one file name for each instance, separated by commas.
-For example, if you have two cards, one for an on-board analog and one 
+For example, if you have two cards, one for an on-board analog and one
 for an HDMI video board, you may pass patch option like below:
 ::
 
@@ -640,14 +651,14 @@ via power-saving behavior.
 Enabling all tracepoints can be done like
 ::
 
-    # echo 1 > /sys/kernel/debug/tracing/events/hda/enable
+    # echo 1 > /sys/kernel/tracing/events/hda/enable
 
 then after some commands, you can traces from
-/sys/kernel/debug/tracing/trace file.  For example, when you want to
+/sys/kernel/tracing/trace file.  For example, when you want to
 trace what codec command is sent, enable the tracepoint like:
 ::
 
-    # cat /sys/kernel/debug/tracing/trace
+    # cat /sys/kernel/tracing/trace
     # tracer: nop
     #
     #       TASK-PID    CPU#    TIMESTAMP  FUNCTION
@@ -728,7 +739,7 @@ version can be found on git repository:
 
 The script can be fetched directly from the following URL, too:
 
-* http://www.alsa-project.org/alsa-info.sh
+* https://www.alsa-project.org/alsa-info.sh
 
 Run this script as root, and it will gather the important information
 such as the module lists, module parameters, proc file contents
@@ -818,7 +829,7 @@ proc-compatible output.
 
 The hda-analyzer:
 
-* http://git.alsa-project.org/?p=alsa.git;a=tree;f=hda-analyzer
+* https://git.alsa-project.org/?p=alsa.git;a=tree;f=hda-analyzer
 
 is a part of alsa.git repository in alsa-project.org:
 

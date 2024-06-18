@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/calxeda.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Calxeda Platforms Device Tree Bindings
+title: Calxeda Platforms
 
 maintainers:
   - Rob Herring <robh@kernel.org>
@@ -20,3 +20,5 @@ properties:
       - enum:
           - calxeda,highbank
           - calxeda,ecx-2000
+
+additionalProperties: true

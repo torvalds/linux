@@ -65,24 +65,33 @@ struct xadlist {
 #define XTPAGEMAXSLOT	256
 #define XTENTRYSTART	2
 
+struct xtheader {
+	__le64 next;	/* 8: */
+	__le64 prev;	/* 8: */
+
+	u8 flag;	/* 1: */
+	u8 rsrvd1;	/* 1: */
+	__le16 nextindex;	/* 2: next index = number of entries */
+	__le16 maxentry;	/* 2: max number of entries */
+	__le16 rsrvd2;	/* 2: */
+
+	pxd_t self;	/* 8: self */
+};
+
+/*
+ *	xtree root (in inode):
+ */
+typedef union {
+	struct xtheader header;
+	xad_t xad[XTROOTMAXSLOT];	/* 16 * maxentry: xad array */
+} xtroot_t;
+
 /*
  *	xtree page:
  */
 typedef union {
-	struct xtheader {
-		__le64 next;	/* 8: */
-		__le64 prev;	/* 8: */
-
-		u8 flag;	/* 1: */
-		u8 rsrvd1;	/* 1: */
-		__le16 nextindex;	/* 2: next index = number of entries */
-		__le16 maxentry;	/* 2: max number of entries */
-		__le16 rsrvd2;	/* 2: */
-
-		pxd_t self;	/* 8: self */
-	} header;		/* (32) */
-
-	xad_t xad[XTROOTMAXSLOT];	/* 16 * maxentry: xad array */
+	struct xtheader header;
+	xad_t xad[XTPAGEMAXSLOT];	/* 16 * maxentry: xad array */
 } xtpage_t;
 
 /*
@@ -95,17 +104,9 @@ extern int xtInsert(tid_t tid, struct inode *ip,
 		    int xflag, s64 xoff, int xlen, s64 * xaddrp, int flag);
 extern int xtExtend(tid_t tid, struct inode *ip, s64 xoff, int xlen,
 		    int flag);
-#ifdef _NOTYET
-extern int xtTailgate(tid_t tid, struct inode *ip,
-		      s64 xoff, int xlen, s64 xaddr, int flag);
-#endif
 extern int xtUpdate(tid_t tid, struct inode *ip, struct xad *nxad);
-extern int xtDelete(tid_t tid, struct inode *ip, s64 xoff, int xlen,
-		    int flag);
 extern s64 xtTruncate(tid_t tid, struct inode *ip, s64 newsize, int type);
 extern s64 xtTruncate_pmap(tid_t tid, struct inode *ip, s64 committed_size);
-extern int xtRelocate(tid_t tid, struct inode *ip,
-		      xad_t * oxad, s64 nxaddr, int xtype);
 extern int xtAppend(tid_t tid,
 		    struct inode *ip, int xflag, s64 xoff, int maxblocks,
 		    int *xlenp, s64 * xaddrp, int flag);

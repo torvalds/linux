@@ -19,7 +19,7 @@
 #include <linux/memblock.h>
 #include <linux/mfd/tmio.h>
 #include <linux/mmc/host.h>
-#include <linux/mmc/sh_mmcif.h>
+#include <linux/platform_data/sh_mmcif.h>
 #include <linux/mtd/physmap.h>
 #include <linux/gpio.h>
 #include <linux/gpio/machine.h>
@@ -36,6 +36,7 @@
 #include <linux/usb/r8a66597.h>
 #include <linux/usb/renesas_usbhs.h>
 #include <linux/videodev2.h>
+#include <linux/dma-map-ops.h>
 
 #include <media/drv-intf/renesas-ceu.h>
 #include <media/i2c/mt9t112.h>
@@ -371,19 +372,31 @@ static struct platform_device lcdc_device = {
 	},
 };
 
-static struct gpio_backlight_platform_data gpio_backlight_data = {
-	.fbdev = &lcdc_device.dev,
-	.gpio = GPIO_PTR1,
-	.def_value = 1,
-	.name = "backlight",
-};
-
-static struct platform_device gpio_backlight_device = {
-	.name = "gpio-backlight",
-	.dev = {
-		.platform_data = &gpio_backlight_data,
+static struct gpiod_lookup_table gpio_backlight_lookup = {
+	.dev_id		= "gpio-backlight.0",
+	.table = {
+		GPIO_LOOKUP("sh7724_pfc", GPIO_PTR1, NULL, GPIO_ACTIVE_HIGH),
+		{ }
 	},
 };
+
+static struct property_entry gpio_backlight_props[] = {
+	PROPERTY_ENTRY_BOOL("default-on"),
+	{ }
+};
+
+static struct gpio_backlight_platform_data gpio_backlight_data = {
+	.dev = &lcdc_device.dev,
+};
+
+static const struct platform_device_info gpio_backlight_device_info = {
+	.name = "gpio-backlight",
+	.data = &gpio_backlight_data,
+	.size_data = sizeof(gpio_backlight_data),
+	.properties = gpio_backlight_props,
+};
+
+static struct platform_device *gpio_backlight_device;
 
 /* CEU0 */
 static struct ceu_platform_data ceu0_pdata = {
@@ -868,12 +881,12 @@ static struct platform_device fsi_device = {
 	.resource	= fsi_resources,
 };
 
-static struct asoc_simple_card_info fsi_da7210_info = {
+static struct simple_util_info fsi_da7210_info = {
 	.name		= "DA7210",
 	.card		= "FSIB-DA7210",
 	.codec		= "da7210.0-001a",
 	.platform	= "sh_fsi.0",
-	.daifmt		= SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBM_CFM,
+	.daifmt		= SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBP_CFP,
 	.cpu_dai = {
 		.name	= "fsib-dai",
 	},
@@ -1006,7 +1019,6 @@ static struct platform_device *ecovec_devices[] __initdata = {
 	&usb1_common_device,
 	&usbhs_device,
 	&lcdc_device,
-	&gpio_backlight_device,
 	&keysc_device,
 	&cn12_power,
 #if defined(CONFIG_MMC_SDHI) || defined(CONFIG_MMC_SDHI_MODULE)
@@ -1208,7 +1220,7 @@ static int __init arch_setup(void)
 		lcdc_info.ch[0].num_modes		= ARRAY_SIZE(ecovec_dvi_modes);
 
 		/* No backlight */
-		gpio_backlight_data.fbdev = NULL;
+		gpio_backlight_data.dev = NULL;
 
 		gpio_set_value(GPIO_PTA2, 1);
 		gpio_set_value(GPIO_PTU1, 1);
@@ -1442,15 +1454,13 @@ static int __init arch_setup(void)
 	device_initialize(&ecovec_ceu_devices[0]->dev);
 	dma_declare_coherent_memory(&ecovec_ceu_devices[0]->dev,
 				    ceu0_dma_membase, ceu0_dma_membase,
-				    ceu0_dma_membase +
-				    CEU_BUFFER_MEMORY_SIZE - 1);
+				    CEU_BUFFER_MEMORY_SIZE);
 	platform_device_add(ecovec_ceu_devices[0]);
 
 	device_initialize(&ecovec_ceu_devices[1]->dev);
 	dma_declare_coherent_memory(&ecovec_ceu_devices[1]->dev,
 				    ceu1_dma_membase, ceu1_dma_membase,
-				    ceu1_dma_membase +
-				    CEU_BUFFER_MEMORY_SIZE - 1);
+				    CEU_BUFFER_MEMORY_SIZE);
 	platform_device_add(ecovec_ceu_devices[1]);
 
 	gpiod_add_lookup_table(&cn12_power_gpiod_table);
@@ -1461,6 +1471,12 @@ static int __init arch_setup(void)
 	gpiod_add_lookup_table(&sdhi1_gpio_table);
 #endif
 #endif
+
+	gpiod_add_lookup_table(&gpio_backlight_lookup);
+	gpio_backlight_device = platform_device_register_full(
+					&gpio_backlight_device_info);
+	if (IS_ERR(gpio_backlight_device))
+		return PTR_ERR(gpio_backlight_device);
 
 	return platform_add_devices(ecovec_devices,
 				    ARRAY_SIZE(ecovec_devices));
@@ -1484,7 +1500,7 @@ static void __init ecovec_mv_mem_reserve(void)
 	if (!phys)
 		panic("Failed to allocate CEU0 memory\n");
 
-	memblock_free(phys, size);
+	memblock_phys_free(phys, size);
 	memblock_remove(phys, size);
 	ceu0_dma_membase = phys;
 
@@ -1492,7 +1508,7 @@ static void __init ecovec_mv_mem_reserve(void)
 	if (!phys)
 		panic("Failed to allocate CEU1 memory\n");
 
-	memblock_free(phys, size);
+	memblock_phys_free(phys, size);
 	memblock_remove(phys, size);
 	ceu1_dma_membase = phys;
 }

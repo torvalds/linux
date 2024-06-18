@@ -50,9 +50,9 @@ static const struct ad_dpot_bus_ops bops = {
 	.write_r8d16	= write_r8d16,
 };
 
-static int ad_dpot_i2c_probe(struct i2c_client *client,
-				      const struct i2c_device_id *id)
+static int ad_dpot_i2c_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct ad_dpot_bus_data bdata = {
 		.client = client,
 		.bops = &bops,
@@ -67,9 +67,9 @@ static int ad_dpot_i2c_probe(struct i2c_client *client,
 	return ad_dpot_probe(&client->dev, &bdata, id->driver_data, id->name);
 }
 
-static int ad_dpot_i2c_remove(struct i2c_client *client)
+static void ad_dpot_i2c_remove(struct i2c_client *client)
 {
-	return ad_dpot_remove(&client->dev);
+	ad_dpot_remove(&client->dev);
 }
 
 static const struct i2c_device_id ad_dpot_id[] = {

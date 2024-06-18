@@ -1,3 +1,4 @@
+=================================================
 The Linux kernel user's and administrator's guide
 =================================================
 
@@ -18,6 +19,9 @@ etc.
    devices
    sysctl/index
 
+   abi
+   features
+
 This section describes CPU vulnerabilities and their mitigations.
 
 .. toctree::
@@ -31,8 +35,10 @@ problems and bugs in particular.
 .. toctree::
    :maxdepth: 1
 
-   reporting-bugs
-   security-bugs
+   reporting-issues
+   reporting-regressions
+   quickly-build-trimmed-linux
+   verify-bugs-and-bisect-regressions
    bug-hunting
    bug-bisect
    tainted-kernels
@@ -41,6 +47,7 @@ problems and bugs in particular.
    init
    kdump/index
    perf/index
+   pstore-blk
 
 This is the beginning of a section with information of interest to
 application developers.  Documents covering various aspects of the kernel
@@ -51,66 +58,85 @@ ABI will be found here.
 
    sysfs-rules
 
+This is the beginning of a section with information of interest to
+application developers and system integrators doing analysis of the
+Linux kernel for safety critical applications. Documents supporting
+analysis of kernel interactions with applications, and key kernel
+subsystems expectations will be found here.
+
+.. toctree::
+   :maxdepth: 1
+
+   workload-tracing
+
 The rest of this manual consists of various unordered guides on how to
 configure specific aspects of kernel behavior to your liking.
 
 .. toctree::
    :maxdepth: 1
 
-   initrd
-   cgroup-v2
-   cgroup-v1/index
-   serial-console
-   braille-console
-   parport
-   md
-   module-signing
-   rapidio
-   sysrq
-   unicode
-   vga-softcursor
-   binfmt-misc
-   mono
-   java
-   ras
-   bcache
-   blockdev/index
-   ext4
-   binderfs
-   cifs/index
-   xfs
-   jfs
-   ufs
-   pm/index
-   thunderbolt
-   LSM/index
-   mm/index
-   namespaces/index
-   perf-security
    acpi/index
    aoe/index
+   auxdisplay/index
+   bcache
+   binderfs
+   binfmt-misc
+   blockdev/index
+   bootconfig
+   braille-console
    btmrvl
+   cgroup-v1/index
+   cgroup-v2
+   cifs/index
    clearing-warn-once
    cpu-load
    cputopology
+   dell_rbu
    device-mapper/index
+   edid
    efi-stub
+   ext4
+   filesystem-monitoring
+   nfs/index
    gpio/index
    highuid
    hw_random
+   initrd
    iostats
+   java
+   jfs
    kernel-per-CPU-kthreads
    laptops/index
-   auxdisplay/index
    lcd-panel-cgram
    ldm
    lockup-watchdogs
+   LSM/index
+   md
+   media/index
+   mm/index
+   module-signing
+   mono
+   namespaces/index
    numastat
+   parport
+   perf-security
+   pm/index
+   pmf
    pnp
+   rapidio
+   RAS/index
    rtc
+   serial-console
    svga
-   wimax/index
+   syscall-user-dispatch
+   sysrq
+   thermal/index
+   thunderbolt
+   ufs
+   unicode
+   vga-softcursor
    video-output
+   xfs
 
 .. only::  subproject and html
 

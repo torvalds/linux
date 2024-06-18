@@ -1,0 +1,141 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/adc/renesas,rcar-gyroadc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Renesas R-Car GyroADC
+
+maintainers:
+  - Marek Vasut <marek.vasut+renesas@gmail.com>
+
+description: |
+  The GyroADC block is a reduced SPI block with up to 8 chipselect lines,
+  which supports the SPI protocol of a selected few SPI ADCs. The SPI ADCs
+  are sampled by the GyroADC block in a round-robin fashion and the result
+  presented in the GyroADC registers.
+  The ADC bindings should match with that of the devices connected to a
+  full featured SPI bus.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - renesas,r8a7791-gyroadc
+          - renesas,r8a7792-gyroadc
+      - const: renesas,rcar-gyroadc
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    const: fck
+
+  power-domains:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 0
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - power-domains
+  - resets
+  - "#address-cells"
+  - "#size-cells"
+
+patternProperties:
+  "@[0-7]$":
+    type: object
+    properties:
+      compatible:
+        description: |
+          fujitsu,mb88101a
+          - Fujitsu MB88101A compatible mode,
+            12bit sampling, up to 4 channels can be sampled in round-robin
+            fashion. One Fujitsu chip supplies four GyroADC channels with
+            data as it contains four ADCs on the chip and thus for 4-channel
+            operation, single MB88101A is required. The Cx chipselect lines
+            of the MB88101A connect directly to two CHS lines of the GyroADC,
+            no demuxer is required. The data out line of each MB88101A
+            connects to a shared input pin of the GyroADC.
+          ti,adcs7476 or ti,adc121 or adi,ad7476
+          - TI ADCS7476 / TI ADC121 / ADI AD7476 compatible mode, 15bit
+            sampling, up to 8 channels can be sampled in round-robin
+            fashion. One TI/ADI chip supplies single ADC channel with data,
+            thus for 8-channel operation, 8 chips are required.
+            A 3:8 chipselect demuxer is  required to connect the nCS line
+            of the TI/ADI chips to the GyroADC, while MISO line of each
+            TI/ADI ADC connects to a shared input pin of the GyroADC.
+          maxim,max1162 or maxim,max11100
+          - Maxim MAX1162 / Maxim MAX11100 compatible mode,  16bit sampling,
+            up to 8 channels can be sampled in round-robin fashion. One
+            Maxim chip supplies single ADC channel with data, thus for
+            8-channel operation, 8 chips are required.
+            A 3:8 chipselect demuxer is required to connect the nCS line
+            of the MAX chips to the GyroADC, while MISO line of each Maxim
+            ADC connects to a shared input pin of the GyroADC.
+        enum:
+          - adi,ad7476
+          - fujitsu,mb88101a
+          - maxim,max1162
+          - maxim,max11100
+          - ti,adcs7476
+          - ti,adc121
+
+      reg:
+        minimum: 0
+        maximum: 7
+
+      vref-supply: true
+
+    additionalProperties: false
+
+    required:
+      - compatible
+      - reg
+      - vref-supply
+
+examples:
+  - |
+    #include <dt-bindings/clock/r8a7791-cpg-mssr.h>
+    #include <dt-bindings/power/r8a7791-sysc.h>
+
+    adc@e6e54000 {
+        compatible = "renesas,r8a7791-gyroadc", "renesas,rcar-gyroadc";
+        reg = <0xe6e54000 64>;
+        clocks = <&cpg CPG_MOD 901>;
+        clock-names = "fck";
+        power-domains = <&sysc R8A7791_PD_ALWAYS_ON>;
+        resets = <&cpg 901>;
+
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        adc@0 {
+            reg = <0>;
+            compatible = "maxim,max1162";
+            vref-supply = <&vref_max1162>;
+        };
+
+        adc@1 {
+            reg = <1>;
+            compatible = "maxim,max1162";
+            vref-supply = <&vref_max1162>;
+        };
+    };
+...

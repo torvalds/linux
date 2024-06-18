@@ -72,7 +72,7 @@ static inline int enable_irq_for_cpu(int cpu, struct irq_data *d,
  */
 
 #define BUILD_IPIC_INTERNAL(width)					\
-void __dispatch_internal_##width(int cpu)				\
+static void __dispatch_internal_##width(int cpu)			\
 {									\
 	u32 pending[width / 32];					\
 	unsigned int src, tgt;						\
@@ -399,26 +399,6 @@ static struct irq_chip bcm63xx_external_irq_chip = {
 	.irq_set_type	= bcm63xx_external_irq_set_type,
 };
 
-static struct irqaction cpu_ip2_cascade_action = {
-	.handler	= no_action,
-	.name		= "cascade_ip2",
-	.flags		= IRQF_NO_THREAD,
-};
-
-#ifdef CONFIG_SMP
-static struct irqaction cpu_ip3_cascade_action = {
-	.handler	= no_action,
-	.name		= "cascade_ip3",
-	.flags		= IRQF_NO_THREAD,
-};
-#endif
-
-static struct irqaction cpu_ext_cascade_action = {
-	.handler	= no_action,
-	.name		= "cascade_extirq",
-	.flags		= IRQF_NO_THREAD,
-};
-
 static void bcm63xx_init_irq(void)
 {
 	int irq_bits;
@@ -531,7 +511,7 @@ static void bcm63xx_init_irq(void)
 
 void __init arch_init_irq(void)
 {
-	int i;
+	int i, irq;
 
 	bcm63xx_init_irq();
 	mips_cpu_irq_init();
@@ -544,14 +524,25 @@ void __init arch_init_irq(void)
 					 handle_edge_irq);
 
 	if (!is_ext_irq_cascaded) {
-		for (i = 3; i < 3 + ext_irq_count; ++i)
-			setup_irq(MIPS_CPU_IRQ_BASE + i, &cpu_ext_cascade_action);
+		for (i = 3; i < 3 + ext_irq_count; ++i) {
+			irq = MIPS_CPU_IRQ_BASE + i;
+			if (request_irq(irq, no_action, IRQF_NO_THREAD,
+					"cascade_extirq", NULL)) {
+				pr_err("Failed to request irq %d (cascade_extirq)\n",
+				       irq);
+			}
+		}
 	}
 
-	setup_irq(MIPS_CPU_IRQ_BASE + 2, &cpu_ip2_cascade_action);
+	irq = MIPS_CPU_IRQ_BASE + 2;
+	if (request_irq(irq, no_action, IRQF_NO_THREAD,	"cascade_ip2", NULL))
+		pr_err("Failed to request irq %d (cascade_ip2)\n", irq);
 #ifdef CONFIG_SMP
 	if (is_ext_irq_cascaded) {
-		setup_irq(MIPS_CPU_IRQ_BASE + 3, &cpu_ip3_cascade_action);
+		irq = MIPS_CPU_IRQ_BASE + 3;
+		if (request_irq(irq, no_action,	IRQF_NO_THREAD, "cascade_ip3",
+				NULL))
+			pr_err("Failed to request irq %d (cascade_ip3)\n", irq);
 		bcm63xx_internal_irq_chip.irq_set_affinity =
 			bcm63xx_internal_set_affinity;
 

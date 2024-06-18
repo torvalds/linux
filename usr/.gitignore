@@ -1,9 +1,4 @@
-#
-# Generated files
-#
-gen_init_cpio
-initramfs_data.cpio
-initramfs_data.cpio.gz
-initramfs_data.cpio.bz2
-initramfs_data.cpio.lzma
-initramfs_list
+# SPDX-License-Identifier: GPL-2.0-only
+/gen_init_cpio
+/initramfs_data.cpio
+/initramfs_inc_data

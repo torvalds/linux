@@ -64,14 +64,24 @@ DEFINE_EVENT(mm_compaction_isolate_template, mm_compaction_isolate_freepages,
 	TP_ARGS(start_pfn, end_pfn, nr_scanned, nr_taken)
 );
 
+DEFINE_EVENT(mm_compaction_isolate_template, mm_compaction_fast_isolate_freepages,
+
+	TP_PROTO(
+		unsigned long start_pfn,
+		unsigned long end_pfn,
+		unsigned long nr_scanned,
+		unsigned long nr_taken),
+
+	TP_ARGS(start_pfn, end_pfn, nr_scanned, nr_taken)
+);
+
 #ifdef CONFIG_COMPACTION
 TRACE_EVENT(mm_compaction_migratepages,
 
-	TP_PROTO(unsigned long nr_all,
-		int migrate_rc,
-		struct list_head *migratepages),
+	TP_PROTO(unsigned int nr_migratepages,
+		unsigned int nr_succeeded),
 
-	TP_ARGS(nr_all, migrate_rc, migratepages),
+	TP_ARGS(nr_migratepages, nr_succeeded),
 
 	TP_STRUCT__entry(
 		__field(unsigned long, nr_migrated)
@@ -79,23 +89,8 @@ TRACE_EVENT(mm_compaction_migratepages,
 	),
 
 	TP_fast_assign(
-		unsigned long nr_failed = 0;
-		struct list_head *page_lru;
-
-		/*
-		 * migrate_pages() returns either a non-negative number
-		 * with the number of pages that failed migration, or an
-		 * error code, in which case we need to count the remaining
-		 * pages manually
-		 */
-		if (migrate_rc >= 0)
-			nr_failed = migrate_rc;
-		else
-			list_for_each(page_lru, migratepages)
-				nr_failed++;
-
-		__entry->nr_migrated = nr_all - nr_failed;
-		__entry->nr_failed = nr_failed;
+		__entry->nr_migrated = nr_succeeded;
+		__entry->nr_failed = nr_migratepages - nr_succeeded;
 	),
 
 	TP_printk("nr_migrated=%lu nr_failed=%lu",
@@ -104,10 +99,10 @@ TRACE_EVENT(mm_compaction_migratepages,
 );
 
 TRACE_EVENT(mm_compaction_begin,
-	TP_PROTO(unsigned long zone_start, unsigned long migrate_pfn,
-		unsigned long free_pfn, unsigned long zone_end, bool sync),
+	TP_PROTO(struct compact_control *cc, unsigned long zone_start,
+		unsigned long zone_end, bool sync),
 
-	TP_ARGS(zone_start, migrate_pfn, free_pfn, zone_end, sync),
+	TP_ARGS(cc, zone_start, zone_end, sync),
 
 	TP_STRUCT__entry(
 		__field(unsigned long, zone_start)
@@ -119,8 +114,8 @@ TRACE_EVENT(mm_compaction_begin,
 
 	TP_fast_assign(
 		__entry->zone_start = zone_start;
-		__entry->migrate_pfn = migrate_pfn;
-		__entry->free_pfn = free_pfn;
+		__entry->migrate_pfn = cc->migrate_pfn;
+		__entry->free_pfn = cc->free_pfn;
 		__entry->zone_end = zone_end;
 		__entry->sync = sync;
 	),
@@ -134,11 +129,11 @@ TRACE_EVENT(mm_compaction_begin,
 );
 
 TRACE_EVENT(mm_compaction_end,
-	TP_PROTO(unsigned long zone_start, unsigned long migrate_pfn,
-		unsigned long free_pfn, unsigned long zone_end, bool sync,
+	TP_PROTO(struct compact_control *cc, unsigned long zone_start,
+		unsigned long zone_end, bool sync,
 		int status),
 
-	TP_ARGS(zone_start, migrate_pfn, free_pfn, zone_end, sync, status),
+	TP_ARGS(cc, zone_start, zone_end, sync, status),
 
 	TP_STRUCT__entry(
 		__field(unsigned long, zone_start)
@@ -151,8 +146,8 @@ TRACE_EVENT(mm_compaction_end,
 
 	TP_fast_assign(
 		__entry->zone_start = zone_start;
-		__entry->migrate_pfn = migrate_pfn;
-		__entry->free_pfn = free_pfn;
+		__entry->migrate_pfn = cc->migrate_pfn;
+		__entry->free_pfn = cc->free_pfn;
 		__entry->zone_end = zone_end;
 		__entry->sync = sync;
 		__entry->status = status;
@@ -178,13 +173,13 @@ TRACE_EVENT(mm_compaction_try_to_compact_pages,
 
 	TP_STRUCT__entry(
 		__field(int, order)
-		__field(gfp_t, gfp_mask)
+		__field(unsigned long, gfp_mask)
 		__field(int, prio)
 	),
 
 	TP_fast_assign(
 		__entry->order = order;
-		__entry->gfp_mask = gfp_mask;
+		__entry->gfp_mask = (__force unsigned long)gfp_mask;
 		__entry->prio = prio;
 	),
 
@@ -314,40 +309,44 @@ TRACE_EVENT(mm_compaction_kcompactd_sleep,
 
 DECLARE_EVENT_CLASS(kcompactd_wake_template,
 
-	TP_PROTO(int nid, int order, enum zone_type classzone_idx),
+	TP_PROTO(int nid, int order, enum zone_type highest_zoneidx),
 
-	TP_ARGS(nid, order, classzone_idx),
+	TP_ARGS(nid, order, highest_zoneidx),
 
 	TP_STRUCT__entry(
 		__field(int, nid)
 		__field(int, order)
-		__field(enum zone_type, classzone_idx)
+		__field(enum zone_type, highest_zoneidx)
 	),
 
 	TP_fast_assign(
 		__entry->nid = nid;
 		__entry->order = order;
-		__entry->classzone_idx = classzone_idx;
+		__entry->highest_zoneidx = highest_zoneidx;
 	),
 
+	/*
+	 * classzone_idx is previous name of the highest_zoneidx.
+	 * Reason not to change it is the ABI requirement of the tracepoint.
+	 */
 	TP_printk("nid=%d order=%d classzone_idx=%-8s",
 		__entry->nid,
 		__entry->order,
-		__print_symbolic(__entry->classzone_idx, ZONE_TYPE))
+		__print_symbolic(__entry->highest_zoneidx, ZONE_TYPE))
 );
 
 DEFINE_EVENT(kcompactd_wake_template, mm_compaction_wakeup_kcompactd,
 
-	TP_PROTO(int nid, int order, enum zone_type classzone_idx),
+	TP_PROTO(int nid, int order, enum zone_type highest_zoneidx),
 
-	TP_ARGS(nid, order, classzone_idx)
+	TP_ARGS(nid, order, highest_zoneidx)
 );
 
 DEFINE_EVENT(kcompactd_wake_template, mm_compaction_kcompactd_wake,
 
-	TP_PROTO(int nid, int order, enum zone_type classzone_idx),
+	TP_PROTO(int nid, int order, enum zone_type highest_zoneidx),
 
-	TP_ARGS(nid, order, classzone_idx)
+	TP_ARGS(nid, order, highest_zoneidx)
 );
 #endif
 

@@ -47,7 +47,7 @@ static void __init tc_bus_add_devices(struct tc_bus *tbus)
 	for (slot = 0; slot < tbus->num_tcslots; slot++) {
 		slotaddr = tbus->slot_base + slot * slotsize;
 		extslotaddr = tbus->ext_slot_base + slot * extslotsize;
-		module = ioremap_nocache(slotaddr, slotsize);
+		module = ioremap(slotaddr, slotsize);
 		BUG_ON(!module);
 
 		offset = TC_OLDCARD;

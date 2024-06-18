@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2008, 2009 open80211s Ltd.
+ * Copyright (C) 2023 Intel Corporation
  * Author:     Luis Carlos Cobo <luisca@cozybit.com>
  */
 
@@ -14,6 +15,7 @@
 #include "wme.h"
 #include "ieee80211_i.h"
 #include "mesh.h"
+#include <linux/rhashtable.h>
 
 static void mesh_path_free_rcu(struct mesh_table *tbl, struct mesh_path *mpath);
 
@@ -32,6 +34,41 @@ static const struct rhashtable_params mesh_rht_params = {
 	.hashfn = mesh_table_hash,
 };
 
+static const struct rhashtable_params fast_tx_rht_params = {
+	.nelem_hint = 10,
+	.automatic_shrinking = true,
+	.key_len = sizeof_field(struct ieee80211_mesh_fast_tx, key),
+	.key_offset = offsetof(struct ieee80211_mesh_fast_tx, key),
+	.head_offset = offsetof(struct ieee80211_mesh_fast_tx, rhash),
+	.hashfn = mesh_table_hash,
+};
+
+static void __mesh_fast_tx_entry_free(void *ptr, void *tblptr)
+{
+	struct ieee80211_mesh_fast_tx *entry = ptr;
+
+	kfree_rcu(entry, fast_tx.rcu_head);
+}
+
+static void mesh_fast_tx_deinit(struct ieee80211_sub_if_data *sdata)
+{
+	struct mesh_tx_cache *cache;
+
+	cache = &sdata->u.mesh.tx_cache;
+	rhashtable_free_and_destroy(&cache->rht,
+				    __mesh_fast_tx_entry_free, NULL);
+}
+
+static void mesh_fast_tx_init(struct ieee80211_sub_if_data *sdata)
+{
+	struct mesh_tx_cache *cache;
+
+	cache = &sdata->u.mesh.tx_cache;
+	rhashtable_init(&cache->rht, &fast_tx_rht_params);
+	INIT_HLIST_HEAD(&cache->walk_head);
+	spin_lock_init(&cache->walk_lock);
+}
+
 static inline bool mpath_expired(struct mesh_path *mpath)
 {
 	return (mpath->flags & MESH_PATH_ACTIVE) &&
@@ -47,32 +84,27 @@ static void mesh_path_rht_free(void *ptr, void *tblptr)
 	mesh_path_free_rcu(tbl, mpath);
 }
 
-static struct mesh_table *mesh_table_alloc(void)
+static void mesh_table_init(struct mesh_table *tbl)
 {
-	struct mesh_table *newtbl;
+	INIT_HLIST_HEAD(&tbl->known_gates);
+	INIT_HLIST_HEAD(&tbl->walk_head);
+	atomic_set(&tbl->entries,  0);
+	spin_lock_init(&tbl->gates_lock);
+	spin_lock_init(&tbl->walk_lock);
 
-	newtbl = kmalloc(sizeof(struct mesh_table), GFP_ATOMIC);
-	if (!newtbl)
-		return NULL;
-
-	INIT_HLIST_HEAD(&newtbl->known_gates);
-	INIT_HLIST_HEAD(&newtbl->walk_head);
-	atomic_set(&newtbl->entries,  0);
-	spin_lock_init(&newtbl->gates_lock);
-	spin_lock_init(&newtbl->walk_lock);
-
-	return newtbl;
+	/* rhashtable_init() may fail only in case of wrong
+	 * mesh_rht_params
+	 */
+	WARN_ON(rhashtable_init(&tbl->rhead, &mesh_rht_params));
 }
 
 static void mesh_table_free(struct mesh_table *tbl)
 {
 	rhashtable_free_and_destroy(&tbl->rhead,
 				    mesh_path_rht_free, tbl);
-	kfree(tbl);
 }
 
 /**
- *
  * mesh_path_assign_nexthop - update mesh path next hop
  *
  * @mpath: mesh path to update
@@ -122,7 +154,7 @@ static void prepare_for_gate(struct sk_buff *skb, char *dst_addr,
 		hdr = (struct ieee80211_hdr *) skb->data;
 
 		/* we preserve the previous mesh header and only add
-		 * the new addreses */
+		 * the new addresses */
 		mshdr = (struct ieee80211s_hdr *) (skb->data + hdrlen);
 		mshdr->flags = MESH_FLAGS_AE_A5_A6;
 		memcpy(mshdr->eaddr1, hdr->addr3, ETH_ALEN);
@@ -140,8 +172,12 @@ static void prepare_for_gate(struct sk_buff *skb, char *dst_addr,
 }
 
 /**
- *
  * mesh_path_move_to_queue - Move or copy frames from one mpath queue to another
+ *
+ * @gate_mpath: An active mpath the frames will be sent to (i.e. the gate)
+ * @from_mpath: The failed mpath
+ * @copy: When true, copy all the frames to the new mpath queue.  When false,
+ * move them.
  *
  * This function is used to transfer or copy frames from an unresolved mpath to
  * a gate mpath.  The function also adds the Address Extension field and
@@ -151,11 +187,6 @@ static void prepare_for_gate(struct sk_buff *skb, char *dst_addr,
  * destination addresses are updated.
  *
  * The gate mpath must be an active mpath with a valid mpath->next_hop.
- *
- * @mpath: An active mpath the frames will be sent to (i.e. the gate)
- * @from_mpath: The failed mpath
- * @copy: When true, copy all the frames to the new mpath queue.  When false,
- * move them.
  */
 static void mesh_path_move_to_queue(struct mesh_path *gate_mpath,
 				    struct mesh_path *from_mpath,
@@ -236,13 +267,13 @@ static struct mesh_path *mpath_lookup(struct mesh_table *tbl, const u8 *dst,
 struct mesh_path *
 mesh_path_lookup(struct ieee80211_sub_if_data *sdata, const u8 *dst)
 {
-	return mpath_lookup(sdata->u.mesh.mesh_paths, dst, sdata);
+	return mpath_lookup(&sdata->u.mesh.mesh_paths, dst, sdata);
 }
 
 struct mesh_path *
 mpp_path_lookup(struct ieee80211_sub_if_data *sdata, const u8 *dst)
 {
-	return mpath_lookup(sdata->u.mesh.mpp_paths, dst, sdata);
+	return mpath_lookup(&sdata->u.mesh.mpp_paths, dst, sdata);
 }
 
 static struct mesh_path *
@@ -279,7 +310,7 @@ __mesh_path_lookup_by_idx(struct mesh_table *tbl, int idx)
 struct mesh_path *
 mesh_path_lookup_by_idx(struct ieee80211_sub_if_data *sdata, int idx)
 {
-	return __mesh_path_lookup_by_idx(sdata->u.mesh.mesh_paths, idx);
+	return __mesh_path_lookup_by_idx(&sdata->u.mesh.mesh_paths, idx);
 }
 
 /**
@@ -294,12 +325,14 @@ mesh_path_lookup_by_idx(struct ieee80211_sub_if_data *sdata, int idx)
 struct mesh_path *
 mpp_path_lookup_by_idx(struct ieee80211_sub_if_data *sdata, int idx)
 {
-	return __mesh_path_lookup_by_idx(sdata->u.mesh.mpp_paths, idx);
+	return __mesh_path_lookup_by_idx(&sdata->u.mesh.mpp_paths, idx);
 }
 
 /**
  * mesh_path_add_gate - add the given mpath to a mesh gate to our path table
  * @mpath: gate path to add to table
+ *
+ * Returns: 0 on success, -EEXIST
  */
 int mesh_path_add_gate(struct mesh_path *mpath)
 {
@@ -307,7 +340,7 @@ int mesh_path_add_gate(struct mesh_path *mpath)
 	int err;
 
 	rcu_read_lock();
-	tbl = mpath->sdata->u.mesh.mesh_paths;
+	tbl = &mpath->sdata->u.mesh.mesh_paths;
 
 	spin_lock_bh(&mpath->state_lock);
 	if (mpath->is_gate) {
@@ -358,6 +391,8 @@ static void mesh_gate_del(struct mesh_table *tbl, struct mesh_path *mpath)
 /**
  * mesh_gate_num - number of gates known to this interface
  * @sdata: subif data
+ *
+ * Returns: The number of gates
  */
 int mesh_gate_num(struct ieee80211_sub_if_data *sdata)
 {
@@ -387,6 +422,252 @@ struct mesh_path *mesh_path_new(struct ieee80211_sub_if_data *sdata,
 	return new_mpath;
 }
 
+static void mesh_fast_tx_entry_free(struct mesh_tx_cache *cache,
+				    struct ieee80211_mesh_fast_tx *entry)
+{
+	hlist_del_rcu(&entry->walk_list);
+	rhashtable_remove_fast(&cache->rht, &entry->rhash, fast_tx_rht_params);
+	kfree_rcu(entry, fast_tx.rcu_head);
+}
+
+struct ieee80211_mesh_fast_tx *
+mesh_fast_tx_get(struct ieee80211_sub_if_data *sdata,
+		 struct ieee80211_mesh_fast_tx_key *key)
+{
+	struct ieee80211_mesh_fast_tx *entry;
+	struct mesh_tx_cache *cache;
+
+	cache = &sdata->u.mesh.tx_cache;
+	entry = rhashtable_lookup(&cache->rht, key, fast_tx_rht_params);
+	if (!entry)
+		return NULL;
+
+	if (!(entry->mpath->flags & MESH_PATH_ACTIVE) ||
+	    mpath_expired(entry->mpath)) {
+		spin_lock_bh(&cache->walk_lock);
+		entry = rhashtable_lookup(&cache->rht, key, fast_tx_rht_params);
+		if (entry)
+		    mesh_fast_tx_entry_free(cache, entry);
+		spin_unlock_bh(&cache->walk_lock);
+		return NULL;
+	}
+
+	mesh_path_refresh(sdata, entry->mpath, NULL);
+	if (entry->mppath)
+		entry->mppath->exp_time = jiffies;
+	entry->timestamp = jiffies;
+
+	return entry;
+}
+
+void mesh_fast_tx_cache(struct ieee80211_sub_if_data *sdata,
+			struct sk_buff *skb, struct mesh_path *mpath)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_mesh_fast_tx *entry, *prev;
+	struct ieee80211_mesh_fast_tx build = {};
+	struct ieee80211s_hdr *meshhdr;
+	struct mesh_tx_cache *cache;
+	struct ieee80211_key *key;
+	struct mesh_path *mppath;
+	struct sta_info *sta;
+	u8 *qc;
+
+	if (sdata->noack_map ||
+	    !ieee80211_is_data_qos(hdr->frame_control))
+		return;
+
+	build.fast_tx.hdr_len = ieee80211_hdrlen(hdr->frame_control);
+	meshhdr = (struct ieee80211s_hdr *)(skb->data + build.fast_tx.hdr_len);
+	build.hdrlen = ieee80211_get_mesh_hdrlen(meshhdr);
+
+	cache = &sdata->u.mesh.tx_cache;
+	if (atomic_read(&cache->rht.nelems) >= MESH_FAST_TX_CACHE_MAX_SIZE)
+		return;
+
+	sta = rcu_dereference(mpath->next_hop);
+	if (!sta)
+		return;
+
+	build.key.type = MESH_FAST_TX_TYPE_LOCAL;
+	if ((meshhdr->flags & MESH_FLAGS_AE) == MESH_FLAGS_AE_A5_A6) {
+		/* This is required to keep the mppath alive */
+		mppath = mpp_path_lookup(sdata, meshhdr->eaddr1);
+		if (!mppath)
+			return;
+		build.mppath = mppath;
+		if (!ether_addr_equal(meshhdr->eaddr2, sdata->vif.addr))
+			build.key.type = MESH_FAST_TX_TYPE_PROXIED;
+	} else if (ieee80211_has_a4(hdr->frame_control)) {
+		mppath = mpath;
+	} else {
+		return;
+	}
+
+	if (!ether_addr_equal(hdr->addr4, sdata->vif.addr))
+		build.key.type = MESH_FAST_TX_TYPE_FORWARDED;
+
+	/* rate limit, in case fast xmit can't be enabled */
+	if (mppath->fast_tx_check == jiffies)
+		return;
+
+	mppath->fast_tx_check = jiffies;
+
+	/*
+	 * Same use of the sta lock as in ieee80211_check_fast_xmit, in order
+	 * to protect against concurrent sta key updates.
+	 */
+	spin_lock_bh(&sta->lock);
+	key = rcu_access_pointer(sta->ptk[sta->ptk_idx]);
+	if (!key)
+		key = rcu_access_pointer(sdata->default_unicast_key);
+	build.fast_tx.key = key;
+
+	if (key) {
+		bool gen_iv, iv_spc;
+
+		gen_iv = key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV;
+		iv_spc = key->conf.flags & IEEE80211_KEY_FLAG_PUT_IV_SPACE;
+
+		if (!(key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) ||
+		    (key->flags & KEY_FLAG_TAINTED))
+			goto unlock_sta;
+
+		switch (key->conf.cipher) {
+		case WLAN_CIPHER_SUITE_CCMP:
+		case WLAN_CIPHER_SUITE_CCMP_256:
+			if (gen_iv)
+				build.fast_tx.pn_offs = build.fast_tx.hdr_len;
+			if (gen_iv || iv_spc)
+				build.fast_tx.hdr_len += IEEE80211_CCMP_HDR_LEN;
+			break;
+		case WLAN_CIPHER_SUITE_GCMP:
+		case WLAN_CIPHER_SUITE_GCMP_256:
+			if (gen_iv)
+				build.fast_tx.pn_offs = build.fast_tx.hdr_len;
+			if (gen_iv || iv_spc)
+				build.fast_tx.hdr_len += IEEE80211_GCMP_HDR_LEN;
+			break;
+		default:
+			goto unlock_sta;
+		}
+	}
+
+	memcpy(build.key.addr, mppath->dst, ETH_ALEN);
+	build.timestamp = jiffies;
+	build.fast_tx.band = info->band;
+	build.fast_tx.da_offs = offsetof(struct ieee80211_hdr, addr3);
+	build.fast_tx.sa_offs = offsetof(struct ieee80211_hdr, addr4);
+	build.mpath = mpath;
+	memcpy(build.hdr, meshhdr, build.hdrlen);
+	memcpy(build.hdr + build.hdrlen, rfc1042_header, sizeof(rfc1042_header));
+	build.hdrlen += sizeof(rfc1042_header);
+	memcpy(build.fast_tx.hdr, hdr, build.fast_tx.hdr_len);
+
+	hdr = (struct ieee80211_hdr *)build.fast_tx.hdr;
+	if (build.fast_tx.key)
+		hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PROTECTED);
+
+	qc = ieee80211_get_qos_ctl(hdr);
+	qc[1] |= IEEE80211_QOS_CTL_MESH_CONTROL_PRESENT >> 8;
+
+	entry = kmemdup(&build, sizeof(build), GFP_ATOMIC);
+	if (!entry)
+		goto unlock_sta;
+
+	spin_lock(&cache->walk_lock);
+	prev = rhashtable_lookup_get_insert_fast(&cache->rht,
+						 &entry->rhash,
+						 fast_tx_rht_params);
+	if (unlikely(IS_ERR(prev))) {
+		kfree(entry);
+		goto unlock_cache;
+	}
+
+	/*
+	 * replace any previous entry in the hash table, in case we're
+	 * replacing it with a different type (e.g. mpath -> mpp)
+	 */
+	if (unlikely(prev)) {
+		rhashtable_replace_fast(&cache->rht, &prev->rhash,
+					&entry->rhash, fast_tx_rht_params);
+		hlist_del_rcu(&prev->walk_list);
+		kfree_rcu(prev, fast_tx.rcu_head);
+	}
+
+	hlist_add_head(&entry->walk_list, &cache->walk_head);
+
+unlock_cache:
+	spin_unlock(&cache->walk_lock);
+unlock_sta:
+	spin_unlock_bh(&sta->lock);
+}
+
+void mesh_fast_tx_gc(struct ieee80211_sub_if_data *sdata)
+{
+	unsigned long timeout = msecs_to_jiffies(MESH_FAST_TX_CACHE_TIMEOUT);
+	struct mesh_tx_cache *cache = &sdata->u.mesh.tx_cache;
+	struct ieee80211_mesh_fast_tx *entry;
+	struct hlist_node *n;
+
+	if (atomic_read(&cache->rht.nelems) < MESH_FAST_TX_CACHE_THRESHOLD_SIZE)
+		return;
+
+	spin_lock_bh(&cache->walk_lock);
+	hlist_for_each_entry_safe(entry, n, &cache->walk_head, walk_list)
+		if (!time_is_after_jiffies(entry->timestamp + timeout))
+			mesh_fast_tx_entry_free(cache, entry);
+	spin_unlock_bh(&cache->walk_lock);
+}
+
+void mesh_fast_tx_flush_mpath(struct mesh_path *mpath)
+{
+	struct ieee80211_sub_if_data *sdata = mpath->sdata;
+	struct mesh_tx_cache *cache = &sdata->u.mesh.tx_cache;
+	struct ieee80211_mesh_fast_tx *entry;
+	struct hlist_node *n;
+
+	spin_lock_bh(&cache->walk_lock);
+	hlist_for_each_entry_safe(entry, n, &cache->walk_head, walk_list)
+		if (entry->mpath == mpath)
+			mesh_fast_tx_entry_free(cache, entry);
+	spin_unlock_bh(&cache->walk_lock);
+}
+
+void mesh_fast_tx_flush_sta(struct ieee80211_sub_if_data *sdata,
+			    struct sta_info *sta)
+{
+	struct mesh_tx_cache *cache = &sdata->u.mesh.tx_cache;
+	struct ieee80211_mesh_fast_tx *entry;
+	struct hlist_node *n;
+
+	spin_lock_bh(&cache->walk_lock);
+	hlist_for_each_entry_safe(entry, n, &cache->walk_head, walk_list)
+		if (rcu_access_pointer(entry->mpath->next_hop) == sta)
+			mesh_fast_tx_entry_free(cache, entry);
+	spin_unlock_bh(&cache->walk_lock);
+}
+
+void mesh_fast_tx_flush_addr(struct ieee80211_sub_if_data *sdata,
+			     const u8 *addr)
+{
+	struct mesh_tx_cache *cache = &sdata->u.mesh.tx_cache;
+	struct ieee80211_mesh_fast_tx_key key = {};
+	struct ieee80211_mesh_fast_tx *entry;
+	int i;
+
+	ether_addr_copy(key.addr, addr);
+	spin_lock_bh(&cache->walk_lock);
+	for (i = 0; i < NUM_MESH_FAST_TX_TYPE; i++) {
+		key.type = i;
+		entry = rhashtable_lookup_fast(&cache->rht, &key, fast_tx_rht_params);
+		if (entry)
+			mesh_fast_tx_entry_free(cache, entry);
+	}
+	spin_unlock_bh(&cache->walk_lock);
+}
+
 /**
  * mesh_path_add - allocate and add a new path to the mesh path table
  * @dst: destination address of the path (ETH_ALEN length)
@@ -404,10 +685,10 @@ struct mesh_path *mesh_path_add(struct ieee80211_sub_if_data *sdata,
 
 	if (ether_addr_equal(dst, sdata->vif.addr))
 		/* never add ourselves as neighbours */
-		return ERR_PTR(-ENOTSUPP);
+		return ERR_PTR(-EOPNOTSUPP);
 
 	if (is_multicast_ether_addr(dst))
-		return ERR_PTR(-ENOTSUPP);
+		return ERR_PTR(-EOPNOTSUPP);
 
 	if (atomic_add_unless(&sdata->u.mesh.mpaths, 1, MESH_MAX_MPATHS) == 0)
 		return ERR_PTR(-ENOSPC);
@@ -416,7 +697,7 @@ struct mesh_path *mesh_path_add(struct ieee80211_sub_if_data *sdata,
 	if (!new_mpath)
 		return ERR_PTR(-ENOMEM);
 
-	tbl = sdata->u.mesh.mesh_paths;
+	tbl = &sdata->u.mesh.mesh_paths;
 	spin_lock_bh(&tbl->walk_lock);
 	mpath = rhashtable_lookup_get_insert_fast(&tbl->rhead,
 						  &new_mpath->rhash,
@@ -447,10 +728,10 @@ int mpp_path_add(struct ieee80211_sub_if_data *sdata,
 
 	if (ether_addr_equal(dst, sdata->vif.addr))
 		/* never add ourselves as neighbours */
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	if (is_multicast_ether_addr(dst))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	new_mpath = mesh_path_new(sdata, dst, GFP_ATOMIC);
 
@@ -458,7 +739,7 @@ int mpp_path_add(struct ieee80211_sub_if_data *sdata,
 		return -ENOMEM;
 
 	memcpy(new_mpath->mpp, mpp, ETH_ALEN);
-	tbl = sdata->u.mesh.mpp_paths;
+	tbl = &sdata->u.mesh.mpp_paths;
 
 	spin_lock_bh(&tbl->walk_lock);
 	ret = rhashtable_lookup_insert_fast(&tbl->rhead,
@@ -470,6 +751,8 @@ int mpp_path_add(struct ieee80211_sub_if_data *sdata,
 
 	if (ret)
 		kfree(new_mpath);
+	else
+		mesh_fast_tx_flush_addr(sdata, dst);
 
 	sdata->u.mesh.mpp_paths_generation++;
 	return ret;
@@ -487,7 +770,7 @@ int mpp_path_add(struct ieee80211_sub_if_data *sdata,
 void mesh_plink_broken(struct sta_info *sta)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
-	struct mesh_table *tbl = sdata->u.mesh.mesh_paths;
+	struct mesh_table *tbl = &sdata->u.mesh.mesh_paths;
 	static const u8 bcast[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	struct mesh_path *mpath;
 
@@ -518,9 +801,10 @@ static void mesh_path_free_rcu(struct mesh_table *tbl,
 	mpath->flags |= MESH_PATH_RESOLVING | MESH_PATH_DELETED;
 	mesh_gate_del(tbl, mpath);
 	spin_unlock_bh(&mpath->state_lock);
-	del_timer_sync(&mpath->timer);
+	timer_shutdown_sync(&mpath->timer);
 	atomic_dec(&sdata->u.mesh.mpaths);
 	atomic_dec(&tbl->entries);
+	mesh_path_flush_pending(mpath);
 	kfree_rcu(mpath, rcu);
 }
 
@@ -528,6 +812,10 @@ static void __mesh_path_del(struct mesh_table *tbl, struct mesh_path *mpath)
 {
 	hlist_del_rcu(&mpath->walk_list);
 	rhashtable_remove_fast(&tbl->rhead, &mpath->rhash, mesh_rht_params);
+	if (tbl == &mpath->sdata->u.mesh.mpp_paths)
+		mesh_fast_tx_flush_addr(mpath->sdata, mpath->dst);
+	else
+		mesh_fast_tx_flush_mpath(mpath);
 	mesh_path_free_rcu(tbl, mpath);
 }
 
@@ -545,7 +833,7 @@ static void __mesh_path_del(struct mesh_table *tbl, struct mesh_path *mpath)
 void mesh_path_flush_by_nexthop(struct sta_info *sta)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
-	struct mesh_table *tbl = sdata->u.mesh.mesh_paths;
+	struct mesh_table *tbl = &sdata->u.mesh.mesh_paths;
 	struct mesh_path *mpath;
 	struct hlist_node *n;
 
@@ -560,7 +848,7 @@ void mesh_path_flush_by_nexthop(struct sta_info *sta)
 static void mpp_flush_by_proxy(struct ieee80211_sub_if_data *sdata,
 			       const u8 *proxy)
 {
-	struct mesh_table *tbl = sdata->u.mesh.mpp_paths;
+	struct mesh_table *tbl = &sdata->u.mesh.mpp_paths;
 	struct mesh_path *mpath;
 	struct hlist_node *n;
 
@@ -587,15 +875,14 @@ static void table_flush_by_iface(struct mesh_table *tbl)
 /**
  * mesh_path_flush_by_iface - Deletes all mesh paths associated with a given iface
  *
- * This function deletes both mesh paths as well as mesh portal paths.
- *
  * @sdata: interface data to match
  *
+ * This function deletes both mesh paths as well as mesh portal paths.
  */
 void mesh_path_flush_by_iface(struct ieee80211_sub_if_data *sdata)
 {
-	table_flush_by_iface(sdata->u.mesh.mesh_paths);
-	table_flush_by_iface(sdata->u.mesh.mpp_paths);
+	table_flush_by_iface(&sdata->u.mesh.mesh_paths);
+	table_flush_by_iface(&sdata->u.mesh.mpp_paths);
 }
 
 /**
@@ -641,7 +928,7 @@ int mesh_path_del(struct ieee80211_sub_if_data *sdata, const u8 *addr)
 	/* flush relevant mpp entries first */
 	mpp_flush_by_proxy(sdata, addr);
 
-	err = table_path_del(sdata->u.mesh.mesh_paths, sdata, addr);
+	err = table_path_del(&sdata->u.mesh.mesh_paths, sdata, addr);
 	sdata->u.mesh.mesh_paths_generation++;
 	return err;
 }
@@ -670,6 +957,8 @@ void mesh_path_tx_pending(struct mesh_path *mpath)
  * queue to that gate's queue.  If there are more than one gates, the frames
  * are copied from each gate to the next.  After frames are copied, the
  * mpath queues are emptied onto the transmission queue.
+ *
+ * Returns: 0 on success, -EHOSTUNREACH
  */
 int mesh_path_send_to_gates(struct mesh_path *mpath)
 {
@@ -679,7 +968,7 @@ int mesh_path_send_to_gates(struct mesh_path *mpath)
 	struct mesh_path *gate;
 	bool copy = false;
 
-	tbl = sdata->u.mesh.mesh_paths;
+	tbl = &sdata->u.mesh.mesh_paths;
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(gate, &tbl->known_gates, gate_list) {
@@ -715,7 +1004,7 @@ int mesh_path_send_to_gates(struct mesh_path *mpath)
 void mesh_path_discard_frame(struct ieee80211_sub_if_data *sdata,
 			     struct sk_buff *skb)
 {
-	kfree_skb(skb);
+	ieee80211_free_txskb(&sdata->local->hw, skb);
 	sdata->u.mesh.mshstats.dropped_frames_no_route++;
 }
 
@@ -728,10 +1017,23 @@ void mesh_path_discard_frame(struct ieee80211_sub_if_data *sdata,
  */
 void mesh_path_flush_pending(struct mesh_path *mpath)
 {
+	struct ieee80211_sub_if_data *sdata = mpath->sdata;
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+	struct mesh_preq_queue *preq, *tmp;
 	struct sk_buff *skb;
 
 	while ((skb = skb_dequeue(&mpath->frame_queue)) != NULL)
 		mesh_path_discard_frame(mpath->sdata, skb);
+
+	spin_lock_bh(&ifmsh->mesh_preq_queue_lock);
+	list_for_each_entry_safe(preq, tmp, &ifmsh->preq_queue.list, list) {
+		if (ether_addr_equal(mpath->dst, preq->dst)) {
+			list_del(&preq->list);
+			kfree(preq);
+			--ifmsh->preq_queue_len;
+		}
+	}
+	spin_unlock_bh(&ifmsh->mesh_preq_queue_lock);
 }
 
 /**
@@ -752,6 +1054,7 @@ void mesh_path_fix_nexthop(struct mesh_path *mpath, struct sta_info *next_hop)
 	mpath->exp_time = 0;
 	mpath->flags = MESH_PATH_FIXED | MESH_PATH_SN_VALID;
 	mesh_path_activate(mpath);
+	mesh_fast_tx_flush_mpath(mpath);
 	spin_unlock_bh(&mpath->state_lock);
 	ewma_mesh_fail_avg_init(&next_hop->mesh->fail_avg);
 	/* init it at a low value - 0 start is tricky */
@@ -759,32 +1062,11 @@ void mesh_path_fix_nexthop(struct mesh_path *mpath, struct sta_info *next_hop)
 	mesh_path_tx_pending(mpath);
 }
 
-int mesh_pathtbl_init(struct ieee80211_sub_if_data *sdata)
+void mesh_pathtbl_init(struct ieee80211_sub_if_data *sdata)
 {
-	struct mesh_table *tbl_path, *tbl_mpp;
-	int ret;
-
-	tbl_path = mesh_table_alloc();
-	if (!tbl_path)
-		return -ENOMEM;
-
-	tbl_mpp = mesh_table_alloc();
-	if (!tbl_mpp) {
-		ret = -ENOMEM;
-		goto free_path;
-	}
-
-	rhashtable_init(&tbl_path->rhead, &mesh_rht_params);
-	rhashtable_init(&tbl_mpp->rhead, &mesh_rht_params);
-
-	sdata->u.mesh.mesh_paths = tbl_path;
-	sdata->u.mesh.mpp_paths = tbl_mpp;
-
-	return 0;
-
-free_path:
-	mesh_table_free(tbl_path);
-	return ret;
+	mesh_table_init(&sdata->u.mesh.mesh_paths);
+	mesh_table_init(&sdata->u.mesh.mpp_paths);
+	mesh_fast_tx_init(sdata);
 }
 
 static
@@ -806,12 +1088,13 @@ void mesh_path_tbl_expire(struct ieee80211_sub_if_data *sdata,
 
 void mesh_path_expire(struct ieee80211_sub_if_data *sdata)
 {
-	mesh_path_tbl_expire(sdata, sdata->u.mesh.mesh_paths);
-	mesh_path_tbl_expire(sdata, sdata->u.mesh.mpp_paths);
+	mesh_path_tbl_expire(sdata, &sdata->u.mesh.mesh_paths);
+	mesh_path_tbl_expire(sdata, &sdata->u.mesh.mpp_paths);
 }
 
 void mesh_pathtbl_unregister(struct ieee80211_sub_if_data *sdata)
 {
-	mesh_table_free(sdata->u.mesh.mesh_paths);
-	mesh_table_free(sdata->u.mesh.mpp_paths);
+	mesh_fast_tx_deinit(sdata);
+	mesh_table_free(&sdata->u.mesh.mesh_paths);
+	mesh_table_free(&sdata->u.mesh.mpp_paths);
 }

@@ -90,13 +90,15 @@ enum {
 #define POWER9_MMCRA_IFM3		0x00000000C0000000UL
 #define POWER9_MMCRA_BHRB_MASK		0x00000000C0000000UL
 
+extern u64 PERF_REG_EXTENDED_MASK;
+
 /* Nasty Power9 specific hack */
 #define PVR_POWER9_CUMULUS		0x00002000
 
 /* PowerISA v2.07 format attribute structure*/
-extern struct attribute_group isa207_pmu_format_group;
+extern const struct attribute_group isa207_pmu_format_group;
 
-int p9_dd21_bl_ev[] = {
+static int p9_dd21_bl_ev[] = {
 	PM_MRK_ST_DONE_L2,
 	PM_RADIX_PWC_L1_HIT,
 	PM_FLOP_CMPL,
@@ -110,7 +112,7 @@ int p9_dd21_bl_ev[] = {
 	PM_DISP_HELD_SYNC_HOLD,
 };
 
-int p9_dd22_bl_ev[] = {
+static int p9_dd22_bl_ev[] = {
 	PM_DTLB_MISS_16G,
 	PM_DERAT_MISS_2M,
 	PM_DTLB_MISS_2M,
@@ -131,11 +133,11 @@ int p9_dd22_bl_ev[] = {
 
 /* Table of alternatives, sorted by column 0 */
 static const unsigned int power9_event_alternatives[][MAX_ALT] = {
-	{ PM_INST_DISP,			PM_INST_DISP_ALT },
-	{ PM_RUN_CYC_ALT,		PM_RUN_CYC },
-	{ PM_RUN_INST_CMPL_ALT,		PM_RUN_INST_CMPL },
-	{ PM_LD_MISS_L1,		PM_LD_MISS_L1_ALT },
 	{ PM_BR_2PATH,			PM_BR_2PATH_ALT },
+	{ PM_INST_DISP,			PM_INST_DISP_ALT },
+	{ PM_RUN_CYC_ALT,               PM_RUN_CYC },
+	{ PM_LD_MISS_L1,                PM_LD_MISS_L1_ALT },
+	{ PM_RUN_INST_CMPL_ALT,         PM_RUN_INST_CMPL },
 };
 
 static int power9_get_alternatives(u64 event, unsigned int flags, u64 alt[])
@@ -147,6 +149,18 @@ static int power9_get_alternatives(u64 event, unsigned int flags, u64 alt[])
 					  power9_event_alternatives);
 
 	return num_alt;
+}
+
+static int power9_check_attr_config(struct perf_event *ev)
+{
+	u64 val;
+	u64 event = ev->attr.config;
+
+	val = (event >> EVENT_SAMPLE_SHIFT) & EVENT_SAMPLE_MASK;
+	if (val == 0xC || isa3XX_check_attr_config(ev))
+		return -EINVAL;
+
+	return 0;
 }
 
 GENERIC_EVENT_ATTR(cpu-cycles,			PM_CYC);
@@ -203,7 +217,7 @@ static struct attribute *power9_events_attr[] = {
 	NULL
 };
 
-static struct attribute_group power9_pmu_events_group = {
+static const struct attribute_group power9_pmu_events_group = {
 	.name = "events",
 	.attrs = power9_events_attr,
 };
@@ -239,14 +253,24 @@ static struct attribute *power9_pmu_format_attr[] = {
 	NULL,
 };
 
-static struct attribute_group power9_pmu_format_group = {
+static const struct attribute_group power9_pmu_format_group = {
 	.name = "format",
 	.attrs = power9_pmu_format_attr,
+};
+
+static struct attribute *power9_pmu_caps_attrs[] = {
+	NULL
+};
+
+static struct attribute_group power9_pmu_caps_group = {
+	.name  = "caps",
+	.attrs = power9_pmu_caps_attrs,
 };
 
 static const struct attribute_group *power9_pmu_attr_groups[] = {
 	&power9_pmu_format_group,
 	&power9_pmu_events_group,
+	&power9_pmu_caps_group,
 	NULL,
 };
 
@@ -310,7 +334,7 @@ static void power9_config_bhrb(u64 pmu_bhrb_filter)
  * 0 means not supported, -1 means nonsensical, other values
  * are event codes.
  */
-static int power9_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
+static u64 power9_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 	[ C(L1D) ] = {
 		[ C(OP_READ) ] = {
 			[ C(RESULT_ACCESS) ] = PM_LD_REF_L1,
@@ -434,16 +458,16 @@ static struct power_pmu power9_pmu = {
 	.cache_events		= &power9_cache_events,
 	.attr_groups		= power9_pmu_attr_groups,
 	.bhrb_nr		= 32,
+	.capabilities           = PERF_PMU_CAP_EXTENDED_REGS,
+	.check_attr_config	= power9_check_attr_config,
 };
 
-int init_power9_pmu(void)
+int __init init_power9_pmu(void)
 {
 	int rc = 0;
 	unsigned int pvr = mfspr(SPRN_PVR);
 
-	/* Comes from cpu_specs[] */
-	if (!cur_cpu_spec->oprofile_cpu_type ||
-	    strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/power9"))
+	if (PVR_VER(pvr) != PVR_POWER9)
 		return -ENODEV;
 
 	/* Blacklist events */
@@ -456,6 +480,9 @@ int init_power9_pmu(void)
 			power9_pmu.n_blacklist_ev = ARRAY_SIZE(p9_dd22_bl_ev);
 		}
 	}
+
+	/* Set the PERF_REG_EXTENDED_MASK here */
+	PERF_REG_EXTENDED_MASK = PERF_REG_PMU_MASK_300;
 
 	rc = register_power_pmu(&power9_pmu);
 	if (rc)

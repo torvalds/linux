@@ -28,10 +28,10 @@ int aoa_alsa_init(char *name, struct module *mod, struct device *dev)
 		return err;
 	aoa_card = alsa_card->private_data;
 	aoa_card->alsa_card = alsa_card;
-	strlcpy(alsa_card->driver, "AppleOnbdAudio", sizeof(alsa_card->driver));
-	strlcpy(alsa_card->shortname, name, sizeof(alsa_card->shortname));
-	strlcpy(alsa_card->longname, name, sizeof(alsa_card->longname));
-	strlcpy(alsa_card->mixername, name, sizeof(alsa_card->mixername));
+	strscpy(alsa_card->driver, "AppleOnbdAudio", sizeof(alsa_card->driver));
+	strscpy(alsa_card->shortname, name, sizeof(alsa_card->shortname));
+	strscpy(alsa_card->longname, name, sizeof(alsa_card->longname));
+	strscpy(alsa_card->mixername, name, sizeof(alsa_card->mixername));
 	err = snd_card_register(aoa_card->alsa_card);
 	if (err < 0) {
 		printk(KERN_ERR "snd-aoa: couldn't register alsa card\n");
@@ -59,7 +59,7 @@ void aoa_alsa_cleanup(void)
 }
 
 int aoa_snd_device_new(enum snd_device_type type,
-		       void * device_data, struct snd_device_ops * ops)
+		       void *device_data, const struct snd_device_ops *ops)
 {
 	struct snd_card *card = aoa_get_card();
 	int err;

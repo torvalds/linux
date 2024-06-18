@@ -7,80 +7,88 @@
 
 #include <linux/ktime.h>
 #include <linux/tracepoint.h>
+#include <sound/jack.h>
 
 #define DAPM_DIRECT "(direct)"
 #define DAPM_ARROW(dir) (((dir) == SND_SOC_DAPM_DIR_OUT) ? "->" : "<-")
+
+TRACE_DEFINE_ENUM(SND_SOC_DAPM_DIR_OUT);
 
 struct snd_soc_jack;
 struct snd_soc_card;
 struct snd_soc_dapm_widget;
 struct snd_soc_dapm_path;
 
-DECLARE_EVENT_CLASS(snd_soc_card,
+DECLARE_EVENT_CLASS(snd_soc_dapm,
 
-	TP_PROTO(struct snd_soc_card *card, int val),
+	TP_PROTO(struct snd_soc_dapm_context *dapm, int val),
 
-	TP_ARGS(card, val),
+	TP_ARGS(dapm, val),
 
 	TP_STRUCT__entry(
-		__string(	name,		card->name	)
-		__field(	int,		val		)
+		__string(	card_name,	dapm->card->name)
+		__string(	comp_name,	dapm->component ? dapm->component->name : "(none)")
+		__field(	int,		val)
 	),
 
 	TP_fast_assign(
-		__assign_str(name, card->name);
+		__assign_str(card_name);
+		__assign_str(comp_name);
 		__entry->val = val;
 	),
 
-	TP_printk("card=%s val=%d", __get_str(name), (int)__entry->val)
+	TP_printk("card=%s component=%s val=%d",
+		  __get_str(card_name), __get_str(comp_name), (int)__entry->val)
 );
 
-DEFINE_EVENT(snd_soc_card, snd_soc_bias_level_start,
+DEFINE_EVENT(snd_soc_dapm, snd_soc_bias_level_start,
 
-	TP_PROTO(struct snd_soc_card *card, int val),
+	TP_PROTO(struct snd_soc_dapm_context *dapm, int val),
 
-	TP_ARGS(card, val)
+	TP_ARGS(dapm, val)
 
 );
 
-DEFINE_EVENT(snd_soc_card, snd_soc_bias_level_done,
+DEFINE_EVENT(snd_soc_dapm, snd_soc_bias_level_done,
 
-	TP_PROTO(struct snd_soc_card *card, int val),
+	TP_PROTO(struct snd_soc_dapm_context *dapm, int val),
 
-	TP_ARGS(card, val)
+	TP_ARGS(dapm, val)
 
 );
 
 DECLARE_EVENT_CLASS(snd_soc_dapm_basic,
 
-	TP_PROTO(struct snd_soc_card *card),
+	TP_PROTO(struct snd_soc_card *card, int event),
 
-	TP_ARGS(card),
+	TP_ARGS(card, event),
 
 	TP_STRUCT__entry(
 		__string(	name,	card->name	)
+		__field(	int,	event		)
 	),
 
 	TP_fast_assign(
-		__assign_str(name, card->name);
+		__assign_str(name);
+		__entry->event = event;
 	),
 
-	TP_printk("card=%s", __get_str(name))
+	TP_printk("card=%s event=%d", __get_str(name), (int)__entry->event)
 );
 
 DEFINE_EVENT(snd_soc_dapm_basic, snd_soc_dapm_start,
 
-	TP_PROTO(struct snd_soc_card *card),
+	TP_PROTO(struct snd_soc_card *card, int event),
 
-	TP_ARGS(card)
+	TP_ARGS(card, event)
 
 );
 
 DEFINE_EVENT(snd_soc_dapm_basic, snd_soc_dapm_done,
 
-	TP_PROTO(struct snd_soc_card *card),
+	TP_PROTO(struct snd_soc_card *card, int event),
 
-	TP_ARGS(card)
+	TP_ARGS(card, event)
 
 );
 
@@ -96,7 +104,7 @@ DECLARE_EVENT_CLASS(snd_soc_dapm_widget,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, w->name);
+		__assign_str(name);
 		__entry->val = val;
 	),
 
@@ -142,7 +150,7 @@ TRACE_EVENT(snd_soc_dapm_walk_done,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, card->name);
+		__assign_str(name);
 		__entry->power_checks = card->dapm_stats.power_checks;
 		__entry->path_checks = card->dapm_stats.path_checks;
 		__entry->neighbour_checks = card->dapm_stats.neighbour_checks;
@@ -171,9 +179,9 @@ TRACE_EVENT(snd_soc_dapm_path,
 	),
 
 	TP_fast_assign(
-		__assign_str(wname, widget->name);
-		__assign_str(pname, path->name ? path->name : DAPM_DIRECT);
-		__assign_str(pnname, path->node[dir]->name);
+		__assign_str(wname);
+		__assign_str(pname);
+		__assign_str(pnname);
 		__entry->path_connect = path->connect;
 		__entry->path_node = (long)path->node[dir];
 		__entry->path_dir = dir;
@@ -218,7 +226,7 @@ TRACE_EVENT(snd_soc_jack_irq,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, name);
+		__assign_str(name);
 	),
 
 	TP_printk("%s", __get_str(name))
@@ -237,7 +245,7 @@ TRACE_EVENT(snd_soc_jack_report,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, jack->jack->id);
+		__assign_str(name);
 		__entry->mask = mask;
 		__entry->val = val;
 	),
@@ -258,7 +266,7 @@ TRACE_EVENT(snd_soc_jack_notify,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, jack->jack->id);
+		__assign_str(name);
 		__entry->val = val;
 	),
 

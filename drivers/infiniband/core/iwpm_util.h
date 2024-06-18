@@ -33,7 +33,6 @@
 #ifndef _IWPM_UTIL_H
 #define _IWPM_UTIL_H
 
-#include <linux/module.h>
 #include <linux/io.h>
 #include <linux/in.h>
 #include <linux/in6.h>
@@ -90,9 +89,7 @@ struct iwpm_remote_info {
 };
 
 struct iwpm_admin_data {
-	atomic_t refcount;
 	atomic_t nlmsg_seq;
-	int      client_list[RDMA_NL_NUM_CLIENTS];
 	u32      reg_list[RDMA_NL_NUM_CLIENTS];
 };
 
@@ -141,27 +138,11 @@ int iwpm_wait_complete_req(struct iwpm_nlmsg_request *nlmsg_request);
 int iwpm_get_nlmsg_seq(void);
 
 /**
- * iwpm_add_reminfo - Add remote address info of the connecting peer
+ * iwpm_add_remote_info - Add remote address info of the connecting peer
  *                    to the remote info hash table
  * @reminfo: The remote info to be added
  */
 void iwpm_add_remote_info(struct iwpm_remote_info *reminfo);
-
-/**
- * iwpm_valid_client - Check if the port mapper client is valid
- * @nl_client: The index of the netlink client
- *
- * Valid clients need to call iwpm_init() before using
- * the port mapper
- */
-int iwpm_valid_client(u8 nl_client);
-
-/**
- * iwpm_set_valid - Set the port mapper client to valid or not
- * @nl_client: The index of the netlink client
- * @valid: 1 if valid or 0 if invalid
- */
-void iwpm_set_valid(u8 nl_client, int valid);
 
 /**
  * iwpm_check_registration - Check if the client registration
@@ -183,7 +164,7 @@ u32 iwpm_check_registration(u8 nl_client, u32 reg);
 void iwpm_set_registration(u8 nl_client, u32 reg);
 
 /**
- * iwpm_get_registration
+ * iwpm_get_registration - Get the client registration
  * @nl_client: The index of the netlink client
  *
  * Returns the client registration type
@@ -210,8 +191,10 @@ int iwpm_mapinfo_available(void);
 
 /**
  * iwpm_compare_sockaddr - Compare two sockaddr storage structs
+ * @a_sockaddr: first sockaddr to compare
+ * @b_sockaddr: second sockaddr to compare
  *
- * Returns 0 if they are holding the same ip/tcp address info,
+ * Return: 0 if they are holding the same ip/tcp address info,
  * otherwise returns 1
  */
 int iwpm_compare_sockaddr(struct sockaddr_storage *a_sockaddr,
@@ -272,6 +255,7 @@ void iwpm_print_sockaddr(struct sockaddr_storage *sockaddr, char *msg);
  * iwpm_send_hello - Send hello response to iwpmd
  *
  * @nl_client: The index of the netlink client
+ * @iwpm_pid: The pid of the user space port mapper
  * @abi_version: The kernel's abi_version
  *
  * Returns 0 on success or a negative error code

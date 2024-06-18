@@ -36,8 +36,20 @@ void br_set_state(struct net_bridge_port *p, unsigned int state)
 	};
 	int err;
 
+	/* Don't change the state of the ports if they are driven by a different
+	 * protocol.
+	 */
+	if (p->flags & BR_MRP_AWARE)
+		return;
+
 	p->state = state;
-	err = switchdev_port_attr_set(p->dev, &attr);
+	if (br_opt_get(p->br, BROPT_MST_ENABLED)) {
+		err = br_mst_set_state(p, 0, state, NULL);
+		if (err)
+			br_warn(p->br, "error setting MST state on port %u(%s)\n",
+				p->port_no, netdev_name(p->dev));
+	}
+	err = switchdev_port_attr_set(p->dev, &attr, NULL);
 	if (err && err != -EOPNOTSUPP)
 		br_warn(p->br, "error setting offload STP state on port %u(%s)\n",
 				(unsigned int) p->port_no, p->dev->name);
@@ -45,14 +57,40 @@ void br_set_state(struct net_bridge_port *p, unsigned int state)
 		br_info(p->br, "port %u(%s) entered %s state\n",
 				(unsigned int) p->port_no, p->dev->name,
 				br_port_state_names[p->state]);
+
+	if (p->br->stp_enabled == BR_KERNEL_STP) {
+		switch (p->state) {
+		case BR_STATE_BLOCKING:
+			p->stp_xstats.transition_blk++;
+			break;
+		case BR_STATE_FORWARDING:
+			p->stp_xstats.transition_fwd++;
+			break;
+		}
+	}
 }
+
+u8 br_port_get_stp_state(const struct net_device *dev)
+{
+	struct net_bridge_port *p;
+
+	ASSERT_RTNL();
+
+	p = br_port_get_rtnl(dev);
+	if (!p)
+		return BR_STATE_DISABLED;
+
+	return p->state;
+}
+EXPORT_SYMBOL_GPL(br_port_get_stp_state);
 
 /* called under bridge lock */
 struct net_bridge_port *br_get_port(struct net_bridge *br, u16 port_no)
 {
 	struct net_bridge_port *p;
 
-	list_for_each_entry_rcu(p, &br->port_list, list) {
+	list_for_each_entry_rcu(p, &br->port_list, list,
+				lockdep_is_held(&br->lock)) {
 		if (p->port_no == port_no)
 			return p;
 	}
@@ -484,6 +522,8 @@ void br_received_config_bpdu(struct net_bridge_port *p,
 	struct net_bridge *br;
 	int was_root;
 
+	p->stp_xstats.rx_bpdu++;
+
 	br = p->br;
 	was_root = br_is_root_bridge(br);
 
@@ -517,6 +557,8 @@ void br_received_config_bpdu(struct net_bridge_port *p,
 /* called under bridge lock */
 void br_received_tcn_bpdu(struct net_bridge_port *p)
 {
+	p->stp_xstats.rx_tcn++;
+
 	if (br_is_designated_port(p)) {
 		br_info(p->br, "port %u(%s) received tcn bpdu\n",
 			(unsigned int) p->port_no, p->dev->name);
@@ -569,7 +611,7 @@ int __set_ageing_time(struct net_device *dev, unsigned long t)
 	};
 	int err;
 
-	err = switchdev_port_attr_set(dev, &attr);
+	err = switchdev_port_attr_set(dev, &attr, NULL);
 	if (err && err != -EOPNOTSUPP)
 		return err;
 
@@ -579,8 +621,8 @@ int __set_ageing_time(struct net_device *dev, unsigned long t)
 /* Set time interval that dynamic forwarding entries live
  * For pure software bridge, allow values outside the 802.1
  * standard specification for special cases:
- *  0 - entry never ages (all permanant)
- *  1 - entry disappears (no persistance)
+ *  0 - entry never ages (all permanent)
+ *  1 - entry disappears (no persistence)
  *
  * Offloaded switch entries maybe more restrictive
  */
@@ -602,6 +644,19 @@ int br_set_ageing_time(struct net_bridge *br, clock_t ageing_time)
 
 	return 0;
 }
+
+clock_t br_get_ageing_time(const struct net_device *br_dev)
+{
+	const struct net_bridge *br;
+
+	if (!netif_is_bridge_master(br_dev))
+		return 0;
+
+	br = netdev_priv(br_dev);
+
+	return jiffies_to_clock_t(br->ageing_time);
+}
+EXPORT_SYMBOL_GPL(br_get_ageing_time);
 
 /* called under bridge lock */
 void __br_set_topology_change(struct net_bridge *br, unsigned char val)

@@ -9,17 +9,17 @@
  * Copyright (C) 2011 Texas Instruments
  */
 
-#include <linux/amba/clcd-regs.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
-#include <linux/version.h>
 #include <linux/dma-buf.h>
+#include <linux/media-bus-format.h>
 #include <linux/of_graph.h>
 
-#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
-#include <drm/drm_gem_cma_helper.h>
-#include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_framebuffer.h>
+#include <drm/drm_gem_atomic_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_vblank.h>
 
 #include "pl111_drm.h"
@@ -48,12 +48,12 @@ irqreturn_t pl111_irq(int irq, void *data)
 }
 
 static enum drm_mode_status
-pl111_mode_valid(struct drm_crtc *crtc,
+pl111_mode_valid(struct drm_simple_display_pipe *pipe,
 		 const struct drm_display_mode *mode)
 {
-	struct drm_device *drm = crtc->dev;
+	struct drm_device *drm = pipe->crtc.dev;
 	struct pl111_drm_dev_private *priv = drm->dev_private;
-	u32 cpp = priv->variant->fb_bpp / 8;
+	u32 cpp = DIV_ROUND_UP(priv->variant->fb_depth, 8);
 	u64 bw;
 
 	/*
@@ -94,7 +94,7 @@ static int pl111_display_check(struct drm_simple_display_pipe *pipe,
 		return -EINVAL;
 
 	if (fb) {
-		u32 offset = drm_fb_cma_get_gem_addr(fb, pstate, 0);
+		u32 offset = drm_fb_dma_get_gem_addr(fb, pstate, 0);
 
 		/* FB base address must be dword aligned. */
 		if (offset & 3)
@@ -250,7 +250,7 @@ static void pl111_display_enable(struct drm_simple_display_pipe *pipe,
 		cntl |= CNTL_ST_CDWID_24;
 
 	/*
-	 * Note that the the ARM hardware's format reader takes 'r' from
+	 * Note that the ARM hardware's format reader takes 'r' from
 	 * the low bit, while DRM formats list channels from high bit
 	 * to low bit as you read left to right. The ST Micro version of
 	 * the PL110 (LCDC) however uses the standard DRM format.
@@ -354,7 +354,7 @@ static void pl111_display_enable(struct drm_simple_display_pipe *pipe,
 		drm_crtc_vblank_on(crtc);
 }
 
-void pl111_display_disable(struct drm_simple_display_pipe *pipe)
+static void pl111_display_disable(struct drm_simple_display_pipe *pipe)
 {
 	struct drm_crtc *crtc = &pipe->crtc;
 	struct drm_device *drm = crtc->dev;
@@ -398,7 +398,7 @@ static void pl111_display_update(struct drm_simple_display_pipe *pipe,
 	struct drm_framebuffer *fb = pstate->fb;
 
 	if (fb) {
-		u32 addr = drm_fb_cma_get_gem_addr(fb, pstate, 0);
+		u32 addr = drm_fb_dma_get_gem_addr(fb, pstate, 0);
 
 		writel(addr, priv->regs + CLCD_UBAS);
 	}
@@ -441,7 +441,6 @@ static struct drm_simple_display_pipe_funcs pl111_display_funcs = {
 	.enable = pl111_display_enable,
 	.disable = pl111_display_disable,
 	.update = pl111_display_update,
-	.prepare_fb = drm_gem_fb_simple_display_pipe_prepare_fb,
 };
 
 static int pl111_clk_div_choose_div(struct clk_hw *hw, unsigned long rate,

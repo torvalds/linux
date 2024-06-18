@@ -18,7 +18,6 @@
 struct sh73a0_cpg {
 	struct clk_onecell_data data;
 	spinlock_t lock;
-	void __iomem *reg;
 };
 
 #define CPG_FRQCRA	0x00
@@ -34,8 +33,6 @@ struct sh73a0_cpg {
 #define CPG_CKSCR	0xc0
 #define CPG_DSI0PHYCR	0x6c
 #define CPG_DSI1PHYCR	0x70
-
-#define CLK_ENABLE_ON_INIT BIT(0)
 
 struct div4_clk {
 	const char *name;
@@ -73,7 +70,7 @@ static const struct clk_div_table z_div_table[] = {
 
 static struct clk * __init
 sh73a0_cpg_register_clock(struct device_node *np, struct sh73a0_cpg *cpg,
-			     const char *name)
+			  void __iomem *base, const char *name)
 {
 	const struct clk_div_table *table = NULL;
 	unsigned int shift, reg, width;
@@ -83,12 +80,12 @@ sh73a0_cpg_register_clock(struct device_node *np, struct sh73a0_cpg *cpg,
 
 	if (!strcmp(name, "main")) {
 		/* extal1, extal1_div2, extal2, extal2_div2 */
-		u32 parent_idx = (readl(cpg->reg + CPG_CKSCR) >> 28) & 3;
+		u32 parent_idx = (readl(base + CPG_CKSCR) >> 28) & 3;
 
 		parent_name = of_clk_get_parent_name(np, parent_idx >> 1);
 		div = (parent_idx & 1) + 1;
 	} else if (!strncmp(name, "pll", 3)) {
-		void __iomem *enable_reg = cpg->reg;
+		void __iomem *enable_reg = base;
 		u32 enable_bit = name[3] - '0';
 
 		parent_name = "main";
@@ -108,7 +105,7 @@ sh73a0_cpg_register_clock(struct device_node *np, struct sh73a0_cpg *cpg,
 		default:
 			return ERR_PTR(-EINVAL);
 		}
-		if (readl(cpg->reg + CPG_PLLECR) & BIT(enable_bit)) {
+		if (readl(base + CPG_PLLECR) & BIT(enable_bit)) {
 			mult = ((readl(enable_reg) >> 24) & 0x3f) + 1;
 			/* handle CFG bit for PLL1 and PLL2 */
 			if (enable_bit == 1 || enable_bit == 2)
@@ -117,11 +114,11 @@ sh73a0_cpg_register_clock(struct device_node *np, struct sh73a0_cpg *cpg,
 		}
 	} else if (!strcmp(name, "dsi0phy") || !strcmp(name, "dsi1phy")) {
 		u32 phy_no = name[3] - '0';
-		void __iomem *dsi_reg = cpg->reg +
+		void __iomem *dsi_reg = base +
 			(phy_no ? CPG_DSI1PHYCR : CPG_DSI0PHYCR);
 
 		parent_name = phy_no ? "dsi1pck" : "dsi0pck";
-		mult = __raw_readl(dsi_reg);
+		mult = readl(dsi_reg);
 		if (!(mult & 0x8000))
 			mult = 1;
 		else
@@ -154,7 +151,7 @@ sh73a0_cpg_register_clock(struct device_node *np, struct sh73a0_cpg *cpg,
 						 mult, div);
 	} else {
 		return clk_register_divider_table(NULL, name, parent_name, 0,
-						  cpg->reg + reg, shift, width, 0,
+						  base + reg, shift, width, 0,
 						  table, &cpg->lock);
 	}
 }
@@ -162,6 +159,7 @@ sh73a0_cpg_register_clock(struct device_node *np, struct sh73a0_cpg *cpg,
 static void __init sh73a0_cpg_clocks_init(struct device_node *np)
 {
 	struct sh73a0_cpg *cpg;
+	void __iomem *base;
 	struct clk **clks;
 	unsigned int i;
 	int num_clks;
@@ -186,14 +184,14 @@ static void __init sh73a0_cpg_clocks_init(struct device_node *np)
 	cpg->data.clks = clks;
 	cpg->data.clk_num = num_clks;
 
-	cpg->reg = of_iomap(np, 0);
-	if (WARN_ON(cpg->reg == NULL))
+	base = of_iomap(np, 0);
+	if (WARN_ON(base == NULL))
 		return;
 
 	/* Set SDHI clocks to a known state */
-	writel(0x108, cpg->reg + CPG_SD0CKCR);
-	writel(0x108, cpg->reg + CPG_SD1CKCR);
-	writel(0x108, cpg->reg + CPG_SD2CKCR);
+	writel(0x108, base + CPG_SD0CKCR);
+	writel(0x108, base + CPG_SD1CKCR);
+	writel(0x108, base + CPG_SD2CKCR);
 
 	for (i = 0; i < num_clks; ++i) {
 		const char *name;
@@ -202,7 +200,7 @@ static void __init sh73a0_cpg_clocks_init(struct device_node *np)
 		of_property_read_string_index(np, "clock-output-names", i,
 					      &name);
 
-		clk = sh73a0_cpg_register_clock(np, cpg, name);
+		clk = sh73a0_cpg_register_clock(np, cpg, base, name);
 		if (IS_ERR(clk))
 			pr_err("%s: failed to register %pOFn %s clock (%ld)\n",
 			       __func__, np, name, PTR_ERR(clk));

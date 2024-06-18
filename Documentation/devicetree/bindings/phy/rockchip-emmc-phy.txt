@@ -16,6 +16,11 @@ Optional properties:
  - drive-impedance-ohm: Specifies the drive impedance in Ohm.
                         Possible values are 33, 40, 50, 66 and 100.
                         If not set, the default value of 50 will be applied.
+ - rockchip,enable-strobe-pulldown: Enable internal pull-down for the strobe
+                                    line.  If not set, pull-down is not used.
+ - rockchip,output-tapdelay-select: Specifies the phyctrl_otapdlysec register.
+                                    If not set, the register defaults to 0x4.
+                                    Maximum value 0xf.
 
 Example:
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2015-2017 Pengutronix, Uwe Kleine-König <kernel@pengutronix.de>
  */
@@ -45,5 +45,9 @@ static inline void siox_master_put(struct siox_master *smaster)
 	put_device(&smaster->dev);
 }
 
+struct siox_master *devm_siox_master_alloc(struct device *dev, size_t size);
+
 int siox_master_register(struct siox_master *smaster);
 void siox_master_unregister(struct siox_master *smaster);
+
+int devm_siox_master_register(struct device *dev, struct siox_master *smaster);

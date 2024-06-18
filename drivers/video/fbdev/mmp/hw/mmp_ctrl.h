@@ -1393,7 +1393,7 @@ struct mmphw_ctrl {
 	/* platform related, get from config */
 	const char *name;
 	int irq;
-	void *reg_base;
+	void __iomem *reg_base;
 	struct clk *clk;
 
 	/* sys info */
@@ -1406,7 +1406,7 @@ struct mmphw_ctrl {
 
 	/*pathes*/
 	int path_num;
-	struct mmphw_path_plat path_plats[0];
+	struct mmphw_path_plat path_plats[] __counted_by(path_num);
 };
 
 static inline int overlay_is_vid(struct mmp_overlay *overlay)
@@ -1429,7 +1429,7 @@ static inline struct mmphw_ctrl *overlay_to_ctrl(struct mmp_overlay *overlay)
 	return path_to_ctrl(overlay->path);
 }
 
-static inline void *ctrl_regs(struct mmp_path *path)
+static inline void __iomem *ctrl_regs(struct mmp_path *path)
 {
 	return path_to_ctrl(path)->reg_base;
 }
@@ -1438,11 +1438,11 @@ static inline void *ctrl_regs(struct mmp_path *path)
 static inline struct lcd_regs *path_regs(struct mmp_path *path)
 {
 	if (path->id == PATH_PN)
-		return (struct lcd_regs *)(ctrl_regs(path) + 0xc0);
+		return (struct lcd_regs __force *)(ctrl_regs(path) + 0xc0);
 	else if (path->id == PATH_TV)
-		return (struct lcd_regs *)ctrl_regs(path);
+		return (struct lcd_regs __force  *)ctrl_regs(path);
 	else if (path->id == PATH_P2)
-		return (struct lcd_regs *)(ctrl_regs(path) + 0x200);
+		return (struct lcd_regs __force *)(ctrl_regs(path) + 0x200);
 	else {
 		dev_err(path->dev, "path id %d invalid\n", path->id);
 		BUG_ON(1);

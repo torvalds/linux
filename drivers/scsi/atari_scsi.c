@@ -376,15 +376,11 @@ static int falcon_get_lock(struct Scsi_Host *instance)
 	if (IS_A_TT())
 		return 1;
 
-	if (stdma_is_locked_by(scsi_falcon_intr) &&
-	    instance->hostt->can_queue > 1)
+	if (stdma_is_locked_by(scsi_falcon_intr))
 		return 1;
 
-	if (in_interrupt())
-		return stdma_try_lock(scsi_falcon_intr, instance);
-
-	stdma_lock(scsi_falcon_intr, instance);
-	return 1;
+	/* stdma_lock() may sleep which means it can't be used here */
+	return stdma_try_lock(scsi_falcon_intr, instance);
 }
 
 #ifndef MODULE
@@ -542,7 +538,7 @@ static int falcon_classify_cmd(struct scsi_cmnd *cmd)
 static int atari_scsi_dma_xfer_len(struct NCR5380_hostdata *hostdata,
                                    struct scsi_cmnd *cmd)
 {
-	int wanted_len = cmd->SCp.this_residual;
+	int wanted_len = NCR5380_to_ncmd(cmd)->this_residual;
 	int possible_len, limit;
 
 	if (wanted_len < DMA_MIN_SIZE)
@@ -614,7 +610,7 @@ static int atari_scsi_dma_xfer_len(struct NCR5380_hostdata *hostdata,
 	}
 
 	/* Last step: apply the hard limit on DMA transfers */
-	limit = (atari_dma_buffer && !STRAM_ADDR(virt_to_phys(cmd->SCp.ptr))) ?
+	limit = (atari_dma_buffer && !STRAM_ADDR(virt_to_phys(NCR5380_to_ncmd(cmd)->ptr))) ?
 		    STRAM_BUFFER_SIZE : 255*512;
 	if (possible_len > limit)
 		possible_len = limit;
@@ -715,7 +711,7 @@ static struct scsi_host_template atari_scsi_template = {
 	.this_id		= 7,
 	.cmd_per_lun		= 2,
 	.dma_boundary		= PAGE_SIZE - 1,
-	.cmd_size		= NCR5380_CMD_SIZE,
+	.cmd_size		= sizeof(struct NCR5380_cmd),
 };
 
 static int __init atari_scsi_probe(struct platform_device *pdev)
@@ -742,7 +738,7 @@ static int __init atari_scsi_probe(struct platform_device *pdev)
 		atari_scsi_template.sg_tablesize = SG_ALL;
 	} else {
 		atari_scsi_template.can_queue    = 1;
-		atari_scsi_template.sg_tablesize = SG_NONE;
+		atari_scsi_template.sg_tablesize = 1;
 	}
 
 	if (setup_can_queue > 0)
@@ -751,8 +747,8 @@ static int __init atari_scsi_probe(struct platform_device *pdev)
 	if (setup_cmd_per_lun > 0)
 		atari_scsi_template.cmd_per_lun = setup_cmd_per_lun;
 
-	/* Leave sg_tablesize at 0 on a Falcon! */
-	if (ATARIHW_PRESENT(TT_SCSI) && setup_sg_tablesize >= 0)
+	/* Don't increase sg_tablesize on Falcon! */
+	if (ATARIHW_PRESENT(TT_SCSI) && setup_sg_tablesize > 0)
 		atari_scsi_template.sg_tablesize = setup_sg_tablesize;
 
 	if (setup_hostid >= 0) {
@@ -869,7 +865,7 @@ fail_alloc:
 	return error;
 }
 
-static int __exit atari_scsi_remove(struct platform_device *pdev)
+static void __exit atari_scsi_remove(struct platform_device *pdev)
 {
 	struct Scsi_Host *instance = platform_get_drvdata(pdev);
 
@@ -880,11 +876,16 @@ static int __exit atari_scsi_remove(struct platform_device *pdev)
 	scsi_host_put(instance);
 	if (atari_dma_buffer)
 		atari_stram_free(atari_dma_buffer);
-	return 0;
 }
 
-static struct platform_driver atari_scsi_driver = {
-	.remove = __exit_p(atari_scsi_remove),
+/*
+ * atari_scsi_remove() lives in .exit.text. For drivers registered via
+ * module_platform_driver_probe() this is ok because they cannot get unbound at
+ * runtime. So mark the driver struct with __refdata to prevent modpost
+ * triggering a section mismatch warning.
+ */
+static struct platform_driver atari_scsi_driver __refdata = {
+	.remove_new = __exit_p(atari_scsi_remove),
 	.driver = {
 		.name	= DRV_MODULE_NAME,
 	},

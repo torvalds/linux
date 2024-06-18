@@ -9,7 +9,7 @@
  */
 
 #include <linux/acpi.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/property.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
+#include <linux/pm_runtime.h>
 #include <sound/soc.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
@@ -54,6 +55,7 @@ static const DECLARE_TLV_DB_SCALE(hp_vol_tlv, -5700, 100, 0);
 static const DECLARE_TLV_DB_SCALE(lineout_vol_tlv, -4800, 100, 0);
 static const DECLARE_TLV_DB_SCALE(alc_threshold_tlv, -9450, 150, 0);
 static const DECLARE_TLV_DB_SCALE(alc_gain_tlv, 0, 600, 0);
+static const DECLARE_TLV_DB_SCALE(da7213_tonegen_gain_tlv, -4500, 300, 0);
 
 /* ADC and DAC voice mode (8kHz) high pass cutoff value */
 static const char * const da7213_voice_hpf_corner_txt[] = {
@@ -84,6 +86,23 @@ static SOC_ENUM_SINGLE_DECL(da7213_adc_audio_hpf_corner,
 			    DA7213_ADC_FILTERS1,
 			    DA7213_AUDIO_HPF_CORNER_SHIFT,
 			    da7213_audio_hpf_corner_txt);
+
+static const char * const da7213_tonegen_dtmf_key_txt[] = {
+	"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D",
+	"*", "#"
+};
+
+static const struct soc_enum da7213_tonegen_dtmf_key =
+	SOC_ENUM_SINGLE(DA7213_TONE_GEN_CFG1, DA7213_DTMF_REG_SHIFT,
+			DA7213_DTMF_REG_MAX, da7213_tonegen_dtmf_key_txt);
+
+static const char * const da7213_tonegen_swg_sel_txt[] = {
+	"Sum", "SWG1", "SWG2", "Sum"
+};
+
+static const struct soc_enum da7213_tonegen_swg_sel =
+	SOC_ENUM_SINGLE(DA7213_TONE_GEN_CFG2, DA7213_SWG_SEL_SHIFT,
+			DA7213_SWG_SEL_MAX, da7213_tonegen_swg_sel_txt);
 
 /* Gain ramping rate value */
 static const char * const da7213_gain_ramp_rate_txt[] = {
@@ -190,6 +209,64 @@ static SOC_ENUM_SINGLE_DECL(da7213_alc_integ_release_rate,
  * Control Functions
  */
 
+/* Locked Kcontrol calls */
+static int da7213_volsw_locked_get(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct da7213_priv *da7213 = snd_soc_component_get_drvdata(component);
+	int ret;
+
+	mutex_lock(&da7213->ctrl_lock);
+	ret = snd_soc_get_volsw(kcontrol, ucontrol);
+	mutex_unlock(&da7213->ctrl_lock);
+
+	return ret;
+}
+
+static int da7213_volsw_locked_put(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct da7213_priv *da7213 = snd_soc_component_get_drvdata(component);
+	int ret;
+
+	mutex_lock(&da7213->ctrl_lock);
+	ret = snd_soc_put_volsw(kcontrol, ucontrol);
+	mutex_unlock(&da7213->ctrl_lock);
+
+	return ret;
+}
+
+static int da7213_enum_locked_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct da7213_priv *da7213 = snd_soc_component_get_drvdata(component);
+	int ret;
+
+	mutex_lock(&da7213->ctrl_lock);
+	ret = snd_soc_get_enum_double(kcontrol, ucontrol);
+	mutex_unlock(&da7213->ctrl_lock);
+
+	return ret;
+}
+
+static int da7213_enum_locked_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct da7213_priv *da7213 = snd_soc_component_get_drvdata(component);
+	int ret;
+
+	mutex_lock(&da7213->ctrl_lock);
+	ret = snd_soc_put_enum_double(kcontrol, ucontrol);
+	mutex_unlock(&da7213->ctrl_lock);
+
+	return ret;
+}
+
+/* ALC */
 static int da7213_get_alc_data(struct snd_soc_component *component, u8 reg_val)
 {
 	int mid_data, top_data;
@@ -204,12 +281,12 @@ static int da7213_get_alc_data(struct snd_soc_component *component, u8 reg_val)
 		/* Select middle 8 bits for read back from data register */
 		snd_soc_component_write(component, DA7213_ALC_CIC_OP_LVL_CTRL,
 			      reg_val | DA7213_ALC_DATA_MIDDLE);
-		mid_data = snd_soc_component_read32(component, DA7213_ALC_CIC_OP_LVL_DATA);
+		mid_data = snd_soc_component_read(component, DA7213_ALC_CIC_OP_LVL_DATA);
 
 		/* Select top 8 bits for read back from data register */
 		snd_soc_component_write(component, DA7213_ALC_CIC_OP_LVL_CTRL,
 			      reg_val | DA7213_ALC_DATA_TOP);
-		top_data = snd_soc_component_read32(component, DA7213_ALC_CIC_OP_LVL_DATA);
+		top_data = snd_soc_component_read(component, DA7213_ALC_CIC_OP_LVL_DATA);
 
 		sum += ((mid_data << 8) | (top_data << 16));
 	}
@@ -258,7 +335,7 @@ static void da7213_alc_calib_auto(struct snd_soc_component *component)
 	snd_soc_component_update_bits(component, DA7213_ALC_CTRL1, DA7213_ALC_AUTO_CALIB_EN,
 			    DA7213_ALC_AUTO_CALIB_EN);
 	do {
-		alc_ctrl1 = snd_soc_component_read32(component, DA7213_ALC_CTRL1);
+		alc_ctrl1 = snd_soc_component_read(component, DA7213_ALC_CTRL1);
 	} while (alc_ctrl1 & DA7213_ALC_AUTO_CALIB_EN);
 
 	/* If auto calibration fails, fall back to digital gain only mode */
@@ -285,16 +362,16 @@ static void da7213_alc_calib(struct snd_soc_component *component)
 	u8 mic_1_ctrl, mic_2_ctrl;
 
 	/* Save current values from ADC control registers */
-	adc_l_ctrl = snd_soc_component_read32(component, DA7213_ADC_L_CTRL);
-	adc_r_ctrl = snd_soc_component_read32(component, DA7213_ADC_R_CTRL);
+	adc_l_ctrl = snd_soc_component_read(component, DA7213_ADC_L_CTRL);
+	adc_r_ctrl = snd_soc_component_read(component, DA7213_ADC_R_CTRL);
 
 	/* Save current values from MIXIN_L/R_SELECT registers */
-	mixin_l_sel = snd_soc_component_read32(component, DA7213_MIXIN_L_SELECT);
-	mixin_r_sel = snd_soc_component_read32(component, DA7213_MIXIN_R_SELECT);
+	mixin_l_sel = snd_soc_component_read(component, DA7213_MIXIN_L_SELECT);
+	mixin_r_sel = snd_soc_component_read(component, DA7213_MIXIN_R_SELECT);
 
 	/* Save current values from MIC control registers */
-	mic_1_ctrl = snd_soc_component_read32(component, DA7213_MIC_1_CTRL);
-	mic_2_ctrl = snd_soc_component_read32(component, DA7213_MIC_2_CTRL);
+	mic_1_ctrl = snd_soc_component_read(component, DA7213_MIC_1_CTRL);
+	mic_2_ctrl = snd_soc_component_read(component, DA7213_MIC_2_CTRL);
 
 	/* Enable ADC Left and Right */
 	snd_soc_component_update_bits(component, DA7213_ADC_L_CTRL, DA7213_ADC_EN,
@@ -375,6 +452,64 @@ static int da7213_put_alc_sw(struct snd_kcontrol *kcontrol,
 	return snd_soc_put_volsw(kcontrol, ucontrol);
 }
 
+/* ToneGen */
+static int da7213_tonegen_freq_get(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct da7213_priv *da7213 = snd_soc_component_get_drvdata(component);
+	struct soc_mixer_control *mixer_ctrl =
+		(struct soc_mixer_control *) kcontrol->private_value;
+	unsigned int reg = mixer_ctrl->reg;
+	__le16 val;
+	int ret;
+
+	mutex_lock(&da7213->ctrl_lock);
+	ret = regmap_raw_read(da7213->regmap, reg, &val, sizeof(val));
+	mutex_unlock(&da7213->ctrl_lock);
+
+	if (ret)
+		return ret;
+
+	/*
+	 * Frequency value spans two 8-bit registers, lower then upper byte.
+	 * Therefore we need to convert to host endianness here.
+	 */
+	ucontrol->value.integer.value[0] = le16_to_cpu(val);
+
+	return 0;
+}
+
+static int da7213_tonegen_freq_put(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct da7213_priv *da7213 = snd_soc_component_get_drvdata(component);
+	struct soc_mixer_control *mixer_ctrl =
+		(struct soc_mixer_control *) kcontrol->private_value;
+	unsigned int reg = mixer_ctrl->reg;
+	__le16 val_new, val_old;
+	int ret;
+
+	/*
+	 * Frequency value spans two 8-bit registers, lower then upper byte.
+	 * Therefore we need to convert to little endian here to align with
+	 * HW registers.
+	 */
+	val_new = cpu_to_le16(ucontrol->value.integer.value[0]);
+
+	mutex_lock(&da7213->ctrl_lock);
+	ret = regmap_raw_read(da7213->regmap, reg, &val_old, sizeof(val_old));
+	if (ret == 0 && (val_old != val_new))
+		ret = regmap_raw_write(da7213->regmap, reg,
+				&val_new, sizeof(val_new));
+	mutex_unlock(&da7213->ctrl_lock);
+
+	if (ret < 0)
+		return ret;
+
+	return val_old != val_new;
+}
 
 /*
  * KControls
@@ -475,6 +610,37 @@ static const struct snd_kcontrol_new da7213_snd_controls[] = {
 		     DA7213_NO_INVERT),
 	SOC_DOUBLE_R("Headphone ZC Switch", DA7213_HP_L_CTRL, DA7213_HP_R_CTRL,
 		     DA7213_ZC_EN_SHIFT, DA7213_ZC_EN_MAX, DA7213_NO_INVERT),
+
+	/* Tone Generator */
+	SOC_SINGLE_EXT_TLV("ToneGen Volume", DA7213_TONE_GEN_CFG2,
+			   DA7213_TONE_GEN_GAIN_SHIFT, DA7213_TONE_GEN_GAIN_MAX,
+			   DA7213_NO_INVERT, da7213_volsw_locked_get,
+			   da7213_volsw_locked_put, da7213_tonegen_gain_tlv),
+	SOC_ENUM_EXT("ToneGen DTMF Key", da7213_tonegen_dtmf_key,
+		     da7213_enum_locked_get, da7213_enum_locked_put),
+	SOC_SINGLE_EXT("ToneGen DTMF Switch", DA7213_TONE_GEN_CFG1,
+		       DA7213_DTMF_EN_SHIFT, DA7213_SWITCH_EN_MAX,
+		       DA7213_NO_INVERT, da7213_volsw_locked_get,
+		       da7213_volsw_locked_put),
+	SOC_SINGLE_EXT("ToneGen Start", DA7213_TONE_GEN_CFG1,
+		       DA7213_START_STOPN_SHIFT, DA7213_SWITCH_EN_MAX,
+		       DA7213_NO_INVERT, da7213_volsw_locked_get,
+		       da7213_volsw_locked_put),
+	SOC_ENUM_EXT("ToneGen Sinewave Gen Type", da7213_tonegen_swg_sel,
+		     da7213_enum_locked_get, da7213_enum_locked_put),
+	SOC_SINGLE_EXT("ToneGen Sinewave1 Freq", DA7213_TONE_GEN_FREQ1_L,
+		       DA7213_FREQ1_L_SHIFT, DA7213_FREQ_MAX, DA7213_NO_INVERT,
+		       da7213_tonegen_freq_get, da7213_tonegen_freq_put),
+	SOC_SINGLE_EXT("ToneGen Sinewave2 Freq", DA7213_TONE_GEN_FREQ2_L,
+		       DA7213_FREQ2_L_SHIFT, DA7213_FREQ_MAX, DA7213_NO_INVERT,
+		       da7213_tonegen_freq_get, da7213_tonegen_freq_put),
+	SOC_SINGLE_EXT("ToneGen On Time", DA7213_TONE_GEN_ON_PER,
+		       DA7213_BEEP_ON_PER_SHIFT, DA7213_BEEP_ON_OFF_MAX,
+		       DA7213_NO_INVERT, da7213_volsw_locked_get,
+		       da7213_volsw_locked_put),
+	SOC_SINGLE("ToneGen Off Time", DA7213_TONE_GEN_OFF_PER,
+		   DA7213_BEEP_OFF_PER_SHIFT, DA7213_BEEP_ON_OFF_MAX,
+		   DA7213_NO_INVERT),
 
 	/* Gain Ramping controls */
 	SOC_DOUBLE_R("Aux Gain Ramping Switch", DA7213_AUX_L_CTRL,
@@ -750,7 +916,7 @@ static int da7213_dai_event(struct snd_soc_dapm_widget *w,
 				    DA7213_PC_FREERUN_MASK, 0);
 
 		/* If SRM not enabled then nothing more to do */
-		pll_ctrl = snd_soc_component_read32(component, DA7213_PLL_CTRL);
+		pll_ctrl = snd_soc_component_read(component, DA7213_PLL_CTRL);
 		if (!(pll_ctrl & DA7213_PLL_SRM_EN))
 			return 0;
 
@@ -763,8 +929,8 @@ static int da7213_dai_event(struct snd_soc_dapm_widget *w,
 
 		/* Check SRM has locked */
 		do {
-			pll_status = snd_soc_component_read32(component, DA7213_PLL_STATUS);
-			if (pll_status & DA7219_PLL_SRM_LOCK) {
+			pll_status = snd_soc_component_read(component, DA7213_PLL_STATUS);
+			if (pll_status & DA7213_PLL_SRM_LOCK) {
 				srm_lock = true;
 			} else {
 				++i;
@@ -778,7 +944,7 @@ static int da7213_dai_event(struct snd_soc_dapm_widget *w,
 		return 0;
 	case SND_SOC_DAPM_POST_PMD:
 		/* Revert 32KHz PLL lock udpates if applied previously */
-		pll_ctrl = snd_soc_component_read32(component, DA7213_PLL_CTRL);
+		pll_ctrl = snd_soc_component_read(component, DA7213_PLL_CTRL);
 		if (pll_ctrl & DA7213_PLL_32K_MODE) {
 			snd_soc_component_write(component, 0xF0, 0x8B);
 			snd_soc_component_write(component, 0xF2, 0x01);
@@ -806,6 +972,11 @@ static int da7213_dai_event(struct snd_soc_dapm_widget *w,
  */
 
 static const struct snd_soc_dapm_widget da7213_dapm_widgets[] = {
+	/*
+	 * Power Supply
+	 */
+	SND_SOC_DAPM_REGULATOR_SUPPLY("VDDMIC", 0, 0),
+
 	/*
 	 * Input & Output
 	 */
@@ -932,6 +1103,9 @@ static const struct snd_soc_dapm_route da7213_audio_map[] = {
 	/* Dest       Connecting Widget    source */
 
 	/* Input path */
+	{"Mic Bias 1", NULL, "VDDMIC"},
+	{"Mic Bias 2", NULL, "VDDMIC"},
+
 	{"MIC1", NULL, "Mic Bias 1"},
 	{"MIC2", NULL, "Mic Bias 2"},
 
@@ -1147,13 +1321,32 @@ static int da7213_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_soc_dai *dai)
 {
 	struct snd_soc_component *component = dai->component;
+	struct da7213_priv *da7213 = snd_soc_component_get_drvdata(component);
+	u8 dai_clk_mode = DA7213_DAI_BCLKS_PER_WCLK_64;
 	u8 dai_ctrl = 0;
 	u8 fs;
+
+	/* Set channels */
+	switch (params_channels(params)) {
+	case 1:
+		if (da7213->fmt != DA7213_DAI_FORMAT_DSP) {
+			dev_err(component->dev, "Mono supported only in DSP mode\n");
+			return -EINVAL;
+		}
+		dai_ctrl |= DA7213_DAI_MONO_MODE_EN;
+		break;
+	case 2:
+		dai_ctrl &= ~(DA7213_DAI_MONO_MODE_EN);
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	/* Set DAI format */
 	switch (params_width(params)) {
 	case 16:
 		dai_ctrl |= DA7213_DAI_WORD_LENGTH_S16_LE;
+		dai_clk_mode = DA7213_DAI_BCLKS_PER_WCLK_32; /* 32bit for 1ch and 2ch */
 		break;
 	case 20:
 		dai_ctrl |= DA7213_DAI_WORD_LENGTH_S20_LE;
@@ -1172,40 +1365,53 @@ static int da7213_hw_params(struct snd_pcm_substream *substream,
 	switch (params_rate(params)) {
 	case 8000:
 		fs = DA7213_SR_8000;
+		da7213->out_rate = DA7213_PLL_FREQ_OUT_98304000;
 		break;
 	case 11025:
 		fs = DA7213_SR_11025;
+		da7213->out_rate = DA7213_PLL_FREQ_OUT_90316800;
 		break;
 	case 12000:
 		fs = DA7213_SR_12000;
+		da7213->out_rate = DA7213_PLL_FREQ_OUT_98304000;
 		break;
 	case 16000:
 		fs = DA7213_SR_16000;
+		da7213->out_rate = DA7213_PLL_FREQ_OUT_98304000;
 		break;
 	case 22050:
 		fs = DA7213_SR_22050;
+		da7213->out_rate = DA7213_PLL_FREQ_OUT_90316800;
 		break;
 	case 32000:
 		fs = DA7213_SR_32000;
+		da7213->out_rate = DA7213_PLL_FREQ_OUT_98304000;
 		break;
 	case 44100:
 		fs = DA7213_SR_44100;
+		da7213->out_rate = DA7213_PLL_FREQ_OUT_90316800;
 		break;
 	case 48000:
 		fs = DA7213_SR_48000;
+		da7213->out_rate = DA7213_PLL_FREQ_OUT_98304000;
 		break;
 	case 88200:
 		fs = DA7213_SR_88200;
+		da7213->out_rate = DA7213_PLL_FREQ_OUT_90316800;
 		break;
 	case 96000:
 		fs = DA7213_SR_96000;
+		da7213->out_rate = DA7213_PLL_FREQ_OUT_98304000;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	snd_soc_component_update_bits(component, DA7213_DAI_CTRL, DA7213_DAI_WORD_LENGTH_MASK,
-			    dai_ctrl);
+	snd_soc_component_update_bits(component, DA7213_DAI_CLK_MODE,
+		DA7213_DAI_BCLKS_PER_WCLK_MASK, dai_clk_mode);
+
+	snd_soc_component_update_bits(component, DA7213_DAI_CTRL,
+		DA7213_DAI_WORD_LENGTH_MASK | DA7213_DAI_MONO_MODE_MASK, dai_ctrl);
 	snd_soc_component_write(component, DA7213_SR, fs);
 
 	return 0;
@@ -1220,10 +1426,10 @@ static int da7213_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 
 	/* Set master/slave mode */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	case SND_SOC_DAIFMT_CBP_CFP:
 		da7213->master = true;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		da7213->master = false;
 		break;
 	default:
@@ -1252,8 +1458,8 @@ static int da7213_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 			return -EINVAL;
 		}
 		break;
-	case SND_SOC_DAI_FORMAT_DSP_A:
-	case SND_SOC_DAI_FORMAT_DSP_B:
+	case SND_SOC_DAIFMT_DSP_A:
+	case SND_SOC_DAIFMT_DSP_B:
 		/* The bclk is inverted wrt ASoC conventions */
 		switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 		case SND_SOC_DAIFMT_NB_NF:
@@ -1280,19 +1486,24 @@ static int da7213_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
 		dai_ctrl |= DA7213_DAI_FORMAT_I2S_MODE;
+		da7213->fmt = DA7213_DAI_FORMAT_I2S_MODE;
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
 		dai_ctrl |= DA7213_DAI_FORMAT_LEFT_J;
+		da7213->fmt = DA7213_DAI_FORMAT_LEFT_J;
 		break;
 	case SND_SOC_DAIFMT_RIGHT_J:
 		dai_ctrl |= DA7213_DAI_FORMAT_RIGHT_J;
+		da7213->fmt = DA7213_DAI_FORMAT_RIGHT_J;
 		break;
-	case SND_SOC_DAI_FORMAT_DSP_A: /* L data MSB after FRM LRC */
+	case SND_SOC_DAIFMT_DSP_A: /* L data MSB after FRM LRC */
 		dai_ctrl |= DA7213_DAI_FORMAT_DSP;
 		dai_offset = 1;
+		da7213->fmt = DA7213_DAI_FORMAT_DSP;
 		break;
-	case SND_SOC_DAI_FORMAT_DSP_B: /* L data MSB during FRM LRC */
+	case SND_SOC_DAIFMT_DSP_B: /* L data MSB during FRM LRC */
 		dai_ctrl |= DA7213_DAI_FORMAT_DSP;
+		da7213->fmt = DA7213_DAI_FORMAT_DSP;
 		break;
 	default:
 		return -EINVAL;
@@ -1312,7 +1523,7 @@ static int da7213_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	return 0;
 }
 
-static int da7213_mute(struct snd_soc_dai *dai, int mute)
+static int da7213_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 
@@ -1334,10 +1545,10 @@ static int da7213_mute(struct snd_soc_dai *dai, int mute)
 #define DA7213_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
-static int da7213_set_dai_sysclk(struct snd_soc_dai *codec_dai,
-				 int clk_id, unsigned int freq, int dir)
+static int da7213_set_component_sysclk(struct snd_soc_component *component,
+				       int clk_id, int source,
+				       unsigned int freq, int dir)
 {
-	struct snd_soc_component *component = codec_dai->component;
 	struct da7213_priv *da7213 = snd_soc_component_get_drvdata(component);
 	int ret = 0;
 
@@ -1345,7 +1556,7 @@ static int da7213_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		return 0;
 
 	if (((freq < 5000000) && (freq != 32768)) || (freq > 54000000)) {
-		dev_err(codec_dai->dev, "Unsupported MCLK value %d\n",
+		dev_err(component->dev, "Unsupported MCLK value %d\n",
 			freq);
 		return -EINVAL;
 	}
@@ -1361,7 +1572,7 @@ static int da7213_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 				    DA7213_PLL_MCLK_SQR_EN);
 		break;
 	default:
-		dev_err(codec_dai->dev, "Unknown clock source %d\n", clk_id);
+		dev_err(component->dev, "Unknown clock source %d\n", clk_id);
 		return -EINVAL;
 	}
 
@@ -1371,7 +1582,7 @@ static int da7213_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		freq = clk_round_rate(da7213->mclk, freq);
 		ret = clk_set_rate(da7213->mclk, freq);
 		if (ret) {
-			dev_err(codec_dai->dev, "Failed to set clock rate %d\n",
+			dev_err(component->dev, "Failed to set clock rate %d\n",
 				freq);
 			return ret;
 		}
@@ -1383,10 +1594,10 @@ static int da7213_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 }
 
 /* Supported PLL input frequencies are 32KHz, 5MHz - 54MHz. */
-static int da7213_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
-			      int source, unsigned int fref, unsigned int fout)
+static int _da7213_set_component_pll(struct snd_soc_component *component,
+				     int pll_id, int source,
+				     unsigned int fref, unsigned int fout)
 {
-	struct snd_soc_component *component = codec_dai->component;
 	struct da7213_priv *da7213 = snd_soc_component_get_drvdata(component);
 
 	u8 pll_ctrl, indiv_bits, indiv;
@@ -1494,13 +1705,40 @@ static int da7213_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 	return 0;
 }
 
+static int da7213_set_component_pll(struct snd_soc_component *component,
+				    int pll_id, int source,
+				    unsigned int fref, unsigned int fout)
+{
+	struct da7213_priv *da7213 = snd_soc_component_get_drvdata(component);
+	da7213->fixed_clk_auto_pll = false;
+
+	return _da7213_set_component_pll(component, pll_id, source, fref, fout);
+}
+
+/*
+ * Select below from Sound Card, not Auto
+ *	SND_SOC_DAIFMT_CBC_CFC
+ *	SND_SOC_DAIFMT_CBP_CFP
+ */
+static u64 da7213_dai_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_RIGHT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_A	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_B	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_IF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_IF;
+
 /* DAI operations */
 static const struct snd_soc_dai_ops da7213_dai_ops = {
 	.hw_params	= da7213_hw_params,
 	.set_fmt	= da7213_set_dai_fmt,
-	.set_sysclk	= da7213_set_dai_sysclk,
-	.set_pll	= da7213_set_dai_pll,
-	.digital_mute	= da7213_mute,
+	.mute_stream	= da7213_mute,
+	.no_capture_mute = 1,
+	.auto_selectable_formats	= &da7213_dai_formats,
+	.num_auto_selectable_formats	= 1,
 };
 
 static struct snd_soc_dai_driver da7213_dai = {
@@ -1522,8 +1760,52 @@ static struct snd_soc_dai_driver da7213_dai = {
 		.formats = DA7213_FORMATS,
 	},
 	.ops = &da7213_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 };
+
+static int da7213_set_auto_pll(struct snd_soc_component *component, bool enable)
+{
+	struct da7213_priv *da7213 = snd_soc_component_get_drvdata(component);
+	int mode;
+
+	if (!da7213->fixed_clk_auto_pll)
+		return 0;
+
+	da7213->mclk_rate = clk_get_rate(da7213->mclk);
+
+	if (enable) {
+		/* Slave mode needs SRM for non-harmonic frequencies */
+		if (da7213->master)
+			mode = DA7213_SYSCLK_PLL;
+		else
+			mode = DA7213_SYSCLK_PLL_SRM;
+
+		/* PLL is not required for harmonic frequencies */
+		switch (da7213->out_rate) {
+		case DA7213_PLL_FREQ_OUT_90316800:
+			if (da7213->mclk_rate == 11289600 ||
+			    da7213->mclk_rate == 22579200 ||
+			    da7213->mclk_rate == 45158400)
+				mode = DA7213_SYSCLK_MCLK;
+			break;
+		case DA7213_PLL_FREQ_OUT_98304000:
+			if (da7213->mclk_rate == 12288000 ||
+			    da7213->mclk_rate == 24576000 ||
+			    da7213->mclk_rate == 49152000)
+				mode = DA7213_SYSCLK_MCLK;
+
+			break;
+		default:
+			return -1;
+		}
+	} else {
+		/* Disable PLL in standby */
+		mode = DA7213_SYSCLK_MCLK;
+	}
+
+	return _da7213_set_component_pll(component, 0, mode,
+					 da7213->mclk_rate, da7213->out_rate);
+}
 
 static int da7213_set_bias_level(struct snd_soc_component *component,
 				 enum snd_soc_bias_level level)
@@ -1544,6 +1826,8 @@ static int da7213_set_bias_level(struct snd_soc_component *component,
 						"Failed to enable mclk\n");
 					return ret;
 				}
+
+				da7213_set_auto_pll(component, true);
 			}
 		}
 		break;
@@ -1555,8 +1839,10 @@ static int da7213_set_bias_level(struct snd_soc_component *component,
 					    DA7213_VMID_EN | DA7213_BIAS_EN);
 		} else {
 			/* Remove MCLK */
-			if (da7213->mclk)
+			if (da7213->mclk) {
+				da7213_set_auto_pll(component, false);
 				clk_disable_unprepare(da7213->mclk);
+			}
 		}
 		break;
 	case SND_SOC_BIAS_OFF:
@@ -1571,6 +1857,7 @@ static int da7213_set_bias_level(struct snd_soc_component *component,
 #if defined(CONFIG_OF)
 /* DT */
 static const struct of_device_id da7213_of_match[] = {
+	{ .compatible = "dlg,da7212", },
 	{ .compatible = "dlg,da7213", },
 	{ }
 };
@@ -1685,10 +1972,11 @@ static struct da7213_platform_data
 	return pdata;
 }
 
-
 static int da7213_probe(struct snd_soc_component *component)
 {
 	struct da7213_priv *da7213 = snd_soc_component_get_drvdata(component);
+
+	pm_runtime_get_sync(component->dev);
 
 	/* Default to using ALC auto offset calibration mode. */
 	snd_soc_component_update_bits(component, DA7213_ALC_CTRL1,
@@ -1810,14 +2098,20 @@ static int da7213_probe(struct snd_soc_component *component)
 				    DA7213_DMIC_CLK_RATE_MASK, dmic_cfg);
 	}
 
+	pm_runtime_put_sync(component->dev);
+
 	/* Check if MCLK provided */
-	da7213->mclk = devm_clk_get(component->dev, "mclk");
-	if (IS_ERR(da7213->mclk)) {
-		if (PTR_ERR(da7213->mclk) != -ENOENT)
-			return PTR_ERR(da7213->mclk);
-		else
-			da7213->mclk = NULL;
-	}
+	da7213->mclk = devm_clk_get_optional(component->dev, "mclk");
+	if (IS_ERR(da7213->mclk))
+		return PTR_ERR(da7213->mclk);
+	if (da7213->mclk)
+		/* Do automatic PLL handling assuming fixed clock until
+		 * set_pll() has been called. This makes the codec usable
+		 * with the simple-audio-card driver. */
+		da7213->fixed_clk_auto_pll = true;
+
+	/* Default infinite tone gen, start/stop by Kcontrol */
+	snd_soc_component_write(component, DA7213_TONE_GEN_CYCLES, DA7213_BEEP_CYCLES_MASK);
 
 	return 0;
 }
@@ -1831,10 +2125,11 @@ static const struct snd_soc_component_driver soc_component_dev_da7213 = {
 	.num_dapm_widgets	= ARRAY_SIZE(da7213_dapm_widgets),
 	.dapm_routes		= da7213_audio_map,
 	.num_dapm_routes	= ARRAY_SIZE(da7213_audio_map),
+	.set_sysclk		= da7213_set_component_sysclk,
+	.set_pll		= da7213_set_component_pll,
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config da7213_regmap_config = {
@@ -1847,11 +2142,21 @@ static const struct regmap_config da7213_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static int da7213_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static void da7213_power_off(void *data)
+{
+	struct da7213_priv *da7213 = data;
+	regulator_bulk_disable(DA7213_NUM_SUPPLIES, da7213->supplies);
+}
+
+static const char *da7213_supply_names[DA7213_NUM_SUPPLIES] = {
+	[DA7213_SUPPLY_VDDA] = "VDDA",
+	[DA7213_SUPPLY_VDDIO] = "VDDIO",
+};
+
+static int da7213_i2c_probe(struct i2c_client *i2c)
 {
 	struct da7213_priv *da7213;
-	int ret;
+	int i, ret;
 
 	da7213 = devm_kzalloc(&i2c->dev, sizeof(*da7213), GFP_KERNEL);
 	if (!da7213)
@@ -1859,12 +2164,36 @@ static int da7213_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, da7213);
 
+	/* Get required supplies */
+	for (i = 0; i < DA7213_NUM_SUPPLIES; ++i)
+		da7213->supplies[i].supply = da7213_supply_names[i];
+
+	ret = devm_regulator_bulk_get(&i2c->dev, DA7213_NUM_SUPPLIES,
+				      da7213->supplies);
+	if (ret) {
+		dev_err(&i2c->dev, "Failed to get supplies: %d\n", ret);
+		return ret;
+	}
+
+	ret = regulator_bulk_enable(DA7213_NUM_SUPPLIES, da7213->supplies);
+	if (ret < 0)
+		return ret;
+
+	ret = devm_add_action_or_reset(&i2c->dev, da7213_power_off, da7213);
+	if (ret < 0)
+		return ret;
+
 	da7213->regmap = devm_regmap_init_i2c(i2c, &da7213_regmap_config);
 	if (IS_ERR(da7213->regmap)) {
 		ret = PTR_ERR(da7213->regmap);
 		dev_err(&i2c->dev, "regmap_init() failed: %d\n", ret);
 		return ret;
 	}
+
+	pm_runtime_set_autosuspend_delay(&i2c->dev, 100);
+	pm_runtime_use_autosuspend(&i2c->dev);
+	pm_runtime_set_active(&i2c->dev);
+	pm_runtime_enable(&i2c->dev);
 
 	ret = devm_snd_soc_register_component(&i2c->dev,
 			&soc_component_dev_da7213, &da7213_dai, 1);
@@ -1875,8 +2204,41 @@ static int da7213_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
+static void da7213_i2c_remove(struct i2c_client *i2c)
+{
+	pm_runtime_disable(&i2c->dev);
+}
+
+static int __maybe_unused da7213_runtime_suspend(struct device *dev)
+{
+	struct da7213_priv *da7213 = dev_get_drvdata(dev);
+
+	regcache_cache_only(da7213->regmap, true);
+	regcache_mark_dirty(da7213->regmap);
+	regulator_bulk_disable(DA7213_NUM_SUPPLIES, da7213->supplies);
+
+	return 0;
+}
+
+static int __maybe_unused da7213_runtime_resume(struct device *dev)
+{
+	struct da7213_priv *da7213 = dev_get_drvdata(dev);
+	int ret;
+
+	ret = regulator_bulk_enable(DA7213_NUM_SUPPLIES, da7213->supplies);
+	if (ret < 0)
+		return ret;
+	regcache_cache_only(da7213->regmap, false);
+	regcache_sync(da7213->regmap);
+	return 0;
+}
+
+static const struct dev_pm_ops da7213_pm = {
+	SET_RUNTIME_PM_OPS(da7213_runtime_suspend, da7213_runtime_resume, NULL)
+};
+
 static const struct i2c_device_id da7213_i2c_id[] = {
-	{ "da7213", 0 },
+	{ "da7213" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, da7213_i2c_id);
@@ -1887,8 +2249,10 @@ static struct i2c_driver da7213_i2c_driver = {
 		.name = "da7213",
 		.of_match_table = of_match_ptr(da7213_of_match),
 		.acpi_match_table = ACPI_PTR(da7213_acpi_match),
+		.pm = &da7213_pm,
 	},
 	.probe		= da7213_i2c_probe,
+	.remove		= da7213_i2c_remove,
 	.id_table	= da7213_i2c_id,
 };
 
@@ -1896,4 +2260,5 @@ module_i2c_driver(da7213_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC DA7213 Codec driver");
 MODULE_AUTHOR("Adam Thomson <Adam.Thomson.Opensource@diasemi.com>");
+MODULE_AUTHOR("David Rau <David.Rau.opensource@dm.renesas.com>");
 MODULE_LICENSE("GPL");

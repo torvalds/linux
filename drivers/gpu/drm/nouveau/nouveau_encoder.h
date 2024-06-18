@@ -26,13 +26,17 @@
 
 #ifndef __NOUVEAU_ENCODER_H__
 #define __NOUVEAU_ENCODER_H__
-
+#include <nvif/outp.h>
 #include <subdev/bios/dcb.h>
 
+#include <drm/display/drm_dp_helper.h>
+#include <drm/display/drm_dp_mst_helper.h>
 #include <drm/drm_encoder_slave.h>
-#include <drm/drm_dp_mst_helper.h>
+
 #include "dispnv04/disp.h"
+
 struct nv50_head_atom;
+struct nouveau_connector;
 
 #define NV_DPMS_CLEARED 0x80
 
@@ -42,34 +46,90 @@ struct nouveau_encoder {
 	struct drm_encoder_slave base;
 
 	struct dcb_output *dcb;
+	struct nvif_outp outp;
 	int or;
-	int link;
+
+	struct nouveau_connector *conn;
 
 	struct i2c_adapter *i2c;
-	struct nvkm_i2c_aux *aux;
 
 	/* different to drm_encoder.crtc, this reflects what's
 	 * actually programmed on the hw, not the proposed crtc */
 	struct drm_crtc *crtc;
 	u32 ctrl;
 
+	/* Protected by nouveau_drm.audio.lock */
+	struct {
+		bool enabled;
+	} audio;
+
 	struct drm_display_mode mode;
 	int last_dpms;
 
 	struct nv04_output_reg restore;
 
-	union {
+	struct {
+		struct {
+			bool enabled;
+		} hdmi;
+
 		struct {
 			struct nv50_mstm *mstm;
+
+			struct {
+				u8 caps[DP_LTTPR_COMMON_CAP_SIZE];
+				u8 nr;
+			} lttpr;
+
+			u8 dpcd[DP_RECEIVER_CAP_SIZE];
+
+			struct nvif_outp_dp_rate rate[8];
+			int rate_nr;
+
 			int link_nr;
 			int link_bw;
+
+			struct {
+				bool mst;
+				u8   nr;
+				u32  bw;
+			} lt;
+
+			/* Protects DP state that needs to be accessed outside
+			 * connector reprobing contexts
+			 */
+			struct mutex hpd_irq_lock;
+
+			u8 downstream_ports[DP_MAX_DOWNSTREAM_PORTS];
+			struct drm_dp_desc desc;
+
+			u8 sink_count;
 		} dp;
 	};
+
+	struct {
+		bool dp_interlace : 1;
+	} caps;
 
 	void (*enc_save)(struct drm_encoder *encoder);
 	void (*enc_restore)(struct drm_encoder *encoder);
 	void (*update)(struct nouveau_encoder *, u8 head,
 		       struct nv50_head_atom *, u8 proto, u8 depth);
+};
+
+struct nv50_mstm {
+	struct nouveau_encoder *outp;
+
+	struct drm_dp_mst_topology_mgr mgr;
+
+	/* Protected under nouveau_encoder->dp.hpd_irq_lock */
+	bool can_mst;
+	bool is_mst;
+	bool suspended;
+
+	bool modified;
+	bool disabled;
+	int links;
 };
 
 struct nouveau_encoder *
@@ -95,16 +155,28 @@ get_slave_funcs(struct drm_encoder *enc)
 
 /* nouveau_dp.c */
 enum nouveau_dp_status {
+	NOUVEAU_DP_NONE,
 	NOUVEAU_DP_SST,
 	NOUVEAU_DP_MST,
 };
 
-int nouveau_dp_detect(struct nouveau_encoder *);
+int nouveau_dp_detect(struct nouveau_connector *, struct nouveau_encoder *);
+bool nouveau_dp_train(struct nouveau_encoder *, bool mst, u32 khz, u8 bpc);
+void nouveau_dp_power_down(struct nouveau_encoder *);
+bool nouveau_dp_link_check(struct nouveau_connector *);
+void nouveau_dp_irq(struct work_struct *);
+enum drm_mode_status nv50_dp_mode_valid(struct nouveau_encoder *,
+					const struct drm_display_mode *,
+					unsigned *clock);
 
 struct nouveau_connector *
-nouveau_encoder_connector_get(struct nouveau_encoder *encoder);
+nv50_outp_get_new_connector(struct drm_atomic_state *state, struct nouveau_encoder *outp);
+struct nouveau_connector *
+nv50_outp_get_old_connector(struct drm_atomic_state *state, struct nouveau_encoder *outp);
 
-int nv50_mstm_detect(struct nv50_mstm *, u8 dpcd[8], int allow);
-void nv50_mstm_remove(struct nv50_mstm *);
-void nv50_mstm_service(struct nv50_mstm *);
+int nv50_mstm_detect(struct nouveau_encoder *encoder);
+void nv50_mstm_remove(struct nv50_mstm *mstm);
+bool nv50_mstm_service(struct nouveau_drm *drm,
+		       struct nouveau_connector *nv_connector,
+		       struct nv50_mstm *mstm);
 #endif /* __NOUVEAU_ENCODER_H__ */

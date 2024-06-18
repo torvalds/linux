@@ -17,7 +17,7 @@
  * entry and remove space from either end and the middle, and make sure we can
  * remove space that covers adjacent extent entries.
  */
-static int test_extents(struct btrfs_block_group_cache *cache)
+static int test_extents(struct btrfs_block_group *cache)
 {
 	int ret = 0;
 
@@ -82,13 +82,12 @@ static int test_extents(struct btrfs_block_group_cache *cache)
 	}
 
 	/* Cleanup */
-	__btrfs_remove_free_space_cache(cache->free_space_ctl);
+	btrfs_remove_free_space_cache(cache);
 
 	return 0;
 }
 
-static int test_bitmaps(struct btrfs_block_group_cache *cache,
-			u32 sectorsize)
+static int test_bitmaps(struct btrfs_block_group *cache, u32 sectorsize)
 {
 	u64 next_bitmap_offset;
 	int ret;
@@ -150,13 +149,13 @@ static int test_bitmaps(struct btrfs_block_group_cache *cache,
 		return -1;
 	}
 
-	__btrfs_remove_free_space_cache(cache->free_space_ctl);
+	btrfs_remove_free_space_cache(cache);
 
 	return 0;
 }
 
 /* This is the high grade jackassery */
-static int test_bitmaps_and_extents(struct btrfs_block_group_cache *cache,
+static int test_bitmaps_and_extents(struct btrfs_block_group *cache,
 				    u32 sectorsize)
 {
 	u64 bitmap_offset = (u64)(BITS_PER_BITMAP * sectorsize);
@@ -231,7 +230,7 @@ static int test_bitmaps_and_extents(struct btrfs_block_group_cache *cache,
 		return -1;
 	}
 
-	__btrfs_remove_free_space_cache(cache->free_space_ctl);
+	btrfs_remove_free_space_cache(cache);
 
 	/* Now with the extent entry offset into the bitmap */
 	ret = test_add_free_space_entry(cache, SZ_4M, SZ_4M, 1);
@@ -267,7 +266,7 @@ static int test_bitmaps_and_extents(struct btrfs_block_group_cache *cache,
 	 *      [ bitmap ]
 	 *        [ del ]
 	 */
-	__btrfs_remove_free_space_cache(cache->free_space_ctl);
+	btrfs_remove_free_space_cache(cache);
 	ret = test_add_free_space_entry(cache, bitmap_offset + SZ_4M, SZ_4M, 1);
 	if (ret) {
 		test_err("couldn't add bitmap %d", ret);
@@ -292,7 +291,7 @@ static int test_bitmaps_and_extents(struct btrfs_block_group_cache *cache,
 		return -1;
 	}
 
-	__btrfs_remove_free_space_cache(cache->free_space_ctl);
+	btrfs_remove_free_space_cache(cache);
 
 	/*
 	 * This blew up before, we have part of the free space in a bitmap and
@@ -318,7 +317,7 @@ static int test_bitmaps_and_extents(struct btrfs_block_group_cache *cache,
 		return ret;
 	}
 
-	__btrfs_remove_free_space_cache(cache->free_space_ctl);
+	btrfs_remove_free_space_cache(cache);
 	return 0;
 }
 
@@ -331,7 +330,7 @@ static bool test_use_bitmap(struct btrfs_free_space_ctl *ctl,
 
 /* Used by test_steal_space_from_bitmap_to_extent(). */
 static int
-check_num_extents_and_bitmaps(const struct btrfs_block_group_cache *cache,
+check_num_extents_and_bitmaps(const struct btrfs_block_group *cache,
 			      const int num_extents,
 			      const int num_bitmaps)
 {
@@ -351,7 +350,7 @@ check_num_extents_and_bitmaps(const struct btrfs_block_group_cache *cache,
 }
 
 /* Used by test_steal_space_from_bitmap_to_extent(). */
-static int check_cache_empty(struct btrfs_block_group_cache *cache)
+static int check_cache_empty(struct btrfs_block_group *cache)
 {
 	u64 offset;
 	u64 max_extent_size;
@@ -393,14 +392,13 @@ static int check_cache_empty(struct btrfs_block_group_cache *cache)
  * requests.
  */
 static int
-test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache,
+test_steal_space_from_bitmap_to_extent(struct btrfs_block_group *cache,
 				       u32 sectorsize)
 {
 	int ret;
 	u64 offset;
 	u64 max_extent_size;
 	const struct btrfs_free_space_op test_free_space_ops = {
-		.recalc_thresholds = cache->free_space_ctl->op->recalc_thresholds,
 		.use_bitmap = test_use_bitmap,
 	};
 	const struct btrfs_free_space_op *orig_free_space_ops;
@@ -631,7 +629,7 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache,
 	if (ret)
 		return ret;
 
-	__btrfs_remove_free_space_cache(cache->free_space_ctl);
+	btrfs_remove_free_space_cache(cache);
 
 	/*
 	 * Now test a similar scenario, but where our extent entry is located
@@ -821,15 +819,193 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache,
 		return ret;
 
 	cache->free_space_ctl->op = orig_free_space_ops;
-	__btrfs_remove_free_space_cache(cache->free_space_ctl);
+	btrfs_remove_free_space_cache(cache);
 
+	return 0;
+}
+
+static bool bytes_index_use_bitmap(struct btrfs_free_space_ctl *ctl,
+				   struct btrfs_free_space *info)
+{
+	return true;
+}
+
+static int test_bytes_index(struct btrfs_block_group *cache, u32 sectorsize)
+{
+	const struct btrfs_free_space_op test_free_space_ops = {
+		.use_bitmap = bytes_index_use_bitmap,
+	};
+	const struct btrfs_free_space_op *orig_free_space_ops;
+	struct btrfs_free_space_ctl *ctl = cache->free_space_ctl;
+	struct btrfs_free_space *entry;
+	struct rb_node *node;
+	u64 offset, max_extent_size, bytes;
+	int ret, i;
+
+	test_msg("running bytes index tests");
+
+	/* First just validate that it does everything in order. */
+	offset = 0;
+	for (i = 0; i < 10; i++) {
+		bytes = (i + 1) * SZ_1M;
+		ret = test_add_free_space_entry(cache, offset, bytes, 0);
+		if (ret) {
+			test_err("couldn't add extent entry %d\n", ret);
+			return ret;
+		}
+		offset += bytes + sectorsize;
+	}
+
+	for (node = rb_first_cached(&ctl->free_space_bytes), i = 9; node;
+	     node = rb_next(node), i--) {
+		entry = rb_entry(node, struct btrfs_free_space, bytes_index);
+		bytes = (i + 1) * SZ_1M;
+		if (entry->bytes != bytes) {
+			test_err("invalid bytes index order, found %llu expected %llu",
+				 entry->bytes, bytes);
+			return -EINVAL;
+		}
+	}
+
+	/* Now validate bitmaps do the correct thing. */
+	btrfs_remove_free_space_cache(cache);
+	for (i = 0; i < 2; i++) {
+		offset = i * BITS_PER_BITMAP * sectorsize;
+		bytes = (i + 1) * SZ_1M;
+		ret = test_add_free_space_entry(cache, offset, bytes, 1);
+		if (ret) {
+			test_err("couldn't add bitmap entry");
+			return ret;
+		}
+	}
+
+	for (node = rb_first_cached(&ctl->free_space_bytes), i = 1; node;
+	     node = rb_next(node), i--) {
+		entry = rb_entry(node, struct btrfs_free_space, bytes_index);
+		bytes = (i + 1) * SZ_1M;
+		if (entry->bytes != bytes) {
+			test_err("invalid bytes index order, found %llu expected %llu",
+				 entry->bytes, bytes);
+			return -EINVAL;
+		}
+	}
+
+	/* Now validate bitmaps with different ->max_extent_size. */
+	btrfs_remove_free_space_cache(cache);
+	orig_free_space_ops = cache->free_space_ctl->op;
+	cache->free_space_ctl->op = &test_free_space_ops;
+
+	ret = test_add_free_space_entry(cache, 0, sectorsize, 1);
+	if (ret) {
+		test_err("couldn't add bitmap entry");
+		return ret;
+	}
+
+	offset = BITS_PER_BITMAP * sectorsize;
+	ret = test_add_free_space_entry(cache, offset, sectorsize, 1);
+	if (ret) {
+		test_err("couldn't add bitmap_entry");
+		return ret;
+	}
+
+	/*
+	 * Now set a bunch of sectorsize extents in the first entry so it's
+	 * ->bytes is large.
+	 */
+	for (i = 2; i < 20; i += 2) {
+		offset = sectorsize * i;
+		ret = btrfs_add_free_space(cache, offset, sectorsize);
+		if (ret) {
+			test_err("error populating sparse bitmap %d", ret);
+			return ret;
+		}
+	}
+
+	/*
+	 * Now set a contiguous extent in the second bitmap so its
+	 * ->max_extent_size is larger than the first bitmaps.
+	 */
+	offset = (BITS_PER_BITMAP * sectorsize) + sectorsize;
+	ret = btrfs_add_free_space(cache, offset, sectorsize);
+	if (ret) {
+		test_err("error adding contiguous extent %d", ret);
+		return ret;
+	}
+
+	/*
+	 * Since we don't set ->max_extent_size unless we search everything
+	 * should be indexed on bytes.
+	 */
+	entry = rb_entry(rb_first_cached(&ctl->free_space_bytes),
+			 struct btrfs_free_space, bytes_index);
+	if (entry->bytes != (10 * sectorsize)) {
+		test_err("error, wrong entry in the first slot in bytes_index");
+		return -EINVAL;
+	}
+
+	max_extent_size = 0;
+	offset = btrfs_find_space_for_alloc(cache, cache->start, sectorsize * 3,
+					    0, &max_extent_size);
+	if (offset != 0) {
+		test_err("found space to alloc even though we don't have enough space");
+		return -EINVAL;
+	}
+
+	if (max_extent_size != (2 * sectorsize)) {
+		test_err("got the wrong max_extent size %llu expected %llu",
+			 max_extent_size, (unsigned long long)(2 * sectorsize));
+		return -EINVAL;
+	}
+
+	/*
+	 * The search should have re-arranged the bytes index to use the
+	 * ->max_extent_size, validate it's now what we expect it to be.
+	 */
+	entry = rb_entry(rb_first_cached(&ctl->free_space_bytes),
+			 struct btrfs_free_space, bytes_index);
+	if (entry->bytes != (2 * sectorsize)) {
+		test_err("error, the bytes index wasn't recalculated properly");
+		return -EINVAL;
+	}
+
+	/* Add another sectorsize to re-arrange the tree back to ->bytes. */
+	offset = (BITS_PER_BITMAP * sectorsize) - sectorsize;
+	ret = btrfs_add_free_space(cache, offset, sectorsize);
+	if (ret) {
+		test_err("error adding extent to the sparse entry %d", ret);
+		return ret;
+	}
+
+	entry = rb_entry(rb_first_cached(&ctl->free_space_bytes),
+			 struct btrfs_free_space, bytes_index);
+	if (entry->bytes != (11 * sectorsize)) {
+		test_err("error, wrong entry in the first slot in bytes_index");
+		return -EINVAL;
+	}
+
+	/*
+	 * Now make sure we find our correct entry after searching that will
+	 * result in a re-arranging of the tree.
+	 */
+	max_extent_size = 0;
+	offset = btrfs_find_space_for_alloc(cache, cache->start, sectorsize * 2,
+					    0, &max_extent_size);
+	if (offset != (BITS_PER_BITMAP * sectorsize)) {
+		test_err("error, found %llu instead of %llu for our alloc",
+			 offset,
+			 (unsigned long long)(BITS_PER_BITMAP * sectorsize));
+		return -EINVAL;
+	}
+
+	cache->free_space_ctl->op = orig_free_space_ops;
+	btrfs_remove_free_space_cache(cache);
 	return 0;
 }
 
 int btrfs_test_free_space_cache(u32 sectorsize, u32 nodesize)
 {
 	struct btrfs_fs_info *fs_info;
-	struct btrfs_block_group_cache *cache;
+	struct btrfs_block_group *cache;
 	struct btrfs_root *root = NULL;
 	int ret = -ENOMEM;
 
@@ -860,7 +1036,10 @@ int btrfs_test_free_space_cache(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 
-	root->fs_info->extent_root = root;
+	root->root_key.objectid = BTRFS_EXTENT_TREE_OBJECTID;
+	root->root_key.type = BTRFS_ROOT_ITEM_KEY;
+	root->root_key.offset = 0;
+	btrfs_global_root_insert(root);
 
 	ret = test_extents(cache);
 	if (ret)
@@ -873,6 +1052,9 @@ int btrfs_test_free_space_cache(u32 sectorsize, u32 nodesize)
 		goto out;
 
 	ret = test_steal_space_from_bitmap_to_extent(cache, sectorsize);
+	if (ret)
+		goto out;
+	ret = test_bytes_index(cache, sectorsize);
 out:
 	btrfs_free_dummy_block_group(cache);
 	btrfs_free_dummy_root(root);

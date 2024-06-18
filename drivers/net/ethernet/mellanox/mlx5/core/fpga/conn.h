@@ -65,7 +65,7 @@ struct mlx5_fpga_conn {
 		int sgid_index;
 		struct mlx5_wq_qp wq;
 		struct mlx5_wq_ctrl wq_ctrl;
-		struct mlx5_core_qp mqp;
+		u32 qpn;
 		struct {
 			spinlock_t lock; /* Protects all SQ state */
 			unsigned int pc;

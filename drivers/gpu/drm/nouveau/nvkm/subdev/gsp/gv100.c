@@ -19,44 +19,41 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <subdev/gsp.h>
-#include <subdev/top.h>
-#include <engine/falcon.h>
+#include "priv.h"
 
-static int
-gv100_gsp_oneinit(struct nvkm_subdev *subdev)
-{
-	struct nvkm_gsp *gsp = nvkm_gsp(subdev);
+static const struct nvkm_falcon_func
+gv100_gsp_flcn = {
+	.disable = gm200_flcn_disable,
+	.enable = gm200_flcn_enable,
+	.reset_eng = gp102_flcn_reset_eng,
+	.reset_wait_mem_scrubbing = gm200_flcn_reset_wait_mem_scrubbing,
+	.bind_inst = gm200_flcn_bind_inst,
+	.bind_stat = gm200_flcn_bind_stat,
+	.bind_intr = true,
+	.imem_pio = &gm200_flcn_imem_pio,
+	.dmem_pio = &gm200_flcn_dmem_pio,
+};
 
-	gsp->addr = nvkm_top_addr(subdev->device, subdev->index);
-	if (!gsp->addr)
-		return -EINVAL;
-
-	return nvkm_falcon_v1_new(subdev, "GSP", gsp->addr, &gsp->falcon);
-}
-
-static void *
-gv100_gsp_dtor(struct nvkm_subdev *subdev)
-{
-	struct nvkm_gsp *gsp = nvkm_gsp(subdev);
-	nvkm_falcon_del(&gsp->falcon);
-	return gsp;
-}
-
-static const struct nvkm_subdev_func
+const struct nvkm_gsp_func
 gv100_gsp = {
-	.dtor = gv100_gsp_dtor,
-	.oneinit = gv100_gsp_oneinit,
+	.flcn = &gv100_gsp_flcn,
 };
 
 int
-gv100_gsp_new(struct nvkm_device *device, int index, struct nvkm_gsp **pgsp)
+gv100_gsp_nofw(struct nvkm_gsp *gsp, int ver, const struct nvkm_gsp_fwif *fwif)
 {
-	struct nvkm_gsp *gsp;
-
-	if (!(gsp = *pgsp = kzalloc(sizeof(*gsp), GFP_KERNEL)))
-		return -ENOMEM;
-
-	nvkm_subdev_ctor(&gv100_gsp, device, index, &gsp->subdev);
 	return 0;
+}
+
+static struct nvkm_gsp_fwif
+gv100_gsps[] = {
+	{ -1, gv100_gsp_nofw, &gv100_gsp },
+	{}
+};
+
+int
+gv100_gsp_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	      struct nvkm_gsp **pgsp)
+{
+	return nvkm_gsp_new_(gv100_gsps, device, type, inst, pgsp);
 }

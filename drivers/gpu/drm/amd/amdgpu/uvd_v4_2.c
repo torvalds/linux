@@ -118,15 +118,14 @@ static int uvd_v4_2_sw_init(void *handle)
 
 	ring = &adev->uvd.inst->ring;
 	sprintf(ring->name, "uvd");
-	r = amdgpu_ring_init(adev, ring, 512, &adev->uvd.inst->irq, 0);
+	r = amdgpu_ring_init(adev, ring, 512, &adev->uvd.inst->irq, 0,
+			     AMDGPU_RING_PRIO_DEFAULT, NULL);
 	if (r)
 		return r;
 
 	r = amdgpu_uvd_resume(adev);
 	if (r)
 		return r;
-
-	r = amdgpu_uvd_entity_init(adev);
 
 	return r;
 }
@@ -148,7 +147,7 @@ static void uvd_v4_2_enable_mgcg(struct amdgpu_device *adev,
 /**
  * uvd_v4_2_hw_init - start and test UVD block
  *
- * @adev: amdgpu_device pointer
+ * @handle: handle used to pass amdgpu_device pointer
  *
  * Initialize the hardware, boot up the VCPU and do some testing
  */
@@ -203,27 +202,57 @@ done:
 /**
  * uvd_v4_2_hw_fini - stop the hardware block
  *
- * @adev: amdgpu_device pointer
+ * @handle: handle used to pass amdgpu_device pointer
  *
  * Stop the UVD block, mark ring as not ready any more
  */
 static int uvd_v4_2_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	struct amdgpu_ring *ring = &adev->uvd.inst->ring;
+
+	cancel_delayed_work_sync(&adev->uvd.idle_work);
 
 	if (RREG32(mmUVD_STATUS) != 0)
 		uvd_v4_2_stop(adev);
 
-	ring->sched.ready = false;
-
 	return 0;
+}
+
+static int uvd_v4_2_prepare_suspend(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	return amdgpu_uvd_prepare_suspend(adev);
 }
 
 static int uvd_v4_2_suspend(void *handle)
 {
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	/*
+	 * Proper cleanups before halting the HW engine:
+	 *   - cancel the delayed idle work
+	 *   - enable powergating
+	 *   - enable clockgating
+	 *   - disable dpm
+	 *
+	 * TODO: to align with the VCN implementation, move the
+	 * jobs for clockgating/powergating/dpm setting to
+	 * ->set_powergating_state().
+	 */
+	cancel_delayed_work_sync(&adev->uvd.idle_work);
+
+	if (adev->pm.dpm_enabled) {
+		amdgpu_dpm_enable_uvd(adev, false);
+	} else {
+		amdgpu_asic_set_uvd_clocks(adev, 0, 0);
+		/* shutdown the UVD block */
+		amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
+						       AMD_PG_STATE_GATE);
+		amdgpu_device_ip_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
+						       AMD_CG_STATE_GATE);
+	}
 
 	r = uvd_v4_2_hw_fini(adev);
 	if (r)
@@ -350,7 +379,7 @@ static int uvd_v4_2_start(struct amdgpu_device *adev)
 	/* Set the write pointer delay */
 	WREG32(mmUVD_RBC_RB_WPTR_CNTL, 0);
 
-	/* programm the 4GB memory segment for rptr and ring buffer */
+	/* program the 4GB memory segment for rptr and ring buffer */
 	WREG32(mmUVD_LMI_EXT40_ADDR, upper_32_bits(ring->gpu_addr) |
 				   (0x7 << 16) | (0x1 << 31));
 
@@ -439,7 +468,9 @@ static void uvd_v4_2_stop(struct amdgpu_device *adev)
  * uvd_v4_2_ring_emit_fence - emit an fence & trap command
  *
  * @ring: amdgpu_ring pointer
- * @fence: fence to emit
+ * @addr: address
+ * @seq: sequence number
+ * @flags: fence related flags
  *
  * Write a fence and a trap command to the ring.
  */
@@ -504,7 +535,9 @@ static int uvd_v4_2_ring_test_ring(struct amdgpu_ring *ring)
  * uvd_v4_2_ring_emit_ib - execute indirect buffer
  *
  * @ring: amdgpu_ring pointer
+ * @job: iob associated with the indirect buffer
  * @ib: indirect buffer to execute
+ * @flags: flags associated with the indirect buffer
  *
  * Write ring commands to execute the indirect buffer
  */
@@ -543,7 +576,7 @@ static void uvd_v4_2_mc_resume(struct amdgpu_device *adev)
 	uint64_t addr;
 	uint32_t size;
 
-	/* programm the VCPU memory controller bits 0-27 */
+	/* program the VCPU memory controller bits 0-27 */
 	addr = (adev->uvd.inst->gpu_addr + AMDGPU_UVD_FIRMWARE_OFFSET) >> 3;
 	size = AMDGPU_UVD_FIRMWARE_SIZE(adev) >> 3;
 	WREG32(mmUVD_VCPU_CACHE_OFFSET0, addr);
@@ -728,6 +761,7 @@ static const struct amd_ip_funcs uvd_v4_2_ip_funcs = {
 	.sw_fini = uvd_v4_2_sw_fini,
 	.hw_init = uvd_v4_2_hw_init,
 	.hw_fini = uvd_v4_2_hw_fini,
+	.prepare_suspend = uvd_v4_2_prepare_suspend,
 	.suspend = uvd_v4_2_suspend,
 	.resume = uvd_v4_2_resume,
 	.is_idle = uvd_v4_2_is_idle,
@@ -735,6 +769,8 @@ static const struct amd_ip_funcs uvd_v4_2_ip_funcs = {
 	.soft_reset = uvd_v4_2_soft_reset,
 	.set_clockgating_state = uvd_v4_2_set_clockgating_state,
 	.set_powergating_state = uvd_v4_2_set_powergating_state,
+	.dump_ip_state = NULL,
+	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_ring_funcs uvd_v4_2_ring_funcs = {

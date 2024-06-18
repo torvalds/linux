@@ -15,7 +15,9 @@
 #include "dw_mmc.h"
 #include "dw_mmc-pltfm.h"
 
-#define RK3288_CLKGEN_DIV       2
+#define RK3288_CLKGEN_DIV	2
+
+static const unsigned int freqs[] = { 100000, 200000, 300000, 400000 };
 
 struct dw_mci_rockchip_priv_data {
 	struct clk		*drv_clk;
@@ -51,7 +53,7 @@ static void dw_mci_rk3288_set_ios(struct dw_mci *host, struct mmc_ios *ios)
 
 	ret = clk_set_rate(host->ciu_clk, cclkin);
 	if (ret)
-		dev_warn(host->dev, "failed to set rate %uHz\n", ios->clock);
+		dev_warn(host->dev, "failed to set rate %uHz err: %d\n", cclkin, ret);
 
 	bus_hz = clk_get_rate(host->ciu_clk) / RK3288_CLKGEN_DIV;
 	if (bus_hz != host->bus_hz) {
@@ -61,7 +63,7 @@ static void dw_mci_rk3288_set_ios(struct dw_mci *host, struct mmc_ios *ios)
 	}
 
 	/* Make sure we use phases which we can enumerate with */
-	if (!IS_ERR(priv->sample_clk))
+	if (!IS_ERR(priv->sample_clk) && ios->timing <= MMC_TIMING_SD_HS)
 		clk_set_phase(priv->sample_clk, priv->default_sample_phase);
 
 	/*
@@ -290,31 +292,39 @@ static int dw_mci_rk3288_parse_dt(struct dw_mci *host)
 
 static int dw_mci_rockchip_init(struct dw_mci *host)
 {
+	int ret, i;
+
 	/* It is slot 8 on Rockchip SoCs */
 	host->sdio_id0 = 8;
 
-	if (of_device_is_compatible(host->dev->of_node,
-				    "rockchip,rk3288-dw-mshc"))
+	if (of_device_is_compatible(host->dev->of_node, "rockchip,rk3288-dw-mshc")) {
 		host->bus_hz /= RK3288_CLKGEN_DIV;
+
+		/* clock driver will fail if the clock is less than the lowest source clock
+		 * divided by the internal clock divider. Test for the lowest available
+		 * clock and set the minimum freq to clock / clock divider.
+		 */
+
+		for (i = 0; i < ARRAY_SIZE(freqs); i++) {
+			ret = clk_round_rate(host->ciu_clk, freqs[i] * RK3288_CLKGEN_DIV);
+			if (ret > 0) {
+				host->minimum_speed = ret / RK3288_CLKGEN_DIV;
+				break;
+			}
+		}
+		if (ret < 0)
+			dev_warn(host->dev, "no valid minimum freq: %d\n", ret);
+	}
 
 	return 0;
 }
-
-/* Common capabilities of RK3288 SoC */
-static unsigned long dw_mci_rk3288_dwmmc_caps[4] = {
-	MMC_CAP_CMD23,
-	MMC_CAP_CMD23,
-	MMC_CAP_CMD23,
-	MMC_CAP_CMD23,
-};
 
 static const struct dw_mci_drv_data rk2928_drv_data = {
 	.init			= dw_mci_rockchip_init,
 };
 
 static const struct dw_mci_drv_data rk3288_drv_data = {
-	.caps			= dw_mci_rk3288_dwmmc_caps,
-	.num_caps		= ARRAY_SIZE(dw_mci_rk3288_dwmmc_caps),
+	.common_caps		= MMC_CAP_CMD23,
 	.set_ios		= dw_mci_rk3288_set_ios,
 	.execute_tuning		= dw_mci_rk3288_execute_tuning,
 	.parse_dt		= dw_mci_rk3288_parse_dt,
@@ -361,13 +371,13 @@ static int dw_mci_rockchip_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int dw_mci_rockchip_remove(struct platform_device *pdev)
+static void dw_mci_rockchip_remove(struct platform_device *pdev)
 {
 	pm_runtime_get_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_put_noidle(&pdev->dev);
 
-	return dw_mci_pltfm_remove(pdev);
+	dw_mci_pltfm_remove(pdev);
 }
 
 static const struct dev_pm_ops dw_mci_rockchip_dev_pm_ops = {
@@ -380,9 +390,10 @@ static const struct dev_pm_ops dw_mci_rockchip_dev_pm_ops = {
 
 static struct platform_driver dw_mci_rockchip_pltfm_driver = {
 	.probe		= dw_mci_rockchip_probe,
-	.remove		= dw_mci_rockchip_remove,
+	.remove_new	= dw_mci_rockchip_remove,
 	.driver		= {
 		.name		= "dwmmc_rockchip",
+		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table	= dw_mci_rockchip_match,
 		.pm		= &dw_mci_rockchip_dev_pm_ops,
 	},

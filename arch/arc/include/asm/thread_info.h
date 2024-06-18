@@ -27,7 +27,6 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/thread_info.h>
-#include <asm/segment.h>
 
 /*
  * low level task data that entry.S needs immediate access to
@@ -38,17 +37,16 @@
  */
 struct thread_info {
 	unsigned long flags;		/* low level flags */
-	int preempt_count;		/* 0 => preemptable, <0 => BUG */
-	struct task_struct *task;	/* main task structure */
-	mm_segment_t addr_limit;	/* thread address space */
-	__u32 cpu;			/* current CPU */
+	unsigned long ksp;		/* kernel mode stack top in __switch_to */
+	int preempt_count;		/* 0 => preemptible, <0 => BUG */
+	int cpu;			/* current CPU */
 	unsigned long thr_ptr;		/* TLS ptr */
+	struct task_struct *task;	/* main task structure */
 };
 
 /*
- * macros/functions for gaining access to the thread information structure
- *
- * preempt_count needs to be 1 initially, until the scheduler is functional.
+ * initilaize thread_info for any @tsk
+ *  - this is not related to init_task per se
  */
 #define INIT_THREAD_INFO(tsk)			\
 {						\
@@ -56,7 +54,6 @@ struct thread_info {
 	.flags      = 0,			\
 	.cpu        = 0,			\
 	.preempt_count  = INIT_PREEMPT_COUNT,	\
-	.addr_limit = KERNEL_DS,		\
 }
 
 static inline __attribute_const__ struct thread_info *current_thread_info(void)
@@ -79,26 +76,31 @@ static inline __attribute_const__ struct thread_info *current_thread_info(void)
 #define TIF_SIGPENDING		2	/* signal pending */
 #define TIF_NEED_RESCHED	3	/* rescheduling necessary */
 #define TIF_SYSCALL_AUDIT	4	/* syscall auditing active */
+#define TIF_NOTIFY_SIGNAL	5	/* signal notifications exist */
 #define TIF_SYSCALL_TRACE	15	/* syscall trace active */
-
 /* true if poll_idle() is polling TIF_NEED_RESCHED */
 #define TIF_MEMDIE		16
+#define TIF_SYSCALL_TRACEPOINT	17	/* syscall tracepoint instrumentation */
 
 #define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)
 #define _TIF_NOTIFY_RESUME	(1<<TIF_NOTIFY_RESUME)
 #define _TIF_SIGPENDING		(1<<TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
 #define _TIF_SYSCALL_AUDIT	(1<<TIF_SYSCALL_AUDIT)
+#define _TIF_NOTIFY_SIGNAL	(1<<TIF_NOTIFY_SIGNAL)
 #define _TIF_MEMDIE		(1<<TIF_MEMDIE)
+#define _TIF_SYSCALL_TRACEPOINT	(1<<TIF_SYSCALL_TRACEPOINT)
 
 /* work to do on interrupt/exception return */
 #define _TIF_WORK_MASK		(_TIF_NEED_RESCHED | _TIF_SIGPENDING | \
-				 _TIF_NOTIFY_RESUME)
+				 _TIF_NOTIFY_RESUME | _TIF_NOTIFY_SIGNAL)
+
+#define _TIF_SYSCALL_WORK	(_TIF_SYSCALL_TRACE | _TIF_SYSCALL_TRACEPOINT)
 
 /*
  * _TIF_ALLWORK_MASK includes SYSCALL_TRACE, but we don't need it.
- * SYSCALL_TRACE is anyway seperately/unconditionally tested right after a
- * syscall, so all that reamins to be tested is _TIF_WORK_MASK
+ * SYSCALL_TRACE is anyway separately/unconditionally tested right after a
+ * syscall, so all that remains to be tested is _TIF_WORK_MASK
  */
 
 #endif /* _ASM_THREAD_INFO_H */

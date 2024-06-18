@@ -29,6 +29,7 @@
 #include <linux/completion.h>
 #include <linux/pci.h>
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_cmnd.h>
 
 /*------------------------------------------------------------------------------
  *              D E F I N E S
@@ -85,7 +86,7 @@ enum {
 #define	PMC_GLOBAL_INT_BIT0		0x00000001
 
 #ifndef AAC_DRIVER_BUILD
-# define AAC_DRIVER_BUILD 50877
+# define AAC_DRIVER_BUILD 50983
 # define AAC_DRIVER_BRANCH "-custom"
 #endif
 #define MAXIMUM_NUM_CONTAINERS	32
@@ -108,6 +109,8 @@ enum {
 #define AAC_BUS_TARGET_LOOP		(AAC_MAX_BUSES * AAC_MAX_TARGETS)
 #define AAC_MAX_NATIVE_SIZE		2048
 #define FW_ERROR_BUFFER_SIZE		512
+#define AAC_SA_TIMEOUT			180
+#define AAC_ARC_TIMEOUT			60
 
 #define get_bus_number(x)	(x/AAC_MAX_TARGETS)
 #define get_target_number(x)	(x%AAC_MAX_TARGETS)
@@ -118,7 +121,7 @@ enum {
 #define SA_AIF_PDEV_CHANGE		(1<<4)
 #define SA_AIF_LDEV_CHANGE		(1<<5)
 #define SA_AIF_BPSTAT_CHANGE		(1<<30)
-#define SA_AIF_BPCFG_CHANGE		(1<<31)
+#define SA_AIF_BPCFG_CHANGE		(1U<<31)
 
 #define HBA_MAX_SG_EMBEDDED		28
 #define HBA_MAX_SG_SEPARATE		90
@@ -1328,7 +1331,7 @@ struct fib {
 #define AAC_DEVTYPE_ARC_RAW		2
 #define AAC_DEVTYPE_NATIVE_RAW		3
 
-#define AAC_SAFW_RESCAN_DELAY		(10 * HZ)
+#define AAC_RESCAN_DELAY		(10 * HZ)
 
 struct aac_hba_map_info {
 	__le32	rmw_nexus;		/* nexus for native HBA devices */
@@ -1601,6 +1604,7 @@ struct aac_dev
 	struct fsa_dev_info	*fsa_dev;
 	struct task_struct	*thread;
 	struct delayed_work	safw_rescan_work;
+	struct delayed_work	src_reinit_aif_worker;
 	int			cardtype;
 	/*
 	 *This lock will protect the two 32-bit
@@ -1673,6 +1677,7 @@ struct aac_dev
 	u8			adapter_shutdown;
 	u32			handle_pci_error;
 	bool			init_reset;
+	u8			soft_reset_support;
 };
 
 #define aac_adapter_interrupt(dev) \
@@ -1925,7 +1930,7 @@ struct aac_raw_io2 {
 	u8		bpComplete;	/* reserved for F/W use */
 	u8		sgeFirstIndex;	/* reserved for F/W use */
 	u8		unused[4];
-	struct sge_ieee1212	sge[1];
+	struct sge_ieee1212	sge[];
 };
 
 #define CT_FLUSH_CACHE 129
@@ -2612,7 +2617,7 @@ struct aac_hba_info {
 struct aac_aifcmd {
 	__le32 command;		/* Tell host what type of notify this is */
 	__le32 seqnum;		/* To allow ordering of reports (if necessary) */
-	u8 data[1];		/* Undefined length (from kernel viewpoint) */
+	u8 data[];		/* Undefined length (from kernel viewpoint) */
 };
 
 /**
@@ -2644,7 +2649,12 @@ int aac_scan_host(struct aac_dev *dev);
 
 static inline void aac_schedule_safw_scan_worker(struct aac_dev *dev)
 {
-	schedule_delayed_work(&dev->safw_rescan_work, AAC_SAFW_RESCAN_DELAY);
+	schedule_delayed_work(&dev->safw_rescan_work, AAC_RESCAN_DELAY);
+}
+
+static inline void aac_schedule_src_reinit_aif_worker(struct aac_dev *dev)
+{
+	schedule_delayed_work(&dev->src_reinit_aif_worker, AAC_RESCAN_DELAY);
 }
 
 static inline void aac_safw_rescan_worker(struct work_struct *work)
@@ -2658,19 +2668,33 @@ static inline void aac_safw_rescan_worker(struct work_struct *work)
 	aac_scan_host(dev);
 }
 
-static inline void aac_cancel_safw_rescan_worker(struct aac_dev *dev)
+static inline void aac_cancel_rescan_worker(struct aac_dev *dev)
 {
-	if (dev->sa_firmware)
-		cancel_delayed_work_sync(&dev->safw_rescan_work);
+	cancel_delayed_work_sync(&dev->safw_rescan_work);
+	cancel_delayed_work_sync(&dev->src_reinit_aif_worker);
 }
 
-/* SCp.phase values */
-#define AAC_OWNER_MIDLEVEL	0x101
-#define AAC_OWNER_LOWLEVEL	0x102
-#define AAC_OWNER_ERROR_HANDLER	0x103
-#define AAC_OWNER_FIRMWARE	0x106
+enum aac_cmd_owner {
+	AAC_OWNER_MIDLEVEL	= 0x101,
+	AAC_OWNER_LOWLEVEL	= 0x102,
+	AAC_OWNER_ERROR_HANDLER	= 0x103,
+	AAC_OWNER_FIRMWARE	= 0x106,
+};
+
+struct aac_cmd_priv {
+	int			(*callback)(struct scsi_cmnd *);
+	int			status;
+	enum aac_cmd_owner	owner;
+	bool			sent_command;
+};
+
+static inline struct aac_cmd_priv *aac_priv(struct scsi_cmnd *cmd)
+{
+	return scsi_cmd_priv(cmd);
+}
 
 void aac_safw_rescan_worker(struct work_struct *work);
+void aac_src_reinit_aif_worker(struct work_struct *work);
 int aac_acquire_irq(struct aac_dev *dev);
 void aac_free_irq(struct aac_dev *dev);
 int aac_setup_safw_adapter(struct aac_dev *dev);
@@ -2728,6 +2752,7 @@ int aac_probe_container(struct aac_dev *dev, int cid);
 int _aac_rx_init(struct aac_dev *dev);
 int aac_rx_select_comm(struct aac_dev *dev, int comm);
 int aac_rx_deliver_producer(struct fib * fib);
+void aac_reinit_aif(struct aac_dev *aac, unsigned int index);
 
 static inline int aac_is_src(struct aac_dev *dev)
 {

@@ -3,6 +3,10 @@
 #define _INET_COMMON_H
 
 #include <linux/indirect_call_wrapper.h>
+#include <linux/net.h>
+#include <linux/netdev_features.h>
+#include <linux/types.h>
+#include <net/sock.h>
 
 extern const struct proto_ops inet_stream_ops;
 extern const struct proto_ops inet_dgram_ops;
@@ -12,6 +16,8 @@ extern const struct proto_ops inet_dgram_ops;
  */
 
 struct msghdr;
+struct net;
+struct page;
 struct sock;
 struct sockaddr;
 struct socket;
@@ -23,20 +29,31 @@ int __inet_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 			  int addr_len, int flags, int is_sendmsg);
 int inet_dgram_connect(struct socket *sock, struct sockaddr *uaddr,
 		       int addr_len, int flags);
-int inet_accept(struct socket *sock, struct socket *newsock, int flags,
-		bool kern);
+int inet_accept(struct socket *sock, struct socket *newsock,
+		struct proto_accept_arg *arg);
+void __inet_accept(struct socket *sock, struct socket *newsock,
+		   struct sock *newsk);
 int inet_send_prepare(struct sock *sk);
 int inet_sendmsg(struct socket *sock, struct msghdr *msg, size_t size);
-ssize_t inet_sendpage(struct socket *sock, struct page *page, int offset,
-		      size_t size, int flags);
+void inet_splice_eof(struct socket *sock);
 int inet_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 		 int flags);
 int inet_shutdown(struct socket *sock, int how);
 int inet_listen(struct socket *sock, int backlog);
+int __inet_listen_sk(struct sock *sk, int backlog);
 void inet_sock_destruct(struct sock *sk);
 int inet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len);
+int inet_bind_sk(struct sock *sk, struct sockaddr *uaddr, int addr_len);
+/* Don't allocate port at this moment, defer to connect. */
+#define BIND_FORCE_ADDRESS_NO_PORT	(1 << 0)
+/* Grab and release socket lock. */
+#define BIND_WITH_LOCK			(1 << 1)
+/* Called from BPF program. */
+#define BIND_FROM_BPF			(1 << 2)
+/* Skip CAP_NET_BIND_SERVICE check. */
+#define BIND_NO_CAP_NET_BIND_SERVICE	(1 << 3)
 int __inet_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
-		bool force_bind_address_no_port, bool with_lock);
+		u32 flags);
 int inet_getname(struct socket *sock, struct sockaddr *uaddr,
 		 int peer);
 int inet_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg);

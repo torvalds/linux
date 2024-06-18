@@ -16,41 +16,45 @@
 #include <linux/stddef.h>
 #include <linux/string.h>
 #include <linux/mm.h>
+#include <linux/io.h>
 #include <asm/diag.h>
 #include <asm/ebcdic.h>
 #include <asm/cpcmd.h>
-#include <asm/io.h>
 
 static DEFINE_SPINLOCK(cpcmd_lock);
 static char cpcmd_buf[241];
 
 static int diag8_noresponse(int cmdlen)
 {
-	register unsigned long reg2 asm ("2") = (addr_t) cpcmd_buf;
-	register unsigned long reg3 asm ("3") = cmdlen;
-
 	asm volatile(
-		"	diag	%1,%0,0x8\n"
-		: "+d" (reg3) : "d" (reg2) : "cc");
-	return reg3;
+		"	diag	%[rx],%[ry],0x8\n"
+		: [ry] "+&d" (cmdlen)
+		: [rx] "d" (__pa(cpcmd_buf))
+		: "cc");
+	return cmdlen;
 }
 
 static int diag8_response(int cmdlen, char *response, int *rlen)
 {
-	register unsigned long reg2 asm ("2") = (addr_t) cpcmd_buf;
-	register unsigned long reg3 asm ("3") = (addr_t) response;
-	register unsigned long reg4 asm ("4") = cmdlen | 0x40000000L;
-	register unsigned long reg5 asm ("5") = *rlen;
+	union register_pair rx, ry;
+	int cc;
 
+	rx.even = __pa(cpcmd_buf);
+	rx.odd	= __pa(response);
+	ry.even = cmdlen | 0x40000000L;
+	ry.odd	= *rlen;
 	asm volatile(
-		"	diag	%2,%0,0x8\n"
-		"	brc	8,1f\n"
-		"	agr	%1,%4\n"
-		"1:\n"
-		: "+d" (reg4), "+d" (reg5)
-		: "d" (reg2), "d" (reg3), "d" (*rlen) : "cc");
-	*rlen = reg5;
-	return reg4;
+		"	diag	%[rx],%[ry],0x8\n"
+		"	ipm	%[cc]\n"
+		"	srl	%[cc],28\n"
+		: [cc] "=&d" (cc), [ry] "+&d" (ry.pair)
+		: [rx] "d" (rx.pair)
+		: "cc");
+	if (cc)
+		*rlen += ry.odd;
+	else
+		*rlen = ry.odd;
+	return ry.even;
 }
 
 /*

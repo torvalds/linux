@@ -3,15 +3,20 @@
  * Copyright (c) 2015 MediaTek Inc.
  */
 
+#include <drm/drm_fourcc.h>
+
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
-#include <linux/of_irq.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
+#include <linux/soc/mediatek/mtk-cmdq.h>
 
-#include "mtk_drm_crtc.h"
-#include "mtk_drm_ddp_comp.h"
+#include "mtk_crtc.h"
+#include "mtk_ddp_comp.h"
+#include "mtk_disp_drv.h"
+#include "mtk_drm_drv.h"
 
 #define DISP_REG_RDMA_INT_ENABLE		0x0000
 #define DISP_REG_RDMA_INT_STATUS		0x0004
@@ -49,102 +54,163 @@
 
 #define RDMA_MEM_GMC				0x40402020
 
+static const u32 mt8173_formats[] = {
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_BGRX8888,
+	DRM_FORMAT_BGRA8888,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_RGB888,
+	DRM_FORMAT_BGR888,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_UYVY,
+	DRM_FORMAT_YUYV,
+};
+
 struct mtk_disp_rdma_data {
 	unsigned int fifo_size;
+	const u32 *formats;
+	size_t num_formats;
 };
 
-/**
+/*
  * struct mtk_disp_rdma - DISP_RDMA driver structure
- * @ddp_comp - structure containing type enum and hardware resources
- * @crtc - associated crtc to report irq events to
+ * @data: local driver data
  */
 struct mtk_disp_rdma {
-	struct mtk_ddp_comp		ddp_comp;
-	struct drm_crtc			*crtc;
+	struct clk			*clk;
+	void __iomem			*regs;
+	struct cmdq_client_reg		cmdq_reg;
 	const struct mtk_disp_rdma_data	*data;
+	void				(*vblank_cb)(void *data);
+	void				*vblank_cb_data;
+	u32				fifo_size;
 };
-
-static inline struct mtk_disp_rdma *comp_to_rdma(struct mtk_ddp_comp *comp)
-{
-	return container_of(comp, struct mtk_disp_rdma, ddp_comp);
-}
 
 static irqreturn_t mtk_disp_rdma_irq_handler(int irq, void *dev_id)
 {
 	struct mtk_disp_rdma *priv = dev_id;
-	struct mtk_ddp_comp *rdma = &priv->ddp_comp;
 
 	/* Clear frame completion interrupt */
-	writel(0x0, rdma->regs + DISP_REG_RDMA_INT_STATUS);
+	writel(0x0, priv->regs + DISP_REG_RDMA_INT_STATUS);
 
-	if (!priv->crtc)
+	if (!priv->vblank_cb)
 		return IRQ_NONE;
 
-	mtk_crtc_ddp_irq(priv->crtc, rdma);
+	priv->vblank_cb(priv->vblank_cb_data);
 
 	return IRQ_HANDLED;
 }
 
-static void rdma_update_bits(struct mtk_ddp_comp *comp, unsigned int reg,
+static void rdma_update_bits(struct device *dev, unsigned int reg,
 			     unsigned int mask, unsigned int val)
 {
-	unsigned int tmp = readl(comp->regs + reg);
+	struct mtk_disp_rdma *rdma = dev_get_drvdata(dev);
+	unsigned int tmp = readl(rdma->regs + reg);
 
 	tmp = (tmp & ~mask) | (val & mask);
-	writel(tmp, comp->regs + reg);
+	writel(tmp, rdma->regs + reg);
 }
 
-static void mtk_rdma_enable_vblank(struct mtk_ddp_comp *comp,
-				   struct drm_crtc *crtc)
+void mtk_rdma_register_vblank_cb(struct device *dev,
+				 void (*vblank_cb)(void *),
+				 void *vblank_cb_data)
 {
-	struct mtk_disp_rdma *rdma = comp_to_rdma(comp);
+	struct mtk_disp_rdma *rdma = dev_get_drvdata(dev);
 
-	rdma->crtc = crtc;
-	rdma_update_bits(comp, DISP_REG_RDMA_INT_ENABLE, RDMA_FRAME_END_INT,
+	rdma->vblank_cb = vblank_cb;
+	rdma->vblank_cb_data = vblank_cb_data;
+}
+
+void mtk_rdma_unregister_vblank_cb(struct device *dev)
+{
+	struct mtk_disp_rdma *rdma = dev_get_drvdata(dev);
+
+	rdma->vblank_cb = NULL;
+	rdma->vblank_cb_data = NULL;
+}
+
+void mtk_rdma_enable_vblank(struct device *dev)
+{
+	rdma_update_bits(dev, DISP_REG_RDMA_INT_ENABLE, RDMA_FRAME_END_INT,
 			 RDMA_FRAME_END_INT);
 }
 
-static void mtk_rdma_disable_vblank(struct mtk_ddp_comp *comp)
+void mtk_rdma_disable_vblank(struct device *dev)
 {
-	struct mtk_disp_rdma *rdma = comp_to_rdma(comp);
-
-	rdma->crtc = NULL;
-	rdma_update_bits(comp, DISP_REG_RDMA_INT_ENABLE, RDMA_FRAME_END_INT, 0);
+	rdma_update_bits(dev, DISP_REG_RDMA_INT_ENABLE, RDMA_FRAME_END_INT, 0);
 }
 
-static void mtk_rdma_start(struct mtk_ddp_comp *comp)
+const u32 *mtk_rdma_get_formats(struct device *dev)
 {
-	rdma_update_bits(comp, DISP_REG_RDMA_GLOBAL_CON, RDMA_ENGINE_EN,
+	struct mtk_disp_rdma *rdma = dev_get_drvdata(dev);
+
+	return rdma->data->formats;
+}
+
+size_t mtk_rdma_get_num_formats(struct device *dev)
+{
+	struct mtk_disp_rdma *rdma = dev_get_drvdata(dev);
+
+	return rdma->data->num_formats;
+}
+
+int mtk_rdma_clk_enable(struct device *dev)
+{
+	struct mtk_disp_rdma *rdma = dev_get_drvdata(dev);
+
+	return clk_prepare_enable(rdma->clk);
+}
+
+void mtk_rdma_clk_disable(struct device *dev)
+{
+	struct mtk_disp_rdma *rdma = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(rdma->clk);
+}
+
+void mtk_rdma_start(struct device *dev)
+{
+	rdma_update_bits(dev, DISP_REG_RDMA_GLOBAL_CON, RDMA_ENGINE_EN,
 			 RDMA_ENGINE_EN);
 }
 
-static void mtk_rdma_stop(struct mtk_ddp_comp *comp)
+void mtk_rdma_stop(struct device *dev)
 {
-	rdma_update_bits(comp, DISP_REG_RDMA_GLOBAL_CON, RDMA_ENGINE_EN, 0);
+	rdma_update_bits(dev, DISP_REG_RDMA_GLOBAL_CON, RDMA_ENGINE_EN, 0);
 }
 
-static void mtk_rdma_config(struct mtk_ddp_comp *comp, unsigned int width,
-			    unsigned int height, unsigned int vrefresh,
-			    unsigned int bpc)
+void mtk_rdma_config(struct device *dev, unsigned int width,
+		     unsigned int height, unsigned int vrefresh,
+		     unsigned int bpc, struct cmdq_pkt *cmdq_pkt)
 {
 	unsigned int threshold;
 	unsigned int reg;
-	struct mtk_disp_rdma *rdma = comp_to_rdma(comp);
+	struct mtk_disp_rdma *rdma = dev_get_drvdata(dev);
+	u32 rdma_fifo_size;
 
-	rdma_update_bits(comp, DISP_REG_RDMA_SIZE_CON_0, 0xfff, width);
-	rdma_update_bits(comp, DISP_REG_RDMA_SIZE_CON_1, 0xfffff, height);
+	mtk_ddp_write_mask(cmdq_pkt, width, &rdma->cmdq_reg, rdma->regs,
+			   DISP_REG_RDMA_SIZE_CON_0, 0xfff);
+	mtk_ddp_write_mask(cmdq_pkt, height, &rdma->cmdq_reg, rdma->regs,
+			   DISP_REG_RDMA_SIZE_CON_1, 0xfffff);
+
+	if (rdma->fifo_size)
+		rdma_fifo_size = rdma->fifo_size;
+	else
+		rdma_fifo_size = RDMA_FIFO_SIZE(rdma);
 
 	/*
 	 * Enable FIFO underflow since DSI and DPI can't be blocked.
 	 * Keep the FIFO pseudo size reset default of 8 KiB. Set the
-	 * output threshold to 6 microseconds with 7/6 overhead to
-	 * account for blanking, and with a pixel depth of 4 bytes:
+	 * output threshold to 70% of max fifo size to make sure the
+	 * threhold will not overflow
 	 */
-	threshold = width * height * vrefresh * 4 * 7 / 1000000;
+	threshold = rdma_fifo_size * 7 / 10;
 	reg = RDMA_FIFO_UNDERFLOW_EN |
-	      RDMA_FIFO_PSEUDO_SIZE(RDMA_FIFO_SIZE(rdma)) |
+	      RDMA_FIFO_PSEUDO_SIZE(rdma_fifo_size) |
 	      RDMA_OUTPUT_VALID_FIFO_THRESHOLD(threshold);
-	writel(reg, comp->regs + DISP_REG_RDMA_FIFO_CON);
+	mtk_ddp_write(cmdq_pkt, reg, &rdma->cmdq_reg, rdma->regs, DISP_REG_RDMA_FIFO_CON);
 }
 
 static unsigned int rdma_fmt_convert(struct mtk_disp_rdma *rdma,
@@ -184,15 +250,16 @@ static unsigned int rdma_fmt_convert(struct mtk_disp_rdma *rdma,
 	}
 }
 
-static unsigned int mtk_rdma_layer_nr(struct mtk_ddp_comp *comp)
+unsigned int mtk_rdma_layer_nr(struct device *dev)
 {
 	return 1;
 }
 
-static void mtk_rdma_layer_config(struct mtk_ddp_comp *comp, unsigned int idx,
-				  struct mtk_plane_state *state)
+void mtk_rdma_layer_config(struct device *dev, unsigned int idx,
+			   struct mtk_plane_state *state,
+			   struct cmdq_pkt *cmdq_pkt)
 {
-	struct mtk_disp_rdma *rdma = comp_to_rdma(comp);
+	struct mtk_disp_rdma *rdma = dev_get_drvdata(dev);
 	struct mtk_plane_pending_state *pending = &state->pending;
 	unsigned int addr = pending->addr;
 	unsigned int pitch = pending->pitch & 0xffff;
@@ -200,50 +267,34 @@ static void mtk_rdma_layer_config(struct mtk_ddp_comp *comp, unsigned int idx,
 	unsigned int con;
 
 	con = rdma_fmt_convert(rdma, fmt);
-	writel_relaxed(con, comp->regs + DISP_RDMA_MEM_CON);
+	mtk_ddp_write_relaxed(cmdq_pkt, con, &rdma->cmdq_reg, rdma->regs, DISP_RDMA_MEM_CON);
 
 	if (fmt == DRM_FORMAT_UYVY || fmt == DRM_FORMAT_YUYV) {
-		rdma_update_bits(comp, DISP_REG_RDMA_SIZE_CON_0,
-				 RDMA_MATRIX_ENABLE, RDMA_MATRIX_ENABLE);
-		rdma_update_bits(comp, DISP_REG_RDMA_SIZE_CON_0,
-				 RDMA_MATRIX_INT_MTX_SEL,
-				 RDMA_MATRIX_INT_MTX_BT601_to_RGB);
+		mtk_ddp_write_mask(cmdq_pkt, RDMA_MATRIX_ENABLE, &rdma->cmdq_reg, rdma->regs,
+				   DISP_REG_RDMA_SIZE_CON_0,
+				   RDMA_MATRIX_ENABLE);
+		mtk_ddp_write_mask(cmdq_pkt, RDMA_MATRIX_INT_MTX_BT601_to_RGB,
+				   &rdma->cmdq_reg, rdma->regs, DISP_REG_RDMA_SIZE_CON_0,
+				   RDMA_MATRIX_INT_MTX_SEL);
 	} else {
-		rdma_update_bits(comp, DISP_REG_RDMA_SIZE_CON_0,
-				 RDMA_MATRIX_ENABLE, 0);
+		mtk_ddp_write_mask(cmdq_pkt, 0, &rdma->cmdq_reg, rdma->regs,
+				   DISP_REG_RDMA_SIZE_CON_0,
+				   RDMA_MATRIX_ENABLE);
 	}
+	mtk_ddp_write_relaxed(cmdq_pkt, addr, &rdma->cmdq_reg, rdma->regs,
+			      DISP_RDMA_MEM_START_ADDR);
+	mtk_ddp_write_relaxed(cmdq_pkt, pitch, &rdma->cmdq_reg, rdma->regs,
+			      DISP_RDMA_MEM_SRC_PITCH);
+	mtk_ddp_write(cmdq_pkt, RDMA_MEM_GMC, &rdma->cmdq_reg, rdma->regs,
+		      DISP_RDMA_MEM_GMC_SETTING_0);
+	mtk_ddp_write_mask(cmdq_pkt, RDMA_MODE_MEMORY, &rdma->cmdq_reg, rdma->regs,
+			   DISP_REG_RDMA_GLOBAL_CON, RDMA_MODE_MEMORY);
 
-	writel_relaxed(addr, comp->regs + DISP_RDMA_MEM_START_ADDR);
-	writel_relaxed(pitch, comp->regs + DISP_RDMA_MEM_SRC_PITCH);
-	writel(RDMA_MEM_GMC, comp->regs + DISP_RDMA_MEM_GMC_SETTING_0);
-	rdma_update_bits(comp, DISP_REG_RDMA_GLOBAL_CON,
-			 RDMA_MODE_MEMORY, RDMA_MODE_MEMORY);
 }
-
-static const struct mtk_ddp_comp_funcs mtk_disp_rdma_funcs = {
-	.config = mtk_rdma_config,
-	.start = mtk_rdma_start,
-	.stop = mtk_rdma_stop,
-	.enable_vblank = mtk_rdma_enable_vblank,
-	.disable_vblank = mtk_rdma_disable_vblank,
-	.layer_nr = mtk_rdma_layer_nr,
-	.layer_config = mtk_rdma_layer_config,
-};
 
 static int mtk_disp_rdma_bind(struct device *dev, struct device *master,
 			      void *data)
 {
-	struct mtk_disp_rdma *priv = dev_get_drvdata(dev);
-	struct drm_device *drm_dev = data;
-	int ret;
-
-	ret = mtk_ddp_comp_register(drm_dev, &priv->ddp_comp);
-	if (ret < 0) {
-		dev_err(dev, "Failed to register component %pOF: %d\n",
-			dev->of_node, ret);
-		return ret;
-	}
-
 	return 0;
 
 }
@@ -251,10 +302,6 @@ static int mtk_disp_rdma_bind(struct device *dev, struct device *master,
 static void mtk_disp_rdma_unbind(struct device *dev, struct device *master,
 				 void *data)
 {
-	struct mtk_disp_rdma *priv = dev_get_drvdata(dev);
-	struct drm_device *drm_dev = data;
-
-	mtk_ddp_comp_unregister(drm_dev, &priv->ddp_comp);
 }
 
 static const struct component_ops mtk_disp_rdma_component_ops = {
@@ -266,7 +313,7 @@ static int mtk_disp_rdma_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct mtk_disp_rdma *priv;
-	int comp_id;
+	struct resource *res;
 	int irq;
 	int ret;
 
@@ -278,22 +325,37 @@ static int mtk_disp_rdma_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	comp_id = mtk_ddp_comp_get_id(dev->of_node, MTK_DISP_RDMA);
-	if (comp_id < 0) {
-		dev_err(dev, "Failed to identify by alias: %d\n", comp_id);
-		return comp_id;
+	priv->clk = devm_clk_get(dev, NULL);
+	if (IS_ERR(priv->clk)) {
+		dev_err(dev, "failed to get rdma clk\n");
+		return PTR_ERR(priv->clk);
 	}
 
-	ret = mtk_ddp_comp_init(dev, dev->of_node, &priv->ddp_comp, comp_id,
-				&mtk_disp_rdma_funcs);
-	if (ret) {
-		dev_err(dev, "Failed to initialize component: %d\n", ret);
-		return ret;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	priv->regs = devm_ioremap_resource(dev, res);
+	if (IS_ERR(priv->regs)) {
+		dev_err(dev, "failed to ioremap rdma\n");
+		return PTR_ERR(priv->regs);
+	}
+#if IS_REACHABLE(CONFIG_MTK_CMDQ)
+	ret = cmdq_dev_get_client_reg(dev, &priv->cmdq_reg, 0);
+	if (ret)
+		dev_dbg(dev, "get mediatek,gce-client-reg fail!\n");
+#endif
+
+	if (of_find_property(dev->of_node, "mediatek,rdma-fifo-size", &ret)) {
+		ret = of_property_read_u32(dev->of_node,
+					   "mediatek,rdma-fifo-size",
+					   &priv->fifo_size);
+		if (ret) {
+			dev_err(dev, "Failed to get rdma fifo size\n");
+			return ret;
+		}
 	}
 
 	/* Disable and clear pending interrupts */
-	writel(0x0, priv->ddp_comp.regs + DISP_REG_RDMA_INT_ENABLE);
-	writel(0x0, priv->ddp_comp.regs + DISP_REG_RDMA_INT_STATUS);
+	writel(0x0, priv->regs + DISP_REG_RDMA_INT_ENABLE);
+	writel(0x0, priv->regs + DISP_REG_RDMA_INT_STATUS);
 
 	ret = devm_request_irq(dev, irq, mtk_disp_rdma_irq_handler,
 			       IRQF_TRIGGER_NONE, dev_name(dev), priv);
@@ -306,26 +368,46 @@ static int mtk_disp_rdma_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, priv);
 
+	pm_runtime_enable(dev);
+
 	ret = component_add(dev, &mtk_disp_rdma_component_ops);
-	if (ret)
+	if (ret) {
+		pm_runtime_disable(dev);
 		dev_err(dev, "Failed to add component: %d\n", ret);
+	}
 
 	return ret;
 }
 
-static int mtk_disp_rdma_remove(struct platform_device *pdev)
+static void mtk_disp_rdma_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &mtk_disp_rdma_component_ops);
 
-	return 0;
+	pm_runtime_disable(&pdev->dev);
 }
 
 static const struct mtk_disp_rdma_data mt2701_rdma_driver_data = {
 	.fifo_size = SZ_4K,
+	.formats = mt8173_formats,
+	.num_formats = ARRAY_SIZE(mt8173_formats),
 };
 
 static const struct mtk_disp_rdma_data mt8173_rdma_driver_data = {
 	.fifo_size = SZ_8K,
+	.formats = mt8173_formats,
+	.num_formats = ARRAY_SIZE(mt8173_formats),
+};
+
+static const struct mtk_disp_rdma_data mt8183_rdma_driver_data = {
+	.fifo_size = 5 * SZ_1K,
+	.formats = mt8173_formats,
+	.num_formats = ARRAY_SIZE(mt8173_formats),
+};
+
+static const struct mtk_disp_rdma_data mt8195_rdma_driver_data = {
+	.fifo_size = 1920,
+	.formats = mt8173_formats,
+	.num_formats = ARRAY_SIZE(mt8173_formats),
 };
 
 static const struct of_device_id mtk_disp_rdma_driver_dt_match[] = {
@@ -333,16 +415,19 @@ static const struct of_device_id mtk_disp_rdma_driver_dt_match[] = {
 	  .data = &mt2701_rdma_driver_data},
 	{ .compatible = "mediatek,mt8173-disp-rdma",
 	  .data = &mt8173_rdma_driver_data},
+	{ .compatible = "mediatek,mt8183-disp-rdma",
+	  .data = &mt8183_rdma_driver_data},
+	{ .compatible = "mediatek,mt8195-disp-rdma",
+	  .data = &mt8195_rdma_driver_data},
 	{},
 };
 MODULE_DEVICE_TABLE(of, mtk_disp_rdma_driver_dt_match);
 
 struct platform_driver mtk_disp_rdma_driver = {
 	.probe		= mtk_disp_rdma_probe,
-	.remove		= mtk_disp_rdma_remove,
+	.remove_new	= mtk_disp_rdma_remove,
 	.driver		= {
 		.name	= "mediatek-disp-rdma",
-		.owner	= THIS_MODULE,
 		.of_match_table = mtk_disp_rdma_driver_dt_match,
 	},
 };

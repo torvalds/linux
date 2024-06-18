@@ -16,23 +16,29 @@
 #include <linux/nodemask.h>
 #include <linux/initrd.h>
 #include <linux/gfp.h>
+#include <linux/math.h>
 #include <linux/memblock.h>
 #include <linux/sort.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
-#include <linux/dma-mapping.h>
-#include <linux/dma-contiguous.h>
+#include <linux/dma-direct.h>
+#include <linux/dma-map-ops.h>
 #include <linux/efi.h>
 #include <linux/swiotlb.h>
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
 #include <linux/kexec.h>
 #include <linux/crash_dump.h>
+#include <linux/hugetlb.h>
+#include <linux/acpi_iort.h>
+#include <linux/kmemleak.h>
+#include <linux/execmem.h>
 
 #include <asm/boot.h>
 #include <asm/fixmap.h>
 #include <asm/kasan.h>
 #include <asm/kernel-pgtable.h>
+#include <asm/kvm_host.h>
 #include <asm/memory.h>
 #include <asm/numa.h>
 #include <asm/sections.h>
@@ -40,6 +46,7 @@
 #include <linux/sizes.h>
 #include <asm/tlb.h>
 #include <asm/alternative.h>
+#include <asm/xen/swiotlb-xen.h>
 
 /*
  * We need to be able to catch inadvertent references to memstart_addr
@@ -50,213 +57,120 @@
 s64 memstart_addr __ro_after_init = -1;
 EXPORT_SYMBOL(memstart_addr);
 
-s64 physvirt_offset __ro_after_init;
-EXPORT_SYMBOL(physvirt_offset);
-
-struct page *vmemmap __ro_after_init;
-EXPORT_SYMBOL(vmemmap);
-
-phys_addr_t arm64_dma_phys_limit __ro_after_init;
-
-#ifdef CONFIG_KEXEC_CORE
 /*
- * reserve_crashkernel() - reserves memory for crash kernel
- *
- * This function reserves memory area given in "crashkernel=" kernel command
- * line parameter. The memory reserved is used by dump capture kernel when
- * primary kernel is crashing.
+ * If the corresponding config options are enabled, we create both ZONE_DMA
+ * and ZONE_DMA32. By default ZONE_DMA covers the 32-bit addressable memory
+ * unless restricted on specific platforms (e.g. 30-bit on Raspberry Pi 4).
+ * In such case, ZONE_DMA32 covers the rest of the 32-bit addressable memory,
+ * otherwise it is empty.
  */
-static void __init reserve_crashkernel(void)
+phys_addr_t __ro_after_init arm64_dma_phys_limit;
+
+/*
+ * To make optimal use of block mappings when laying out the linear
+ * mapping, round down the base of physical memory to a size that can
+ * be mapped efficiently, i.e., either PUD_SIZE (4k granule) or PMD_SIZE
+ * (64k granule), or a multiple that can be mapped using contiguous bits
+ * in the page tables: 32 * PMD_SIZE (16k granule)
+ */
+#if defined(CONFIG_ARM64_4K_PAGES)
+#define ARM64_MEMSTART_SHIFT		PUD_SHIFT
+#elif defined(CONFIG_ARM64_16K_PAGES)
+#define ARM64_MEMSTART_SHIFT		CONT_PMD_SHIFT
+#else
+#define ARM64_MEMSTART_SHIFT		PMD_SHIFT
+#endif
+
+/*
+ * sparsemem vmemmap imposes an additional requirement on the alignment of
+ * memstart_addr, due to the fact that the base of the vmemmap region
+ * has a direct correspondence, and needs to appear sufficiently aligned
+ * in the virtual address space.
+ */
+#if ARM64_MEMSTART_SHIFT < SECTION_SIZE_BITS
+#define ARM64_MEMSTART_ALIGN	(1UL << SECTION_SIZE_BITS)
+#else
+#define ARM64_MEMSTART_ALIGN	(1UL << ARM64_MEMSTART_SHIFT)
+#endif
+
+static void __init arch_reserve_crashkernel(void)
 {
+	unsigned long long low_size = 0;
 	unsigned long long crash_base, crash_size;
+	char *cmdline = boot_command_line;
+	bool high = false;
 	int ret;
 
-	ret = parse_crashkernel(boot_command_line, memblock_phys_mem_size(),
-				&crash_size, &crash_base);
-	/* no crashkernel= or invalid value specified */
-	if (ret || !crash_size)
+	if (!IS_ENABLED(CONFIG_CRASH_RESERVE))
 		return;
 
-	crash_size = PAGE_ALIGN(crash_size);
+	ret = parse_crashkernel(cmdline, memblock_phys_mem_size(),
+				&crash_size, &crash_base,
+				&low_size, &high);
+	if (ret)
+		return;
 
-	if (crash_base == 0) {
-		/* Current arm64 boot protocol requires 2MB alignment */
-		crash_base = memblock_find_in_range(0, ARCH_LOW_ADDRESS_LIMIT,
-				crash_size, SZ_2M);
-		if (crash_base == 0) {
-			pr_warn("cannot allocate crashkernel (size:0x%llx)\n",
-				crash_size);
-			return;
-		}
-	} else {
-		/* User specifies base address explicitly. */
-		if (!memblock_is_region_memory(crash_base, crash_size)) {
-			pr_warn("cannot reserve crashkernel: region is not memory\n");
-			return;
-		}
-
-		if (memblock_is_region_reserved(crash_base, crash_size)) {
-			pr_warn("cannot reserve crashkernel: region overlaps reserved memory\n");
-			return;
-		}
-
-		if (!IS_ALIGNED(crash_base, SZ_2M)) {
-			pr_warn("cannot reserve crashkernel: base address is not 2MB aligned\n");
-			return;
-		}
-	}
-	memblock_reserve(crash_base, crash_size);
-
-	pr_info("crashkernel reserved: 0x%016llx - 0x%016llx (%lld MB)\n",
-		crash_base, crash_base + crash_size, crash_size >> 20);
-
-	crashk_res.start = crash_base;
-	crashk_res.end = crash_base + crash_size - 1;
-}
-#else
-static void __init reserve_crashkernel(void)
-{
-}
-#endif /* CONFIG_KEXEC_CORE */
-
-#ifdef CONFIG_CRASH_DUMP
-static int __init early_init_dt_scan_elfcorehdr(unsigned long node,
-		const char *uname, int depth, void *data)
-{
-	const __be32 *reg;
-	int len;
-
-	if (depth != 1 || strcmp(uname, "chosen") != 0)
-		return 0;
-
-	reg = of_get_flat_dt_prop(node, "linux,elfcorehdr", &len);
-	if (!reg || (len < (dt_root_addr_cells + dt_root_size_cells)))
-		return 1;
-
-	elfcorehdr_addr = dt_mem_next_cell(dt_root_addr_cells, &reg);
-	elfcorehdr_size = dt_mem_next_cell(dt_root_size_cells, &reg);
-
-	return 1;
+	reserve_crashkernel_generic(cmdline, crash_size, crash_base,
+				    low_size, high);
 }
 
 /*
- * reserve_elfcorehdr() - reserves memory for elf core header
- *
- * This function reserves the memory occupied by an elf core header
- * described in the device tree. This region contains all the
- * information about primary kernel's core image and is used by a dump
- * capture kernel to access the system memory on primary kernel.
+ * Return the maximum physical address for a zone accessible by the given bits
+ * limit. If DRAM starts above 32-bit, expand the zone to the maximum
+ * available memory, otherwise cap it at 32-bit.
  */
-static void __init reserve_elfcorehdr(void)
+static phys_addr_t __init max_zone_phys(unsigned int zone_bits)
 {
-	of_scan_flat_dt(early_init_dt_scan_elfcorehdr, NULL);
+	phys_addr_t zone_mask = DMA_BIT_MASK(zone_bits);
+	phys_addr_t phys_start = memblock_start_of_DRAM();
 
-	if (!elfcorehdr_size)
-		return;
+	if (phys_start > U32_MAX)
+		zone_mask = PHYS_ADDR_MAX;
+	else if (phys_start > zone_mask)
+		zone_mask = U32_MAX;
 
-	if (memblock_is_region_reserved(elfcorehdr_addr, elfcorehdr_size)) {
-		pr_warn("elfcorehdr is overlapped\n");
-		return;
-	}
-
-	memblock_reserve(elfcorehdr_addr, elfcorehdr_size);
-
-	pr_info("Reserving %lldKB of memory at 0x%llx for elfcorehdr\n",
-		elfcorehdr_size >> 10, elfcorehdr_addr);
-}
-#else
-static void __init reserve_elfcorehdr(void)
-{
-}
-#endif /* CONFIG_CRASH_DUMP */
-/*
- * Return the maximum physical address for ZONE_DMA32 (DMA_BIT_MASK(32)). It
- * currently assumes that for memory starting above 4G, 32-bit devices will
- * use a DMA offset.
- */
-static phys_addr_t __init max_zone_dma_phys(void)
-{
-	phys_addr_t offset = memblock_start_of_DRAM() & GENMASK_ULL(63, 32);
-	return min(offset + (1ULL << 32), memblock_end_of_DRAM());
+	return min(zone_mask, memblock_end_of_DRAM() - 1) + 1;
 }
 
-#ifdef CONFIG_NUMA
-
-static void __init zone_sizes_init(unsigned long min, unsigned long max)
+static void __init zone_sizes_init(void)
 {
 	unsigned long max_zone_pfns[MAX_NR_ZONES]  = {0};
+	unsigned int __maybe_unused acpi_zone_dma_bits;
+	unsigned int __maybe_unused dt_zone_dma_bits;
+	phys_addr_t __maybe_unused dma32_phys_limit = max_zone_phys(32);
 
-#ifdef CONFIG_ZONE_DMA32
-	max_zone_pfns[ZONE_DMA32] = PFN_DOWN(max_zone_dma_phys());
+#ifdef CONFIG_ZONE_DMA
+	acpi_zone_dma_bits = fls64(acpi_iort_dma_get_max_cpu_address());
+	dt_zone_dma_bits = fls64(of_dma_get_max_cpu_address(NULL));
+	zone_dma_bits = min3(32U, dt_zone_dma_bits, acpi_zone_dma_bits);
+	arm64_dma_phys_limit = max_zone_phys(zone_dma_bits);
+	max_zone_pfns[ZONE_DMA] = PFN_DOWN(arm64_dma_phys_limit);
 #endif
-	max_zone_pfns[ZONE_NORMAL] = max;
+#ifdef CONFIG_ZONE_DMA32
+	max_zone_pfns[ZONE_DMA32] = PFN_DOWN(dma32_phys_limit);
+	if (!arm64_dma_phys_limit)
+		arm64_dma_phys_limit = dma32_phys_limit;
+#endif
+	if (!arm64_dma_phys_limit)
+		arm64_dma_phys_limit = PHYS_MASK + 1;
+	max_zone_pfns[ZONE_NORMAL] = max_pfn;
 
-	free_area_init_nodes(max_zone_pfns);
+	free_area_init(max_zone_pfns);
 }
 
-#else
-
-static void __init zone_sizes_init(unsigned long min, unsigned long max)
+int pfn_is_map_memory(unsigned long pfn)
 {
-	struct memblock_region *reg;
-	unsigned long zone_size[MAX_NR_ZONES], zhole_size[MAX_NR_ZONES];
-	unsigned long max_dma = min;
+	phys_addr_t addr = PFN_PHYS(pfn);
 
-	memset(zone_size, 0, sizeof(zone_size));
-
-	/* 4GB maximum for 32-bit only capable devices */
-#ifdef CONFIG_ZONE_DMA32
-	max_dma = PFN_DOWN(arm64_dma_phys_limit);
-	zone_size[ZONE_DMA32] = max_dma - min;
-#endif
-	zone_size[ZONE_NORMAL] = max - max_dma;
-
-	memcpy(zhole_size, zone_size, sizeof(zhole_size));
-
-	for_each_memblock(memory, reg) {
-		unsigned long start = memblock_region_memory_base_pfn(reg);
-		unsigned long end = memblock_region_memory_end_pfn(reg);
-
-		if (start >= max)
-			continue;
-
-#ifdef CONFIG_ZONE_DMA32
-		if (start < max_dma) {
-			unsigned long dma_end = min(end, max_dma);
-			zhole_size[ZONE_DMA32] -= dma_end - start;
-		}
-#endif
-		if (end > max_dma) {
-			unsigned long normal_end = min(end, max);
-			unsigned long normal_start = max(start, max_dma);
-			zhole_size[ZONE_NORMAL] -= normal_end - normal_start;
-		}
-	}
-
-	free_area_init_node(0, zone_size, min, zhole_size);
-}
-
-#endif /* CONFIG_NUMA */
-
-int pfn_valid(unsigned long pfn)
-{
-	phys_addr_t addr = pfn << PAGE_SHIFT;
-
-	if ((addr >> PAGE_SHIFT) != pfn)
+	/* avoid false positives for bogus PFNs, see comment in pfn_valid() */
+	if (PHYS_PFN(addr) != pfn)
 		return 0;
 
-#ifdef CONFIG_SPARSEMEM
-	if (pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS)
-		return 0;
-
-	if (!valid_section(__nr_to_section(pfn_to_section_nr(pfn))))
-		return 0;
-#endif
 	return memblock_is_map_memory(addr);
 }
-EXPORT_SYMBOL(pfn_valid);
+EXPORT_SYMBOL(pfn_is_map_memory);
 
-static phys_addr_t memory_limit = PHYS_ADDR_MAX;
+static phys_addr_t memory_limit __ro_after_init = PHYS_ADDR_MAX;
 
 /*
  * Limit the memory size that was specified via FDT.
@@ -273,44 +187,23 @@ static int __init early_mem(char *p)
 }
 early_param("mem", early_mem);
 
-static int __init early_init_dt_scan_usablemem(unsigned long node,
-		const char *uname, int depth, void *data)
-{
-	struct memblock_region *usablemem = data;
-	const __be32 *reg;
-	int len;
-
-	if (depth != 1 || strcmp(uname, "chosen") != 0)
-		return 0;
-
-	reg = of_get_flat_dt_prop(node, "linux,usable-memory-range", &len);
-	if (!reg || (len < (dt_root_addr_cells + dt_root_size_cells)))
-		return 1;
-
-	usablemem->base = dt_mem_next_cell(dt_root_addr_cells, &reg);
-	usablemem->size = dt_mem_next_cell(dt_root_size_cells, &reg);
-
-	return 1;
-}
-
-static void __init fdt_enforce_memory_region(void)
-{
-	struct memblock_region reg = {
-		.size = 0,
-	};
-
-	of_scan_flat_dt(early_init_dt_scan_usablemem, &reg);
-
-	if (reg.size)
-		memblock_cap_memory_range(reg.base, reg.size);
-}
-
 void __init arm64_memblock_init(void)
 {
-	const s64 linear_region_size = BIT(vabits_actual - 1);
+	s64 linear_region_size = PAGE_END - _PAGE_OFFSET(vabits_actual);
 
-	/* Handle linux,usable-memory-range property */
-	fdt_enforce_memory_region();
+	/*
+	 * Corner case: 52-bit VA capable systems running KVM in nVHE mode may
+	 * be limited in their ability to support a linear map that exceeds 51
+	 * bits of VA space, depending on the placement of the ID map. Given
+	 * that the placement of the ID map may be randomized, let's simply
+	 * limit the kernel's linear map to 51 bits as well if we detect this
+	 * configuration.
+	 */
+	if (IS_ENABLED(CONFIG_KVM) && vabits_actual == 52 &&
+	    is_hyp_mode_available() && !is_kernel_in_hyp_mode()) {
+		pr_info("Capping linear region to 51 bits for KVM in nVHE mode on LVA capable hardware.\n");
+		linear_region_size = min_t(u64, linear_region_size, BIT(51));
+	}
 
 	/* Remove memory above our supported physical address size */
 	memblock_remove(1ULL << PHYS_MASK_SHIFT, ULLONG_MAX);
@@ -321,19 +214,8 @@ void __init arm64_memblock_init(void)
 	memstart_addr = round_down(memblock_start_of_DRAM(),
 				   ARM64_MEMSTART_ALIGN);
 
-	physvirt_offset = PHYS_OFFSET - PAGE_OFFSET;
-
-	vmemmap = ((struct page *)VMEMMAP_START - (memstart_addr >> PAGE_SHIFT));
-
-	/*
-	 * If we are running with a 52-bit kernel VA config on a system that
-	 * does not support it, we have to offset our vmemmap and physvirt_offset
-	 * s.t. we avoid the 52-bit portion of the direct linear map
-	 */
-	if (IS_ENABLED(CONFIG_ARM64_VA_BITS_52) && (vabits_actual != 52)) {
-		vmemmap += (_PAGE_OFFSET(48) - _PAGE_OFFSET(52)) >> PAGE_SHIFT;
-		physvirt_offset = PHYS_OFFSET - _PAGE_OFFSET(48);
-	}
+	if ((memblock_end_of_DRAM() - memstart_addr) > linear_region_size)
+		pr_warn("Memory doesn't fit in the linear mapping, VA_BITS too small\n");
 
 	/*
 	 * Remove the memory that we will not be able to cover with the
@@ -348,6 +230,16 @@ void __init arm64_memblock_init(void)
 					 ARM64_MEMSTART_ALIGN);
 		memblock_remove(0, memstart_addr);
 	}
+
+	/*
+	 * If we are running with a 52-bit kernel VA config on a system that
+	 * does not support it, we have to place the available physical
+	 * memory in the 48-bit addressable part of the linear region, i.e.,
+	 * we have to move it upward. Since memstart_addr represents the
+	 * physical address of PAGE_OFFSET, we have to *subtract* from it.
+	 */
+	if (IS_ENABLED(CONFIG_ARM64_VA_BITS_52) && (vabits_actual != 52))
+		memstart_addr -= _PAGE_OFFSET(vabits_actual) - _PAGE_OFFSET(52);
 
 	/*
 	 * Apply the memory limit if it was set. Since the kernel may be loaded
@@ -382,23 +274,26 @@ void __init arm64_memblock_init(void)
 			"initrd not fully accessible via the linear mapping -- please check your bootloader ...\n")) {
 			phys_initrd_size = 0;
 		} else {
-			memblock_remove(base, size); /* clear MEMBLOCK_ flags */
 			memblock_add(base, size);
+			memblock_clear_nomap(base, size);
 			memblock_reserve(base, size);
 		}
 	}
 
 	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE)) {
 		extern u16 memstart_offset_seed;
-		u64 range = linear_region_size -
-			    (memblock_end_of_DRAM() - memblock_start_of_DRAM());
+		u64 mmfr0 = read_cpuid(ID_AA64MMFR0_EL1);
+		int parange = cpuid_feature_extract_unsigned_field(
+					mmfr0, ID_AA64MMFR0_EL1_PARANGE_SHIFT);
+		s64 range = linear_region_size -
+			    BIT(id_aa64mmfr0_parange_to_phys_shift(parange));
 
 		/*
 		 * If the size of the linear region exceeds, by a sufficient
-		 * margin, the size of the region that the available physical
-		 * memory spans, randomize the linear region as well.
+		 * margin, the size of the region that the physical memory can
+		 * span, randomize the linear region as well.
 		 */
-		if (memstart_offset_seed > 0 && range >= ARM64_MEMSTART_ALIGN) {
+		if (memstart_offset_seed > 0 && range >= (s64)ARM64_MEMSTART_ALIGN) {
 			range /= ARM64_MEMSTART_ALIGN;
 			memstart_addr -= ARM64_MEMSTART_ALIGN *
 					 ((range * memstart_offset_seed) >> 16);
@@ -409,7 +304,7 @@ void __init arm64_memblock_init(void)
 	 * Register the kernel text, kernel data, initrd, and initial
 	 * pagetables with memblock.
 	 */
-	memblock_reserve(__pa_symbol(_text), _end - _text);
+	memblock_reserve(__pa_symbol(_stext), _end - _stext);
 	if (IS_ENABLED(CONFIG_BLK_DEV_INITRD) && phys_initrd_size) {
 		/* the generic initrd code expects virtual addresses */
 		initrd_start = __phys_to_virt(phys_initrd_start);
@@ -418,19 +313,7 @@ void __init arm64_memblock_init(void)
 
 	early_init_fdt_scan_reserved_mem();
 
-	/* 4GB maximum for 32-bit only capable devices */
-	if (IS_ENABLED(CONFIG_ZONE_DMA32))
-		arm64_dma_phys_limit = max_zone_dma_phys();
-	else
-		arm64_dma_phys_limit = PHYS_MASK + 1;
-
-	reserve_crashkernel();
-
-	reserve_elfcorehdr();
-
 	high_memory = __va(memblock_end_of_DRAM() - 1) + 1;
-
-	dma_contiguous_reserve(arm64_dma_phys_limit);
 }
 
 void __init bootmem_init(void)
@@ -445,86 +328,39 @@ void __init bootmem_init(void)
 	max_pfn = max_low_pfn = max;
 	min_low_pfn = min;
 
-	arm64_numa_init();
-	/*
-	 * Sparsemem tries to allocate bootmem in memory_present(), so must be
-	 * done after the fixed reservations.
-	 */
-	memblocks_present();
+	arch_numa_init();
 
+	/*
+	 * must be done after arch_numa_init() which calls numa_init() to
+	 * initialize node_online_map that gets used in hugetlb_cma_reserve()
+	 * while allocating required CMA size across online nodes.
+	 */
+#if defined(CONFIG_HUGETLB_PAGE) && defined(CONFIG_CMA)
+	arm64_hugetlb_cma_reserve();
+#endif
+
+	kvm_hyp_reserve();
+
+	/*
+	 * sparse_init() tries to allocate memory from memblock, so must be
+	 * done after the fixed reservations
+	 */
 	sparse_init();
-	zone_sizes_init(min, max);
+	zone_sizes_init();
+
+	/*
+	 * Reserve the CMA area after arm64_dma_phys_limit was initialised.
+	 */
+	dma_contiguous_reserve(arm64_dma_phys_limit);
+
+	/*
+	 * request_standard_resources() depends on crashkernel's memory being
+	 * reserved, so do it here.
+	 */
+	arch_reserve_crashkernel();
 
 	memblock_dump_all();
 }
-
-#ifndef CONFIG_SPARSEMEM_VMEMMAP
-static inline void free_memmap(unsigned long start_pfn, unsigned long end_pfn)
-{
-	struct page *start_pg, *end_pg;
-	unsigned long pg, pgend;
-
-	/*
-	 * Convert start_pfn/end_pfn to a struct page pointer.
-	 */
-	start_pg = pfn_to_page(start_pfn - 1) + 1;
-	end_pg = pfn_to_page(end_pfn - 1) + 1;
-
-	/*
-	 * Convert to physical addresses, and round start upwards and end
-	 * downwards.
-	 */
-	pg = (unsigned long)PAGE_ALIGN(__pa(start_pg));
-	pgend = (unsigned long)__pa(end_pg) & PAGE_MASK;
-
-	/*
-	 * If there are free pages between these, free the section of the
-	 * memmap array.
-	 */
-	if (pg < pgend)
-		memblock_free(pg, pgend - pg);
-}
-
-/*
- * The mem_map array can get very big. Free the unused area of the memory map.
- */
-static void __init free_unused_memmap(void)
-{
-	unsigned long start, prev_end = 0;
-	struct memblock_region *reg;
-
-	for_each_memblock(memory, reg) {
-		start = __phys_to_pfn(reg->base);
-
-#ifdef CONFIG_SPARSEMEM
-		/*
-		 * Take care not to free memmap entries that don't exist due
-		 * to SPARSEMEM sections which aren't present.
-		 */
-		start = min(start, ALIGN(prev_end, PAGES_PER_SECTION));
-#endif
-		/*
-		 * If we had a previous bank, and there is a space between the
-		 * current bank and the previous, free it.
-		 */
-		if (prev_end && prev_end < start)
-			free_memmap(prev_end, start);
-
-		/*
-		 * Align up here since the VM subsystem insists that the
-		 * memmap entries are valid from the bank end aligned to
-		 * MAX_ORDER_NR_PAGES.
-		 */
-		prev_end = ALIGN(__phys_to_pfn(reg->base + reg->size),
-				 MAX_ORDER_NR_PAGES);
-	}
-
-#ifdef CONFIG_SPARSEMEM
-	if (!IS_ALIGNED(prev_end, PAGES_PER_SECTION))
-		free_memmap(prev_end, ALIGN(prev_end, PAGES_PER_SECTION));
-#endif
-}
-#endif	/* !CONFIG_SPARSEMEM_VMEMMAP */
 
 /*
  * mem_init() marks the free areas in the mem_map and tells us how much memory
@@ -533,21 +369,23 @@ static void __init free_unused_memmap(void)
  */
 void __init mem_init(void)
 {
-	if (swiotlb_force == SWIOTLB_FORCE ||
-	    max_pfn > (arm64_dma_phys_limit >> PAGE_SHIFT))
-		swiotlb_init(1);
-	else
-		swiotlb_force = SWIOTLB_NO_FORCE;
+	bool swiotlb = max_pfn > PFN_DOWN(arm64_dma_phys_limit);
 
-	set_max_mapnr(max_pfn - PHYS_PFN_OFFSET);
+	if (IS_ENABLED(CONFIG_DMA_BOUNCE_UNALIGNED_KMALLOC) && !swiotlb) {
+		/*
+		 * If no bouncing needed for ZONE_DMA, reduce the swiotlb
+		 * buffer for kmalloc() bouncing to 1MB per 1GB of RAM.
+		 */
+		unsigned long size =
+			DIV_ROUND_UP(memblock_phys_mem_size(), 1024);
+		swiotlb_adjust_size(min(swiotlb_size_or_default(), size));
+		swiotlb = true;
+	}
 
-#ifndef CONFIG_SPARSEMEM_VMEMMAP
-	free_unused_memmap();
-#endif
+	swiotlb_init(swiotlb, SWIOTLB_VERBOSE);
+
 	/* this will put all unused low memory onto the freelists */
 	memblock_free_all();
-
-	mem_init_print_info(NULL);
 
 	/*
 	 * Check boundaries twice: Some fundamental inconsistencies can be
@@ -556,6 +394,13 @@ void __init mem_init(void)
 #ifdef CONFIG_COMPAT
 	BUILD_BUG_ON(TASK_SIZE_32 > DEFAULT_MAP_WINDOW_64);
 #endif
+
+	/*
+	 * Selected page table levels should match when derived from
+	 * scratch using the virtual address range and page size.
+	 */
+	BUILD_BUG_ON(ARM64_HW_PGTABLE_LEVELS(CONFIG_ARM64_VA_BITS) !=
+		     CONFIG_PGTABLE_LEVELS);
 
 	if (PAGE_SIZE >= 16384 && get_num_physpages() <= 128) {
 		extern int sysctl_overcommit_memory;
@@ -571,48 +416,159 @@ void free_initmem(void)
 {
 	free_reserved_area(lm_alias(__init_begin),
 			   lm_alias(__init_end),
-			   0, "unused kernel");
+			   POISON_FREE_INITMEM, "unused kernel");
 	/*
 	 * Unmap the __init region but leave the VM area in place. This
 	 * prevents the region from being reused for kernel modules, which
 	 * is not supported by kallsyms.
 	 */
-	unmap_kernel_range((u64)__init_begin, (u64)(__init_end - __init_begin));
+	vunmap_range((u64)__init_begin, (u64)__init_end);
 }
 
-#ifdef CONFIG_BLK_DEV_INITRD
-void __init free_initrd_mem(unsigned long start, unsigned long end)
-{
-	unsigned long aligned_start, aligned_end;
-
-	aligned_start = __virt_to_phys(start) & PAGE_MASK;
-	aligned_end = PAGE_ALIGN(__virt_to_phys(end));
-	memblock_free(aligned_start, aligned_end - aligned_start);
-	free_reserved_area((void *)start, (void *)end, 0, "initrd");
-}
-#endif
-
-/*
- * Dump out memory limit information on panic.
- */
-static int dump_mem_limit(struct notifier_block *self, unsigned long v, void *p)
+void dump_mem_limit(void)
 {
 	if (memory_limit != PHYS_ADDR_MAX) {
 		pr_emerg("Memory Limit: %llu MB\n", memory_limit >> 20);
 	} else {
 		pr_emerg("Memory Limit: none\n");
 	}
-	return 0;
 }
 
-static struct notifier_block mem_limit_notifier = {
-	.notifier_call = dump_mem_limit,
-};
+#ifdef CONFIG_EXECMEM
+static u64 module_direct_base __ro_after_init = 0;
+static u64 module_plt_base __ro_after_init = 0;
 
-static int __init register_mem_limit_dumper(void)
+/*
+ * Choose a random page-aligned base address for a window of 'size' bytes which
+ * entirely contains the interval [start, end - 1].
+ */
+static u64 __init random_bounding_box(u64 size, u64 start, u64 end)
 {
-	atomic_notifier_chain_register(&panic_notifier_list,
-				       &mem_limit_notifier);
+	u64 max_pgoff, pgoff;
+
+	if ((end - start) >= size)
+		return 0;
+
+	max_pgoff = (size - (end - start)) / PAGE_SIZE;
+	pgoff = get_random_u32_inclusive(0, max_pgoff);
+
+	return start - pgoff * PAGE_SIZE;
+}
+
+/*
+ * Modules may directly reference data and text anywhere within the kernel
+ * image and other modules. References using PREL32 relocations have a +/-2G
+ * range, and so we need to ensure that the entire kernel image and all modules
+ * fall within a 2G window such that these are always within range.
+ *
+ * Modules may directly branch to functions and code within the kernel text,
+ * and to functions and code within other modules. These branches will use
+ * CALL26/JUMP26 relocations with a +/-128M range. Without PLTs, we must ensure
+ * that the entire kernel text and all module text falls within a 128M window
+ * such that these are always within range. With PLTs, we can expand this to a
+ * 2G window.
+ *
+ * We chose the 128M region to surround the entire kernel image (rather than
+ * just the text) as using the same bounds for the 128M and 2G regions ensures
+ * by construction that we never select a 128M region that is not a subset of
+ * the 2G region. For very large and unusual kernel configurations this means
+ * we may fall back to PLTs where they could have been avoided, but this keeps
+ * the logic significantly simpler.
+ */
+static int __init module_init_limits(void)
+{
+	u64 kernel_end = (u64)_end;
+	u64 kernel_start = (u64)_text;
+	u64 kernel_size = kernel_end - kernel_start;
+
+	/*
+	 * The default modules region is placed immediately below the kernel
+	 * image, and is large enough to use the full 2G relocation range.
+	 */
+	BUILD_BUG_ON(KIMAGE_VADDR != MODULES_END);
+	BUILD_BUG_ON(MODULES_VSIZE < SZ_2G);
+
+	if (!kaslr_enabled()) {
+		if (kernel_size < SZ_128M)
+			module_direct_base = kernel_end - SZ_128M;
+		if (kernel_size < SZ_2G)
+			module_plt_base = kernel_end - SZ_2G;
+	} else {
+		u64 min = kernel_start;
+		u64 max = kernel_end;
+
+		if (IS_ENABLED(CONFIG_RANDOMIZE_MODULE_REGION_FULL)) {
+			pr_info("2G module region forced by RANDOMIZE_MODULE_REGION_FULL\n");
+		} else {
+			module_direct_base = random_bounding_box(SZ_128M, min, max);
+			if (module_direct_base) {
+				min = module_direct_base;
+				max = module_direct_base + SZ_128M;
+			}
+		}
+
+		module_plt_base = random_bounding_box(SZ_2G, min, max);
+	}
+
+	pr_info("%llu pages in range for non-PLT usage",
+		module_direct_base ? (SZ_128M - kernel_size) / PAGE_SIZE : 0);
+	pr_info("%llu pages in range for PLT usage",
+		module_plt_base ? (SZ_2G - kernel_size) / PAGE_SIZE : 0);
+
 	return 0;
 }
-__initcall(register_mem_limit_dumper);
+
+static struct execmem_info execmem_info __ro_after_init;
+
+struct execmem_info __init *execmem_arch_setup(void)
+{
+	unsigned long fallback_start = 0, fallback_end = 0;
+	unsigned long start = 0, end = 0;
+
+	module_init_limits();
+
+	/*
+	 * Where possible, prefer to allocate within direct branch range of the
+	 * kernel such that no PLTs are necessary.
+	 */
+	if (module_direct_base) {
+		start = module_direct_base;
+		end = module_direct_base + SZ_128M;
+
+		if (module_plt_base) {
+			fallback_start = module_plt_base;
+			fallback_end = module_plt_base + SZ_2G;
+		}
+	} else if (module_plt_base) {
+		start = module_plt_base;
+		end = module_plt_base + SZ_2G;
+	}
+
+	execmem_info = (struct execmem_info){
+		.ranges = {
+			[EXECMEM_DEFAULT] = {
+				.start	= start,
+				.end	= end,
+				.pgprot	= PAGE_KERNEL,
+				.alignment = 1,
+				.fallback_start	= fallback_start,
+				.fallback_end	= fallback_end,
+			},
+			[EXECMEM_KPROBES] = {
+				.start	= VMALLOC_START,
+				.end	= VMALLOC_END,
+				.pgprot	= PAGE_KERNEL_ROX,
+				.alignment = 1,
+			},
+			[EXECMEM_BPF] = {
+				.start	= VMALLOC_START,
+				.end	= VMALLOC_END,
+				.pgprot	= PAGE_KERNEL,
+				.alignment = 1,
+			},
+		},
+	};
+
+	return &execmem_info;
+}
+#endif /* CONFIG_EXECMEM */

@@ -14,13 +14,10 @@
 EXPORT_SYMBOL(__clear_user_hexagon);
 EXPORT_SYMBOL(raw_copy_from_user);
 EXPORT_SYMBOL(raw_copy_to_user);
-EXPORT_SYMBOL(__iounmap);
-EXPORT_SYMBOL(__strnlen_user);
 EXPORT_SYMBOL(__vmgetie);
 EXPORT_SYMBOL(__vmsetie);
 EXPORT_SYMBOL(__vmyield);
 EXPORT_SYMBOL(empty_zero_page);
-EXPORT_SYMBOL(ioremap_nocache);
 EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(memset);
 
@@ -35,8 +32,8 @@ EXPORT_SYMBOL(_dflt_cache_att);
 DECLARE_EXPORT(__hexagon_memcpy_likely_aligned_min32bytes_mult8bytes);
 
 /* Additional functions */
-DECLARE_EXPORT(__divsi3);
-DECLARE_EXPORT(__modsi3);
-DECLARE_EXPORT(__udivsi3);
-DECLARE_EXPORT(__umodsi3);
+DECLARE_EXPORT(__hexagon_divsi3);
+DECLARE_EXPORT(__hexagon_modsi3);
+DECLARE_EXPORT(__hexagon_udivsi3);
+DECLARE_EXPORT(__hexagon_umodsi3);
 DECLARE_EXPORT(csum_tcpudp_magic);

@@ -130,6 +130,7 @@ struct bcm47xx_board_type_list2 bcm47xx_board_list_boot_hw[] __initconst = {
 	{{BCM47XX_BOARD_LINKSYS_E1000V21, "Linksys E1000 V2.1"}, "E1000", "2.1"},
 	{{BCM47XX_BOARD_LINKSYS_E1200V2, "Linksys E1200 V2"}, "E1200", "2.0"},
 	{{BCM47XX_BOARD_LINKSYS_E2000V1, "Linksys E2000 V1"}, "Linksys E2000", "1.0"},
+	{{BCM47XX_BOARD_LINKSYS_E2500V3, "Linksys E2500 V3"}, "E2500", "1.0"},
 	/* like WRT610N v2.0 */
 	{{BCM47XX_BOARD_LINKSYS_E3000V1, "Linksys E3000 V1"}, "E300", "1.0"},
 	{{BCM47XX_BOARD_LINKSYS_E3200V1, "Linksys E3200 V1"}, "E3200", "1.0"},
@@ -141,6 +142,7 @@ struct bcm47xx_board_type_list2 bcm47xx_board_list_boot_hw[] __initconst = {
 	{{BCM47XX_BOARD_LINKSYS_WRT300NV11, "Linksys WRT300N V1.1"}, "WRT300N", "1.1"},
 	{{BCM47XX_BOARD_LINKSYS_WRT310NV1, "Linksys WRT310N V1"}, "WRT310N", "1.0"},
 	{{BCM47XX_BOARD_LINKSYS_WRT310NV2, "Linksys WRT310N V2"}, "WRT310N", "2.0"},
+	{{BCM47XX_BOARD_LINKSYS_WRT320N_V1, "Linksys WRT320N V1"}, "WRT320N", "1.0"},
 	{{BCM47XX_BOARD_LINKSYS_WRT54G3GV2, "Linksys WRT54G3GV2-VF"}, "WRT54G3GV2-VF", "1.0"},
 	{{BCM47XX_BOARD_LINKSYS_WRT610NV1, "Linksys WRT610N V1"}, "WRT610N", "1.0"},
 	{{BCM47XX_BOARD_LINKSYS_WRT610NV2, "Linksys WRT610N V2"}, "WRT610N", "2.0"},
@@ -161,9 +163,12 @@ struct bcm47xx_board_type_list1 bcm47xx_board_list_board_id[] __initconst = {
 	{{BCM47XX_BOARD_LUXUL_XWR_600_V1, "Luxul XWR-600 V1"}, "luxul_xwr600_v1"},
 	{{BCM47XX_BOARD_LUXUL_XWR_1750_V1, "Luxul XWR-1750 V1"}, "luxul_xwr1750_v1"},
 	{{BCM47XX_BOARD_NETGEAR_R6200_V1, "Netgear R6200 V1"}, "U12H192T00_NETGEAR"},
+	{{BCM47XX_BOARD_NETGEAR_R6300_V1, "Netgear R6300 V1"}, "U12H218T00_NETGEAR"},
 	{{BCM47XX_BOARD_NETGEAR_WGR614V8, "Netgear WGR614 V8"}, "U12H072T00_NETGEAR"},
 	{{BCM47XX_BOARD_NETGEAR_WGR614V9, "Netgear WGR614 V9"}, "U12H094T00_NETGEAR"},
 	{{BCM47XX_BOARD_NETGEAR_WGR614_V10, "Netgear WGR614 V10"}, "U12H139T01_NETGEAR"},
+	{{BCM47XX_BOARD_NETGEAR_WN2500RP_V1, "Netgear WN2500RP V1"}, "U12H197T00_NETGEAR"},
+	{{BCM47XX_BOARD_NETGEAR_WN2500RP_V2, "Netgear WN2500RP V2"}, "U12H294T00_NETGEAR"},
 	{{BCM47XX_BOARD_NETGEAR_WNDR3300, "Netgear WNDR3300"}, "U12H093T00_NETGEAR"},
 	{{BCM47XX_BOARD_NETGEAR_WNDR3400V1, "Netgear WNDR3400 V1"}, "U12H155T00_NETGEAR"},
 	{{BCM47XX_BOARD_NETGEAR_WNDR3400V2, "Netgear WNDR3400 V2"}, "U12H187T00_NETGEAR"},
@@ -177,6 +182,7 @@ struct bcm47xx_board_type_list1 bcm47xx_board_list_board_id[] __initconst = {
 	{{BCM47XX_BOARD_NETGEAR_WNR1000_V3, "Netgear WNR1000 V3"}, "U12H139T50_NETGEAR"},
 	{{BCM47XX_BOARD_NETGEAR_WNR2000, "Netgear WNR2000"}, "U12H114T00_NETGEAR"},
 	{{BCM47XX_BOARD_NETGEAR_WNR3500L, "Netgear WNR3500L"}, "U12H136T99_NETGEAR"},
+	{{BCM47XX_BOARD_NETGEAR_WNR3500L_V2, "Netgear WNR3500L V2"}, "U12H172T00_NETGEAR"},
 	{{BCM47XX_BOARD_NETGEAR_WNR3500U, "Netgear WNR3500U"}, "U12H136T00_NETGEAR"},
 	{{BCM47XX_BOARD_NETGEAR_WNR3500V2, "Netgear WNR3500 V2"}, "U12H127T00_NETGEAR"},
 	{{BCM47XX_BOARD_NETGEAR_WNR3500V2VC, "Netgear WNR3500 V2vc"}, "U12H127T70_NETGEAR"},
@@ -187,10 +193,12 @@ struct bcm47xx_board_type_list1 bcm47xx_board_list_board_id[] __initconst = {
 /* boardtype, boardnum, boardrev */
 static const
 struct bcm47xx_board_type_list3 bcm47xx_board_list_board[] __initconst = {
+	{{BCM47XX_BOARD_HUAWEI_B593U_12, "Huawei B593u-12"}, "0x053d", "1234", "0x1301"},
 	{{BCM47XX_BOARD_HUAWEI_E970, "Huawei E970"}, "0x048e", "0x5347", "0x11"},
 	{{BCM47XX_BOARD_PHICOMM_M1, "Phicomm M1"}, "0x0590", "80", "0x1104"},
 	{{BCM47XX_BOARD_ZTE_H218N, "ZTE H218N"}, "0x053d", "1234", "0x1305"},
 	{{BCM47XX_BOARD_NETGEAR_WNR3500L, "Netgear WNR3500L"}, "0x04CF", "3500", "02"},
+	{{BCM47XX_BOARD_NETGEAR_WNR3500L_V2, "Netgear WNR3500L V2"}, "0x052b", "3500L", "02"},
 	{{BCM47XX_BOARD_LINKSYS_WRT54G_TYPE_0101, "Linksys WRT54G/GS/GL"}, "0x0101", "42", "0x10"},
 	{{BCM47XX_BOARD_LINKSYS_WRT54G_TYPE_0467, "Linksys WRT54G/GS/GL"}, "0x0467", "42", "0x10"},
 	{{BCM47XX_BOARD_LINKSYS_WRT54G_TYPE_0708, "Linksys WRT54G/GS/GL"}, "0x0708", "42", "0x10"},
@@ -345,7 +353,7 @@ void __init bcm47xx_board_detect(void)
 
 	board_detected = bcm47xx_board_get_nvram();
 	bcm47xx_board.board = board_detected->board;
-	strlcpy(bcm47xx_board.name, board_detected->name,
+	strscpy(bcm47xx_board.name, board_detected->name,
 		BCM47XX_BOARD_MAX_NAME);
 }
 

@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# CDX controller configuration
+#
+# Copyright (C) 2022-2023, Advanced Micro Devices, Inc.
+#
+
+if CDX_BUS
+
+config CDX_CONTROLLER
+	tristate "CDX bus controller"
+	select GENERIC_MSI_IRQ
+	select REMOTEPROC
+	select RPMSG
+	help
+	  CDX controller drives the CDX bus. It interacts with
+	  firmware to get the hardware devices and registers with
+	  the CDX bus. Say Y to enable the CDX hardware driver.
+
+	  If unsure, say N.
+
+endif

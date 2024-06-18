@@ -91,7 +91,6 @@ static const struct snd_soc_component_driver adau7002_component_driver = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static int adau7002_probe(struct platform_device *pdev)
@@ -99,11 +98,6 @@ static int adau7002_probe(struct platform_device *pdev)
 	return devm_snd_soc_register_component(&pdev->dev,
 			&adau7002_component_driver,
 			&adau7002_dai, 1);
-}
-
-static int adau7002_remove(struct platform_device *pdev)
-{
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -129,7 +123,6 @@ static struct platform_driver adau7002_driver = {
 		.acpi_match_table = ACPI_PTR(adau7002_acpi_match),
 	},
 	.probe = adau7002_probe,
-	.remove = adau7002_remove,
 };
 module_platform_driver(adau7002_driver);
 

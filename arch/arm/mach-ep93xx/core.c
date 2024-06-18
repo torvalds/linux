@@ -22,6 +22,7 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/leds.h>
+#include <linux/uaccess.h>
 #include <linux/termios.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/serial.h>
@@ -47,6 +48,7 @@
 #include <asm/mach/map.h>
 
 #include "soc.h"
+#include "irqs.h"
 
 /*************************************************************************
  * Static I/O mappings that are needed for all EP93xx platforms
@@ -75,8 +77,8 @@ void __init ep93xx_map_io(void)
  *************************************************************************/
 void __init ep93xx_init_irq(void)
 {
-	vic_init(EP93XX_VIC1_BASE, 0, EP93XX_VIC1_VALID_IRQ_MASK, 0);
-	vic_init(EP93XX_VIC2_BASE, 32, EP93XX_VIC2_VALID_IRQ_MASK, 0);
+	vic_init(EP93XX_VIC1_BASE, IRQ_EP93XX_VIC0, EP93XX_VIC1_VALID_IRQ_MASK, 0);
+	vic_init(EP93XX_VIC2_BASE, IRQ_EP93XX_VIC1, EP93XX_VIC2_VALID_IRQ_MASK, 0);
 }
 
 
@@ -214,7 +216,7 @@ static int ep93xx_ohci_power_on(struct platform_device *pdev)
 			return PTR_ERR(ep93xx_ohci_host_clock);
 	}
 
-	return clk_enable(ep93xx_ohci_host_clock);
+	return clk_prepare_enable(ep93xx_ohci_host_clock);
 }
 
 static void ep93xx_ohci_power_off(struct platform_device *pdev)
@@ -337,6 +339,7 @@ static struct gpiod_lookup_table ep93xx_i2c_gpiod_table = {
 				GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
 		GPIO_LOOKUP_IDX("G", 0, NULL, 1,
 				GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
+		{ }
 	},
 };
 
@@ -424,16 +427,24 @@ void __init ep93xx_register_spi(struct ep93xx_spi_info *info,
 static const struct gpio_led ep93xx_led_pins[] __initconst = {
 	{
 		.name	= "platform:grled",
-		.gpio	= EP93XX_GPIO_LINE_GRLED,
 	}, {
 		.name	= "platform:rdled",
-		.gpio	= EP93XX_GPIO_LINE_RDLED,
 	},
 };
 
 static const struct gpio_led_platform_data ep93xx_led_data __initconst = {
 	.num_leds	= ARRAY_SIZE(ep93xx_led_pins),
 	.leds		= ep93xx_led_pins,
+};
+
+static struct gpiod_lookup_table ep93xx_leds_gpio_table = {
+	.dev_id = "leds-gpio",
+	.table = {
+		/* Use local offsets on gpiochip/port "E" */
+		GPIO_LOOKUP_IDX("E", 0, NULL, 0, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("E", 1,	NULL, 1, GPIO_ACTIVE_HIGH),
+		{ }
+	},
 };
 
 /*************************************************************************
@@ -988,6 +999,7 @@ struct device __init *ep93xx_init_devices(void)
 	platform_device_register(&ep93xx_ohci_device);
 	platform_device_register(&ep93xx_wdt_device);
 
+	gpiod_add_lookup_table(&ep93xx_leds_gpio_table);
 	gpio_led_register_device(-1, &ep93xx_led_data);
 
 	return parent;
@@ -1003,9 +1015,4 @@ void ep93xx_restart(enum reboot_mode mode, const char *cmd)
 
 	while (1)
 		;
-}
-
-void __init ep93xx_init_late(void)
-{
-	crunch_init();
 }

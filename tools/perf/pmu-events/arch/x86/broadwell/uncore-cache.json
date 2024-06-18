@@ -1,0 +1,133 @@
+[
+    {
+        "BriefDescription": "L3 Lookup any request that access cache and found line in E or S-state",
+        "EventCode": "0x34",
+        "EventName": "UNC_CBO_CACHE_LOOKUP.ANY_ES",
+        "PerPkg": "1",
+        "PublicDescription": "L3 Lookup any request that access cache and found line in E or S-state.",
+        "UMask": "0x86",
+        "Unit": "CBOX"
+    },
+    {
+        "BriefDescription": "L3 Lookup any request that access cache and found line in I-state",
+        "EventCode": "0x34",
+        "EventName": "UNC_CBO_CACHE_LOOKUP.ANY_I",
+        "PerPkg": "1",
+        "PublicDescription": "L3 Lookup any request that access cache and found line in I-state.",
+        "UMask": "0x88",
+        "Unit": "CBOX"
+    },
+    {
+        "BriefDescription": "L3 Lookup any request that access cache and found line in M-state",
+        "EventCode": "0x34",
+        "EventName": "UNC_CBO_CACHE_LOOKUP.ANY_M",
+        "PerPkg": "1",
+        "PublicDescription": "L3 Lookup any request that access cache and found line in M-state.",
+        "UMask": "0x81",
+        "Unit": "CBOX"
+    },
+    {
+        "BriefDescription": "L3 Lookup any request that access cache and found line in MESI-state",
+        "EventCode": "0x34",
+        "EventName": "UNC_CBO_CACHE_LOOKUP.ANY_MESI",
+        "PerPkg": "1",
+        "PublicDescription": "L3 Lookup any request that access cache and found line in MESI-state.",
+        "UMask": "0x8f",
+        "Unit": "CBOX"
+    },
+    {
+        "BriefDescription": "L3 Lookup read request that access cache and found line in E or S-state",
+        "EventCode": "0x34",
+        "EventName": "UNC_CBO_CACHE_LOOKUP.READ_ES",
+        "PerPkg": "1",
+        "PublicDescription": "L3 Lookup read request that access cache and found line in E or S-state.",
+        "UMask": "0x16",
+        "Unit": "CBOX"
+    },
+    {
+        "BriefDescription": "L3 Lookup read request that access cache and found line in I-state",
+        "EventCode": "0x34",
+        "EventName": "UNC_CBO_CACHE_LOOKUP.READ_I",
+        "PerPkg": "1",
+        "PublicDescription": "L3 Lookup read request that access cache and found line in I-state.",
+        "UMask": "0x18",
+        "Unit": "CBOX"
+    },
+    {
+        "BriefDescription": "L3 Lookup read request that access cache and found line in M-state",
+        "EventCode": "0x34",
+        "EventName": "UNC_CBO_CACHE_LOOKUP.READ_M",
+        "PerPkg": "1",
+        "PublicDescription": "L3 Lookup read request that access cache and found line in M-state.",
+        "UMask": "0x11",
+        "Unit": "CBOX"
+    },
+    {
+        "BriefDescription": "L3 Lookup read request that access cache and found line in any MESI-state",
+        "EventCode": "0x34",
+        "EventName": "UNC_CBO_CACHE_LOOKUP.READ_MESI",
+        "PerPkg": "1",
+        "PublicDescription": "L3 Lookup read request that access cache and found line in any MESI-state.",
+        "UMask": "0x1f",
+        "Unit": "CBOX"
+    },
+    {
+        "BriefDescription": "L3 Lookup write request that access cache and found line in E or S-state",
+        "EventCode": "0x34",
+        "EventName": "UNC_CBO_CACHE_LOOKUP.WRITE_ES",
+        "PerPkg": "1",
+        "PublicDescription": "L3 Lookup write request that access cache and found line in E or S-state.",
+        "UMask": "0x26",
+        "Unit": "CBOX"
+    },
+    {
+        "BriefDescription": "L3 Lookup write request that access cache and found line in M-state",
+        "EventCode": "0x34",
+        "EventName": "UNC_CBO_CACHE_LOOKUP.WRITE_M",
+        "PerPkg": "1",
+        "PublicDescription": "L3 Lookup write request that access cache and found line in M-state.",
+        "UMask": "0x21",
+        "Unit": "CBOX"
+    },
+    {
+        "BriefDescription": "L3 Lookup write request that access cache and found line in MESI-state",
+        "EventCode": "0x34",
+        "EventName": "UNC_CBO_CACHE_LOOKUP.WRITE_MESI",
+        "PerPkg": "1",
+        "PublicDescription": "L3 Lookup write request that access cache and found line in MESI-state.",
+        "UMask": "0x2f",
+        "Unit": "CBOX"
+    },
+    {
+        "BriefDescription": "A cross-core snoop initiated by this Cbox due to processor core memory request which hits a modified line in some processor core.",
+        "EventCode": "0x22",
+        "EventName": "UNC_CBO_XSNP_RESPONSE.HITM_XCORE",
+        "PerPkg": "1",
+        "UMask": "0x48",
+        "Unit": "CBOX"
+    },
+    {
+        "BriefDescription": "A cross-core snoop initiated by this Cbox due to processor core memory request which hits a non-modified line in some processor core.",
+        "EventCode": "0x22",
+        "EventName": "UNC_CBO_XSNP_RESPONSE.HIT_XCORE",
+        "PerPkg": "1",
+        "UMask": "0x44",
+        "Unit": "CBOX"
+    },
+    {
+        "BriefDescription": "A cross-core snoop resulted from L3 Eviction which misses in some processor core.",
+        "EventCode": "0x22",
+        "EventName": "UNC_CBO_XSNP_RESPONSE.MISS_EVICTION",
+        "PerPkg": "1",
+        "UMask": "0x81",
+        "Unit": "CBOX"
+    },
+    {
+        "BriefDescription": "A cross-core snoop initiated by this Cbox due to processor core memory request which misses in some processor core.",
+        "EventCode": "0x22",
+        "EventName": "UNC_CBO_XSNP_RESPONSE.MISS_XCORE",
+        "PerPkg": "1",
+        "UMask": "0x41",
+        "Unit": "CBOX"
+    }
+]

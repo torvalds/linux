@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
- * Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2024 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef _EFA_ADMIN_CMDS_H_
@@ -28,7 +28,9 @@ enum efa_admin_aq_opcode {
 	EFA_ADMIN_DEALLOC_PD                        = 15,
 	EFA_ADMIN_ALLOC_UAR                         = 16,
 	EFA_ADMIN_DEALLOC_UAR                       = 17,
-	EFA_ADMIN_MAX_OPCODE                        = 17,
+	EFA_ADMIN_CREATE_EQ                         = 18,
+	EFA_ADMIN_DESTROY_EQ                        = 19,
+	EFA_ADMIN_MAX_OPCODE                        = 19,
 };
 
 enum efa_admin_aq_feature_id {
@@ -37,7 +39,8 @@ enum efa_admin_aq_feature_id {
 	EFA_ADMIN_NETWORK_ATTR                      = 3,
 	EFA_ADMIN_QUEUE_ATTR                        = 4,
 	EFA_ADMIN_HW_HINTS                          = 5,
-	EFA_ADMIN_FEATURES_OPCODE_NUM               = 8,
+	EFA_ADMIN_HOST_INFO                         = 6,
+	EFA_ADMIN_EVENT_QUEUE_ATTR                  = 7,
 };
 
 /* QP transport type */
@@ -61,19 +64,14 @@ enum efa_admin_qp_state {
 
 enum efa_admin_get_stats_type {
 	EFA_ADMIN_GET_STATS_TYPE_BASIC              = 0,
+	EFA_ADMIN_GET_STATS_TYPE_MESSAGES           = 1,
+	EFA_ADMIN_GET_STATS_TYPE_RDMA_READ          = 2,
+	EFA_ADMIN_GET_STATS_TYPE_RDMA_WRITE         = 3,
 };
 
 enum efa_admin_get_stats_scope {
 	EFA_ADMIN_GET_STATS_SCOPE_ALL               = 0,
 	EFA_ADMIN_GET_STATS_SCOPE_QUEUE             = 1,
-};
-
-enum efa_admin_modify_qp_mask_bits {
-	EFA_ADMIN_QP_STATE_BIT                      = 0,
-	EFA_ADMIN_CUR_QP_STATE_BIT                  = 1,
-	EFA_ADMIN_QKEY_BIT                          = 2,
-	EFA_ADMIN_SQ_PSN_BIT                        = 3,
-	EFA_ADMIN_SQ_DRAINED_ASYNC_NOTIFY_BIT       = 4,
 };
 
 /*
@@ -112,7 +110,10 @@ struct efa_admin_create_qp_cmd {
 	 *    virtual (IOVA returned by MR registration)
 	 * 1 : rq_virt - If set, RQ ring base address is
 	 *    virtual (IOVA returned by MR registration)
-	 * 7:2 : reserved - MBZ
+	 * 2 : unsolicited_write_recv - If set, work requests
+	 *    will not be consumed for incoming RDMA write with
+	 *    immediate
+	 * 7:3 : reserved - MBZ
 	 */
 	u8 flags;
 
@@ -160,10 +161,16 @@ struct efa_admin_create_qp_resp {
 	/* Common Admin Queue completion descriptor */
 	struct efa_admin_acq_common_desc acq_common_desc;
 
-	/* Opaque handle to be used for consequent operations on the QP */
+	/*
+	 * Opaque handle to be used for consequent admin operations on the
+	 * QP
+	 */
 	u32 qp_handle;
 
-	/* QP number in the given EFA virtual device */
+	/*
+	 * QP number in the given EFA virtual device. Least-significant bits (as
+	 * needed according to max_qp) carry unique QP ID
+	 */
 	u16 qp_num;
 
 	/* MBZ */
@@ -193,8 +200,14 @@ struct efa_admin_modify_qp_cmd {
 	struct efa_admin_aq_common_desc aq_common_desc;
 
 	/*
-	 * Mask indicating which fields should be updated see enum
-	 * efa_admin_modify_qp_mask_bits
+	 * Mask indicating which fields should be updated
+	 * 0 : qp_state
+	 * 1 : cur_qp_state
+	 * 2 : qkey
+	 * 3 : sq_psn
+	 * 4 : sq_drained_async_notify
+	 * 5 : rnr_retry
+	 * 31:6 : reserved
 	 */
 	u32 modify_mask;
 
@@ -216,8 +229,8 @@ struct efa_admin_modify_qp_cmd {
 	/* Enable async notification when SQ is drained */
 	u8 sq_drained_async_notify;
 
-	/* MBZ */
-	u8 reserved1;
+	/* Number of RNR retries (valid only for SRD QPs) */
+	u8 rnr_retry;
 
 	/* MBZ */
 	u16 reserved2;
@@ -252,8 +265,8 @@ struct efa_admin_query_qp_resp {
 	/* Indicates that draining is in progress */
 	u8 sq_draining;
 
-	/* MBZ */
-	u8 reserved1;
+	/* Number of RNR retries (valid only for SRD QPs) */
+	u8 rnr_retry;
 
 	/* MBZ */
 	u16 reserved2;
@@ -286,6 +299,7 @@ struct efa_admin_create_ah_cmd {
 	/* PD number */
 	u16 pd;
 
+	/* MBZ */
 	u16 reserved;
 };
 
@@ -296,6 +310,7 @@ struct efa_admin_create_ah_resp {
 	/* Target interface address handle (opaque) */
 	u16 ah;
 
+	/* MBZ */
 	u16 reserved;
 };
 
@@ -362,12 +377,19 @@ struct efa_admin_reg_mr_cmd {
 
 	/*
 	 * permissions
-	 * 0 : local_write_enable - Write permissions: value
-	 *    of 1 needed for RQ buffers and for RDMA write
-	 * 7:1 : reserved1 - remote access flags, etc
+	 * 0 : local_write_enable - Local write permissions:
+	 *    must be set for RQ buffers and buffers posted for
+	 *    RDMA Read requests
+	 * 1 : remote_write_enable - Remote write
+	 *    permissions: must be set to enable RDMA write to
+	 *    the region
+	 * 2 : remote_read_enable - Remote read permissions:
+	 *    must be set to enable RDMA read from the region
+	 * 7:3 : reserved2 - MBZ
 	 */
 	u8 permissions;
 
+	/* MBZ */
 	u16 reserved16_w5;
 
 	/* number of pages in PBL (redundant, could be calculated) */
@@ -396,6 +418,32 @@ struct efa_admin_reg_mr_resp {
 	 * memory region
 	 */
 	u32 r_key;
+
+	/*
+	 * Mask indicating which fields have valid values
+	 * 0 : recv_ic_id
+	 * 1 : rdma_read_ic_id
+	 * 2 : rdma_recv_ic_id
+	 */
+	u8 validity;
+
+	/*
+	 * Physical interconnect used by the device to reach the MR for receive
+	 * operation
+	 */
+	u8 recv_ic_id;
+
+	/*
+	 * Physical interconnect used by the device to reach the MR for RDMA
+	 * read operation
+	 */
+	u8 rdma_read_ic_id;
+
+	/*
+	 * Physical interconnect used by the device to reach the MR for RDMA
+	 * write receive
+	 */
+	u8 rdma_recv_ic_id;
 };
 
 struct efa_admin_dereg_mr_cmd {
@@ -415,28 +463,34 @@ struct efa_admin_create_cq_cmd {
 	struct efa_admin_aq_common_desc aq_common_desc;
 
 	/*
-	 * 4:0 : reserved5
+	 * 4:0 : reserved5 - MBZ
 	 * 5 : interrupt_mode_enabled - if set, cq operates
-	 *    in interrupt mode (i.e. CQ events and MSI-X are
-	 *    generated), otherwise - polling
+	 *    in interrupt mode (i.e. CQ events and EQ elements
+	 *    are generated), otherwise - polling
 	 * 6 : virt - If set, ring base address is virtual
 	 *    (IOVA returned by MR registration)
-	 * 7 : reserved6
+	 * 7 : reserved6 - MBZ
 	 */
 	u8 cq_caps_1;
 
 	/*
 	 * 4:0 : cq_entry_size_words - size of CQ entry in
 	 *    32-bit words, valid values: 4, 8.
-	 * 7:5 : reserved7
+	 * 5 : set_src_addr - If set, source address will be
+	 *    filled on RX completions from unknown senders.
+	 *    Requires 8 words CQ entry size.
+	 * 7:6 : reserved7 - MBZ
 	 */
 	u8 cq_caps_2;
 
 	/* completion queue depth in # of entries. must be power of 2 */
 	u16 cq_depth;
 
-	/* msix vector assigned to this cq */
-	u32 msix_vector_idx;
+	/* EQ number assigned to this cq */
+	u16 eqn;
+
+	/* MBZ */
+	u16 reserved;
 
 	/*
 	 * CQ ring base address, virtual or physical depending on 'virt'
@@ -452,7 +506,7 @@ struct efa_admin_create_cq_cmd {
 
 	/*
 	 * number of sub cqs - must be equal to sub_cqs_per_cq of queue
-	 *    attributes.
+	 * attributes.
 	 */
 	u16 num_sub_cqs;
 
@@ -467,6 +521,15 @@ struct efa_admin_create_cq_resp {
 
 	/* actual cq depth in number of entries */
 	u16 cq_actual_depth;
+
+	/* CQ doorbell address, as offset to PCIe DB BAR */
+	u32 db_offset;
+
+	/*
+	 * 0 : db_valid - If set, doorbell offset is valid.
+	 *    Always set when interrupts are requested.
+	 */
+	u32 flags;
 };
 
 struct efa_admin_destroy_cq_cmd {
@@ -474,6 +537,7 @@ struct efa_admin_destroy_cq_cmd {
 
 	u16 cq_idx;
 
+	/* MBZ */
 	u16 reserved1;
 };
 
@@ -516,19 +580,53 @@ struct efa_admin_basic_stats {
 	u64 rx_drops;
 };
 
+struct efa_admin_messages_stats {
+	u64 send_bytes;
+
+	u64 send_wrs;
+
+	u64 recv_bytes;
+
+	u64 recv_wrs;
+};
+
+struct efa_admin_rdma_read_stats {
+	u64 read_wrs;
+
+	u64 read_bytes;
+
+	u64 read_wr_err;
+
+	u64 read_resp_bytes;
+};
+
+struct efa_admin_rdma_write_stats {
+	u64 write_wrs;
+
+	u64 write_bytes;
+
+	u64 write_wr_err;
+
+	u64 write_recv_bytes;
+};
+
 struct efa_admin_acq_get_stats_resp {
 	struct efa_admin_acq_common_desc acq_common_desc;
 
-	struct efa_admin_basic_stats basic_stats;
+	union {
+		struct efa_admin_basic_stats basic_stats;
+
+		struct efa_admin_messages_stats messages_stats;
+
+		struct efa_admin_rdma_read_stats rdma_read_stats;
+
+		struct efa_admin_rdma_write_stats rdma_write_stats;
+	} u;
 };
 
 struct efa_admin_get_set_feature_common_desc {
-	/*
-	 * 1:0 : select - 0x1 - current value; 0x3 - default
-	 *    value
-	 * 7:3 : reserved3
-	 */
-	u8 flags;
+	/* MBZ */
+	u8 reserved0;
 
 	/* as appears in efa_admin_aq_feature_id */
 	u8 feature_id;
@@ -553,38 +651,57 @@ struct efa_admin_feature_device_attr_desc {
 	/* Bar used for SQ and RQ doorbells */
 	u16 db_bar;
 
-	/* Indicates how many bits are used physical address access */
+	/* Indicates how many bits are used on physical address access */
 	u8 phys_addr_width;
 
-	/* Indicates how many bits are used virtual address access */
+	/* Indicates how many bits are used on virtual address access */
 	u8 virt_addr_width;
+
+	/*
+	 * 0 : rdma_read - If set, RDMA Read is supported on
+	 *    TX queues
+	 * 1 : rnr_retry - If set, RNR retry is supported on
+	 *    modify QP command
+	 * 2 : data_polling_128 - If set, 128 bytes data
+	 *    polling is supported
+	 * 3 : rdma_write - If set, RDMA Write is supported
+	 *    on TX queues
+	 * 4 : unsolicited_write_recv - If set, unsolicited
+	 *    write with imm. receive is supported
+	 * 31:5 : reserved - MBZ
+	 */
+	u32 device_caps;
+
+	/* Max RDMA transfer size in bytes */
+	u32 max_rdma_size;
 };
 
 struct efa_admin_feature_queue_attr_desc {
 	/* The maximum number of queue pairs supported */
 	u32 max_qp;
 
+	/* Maximum number of WQEs per Send Queue */
 	u32 max_sq_depth;
 
-	/* max send wr used in inline-buf */
+	/* Maximum size of data that can be sent inline in a Send WQE */
 	u32 inline_buf_size;
 
+	/* Maximum number of buffer descriptors per Recv Queue */
 	u32 max_rq_depth;
 
 	/* The maximum number of completion queues supported per VF */
 	u32 max_cq;
 
+	/* Maximum number of CQEs per Completion Queue */
 	u32 max_cq_depth;
 
 	/* Number of sub-CQs to be created for each CQ */
 	u16 sub_cqs_per_cq;
 
-	u16 reserved;
+	/* Minimum number of WQEs per SQ */
+	u16 min_sq_depth;
 
-	/*
-	 * Maximum number of SGEs (buffs) allowed for a single send work
-	 *    queue element (WQE)
-	 */
+	/* Maximum number of SGEs (buffers) allowed for a single send WQE */
 	u16 max_wr_send_sges;
 
 	/* Maximum number of SGEs allowed for a single recv WQE */
@@ -604,6 +721,31 @@ struct efa_admin_feature_queue_attr_desc {
 
 	/* The maximum size of LLQ in bytes */
 	u32 max_llq_size;
+
+	/* Maximum number of SGEs for a single RDMA read/write WQE */
+	u16 max_wr_rdma_sges;
+
+	/*
+	 * Maximum number of bytes that can be written to SQ between two
+	 * consecutive doorbells (in units of 64B). Driver must ensure that only
+	 * complete WQEs are written to queue before issuing a doorbell.
+	 * Examples: max_tx_batch=16 and WQE size = 64B, means up to 16 WQEs can
+	 * be written to SQ between two consecutive doorbells. max_tx_batch=11
+	 * and WQE size = 128B, means up to 5 WQEs can be written to SQ between
+	 * two consecutive doorbells. Zero means unlimited.
+	 */
+	u16 max_tx_batch;
+};
+
+struct efa_admin_event_queue_attr_desc {
+	/* The maximum number of event queues supported */
+	u32 max_eq;
+
+	/* Maximum number of EQEs per Event Queue */
+	u32 max_eq_depth;
+
+	/* Supported events bitmask */
+	u32 event_bitmask;
 };
 
 struct efa_admin_feature_aenq_desc {
@@ -618,6 +760,7 @@ struct efa_admin_feature_network_attr_desc {
 	/* Raw address data in network byte order */
 	u8 addr[16];
 
+	/* max packet payload size in bytes */
 	u32 mtu;
 };
 
@@ -662,6 +805,8 @@ struct efa_admin_get_feature_resp {
 		struct efa_admin_feature_network_attr_desc network_attr;
 
 		struct efa_admin_feature_queue_attr_desc queue_attr;
+
+		struct efa_admin_event_queue_attr_desc event_queue_attr;
 
 		struct efa_admin_hw_hints hw_hints;
 	} u;
@@ -746,6 +891,60 @@ struct efa_admin_dealloc_uar_resp {
 	struct efa_admin_acq_common_desc acq_common_desc;
 };
 
+struct efa_admin_create_eq_cmd {
+	struct efa_admin_aq_common_desc aq_common_descriptor;
+
+	/* Size of the EQ in entries, must be power of 2 */
+	u16 depth;
+
+	/* MSI-X table entry index */
+	u8 msix_vec;
+
+	/*
+	 * 4:0 : entry_size_words - size of EQ entry in
+	 *    32-bit words
+	 * 7:5 : reserved - MBZ
+	 */
+	u8 caps;
+
+	/* EQ ring base address */
+	struct efa_common_mem_addr ba;
+
+	/*
+	 * Enabled events on this EQ
+	 * 0 : completion_events - Enable completion events
+	 * 31:1 : reserved - MBZ
+	 */
+	u32 event_bitmask;
+
+	/* MBZ */
+	u32 reserved;
+};
+
+struct efa_admin_create_eq_resp {
+	struct efa_admin_acq_common_desc acq_common_desc;
+
+	/* EQ number */
+	u16 eqn;
+
+	/* MBZ */
+	u16 reserved;
+};
+
+struct efa_admin_destroy_eq_cmd {
+	struct efa_admin_aq_common_desc aq_common_descriptor;
+
+	/* EQ number */
+	u16 eqn;
+
+	/* MBZ */
+	u16 reserved;
+};
+
+struct efa_admin_destroy_eq_resp {
+	struct efa_admin_acq_common_desc acq_common_desc;
+};
+
 /* asynchronous event notification groups */
 enum efa_admin_aenq_group {
 	EFA_ADMIN_FATAL_ERROR                       = 1,
@@ -753,12 +952,6 @@ enum efa_admin_aenq_group {
 	EFA_ADMIN_NOTIFICATION                      = 3,
 	EFA_ADMIN_KEEP_ALIVE                        = 4,
 	EFA_ADMIN_AENQ_GROUPS_NUM                   = 5,
-};
-
-enum efa_admin_aenq_notification_syndrom {
-	EFA_ADMIN_SUSPEND                           = 0,
-	EFA_ADMIN_RESUME                            = 1,
-	EFA_ADMIN_UPDATE_HINTS                      = 2,
 };
 
 struct efa_admin_mmio_req_read_less_resp {
@@ -770,25 +963,111 @@ struct efa_admin_mmio_req_read_less_resp {
 	u32 reg_val;
 };
 
+enum efa_admin_os_type {
+	EFA_ADMIN_OS_LINUX                          = 0,
+};
+
+struct efa_admin_host_info {
+	/* OS distribution string format */
+	u8 os_dist_str[128];
+
+	/* Defined in enum efa_admin_os_type */
+	u32 os_type;
+
+	/* Kernel version string format */
+	u8 kernel_ver_str[32];
+
+	/* Kernel version numeric format */
+	u32 kernel_ver;
+
+	/*
+	 * 7:0 : driver_module_type
+	 * 15:8 : driver_sub_minor
+	 * 23:16 : driver_minor
+	 * 31:24 : driver_major
+	 */
+	u32 driver_ver;
+
+	/*
+	 * Device's Bus, Device and Function
+	 * 2:0 : function
+	 * 7:3 : device
+	 * 15:8 : bus
+	 */
+	u16 bdf;
+
+	/*
+	 * Spec version
+	 * 7:0 : spec_minor
+	 * 15:8 : spec_major
+	 */
+	u16 spec_ver;
+
+	/*
+	 * 0 : intree - Intree driver
+	 * 1 : gdr - GPUDirect RDMA supported
+	 * 31:2 : reserved2
+	 */
+	u32 flags;
+};
+
 /* create_qp_cmd */
 #define EFA_ADMIN_CREATE_QP_CMD_SQ_VIRT_MASK                BIT(0)
-#define EFA_ADMIN_CREATE_QP_CMD_RQ_VIRT_SHIFT               1
 #define EFA_ADMIN_CREATE_QP_CMD_RQ_VIRT_MASK                BIT(1)
+#define EFA_ADMIN_CREATE_QP_CMD_UNSOLICITED_WRITE_RECV_MASK BIT(2)
+
+/* modify_qp_cmd */
+#define EFA_ADMIN_MODIFY_QP_CMD_QP_STATE_MASK               BIT(0)
+#define EFA_ADMIN_MODIFY_QP_CMD_CUR_QP_STATE_MASK           BIT(1)
+#define EFA_ADMIN_MODIFY_QP_CMD_QKEY_MASK                   BIT(2)
+#define EFA_ADMIN_MODIFY_QP_CMD_SQ_PSN_MASK                 BIT(3)
+#define EFA_ADMIN_MODIFY_QP_CMD_SQ_DRAINED_ASYNC_NOTIFY_MASK BIT(4)
+#define EFA_ADMIN_MODIFY_QP_CMD_RNR_RETRY_MASK              BIT(5)
 
 /* reg_mr_cmd */
 #define EFA_ADMIN_REG_MR_CMD_PHYS_PAGE_SIZE_SHIFT_MASK      GENMASK(4, 0)
-#define EFA_ADMIN_REG_MR_CMD_MEM_ADDR_PHY_MODE_EN_SHIFT     7
 #define EFA_ADMIN_REG_MR_CMD_MEM_ADDR_PHY_MODE_EN_MASK      BIT(7)
 #define EFA_ADMIN_REG_MR_CMD_LOCAL_WRITE_ENABLE_MASK        BIT(0)
+#define EFA_ADMIN_REG_MR_CMD_REMOTE_WRITE_ENABLE_MASK       BIT(1)
+#define EFA_ADMIN_REG_MR_CMD_REMOTE_READ_ENABLE_MASK        BIT(2)
+
+/* reg_mr_resp */
+#define EFA_ADMIN_REG_MR_RESP_RECV_IC_ID_MASK               BIT(0)
+#define EFA_ADMIN_REG_MR_RESP_RDMA_READ_IC_ID_MASK          BIT(1)
+#define EFA_ADMIN_REG_MR_RESP_RDMA_RECV_IC_ID_MASK          BIT(2)
 
 /* create_cq_cmd */
-#define EFA_ADMIN_CREATE_CQ_CMD_INTERRUPT_MODE_ENABLED_SHIFT 5
 #define EFA_ADMIN_CREATE_CQ_CMD_INTERRUPT_MODE_ENABLED_MASK BIT(5)
-#define EFA_ADMIN_CREATE_CQ_CMD_VIRT_SHIFT                  6
 #define EFA_ADMIN_CREATE_CQ_CMD_VIRT_MASK                   BIT(6)
 #define EFA_ADMIN_CREATE_CQ_CMD_CQ_ENTRY_SIZE_WORDS_MASK    GENMASK(4, 0)
+#define EFA_ADMIN_CREATE_CQ_CMD_SET_SRC_ADDR_MASK           BIT(5)
 
-/* get_set_feature_common_desc */
-#define EFA_ADMIN_GET_SET_FEATURE_COMMON_DESC_SELECT_MASK   GENMASK(1, 0)
+/* create_cq_resp */
+#define EFA_ADMIN_CREATE_CQ_RESP_DB_VALID_MASK              BIT(0)
+
+/* feature_device_attr_desc */
+#define EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_RDMA_READ_MASK   BIT(0)
+#define EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_RNR_RETRY_MASK   BIT(1)
+#define EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_DATA_POLLING_128_MASK BIT(2)
+#define EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_RDMA_WRITE_MASK  BIT(3)
+#define EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_UNSOLICITED_WRITE_RECV_MASK BIT(4)
+
+/* create_eq_cmd */
+#define EFA_ADMIN_CREATE_EQ_CMD_ENTRY_SIZE_WORDS_MASK       GENMASK(4, 0)
+#define EFA_ADMIN_CREATE_EQ_CMD_VIRT_MASK                   BIT(6)
+#define EFA_ADMIN_CREATE_EQ_CMD_COMPLETION_EVENTS_MASK      BIT(0)
+
+/* host_info */
+#define EFA_ADMIN_HOST_INFO_DRIVER_MODULE_TYPE_MASK         GENMASK(7, 0)
+#define EFA_ADMIN_HOST_INFO_DRIVER_SUB_MINOR_MASK           GENMASK(15, 8)
+#define EFA_ADMIN_HOST_INFO_DRIVER_MINOR_MASK               GENMASK(23, 16)
+#define EFA_ADMIN_HOST_INFO_DRIVER_MAJOR_MASK               GENMASK(31, 24)
+#define EFA_ADMIN_HOST_INFO_FUNCTION_MASK                   GENMASK(2, 0)
+#define EFA_ADMIN_HOST_INFO_DEVICE_MASK                     GENMASK(7, 3)
+#define EFA_ADMIN_HOST_INFO_BUS_MASK                        GENMASK(15, 8)
+#define EFA_ADMIN_HOST_INFO_SPEC_MINOR_MASK                 GENMASK(7, 0)
+#define EFA_ADMIN_HOST_INFO_SPEC_MAJOR_MASK                 GENMASK(15, 8)
+#define EFA_ADMIN_HOST_INFO_INTREE_MASK                     BIT(0)
+#define EFA_ADMIN_HOST_INFO_GDR_MASK                        BIT(1)
 
 #endif /* _EFA_ADMIN_CMDS_H_ */

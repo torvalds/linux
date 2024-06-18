@@ -1,0 +1,270 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree Source for the Falcon CSI/DSI sub-board
+ *
+ * Copyright (C) 2021 Glider bv
+ */
+
+#include <dt-bindings/media/video-interfaces.h>
+
+&csi40 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+
+			csi40_in: endpoint {
+				clock-lanes = <0>;
+				data-lanes = <1 2 3 4>;
+				remote-endpoint = <&max96712_out0>;
+			};
+		};
+	};
+};
+
+&csi42 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+
+			csi42_in: endpoint {
+				clock-lanes = <0>;
+				data-lanes = <1 2 3 4>;
+				remote-endpoint = <&max96712_out1>;
+			};
+		};
+	};
+};
+
+&csi43 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+
+			csi43_in: endpoint {
+				clock-lanes = <0>;
+				data-lanes = <1 2 3 4>;
+				remote-endpoint = <&max96712_out2>;
+			};
+		};
+	};
+};
+
+&i2c0 {
+	pca9654_a: gpio@21 {
+		compatible = "onnn,pca9654";
+		reg = <0x21>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+
+	pca9654_b: gpio@22 {
+		compatible = "onnn,pca9654";
+		reg = <0x22>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+
+	pca9654_c: gpio@23 {
+		compatible = "onnn,pca9654";
+		reg = <0x23>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+
+	eeprom@52 {
+		compatible = "rohm,br24g01", "atmel,24c01";
+		label = "csi-dsi-sub-board-id";
+		reg = <0x52>;
+		pagesize = <8>;
+	};
+};
+
+&i2c1 {
+	gmsl0: gmsl-deserializer@49 {
+		compatible = "maxim,max96712";
+		reg = <0x49>;
+		enable-gpios = <&pca9654_a 0 GPIO_ACTIVE_HIGH>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@4 {
+				reg = <4>;
+				max96712_out0: endpoint {
+					bus-type = <MEDIA_BUS_TYPE_CSI2_DPHY>;
+					clock-lanes = <0>;
+					data-lanes = <1 2 3 4>;
+					remote-endpoint = <&csi40_in>;
+				};
+			};
+		};
+	};
+
+	gmsl1: gmsl-deserializer@4b {
+		compatible = "maxim,max96712";
+		reg = <0x4b>;
+		enable-gpios = <&pca9654_b 0 GPIO_ACTIVE_HIGH>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@4 {
+				reg = <4>;
+				max96712_out1: endpoint {
+					bus-type = <MEDIA_BUS_TYPE_CSI2_DPHY>;
+					clock-lanes = <0>;
+					data-lanes = <1 2 3 4>;
+					lane-polarities = <0 0 0 0 1>;
+					remote-endpoint = <&csi42_in>;
+				};
+			};
+		};
+	};
+
+	gmsl2: gmsl-deserializer@6b {
+		compatible = "maxim,max96712";
+		reg = <0x6b>;
+		enable-gpios = <&pca9654_c 0 GPIO_ACTIVE_HIGH>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@4 {
+				reg = <4>;
+				max96712_out2: endpoint {
+					bus-type = <MEDIA_BUS_TYPE_CSI2_DPHY>;
+					clock-lanes = <0>;
+					data-lanes = <1 2 3 4>;
+					lane-polarities = <0 0 0 0 1>;
+					remote-endpoint = <&csi43_in>;
+				};
+			};
+		};
+	};
+};
+
+&isp0 {
+	status = "okay";
+};
+
+&isp2 {
+	status = "okay";
+};
+
+&isp3 {
+	status = "okay";
+};
+
+&vin00 {
+	status = "okay";
+};
+
+&vin01 {
+	status = "okay";
+};
+
+&vin02 {
+	status = "okay";
+};
+
+&vin03 {
+	status = "okay";
+};
+
+&vin04 {
+	status = "okay";
+};
+
+&vin05 {
+	status = "okay";
+};
+
+&vin06 {
+	status = "okay";
+};
+
+&vin07 {
+	status = "okay";
+};
+
+&vin16 {
+	status = "okay";
+};
+
+&vin17 {
+	status = "okay";
+};
+
+&vin18 {
+	status = "okay";
+};
+
+&vin19 {
+	status = "okay";
+};
+
+&vin20 {
+	status = "okay";
+};
+
+&vin21 {
+	status = "okay";
+};
+
+&vin22 {
+	status = "okay";
+};
+
+&vin23 {
+	status = "okay";
+};
+
+&vin24 {
+	status = "okay";
+};
+
+&vin25 {
+	status = "okay";
+};
+
+&vin26 {
+	status = "okay";
+};
+
+&vin27 {
+	status = "okay";
+};
+
+&vin28 {
+	status = "okay";
+};
+
+&vin29 {
+	status = "okay";
+};
+
+&vin30 {
+	status = "okay";
+};
+
+&vin31 {
+	status = "okay";
+};

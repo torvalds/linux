@@ -44,6 +44,34 @@ enum {
 	NOT_ON_MEDIA = 3,
 };
 
+static void do_insert_old_idx(struct ubifs_info *c,
+			      struct ubifs_old_idx *old_idx)
+{
+	struct ubifs_old_idx *o;
+	struct rb_node **p, *parent = NULL;
+
+	p = &c->old_idx.rb_node;
+	while (*p) {
+		parent = *p;
+		o = rb_entry(parent, struct ubifs_old_idx, rb);
+		if (old_idx->lnum < o->lnum)
+			p = &(*p)->rb_left;
+		else if (old_idx->lnum > o->lnum)
+			p = &(*p)->rb_right;
+		else if (old_idx->offs < o->offs)
+			p = &(*p)->rb_left;
+		else if (old_idx->offs > o->offs)
+			p = &(*p)->rb_right;
+		else {
+			ubifs_err(c, "old idx added twice!");
+			kfree(old_idx);
+			return;
+		}
+	}
+	rb_link_node(&old_idx->rb, parent, p);
+	rb_insert_color(&old_idx->rb, &c->old_idx);
+}
+
 /**
  * insert_old_idx - record an index node obsoleted since the last commit start.
  * @c: UBIFS file-system description object
@@ -69,35 +97,15 @@ enum {
  */
 static int insert_old_idx(struct ubifs_info *c, int lnum, int offs)
 {
-	struct ubifs_old_idx *old_idx, *o;
-	struct rb_node **p, *parent = NULL;
+	struct ubifs_old_idx *old_idx;
 
 	old_idx = kmalloc(sizeof(struct ubifs_old_idx), GFP_NOFS);
 	if (unlikely(!old_idx))
 		return -ENOMEM;
 	old_idx->lnum = lnum;
 	old_idx->offs = offs;
+	do_insert_old_idx(c, old_idx);
 
-	p = &c->old_idx.rb_node;
-	while (*p) {
-		parent = *p;
-		o = rb_entry(parent, struct ubifs_old_idx, rb);
-		if (lnum < o->lnum)
-			p = &(*p)->rb_left;
-		else if (lnum > o->lnum)
-			p = &(*p)->rb_right;
-		else if (offs < o->offs)
-			p = &(*p)->rb_left;
-		else if (offs > o->offs)
-			p = &(*p)->rb_right;
-		else {
-			ubifs_err(c, "old idx added twice!");
-			kfree(old_idx);
-			return 0;
-		}
-	}
-	rb_link_node(&old_idx->rb, parent, p);
-	rb_insert_color(&old_idx->rb, &c->old_idx);
 	return 0;
 }
 
@@ -199,23 +207,6 @@ static struct ubifs_znode *copy_znode(struct ubifs_info *c,
 	__set_bit(DIRTY_ZNODE, &zn->flags);
 	__clear_bit(COW_ZNODE, &zn->flags);
 
-	ubifs_assert(c, !ubifs_zn_obsolete(znode));
-	__set_bit(OBSOLETE_ZNODE, &znode->flags);
-
-	if (znode->level != 0) {
-		int i;
-		const int n = zn->child_cnt;
-
-		/* The children now have new parent */
-		for (i = 0; i < n; i++) {
-			struct ubifs_zbranch *zbr = &zn->zbranch[i];
-
-			if (zbr->znode)
-				zbr->znode->parent = zn;
-		}
-	}
-
-	atomic_long_inc(&c->dirty_zn_cnt);
 	return zn;
 }
 
@@ -231,6 +222,42 @@ static int add_idx_dirt(struct ubifs_info *c, int lnum, int dirt)
 {
 	c->calc_idx_sz -= ALIGN(dirt, 8);
 	return ubifs_add_dirt(c, lnum, dirt);
+}
+
+/**
+ * replace_znode - replace old znode with new znode.
+ * @c: UBIFS file-system description object
+ * @new_zn: new znode
+ * @old_zn: old znode
+ * @zbr: the branch of parent znode
+ *
+ * Replace old znode with new znode in TNC.
+ */
+static void replace_znode(struct ubifs_info *c, struct ubifs_znode *new_zn,
+			  struct ubifs_znode *old_zn, struct ubifs_zbranch *zbr)
+{
+	ubifs_assert(c, !ubifs_zn_obsolete(old_zn));
+	__set_bit(OBSOLETE_ZNODE, &old_zn->flags);
+
+	if (old_zn->level != 0) {
+		int i;
+		const int n = new_zn->child_cnt;
+
+		/* The children now have new parent */
+		for (i = 0; i < n; i++) {
+			struct ubifs_zbranch *child = &new_zn->zbranch[i];
+
+			if (child->znode)
+				child->znode->parent = new_zn;
+		}
+	}
+
+	zbr->znode = new_zn;
+	zbr->lnum = 0;
+	zbr->offs = 0;
+	zbr->len = 0;
+
+	atomic_long_inc(&c->dirty_zn_cnt);
 }
 
 /**
@@ -265,21 +292,32 @@ static struct ubifs_znode *dirty_cow_znode(struct ubifs_info *c,
 		return zn;
 
 	if (zbr->len) {
-		err = insert_old_idx(c, zbr->lnum, zbr->offs);
-		if (unlikely(err))
-			return ERR_PTR(err);
+		struct ubifs_old_idx *old_idx;
+
+		old_idx = kmalloc(sizeof(struct ubifs_old_idx), GFP_NOFS);
+		if (unlikely(!old_idx)) {
+			err = -ENOMEM;
+			goto out;
+		}
+		old_idx->lnum = zbr->lnum;
+		old_idx->offs = zbr->offs;
+
 		err = add_idx_dirt(c, zbr->lnum, zbr->len);
-	} else
-		err = 0;
+		if (err) {
+			kfree(old_idx);
+			goto out;
+		}
 
-	zbr->znode = zn;
-	zbr->lnum = 0;
-	zbr->offs = 0;
-	zbr->len = 0;
+		do_insert_old_idx(c, old_idx);
+	}
 
-	if (unlikely(err))
-		return ERR_PTR(err);
+	replace_znode(c, zn, znode, zbr);
+
 	return zn;
+
+out:
+	kfree(zn);
+	return ERR_PTR(err);
 }
 
 /**
@@ -316,7 +354,7 @@ static int lnc_add(struct ubifs_info *c, struct ubifs_zbranch *zbr,
 	err = ubifs_validate_entry(c, dent);
 	if (err) {
 		dump_stack();
-		ubifs_dump_node(c, dent);
+		ubifs_dump_node(c, dent, zbr->len);
 		return err;
 	}
 
@@ -349,7 +387,7 @@ static int lnc_add_directly(struct ubifs_info *c, struct ubifs_zbranch *zbr,
 	err = ubifs_validate_entry(c, node);
 	if (err) {
 		dump_stack();
-		ubifs_dump_node(c, node);
+		ubifs_dump_node(c, node, zbr->len);
 		return err;
 	}
 
@@ -360,7 +398,6 @@ static int lnc_add_directly(struct ubifs_info *c, struct ubifs_zbranch *zbr,
 /**
  * lnc_free - remove a leaf node from the leaf node cache.
  * @zbr: zbranch of leaf node
- * @node: leaf node
  */
 static void lnc_free(struct ubifs_zbranch *zbr)
 {
@@ -378,7 +415,7 @@ static void lnc_free(struct ubifs_zbranch *zbr)
  *
  * This function reads a "hashed" node defined by @zbr from the leaf node cache
  * (in it is there) or from the hash media, in which case the node is also
- * added to LNC. Returns zero in case of success or a negative negative error
+ * added to LNC. Returns zero in case of success or a negative error
  * code in case of failure.
  */
 static int tnc_read_hashed_node(struct ubifs_info *c, struct ubifs_zbranch *zbr,
@@ -892,7 +929,7 @@ static int fallible_resolve_collision(struct ubifs_info *c,
 				      int adding)
 {
 	struct ubifs_znode *o_znode = NULL, *znode = *zn;
-	int uninitialized_var(o_n), err, cmp, unsure = 0, nn = *n;
+	int o_n, err, cmp, unsure = 0, nn = *n;
 
 	cmp = fallible_matches_name(c, &znode->zbranch[nn], nm);
 	if (unlikely(cmp < 0))
@@ -1514,8 +1551,8 @@ out:
  */
 int ubifs_tnc_get_bu_keys(struct ubifs_info *c, struct bu_info *bu)
 {
-	int n, err = 0, lnum = -1, uninitialized_var(offs);
-	int uninitialized_var(len);
+	int n, err = 0, lnum = -1, offs;
+	int len;
 	unsigned int block = key_block(c, &bu->key);
 	struct ubifs_znode *znode;
 
@@ -1700,7 +1737,7 @@ static int validate_data_node(struct ubifs_info *c, void *buf,
 		goto out_err;
 	}
 
-	err = ubifs_check_node(c, buf, zbr->lnum, zbr->offs, 0, 0);
+	err = ubifs_check_node(c, buf, zbr->len, zbr->lnum, zbr->offs, 0, 0);
 	if (err) {
 		ubifs_err(c, "expected node type %d", UBIFS_DATA_NODE);
 		goto out;
@@ -1734,7 +1771,7 @@ out_err:
 	err = -EINVAL;
 out:
 	ubifs_err(c, "bad node at LEB %d:%d", zbr->lnum, zbr->offs);
-	ubifs_dump_node(c, buf);
+	ubifs_dump_node(c, buf, zbr->len);
 	dump_stack();
 	return err;
 }
@@ -2885,6 +2922,7 @@ int ubifs_tnc_remove_ino(struct ubifs_info *c, ino_t inum)
 			err = PTR_ERR(xent);
 			if (err == -ENOENT)
 				break;
+			kfree(pxent);
 			return err;
 		}
 
@@ -2898,6 +2936,7 @@ int ubifs_tnc_remove_ino(struct ubifs_info *c, ino_t inum)
 		fname_len(&nm) = le16_to_cpu(xent->nlen);
 		err = ubifs_tnc_remove_nm(c, &key1, &nm);
 		if (err) {
+			kfree(pxent);
 			kfree(xent);
 			return err;
 		}
@@ -2906,6 +2945,7 @@ int ubifs_tnc_remove_ino(struct ubifs_info *c, ino_t inum)
 		highest_ino_key(c, &key2, xattr_inum);
 		err = ubifs_tnc_remove_range(c, &key1, &key2);
 		if (err) {
+			kfree(pxent);
 			kfree(xent);
 			return err;
 		}
@@ -3051,6 +3091,21 @@ static void tnc_destroy_cnext(struct ubifs_info *c)
 		cnext = cnext->cnext;
 		if (ubifs_zn_obsolete(znode))
 			kfree(znode);
+		else if (!ubifs_zn_cow(znode)) {
+			/*
+			 * Don't forget to update clean znode count after
+			 * committing failed, because ubifs will check this
+			 * count while closing tnc. Non-obsolete znode could
+			 * be re-dirtied during committing process, so dirty
+			 * flag is untrustable. The flag 'COW_ZNODE' is set
+			 * for each dirty znode before committing, and it is
+			 * cleared as long as the znode become clean, so we
+			 * can statistic clean znode count according to this
+			 * flag.
+			 */
+			atomic_long_inc(&c->clean_zn_cnt);
+			atomic_long_inc(&ubifs_clean_zn_cnt);
+		}
 	} while (cnext && cnext != c->cnext);
 }
 
@@ -3061,14 +3116,7 @@ static void tnc_destroy_cnext(struct ubifs_info *c)
 void ubifs_tnc_close(struct ubifs_info *c)
 {
 	tnc_destroy_cnext(c);
-	if (c->zroot.znode) {
-		long n, freed;
-
-		n = atomic_long_read(&c->clean_zn_cnt);
-		freed = ubifs_destroy_tnc_subtree(c, c->zroot.znode);
-		ubifs_assert(c, freed == n);
-		atomic_long_sub(n, &ubifs_clean_zn_cnt);
-	}
+	ubifs_destroy_tnc_tree(c);
 	kfree(c->gap_lebs);
 	kfree(c->ilebs);
 	destroy_old_idx(c);
@@ -3466,7 +3514,7 @@ out_unlock:
 /**
  * dbg_check_inode_size - check if inode size is correct.
  * @c: UBIFS file-system description object
- * @inum: inode number
+ * @inode: inode to check
  * @size: inode size
  *
  * This function makes sure that the inode size (@size) is correct and it does

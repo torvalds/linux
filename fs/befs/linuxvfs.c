@@ -22,6 +22,7 @@
 #include <linux/cred.h>
 #include <linux/exportfs.h>
 #include <linux/seq_file.h>
+#include <linux/blkdev.h>
 
 #include "befs.h"
 #include "btree.h"
@@ -39,7 +40,7 @@ MODULE_LICENSE("GPL");
 
 static int befs_readdir(struct file *, struct dir_context *);
 static int befs_get_block(struct inode *, sector_t, struct buffer_head *, int);
-static int befs_readpage(struct file *file, struct page *page);
+static int befs_read_folio(struct file *file, struct folio *folio);
 static sector_t befs_bmap(struct address_space *mapping, sector_t block);
 static struct dentry *befs_lookup(struct inode *, struct dentry *,
 				  unsigned int);
@@ -47,7 +48,7 @@ static struct inode *befs_iget(struct super_block *, unsigned long);
 static struct inode *befs_alloc_inode(struct super_block *sb);
 static void befs_free_inode(struct inode *inode);
 static void befs_destroy_inodecache(void);
-static int befs_symlink_readpage(struct file *, struct page *);
+static int befs_symlink_read_folio(struct file *, struct folio *);
 static int befs_utf2nls(struct super_block *sb, const char *in, int in_len,
 			char **out, int *out_len);
 static int befs_nls2utf(struct super_block *sb, const char *in, int in_len,
@@ -86,31 +87,31 @@ static const struct inode_operations befs_dir_inode_operations = {
 };
 
 static const struct address_space_operations befs_aops = {
-	.readpage	= befs_readpage,
+	.read_folio	= befs_read_folio,
 	.bmap		= befs_bmap,
 };
 
 static const struct address_space_operations befs_symlink_aops = {
-	.readpage	= befs_symlink_readpage,
+	.read_folio	= befs_symlink_read_folio,
 };
 
 static const struct export_operations befs_export_operations = {
+	.encode_fh	= generic_encode_ino32_fh,
 	.fh_to_dentry	= befs_fh_to_dentry,
 	.fh_to_parent	= befs_fh_to_parent,
 	.get_parent	= befs_get_parent,
 };
 
 /*
- * Called by generic_file_read() to read a page of data
+ * Called by generic_file_read() to read a folio of data
  *
  * In turn, simply calls a generic block read function and
  * passes it the address of befs_get_block, for mapping file
  * positions to disk blocks.
  */
-static int
-befs_readpage(struct file *file, struct page *page)
+static int befs_read_folio(struct file *file, struct folio *folio)
 {
-	return block_read_full_page(page, befs_get_block);
+	return block_read_full_folio(folio, befs_get_block);
 }
 
 static sector_t
@@ -276,7 +277,7 @@ befs_alloc_inode(struct super_block *sb)
 {
 	struct befs_inode_info *bi;
 
-	bi = kmem_cache_alloc(befs_inode_cachep, GFP_KERNEL);
+	bi = alloc_inode_sb(sb, befs_inode_cachep, GFP_KERNEL);
 	if (!bi)
 		return NULL;
 	return &bi->vfs_inode;
@@ -360,11 +361,11 @@ static struct inode *befs_iget(struct super_block *sb, unsigned long ino)
 	 * for indexing purposes. (PFD, page 54)
 	 */
 
-	inode->i_mtime.tv_sec =
-	    fs64_to_cpu(sb, raw_inode->last_modified_time) >> 16;
-	inode->i_mtime.tv_nsec = 0;   /* lower 16 bits are not a time */
-	inode->i_ctime = inode->i_mtime;
-	inode->i_atime = inode->i_mtime;
+	inode_set_mtime(inode,
+			fs64_to_cpu(sb, raw_inode->last_modified_time) >> 16,
+			0);/* lower 16 bits are not a time */
+	inode_set_ctime_to_ts(inode, inode_get_mtime(inode));
+	inode_set_atime_to_ts(inode, inode_get_mtime(inode));
 
 	befs_ino->i_inode_num = fsrun_to_cpu(sb, raw_inode->inode_num);
 	befs_ino->i_parent = fsrun_to_cpu(sb, raw_inode->parent);
@@ -374,7 +375,7 @@ static struct inode *befs_iget(struct super_block *sb, unsigned long ino)
 	if (S_ISLNK(inode->i_mode) && !(befs_ino->i_flags & BEFS_LONG_SYMLINK)){
 		inode->i_size = 0;
 		inode->i_blocks = befs_sb->block_size / VFS_BLOCK_SIZE;
-		strlcpy(befs_ino->i_data.symlink, raw_inode->data.symlink,
+		strscpy(befs_ino->i_data.symlink, raw_inode->data.symlink,
 			BEFS_SYMLINK_LEN);
 	} else {
 		int num_blks;
@@ -434,8 +435,7 @@ befs_init_inodecache(void)
 {
 	befs_inode_cachep = kmem_cache_create_usercopy("befs_inode_cache",
 				sizeof(struct befs_inode_info), 0,
-				(SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|
-					SLAB_ACCOUNT),
+				SLAB_RECLAIM_ACCOUNT | SLAB_ACCOUNT,
 				offsetof(struct befs_inode_info,
 					i_data.symlink),
 				sizeof_field(struct befs_inode_info,
@@ -467,14 +467,14 @@ befs_destroy_inodecache(void)
  * The data stream become link name. Unless the LONG_SYMLINK
  * flag is set.
  */
-static int befs_symlink_readpage(struct file *unused, struct page *page)
+static int befs_symlink_read_folio(struct file *unused, struct folio *folio)
 {
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	struct super_block *sb = inode->i_sb;
 	struct befs_inode_info *befs_ino = BEFS_I(inode);
 	befs_data_stream *data = &befs_ino->i_data.ds;
 	befs_off_t len = data->size;
-	char *link = page_address(page);
+	char *link = folio_address(folio);
 
 	if (len == 0 || len > PAGE_SIZE) {
 		befs_error(sb, "Long symlink with illegal length");
@@ -487,12 +487,12 @@ static int befs_symlink_readpage(struct file *unused, struct page *page)
 		goto fail;
 	}
 	link[len - 1] = '\0';
-	SetPageUptodate(page);
-	unlock_page(page);
+	folio_mark_uptodate(folio);
+	folio_unlock(folio);
 	return 0;
 fail:
-	SetPageError(page);
-	unlock_page(page);
+	folio_set_error(folio);
+	folio_unlock(folio);
 	return -EIO;
 }
 
@@ -670,9 +670,6 @@ static struct dentry *befs_get_parent(struct dentry *child)
 
 	parent = befs_iget(child->d_sb,
 			   (unsigned long)befs_ino->i_parent.start);
-	if (IS_ERR(parent))
-		return ERR_CAST(parent);
-
 	return d_obtain_alias(parent);
 }
 
@@ -962,8 +959,7 @@ befs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_bavail = buf->f_bfree;
 	buf->f_files = 0;	/* UNKNOWN */
 	buf->f_ffree = 0;	/* UNKNOWN */
-	buf->f_fsid.val[0] = (u32)id;
-	buf->f_fsid.val[1] = (u32)(id >> 32);
+	buf->f_fsid = u64_to_fsid(id);
 	buf->f_namelen = BEFS_NAME_LEN;
 
 	befs_debug(sb, "<--- %s", __func__);

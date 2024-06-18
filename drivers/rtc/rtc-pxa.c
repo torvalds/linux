@@ -14,9 +14,6 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
-
-#include <mach/hardware.h>
 
 #include "rtc-sa1100.h"
 
@@ -330,6 +327,10 @@ static int __init pxa_rtc_probe(struct platform_device *pdev)
 	if (sa1100_rtc->irq_alarm < 0)
 		return -ENXIO;
 
+	sa1100_rtc->rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(sa1100_rtc->rtc))
+		return PTR_ERR(sa1100_rtc->rtc);
+
 	pxa_rtc->base = devm_ioremap(dev, pxa_rtc->ress->start,
 				resource_size(pxa_rtc->ress));
 	if (!pxa_rtc->base) {
@@ -364,12 +365,11 @@ static int __init pxa_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __exit pxa_rtc_remove(struct platform_device *pdev)
+static void __exit pxa_rtc_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
 	pxa_rtc_release(dev);
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -402,8 +402,14 @@ static int pxa_rtc_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(pxa_rtc_pm_ops, pxa_rtc_suspend, pxa_rtc_resume);
 
-static struct platform_driver pxa_rtc_driver = {
-	.remove		= __exit_p(pxa_rtc_remove),
+/*
+ * pxa_rtc_remove() lives in .exit.text. For drivers registered via
+ * module_platform_driver_probe() this is ok because they cannot get unbound at
+ * runtime. So mark the driver struct with __refdata to prevent modpost
+ * triggering a section mismatch warning.
+ */
+static struct platform_driver pxa_rtc_driver __refdata = {
+	.remove_new	= __exit_p(pxa_rtc_remove),
 	.driver		= {
 		.name	= "pxa-rtc",
 		.of_match_table = of_match_ptr(pxa_rtc_dt_ids),

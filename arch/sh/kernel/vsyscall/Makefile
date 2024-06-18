@@ -1,11 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0
 obj-y += vsyscall.o vsyscall-syscall.o vsyscall-syms.o
 
-$(obj)/vsyscall-syscall.o: \
-	$(foreach F,trapa,$(obj)/vsyscall-$F.so)
+$(obj)/vsyscall-syscall.o: $(obj)/vsyscall-trapa.so
 
 # Teach kbuild about targets
-targets += $(foreach F,trapa,vsyscall-$F.o vsyscall-$F.so)
+targets += vsyscall-trapa.o vsyscall-traps.so
 targets += vsyscall-note.o vsyscall.lds vsyscall-dummy.o
 
 # The DSO images are built using a special linker script
@@ -20,14 +19,14 @@ vsyscall-flags = -shared -s -Wl,-soname=linux-gate.so.1 -Wl,--hash-style=sysv
 SYSCFLAGS_vsyscall-trapa.so	= $(vsyscall-flags)
 
 $(obj)/vsyscall-trapa.so: \
-$(obj)/vsyscall-%.so: $(src)/vsyscall.lds $(obj)/vsyscall-%.o FORCE
+$(obj)/vsyscall-%.so: $(obj)/vsyscall.lds $(obj)/vsyscall-%.o FORCE
 	$(call if_changed,syscall)
 
 # We also create a special relocatable object that should mirror the symbol
 # table and layout of the linked DSO.  With ld -R we can then refer to
 # these symbols in the kernel code rather than hand-coded addresses.
 SYSCFLAGS_vsyscall-dummy.o = -r
-$(obj)/vsyscall-dummy.o: $(src)/vsyscall.lds \
+$(obj)/vsyscall-dummy.o: $(obj)/vsyscall.lds \
 			$(obj)/vsyscall-trapa.o $(obj)/vsyscall-note.o FORCE
 	$(call if_changed,syscall)
 

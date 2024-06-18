@@ -33,8 +33,8 @@
 #include <linux/jiffies.h>
 #include <linux/completion.h>
 #include <linux/of.h>
+#include <linux/pm_wakeirq.h>
 #include <linux/property.h>
-#include <linux/input/elan-i2c-ids.h>
 #include <linux/regulator/consumer.h>
 #include <asm/unaligned.h>
 
@@ -47,15 +47,8 @@
 #define ETP_FINGER_WIDTH	15
 #define ETP_RETRY_COUNT		3
 
-#define ETP_MAX_FINGERS		5
-#define ETP_FINGER_DATA_LEN	5
-#define ETP_REPORT_ID		0x5D
-#define ETP_TP_REPORT_ID	0x5E
-#define ETP_REPORT_ID_OFFSET	2
-#define ETP_TOUCH_INFO_OFFSET	3
-#define ETP_FINGER_DATA_OFFSET	4
-#define ETP_HOVER_INFO_OFFSET	30
-#define ETP_MAX_REPORT_LEN	34
+/* quirks to control the device */
+#define ETP_QUIRK_QUICK_WAKEUP	BIT(0)
 
 /* The main device structure */
 struct elan_tp_data {
@@ -85,23 +78,55 @@ struct elan_tp_data {
 	u8			sm_version;
 	u8			iap_version;
 	u16			fw_checksum;
+	unsigned int		report_features;
+	unsigned int		report_len;
 	int			pressure_adjustment;
 	u8			mode;
 	u16			ic_type;
 	u16			fw_validpage_count;
-	u16			fw_signature_address;
-
-	bool			irq_wake;
+	u16			fw_page_size;
+	u32			fw_signature_address;
 
 	u8			min_baseline;
 	u8			max_baseline;
 	bool			baseline_ready;
 	u8			clickpad;
 	bool			middle_button;
+
+	u32			quirks;		/* Various quirks */
 };
 
-static int elan_get_fwinfo(u16 ic_type, u16 *validpage_count,
-			   u16 *signature_address)
+static u32 elan_i2c_lookup_quirks(u16 ic_type, u16 product_id)
+{
+	static const struct {
+		u16 ic_type;
+		u16 product_id;
+		u32 quirks;
+	} elan_i2c_quirks[] = {
+		{ 0x0D, ETP_PRODUCT_ID_DELBIN, ETP_QUIRK_QUICK_WAKEUP },
+		{ 0x0D, ETP_PRODUCT_ID_WHITEBOX, ETP_QUIRK_QUICK_WAKEUP },
+		{ 0x10, ETP_PRODUCT_ID_VOXEL, ETP_QUIRK_QUICK_WAKEUP },
+		{ 0x14, ETP_PRODUCT_ID_MAGPIE, ETP_QUIRK_QUICK_WAKEUP },
+		{ 0x14, ETP_PRODUCT_ID_BOBBA, ETP_QUIRK_QUICK_WAKEUP },
+	};
+	u32 quirks = 0;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(elan_i2c_quirks); i++) {
+		if (elan_i2c_quirks[i].ic_type == ic_type &&
+		    elan_i2c_quirks[i].product_id == product_id) {
+			quirks = elan_i2c_quirks[i].quirks;
+		}
+	}
+
+	if (ic_type >= 0x0D && product_id >= 0x123)
+		quirks |= ETP_QUIRK_QUICK_WAKEUP;
+
+	return quirks;
+}
+
+static int elan_get_fwinfo(u16 ic_type, u8 iap_version, u16 *validpage_count,
+			   u32 *signature_address, u16 *page_size)
 {
 	switch (ic_type) {
 	case 0x00:
@@ -126,68 +151,55 @@ static int elan_get_fwinfo(u16 ic_type, u16 *validpage_count,
 	case 0x10:
 		*validpage_count = 1024;
 		break;
+	case 0x11:
+		*validpage_count = 1280;
+		break;
+	case 0x13:
+		*validpage_count = 2048;
+		break;
+	case 0x14:
+	case 0x15:
+		*validpage_count = 1024;
+		break;
 	default:
 		/* unknown ic type clear value */
 		*validpage_count = 0;
 		*signature_address = 0;
+		*page_size = 0;
 		return -ENXIO;
 	}
 
 	*signature_address =
 		(*validpage_count * ETP_FW_PAGE_SIZE) - ETP_FW_SIGNATURE_SIZE;
 
+	if ((ic_type == 0x14 || ic_type == 0x15) && iap_version >= 2) {
+		*validpage_count /= 8;
+		*page_size = ETP_FW_PAGE_SIZE_512;
+	} else if (ic_type >= 0x0D && iap_version >= 1) {
+		*validpage_count /= 2;
+		*page_size = ETP_FW_PAGE_SIZE_128;
+	} else {
+		*page_size = ETP_FW_PAGE_SIZE;
+	}
+
 	return 0;
 }
 
-static int elan_enable_power(struct elan_tp_data *data)
+static int elan_set_power(struct elan_tp_data *data, bool on)
 {
 	int repeat = ETP_RETRY_COUNT;
 	int error;
 
-	error = regulator_enable(data->vcc);
-	if (error) {
-		dev_err(&data->client->dev,
-			"failed to enable regulator: %d\n", error);
-		return error;
-	}
-
 	do {
-		error = data->ops->power_control(data->client, true);
+		error = data->ops->power_control(data->client, on);
 		if (error >= 0)
 			return 0;
 
 		msleep(30);
 	} while (--repeat > 0);
 
-	dev_err(&data->client->dev, "failed to enable power: %d\n", error);
-	return error;
-}
-
-static int elan_disable_power(struct elan_tp_data *data)
-{
-	int repeat = ETP_RETRY_COUNT;
-	int error;
-
-	do {
-		error = data->ops->power_control(data->client, false);
-		if (!error) {
-			error = regulator_disable(data->vcc);
-			if (error) {
-				dev_err(&data->client->dev,
-					"failed to disable regulator: %d\n",
-					error);
-				/* Attempt to power the chip back up */
-				data->ops->power_control(data->client, true);
-				break;
-			}
-
-			return 0;
-		}
-
-		msleep(30);
-	} while (--repeat > 0);
-
-	dev_err(&data->client->dev, "failed to disable power: %d\n", error);
+	dev_err(&data->client->dev, "failed to set power %s: %d\n",
+		on ? "on" : "off", error);
 	return error;
 }
 
@@ -215,8 +227,13 @@ static int elan_query_product(struct elan_tp_data *data)
 	if (error)
 		return error;
 
-	error = data->ops->get_sm_version(data->client, &data->ic_type,
-					  &data->sm_version, &data->clickpad);
+	error = data->ops->get_pattern(data->client, &data->pattern);
+	if (error)
+		return error;
+
+	error = data->ops->get_sm_version(data->client, data->pattern,
+					  &data->ic_type, &data->sm_version,
+					  &data->clickpad);
 	if (error)
 		return error;
 
@@ -240,16 +257,18 @@ static int elan_check_ASUS_special_fw(struct elan_tp_data *data)
 	return false;
 }
 
-static int __elan_initialize(struct elan_tp_data *data)
+static int __elan_initialize(struct elan_tp_data *data, bool skip_reset)
 {
 	struct i2c_client *client = data->client;
 	bool woken_up = false;
 	int error;
 
-	error = data->ops->initialize(client);
-	if (error) {
-		dev_err(&client->dev, "device initialize failed: %d\n", error);
-		return error;
+	if (!skip_reset) {
+		error = data->ops->initialize(client);
+		if (error) {
+			dev_err(&client->dev, "device initialize failed: %d\n", error);
+			return error;
+		}
 	}
 
 	error = elan_query_product(data);
@@ -293,16 +312,17 @@ static int __elan_initialize(struct elan_tp_data *data)
 	return 0;
 }
 
-static int elan_initialize(struct elan_tp_data *data)
+static int elan_initialize(struct elan_tp_data *data, bool skip_reset)
 {
 	int repeat = ETP_RETRY_COUNT;
 	int error;
 
 	do {
-		error = __elan_initialize(data);
+		error = __elan_initialize(data, skip_reset);
 		if (!error)
 			return 0;
 
+		skip_reset = false;
 		msleep(30);
 	} while (--repeat > 0);
 
@@ -312,9 +332,9 @@ static int elan_initialize(struct elan_tp_data *data)
 static int elan_query_device_info(struct elan_tp_data *data)
 {
 	int error;
-	u16 ic_type;
 
-	error = data->ops->get_version(data->client, false, &data->fw_version);
+	error = data->ops->get_version(data->client, data->pattern, false,
+				       &data->fw_version);
 	if (error)
 		return error;
 
@@ -323,7 +343,8 @@ static int elan_query_device_info(struct elan_tp_data *data)
 	if (error)
 		return error;
 
-	error = data->ops->get_version(data->client, true, &data->iap_version);
+	error = data->ops->get_version(data->client, data->pattern,
+				       true, &data->iap_version);
 	if (error)
 		return error;
 
@@ -332,17 +353,18 @@ static int elan_query_device_info(struct elan_tp_data *data)
 	if (error)
 		return error;
 
-	error = data->ops->get_pattern(data->client, &data->pattern);
+	error = data->ops->get_report_features(data->client, data->pattern,
+					       &data->report_features,
+					       &data->report_len);
 	if (error)
 		return error;
 
-	if (data->pattern == 0x01)
-		ic_type = data->ic_type;
-	else
-		ic_type = data->iap_version;
+	data->quirks = elan_i2c_lookup_quirks(data->ic_type, data->product_id);
 
-	error = elan_get_fwinfo(ic_type, &data->fw_validpage_count,
-				&data->fw_signature_address);
+	error = elan_get_fwinfo(data->ic_type, data->iap_version,
+				&data->fw_validpage_count,
+				&data->fw_signature_address,
+				&data->fw_page_size);
 	if (error)
 		dev_warn(&data->client->dev,
 			 "unexpected iap version %#04x (ic type: %#04x), firmware update will not work\n",
@@ -351,16 +373,21 @@ static int elan_query_device_info(struct elan_tp_data *data)
 	return 0;
 }
 
-static unsigned int elan_convert_resolution(u8 val)
+static unsigned int elan_convert_resolution(u8 val, u8 pattern)
 {
 	/*
-	 * (value from firmware) * 10 + 790 = dpi
-	 *
+	 * pattern <= 0x01:
+	 *	(value from firmware) * 10 + 790 = dpi
+	 * else
+	 *	((value from firmware) + 3) * 100 = dpi
+	 */
+	int res = pattern <= 0x01 ?
+		(int)(char)val * 10 + 790 : ((int)(char)val + 3) * 100;
+	/*
 	 * We also have to convert dpi to dots/mm (*10/254 to avoid floating
 	 * point).
 	 */
-
-	return ((int)(char)val * 10 + 790) * 10 / 254;
+	return res * 10 / 254;
 }
 
 static int elan_query_device_parameters(struct elan_tp_data *data)
@@ -409,8 +436,8 @@ static int elan_query_device_parameters(struct elan_tp_data *data)
 		if (error)
 			return error;
 
-		data->x_res = elan_convert_resolution(hw_x_res);
-		data->y_res = elan_convert_resolution(hw_y_res);
+		data->x_res = elan_convert_resolution(hw_x_res, data->pattern);
+		data->y_res = elan_convert_resolution(hw_y_res, data->pattern);
 	} else {
 		data->x_res = (data->max_x + 1) / x_mm;
 		data->y_res = (data->max_y + 1) / y_mm;
@@ -430,14 +457,14 @@ static int elan_query_device_parameters(struct elan_tp_data *data)
  * IAP firmware updater related routines
  **********************************************************
  */
-static int elan_write_fw_block(struct elan_tp_data *data,
+static int elan_write_fw_block(struct elan_tp_data *data, u16 page_size,
 			       const u8 *page, u16 checksum, int idx)
 {
 	int retry = ETP_RETRY_COUNT;
 	int error;
 
 	do {
-		error = data->ops->write_fw_block(data->client,
+		error = data->ops->write_fw_block(data->client, page_size,
 						  page, checksum, idx);
 		if (!error)
 			return 0;
@@ -460,21 +487,24 @@ static int __elan_update_firmware(struct elan_tp_data *data,
 	u16 boot_page_count;
 	u16 sw_checksum = 0, fw_checksum = 0;
 
-	error = data->ops->prepare_fw_update(client);
+	error = data->ops->prepare_fw_update(client, data->ic_type,
+					     data->iap_version,
+					     data->fw_page_size);
 	if (error)
 		return error;
 
 	iap_start_addr = get_unaligned_le16(&fw->data[ETP_IAP_START_ADDR * 2]);
 
-	boot_page_count = (iap_start_addr * 2) / ETP_FW_PAGE_SIZE;
+	boot_page_count = (iap_start_addr * 2) / data->fw_page_size;
 	for (i = boot_page_count; i < data->fw_validpage_count; i++) {
 		u16 checksum = 0;
-		const u8 *page = &fw->data[i * ETP_FW_PAGE_SIZE];
+		const u8 *page = &fw->data[i * data->fw_page_size];
 
-		for (j = 0; j < ETP_FW_PAGE_SIZE; j += 2)
+		for (j = 0; j < data->fw_page_size; j += 2)
 			checksum += ((page[j + 1] << 8) | page[j]);
 
-		error = elan_write_fw_block(data, page, checksum, i);
+		error = elan_write_fw_block(data, data->fw_page_size,
+					    page, checksum, i);
 		if (error) {
 			dev_err(dev, "write page %d fail: %d\n", i, error);
 			return error;
@@ -520,7 +550,7 @@ static int elan_update_firmware(struct elan_tp_data *data,
 		data->ops->iap_reset(client);
 	} else {
 		/* Reinitialize TP after fw is updated */
-		elan_initialize(data);
+		elan_initialize(data, false);
 		elan_query_device_info(data);
 	}
 
@@ -542,7 +572,7 @@ static ssize_t elan_sysfs_read_fw_checksum(struct device *dev,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct elan_tp_data *data = i2c_get_clientdata(client);
 
-	return sprintf(buf, "0x%04x\n", data->fw_checksum);
+	return sysfs_emit(buf, "0x%04x\n", data->fw_checksum);
 }
 
 static ssize_t elan_sysfs_read_product_id(struct device *dev,
@@ -552,8 +582,8 @@ static ssize_t elan_sysfs_read_product_id(struct device *dev,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct elan_tp_data *data = i2c_get_clientdata(client);
 
-	return sprintf(buf, ETP_PRODUCT_ID_FORMAT_STRING "\n",
-		       data->product_id);
+	return sysfs_emit(buf, ETP_PRODUCT_ID_FORMAT_STRING "\n",
+			  data->product_id);
 }
 
 static ssize_t elan_sysfs_read_fw_ver(struct device *dev,
@@ -563,7 +593,7 @@ static ssize_t elan_sysfs_read_fw_ver(struct device *dev,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct elan_tp_data *data = i2c_get_clientdata(client);
 
-	return sprintf(buf, "%d.0\n", data->fw_version);
+	return sysfs_emit(buf, "%d.0\n", data->fw_version);
 }
 
 static ssize_t elan_sysfs_read_sm_ver(struct device *dev,
@@ -573,7 +603,7 @@ static ssize_t elan_sysfs_read_sm_ver(struct device *dev,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct elan_tp_data *data = i2c_get_clientdata(client);
 
-	return sprintf(buf, "%d.0\n", data->sm_version);
+	return sysfs_emit(buf, "%d.0\n", data->sm_version);
 }
 
 static ssize_t elan_sysfs_read_iap_ver(struct device *dev,
@@ -583,7 +613,7 @@ static ssize_t elan_sysfs_read_iap_ver(struct device *dev,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct elan_tp_data *data = i2c_get_clientdata(client);
 
-	return sprintf(buf, "%d.0\n", data->iap_version);
+	return sysfs_emit(buf, "%d.0\n", data->iap_version);
 }
 
 static ssize_t elan_sysfs_update_fw(struct device *dev,
@@ -724,7 +754,7 @@ static ssize_t elan_sysfs_read_mode(struct device *dev,
 	if (error)
 		return error;
 
-	return sprintf(buf, "%d\n", (int)mode);
+	return sysfs_emit(buf, "%d\n", (int)mode);
 }
 
 static DEVICE_ATTR(product_id, S_IRUGO, elan_sysfs_read_product_id, NULL);
@@ -828,7 +858,7 @@ static ssize_t min_show(struct device *dev,
 		goto out;
 	}
 
-	retval = snprintf(buf, PAGE_SIZE, "%d", data->min_baseline);
+	retval = sysfs_emit(buf, "%d", data->min_baseline);
 
 out:
 	mutex_unlock(&data->sysfs_mutex);
@@ -851,7 +881,7 @@ static ssize_t max_show(struct device *dev,
 		goto out;
 	}
 
-	retval = snprintf(buf, PAGE_SIZE, "%d", data->max_baseline);
+	retval = sysfs_emit(buf, "%d", data->max_baseline);
 
 out:
 	mutex_unlock(&data->sysfs_mutex);
@@ -886,24 +916,22 @@ static const struct attribute_group *elan_sysfs_groups[] = {
  * Elan isr functions
  ******************************************************************
  */
-static void elan_report_contact(struct elan_tp_data *data,
-				int contact_num, bool contact_valid,
-				u8 *finger_data)
+static void elan_report_contact(struct elan_tp_data *data, int contact_num,
+				bool contact_valid, bool high_precision,
+				u8 *packet, u8 *finger_data)
 {
 	struct input_dev *input = data->input;
 	unsigned int pos_x, pos_y;
-	unsigned int pressure, mk_x, mk_y;
-	unsigned int area_x, area_y, major, minor;
-	unsigned int scaled_pressure;
+	unsigned int pressure, scaled_pressure;
 
 	if (contact_valid) {
-		pos_x = ((finger_data[0] & 0xf0) << 4) |
-						finger_data[1];
-		pos_y = ((finger_data[0] & 0x0f) << 8) |
-						finger_data[2];
-		mk_x = (finger_data[3] & 0x0f);
-		mk_y = (finger_data[3] >> 4);
-		pressure = finger_data[4];
+		if (high_precision) {
+			pos_x = get_unaligned_be16(&finger_data[0]);
+			pos_y = get_unaligned_be16(&finger_data[2]);
+		} else {
+			pos_x = ((finger_data[0] & 0xf0) << 4) | finger_data[1];
+			pos_y = ((finger_data[0] & 0x0f) << 8) | finger_data[2];
+		}
 
 		if (pos_x > data->max_x || pos_y > data->max_y) {
 			dev_dbg(input->dev.parent,
@@ -913,18 +941,8 @@ static void elan_report_contact(struct elan_tp_data *data,
 			return;
 		}
 
-		/*
-		 * To avoid treating large finger as palm, let's reduce the
-		 * width x and y per trace.
-		 */
-		area_x = mk_x * (data->width_x - ETP_FWIDTH_REDUCE);
-		area_y = mk_y * (data->width_y - ETP_FWIDTH_REDUCE);
-
-		major = max(area_x, area_y);
-		minor = min(area_x, area_y);
-
+		pressure = finger_data[4];
 		scaled_pressure = pressure + data->pressure_adjustment;
-
 		if (scaled_pressure > ETP_MAX_PRESSURE)
 			scaled_pressure = ETP_MAX_PRESSURE;
 
@@ -933,16 +951,37 @@ static void elan_report_contact(struct elan_tp_data *data,
 		input_report_abs(input, ABS_MT_POSITION_X, pos_x);
 		input_report_abs(input, ABS_MT_POSITION_Y, data->max_y - pos_y);
 		input_report_abs(input, ABS_MT_PRESSURE, scaled_pressure);
-		input_report_abs(input, ABS_TOOL_WIDTH, mk_x);
-		input_report_abs(input, ABS_MT_TOUCH_MAJOR, major);
-		input_report_abs(input, ABS_MT_TOUCH_MINOR, minor);
+
+		if (data->report_features & ETP_FEATURE_REPORT_MK) {
+			unsigned int mk_x, mk_y, area_x, area_y;
+			u8 mk_data = high_precision ?
+				packet[ETP_MK_DATA_OFFSET + contact_num] :
+				finger_data[3];
+
+			mk_x = mk_data & 0x0f;
+			mk_y = mk_data >> 4;
+
+			/*
+			 * To avoid treating large finger as palm, let's reduce
+			 * the width x and y per trace.
+			 */
+			area_x = mk_x * (data->width_x - ETP_FWIDTH_REDUCE);
+			area_y = mk_y * (data->width_y - ETP_FWIDTH_REDUCE);
+
+			input_report_abs(input, ABS_TOOL_WIDTH, mk_x);
+			input_report_abs(input, ABS_MT_TOUCH_MAJOR,
+					 max(area_x, area_y));
+			input_report_abs(input, ABS_MT_TOUCH_MINOR,
+					 min(area_x, area_y));
+		}
 	} else {
 		input_mt_slot(input, contact_num);
-		input_mt_report_slot_state(input, MT_TOOL_FINGER, false);
+		input_mt_report_slot_inactive(input);
 	}
 }
 
-static void elan_report_absolute(struct elan_tp_data *data, u8 *packet)
+static void elan_report_absolute(struct elan_tp_data *data, u8 *packet,
+				 bool high_precision)
 {
 	struct input_dev *input = data->input;
 	u8 *finger_data = &packet[ETP_FINGER_DATA_OFFSET];
@@ -951,11 +990,14 @@ static void elan_report_absolute(struct elan_tp_data *data, u8 *packet)
 	u8 hover_info = packet[ETP_HOVER_INFO_OFFSET];
 	bool contact_valid, hover_event;
 
-	hover_event = hover_info & 0x40;
-	for (i = 0; i < ETP_MAX_FINGERS; i++) {
-		contact_valid = tp_info & (1U << (3 + i));
-		elan_report_contact(data, i, contact_valid, finger_data);
+	pm_wakeup_event(&data->client->dev, 0);
 
+	hover_event = hover_info & BIT(6);
+
+	for (i = 0; i < ETP_MAX_FINGERS; i++) {
+		contact_valid = tp_info & BIT(3 + i);
+		elan_report_contact(data, i, contact_valid, high_precision,
+				    packet, finger_data);
 		if (contact_valid)
 			finger_data += ETP_FINGER_DATA_LEN;
 	}
@@ -973,6 +1015,8 @@ static void elan_report_trackpoint(struct elan_tp_data *data, u8 *report)
 	struct input_dev *input = data->tp_input;
 	u8 *packet = &report[ETP_REPORT_ID_OFFSET + 1];
 	int x, y;
+
+	pm_wakeup_event(&data->client->dev, 0);
 
 	if (!data->tp_input) {
 		dev_warn_once(&data->client->dev,
@@ -998,7 +1042,6 @@ static void elan_report_trackpoint(struct elan_tp_data *data, u8 *report)
 static irqreturn_t elan_isr(int irq, void *dev_id)
 {
 	struct elan_tp_data *data = dev_id;
-	struct device *dev = &data->client->dev;
 	int error;
 	u8 report[ETP_MAX_REPORT_LEN];
 
@@ -1012,21 +1055,23 @@ static irqreturn_t elan_isr(int irq, void *dev_id)
 		goto out;
 	}
 
-	error = data->ops->get_report(data->client, report);
+	error = data->ops->get_report(data->client, report, data->report_len);
 	if (error)
 		goto out;
 
-	pm_wakeup_event(dev, 0);
-
 	switch (report[ETP_REPORT_ID_OFFSET]) {
 	case ETP_REPORT_ID:
-		elan_report_absolute(data, report);
+		elan_report_absolute(data, report, false);
+		break;
+	case ETP_REPORT_ID2:
+		elan_report_absolute(data, report, true);
 		break;
 	case ETP_TP_REPORT_ID:
+	case ETP_TP_REPORT_ID2:
 		elan_report_trackpoint(data, report);
 		break;
 	default:
-		dev_err(dev, "invalid report id data (%x)\n",
+		dev_err(&data->client->dev, "invalid report id data (%x)\n",
 			report[ETP_REPORT_ID_OFFSET]);
 	}
 
@@ -1111,7 +1156,9 @@ static int elan_setup_input_device(struct elan_tp_data *data)
 	input_abs_set_res(input, ABS_X, data->x_res);
 	input_abs_set_res(input, ABS_Y, data->y_res);
 	input_set_abs_params(input, ABS_PRESSURE, 0, ETP_MAX_PRESSURE, 0, 0);
-	input_set_abs_params(input, ABS_TOOL_WIDTH, 0, ETP_FINGER_WIDTH, 0, 0);
+	if (data->report_features & ETP_FEATURE_REPORT_MK)
+		input_set_abs_params(input, ABS_TOOL_WIDTH,
+				     0, ETP_FINGER_WIDTH, 0, 0);
 	input_set_abs_params(input, ABS_DISTANCE, 0, 1, 0, 0);
 
 	/* And MT parameters */
@@ -1121,10 +1168,12 @@ static int elan_setup_input_device(struct elan_tp_data *data)
 	input_abs_set_res(input, ABS_MT_POSITION_Y, data->y_res);
 	input_set_abs_params(input, ABS_MT_PRESSURE, 0,
 			     ETP_MAX_PRESSURE, 0, 0);
-	input_set_abs_params(input, ABS_MT_TOUCH_MAJOR, 0,
-			     ETP_FINGER_WIDTH * max_width, 0, 0);
-	input_set_abs_params(input, ABS_MT_TOUCH_MINOR, 0,
-			     ETP_FINGER_WIDTH * min_width, 0, 0);
+	if (data->report_features & ETP_FEATURE_REPORT_MK) {
+		input_set_abs_params(input, ABS_MT_TOUCH_MAJOR,
+				     0, ETP_FINGER_WIDTH * max_width, 0, 0);
+		input_set_abs_params(input, ABS_MT_TOUCH_MINOR,
+				     0, ETP_FINGER_WIDTH * min_width, 0, 0);
+	}
 
 	data->input = input;
 
@@ -1138,8 +1187,7 @@ static void elan_disable_regulator(void *_data)
 	regulator_disable(data->vcc);
 }
 
-static int elan_probe(struct i2c_client *client,
-		      const struct i2c_device_id *dev_id)
+static int elan_probe(struct i2c_client *client)
 {
 	const struct elan_transport_ops *transport_ops;
 	struct device *dev = &client->dev;
@@ -1173,13 +1221,8 @@ static int elan_probe(struct i2c_client *client,
 	mutex_init(&data->sysfs_mutex);
 
 	data->vcc = devm_regulator_get(dev, "vcc");
-	if (IS_ERR(data->vcc)) {
-		error = PTR_ERR(data->vcc);
-		if (error != -EPROBE_DEFER)
-			dev_err(dev, "Failed to get 'vcc' regulator: %d\n",
-				error);
-		return error;
-	}
+	if (IS_ERR(data->vcc))
+		return dev_err_probe(dev, PTR_ERR(data->vcc), "Failed to get 'vcc' regulator\n");
 
 	error = regulator_enable(data->vcc);
 	if (error) {
@@ -1202,7 +1245,7 @@ static int elan_probe(struct i2c_client *client,
 	}
 
 	/* Initialize the touchpad. */
-	error = elan_initialize(data);
+	error = elan_initialize(data, false);
 	if (error)
 		return error;
 
@@ -1261,12 +1304,6 @@ static int elan_probe(struct i2c_client *client,
 		return error;
 	}
 
-	error = devm_device_add_groups(dev, elan_sysfs_groups);
-	if (error) {
-		dev_err(dev, "failed to create sysfs attributes: %d\n", error);
-		return error;
-	}
-
 	error = input_register_device(data->input);
 	if (error) {
 		dev_err(dev, "failed to register input device: %d\n", error);
@@ -1283,17 +1320,10 @@ static int elan_probe(struct i2c_client *client,
 		}
 	}
 
-	/*
-	 * Systems using device tree should set up wakeup via DTS,
-	 * the rest will configure device as wakeup source by default.
-	 */
-	if (!dev->of_node)
-		device_init_wakeup(dev, true);
-
 	return 0;
 }
 
-static int __maybe_unused elan_suspend(struct device *dev)
+static int elan_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct elan_tp_data *data = i2c_get_clientdata(client);
@@ -1312,34 +1342,45 @@ static int __maybe_unused elan_suspend(struct device *dev)
 
 	if (device_may_wakeup(dev)) {
 		ret = elan_sleep(data);
-		/* Enable wake from IRQ */
-		data->irq_wake = (enable_irq_wake(client->irq) == 0);
 	} else {
-		ret = elan_disable_power(data);
+		ret = elan_set_power(data, false);
+		if (ret)
+			goto err;
+
+		ret = regulator_disable(data->vcc);
+		if (ret) {
+			dev_err(dev, "error %d disabling regulator\n", ret);
+			/* Attempt to power the chip back up */
+			elan_set_power(data, true);
+		}
 	}
 
+err:
 	mutex_unlock(&data->sysfs_mutex);
 	return ret;
 }
 
-static int __maybe_unused elan_resume(struct device *dev)
+static int elan_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct elan_tp_data *data = i2c_get_clientdata(client);
 	int error;
 
-	if (device_may_wakeup(dev) && data->irq_wake) {
-		disable_irq_wake(client->irq);
-		data->irq_wake = false;
+	if (!device_may_wakeup(dev)) {
+		error = regulator_enable(data->vcc);
+		if (error) {
+			dev_err(dev, "error %d enabling regulator\n", error);
+			goto err;
+		}
 	}
 
-	error = elan_enable_power(data);
+	error = elan_set_power(data, true);
 	if (error) {
 		dev_err(dev, "power up when resuming failed: %d\n", error);
 		goto err;
 	}
 
-	error = elan_initialize(data);
+	error = elan_initialize(data, data->quirks & ETP_QUIRK_QUICK_WAKEUP);
 	if (error)
 		dev_err(dev, "initialize when resuming failed: %d\n", error);
 
@@ -1348,15 +1389,16 @@ err:
 	return error;
 }
 
-static SIMPLE_DEV_PM_OPS(elan_pm_ops, elan_suspend, elan_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(elan_pm_ops, elan_suspend, elan_resume);
 
 static const struct i2c_device_id elan_id[] = {
-	{ DRIVER_NAME, 0 },
-	{ },
+	{ DRIVER_NAME },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, elan_id);
 
 #ifdef CONFIG_ACPI
+#include <linux/input/elan-i2c-ids.h>
 MODULE_DEVICE_TABLE(acpi, elan_acpi_id);
 #endif
 
@@ -1371,10 +1413,11 @@ MODULE_DEVICE_TABLE(of, elan_of_match);
 static struct i2c_driver elan_driver = {
 	.driver = {
 		.name	= DRIVER_NAME,
-		.pm	= &elan_pm_ops,
+		.pm	= pm_sleep_ptr(&elan_pm_ops),
 		.acpi_match_table = ACPI_PTR(elan_acpi_id),
 		.of_match_table = of_match_ptr(elan_of_match),
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.dev_groups = elan_sysfs_groups,
 	},
 	.probe		= elan_probe,
 	.id_table	= elan_id,

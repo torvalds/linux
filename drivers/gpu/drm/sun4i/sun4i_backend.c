@@ -11,16 +11,18 @@
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
+#include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_blend.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
-#include <drm/drm_gem_cma_helper.h>
-#include <drm/drm_plane_helper.h>
+#include <drm/drm_framebuffer.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_probe_helper.h>
 
 #include "sun4i_backend.h"
@@ -171,14 +173,6 @@ int sun4i_backend_update_layer_coord(struct sun4i_backend *backend,
 
 	DRM_DEBUG_DRIVER("Updating layer %d\n", layer);
 
-	if (plane->type == DRM_PLANE_TYPE_PRIMARY) {
-		DRM_DEBUG_DRIVER("Primary layer, updating global size W: %u H: %u\n",
-				 state->crtc_w, state->crtc_h);
-		regmap_write(backend->engine.regs, SUN4I_BACKEND_DISSIZE_REG,
-			     SUN4I_BACKEND_DISSIZE(state->crtc_w,
-						   state->crtc_h));
-	}
-
 	/* Set height and width */
 	DRM_DEBUG_DRIVER("Layer size W: %u H: %u\n",
 			 state->crtc_w, state->crtc_h);
@@ -258,24 +252,12 @@ int sun4i_backend_update_layer_formats(struct sun4i_backend *backend,
 {
 	struct drm_plane_state *state = plane->state;
 	struct drm_framebuffer *fb = state->fb;
-	bool interlaced = false;
 	u32 val;
 	int ret;
 
 	/* Clear the YUV mode */
 	regmap_update_bits(backend->engine.regs, SUN4I_BACKEND_ATTCTL_REG0(layer),
 			   SUN4I_BACKEND_ATTCTL_REG0_LAY_YUVEN, 0);
-
-	if (plane->state->crtc)
-		interlaced = plane->state->crtc->state->adjusted_mode.flags
-			& DRM_MODE_FLAG_INTERLACE;
-
-	regmap_update_bits(backend->engine.regs, SUN4I_BACKEND_MODCTL_REG,
-			   SUN4I_BACKEND_MODCTL_ITLMOD_EN,
-			   interlaced ? SUN4I_BACKEND_MODCTL_ITLMOD_EN : 0);
-
-	DRM_DEBUG_DRIVER("Switching display backend interlaced mode %s\n",
-			 interlaced ? "on" : "off");
 
 	val = SUN4I_BACKEND_ATTCTL_REG0_LAY_GLBALPHA(state->alpha >> 8);
 	if (state->alpha != DRM_BLEND_ALPHA_OPAQUE)
@@ -347,7 +329,7 @@ int sun4i_backend_update_layer_buffer(struct sun4i_backend *backend,
 	struct drm_plane_state *state = plane->state;
 	struct drm_framebuffer *fb = state->fb;
 	u32 lo_paddr, hi_paddr;
-	dma_addr_t paddr;
+	dma_addr_t dma_addr;
 
 	/* Set the line width */
 	DRM_DEBUG_DRIVER("Layer line width: %d bits\n", fb->pitches[0] * 8);
@@ -356,21 +338,21 @@ int sun4i_backend_update_layer_buffer(struct sun4i_backend *backend,
 		     fb->pitches[0] * 8);
 
 	/* Get the start of the displayed memory */
-	paddr = drm_fb_cma_get_gem_addr(fb, state, 0);
-	DRM_DEBUG_DRIVER("Setting buffer address to %pad\n", &paddr);
+	dma_addr = drm_fb_dma_get_gem_addr(fb, state, 0);
+	DRM_DEBUG_DRIVER("Setting buffer address to %pad\n", &dma_addr);
 
 	if (fb->format->is_yuv)
-		return sun4i_backend_update_yuv_buffer(backend, fb, paddr);
+		return sun4i_backend_update_yuv_buffer(backend, fb, dma_addr);
 
 	/* Write the 32 lower bits of the address (in bits) */
-	lo_paddr = paddr << 3;
+	lo_paddr = dma_addr << 3;
 	DRM_DEBUG_DRIVER("Setting address lower bits to 0x%x\n", lo_paddr);
 	regmap_write(backend->engine.regs,
 		     SUN4I_BACKEND_LAYFB_L32ADD_REG(layer),
 		     lo_paddr);
 
 	/* And the upper bits */
-	hi_paddr = paddr >> 29;
+	hi_paddr = dma_addr >> 29;
 	DRM_DEBUG_DRIVER("Setting address high bits to 0x%x\n", hi_paddr);
 	regmap_update_bits(backend->engine.regs, SUN4I_BACKEND_LAYFB_H4ADD_REG,
 			   SUN4I_BACKEND_LAYFB_H4ADD_MSK(layer),
@@ -509,7 +491,6 @@ static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
 		struct sun4i_layer_state *layer_state =
 			state_to_sun4i_layer_state(plane_state);
 		struct drm_framebuffer *fb = plane_state->fb;
-		struct drm_format_name_buf format_name;
 
 		if (!sun4i_backend_plane_is_supported(plane_state,
 						      &layer_state->uses_frontend))
@@ -526,9 +507,8 @@ static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
 			}
 		}
 
-		DRM_DEBUG_DRIVER("Plane FB format is %s\n",
-				 drm_get_format_name(fb->format->format,
-						     &format_name));
+		DRM_DEBUG_DRIVER("Plane FB format is %p4cc\n",
+				 &fb->format->format);
 		if (fb->format->has_alpha || (plane_state->alpha != DRM_BLEND_ALPHA_OPAQUE))
 			num_alpha_planes++;
 
@@ -589,8 +569,7 @@ static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
 
 	/* We can't have an alpha plane at the lowest position */
 	if (!backend->quirks->supports_lowest_plane_alpha &&
-	    (plane_states[0]->fb->format->has_alpha ||
-	    (plane_states[0]->alpha != DRM_BLEND_ALPHA_OPAQUE)))
+	    (plane_states[0]->alpha != DRM_BLEND_ALPHA_OPAQUE))
 		return -EINVAL;
 
 	for (i = 1; i < num_planes; i++) {
@@ -655,6 +634,25 @@ static void sun4i_backend_vblank_quirk(struct sunxi_engine *engine)
 	}
 	spin_unlock(&backend->frontend_lock);
 };
+
+static void sun4i_backend_mode_set(struct sunxi_engine *engine,
+				   const struct drm_display_mode *mode)
+{
+	bool interlaced = !!(mode->flags & DRM_MODE_FLAG_INTERLACE);
+
+	DRM_DEBUG_DRIVER("Updating global size W: %u H: %u\n",
+			 mode->hdisplay, mode->vdisplay);
+
+	regmap_write(engine->regs, SUN4I_BACKEND_DISSIZE_REG,
+		     SUN4I_BACKEND_DISSIZE(mode->hdisplay, mode->vdisplay));
+
+	regmap_update_bits(engine->regs, SUN4I_BACKEND_MODCTL_REG,
+			   SUN4I_BACKEND_MODCTL_ITLMOD_EN,
+			   interlaced ? SUN4I_BACKEND_MODCTL_ITLMOD_EN : 0);
+
+	DRM_DEBUG_DRIVER("Switching display backend interlaced mode %s\n",
+			 interlaced ? "on" : "off");
+}
 
 static int sun4i_backend_init_sat(struct device *dev) {
 	struct sun4i_backend *backend = dev_get_drvdata(dev);
@@ -767,9 +765,10 @@ static const struct sunxi_engine_ops sun4i_backend_engine_ops = {
 	.apply_color_correction		= sun4i_backend_apply_color_correction,
 	.disable_color_correction	= sun4i_backend_disable_color_correction,
 	.vblank_quirk			= sun4i_backend_vblank_quirk,
+	.mode_set			= sun4i_backend_mode_set,
 };
 
-static struct regmap_config sun4i_backend_regmap_config = {
+static const struct regmap_config sun4i_backend_regmap_config = {
 	.reg_bits	= 32,
 	.val_bits	= 32,
 	.reg_stride	= 4,
@@ -784,7 +783,6 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 	struct sun4i_drv *drv = drm->dev_private;
 	struct sun4i_backend *backend;
 	const struct sun4i_backend_quirks *quirks;
-	struct resource *res;
 	void __iomem *regs;
 	int i, ret;
 
@@ -794,7 +792,7 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 	dev_set_drvdata(dev, backend);
 	spin_lock_init(&backend->frontend_lock);
 
-	if (of_find_property(dev->of_node, "interconnects", NULL)) {
+	if (of_property_present(dev->of_node, "interconnects")) {
 		/*
 		 * This assume we have the same DMA constraints for all our the
 		 * devices in our pipeline (all the backends, but also the
@@ -805,14 +803,6 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 		ret = of_dma_configure(drm->dev, dev->of_node, true);
 		if (ret)
 			return ret;
-	} else {
-		/*
-		 * If we don't have the interconnect property, most likely
-		 * because of an old DT, we need to set the DMA offset by hand
-		 * on our device since the RAM mapping is at 0 for the DMA bus,
-		 * unlike the CPU.
-		 */
-		drm->dev->dma_pfn_offset = PHYS_PFN_OFFSET;
 	}
 
 	backend->engine.node = dev->of_node;
@@ -825,8 +815,7 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 	if (IS_ERR(backend->frontend))
 		dev_warn(dev, "Couldn't find matching frontend, frontend features disabled\n");
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	regs = devm_ioremap_resource(dev, res);
+	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
@@ -856,6 +845,13 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 		ret = PTR_ERR(backend->mod_clk);
 		goto err_disable_bus_clk;
 	}
+
+	ret = clk_set_rate_exclusive(backend->mod_clk, 300000000);
+	if (ret) {
+		dev_err(dev, "Couldn't set the module clock frequency\n");
+		goto err_disable_bus_clk;
+	}
+
 	clk_prepare_enable(backend->mod_clk);
 
 	backend->ram_clk = devm_clk_get(dev, "ram");
@@ -932,6 +928,7 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 err_disable_ram_clk:
 	clk_disable_unprepare(backend->ram_clk);
 err_disable_mod_clk:
+	clk_rate_exclusive_put(backend->mod_clk);
 	clk_disable_unprepare(backend->mod_clk);
 err_disable_bus_clk:
 	clk_disable_unprepare(backend->bus_clk);
@@ -952,6 +949,7 @@ static void sun4i_backend_unbind(struct device *dev, struct device *master,
 		sun4i_backend_free_sat(dev);
 
 	clk_disable_unprepare(backend->ram_clk);
+	clk_rate_exclusive_put(backend->mod_clk);
 	clk_disable_unprepare(backend->mod_clk);
 	clk_disable_unprepare(backend->bus_clk);
 	reset_control_assert(backend->reset);
@@ -967,11 +965,9 @@ static int sun4i_backend_probe(struct platform_device *pdev)
 	return component_add(&pdev->dev, &sun4i_backend_ops);
 }
 
-static int sun4i_backend_remove(struct platform_device *pdev)
+static void sun4i_backend_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &sun4i_backend_ops);
-
-	return 0;
 }
 
 static const struct sun4i_backend_quirks sun4i_backend_quirks = {
@@ -986,7 +982,6 @@ static const struct sun4i_backend_quirks sun6i_backend_quirks = {
 
 static const struct sun4i_backend_quirks sun7i_backend_quirks = {
 	.needs_output_muxing = true,
-	.supports_lowest_plane_alpha = true,
 };
 
 static const struct sun4i_backend_quirks sun8i_a33_backend_quirks = {
@@ -1031,7 +1026,7 @@ MODULE_DEVICE_TABLE(of, sun4i_backend_of_table);
 
 static struct platform_driver sun4i_backend_platform_driver = {
 	.probe		= sun4i_backend_probe,
-	.remove		= sun4i_backend_remove,
+	.remove_new	= sun4i_backend_remove,
 	.driver		= {
 		.name		= "sun4i-backend",
 		.of_match_table	= sun4i_backend_of_table,

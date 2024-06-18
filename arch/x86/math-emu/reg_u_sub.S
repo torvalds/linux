@@ -33,7 +33,7 @@
 #include "control_w.h"
 
 .text
-ENTRY(FPU_u_sub)
+SYM_FUNC_START(FPU_u_sub)
 	pushl	%ebp
 	movl	%esp,%ebp
 	pushl	%esi
@@ -270,5 +270,5 @@ L_exit:
 	popl	%edi
 	popl	%esi
 	leave
-	ret
-ENDPROC(FPU_u_sub)
+	RET
+SYM_FUNC_END(FPU_u_sub)

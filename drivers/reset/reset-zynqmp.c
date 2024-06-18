@@ -12,10 +12,17 @@
 
 #define ZYNQMP_NR_RESETS (ZYNQMP_PM_RESET_END - ZYNQMP_PM_RESET_START)
 #define ZYNQMP_RESET_ID ZYNQMP_PM_RESET_START
+#define VERSAL_NR_RESETS	95
+#define VERSAL_NET_NR_RESETS	176
+
+struct zynqmp_reset_soc_data {
+	u32 reset_id;
+	u32 num_resets;
+};
 
 struct zynqmp_reset_data {
 	struct reset_controller_dev rcdev;
-	const struct zynqmp_eemi_ops *eemi_ops;
+	const struct zynqmp_reset_soc_data *data;
 };
 
 static inline struct zynqmp_reset_data *
@@ -29,8 +36,8 @@ static int zynqmp_reset_assert(struct reset_controller_dev *rcdev,
 {
 	struct zynqmp_reset_data *priv = to_zynqmp_reset_data(rcdev);
 
-	return priv->eemi_ops->reset_assert(ZYNQMP_RESET_ID + id,
-					    PM_RESET_ACTION_ASSERT);
+	return zynqmp_pm_reset_assert(priv->data->reset_id + id,
+				      PM_RESET_ACTION_ASSERT);
 }
 
 static int zynqmp_reset_deassert(struct reset_controller_dev *rcdev,
@@ -38,17 +45,18 @@ static int zynqmp_reset_deassert(struct reset_controller_dev *rcdev,
 {
 	struct zynqmp_reset_data *priv = to_zynqmp_reset_data(rcdev);
 
-	return priv->eemi_ops->reset_assert(ZYNQMP_RESET_ID + id,
-					    PM_RESET_ACTION_RELEASE);
+	return zynqmp_pm_reset_assert(priv->data->reset_id + id,
+				      PM_RESET_ACTION_RELEASE);
 }
 
 static int zynqmp_reset_status(struct reset_controller_dev *rcdev,
 			       unsigned long id)
 {
 	struct zynqmp_reset_data *priv = to_zynqmp_reset_data(rcdev);
-	int val, err;
+	int err;
+	u32 val;
 
-	err = priv->eemi_ops->reset_get_status(ZYNQMP_RESET_ID + id, &val);
+	err = zynqmp_pm_reset_get_status(priv->data->reset_id + id, &val);
 	if (err)
 		return err;
 
@@ -60,11 +68,32 @@ static int zynqmp_reset_reset(struct reset_controller_dev *rcdev,
 {
 	struct zynqmp_reset_data *priv = to_zynqmp_reset_data(rcdev);
 
-	return priv->eemi_ops->reset_assert(ZYNQMP_RESET_ID + id,
-					    PM_RESET_ACTION_PULSE);
+	return zynqmp_pm_reset_assert(priv->data->reset_id + id,
+				      PM_RESET_ACTION_PULSE);
 }
 
-static struct reset_control_ops zynqmp_reset_ops = {
+static int zynqmp_reset_of_xlate(struct reset_controller_dev *rcdev,
+				 const struct of_phandle_args *reset_spec)
+{
+	return reset_spec->args[0];
+}
+
+static const struct zynqmp_reset_soc_data zynqmp_reset_data = {
+	.reset_id = ZYNQMP_RESET_ID,
+	.num_resets = ZYNQMP_NR_RESETS,
+};
+
+static const struct zynqmp_reset_soc_data versal_reset_data = {
+	.reset_id = 0,
+	.num_resets = VERSAL_NR_RESETS,
+};
+
+static const struct zynqmp_reset_soc_data versal_net_reset_data = {
+	.reset_id = 0,
+	.num_resets = VERSAL_NET_NR_RESETS,
+};
+
+static const struct reset_control_ops zynqmp_reset_ops = {
 	.reset = zynqmp_reset_reset,
 	.assert = zynqmp_reset_assert,
 	.deassert = zynqmp_reset_deassert,
@@ -79,22 +108,24 @@ static int zynqmp_reset_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->eemi_ops = zynqmp_pm_get_eemi_ops();
-	if (IS_ERR(priv->eemi_ops))
-		return PTR_ERR(priv->eemi_ops);
-
-	platform_set_drvdata(pdev, priv);
+	priv->data = of_device_get_match_data(&pdev->dev);
+	if (!priv->data)
+		return -EINVAL;
 
 	priv->rcdev.ops = &zynqmp_reset_ops;
 	priv->rcdev.owner = THIS_MODULE;
 	priv->rcdev.of_node = pdev->dev.of_node;
-	priv->rcdev.nr_resets = ZYNQMP_NR_RESETS;
+	priv->rcdev.nr_resets = priv->data->num_resets;
+	priv->rcdev.of_reset_n_cells = 1;
+	priv->rcdev.of_xlate = zynqmp_reset_of_xlate;
 
 	return devm_reset_controller_register(&pdev->dev, &priv->rcdev);
 }
 
 static const struct of_device_id zynqmp_reset_dt_ids[] = {
-	{ .compatible = "xlnx,zynqmp-reset", },
+	{ .compatible = "xlnx,zynqmp-reset", .data = &zynqmp_reset_data, },
+	{ .compatible = "xlnx,versal-reset", .data = &versal_reset_data, },
+	{ .compatible = "xlnx,versal-net-reset", .data = &versal_net_reset_data, },
 	{ /* sentinel */ },
 };
 

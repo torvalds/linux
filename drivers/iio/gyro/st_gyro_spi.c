@@ -9,7 +9,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/slab.h>
+#include <linux/mod_devicetable.h>
 #include <linux/spi/spi.h>
 #include <linux/iio/iio.h>
 
@@ -17,7 +17,6 @@
 #include <linux/iio/common/st_sensors_spi.h>
 #include "st_gyro.h"
 
-#ifdef CONFIG_OF
 /*
  * For new single-chip sensors use <device_name> as compatible string.
  * For old single-chip devices keep <device_name>-gyro to maintain
@@ -63,9 +62,6 @@ static const struct of_device_id st_gyro_of_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, st_gyro_of_match);
-#else
-#define st_gyro_of_match	NULL
-#endif
 
 static int st_gyro_spi_probe(struct spi_device *spi)
 {
@@ -74,8 +70,7 @@ static int st_gyro_spi_probe(struct spi_device *spi)
 	struct iio_dev *indio_dev;
 	int err;
 
-	st_sensors_of_name_probe(&spi->dev, st_gyro_of_match,
-				 spi->modalias, sizeof(spi->modalias));
+	st_sensors_dev_name_probe(&spi->dev, spi->modalias, sizeof(spi->modalias));
 
 	settings = st_gyro_get_settings(spi->modalias);
 	if (!settings) {
@@ -95,18 +90,11 @@ static int st_gyro_spi_probe(struct spi_device *spi)
 	if (err < 0)
 		return err;
 
-	err = st_gyro_common_probe(indio_dev);
-	if (err < 0)
+	err = st_sensors_power_enable(indio_dev);
+	if (err)
 		return err;
 
-	return 0;
-}
-
-static int st_gyro_spi_remove(struct spi_device *spi)
-{
-	st_gyro_common_remove(spi_get_drvdata(spi));
-
-	return 0;
+	return st_gyro_common_probe(indio_dev);
 }
 
 static const struct spi_device_id st_gyro_id_table[] = {
@@ -126,10 +114,9 @@ MODULE_DEVICE_TABLE(spi, st_gyro_id_table);
 static struct spi_driver st_gyro_driver = {
 	.driver = {
 		.name = "st-gyro-spi",
-		.of_match_table = of_match_ptr(st_gyro_of_match),
+		.of_match_table = st_gyro_of_match,
 	},
 	.probe = st_gyro_spi_probe,
-	.remove = st_gyro_spi_remove,
 	.id_table = st_gyro_id_table,
 };
 module_spi_driver(st_gyro_driver);
@@ -137,3 +124,4 @@ module_spi_driver(st_gyro_driver);
 MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");
 MODULE_DESCRIPTION("STMicroelectronics gyroscopes spi driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_ST_SENSORS);

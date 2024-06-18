@@ -26,11 +26,10 @@
 #ifndef __RTL871X_MP_PHY_REGDEF_H
 #define __RTL871X_MP_PHY_REGDEF_H
 
-
 /*--------------------------Define Parameters-------------------------------*/
 
 /*============================================================
- *       8192S Regsiter offset definition
+ *       8192S Register offset definition
  *============================================================
  *
  *
@@ -127,7 +126,7 @@
 #define	rFPGA0_AnalogParameter3		0x888	/* Useless now */
 #define	rFPGA0_AnalogParameter4		0x88c
 
-#define	rFPGA0_XA_LSSIReadBack		0x8a0	/* Tranceiver LSSI Readback */
+#define	rFPGA0_XA_LSSIReadBack		0x8a0	/* Transceiver LSSI Readback */
 #define	rFPGA0_XB_LSSIReadBack		0x8a4
 #define	rFPGA0_XC_LSSIReadBack		0x8a8
 #define	rFPGA0_XD_LSSIReadBack		0x8ac
@@ -1008,7 +1007,6 @@
 #define	ANTENNA_C	0x4
 #define	ANTENNA_D	0x8
 
-
 /* accept all physical address */
 #define RCR_AAP		BIT(0)
 #define RCR_APM		BIT(1)		/* accept physical match */
@@ -1031,7 +1029,6 @@
 #define RCR_OnlyErlPkt	BIT(31)
 
 /*--------------------------Define Parameters-------------------------------*/
-
 
 #endif	/*__INC_HAL8192SPHYREG_H */
 

@@ -11,7 +11,6 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
-#include <linux/of_platform.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -20,6 +19,7 @@
 #include <asm/div64.h>
 #include <linux/mfd/da9150/core.h>
 #include <linux/mfd/da9150/registers.h>
+#include <linux/devm-helpers.h>
 
 /* Core2Wire */
 #define DA9150_QIF_READ		(0x0 << 7)
@@ -506,41 +506,28 @@ static int da9150_fg_probe(struct platform_device *pdev)
 	 * work for reporting data updates.
 	 */
 	if (fg->interval) {
-		INIT_DELAYED_WORK(&fg->work, da9150_fg_work);
+		ret = devm_delayed_work_autocancel(dev, &fg->work,
+						   da9150_fg_work);
+		if (ret) {
+			dev_err(dev, "Failed to init work\n");
+			return ret;
+		}
+
 		schedule_delayed_work(&fg->work,
 				      msecs_to_jiffies(fg->interval));
 	}
 
 	/* Register IRQ */
 	irq = platform_get_irq_byname(pdev, "FG");
-	if (irq < 0) {
-		dev_err(dev, "Failed to get IRQ FG: %d\n", irq);
-		ret = irq;
-		goto irq_fail;
-	}
+	if (irq < 0)
+		return irq;
 
 	ret = devm_request_threaded_irq(dev, irq, NULL, da9150_fg_irq,
 					IRQF_ONESHOT, "FG", fg);
 	if (ret) {
 		dev_err(dev, "Failed to request IRQ %d: %d\n", irq, ret);
-		goto irq_fail;
+		return ret;
 	}
-
-	return 0;
-
-irq_fail:
-	if (fg->interval)
-		cancel_delayed_work(&fg->work);
-
-	return ret;
-}
-
-static int da9150_fg_remove(struct platform_device *pdev)
-{
-	struct da9150_fg *fg = platform_get_drvdata(pdev);
-
-	if (fg->interval)
-		cancel_delayed_work(&fg->work);
 
 	return 0;
 }
@@ -564,7 +551,6 @@ static struct platform_driver da9150_fg_driver = {
 		.name = "da9150-fuel-gauge",
 	},
 	.probe = da9150_fg_probe,
-	.remove = da9150_fg_remove,
 	.resume = da9150_fg_resume,
 };
 

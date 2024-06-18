@@ -97,7 +97,8 @@ do_async_xor(struct dma_chan *chan, struct dmaengine_unmap_data *unmap,
 }
 
 static void
-do_sync_xor(struct page *dest, struct page **src_list, unsigned int offset,
+do_sync_xor_offs(struct page *dest, unsigned int offset,
+		struct page **src_list, unsigned int *src_offs,
 	    int src_cnt, size_t len, struct async_submit_ctl *submit)
 {
 	int i;
@@ -114,7 +115,8 @@ do_sync_xor(struct page *dest, struct page **src_list, unsigned int offset,
 	/* convert to buffer pointers */
 	for (i = 0; i < src_cnt; i++)
 		if (src_list[i])
-			srcs[xor_src_cnt++] = page_address(src_list[i]) + offset;
+			srcs[xor_src_cnt++] = page_address(src_list[i]) +
+				(src_offs ? src_offs[i] : offset);
 	src_cnt = xor_src_cnt;
 	/* set destination address */
 	dest_buf = page_address(dest) + offset;
@@ -135,11 +137,31 @@ do_sync_xor(struct page *dest, struct page **src_list, unsigned int offset,
 	async_tx_sync_epilog(submit);
 }
 
+static inline bool
+dma_xor_aligned_offsets(struct dma_device *device, unsigned int offset,
+		unsigned int *src_offs, int src_cnt, int len)
+{
+	int i;
+
+	if (!is_dma_xor_aligned(device, offset, 0, len))
+		return false;
+
+	if (!src_offs)
+		return true;
+
+	for (i = 0; i < src_cnt; i++) {
+		if (!is_dma_xor_aligned(device, src_offs[i], 0, len))
+			return false;
+	}
+	return true;
+}
+
 /**
- * async_xor - attempt to xor a set of blocks with a dma engine.
+ * async_xor_offs - attempt to xor a set of blocks with a dma engine.
  * @dest: destination page
+ * @offset: dst offset to start transaction
  * @src_list: array of source pages
- * @offset: common src/dst offset to start transaction
+ * @src_offs: array of source pages offset, NULL means common src/dst offset
  * @src_cnt: number of source pages
  * @len: length in bytes
  * @submit: submission / completion modifiers
@@ -148,8 +170,8 @@ do_sync_xor(struct page *dest, struct page **src_list, unsigned int offset,
  *
  * xor_blocks always uses the dest as a source so the
  * ASYNC_TX_XOR_ZERO_DST flag must be set to not include dest data in
- * the calculation.  The assumption with dma eninges is that they only
- * use the destination buffer as a source when it is explicity specified
+ * the calculation.  The assumption with dma engines is that they only
+ * use the destination buffer as a source when it is explicitly specified
  * in the source list.
  *
  * src_list note: if the dest is also a source it must be at index zero.
@@ -157,8 +179,9 @@ do_sync_xor(struct page *dest, struct page **src_list, unsigned int offset,
  * is not specified.
  */
 struct dma_async_tx_descriptor *
-async_xor(struct page *dest, struct page **src_list, unsigned int offset,
-	  int src_cnt, size_t len, struct async_submit_ctl *submit)
+async_xor_offs(struct page *dest, unsigned int offset,
+		struct page **src_list, unsigned int *src_offs,
+		int src_cnt, size_t len, struct async_submit_ctl *submit)
 {
 	struct dma_chan *chan = async_tx_find_channel(submit, DMA_XOR,
 						      &dest, 1, src_list,
@@ -171,7 +194,8 @@ async_xor(struct page *dest, struct page **src_list, unsigned int offset,
 	if (device)
 		unmap = dmaengine_get_unmap_data(device->dev, src_cnt+1, GFP_NOWAIT);
 
-	if (unmap && is_dma_xor_aligned(device, offset, 0, len)) {
+	if (unmap && dma_xor_aligned_offsets(device, offset,
+				src_offs, src_cnt, len)) {
 		struct dma_async_tx_descriptor *tx;
 		int i, j;
 
@@ -184,7 +208,8 @@ async_xor(struct page *dest, struct page **src_list, unsigned int offset,
 				continue;
 			unmap->to_cnt++;
 			unmap->addr[j++] = dma_map_page(device->dev, src_list[i],
-							offset, len, DMA_TO_DEVICE);
+					src_offs ? src_offs[i] : offset,
+					len, DMA_TO_DEVICE);
 		}
 
 		/* map it bidirectional as it may be re-used as a source */
@@ -208,15 +233,48 @@ async_xor(struct page *dest, struct page **src_list, unsigned int offset,
 		if (submit->flags & ASYNC_TX_XOR_DROP_DST) {
 			src_cnt--;
 			src_list++;
+			if (src_offs)
+				src_offs++;
 		}
 
 		/* wait for any prerequisite operations */
 		async_tx_quiesce(&submit->depend_tx);
 
-		do_sync_xor(dest, src_list, offset, src_cnt, len, submit);
+		do_sync_xor_offs(dest, offset, src_list, src_offs,
+				src_cnt, len, submit);
 
 		return NULL;
 	}
+}
+EXPORT_SYMBOL_GPL(async_xor_offs);
+
+/**
+ * async_xor - attempt to xor a set of blocks with a dma engine.
+ * @dest: destination page
+ * @src_list: array of source pages
+ * @offset: common src/dst offset to start transaction
+ * @src_cnt: number of source pages
+ * @len: length in bytes
+ * @submit: submission / completion modifiers
+ *
+ * honored flags: ASYNC_TX_ACK, ASYNC_TX_XOR_ZERO_DST, ASYNC_TX_XOR_DROP_DST
+ *
+ * xor_blocks always uses the dest as a source so the
+ * ASYNC_TX_XOR_ZERO_DST flag must be set to not include dest data in
+ * the calculation.  The assumption with dma engines is that they only
+ * use the destination buffer as a source when it is explicitly specified
+ * in the source list.
+ *
+ * src_list note: if the dest is also a source it must be at index zero.
+ * The contents of this array will be overwritten if a scribble region
+ * is not specified.
+ */
+struct dma_async_tx_descriptor *
+async_xor(struct page *dest, struct page **src_list, unsigned int offset,
+	  int src_cnt, size_t len, struct async_submit_ctl *submit)
+{
+	return async_xor_offs(dest, offset, src_list, NULL,
+			src_cnt, len, submit);
 }
 EXPORT_SYMBOL_GPL(async_xor);
 
@@ -237,10 +295,11 @@ xor_val_chan(struct async_submit_ctl *submit, struct page *dest,
 }
 
 /**
- * async_xor_val - attempt a xor parity check with a dma engine.
+ * async_xor_val_offs - attempt a xor parity check with a dma engine.
  * @dest: destination page used if the xor is performed synchronously
+ * @offset: des offset in pages to start transaction
  * @src_list: array of source pages
- * @offset: offset in pages to start transaction
+ * @src_offs: array of source pages offset, NULL means common src/det offset
  * @src_cnt: number of source pages
  * @len: length in bytes
  * @result: 0 if sum == 0 else non-zero
@@ -253,9 +312,10 @@ xor_val_chan(struct async_submit_ctl *submit, struct page *dest,
  * is not specified.
  */
 struct dma_async_tx_descriptor *
-async_xor_val(struct page *dest, struct page **src_list, unsigned int offset,
-	      int src_cnt, size_t len, enum sum_check_flags *result,
-	      struct async_submit_ctl *submit)
+async_xor_val_offs(struct page *dest, unsigned int offset,
+		struct page **src_list, unsigned int *src_offs,
+		int src_cnt, size_t len, enum sum_check_flags *result,
+		struct async_submit_ctl *submit)
 {
 	struct dma_chan *chan = xor_val_chan(submit, dest, src_list, src_cnt, len);
 	struct dma_device *device = chan ? chan->device : NULL;
@@ -268,7 +328,7 @@ async_xor_val(struct page *dest, struct page **src_list, unsigned int offset,
 		unmap = dmaengine_get_unmap_data(device->dev, src_cnt, GFP_NOWAIT);
 
 	if (unmap && src_cnt <= device->max_xor &&
-	    is_dma_xor_aligned(device, offset, 0, len)) {
+	    dma_xor_aligned_offsets(device, offset, src_offs, src_cnt, len)) {
 		unsigned long dma_prep_flags = 0;
 		int i;
 
@@ -281,7 +341,8 @@ async_xor_val(struct page *dest, struct page **src_list, unsigned int offset,
 
 		for (i = 0; i < src_cnt; i++) {
 			unmap->addr[i] = dma_map_page(device->dev, src_list[i],
-						      offset, len, DMA_TO_DEVICE);
+					src_offs ? src_offs[i] : offset,
+					len, DMA_TO_DEVICE);
 			unmap->to_cnt++;
 		}
 		unmap->len = len;
@@ -312,7 +373,8 @@ async_xor_val(struct page *dest, struct page **src_list, unsigned int offset,
 		submit->flags |= ASYNC_TX_XOR_DROP_DST;
 		submit->flags &= ~ASYNC_TX_ACK;
 
-		tx = async_xor(dest, src_list, offset, src_cnt, len, submit);
+		tx = async_xor_offs(dest, offset, src_list, src_offs,
+				src_cnt, len, submit);
 
 		async_tx_quiesce(&tx);
 
@@ -324,6 +386,32 @@ async_xor_val(struct page *dest, struct page **src_list, unsigned int offset,
 	dmaengine_unmap_put(unmap);
 
 	return tx;
+}
+EXPORT_SYMBOL_GPL(async_xor_val_offs);
+
+/**
+ * async_xor_val - attempt a xor parity check with a dma engine.
+ * @dest: destination page used if the xor is performed synchronously
+ * @src_list: array of source pages
+ * @offset: offset in pages to start transaction
+ * @src_cnt: number of source pages
+ * @len: length in bytes
+ * @result: 0 if sum == 0 else non-zero
+ * @submit: submission / completion modifiers
+ *
+ * honored flags: ASYNC_TX_ACK
+ *
+ * src_list note: if the dest is also a source it must be at index zero.
+ * The contents of this array will be overwritten if a scribble region
+ * is not specified.
+ */
+struct dma_async_tx_descriptor *
+async_xor_val(struct page *dest, struct page **src_list, unsigned int offset,
+	      int src_cnt, size_t len, enum sum_check_flags *result,
+	      struct async_submit_ctl *submit)
+{
+	return async_xor_val_offs(dest, offset, src_list, NULL, src_cnt,
+			len, result, submit);
 }
 EXPORT_SYMBOL_GPL(async_xor_val);
 

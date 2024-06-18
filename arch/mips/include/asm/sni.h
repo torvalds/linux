@@ -11,6 +11,8 @@
 #ifndef __ASM_SNI_H
 #define __ASM_SNI_H
 
+#include <linux/irqreturn.h>
+
 extern unsigned int sni_brd_type;
 
 #define SNI_BRD_10		   2
@@ -224,9 +226,6 @@ extern void sni_pcit_cplus_irq_init(void);
 extern void sni_rm200_irq_init(void);
 extern void sni_pcimt_irq_init(void);
 
-/* timer inits */
-extern void sni_cpu_time_init(void);
-
 /* eisa init for RM200/400 */
 #ifdef CONFIG_EISA
 extern int sni_eisa_root_init(void);
@@ -239,6 +238,6 @@ static inline int sni_eisa_root_init(void)
 
 /* common irq stuff */
 extern void (*sni_hwint)(void);
-extern struct irqaction sni_isa_irq;
+extern irqreturn_t sni_isa_irq_handler(int dummy, void *p);
 
 #endif /* __ASM_SNI_H */

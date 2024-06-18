@@ -31,6 +31,7 @@
 #include <linux/types.h>
 #include <linux/ctype.h>
 #include <linux/cdev.h>
+#include <linux/kref.h>
 
 #include <asm/byteorder.h>
 #include <linux/io.h>
@@ -50,8 +51,13 @@
 #define GET_PORT_STATUS		1
 #define SOFT_RESET		2
 
+#define DEFAULT_Q_LEN		10 /* same as legacy g_printer gadget */
+
 static int major, minors;
-static struct class *usb_gadget_class;
+static const struct class usb_gadget_class = {
+	.name = "usb_printer_gadget",
+};
+
 static DEFINE_IDA(printer_ida);
 static DEFINE_MUTEX(printer_ida_lock); /* protects access do printer_ida */
 
@@ -64,7 +70,7 @@ struct printer_dev {
 	struct usb_gadget	*gadget;
 	s8			interface;
 	struct usb_ep		*in_ep, *out_ep;
-
+	struct kref             kref;
 	struct list_head	rx_reqs;	/* List of free RX structs */
 	struct list_head	rx_reqs_active;	/* List of Active RX xfers */
 	struct list_head	rx_buffers;	/* List of completed xfers */
@@ -86,7 +92,7 @@ struct printer_dev {
 	u8			printer_cdev_open;
 	wait_queue_head_t	wait;
 	unsigned		q_len;
-	char			*pnp_string;	/* We don't own memory! */
+	char			**pnp_string;	/* We don't own memory! */
 	struct usb_function	function;
 };
 
@@ -218,6 +224,13 @@ static inline struct usb_endpoint_descriptor *ep_desc(struct usb_gadget *gadget,
 
 /*-------------------------------------------------------------------------*/
 
+static void printer_dev_free(struct kref *kref)
+{
+	struct printer_dev *dev = container_of(kref, struct printer_dev, kref);
+
+	kfree(dev);
+}
+
 static struct usb_request *
 printer_req_alloc(struct usb_ep *ep, unsigned len, gfp_t gfp_flags)
 {
@@ -285,7 +298,7 @@ static void rx_complete(struct usb_ep *ep, struct usb_request *req)
 
 	/* data overrun */
 	case -EOVERFLOW:
-		/* FALLTHROUGH */
+		fallthrough;
 
 	default:
 		DBG(dev, "rx status %d\n", status);
@@ -304,7 +317,7 @@ static void tx_complete(struct usb_ep *ep, struct usb_request *req)
 	switch (req->status) {
 	default:
 		VDBG(dev, "tx err %d\n", req->status);
-		/* FALLTHROUGH */
+		fallthrough;
 	case -ECONNRESET:		/* unlink */
 	case -ESHUTDOWN:		/* disconnect etc */
 		break;
@@ -338,6 +351,11 @@ printer_open(struct inode *inode, struct file *fd)
 
 	spin_lock_irqsave(&dev->lock, flags);
 
+	if (dev->interface < 0) {
+		spin_unlock_irqrestore(&dev->lock, flags);
+		return -ENODEV;
+	}
+
 	if (!dev->printer_cdev_open) {
 		dev->printer_cdev_open = 1;
 		fd->private_data = dev;
@@ -348,7 +366,8 @@ printer_open(struct inode *inode, struct file *fd)
 
 	spin_unlock_irqrestore(&dev->lock, flags);
 
-	DBG(dev, "printer_open returned %x\n", ret);
+	kref_get(&dev->kref);
+
 	return ret;
 }
 
@@ -365,7 +384,7 @@ printer_close(struct inode *inode, struct file *fd)
 	dev->printer_status &= ~PRINTER_SELECTED;
 	spin_unlock_irqrestore(&dev->lock, flags);
 
-	DBG(dev, "printer_close\n");
+	kref_put(&dev->kref, printer_dev_free);
 
 	return 0;
 }
@@ -429,6 +448,12 @@ printer_read(struct file *fd, char __user *buf, size_t len, loff_t *ptr)
 
 	mutex_lock(&dev->lock_printer_io);
 	spin_lock_irqsave(&dev->lock, flags);
+
+	if (dev->interface < 0) {
+		spin_unlock_irqrestore(&dev->lock, flags);
+		mutex_unlock(&dev->lock_printer_io);
+		return -ENODEV;
+	}
 
 	/* We will use this flag later to check if a printer reset happened
 	 * after we turn interrupts back on.
@@ -561,6 +586,12 @@ printer_write(struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 	mutex_lock(&dev->lock_printer_io);
 	spin_lock_irqsave(&dev->lock, flags);
 
+	if (dev->interface < 0) {
+		spin_unlock_irqrestore(&dev->lock, flags);
+		mutex_unlock(&dev->lock_printer_io);
+		return -ENODEV;
+	}
+
 	/* Check if a printer reset happens while we have interrupts on */
 	dev->reset_printer = 0;
 
@@ -638,8 +669,7 @@ printer_write(struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 		value = usb_ep_queue(dev->in_ep, req, GFP_ATOMIC);
 		spin_lock(&dev->lock);
 		if (value) {
-			list_del(&req->list);
-			list_add(&req->list, &dev->tx_reqs);
+			list_move(&req->list, &dev->tx_reqs);
 			spin_unlock_irqrestore(&dev->lock, flags);
 			mutex_unlock(&dev->lock_printer_io);
 			return -EAGAIN;
@@ -667,6 +697,13 @@ printer_fsync(struct file *fd, loff_t start, loff_t end, int datasync)
 
 	inode_lock(inode);
 	spin_lock_irqsave(&dev->lock, flags);
+
+	if (dev->interface < 0) {
+		spin_unlock_irqrestore(&dev->lock, flags);
+		inode_unlock(inode);
+		return -ENODEV;
+	}
+
 	tx_list_empty = (likely(list_empty(&dev->tx_reqs)));
 	spin_unlock_irqrestore(&dev->lock, flags);
 
@@ -689,6 +726,13 @@ printer_poll(struct file *fd, poll_table *wait)
 
 	mutex_lock(&dev->lock_printer_io);
 	spin_lock_irqsave(&dev->lock, flags);
+
+	if (dev->interface < 0) {
+		spin_unlock_irqrestore(&dev->lock, flags);
+		mutex_unlock(&dev->lock_printer_io);
+		return EPOLLERR | EPOLLHUP;
+	}
+
 	setup_rx_reqs(dev);
 	spin_unlock_irqrestore(&dev->lock, flags);
 	mutex_unlock(&dev->lock_printer_io);
@@ -721,6 +765,11 @@ printer_ioctl(struct file *fd, unsigned int code, unsigned long arg)
 	/* handle ioctls */
 
 	spin_lock_irqsave(&dev->lock, flags);
+
+	if (dev->interface < 0) {
+		spin_unlock_irqrestore(&dev->lock, flags);
+		return -ENODEV;
+	}
 
 	switch (code) {
 	case GADGET_GET_PRINTER_STATUS:
@@ -777,7 +826,7 @@ set_printer_interface(struct printer_dev *dev)
 
 	result = usb_ep_enable(dev->out_ep);
 	if (result != 0) {
-		DBG(dev, "enable %s --> %d\n", dev->in_ep->name, result);
+		DBG(dev, "enable %s --> %d\n", dev->out_ep->name, result);
 		goto done;
 	}
 
@@ -800,8 +849,6 @@ static void printer_reset_interface(struct printer_dev *dev)
 
 	if (dev->interface < 0)
 		return;
-
-	DBG(dev, "%s\n", __func__);
 
 	if (dev->in_ep->desc)
 		usb_ep_disable(dev->in_ep);
@@ -839,8 +886,6 @@ static int set_interface(struct printer_dev *dev, unsigned number)
 static void printer_soft_reset(struct printer_dev *dev)
 {
 	struct usb_request	*req;
-
-	INFO(dev, "Received Printer Reset Request\n");
 
 	if (usb_ep_disable(dev->in_ep))
 		DBG(dev, "Failed to disable USB in_ep\n");
@@ -919,7 +964,7 @@ static bool gprinter_req_match(struct usb_function *f,
 		if (!w_value && !w_length &&
 		   !(USB_DIR_IN & ctrl->bRequestType))
 			break;
-		/* fall through */
+		fallthrough;
 	default:
 		return false;
 	}
@@ -953,16 +998,16 @@ static int printer_func_setup(struct usb_function *f,
 			if ((wIndex>>8) != dev->interface)
 				break;
 
-			if (!dev->pnp_string) {
+			if (!*dev->pnp_string) {
 				value = 0;
 				break;
 			}
-			value = strlen(dev->pnp_string);
+			value = strlen(*dev->pnp_string);
 			buf[0] = (value >> 8) & 0xFF;
 			buf[1] = value & 0xFF;
-			memcpy(buf + 2, dev->pnp_string, value);
+			memcpy(buf + 2, *dev->pnp_string, value);
 			DBG(dev, "1284 PNP String: %x %s\n", value,
-			    dev->pnp_string);
+			    *dev->pnp_string);
 			break;
 
 		case GET_PORT_STATUS: /* Get Port Status */
@@ -1053,7 +1098,8 @@ autoconf_fail:
 	ss_ep_out_desc.bEndpointAddress = fs_ep_out_desc.bEndpointAddress;
 
 	ret = usb_assign_descriptors(f, fs_printer_function,
-			hs_printer_function, ss_printer_function, NULL);
+			hs_printer_function, ss_printer_function,
+			ss_printer_function);
 	if (ret)
 		return ret;
 
@@ -1077,7 +1123,7 @@ autoconf_fail:
 
 	/* Setup the sysfs files for the printer gadget. */
 	devt = MKDEV(major, dev->minor);
-	pdev = device_create(usb_gadget_class, NULL, devt,
+	pdev = device_create(&usb_gadget_class, NULL, devt,
 				  NULL, "g_printer%d", dev->minor);
 	if (IS_ERR(pdev)) {
 		ERROR(dev, "Failed to create device: g_printer\n");
@@ -1100,7 +1146,7 @@ autoconf_fail:
 	return 0;
 
 fail_cdev_add:
-	device_destroy(usb_gadget_class, devt);
+	device_destroy(&usb_gadget_class, devt);
 
 fail_rx_reqs:
 	while (!list_empty(&dev->rx_reqs)) {
@@ -1116,6 +1162,7 @@ fail_tx_reqs:
 		printer_req_free(dev->in_ep, req);
 	}
 
+	usb_free_all_descriptors(f);
 	return ret;
 
 }
@@ -1135,8 +1182,6 @@ static int printer_func_set_alt(struct usb_function *f,
 static void printer_func_disable(struct usb_function *f)
 {
 	struct printer_dev *dev = func_to_printer(f);
-
-	DBG(dev, "%s\n", __func__);
 
 	printer_reset_interface(dev);
 }
@@ -1169,8 +1214,8 @@ static ssize_t f_printer_opts_pnp_string_show(struct config_item *item,
 	if (!opts->pnp_string)
 		goto unlock;
 
-	result = strlcpy(page, opts->pnp_string, PAGE_SIZE);
-	if (result >= PAGE_SIZE) {
+	result = strscpy(page, opts->pnp_string, PAGE_SIZE);
+	if (result < 1) {
 		result = PAGE_SIZE;
 	} else if (page[result - 1] != '\n' && result + 1 < PAGE_SIZE) {
 		page[result++] = '\n';
@@ -1267,9 +1312,9 @@ static inline int gprinter_get_minor(void)
 {
 	int ret;
 
-	ret = ida_simple_get(&printer_ida, 0, 0, GFP_KERNEL);
+	ret = ida_alloc(&printer_ida, GFP_KERNEL);
 	if (ret >= PRINTER_MINORS) {
-		ida_simple_remove(&printer_ida, ret);
+		ida_free(&printer_ida, ret);
 		ret = -ENODEV;
 	}
 
@@ -1278,7 +1323,7 @@ static inline int gprinter_get_minor(void)
 
 static inline void gprinter_put_minor(int minor)
 {
-	ida_simple_remove(&printer_ida, minor);
+	ida_free(&printer_ida, minor);
 }
 
 static int gprinter_setup(int);
@@ -1317,6 +1362,9 @@ static struct usb_function_instance *gprinter_alloc_inst(void)
 	opts->func_inst.free_func_inst = gprinter_free_inst;
 	ret = &opts->func_inst;
 
+	/* Make sure q_len is initialized, otherwise the bound device can't support read/write! */
+	opts->q_len = DEFAULT_Q_LEN;
+
 	mutex_lock(&printer_ida_lock);
 
 	if (ida_is_empty(&printer_ida)) {
@@ -1350,7 +1398,8 @@ static void gprinter_free(struct usb_function *f)
 	struct f_printer_opts *opts;
 
 	opts = container_of(f->fi, struct f_printer_opts, func_inst);
-	kfree(dev);
+
+	kref_put(&dev->kref, printer_dev_free);
 	mutex_lock(&opts->lock);
 	--opts->refcnt;
 	mutex_unlock(&opts->lock);
@@ -1364,7 +1413,7 @@ static void printer_func_unbind(struct usb_configuration *c,
 
 	dev = func_to_printer(f);
 
-	device_destroy(usb_gadget_class, MKDEV(major, dev->minor));
+	device_destroy(&usb_gadget_class, MKDEV(major, dev->minor));
 
 	/* Remove Character Device */
 	cdev_del(&dev->printer_cdev);
@@ -1419,9 +1468,10 @@ static struct usb_function *gprinter_alloc(struct usb_function_instance *fi)
 		return ERR_PTR(-ENOMEM);
 	}
 
+	kref_init(&dev->kref);
 	++opts->refcnt;
 	dev->minor = opts->minor;
-	dev->pnp_string = opts->pnp_string;
+	dev->pnp_string = &opts->pnp_string;
 	dev->q_len = opts->q_len;
 	mutex_unlock(&opts->lock);
 
@@ -1465,19 +1515,14 @@ static int gprinter_setup(int count)
 	int status;
 	dev_t devt;
 
-	usb_gadget_class = class_create(THIS_MODULE, "usb_printer_gadget");
-	if (IS_ERR(usb_gadget_class)) {
-		status = PTR_ERR(usb_gadget_class);
-		usb_gadget_class = NULL;
-		pr_err("unable to create usb_gadget class %d\n", status);
+	status = class_register(&usb_gadget_class);
+	if (status)
 		return status;
-	}
 
 	status = alloc_chrdev_region(&devt, 0, count, "USB printer gadget");
 	if (status) {
 		pr_err("alloc_chrdev_region %d\n", status);
-		class_destroy(usb_gadget_class);
-		usb_gadget_class = NULL;
+		class_unregister(&usb_gadget_class);
 		return status;
 	}
 
@@ -1493,6 +1538,5 @@ static void gprinter_cleanup(void)
 		unregister_chrdev_region(MKDEV(major, 0), minors);
 		major = minors = 0;
 	}
-	class_destroy(usb_gadget_class);
-	usb_gadget_class = NULL;
+	class_unregister(&usb_gadget_class);
 }

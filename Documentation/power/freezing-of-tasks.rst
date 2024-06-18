@@ -14,27 +14,28 @@ architectures).
 II. How does it work?
 =====================
 
-There are three per-task flags used for that, PF_NOFREEZE, PF_FROZEN
-and PF_FREEZER_SKIP (the last one is auxiliary).  The tasks that have
-PF_NOFREEZE unset (all user space processes and some kernel threads) are
-regarded as 'freezable' and treated in a special way before the system enters a
-suspend state as well as before a hibernation image is created (in what follows
-we only consider hibernation, but the description also applies to suspend).
+There is one per-task flag (PF_NOFREEZE) and three per-task states
+(TASK_FROZEN, TASK_FREEZABLE and __TASK_FREEZABLE_UNSAFE) used for that.
+The tasks that have PF_NOFREEZE unset (all user space tasks and some kernel
+threads) are regarded as 'freezable' and treated in a special way before the
+system enters a sleep state as well as before a hibernation image is created
+(hibernation is directly covered by what follows, but the description applies
+to system-wide suspend too).
 
 Namely, as the first step of the hibernation procedure the function
 freeze_processes() (defined in kernel/power/process.c) is called.  A system-wide
-variable system_freezing_cnt (as opposed to a per-task flag) is used to indicate
-whether the system is to undergo a freezing operation. And freeze_processes()
-sets this variable.  After this, it executes try_to_freeze_tasks() that sends a
-fake signal to all user space processes, and wakes up all the kernel threads.
-All freezable tasks must react to that by calling try_to_freeze(), which
-results in a call to __refrigerator() (defined in kernel/freezer.c), which sets
-the task's PF_FROZEN flag, changes its state to TASK_UNINTERRUPTIBLE and makes
-it loop until PF_FROZEN is cleared for it. Then, we say that the task is
-'frozen' and therefore the set of functions handling this mechanism is referred
-to as 'the freezer' (these functions are defined in kernel/power/process.c,
-kernel/freezer.c & include/linux/freezer.h). User space processes are generally
-frozen before kernel threads.
+static key freezer_active (as opposed to a per-task flag or state) is used to
+indicate whether the system is to undergo a freezing operation. And
+freeze_processes() sets this static key.  After this, it executes
+try_to_freeze_tasks() that sends a fake signal to all user space processes, and
+wakes up all the kernel threads. All freezable tasks must react to that by
+calling try_to_freeze(), which results in a call to __refrigerator() (defined
+in kernel/freezer.c), which changes the task's state to TASK_FROZEN, and makes
+it loop until it is woken by an explicit TASK_FROZEN wakeup. Then, that task
+is regarded as 'frozen' and so the set of functions handling this mechanism is
+referred to as 'the freezer' (these functions are defined in
+kernel/power/process.c, kernel/freezer.c & include/linux/freezer.h). User space
+tasks are generally frozen before kernel threads.
 
 __refrigerator() must not be called directly.  Instead, use the
 try_to_freeze() function (defined in include/linux/freezer.h), that checks
@@ -43,31 +44,40 @@ if the task is to be frozen and makes the task enter __refrigerator().
 For user space processes try_to_freeze() is called automatically from the
 signal-handling code, but the freezable kernel threads need to call it
 explicitly in suitable places or use the wait_event_freezable() or
-wait_event_freezable_timeout() macros (defined in include/linux/freezer.h)
-that combine interruptible sleep with checking if the task is to be frozen and
-calling try_to_freeze().  The main loop of a freezable kernel thread may look
+wait_event_freezable_timeout() macros (defined in include/linux/wait.h)
+that put the task to sleep (TASK_INTERRUPTIBLE) or freeze it (TASK_FROZEN) if
+freezer_active is set. The main loop of a freezable kernel thread may look
 like the following one::
 
 	set_freezable();
-	do {
-		hub_events();
-		wait_event_freezable(khubd_wait,
-				!list_empty(&hub_event_list) ||
-				kthread_should_stop());
-	} while (!kthread_should_stop() || !list_empty(&hub_event_list));
 
-(from drivers/usb/core/hub.c::hub_thread()).
+	while (true) {
+		struct task_struct *tsk = NULL;
 
-If a freezable kernel thread fails to call try_to_freeze() after the freezer has
-initiated a freezing operation, the freezing of tasks will fail and the entire
-hibernation operation will be cancelled.  For this reason, freezable kernel
-threads must call try_to_freeze() somewhere or use one of the
+		wait_event_freezable(oom_reaper_wait, oom_reaper_list != NULL);
+		spin_lock_irq(&oom_reaper_lock);
+		if (oom_reaper_list != NULL) {
+			tsk = oom_reaper_list;
+			oom_reaper_list = tsk->oom_reaper_list;
+		}
+		spin_unlock_irq(&oom_reaper_lock);
+
+		if (tsk)
+			oom_reap_task(tsk);
+	}
+
+(from mm/oom_kill.c::oom_reaper()).
+
+If a freezable kernel thread is not put to the frozen state after the freezer
+has initiated a freezing operation, the freezing of tasks will fail and the
+entire system-wide transition will be cancelled.  For this reason, freezable
+kernel threads must call try_to_freeze() somewhere or use one of the
 wait_event_freezable() and wait_event_freezable_timeout() macros.
 
 After the system memory state has been restored from a hibernation image and
 devices have been reinitialized, the function thaw_processes() is called in
-order to clear the PF_FROZEN flag for each frozen task.  Then, the tasks that
-have been frozen leave __refrigerator() and continue running.
+order to wake up each frozen task.  Then, the tasks that have been frozen leave
+__refrigerator() and continue running.
 
 
 Rationale behind the functions dealing with freezing and thawing of tasks
@@ -96,7 +106,8 @@ III. Which kernel threads are freezable?
 Kernel threads are not freezable by default.  However, a kernel thread may clear
 PF_NOFREEZE for itself by calling set_freezable() (the resetting of PF_NOFREEZE
 directly is not allowed).  From this point it is regarded as freezable
-and must call try_to_freeze() in a suitable place.
+and must call try_to_freeze() or variants of wait_event_freezable() in a
+suitable place.
 
 IV. Why do we do that?
 ======================
@@ -134,7 +145,7 @@ Generally speaking, there is a couple of reasons to use the freezing of tasks:
    safeguards against race conditions that might occur in such a case.
 
 Although Linus Torvalds doesn't like the freezing of tasks, he said this in one
-of the discussions on LKML (http://lkml.org/lkml/2007/4/27/608):
+of the discussions on LKML (https://lore.kernel.org/r/alpine.LFD.0.98.0704271801020.9964@woody.linux-foundation.org):
 
 "RJW:> Why we freeze tasks at all or why we freeze kernel threads?
 
@@ -215,30 +226,31 @@ VI. Are there any precautions to be taken to prevent freezing failures?
 
 Yes, there are.
 
-First of all, grabbing the 'system_transition_mutex' lock to mutually exclude a piece of code
-from system-wide sleep such as suspend/hibernation is not encouraged.
-If possible, that piece of code must instead hook onto the suspend/hibernation
-notifiers to achieve mutual exclusion. Look at the CPU-Hotplug code
-(kernel/cpu.c) for an example.
+First of all, grabbing the 'system_transition_mutex' lock to mutually exclude a
+piece of code from system-wide sleep such as suspend/hibernation is not
+encouraged.  If possible, that piece of code must instead hook onto the
+suspend/hibernation notifiers to achieve mutual exclusion. Look at the
+CPU-Hotplug code (kernel/cpu.c) for an example.
 
-However, if that is not feasible, and grabbing 'system_transition_mutex' is deemed necessary,
-it is strongly discouraged to directly call mutex_[un]lock(&system_transition_mutex) since
-that could lead to freezing failures, because if the suspend/hibernate code
-successfully acquired the 'system_transition_mutex' lock, and hence that other entity failed
-to acquire the lock, then that task would get blocked in TASK_UNINTERRUPTIBLE
-state. As a consequence, the freezer would not be able to freeze that task,
-leading to freezing failure.
+However, if that is not feasible, and grabbing 'system_transition_mutex' is
+deemed necessary, it is strongly discouraged to directly call
+mutex_[un]lock(&system_transition_mutex) since that could lead to freezing
+failures, because if the suspend/hibernate code successfully acquired the
+'system_transition_mutex' lock, and hence that other entity failed to acquire
+the lock, then that task would get blocked in TASK_UNINTERRUPTIBLE state. As a
+consequence, the freezer would not be able to freeze that task, leading to
+freezing failure.
 
 However, the [un]lock_system_sleep() APIs are safe to use in this scenario,
 since they ask the freezer to skip freezing this task, since it is anyway
-"frozen enough" as it is blocked on 'system_transition_mutex', which will be released
-only after the entire suspend/hibernation sequence is complete.
-So, to summarize, use [un]lock_system_sleep() instead of directly using
+"frozen enough" as it is blocked on 'system_transition_mutex', which will be
+released only after the entire suspend/hibernation sequence is complete.  So, to
+summarize, use [un]lock_system_sleep() instead of directly using
 mutex_[un]lock(&system_transition_mutex). That would prevent freezing failures.
 
 V. Miscellaneous
 ================
 
 /sys/power/pm_freeze_timeout controls how long it will cost at most to freeze
-all user space processes or all freezable kernel threads, in unit of millisecond.
-The default value is 20000, with range of unsigned integer.
+all user space processes or all freezable kernel threads, in unit of
+millisecond.  The default value is 20000, with range of unsigned integer.

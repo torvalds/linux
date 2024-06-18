@@ -60,22 +60,12 @@ int lc_try_lock(struct lru_cache *lc)
 	} while (unlikely (val == LC_PARANOIA));
 	/* Spin until no-one is inside a PARANOIA_ENTRY()/RETURN() section. */
 	return 0 == val;
-#if 0
-	/* Alternative approach, spin in case someone enters or leaves a
-	 * PARANOIA_ENTRY()/RETURN() section. */
-	unsigned long old, new, val;
-	do {
-		old = lc->flags & LC_PARANOIA;
-		new = old | LC_LOCKED;
-		val = cmpxchg(&lc->flags, old, new);
-	} while (unlikely (val == (old ^ LC_PARANOIA)));
-	return old == val;
-#endif
 }
 
 /**
  * lc_create - prepares to track objects in an active set
  * @name: descriptive name only used in lc_seq_printf_stats and lc_seq_dump_details
+ * @cache: cache root pointer
  * @max_pending_changes: maximum changes to accumulate until a transaction is required
  * @e_count: number of elements allowed to be active simultaneously
  * @e_size: size of the tracked objects
@@ -146,8 +136,8 @@ struct lru_cache *lc_create(const char *name, struct kmem_cache *cache,
 		return lc;
 
 	/* else: could not allocate all elements, give up */
-	for (i--; i; i--) {
-		void *p = element[i];
+	while (i) {
+		void *p = element[--i];
 		kmem_cache_free(cache, p - e_off);
 	}
 	kfree(lc);
@@ -363,7 +353,7 @@ static struct lc_element *__lc_get(struct lru_cache *lc, unsigned int enr, unsig
 	struct lc_element *e;
 
 	PARANOIA_ENTRY();
-	if (lc->flags & LC_STARVING) {
+	if (test_bit(__LC_STARVING, &lc->flags)) {
 		++lc->starving;
 		RETURN(NULL);
 	}
@@ -416,7 +406,7 @@ static struct lc_element *__lc_get(struct lru_cache *lc, unsigned int enr, unsig
 	 * the LRU element, we have to wait ...
 	 */
 	if (!lc_unused_element_available(lc)) {
-		__set_bit(__LC_STARVING, &lc->flags);
+		set_bit(__LC_STARVING, &lc->flags);
 		RETURN(NULL);
 	}
 
@@ -585,49 +575,7 @@ struct lc_element *lc_element_by_index(struct lru_cache *lc, unsigned i)
 }
 
 /**
- * lc_index_of
- * @lc: the lru cache to operate on
- * @e: the element to query for its index position in lc->element
- */
-unsigned int lc_index_of(struct lru_cache *lc, struct lc_element *e)
-{
-	PARANOIA_LC_ELEMENT(lc, e);
-	return e->lc_index;
-}
-
-/**
- * lc_set - associate index with label
- * @lc: the lru cache to operate on
- * @enr: the label to set
- * @index: the element index to associate label with.
- *
- * Used to initialize the active set to some previously recorded state.
- */
-void lc_set(struct lru_cache *lc, unsigned int enr, int index)
-{
-	struct lc_element *e;
-	struct list_head *lh;
-
-	if (index < 0 || index >= lc->nr_elements)
-		return;
-
-	e = lc_element_by_index(lc, index);
-	BUG_ON(e->lc_number != e->lc_new_number);
-	BUG_ON(e->refcnt != 0);
-
-	e->lc_number = e->lc_new_number = enr;
-	hlist_del_init(&e->colision);
-	if (enr == LC_FREE)
-		lh = &lc->free;
-	else {
-		hlist_add_head(&e->colision, lc_hash_slot(lc, enr));
-		lh = &lc->lru;
-	}
-	list_move(&e->list, lh);
-}
-
-/**
- * lc_dump - Dump a complete LRU cache to seq in textual form.
+ * lc_seq_dump_details - Dump a complete LRU cache to seq in textual form.
  * @lc: the lru cache to operate on
  * @seq: the &struct seq_file pointer to seq_printf into
  * @utext: user supplied additional "heading" or other info
@@ -660,7 +608,6 @@ void lc_seq_dump_details(struct seq_file *seq, struct lru_cache *lc, char *utext
 EXPORT_SYMBOL(lc_create);
 EXPORT_SYMBOL(lc_reset);
 EXPORT_SYMBOL(lc_destroy);
-EXPORT_SYMBOL(lc_set);
 EXPORT_SYMBOL(lc_del);
 EXPORT_SYMBOL(lc_try_get);
 EXPORT_SYMBOL(lc_find);
@@ -668,7 +615,6 @@ EXPORT_SYMBOL(lc_get);
 EXPORT_SYMBOL(lc_put);
 EXPORT_SYMBOL(lc_committed);
 EXPORT_SYMBOL(lc_element_by_index);
-EXPORT_SYMBOL(lc_index_of);
 EXPORT_SYMBOL(lc_seq_printf_stats);
 EXPORT_SYMBOL(lc_seq_dump_details);
 EXPORT_SYMBOL(lc_try_lock);

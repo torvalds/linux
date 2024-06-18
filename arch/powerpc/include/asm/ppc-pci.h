@@ -13,10 +13,6 @@
 
 extern unsigned long isa_io_base;
 
-extern void pci_setup_phb_io(struct pci_controller *hose, int primary);
-extern void pci_setup_phb_io_dynamic(struct pci_controller *hose, int primary);
-
-
 extern struct list_head hose_list;
 
 extern struct pci_dev *isa_bridge_pcidev;	/* may be NULL if no ISA bus */
@@ -32,15 +28,25 @@ struct pci_dn;
 void *pci_traverse_device_nodes(struct device_node *start,
 				void *(*fn)(struct device_node *, void *),
 				void *data);
-void *traverse_pci_dn(struct pci_dn *root,
-		      void *(*fn)(struct pci_dn *, void *),
-		      void *data);
 extern void pci_devs_phb_init_dynamic(struct pci_controller *phb);
+
+#if defined(CONFIG_IOMMU_API) && (defined(CONFIG_PPC_PSERIES) || \
+				  defined(CONFIG_PPC_POWERNV))
+extern void ppc_iommu_register_device(struct pci_controller *phb);
+extern void ppc_iommu_unregister_device(struct pci_controller *phb);
+#else
+static inline void ppc_iommu_register_device(struct pci_controller *phb) { }
+static inline void ppc_iommu_unregister_device(struct pci_controller *phb) { }
+#endif
+
 
 /* From rtas_pci.h */
 extern void init_pci_config_tokens (void);
 extern unsigned long get_phb_buid (struct device_node *);
 extern int rtas_setup_phb(struct pci_controller *phb);
+
+int rtas_pci_dn_read_config(struct pci_dn *pdn, int where, int size, u32 *val);
+int rtas_pci_dn_write_config(struct pci_dn *pdn, int where, int size, u32 val);
 
 #ifdef CONFIG_EEH
 
@@ -51,8 +57,6 @@ void eeh_slot_error_detail(struct eeh_pe *pe, int severity);
 int eeh_pci_enable(struct eeh_pe *pe, int function);
 int eeh_pe_reset_full(struct eeh_pe *pe, bool include_passed);
 void eeh_save_bars(struct eeh_dev *edev);
-int rtas_write_config(struct pci_dn *, int where, int size, u32 val);
-int rtas_read_config(struct pci_dn *, int where, int size, u32 *val);
 void eeh_pe_state_mark(struct eeh_pe *pe, int state);
 void eeh_pe_mark_isolated(struct eeh_pe *pe);
 void eeh_pe_state_clear(struct eeh_pe *pe, int state, bool include_passed);
@@ -62,18 +66,21 @@ void eeh_pe_dev_mode_mark(struct eeh_pe *pe, int mode);
 void eeh_sysfs_add_device(struct pci_dev *pdev);
 void eeh_sysfs_remove_device(struct pci_dev *pdev);
 
-static inline const char *eeh_driver_name(struct pci_dev *pdev)
-{
-	return (pdev && pdev->driver) ? pdev->driver->name : "<null>";
-}
-
 #endif /* CONFIG_EEH */
+
+#ifdef CONFIG_FSL_ULI1575
+void __init uli_init(void);
+#endif /* CONFIG_FSL_ULI1575 */
 
 #define PCI_BUSNO(bdfn) ((bdfn >> 8) & 0xff)
 
 #else /* CONFIG_PCI */
 static inline void init_pci_config_tokens(void) { }
 #endif /* !CONFIG_PCI */
+
+#if !defined(CONFIG_PCI) || !defined(CONFIG_FSL_ULI1575)
+static inline void __init uli_init(void) {}
+#endif /* !defined(CONFIG_PCI) || !defined(CONFIG_FSL_ULI1575) */
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_PPC_PCI_H */

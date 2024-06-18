@@ -10,128 +10,48 @@
 #ifndef __WM_ADSP_H
 #define __WM_ADSP_H
 
+#include <linux/firmware/cirrus/cs_dsp.h>
+#include <linux/firmware/cirrus/wmfw.h>
+
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/compress_driver.h>
-
-#include "wmfw.h"
 
 /* Return values for wm_adsp_compr_handle_irq */
 #define WM_ADSP_COMPR_OK                 0
 #define WM_ADSP_COMPR_VOICE_TRIGGER      1
 
-#define WM_ADSP2_REGION_0 BIT(0)
-#define WM_ADSP2_REGION_1 BIT(1)
-#define WM_ADSP2_REGION_2 BIT(2)
-#define WM_ADSP2_REGION_3 BIT(3)
-#define WM_ADSP2_REGION_4 BIT(4)
-#define WM_ADSP2_REGION_5 BIT(5)
-#define WM_ADSP2_REGION_6 BIT(6)
-#define WM_ADSP2_REGION_7 BIT(7)
-#define WM_ADSP2_REGION_8 BIT(8)
-#define WM_ADSP2_REGION_9 BIT(9)
-#define WM_ADSP2_REGION_1_9 (WM_ADSP2_REGION_1 | \
-		WM_ADSP2_REGION_2 | WM_ADSP2_REGION_3 | \
-		WM_ADSP2_REGION_4 | WM_ADSP2_REGION_5 | \
-		WM_ADSP2_REGION_6 | WM_ADSP2_REGION_7 | \
-		WM_ADSP2_REGION_8 | WM_ADSP2_REGION_9)
-#define WM_ADSP2_REGION_ALL (WM_ADSP2_REGION_0 | WM_ADSP2_REGION_1_9)
-
-struct wm_adsp_region {
-	int type;
-	unsigned int base;
-};
-
-struct wm_adsp_alg_region {
-	struct list_head list;
-	unsigned int alg;
-	int type;
-	unsigned int base;
-};
-
 struct wm_adsp_compr;
 struct wm_adsp_compr_buf;
-struct wm_adsp_ops;
 
 struct wm_adsp {
+	struct cs_dsp cs_dsp;
 	const char *part;
-	const char *name;
 	const char *fwf_name;
-	int rev;
-	int num;
-	int type;
-	struct device *dev;
-	struct regmap *regmap;
+	const char *system_name;
 	struct snd_soc_component *component;
 
-	struct wm_adsp_ops *ops;
-
-	unsigned int base;
-	unsigned int base_sysinfo;
-	unsigned int sysclk_reg;
-	unsigned int sysclk_mask;
-	unsigned int sysclk_shift;
-
-	struct list_head alg_regions;
-
-	unsigned int fw_id;
-	unsigned int fw_id_version;
-	unsigned int fw_vendor_id;
-
-	const struct wm_adsp_region *mem;
-	int num_mems;
+	unsigned int sys_config_size;
 
 	int fw;
-	int fw_ver;
-
-	bool preloaded;
-	bool booted;
-	bool running;
-	bool fatal_error;
-
-	struct list_head ctl_list;
+	bool wmfw_optional;
 
 	struct work_struct boot_work;
+	int (*pre_run)(struct wm_adsp *dsp);
+
+	bool preloaded;
+	bool fatal_error;
 
 	struct list_head compr_list;
 	struct list_head buffer_list;
 
-	struct mutex pwr_lock;
-
-	unsigned int lock_regions;
-
-#ifdef CONFIG_DEBUG_FS
-	struct dentry *debugfs_root;
-	char *wmfw_file_name;
-	char *bin_file_name;
-#endif
-
-};
-
-struct wm_adsp_ops {
-	unsigned int sys_config_size;
-
-	bool (*validate_version)(struct wm_adsp *dsp, unsigned int version);
-	unsigned int (*parse_sizes)(struct wm_adsp *dsp,
-				    const char * const file,
-				    unsigned int pos,
-				    const struct firmware *firmware);
-	int (*setup_algs)(struct wm_adsp *dsp);
-	unsigned int (*region_to_reg)(struct wm_adsp_region const *mem,
-				      unsigned int offset);
-
-	void (*show_fw_status)(struct wm_adsp *dsp);
-	void (*stop_watchdog)(struct wm_adsp *dsp);
-
-	int (*enable_memory)(struct wm_adsp *dsp);
-	void (*disable_memory)(struct wm_adsp *dsp);
-	int (*lock_memory)(struct wm_adsp *dsp, unsigned int lock_regions);
-
-	int (*enable_core)(struct wm_adsp *dsp);
-	void (*disable_core)(struct wm_adsp *dsp);
-
-	int (*start_core)(struct wm_adsp *dsp);
-	void (*stop_core)(struct wm_adsp *dsp);
+	/*
+	 * Flag indicating the preloader widget only needs power toggled
+	 * on state change rather than held on for the duration of the
+	 * preload, useful for devices that can retain firmware memory
+	 * across power down.
+	 */
+	bool toggle_preload;
 };
 
 #define WM_ADSP1(wname, num) \
@@ -171,10 +91,15 @@ int wm_adsp1_event(struct snd_soc_dapm_widget *w,
 int wm_adsp_early_event(struct snd_soc_dapm_widget *w,
 			struct snd_kcontrol *kcontrol, int event);
 
+int wm_adsp_power_up(struct wm_adsp *dsp, bool load_firmware);
+void wm_adsp_power_down(struct wm_adsp *dsp);
+
 irqreturn_t wm_adsp2_bus_error(int irq, void *data);
 irqreturn_t wm_halo_bus_error(int irq, void *data);
 irqreturn_t wm_halo_wdt_expire(int irq, void *data);
 
+int wm_adsp_run(struct wm_adsp *dsp);
+void wm_adsp_stop(struct wm_adsp *dsp);
 int wm_adsp_event(struct snd_soc_dapm_widget *w,
 		  struct snd_kcontrol *kcontrol, int event);
 
@@ -190,16 +115,26 @@ int wm_adsp_fw_put(struct snd_kcontrol *kcontrol,
 		   struct snd_ctl_elem_value *ucontrol);
 
 int wm_adsp_compr_open(struct wm_adsp *dsp, struct snd_compr_stream *stream);
-int wm_adsp_compr_free(struct snd_compr_stream *stream);
-int wm_adsp_compr_set_params(struct snd_compr_stream *stream,
+int wm_adsp_compr_free(struct snd_soc_component *component,
+		       struct snd_compr_stream *stream);
+int wm_adsp_compr_set_params(struct snd_soc_component *component,
+			     struct snd_compr_stream *stream,
 			     struct snd_compr_params *params);
-int wm_adsp_compr_get_caps(struct snd_compr_stream *stream,
+int wm_adsp_compr_get_caps(struct snd_soc_component *component,
+			   struct snd_compr_stream *stream,
 			   struct snd_compr_caps *caps);
-int wm_adsp_compr_trigger(struct snd_compr_stream *stream, int cmd);
+int wm_adsp_compr_trigger(struct snd_soc_component *component,
+			  struct snd_compr_stream *stream, int cmd);
 int wm_adsp_compr_handle_irq(struct wm_adsp *dsp);
-int wm_adsp_compr_pointer(struct snd_compr_stream *stream,
+int wm_adsp_compr_pointer(struct snd_soc_component *component,
+			  struct snd_compr_stream *stream,
 			  struct snd_compr_tstamp *tstamp);
-int wm_adsp_compr_copy(struct snd_compr_stream *stream,
+int wm_adsp_compr_copy(struct snd_soc_component *component,
+		       struct snd_compr_stream *stream,
 		       char __user *buf, size_t count);
+int wm_adsp_write_ctl(struct wm_adsp *dsp, const char *name,  int type,
+		      unsigned int alg, void *buf, size_t len);
+int wm_adsp_read_ctl(struct wm_adsp *dsp, const char *name,  int type,
+		      unsigned int alg, void *buf, size_t len);
 
 #endif

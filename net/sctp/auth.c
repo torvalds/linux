@@ -49,7 +49,7 @@ void sctp_auth_key_put(struct sctp_auth_bytes *key)
 		return;
 
 	if (refcount_dec_and_test(&key->refcnt)) {
-		kzfree(key);
+		kfree_sensitive(key);
 		SCTP_DBG_OBJCNT_DEC(keys);
 	}
 }
@@ -445,7 +445,7 @@ struct sctp_shared_key *sctp_auth_get_shkey(
 }
 
 /*
- * Initialize all the possible digest transforms that we can use.  Right now
+ * Initialize all the possible digest transforms that we can use.  Right
  * now, the supported digests are SHA1 and SHA256.  We do this here once
  * because of the restrictiong that transforms may only be allocated in
  * user context.  This forces us to pre-allocated all possible transforms
@@ -494,6 +494,7 @@ int sctp_auth_init_hmacs(struct sctp_endpoint *ep, gfp_t gfp)
 out_err:
 	/* Clean up any successful allocations */
 	sctp_auth_destroy_hmacs(ep->auth_hmacs);
+	ep->auth_hmacs = NULL;
 	return -ENOMEM;
 }
 
@@ -737,18 +738,12 @@ void sctp_auth_calculate_hmac(const struct sctp_association *asoc,
 
 	tfm = asoc->ep->auth_hmacs[hmac_id];
 
-	digest = auth->auth_hdr.hmac;
+	digest = (u8 *)(&auth->auth_hdr + 1);
 	if (crypto_shash_setkey(tfm, &asoc_key->data[0], asoc_key->len))
 		goto free;
 
-	{
-		SHASH_DESC_ON_STACK(desc, tfm);
-
-		desc->tfm = tfm;
-		crypto_shash_digest(desc, (u8 *)auth,
-				    end - (unsigned char *)auth, digest);
-		shash_desc_zero(desc);
-	}
+	crypto_shash_tfm_digest(tfm, (u8 *)auth, end - (unsigned char *)auth,
+				digest);
 
 free:
 	if (free_key)
@@ -816,7 +811,7 @@ int sctp_auth_ep_set_hmacs(struct sctp_endpoint *ep,
 }
 
 /* Set a new shared key on either endpoint or association.  If the
- * the key with a same ID already exists, replace the key (remove the
+ * key with a same ID already exists, replace the key (remove the
  * old key and add a new one).
  */
 int sctp_auth_set_key(struct sctp_endpoint *ep,
@@ -862,12 +857,23 @@ int sctp_auth_set_key(struct sctp_endpoint *ep,
 	memcpy(key->data, &auth_key->sca_key[0], auth_key->sca_keylength);
 	cur_key->key = key;
 
-	if (replace) {
-		list_del_init(&shkey->key_list);
-		sctp_auth_shkey_release(shkey);
+	if (!replace) {
+		list_add(&cur_key->key_list, sh_keys);
+		return 0;
 	}
+
+	list_del_init(&shkey->key_list);
 	list_add(&cur_key->key_list, sh_keys);
 
+	if (asoc && asoc->active_key_id == auth_key->sca_keynumber &&
+	    sctp_auth_asoc_init_active_key(asoc, GFP_KERNEL)) {
+		list_del_init(&cur_key->key_list);
+		sctp_auth_shkey_release(cur_key);
+		list_add(&shkey->key_list, sh_keys);
+		return -ENOMEM;
+	}
+
+	sctp_auth_shkey_release(shkey);
 	return 0;
 }
 
@@ -901,8 +907,13 @@ int sctp_auth_set_active_key(struct sctp_endpoint *ep,
 		return -EINVAL;
 
 	if (asoc) {
+		__u16  active_key_id = asoc->active_key_id;
+
 		asoc->active_key_id = key_id;
-		sctp_auth_asoc_init_active_key(asoc, GFP_KERNEL);
+		if (sctp_auth_asoc_init_active_key(asoc, GFP_KERNEL)) {
+			asoc->active_key_id = active_key_id;
+			return -ENOMEM;
+		}
 	} else
 		ep->active_key_id = key_id;
 

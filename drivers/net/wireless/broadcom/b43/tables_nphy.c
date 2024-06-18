@@ -3620,7 +3620,7 @@ static void b43_nphy_tables_init_rev0(struct b43_wldev *dev)
 	ntab_upload(dev, B43_NTAB_C1_LOFEEDTH, b43_ntab_loftlt1);
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/InitTables */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/InitTables */
 void b43_nphy_tables_init(struct b43_wldev *dev)
 {
 	if (dev->phy.rev >= 16)
@@ -3633,7 +3633,7 @@ void b43_nphy_tables_init(struct b43_wldev *dev)
 		b43_nphy_tables_init_rev0(dev);
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/GetIpaGainTbl */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/GetIpaGainTbl */
 static const u32 *b43_nphy_get_ipa_gain_table(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
@@ -3717,7 +3717,7 @@ const u32 *b43_nphy_get_tx_gain_table(struct b43_wldev *dev)
 		case 5:
 			if (sprom->fem.ghz2.extpa_gain == 3)
 				return b43_ntab_tx_gain_epa_rev3_hi_pwr_2g;
-			/* fall through */
+			fallthrough;
 		case 4:
 		case 3:
 			return b43_ntab_tx_gain_epa_rev3_2g;

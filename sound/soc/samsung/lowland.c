@@ -22,17 +22,21 @@ static struct snd_soc_jack lowland_headset;
 static struct snd_soc_jack_pin lowland_headset_pins[] = {
 	{
 		.pin = "Headphone",
-		.mask = SND_JACK_HEADPHONE | SND_JACK_LINEOUT,
+		.mask = SND_JACK_HEADPHONE,
 	},
 	{
 		.pin = "Headset Mic",
 		.mask = SND_JACK_MICROPHONE,
 	},
+	{
+		.pin = "Line Out",
+		.mask = SND_JACK_LINEOUT,
+	},
 };
 
 static int lowland_wm5100_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_component *component = rtd->codec_dai->component;
+	struct snd_soc_component *component = snd_soc_rtd_to_codec(rtd, 0)->component;
 	int ret;
 
 	ret = snd_soc_component_set_sysclk(component, WM5100_CLK_SYSCLK,
@@ -51,10 +55,11 @@ static int lowland_wm5100_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
-	ret = snd_soc_card_jack_new(rtd->card, "Headset", SND_JACK_LINEOUT |
-				    SND_JACK_HEADSET | SND_JACK_BTN_0,
-				    &lowland_headset, lowland_headset_pins,
-				    ARRAY_SIZE(lowland_headset_pins));
+	ret = snd_soc_card_jack_new_pins(rtd->card, "Headset",
+					 SND_JACK_LINEOUT | SND_JACK_HEADSET |
+					 SND_JACK_BTN_0,
+					 &lowland_headset, lowland_headset_pins,
+					 ARRAY_SIZE(lowland_headset_pins));
 	if (ret)
 		return ret;
 
@@ -65,7 +70,7 @@ static int lowland_wm5100_init(struct snd_soc_pcm_runtime *rtd)
 
 static int lowland_wm9081_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_component *component = rtd->codec_dai->component;
+	struct snd_soc_component *component = snd_soc_rtd_to_codec(rtd, 0)->component;
 
 	snd_soc_dapm_nc_pin(&rtd->card->dapm, "LINEOUT");
 
@@ -118,7 +123,8 @@ static struct snd_soc_dai_link lowland_dai[] = {
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 				SND_SOC_DAIFMT_CBM_CFM,
 		.ignore_suspend = 1,
-		.params = &sub_params,
+		.c2c_params = &sub_params,
+		.num_c2c_params = 1,
 		.init = lowland_wm9081_init,
 		SND_SOC_DAILINK_REG(speaker),
 	},
@@ -126,7 +132,7 @@ static struct snd_soc_dai_link lowland_dai[] = {
 
 static struct snd_soc_codec_conf lowland_codec_conf[] = {
 	{
-		.dev_name = "wm9081.1-006c",
+		.dlc = COMP_CODEC_CONF("wm9081.1-006c"),
 		.name_prefix = "Sub",
 	},
 };
@@ -138,11 +144,13 @@ static const struct snd_kcontrol_new controls[] = {
 	SOC_DAPM_PIN_SWITCH("WM1250 Input"),
 	SOC_DAPM_PIN_SWITCH("WM1250 Output"),
 	SOC_DAPM_PIN_SWITCH("Headphone"),
+	SOC_DAPM_PIN_SWITCH("Line Out"),
 };
 
-static struct snd_soc_dapm_widget widgets[] = {
+static const struct snd_soc_dapm_widget widgets[] = {
 	SND_SOC_DAPM_HP("Headphone", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
+	SND_SOC_DAPM_LINE("Line Out", NULL),
 
 	SND_SOC_DAPM_SPK("Main Speaker", NULL),
 
@@ -150,7 +158,7 @@ static struct snd_soc_dapm_widget widgets[] = {
 	SND_SOC_DAPM_MIC("Main DMIC", NULL),
 };
 
-static struct snd_soc_dapm_route audio_paths[] = {
+static const struct snd_soc_dapm_route audio_paths[] = {
 	{ "Sub IN1", NULL, "HPOUT2L" },
 	{ "Sub IN2", NULL, "HPOUT2R" },
 
@@ -184,8 +192,7 @@ static int lowland_probe(struct platform_device *pdev)
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret)
-		dev_err(&pdev->dev, "snd_soc_register_card() failed: %d\n",
-			ret);
+		dev_err_probe(&pdev->dev, ret, "snd_soc_register_card() failed\n");
 
 	return ret;
 }

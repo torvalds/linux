@@ -57,10 +57,6 @@
 /**
  * switch_gc_head - switch the garbage collection journal head.
  * @c: UBIFS file-system description object
- * @buf: buffer to write
- * @len: length of the buffer to write
- * @lnum: LEB number written is returned here
- * @offs: offset written is returned here
  *
  * This function switch the GC head to the next LEB which is reserved in
  * @c->gc_lnum. Returns %0 in case of success, %-EAGAIN if commit is required,
@@ -106,7 +102,8 @@ static int switch_gc_head(struct ubifs_info *c)
  * This function compares data nodes @a and @b. Returns %1 if @a has greater
  * inode or block number, and %-1 otherwise.
  */
-static int data_nodes_cmp(void *priv, struct list_head *a, struct list_head *b)
+static int data_nodes_cmp(void *priv, const struct list_head *a,
+			  const struct list_head *b)
 {
 	ino_t inuma, inumb;
 	struct ubifs_info *c = priv;
@@ -149,8 +146,8 @@ static int data_nodes_cmp(void *priv, struct list_head *a, struct list_head *b)
  * first and sorted by length in descending order. Directory entry nodes go
  * after inode nodes and are sorted in ascending hash valuer order.
  */
-static int nondata_nodes_cmp(void *priv, struct list_head *a,
-			     struct list_head *b)
+static int nondata_nodes_cmp(void *priv, const struct list_head *a,
+			     const struct list_head *b)
 {
 	ino_t inuma, inumb;
 	struct ubifs_info *c = priv;
@@ -695,6 +692,9 @@ int ubifs_garbage_collect(struct ubifs_info *c, int anyway)
 	for (i = 0; ; i++) {
 		int space_before, space_after;
 
+		/* Maybe continue after find and break before find */
+		lp.lnum = -1;
+
 		cond_resched();
 
 		/* Give the commit an opportunity to run */
@@ -756,8 +756,19 @@ int ubifs_garbage_collect(struct ubifs_info *c, int anyway)
 				 * caller instead of the original '-EAGAIN'.
 				 */
 				err = ubifs_return_leb(c, lp.lnum);
-				if (err)
+				if (err) {
 					ret = err;
+					/*
+					 * An LEB may always be "taken",
+					 * so setting ubifs to read-only,
+					 * and then executing sync wbuf will
+					 * return -EROFS and enter the "out"
+					 * error branch.
+					 */
+					ubifs_ro_mode(c, ret);
+				}
+				/*  Maybe double return LEB if goto out */
+				lp.lnum = -1;
 				break;
 			}
 			goto out;
@@ -846,7 +857,8 @@ out:
 	ubifs_wbuf_sync_nolock(wbuf);
 	ubifs_ro_mode(c, ret);
 	mutex_unlock(&wbuf->io_mutex);
-	ubifs_return_leb(c, lp.lnum);
+	if (lp.lnum != -1)
+		ubifs_return_leb(c, lp.lnum);
 	return ret;
 }
 

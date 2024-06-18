@@ -23,6 +23,8 @@
  */
 #include "priv.h"
 
+#include <subdev/gsp.h>
+
 static int
 gp100_temp_get(struct nvkm_therm *therm)
 {
@@ -49,8 +51,11 @@ gp100_therm = {
 };
 
 int
-gp100_therm_new(struct nvkm_device *device, int index,
+gp100_therm_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 		struct nvkm_therm **ptherm)
 {
-	return nvkm_therm_new_(&gp100_therm, device, index, ptherm);
+	if (nvkm_gsp_rm(device->gsp))
+		return -ENODEV;
+
+	return nvkm_therm_new_(&gp100_therm, device, type, inst, ptherm);
 }

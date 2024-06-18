@@ -84,6 +84,7 @@ gk110_pmu_pgob(struct nvkm_pmu *pmu, bool enable)
 
 static const struct nvkm_pmu_func
 gk110_pmu = {
+	.flcn = &gt215_pmu_flcn,
 	.code.data = gk110_pmu_code,
 	.code.size = sizeof(gk110_pmu_code),
 	.data.data = gk110_pmu_data,
@@ -98,8 +99,15 @@ gk110_pmu = {
 	.pgob = gk110_pmu_pgob,
 };
 
+static const struct nvkm_pmu_fwif
+gk110_pmu_fwif[] = {
+	{ -1, gf100_pmu_nofw, &gk110_pmu },
+	{}
+};
+
 int
-gk110_pmu_new(struct nvkm_device *device, int index, struct nvkm_pmu **ppmu)
+gk110_pmu_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	      struct nvkm_pmu **ppmu)
 {
-	return nvkm_pmu_new_(&gk110_pmu, device, index, ppmu);
+	return nvkm_pmu_new_(gk110_pmu_fwif, device, type, inst, ppmu);
 }

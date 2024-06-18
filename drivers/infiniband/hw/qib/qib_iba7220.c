@@ -58,7 +58,7 @@ static void qib_set_ib_7220_lstate(struct qib_pportdata *, u16, u16);
 /*
  * This file contains almost all the chip-specific register information and
  * access functions for the QLogic QLogic_IB 7220 PCI-Express chip, with the
- * exception of SerDes support, which in in qib_sd7220.c.
+ * exception of SerDes support, which in qib_sd7220.c.
  */
 
 /* Below uses machine-generated qib_chipnum_regs.h file */
@@ -634,7 +634,7 @@ static const struct qib_hwerror_msgs qib_7220_hwerror_msgs[] = {
 	QLOGIC_IB_HWE_MSG(QLOGIC_IB_HWE_PCIECPLTIMEOUT,
 			  "PCIe completion timeout"),
 	/*
-	 * In practice, it's unlikely wthat we'll see PCIe PLL, or bus
+	 * In practice, it's unlikely that we'll see PCIe PLL, or bus
 	 * parity or memory parity error failures, because most likely we
 	 * won't be able to talk to the core of the chip.  Nonetheless, we
 	 * might see them, if they are in parts of the PCIe core that aren't
@@ -1701,7 +1701,7 @@ static void qib_7220_quiet_serdes(struct qib_pportdata *ppd)
 
 /**
  * qib_setup_7220_setextled - set the state of the two external LEDs
- * @dd: the qlogic_ib device
+ * @ppd: the qlogic_ib device
  * @on: whether the link is up or not
  *
  * The exact combo of LEDs if on is true is determined by looking
@@ -2146,7 +2146,7 @@ bail:
  * qib_7220_put_tid - write a TID to the chip
  * @dd: the qlogic_ib device
  * @tidptr: pointer to the expected TID (in chip) to update
- * @tidtype: 0 for eager, 1 for expected
+ * @type: 0 for eager, 1 for expected
  * @pa: physical address of in memory buffer; tidinvalid if freeing
  */
 static void qib_7220_put_tid(struct qib_devdata *dd, u64 __iomem *tidptr,
@@ -2180,7 +2180,7 @@ static void qib_7220_put_tid(struct qib_devdata *dd, u64 __iomem *tidptr,
 /**
  * qib_7220_clear_tids - clear all TID entries for a ctxt, expected and eager
  * @dd: the qlogic_ib device
- * @ctxt: the ctxt
+ * @rcd: the ctxt
  *
  * clear all TID entries for a ctxt, expected and eager.
  * Used from qib_close().  On this chip, TIDs are only 32 bits,
@@ -2236,9 +2236,9 @@ static void qib_7220_tidtemplate(struct qib_devdata *dd)
 }
 
 /**
- * qib_init_7220_get_base_info - set chip-specific flags for user code
+ * qib_7220_get_base_info - set chip-specific flags for user code
  * @rcd: the qlogic_ib ctxt
- * @kbase: qib_base_info pointer
+ * @kinfo: qib_base_info pointer
  *
  * We set the PCIE flag because the lower bandwidth on PCIe vs
  * HyperTransport can affect some user packet algorithims.
@@ -2896,8 +2896,8 @@ static void sendctrl_7220_mod(struct qib_pportdata *ppd, u32 op)
 
 /**
  * qib_portcntr_7220 - read a per-port counter
- * @dd: the qlogic_ib device
- * @creg: the counter to snapshot
+ * @ppd: the qlogic_ib device
+ * @reg: the counter to snapshot
  */
 static u64 qib_portcntr_7220(struct qib_pportdata *ppd, u32 reg)
 {
@@ -2988,7 +2988,7 @@ done:
  * the utility.  Names need to be 12 chars or less (w/o newline), for proper
  * display by utility.
  * Non-error counters are first.
- * Start of "error" conters is indicated by a leading "E " on the first
+ * Start of "error" counters is indicated by a leading "E " on the first
  * "error" counter, and doesn't count in label length.
  * The EgrOvfl list needs to be last so we truncate them at the configured
  * context count for the device.
@@ -3232,7 +3232,7 @@ done:
 
 /**
  * qib_get_7220_faststats - get word counters from chip before they overflow
- * @opaque - contains a pointer to the qlogic_ib device qib_devdata
+ * @t: contains a pointer to the qlogic_ib device qib_devdata
  *
  * This needs more work; in particular, decision on whether we really
  * need traffic_wds done the way it is
@@ -3281,7 +3281,7 @@ static int qib_7220_intr_fallback(struct qib_devdata *dd)
 
 	qib_free_irq(dd);
 	dd->msi_lo = 0;
-	if (pci_alloc_irq_vectors(dd->pcidev, 1, 1, PCI_IRQ_LEGACY) < 0)
+	if (pci_alloc_irq_vectors(dd->pcidev, 1, 1, PCI_IRQ_INTX) < 0)
 		qib_dev_err(dd, "Failed to enable INTx\n");
 	qib_setup_7220_interrupt(dd);
 	return 1;
@@ -3586,11 +3586,11 @@ static u32 qib_7220_iblink_state(u64 ibcs)
 		state = IB_PORT_ARMED;
 		break;
 	case IB_7220_L_STATE_ACTIVE:
-		/* fall through */
 	case IB_7220_L_STATE_ACT_DEFER:
 		state = IB_PORT_ACTIVE;
 		break;
-	default: /* fall through */
+	default:
+		fallthrough;
 	case IB_7220_L_STATE_DOWN:
 		state = IB_PORT_DOWN;
 		break;
@@ -3742,7 +3742,7 @@ static int qib_7220_ib_updown(struct qib_pportdata *ppd, int ibup, u64 ibcs)
 /*
  * Does read/modify/write to appropriate registers to
  * set output and direction bits selected by mask.
- * these are in their canonical postions (e.g. lsb of
+ * these are in their canonical positions (e.g. lsb of
  * dir will end up in D48 of extctrl on existing chips).
  * returns contents of GP Inputs.
  */
@@ -4411,7 +4411,7 @@ static void writescratch(struct qib_devdata *dd, u32 val)
 
 #define VALID_TS_RD_REG_MASK 0xBF
 /**
- * qib_7220_tempsense_read - read register of temp sensor via TWSI
+ * qib_7220_tempsense_rd - read register of temp sensor via TWSI
  * @dd: the qlogic_ib device
  * @regnum: register to read from
  *
@@ -4468,7 +4468,7 @@ static int qib_7220_eeprom_wen(struct qib_devdata *dd, int wen)
 
 /**
  * qib_init_iba7220_funcs - set up the chip-specific function pointers
- * @dev: the pci_dev for qlogic_ib device
+ * @pdev: the pci_dev for qlogic_ib device
  * @ent: pci_device_id struct for this dev
  *
  * This is global, and is called directly at init to set up the

@@ -15,8 +15,4 @@
 
 #include <asm-generic/fixmap.h>
 
-#define kmap_get_fixmap_pte(vaddr) \
-	pte_offset_kernel(pmd_offset(pud_offset(pgd_offset_k(vaddr), \
-				(vaddr)), (vaddr)), (vaddr))
-
 #endif

@@ -59,7 +59,7 @@ struct nicpf {
 
 	/* MSI-X */
 	u8			num_vec;
-	bool			irq_allocated[NIC_PF_MSIX_VECTORS];
+	unsigned int		irq_allocated[NIC_PF_MSIX_VECTORS];
 	char			irq_name[NIC_PF_MSIX_VECTORS][20];
 };
 
@@ -1150,7 +1150,7 @@ static irqreturn_t nic_mbx_intr_handler(int irq, void *nic_irq)
 	u64 intr;
 	u8  vf;
 
-	if (irq == pci_irq_vector(nic->pdev, NIC_PF_INTR_ID_MBOX0))
+	if (irq == nic->irq_allocated[NIC_PF_INTR_ID_MBOX0])
 		mbx = 0;
 	else
 		mbx = 1;
@@ -1176,14 +1176,14 @@ static void nic_free_all_interrupts(struct nicpf *nic)
 
 	for (irq = 0; irq < nic->num_vec; irq++) {
 		if (nic->irq_allocated[irq])
-			free_irq(pci_irq_vector(nic->pdev, irq), nic);
-		nic->irq_allocated[irq] = false;
+			free_irq(nic->irq_allocated[irq], nic);
+		nic->irq_allocated[irq] = 0;
 	}
 }
 
 static int nic_register_interrupts(struct nicpf *nic)
 {
-	int i, ret;
+	int i, ret, irq;
 	nic->num_vec = pci_msix_vec_count(nic->pdev);
 
 	/* Enable MSI-X */
@@ -1193,7 +1193,7 @@ static int nic_register_interrupts(struct nicpf *nic)
 		dev_err(&nic->pdev->dev,
 			"Request for #%d msix vectors failed, returned %d\n",
 			   nic->num_vec, ret);
-		return 1;
+		return ret;
 	}
 
 	/* Register mailbox interrupt handler */
@@ -1201,13 +1201,13 @@ static int nic_register_interrupts(struct nicpf *nic)
 		sprintf(nic->irq_name[i],
 			"NICPF Mbox%d", (i - NIC_PF_INTR_ID_MBOX0));
 
-		ret = request_irq(pci_irq_vector(nic->pdev, i),
-				  nic_mbx_intr_handler, 0,
+		irq = pci_irq_vector(nic->pdev, i);
+		ret = request_irq(irq, nic_mbx_intr_handler, 0,
 				  nic->irq_name[i], nic);
 		if (ret)
 			goto fail;
 
-		nic->irq_allocated[i] = true;
+		nic->irq_allocated[i] = irq;
 	}
 
 	/* Enable mailbox interrupt */
@@ -1311,9 +1311,8 @@ static int nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		dev_err(dev, "Failed to enable PCI device\n");
 		pci_set_drvdata(pdev, NULL);
-		return err;
+		return dev_err_probe(dev, err, "Failed to enable PCI device\n");
 	}
 
 	err = pci_request_regions(pdev, DRV_NAME);
@@ -1322,15 +1321,9 @@ static int nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_disable_device;
 	}
 
-	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(48));
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(48));
 	if (err) {
 		dev_err(dev, "Unable to get usable DMA configuration\n");
-		goto err_release_regions;
-	}
-
-	err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(48));
-	if (err) {
-		dev_err(dev, "Unable to get 48-bit DMA for consistent allocations\n");
 		goto err_release_regions;
 	}
 

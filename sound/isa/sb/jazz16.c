@@ -28,9 +28,6 @@
 #define PFX "jazz16: "
 
 MODULE_DESCRIPTION("Media Vision Jazz16");
-MODULE_SUPPORTED_DEVICE("{{Media Vision ??? },"
-		"{RTL,RTL3000}}");
-
 MODULE_AUTHOR("Krzysztof Helt <krzysztof.h1@wp.pl>");
 MODULE_LICENSE("GPL");
 
@@ -158,9 +155,9 @@ err_unmap:
 
 static int jazz16_configure_board(struct snd_sb *chip, int mpu_irq)
 {
-	static unsigned char jazz_irq_bits[] = { 0, 0, 2, 3, 0, 1, 0, 4,
+	static const unsigned char jazz_irq_bits[] = { 0, 0, 2, 3, 0, 1, 0, 4,
 						 0, 2, 5, 0, 0, 0, 0, 6 };
-	static unsigned char jazz_dma_bits[] = { 0, 1, 0, 2, 0, 3, 0, 4 };
+	static const unsigned char jazz_dma_bits[] = { 0, 1, 0, 2, 0, 3, 0, 4 };
 
 	if (jazz_dma_bits[chip->dma8] == 0 ||
 	    jazz_dma_bits[chip->dma16] == 0 ||
@@ -224,13 +221,13 @@ static int snd_jazz16_probe(struct device *devptr, unsigned int dev)
 	struct snd_card_jazz16 *jazz16;
 	struct snd_sb *chip;
 	struct snd_opl3 *opl3;
-	static int possible_irqs[] = {2, 3, 5, 7, 9, 10, 15, -1};
-	static int possible_dmas8[] = {1, 3, -1};
-	static int possible_dmas16[] = {5, 7, -1};
+	static const int possible_irqs[] = {2, 3, 5, 7, 9, 10, 15, -1};
+	static const int possible_dmas8[] = {1, 3, -1};
+	static const int possible_dmas16[] = {5, 7, -1};
 	int err, xirq, xdma8, xdma16, xmpu_port, xmpu_irq;
 
-	err = snd_card_new(devptr, index[dev], id[dev], THIS_MODULE,
-			   sizeof(struct snd_card_jazz16), &card);
+	err = snd_devm_card_new(devptr, index[dev], id[dev], THIS_MODULE,
+				sizeof(struct snd_card_jazz16), &card);
 	if (err < 0)
 		return err;
 
@@ -241,8 +238,7 @@ static int snd_jazz16_probe(struct device *devptr, unsigned int dev)
 		xirq = snd_legacy_find_free_irq(possible_irqs);
 		if (xirq < 0) {
 			snd_printk(KERN_ERR "unable to find a free IRQ\n");
-			err = -EBUSY;
-			goto err_free;
+			return -EBUSY;
 		}
 	}
 	xdma8 = dma8[dev];
@@ -250,8 +246,7 @@ static int snd_jazz16_probe(struct device *devptr, unsigned int dev)
 		xdma8 = snd_legacy_find_free_dma(possible_dmas8);
 		if (xdma8 < 0) {
 			snd_printk(KERN_ERR "unable to find a free DMA8\n");
-			err = -EBUSY;
-			goto err_free;
+			return -EBUSY;
 		}
 	}
 	xdma16 = dma16[dev];
@@ -259,8 +254,7 @@ static int snd_jazz16_probe(struct device *devptr, unsigned int dev)
 		xdma16 = snd_legacy_find_free_dma(possible_dmas16);
 		if (xdma16 < 0) {
 			snd_printk(KERN_ERR "unable to find a free DMA16\n");
-			err = -EBUSY;
-			goto err_free;
+			return -EBUSY;
 		}
 	}
 
@@ -270,7 +264,7 @@ static int snd_jazz16_probe(struct device *devptr, unsigned int dev)
 	err = jazz16_detect_board(port[dev], xmpu_port);
 	if (err < 0) {
 		printk(KERN_ERR "Media Vision Jazz16 board not detected\n");
-		goto err_free;
+		return err;
 	}
 	err = snd_sbdsp_create(card, port[dev], irq[dev],
 			       jazz16_interrupt,
@@ -278,7 +272,7 @@ static int snd_jazz16_probe(struct device *devptr, unsigned int dev)
 			       SB_HW_JAZZ16,
 			       &chip);
 	if (err < 0)
-		goto err_free;
+		return err;
 
 	xmpu_irq = mpu_irq[dev];
 	if (xmpu_irq == SNDRV_AUTO_IRQ || mpu_port[dev] == SNDRV_AUTO_PORT)
@@ -286,7 +280,7 @@ static int snd_jazz16_probe(struct device *devptr, unsigned int dev)
 	err = jazz16_configure_board(chip, xmpu_irq);
 	if (err < 0) {
 		printk(KERN_ERR "Media Vision Jazz16 configuration failed\n");
-		goto err_free;
+		return err;
 	}
 
 	jazz16->chip = chip;
@@ -299,10 +293,10 @@ static int snd_jazz16_probe(struct device *devptr, unsigned int dev)
 
 	err = snd_sb8dsp_pcm(chip, 0);
 	if (err < 0)
-		goto err_free;
+		return err;
 	err = snd_sbmixer_new(chip);
 	if (err < 0)
-		goto err_free;
+		return err;
 
 	err = snd_opl3_create(card, chip->port, chip->port + 2,
 			      OPL3_HW_AUTO, 1, &opl3);
@@ -312,7 +306,7 @@ static int snd_jazz16_probe(struct device *devptr, unsigned int dev)
 	else {
 		err = snd_opl3_hwdep_new(opl3, 0, 1, NULL);
 		if (err < 0)
-			goto err_free;
+			return err;
 	}
 	if (mpu_port[dev] > 0 && mpu_port[dev] != SNDRV_AUTO_PORT) {
 		if (mpu_irq[dev] == SNDRV_AUTO_IRQ)
@@ -329,21 +323,9 @@ static int snd_jazz16_probe(struct device *devptr, unsigned int dev)
 
 	err = snd_card_register(card);
 	if (err < 0)
-		goto err_free;
+		return err;
 
 	dev_set_drvdata(devptr, card);
-	return 0;
-
-err_free:
-	snd_card_free(card);
-	return err;
-}
-
-static int snd_jazz16_remove(struct device *devptr, unsigned int dev)
-{
-	struct snd_card *card = dev_get_drvdata(devptr);
-
-	snd_card_free(card);
 	return 0;
 }
 
@@ -376,7 +358,6 @@ static int snd_jazz16_resume(struct device *pdev, unsigned int n)
 static struct isa_driver snd_jazz16_driver = {
 	.match		= snd_jazz16_match,
 	.probe		= snd_jazz16_probe,
-	.remove		= snd_jazz16_remove,
 #ifdef CONFIG_PM
 	.suspend	= snd_jazz16_suspend,
 	.resume		= snd_jazz16_resume,

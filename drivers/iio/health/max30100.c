@@ -16,7 +16,7 @@
 #include <linux/irq.h>
 #include <linux/i2c.h>
 #include <linux/mutex.h>
-#include <linux/of.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
@@ -267,11 +267,10 @@ static int max30100_get_current_idx(unsigned int val, int *reg)
 static int max30100_led_init(struct max30100_data *data)
 {
 	struct device *dev = &data->client->dev;
-	struct device_node *np = dev->of_node;
 	unsigned int val[2];
 	int reg, ret;
 
-	ret = of_property_read_u32_array(np, "maxim,led-current-microamp",
+	ret = device_property_read_u32_array(dev, "maxim,led-current-microamp",
 					(unsigned int *) &val, 2);
 	if (ret) {
 		/* Default to 24 mA RED LED, 50 mA IR LED */
@@ -388,18 +387,21 @@ static int max30100_read_raw(struct iio_dev *indio_dev,
 		 * Temperature reading can only be acquired while engine
 		 * is running
 		 */
-		mutex_lock(&indio_dev->mlock);
-
-		if (!iio_buffer_enabled(indio_dev))
+		if (iio_device_claim_buffer_mode(indio_dev)) {
+			/*
+			 * Replacing -EBUSY or other error code
+			 * returned by iio_device_claim_buffer_mode()
+			 * because user space may rely on the current
+			 * one.
+			 */
 			ret = -EAGAIN;
-		else {
+		} else {
 			ret = max30100_get_temp(data, val);
 			if (!ret)
 				ret = IIO_VAL_INT;
 
+			iio_device_release_buffer_mode(indio_dev);
 		}
-
-		mutex_unlock(&indio_dev->mlock);
 		break;
 	case IIO_CHAN_INFO_SCALE:
 		*val = 1;  /* 0.0625 */
@@ -415,11 +417,9 @@ static const struct iio_info max30100_info = {
 	.read_raw = max30100_read_raw,
 };
 
-static int max30100_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int max30100_probe(struct i2c_client *client)
 {
 	struct max30100_data *data;
-	struct iio_buffer *buffer;
 	struct iio_dev *indio_dev;
 	int ret;
 
@@ -427,20 +427,17 @@ static int max30100_probe(struct i2c_client *client,
 	if (!indio_dev)
 		return -ENOMEM;
 
-	buffer = devm_iio_kfifo_allocate(&client->dev);
-	if (!buffer)
-		return -ENOMEM;
-
-	iio_device_attach_buffer(indio_dev, buffer);
-
 	indio_dev->name = MAX30100_DRV_NAME;
 	indio_dev->channels = max30100_channels;
 	indio_dev->info = &max30100_info;
 	indio_dev->num_channels = ARRAY_SIZE(max30100_channels);
 	indio_dev->available_scan_masks = max30100_scan_masks;
-	indio_dev->modes = (INDIO_BUFFER_SOFTWARE | INDIO_DIRECT_MODE);
-	indio_dev->setup_ops = &max30100_buffer_setup_ops;
-	indio_dev->dev.parent = &client->dev;
+	indio_dev->modes = INDIO_DIRECT_MODE;
+
+	ret = devm_iio_kfifo_buffer_setup(&client->dev, indio_dev,
+					  &max30100_buffer_setup_ops);
+	if (ret)
+		return ret;
 
 	data = iio_priv(indio_dev);
 	data->indio_dev = indio_dev;
@@ -476,15 +473,13 @@ static int max30100_probe(struct i2c_client *client,
 	return iio_device_register(indio_dev);
 }
 
-static int max30100_remove(struct i2c_client *client)
+static void max30100_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct max30100_data *data = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
 	max30100_set_powermode(data, false);
-
-	return 0;
 }
 
 static const struct i2c_device_id max30100_id[] = {
@@ -502,7 +497,7 @@ MODULE_DEVICE_TABLE(of, max30100_dt_ids);
 static struct i2c_driver max30100_driver = {
 	.driver = {
 		.name	= MAX30100_DRV_NAME,
-		.of_match_table	= of_match_ptr(max30100_dt_ids),
+		.of_match_table	= max30100_dt_ids,
 	},
 	.probe		= max30100_probe,
 	.remove		= max30100_remove,

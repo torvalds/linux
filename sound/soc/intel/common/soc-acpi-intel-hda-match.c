@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // Copyright (c) 2018, Intel Corporation.
 
 /*
@@ -20,8 +20,6 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_hda_machines[] = {
 		.drv_name = "skl_hda_dsp_generic",
 
 		/* .fw_filename is dynamically set in skylake driver */
-
-		/* .sof_fw_filename is dynamically set in sof/intel driver */
 
 		.sof_tplg_filename = "sof-hda-generic.tplg",
 

@@ -17,27 +17,16 @@
  */
 
 #include <linux/module.h>
+#include <linux/pci.h>
 #include <linux/slab.h>
-#include <linux/uuid.h>
+#include <linux/mei.h>
 #include <linux/mei_cl_bus.h>
 #include <linux/component.h>
 #include <drm/drm_connector.h>
 #include <drm/i915_component.h>
-#include <drm/i915_mei_hdcp_interface.h>
+#include <drm/i915_hdcp_interface.h>
 
 #include "mei_hdcp.h"
-
-static inline u8 mei_get_ddi_index(enum port port)
-{
-	switch (port) {
-	case PORT_A:
-		return MEI_DDI_A;
-	case PORT_B ... PORT_F:
-		return (u8)port;
-	default:
-		return MEI_DDI_INVALID_PORT;
-	}
-}
 
 /**
  * mei_hdcp_initiate_session() - Initiate a Wired HDCP2.2 Tx Session in ME FW
@@ -64,12 +53,13 @@ mei_hdcp_initiate_session(struct device *dev, struct hdcp_port_data *data,
 
 	session_init_in.header.api_version = HDCP_API_VERSION;
 	session_init_in.header.command_id = WIRED_INITIATE_HDCP2_SESSION;
-	session_init_in.header.status = ME_HDCP_STATUS_SUCCESS;
+	session_init_in.header.status = FW_HDCP_STATUS_SUCCESS;
 	session_init_in.header.buffer_len =
 				WIRED_CMD_BUF_LEN_INITIATE_HDCP2_SESSION_IN;
 
 	session_init_in.port.integrated_port_type = data->port_type;
-	session_init_in.port.physical_port = mei_get_ddi_index(data->port);
+	session_init_in.port.physical_port = (u8)data->hdcp_ddi;
+	session_init_in.port.attached_transcoder = (u8)data->hdcp_transcoder;
 	session_init_in.protocol = data->protocol;
 
 	byte = mei_cldev_send(cldev, (u8 *)&session_init_in,
@@ -86,7 +76,7 @@ mei_hdcp_initiate_session(struct device *dev, struct hdcp_port_data *data,
 		return byte;
 	}
 
-	if (session_init_out.header.status != ME_HDCP_STATUS_SUCCESS) {
+	if (session_init_out.header.status != FW_HDCP_STATUS_SUCCESS) {
 		dev_dbg(dev, "ME cmd 0x%08X Failed. Status: 0x%X\n",
 			WIRED_INITIATE_HDCP2_SESSION,
 			session_init_out.header.status);
@@ -133,12 +123,13 @@ mei_hdcp_verify_receiver_cert_prepare_km(struct device *dev,
 
 	verify_rxcert_in.header.api_version = HDCP_API_VERSION;
 	verify_rxcert_in.header.command_id = WIRED_VERIFY_RECEIVER_CERT;
-	verify_rxcert_in.header.status = ME_HDCP_STATUS_SUCCESS;
+	verify_rxcert_in.header.status = FW_HDCP_STATUS_SUCCESS;
 	verify_rxcert_in.header.buffer_len =
 				WIRED_CMD_BUF_LEN_VERIFY_RECEIVER_CERT_IN;
 
 	verify_rxcert_in.port.integrated_port_type = data->port_type;
-	verify_rxcert_in.port.physical_port = mei_get_ddi_index(data->port);
+	verify_rxcert_in.port.physical_port = (u8)data->hdcp_ddi;
+	verify_rxcert_in.port.attached_transcoder = (u8)data->hdcp_transcoder;
 
 	verify_rxcert_in.cert_rx = rx_cert->cert_rx;
 	memcpy(verify_rxcert_in.r_rx, &rx_cert->r_rx, HDCP_2_2_RRX_LEN);
@@ -158,7 +149,7 @@ mei_hdcp_verify_receiver_cert_prepare_km(struct device *dev,
 		return byte;
 	}
 
-	if (verify_rxcert_out.header.status != ME_HDCP_STATUS_SUCCESS) {
+	if (verify_rxcert_out.header.status != FW_HDCP_STATUS_SUCCESS) {
 		dev_dbg(dev, "ME cmd 0x%08X Failed. Status: 0x%X\n",
 			WIRED_VERIFY_RECEIVER_CERT,
 			verify_rxcert_out.header.status);
@@ -204,11 +195,12 @@ mei_hdcp_verify_hprime(struct device *dev, struct hdcp_port_data *data,
 
 	send_hprime_in.header.api_version = HDCP_API_VERSION;
 	send_hprime_in.header.command_id = WIRED_AKE_SEND_HPRIME;
-	send_hprime_in.header.status = ME_HDCP_STATUS_SUCCESS;
+	send_hprime_in.header.status = FW_HDCP_STATUS_SUCCESS;
 	send_hprime_in.header.buffer_len = WIRED_CMD_BUF_LEN_AKE_SEND_HPRIME_IN;
 
 	send_hprime_in.port.integrated_port_type = data->port_type;
-	send_hprime_in.port.physical_port = mei_get_ddi_index(data->port);
+	send_hprime_in.port.physical_port = (u8)data->hdcp_ddi;
+	send_hprime_in.port.attached_transcoder = (u8)data->hdcp_transcoder;
 
 	memcpy(send_hprime_in.h_prime, rx_hprime->h_prime,
 	       HDCP_2_2_H_PRIME_LEN);
@@ -227,7 +219,7 @@ mei_hdcp_verify_hprime(struct device *dev, struct hdcp_port_data *data,
 		return byte;
 	}
 
-	if (send_hprime_out.header.status != ME_HDCP_STATUS_SUCCESS) {
+	if (send_hprime_out.header.status != FW_HDCP_STATUS_SUCCESS) {
 		dev_dbg(dev, "ME cmd 0x%08X Failed. Status: 0x%X\n",
 			WIRED_AKE_SEND_HPRIME, send_hprime_out.header.status);
 		return -EIO;
@@ -260,12 +252,13 @@ mei_hdcp_store_pairing_info(struct device *dev, struct hdcp_port_data *data,
 
 	pairing_info_in.header.api_version = HDCP_API_VERSION;
 	pairing_info_in.header.command_id = WIRED_AKE_SEND_PAIRING_INFO;
-	pairing_info_in.header.status = ME_HDCP_STATUS_SUCCESS;
+	pairing_info_in.header.status = FW_HDCP_STATUS_SUCCESS;
 	pairing_info_in.header.buffer_len =
 					WIRED_CMD_BUF_LEN_SEND_PAIRING_INFO_IN;
 
 	pairing_info_in.port.integrated_port_type = data->port_type;
-	pairing_info_in.port.physical_port = mei_get_ddi_index(data->port);
+	pairing_info_in.port.physical_port = (u8)data->hdcp_ddi;
+	pairing_info_in.port.attached_transcoder = (u8)data->hdcp_transcoder;
 
 	memcpy(pairing_info_in.e_kh_km, pairing_info->e_kh_km,
 	       HDCP_2_2_E_KH_KM_LEN);
@@ -284,7 +277,7 @@ mei_hdcp_store_pairing_info(struct device *dev, struct hdcp_port_data *data,
 		return byte;
 	}
 
-	if (pairing_info_out.header.status != ME_HDCP_STATUS_SUCCESS) {
+	if (pairing_info_out.header.status != FW_HDCP_STATUS_SUCCESS) {
 		dev_dbg(dev, "ME cmd 0x%08X failed. Status: 0x%X\n",
 			WIRED_AKE_SEND_PAIRING_INFO,
 			pairing_info_out.header.status);
@@ -319,11 +312,12 @@ mei_hdcp_initiate_locality_check(struct device *dev,
 
 	lc_init_in.header.api_version = HDCP_API_VERSION;
 	lc_init_in.header.command_id = WIRED_INIT_LOCALITY_CHECK;
-	lc_init_in.header.status = ME_HDCP_STATUS_SUCCESS;
+	lc_init_in.header.status = FW_HDCP_STATUS_SUCCESS;
 	lc_init_in.header.buffer_len = WIRED_CMD_BUF_LEN_INIT_LOCALITY_CHECK_IN;
 
 	lc_init_in.port.integrated_port_type = data->port_type;
-	lc_init_in.port.physical_port = mei_get_ddi_index(data->port);
+	lc_init_in.port.physical_port = (u8)data->hdcp_ddi;
+	lc_init_in.port.attached_transcoder = (u8)data->hdcp_transcoder;
 
 	byte = mei_cldev_send(cldev, (u8 *)&lc_init_in, sizeof(lc_init_in));
 	if (byte < 0) {
@@ -337,7 +331,7 @@ mei_hdcp_initiate_locality_check(struct device *dev,
 		return byte;
 	}
 
-	if (lc_init_out.header.status != ME_HDCP_STATUS_SUCCESS) {
+	if (lc_init_out.header.status != FW_HDCP_STATUS_SUCCESS) {
 		dev_dbg(dev, "ME cmd 0x%08X Failed. status: 0x%X\n",
 			WIRED_INIT_LOCALITY_CHECK, lc_init_out.header.status);
 		return -EIO;
@@ -373,12 +367,13 @@ mei_hdcp_verify_lprime(struct device *dev, struct hdcp_port_data *data,
 
 	verify_lprime_in.header.api_version = HDCP_API_VERSION;
 	verify_lprime_in.header.command_id = WIRED_VALIDATE_LOCALITY;
-	verify_lprime_in.header.status = ME_HDCP_STATUS_SUCCESS;
+	verify_lprime_in.header.status = FW_HDCP_STATUS_SUCCESS;
 	verify_lprime_in.header.buffer_len =
 					WIRED_CMD_BUF_LEN_VALIDATE_LOCALITY_IN;
 
 	verify_lprime_in.port.integrated_port_type = data->port_type;
-	verify_lprime_in.port.physical_port = mei_get_ddi_index(data->port);
+	verify_lprime_in.port.physical_port = (u8)data->hdcp_ddi;
+	verify_lprime_in.port.attached_transcoder = (u8)data->hdcp_transcoder;
 
 	memcpy(verify_lprime_in.l_prime, rx_lprime->l_prime,
 	       HDCP_2_2_L_PRIME_LEN);
@@ -397,7 +392,7 @@ mei_hdcp_verify_lprime(struct device *dev, struct hdcp_port_data *data,
 		return byte;
 	}
 
-	if (verify_lprime_out.header.status != ME_HDCP_STATUS_SUCCESS) {
+	if (verify_lprime_out.header.status != FW_HDCP_STATUS_SUCCESS) {
 		dev_dbg(dev, "ME cmd 0x%08X failed. status: 0x%X\n",
 			WIRED_VALIDATE_LOCALITY,
 			verify_lprime_out.header.status);
@@ -431,11 +426,12 @@ static int mei_hdcp_get_session_key(struct device *dev,
 
 	get_skey_in.header.api_version = HDCP_API_VERSION;
 	get_skey_in.header.command_id = WIRED_GET_SESSION_KEY;
-	get_skey_in.header.status = ME_HDCP_STATUS_SUCCESS;
+	get_skey_in.header.status = FW_HDCP_STATUS_SUCCESS;
 	get_skey_in.header.buffer_len = WIRED_CMD_BUF_LEN_GET_SESSION_KEY_IN;
 
 	get_skey_in.port.integrated_port_type = data->port_type;
-	get_skey_in.port.physical_port = mei_get_ddi_index(data->port);
+	get_skey_in.port.physical_port = (u8)data->hdcp_ddi;
+	get_skey_in.port.attached_transcoder = (u8)data->hdcp_transcoder;
 
 	byte = mei_cldev_send(cldev, (u8 *)&get_skey_in, sizeof(get_skey_in));
 	if (byte < 0) {
@@ -450,7 +446,7 @@ static int mei_hdcp_get_session_key(struct device *dev,
 		return byte;
 	}
 
-	if (get_skey_out.header.status != ME_HDCP_STATUS_SUCCESS) {
+	if (get_skey_out.header.status != FW_HDCP_STATUS_SUCCESS) {
 		dev_dbg(dev, "ME cmd 0x%08X failed. status: 0x%X\n",
 			WIRED_GET_SESSION_KEY, get_skey_out.header.status);
 		return -EIO;
@@ -494,12 +490,13 @@ mei_hdcp_repeater_check_flow_prepare_ack(struct device *dev,
 
 	verify_repeater_in.header.api_version = HDCP_API_VERSION;
 	verify_repeater_in.header.command_id = WIRED_VERIFY_REPEATER;
-	verify_repeater_in.header.status = ME_HDCP_STATUS_SUCCESS;
+	verify_repeater_in.header.status = FW_HDCP_STATUS_SUCCESS;
 	verify_repeater_in.header.buffer_len =
 					WIRED_CMD_BUF_LEN_VERIFY_REPEATER_IN;
 
 	verify_repeater_in.port.integrated_port_type = data->port_type;
-	verify_repeater_in.port.physical_port = mei_get_ddi_index(data->port);
+	verify_repeater_in.port.physical_port = (u8)data->hdcp_ddi;
+	verify_repeater_in.port.attached_transcoder = (u8)data->hdcp_transcoder;
 
 	memcpy(verify_repeater_in.rx_info, rep_topology->rx_info,
 	       HDCP_2_2_RXINFO_LEN);
@@ -524,7 +521,7 @@ mei_hdcp_repeater_check_flow_prepare_ack(struct device *dev,
 		return byte;
 	}
 
-	if (verify_repeater_out.header.status != ME_HDCP_STATUS_SUCCESS) {
+	if (verify_repeater_out.header.status != FW_HDCP_STATUS_SUCCESS) {
 		dev_dbg(dev, "ME cmd 0x%08X failed. status: 0x%X\n",
 			WIRED_VERIFY_REPEATER,
 			verify_repeater_out.header.status);
@@ -550,37 +547,45 @@ static int mei_hdcp_verify_mprime(struct device *dev,
 				  struct hdcp_port_data *data,
 				  struct hdcp2_rep_stream_ready *stream_ready)
 {
-	struct wired_cmd_repeater_auth_stream_req_in
-					verify_mprime_in = { { 0 } };
+	struct wired_cmd_repeater_auth_stream_req_in *verify_mprime_in;
 	struct wired_cmd_repeater_auth_stream_req_out
 					verify_mprime_out = { { 0 } };
 	struct mei_cl_device *cldev;
 	ssize_t byte;
+	size_t cmd_size;
 
 	if (!dev || !stream_ready || !data)
 		return -EINVAL;
 
 	cldev = to_mei_cl_device(dev);
 
-	verify_mprime_in.header.api_version = HDCP_API_VERSION;
-	verify_mprime_in.header.command_id = WIRED_REPEATER_AUTH_STREAM_REQ;
-	verify_mprime_in.header.status = ME_HDCP_STATUS_SUCCESS;
-	verify_mprime_in.header.buffer_len =
-			WIRED_CMD_BUF_LEN_REPEATER_AUTH_STREAM_REQ_MIN_IN;
+	cmd_size = struct_size(verify_mprime_in, streams, data->k);
+	if (cmd_size == SIZE_MAX)
+		return -EINVAL;
 
-	verify_mprime_in.port.integrated_port_type = data->port_type;
-	verify_mprime_in.port.physical_port = mei_get_ddi_index(data->port);
+	verify_mprime_in = kzalloc(cmd_size, GFP_KERNEL);
+	if (!verify_mprime_in)
+		return -ENOMEM;
 
-	memcpy(verify_mprime_in.m_prime, stream_ready->m_prime,
-	       HDCP_2_2_MPRIME_LEN);
-	drm_hdcp_cpu_to_be24(verify_mprime_in.seq_num_m, data->seq_num_m);
-	memcpy(verify_mprime_in.streams, data->streams,
-	       (data->k * sizeof(struct hdcp2_streamid_type)));
+	verify_mprime_in->header.api_version = HDCP_API_VERSION;
+	verify_mprime_in->header.command_id = WIRED_REPEATER_AUTH_STREAM_REQ;
+	verify_mprime_in->header.status = FW_HDCP_STATUS_SUCCESS;
+	verify_mprime_in->header.buffer_len = cmd_size  - sizeof(verify_mprime_in->header);
 
-	verify_mprime_in.k = cpu_to_be16(data->k);
+	verify_mprime_in->port.integrated_port_type = data->port_type;
+	verify_mprime_in->port.physical_port = (u8)data->hdcp_ddi;
+	verify_mprime_in->port.attached_transcoder = (u8)data->hdcp_transcoder;
 
-	byte = mei_cldev_send(cldev, (u8 *)&verify_mprime_in,
-			      sizeof(verify_mprime_in));
+	memcpy(verify_mprime_in->m_prime, stream_ready->m_prime, HDCP_2_2_MPRIME_LEN);
+	drm_hdcp_cpu_to_be24(verify_mprime_in->seq_num_m, data->seq_num_m);
+
+	memcpy(verify_mprime_in->streams, data->streams,
+	       array_size(data->k, sizeof(*data->streams)));
+
+	verify_mprime_in->k = cpu_to_be16(data->k);
+
+	byte = mei_cldev_send(cldev, (u8 *)verify_mprime_in, cmd_size);
+	kfree(verify_mprime_in);
 	if (byte < 0) {
 		dev_dbg(dev, "mei_cldev_send failed. %zd\n", byte);
 		return byte;
@@ -593,7 +598,7 @@ static int mei_hdcp_verify_mprime(struct device *dev,
 		return byte;
 	}
 
-	if (verify_mprime_out.header.status != ME_HDCP_STATUS_SUCCESS) {
+	if (verify_mprime_out.header.status != FW_HDCP_STATUS_SUCCESS) {
 		dev_dbg(dev, "ME cmd 0x%08X failed. status: 0x%X\n",
 			WIRED_REPEATER_AUTH_STREAM_REQ,
 			verify_mprime_out.header.status);
@@ -626,11 +631,12 @@ static int mei_hdcp_enable_authentication(struct device *dev,
 
 	enable_auth_in.header.api_version = HDCP_API_VERSION;
 	enable_auth_in.header.command_id = WIRED_ENABLE_AUTH;
-	enable_auth_in.header.status = ME_HDCP_STATUS_SUCCESS;
+	enable_auth_in.header.status = FW_HDCP_STATUS_SUCCESS;
 	enable_auth_in.header.buffer_len = WIRED_CMD_BUF_LEN_ENABLE_AUTH_IN;
 
 	enable_auth_in.port.integrated_port_type = data->port_type;
-	enable_auth_in.port.physical_port = mei_get_ddi_index(data->port);
+	enable_auth_in.port.physical_port = (u8)data->hdcp_ddi;
+	enable_auth_in.port.attached_transcoder = (u8)data->hdcp_transcoder;
 	enable_auth_in.stream_type = data->streams[0].stream_type;
 
 	byte = mei_cldev_send(cldev, (u8 *)&enable_auth_in,
@@ -647,7 +653,7 @@ static int mei_hdcp_enable_authentication(struct device *dev,
 		return byte;
 	}
 
-	if (enable_auth_out.header.status != ME_HDCP_STATUS_SUCCESS) {
+	if (enable_auth_out.header.status != FW_HDCP_STATUS_SUCCESS) {
 		dev_dbg(dev, "ME cmd 0x%08X failed. status: 0x%X\n",
 			WIRED_ENABLE_AUTH, enable_auth_out.header.status);
 		return -EIO;
@@ -679,12 +685,13 @@ mei_hdcp_close_session(struct device *dev, struct hdcp_port_data *data)
 
 	session_close_in.header.api_version = HDCP_API_VERSION;
 	session_close_in.header.command_id = WIRED_CLOSE_SESSION;
-	session_close_in.header.status = ME_HDCP_STATUS_SUCCESS;
+	session_close_in.header.status = FW_HDCP_STATUS_SUCCESS;
 	session_close_in.header.buffer_len =
 				WIRED_CMD_BUF_LEN_CLOSE_SESSION_IN;
 
 	session_close_in.port.integrated_port_type = data->port_type;
-	session_close_in.port.physical_port = mei_get_ddi_index(data->port);
+	session_close_in.port.physical_port = (u8)data->hdcp_ddi;
+	session_close_in.port.attached_transcoder = (u8)data->hdcp_transcoder;
 
 	byte = mei_cldev_send(cldev, (u8 *)&session_close_in,
 			      sizeof(session_close_in));
@@ -700,7 +707,7 @@ mei_hdcp_close_session(struct device *dev, struct hdcp_port_data *data)
 		return byte;
 	}
 
-	if (session_close_out.header.status != ME_HDCP_STATUS_SUCCESS) {
+	if (session_close_out.header.status != FW_HDCP_STATUS_SUCCESS) {
 		dev_dbg(dev, "Session Close Failed. status: 0x%X\n",
 			session_close_out.header.status);
 		return -EIO;
@@ -709,7 +716,7 @@ mei_hdcp_close_session(struct device *dev, struct hdcp_port_data *data)
 	return 0;
 }
 
-static const struct i915_hdcp_component_ops mei_hdcp_ops = {
+static const struct i915_hdcp_ops mei_hdcp_ops = {
 	.owner = THIS_MODULE,
 	.initiate_hdcp2_session = mei_hdcp_initiate_session,
 	.verify_receiver_cert_prepare_km =
@@ -729,14 +736,13 @@ static const struct i915_hdcp_component_ops mei_hdcp_ops = {
 static int mei_component_master_bind(struct device *dev)
 {
 	struct mei_cl_device *cldev = to_mei_cl_device(dev);
-	struct i915_hdcp_comp_master *comp_master =
-						mei_cldev_get_drvdata(cldev);
+	struct i915_hdcp_arbiter *comp_arbiter = mei_cldev_get_drvdata(cldev);
 	int ret;
 
 	dev_dbg(dev, "%s\n", __func__);
-	comp_master->ops = &mei_hdcp_ops;
-	comp_master->mei_dev = dev;
-	ret = component_bind_all(dev, comp_master);
+	comp_arbiter->ops = &mei_hdcp_ops;
+	comp_arbiter->hdcp_dev = dev;
+	ret = component_bind_all(dev, comp_arbiter);
 	if (ret < 0)
 		return ret;
 
@@ -746,11 +752,10 @@ static int mei_component_master_bind(struct device *dev)
 static void mei_component_master_unbind(struct device *dev)
 {
 	struct mei_cl_device *cldev = to_mei_cl_device(dev);
-	struct i915_hdcp_comp_master *comp_master =
-						mei_cldev_get_drvdata(cldev);
+	struct i915_hdcp_arbiter *comp_arbiter = mei_cldev_get_drvdata(cldev);
 
 	dev_dbg(dev, "%s\n", __func__);
-	component_unbind_all(dev, comp_master);
+	component_unbind_all(dev, comp_arbiter);
 }
 
 static const struct component_master_ops mei_component_master_ops = {
@@ -758,17 +763,53 @@ static const struct component_master_ops mei_component_master_ops = {
 	.unbind = mei_component_master_unbind,
 };
 
+/**
+ * mei_hdcp_component_match - compare function for matching mei hdcp.
+ *
+ *    The function checks if the driver is i915, the subcomponent is HDCP
+ *    and the grand parent of hdcp and the parent of i915 are the same
+ *    PCH device.
+ *
+ * @dev: master device
+ * @subcomponent: subcomponent to match (I915_COMPONENT_HDCP)
+ * @data: compare data (mei hdcp device)
+ *
+ * Return:
+ * * 1 - if components match
+ * * 0 - otherwise
+ */
 static int mei_hdcp_component_match(struct device *dev, int subcomponent,
 				    void *data)
 {
-	return !strcmp(dev->driver->name, "i915") &&
-	       subcomponent == I915_COMPONENT_HDCP;
+	struct device *base = data;
+	struct pci_dev *pdev;
+
+	if (!dev_is_pci(dev))
+		return 0;
+
+	pdev = to_pci_dev(dev);
+
+	if (pdev->class != (PCI_CLASS_DISPLAY_VGA << 8) ||
+	    pdev->vendor != PCI_VENDOR_ID_INTEL)
+		return 0;
+
+	if (subcomponent != I915_COMPONENT_HDCP)
+		return 0;
+
+	base = base->parent;
+	if (!base)
+		return 0;
+
+	base = base->parent;
+	dev = dev->parent;
+
+	return (base && dev && dev == base);
 }
 
 static int mei_hdcp_probe(struct mei_cl_device *cldev,
 			  const struct mei_cl_device_id *id)
 {
-	struct i915_hdcp_comp_master *comp_master;
+	struct i915_hdcp_arbiter *comp_arbiter;
 	struct component_match *master_match;
 	int ret;
 
@@ -778,21 +819,21 @@ static int mei_hdcp_probe(struct mei_cl_device *cldev,
 		goto enable_err_exit;
 	}
 
-	comp_master = kzalloc(sizeof(*comp_master), GFP_KERNEL);
-	if (!comp_master) {
+	comp_arbiter = kzalloc(sizeof(*comp_arbiter), GFP_KERNEL);
+	if (!comp_arbiter) {
 		ret = -ENOMEM;
 		goto err_exit;
 	}
 
 	master_match = NULL;
 	component_match_add_typed(&cldev->dev, &master_match,
-				  mei_hdcp_component_match, comp_master);
+				  mei_hdcp_component_match, &cldev->dev);
 	if (IS_ERR_OR_NULL(master_match)) {
 		ret = -ENOMEM;
 		goto err_exit;
 	}
 
-	mei_cldev_set_drvdata(cldev, comp_master);
+	mei_cldev_set_drvdata(cldev, comp_arbiter);
 	ret = component_master_add_with_match(&cldev->dev,
 					      &mei_component_master_ops,
 					      master_match);
@@ -805,28 +846,30 @@ static int mei_hdcp_probe(struct mei_cl_device *cldev,
 
 err_exit:
 	mei_cldev_set_drvdata(cldev, NULL);
-	kfree(comp_master);
+	kfree(comp_arbiter);
 	mei_cldev_disable(cldev);
 enable_err_exit:
 	return ret;
 }
 
-static int mei_hdcp_remove(struct mei_cl_device *cldev)
+static void mei_hdcp_remove(struct mei_cl_device *cldev)
 {
-	struct i915_hdcp_comp_master *comp_master =
-						mei_cldev_get_drvdata(cldev);
+	struct i915_hdcp_arbiter *comp_arbiter = mei_cldev_get_drvdata(cldev);
+	int ret;
 
 	component_master_del(&cldev->dev, &mei_component_master_ops);
-	kfree(comp_master);
+	kfree(comp_arbiter);
 	mei_cldev_set_drvdata(cldev, NULL);
 
-	return mei_cldev_disable(cldev);
+	ret = mei_cldev_disable(cldev);
+	if (ret)
+		dev_warn(&cldev->dev, "mei_cldev_disable() failed\n");
 }
 
-#define MEI_UUID_HDCP GUID_INIT(0xB638AB7E, 0x94E2, 0x4EA2, 0xA5, \
-				0x52, 0xD1, 0xC5, 0x4B, 0x62, 0x7F, 0x04)
+#define MEI_UUID_HDCP UUID_LE(0xB638AB7E, 0x94E2, 0x4EA2, 0xA5, \
+			      0x52, 0xD1, 0xC5, 0x4B, 0x62, 0x7F, 0x04)
 
-static struct mei_cl_device_id mei_hdcp_tbl[] = {
+static const struct mei_cl_device_id mei_hdcp_tbl[] = {
 	{ .uuid = MEI_UUID_HDCP, .version = MEI_CL_VERSION_ANY },
 	{ }
 };

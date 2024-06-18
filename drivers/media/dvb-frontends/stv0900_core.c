@@ -193,7 +193,7 @@ void stv0900_write_bits(struct stv0900_internal *intp, u32 label, u8 val)
 
 u8 stv0900_get_bits(struct stv0900_internal *intp, u32 label)
 {
-	u8 val = 0xff;
+	u8 val;
 	u8 mask, pos;
 
 	extract_mask_pos(label, &mask, &pos);
@@ -1957,7 +1957,7 @@ error:
 	kfree(state);
 	return NULL;
 }
-EXPORT_SYMBOL(stv0900_attach);
+EXPORT_SYMBOL_GPL(stv0900_attach);
 
 MODULE_PARM_DESC(debug, "Set debug");
 

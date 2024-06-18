@@ -32,7 +32,7 @@ struct aic26 {
 	struct spi_device *spi;
 	struct regmap *regmap;
 	struct snd_soc_component *component;
-	int master;
+	int clock_provider;
 	int datfm;
 	int mclk;
 
@@ -117,8 +117,8 @@ static int aic26_hw_params(struct snd_pcm_substream *substream,
 	reg = dval << 2;
 	snd_soc_component_write(component, AIC26_REG_PLL_PROG2, reg);
 
-	/* Audio Control 3 (master mode, fsref rate) */
-	if (aic26->master)
+	/* Audio Control 3 (clock provider mode, fsref rate) */
+	if (aic26->clock_provider)
 		reg = 0x0800;
 	if (fsref == 48000)
 		reg = 0x2000;
@@ -131,10 +131,10 @@ static int aic26_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-/**
+/*
  * aic26_mute - Mute control to reduce noise when changing audio format
  */
-static int aic26_mute(struct snd_soc_dai *dai, int mute)
+static int aic26_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	struct aic26 *aic26 = snd_soc_component_get_drvdata(component);
@@ -178,10 +178,9 @@ static int aic26_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	dev_dbg(&aic26->spi->dev, "aic26_set_fmt(dai=%p, fmt==%i)\n",
 		codec_dai, fmt);
 
-	/* set master/slave audio interface */
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM: aic26->master = 1; break;
-	case SND_SOC_DAIFMT_CBS_CFS: aic26->master = 0; break;
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP: aic26->clock_provider = 1; break;
+	case SND_SOC_DAIFMT_CBC_CFC: aic26->clock_provider = 0; break;
 	default:
 		dev_dbg(&aic26->spi->dev, "bad master\n"); return -EINVAL;
 	}
@@ -211,9 +210,10 @@ static int aic26_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 
 static const struct snd_soc_dai_ops aic26_dai_ops = {
 	.hw_params	= aic26_hw_params,
-	.digital_mute	= aic26_mute,
+	.mute_stream	= aic26_mute,
 	.set_sysclk	= aic26_set_sysclk,
 	.set_fmt	= aic26_set_fmt,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver aic26_dai = {
@@ -260,24 +260,24 @@ static const struct snd_kcontrol_new aic26_snd_controls[] = {
  * SPI device portion of driver: sysfs files for debugging
  */
 
-static ssize_t aic26_keyclick_show(struct device *dev,
-				   struct device_attribute *attr, char *buf)
+static ssize_t keyclick_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	struct aic26 *aic26 = dev_get_drvdata(dev);
 	int val, amp, freq, len;
 
-	val = snd_soc_component_read32(aic26->component, AIC26_REG_AUDIO_CTRL2);
+	val = snd_soc_component_read(aic26->component, AIC26_REG_AUDIO_CTRL2);
 	amp = (val >> 12) & 0x7;
 	freq = (125 << ((val >> 8) & 0x7)) >> 1;
 	len = 2 * (1 + ((val >> 4) & 0xf));
 
-	return sprintf(buf, "amp=%x freq=%iHz len=%iclks\n", amp, freq, len);
+	return sysfs_emit(buf, "amp=%x freq=%iHz len=%iclks\n", amp, freq, len);
 }
 
 /* Any write to the keyclick attribute will trigger the keyclick event */
-static ssize_t aic26_keyclick_set(struct device *dev,
-				  struct device_attribute *attr,
-				  const char *buf, size_t count)
+static ssize_t keyclick_store(struct device *dev,
+			      struct device_attribute *attr,
+			      const char *buf, size_t count)
 {
 	struct aic26 *aic26 = dev_get_drvdata(dev);
 
@@ -287,7 +287,7 @@ static ssize_t aic26_keyclick_set(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(keyclick, 0644, aic26_keyclick_show, aic26_keyclick_set);
+static DEVICE_ATTR_RW(keyclick);
 
 /* ---------------------------------------------------------------------
  * SoC CODEC portion of driver: probe and release routines
@@ -306,7 +306,7 @@ static int aic26_probe(struct snd_soc_component *component)
 	snd_soc_component_write(component, AIC26_REG_POWER_CTRL, 0);
 
 	/* Audio Control 3 (master mode, fsref rate) */
-	reg = snd_soc_component_read32(component, AIC26_REG_AUDIO_CTRL3);
+	reg = snd_soc_component_read(component, AIC26_REG_AUDIO_CTRL3);
 	reg &= ~0xf800;
 	reg |= 0x0800; /* set master mode */
 	snd_soc_component_write(component, AIC26_REG_AUDIO_CTRL3, reg);
@@ -331,7 +331,6 @@ static const struct snd_soc_component_driver aic26_soc_component_dev = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config aic26_regmap = {
@@ -362,7 +361,7 @@ static int aic26_spi_probe(struct spi_device *spi)
 	/* Initialize the driver data */
 	aic26->spi = spi;
 	dev_set_drvdata(&spi->dev, aic26);
-	aic26->master = 1;
+	aic26->clock_provider = 1;
 
 	ret = devm_snd_soc_register_component(&spi->dev,
 			&aic26_soc_component_dev, &aic26_dai, 1);

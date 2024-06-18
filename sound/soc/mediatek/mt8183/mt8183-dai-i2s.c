@@ -43,12 +43,13 @@ struct mtk_afe_i2s_priv {
 	int rate; /* for determine which apll to use */
 	int low_jitter_en;
 
-	const char *share_property_name;
 	int share_i2s_id;
 
 	int mclk_id;
 	int mclk_rate;
 	int mclk_apll;
+
+	int use_eiaj;
 };
 
 static unsigned int get_i2s_wlen(snd_pcm_format_t format)
@@ -140,15 +141,12 @@ static int mt8183_i2s_hd_set(struct snd_kcontrol *kcontrol,
 	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(cmpnt);
 	struct mtk_afe_i2s_priv *i2s_priv;
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-	int hd_en;
+	int hd_en, change;
 
 	if (ucontrol->value.enumerated.item[0] >= e->items)
 		return -EINVAL;
 
 	hd_en = ucontrol->value.integer.value[0];
-
-	dev_info(afe->dev, "%s(), kcontrol name %s, hd_en %d\n",
-		 __func__, kcontrol->id.name, hd_en);
 
 	i2s_priv = get_i2s_priv_by_name(afe, kcontrol->id.name);
 
@@ -157,9 +155,10 @@ static int mt8183_i2s_hd_set(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 	}
 
+	change = i2s_priv->low_jitter_en != hd_en;
 	i2s_priv->low_jitter_en = hd_en;
 
-	return 0;
+	return change;
 }
 
 static const struct snd_kcontrol_new mtk_dai_i2s_controls[] = {
@@ -275,18 +274,15 @@ static int mtk_apll_event(struct snd_soc_dapm_widget *w,
 	struct snd_soc_component *cmpnt = snd_soc_dapm_to_component(w->dapm);
 	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(cmpnt);
 
-	dev_info(cmpnt->dev, "%s(), name %s, event 0x%x\n",
-		 __func__, w->name, event);
-
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		if (strcmp(w->name, APLL1_W_NAME) == 0)
+		if (snd_soc_dapm_widget_name_cmp(w, APLL1_W_NAME) == 0)
 			mt8183_apll1_enable(afe);
 		else
 			mt8183_apll2_enable(afe);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		if (strcmp(w->name, APLL1_W_NAME) == 0)
+		if (snd_soc_dapm_widget_name_cmp(w, APLL1_W_NAME) == 0)
 			mt8183_apll1_disable(afe);
 		else
 			mt8183_apll2_disable(afe);
@@ -305,9 +301,6 @@ static int mtk_mclk_en_event(struct snd_soc_dapm_widget *w,
 	struct snd_soc_component *cmpnt = snd_soc_dapm_to_component(w->dapm);
 	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(cmpnt);
 	struct mtk_afe_i2s_priv *i2s_priv;
-
-	dev_info(cmpnt->dev, "%s(), name %s, event 0x%x\n",
-		 __func__, w->name, event);
 
 	i2s_priv = get_i2s_priv_by_name(afe, w->name);
 
@@ -711,25 +704,24 @@ static int mtk_dai_i2s_config(struct mtk_base_afe *afe,
 	unsigned int rate_reg = mt8183_rate_transform(afe->dev,
 						      rate, i2s_id);
 	snd_pcm_format_t format = params_format(params);
-	unsigned int i2s_con = 0;
+	unsigned int i2s_con = 0, fmt_con = I2S_FMT_I2S << I2S_FMT_SFT;
 	int ret = 0;
 
-	dev_info(afe->dev, "%s(), id %d, rate %d, format %d\n",
-		 __func__,
-		 i2s_id,
-		 rate, format);
-
-	if (i2s_priv)
+	if (i2s_priv) {
 		i2s_priv->rate = rate;
-	else
+
+		if (i2s_priv->use_eiaj)
+			fmt_con = I2S_FMT_EIAJ << I2S_FMT_SFT;
+	} else {
 		dev_warn(afe->dev, "%s(), i2s_priv == NULL", __func__);
+	}
 
 	switch (i2s_id) {
 	case MT8183_DAI_I2S_0:
 		regmap_update_bits(afe->regmap, AFE_DAC_CON1,
 				   I2S_MODE_MASK_SFT, rate_reg << I2S_MODE_SFT);
 		i2s_con = I2S_IN_PAD_IO_MUX << I2SIN_PAD_SEL_SFT;
-		i2s_con |= I2S_FMT_I2S << I2S_FMT_SFT;
+		i2s_con |= fmt_con;
 		i2s_con |= get_i2s_wlen(format) << I2S_WLEN_SFT;
 		regmap_update_bits(afe->regmap, AFE_I2S_CON,
 				   0xffffeffe, i2s_con);
@@ -737,7 +729,7 @@ static int mtk_dai_i2s_config(struct mtk_base_afe *afe,
 	case MT8183_DAI_I2S_1:
 		i2s_con = I2S1_SEL_O28_O29 << I2S2_SEL_O03_O04_SFT;
 		i2s_con |= rate_reg << I2S2_OUT_MODE_SFT;
-		i2s_con |= I2S_FMT_I2S << I2S2_FMT_SFT;
+		i2s_con |= fmt_con;
 		i2s_con |= get_i2s_wlen(format) << I2S2_WLEN_SFT;
 		regmap_update_bits(afe->regmap, AFE_I2S_CON1,
 				   0xffffeffe, i2s_con);
@@ -745,21 +737,21 @@ static int mtk_dai_i2s_config(struct mtk_base_afe *afe,
 	case MT8183_DAI_I2S_2:
 		i2s_con = 8 << I2S3_UPDATE_WORD_SFT;
 		i2s_con |= rate_reg << I2S3_OUT_MODE_SFT;
-		i2s_con |= I2S_FMT_I2S << I2S3_FMT_SFT;
+		i2s_con |= fmt_con;
 		i2s_con |= get_i2s_wlen(format) << I2S3_WLEN_SFT;
 		regmap_update_bits(afe->regmap, AFE_I2S_CON2,
 				   0xffffeffe, i2s_con);
 		break;
 	case MT8183_DAI_I2S_3:
 		i2s_con = rate_reg << I2S4_OUT_MODE_SFT;
-		i2s_con |= I2S_FMT_I2S << I2S4_FMT_SFT;
+		i2s_con |= fmt_con;
 		i2s_con |= get_i2s_wlen(format) << I2S4_WLEN_SFT;
 		regmap_update_bits(afe->regmap, AFE_I2S_CON3,
 				   0xffffeffe, i2s_con);
 		break;
 	case MT8183_DAI_I2S_5:
 		i2s_con = rate_reg << I2S5_OUT_MODE_SFT;
-		i2s_con |= I2S_FMT_I2S << I2S5_FMT_SFT;
+		i2s_con |= fmt_con;
 		i2s_con |= get_i2s_wlen(format) << I2S5_WLEN_SFT;
 		regmap_update_bits(afe->regmap, AFE_I2S_CON4,
 				   0xffffeffe, i2s_con);
@@ -805,8 +797,6 @@ static int mtk_dai_i2s_set_sysclk(struct snd_soc_dai *dai,
 		return -EINVAL;
 	}
 
-	dev_info(afe->dev, "%s(), freq %d\n", __func__, freq);
-
 	apll = mt8183_get_apll_by_rate(afe, freq);
 	apll_rate = mt8183_get_apll_rate(afe, apll);
 
@@ -841,9 +831,46 @@ static int mtk_dai_i2s_set_sysclk(struct snd_soc_dai *dai,
 	return 0;
 }
 
+static int mtk_dai_i2s_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
+{
+	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
+	struct mt8183_afe_private *afe_priv = afe->platform_priv;
+	struct mtk_afe_i2s_priv *i2s_priv;
+
+	switch (dai->id) {
+	case MT8183_DAI_I2S_0:
+	case MT8183_DAI_I2S_1:
+	case MT8183_DAI_I2S_2:
+	case MT8183_DAI_I2S_3:
+	case MT8183_DAI_I2S_5:
+		break;
+	default:
+		dev_warn(afe->dev, "%s(), id %d not support\n",
+			 __func__, dai->id);
+		return -EINVAL;
+	}
+	i2s_priv = afe_priv->dai_priv[dai->id];
+
+	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
+	case SND_SOC_DAIFMT_LEFT_J:
+		i2s_priv->use_eiaj = 1;
+		break;
+	case SND_SOC_DAIFMT_I2S:
+		i2s_priv->use_eiaj = 0;
+		break;
+	default:
+		dev_warn(afe->dev, "%s(), DAI format %d not support\n",
+			 __func__, fmt & SND_SOC_DAIFMT_FORMAT_MASK);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static const struct snd_soc_dai_ops mtk_dai_i2s_ops = {
 	.hw_params = mtk_dai_i2s_hw_params,
 	.set_sysclk = mtk_dai_i2s_set_sysclk,
+	.set_fmt = mtk_dai_i2s_set_fmt,
 };
 
 /* dai driver */
@@ -934,54 +961,55 @@ static const struct mtk_afe_i2s_priv mt8183_i2s_priv[DAI_I2S_NUM] = {
 	[DAI_I2S0] = {
 		.id = MT8183_DAI_I2S_0,
 		.mclk_id = MT8183_I2S0_MCK,
-		.share_property_name = "i2s0-share",
 		.share_i2s_id = -1,
 	},
 	[DAI_I2S1] = {
 		.id = MT8183_DAI_I2S_1,
 		.mclk_id = MT8183_I2S1_MCK,
-		.share_property_name = "i2s1-share",
 		.share_i2s_id = -1,
 	},
 	[DAI_I2S2] = {
 		.id = MT8183_DAI_I2S_2,
 		.mclk_id = MT8183_I2S2_MCK,
-		.share_property_name = "i2s2-share",
 		.share_i2s_id = -1,
 	},
 	[DAI_I2S3] = {
 		.id = MT8183_DAI_I2S_3,
 		.mclk_id = MT8183_I2S3_MCK,
-		.share_property_name = "i2s3-share",
 		.share_i2s_id = -1,
 	},
 	[DAI_I2S5] = {
 		.id = MT8183_DAI_I2S_5,
 		.mclk_id = MT8183_I2S5_MCK,
-		.share_property_name = "i2s5-share",
 		.share_i2s_id = -1,
 	},
 };
 
-static int mt8183_dai_i2s_get_share(struct mtk_base_afe *afe)
+/**
+ * mt8183_dai_i2s_set_share() - Set up I2S ports to share a single clock.
+ * @afe: Pointer to &struct mtk_base_afe
+ * @main_i2s_name: The name of the I2S port that will provide the clock
+ * @secondary_i2s_name: The name of the I2S port that will use this clock
+ */
+int mt8183_dai_i2s_set_share(struct mtk_base_afe *afe, const char *main_i2s_name,
+			     const char *secondary_i2s_name)
 {
-	struct mt8183_afe_private *afe_priv = afe->platform_priv;
-	const struct device_node *of_node = afe->dev->of_node;
-	const char *of_str;
-	const char *property_name;
-	struct mtk_afe_i2s_priv *i2s_priv;
-	int i;
+	struct mtk_afe_i2s_priv *secondary_i2s_priv;
+	int main_i2s_id;
 
-	for (i = 0; i < DAI_I2S_NUM; i++) {
-		i2s_priv = afe_priv->dai_priv[mt8183_i2s_priv[i].id];
-		property_name = mt8183_i2s_priv[i].share_property_name;
-		if (of_property_read_string(of_node, property_name, &of_str))
-			continue;
-		i2s_priv->share_i2s_id = get_i2s_id_by_name(afe, of_str);
-	}
+	secondary_i2s_priv = get_i2s_priv_by_name(afe, secondary_i2s_name);
+	if (!secondary_i2s_priv)
+		return -EINVAL;
+
+	main_i2s_id = get_i2s_id_by_name(afe, main_i2s_name);
+	if (main_i2s_id < 0)
+		return main_i2s_id;
+
+	secondary_i2s_priv->share_i2s_id = main_i2s_id;
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mt8183_dai_i2s_set_share);
 
 static int mt8183_dai_i2s_set_priv(struct mtk_base_afe *afe)
 {
@@ -1028,11 +1056,6 @@ int mt8183_dai_i2s_register(struct mtk_base_afe *afe)
 
 	/* set all dai i2s private data */
 	ret = mt8183_dai_i2s_set_priv(afe);
-	if (ret)
-		return ret;
-
-	/* parse share i2s */
-	ret = mt8183_dai_i2s_get_share(afe);
 	if (ret)
 		return ret;
 

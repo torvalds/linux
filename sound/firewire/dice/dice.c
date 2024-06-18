@@ -9,7 +9,7 @@
 
 MODULE_DESCRIPTION("DICE driver");
 MODULE_AUTHOR("Clemens Ladisch <clemens@ladisch.de>");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
 
 #define OUI_WEISS		0x001c6a
 #define OUI_LOUD		0x000ff2
@@ -20,10 +20,13 @@ MODULE_LICENSE("GPL v2");
 #define OUI_MYTEK		0x001ee8
 #define OUI_SSL			0x0050c2	// Actually ID reserved by IEEE.
 #define OUI_PRESONUS		0x000a92
+#define OUI_HARMAN		0x000fd7
+#define OUI_AVID		0x00a07e
 
 #define DICE_CATEGORY_ID	0x04
 #define WEISS_CATEGORY_ID	0x00
 #define LOUD_CATEGORY_ID	0x10
+#define HARMAN_CATEGORY_ID	0x20
 
 #define MODEL_ALESIS_IO_BOTH	0x000001
 
@@ -56,6 +59,8 @@ static int check_dice_category(struct fw_unit *unit)
 		category = WEISS_CATEGORY_ID;
 	else if (vendor == OUI_LOUD)
 		category = LOUD_CATEGORY_ID;
+	else if (vendor == OUI_HARMAN)
+		category = HARMAN_CATEGORY_ID;
 	else
 		category = DICE_CATEGORY_ID;
 	if (device->config_rom[3] != ((vendor << 8) | category) ||
@@ -130,22 +135,51 @@ static void dice_card_free(struct snd_card *card)
 
 	snd_dice_stream_destroy_duplex(dice);
 	snd_dice_transaction_destroy(dice);
+
+	mutex_destroy(&dice->mutex);
+	fw_unit_put(dice->unit);
 }
 
-static void do_registration(struct work_struct *work)
+static int dice_probe(struct fw_unit *unit, const struct ieee1394_device_id *entry)
 {
-	struct snd_dice *dice = container_of(work, struct snd_dice, dwork.work);
+	struct snd_card *card;
+	struct snd_dice *dice;
+	snd_dice_detect_formats_t detect_formats;
 	int err;
 
-	if (dice->registered)
-		return;
+	if (!entry->driver_data && entry->vendor_id != OUI_SSL) {
+		err = check_dice_category(unit);
+		if (err < 0)
+			return -ENODEV;
+	}
 
-	err = snd_card_new(&dice->unit->device, -1, NULL, THIS_MODULE, 0,
-			   &dice->card);
+	err = snd_card_new(&unit->device, -1, NULL, THIS_MODULE, sizeof(*dice), &card);
 	if (err < 0)
-		return;
-	dice->card->private_free = dice_card_free;
-	dice->card->private_data = dice;
+		return err;
+	card->private_free = dice_card_free;
+
+	dice = card->private_data;
+	dice->unit = fw_unit_get(unit);
+	dev_set_drvdata(&unit->device, dice);
+	dice->card = card;
+
+	if (!entry->driver_data)
+		detect_formats = snd_dice_stream_detect_current_formats;
+	else
+		detect_formats = (snd_dice_detect_formats_t)entry->driver_data;
+
+	// Below models are compliant to IEC 61883-1/6 and have no quirk at high sampling transfer
+	// frequency.
+	// * Avid M-Box 3 Pro
+	// * M-Audio Profire 610
+	// * M-Audio Profire 2626
+	if (entry->vendor_id == OUI_MAUDIO || entry->vendor_id == OUI_AVID)
+		dice->disable_double_pcm_frames = true;
+
+	spin_lock_init(&dice->lock);
+	mutex_init(&dice->mutex);
+	init_completion(&dice->clock_accepted);
+	init_waitqueue_head(&dice->hwdep_wait);
 
 	err = snd_dice_transaction_init(dice);
 	if (err < 0)
@@ -157,7 +191,7 @@ static void do_registration(struct work_struct *work)
 
 	dice_card_strings(dice);
 
-	err = dice->detect_formats(dice);
+	err = detect_formats(dice);
 	if (err < 0)
 		goto error;
 
@@ -179,102 +213,54 @@ static void do_registration(struct work_struct *work)
 	if (err < 0)
 		goto error;
 
-	err = snd_card_register(dice->card);
+	err = snd_card_register(card);
 	if (err < 0)
 		goto error;
 
-	dice->registered = true;
-
-	return;
-error:
-	snd_card_free(dice->card);
-	dev_info(&dice->unit->device,
-		 "Sound card registration failed: %d\n", err);
-}
-
-static int dice_probe(struct fw_unit *unit,
-		      const struct ieee1394_device_id *entry)
-{
-	struct snd_dice *dice;
-	int err;
-
-	if (!entry->driver_data && entry->vendor_id != OUI_SSL) {
-		err = check_dice_category(unit);
-		if (err < 0)
-			return -ENODEV;
-	}
-
-	/* Allocate this independent of sound card instance. */
-	dice = devm_kzalloc(&unit->device, sizeof(struct snd_dice), GFP_KERNEL);
-	if (!dice)
-		return -ENOMEM;
-	dice->unit = fw_unit_get(unit);
-	dev_set_drvdata(&unit->device, dice);
-
-	if (!entry->driver_data) {
-		dice->detect_formats = snd_dice_stream_detect_current_formats;
-	} else {
-		dice->detect_formats =
-				(snd_dice_detect_formats_t)entry->driver_data;
-	}
-
-	spin_lock_init(&dice->lock);
-	mutex_init(&dice->mutex);
-	init_completion(&dice->clock_accepted);
-	init_waitqueue_head(&dice->hwdep_wait);
-
-	/* Allocate and register this sound card later. */
-	INIT_DEFERRABLE_WORK(&dice->dwork, do_registration);
-	snd_fw_schedule_registration(unit, &dice->dwork);
-
 	return 0;
+error:
+	snd_card_free(card);
+	return err;
 }
 
 static void dice_remove(struct fw_unit *unit)
 {
 	struct snd_dice *dice = dev_get_drvdata(&unit->device);
 
-	/*
-	 * Confirm to stop the work for registration before the sound card is
-	 * going to be released. The work is not scheduled again because bus
-	 * reset handler is not called anymore.
-	 */
-	cancel_delayed_work_sync(&dice->dwork);
-
-	if (dice->registered) {
-		// Block till all of ALSA character devices are released.
-		snd_card_free(dice->card);
-	}
-
-	mutex_destroy(&dice->mutex);
-	fw_unit_put(dice->unit);
+	// Block till all of ALSA character devices are released.
+	snd_card_free(dice->card);
 }
 
 static void dice_bus_reset(struct fw_unit *unit)
 {
 	struct snd_dice *dice = dev_get_drvdata(&unit->device);
 
-	/* Postpone a workqueue for deferred registration. */
-	if (!dice->registered)
-		snd_fw_schedule_registration(unit, &dice->dwork);
-
 	/* The handler address register becomes initialized. */
 	snd_dice_transaction_reinit(dice);
 
-	/*
-	 * After registration, userspace can start packet streaming, then this
-	 * code block works fine.
-	 */
-	if (dice->registered) {
-		mutex_lock(&dice->mutex);
-		snd_dice_stream_update_duplex(dice);
-		mutex_unlock(&dice->mutex);
-	}
+	mutex_lock(&dice->mutex);
+	snd_dice_stream_update_duplex(dice);
+	mutex_unlock(&dice->mutex);
 }
 
 #define DICE_INTERFACE	0x000001
 
+#define DICE_DEV_ENTRY_TYPICAL(vendor, model, data) \
+	{ \
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID | \
+				  IEEE1394_MATCH_MODEL_ID | \
+				  IEEE1394_MATCH_SPECIFIER_ID | \
+				  IEEE1394_MATCH_VERSION, \
+		.vendor_id	= (vendor), \
+		.model_id	= (model), \
+		.specifier_id	= (vendor), \
+		.version	= DICE_INTERFACE, \
+		.driver_data = (kernel_ulong_t)(data), \
+	}
+
 static const struct ieee1394_device_id dice_id_table[] = {
+	// Avid M-Box 3 Pro. To match in probe function.
+	DICE_DEV_ENTRY_TYPICAL(OUI_AVID, 0x000004, snd_dice_detect_extension_formats),
 	/* M-Audio Profire 2626 has a different value in version field. */
 	{
 		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
@@ -355,6 +341,14 @@ static const struct ieee1394_device_id dice_id_table[] = {
 		.model_id	= MODEL_ALESIS_IO_BOTH,
 		.driver_data = (kernel_ulong_t)snd_dice_detect_alesis_formats,
 	},
+	// Alesis MasterControl.
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_ALESIS,
+		.model_id	= 0x000002,
+		.driver_data = (kernel_ulong_t)snd_dice_detect_alesis_mastercontrol_formats,
+	},
 	/* Mytek Stereo 192 DSD-DAC. */
 	{
 		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
@@ -379,6 +373,87 @@ static const struct ieee1394_device_id dice_id_table[] = {
 		.vendor_id	= OUI_PRESONUS,
 		.model_id	= 0x000008,
 		.driver_data	= (kernel_ulong_t)snd_dice_detect_presonus_formats,
+	},
+	// Lexicon I-ONYX FW810S.
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_HARMAN,
+		.model_id	= 0x000001,
+		.driver_data	= (kernel_ulong_t)snd_dice_detect_harman_formats,
+	},
+	// Focusrite Saffire Pro 40 with TCD3070-CH.
+	// The model has quirk in its GUID, in which model field is 0x000013 and different from
+	// model ID (0x0000de) in its root/unit directory.
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_FOCUSRITE,
+		.model_id	= 0x0000de,
+		.driver_data	= (kernel_ulong_t)snd_dice_detect_focusrite_pro40_tcd3070_formats,
+	},
+	// Weiss DAC202: 192kHz 2-channel DAC
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID | IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_WEISS,
+		.model_id	= 0x000007,
+		.driver_data	= (kernel_ulong_t)snd_dice_detect_weiss_formats,
+	},
+	// Weiss DAC202: 192kHz 2-channel DAC (Maya edition)
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID | IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_WEISS,
+		.model_id	= 0x000008,
+		.driver_data	= (kernel_ulong_t)snd_dice_detect_weiss_formats,
+	},
+	// Weiss MAN301: 192kHz 2-channel music archive network player
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID | IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_WEISS,
+		.model_id	= 0x00000b,
+		.driver_data	= (kernel_ulong_t)snd_dice_detect_weiss_formats,
+	},
+	// Weiss INT202: 192kHz unidirectional 2-channel digital Firewire face
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID | IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_WEISS,
+		.model_id	= 0x000006,
+		.driver_data	= (kernel_ulong_t)snd_dice_detect_weiss_formats,
+	},
+	// Weiss INT203: 192kHz bidirectional 2-channel digital Firewire face
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID | IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_WEISS,
+		.model_id	= 0x00000a,
+		.driver_data	= (kernel_ulong_t)snd_dice_detect_weiss_formats,
+	},
+	// Weiss ADC2: 192kHz A/D converter with microphone preamps and inputs
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID | IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_WEISS,
+		.model_id	= 0x000001,
+		.driver_data	= (kernel_ulong_t)snd_dice_detect_weiss_formats,
+	},
+	// Weiss DAC2/Minerva: 192kHz 2-channel DAC
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID | IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_WEISS,
+		.model_id	= 0x000003,
+		.driver_data	= (kernel_ulong_t)snd_dice_detect_weiss_formats,
+	},
+	// Weiss Vesta: 192kHz 2-channel Firewire to AES/EBU interface
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID | IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_WEISS,
+		.model_id	= 0x000002,
+		.driver_data	= (kernel_ulong_t)snd_dice_detect_weiss_formats,
+	},
+	// Weiss AFI1: 192kHz 24-channel Firewire to ADAT or AES/EBU face
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID | IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_WEISS,
+		.model_id	= 0x000004,
+		.driver_data	= (kernel_ulong_t)snd_dice_detect_weiss_formats,
 	},
 	{
 		.match_flags = IEEE1394_MATCH_VERSION,

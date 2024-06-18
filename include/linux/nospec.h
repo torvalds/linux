@@ -5,9 +5,15 @@
 
 #ifndef _LINUX_NOSPEC_H
 #define _LINUX_NOSPEC_H
+
+#include <linux/compiler.h>
 #include <asm/barrier.h>
 
 struct task_struct;
+
+#ifndef barrier_nospec
+# define barrier_nospec() do { } while (0)
+#endif
 
 /**
  * array_index_mask_nospec() - generate a ~0 mask when index < size, 0 otherwise

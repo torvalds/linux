@@ -63,16 +63,16 @@ static int send_converted_effect(const struct nrpn_conv_table *table,
 /* effect sensitivities for GS NRPN:
  *  adjusted for chaos 8MB soundfonts
  */
-static int gs_sense[] = 
+static const int gs_sense[] =
 {
 	DEF_FX_CUTOFF, DEF_FX_RESONANCE, DEF_FX_ATTACK, DEF_FX_RELEASE,
 	DEF_FX_VIBRATE, DEF_FX_VIBDEPTH, DEF_FX_VIBDELAY
 };
 
-/* effect sensitivies for XG controls:
+/* effect sensitivities for XG controls:
  * adjusted for chaos 8MB soundfonts
  */
-static int xg_sense[] = 
+static const int xg_sense[] =
 {
 	DEF_FX_CUTOFF, DEF_FX_RESONANCE, DEF_FX_ATTACK, DEF_FX_RELEASE,
 	DEF_FX_VIBRATE, DEF_FX_VIBDEPTH, DEF_FX_VIBDELAY
@@ -349,6 +349,9 @@ int
 snd_emux_xg_control(struct snd_emux_port *port, struct snd_midi_channel *chan,
 		    int param)
 {
+	if (param >= ARRAY_SIZE(chan->control))
+		return -EINVAL;
+
 	return send_converted_effect(xg_effects, ARRAY_SIZE(xg_effects),
 				     port, chan, param,
 				     chan->control[param],

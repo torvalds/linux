@@ -44,10 +44,6 @@
 #include <linux/usb/gadget.h>
 #include <linux/usb/otg.h>
 
-#ifdef CONFIG_ARCH_LUBBOCK
-#include <mach/lubbock.h>
-#endif
-
 #define UDCCR	 0x0000 /* UDC Control Register */
 #define UDC_RES1 0x0004 /* UDC Undocumented - Reserved1 */
 #define UDC_RES2 0x0008 /* UDC Undocumented - Reserved2 */
@@ -966,7 +962,8 @@ static void nuke(struct pxa25x_ep *ep, int status)
 static int pxa25x_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 {
 	struct pxa25x_ep	*ep;
-	struct pxa25x_request	*req;
+	struct pxa25x_request	*req = NULL;
+	struct pxa25x_request	*iter;
 	unsigned long		flags;
 
 	ep = container_of(_ep, struct pxa25x_ep, ep);
@@ -976,11 +973,13 @@ static int pxa25x_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 	local_irq_save(flags);
 
 	/* make sure it's actually queued on this endpoint */
-	list_for_each_entry (req, &ep->queue, queue) {
-		if (&req->req == _req)
-			break;
+	list_for_each_entry(iter, &ep->queue, queue) {
+		if (&iter->req != _req)
+			continue;
+		req = iter;
+		break;
 	}
-	if (&req->req != _req) {
+	if (!req) {
 		local_irq_restore(flags);
 		return -EINVAL;
 	}
@@ -1093,7 +1092,7 @@ static void pxa25x_ep_fifo_flush(struct usb_ep *_ep)
 }
 
 
-static struct usb_ep_ops pxa25x_ep_ops = {
+static const struct usb_ep_ops pxa25x_ep_ops = {
 	.enable		= pxa25x_ep_enable,
 	.disable	= pxa25x_ep_disable,
 
@@ -1338,10 +1337,10 @@ DEFINE_SHOW_ATTRIBUTE(udc_debug);
 
 #define create_debug_files(dev) \
 	do { \
-		dev->debugfs_udc = debugfs_create_file(dev->gadget.name, \
+		debugfs_create_file(dev->gadget.name, \
 			S_IRUGO, NULL, dev, &udc_debug_fops); \
 	} while (0)
-#define remove_debug_files(dev) debugfs_remove(dev->debugfs_udc)
+#define remove_debug_files(dev) debugfs_lookup_and_remove(dev->gadget.name, NULL)
 
 #else	/* !CONFIG_USB_GADGET_DEBUG_FILES */
 
@@ -1559,43 +1558,6 @@ static int pxa25x_udc_stop(struct usb_gadget*g)
 
 	return 0;
 }
-
-/*-------------------------------------------------------------------------*/
-
-#ifdef CONFIG_ARCH_LUBBOCK
-
-/* Lubbock has separate connect and disconnect irqs.  More typical designs
- * use one GPIO as the VBUS IRQ, and another to control the D+ pullup.
- */
-
-static irqreturn_t
-lubbock_vbus_irq(int irq, void *_dev)
-{
-	struct pxa25x_udc	*dev = _dev;
-	int			vbus;
-
-	dev->stats.irqs++;
-	switch (irq) {
-	case LUBBOCK_USB_IRQ:
-		vbus = 1;
-		disable_irq(LUBBOCK_USB_IRQ);
-		enable_irq(LUBBOCK_USB_DISC_IRQ);
-		break;
-	case LUBBOCK_USB_DISC_IRQ:
-		vbus = 0;
-		disable_irq(LUBBOCK_USB_DISC_IRQ);
-		enable_irq(LUBBOCK_USB_IRQ);
-		break;
-	default:
-		return IRQ_NONE;
-	}
-
-	pxa25x_udc_vbus_session(&dev->gadget, vbus);
-	return IRQ_HANDLED;
-}
-
-#endif
-
 
 /*-------------------------------------------------------------------------*/
 
@@ -2321,12 +2283,11 @@ static int pxa25x_udc_probe(struct platform_device *pdev)
 	struct pxa25x_udc *dev = &memory;
 	int retval, irq;
 	u32 chiprev;
-	struct resource *res;
 
 	pr_info("%s: version %s\n", driver_name, DRIVER_VERSION);
 
 	/* insist on Intel/ARM/XScale */
-	asm("mrc%? p15, 0, %0, c0, c0" : "=r" (chiprev));
+	asm("mrc p15, 0, %0, c0, c0" : "=r" (chiprev));
 	if ((chiprev & CP15R0_VENDOR_MASK) != CP15R0_XSCALE_VALUE) {
 		pr_err("%s: not XScale!\n", driver_name);
 		return -ENODEV;
@@ -2341,12 +2302,12 @@ static int pxa25x_udc_probe(struct platform_device *pdev)
 	case PXA250_A0:
 	case PXA250_A1:
 		/* A0/A1 "not released"; ep 13, 15 unusable */
-		/* fall through */
+		fallthrough;
 	case PXA250_B2: case PXA210_B2:
 	case PXA250_B1: case PXA210_B1:
 	case PXA250_B0: case PXA210_B0:
 		/* OUT-DMA is broken ... */
-		/* fall through */
+		fallthrough;
 	case PXA250_C0: case PXA210_C0:
 		break;
 #elif	defined(CONFIG_ARCH_IXP4XX)
@@ -2365,10 +2326,9 @@ static int pxa25x_udc_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
-		return -ENODEV;
+		return irq;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dev->regs = devm_ioremap_resource(&pdev->dev, res);
+	dev->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dev->regs))
 		return PTR_ERR(dev->regs);
 
@@ -2419,26 +2379,6 @@ static int pxa25x_udc_probe(struct platform_device *pdev)
 	}
 	dev->got_irq = 1;
 
-#ifdef CONFIG_ARCH_LUBBOCK
-	if (machine_is_lubbock()) {
-		retval = devm_request_irq(&pdev->dev, LUBBOCK_USB_DISC_IRQ,
-					  lubbock_vbus_irq, 0, driver_name,
-					  dev);
-		if (retval != 0) {
-			pr_err("%s: can't get irq %i, err %d\n",
-				driver_name, LUBBOCK_USB_DISC_IRQ, retval);
-			goto err;
-		}
-		retval = devm_request_irq(&pdev->dev, LUBBOCK_USB_IRQ,
-					  lubbock_vbus_irq, 0, driver_name,
-					  dev);
-		if (retval != 0) {
-			pr_err("%s: can't get irq %i, err %d\n",
-				driver_name, LUBBOCK_USB_IRQ, retval);
-			goto err;
-		}
-	} else
-#endif
 	create_debug_files(dev);
 
 	retval = usb_add_gadget_udc(&pdev->dev, &dev->gadget);
@@ -2457,12 +2397,15 @@ static void pxa25x_udc_shutdown(struct platform_device *_dev)
 	pullup_off();
 }
 
-static int pxa25x_udc_remove(struct platform_device *pdev)
+static void pxa25x_udc_remove(struct platform_device *pdev)
 {
 	struct pxa25x_udc *dev = platform_get_drvdata(pdev);
 
-	if (dev->driver)
-		return -EBUSY;
+	if (dev->driver) {
+		dev_err(&pdev->dev,
+			"Driver still in use but removing anyhow\n");
+		return;
+	}
 
 	usb_del_gadget_udc(&dev->gadget);
 	dev->pullup = 0;
@@ -2474,7 +2417,6 @@ static int pxa25x_udc_remove(struct platform_device *pdev)
 		dev->transceiver = NULL;
 
 	the_controller = NULL;
-	return 0;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -2532,7 +2474,7 @@ static int pxa25x_udc_resume(struct platform_device *dev)
 static struct platform_driver udc_driver = {
 	.shutdown	= pxa25x_udc_shutdown,
 	.probe		= pxa25x_udc_probe,
-	.remove		= pxa25x_udc_remove,
+	.remove_new	= pxa25x_udc_remove,
 	.suspend	= pxa25x_udc_suspend,
 	.resume		= pxa25x_udc_resume,
 	.driver		= {

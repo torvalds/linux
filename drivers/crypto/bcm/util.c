@@ -119,8 +119,8 @@ int spu_sg_count(struct scatterlist *sg_list, unsigned int skip, int nbytes)
  * @from_skip:   number of bytes to skip in from_sg. Non-zero when previous
  *		 request included part of the buffer in entry in from_sg.
  *		 Assumes from_skip < from_sg->length.
- * @from_nents   number of entries in from_sg
- * @length       number of bytes to copy. may reach this limit before exhausting
+ * @from_nents:  number of entries in from_sg
+ * @length:      number of bytes to copy. may reach this limit before exhausting
  *		 from_sg.
  *
  * Copies the entries themselves, not the data in the entries. Assumes to_sg has
@@ -268,6 +268,7 @@ do_shash_err:
 	return rc;
 }
 
+#ifdef DEBUG
 /* Dump len bytes of a scatterlist starting at skip bytes into the sg */
 void __dump_sg(struct scatterlist *sg, unsigned int skip, unsigned int len)
 {
@@ -289,6 +290,7 @@ void __dump_sg(struct scatterlist *sg, unsigned int skip, unsigned int len)
 	if (debug_logging_sleep)
 		msleep(debug_logging_sleep);
 }
+#endif
 
 /* Returns the name for a given cipher alg/mode */
 char *spu_alg_name(enum spu_cipher_alg alg, enum spu_cipher_mode mode)
@@ -348,7 +350,7 @@ char *spu_alg_name(enum spu_cipher_alg alg, enum spu_cipher_mode mode)
 static ssize_t spu_debugfs_read(struct file *filp, char __user *ubuf,
 				size_t count, loff_t *offp)
 {
-	struct device_private *ipriv;
+	struct bcm_device_private *ipriv;
 	char *buf;
 	ssize_t ret, out_offset, out_count;
 	int i;
@@ -366,88 +368,88 @@ static ssize_t spu_debugfs_read(struct file *filp, char __user *ubuf,
 
 	ipriv = filp->private_data;
 	out_offset = 0;
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "Number of SPUs.........%u\n",
 			       ipriv->spu.num_spu);
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "Current sessions.......%u\n",
 			       atomic_read(&ipriv->session_count));
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "Session count..........%u\n",
 			       atomic_read(&ipriv->stream_count));
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "Cipher setkey..........%u\n",
 			       atomic_read(&ipriv->setkey_cnt[SPU_OP_CIPHER]));
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "Cipher Ops.............%u\n",
 			       atomic_read(&ipriv->op_counts[SPU_OP_CIPHER]));
 	for (alg = 0; alg < CIPHER_ALG_LAST; alg++) {
 		for (mode = 0; mode < CIPHER_MODE_LAST; mode++) {
 			op_cnt = atomic_read(&ipriv->cipher_cnt[alg][mode]);
 			if (op_cnt) {
-				out_offset += snprintf(buf + out_offset,
+				out_offset += scnprintf(buf + out_offset,
 						       out_count - out_offset,
 			       "  %-13s%11u\n",
 			       spu_alg_name(alg, mode), op_cnt);
 			}
 		}
 	}
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "Hash Ops...............%u\n",
 			       atomic_read(&ipriv->op_counts[SPU_OP_HASH]));
 	for (alg = 0; alg < HASH_ALG_LAST; alg++) {
 		op_cnt = atomic_read(&ipriv->hash_cnt[alg]);
 		if (op_cnt) {
-			out_offset += snprintf(buf + out_offset,
+			out_offset += scnprintf(buf + out_offset,
 					       out_count - out_offset,
 		       "  %-13s%11u\n",
 		       hash_alg_name[alg], op_cnt);
 		}
 	}
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "HMAC setkey............%u\n",
 			       atomic_read(&ipriv->setkey_cnt[SPU_OP_HMAC]));
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "HMAC Ops...............%u\n",
 			       atomic_read(&ipriv->op_counts[SPU_OP_HMAC]));
 	for (alg = 0; alg < HASH_ALG_LAST; alg++) {
 		op_cnt = atomic_read(&ipriv->hmac_cnt[alg]);
 		if (op_cnt) {
-			out_offset += snprintf(buf + out_offset,
+			out_offset += scnprintf(buf + out_offset,
 					       out_count - out_offset,
 		       "  %-13s%11u\n",
 		       hash_alg_name[alg], op_cnt);
 		}
 	}
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "AEAD setkey............%u\n",
 			       atomic_read(&ipriv->setkey_cnt[SPU_OP_AEAD]));
 
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "AEAD Ops...............%u\n",
 			       atomic_read(&ipriv->op_counts[SPU_OP_AEAD]));
 	for (alg = 0; alg < AEAD_TYPE_LAST; alg++) {
 		op_cnt = atomic_read(&ipriv->aead_cnt[alg]);
 		if (op_cnt) {
-			out_offset += snprintf(buf + out_offset,
+			out_offset += scnprintf(buf + out_offset,
 					       out_count - out_offset,
 		       "  %-13s%11u\n",
 		       aead_alg_name[alg], op_cnt);
 		}
 	}
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "Bytes of req data......%llu\n",
 			       (u64)atomic64_read(&ipriv->bytes_out));
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "Bytes of resp data.....%llu\n",
 			       (u64)atomic64_read(&ipriv->bytes_in));
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "Mailbox full...........%u\n",
 			       atomic_read(&ipriv->mb_no_spc));
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "Mailbox send failures..%u\n",
 			       atomic_read(&ipriv->mb_send_fail));
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "Check ICV errors.......%u\n",
 			       atomic_read(&ipriv->bad_icv));
 	if (ipriv->spu.spu_type == SPU_TYPE_SPUM)
@@ -455,7 +457,7 @@ static ssize_t spu_debugfs_read(struct file *filp, char __user *ubuf,
 			spu_ofifo_ctrl = ioread32(ipriv->spu.reg_vbase[i] +
 						  SPU_OFIFO_CTRL);
 			fifo_len = spu_ofifo_ctrl & SPU_FIFO_WATERMARK;
-			out_offset += snprintf(buf + out_offset,
+			out_offset += scnprintf(buf + out_offset,
 					       out_count - out_offset,
 				       "SPU %d output FIFO high water.....%u\n",
 				       i, fifo_len);

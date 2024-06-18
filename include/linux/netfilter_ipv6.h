@@ -42,7 +42,7 @@ struct nf_ipv6_ops {
 #if IS_MODULE(CONFIG_IPV6)
 	int (*chk_addr)(struct net *net, const struct in6_addr *addr,
 			const struct net_device *dev, int strict);
-	int (*route_me_harder)(struct net *net, struct sk_buff *skb);
+	int (*route_me_harder)(struct net *net, struct sock *sk, struct sk_buff *skb);
 	int (*dev_get_saddr)(struct net *net, const struct net_device *dev,
 		       const struct in6_addr *daddr, unsigned int srcprefs,
 		       struct in6_addr *saddr);
@@ -51,14 +51,13 @@ struct nf_ipv6_ops {
 	u32 (*cookie_init_sequence)(const struct ipv6hdr *iph,
 				    const struct tcphdr *th, u16 *mssp);
 	int (*cookie_v6_check)(const struct ipv6hdr *iph,
-			       const struct tcphdr *th, __u32 cookie);
+			       const struct tcphdr *th);
 #endif
 	void (*route_input)(struct sk_buff *skb);
 	int (*fragment)(struct net *net, struct sock *sk, struct sk_buff *skb,
 			int (*output)(struct net *, struct sock *, struct sk_buff *));
 	int (*reroute)(struct sk_buff *skb, const struct nf_queue_entry *entry);
 #if IS_MODULE(CONFIG_IPV6)
-	int (*br_defrag)(struct net *net, struct sk_buff *skb, u32 user);
 	int (*br_fragment)(struct net *net, struct sock *sk,
 			   struct sk_buff *skb,
 			   struct nf_bridge_frag_data *data,
@@ -117,23 +116,6 @@ static inline int nf_ip6_route(struct net *net, struct dst_entry **dst,
 
 #include <net/netfilter/ipv6/nf_defrag_ipv6.h>
 
-static inline int nf_ipv6_br_defrag(struct net *net, struct sk_buff *skb,
-				    u32 user)
-{
-#if IS_MODULE(CONFIG_IPV6)
-	const struct nf_ipv6_ops *v6_ops = nf_get_ipv6_ops();
-
-	if (!v6_ops)
-		return 1;
-
-	return v6_ops->br_defrag(net, skb, user);
-#elif IS_BUILTIN(CONFIG_IPV6)
-	return nf_ct_frag6_gather(net, skb, user);
-#else
-	return 1;
-#endif
-}
-
 int br_ip6_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 		    struct nf_bridge_frag_data *data,
 		    int (*output)(struct net *, struct sock *sk,
@@ -161,9 +143,9 @@ static inline int nf_br_ip6_fragment(struct net *net, struct sock *sk,
 #endif
 }
 
-int ip6_route_me_harder(struct net *net, struct sk_buff *skb);
+int ip6_route_me_harder(struct net *net, struct sock *sk, struct sk_buff *skb);
 
-static inline int nf_ip6_route_me_harder(struct net *net, struct sk_buff *skb)
+static inline int nf_ip6_route_me_harder(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 #if IS_MODULE(CONFIG_IPV6)
 	const struct nf_ipv6_ops *v6_ops = nf_get_ipv6_ops();
@@ -171,9 +153,9 @@ static inline int nf_ip6_route_me_harder(struct net *net, struct sk_buff *skb)
 	if (!v6_ops)
 		return -EHOSTUNREACH;
 
-	return v6_ops->route_me_harder(net, skb);
+	return v6_ops->route_me_harder(net, sk, skb);
 #elif IS_BUILTIN(CONFIG_IPV6)
-	return ip6_route_me_harder(net, skb);
+	return ip6_route_me_harder(net, sk, skb);
 #else
 	return -EHOSTUNREACH;
 #endif
@@ -197,16 +179,16 @@ static inline u32 nf_ipv6_cookie_init_sequence(const struct ipv6hdr *iph,
 }
 
 static inline int nf_cookie_v6_check(const struct ipv6hdr *iph,
-				     const struct tcphdr *th, __u32 cookie)
+				     const struct tcphdr *th)
 {
 #if IS_ENABLED(CONFIG_SYN_COOKIES)
 #if IS_MODULE(CONFIG_IPV6)
 	const struct nf_ipv6_ops *v6_ops = nf_get_ipv6_ops();
 
 	if (v6_ops)
-		return v6_ops->cookie_v6_check(iph, th, cookie);
+		return v6_ops->cookie_v6_check(iph, th);
 #elif IS_BUILTIN(CONFIG_IPV6)
-	return __cookie_v6_check(iph, th, cookie);
+	return __cookie_v6_check(iph, th);
 #endif
 #endif
 	return 0;
@@ -214,6 +196,8 @@ static inline int nf_cookie_v6_check(const struct ipv6hdr *iph,
 
 __sum16 nf_ip6_checksum(struct sk_buff *skb, unsigned int hook,
 			unsigned int dataoff, u_int8_t protocol);
+
+int nf_ip6_check_hbh_len(struct sk_buff *skb, u32 *plen);
 
 int ipv6_netfilter_init(void);
 void ipv6_netfilter_fini(void);

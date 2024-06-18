@@ -4,7 +4,7 @@ config VIDEO_CX231XX
 	depends on VIDEO_DEV && I2C && I2C_MUX
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
-	select VIDEOBUF_VMALLOC
+	select VIDEOBUF2_VMALLOC
 	select VIDEO_CX25840
 	select VIDEO_CX2341X
 
@@ -18,6 +18,7 @@ config VIDEO_CX231XX_RC
 	bool "Conexant cx231xx Remote Controller additional support"
 	depends on RC_CORE=y || RC_CORE=VIDEO_CX231XX
 	depends on VIDEO_CX231XX
+	select BITREVERSE
 	default y
 	help
 	  cx231xx hardware has a builtin RX/TX support. However, a few

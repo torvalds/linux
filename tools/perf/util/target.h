@@ -10,11 +10,15 @@ struct target {
 	const char   *tid;
 	const char   *cpu_list;
 	const char   *uid_str;
+	const char   *bpf_str;
 	uid_t	     uid;
 	bool	     system_wide;
 	bool	     uses_mmap;
 	bool	     default_per_cpu;
 	bool	     per_thread;
+	bool	     use_bpf;
+	int	     initial_delay;
+	const char   *attr_map;
 };
 
 enum target_errno {
@@ -36,6 +40,10 @@ enum target_errno {
 	TARGET_ERRNO__PID_OVERRIDE_SYSTEM,
 	TARGET_ERRNO__UID_OVERRIDE_SYSTEM,
 	TARGET_ERRNO__SYSTEM_OVERRIDE_THREAD,
+	TARGET_ERRNO__BPF_OVERRIDE_CPU,
+	TARGET_ERRNO__BPF_OVERRIDE_PID,
+	TARGET_ERRNO__BPF_OVERRIDE_UID,
+	TARGET_ERRNO__BPF_OVERRIDE_THREAD,
 
 	/* for target__parse_uid() */
 	TARGET_ERRNO__INVALID_UID,
@@ -62,6 +70,17 @@ static inline bool target__has_cpu(struct target *target)
 static inline bool target__none(struct target *target)
 {
 	return !target__has_task(target) && !target__has_cpu(target);
+}
+
+static inline bool target__enable_on_exec(struct target *target)
+{
+	/*
+	 * Normally enable_on_exec should be set if:
+	 *  1) The tracee process is forked (not attaching to existed task or cpu).
+	 *  2) And initial_delay is not configured.
+	 * Otherwise, we enable tracee events manually.
+	 */
+	return target__none(target) && !target->initial_delay;
 }
 
 static inline bool target__has_per_thread(struct target *target)

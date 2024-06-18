@@ -14,6 +14,8 @@
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
 
+#include <asm/irq_regs.h>
+
 #include <trace/events/irq.h>
 
 #include "internals.h"
@@ -134,7 +136,7 @@ void __irq_wake_thread(struct irq_desc *desc, struct irqaction *action)
 	wake_up_process(action->thread);
 }
 
-irqreturn_t __handle_irq_event_percpu(struct irq_desc *desc, unsigned int *flags)
+irqreturn_t __handle_irq_event_percpu(struct irq_desc *desc)
 {
 	irqreturn_t retval = IRQ_NONE;
 	unsigned int irq = desc->irq_data.irq;
@@ -144,6 +146,13 @@ irqreturn_t __handle_irq_event_percpu(struct irq_desc *desc, unsigned int *flags
 
 	for_each_action_of_desc(desc, action) {
 		irqreturn_t res;
+
+		/*
+		 * If this IRQ would be threaded under force_irqthreads, mark it so.
+		 */
+		if (irq_settings_can_thread(desc) &&
+		    !(action->flags & (IRQF_NO_THREAD | IRQF_PERCPU | IRQF_ONESHOT)))
+			lockdep_hardirq_threaded();
 
 		trace_irq_handler_entry(irq, action);
 		res = action->handler(irq, action->dev_id);
@@ -165,10 +174,6 @@ irqreturn_t __handle_irq_event_percpu(struct irq_desc *desc, unsigned int *flags
 			}
 
 			__irq_wake_thread(desc, action);
-
-			/* Fall through - to add to randomness */
-		case IRQ_HANDLED:
-			*flags |= action->flags;
 			break;
 
 		default:
@@ -184,13 +189,12 @@ irqreturn_t __handle_irq_event_percpu(struct irq_desc *desc, unsigned int *flags
 irqreturn_t handle_irq_event_percpu(struct irq_desc *desc)
 {
 	irqreturn_t retval;
-	unsigned int flags = 0;
 
-	retval = __handle_irq_event_percpu(desc, &flags);
+	retval = __handle_irq_event_percpu(desc);
 
-	add_interrupt_randomness(desc->irq_data.irq, flags);
+	add_interrupt_randomness(desc->irq_data.irq);
 
-	if (!noirqdebug)
+	if (!irq_settings_no_debug(desc))
 		note_interrupt(desc, retval);
 	return retval;
 }
@@ -218,5 +222,21 @@ int __init set_handle_irq(void (*handle_irq)(struct pt_regs *))
 
 	handle_arch_irq = handle_irq;
 	return 0;
+}
+
+/**
+ * generic_handle_arch_irq - root irq handler for architectures which do no
+ *                           entry accounting themselves
+ * @regs:	Register file coming from the low-level handling code
+ */
+asmlinkage void noinstr generic_handle_arch_irq(struct pt_regs *regs)
+{
+	struct pt_regs *old_regs;
+
+	irq_enter();
+	old_regs = set_irq_regs(regs);
+	handle_arch_irq(regs);
+	set_irq_regs(old_regs);
+	irq_exit();
 }
 #endif

@@ -17,7 +17,7 @@ Extended Message Function With Response Caching
 #include "hpimsgx.h"
 #include "hpidebug.h"
 
-static struct pci_device_id asihpi_pci_tbl[] = {
+static const struct pci_device_id asihpi_pci_tbl[] = {
 #include "hpipcida.h"
 };
 
@@ -92,11 +92,6 @@ static void HPIMSGX__cleanup(u16 adapter_index, void *h_owner);
 #ifndef DISABLE_PRAGMA_PACK1
 #pragma pack(push, 1)
 #endif
-
-struct hpi_subsys_response {
-	struct hpi_response_header h;
-	struct hpi_subsys_res s;
-};
 
 struct hpi_adapter_response {
 	struct hpi_response_header h;

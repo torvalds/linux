@@ -163,7 +163,7 @@
 #define SR9800_MAX_BULKIN_24K		6
 #define SR9800_MAX_BULKIN_32K		7
 
-struct {unsigned short size, byte_cnt, threshold; } SR9800_BULKIN_SIZE[] = {
+static const struct {unsigned short size, byte_cnt, threshold; } SR9800_BULKIN_SIZE[] = {
 	/* 2k */
 	{2048, 0x8000, 0x8001},
 	/* 4k */

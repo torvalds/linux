@@ -1,65 +1,9 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
-
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
+/*
+ * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
+ * Copyright (C) 2016-2017 Intel Deutschland GmbH
+ * Copyright (C) 2018-2022 Intel Corporation
+ */
 #ifndef __iwl_fw_api_commands_h__
 #define __iwl_fw_api_commands_h__
 
@@ -76,6 +20,8 @@
  *	&enum iwl_phy_ops_subcmd_ids
  * @DATA_PATH_GROUP: data path group, uses command IDs from
  *	&enum iwl_data_path_subcmd_ids
+ * @SCAN_GROUP: scan group, uses command IDs from
+ *	&enum iwl_scan_subcmd_ids
  * @NAN_GROUP: NAN group, uses command IDs from &enum iwl_nan_subcmd_ids
  * @LOCATION_GROUP: location group, uses command IDs from
  *	&enum iwl_location_subcmd_ids
@@ -84,6 +30,8 @@
  * @REGULATORY_AND_NVM_GROUP: regulatory/NVM group, uses command IDs from
  *	&enum iwl_regulatory_and_nvm_subcmd_ids
  * @DEBUG_GROUP: Debug group, uses command IDs from &enum iwl_debug_cmds
+ * @STATISTICS_GROUP: Statistics group, uses command IDs from
+ *	&enum iwl_statistics_subcmd_ids
  */
 enum iwl_mvm_command_groups {
 	LEGACY_GROUP = 0x0,
@@ -92,11 +40,13 @@ enum iwl_mvm_command_groups {
 	MAC_CONF_GROUP = 0x3,
 	PHY_OPS_GROUP = 0x4,
 	DATA_PATH_GROUP = 0x5,
+	SCAN_GROUP = 0x6,
 	NAN_GROUP = 0x7,
 	LOCATION_GROUP = 0x8,
 	PROT_OFFLOAD_GROUP = 0xb,
 	REGULATORY_AND_NVM_GROUP = 0xc,
 	DEBUG_GROUP = 0xf,
+	STATISTICS_GROUP = 0x10,
 };
 
 /**
@@ -104,11 +54,12 @@ enum iwl_mvm_command_groups {
  */
 enum iwl_legacy_cmds {
 	/**
-	 * @MVM_ALIVE:
+	 * @UCODE_ALIVE_NTFY:
 	 * Alive data from the firmware, as described in
-	 * &struct mvm_alive_resp_v3 or &struct mvm_alive_resp.
+	 * &struct iwl_alive_ntf_v3 or &struct iwl_alive_ntf_v4 or
+	 * &struct iwl_alive_ntf_v5 or &struct iwl_alive_ntf_v6.
 	 */
-	MVM_ALIVE = 0x1,
+	UCODE_ALIVE_NTFY = 0x1,
 
 	/**
 	 * @REPLY_ERROR: Cause an error in the firmware, for testing purposes.
@@ -127,7 +78,8 @@ enum iwl_legacy_cmds {
 
 	/**
 	 * @PHY_CONTEXT_CMD:
-	 * Add/modify/remove a PHY context, using &struct iwl_phy_context_cmd.
+	 * Add/modify/remove a PHY context, using &struct iwl_phy_context_cmd
+	 *	or &struct iwl_phy_context_cmd_v1.
 	 */
 	PHY_CONTEXT_CMD = 0x8,
 
@@ -145,7 +97,8 @@ enum iwl_legacy_cmds {
 
 	/**
 	 * @SCAN_CFG_CMD:
-	 * uses &struct iwl_scan_config_v1 or &struct iwl_scan_config
+	 * uses &struct iwl_scan_config_v1, &struct iwl_scan_config_v2
+	 * or &struct iwl_scan_config
 	 */
 	SCAN_CFG_CMD = 0xc,
 
@@ -189,11 +142,6 @@ enum iwl_legacy_cmds {
 	REMOVE_STA = 0x19,
 
 	/**
-	 * @FW_GET_ITEM_CMD: uses &struct iwl_fw_get_item_cmd
-	 */
-	FW_GET_ITEM_CMD = 0x1a,
-
-	/**
 	 * @TX_CMD: uses &struct iwl_tx_cmd or &struct iwl_tx_cmd_gen2 or
 	 *	&struct iwl_tx_cmd_gen3,
 	 *	response in &struct iwl_mvm_tx_resp or
@@ -203,6 +151,7 @@ enum iwl_legacy_cmds {
 
 	/**
 	 * @TXPATH_FLUSH: &struct iwl_tx_path_flush_cmd
+	 *	response in &struct iwl_tx_path_flush_cmd_rsp
 	 */
 	TXPATH_FLUSH = 0x1e,
 
@@ -315,6 +264,24 @@ enum iwl_legacy_cmds {
 	HOT_SPOT_CMD = 0x53,
 
 	/**
+	 * @WNM_80211V_TIMING_MEASUREMENT_NOTIFICATION: Time Sync
+	 *	measurement notification for TM/FTM. Sent on receipt of
+	 *	respective WNM action frame for TM protocol or public action
+	 *	frame for FTM protocol from peer device along with additional
+	 *	meta data specified in &struct iwl_time_msmt_notify
+	 */
+	WNM_80211V_TIMING_MEASUREMENT_NOTIFICATION = 0x67,
+
+	/**
+	 * @WNM_80211V_TIMING_MEASUREMENT_CONFIRM_NOTIFICATION: Time Sync
+	 *	measurement confirmation notification for TM/FTM. Sent on
+	 *	receipt of Ack from peer for previously Tx'ed TM/FTM
+	 *	action frame along with additional meta data specified in
+	 *	&struct iwl_time_msmt_cfm_notify
+	 */
+	WNM_80211V_TIMING_MEASUREMENT_CONFIRM_NOTIFICATION = 0x68,
+
+	/**
 	 * @SCAN_OFFLOAD_COMPLETE:
 	 * notification, &struct iwl_periodic_scan_complete
 	 */
@@ -322,7 +289,7 @@ enum iwl_legacy_cmds {
 
 	/**
 	 * @SCAN_OFFLOAD_UPDATE_PROFILES_CMD:
-	 * update scan offload (scheduled scan) profiles/blacklist/etc.
+	 * update scan offload (scheduled scan) profiles/blocklist/etc.
 	 */
 	SCAN_OFFLOAD_UPDATE_PROFILES_CMD = 0x6E,
 
@@ -339,7 +306,7 @@ enum iwl_legacy_cmds {
 
 	/* Phy */
 	/**
-	 * @PHY_CONFIGURATION_CMD: &struct iwl_phy_cfg_cmd
+	 * @PHY_CONFIGURATION_CMD: &struct iwl_phy_cfg_cmd_v1 or &struct iwl_phy_cfg_cmd_v3
 	 */
 	PHY_CONFIGURATION_CMD = 0x6a,
 
@@ -376,14 +343,6 @@ enum iwl_legacy_cmds {
 	REPLY_THERMAL_MNG_BACKOFF = 0x7e,
 
 	/**
-	 * @DC2DC_CONFIG_CMD:
-	 * Set/Get DC2DC frequency tune
-	 * Command is &struct iwl_dc2dc_config_cmd,
-	 * response is &struct iwl_dc2dc_config_resp
-	 */
-	DC2DC_CONFIG_CMD = 0x83,
-
-	/**
 	 * @NVM_ACCESS_CMD: using &struct iwl_nvm_access_cmd
 	 */
 	NVM_ACCESS_CMD = 0x88,
@@ -410,7 +369,8 @@ enum iwl_legacy_cmds {
 	 * one of &struct iwl_statistics_cmd,
 	 * &struct iwl_notif_statistics_v11,
 	 * &struct iwl_notif_statistics_v10,
-	 * &struct iwl_notif_statistics
+	 * &struct iwl_notif_statistics,
+	 * &struct iwl_statistics_operational_ntfy_ver_14
 	 */
 	STATISTICS_CMD = 0x9c,
 
@@ -418,7 +378,9 @@ enum iwl_legacy_cmds {
 	 * @STATISTICS_NOTIFICATION:
 	 * one of &struct iwl_notif_statistics_v10,
 	 * &struct iwl_notif_statistics_v11,
-	 * &struct iwl_notif_statistics
+	 * &struct iwl_notif_statistic,
+	 * &struct iwl_statistics_operational_ntfy_ver_14
+	 * &struct iwl_statistics_operational_ntfy
 	 */
 	STATISTICS_NOTIFICATION = 0x9d,
 
@@ -431,17 +393,9 @@ enum iwl_legacy_cmds {
 
 	/**
 	 * @REDUCE_TX_POWER_CMD:
-	 * &struct iwl_dev_tx_power_cmd_v3 or &struct iwl_dev_tx_power_cmd_v4
-	 * or &struct iwl_dev_tx_power_cmd
+	 * &struct iwl_dev_tx_power_cmd
 	 */
 	REDUCE_TX_POWER_CMD = 0x9f,
-
-	/**
-	 * @CARD_STATE_NOTIFICATION:
-	 * Card state (RF/CT kill) notification,
-	 * uses &struct iwl_card_state_notif
-	 */
-	CARD_STATE_NOTIFICATION = 0xa1,
 
 	/**
 	 * @MISSED_BEACONS_NOTIFICATION: &struct iwl_missed_beacons_notif
@@ -560,11 +514,6 @@ enum iwl_legacy_cmds {
 	DEBUG_LOG_MSG = 0xf7,
 
 	/**
-	 * @BCAST_FILTER_CMD: &struct iwl_bcast_filter_cmd
-	 */
-	BCAST_FILTER_CMD = 0xcf,
-
-	/**
 	 * @MCAST_FILTER_CMD: &struct iwl_mcast_filter_cmd
 	 */
 	MCAST_FILTER_CMD = 0xd0,
@@ -583,17 +532,6 @@ enum iwl_legacy_cmds {
 	PROT_OFFLOAD_CONFIG_CMD = 0xd4,
 
 	/**
-	 * @OFFLOADS_QUERY_CMD:
-	 * No data in command, response in &struct iwl_wowlan_status
-	 */
-	OFFLOADS_QUERY_CMD = 0xd5,
-
-	/**
-	 * @REMOTE_WAKE_CONFIG_CMD: &struct iwl_wowlan_remote_wake_config
-	 */
-	REMOTE_WAKE_CONFIG_CMD = 0xd6,
-
-	/**
 	 * @D0I3_END_CMD: End D0i3/D3 state, no command data
 	 */
 	D0I3_END_CMD = 0xed,
@@ -609,7 +547,8 @@ enum iwl_legacy_cmds {
 	WOWLAN_CONFIGURATION = 0xe1,
 
 	/**
-	 * @WOWLAN_TSC_RSC_PARAM: &struct iwl_wowlan_rsc_tsc_params_cmd
+	 * @WOWLAN_TSC_RSC_PARAM: &struct iwl_wowlan_rsc_tsc_params_cmd_v4,
+	 *	&struct iwl_wowlan_rsc_tsc_params_cmd
 	 */
 	WOWLAN_TSC_RSC_PARAM = 0xe2,
 
@@ -619,18 +558,22 @@ enum iwl_legacy_cmds {
 	WOWLAN_TKIP_PARAM = 0xe3,
 
 	/**
-	 * @WOWLAN_KEK_KCK_MATERIAL: &struct iwl_wowlan_kek_kck_material_cmd
+	 * @WOWLAN_KEK_KCK_MATERIAL: &struct iwl_wowlan_kek_kck_material_cmd_v2,
+	 * &struct iwl_wowlan_kek_kck_material_cmd_v3 or
+	 * &struct iwl_wowlan_kek_kck_material_cmd_v4
 	 */
 	WOWLAN_KEK_KCK_MATERIAL = 0xe4,
 
 	/**
-	 * @WOWLAN_GET_STATUSES: response in &struct iwl_wowlan_status
+	 * @WOWLAN_GET_STATUSES: response in &struct iwl_wowlan_status_v6,
+	 *	&struct iwl_wowlan_status_v7, &struct iwl_wowlan_status_v9 or
+	 *	&struct iwl_wowlan_status_v12
 	 */
 	WOWLAN_GET_STATUSES = 0xe5,
 
 	/**
-	 * @SCAN_OFFLOAD_PROFILES_QUERY_CMD:
-	 * No command data, response is &struct iwl_scan_offload_profiles_query
+	 * @SCAN_OFFLOAD_PROFILES_QUERY_CMD: No command data, response is
+	 *	&struct iwl_scan_offload_profiles_query_v1
 	 */
 	SCAN_OFFLOAD_PROFILES_QUERY_CMD = 0x56,
 };
@@ -647,6 +590,11 @@ enum iwl_system_subcmd_ids {
 	SHARED_MEM_CFG_CMD = 0x0,
 
 	/**
+	 * @SOC_CONFIGURATION_CMD: &struct iwl_soc_configuration_cmd
+	 */
+	SOC_CONFIGURATION_CMD = 0x01,
+
+	/**
 	 * @INIT_EXTENDED_CFG_CMD: &struct iwl_init_extended_cfg_cmd
 	 */
 	INIT_EXTENDED_CFG_CMD = 0x03,
@@ -655,6 +603,53 @@ enum iwl_system_subcmd_ids {
 	 * @FW_ERROR_RECOVERY_CMD: &struct iwl_fw_error_recovery_cmd
 	 */
 	FW_ERROR_RECOVERY_CMD = 0x7,
+
+	/**
+	 * @RFI_CONFIG_CMD: &struct iwl_rfi_config_cmd
+	 */
+	RFI_CONFIG_CMD = 0xb,
+
+	/**
+	 * @RFI_GET_FREQ_TABLE_CMD: &struct iwl_rfi_config_cmd
+	 */
+	RFI_GET_FREQ_TABLE_CMD = 0xc,
+
+	/**
+	 * @SYSTEM_FEATURES_CONTROL_CMD: &struct iwl_system_features_control_cmd
+	 */
+	SYSTEM_FEATURES_CONTROL_CMD = 0xd,
+
+	/**
+	 * @SYSTEM_STATISTICS_CMD: &struct iwl_system_statistics_cmd
+	 */
+	SYSTEM_STATISTICS_CMD = 0xf,
+
+	/**
+	 * @SYSTEM_STATISTICS_END_NOTIF: &struct iwl_system_statistics_end_notif
+	 */
+	SYSTEM_STATISTICS_END_NOTIF = 0xfd,
+
+	/**
+	 * @RFI_DEACTIVATE_NOTIF: &struct iwl_rfi_deactivate_notif
+	 */
+	RFI_DEACTIVATE_NOTIF = 0xff,
+};
+
+/**
+ * enum iwl_statistics_subcmd_ids - Statistics group command IDs
+ */
+enum iwl_statistics_subcmd_ids {
+	/**
+	 * @STATISTICS_OPER_NOTIF: Notification about operational
+	 *	statistics &struct iwl_system_statistics_notif_oper
+	 */
+	STATISTICS_OPER_NOTIF = 0x0,
+
+	/**
+	 * @STATISTICS_OPER_PART1_NOTIF: Notification about operational part1
+	 *	statistics &struct iwl_system_statistics_part1_notif_oper
+	 */
+	STATISTICS_OPER_PART1_NOTIF = 0x1,
 };
 
 #endif /* __iwl_fw_api_commands_h__ */

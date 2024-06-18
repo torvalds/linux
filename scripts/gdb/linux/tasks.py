@@ -13,7 +13,7 @@
 
 import gdb
 
-from linux import utils
+from linux import utils, lists
 
 
 task_type = utils.CachedType("struct task_struct")
@@ -22,19 +22,15 @@ task_type = utils.CachedType("struct task_struct")
 def task_lists():
     task_ptr_type = task_type.get_type().pointer()
     init_task = gdb.parse_and_eval("init_task").address
-    t = g = init_task
+    t = init_task
 
     while True:
-        while True:
-            yield t
+        thread_head = t['signal']['thread_head']
+        for thread in lists.list_for_each_entry(thread_head, task_ptr_type, 'thread_node'):
+            yield thread
 
-            t = utils.container_of(t['thread_group']['next'],
-                                   task_ptr_type, "thread_group")
-            if t == g:
-                break
-
-        t = g = utils.container_of(g['tasks']['next'],
-                                   task_ptr_type, "tasks")
+        t = utils.container_of(t['tasks']['next'],
+                               task_ptr_type, "tasks")
         if t == init_task:
             return
 
@@ -73,11 +69,12 @@ class LxPs(gdb.Command):
         super(LxPs, self).__init__("lx-ps", gdb.COMMAND_DATA)
 
     def invoke(self, arg, from_tty):
+        gdb.write("{:>10} {:>12} {:>7}\n".format("TASK", "PID", "COMM"))
         for task in task_lists():
-            gdb.write("{address} {pid} {comm}\n".format(
-                address=task,
-                pid=task["pid"],
-                comm=task["comm"].string()))
+            gdb.write("{} {:^5} {}\n".format(
+                task.format_string().split()[0],
+                task["pid"].format_string(),
+                task["comm"].string()))
 
 
 LxPs()
@@ -85,21 +82,12 @@ LxPs()
 
 thread_info_type = utils.CachedType("struct thread_info")
 
-ia64_task_size = None
-
 
 def get_thread_info(task):
     thread_info_ptr_type = thread_info_type.get_type().pointer()
-    if utils.is_target_arch("ia64"):
-        global ia64_task_size
-        if ia64_task_size is None:
-            ia64_task_size = gdb.parse_and_eval("sizeof(struct task_struct)")
-        thread_info_addr = task.address + ia64_task_size
-        thread_info = thread_info_addr.cast(thread_info_ptr_type)
-    else:
-        if task.type.fields()[0].type == thread_info_type.get_type():
-            return task['thread_info']
-        thread_info = task['stack'].cast(thread_info_ptr_type)
+    if task_type.get_type().fields()[0].type == thread_info_type.get_type():
+        return task['thread_info']
+    thread_info = task['stack'].cast(thread_info_ptr_type)
     return thread_info.dereference()
 
 

@@ -168,19 +168,13 @@ static int twl4030_madc_bat_get_property(struct power_supply *psy,
 	return 0;
 }
 
-static void twl4030_madc_bat_ext_changed(struct power_supply *psy)
-{
-	power_supply_changed(psy);
-}
-
 static const struct power_supply_desc twl4030_madc_bat_desc = {
 	.name			= "twl4030_battery",
 	.type			= POWER_SUPPLY_TYPE_BATTERY,
 	.properties		= twl4030_madc_bat_props,
 	.num_properties		= ARRAY_SIZE(twl4030_madc_bat_props),
 	.get_property		= twl4030_madc_bat_get_property,
-	.external_power_changed	= twl4030_madc_bat_ext_changed,
-
+	.external_power_changed	= power_supply_changed,
 };
 
 static int twl4030_cmp(const void *a, const void *b)
@@ -194,30 +188,23 @@ static int twl4030_madc_battery_probe(struct platform_device *pdev)
 	struct twl4030_madc_battery *twl4030_madc_bat;
 	struct twl4030_madc_bat_platform_data *pdata = pdev->dev.platform_data;
 	struct power_supply_config psy_cfg = {};
-	int ret = 0;
 
 	twl4030_madc_bat = devm_kzalloc(&pdev->dev, sizeof(*twl4030_madc_bat),
 				GFP_KERNEL);
 	if (!twl4030_madc_bat)
 		return -ENOMEM;
 
-	twl4030_madc_bat->channel_temp = iio_channel_get(&pdev->dev, "temp");
-	if (IS_ERR(twl4030_madc_bat->channel_temp)) {
-		ret = PTR_ERR(twl4030_madc_bat->channel_temp);
-		goto err;
-	}
+	twl4030_madc_bat->channel_temp = devm_iio_channel_get(&pdev->dev, "temp");
+	if (IS_ERR(twl4030_madc_bat->channel_temp))
+		return PTR_ERR(twl4030_madc_bat->channel_temp);
 
-	twl4030_madc_bat->channel_ichg = iio_channel_get(&pdev->dev, "ichg");
-	if (IS_ERR(twl4030_madc_bat->channel_ichg)) {
-		ret = PTR_ERR(twl4030_madc_bat->channel_ichg);
-		goto err_temp;
-	}
+	twl4030_madc_bat->channel_ichg = devm_iio_channel_get(&pdev->dev, "ichg");
+	if (IS_ERR(twl4030_madc_bat->channel_ichg))
+		return PTR_ERR(twl4030_madc_bat->channel_ichg);
 
-	twl4030_madc_bat->channel_vbat = iio_channel_get(&pdev->dev, "vbat");
-	if (IS_ERR(twl4030_madc_bat->channel_vbat)) {
-		ret = PTR_ERR(twl4030_madc_bat->channel_vbat);
-		goto err_ichg;
-	}
+	twl4030_madc_bat->channel_vbat = devm_iio_channel_get(&pdev->dev, "vbat");
+	if (IS_ERR(twl4030_madc_bat->channel_vbat))
+		return PTR_ERR(twl4030_madc_bat->channel_vbat);
 
 	/* sort charging and discharging calibration data */
 	sort(pdata->charging, pdata->charging_size,
@@ -228,37 +215,12 @@ static int twl4030_madc_battery_probe(struct platform_device *pdev)
 		twl4030_cmp, NULL);
 
 	twl4030_madc_bat->pdata = pdata;
-	platform_set_drvdata(pdev, twl4030_madc_bat);
 	psy_cfg.drv_data = twl4030_madc_bat;
-	twl4030_madc_bat->psy = power_supply_register(&pdev->dev,
-						      &twl4030_madc_bat_desc,
-						      &psy_cfg);
-	if (IS_ERR(twl4030_madc_bat->psy)) {
-		ret = PTR_ERR(twl4030_madc_bat->psy);
-		goto err_vbat;
-	}
-
-	return 0;
-
-err_vbat:
-	iio_channel_release(twl4030_madc_bat->channel_vbat);
-err_ichg:
-	iio_channel_release(twl4030_madc_bat->channel_ichg);
-err_temp:
-	iio_channel_release(twl4030_madc_bat->channel_temp);
-err:
-	return ret;
-}
-
-static int twl4030_madc_battery_remove(struct platform_device *pdev)
-{
-	struct twl4030_madc_battery *bat = platform_get_drvdata(pdev);
-
-	power_supply_unregister(bat->psy);
-
-	iio_channel_release(bat->channel_vbat);
-	iio_channel_release(bat->channel_ichg);
-	iio_channel_release(bat->channel_temp);
+	twl4030_madc_bat->psy = devm_power_supply_register(&pdev->dev,
+							   &twl4030_madc_bat_desc,
+							   &psy_cfg);
+	if (IS_ERR(twl4030_madc_bat->psy))
+		return PTR_ERR(twl4030_madc_bat->psy);
 
 	return 0;
 }
@@ -268,7 +230,6 @@ static struct platform_driver twl4030_madc_battery_driver = {
 		.name = "twl4030_madc_battery",
 	},
 	.probe  = twl4030_madc_battery_probe,
-	.remove = twl4030_madc_battery_remove,
 };
 module_platform_driver(twl4030_madc_battery_driver);
 

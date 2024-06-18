@@ -1693,7 +1693,7 @@ static int dib0090_dc_offset_calibration(struct dib0090_state *state, enum front
 		if (state->identity.p1g)
 			state->dc = dc_p1g_table;
 
-		/* fall through */
+		fallthrough;
 	case CT_TUNER_STEP_0:
 		dprintk("Start/continue DC calibration for %s path\n",
 			(state->dc->i == 1) ? "I" : "Q");
@@ -1748,7 +1748,8 @@ static int dib0090_dc_offset_calibration(struct dib0090_state *state, enum front
 			}
 
 			dib0090_set_trim(state);
-			dprintk("BB Offset Cal, BBreg=%hd,Offset=%hd,Value Set=%hd\n", state->dc->addr, state->adc_diff, state->step);
+			dprintk("BB Offset Cal, BBreg=%u,Offset=%d,Value Set=%d\n",
+				state->dc->addr, state->adc_diff, state->step);
 
 			state->dc++;
 			if (state->dc->addr == 0)	/* done */
@@ -1764,6 +1765,8 @@ static int dib0090_dc_offset_calibration(struct dib0090_state *state, enum front
 		dib0090_write_reg(state, 0x1f, 0x7);
 		*tune_state = CT_TUNER_START;	/* reset done -> real tuning can now begin */
 		state->calibrate &= ~DC_CAL;
+		break;
+
 	default:
 		break;
 	}
@@ -2631,7 +2634,7 @@ struct dvb_frontend *dib0090_register(struct dvb_frontend *fe, struct i2c_adapte
 	return NULL;
 }
 
-EXPORT_SYMBOL(dib0090_register);
+EXPORT_SYMBOL_GPL(dib0090_register);
 
 struct dvb_frontend *dib0090_fw_register(struct dvb_frontend *fe, struct i2c_adapter *i2c, const struct dib0090_config *config)
 {
@@ -2657,7 +2660,7 @@ free_mem:
 	fe->tuner_priv = NULL;
 	return NULL;
 }
-EXPORT_SYMBOL(dib0090_fw_register);
+EXPORT_SYMBOL_GPL(dib0090_fw_register);
 
 MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@posteo.de>");
 MODULE_AUTHOR("Olivier Grenie <olivier.grenie@parrot.com>");

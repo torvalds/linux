@@ -14,6 +14,7 @@
  * + Level 1/2 descriptor
  *   - common
  */
+#define PUD_TABLE_BIT		(_AT(pmdval_t, 1) << 1)
 #define PMD_TYPE_MASK		(_AT(pmdval_t, 3) << 0)
 #define PMD_TYPE_FAULT		(_AT(pmdval_t, 0) << 0)
 #define PMD_TYPE_TABLE		(_AT(pmdval_t, 3) << 0)
@@ -74,6 +75,7 @@
 #define PHYS_MASK_SHIFT		(40)
 #define PHYS_MASK		((1ULL << PHYS_MASK_SHIFT) - 1)
 
+#ifndef CONFIG_CPU_TTBR0_PAN
 /*
  * TTBR0/TTBR1 split (PAGE_OFFSET):
  *   0x40000000: T0SZ = 2, T1SZ = 0 (not used)
@@ -93,5 +95,30 @@
 #endif
 
 #define TTBR1_SIZE	(((PAGE_OFFSET >> 30) - 1) << 16)
+#else
+/*
+ * With CONFIG_CPU_TTBR0_PAN enabled, TTBR1 is only used during uaccess
+ * disabled regions when TTBR0 is disabled.
+ */
+#define TTBR1_OFFSET	0			/* pointing to swapper_pg_dir */
+#define TTBR1_SIZE	0			/* TTBR1 size controlled via TTBCR.T0SZ */
+#endif
+
+/*
+ * TTBCR register bits.
+ */
+#define TTBCR_EAE		(1 << 31)
+#define TTBCR_IMP		(1 << 30)
+#define TTBCR_SH1_MASK		(3 << 28)
+#define TTBCR_ORGN1_MASK	(3 << 26)
+#define TTBCR_IRGN1_MASK	(3 << 24)
+#define TTBCR_EPD1		(1 << 23)
+#define TTBCR_A1		(1 << 22)
+#define TTBCR_T1SZ_MASK		(7 << 16)
+#define TTBCR_SH0_MASK		(3 << 12)
+#define TTBCR_ORGN0_MASK	(3 << 10)
+#define TTBCR_IRGN0_MASK	(3 << 8)
+#define TTBCR_EPD0		(1 << 7)
+#define TTBCR_T0SZ_MASK		(7 << 0)
 
 #endif

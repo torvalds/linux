@@ -10,11 +10,11 @@
  */
 
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/regmap.h>
-#include <linux/acpi.h>
 #include <linux/pm.h>
 
 #include <linux/iio/iio.h>
@@ -239,7 +239,7 @@ static int mmc35240_init(struct mmc35240_data *data)
 		return ret;
 
 	ret = regmap_bulk_read(data->regmap, MMC35240_OTP_START_ADDR,
-			       (u8 *)otp_data, sizeof(otp_data));
+			       otp_data, sizeof(otp_data));
 	if (ret < 0)
 		return ret;
 
@@ -295,13 +295,13 @@ static int mmc35240_read_measurement(struct mmc35240_data *data, __le16 buf[3])
 	if (ret < 0)
 		return ret;
 
-	return regmap_bulk_read(data->regmap, MMC35240_REG_XOUT_L, (u8 *)buf,
+	return regmap_bulk_read(data->regmap, MMC35240_REG_XOUT_L, buf,
 				3 * sizeof(__le16));
 }
 
 /**
  * mmc35240_raw_to_mgauss - convert raw readings to milli gauss. Also apply
-			    compensation for output value.
+ *			    compensation for output value.
  *
  * @data: device private data
  * @index: axis index for which we want the conversion
@@ -459,7 +459,7 @@ static bool mmc35240_is_volatile_reg(struct device *dev, unsigned int reg)
 	}
 }
 
-static struct reg_default mmc35240_reg_defaults[] = {
+static const struct reg_default mmc35240_reg_defaults[] = {
 	{ MMC35240_REG_CTRL0,  0x00 },
 	{ MMC35240_REG_CTRL1,  0x00 },
 };
@@ -481,8 +481,7 @@ static const struct regmap_config mmc35240_regmap_config = {
 	.num_reg_defaults = ARRAY_SIZE(mmc35240_reg_defaults),
 };
 
-static int mmc35240_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int mmc35240_probe(struct i2c_client *client)
 {
 	struct mmc35240_data *data;
 	struct iio_dev *indio_dev;
@@ -507,7 +506,6 @@ static int mmc35240_probe(struct i2c_client *client,
 
 	mutex_init(&data->mutex);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &mmc35240_info;
 	indio_dev->name = MMC35240_DRV_NAME;
 	indio_dev->channels = mmc35240_channels;
@@ -522,7 +520,6 @@ static int mmc35240_probe(struct i2c_client *client,
 	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int mmc35240_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
@@ -549,11 +546,9 @@ static int mmc35240_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
-static const struct dev_pm_ops mmc35240_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(mmc35240_suspend, mmc35240_resume)
-};
+static DEFINE_SIMPLE_DEV_PM_OPS(mmc35240_pm_ops, mmc35240_suspend,
+				mmc35240_resume);
 
 static const struct of_device_id mmc35240_of_match[] = {
 	{ .compatible = "memsic,mmc35240", },
@@ -577,8 +572,8 @@ static struct i2c_driver mmc35240_driver = {
 	.driver = {
 		.name = MMC35240_DRV_NAME,
 		.of_match_table = mmc35240_of_match,
-		.pm = &mmc35240_pm_ops,
-		.acpi_match_table = ACPI_PTR(mmc35240_acpi_match),
+		.pm = pm_sleep_ptr(&mmc35240_pm_ops),
+		.acpi_match_table = mmc35240_acpi_match,
 	},
 	.probe		= mmc35240_probe,
 	.id_table	= mmc35240_id,

@@ -22,8 +22,6 @@
 #include <limits.h>
 #include <assert.h>
 
-#include <sys/capability.h>
-
 #include <linux/unistd.h>
 #include <linux/filter.h>
 #include <linux/bpf_perf_event.h>
@@ -31,42 +29,83 @@
 #include <linux/if_ether.h>
 #include <linux/btf.h>
 
+#include <bpf/btf.h>
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 
-#ifdef HAVE_GENHDR
-# include "autoconf.h"
-#else
-# if defined(__i386) || defined(__x86_64) || defined(__s390x__) || defined(__aarch64__)
-#  define CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS 1
-# endif
-#endif
-#include "bpf_rlimit.h"
+#include "autoconf_helper.h"
+#include "unpriv_helpers.h"
+#include "cap_helpers.h"
 #include "bpf_rand.h"
 #include "bpf_util.h"
 #include "test_btf.h"
 #include "../../../include/linux/filter.h"
+#include "testing_helpers.h"
+
+#ifndef ENOTSUPP
+#define ENOTSUPP 524
+#endif
 
 #define MAX_INSNS	BPF_MAXINSNS
+#define MAX_EXPECTED_INSNS	32
+#define MAX_UNEXPECTED_INSNS	32
 #define MAX_TEST_INSNS	1000000
 #define MAX_FIXUPS	8
-#define MAX_NR_MAPS	19
+#define MAX_NR_MAPS	23
 #define MAX_TEST_RUNS	8
 #define POINTER_VALUE	0xcafe4all
 #define TEST_DATA_LEN	64
+#define MAX_FUNC_INFOS	8
+#define MAX_BTF_STRINGS	256
+#define MAX_BTF_TYPES	256
+
+#define INSN_OFF_MASK	((__s16)0xFFFF)
+#define INSN_IMM_MASK	((__s32)0xFFFFFFFF)
+#define SKIP_INSNS()	BPF_RAW_INSN(0xde, 0xa, 0xd, 0xbeef, 0xdeadbeef)
+
+#define DEFAULT_LIBBPF_LOG_LEVEL	4
 
 #define F_NEEDS_EFFICIENT_UNALIGNED_ACCESS	(1 << 0)
 #define F_LOAD_WITH_STRICT_ALIGNMENT		(1 << 1)
+#define F_NEEDS_JIT_ENABLED			(1 << 2)
 
+/* need CAP_BPF, CAP_NET_ADMIN, CAP_PERFMON to load progs */
+#define ADMIN_CAPS (1ULL << CAP_NET_ADMIN |	\
+		    1ULL << CAP_PERFMON |	\
+		    1ULL << CAP_BPF)
 #define UNPRIV_SYSCTL "kernel/unprivileged_bpf_disabled"
 static bool unpriv_disabled = false;
+static bool jit_disabled;
 static int skips;
 static bool verbose = false;
+static int verif_log_level = 0;
+
+struct kfunc_btf_id_pair {
+	const char *kfunc;
+	int insn_idx;
+};
 
 struct bpf_test {
 	const char *descr;
 	struct bpf_insn	insns[MAX_INSNS];
 	struct bpf_insn	*fill_insns;
+	/* If specified, test engine looks for this sequence of
+	 * instructions in the BPF program after loading. Allows to
+	 * test rewrites applied by verifier.  Use values
+	 * INSN_OFF_MASK and INSN_IMM_MASK to mask `off` and `imm`
+	 * fields if content does not matter.  The test case fails if
+	 * specified instructions are not found.
+	 *
+	 * The sequence could be split into sub-sequences by adding
+	 * SKIP_INSNS instruction at the end of each sub-sequence. In
+	 * such case sub-sequences are searched for one after another.
+	 */
+	struct bpf_insn expected_insns[MAX_EXPECTED_INSNS];
+	/* If specified, test engine applies same pattern matching
+	 * logic as for `expected_insns`. If the specified pattern is
+	 * matched test case is marked as failed.
+	 */
+	struct bpf_insn unexpected_insns[MAX_UNEXPECTED_INSNS];
 	int fixup_map_hash_8b[MAX_FIXUPS];
 	int fixup_map_hash_48b[MAX_FIXUPS];
 	int fixup_map_hash_16b[MAX_FIXUPS];
@@ -86,6 +125,15 @@ struct bpf_test {
 	int fixup_map_array_small[MAX_FIXUPS];
 	int fixup_sk_storage_map[MAX_FIXUPS];
 	int fixup_map_event_output[MAX_FIXUPS];
+	int fixup_map_reuseport_array[MAX_FIXUPS];
+	int fixup_map_ringbuf[MAX_FIXUPS];
+	int fixup_map_timer[MAX_FIXUPS];
+	int fixup_map_kptr[MAX_FIXUPS];
+	struct kfunc_btf_id_pair fixup_kfunc_btf_id[MAX_FIXUPS];
+	/* Expected verifier log output for result REJECT or VERBOSE_ACCEPT.
+	 * Can be a tab-separated sequence of expected strings. An empty string
+	 * means no log verification.
+	 */
 	const char *errstr;
 	const char *errstr_unpriv;
 	uint32_t insn_processed;
@@ -99,7 +147,7 @@ struct bpf_test {
 	enum bpf_prog_type prog_type;
 	uint8_t flags;
 	void (*fill_helper)(struct bpf_test *self);
-	uint8_t runs;
+	int runs;
 #define bpf_testdata_struct_t					\
 	struct {						\
 		uint32_t retval, retval_unpriv;			\
@@ -113,6 +161,15 @@ struct bpf_test {
 		bpf_testdata_struct_t retvals[MAX_TEST_RUNS];
 	};
 	enum bpf_attach_type expected_attach_type;
+	const char *kfunc;
+	struct bpf_func_info func_info[MAX_FUNC_INFOS];
+	int func_info_cnt;
+	char btf_strings[MAX_BTF_STRINGS];
+	/* A set of BTF types to load when specified,
+	 * use macro definitions from test_btf.h,
+	 * must end with BTF_END_RAW
+	 */
+	__u32 btf_types[MAX_BTF_TYPES];
 };
 
 /* Note we want this to be 64 bit aligned so that the end of our array is
@@ -150,7 +207,7 @@ loop:
 		insn[i++] = BPF_MOV64_IMM(BPF_REG_2, 1);
 		insn[i++] = BPF_MOV64_IMM(BPF_REG_3, 2);
 		insn[i++] = BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
-					 BPF_FUNC_skb_vlan_push),
+					 BPF_FUNC_skb_vlan_push);
 		insn[i] = BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, len - i - 3);
 		i++;
 	}
@@ -161,7 +218,7 @@ loop:
 		i++;
 		insn[i++] = BPF_MOV64_REG(BPF_REG_1, BPF_REG_6);
 		insn[i++] = BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
-					 BPF_FUNC_skb_vlan_pop),
+					 BPF_FUNC_skb_vlan_pop);
 		insn[i] = BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, len - i - 3);
 		i++;
 	}
@@ -294,6 +351,117 @@ static void bpf_fill_scale(struct bpf_test *self)
 	}
 }
 
+static int bpf_fill_torturous_jumps_insn_1(struct bpf_insn *insn)
+{
+	unsigned int len = 259, hlen = 128;
+	int i;
+
+	insn[0] = BPF_EMIT_CALL(BPF_FUNC_get_prandom_u32);
+	for (i = 1; i <= hlen; i++) {
+		insn[i]        = BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, i, hlen);
+		insn[i + hlen] = BPF_JMP_A(hlen - i);
+	}
+	insn[len - 2] = BPF_MOV64_IMM(BPF_REG_0, 1);
+	insn[len - 1] = BPF_EXIT_INSN();
+
+	return len;
+}
+
+static int bpf_fill_torturous_jumps_insn_2(struct bpf_insn *insn)
+{
+	unsigned int len = 4100, jmp_off = 2048;
+	int i, j;
+
+	insn[0] = BPF_EMIT_CALL(BPF_FUNC_get_prandom_u32);
+	for (i = 1; i <= jmp_off; i++) {
+		insn[i] = BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, i, jmp_off);
+	}
+	insn[i++] = BPF_JMP_A(jmp_off);
+	for (; i <= jmp_off * 2 + 1; i+=16) {
+		for (j = 0; j < 16; j++) {
+			insn[i + j] = BPF_JMP_A(16 - j - 1);
+		}
+	}
+
+	insn[len - 2] = BPF_MOV64_IMM(BPF_REG_0, 2);
+	insn[len - 1] = BPF_EXIT_INSN();
+
+	return len;
+}
+
+static void bpf_fill_torturous_jumps(struct bpf_test *self)
+{
+	struct bpf_insn *insn = self->fill_insns;
+	int i = 0;
+
+	switch (self->retval) {
+	case 1:
+		self->prog_len = bpf_fill_torturous_jumps_insn_1(insn);
+		return;
+	case 2:
+		self->prog_len = bpf_fill_torturous_jumps_insn_2(insn);
+		return;
+	case 3:
+		/* main */
+		insn[i++] = BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 4);
+		insn[i++] = BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 262);
+		insn[i++] = BPF_ST_MEM(BPF_B, BPF_REG_10, -32, 0);
+		insn[i++] = BPF_MOV64_IMM(BPF_REG_0, 3);
+		insn[i++] = BPF_EXIT_INSN();
+
+		/* subprog 1 */
+		i += bpf_fill_torturous_jumps_insn_1(insn + i);
+
+		/* subprog 2 */
+		i += bpf_fill_torturous_jumps_insn_2(insn + i);
+
+		self->prog_len = i;
+		return;
+	default:
+		self->prog_len = 0;
+		break;
+	}
+}
+
+static void bpf_fill_big_prog_with_loop_1(struct bpf_test *self)
+{
+	struct bpf_insn *insn = self->fill_insns;
+	/* This test was added to catch a specific use after free
+	 * error, which happened upon BPF program reallocation.
+	 * Reallocation is handled by core.c:bpf_prog_realloc, which
+	 * reuses old memory if page boundary is not crossed. The
+	 * value of `len` is chosen to cross this boundary on bpf_loop
+	 * patching.
+	 */
+	const int len = getpagesize() - 25;
+	int callback_load_idx;
+	int callback_idx;
+	int i = 0;
+
+	insn[i++] = BPF_ALU64_IMM(BPF_MOV, BPF_REG_1, 1);
+	callback_load_idx = i;
+	insn[i++] = BPF_RAW_INSN(BPF_LD | BPF_IMM | BPF_DW,
+				 BPF_REG_2, BPF_PSEUDO_FUNC, 0,
+				 777 /* filled below */);
+	insn[i++] = BPF_RAW_INSN(0, 0, 0, 0, 0);
+	insn[i++] = BPF_ALU64_IMM(BPF_MOV, BPF_REG_3, 0);
+	insn[i++] = BPF_ALU64_IMM(BPF_MOV, BPF_REG_4, 0);
+	insn[i++] = BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_loop);
+
+	while (i < len - 3)
+		insn[i++] = BPF_ALU64_IMM(BPF_MOV, BPF_REG_0, 0);
+	insn[i++] = BPF_EXIT_INSN();
+
+	callback_idx = i;
+	insn[i++] = BPF_ALU64_IMM(BPF_MOV, BPF_REG_0, 0);
+	insn[i++] = BPF_EXIT_INSN();
+
+	insn[callback_load_idx].imm = callback_idx - callback_load_idx - 1;
+	self->func_info[1].insn_off = callback_idx;
+	self->prog_len = i;
+	assert(i == len);
+}
+
 /* BPF_SK_LOOKUP contains 13 instructions, if you need to fix up maps */
 #define BPF_SK_LOOKUP(func)						\
 	/* struct bpf_sock_tuple tuple = {} */				\
@@ -366,7 +534,7 @@ static int probe_filter_length(const struct bpf_insn *fp)
 
 static bool skip_unsupported_map(enum bpf_map_type map_type)
 {
-	if (!bpf_probe_map_type(map_type, 0)) {
+	if (!libbpf_probe_bpf_map_type(map_type, NULL)) {
 		printf("SKIP (unsupported map type %d)\n", map_type);
 		skips++;
 		return true;
@@ -378,11 +546,11 @@ static int __create_map(uint32_t type, uint32_t size_key,
 			uint32_t size_value, uint32_t max_elem,
 			uint32_t extra_flags)
 {
+	LIBBPF_OPTS(bpf_map_create_opts, opts);
 	int fd;
 
-	fd = bpf_create_map(type, size_key, size_value, max_elem,
-			    (type == BPF_MAP_TYPE_HASH ?
-			     BPF_F_NO_PREALLOC : 0) | extra_flags);
+	opts.map_flags = (type == BPF_MAP_TYPE_HASH ? BPF_F_NO_PREALLOC : 0) | extra_flags;
+	fd = bpf_map_create(type, NULL, size_key, size_value, max_elem, &opts);
 	if (fd < 0) {
 		if (skip_unsupported_map(type))
 			return -1;
@@ -408,40 +576,38 @@ static void update_map(int fd, int index)
 	assert(!bpf_map_update_elem(fd, &index, &value, 0));
 }
 
-static int create_prog_dummy1(enum bpf_prog_type prog_type)
+static int create_prog_dummy_simple(enum bpf_prog_type prog_type, int ret)
 {
 	struct bpf_insn prog[] = {
-		BPF_MOV64_IMM(BPF_REG_0, 42),
+		BPF_MOV64_IMM(BPF_REG_0, ret),
 		BPF_EXIT_INSN(),
 	};
 
-	return bpf_load_program(prog_type, prog,
-				ARRAY_SIZE(prog), "GPL", 0, NULL, 0);
+	return bpf_prog_load(prog_type, NULL, "GPL", prog, ARRAY_SIZE(prog), NULL);
 }
 
-static int create_prog_dummy2(enum bpf_prog_type prog_type, int mfd, int idx)
+static int create_prog_dummy_loop(enum bpf_prog_type prog_type, int mfd,
+				  int idx, int ret)
 {
 	struct bpf_insn prog[] = {
 		BPF_MOV64_IMM(BPF_REG_3, idx),
 		BPF_LD_MAP_FD(BPF_REG_2, mfd),
 		BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
 			     BPF_FUNC_tail_call),
-		BPF_MOV64_IMM(BPF_REG_0, 41),
+		BPF_MOV64_IMM(BPF_REG_0, ret),
 		BPF_EXIT_INSN(),
 	};
 
-	return bpf_load_program(prog_type, prog,
-				ARRAY_SIZE(prog), "GPL", 0, NULL, 0);
+	return bpf_prog_load(prog_type, NULL, "GPL", prog, ARRAY_SIZE(prog), NULL);
 }
 
 static int create_prog_array(enum bpf_prog_type prog_type, uint32_t max_elem,
-			     int p1key)
+			     int p1key, int p2key, int p3key)
 {
-	int p2key = 1;
-	int mfd, p1fd, p2fd;
+	int mfd, p1fd, p2fd, p3fd;
 
-	mfd = bpf_create_map(BPF_MAP_TYPE_PROG_ARRAY, sizeof(int),
-			     sizeof(int), max_elem, 0);
+	mfd = bpf_map_create(BPF_MAP_TYPE_PROG_ARRAY, NULL, sizeof(int),
+			     sizeof(int), max_elem, NULL);
 	if (mfd < 0) {
 		if (skip_unsupported_map(BPF_MAP_TYPE_PROG_ARRAY))
 			return -1;
@@ -449,31 +615,33 @@ static int create_prog_array(enum bpf_prog_type prog_type, uint32_t max_elem,
 		return -1;
 	}
 
-	p1fd = create_prog_dummy1(prog_type);
-	p2fd = create_prog_dummy2(prog_type, mfd, p2key);
-	if (p1fd < 0 || p2fd < 0)
-		goto out;
+	p1fd = create_prog_dummy_simple(prog_type, 42);
+	p2fd = create_prog_dummy_loop(prog_type, mfd, p2key, 41);
+	p3fd = create_prog_dummy_simple(prog_type, 24);
+	if (p1fd < 0 || p2fd < 0 || p3fd < 0)
+		goto err;
 	if (bpf_map_update_elem(mfd, &p1key, &p1fd, BPF_ANY) < 0)
-		goto out;
+		goto err;
 	if (bpf_map_update_elem(mfd, &p2key, &p2fd, BPF_ANY) < 0)
-		goto out;
+		goto err;
+	if (bpf_map_update_elem(mfd, &p3key, &p3fd, BPF_ANY) < 0) {
+err:
+		close(mfd);
+		mfd = -1;
+	}
+	close(p3fd);
 	close(p2fd);
 	close(p1fd);
-
 	return mfd;
-out:
-	close(p2fd);
-	close(p1fd);
-	close(mfd);
-	return -1;
 }
 
 static int create_map_in_map(void)
 {
+	LIBBPF_OPTS(bpf_map_create_opts, opts);
 	int inner_map_fd, outer_map_fd;
 
-	inner_map_fd = bpf_create_map(BPF_MAP_TYPE_ARRAY, sizeof(int),
-				      sizeof(int), 1, 0);
+	inner_map_fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, NULL, sizeof(int),
+				      sizeof(int), 1, NULL);
 	if (inner_map_fd < 0) {
 		if (skip_unsupported_map(BPF_MAP_TYPE_ARRAY))
 			return -1;
@@ -481,8 +649,9 @@ static int create_map_in_map(void)
 		return inner_map_fd;
 	}
 
-	outer_map_fd = bpf_create_map_in_map(BPF_MAP_TYPE_ARRAY_OF_MAPS, NULL,
-					     sizeof(int), inner_map_fd, 1, 0);
+	opts.inner_map_fd = inner_map_fd;
+	outer_map_fd = bpf_map_create(BPF_MAP_TYPE_ARRAY_OF_MAPS, NULL,
+				      sizeof(int), sizeof(int), 1, &opts);
 	if (outer_map_fd < 0) {
 		if (skip_unsupported_map(BPF_MAP_TYPE_ARRAY_OF_MAPS))
 			return -1;
@@ -501,8 +670,8 @@ static int create_cgroup_storage(bool percpu)
 		BPF_MAP_TYPE_CGROUP_STORAGE;
 	int fd;
 
-	fd = bpf_create_map(type, sizeof(struct bpf_cgroup_storage_key),
-			    TEST_DATA_LEN, 0, 0);
+	fd = bpf_map_create(type, NULL, sizeof(struct bpf_cgroup_storage_key),
+			    TEST_DATA_LEN, 0, NULL);
 	if (fd < 0) {
 		if (skip_unsupported_map(type))
 			return -1;
@@ -520,8 +689,22 @@ static int create_cgroup_storage(bool percpu)
  *   int cnt;
  *   struct bpf_spin_lock l;
  * };
+ * struct bpf_timer {
+ *   __u64 :64;
+ *   __u64 :64;
+ * } __attribute__((aligned(8)));
+ * struct timer {
+ *   struct bpf_timer t;
+ * };
+ * struct btf_ptr {
+ *   struct prog_test_ref_kfunc __kptr_untrusted *ptr;
+ *   struct prog_test_ref_kfunc __kptr *ptr;
+ *   struct prog_test_member __kptr *ptr;
+ * }
  */
-static const char btf_str_sec[] = "\0bpf_spin_lock\0val\0cnt\0l";
+static const char btf_str_sec[] = "\0bpf_spin_lock\0val\0cnt\0l\0bpf_timer\0timer\0t"
+				  "\0btf_ptr\0prog_test_ref_kfunc\0ptr\0kptr\0kptr_untrusted"
+				  "\0prog_test_member";
 static __u32 btf_raw_types[] = {
 	/* int */
 	BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),  /* [1] */
@@ -532,56 +715,104 @@ static __u32 btf_raw_types[] = {
 	BTF_TYPE_ENC(15, BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 2), 8),
 	BTF_MEMBER_ENC(19, 1, 0), /* int cnt; */
 	BTF_MEMBER_ENC(23, 2, 32),/* struct bpf_spin_lock l; */
+	/* struct bpf_timer */                          /* [4] */
+	BTF_TYPE_ENC(25, BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 0), 16),
+	/* struct timer */                              /* [5] */
+	BTF_TYPE_ENC(35, BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 1), 16),
+	BTF_MEMBER_ENC(41, 4, 0), /* struct bpf_timer t; */
+	/* struct prog_test_ref_kfunc */		/* [6] */
+	BTF_STRUCT_ENC(51, 0, 0),
+	BTF_STRUCT_ENC(95, 0, 0),			/* [7] */
+	/* type tag "kptr_untrusted" */
+	BTF_TYPE_TAG_ENC(80, 6),			/* [8] */
+	/* type tag "kptr" */
+	BTF_TYPE_TAG_ENC(75, 6),			/* [9] */
+	BTF_TYPE_TAG_ENC(75, 7),			/* [10] */
+	BTF_PTR_ENC(8),					/* [11] */
+	BTF_PTR_ENC(9),					/* [12] */
+	BTF_PTR_ENC(10),				/* [13] */
+	/* struct btf_ptr */				/* [14] */
+	BTF_STRUCT_ENC(43, 3, 24),
+	BTF_MEMBER_ENC(71, 11, 0), /* struct prog_test_ref_kfunc __kptr_untrusted *ptr; */
+	BTF_MEMBER_ENC(71, 12, 64), /* struct prog_test_ref_kfunc __kptr *ptr; */
+	BTF_MEMBER_ENC(71, 13, 128), /* struct prog_test_member __kptr *ptr; */
 };
 
-static int load_btf(void)
+static char bpf_vlog[UINT_MAX >> 8];
+
+static int load_btf_spec(__u32 *types, int types_len,
+			 const char *strings, int strings_len)
 {
 	struct btf_header hdr = {
 		.magic = BTF_MAGIC,
 		.version = BTF_VERSION,
 		.hdr_len = sizeof(struct btf_header),
-		.type_len = sizeof(btf_raw_types),
-		.str_off = sizeof(btf_raw_types),
-		.str_len = sizeof(btf_str_sec),
+		.type_len = types_len,
+		.str_off = types_len,
+		.str_len = strings_len,
 	};
 	void *ptr, *raw_btf;
 	int btf_fd;
+	LIBBPF_OPTS(bpf_btf_load_opts, opts,
+		    .log_buf = bpf_vlog,
+		    .log_size = sizeof(bpf_vlog),
+		    .log_level = (verbose
+				  ? verif_log_level
+				  : DEFAULT_LIBBPF_LOG_LEVEL),
+	);
 
-	ptr = raw_btf = malloc(sizeof(hdr) + sizeof(btf_raw_types) +
-			       sizeof(btf_str_sec));
+	raw_btf = malloc(sizeof(hdr) + types_len + strings_len);
 
+	ptr = raw_btf;
 	memcpy(ptr, &hdr, sizeof(hdr));
 	ptr += sizeof(hdr);
-	memcpy(ptr, btf_raw_types, hdr.type_len);
+	memcpy(ptr, types, hdr.type_len);
 	ptr += hdr.type_len;
-	memcpy(ptr, btf_str_sec, hdr.str_len);
+	memcpy(ptr, strings, hdr.str_len);
 	ptr += hdr.str_len;
 
-	btf_fd = bpf_load_btf(raw_btf, ptr - raw_btf, 0, 0, 0);
-	free(raw_btf);
+	btf_fd = bpf_btf_load(raw_btf, ptr - raw_btf, &opts);
 	if (btf_fd < 0)
-		return -1;
-	return btf_fd;
+		printf("Failed to load BTF spec: '%s'\n", strerror(errno));
+
+	free(raw_btf);
+
+	return btf_fd < 0 ? -1 : btf_fd;
+}
+
+static int load_btf(void)
+{
+	return load_btf_spec(btf_raw_types, sizeof(btf_raw_types),
+			     btf_str_sec, sizeof(btf_str_sec));
+}
+
+static int load_btf_for_test(struct bpf_test *test)
+{
+	int types_num = 0;
+
+	while (types_num < MAX_BTF_TYPES &&
+	       test->btf_types[types_num] != BTF_END_RAW)
+		++types_num;
+
+	int types_len = types_num * sizeof(test->btf_types[0]);
+
+	return load_btf_spec(test->btf_types, types_len,
+			     test->btf_strings, sizeof(test->btf_strings));
 }
 
 static int create_map_spin_lock(void)
 {
-	struct bpf_create_map_attr attr = {
-		.name = "test_map",
-		.map_type = BPF_MAP_TYPE_ARRAY,
-		.key_size = 4,
-		.value_size = 8,
-		.max_entries = 1,
+	LIBBPF_OPTS(bpf_map_create_opts, opts,
 		.btf_key_type_id = 1,
 		.btf_value_type_id = 3,
-	};
+	);
 	int fd, btf_fd;
 
 	btf_fd = load_btf();
 	if (btf_fd < 0)
 		return -1;
-	attr.btf_fd = btf_fd;
-	fd = bpf_create_map_xattr(&attr);
+	opts.btf_fd = btf_fd;
+	fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, "test_map", 4, 8, 1, &opts);
 	if (fd < 0)
 		printf("Failed to create map with spin_lock\n");
 	return fd;
@@ -589,33 +820,196 @@ static int create_map_spin_lock(void)
 
 static int create_sk_storage_map(void)
 {
-	struct bpf_create_map_attr attr = {
-		.name = "test_map",
-		.map_type = BPF_MAP_TYPE_SK_STORAGE,
-		.key_size = 4,
-		.value_size = 8,
-		.max_entries = 0,
+	LIBBPF_OPTS(bpf_map_create_opts, opts,
 		.map_flags = BPF_F_NO_PREALLOC,
 		.btf_key_type_id = 1,
 		.btf_value_type_id = 3,
-	};
+	);
 	int fd, btf_fd;
 
 	btf_fd = load_btf();
 	if (btf_fd < 0)
 		return -1;
-	attr.btf_fd = btf_fd;
-	fd = bpf_create_map_xattr(&attr);
-	close(attr.btf_fd);
+	opts.btf_fd = btf_fd;
+	fd = bpf_map_create(BPF_MAP_TYPE_SK_STORAGE, "test_map", 4, 8, 0, &opts);
+	close(opts.btf_fd);
 	if (fd < 0)
 		printf("Failed to create sk_storage_map\n");
 	return fd;
 }
 
-static char bpf_vlog[UINT_MAX >> 8];
+static int create_map_timer(void)
+{
+	LIBBPF_OPTS(bpf_map_create_opts, opts,
+		.btf_key_type_id = 1,
+		.btf_value_type_id = 5,
+	);
+	int fd, btf_fd;
+
+	btf_fd = load_btf();
+	if (btf_fd < 0)
+		return -1;
+
+	opts.btf_fd = btf_fd;
+	fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, "test_map", 4, 16, 1, &opts);
+	if (fd < 0)
+		printf("Failed to create map with timer\n");
+	return fd;
+}
+
+static int create_map_kptr(void)
+{
+	LIBBPF_OPTS(bpf_map_create_opts, opts,
+		.btf_key_type_id = 1,
+		.btf_value_type_id = 14,
+	);
+	int fd, btf_fd;
+
+	btf_fd = load_btf();
+	if (btf_fd < 0)
+		return -1;
+
+	opts.btf_fd = btf_fd;
+	fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, "test_map", 4, 24, 1, &opts);
+	if (fd < 0)
+		printf("Failed to create map with btf_id pointer\n");
+	return fd;
+}
+
+static void set_root(bool set)
+{
+	__u64 caps;
+
+	if (set) {
+		if (cap_enable_effective(1ULL << CAP_SYS_ADMIN, &caps))
+			perror("cap_disable_effective(CAP_SYS_ADMIN)");
+	} else {
+		if (cap_disable_effective(1ULL << CAP_SYS_ADMIN, &caps))
+			perror("cap_disable_effective(CAP_SYS_ADMIN)");
+	}
+}
+
+static __u64 ptr_to_u64(const void *ptr)
+{
+	return (uintptr_t) ptr;
+}
+
+static struct btf *btf__load_testmod_btf(struct btf *vmlinux)
+{
+	struct bpf_btf_info info;
+	__u32 len = sizeof(info);
+	struct btf *btf = NULL;
+	char name[64];
+	__u32 id = 0;
+	int err, fd;
+
+	/* Iterate all loaded BTF objects and find bpf_testmod,
+	 * we need SYS_ADMIN cap for that.
+	 */
+	set_root(true);
+
+	while (true) {
+		err = bpf_btf_get_next_id(id, &id);
+		if (err) {
+			if (errno == ENOENT)
+				break;
+			perror("bpf_btf_get_next_id failed");
+			break;
+		}
+
+		fd = bpf_btf_get_fd_by_id(id);
+		if (fd < 0) {
+			if (errno == ENOENT)
+				continue;
+			perror("bpf_btf_get_fd_by_id failed");
+			break;
+		}
+
+		memset(&info, 0, sizeof(info));
+		info.name_len = sizeof(name);
+		info.name = ptr_to_u64(name);
+		len = sizeof(info);
+
+		err = bpf_obj_get_info_by_fd(fd, &info, &len);
+		if (err) {
+			close(fd);
+			perror("bpf_obj_get_info_by_fd failed");
+			break;
+		}
+
+		if (strcmp("bpf_testmod", name)) {
+			close(fd);
+			continue;
+		}
+
+		btf = btf__load_from_kernel_by_id_split(id, vmlinux);
+		if (!btf) {
+			close(fd);
+			break;
+		}
+
+		/* We need the fd to stay open so it can be used in fd_array.
+		 * The final cleanup call to btf__free will free btf object
+		 * and close the file descriptor.
+		 */
+		btf__set_fd(btf, fd);
+		break;
+	}
+
+	set_root(false);
+	return btf;
+}
+
+static struct btf *testmod_btf;
+static struct btf *vmlinux_btf;
+
+static void kfuncs_cleanup(void)
+{
+	btf__free(testmod_btf);
+	btf__free(vmlinux_btf);
+}
+
+static void fixup_prog_kfuncs(struct bpf_insn *prog, int *fd_array,
+			      struct kfunc_btf_id_pair *fixup_kfunc_btf_id)
+{
+	/* Patch in kfunc BTF IDs */
+	while (fixup_kfunc_btf_id->kfunc) {
+		int btf_id = 0;
+
+		/* try to find kfunc in kernel BTF */
+		vmlinux_btf = vmlinux_btf ?: btf__load_vmlinux_btf();
+		if (vmlinux_btf) {
+			btf_id = btf__find_by_name_kind(vmlinux_btf,
+							fixup_kfunc_btf_id->kfunc,
+							BTF_KIND_FUNC);
+			btf_id = btf_id < 0 ? 0 : btf_id;
+		}
+
+		/* kfunc not found in kernel BTF, try bpf_testmod BTF */
+		if (!btf_id) {
+			testmod_btf = testmod_btf ?: btf__load_testmod_btf(vmlinux_btf);
+			if (testmod_btf) {
+				btf_id = btf__find_by_name_kind(testmod_btf,
+								fixup_kfunc_btf_id->kfunc,
+								BTF_KIND_FUNC);
+				btf_id = btf_id < 0 ? 0 : btf_id;
+				if (btf_id) {
+					/* We put bpf_testmod module fd into fd_array
+					 * and its index 1 into instruction 'off'.
+					 */
+					*fd_array = btf__fd(testmod_btf);
+					prog[fixup_kfunc_btf_id->insn_idx].off = 1;
+				}
+			}
+		}
+
+		prog[fixup_kfunc_btf_id->insn_idx].imm = btf_id;
+		fixup_kfunc_btf_id++;
+	}
+}
 
 static void do_test_fixup(struct bpf_test *test, enum bpf_prog_type prog_type,
-			  struct bpf_insn *prog, int *map_fds)
+			  struct bpf_insn *prog, int *map_fds, int *fd_array)
 {
 	int *fixup_map_hash_8b = test->fixup_map_hash_8b;
 	int *fixup_map_hash_48b = test->fixup_map_hash_48b;
@@ -636,6 +1030,10 @@ static void do_test_fixup(struct bpf_test *test, enum bpf_prog_type prog_type,
 	int *fixup_map_array_small = test->fixup_map_array_small;
 	int *fixup_sk_storage_map = test->fixup_sk_storage_map;
 	int *fixup_map_event_output = test->fixup_map_event_output;
+	int *fixup_map_reuseport_array = test->fixup_map_reuseport_array;
+	int *fixup_map_ringbuf = test->fixup_map_ringbuf;
+	int *fixup_map_timer = test->fixup_map_timer;
+	int *fixup_map_kptr = test->fixup_map_kptr;
 
 	if (test->fill_helper) {
 		test->fill_insns = calloc(MAX_TEST_INSNS, sizeof(struct bpf_insn));
@@ -684,7 +1082,7 @@ static void do_test_fixup(struct bpf_test *test, enum bpf_prog_type prog_type,
 	}
 
 	if (*fixup_prog1) {
-		map_fds[4] = create_prog_array(prog_type, 4, 0);
+		map_fds[4] = create_prog_array(prog_type, 4, 0, 1, 2);
 		do {
 			prog[*fixup_prog1].imm = map_fds[4];
 			fixup_prog1++;
@@ -692,7 +1090,7 @@ static void do_test_fixup(struct bpf_test *test, enum bpf_prog_type prog_type,
 	}
 
 	if (*fixup_prog2) {
-		map_fds[5] = create_prog_array(prog_type, 8, 7);
+		map_fds[5] = create_prog_array(prog_type, 8, 7, 1, 2);
 		do {
 			prog[*fixup_prog2].imm = map_fds[5];
 			fixup_prog2++;
@@ -805,33 +1203,60 @@ static void do_test_fixup(struct bpf_test *test, enum bpf_prog_type prog_type,
 			fixup_map_event_output++;
 		} while (*fixup_map_event_output);
 	}
+	if (*fixup_map_reuseport_array) {
+		map_fds[19] = __create_map(BPF_MAP_TYPE_REUSEPORT_SOCKARRAY,
+					   sizeof(u32), sizeof(u64), 1, 0);
+		do {
+			prog[*fixup_map_reuseport_array].imm = map_fds[19];
+			fixup_map_reuseport_array++;
+		} while (*fixup_map_reuseport_array);
+	}
+	if (*fixup_map_ringbuf) {
+		map_fds[20] = create_map(BPF_MAP_TYPE_RINGBUF, 0,
+					 0, getpagesize());
+		do {
+			prog[*fixup_map_ringbuf].imm = map_fds[20];
+			fixup_map_ringbuf++;
+		} while (*fixup_map_ringbuf);
+	}
+	if (*fixup_map_timer) {
+		map_fds[21] = create_map_timer();
+		do {
+			prog[*fixup_map_timer].imm = map_fds[21];
+			fixup_map_timer++;
+		} while (*fixup_map_timer);
+	}
+	if (*fixup_map_kptr) {
+		map_fds[22] = create_map_kptr();
+		do {
+			prog[*fixup_map_kptr].imm = map_fds[22];
+			fixup_map_kptr++;
+		} while (*fixup_map_kptr);
+	}
+
+	fixup_prog_kfuncs(prog, fd_array, test->fixup_kfunc_btf_id);
 }
+
+struct libcap {
+	struct __user_cap_header_struct hdr;
+	struct __user_cap_data_struct data[2];
+};
 
 static int set_admin(bool admin)
 {
-	cap_t caps;
-	const cap_value_t cap_val = CAP_SYS_ADMIN;
-	int ret = -1;
+	int err;
 
-	caps = cap_get_proc();
-	if (!caps) {
-		perror("cap_get_proc");
-		return -1;
+	if (admin) {
+		err = cap_enable_effective(ADMIN_CAPS, NULL);
+		if (err)
+			perror("cap_enable_effective(ADMIN_CAPS)");
+	} else {
+		err = cap_disable_effective(ADMIN_CAPS, NULL);
+		if (err)
+			perror("cap_disable_effective(ADMIN_CAPS)");
 	}
-	if (cap_set_flag(caps, CAP_EFFECTIVE, 1, &cap_val,
-				admin ? CAP_SET : CAP_CLEAR)) {
-		perror("cap_set_flag");
-		goto out;
-	}
-	if (cap_set_proc(caps)) {
-		perror("cap_set_proc");
-		goto out;
-	}
-	ret = 0;
-out:
-	if (cap_free(caps))
-		perror("cap_free");
-	return ret;
+
+	return err;
 }
 
 static int do_prog_test_run(int fd_prog, bool unpriv, uint32_t expected_val,
@@ -839,35 +1264,62 @@ static int do_prog_test_run(int fd_prog, bool unpriv, uint32_t expected_val,
 {
 	__u8 tmp[TEST_DATA_LEN << 2];
 	__u32 size_tmp = sizeof(tmp);
-	uint32_t retval;
-	int err;
+	int err, saved_errno;
+	LIBBPF_OPTS(bpf_test_run_opts, topts,
+		.data_in = data,
+		.data_size_in = size_data,
+		.data_out = tmp,
+		.data_size_out = size_tmp,
+		.repeat = 1,
+	);
 
 	if (unpriv)
 		set_admin(true);
-	err = bpf_prog_test_run(fd_prog, 1, data, size_data,
-				tmp, &size_tmp, &retval, NULL);
+	err = bpf_prog_test_run_opts(fd_prog, &topts);
+	saved_errno = errno;
+
 	if (unpriv)
 		set_admin(false);
-	if (err && errno != 524/*ENOTSUPP*/ && errno != EPERM) {
-		printf("Unexpected bpf_prog_test_run error ");
-		return err;
+
+	if (err) {
+		switch (saved_errno) {
+		case ENOTSUPP:
+			printf("Did not run the program (not supported) ");
+			return 0;
+		case EPERM:
+			if (unpriv) {
+				printf("Did not run the program (no permission) ");
+				return 0;
+			}
+			/* fallthrough; */
+		default:
+			printf("FAIL: Unexpected bpf_prog_test_run error (%s) ",
+				strerror(saved_errno));
+			return err;
+		}
 	}
-	if (!err && retval != expected_val &&
-	    expected_val != POINTER_VALUE) {
-		printf("FAIL retval %d != %d ", retval, expected_val);
+
+	if (topts.retval != expected_val && expected_val != POINTER_VALUE) {
+		printf("FAIL retval %d != %d ", topts.retval, expected_val);
 		return 1;
 	}
 
 	return 0;
 }
 
+/* Returns true if every part of exp (tab-separated) appears in log, in order.
+ *
+ * If exp is an empty string, returns true.
+ */
 static bool cmp_str_seq(const char *log, const char *exp)
 {
-	char needle[80];
+	char needle[200];
 	const char *p, *q;
 	int len;
 
 	do {
+		if (!strlen(exp))
+			break;
 		p = strchr(exp, '\t');
 		if (!p)
 			p = exp + strlen(exp);
@@ -881,7 +1333,7 @@ static bool cmp_str_seq(const char *log, const char *exp)
 		needle[len] = 0;
 		q = strstr(log, needle);
 		if (!q) {
-			printf("FAIL\nUnexpected verifier log in successful load!\n"
+			printf("FAIL\nUnexpected verifier log!\n"
 			       "EXP: %s\nRES:\n", needle);
 			return false;
 		}
@@ -891,27 +1343,205 @@ static bool cmp_str_seq(const char *log, const char *exp)
 	return true;
 }
 
+static bool is_null_insn(struct bpf_insn *insn)
+{
+	struct bpf_insn null_insn = {};
+
+	return memcmp(insn, &null_insn, sizeof(null_insn)) == 0;
+}
+
+static bool is_skip_insn(struct bpf_insn *insn)
+{
+	struct bpf_insn skip_insn = SKIP_INSNS();
+
+	return memcmp(insn, &skip_insn, sizeof(skip_insn)) == 0;
+}
+
+static int null_terminated_insn_len(struct bpf_insn *seq, int max_len)
+{
+	int i;
+
+	for (i = 0; i < max_len; ++i) {
+		if (is_null_insn(&seq[i]))
+			return i;
+	}
+	return max_len;
+}
+
+static bool compare_masked_insn(struct bpf_insn *orig, struct bpf_insn *masked)
+{
+	struct bpf_insn orig_masked;
+
+	memcpy(&orig_masked, orig, sizeof(orig_masked));
+	if (masked->imm == INSN_IMM_MASK)
+		orig_masked.imm = INSN_IMM_MASK;
+	if (masked->off == INSN_OFF_MASK)
+		orig_masked.off = INSN_OFF_MASK;
+
+	return memcmp(&orig_masked, masked, sizeof(orig_masked)) == 0;
+}
+
+static int find_insn_subseq(struct bpf_insn *seq, struct bpf_insn *subseq,
+			    int seq_len, int subseq_len)
+{
+	int i, j;
+
+	if (subseq_len > seq_len)
+		return -1;
+
+	for (i = 0; i < seq_len - subseq_len + 1; ++i) {
+		bool found = true;
+
+		for (j = 0; j < subseq_len; ++j) {
+			if (!compare_masked_insn(&seq[i + j], &subseq[j])) {
+				found = false;
+				break;
+			}
+		}
+		if (found)
+			return i;
+	}
+
+	return -1;
+}
+
+static int find_skip_insn_marker(struct bpf_insn *seq, int len)
+{
+	int i;
+
+	for (i = 0; i < len; ++i)
+		if (is_skip_insn(&seq[i]))
+			return i;
+
+	return -1;
+}
+
+/* Return true if all sub-sequences in `subseqs` could be found in
+ * `seq` one after another. Sub-sequences are separated by a single
+ * nil instruction.
+ */
+static bool find_all_insn_subseqs(struct bpf_insn *seq, struct bpf_insn *subseqs,
+				  int seq_len, int max_subseqs_len)
+{
+	int subseqs_len = null_terminated_insn_len(subseqs, max_subseqs_len);
+
+	while (subseqs_len > 0) {
+		int skip_idx = find_skip_insn_marker(subseqs, subseqs_len);
+		int cur_subseq_len = skip_idx < 0 ? subseqs_len : skip_idx;
+		int subseq_idx = find_insn_subseq(seq, subseqs,
+						  seq_len, cur_subseq_len);
+
+		if (subseq_idx < 0)
+			return false;
+		seq += subseq_idx + cur_subseq_len;
+		seq_len -= subseq_idx + cur_subseq_len;
+		subseqs += cur_subseq_len + 1;
+		subseqs_len -= cur_subseq_len + 1;
+	}
+
+	return true;
+}
+
+static void print_insn(struct bpf_insn *buf, int cnt)
+{
+	int i;
+
+	printf("  addr  op d s off  imm\n");
+	for (i = 0; i < cnt; ++i) {
+		struct bpf_insn *insn = &buf[i];
+
+		if (is_null_insn(insn))
+			break;
+
+		if (is_skip_insn(insn))
+			printf("  ...\n");
+		else
+			printf("  %04x: %02x %1x %x %04hx %08x\n",
+			       i, insn->code, insn->dst_reg,
+			       insn->src_reg, insn->off, insn->imm);
+	}
+}
+
+static bool check_xlated_program(struct bpf_test *test, int fd_prog)
+{
+	struct bpf_insn *buf;
+	unsigned int cnt;
+	bool result = true;
+	bool check_expected = !is_null_insn(test->expected_insns);
+	bool check_unexpected = !is_null_insn(test->unexpected_insns);
+
+	if (!check_expected && !check_unexpected)
+		goto out;
+
+	if (get_xlated_program(fd_prog, &buf, &cnt)) {
+		printf("FAIL: can't get xlated program\n");
+		result = false;
+		goto out;
+	}
+
+	if (check_expected &&
+	    !find_all_insn_subseqs(buf, test->expected_insns,
+				   cnt, MAX_EXPECTED_INSNS)) {
+		printf("FAIL: can't find expected subsequence of instructions\n");
+		result = false;
+		if (verbose) {
+			printf("Program:\n");
+			print_insn(buf, cnt);
+			printf("Expected subsequence:\n");
+			print_insn(test->expected_insns, MAX_EXPECTED_INSNS);
+		}
+	}
+
+	if (check_unexpected &&
+	    find_all_insn_subseqs(buf, test->unexpected_insns,
+				  cnt, MAX_UNEXPECTED_INSNS)) {
+		printf("FAIL: found unexpected subsequence of instructions\n");
+		result = false;
+		if (verbose) {
+			printf("Program:\n");
+			print_insn(buf, cnt);
+			printf("Un-expected subsequence:\n");
+			print_insn(test->unexpected_insns, MAX_UNEXPECTED_INSNS);
+		}
+	}
+
+	free(buf);
+ out:
+	return result;
+}
+
 static void do_test_single(struct bpf_test *test, bool unpriv,
 			   int *passes, int *errors)
 {
-	int fd_prog, expected_ret, alignment_prevented_execution;
+	int fd_prog, btf_fd, expected_ret, alignment_prevented_execution;
 	int prog_len, prog_type = test->prog_type;
 	struct bpf_insn *prog = test->insns;
-	struct bpf_load_program_attr attr;
+	LIBBPF_OPTS(bpf_prog_load_opts, opts);
 	int run_errs, run_successes;
 	int map_fds[MAX_NR_MAPS];
 	const char *expected_err;
+	int fd_array[2] = { -1, -1 };
+	int saved_errno;
 	int fixup_skips;
 	__u32 pflags;
 	int i, err;
 
+	if ((test->flags & F_NEEDS_JIT_ENABLED) && jit_disabled) {
+		printf("SKIP (requires BPF JIT)\n");
+		skips++;
+		sched_yield();
+		return;
+	}
+
+	fd_prog = -1;
 	for (i = 0; i < MAX_NR_MAPS; i++)
 		map_fds[i] = -1;
+	btf_fd = -1;
 
 	if (!prog_type)
 		prog_type = BPF_PROG_TYPE_SOCKET_FILTER;
 	fixup_skips = skips;
-	do_test_fixup(test, prog_type, prog, map_fds);
+	do_test_fixup(test, prog_type, prog, map_fds, &fd_array[1]);
 	if (test->fill_insns) {
 		prog = test->fill_insns;
 		prog_len = test->prog_len;
@@ -924,7 +1554,7 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 	if (fixup_skips != skips)
 		return;
 
-	pflags = BPF_F_TEST_RND_HI32;
+	pflags = testing_prog_flags();
 	if (test->flags & F_LOAD_WITH_STRICT_ALIGNMENT)
 		pflags |= BPF_F_STRICT_ALIGNMENT;
 	if (test->flags & F_NEEDS_EFFICIENT_UNALIGNED_ACCESS)
@@ -936,18 +1566,64 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 		       test->result_unpriv : test->result;
 	expected_err = unpriv && test->errstr_unpriv ?
 		       test->errstr_unpriv : test->errstr;
-	memset(&attr, 0, sizeof(attr));
-	attr.prog_type = prog_type;
-	attr.expected_attach_type = test->expected_attach_type;
-	attr.insns = prog;
-	attr.insns_cnt = prog_len;
-	attr.license = "GPL";
-	attr.log_level = verbose || expected_ret == VERBOSE_ACCEPT ? 1 : 4;
-	attr.prog_flags = pflags;
 
-	fd_prog = bpf_load_program_xattr(&attr, bpf_vlog, sizeof(bpf_vlog));
-	if (fd_prog < 0 && !bpf_probe_prog_type(prog_type, 0)) {
+	opts.expected_attach_type = test->expected_attach_type;
+	if (verbose)
+		opts.log_level = verif_log_level | 4; /* force stats */
+	else if (expected_ret == VERBOSE_ACCEPT)
+		opts.log_level = 2;
+	else
+		opts.log_level = DEFAULT_LIBBPF_LOG_LEVEL;
+	opts.prog_flags = pflags;
+	if (fd_array[1] != -1)
+		opts.fd_array = &fd_array[0];
+
+	if ((prog_type == BPF_PROG_TYPE_TRACING ||
+	     prog_type == BPF_PROG_TYPE_LSM) && test->kfunc) {
+		int attach_btf_id;
+
+		attach_btf_id = libbpf_find_vmlinux_btf_id(test->kfunc,
+						opts.expected_attach_type);
+		if (attach_btf_id < 0) {
+			printf("FAIL\nFailed to find BTF ID for '%s'!\n",
+				test->kfunc);
+			(*errors)++;
+			return;
+		}
+
+		opts.attach_btf_id = attach_btf_id;
+	}
+
+	if (test->btf_types[0] != 0) {
+		btf_fd = load_btf_for_test(test);
+		if (btf_fd < 0)
+			goto fail_log;
+		opts.prog_btf_fd = btf_fd;
+	}
+
+	if (test->func_info_cnt != 0) {
+		opts.func_info = test->func_info;
+		opts.func_info_cnt = test->func_info_cnt;
+		opts.func_info_rec_size = sizeof(test->func_info[0]);
+	}
+
+	opts.log_buf = bpf_vlog;
+	opts.log_size = sizeof(bpf_vlog);
+	fd_prog = bpf_prog_load(prog_type, NULL, "GPL", prog, prog_len, &opts);
+	saved_errno = errno;
+
+	/* BPF_PROG_TYPE_TRACING requires more setup and
+	 * bpf_probe_prog_type won't give correct answer
+	 */
+	if (fd_prog < 0 && prog_type != BPF_PROG_TYPE_TRACING &&
+	    !libbpf_probe_bpf_prog_type(prog_type, NULL)) {
 		printf("SKIP (unsupported program type %d)\n", prog_type);
+		skips++;
+		goto close_fds;
+	}
+
+	if (fd_prog < 0 && saved_errno == ENOTSUPP) {
+		printf("SKIP (program uses an unsupported feature)\n");
 		skips++;
 		goto close_fds;
 	}
@@ -957,7 +1633,7 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 	if (expected_ret == ACCEPT || expected_ret == VERBOSE_ACCEPT) {
 		if (fd_prog < 0) {
 			printf("FAIL\nFailed to load prog '%s'!\n",
-			       strerror(errno));
+			       strerror(saved_errno));
 			goto fail_log;
 		}
 #ifndef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
@@ -973,14 +1649,14 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 			printf("FAIL\nUnexpected success to load!\n");
 			goto fail_log;
 		}
-		if (!expected_err || !strstr(bpf_vlog, expected_err)) {
+		if (!expected_err || !cmp_str_seq(bpf_vlog, expected_err)) {
 			printf("FAIL\nUnexpected error message!\n\tEXP: %s\n\tRES: %s\n",
 			      expected_err, bpf_vlog);
 			goto fail_log;
 		}
 	}
 
-	if (test->insn_processed) {
+	if (!unpriv && test->insn_processed) {
 		uint32_t insn_processed;
 		char *proc;
 
@@ -996,9 +1672,12 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 	if (verbose)
 		printf(", verifier log:\n%s", bpf_vlog);
 
+	if (!check_xlated_program(test, fd_prog))
+		goto fail_log;
+
 	run_errs = 0;
 	run_successes = 0;
-	if (!alignment_prevented_execution && fd_prog >= 0) {
+	if (!alignment_prevented_execution && fd_prog >= 0 && test->runs >= 0) {
 		uint32_t expected_val;
 		int i;
 
@@ -1039,6 +1718,7 @@ close_fds:
 	if (test->fill_insns)
 		free(test->fill_insns);
 	close(fd_prog);
+	close(btf_fd);
 	for (i = 0; i < MAX_NR_MAPS; i++)
 		close(map_fds[i]);
 	sched_yield();
@@ -1051,46 +1731,35 @@ fail_log:
 
 static bool is_admin(void)
 {
-	cap_t caps;
-	cap_flag_value_t sysadmin = CAP_CLEAR;
-	const cap_value_t cap_val = CAP_SYS_ADMIN;
+	__u64 caps;
 
-#ifdef CAP_IS_SUPPORTED
-	if (!CAP_IS_SUPPORTED(CAP_SETFCAP)) {
-		perror("cap_get_flag");
+	/* The test checks for finer cap as CAP_NET_ADMIN,
+	 * CAP_PERFMON, and CAP_BPF instead of CAP_SYS_ADMIN.
+	 * Thus, disable CAP_SYS_ADMIN at the beginning.
+	 */
+	if (cap_disable_effective(1ULL << CAP_SYS_ADMIN, &caps)) {
+		perror("cap_disable_effective(CAP_SYS_ADMIN)");
 		return false;
 	}
-#endif
-	caps = cap_get_proc();
-	if (!caps) {
-		perror("cap_get_proc");
-		return false;
-	}
-	if (cap_get_flag(caps, cap_val, CAP_EFFECTIVE, &sysadmin))
-		perror("cap_get_flag");
-	if (cap_free(caps))
-		perror("cap_free");
-	return (sysadmin == CAP_SET);
-}
 
-static void get_unpriv_disabled()
-{
-	char buf[2];
-	FILE *fd;
-
-	fd = fopen("/proc/sys/"UNPRIV_SYSCTL, "r");
-	if (!fd) {
-		perror("fopen /proc/sys/"UNPRIV_SYSCTL);
-		unpriv_disabled = true;
-		return;
-	}
-	if (fgets(buf, 2, fd) == buf && atoi(buf))
-		unpriv_disabled = true;
-	fclose(fd);
+	return (caps & ADMIN_CAPS) == ADMIN_CAPS;
 }
 
 static bool test_as_unpriv(struct bpf_test *test)
 {
+#ifndef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
+	/* Some architectures have strict alignment requirements. In
+	 * that case, the BPF verifier detects if a program has
+	 * unaligned accesses and rejects them. A user can pass
+	 * BPF_F_ANY_ALIGNMENT to a program to override this
+	 * check. That, however, will only work when a privileged user
+	 * loads a program. An unprivileged user loading a program
+	 * with this flag will be rejected prior entering the
+	 * verifier.
+	 */
+	if (test->flags & F_NEEDS_EFFICIENT_UNALIGNED_ACCESS)
+		return false;
+#endif
 	return !test->prog_type ||
 	       test->prog_type == BPF_PROG_TYPE_SOCKET_FILTER ||
 	       test->prog_type == BPF_PROG_TYPE_CGROUP_SKB;
@@ -1099,6 +1768,12 @@ static bool test_as_unpriv(struct bpf_test *test)
 static int do_test(bool unpriv, unsigned int from, unsigned int to)
 {
 	int i, passes = 0, errors = 0;
+
+	/* ensure previous instance of the module is unloaded */
+	unload_bpf_testmod(verbose);
+
+	if (load_bpf_testmod(verbose))
+		return EXIT_FAILURE;
 
 	for (i = from; i < to; i++) {
 		struct bpf_test *test = &tests[i];
@@ -1127,6 +1802,9 @@ static int do_test(bool unpriv, unsigned int from, unsigned int to)
 		}
 	}
 
+	unload_bpf_testmod(verbose);
+	kfuncs_cleanup();
+
 	printf("Summary: %d PASSED, %d SKIPPED, %d FAILED\n", passes,
 	       skips, errors);
 	return errors ? EXIT_FAILURE : EXIT_SUCCESS;
@@ -1141,6 +1819,13 @@ int main(int argc, char **argv)
 	if (argc > 1 && strcmp(argv[1], "-v") == 0) {
 		arg++;
 		verbose = true;
+		verif_log_level = 1;
+		argc--;
+	}
+	if (argc > 1 && strcmp(argv[1], "-vv") == 0) {
+		arg++;
+		verbose = true;
+		verif_log_level = 2;
 		argc--;
 	}
 
@@ -1161,12 +1846,17 @@ int main(int argc, char **argv)
 		}
 	}
 
-	get_unpriv_disabled();
+	unpriv_disabled = get_unpriv_disabled();
 	if (unpriv && unpriv_disabled) {
 		printf("Cannot run as unprivileged user with sysctl %s.\n",
 		       UNPRIV_SYSCTL);
 		return EXIT_FAILURE;
 	}
+
+	jit_disabled = !is_jit_enabled();
+
+	/* Use libbpf 1.0 API mode */
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 
 	bpf_semi_rand_init();
 	return do_test(unpriv, from, to);

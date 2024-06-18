@@ -14,9 +14,9 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mm.h>
-#include <linux/cryptohash.h>
 #include <linux/types.h>
-#include <crypto/sha.h>
+#include <crypto/sha2.h>
+#include <crypto/sha512_base.h>
 
 #include <asm/pstate.h>
 #include <asm/elf.h>
@@ -25,38 +25,6 @@
 
 asmlinkage void sha512_sparc64_transform(u64 *digest, const char *data,
 					 unsigned int rounds);
-
-static int sha512_sparc64_init(struct shash_desc *desc)
-{
-	struct sha512_state *sctx = shash_desc_ctx(desc);
-	sctx->state[0] = SHA512_H0;
-	sctx->state[1] = SHA512_H1;
-	sctx->state[2] = SHA512_H2;
-	sctx->state[3] = SHA512_H3;
-	sctx->state[4] = SHA512_H4;
-	sctx->state[5] = SHA512_H5;
-	sctx->state[6] = SHA512_H6;
-	sctx->state[7] = SHA512_H7;
-	sctx->count[0] = sctx->count[1] = 0;
-
-	return 0;
-}
-
-static int sha384_sparc64_init(struct shash_desc *desc)
-{
-	struct sha512_state *sctx = shash_desc_ctx(desc);
-	sctx->state[0] = SHA384_H0;
-	sctx->state[1] = SHA384_H1;
-	sctx->state[2] = SHA384_H2;
-	sctx->state[3] = SHA384_H3;
-	sctx->state[4] = SHA384_H4;
-	sctx->state[5] = SHA384_H5;
-	sctx->state[6] = SHA384_H6;
-	sctx->state[7] = SHA384_H7;
-	sctx->count[0] = sctx->count[1] = 0;
-
-	return 0;
-}
 
 static void __sha512_sparc64_update(struct sha512_state *sctx, const u8 *data,
 				    unsigned int len, unsigned int partial)
@@ -147,7 +115,7 @@ static int sha384_sparc64_final(struct shash_desc *desc, u8 *hash)
 
 static struct shash_alg sha512 = {
 	.digestsize	=	SHA512_DIGEST_SIZE,
-	.init		=	sha512_sparc64_init,
+	.init		=	sha512_base_init,
 	.update		=	sha512_sparc64_update,
 	.final		=	sha512_sparc64_final,
 	.descsize	=	sizeof(struct sha512_state),
@@ -162,7 +130,7 @@ static struct shash_alg sha512 = {
 
 static struct shash_alg sha384 = {
 	.digestsize	=	SHA384_DIGEST_SIZE,
-	.init		=	sha384_sparc64_init,
+	.init		=	sha384_base_init,
 	.update		=	sha512_sparc64_update,
 	.final		=	sha384_sparc64_final,
 	.descsize	=	sizeof(struct sha512_state),

@@ -89,6 +89,7 @@ enum MR_RAID_FLAGS_IO_SUB_TYPE {
 
 #define MEGASAS_FP_CMD_LEN	16
 #define MEGASAS_FUSION_IN_RESET 0
+#define MEGASAS_FUSION_OCR_NOT_POSSIBLE 1
 #define RAID_1_PEER_CMDS 2
 #define JBOD_MAPS_COUNT	2
 #define MEGASAS_REDUCE_QD_COUNT 64
@@ -525,7 +526,10 @@ struct MPI2_RAID_SCSI_IO_REQUEST {
 	__le32			Control;                        /* 0x3C */
 	union MPI2_SCSI_IO_CDB_UNION  CDB;			/* 0x40 */
 	union RAID_CONTEXT_UNION RaidContext;  /* 0x60 */
-	union MPI2_SGE_IO_UNION       SGL;			/* 0x80 */
+	union {
+		union MPI2_SGE_IO_UNION       SGL;		/* 0x80 */
+		DECLARE_FLEX_ARRAY(union MPI2_SGE_IO_UNION, SGLs);
+	};
 };
 
 /*
@@ -773,7 +777,7 @@ struct MR_SPAN_BLOCK_INFO {
 struct MR_CPU_AFFINITY_MASK {
 	union {
 		struct {
-#ifndef MFI_BIG_ENDIAN
+#ifndef __BIG_ENDIAN_BITFIELD
 		u8 hw_path:1;
 		u8 cpu0:1;
 		u8 cpu1:1;
@@ -864,9 +868,20 @@ struct MR_LD_RAID {
 	u8	regTypeReqOnRead;
 	__le16     seqNum;
 
-	struct {
-		u32 ldSyncRequired:1;
-		u32 reserved:31;
+struct {
+#ifndef __BIG_ENDIAN_BITFIELD
+	u32 ldSyncRequired:1;
+	u32 regTypeReqOnReadIsValid:1;
+	u32 isEPD:1;
+	u32 enableSLDOnAllRWIOs:1;
+	u32 reserved:28;
+#else
+	u32 reserved:28;
+	u32 enableSLDOnAllRWIOs:1;
+	u32 isEPD:1;
+	u32 regTypeReqOnReadIsValid:1;
+	u32 ldSyncRequired:1;
+#endif
 	} flags;
 
 	u8	LUN[8]; /* 0x24 8 byte LUN field used for SCSI IO's */
@@ -877,7 +892,7 @@ struct MR_LD_RAID {
 	/* 0x30 - 0x33, Logical block size for the LD */
 	u32 logical_block_length;
 	struct {
-#ifndef MFI_BIG_ENDIAN
+#ifndef __BIG_ENDIAN_BITFIELD
 	/* 0x34, P_I_EXPONENT from READ CAPACITY 16 */
 	u32 ld_pi_exp:4;
 	/* 0x34, LOGICAL BLOCKS PER PHYSICAL
@@ -930,7 +945,7 @@ struct MR_FW_RAID_MAP {
 	u8                  reserved2[7];
 	struct MR_ARRAY_INFO       arMapInfo[MAX_RAIDMAP_ARRAYS];
 	struct MR_DEV_HANDLE_INFO  devHndlInfo[MAX_RAIDMAP_PHYSICAL_DEVICES];
-	struct MR_LD_SPAN_MAP      ldSpanMap[1];
+	struct MR_LD_SPAN_MAP      ldSpanMap[];
 };
 
 struct IO_REQUEST_INFO {
@@ -1041,7 +1056,7 @@ struct MR_FW_RAID_MAP_DYNAMIC {
 	struct MR_RAID_MAP_DESC_TABLE
 			raid_map_desc_table[RAID_MAP_DESC_TYPE_COUNT];
 	/* Variable Size buffer containing all data */
-	u32 raid_map_desc_data[1];
+	u32 raid_map_desc_data[];
 }; /* Dynamicaly sized RAID MAp structure */
 
 #define IEEE_SGE_FLAGS_ADDR_MASK            (0x03)
@@ -1136,7 +1151,7 @@ typedef struct LOG_BLOCK_SPAN_INFO {
 
 struct MR_FW_RAID_MAP_ALL {
 	struct MR_FW_RAID_MAP raidMap;
-	struct MR_LD_SPAN_MAP ldSpanMap[MAX_LOGICAL_DRIVES - 1];
+	struct MR_LD_SPAN_MAP ldSpanMap[MAX_LOGICAL_DRIVES];
 } __attribute__ ((packed));
 
 struct MR_DRV_RAID_MAP {
@@ -1170,7 +1185,7 @@ struct MR_DRV_RAID_MAP {
 		devHndlInfo[MAX_RAIDMAP_PHYSICAL_DEVICES_DYN];
 	u16 ldTgtIdToLd[MAX_LOGICAL_DRIVES_DYN];
 	struct MR_ARRAY_INFO arMapInfo[MAX_API_ARRAYS_DYN];
-	struct MR_LD_SPAN_MAP      ldSpanMap[1];
+	struct MR_LD_SPAN_MAP      ldSpanMap[];
 
 };
 
@@ -1181,7 +1196,7 @@ struct MR_DRV_RAID_MAP {
 struct MR_DRV_RAID_MAP_ALL {
 
 	struct MR_DRV_RAID_MAP raidMap;
-	struct MR_LD_SPAN_MAP ldSpanMap[MAX_LOGICAL_DRIVES_DYN - 1];
+	struct MR_LD_SPAN_MAP ldSpanMap[MAX_LOGICAL_DRIVES_DYN];
 } __packed;
 
 
@@ -1237,7 +1252,7 @@ struct MR_PD_CFG_SEQ {
 struct MR_PD_CFG_SEQ_NUM_SYNC {
 	__le32 size;
 	__le32 count;
-	struct MR_PD_CFG_SEQ seq[1];
+	struct MR_PD_CFG_SEQ seq[];
 } __packed;
 
 /* stream detection */
@@ -1290,6 +1305,8 @@ struct fusion_context {
 
 	u8 *sense;
 	dma_addr_t sense_phys_addr;
+
+	atomic_t   busy_mq_poll[MAX_MSIX_QUEUES_FUSION];
 
 	dma_addr_t reply_frames_desc_phys[MAX_MSIX_QUEUES_FUSION];
 	union MPI2_REPLY_DESCRIPTORS_UNION *reply_frames_desc[MAX_MSIX_QUEUES_FUSION];

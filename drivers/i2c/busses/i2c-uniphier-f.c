@@ -73,8 +73,6 @@
 #define UNIPHIER_FI2C_BYTE_WISE		BIT(3)
 #define UNIPHIER_FI2C_DEFER_STOP_COMP	BIT(4)
 
-#define UNIPHIER_FI2C_DEFAULT_SPEED	100000
-#define UNIPHIER_FI2C_MAX_SPEED		400000
 #define UNIPHIER_FI2C_FIFO_SIZE		8
 
 struct uniphier_fi2c_priv {
@@ -360,7 +358,6 @@ static int uniphier_fi2c_master_xfer_one(struct i2c_adapter *adap,
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	if (!time_left) {
-		dev_err(&adap->dev, "transaction timeout.\n");
 		uniphier_fi2c_recover(priv);
 		return -ETIMEDOUT;
 	}
@@ -531,34 +528,27 @@ static int uniphier_fi2c_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->membase);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "failed to get IRQ number\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	if (of_property_read_u32(dev->of_node, "clock-frequency", &bus_speed))
-		bus_speed = UNIPHIER_FI2C_DEFAULT_SPEED;
+		bus_speed = I2C_MAX_STANDARD_MODE_FREQ;
 
-	if (!bus_speed || bus_speed > UNIPHIER_FI2C_MAX_SPEED) {
+	if (!bus_speed || bus_speed > I2C_MAX_FAST_MODE_FREQ) {
 		dev_err(dev, "invalid clock-frequency %d\n", bus_speed);
 		return -EINVAL;
 	}
 
-	priv->clk = devm_clk_get(dev, NULL);
+	priv->clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(priv->clk)) {
-		dev_err(dev, "failed to get clock\n");
+		dev_err(dev, "failed to enable clock\n");
 		return PTR_ERR(priv->clk);
 	}
-
-	ret = clk_prepare_enable(priv->clk);
-	if (ret)
-		return ret;
 
 	clk_rate = clk_get_rate(priv->clk);
 	if (!clk_rate) {
 		dev_err(dev, "input clock rate should not be zero\n");
-		ret = -EINVAL;
-		goto disable_clk;
+		return -EINVAL;
 	}
 
 	priv->clk_cycle = clk_rate / bus_speed;
@@ -568,7 +558,7 @@ static int uniphier_fi2c_probe(struct platform_device *pdev)
 	priv->adap.algo = &uniphier_fi2c_algo;
 	priv->adap.dev.parent = dev;
 	priv->adap.dev.of_node = dev->of_node;
-	strlcpy(priv->adap.name, "UniPhier FI2C", sizeof(priv->adap.name));
+	strscpy(priv->adap.name, "UniPhier FI2C", sizeof(priv->adap.name));
 	priv->adap.bus_recovery_info = &uniphier_fi2c_bus_recovery_info;
 	i2c_set_adapdata(&priv->adap, priv);
 	platform_set_drvdata(pdev, priv);
@@ -579,25 +569,17 @@ static int uniphier_fi2c_probe(struct platform_device *pdev)
 			       pdev->name, priv);
 	if (ret) {
 		dev_err(dev, "failed to request irq %d\n", irq);
-		goto disable_clk;
+		return ret;
 	}
 
-	ret = i2c_add_adapter(&priv->adap);
-disable_clk:
-	if (ret)
-		clk_disable_unprepare(priv->clk);
-
-	return ret;
+	return i2c_add_adapter(&priv->adap);
 }
 
-static int uniphier_fi2c_remove(struct platform_device *pdev)
+static void uniphier_fi2c_remove(struct platform_device *pdev)
 {
 	struct uniphier_fi2c_priv *priv = platform_get_drvdata(pdev);
 
 	i2c_del_adapter(&priv->adap);
-	clk_disable_unprepare(priv->clk);
-
-	return 0;
 }
 
 static int __maybe_unused uniphier_fi2c_suspend(struct device *dev)
@@ -635,7 +617,7 @@ MODULE_DEVICE_TABLE(of, uniphier_fi2c_match);
 
 static struct platform_driver uniphier_fi2c_drv = {
 	.probe  = uniphier_fi2c_probe,
-	.remove = uniphier_fi2c_remove,
+	.remove_new = uniphier_fi2c_remove,
 	.driver = {
 		.name  = "uniphier-fi2c",
 		.of_match_table = uniphier_fi2c_match,

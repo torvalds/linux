@@ -9,8 +9,8 @@
 
 		.text
 
-/* Function: __u32 csum_partial_copy_nocheck(const char *src, char *dst, int len, __u32 sum)
- * Params  : r0 = src, r1 = dst, r2 = len, r3 = checksum
+/* Function: __u32 csum_partial_copy_nocheck(const char *src, char *dst, int len)
+ * Params  : r0 = src, r1 = dst, r2 = len
  * Returns : r0 = new checksum
  */
 

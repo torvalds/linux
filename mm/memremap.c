@@ -1,137 +1,157 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+// SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2015 Intel Corporation. All rights reserved. */
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/kasan.h>
 #include <linux/memory_hotplug.h>
-#include <linux/mm.h>
+#include <linux/memremap.h>
 #include <linux/pfn_t.h>
 #include <linux/swap.h>
+#include <linux/mm.h>
+#include <linux/mmzone.h>
 #include <linux/swapops.h>
 #include <linux/types.h>
 #include <linux/wait_bit.h>
 #include <linux/xarray.h>
+#include "internal.h"
 
 static DEFINE_XARRAY(pgmap_array);
-#define SECTION_MASK ~((1UL << PA_SECTION_SHIFT) - 1)
-#define SECTION_SIZE (1UL << PA_SECTION_SHIFT)
 
-#ifdef CONFIG_DEV_PAGEMAP_OPS
+/*
+ * The memremap() and memremap_pages() interfaces are alternately used
+ * to map persistent memory namespaces. These interfaces place different
+ * constraints on the alignment and size of the mapping (namespace).
+ * memremap() can map individual PAGE_SIZE pages. memremap_pages() can
+ * only map subsections (2MB), and at least one architecture (PowerPC)
+ * the minimum mapping granularity of memremap_pages() is 16MB.
+ *
+ * The role of memremap_compat_align() is to communicate the minimum
+ * arch supported alignment of a namespace such that it can freely
+ * switch modes without violating the arch constraint. Namely, do not
+ * allow a namespace to be PAGE_SIZE aligned since that namespace may be
+ * reconfigured into a mode that requires SUBSECTION_SIZE alignment.
+ */
+#ifndef CONFIG_ARCH_HAS_MEMREMAP_COMPAT_ALIGN
+unsigned long memremap_compat_align(void)
+{
+	return SUBSECTION_SIZE;
+}
+EXPORT_SYMBOL_GPL(memremap_compat_align);
+#endif
+
+#ifdef CONFIG_FS_DAX
 DEFINE_STATIC_KEY_FALSE(devmap_managed_key);
 EXPORT_SYMBOL(devmap_managed_key);
-static atomic_t devmap_managed_enable;
 
-static void devmap_managed_enable_put(void)
+static void devmap_managed_enable_put(struct dev_pagemap *pgmap)
 {
-	if (atomic_dec_and_test(&devmap_managed_enable))
-		static_branch_disable(&devmap_managed_key);
+	if (pgmap->type == MEMORY_DEVICE_FS_DAX)
+		static_branch_dec(&devmap_managed_key);
 }
 
-static int devmap_managed_enable_get(struct dev_pagemap *pgmap)
+static void devmap_managed_enable_get(struct dev_pagemap *pgmap)
 {
-	if (!pgmap->ops || !pgmap->ops->page_free) {
-		WARN(1, "Missing page_free method\n");
-		return -EINVAL;
-	}
-
-	if (atomic_inc_return(&devmap_managed_enable) == 1)
-		static_branch_enable(&devmap_managed_key);
-	return 0;
+	if (pgmap->type == MEMORY_DEVICE_FS_DAX)
+		static_branch_inc(&devmap_managed_key);
 }
 #else
-static int devmap_managed_enable_get(struct dev_pagemap *pgmap)
-{
-	return -EINVAL;
-}
-static void devmap_managed_enable_put(void)
+static void devmap_managed_enable_get(struct dev_pagemap *pgmap)
 {
 }
-#endif /* CONFIG_DEV_PAGEMAP_OPS */
+static void devmap_managed_enable_put(struct dev_pagemap *pgmap)
+{
+}
+#endif /* CONFIG_FS_DAX */
 
-static void pgmap_array_delete(struct resource *res)
+static void pgmap_array_delete(struct range *range)
 {
-	xa_store_range(&pgmap_array, PHYS_PFN(res->start), PHYS_PFN(res->end),
+	xa_store_range(&pgmap_array, PHYS_PFN(range->start), PHYS_PFN(range->end),
 			NULL, GFP_KERNEL);
 	synchronize_rcu();
 }
 
-static unsigned long pfn_first(struct dev_pagemap *pgmap)
+static unsigned long pfn_first(struct dev_pagemap *pgmap, int range_id)
 {
-	return PHYS_PFN(pgmap->res.start) +
-		vmem_altmap_offset(pgmap_altmap(pgmap));
+	struct range *range = &pgmap->ranges[range_id];
+	unsigned long pfn = PHYS_PFN(range->start);
+
+	if (range_id)
+		return pfn;
+	return pfn + vmem_altmap_offset(pgmap_altmap(pgmap));
 }
 
-static unsigned long pfn_end(struct dev_pagemap *pgmap)
+bool pgmap_pfn_valid(struct dev_pagemap *pgmap, unsigned long pfn)
 {
-	const struct resource *res = &pgmap->res;
+	int i;
 
-	return (res->start + resource_size(res)) >> PAGE_SHIFT;
-}
+	for (i = 0; i < pgmap->nr_range; i++) {
+		struct range *range = &pgmap->ranges[i];
 
-static unsigned long pfn_next(unsigned long pfn)
-{
-	if (pfn % 1024 == 0)
-		cond_resched();
-	return pfn + 1;
-}
-
-#define for_each_device_pfn(pfn, map) \
-	for (pfn = pfn_first(map); pfn < pfn_end(map); pfn = pfn_next(pfn))
-
-static void dev_pagemap_kill(struct dev_pagemap *pgmap)
-{
-	if (pgmap->ops && pgmap->ops->kill)
-		pgmap->ops->kill(pgmap);
-	else
-		percpu_ref_kill(pgmap->ref);
-}
-
-static void dev_pagemap_cleanup(struct dev_pagemap *pgmap)
-{
-	if (pgmap->ops && pgmap->ops->cleanup) {
-		pgmap->ops->cleanup(pgmap);
-	} else {
-		wait_for_completion(&pgmap->done);
-		percpu_ref_exit(pgmap->ref);
+		if (pfn >= PHYS_PFN(range->start) &&
+		    pfn <= PHYS_PFN(range->end))
+			return pfn >= pfn_first(pgmap, i);
 	}
-	/*
-	 * Undo the pgmap ref assignment for the internal case as the
-	 * caller may re-enable the same pgmap.
-	 */
-	if (pgmap->ref == &pgmap->internal_ref)
-		pgmap->ref = NULL;
+
+	return false;
+}
+
+static unsigned long pfn_end(struct dev_pagemap *pgmap, int range_id)
+{
+	const struct range *range = &pgmap->ranges[range_id];
+
+	return (range->start + range_len(range)) >> PAGE_SHIFT;
+}
+
+static unsigned long pfn_len(struct dev_pagemap *pgmap, unsigned long range_id)
+{
+	return (pfn_end(pgmap, range_id) -
+		pfn_first(pgmap, range_id)) >> pgmap->vmemmap_shift;
+}
+
+static void pageunmap_range(struct dev_pagemap *pgmap, int range_id)
+{
+	struct range *range = &pgmap->ranges[range_id];
+	struct page *first_page;
+
+	/* make sure to access a memmap that was actually initialized */
+	first_page = pfn_to_page(pfn_first(pgmap, range_id));
+
+	/* pages are dead and unused, undo the arch mapping */
+	mem_hotplug_begin();
+	remove_pfn_range_from_zone(page_zone(first_page), PHYS_PFN(range->start),
+				   PHYS_PFN(range_len(range)));
+	if (pgmap->type == MEMORY_DEVICE_PRIVATE) {
+		__remove_pages(PHYS_PFN(range->start),
+			       PHYS_PFN(range_len(range)), NULL);
+	} else {
+		arch_remove_memory(range->start, range_len(range),
+				pgmap_altmap(pgmap));
+		kasan_remove_zero_shadow(__va(range->start), range_len(range));
+	}
+	mem_hotplug_done();
+
+	untrack_pfn(NULL, PHYS_PFN(range->start), range_len(range), true);
+	pgmap_array_delete(range);
 }
 
 void memunmap_pages(struct dev_pagemap *pgmap)
 {
-	struct resource *res = &pgmap->res;
-	unsigned long pfn;
-	int nid;
+	int i;
 
-	dev_pagemap_kill(pgmap);
-	for_each_device_pfn(pfn, pgmap)
-		put_page(pfn_to_page(pfn));
-	dev_pagemap_cleanup(pgmap);
+	percpu_ref_kill(&pgmap->ref);
+	if (pgmap->type != MEMORY_DEVICE_PRIVATE &&
+	    pgmap->type != MEMORY_DEVICE_COHERENT)
+		for (i = 0; i < pgmap->nr_range; i++)
+			percpu_ref_put_many(&pgmap->ref, pfn_len(pgmap, i));
 
-	/* pages are dead and unused, undo the arch mapping */
-	nid = page_to_nid(pfn_to_page(PHYS_PFN(res->start)));
+	wait_for_completion(&pgmap->done);
 
-	mem_hotplug_begin();
-	if (pgmap->type == MEMORY_DEVICE_PRIVATE) {
-		pfn = PHYS_PFN(res->start);
-		__remove_pages(page_zone(pfn_to_page(pfn)), pfn,
-				 PHYS_PFN(resource_size(res)), NULL);
-	} else {
-		arch_remove_memory(nid, res->start, resource_size(res),
-				pgmap_altmap(pgmap));
-		kasan_remove_zero_shadow(__va(res->start), resource_size(res));
-	}
-	mem_hotplug_done();
+	for (i = 0; i < pgmap->nr_range; i++)
+		pageunmap_range(pgmap, i);
+	percpu_ref_exit(&pgmap->ref);
 
-	untrack_pfn(NULL, PHYS_PFN(res->start), resource_size(res));
-	pgmap_array_delete(res);
 	WARN_ONCE(pgmap->altmap.alloc, "failed to free all reserved pages\n");
-	devmap_managed_enable_put();
+	devmap_managed_enable_put(pgmap);
 }
 EXPORT_SYMBOL_GPL(memunmap_pages);
 
@@ -142,119 +162,64 @@ static void devm_memremap_pages_release(void *data)
 
 static void dev_pagemap_percpu_release(struct percpu_ref *ref)
 {
-	struct dev_pagemap *pgmap =
-		container_of(ref, struct dev_pagemap, internal_ref);
+	struct dev_pagemap *pgmap = container_of(ref, struct dev_pagemap, ref);
 
 	complete(&pgmap->done);
 }
 
-/*
- * Not device managed version of dev_memremap_pages, undone by
- * memunmap_pages().  Please use dev_memremap_pages if you have a struct
- * device available.
- */
-void *memremap_pages(struct dev_pagemap *pgmap, int nid)
+static int pagemap_range(struct dev_pagemap *pgmap, struct mhp_params *params,
+		int range_id, int nid)
 {
-	struct resource *res = &pgmap->res;
+	const bool is_private = pgmap->type == MEMORY_DEVICE_PRIVATE;
+	struct range *range = &pgmap->ranges[range_id];
 	struct dev_pagemap *conflict_pgmap;
-	struct mhp_restrictions restrictions = {
-		/*
-		 * We do not want any optional features only our own memmap
-		 */
-		.altmap = pgmap_altmap(pgmap),
-	};
-	pgprot_t pgprot = PAGE_KERNEL;
 	int error, is_ram;
-	bool need_devmap_managed = true;
 
-	switch (pgmap->type) {
-	case MEMORY_DEVICE_PRIVATE:
-		if (!IS_ENABLED(CONFIG_DEVICE_PRIVATE)) {
-			WARN(1, "Device private memory not supported\n");
-			return ERR_PTR(-EINVAL);
-		}
-		if (!pgmap->ops || !pgmap->ops->migrate_to_ram) {
-			WARN(1, "Missing migrate_to_ram method\n");
-			return ERR_PTR(-EINVAL);
-		}
-		break;
-	case MEMORY_DEVICE_FS_DAX:
-		if (!IS_ENABLED(CONFIG_ZONE_DEVICE) ||
-		    IS_ENABLED(CONFIG_FS_DAX_LIMITED)) {
-			WARN(1, "File system DAX not supported\n");
-			return ERR_PTR(-EINVAL);
-		}
-		break;
-	case MEMORY_DEVICE_DEVDAX:
-	case MEMORY_DEVICE_PCI_P2PDMA:
-		need_devmap_managed = false;
-		break;
-	default:
-		WARN(1, "Invalid pgmap type %d\n", pgmap->type);
-		break;
-	}
+	if (WARN_ONCE(pgmap_altmap(pgmap) && range_id > 0,
+				"altmap not supported for multiple ranges\n"))
+		return -EINVAL;
 
-	if (!pgmap->ref) {
-		if (pgmap->ops && (pgmap->ops->kill || pgmap->ops->cleanup))
-			return ERR_PTR(-EINVAL);
-
-		init_completion(&pgmap->done);
-		error = percpu_ref_init(&pgmap->internal_ref,
-				dev_pagemap_percpu_release, 0, GFP_KERNEL);
-		if (error)
-			return ERR_PTR(error);
-		pgmap->ref = &pgmap->internal_ref;
-	} else {
-		if (!pgmap->ops || !pgmap->ops->kill || !pgmap->ops->cleanup) {
-			WARN(1, "Missing reference count teardown definition\n");
-			return ERR_PTR(-EINVAL);
-		}
-	}
-
-	if (need_devmap_managed) {
-		error = devmap_managed_enable_get(pgmap);
-		if (error)
-			return ERR_PTR(error);
-	}
-
-	conflict_pgmap = get_dev_pagemap(PHYS_PFN(res->start), NULL);
+	conflict_pgmap = get_dev_pagemap(PHYS_PFN(range->start), NULL);
 	if (conflict_pgmap) {
 		WARN(1, "Conflicting mapping in same section\n");
 		put_dev_pagemap(conflict_pgmap);
-		error = -ENOMEM;
-		goto err_array;
+		return -ENOMEM;
 	}
 
-	conflict_pgmap = get_dev_pagemap(PHYS_PFN(res->end), NULL);
+	conflict_pgmap = get_dev_pagemap(PHYS_PFN(range->end), NULL);
 	if (conflict_pgmap) {
 		WARN(1, "Conflicting mapping in same section\n");
 		put_dev_pagemap(conflict_pgmap);
-		error = -ENOMEM;
-		goto err_array;
+		return -ENOMEM;
 	}
 
-	is_ram = region_intersects(res->start, resource_size(res),
+	is_ram = region_intersects(range->start, range_len(range),
 		IORESOURCE_SYSTEM_RAM, IORES_DESC_NONE);
 
 	if (is_ram != REGION_DISJOINT) {
-		WARN_ONCE(1, "%s attempted on %s region %pr\n", __func__,
-				is_ram == REGION_MIXED ? "mixed" : "ram", res);
-		error = -ENXIO;
-		goto err_array;
+		WARN_ONCE(1, "attempted on %s region %#llx-%#llx\n",
+				is_ram == REGION_MIXED ? "mixed" : "ram",
+				range->start, range->end);
+		return -ENXIO;
 	}
 
-	error = xa_err(xa_store_range(&pgmap_array, PHYS_PFN(res->start),
-				PHYS_PFN(res->end), pgmap, GFP_KERNEL));
+	error = xa_err(xa_store_range(&pgmap_array, PHYS_PFN(range->start),
+				PHYS_PFN(range->end), pgmap, GFP_KERNEL));
 	if (error)
-		goto err_array;
+		return error;
 
 	if (nid < 0)
 		nid = numa_mem_id();
 
-	error = track_pfn_remap(NULL, &pgprot, PHYS_PFN(res->start), 0,
-			resource_size(res));
+	error = track_pfn_remap(NULL, &params->pgprot, PHYS_PFN(range->start), 0,
+			range_len(range));
 	if (error)
 		goto err_pfn_remap;
+
+	if (!mhp_range_allowed(range->start, range_len(range), !is_private)) {
+		error = -EINVAL;
+		goto err_kasan;
+	}
 
 	mem_hotplug_begin();
 
@@ -269,26 +234,27 @@ void *memremap_pages(struct dev_pagemap *pgmap, int nid)
 	 * the CPU, we do want the linear mapping and thus use
 	 * arch_add_memory().
 	 */
-	if (pgmap->type == MEMORY_DEVICE_PRIVATE) {
-		error = add_pages(nid, PHYS_PFN(res->start),
-				PHYS_PFN(resource_size(res)), &restrictions);
+	if (is_private) {
+		error = add_pages(nid, PHYS_PFN(range->start),
+				PHYS_PFN(range_len(range)), params);
 	} else {
-		error = kasan_add_zero_shadow(__va(res->start), resource_size(res));
+		error = kasan_add_zero_shadow(__va(range->start), range_len(range));
 		if (error) {
 			mem_hotplug_done();
 			goto err_kasan;
 		}
 
-		error = arch_add_memory(nid, res->start, resource_size(res),
-					&restrictions);
+		error = arch_add_memory(nid, range->start, range_len(range),
+					params);
 	}
 
 	if (!error) {
 		struct zone *zone;
 
 		zone = &NODE_DATA(nid)->node_zones[ZONE_DEVICE];
-		move_pfn_range_to_zone(zone, PHYS_PFN(res->start),
-				PHYS_PFN(resource_size(res)), restrictions.altmap);
+		move_pfn_range_to_zone(zone, PHYS_PFN(range->start),
+				PHYS_PFN(range_len(range)), params->altmap,
+				MIGRATE_MOVABLE);
 	}
 
 	mem_hotplug_done();
@@ -300,22 +266,117 @@ void *memremap_pages(struct dev_pagemap *pgmap, int nid)
 	 * to allow us to do the work while not holding the hotplug lock.
 	 */
 	memmap_init_zone_device(&NODE_DATA(nid)->node_zones[ZONE_DEVICE],
-				PHYS_PFN(res->start),
-				PHYS_PFN(resource_size(res)), pgmap);
-	percpu_ref_get_many(pgmap->ref, pfn_end(pgmap) - pfn_first(pgmap));
-	return __va(res->start);
+				PHYS_PFN(range->start),
+				PHYS_PFN(range_len(range)), pgmap);
+	if (pgmap->type != MEMORY_DEVICE_PRIVATE &&
+	    pgmap->type != MEMORY_DEVICE_COHERENT)
+		percpu_ref_get_many(&pgmap->ref, pfn_len(pgmap, range_id));
+	return 0;
 
- err_add_memory:
-	kasan_remove_zero_shadow(__va(res->start), resource_size(res));
- err_kasan:
-	untrack_pfn(NULL, PHYS_PFN(res->start), resource_size(res));
- err_pfn_remap:
-	pgmap_array_delete(res);
- err_array:
-	dev_pagemap_kill(pgmap);
-	dev_pagemap_cleanup(pgmap);
-	devmap_managed_enable_put();
-	return ERR_PTR(error);
+err_add_memory:
+	if (!is_private)
+		kasan_remove_zero_shadow(__va(range->start), range_len(range));
+err_kasan:
+	untrack_pfn(NULL, PHYS_PFN(range->start), range_len(range), true);
+err_pfn_remap:
+	pgmap_array_delete(range);
+	return error;
+}
+
+
+/*
+ * Not device managed version of devm_memremap_pages, undone by
+ * memunmap_pages().  Please use devm_memremap_pages if you have a struct
+ * device available.
+ */
+void *memremap_pages(struct dev_pagemap *pgmap, int nid)
+{
+	struct mhp_params params = {
+		.altmap = pgmap_altmap(pgmap),
+		.pgmap = pgmap,
+		.pgprot = PAGE_KERNEL,
+	};
+	const int nr_range = pgmap->nr_range;
+	int error, i;
+
+	if (WARN_ONCE(!nr_range, "nr_range must be specified\n"))
+		return ERR_PTR(-EINVAL);
+
+	switch (pgmap->type) {
+	case MEMORY_DEVICE_PRIVATE:
+		if (!IS_ENABLED(CONFIG_DEVICE_PRIVATE)) {
+			WARN(1, "Device private memory not supported\n");
+			return ERR_PTR(-EINVAL);
+		}
+		if (!pgmap->ops || !pgmap->ops->migrate_to_ram) {
+			WARN(1, "Missing migrate_to_ram method\n");
+			return ERR_PTR(-EINVAL);
+		}
+		if (!pgmap->ops->page_free) {
+			WARN(1, "Missing page_free method\n");
+			return ERR_PTR(-EINVAL);
+		}
+		if (!pgmap->owner) {
+			WARN(1, "Missing owner\n");
+			return ERR_PTR(-EINVAL);
+		}
+		break;
+	case MEMORY_DEVICE_COHERENT:
+		if (!pgmap->ops->page_free) {
+			WARN(1, "Missing page_free method\n");
+			return ERR_PTR(-EINVAL);
+		}
+		if (!pgmap->owner) {
+			WARN(1, "Missing owner\n");
+			return ERR_PTR(-EINVAL);
+		}
+		break;
+	case MEMORY_DEVICE_FS_DAX:
+		if (IS_ENABLED(CONFIG_FS_DAX_LIMITED)) {
+			WARN(1, "File system DAX not supported\n");
+			return ERR_PTR(-EINVAL);
+		}
+		params.pgprot = pgprot_decrypted(params.pgprot);
+		break;
+	case MEMORY_DEVICE_GENERIC:
+		break;
+	case MEMORY_DEVICE_PCI_P2PDMA:
+		params.pgprot = pgprot_noncached(params.pgprot);
+		break;
+	default:
+		WARN(1, "Invalid pgmap type %d\n", pgmap->type);
+		break;
+	}
+
+	init_completion(&pgmap->done);
+	error = percpu_ref_init(&pgmap->ref, dev_pagemap_percpu_release, 0,
+				GFP_KERNEL);
+	if (error)
+		return ERR_PTR(error);
+
+	devmap_managed_enable_get(pgmap);
+
+	/*
+	 * Clear the pgmap nr_range as it will be incremented for each
+	 * successfully processed range. This communicates how many
+	 * regions to unwind in the abort case.
+	 */
+	pgmap->nr_range = 0;
+	error = 0;
+	for (i = 0; i < nr_range; i++) {
+		error = pagemap_range(pgmap, &params, i, nid);
+		if (error)
+			break;
+		pgmap->nr_range++;
+	}
+
+	if (i < nr_range) {
+		memunmap_pages(pgmap);
+		pgmap->nr_range = nr_range;
+		return ERR_PTR(error);
+	}
+
+	return __va(pgmap->ranges[0].start);
 }
 EXPORT_SYMBOL_GPL(memremap_pages);
 
@@ -325,7 +386,7 @@ EXPORT_SYMBOL_GPL(memremap_pages);
  * @pgmap: pointer to a struct dev_pagemap
  *
  * Notes:
- * 1/ At a minimum the res and type members of @pgmap must be initialized
+ * 1/ At a minimum the range and type members of @pgmap must be initialized
  *    by the caller before passing it to this function
  *
  * 2/ The altmap field may optionally be initialized, in which case
@@ -335,7 +396,7 @@ EXPORT_SYMBOL_GPL(memremap_pages);
  *    'live' on entry and will be killed and reaped at
  *    devm_memremap_pages_release() time, or if this routine fails.
  *
- * 4/ res is expected to be a host memory range that could feasibly be
+ * 4/ range is expected to be a host memory range that could feasibly be
  *    treated as a "System RAM" range, i.e. not a device mmio range, but
  *    this is not enforced.
  */
@@ -362,19 +423,6 @@ void devm_memunmap_pages(struct device *dev, struct dev_pagemap *pgmap)
 }
 EXPORT_SYMBOL_GPL(devm_memunmap_pages);
 
-unsigned long vmem_altmap_offset(struct vmem_altmap *altmap)
-{
-	/* number of pfns from base where pfn_to_page() is valid */
-	if (altmap)
-		return altmap->reserve + altmap->free;
-	return 0;
-}
-
-void vmem_altmap_free(struct vmem_altmap *altmap, unsigned long nr_pfns)
-{
-	altmap->alloc -= nr_pfns;
-}
-
 /**
  * get_dev_pagemap() - take a new live reference on the dev_pagemap for @pfn
  * @pfn: page frame number to lookup page_map
@@ -392,7 +440,7 @@ struct dev_pagemap *get_dev_pagemap(unsigned long pfn,
 	 * In the cached case we're already holding a live reference.
 	 */
 	if (pgmap) {
-		if (phys >= pgmap->res.start && phys <= pgmap->res.end)
+		if (phys >= pgmap->range.start && phys <= pgmap->range.end)
 			return pgmap;
 		put_dev_pagemap(pgmap);
 	}
@@ -400,7 +448,7 @@ struct dev_pagemap *get_dev_pagemap(unsigned long pfn,
 	/* fall back to slow path lookup */
 	rcu_read_lock();
 	pgmap = xa_load(&pgmap_array, PHYS_PFN(phys));
-	if (pgmap && !percpu_ref_tryget_live(pgmap->ref))
+	if (pgmap && !percpu_ref_tryget_live_rcu(&pgmap->ref))
 		pgmap = NULL;
 	rcu_read_unlock();
 
@@ -408,49 +456,75 @@ struct dev_pagemap *get_dev_pagemap(unsigned long pfn,
 }
 EXPORT_SYMBOL_GPL(get_dev_pagemap);
 
-#ifdef CONFIG_DEV_PAGEMAP_OPS
-void __put_devmap_managed_page(struct page *page)
+void free_zone_device_folio(struct folio *folio)
 {
-	int count = page_ref_dec_return(page);
+	if (WARN_ON_ONCE(!folio->page.pgmap->ops ||
+			!folio->page.pgmap->ops->page_free))
+		return;
+
+	mem_cgroup_uncharge(folio);
 
 	/*
-	 * If refcount is 1 then page is freed and refcount is stable as nobody
-	 * holds a reference on the page.
+	 * Note: we don't expect anonymous compound pages yet. Once supported
+	 * and we could PTE-map them similar to THP, we'd have to clear
+	 * PG_anon_exclusive on all tail pages.
 	 */
-	if (count == 1) {
-		/* Clear Active bit in case of parallel mark_page_accessed */
-		__ClearPageActive(page);
-		__ClearPageWaiters(page);
+	if (folio_test_anon(folio)) {
+		VM_BUG_ON_FOLIO(folio_test_large(folio), folio);
+		__ClearPageAnonExclusive(folio_page(folio, 0));
+	}
 
-		mem_cgroup_uncharge(page);
+	/*
+	 * When a device managed page is freed, the folio->mapping field
+	 * may still contain a (stale) mapping value. For example, the
+	 * lower bits of folio->mapping may still identify the folio as an
+	 * anonymous folio. Ultimately, this entire field is just stale
+	 * and wrong, and it will cause errors if not cleared.
+	 *
+	 * For other types of ZONE_DEVICE pages, migration is either
+	 * handled differently or not done at all, so there is no need
+	 * to clear folio->mapping.
+	 */
+	folio->mapping = NULL;
+	folio->page.pgmap->ops->page_free(folio_page(folio, 0));
 
+	if (folio->page.pgmap->type != MEMORY_DEVICE_PRIVATE &&
+	    folio->page.pgmap->type != MEMORY_DEVICE_COHERENT)
 		/*
-		 * When a device_private page is freed, the page->mapping field
-		 * may still contain a (stale) mapping value. For example, the
-		 * lower bits of page->mapping may still identify the page as
-		 * an anonymous page. Ultimately, this entire field is just
-		 * stale and wrong, and it will cause errors if not cleared.
-		 * One example is:
-		 *
-		 *  migrate_vma_pages()
-		 *    migrate_vma_insert_page()
-		 *      page_add_new_anon_rmap()
-		 *        __page_set_anon_rmap()
-		 *          ...checks page->mapping, via PageAnon(page) call,
-		 *            and incorrectly concludes that the page is an
-		 *            anonymous page. Therefore, it incorrectly,
-		 *            silently fails to set up the new anon rmap.
-		 *
-		 * For other types of ZONE_DEVICE pages, migration is either
-		 * handled differently or not done at all, so there is no need
-		 * to clear page->mapping.
+		 * Reset the refcount to 1 to prepare for handing out the page
+		 * again.
 		 */
-		if (is_device_private_page(page))
-			page->mapping = NULL;
-
-		page->pgmap->ops->page_free(page);
-	} else if (!count)
-		__put_page(page);
+		folio_set_count(folio, 1);
+	else
+		put_dev_pagemap(folio->page.pgmap);
 }
-EXPORT_SYMBOL(__put_devmap_managed_page);
-#endif /* CONFIG_DEV_PAGEMAP_OPS */
+
+void zone_device_page_init(struct page *page)
+{
+	/*
+	 * Drivers shouldn't be allocating pages after calling
+	 * memunmap_pages().
+	 */
+	WARN_ON_ONCE(!percpu_ref_tryget_live(&page->pgmap->ref));
+	set_page_count(page, 1);
+	lock_page(page);
+}
+EXPORT_SYMBOL_GPL(zone_device_page_init);
+
+#ifdef CONFIG_FS_DAX
+bool __put_devmap_managed_folio_refs(struct folio *folio, int refs)
+{
+	if (folio->page.pgmap->type != MEMORY_DEVICE_FS_DAX)
+		return false;
+
+	/*
+	 * fsdax page refcounts are 1-based, rather than 0-based: if
+	 * refcount is 1, then the page is free and the refcount is
+	 * stable because nobody holds a reference on the page.
+	 */
+	if (folio_ref_sub_return(folio, refs) == 1)
+		wake_up_var(&folio->_refcount);
+	return true;
+}
+EXPORT_SYMBOL(__put_devmap_managed_folio_refs);
+#endif /* CONFIG_FS_DAX */

@@ -1536,8 +1536,11 @@ void bnx2x_get_rss_ind_table(struct bnx2x_rss_config_obj *rss_obj,
 	((MAX_MAC_CREDIT_E2 - GET_NUM_VFS_PER_PATH(bp) * VF_MAC_CREDIT_CNT) / \
 	 func_num + GET_NUM_VFS_PER_PF(bp) * VF_MAC_CREDIT_CNT)
 
+#define BNX2X_VFS_VLAN_CREDIT(bp)	\
+	(GET_NUM_VFS_PER_PATH(bp) * VF_VLAN_CREDIT_CNT)
+
 #define PF_VLAN_CREDIT_E2(bp, func_num)					 \
-	((MAX_MAC_CREDIT_E2 - GET_NUM_VFS_PER_PATH(bp) * VF_VLAN_CREDIT_CNT) / \
+	((MAX_VLAN_CREDIT_E2 - 1 - BNX2X_VFS_VLAN_CREDIT(bp)) /	\
 	 func_num + GET_NUM_VFS_PER_PF(bp) * VF_VLAN_CREDIT_CNT)
 
 #endif /* BNX2X_SP_VERBS */

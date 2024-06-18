@@ -6,7 +6,8 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/delay.h>
@@ -15,7 +16,6 @@
 #include <linux/completion.h>
 #include <linux/spinlock.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
 #include <linux/pm_runtime.h>
 #include <linux/spi/spi.h>
 
@@ -50,8 +50,6 @@
 #define LTQ_SPI_RXCNT		0x84
 #define LTQ_SPI_DMACON		0xec
 #define LTQ_SPI_IRNEN		0xf4
-#define LTQ_SPI_IRNICR		0xf8
-#define LTQ_SPI_IRNCR		0xfc
 
 #define LTQ_SPI_CLC_SMC_S	16	/* Clock divider for sleep mode */
 #define LTQ_SPI_CLC_SMC_M	(0xFF << LTQ_SPI_CLC_SMC_S)
@@ -61,9 +59,7 @@
 #define LTQ_SPI_CLC_DISR	BIT(0)	/* Disable request bit */
 
 #define LTQ_SPI_ID_TXFS_S	24	/* Implemented TX FIFO size */
-#define LTQ_SPI_ID_TXFS_M	(0x3F << LTQ_SPI_ID_TXFS_S)
 #define LTQ_SPI_ID_RXFS_S	16	/* Implemented RX FIFO size */
-#define LTQ_SPI_ID_RXFS_M	(0x3F << LTQ_SPI_ID_RXFS_S)
 #define LTQ_SPI_ID_MOD_S	8	/* Module ID */
 #define LTQ_SPI_ID_MOD_M	(0xff << LTQ_SPI_ID_MOD_S)
 #define LTQ_SPI_ID_CFG_S	5	/* DMA interface support */
@@ -96,7 +92,7 @@
 #define LTQ_SPI_STAT_RE		BIT(9)	/* Receive error flag */
 #define LTQ_SPI_STAT_TE		BIT(8)	/* Transmit error flag */
 #define LTQ_SPI_STAT_ME		BIT(7)	/* Mode error flag */
-#define LTQ_SPI_STAT_MS		BIT(1)	/* Master/slave select bit */
+#define LTQ_SPI_STAT_MS		BIT(1)	/* Host/target select bit */
 #define LTQ_SPI_STAT_EN		BIT(0)	/* Enable bit */
 #define LTQ_SPI_STAT_ERRORS	(LTQ_SPI_STAT_ME | LTQ_SPI_STAT_TE | \
 				 LTQ_SPI_STAT_RE | LTQ_SPI_STAT_AE | \
@@ -114,8 +110,8 @@
 #define LTQ_SPI_WHBSTATE_CLRME	BIT(6)	/* Clear mode error flag */
 #define LTQ_SPI_WHBSTATE_SETRUE	BIT(5)	/* Set receive underflow error flag */
 #define LTQ_SPI_WHBSTATE_CLRRUE	BIT(4)	/* Clear receive underflow error flag */
-#define LTQ_SPI_WHBSTATE_SETMS	BIT(3)	/* Set master select bit */
-#define LTQ_SPI_WHBSTATE_CLRMS	BIT(2)	/* Clear master select bit */
+#define LTQ_SPI_WHBSTATE_SETMS	BIT(3)	/* Set host select bit */
+#define LTQ_SPI_WHBSTATE_CLRMS	BIT(2)	/* Clear host select bit */
 #define LTQ_SPI_WHBSTATE_SETEN	BIT(1)	/* Set enable bit (operational mode) */
 #define LTQ_SPI_WHBSTATE_CLREN	BIT(0)	/* Clear enable bit (config mode */
 #define LTQ_SPI_WHBSTATE_CLR_ERRORS	(LTQ_SPI_WHBSTATE_CLRRUE | \
@@ -126,19 +122,15 @@
 					 LTQ_SPI_WHBSTATE_CLRTUE)
 
 #define LTQ_SPI_RXFCON_RXFITL_S	8	/* FIFO interrupt trigger level */
-#define LTQ_SPI_RXFCON_RXFITL_M	(0x3F << LTQ_SPI_RXFCON_RXFITL_S)
 #define LTQ_SPI_RXFCON_RXFLU	BIT(1)	/* FIFO flush */
 #define LTQ_SPI_RXFCON_RXFEN	BIT(0)	/* FIFO enable */
 
 #define LTQ_SPI_TXFCON_TXFITL_S	8	/* FIFO interrupt trigger level */
-#define LTQ_SPI_TXFCON_TXFITL_M	(0x3F << LTQ_SPI_TXFCON_TXFITL_S)
 #define LTQ_SPI_TXFCON_TXFLU	BIT(1)	/* FIFO flush */
 #define LTQ_SPI_TXFCON_TXFEN	BIT(0)	/* FIFO enable */
 
 #define LTQ_SPI_FSTAT_RXFFL_S	0
-#define LTQ_SPI_FSTAT_RXFFL_M	(0x3f << LTQ_SPI_FSTAT_RXFFL_S)
 #define LTQ_SPI_FSTAT_TXFFL_S	8
-#define LTQ_SPI_FSTAT_TXFFL_M	(0x3f << LTQ_SPI_FSTAT_TXFFL_S)
 
 #define LTQ_SPI_GPOCON_ISCSBN_S	8
 #define LTQ_SPI_GPOCON_INVOUTN_S	0
@@ -158,13 +150,20 @@
 #define LTQ_SPI_IRNEN_T_XRX	BIT(0)	/* Receive end interrupt request */
 #define LTQ_SPI_IRNEN_ALL	0x1F
 
+struct lantiq_ssc_spi;
+
 struct lantiq_ssc_hwcfg {
-	unsigned int irnen_r;
-	unsigned int irnen_t;
+	int (*cfg_irq)(struct platform_device *pdev, struct lantiq_ssc_spi *spi);
+	unsigned int	irnen_r;
+	unsigned int	irnen_t;
+	unsigned int	irncr;
+	unsigned int	irnicr;
+	bool		irq_ack;
+	u32		fifo_size_mask;
 };
 
 struct lantiq_ssc_spi {
-	struct spi_master		*master;
+	struct spi_controller		*host;
 	struct device			*dev;
 	void __iomem			*regbase;
 	struct clk			*spi_clk;
@@ -184,6 +183,7 @@ struct lantiq_ssc_spi {
 	unsigned int			tx_fifo_size;
 	unsigned int			rx_fifo_size;
 	unsigned int			base_cs;
+	unsigned int			fdx_tx_level;
 };
 
 static u32 lantiq_ssc_readl(const struct lantiq_ssc_spi *spi, u32 reg)
@@ -209,16 +209,18 @@ static void lantiq_ssc_maskl(const struct lantiq_ssc_spi *spi, u32 clr,
 
 static unsigned int tx_fifo_level(const struct lantiq_ssc_spi *spi)
 {
+	const struct lantiq_ssc_hwcfg *hwcfg = spi->hwcfg;
 	u32 fstat = lantiq_ssc_readl(spi, LTQ_SPI_FSTAT);
 
-	return (fstat & LTQ_SPI_FSTAT_TXFFL_M) >> LTQ_SPI_FSTAT_TXFFL_S;
+	return (fstat >> LTQ_SPI_FSTAT_TXFFL_S) & hwcfg->fifo_size_mask;
 }
 
 static unsigned int rx_fifo_level(const struct lantiq_ssc_spi *spi)
 {
+	const struct lantiq_ssc_hwcfg *hwcfg = spi->hwcfg;
 	u32 fstat = lantiq_ssc_readl(spi, LTQ_SPI_FSTAT);
 
-	return fstat & LTQ_SPI_FSTAT_RXFFL_M;
+	return (fstat >> LTQ_SPI_FSTAT_RXFFL_S) & hwcfg->fifo_size_mask;
 }
 
 static unsigned int tx_fifo_free(const struct lantiq_ssc_spi *spi)
@@ -365,7 +367,7 @@ static void lantiq_ssc_hw_init(const struct lantiq_ssc_spi *spi)
 	hw_setup_bits_per_word(spi, spi->bits_per_word);
 	hw_setup_clock_mode(spi, SPI_MODE_0);
 
-	/* Enable master mode and clear error flags */
+	/* Enable host mode and clear error flags */
 	lantiq_ssc_writel(spi, LTQ_SPI_WHBSTATE_SETMS |
 			       LTQ_SPI_WHBSTATE_CLR_ERRORS,
 			       LTQ_SPI_WHBSTATE);
@@ -385,13 +387,13 @@ static void lantiq_ssc_hw_init(const struct lantiq_ssc_spi *spi)
 
 static int lantiq_ssc_setup(struct spi_device *spidev)
 {
-	struct spi_master *master = spidev->master;
-	struct lantiq_ssc_spi *spi = spi_master_get_devdata(master);
-	unsigned int cs = spidev->chip_select;
+	struct spi_controller *host = spidev->controller;
+	struct lantiq_ssc_spi *spi = spi_controller_get_devdata(host);
+	unsigned int cs = spi_get_chipselect(spidev, 0);
 	u32 gpocon;
 
 	/* GPIOs are used for CS */
-	if (gpio_is_valid(spidev->cs_gpio))
+	if (spi_get_csgpiod(spidev, 0))
 		return 0;
 
 	dev_dbg(spi->dev, "using internal chipselect %u\n", cs);
@@ -414,10 +416,10 @@ static int lantiq_ssc_setup(struct spi_device *spidev)
 	return 0;
 }
 
-static int lantiq_ssc_prepare_message(struct spi_master *master,
+static int lantiq_ssc_prepare_message(struct spi_controller *host,
 				      struct spi_message *message)
 {
-	struct lantiq_ssc_spi *spi = spi_master_get_devdata(master);
+	struct lantiq_ssc_spi *spi = spi_controller_get_devdata(host);
 
 	hw_enter_config_mode(spi);
 	hw_setup_clock_mode(spi, message->spi->mode);
@@ -459,10 +461,10 @@ static void hw_setup_transfer(struct lantiq_ssc_spi *spi,
 	lantiq_ssc_writel(spi, con, LTQ_SPI_CON);
 }
 
-static int lantiq_ssc_unprepare_message(struct spi_master *master,
+static int lantiq_ssc_unprepare_message(struct spi_controller *host,
 					struct spi_message *message)
 {
-	struct lantiq_ssc_spi *spi = spi_master_get_devdata(master);
+	struct lantiq_ssc_spi *spi = spi_controller_get_devdata(host);
 
 	flush_workqueue(spi->wq);
 
@@ -481,6 +483,7 @@ static void tx_fifo_write(struct lantiq_ssc_spi *spi)
 	u32 data;
 	unsigned int tx_free = tx_fifo_free(spi);
 
+	spi->fdx_tx_level = 0;
 	while (spi->tx_todo && tx_free) {
 		switch (spi->bits_per_word) {
 		case 2 ... 8:
@@ -509,6 +512,7 @@ static void tx_fifo_write(struct lantiq_ssc_spi *spi)
 
 		lantiq_ssc_writel(spi, data, LTQ_SPI_TB);
 		tx_free--;
+		spi->fdx_tx_level++;
 	}
 }
 
@@ -519,6 +523,13 @@ static void rx_fifo_read_full_duplex(struct lantiq_ssc_spi *spi)
 	u32 *rx32;
 	u32 data;
 	unsigned int rx_fill = rx_fifo_level(spi);
+
+	/*
+	 * Wait until all expected data to be shifted in.
+	 * Otherwise, rx overrun may occur.
+	 */
+	while (rx_fill != spi->fdx_tx_level)
+		rx_fill = rx_fifo_level(spi);
 
 	while (rx_fill) {
 		data = lantiq_ssc_readl(spi, LTQ_SPI_RB);
@@ -613,6 +624,12 @@ static void rx_request(struct lantiq_ssc_spi *spi)
 static irqreturn_t lantiq_ssc_xmit_interrupt(int irq, void *data)
 {
 	struct lantiq_ssc_spi *spi = data;
+	const struct lantiq_ssc_hwcfg *hwcfg = spi->hwcfg;
+	u32 val = lantiq_ssc_readl(spi, hwcfg->irncr);
+
+	spin_lock(&spi->lock);
+	if (hwcfg->irq_ack)
+		lantiq_ssc_writel(spi, val, hwcfg->irncr);
 
 	if (spi->tx) {
 		if (spi->rx && spi->rx_todo)
@@ -635,10 +652,12 @@ static irqreturn_t lantiq_ssc_xmit_interrupt(int irq, void *data)
 		}
 	}
 
+	spin_unlock(&spi->lock);
 	return IRQ_HANDLED;
 
 completed:
 	queue_work(spi->wq, &spi->work);
+	spin_unlock(&spi->lock);
 
 	return IRQ_HANDLED;
 }
@@ -646,10 +665,16 @@ completed:
 static irqreturn_t lantiq_ssc_err_interrupt(int irq, void *data)
 {
 	struct lantiq_ssc_spi *spi = data;
+	const struct lantiq_ssc_hwcfg *hwcfg = spi->hwcfg;
 	u32 stat = lantiq_ssc_readl(spi, LTQ_SPI_STAT);
+	u32 val = lantiq_ssc_readl(spi, hwcfg->irncr);
 
 	if (!(stat & LTQ_SPI_STAT_ERRORS))
 		return IRQ_NONE;
+
+	spin_lock(&spi->lock);
+	if (hwcfg->irq_ack)
+		lantiq_ssc_writel(spi, val, hwcfg->irncr);
 
 	if (stat & LTQ_SPI_STAT_RUE)
 		dev_err(spi->dev, "receive underflow error\n");
@@ -668,9 +693,28 @@ static irqreturn_t lantiq_ssc_err_interrupt(int irq, void *data)
 	lantiq_ssc_maskl(spi, 0, LTQ_SPI_WHBSTATE_CLR_ERRORS, LTQ_SPI_WHBSTATE);
 
 	/* set bad status so it can be retried */
-	if (spi->master->cur_msg)
-		spi->master->cur_msg->status = -EIO;
+	if (spi->host->cur_msg)
+		spi->host->cur_msg->status = -EIO;
 	queue_work(spi->wq, &spi->work);
+	spin_unlock(&spi->lock);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t intel_lgm_ssc_isr(int irq, void *data)
+{
+	struct lantiq_ssc_spi *spi = data;
+	const struct lantiq_ssc_hwcfg *hwcfg = spi->hwcfg;
+	u32 val = lantiq_ssc_readl(spi, hwcfg->irncr);
+
+	if (!(val & LTQ_SPI_IRNEN_ALL))
+		return IRQ_NONE;
+
+	if (val & LTQ_SPI_IRNEN_E)
+		return lantiq_ssc_err_interrupt(irq, data);
+
+	if ((val & hwcfg->irnen_t) || (val & hwcfg->irnen_r))
+		return lantiq_ssc_xmit_interrupt(irq, data);
 
 	return IRQ_HANDLED;
 }
@@ -728,22 +772,22 @@ static void lantiq_ssc_bussy_work(struct work_struct *work)
 		u32 stat = lantiq_ssc_readl(spi, LTQ_SPI_STAT);
 
 		if (!(stat & LTQ_SPI_STAT_BSY)) {
-			spi_finalize_current_transfer(spi->master);
+			spi_finalize_current_transfer(spi->host);
 			return;
 		}
 
 		cond_resched();
 	} while (!time_after_eq(jiffies, end));
 
-	if (spi->master->cur_msg)
-		spi->master->cur_msg->status = -EIO;
-	spi_finalize_current_transfer(spi->master);
+	if (spi->host->cur_msg)
+		spi->host->cur_msg->status = -EIO;
+	spi_finalize_current_transfer(spi->host);
 }
 
-static void lantiq_ssc_handle_err(struct spi_master *master,
+static void lantiq_ssc_handle_err(struct spi_controller *host,
 				  struct spi_message *message)
 {
-	struct lantiq_ssc_spi *spi = spi_master_get_devdata(master);
+	struct lantiq_ssc_spi *spi = spi_controller_get_devdata(host);
 
 	/* flush FIFOs on timeout */
 	rx_fifo_flush(spi);
@@ -752,8 +796,8 @@ static void lantiq_ssc_handle_err(struct spi_master *master,
 
 static void lantiq_ssc_set_cs(struct spi_device *spidev, bool enable)
 {
-	struct lantiq_ssc_spi *spi = spi_master_get_devdata(spidev->master);
-	unsigned int cs = spidev->chip_select;
+	struct lantiq_ssc_spi *spi = spi_controller_get_devdata(spidev->controller);
+	unsigned int cs = spi_get_chipselect(spidev, 0);
 	u32 fgpo;
 
 	if (!!(spidev->mode & SPI_CS_HIGH) == enable)
@@ -764,31 +808,95 @@ static void lantiq_ssc_set_cs(struct spi_device *spidev, bool enable)
 	lantiq_ssc_writel(spi, fgpo, LTQ_SPI_FPGO);
 }
 
-static int lantiq_ssc_transfer_one(struct spi_master *master,
+static int lantiq_ssc_transfer_one(struct spi_controller *host,
 				   struct spi_device *spidev,
 				   struct spi_transfer *t)
 {
-	struct lantiq_ssc_spi *spi = spi_master_get_devdata(master);
+	struct lantiq_ssc_spi *spi = spi_controller_get_devdata(host);
 
 	hw_setup_transfer(spi, spidev, t);
 
 	return transfer_start(spi, spidev, t);
 }
 
+static int intel_lgm_cfg_irq(struct platform_device *pdev, struct lantiq_ssc_spi *spi)
+{
+	int irq;
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
+
+	return devm_request_irq(&pdev->dev, irq, intel_lgm_ssc_isr, 0, "spi", spi);
+}
+
+static int lantiq_cfg_irq(struct platform_device *pdev, struct lantiq_ssc_spi *spi)
+{
+	int irq, err;
+
+	irq = platform_get_irq_byname(pdev, LTQ_SPI_RX_IRQ_NAME);
+	if (irq < 0)
+		return irq;
+
+	err = devm_request_irq(&pdev->dev, irq, lantiq_ssc_xmit_interrupt,
+			       0, LTQ_SPI_RX_IRQ_NAME, spi);
+	if (err)
+		return err;
+
+	irq = platform_get_irq_byname(pdev, LTQ_SPI_TX_IRQ_NAME);
+	if (irq < 0)
+		return irq;
+
+	err = devm_request_irq(&pdev->dev, irq, lantiq_ssc_xmit_interrupt,
+			       0, LTQ_SPI_TX_IRQ_NAME, spi);
+
+	if (err)
+		return err;
+
+	irq = platform_get_irq_byname(pdev, LTQ_SPI_ERR_IRQ_NAME);
+	if (irq < 0)
+		return irq;
+
+	err = devm_request_irq(&pdev->dev, irq, lantiq_ssc_err_interrupt,
+			       0, LTQ_SPI_ERR_IRQ_NAME, spi);
+	return err;
+}
+
 static const struct lantiq_ssc_hwcfg lantiq_ssc_xway = {
-	.irnen_r = LTQ_SPI_IRNEN_R_XWAY,
-	.irnen_t = LTQ_SPI_IRNEN_T_XWAY,
+	.cfg_irq	= lantiq_cfg_irq,
+	.irnen_r	= LTQ_SPI_IRNEN_R_XWAY,
+	.irnen_t	= LTQ_SPI_IRNEN_T_XWAY,
+	.irnicr		= 0xF8,
+	.irncr		= 0xFC,
+	.fifo_size_mask	= GENMASK(5, 0),
+	.irq_ack	= false,
 };
 
 static const struct lantiq_ssc_hwcfg lantiq_ssc_xrx = {
-	.irnen_r = LTQ_SPI_IRNEN_R_XRX,
-	.irnen_t = LTQ_SPI_IRNEN_T_XRX,
+	.cfg_irq	= lantiq_cfg_irq,
+	.irnen_r	= LTQ_SPI_IRNEN_R_XRX,
+	.irnen_t	= LTQ_SPI_IRNEN_T_XRX,
+	.irnicr		= 0xF8,
+	.irncr		= 0xFC,
+	.fifo_size_mask	= GENMASK(5, 0),
+	.irq_ack	= false,
+};
+
+static const struct lantiq_ssc_hwcfg intel_ssc_lgm = {
+	.cfg_irq	= intel_lgm_cfg_irq,
+	.irnen_r	= LTQ_SPI_IRNEN_R_XRX,
+	.irnen_t	= LTQ_SPI_IRNEN_T_XRX,
+	.irnicr		= 0xFC,
+	.irncr		= 0xF8,
+	.fifo_size_mask	= GENMASK(7, 0),
+	.irq_ack	= true,
 };
 
 static const struct of_device_id lantiq_ssc_match[] = {
 	{ .compatible = "lantiq,ase-spi", .data = &lantiq_ssc_xway, },
 	{ .compatible = "lantiq,falcon-spi", .data = &lantiq_ssc_xrx, },
 	{ .compatible = "lantiq,xrx100-spi", .data = &lantiq_ssc_xrx, },
+	{ .compatible = "intel,lgm-spi", .data = &intel_ssc_lgm, },
 	{},
 };
 MODULE_DEVICE_TABLE(of, lantiq_ssc_match);
@@ -796,79 +904,39 @@ MODULE_DEVICE_TABLE(of, lantiq_ssc_match);
 static int lantiq_ssc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct spi_master *master;
-	struct resource *res;
+	struct spi_controller *host;
 	struct lantiq_ssc_spi *spi;
 	const struct lantiq_ssc_hwcfg *hwcfg;
-	const struct of_device_id *match;
-	int err, rx_irq, tx_irq, err_irq;
 	u32 id, supports_dma, revision;
 	unsigned int num_cs;
+	int err;
 
-	match = of_match_device(lantiq_ssc_match, dev);
-	if (!match) {
-		dev_err(dev, "no device match\n");
-		return -EINVAL;
-	}
-	hwcfg = match->data;
+	hwcfg = of_device_get_match_data(dev);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "failed to get resources\n");
-		return -ENXIO;
-	}
-
-	rx_irq = platform_get_irq_byname(pdev, LTQ_SPI_RX_IRQ_NAME);
-	if (rx_irq < 0)
-		return -ENXIO;
-
-	tx_irq = platform_get_irq_byname(pdev, LTQ_SPI_TX_IRQ_NAME);
-	if (tx_irq < 0)
-		return -ENXIO;
-
-	err_irq = platform_get_irq_byname(pdev, LTQ_SPI_ERR_IRQ_NAME);
-	if (err_irq < 0)
-		return -ENXIO;
-
-	master = spi_alloc_master(dev, sizeof(struct lantiq_ssc_spi));
-	if (!master)
+	host = spi_alloc_host(dev, sizeof(struct lantiq_ssc_spi));
+	if (!host)
 		return -ENOMEM;
 
-	spi = spi_master_get_devdata(master);
-	spi->master = master;
+	spi = spi_controller_get_devdata(host);
+	spi->host = host;
 	spi->dev = dev;
 	spi->hwcfg = hwcfg;
 	platform_set_drvdata(pdev, spi);
-
-	spi->regbase = devm_ioremap_resource(dev, res);
+	spi->regbase = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(spi->regbase)) {
 		err = PTR_ERR(spi->regbase);
-		goto err_master_put;
+		goto err_host_put;
 	}
 
-	err = devm_request_irq(dev, rx_irq, lantiq_ssc_xmit_interrupt,
-			       0, LTQ_SPI_RX_IRQ_NAME, spi);
+	err = hwcfg->cfg_irq(pdev, spi);
 	if (err)
-		goto err_master_put;
+		goto err_host_put;
 
-	err = devm_request_irq(dev, tx_irq, lantiq_ssc_xmit_interrupt,
-			       0, LTQ_SPI_TX_IRQ_NAME, spi);
-	if (err)
-		goto err_master_put;
-
-	err = devm_request_irq(dev, err_irq, lantiq_ssc_err_interrupt,
-			       0, LTQ_SPI_ERR_IRQ_NAME, spi);
-	if (err)
-		goto err_master_put;
-
-	spi->spi_clk = devm_clk_get(dev, "gate");
+	spi->spi_clk = devm_clk_get_enabled(dev, "gate");
 	if (IS_ERR(spi->spi_clk)) {
 		err = PTR_ERR(spi->spi_clk);
-		goto err_master_put;
+		goto err_host_put;
 	}
-	err = clk_prepare_enable(spi->spi_clk);
-	if (err)
-		goto err_master_put;
 
 	/*
 	 * Use the old clk_get_fpi() function on Lantiq platform, till it
@@ -881,7 +949,7 @@ static int lantiq_ssc_probe(struct platform_device *pdev)
 #endif
 	if (IS_ERR(spi->fpi_clk)) {
 		err = PTR_ERR(spi->fpi_clk);
-		goto err_clk_disable;
+		goto err_host_put;
 	}
 
 	num_cs = 8;
@@ -894,20 +962,21 @@ static int lantiq_ssc_probe(struct platform_device *pdev)
 	spi->bits_per_word = 8;
 	spi->speed_hz = 0;
 
-	master->dev.of_node = pdev->dev.of_node;
-	master->num_chipselect = num_cs;
-	master->setup = lantiq_ssc_setup;
-	master->set_cs = lantiq_ssc_set_cs;
-	master->handle_err = lantiq_ssc_handle_err;
-	master->prepare_message = lantiq_ssc_prepare_message;
-	master->unprepare_message = lantiq_ssc_unprepare_message;
-	master->transfer_one = lantiq_ssc_transfer_one;
-	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST | SPI_CS_HIGH |
-				SPI_LOOP;
-	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(2, 8) |
-				     SPI_BPW_MASK(16) | SPI_BPW_MASK(32);
+	host->dev.of_node = pdev->dev.of_node;
+	host->num_chipselect = num_cs;
+	host->use_gpio_descriptors = true;
+	host->setup = lantiq_ssc_setup;
+	host->set_cs = lantiq_ssc_set_cs;
+	host->handle_err = lantiq_ssc_handle_err;
+	host->prepare_message = lantiq_ssc_prepare_message;
+	host->unprepare_message = lantiq_ssc_unprepare_message;
+	host->transfer_one = lantiq_ssc_transfer_one;
+	host->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST | SPI_CS_HIGH |
+			  SPI_LOOP;
+	host->bits_per_word_mask = SPI_BPW_RANGE_MASK(2, 8) |
+				   SPI_BPW_MASK(16) | SPI_BPW_MASK(32);
 
-	spi->wq = alloc_ordered_workqueue(dev_name(dev), 0);
+	spi->wq = alloc_ordered_workqueue(dev_name(dev), WQ_MEM_RECLAIM);
 	if (!spi->wq) {
 		err = -ENOMEM;
 		goto err_clk_put;
@@ -915,8 +984,8 @@ static int lantiq_ssc_probe(struct platform_device *pdev)
 	INIT_WORK(&spi->work, lantiq_ssc_bussy_work);
 
 	id = lantiq_ssc_readl(spi, LTQ_SPI_ID);
-	spi->tx_fifo_size = (id & LTQ_SPI_ID_TXFS_M) >> LTQ_SPI_ID_TXFS_S;
-	spi->rx_fifo_size = (id & LTQ_SPI_ID_RXFS_M) >> LTQ_SPI_ID_RXFS_S;
+	spi->tx_fifo_size = (id >> LTQ_SPI_ID_TXFS_S) & hwcfg->fifo_size_mask;
+	spi->rx_fifo_size = (id >> LTQ_SPI_ID_RXFS_S) & hwcfg->fifo_size_mask;
 	supports_dma = (id & LTQ_SPI_ID_CFG_M) >> LTQ_SPI_ID_CFG_S;
 	revision = id & LTQ_SPI_ID_REV_M;
 
@@ -926,9 +995,9 @@ static int lantiq_ssc_probe(struct platform_device *pdev)
 		"Lantiq SSC SPI controller (Rev %i, TXFS %u, RXFS %u, DMA %u)\n",
 		revision, spi->tx_fifo_size, spi->rx_fifo_size, supports_dma);
 
-	err = devm_spi_register_master(dev, master);
+	err = devm_spi_register_controller(dev, host);
 	if (err) {
-		dev_err(dev, "failed to register spi_master\n");
+		dev_err(dev, "failed to register spi host\n");
 		goto err_wq_destroy;
 	}
 
@@ -938,15 +1007,13 @@ err_wq_destroy:
 	destroy_workqueue(spi->wq);
 err_clk_put:
 	clk_put(spi->fpi_clk);
-err_clk_disable:
-	clk_disable_unprepare(spi->spi_clk);
-err_master_put:
-	spi_master_put(master);
+err_host_put:
+	spi_controller_put(host);
 
 	return err;
 }
 
-static int lantiq_ssc_remove(struct platform_device *pdev)
+static void lantiq_ssc_remove(struct platform_device *pdev)
 {
 	struct lantiq_ssc_spi *spi = platform_get_drvdata(pdev);
 
@@ -957,15 +1024,12 @@ static int lantiq_ssc_remove(struct platform_device *pdev)
 	hw_enter_config_mode(spi);
 
 	destroy_workqueue(spi->wq);
-	clk_disable_unprepare(spi->spi_clk);
 	clk_put(spi->fpi_clk);
-
-	return 0;
 }
 
 static struct platform_driver lantiq_ssc_driver = {
 	.probe = lantiq_ssc_probe,
-	.remove = lantiq_ssc_remove,
+	.remove_new = lantiq_ssc_remove,
 	.driver = {
 		.name = "spi-lantiq-ssc",
 		.of_match_table = lantiq_ssc_match,

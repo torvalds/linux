@@ -10,18 +10,16 @@
 lib_dir=$(dirname $0)/../../../net/forwarding
 
 ALL_TESTS="
-	rif_set_addr_test
 	rif_vrf_set_addr_test
-	rif_inherit_bridge_addr_test
 	rif_non_inherit_bridge_addr_test
 	vlan_interface_deletion_test
 	bridge_deletion_test
 	bridge_vlan_flags_test
 	vlan_1_test
-	lag_bridge_upper_test
 	duplicate_vlans_test
 	vlan_rif_refcount_test
 	subport_rif_refcount_test
+	subport_rif_lag_join_test
 	vlan_dev_deletion_test
 	lag_unlink_slaves_test
 	lag_dev_deletion_test
@@ -29,9 +27,17 @@ ALL_TESTS="
 	bridge_extern_learn_test
 	neigh_offload_test
 	nexthop_offload_test
+	nexthop_obj_invalid_test
+	nexthop_obj_offload_test
+	nexthop_obj_group_offload_test
+	nexthop_obj_bucket_offload_test
+	nexthop_obj_blackhole_offload_test
+	nexthop_obj_route_offload_test
+	bridge_locked_port_test
 	devlink_reload_test
 "
 NUM_NETIFS=2
+: ${TIMEOUT:=20000} # ms
 source $lib_dir/lib.sh
 source $lib_dir/devlink_lib.sh
 
@@ -52,55 +58,6 @@ cleanup()
 	ip link set dev $swp1 down
 }
 
-rif_set_addr_test()
-{
-	local swp1_mac=$(mac_get $swp1)
-	local swp2_mac=$(mac_get $swp2)
-
-	RET=0
-
-	# $swp1 and $swp2 likely got their IPv6 local addresses already, but
-	# here we need to test the transition to RIF.
-	ip addr flush dev $swp1
-	ip addr flush dev $swp2
-	sleep .1
-
-	ip addr add dev $swp1 192.0.2.1/28
-	check_err $?
-
-	ip link set dev $swp1 addr 00:11:22:33:44:55
-	check_err $?
-
-	# IP address enablement should be rejected if the MAC address prefix
-	# doesn't match other RIFs.
-	ip addr add dev $swp2 192.0.2.2/28 &>/dev/null
-	check_fail $? "IP address addition passed for a device with a wrong MAC"
-	ip addr add dev $swp2 192.0.2.2/28 2>&1 >/dev/null \
-	    | grep -q mlxsw_spectrum
-	check_err $? "no extack for IP address addition"
-
-	ip link set dev $swp2 addr 00:11:22:33:44:66
-	check_err $?
-	ip addr add dev $swp2 192.0.2.2/28 &>/dev/null
-	check_err $?
-
-	# Change of MAC address of a RIF should be forbidden if the new MAC
-	# doesn't share the prefix with other MAC addresses.
-	ip link set dev $swp2 addr 00:11:22:33:00:66 &>/dev/null
-	check_fail $? "change of MAC address passed for a wrong MAC"
-	ip link set dev $swp2 addr 00:11:22:33:00:66 2>&1 >/dev/null \
-	    | grep -q mlxsw_spectrum
-	check_err $? "no extack for MAC address change"
-
-	log_test "RIF - bad MAC change"
-
-	ip addr del dev $swp2 192.0.2.2/28
-	ip addr del dev $swp1 192.0.2.1/28
-
-	ip link set dev $swp2 addr $swp2_mac
-	ip link set dev $swp1 addr $swp1_mac
-}
-
 rif_vrf_set_addr_test()
 {
 	# Test that it is possible to set an IP address on a VRF upper despite
@@ -118,45 +75,6 @@ rif_vrf_set_addr_test()
 	log_test "RIF - setting IP address on VRF"
 
 	ip link del dev vrf-test
-}
-
-rif_inherit_bridge_addr_test()
-{
-	RET=0
-
-	# Create first RIF
-	ip addr add dev $swp1 192.0.2.1/28
-	check_err $?
-
-	# Create a FID RIF
-	ip link add name br1 up type bridge vlan_filtering 0
-	ip link set dev $swp2 master br1
-	ip addr add dev br1 192.0.2.17/28
-	check_err $?
-
-	# Prepare a device with a low MAC address
-	ip link add name d up type dummy
-	ip link set dev d addr 00:11:22:33:44:55
-
-	# Attach the device to br1. That prompts bridge address change, which
-	# should be vetoed, thus preventing the attachment.
-	ip link set dev d master br1 &>/dev/null
-	check_fail $? "Device with low MAC was permitted to attach a bridge with RIF"
-	ip link set dev d master br1 2>&1 >/dev/null \
-	    | grep -q mlxsw_spectrum
-	check_err $? "no extack for bridge attach rejection"
-
-	ip link set dev $swp2 addr 00:11:22:33:44:55 &>/dev/null
-	check_fail $? "Changing swp2's MAC address permitted"
-	ip link set dev $swp2 addr 00:11:22:33:44:55 2>&1 >/dev/null \
-	    | grep -q mlxsw_spectrum
-	check_err $? "no extack for bridge port MAC address change rejection"
-
-	log_test "RIF - attach port with bad MAC to bridge"
-
-	ip link del dev d
-	ip link del dev br1
-	ip addr del dev $swp1 192.0.2.1/28
 }
 
 rif_non_inherit_bridge_addr_test()
@@ -292,33 +210,6 @@ vlan_1_test()
 	ip link del dev $swp1.1
 }
 
-lag_bridge_upper_test()
-{
-	# Test that ports cannot be enslaved to LAG devices that have uppers
-	# and that failure is handled gracefully. See commit b3529af6bb0d
-	# ("spectrum: Reference count VLAN entries") for more details
-	RET=0
-
-	ip link add name bond1 type bond mode 802.3ad
-
-	ip link add name br0 type bridge vlan_filtering 1
-	ip link set dev bond1 master br0
-
-	ip link set dev $swp1 down
-	ip link set dev $swp1 master bond1 &> /dev/null
-	check_fail $? "managed to enslave port to lag when should not"
-
-	# This might generate a trace, if we did not handle the failure
-	# correctly
-	ip -6 address add 2001:db8:1::1/64 dev $swp1
-	ip -6 address del 2001:db8:1::1/64 dev $swp1
-
-	log_test "lag with bridge upper"
-
-	ip link del dev br0
-	ip link del dev bond1
-}
-
 duplicate_vlans_test()
 {
 	# Test that on a given port a VLAN is only used once. Either as VLAN
@@ -360,20 +251,24 @@ vlan_rif_refcount_test()
 	ip link add link br0 name br0.10 up type vlan id 10
 	ip -6 address add 2001:db8:1::1/64 dev br0.10
 
-	ip -6 route get fibmatch 2001:db8:1::2 dev br0.10 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip -6 route get fibmatch 2001:db8:1::2 dev br0.10
 	check_err $? "vlan rif was not created before adding port to vlan"
 
 	bridge vlan add vid 10 dev $swp1
-	ip -6 route get fibmatch 2001:db8:1::2 dev br0.10 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip -6 route get fibmatch 2001:db8:1::2 dev br0.10
 	check_err $? "vlan rif was destroyed after adding port to vlan"
 
 	bridge vlan del vid 10 dev $swp1
-	ip -6 route get fibmatch 2001:db8:1::2 dev br0.10 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip -6 route get fibmatch 2001:db8:1::2 dev br0.10
 	check_err $? "vlan rif was destroyed after removing port from vlan"
 
 	ip link set dev $swp1 nomaster
-	ip -6 route get fibmatch 2001:db8:1::2 dev br0.10 | grep -q offload
-	check_fail $? "vlan rif was not destroyed after unlinking port from bridge"
+	busywait "$TIMEOUT" not wait_for_offload \
+		ip -6 route get fibmatch 2001:db8:1::2 dev br0.10
+	check_err $? "vlan rif was not destroyed after unlinking port from bridge"
 
 	log_test "vlan rif refcount"
 
@@ -401,26 +296,74 @@ subport_rif_refcount_test()
 	ip -6 address add 2001:db8:1::1/64 dev bond1
 	ip -6 address add 2001:db8:2::1/64 dev bond1.10
 
-	ip -6 route get fibmatch 2001:db8:1::2 dev bond1 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip -6 route get fibmatch 2001:db8:1::2 dev bond1
 	check_err $? "subport rif was not created on lag device"
-	ip -6 route get fibmatch 2001:db8:2::2 dev bond1.10 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip -6 route get fibmatch 2001:db8:2::2 dev bond1.10
 	check_err $? "subport rif was not created on vlan device"
 
 	ip link set dev $swp1 nomaster
-	ip -6 route get fibmatch 2001:db8:1::2 dev bond1 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip -6 route get fibmatch 2001:db8:1::2 dev bond1
 	check_err $? "subport rif of lag device was destroyed when should not"
-	ip -6 route get fibmatch 2001:db8:2::2 dev bond1.10 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip -6 route get fibmatch 2001:db8:2::2 dev bond1.10
 	check_err $? "subport rif of vlan device was destroyed when should not"
 
 	ip link set dev $swp2 nomaster
-	ip -6 route get fibmatch 2001:db8:1::2 dev bond1 | grep -q offload
-	check_fail $? "subport rif of lag device was not destroyed when should"
-	ip -6 route get fibmatch 2001:db8:2::2 dev bond1.10 | grep -q offload
-	check_fail $? "subport rif of vlan device was not destroyed when should"
+	busywait "$TIMEOUT" not wait_for_offload \
+		ip -6 route get fibmatch 2001:db8:1::2 dev bond1
+	check_err $? "subport rif of lag device was not destroyed when should"
+	busywait "$TIMEOUT" not wait_for_offload \
+		ip -6 route get fibmatch 2001:db8:2::2 dev bond1.10
+	check_err $? "subport rif of vlan device was not destroyed when should"
 
 	log_test "subport rif refcount"
 
 	ip link del dev bond1.10
+	ip link del dev bond1
+}
+
+subport_rif_lag_join_test()
+{
+	# Test that the reference count of a RIF configured for a LAG is
+	# incremented / decremented when ports join / leave the LAG. We use the
+	# offload indication on routes configured on the RIF to understand if
+	# it was created / destroyed
+	RET=0
+
+	ip link add name bond1 type bond mode 802.3ad
+	ip link set dev $swp1 down
+	ip link set dev $swp2 down
+	ip link set dev $swp1 master bond1
+	ip link set dev $swp2 master bond1
+
+	ip link set dev bond1 up
+	ip -6 address add 2001:db8:1::1/64 dev bond1
+
+	busywait "$TIMEOUT" wait_for_offload \
+		ip -6 route get fibmatch 2001:db8:1::2 dev bond1
+	check_err $? "subport rif was not created on lag device"
+
+	ip link set dev $swp1 nomaster
+	busywait "$TIMEOUT" wait_for_offload \
+		ip -6 route get fibmatch 2001:db8:1::2 dev bond1
+	check_err $? "subport rif of lag device was destroyed after removing one port"
+
+	ip link set dev $swp1 master bond1
+	ip link set dev $swp2 nomaster
+	busywait "$TIMEOUT" wait_for_offload \
+		ip -6 route get fibmatch 2001:db8:1::2 dev bond1
+	check_err $? "subport rif of lag device was destroyed after re-adding a port and removing another"
+
+	ip link set dev $swp1 nomaster
+	busywait "$TIMEOUT" not wait_for_offload \
+		ip -6 route get fibmatch 2001:db8:1::2 dev bond1
+	check_err $? "subport rif of lag device was not destroyed when should"
+
+	log_test "subport rif lag join"
+
 	ip link del dev bond1
 }
 
@@ -539,9 +482,6 @@ vlan_interface_uppers_test()
 	ip link set dev $swp1 master br0
 
 	ip link add link br0 name br0.10 type vlan id 10
-	ip link add link br0.10 name macvlan0 \
-		type macvlan mode private &> /dev/null
-	check_fail $? "managed to create a macvlan when should not"
 
 	ip -6 address add 2001:db8:1::1/64 dev br0.10
 	ip link add link br0.10 name macvlan0 type macvlan mode private
@@ -575,7 +515,8 @@ bridge_extern_learn_test()
 
 	bridge fdb add de:ad:be:ef:13:37 dev $swp1 master extern_learn
 
-	bridge fdb show brport $swp1 | grep de:ad:be:ef:13:37 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		bridge fdb show brport $swp1 de:ad:be:ef:13:37
 	check_err $? "fdb entry not marked as offloaded when should"
 
 	log_test "externally learned fdb entry"
@@ -595,9 +536,11 @@ neigh_offload_test()
 	ip -6 neigh add 2001:db8:1::2 lladdr de:ad:be:ef:13:37 nud perm \
 		dev $swp1
 
-	ip -4 neigh show dev $swp1 | grep 192.0.2.2 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip -4 neigh show dev $swp1 192.0.2.2
 	check_err $? "ipv4 neigh entry not marked as offloaded when should"
-	ip -6 neigh show dev $swp1 | grep 2001:db8:1::2 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip -6 neigh show dev $swp1 2001:db8:1::2
 	check_err $? "ipv6 neigh entry not marked as offloaded when should"
 
 	log_test "neighbour offload indication"
@@ -623,25 +566,31 @@ nexthop_offload_test()
 	ip -6 route add 2001:db8:2::/64 vrf v$swp1 \
 		nexthop via 2001:db8:1::2 dev $swp1
 
-	ip -4 route show 198.51.100.0/24 vrf v$swp1 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip -4 route show 198.51.100.0/24 vrf v$swp1
 	check_err $? "ipv4 nexthop not marked as offloaded when should"
-	ip -6 route show 2001:db8:2::/64 vrf v$swp1 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip -6 route show 2001:db8:2::/64 vrf v$swp1
 	check_err $? "ipv6 nexthop not marked as offloaded when should"
 
 	ip link set dev $swp2 down
 	sleep 1
 
-	ip -4 route show 198.51.100.0/24 vrf v$swp1 | grep -q offload
-	check_fail $? "ipv4 nexthop marked as offloaded when should not"
-	ip -6 route show 2001:db8:2::/64 vrf v$swp1 | grep -q offload
-	check_fail $? "ipv6 nexthop marked as offloaded when should not"
+	busywait "$TIMEOUT" not wait_for_offload \
+		ip -4 route show 198.51.100.0/24 vrf v$swp1
+	check_err $? "ipv4 nexthop marked as offloaded when should not"
+	busywait "$TIMEOUT" not wait_for_offload \
+		ip -6 route show 2001:db8:2::/64 vrf v$swp1
+	check_err $? "ipv6 nexthop marked as offloaded when should not"
 
 	ip link set dev $swp2 up
 	setup_wait
 
-	ip -4 route show 198.51.100.0/24 vrf v$swp1 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip -4 route show 198.51.100.0/24 vrf v$swp1
 	check_err $? "ipv4 nexthop not marked as offloaded after neigh add"
-	ip -6 route show 2001:db8:2::/64 vrf v$swp1 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload \
+		ip -6 route show 2001:db8:2::/64 vrf v$swp1
 	check_err $? "ipv6 nexthop not marked as offloaded after neigh add"
 
 	log_test "nexthop offload indication"
@@ -652,6 +601,320 @@ nexthop_offload_test()
 	simple_if_fini $swp2 192.0.2.2/24 2001:db8:1::2/64
 	simple_if_fini $swp1 192.0.2.1/24 2001:db8:1::1/64
 	sysctl_restore net.ipv6.conf.$swp2.keep_addr_on_down
+}
+
+nexthop_obj_invalid_test()
+{
+	# Test that invalid nexthop object configurations are rejected
+	RET=0
+
+	simple_if_init $swp1 192.0.2.1/24 2001:db8:1::1/64
+	simple_if_init $swp2 192.0.2.2/24 2001:db8:1::2/64
+	setup_wait
+
+	ip nexthop add id 1 via 192.0.2.3 fdb
+	check_fail $? "managed to configure an FDB nexthop when should not"
+
+	ip nexthop add id 1 encap mpls 200/300 via 192.0.2.3 dev $swp1
+	check_fail $? "managed to configure a nexthop with MPLS encap when should not"
+
+	ip nexthop add id 1 dev $swp1
+	ip nexthop add id 2 dev $swp1
+	ip nexthop add id 3 via 192.0.2.3 dev $swp1
+	ip nexthop add id 10 group 1/2
+	check_fail $? "managed to configure a nexthop group with device-only nexthops when should not"
+
+	ip nexthop add id 10 group 3 type resilient buckets 7
+	check_fail $? "managed to configure a too small resilient nexthop group when should not"
+
+	ip nexthop add id 10 group 3 type resilient buckets 129
+	check_fail $? "managed to configure a resilient nexthop group with invalid number of buckets when should not"
+
+	ip nexthop add id 10 group 1/2 type resilient buckets 32
+	check_fail $? "managed to configure a resilient nexthop group with device-only nexthops when should not"
+
+	ip nexthop add id 10 group 3 type resilient buckets 32
+	check_err $? "failed to configure a valid resilient nexthop group"
+	ip nexthop replace id 3 dev $swp1
+	check_fail $? "managed to populate a nexthop bucket with a device-only nexthop when should not"
+
+	log_test "nexthop objects - invalid configurations"
+
+	ip nexthop del id 10
+	ip nexthop del id 3
+	ip nexthop del id 2
+	ip nexthop del id 1
+
+	simple_if_fini $swp2 192.0.2.2/24 2001:db8:1::2/64
+	simple_if_fini $swp1 192.0.2.1/24 2001:db8:1::1/64
+}
+
+nexthop_obj_offload_test()
+{
+	# Test offload indication of nexthop objects
+	RET=0
+
+	simple_if_init $swp1 192.0.2.1/24 2001:db8:1::1/64
+	simple_if_init $swp2
+	setup_wait
+
+	ip nexthop add id 1 via 192.0.2.2 dev $swp1
+	ip neigh replace 192.0.2.2 lladdr 00:11:22:33:44:55 nud perm \
+		dev $swp1
+
+	busywait "$TIMEOUT" wait_for_offload \
+		ip nexthop show id 1
+	check_err $? "nexthop not marked as offloaded when should"
+
+	ip neigh replace 192.0.2.2 nud failed dev $swp1
+	busywait "$TIMEOUT" not wait_for_offload \
+		ip nexthop show id 1
+	check_err $? "nexthop marked as offloaded after setting neigh to failed state"
+
+	ip neigh replace 192.0.2.2 lladdr 00:11:22:33:44:55 nud perm \
+		dev $swp1
+	busywait "$TIMEOUT" wait_for_offload \
+		ip nexthop show id 1
+	check_err $? "nexthop not marked as offloaded after neigh replace"
+
+	ip nexthop replace id 1 via 192.0.2.3 dev $swp1
+	busywait "$TIMEOUT" not wait_for_offload \
+		ip nexthop show id 1
+	check_err $? "nexthop marked as offloaded after replacing to use an invalid address"
+
+	ip nexthop replace id 1 via 192.0.2.2 dev $swp1
+	busywait "$TIMEOUT" wait_for_offload \
+		ip nexthop show id 1
+	check_err $? "nexthop not marked as offloaded after replacing to use a valid address"
+
+	log_test "nexthop objects offload indication"
+
+	ip neigh del 192.0.2.2 dev $swp1
+	ip nexthop del id 1
+
+	simple_if_fini $swp2
+	simple_if_fini $swp1 192.0.2.1/24 2001:db8:1::1/64
+}
+
+nexthop_obj_group_offload_test()
+{
+	# Test offload indication of nexthop group objects
+	RET=0
+
+	simple_if_init $swp1 192.0.2.1/24 2001:db8:1::1/64
+	simple_if_init $swp2
+	setup_wait
+
+	ip nexthop add id 1 via 192.0.2.2 dev $swp1
+	ip nexthop add id 2 via 2001:db8:1::2 dev $swp1
+	ip nexthop add id 10 group 1/2
+	ip neigh replace 192.0.2.2 lladdr 00:11:22:33:44:55 nud perm \
+		dev $swp1
+	ip neigh replace 192.0.2.3 lladdr 00:11:22:33:44:55 nud perm \
+		dev $swp1
+	ip neigh replace 2001:db8:1::2 lladdr 00:11:22:33:44:55 nud perm \
+		dev $swp1
+
+	busywait "$TIMEOUT" wait_for_offload \
+		ip nexthop show id 1
+	check_err $? "IPv4 nexthop not marked as offloaded when should"
+	busywait "$TIMEOUT" wait_for_offload \
+		ip nexthop show id 2
+	check_err $? "IPv6 nexthop not marked as offloaded when should"
+	busywait "$TIMEOUT" wait_for_offload \
+		ip nexthop show id 10
+	check_err $? "nexthop group not marked as offloaded when should"
+
+	# Invalidate nexthop id 1
+	ip neigh replace 192.0.2.2 nud failed dev $swp1
+	busywait "$TIMEOUT" not wait_for_offload \
+		ip nexthop show id 10
+	check_fail $? "nexthop group not marked as offloaded with one valid nexthop"
+
+	# Invalidate nexthop id 2
+	ip neigh replace 2001:db8:1::2 nud failed dev $swp1
+	busywait "$TIMEOUT" not wait_for_offload \
+		ip nexthop show id 10
+	check_err $? "nexthop group marked as offloaded when should not"
+
+	# Revalidate nexthop id 1
+	ip nexthop replace id 1 via 192.0.2.3 dev $swp1
+	busywait "$TIMEOUT" wait_for_offload \
+		ip nexthop show id 10
+	check_err $? "nexthop group not marked as offloaded after revalidating nexthop"
+
+	log_test "nexthop group objects offload indication"
+
+	ip neigh del 2001:db8:1::2 dev $swp1
+	ip neigh del 192.0.2.3 dev $swp1
+	ip neigh del 192.0.2.2 dev $swp1
+	ip nexthop del id 10
+	ip nexthop del id 2
+	ip nexthop del id 1
+
+	simple_if_fini $swp2
+	simple_if_fini $swp1 192.0.2.1/24 2001:db8:1::1/64
+}
+
+nexthop_obj_bucket_offload_test()
+{
+	# Test offload indication of nexthop buckets
+	RET=0
+
+	simple_if_init $swp1 192.0.2.1/24 2001:db8:1::1/64
+	simple_if_init $swp2
+	setup_wait
+
+	ip nexthop add id 1 via 192.0.2.2 dev $swp1
+	ip nexthop add id 2 via 2001:db8:1::2 dev $swp1
+	ip nexthop add id 10 group 1/2 type resilient buckets 32 idle_timer 0
+	ip neigh replace 192.0.2.2 lladdr 00:11:22:33:44:55 nud perm \
+		dev $swp1
+	ip neigh replace 192.0.2.3 lladdr 00:11:22:33:44:55 nud perm \
+		dev $swp1
+	ip neigh replace 2001:db8:1::2 lladdr 00:11:22:33:44:55 nud perm \
+		dev $swp1
+
+	busywait "$TIMEOUT" wait_for_offload \
+		ip nexthop bucket show nhid 1
+	check_err $? "IPv4 nexthop buckets not marked as offloaded when should"
+	busywait "$TIMEOUT" wait_for_offload \
+		ip nexthop bucket show nhid 2
+	check_err $? "IPv6 nexthop buckets not marked as offloaded when should"
+
+	# Invalidate nexthop id 1
+	ip neigh replace 192.0.2.2 nud failed dev $swp1
+	busywait "$TIMEOUT" wait_for_trap \
+		ip nexthop bucket show nhid 1
+	check_err $? "IPv4 nexthop buckets not marked with trap when should"
+
+	# Invalidate nexthop id 2
+	ip neigh replace 2001:db8:1::2 nud failed dev $swp1
+	busywait "$TIMEOUT" wait_for_trap \
+		ip nexthop bucket show nhid 2
+	check_err $? "IPv6 nexthop buckets not marked with trap when should"
+
+	# Revalidate nexthop id 1 by changing its configuration
+	ip nexthop replace id 1 via 192.0.2.3 dev $swp1
+	busywait "$TIMEOUT" wait_for_offload \
+		ip nexthop bucket show nhid 1
+	check_err $? "nexthop bucket not marked as offloaded after revalidating nexthop"
+
+	# Revalidate nexthop id 2 by changing its neighbour
+	ip neigh replace 2001:db8:1::2 lladdr 00:11:22:33:44:55 nud perm \
+		dev $swp1
+	busywait "$TIMEOUT" wait_for_offload \
+		ip nexthop bucket show nhid 2
+	check_err $? "nexthop bucket not marked as offloaded after revalidating neighbour"
+
+	log_test "nexthop bucket offload indication"
+
+	ip neigh del 2001:db8:1::2 dev $swp1
+	ip neigh del 192.0.2.3 dev $swp1
+	ip neigh del 192.0.2.2 dev $swp1
+	ip nexthop del id 10
+	ip nexthop del id 2
+	ip nexthop del id 1
+
+	simple_if_fini $swp2
+	simple_if_fini $swp1 192.0.2.1/24 2001:db8:1::1/64
+}
+
+nexthop_obj_blackhole_offload_test()
+{
+	# Test offload indication of blackhole nexthop objects
+	RET=0
+
+	ip nexthop add id 1 blackhole
+	busywait "$TIMEOUT" wait_for_offload \
+		ip nexthop show id 1
+	check_err $? "Blackhole nexthop not marked as offloaded when should"
+
+	ip nexthop add id 10 group 1
+	busywait "$TIMEOUT" wait_for_offload \
+		ip nexthop show id 10
+	check_err $? "Nexthop group not marked as offloaded when should"
+
+	log_test "blackhole nexthop objects offload indication"
+
+	ip nexthop del id 10
+	ip nexthop del id 1
+}
+
+nexthop_obj_route_offload_test()
+{
+	# Test offload indication of routes using nexthop objects
+	RET=0
+
+	simple_if_init $swp1 192.0.2.1/24 2001:db8:1::1/64
+	simple_if_init $swp2
+	setup_wait
+
+	ip nexthop add id 1 via 192.0.2.2 dev $swp1
+	ip neigh replace 192.0.2.2 lladdr 00:11:22:33:44:55 nud perm \
+		dev $swp1
+	ip neigh replace 192.0.2.3 lladdr 00:11:22:33:44:55 nud perm \
+		dev $swp1
+
+	ip route replace 198.51.100.0/24 nhid 1
+	busywait "$TIMEOUT" wait_for_offload \
+		ip route show 198.51.100.0/24
+	check_err $? "route not marked as offloaded when using valid nexthop"
+
+	ip nexthop replace id 1 via 192.0.2.3 dev $swp1
+	busywait "$TIMEOUT" wait_for_offload \
+		ip route show 198.51.100.0/24
+	check_err $? "route not marked as offloaded after replacing valid nexthop with a valid one"
+
+	ip nexthop replace id 1 via 192.0.2.4 dev $swp1
+	busywait "$TIMEOUT" not wait_for_offload \
+		ip route show 198.51.100.0/24
+	check_err $? "route marked as offloaded after replacing valid nexthop with an invalid one"
+
+	ip nexthop replace id 1 via 192.0.2.2 dev $swp1
+	busywait "$TIMEOUT" wait_for_offload \
+		ip route show 198.51.100.0/24
+	check_err $? "route not marked as offloaded after replacing invalid nexthop with a valid one"
+
+	log_test "routes using nexthop objects offload indication"
+
+	ip route del 198.51.100.0/24
+	ip neigh del 192.0.2.3 dev $swp1
+	ip neigh del 192.0.2.2 dev $swp1
+	ip nexthop del id 1
+
+	simple_if_fini $swp2
+	simple_if_fini $swp1 192.0.2.1/24 2001:db8:1::1/64
+}
+
+bridge_locked_port_test()
+{
+	RET=0
+
+	ip link add name br1 up type bridge vlan_filtering 0
+
+	ip link add link $swp1 name $swp1.10 type vlan id 10
+	ip link set dev $swp1.10 master br1
+
+	bridge link set dev $swp1.10 locked on
+	check_fail $? "managed to set locked flag on a VLAN upper"
+
+	ip link set dev $swp1.10 nomaster
+	ip link set dev $swp1 master br1
+
+	bridge link set dev $swp1 locked on
+	check_fail $? "managed to set locked flag on a bridge port that has a VLAN upper"
+
+	ip link del dev $swp1.10
+	bridge link set dev $swp1 locked on
+
+	ip link add link $swp1 name $swp1.10 type vlan id 10
+	check_fail $? "managed to configure a VLAN upper on a locked port"
+
+	log_test "bridge locked port"
+
+	ip link del dev $swp1.10 &> /dev/null
+	ip link del dev br1
 }
 
 devlink_reload_test()

@@ -1,19 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2008 Cisco Systems, Inc.  All rights reserved.
  * Copyright 2007 Nuova Systems, Inc.  All rights reserved.
- *
- * This program is free software; you may redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 #ifndef _FNIC_H_
 #define _FNIC_H_
@@ -39,7 +27,7 @@
 
 #define DRV_NAME		"fnic"
 #define DRV_DESCRIPTION		"Cisco FCoE HBA Driver"
-#define DRV_VERSION		"1.6.0.47"
+#define DRV_VERSION		"1.7.0.0"
 #define PFX			DRV_NAME ": "
 #define DFX                     DRV_NAME "%d: "
 
@@ -48,7 +36,6 @@
 #define FNIC_MIN_IO_REQ			256 /* Min IO throttle count */
 #define FNIC_MAX_IO_REQ		1024 /* scsi_cmnd tag map entries */
 #define FNIC_DFLT_IO_REQ        256 /* Default scsi_cmnd tag map entries */
-#define	FNIC_IO_LOCKS		64 /* IO locks: power of 2 */
 #define FNIC_DFLT_QUEUE_DEPTH	256
 #define	FNIC_STATS_RATE_LIMIT	4 /* limit rate at which stats are pulled up */
 
@@ -89,15 +76,28 @@
 #define FNIC_DEV_RST_ABTS_PENDING       BIT(21)
 
 /*
- * Usage of the scsi_cmnd scratchpad.
+ * fnic private data per SCSI command.
  * These fields are locked by the hashed io_req_lock.
  */
-#define CMD_SP(Cmnd)		((Cmnd)->SCp.ptr)
-#define CMD_STATE(Cmnd)		((Cmnd)->SCp.phase)
-#define CMD_ABTS_STATUS(Cmnd)	((Cmnd)->SCp.Message)
-#define CMD_LR_STATUS(Cmnd)	((Cmnd)->SCp.have_data_in)
-#define CMD_TAG(Cmnd)           ((Cmnd)->SCp.sent_command)
-#define CMD_FLAGS(Cmnd)         ((Cmnd)->SCp.Status)
+struct fnic_cmd_priv {
+	struct fnic_io_req *io_req;
+	enum fnic_ioreq_state state;
+	u32 flags;
+	u16 abts_status;
+	u16 lr_status;
+};
+
+static inline struct fnic_cmd_priv *fnic_priv(struct scsi_cmnd *cmd)
+{
+	return scsi_cmd_priv(cmd);
+}
+
+static inline u64 fnic_flags_and_state(struct scsi_cmnd *cmd)
+{
+	struct fnic_cmd_priv *fcmd = fnic_priv(cmd);
+
+	return ((u64)fcmd->flags << 32) | fcmd->state;
+}
 
 #define FCPIO_INVALID_CODE 0x100 /* hdr_status value unused by firmware */
 
@@ -108,7 +108,7 @@
 #define FNIC_ABT_TERM_DELAY_TIMEOUT  500        /* mSec */
 
 #define FNIC_MAX_FCP_TARGET     256
-
+#define FNIC_PCI_OFFSET		2
 /**
  * state_flags to identify host state along along with fnic's state
  **/
@@ -143,31 +143,48 @@ do {								\
 		} while (0);					\
 } while (0)
 
-#define FNIC_MAIN_DBG(kern_level, host, fmt, args...)		\
+#define FNIC_MAIN_DBG(kern_level, host, fnic_num, fmt, args...)		\
 	FNIC_CHECK_LOGGING(FNIC_MAIN_LOGGING,			\
-			 shost_printk(kern_level, host, fmt, ##args);)
+			 shost_printk(kern_level, host,			\
+				"fnic<%d>: %s: %d: " fmt, fnic_num,\
+				__func__, __LINE__, ##args);)
 
-#define FNIC_FCS_DBG(kern_level, host, fmt, args...)		\
+#define FNIC_FCS_DBG(kern_level, host, fnic_num, fmt, args...)		\
 	FNIC_CHECK_LOGGING(FNIC_FCS_LOGGING,			\
-			 shost_printk(kern_level, host, fmt, ##args);)
+			 shost_printk(kern_level, host,			\
+				"fnic<%d>: %s: %d: " fmt, fnic_num,\
+				__func__, __LINE__, ##args);)
 
-#define FNIC_SCSI_DBG(kern_level, host, fmt, args...)		\
+#define FNIC_SCSI_DBG(kern_level, host, fnic_num, fmt, args...)		\
 	FNIC_CHECK_LOGGING(FNIC_SCSI_LOGGING,			\
-			 shost_printk(kern_level, host, fmt, ##args);)
+			 shost_printk(kern_level, host,			\
+				"fnic<%d>: %s: %d: " fmt, fnic_num,\
+				__func__, __LINE__, ##args);)
 
-#define FNIC_ISR_DBG(kern_level, host, fmt, args...)		\
+#define FNIC_ISR_DBG(kern_level, host, fnic_num, fmt, args...)		\
 	FNIC_CHECK_LOGGING(FNIC_ISR_LOGGING,			\
-			 shost_printk(kern_level, host, fmt, ##args);)
+			 shost_printk(kern_level, host,			\
+				"fnic<%d>: %s: %d: " fmt, fnic_num,\
+				__func__, __LINE__, ##args);)
 
 #define FNIC_MAIN_NOTE(kern_level, host, fmt, args...)          \
 	shost_printk(kern_level, host, fmt, ##args)
+
+#define FNIC_WQ_COPY_MAX 64
+#define FNIC_WQ_MAX 1
+#define FNIC_RQ_MAX 1
+#define FNIC_CQ_MAX (FNIC_WQ_COPY_MAX + FNIC_WQ_MAX + FNIC_RQ_MAX)
+#define FNIC_DFLT_IO_COMPLETIONS 256
+
+#define FNIC_MQ_CQ_INDEX        2
 
 extern const char *fnic_state_str[];
 
 enum fnic_intx_intr_index {
 	FNIC_INTX_WQ_RQ_COPYWQ,
-	FNIC_INTX_ERR,
+	FNIC_INTX_DUMMY,
 	FNIC_INTX_NOTIFY,
+	FNIC_INTX_ERR,
 	FNIC_INTX_INTR_MAX,
 };
 
@@ -175,7 +192,7 @@ enum fnic_msix_intr_index {
 	FNIC_MSIX_RQ,
 	FNIC_MSIX_WQ,
 	FNIC_MSIX_WQ_COPY,
-	FNIC_MSIX_ERR_NOTIFY,
+	FNIC_MSIX_ERR_NOTIFY = FNIC_MSIX_WQ_COPY + FNIC_WQ_COPY_MAX,
 	FNIC_MSIX_INTR_MAX,
 };
 
@@ -184,6 +201,7 @@ struct fnic_msix_entry {
 	char devname[IFNAMSIZ + 11];
 	irqreturn_t (*isr)(int, void *);
 	void *devid;
+	int irq_num;
 };
 
 enum fnic_state {
@@ -192,12 +210,6 @@ enum fnic_state {
 	FNIC_IN_ETH_MODE,
 	FNIC_IN_ETH_TRANS_FC_MODE,
 };
-
-#define FNIC_WQ_COPY_MAX 1
-#define FNIC_WQ_MAX 1
-#define FNIC_RQ_MAX 1
-#define FNIC_CQ_MAX (FNIC_WQ_COPY_MAX + FNIC_WQ_MAX + FNIC_RQ_MAX)
-#define FNIC_DFLT_IO_COMPLETIONS 256
 
 struct mempool;
 
@@ -213,8 +225,16 @@ struct fnic_event {
 	enum fnic_evt event;
 };
 
+struct fnic_cpy_wq {
+	unsigned long hw_lock_flags;
+	u16 active_ioreq_count;
+	u16 ioreq_table_size;
+	____cacheline_aligned struct fnic_io_req **io_req_table;
+};
+
 /* Per-instance private data structure */
 struct fnic {
+	int fnic_num;
 	struct fc_lport *lport;
 	struct fcoe_ctlr ctlr;		/* FIP FCoE controller structure */
 	struct vnic_dev_bar bar0;
@@ -235,6 +255,9 @@ struct fnic {
 	unsigned int wq_count;
 	unsigned int cq_count;
 
+	struct mutex sgreset_mutex;
+	spinlock_t sgreset_lock; /* lock for sgreset */
+	struct scsi_cmnd *sgreset_sc;
 	struct dentry *fnic_stats_debugfs_host;
 	struct dentry *fnic_stats_debugfs_file;
 	struct dentry *fnic_reset_debugfs_file;
@@ -245,6 +268,7 @@ struct fnic {
 	u32 vlan_hw_insert:1;	        /* let hw insert the tag */
 	u32 in_remove:1;                /* fnic device in removal */
 	u32 stop_rx_link_events:1;      /* stop proc. rx frames, link events */
+	u32 link_events:1;              /* set when we get any link event*/
 
 	struct completion *remove_wait; /* device remove thread blocks */
 
@@ -277,10 +301,11 @@ struct fnic {
 	struct fnic_host_tag *tags;
 	mempool_t *io_req_pool;
 	mempool_t *io_sgl_pool[FNIC_SGL_NUM_CACHES];
-	spinlock_t io_req_lock[FNIC_IO_LOCKS];	/* locks for scsi cmnds */
 
+	unsigned int copy_wq_base;
 	struct work_struct link_work;
 	struct work_struct frame_work;
+	struct work_struct flush_work;
 	struct sk_buff_head frame_queue;
 	struct sk_buff_head tx_queue;
 
@@ -297,7 +322,9 @@ struct fnic {
 	/*** FIP related data members  -- end ***/
 
 	/* copy work queue cache line section */
-	____cacheline_aligned struct vnic_wq_copy wq_copy[FNIC_WQ_COPY_MAX];
+	____cacheline_aligned struct vnic_wq_copy hw_copy_wq[FNIC_WQ_COPY_MAX];
+	____cacheline_aligned struct fnic_cpy_wq sw_copy_wq[FNIC_WQ_COPY_MAX];
+
 	/* completion queue cache line section */
 	____cacheline_aligned struct vnic_cq cq[FNIC_CQ_MAX];
 
@@ -321,10 +348,11 @@ static inline struct fnic *fnic_from_ctlr(struct fcoe_ctlr *fip)
 
 extern struct workqueue_struct *fnic_event_queue;
 extern struct workqueue_struct *fnic_fip_queue;
-extern struct device_attribute *fnic_attrs[];
+extern const struct attribute_group *fnic_host_groups[];
 
 void fnic_clear_intr_mode(struct fnic *fnic);
 int fnic_set_intr_mode(struct fnic *fnic);
+int fnic_set_intr_mode_msix(struct fnic *fnic);
 void fnic_free_intr(struct fnic *fnic);
 int fnic_request_intr(struct fnic *fnic);
 
@@ -336,7 +364,7 @@ void fnic_handle_event(struct work_struct *work);
 int fnic_rq_cmpl_handler(struct fnic *fnic, int);
 int fnic_alloc_rq_frame(struct vnic_rq *rq);
 void fnic_free_rq_buf(struct vnic_rq *rq, struct vnic_rq_buf *buf);
-void fnic_flush_tx(struct fnic *);
+void fnic_flush_tx(struct work_struct *work);
 void fnic_eth_send(struct fcoe_ctlr *, struct sk_buff *skb);
 void fnic_set_port_id(struct fc_lport *, u32, struct fc_frame *);
 void fnic_update_mac(struct fc_lport *, u8 *new);
@@ -351,7 +379,7 @@ void fnic_scsi_cleanup(struct fc_lport *);
 void fnic_scsi_abort_io(struct fc_lport *);
 void fnic_empty_scsi_cleanup(struct fc_lport *);
 void fnic_exch_mgr_reset(struct fc_lport *, u32, u32);
-int fnic_wq_copy_cmpl_handler(struct fnic *fnic, int);
+int fnic_wq_copy_cmpl_handler(struct fnic *fnic, int copy_work_to_do, unsigned int cq_index);
 int fnic_wq_cmpl_handler(struct fnic *fnic, int);
 int fnic_flogi_reg_handler(struct fnic *fnic, u32);
 void fnic_wq_copy_cleanup_handler(struct vnic_wq_copy *wq,
@@ -359,7 +387,7 @@ void fnic_wq_copy_cleanup_handler(struct vnic_wq_copy *wq,
 int fnic_fw_reset_handler(struct fnic *fnic);
 void fnic_terminate_rport_io(struct fc_rport *);
 const char *fnic_state_to_str(unsigned int state);
-
+void fnic_mq_map_queues_cpus(struct Scsi_Host *host);
 void fnic_log_q_error(struct fnic *fnic);
 void fnic_handle_link_event(struct fnic *fnic);
 

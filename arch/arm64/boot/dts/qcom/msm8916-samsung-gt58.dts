@@ -1,0 +1,185 @@
+// SPDX-License-Identifier: GPL-2.0-only
+
+/dts-v1/;
+
+#include "msm8916-samsung-gt5-common.dtsi"
+
+/ {
+	model = "Samsung Galaxy Tab A 8.0 (2015)";
+	compatible = "samsung,gt58", "qcom,msm8916";
+	chassis-type = "tablet";
+
+	reg_5p4v: regulator-5p4v {
+		compatible = "regulator-fixed";
+		regulator-name = "vlcd_5p4v";
+		regulator-min-microvolt = <5400000>;
+		regulator-max-microvolt = <5400000>;
+
+		gpio = <&tlmm 8 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-0 = <&buckbooster_en_default>;
+		pinctrl-names = "default";
+	};
+
+	reg_vdd_tsp: regulator-vdd-tsp {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_tsp";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpio = <&tlmm 73 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-0 = <&reg_tsp_en_default>;
+		pinctrl-names = "default";
+	};
+
+	i2c-amplifier {
+		compatible = "i2c-gpio";
+		sda-gpios = <&tlmm 55 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&tlmm 56 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+
+		pinctrl-0 = <&amp_i2c_default>;
+		pinctrl-names = "default";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		speaker_codec: audio-codec@34 {
+			compatible = "nxp,tfa9895";
+			reg = <0x34>;
+			vddd-supply = <&pm8916_l5>;
+			sound-name-prefix = "Speaker";
+			#sound-dai-cells = <0>;
+		};
+	};
+
+	vibrator {
+		compatible = "gpio-vibrator";
+		enable-gpios = <&tlmm 76 GPIO_ACTIVE_HIGH>;
+
+		pinctrl-0 = <&vibrator_en_default>;
+		pinctrl-names = "default";
+	};
+};
+
+&blsp_i2c5 {
+	status = "okay";
+
+	touchscreen@20 {
+		compatible = "zinitix,bt532";
+		reg = <0x20>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
+
+		touchscreen-size-x = <768>;
+		touchscreen-size-y = <1024>;
+
+		vcca-supply = <&reg_vdd_tsp>;
+		vdd-supply = <&pm8916_l6>;
+
+		pinctrl-0 = <&tsp_int_default>;
+		pinctrl-names = "default";
+	};
+};
+
+&gpu {
+	status = "okay";
+};
+
+&mdss {
+	status = "okay";
+};
+
+&mdss_dsi0 {
+	pinctrl-0 = <&mdss_default>;
+	pinctrl-1 = <&mdss_sleep>;
+	pinctrl-names = "default", "sleep";
+
+	panel@0 {
+		compatible = "samsung,lsl080al03", "samsung,s6d7aa0";
+		reg = <0>;
+
+		power-supply = <&reg_5p4v>;
+		vmipi-supply = <&pm8916_l5>;
+		reset-gpios = <&tlmm 97 GPIO_ACTIVE_LOW>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	data-lanes = <0 1 2 3>;
+	remote-endpoint = <&panel_in>;
+};
+
+&sound {
+	model = "samsung-a2015";
+	pinctrl-0 = <&cdc_pdm_default &sec_mi2s_default &secondary_mic_default>;
+	pinctrl-1 = <&cdc_pdm_sleep &sec_mi2s_sleep &secondary_mic_default>;
+	pinctrl-names = "default", "sleep";
+};
+
+&tlmm {
+	amp_i2c_default: amp-i2c-default-state {
+		pins = "gpio55", "gpio56";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	buckbooster_en_default: buckbooster-en-default-state {
+		pins = "gpio8";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	mdss_default: mdss-default-state {
+		pins = "gpio97";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-disable;
+	};
+
+	mdss_sleep: mdss-sleep-state {
+		pins = "gpio97";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
+
+	reg_tsp_en_default: reg-tsp-en-default-state {
+		pins = "gpio73";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	secondary_mic_default: secondary-mic-default-state {
+		pins = "gpio98";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		output-high;
+	};
+
+	tsp_int_default: tsp-int-default-state {
+		pins = "gpio13";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	vibrator_en_default: vibrator-en-default-state {
+		pins = "gpio76";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+};

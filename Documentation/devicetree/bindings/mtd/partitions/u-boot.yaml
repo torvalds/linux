@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mtd/partitions/u-boot.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: U-Boot bootloader partition
+
+description: |
+  U-Boot is a bootloader commonly used in embedded devices. It's almost always
+  located on some kind of flash device.
+
+  Device configuration is stored as a set of environment variables that are
+  located in a (usually standalone) block of data.
+
+maintainers:
+  - Rafał Miłecki <rafal@milecki.pl>
+
+allOf:
+  - $ref: partition.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - const: brcm,u-boot
+        description: |
+          Broadcom stores environment variables inside a U-Boot partition. They
+          can be identified by a custom header with magic value.
+
+patternProperties:
+  "^partition-.*$":
+    $ref: partition.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    partitions {
+        compatible = "fixed-partitions";
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        partition@0 {
+            compatible = "brcm,u-boot";
+            reg = <0x0 0x100000>;
+            label = "u-boot";
+
+            partition-u-boot-env {
+            };
+        };
+
+        partition@100000 {
+            reg = <0x100000 0x1ff00000>;
+            label = "firmware";
+        };
+    };

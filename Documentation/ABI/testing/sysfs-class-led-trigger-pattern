@@ -12,6 +12,16 @@ Description:
 		The exact format is described in:
 		Documentation/devicetree/bindings/leds/leds-trigger-pattern.txt
 
+What:		/sys/class/leds/<led>/hr_pattern
+Date:		April 2024
+Description:
+		Specify a software pattern for the LED, that supports altering
+		the brightness for the specified duration with one software
+		timer. It can do gradual dimming and step change of brightness.
+
+		Unlike the /sys/class/leds/<led>/pattern, this attribute runs
+		a pattern on high-resolution timer (hrtimer).
+
 What:		/sys/class/leds/<led>/hw_pattern
 Date:		September 2018
 KernelVersion:	4.20
@@ -23,8 +33,8 @@ Description:
 
 		Since different LED hardware can have different semantics of
 		hardware patterns, each driver is expected to provide its own
-		description for the hardware patterns in their ABI documentation
-		file.
+		description for the hardware patterns in their documentation
+		file at Documentation/leds/.
 
 What:		/sys/class/leds/<led>/repeat
 Date:		September 2018
@@ -35,3 +45,6 @@ Description:
 
 		This file will always return the originally written repeat
 		number.
+
+		It should be noticed that some leds, like EL15203000 may
+		only support indefinitely patterns, so they always store -1.

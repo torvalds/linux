@@ -11,7 +11,7 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
-#include <asm/prom.h>
+
 #include <asm/smu.h>
 
 #include "windfarm.h"
@@ -285,8 +285,8 @@ static void cpu_fans_tick_split(void)
 		/* Apply result directly to exhaust fan */
 		err = wf_control_set(cpu_rear_fans[cpu], sp->target);
 		if (err) {
-			pr_warning("wf_pm72: Fan %s reports error %d\n",
-			       cpu_rear_fans[cpu]->name, err);
+			pr_warn("wf_pm72: Fan %s reports error %d\n",
+				cpu_rear_fans[cpu]->name, err);
 			failure_state |= FAILURE_FAN;
 			break;
 		}
@@ -296,8 +296,8 @@ static void cpu_fans_tick_split(void)
 		DBG_LOTS("  CPU%d: intake = %d RPM\n", cpu, intake);
 		err = wf_control_set(cpu_front_fans[cpu], intake);
 		if (err) {
-			pr_warning("wf_pm72: Fan %s reports error %d\n",
-			       cpu_front_fans[cpu]->name, err);
+			pr_warn("wf_pm72: Fan %s reports error %d\n",
+				cpu_front_fans[cpu]->name, err);
 			failure_state |= FAILURE_FAN;
 			break;
 		}
@@ -367,22 +367,22 @@ static void cpu_fans_tick_combined(void)
 	for (cpu = 0; cpu < nr_chips; cpu++) {
 		err = wf_control_set(cpu_rear_fans[cpu], sp->target);
 		if (err) {
-			pr_warning("wf_pm72: Fan %s reports error %d\n",
-				   cpu_rear_fans[cpu]->name, err);
+			pr_warn("wf_pm72: Fan %s reports error %d\n",
+				cpu_rear_fans[cpu]->name, err);
 			failure_state |= FAILURE_FAN;
 		}
 		err = wf_control_set(cpu_front_fans[cpu], intake);
 		if (err) {
-			pr_warning("wf_pm72: Fan %s reports error %d\n",
-				   cpu_front_fans[cpu]->name, err);
+			pr_warn("wf_pm72: Fan %s reports error %d\n",
+				cpu_front_fans[cpu]->name, err);
 			failure_state |= FAILURE_FAN;
 		}
 		err = 0;
 		if (cpu_pumps[cpu])
 			err = wf_control_set(cpu_pumps[cpu], pump);
 		if (err) {
-			pr_warning("wf_pm72: Pump %s reports error %d\n",
-				   cpu_pumps[cpu]->name, err);
+			pr_warn("wf_pm72: Pump %s reports error %d\n",
+				cpu_pumps[cpu]->name, err);
 			failure_state |= FAILURE_FAN;
 		}
 	}
@@ -561,7 +561,7 @@ static void drives_fan_tick(void)
 
 	err = wf_sensor_get(drives_temp, &temp);
 	if (err) {
-		pr_warning("wf_pm72: drive bay temp sensor error %d\n", err);
+		pr_warn("wf_pm72: drive bay temp sensor error %d\n", err);
 		failure_state |= FAILURE_SENSOR;
 		wf_control_set_max(drives_fan);
 		return;
@@ -775,17 +775,14 @@ static int wf_pm72_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int wf_pm72_remove(struct platform_device *dev)
+static void wf_pm72_remove(struct platform_device *dev)
 {
 	wf_unregister_client(&pm72_events);
-
-	/* should release all sensors and controls */
-	return 0;
 }
 
 static struct platform_driver wf_pm72_driver = {
 	.probe	= wf_pm72_probe,
-	.remove	= wf_pm72_remove,
+	.remove_new = wf_pm72_remove,
 	.driver	= {
 		.name = "windfarm",
 	},

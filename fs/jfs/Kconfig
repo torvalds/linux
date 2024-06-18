@@ -1,8 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config JFS_FS
 	tristate "JFS filesystem support"
+	select BUFFER_HEAD
 	select NLS
+	select NLS_UCS2_UTILS
 	select CRC32
+	select LEGACY_DIRECT_IO
 	help
 	  This is a port of IBM's Journaled Filesystem .  More information is
 	  available in the file <file:Documentation/admin-guide/jfs.rst>.

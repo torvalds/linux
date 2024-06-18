@@ -11,6 +11,7 @@
 #ifndef __MIPS_ASM_MIPS_CM_H__
 #define __MIPS_ASM_MIPS_CM_H__
 
+#include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/errno.h>
 
@@ -21,16 +22,28 @@ extern void __iomem *mips_gcr_base;
 extern void __iomem *mips_cm_l2sync_base;
 
 /**
- * __mips_cm_phys_base - retrieve the physical base address of the CM
+ * mips_cm_phys_base - retrieve the physical base address of the CM
  *
  * This function returns the physical base address of the Coherence Manager
  * global control block, or 0 if no Coherence Manager is present. It provides
  * a default implementation which reads the CMGCRBase register where available,
  * and may be overridden by platforms which determine this address in a
- * different way by defining a function with the same prototype except for the
- * name mips_cm_phys_base (without underscores).
+ * different way by defining a function with the same prototype.
  */
-extern phys_addr_t __mips_cm_phys_base(void);
+extern phys_addr_t mips_cm_phys_base(void);
+
+/**
+ * mips_cm_l2sync_phys_base - retrieve the physical base address of the CM
+ *                            L2-sync region
+ *
+ * This function returns the physical base address of the Coherence Manager
+ * L2-cache only region. It provides a default implementation which reads the
+ * CMGCRL2OnlySyncBase register where available or returns a 4K region just
+ * behind the CM GCR base address. It may be overridden by platforms which
+ * determine this address in a different way by defining a function with the
+ * same prototype.
+ */
+extern phys_addr_t mips_cm_l2sync_phys_base(void);
 
 /*
  * mips_cm_is64 - determine CM register width
@@ -153,8 +166,8 @@ GCR_ACCESSOR_RO(32, 0x030, rev)
 #define CM_GCR_REV_MINOR			GENMASK(7, 0)
 
 #define CM_ENCODE_REV(major, minor) \
-		(((major) << __ffs(CM_GCR_REV_MAJOR)) | \
-		 ((minor) << __ffs(CM_GCR_REV_MINOR)))
+		(FIELD_PREP(CM_GCR_REV_MAJOR, major) | \
+		 FIELD_PREP(CM_GCR_REV_MINOR, minor))
 
 #define CM_REV_CM2				CM_ENCODE_REV(6, 0)
 #define CM_REV_CM2_5				CM_ENCODE_REV(7, 0)
@@ -310,6 +323,7 @@ GCR_CX_ACCESSOR_RW(32, 0x018, other)
 /* GCR_Cx_RESET_BASE - Configure where powered up cores will fetch from */
 GCR_CX_ACCESSOR_RW(32, 0x020, reset_base)
 #define CM_GCR_Cx_RESET_BASE_BEVEXCBASE		GENMASK(31, 12)
+#define CM_GCR_Cx_RESET_BASE_MODE		BIT(1)
 
 /* GCR_Cx_ID - Identify the current core */
 GCR_CX_ACCESSOR_RO(32, 0x028, id)
@@ -362,10 +376,10 @@ static inline int mips_cm_revision(void)
 static inline unsigned int mips_cm_max_vp_width(void)
 {
 	extern int smp_num_siblings;
-	uint32_t cfg;
 
 	if (mips_cm_revision() >= CM_REV_CM3)
-		return read_gcr_sys_config2() & CM_GCR_SYS_CONFIG2_MAXVPW;
+		return FIELD_GET(CM_GCR_SYS_CONFIG2_MAXVPW,
+				 read_gcr_sys_config2());
 
 	if (mips_cm_present()) {
 		/*
@@ -373,8 +387,7 @@ static inline unsigned int mips_cm_max_vp_width(void)
 		 * number of VP(E)s, and if that ever changes then this will
 		 * need revisiting.
 		 */
-		cfg = read_gcr_cl_config() & CM_GCR_Cx_CONFIG_PVPE;
-		return (cfg >> __ffs(CM_GCR_Cx_CONFIG_PVPE)) + 1;
+		return FIELD_GET(CM_GCR_Cx_CONFIG_PVPE, read_gcr_cl_config()) + 1;
 	}
 
 	if (IS_ENABLED(CONFIG_SMP))

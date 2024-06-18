@@ -7,7 +7,8 @@ Intro
 =====
 
 The MSG_ZEROCOPY flag enables copy avoidance for socket send calls.
-The feature is currently implemented for TCP and UDP sockets.
+The feature is currently implemented for TCP, UDP and VSOCK (with
+virtio transport) sockets.
 
 
 Opportunity and Caveats
@@ -15,7 +16,7 @@ Opportunity and Caveats
 
 Copying large buffers between user process and kernel can be
 expensive. Linux supports various interfaces that eschew copying,
-such as sendpage and splice. The MSG_ZEROCOPY flag extends the
+such as sendfile and splice. The MSG_ZEROCOPY flag extends the
 underlying copy avoidance mechanism to common socket send calls.
 
 Copy avoidance is not a free lunch. As implemented, with page pinning,
@@ -50,7 +51,7 @@ the excellent reporting over at LWN.net or read the original code.
 
   patchset
     [PATCH net-next v4 0/9] socket sendmsg MSG_ZEROCOPY
-    https://lkml.kernel.org/netdev/20170803202945.70750-1-willemdebruijn.kernel@gmail.com
+    https://lore.kernel.org/netdev/20170803202945.70750-1-willemdebruijn.kernel@gmail.com
 
 
 Interface
@@ -83,8 +84,8 @@ Pass the new flag.
 	ret = send(fd, buf, sizeof(buf), MSG_ZEROCOPY);
 
 A zerocopy failure will return -1 with errno ENOBUFS. This happens if
-the socket option was not set, the socket exceeds its optmem limit or
-the user exceeds its ulimit on locked pages.
+the socket exceeds its optmem limit or the user exceeds their ulimit on
+locked pages.
 
 
 Mixing copy avoidance and copying
@@ -174,7 +175,9 @@ read_notification() call in the previous snippet. A notification
 is encoded in the standard error format, sock_extended_err.
 
 The level and type fields in the control data are protocol family
-specific, IP_RECVERR or IPV6_RECVERR.
+specific, IP_RECVERR or IPV6_RECVERR (for TCP or UDP socket).
+For VSOCK socket, cmsg_level will be SOL_VSOCK and cmsg_type will be
+VSOCK_RECVERR.
 
 Error origin is the new type SO_EE_ORIGIN_ZEROCOPY. ee_errno is zero,
 as explained before, to avoid blocking read and write system calls on
@@ -235,12 +238,15 @@ Implementation
 Loopback
 --------
 
+For TCP and UDP:
 Data sent to local sockets can be queued indefinitely if the receive
 process does not read its socket. Unbound notification latency is not
 acceptable. For this reason all packets generated with MSG_ZEROCOPY
 that are looped to a local socket will incur a deferred copy. This
 includes looping onto packet sockets (e.g., tcpdump) and tun devices.
 
+For VSOCK:
+Data path sent to local sockets is the same as for non-local sockets.
 
 Testing
 =======
@@ -254,3 +260,6 @@ instance when run with msg_zerocopy.sh between a veth pair across
 namespaces, the test will not show any improvement. For testing, the
 loopback restriction can be temporarily relaxed by making
 skb_orphan_frags_rx identical to skb_orphan_frags.
+
+For VSOCK type of socket example can be found in
+tools/testing/vsock/vsock_test_zerocopy.c.

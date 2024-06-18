@@ -675,7 +675,7 @@ static int __init crc32c_test(void)
 
 	/* pre-warm the cache */
 	for (i = 0; i < 100; i++) {
-		bytes += 2*test[i].length;
+		bytes += test[i].length;
 
 		crc ^= __crc32c_le(test[i].crc, test_buf +
 		    test[i].start, test[i].length);
@@ -683,7 +683,6 @@ static int __init crc32c_test(void)
 
 	/* reduce OS noise */
 	local_irq_save(flags);
-	local_irq_disable();
 
 	nsec = ktime_get_ns();
 	for (i = 0; i < 100; i++) {
@@ -694,7 +693,6 @@ static int __init crc32c_test(void)
 	nsec = ktime_get_ns() - nsec;
 
 	local_irq_restore(flags);
-	local_irq_enable();
 
 	pr_info("crc32c: CRC_LE_BITS = %d\n", CRC_LE_BITS);
 
@@ -768,7 +766,6 @@ static int __init crc32_test(void)
 
 	/* reduce OS noise */
 	local_irq_save(flags);
-	local_irq_disable();
 
 	nsec = ktime_get_ns();
 	for (i = 0; i < 100; i++) {
@@ -783,7 +780,6 @@ static int __init crc32_test(void)
 	nsec = ktime_get_ns() - nsec;
 
 	local_irq_restore(flags);
-	local_irq_enable();
 
 	pr_info("crc32: CRC_LE_BITS = %d, CRC_BE BITS = %d\n",
 		 CRC_LE_BITS, CRC_BE_BITS);

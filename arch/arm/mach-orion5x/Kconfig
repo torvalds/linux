@@ -1,12 +1,13 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menuconfig ARCH_ORION5X
 	bool "Marvell Orion"
-	depends on MMU && ARCH_MULTI_V5
+	depends on ARCH_MULTI_V5
+	depends on CPU_LITTLE_ENDIAN
 	select CPU_FEROCEON
-	select GENERIC_CLOCKEVENTS
 	select GPIOLIB
 	select MVEBU_MBUS
 	select FORCE_PCI
+	select PCI_QUIRKS
 	select PHYLIB if NETDEVICES
 	select PLAT_ORION_LEGACY
 	help
@@ -18,7 +19,6 @@ if ARCH_ORION5X
 
 config ARCH_ORION5X_DT
 	bool "Marvell Orion5x Flattened Device Tree"
-	select USE_OF
 	select ORION_CLK
 	select ORION_IRQCHIP
 	select ORION_TIMER
@@ -27,20 +27,6 @@ config ARCH_ORION5X_DT
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  Marvell Orion5x using flattened device tree.
-
-config MACH_DB88F5281
-	bool "Marvell Orion-2 Development Board"
-	select I2C_BOARDINFO if I2C
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  Marvell Orion-2 (88F5281) Development Board
-
-config MACH_RD88F5182
-	bool "Marvell Orion-NAS Reference Design"
-	select I2C_BOARDINFO if I2C
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  Marvell Orion-NAS (88F5182) RD2
 
 config MACH_RD88F5182_DT
 	bool "Marvell Orion-NAS Reference Design (Flattened Device Tree)"
@@ -53,6 +39,7 @@ config MACH_RD88F5182_DT
 config MACH_KUROBOX_PRO
 	bool "KuroBox Pro"
 	select I2C_BOARDINFO if I2C
+	depends on ATAGS
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  KuroBox Pro platform.
@@ -60,24 +47,28 @@ config MACH_KUROBOX_PRO
 config MACH_DNS323
 	bool "D-Link DNS-323"
 	select I2C_BOARDINFO if I2C
+	depends on ATAGS
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  D-Link DNS-323 platform.
 
 config MACH_TS209
 	bool "QNAP TS-109/TS-209"
+	depends on ATAGS
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  QNAP TS-109/TS-209 platform.
 
 config MACH_TERASTATION_PRO2
 	bool "Buffalo Terastation Pro II/Live"
+	depends on ATAGS
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  Buffalo Terastation Pro II/Live platform.
 
 config MACH_LINKSTATION_PRO
 	bool "Buffalo Linkstation Pro/Live"
+	depends on ATAGS
 	select I2C_BOARDINFO if I2C
 	help
 	  Say 'Y' here if you want your kernel to support the
@@ -91,33 +82,23 @@ config MACH_LINKSTATION_MINI
 	  Say 'Y' here if you want your kernel to support the
 	  Buffalo Linkstation Mini (LS-WSGL) platform.
 
-config MACH_LINKSTATION_LS_HGL
-	bool "Buffalo Linkstation LS-HGL"
-	select I2C_BOARDINFO if I2C
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  Buffalo Linkstation LS-HGL platform.
-
 config MACH_TS409
 	bool "QNAP TS-409"
+	depends on ATAGS
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  QNAP TS-409 platform.
 
-config MACH_WRT350N_V2
-	bool "Linksys WRT350N v2"
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  Linksys WRT350N v2 platform.
-
 config MACH_TS78XX
 	bool "Technologic Systems TS-78xx"
+	depends on ATAGS
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  Technologic Systems TS-78xx platform.
 
 config MACH_MV2120
 	bool "HP Media Vault mv2120"
+	depends on ATAGS
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  HP Media Vault mv2120 or mv5100.
@@ -131,6 +112,7 @@ config MACH_D2NET_DT
 
 config MACH_NET2BIG
 	bool "LaCie 2Big Network"
+	depends on ATAGS
 	select I2C_BOARDINFO if I2C
 	help
 	  Say 'Y' here if you want your kernel to support the
@@ -142,29 +124,5 @@ config MACH_MSS2_DT
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  Maxtor Shared Storage II platform.
-
-config MACH_WNR854T
-	bool "Netgear WNR854T"
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  Netgear WNR854T platform.
-
-config MACH_RD88F5181L_GE
-	bool "Marvell Orion-VoIP GE Reference Design"
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  Marvell Orion-VoIP GE (88F5181L) RD.
-
-config MACH_RD88F5181L_FXO
-	bool "Marvell Orion-VoIP FXO Reference Design"
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  Marvell Orion-VoIP FXO (88F5181L) RD.
-
-config MACH_RD88F6183AP_GE
-	bool "Marvell Orion-1-90 AP GE Reference Design"
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  Marvell Orion-1-90 (88F6183) AP GE RD.
 
 endif

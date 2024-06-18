@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2003 Manuel Estrada Sainz
  *
- * Please see Documentation/firmware_class/ for more information.
+ * Please see Documentation/driver-api/firmware/ for more information.
  *
  */
 
@@ -12,8 +12,10 @@
 
 #include <linux/capability.h>
 #include <linux/device.h>
+#include <linux/kernel_read_file.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/initrd.h>
 #include <linux/timer.h>
 #include <linux/vmalloc.h>
 #include <linux/interrupt.h>
@@ -33,6 +35,7 @@
 #include <linux/syscore_ops.h>
 #include <linux/reboot.h>
 #include <linux/security.h>
+#include <linux/zstd.h>
 #include <linux/xz.h>
 
 #include <generated/utsrelease.h>
@@ -51,7 +54,7 @@ struct firmware_cache {
 	struct list_head head;
 	int state;
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_FW_CACHE
 	/*
 	 * Names of firmware images which have been cached successfully
 	 * will be added into the below list so that device uncache
@@ -89,68 +92,10 @@ static inline struct fw_priv *to_fw_priv(struct kref *ref)
  * guarding for corner cases a global lock should be OK */
 DEFINE_MUTEX(fw_lock);
 
-static struct firmware_cache fw_cache;
+struct firmware_cache fw_cache;
+bool fw_load_abort_all;
 
-/* Builtin firmware support */
-
-#ifdef CONFIG_FW_LOADER
-
-extern struct builtin_fw __start_builtin_fw[];
-extern struct builtin_fw __end_builtin_fw[];
-
-static void fw_copy_to_prealloc_buf(struct firmware *fw,
-				    void *buf, size_t size)
-{
-	if (!buf || size < fw->size)
-		return;
-	memcpy(buf, fw->data, fw->size);
-}
-
-static bool fw_get_builtin_firmware(struct firmware *fw, const char *name,
-				    void *buf, size_t size)
-{
-	struct builtin_fw *b_fw;
-
-	for (b_fw = __start_builtin_fw; b_fw != __end_builtin_fw; b_fw++) {
-		if (strcmp(name, b_fw->name) == 0) {
-			fw->size = b_fw->size;
-			fw->data = b_fw->data;
-			fw_copy_to_prealloc_buf(fw, buf, size);
-
-			return true;
-		}
-	}
-
-	return false;
-}
-
-static bool fw_is_builtin_firmware(const struct firmware *fw)
-{
-	struct builtin_fw *b_fw;
-
-	for (b_fw = __start_builtin_fw; b_fw != __end_builtin_fw; b_fw++)
-		if (fw->data == b_fw->data)
-			return true;
-
-	return false;
-}
-
-#else /* Module case - no builtin firmware support */
-
-static inline bool fw_get_builtin_firmware(struct firmware *fw,
-					   const char *name, void *buf,
-					   size_t size)
-{
-	return false;
-}
-
-static inline bool fw_is_builtin_firmware(const struct firmware *fw)
-{
-	return false;
-}
-#endif
-
-static void fw_state_init(struct fw_priv *fw_priv)
+void fw_state_init(struct fw_priv *fw_priv)
 {
 	struct fw_state *fw_st = &fw_priv->fw_st;
 
@@ -163,13 +108,24 @@ static inline int fw_state_wait(struct fw_priv *fw_priv)
 	return __fw_state_wait_common(fw_priv, MAX_SCHEDULE_TIMEOUT);
 }
 
-static int fw_cache_piggyback_on_request(const char *name);
+static void fw_cache_piggyback_on_request(struct fw_priv *fw_priv);
 
 static struct fw_priv *__allocate_fw_priv(const char *fw_name,
 					  struct firmware_cache *fwc,
-					  void *dbuf, size_t size)
+					  void *dbuf,
+					  size_t size,
+					  size_t offset,
+					  u32 opt_flags)
 {
 	struct fw_priv *fw_priv;
+
+	/* For a partial read, the buffer must be preallocated. */
+	if ((opt_flags & FW_OPT_PARTIAL) && !dbuf)
+		return NULL;
+
+	/* Only partial reads are allowed to use an offset. */
+	if (offset != 0 && !(opt_flags & FW_OPT_PARTIAL))
+		return NULL;
 
 	fw_priv = kzalloc(sizeof(*fw_priv), GFP_ATOMIC);
 	if (!fw_priv)
@@ -185,6 +141,8 @@ static struct fw_priv *__allocate_fw_priv(const char *fw_name,
 	fw_priv->fwc = fwc;
 	fw_priv->data = dbuf;
 	fw_priv->allocated_size = size;
+	fw_priv->offset = offset;
+	fw_priv->opt_flags = opt_flags;
 	fw_state_init(fw_priv);
 #ifdef CONFIG_FW_LOADER_USER_HELPER
 	INIT_LIST_HEAD(&fw_priv->pending_list);
@@ -207,15 +165,18 @@ static struct fw_priv *__lookup_fw_priv(const char *fw_name)
 }
 
 /* Returns 1 for batching firmware requests with the same name */
-static int alloc_lookup_fw_priv(const char *fw_name,
-				struct firmware_cache *fwc,
-				struct fw_priv **fw_priv, void *dbuf,
-				size_t size, enum fw_opt opt_flags)
+int alloc_lookup_fw_priv(const char *fw_name, struct firmware_cache *fwc,
+			 struct fw_priv **fw_priv, void *dbuf, size_t size,
+			 size_t offset, u32 opt_flags)
 {
 	struct fw_priv *tmp;
 
 	spin_lock(&fwc->lock);
-	if (!(opt_flags & FW_OPT_NOCACHE)) {
+	/*
+	 * Do not merge requests that are marked to be non-cached or
+	 * are performing partial reads.
+	 */
+	if (!(opt_flags & (FW_OPT_NOCACHE | FW_OPT_PARTIAL))) {
 		tmp = __lookup_fw_priv(fw_name);
 		if (tmp) {
 			kref_get(&tmp->ref);
@@ -226,7 +187,7 @@ static int alloc_lookup_fw_priv(const char *fw_name,
 		}
 	}
 
-	tmp = __allocate_fw_priv(fw_name, fwc, dbuf, size);
+	tmp = __allocate_fw_priv(fw_name, fwc, dbuf, size, offset, opt_flags);
 	if (tmp) {
 		INIT_LIST_HEAD(&tmp->list);
 		if (!(opt_flags & FW_OPT_NOCACHE))
@@ -252,14 +213,16 @@ static void __free_fw_priv(struct kref *ref)
 	list_del(&fw_priv->list);
 	spin_unlock(&fwc->lock);
 
-	fw_free_paged_buf(fw_priv); /* free leftover pages */
-	if (!fw_priv->allocated_size)
+	if (fw_is_paged_buf(fw_priv))
+		fw_free_paged_buf(fw_priv);
+	else if (!fw_priv->allocated_size)
 		vfree(fw_priv->data);
+
 	kfree_const(fw_priv->fw_name);
 	kfree(fw_priv);
 }
 
-static void free_fw_priv(struct fw_priv *fw_priv)
+void free_fw_priv(struct fw_priv *fw_priv)
 {
 	struct firmware_cache *fwc = fw_priv->fwc;
 	spin_lock(&fwc->lock);
@@ -268,6 +231,11 @@ static void free_fw_priv(struct fw_priv *fw_priv)
 }
 
 #ifdef CONFIG_FW_LOADER_PAGED_BUF
+bool fw_is_paged_buf(struct fw_priv *fw_priv)
+{
+	return fw_priv->is_paged_buf;
+}
+
 void fw_free_paged_buf(struct fw_priv *fw_priv)
 {
 	int i;
@@ -275,12 +243,16 @@ void fw_free_paged_buf(struct fw_priv *fw_priv)
 	if (!fw_priv->pages)
 		return;
 
+	vunmap(fw_priv->data);
+
 	for (i = 0; i < fw_priv->nr_pages; i++)
 		__free_page(fw_priv->pages[i]);
 	kvfree(fw_priv->pages);
 	fw_priv->pages = NULL;
 	fw_priv->page_array_size = 0;
 	fw_priv->nr_pages = 0;
+	fw_priv->data = NULL;
+	fw_priv->size = 0;
 }
 
 int fw_grow_paged_buf(struct fw_priv *fw_priv, int pages_needed)
@@ -328,18 +300,78 @@ int fw_map_paged_buf(struct fw_priv *fw_priv)
 	if (!fw_priv->data)
 		return -ENOMEM;
 
-	/* page table is no longer needed after mapping, let's free */
-	kvfree(fw_priv->pages);
-	fw_priv->pages = NULL;
-
 	return 0;
 }
 #endif
 
 /*
+ * ZSTD-compressed firmware support
+ */
+#ifdef CONFIG_FW_LOADER_COMPRESS_ZSTD
+static int fw_decompress_zstd(struct device *dev, struct fw_priv *fw_priv,
+			      size_t in_size, const void *in_buffer)
+{
+	size_t len, out_size, workspace_size;
+	void *workspace, *out_buf;
+	zstd_dctx *ctx;
+	int err;
+
+	if (fw_priv->allocated_size) {
+		out_size = fw_priv->allocated_size;
+		out_buf = fw_priv->data;
+	} else {
+		zstd_frame_header params;
+
+		if (zstd_get_frame_header(&params, in_buffer, in_size) ||
+		    params.frameContentSize == ZSTD_CONTENTSIZE_UNKNOWN) {
+			dev_dbg(dev, "%s: invalid zstd header\n", __func__);
+			return -EINVAL;
+		}
+		out_size = params.frameContentSize;
+		out_buf = vzalloc(out_size);
+		if (!out_buf)
+			return -ENOMEM;
+	}
+
+	workspace_size = zstd_dctx_workspace_bound();
+	workspace = kvzalloc(workspace_size, GFP_KERNEL);
+	if (!workspace) {
+		err = -ENOMEM;
+		goto error;
+	}
+
+	ctx = zstd_init_dctx(workspace, workspace_size);
+	if (!ctx) {
+		dev_dbg(dev, "%s: failed to initialize context\n", __func__);
+		err = -EINVAL;
+		goto error;
+	}
+
+	len = zstd_decompress_dctx(ctx, out_buf, out_size, in_buffer, in_size);
+	if (zstd_is_error(len)) {
+		dev_dbg(dev, "%s: failed to decompress: %d\n", __func__,
+			zstd_get_error_code(len));
+		err = -EINVAL;
+		goto error;
+	}
+
+	if (!fw_priv->allocated_size)
+		fw_priv->data = out_buf;
+	fw_priv->size = len;
+	err = 0;
+
+ error:
+	kvfree(workspace);
+	if (err && !fw_priv->allocated_size)
+		vfree(out_buf);
+	return err;
+}
+#endif /* CONFIG_FW_LOADER_COMPRESS_ZSTD */
+
+/*
  * XZ-compressed firmware support
  */
-#ifdef CONFIG_FW_LOADER_COMPRESS
+#ifdef CONFIG_FW_LOADER_COMPRESS_XZ
 /* show an error and return the standard error code */
 static int fw_decompress_xz_error(struct device *dev, enum xz_ret xz_ret)
 {
@@ -404,11 +436,11 @@ static int fw_decompress_xz_pages(struct device *dev, struct fw_priv *fw_priv,
 
 		/* decompress onto the new allocated page */
 		page = fw_priv->pages[fw_priv->nr_pages - 1];
-		xz_buf.out = kmap(page);
+		xz_buf.out = kmap_local_page(page);
 		xz_buf.out_pos = 0;
 		xz_buf.out_size = PAGE_SIZE;
 		xz_ret = xz_dec_run(xz_dec, &xz_buf);
-		kunmap(page);
+		kunmap_local(xz_buf.out);
 		fw_priv->size += xz_buf.out_pos;
 		/* partial decompression means either end or error */
 		if (xz_buf.out_pos != PAGE_SIZE)
@@ -433,7 +465,7 @@ static int fw_decompress_xz(struct device *dev, struct fw_priv *fw_priv,
 	else
 		return fw_decompress_xz_pages(dev, fw_priv, in_size, in_buffer);
 }
-#endif /* CONFIG_FW_LOADER_COMPRESS */
+#endif /* CONFIG_FW_LOADER_COMPRESS_XZ */
 
 /* direct firmware loading support */
 static char fw_path_para[256];
@@ -461,18 +493,16 @@ fw_get_filesystem_firmware(struct device *device, struct fw_priv *fw_priv,
 					     size_t in_size,
 					     const void *in_buffer))
 {
-	loff_t size;
-	int i, len;
+	size_t size;
+	int i, len, maxlen = 0;
 	int rc = -ENOENT;
-	char *path;
-	enum kernel_read_file_id id = READING_FIRMWARE;
+	char *path, *nt = NULL;
 	size_t msize = INT_MAX;
 	void *buffer = NULL;
 
 	/* Already populated data member means we're loading into a buffer */
 	if (!decompress && fw_priv->data) {
 		buffer = fw_priv->data;
-		id = READING_FIRMWARE_PREALLOC_BUFFER;
 		msize = fw_priv->allocated_size;
 	}
 
@@ -480,30 +510,63 @@ fw_get_filesystem_firmware(struct device *device, struct fw_priv *fw_priv,
 	if (!path)
 		return -ENOMEM;
 
+	wait_for_initramfs();
 	for (i = 0; i < ARRAY_SIZE(fw_path); i++) {
+		size_t file_size = 0;
+		size_t *file_size_ptr = NULL;
+
 		/* skip the unset customized path */
 		if (!fw_path[i][0])
 			continue;
 
-		len = snprintf(path, PATH_MAX, "%s/%s%s",
-			       fw_path[i], fw_priv->fw_name, suffix);
+		/* strip off \n from customized path */
+		maxlen = strlen(fw_path[i]);
+		if (i == 0) {
+			nt = strchr(fw_path[i], '\n');
+			if (nt)
+				maxlen = nt - fw_path[i];
+		}
+
+		len = snprintf(path, PATH_MAX, "%.*s/%s%s",
+			       maxlen, fw_path[i],
+			       fw_priv->fw_name, suffix);
 		if (len >= PATH_MAX) {
 			rc = -ENAMETOOLONG;
 			break;
 		}
 
 		fw_priv->size = 0;
-		rc = kernel_read_file_from_path(path, &buffer, &size,
-						msize, id);
-		if (rc) {
-			if (rc != -ENOENT)
-				dev_warn(device, "loading %s failed with error %d\n",
-					 path, rc);
-			else
-				dev_dbg(device, "loading %s failed for no such file or directory.\n",
-					 path);
+
+		/*
+		 * The total file size is only examined when doing a partial
+		 * read; the "full read" case needs to fail if the whole
+		 * firmware was not completely loaded.
+		 */
+		if ((fw_priv->opt_flags & FW_OPT_PARTIAL) && buffer)
+			file_size_ptr = &file_size;
+
+		/* load firmware files from the mount namespace of init */
+		rc = kernel_read_file_from_path_initns(path, fw_priv->offset,
+						       &buffer, msize,
+						       file_size_ptr,
+						       READING_FIRMWARE);
+		if (rc < 0) {
+			if (!(fw_priv->opt_flags & FW_OPT_NO_WARN)) {
+				if (rc != -ENOENT)
+					dev_warn(device,
+						 "loading %s failed with error %d\n",
+						 path, rc);
+				else
+					dev_dbg(device,
+						"loading %s failed for no such file or directory.\n",
+						path);
+			}
 			continue;
 		}
+		size = rc;
+		rc = 0;
+
+		dev_dbg(device, "Loading firmware from %s\n", path);
 		if (decompress) {
 			dev_dbg(device, "f/w decompressing %s\n",
 				fw_priv->fw_name);
@@ -545,9 +608,6 @@ static void firmware_free_data(const struct firmware *fw)
 static void fw_set_page_data(struct fw_priv *fw_priv, struct firmware *fw)
 {
 	fw->priv = fw_priv;
-#ifdef CONFIG_FW_LOADER_USER_HELPER
-	fw->pages = fw_priv->pages;
-#endif
 	fw->size = fw_priv->size;
 	fw->data = fw_priv->data;
 
@@ -556,7 +616,7 @@ static void fw_set_page_data(struct fw_priv *fw_priv, struct firmware *fw)
 		 (unsigned int)fw_priv->size);
 }
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_FW_CACHE
 static void fw_name_devm_release(struct device *dev, void *res)
 {
 	struct fw_name_devm *fwn = res;
@@ -632,8 +692,7 @@ static int fw_add_devm_name(struct device *dev, const char *name)
 }
 #endif
 
-int assign_fw(struct firmware *fw, struct device *device,
-	      enum fw_opt opt_flags)
+int assign_fw(struct firmware *fw, struct device *device)
 {
 	struct fw_priv *fw_priv = fw->priv;
 	int ret;
@@ -652,8 +711,8 @@ int assign_fw(struct firmware *fw, struct device *device,
 	 * should be fixed in devres or driver core.
 	 */
 	/* don't cache firmware handled without uevent */
-	if (device && (opt_flags & FW_OPT_UEVENT) &&
-	    !(opt_flags & FW_OPT_NOCACHE)) {
+	if (device && (fw_priv->opt_flags & FW_OPT_UEVENT) &&
+	    !(fw_priv->opt_flags & FW_OPT_NOCACHE)) {
 		ret = fw_add_devm_name(device, fw_priv->fw_name);
 		if (ret) {
 			mutex_unlock(&fw_lock);
@@ -665,11 +724,9 @@ int assign_fw(struct firmware *fw, struct device *device,
 	 * After caching firmware image is started, let it piggyback
 	 * on request firmware.
 	 */
-	if (!(opt_flags & FW_OPT_NOCACHE) &&
-	    fw_priv->fwc->state == FW_LOADER_START_CACHE) {
-		if (fw_cache_piggyback_on_request(fw_priv->fw_name))
-			kref_get(&fw_priv->ref);
-	}
+	if (!(fw_priv->opt_flags & FW_OPT_NOCACHE) &&
+	    fw_priv->fwc->state == FW_LOADER_START_CACHE)
+		fw_cache_piggyback_on_request(fw_priv);
 
 	/* pass the pages buffer to driver at the last minute */
 	fw_set_page_data(fw_priv, fw);
@@ -684,7 +741,7 @@ int assign_fw(struct firmware *fw, struct device *device,
 static int
 _request_firmware_prepare(struct firmware **firmware_p, const char *name,
 			  struct device *device, void *dbuf, size_t size,
-			  enum fw_opt opt_flags)
+			  size_t offset, u32 opt_flags)
 {
 	struct firmware *firmware;
 	struct fw_priv *fw_priv;
@@ -697,13 +754,13 @@ _request_firmware_prepare(struct firmware **firmware_p, const char *name,
 		return -ENOMEM;
 	}
 
-	if (fw_get_builtin_firmware(firmware, name, dbuf, size)) {
+	if (firmware_request_builtin_buf(firmware, name, dbuf, size)) {
 		dev_dbg(device, "using built-in %s\n", name);
 		return 0; /* assigned */
 	}
 
 	ret = alloc_lookup_fw_priv(name, &fw_cache, &fw_priv, dbuf, size,
-				  opt_flags);
+				   offset, opt_flags);
 
 	/*
 	 * bind with 'priv' now to avoid warning in failure path
@@ -742,17 +799,66 @@ static void fw_abort_batch_reqs(struct firmware *fw)
 		return;
 
 	fw_priv = fw->priv;
+	mutex_lock(&fw_lock);
 	if (!fw_state_is_aborted(fw_priv))
 		fw_state_aborted(fw_priv);
+	mutex_unlock(&fw_lock);
 }
+
+#if defined(CONFIG_FW_LOADER_DEBUG)
+#include <crypto/hash.h>
+#include <crypto/sha2.h>
+
+static void fw_log_firmware_info(const struct firmware *fw, const char *name, struct device *device)
+{
+	struct shash_desc *shash;
+	struct crypto_shash *alg;
+	u8 *sha256buf;
+	char *outbuf;
+
+	alg = crypto_alloc_shash("sha256", 0, 0);
+	if (IS_ERR(alg))
+		return;
+
+	sha256buf = kmalloc(SHA256_DIGEST_SIZE, GFP_KERNEL);
+	outbuf = kmalloc(SHA256_BLOCK_SIZE + 1, GFP_KERNEL);
+	shash = kmalloc(sizeof(*shash) + crypto_shash_descsize(alg), GFP_KERNEL);
+	if (!sha256buf || !outbuf || !shash)
+		goto out_free;
+
+	shash->tfm = alg;
+
+	if (crypto_shash_digest(shash, fw->data, fw->size, sha256buf) < 0)
+		goto out_shash;
+
+	for (int i = 0; i < SHA256_DIGEST_SIZE; i++)
+		sprintf(&outbuf[i * 2], "%02x", sha256buf[i]);
+	outbuf[SHA256_BLOCK_SIZE] = 0;
+	dev_dbg(device, "Loaded FW: %s, sha256: %s\n", name, outbuf);
+
+out_shash:
+	crypto_free_shash(alg);
+out_free:
+	kfree(shash);
+	kfree(outbuf);
+	kfree(sha256buf);
+}
+#else
+static void fw_log_firmware_info(const struct firmware *fw, const char *name,
+				 struct device *device)
+{}
+#endif
 
 /* called from request_firmware() and request_firmware_work_func() */
 static int
 _request_firmware(const struct firmware **firmware_p, const char *name,
 		  struct device *device, void *buf, size_t size,
-		  enum fw_opt opt_flags)
+		  size_t offset, u32 opt_flags)
 {
 	struct firmware *fw = NULL;
+	struct cred *kern_cred = NULL;
+	const struct cred *old_cred;
+	bool nondirect = false;
 	int ret;
 
 	if (!firmware_p)
@@ -764,31 +870,62 @@ _request_firmware(const struct firmware **firmware_p, const char *name,
 	}
 
 	ret = _request_firmware_prepare(&fw, name, device, buf, size,
-					opt_flags);
+					offset, opt_flags);
 	if (ret <= 0) /* error or already assigned */
 		goto out;
 
+	/*
+	 * We are about to try to access the firmware file. Because we may have been
+	 * called by a driver when serving an unrelated request from userland, we use
+	 * the kernel credentials to read the file.
+	 */
+	kern_cred = prepare_kernel_cred(&init_task);
+	if (!kern_cred) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	old_cred = override_creds(kern_cred);
+
 	ret = fw_get_filesystem_firmware(device, fw->priv, "", NULL);
-#ifdef CONFIG_FW_LOADER_COMPRESS
-	if (ret == -ENOENT)
+
+	/* Only full reads can support decompression, platform, and sysfs. */
+	if (!(opt_flags & FW_OPT_PARTIAL))
+		nondirect = true;
+
+#ifdef CONFIG_FW_LOADER_COMPRESS_ZSTD
+	if (ret == -ENOENT && nondirect)
+		ret = fw_get_filesystem_firmware(device, fw->priv, ".zst",
+						 fw_decompress_zstd);
+#endif
+#ifdef CONFIG_FW_LOADER_COMPRESS_XZ
+	if (ret == -ENOENT && nondirect)
 		ret = fw_get_filesystem_firmware(device, fw->priv, ".xz",
 						 fw_decompress_xz);
 #endif
+	if (ret == -ENOENT && nondirect)
+		ret = firmware_fallback_platform(fw->priv);
 
 	if (ret) {
 		if (!(opt_flags & FW_OPT_NO_WARN))
 			dev_warn(device,
 				 "Direct firmware load for %s failed with error %d\n",
 				 name, ret);
-		ret = firmware_fallback_sysfs(fw, name, device, opt_flags, ret);
+		if (nondirect)
+			ret = firmware_fallback_sysfs(fw, name, device,
+						      opt_flags, ret);
 	} else
-		ret = assign_fw(fw, device, opt_flags);
+		ret = assign_fw(fw, device);
 
- out:
+	revert_creds(old_cred);
+	put_cred(kern_cred);
+
+out:
 	if (ret < 0) {
 		fw_abort_batch_reqs(fw);
 		release_firmware(fw);
 		fw = NULL;
+	} else {
+		fw_log_firmware_info(fw, name, device);
 	}
 
 	*firmware_p = fw;
@@ -823,7 +960,7 @@ request_firmware(const struct firmware **firmware_p, const char *name,
 
 	/* Need to pin this module until return */
 	__module_get(THIS_MODULE);
-	ret = _request_firmware(firmware_p, name, device, NULL, 0,
+	ret = _request_firmware(firmware_p, name, device, NULL, 0, 0,
 				FW_OPT_UEVENT);
 	module_put(THIS_MODULE);
 	return ret;
@@ -836,12 +973,12 @@ EXPORT_SYMBOL(request_firmware);
  * @name: name of firmware file
  * @device: device for which firmware is being loaded
  *
- * This function is similar in behaviour to request_firmware(), except
- * it doesn't produce warning messages when the file is not found.
- * The sysfs fallback mechanism is enabled if direct filesystem lookup fails,
- * however, however failures to find the firmware file with it are still
- * suppressed. It is therefore up to the driver to check for the return value
- * of this call and to decide when to inform the users of errors.
+ * This function is similar in behaviour to request_firmware(), except it
+ * doesn't produce warning messages when the file is not found. The sysfs
+ * fallback mechanism is enabled if direct filesystem lookup fails. However,
+ * failures to find the firmware file with it are still suppressed. It is
+ * therefore up to the driver to check for the return value of this call and to
+ * decide when to inform the users of errors.
  **/
 int firmware_request_nowarn(const struct firmware **firmware, const char *name,
 			    struct device *device)
@@ -850,7 +987,7 @@ int firmware_request_nowarn(const struct firmware **firmware, const char *name,
 
 	/* Need to pin this module until return */
 	__module_get(THIS_MODULE);
-	ret = _request_firmware(firmware, name, device, NULL, 0,
+	ret = _request_firmware(firmware, name, device, NULL, 0, 0,
 				FW_OPT_UEVENT | FW_OPT_NO_WARN);
 	module_put(THIS_MODULE);
 	return ret;
@@ -874,13 +1011,37 @@ int request_firmware_direct(const struct firmware **firmware_p,
 	int ret;
 
 	__module_get(THIS_MODULE);
-	ret = _request_firmware(firmware_p, name, device, NULL, 0,
+	ret = _request_firmware(firmware_p, name, device, NULL, 0, 0,
 				FW_OPT_UEVENT | FW_OPT_NO_WARN |
-				FW_OPT_NOFALLBACK);
+				FW_OPT_NOFALLBACK_SYSFS);
 	module_put(THIS_MODULE);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(request_firmware_direct);
+
+/**
+ * firmware_request_platform() - request firmware with platform-fw fallback
+ * @firmware: pointer to firmware image
+ * @name: name of firmware file
+ * @device: device for which firmware is being loaded
+ *
+ * This function is similar in behaviour to request_firmware, except that if
+ * direct filesystem lookup fails, it will fallback to looking for a copy of the
+ * requested firmware embedded in the platform's main (e.g. UEFI) firmware.
+ **/
+int firmware_request_platform(const struct firmware **firmware,
+			      const char *name, struct device *device)
+{
+	int ret;
+
+	/* Need to pin this module until return */
+	__module_get(THIS_MODULE);
+	ret = _request_firmware(firmware, name, device, NULL, 0, 0,
+				FW_OPT_UEVENT | FW_OPT_FALLBACK_PLATFORM);
+	module_put(THIS_MODULE);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(firmware_request_platform);
 
 /**
  * firmware_request_cache() - cache firmware for suspend so resume can use it
@@ -931,12 +1092,43 @@ request_firmware_into_buf(const struct firmware **firmware_p, const char *name,
 		return -EOPNOTSUPP;
 
 	__module_get(THIS_MODULE);
-	ret = _request_firmware(firmware_p, name, device, buf, size,
+	ret = _request_firmware(firmware_p, name, device, buf, size, 0,
 				FW_OPT_UEVENT | FW_OPT_NOCACHE);
 	module_put(THIS_MODULE);
 	return ret;
 }
 EXPORT_SYMBOL(request_firmware_into_buf);
+
+/**
+ * request_partial_firmware_into_buf() - load partial firmware into a previously allocated buffer
+ * @firmware_p: pointer to firmware image
+ * @name: name of firmware file
+ * @device: device for which firmware is being loaded and DMA region allocated
+ * @buf: address of buffer to load firmware into
+ * @size: size of buffer
+ * @offset: offset into file to read
+ *
+ * This function works pretty much like request_firmware_into_buf except
+ * it allows a partial read of the file.
+ */
+int
+request_partial_firmware_into_buf(const struct firmware **firmware_p,
+				  const char *name, struct device *device,
+				  void *buf, size_t size, size_t offset)
+{
+	int ret;
+
+	if (fw_cache_is_setup(device, name))
+		return -EOPNOTSUPP;
+
+	__module_get(THIS_MODULE);
+	ret = _request_firmware(firmware_p, name, device, buf, size, offset,
+				FW_OPT_UEVENT | FW_OPT_NOCACHE |
+				FW_OPT_PARTIAL);
+	module_put(THIS_MODULE);
+	return ret;
+}
+EXPORT_SYMBOL(request_partial_firmware_into_buf);
 
 /**
  * release_firmware() - release the resource associated with a firmware image
@@ -945,7 +1137,7 @@ EXPORT_SYMBOL(request_firmware_into_buf);
 void release_firmware(const struct firmware *fw)
 {
 	if (fw) {
-		if (!fw_is_builtin_firmware(fw))
+		if (!firmware_is_builtin(fw))
 			firmware_free_data(fw);
 		kfree(fw);
 	}
@@ -960,7 +1152,7 @@ struct firmware_work {
 	struct device *device;
 	void *context;
 	void (*cont)(const struct firmware *fw, void *context);
-	enum fw_opt opt_flags;
+	u32 opt_flags;
 };
 
 static void request_firmware_work_func(struct work_struct *work)
@@ -970,7 +1162,7 @@ static void request_firmware_work_func(struct work_struct *work)
 
 	fw_work = container_of(work, struct firmware_work, work);
 
-	_request_firmware(&fw, fw_work->name, fw_work->device, NULL, 0,
+	_request_firmware(&fw, fw_work->name, fw_work->device, NULL, 0, 0,
 			  fw_work->opt_flags);
 	fw_work->cont(fw, fw_work->context);
 	put_device(fw_work->device); /* taken in request_firmware_nowait() */
@@ -1046,7 +1238,7 @@ request_firmware_nowait(
 }
 EXPORT_SYMBOL(request_firmware_nowait);
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_FW_CACHE
 static ASYNC_DOMAIN_EXCLUSIVE(fw_cache_domain);
 
 /**
@@ -1109,7 +1301,7 @@ static int uncache_firmware(const char *fw_name)
 
 	pr_debug("%s: %s\n", __func__, fw_name);
 
-	if (fw_get_builtin_firmware(&fw, fw_name, NULL, 0))
+	if (firmware_request_builtin(&fw, fw_name))
 		return 0;
 
 	fw_priv = lookup_fw_priv(fw_name);
@@ -1151,11 +1343,11 @@ static int __fw_entry_found(const char *name)
 	return 0;
 }
 
-static int fw_cache_piggyback_on_request(const char *name)
+static void fw_cache_piggyback_on_request(struct fw_priv *fw_priv)
 {
-	struct firmware_cache *fwc = &fw_cache;
+	const char *name = fw_priv->fw_name;
+	struct firmware_cache *fwc = fw_priv->fwc;
 	struct fw_cache_entry *fce;
-	int ret = 0;
 
 	spin_lock(&fwc->name_lock);
 	if (__fw_entry_found(name))
@@ -1163,13 +1355,12 @@ static int fw_cache_piggyback_on_request(const char *name)
 
 	fce = alloc_fw_cache_entry(name);
 	if (fce) {
-		ret = 1;
 		list_add(&fce->list, &fwc->fw_names);
+		kref_get(&fw_priv->ref);
 		pr_debug("%s: fw: %s\n", __func__, name);
 	}
 found:
 	spin_unlock(&fwc->name_lock);
-	return ret;
 }
 
 static void free_fw_cache_entry(struct fw_cache_entry *fce)
@@ -1338,10 +1529,10 @@ static int fw_pm_notify(struct notifier_block *notify_block,
 	case PM_SUSPEND_PREPARE:
 	case PM_RESTORE_PREPARE:
 		/*
-		 * kill pending fallback requests with a custom fallback
-		 * to avoid stalling suspend.
+		 * Here, kill pending fallback requests will only kill
+		 * non-uevent firmware request to avoid stalling suspend.
 		 */
-		kill_pending_fw_fallback_reqs(true);
+		kill_pending_fw_fallback_reqs(false);
 		device_cache_fw_images();
 		break;
 
@@ -1400,9 +1591,8 @@ static inline void unregister_fw_pm_ops(void)
 	unregister_pm_notifier(&fw_cache.pm_notify);
 }
 #else
-static int fw_cache_piggyback_on_request(const char *name)
+static void fw_cache_piggyback_on_request(struct fw_priv *fw_priv)
 {
-	return 0;
 }
 static inline int register_fw_pm_ops(void)
 {
@@ -1427,7 +1617,7 @@ static int fw_shutdown_notify(struct notifier_block *unused1,
 	 * Kill all pending fallback requests to avoid both stalling shutdown,
 	 * and avoid a deadlock with the usermode_lock.
 	 */
-	kill_pending_fw_fallback_reqs(false);
+	kill_pending_fw_fallback_reqs(true);
 
 	return NOTIFY_DONE;
 }

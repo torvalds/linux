@@ -89,9 +89,15 @@ config MTD_MCHP23K256
 	  platform data, or a device tree description if you want to
 	  specify device partitioning
 
+config MTD_MCHP48L640
+	tristate "Microchip 48L640 EERAM"
+	depends on SPI_MASTER
+	help
+	  This enables access to Microchip 48L640 EERAM chips, using SPI.
+
 config MTD_SPEAR_SMI
 	tristate "SPEAR MTD NOR Support through SMI controller"
-	depends on PLAT_SPEAR
+	depends on PLAT_SPEAR || COMPILE_TEST
 	default y
 	help
 	  This enable SNOR support on SPEAR platforms using SMI controller
@@ -129,14 +135,6 @@ config MTD_PHRAM
 	  Use this driver to access physical memory that the kernel proper
 	  doesn't have access to, memory beyond the mem=xxx limit, nvram,
 	  memory on the video card, etc...
-
-config MTD_LART
-	tristate "28F160xx flash driver for LART"
-	depends on SA1100_LART
-	help
-	  This enables the flash driver for LART. Please note that you do
-	  not need any mapping/chip driver for LART. This one does it all
-	  for you, so go disable all of those if you enabled some of them (:
 
 config MTD_MTDRAM
 	tristate "Test driver using RAM"

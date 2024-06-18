@@ -11,7 +11,8 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
+#include <linux/platform_device.h>
 
 #define CTRL		0x0
 #define  PD		BIT(0)
@@ -76,18 +77,8 @@ as370_hwmon_is_visible(const void *data, enum hwmon_sensor_types type,
 	}
 }
 
-static const u32 as370_hwmon_temp_config[] = {
-	HWMON_T_INPUT,
-	0
-};
-
-static const struct hwmon_channel_info as370_hwmon_temp = {
-	.type = hwmon_temp,
-	.config = as370_hwmon_temp_config,
-};
-
-static const struct hwmon_channel_info *as370_hwmon_info[] = {
-	&as370_hwmon_temp,
+static const struct hwmon_channel_info * const as370_hwmon_info[] = {
+	HWMON_CHANNEL_INFO(temp, HWMON_T_INPUT),
 	NULL
 };
 

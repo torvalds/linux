@@ -1,0 +1,161 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/power/avs/qcom,cpr.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Core Power Reduction (CPR)
+
+maintainers:
+  - Niklas Cassel <nks@flawful.org>
+
+description: |
+  CPR (Core Power Reduction) is a technology to reduce core power on a CPU
+  or other device. Each OPP of a device corresponds to a "corner" that has
+  a range of valid voltages for a particular frequency. While the device is
+  running at a particular frequency, CPR monitors dynamic factors such as
+  temperature, etc. and suggests adjustments to the voltage to save power
+  and meet silicon characteristic requirements.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - qcom,qcs404-cpr
+      - const: qcom,cpr
+
+  reg:
+    description: Base address and size of the RBCPR register region.
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: Reference clock.
+
+  clock-names:
+    items:
+      - const: ref
+
+  vdd-apc-supply:
+    description: APC regulator supply.
+
+  '#power-domain-cells':
+    const: 0
+
+  operating-points-v2:
+    description: |
+      A phandle to the OPP table containing the performance states
+      supported by the CPR power domain.
+
+  acc-syscon:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: A phandle to the syscon used for writing ACC settings.
+
+  nvmem-cells:
+    items:
+      - description: Corner 1 quotient offset
+      - description: Corner 2 quotient offset
+      - description: Corner 3 quotient offset
+      - description: Corner 1 initial voltage
+      - description: Corner 2 initial voltage
+      - description: Corner 3 initial voltage
+      - description: Corner 1 quotient
+      - description: Corner 2 quotient
+      - description: Corner 3 quotient
+      - description: Corner 1 ring oscillator
+      - description: Corner 2 ring oscillator
+      - description: Corner 3 ring oscillator
+      - description: Fuse revision
+
+  nvmem-cell-names:
+    items:
+      - const: cpr_quotient_offset1
+      - const: cpr_quotient_offset2
+      - const: cpr_quotient_offset3
+      - const: cpr_init_voltage1
+      - const: cpr_init_voltage2
+      - const: cpr_init_voltage3
+      - const: cpr_quotient1
+      - const: cpr_quotient2
+      - const: cpr_quotient3
+      - const: cpr_ring_osc1
+      - const: cpr_ring_osc2
+      - const: cpr_ring_osc3
+      - const: cpr_fuse_revision
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - vdd-apc-supply
+  - '#power-domain-cells'
+  - operating-points-v2
+  - nvmem-cells
+  - nvmem-cell-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    cpr_opp_table: opp-table-cpr {
+        compatible = "operating-points-v2-qcom-level";
+
+        cpr_opp1: opp1 {
+            opp-level = <1>;
+            qcom,opp-fuse-level = <1>;
+        };
+        cpr_opp2: opp2 {
+            opp-level = <2>;
+            qcom,opp-fuse-level = <2>;
+        };
+        cpr_opp3: opp3 {
+            opp-level = <3>;
+            qcom,opp-fuse-level = <3>;
+        };
+    };
+
+    power-controller@b018000 {
+        compatible = "qcom,qcs404-cpr", "qcom,cpr";
+        reg = <0x0b018000 0x1000>;
+        interrupts = <0 15 IRQ_TYPE_EDGE_RISING>;
+        clocks = <&xo_board>;
+        clock-names = "ref";
+        vdd-apc-supply = <&pms405_s3>;
+        #power-domain-cells = <0>;
+        operating-points-v2 = <&cpr_opp_table>;
+        acc-syscon = <&tcsr>;
+
+        nvmem-cells = <&cpr_efuse_quot_offset1>,
+            <&cpr_efuse_quot_offset2>,
+            <&cpr_efuse_quot_offset3>,
+            <&cpr_efuse_init_voltage1>,
+            <&cpr_efuse_init_voltage2>,
+            <&cpr_efuse_init_voltage3>,
+            <&cpr_efuse_quot1>,
+            <&cpr_efuse_quot2>,
+            <&cpr_efuse_quot3>,
+            <&cpr_efuse_ring1>,
+            <&cpr_efuse_ring2>,
+            <&cpr_efuse_ring3>,
+            <&cpr_efuse_revision>;
+        nvmem-cell-names = "cpr_quotient_offset1",
+            "cpr_quotient_offset2",
+            "cpr_quotient_offset3",
+            "cpr_init_voltage1",
+            "cpr_init_voltage2",
+            "cpr_init_voltage3",
+            "cpr_quotient1",
+            "cpr_quotient2",
+            "cpr_quotient3",
+            "cpr_ring_osc1",
+            "cpr_ring_osc2",
+            "cpr_ring_osc3",
+            "cpr_fuse_revision";
+    };

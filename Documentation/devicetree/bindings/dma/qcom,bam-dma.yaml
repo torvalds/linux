@@ -1,0 +1,115 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/dma/qcom,bam-dma.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Technologies Inc BAM DMA controller
+
+maintainers:
+  - Andy Gross <agross@kernel.org>
+  - Bjorn Andersson <andersson@kernel.org>
+
+allOf:
+  - $ref: dma-controller.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          # APQ8064, IPQ8064 and MSM8960
+          - qcom,bam-v1.3.0
+          # MSM8974, APQ8074 and APQ8084
+          - qcom,bam-v1.4.0
+          # MSM8916, SDM630
+          - qcom,bam-v1.7.0
+      - items:
+          - enum:
+              # SDM845, SM6115, SM8150, SM8250 and QCM2290
+              - qcom,bam-v1.7.4
+          - const: qcom,bam-v1.7.0
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: bam_clk
+
+  "#dma-cells":
+    const: 1
+
+  interrupts:
+    maxItems: 1
+
+  iommus:
+    minItems: 1
+    maxItems: 6
+
+  num-channels:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Indicates supported number of DMA channels in a remotely controlled bam.
+
+  qcom,controlled-remotely:
+    type: boolean
+    description:
+      Indicates that the bam is controlled by remote processor i.e. execution
+      environment.
+
+  qcom,ee:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 7
+    description:
+      Indicates the active Execution Environment identifier (0-7) used in the
+      secure world.
+
+  qcom,num-ees:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Indicates supported number of Execution Environments in a remotely
+      controlled bam.
+
+  qcom,powered-remotely:
+    type: boolean
+    description:
+      Indicates that the bam is powered up by a remote processor but must be
+      initialized by the local processor.
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - "#dma-cells"
+  - interrupts
+  - qcom,ee
+  - reg
+
+anyOf:
+  - required:
+      - qcom,powered-remotely
+  - required:
+      - qcom,controlled-remotely
+  - required:
+      - clocks
+      - clock-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/qcom,gcc-msm8974.h>
+
+    dma-controller@f9944000 {
+        compatible = "qcom,bam-v1.4.0";
+        reg = <0xf9944000 0x19000>;
+        interrupts = <GIC_SPI 239 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&gcc GCC_BLSP2_AHB_CLK>;
+        clock-names = "bam_clk";
+        #dma-cells = <1>;
+        qcom,ee = <0>;
+    };
+...

@@ -18,7 +18,8 @@
 #include <linux/spinlock.h>
 #include <linux/bitops.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
+#include <linux/gpio/consumer.h>
 #include <linux/leds.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
@@ -312,7 +313,7 @@ int orion_gpio_led_blink_set(struct gpio_desc *desc, int state,
 	case GPIO_LED_NO_BLINK_LOW:
 	case GPIO_LED_NO_BLINK_HIGH:
 		orion_gpio_set_blink(gpio, 0);
-		gpio_set_value(gpio, state);
+		gpiod_set_raw_value(desc, state);
 		break;
 	case GPIO_LED_BLINK:
 		orion_gpio_set_blink(gpio, 1);
@@ -442,6 +443,7 @@ static void orion_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 
 	struct orion_gpio_chip *ochip = gpiochip_get_data(chip);
 	u32 out, io_conf, blink, in_pol, data_in, cause, edg_msk, lvl_msk;
+	const char *label;
 	int i;
 
 	out	= readl_relaxed(GPIO_OUT(ochip));
@@ -453,14 +455,9 @@ static void orion_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 	edg_msk	= readl_relaxed(GPIO_EDGE_MASK(ochip));
 	lvl_msk	= readl_relaxed(GPIO_LEVEL_MASK(ochip));
 
-	for (i = 0; i < chip->ngpio; i++) {
-		const char *label;
+	for_each_requested_gpio(chip, i, label) {
 		u32 msk;
 		bool is_out;
-
-		label = gpiochip_is_requested(chip, i);
-		if (!label)
-			continue;
 
 		msk = 1 << i;
 		is_out = !(io_conf & msk);
@@ -520,8 +517,7 @@ static void orion_gpio_mask_irq(struct irq_data *d)
 	irq_gc_unlock(gc);
 }
 
-void __init orion_gpio_init(struct device_node *np,
-			    int gpio_base, int ngpio,
+void __init orion_gpio_init(int gpio_base, int ngpio,
 			    void __iomem *base, int mask_offset,
 			    int secondary_irq_base,
 			    int irqs[4])
@@ -549,9 +545,6 @@ void __init orion_gpio_init(struct device_node *np,
 	ochip->chip.base = gpio_base;
 	ochip->chip.ngpio = ngpio;
 	ochip->chip.can_sleep = 0;
-#ifdef CONFIG_OF
-	ochip->chip.of_node = np;
-#endif
 	ochip->chip.dbg_show = orion_gpio_dbg_show;
 
 	spin_lock_init(&ochip->lock);
@@ -609,7 +602,7 @@ void __init orion_gpio_init(struct device_node *np,
 			       IRQ_NOREQUEST, IRQ_LEVEL | IRQ_NOPROBE);
 
 	/* Setup irq domain on top of the generic chip. */
-	ochip->domain = irq_domain_add_legacy(np,
+	ochip->domain = irq_domain_add_legacy(NULL,
 					      ochip->chip.ngpio,
 					      ochip->secondary_irq_base,
 					      ochip->secondary_irq_base,

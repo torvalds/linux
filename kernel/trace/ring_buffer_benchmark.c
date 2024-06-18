@@ -29,7 +29,7 @@ static int reader_finish;
 static DECLARE_COMPLETION(read_start);
 static DECLARE_COMPLETION(read_done);
 
-static struct ring_buffer *buffer;
+static struct trace_buffer *buffer;
 static struct task_struct *producer;
 static struct task_struct *consumer;
 static unsigned long read;
@@ -45,8 +45,8 @@ MODULE_PARM_DESC(write_iteration, "# of writes between timestamp readings");
 static int producer_nice = MAX_NICE;
 static int consumer_nice = MAX_NICE;
 
-static int producer_fifo = -1;
-static int consumer_fifo = -1;
+static int producer_fifo;
+static int consumer_fifo;
 
 module_param(producer_nice, int, 0644);
 MODULE_PARM_DESC(producer_nice, "nice prio for producer");
@@ -55,10 +55,10 @@ module_param(consumer_nice, int, 0644);
 MODULE_PARM_DESC(consumer_nice, "nice prio for consumer");
 
 module_param(producer_fifo, int, 0644);
-MODULE_PARM_DESC(producer_fifo, "fifo prio for producer");
+MODULE_PARM_DESC(producer_fifo, "use fifo for producer: 0 - disabled, 1 - low prio, 2 - fifo");
 
 module_param(consumer_fifo, int, 0644);
-MODULE_PARM_DESC(consumer_fifo, "fifo prio for consumer");
+MODULE_PARM_DESC(consumer_fifo, "use fifo for consumer: 0 - disabled, 1 - low prio, 2 - fifo");
 
 static int read_events;
 
@@ -104,10 +104,11 @@ static enum event_status read_event(int cpu)
 
 static enum event_status read_page(int cpu)
 {
+	struct buffer_data_read_page *bpage;
 	struct ring_buffer_event *event;
 	struct rb_page *rpage;
 	unsigned long commit;
-	void *bpage;
+	int page_size;
 	int *entry;
 	int ret;
 	int inc;
@@ -117,14 +118,15 @@ static enum event_status read_page(int cpu)
 	if (IS_ERR(bpage))
 		return EVENT_DROPPED;
 
-	ret = ring_buffer_read_page(buffer, &bpage, PAGE_SIZE, cpu, 1);
+	page_size = ring_buffer_subbuf_size_get(buffer);
+	ret = ring_buffer_read_page(buffer, bpage, page_size, cpu, 1);
 	if (ret >= 0) {
-		rpage = bpage;
+		rpage = ring_buffer_read_page_data(bpage);
 		/* The commit may have missed event flags set, clear them */
 		commit = local_read(&rpage->commit) & 0xfffff;
 		for (i = 0; i < commit && !test_error ; i += inc) {
 
-			if (i >= (PAGE_SIZE - offsetof(struct rb_page, data))) {
+			if (i >= (page_size - offsetof(struct rb_page, data))) {
 				TEST_ERROR();
 				break;
 			}
@@ -258,7 +260,7 @@ static void ring_buffer_producer(void)
 				hit++;
 				entry = ring_buffer_event_data(event);
 				*entry = smp_processor_id();
-				ring_buffer_unlock_commit(buffer, event);
+				ring_buffer_unlock_commit(buffer);
 			}
 		}
 		end_time = ktime_get();
@@ -269,10 +271,10 @@ static void ring_buffer_producer(void)
 
 #ifndef CONFIG_PREEMPTION
 		/*
-		 * If we are a non preempt kernel, the 10 second run will
+		 * If we are a non preempt kernel, the 10 seconds run will
 		 * stop everything while it runs. Instead, we will call
 		 * cond_resched and also add any time that was lost by a
-		 * rescedule.
+		 * reschedule.
 		 *
 		 * Do a cond resched at the same frequency we would wake up
 		 * the reader.
@@ -303,22 +305,22 @@ static void ring_buffer_producer(void)
 		trace_printk("ERROR!\n");
 
 	if (!disable_reader) {
-		if (consumer_fifo < 0)
+		if (consumer_fifo)
+			trace_printk("Running Consumer at SCHED_FIFO %s\n",
+				     consumer_fifo == 1 ? "low" : "high");
+		else
 			trace_printk("Running Consumer at nice: %d\n",
 				     consumer_nice);
-		else
-			trace_printk("Running Consumer at SCHED_FIFO %d\n",
-				     consumer_fifo);
 	}
-	if (producer_fifo < 0)
+	if (producer_fifo)
+		trace_printk("Running Producer at SCHED_FIFO %s\n",
+			     producer_fifo == 1 ? "low" : "high");
+	else
 		trace_printk("Running Producer at nice: %d\n",
 			     producer_nice);
-	else
-		trace_printk("Running Producer at SCHED_FIFO %d\n",
-			     producer_fifo);
 
 	/* Let the user know that the test is running at low priority */
-	if (producer_fifo < 0 && consumer_fifo < 0 &&
+	if (!producer_fifo && !consumer_fifo &&
 	    producer_nice == MAX_NICE && consumer_nice == MAX_NICE)
 		trace_printk("WARNING!!! This test is running at lowest priority.\n");
 
@@ -455,21 +457,19 @@ static int __init ring_buffer_benchmark_init(void)
 	 * Run them as low-prio background tasks by default:
 	 */
 	if (!disable_reader) {
-		if (consumer_fifo >= 0) {
-			struct sched_param param = {
-				.sched_priority = consumer_fifo
-			};
-			sched_setscheduler(consumer, SCHED_FIFO, &param);
-		} else
+		if (consumer_fifo >= 2)
+			sched_set_fifo(consumer);
+		else if (consumer_fifo == 1)
+			sched_set_fifo_low(consumer);
+		else
 			set_user_nice(consumer, consumer_nice);
 	}
 
-	if (producer_fifo >= 0) {
-		struct sched_param param = {
-			.sched_priority = producer_fifo
-		};
-		sched_setscheduler(producer, SCHED_FIFO, &param);
-	} else
+	if (producer_fifo >= 2)
+		sched_set_fifo(producer);
+	else if (producer_fifo == 1)
+		sched_set_fifo_low(producer);
+	else
 		set_user_nice(producer, producer_nice);
 
 	return 0;

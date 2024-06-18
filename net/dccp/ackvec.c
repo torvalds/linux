@@ -242,6 +242,8 @@ static void dccp_ackvec_add_new(struct dccp_ackvec *av, u32 num_packets,
 
 /**
  * dccp_ackvec_input  -  Register incoming packet in the buffer
+ * @av: Ack Vector to register packet to
+ * @skb: Packet to register
  */
 void dccp_ackvec_input(struct dccp_ackvec *av, struct sk_buff *skb)
 {
@@ -273,8 +275,11 @@ void dccp_ackvec_input(struct dccp_ackvec *av, struct sk_buff *skb)
 
 /**
  * dccp_ackvec_clear_state  -  Perform house-keeping / garbage-collection
+ * @av: Ack Vector record to clean
+ * @ackno: last Ack Vector which has been acknowledged
+ *
  * This routine is called when the peer acknowledges the receipt of Ack Vectors
- * up to and including @ackno. While based on on section A.3 of RFC 4340, here
+ * up to and including @ackno. While based on section A.3 of RFC 4340, here
  * are additional precautions to prevent corrupted buffer state. In particular,
  * we use tail_ackno to identify outdated records; it always marks the earliest
  * packet of group (2) in 11.4.2.
@@ -371,15 +376,11 @@ EXPORT_SYMBOL_GPL(dccp_ackvec_parsed_cleanup);
 
 int __init dccp_ackvec_init(void)
 {
-	dccp_ackvec_slab = kmem_cache_create("dccp_ackvec",
-					     sizeof(struct dccp_ackvec), 0,
-					     SLAB_HWCACHE_ALIGN, NULL);
+	dccp_ackvec_slab = KMEM_CACHE(dccp_ackvec, SLAB_HWCACHE_ALIGN);
 	if (dccp_ackvec_slab == NULL)
 		goto out_err;
 
-	dccp_ackvec_record_slab = kmem_cache_create("dccp_ackvec_record",
-					     sizeof(struct dccp_ackvec_record),
-					     0, SLAB_HWCACHE_ALIGN, NULL);
+	dccp_ackvec_record_slab = KMEM_CACHE(dccp_ackvec_record, SLAB_HWCACHE_ALIGN);
 	if (dccp_ackvec_record_slab == NULL)
 		goto out_destroy_slab;
 

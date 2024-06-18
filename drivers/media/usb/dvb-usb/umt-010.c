@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@posteo.de)
  *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 #include "dibusb.h"
 
@@ -81,11 +81,17 @@ static int umt_probe(struct usb_interface *intf,
 }
 
 /* do not change the order of the ID table */
-static struct usb_device_id umt_table [] = {
-/* 00 */	{ USB_DEVICE(USB_VID_HANFTEK, USB_PID_HANFTEK_UMT_010_COLD) },
-/* 01 */	{ USB_DEVICE(USB_VID_HANFTEK, USB_PID_HANFTEK_UMT_010_WARM) },
-			{ }		/* Terminating entry */
+enum {
+	HANFTEK_UMT_010_COLD,
+	HANFTEK_UMT_010_WARM,
 };
+
+static struct usb_device_id umt_table[] = {
+	DVB_USB_DEV(HANFTEK, HANFTEK_UMT_010_COLD),
+	DVB_USB_DEV(HANFTEK, HANFTEK_UMT_010_WARM),
+	{ }
+};
+
 MODULE_DEVICE_TABLE (usb, umt_table);
 
 static struct dvb_usb_device_properties umt_properties = {
@@ -127,8 +133,8 @@ static struct dvb_usb_device_properties umt_properties = {
 	.num_device_descs = 1,
 	.devices = {
 		{	"Hanftek UMT-010 DVB-T USB2.0",
-			{ &umt_table[0], NULL },
-			{ &umt_table[1], NULL },
+			{ &umt_table[HANFTEK_UMT_010_COLD], NULL },
+			{ &umt_table[HANFTEK_UMT_010_WARM], NULL },
 		},
 	}
 };

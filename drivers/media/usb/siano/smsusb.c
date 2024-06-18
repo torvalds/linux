@@ -40,7 +40,7 @@ struct smsusb_urb_t {
 	struct smscore_buffer_t *cb;
 	struct smsusb_device_t *dev;
 
-	struct urb urb;
+	struct urb *urb;
 
 	/* For the bottom half */
 	struct work_struct wq;
@@ -160,7 +160,7 @@ static int smsusb_submit_urb(struct smsusb_device_t *dev,
 	}
 
 	usb_fill_bulk_urb(
-		&surb->urb,
+		surb->urb,
 		dev->udev,
 		usb_rcvbulkpipe(dev->udev, dev->in_ep),
 		surb->cb->p,
@@ -168,9 +168,9 @@ static int smsusb_submit_urb(struct smsusb_device_t *dev,
 		smsusb_onresponse,
 		surb
 	);
-	surb->urb.transfer_flags |= URB_FREE_BUFFER;
+	surb->urb->transfer_flags |= URB_FREE_BUFFER;
 
-	return usb_submit_urb(&surb->urb, GFP_ATOMIC);
+	return usb_submit_urb(surb->urb, GFP_ATOMIC);
 }
 
 static void smsusb_stop_streaming(struct smsusb_device_t *dev)
@@ -178,7 +178,9 @@ static void smsusb_stop_streaming(struct smsusb_device_t *dev)
 	int i;
 
 	for (i = 0; i < MAX_URBS; i++) {
-		usb_kill_urb(&dev->surbs[i].urb);
+		usb_kill_urb(dev->surbs[i].urb);
+		if (dev->surbs[i].wq.func)
+			cancel_work_sync(&dev->surbs[i].wq);
 
 		if (dev->surbs[i].cb) {
 			smscore_putbuffer(dev->coredev, dev->surbs[i].cb);
@@ -277,10 +279,8 @@ static int smsusb1_load_firmware(struct usb_device *udev, int id, int board_id)
 		}
 	}
 
-	fw_buffer = kmalloc(fw->size, GFP_KERNEL);
+	fw_buffer = kmemdup(fw->data, fw->size, GFP_KERNEL);
 	if (fw_buffer) {
-		memcpy(fw_buffer, fw->data, fw->size);
-
 		rc = usb_bulk_msg(udev, usb_sndbulkpipe(udev, 2),
 				  fw_buffer, fw->size, &dummy, 1000);
 
@@ -338,6 +338,8 @@ static void smsusb_term_device(struct usb_interface *intf)
 	struct smsusb_device_t *dev = usb_get_intfdata(intf);
 
 	if (dev) {
+		int i;
+
 		dev->state = SMSUSB_DISCONNECTED;
 
 		smsusb_stop_streaming(dev);
@@ -345,6 +347,9 @@ static void smsusb_term_device(struct usb_interface *intf)
 		/* unregister from smscore */
 		if (dev->coredev)
 			smscore_unregister_device(dev->coredev);
+
+		for (i = 0; i < MAX_URBS; i++)
+			usb_free_urb(dev->surbs[i].urb);
 
 		pr_debug("device 0x%p destroyed\n", dev);
 		kfree(dev);
@@ -430,7 +435,7 @@ static int smsusb_init_device(struct usb_interface *intf, int board_id)
 		break;
 	case SMS_UNKNOWN_TYPE:
 		pr_err("Unspecified sms device type!\n");
-		/* fall-thru */
+		fallthrough;
 	default:
 		dev->buffer_size = USB2_BUFFER_SIZE;
 		dev->response_alignment = align;
@@ -453,12 +458,7 @@ static int smsusb_init_device(struct usb_interface *intf, int board_id)
 	rc = smscore_register_device(&params, &dev->coredev, 0, mdev);
 	if (rc < 0) {
 		pr_err("smscore_register_device(...) failed, rc %d\n", rc);
-		smsusb_term_device(intf);
-#ifdef CONFIG_MEDIA_CONTROLLER_DVB
-		media_device_unregister(mdev);
-#endif
-		kfree(mdev);
-		return rc;
+		goto err_unregister_device;
 	}
 
 	smscore_set_board_id(dev->coredev, board_id);
@@ -468,15 +468,16 @@ static int smsusb_init_device(struct usb_interface *intf, int board_id)
 	/* initialize urbs */
 	for (i = 0; i < MAX_URBS; i++) {
 		dev->surbs[i].dev = dev;
-		usb_init_urb(&dev->surbs[i].urb);
+		dev->surbs[i].urb = usb_alloc_urb(0, GFP_KERNEL);
+		if (!dev->surbs[i].urb)
+			goto err_unregister_device;
 	}
 
 	pr_debug("smsusb_start_streaming(...).\n");
 	rc = smsusb_start_streaming(dev);
 	if (rc < 0) {
 		pr_err("smsusb_start_streaming(...) failed\n");
-		smsusb_term_device(intf);
-		return rc;
+		goto err_unregister_device;
 	}
 
 	dev->state = SMSUSB_ACTIVE;
@@ -484,12 +485,20 @@ static int smsusb_init_device(struct usb_interface *intf, int board_id)
 	rc = smscore_start_device(dev->coredev);
 	if (rc < 0) {
 		pr_err("smscore_start_device(...) failed\n");
-		smsusb_term_device(intf);
-		return rc;
+		goto err_unregister_device;
 	}
 
 	pr_debug("device 0x%p created\n", dev);
 
+	return rc;
+
+err_unregister_device:
+	/* smsusb_term_device() frees any allocated urb. */
+	smsusb_term_device(intf);
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+	media_device_unregister(mdev);
+#endif
+	kfree(mdev);
 	return rc;
 }
 
@@ -661,10 +670,6 @@ static const struct usb_device_id smsusb_id_table[] = {
 		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_WINDHAM },
 	{ USB_DEVICE(0x2040, 0x5590),
 		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_WINDHAM },
-	{ USB_DEVICE(0x187f, 0x0202),
-		.driver_info = SMS1XXX_BOARD_SIANO_NICE },
-	{ USB_DEVICE(0x187f, 0x0301),
-		.driver_info = SMS1XXX_BOARD_SIANO_VENICE },
 	{ USB_DEVICE(0x2040, 0xb900),
 		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_WINDHAM },
 	{ USB_DEVICE(0x2040, 0xb910),
@@ -727,5 +732,5 @@ static struct usb_driver smsusb_driver = {
 module_usb_driver(smsusb_driver);
 
 MODULE_DESCRIPTION("Driver for the Siano SMS1xxx USB dongle");
-MODULE_AUTHOR("Siano Mobile Silicon, INC. (uris@siano-ms.com)");
+MODULE_AUTHOR("Siano Mobile Silicon, Inc. <uris@siano-ms.com>");
 MODULE_LICENSE("GPL");

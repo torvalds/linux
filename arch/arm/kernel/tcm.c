@@ -15,9 +15,10 @@
 #include <linux/string.h> /* memcpy */
 #include <asm/cputype.h>
 #include <asm/mach/map.h>
-#include <asm/memory.h>
+#include <asm/page.h>
 #include <asm/system_info.h>
 #include <asm/traps.h>
+#include <asm/tcm.h>
 
 #define TCMTR_FORMAT_MASK	0xe0000000U
 
@@ -30,8 +31,8 @@ extern char __itcm_start, __sitcm_text, __eitcm_text;
 extern char __dtcm_start, __sdtcm_data, __edtcm_data;
 
 /* These will be increased as we run */
-u32 dtcm_end = DTCM_OFFSET;
-u32 itcm_end = ITCM_OFFSET;
+static u32 dtcm_end = DTCM_OFFSET;
+static u32 itcm_end = ITCM_OFFSET;
 
 /*
  * TCM memory resources

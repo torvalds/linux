@@ -308,7 +308,6 @@ static int hdpvr_start_streaming(struct hdpvr_device *dev)
 
 	dev->status = STATUS_STREAMING;
 
-	INIT_WORK(&dev->worker, hdpvr_transmit_buffers);
 	schedule_work(&dev->worker);
 
 	v4l2_dbg(MSG_BUFFER, hdpvr_debug, &dev->v4l2_dev,
@@ -410,7 +409,7 @@ static ssize_t hdpvr_read(struct file *file, char __user *buffer, size_t count,
 	struct hdpvr_device *dev = video_drvdata(file);
 	struct hdpvr_buffer *buf = NULL;
 	struct urb *urb;
-	unsigned int ret = 0;
+	int ret = 0;
 	int rem, cnt;
 
 	if (*pos)
@@ -1165,6 +1164,9 @@ int hdpvr_register_videodev(struct hdpvr_device *dev, struct device *parent,
 	bool ac3 = dev->flags & HDPVR_FLAG_AC3_CAP;
 	int res;
 
+	// initialize dev->worker
+	INIT_WORK(&dev->worker, hdpvr_transmit_buffers);
+
 	dev->cur_std = V4L2_STD_525_60;
 	dev->width = 720;
 	dev->height = 480;
@@ -1238,7 +1240,7 @@ int hdpvr_register_videodev(struct hdpvr_device *dev, struct device *parent,
 	dev->video_dev.v4l2_dev = &dev->v4l2_dev;
 	video_set_drvdata(&dev->video_dev, dev);
 
-	res = video_register_device(&dev->video_dev, VFL_TYPE_GRABBER, devnum);
+	res = video_register_device(&dev->video_dev, VFL_TYPE_VIDEO, devnum);
 	if (res < 0) {
 		v4l2_err(&dev->v4l2_dev, "video_device registration failed\n");
 		goto error;

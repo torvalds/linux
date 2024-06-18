@@ -19,7 +19,6 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/slab.h>
-#include <linux/pm_runtime.h>
 
 #include "omap-mcbsp.h"
 #include "omap-mcbsp-priv.h"
@@ -142,10 +141,7 @@ static void omap_mcbsp_st_fir_write(struct omap_mcbsp *mcbsp, s16 *fir)
 
 static void omap_mcbsp_st_chgain(struct omap_mcbsp *mcbsp)
 {
-	u16 w;
 	struct omap_mcbsp_st_data *st_data = mcbsp->st_data;
-
-	w = MCBSP_ST_READ(mcbsp, SSELCR);
 
 	MCBSP_ST_WRITE(mcbsp, SGAINCR, ST_CH0GAIN(st_data->ch0gain) |
 		       ST_CH1GAIN(st_data->ch1gain));
@@ -247,10 +243,10 @@ static ssize_t st_taps_show(struct device *dev,
 
 	spin_lock_irq(&mcbsp->lock);
 	for (i = 0; i < st_data->nr_taps; i++)
-		status += sprintf(&buf[status], (i ? ", %d" : "%d"),
-				  st_data->taps[i]);
+		status += sysfs_emit_at(buf, status, (i ? ", %d" : "%d"),
+					st_data->taps[i]);
 	if (i)
-		status += sprintf(&buf[status], "\n");
+		status += sysfs_emit_at(buf, status, "\n");
 	spin_unlock_irq(&mcbsp->lock);
 
 	return status;
@@ -350,7 +346,7 @@ int omap_mcbsp_st_init(struct platform_device *pdev)
 	if (!st_data)
 		return -ENOMEM;
 
-	st_data->mcbsp_iclk = clk_get(mcbsp->dev, "ick");
+	st_data->mcbsp_iclk = devm_clk_get(mcbsp->dev, "ick");
 	if (IS_ERR(st_data->mcbsp_iclk)) {
 		dev_warn(mcbsp->dev,
 			 "Failed to get ick, sidetone might be broken\n");
@@ -362,23 +358,13 @@ int omap_mcbsp_st_init(struct platform_device *pdev)
 	if (!st_data->io_base_st)
 		return -ENOMEM;
 
-	ret = sysfs_create_group(&mcbsp->dev->kobj, &sidetone_attr_group);
+	ret = devm_device_add_group(mcbsp->dev, &sidetone_attr_group);
 	if (ret)
 		return ret;
 
 	mcbsp->st_data = st_data;
 
 	return 0;
-}
-
-void omap_mcbsp_st_cleanup(struct platform_device *pdev)
-{
-	struct omap_mcbsp *mcbsp = platform_get_drvdata(pdev);
-
-	if (mcbsp->st_data) {
-		sysfs_remove_group(&mcbsp->dev->kobj, &sidetone_attr_group);
-		clk_put(mcbsp->st_data->mcbsp_iclk);
-	}
 }
 
 static int omap_mcbsp_st_info_volsw(struct snd_kcontrol *kcontrol,
@@ -489,7 +475,7 @@ OMAP_MCBSP_ST_CONTROLS(3);
 
 int omap_mcbsp_st_add_controls(struct snd_soc_pcm_runtime *rtd, int port_id)
 {
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
 	struct omap_mcbsp *mcbsp = snd_soc_dai_get_drvdata(cpu_dai);
 
 	if (!mcbsp->st_data) {

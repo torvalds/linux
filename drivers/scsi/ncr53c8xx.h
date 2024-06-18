@@ -1239,22 +1239,6 @@ struct scr_tblsel {
 */
 
 /*
-**	Status
-*/
-
-#define	S_GOOD		(0x00)
-#define	S_CHECK_COND	(0x02)
-#define	S_COND_MET	(0x04)
-#define	S_BUSY		(0x08)
-#define	S_INT		(0x10)
-#define	S_INT_COND_MET	(0x14)
-#define	S_CONFLICT	(0x18)
-#define	S_TERMINATED	(0x20)
-#define	S_QUEUE_FULL	(0x28)
-#define	S_ILLEGAL	(0xff)
-#define	S_SENSE		(0x80)
-
-/*
  * End of ncrreg from FreeBSD
  */
 
@@ -1302,6 +1286,12 @@ struct ncr_device {
 	struct ncr_chip  chip;
 	u_char host_id;
 	u8 differential;
+};
+
+/* To keep track of the dma mapping (sg/single) that has been set */
+struct ncr_cmd_priv {
+	int	data_mapped;
+	int	data_mapping;
 };
 
 extern struct Scsi_Host *ncr_attach(struct scsi_host_template *tpnt, int unit, struct ncr_device *device);

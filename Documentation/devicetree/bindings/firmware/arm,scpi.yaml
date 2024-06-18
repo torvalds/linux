@@ -1,0 +1,249 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+# Copyright 2021 ARM Ltd.
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/firmware/arm,scpi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: System Control and Power Interface (SCPI) Message Protocol
+
+maintainers:
+  - Sudeep Holla <sudeep.holla@arm.com>
+
+description: |
+  Firmware implementing the SCPI described in ARM document number ARM DUI
+  0922B ("ARM Compute Subsystem SCP: Message Interface Protocols")[0] can be
+  used by Linux to initiate various system control and power operations.
+
+  This binding is intended to define the interface the firmware implementing
+  the SCPI provide for OSPM in the device tree.
+
+  [0] http://infocenter.arm.com/help/topic/com.arm.doc.dui0922b/index.html
+
+properties:
+  $nodename:
+    const: scpi
+
+  compatible:
+    description:
+      SCPI compliant firmware complying to SCPI v1.0 and above OR
+      SCPI compliant firmware complying to all unversioned releases
+      prior to SCPI v1.0
+    oneOf:
+      - const: arm,scpi               # SCPI v1.0 and above
+      - const: arm,scpi-pre-1.0       # Unversioned SCPI before v1.0
+      - items:
+          - enum:
+              - amlogic,meson-gxbb-scpi
+          - const: arm,scpi-pre-1.0
+
+  mboxes:
+    description:
+      List of phandle and mailbox channel specifiers. All the channels reserved
+      by remote SCP firmware for use by SCPI message protocol should be
+      specified in any order.
+    minItems: 1
+    maxItems: 4
+
+  shmem:
+    description:
+      List of phandle pointing to the shared memory(SHM) area between the
+      processors using these mailboxes for IPC, one for each mailbox SHM can
+      be any memory reserved for the purpose of this communication between the
+      processors.
+    minItems: 1
+    maxItems: 4
+
+  power-controller:
+    type: object
+    description:
+      This sub-node represents SCPI power domain controller.
+
+    properties:
+      compatible:
+        const: arm,scpi-power-domains
+
+      '#power-domain-cells':
+        const: 1
+
+      num-domains:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          Total number of power domains provided by SCPI. This is needed as
+          the SCPI message protocol lacks a mechanism to query this
+          information at runtime.
+
+    required:
+      - compatible
+      - '#power-domain-cells'
+      - num-domains
+
+    additionalProperties: false
+
+  sensors:
+    type: object
+    description: |
+      This sub-node represents SCPI sensors controller.
+
+    properties:
+      compatible:
+        oneOf:
+          - const: arm,scpi-sensors
+          - items:
+              - enum:
+                  - amlogic,meson-gxbb-scpi-sensors
+              - const: arm,scpi-sensors
+
+      '#thermal-sensor-cells':
+        const: 1
+
+    required:
+      - compatible
+      - '#thermal-sensor-cells'
+
+    additionalProperties: false
+
+  clocks:
+    type: object
+    description:
+      This is the container node. Each sub-node represents one of the types
+      of clock controller - indexed or full range.
+
+    properties:
+      compatible:
+        const: arm,scpi-clocks
+
+    patternProperties:
+      "^clocks-[0-9a-f]+$":
+        type: object
+        description: |
+          This sub-node represents one of the types of clock controller
+          - indexed or full range.
+
+          "arm,scpi-dvfs-clocks" - all the clocks that are variable and index
+          based. These clocks don't provide an entire range of values between
+          the limits but only discrete points within the range. The firmware
+          provides the mapping for each such operating frequency and the index
+          associated with it. The firmware also manages the voltage scaling
+          appropriately with the clock scaling.
+
+          "arm,scpi-variable-clocks" - all the clocks that are variable and
+          provide full range within the specified range. The firmware provides
+          the range of values within a specified range.
+
+        properties:
+          compatible:
+            enum:
+              - arm,scpi-dvfs-clocks
+              - arm,scpi-variable-clocks
+
+          '#clock-cells':
+            const: 1
+
+          clock-output-names: true
+
+          clock-indices:
+            $ref: /schemas/types.yaml#/definitions/uint32-array
+            description:
+              The identifying number for the clocks(i.e.clock_id) in the node.
+              It can be non linear and hence provide the mapping of identifiers
+              into the clock-output-names array.
+
+        required:
+          - compatible
+          - '#clock-cells'
+          - clock-output-names
+          - clock-indices
+
+        additionalProperties: false
+
+    required:
+      - compatible
+
+    additionalProperties: false
+
+additionalProperties: false
+
+required:
+  - compatible
+  - mboxes
+  - shmem
+
+examples:
+  - |
+    firmware {
+        scpi {
+            compatible = "arm,scpi";
+            mboxes = <&mhuA 1>;
+            shmem = <&cpu_scp_hpri>; /* HP-NonSecure */
+
+            scpi_devpd: power-controller {
+                compatible = "arm,scpi-power-domains";
+                num-domains = <2>;
+                #power-domain-cells = <1>;
+            };
+
+            clocks {
+                compatible = "arm,scpi-clocks";
+
+                scpi_dvfs: clocks-0 {
+                    compatible = "arm,scpi-dvfs-clocks";
+                    #clock-cells = <1>;
+                    clock-indices = <0>, <1>, <2>;
+                    clock-output-names = "atlclk", "aplclk","gpuclk";
+                };
+
+                scpi_clk: clocks-1 {
+                    compatible = "arm,scpi-variable-clocks";
+                    #clock-cells = <1>;
+                    clock-indices = <3>, <4>;
+                    clock-output-names = "pxlclk0", "pxlclk1";
+                };
+            };
+
+            scpi_sensors: sensors {
+                compatible = "arm,scpi-sensors";
+                #thermal-sensor-cells = <1>;
+            };
+
+        };
+    };
+
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        sram@50000000 {
+            compatible = "mmio-sram";
+            reg = <0x0 0x50000000 0x0 0x10000>;
+
+            #address-cells = <1>;
+            #size-cells = <1>;
+            ranges = <0 0x0 0x50000000 0x10000>;
+
+            cpu_scp_lpri: scp-sram-section@0 {
+                compatible = "arm,scp-shmem";
+                reg = <0x0 0x200>;
+            };
+
+            cpu_scp_hpri: scp-sram-section@200 {
+                compatible = "arm,scp-shmem";
+                reg = <0x200 0x200>;
+            };
+        };
+    };
+
+  - |
+    firmware {
+        scpi {
+            compatible = "amlogic,meson-gxbb-scpi", "arm,scpi-pre-1.0";
+            mboxes = <&mailbox 1>, <&mailbox 2>;
+            shmem = <&cpu_scp_lpri>, <&cpu_scp_hpri>;
+
+            scpi_sensors1: sensors {
+                compatible = "amlogic,meson-gxbb-scpi-sensors", "arm,scpi-sensors";
+                #thermal-sensor-cells = <1>;
+            };
+        };
+    };
+...

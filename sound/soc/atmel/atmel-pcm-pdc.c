@@ -34,83 +34,21 @@
 #include "atmel-pcm.h"
 
 
-static int atmel_pcm_preallocate_dma_buffer(struct snd_pcm *pcm,
-	int stream)
-{
-	struct snd_pcm_substream *substream = pcm->streams[stream].substream;
-	struct snd_dma_buffer *buf = &substream->dma_buffer;
-	size_t size = ATMEL_SSC_DMABUF_SIZE;
-
-	buf->dev.type = SNDRV_DMA_TYPE_DEV;
-	buf->dev.dev = pcm->card->dev;
-	buf->private_data = NULL;
-	buf->area = dma_alloc_coherent(pcm->card->dev, size,
-			&buf->addr, GFP_KERNEL);
-	pr_debug("atmel-pcm: alloc dma buffer: area=%p, addr=%p, size=%zu\n",
-			(void *)buf->area, (void *)(long)buf->addr, size);
-
-	if (!buf->area)
-		return -ENOMEM;
-
-	buf->bytes = size;
-	return 0;
-}
-
-static int atmel_pcm_mmap(struct snd_pcm_substream *substream,
-	struct vm_area_struct *vma)
-{
-	return remap_pfn_range(vma, vma->vm_start,
-		       substream->dma_buffer.addr >> PAGE_SHIFT,
-		       vma->vm_end - vma->vm_start, vma->vm_page_prot);
-}
-
-static int atmel_pcm_new(struct snd_soc_pcm_runtime *rtd)
+static int atmel_pcm_new(struct snd_soc_component *component,
+			 struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_card *card = rtd->card->snd_card;
-	struct snd_pcm *pcm = rtd->pcm;
 	int ret;
 
 	ret = dma_coerce_mask_and_coherent(card->dev, DMA_BIT_MASK(32));
 	if (ret)
 		return ret;
 
-	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream) {
-		pr_debug("atmel-pcm: allocating PCM playback DMA buffer\n");
-		ret = atmel_pcm_preallocate_dma_buffer(pcm,
-			SNDRV_PCM_STREAM_PLAYBACK);
-		if (ret)
-			goto out;
-	}
+	snd_pcm_set_managed_buffer_all(rtd->pcm, SNDRV_DMA_TYPE_DEV,
+				       card->dev, ATMEL_SSC_DMABUF_SIZE,
+				       ATMEL_SSC_DMABUF_SIZE);
 
-	if (pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream) {
-		pr_debug("atmel-pcm: allocating PCM capture DMA buffer\n");
-		ret = atmel_pcm_preallocate_dma_buffer(pcm,
-			SNDRV_PCM_STREAM_CAPTURE);
-		if (ret)
-			goto out;
-	}
- out:
-	return ret;
-}
-
-static void atmel_pcm_free(struct snd_pcm *pcm)
-{
-	struct snd_pcm_substream *substream;
-	struct snd_dma_buffer *buf;
-	int stream;
-
-	for (stream = 0; stream < 2; stream++) {
-		substream = pcm->streams[stream].substream;
-		if (!substream)
-			continue;
-
-		buf = &substream->dma_buffer;
-		if (!buf->area)
-			continue;
-		dma_free_coherent(pcm->card->dev, buf->bytes,
-				  buf->area, buf->addr);
-		buf->area = NULL;
-	}
+	return 0;
 }
 
 /*--------------------------------------------------------------------------*\
@@ -196,20 +134,18 @@ static void atmel_pcm_dma_irq(u32 ssc_sr,
 /*--------------------------------------------------------------------------*\
  * PCM operations
 \*--------------------------------------------------------------------------*/
-static int atmel_pcm_hw_params(struct snd_pcm_substream *substream,
-	struct snd_pcm_hw_params *params)
+static int atmel_pcm_hw_params(struct snd_soc_component *component,
+			       struct snd_pcm_substream *substream,
+			       struct snd_pcm_hw_params *params)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct atmel_runtime_data *prtd = runtime->private_data;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 
 	/* this may get called several times by oss emulation
 	 * with different params */
 
-	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
-	runtime->dma_bytes = params_buffer_bytes(params);
-
-	prtd->params = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
+	prtd->params = snd_soc_dai_get_dma_data(snd_soc_rtd_to_cpu(rtd, 0), substream);
 	prtd->params->dma_intr_handler = atmel_pcm_dma_irq;
 
 	prtd->dma_buffer = runtime->dma_addr;
@@ -225,7 +161,8 @@ static int atmel_pcm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int atmel_pcm_hw_free(struct snd_pcm_substream *substream)
+static int atmel_pcm_hw_free(struct snd_soc_component *component,
+			     struct snd_pcm_substream *substream)
 {
 	struct atmel_runtime_data *prtd = substream->runtime->private_data;
 	struct atmel_pcm_dma_params *params = prtd->params;
@@ -239,7 +176,8 @@ static int atmel_pcm_hw_free(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int atmel_pcm_prepare(struct snd_pcm_substream *substream)
+static int atmel_pcm_prepare(struct snd_soc_component *component,
+			     struct snd_pcm_substream *substream)
 {
 	struct atmel_runtime_data *prtd = substream->runtime->private_data;
 	struct atmel_pcm_dma_params *params = prtd->params;
@@ -251,8 +189,8 @@ static int atmel_pcm_prepare(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int atmel_pcm_trigger(struct snd_pcm_substream *substream,
-	int cmd)
+static int atmel_pcm_trigger(struct snd_soc_component *component,
+			     struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_pcm_runtime *rtd = substream->runtime;
 	struct atmel_runtime_data *prtd = rtd->private_data;
@@ -317,8 +255,8 @@ static int atmel_pcm_trigger(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-static snd_pcm_uframes_t atmel_pcm_pointer(
-	struct snd_pcm_substream *substream)
+static snd_pcm_uframes_t atmel_pcm_pointer(struct snd_soc_component *component,
+					   struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct atmel_runtime_data *prtd = runtime->private_data;
@@ -335,7 +273,8 @@ static snd_pcm_uframes_t atmel_pcm_pointer(
 	return x;
 }
 
-static int atmel_pcm_open(struct snd_pcm_substream *substream)
+static int atmel_pcm_open(struct snd_soc_component *component,
+			  struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct atmel_runtime_data *prtd;
@@ -360,7 +299,8 @@ static int atmel_pcm_open(struct snd_pcm_substream *substream)
 	return ret;
 }
 
-static int atmel_pcm_close(struct snd_pcm_substream *substream)
+static int atmel_pcm_close(struct snd_soc_component *component,
+			   struct snd_pcm_substream *substream)
 {
 	struct atmel_runtime_data *prtd = substream->runtime->private_data;
 
@@ -368,22 +308,15 @@ static int atmel_pcm_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static const struct snd_pcm_ops atmel_pcm_ops = {
+static const struct snd_soc_component_driver atmel_soc_platform = {
 	.open		= atmel_pcm_open,
 	.close		= atmel_pcm_close,
-	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= atmel_pcm_hw_params,
 	.hw_free	= atmel_pcm_hw_free,
 	.prepare	= atmel_pcm_prepare,
 	.trigger	= atmel_pcm_trigger,
 	.pointer	= atmel_pcm_pointer,
-	.mmap		= atmel_pcm_mmap,
-};
-
-static struct snd_soc_component_driver atmel_soc_platform = {
-	.ops		= &atmel_pcm_ops,
-	.pcm_new	= atmel_pcm_new,
-	.pcm_free	= atmel_pcm_free,
+	.pcm_construct	= atmel_pcm_new,
 };
 
 int atmel_pcm_pdc_platform_register(struct device *dev)

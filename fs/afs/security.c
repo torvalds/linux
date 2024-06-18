@@ -170,8 +170,7 @@ void afs_cache_permit(struct afs_vnode *vnode, struct key *key,
 					break;
 				}
 
-				if (afs_cb_is_broken(cb_break, vnode,
-						     rcu_dereference(vnode->cb_interest))) {
+				if (afs_cb_is_broken(cb_break, vnode)) {
 					changed = true;
 					break;
 				}
@@ -201,7 +200,7 @@ void afs_cache_permit(struct afs_vnode *vnode, struct key *key,
 		}
 	}
 
-	if (afs_cb_is_broken(cb_break, vnode, rcu_dereference(vnode->cb_interest)))
+	if (afs_cb_is_broken(cb_break, vnode))
 		goto someone_else_changed_it;
 
 	/* We need a ref on any permits list we want to copy as we'll have to
@@ -220,8 +219,7 @@ void afs_cache_permit(struct afs_vnode *vnode, struct key *key,
 	 * yet.
 	 */
 	size++;
-	new = kzalloc(sizeof(struct afs_permits) +
-		      sizeof(struct afs_permit) * size, GFP_NOFS);
+	new = kzalloc(struct_size(new, permits, size), GFP_NOFS);
 	if (!new)
 		goto out_put;
 
@@ -281,8 +279,7 @@ found:
 	rcu_read_lock();
 	spin_lock(&vnode->lock);
 	zap = rcu_access_pointer(vnode->permit_cache);
-	if (!afs_cb_is_broken(cb_break, vnode, rcu_dereference(vnode->cb_interest)) &&
-	    zap == permits)
+	if (!afs_cb_is_broken(cb_break, vnode) && zap == permits)
 		rcu_assign_pointer(vnode->permit_cache, replacement);
 	else
 		zap = replacement;
@@ -398,10 +395,11 @@ int afs_check_permit(struct afs_vnode *vnode, struct key *key,
  * - AFS ACLs are attached to directories only, and a file is controlled by its
  *   parent directory's ACL
  */
-int afs_permission(struct inode *inode, int mask)
+int afs_permission(struct mnt_idmap *idmap, struct inode *inode,
+		   int mask)
 {
 	struct afs_vnode *vnode = AFS_FS_I(inode);
-	afs_access_t uninitialized_var(access);
+	afs_access_t access;
 	struct key *key;
 	int ret = 0;
 

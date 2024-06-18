@@ -5,8 +5,10 @@
 #include <linux/bpf.h>
 #include <sys/socket.h>
 
-#include "bpf_helpers.h"
-#include "bpf_endian.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_endian.h>
+
+#include <bpf_sockopt_helpers.h>
 
 #define SRC1_IP4		0xAC100001U /* 172.16.0.1 */
 #define SRC2_IP4		0x00000000U
@@ -16,12 +18,13 @@
 #define DST_PORT		4040
 #define DST_REWRITE_PORT4	4444
 
-int _version SEC("version") = 1;
-
 SEC("cgroup/sendmsg4")
 int sendmsg_v4_prog(struct bpf_sock_addr *ctx)
 {
 	if (ctx->type != SOCK_DGRAM)
+		return 0;
+
+	if (!get_set_sk_priority(ctx))
 		return 0;
 
 	/* Rewrite source. */
@@ -44,6 +47,12 @@ int sendmsg_v4_prog(struct bpf_sock_addr *ctx)
 	}
 
 	return 1;
+}
+
+SEC("cgroup/sendmsg4")
+int sendmsg_v4_deny_prog(struct bpf_sock_addr *ctx)
+{
+	return 0;
 }
 
 char _license[] SEC("license") = "GPL";

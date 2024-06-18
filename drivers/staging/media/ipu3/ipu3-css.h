@@ -82,7 +82,6 @@ struct imgu_css_format {
 	enum imgu_abi_bayer_order bayer_order;
 	enum imgu_abi_osys_format osys_format;
 	enum imgu_abi_osys_tiling osys_tiling;
-	u32 bytesperpixel_num;	/* Bytes per pixel in first plane * 50 */
 	u8 bit_depth;		/* Effective bits per pixel */
 	u8 chroma_decim;	/* Chroma plane decimation, 0=no chroma plane */
 	u8 width_align;		/* Alignment requirement for width_pad */
@@ -187,7 +186,8 @@ bool imgu_css_is_streaming(struct imgu_css *css);
 bool imgu_css_pipe_queue_empty(struct imgu_css *css, unsigned int pipe);
 
 /******************* css hw *******************/
-int imgu_css_set_powerup(struct device *dev, void __iomem *base);
+int imgu_css_set_powerup(struct device *dev, void __iomem *base,
+			 unsigned int freq);
 void imgu_css_set_powerdown(struct device *dev, void __iomem *base);
 int imgu_css_irq_ack(struct imgu_css *css);
 

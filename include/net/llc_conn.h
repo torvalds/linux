@@ -38,6 +38,7 @@ struct llc_sock {
 	struct llc_addr	    laddr;		/* lsap/mac pair */
 	struct llc_addr	    daddr;		/* dsap/mac pair */
 	struct net_device   *dev;		/* device to send to remote */
+	netdevice_tracker   dev_tracker;
 	u32		    copied_seq;		/* head of yet unread data */
 	u8		    retry_count;	/* number of retries */
 	u8		    ack_must_be_send;
@@ -104,13 +105,13 @@ void llc_sk_reset(struct sock *sk);
 
 /* Access to a connection */
 int llc_conn_state_process(struct sock *sk, struct sk_buff *skb);
-int llc_conn_send_pdu(struct sock *sk, struct sk_buff *skb);
+void llc_conn_send_pdu(struct sock *sk, struct sk_buff *skb);
 void llc_conn_rtn_pdu(struct sock *sk, struct sk_buff *skb);
 void llc_conn_resend_i_pdu_as_cmd(struct sock *sk, u8 nr, u8 first_p_bit);
 void llc_conn_resend_i_pdu_as_rsp(struct sock *sk, u8 nr, u8 first_f_bit);
 int llc_conn_remove_acked_pdus(struct sock *conn, u8 nr, u16 *how_many_unacked);
 struct sock *llc_lookup_established(struct llc_sap *sap, struct llc_addr *daddr,
-				    struct llc_addr *laddr);
+				    struct llc_addr *laddr, const struct net *net);
 void llc_sap_add_socket(struct llc_sap *sap, struct sock *sk);
 void llc_sap_remove_socket(struct llc_sap *sap, struct sock *sk);
 

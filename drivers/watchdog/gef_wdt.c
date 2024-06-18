@@ -31,7 +31,7 @@
 #include <linux/fs.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
 
@@ -201,7 +201,7 @@ static long gef_wdt_ioctl(struct file *file, unsigned int cmd,
 		if (get_user(timeout, (int __user *)argp))
 			return -EFAULT;
 		gef_wdt_set_timeout(timeout);
-		/* Fall through */
+		fallthrough;
 
 	case WDIOC_GETTIMEOUT:
 		if (put_user(gef_wdt_timeout, (int __user *)argp))
@@ -248,6 +248,7 @@ static const struct file_operations gef_wdt_fops = {
 	.llseek = no_llseek,
 	.write = gef_wdt_write,
 	.unlocked_ioctl = gef_wdt_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open = gef_wdt_open,
 	.release = gef_wdt_release,
 };
@@ -282,15 +283,13 @@ static int gef_wdt_probe(struct platform_device *dev)
 	return misc_register(&gef_wdt_miscdev);
 }
 
-static int gef_wdt_remove(struct platform_device *dev)
+static void gef_wdt_remove(struct platform_device *dev)
 {
 	misc_deregister(&gef_wdt_miscdev);
 
 	gef_wdt_handler_disable();
 
 	iounmap(gef_wdt_regs);
-
-	return 0;
 }
 
 static const struct of_device_id gef_wdt_ids[] = {
@@ -307,7 +306,7 @@ static struct platform_driver gef_wdt_driver = {
 		.of_match_table = gef_wdt_ids,
 	},
 	.probe		= gef_wdt_probe,
-	.remove		= gef_wdt_remove,
+	.remove_new	= gef_wdt_remove,
 };
 
 static int __init gef_wdt_init(void)

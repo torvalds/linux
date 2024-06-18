@@ -37,7 +37,7 @@ static u8 AD7414_REG_LIMIT[] = { AD7414_REG_T_HIGH, AD7414_REG_T_LOW };
 struct ad7414_data {
 	struct i2c_client	*client;
 	struct mutex		lock;	/* atomic read data updates */
-	char			valid;	/* !=0 if following fields are valid */
+	bool			valid;	/* true if following fields are valid */
 	unsigned long		next_update;	/* In jiffies */
 	s16			temp_input;	/* Register values */
 	s8			temps[ARRAY_SIZE(AD7414_REG_LIMIT)];
@@ -95,7 +95,7 @@ static struct ad7414_data *ad7414_update_device(struct device *dev)
 		}
 
 		data->next_update = jiffies + HZ + HZ / 2;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->lock);
@@ -169,8 +169,7 @@ static struct attribute *ad7414_attrs[] = {
 
 ATTRIBUTE_GROUPS(ad7414);
 
-static int ad7414_probe(struct i2c_client *client,
-			const struct i2c_device_id *dev_id)
+static int ad7414_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct ad7414_data *data;
@@ -206,7 +205,7 @@ static int ad7414_probe(struct i2c_client *client,
 }
 
 static const struct i2c_device_id ad7414_id[] = {
-	{ "ad7414", 0 },
+	{ "ad7414" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, ad7414_id);
@@ -222,7 +221,7 @@ static struct i2c_driver ad7414_driver = {
 		.name	= "ad7414",
 		.of_match_table = of_match_ptr(ad7414_of_match),
 	},
-	.probe	= ad7414_probe,
+	.probe = ad7414_probe,
 	.id_table = ad7414_id,
 };
 

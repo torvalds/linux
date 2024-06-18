@@ -52,7 +52,7 @@
 #define PCXHR_DSP 2
 
 #if (PCXHR_DSP_OFFSET_MAX > PCXHR_PLX_OFFSET_MIN)
-#undef  PCXHR_REG_TO_PORT(x)
+#error  PCXHR_REG_TO_PORT(x)
 #else
 #define PCXHR_REG_TO_PORT(x)	((x)>PCXHR_DSP_OFFSET_MAX ? PCXHR_PLX : PCXHR_DSP)
 #endif
@@ -466,7 +466,7 @@ enum {
 /*
  * Array of DSP commands
  */
-static struct pcxhr_cmd_info pcxhr_dsp_cmds[] = {
+static const struct pcxhr_cmd_info pcxhr_dsp_cmds[] = {
 [CMD_VERSION] =				{ 0x010000, 1, RMH_SSIZE_FIXED },
 [CMD_SUPPORTED] =			{ 0x020000, 4, RMH_SSIZE_FIXED },
 [CMD_TEST_IT] =				{ 0x040000, 1, RMH_SSIZE_FIXED },
@@ -497,7 +497,7 @@ static struct pcxhr_cmd_info pcxhr_dsp_cmds[] = {
 };
 
 #ifdef CONFIG_SND_DEBUG_VERBOSE
-static char* cmd_names[] = {
+static const char * const cmd_names[] = {
 [CMD_VERSION] =				"CMD_VERSION",
 [CMD_SUPPORTED] =			"CMD_SUPPORTED",
 [CMD_TEST_IT] =				"CMD_TEST_IT",
@@ -1006,7 +1006,7 @@ static int pcxhr_handle_async_err(struct pcxhr_mgr *mgr, u32 err,
 				  enum pcxhr_async_err_src err_src, int pipe,
 				  int is_capture)
 {
-	static char* err_src_name[] = {
+	static const char * const err_src_name[] = {
 		[PCXHR_ERR_PIPE]	= "Pipe",
 		[PCXHR_ERR_STREAM]	= "Stream",
 		[PCXHR_ERR_AUDIO]	= "Audio"

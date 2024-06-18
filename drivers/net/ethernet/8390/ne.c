@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-1.0+
 /* ne.c: A general non-shared-memory NS8390 ethernet driver for linux. */
 /*
     Written 1992-94 by Donald Becker.
 
     Copyright 1993 United States Government as represented by the
     Director, National Security Agency.
-
-    This software may be used and distributed according to the terms
-    of the GNU General Public License, incorporated herein by reference.
 
     The author may be reached as becker@scyld.com, or C/O
     Scyld Computing Corporation, 410 Severn Ave., Suite 210, Annapolis MD 21403
@@ -52,6 +50,7 @@ static const char version2[] =
 #include <linux/etherdevice.h>
 #include <linux/jiffies.h>
 #include <linux/platform_device.h>
+#include <net/Space.h>
 
 #include <asm/io.h>
 
@@ -500,9 +499,7 @@ static int __init ne_probe1(struct net_device *dev, unsigned long ioaddr)
 
 	dev->base_addr = ioaddr;
 
-	for (i = 0; i < ETH_ALEN; i++) {
-		dev->dev_addr[i] = SA_prom[i];
-	}
+	eth_hw_addr_set(dev, SA_prom);
 
 	pr_cont("%pM\n", dev->dev_addr);
 
@@ -710,7 +707,7 @@ static void ne_block_output(struct net_device *dev, int count,
 retry:
 #endif
 
-#ifdef NE8390_RW_BUGFIX
+#ifdef NE_RW_BUGFIX
 	/* Handle the read-before-write bug the same way as the
 	   Crynwr packet driver -- the NatSemi method doesn't work.
 	   Actually this doesn't always work either, but if you have
@@ -826,7 +823,7 @@ static int __init ne_drv_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ne_drv_remove(struct platform_device *pdev)
+static void ne_drv_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 
@@ -845,7 +842,6 @@ static int ne_drv_remove(struct platform_device *pdev)
 		release_region(dev->base_addr, NE_IO_EXTENT);
 		free_netdev(dev);
 	}
-	return 0;
 }
 
 /* Remove unused devices or all if true. */
@@ -898,7 +894,7 @@ static int ne_drv_resume(struct platform_device *pdev)
 #endif
 
 static struct platform_driver ne_driver = {
-	.remove		= ne_drv_remove,
+	.remove_new	= ne_drv_remove,
 	.suspend	= ne_drv_suspend,
 	.resume		= ne_drv_resume,
 	.driver		= {
@@ -922,13 +918,16 @@ static void __init ne_add_devices(void)
 	}
 }
 
-#ifdef MODULE
-int __init init_module(void)
+static int __init ne_init(void)
 {
 	int retval;
-	ne_add_devices();
+
+	if (IS_MODULE(CONFIG_NE2000))
+		ne_add_devices();
+
 	retval = platform_driver_probe(&ne_driver, ne_drv_probe);
-	if (retval) {
+
+	if (IS_MODULE(CONFIG_NE2000) && retval) {
 		if (io[0] == 0)
 			pr_notice("ne.c: You must supply \"io=0xNNN\""
 			       " value(s) for ISA cards.\n");
@@ -940,17 +939,9 @@ int __init init_module(void)
 	ne_loop_rm_unreg(0);
 	return retval;
 }
-#else /* MODULE */
-static int __init ne_init(void)
-{
-	int retval = platform_driver_probe(&ne_driver, ne_drv_probe);
-
-	/* Unregister unused platform_devices. */
-	ne_loop_rm_unreg(0);
-	return retval;
-}
 module_init(ne_init);
 
+#if !defined(MODULE) && defined(CONFIG_NETDEV_LEGACY_INIT)
 struct net_device * __init ne_probe(int unit)
 {
 	int this_dev;
@@ -991,7 +982,7 @@ struct net_device * __init ne_probe(int unit)
 
 	return ERR_PTR(-ENODEV);
 }
-#endif /* MODULE */
+#endif
 
 static void __exit ne_exit(void)
 {

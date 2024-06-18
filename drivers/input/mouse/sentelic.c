@@ -441,7 +441,7 @@ static ssize_t fsp_attr_set_setreg(struct psmouse *psmouse, void *data,
 
 	fsp_reg_write_enable(psmouse, false);
 
-	return count;
+	return retval;
 }
 
 PSMOUSE_DEFINE_WO_ATTR(setreg, S_IWUSR, NULL, fsp_attr_set_setreg);
@@ -794,7 +794,7 @@ static psmouse_ret_t fsp_process_byte(struct psmouse *psmouse)
 		/* on-pad click, filter it if necessary */
 		if ((ad->flags & FSPDRV_FLAG_EN_OPC) != FSPDRV_FLAG_EN_OPC)
 			packet[0] &= ~FSP_PB0_LBTN;
-		/* fall through */
+		fallthrough;
 
 	case FSP_PKT_TYPE_NORMAL:
 		/* normal packet */

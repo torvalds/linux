@@ -92,12 +92,12 @@ static char lancestr[] = "LANCE";
 #include <linux/bitops.h>
 #include <linux/dma-mapping.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/platform_device.h>
 #include <linux/gfp.h>
+#include <linux/pgtable.h>
 
 #include <asm/io.h>
 #include <asm/dma.h>
-#include <asm/pgtable.h>
 #include <asm/byteorder.h>	/* Used by the checksum routines */
 #include <asm/idprom.h>
 #include <asm/prom.h>
@@ -105,14 +105,9 @@ static char lancestr[] = "LANCE";
 #include <asm/irq.h>
 
 #define DRV_NAME	"sunlance"
-#define DRV_VERSION	"2.02"
 #define DRV_RELDATE	"8/24/03"
 #define DRV_AUTHOR	"Miguel de Icaza (miguel@nuclecu.unam.mx)"
 
-static char version[] =
-	DRV_NAME ".c:v" DRV_VERSION " " DRV_RELDATE " " DRV_AUTHOR "\n";
-
-MODULE_VERSION(DRV_VERSION);
 MODULE_AUTHOR(DRV_AUTHOR);
 MODULE_DESCRIPTION("Sun Lance ethernet driver");
 MODULE_LICENSE("GPL");
@@ -535,7 +530,7 @@ static void lance_rx_dvma(struct net_device *dev)
 			len = (rd->mblength & 0xfff) - 4;
 			skb = netdev_alloc_skb(dev, len + 2);
 
-			if (skb == NULL) {
+			if (!skb) {
 				dev->stats.rx_dropped++;
 				rd->mblength = 0;
 				rd->rmd1_bits = LE_R1_OWN;
@@ -705,7 +700,7 @@ static void lance_rx_pio(struct net_device *dev)
 			len = (sbus_readw(&rd->mblength) & 0xfff) - 4;
 			skb = netdev_alloc_skb(dev, len + 2);
 
-			if (skb == NULL) {
+			if (!skb) {
 				dev->stats.rx_dropped++;
 				sbus_writew(0, &rd->mblength);
 				sbus_writeb(LE_R1_OWN, &rd->rmd1_bits);
@@ -1097,7 +1092,7 @@ static void lance_piozero(void __iomem *dest, int len)
 		sbus_writeb(0, piobuf);
 }
 
-static void lance_tx_timeout(struct net_device *dev)
+static void lance_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct lance_private *lp = netdev_priv(dev);
 
@@ -1281,8 +1276,7 @@ static void lance_free_hwresources(struct lance_private *lp)
 /* Ethtool support... */
 static void sparc_lance_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, "sunlance", sizeof(info->driver));
-	strlcpy(info->version, "2.02", sizeof(info->version));
+	strscpy(info->driver, "sunlance", sizeof(info->driver));
 }
 
 static const struct ethtool_ops sparc_lance_ethtool_ops = {
@@ -1305,10 +1299,8 @@ static int sparc_lance_probe_one(struct platform_device *op,
 				 struct platform_device *lebuffer)
 {
 	struct device_node *dp = op->dev.of_node;
-	static unsigned version_printed;
 	struct lance_private *lp;
 	struct net_device *dev;
-	int    i;
 
 	dev = alloc_etherdev(sizeof(struct lance_private) + 8);
 	if (!dev)
@@ -1316,17 +1308,13 @@ static int sparc_lance_probe_one(struct platform_device *op,
 
 	lp = netdev_priv(dev);
 
-	if (sparc_lance_debug && version_printed++ == 0)
-		printk (KERN_INFO "%s", version);
-
 	spin_lock_init(&lp->lock);
 
 	/* Copy the IDPROM ethernet address to the device structure, later we
 	 * will copy the address in the device structure to the lance
 	 * initialization block.
 	 */
-	for (i = 0; i < 6; i++)
-		dev->dev_addr[i] = idprom->id_ethaddr[i];
+	eth_hw_addr_set(dev, idprom->id_ethaddr);
 
 	/* Get the IO region */
 	lp->lregs = of_ioremap(&op->resource[0], 0,
@@ -1499,7 +1487,7 @@ static int sunlance_sbus_probe(struct platform_device *op)
 	return err;
 }
 
-static int sunlance_sbus_remove(struct platform_device *op)
+static void sunlance_sbus_remove(struct platform_device *op)
 {
 	struct lance_private *lp = platform_get_drvdata(op);
 	struct net_device *net_dev = lp->dev;
@@ -1509,8 +1497,6 @@ static int sunlance_sbus_remove(struct platform_device *op)
 	lance_free_hwresources(lp);
 
 	free_netdev(net_dev);
-
-	return 0;
 }
 
 static const struct of_device_id sunlance_sbus_match[] = {
@@ -1528,7 +1514,7 @@ static struct platform_driver sunlance_sbus_driver = {
 		.of_match_table = sunlance_sbus_match,
 	},
 	.probe		= sunlance_sbus_probe,
-	.remove		= sunlance_sbus_remove,
+	.remove_new	= sunlance_sbus_remove,
 };
 
 module_platform_driver(sunlance_sbus_driver);

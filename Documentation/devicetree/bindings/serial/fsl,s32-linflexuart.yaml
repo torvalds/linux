@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/serial/fsl,s32-linflexuart.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale LINFlexD UART
+
+description: |
+  The LINFlexD controller implements several LIN protocol versions, as well
+  as support for full-duplex UART communication through 8-bit and 9-bit
+  frames. See chapter 47 ("LINFlexD") in the reference manual
+  https://www.nxp.com/webapp/Download?colCode=S32V234RM.
+
+maintainers:
+  - Chester Lin <chester62515@gmail.com>
+
+allOf:
+  - $ref: serial.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - const: fsl,s32v234-linflexuart
+      - items:
+          - enum:
+              - nxp,s32g2-linflexuart
+              - nxp,s32g3-linflexuart
+          - const: fsl,s32v234-linflexuart
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    serial@40053000 {
+        compatible = "fsl,s32v234-linflexuart";
+        reg = <0x40053000 0x1000>;
+        interrupts = <0 59 4>;
+    };

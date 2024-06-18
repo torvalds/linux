@@ -20,6 +20,8 @@
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <net/netfilter/nf_log.h>
 
+#include "nf_internals.h"
+
 static const unsigned int nf_ct_icmp_timeout = 30*HZ;
 
 bool icmp_pkt_to_tuple(const struct sk_buff *skb, unsigned int dataoff,
@@ -168,12 +170,12 @@ int nf_conntrack_inet_error(struct nf_conn *tmpl, struct sk_buff *skb,
 	ct_daddr = &ct->tuplehash[dir].tuple.dst.u3;
 	if (!nf_inet_addr_cmp(outer_daddr, ct_daddr)) {
 		if (state->pf == AF_INET) {
-			nf_l4proto_log_invalid(skb, state->net, state->pf,
+			nf_l4proto_log_invalid(skb, state,
 					       l4proto,
 					       "outer daddr %pI4 != inner %pI4",
 					       &outer_daddr->ip, &ct_daddr->ip);
 		} else if (state->pf == AF_INET6) {
-			nf_l4proto_log_invalid(skb, state->net, state->pf,
+			nf_l4proto_log_invalid(skb, state,
 					       l4proto,
 					       "outer daddr %pI6 != inner %pI6",
 					       &outer_daddr->ip6, &ct_daddr->ip6);
@@ -195,8 +197,7 @@ static void icmp_error_log(const struct sk_buff *skb,
 			   const struct nf_hook_state *state,
 			   const char *msg)
 {
-	nf_l4proto_log_invalid(skb, state->net, state->pf,
-			       IPPROTO_ICMP, "%s", msg);
+	nf_l4proto_log_invalid(skb, state, IPPROTO_ICMP, "%s", msg);
 }
 
 /* Small and modified version of icmp_rcv */
@@ -235,11 +236,7 @@ int nf_conntrack_icmpv4_error(struct nf_conn *tmpl,
 	}
 
 	/* Need to track icmp error message? */
-	if (icmph->type != ICMP_DEST_UNREACH &&
-	    icmph->type != ICMP_SOURCE_QUENCH &&
-	    icmph->type != ICMP_TIME_EXCEEDED &&
-	    icmph->type != ICMP_PARAMETERPROB &&
-	    icmph->type != ICMP_REDIRECT)
+	if (!icmp_is_err(icmph->type))
 		return NF_ACCEPT;
 
 	memset(&outer_daddr, 0, sizeof(outer_daddr));
@@ -275,20 +272,32 @@ static const struct nla_policy icmp_nla_policy[CTA_PROTO_MAX+1] = {
 };
 
 static int icmp_nlattr_to_tuple(struct nlattr *tb[],
-				struct nf_conntrack_tuple *tuple)
+				struct nf_conntrack_tuple *tuple,
+				u_int32_t flags)
 {
-	if (!tb[CTA_PROTO_ICMP_TYPE] ||
-	    !tb[CTA_PROTO_ICMP_CODE] ||
-	    !tb[CTA_PROTO_ICMP_ID])
-		return -EINVAL;
+	if (flags & CTA_FILTER_FLAG(CTA_PROTO_ICMP_TYPE)) {
+		if (!tb[CTA_PROTO_ICMP_TYPE])
+			return -EINVAL;
 
-	tuple->dst.u.icmp.type = nla_get_u8(tb[CTA_PROTO_ICMP_TYPE]);
-	tuple->dst.u.icmp.code = nla_get_u8(tb[CTA_PROTO_ICMP_CODE]);
-	tuple->src.u.icmp.id = nla_get_be16(tb[CTA_PROTO_ICMP_ID]);
+		tuple->dst.u.icmp.type = nla_get_u8(tb[CTA_PROTO_ICMP_TYPE]);
+		if (tuple->dst.u.icmp.type >= sizeof(invmap) ||
+		    !invmap[tuple->dst.u.icmp.type])
+			return -EINVAL;
+	}
 
-	if (tuple->dst.u.icmp.type >= sizeof(invmap) ||
-	    !invmap[tuple->dst.u.icmp.type])
-		return -EINVAL;
+	if (flags & CTA_FILTER_FLAG(CTA_PROTO_ICMP_CODE)) {
+		if (!tb[CTA_PROTO_ICMP_CODE])
+			return -EINVAL;
+
+		tuple->dst.u.icmp.code = nla_get_u8(tb[CTA_PROTO_ICMP_CODE]);
+	}
+
+	if (flags & CTA_FILTER_FLAG(CTA_PROTO_ICMP_ID)) {
+		if (!tb[CTA_PROTO_ICMP_ID])
+			return -EINVAL;
+
+		tuple->src.u.icmp.id = nla_get_be16(tb[CTA_PROTO_ICMP_ID]);
+	}
 
 	return 0;
 }

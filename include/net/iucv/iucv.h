@@ -30,6 +30,7 @@
 
 #include <linux/types.h>
 #include <linux/slab.h>
+#include <asm/dma-types.h>
 #include <asm/debug.h>
 
 /*
@@ -76,12 +77,17 @@
  * and iucv_message_reply if IUCV_IPBUFLST or IUCV_IPANSLST are used.
  */
 struct iucv_array {
-	u32 address;
+	dma32_t address;
 	u32 length;
 } __attribute__ ((aligned (8)));
 
-extern struct bus_type iucv_bus;
-extern struct device *iucv_root;
+extern const struct bus_type iucv_bus;
+
+struct device_driver;
+
+struct device *iucv_alloc_device(const struct attribute_group **attrs,
+				 struct device_driver *driver, void *priv,
+				 const char *fmt, ...) __printf(4, 5);
 
 /*
  * struct iucv_path
@@ -489,7 +495,7 @@ struct iucv_interface {
 	int (*path_sever)(struct iucv_path *path, u8 userdata[16]);
 	int (*iucv_register)(struct iucv_handler *handler, int smp);
 	void (*iucv_unregister)(struct iucv_handler *handler, int smp);
-	struct bus_type *bus;
+	const struct bus_type *bus;
 	struct device *root;
 };
 

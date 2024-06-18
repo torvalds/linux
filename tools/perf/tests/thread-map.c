@@ -11,6 +11,7 @@
 #include "util/synthetic-events.h"
 #include <linux/zalloc.h>
 #include <perf/event.h>
+#include <internal/threadmap.h>
 
 struct perf_sample;
 struct perf_tool;
@@ -19,7 +20,7 @@ struct machine;
 #define NAME	(const char *) "perf"
 #define NAMEUL	(unsigned long) NAME
 
-int test__thread_map(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__thread_map(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct perf_thread_map *map;
 
@@ -86,7 +87,7 @@ static int process_event(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
-int test__thread_map_synthesize(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__thread_map_synthesize(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct perf_thread_map *threads;
 
@@ -102,19 +103,20 @@ int test__thread_map_synthesize(struct test *test __maybe_unused, int subtest __
 	TEST_ASSERT_VAL("failed to synthesize map",
 		!perf_event__synthesize_thread_map2(NULL, threads, process_event, NULL));
 
+	perf_thread_map__put(threads);
 	return 0;
 }
 
-int test__thread_map_remove(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__thread_map_remove(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct perf_thread_map *threads;
 	char *str;
-	int i;
 
 	TEST_ASSERT_VAL("failed to allocate map string",
 			asprintf(&str, "%d,%d", getpid(), getppid()) >= 0);
 
 	threads = thread_map__new_str(str, NULL, 0, false);
+	free(str);
 
 	TEST_ASSERT_VAL("failed to allocate thread_map",
 			threads);
@@ -141,9 +143,10 @@ int test__thread_map_remove(struct test *test __maybe_unused, int subtest __mayb
 	TEST_ASSERT_VAL("failed to not remove thread",
 			thread_map__remove(threads, 0));
 
-	for (i = 0; i < threads->nr; i++)
-		zfree(&threads->map[i].comm);
-
-	free(threads);
+	perf_thread_map__put(threads);
 	return 0;
 }
+
+DEFINE_SUITE("Thread map", thread_map);
+DEFINE_SUITE("Synthesize thread map", thread_map_synthesize);
+DEFINE_SUITE("Remove thread map", thread_map_remove);

@@ -1,0 +1,176 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/spi/cdns,qspi-nor.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Cadence Quad SPI controller
+
+maintainers:
+  - Vaishnav Achath <vaishnav.a@ti.com>
+
+allOf:
+  - $ref: spi-controller.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: xlnx,versal-ospi-1.0
+    then:
+      required:
+        - power-domains
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: starfive,jh7110-qspi
+    then:
+      properties:
+        resets:
+          minItems: 2
+          maxItems: 3
+
+        reset-names:
+          minItems: 2
+          maxItems: 3
+          items:
+            enum: [ qspi, qspi-ocp, rstc_ref ]
+
+    else:
+      properties:
+        resets:
+          maxItems: 2
+
+        reset-names:
+          minItems: 1
+          maxItems: 2
+          items:
+            enum: [ qspi, qspi-ocp ]
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: amd,pensando-elba-qspi
+    then:
+      properties:
+        cdns,fifo-depth:
+          enum: [ 128, 256, 1024 ]
+          default: 1024
+    else:
+      properties:
+        cdns,fifo-depth:
+          enum: [ 128, 256 ]
+          default: 128
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - amd,pensando-elba-qspi
+              - intel,lgm-qspi
+              - intel,socfpga-qspi
+              - mobileye,eyeq5-ospi
+              - starfive,jh7110-qspi
+              - ti,am654-ospi
+              - ti,k2g-qspi
+              - xlnx,versal-ospi-1.0
+          - const: cdns,qspi-nor
+      - const: cdns,qspi-nor
+
+  reg:
+    items:
+      - description: the controller register set
+      - description: the controller data area
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    minItems: 1
+    maxItems: 3
+
+  clock-names:
+    oneOf:
+      - items:
+          - const: ref
+      - items:
+          - const: ref
+          - const: ahb
+          - const: apb
+
+  cdns,fifo-depth:
+    description:
+      Size of the data FIFO in words.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  cdns,fifo-width:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Bus width of the data FIFO in bytes.
+    default: 4
+
+  cdns,trigger-address:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      32-bit indirect AHB trigger address.
+
+  cdns,is-decoded-cs:
+    type: boolean
+    description:
+      Flag to indicate whether decoder is used to select different chip select
+      for different memory regions.
+
+  cdns,rclk-en:
+    type: boolean
+    description:
+      Flag to indicate that QSPI return clock is used to latch the read
+      data rather than the QSPI clock. Make sure that QSPI return clock
+      is populated on the board before using this property.
+
+  power-domains:
+    maxItems: 1
+
+  resets:
+    minItems: 2
+    maxItems: 3
+
+  reset-names:
+    minItems: 2
+    maxItems: 3
+    items:
+      enum: [ qspi, qspi-ocp, rstc_ref ]
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - cdns,fifo-width
+  - cdns,trigger-address
+  - '#address-cells'
+  - '#size-cells'
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    qspi: spi@ff705000 {
+        compatible = "cdns,qspi-nor";
+        #address-cells = <1>;
+        #size-cells = <0>;
+        reg = <0xff705000 0x1000>,
+              <0xffa00000 0x1000>;
+        interrupts = <0 151 4>;
+        clocks = <&qspi_clk>;
+        cdns,fifo-depth = <128>;
+        cdns,fifo-width = <4>;
+        cdns,trigger-address = <0x00000000>;
+        resets = <&rst 0x1>, <&rst 0x2>;
+        reset-names = "qspi", "qspi-ocp";
+
+        flash@0 {
+            compatible = "jedec,spi-nor";
+            reg = <0x0>;
+        };
+    };

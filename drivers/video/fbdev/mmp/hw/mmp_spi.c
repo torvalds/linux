@@ -17,8 +17,8 @@
 
 /**
  * spi_write - write command to the SPI port
+ * @spi:  the SPI device.
  * @data: can be 8/16/32-bit, MSB justified data to write.
- * @len:  data length.
  *
  * Wait bus transfer complete IRQ.
  * The caller is expected to perform the necessary locking.
@@ -31,8 +31,8 @@ static inline int lcd_spi_write(struct spi_device *spi, u32 data)
 {
 	int timeout = 100000, isr, ret = 0;
 	u32 tmp;
-	void *reg_base =
-		*(void **)spi_master_get_devdata(spi->master);
+	void __iomem *reg_base = (void __iomem *)
+		*(void **) spi_controller_get_devdata(spi->controller);
 
 	/* clear ISR */
 	writel_relaxed(~SPI_IRQ_MASK, reg_base + SPU_IRQ_ISR);
@@ -80,8 +80,8 @@ static inline int lcd_spi_write(struct spi_device *spi, u32 data)
 
 static int lcd_spi_setup(struct spi_device *spi)
 {
-	void *reg_base =
-		*(void **)spi_master_get_devdata(spi->master);
+	void __iomem *reg_base = (void __iomem *)
+		*(void **) spi_controller_get_devdata(spi->controller);
 	u32 tmp;
 
 	tmp = CFG_SCLKCNT(16) |
@@ -91,7 +91,7 @@ static int lcd_spi_setup(struct spi_device *spi)
 	writel(tmp, reg_base + LCD_SPU_SPI_CTRL);
 
 	/*
-	 * After set mode it need a time to pull up the spi singals,
+	 * After set mode it needs some time to pull up the spi signals,
 	 * or it would cause the wrong waveform when send spi command,
 	 * especially on pxa910h
 	 */
@@ -136,32 +136,32 @@ static int lcd_spi_one_transfer(struct spi_device *spi, struct spi_message *m)
 
 int lcd_spi_register(struct mmphw_ctrl *ctrl)
 {
-	struct spi_master *master;
+	struct spi_controller *ctlr;
 	void **p_regbase;
 	int err;
 
-	master = spi_alloc_master(ctrl->dev, sizeof(void *));
-	if (!master) {
+	ctlr = spi_alloc_master(ctrl->dev, sizeof(void *));
+	if (!ctlr) {
 		dev_err(ctrl->dev, "unable to allocate SPI master\n");
 		return -ENOMEM;
 	}
-	p_regbase = spi_master_get_devdata(master);
-	*p_regbase = ctrl->reg_base;
+	p_regbase = spi_controller_get_devdata(ctlr);
+	*p_regbase = (void __force *)ctrl->reg_base;
 
 	/* set bus num to 5 to avoid conflict with other spi hosts */
-	master->bus_num = 5;
-	master->num_chipselect = 1;
-	master->setup = lcd_spi_setup;
-	master->transfer = lcd_spi_one_transfer;
+	ctlr->bus_num = 5;
+	ctlr->num_chipselect = 1;
+	ctlr->setup = lcd_spi_setup;
+	ctlr->transfer = lcd_spi_one_transfer;
 
-	err = spi_register_master(master);
+	err = spi_register_controller(ctlr);
 	if (err < 0) {
 		dev_err(ctrl->dev, "unable to register SPI master\n");
-		spi_master_put(master);
+		spi_controller_put(ctlr);
 		return err;
 	}
 
-	dev_info(&master->dev, "registered\n");
+	dev_info(&ctlr->dev, "registered\n");
 
 	return 0;
 }

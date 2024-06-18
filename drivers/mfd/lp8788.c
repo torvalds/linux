@@ -34,7 +34,7 @@
 	.num_resources = num_resource,				\
 }
 
-static struct resource chg_irqs[] = {
+static const struct resource chg_irqs[] = {
 	/* Charger Interrupts */
 	{
 		.start = LP8788_INT_CHG_INPUT_STATE,
@@ -58,7 +58,7 @@ static struct resource chg_irqs[] = {
 	},
 };
 
-static struct resource rtc_irqs[] = {
+static const struct resource rtc_irqs[] = {
 	{
 		.start = LP8788_INT_RTC_ALARM1,
 		.end   = LP8788_INT_RTC_ALARM2,
@@ -166,7 +166,7 @@ static const struct regmap_config lp8788_regmap_config = {
 	.max_register = MAX_LP8788_REGISTERS,
 };
 
-static int lp8788_probe(struct i2c_client *cl, const struct i2c_device_id *id)
+static int lp8788_probe(struct i2c_client *cl)
 {
 	struct lp8788 *lp;
 	struct lp8788_platform_data *pdata = dev_get_platdata(&cl->dev);
@@ -195,17 +195,24 @@ static int lp8788_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 	if (ret)
 		return ret;
 
-	return mfd_add_devices(lp->dev, -1, lp8788_devs,
-			       ARRAY_SIZE(lp8788_devs), NULL, 0, NULL);
+	ret = mfd_add_devices(lp->dev, -1, lp8788_devs,
+			      ARRAY_SIZE(lp8788_devs), NULL, 0, NULL);
+	if (ret)
+		goto err_exit_irq;
+
+	return 0;
+
+err_exit_irq:
+	lp8788_irq_exit(lp);
+	return ret;
 }
 
-static int lp8788_remove(struct i2c_client *cl)
+static void lp8788_remove(struct i2c_client *cl)
 {
 	struct lp8788 *lp = i2c_get_clientdata(cl);
 
 	mfd_remove_devices(lp->dev);
 	lp8788_irq_exit(lp);
-	return 0;
 }
 
 static const struct i2c_device_id lp8788_ids[] = {
@@ -237,4 +244,3 @@ module_exit(lp8788_exit);
 
 MODULE_DESCRIPTION("TI LP8788 MFD Driver");
 MODULE_AUTHOR("Milo Kim");
-MODULE_LICENSE("GPL");

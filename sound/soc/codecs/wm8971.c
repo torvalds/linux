@@ -508,8 +508,8 @@ static int wm8971_pcm_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_component *component = dai->component;
 	struct wm8971_priv *wm8971 = snd_soc_component_get_drvdata(component);
-	u16 iface = snd_soc_component_read32(component, WM8971_IFACE) & 0x1f3;
-	u16 srate = snd_soc_component_read32(component, WM8971_SRATE) & 0x1c0;
+	u16 iface = snd_soc_component_read(component, WM8971_IFACE) & 0x1f3;
+	u16 srate = snd_soc_component_read(component, WM8971_SRATE) & 0x1c0;
 	int coeff = get_coeff(wm8971->sysclk, params_rate(params));
 
 	/* bit size */
@@ -536,10 +536,10 @@ static int wm8971_pcm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int wm8971_mute(struct snd_soc_dai *dai, int mute)
+static int wm8971_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
-	u16 mute_reg = snd_soc_component_read32(component, WM8971_ADCDAC) & 0xfff7;
+	u16 mute_reg = snd_soc_component_read(component, WM8971_ADCDAC) & 0xfff7;
 
 	if (mute)
 		snd_soc_component_write(component, WM8971_ADCDAC, mute_reg | 0x8);
@@ -561,7 +561,7 @@ static int wm8971_set_bias_level(struct snd_soc_component *component,
 	enum snd_soc_bias_level level)
 {
 	struct wm8971_priv *wm8971 = snd_soc_component_get_drvdata(component);
-	u16 pwr_reg = snd_soc_component_read32(component, WM8971_PWR1) & 0xfe3e;
+	u16 pwr_reg = snd_soc_component_read(component, WM8971_PWR1) & 0xfe3e;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -602,9 +602,10 @@ static int wm8971_set_bias_level(struct snd_soc_component *component,
 
 static const struct snd_soc_dai_ops wm8971_dai_ops = {
 	.hw_params	= wm8971_pcm_hw_params,
-	.digital_mute	= wm8971_mute,
+	.mute_stream	= wm8971_mute,
 	.set_fmt	= wm8971_set_dai_fmt,
 	.set_sysclk	= wm8971_set_dai_sysclk,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8971_dai = {
@@ -658,7 +659,6 @@ static const struct snd_soc_component_driver soc_component_dev_wm8971 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config wm8971_regmap = {
@@ -668,14 +668,12 @@ static const struct regmap_config wm8971_regmap = {
 
 	.reg_defaults = wm8971_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8971_reg_defaults),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
-static int wm8971_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int wm8971_i2c_probe(struct i2c_client *i2c)
 {
 	struct wm8971_priv *wm8971;
-	int ret;
 
 	wm8971 = devm_kzalloc(&i2c->dev, sizeof(struct wm8971_priv),
 			      GFP_KERNEL);
@@ -688,14 +686,12 @@ static int wm8971_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, wm8971);
 
-	ret = devm_snd_soc_register_component(&i2c->dev,
+	return devm_snd_soc_register_component(&i2c->dev,
 			&soc_component_dev_wm8971, &wm8971_dai, 1);
-
-	return ret;
 }
 
 static const struct i2c_device_id wm8971_i2c_id[] = {
-	{ "wm8971", 0 },
+	{ "wm8971" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm8971_i2c_id);
@@ -704,7 +700,7 @@ static struct i2c_driver wm8971_i2c_driver = {
 	.driver = {
 		.name = "wm8971",
 	},
-	.probe =    wm8971_i2c_probe,
+	.probe = wm8971_i2c_probe,
 	.id_table = wm8971_i2c_id,
 };
 

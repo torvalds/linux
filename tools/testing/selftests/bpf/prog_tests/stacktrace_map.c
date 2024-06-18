@@ -4,24 +4,24 @@
 void test_stacktrace_map(void)
 {
 	int control_map_fd, stackid_hmap_fd, stackmap_fd, stack_amap_fd;
-	const char *prog_name = "tracepoint/sched/sched_switch";
+	const char *prog_name = "oncpu";
 	int err, prog_fd, stack_trace_len;
-	const char *file = "./test_stacktrace_map.o";
+	const char *file = "./test_stacktrace_map.bpf.o";
 	__u32 key, val, duration = 0;
 	struct bpf_program *prog;
 	struct bpf_object *obj;
 	struct bpf_link *link;
 
-	err = bpf_prog_load(file, BPF_PROG_TYPE_TRACEPOINT, &obj, &prog_fd);
+	err = bpf_prog_test_load(file, BPF_PROG_TYPE_TRACEPOINT, &obj, &prog_fd);
 	if (CHECK(err, "prog_load", "err %d errno %d\n", err, errno))
 		return;
 
-	prog = bpf_object__find_program_by_title(obj, prog_name);
+	prog = bpf_object__find_program_by_name(obj, prog_name);
 	if (CHECK(!prog, "find_prog", "prog '%s' not found\n", prog_name))
 		goto close_prog;
 
 	link = bpf_program__attach_tracepoint(prog, "sched", "sched_switch");
-	if (CHECK(IS_ERR(link), "attach_tp", "err %ld\n", PTR_ERR(link)))
+	if (!ASSERT_OK_PTR(link, "attach_tp"))
 		goto close_prog;
 
 	/* find map fds */

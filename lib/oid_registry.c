@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/bug.h>
+#include <linux/asn1.h>
 #include "oid_registry_data.c"
 
 MODULE_DESCRIPTION("OID Registry");
@@ -92,6 +93,29 @@ enum OID look_up_OID(const void *data, size_t datasize)
 }
 EXPORT_SYMBOL_GPL(look_up_OID);
 
+/**
+ * parse_OID - Parse an OID from a bytestream
+ * @data: Binary representation of the header + OID
+ * @datasize: Size of the binary representation
+ * @oid: Pointer to oid to return result
+ *
+ * Parse an OID from a bytestream that holds the OID in the format
+ * ASN1_OID | length | oid. The length indicator must equal to datasize - 2.
+ * -EBADMSG is returned if the bytestream is too short.
+ */
+int parse_OID(const void *data, size_t datasize, enum OID *oid)
+{
+	const unsigned char *v = data;
+
+	/* we need 2 bytes of header and at least 1 byte for oid */
+	if (datasize < 3 || v[0] != ASN1_OID || v[1] != datasize - 2)
+		return -EBADMSG;
+
+	*oid = look_up_OID(data + 2, datasize - 2);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(parse_OID);
+
 /*
  * sprint_OID - Print an Object Identifier into a buffer
  * @data: The encoded OID to print
@@ -100,7 +124,7 @@ EXPORT_SYMBOL_GPL(look_up_OID);
  * @bufsize: The size of the buffer
  *
  * The OID is rendered into the buffer in "a.b.c.d" format and the number of
- * bytes is returned.  -EBADMSG is returned if the data could not be intepreted
+ * bytes is returned.  -EBADMSG is returned if the data could not be interpreted
  * and -ENOBUFS if the buffer was too small.
  */
 int sprint_oid(const void *data, size_t datasize, char *buffer, size_t bufsize)
@@ -122,7 +146,6 @@ int sprint_oid(const void *data, size_t datasize, char *buffer, size_t bufsize)
 	bufsize -= count;
 
 	while (v < end) {
-		num = 0;
 		n = *v++;
 		if (!(n & 0x80)) {
 			num = n;

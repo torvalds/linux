@@ -14,12 +14,9 @@
 #include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/thermal.h>
 
-#include "../thermal_core.h"
 #include "../thermal_hwmon.h"
 
 /* DTS register offsets */
@@ -30,7 +27,7 @@
 #define DTS_DR_OFFSET		0x1C
 #define DTS_SR_OFFSET		0x20
 #define DTS_ITENR_OFFSET	0x24
-#define DTS_CIFR_OFFSET		0x28
+#define DTS_ICIFR_OFFSET	0x28
 
 /* DTS_CFGR1 register mask definitions */
 #define HSREF_CLK_DIV_MASK	GENMASK(30, 24)
@@ -51,10 +48,16 @@
 /* DTS_DR register mask definitions */
 #define TS1_MFREQ_MASK		GENMASK(15, 0)
 
+/* DTS_ITENR register mask definitions */
+#define ITENR_MASK		(GENMASK(2, 0) | GENMASK(6, 4))
+
+/* DTS_ICIFR register mask definitions */
+#define ICIFR_MASK		(GENMASK(2, 0) | GENMASK(6, 4))
+
 /* Less significant bit position definitions */
 #define TS1_T0_POS		16
-#define TS1_SMP_TIME_POS	16
 #define TS1_HITTHD_POS		16
+#define TS1_LITTHD_POS		0
 #define HSREF_CLK_DIV_POS	24
 
 /* DTS_CFGR1 bit definitions */
@@ -76,58 +79,59 @@
 #define ONE_MHZ			1000000
 #define POLL_TIMEOUT		5000
 #define STARTUP_TIME		40
-#define TS1_T0_VAL0		30
-#define TS1_T0_VAL1		130
+#define TS1_T0_VAL0		30000  /* 30 celsius */
+#define TS1_T0_VAL1		130000 /* 130 celsius */
 #define NO_HW_TRIG		0
-
-/* The Thermal Framework expects millidegrees */
-#define mcelsius(temp)		((temp) * 1000)
-
-/* The Sensor expects oC degrees */
-#define celsius(temp)		((temp) / 1000)
+#define SAMPLING_TIME		15
 
 struct stm_thermal_sensor {
 	struct device *dev;
 	struct thermal_zone_device *th_dev;
 	enum thermal_device_mode mode;
 	struct clk *clk;
-	int high_temp;
-	int low_temp;
-	int temp_critical;
-	int temp_passive;
 	unsigned int low_temp_enabled;
-	int num_trips;
+	unsigned int high_temp_enabled;
 	int irq;
-	unsigned int irq_enabled;
 	void __iomem *base;
 	int t0, fmt0, ramp_coeff;
 };
 
-static irqreturn_t stm_thermal_alarm_irq(int irq, void *sdata)
-{
-	struct stm_thermal_sensor *sensor = sdata;
-
-	disable_irq_nosync(irq);
-	sensor->irq_enabled = false;
-
-	return IRQ_WAKE_THREAD;
-}
-
-static irqreturn_t stm_thermal_alarm_irq_thread(int irq, void *sdata)
+static int stm_enable_irq(struct stm_thermal_sensor *sensor)
 {
 	u32 value;
+
+	dev_dbg(sensor->dev, "low:%d high:%d\n", sensor->low_temp_enabled,
+		sensor->high_temp_enabled);
+
+	/* Disable IT generation for low and high thresholds */
+	value = readl_relaxed(sensor->base + DTS_ITENR_OFFSET);
+	value &= ~(LOW_THRESHOLD | HIGH_THRESHOLD);
+
+	if (sensor->low_temp_enabled)
+		value |= HIGH_THRESHOLD;
+
+	if (sensor->high_temp_enabled)
+		value |= LOW_THRESHOLD;
+
+	/* Enable interrupts */
+	writel_relaxed(value, sensor->base + DTS_ITENR_OFFSET);
+
+	return 0;
+}
+
+static irqreturn_t stm_thermal_irq_handler(int irq, void *sdata)
+{
 	struct stm_thermal_sensor *sensor = sdata;
 
-	/* read IT reason in SR and clear flags */
-	value = readl_relaxed(sensor->base + DTS_SR_OFFSET);
-
-	if ((value & LOW_THRESHOLD) == LOW_THRESHOLD)
-		writel_relaxed(LOW_THRESHOLD, sensor->base + DTS_CIFR_OFFSET);
-
-	if ((value & HIGH_THRESHOLD) == HIGH_THRESHOLD)
-		writel_relaxed(HIGH_THRESHOLD, sensor->base + DTS_CIFR_OFFSET);
+	dev_dbg(sensor->dev, "sr:%d\n",
+		readl_relaxed(sensor->base + DTS_SR_OFFSET));
 
 	thermal_zone_device_update(sensor->th_dev, THERMAL_EVENT_UNSPECIFIED);
+
+	stm_enable_irq(sensor);
+
+	/* Acknoledge all DTS irqs */
+	writel_relaxed(ICIFR_MASK, sensor->base + DTS_ICIFR_OFFSET);
 
 	return IRQ_HANDLED;
 }
@@ -160,12 +164,16 @@ static int stm_sensor_power_on(struct stm_thermal_sensor *sensor)
 	writel_relaxed(value, sensor->base +
 		       DTS_CFGR1_OFFSET);
 
+	sensor->mode = THERMAL_DEVICE_ENABLED;
+
 	return 0;
 }
 
 static int stm_sensor_power_off(struct stm_thermal_sensor *sensor)
 {
 	u32 value;
+
+	sensor->mode = THERMAL_DEVICE_DISABLED;
 
 	/* Stop measuring */
 	value = readl_relaxed(sensor->base + DTS_CFGR1_OFFSET);
@@ -263,60 +271,17 @@ static int stm_thermal_calculate_threshold(struct stm_thermal_sensor *sensor,
 					   int temp, u32 *th)
 {
 	int freqM;
-	u32 sampling_time;
-
-	/* Retrieve the number of periods to sample */
-	sampling_time = (readl_relaxed(sensor->base + DTS_CFGR1_OFFSET) &
-			TS1_SMP_TIME_MASK) >> TS1_SMP_TIME_POS;
 
 	/* Figure out the CLK_PTAT frequency for a given temperature */
-	freqM = ((temp - sensor->t0) * sensor->ramp_coeff)
-		 + sensor->fmt0;
-
-	dev_dbg(sensor->dev, "%s: freqM for threshold = %d Hz",
-		__func__, freqM);
+	freqM = ((temp - sensor->t0) * sensor->ramp_coeff) / 1000 +
+		sensor->fmt0;
 
 	/* Figure out the threshold sample number */
-	*th = clk_get_rate(sensor->clk);
+	*th = clk_get_rate(sensor->clk) * SAMPLING_TIME / freqM;
 	if (!*th)
 		return -EINVAL;
 
-	*th = *th / freqM;
-
-	*th *= sampling_time;
-
-	return 0;
-}
-
-static int stm_thermal_set_threshold(struct stm_thermal_sensor *sensor)
-{
-	u32 value, th;
-	int ret;
-
-	value = readl_relaxed(sensor->base + DTS_ITR1_OFFSET);
-
-	/* Erase threshold content */
-	value &= ~(TS1_LITTHD_MASK | TS1_HITTHD_MASK);
-
-	/* Retrieve the sample threshold number th for a given temperature */
-	ret = stm_thermal_calculate_threshold(sensor, sensor->high_temp, &th);
-	if (ret)
-		return ret;
-
-	value |= th & TS1_LITTHD_MASK;
-
-	if (sensor->low_temp_enabled) {
-		/* Retrieve the sample threshold */
-		ret = stm_thermal_calculate_threshold(sensor, sensor->low_temp,
-						      &th);
-		if (ret)
-			return ret;
-
-		value |= (TS1_HITTHD_MASK  & (th << TS1_HITTHD_POS));
-	}
-
-	/* Write value on the Low interrupt threshold */
-	writel_relaxed(value, sensor->base + DTS_ITR1_OFFSET);
+	dev_dbg(sensor->dev, "freqM=%d Hz, threshold=0x%x", freqM, *th);
 
 	return 0;
 }
@@ -326,155 +291,85 @@ static int stm_disable_irq(struct stm_thermal_sensor *sensor)
 {
 	u32 value;
 
-	/* Disable IT generation for low and high thresholds */
+	/* Disable IT generation */
 	value = readl_relaxed(sensor->base + DTS_ITENR_OFFSET);
-	writel_relaxed(value & ~(LOW_THRESHOLD | HIGH_THRESHOLD),
-		       sensor->base + DTS_ITENR_OFFSET);
-
-	dev_dbg(sensor->dev, "%s: IT disabled on sensor side", __func__);
-
-	return 0;
-}
-
-/* Enable temperature interrupt */
-static int stm_enable_irq(struct stm_thermal_sensor *sensor)
-{
-	u32 value;
-
-	/*
-	 * Code below enables High temperature threshold using a low threshold
-	 * sampling value
-	 */
-
-	/* Make sure LOW_THRESHOLD IT is clear before enabling */
-	writel_relaxed(LOW_THRESHOLD, sensor->base + DTS_CIFR_OFFSET);
-
-	/* Enable IT generation for low threshold */
-	value = readl_relaxed(sensor->base + DTS_ITENR_OFFSET);
-	value |= LOW_THRESHOLD;
-
-	/* Enable the low temperature threshold if needed */
-	if (sensor->low_temp_enabled) {
-		/* Make sure HIGH_THRESHOLD IT is clear before enabling */
-		writel_relaxed(HIGH_THRESHOLD, sensor->base + DTS_CIFR_OFFSET);
-
-		/* Enable IT generation for high threshold */
-		value |= HIGH_THRESHOLD;
-	}
-
-	/* Enable thresholds */
+	value &= ~ITENR_MASK;
 	writel_relaxed(value, sensor->base + DTS_ITENR_OFFSET);
 
-	dev_dbg(sensor->dev, "%s: IT enabled on sensor side", __func__);
-
 	return 0;
 }
 
-static int stm_thermal_update_threshold(struct stm_thermal_sensor *sensor)
+static int stm_thermal_set_trips(struct thermal_zone_device *tz, int low, int high)
 {
+	struct stm_thermal_sensor *sensor = thermal_zone_device_priv(tz);
+	u32 itr1, th;
 	int ret;
 
-	sensor->mode = THERMAL_DEVICE_DISABLED;
+	dev_dbg(sensor->dev, "set trips %d <--> %d\n", low, high);
 
-	ret = stm_sensor_power_off(sensor);
-	if (ret)
-		return ret;
+	/* Erase threshold content */
+	itr1 = readl_relaxed(sensor->base + DTS_ITR1_OFFSET);
+	itr1 &= ~(TS1_LITTHD_MASK | TS1_HITTHD_MASK);
 
-	ret = stm_disable_irq(sensor);
-	if (ret)
-		return ret;
+	/*
+	 * Disable low-temp if "low" is too small. As per thermal framework
+	 * API, we use -INT_MAX rather than INT_MIN.
+	 */
 
-	ret = stm_thermal_set_threshold(sensor);
-	if (ret)
-		return ret;
+	if (low > -INT_MAX) {
+		sensor->low_temp_enabled = 1;
+		/* add 0.5 of hysteresis due to measurement error */
+		ret = stm_thermal_calculate_threshold(sensor, low - 500, &th);
+		if (ret)
+			return ret;
 
-	ret = stm_enable_irq(sensor);
-	if (ret)
-		return ret;
+		itr1 |= (TS1_HITTHD_MASK  & (th << TS1_HITTHD_POS));
+	} else {
+		sensor->low_temp_enabled = 0;
+	}
 
-	ret = stm_sensor_power_on(sensor);
-	if (ret)
-		return ret;
+	/* Disable high-temp if "high" is too big. */
+	if (high < INT_MAX) {
+		sensor->high_temp_enabled = 1;
+		ret = stm_thermal_calculate_threshold(sensor, high, &th);
+		if (ret)
+			return ret;
 
-	sensor->mode = THERMAL_DEVICE_ENABLED;
+		itr1 |= (TS1_LITTHD_MASK  & (th << TS1_LITTHD_POS));
+	} else {
+		sensor->high_temp_enabled = 0;
+	}
+
+	/* Write new threshod values*/
+	writel_relaxed(itr1, sensor->base + DTS_ITR1_OFFSET);
 
 	return 0;
 }
 
 /* Callback to get temperature from HW */
-static int stm_thermal_get_temp(void *data, int *temp)
+static int stm_thermal_get_temp(struct thermal_zone_device *tz, int *temp)
 {
-	struct stm_thermal_sensor *sensor = data;
-	u32 sampling_time;
+	struct stm_thermal_sensor *sensor = thermal_zone_device_priv(tz);
+	u32 periods;
 	int freqM, ret;
 
 	if (sensor->mode != THERMAL_DEVICE_ENABLED)
 		return -EAGAIN;
 
-	/* Retrieve the number of samples */
-	ret = readl_poll_timeout(sensor->base + DTS_DR_OFFSET, freqM,
-				 (freqM & TS1_MFREQ_MASK), STARTUP_TIME,
-				 POLL_TIMEOUT);
-
+	/* Retrieve the number of periods sampled */
+	ret = readl_relaxed_poll_timeout(sensor->base + DTS_DR_OFFSET, periods,
+					 (periods & TS1_MFREQ_MASK),
+					 STARTUP_TIME, POLL_TIMEOUT);
 	if (ret)
 		return ret;
 
-	if (!freqM)
-		return -ENODATA;
-
-	/* Retrieve the number of periods sampled */
-	sampling_time = (readl_relaxed(sensor->base + DTS_CFGR1_OFFSET) &
-			TS1_SMP_TIME_MASK) >> TS1_SMP_TIME_POS;
-
-	/* Figure out the number of samples per period */
-	freqM /= sampling_time;
-
 	/* Figure out the CLK_PTAT frequency */
-	freqM = clk_get_rate(sensor->clk) / freqM;
+	freqM = (clk_get_rate(sensor->clk) * SAMPLING_TIME) / periods;
 	if (!freqM)
 		return -EINVAL;
 
-	dev_dbg(sensor->dev, "%s: freqM=%d\n", __func__, freqM);
-
 	/* Figure out the temperature in mili celsius */
-	*temp = mcelsius(sensor->t0 + ((freqM - sensor->fmt0) /
-			 sensor->ramp_coeff));
-
-	dev_dbg(sensor->dev, "%s: temperature = %d millicelsius",
-		__func__, *temp);
-
-	/* Update thresholds */
-	if (sensor->num_trips > 1) {
-		/* Update alarm threshold value to next higher trip point */
-		if (sensor->high_temp == sensor->temp_passive &&
-		    celsius(*temp) >= sensor->temp_passive) {
-			sensor->high_temp = sensor->temp_critical;
-			sensor->low_temp = sensor->temp_passive;
-			sensor->low_temp_enabled = true;
-			ret = stm_thermal_update_threshold(sensor);
-			if (ret)
-				return ret;
-		}
-
-		if (sensor->high_temp == sensor->temp_critical &&
-		    celsius(*temp) < sensor->temp_passive) {
-			sensor->high_temp = sensor->temp_passive;
-			sensor->low_temp_enabled = false;
-			ret = stm_thermal_update_threshold(sensor);
-			if (ret)
-				return ret;
-		}
-
-		/*
-		 * Re-enable alarm IRQ if temperature below critical
-		 * temperature
-		 */
-		if (!sensor->irq_enabled &&
-		    (celsius(*temp) < sensor->temp_critical)) {
-			sensor->irq_enabled = true;
-			enable_irq(sensor->irq);
-		}
-	}
+	*temp = (freqM - sensor->fmt0) * 1000 / sensor->ramp_coeff + sensor->t0;
 
 	return 0;
 }
@@ -487,14 +382,12 @@ static int stm_register_irq(struct stm_thermal_sensor *sensor)
 	int ret;
 
 	sensor->irq = platform_get_irq(pdev, 0);
-	if (sensor->irq < 0) {
-		dev_err(dev, "%s: Unable to find IRQ\n", __func__);
+	if (sensor->irq < 0)
 		return sensor->irq;
-	}
 
 	ret = devm_request_threaded_irq(dev, sensor->irq,
-					stm_thermal_alarm_irq,
-					stm_thermal_alarm_irq_thread,
+					NULL,
+					stm_thermal_irq_handler,
 					IRQF_ONESHOT,
 					dev->driver->name, sensor);
 	if (ret) {
@@ -502,8 +395,6 @@ static int stm_register_irq(struct stm_thermal_sensor *sensor)
 			sensor->irq);
 		return ret;
 	}
-
-	sensor->irq_enabled = true;
 
 	dev_dbg(dev, "%s: thermal IRQ registered", __func__);
 
@@ -513,6 +404,8 @@ static int stm_register_irq(struct stm_thermal_sensor *sensor)
 static int stm_thermal_sensor_off(struct stm_thermal_sensor *sensor)
 {
 	int ret;
+
+	stm_disable_irq(sensor);
 
 	ret = stm_sensor_power_off(sensor);
 	if (ret)
@@ -526,7 +419,6 @@ static int stm_thermal_sensor_off(struct stm_thermal_sensor *sensor)
 static int stm_thermal_prepare(struct stm_thermal_sensor *sensor)
 {
 	int ret;
-	struct device *dev = sensor->dev;
 
 	ret = clk_prepare_enable(sensor->clk);
 	if (ret)
@@ -540,25 +432,7 @@ static int stm_thermal_prepare(struct stm_thermal_sensor *sensor)
 	if (ret)
 		goto thermal_unprepare;
 
-	/* Set threshold(s) for IRQ */
-	ret = stm_thermal_set_threshold(sensor);
-	if (ret)
-		goto thermal_unprepare;
-
-	ret = stm_enable_irq(sensor);
-	if (ret)
-		goto thermal_unprepare;
-
-	ret = stm_sensor_power_on(sensor);
-	if (ret) {
-		dev_err(dev, "%s: failed to power on sensor\n", __func__);
-		goto irq_disable;
-	}
-
 	return 0;
-
-irq_disable:
-	stm_disable_irq(sensor);
 
 thermal_unprepare:
 	clk_disable_unprepare(sensor->clk);
@@ -569,16 +443,9 @@ thermal_unprepare:
 #ifdef CONFIG_PM_SLEEP
 static int stm_thermal_suspend(struct device *dev)
 {
-	int ret;
 	struct stm_thermal_sensor *sensor = dev_get_drvdata(dev);
 
-	ret = stm_thermal_sensor_off(sensor);
-	if (ret)
-		return ret;
-
-	sensor->mode = THERMAL_DEVICE_DISABLED;
-
-	return 0;
+	return stm_thermal_sensor_off(sensor);
 }
 
 static int stm_thermal_resume(struct device *dev)
@@ -590,16 +457,23 @@ static int stm_thermal_resume(struct device *dev)
 	if (ret)
 		return ret;
 
-	sensor->mode = THERMAL_DEVICE_ENABLED;
+	ret = stm_sensor_power_on(sensor);
+	if (ret)
+		return ret;
+
+	thermal_zone_device_update(sensor->th_dev, THERMAL_EVENT_UNSPECIFIED);
+	stm_enable_irq(sensor);
 
 	return 0;
 }
 #endif /* CONFIG_PM_SLEEP */
 
-SIMPLE_DEV_PM_OPS(stm_thermal_pm_ops, stm_thermal_suspend, stm_thermal_resume);
+static SIMPLE_DEV_PM_OPS(stm_thermal_pm_ops,
+			 stm_thermal_suspend, stm_thermal_resume);
 
-static const struct thermal_zone_of_device_ops stm_tz_ops = {
+static const struct thermal_zone_device_ops stm_tz_ops = {
 	.get_temp	= stm_thermal_get_temp,
+	.set_trips	= stm_thermal_set_trips,
 };
 
 static const struct of_device_id stm_thermal_of_match[] = {
@@ -611,10 +485,8 @@ MODULE_DEVICE_TABLE(of, stm_thermal_of_match);
 static int stm_thermal_probe(struct platform_device *pdev)
 {
 	struct stm_thermal_sensor *sensor;
-	struct resource *res;
-	const struct thermal_trip *trip;
 	void __iomem *base;
-	int ret, i;
+	int ret;
 
 	if (!pdev->dev.of_node) {
 		dev_err(&pdev->dev, "%s: device tree node not found\n",
@@ -630,8 +502,7 @@ static int stm_thermal_probe(struct platform_device *pdev)
 
 	sensor->dev = &pdev->dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
@@ -645,14 +516,27 @@ static int stm_thermal_probe(struct platform_device *pdev)
 		return PTR_ERR(sensor->clk);
 	}
 
-	/* Register IRQ into GIC */
-	ret = stm_register_irq(sensor);
-	if (ret)
-		return ret;
+	stm_disable_irq(sensor);
 
-	sensor->th_dev = devm_thermal_zone_of_sensor_register(&pdev->dev, 0,
-							      sensor,
-							      &stm_tz_ops);
+	/* Clear irq flags */
+	writel_relaxed(ICIFR_MASK, sensor->base + DTS_ICIFR_OFFSET);
+
+	/* Configure and enable HW sensor */
+	ret = stm_thermal_prepare(sensor);
+	if (ret) {
+		dev_err(&pdev->dev, "Error prepare sensor: %d\n", ret);
+		return ret;
+	}
+
+	ret = stm_sensor_power_on(sensor);
+	if (ret) {
+		dev_err(&pdev->dev, "Error power on sensor: %d\n", ret);
+		return ret;
+	}
+
+	sensor->th_dev = devm_thermal_of_zone_register(&pdev->dev, 0,
+						       sensor,
+						       &stm_tz_ops);
 
 	if (IS_ERR(sensor->th_dev)) {
 		dev_err(&pdev->dev, "%s: thermal zone sensor registering KO\n",
@@ -661,64 +545,20 @@ static int stm_thermal_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	if (!sensor->th_dev->ops->get_crit_temp) {
-		/* Critical point must be provided */
-		ret = -EINVAL;
+	/* Register IRQ into GIC */
+	ret = stm_register_irq(sensor);
+	if (ret)
 		goto err_tz;
-	}
 
-	ret = sensor->th_dev->ops->get_crit_temp(sensor->th_dev,
-			&sensor->temp_critical);
-	if (ret) {
-		dev_err(&pdev->dev,
-			"Not able to read critical_temp: %d\n", ret);
-		goto err_tz;
-	}
-
-	sensor->temp_critical = celsius(sensor->temp_critical);
-
-	/* Set thresholds for IRQ */
-	sensor->high_temp = sensor->temp_critical;
-
-	trip = of_thermal_get_trip_points(sensor->th_dev);
-	sensor->num_trips = of_thermal_get_ntrips(sensor->th_dev);
-
-	/* Find out passive temperature if it exists */
-	for (i = (sensor->num_trips - 1); i >= 0;  i--) {
-		if (trip[i].type == THERMAL_TRIP_PASSIVE) {
-			sensor->temp_passive = celsius(trip[i].temperature);
-			/* Update high temperature threshold */
-			sensor->high_temp = sensor->temp_passive;
-			}
-	}
-
-	/*
-	 * Ensure low_temp_enabled flag is disabled.
-	 * By disabling low_temp_enabled, low threshold IT will not be
-	 * configured neither enabled because it is not needed as high
-	 * threshold is set on the lowest temperature trip point after
-	 * probe.
-	 */
-	sensor->low_temp_enabled = false;
-
-	/* Configure and enable HW sensor */
-	ret = stm_thermal_prepare(sensor);
-	if (ret) {
-		dev_err(&pdev->dev,
-			"Not able to enable sensor: %d\n", ret);
-		goto err_tz;
-	}
+	stm_enable_irq(sensor);
 
 	/*
 	 * Thermal_zone doesn't enable hwmon as default,
 	 * enable it here
 	 */
-	sensor->th_dev->tzp->no_hwmon = false;
 	ret = thermal_add_hwmon_sysfs(sensor->th_dev);
 	if (ret)
 		goto err_tz;
-
-	sensor->mode = THERMAL_DEVICE_ENABLED;
 
 	dev_info(&pdev->dev, "%s: Driver initialized successfully\n",
 		 __func__);
@@ -726,19 +566,15 @@ static int stm_thermal_probe(struct platform_device *pdev)
 	return 0;
 
 err_tz:
-	thermal_zone_of_sensor_unregister(&pdev->dev, sensor->th_dev);
 	return ret;
 }
 
-static int stm_thermal_remove(struct platform_device *pdev)
+static void stm_thermal_remove(struct platform_device *pdev)
 {
 	struct stm_thermal_sensor *sensor = platform_get_drvdata(pdev);
 
 	stm_thermal_sensor_off(sensor);
 	thermal_remove_hwmon_sysfs(sensor->th_dev);
-	thermal_zone_of_sensor_unregister(&pdev->dev, sensor->th_dev);
-
-	return 0;
 }
 
 static struct platform_driver stm_thermal_driver = {
@@ -748,7 +584,7 @@ static struct platform_driver stm_thermal_driver = {
 		.of_match_table = stm_thermal_of_match,
 	},
 	.probe		= stm_thermal_probe,
-	.remove		= stm_thermal_remove,
+	.remove_new	= stm_thermal_remove,
 };
 module_platform_driver(stm_thermal_driver);
 

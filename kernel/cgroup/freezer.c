@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/cgroup.h>
 #include <linux/sched.h>
 #include <linux/sched/task.h>
@@ -228,6 +228,15 @@ void cgroup_freezer_migrate_task(struct task_struct *task,
 	 * Kernel threads are not supposed to be frozen at all.
 	 */
 	if (task->flags & PF_KTHREAD)
+		return;
+
+	/*
+	 * It's not necessary to do changes if both of the src and dst cgroups
+	 * are not freezing and task is not frozen.
+	 */
+	if (!test_bit(CGRP_FREEZE, &src->flags) &&
+	    !test_bit(CGRP_FREEZE, &dst->flags) &&
+	    !task->frozen)
 		return;
 
 	/*

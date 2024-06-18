@@ -1,0 +1,58 @@
+[
+    {
+        "BriefDescription": "Each cycle counts number of coherent reads pending on data return from memory controller that were issued by any core.",
+        "EventCode": "0x85",
+        "EventName": "UNC_ARB_DAT_OCCUPANCY.RD",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "ARB"
+    },
+    {
+        "BriefDescription": "Number of entries allocated. Account for Any type: e.g. Snoop,  etc.",
+        "EventCode": "0x84",
+        "EventName": "UNC_HAC_ARB_COH_TRK_REQUESTS.ALL",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "HAC_ARB"
+    },
+    {
+        "BriefDescription": "Number of all coherent Data Read entries. Doesn't include prefetches",
+        "EventCode": "0x81",
+        "EventName": "UNC_HAC_ARB_REQ_TRK_REQUEST.DRD",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "HAC_ARB"
+    },
+    {
+        "BriefDescription": "Number of all CMI transactions",
+        "EventCode": "0x8A",
+        "EventName": "UNC_HAC_ARB_TRANSACTIONS.ALL",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "HAC_ARB"
+    },
+    {
+        "BriefDescription": "Number of all CMI reads",
+        "EventCode": "0x8A",
+        "EventName": "UNC_HAC_ARB_TRANSACTIONS.READS",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "HAC_ARB"
+    },
+    {
+        "BriefDescription": "Number of all CMI writes not including Mflush",
+        "EventCode": "0x8A",
+        "EventName": "UNC_HAC_ARB_TRANSACTIONS.WRITES",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "HAC_ARB"
+    },
+    {
+        "BriefDescription": "Total number of all outgoing entries allocated. Accounts for Coherent and non-coherent traffic.",
+        "EventCode": "0x81",
+        "EventName": "UNC_HAC_ARB_TRK_REQUESTS.ALL",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "HAC_ARB"
+    }
+]

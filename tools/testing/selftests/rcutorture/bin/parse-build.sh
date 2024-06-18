@@ -15,13 +15,12 @@
 
 F=$1
 title=$2
-T=${TMPDIR-/tmp}/parse-build.sh.$$
+T="`mktemp -d ${TMPDIR-/tmp}/parse-build.sh.XXXXXX`"
 trap 'rm -rf $T' 0
-mkdir $T
 
 . functions.sh
 
-if grep -q CC < $F || test -n "$TORTURE_TRUST_MAKE"
+if grep -q CC < $F || test -n "$TORTURE_TRUST_MAKE" || grep -qe --trust-make < `dirname $F`/../log
 then
 	:
 else
@@ -39,7 +38,8 @@ fi
 grep warning: < $F > $T/warnings
 grep "include/linux/*rcu*\.h:" $T/warnings > $T/hwarnings
 grep "kernel/rcu/[^/]*:" $T/warnings > $T/cwarnings
-cat $T/hwarnings $T/cwarnings > $T/rcuwarnings
+grep "^ld: .*undefined reference to" $T/warnings | head -1 > $T/ldwarnings
+cat $T/hwarnings $T/cwarnings $T/ldwarnings > $T/rcuwarnings
 if test -s $T/rcuwarnings
 then
 	print_warning $title build errors:

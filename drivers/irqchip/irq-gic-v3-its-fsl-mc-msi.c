@@ -7,8 +7,8 @@
  *
  */
 
-#include <linux/of_device.h>
-#include <linux/of_address.h>
+#include <linux/acpi.h>
+#include <linux/acpi_iort.h>
 #include <linux/irq.h>
 #include <linux/msi.h>
 #include <linux/of.h>
@@ -22,6 +22,19 @@ static struct irq_chip its_msi_irq_chip = {
 	.irq_eoi = irq_chip_eoi_parent,
 	.irq_set_affinity = msi_domain_set_affinity
 };
+
+static u32 fsl_mc_msi_domain_get_msi_id(struct irq_domain *domain,
+					struct fsl_mc_device *mc_dev)
+{
+	struct device_node *of_node;
+	u32 out_id;
+
+	of_node = irq_domain_get_of_node(domain);
+	out_id = of_node ? of_msi_map_id(&mc_dev->dev, of_node, mc_dev->icid) :
+			iort_msi_map_id(&mc_dev->dev, mc_dev->icid);
+
+	return out_id;
+}
 
 static int its_fsl_mc_msi_prepare(struct irq_domain *msi_domain,
 				  struct device *dev,
@@ -43,7 +56,8 @@ static int its_fsl_mc_msi_prepare(struct irq_domain *msi_domain,
 	 * NOTE: This device id corresponds to the IOMMU stream ID
 	 * associated with the DPRC object (ICID).
 	 */
-	info->scratchpad[0].ul = mc_bus_dev->icid;
+	info->scratchpad[0].ul = fsl_mc_msi_domain_get_msi_id(msi_domain,
+							      mc_bus_dev);
 	msi_info = msi_get_domain_info(msi_domain->parent);
 
 	/* Allocate at least 32 MSIs, and always as a power of 2 */
@@ -66,11 +80,70 @@ static const struct of_device_id its_device_id[] = {
 	{},
 };
 
-static int __init its_fsl_mc_msi_init(void)
+static void __init its_fsl_mc_msi_init_one(struct fwnode_handle *handle,
+					  const char *name)
 {
-	struct device_node *np;
 	struct irq_domain *parent;
 	struct irq_domain *mc_msi_domain;
+
+	parent = irq_find_matching_fwnode(handle, DOMAIN_BUS_NEXUS);
+	if (!parent || !msi_get_domain_info(parent)) {
+		pr_err("%s: unable to locate ITS domain\n", name);
+		return;
+	}
+
+	mc_msi_domain = fsl_mc_msi_create_irq_domain(handle,
+						&its_fsl_mc_msi_domain_info,
+						parent);
+	if (!mc_msi_domain) {
+		pr_err("%s: unable to create fsl-mc domain\n", name);
+		return;
+	}
+
+	pr_info("fsl-mc MSI: %s domain created\n", name);
+}
+
+#ifdef CONFIG_ACPI
+static int __init
+its_fsl_mc_msi_parse_madt(union acpi_subtable_headers *header,
+			  const unsigned long end)
+{
+	struct acpi_madt_generic_translator *its_entry;
+	struct fwnode_handle *dom_handle;
+	const char *node_name;
+	int err = 0;
+
+	its_entry = (struct acpi_madt_generic_translator *)header;
+	node_name = kasprintf(GFP_KERNEL, "ITS@0x%lx",
+			      (long)its_entry->base_address);
+
+	dom_handle = iort_find_domain_token(its_entry->translation_id);
+	if (!dom_handle) {
+		pr_err("%s: Unable to locate ITS domain handle\n", node_name);
+		err = -ENXIO;
+		goto out;
+	}
+
+	its_fsl_mc_msi_init_one(dom_handle, node_name);
+
+out:
+	kfree(node_name);
+	return err;
+}
+
+
+static void __init its_fsl_mc_acpi_msi_init(void)
+{
+	acpi_table_parse_madt(ACPI_MADT_TYPE_GENERIC_TRANSLATOR,
+			      its_fsl_mc_msi_parse_madt, 0);
+}
+#else
+static inline void its_fsl_mc_acpi_msi_init(void) { }
+#endif
+
+static void __init its_fsl_mc_of_msi_init(void)
+{
+	struct device_node *np;
 
 	for (np = of_find_matching_node(NULL, its_device_id); np;
 	     np = of_find_matching_node(np, its_device_id)) {
@@ -79,23 +152,15 @@ static int __init its_fsl_mc_msi_init(void)
 		if (!of_property_read_bool(np, "msi-controller"))
 			continue;
 
-		parent = irq_find_matching_host(np, DOMAIN_BUS_NEXUS);
-		if (!parent || !msi_get_domain_info(parent)) {
-			pr_err("%pOF: unable to locate ITS domain\n", np);
-			continue;
-		}
-
-		mc_msi_domain = fsl_mc_msi_create_irq_domain(
-						 of_node_to_fwnode(np),
-						 &its_fsl_mc_msi_domain_info,
-						 parent);
-		if (!mc_msi_domain) {
-			pr_err("%pOF: unable to create fsl-mc domain\n", np);
-			continue;
-		}
-
-		pr_info("fsl-mc MSI: %pOF domain created\n", np);
+		its_fsl_mc_msi_init_one(of_node_to_fwnode(np),
+					np->full_name);
 	}
+}
+
+static int __init its_fsl_mc_msi_init(void)
+{
+	its_fsl_mc_of_msi_init();
+	its_fsl_mc_acpi_msi_init();
 
 	return 0;
 }

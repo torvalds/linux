@@ -8,45 +8,19 @@
  */
 
 /*
- * CMSPAR, some architectures can't have space and mark parity.
- */
-
-#ifndef CMSPAR
-#define CMSPAR			0
-#endif
-
-/*
  * Major and minor numbers.
  */
 
 #define ACM_TTY_MAJOR		166
 #define ACM_TTY_MINORS		256
 
+#define ACM_MINOR_INVALID	ACM_TTY_MINORS
+
 /*
  * Requests.
  */
 
 #define USB_RT_ACM		(USB_TYPE_CLASS | USB_RECIP_INTERFACE)
-
-/*
- * Output control lines.
- */
-
-#define ACM_CTRL_DTR		0x01
-#define ACM_CTRL_RTS		0x02
-
-/*
- * Input control lines and line errors.
- */
-
-#define ACM_CTRL_DCD		0x01
-#define ACM_CTRL_DSR		0x02
-#define ACM_CTRL_BRK		0x04
-#define ACM_CTRL_RI		0x08
-
-#define ACM_CTRL_FRAMING	0x10
-#define ACM_CTRL_PARITY		0x20
-#define ACM_CTRL_OVERRUN	0x40
 
 /*
  * Internal driver structures.
@@ -64,12 +38,12 @@
 #define ACM_NR  16
 
 struct acm_wb {
-	unsigned char *buf;
+	u8 *buf;
 	dma_addr_t dmah;
-	int len;
-	int use;
+	unsigned int len;
 	struct urb		*urb;
 	struct acm		*instance;
+	bool use;
 };
 
 struct acm_rb {
@@ -109,8 +83,10 @@ struct acm {
 #		define EVENT_TTY_WAKEUP	0
 #		define EVENT_RX_STALL	1
 #		define ACM_THROTTLED	2
+#		define ACM_ERROR_DELAY	3
+	unsigned long urbs_in_error_delay;		/* these need to be restarted after a delay */
 	struct usb_cdc_line_coding line;		/* bits, stop, parity */
-	struct work_struct work;			/* work queue entry for line discipline waking up */
+	struct delayed_work dwork;		        /* work queue entry for various purposes */
 	unsigned int ctrlin;				/* input control lines (DCD, DSR, RI, break, overruns) */
 	unsigned int ctrlout;				/* output control lines (DTR, RTS) */
 	struct async_icount iocount;			/* counters for control line changes */
@@ -128,15 +104,12 @@ struct acm {
 	unsigned long quirks;
 };
 
-#define CDC_DATA_INTERFACE_TYPE	0x0a
-
 /* constants describing various quirks and errors */
 #define NO_UNION_NORMAL			BIT(0)
 #define SINGLE_RX_URB			BIT(1)
 #define NO_CAP_LINE			BIT(2)
-#define NO_DATA_INTERFACE		BIT(4)
-#define IGNORE_DEVICE			BIT(5)
-#define QUIRK_CONTROL_LINE_STATE	BIT(6)
-#define CLEAR_HALT_CONDITIONS		BIT(7)
-#define SEND_ZERO_PACKET		BIT(8)
-#define DISABLE_ECHO			BIT(9)
+#define IGNORE_DEVICE			BIT(3)
+#define QUIRK_CONTROL_LINE_STATE	BIT(4)
+#define CLEAR_HALT_CONDITIONS		BIT(5)
+#define SEND_ZERO_PACKET		BIT(6)
+#define DISABLE_ECHO			BIT(7)

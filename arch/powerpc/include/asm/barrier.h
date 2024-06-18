@@ -7,6 +7,10 @@
 
 #include <asm/asm-const.h>
 
+#ifndef __ASSEMBLY__
+#include <asm/ppc-opcode.h>
+#endif
+
 /*
  * Memory barrier.
  * The sync instruction guarantees that all memory accesses initiated
@@ -18,8 +22,6 @@
  * mb() prevents loads and stores being reordered across this point.
  * rmb() prevents loads being reordered across this point.
  * wmb() prevents stores being reordered across this point.
- * read_barrier_depends() prevents data-dependent loads being reordered
- *	across this point (nop on PPC).
  *
  * *mb() variants without smp_ prefix must order all types of memory
  * operations with one another. sync is the only instruction sufficient
@@ -33,24 +35,28 @@
  * However, on CPUs that don't support lwsync, lwsync actually maps to a
  * heavy-weight sync, so smp_wmb() can be a lighter-weight eieio.
  */
-#define mb()   __asm__ __volatile__ ("sync" : : : "memory")
-#define rmb()  __asm__ __volatile__ ("sync" : : : "memory")
-#define wmb()  __asm__ __volatile__ ("sync" : : : "memory")
+#define __mb()   __asm__ __volatile__ ("sync" : : : "memory")
+#define __rmb()  __asm__ __volatile__ ("sync" : : : "memory")
+#define __wmb()  __asm__ __volatile__ ("sync" : : : "memory")
 
 /* The sub-arch has lwsync */
-#if defined(__powerpc64__) || defined(CONFIG_PPC_E500MC)
+#if defined(CONFIG_PPC64) || defined(CONFIG_PPC_E500MC)
 #    define SMPWMB      LWSYNC
+#elif defined(CONFIG_BOOKE)
+#    define SMPWMB      mbar
 #else
 #    define SMPWMB      eieio
 #endif
 
+/* clang defines this macro for a builtin, which will not work with runtime patching */
+#undef __lwsync
 #define __lwsync()	__asm__ __volatile__ (stringify_in_c(LWSYNC) : : :"memory")
-#define dma_rmb()	__lwsync()
-#define dma_wmb()	__asm__ __volatile__ (stringify_in_c(SMPWMB) : : :"memory")
+#define __dma_rmb()	__lwsync()
+#define __dma_wmb()	__asm__ __volatile__ (stringify_in_c(SMPWMB) : : :"memory")
 
 #define __smp_lwsync()	__lwsync()
 
-#define __smp_mb()	mb()
+#define __smp_mb()	__mb()
 #define __smp_rmb()	__lwsync()
 #define __smp_wmb()	__asm__ __volatile__ (stringify_in_c(SMPWMB) : : :"memory")
 
@@ -80,7 +86,7 @@ do {									\
 
 #ifdef CONFIG_PPC_BOOK3S_64
 #define NOSPEC_BARRIER_SLOT   nop
-#elif defined(CONFIG_PPC_FSL_BOOK3E)
+#elif defined(CONFIG_PPC_E500)
 #define NOSPEC_BARRIER_SLOT   nop; nop
 #endif
 
@@ -98,6 +104,15 @@ do {									\
 #define barrier_nospec_asm
 #define barrier_nospec()
 #endif /* CONFIG_PPC_BARRIER_NOSPEC */
+
+/*
+ * pmem_wmb() ensures that all stores for which the modification
+ * are written to persistent storage by preceding dcbfps/dcbstps
+ * instructions have updated persistent storage before any data
+ * access or data transfer caused by subsequent instructions is
+ * initiated.
+ */
+#define pmem_wmb() __asm__ __volatile__(PPC_PHWSYNC ::: "memory")
 
 #include <asm-generic/barrier.h>
 

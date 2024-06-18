@@ -108,7 +108,12 @@ void hinic_sq_prepare_ctxt(struct hinic_sq_ctxt *sq_ctxt,
 	wq_page_pfn_hi = upper_32_bits(wq_page_pfn);
 	wq_page_pfn_lo = lower_32_bits(wq_page_pfn);
 
-	wq_block_pfn = HINIC_WQ_BLOCK_PFN(wq->block_paddr);
+	/* If only one page, use 0-level CLA */
+	if (wq->num_q_pages == 1)
+		wq_block_pfn = HINIC_WQ_BLOCK_PFN(wq_page_addr);
+	else
+		wq_block_pfn = HINIC_WQ_BLOCK_PFN(wq->block_paddr);
+
 	wq_block_pfn_hi = upper_32_bits(wq_block_pfn);
 	wq_block_pfn_lo = lower_32_bits(wq_block_pfn);
 
@@ -409,7 +414,6 @@ int hinic_init_rq(struct hinic_rq *rq, struct hinic_hwif *hwif,
 	rq->pi_virt_addr = dma_alloc_coherent(&pdev->dev, pi_size,
 					      &rq->pi_dma_addr, GFP_KERNEL);
 	if (!rq->pi_virt_addr) {
-		dev_err(&pdev->dev, "Failed to allocate PI address\n");
 		err = -ENOMEM;
 		goto err_pi_virt;
 	}
@@ -468,8 +472,7 @@ int hinic_get_rq_free_wqebbs(struct hinic_rq *rq)
 	return atomic_read(&wq->delta) - 1;
 }
 
-static void sq_prepare_ctrl(struct hinic_sq_ctrl *ctrl, u16 prod_idx,
-			    int nr_descs)
+static void sq_prepare_ctrl(struct hinic_sq_ctrl *ctrl, int nr_descs)
 {
 	u32 ctrl_size, task_size, bufdesc_size;
 
@@ -584,18 +587,16 @@ void hinic_set_tso_inner_l4(struct hinic_sq_task *task, u32 *queue_info,
 /**
  * hinic_sq_prepare_wqe - prepare wqe before insert to the queue
  * @sq: send queue
- * @prod_idx: pi value
  * @sq_wqe: wqe to prepare
  * @sges: sges for use by the wqe for send for buf addresses
  * @nr_sges: number of sges
  **/
-void hinic_sq_prepare_wqe(struct hinic_sq *sq, u16 prod_idx,
-			  struct hinic_sq_wqe *sq_wqe, struct hinic_sge *sges,
-			  int nr_sges)
+void hinic_sq_prepare_wqe(struct hinic_sq *sq, struct hinic_sq_wqe *sq_wqe,
+			  struct hinic_sge *sges, int nr_sges)
 {
 	int i;
 
-	sq_prepare_ctrl(&sq_wqe->ctrl, prod_idx, nr_sges);
+	sq_prepare_ctrl(&sq_wqe->ctrl, nr_sges);
 
 	sq_prepare_task(&sq_wqe->task);
 
@@ -638,6 +639,7 @@ void hinic_sq_write_db(struct hinic_sq *sq, u16 prod_idx, unsigned int wqe_size,
 
 	/* increment prod_idx to the next */
 	prod_idx += ALIGN(wqe_size, wq->wqebb_size) / wq->wqebb_size;
+	prod_idx = SQ_MASKED_IDX(sq, prod_idx);
 
 	wmb();  /* Write all before the doorbell */
 
@@ -889,7 +891,7 @@ struct hinic_rq_wqe *hinic_rq_read_next_wqe(struct hinic_rq *rq,
 }
 
 /**
- * hinic_put_wqe - release the ci for new wqes
+ * hinic_rq_put_wqe - release the ci for new wqes
  * @rq: recv queue
  * @cons_idx: consumer index of the wqe
  * @wqe_size: the size of the wqe

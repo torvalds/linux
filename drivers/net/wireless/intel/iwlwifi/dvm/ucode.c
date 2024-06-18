@@ -3,11 +3,6 @@
  *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2015 Intel Deutschland GmbH
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
  *****************************************************************************/
 
 #include <linux/kernel.h>
@@ -361,18 +356,18 @@ static bool iwlagn_wait_calib(struct iwl_notif_wait_data *notif_wait,
 			      struct iwl_rx_packet *pkt, void *data)
 {
 	struct iwl_priv *priv = data;
-	struct iwl_calib_hdr *hdr;
+	struct iwl_calib_cmd *cmd;
 
 	if (pkt->hdr.cmd != CALIBRATION_RES_NOTIFICATION) {
 		WARN_ON(pkt->hdr.cmd != CALIBRATION_COMPLETE_NOTIFICATION);
 		return true;
 	}
 
-	hdr = (struct iwl_calib_hdr *)pkt->data;
+	cmd = (struct iwl_calib_cmd *)pkt->data;
 
-	if (iwl_calib_set(priv, hdr, iwl_rx_packet_payload_len(pkt)))
+	if (iwl_calib_set(priv, cmd, iwl_rx_packet_payload_len(pkt)))
 		IWL_ERR(priv, "Failed to record calibration data %d\n",
-			hdr->op_code);
+			cmd->hdr.op_code);
 
 	return false;
 }

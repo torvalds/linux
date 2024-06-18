@@ -8,6 +8,11 @@
 #ifndef __SOUND_HDA_GENERIC_H
 #define __SOUND_HDA_GENERIC_H
 
+#include <linux/leds.h>
+#include "hda_auto_parser.h"
+
+struct hda_jack_callback;
+
 /* table entry for multi-io paths */
 struct hda_multi_io {
 	hda_nid_t pin;		/* multi-io widget pin NID */
@@ -82,16 +87,6 @@ struct badness_table {
 extern const struct badness_table hda_main_out_badness;
 extern const struct badness_table hda_extra_out_badness;
 
-struct hda_micmute_hook {
-	unsigned int led_mode;
-	unsigned int capture;
-	unsigned int led_value;
-	void (*update)(struct hda_codec *codec);
-	void (*old_hook)(struct hda_codec *codec,
-			 struct snd_kcontrol *kcontrol,
-			 struct snd_ctl_elem_value *ucontrol);
-};
-
 struct hda_gen_spec {
 	char stream_name_analog[32];	/* analog PCM stream */
 	const struct hda_pcm_stream *stream_analog_playback;
@@ -115,7 +110,7 @@ struct hda_gen_spec {
 					 * dig_out_nid and hp_nid are optional
 					 */
 	hda_nid_t alt_dac_nid;
-	hda_nid_t slave_dig_outs[3];	/* optional - for auto-parsing */
+	hda_nid_t follower_dig_outs[3];	/* optional - for auto-parsing */
 	int dig_out_type;
 
 	/* capture */
@@ -191,7 +186,7 @@ struct hda_gen_spec {
 	struct automic_entry am_entry[MAX_AUTO_MIC_PINS];
 
 	/* for pin sensing */
-	/* current status; set in hda_geneic.c */
+	/* current status; set in hda_generic.c */
 	unsigned int hp_jack_present:1;
 	unsigned int line_jack_present:1;
 	unsigned int speaker_muted:1; /* current status of speaker mute */
@@ -228,7 +223,8 @@ struct hda_gen_spec {
 	unsigned int inv_dmic_split:1; /* inverted dmic w/a for conexant */
 	unsigned int own_eapd_ctl:1; /* set EAPD by own function */
 	unsigned int keep_eapd_on:1; /* don't turn off EAPD automatically */
-	unsigned int vmaster_mute_enum:1; /* add vmaster mute mode enum */
+	unsigned int vmaster_mute_led:1; /* add SPK-LED flag to vmaster mute switch */
+	unsigned int mic_mute_led:1; /* add MIC-LED flag to capture mute switch */
 	unsigned int indep_hp:1; /* independent HP supported */
 	unsigned int prefer_hp_amp:1; /* enable HP amp for speaker if any */
 	unsigned int add_stereo_mix_input:2; /* add aamix as a capture src */
@@ -236,6 +232,7 @@ struct hda_gen_spec {
 	unsigned int power_down_unused:1; /* power down unused widgets */
 	unsigned int dac_min_mute:1; /* minimal = mute for DACs */
 	unsigned int suppress_vmaster:1; /* don't create vmaster kctls */
+	unsigned int obey_preferred_dacs:1; /* obey preferred_dacs assignment */
 
 	/* other internal flags */
 	unsigned int no_analog:1; /* digital I/O only */
@@ -283,9 +280,6 @@ struct hda_gen_spec {
 			      struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol);
 
-	/* mic mute LED hook; called via cap_sync_hook */
-	struct hda_micmute_hook micmute_led;
-
 	/* PCM hooks */
 	void (*pcm_playback_hook)(struct hda_pcm_stream *hinfo,
 				  struct hda_codec *codec,
@@ -303,6 +297,9 @@ struct hda_gen_spec {
 				   struct hda_jack_callback *cb);
 	void (*mic_autoswitch_hook)(struct hda_codec *codec,
 				    struct hda_jack_callback *cb);
+
+	/* leds */
+	struct led_classdev *led_cdevs[NUM_AUDIO_LEDS];
 };
 
 /* values for add_stereo_mix_input flag */
@@ -333,7 +330,6 @@ int snd_hda_gen_parse_auto_config(struct hda_codec *codec,
 				  struct auto_pin_cfg *cfg);
 int snd_hda_gen_build_controls(struct hda_codec *codec);
 int snd_hda_gen_build_pcms(struct hda_codec *codec);
-void snd_hda_gen_reboot_notify(struct hda_codec *codec);
 
 /* standard jack event callbacks */
 void snd_hda_gen_hp_automute(struct hda_codec *codec,
@@ -344,18 +340,18 @@ void snd_hda_gen_mic_autoswitch(struct hda_codec *codec,
 				struct hda_jack_callback *jack);
 void snd_hda_gen_update_outputs(struct hda_codec *codec);
 
-#ifdef CONFIG_PM
 int snd_hda_gen_check_power_status(struct hda_codec *codec, hda_nid_t nid);
-#endif
 unsigned int snd_hda_gen_path_power_filter(struct hda_codec *codec,
 					   hda_nid_t nid,
 					   unsigned int power_state);
 void snd_hda_gen_stream_pm(struct hda_codec *codec, hda_nid_t nid, bool on);
 int snd_hda_gen_fix_pin_power(struct hda_codec *codec, hda_nid_t pin);
 
-int snd_hda_gen_add_micmute_led(struct hda_codec *codec,
-				void (*hook)(struct hda_codec *));
-void snd_hda_gen_fixup_micmute_led(struct hda_codec *codec,
-				   const struct hda_fixup *fix, int action);
+int snd_hda_gen_add_mute_led_cdev(struct hda_codec *codec,
+				  int (*callback)(struct led_classdev *,
+						  enum led_brightness));
+int snd_hda_gen_add_micmute_led_cdev(struct hda_codec *codec,
+				     int (*callback)(struct led_classdev *,
+						     enum led_brightness));
 
 #endif /* __SOUND_HDA_GENERIC_H */

@@ -20,7 +20,15 @@ else
   Q=@
 endif
 
-ifneq ($(findstring s,$(filter-out --%,$(MAKEFLAGS))),)
+# If the user is running make -s (silent mode), suppress echoing of commands
+# make-4.0 (and later) keep single letter options in the 1st word of MAKEFLAGS.
+ifeq ($(filter 3.%,$(MAKE_VERSION)),)
+short-opts := $(firstword -$(MAKEFLAGS))
+else
+short-opts := $(filter-out --%,$(MAKEFLAGS))
+endif
+
+ifneq ($(findstring s,$(short-opts)),)
   quiet=silent_
 endif
 
@@ -51,39 +59,40 @@ subdir-obj-y :=
 build-file := $(dir)/Build
 -include $(build-file)
 
-quiet_cmd_flex  = FLEX     $@
-quiet_cmd_bison = BISON    $@
+quiet_cmd_flex  = FLEX    $@
+quiet_cmd_bison = BISON   $@
+quiet_cmd_test  = TEST    $@
 
 # Create directory unless it exists
-quiet_cmd_mkdir = MKDIR    $(dir $@)
+quiet_cmd_mkdir = MKDIR   $(dir $@)
       cmd_mkdir = mkdir -p $(dir $@)
      rule_mkdir = $(if $(wildcard $(dir $@)),,@$(call echo-cmd,mkdir) $(cmd_mkdir))
 
 # Compile command
-quiet_cmd_cc_o_c = CC       $@
+quiet_cmd_cc_o_c = CC      $@
       cmd_cc_o_c = $(CC) $(c_flags) -c -o $@ $<
 
-quiet_cmd_host_cc_o_c = HOSTCC   $@
+quiet_cmd_host_cc_o_c = HOSTCC  $@
       cmd_host_cc_o_c = $(HOSTCC) $(host_c_flags) -c -o $@ $<
 
-quiet_cmd_cxx_o_c = CXX      $@
+quiet_cmd_cxx_o_c = CXX     $@
       cmd_cxx_o_c = $(CXX) $(cxx_flags) -c -o $@ $<
 
-quiet_cmd_cpp_i_c = CPP      $@
+quiet_cmd_cpp_i_c = CPP     $@
       cmd_cpp_i_c = $(CC) $(c_flags) -E -o $@ $<
 
-quiet_cmd_cc_s_c = AS       $@
+quiet_cmd_cc_s_c = AS      $@
       cmd_cc_s_c = $(CC) $(c_flags) -S -o $@ $<
 
-quiet_cmd_gen = GEN      $@
+quiet_cmd_gen = GEN     $@
 
 # Link agregate command
 # If there's nothing to link, create empty $@ object.
-quiet_cmd_ld_multi = LD       $@
+quiet_cmd_ld_multi = LD      $@
       cmd_ld_multi = $(if $(strip $(obj-y)),\
                      $(LD) -r -o $@  $(filter $(obj-y),$^),rm -f $@; $(AR) rcs $@)
 
-quiet_cmd_host_ld_multi = HOSTLD   $@
+quiet_cmd_host_ld_multi = HOSTLD  $@
       cmd_host_ld_multi = $(if $(strip $(obj-y)),\
                           $(HOSTLD) -r -o $@  $(filter $(obj-y),$^),rm -f $@; $(HOSTAR) rcs $@)
 
@@ -115,6 +124,16 @@ $(OUTPUT)%.s: %.S FORCE
 $(OUTPUT)%.s: %.c FORCE
 	$(call rule_mkdir)
 	$(call if_changed_dep,cc_s_c)
+
+# bison and flex files are generated in the OUTPUT directory
+# so it needs a separate rule to depend on them properly
+$(OUTPUT)%-bison.o: $(OUTPUT)%-bison.c FORCE
+	$(call rule_mkdir)
+	$(call if_changed_dep,$(host)cc_o_c)
+
+$(OUTPUT)%-flex.o: $(OUTPUT)%-flex.c FORCE
+	$(call rule_mkdir)
+	$(call if_changed_dep,$(host)cc_o_c)
 
 # Gather build data:
 #   obj-y        - list of build objects

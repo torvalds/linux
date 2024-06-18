@@ -31,6 +31,22 @@
 #define DP_BRANCH_DEVICE_ID_0022B9 0x0022B9
 #define DP_BRANCH_DEVICE_ID_00001A 0x00001A
 #define DP_BRANCH_DEVICE_ID_0080E1 0x0080e1
+#define DP_BRANCH_DEVICE_ID_90CC24 0x90CC24
+#define DP_BRANCH_DEVICE_ID_00E04C 0x00E04C
+#define DP_BRANCH_DEVICE_ID_006037 0x006037
+#define DP_BRANCH_DEVICE_ID_001CF8 0x001CF8
+#define DP_BRANCH_DEVICE_ID_0060AD 0x0060AD
+#define DP_BRANCH_HW_REV_10 0x10
+#define DP_BRANCH_HW_REV_20 0x20
+
+#define DP_DEVICE_ID_0022B9 0x0022B9
+#define DP_DEVICE_ID_38EC11 0x38EC11
+#define DP_DEVICE_ID_BA4159 0xBA4159
+#define DP_FORCE_PSRSU_CAPABILITY 0x40F
+
+#define DP_SINK_PSR_ACTIVE_VTOTAL		0x373
+#define DP_SINK_PSR_ACTIVE_VTOTAL_CONTROL_MODE	0x375
+#define DP_SOURCE_PSR_ACTIVE_VTOTAL		0x376
 
 enum ddc_result {
 	DDC_RESULT_UNKNOWN = 0,
@@ -57,6 +73,7 @@ enum ddc_service_type {
 struct display_sink_capability {
 	/* dongle type (DP converter, CV smart dongle) */
 	enum display_dongle_type dongle_type;
+	bool is_dongle_type_one;
 
 	/**********************************************************
 	 capabilities going INTO SINK DEVICE (stream capabilities)
@@ -113,12 +130,5 @@ struct av_sync_data {
 	uint8_t aud_del_ins2;/* DPCD 0002Ch */
 	uint8_t aud_del_ins3;/* DPCD 0002Dh */
 };
-
-/*Travis*/
-static const uint8_t DP_VGA_LVDS_CONVERTER_ID_2[] = "sivarT";
-/*Nutmeg*/
-static const uint8_t DP_VGA_LVDS_CONVERTER_ID_3[] = "dnomlA";
-/*DP to Dual link DVI converter*/
-static const uint8_t DP_DVI_CONVERTER_ID_4[] = "m2DVIa";
 
 #endif /* __DAL_DDC_SERVICE_TYPES_H__ */

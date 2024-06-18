@@ -35,14 +35,12 @@ static int ir_raw_event_thread(void *data)
 				    !is_transition(&ev, &raw->prev_ev))
 					dev_warn_once(&dev->dev, "two consecutive events of type %s",
 						      TO_STR(ev.pulse));
-				if (raw->prev_ev.reset && ev.pulse == 0)
-					dev_warn_once(&dev->dev, "timing event after reset should be pulse");
 			}
 			list_for_each_entry(handler, &ir_raw_handler_list, list)
 				if (dev->enabled_protocols &
 				    handler->protocols || !handler->protocols)
 					handler->decode(dev, ev);
-			ir_lirc_raw_event(dev, ev);
+			lirc_raw_event(dev, ev);
 			raw->prev_ev = ev;
 		}
 		mutex_unlock(&ir_raw_handler_lock);
@@ -77,7 +75,7 @@ int ir_raw_event_store(struct rc_dev *dev, struct ir_raw_event *ev)
 		return -EINVAL;
 
 	dev_dbg(&dev->dev, "sample: (%05dus %s)\n",
-		TO_US(ev->duration), TO_STR(ev->pulse));
+		ev->duration, TO_STR(ev->pulse));
 
 	if (!kfifo_put(&dev->raw->kfifo, *ev)) {
 		dev_err(&dev->dev, "IR event FIFO is full!\n");
@@ -108,7 +106,7 @@ int ir_raw_event_store_edge(struct rc_dev *dev, bool pulse)
 		return -EINVAL;
 
 	now = ktime_get();
-	ev.duration = ktime_to_ns(ktime_sub(now, dev->raw->last_event));
+	ev.duration = ktime_to_us(ktime_sub(now, dev->raw->last_event));
 	ev.pulse = !pulse;
 
 	return ir_raw_event_store_with_timeout(dev, &ev);
@@ -275,7 +273,7 @@ static int change_protocol(struct rc_dev *dev, u64 *rc_proto)
 	if (timeout == 0)
 		timeout = IR_DEFAULT_TIMEOUT;
 	else
-		timeout += MS_TO_NS(10);
+		timeout += MS_TO_US(10);
 
 	if (timeout < dev->min_timeout)
 		timeout = dev->min_timeout;
@@ -561,17 +559,17 @@ static void ir_raw_edge_handle(struct timer_list *t)
 
 	spin_lock_irqsave(&dev->raw->edge_spinlock, flags);
 	interval = ktime_sub(ktime_get(), dev->raw->last_event);
-	if (ktime_to_ns(interval) >= dev->timeout) {
+	if (ktime_to_us(interval) >= dev->timeout) {
 		struct ir_raw_event ev = {
 			.timeout = true,
-			.duration = ktime_to_ns(interval)
+			.duration = ktime_to_us(interval)
 		};
 
 		ir_raw_event_store(dev, &ev);
 	} else {
 		mod_timer(&dev->raw->edge_handle,
-			  jiffies + nsecs_to_jiffies(dev->timeout -
-						     ktime_to_ns(interval)));
+			  jiffies + usecs_to_jiffies(dev->timeout -
+						     ktime_to_us(interval)));
 	}
 	spin_unlock_irqrestore(&dev->raw->edge_spinlock, flags);
 

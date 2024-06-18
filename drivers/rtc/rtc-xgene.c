@@ -34,7 +34,6 @@
 
 struct xgene_rtc_dev {
 	struct rtc_device *rtc;
-	struct device *dev;
 	void __iomem *csr_base;
 	struct clk *clk;
 	unsigned int irq_wake;
@@ -137,7 +136,6 @@ static irqreturn_t xgene_rtc_interrupt(int irq, void *id)
 static int xgene_rtc_probe(struct platform_device *pdev)
 {
 	struct xgene_rtc_dev *pdata;
-	struct resource *res;
 	int ret;
 	int irq;
 
@@ -145,10 +143,8 @@ static int xgene_rtc_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, pdata);
-	pdata->dev = &pdev->dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pdata->csr_base = devm_ioremap_resource(&pdev->dev, res);
+	pdata->csr_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pdata->csr_base))
 		return PTR_ERR(pdata->csr_base);
 
@@ -184,12 +180,10 @@ static int xgene_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* HW does not support update faster than 1 seconds */
-	pdata->rtc->uie_unsupported = 1;
 	pdata->rtc->ops = &xgene_rtc_ops;
 	pdata->rtc->range_max = U32_MAX;
 
-	ret = rtc_register_device(pdata->rtc);
+	ret = devm_rtc_register_device(pdata->rtc);
 	if (ret) {
 		clk_disable_unprepare(pdata->clk);
 		return ret;
@@ -198,14 +192,13 @@ static int xgene_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int xgene_rtc_remove(struct platform_device *pdev)
+static void xgene_rtc_remove(struct platform_device *pdev)
 {
 	struct xgene_rtc_dev *pdata = platform_get_drvdata(pdev);
 
 	xgene_rtc_alarm_irq_enable(&pdev->dev, 0);
 	device_init_wakeup(&pdev->dev, 0);
 	clk_disable_unprepare(pdata->clk);
-	return 0;
 }
 
 static int __maybe_unused xgene_rtc_suspend(struct device *dev)
@@ -270,7 +263,7 @@ MODULE_DEVICE_TABLE(of, xgene_rtc_of_match);
 
 static struct platform_driver xgene_rtc_driver = {
 	.probe		= xgene_rtc_probe,
-	.remove		= xgene_rtc_remove,
+	.remove_new	= xgene_rtc_remove,
 	.driver		= {
 		.name	= "xgene-rtc",
 		.pm = &xgene_rtc_pm_ops,

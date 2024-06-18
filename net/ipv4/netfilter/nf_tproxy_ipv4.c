@@ -38,7 +38,7 @@ nf_tproxy_handle_time_wait4(struct net *net, struct sk_buff *skb,
 					    hp->source, lport ? lport : hp->dest,
 					    skb->dev, NF_TPROXY_LOOKUP_LISTENER);
 		if (sk2) {
-			inet_twsk_deschedule_put(inet_twsk(sk));
+			nf_tproxy_twsk_deschedule_put(inet_twsk(sk));
 			sk = sk2;
 		}
 	}
@@ -58,6 +58,8 @@ __be32 nf_tproxy_laddr4(struct sk_buff *skb, __be32 user_laddr, __be32 daddr)
 
 	laddr = 0;
 	indev = __in_dev_get_rcu(skb->dev);
+	if (!indev)
+		return daddr;
 
 	in_dev_for_each_ifa_rcu(ifa, indev) {
 		if (ifa->ifa_flags & IFA_F_SECONDARY)
@@ -79,6 +81,7 @@ nf_tproxy_get_sock_v4(struct net *net, struct sk_buff *skb,
 		      const struct net_device *in,
 		      const enum nf_tproxy_lookup_t lookup_type)
 {
+	struct inet_hashinfo *hinfo = net->ipv4.tcp_death_row.hashinfo;
 	struct sock *sk;
 
 	switch (protocol) {
@@ -92,12 +95,10 @@ nf_tproxy_get_sock_v4(struct net *net, struct sk_buff *skb,
 
 		switch (lookup_type) {
 		case NF_TPROXY_LOOKUP_LISTENER:
-			sk = inet_lookup_listener(net, &tcp_hashinfo, skb,
-						    ip_hdrlen(skb) +
-						      __tcp_hdrlen(hp),
-						    saddr, sport,
-						    daddr, dport,
-						    in->ifindex, 0);
+			sk = inet_lookup_listener(net, hinfo, skb,
+						  ip_hdrlen(skb) + __tcp_hdrlen(hp),
+						  saddr, sport, daddr, dport,
+						  in->ifindex, 0);
 
 			if (sk && !refcount_inc_not_zero(&sk->sk_refcnt))
 				sk = NULL;
@@ -108,9 +109,8 @@ nf_tproxy_get_sock_v4(struct net *net, struct sk_buff *skb,
 			 */
 			break;
 		case NF_TPROXY_LOOKUP_ESTABLISHED:
-			sk = inet_lookup_established(net, &tcp_hashinfo,
-						    saddr, sport, daddr, dport,
-						    in->ifindex);
+			sk = inet_lookup_established(net, hinfo, saddr, sport,
+						     daddr, dport, in->ifindex);
 			break;
 		default:
 			BUG();

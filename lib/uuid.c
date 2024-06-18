@@ -40,9 +40,19 @@ void generate_random_uuid(unsigned char uuid[16])
 }
 EXPORT_SYMBOL(generate_random_uuid);
 
+void generate_random_guid(unsigned char guid[16])
+{
+	get_random_bytes(guid, 16);
+	/* Set GUID version to 4 --- truly random generation */
+	guid[7] = (guid[7] & 0x0F) | 0x40;
+	/* Set the GUID variant to DCE */
+	guid[8] = (guid[8] & 0x3F) | 0x80;
+}
+EXPORT_SYMBOL(generate_random_guid);
+
 static void __uuid_gen_common(__u8 b[16])
 {
-	prandom_bytes(b, 16);
+	get_random_bytes(b, 16);
 	/* reversion 0b10 */
 	b[8] = (b[8] & 0x3F) | 0x80;
 }

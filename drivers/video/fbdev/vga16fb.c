@@ -1,15 +1,16 @@
 /*
  * linux/drivers/video/vga16.c -- VGA 16-color framebuffer driver
- * 
+ *
  * Copyright 1999 Ben Pfaff <pfaffben@debian.org> and Petr Vandrovec <VANDROVE@vc.cvut.cz>
  * Based on VGA info at http://www.goodnet.com/~tinara/FreeVGA/home.htm
  * Based on VESA framebuffer (c) 1998 Gerd Knorr <kraxel@goldbach.in-berlin.de>
  *
  * This file is subject to the terms and conditions of the GNU General
  * Public License.  See the file COPYING in the main directory of this
- * archive for more details.  
+ * archive for more details.
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -24,9 +25,6 @@
 
 #include <asm/io.h>
 #include <video/vga.h>
-
-#define VGA_FB_PHYS 0xA0000
-#define VGA_FB_PHYS_LEN 65536
 
 #define MODE_SKIP4	1
 #define MODE_8BPP	2
@@ -70,7 +68,7 @@ static struct fb_var_screeninfo vga16fb_defined = {
 	.yres		= 480,
 	.xres_virtual	= 640,
 	.yres_virtual	= 480,
-	.bits_per_pixel	= 4,	
+	.bits_per_pixel	= 4,
 	.activate	= FB_ACTIVATE_TEST,
 	.height		= -1,
 	.width		= -1,
@@ -87,8 +85,8 @@ static struct fb_var_screeninfo vga16fb_defined = {
 /* name should not depend on EGA/VGA */
 static const struct fb_fix_screeninfo vga16fb_fix = {
 	.id		= "VGA16 VGA",
-	.smem_start	= VGA_FB_PHYS,
-	.smem_len	= VGA_FB_PHYS_LEN,
+	.smem_start	= VGA_FB_PHYS_BASE,
+	.smem_len	= VGA_FB_PHYS_SIZE,
 	.type		= FB_TYPE_VGA_PLANES,
 	.type_aux	= FB_AUX_VGA_PLANES_VGA4,
 	.visual		= FB_VISUAL_PSEUDOCOLOR,
@@ -120,7 +118,7 @@ static inline void rmw(volatile char __iomem *p)
 static inline int setmode(int mode)
 {
 	int oldmode;
-	
+
 	oldmode = vga_io_rgfx(VGA_GFX_MODE);
 	vga_io_w(VGA_GFX_D, mode);
 	return oldmode;
@@ -139,19 +137,19 @@ static inline void setmask(int mask)
 	vga_io_w(VGA_GFX_D, mask);
 }
 
-/* Set the Data Rotate Register and return its old value. 
+/* Set the Data Rotate Register and return its old value.
    Bits 0-2 are rotate count, bits 3-4 are logical operation
    (0=NOP, 1=AND, 2=OR, 3=XOR). */
 static inline int setop(int op)
 {
 	int oldop;
-	
+
 	oldop = vga_io_rgfx(VGA_GFX_DATA_ROTATE);
 	vga_io_w(VGA_GFX_D, op);
 	return oldop;
 }
 
-/* Set the Enable Set/Reset Register and return its old value.  
+/* Set the Enable Set/Reset Register and return its old value.
    The code here always uses value 0xf for this register. */
 static inline int setsr(int sr)
 {
@@ -184,7 +182,24 @@ static inline void setindex(int index)
 	vga_io_w(VGA_GFX_I, index);
 }
 
-static void vga16fb_pan_var(struct fb_info *info, 
+/* Check if the video mode is supported by the driver */
+static inline int check_mode_supported(const struct screen_info *si)
+{
+	/* only EGA and VGA in 16 color graphic mode are supported */
+	if (si->orig_video_isVGA != VIDEO_TYPE_EGAC &&
+	    si->orig_video_isVGA != VIDEO_TYPE_VGAC)
+		return -ENODEV;
+
+	if (si->orig_video_mode != 0x0D &&	/* 320x200/4 (EGA) */
+	    si->orig_video_mode != 0x0E &&	/* 640x200/4 (EGA) */
+	    si->orig_video_mode != 0x10 &&	/* 640x350/4 (EGA) */
+	    si->orig_video_mode != 0x12)	/* 640x480/4 (VGA) */
+		return -ENODEV;
+
+	return 0;
+}
+
+static void vga16fb_pan_var(struct fb_info *info,
 			    struct fb_var_screeninfo *var)
 {
 	struct vga16fb_par *par = info->par;
@@ -243,7 +258,7 @@ static void vga16fb_update_fix(struct fb_info *info)
 }
 
 static void vga16fb_clock_chip(struct vga16fb_par *par,
-			       unsigned int pixclock,
+			       unsigned int *pixclock,
 			       const struct fb_info *info,
 			       int mul, int div)
 {
@@ -259,14 +274,14 @@ static void vga16fb_clock_chip(struct vga16fb_par *par,
 		{     0 /* bad */,    0x00, 0x00}};
 	int err;
 
-	pixclock = (pixclock * mul) / div;
+	*pixclock = (*pixclock * mul) / div;
 	best = vgaclocks;
-	err = pixclock - best->pixclock;
+	err = *pixclock - best->pixclock;
 	if (err < 0) err = -err;
 	for (ptr = vgaclocks + 1; ptr->pixclock; ptr++) {
 		int tmp;
 
-		tmp = pixclock - ptr->pixclock;
+		tmp = *pixclock - ptr->pixclock;
 		if (tmp < 0) tmp = -tmp;
 		if (tmp < err) {
 			err = tmp;
@@ -275,9 +290,9 @@ static void vga16fb_clock_chip(struct vga16fb_par *par,
 	}
 	par->misc |= best->misc;
 	par->clkdiv = best->seq_clock_mode;
-	pixclock = (best->pixclock * div) / mul;		
+	*pixclock = (best->pixclock * div) / mul;
 }
-			       
+
 #define FAIL(X) return -EINVAL
 
 static int vga16fb_open(struct fb_info *info, int user)
@@ -492,17 +507,17 @@ static int vga16fb_check_var(struct fb_var_screeninfo *var,
 		par->misc &= ~0x40;
 	if (var->sync & FB_SYNC_VERT_HIGH_ACT)
 		par->misc &= ~0x80;
-	
+
 	par->mode = mode;
 
 	if (mode & MODE_8BPP)
 		/* pixel clock == vga clock / 2 */
-		vga16fb_clock_chip(par, var->pixclock, info, 1, 2);
+		vga16fb_clock_chip(par, &var->pixclock, info, 1, 2);
 	else
 		/* pixel clock == vga clock */
-		vga16fb_clock_chip(par, var->pixclock, info, 1, 1);
-	
-	var->red.offset = var->green.offset = var->blue.offset = 
+		vga16fb_clock_chip(par, &var->pixclock, info, 1, 1);
+
+	var->red.offset = var->green.offset = var->blue.offset =
 	var->transp.offset = 0;
 	var->red.length = var->green.length = var->blue.length =
 		(par->isVGA) ? 6 : 2;
@@ -569,10 +584,10 @@ static int vga16fb_set_par(struct fb_info *info)
 	else
 		atc[VGA_ATC_PEL] = info->var.xoffset & 7;
 	atc[VGA_ATC_COLOR_PAGE] = 0x00;
-	
+
 	if (par->mode & MODE_TEXT) {
-		fh = 16; // FIXME !!! Fudge font height. 
-		par->crtc[VGA_CRTC_MAX_SCAN] = (par->crtc[VGA_CRTC_MAX_SCAN] 
+		fh = 16; // FIXME !!! Fudge font height.
+		par->crtc[VGA_CRTC_MAX_SCAN] = (par->crtc[VGA_CRTC_MAX_SCAN]
 					       & ~0x1F) | (fh - 1);
 	}
 
@@ -583,10 +598,10 @@ static int vga16fb_set_par(struct fb_info *info)
 		vga_io_w(EGA_GFX_E0, 0x00);
 		vga_io_w(EGA_GFX_E1, 0x01);
 	}
-	
+
 	/* update misc output register */
 	vga_io_w(VGA_MIS_W, par->misc);
-	
+
 	/* synchronous reset on */
 	vga_io_wseq(0x00, 0x01);
 
@@ -598,7 +613,7 @@ static int vga16fb_set_par(struct fb_info *info)
 	for (i = 2; i < VGA_SEQ_C; i++) {
 		vga_io_wseq(i, seq[i]);
 	}
-	
+
 	/* synchronous reset off */
 	vga_io_wseq(0x00, 0x03);
 
@@ -609,12 +624,12 @@ static int vga16fb_set_par(struct fb_info *info)
 	for (i = 0; i < VGA_CRTC_REGS; i++) {
 		vga_io_wcrt(i, par->crtc[i]);
 	}
-	
+
 	/* write graphics controller registers */
 	for (i = 0; i < VGA_GFX_C; i++) {
 		vga_io_wgfx(i, gdc[i]);
 	}
-	
+
 	/* write attribute controller registers */
 	for (i = 0; i < VGA_ATT_C; i++) {
 		vga_io_r(VGA_IS1_RC);		/* reset flip-flop */
@@ -637,7 +652,7 @@ static void ega16_setpalette(int regno, unsigned red, unsigned green, unsigned b
 {
 	static const unsigned char map[] = { 000, 001, 010, 011 };
 	int val;
-	
+
 	if (regno >= 16)
 		return;
 	val = map[red>>14] | ((map[green>>14]) << 1) | ((map[blue>>14]) << 2);
@@ -668,17 +683,17 @@ static int vga16fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	 *  (according to the entries in the `var' structure). Return
 	 *  != 0 for invalid regno.
 	 */
-	
+
 	if (regno >= 256)
 		return 1;
 
 	gray = info->var.grayscale;
-	
+
 	if (gray) {
 		/* gray = 0.30*R + 0.59*G + 0.11*B */
 		red = green = blue = (red * 77 + green * 151 + blue * 28) >> 8;
 	}
-	if (par->isVGA) 
+	if (par->isVGA)
 		vga16_setpalette(regno,red,green,blue);
 	else
 		ega16_setpalette(regno,red,green,blue);
@@ -686,7 +701,7 @@ static int vga16fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 }
 
 static int vga16fb_pan_display(struct fb_var_screeninfo *var,
-			       struct fb_info *info) 
+			       struct fb_info *info)
 {
 	vga16fb_pan_var(info, var);
 	return 0;
@@ -701,7 +716,7 @@ static void vga_vesa_blank(struct vga16fb_par *par, int mode)
 {
 	unsigned char SeqCtrlIndex = vga_io_r(VGA_SEQ_I);
 	unsigned char CrtCtrlIndex = vga_io_r(VGA_CRT_IC);
-	
+
 	/* save original values of VGA controller registers */
 	if(!par->vesa_blanked) {
 		par->vga_state.CrtMiscIO = vga_io_r(VGA_MIS_R);
@@ -757,7 +772,7 @@ static void vga_vesa_unblank(struct vga16fb_par *par)
 {
 	unsigned char SeqCtrlIndex = vga_io_r(VGA_SEQ_I);
 	unsigned char CrtCtrlIndex = vga_io_r(VGA_CRT_IC);
-	
+
 	/* restore original values of VGA controller registers */
 	vga_io_w(VGA_MIS_W, par->vga_state.CrtMiscIO);
 
@@ -943,7 +958,7 @@ static void vga16fb_fillrect(struct fb_info *info, const struct fb_fillrect *rec
 				}
 				break;
 			}
-		} else 
+		} else
 			vga_8planes_fillrect(info, rect);
 		break;
 	case FB_TYPE_PACKED_PIXELS:
@@ -1010,7 +1025,7 @@ static void vga_8planes_copyarea(struct fb_info *info, const struct fb_copyarea 
 
 static void vga16fb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 {
-	u32 dx = area->dx, dy = area->dy, sx = area->sx, sy = area->sy; 
+	u32 dx = area->dx, dy = area->dy, sx = area->sx, sy = area->sy;
 	int x, x2, y2, old_dx, old_dy, vxres, vyres;
 	int height, width, line_ofs;
 	char __iomem *dst = NULL;
@@ -1075,9 +1090,9 @@ static void vga16fb_copyarea(struct fb_info *info, const struct fb_copyarea *are
 					dst += line_ofs;
 				}
 			} else {
-				dst = info->screen_base + (dx/8) + width + 
+				dst = info->screen_base + (dx/8) + width +
 					(dy + height - 1) * info->fix.line_length;
-				src = info->screen_base + (sx/8) + width + 
+				src = info->screen_base + (sx/8) + width +
 					(sy + height  - 1) * info->fix.line_length;
 				while (height--) {
 					for (x = 0; x < width; x++) {
@@ -1090,7 +1105,7 @@ static void vga16fb_copyarea(struct fb_info *info, const struct fb_copyarea *are
 					dst -= line_ofs;
 				}
 			}
-		} else 
+		} else
 			vga_8planes_copyarea(info, area);
 		break;
 	case FB_TYPE_PACKED_PIXELS:
@@ -1121,7 +1136,7 @@ static void vga_8planes_imageblit(struct fb_info *info, const struct fb_image *i
         char oldop = setop(0);
         char oldsr = setsr(0);
         char oldmask = selectmask();
-        const char *cdat = image->data;
+	const unsigned char *cdat = image->data;
 	u32 dx = image->dx;
         char __iomem *where;
         int y;
@@ -1163,7 +1178,7 @@ static void vga_imageblit_expand(struct fb_info *info, const struct fb_image *im
 				setsr(0xf);
 				setcolor(image->fg_color);
 				selectmask();
-				
+
 				setmask(0xff);
 				writeb(image->bg_color, where);
 				rmb();
@@ -1172,7 +1187,7 @@ static void vga_imageblit_expand(struct fb_info *info, const struct fb_image *im
 				wmb();
 				for (y = 0; y < image->height; y++) {
 					dst = where;
-					for (x = image->width/8; x--;) 
+					for (x = image->width/8; x--;)
 						writeb(*cdat++, dst++);
 					where += info->fix.line_length;
 				}
@@ -1183,7 +1198,7 @@ static void vga_imageblit_expand(struct fb_info *info, const struct fb_image *im
 				setsr(0xf);
 				setcolor(image->bg_color);
 				selectmask();
-				
+
 				setmask(0xff);
 				for (y = 0; y < image->height; y++) {
 					dst = where;
@@ -1199,7 +1214,7 @@ static void vga_imageblit_expand(struct fb_info *info, const struct fb_image *im
 					where += info->fix.line_length;
 				}
 			}
-		} else 
+		} else
 			vga_8planes_imageblit(info, image);
 		break;
 	case FB_TYPE_PACKED_PIXELS:
@@ -1212,7 +1227,7 @@ static void vga_imageblit_expand(struct fb_info *info, const struct fb_image *im
 static void vga_imageblit_color(struct fb_info *info, const struct fb_image *image)
 {
 	/*
-	 * Draw logo 
+	 * Draw logo
 	 */
 	struct vga16fb_par *par = info->par;
 	char __iomem *where =
@@ -1229,7 +1244,7 @@ static void vga_imageblit_color(struct fb_info *info, const struct fb_image *ima
 			setsr(0xf);
 			setop(0);
 			setmode(0);
-			
+
 			for (y = 0; y < image->height; y++) {
 				for (x = 0; x < image->width; x++) {
 					dst = where + x/8;
@@ -1253,7 +1268,7 @@ static void vga_imageblit_color(struct fb_info *info, const struct fb_image *ima
 		break;
 	}
 }
-				
+
 static void vga16fb_imageblit(struct fb_info *info, const struct fb_image *image)
 {
 	if (image->depth == 1)
@@ -1270,10 +1285,11 @@ static void vga16fb_destroy(struct fb_info *info)
 	framebuffer_release(info);
 }
 
-static struct fb_ops vga16fb_ops = {
+static const struct fb_ops vga16fb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_open        = vga16fb_open,
 	.fb_release     = vga16fb_release,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_destroy	= vga16fb_destroy,
 	.fb_check_var	= vga16fb_check_var,
 	.fb_set_par	= vga16fb_set_par,
@@ -1283,29 +1299,24 @@ static struct fb_ops vga16fb_ops = {
 	.fb_fillrect	= vga16fb_fillrect,
 	.fb_copyarea	= vga16fb_copyarea,
 	.fb_imageblit	= vga16fb_imageblit,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 };
-
-#ifndef MODULE
-static int __init vga16fb_setup(char *options)
-{
-	char *this_opt;
-	
-	if (!options || !*options)
-		return 0;
-	
-	while ((this_opt = strsep(&options, ",")) != NULL) {
-		if (!*this_opt) continue;
-	}
-	return 0;
-}
-#endif
 
 static int vga16fb_probe(struct platform_device *dev)
 {
+	struct screen_info *si;
 	struct fb_info *info;
 	struct vga16fb_par *par;
 	int i;
 	int ret = 0;
+
+	si = dev_get_platdata(&dev->dev);
+	if (!si)
+		return -ENODEV;
+
+	ret = check_mode_supported(si);
+	if (ret)
+		return ret;
 
 	printk(KERN_DEBUG "vga16fb: initializing\n");
 	info = framebuffer_alloc(sizeof(struct vga16fb_par), &dev->dev);
@@ -1314,14 +1325,9 @@ static int vga16fb_probe(struct platform_device *dev)
 		ret = -ENOMEM;
 		goto err_fb_alloc;
 	}
-	info->apertures = alloc_apertures(1);
-	if (!info->apertures) {
-		ret = -ENOMEM;
-		goto err_ioremap;
-	}
 
-	/* XXX share VGA_FB_PHYS and I/O region with vgacon and others */
-	info->screen_base = (void __iomem *)VGA_MAP_MEM(VGA_FB_PHYS, 0);
+	/* XXX share VGA_FB_PHYS_BASE and I/O region with vgacon and others */
+	info->screen_base = (void __iomem *)VGA_MAP_MEM(VGA_FB_PHYS_BASE, 0);
 
 	if (!info->screen_base) {
 		printk(KERN_ERR "vga16fb: unable to map device\n");
@@ -1332,24 +1338,27 @@ static int vga16fb_probe(struct platform_device *dev)
 	printk(KERN_INFO "vga16fb: mapped to 0x%p\n", info->screen_base);
 	par = info->par;
 
-	par->isVGA = screen_info.orig_video_isVGA;
+	par->isVGA = si->orig_video_isVGA == VIDEO_TYPE_VGAC;
 	par->palette_blanked = 0;
 	par->vesa_blanked = 0;
 
 	i = par->isVGA? 6 : 2;
-	
+
 	vga16fb_defined.red.length   = i;
 	vga16fb_defined.green.length = i;
-	vga16fb_defined.blue.length  = i;	
+	vga16fb_defined.blue.length  = i;
 
 	/* name should not depend on EGA/VGA */
 	info->fbops = &vga16fb_ops;
 	info->var = vga16fb_defined;
 	info->fix = vga16fb_fix;
 	/* supports rectangles with widths of multiples of 8 */
-	info->pixmap.blit_x = 1 << 7 | 1 << 15 | 1 << 23 | 1 << 31;
-	info->flags = FBINFO_FLAG_DEFAULT | FBINFO_MISC_FIRMWARE |
-		FBINFO_HWACCEL_YPAN;
+	bitmap_zero(info->pixmap.blit_x, FB_MAX_BLIT_WIDTH);
+	set_bit(8 - 1, info->pixmap.blit_x);
+	set_bit(16 - 1, info->pixmap.blit_x);
+	set_bit(24 - 1, info->pixmap.blit_x);
+	set_bit(32 - 1, info->pixmap.blit_x);
+	info->flags = FBINFO_HWACCEL_YPAN;
 
 	i = (info->var.bits_per_pixel == 8) ? 256 : 16;
 	ret = fb_alloc_cmap(&info->cmap, i, 0);
@@ -1367,9 +1376,9 @@ static int vga16fb_probe(struct platform_device *dev)
 
 	vga16fb_update_fix(info);
 
-	info->apertures->ranges[0].base = VGA_FB_PHYS;
-	info->apertures->ranges[0].size = VGA_FB_PHYS_LEN;
-
+	ret = devm_aperture_acquire_for_platform_device(dev, VGA_FB_PHYS_BASE, VGA_FB_PHYS_SIZE);
+	if (ret)
+		goto err_check_var;
 	if (register_framebuffer(info) < 0) {
 		printk(KERN_ERR "vga16fb: unable to register framebuffer\n");
 		ret = -EINVAL;
@@ -1391,73 +1400,31 @@ static int vga16fb_probe(struct platform_device *dev)
 	return ret;
 }
 
-static int vga16fb_remove(struct platform_device *dev)
+static void vga16fb_remove(struct platform_device *dev)
 {
 	struct fb_info *info = platform_get_drvdata(dev);
 
 	if (info)
 		unregister_framebuffer(info);
-
-	return 0;
 }
+
+static const struct platform_device_id vga16fb_driver_id_table[] = {
+	{"ega-framebuffer", 0},
+	{"vga-framebuffer", 0},
+	{ }
+};
+MODULE_DEVICE_TABLE(platform, vga16fb_driver_id_table);
 
 static struct platform_driver vga16fb_driver = {
 	.probe = vga16fb_probe,
-	.remove = vga16fb_remove,
+	.remove_new = vga16fb_remove,
 	.driver = {
 		.name = "vga16fb",
 	},
+	.id_table = vga16fb_driver_id_table,
 };
 
-static struct platform_device *vga16fb_device;
-
-static int __init vga16fb_init(void)
-{
-	int ret;
-#ifndef MODULE
-	char *option = NULL;
-
-	if (fb_get_options("vga16fb", &option))
-		return -ENODEV;
-
-	vga16fb_setup(option);
-#endif
-	ret = platform_driver_register(&vga16fb_driver);
-
-	if (!ret) {
-		vga16fb_device = platform_device_alloc("vga16fb", 0);
-
-		if (vga16fb_device)
-			ret = platform_device_add(vga16fb_device);
-		else
-			ret = -ENOMEM;
-
-		if (ret) {
-			platform_device_put(vga16fb_device);
-			platform_driver_unregister(&vga16fb_driver);
-		}
-	}
-
-	return ret;
-}
-
-static void __exit vga16fb_exit(void)
-{
-	platform_device_unregister(vga16fb_device);
-	platform_driver_unregister(&vga16fb_driver);
-}
+module_platform_driver(vga16fb_driver);
 
 MODULE_DESCRIPTION("Legacy VGA framebuffer device driver");
 MODULE_LICENSE("GPL");
-module_init(vga16fb_init);
-module_exit(vga16fb_exit);
-
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-basic-offset: 8
- * End:
- */
-

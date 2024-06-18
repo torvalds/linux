@@ -31,13 +31,24 @@
 
 #include <trace/events/vb2.h>
 
+#define PLANE_INDEX_BITS	3
+#define PLANE_INDEX_SHIFT	(PAGE_SHIFT + PLANE_INDEX_BITS)
+#define PLANE_INDEX_MASK	(BIT_MASK(PLANE_INDEX_BITS) - 1)
+#define MAX_BUFFER_INDEX	BIT_MASK(30 - PLANE_INDEX_SHIFT)
+#define BUFFER_INDEX_MASK	(MAX_BUFFER_INDEX - 1)
+
+#if BIT(PLANE_INDEX_BITS) != VIDEO_MAX_PLANES
+#error PLANE_INDEX_BITS order must be equal to VIDEO_MAX_PLANES
+#endif
+
 static int debug;
 module_param(debug, int, 0644);
 
-#define dprintk(level, fmt, arg...)				\
-	do {							\
-		if (debug >= level)				\
-			pr_info("%s: " fmt, __func__, ## arg);	\
+#define dprintk(q, level, fmt, arg...)					\
+	do {								\
+		if (debug >= level)					\
+			pr_info("[%s] %s: " fmt, (q)->name, __func__,	\
+				## arg);				\
 	} while (0)
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -51,8 +62,8 @@ module_param(debug, int, 0644);
  */
 
 #define log_memop(vb, op)						\
-	dprintk(2, "call_memop(%p, %d, %s)%s\n",			\
-		(vb)->vb2_queue, (vb)->index, #op,			\
+	dprintk((vb)->vb2_queue, 2, "call_memop(%d, %s)%s\n",		\
+		(vb)->index, #op,					\
 		(vb)->vb2_queue->mem_ops->op ? "" : " (nop)")
 
 #define call_memop(vb, op, args...)					\
@@ -67,13 +78,13 @@ module_param(debug, int, 0644);
 	err;								\
 })
 
-#define call_ptr_memop(vb, op, args...)					\
+#define call_ptr_memop(op, vb, args...)					\
 ({									\
 	struct vb2_queue *_q = (vb)->vb2_queue;				\
 	void *ptr;							\
 									\
 	log_memop(vb, op);						\
-	ptr = _q->mem_ops->op ? _q->mem_ops->op(args) : NULL;		\
+	ptr = _q->mem_ops->op ? _q->mem_ops->op(vb, args) : NULL;	\
 	if (!IS_ERR_OR_NULL(ptr))					\
 		(vb)->cnt_mem_ ## op++;					\
 	ptr;								\
@@ -90,7 +101,7 @@ module_param(debug, int, 0644);
 })
 
 #define log_qop(q, op)							\
-	dprintk(2, "call_qop(%p, %s)%s\n", q, #op,			\
+	dprintk(q, 2, "call_qop(%s)%s\n", #op,				\
 		(q)->ops->op ? "" : " (nop)")
 
 #define call_qop(q, op, args...)					\
@@ -113,8 +124,8 @@ module_param(debug, int, 0644);
 })
 
 #define log_vb_qop(vb, op, args...)					\
-	dprintk(2, "call_vb_qop(%p, %d, %s)%s\n",			\
-		(vb)->vb2_queue, (vb)->index, #op,			\
+	dprintk((vb)->vb2_queue, 2, "call_vb_qop(%d, %s)%s\n",		\
+		(vb)->index, #op,					\
 		(vb)->vb2_queue->ops->op ? "" : " (nop)")
 
 #define call_vb_qop(vb, op, args...)					\
@@ -143,9 +154,9 @@ module_param(debug, int, 0644);
 	((vb)->vb2_queue->mem_ops->op ?					\
 		(vb)->vb2_queue->mem_ops->op(args) : 0)
 
-#define call_ptr_memop(vb, op, args...)					\
+#define call_ptr_memop(op, vb, args...)					\
 	((vb)->vb2_queue->mem_ops->op ?					\
-		(vb)->vb2_queue->mem_ops->op(args) : NULL)
+		(vb)->vb2_queue->mem_ops->op(vb, args) : NULL)
 
 #define call_void_memop(vb, op, args...)				\
 	do {								\
@@ -190,6 +201,23 @@ module_param(debug, int, 0644);
 static void __vb2_queue_cancel(struct vb2_queue *q);
 static void __enqueue_in_driver(struct vb2_buffer *vb);
 
+static const char *vb2_state_name(enum vb2_buffer_state s)
+{
+	static const char * const state_names[] = {
+		[VB2_BUF_STATE_DEQUEUED] = "dequeued",
+		[VB2_BUF_STATE_IN_REQUEST] = "in request",
+		[VB2_BUF_STATE_PREPARING] = "preparing",
+		[VB2_BUF_STATE_QUEUED] = "queued",
+		[VB2_BUF_STATE_ACTIVE] = "active",
+		[VB2_BUF_STATE_DONE] = "done",
+		[VB2_BUF_STATE_ERROR] = "error",
+	};
+
+	if ((unsigned int)(s) < ARRAY_SIZE(state_names))
+		return state_names[s];
+	return "unknown";
+}
+
 /*
  * __vb2_buf_mem_alloc() - allocate video memory for the given buffer
  */
@@ -212,9 +240,10 @@ static int __vb2_buf_mem_alloc(struct vb2_buffer *vb)
 		if (size < vb->planes[plane].length)
 			goto free;
 
-		mem_priv = call_ptr_memop(vb, alloc,
-				q->alloc_devs[plane] ? : q->dev,
-				q->dma_attrs, size, q->dma_dir, q->gfp_flags);
+		mem_priv = call_ptr_memop(alloc,
+					  vb,
+					  q->alloc_devs[plane] ? : q->dev,
+					  size);
 		if (IS_ERR_OR_NULL(mem_priv)) {
 			if (mem_priv)
 				ret = PTR_ERR(mem_priv);
@@ -246,7 +275,8 @@ static void __vb2_buf_mem_free(struct vb2_buffer *vb)
 	for (plane = 0; plane < vb->num_planes; ++plane) {
 		call_void_memop(vb, put, vb->planes[plane].mem_priv);
 		vb->planes[plane].mem_priv = NULL;
-		dprintk(3, "freed plane %d of buffer %d\n", plane, vb->index);
+		dprintk(vb->vb2_queue, 3, "freed plane %d of buffer %d\n",
+			plane, vb->index);
 	}
 }
 
@@ -297,6 +327,38 @@ static void __vb2_buf_dmabuf_put(struct vb2_buffer *vb)
 }
 
 /*
+ * __vb2_buf_mem_prepare() - call ->prepare() on buffer's private memory
+ * to sync caches
+ */
+static void __vb2_buf_mem_prepare(struct vb2_buffer *vb)
+{
+	unsigned int plane;
+
+	if (vb->synced)
+		return;
+
+	vb->synced = 1;
+	for (plane = 0; plane < vb->num_planes; ++plane)
+		call_void_memop(vb, prepare, vb->planes[plane].mem_priv);
+}
+
+/*
+ * __vb2_buf_mem_finish() - call ->finish on buffer's private memory
+ * to sync caches
+ */
+static void __vb2_buf_mem_finish(struct vb2_buffer *vb)
+{
+	unsigned int plane;
+
+	if (!vb->synced)
+		return;
+
+	vb->synced = 0;
+	for (plane = 0; plane < vb->num_planes; ++plane)
+		call_void_memop(vb, finish, vb->planes[plane].mem_priv);
+}
+
+/*
  * __setup_offsets() - setup unique offsets ("cookies") for every plane in
  * the buffer.
  */
@@ -304,74 +366,152 @@ static void __setup_offsets(struct vb2_buffer *vb)
 {
 	struct vb2_queue *q = vb->vb2_queue;
 	unsigned int plane;
-	unsigned long off = 0;
+	unsigned long offset = 0;
 
-	if (vb->index) {
-		struct vb2_buffer *prev = q->bufs[vb->index - 1];
-		struct vb2_plane *p = &prev->planes[prev->num_planes - 1];
-
-		off = PAGE_ALIGN(p->m.offset + p->length);
-	}
+	/*
+	 * The offset "cookie" value has the following constraints:
+	 * - a buffer can have up to 8 planes.
+	 * - v4l2 mem2mem uses bit 30 to distinguish between
+	 *   OUTPUT (aka "source", bit 30 is 0) and
+	 *   CAPTURE (aka "destination", bit 30 is 1) buffers.
+	 * - must be page aligned
+	 * That led to this bit mapping when PAGE_SHIFT = 12:
+	 * |30                |29        15|14       12|11 0|
+	 * |DST_QUEUE_OFF_BASE|buffer index|plane index| 0  |
+	 * where there are 15 bits to store the buffer index.
+	 * Depending on PAGE_SHIFT value we can have fewer bits
+	 * to store the buffer index.
+	 */
+	offset = vb->index << PLANE_INDEX_SHIFT;
 
 	for (plane = 0; plane < vb->num_planes; ++plane) {
-		vb->planes[plane].m.offset = off;
+		vb->planes[plane].m.offset = offset + (plane << PAGE_SHIFT);
 
-		dprintk(3, "buffer %d, plane %d offset 0x%08lx\n",
-				vb->index, plane, off);
-
-		off += vb->planes[plane].length;
-		off = PAGE_ALIGN(off);
+		dprintk(q, 3, "buffer %d, plane %d offset 0x%08lx\n",
+				vb->index, plane, offset);
 	}
 }
 
+static void init_buffer_cache_hints(struct vb2_queue *q, struct vb2_buffer *vb)
+{
+	/*
+	 * DMA exporter should take care of cache syncs, so we can avoid
+	 * explicit ->prepare()/->finish() syncs. For other ->memory types
+	 * we always need ->prepare() or/and ->finish() cache sync.
+	 */
+	if (q->memory == VB2_MEMORY_DMABUF) {
+		vb->skip_cache_sync_on_finish = 1;
+		vb->skip_cache_sync_on_prepare = 1;
+		return;
+	}
+
+	/*
+	 * ->finish() cache sync can be avoided when queue direction is
+	 * TO_DEVICE.
+	 */
+	if (q->dma_dir == DMA_TO_DEVICE)
+		vb->skip_cache_sync_on_finish = 1;
+}
+
+/**
+ * vb2_queue_add_buffer() - add a buffer to a queue
+ * @q:	pointer to &struct vb2_queue with videobuf2 queue.
+ * @vb:	pointer to &struct vb2_buffer to be added to the queue.
+ * @index: index where add vb2_buffer in the queue
+ */
+static void vb2_queue_add_buffer(struct vb2_queue *q, struct vb2_buffer *vb, unsigned int index)
+{
+	WARN_ON(index >= q->max_num_buffers || test_bit(index, q->bufs_bitmap) || vb->vb2_queue);
+
+	q->bufs[index] = vb;
+	vb->index = index;
+	vb->vb2_queue = q;
+	set_bit(index, q->bufs_bitmap);
+}
+
+/**
+ * vb2_queue_remove_buffer() - remove a buffer from a queue
+ * @vb:	pointer to &struct vb2_buffer to be removed from the queue.
+ */
+static void vb2_queue_remove_buffer(struct vb2_buffer *vb)
+{
+	clear_bit(vb->index, vb->vb2_queue->bufs_bitmap);
+	vb->vb2_queue->bufs[vb->index] = NULL;
+	vb->vb2_queue = NULL;
+}
+
 /*
- * __vb2_queue_alloc() - allocate videobuf buffer structures and (for MMAP type)
+ * __vb2_queue_alloc() - allocate vb2 buffer structures and (for MMAP type)
  * video buffer memory for all buffers/planes on the queue and initializes the
  * queue
+ * @first_index: index of the first created buffer, all newly allocated buffers
+ *		 have indices in the range [first_index..first_index+count-1]
  *
  * Returns the number of buffers successfully allocated.
  */
 static int __vb2_queue_alloc(struct vb2_queue *q, enum vb2_memory memory,
 			     unsigned int num_buffers, unsigned int num_planes,
-			     const unsigned plane_sizes[VB2_MAX_PLANES])
+			     const unsigned int plane_sizes[VB2_MAX_PLANES],
+			     unsigned int *first_index)
 {
 	unsigned int buffer, plane;
 	struct vb2_buffer *vb;
+	unsigned long index = q->max_num_buffers;
 	int ret;
 
-	/* Ensure that q->num_buffers+num_buffers is below VB2_MAX_FRAME */
+	/*
+	 * Ensure that the number of already queue + the number of buffers already
+	 * in the queue is below q->max_num_buffers
+	 */
 	num_buffers = min_t(unsigned int, num_buffers,
-			    VB2_MAX_FRAME - q->num_buffers);
+			    q->max_num_buffers - vb2_get_num_buffers(q));
+
+	while (num_buffers) {
+		index = bitmap_find_next_zero_area(q->bufs_bitmap, q->max_num_buffers,
+						   0, num_buffers, 0);
+
+		if (index < q->max_num_buffers)
+			break;
+		/* Try to find free space for less buffers */
+		num_buffers--;
+	}
+
+	/* If there is no space left to allocate buffers return 0 to indicate the error */
+	if (!num_buffers) {
+		*first_index = 0;
+		return 0;
+	}
+
+	*first_index = index;
 
 	for (buffer = 0; buffer < num_buffers; ++buffer) {
-		/* Allocate videobuf buffer structures */
+		/* Allocate vb2 buffer structures */
 		vb = kzalloc(q->buf_struct_size, GFP_KERNEL);
 		if (!vb) {
-			dprintk(1, "memory alloc for buffer struct failed\n");
+			dprintk(q, 1, "memory alloc for buffer struct failed\n");
 			break;
 		}
 
 		vb->state = VB2_BUF_STATE_DEQUEUED;
-		vb->vb2_queue = q;
 		vb->num_planes = num_planes;
-		vb->index = q->num_buffers + buffer;
 		vb->type = q->type;
 		vb->memory = memory;
+		init_buffer_cache_hints(q, vb);
 		for (plane = 0; plane < num_planes; ++plane) {
 			vb->planes[plane].length = plane_sizes[plane];
 			vb->planes[plane].min_length = plane_sizes[plane];
 		}
-		call_void_bufop(q, init_buffer, vb);
 
-		q->bufs[vb->index] = vb;
+		vb2_queue_add_buffer(q, vb, index++);
+		call_void_bufop(q, init_buffer, vb);
 
 		/* Allocate video buffer memory for the MMAP type */
 		if (memory == VB2_MEMORY_MMAP) {
 			ret = __vb2_buf_mem_alloc(vb);
 			if (ret) {
-				dprintk(1, "failed allocating memory for buffer %d\n",
+				dprintk(q, 1, "failed allocating memory for buffer %d\n",
 					buffer);
-				q->bufs[vb->index] = NULL;
+				vb2_queue_remove_buffer(vb);
 				kfree(vb);
 				break;
 			}
@@ -383,33 +523,33 @@ static int __vb2_queue_alloc(struct vb2_queue *q, enum vb2_memory memory,
 			 */
 			ret = call_vb_qop(vb, buf_init, vb);
 			if (ret) {
-				dprintk(1, "buffer %d %p initialization failed\n",
+				dprintk(q, 1, "buffer %d %p initialization failed\n",
 					buffer, vb);
 				__vb2_buf_mem_free(vb);
-				q->bufs[vb->index] = NULL;
+				vb2_queue_remove_buffer(vb);
 				kfree(vb);
 				break;
 			}
 		}
 	}
 
-	dprintk(1, "allocated %d buffers, %d plane(s) each\n",
-			buffer, num_planes);
+	dprintk(q, 3, "allocated %d buffers, %d plane(s) each\n",
+		buffer, num_planes);
 
 	return buffer;
 }
 
 /*
- * __vb2_free_mem() - release all video buffer memory for a given queue
+ * __vb2_free_mem() - release video buffer memory for a given range of
+ * buffers in a given queue
  */
-static void __vb2_free_mem(struct vb2_queue *q, unsigned int buffers)
+static void __vb2_free_mem(struct vb2_queue *q, unsigned int start, unsigned int count)
 {
-	unsigned int buffer;
+	unsigned int i;
 	struct vb2_buffer *vb;
 
-	for (buffer = q->num_buffers - buffers; buffer < q->num_buffers;
-	     ++buffer) {
-		vb = q->bufs[buffer];
+	for (i = start; i < start + count; i++) {
+		vb = vb2_get_buffer(q, i);
 		if (!vb)
 			continue;
 
@@ -424,120 +564,124 @@ static void __vb2_free_mem(struct vb2_queue *q, unsigned int buffers)
 }
 
 /*
- * __vb2_queue_free() - free buffers at the end of the queue - video memory and
+ * __vb2_queue_free() - free @count buffers from @start index of the queue - video memory and
  * related information, if no buffers are left return the queue to an
  * uninitialized state. Might be called even if the queue has already been freed.
  */
-static int __vb2_queue_free(struct vb2_queue *q, unsigned int buffers)
+static void __vb2_queue_free(struct vb2_queue *q, unsigned int start, unsigned int count)
 {
-	unsigned int buffer;
+	unsigned int i;
 
-	/*
-	 * Sanity check: when preparing a buffer the queue lock is released for
-	 * a short while (see __buf_prepare for the details), which would allow
-	 * a race with a reqbufs which can call this function. Removing the
-	 * buffers from underneath __buf_prepare is obviously a bad idea, so we
-	 * check if any of the buffers is in the state PREPARING, and if so we
-	 * just return -EAGAIN.
-	 */
-	for (buffer = q->num_buffers - buffers; buffer < q->num_buffers;
-	     ++buffer) {
-		if (q->bufs[buffer] == NULL)
-			continue;
-		if (q->bufs[buffer]->state == VB2_BUF_STATE_PREPARING) {
-			dprintk(1, "preparing buffers, cannot free\n");
-			return -EAGAIN;
-		}
-	}
+	lockdep_assert_held(&q->mmap_lock);
 
 	/* Call driver-provided cleanup function for each buffer, if provided */
-	for (buffer = q->num_buffers - buffers; buffer < q->num_buffers;
-	     ++buffer) {
-		struct vb2_buffer *vb = q->bufs[buffer];
+	for (i = start; i < start + count; i++) {
+		struct vb2_buffer *vb = vb2_get_buffer(q, i);
 
 		if (vb && vb->planes[0].mem_priv)
 			call_void_vb_qop(vb, buf_cleanup, vb);
 	}
 
 	/* Release video buffer memory */
-	__vb2_free_mem(q, buffers);
+	__vb2_free_mem(q, start, count);
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	/*
-	 * Check that all the calls were balances during the life-time of this
-	 * queue. If not (or if the debug level is 1 or up), then dump the
-	 * counters to the kernel log.
+	 * Check that all the calls were balanced during the life-time of this
+	 * queue. If not then dump the counters to the kernel log.
 	 */
-	if (q->num_buffers) {
+	if (vb2_get_num_buffers(q)) {
 		bool unbalanced = q->cnt_start_streaming != q->cnt_stop_streaming ||
+				  q->cnt_prepare_streaming != q->cnt_unprepare_streaming ||
 				  q->cnt_wait_prepare != q->cnt_wait_finish;
 
-		if (unbalanced || debug) {
-			pr_info("counters for queue %p:%s\n", q,
-				unbalanced ? " UNBALANCED!" : "");
-			pr_info("     setup: %u start_streaming: %u stop_streaming: %u\n",
-				q->cnt_queue_setup, q->cnt_start_streaming,
-				q->cnt_stop_streaming);
-			pr_info("     wait_prepare: %u wait_finish: %u\n",
-				q->cnt_wait_prepare, q->cnt_wait_finish);
+		if (unbalanced) {
+			pr_info("unbalanced counters for queue %p:\n", q);
+			if (q->cnt_start_streaming != q->cnt_stop_streaming)
+				pr_info("     setup: %u start_streaming: %u stop_streaming: %u\n",
+					q->cnt_queue_setup, q->cnt_start_streaming,
+					q->cnt_stop_streaming);
+			if (q->cnt_prepare_streaming != q->cnt_unprepare_streaming)
+				pr_info("     prepare_streaming: %u unprepare_streaming: %u\n",
+					q->cnt_prepare_streaming, q->cnt_unprepare_streaming);
+			if (q->cnt_wait_prepare != q->cnt_wait_finish)
+				pr_info("     wait_prepare: %u wait_finish: %u\n",
+					q->cnt_wait_prepare, q->cnt_wait_finish);
 		}
 		q->cnt_queue_setup = 0;
 		q->cnt_wait_prepare = 0;
 		q->cnt_wait_finish = 0;
+		q->cnt_prepare_streaming = 0;
 		q->cnt_start_streaming = 0;
 		q->cnt_stop_streaming = 0;
+		q->cnt_unprepare_streaming = 0;
 	}
-	for (buffer = 0; buffer < q->num_buffers; ++buffer) {
-		struct vb2_buffer *vb = q->bufs[buffer];
-		bool unbalanced = vb->cnt_mem_alloc != vb->cnt_mem_put ||
-				  vb->cnt_mem_prepare != vb->cnt_mem_finish ||
-				  vb->cnt_mem_get_userptr != vb->cnt_mem_put_userptr ||
-				  vb->cnt_mem_attach_dmabuf != vb->cnt_mem_detach_dmabuf ||
-				  vb->cnt_mem_map_dmabuf != vb->cnt_mem_unmap_dmabuf ||
-				  vb->cnt_buf_queue != vb->cnt_buf_done ||
-				  vb->cnt_buf_prepare != vb->cnt_buf_finish ||
-				  vb->cnt_buf_init != vb->cnt_buf_cleanup;
+	for (i = start; i < start + count; i++) {
+		struct vb2_buffer *vb = vb2_get_buffer(q, i);
+		bool unbalanced;
 
-		if (unbalanced || debug) {
-			pr_info("   counters for queue %p, buffer %d:%s\n",
-				q, buffer, unbalanced ? " UNBALANCED!" : "");
-			pr_info("     buf_init: %u buf_cleanup: %u buf_prepare: %u buf_finish: %u\n",
-				vb->cnt_buf_init, vb->cnt_buf_cleanup,
-				vb->cnt_buf_prepare, vb->cnt_buf_finish);
-			pr_info("     buf_out_validate: %u buf_queue: %u buf_done: %u buf_request_complete: %u\n",
-				vb->cnt_buf_out_validate, vb->cnt_buf_queue,
-				vb->cnt_buf_done, vb->cnt_buf_request_complete);
-			pr_info("     alloc: %u put: %u prepare: %u finish: %u mmap: %u\n",
-				vb->cnt_mem_alloc, vb->cnt_mem_put,
-				vb->cnt_mem_prepare, vb->cnt_mem_finish,
-				vb->cnt_mem_mmap);
-			pr_info("     get_userptr: %u put_userptr: %u\n",
-				vb->cnt_mem_get_userptr, vb->cnt_mem_put_userptr);
-			pr_info("     attach_dmabuf: %u detach_dmabuf: %u map_dmabuf: %u unmap_dmabuf: %u\n",
-				vb->cnt_mem_attach_dmabuf, vb->cnt_mem_detach_dmabuf,
-				vb->cnt_mem_map_dmabuf, vb->cnt_mem_unmap_dmabuf);
-			pr_info("     get_dmabuf: %u num_users: %u vaddr: %u cookie: %u\n",
+		if (!vb)
+			continue;
+
+		unbalanced = vb->cnt_mem_alloc != vb->cnt_mem_put ||
+			     vb->cnt_mem_prepare != vb->cnt_mem_finish ||
+			     vb->cnt_mem_get_userptr != vb->cnt_mem_put_userptr ||
+			     vb->cnt_mem_attach_dmabuf != vb->cnt_mem_detach_dmabuf ||
+			     vb->cnt_mem_map_dmabuf != vb->cnt_mem_unmap_dmabuf ||
+			     vb->cnt_buf_queue != vb->cnt_buf_done ||
+			     vb->cnt_buf_prepare != vb->cnt_buf_finish ||
+			     vb->cnt_buf_init != vb->cnt_buf_cleanup;
+
+		if (unbalanced) {
+			pr_info("unbalanced counters for queue %p, buffer %d:\n",
+				q, i);
+			if (vb->cnt_buf_init != vb->cnt_buf_cleanup)
+				pr_info("     buf_init: %u buf_cleanup: %u\n",
+					vb->cnt_buf_init, vb->cnt_buf_cleanup);
+			if (vb->cnt_buf_prepare != vb->cnt_buf_finish)
+				pr_info("     buf_prepare: %u buf_finish: %u\n",
+					vb->cnt_buf_prepare, vb->cnt_buf_finish);
+			if (vb->cnt_buf_queue != vb->cnt_buf_done)
+				pr_info("     buf_out_validate: %u buf_queue: %u buf_done: %u buf_request_complete: %u\n",
+					vb->cnt_buf_out_validate, vb->cnt_buf_queue,
+					vb->cnt_buf_done, vb->cnt_buf_request_complete);
+			if (vb->cnt_mem_alloc != vb->cnt_mem_put)
+				pr_info("     alloc: %u put: %u\n",
+					vb->cnt_mem_alloc, vb->cnt_mem_put);
+			if (vb->cnt_mem_prepare != vb->cnt_mem_finish)
+				pr_info("     prepare: %u finish: %u\n",
+					vb->cnt_mem_prepare, vb->cnt_mem_finish);
+			if (vb->cnt_mem_get_userptr != vb->cnt_mem_put_userptr)
+				pr_info("     get_userptr: %u put_userptr: %u\n",
+					vb->cnt_mem_get_userptr, vb->cnt_mem_put_userptr);
+			if (vb->cnt_mem_attach_dmabuf != vb->cnt_mem_detach_dmabuf)
+				pr_info("     attach_dmabuf: %u detach_dmabuf: %u\n",
+					vb->cnt_mem_attach_dmabuf, vb->cnt_mem_detach_dmabuf);
+			if (vb->cnt_mem_map_dmabuf != vb->cnt_mem_unmap_dmabuf)
+				pr_info("     map_dmabuf: %u unmap_dmabuf: %u\n",
+					vb->cnt_mem_map_dmabuf, vb->cnt_mem_unmap_dmabuf);
+			pr_info("     get_dmabuf: %u num_users: %u\n",
 				vb->cnt_mem_get_dmabuf,
-				vb->cnt_mem_num_users,
-				vb->cnt_mem_vaddr,
-				vb->cnt_mem_cookie);
+				vb->cnt_mem_num_users);
 		}
 	}
 #endif
 
-	/* Free videobuf buffers */
-	for (buffer = q->num_buffers - buffers; buffer < q->num_buffers;
-	     ++buffer) {
-		kfree(q->bufs[buffer]);
-		q->bufs[buffer] = NULL;
+	/* Free vb2 buffers */
+	for (i = start; i < start + count; i++) {
+		struct vb2_buffer *vb = vb2_get_buffer(q, i);
+
+		if (!vb)
+			continue;
+
+		vb2_queue_remove_buffer(vb);
+		kfree(vb);
 	}
 
-	q->num_buffers -= buffers;
-	if (!q->num_buffers) {
+	if (!vb2_get_num_buffers(q)) {
 		q->memory = VB2_MEMORY_UNKNOWN;
 		INIT_LIST_HEAD(&q->queued_list);
 	}
-	return 0;
 }
 
 bool vb2_buffer_in_use(struct vb2_queue *q, struct vb2_buffer *vb)
@@ -565,16 +709,21 @@ EXPORT_SYMBOL(vb2_buffer_in_use);
 static bool __buffers_in_use(struct vb2_queue *q)
 {
 	unsigned int buffer;
-	for (buffer = 0; buffer < q->num_buffers; ++buffer) {
-		if (vb2_buffer_in_use(q, q->bufs[buffer]))
+	for (buffer = 0; buffer < q->max_num_buffers; ++buffer) {
+		struct vb2_buffer *vb = vb2_get_buffer(q, buffer);
+
+		if (!vb)
+			continue;
+
+		if (vb2_buffer_in_use(q, vb))
 			return true;
 	}
 	return false;
 }
 
-void vb2_core_querybuf(struct vb2_queue *q, unsigned int index, void *pb)
+void vb2_core_querybuf(struct vb2_queue *q, struct vb2_buffer *vb, void *pb)
 {
-	call_void_bufop(q, fill_user_buffer, q->bufs[index], pb);
+	call_void_bufop(q, fill_user_buffer, vb, pb);
 }
 EXPORT_SYMBOL_GPL(vb2_core_querybuf);
 
@@ -623,12 +772,12 @@ int vb2_verify_memory_type(struct vb2_queue *q,
 {
 	if (memory != VB2_MEMORY_MMAP && memory != VB2_MEMORY_USERPTR &&
 	    memory != VB2_MEMORY_DMABUF) {
-		dprintk(1, "unsupported memory type\n");
+		dprintk(q, 1, "unsupported memory type\n");
 		return -EINVAL;
 	}
 
 	if (type != q->type) {
-		dprintk(1, "requested type is incorrect\n");
+		dprintk(q, 1, "requested type is incorrect\n");
 		return -EINVAL;
 	}
 
@@ -637,17 +786,17 @@ int vb2_verify_memory_type(struct vb2_queue *q,
 	 * are available.
 	 */
 	if (memory == VB2_MEMORY_MMAP && __verify_mmap_ops(q)) {
-		dprintk(1, "MMAP for current setup unsupported\n");
+		dprintk(q, 1, "MMAP for current setup unsupported\n");
 		return -EINVAL;
 	}
 
 	if (memory == VB2_MEMORY_USERPTR && __verify_userptr_ops(q)) {
-		dprintk(1, "USERPTR for current setup unsupported\n");
+		dprintk(q, 1, "USERPTR for current setup unsupported\n");
 		return -EINVAL;
 	}
 
 	if (memory == VB2_MEMORY_DMABUF && __verify_dmabuf_ops(q)) {
-		dprintk(1, "DMABUF for current setup unsupported\n");
+		dprintk(q, 1, "DMABUF for current setup unsupported\n");
 		return -EINVAL;
 	}
 
@@ -657,33 +806,80 @@ int vb2_verify_memory_type(struct vb2_queue *q,
 	 * do the memory and type validation.
 	 */
 	if (vb2_fileio_is_active(q)) {
-		dprintk(1, "file io in progress\n");
+		dprintk(q, 1, "file io in progress\n");
 		return -EBUSY;
 	}
 	return 0;
 }
 EXPORT_SYMBOL(vb2_verify_memory_type);
 
+static void set_queue_coherency(struct vb2_queue *q, bool non_coherent_mem)
+{
+	q->non_coherent_mem = 0;
+
+	if (!vb2_queue_allows_cache_hints(q))
+		return;
+	q->non_coherent_mem = non_coherent_mem;
+}
+
+static bool verify_coherency_flags(struct vb2_queue *q, bool non_coherent_mem)
+{
+	if (non_coherent_mem != q->non_coherent_mem) {
+		dprintk(q, 1, "memory coherency model mismatch\n");
+		return false;
+	}
+	return true;
+}
+
+static int vb2_core_allocated_buffers_storage(struct vb2_queue *q)
+{
+	if (!q->bufs)
+		q->bufs = kcalloc(q->max_num_buffers, sizeof(*q->bufs), GFP_KERNEL);
+	if (!q->bufs)
+		return -ENOMEM;
+
+	if (!q->bufs_bitmap)
+		q->bufs_bitmap = bitmap_zalloc(q->max_num_buffers, GFP_KERNEL);
+	if (!q->bufs_bitmap) {
+		kfree(q->bufs);
+		q->bufs = NULL;
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static void vb2_core_free_buffers_storage(struct vb2_queue *q)
+{
+	kfree(q->bufs);
+	q->bufs = NULL;
+	bitmap_free(q->bufs_bitmap);
+	q->bufs_bitmap = NULL;
+}
+
 int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
-		unsigned int *count)
+		     unsigned int flags, unsigned int *count)
 {
 	unsigned int num_buffers, allocated_buffers, num_planes = 0;
+	unsigned int q_num_bufs = vb2_get_num_buffers(q);
 	unsigned plane_sizes[VB2_MAX_PLANES] = { };
-	unsigned int i;
-	int ret;
+	bool non_coherent_mem = flags & V4L2_MEMORY_FLAG_NON_COHERENT;
+	unsigned int i, first_index;
+	int ret = 0;
 
 	if (q->streaming) {
-		dprintk(1, "streaming active\n");
+		dprintk(q, 1, "streaming active\n");
 		return -EBUSY;
 	}
 
 	if (q->waiting_in_dqbuf && *count) {
-		dprintk(1, "another dup()ped fd is waiting for a buffer\n");
+		dprintk(q, 1, "another dup()ped fd is waiting for a buffer\n");
 		return -EBUSY;
 	}
 
-	if (*count == 0 || q->num_buffers != 0 ||
-	    (q->memory != VB2_MEMORY_UNKNOWN && q->memory != memory)) {
+	if (*count == 0 || q_num_bufs != 0 ||
+	    (q->memory != VB2_MEMORY_UNKNOWN && q->memory != memory) ||
+	    !verify_coherency_flags(q, non_coherent_mem)) {
 		/*
 		 * We already have buffers allocated, so first check if they
 		 * are not in use and can be freed.
@@ -691,7 +887,7 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
 		mutex_lock(&q->mmap_lock);
 		if (debug && q->memory == VB2_MEMORY_MMAP &&
 		    __buffers_in_use(q))
-			dprintk(1, "memory in use, orphaning buffers\n");
+			dprintk(q, 1, "memory in use, orphaning buffers\n");
 
 		/*
 		 * Call queue_cancel to clean up any buffers in the
@@ -699,11 +895,10 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
 		 * queued without ever calling STREAMON.
 		 */
 		__vb2_queue_cancel(q);
-		ret = __vb2_queue_free(q, q->num_buffers);
+		__vb2_queue_free(q, 0, q->max_num_buffers);
 		mutex_unlock(&q->mmap_lock);
-		if (ret)
-			return ret;
 
+		q->is_busy = 0;
 		/*
 		 * In case of REQBUFS(0) return immediately without calling
 		 * driver's queue_setup() callback and allocating resources.
@@ -715,11 +910,20 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
 	/*
 	 * Make sure the requested values and current defaults are sane.
 	 */
-	WARN_ON(q->min_buffers_needed > VB2_MAX_FRAME);
-	num_buffers = max_t(unsigned int, *count, q->min_buffers_needed);
-	num_buffers = min_t(unsigned int, num_buffers, VB2_MAX_FRAME);
+	num_buffers = max_t(unsigned int, *count, q->min_reqbufs_allocation);
+	num_buffers = min_t(unsigned int, num_buffers, q->max_num_buffers);
 	memset(q->alloc_devs, 0, sizeof(q->alloc_devs));
+	/*
+	 * Set this now to ensure that drivers see the correct q->memory value
+	 * in the queue_setup op.
+	 */
+	mutex_lock(&q->mmap_lock);
+	ret = vb2_core_allocated_buffers_storage(q);
 	q->memory = memory;
+	mutex_unlock(&q->mmap_lock);
+	if (ret)
+		return ret;
+	set_queue_coherency(q, non_coherent_mem);
 
 	/*
 	 * Ask the driver how many buffers and planes per buffer it requires.
@@ -728,29 +932,36 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
 	ret = call_qop(q, queue_setup, q, &num_buffers, &num_planes,
 		       plane_sizes, q->alloc_devs);
 	if (ret)
-		return ret;
+		goto error;
 
 	/* Check that driver has set sane values */
-	if (WARN_ON(!num_planes))
-		return -EINVAL;
+	if (WARN_ON(!num_planes)) {
+		ret = -EINVAL;
+		goto error;
+	}
 
 	for (i = 0; i < num_planes; i++)
-		if (WARN_ON(!plane_sizes[i]))
-			return -EINVAL;
+		if (WARN_ON(!plane_sizes[i])) {
+			ret = -EINVAL;
+			goto error;
+		}
 
 	/* Finally, allocate buffers and video memory */
 	allocated_buffers =
-		__vb2_queue_alloc(q, memory, num_buffers, num_planes, plane_sizes);
+		__vb2_queue_alloc(q, memory, num_buffers, num_planes, plane_sizes, &first_index);
 	if (allocated_buffers == 0) {
-		dprintk(1, "memory allocation failed\n");
-		return -ENOMEM;
+		/* There shouldn't be any buffers allocated, so first_index == 0 */
+		WARN_ON(first_index);
+		dprintk(q, 1, "memory allocation failed\n");
+		ret = -ENOMEM;
+		goto error;
 	}
 
 	/*
 	 * There is no point in continuing if we can't allocate the minimum
 	 * number of buffers needed by this vb2_queue.
 	 */
-	if (allocated_buffers < q->min_buffers_needed)
+	if (allocated_buffers < q->min_reqbufs_allocation)
 		ret = -ENOMEM;
 
 	/*
@@ -779,14 +990,14 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
 	}
 
 	mutex_lock(&q->mmap_lock);
-	q->num_buffers = allocated_buffers;
 
 	if (ret < 0) {
 		/*
 		 * Note: __vb2_queue_free() will subtract 'allocated_buffers'
-		 * from q->num_buffers.
+		 * from already queued buffers and it will reset q->memory to
+		 * VB2_MEMORY_UNKNOWN.
 		 */
-		__vb2_queue_free(q, allocated_buffers);
+		__vb2_queue_free(q, first_index, allocated_buffers);
 		mutex_unlock(&q->mmap_lock);
 		return ret;
 	}
@@ -798,38 +1009,65 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
 	 */
 	*count = allocated_buffers;
 	q->waiting_for_buffers = !q->is_output;
+	q->is_busy = 1;
 
 	return 0;
+
+error:
+	mutex_lock(&q->mmap_lock);
+	q->memory = VB2_MEMORY_UNKNOWN;
+	mutex_unlock(&q->mmap_lock);
+	vb2_core_free_buffers_storage(q);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(vb2_core_reqbufs);
 
 int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
-		unsigned int *count, unsigned requested_planes,
-		const unsigned requested_sizes[])
+			 unsigned int flags, unsigned int *count,
+			 unsigned int requested_planes,
+			 const unsigned int requested_sizes[],
+			 unsigned int *first_index)
 {
 	unsigned int num_planes = 0, num_buffers, allocated_buffers;
 	unsigned plane_sizes[VB2_MAX_PLANES] = { };
-	int ret;
+	bool non_coherent_mem = flags & V4L2_MEMORY_FLAG_NON_COHERENT;
+	unsigned int q_num_bufs = vb2_get_num_buffers(q);
+	bool no_previous_buffers = !q_num_bufs;
+	int ret = 0;
 
-	if (q->num_buffers == VB2_MAX_FRAME) {
-		dprintk(1, "maximum number of buffers already allocated\n");
+	if (q_num_bufs == q->max_num_buffers) {
+		dprintk(q, 1, "maximum number of buffers already allocated\n");
 		return -ENOBUFS;
 	}
 
-	if (!q->num_buffers) {
+	if (no_previous_buffers) {
 		if (q->waiting_in_dqbuf && *count) {
-			dprintk(1, "another dup()ped fd is waiting for a buffer\n");
+			dprintk(q, 1, "another dup()ped fd is waiting for a buffer\n");
 			return -EBUSY;
 		}
 		memset(q->alloc_devs, 0, sizeof(q->alloc_devs));
+		/*
+		 * Set this now to ensure that drivers see the correct q->memory
+		 * value in the queue_setup op.
+		 */
+		mutex_lock(&q->mmap_lock);
+		ret = vb2_core_allocated_buffers_storage(q);
 		q->memory = memory;
+		mutex_unlock(&q->mmap_lock);
+		if (ret)
+			return ret;
 		q->waiting_for_buffers = !q->is_output;
-	} else if (q->memory != memory) {
-		dprintk(1, "memory model mismatch\n");
-		return -EINVAL;
+		set_queue_coherency(q, non_coherent_mem);
+	} else {
+		if (q->memory != memory) {
+			dprintk(q, 1, "memory model mismatch\n");
+			return -EINVAL;
+		}
+		if (!verify_coherency_flags(q, non_coherent_mem))
+			return -EINVAL;
 	}
 
-	num_buffers = min(*count, VB2_MAX_FRAME - q->num_buffers);
+	num_buffers = min(*count, q->max_num_buffers - q_num_bufs);
 
 	if (requested_planes && requested_sizes) {
 		num_planes = requested_planes;
@@ -843,14 +1081,15 @@ int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
 	ret = call_qop(q, queue_setup, q, &num_buffers,
 		       &num_planes, plane_sizes, q->alloc_devs);
 	if (ret)
-		return ret;
+		goto error;
 
 	/* Finally, allocate buffers and video memory */
 	allocated_buffers = __vb2_queue_alloc(q, memory, num_buffers,
-				num_planes, plane_sizes);
+				num_planes, plane_sizes, first_index);
 	if (allocated_buffers == 0) {
-		dprintk(1, "memory allocation failed\n");
-		return -ENOMEM;
+		dprintk(q, 1, "memory allocation failed\n");
+		ret = -ENOMEM;
+		goto error;
 	}
 
 	/*
@@ -860,7 +1099,7 @@ int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
 		num_buffers = allocated_buffers;
 
 		/*
-		 * q->num_buffers contains the total number of buffers, that the
+		 * num_buffers contains the total number of buffers, that the
 		 * queue driver has set up
 		 */
 		ret = call_qop(q, queue_setup, q, &num_buffers,
@@ -876,14 +1115,14 @@ int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
 	}
 
 	mutex_lock(&q->mmap_lock);
-	q->num_buffers += allocated_buffers;
 
 	if (ret < 0) {
 		/*
 		 * Note: __vb2_queue_free() will subtract 'allocated_buffers'
-		 * from q->num_buffers.
+		 * from already queued buffers and it will reset q->memory to
+		 * VB2_MEMORY_UNKNOWN.
 		 */
-		__vb2_queue_free(q, allocated_buffers);
+		__vb2_queue_free(q, *first_index, allocated_buffers);
 		mutex_unlock(&q->mmap_lock);
 		return -ENOMEM;
 	}
@@ -894,8 +1133,17 @@ int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
 	 * to the userspace.
 	 */
 	*count = allocated_buffers;
+	q->is_busy = 1;
 
 	return 0;
+
+error:
+	if (no_previous_buffers) {
+		mutex_lock(&q->mmap_lock);
+		q->memory = VB2_MEMORY_UNKNOWN;
+		mutex_unlock(&q->mmap_lock);
+	}
+	return ret;
 }
 EXPORT_SYMBOL_GPL(vb2_core_create_bufs);
 
@@ -904,7 +1152,7 @@ void *vb2_plane_vaddr(struct vb2_buffer *vb, unsigned int plane_no)
 	if (plane_no >= vb->num_planes || !vb->planes[plane_no].mem_priv)
 		return NULL;
 
-	return call_ptr_memop(vb, vaddr, vb->planes[plane_no].mem_priv);
+	return call_ptr_memop(vaddr, vb, vb->planes[plane_no].mem_priv);
 
 }
 EXPORT_SYMBOL_GPL(vb2_plane_vaddr);
@@ -914,7 +1162,7 @@ void *vb2_plane_cookie(struct vb2_buffer *vb, unsigned int plane_no)
 	if (plane_no >= vb->num_planes || !vb->planes[plane_no].mem_priv)
 		return NULL;
 
-	return call_ptr_memop(vb, cookie, vb->planes[plane_no].mem_priv);
+	return call_ptr_memop(cookie, vb, vb->planes[plane_no].mem_priv);
 }
 EXPORT_SYMBOL_GPL(vb2_plane_cookie);
 
@@ -922,7 +1170,6 @@ void vb2_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state state)
 {
 	struct vb2_queue *q = vb->vb2_queue;
 	unsigned long flags;
-	unsigned int plane;
 
 	if (WARN_ON(vb->state != VB2_BUF_STATE_ACTIVE))
 		return;
@@ -939,15 +1186,11 @@ void vb2_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state state)
 	 */
 	vb->cnt_buf_done++;
 #endif
-	dprintk(4, "done processing on buffer %d, state: %d\n",
-			vb->index, state);
+	dprintk(q, 4, "done processing on buffer %d, state: %s\n",
+		vb->index, vb2_state_name(state));
 
-	if (state != VB2_BUF_STATE_QUEUED) {
-		/* sync buffers */
-		for (plane = 0; plane < vb->num_planes; ++plane)
-			call_void_memop(vb, finish, vb->planes[plane].mem_priv);
-		vb->synced = 0;
-	}
+	if (state != VB2_BUF_STATE_QUEUED)
+		__vb2_buf_mem_finish(vb);
 
 	spin_lock_irqsave(&q->done_lock, flags);
 	if (state == VB2_BUF_STATE_QUEUED) {
@@ -1029,12 +1272,12 @@ static int __prepare_userptr(struct vb2_buffer *vb)
 			&& vb->planes[plane].length == planes[plane].length)
 			continue;
 
-		dprintk(3, "userspace address for plane %d changed, reacquiring memory\n",
+		dprintk(q, 3, "userspace address for plane %d changed, reacquiring memory\n",
 			plane);
 
 		/* Check if the provided plane buffer is large enough */
 		if (planes[plane].length < vb->planes[plane].min_length) {
-			dprintk(1, "provided buffer size %u is less than setup size %u for plane %d\n",
+			dprintk(q, 1, "provided buffer size %u is less than setup size %u for plane %d\n",
 						planes[plane].length,
 						vb->planes[plane].min_length,
 						plane);
@@ -1059,12 +1302,13 @@ static int __prepare_userptr(struct vb2_buffer *vb)
 		vb->planes[plane].data_offset = 0;
 
 		/* Acquire each plane's memory */
-		mem_priv = call_ptr_memop(vb, get_userptr,
-				q->alloc_devs[plane] ? : q->dev,
-				planes[plane].m.userptr,
-				planes[plane].length, q->dma_dir);
+		mem_priv = call_ptr_memop(get_userptr,
+					  vb,
+					  q->alloc_devs[plane] ? : q->dev,
+					  planes[plane].m.userptr,
+					  planes[plane].length);
 		if (IS_ERR(mem_priv)) {
-			dprintk(1, "failed acquiring userspace memory for plane %d\n",
+			dprintk(q, 1, "failed acquiring userspace memory for plane %d\n",
 				plane);
 			ret = PTR_ERR(mem_priv);
 			goto err;
@@ -1091,14 +1335,14 @@ static int __prepare_userptr(struct vb2_buffer *vb)
 		 */
 		ret = call_vb_qop(vb, buf_init, vb);
 		if (ret) {
-			dprintk(1, "buffer initialization failed\n");
+			dprintk(q, 1, "buffer initialization failed\n");
 			goto err;
 		}
 	}
 
 	ret = call_vb_qop(vb, buf_prepare, vb);
 	if (ret) {
-		dprintk(1, "buffer preparation failed\n");
+		dprintk(q, 1, "buffer preparation failed\n");
 		call_void_vb_qop(vb, buf_cleanup, vb);
 		goto err;
 	}
@@ -1141,7 +1385,7 @@ static int __prepare_dmabuf(struct vb2_buffer *vb)
 		struct dma_buf *dbuf = dma_buf_get(planes[plane].m.fd);
 
 		if (IS_ERR_OR_NULL(dbuf)) {
-			dprintk(1, "invalid dmabuf fd for plane %d\n",
+			dprintk(q, 1, "invalid dmabuf fd for plane %d\n",
 				plane);
 			ret = -EINVAL;
 			goto err;
@@ -1152,7 +1396,7 @@ static int __prepare_dmabuf(struct vb2_buffer *vb)
 			planes[plane].length = dbuf->size;
 
 		if (planes[plane].length < vb->planes[plane].min_length) {
-			dprintk(1, "invalid dmabuf length %u for plane %d, minimum length %u\n",
+			dprintk(q, 1, "invalid dmabuf length %u for plane %d, minimum length %u\n",
 				planes[plane].length, plane,
 				vb->planes[plane].min_length);
 			dma_buf_put(dbuf);
@@ -1167,7 +1411,7 @@ static int __prepare_dmabuf(struct vb2_buffer *vb)
 			continue;
 		}
 
-		dprintk(3, "buffer for plane %d changed\n", plane);
+		dprintk(q, 3, "buffer for plane %d changed\n", plane);
 
 		if (!reacquired) {
 			reacquired = true;
@@ -1183,11 +1427,13 @@ static int __prepare_dmabuf(struct vb2_buffer *vb)
 		vb->planes[plane].data_offset = 0;
 
 		/* Acquire each plane's memory */
-		mem_priv = call_ptr_memop(vb, attach_dmabuf,
-				q->alloc_devs[plane] ? : q->dev,
-				dbuf, planes[plane].length, q->dma_dir);
+		mem_priv = call_ptr_memop(attach_dmabuf,
+					  vb,
+					  q->alloc_devs[plane] ? : q->dev,
+					  dbuf,
+					  planes[plane].length);
 		if (IS_ERR(mem_priv)) {
-			dprintk(1, "failed to attach dmabuf\n");
+			dprintk(q, 1, "failed to attach dmabuf\n");
 			ret = PTR_ERR(mem_priv);
 			dma_buf_put(dbuf);
 			goto err;
@@ -1208,7 +1454,7 @@ static int __prepare_dmabuf(struct vb2_buffer *vb)
 
 		ret = call_memop(vb, map_dmabuf, vb->planes[plane].mem_priv);
 		if (ret) {
-			dprintk(1, "failed to map dmabuf for plane %d\n",
+			dprintk(q, 1, "failed to map dmabuf for plane %d\n",
 				plane);
 			goto err;
 		}
@@ -1233,14 +1479,14 @@ static int __prepare_dmabuf(struct vb2_buffer *vb)
 		 */
 		ret = call_vb_qop(vb, buf_init, vb);
 		if (ret) {
-			dprintk(1, "buffer initialization failed\n");
+			dprintk(q, 1, "buffer initialization failed\n");
 			goto err;
 		}
 	}
 
 	ret = call_vb_qop(vb, buf_prepare, vb);
 	if (ret) {
-		dprintk(1, "buffer preparation failed\n");
+		dprintk(q, 1, "buffer preparation failed\n");
 		call_void_vb_qop(vb, buf_cleanup, vb);
 		goto err;
 	}
@@ -1272,11 +1518,10 @@ static int __buf_prepare(struct vb2_buffer *vb)
 {
 	struct vb2_queue *q = vb->vb2_queue;
 	enum vb2_buffer_state orig_state = vb->state;
-	unsigned int plane;
 	int ret;
 
 	if (q->error) {
-		dprintk(1, "fatal error occurred on queue\n");
+		dprintk(q, 1, "fatal error occurred on queue\n");
 		return -EIO;
 	}
 
@@ -1287,7 +1532,7 @@ static int __buf_prepare(struct vb2_buffer *vb)
 	if (q->is_output) {
 		ret = call_vb_qop(vb, buf_out_validate, vb);
 		if (ret) {
-			dprintk(1, "buffer validation failed\n");
+			dprintk(q, 1, "buffer validation failed\n");
 			return ret;
 		}
 	}
@@ -1311,16 +1556,12 @@ static int __buf_prepare(struct vb2_buffer *vb)
 	}
 
 	if (ret) {
-		dprintk(1, "buffer preparation failed: %d\n", ret);
+		dprintk(q, 1, "buffer preparation failed: %d\n", ret);
 		vb->state = orig_state;
 		return ret;
 	}
 
-	/* sync buffers */
-	for (plane = 0; plane < vb->num_planes; ++plane)
-		call_void_memop(vb, prepare, vb->planes[plane].mem_priv);
-
-	vb->synced = 1;
+	__vb2_buf_mem_prepare(vb);
 	vb->prepared = 1;
 	vb->state = orig_state;
 
@@ -1354,15 +1595,22 @@ static void vb2_req_unprepare(struct media_request_object *obj)
 	WARN_ON(!vb->req_obj.req);
 }
 
-int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb,
-		  struct media_request *req);
-
 static void vb2_req_queue(struct media_request_object *obj)
 {
 	struct vb2_buffer *vb = container_of(obj, struct vb2_buffer, req_obj);
+	int err;
 
 	mutex_lock(vb->vb2_queue->lock);
-	vb2_core_qbuf(vb->vb2_queue, vb->index, NULL, NULL);
+	/*
+	 * There is no method to propagate an error from vb2_core_qbuf(),
+	 * so if this returns a non-0 value, then WARN.
+	 *
+	 * The only exception is -EIO which is returned if q->error is
+	 * set. We just ignore that, and expect this will be caught the
+	 * next time vb2_req_prepare() is called.
+	 */
+	err = vb2_core_qbuf(vb->vb2_queue, vb, NULL, NULL);
+	WARN_ON_ONCE(err && err != -EIO);
 	mutex_unlock(vb->vb2_queue->lock);
 }
 
@@ -1416,19 +1664,17 @@ unsigned int vb2_request_buffer_cnt(struct media_request *req)
 }
 EXPORT_SYMBOL_GPL(vb2_request_buffer_cnt);
 
-int vb2_core_prepare_buf(struct vb2_queue *q, unsigned int index, void *pb)
+int vb2_core_prepare_buf(struct vb2_queue *q, struct vb2_buffer *vb, void *pb)
 {
-	struct vb2_buffer *vb;
 	int ret;
 
-	vb = q->bufs[index];
 	if (vb->state != VB2_BUF_STATE_DEQUEUED) {
-		dprintk(1, "invalid buffer state %d\n",
-			vb->state);
+		dprintk(q, 1, "invalid buffer state %s\n",
+			vb2_state_name(vb->state));
 		return -EINVAL;
 	}
 	if (vb->prepared) {
-		dprintk(1, "buffer already prepared\n");
+		dprintk(q, 1, "buffer already prepared\n");
 		return -EINVAL;
 	}
 
@@ -1439,18 +1685,56 @@ int vb2_core_prepare_buf(struct vb2_queue *q, unsigned int index, void *pb)
 	/* Fill buffer information for the userspace */
 	call_void_bufop(q, fill_user_buffer, vb, pb);
 
-	dprintk(2, "prepare of buffer %d succeeded\n", vb->index);
+	dprintk(q, 2, "prepare of buffer %d succeeded\n", vb->index);
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(vb2_core_prepare_buf);
+
+int vb2_core_remove_bufs(struct vb2_queue *q, unsigned int start, unsigned int count)
+{
+	unsigned int i, ret = 0;
+	unsigned int q_num_bufs = vb2_get_num_buffers(q);
+
+	if (count == 0)
+		return 0;
+
+	if (count > q_num_bufs)
+		return -EINVAL;
+
+	if (start > q->max_num_buffers - count)
+		return -EINVAL;
+
+	mutex_lock(&q->mmap_lock);
+
+	/* Check that all buffers in the range exist */
+	for (i = start; i < start + count; i++) {
+		struct vb2_buffer *vb = vb2_get_buffer(q, i);
+
+		if (!vb) {
+			ret = -EINVAL;
+			goto unlock;
+		}
+		if (vb->state != VB2_BUF_STATE_DEQUEUED) {
+			ret = -EBUSY;
+			goto unlock;
+		}
+	}
+	__vb2_queue_free(q, start, count);
+	dprintk(q, 2, "%u buffers removed\n", count);
+
+unlock:
+	mutex_unlock(&q->mmap_lock);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(vb2_core_remove_bufs);
 
 /*
  * vb2_start_streaming() - Attempt to start streaming.
  * @q:		videobuf2 queue
  *
  * Attempt to start streaming. When this function is called there must be
- * at least q->min_buffers_needed buffers queued up (i.e. the minimum
+ * at least q->min_queued_buffers queued up (i.e. the minimum
  * number of buffers required for the DMA engine to function). If the
  * @start_streaming op fails it is supposed to return all the driver-owned
  * buffers back to vb2 in state QUEUED. Check if that happened and if
@@ -1477,7 +1761,7 @@ static int vb2_start_streaming(struct vb2_queue *q)
 
 	q->start_streaming_called = 0;
 
-	dprintk(1, "driver refused to start streaming\n");
+	dprintk(q, 1, "driver refused to start streaming\n");
 	/*
 	 * If you see this warning, then the driver isn't cleaning up properly
 	 * after a failed start_streaming(). See the start_streaming()
@@ -1491,8 +1775,12 @@ static int vb2_start_streaming(struct vb2_queue *q)
 		 * Forcefully reclaim buffers if the driver did not
 		 * correctly return them to vb2.
 		 */
-		for (i = 0; i < q->num_buffers; ++i) {
-			vb = q->bufs[i];
+		for (i = 0; i < q->max_num_buffers; ++i) {
+			vb = vb2_get_buffer(q, i);
+
+			if (!vb)
+				continue;
+
 			if (vb->state == VB2_BUF_STATE_ACTIVE)
 				vb2_buffer_done(vb, VB2_BUF_STATE_QUEUED);
 		}
@@ -1508,29 +1796,27 @@ static int vb2_start_streaming(struct vb2_queue *q)
 	return ret;
 }
 
-int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb,
+int vb2_core_qbuf(struct vb2_queue *q, struct vb2_buffer *vb, void *pb,
 		  struct media_request *req)
 {
-	struct vb2_buffer *vb;
+	enum vb2_buffer_state orig_state;
 	int ret;
 
 	if (q->error) {
-		dprintk(1, "fatal error occurred on queue\n");
+		dprintk(q, 1, "fatal error occurred on queue\n");
 		return -EIO;
 	}
 
-	vb = q->bufs[index];
-
 	if (!req && vb->state != VB2_BUF_STATE_IN_REQUEST &&
 	    q->requires_requests) {
-		dprintk(1, "qbuf requires a request\n");
+		dprintk(q, 1, "qbuf requires a request\n");
 		return -EBADR;
 	}
 
 	if ((req && q->uses_qbuf) ||
 	    (!req && vb->state != VB2_BUF_STATE_IN_REQUEST &&
 	     q->uses_requests)) {
-		dprintk(1, "queue in wrong mode (qbuf vs requests)\n");
+		dprintk(q, 1, "queue in wrong mode (qbuf vs requests)\n");
 		return -EBUSY;
 	}
 
@@ -1539,7 +1825,7 @@ int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb,
 
 		q->uses_requests = 1;
 		if (vb->state != VB2_BUF_STATE_DEQUEUED) {
-			dprintk(1, "buffer %d not in dequeued state\n",
+			dprintk(q, 1, "buffer %d not in dequeued state\n",
 				vb->index);
 			return -EINVAL;
 		}
@@ -1547,7 +1833,7 @@ int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb,
 		if (q->is_output && !vb->prepared) {
 			ret = call_vb_qop(vb, buf_out_validate, vb);
 			if (ret) {
-				dprintk(1, "buffer validation failed\n");
+				dprintk(q, 1, "buffer validation failed\n");
 				return ret;
 			}
 		}
@@ -1583,7 +1869,7 @@ int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb,
 			call_void_bufop(q, fill_user_buffer, vb, pb);
 		}
 
-		dprintk(2, "qbuf of buffer %d succeeded\n", vb->index);
+		dprintk(q, 2, "qbuf of buffer %d succeeded\n", vb->index);
 		return 0;
 	}
 
@@ -1600,10 +1886,11 @@ int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb,
 		}
 		break;
 	case VB2_BUF_STATE_PREPARING:
-		dprintk(1, "buffer still being prepared\n");
+		dprintk(q, 1, "buffer still being prepared\n");
 		return -EINVAL;
 	default:
-		dprintk(1, "invalid buffer state %d\n", vb->state);
+		dprintk(q, 1, "invalid buffer state %s\n",
+			vb2_state_name(vb->state));
 		return -EINVAL;
 	}
 
@@ -1611,6 +1898,7 @@ int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb,
 	 * Add to the queued buffers list, a buffer will stay on it until
 	 * dequeued in dqbuf.
 	 */
+	orig_state = vb->state;
 	list_add_tail(&vb->queued_entry, &q->queued_list);
 	q->queued_count++;
 	q->waiting_for_buffers = false;
@@ -1639,13 +1927,22 @@ int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb,
 	 * then we can finally call start_streaming().
 	 */
 	if (q->streaming && !q->start_streaming_called &&
-	    q->queued_count >= q->min_buffers_needed) {
+	    q->queued_count >= q->min_queued_buffers) {
 		ret = vb2_start_streaming(q);
-		if (ret)
+		if (ret) {
+			/*
+			 * Since vb2_core_qbuf will return with an error,
+			 * we should return it to state DEQUEUED since
+			 * the error indicates that the buffer wasn't queued.
+			 */
+			list_del(&vb->queued_entry);
+			q->queued_count--;
+			vb->state = orig_state;
 			return ret;
+		}
 	}
 
-	dprintk(2, "qbuf of buffer %d succeeded\n", vb->index);
+	dprintk(q, 2, "qbuf of buffer %d succeeded\n", vb->index);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(vb2_core_qbuf);
@@ -1671,22 +1968,22 @@ static int __vb2_wait_for_done_vb(struct vb2_queue *q, int nonblocking)
 		int ret;
 
 		if (q->waiting_in_dqbuf) {
-			dprintk(1, "another dup()ped fd is waiting for a buffer\n");
+			dprintk(q, 1, "another dup()ped fd is waiting for a buffer\n");
 			return -EBUSY;
 		}
 
 		if (!q->streaming) {
-			dprintk(1, "streaming off, will not wait for buffers\n");
+			dprintk(q, 1, "streaming off, will not wait for buffers\n");
 			return -EINVAL;
 		}
 
 		if (q->error) {
-			dprintk(1, "Queue in error state, will not wait for buffers\n");
+			dprintk(q, 1, "Queue in error state, will not wait for buffers\n");
 			return -EIO;
 		}
 
 		if (q->last_buffer_dequeued) {
-			dprintk(3, "last buffer dequeued already, will not wait for buffers\n");
+			dprintk(q, 3, "last buffer dequeued already, will not wait for buffers\n");
 			return -EPIPE;
 		}
 
@@ -1698,7 +1995,7 @@ static int __vb2_wait_for_done_vb(struct vb2_queue *q, int nonblocking)
 		}
 
 		if (nonblocking) {
-			dprintk(3, "nonblocking and no buffers to dequeue, will not wait\n");
+			dprintk(q, 3, "nonblocking and no buffers to dequeue, will not wait\n");
 			return -EAGAIN;
 		}
 
@@ -1713,7 +2010,7 @@ static int __vb2_wait_for_done_vb(struct vb2_queue *q, int nonblocking)
 		/*
 		 * All locks have been released, it is safe to sleep now.
 		 */
-		dprintk(3, "will sleep waiting for buffers\n");
+		dprintk(q, 3, "will sleep waiting for buffers\n");
 		ret = wait_event_interruptible(q->done_wq,
 				!list_empty(&q->done_list) || !q->streaming ||
 				q->error);
@@ -1725,7 +2022,7 @@ static int __vb2_wait_for_done_vb(struct vb2_queue *q, int nonblocking)
 		call_void_qop(q, wait_finish, q);
 		q->waiting_in_dqbuf = 0;
 		if (ret) {
-			dprintk(1, "sleep was interrupted\n");
+			dprintk(q, 1, "sleep was interrupted\n");
 			return ret;
 		}
 	}
@@ -1773,7 +2070,7 @@ static int __vb2_get_done_vb(struct vb2_queue *q, struct vb2_buffer **vb,
 int vb2_wait_for_all_buffers(struct vb2_queue *q)
 {
 	if (!q->streaming) {
-		dprintk(1, "streaming off, will not wait for buffers\n");
+		dprintk(q, 1, "streaming off, will not wait for buffers\n");
 		return -EINVAL;
 	}
 
@@ -1811,13 +2108,14 @@ int vb2_core_dqbuf(struct vb2_queue *q, unsigned int *pindex, void *pb,
 
 	switch (vb->state) {
 	case VB2_BUF_STATE_DONE:
-		dprintk(3, "returning done buffer\n");
+		dprintk(q, 3, "returning done buffer\n");
 		break;
 	case VB2_BUF_STATE_ERROR:
-		dprintk(3, "returning done buffer with errors\n");
+		dprintk(q, 3, "returning done buffer with errors\n");
 		break;
 	default:
-		dprintk(1, "invalid buffer state\n");
+		dprintk(q, 1, "invalid buffer state %s\n",
+			vb2_state_name(vb->state));
 		return -EINVAL;
 	}
 
@@ -1831,7 +2129,7 @@ int vb2_core_dqbuf(struct vb2_queue *q, unsigned int *pindex, void *pb,
 	if (pb)
 		call_void_bufop(q, fill_user_buffer, vb, pb);
 
-	/* Remove from videobuf queue */
+	/* Remove from vb2 queue */
 	list_del(&vb->queued_entry);
 	q->queued_count--;
 
@@ -1848,8 +2146,8 @@ int vb2_core_dqbuf(struct vb2_queue *q, unsigned int *pindex, void *pb,
 		media_request_put(vb->request);
 	vb->request = NULL;
 
-	dprintk(2, "dqbuf of buffer %d, with state %d\n",
-			vb->index, vb->state);
+	dprintk(q, 2, "dqbuf of buffer %d, state: %s\n",
+		vb->index, vb2_state_name(vb->state));
 
 	return 0;
 
@@ -1860,7 +2158,7 @@ EXPORT_SYMBOL_GPL(vb2_core_dqbuf);
  * __vb2_queue_cancel() - cancel and stop (pause) streaming
  *
  * Removes all queued buffers from driver's queue and all buffers queued by
- * userspace from videobuf's queue. Returns to state after reqbufs.
+ * userspace from vb2's queue. Returns to state after reqbufs.
  */
 static void __vb2_queue_cancel(struct vb2_queue *q)
 {
@@ -1873,6 +2171,9 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
 	if (q->start_streaming_called)
 		call_void_qop(q, stop_streaming, q);
 
+	if (q->streaming)
+		call_void_qop(q, unprepare_streaming, q);
+
 	/*
 	 * If you see this warning, then the driver isn't cleaning up properly
 	 * in stop_streaming(). See the stop_streaming() documentation in
@@ -1880,12 +2181,18 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
 	 * to vb2 in stop_streaming().
 	 */
 	if (WARN_ON(atomic_read(&q->owned_by_drv_count))) {
-		for (i = 0; i < q->num_buffers; ++i)
-			if (q->bufs[i]->state == VB2_BUF_STATE_ACTIVE) {
-				pr_warn("driver bug: stop_streaming operation is leaving buf %p in active state\n",
-					q->bufs[i]);
-				vb2_buffer_done(q->bufs[i], VB2_BUF_STATE_ERROR);
+		for (i = 0; i < q->max_num_buffers; i++) {
+			struct vb2_buffer *vb = vb2_get_buffer(q, i);
+
+			if (!vb)
+				continue;
+
+			if (vb->state == VB2_BUF_STATE_ACTIVE) {
+				pr_warn("driver bug: stop_streaming operation is leaving buffer %u in active state\n",
+					vb->index);
+				vb2_buffer_done(vb, VB2_BUF_STATE_ERROR);
 			}
+		}
 		/* Must be zero now */
 		WARN_ON(atomic_read(&q->owned_by_drv_count));
 	}
@@ -1898,7 +2205,7 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
 	q->uses_qbuf = 0;
 
 	/*
-	 * Remove all buffers from videobuf's list...
+	 * Remove all buffers from vb2's list...
 	 */
 	INIT_LIST_HEAD(&q->queued_list);
 	/*
@@ -1918,10 +2225,15 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
 	 * call to __fill_user_buffer() after buf_finish(). That order can't
 	 * be changed, so we can't move the buf_finish() to __vb2_dqbuf().
 	 */
-	for (i = 0; i < q->num_buffers; ++i) {
-		struct vb2_buffer *vb = q->bufs[i];
-		struct media_request *req = vb->req_obj.req;
+	for (i = 0; i < q->max_num_buffers; i++) {
+		struct vb2_buffer *vb;
+		struct media_request *req;
 
+		vb = vb2_get_buffer(q, i);
+		if (!vb)
+			continue;
+
+		req = vb->req_obj.req;
 		/*
 		 * If a request is associated with this buffer, then
 		 * call buf_request_cancel() to give the driver to complete()
@@ -1940,14 +2252,7 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
 				call_void_vb_qop(vb, buf_request_complete, vb);
 		}
 
-		if (vb->synced) {
-			unsigned int plane;
-
-			for (plane = 0; plane < vb->num_planes; ++plane)
-				call_void_memop(vb, finish,
-						vb->planes[plane].mem_priv);
-			vb->synced = 0;
-		}
+		__vb2_buf_mem_finish(vb);
 
 		if (vb->prepared) {
 			call_void_vb_qop(vb, buf_finish, vb);
@@ -1968,46 +2273,52 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
 
 int vb2_core_streamon(struct vb2_queue *q, unsigned int type)
 {
+	unsigned int q_num_bufs = vb2_get_num_buffers(q);
 	int ret;
 
 	if (type != q->type) {
-		dprintk(1, "invalid stream type\n");
+		dprintk(q, 1, "invalid stream type\n");
 		return -EINVAL;
 	}
 
 	if (q->streaming) {
-		dprintk(3, "already streaming\n");
+		dprintk(q, 3, "already streaming\n");
 		return 0;
 	}
 
-	if (!q->num_buffers) {
-		dprintk(1, "no buffers have been allocated\n");
+	if (!q_num_bufs) {
+		dprintk(q, 1, "no buffers have been allocated\n");
 		return -EINVAL;
 	}
 
-	if (q->num_buffers < q->min_buffers_needed) {
-		dprintk(1, "need at least %u allocated buffers\n",
-				q->min_buffers_needed);
+	if (q_num_bufs < q->min_queued_buffers) {
+		dprintk(q, 1, "need at least %u queued buffers\n",
+			q->min_queued_buffers);
 		return -EINVAL;
 	}
+
+	ret = call_qop(q, prepare_streaming, q);
+	if (ret)
+		return ret;
 
 	/*
 	 * Tell driver to start streaming provided sufficient buffers
 	 * are available.
 	 */
-	if (q->queued_count >= q->min_buffers_needed) {
-		ret = v4l_vb2q_enable_media_source(q);
-		if (ret)
-			return ret;
+	if (q->queued_count >= q->min_queued_buffers) {
 		ret = vb2_start_streaming(q);
 		if (ret)
-			return ret;
+			goto unprepare;
 	}
 
 	q->streaming = 1;
 
-	dprintk(3, "successful\n");
+	dprintk(q, 3, "successful\n");
 	return 0;
+
+unprepare:
+	call_void_qop(q, unprepare_streaming, q);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(vb2_core_streamon);
 
@@ -2022,13 +2333,13 @@ EXPORT_SYMBOL_GPL(vb2_queue_error);
 int vb2_core_streamoff(struct vb2_queue *q, unsigned int type)
 {
 	if (type != q->type) {
-		dprintk(1, "invalid stream type\n");
+		dprintk(q, 1, "invalid stream type\n");
 		return -EINVAL;
 	}
 
 	/*
 	 * Cancel will pause streaming and remove all buffers from the driver
-	 * and videobuf, effectively returning control over them to userspace.
+	 * and vb2, effectively returning control over them to userspace.
 	 *
 	 * Note that we do this even if q->streaming == 0: if you prepare or
 	 * queue buffers, and then call streamoff without ever having called
@@ -2039,105 +2350,107 @@ int vb2_core_streamoff(struct vb2_queue *q, unsigned int type)
 	q->waiting_for_buffers = !q->is_output;
 	q->last_buffer_dequeued = false;
 
-	dprintk(3, "successful\n");
+	dprintk(q, 3, "successful\n");
 	return 0;
 }
 EXPORT_SYMBOL_GPL(vb2_core_streamoff);
 
 /*
- * __find_plane_by_offset() - find plane associated with the given offset off
+ * __find_plane_by_offset() - find plane associated with the given offset
  */
-static int __find_plane_by_offset(struct vb2_queue *q, unsigned long off,
-			unsigned int *_buffer, unsigned int *_plane)
+static int __find_plane_by_offset(struct vb2_queue *q, unsigned long offset,
+			struct vb2_buffer **vb, unsigned int *plane)
 {
-	struct vb2_buffer *vb;
-	unsigned int buffer, plane;
+	unsigned int buffer;
 
 	/*
-	 * Go over all buffers and their planes, comparing the given offset
-	 * with an offset assigned to each plane. If a match is found,
-	 * return its buffer and plane numbers.
+	 * Sanity checks to ensure the lock is held, MEMORY_MMAP is
+	 * used and fileio isn't active.
 	 */
-	for (buffer = 0; buffer < q->num_buffers; ++buffer) {
-		vb = q->bufs[buffer];
+	lockdep_assert_held(&q->mmap_lock);
 
-		for (plane = 0; plane < vb->num_planes; ++plane) {
-			if (vb->planes[plane].m.offset == off) {
-				*_buffer = buffer;
-				*_plane = plane;
-				return 0;
-			}
-		}
+	if (q->memory != VB2_MEMORY_MMAP) {
+		dprintk(q, 1, "queue is not currently set up for mmap\n");
+		return -EINVAL;
 	}
 
-	return -EINVAL;
+	if (vb2_fileio_is_active(q)) {
+		dprintk(q, 1, "file io in progress\n");
+		return -EBUSY;
+	}
+
+	/* Get buffer and plane from the offset */
+	buffer = (offset >> PLANE_INDEX_SHIFT) & BUFFER_INDEX_MASK;
+	*plane = (offset >> PAGE_SHIFT) & PLANE_INDEX_MASK;
+
+	*vb = vb2_get_buffer(q, buffer);
+	if (!*vb)
+		return -EINVAL;
+	if (*plane >= (*vb)->num_planes)
+		return -EINVAL;
+
+	return 0;
 }
 
 int vb2_core_expbuf(struct vb2_queue *q, int *fd, unsigned int type,
-		unsigned int index, unsigned int plane, unsigned int flags)
+		    struct vb2_buffer *vb, unsigned int plane, unsigned int flags)
 {
-	struct vb2_buffer *vb = NULL;
 	struct vb2_plane *vb_plane;
 	int ret;
 	struct dma_buf *dbuf;
 
 	if (q->memory != VB2_MEMORY_MMAP) {
-		dprintk(1, "queue is not currently set up for mmap\n");
+		dprintk(q, 1, "queue is not currently set up for mmap\n");
 		return -EINVAL;
 	}
 
 	if (!q->mem_ops->get_dmabuf) {
-		dprintk(1, "queue does not support DMA buffer exporting\n");
+		dprintk(q, 1, "queue does not support DMA buffer exporting\n");
 		return -EINVAL;
 	}
 
 	if (flags & ~(O_CLOEXEC | O_ACCMODE)) {
-		dprintk(1, "queue does support only O_CLOEXEC and access mode flags\n");
+		dprintk(q, 1, "queue does support only O_CLOEXEC and access mode flags\n");
 		return -EINVAL;
 	}
 
 	if (type != q->type) {
-		dprintk(1, "invalid buffer type\n");
+		dprintk(q, 1, "invalid buffer type\n");
 		return -EINVAL;
 	}
-
-	if (index >= q->num_buffers) {
-		dprintk(1, "buffer index out of range\n");
-		return -EINVAL;
-	}
-
-	vb = q->bufs[index];
 
 	if (plane >= vb->num_planes) {
-		dprintk(1, "buffer plane out of range\n");
+		dprintk(q, 1, "buffer plane out of range\n");
 		return -EINVAL;
 	}
 
 	if (vb2_fileio_is_active(q)) {
-		dprintk(1, "expbuf: file io in progress\n");
+		dprintk(q, 1, "expbuf: file io in progress\n");
 		return -EBUSY;
 	}
 
 	vb_plane = &vb->planes[plane];
 
-	dbuf = call_ptr_memop(vb, get_dmabuf, vb_plane->mem_priv,
-				flags & O_ACCMODE);
+	dbuf = call_ptr_memop(get_dmabuf,
+			      vb,
+			      vb_plane->mem_priv,
+			      flags & O_ACCMODE);
 	if (IS_ERR_OR_NULL(dbuf)) {
-		dprintk(1, "failed to export buffer %d, plane %d\n",
-			index, plane);
+		dprintk(q, 1, "failed to export buffer %d, plane %d\n",
+			vb->index, plane);
 		return -EINVAL;
 	}
 
 	ret = dma_buf_fd(dbuf, flags & ~O_ACCMODE);
 	if (ret < 0) {
-		dprintk(3, "buffer %d, plane %d failed to export (%d)\n",
-			index, plane, ret);
+		dprintk(q, 3, "buffer %d, plane %d failed to export (%d)\n",
+			vb->index, plane, ret);
 		dma_buf_put(dbuf);
 		return ret;
 	}
 
-	dprintk(3, "buffer %d, plane %d exported as %d descriptor\n",
-		index, plane, ret);
+	dprintk(q, 3, "buffer %d, plane %d exported as %d descriptor\n",
+		vb->index, plane, ret);
 	*fd = ret;
 
 	return 0;
@@ -2146,52 +2459,40 @@ EXPORT_SYMBOL_GPL(vb2_core_expbuf);
 
 int vb2_mmap(struct vb2_queue *q, struct vm_area_struct *vma)
 {
-	unsigned long off = vma->vm_pgoff << PAGE_SHIFT;
+	unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
 	struct vb2_buffer *vb;
-	unsigned int buffer = 0, plane = 0;
+	unsigned int plane = 0;
 	int ret;
 	unsigned long length;
-
-	if (q->memory != VB2_MEMORY_MMAP) {
-		dprintk(1, "queue is not currently set up for mmap\n");
-		return -EINVAL;
-	}
 
 	/*
 	 * Check memory area access mode.
 	 */
 	if (!(vma->vm_flags & VM_SHARED)) {
-		dprintk(1, "invalid vma flags, VM_SHARED needed\n");
+		dprintk(q, 1, "invalid vma flags, VM_SHARED needed\n");
 		return -EINVAL;
 	}
 	if (q->is_output) {
 		if (!(vma->vm_flags & VM_WRITE)) {
-			dprintk(1, "invalid vma flags, VM_WRITE needed\n");
+			dprintk(q, 1, "invalid vma flags, VM_WRITE needed\n");
 			return -EINVAL;
 		}
 	} else {
 		if (!(vma->vm_flags & VM_READ)) {
-			dprintk(1, "invalid vma flags, VM_READ needed\n");
+			dprintk(q, 1, "invalid vma flags, VM_READ needed\n");
 			return -EINVAL;
 		}
 	}
 
 	mutex_lock(&q->mmap_lock);
 
-	if (vb2_fileio_is_active(q)) {
-		dprintk(1, "mmap: file io in progress\n");
-		ret = -EBUSY;
-		goto unlock;
-	}
-
 	/*
-	 * Find the plane corresponding to the offset passed by userspace.
+	 * Find the plane corresponding to the offset passed by userspace. This
+	 * will return an error if not MEMORY_MMAP or file I/O is in progress.
 	 */
-	ret = __find_plane_by_offset(q, off, &buffer, &plane);
+	ret = __find_plane_by_offset(q, offset, &vb, &plane);
 	if (ret)
 		goto unlock;
-
-	vb = q->bufs[buffer];
 
 	/*
 	 * MMAP requires page_aligned buffers.
@@ -2200,7 +2501,7 @@ int vb2_mmap(struct vb2_queue *q, struct vm_area_struct *vma)
 	 */
 	length = PAGE_ALIGN(vb->planes[plane].length);
 	if (length < (vma->vm_end - vma->vm_start)) {
-		dprintk(1,
+		dprintk(q, 1,
 			"MMAP invalid, as it would overflow buffer length\n");
 		ret = -EINVAL;
 		goto unlock;
@@ -2220,7 +2521,7 @@ unlock:
 	if (ret)
 		return ret;
 
-	dprintk(3, "buffer %d, plane %d successfully mapped\n", buffer, plane);
+	dprintk(q, 3, "buffer %u, plane %d successfully mapped\n", vb->index, plane);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(vb2_mmap);
@@ -2232,28 +2533,29 @@ unsigned long vb2_get_unmapped_area(struct vb2_queue *q,
 				    unsigned long pgoff,
 				    unsigned long flags)
 {
-	unsigned long off = pgoff << PAGE_SHIFT;
+	unsigned long offset = pgoff << PAGE_SHIFT;
 	struct vb2_buffer *vb;
-	unsigned int buffer, plane;
+	unsigned int plane;
 	void *vaddr;
 	int ret;
 
-	if (q->memory != VB2_MEMORY_MMAP) {
-		dprintk(1, "queue is not currently set up for mmap\n");
-		return -EINVAL;
-	}
+	mutex_lock(&q->mmap_lock);
 
 	/*
-	 * Find the plane corresponding to the offset passed by userspace.
+	 * Find the plane corresponding to the offset passed by userspace. This
+	 * will return an error if not MEMORY_MMAP or file I/O is in progress.
 	 */
-	ret = __find_plane_by_offset(q, off, &buffer, &plane);
+	ret = __find_plane_by_offset(q, offset, &vb, &plane);
 	if (ret)
-		return ret;
-
-	vb = q->bufs[buffer];
+		goto unlock;
 
 	vaddr = vb2_plane_vaddr(vb, plane);
+	mutex_unlock(&q->mmap_lock);
 	return vaddr ? (unsigned long)vaddr : -EINVAL;
+
+unlock:
+	mutex_unlock(&q->mmap_lock);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(vb2_get_unmapped_area);
 #endif
@@ -2263,6 +2565,16 @@ int vb2_core_queue_init(struct vb2_queue *q)
 	/*
 	 * Sanity check
 	 */
+	/*
+	 * For drivers who don't support max_num_buffers ensure
+	 * a backward compatibility.
+	 */
+	if (!q->max_num_buffers)
+		q->max_num_buffers = VB2_MAX_FRAME;
+
+	/* The maximum is limited by offset cookie encoding pattern */
+	q->max_num_buffers = min_t(unsigned int, q->max_num_buffers, MAX_BUFFER_INDEX);
+
 	if (WARN_ON(!q)			  ||
 	    WARN_ON(!q->ops)		  ||
 	    WARN_ON(!q->mem_ops)	  ||
@@ -2272,7 +2584,41 @@ int vb2_core_queue_init(struct vb2_queue *q)
 	    WARN_ON(!q->ops->buf_queue))
 		return -EINVAL;
 
+	if (WARN_ON(q->max_num_buffers < VB2_MAX_FRAME) ||
+	    WARN_ON(q->min_queued_buffers > q->max_num_buffers))
+		return -EINVAL;
+
 	if (WARN_ON(q->requires_requests && !q->supports_requests))
+		return -EINVAL;
+
+	/*
+	 * This combination is not allowed since a non-zero value of
+	 * q->min_queued_buffers can cause vb2_core_qbuf() to fail if
+	 * it has to call start_streaming(), and the Request API expects
+	 * that queueing a request (and thus queueing a buffer contained
+	 * in that request) will always succeed. There is no method of
+	 * propagating an error back to userspace.
+	 */
+	if (WARN_ON(q->supports_requests && q->min_queued_buffers))
+		return -EINVAL;
+
+	/*
+	 * The minimum requirement is 2: one buffer is used
+	 * by the hardware while the other is being processed by userspace.
+	 */
+	if (q->min_reqbufs_allocation < 2)
+		q->min_reqbufs_allocation = 2;
+
+	/*
+	 * If the driver needs 'min_queued_buffers' in the queue before
+	 * calling start_streaming() then the minimum requirement is
+	 * 'min_queued_buffers + 1' to keep at least one buffer available
+	 * for userspace.
+	 */
+	if (q->min_reqbufs_allocation < q->min_queued_buffers + 1)
+		q->min_reqbufs_allocation = q->min_queued_buffers + 1;
+
+	if (WARN_ON(q->min_reqbufs_allocation > q->max_num_buffers))
 		return -EINVAL;
 
 	INIT_LIST_HEAD(&q->queued_list);
@@ -2291,6 +2637,10 @@ int vb2_core_queue_init(struct vb2_queue *q)
 	else
 		q->dma_dir = q->is_output ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
 
+	if (q->name[0] == '\0')
+		snprintf(q->name, sizeof(q->name), "%s-%p",
+			 q->is_output ? "out" : "cap", q);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(vb2_core_queue_init);
@@ -2302,7 +2652,9 @@ void vb2_core_queue_release(struct vb2_queue *q)
 	__vb2_cleanup_fileio(q);
 	__vb2_queue_cancel(q);
 	mutex_lock(&q->mmap_lock);
-	__vb2_queue_free(q, q->num_buffers);
+	__vb2_queue_free(q, 0, q->max_num_buffers);
+	vb2_core_free_buffers_storage(q);
+	q->is_busy = 0;
 	mutex_unlock(&q->mmap_lock);
 }
 EXPORT_SYMBOL_GPL(vb2_core_queue_release);
@@ -2314,17 +2666,24 @@ __poll_t vb2_core_poll(struct vb2_queue *q, struct file *file,
 	struct vb2_buffer *vb = NULL;
 	unsigned long flags;
 
+	/*
+	 * poll_wait() MUST be called on the first invocation on all the
+	 * potential queues of interest, even if we are not interested in their
+	 * events during this first call. Failure to do so will result in
+	 * queue's events to be ignored because the poll_table won't be capable
+	 * of adding new wait queues thereafter.
+	 */
+	poll_wait(file, &q->done_wq, wait);
+
 	if (!q->is_output && !(req_events & (EPOLLIN | EPOLLRDNORM)))
 		return 0;
 	if (q->is_output && !(req_events & (EPOLLOUT | EPOLLWRNORM)))
 		return 0;
 
-	poll_wait(file, &q->done_wq, wait);
-
 	/*
 	 * Start file I/O emulator only if streaming API has not been used yet.
 	 */
-	if (q->num_buffers == 0 && !vb2_fileio_is_active(q)) {
+	if (vb2_get_num_buffers(q) == 0 && !vb2_fileio_is_active(q)) {
 		if (!q->is_output && (q->io_modes & VB2_READ) &&
 				(req_events & (EPOLLIN | EPOLLRDNORM))) {
 			if (__vb2_init_fileio(q, 1))
@@ -2362,7 +2721,7 @@ __poll_t vb2_core_poll(struct vb2_queue *q, struct file *file,
 	 * For output streams you can call write() as long as there are fewer
 	 * buffers queued than there are buffers available.
 	 */
-	if (q->is_output && q->fileio && q->queued_count < q->num_buffers)
+	if (q->is_output && q->fileio && q->queued_count < vb2_get_num_buffers(q))
 		return EPOLLOUT | EPOLLWRNORM;
 
 	if (list_empty(&q->done_list)) {
@@ -2411,8 +2770,8 @@ struct vb2_fileio_buf {
  * struct vb2_fileio_data - queue context used by file io emulator
  *
  * @cur_index:	the index of the buffer currently being read from or
- *		written to. If equal to q->num_buffers then a new buffer
- *		must be dequeued.
+ *		written to. If equal to number of buffers in the vb2_queue
+ *		then a new buffer must be dequeued.
  * @initial_index: in the read() case all buffers are queued up immediately
  *		in __vb2_init_fileio() and __vb2_perform_fileio() just cycles
  *		buffers. However, in the write() case no buffers are initially
@@ -2422,9 +2781,9 @@ struct vb2_fileio_buf {
  *		buffers. This means that initially __vb2_perform_fileio()
  *		needs to know what buffer index to use when it is queuing up
  *		the buffers for the first time. That initial index is stored
- *		in this field. Once it is equal to q->num_buffers all
- *		available buffers have been queued and __vb2_perform_fileio()
- *		should start the normal dequeue/queue cycle.
+ *		in this field. Once it is equal to number of buffers in the
+ *		vb2_queue all available buffers have been queued and
+ *		__vb2_perform_fileio() should start the normal dequeue/queue cycle.
  *
  * vb2 provides a compatibility layer and emulator of file io (read and
  * write) calls on top of streaming API. For proper operation it required
@@ -2452,8 +2811,8 @@ struct vb2_fileio_data {
 static int __vb2_init_fileio(struct vb2_queue *q, int read)
 {
 	struct vb2_fileio_data *fileio;
+	struct vb2_buffer *vb;
 	int i, ret;
-	unsigned int count = 0;
 
 	/*
 	 * Sanity check
@@ -2471,16 +2830,11 @@ static int __vb2_init_fileio(struct vb2_queue *q, int read)
 	/*
 	 * Check if streaming api has not been already activated.
 	 */
-	if (q->streaming || q->num_buffers > 0)
+	if (q->streaming || vb2_get_num_buffers(q) > 0)
 		return -EBUSY;
 
-	/*
-	 * Start with count 1, driver can increase it in queue_setup()
-	 */
-	count = 1;
-
-	dprintk(3, "setting up file io: mode %s, count %d, read_once %d, write_immediately %d\n",
-		(read) ? "read" : "write", count, q->fileio_read_once,
+	dprintk(q, 3, "setting up file io: mode %s, count %d, read_once %d, write_immediately %d\n",
+		(read) ? "read" : "write", q->min_reqbufs_allocation, q->fileio_read_once,
 		q->fileio_write_immediately);
 
 	fileio = kzalloc(sizeof(*fileio), GFP_KERNEL);
@@ -2494,19 +2848,32 @@ static int __vb2_init_fileio(struct vb2_queue *q, int read)
 	 * Request buffers and use MMAP type to force driver
 	 * to allocate buffers by itself.
 	 */
-	fileio->count = count;
+	fileio->count = q->min_reqbufs_allocation;
 	fileio->memory = VB2_MEMORY_MMAP;
 	fileio->type = q->type;
 	q->fileio = fileio;
-	ret = vb2_core_reqbufs(q, fileio->memory, &fileio->count);
+	ret = vb2_core_reqbufs(q, fileio->memory, 0, &fileio->count);
 	if (ret)
 		goto err_kfree;
+	/* vb2_fileio_data supports max VB2_MAX_FRAME buffers */
+	if (fileio->count > VB2_MAX_FRAME) {
+		dprintk(q, 1, "fileio: more than VB2_MAX_FRAME buffers requested\n");
+		ret = -ENOSPC;
+		goto err_reqbufs;
+	}
+
+	/*
+	 * Userspace can never add or delete buffers later, so there
+	 * will never be holes. It is safe to assume that vb2_get_buffer(q, 0)
+	 * will always return a valid vb pointer
+	 */
+	vb = vb2_get_buffer(q, 0);
 
 	/*
 	 * Check if plane_count is correct
 	 * (multiplane buffers are not supported).
 	 */
-	if (q->bufs[0]->num_planes != 1) {
+	if (vb->num_planes != 1) {
 		ret = -EBUSY;
 		goto err_reqbufs;
 	}
@@ -2514,13 +2881,16 @@ static int __vb2_init_fileio(struct vb2_queue *q, int read)
 	/*
 	 * Get kernel address of each buffer.
 	 */
-	for (i = 0; i < q->num_buffers; i++) {
-		fileio->bufs[i].vaddr = vb2_plane_vaddr(q->bufs[i], 0);
+	for (i = 0; i < vb2_get_num_buffers(q); i++) {
+		/* vb can never be NULL when using fileio. */
+		vb = vb2_get_buffer(q, i);
+
+		fileio->bufs[i].vaddr = vb2_plane_vaddr(vb, 0);
 		if (fileio->bufs[i].vaddr == NULL) {
 			ret = -EINVAL;
 			goto err_reqbufs;
 		}
-		fileio->bufs[i].size = vb2_plane_size(q->bufs[i], 0);
+		fileio->bufs[i].size = vb2_plane_size(vb, 0);
 	}
 
 	/*
@@ -2530,18 +2900,23 @@ static int __vb2_init_fileio(struct vb2_queue *q, int read)
 		/*
 		 * Queue all buffers.
 		 */
-		for (i = 0; i < q->num_buffers; i++) {
-			ret = vb2_core_qbuf(q, i, NULL, NULL);
+		for (i = 0; i < vb2_get_num_buffers(q); i++) {
+			struct vb2_buffer *vb2 = vb2_get_buffer(q, i);
+
+			if (!vb2)
+				continue;
+
+			ret = vb2_core_qbuf(q, vb2, NULL, NULL);
 			if (ret)
 				goto err_reqbufs;
 			fileio->bufs[i].queued = 1;
 		}
 		/*
 		 * All buffers have been queued, so mark that by setting
-		 * initial_index to q->num_buffers
+		 * initial_index to the number of buffers in the vb2_queue
 		 */
-		fileio->initial_index = q->num_buffers;
-		fileio->cur_index = q->num_buffers;
+		fileio->initial_index = vb2_get_num_buffers(q);
+		fileio->cur_index = fileio->initial_index;
 	}
 
 	/*
@@ -2555,7 +2930,7 @@ static int __vb2_init_fileio(struct vb2_queue *q, int read)
 
 err_reqbufs:
 	fileio->count = 0;
-	vb2_core_reqbufs(q, fileio->memory, &fileio->count);
+	vb2_core_reqbufs(q, fileio->memory, 0, &fileio->count);
 
 err_kfree:
 	q->fileio = NULL;
@@ -2575,9 +2950,9 @@ static int __vb2_cleanup_fileio(struct vb2_queue *q)
 		vb2_core_streamoff(q, q->type);
 		q->fileio = NULL;
 		fileio->count = 0;
-		vb2_core_reqbufs(q, fileio->memory, &fileio->count);
+		vb2_core_reqbufs(q, fileio->memory, 0, &fileio->count);
 		kfree(fileio);
-		dprintk(3, "file io emulator closed\n");
+		dprintk(q, 3, "file io emulator closed\n");
 	}
 	return 0;
 }
@@ -2606,7 +2981,7 @@ static size_t __vb2_perform_fileio(struct vb2_queue *q, char __user *data, size_
 	unsigned index;
 	int ret;
 
-	dprintk(3, "mode %s, offset %ld, count %zd, %sblocking\n",
+	dprintk(q, 3, "mode %s, offset %ld, count %zd, %sblocking\n",
 		read ? "read" : "write", (long)*ppos, count,
 		nonblock ? "non" : "");
 
@@ -2614,7 +2989,7 @@ static size_t __vb2_perform_fileio(struct vb2_queue *q, char __user *data, size_
 		return -EINVAL;
 
 	if (q->waiting_in_dqbuf) {
-		dprintk(3, "another dup()ped fd is %s\n",
+		dprintk(q, 3, "another dup()ped fd is %s\n",
 			read ? "reading" : "writing");
 		return -EBUSY;
 	}
@@ -2624,7 +2999,7 @@ static size_t __vb2_perform_fileio(struct vb2_queue *q, char __user *data, size_
 	 */
 	if (!vb2_fileio_is_active(q)) {
 		ret = __vb2_init_fileio(q, read);
-		dprintk(3, "vb2_init_fileio result: %d\n", ret);
+		dprintk(q, 3, "vb2_init_fileio result: %d\n", ret);
 		if (ret)
 			return ret;
 	}
@@ -2634,29 +3009,31 @@ static size_t __vb2_perform_fileio(struct vb2_queue *q, char __user *data, size_
 	 * Check if we need to dequeue the buffer.
 	 */
 	index = fileio->cur_index;
-	if (index >= q->num_buffers) {
+	if (index >= vb2_get_num_buffers(q)) {
 		struct vb2_buffer *b;
 
 		/*
 		 * Call vb2_dqbuf to get buffer back.
 		 */
 		ret = vb2_core_dqbuf(q, &index, NULL, nonblock);
-		dprintk(5, "vb2_dqbuf result: %d\n", ret);
+		dprintk(q, 5, "vb2_dqbuf result: %d\n", ret);
 		if (ret)
 			return ret;
 		fileio->dq_count += 1;
 
 		fileio->cur_index = index;
 		buf = &fileio->bufs[index];
-		b = q->bufs[index];
+
+		/* b can never be NULL when using fileio. */
+		b = vb2_get_buffer(q, index);
 
 		/*
 		 * Get number of bytes filled by the driver
 		 */
 		buf->pos = 0;
 		buf->queued = 0;
-		buf->size = read ? vb2_get_plane_payload(q->bufs[index], 0)
-				 : vb2_plane_size(q->bufs[index], 0);
+		buf->size = read ? vb2_get_plane_payload(b, 0)
+				 : vb2_plane_size(b, 0);
 		/* Compensate for data_offset on read in the multiplanar case. */
 		if (is_multiplanar && read &&
 				b->planes[0].data_offset < buf->size) {
@@ -2672,20 +3049,20 @@ static size_t __vb2_perform_fileio(struct vb2_queue *q, char __user *data, size_
 	 */
 	if (buf->pos + count > buf->size) {
 		count = buf->size - buf->pos;
-		dprintk(5, "reducing read count: %zd\n", count);
+		dprintk(q, 5, "reducing read count: %zd\n", count);
 	}
 
 	/*
 	 * Transfer data to userspace.
 	 */
-	dprintk(3, "copying %zd bytes - buffer %d, offset %u\n",
+	dprintk(q, 3, "copying %zd bytes - buffer %d, offset %u\n",
 		count, index, buf->pos);
 	if (read)
 		ret = copy_to_user(data, buf->vaddr + buf->pos, count);
 	else
 		ret = copy_from_user(buf->vaddr + buf->pos, data, count);
 	if (ret) {
-		dprintk(3, "error copying data\n");
+		dprintk(q, 3, "error copying data\n");
 		return -EFAULT;
 	}
 
@@ -2699,13 +3076,14 @@ static size_t __vb2_perform_fileio(struct vb2_queue *q, char __user *data, size_
 	 * Queue next buffer if required.
 	 */
 	if (buf->pos == buf->size || (!read && fileio->write_immediately)) {
-		struct vb2_buffer *b = q->bufs[index];
+		/* b can never be NULL when using fileio. */
+		struct vb2_buffer *b = vb2_get_buffer(q, index);
 
 		/*
 		 * Check if this is the last buffer to read.
 		 */
 		if (read && fileio->read_once && fileio->dq_count == 1) {
-			dprintk(3, "read limit reached\n");
+			dprintk(q, 3, "read limit reached\n");
 			return __vb2_cleanup_fileio(q);
 		}
 
@@ -2716,8 +3094,8 @@ static size_t __vb2_perform_fileio(struct vb2_queue *q, char __user *data, size_
 
 		if (copy_timestamp)
 			b->timestamp = ktime_get_ns();
-		ret = vb2_core_qbuf(q, index, NULL, NULL);
-		dprintk(5, "vb2_dbuf result: %d\n", ret);
+		ret = vb2_core_qbuf(q, b, NULL, NULL);
+		dprintk(q, 5, "vb2_qbuf result: %d\n", ret);
 		if (ret)
 			return ret;
 
@@ -2726,20 +3104,20 @@ static size_t __vb2_perform_fileio(struct vb2_queue *q, char __user *data, size_
 		 */
 		buf->pos = 0;
 		buf->queued = 1;
-		buf->size = vb2_plane_size(q->bufs[index], 0);
+		buf->size = vb2_plane_size(b, 0);
 		fileio->q_count += 1;
 		/*
 		 * If we are queuing up buffers for the first time, then
 		 * increase initial_index by one.
 		 */
-		if (fileio->initial_index < q->num_buffers)
+		if (fileio->initial_index < vb2_get_num_buffers(q))
 			fileio->initial_index++;
 		/*
 		 * The next buffer to use is either a buffer that's going to be
-		 * queued for the first time (initial_index < q->num_buffers)
-		 * or it is equal to q->num_buffers, meaning that the next
-		 * time we need to dequeue a buffer since we've now queued up
-		 * all the 'first time' buffers.
+		 * queued for the first time (initial_index < number of buffers in the vb2_queue)
+		 * or it is equal to the number of buffers in the vb2_queue,
+		 * meaning that the next time we need to dequeue a buffer since
+		 * we've now queued up all the 'first time' buffers.
 		 */
 		fileio->cur_index = fileio->initial_index;
 	}
@@ -2784,7 +3162,7 @@ static int vb2_thread(void *data)
 	int ret = 0;
 
 	if (q->is_output) {
-		prequeue = q->num_buffers;
+		prequeue = vb2_get_num_buffers(q);
 		copy_timestamp = q->copy_timestamp;
 	}
 
@@ -2797,16 +3175,18 @@ static int vb2_thread(void *data)
 		 * Call vb2_dqbuf to get buffer back.
 		 */
 		if (prequeue) {
-			vb = q->bufs[index++];
+			vb = vb2_get_buffer(q, index++);
+			if (!vb)
+				continue;
 			prequeue--;
 		} else {
 			call_void_qop(q, wait_finish, q);
 			if (!threadio->stop)
 				ret = vb2_core_dqbuf(q, &index, NULL, 0);
 			call_void_qop(q, wait_prepare, q);
-			dprintk(5, "file io: vb2_dqbuf result: %d\n", ret);
+			dprintk(q, 5, "file io: vb2_dqbuf result: %d\n", ret);
 			if (!ret)
-				vb = q->bufs[index];
+				vb = vb2_get_buffer(q, index);
 		}
 		if (ret || threadio->stop)
 			break;
@@ -2819,7 +3199,7 @@ static int vb2_thread(void *data)
 		if (copy_timestamp)
 			vb->timestamp = ktime_get_ns();
 		if (!threadio->stop)
-			ret = vb2_core_qbuf(q, vb->index, NULL, NULL);
+			ret = vb2_core_qbuf(q, vb, NULL, NULL);
 		call_void_qop(q, wait_prepare, q);
 		if (ret || threadio->stop)
 			break;
@@ -2858,7 +3238,7 @@ int vb2_thread_start(struct vb2_queue *q, vb2_thread_fnc fnc, void *priv,
 	threadio->priv = priv;
 
 	ret = __vb2_init_fileio(q, !q->is_output);
-	dprintk(3, "file io: vb2_init_fileio result: %d\n", ret);
+	dprintk(q, 3, "file io: vb2_init_fileio result: %d\n", ret);
 	if (ret)
 		goto nomem;
 	q->threadio = threadio;
@@ -2900,3 +3280,4 @@ EXPORT_SYMBOL_GPL(vb2_thread_stop);
 MODULE_DESCRIPTION("Media buffer core framework");
 MODULE_AUTHOR("Pawel Osciak <pawel@osciak.com>, Marek Szyprowski");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(DMA_BUF);

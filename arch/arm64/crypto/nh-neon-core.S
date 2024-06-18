@@ -8,6 +8,7 @@
  */
 
 #include <linux/linkage.h>
+#include <linux/cfi_types.h>
 
 	KEY		.req	x0
 	MESSAGE		.req	x1
@@ -58,11 +59,11 @@
 
 /*
  * void nh_neon(const u32 *key, const u8 *message, size_t message_len,
- *		u8 hash[NH_HASH_BYTES])
+ *		__le64 hash[NH_NUM_PASSES])
  *
  * It's guaranteed that message_len % 16 == 0.
  */
-ENTRY(nh_neon)
+SYM_TYPED_FUNC_START(nh_neon)
 
 	ld1		{K0.4s,K1.4s}, [KEY], #32
 	  movi		PASS0_SUMS.2d, #0
@@ -100,4 +101,4 @@ ENTRY(nh_neon)
 	addp		T1.2d, PASS2_SUMS.2d, PASS3_SUMS.2d
 	st1		{T0.16b,T1.16b}, [HASH]
 	ret
-ENDPROC(nh_neon)
+SYM_FUNC_END(nh_neon)

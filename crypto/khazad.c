@@ -19,11 +19,11 @@
  *
  */
 
+#include <crypto/algapi.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <asm/byteorder.h>
-#include <linux/crypto.h>
 #include <linux/types.h>
 
 #define KHAZAD_KEY_SIZE		16
@@ -819,7 +819,7 @@ static void khazad_crypt(const u64 roundKey[KHAZAD_ROUNDS + 1],
 			T6[(int)(state >>  8) & 0xff] ^
 			T7[(int)(state      ) & 0xff] ^
 			roundKey[r];
-    	}
+	}
 
 	state = (T0[(int)(state >> 56)       ] & 0xff00000000000000ULL) ^
 		(T1[(int)(state >> 48) & 0xff] & 0x00ff000000000000ULL) ^

@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Marvell Wireless LAN device driver: commands and events
+ * NXP Wireless LAN device driver: commands and events
  *
- * Copyright (C) 2011-2014, Marvell International Ltd.
- *
- * This software file (the "File") is distributed by Marvell International
- * Ltd. under the terms of the GNU General Public License Version 2, June 1991
- * (the "License").  You may use, redistribute and/or modify this File in
- * accordance with the terms and conditions of the License, a copy of which
- * is available by writing to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or on the
- * worldwide web at http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
- *
- * THE FILE IS DISTRIBUTED AS-IS, WITHOUT WARRANTY OF ANY KIND, AND THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE
- * ARE EXPRESSLY DISCLAIMED.  The License provides additional details about
- * this warranty disclaimer.
+ * Copyright 2011-2020 NXP
  */
 
 #include <asm/unaligned.h>
@@ -187,7 +175,7 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 	host_cmd = (struct host_cmd_ds_command *) (cmd_node->cmd_skb->data);
 
 	/* Sanity test */
-	if (host_cmd == NULL || host_cmd->size == 0) {
+	if (host_cmd->size == 0) {
 		mwifiex_dbg(adapter, ERROR,
 			    "DNLD_CMD: host_cmd is null\t"
 			    "or cmd size is 0, not sending\n");
@@ -322,9 +310,9 @@ static int mwifiex_dnld_sleep_confirm_cmd(struct mwifiex_adapter *adapter)
 
 	adapter->seq_num++;
 	sleep_cfm_buf->seq_num =
-		cpu_to_le16((HostCmd_SET_SEQ_NO_BSS_INFO
+		cpu_to_le16(HostCmd_SET_SEQ_NO_BSS_INFO
 					(adapter->seq_num, priv->bss_num,
-					 priv->bss_type)));
+					 priv->bss_type));
 
 	mwifiex_dbg(adapter, CMD,
 		    "cmd: DNLD_CMD: %#x, act %#x, len %d, seqno %#x\n",
@@ -608,6 +596,11 @@ int mwifiex_send_cmd(struct mwifiex_private *priv, u16 cmd_no,
 		return -1;
 	}
 
+	if (priv->adapter->hs_activated_manually &&
+	    cmd_no != HostCmd_CMD_802_11_HS_CFG_ENH) {
+		mwifiex_cancel_hs(priv, MWIFIEX_ASYNC_CMD);
+		priv->adapter->hs_activated_manually = false;
+	}
 
 	/* Get a new command node */
 	cmd_node = mwifiex_get_cmd_node(adapter);
@@ -712,6 +705,15 @@ mwifiex_insert_cmd_to_pending_q(struct mwifiex_adapter *adapter,
 			if (adapter->ps_state != PS_STATE_AWAKE)
 				add_tail = false;
 		}
+	}
+
+	/* Same with exit host sleep cmd, luckily that can't happen at the same time as EXIT_PS */
+	if (command == HostCmd_CMD_802_11_HS_CFG_ENH) {
+		struct host_cmd_ds_802_11_hs_cfg_enh *hs_cfg =
+			&host_cmd->params.opt_hs_cfg;
+
+		if (le16_to_cpu(hs_cfg->action) == HS_ACTIVATE)
+				add_tail = false;
 	}
 
 	spin_lock_bh(&adapter->cmd_pending_q_lock);
@@ -1216,6 +1218,13 @@ mwifiex_process_hs_config(struct mwifiex_adapter *adapter)
 		    __func__);
 
 	adapter->if_ops.wakeup(adapter);
+
+	if (adapter->hs_activated_manually) {
+		mwifiex_cancel_hs(mwifiex_get_priv (adapter, MWIFIEX_BSS_ROLE_ANY),
+				  MWIFIEX_ASYNC_CMD);
+		adapter->hs_activated_manually = false;
+	}
+
 	adapter->hs_activated = false;
 	clear_bit(MWIFIEX_IS_HS_CONFIGURED, &adapter->work_flags);
 	clear_bit(MWIFIEX_IS_SUSPENDED, &adapter->work_flags);
@@ -1235,8 +1244,6 @@ mwifiex_process_sleep_confirm_resp(struct mwifiex_adapter *adapter,
 				   u8 *pbuf, u32 upld_len)
 {
 	struct host_cmd_ds_command *cmd = (struct host_cmd_ds_command *) pbuf;
-	struct mwifiex_private *priv =
-		mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 	uint16_t result = le16_to_cpu(cmd->result);
 	uint16_t command = le16_to_cpu(cmd->command);
 	uint16_t seq_num = le16_to_cpu(cmd->seq_num);
@@ -1250,12 +1257,6 @@ mwifiex_process_sleep_confirm_resp(struct mwifiex_adapter *adapter,
 	mwifiex_dbg(adapter, CMD,
 		    "cmd: CMD_RESP: 0x%x, result %d, len %d, seqno 0x%x\n",
 		    command, result, le16_to_cpu(cmd->size), seq_num);
-
-	/* Get BSS number and corresponding priv */
-	priv = mwifiex_get_priv_by_id(adapter, HostCmd_GET_BSS_NO(seq_num),
-				      HostCmd_GET_BSS_TYPE(seq_num));
-	if (!priv)
-		priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 
 	/* Update sequence number */
 	seq_num = HostCmd_GET_SEQ_NO(seq_num);
@@ -1495,6 +1496,7 @@ int mwifiex_ret_get_hw_spec(struct mwifiex_private *priv,
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct mwifiex_ie_types_header *tlv;
 	struct hw_spec_api_rev *api_rev;
+	struct hw_spec_max_conn *max_conn;
 	u16 resp_size, api_id;
 	int i, left_len, parsed_len = 0;
 
@@ -1581,8 +1583,26 @@ int mwifiex_ret_get_hw_spec(struct mwifiex_private *priv,
 					adapter->fw_api_ver =
 							api_rev->major_ver;
 					mwifiex_dbg(adapter, INFO,
-						    "Firmware api version %d\n",
-						    adapter->fw_api_ver);
+						    "Firmware api version %d.%d\n",
+						    adapter->fw_api_ver,
+						    api_rev->minor_ver);
+					break;
+				case UAP_FW_API_VER_ID:
+					mwifiex_dbg(adapter, INFO,
+						    "uAP api version %d.%d\n",
+						    api_rev->major_ver,
+						    api_rev->minor_ver);
+					break;
+				case CHANRPT_API_VER_ID:
+					mwifiex_dbg(adapter, INFO,
+						    "channel report api version %d.%d\n",
+						    api_rev->major_ver,
+						    api_rev->minor_ver);
+					break;
+				case FW_HOTFIX_VER_ID:
+					mwifiex_dbg(adapter, INFO,
+						    "Firmware hotfix version %d\n",
+						    api_rev->major_ver);
 					break;
 				default:
 					mwifiex_dbg(adapter, FATAL,
@@ -1590,6 +1610,17 @@ int mwifiex_ret_get_hw_spec(struct mwifiex_private *priv,
 						    api_id);
 					break;
 				}
+				break;
+			case TLV_TYPE_MAX_CONN:
+				max_conn = (struct hw_spec_max_conn *)tlv;
+				adapter->max_p2p_conn = max_conn->max_p2p_conn;
+				adapter->max_sta_conn = max_conn->max_sta_conn;
+				mwifiex_dbg(adapter, INFO,
+					    "max p2p connections: %u\n",
+					    adapter->max_p2p_conn);
+				mwifiex_dbg(adapter, INFO,
+					    "max sta connections: %u\n",
+					    adapter->max_sta_conn);
 				break;
 			default:
 				mwifiex_dbg(adapter, FATAL,

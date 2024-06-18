@@ -2,7 +2,7 @@
 /*
  * Functions to access LP87565 power management chip.
  *
- * Copyright (C) 2017 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2017 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 #ifndef __LINUX_MFD_LP87565_H
@@ -14,6 +14,7 @@
 
 enum lp87565_device_type {
 	LP87565_DEVICE_TYPE_UNKNOWN	= 0,
+	LP87565_DEVICE_TYPE_LP87524_Q1,
 	LP87565_DEVICE_TYPE_LP87561_Q1,
 	LP87565_DEVICE_TYPE_LP87565_Q1,
 };
@@ -221,34 +222,20 @@ enum lp87565_device_type {
 #define LP87565_GPIO2_SEL			BIT(1)
 #define LP87565_GPIO1_SEL			BIT(0)
 
-#define LP87565_GOIO3_OD			BIT(6)
-#define LP87565_GOIO2_OD			BIT(5)
-#define LP87565_GOIO1_OD			BIT(4)
-#define LP87565_GOIO3_DIR			BIT(2)
-#define LP87565_GOIO2_DIR			BIT(1)
-#define LP87565_GOIO1_DIR			BIT(0)
+#define LP87565_GPIO3_OD			BIT(6)
+#define LP87565_GPIO2_OD			BIT(5)
+#define LP87565_GPIO1_OD			BIT(4)
+#define LP87565_GPIO3_DIR			BIT(2)
+#define LP87565_GPIO2_DIR			BIT(1)
+#define LP87565_GPIO1_DIR			BIT(0)
 
-#define LP87565_GOIO3_IN			BIT(2)
-#define LP87565_GOIO2_IN			BIT(1)
-#define LP87565_GOIO1_IN			BIT(0)
+#define LP87565_GPIO3_IN			BIT(2)
+#define LP87565_GPIO2_IN			BIT(1)
+#define LP87565_GPIO1_IN			BIT(0)
 
-#define LP87565_GOIO3_OUT			BIT(2)
-#define LP87565_GOIO2_OUT			BIT(1)
-#define LP87565_GOIO1_OUT			BIT(0)
-
-/* Number of step-down converters available */
-#define LP87565_NUM_BUCK		6
-
-enum LP87565_regulator_id {
-	/* BUCK's */
-	LP87565_BUCK_0,
-	LP87565_BUCK_1,
-	LP87565_BUCK_2,
-	LP87565_BUCK_3,
-	LP87565_BUCK_10,
-	LP87565_BUCK_23,
-	LP87565_BUCK_3210,
-};
+#define LP87565_GPIO3_OUT			BIT(2)
+#define LP87565_GPIO2_OUT			BIT(1)
+#define LP87565_GPIO1_OUT			BIT(0)
 
 /**
  * struct LP87565 - state holder for the LP87565 driver
@@ -265,5 +252,6 @@ struct lp87565 {
 	u8 rev;
 	u8 dev_type;
 	struct regmap *regmap;
+	struct gpio_desc *reset_gpio;
 };
 #endif /* __LINUX_MFD_LP87565_H */

@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/bpf.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 char _license[] SEC("license") = "GPL";
-__u32 _version SEC("version") = 1;
 
 struct tcp_rtt_storage {
 	__u32 invoked;
@@ -11,15 +10,17 @@ struct tcp_rtt_storage {
 	__u32 delivered;
 	__u32 delivered_ce;
 	__u32 icsk_retransmits;
+
+	__u32 mrtt_us;	/* args[0] */
+	__u32 srtt;	/* args[1] */
 };
 
-struct bpf_map_def SEC("maps") socket_storage_map = {
-	.type = BPF_MAP_TYPE_SK_STORAGE,
-	.key_size = sizeof(int),
-	.value_size = sizeof(struct tcp_rtt_storage),
-	.map_flags = BPF_F_NO_PREALLOC,
-};
-BPF_ANNOTATE_KV_PAIR(socket_storage_map, int, struct tcp_rtt_storage);
+struct {
+	__uint(type, BPF_MAP_TYPE_SK_STORAGE);
+	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__type(key, int);
+	__type(value, struct tcp_rtt_storage);
+} socket_storage_map SEC(".maps");
 
 SEC("sockops")
 int _sockops(struct bpf_sock_ops *ctx)
@@ -56,6 +57,9 @@ int _sockops(struct bpf_sock_ops *ctx)
 	storage->delivered = tcp_sk->delivered;
 	storage->delivered_ce = tcp_sk->delivered_ce;
 	storage->icsk_retransmits = tcp_sk->icsk_retransmits;
+
+	storage->mrtt_us = ctx->args[0];
+	storage->srtt = ctx->args[1];
 
 	return 1;
 }

@@ -196,7 +196,7 @@ struct ov9640_reg {
 struct ov9640_priv {
 	struct v4l2_subdev		subdev;
 	struct v4l2_ctrl_handler	hdl;
-	struct v4l2_clk			*clk;
+	struct clk			*clk;
 	struct gpio_desc		*gpio_power;
 	struct gpio_desc		*gpio_reset;
 

@@ -6,11 +6,33 @@
  * Author: Beomho Seo <beomho.seo@samsung.com>
  */
 
+#include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
+#include <linux/regmap.h>
 #include <linux/mfd/rt5033-private.h>
-#include <linux/mfd/rt5033.h>
+
+struct rt5033_battery {
+	struct i2c_client	*client;
+	struct regmap		*regmap;
+	struct power_supply	*psy;
+};
+
+static int rt5033_battery_get_status(struct i2c_client *client)
+{
+	struct rt5033_battery *battery = i2c_get_clientdata(client);
+	union power_supply_propval val;
+	int ret;
+
+	ret = power_supply_get_property_from_supplier(battery->psy,
+						POWER_SUPPLY_PROP_STATUS,
+						&val);
+	if (ret)
+		val.intval = POWER_SUPPLY_STATUS_UNKNOWN;
+
+	return val.intval;
+}
 
 static int rt5033_battery_get_capacity(struct i2c_client *client)
 {
@@ -60,7 +82,7 @@ static int rt5033_battery_get_watt_prop(struct i2c_client *client,
 	regmap_read(battery->regmap, regh, &msb);
 	regmap_read(battery->regmap, regl, &lsb);
 
-	ret = ((msb << 4) + (lsb >> 4)) * 1250 / 1000;
+	ret = ((msb << 4) + (lsb >> 4)) * 1250;
 
 	return ret;
 }
@@ -84,6 +106,9 @@ static int rt5033_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CAPACITY:
 		val->intval = rt5033_battery_get_capacity(battery->client);
 		break;
+	case POWER_SUPPLY_PROP_STATUS:
+		val->intval = rt5033_battery_get_status(battery->client);
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -96,6 +121,7 @@ static enum power_supply_property rt5033_battery_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_OCV,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_STATUS,
 };
 
 static const struct regmap_config rt5033_battery_regmap_config = {
@@ -112,20 +138,18 @@ static const struct power_supply_desc rt5033_battery_desc = {
 	.num_properties	= ARRAY_SIZE(rt5033_battery_props),
 };
 
-static int rt5033_battery_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int rt5033_battery_probe(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	struct power_supply_config psy_cfg = {};
 	struct rt5033_battery *battery;
-	u32 ret;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE))
 		return -EIO;
 
 	battery = devm_kzalloc(&client->dev, sizeof(*battery), GFP_KERNEL);
 	if (!battery)
-		return -EINVAL;
+		return -ENOMEM;
 
 	battery->client = client;
 	battery->regmap = devm_regmap_init_i2c(client,
@@ -135,25 +159,15 @@ static int rt5033_battery_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	i2c_set_clientdata(client, battery);
+	psy_cfg.of_node = client->dev.of_node;
 	psy_cfg.drv_data = battery;
 
-	battery->psy = power_supply_register(&client->dev,
-					     &rt5033_battery_desc, &psy_cfg);
-	if (IS_ERR(battery->psy)) {
-		dev_err(&client->dev, "Failed to register power supply\n");
-		ret = PTR_ERR(battery->psy);
-		return ret;
-	}
-
-	return 0;
-}
-
-static int rt5033_battery_remove(struct i2c_client *client)
-{
-	struct rt5033_battery *battery = i2c_get_clientdata(client);
-
-	power_supply_unregister(battery->psy);
+	battery->psy = devm_power_supply_register(&client->dev,
+						  &rt5033_battery_desc,
+						  &psy_cfg);
+	if (IS_ERR(battery->psy))
+		return dev_err_probe(&client->dev, PTR_ERR(battery->psy),
+				     "Failed to register power supply\n");
 
 	return 0;
 }
@@ -164,12 +178,18 @@ static const struct i2c_device_id rt5033_battery_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, rt5033_battery_id);
 
+static const struct of_device_id rt5033_battery_of_match[] = {
+	{ .compatible = "richtek,rt5033-battery", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, rt5033_battery_of_match);
+
 static struct i2c_driver rt5033_battery_driver = {
 	.driver = {
 		.name = "rt5033-battery",
+		.of_match_table = rt5033_battery_of_match,
 	},
 	.probe = rt5033_battery_probe,
-	.remove = rt5033_battery_remove,
 	.id_table = rt5033_battery_id,
 };
 module_i2c_driver(rt5033_battery_driver);

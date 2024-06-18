@@ -157,7 +157,7 @@ static int com20020_set_hwaddr(struct net_device *dev, void *addr)
 	struct arcnet_local *lp = netdev_priv(dev);
 	struct sockaddr *hwaddr = addr;
 
-	memcpy(dev->dev_addr, hwaddr->sa_data, 1);
+	dev_addr_set(dev, hwaddr->sa_data);
 	com20020_set_subaddress(lp, ioaddr, SUB_NODE);
 	arcnet_outb(dev->dev_addr[0], ioaddr, COM20020_REG_W_XREG);
 
@@ -220,7 +220,7 @@ int com20020_found(struct net_device *dev, int shared)
 
 	/* FIXME: do this some other way! */
 	if (!dev->dev_addr[0])
-		dev->dev_addr[0] = arcnet_inb(ioaddr, 8);
+		arcnet_set_addr(dev, arcnet_inb(ioaddr, 8));
 
 	com20020_set_subaddress(lp, ioaddr, SUB_SETUP1);
 	arcnet_outb(lp->setup, ioaddr, COM20020_REG_W_XREG);
@@ -399,6 +399,7 @@ EXPORT_SYMBOL(com20020_found);
 EXPORT_SYMBOL(com20020_netdev_ops);
 #endif
 
+MODULE_DESCRIPTION("ARCnet COM20020 chipset core driver");
 MODULE_LICENSE("GPL");
 
 #ifdef MODULE

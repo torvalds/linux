@@ -94,8 +94,8 @@ static struct snd_soc_card db1550_ac97_machine = {
 
 static int db1200_i2s_startup(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 
 	/* WM8731 has its own 12MHz crystal */
 	snd_soc_dai_set_sysclk(codec_dai, WM8731_SYSCLK_XTAL,
@@ -117,7 +117,7 @@ static struct snd_soc_dai_link db1200_i2s_dai = {
 	.name		= "WM8731",
 	.stream_name	= "WM8731 PCM",
 	.dai_fmt	= SND_SOC_DAIFMT_LEFT_J | SND_SOC_DAIFMT_NB_NF |
-			  SND_SOC_DAIFMT_CBM_CFM,
+			  SND_SOC_DAIFMT_CBP_CFP,
 	.ops		= &db1200_i2s_wm8731_ops,
 	SND_SOC_DAILINK_REG(db1200_i2s),
 };
@@ -138,7 +138,7 @@ static struct snd_soc_dai_link db1300_i2s_dai = {
 	.name		= "WM8731",
 	.stream_name	= "WM8731 PCM",
 	.dai_fmt	= SND_SOC_DAIFMT_LEFT_J | SND_SOC_DAIFMT_NB_NF |
-			  SND_SOC_DAIFMT_CBM_CFM,
+			  SND_SOC_DAIFMT_CBP_CFP,
 	.ops		= &db1200_i2s_wm8731_ops,
 	SND_SOC_DAILINK_REG(db1300_i2s),
 };
@@ -159,7 +159,7 @@ static struct snd_soc_dai_link db1550_i2s_dai = {
 	.name		= "WM8731",
 	.stream_name	= "WM8731 PCM",
 	.dai_fmt	= SND_SOC_DAIFMT_LEFT_J | SND_SOC_DAIFMT_NB_NF |
-			  SND_SOC_DAIFMT_CBM_CFM,
+			  SND_SOC_DAIFMT_CBP_CFP,
 	.ops		= &db1200_i2s_wm8731_ops,
 	SND_SOC_DAILINK_REG(db1550_i2s),
 };

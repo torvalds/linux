@@ -50,8 +50,8 @@ static void __exception_irq_entry zevio_handle_irq(struct pt_regs *regs)
 
 	while (readl(zevio_irq_io + IO_STATUS)) {
 		irqnr = readl(zevio_irq_io + IO_CURRENT);
-		handle_domain_irq(zevio_irq_domain, irqnr, regs);
-	};
+		generic_handle_domain_irq(zevio_irq_domain, irqnr);
+	}
 }
 
 static void __init zevio_init_irq_base(void __iomem *base)

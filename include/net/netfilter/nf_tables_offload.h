@@ -4,11 +4,16 @@
 #include <net/flow_offload.h>
 #include <net/netfilter/nf_tables.h>
 
+enum nft_offload_reg_flags {
+	NFT_OFFLOAD_F_NETWORK2HOST	= (1 << 0),
+};
+
 struct nft_offload_reg {
 	u32		key;
 	u32		len;
 	u32		base_offset;
 	u32		offset;
+	u32		flags;
 	struct nft_data data;
 	struct nft_data	mask;
 };
@@ -37,6 +42,7 @@ void nft_offload_update_dependency(struct nft_offload_ctx *ctx,
 
 struct nft_flow_key {
 	struct flow_dissector_key_basic			basic;
+	struct flow_dissector_key_control		control;
 	union {
 		struct flow_dissector_key_ipv4_addrs	ipv4;
 		struct flow_dissector_key_ipv6_addrs	ipv6;
@@ -44,7 +50,9 @@ struct nft_flow_key {
 	struct flow_dissector_key_ports			tp;
 	struct flow_dissector_key_ip			ip;
 	struct flow_dissector_key_vlan			vlan;
+	struct flow_dissector_key_vlan			cvlan;
 	struct flow_dissector_key_eth_addrs		eth_addrs;
+	struct flow_dissector_key_meta			meta;
 } __aligned(BITS_PER_LONG / 8); /* Ensure that we can do comparisons as longs. */
 
 struct nft_flow_match {
@@ -59,23 +67,32 @@ struct nft_flow_rule {
 	struct flow_rule	*rule;
 };
 
-#define NFT_OFFLOAD_F_ACTION	(1 << 0)
+void nft_flow_rule_set_addr_type(struct nft_flow_rule *flow,
+				 enum flow_dissector_key_id addr_type);
 
 struct nft_rule;
 struct nft_flow_rule *nft_flow_rule_create(struct net *net, const struct nft_rule *rule);
+int nft_flow_rule_stats(const struct nft_chain *chain, const struct nft_rule *rule);
 void nft_flow_rule_destroy(struct nft_flow_rule *flow);
 int nft_flow_rule_offload_commit(struct net *net);
 
-#define NFT_OFFLOAD_MATCH(__key, __base, __field, __len, __reg)		\
+#define NFT_OFFLOAD_MATCH_FLAGS(__key, __base, __field, __len, __reg, __flags)	\
 	(__reg)->base_offset	=					\
 		offsetof(struct nft_flow_key, __base);			\
 	(__reg)->offset		=					\
 		offsetof(struct nft_flow_key, __base.__field);		\
 	(__reg)->len		= __len;				\
 	(__reg)->key		= __key;				\
+	(__reg)->flags		= __flags;
+
+#define NFT_OFFLOAD_MATCH(__key, __base, __field, __len, __reg)		\
+	NFT_OFFLOAD_MATCH_FLAGS(__key, __base, __field, __len, __reg, 0)
+
+#define NFT_OFFLOAD_MATCH_EXACT(__key, __base, __field, __len, __reg)	\
+	NFT_OFFLOAD_MATCH(__key, __base, __field, __len, __reg)		\
 	memset(&(__reg)->mask, 0xff, (__reg)->len);
 
-int nft_chain_offload_priority(struct nft_base_chain *basechain);
+bool nft_chain_offload_support(const struct nft_base_chain *basechain);
 
 int nft_offload_init(void);
 void nft_offload_exit(void);

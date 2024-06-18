@@ -16,6 +16,8 @@ import json
 import subprocess
 import time
 import traceback
+import random
+from multiprocessing import Pool
 from collections import OrderedDict
 from string import Template
 
@@ -38,12 +40,11 @@ class PluginMgrTestFail(Exception):
 class PluginMgr:
     def __init__(self, argparser):
         super().__init__()
-        self.plugins = {}
+        self.plugins = set()
         self.plugin_instances = []
         self.failed_plugins = {}
         self.argparser = argparser
 
-        # TODO, put plugins in order
         plugindir = os.getenv('TDC_PLUGIN_DIR', './plugins')
         for dirpath, dirnames, filenames in os.walk(plugindir):
             for fn in filenames:
@@ -53,32 +54,43 @@ class PluginMgr:
                     not fn.startswith('.#')):
                     mn = fn[0:-3]
                     foo = importlib.import_module('plugins.' + mn)
-                    self.plugins[mn] = foo
-                    self.plugin_instances.append(foo.SubPlugin())
+                    self.plugins.add(mn)
+                    self.plugin_instances[mn] = foo.SubPlugin()
 
     def load_plugin(self, pgdir, pgname):
         pgname = pgname[0:-3]
+        self.plugins.add(pgname)
+
         foo = importlib.import_module('{}.{}'.format(pgdir, pgname))
-        self.plugins[pgname] = foo
-        self.plugin_instances.append(foo.SubPlugin())
-        self.plugin_instances[-1].check_args(self.args, None)
+
+        # nsPlugin must always be the first one
+        if pgname == "nsPlugin":
+            self.plugin_instances.insert(0, (pgname, foo.SubPlugin()))
+            self.plugin_instances[0][1].check_args(self.args, None)
+        else:
+            self.plugin_instances.append((pgname, foo.SubPlugin()))
+            self.plugin_instances[-1][1].check_args(self.args, None)
 
     def get_required_plugins(self, testlist):
         '''
         Get all required plugins from the list of test cases and return
         all unique items.
         '''
-        reqs = []
+        reqs = set()
         for t in testlist:
             try:
                 if 'requires' in t['plugins']:
                     if isinstance(t['plugins']['requires'], list):
-                        reqs.extend(t['plugins']['requires'])
+                        reqs.update(set(t['plugins']['requires']))
                     else:
-                        reqs.append(t['plugins']['requires'])
+                        reqs.add(t['plugins']['requires'])
+                    t['plugins'] = t['plugins']['requires']
+                else:
+                    t['plugins'] = []
             except KeyError:
+                t['plugins'] = []
                 continue
-        reqs = get_unique_item(reqs)
+
         return reqs
 
     def load_required_plugins(self, reqs, parser, args, remaining):
@@ -115,15 +127,17 @@ class PluginMgr:
         return args
 
     def call_pre_suite(self, testcount, testidlist):
-        for pgn_inst in self.plugin_instances:
+        for (_, pgn_inst) in self.plugin_instances:
             pgn_inst.pre_suite(testcount, testidlist)
 
     def call_post_suite(self, index):
-        for pgn_inst in reversed(self.plugin_instances):
+        for (_, pgn_inst) in reversed(self.plugin_instances):
             pgn_inst.post_suite(index)
 
     def call_pre_case(self, caseinfo, *, test_skip=False):
-        for pgn_inst in self.plugin_instances:
+        for (pgn, pgn_inst) in self.plugin_instances:
+            if pgn not in caseinfo['plugins']:
+                continue
             try:
                 pgn_inst.pre_case(caseinfo, test_skip)
             except Exception as ee:
@@ -133,29 +147,37 @@ class PluginMgr:
                 print('testid is {}'.format(caseinfo['id']))
                 raise
 
-    def call_post_case(self):
-        for pgn_inst in reversed(self.plugin_instances):
+    def call_post_case(self, caseinfo):
+        for (pgn, pgn_inst) in reversed(self.plugin_instances):
+            if pgn not in caseinfo['plugins']:
+                continue
             pgn_inst.post_case()
 
-    def call_pre_execute(self):
-        for pgn_inst in self.plugin_instances:
+    def call_pre_execute(self, caseinfo):
+        for (pgn, pgn_inst) in self.plugin_instances:
+            if pgn not in caseinfo['plugins']:
+                continue
             pgn_inst.pre_execute()
 
-    def call_post_execute(self):
-        for pgn_inst in reversed(self.plugin_instances):
+    def call_post_execute(self, caseinfo):
+        for (pgn, pgn_inst) in reversed(self.plugin_instances):
+            if pgn not in caseinfo['plugins']:
+                continue
             pgn_inst.post_execute()
 
     def call_add_args(self, parser):
-        for pgn_inst in self.plugin_instances:
+        for (pgn, pgn_inst) in self.plugin_instances:
             parser = pgn_inst.add_args(parser)
         return parser
 
     def call_check_args(self, args, remaining):
-        for pgn_inst in self.plugin_instances:
+        for (pgn, pgn_inst) in self.plugin_instances:
             pgn_inst.check_args(args, remaining)
 
-    def call_adjust_command(self, stage, command):
-        for pgn_inst in self.plugin_instances:
+    def call_adjust_command(self, caseinfo, stage, command):
+        for (pgn, pgn_inst) in self.plugin_instances:
+            if pgn not in caseinfo['plugins']:
+                continue
             command = pgn_inst.adjust_command(stage, command)
         return command
 
@@ -177,7 +199,7 @@ def replace_keywords(cmd):
     return subcmd
 
 
-def exec_cmd(args, pm, stage, command):
+def exec_cmd(caseinfo, args, pm, stage, command):
     """
     Perform any required modifications on an executable command, then run
     it in a subprocess and return the results.
@@ -187,9 +209,10 @@ def exec_cmd(args, pm, stage, command):
     if '$' in command:
         command = replace_keywords(command)
 
-    command = pm.call_adjust_command(stage, command)
+    command = pm.call_adjust_command(caseinfo, stage, command)
     if args.verbose > 0:
         print('command "{}"'.format(command))
+
     proc = subprocess.Popen(command,
         shell=True,
         stdout=subprocess.PIPE,
@@ -211,7 +234,7 @@ def exec_cmd(args, pm, stage, command):
     return proc, foutput
 
 
-def prepare_env(args, pm, stage, prefix, cmdlist, output = None):
+def prepare_env(caseinfo, args, pm, stage, prefix, cmdlist, output = None):
     """
     Execute the setup/teardown commands for a test case.
     Optionally terminate test execution if the command fails.
@@ -229,7 +252,7 @@ def prepare_env(args, pm, stage, prefix, cmdlist, output = None):
         if not cmd:
             continue
 
-        (proc, foutput) = exec_cmd(args, pm, stage, cmd)
+        (proc, foutput) = exec_cmd(caseinfo, args, pm, stage, cmd)
 
         if proc and (proc.returncode not in exit_codes):
             print('', file=sys.stderr)
@@ -246,8 +269,116 @@ def prepare_env(args, pm, stage, prefix, cmdlist, output = None):
                 stage, output,
                 '"{}" did not complete successfully'.format(prefix))
 
+def verify_by_json(procout, res, tidx, args, pm):
+    try:
+        outputJSON = json.loads(procout)
+    except json.JSONDecodeError:
+        res.set_result(ResultState.fail)
+        res.set_failmsg('Cannot decode verify command\'s output. Is it JSON?')
+        return res
+
+    matchJSON = json.loads(json.dumps(tidx['matchJSON']))
+
+    if type(outputJSON) != type(matchJSON):
+        failmsg = 'Original output and matchJSON value are not the same type: output: {} != matchJSON: {} '
+        failmsg = failmsg.format(type(outputJSON).__name__, type(matchJSON).__name__)
+        res.set_result(ResultState.fail)
+        res.set_failmsg(failmsg)
+        return res
+
+    if len(matchJSON) > len(outputJSON):
+        failmsg = "Your matchJSON value is an array, and it contains more elements than the command under test\'s output:\ncommand output (length: {}):\n{}\nmatchJSON value (length: {}):\n{}"
+        failmsg = failmsg.format(len(outputJSON), outputJSON, len(matchJSON), matchJSON)
+        res.set_result(ResultState.fail)
+        res.set_failmsg(failmsg)
+        return res
+    res = find_in_json(res, outputJSON, matchJSON, 0)
+
+    return res
+
+def find_in_json(res, outputJSONVal, matchJSONVal, matchJSONKey=None):
+    if res.get_result() == ResultState.fail:
+        return res
+
+    if type(matchJSONVal) == list:
+        res = find_in_json_list(res, outputJSONVal, matchJSONVal, matchJSONKey)
+
+    elif type(matchJSONVal) == dict:
+        res = find_in_json_dict(res, outputJSONVal, matchJSONVal)
+    else:
+        res = find_in_json_other(res, outputJSONVal, matchJSONVal, matchJSONKey)
+
+    if res.get_result() != ResultState.fail:
+        res.set_result(ResultState.success)
+        return res
+
+    return res
+
+def find_in_json_list(res, outputJSONVal, matchJSONVal, matchJSONKey=None):
+    if (type(matchJSONVal) != type(outputJSONVal)):
+        failmsg = 'Original output and matchJSON value are not the same type: output: {} != matchJSON: {}'
+        failmsg = failmsg.format(outputJSONVal, matchJSONVal)
+        res.set_result(ResultState.fail)
+        res.set_failmsg(failmsg)
+        return res
+
+    if len(matchJSONVal) > len(outputJSONVal):
+        failmsg = "Your matchJSON value is an array, and it contains more elements than the command under test\'s output:\ncommand output (length: {}):\n{}\nmatchJSON value (length: {}):\n{}"
+        failmsg = failmsg.format(len(outputJSONVal), outputJSONVal, len(matchJSONVal), matchJSONVal)
+        res.set_result(ResultState.fail)
+        res.set_failmsg(failmsg)
+        return res
+
+    for matchJSONIdx, matchJSONVal in enumerate(matchJSONVal):
+        res = find_in_json(res, outputJSONVal[matchJSONIdx], matchJSONVal,
+                           matchJSONKey)
+    return res
+
+def find_in_json_dict(res, outputJSONVal, matchJSONVal):
+    for matchJSONKey, matchJSONVal in matchJSONVal.items():
+        if type(outputJSONVal) == dict:
+            if matchJSONKey not in outputJSONVal:
+                failmsg = 'Key not found in json output: {}: {}\nMatching against output: {}'
+                failmsg = failmsg.format(matchJSONKey, matchJSONVal, outputJSONVal)
+                res.set_result(ResultState.fail)
+                res.set_failmsg(failmsg)
+                return res
+
+        else:
+            failmsg = 'Original output and matchJSON value are not the same type: output: {} != matchJSON: {}'
+            failmsg = failmsg.format(type(outputJSON).__name__, type(matchJSON).__name__)
+            res.set_result(ResultState.fail)
+            res.set_failmsg(failmsg)
+            return rest
+
+        if type(outputJSONVal) == dict and (type(outputJSONVal[matchJSONKey]) == dict or
+                type(outputJSONVal[matchJSONKey]) == list):
+            if len(matchJSONVal) > 0:
+                res = find_in_json(res, outputJSONVal[matchJSONKey], matchJSONVal, matchJSONKey)
+            # handling corner case where matchJSONVal == [] or matchJSONVal == {}
+            else:
+                res = find_in_json_other(res, outputJSONVal, matchJSONVal, matchJSONKey)
+        else:
+            res = find_in_json(res, outputJSONVal, matchJSONVal, matchJSONKey)
+    return res
+
+def find_in_json_other(res, outputJSONVal, matchJSONVal, matchJSONKey=None):
+    if matchJSONKey in outputJSONVal:
+        if matchJSONVal != outputJSONVal[matchJSONKey]:
+            failmsg = 'Value doesn\'t match: {}: {} != {}\nMatching against output: {}'
+            failmsg = failmsg.format(matchJSONKey, matchJSONVal, outputJSONVal[matchJSONKey], outputJSONVal)
+            res.set_result(ResultState.fail)
+            res.set_failmsg(failmsg)
+            return res
+
+    return res
+
 def run_one_test(pm, args, index, tidx):
     global NAMES
+    ns = NAMES['NS']
+    dev0 = NAMES['DEV0']
+    dev1 = NAMES['DEV1']
+    dummy = NAMES['DUMMY']
     result = True
     tresult = ""
     tap = ""
@@ -262,25 +393,42 @@ def run_one_test(pm, args, index, tidx):
             res.set_result(ResultState.skip)
             res.set_errormsg('Test case designated as skipped.')
             pm.call_pre_case(tidx, test_skip=True)
-            pm.call_post_execute()
+            pm.call_post_execute(tidx)
             return res
+
+    if 'dependsOn' in tidx:
+        if (args.verbose > 0):
+            print('probe command for test skip')
+        (p, procout) = exec_cmd(tidx, args, pm, 'execute', tidx['dependsOn'])
+        if p:
+            if (p.returncode != 0):
+                res = TestResult(tidx['id'], tidx['name'])
+                res.set_result(ResultState.skip)
+                res.set_errormsg('probe command: test skipped.')
+                pm.call_pre_case(tidx, test_skip=True)
+                pm.call_post_execute(tidx)
+                return res
 
     # populate NAMES with TESTID for this test
     NAMES['TESTID'] = tidx['id']
+    NAMES['NS'] = '{}-{}'.format(NAMES['NS'], tidx['random'])
+    NAMES['DEV0'] = '{}id{}'.format(NAMES['DEV0'], tidx['id'])
+    NAMES['DEV1'] = '{}id{}'.format(NAMES['DEV1'], tidx['id'])
+    NAMES['DUMMY'] = '{}id{}'.format(NAMES['DUMMY'], tidx['id'])
 
     pm.call_pre_case(tidx)
-    prepare_env(args, pm, 'setup', "-----> prepare stage", tidx["setup"])
+    prepare_env(tidx, args, pm, 'setup', "-----> prepare stage", tidx["setup"])
 
     if (args.verbose > 0):
         print('-----> execute stage')
-    pm.call_pre_execute()
-    (p, procout) = exec_cmd(args, pm, 'execute', tidx["cmdUnderTest"])
+    pm.call_pre_execute(tidx)
+    (p, procout) = exec_cmd(tidx, args, pm, 'execute', tidx["cmdUnderTest"])
     if p:
         exit_code = p.returncode
     else:
         exit_code = None
 
-    pm.call_post_execute()
+    pm.call_post_execute(tidx)
 
     if (exit_code is None or exit_code != int(tidx["expExitCode"])):
         print("exit: {!r}".format(exit_code))
@@ -292,30 +440,65 @@ def run_one_test(pm, args, index, tidx):
     else:
         if args.verbose > 0:
             print('-----> verify stage')
-        match_pattern = re.compile(
-            str(tidx["matchPattern"]), re.DOTALL | re.MULTILINE)
-        (p, procout) = exec_cmd(args, pm, 'verify', tidx["verifyCmd"])
+        (p, procout) = exec_cmd(tidx, args, pm, 'verify', tidx["verifyCmd"])
         if procout:
-            match_index = re.findall(match_pattern, procout)
-            if len(match_index) != int(tidx["matchCount"]):
-                res.set_result(ResultState.fail)
-                res.set_failmsg('Could not match regex pattern. Verify command output:\n{}'.format(procout))
+            if 'matchJSON' in tidx:
+                verify_by_json(procout, res, tidx, args, pm)
+            elif 'matchPattern' in tidx:
+                match_pattern = re.compile(
+                    str(tidx["matchPattern"]), re.DOTALL | re.MULTILINE)
+                match_index = re.findall(match_pattern, procout)
+                if len(match_index) != int(tidx["matchCount"]):
+                    res.set_result(ResultState.fail)
+                    res.set_failmsg('Could not match regex pattern. Verify command output:\n{}'.format(procout))
+                else:
+                    res.set_result(ResultState.success)
             else:
-                res.set_result(ResultState.success)
+                res.set_result(ResultState.fail)
+                res.set_failmsg('Must specify a match option: matchJSON or matchPattern\n{}'.format(procout))
         elif int(tidx["matchCount"]) != 0:
             res.set_result(ResultState.fail)
             res.set_failmsg('No output generated by verify command.')
         else:
             res.set_result(ResultState.success)
 
-    prepare_env(args, pm, 'teardown', '-----> teardown stage', tidx['teardown'], procout)
-    pm.call_post_case()
+    prepare_env(tidx, args, pm, 'teardown', '-----> teardown stage', tidx['teardown'], procout)
+    pm.call_post_case(tidx)
 
     index += 1
 
     # remove TESTID from NAMES
     del(NAMES['TESTID'])
+
+    # Restore names
+    NAMES['NS'] = ns
+    NAMES['DEV0'] = dev0
+    NAMES['DEV1'] = dev1
+    NAMES['DUMMY'] = dummy
+
     return res
+
+def prepare_run(pm, args, testlist):
+    tcount = len(testlist)
+    emergency_exit = False
+    emergency_exit_message = ''
+
+    try:
+        pm.call_pre_suite(tcount, testlist)
+    except Exception as ee:
+        ex_type, ex, ex_tb = sys.exc_info()
+        print('Exception {} {} (caught in pre_suite).'.
+              format(ex_type, ex))
+        traceback.print_tb(ex_tb)
+        emergency_exit_message = 'EMERGENCY EXIT, call_pre_suite failed with exception {} {}\n'.format(ex_type, ex)
+        emergency_exit = True
+
+    if emergency_exit:
+        pm.call_post_suite(1)
+        return emergency_exit_message
+
+def purge_run(pm, index):
+    pm.call_post_suite(index)
 
 def test_runner(pm, args, filtered_tests):
     """
@@ -332,28 +515,9 @@ def test_runner(pm, args, filtered_tests):
     tap = ''
     badtest = None
     stage = None
-    emergency_exit = False
-    emergency_exit_message = ''
 
     tsr = TestSuiteReport()
 
-    try:
-        pm.call_pre_suite(tcount, [tidx['id'] for tidx in testlist])
-    except Exception as ee:
-        ex_type, ex, ex_tb = sys.exc_info()
-        print('Exception {} {} (caught in pre_suite).'.
-              format(ex_type, ex))
-        traceback.print_tb(ex_tb)
-        emergency_exit_message = 'EMERGENCY EXIT, call_pre_suite failed with exception {} {}\n'.format(ex_type, ex)
-        emergency_exit = True
-        stage = 'pre-SUITE'
-
-    if emergency_exit:
-        pm.call_post_suite(index)
-        return emergency_exit_message
-    if args.verbose > 1:
-        print('give test rig 2 seconds to stabilize')
-    time.sleep(2)
     for tidx in testlist:
         if "flower" in tidx["category"] and args.device == None:
             errmsg = "Tests using the DEV2 variable must define the name of a "
@@ -365,6 +529,7 @@ def test_runner(pm, args, filtered_tests):
             res.set_result(ResultState.skip)
             res.set_errormsg(errmsg)
             tsr.add_resultdata(res)
+            index += 1
             continue
         try:
             badtest = tidx  # in case it goes bad
@@ -376,7 +541,7 @@ def test_runner(pm, args, filtered_tests):
             message = pmtf.message
             output = pmtf.output
             res = TestResult(tidx['id'], tidx['name'])
-            res.set_result(ResultState.skip)
+            res.set_result(ResultState.fail)
             res.set_errormsg(pmtf.message)
             res.set_failmsg(pmtf.output)
             tsr.add_resultdata(res)
@@ -415,7 +580,68 @@ def test_runner(pm, args, filtered_tests):
         if input(sys.stdin):
             print('got something on stdin')
 
-    pm.call_post_suite(index)
+    return (index, tsr)
+
+def mp_bins(alltests):
+    serial = []
+    parallel = []
+
+    for test in alltests:
+        if 'nsPlugin' not in test['plugins']:
+            serial.append(test)
+        else:
+            # We can only create one netdevsim device at a time
+            if 'netdevsim/new_device' in str(test['setup']):
+                serial.append(test)
+            else:
+                parallel.append(test)
+
+    return (serial, parallel)
+
+def __mp_runner(tests):
+    (_, tsr) = test_runner(mp_pm, mp_args, tests)
+    return tsr._testsuite
+
+def test_runner_mp(pm, args, alltests):
+    prepare_run(pm, args, alltests)
+
+    (serial, parallel) = mp_bins(alltests)
+
+    batches = [parallel[n : n + 32] for n in range(0, len(parallel), 32)]
+    batches.insert(0, serial)
+
+    print("Executing {} tests in parallel and {} in serial".format(len(parallel), len(serial)))
+    print("Using {} batches and {} workers".format(len(batches), args.mp))
+
+    # We can't pickle these objects so workaround them
+    global mp_pm
+    mp_pm = pm
+
+    global mp_args
+    mp_args = args
+
+    with Pool(args.mp) as p:
+        pres = p.map(__mp_runner, batches)
+
+    tsr = TestSuiteReport()
+    for trs in pres:
+        for res in trs:
+            tsr.add_resultdata(res)
+
+    # Passing an index is not useful in MP
+    purge_run(pm, None)
+
+    return tsr
+
+def test_runner_serial(pm, args, alltests):
+    prepare_run(pm, args, alltests)
+
+    if args.verbose:
+        print("Executing {} tests in serial".format(len(alltests)))
+
+    (index, tsr) = test_runner(pm, args, alltests)
+
+    purge_run(pm, index)
 
     return tsr
 
@@ -444,12 +670,15 @@ def load_from_file(filename):
                 k['filename'] = filename
     return testlist
 
+def identity(string):
+    return string
 
 def args_parse():
     """
     Create the argument parser.
     """
     parser = argparse.ArgumentParser(description='Linux TC unit tests')
+    parser.register('type', None, identity)
     return parser
 
 
@@ -507,6 +736,9 @@ def set_args(parser):
     parser.add_argument(
         '-P', '--pause', action='store_true',
         help='Pause execution just before post-suite stage')
+    parser.add_argument(
+        '-J', '--multiprocess', type=int, default=1, dest='mp',
+        help='Run tests in parallel whenever possible')
     return parser
 
 
@@ -537,7 +769,6 @@ def get_id_list(alltests):
     """
     return [x["id"] for x in alltests]
 
-
 def check_case_id(alltests):
     """
     Check for duplicate test case IDs.
@@ -559,7 +790,6 @@ def generate_case_ids(alltests):
     If a test case has a blank ID field, generate a random hex ID for it
     and then write the test cases back to disk.
     """
-    import random
     for c in alltests:
         if (c["id"] == ""):
             while True:
@@ -618,6 +848,9 @@ def filter_tests_by_category(args, testlist):
 
     return answer
 
+def set_random(alltests):
+    for tidx in alltests:
+        tidx['random'] = random.getrandbits(32)
 
 def get_test_cases(args):
     """
@@ -713,10 +946,12 @@ def set_operation_mode(pm, parser, args, remaining):
         exit(0)
 
     if args.list:
-        if args.list:
-            list_test_cases(alltests)
-            exit(0)
+        list_test_cases(alltests)
+        exit(0)
 
+    set_random(alltests)
+
+    exit_code = 0 # KSFT_PASS
     if len(alltests):
         req_plugins = pm.get_required_plugins(alltests)
         try:
@@ -724,7 +959,14 @@ def set_operation_mode(pm, parser, args, remaining):
         except PluginDependencyException as pde:
             print('The following plugins were not found:')
             print('{}'.format(pde.missing_pg))
-        catresults = test_runner(pm, args, alltests)
+
+        if args.mp > 1:
+            catresults = test_runner_mp(pm, args, alltests)
+        else:
+            catresults = test_runner_serial(pm, args, alltests)
+
+        if catresults.count_failures() != 0:
+            exit_code = 1 # KSFT_FAIL
         if args.format == 'none':
             print('Test results output suppression requested\n')
         else:
@@ -749,27 +991,38 @@ def set_operation_mode(pm, parser, args, remaining):
                         gid=int(os.getenv('SUDO_GID')))
     else:
         print('No tests found\n')
+        exit_code = 4 # KSFT_SKIP
+    exit(exit_code)
 
 def main():
     """
     Start of execution; set up argument parser and get the arguments,
     and start operations.
     """
+    import resource
+
+    if sys.version_info.major < 3 or sys.version_info.minor < 8:
+        sys.exit("tdc requires at least python 3.8")
+
+    resource.setrlimit(resource.RLIMIT_NOFILE, (1048576, 1048576))
+
     parser = args_parse()
     parser = set_args(parser)
     pm = PluginMgr(parser)
     parser = pm.call_add_args(parser)
     (args, remaining) = parser.parse_known_args()
     args.NAMES = NAMES
+    args.mp = min(args.mp, 4)
     pm.set_args(args)
     check_default_settings(args, remaining, pm)
     if args.verbose > 2:
         print('args is {}'.format(args))
 
-    set_operation_mode(pm, parser, args, remaining)
-
-    exit(0)
-
+    try:
+        set_operation_mode(pm, parser, args, remaining)
+    except KeyboardInterrupt:
+        # Cleanup on Ctrl-C
+        pm.call_post_suite(None)
 
 if __name__ == "__main__":
     main()

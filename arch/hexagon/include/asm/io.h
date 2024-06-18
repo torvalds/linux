@@ -27,8 +27,6 @@
 extern int remap_area_pages(unsigned long start, unsigned long phys_addr,
 				unsigned long end, unsigned long flags);
 
-extern void __iounmap(const volatile void __iomem *addr);
-
 /* Defined in lib/io.c, needed for smc91x driver. */
 extern void __raw_readsw(const void __iomem *addr, void *data, int wordlen);
 extern void __raw_writesw(void __iomem *addr, const void *data, int wordlen);
@@ -59,13 +57,6 @@ static inline void *phys_to_virt(unsigned long address)
 {
 	return __va(address);
 }
-
-/*
- * convert a physical pointer to a virtual kernel pointer for
- * /dev/mem access.
- */
-#define xlate_dev_kmem_ptr(p)    __va(p)
-#define xlate_dev_mem_ptr(p)    __va(p)
 
 /*
  * IO port access primitives.  Hexagon doesn't have special IO access
@@ -172,20 +163,10 @@ static inline void writel(u32 data, volatile void __iomem *addr)
 #define writel_relaxed __raw_writel
 
 /*
- * Need an mtype somewhere in here, for cache type deals?
- * This is probably too long for an inline.
+ * I/O memory mapping functions.
  */
-void __iomem *ioremap_nocache(unsigned long phys_addr, unsigned long size);
-
-static inline void __iomem *ioremap(unsigned long phys_addr, unsigned long size)
-{
-	return ioremap_nocache(phys_addr, size);
-}
-
-static inline void iounmap(volatile void __iomem *addr)
-{
-	__iounmap(addr);
-}
+#define _PAGE_IOREMAP (_PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE | \
+		       (__HEXAGON_C_DEV << 6))
 
 #define __raw_writel writel
 
@@ -320,6 +301,31 @@ static inline void outsl(unsigned long port, const void *buffer, int count)
 		} while (--count);
 	}
 }
+
+/*
+ * These defines are necessary to use the generic io.h for filling in
+ * the missing parts of the API contract. This is because the platform
+ * uses (inline) functions rather than defines and the generic helper
+ * fills in the undefined.
+ */
+#define virt_to_phys virt_to_phys
+#define phys_to_virt phys_to_virt
+#define memset_io memset_io
+#define memcpy_fromio memcpy_fromio
+#define memcpy_toio memcpy_toio
+#define readb readb
+#define readw readw
+#define readl readl
+#define writeb writeb
+#define writew writew
+#define writel writel
+#define insb insb
+#define insw insw
+#define insl insl
+#define outsb outsb
+#define outsw outsw
+#define outsl outsl
+#include <asm-generic/io.h>
 
 #endif /* __KERNEL__ */
 

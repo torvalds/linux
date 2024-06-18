@@ -35,6 +35,16 @@
 
 #include "powernv.h"
 
+#define OPAL_MSG_QUEUE_MAX 16
+
+struct opal_msg_node {
+	struct list_head	list;
+	struct opal_msg		msg;
+};
+
+static DEFINE_SPINLOCK(msg_list_lock);
+static LIST_HEAD(msg_list);
+
 /* /sys/firmware/opal */
 struct kobject *opal_kobj;
 
@@ -50,6 +60,8 @@ struct mcheck_recoverable_range {
 	u64 recover_addr;
 };
 
+static int msg_list_size;
+
 static struct mcheck_recoverable_range *mc_recoverable_range;
 static int mc_recoverable_range_len;
 
@@ -61,7 +73,7 @@ static struct task_struct *kopald_tsk;
 static struct opal_msg *opal_msg;
 static u32 opal_msg_size __ro_after_init;
 
-void opal_configure_cores(void)
+void __init opal_configure_cores(void)
 {
 	u64 reinit_flags = 0;
 
@@ -237,6 +249,43 @@ static int __init opal_register_exception_handlers(void)
 }
 machine_early_initcall(powernv, opal_register_exception_handlers);
 
+static void queue_replay_msg(void *msg)
+{
+	struct opal_msg_node *msg_node;
+
+	if (msg_list_size < OPAL_MSG_QUEUE_MAX) {
+		msg_node = kzalloc(sizeof(*msg_node), GFP_ATOMIC);
+		if (msg_node) {
+			INIT_LIST_HEAD(&msg_node->list);
+			memcpy(&msg_node->msg, msg, sizeof(struct opal_msg));
+			list_add_tail(&msg_node->list, &msg_list);
+			msg_list_size++;
+		} else
+			pr_warn_once("message queue no memory\n");
+
+		if (msg_list_size >= OPAL_MSG_QUEUE_MAX)
+			pr_warn_once("message queue full\n");
+	}
+}
+
+static void dequeue_replay_msg(enum opal_msg_type msg_type)
+{
+	struct opal_msg_node *msg_node, *tmp;
+
+	list_for_each_entry_safe(msg_node, tmp, &msg_list, list) {
+		if (be32_to_cpu(msg_node->msg.msg_type) != msg_type)
+			continue;
+
+		atomic_notifier_call_chain(&opal_msg_notifier_head[msg_type],
+					msg_type,
+					&msg_node->msg);
+
+		list_del(&msg_node->list);
+		kfree(msg_node);
+		msg_list_size--;
+	}
+}
+
 /*
  * Opal message notifier based on message type. Allow subscribers to get
  * notified for specific messgae type.
@@ -244,14 +293,30 @@ machine_early_initcall(powernv, opal_register_exception_handlers);
 int opal_message_notifier_register(enum opal_msg_type msg_type,
 					struct notifier_block *nb)
 {
+	int ret;
+	unsigned long flags;
+
 	if (!nb || msg_type >= OPAL_MSG_TYPE_MAX) {
 		pr_warn("%s: Invalid arguments, msg_type:%d\n",
 			__func__, msg_type);
 		return -EINVAL;
 	}
 
-	return atomic_notifier_chain_register(
-				&opal_msg_notifier_head[msg_type], nb);
+	spin_lock_irqsave(&msg_list_lock, flags);
+	ret = atomic_notifier_chain_register(
+		&opal_msg_notifier_head[msg_type], nb);
+
+	/*
+	 * If the registration succeeded, replay any queued messages that came
+	 * in prior to the notifier chain registration. msg_list_lock held here
+	 * to ensure they're delivered prior to any subsequent messages.
+	 */
+	if (ret == 0)
+		dequeue_replay_msg(msg_type);
+
+	spin_unlock_irqrestore(&msg_list_lock, flags);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(opal_message_notifier_register);
 
@@ -265,6 +330,23 @@ EXPORT_SYMBOL_GPL(opal_message_notifier_unregister);
 
 static void opal_message_do_notify(uint32_t msg_type, void *msg)
 {
+	unsigned long flags;
+	bool queued = false;
+
+	spin_lock_irqsave(&msg_list_lock, flags);
+	if (opal_msg_notifier_head[msg_type].head == NULL) {
+		/*
+		 * Queue up the msg since no notifiers have registered
+		 * yet for this msg_type.
+		 */
+		queue_replay_msg(msg);
+		queued = true;
+	}
+	spin_unlock_irqrestore(&msg_list_lock, flags);
+
+	if (queued)
+		return;
+
 	/* notify subscribers */
 	atomic_notifier_call_chain(&opal_msg_notifier_head[msg_type],
 					msg_type, msg);
@@ -342,7 +424,7 @@ static int __init opal_message_init(struct device_node *opal_node)
 	return 0;
 }
 
-int opal_get_chars(uint32_t vtermno, char *buf, int count)
+ssize_t opal_get_chars(uint32_t vtermno, u8 *buf, size_t count)
 {
 	s64 rc;
 	__be64 evt, len;
@@ -359,10 +441,11 @@ int opal_get_chars(uint32_t vtermno, char *buf, int count)
 	return 0;
 }
 
-static int __opal_put_chars(uint32_t vtermno, const char *data, int total_len, bool atomic)
+static ssize_t __opal_put_chars(uint32_t vtermno, const u8 *data,
+				size_t total_len, bool atomic)
 {
 	unsigned long flags = 0 /* shut up gcc */;
-	int written;
+	ssize_t written;
 	__be64 olen;
 	s64 rc;
 
@@ -402,7 +485,7 @@ static int __opal_put_chars(uint32_t vtermno, const char *data, int total_len, b
 		if (atomic) {
 			/* Should not happen */
 			pr_warn("atomic console write returned partial "
-				"len=%d written=%d\n", total_len, written);
+				"len=%zu written=%zd\n", total_len, written);
 		}
 		if (!written)
 			written = -EAGAIN;
@@ -415,7 +498,7 @@ out:
 	return written;
 }
 
-int opal_put_chars(uint32_t vtermno, const char *data, int total_len)
+ssize_t opal_put_chars(uint32_t vtermno, const u8 *data, size_t total_len)
 {
 	return __opal_put_chars(vtermno, data, total_len, false);
 }
@@ -426,7 +509,8 @@ int opal_put_chars(uint32_t vtermno, const char *data, int total_len)
  * true at the moment because console space can race with OPAL's console
  * writes.
  */
-int opal_put_chars_atomic(uint32_t vtermno, const char *data, int total_len)
+ssize_t opal_put_chars_atomic(uint32_t vtermno, const u8 *data,
+			      size_t total_len)
 {
 	return __opal_put_chars(vtermno, data, total_len, true);
 }
@@ -506,7 +590,7 @@ static int opal_recover_mce(struct pt_regs *regs,
 {
 	int recovered = 0;
 
-	if (!(regs->msr & MSR_RI)) {
+	if (regs_is_unrecoverable(regs)) {
 		/* If MSR_RI isn't set, we cannot recover */
 		pr_err("Machine check interrupt unrecoverable: MSR(RI=0)\n");
 		recovered = 0;
@@ -542,7 +626,7 @@ static int opal_recover_mce(struct pt_regs *regs,
 			 */
 			recovered = 0;
 		} else {
-			die("Machine check", regs, SIGBUS);
+			die_mce("Machine check", regs, SIGBUS);
 			recovered = 1;
 		}
 	}
@@ -649,7 +733,7 @@ int opal_hmi_exception_early2(struct pt_regs *regs)
 	return 1;
 }
 
-/* HMI exception handler called in virtual mode during check_irq_replay. */
+/* HMI exception handler called in virtual mode when irqs are next enabled. */
 int opal_handle_hmi_exception(struct pt_regs *regs)
 {
 	/*
@@ -691,13 +775,13 @@ bool opal_mce_check_early_recovery(struct pt_regs *regs)
 	 * Setup regs->nip to rfi into fixup address.
 	 */
 	if (recover_addr)
-		regs->nip = recover_addr;
+		regs_set_return_ip(regs, recover_addr);
 
 out:
 	return !!recover_addr;
 }
 
-static int opal_sysfs_init(void)
+static int __init opal_sysfs_init(void)
 {
 	opal_kobj = kobject_create_and_add("opal", firmware_kobj);
 	if (!opal_kobj) {
@@ -708,48 +792,77 @@ static int opal_sysfs_init(void)
 	return 0;
 }
 
-static ssize_t symbol_map_read(struct file *fp, struct kobject *kobj,
-			       struct bin_attribute *bin_attr,
-			       char *buf, loff_t off, size_t count)
+static int opal_add_one_export(struct kobject *parent, const char *export_name,
+			       struct device_node *np, const char *prop_name)
 {
-	return memory_read_from_buffer(buf, count, &off, bin_attr->private,
-				       bin_attr->size);
-}
-
-static struct bin_attribute symbol_map_attr = {
-	.attr = {.name = "symbol_map", .mode = 0400},
-	.read = symbol_map_read
-};
-
-static void opal_export_symmap(void)
-{
-	const __be64 *syms;
-	unsigned int size;
-	struct device_node *fw;
+	struct bin_attribute *attr = NULL;
+	const char *name = NULL;
+	u64 vals[2];
 	int rc;
 
-	fw = of_find_node_by_path("/ibm,opal/firmware");
-	if (!fw)
-		return;
-	syms = of_get_property(fw, "symbol-map", &size);
-	if (!syms || size != 2 * sizeof(__be64))
-		return;
-
-	/* Setup attributes */
-	symbol_map_attr.private = __va(be64_to_cpu(syms[0]));
-	symbol_map_attr.size = be64_to_cpu(syms[1]);
-
-	rc = sysfs_create_bin_file(opal_kobj, &symbol_map_attr);
+	rc = of_property_read_u64_array(np, prop_name, &vals[0], 2);
 	if (rc)
-		pr_warn("Error %d creating OPAL symbols file\n", rc);
+		goto out;
+
+	attr = kzalloc(sizeof(*attr), GFP_KERNEL);
+	if (!attr) {
+		rc = -ENOMEM;
+		goto out;
+	}
+	name = kstrdup(export_name, GFP_KERNEL);
+	if (!name) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	sysfs_bin_attr_init(attr);
+	attr->attr.name = name;
+	attr->attr.mode = 0400;
+	attr->read = sysfs_bin_attr_simple_read;
+	attr->private = __va(vals[0]);
+	attr->size = vals[1];
+
+	rc = sysfs_create_bin_file(parent, attr);
+out:
+	if (rc) {
+		kfree(name);
+		kfree(attr);
+	}
+
+	return rc;
 }
 
-static ssize_t export_attr_read(struct file *fp, struct kobject *kobj,
-				struct bin_attribute *bin_attr, char *buf,
-				loff_t off, size_t count)
+static void opal_add_exported_attrs(struct device_node *np,
+				    struct kobject *kobj)
 {
-	return memory_read_from_buffer(buf, count, &off, bin_attr->private,
-				       bin_attr->size);
+	struct device_node *child;
+	struct property *prop;
+
+	for_each_property_of_node(np, prop) {
+		int rc;
+
+		if (!strcmp(prop->name, "name") ||
+		    !strcmp(prop->name, "phandle"))
+			continue;
+
+		rc = opal_add_one_export(kobj, prop->name, np, prop->name);
+		if (rc) {
+			pr_warn("Unable to add export %pOF/%s, rc = %d!\n",
+				np, prop->name, rc);
+		}
+	}
+
+	for_each_child_of_node(np, child) {
+		struct kobject *child_kobj;
+
+		child_kobj = kobject_create_and_add(child->name, kobj);
+		if (!child_kobj) {
+			pr_err("Unable to create export dir for %pOF\n", child);
+			continue;
+		}
+
+		opal_add_exported_attrs(child, child_kobj);
+	}
 }
 
 /*
@@ -761,11 +874,8 @@ static ssize_t export_attr_read(struct file *fp, struct kobject *kobj,
  */
 static void opal_export_attrs(void)
 {
-	struct bin_attribute *attr;
 	struct device_node *np;
-	struct property *prop;
 	struct kobject *kobj;
-	u64 vals[2];
 	int rc;
 
 	np = of_find_node_by_path("/ibm,opal/firmware/exports");
@@ -776,44 +886,20 @@ static void opal_export_attrs(void)
 	kobj = kobject_create_and_add("exports", opal_kobj);
 	if (!kobj) {
 		pr_warn("kobject_create_and_add() of exports failed\n");
+		of_node_put(np);
 		return;
 	}
 
-	for_each_property_of_node(np, prop) {
-		if (!strcmp(prop->name, "name") || !strcmp(prop->name, "phandle"))
-			continue;
+	opal_add_exported_attrs(np, kobj);
 
-		if (of_property_read_u64_array(np, prop->name, &vals[0], 2))
-			continue;
-
-		attr = kzalloc(sizeof(*attr), GFP_KERNEL);
-
-		if (attr == NULL) {
-			pr_warn("Failed kmalloc for bin_attribute!");
-			continue;
-		}
-
-		sysfs_bin_attr_init(attr);
-		attr->attr.name = kstrdup(prop->name, GFP_KERNEL);
-		attr->attr.mode = 0400;
-		attr->read = export_attr_read;
-		attr->private = __va(vals[0]);
-		attr->size = vals[1];
-
-		if (attr->attr.name == NULL) {
-			pr_warn("Failed kstrdup for bin_attribute attr.name");
-			kfree(attr);
-			continue;
-		}
-
-		rc = sysfs_create_bin_file(kobj, attr);
-		if (rc) {
-			pr_warn("Error %d creating OPAL sysfs exports/%s file\n",
-				 rc, prop->name);
-			kfree(attr->attr.name);
-			kfree(attr);
-		}
-	}
+	/*
+	 * NB: symbol_map existed before the generic export interface so it
+	 * lives under the top level opal_kobj.
+	 */
+	rc = opal_add_one_export(opal_kobj, "symbol_map",
+				 np->parent, "symbol-map");
+	if (rc)
+		pr_warn("Error %d creating OPAL symbols file\n", rc);
 
 	of_node_put(np);
 }
@@ -846,7 +932,7 @@ static void __init opal_dump_region_init(void)
 			"rc = %d\n", rc);
 }
 
-static void opal_pdev_init(const char *compatible)
+static void __init opal_pdev_init(const char *compatible)
 {
 	struct device_node *np;
 
@@ -861,6 +947,8 @@ static void __init opal_imc_init_dev(void)
 	np = of_find_compatible_node(NULL, NULL, IMC_DTB_COMPAT);
 	if (np)
 		of_platform_device_create(np, NULL, NULL);
+
+	of_node_put(np);
 }
 
 static int kopald(void *unused)
@@ -890,7 +978,7 @@ void opal_wake_poller(void)
 		wake_up_process(kopald_tsk);
 }
 
-static void opal_init_heartbeat(void)
+static void __init opal_init_heartbeat(void)
 {
 	/* Old firwmware, we assume the HVC heartbeat is sufficient */
 	if (of_property_read_u32(opal_node, "ibm,heartbeat-ms",
@@ -960,8 +1048,6 @@ static int __init opal_init(void)
 	/* Create "opal" kobject under /sys/firmware */
 	rc = opal_sysfs_init();
 	if (rc == 0) {
-		/* Export symbol map to userspace */
-		opal_export_symmap();
 		/* Setup dump region interface */
 		opal_dump_region_init();
 		/* Setup error log interface */
@@ -974,10 +1060,9 @@ static int __init opal_init(void)
 		opal_sys_param_init();
 		/* Setup message log sysfs interface. */
 		opal_msglog_sysfs_init();
+		/* Add all export properties*/
+		opal_export_attrs();
 	}
-
-	/* Export all properties */
-	opal_export_attrs();
 
 	/* Initialize platform devices: IPMI backend, PRD & flash interface */
 	opal_pdev_init("ibm,opal-ipmi");
@@ -1001,6 +1086,9 @@ static int __init opal_init(void)
 
 	/* Initialise OPAL Power control interface */
 	opal_power_control_init();
+
+	/* Initialize OPAL secure variables */
+	opal_pdev_init("ibm,secvar-backend");
 
 	return 0;
 }

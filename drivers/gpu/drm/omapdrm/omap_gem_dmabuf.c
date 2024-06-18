@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2011 Texas Instruments Incorporated - https://www.ti.com/
  * Author: Rob Clark <rob.clark@linaro.org>
  */
 
@@ -10,6 +10,8 @@
 #include <drm/drm_prime.h>
 
 #include "omap_drv.h"
+
+MODULE_IMPORT_NS(DMA_BUF);
 
 /* -----------------------------------------------------------------------------
  * DMABUF Export
@@ -21,45 +23,18 @@ static struct sg_table *omap_gem_map_dma_buf(
 {
 	struct drm_gem_object *obj = attachment->dmabuf->priv;
 	struct sg_table *sg;
-	dma_addr_t dma_addr;
-	int ret;
-
-	sg = kzalloc(sizeof(*sg), GFP_KERNEL);
-	if (!sg)
-		return ERR_PTR(-ENOMEM);
-
-	/* camera, etc, need physically contiguous.. but we need a
-	 * better way to know this..
-	 */
-	ret = omap_gem_pin(obj, &dma_addr);
-	if (ret)
-		goto out;
-
-	ret = sg_alloc_table(sg, 1, GFP_KERNEL);
-	if (ret)
-		goto out;
-
-	sg_init_table(sg->sgl, 1);
-	sg_dma_len(sg->sgl) = obj->size;
-	sg_set_page(sg->sgl, pfn_to_page(PFN_DOWN(dma_addr)), obj->size, 0);
-	sg_dma_address(sg->sgl) = dma_addr;
-
-	/* this must be after omap_gem_pin() to ensure we have pages attached */
-	omap_gem_dma_sync_buffer(obj, dir);
+	sg = omap_gem_get_sg(obj, dir);
+	if (IS_ERR(sg))
+		return sg;
 
 	return sg;
-out:
-	kfree(sg);
-	return ERR_PTR(ret);
 }
 
 static void omap_gem_unmap_dma_buf(struct dma_buf_attachment *attachment,
 		struct sg_table *sg, enum dma_data_direction dir)
 {
 	struct drm_gem_object *obj = attachment->dmabuf->priv;
-	omap_gem_unpin(obj);
-	sg_free_table(sg);
-	kfree(sg);
+	omap_gem_put_sg(obj, sg);
 }
 
 static int omap_gem_dmabuf_begin_cpu_access(struct dma_buf *buffer,
@@ -67,7 +42,7 @@ static int omap_gem_dmabuf_begin_cpu_access(struct dma_buf *buffer,
 {
 	struct drm_gem_object *obj = buffer->priv;
 	struct page **pages;
-	if (omap_gem_flags(obj) & OMAP_BO_TILED) {
+	if (omap_gem_flags(obj) & OMAP_BO_TILED_MASK) {
 		/* TODO we would need to pin at least part of the buffer to
 		 * get de-tiled view.  For now just reject it.
 		 */
@@ -85,36 +60,12 @@ static int omap_gem_dmabuf_end_cpu_access(struct dma_buf *buffer,
 	return 0;
 }
 
-static void *omap_gem_dmabuf_kmap(struct dma_buf *buffer,
-		unsigned long page_num)
-{
-	struct drm_gem_object *obj = buffer->priv;
-	struct page **pages;
-	omap_gem_get_pages(obj, &pages, false);
-	omap_gem_cpu_sync_page(obj, page_num);
-	return kmap(pages[page_num]);
-}
-
-static void omap_gem_dmabuf_kunmap(struct dma_buf *buffer,
-		unsigned long page_num, void *addr)
-{
-	struct drm_gem_object *obj = buffer->priv;
-	struct page **pages;
-	omap_gem_get_pages(obj, &pages, false);
-	kunmap(pages[page_num]);
-}
-
 static int omap_gem_dmabuf_mmap(struct dma_buf *buffer,
 		struct vm_area_struct *vma)
 {
 	struct drm_gem_object *obj = buffer->priv;
-	int ret = 0;
 
-	ret = drm_gem_mmap_obj(obj, omap_gem_mmap_size(obj), vma);
-	if (ret < 0)
-		return ret;
-
-	return omap_gem_mmap_obj(obj, vma);
+	return drm_gem_mmap_obj(obj, omap_gem_mmap_size(obj), vma);
 }
 
 static const struct dma_buf_ops omap_dmabuf_ops = {
@@ -123,8 +74,6 @@ static const struct dma_buf_ops omap_dmabuf_ops = {
 	.release = drm_gem_dmabuf_release,
 	.begin_cpu_access = omap_gem_dmabuf_begin_cpu_access,
 	.end_cpu_access = omap_gem_dmabuf_end_cpu_access,
-	.map = omap_gem_dmabuf_kmap,
-	.unmap = omap_gem_dmabuf_kunmap,
 	.mmap = omap_gem_dmabuf_mmap,
 };
 
@@ -133,9 +82,10 @@ struct dma_buf *omap_gem_prime_export(struct drm_gem_object *obj, int flags)
 	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
 
 	exp_info.ops = &omap_dmabuf_ops;
-	exp_info.size = obj->size;
+	exp_info.size = omap_gem_mmap_size(obj);
 	exp_info.flags = flags;
 	exp_info.priv = obj;
+	exp_info.resv = obj->resv;
 
 	return drm_gem_dmabuf_export(obj->dev, &exp_info);
 }
@@ -170,7 +120,7 @@ struct drm_gem_object *omap_gem_prime_import(struct drm_device *dev,
 
 	get_dma_buf(dma_buf);
 
-	sgt = dma_buf_map_attachment(attach, DMA_TO_DEVICE);
+	sgt = dma_buf_map_attachment_unlocked(attach, DMA_TO_DEVICE);
 	if (IS_ERR(sgt)) {
 		ret = PTR_ERR(sgt);
 		goto fail_detach;
@@ -187,7 +137,7 @@ struct drm_gem_object *omap_gem_prime_import(struct drm_device *dev,
 	return obj;
 
 fail_unmap:
-	dma_buf_unmap_attachment(attach, sgt, DMA_TO_DEVICE);
+	dma_buf_unmap_attachment_unlocked(attach, sgt, DMA_TO_DEVICE);
 fail_detach:
 	dma_buf_detach(dma_buf, attach);
 	dma_buf_put(dma_buf);

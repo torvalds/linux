@@ -6,10 +6,9 @@
  */
 
 #include <crypto/internal/hash.h>
-#include <linux/cryptohash.h>
 #include <linux/types.h>
 #include <linux/string.h>
-#include <crypto/sha.h>
+#include <crypto/sha2.h>
 #include <crypto/sha512_base.h>
 #include <asm/neon.h>
 
@@ -20,25 +19,28 @@ MODULE_LICENSE("GPL v2");
 MODULE_ALIAS_CRYPTO("sha384");
 MODULE_ALIAS_CRYPTO("sha512");
 
-asmlinkage void sha512_block_data_order(u32 *digest, const void *data,
+asmlinkage void sha512_block_data_order(u64 *digest, const void *data,
 					unsigned int num_blks);
 EXPORT_SYMBOL(sha512_block_data_order);
+
+static void sha512_arm64_transform(struct sha512_state *sst, u8 const *src,
+				   int blocks)
+{
+	sha512_block_data_order(sst->state, src, blocks);
+}
 
 static int sha512_update(struct shash_desc *desc, const u8 *data,
 			 unsigned int len)
 {
-	return sha512_base_do_update(desc, data, len,
-			(sha512_block_fn *)sha512_block_data_order);
+	return sha512_base_do_update(desc, data, len, sha512_arm64_transform);
 }
 
 static int sha512_finup(struct shash_desc *desc, const u8 *data,
 			unsigned int len, u8 *out)
 {
 	if (len)
-		sha512_base_do_update(desc, data, len,
-			(sha512_block_fn *)sha512_block_data_order);
-	sha512_base_do_finalize(desc,
-			(sha512_block_fn *)sha512_block_data_order);
+		sha512_base_do_update(desc, data, len, sha512_arm64_transform);
+	sha512_base_do_finalize(desc, sha512_arm64_transform);
 
 	return sha512_base_finish(desc, out);
 }

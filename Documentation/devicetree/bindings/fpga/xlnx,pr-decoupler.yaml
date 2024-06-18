@@ -1,0 +1,67 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/fpga/xlnx,pr-decoupler.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Xilinx LogiCORE Partial Reconfig Decoupler/AXI shutdown manager Softcore
+
+maintainers:
+  - Nava kishore Manne <nava.kishore.manne@amd.com>
+
+allOf:
+  - $ref: fpga-bridge.yaml#
+
+description: |
+  The Xilinx LogiCORE Partial Reconfig(PR) Decoupler manages one or more
+  decouplers/fpga bridges. The controller can decouple/disable the bridges
+  which prevents signal changes from passing through the bridge. The controller
+  can also couple / enable the bridges which allows traffic to pass through the
+  bridge normally.
+  Xilinx LogiCORE Dynamic Function eXchange(DFX) AXI shutdown manager Softcore
+  is compatible with the Xilinx LogiCORE pr-decoupler. The Dynamic Function
+  eXchange AXI shutdown manager prevents AXI traffic from passing through the
+  bridge. The controller safely handles AXI4MM and AXI4-Lite interfaces on a
+  Reconfigurable Partition when it is undergoing dynamic reconfiguration,
+  preventing the system deadlock that can occur if AXI transactions are
+  interrupted by DFX.
+  Please refer to fpga-region.txt and fpga-bridge.txt in this directory for
+  common binding part and usage.
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - const: xlnx,pr-decoupler-1.00
+          - const: xlnx,pr-decoupler
+      - items:
+          - const: xlnx,dfx-axi-shutdown-manager-1.00
+          - const: xlnx,dfx-axi-shutdown-manager
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: aclk
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    fpga-bridge@100000450 {
+      compatible = "xlnx,pr-decoupler-1.00", "xlnx,pr-decoupler";
+      reg = <0x10000045 0x10>;
+      clocks = <&clkc 15>;
+      clock-names = "aclk";
+    };
+...

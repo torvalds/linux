@@ -1,9 +1,9 @@
-/* SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause) */
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause) */
 /*
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
- * Copyright(c) 2018 Intel Corporation. All rights reserved.
+ * Copyright(c) 2018 Intel Corporation
  */
 
 #ifndef __INCLUDE_SOUND_SOF_CONTROL_H__
@@ -117,11 +117,11 @@ struct sof_ipc_ctrl_data {
 	/* control data - add new types if needed */
 	union {
 		/* channel values can be used by volume type controls */
-		struct sof_ipc_ctrl_value_chan chanv[0];
+		DECLARE_FLEX_ARRAY(struct sof_ipc_ctrl_value_chan, chanv);
 		/* component values used by routing controls like mux, mixer */
-		struct sof_ipc_ctrl_value_comp compv[0];
+		DECLARE_FLEX_ARRAY(struct sof_ipc_ctrl_value_comp, compv);
 		/* data can be used by binary controls */
-		struct sof_abi_hdr data[0];
+		DECLARE_FLEX_ARRAY(struct sof_abi_hdr, data);
 	};
 } __packed;
 

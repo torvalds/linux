@@ -43,8 +43,8 @@ struct pnfs_ff_layout {
 };
 
 __be32 nfsd4_ff_encode_getdeviceinfo(struct xdr_stream *xdr,
-		struct nfsd4_getdeviceinfo *gdp);
+		const struct nfsd4_getdeviceinfo *gdp);
 __be32 nfsd4_ff_encode_layoutget(struct xdr_stream *xdr,
-		struct nfsd4_layoutget *lgp);
+		const struct nfsd4_layoutget *lgp);
 
 #endif /* _NFSD_FLEXFILELAYOUTXDR_H */

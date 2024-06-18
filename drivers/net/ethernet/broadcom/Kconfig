@@ -8,8 +8,7 @@ config NET_VENDOR_BROADCOM
 	default y
 	depends on (SSB_POSSIBLE && HAS_DMA) || PCI || BCM63XX || \
 		   SIBYTE_SB1xxx_SOC
-	select DIMLIB
-	---help---
+	help
 	  If you have a network (Ethernet) chipset belonging to this class,
 	  say Y.
 
@@ -26,7 +25,7 @@ config B44
 	select SSB
 	select MII
 	select PHYLIB
-	---help---
+	help
 	  If you have a network (Ethernet) controller of this type, say Y
 	  or M here.
 
@@ -52,6 +51,14 @@ config B44_PCI
 	depends on B44_PCI_AUTOSELECT && B44_PCICORE_AUTOSELECT
 	default y
 
+config BCM4908_ENET
+	tristate "Broadcom BCM4908 internal mac support"
+	depends on ARCH_BCMBCA || COMPILE_TEST
+	default y if ARCH_BCMBCA
+	help
+	  This driver supports Ethernet controller integrated into Broadcom
+	  BCM4908 family SoCs.
+
 config BCM63XX_ENET
 	tristate "Broadcom 63xx internal mac support"
 	depends on BCM63XX
@@ -64,11 +71,14 @@ config BCM63XX_ENET
 config BCMGENET
 	tristate "Broadcom GENET internal MAC support"
 	depends on HAS_IOMEM
+	depends on PTP_1588_CLOCK_OPTIONAL || !ARCH_BCM2835
 	select MII
 	select PHYLIB
 	select FIXED_PHY
 	select BCM7XXX_PHY
 	select MDIO_BCM_UNIMAC
+	select DIMLIB
+	select BROADCOM_PHY if ARCH_BCM2835
 	help
 	  This driver supports the built-in Ethernet MACs found in the
 	  Broadcom BCM7xxx Set Top Box family chipset.
@@ -78,7 +88,7 @@ config BNX2
 	depends on PCI
 	select CRC32
 	select FW_LOADER
-	---help---
+	help
 	  This driver supports QLogic bnx2 gigabit Ethernet cards.
 
 	  To compile this driver as a module, choose M here: the module
@@ -87,9 +97,10 @@ config BNX2
 config CNIC
 	tristate "QLogic CNIC support"
 	depends on PCI && (IPV6 || IPV6=n)
+	depends on MMU
 	select BNX2
 	select UIO
-	---help---
+	help
 	  This driver supports offload features of QLogic bnx2 gigabit
 	  Ethernet cards.
 
@@ -100,7 +111,7 @@ config SB1250_MAC
 	tristate "SB1250 Gigabit Ethernet support"
 	depends on SIBYTE_SB1xxx_SOC
 	select PHYLIB
-	---help---
+	help
 	  This driver supports Gigabit Ethernet interfaces based on the
 	  Broadcom SiByte family of System-On-a-Chip parts.  They include
 	  the BCM1120, BCM1125, BCM1125H, BCM1250, BCM1255, BCM1280, BCM1455
@@ -112,9 +123,9 @@ config SB1250_MAC
 config TIGON3
 	tristate "Broadcom Tigon3 support"
 	depends on PCI
+	depends on PTP_1588_CLOCK_OPTIONAL
 	select PHYLIB
-	imply PTP_1588_CLOCK
-	---help---
+	help
 	  This driver supports Broadcom Tigon3 based gigabit Ethernet cards.
 
 	  To compile this driver as a module, choose M here: the module
@@ -124,18 +135,18 @@ config TIGON3_HWMON
 	bool "Broadcom Tigon3 HWMON support"
 	default y
 	depends on TIGON3 && HWMON && !(TIGON3=y && HWMON=m)
-	---help---
+	help
 	  Say Y if you want to expose the thermal sensor on Tigon3 devices.
 
 config BNX2X
 	tristate "Broadcom NetXtremeII 10Gb support"
 	depends on PCI
-	imply PTP_1588_CLOCK
+	depends on PTP_1588_CLOCK_OPTIONAL
 	select FW_LOADER
 	select ZLIB_INFLATE
 	select LIBCRC32C
 	select MDIO
-	---help---
+	help
 	  This driver supports Broadcom NetXtremeII 10 gigabit Ethernet cards.
 	  To compile this driver as a module, choose M here: the module
 	  will be called bnx2x.  This is recommended.
@@ -144,7 +155,7 @@ config BNX2X_SRIOV
 	bool "Broadcom 578xx and 57712 SR-IOV support"
 	depends on BNX2X && PCI_IOV
 	default y
-	---help---
+	help
 	  This configuration parameter enables Single Root Input Output
 	  Virtualization support in the 578xx and 57712 products. This
 	  allows for virtual function acceleration in virtual environments.
@@ -163,7 +174,7 @@ config BGMAC_BCMA
 	select BGMAC
 	select PHYLIB
 	select FIXED_PHY
-	---help---
+	help
 	  This driver supports GBit MAC and BCM4706 GBit MAC cores on BCMA bus.
 	  They can be found on BCM47xx SoCs and provide gigabit ethernet.
 	  In case of using this driver on BCM4706 it's also requires to enable
@@ -172,12 +183,11 @@ config BGMAC_BCMA
 config BGMAC_PLATFORM
 	tristate "Broadcom iProc GBit platform support"
 	depends on ARCH_BCM_IPROC || COMPILE_TEST
-	depends on OF
 	select BGMAC
 	select PHYLIB
 	select FIXED_PHY
 	default ARCH_BCM_IPROC
-	---help---
+	help
 	  Say Y here if you want to use the Broadcom iProc Gigabit Ethernet
 	  controller through the generic platform interface
 
@@ -188,6 +198,7 @@ config SYSTEMPORT
 	select MII
 	select PHYLIB
 	select FIXED_PHY
+	select DIMLIB
 	help
 	  This driver supports the built-in Ethernet MACs found in the
 	  Broadcom BCM7xxx Set Top Box family chipset using an internal
@@ -196,11 +207,14 @@ config SYSTEMPORT
 config BNXT
 	tristate "Broadcom NetXtreme-C/E support"
 	depends on PCI
+	depends on PTP_1588_CLOCK_OPTIONAL
 	select FW_LOADER
 	select LIBCRC32C
 	select NET_DEVLINK
 	select PAGE_POOL
-	---help---
+	select DIMLIB
+	select AUXILIARY_BUS
+	help
 	  This driver supports Broadcom NetXtreme-C/E 10/25/40/50 gigabit
 	  Ethernet cards.  To compile this driver as a module, choose M here:
 	  the module will be called bnxt_en.  This is recommended.
@@ -209,7 +223,7 @@ config BNXT_SRIOV
 	bool "Broadcom NetXtreme-C/E SR-IOV support"
 	depends on BNXT && PCI_IOV
 	default y
-	---help---
+	help
 	  This configuration parameter enables Single Root Input Output
 	  Virtualization support in the NetXtreme-C/E products. This
 	  allows for virtual function acceleration in virtual environments.
@@ -218,7 +232,7 @@ config BNXT_FLOWER_OFFLOAD
 	bool "TC Flower offload support for NetXtreme-C/E"
 	depends on BNXT
 	default y
-	---help---
+	help
 	  This configuration parameter enables TC Flower packet classifier
 	  offload for eswitch.  This option enables SR-IOV switchdev eswitch
 	  offload.
@@ -227,7 +241,7 @@ config BNXT_DCB
 	bool "Data Center Bridging (DCB) Support"
 	default n
 	depends on BNXT && DCB
-	---help---
+	help
 	  Say Y here if you want to use Data Center Bridging (DCB) in the
 	  driver.
 
@@ -237,8 +251,20 @@ config BNXT_HWMON
 	bool "Broadcom NetXtreme-C/E HWMON support"
 	default y
 	depends on BNXT && HWMON && !(BNXT=y && HWMON=m)
-	---help---
+	help
 	  Say Y if you want to expose the thermal sensor data on NetXtreme-C/E
 	  devices, via the hwmon sysfs interface.
+
+config BCMASP
+	tristate "Broadcom ASP 2.0 Ethernet support"
+	depends on ARCH_BRCMSTB || COMPILE_TEST
+	default ARCH_BRCMSTB
+	depends on OF
+	select MII
+	select PHYLIB
+	select MDIO_BCM_UNIMAC
+	help
+	  This configuration enables the Broadcom ASP 2.0 Ethernet controller
+	  driver which is present in Broadcom STB SoCs such as 72165.
 
 endif # NET_VENDOR_BROADCOM

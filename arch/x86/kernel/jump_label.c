@@ -15,62 +15,76 @@
 #include <asm/kprobes.h>
 #include <asm/alternative.h>
 #include <asm/text-patching.h>
+#include <asm/insn.h>
 
-union jump_code_union {
-	char code[JUMP_LABEL_NOP_SIZE];
-	struct {
-		char jump;
-		int offset;
-	} __attribute__((packed));
+int arch_jump_entry_size(struct jump_entry *entry)
+{
+	struct insn insn = {};
+
+	insn_decode_kernel(&insn, (void *)jump_entry_code(entry));
+	BUG_ON(insn.length != 2 && insn.length != 5);
+
+	return insn.length;
+}
+
+struct jump_label_patch {
+	const void *code;
+	int size;
 };
 
-static void bug_at(unsigned char *ip, int line)
+static struct jump_label_patch
+__jump_label_patch(struct jump_entry *entry, enum jump_label_type type)
 {
-	/*
-	 * The location is not an op that we were expecting.
-	 * Something went wrong. Crash the box, as something could be
-	 * corrupting the kernel.
-	 */
-	pr_crit("jump_label: Fatal kernel bug, unexpected op at %pS [%p] (%5ph) %d\n", ip, ip, ip, line);
-	BUG();
-}
+	const void *expect, *code, *nop;
+	const void *addr, *dest;
+	int size;
 
-static void __jump_label_set_jump_code(struct jump_entry *entry,
-				       enum jump_label_type type,
-				       union jump_code_union *code,
-				       int init)
-{
-	const unsigned char default_nop[] = { STATIC_KEY_INIT_NOP };
-	const unsigned char *ideal_nop = ideal_nops[NOP_ATOMIC5];
-	const void *expect;
-	int line;
+	addr = (void *)jump_entry_code(entry);
+	dest = (void *)jump_entry_target(entry);
 
-	code->jump = 0xe9;
-	code->offset = jump_entry_target(entry) -
-		       (jump_entry_code(entry) + JUMP_LABEL_NOP_SIZE);
+	size = arch_jump_entry_size(entry);
+	switch (size) {
+	case JMP8_INSN_SIZE:
+		code = text_gen_insn(JMP8_INSN_OPCODE, addr, dest);
+		nop = x86_nops[size];
+		break;
 
-	if (init) {
-		expect = default_nop; line = __LINE__;
-	} else if (type == JUMP_LABEL_JMP) {
-		expect = ideal_nop; line = __LINE__;
-	} else {
-		expect = code->code; line = __LINE__;
+	case JMP32_INSN_SIZE:
+		code = text_gen_insn(JMP32_INSN_OPCODE, addr, dest);
+		nop = x86_nops[size];
+		break;
+
+	default: BUG();
 	}
 
-	if (memcmp((void *)jump_entry_code(entry), expect, JUMP_LABEL_NOP_SIZE))
-		bug_at((void *)jump_entry_code(entry), line);
+	if (type == JUMP_LABEL_JMP)
+		expect = nop;
+	else
+		expect = code;
+
+	if (memcmp(addr, expect, size)) {
+		/*
+		 * The location is not an op that we were expecting.
+		 * Something went wrong. Crash the box, as something could be
+		 * corrupting the kernel.
+		 */
+		pr_crit("jump_label: Fatal kernel bug, unexpected op at %pS [%p] (%5ph != %5ph)) size:%d type:%d\n",
+				addr, addr, addr, expect, size, type);
+		BUG();
+	}
 
 	if (type == JUMP_LABEL_NOP)
-		memcpy(code, ideal_nop, JUMP_LABEL_NOP_SIZE);
+		code = nop;
+
+	return (struct jump_label_patch){.code = code, .size = size};
 }
 
-static void __ref __jump_label_transform(struct jump_entry *entry,
-					 enum jump_label_type type,
-					 int init)
+static __always_inline void
+__jump_label_transform(struct jump_entry *entry,
+		       enum jump_label_type type,
+		       int init)
 {
-	union jump_code_union code;
-
-	__jump_label_set_jump_code(entry, type, &code, init);
+	const struct jump_label_patch jlp = __jump_label_patch(entry, type);
 
 	/*
 	 * As long as only a single processor is running and the code is still
@@ -84,32 +98,32 @@ static void __ref __jump_label_transform(struct jump_entry *entry,
 	 * always nop being the 'currently valid' instruction
 	 */
 	if (init || system_state == SYSTEM_BOOTING) {
-		text_poke_early((void *)jump_entry_code(entry), &code,
-				JUMP_LABEL_NOP_SIZE);
+		text_poke_early((void *)jump_entry_code(entry), jlp.code, jlp.size);
 		return;
 	}
 
-	text_poke_bp((void *)jump_entry_code(entry), &code, JUMP_LABEL_NOP_SIZE,
-		     (void *)jump_entry_code(entry) + JUMP_LABEL_NOP_SIZE);
+	text_poke_bp((void *)jump_entry_code(entry), jlp.code, jlp.size, NULL);
+}
+
+static void __ref jump_label_transform(struct jump_entry *entry,
+				       enum jump_label_type type,
+				       int init)
+{
+	mutex_lock(&text_mutex);
+	__jump_label_transform(entry, type, init);
+	mutex_unlock(&text_mutex);
 }
 
 void arch_jump_label_transform(struct jump_entry *entry,
 			       enum jump_label_type type)
 {
-	mutex_lock(&text_mutex);
-	__jump_label_transform(entry, type, 0);
-	mutex_unlock(&text_mutex);
+	jump_label_transform(entry, type, 0);
 }
-
-#define TP_VEC_MAX (PAGE_SIZE / sizeof(struct text_poke_loc))
-static struct text_poke_loc tp_vec[TP_VEC_MAX];
-static int tp_vec_nr;
 
 bool arch_jump_label_transform_queue(struct jump_entry *entry,
 				     enum jump_label_type type)
 {
-	struct text_poke_loc *tp;
-	void *entry_code;
+	struct jump_label_patch jlp;
 
 	if (system_state == SYSTEM_BOOTING) {
 		/*
@@ -119,82 +133,16 @@ bool arch_jump_label_transform_queue(struct jump_entry *entry,
 		return true;
 	}
 
-	/*
-	 * No more space in the vector, tell upper layer to apply
-	 * the queue before continuing.
-	 */
-	if (tp_vec_nr == TP_VEC_MAX)
-		return false;
-
-	tp = &tp_vec[tp_vec_nr];
-
-	entry_code = (void *)jump_entry_code(entry);
-
-	/*
-	 * The INT3 handler will do a bsearch in the queue, so we need entries
-	 * to be sorted. We can survive an unsorted list by rejecting the entry,
-	 * forcing the generic jump_label code to apply the queue. Warning once,
-	 * to raise the attention to the case of an unsorted entry that is
-	 * better not happen, because, in the worst case we will perform in the
-	 * same way as we do without batching - with some more overhead.
-	 */
-	if (tp_vec_nr > 0) {
-		int prev = tp_vec_nr - 1;
-		struct text_poke_loc *prev_tp = &tp_vec[prev];
-
-		if (WARN_ON_ONCE(prev_tp->addr > entry_code))
-			return false;
-	}
-
-	__jump_label_set_jump_code(entry, type,
-				   (union jump_code_union *) &tp->opcode, 0);
-
-	tp->addr = entry_code;
-	tp->detour = entry_code + JUMP_LABEL_NOP_SIZE;
-	tp->len = JUMP_LABEL_NOP_SIZE;
-
-	tp_vec_nr++;
-
+	mutex_lock(&text_mutex);
+	jlp = __jump_label_patch(entry, type);
+	text_poke_queue((void *)jump_entry_code(entry), jlp.code, jlp.size, NULL);
+	mutex_unlock(&text_mutex);
 	return true;
 }
 
 void arch_jump_label_transform_apply(void)
 {
-	if (!tp_vec_nr)
-		return;
-
 	mutex_lock(&text_mutex);
-	text_poke_bp_batch(tp_vec, tp_vec_nr);
+	text_poke_finish();
 	mutex_unlock(&text_mutex);
-
-	tp_vec_nr = 0;
-}
-
-static enum {
-	JL_STATE_START,
-	JL_STATE_NO_UPDATE,
-	JL_STATE_UPDATE,
-} jlstate __initdata_or_module = JL_STATE_START;
-
-__init_or_module void arch_jump_label_transform_static(struct jump_entry *entry,
-				      enum jump_label_type type)
-{
-	/*
-	 * This function is called at boot up and when modules are
-	 * first loaded. Check if the default nop, the one that is
-	 * inserted at compile time, is the ideal nop. If it is, then
-	 * we do not need to update the nop, and we can leave it as is.
-	 * If it is not, then we need to update the nop to the ideal nop.
-	 */
-	if (jlstate == JL_STATE_START) {
-		const unsigned char default_nop[] = { STATIC_KEY_INIT_NOP };
-		const unsigned char *ideal_nop = ideal_nops[NOP_ATOMIC5];
-
-		if (memcmp(ideal_nop, default_nop, 5) != 0)
-			jlstate = JL_STATE_UPDATE;
-		else
-			jlstate = JL_STATE_NO_UPDATE;
-	}
-	if (jlstate == JL_STATE_UPDATE)
-		__jump_label_transform(entry, type, 1);
 }

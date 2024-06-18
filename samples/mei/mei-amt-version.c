@@ -154,31 +154,52 @@ err:
 static ssize_t mei_recv_msg(struct mei *me, unsigned char *buffer,
 			ssize_t len, unsigned long timeout)
 {
+	struct timeval tv;
+	fd_set set;
 	ssize_t rc;
 
+	tv.tv_sec = timeout / 1000;
+	tv.tv_usec = (timeout % 1000) * 1000000;
+
 	mei_msg(me, "call read length = %zd\n", len);
+
+	FD_ZERO(&set);
+	FD_SET(me->fd, &set);
+	rc = select(me->fd + 1, &set, NULL, NULL, &tv);
+	if (rc > 0 && FD_ISSET(me->fd, &set)) {
+		mei_msg(me, "have reply\n");
+	} else if (rc == 0) {
+		rc = -1;
+		mei_err(me, "read failed on timeout\n");
+		goto out;
+	} else { /* rc < 0 */
+		rc = errno;
+		mei_err(me, "read failed on select with status %zd %s\n",
+			rc, strerror(errno));
+		goto out;
+	}
 
 	rc = read(me->fd, buffer, len);
 	if (rc < 0) {
 		mei_err(me, "read failed with status %zd %s\n",
 				rc, strerror(errno));
-		mei_deinit(me);
-	} else {
-		mei_msg(me, "read succeeded with result %zd\n", rc);
+		goto out;
 	}
+
+	mei_msg(me, "read succeeded with result %zd\n", rc);
+
+out:
+	if (rc < 0)
+		mei_deinit(me);
+
 	return rc;
 }
 
 static ssize_t mei_send_msg(struct mei *me, const unsigned char *buffer,
 			ssize_t len, unsigned long timeout)
 {
-	struct timeval tv;
 	ssize_t written;
 	ssize_t rc;
-	fd_set set;
-
-	tv.tv_sec = timeout / 1000;
-	tv.tv_usec = (timeout % 1000) * 1000000;
 
 	mei_msg(me, "call write length = %zd\n", len);
 
@@ -189,19 +210,7 @@ static ssize_t mei_send_msg(struct mei *me, const unsigned char *buffer,
 			written, strerror(errno));
 		goto out;
 	}
-
-	FD_ZERO(&set);
-	FD_SET(me->fd, &set);
-	rc = select(me->fd + 1 , &set, NULL, NULL, &tv);
-	if (rc > 0 && FD_ISSET(me->fd, &set)) {
-		mei_msg(me, "write success\n");
-	} else if (rc == 0) {
-		mei_err(me, "write failed on timeout with status\n");
-		goto out;
-	} else { /* rc < 0 */
-		mei_err(me, "write failed on select with status %zd\n", rc);
-		goto out;
-	}
+	mei_msg(me, "write success\n");
 
 	rc = written;
 out:
@@ -267,7 +276,7 @@ struct amt_host_if_msg_header {
 struct amt_host_if_resp_header {
 	struct amt_host_if_msg_header header;
 	uint32_t status;
-	unsigned char data[0];
+	unsigned char data[];
 } __attribute__((packed));
 
 const uuid_le MEI_IAMTHIF = UUID_LE(0x12f80028, 0xb4b7, 0x4b2d,  \

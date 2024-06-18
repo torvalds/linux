@@ -73,6 +73,11 @@ struct pms7003_state {
 	struct pms7003_frame frame;
 	struct completion frame_ready;
 	struct mutex lock; /* must be held whenever state gets touched */
+	/* Used to construct scan to push to the IIO buffer */
+	struct {
+		u16 data[3]; /* PM1, PM2P5, PM10 */
+		s64 ts;
+	} scan;
 };
 
 static int pms7003_do_cmd(struct pms7003_state *state, enum pms7003_cmd cmd)
@@ -104,7 +109,6 @@ static irqreturn_t pms7003_trigger_handler(int irq, void *p)
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct pms7003_state *state = iio_priv(indio_dev);
 	struct pms7003_frame *frame = &state->frame;
-	u16 data[3 + 1 + 4]; /* PM1, PM2P5, PM10, padding, timestamp */
 	int ret;
 
 	mutex_lock(&state->lock);
@@ -114,12 +118,15 @@ static irqreturn_t pms7003_trigger_handler(int irq, void *p)
 		goto err;
 	}
 
-	data[PM1] = pms7003_get_pm(frame->data + PMS7003_PM1_OFFSET);
-	data[PM2P5] = pms7003_get_pm(frame->data + PMS7003_PM2P5_OFFSET);
-	data[PM10] = pms7003_get_pm(frame->data + PMS7003_PM10_OFFSET);
+	state->scan.data[PM1] =
+		pms7003_get_pm(frame->data + PMS7003_PM1_OFFSET);
+	state->scan.data[PM2P5] =
+		pms7003_get_pm(frame->data + PMS7003_PM2P5_OFFSET);
+	state->scan.data[PM10] =
+		pms7003_get_pm(frame->data + PMS7003_PM10_OFFSET);
 	mutex_unlock(&state->lock);
 
-	iio_push_to_buffers_with_timestamp(indio_dev, data,
+	iio_push_to_buffers_with_timestamp(indio_dev, &state->scan,
 					   iio_get_time_ns(indio_dev));
 err:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -204,13 +211,13 @@ static bool pms7003_frame_is_okay(struct pms7003_frame *frame)
 	return checksum == pms7003_calc_checksum(frame);
 }
 
-static int pms7003_receive_buf(struct serdev_device *serdev,
-			       const unsigned char *buf, size_t size)
+static size_t pms7003_receive_buf(struct serdev_device *serdev, const u8 *buf,
+				  size_t size)
 {
 	struct iio_dev *indio_dev = serdev_device_get_drvdata(serdev);
 	struct pms7003_state *state = iio_priv(indio_dev);
 	struct pms7003_frame *frame = &state->frame;
-	int num;
+	size_t num;
 
 	if (!frame->expected_length) {
 		u16 magic;
@@ -273,10 +280,9 @@ static int pms7003_probe(struct serdev_device *serdev)
 	state = iio_priv(indio_dev);
 	serdev_device_set_drvdata(serdev, indio_dev);
 	state->serdev = serdev;
-	indio_dev->dev.parent = &serdev->dev;
 	indio_dev->info = &pms7003_info;
 	indio_dev->name = PMS7003_DRIVER_NAME;
-	indio_dev->channels = pms7003_channels,
+	indio_dev->channels = pms7003_channels;
 	indio_dev->num_channels = ARRAY_SIZE(pms7003_channels);
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->available_scan_masks = pms7003_scan_masks;

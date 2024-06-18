@@ -2,8 +2,9 @@
 /*
  * SGI NMI support routines
  *
- *  Copyright (c) 2009-2013 Silicon Graphics, Inc.  All Rights Reserved.
- *  Copyright (c) Mike Travis
+ * (C) Copyright 2020 Hewlett Packard Enterprise Development LP
+ * Copyright (C) 2007-2017 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (c) Mike Travis
  */
 
 #include <linux/cpu.h>
@@ -16,6 +17,7 @@
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 #include <linux/clocksource.h>
 
 #include <asm/apic.h>
@@ -23,6 +25,7 @@
 #include <asm/kdebug.h>
 #include <asm/local64.h>
 #include <asm/nmi.h>
+#include <asm/reboot.h>
 #include <asm/traps.h>
 #include <asm/uv/uv.h>
 #include <asm/uv/uv_hub.h>
@@ -54,6 +57,19 @@ static struct uv_hub_nmi_s **uv_hub_nmi_list;
 
 DEFINE_PER_CPU(struct uv_cpu_nmi_s, uv_cpu_nmi);
 
+/* Newer SMM NMI handler, not present in all systems */
+static unsigned long uvh_nmi_mmrx;		/* UVH_EVENT_OCCURRED0/1 */
+static unsigned long uvh_nmi_mmrx_clear;	/* UVH_EVENT_OCCURRED0/1_ALIAS */
+static int uvh_nmi_mmrx_shift;			/* UVH_EVENT_OCCURRED0/1_EXTIO_INT0_SHFT */
+static char *uvh_nmi_mmrx_type;			/* "EXTIO_INT0" */
+
+/* Non-zero indicates newer SMM NMI handler present */
+static unsigned long uvh_nmi_mmrx_supported;	/* UVH_EXTIO_INT0_BROADCAST */
+
+/* Indicates to BIOS that we want to use the newer SMM NMI handler */
+static unsigned long uvh_nmi_mmrx_req;		/* UVH_BIOS_KERNEL_MMR_ALIAS_2 */
+static int uvh_nmi_mmrx_req_shift;		/* 62 */
+
 /* UV hubless values */
 #define NMI_CONTROL_PORT	0x70
 #define NMI_DUMMY_PORT		0x71
@@ -76,6 +92,8 @@ static atomic_t uv_nmi_cpu = ATOMIC_INIT(-1);
 static atomic_t uv_nmi_cpus_in_nmi = ATOMIC_INIT(-1);
 static atomic_t uv_nmi_slave_continue;
 static cpumask_var_t uv_nmi_cpu_mask;
+
+static atomic_t uv_nmi_kexec_failed;
 
 /* Values for uv_nmi_slave_continue */
 #define SLAVE_CLEAR	0
@@ -161,53 +179,56 @@ module_param_named(debug, uv_nmi_debug, int, 0644);
 	} while (0)
 
 /* Valid NMI Actions */
-#define	ACTION_LEN	16
-static struct nmi_action {
-	char	*action;
-	char	*desc;
-} valid_acts[] = {
-	{	"kdump",	"do kernel crash dump"			},
-	{	"dump",		"dump process stack for each cpu"	},
-	{	"ips",		"dump Inst Ptr info for each cpu"	},
-	{	"kdb",		"enter KDB (needs kgdboc= assignment)"	},
-	{	"kgdb",		"enter KGDB (needs gdb target remote)"	},
-	{	"health",	"check if CPUs respond to NMI"		},
+enum action_t {
+	nmi_act_kdump,
+	nmi_act_dump,
+	nmi_act_ips,
+	nmi_act_kdb,
+	nmi_act_kgdb,
+	nmi_act_health,
+	nmi_act_max
 };
-typedef char action_t[ACTION_LEN];
-static action_t uv_nmi_action = { "dump" };
+
+static const char * const actions[nmi_act_max] = {
+	[nmi_act_kdump] = "kdump",
+	[nmi_act_dump] = "dump",
+	[nmi_act_ips] = "ips",
+	[nmi_act_kdb] = "kdb",
+	[nmi_act_kgdb] = "kgdb",
+	[nmi_act_health] = "health",
+};
+
+static const char * const actions_desc[nmi_act_max] = {
+	[nmi_act_kdump] = "do kernel crash dump",
+	[nmi_act_dump] = "dump process stack for each cpu",
+	[nmi_act_ips] = "dump Inst Ptr info for each cpu",
+	[nmi_act_kdb] = "enter KDB (needs kgdboc= assignment)",
+	[nmi_act_kgdb] = "enter KGDB (needs gdb target remote)",
+	[nmi_act_health] = "check if CPUs respond to NMI",
+};
+
+static enum action_t uv_nmi_action = nmi_act_dump;
 
 static int param_get_action(char *buffer, const struct kernel_param *kp)
 {
-	return sprintf(buffer, "%s\n", uv_nmi_action);
+	return sprintf(buffer, "%s\n", actions[uv_nmi_action]);
 }
 
 static int param_set_action(const char *val, const struct kernel_param *kp)
 {
-	int i;
-	int n = ARRAY_SIZE(valid_acts);
-	char arg[ACTION_LEN], *p;
+	int i, n = ARRAY_SIZE(actions);
 
-	/* (remove possible '\n') */
-	strncpy(arg, val, ACTION_LEN - 1);
-	arg[ACTION_LEN - 1] = '\0';
-	p = strchr(arg, '\n');
-	if (p)
-		*p = '\0';
-
-	for (i = 0; i < n; i++)
-		if (!strcmp(arg, valid_acts[i].action))
-			break;
-
-	if (i < n) {
-		strcpy(uv_nmi_action, arg);
-		pr_info("UV: New NMI action:%s\n", uv_nmi_action);
+	i = sysfs_match_string(actions, val);
+	if (i >= 0) {
+		uv_nmi_action = i;
+		pr_info("UV: New NMI action:%s\n", actions[i]);
 		return 0;
 	}
 
-	pr_err("UV: Invalid NMI action:%s, valid actions are:\n", arg);
+	pr_err("UV: Invalid NMI action. Valid actions are:\n");
 	for (i = 0; i < n; i++)
-		pr_err("UV: %-8s - %s\n",
-			valid_acts[i].action, valid_acts[i].desc);
+		pr_err("UV: %-8s - %s\n", actions[i], actions_desc[i]);
+
 	return -EINVAL;
 }
 
@@ -215,25 +236,49 @@ static const struct kernel_param_ops param_ops_action = {
 	.get = param_get_action,
 	.set = param_set_action,
 };
-#define param_check_action(name, p) __param_check(name, p, action_t)
+#define param_check_action(name, p) __param_check(name, p, enum action_t)
 
 module_param_named(action, uv_nmi_action, action, 0644);
-
-static inline bool uv_nmi_action_is(const char *action)
-{
-	return (strncmp(uv_nmi_action, action, strlen(action)) == 0);
-}
 
 /* Setup which NMI support is present in system */
 static void uv_nmi_setup_mmrs(void)
 {
-	if (uv_read_local_mmr(UVH_NMI_MMRX_SUPPORTED)) {
-		uv_write_local_mmr(UVH_NMI_MMRX_REQ,
-					1UL << UVH_NMI_MMRX_REQ_SHIFT);
-		nmi_mmr = UVH_NMI_MMRX;
-		nmi_mmr_clear = UVH_NMI_MMRX_CLEAR;
-		nmi_mmr_pending = 1UL << UVH_NMI_MMRX_SHIFT;
-		pr_info("UV: SMI NMI support: %s\n", UVH_NMI_MMRX_TYPE);
+	bool new_nmi_method_only = false;
+
+	/* First determine arch specific MMRs to handshake with BIOS */
+	if (UVH_EVENT_OCCURRED0_EXTIO_INT0_MASK) {	/* UV2,3,4 setup */
+		uvh_nmi_mmrx = UVH_EVENT_OCCURRED0;
+		uvh_nmi_mmrx_clear = UVH_EVENT_OCCURRED0_ALIAS;
+		uvh_nmi_mmrx_shift = UVH_EVENT_OCCURRED0_EXTIO_INT0_SHFT;
+		uvh_nmi_mmrx_type = "OCRD0-EXTIO_INT0";
+
+		uvh_nmi_mmrx_supported = UVH_EXTIO_INT0_BROADCAST;
+		uvh_nmi_mmrx_req = UVH_BIOS_KERNEL_MMR_ALIAS_2;
+		uvh_nmi_mmrx_req_shift = 62;
+
+	} else if (UVH_EVENT_OCCURRED1_EXTIO_INT0_MASK) { /* UV5+ setup */
+		uvh_nmi_mmrx = UVH_EVENT_OCCURRED1;
+		uvh_nmi_mmrx_clear = UVH_EVENT_OCCURRED1_ALIAS;
+		uvh_nmi_mmrx_shift = UVH_EVENT_OCCURRED1_EXTIO_INT0_SHFT;
+		uvh_nmi_mmrx_type = "OCRD1-EXTIO_INT0";
+
+		new_nmi_method_only = true;		/* Newer nmi always valid on UV5+ */
+		uvh_nmi_mmrx_req = 0;			/* no request bit to clear */
+
+	} else {
+		pr_err("UV:%s:NMI support not available on this system\n", __func__);
+		return;
+	}
+
+	/* Then find out if new NMI is supported */
+	if (new_nmi_method_only || uv_read_local_mmr(uvh_nmi_mmrx_supported)) {
+		if (uvh_nmi_mmrx_req)
+			uv_write_local_mmr(uvh_nmi_mmrx_req,
+						1UL << uvh_nmi_mmrx_req_shift);
+		nmi_mmr = uvh_nmi_mmrx;
+		nmi_mmr_clear = uvh_nmi_mmrx_clear;
+		nmi_mmr_pending = 1UL << uvh_nmi_mmrx_shift;
+		pr_info("UV: SMI NMI support: %s\n", uvh_nmi_mmrx_type);
 	} else {
 		nmi_mmr = UVH_NMI_MMR;
 		nmi_mmr_clear = UVH_NMI_MMR_CLEAR;
@@ -555,7 +600,7 @@ static void uv_nmi_nr_cpus_ping(void)
 	for_each_cpu(cpu, uv_nmi_cpu_mask)
 		uv_cpu_nmi_per(cpu).pinging = 1;
 
-	apic->send_IPI_mask(uv_nmi_cpu_mask, APIC_DM_NMI);
+	__apic_send_IPI_mask(uv_nmi_cpu_mask, APIC_DM_NMI);
 }
 
 /* Clean up flags for CPU's that ignored both NMI and ping */
@@ -685,10 +730,10 @@ static void uv_nmi_dump_state_cpu(int cpu, struct pt_regs *regs)
 	if (cpu == 0)
 		uv_nmi_dump_cpu_ip_hdr();
 
-	if (current->pid != 0 || !uv_nmi_action_is("ips"))
+	if (current->pid != 0 || uv_nmi_action != nmi_act_ips)
 		uv_nmi_dump_cpu_ip(cpu, regs);
 
-	if (uv_nmi_action_is("dump")) {
+	if (uv_nmi_action == nmi_act_dump) {
 		pr_info("UV:%sNMI process trace for CPU %d\n", dots, cpu);
 		show_regs(regs);
 	}
@@ -696,7 +741,7 @@ static void uv_nmi_dump_state_cpu(int cpu, struct pt_regs *regs)
 	this_cpu_write(uv_cpu_nmi.state, UV_NMI_STATE_DUMP_DONE);
 }
 
-/* Trigger a slave CPU to dump it's state */
+/* Trigger a slave CPU to dump its state */
 static void uv_nmi_trigger_dump(int cpu)
 {
 	int retry = uv_nmi_trigger_delay;
@@ -756,7 +801,7 @@ static void uv_nmi_dump_state(int cpu, struct pt_regs *regs, int master)
 		int saved_console_loglevel = console_loglevel;
 
 		pr_alert("UV: tracing %s for %d CPUs from CPU %d\n",
-			uv_nmi_action_is("ips") ? "IPs" : "processes",
+			uv_nmi_action == nmi_act_ips ? "IPs" : "processes",
 			atomic_read(&uv_nmi_cpus_in_nmi), cpu);
 
 		console_loglevel = uv_nmi_loglevel;
@@ -792,38 +837,35 @@ static void uv_nmi_touch_watchdogs(void)
 	touch_nmi_watchdog();
 }
 
-static atomic_t uv_nmi_kexec_failed;
-
-#if defined(CONFIG_KEXEC_CORE)
-static void uv_nmi_kdump(int cpu, int master, struct pt_regs *regs)
+static void uv_nmi_kdump(int cpu, int main, struct pt_regs *regs)
 {
+	/* Check if kdump kernel loaded for both main and secondary CPUs */
+	if (!kexec_crash_image) {
+		if (main)
+			pr_err("UV: NMI error: kdump kernel not loaded\n");
+		return;
+	}
+
 	/* Call crash to dump system state */
-	if (master) {
+	if (main) {
 		pr_emerg("UV: NMI executing crash_kexec on CPU%d\n", cpu);
 		crash_kexec(regs);
 
-		pr_emerg("UV: crash_kexec unexpectedly returned, ");
+		pr_emerg("UV: crash_kexec unexpectedly returned\n");
 		atomic_set(&uv_nmi_kexec_failed, 1);
-		if (!kexec_crash_image) {
-			pr_cont("crash kernel not loaded\n");
-			return;
+
+	} else { /* secondary */
+
+		/* If kdump kernel fails, secondaries will exit this loop */
+		while (atomic_read(&uv_nmi_kexec_failed) == 0) {
+
+			/* Once shootdown cpus starts, they do not return */
+			run_crash_ipi_callback(regs);
+
+			mdelay(10);
 		}
-		pr_cont("kexec busy, stalling cpus while waiting\n");
 	}
-
-	/* If crash exec fails the slaves should return, otherwise stall */
-	while (atomic_read(&uv_nmi_kexec_failed) == 0)
-		mdelay(10);
 }
-
-#else /* !CONFIG_KEXEC_CORE */
-static inline void uv_nmi_kdump(int cpu, int master, struct pt_regs *regs)
-{
-	if (master)
-		pr_err("UV: NMI kdump: KEXEC not supported in this kernel\n");
-	atomic_set(&uv_nmi_kexec_failed, 1);
-}
-#endif /* !CONFIG_KEXEC_CORE */
 
 #ifdef CONFIG_KGDB
 #ifdef CONFIG_KGDB_KDB
@@ -835,7 +877,7 @@ static inline int uv_nmi_kdb_reason(void)
 static inline int uv_nmi_kdb_reason(void)
 {
 	/* Ensure user is expecting to attach gdb remote */
-	if (uv_nmi_action_is("kgdb"))
+	if (uv_nmi_action == nmi_act_kgdb)
 		return 0;
 
 	pr_err("UV: NMI error: KDB is not enabled in this kernel\n");
@@ -847,7 +889,7 @@ static inline int uv_nmi_kdb_reason(void)
  * Call KGDB/KDB from NMI handler
  *
  * Note that if both KGDB and KDB are configured, then the action of 'kgdb' or
- * 'kdb' has no affect on which is used.  See the KGDB documention for further
+ * 'kdb' has no affect on which is used.  See the KGDB documentation for further
  * information.
  */
 static void uv_call_kgdb_kdb(int cpu, struct pt_regs *regs, int master)
@@ -911,28 +953,35 @@ static int uv_handle_nmi(unsigned int reason, struct pt_regs *regs)
 	master = (atomic_read(&uv_nmi_cpu) == cpu);
 
 	/* If NMI action is "kdump", then attempt to do it */
-	if (uv_nmi_action_is("kdump")) {
+	if (uv_nmi_action == nmi_act_kdump) {
 		uv_nmi_kdump(cpu, master, regs);
 
 		/* Unexpected return, revert action to "dump" */
 		if (master)
-			strncpy(uv_nmi_action, "dump", strlen(uv_nmi_action));
+			uv_nmi_action = nmi_act_dump;
 	}
 
 	/* Pause as all CPU's enter the NMI handler */
 	uv_nmi_wait(master);
 
 	/* Process actions other than "kdump": */
-	if (uv_nmi_action_is("health")) {
+	switch (uv_nmi_action) {
+	case nmi_act_health:
 		uv_nmi_action_health(cpu, regs, master);
-	} else if (uv_nmi_action_is("ips") || uv_nmi_action_is("dump")) {
+		break;
+	case nmi_act_ips:
+	case nmi_act_dump:
 		uv_nmi_dump_state(cpu, regs, master);
-	} else if (uv_nmi_action_is("kdb") || uv_nmi_action_is("kgdb")) {
+		break;
+	case nmi_act_kdb:
+	case nmi_act_kgdb:
 		uv_call_kgdb_kdb(cpu, regs, master);
-	} else {
+		break;
+	default:
 		if (master)
-			pr_alert("UV: unknown NMI action: %s\n", uv_nmi_action);
+			pr_alert("UV: unknown NMI action: %d\n", uv_nmi_action);
 		uv_nmi_sync_exit(master);
+		break;
 	}
 
 	/* Clear per_cpu "in_nmi" flag */
@@ -943,7 +992,7 @@ static int uv_handle_nmi(unsigned int reason, struct pt_regs *regs)
 
 	/* Clear global flags */
 	if (master) {
-		if (cpumask_weight(uv_nmi_cpu_mask))
+		if (!cpumask_empty(uv_nmi_cpu_mask))
 			uv_nmi_cleanup_mask();
 		atomic_set(&uv_nmi_cpus_in_nmi, -1);
 		atomic_set(&uv_nmi_cpu, -1);
@@ -1049,5 +1098,5 @@ void __init uv_nmi_setup_hubless(void)
 	/* Ensure NMI enabled in Processor Interface Reg: */
 	uv_reassert_nmi();
 	uv_register_nmi_notifier();
-	pr_info("UV: Hubless NMI enabled\n");
+	pr_info("UV: PCH NMI enabled\n");
 }

@@ -186,7 +186,7 @@ static long scx200_wdt_ioctl(struct file *file, unsigned int cmd,
 		margin = new_margin;
 		scx200_wdt_update_margin();
 		scx200_wdt_ping();
-		/* Fall through */
+		fallthrough;
 	case WDIOC_GETTIMEOUT:
 		if (put_user(margin, p))
 			return -EFAULT;
@@ -201,6 +201,7 @@ static const struct file_operations scx200_wdt_fops = {
 	.llseek = no_llseek,
 	.write = scx200_wdt_write,
 	.unlocked_ioctl = scx200_wdt_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open = scx200_wdt_open,
 	.release = scx200_wdt_release,
 };

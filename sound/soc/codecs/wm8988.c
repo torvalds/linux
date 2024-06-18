@@ -242,10 +242,10 @@ static int wm8988_lrc_control(struct snd_soc_dapm_widget *w,
 			      struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
-	u16 adctl2 = snd_soc_component_read32(component, WM8988_ADCTL2);
+	u16 adctl2 = snd_soc_component_read(component, WM8988_ADCTL2);
 
 	/* Use the DAC to gate LRC if active, otherwise use ADC */
-	if (snd_soc_component_read32(component, WM8988_PWR2) & 0x180)
+	if (snd_soc_component_read(component, WM8988_PWR2) & 0x180)
 		adctl2 &= ~0x4;
 	else
 		adctl2 |= 0x4;
@@ -667,8 +667,8 @@ static int wm8988_pcm_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_component *component = dai->component;
 	struct wm8988_priv *wm8988 = snd_soc_component_get_drvdata(component);
-	u16 iface = snd_soc_component_read32(component, WM8988_IFACE) & 0x1f3;
-	u16 srate = snd_soc_component_read32(component, WM8988_SRATE) & 0x180;
+	u16 iface = snd_soc_component_read(component, WM8988_IFACE) & 0x1f3;
+	u16 srate = snd_soc_component_read(component, WM8988_SRATE) & 0x180;
 	int coeff;
 
 	coeff = get_coeff(wm8988->sysclk, params_rate(params));
@@ -707,10 +707,10 @@ static int wm8988_pcm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int wm8988_mute(struct snd_soc_dai *dai, int mute)
+static int wm8988_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
-	u16 mute_reg = snd_soc_component_read32(component, WM8988_ADCDAC) & 0xfff7;
+	u16 mute_reg = snd_soc_component_read(component, WM8988_ADCDAC) & 0xfff7;
 
 	if (mute)
 		snd_soc_component_write(component, WM8988_ADCDAC, mute_reg | 0x8);
@@ -723,7 +723,7 @@ static int wm8988_set_bias_level(struct snd_soc_component *component,
 				 enum snd_soc_bias_level level)
 {
 	struct wm8988_priv *wm8988 = snd_soc_component_get_drvdata(component);
-	u16 pwr_reg = snd_soc_component_read32(component, WM8988_PWR1) & ~0x1c1;
+	u16 pwr_reg = snd_soc_component_read(component, WM8988_PWR1) & ~0x1c1;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -766,7 +766,8 @@ static const struct snd_soc_dai_ops wm8988_ops = {
 	.hw_params = wm8988_pcm_hw_params,
 	.set_fmt = wm8988_set_dai_fmt,
 	.set_sysclk = wm8988_set_dai_sysclk,
-	.digital_mute = wm8988_mute,
+	.mute_stream = wm8988_mute,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8988_dai = {
@@ -786,7 +787,7 @@ static struct snd_soc_dai_driver wm8988_dai = {
 		.formats = WM8988_FORMATS,
 	 },
 	.ops = &wm8988_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 };
 
 static int wm8988_probe(struct snd_soc_component *component)
@@ -822,7 +823,6 @@ static const struct snd_soc_component_driver soc_component_dev_wm8988 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config wm8988_regmap = {
@@ -832,7 +832,7 @@ static const struct regmap_config wm8988_regmap = {
 	.max_register = WM8988_LPPB,
 	.writeable_reg = wm8988_writeable,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = wm8988_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8988_reg_defaults),
 };
@@ -871,8 +871,7 @@ static struct spi_driver wm8988_spi_driver = {
 #endif /* CONFIG_SPI_MASTER */
 
 #if IS_ENABLED(CONFIG_I2C)
-static int wm8988_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int wm8988_i2c_probe(struct i2c_client *i2c)
 {
 	struct wm8988_priv *wm8988;
 	int ret;
@@ -897,7 +896,7 @@ static int wm8988_i2c_probe(struct i2c_client *i2c,
 }
 
 static const struct i2c_device_id wm8988_i2c_id[] = {
-	{ "wm8988", 0 },
+	{ "wm8988" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm8988_i2c_id);
@@ -906,7 +905,7 @@ static struct i2c_driver wm8988_i2c_driver = {
 	.driver = {
 		.name = "wm8988",
 	},
-	.probe =    wm8988_i2c_probe,
+	.probe = wm8988_i2c_probe,
 	.id_table = wm8988_i2c_id,
 };
 #endif

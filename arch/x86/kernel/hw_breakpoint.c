@@ -32,6 +32,8 @@
 #include <asm/processor.h>
 #include <asm/debugreg.h>
 #include <asm/user.h>
+#include <asm/desc.h>
+#include <asm/tlbflush.h>
 
 /* Per cpu debug control register value */
 DEFINE_PER_CPU(unsigned long, cpu_dr7);
@@ -97,6 +99,8 @@ int arch_install_hw_breakpoint(struct perf_event *bp)
 	unsigned long *dr7;
 	int i;
 
+	lockdep_assert_irqs_disabled();
+
 	for (i = 0; i < HBP_NUM; i++) {
 		struct perf_event **slot = this_cpu_ptr(&bp_per_reg[i]);
 
@@ -115,9 +119,15 @@ int arch_install_hw_breakpoint(struct perf_event *bp)
 	dr7 = this_cpu_ptr(&cpu_dr7);
 	*dr7 |= encode_dr7(i, info->len, info->type);
 
+	/*
+	 * Ensure we first write cpu_dr7 before we set the DR7 register.
+	 * This ensures an NMI never see cpu_dr7 0 when DR7 is not.
+	 */
+	barrier();
+
 	set_debugreg(*dr7, 7);
 	if (info->mask)
-		set_dr_addr_mask(info->mask, i);
+		amd_set_dr_addr_mask(info->mask, i);
 
 	return 0;
 }
@@ -134,8 +144,10 @@ int arch_install_hw_breakpoint(struct perf_event *bp)
 void arch_uninstall_hw_breakpoint(struct perf_event *bp)
 {
 	struct arch_hw_breakpoint *info = counter_arch_bp(bp);
-	unsigned long *dr7;
+	unsigned long dr7;
 	int i;
+
+	lockdep_assert_irqs_disabled();
 
 	for (i = 0; i < HBP_NUM; i++) {
 		struct perf_event **slot = this_cpu_ptr(&bp_per_reg[i]);
@@ -149,12 +161,20 @@ void arch_uninstall_hw_breakpoint(struct perf_event *bp)
 	if (WARN_ONCE(i == HBP_NUM, "Can't find any breakpoint slot"))
 		return;
 
-	dr7 = this_cpu_ptr(&cpu_dr7);
-	*dr7 &= ~__encode_dr7(i, info->len, info->type);
+	dr7 = this_cpu_read(cpu_dr7);
+	dr7 &= ~__encode_dr7(i, info->len, info->type);
 
-	set_debugreg(*dr7, 7);
+	set_debugreg(dr7, 7);
 	if (info->mask)
-		set_dr_addr_mask(0, i);
+		amd_set_dr_addr_mask(0, i);
+
+	/*
+	 * Ensure the write to cpu_dr7 is after we've set the DR7 register.
+	 * This ensures an NMI never see cpu_dr7 0 when DR7 is not.
+	 */
+	barrier();
+
+	this_cpu_write(cpu_dr7, dr7);
 }
 
 static int arch_bp_generic_len(int x86_len)
@@ -227,10 +247,98 @@ int arch_check_bp_in_kernelspace(struct arch_hw_breakpoint *hw)
 	return (va >= TASK_SIZE_MAX) || ((va + len - 1) >= TASK_SIZE_MAX);
 }
 
+/*
+ * Checks whether the range [addr, end], overlaps the area [base, base + size).
+ */
+static inline bool within_area(unsigned long addr, unsigned long end,
+			       unsigned long base, unsigned long size)
+{
+	return end >= base && addr < (base + size);
+}
+
+/*
+ * Checks whether the range from addr to end, inclusive, overlaps the fixed
+ * mapped CPU entry area range or other ranges used for CPU entry.
+ */
+static inline bool within_cpu_entry(unsigned long addr, unsigned long end)
+{
+	int cpu;
+
+	/* CPU entry erea is always used for CPU entry */
+	if (within_area(addr, end, CPU_ENTRY_AREA_BASE,
+			CPU_ENTRY_AREA_MAP_SIZE))
+		return true;
+
+	/*
+	 * When FSGSBASE is enabled, paranoid_entry() fetches the per-CPU
+	 * GSBASE value via __per_cpu_offset or pcpu_unit_offsets.
+	 */
+#ifdef CONFIG_SMP
+	if (within_area(addr, end, (unsigned long)__per_cpu_offset,
+			sizeof(unsigned long) * nr_cpu_ids))
+		return true;
+#else
+	if (within_area(addr, end, (unsigned long)&pcpu_unit_offsets,
+			sizeof(pcpu_unit_offsets)))
+		return true;
+#endif
+
+	for_each_possible_cpu(cpu) {
+		/* The original rw GDT is being used after load_direct_gdt() */
+		if (within_area(addr, end, (unsigned long)get_cpu_gdt_rw(cpu),
+				GDT_SIZE))
+			return true;
+
+		/*
+		 * cpu_tss_rw is not directly referenced by hardware, but
+		 * cpu_tss_rw is also used in CPU entry code,
+		 */
+		if (within_area(addr, end,
+				(unsigned long)&per_cpu(cpu_tss_rw, cpu),
+				sizeof(struct tss_struct)))
+			return true;
+
+		/*
+		 * cpu_tlbstate.user_pcid_flush_mask is used for CPU entry.
+		 * If a data breakpoint on it, it will cause an unwanted #DB.
+		 * Protect the full cpu_tlbstate structure to be sure.
+		 */
+		if (within_area(addr, end,
+				(unsigned long)&per_cpu(cpu_tlbstate, cpu),
+				sizeof(struct tlb_state)))
+			return true;
+
+		/*
+		 * When in guest (X86_FEATURE_HYPERVISOR), local_db_save()
+		 * will read per-cpu cpu_dr7 before clear dr7 register.
+		 */
+		if (within_area(addr, end, (unsigned long)&per_cpu(cpu_dr7, cpu),
+				sizeof(cpu_dr7)))
+			return true;
+	}
+
+	return false;
+}
+
 static int arch_build_bp_info(struct perf_event *bp,
 			      const struct perf_event_attr *attr,
 			      struct arch_hw_breakpoint *hw)
 {
+	unsigned long bp_end;
+
+	bp_end = attr->bp_addr + attr->bp_len - 1;
+	if (bp_end < attr->bp_addr)
+		return -EINVAL;
+
+	/*
+	 * Prevent any breakpoint of any type that overlaps the CPU
+	 * entry area and data.  This protects the IST stacks and also
+	 * reduces the chance that we ever find out what happens if
+	 * there's a data breakpoint on the GDT, IDT, or TSS.
+	 */
+	if (within_cpu_entry(attr->bp_addr, bp_end))
+		return -EINVAL;
+
 	hw->address = attr->bp_addr;
 	hw->mask = 0;
 
@@ -263,7 +371,7 @@ static int arch_build_bp_info(struct perf_event *bp,
 			hw->len = X86_BREAKPOINT_LEN_X;
 			return 0;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		return -EINVAL;
 	}
@@ -356,42 +464,6 @@ int hw_breakpoint_arch_parse(struct perf_event *bp,
 }
 
 /*
- * Dump the debug register contents to the user.
- * We can't dump our per cpu values because it
- * may contain cpu wide breakpoint, something that
- * doesn't belong to the current task.
- *
- * TODO: include non-ptrace user breakpoints (perf)
- */
-void aout_dump_debugregs(struct user *dump)
-{
-	int i;
-	int dr7 = 0;
-	struct perf_event *bp;
-	struct arch_hw_breakpoint *info;
-	struct thread_struct *thread = &current->thread;
-
-	for (i = 0; i < HBP_NUM; i++) {
-		bp = thread->ptrace_bps[i];
-
-		if (bp && !bp->attr.disabled) {
-			dump->u_debugreg[i] = bp->attr.bp_addr;
-			info = counter_arch_bp(bp);
-			dr7 |= encode_dr7(i, info->len, info->type);
-		} else {
-			dump->u_debugreg[i] = 0;
-		}
-	}
-
-	dump->u_debugreg[4] = 0;
-	dump->u_debugreg[5] = 0;
-	dump->u_debugreg[6] = current->thread.debugreg6;
-
-	dump->u_debugreg[7] = dr7;
-}
-EXPORT_SYMBOL_GPL(aout_dump_debugregs);
-
-/*
  * Release the user breakpoints used by ptrace
  */
 void flush_ptrace_hw_breakpoint(struct task_struct *tsk)
@@ -404,7 +476,7 @@ void flush_ptrace_hw_breakpoint(struct task_struct *tsk)
 		t->ptrace_bps[i] = NULL;
 	}
 
-	t->debugreg6 = 0;
+	t->virtual_dr6 = 0;
 	t->ptrace_dr7 = 0;
 }
 
@@ -414,7 +486,7 @@ void hw_breakpoint_restore(void)
 	set_debugreg(__this_cpu_read(cpu_debugreg[1]), 1);
 	set_debugreg(__this_cpu_read(cpu_debugreg[2]), 2);
 	set_debugreg(__this_cpu_read(cpu_debugreg[3]), 3);
-	set_debugreg(current->thread.debugreg6, 6);
+	set_debugreg(DR6_RESERVED, 6);
 	set_debugreg(__this_cpu_read(cpu_dr7), 7);
 }
 EXPORT_SYMBOL_GPL(hw_breakpoint_restore);
@@ -437,61 +509,48 @@ EXPORT_SYMBOL_GPL(hw_breakpoint_restore);
  */
 static int hw_breakpoint_handler(struct die_args *args)
 {
-	int i, cpu, rc = NOTIFY_STOP;
+	int i, rc = NOTIFY_STOP;
 	struct perf_event *bp;
-	unsigned long dr7, dr6;
 	unsigned long *dr6_p;
+	unsigned long dr6;
+	bool bpx;
 
 	/* The DR6 value is pointed by args->err */
 	dr6_p = (unsigned long *)ERR_PTR(args->err);
 	dr6 = *dr6_p;
 
-	/* If it's a single step, TRAP bits are random */
-	if (dr6 & DR_STEP)
-		return NOTIFY_DONE;
-
 	/* Do an early return if no trap bits are set in DR6 */
 	if ((dr6 & DR_TRAP_BITS) == 0)
 		return NOTIFY_DONE;
-
-	get_debugreg(dr7, 7);
-	/* Disable breakpoints during exception handling */
-	set_debugreg(0UL, 7);
-	/*
-	 * Assert that local interrupts are disabled
-	 * Reset the DRn bits in the virtualized register value.
-	 * The ptrace trigger routine will add in whatever is needed.
-	 */
-	current->thread.debugreg6 &= ~DR_TRAP_BITS;
-	cpu = get_cpu();
 
 	/* Handle all the breakpoints that were triggered */
 	for (i = 0; i < HBP_NUM; ++i) {
 		if (likely(!(dr6 & (DR_TRAP0 << i))))
 			continue;
 
-		/*
-		 * The counter may be concurrently released but that can only
-		 * occur from a call_rcu() path. We can then safely fetch
-		 * the breakpoint, use its callback, touch its counter
-		 * while we are in an rcu_read_lock() path.
-		 */
-		rcu_read_lock();
+		bp = this_cpu_read(bp_per_reg[i]);
+		if (!bp)
+			continue;
 
-		bp = per_cpu(bp_per_reg[i], cpu);
+		bpx = bp->hw.info.type == X86_BREAKPOINT_EXECUTE;
+
+		/*
+		 * TF and data breakpoints are traps and can be merged, however
+		 * instruction breakpoints are faults and will be raised
+		 * separately.
+		 *
+		 * However DR6 can indicate both TF and instruction
+		 * breakpoints. In that case take TF as that has precedence and
+		 * delay the instruction breakpoint for the next exception.
+		 */
+		if (bpx && (dr6 & DR_STEP))
+			continue;
+
 		/*
 		 * Reset the 'i'th TRAP bit in dr6 to denote completion of
 		 * exception handling
 		 */
 		(*dr6_p) &= ~(DR_TRAP0 << i);
-		/*
-		 * bp can be NULL due to lazy debug register switching
-		 * or due to concurrent perf counter removing.
-		 */
-		if (!bp) {
-			rcu_read_unlock();
-			break;
-		}
 
 		perf_bp_event(bp, args->regs);
 
@@ -499,22 +558,18 @@ static int hw_breakpoint_handler(struct die_args *args)
 		 * Set up resume flag to avoid breakpoint recursion when
 		 * returning back to origin.
 		 */
-		if (bp->hw.info.type == X86_BREAKPOINT_EXECUTE)
+		if (bpx)
 			args->regs->flags |= X86_EFLAGS_RF;
-
-		rcu_read_unlock();
 	}
+
 	/*
 	 * Further processing in do_debug() is needed for a) user-space
 	 * breakpoints (to generate signals) and b) when the system has
 	 * taken exception due to multiple causes
 	 */
-	if ((current->thread.debugreg6 & DR_TRAP_BITS) ||
+	if ((current->thread.virtual_dr6 & DR_TRAP_BITS) ||
 	    (dr6 & (~DR_TRAP_BITS)))
 		rc = NOTIFY_DONE;
-
-	set_debugreg(dr7, 7);
-	put_cpu();
 
 	return rc;
 }

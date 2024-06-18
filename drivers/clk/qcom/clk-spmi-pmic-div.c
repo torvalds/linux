@@ -177,7 +177,7 @@ static const struct clk_ops clk_spmi_pmic_div_ops = {
 
 struct spmi_pmic_div_clk_cc {
 	int		nclks;
-	struct clkdiv	clks[];
+	struct clkdiv	clks[] __counted_by(nclks);
 };
 
 static struct clk_hw *
@@ -204,7 +204,7 @@ static int spmi_pmic_clkdiv_probe(struct platform_device *pdev)
 	struct regmap *regmap;
 	struct device *dev = &pdev->dev;
 	struct device_node *of_node = dev->of_node;
-	const char *parent_name;
+	struct clk_parent_data parent_data = { .index = 0, };
 	int nclks, i, ret, cxo_hz;
 	char name[20];
 	u32 start;
@@ -246,14 +246,8 @@ static int spmi_pmic_clkdiv_probe(struct platform_device *pdev)
 	cxo_hz = clk_get_rate(cxo);
 	clk_put(cxo);
 
-	parent_name = of_clk_get_parent_name(of_node, 0);
-	if (!parent_name) {
-		dev_err(dev, "missing parent clock\n");
-		return -ENODEV;
-	}
-
 	init.name = name;
-	init.parent_names = &parent_name;
+	init.parent_data = &parent_data;
 	init.num_parents = 1;
 	init.ops = &clk_spmi_pmic_div_ops;
 

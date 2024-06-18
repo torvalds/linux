@@ -7,12 +7,12 @@
  * Converted to new DSS device model: Tomi Valkeinen <tomi.valkeinen@ti.com>
  */
 
-#include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/spi/spi.h>
+#include <linux/err.h>
 #include <linux/fb.h>
-#include <linux/gpio.h>
-#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
+#include <linux/module.h>
+#include <linux/spi/spi.h>
 
 #include <video/omapfb_dss.h>
 
@@ -24,8 +24,7 @@ struct panel_drv_data {
 
 	int data_lines;
 
-	int res_gpio;
-	int qvga_gpio;
+	struct gpio_desc *res_gpio;
 
 	struct spi_device *spi;
 };
@@ -117,16 +116,11 @@ static int nec_8048_connect(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
-	int r;
 
 	if (omapdss_device_is_connected(dssdev))
 		return 0;
 
-	r = in->ops.dpi->connect(in, dssdev);
-	if (r)
-		return r;
-
-	return 0;
+	return in->ops.dpi->connect(in, dssdev);
 }
 
 static void nec_8048_disconnect(struct omap_dss_device *dssdev)
@@ -160,8 +154,8 @@ static int nec_8048_enable(struct omap_dss_device *dssdev)
 	if (r)
 		return r;
 
-	if (gpio_is_valid(ddata->res_gpio))
-		gpio_set_value_cansleep(ddata->res_gpio, 1);
+	/* Apparently existing DTSes use incorrect polarity (active high) */
+	gpiod_set_value_cansleep(ddata->res_gpio, 1);
 
 	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
 
@@ -176,8 +170,8 @@ static void nec_8048_disable(struct omap_dss_device *dssdev)
 	if (!omapdss_device_is_enabled(dssdev))
 		return;
 
-	if (gpio_is_valid(ddata->res_gpio))
-		gpio_set_value_cansleep(ddata->res_gpio, 0);
+	/* Apparently existing DTSes use incorrect polarity (active high) */
+	gpiod_set_value_cansleep(ddata->res_gpio, 0);
 
 	in->ops.dpi->disable(in);
 
@@ -227,35 +221,6 @@ static struct omap_dss_driver nec_8048_ops = {
 	.get_resolution	= omapdss_default_get_resolution,
 };
 
-
-static int nec_8048_probe_of(struct spi_device *spi)
-{
-	struct device_node *node = spi->dev.of_node;
-	struct panel_drv_data *ddata = dev_get_drvdata(&spi->dev);
-	struct omap_dss_device *in;
-	int gpio;
-
-	gpio = of_get_named_gpio(node, "reset-gpios", 0);
-	if (!gpio_is_valid(gpio)) {
-		dev_err(&spi->dev, "failed to parse enable gpio\n");
-		return gpio;
-	}
-	ddata->res_gpio = gpio;
-
-	/* XXX the panel spec doesn't mention any QVGA pin?? */
-	ddata->qvga_gpio = -ENOENT;
-
-	in = omapdss_of_find_source_for_first_ep(node);
-	if (IS_ERR(in)) {
-		dev_err(&spi->dev, "failed to find video source\n");
-		return PTR_ERR(in);
-	}
-
-	ddata->in = in;
-
-	return 0;
-}
-
 static int nec_8048_probe(struct spi_device *spi)
 {
 	struct panel_drv_data *ddata;
@@ -286,23 +251,21 @@ static int nec_8048_probe(struct spi_device *spi)
 
 	ddata->spi = spi;
 
-	r = nec_8048_probe_of(spi);
-	if (r)
+	ddata->in = omapdss_of_find_source_for_first_ep(spi->dev.of_node);
+	r = PTR_ERR_OR_ZERO(ddata->in);
+	if (r) {
+		dev_err(&spi->dev, "failed to find video source: %d\n", r);
 		return r;
-
-	if (gpio_is_valid(ddata->qvga_gpio)) {
-		r = devm_gpio_request_one(&spi->dev, ddata->qvga_gpio,
-				GPIOF_OUT_INIT_HIGH, "lcd QVGA");
-		if (r)
-			goto err_gpio;
 	}
 
-	if (gpio_is_valid(ddata->res_gpio)) {
-		r = devm_gpio_request_one(&spi->dev, ddata->res_gpio,
-				GPIOF_OUT_INIT_LOW, "lcd RES");
-		if (r)
-			goto err_gpio;
+	ddata->res_gpio = devm_gpiod_get(&spi->dev, "reset", GPIOD_OUT_LOW);
+	r = PTR_ERR_OR_ZERO(ddata->res_gpio);
+	if (r) {
+		dev_err(&spi->dev, "failed to request reset gpio: %d\n", r);
+		goto err_gpio;
 	}
+
+	gpiod_set_consumer_name(ddata->res_gpio, "lcd RES");
 
 	ddata->videomode = nec_8048_panel_timings;
 
@@ -327,7 +290,7 @@ err_gpio:
 	return r;
 }
 
-static int nec_8048_remove(struct spi_device *spi)
+static void nec_8048_remove(struct spi_device *spi)
 {
 	struct panel_drv_data *ddata = dev_get_drvdata(&spi->dev);
 	struct omap_dss_device *dssdev = &ddata->dssdev;
@@ -341,8 +304,6 @@ static int nec_8048_remove(struct spi_device *spi)
 	nec_8048_disconnect(dssdev);
 
 	omap_dss_put_device(in);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

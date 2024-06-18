@@ -9,6 +9,7 @@
 #include <asm/unaligned.h>
 
 #include <drm/bridge/mhl.h>
+#include <drm/drm_bridge.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_encoder.h>
@@ -177,7 +178,7 @@ static void sii8620_read_buf(struct sii8620 *ctx, u16 addr, u8 *buf, int len)
 
 static u8 sii8620_readb(struct sii8620 *ctx, u16 addr)
 {
-	u8 ret;
+	u8 ret = 0;
 
 	sii8620_read_buf(ctx, addr, &ret, 1);
 	return ret;
@@ -604,7 +605,7 @@ static void *sii8620_burst_get_tx_buf(struct sii8620 *ctx, int len)
 	u8 *buf = &ctx->burst.tx_buf[ctx->burst.tx_count];
 	int size = len + 2;
 
-	if (ctx->burst.tx_count + size > ARRAY_SIZE(ctx->burst.tx_buf)) {
+	if (ctx->burst.tx_count + size >= ARRAY_SIZE(ctx->burst.tx_buf)) {
 		dev_err(ctx->dev, "TX-BLK buffer exhausted\n");
 		ctx->error = -EINVAL;
 		return NULL;
@@ -621,7 +622,7 @@ static u8 *sii8620_burst_get_rx_buf(struct sii8620 *ctx, int len)
 	u8 *buf = &ctx->burst.rx_buf[ctx->burst.rx_count];
 	int size = len + 1;
 
-	if (ctx->burst.tx_count + size > ARRAY_SIZE(ctx->burst.tx_buf)) {
+	if (ctx->burst.rx_count + size >= ARRAY_SIZE(ctx->burst.rx_buf)) {
 		dev_err(ctx->dev, "RX-BLK buffer exhausted\n");
 		ctx->error = -EINVAL;
 		return NULL;
@@ -985,7 +986,7 @@ static void sii8620_set_auto_zone(struct sii8620 *ctx)
 
 static void sii8620_stop_video(struct sii8620 *ctx)
 {
-	u8 uninitialized_var(val);
+	u8 val;
 
 	sii8620_write_seq_static(ctx,
 		REG_TPI_INTR_EN, 0,
@@ -1759,10 +1760,8 @@ static bool sii8620_rcp_consume(struct sii8620 *ctx, u8 scancode)
 
 	scancode &= MHL_RCP_KEY_ID_MASK;
 
-	if (!ctx->rc_dev) {
-		dev_dbg(ctx->dev, "RCP input device not initialized\n");
+	if (!IS_ENABLED(CONFIG_RC_CORE) || !ctx->rc_dev)
 		return false;
-	}
 
 	if (pressed)
 		rc_keydown(ctx->rc_dev, RC_PROTO_CEC, scancode, 0);
@@ -2099,6 +2098,9 @@ static void sii8620_init_rcp_input_dev(struct sii8620 *ctx)
 	struct rc_dev *rc_dev;
 	int ret;
 
+	if (!IS_ENABLED(CONFIG_RC_CORE))
+		return;
+
 	rc_dev = rc_allocate_device(RC_DRIVER_SCANCODE);
 	if (!rc_dev) {
 		dev_err(ctx->dev, "Failed to allocate RC device\n");
@@ -2118,7 +2120,7 @@ static void sii8620_init_rcp_input_dev(struct sii8620 *ctx)
 	if (ret) {
 		dev_err(ctx->dev, "Failed to register RC device\n");
 		ctx->error = ret;
-		rc_free_device(ctx->rc_dev);
+		rc_free_device(rc_dev);
 		return;
 	}
 	ctx->rc_dev = rc_dev;
@@ -2200,7 +2202,8 @@ static inline struct sii8620 *bridge_to_sii8620(struct drm_bridge *bridge)
 	return container_of(bridge, struct sii8620, bridge);
 }
 
-static int sii8620_attach(struct drm_bridge *bridge)
+static int sii8620_attach(struct drm_bridge *bridge,
+			  enum drm_bridge_attach_flags flags)
 {
 	struct sii8620 *ctx = bridge_to_sii8620(bridge);
 
@@ -2212,6 +2215,9 @@ static int sii8620_attach(struct drm_bridge *bridge)
 static void sii8620_detach(struct drm_bridge *bridge)
 {
 	struct sii8620 *ctx = bridge_to_sii8620(bridge);
+
+	if (!IS_ENABLED(CONFIG_RC_CORE))
+		return;
 
 	rc_unregister_device(ctx->rc_dev);
 }
@@ -2238,6 +2244,7 @@ static int sii8620_is_packing_required(struct sii8620 *ctx,
 }
 
 static enum drm_mode_status sii8620_mode_valid(struct drm_bridge *bridge,
+					 const struct drm_display_info *info,
 					 const struct drm_display_mode *mode)
 {
 	struct sii8620 *ctx = bridge_to_sii8620(bridge);
@@ -2277,8 +2284,7 @@ static const struct drm_bridge_funcs sii8620_bridge_funcs = {
 	.mode_valid = sii8620_mode_valid,
 };
 
-static int sii8620_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int sii8620_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct sii8620 *ctx;
@@ -2293,10 +2299,9 @@ static int sii8620_probe(struct i2c_client *client,
 	INIT_LIST_HEAD(&ctx->mt_queue);
 
 	ctx->clk_xtal = devm_clk_get(dev, "xtal");
-	if (IS_ERR(ctx->clk_xtal)) {
-		dev_err(dev, "failed to get xtal clock from DT\n");
-		return PTR_ERR(ctx->clk_xtal);
-	}
+	if (IS_ERR(ctx->clk_xtal))
+		return dev_err_probe(dev, PTR_ERR(ctx->clk_xtal),
+				     "failed to get xtal clock from DT\n");
 
 	if (!client->irq) {
 		dev_err(dev, "no irq provided\n");
@@ -2307,16 +2312,14 @@ static int sii8620_probe(struct i2c_client *client,
 					sii8620_irq_thread,
 					IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
 					"sii8620", ctx);
-	if (ret < 0) {
-		dev_err(dev, "failed to install IRQ handler\n");
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret,
+				     "failed to install IRQ handler\n");
 
 	ctx->gpio_reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
-	if (IS_ERR(ctx->gpio_reset)) {
-		dev_err(dev, "failed to get reset gpio from DT\n");
-		return PTR_ERR(ctx->gpio_reset);
-	}
+	if (IS_ERR(ctx->gpio_reset))
+		return dev_err_probe(dev, PTR_ERR(ctx->gpio_reset),
+				     "failed to get reset gpio from DT\n");
 
 	ctx->supplies[0].supply = "cvcc10";
 	ctx->supplies[1].supply = "iovcc18";
@@ -2342,7 +2345,7 @@ static int sii8620_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int sii8620_remove(struct i2c_client *client)
+static void sii8620_remove(struct i2c_client *client)
 {
 	struct sii8620 *ctx = i2c_get_clientdata(client);
 
@@ -2356,8 +2359,6 @@ static int sii8620_remove(struct i2c_client *client)
 		sii8620_cable_out(ctx);
 	}
 	drm_bridge_remove(&ctx->bridge);
-
-	return 0;
 }
 
 static const struct of_device_id sii8620_dt_match[] = {
@@ -2375,7 +2376,7 @@ MODULE_DEVICE_TABLE(i2c, sii8620_id);
 static struct i2c_driver sii8620_driver = {
 	.driver = {
 		.name	= "sii8620",
-		.of_match_table = of_match_ptr(sii8620_dt_match),
+		.of_match_table = sii8620_dt_match,
 	},
 	.probe		= sii8620_probe,
 	.remove		= sii8620_remove,

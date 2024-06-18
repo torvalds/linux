@@ -9,9 +9,9 @@
 #include <linux/bitops.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 #include <linux/module.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/watchdog.h>
 
@@ -189,8 +189,8 @@ static int rza_wdt_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	priv->wdev.info = &rza_wdt_ident,
-	priv->wdev.ops = &rza_wdt_ops,
+	priv->wdev.info = &rza_wdt_ident;
+	priv->wdev.ops = &rza_wdt_ops;
 	priv->wdev.parent = dev;
 
 	priv->cks = (u8)(uintptr_t) of_device_get_match_data(dev);

@@ -21,7 +21,9 @@
 #include <linux/platform_device.h>
 
 #include <asm/fiq.h>
+#include <linux/soc/ti/omap1-io.h>
 
+#include "hardware.h"
 #include "ams-delta-fiq.h"
 #include "board-ams-delta.h"
 
@@ -110,7 +112,7 @@ void __init ams_delta_init_fiq(struct gpio_chip *chip,
 
 		/*
 		 * FIQ handler takes full control over serio data and clk GPIO
-		 * pins.  Initiaize them and keep requested so nobody can
+		 * pins.  Initialize them and keep requested so nobody can
 		 * interfere.  Fail if any of those two couldn't be requested.
 		 */
 		switch (i) {

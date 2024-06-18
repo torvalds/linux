@@ -80,12 +80,9 @@ struct inode *bfs_iget(struct super_block *sb, unsigned long ino)
 	set_nlink(inode, le32_to_cpu(di->i_nlink));
 	inode->i_size = BFS_FILESIZE(di);
 	inode->i_blocks = BFS_FILEBLOCKS(di);
-	inode->i_atime.tv_sec =  le32_to_cpu(di->i_atime);
-	inode->i_mtime.tv_sec =  le32_to_cpu(di->i_mtime);
-	inode->i_ctime.tv_sec =  le32_to_cpu(di->i_ctime);
-	inode->i_atime.tv_nsec = 0;
-	inode->i_mtime.tv_nsec = 0;
-	inode->i_ctime.tv_nsec = 0;
+	inode_set_atime(inode, le32_to_cpu(di->i_atime), 0);
+	inode_set_mtime(inode, le32_to_cpu(di->i_mtime), 0);
+	inode_set_ctime(inode, le32_to_cpu(di->i_ctime), 0);
 
 	brelse(bh);
 	unlock_new_inode(inode);
@@ -141,9 +138,9 @@ static int bfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	di->i_uid = cpu_to_le32(i_uid_read(inode));
 	di->i_gid = cpu_to_le32(i_gid_read(inode));
 	di->i_nlink = cpu_to_le32(inode->i_nlink);
-	di->i_atime = cpu_to_le32(inode->i_atime.tv_sec);
-	di->i_mtime = cpu_to_le32(inode->i_mtime.tv_sec);
-	di->i_ctime = cpu_to_le32(inode->i_ctime.tv_sec);
+	di->i_atime = cpu_to_le32(inode_get_atime_sec(inode));
+	di->i_mtime = cpu_to_le32(inode_get_mtime_sec(inode));
+	di->i_ctime = cpu_to_le32(inode_get_ctime_sec(inode));
 	i_sblock = BFS_I(inode)->i_sblock;
 	di->i_sblock = cpu_to_le32(i_sblock);
 	di->i_eblock = cpu_to_le32(BFS_I(inode)->i_eblock);
@@ -229,8 +226,7 @@ static int bfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_bfree = buf->f_bavail = info->si_freeb;
 	buf->f_files = info->si_lasti + 1 - BFS_ROOT_INO;
 	buf->f_ffree = info->si_freei;
-	buf->f_fsid.val[0] = (u32)id;
-	buf->f_fsid.val[1] = (u32)(id >> 32);
+	buf->f_fsid = u64_to_fsid(id);
 	buf->f_namelen = BFS_NAMELEN;
 	return 0;
 }
@@ -240,7 +236,7 @@ static struct kmem_cache *bfs_inode_cachep;
 static struct inode *bfs_alloc_inode(struct super_block *sb)
 {
 	struct bfs_inode_info *bi;
-	bi = kmem_cache_alloc(bfs_inode_cachep, GFP_KERNEL);
+	bi = alloc_inode_sb(sb, bfs_inode_cachep, GFP_KERNEL);
 	if (!bi)
 		return NULL;
 	return &bi->vfs_inode;
@@ -263,7 +259,7 @@ static int __init init_inodecache(void)
 	bfs_inode_cachep = kmem_cache_create("bfs_inode_cache",
 					     sizeof(struct bfs_inode_info),
 					     0, (SLAB_RECLAIM_ACCOUNT|
-						SLAB_MEM_SPREAD|SLAB_ACCOUNT),
+						SLAB_ACCOUNT),
 					     init_once);
 	if (bfs_inode_cachep == NULL)
 		return -ENOMEM;
@@ -351,7 +347,7 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 
 	info->si_lasti = (le32_to_cpu(bfs_sb->s_start) - BFS_BSIZE) / sizeof(struct bfs_inode) + BFS_ROOT_INO - 1;
 	if (info->si_lasti == BFS_MAX_LASTI)
-		printf("WARNING: filesystem %s was created with 512 inodes, the real maximum is 511, mounting anyway\n", s->s_id);
+		printf("NOTE: filesystem %s was created with 512 inodes, the real maximum is 511, mounting anyway\n", s->s_id);
 	else if (info->si_lasti > BFS_MAX_LASTI) {
 		printf("Impossible last inode number %lu > %d on %s\n", info->si_lasti, BFS_MAX_LASTI, s->s_id);
 		goto out1;

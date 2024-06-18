@@ -33,7 +33,7 @@ menu "USB Peripheral Controller"
 config USB_AT91
 	tristate "Atmel AT91 USB Device Port"
 	depends on ARCH_AT91
-	depends on OF || COMPILE_TEST
+	depends on OF
 	help
 	   Many Atmel AT91 processors (such as the AT91RM2000) have a
 	   full speed USB Device Port with support for five configurable
@@ -45,7 +45,7 @@ config USB_AT91
 
 config USB_LPC32XX
 	tristate "LPC32XX USB Peripheral Controller"
-	depends on ARCH_LPC32XX
+	depends on ARCH_LPC32XX || COMPILE_TEST
 	depends on I2C
 	select USB_ISP1301
 	help
@@ -59,8 +59,8 @@ config USB_ATMEL_USBA
 	tristate "Atmel USBA"
 	depends on ARCH_AT91
 	help
-	  USBA is the integrated high-speed USB Device controller on
-	  the AT32AP700x, some AT91SAM9 and AT91CAP9 processors from Atmel.
+	  USBA is the integrated high-speed USB Device controller on some
+	  AT91SAM9 and AT91CAP9 processors from Atmel.
 
 	  The fifo_mode parameter is used to select endpoint allocation mode.
 	  fifo_mode = 0 is used to let the driver autoconfigure the endpoints.
@@ -90,7 +90,7 @@ config USB_BCM63XX_UDC
 
 config USB_FSL_USB2
 	tristate "Freescale Highspeed USB DR Peripheral Controller"
-	depends on FSL_SOC || ARCH_MXC
+	depends on FSL_SOC
 	help
 	   Some of Freescale PowerPC and i.MX processors have a High Speed
 	   Dual-Role(DR) USB controller, which supports device mode.
@@ -108,28 +108,16 @@ config USB_FUSB300
 	help
 	   Faraday usb device controller FUSB300 driver
 
-config USB_FOTG210_UDC
-	depends on HAS_DMA
-	tristate "Faraday FOTG210 USB Peripheral Controller"
-	help
-	   Faraday USB2.0 OTG controller which can be configured as
-	   high speed or full speed USB device. This driver supppors
-	   Bulk Transfer so far.
-
-	   Say "y" to link the driver statically, or "m" to build a
-	   dynamically linked module called "fotg210_udc".
-
 config USB_GR_UDC
-       tristate "Aeroflex Gaisler GRUSBDC USB Peripheral Controller Driver"
-       depends on HAS_DMA
-       help
-          Select this to support Aeroflex Gaisler GRUSBDC cores from the GRLIB
+	tristate "Aeroflex Gaisler GRUSBDC USB Peripheral Controller Driver"
+	depends on HAS_DMA
+	help
+	  Select this to support Aeroflex Gaisler GRUSBDC cores from the GRLIB
 	  VHDL IP core library.
 
 config USB_OMAP
 	tristate "OMAP USB Device Controller"
 	depends on ARCH_OMAP1
-	depends on ISP1301_OMAP || !(MACH_OMAP_H2 || MACH_OMAP_H3)
 	help
 	   Many Texas Instruments OMAP processors have flexible full
 	   speed USB device controllers, with support for up to 30
@@ -191,9 +179,20 @@ config USB_RENESAS_USBHS_UDC
 	   dynamically linked module called "renesas_usbhs" and force all
 	   gadget drivers to also be dynamically linked.
 
+config USB_RZV2M_USB3DRD
+	tristate 'Renesas USB3.1 DRD controller'
+	depends on ARCH_R9A09G011 || COMPILE_TEST
+	help
+	   Renesas USB3.1 DRD controller is a USB DRD controller
+	   that supports both host and device switching.
+
+	   Say "y" to link the driver statically, or "m" to build a
+	   dynamically linked module called "rzv2m_usb3drd".
+
 config USB_RENESAS_USB3
 	tristate 'Renesas USB3.0 Peripheral controller'
 	depends on ARCH_RENESAS || COMPILE_TEST
+	depends on USB_RZV2M_USB3DRD || !USB_RZV2M_USB3DRD
 	depends on EXTCON
 	select USB_ROLE_SWITCH
 	help
@@ -202,6 +201,17 @@ config USB_RENESAS_USB3
 
 	   Say "y" to link the driver statically, or "m" to build a
 	   dynamically linked module called "renesas_usb3" and force all
+	   gadget drivers to also be dynamically linked.
+
+config USB_RENESAS_USBF
+	tristate 'Renesas USB Function controller'
+	depends on ARCH_RENESAS || COMPILE_TEST
+	help
+	   Renesas USB Function controller is a USB peripheral controller
+	   available on RZ/N1 Renesas SoCs.
+
+	   Say "y" to link the driver statically, or "m" to build a
+	   dynamically linked module called "renesas_usbf" and force all
 	   gadget drivers to also be dynamically linked.
 
 config USB_PXA27X
@@ -217,31 +227,6 @@ config USB_PXA27X
 	   Say "y" to link the driver statically, or "m" to build a
 	   dynamically linked module called "pxa27x_udc" and force all
 	   gadget drivers to also be dynamically linked.
-
-config USB_S3C2410
-	tristate "S3C2410 USB Device Controller"
-	depends on ARCH_S3C24XX
-	help
-	  Samsung's S3C2410 is an ARM-4 processor with an integrated
-	  full speed USB 1.1 device controller.  It has 4 configurable
-	  endpoints, as well as endpoint zero (for control transfers).
-
-	  This driver has been tested on the S3C2410, S3C2412, and
-	  S3C2440 processors.
-
-config USB_S3C2410_DEBUG
-	bool "S3C2410 udc debug messages"
-	depends on USB_S3C2410
-
-config USB_S3C_HSUDC
-	tristate "S3C2416, S3C2443 and S3C2450 USB Device Controller"
-	depends on ARCH_S3C24XX
-	help
-	  Samsung's S3C2416, S3C2443 and S3C2450 is an ARM9 based SoC
-	  integrated with dual speed USB 2.0 device controller. It has
-	  8 endpoints, as well as endpoint zero.
-
-	  This driver has been tested on S3C2416 and S3C2450 processors.
 
 config USB_MV_UDC
 	tristate "Marvell USB2.0 Device Controller"
@@ -311,7 +296,7 @@ source "drivers/usb/gadget/udc/bdc/Kconfig"
 
 config USB_AMD5536UDC
 	tristate "AMD5536 UDC"
-	depends on USB_PCI
+	depends on USB_PCI && HAS_DMA
 	select USB_SNP_CORE
 	help
 	   The AMD5536 UDC is part of the AMD Geode CS5536, an x86 southbridge.
@@ -330,6 +315,7 @@ config USB_AMD5536UDC
 config USB_FSL_QE
 	tristate "Freescale QE/CPM USB Device Controller"
 	depends on FSL_SOC && (QUICC_ENGINE || CPM)
+	depends on !64BIT || BROKEN
 	help
 	   Some of Freescale PowerPC processors have a Full Speed
 	   QE/CPM2 USB controller, which support device mode with 4
@@ -429,7 +415,7 @@ config USB_EG20T
 config USB_GADGET_XILINX
 	tristate "Xilinx USB Driver"
 	depends on HAS_DMA
-	depends on OF || COMPILE_TEST
+	depends on OF
 	help
 	  USB peripheral controller driver for Xilinx USB2 device.
 	  Xilinx USB2 device is a soft IP which supports both full
@@ -441,7 +427,43 @@ config USB_GADGET_XILINX
 	  dynamically linked module called "udc-xilinx" and force all
 	  gadget drivers to also be dynamically linked.
 
+config USB_MAX3420_UDC
+	tristate "MAX3420 (USB-over-SPI) support"
+	depends on SPI
+	help
+	  The Maxim MAX3420 chip supports USB2.0 full-speed peripheral mode.
+	  The MAX3420 is run by SPI interface, and hence the dependency.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called max3420_udc
+
+config USB_TEGRA_XUDC
+	tristate "NVIDIA Tegra Superspeed USB 3.0 Device Controller"
+	depends on ARCH_TEGRA || COMPILE_TEST
+	depends on PHY_TEGRA_XUSB
+	help
+	 Enables NVIDIA Tegra USB 3.0 device mode controller driver.
+
+	 Say "y" to link the driver statically, or "m" to build a
+	 dynamically linked module called "tegra_xudc" and force all
+	 gadget drivers to also be dynamically linked.
+
+config USB_ASPEED_UDC
+	tristate "Aspeed UDC driver support"
+	depends on ARCH_ASPEED || COMPILE_TEST
+	depends on USB_LIBCOMPOSITE
+	help
+	  Enables Aspeed USB2.0 Device Controller driver for AST260x
+	  family SoCs. The controller supports 1 control endpoint and
+	  4 programmable endpoints.
+
+	  Say "y" to link the driver statically, or "m" to build a
+	  dynamically linked module called "aspeed_udc" and force all
+	  gadget drivers to also be dynamically linked.
+
 source "drivers/usb/gadget/udc/aspeed-vhub/Kconfig"
+
+source "drivers/usb/gadget/udc/cdns2/Kconfig"
 
 #
 # LAST -- dummy/emulated controller
@@ -453,7 +475,7 @@ config USB_DUMMY_HCD
 	help
 	  This host controller driver emulates USB, looping all data transfer
 	  requests back to a USB "gadget driver" in the same host.  The host
-	  side is the master; the gadget side is the slave.  Gadget drivers
+	  side is the controller; the gadget side is the device.  Gadget drivers
 	  can be high, full, or low speed; and they have access to endpoints
 	  like those from NET2280, PXA2xx, or SA1100 hardware.
 

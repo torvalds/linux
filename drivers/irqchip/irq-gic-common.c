@@ -12,24 +12,17 @@
 
 static DEFINE_RAW_SPINLOCK(irq_controller_lock);
 
-static const struct gic_kvm_info *gic_kvm_info;
-
-const struct gic_kvm_info *gic_get_kvm_info(void)
-{
-	return gic_kvm_info;
-}
-
-void gic_set_kvm_info(const struct gic_kvm_info *info)
-{
-	BUG_ON(gic_kvm_info != NULL);
-	gic_kvm_info = info;
-}
-
 void gic_enable_of_quirks(const struct device_node *np,
 			  const struct gic_quirk *quirks, void *data)
 {
 	for (; quirks->desc; quirks++) {
-		if (!of_device_is_compatible(np, quirks->compatible))
+		if (!quirks->compatible && !quirks->property)
+			continue;
+		if (quirks->compatible &&
+		    !of_device_is_compatible(np, quirks->compatible))
+			continue;
+		if (quirks->property &&
+		    !of_property_read_bool(np, quirks->property))
 			continue;
 		if (quirks->init(data))
 			pr_info("GIC: enabling workaround for %s\n",
@@ -41,7 +34,7 @@ void gic_enable_quirks(u32 iidr, const struct gic_quirk *quirks,
 		void *data)
 {
 	for (; quirks->desc; quirks++) {
-		if (quirks->compatible)
+		if (quirks->compatible || quirks->property)
 			continue;
 		if (quirks->iidr != (quirks->mask & iidr))
 			continue;
@@ -151,9 +144,6 @@ void gic_cpu_config(void __iomem *base, int nr, void (*sync_access)(void))
 	for (i = 0; i < nr; i += 4)
 		writel_relaxed(GICD_INT_DEF_PRI_X4,
 					base + GIC_DIST_PRI + i * 4 / 4);
-
-	/* Ensure all SGI interrupts are now enabled */
-	writel_relaxed(GICD_INT_EN_SET_SGI, base + GIC_DIST_ENABLE_SET);
 
 	if (sync_access)
 		sync_access();

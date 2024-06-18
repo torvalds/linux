@@ -12,14 +12,14 @@
 
 #include <linux/bitfield.h>
 #include <linux/counter.h>
-#include <linux/iio/iio.h>
 #include <linux/mfd/stm32-lptimer.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
+#include <linux/types.h>
 
 struct stm32_lptim_cnt {
-	struct counter_device counter;
 	struct device *dev;
 	struct regmap *regmap;
 	struct clk *clk;
@@ -69,7 +69,7 @@ static int stm32_lptim_set_enable_state(struct stm32_lptim_cnt *priv,
 
 	/* ensure CMP & ARR registers are properly written */
 	ret = regmap_read_poll_timeout(priv->regmap, STM32_LPTIM_ISR, val,
-				       (val & STM32_LPTIM_CMPOK_ARROK),
+				       (val & STM32_LPTIM_CMPOK_ARROK) == STM32_LPTIM_CMPOK_ARROK,
 				       100, 1000);
 	if (ret)
 		return ret;
@@ -107,280 +107,40 @@ static int stm32_lptim_setup(struct stm32_lptim_cnt *priv, int enable)
 	return regmap_update_bits(priv->regmap, STM32_LPTIM_CFGR, mask, val);
 }
 
-static int stm32_lptim_write_raw(struct iio_dev *indio_dev,
-				 struct iio_chan_spec const *chan,
-				 int val, int val2, long mask)
-{
-	struct stm32_lptim_cnt *priv = iio_priv(indio_dev);
-	int ret;
-
-	switch (mask) {
-	case IIO_CHAN_INFO_ENABLE:
-		if (val < 0 || val > 1)
-			return -EINVAL;
-
-		/* Check nobody uses the timer, or already disabled/enabled */
-		ret = stm32_lptim_is_enabled(priv);
-		if ((ret < 0) || (!ret && !val))
-			return ret;
-		if (val && ret)
-			return -EBUSY;
-
-		ret = stm32_lptim_setup(priv, val);
-		if (ret)
-			return ret;
-		return stm32_lptim_set_enable_state(priv, val);
-
-	default:
-		return -EINVAL;
-	}
-}
-
-static int stm32_lptim_read_raw(struct iio_dev *indio_dev,
-				struct iio_chan_spec const *chan,
-				int *val, int *val2, long mask)
-{
-	struct stm32_lptim_cnt *priv = iio_priv(indio_dev);
-	u32 dat;
-	int ret;
-
-	switch (mask) {
-	case IIO_CHAN_INFO_RAW:
-		ret = regmap_read(priv->regmap, STM32_LPTIM_CNT, &dat);
-		if (ret)
-			return ret;
-		*val = dat;
-		return IIO_VAL_INT;
-
-	case IIO_CHAN_INFO_ENABLE:
-		ret = stm32_lptim_is_enabled(priv);
-		if (ret < 0)
-			return ret;
-		*val = ret;
-		return IIO_VAL_INT;
-
-	case IIO_CHAN_INFO_SCALE:
-		/* Non-quadrature mode: scale = 1 */
-		*val = 1;
-		*val2 = 0;
-		if (priv->quadrature_mode) {
-			/*
-			 * Quadrature encoder mode:
-			 * - both edges, quarter cycle, scale is 0.25
-			 * - either rising/falling edge scale is 0.5
-			 */
-			if (priv->polarity > 1)
-				*val2 = 2;
-			else
-				*val2 = 1;
-		}
-		return IIO_VAL_FRACTIONAL_LOG2;
-
-	default:
-		return -EINVAL;
-	}
-}
-
-static const struct iio_info stm32_lptim_cnt_iio_info = {
-	.read_raw = stm32_lptim_read_raw,
-	.write_raw = stm32_lptim_write_raw,
-};
-
-static const char *const stm32_lptim_quadrature_modes[] = {
-	"non-quadrature",
-	"quadrature",
-};
-
-static int stm32_lptim_get_quadrature_mode(struct iio_dev *indio_dev,
-					   const struct iio_chan_spec *chan)
-{
-	struct stm32_lptim_cnt *priv = iio_priv(indio_dev);
-
-	return priv->quadrature_mode;
-}
-
-static int stm32_lptim_set_quadrature_mode(struct iio_dev *indio_dev,
-					   const struct iio_chan_spec *chan,
-					   unsigned int type)
-{
-	struct stm32_lptim_cnt *priv = iio_priv(indio_dev);
-
-	if (stm32_lptim_is_enabled(priv))
-		return -EBUSY;
-
-	priv->quadrature_mode = type;
-
-	return 0;
-}
-
-static const struct iio_enum stm32_lptim_quadrature_mode_en = {
-	.items = stm32_lptim_quadrature_modes,
-	.num_items = ARRAY_SIZE(stm32_lptim_quadrature_modes),
-	.get = stm32_lptim_get_quadrature_mode,
-	.set = stm32_lptim_set_quadrature_mode,
-};
-
-static const char * const stm32_lptim_cnt_polarity[] = {
-	"rising-edge", "falling-edge", "both-edges",
-};
-
-static int stm32_lptim_cnt_get_polarity(struct iio_dev *indio_dev,
-					const struct iio_chan_spec *chan)
-{
-	struct stm32_lptim_cnt *priv = iio_priv(indio_dev);
-
-	return priv->polarity;
-}
-
-static int stm32_lptim_cnt_set_polarity(struct iio_dev *indio_dev,
-					const struct iio_chan_spec *chan,
-					unsigned int type)
-{
-	struct stm32_lptim_cnt *priv = iio_priv(indio_dev);
-
-	if (stm32_lptim_is_enabled(priv))
-		return -EBUSY;
-
-	priv->polarity = type;
-
-	return 0;
-}
-
-static const struct iio_enum stm32_lptim_cnt_polarity_en = {
-	.items = stm32_lptim_cnt_polarity,
-	.num_items = ARRAY_SIZE(stm32_lptim_cnt_polarity),
-	.get = stm32_lptim_cnt_get_polarity,
-	.set = stm32_lptim_cnt_set_polarity,
-};
-
-static ssize_t stm32_lptim_cnt_get_ceiling(struct stm32_lptim_cnt *priv,
-					   char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%u\n", priv->ceiling);
-}
-
-static ssize_t stm32_lptim_cnt_set_ceiling(struct stm32_lptim_cnt *priv,
-					   const char *buf, size_t len)
-{
-	int ret;
-
-	if (stm32_lptim_is_enabled(priv))
-		return -EBUSY;
-
-	ret = kstrtouint(buf, 0, &priv->ceiling);
-	if (ret)
-		return ret;
-
-	if (priv->ceiling > STM32_LPTIM_MAX_ARR)
-		return -EINVAL;
-
-	return len;
-}
-
-static ssize_t stm32_lptim_cnt_get_preset_iio(struct iio_dev *indio_dev,
-					      uintptr_t private,
-					      const struct iio_chan_spec *chan,
-					      char *buf)
-{
-	struct stm32_lptim_cnt *priv = iio_priv(indio_dev);
-
-	return stm32_lptim_cnt_get_ceiling(priv, buf);
-}
-
-static ssize_t stm32_lptim_cnt_set_preset_iio(struct iio_dev *indio_dev,
-					      uintptr_t private,
-					      const struct iio_chan_spec *chan,
-					      const char *buf, size_t len)
-{
-	struct stm32_lptim_cnt *priv = iio_priv(indio_dev);
-
-	return stm32_lptim_cnt_set_ceiling(priv, buf, len);
-}
-
-/* LP timer with encoder */
-static const struct iio_chan_spec_ext_info stm32_lptim_enc_ext_info[] = {
-	{
-		.name = "preset",
-		.shared = IIO_SEPARATE,
-		.read = stm32_lptim_cnt_get_preset_iio,
-		.write = stm32_lptim_cnt_set_preset_iio,
-	},
-	IIO_ENUM("polarity", IIO_SEPARATE, &stm32_lptim_cnt_polarity_en),
-	IIO_ENUM_AVAILABLE("polarity", &stm32_lptim_cnt_polarity_en),
-	IIO_ENUM("quadrature_mode", IIO_SEPARATE,
-		 &stm32_lptim_quadrature_mode_en),
-	IIO_ENUM_AVAILABLE("quadrature_mode", &stm32_lptim_quadrature_mode_en),
-	{}
-};
-
-static const struct iio_chan_spec stm32_lptim_enc_channels = {
-	.type = IIO_COUNT,
-	.channel = 0,
-	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
-			      BIT(IIO_CHAN_INFO_ENABLE) |
-			      BIT(IIO_CHAN_INFO_SCALE),
-	.ext_info = stm32_lptim_enc_ext_info,
-	.indexed = 1,
-};
-
-/* LP timer without encoder (counter only) */
-static const struct iio_chan_spec_ext_info stm32_lptim_cnt_ext_info[] = {
-	{
-		.name = "preset",
-		.shared = IIO_SEPARATE,
-		.read = stm32_lptim_cnt_get_preset_iio,
-		.write = stm32_lptim_cnt_set_preset_iio,
-	},
-	IIO_ENUM("polarity", IIO_SEPARATE, &stm32_lptim_cnt_polarity_en),
-	IIO_ENUM_AVAILABLE("polarity", &stm32_lptim_cnt_polarity_en),
-	{}
-};
-
-static const struct iio_chan_spec stm32_lptim_cnt_channels = {
-	.type = IIO_COUNT,
-	.channel = 0,
-	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
-			      BIT(IIO_CHAN_INFO_ENABLE) |
-			      BIT(IIO_CHAN_INFO_SCALE),
-	.ext_info = stm32_lptim_cnt_ext_info,
-	.indexed = 1,
-};
-
-/**
- * stm32_lptim_cnt_function - enumerates stm32 LPTimer counter & encoder modes
- * @STM32_LPTIM_COUNTER_INCREASE: up count on IN1 rising, falling or both edges
- * @STM32_LPTIM_ENCODER_BOTH_EDGE: count on both edges (IN1 & IN2 quadrature)
+/*
+ * In non-quadrature mode, device counts up on active edge.
+ * In quadrature mode, encoder counting scenarios are as follows:
+ * +---------+----------+--------------------+--------------------+
+ * | Active  | Level on |      IN1 signal    |     IN2 signal     |
+ * | edge    | opposite +----------+---------+----------+---------+
+ * |         | signal   |  Rising  | Falling |  Rising  | Falling |
+ * +---------+----------+----------+---------+----------+---------+
+ * | Rising  | High ->  |   Down   |    -    |   Up     |    -    |
+ * | edge    | Low  ->  |   Up     |    -    |   Down   |    -    |
+ * +---------+----------+----------+---------+----------+---------+
+ * | Falling | High ->  |    -     |   Up    |    -     |   Down  |
+ * | edge    | Low  ->  |    -     |   Down  |    -     |   Up    |
+ * +---------+----------+----------+---------+----------+---------+
+ * | Both    | High ->  |   Down   |   Up    |   Up     |   Down  |
+ * | edges   | Low  ->  |   Up     |   Down  |   Down   |   Up    |
+ * +---------+----------+----------+---------+----------+---------+
  */
-enum stm32_lptim_cnt_function {
-	STM32_LPTIM_COUNTER_INCREASE,
-	STM32_LPTIM_ENCODER_BOTH_EDGE,
+static const enum counter_function stm32_lptim_cnt_functions[] = {
+	COUNTER_FUNCTION_INCREASE,
+	COUNTER_FUNCTION_QUADRATURE_X4,
 };
 
-static enum counter_count_function stm32_lptim_cnt_functions[] = {
-	[STM32_LPTIM_COUNTER_INCREASE] = COUNTER_COUNT_FUNCTION_INCREASE,
-	[STM32_LPTIM_ENCODER_BOTH_EDGE] = COUNTER_COUNT_FUNCTION_QUADRATURE_X4,
-};
-
-enum stm32_lptim_synapse_action {
-	STM32_LPTIM_SYNAPSE_ACTION_RISING_EDGE,
-	STM32_LPTIM_SYNAPSE_ACTION_FALLING_EDGE,
-	STM32_LPTIM_SYNAPSE_ACTION_BOTH_EDGES,
-	STM32_LPTIM_SYNAPSE_ACTION_NONE,
-};
-
-static enum counter_synapse_action stm32_lptim_cnt_synapse_actions[] = {
-	/* Index must match with stm32_lptim_cnt_polarity[] (priv->polarity) */
-	[STM32_LPTIM_SYNAPSE_ACTION_RISING_EDGE] = COUNTER_SYNAPSE_ACTION_RISING_EDGE,
-	[STM32_LPTIM_SYNAPSE_ACTION_FALLING_EDGE] = COUNTER_SYNAPSE_ACTION_FALLING_EDGE,
-	[STM32_LPTIM_SYNAPSE_ACTION_BOTH_EDGES] = COUNTER_SYNAPSE_ACTION_BOTH_EDGES,
-	[STM32_LPTIM_SYNAPSE_ACTION_NONE] = COUNTER_SYNAPSE_ACTION_NONE,
+static const enum counter_synapse_action stm32_lptim_cnt_synapse_actions[] = {
+	COUNTER_SYNAPSE_ACTION_RISING_EDGE,
+	COUNTER_SYNAPSE_ACTION_FALLING_EDGE,
+	COUNTER_SYNAPSE_ACTION_BOTH_EDGES,
+	COUNTER_SYNAPSE_ACTION_NONE,
 };
 
 static int stm32_lptim_cnt_read(struct counter_device *counter,
-				struct counter_count *count,
-				struct counter_count_read_value *val)
+				struct counter_count *count, u64 *val)
 {
-	struct stm32_lptim_cnt *const priv = counter->priv;
+	struct stm32_lptim_cnt *const priv = counter_priv(counter);
 	u32 cnt;
 	int ret;
 
@@ -388,78 +148,75 @@ static int stm32_lptim_cnt_read(struct counter_device *counter,
 	if (ret)
 		return ret;
 
-	counter_count_read_value_set(val, COUNTER_COUNT_POSITION, &cnt);
+	*val = cnt;
 
 	return 0;
 }
 
-static int stm32_lptim_cnt_function_get(struct counter_device *counter,
-					struct counter_count *count,
-					size_t *function)
+static int stm32_lptim_cnt_function_read(struct counter_device *counter,
+					 struct counter_count *count,
+					 enum counter_function *function)
 {
-	struct stm32_lptim_cnt *const priv = counter->priv;
+	struct stm32_lptim_cnt *const priv = counter_priv(counter);
 
 	if (!priv->quadrature_mode) {
-		*function = STM32_LPTIM_COUNTER_INCREASE;
+		*function = COUNTER_FUNCTION_INCREASE;
 		return 0;
 	}
 
-	if (priv->polarity == STM32_LPTIM_SYNAPSE_ACTION_BOTH_EDGES) {
-		*function = STM32_LPTIM_ENCODER_BOTH_EDGE;
+	if (priv->polarity == STM32_LPTIM_CKPOL_BOTH_EDGES) {
+		*function = COUNTER_FUNCTION_QUADRATURE_X4;
 		return 0;
 	}
 
 	return -EINVAL;
 }
 
-static int stm32_lptim_cnt_function_set(struct counter_device *counter,
-					struct counter_count *count,
-					size_t function)
+static int stm32_lptim_cnt_function_write(struct counter_device *counter,
+					  struct counter_count *count,
+					  enum counter_function function)
 {
-	struct stm32_lptim_cnt *const priv = counter->priv;
+	struct stm32_lptim_cnt *const priv = counter_priv(counter);
 
 	if (stm32_lptim_is_enabled(priv))
 		return -EBUSY;
 
 	switch (function) {
-	case STM32_LPTIM_COUNTER_INCREASE:
+	case COUNTER_FUNCTION_INCREASE:
 		priv->quadrature_mode = 0;
 		return 0;
-	case STM32_LPTIM_ENCODER_BOTH_EDGE:
+	case COUNTER_FUNCTION_QUADRATURE_X4:
 		priv->quadrature_mode = 1;
-		priv->polarity = STM32_LPTIM_SYNAPSE_ACTION_BOTH_EDGES;
+		priv->polarity = STM32_LPTIM_CKPOL_BOTH_EDGES;
 		return 0;
+	default:
+		/* should never reach this path */
+		return -EINVAL;
 	}
-
-	return -EINVAL;
 }
 
-static ssize_t stm32_lptim_cnt_enable_read(struct counter_device *counter,
-					   struct counter_count *count,
-					   void *private, char *buf)
+static int stm32_lptim_cnt_enable_read(struct counter_device *counter,
+				       struct counter_count *count,
+				       u8 *enable)
 {
-	struct stm32_lptim_cnt *const priv = counter->priv;
+	struct stm32_lptim_cnt *const priv = counter_priv(counter);
 	int ret;
 
 	ret = stm32_lptim_is_enabled(priv);
 	if (ret < 0)
 		return ret;
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n", ret);
+	*enable = ret;
+
+	return 0;
 }
 
-static ssize_t stm32_lptim_cnt_enable_write(struct counter_device *counter,
-					    struct counter_count *count,
-					    void *private,
-					    const char *buf, size_t len)
+static int stm32_lptim_cnt_enable_write(struct counter_device *counter,
+					struct counter_count *count,
+					u8 enable)
 {
-	struct stm32_lptim_cnt *const priv = counter->priv;
-	bool enable;
+	struct stm32_lptim_cnt *const priv = counter_priv(counter);
 	int ret;
-
-	ret = kstrtobool(buf, &enable);
-	if (ret)
-		return ret;
 
 	/* Check nobody uses the timer, or already disabled/enabled */
 	ret = stm32_lptim_is_enabled(priv);
@@ -476,107 +233,130 @@ static ssize_t stm32_lptim_cnt_enable_write(struct counter_device *counter,
 	if (ret)
 		return ret;
 
-	return len;
+	return 0;
 }
 
-static ssize_t stm32_lptim_cnt_ceiling_read(struct counter_device *counter,
-					    struct counter_count *count,
-					    void *private, char *buf)
+static int stm32_lptim_cnt_ceiling_read(struct counter_device *counter,
+					struct counter_count *count,
+					u64 *ceiling)
 {
-	struct stm32_lptim_cnt *const priv = counter->priv;
+	struct stm32_lptim_cnt *const priv = counter_priv(counter);
 
-	return stm32_lptim_cnt_get_ceiling(priv, buf);
+	*ceiling = priv->ceiling;
+
+	return 0;
 }
 
-static ssize_t stm32_lptim_cnt_ceiling_write(struct counter_device *counter,
-					     struct counter_count *count,
-					     void *private,
-					     const char *buf, size_t len)
+static int stm32_lptim_cnt_ceiling_write(struct counter_device *counter,
+					 struct counter_count *count,
+					 u64 ceiling)
 {
-	struct stm32_lptim_cnt *const priv = counter->priv;
+	struct stm32_lptim_cnt *const priv = counter_priv(counter);
 
-	return stm32_lptim_cnt_set_ceiling(priv, buf, len);
+	if (stm32_lptim_is_enabled(priv))
+		return -EBUSY;
+
+	if (ceiling > STM32_LPTIM_MAX_ARR)
+		return -ERANGE;
+
+	priv->ceiling = ceiling;
+
+	return 0;
 }
 
-static const struct counter_count_ext stm32_lptim_cnt_ext[] = {
-	{
-		.name = "enable",
-		.read = stm32_lptim_cnt_enable_read,
-		.write = stm32_lptim_cnt_enable_write
-	},
-	{
-		.name = "ceiling",
-		.read = stm32_lptim_cnt_ceiling_read,
-		.write = stm32_lptim_cnt_ceiling_write
-	},
+static struct counter_comp stm32_lptim_cnt_ext[] = {
+	COUNTER_COMP_ENABLE(stm32_lptim_cnt_enable_read,
+			    stm32_lptim_cnt_enable_write),
+	COUNTER_COMP_CEILING(stm32_lptim_cnt_ceiling_read,
+			     stm32_lptim_cnt_ceiling_write),
 };
 
-static int stm32_lptim_cnt_action_get(struct counter_device *counter,
-				      struct counter_count *count,
-				      struct counter_synapse *synapse,
-				      size_t *action)
+static int stm32_lptim_cnt_action_read(struct counter_device *counter,
+				       struct counter_count *count,
+				       struct counter_synapse *synapse,
+				       enum counter_synapse_action *action)
 {
-	struct stm32_lptim_cnt *const priv = counter->priv;
-	size_t function;
+	struct stm32_lptim_cnt *const priv = counter_priv(counter);
+	enum counter_function function;
 	int err;
 
-	err = stm32_lptim_cnt_function_get(counter, count, &function);
+	err = stm32_lptim_cnt_function_read(counter, count, &function);
 	if (err)
 		return err;
 
 	switch (function) {
-	case STM32_LPTIM_COUNTER_INCREASE:
+	case COUNTER_FUNCTION_INCREASE:
 		/* LP Timer acts as up-counter on input 1 */
-		if (synapse->signal->id == count->synapses[0].signal->id)
-			*action = priv->polarity;
-		else
-			*action = STM32_LPTIM_SYNAPSE_ACTION_NONE;
-		return 0;
-	case STM32_LPTIM_ENCODER_BOTH_EDGE:
-		*action = priv->polarity;
-		return 0;
-	}
+		if (synapse->signal->id != count->synapses[0].signal->id) {
+			*action = COUNTER_SYNAPSE_ACTION_NONE;
+			return 0;
+		}
 
-	return -EINVAL;
+		switch (priv->polarity) {
+		case STM32_LPTIM_CKPOL_RISING_EDGE:
+			*action = COUNTER_SYNAPSE_ACTION_RISING_EDGE;
+			return 0;
+		case STM32_LPTIM_CKPOL_FALLING_EDGE:
+			*action = COUNTER_SYNAPSE_ACTION_FALLING_EDGE;
+			return 0;
+		case STM32_LPTIM_CKPOL_BOTH_EDGES:
+			*action = COUNTER_SYNAPSE_ACTION_BOTH_EDGES;
+			return 0;
+		default:
+			/* should never reach this path */
+			return -EINVAL;
+		}
+	case COUNTER_FUNCTION_QUADRATURE_X4:
+		*action = COUNTER_SYNAPSE_ACTION_BOTH_EDGES;
+		return 0;
+	default:
+		/* should never reach this path */
+		return -EINVAL;
+	}
 }
 
-static int stm32_lptim_cnt_action_set(struct counter_device *counter,
-				      struct counter_count *count,
-				      struct counter_synapse *synapse,
-				      size_t action)
+static int stm32_lptim_cnt_action_write(struct counter_device *counter,
+					struct counter_count *count,
+					struct counter_synapse *synapse,
+					enum counter_synapse_action action)
 {
-	struct stm32_lptim_cnt *const priv = counter->priv;
-	size_t function;
+	struct stm32_lptim_cnt *const priv = counter_priv(counter);
+	enum counter_function function;
 	int err;
 
 	if (stm32_lptim_is_enabled(priv))
 		return -EBUSY;
 
-	err = stm32_lptim_cnt_function_get(counter, count, &function);
+	err = stm32_lptim_cnt_function_read(counter, count, &function);
 	if (err)
 		return err;
 
 	/* only set polarity when in counter mode (on input 1) */
-	if (function == STM32_LPTIM_COUNTER_INCREASE
-	    && synapse->signal->id == count->synapses[0].signal->id) {
-		switch (action) {
-		case STM32_LPTIM_SYNAPSE_ACTION_RISING_EDGE:
-		case STM32_LPTIM_SYNAPSE_ACTION_FALLING_EDGE:
-		case STM32_LPTIM_SYNAPSE_ACTION_BOTH_EDGES:
-			priv->polarity = action;
-			return 0;
-		}
-	}
+	if (function != COUNTER_FUNCTION_INCREASE
+	    || synapse->signal->id != count->synapses[0].signal->id)
+		return -EINVAL;
 
-	return -EINVAL;
+	switch (action) {
+	case COUNTER_SYNAPSE_ACTION_RISING_EDGE:
+		priv->polarity = STM32_LPTIM_CKPOL_RISING_EDGE;
+		return 0;
+	case COUNTER_SYNAPSE_ACTION_FALLING_EDGE:
+		priv->polarity = STM32_LPTIM_CKPOL_FALLING_EDGE;
+		return 0;
+	case COUNTER_SYNAPSE_ACTION_BOTH_EDGES:
+		priv->polarity = STM32_LPTIM_CKPOL_BOTH_EDGES;
+		return 0;
+	default:
+		return -EINVAL;
+	}
 }
 
 static const struct counter_ops stm32_lptim_cnt_ops = {
 	.count_read = stm32_lptim_cnt_read,
-	.function_get = stm32_lptim_cnt_function_get,
-	.function_set = stm32_lptim_cnt_function_set,
-	.action_get = stm32_lptim_cnt_action_get,
-	.action_set = stm32_lptim_cnt_action_set,
+	.function_read = stm32_lptim_cnt_function_read,
+	.function_write = stm32_lptim_cnt_function_write,
+	.action_read = stm32_lptim_cnt_action_read,
+	.action_write = stm32_lptim_cnt_action_write,
 };
 
 static struct counter_signal stm32_lptim_cnt_signals[] = {
@@ -630,56 +410,44 @@ static struct counter_count stm32_lptim_in1_counts = {
 static int stm32_lptim_cnt_probe(struct platform_device *pdev)
 {
 	struct stm32_lptimer *ddata = dev_get_drvdata(pdev->dev.parent);
+	struct counter_device *counter;
 	struct stm32_lptim_cnt *priv;
-	struct iio_dev *indio_dev;
 	int ret;
 
 	if (IS_ERR_OR_NULL(ddata))
 		return -EINVAL;
 
-	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*priv));
-	if (!indio_dev)
+	counter = devm_counter_alloc(&pdev->dev, sizeof(*priv));
+	if (!counter)
 		return -ENOMEM;
+	priv = counter_priv(counter);
 
-	priv = iio_priv(indio_dev);
 	priv->dev = &pdev->dev;
 	priv->regmap = ddata->regmap;
 	priv->clk = ddata->clk;
 	priv->ceiling = STM32_LPTIM_MAX_ARR;
 
-	/* Initialize IIO device */
-	indio_dev->name = dev_name(&pdev->dev);
-	indio_dev->dev.parent = &pdev->dev;
-	indio_dev->dev.of_node = pdev->dev.of_node;
-	indio_dev->info = &stm32_lptim_cnt_iio_info;
-	if (ddata->has_encoder)
-		indio_dev->channels = &stm32_lptim_enc_channels;
-	else
-		indio_dev->channels = &stm32_lptim_cnt_channels;
-	indio_dev->num_channels = 1;
-
 	/* Initialize Counter device */
-	priv->counter.name = dev_name(&pdev->dev);
-	priv->counter.parent = &pdev->dev;
-	priv->counter.ops = &stm32_lptim_cnt_ops;
+	counter->name = dev_name(&pdev->dev);
+	counter->parent = &pdev->dev;
+	counter->ops = &stm32_lptim_cnt_ops;
 	if (ddata->has_encoder) {
-		priv->counter.counts = &stm32_lptim_enc_counts;
-		priv->counter.num_signals = ARRAY_SIZE(stm32_lptim_cnt_signals);
+		counter->counts = &stm32_lptim_enc_counts;
+		counter->num_signals = ARRAY_SIZE(stm32_lptim_cnt_signals);
 	} else {
-		priv->counter.counts = &stm32_lptim_in1_counts;
-		priv->counter.num_signals = 1;
+		counter->counts = &stm32_lptim_in1_counts;
+		counter->num_signals = 1;
 	}
-	priv->counter.num_counts = 1;
-	priv->counter.signals = stm32_lptim_cnt_signals;
-	priv->counter.priv = priv;
+	counter->num_counts = 1;
+	counter->signals = stm32_lptim_cnt_signals;
 
 	platform_set_drvdata(pdev, priv);
 
-	ret = devm_iio_device_register(&pdev->dev, indio_dev);
-	if (ret)
-		return ret;
+	ret = devm_counter_add(&pdev->dev, counter);
+	if (ret < 0)
+		return dev_err_probe(&pdev->dev, ret, "Failed to add counter\n");
 
-	return devm_counter_register(&pdev->dev, &priv->counter);
+	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -752,3 +520,4 @@ MODULE_AUTHOR("Fabrice Gasnier <fabrice.gasnier@st.com>");
 MODULE_ALIAS("platform:stm32-lptimer-counter");
 MODULE_DESCRIPTION("STMicroelectronics STM32 LPTIM counter driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(COUNTER);

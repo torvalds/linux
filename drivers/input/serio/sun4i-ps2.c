@@ -211,7 +211,6 @@ static int sun4i_ps2_probe(struct platform_device *pdev)
 	struct sun4i_ps2data *drvdata;
 	struct serio *serio;
 	struct device *dev = &pdev->dev;
-	unsigned int irq;
 	int error;
 
 	drvdata = kzalloc(sizeof(struct sun4i_ps2data), GFP_KERNEL);
@@ -257,21 +256,19 @@ static int sun4i_ps2_probe(struct platform_device *pdev)
 	serio->close = sun4i_ps2_close;
 	serio->port_data = drvdata;
 	serio->dev.parent = dev;
-	strlcpy(serio->name, dev_name(dev), sizeof(serio->name));
-	strlcpy(serio->phys, dev_name(dev), sizeof(serio->phys));
+	strscpy(serio->name, dev_name(dev), sizeof(serio->name));
+	strscpy(serio->phys, dev_name(dev), sizeof(serio->phys));
 
 	/* shutoff interrupt */
 	writel(0, drvdata->reg_base + PS2_REG_GCTL);
 
 	/* Get IRQ for the device */
-	irq = platform_get_irq(pdev, 0);
-	if (!irq) {
-		dev_err(dev, "no IRQ found\n");
-		error = -ENXIO;
+	drvdata->irq = platform_get_irq(pdev, 0);
+	if (drvdata->irq < 0) {
+		error = drvdata->irq;
 		goto err_disable_clk;
 	}
 
-	drvdata->irq = irq;
 	drvdata->serio = serio;
 	drvdata->dev = dev;
 
@@ -300,7 +297,7 @@ err_free_mem:
 	return error;
 }
 
-static int sun4i_ps2_remove(struct platform_device *pdev)
+static void sun4i_ps2_remove(struct platform_device *pdev)
 {
 	struct sun4i_ps2data *drvdata = platform_get_drvdata(pdev);
 
@@ -314,8 +311,6 @@ static int sun4i_ps2_remove(struct platform_device *pdev)
 	iounmap(drvdata->reg_base);
 
 	kfree(drvdata);
-
-	return 0;
 }
 
 static const struct of_device_id sun4i_ps2_match[] = {
@@ -327,7 +322,7 @@ MODULE_DEVICE_TABLE(of, sun4i_ps2_match);
 
 static struct platform_driver sun4i_ps2_driver = {
 	.probe		= sun4i_ps2_probe,
-	.remove		= sun4i_ps2_remove,
+	.remove_new	= sun4i_ps2_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = sun4i_ps2_match,

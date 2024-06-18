@@ -13,12 +13,13 @@
 struct xfs_buf;
 struct xfs_btree_cur;
 struct xfs_mount;
+struct xfs_perag;
 
 /*
  * Btree block header size depends on a superblock flag.
  */
 #define XFS_INOBT_BLOCK_LEN(mp) \
-	(xfs_sb_version_hascrc(&((mp)->m_sb)) ? \
+	(xfs_has_crc(((mp))) ? \
 		XFS_BTREE_SBLOCK_CRC_LEN : XFS_BTREE_SBLOCK_LEN)
 
 /*
@@ -45,13 +46,14 @@ struct xfs_mount;
 		 (maxrecs) * sizeof(xfs_inobt_key_t) + \
 		 ((index) - 1) * sizeof(xfs_inobt_ptr_t)))
 
-extern struct xfs_btree_cur *xfs_inobt_init_cursor(struct xfs_mount *,
-		struct xfs_trans *, struct xfs_buf *, xfs_agnumber_t,
-		xfs_btnum_t);
+struct xfs_btree_cur *xfs_inobt_init_cursor(struct xfs_perag *pag,
+		struct xfs_trans *tp, struct xfs_buf *agbp);
+struct xfs_btree_cur *xfs_finobt_init_cursor(struct xfs_perag *pag,
+		struct xfs_trans *tp, struct xfs_buf *agbp);
 extern int xfs_inobt_maxrecs(struct xfs_mount *, int, int);
 
 /* ir_holemask to inode allocation bitmap conversion */
-uint64_t xfs_inobt_irec_to_allocmask(struct xfs_inobt_rec_incore *);
+uint64_t xfs_inobt_irec_to_allocmask(const struct xfs_inobt_rec_incore *irec);
 
 #if defined(DEBUG) || defined(XFS_WARN)
 int xfs_inobt_rec_check_count(struct xfs_mount *,
@@ -60,12 +62,17 @@ int xfs_inobt_rec_check_count(struct xfs_mount *,
 #define xfs_inobt_rec_check_count(mp, rec)	0
 #endif	/* DEBUG */
 
-int xfs_finobt_calc_reserves(struct xfs_mount *mp, struct xfs_trans *tp,
-		xfs_agnumber_t agno, xfs_extlen_t *ask, xfs_extlen_t *used);
+int xfs_finobt_calc_reserves(struct xfs_perag *perag, struct xfs_trans *tp,
+		xfs_extlen_t *ask, xfs_extlen_t *used);
 extern xfs_extlen_t xfs_iallocbt_calc_size(struct xfs_mount *mp,
 		unsigned long long len);
-int xfs_inobt_cur(struct xfs_mount *mp, struct xfs_trans *tp,
-		xfs_agnumber_t agno, xfs_btnum_t btnum,
-		struct xfs_btree_cur **curpp, struct xfs_buf **agi_bpp);
+
+void xfs_inobt_commit_staged_btree(struct xfs_btree_cur *cur,
+		struct xfs_trans *tp, struct xfs_buf *agbp);
+
+unsigned int xfs_iallocbt_maxlevels_ondisk(void);
+
+int __init xfs_inobt_init_cur_cache(void);
+void xfs_inobt_destroy_cur_cache(void);
 
 #endif	/* __XFS_IALLOC_BTREE_H__ */

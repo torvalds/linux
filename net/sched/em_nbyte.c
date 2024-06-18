@@ -16,7 +16,7 @@
 
 struct nbyte_data {
 	struct tcf_em_nbyte	hdr;
-	char			pattern[0];
+	char			pattern[];
 };
 
 static int em_nbyte_change(struct net *net, void *data, int data_len,
@@ -31,7 +31,7 @@ static int em_nbyte_change(struct net *net, void *data, int data_len,
 	em->datalen = sizeof(*nbyte) + nbyte->len;
 	em->data = (unsigned long)kmemdup(data, em->datalen, GFP_KERNEL);
 	if (em->data == 0UL)
-		return -ENOBUFS;
+		return -ENOMEM;
 
 	return 0;
 }
@@ -68,6 +68,7 @@ static void __exit exit_em_nbyte(void)
 	tcf_em_unregister(&em_nbyte_ops);
 }
 
+MODULE_DESCRIPTION("ematch classifier for arbitrary skb multi-bytes");
 MODULE_LICENSE("GPL");
 
 module_init(init_em_nbyte);

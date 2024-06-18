@@ -1,0 +1,180 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/i2c/toshiba,tc358746.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Toshiba TC358746 Parallel to MIPI CSI2 Bridge
+
+maintainers:
+  - Marco Felsch <kernel@pengutronix.de>
+
+description: |-
+  The Toshiba TC358746 converts a parallel video stream into a MIPI CSI-2
+  stream. The direction can be either parallel-in -> csi-out or csi-in ->
+  parallel-out The chip is programmable through I2C and SPI but the SPI
+  interface is only supported in parallel-in -> csi-out mode.
+
+  Note that the current device tree bindings only support the
+  parallel-in -> csi-out path.
+
+properties:
+  compatible:
+    const: toshiba,tc358746
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    description:
+      The phandle to the reference clock source. This corresponds to the
+      hardware pin REFCLK.
+    maxItems: 1
+
+  clock-names:
+    const: refclk
+
+  "#clock-cells":
+    description: |
+      The bridge can act as clock provider for the sensor. To enable this
+      support #clock-cells must be specified. Attention if this feature is used
+      then the mclk rate must be at least: (2 * link-frequency) / 8
+                                           `------------------´   ^
+                                           internal PLL rate   smallest possible
+                                                                   mclk-div
+    const: 0
+
+  clock-output-names:
+    description:
+      The clock name of the MCLK output, the default name is tc358746-mclk.
+    maxItems: 1
+
+  vddc-supply:
+    description: Digital core voltage supply, 1.2 volts
+
+  vddio-supply:
+    description: Digital I/O voltage supply, 1.8 volts
+
+  vddmipi-supply:
+    description: MIPI CSI phy voltage supply, 1.2 volts
+
+  reset-gpios:
+    description:
+      The phandle and specifier for the GPIO that controls the chip reset.
+      This corresponds to the hardware pin RESX which is physically active low.
+    maxItems: 1
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+    properties:
+      port@0:
+        $ref: /schemas/graph.yaml#/$defs/port-base
+        unevaluatedProperties: false
+        description: Input port
+
+        properties:
+          endpoint:
+            $ref: /schemas/media/video-interfaces.yaml#
+            unevaluatedProperties: false
+
+            properties:
+              hsync-active: true
+              vsync-active: true
+              bus-type:
+                enum: [ 5, 6 ]
+
+            required:
+              - hsync-active
+              - vsync-active
+              - bus-type
+
+      port@1:
+        $ref: /schemas/graph.yaml#/$defs/port-base
+        unevaluatedProperties: false
+        description: Output port
+
+        properties:
+          endpoint:
+            $ref: /schemas/media/video-interfaces.yaml#
+            unevaluatedProperties: false
+
+            properties:
+              data-lanes:
+                minItems: 1
+                maxItems: 4
+
+              clock-noncontinuous: true
+              link-frequencies: true
+
+            required:
+              - data-lanes
+              - link-frequencies
+
+    required:
+      - port@0
+      - port@1
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - vddc-supply
+  - vddio-supply
+  - vddmipi-supply
+  - ports
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      csi-bridge@e {
+        compatible = "toshiba,tc358746";
+        reg = <0xe>;
+
+        clocks = <&refclk>;
+        clock-names = "refclk";
+
+        reset-gpios = <&gpio 2 GPIO_ACTIVE_LOW>;
+
+        vddc-supply = <&v1_2d>;
+        vddio-supply = <&v1_8d>;
+        vddmipi-supply = <&v1_2d>;
+
+        /* sensor mclk provider */
+        #clock-cells = <0>;
+
+        ports {
+          #address-cells = <1>;
+          #size-cells = <0>;
+
+          /* Input */
+          port@0 {
+            reg = <0>;
+            tc358746_in: endpoint {
+              remote-endpoint = <&sensor_out>;
+              hsync-active = <0>;
+              vsync-active = <0>;
+              bus-type = <5>;
+            };
+          };
+
+          /* Output */
+          port@1 {
+            reg = <1>;
+            tc358746_out: endpoint {
+              remote-endpoint = <&mipi_csi2_in>;
+              data-lanes = <1 2>;
+              clock-noncontinuous;
+              link-frequencies = /bits/ 64 <216000000>;
+            };
+          };
+        };
+      };
+    };

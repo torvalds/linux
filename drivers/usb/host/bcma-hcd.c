@@ -168,7 +168,7 @@ static void bcma_hcd_init_chip_mips(struct bcma_device *dev)
 	}
 }
 
-/**
+/*
  * bcma_hcd_usb20_old_arm_init - Initialize old USB 2.0 controller on ARM
  *
  * Old USB 2.0 core is identified as BCMA_CORE_USB20_HOST and was introduced
@@ -261,7 +261,7 @@ static void bcma_hcd_usb20_ns_init_hc(struct bcma_device *dev)
 	usleep_range(1000, 2000);
 }
 
-/**
+/*
  * bcma_hcd_usb20_ns_init - Initialize Northstar USB 2.0 controller
  */
 static int bcma_hcd_usb20_ns_init(struct bcma_hcd_device *bcma_hcd)
@@ -285,7 +285,7 @@ static void bcma_hci_platform_power_gpio(struct bcma_device *dev, bool val)
 {
 	struct bcma_hcd_device *usb_dev = bcma_get_drvdata(dev);
 
-	if (IS_ERR_OR_NULL(usb_dev->gpio_desc))
+	if (!usb_dev->gpio_desc)
 		return;
 
 	gpiod_set_value(usb_dev->gpio_desc, val);
@@ -406,9 +406,11 @@ static int bcma_hcd_probe(struct bcma_device *core)
 		return -ENOMEM;
 	usb_dev->core = core;
 
-	if (core->dev.of_node)
-		usb_dev->gpio_desc = devm_gpiod_get(&core->dev, "vcc",
-						    GPIOD_OUT_HIGH);
+	usb_dev->gpio_desc = devm_gpiod_get_optional(&core->dev, "vcc",
+						     GPIOD_OUT_HIGH);
+	if (IS_ERR(usb_dev->gpio_desc))
+		return dev_err_probe(&core->dev, PTR_ERR(usb_dev->gpio_desc),
+				     "error obtaining VCC GPIO");
 
 	switch (core->id.id) {
 	case BCMA_CORE_USB20_HOST:
@@ -495,15 +497,4 @@ static struct bcma_driver bcma_hcd_driver = {
 	.suspend	= bcma_hcd_suspend,
 	.resume		= bcma_hcd_resume,
 };
-
-static int __init bcma_hcd_init(void)
-{
-	return bcma_driver_register(&bcma_hcd_driver);
-}
-module_init(bcma_hcd_init);
-
-static void __exit bcma_hcd_exit(void)
-{
-	bcma_driver_unregister(&bcma_hcd_driver);
-}
-module_exit(bcma_hcd_exit);
+module_bcma_driver(bcma_hcd_driver);

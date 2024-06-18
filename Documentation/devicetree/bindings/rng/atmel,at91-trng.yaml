@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/rng/atmel,at91-trng.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Atmel AT91 True Random Number Generator
+
+maintainers:
+  - Nicolas Ferre <nicolas.ferre@microchip.com>
+  - Alexandre Belloni <alexandre.belloni@bootlin.com>
+  - Claudiu Beznea <claudiu.beznea@microchip.com>
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - atmel,at91sam9g45-trng
+          - microchip,sam9x60-trng
+      - items:
+          - enum:
+              - microchip,sama7g5-trng
+          - const: atmel,at91sam9g45-trng
+      - items:
+          - enum:
+              - microchip,sam9x7-trng
+          - const: microchip,sam9x60-trng
+
+  clocks:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - clocks
+  - interrupts
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    rng@fffcc000 {
+        compatible = "atmel,at91sam9g45-trng";
+        reg = <0xfffcc000 0x4000>;
+        interrupts = <6 IRQ_TYPE_LEVEL_HIGH 0>;
+        clocks = <&trng_clk>;
+    };

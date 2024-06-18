@@ -13,7 +13,6 @@
 #include <linux/err.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
-#include <linux/gpio.h>
 #include <linux/regmap.h>
 #include <linux/uaccess.h>
 #include <linux/regulator/driver.h>
@@ -49,53 +48,15 @@ struct lp8755_chip {
 	struct regulator_dev *rdev[LP8755_BUCK_MAX];
 };
 
-/**
- *lp8755_read : read a single register value from lp8755.
- *@pchip : device to read from
- *@reg   : register to read from
- *@val   : pointer to store read value
- */
-static int lp8755_read(struct lp8755_chip *pchip, unsigned int reg,
-		       unsigned int *val)
-{
-	return regmap_read(pchip->regmap, reg, val);
-}
-
-/**
- *lp8755_write : write a single register value to lp8755.
- *@pchip : device to write to
- *@reg   : register to write to
- *@val   : value to be written
- */
-static int lp8755_write(struct lp8755_chip *pchip, unsigned int reg,
-			unsigned int val)
-{
-	return regmap_write(pchip->regmap, reg, val);
-}
-
-/**
- *lp8755_update_bits : set the values of bit fields in lp8755 register.
- *@pchip : device to read from
- *@reg   : register to update
- *@mask  : bitmask to be changed
- *@val   : value for bitmask
- */
-static int lp8755_update_bits(struct lp8755_chip *pchip, unsigned int reg,
-			      unsigned int mask, unsigned int val)
-{
-	return regmap_update_bits(pchip->regmap, reg, mask, val);
-}
-
 static int lp8755_buck_enable_time(struct regulator_dev *rdev)
 {
 	int ret;
 	unsigned int regval;
 	enum lp8755_bucks id = rdev_get_id(rdev);
-	struct lp8755_chip *pchip = rdev_get_drvdata(rdev);
 
-	ret = lp8755_read(pchip, 0x12 + id, &regval);
+	ret = regmap_read(rdev->regmap, 0x12 + id, &regval);
 	if (ret < 0) {
-		dev_err(pchip->dev, "i2c access error %s\n", __func__);
+		dev_err(&rdev->dev, "i2c access error %s\n", __func__);
 		return ret;
 	}
 	return (regval & 0xff) * 100;
@@ -115,17 +76,17 @@ static int lp8755_buck_set_mode(struct regulator_dev *rdev, unsigned int mode)
 		break;
 	case REGULATOR_MODE_NORMAL:
 		/* enable automatic pwm/pfm mode */
-		ret = lp8755_update_bits(pchip, 0x08 + id, 0x20, 0x00);
+		ret = regmap_update_bits(rdev->regmap, 0x08 + id, 0x20, 0x00);
 		if (ret < 0)
 			goto err_i2c;
 		break;
 	case REGULATOR_MODE_IDLE:
 		/* enable automatic pwm/pfm/lppfm mode */
-		ret = lp8755_update_bits(pchip, 0x08 + id, 0x20, 0x20);
+		ret = regmap_update_bits(rdev->regmap, 0x08 + id, 0x20, 0x20);
 		if (ret < 0)
 			goto err_i2c;
 
-		ret = lp8755_update_bits(pchip, 0x10, 0x01, 0x01);
+		ret = regmap_update_bits(rdev->regmap, 0x10, 0x01, 0x01);
 		if (ret < 0)
 			goto err_i2c;
 		break;
@@ -135,12 +96,12 @@ static int lp8755_buck_set_mode(struct regulator_dev *rdev, unsigned int mode)
 		regbval = (0x01 << id);
 	}
 
-	ret = lp8755_update_bits(pchip, 0x06, 0x01 << id, regbval);
+	ret = regmap_update_bits(rdev->regmap, 0x06, 0x01 << id, regbval);
 	if (ret < 0)
 		goto err_i2c;
 	return ret;
 err_i2c:
-	dev_err(pchip->dev, "i2c access error %s\n", __func__);
+	dev_err(&rdev->dev, "i2c access error %s\n", __func__);
 	return ret;
 }
 
@@ -149,9 +110,8 @@ static unsigned int lp8755_buck_get_mode(struct regulator_dev *rdev)
 	int ret;
 	unsigned int regval;
 	enum lp8755_bucks id = rdev_get_id(rdev);
-	struct lp8755_chip *pchip = rdev_get_drvdata(rdev);
 
-	ret = lp8755_read(pchip, 0x06, &regval);
+	ret = regmap_read(rdev->regmap, 0x06, &regval);
 	if (ret < 0)
 		goto err_i2c;
 
@@ -159,7 +119,7 @@ static unsigned int lp8755_buck_get_mode(struct regulator_dev *rdev)
 	if (regval & (0x01 << id))
 		return REGULATOR_MODE_FAST;
 
-	ret = lp8755_read(pchip, 0x08 + id, &regval);
+	ret = regmap_read(rdev->regmap, 0x08 + id, &regval);
 	if (ret < 0)
 		goto err_i2c;
 
@@ -171,57 +131,13 @@ static unsigned int lp8755_buck_get_mode(struct regulator_dev *rdev)
 	return REGULATOR_MODE_NORMAL;
 
 err_i2c:
-	dev_err(pchip->dev, "i2c access error %s\n", __func__);
+	dev_err(&rdev->dev, "i2c access error %s\n", __func__);
 	return 0;
 }
 
-static int lp8755_buck_set_ramp(struct regulator_dev *rdev, int ramp)
-{
-	int ret;
-	unsigned int regval = 0x00;
-	enum lp8755_bucks id = rdev_get_id(rdev);
-	struct lp8755_chip *pchip = rdev_get_drvdata(rdev);
-
-	/* uV/us */
-	switch (ramp) {
-	case 0 ... 230:
-		regval = 0x07;
-		break;
-	case 231 ... 470:
-		regval = 0x06;
-		break;
-	case 471 ... 940:
-		regval = 0x05;
-		break;
-	case 941 ... 1900:
-		regval = 0x04;
-		break;
-	case 1901 ... 3800:
-		regval = 0x03;
-		break;
-	case 3801 ... 7500:
-		regval = 0x02;
-		break;
-	case 7501 ... 15000:
-		regval = 0x01;
-		break;
-	case 15001 ... 30000:
-		regval = 0x00;
-		break;
-	default:
-		dev_err(pchip->dev,
-			"Not supported ramp value %d %s\n", ramp, __func__);
-		return -EINVAL;
-	}
-
-	ret = lp8755_update_bits(pchip, 0x07 + id, 0x07, regval);
-	if (ret < 0)
-		goto err_i2c;
-	return ret;
-err_i2c:
-	dev_err(pchip->dev, "i2c access error %s\n", __func__);
-	return ret;
-}
+static const unsigned int lp8755_buck_ramp_table[] = {
+	30000, 15000, 7500, 3800, 1900, 940, 470, 230
+};
 
 static const struct regulator_ops lp8755_buck_ops = {
 	.map_voltage = regulator_map_voltage_linear,
@@ -234,7 +150,7 @@ static const struct regulator_ops lp8755_buck_ops = {
 	.enable_time = lp8755_buck_enable_time,
 	.set_mode = lp8755_buck_set_mode,
 	.get_mode = lp8755_buck_get_mode,
-	.set_ramp_delay = lp8755_buck_set_ramp,
+	.set_ramp_delay = regulator_set_ramp_delay_regmap,
 };
 
 #define lp8755_rail(_id) "lp8755_buck"#_id
@@ -278,7 +194,7 @@ static int lp8755_init_data(struct lp8755_chip *pchip)
 	struct lp8755_platform_data *pdata = pchip->pdata;
 
 	/* read back  muti-phase configuration */
-	ret = lp8755_read(pchip, 0x3D, &regval);
+	ret = regmap_read(pchip->regmap, 0x3D, &regval);
 	if (ret < 0)
 		goto out_i2c_error;
 	pchip->mphase = regval & 0x0F;
@@ -309,6 +225,10 @@ out_i2c_error:
 	.enable_mask = LP8755_BUCK_EN_M,\
 	.vsel_reg = LP8755_REG_BUCK##_id,\
 	.vsel_mask = LP8755_BUCK_VOUT_M,\
+	.ramp_reg = (LP8755_BUCK##_id) + 0x7,\
+	.ramp_mask = 0x7,\
+	.ramp_delay_table = lp8755_buck_ramp_table,\
+	.n_ramp_values = ARRAY_SIZE(lp8755_buck_ramp_table),\
 }
 
 static const struct regulator_desc lp8755_regulators[] = {
@@ -356,11 +276,11 @@ static irqreturn_t lp8755_irq_handler(int irq, void *data)
 	struct lp8755_chip *pchip = data;
 
 	/* read flag0 register */
-	ret = lp8755_read(pchip, 0x0D, &flag0);
+	ret = regmap_read(pchip->regmap, 0x0D, &flag0);
 	if (ret < 0)
 		goto err_i2c;
 	/* clear flag register to pull up int. pin */
-	ret = lp8755_write(pchip, 0x0D, 0x00);
+	ret = regmap_write(pchip->regmap, 0x0D, 0x00);
 	if (ret < 0)
 		goto err_i2c;
 
@@ -369,19 +289,17 @@ static irqreturn_t lp8755_irq_handler(int irq, void *data)
 		if ((flag0 & (0x4 << icnt))
 		    && (pchip->irqmask & (0x04 << icnt))
 		    && (pchip->rdev[icnt] != NULL)) {
-			regulator_lock(pchip->rdev[icnt]);
 			regulator_notifier_call_chain(pchip->rdev[icnt],
 						      LP8755_EVENT_PWR_FAULT,
 						      NULL);
-			regulator_unlock(pchip->rdev[icnt]);
 		}
 
 	/* read flag1 register */
-	ret = lp8755_read(pchip, 0x0E, &flag1);
+	ret = regmap_read(pchip->regmap, 0x0E, &flag1);
 	if (ret < 0)
 		goto err_i2c;
 	/* clear flag register to pull up int. pin */
-	ret = lp8755_write(pchip, 0x0E, 0x00);
+	ret = regmap_write(pchip->regmap, 0x0E, 0x00);
 	if (ret < 0)
 		goto err_i2c;
 
@@ -389,22 +307,18 @@ static irqreturn_t lp8755_irq_handler(int irq, void *data)
 	if ((flag1 & 0x01) && (pchip->irqmask & 0x01))
 		for (icnt = 0; icnt < LP8755_BUCK_MAX; icnt++)
 			if (pchip->rdev[icnt] != NULL) {
-				regulator_lock(pchip->rdev[icnt]);
 				regulator_notifier_call_chain(pchip->rdev[icnt],
 							      LP8755_EVENT_OCP,
 							      NULL);
-				regulator_unlock(pchip->rdev[icnt]);
 			}
 
 	/* send OVP event to all regulator devices */
 	if ((flag1 & 0x02) && (pchip->irqmask & 0x02))
 		for (icnt = 0; icnt < LP8755_BUCK_MAX; icnt++)
 			if (pchip->rdev[icnt] != NULL) {
-				regulator_lock(pchip->rdev[icnt]);
 				regulator_notifier_call_chain(pchip->rdev[icnt],
 							      LP8755_EVENT_OVP,
 							      NULL);
-				regulator_unlock(pchip->rdev[icnt]);
 			}
 	return IRQ_HANDLED;
 
@@ -423,7 +337,7 @@ static int lp8755_int_config(struct lp8755_chip *pchip)
 		return 0;
 	}
 
-	ret = lp8755_read(pchip, 0x0F, &regval);
+	ret = regmap_read(pchip->regmap, 0x0F, &regval);
 	if (ret < 0) {
 		dev_err(pchip->dev, "i2c access error %s\n", __func__);
 		return ret;
@@ -442,8 +356,7 @@ static const struct regmap_config lp8755_regmap = {
 	.max_register = LP8755_REG_MAX,
 };
 
-static int lp8755_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int lp8755_probe(struct i2c_client *client)
 {
 	int ret, icnt;
 	struct lp8755_chip *pchip;
@@ -502,20 +415,18 @@ static int lp8755_probe(struct i2c_client *client,
 err:
 	/* output disable */
 	for (icnt = 0; icnt < LP8755_BUCK_MAX; icnt++)
-		lp8755_write(pchip, icnt, 0x00);
+		regmap_write(pchip->regmap, icnt, 0x00);
 
 	return ret;
 }
 
-static int lp8755_remove(struct i2c_client *client)
+static void lp8755_remove(struct i2c_client *client)
 {
 	int icnt;
 	struct lp8755_chip *pchip = i2c_get_clientdata(client);
 
 	for (icnt = 0; icnt < LP8755_BUCK_MAX; icnt++)
-		lp8755_write(pchip, icnt, 0x00);
-
-	return 0;
+		regmap_write(pchip->regmap, icnt, 0x00);
 }
 
 static const struct i2c_device_id lp8755_id[] = {
@@ -528,6 +439,7 @@ MODULE_DEVICE_TABLE(i2c, lp8755_id);
 static struct i2c_driver lp8755_i2c_driver = {
 	.driver = {
 		   .name = LP8755_NAME,
+		   .probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		   },
 	.probe = lp8755_probe,
 	.remove = lp8755_remove,

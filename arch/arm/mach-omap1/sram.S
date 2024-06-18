@@ -6,11 +6,11 @@
  */
 
 #include <linux/linkage.h>
+#include <linux/soc/ti/omap1-io.h>
 
 #include <asm/assembler.h>
 
-#include <mach/hardware.h>
-
+#include "hardware.h"
 #include "iomap.h"
 
 	.text

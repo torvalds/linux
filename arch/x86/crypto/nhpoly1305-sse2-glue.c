@@ -10,17 +10,11 @@
 #include <crypto/internal/simd.h>
 #include <crypto/nhpoly1305.h>
 #include <linux/module.h>
+#include <linux/sizes.h>
 #include <asm/simd.h>
 
 asmlinkage void nh_sse2(const u32 *key, const u8 *message, size_t message_len,
-			u8 hash[NH_HASH_BYTES]);
-
-/* wrapper to avoid indirect call to assembly, which doesn't work with CFI */
-static void _nh_sse2(const u32 *key, const u8 *message, size_t message_len,
-		     __le64 hash[NH_NUM_PASSES])
-{
-	nh_sse2(key, message, message_len, (u8 *)hash);
-}
+			__le64 hash[NH_NUM_PASSES]);
 
 static int nhpoly1305_sse2_update(struct shash_desc *desc,
 				  const u8 *src, unsigned int srclen)
@@ -29,15 +23,23 @@ static int nhpoly1305_sse2_update(struct shash_desc *desc,
 		return crypto_nhpoly1305_update(desc, src, srclen);
 
 	do {
-		unsigned int n = min_t(unsigned int, srclen, PAGE_SIZE);
+		unsigned int n = min_t(unsigned int, srclen, SZ_4K);
 
 		kernel_fpu_begin();
-		crypto_nhpoly1305_update_helper(desc, src, n, _nh_sse2);
+		crypto_nhpoly1305_update_helper(desc, src, n, nh_sse2);
 		kernel_fpu_end();
 		src += n;
 		srclen -= n;
 	} while (srclen);
 	return 0;
+}
+
+static int nhpoly1305_sse2_digest(struct shash_desc *desc,
+				  const u8 *src, unsigned int srclen, u8 *out)
+{
+	return crypto_nhpoly1305_init(desc) ?:
+	       nhpoly1305_sse2_update(desc, src, srclen) ?:
+	       crypto_nhpoly1305_final(desc, out);
 }
 
 static struct shash_alg nhpoly1305_alg = {
@@ -50,6 +52,7 @@ static struct shash_alg nhpoly1305_alg = {
 	.init			= crypto_nhpoly1305_init,
 	.update			= nhpoly1305_sse2_update,
 	.final			= crypto_nhpoly1305_final,
+	.digest			= nhpoly1305_sse2_digest,
 	.setkey			= crypto_nhpoly1305_setkey,
 	.descsize		= sizeof(struct nhpoly1305_state),
 };

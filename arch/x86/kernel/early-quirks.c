@@ -18,6 +18,7 @@
 #include <linux/bcma/bcma_regs.h>
 #include <linux/platform_data/x86/apple.h>
 #include <drm/i915_drm.h>
+#include <drm/i915_pciids.h>
 #include <asm/pci-direct.h>
 #include <asm/dma.h>
 #include <asm/io_apic.h>
@@ -515,6 +516,7 @@ static const struct intel_early_ops gen11_early_ops __initconst = {
 	.stolen_size = gen9_stolen_size,
 };
 
+/* Intel integrated GPUs for which we need to reserve "stolen memory" */
 static const struct pci_device_id intel_early_ids[] __initconst = {
 	INTEL_I830_IDS(&i830_early_ops),
 	INTEL_I845G_IDS(&i845_early_ops),
@@ -549,7 +551,14 @@ static const struct pci_device_id intel_early_ids[] __initconst = {
 	INTEL_CNL_IDS(&gen9_early_ops),
 	INTEL_ICL_11_IDS(&gen11_early_ops),
 	INTEL_EHL_IDS(&gen11_early_ops),
+	INTEL_JSL_IDS(&gen11_early_ops),
 	INTEL_TGL_12_IDS(&gen11_early_ops),
+	INTEL_RKL_IDS(&gen11_early_ops),
+	INTEL_ADLS_IDS(&gen11_early_ops),
+	INTEL_ADLP_IDS(&gen11_early_ops),
+	INTEL_ADLN_IDS(&gen11_early_ops),
+	INTEL_RPLS_IDS(&gen11_early_ops),
+	INTEL_RPLP_IDS(&gen11_early_ops),
 };
 
 struct resource intel_graphics_stolen_res __ro_after_init = DEFINE_RES_MEM(0, 0);
@@ -586,6 +595,13 @@ static void __init intel_graphics_quirks(int num, int slot, int func)
 	const struct intel_early_ops *early_ops;
 	u16 device;
 	int i;
+
+	/*
+	 * Reserve "stolen memory" for an integrated GPU.  If we've already
+	 * found one, there's nothing to do for other (discrete) GPUs.
+	 */
+	if (resource_size(&intel_graphics_stolen_res))
+		return;
 
 	device = read_pci_config_16(num, slot, func, PCI_DEVICE_ID);
 
@@ -699,7 +715,7 @@ static struct chipset early_qrk[] __initdata = {
 	{ PCI_VENDOR_ID_INTEL, 0x3406, PCI_CLASS_BRIDGE_HOST,
 	  PCI_BASE_CLASS_BRIDGE, 0, intel_remapping_check },
 	{ PCI_VENDOR_ID_INTEL, PCI_ANY_ID, PCI_CLASS_DISPLAY_VGA, PCI_ANY_ID,
-	  QFLAG_APPLY_ONCE, intel_graphics_quirks },
+	  0, intel_graphics_quirks },
 	/*
 	 * HPET on the current version of the Baytrail platform has accuracy
 	 * problems: it will halt in deep idle state - so we disable it.
@@ -763,13 +779,13 @@ static int __init check_dev_quirk(int num, int slot, int func)
 	type = read_pci_config_byte(num, slot, func,
 				    PCI_HEADER_TYPE);
 
-	if ((type & 0x7f) == PCI_HEADER_TYPE_BRIDGE) {
+	if ((type & PCI_HEADER_TYPE_MASK) == PCI_HEADER_TYPE_BRIDGE) {
 		sec = read_pci_config_byte(num, slot, func, PCI_SECONDARY_BUS);
 		if (sec > num)
 			early_pci_scan_bus(sec);
 	}
 
-	if (!(type & 0x80))
+	if (!(type & PCI_HEADER_TYPE_MFD))
 		return -1;
 
 	return 0;

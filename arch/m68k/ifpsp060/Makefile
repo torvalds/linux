@@ -1,9 +1,5 @@
-# Makefile for 680x0 Linux 68060 integer/floating point support package
+# SPDX-License-Identifier: GPL-2.0-or-later
 #
-# This file is subject to the terms and conditions of the GNU General Public
-# License.  See the file "README.legal" in the main directory of this archive
-# for more details.
+# Makefile for 680x0 Linux 68060 integer/floating point support package
 
 obj-y := fskeleton.o iskeleton.o os.o
-
-EXTRA_LDFLAGS := -x

@@ -204,7 +204,6 @@ static void r82600_check(struct mem_ctl_info *mci)
 {
 	struct r82600_error_info info;
 
-	edac_dbg(1, "MC%d\n", mci->mc_idx);
 	r82600_get_error_info(mci, &info);
 	r82600_process_error_info(mci, &info, 1);
 }
@@ -416,8 +415,7 @@ module_init(r82600_init);
 module_exit(r82600_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Tim Small <tim@buttersideup.com> - WPAD Ltd. "
-		"on behalf of EADS Astrium");
+MODULE_AUTHOR("Tim Small <tim@buttersideup.com> - WPAD Ltd. on behalf of EADS Astrium");
 MODULE_DESCRIPTION("MC support for Radisys 82600 memory controllers");
 
 module_param(disable_hardware_scrub, bool, 0644);

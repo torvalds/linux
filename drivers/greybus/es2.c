@@ -72,20 +72,20 @@ struct es2_cport_in {
 };
 
 /**
- * es2_ap_dev - ES2 USB Bridge to AP structure
+ * struct es2_ap_dev - ES2 USB Bridge to AP structure
  * @usb_dev: pointer to the USB device we are.
  * @usb_intf: pointer to the USB interface we are bound to.
  * @hd: pointer to our gb_host_device structure
-
+ *
  * @cport_in: endpoint, urbs and buffer for cport in messages
- * @cport_out_endpoint: endpoint for for cport out messages
+ * @cport_out_endpoint: endpoint for cport out messages
  * @cport_out_urb: array of urbs for the CPort out messages
  * @cport_out_urb_busy: array of flags to see if the @cport_out_urb is busy or
  *			not.
  * @cport_out_urb_cancelled: array of flags indicating whether the
  *			corresponding @cport_out_urb is being cancelled
  * @cport_out_urb_lock: locks the @cport_out_urb_busy "list"
- *
+ * @cdsi1_in_use: true if cport CDSI1 is in use
  * @apb_log_task: task pointer for logging thread
  * @apb_log_dentry: file system entry for the log file interface
  * @apb_log_enable_dentry: file system entry for enabling logging
@@ -513,16 +513,16 @@ static int es2_cport_allocate(struct gb_host_device *hd, int cport_id,
 
 	if (cport_id < 0) {
 		ida_start = 0;
-		ida_end = hd->num_cports;
+		ida_end = hd->num_cports - 1;
 	} else if (cport_id < hd->num_cports) {
 		ida_start = cport_id;
-		ida_end = cport_id + 1;
+		ida_end = cport_id;
 	} else {
 		dev_err(&hd->dev, "cport %d not available\n", cport_id);
 		return -EINVAL;
 	}
 
-	return ida_simple_get(id_map, ida_start, ida_end, GFP_KERNEL);
+	return ida_alloc_range(id_map, ida_start, ida_end, GFP_KERNEL);
 }
 
 static void es2_cport_release(struct gb_host_device *hd, u16 cport_id)
@@ -535,7 +535,7 @@ static void es2_cport_release(struct gb_host_device *hd, u16 cport_id)
 		return;
 	}
 
-	ida_simple_remove(&hd->cport_id_map, cport_id);
+	ida_free(&hd->cport_id_map, cport_id);
 }
 
 static int cport_enable(struct gb_host_device *hd, u16 cport_id,
@@ -567,12 +567,9 @@ static int cport_enable(struct gb_host_device *hd, u16 cport_id,
 			      USB_DIR_OUT | USB_TYPE_VENDOR |
 			      USB_RECIP_INTERFACE, cport_id, 0,
 			      req, sizeof(*req), ES2_USB_CTRL_TIMEOUT);
-	if (ret != sizeof(*req)) {
+	if (ret < 0) {
 		dev_err(&udev->dev, "failed to set cport flags for port %d\n",
 			cport_id);
-		if (ret >= 0)
-			ret = -EIO;
-
 		goto out;
 	}
 
@@ -759,7 +756,7 @@ static int check_urb_status(struct urb *urb)
 	case -EOVERFLOW:
 		dev_err(dev, "%s: overflow actual length is %d\n",
 			__func__, urb->actual_length);
-		/* fall through */
+		fallthrough;
 	case -ECONNRESET:
 	case -ENOENT:
 	case -ESHUTDOWN:
@@ -961,12 +958,10 @@ static int arpc_send(struct es2_ap_dev *es2, struct arpc *rpc, int timeout)
 				 0, 0,
 				 rpc->req, le16_to_cpu(rpc->req->size),
 				 ES2_USB_CTRL_TIMEOUT);
-	if (retval != le16_to_cpu(rpc->req->size)) {
+	if (retval < 0) {
 		dev_err(&udev->dev,
 			"failed to send ARPC request %d: %d\n",
 			rpc->req->type, retval);
-		if (retval > 0)
-			retval = -EIO;
 		return retval;
 	}
 
@@ -1176,7 +1171,7 @@ static ssize_t apb_log_enable_read(struct file *f, char __user *buf,
 	char tmp_buf[3];
 
 	sprintf(tmp_buf, "%d\n", enable);
-	return simple_read_from_buffer(buf, count, ppos, tmp_buf, 3);
+	return simple_read_from_buffer(buf, count, ppos, tmp_buf, 2);
 }
 
 static ssize_t apb_log_enable_write(struct file *f, const char __user *buf,

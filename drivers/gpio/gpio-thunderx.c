@@ -16,7 +16,6 @@
 #include <linux/pci.h>
 #include <linux/spinlock.h>
 
-
 #define GPIO_RX_DAT	0x0
 #define GPIO_TX_SET	0x8
 #define GPIO_TX_CLR	0x10
@@ -169,7 +168,10 @@ static int thunderx_gpio_get_direction(struct gpio_chip *chip, unsigned int line
 
 	bit_cfg = readq(txgpio->register_base + bit_cfg_reg(line));
 
-	return !(bit_cfg & GPIO_BIT_CFG_TX_OE);
+	if (bit_cfg & GPIO_BIT_CFG_TX_OE)
+		return GPIO_LINE_DIRECTION_OUT;
+
+	return GPIO_LINE_DIRECTION_IN;
 }
 
 static int thunderx_gpio_set_config(struct gpio_chip *chip,
@@ -352,16 +354,22 @@ static int thunderx_gpio_irq_set_type(struct irq_data *d,
 	return IRQ_SET_MASK_OK;
 }
 
-static void thunderx_gpio_irq_enable(struct irq_data *data)
+static void thunderx_gpio_irq_enable(struct irq_data *d)
 {
-	irq_chip_enable_parent(data);
-	thunderx_gpio_irq_unmask(data);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+
+	gpiochip_enable_irq(gc, irqd_to_hwirq(d));
+	irq_chip_enable_parent(d);
+	thunderx_gpio_irq_unmask(d);
 }
 
-static void thunderx_gpio_irq_disable(struct irq_data *data)
+static void thunderx_gpio_irq_disable(struct irq_data *d)
 {
-	thunderx_gpio_irq_mask(data);
-	irq_chip_disable_parent(data);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+
+	thunderx_gpio_irq_mask(d);
+	irq_chip_disable_parent(d);
+	gpiochip_disable_irq(gc, irqd_to_hwirq(d));
 }
 
 /*
@@ -370,7 +378,7 @@ static void thunderx_gpio_irq_disable(struct irq_data *data)
  * semantics and other acknowledgment tasks associated with the GPIO
  * mechanism.
  */
-static struct irq_chip thunderx_gpio_irq_chip = {
+static const struct irq_chip thunderx_gpio_irq_chip = {
 	.name			= "GPIO",
 	.irq_enable		= thunderx_gpio_irq_enable,
 	.irq_disable		= thunderx_gpio_irq_disable,
@@ -381,8 +389,8 @@ static struct irq_chip thunderx_gpio_irq_chip = {
 	.irq_eoi		= irq_chip_eoi_parent,
 	.irq_set_affinity	= irq_chip_set_affinity_parent,
 	.irq_set_type		= thunderx_gpio_irq_set_type,
-
-	.flags			= IRQCHIP_SET_TYPE_MASKED
+	.flags			= IRQCHIP_SET_TYPE_MASKED | IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
 };
 
 static int thunderx_gpio_child_to_parent_hwirq(struct gpio_chip *gc,
@@ -392,9 +400,26 @@ static int thunderx_gpio_child_to_parent_hwirq(struct gpio_chip *gc,
 					       unsigned int *parent_type)
 {
 	struct thunderx_gpio *txgpio = gpiochip_get_data(gc);
+	struct irq_data *irqd;
+	unsigned int irq;
 
-	*parent = txgpio->base_msi + (2 * child);
+	irq = txgpio->msix_entries[child].vector;
+	irqd = irq_domain_get_irq_data(gc->irq.parent_domain, irq);
+	if (!irqd)
+		return -EINVAL;
+	*parent = irqd_to_hwirq(irqd);
 	*parent_type = IRQ_TYPE_LEVEL_HIGH;
+	return 0;
+}
+
+static int thunderx_gpio_populate_parent_alloc_info(struct gpio_chip *chip,
+						    union gpio_irq_fwspec *gfwspec,
+						    unsigned int parent_hwirq,
+						    unsigned int parent_type)
+{
+	msi_alloc_info_t *info = &gfwspec->msiinfo;
+
+	info->hwirq = parent_hwirq;
 	return 0;
 }
 
@@ -507,11 +532,12 @@ static int thunderx_gpio_probe(struct pci_dev *pdev,
 	chip->set_multiple = thunderx_gpio_set_multiple;
 	chip->set_config = thunderx_gpio_set_config;
 	girq = &chip->irq;
-	girq->chip = &thunderx_gpio_irq_chip;
+	gpio_irq_chip_set_chip(girq, &thunderx_gpio_irq_chip);
 	girq->fwnode = of_node_to_fwnode(dev->of_node);
 	girq->parent_domain =
 		irq_get_irq_data(txgpio->msix_entries[0].vector)->domain;
 	girq->child_to_parent_hwirq = thunderx_gpio_child_to_parent_hwirq;
+	girq->populate_parent_alloc_arg = thunderx_gpio_populate_parent_alloc_info;
 	girq->handler = handle_bad_irq;
 	girq->default_type = IRQ_TYPE_NONE;
 
@@ -521,9 +547,15 @@ static int thunderx_gpio_probe(struct pci_dev *pdev,
 
 	/* Push on irq_data and the domain for each line. */
 	for (i = 0; i < ngpio; i++) {
-		err = irq_domain_push_irq(chip->irq.domain,
+		struct irq_fwspec fwspec;
+
+		fwspec.fwnode = of_node_to_fwnode(dev->of_node);
+		fwspec.param_count = 2;
+		fwspec.param[0] = i;
+		fwspec.param[1] = IRQ_TYPE_NONE;
+		err = irq_domain_push_irq(girq->domain,
 					  txgpio->msix_entries[i].vector,
-					  chip);
+					  &fwspec);
 		if (err < 0)
 			dev_err(dev, "irq_domain_push_irq: %d\n", err);
 	}

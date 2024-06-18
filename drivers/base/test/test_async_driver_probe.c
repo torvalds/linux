@@ -44,7 +44,8 @@ static int test_probe(struct platform_device *pdev)
 	 * performing an async init on that node.
 	 */
 	if (dev->driver->probe_type == PROBE_PREFER_ASYNCHRONOUS) {
-		if (dev_to_node(dev) != numa_node_id()) {
+		if (IS_ENABLED(CONFIG_NUMA) &&
+		    dev_to_node(dev) != numa_node_id()) {
 			dev_warn(dev, "NUMA node mismatch %d != %d\n",
 				 dev_to_node(dev), numa_node_id());
 			atomic_inc(&warnings);
@@ -83,7 +84,7 @@ test_platform_device_register_node(char *name, int id, int nid)
 
 	pdev = platform_device_alloc(name, id);
 	if (!pdev)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	if (nid != NUMA_NO_NODE)
 		set_dev_node(&pdev->dev, nid);
@@ -103,7 +104,7 @@ static int __init test_async_probe_init(void)
 	struct platform_device **pdev = NULL;
 	int async_id = 0, sync_id = 0;
 	unsigned long long duration;
-	ktime_t calltime, delta;
+	ktime_t calltime;
 	int err, nid, cpu;
 
 	pr_info("registering first set of asynchronous devices...\n");
@@ -132,8 +133,7 @@ static int __init test_async_probe_init(void)
 		goto err_unregister_async_devs;
 	}
 
-	delta = ktime_sub(ktime_get(), calltime);
-	duration = (unsigned long long) ktime_to_ms(delta);
+	duration = (unsigned long long)ktime_ms_delta(ktime_get(), calltime);
 	pr_info("registration took %lld msecs\n", duration);
 	if (duration > TEST_PROBE_THRESHOLD) {
 		pr_err("test failed: probe took too long\n");
@@ -145,7 +145,7 @@ static int __init test_async_probe_init(void)
 	calltime = ktime_get();
 	for_each_online_cpu(cpu) {
 		nid = cpu_to_node(cpu);
-		pdev = &sync_dev[sync_id];
+		pdev = &async_dev[async_id];
 
 		*pdev = test_platform_device_register_node("test_async_driver",
 							   async_id,
@@ -160,8 +160,7 @@ static int __init test_async_probe_init(void)
 		async_id++;
 	}
 
-	delta = ktime_sub(ktime_get(), calltime);
-	duration = (unsigned long long) ktime_to_ms(delta);
+	duration = (unsigned long long)ktime_ms_delta(ktime_get(), calltime);
 	dev_info(&(*pdev)->dev,
 		 "registration took %lld msecs\n", duration);
 	if (duration > TEST_PROBE_THRESHOLD) {
@@ -196,8 +195,7 @@ static int __init test_async_probe_init(void)
 		goto err_unregister_sync_devs;
 	}
 
-	delta = ktime_sub(ktime_get(), calltime);
-	duration = (unsigned long long) ktime_to_ms(delta);
+	duration = (unsigned long long)ktime_ms_delta(ktime_get(), calltime);
 	pr_info("registration took %lld msecs\n", duration);
 	if (duration < TEST_PROBE_THRESHOLD) {
 		dev_err(&(*pdev)->dev,
@@ -222,8 +220,7 @@ static int __init test_async_probe_init(void)
 
 	sync_id++;
 
-	delta = ktime_sub(ktime_get(), calltime);
-	duration = (unsigned long long) ktime_to_ms(delta);
+	duration = (unsigned long long)ktime_ms_delta(ktime_get(), calltime);
 	dev_info(&(*pdev)->dev,
 		 "registration took %lld msecs\n", duration);
 	if (duration < TEST_PROBE_THRESHOLD) {

@@ -2,6 +2,9 @@
 #ifndef _ASM_GENERIC_HUGETLB_H
 #define _ASM_GENERIC_HUGETLB_H
 
+#include <linux/swap.h>
+#include <linux/swapops.h>
+
 static inline pte_t mk_huge_pte(struct page *page, pgprot_t pgprot)
 {
 	return mk_pte(page, pgprot);
@@ -19,8 +22,15 @@ static inline unsigned long huge_pte_dirty(pte_t pte)
 
 static inline pte_t huge_pte_mkwrite(pte_t pte)
 {
-	return pte_mkwrite(pte);
+	return pte_mkwrite_novma(pte);
 }
+
+#ifndef __HAVE_ARCH_HUGE_PTE_WRPROTECT
+static inline pte_t huge_pte_wrprotect(pte_t pte)
+{
+	return pte_wrprotect(pte);
+}
+#endif
 
 static inline pte_t huge_pte_mkdirty(pte_t pte)
 {
@@ -30,6 +40,21 @@ static inline pte_t huge_pte_mkdirty(pte_t pte)
 static inline pte_t huge_pte_modify(pte_t pte, pgprot_t newprot)
 {
 	return pte_modify(pte, newprot);
+}
+
+static inline pte_t huge_pte_mkuffd_wp(pte_t pte)
+{
+	return huge_pte_wrprotect(pte_mkuffd_wp(pte));
+}
+
+static inline pte_t huge_pte_clear_uffd_wp(pte_t pte)
+{
+	return pte_clear_uffd_wp(pte);
+}
+
+static inline int huge_pte_uffd_wp(pte_t pte)
+{
+	return pte_uffd_wp(pte);
 }
 
 #ifndef __HAVE_ARCH_HUGE_PTE_CLEAR
@@ -51,7 +76,7 @@ static inline void hugetlb_free_pgd_range(struct mmu_gather *tlb,
 
 #ifndef __HAVE_ARCH_HUGE_SET_HUGE_PTE_AT
 static inline void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
-		pte_t *ptep, pte_t pte)
+		pte_t *ptep, pte_t pte, unsigned long sz)
 {
 	set_pte_at(mm, addr, ptep, pte);
 }
@@ -66,10 +91,10 @@ static inline pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
 #endif
 
 #ifndef __HAVE_ARCH_HUGE_PTEP_CLEAR_FLUSH
-static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
+static inline pte_t huge_ptep_clear_flush(struct vm_area_struct *vma,
 		unsigned long addr, pte_t *ptep)
 {
-	ptep_clear_flush(vma, addr, ptep);
+	return ptep_clear_flush(vma, addr, ptep);
 }
 #endif
 
@@ -80,12 +105,11 @@ static inline int huge_pte_none(pte_t pte)
 }
 #endif
 
-#ifndef __HAVE_ARCH_HUGE_PTE_WRPROTECT
-static inline pte_t huge_pte_wrprotect(pte_t pte)
+/* Please refer to comments above pte_none_mostly() for the usage */
+static inline int huge_pte_none_mostly(pte_t pte)
 {
-	return pte_wrprotect(pte);
+	return huge_pte_none(pte) || is_pte_marker(pte);
 }
-#endif
 
 #ifndef __HAVE_ARCH_PREPARE_HUGEPAGE_RANGE
 static inline int prepare_hugepage_range(struct file *file,
@@ -122,7 +146,7 @@ static inline int huge_ptep_set_access_flags(struct vm_area_struct *vma,
 #ifndef __HAVE_ARCH_HUGE_PTEP_GET
 static inline pte_t huge_ptep_get(pte_t *ptep)
 {
-	return *ptep;
+	return ptep_get(ptep);
 }
 #endif
 

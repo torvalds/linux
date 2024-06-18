@@ -192,7 +192,7 @@ void ordered_events__delete(struct ordered_events *oe, struct ordered_event *eve
 }
 
 int ordered_events__queue(struct ordered_events *oe, union perf_event *event,
-			  u64 timestamp, u64 file_offset)
+			  u64 timestamp, u64 file_offset, const char *file_path)
 {
 	struct ordered_event *oevent;
 
@@ -217,6 +217,7 @@ int ordered_events__queue(struct ordered_events *oe, union perf_event *event,
 		return -ENOMEM;
 
 	oevent->file_offset = file_offset;
+	oevent->file_path = file_path;
 	return 0;
 }
 
@@ -283,7 +284,7 @@ static int __ordered_events__flush(struct ordered_events *oe, enum oe_flush how,
 	switch (how) {
 	case OE_FLUSH__FINAL:
 		show_progress = true;
-		__fallthrough;
+		fallthrough;
 	case OE_FLUSH__TOP:
 		oe->next_flush = ULLONG_MAX;
 		break;
@@ -314,7 +315,7 @@ static int __ordered_events__flush(struct ordered_events *oe, enum oe_flush how,
 	case OE_FLUSH__NONE:
 	default:
 		break;
-	};
+	}
 
 	pr_oe_time(oe->next_flush, "next_flush - ordered_events__flush PRE  %s, nr_events %u\n",
 		   str[how], oe->nr_events);

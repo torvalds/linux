@@ -11,10 +11,10 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/fs.h>
+#include <linux/of.h>
 
 #include <linux/uaccess.h>
 #include <asm/sections.h>
-#include <asm/prom.h>
 #include <asm/io.h>
 
 #include "ans-lcd.h"
@@ -142,12 +142,13 @@ const struct file_operations anslcd_fops = {
 };
 
 static struct miscdevice anslcd_dev = {
-	ANSLCD_MINOR,
+	LCD_MINOR,
 	"anslcd",
 	&anslcd_fops
 };
 
-const char anslcd_logo[] =	"********************"  /* Line #1 */
+static const char anslcd_logo[] __initconst =
+				"********************"  /* Line #1 */
 				"*      LINUX!      *"  /* Line #3 */
 				"*    Welcome to    *"  /* Line #2 */
 				"********************"; /* Line #4 */

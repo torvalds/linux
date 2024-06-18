@@ -30,12 +30,12 @@
 #define DEFAULT_MIN_ABS_MT_TRACKING_ID 1
 #define DEFAULT_MAX_ABS_MT_TRACKING_ID 10
 
-/** A note about RMI4 F11 register structure.
+/*
+ * A note about RMI4 F11 register structure.
  *
- * The properties for
- * a given sensor are described by its query registers.  The number of query
- * registers and the layout of their contents are described by the F11 device
- * queries as well as the sensor query information.
+ * The properties for a given sensor are described by its query registers.  The
+ * number of query registers and the layout of their contents are described by
+ * the F11 device queries as well as the sensor query information.
  *
  * Similarly, each sensor has control registers that govern its behavior.  The
  * size and layout of the control registers for a given sensor can be determined
@@ -62,8 +62,8 @@
 /* maximum ABS_MT_POSITION displacement (in mm) */
 #define DMAX 10
 
-/**
- * @rezero - writing this to the F11 command register will cause the sensor to
+/*
+ * Writing this to the F11 command register will cause the sensor to
  * calibrate to the current capacitive state.
  */
 #define RMI_F11_REZERO  0x01
@@ -178,135 +178,157 @@
 #define F11_UNIFORM_CLICKPAD 0x02
 
 /**
+ * struct f11_2d_sensor_queries - describes sensor capabilities
+ *
  * Query registers 1 through 4 are always present.
  *
- * @nr_fingers - describes the maximum number of fingers the 2-D sensor
- * supports.
- * @has_rel - the sensor supports relative motion reporting.
- * @has_abs - the sensor supports absolute poition reporting.
- * @has_gestures - the sensor supports gesture reporting.
- * @has_sensitivity_adjust - the sensor supports a global sensitivity
- * adjustment.
- * @configurable - the sensor supports various configuration options.
- * @num_of_x_electrodes -  the maximum number of electrodes the 2-D sensor
- * supports on the X axis.
- * @num_of_y_electrodes -  the maximum number of electrodes the 2-D sensor
- * supports on the Y axis.
- * @max_electrodes - the total number of X and Y electrodes that may be
- * configured.
+ * @nr_fingers: describes the maximum number of fingers the 2-D sensor
+ *	supports.
+ * @has_rel: the sensor supports relative motion reporting.
+ * @has_abs: the sensor supports absolute poition reporting.
+ * @has_gestures: the sensor supports gesture reporting.
+ * @has_sensitivity_adjust: the sensor supports a global sensitivity
+ *	adjustment.
+ * @configurable: the sensor supports various configuration options.
+ * @nr_x_electrodes:  the maximum number of electrodes the 2-D sensor
+ *	supports on the X axis.
+ * @nr_y_electrodes:  the maximum number of electrodes the 2-D sensor
+ *	supports on the Y axis.
+ * @max_electrodes: the total number of X and Y electrodes that may be
+ *	configured.
  *
  * Query 5 is present if the has_abs bit is set.
  *
- * @abs_data_size - describes the format of data reported by the absolute
- * data source.  Only one format (the kind used here) is supported at this
- * time.
- * @has_anchored_finger - then the sensor supports the high-precision second
- * finger tracking provided by the manual tracking and motion sensitivity
- * options.
- * @has_adjust_hyst - the difference between the finger release threshold and
- * the touch threshold.
- * @has_dribble - the sensor supports the generation of dribble interrupts,
- * which may be enabled or disabled with the dribble control bit.
- * @has_bending_correction - Bending related data registers 28 and 36, and
- * control register 52..57 are present.
- * @has_large_object_suppression - control register 58 and data register 28
- * exist.
- * @has_jitter_filter - query 13 and control 73..76 exist.
+ * @abs_data_size: describes the format of data reported by the absolute
+ *	data source.  Only one format (the kind used here) is supported at this
+ *	time.
+ * @has_anchored_finger: then the sensor supports the high-precision second
+ *	finger tracking provided by the manual tracking and motion sensitivity
+ *	options.
+ * @has_adj_hyst: the difference between the finger release threshold and
+ *	the touch threshold.
+ * @has_dribble: the sensor supports the generation of dribble interrupts,
+ *	which may be enabled or disabled with the dribble control bit.
+ * @has_bending_correction: Bending related data registers 28 and 36, and
+ *	control register 52..57 are present.
+ * @has_large_object_suppression: control register 58 and data register 28
+ *	exist.
+ * @has_jitter_filter: query 13 and control 73..76 exist.
+ *
+ * Query 6 is present if the has_rel it is set.
+ *
+ * @f11_2d_query6: this register is reserved.
  *
  * Gesture information queries 7 and 8 are present if has_gestures bit is set.
  *
- * @has_single_tap - a basic single-tap gesture is supported.
- * @has_tap_n_hold - tap-and-hold gesture is supported.
- * @has_double_tap - double-tap gesture is supported.
- * @has_early_tap - early tap is supported and reported as soon as the finger
- * lifts for any tap event that could be interpreted as either a single tap
- * or as the first tap of a double-tap or tap-and-hold gesture.
- * @has_flick - flick detection is supported.
- * @has_press - press gesture reporting is supported.
- * @has_pinch - pinch gesture detection is supported.
- * @has_palm_det - the 2-D sensor notifies the host whenever a large conductive
- * object such as a palm or a cheek touches the 2-D sensor.
- * @has_rotate - rotation gesture detection is supported.
- * @has_touch_shapes - TouchShapes are supported.  A TouchShape is a fixed
- * rectangular area on the sensor that behaves like a capacitive button.
- * @has_scroll_zones - scrolling areas near the sensor edges are supported.
- * @has_individual_scroll_zones - if 1, then 4 scroll zones are supported;
- * if 0, then only two are supported.
- * @has_mf_scroll - the multifinger_scrolling bit will be set when
- * more than one finger is involved in a scrolling action.
+ * @has_single_tap: a basic single-tap gesture is supported.
+ * @has_tap_n_hold: tap-and-hold gesture is supported.
+ * @has_double_tap: double-tap gesture is supported.
+ * @has_early_tap: early tap is supported and reported as soon as the finger
+ *	lifts for any tap event that could be interpreted as either a single
+ *	tap or as the first tap of a double-tap or tap-and-hold gesture.
+ * @has_flick: flick detection is supported.
+ * @has_press: press gesture reporting is supported.
+ * @has_pinch: pinch gesture detection is supported.
+ * @has_chiral: chiral (circular) scrolling  gesture detection is supported.
+ * @has_palm_det: the 2-D sensor notifies the host whenever a large conductive
+ *	object such as a palm or a cheek touches the 2-D sensor.
+ * @has_rotate: rotation gesture detection is supported.
+ * @has_touch_shapes: TouchShapes are supported.  A TouchShape is a fixed
+ *	rectangular area on the sensor that behaves like a capacitive button.
+ * @has_scroll_zones: scrolling areas near the sensor edges are supported.
+ * @has_individual_scroll_zones: if 1, then 4 scroll zones are supported;
+ *	if 0, then only two are supported.
+ * @has_mf_scroll: the multifinger_scrolling bit will be set when
+ *	more than one finger is involved in a scrolling action.
+ * @has_mf_edge_motion: indicates whether multi-finger edge motion gesture
+ *	is supported.
+ * @has_mf_scroll_inertia: indicates whether multi-finger scroll inertia
+ *	feature is supported.
  *
  * Convenience for checking bytes in the gesture info registers.  This is done
  * often enough that we put it here to declutter the conditionals
  *
- * @query7_nonzero - true if none of the query 7 bits are set
- * @query8_nonzero - true if none of the query 8 bits are set
+ * @query7_nonzero: true if none of the query 7 bits are set
+ * @query8_nonzero: true if none of the query 8 bits are set
  *
  * Query 9 is present if the has_query9 is set.
  *
- * @has_pen - detection of a stylus is supported and registers F11_2D_Ctrl20
- * and F11_2D_Ctrl21 exist.
- * @has_proximity - detection of fingers near the sensor is supported and
- * registers F11_2D_Ctrl22 through F11_2D_Ctrl26 exist.
- * @has_palm_det_sensitivity -  the sensor supports the palm detect sensitivity
- * feature and register F11_2D_Ctrl27 exists.
- * @has_two_pen_thresholds - is has_pen is also set, then F11_2D_Ctrl35 exists.
- * @has_contact_geometry - the sensor supports the use of contact geometry to
- * map absolute X and Y target positions and registers F11_2D_Data18
- * through F11_2D_Data27 exist.
+ * @has_pen: detection of a stylus is supported and registers F11_2D_Ctrl20
+ *	and F11_2D_Ctrl21 exist.
+ * @has_proximity: detection of fingers near the sensor is supported and
+ *	registers F11_2D_Ctrl22 through F11_2D_Ctrl26 exist.
+ * @has_palm_det_sensitivity:  the sensor supports the palm detect sensitivity
+ *	feature and register F11_2D_Ctrl27 exists.
+ * @has_suppress_on_palm_detect: the device supports the large object detect
+ *	suppression feature and register F11_2D_Ctrl27 exists.
+ * @has_two_pen_thresholds: if has_pen is also set, then F11_2D_Ctrl35 exists.
+ * @has_contact_geometry: the sensor supports the use of contact geometry to
+ *	map absolute X and Y target positions and registers F11_2D_Data18
+ *	through F11_2D_Data27 exist.
+ * @has_pen_hover_discrimination: if has_pen is also set, then registers
+ *	F11_2D_Data29 through F11_2D_Data31, F11_2D_Ctrl68.*, F11_2D_Ctrl69
+ *	and F11_2D_Ctrl72 exist.
+ * @has_pen_filters: if has_pen is also set, then registers F11_2D_Ctrl70 and
+ *	F11_2D_Ctrl71 exist.
  *
  * Touch shape info (query 10) is present if has_touch_shapes is set.
  *
- * @nr_touch_shapes - the total number of touch shapes supported.
+ * @nr_touch_shapes: the total number of touch shapes supported.
  *
  * Query 11 is present if the has_query11 bit is set in query 0.
  *
- * @has_z_tuning - if set, the sensor supports Z tuning and registers
- * F11_2D_Ctrl29 through F11_2D_Ctrl33 exist.
- * @has_algorithm_selection - controls choice of noise suppression algorithm
- * @has_w_tuning - the sensor supports Wx and Wy scaling and registers
- * F11_2D_Ctrl36 through F11_2D_Ctrl39 exist.
- * @has_pitch_info - the X and Y pitches of the sensor electrodes can be
- * configured and registers F11_2D_Ctrl40 and F11_2D_Ctrl41 exist.
- * @has_finger_size -  the default finger width settings for the
- * sensor can be configured and registers F11_2D_Ctrl42 through F11_2D_Ctrl44
- * exist.
- * @has_segmentation_aggressiveness - the sensor’s ability to distinguish
- * multiple objects close together can be configured and register F11_2D_Ctrl45
- * exists.
- * @has_XY_clip -  the inactive outside borders of the sensor can be
- * configured and registers F11_2D_Ctrl46 through F11_2D_Ctrl49 exist.
- * @has_drumming_filter - the sensor can be configured to distinguish
- * between a fast flick and a quick drumming movement and registers
- * F11_2D_Ctrl50 and F11_2D_Ctrl51 exist.
+ * @has_z_tuning: if set, the sensor supports Z tuning and registers
+ *	F11_2D_Ctrl29 through F11_2D_Ctrl33 exist.
+ * @has_algorithm_selection: controls choice of noise suppression algorithm
+ * @has_w_tuning: the sensor supports Wx and Wy scaling and registers
+ *	F11_2D_Ctrl36 through F11_2D_Ctrl39 exist.
+ * @has_pitch_info: the X and Y pitches of the sensor electrodes can be
+ *	configured and registers F11_2D_Ctrl40 and F11_2D_Ctrl41 exist.
+ * @has_finger_size: the default finger width settings for the sensor
+ *	can be configured and registers F11_2D_Ctrl42 through F11_2D_Ctrl44
+ *	exist.
+ * @has_segmentation_aggressiveness: the sensor’s ability to distinguish
+ *	multiple objects close together can be configured and register
+ *	F11_2D_Ctrl45 exists.
+ * @has_XY_clip: the inactive outside borders of the sensor can be
+ *	configured and registers F11_2D_Ctrl46 through F11_2D_Ctrl49 exist.
+ * @has_drumming_filter: the sensor can be configured to distinguish
+ *	between a fast flick and a quick drumming movement and registers
+ *	F11_2D_Ctrl50 and F11_2D_Ctrl51 exist.
  *
  * Query 12 is present if hasQuery12 bit is set.
  *
- * @has_gapless_finger - control registers relating to gapless finger are
- * present.
- * @has_gapless_finger_tuning - additional control and data registers relating
- * to gapless finger are present.
- * @has_8bit_w - larger W value reporting is supported.
- * @has_adjustable_mapping - TBD
- * @has_info2 - the general info query14 is present
- * @has_physical_props - additional queries describing the physical properties
- * of the sensor are present.
- * @has_finger_limit - indicates that F11 Ctrl 80 exists.
- * @has_linear_coeff - indicates that F11 Ctrl 81 exists.
+ * @has_gapless_finger: control registers relating to gapless finger are
+ *	present.
+ * @has_gapless_finger_tuning: additional control and data registers relating
+ *	to gapless finger are present.
+ * @has_8bit_w: larger W value reporting is supported.
+ * @has_adjustable_mapping: TBD
+ * @has_info2: the general info query14 is present
+ * @has_physical_props: additional queries describing the physical properties
+ *	of the sensor are present.
+ * @has_finger_limit: indicates that F11 Ctrl 80 exists.
+ * @has_linear_coeff_2: indicates that F11 Ctrl 81 exists.
  *
  * Query 13 is present if Query 5's has_jitter_filter bit is set.
- * @jitter_window_size - used by Design Studio 4.
- * @jitter_filter_type - used by Design Studio 4.
+ *
+ * @jitter_window_size: used by Design Studio 4.
+ * @jitter_filter_type: used by Design Studio 4.
  *
  * Query 14 is present if query 12's has_general_info2 flag is set.
  *
- * @light_control - Indicates what light/led control features are present, if
- * any.
- * @is_clear - if set, this is a clear sensor (indicating direct pointing
- * application), otherwise it's opaque (indicating indirect pointing).
- * @clickpad_props - specifies if this is a clickpad, and if so what sort of
- * mechanism it uses
- * @mouse_buttons - specifies the number of mouse buttons present (if any).
- * @has_advanced_gestures - advanced driver gestures are supported.
+ * @light_control: Indicates what light/led control features are present,
+ *	if any.
+ * @is_clear: if set, this is a clear sensor (indicating direct pointing
+ *	application), otherwise it's opaque (indicating indirect pointing).
+ * @clickpad_props: specifies if this is a clickpad, and if so what sort of
+ *	mechanism it uses
+ * @mouse_buttons: specifies the number of mouse buttons present (if any).
+ * @has_advanced_gestures: advanced driver gestures are supported.
+ *
+ * @x_sensor_size_mm: size of the sensor in millimeters on the X axis.
+ * @y_sensor_size_mm: size of the sensor in millimeters on the Y axis.
  */
 struct f11_2d_sensor_queries {
 	/* query1 */
@@ -412,6 +434,10 @@ struct f11_2d_sensor_queries {
 
 /* Defs for Ctrl0. */
 #define RMI_F11_REPORT_MODE_MASK        0x07
+#define RMI_F11_REPORT_MODE_CONTINUOUS  (0 << 0)
+#define RMI_F11_REPORT_MODE_REDUCED     (1 << 0)
+#define RMI_F11_REPORT_MODE_FS_CHANGE   (2 << 0)
+#define RMI_F11_REPORT_MODE_FP_CHANGE   (3 << 0)
 #define RMI_F11_ABS_POS_FILT            (1 << 3)
 #define RMI_F11_REL_POS_FILT            (1 << 4)
 #define RMI_F11_REL_BALLISTICS          (1 << 5)
@@ -510,7 +536,6 @@ struct f11_data {
 	struct rmi_2d_sensor_platform_data sensor_pdata;
 	unsigned long *abs_mask;
 	unsigned long *rel_mask;
-	unsigned long *result_bits;
 };
 
 enum f11_finger_state {
@@ -1057,7 +1082,7 @@ static int rmi_f11_initialize(struct rmi_function *fn)
 	/*
 	** init instance data, fill in values and create any sysfs files
 	*/
-	f11 = devm_kzalloc(&fn->dev, sizeof(struct f11_data) + mask_size * 3,
+	f11 = devm_kzalloc(&fn->dev, sizeof(struct f11_data) + mask_size * 2,
 			GFP_KERNEL);
 	if (!f11)
 		return -ENOMEM;
@@ -1076,8 +1101,6 @@ static int rmi_f11_initialize(struct rmi_function *fn)
 			+ sizeof(struct f11_data));
 	f11->rel_mask = (unsigned long *)((char *)f11
 			+ sizeof(struct f11_data) + mask_size);
-	f11->result_bits = (unsigned long *)((char *)f11
-			+ sizeof(struct f11_data) + mask_size * 2);
 
 	set_bit(fn->irq_pos, f11->abs_mask);
 	set_bit(fn->irq_pos + 1, f11->rel_mask);
@@ -1198,6 +1221,16 @@ static int rmi_f11_initialize(struct rmi_function *fn)
 		ctrl->ctrl0_11[RMI_F11_DELTA_Y_THRESHOLD] =
 			sensor->axis_align.delta_y_threshold;
 
+	/*
+	 * If distance threshold values are set, switch to reduced reporting
+	 * mode so they actually get used by the controller.
+	 */
+	if (sensor->axis_align.delta_x_threshold ||
+	    sensor->axis_align.delta_y_threshold) {
+		ctrl->ctrl0_11[0] &= ~RMI_F11_REPORT_MODE_MASK;
+		ctrl->ctrl0_11[0] |= RMI_F11_REPORT_MODE_REDUCED;
+	}
+
 	if (f11->sens_query.has_dribble) {
 		switch (sensor->dribble) {
 		case RMI_REG_STATE_OFF:
@@ -1284,8 +1317,8 @@ static irqreturn_t rmi_f11_attention(int irq, void *ctx)
 			valid_bytes = f11->sensor.attn_size;
 		memcpy(f11->sensor.data_pkt, drvdata->attn_data.data,
 			valid_bytes);
-		drvdata->attn_data.data += f11->sensor.attn_size;
-		drvdata->attn_data.size -= f11->sensor.attn_size;
+		drvdata->attn_data.data += valid_bytes;
+		drvdata->attn_data.size -= valid_bytes;
 	} else {
 		error = rmi_read_block(rmi_dev,
 				data_base_addr, f11->sensor.data_pkt,

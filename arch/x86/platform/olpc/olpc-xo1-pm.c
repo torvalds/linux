@@ -12,7 +12,6 @@
 #include <linux/platform_device.h>
 #include <linux/export.h>
 #include <linux/pm.h>
-#include <linux/mfd/core.h>
 #include <linux/suspend.h>
 #include <linux/olpc-ec.h>
 
@@ -120,15 +119,10 @@ static const struct platform_suspend_ops xo1_suspend_ops = {
 static int xo1_pm_probe(struct platform_device *pdev)
 {
 	struct resource *res;
-	int err;
 
 	/* don't run on non-XOs */
 	if (!machine_is_olpc())
 		return -ENODEV;
-
-	err = mfd_cell_enable(pdev);
-	if (err)
-		return err;
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if (!res) {
@@ -150,17 +144,14 @@ static int xo1_pm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int xo1_pm_remove(struct platform_device *pdev)
+static void xo1_pm_remove(struct platform_device *pdev)
 {
-	mfd_cell_disable(pdev);
-
 	if (strcmp(pdev->name, "cs5535-pms") == 0)
 		pms_base = 0;
 	else if (strcmp(pdev->name, "olpc-xo1-pm-acpi") == 0)
 		acpi_base = 0;
 
 	pm_power_off = NULL;
-	return 0;
 }
 
 static struct platform_driver cs5535_pms_driver = {
@@ -168,7 +159,7 @@ static struct platform_driver cs5535_pms_driver = {
 		.name = "cs5535-pms",
 	},
 	.probe = xo1_pm_probe,
-	.remove = xo1_pm_remove,
+	.remove_new = xo1_pm_remove,
 };
 
 static struct platform_driver cs5535_acpi_driver = {
@@ -176,7 +167,7 @@ static struct platform_driver cs5535_acpi_driver = {
 		.name = "olpc-xo1-pm-acpi",
 	},
 	.probe = xo1_pm_probe,
-	.remove = xo1_pm_remove,
+	.remove_new = xo1_pm_remove,
 };
 
 static int __init xo1_pm_init(void)

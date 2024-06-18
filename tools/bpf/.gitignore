@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 FEATURE-DUMP.bpf
 feature
 bpf_asm

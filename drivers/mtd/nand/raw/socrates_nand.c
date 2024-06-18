@@ -8,8 +8,9 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/io.h>
 
 #define FPGA_NAND_CMD_MASK		(0x7 << 28)
@@ -22,6 +23,7 @@
 #define FPGA_NAND_DATA_SHIFT		16
 
 struct socrates_nand_host {
+	struct nand_controller	controller;
 	struct nand_chip	nand_chip;
 	void __iomem		*io_base;
 	struct device		*dev;
@@ -116,6 +118,19 @@ static int socrates_nand_device_ready(struct nand_chip *nand_chip)
 	return 1;
 }
 
+static int socrates_attach_chip(struct nand_chip *chip)
+{
+	if (chip->ecc.engine_type == NAND_ECC_ENGINE_TYPE_SOFT &&
+	    chip->ecc.algo == NAND_ECC_ALGO_UNKNOWN)
+		chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
+
+	return 0;
+}
+
+static const struct nand_controller_ops socrates_ops = {
+	.attach_chip = socrates_attach_chip,
+};
+
 /*
  * Probe for the NAND device.
  */
@@ -141,6 +156,10 @@ static int socrates_nand_probe(struct platform_device *ofdev)
 	mtd = nand_to_mtd(nand_chip);
 	host->dev = &ofdev->dev;
 
+	nand_controller_init(&host->controller);
+	host->controller.ops = &socrates_ops;
+	nand_chip->controller = &host->controller;
+
 	/* link the private data structures */
 	nand_set_controller_data(nand_chip, host);
 	nand_set_flash_node(nand_chip, ofdev->dev.of_node);
@@ -153,11 +172,15 @@ static int socrates_nand_probe(struct platform_device *ofdev)
 	nand_chip->legacy.read_buf = socrates_nand_read_buf;
 	nand_chip->legacy.dev_ready = socrates_nand_device_ready;
 
-	nand_chip->ecc.mode = NAND_ECC_SOFT;	/* enable ECC */
-	nand_chip->ecc.algo = NAND_ECC_HAMMING;
-
 	/* TODO: I have no idea what real delay is. */
 	nand_chip->legacy.chip_delay = 20;	/* 20us command delay time */
+
+	/*
+	 * This driver assumes that the default ECC engine should be TYPE_SOFT.
+	 * Set ->engine_type before registering the NAND devices in order to
+	 * provide a driver specific default value.
+	 */
+	nand_chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
 
 	dev_set_drvdata(&ofdev->dev, host);
 
@@ -169,7 +192,7 @@ static int socrates_nand_probe(struct platform_device *ofdev)
 	if (!res)
 		return res;
 
-	nand_release(nand_chip);
+	nand_cleanup(nand_chip);
 
 out:
 	iounmap(host->io_base);
@@ -179,15 +202,17 @@ out:
 /*
  * Remove a NAND device.
  */
-static int socrates_nand_remove(struct platform_device *ofdev)
+static void socrates_nand_remove(struct platform_device *ofdev)
 {
 	struct socrates_nand_host *host = dev_get_drvdata(&ofdev->dev);
+	struct nand_chip *chip = &host->nand_chip;
+	int ret;
 
-	nand_release(&host->nand_chip);
+	ret = mtd_device_unregister(nand_to_mtd(chip));
+	WARN_ON(ret);
+	nand_cleanup(chip);
 
 	iounmap(host->io_base);
-
-	return 0;
 }
 
 static const struct of_device_id socrates_nand_match[] =
@@ -206,7 +231,7 @@ static struct platform_driver socrates_nand_driver = {
 		.of_match_table = socrates_nand_match,
 	},
 	.probe		= socrates_nand_probe,
-	.remove		= socrates_nand_remove,
+	.remove_new	= socrates_nand_remove,
 };
 
 module_platform_driver(socrates_nand_driver);

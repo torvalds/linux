@@ -21,7 +21,6 @@
 #define cpu_has_4kex		1
 #define cpu_has_3k_cache	0
 #define cpu_has_4k_cache	0
-#define cpu_has_tx39_cache	0
 #define cpu_has_counter		1
 #define cpu_has_watch		1
 #define cpu_has_divec		1
@@ -59,8 +58,6 @@
 
 #define cpu_has_rixi		(cpu_data[0].cputype != CPU_CAVIUM_OCTEON)
 
-#define ARCH_HAS_SPINLOCK_PREFETCH 1
-#define spin_lock_prefetch(x) prefetch(x)
 #define PREFETCH_STRIDE 128
 
 #ifdef __OCTEON__

@@ -1,22 +1,28 @@
-What: 		/sys/firmware/acpi/pm_profile
+What:		/sys/firmware/acpi/pm_profile
 Date:		03-Nov-2011
 KernelVersion:	v3.2
 Contact:	linux-acpi@vger.kernel.org
-Description: 	The ACPI pm_profile sysfs interface exports the platform
-		power management (and performance) requirement expectations
-		as provided by BIOS. The integer value is directly passed as
-		retrieved from the FADT ACPI table.
-Values:         For possible values see ACPI specification:
-		5.2.9 Fixed ACPI Description Table (FADT)
-		Field: Preferred_PM_Profile
+Description:	The ACPI pm_profile sysfs interface exposes the preferred
+		power management (and performance) profile of the platform
+		as provided in the ACPI FADT Preferred_PM_Profile field.
 
-		Currently these values are defined by spec:
-		0 Unspecified
-		1 Desktop
-		2 Mobile
-		3 Workstation
-		4 Enterprise Server
-		5 SOHO Server
-		6 Appliance PC
-		7 Performance Server
-		>7 Reserved
+		The integer value is directly passed as retrieved from the FADT.
+
+Values:	        For the possible values refer to the Preferred_PM_Profile field
+		definition in Table 5.9 "FADT Format", Section 5.2.9 "Fixed ACPI
+		Description Table (FADT)" of the ACPI specification.
+
+		As of ACPI 6.5, the following values are defined:
+
+		== =================
+		0  Unspecified
+		1  Desktop
+		2  Mobile
+		3  Workstation
+		4  Enterprise Server
+		5  SOHO Server
+		6  Appliance PC
+		7  Performance Server
+		8  Tablet
+		>8 Reserved
+		== =================

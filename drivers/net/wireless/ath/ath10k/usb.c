@@ -38,6 +38,10 @@ ath10k_usb_alloc_urb_from_pipe(struct ath10k_usb_pipe *pipe)
 	struct ath10k_urb_context *urb_context = NULL;
 	unsigned long flags;
 
+	/* bail if this pipe is not initialized */
+	if (!pipe->ar_usb)
+		return NULL;
+
 	spin_lock_irqsave(&pipe->ar_usb->cs_lock, flags);
 	if (!list_empty(&pipe->urb_list_head)) {
 		urb_context = list_first_entry(&pipe->urb_list_head,
@@ -54,6 +58,10 @@ static void ath10k_usb_free_urb_to_pipe(struct ath10k_usb_pipe *pipe,
 					struct ath10k_urb_context *urb_context)
 {
 	unsigned long flags;
+
+	/* bail if this pipe is not initialized */
+	if (!pipe->ar_usb)
+		return;
 
 	spin_lock_irqsave(&pipe->ar_usb->cs_lock, flags);
 
@@ -337,6 +345,12 @@ static void ath10k_usb_rx_complete(struct ath10k *ar, struct sk_buff *skb)
 	ep->ep_ops.ep_rx_complete(ar, skb);
 	/* The RX complete handler now owns the skb... */
 
+	if (test_bit(ATH10K_FLAG_CORE_REGISTERED, &ar->dev_flags)) {
+		local_bh_disable();
+		napi_schedule(&ar->napi);
+		local_bh_enable();
+	}
+
 	return;
 
 out_free_skb:
@@ -379,6 +393,7 @@ static int ath10k_usb_hif_start(struct ath10k *ar)
 	int i;
 	struct ath10k_usb *ar_usb = ath10k_usb_priv(ar);
 
+	ath10k_core_napi_enable(ar);
 	ath10k_usb_start_recv_pipes(ar);
 
 	/* set the TX resource avail threshold for each TX pipe */
@@ -435,6 +450,7 @@ static int ath10k_usb_hif_tx_sg(struct ath10k *ar, u8 pipe_id,
 			ath10k_dbg(ar, ATH10K_DBG_USB_BULK,
 				   "usb bulk transmit failed: %d\n", ret);
 			usb_unanchor_urb(urb);
+			usb_free_urb(urb);
 			ret = -EINVAL;
 			goto err_free_urb_to_pipe;
 		}
@@ -453,6 +469,7 @@ err:
 static void ath10k_usb_hif_stop(struct ath10k *ar)
 {
 	ath10k_usb_flush_all(ar);
+	ath10k_core_napi_sync_disable(ar);
 }
 
 static u16 ath10k_usb_hif_get_free_queue_number(struct ath10k *ar, u8 pipe_id)
@@ -516,7 +533,7 @@ static int ath10k_usb_submit_ctrl_in(struct ath10k *ar,
 			      req,
 			      USB_DIR_IN | USB_TYPE_VENDOR |
 			      USB_RECIP_DEVICE, value, index, buf,
-			      size, 2 * HZ);
+			      size, 2000);
 
 	if (ret < 0) {
 		ath10k_warn(ar, "Failed to read usb control message: %d\n",
@@ -684,17 +701,6 @@ static int ath10k_usb_hif_map_service_to_pipe(struct ath10k *ar, u16 svc_id,
 	return 0;
 }
 
-/* This op is currently only used by htc_wait_target if the HTC ready
- * message times out. It is not applicable for USB since there is nothing
- * we can do if the HTC ready message does not arrive in time.
- * TODO: Make this op non mandatory by introducing a NULL check in the
- * hif op wrapper.
- */
-static void ath10k_usb_hif_send_complete_check(struct ath10k *ar,
-					       u8 pipe, int force)
-{
-}
-
 static int ath10k_usb_hif_power_up(struct ath10k *ar,
 				   enum ath10k_firmware_mode fw_mode)
 {
@@ -728,7 +734,6 @@ static const struct ath10k_hif_ops ath10k_usb_hif_ops = {
 	.stop			= ath10k_usb_hif_stop,
 	.map_service_to_pipe	= ath10k_usb_hif_map_service_to_pipe,
 	.get_default_pipe	= ath10k_usb_hif_get_default_pipe,
-	.send_complete_check	= ath10k_usb_hif_send_complete_check,
 	.get_free_queue_number	= ath10k_usb_hif_get_free_queue_number,
 	.power_up		= ath10k_usb_hif_power_up,
 	.power_down		= ath10k_usb_hif_power_down,
@@ -827,7 +832,7 @@ static int ath10k_usb_setup_pipe_resources(struct ath10k *ar,
 
 	ath10k_dbg(ar, ATH10K_DBG_USB, "usb setting up pipes using interface\n");
 
-	/* walk decriptors and setup pipes */
+	/* walk descriptors and setup pipes */
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
 		endpoint = &iface_desc->endpoint[i].desc;
 
@@ -856,6 +861,11 @@ static int ath10k_usb_setup_pipe_resources(struct ath10k *ar,
 				   le16_to_cpu(endpoint->wMaxPacketSize),
 				   endpoint->bInterval);
 		}
+
+		/* Ignore broken descriptors. */
+		if (usb_endpoint_maxp(endpoint) == 0)
+			continue;
+
 		urbcount = 0;
 
 		pipe_num =
@@ -964,6 +974,20 @@ err:
 	return ret;
 }
 
+static int ath10k_usb_napi_poll(struct napi_struct *ctx, int budget)
+{
+	struct ath10k *ar = container_of(ctx, struct ath10k, napi);
+	int done;
+
+	done = ath10k_htt_rx_hl_indication(ar, budget);
+	ath10k_dbg(ar, ATH10K_DBG_USB, "napi poll: done: %d, budget:%d\n", done, budget);
+
+	if (done < budget)
+		napi_complete_done(ctx, done);
+
+	return done;
+}
+
 /* ath10k usb driver registered functions */
 static int ath10k_usb_probe(struct usb_interface *interface,
 			    const struct usb_device_id *id)
@@ -990,6 +1014,8 @@ static int ath10k_usb_probe(struct usb_interface *interface,
 		return -ENOMEM;
 	}
 
+	netif_napi_add(ar->napi_dev, &ar->napi, ath10k_usb_napi_poll);
+
 	usb_get_dev(dev);
 	vendor_id = le16_to_cpu(dev->descriptor.idVendor);
 	product_id = le16_to_cpu(dev->descriptor.idProduct);
@@ -1000,6 +1026,8 @@ static int ath10k_usb_probe(struct usb_interface *interface,
 
 	ar_usb = ath10k_usb_priv(ar);
 	ret = ath10k_usb_create(ar, interface);
+	if (ret)
+		goto err;
 	ar_usb->ar = ar;
 
 	ar->dev_id = product_id;
@@ -1009,16 +1037,20 @@ static int ath10k_usb_probe(struct usb_interface *interface,
 	bus_params.dev_type = ATH10K_DEV_TYPE_HL;
 	/* TODO: don't know yet how to get chip_id with USB */
 	bus_params.chip_id = 0;
+	bus_params.hl_msdu_ids = true;
 	ret = ath10k_core_register(ar, &bus_params);
 	if (ret) {
 		ath10k_warn(ar, "failed to register driver core: %d\n", ret);
-		goto err;
+		goto err_usb_destroy;
 	}
 
 	/* TODO: remove this once USB support is fully implemented */
 	ath10k_warn(ar, "Warning: ath10k USB support is incomplete, don't expect anything to work!\n");
 
 	return 0;
+
+err_usb_destroy:
+	ath10k_usb_destroy(ar);
 
 err:
 	ath10k_core_destroy(ar);
@@ -1037,6 +1069,7 @@ static void ath10k_usb_remove(struct usb_interface *interface)
 		return;
 
 	ath10k_core_unregister(ar_usb->ar);
+	netif_napi_del(&ar_usb->ar->napi);
 	ath10k_usb_destroy(ar_usb->ar);
 	usb_put_dev(interface_to_usbdev(interface));
 	ath10k_core_destroy(ar_usb->ar);
@@ -1093,5 +1126,5 @@ static struct usb_driver ath10k_usb_driver = {
 module_usb_driver(ath10k_usb_driver);
 
 MODULE_AUTHOR("Atheros Communications, Inc.");
-MODULE_DESCRIPTION("Driver support for Qualcomm Atheros 802.11ac WLAN USB devices");
+MODULE_DESCRIPTION("Driver support for Qualcomm Atheros USB 802.11ac WLAN devices");
 MODULE_LICENSE("Dual BSD/GPL");

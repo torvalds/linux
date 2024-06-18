@@ -1,0 +1,73 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/richtek,rt5739.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Richtek RT5739 Step-Down Buck Converter
+
+maintainers:
+  - ChiYuan Huang <cy_huang@richtek.com>
+
+description: |
+  The RT5739 is a step-down switching buck converter that can deliver the
+  programmable output voltage from 300mV to 1300mV with wide input voltage
+  supply of 2.5V to 5.5V. It can provide up to 3.5A continuous current
+  capability at over 80% high efficiency.
+
+allOf:
+  - $ref: regulator.yaml#
+
+properties:
+  compatible:
+    enum:
+      - richtek,rt5733
+      - richtek,rt5739
+
+  reg:
+    maxItems: 1
+
+  enable-gpios:
+    maxItems: 1
+
+  richtek,vsel-active-high:
+    description: |
+      If property is present, use the 'VSEL1' register group for buck control.
+      Else, use the 'VSEL0' register group. This depends on external hardware
+      'VSEL' pin connection.
+    type: boolean
+
+  regulator-allowed-modes:
+    description: |
+      buck allowed operating mode
+        0: Auto PFM/PWM mode
+        1: Forced PWM mode
+    items:
+      enum: [0, 1]
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      regulator@50 {
+        compatible = "richtek,rt5739";
+        reg = <0x50>;
+        enable-gpios = <&gpio26 1 GPIO_ACTIVE_HIGH>;
+        richtek,vsel-active-high;
+        regulator-name = "richtek,rt5739-buck";
+        regulator-min-microvolt = <300000>;
+        regulator-max-microvolt = <1300000>;
+        regulator-allowed-modes = <0 1>;
+        regulator-boot-on;
+      };
+    };

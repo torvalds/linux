@@ -11,6 +11,7 @@
 #include <linux/bcma/bcma.h>
 #include <linux/brcmphy.h>
 #include <linux/etherdevice.h>
+#include <linux/of_mdio.h>
 #include <linux/of_net.h>
 #include "bgmac.h"
 
@@ -86,17 +87,28 @@ static int bcma_phy_connect(struct bgmac *bgmac)
 	struct phy_device *phy_dev;
 	char bus_id[MII_BUS_ID_SIZE + 3];
 
+	/* DT info should be the most accurate */
+	phy_dev = of_phy_get_and_connect(bgmac->net_dev, bgmac->dev->of_node,
+					 bgmac_adjust_link);
+	if (phy_dev)
+		return 0;
+
 	/* Connect to the PHY */
-	snprintf(bus_id, sizeof(bus_id), PHY_ID_FMT, bgmac->mii_bus->id,
-		 bgmac->phyaddr);
-	phy_dev = phy_connect(bgmac->net_dev, bus_id, bgmac_adjust_link,
-			      PHY_INTERFACE_MODE_MII);
-	if (IS_ERR(phy_dev)) {
-		dev_err(bgmac->dev, "PHY connection failed\n");
-		return PTR_ERR(phy_dev);
+	if (bgmac->mii_bus && bgmac->phyaddr != BGMAC_PHY_NOREGS) {
+		snprintf(bus_id, sizeof(bus_id), PHY_ID_FMT, bgmac->mii_bus->id,
+			 bgmac->phyaddr);
+		phy_dev = phy_connect(bgmac->net_dev, bus_id, bgmac_adjust_link,
+				      PHY_INTERFACE_MODE_MII);
+		if (IS_ERR(phy_dev)) {
+			dev_err(bgmac->dev, "PHY connection failed\n");
+			return PTR_ERR(phy_dev);
+		}
+
+		return 0;
 	}
 
-	return 0;
+	/* Assume a fixed link to the switch port */
+	return bgmac_phy_connect_direct(bgmac);
 }
 
 static const struct bcma_device_id bgmac_bcma_tbl[] = {
@@ -115,7 +127,7 @@ static int bgmac_probe(struct bcma_device *core)
 	struct ssb_sprom *sprom = &core->bus->sprom;
 	struct mii_bus *mii_bus;
 	struct bgmac *bgmac;
-	const u8 *mac = NULL;
+	const u8 *mac;
 	int err;
 
 	bgmac = bgmac_alloc(&core->dev);
@@ -128,11 +140,12 @@ static int bgmac_probe(struct bcma_device *core)
 
 	bcma_set_drvdata(core, bgmac);
 
-	if (bgmac->dev->of_node)
-		mac = of_get_mac_address(bgmac->dev->of_node);
+	err = of_get_ethdev_address(bgmac->dev->of_node, bgmac->net_dev);
+	if (err == -EPROBE_DEFER)
+		return err;
 
 	/* If no MAC address assigned via device tree, check SPROM */
-	if (IS_ERR_OR_NULL(mac)) {
+	if (err) {
 		switch (core->core_unit) {
 		case 0:
 			mac = sprom->et0mac;
@@ -149,9 +162,8 @@ static int bgmac_probe(struct bcma_device *core)
 			err = -ENOTSUPP;
 			goto err;
 		}
+		eth_hw_addr_set(bgmac->net_dev, mac);
 	}
-
-	ether_addr_copy(bgmac->net_dev->dev_addr, mac);
 
 	/* On BCM4706 we need common core to access PHY */
 	if (core->id.id == BCMA_CORE_4706_MAC_GBIT &&
@@ -217,7 +229,7 @@ static int bgmac_probe(struct bcma_device *core)
 	/* BCM 471X/535X family */
 	case BCMA_CHIP_ID_BCM4716:
 		bgmac->feature_flags |= BGMAC_FEAT_CLKCTLST;
-		/* fallthrough */
+		fallthrough;
 	case BCMA_CHIP_ID_BCM47162:
 		bgmac->feature_flags |= BGMAC_FEAT_FLW_CTRL2;
 		bgmac->feature_flags |= BGMAC_FEAT_SET_RXQ_CLK;
@@ -228,12 +240,12 @@ static int bgmac_probe(struct bcma_device *core)
 		bgmac->feature_flags |= BGMAC_FEAT_CLKCTLST;
 		bgmac->feature_flags |= BGMAC_FEAT_FLW_CTRL1;
 		bgmac->feature_flags |= BGMAC_FEAT_SW_TYPE_PHY;
-		if (ci->pkg == BCMA_PKG_ID_BCM47188 ||
-		    ci->pkg == BCMA_PKG_ID_BCM47186) {
+		if ((ci->id == BCMA_CHIP_ID_BCM5357 && ci->pkg == BCMA_PKG_ID_BCM47186) ||
+		    (ci->id == BCMA_CHIP_ID_BCM53572 && ci->pkg == BCMA_PKG_ID_BCM47188)) {
 			bgmac->feature_flags |= BGMAC_FEAT_SW_TYPE_RGMII;
 			bgmac->feature_flags |= BGMAC_FEAT_IOST_ATTACHED;
 		}
-		if (ci->pkg == BCMA_PKG_ID_BCM5358)
+		if (ci->id == BCMA_CHIP_ID_BCM5357 && ci->pkg == BCMA_PKG_ID_BCM5358)
 			bgmac->feature_flags |= BGMAC_FEAT_SW_TYPE_EPHYRMII;
 		break;
 	case BCMA_CHIP_ID_BCM53573:
@@ -297,10 +309,7 @@ static int bgmac_probe(struct bcma_device *core)
 	bgmac->cco_ctl_maskset = bcma_bgmac_cco_ctl_maskset;
 	bgmac->get_bus_clock = bcma_bgmac_get_bus_clock;
 	bgmac->cmn_maskset32 = bcma_bgmac_cmn_maskset32;
-	if (bgmac->mii_bus)
-		bgmac->phy_connect = bcma_phy_connect;
-	else
-		bgmac->phy_connect = bgmac_phy_connect_direct;
+	bgmac->phy_connect = bcma_phy_connect;
 
 	err = bgmac_enet_probe(bgmac);
 	if (err)
@@ -323,7 +332,6 @@ static void bgmac_remove(struct bcma_device *core)
 	bcma_mdio_mii_unregister(bgmac->mii_bus);
 	bgmac_enet_remove(bgmac);
 	bcma_set_drvdata(core, NULL);
-	kfree(bgmac);
 }
 
 static struct bcma_driver bgmac_bcma_driver = {
@@ -354,4 +362,5 @@ module_init(bgmac_init)
 module_exit(bgmac_exit)
 
 MODULE_AUTHOR("Rafał Miłecki");
+MODULE_DESCRIPTION("Broadcom iProc GBit BCMA interface driver");
 MODULE_LICENSE("GPL");

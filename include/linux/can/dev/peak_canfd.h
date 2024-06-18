@@ -189,7 +189,7 @@ struct __packed pucan_rx_msg {
 	u8	client;
 	__le16	flags;
 	__le32	can_id;
-	u8	d[0];
+	u8	d[];
 };
 
 /* uCAN error types */
@@ -266,7 +266,7 @@ struct __packed pucan_tx_msg {
 	u8	client;
 	__le16	flags;
 	__le32	can_id;
-	u8	d[0];
+	u8	d[];
 };
 
 /* build the cmd opcode_channel field with respect to the correct endianness */
@@ -282,7 +282,7 @@ static inline int pucan_msg_get_channel(const struct pucan_rx_msg *msg)
 }
 
 /* return the dlc value from any received message channel_dlc field */
-static inline int pucan_msg_get_dlc(const struct pucan_rx_msg *msg)
+static inline u8 pucan_msg_get_dlc(const struct pucan_rx_msg *msg)
 {
 	return msg->channel_dlc >> 4;
 }

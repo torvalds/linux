@@ -14,7 +14,7 @@
 #include <linux/iopoll.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/of_net.h>
 #include <linux/mfd/syscon.h>
 #include <linux/platform_device.h>
@@ -40,7 +40,7 @@ struct tegra_eqos {
 static int dwc_eth_dwmac_config_dt(struct platform_device *pdev,
 				   struct plat_stmmacenet_data *plat_dat)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device *dev = &pdev->dev;
 	u32 burst_map = 0;
 	u32 bit_index = 0;
 	u32 a_index = 0;
@@ -52,9 +52,10 @@ static int dwc_eth_dwmac_config_dt(struct platform_device *pdev,
 			return -ENOMEM;
 	}
 
-	plat_dat->axi->axi_lpi_en = of_property_read_bool(np, "snps,en-lpi");
-	if (of_property_read_u32(np, "snps,write-requests",
-				 &plat_dat->axi->axi_wr_osr_lmt)) {
+	plat_dat->axi->axi_lpi_en = device_property_read_bool(dev,
+							      "snps,en-lpi");
+	if (device_property_read_u32(dev, "snps,write-requests",
+				     &plat_dat->axi->axi_wr_osr_lmt)) {
 		/**
 		 * Since the register has a reset value of 1, if property
 		 * is missing, default to 1.
@@ -68,8 +69,8 @@ static int dwc_eth_dwmac_config_dt(struct platform_device *pdev,
 		plat_dat->axi->axi_wr_osr_lmt--;
 	}
 
-	if (of_property_read_u32(np, "snps,read-requests",
-				 &plat_dat->axi->axi_rd_osr_lmt)) {
+	if (device_property_read_u32(dev, "snps,read-requests",
+				     &plat_dat->axi->axi_rd_osr_lmt)) {
 		/**
 		 * Since the register has a reset value of 1, if property
 		 * is missing, default to 1.
@@ -82,7 +83,7 @@ static int dwc_eth_dwmac_config_dt(struct platform_device *pdev,
 		 */
 		plat_dat->axi->axi_rd_osr_lmt--;
 	}
-	of_property_read_u32(np, "snps,burst-map", &burst_map);
+	device_property_read_u32(dev, "snps,burst-map", &burst_map);
 
 	/* converts burst-map bitmask to burst array */
 	for (bit_index = 0; bit_index < 7; bit_index++) {
@@ -112,29 +113,29 @@ static int dwc_eth_dwmac_config_dt(struct platform_device *pdev,
 	/* dwc-qos needs GMAC4, AAL, TSO and PMT */
 	plat_dat->has_gmac4 = 1;
 	plat_dat->dma_cfg->aal = 1;
-	plat_dat->tso_en = 1;
+	plat_dat->flags |= STMMAC_FLAG_TSO_EN;
 	plat_dat->pmt = 1;
 
 	return 0;
 }
 
-static void *dwc_qos_probe(struct platform_device *pdev,
-			   struct plat_stmmacenet_data *plat_dat,
-			   struct stmmac_resources *stmmac_res)
+static int dwc_qos_probe(struct platform_device *pdev,
+			 struct plat_stmmacenet_data *plat_dat,
+			 struct stmmac_resources *stmmac_res)
 {
 	int err;
 
 	plat_dat->stmmac_clk = devm_clk_get(&pdev->dev, "apb_pclk");
 	if (IS_ERR(plat_dat->stmmac_clk)) {
 		dev_err(&pdev->dev, "apb_pclk clock not found.\n");
-		return ERR_CAST(plat_dat->stmmac_clk);
+		return PTR_ERR(plat_dat->stmmac_clk);
 	}
 
 	err = clk_prepare_enable(plat_dat->stmmac_clk);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to enable apb_pclk clock: %d\n",
 			err);
-		return ERR_PTR(err);
+		return err;
 	}
 
 	plat_dat->pclk = devm_clk_get(&pdev->dev, "phy_ref_clk");
@@ -151,22 +152,20 @@ static void *dwc_qos_probe(struct platform_device *pdev,
 		goto disable;
 	}
 
-	return NULL;
+	return 0;
 
 disable:
 	clk_disable_unprepare(plat_dat->stmmac_clk);
-	return ERR_PTR(err);
+	return err;
 }
 
-static int dwc_qos_remove(struct platform_device *pdev)
+static void dwc_qos_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct stmmac_priv *priv = netdev_priv(ndev);
 
 	clk_disable_unprepare(priv->plat->pclk);
 	clk_disable_unprepare(priv->plat->stmmac_clk);
-
-	return 0;
 }
 
 #define SDMEMCOMPPADCTRL 0x8800
@@ -179,7 +178,7 @@ static int dwc_qos_remove(struct platform_device *pdev)
 #define AUTO_CAL_STATUS 0x880c
 #define  AUTO_CAL_STATUS_ACTIVE BIT(31)
 
-static void tegra_eqos_fix_speed(void *priv, unsigned int speed)
+static void tegra_eqos_fix_speed(void *priv, unsigned int speed, unsigned int mode)
 {
 	struct tegra_eqos *eqos = priv;
 	unsigned long rate = 125000000;
@@ -266,21 +265,23 @@ static int tegra_eqos_init(struct platform_device *pdev, void *priv)
 	return 0;
 }
 
-static void *tegra_eqos_probe(struct platform_device *pdev,
-			      struct plat_stmmacenet_data *data,
-			      struct stmmac_resources *res)
+static int tegra_eqos_probe(struct platform_device *pdev,
+			    struct plat_stmmacenet_data *data,
+			    struct stmmac_resources *res)
 {
+	struct device *dev = &pdev->dev;
 	struct tegra_eqos *eqos;
 	int err;
 
 	eqos = devm_kzalloc(&pdev->dev, sizeof(*eqos), GFP_KERNEL);
-	if (!eqos) {
-		err = -ENOMEM;
-		goto error;
-	}
+	if (!eqos)
+		return -ENOMEM;
 
 	eqos->dev = &pdev->dev;
 	eqos->regs = res->addr;
+
+	if (!is_of_node(dev->fwnode))
+		goto bypass_clk_reset_gpio;
 
 	eqos->clk_master = devm_clk_get(&pdev->dev, "master_bus");
 	if (IS_ERR(eqos->clk_master)) {
@@ -354,17 +355,17 @@ static void *tegra_eqos_probe(struct platform_device *pdev,
 
 	usleep_range(2000, 4000);
 
+bypass_clk_reset_gpio:
 	data->fix_mac_speed = tegra_eqos_fix_speed;
 	data->init = tegra_eqos_init;
 	data->bsp_priv = eqos;
+	data->flags |= STMMAC_FLAG_SPH_DISABLE;
 
 	err = tegra_eqos_init(pdev, eqos);
 	if (err < 0)
 		goto reset;
 
-out:
-	return eqos;
-
+	return 0;
 reset:
 	reset_control_assert(eqos->rst);
 reset_phy:
@@ -378,11 +379,10 @@ disable_slave:
 disable_master:
 	clk_disable_unprepare(eqos->clk_master);
 error:
-	eqos = ERR_PTR(err);
-	goto out;
+	return err;
 }
 
-static int tegra_eqos_remove(struct platform_device *pdev)
+static void tegra_eqos_remove(struct platform_device *pdev)
 {
 	struct tegra_eqos *eqos = get_stmmac_bsp_priv(&pdev->dev);
 
@@ -392,15 +392,13 @@ static int tegra_eqos_remove(struct platform_device *pdev)
 	clk_disable_unprepare(eqos->clk_rx);
 	clk_disable_unprepare(eqos->clk_slave);
 	clk_disable_unprepare(eqos->clk_master);
-
-	return 0;
 }
 
 struct dwc_eth_dwmac_data {
-	void *(*probe)(struct platform_device *pdev,
-		       struct plat_stmmacenet_data *data,
-		       struct stmmac_resources *res);
-	int (*remove)(struct platform_device *pdev);
+	int (*probe)(struct platform_device *pdev,
+		     struct plat_stmmacenet_data *data,
+		     struct stmmac_resources *res);
+	void (*remove)(struct platform_device *pdev);
 };
 
 static const struct dwc_eth_dwmac_data dwc_qos_data = {
@@ -418,10 +416,9 @@ static int dwc_eth_dwmac_probe(struct platform_device *pdev)
 	const struct dwc_eth_dwmac_data *data;
 	struct plat_stmmacenet_data *plat_dat;
 	struct stmmac_resources stmmac_res;
-	void *priv;
 	int ret;
 
-	data = of_device_get_match_data(&pdev->dev);
+	data = device_get_match_data(&pdev->dev);
 
 	memset(&stmmac_res, 0, sizeof(struct stmmac_resources));
 
@@ -438,19 +435,14 @@ static int dwc_eth_dwmac_probe(struct platform_device *pdev)
 	if (IS_ERR(stmmac_res.addr))
 		return PTR_ERR(stmmac_res.addr);
 
-	plat_dat = stmmac_probe_config_dt(pdev, &stmmac_res.mac);
+	plat_dat = devm_stmmac_probe_config_dt(pdev, stmmac_res.mac);
 	if (IS_ERR(plat_dat))
 		return PTR_ERR(plat_dat);
 
-	priv = data->probe(pdev, plat_dat, &stmmac_res);
-	if (IS_ERR(priv)) {
-		ret = PTR_ERR(priv);
-
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "failed to probe subdriver: %d\n",
-				ret);
-
-		goto remove_config;
+	ret = data->probe(pdev, plat_dat, &stmmac_res);
+	if (ret < 0) {
+		dev_err_probe(&pdev->dev, ret, "failed to probe subdriver\n");
+		return ret;
 	}
 
 	ret = dwc_eth_dwmac_config_dt(pdev, plat_dat);
@@ -465,32 +457,17 @@ static int dwc_eth_dwmac_probe(struct platform_device *pdev)
 
 remove:
 	data->remove(pdev);
-remove_config:
-	stmmac_remove_config_dt(pdev, plat_dat);
 
 	return ret;
 }
 
-static int dwc_eth_dwmac_remove(struct platform_device *pdev)
+static void dwc_eth_dwmac_remove(struct platform_device *pdev)
 {
-	struct net_device *ndev = platform_get_drvdata(pdev);
-	struct stmmac_priv *priv = netdev_priv(ndev);
-	const struct dwc_eth_dwmac_data *data;
-	int err;
+	const struct dwc_eth_dwmac_data *data = device_get_match_data(&pdev->dev);
 
-	data = of_device_get_match_data(&pdev->dev);
+	stmmac_dvr_remove(&pdev->dev);
 
-	err = stmmac_dvr_remove(&pdev->dev);
-	if (err < 0)
-		dev_err(&pdev->dev, "failed to remove platform: %d\n", err);
-
-	err = data->remove(pdev);
-	if (err < 0)
-		dev_err(&pdev->dev, "failed to remove subdriver: %d\n", err);
-
-	stmmac_remove_config_dt(pdev, priv->plat);
-
-	return err;
+	data->remove(pdev);
 }
 
 static const struct of_device_id dwc_eth_dwmac_match[] = {
@@ -502,7 +479,7 @@ MODULE_DEVICE_TABLE(of, dwc_eth_dwmac_match);
 
 static struct platform_driver dwc_eth_dwmac_driver = {
 	.probe  = dwc_eth_dwmac_probe,
-	.remove = dwc_eth_dwmac_remove,
+	.remove_new = dwc_eth_dwmac_remove,
 	.driver = {
 		.name           = "dwc-eth-dwmac",
 		.pm             = &stmmac_pltfr_pm_ops,

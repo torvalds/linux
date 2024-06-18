@@ -12,15 +12,14 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/io.h>
 #include <linux/jiffies.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
-#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
+#include <linux/reset.h>
 #include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -39,11 +38,15 @@ static void tegra20_ac97_codec_reset(struct snd_ac97 *ac97)
 	u32 readback;
 	unsigned long timeout;
 
-	/* reset line is not driven by DAC pad group, have to toggle GPIO */
-	gpio_set_value(workdata->reset_gpio, 0);
+	/*
+	 * The reset line is not driven by DAC pad group, have to toggle GPIO.
+	 * The RESET line is active low but this is abstracted by the GPIO
+	 * library.
+	 */
+	gpiod_set_value(workdata->reset_gpio, 1);
 	udelay(2);
 
-	gpio_set_value(workdata->reset_gpio, 1);
+	gpiod_set_value(workdata->reset_gpio, 0);
 	udelay(2);
 
 	timeout = jiffies + msecs_to_jiffies(100);
@@ -66,14 +69,10 @@ static void tegra20_ac97_codec_warm_reset(struct snd_ac97 *ac97)
 	 * the controller cmd is not working, have to toggle sync line
 	 * manually.
 	 */
-	gpio_request(workdata->sync_gpio, "codec-sync");
-
-	gpio_direction_output(workdata->sync_gpio, 1);
-
+	gpiod_direction_output(workdata->sync_gpio, 1);
 	udelay(2);
-	gpio_set_value(workdata->sync_gpio, 0);
+	gpiod_set_value(workdata->sync_gpio, 0);
 	udelay(2);
-	gpio_free(workdata->sync_gpio);
 
 	timeout = jiffies + msecs_to_jiffies(100);
 
@@ -203,24 +202,23 @@ static int tegra20_ac97_trigger(struct snd_pcm_substream *substream, int cmd,
 	return 0;
 }
 
-static const struct snd_soc_dai_ops tegra20_ac97_dai_ops = {
-	.trigger	= tegra20_ac97_trigger,
-};
-
 static int tegra20_ac97_probe(struct snd_soc_dai *dai)
 {
 	struct tegra20_ac97 *ac97 = snd_soc_dai_get_drvdata(dai);
 
-	dai->capture_dma_data = &ac97->capture_dma_data;
-	dai->playback_dma_data = &ac97->playback_dma_data;
+	snd_soc_dai_init_dma_data(dai,	&ac97->playback_dma_data,
+					&ac97->capture_dma_data);
 
 	return 0;
 }
 
+static const struct snd_soc_dai_ops tegra20_ac97_dai_ops = {
+	.probe		= tegra20_ac97_probe,
+	.trigger	= tegra20_ac97_trigger,
+};
+
 static struct snd_soc_dai_driver tegra20_ac97_dai = {
 	.name = "tegra-ac97-pcm",
-	.bus_control = true,
-	.probe = tegra20_ac97_probe,
 	.playback = {
 		.stream_name = "PCM Playback",
 		.channels_min = 2,
@@ -239,7 +237,8 @@ static struct snd_soc_dai_driver tegra20_ac97_dai = {
 };
 
 static const struct snd_soc_component_driver tegra20_ac97_component = {
-	.name		= DRV_NAME,
+	.name			= DRV_NAME,
+	.legacy_dai_naming	= 1,
 };
 
 static bool tegra20_ac97_wr_rd_reg(struct device *dev, unsigned int reg)
@@ -314,6 +313,13 @@ static int tegra20_ac97_platform_probe(struct platform_device *pdev)
 	}
 	dev_set_drvdata(&pdev->dev, ac97);
 
+	ac97->reset = devm_reset_control_get_exclusive(&pdev->dev, "ac97");
+	if (IS_ERR(ac97->reset)) {
+		dev_err(&pdev->dev, "Can't retrieve ac97 reset\n");
+		ret = PTR_ERR(ac97->reset);
+		goto err;
+	}
+
 	ac97->clk_ac97 = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(ac97->clk_ac97)) {
 		dev_err(&pdev->dev, "Can't retrieve ac97 clock\n");
@@ -321,8 +327,7 @@ static int tegra20_ac97_platform_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	regs = devm_ioremap_resource(&pdev->dev, mem);
+	regs = devm_platform_get_and_ioremap_resource(pdev, 0, &mem);
 	if (IS_ERR(regs)) {
 		ret = PTR_ERR(regs);
 		goto err_clk_put;
@@ -336,26 +341,26 @@ static int tegra20_ac97_platform_probe(struct platform_device *pdev)
 		goto err_clk_put;
 	}
 
-	ac97->reset_gpio = of_get_named_gpio(pdev->dev.of_node,
-					     "nvidia,codec-reset-gpio", 0);
-	if (gpio_is_valid(ac97->reset_gpio)) {
-		ret = devm_gpio_request_one(&pdev->dev, ac97->reset_gpio,
-					    GPIOF_OUT_INIT_HIGH, "codec-reset");
-		if (ret) {
-			dev_err(&pdev->dev, "could not get codec-reset GPIO\n");
-			goto err_clk_put;
-		}
-	} else {
-		dev_err(&pdev->dev, "no codec-reset GPIO supplied\n");
+	/* Obtain RESET de-asserted */
+	ac97->reset_gpio = devm_gpiod_get(&pdev->dev,
+					  "nvidia,codec-reset",
+					  GPIOD_OUT_LOW);
+	if (IS_ERR(ac97->reset_gpio)) {
+		ret = PTR_ERR(ac97->reset_gpio);
+		dev_err(&pdev->dev, "no RESET GPIO supplied: %d\n", ret);
 		goto err_clk_put;
 	}
+	gpiod_set_consumer_name(ac97->reset_gpio, "codec-reset");
 
-	ac97->sync_gpio = of_get_named_gpio(pdev->dev.of_node,
-					    "nvidia,codec-sync-gpio", 0);
-	if (!gpio_is_valid(ac97->sync_gpio)) {
-		dev_err(&pdev->dev, "no codec-sync GPIO supplied\n");
+	ac97->sync_gpio = devm_gpiod_get(&pdev->dev,
+					 "nvidia,codec-sync",
+					 GPIOD_OUT_LOW);
+	if (IS_ERR(ac97->sync_gpio)) {
+		ret = PTR_ERR(ac97->sync_gpio);
+		dev_err(&pdev->dev, "no codec-sync GPIO supplied: %d\n", ret);
 		goto err_clk_put;
 	}
+	gpiod_set_consumer_name(ac97->sync_gpio, "codec-sync");
 
 	ac97->capture_dma_data.addr = mem->start + TEGRA20_AC97_FIFO_RX1;
 	ac97->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
@@ -365,10 +370,24 @@ static int tegra20_ac97_platform_probe(struct platform_device *pdev)
 	ac97->playback_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	ac97->playback_dma_data.maxburst = 4;
 
+	ret = reset_control_assert(ac97->reset);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to assert AC'97 reset: %d\n", ret);
+		goto err_clk_put;
+	}
+
 	ret = clk_prepare_enable(ac97->clk_ac97);
 	if (ret) {
 		dev_err(&pdev->dev, "clk_enable failed: %d\n", ret);
 		goto err_clk_put;
+	}
+
+	usleep_range(10, 100);
+
+	ret = reset_control_deassert(ac97->reset);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to deassert AC'97 reset: %d\n", ret);
+		goto err_clk_disable_unprepare;
 	}
 
 	ret = snd_soc_set_ac97_ops(&tegra20_ac97_ops);
@@ -406,7 +425,7 @@ err:
 	return ret;
 }
 
-static int tegra20_ac97_platform_remove(struct platform_device *pdev)
+static void tegra20_ac97_platform_remove(struct platform_device *pdev)
 {
 	struct tegra20_ac97 *ac97 = dev_get_drvdata(&pdev->dev);
 
@@ -416,8 +435,6 @@ static int tegra20_ac97_platform_remove(struct platform_device *pdev)
 	clk_disable_unprepare(ac97->clk_ac97);
 
 	snd_soc_set_ac97_ops(NULL);
-
-	return 0;
 }
 
 static const struct of_device_id tegra20_ac97_of_match[] = {
@@ -431,7 +448,7 @@ static struct platform_driver tegra20_ac97_driver = {
 		.of_match_table = tegra20_ac97_of_match,
 	},
 	.probe = tegra20_ac97_platform_probe,
-	.remove = tegra20_ac97_platform_remove,
+	.remove_new = tegra20_ac97_platform_remove,
 };
 module_platform_driver(tegra20_ac97_driver);
 

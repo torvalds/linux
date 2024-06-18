@@ -7,7 +7,6 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/reset-controller.h>
@@ -20,7 +19,7 @@ struct uniphier_reset_data {
 #define UNIPHIER_RESET_ACTIVE_LOW		BIT(0)
 };
 
-#define UNIPHIER_RESET_ID_END		(unsigned int)(-1)
+#define UNIPHIER_RESET_ID_END		((unsigned int)(-1))
 
 #define UNIPHIER_RESET_END				\
 	{ .id = UNIPHIER_RESET_ID_END }
@@ -136,6 +135,21 @@ static const struct uniphier_reset_data uniphier_pxs3_sys_reset_data[] = {
 	UNIPHIER_RESETX(28, 0x200c, 7),		/* SATA0 */
 	UNIPHIER_RESETX(29, 0x200c, 8),		/* SATA1 */
 	UNIPHIER_RESETX(30, 0x200c, 21),	/* SATA-PHY */
+	UNIPHIER_RESETX(40, 0x2008, 0),		/* AIO */
+	UNIPHIER_RESETX(42, 0x2010, 2),		/* EXIV */
+	UNIPHIER_RESET_END,
+};
+
+static const struct uniphier_reset_data uniphier_nx1_sys_reset_data[] = {
+	UNIPHIER_RESETX(4, 0x2008, 8),		/* eMMC */
+	UNIPHIER_RESETX(6, 0x200c, 0),		/* Ether */
+	UNIPHIER_RESETX(12, 0x200c, 16),        /* USB30 link */
+	UNIPHIER_RESETX(16, 0x200c, 24),        /* USB30-PHY0 */
+	UNIPHIER_RESETX(17, 0x200c, 25),        /* USB30-PHY1 */
+	UNIPHIER_RESETX(18, 0x200c, 26),        /* USB30-PHY2 */
+	UNIPHIER_RESETX(24, 0x200c, 8),         /* PCIe */
+	UNIPHIER_RESETX(52, 0x2010, 0),         /* VOC */
+	UNIPHIER_RESETX(58, 0x2010, 8),         /* HDMI-Tx */
 	UNIPHIER_RESET_END,
 };
 
@@ -193,8 +207,8 @@ static const struct uniphier_reset_data uniphier_pro5_sd_reset_data[] = {
 #define UNIPHIER_PERI_RESET_FI2C(id, ch)		\
 	UNIPHIER_RESETX((id), 0x114, 24 + (ch))
 
-#define UNIPHIER_PERI_RESET_SCSSI(id)			\
-	UNIPHIER_RESETX((id), 0x110, 17)
+#define UNIPHIER_PERI_RESET_SCSSI(id, ch)		\
+	UNIPHIER_RESETX((id), 0x110, 17 + (ch))
 
 #define UNIPHIER_PERI_RESET_MCSSI(id)			\
 	UNIPHIER_RESETX((id), 0x114, 14)
@@ -209,7 +223,7 @@ static const struct uniphier_reset_data uniphier_ld4_peri_reset_data[] = {
 	UNIPHIER_PERI_RESET_I2C(6, 2),
 	UNIPHIER_PERI_RESET_I2C(7, 3),
 	UNIPHIER_PERI_RESET_I2C(8, 4),
-	UNIPHIER_PERI_RESET_SCSSI(11),
+	UNIPHIER_PERI_RESET_SCSSI(11, 0),
 	UNIPHIER_RESET_END,
 };
 
@@ -225,8 +239,11 @@ static const struct uniphier_reset_data uniphier_pro4_peri_reset_data[] = {
 	UNIPHIER_PERI_RESET_FI2C(8, 4),
 	UNIPHIER_PERI_RESET_FI2C(9, 5),
 	UNIPHIER_PERI_RESET_FI2C(10, 6),
-	UNIPHIER_PERI_RESET_SCSSI(11),
-	UNIPHIER_PERI_RESET_MCSSI(12),
+	UNIPHIER_PERI_RESET_SCSSI(11, 0),
+	UNIPHIER_PERI_RESET_SCSSI(12, 1),
+	UNIPHIER_PERI_RESET_SCSSI(13, 2),
+	UNIPHIER_PERI_RESET_SCSSI(14, 3),
+	UNIPHIER_PERI_RESET_MCSSI(15),
 	UNIPHIER_RESET_END,
 };
 
@@ -397,6 +414,10 @@ static const struct of_device_id uniphier_reset_match[] = {
 		.compatible = "socionext,uniphier-pxs3-reset",
 		.data = uniphier_pxs3_sys_reset_data,
 	},
+	{
+		.compatible = "socionext,uniphier-nx1-reset",
+		.data = uniphier_nx1_sys_reset_data,
+	},
 	/* Media I/O reset, SD reset */
 	{
 		.compatible = "socionext,uniphier-ld4-mio-reset",
@@ -434,6 +455,10 @@ static const struct of_device_id uniphier_reset_match[] = {
 		.compatible = "socionext,uniphier-pxs3-sd-reset",
 		.data = uniphier_pro5_sd_reset_data,
 	},
+	{
+		.compatible = "socionext,uniphier-nx1-sd-reset",
+		.data = uniphier_pro5_sd_reset_data,
+	},
 	/* Peripheral reset */
 	{
 		.compatible = "socionext,uniphier-ld4-peri-reset",
@@ -465,6 +490,10 @@ static const struct of_device_id uniphier_reset_match[] = {
 	},
 	{
 		.compatible = "socionext,uniphier-pxs3-peri-reset",
+		.data = uniphier_pro4_peri_reset_data,
+	},
+	{
+		.compatible = "socionext,uniphier-nx1-peri-reset",
 		.data = uniphier_pro4_peri_reset_data,
 	},
 	/* Analog signal amplifiers reset */

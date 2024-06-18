@@ -62,6 +62,8 @@
 #define		ISI_CFG1_THMASK_BEATS_16	(2 << 13)
 
 /* Bitfields in CFG2 */
+#define ISI_CFG2_GS_MODE_2_PIXEL		(0 << 11)
+#define ISI_CFG2_GS_MODE_1_PIXEL		(1 << 11)
 #define ISI_CFG2_GRAYSCALE			(1 << 13)
 #define ISI_CFG2_COL_SPACE_YCbCr		(0 << 15)
 #define ISI_CFG2_COL_SPACE_RGB			(1 << 15)
@@ -118,8 +120,6 @@
 /* Definition for isi_platform_data */
 #define ISI_DATAWIDTH_8				0x01
 #define ISI_DATAWIDTH_10			0x02
-
-struct v4l2_async_subdev;
 
 struct isi_platform_data {
 	u8 has_emb_sync;

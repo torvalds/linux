@@ -287,7 +287,6 @@ static int zero_the_pointer(struct gspca_dev *gspca_dev)
 			return err_code;
 
 		err_code = cam_get_response16(gspca_dev, 0x21, 0);
-		status = data[0];
 		tries++;
 		if (err_code < 0)
 			return err_code;
@@ -511,7 +510,7 @@ static int start_cif_cam(struct gspca_dev *gspca_dev)
 	switch (gspca_dev->pixfmt.width) {
 	case 160:
 		data[9] |= 0x04;  /* reg 8, 2:1 scale down from 320 */
-		/* fall through */
+		fallthrough;
 	case 320:
 	default:
 		data[3] = 0x28;			   /* reg 2, H size/8 */
@@ -521,7 +520,7 @@ static int start_cif_cam(struct gspca_dev *gspca_dev)
 		break;
 	case 176:
 		data[9] |= 0x04;  /* reg 8, 2:1 scale down from 352 */
-		/* fall through */
+		fallthrough;
 	case 352:
 		data[3] = 0x2c;			   /* reg 2, H size/8 */
 		data[4] = 0x48;			   /* reg 3, V size/4 */
@@ -608,10 +607,10 @@ static int start_vga_cam(struct gspca_dev *gspca_dev)
 	switch (gspca_dev->pixfmt.width) {
 	case 160:
 		data[9] |= 0x0c;  /* reg 8, 4:1 scale down */
-		/* fall through */
+		fallthrough;
 	case 320:
 		data[9] |= 0x04;  /* reg 8, 2:1 scale down */
-		/* fall through */
+		fallthrough;
 	case 640:
 	default:
 		data[3] = 0x50;  /* reg 2, H size/8 */
@@ -628,7 +627,7 @@ static int start_vga_cam(struct gspca_dev *gspca_dev)
 
 	case 176:
 		data[9] |= 0x04;  /* reg 8, 2:1 scale down */
-		/* fall through */
+		fallthrough;
 	case 352:
 		data[3] = 0x2c;  /* reg 2, H size */
 		data[4] = 0x48;  /* reg 3, V size */

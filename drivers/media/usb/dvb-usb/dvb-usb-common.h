@@ -26,7 +26,8 @@ extern int dvb_usb_disable_rc_polling;
 #define deb_uxfer(args...) dprintk(dvb_usb_debug,0x100,args)
 
 /* commonly used  methods */
-extern int dvb_usb_download_firmware(struct usb_device *, struct dvb_usb_device_properties *);
+int dvb_usb_download_firmware(struct usb_device *udev,
+			      const struct dvb_usb_device_properties *props);
 
 extern int dvb_usb_device_power_ctrl(struct dvb_usb_device *d, int onoff);
 

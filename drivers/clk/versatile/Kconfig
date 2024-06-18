@@ -1,33 +1,32 @@
 # SPDX-License-Identifier: GPL-2.0-only
-config ICST
-	bool
 
-config COMMON_CLK_VERSATILE
-	bool "Clock driver for ARM Reference designs"
-	depends on ARCH_INTEGRATOR || ARCH_REALVIEW || \
-		ARCH_VERSATILE || ARCH_VEXPRESS || ARM64 || \
-		COMPILE_TEST
+menu "Clock driver for ARM Reference designs"
+	depends on HAS_IOMEM
+	depends on ARM || ARM64 || COMPILE_TEST
+
+config CLK_ICST
+	bool "Clock driver for ARM Reference designs ICST"
 	select REGMAP_MMIO
-	---help---
-          Supports clocking on ARM Reference designs:
+	help
+	  Supports clocking on ARM Reference designs:
 	  - Integrator/AP and Integrator/CP
 	  - RealView PB1176, EB, PB11MP and PBX
-	  - Versatile Express
 
 config CLK_SP810
 	bool "Clock driver for ARM SP810 System Controller"
-	depends on COMMON_CLK_VERSATILE
-	default y if ARCH_VEXPRESS
-	---help---
+	default y if (ARCH_VEXPRESS && ARM)
+	help
 	  Supports clock muxing (REFCLK/TIMCLK to TIMERCLKEN0-3) capabilities
 	  of the ARM SP810 System Controller cell.
 
 config CLK_VEXPRESS_OSC
-	bool "Clock driver for Versatile Express OSC clock generators"
-	depends on COMMON_CLK_VERSATILE
+	tristate "Clock driver for Versatile Express OSC clock generators"
 	depends on VEXPRESS_CONFIG
+	select REGMAP_MMIO
 	default y if ARCH_VEXPRESS
-	---help---
+	help
 	  Simple regmap-based driver driving clock generators on Versatile
 	  Express platforms hidden behind its configuration infrastructure,
 	  commonly known as OSCs.
+
+endmenu

@@ -9,25 +9,25 @@
 PHONY := all
 all:
 
-src := $(subst /generated,,$(obj))
--include $(src)/Kbuild
+src := $(srctree)/$(subst /generated,,$(obj))
+
+include $(srctree)/scripts/Kbuild.include
+-include $(kbuild-file)
 
 # $(generic)/Kbuild lists mandatory-y. Exclude um since it is a special case.
 ifneq ($(SRCARCH),um)
-include $(generic)/Kbuild
+include $(srctree)/$(generic)/Kbuild
 endif
 
-include scripts/Kbuild.include
-
 redundant := $(filter $(mandatory-y) $(generated-y), $(generic-y))
-redundant += $(foreach f, $(generic-y), $(if $(wildcard $(srctree)/$(src)/$(f)),$(f)))
+redundant += $(foreach f, $(generic-y), $(if $(wildcard $(src)/$(f)),$(f)))
 redundant := $(sort $(redundant))
 $(if $(redundant),\
 	$(warning redundant generic-y found in $(src)/Kbuild: $(redundant)))
 
 # If arch does not implement mandatory headers, fallback to asm-generic ones.
 mandatory-y := $(filter-out $(generated-y), $(mandatory-y))
-generic-y   += $(foreach f, $(mandatory-y), $(if $(wildcard $(srctree)/$(src)/$(f)),,$(f)))
+generic-y   += $(foreach f, $(mandatory-y), $(if $(wildcard $(src)/$(f)),,$(f)))
 
 generic-y   := $(addprefix $(obj)/, $(generic-y))
 generated-y := $(addprefix $(obj)/, $(generated-y))

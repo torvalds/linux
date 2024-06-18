@@ -8,13 +8,12 @@
 #include <xen/xen-ops.h>
 
 /* These are code, but not functions.  Defined in entry.S */
-extern const char xen_hypervisor_callback[];
 extern const char xen_failsafe_callback[];
 
-void xen_sysenter_target(void);
+void xen_entry_SYSENTER_compat(void);
 #ifdef CONFIG_X86_64
-void xen_syscall_target(void);
-void xen_syscall32_target(void);
+void xen_entry_SYSCALL_64(void);
+void xen_entry_SYSCALL_compat(void);
 #endif
 
 extern void *xen_initial_gdt;
@@ -22,7 +21,7 @@ extern void *xen_initial_gdt;
 struct trap_info;
 void xen_copy_trap_info(struct trap_info *traps);
 
-DECLARE_PER_CPU(struct vcpu_info, xen_vcpu_info);
+DECLARE_PER_CPU_ALIGNED(struct vcpu_info, xen_vcpu_info);
 DECLARE_PER_CPU(unsigned long, xen_cr3);
 DECLARE_PER_CPU(unsigned long, xen_current_cr3);
 
@@ -30,11 +29,12 @@ extern struct start_info *xen_start_info;
 extern struct shared_info xen_dummy_shared_info;
 extern struct shared_info *HYPERVISOR_shared_info;
 
+extern bool xen_fifo_events;
+
 void xen_setup_mfn_list_list(void);
 void xen_build_mfn_list_list(void);
 void xen_setup_machphys_mapping(void);
 void xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn);
-void xen_reserve_top(void);
 void __init xen_reserve_special_pages(void);
 void __init xen_pt_check_e820(void);
 
@@ -51,11 +51,11 @@ void __init xen_remap_memory(void);
 phys_addr_t __init xen_find_free_area(phys_addr_t size);
 char * __init xen_memory_setup(void);
 void __init xen_arch_setup(void);
+void xen_banner(void);
 void xen_enable_sysenter(void);
 void xen_enable_syscall(void);
 void xen_vcpu_restore(void);
 
-void xen_callback_vector(void);
 void xen_hvm_init_shared_info(void);
 void xen_unplug_emulated_devices(void);
 
@@ -72,13 +72,9 @@ void xen_restore_time_memory_area(void);
 void xen_init_time_ops(void);
 void xen_hvm_init_time_ops(void);
 
-irqreturn_t xen_debug_interrupt(int irq, void *dev_id);
-
 bool xen_vcpu_stolen(int vcpu);
 
-extern int xen_have_vcpu_info_placement;
-
-int xen_vcpu_setup(int cpu);
+void xen_vcpu_setup(int cpu);
 void xen_vcpu_info_reset(int cpu);
 void xen_setup_vcpu_info_placement(void);
 
@@ -111,13 +107,16 @@ static inline void xen_uninit_lock_cpu(int cpu)
 struct dom0_vga_console_info;
 
 #ifdef CONFIG_XEN_DOM0
-void __init xen_init_vga(const struct dom0_vga_console_info *, size_t size);
+void __init xen_init_vga(const struct dom0_vga_console_info *, size_t size,
+			 struct screen_info *);
 #else
 static inline void __init xen_init_vga(const struct dom0_vga_console_info *info,
-				       size_t size)
+				       size_t size, struct screen_info *si)
 {
 }
 #endif
+
+void xen_add_preferred_consoles(void);
 
 void __init xen_init_apic(void);
 
@@ -132,15 +131,12 @@ static inline void __init xen_efi_init(struct boot_params *boot_params)
 __visible void xen_irq_enable_direct(void);
 __visible void xen_irq_disable_direct(void);
 __visible unsigned long xen_save_fl_direct(void);
-__visible void xen_restore_fl_direct(unsigned long);
 
 __visible unsigned long xen_read_cr2(void);
 __visible unsigned long xen_read_cr2_direct(void);
 
 /* These are not functions, and cannot be called normally */
 __visible void xen_iret(void);
-__visible void xen_sysret32(void);
-__visible void xen_sysret64(void);
 
 extern int xen_panic_handler_init(void);
 
@@ -150,9 +146,12 @@ int xen_cpuhp_setup(int (*cpu_up_prepare_cb)(unsigned int),
 void xen_pin_vcpu(int cpu);
 
 void xen_emergency_restart(void);
+void xen_force_evtchn_callback(void);
+
 #ifdef CONFIG_XEN_PV
 void xen_pv_pre_suspend(void);
 void xen_pv_post_suspend(int suspend_cancelled);
+void xen_start_kernel(struct start_info *si);
 #else
 static inline void xen_pv_pre_suspend(void) {}
 static inline void xen_pv_post_suspend(int suspend_cancelled) {}
@@ -163,5 +162,19 @@ void xen_hvm_post_suspend(int suspend_cancelled);
 #else
 static inline void xen_hvm_post_suspend(int suspend_cancelled) {}
 #endif
+
+/*
+ * The maximum amount of extra memory compared to the base size.  The
+ * main scaling factor is the size of struct page.  At extreme ratios
+ * of base:extra, all the base memory can be filled with page
+ * structures for the extra memory, leaving no space for anything
+ * else.
+ *
+ * 10x seems like a reasonable balance between scaling flexibility and
+ * leaving a practically usable system.
+ */
+#define EXTRA_MEM_RATIO		(10)
+
+void xen_add_extra_mem(unsigned long start_pfn, unsigned long n_pfns);
 
 #endif /* XEN_OPS_H */

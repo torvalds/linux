@@ -3,6 +3,7 @@
  * PTP 1588 clock support - sysfs interface.
  *
  * Copyright (C) 2010 OMICRON electronics GmbH
+ * Copyright 2021 NXP
  */
 #include <linux/capability.h>
 #include <linux/slab.h>
@@ -13,16 +14,26 @@ static ssize_t clock_name_show(struct device *dev,
 			       struct device_attribute *attr, char *page)
 {
 	struct ptp_clock *ptp = dev_get_drvdata(dev);
-	return snprintf(page, PAGE_SIZE-1, "%s\n", ptp->info->name);
+	return sysfs_emit(page, "%s\n", ptp->info->name);
 }
 static DEVICE_ATTR_RO(clock_name);
+
+static ssize_t max_phase_adjustment_show(struct device *dev,
+					 struct device_attribute *attr,
+					 char *page)
+{
+	struct ptp_clock *ptp = dev_get_drvdata(dev);
+
+	return sysfs_emit(page, "%d\n", ptp->info->getmaxphase(ptp->info));
+}
+static DEVICE_ATTR_RO(max_phase_adjustment);
 
 #define PTP_SHOW_INT(name, var)						\
 static ssize_t var##_show(struct device *dev,				\
 			   struct device_attribute *attr, char *page)	\
 {									\
 	struct ptp_clock *ptp = dev_get_drvdata(dev);			\
-	return snprintf(page, PAGE_SIZE-1, "%d\n", ptp->info->var);	\
+	return sysfs_emit(page, "%d\n", ptp->info->var);	\
 }									\
 static DEVICE_ATTR(name, 0444, var##_show, NULL);
 
@@ -63,32 +74,36 @@ static ssize_t extts_fifo_show(struct device *dev,
 			       struct device_attribute *attr, char *page)
 {
 	struct ptp_clock *ptp = dev_get_drvdata(dev);
-	struct timestamp_event_queue *queue = &ptp->tsevq;
+	struct timestamp_event_queue *queue;
 	struct ptp_extts_event event;
 	unsigned long flags;
 	size_t qcnt;
 	int cnt = 0;
 
+	cnt = list_count_nodes(&ptp->tsevqs);
+	if (cnt <= 0)
+		goto out;
+
+	/* The sysfs fifo will always draw from the fist queue */
+	queue = list_first_entry(&ptp->tsevqs, struct timestamp_event_queue,
+				 qlist);
+
 	memset(&event, 0, sizeof(event));
-
-	if (mutex_lock_interruptible(&ptp->tsevq_mux))
-		return -ERESTARTSYS;
-
 	spin_lock_irqsave(&queue->lock, flags);
 	qcnt = queue_cnt(queue);
 	if (qcnt) {
 		event = queue->buf[queue->head];
-		queue->head = (queue->head + 1) % PTP_MAX_TIMESTAMPS;
+		/* Paired with READ_ONCE() in queue_cnt() */
+		WRITE_ONCE(queue->head, (queue->head + 1) % PTP_MAX_TIMESTAMPS);
 	}
 	spin_unlock_irqrestore(&queue->lock, flags);
 
 	if (!qcnt)
 		goto out;
 
-	cnt = snprintf(page, PAGE_SIZE, "%u %lld %u\n",
-		       event.index, event.t.sec, event.t.nsec);
+	cnt = sysfs_emit(page, "%u %lld %u\n",
+			 event.index, event.t.sec, event.t.nsec);
 out:
-	mutex_unlock(&ptp->tsevq_mux);
 	return cnt;
 }
 static DEVICE_ATTR(fifo, 0444, extts_fifo_show, NULL);
@@ -148,10 +163,167 @@ out:
 }
 static DEVICE_ATTR(pps_enable, 0220, NULL, pps_enable_store);
 
+static int unregister_vclock(struct device *dev, void *data)
+{
+	struct ptp_clock *ptp = dev_get_drvdata(dev);
+	struct ptp_clock_info *info = ptp->info;
+	struct ptp_vclock *vclock;
+	u32 *num = data;
+
+	vclock = info_to_vclock(info);
+	dev_info(dev->parent, "delete virtual clock ptp%d\n",
+		 vclock->clock->index);
+
+	ptp_vclock_unregister(vclock);
+	(*num)--;
+
+	/* For break. Not error. */
+	if (*num == 0)
+		return -EINVAL;
+
+	return 0;
+}
+
+static ssize_t n_vclocks_show(struct device *dev,
+			      struct device_attribute *attr, char *page)
+{
+	struct ptp_clock *ptp = dev_get_drvdata(dev);
+	ssize_t size;
+
+	if (mutex_lock_interruptible(&ptp->n_vclocks_mux))
+		return -ERESTARTSYS;
+
+	size = sysfs_emit(page, "%u\n", ptp->n_vclocks);
+
+	mutex_unlock(&ptp->n_vclocks_mux);
+
+	return size;
+}
+
+static ssize_t n_vclocks_store(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
+{
+	struct ptp_clock *ptp = dev_get_drvdata(dev);
+	struct ptp_vclock *vclock;
+	int err = -EINVAL;
+	u32 num, i;
+
+	if (kstrtou32(buf, 0, &num))
+		return err;
+
+	if (mutex_lock_interruptible(&ptp->n_vclocks_mux))
+		return -ERESTARTSYS;
+
+	if (num > ptp->max_vclocks) {
+		dev_err(dev, "max value is %d\n", ptp->max_vclocks);
+		goto out;
+	}
+
+	/* Need to create more vclocks */
+	if (num > ptp->n_vclocks) {
+		for (i = 0; i < num - ptp->n_vclocks; i++) {
+			vclock = ptp_vclock_register(ptp);
+			if (!vclock)
+				goto out;
+
+			*(ptp->vclock_index + ptp->n_vclocks + i) =
+				vclock->clock->index;
+
+			dev_info(dev, "new virtual clock ptp%d\n",
+				 vclock->clock->index);
+		}
+	}
+
+	/* Need to delete vclocks */
+	if (num < ptp->n_vclocks) {
+		i = ptp->n_vclocks - num;
+		device_for_each_child_reverse(dev, &i,
+					      unregister_vclock);
+
+		for (i = 1; i <= ptp->n_vclocks - num; i++)
+			*(ptp->vclock_index + ptp->n_vclocks - i) = -1;
+	}
+
+	/* Need to inform about changed physical clock behavior */
+	if (!ptp->has_cycles) {
+		if (num == 0)
+			dev_info(dev, "only physical clock in use now\n");
+		else
+			dev_info(dev, "guarantee physical clock free running\n");
+	}
+
+	ptp->n_vclocks = num;
+	mutex_unlock(&ptp->n_vclocks_mux);
+
+	return count;
+out:
+	mutex_unlock(&ptp->n_vclocks_mux);
+	return err;
+}
+static DEVICE_ATTR_RW(n_vclocks);
+
+static ssize_t max_vclocks_show(struct device *dev,
+				struct device_attribute *attr, char *page)
+{
+	struct ptp_clock *ptp = dev_get_drvdata(dev);
+	ssize_t size;
+
+	size = sysfs_emit(page, "%u\n", ptp->max_vclocks);
+
+	return size;
+}
+
+static ssize_t max_vclocks_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
+{
+	struct ptp_clock *ptp = dev_get_drvdata(dev);
+	unsigned int *vclock_index;
+	int err = -EINVAL;
+	size_t size;
+	u32 max;
+
+	if (kstrtou32(buf, 0, &max) || max == 0)
+		return -EINVAL;
+
+	if (max == ptp->max_vclocks)
+		return count;
+
+	if (mutex_lock_interruptible(&ptp->n_vclocks_mux))
+		return -ERESTARTSYS;
+
+	if (max < ptp->n_vclocks)
+		goto out;
+
+	size = sizeof(int) * max;
+	vclock_index = kzalloc(size, GFP_KERNEL);
+	if (!vclock_index) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	size = sizeof(int) * ptp->n_vclocks;
+	memcpy(vclock_index, ptp->vclock_index, size);
+
+	kfree(ptp->vclock_index);
+	ptp->vclock_index = vclock_index;
+	ptp->max_vclocks = max;
+
+	mutex_unlock(&ptp->n_vclocks_mux);
+
+	return count;
+out:
+	mutex_unlock(&ptp->n_vclocks_mux);
+	return err;
+}
+static DEVICE_ATTR_RW(max_vclocks);
+
 static struct attribute *ptp_attrs[] = {
 	&dev_attr_clock_name.attr,
 
 	&dev_attr_max_adjustment.attr,
+	&dev_attr_max_phase_adjustment.attr,
 	&dev_attr_n_alarms.attr,
 	&dev_attr_n_external_timestamps.attr,
 	&dev_attr_n_periodic_outputs.attr,
@@ -162,6 +334,8 @@ static struct attribute *ptp_attrs[] = {
 	&dev_attr_fifo.attr,
 	&dev_attr_period.attr,
 	&dev_attr_pps_enable.attr,
+	&dev_attr_n_vclocks.attr,
+	&dev_attr_max_vclocks.attr,
 	NULL
 };
 
@@ -182,6 +356,13 @@ static umode_t ptp_is_attribute_visible(struct kobject *kobj,
 			mode = 0;
 	} else if (attr == &dev_attr_pps_enable.attr) {
 		if (!info->pps)
+			mode = 0;
+	} else if (attr == &dev_attr_n_vclocks.attr ||
+		   attr == &dev_attr_max_vclocks.attr) {
+		if (ptp->is_virtual_clock)
+			mode = 0;
+	} else if (attr == &dev_attr_max_phase_adjustment.attr) {
+		if (!info->adjphase || !info->getmaxphase)
 			mode = 0;
 	}
 
@@ -227,7 +408,7 @@ static ssize_t ptp_pin_show(struct device *dev, struct device_attribute *attr,
 
 	mutex_unlock(&ptp->pincfg_mux);
 
-	return snprintf(page, PAGE_SIZE, "%u %u\n", func, chan);
+	return sysfs_emit(page, "%u %u\n", func, chan);
 }
 
 static ssize_t ptp_pin_store(struct device *dev, struct device_attribute *attr,

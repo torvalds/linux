@@ -2,6 +2,7 @@
  * net/tipc/group.c: TIPC group messaging code
  *
  * Copyright (c) 2017, Ericsson AB
+ * Copyright (c) 2020, Red Hat Inc
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -273,8 +274,8 @@ static struct tipc_member *tipc_group_find_node(struct tipc_group *grp,
 	return NULL;
 }
 
-static void tipc_group_add_to_tree(struct tipc_group *grp,
-				   struct tipc_member *m)
+static int tipc_group_add_to_tree(struct tipc_group *grp,
+				  struct tipc_member *m)
 {
 	u64 nkey, key = (u64)m->node << 32 | m->port;
 	struct rb_node **n, *parent = NULL;
@@ -291,10 +292,11 @@ static void tipc_group_add_to_tree(struct tipc_group *grp,
 		else if (key > nkey)
 			n = &(*n)->rb_right;
 		else
-			return;
+			return -EEXIST;
 	}
 	rb_link_node(&m->tree_node, parent, n);
 	rb_insert_color(&m->tree_node, &grp->members);
+	return 0;
 }
 
 static struct tipc_member *tipc_group_create_member(struct tipc_group *grp,
@@ -302,6 +304,7 @@ static struct tipc_member *tipc_group_create_member(struct tipc_group *grp,
 						    u32 instance, int state)
 {
 	struct tipc_member *m;
+	int ret;
 
 	m = kzalloc(sizeof(*m), GFP_ATOMIC);
 	if (!m)
@@ -314,8 +317,12 @@ static struct tipc_member *tipc_group_create_member(struct tipc_group *grp,
 	m->port = port;
 	m->instance = instance;
 	m->bc_acked = grp->bc_snd_nxt - 1;
+	ret = tipc_group_add_to_tree(grp, m);
+	if (ret < 0) {
+		kfree(m);
+		return NULL;
+	}
 	grp->member_cnt++;
-	tipc_group_add_to_tree(grp, m);
 	tipc_nlist_add(&grp->dests, m->node);
 	m->state = state;
 	return m;
@@ -353,7 +360,7 @@ struct tipc_nlist *tipc_group_dests(struct tipc_group *grp)
 	return &grp->dests;
 }
 
-void tipc_group_self(struct tipc_group *grp, struct tipc_name_seq *seq,
+void tipc_group_self(struct tipc_group *grp, struct tipc_service_range *seq,
 		     int *scope)
 {
 	seq->type = grp->type;
@@ -536,7 +543,7 @@ void tipc_group_filter_msg(struct tipc_group *grp, struct sk_buff_head *inputq,
 				update = true;
 				deliver = false;
 			}
-			/* Fall thru */
+			fallthrough;
 		case TIPC_GRP_BCAST_MSG:
 			m->bc_rcv_nxt++;
 			ack = msg_grp_bc_ack_req(hdr);

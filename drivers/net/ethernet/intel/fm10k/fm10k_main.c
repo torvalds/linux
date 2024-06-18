@@ -11,9 +11,7 @@
 
 #include "fm10k.h"
 
-#define DRV_VERSION	"0.26.1-k"
 #define DRV_SUMMARY	"Intel(R) Ethernet Switch Host Interface Driver"
-const char fm10k_driver_version[] = DRV_VERSION;
 char fm10k_driver_name[] = "fm10k";
 static const char fm10k_driver_string[] = DRV_SUMMARY;
 static const char fm10k_copyright[] =
@@ -22,7 +20,6 @@ static const char fm10k_copyright[] =
 MODULE_AUTHOR("Intel Corporation, <linux.nics@intel.com>");
 MODULE_DESCRIPTION(DRV_SUMMARY);
 MODULE_LICENSE("GPL v2");
-MODULE_VERSION(DRV_VERSION);
 
 /* single workqueue for entire fm10k driver */
 struct workqueue_struct *fm10k_workqueue;
@@ -35,7 +32,9 @@ struct workqueue_struct *fm10k_workqueue;
  **/
 static int __init fm10k_init_module(void)
 {
-	pr_info("%s - version %s\n", fm10k_driver_string, fm10k_driver_version);
+	int ret;
+
+	pr_info("%s\n", fm10k_driver_string);
 	pr_info("%s\n", fm10k_copyright);
 
 	/* create driver workqueue */
@@ -46,7 +45,13 @@ static int __init fm10k_init_module(void)
 
 	fm10k_dbg_init();
 
-	return fm10k_register_pci_driver();
+	ret = fm10k_register_pci_driver();
+	if (ret) {
+		fm10k_dbg_exit();
+		destroy_workqueue(fm10k_workqueue);
+	}
+
+	return ret;
 }
 module_init(fm10k_init_module);
 
@@ -197,17 +202,12 @@ static void fm10k_reuse_rx_page(struct fm10k_ring *rx_ring,
 					 DMA_FROM_DEVICE);
 }
 
-static inline bool fm10k_page_is_reserved(struct page *page)
-{
-	return (page_to_nid(page) != numa_mem_id()) || page_is_pfmemalloc(page);
-}
-
 static bool fm10k_can_reuse_rx_page(struct fm10k_rx_buffer *rx_buffer,
 				    struct page *page,
 				    unsigned int __maybe_unused truesize)
 {
-	/* avoid re-using remote pages */
-	if (unlikely(fm10k_page_is_reserved(page)))
+	/* avoid re-using remote and pfmemalloc pages */
+	if (!dev_page_is_reusable(page))
 		return false;
 
 #if (PAGE_SIZE < 8192)
@@ -268,8 +268,8 @@ static bool fm10k_add_rx_frag(struct fm10k_rx_buffer *rx_buffer,
 	if (likely(size <= FM10K_RX_HDR_LEN)) {
 		memcpy(__skb_put(skb, size), va, ALIGN(size, sizeof(long)));
 
-		/* page is not reserved, we can reuse buffer as-is */
-		if (likely(!fm10k_page_is_reserved(page)))
+		/* page is reusable, we can reuse buffer as-is */
+		if (dev_page_is_reusable(page))
 			return true;
 
 		/* this page cannot be reused so discard it */
@@ -313,10 +313,7 @@ static struct sk_buff *fm10k_fetch_rx_buffer(struct fm10k_ring *rx_ring,
 				  rx_buffer->page_offset;
 
 		/* prefetch first cache line of first page */
-		prefetch(page_addr);
-#if L1_CACHE_BYTES < 128
-		prefetch((void *)((u8 *)page_addr + L1_CACHE_BYTES));
-#endif
+		net_prefetch(page_addr);
 
 		/* allocate a skb to store the frags */
 		skb = napi_alloc_skb(&rx_ring->q_vector->napi,
@@ -638,15 +635,8 @@ static int fm10k_clean_rx_irq(struct fm10k_q_vector *q_vector,
 static struct ethhdr *fm10k_port_is_vxlan(struct sk_buff *skb)
 {
 	struct fm10k_intfc *interface = netdev_priv(skb->dev);
-	struct fm10k_udp_port *vxlan_port;
 
-	/* we can only offload a vxlan if we recognize it as such */
-	vxlan_port = list_first_entry_or_null(&interface->vxlan_port,
-					      struct fm10k_udp_port, list);
-
-	if (!vxlan_port)
-		return NULL;
-	if (vxlan_port->port != udp_hdr(skb)->dest)
+	if (interface->vxlan_port != udp_hdr(skb)->dest)
 		return NULL;
 
 	/* return offset of udp_hdr plus 8 bytes for VXLAN header */
@@ -859,7 +849,7 @@ static void fm10k_tx_csum(struct fm10k_ring *tx_ring,
 	case IPPROTO_GRE:
 		if (skb->encapsulation)
 			break;
-		/* fall through */
+		fallthrough;
 	default:
 		if (unlikely(net_ratelimit())) {
 			dev_warn(tx_ring->dev,
@@ -1557,7 +1547,7 @@ static bool fm10k_set_rss_queues(struct fm10k_intfc *interface)
  * important, starting with the "most" number of features turned on at once,
  * and ending with the smallest set of features.  This way large combinations
  * can be allocated if they're turned on, and smaller combinations are the
- * fallthrough conditions.
+ * fall through conditions.
  *
  **/
 static void fm10k_set_num_queues(struct fm10k_intfc *interface)
@@ -1613,8 +1603,7 @@ static int fm10k_alloc_q_vector(struct fm10k_intfc *interface,
 		return -ENOMEM;
 
 	/* initialize NAPI */
-	netif_napi_add(interface->netdev, &q_vector->napi,
-		       fm10k_poll, NAPI_POLL_WEIGHT);
+	netif_napi_add(interface->netdev, &q_vector->napi, fm10k_poll);
 
 	/* tie q_vector and interface together */
 	interface->q_vector[v_idx] = q_vector;
@@ -1792,7 +1781,7 @@ static void fm10k_free_q_vectors(struct fm10k_intfc *interface)
 }
 
 /**
- * f10k_reset_msix_capability - reset MSI-X capability
+ * fm10k_reset_msix_capability - reset MSI-X capability
  * @interface: board private structure to initialize
  *
  * Reset the MSI-X capability back to its starting state
@@ -1805,7 +1794,7 @@ static void fm10k_reset_msix_capability(struct fm10k_intfc *interface)
 }
 
 /**
- * f10k_init_msix_capability - configure MSI-X capability
+ * fm10k_init_msix_capability - configure MSI-X capability
  * @interface: board private structure to initialize
  *
  * Attempt to configure the interrupts using the best available

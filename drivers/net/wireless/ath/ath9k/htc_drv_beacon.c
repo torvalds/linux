@@ -215,7 +215,7 @@ static void ath9k_htc_send_beacon(struct ath9k_htc_priv *priv,
 	}
 
 	/* Get a new beacon */
-	beacon = ieee80211_beacon_get(priv->hw, vif);
+	beacon = ieee80211_beacon_get(priv->hw, vif, 0);
 	if (!beacon) {
 		spin_unlock_bh(&priv->beacon_lock);
 		return;
@@ -511,13 +511,13 @@ bool ath9k_htc_csa_is_finished(struct ath9k_htc_priv *priv)
 	struct ieee80211_vif *vif;
 
 	vif = priv->csa_vif;
-	if (!vif || !vif->csa_active)
+	if (!vif || !vif->bss_conf.csa_active)
 		return false;
 
-	if (!ieee80211_csa_is_complete(vif))
+	if (!ieee80211_beacon_cntdwn_is_complete(vif, 0))
 		return false;
 
-	ieee80211_csa_finish(vif);
+	ieee80211_csa_finish(vif, 0);
 
 	priv->csa_vif = NULL;
 	return true;

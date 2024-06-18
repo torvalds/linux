@@ -2,22 +2,21 @@
 /*
  * Device driver for MFD hi655x PMIC
  *
- * Copyright (c) 2016 Hisilicon.
+ * Copyright (c) 2016 HiSilicon Ltd.
  *
  * Authors:
  * Chen Feng <puck.chen@hisilicon.com>
  * Fei  Wang <w.f@huawei.com>
  */
 
-#include <linux/gpio.h>
 #include <linux/io.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/hi655x-pmic.h>
 #include <linux/module.h>
-#include <linux/of_gpio.h>
-#include <linux/of_platform.h>
+#include <linux/gpio/consumer.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 
@@ -49,7 +48,7 @@ static struct regmap_config hi655x_regmap_config = {
 	.max_register = HI655X_BUS_ADDR(0x400) - HI655X_STRIDE,
 };
 
-static struct resource pwrkey_resources[] = {
+static const struct resource pwrkey_resources[] = {
 	{
 		.name	= "down",
 		.start	= PWRON_D20R_INT,
@@ -94,7 +93,6 @@ static int hi655x_pmic_probe(struct platform_device *pdev)
 	int ret;
 	struct hi655x_pmic *pmic;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
 	void __iomem *base;
 
 	pmic = devm_kzalloc(dev, sizeof(*pmic), GFP_KERNEL);
@@ -102,8 +100,7 @@ static int hi655x_pmic_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	pmic->dev = dev;
 
-	pmic->res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(dev, pmic->res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
@@ -120,21 +117,12 @@ static int hi655x_pmic_probe(struct platform_device *pdev)
 
 	hi655x_local_irq_clear(pmic->regmap);
 
-	pmic->gpio = of_get_named_gpio(np, "pmic-gpios", 0);
-	if (!gpio_is_valid(pmic->gpio)) {
-		dev_err(dev, "Failed to get the pmic-gpios\n");
-		return -ENODEV;
-	}
+	pmic->gpio = devm_gpiod_get_optional(dev, "pmic", GPIOD_IN);
+	if (IS_ERR(pmic->gpio))
+		return dev_err_probe(dev, PTR_ERR(pmic->gpio),
+				"Failed to request hi655x pmic-gpio");
 
-	ret = devm_gpio_request_one(dev, pmic->gpio, GPIOF_IN,
-				    "hi655x_pmic_irq");
-	if (ret < 0) {
-		dev_err(dev, "Failed to request gpio %d  ret = %d\n",
-			pmic->gpio, ret);
-		return ret;
-	}
-
-	ret = regmap_add_irq_chip(pmic->regmap, gpio_to_irq(pmic->gpio),
+	ret = regmap_add_irq_chip(pmic->regmap, gpiod_to_irq(pmic->gpio),
 				  IRQF_TRIGGER_LOW | IRQF_NO_SUSPEND, 0,
 				  &hi655x_irq_chip, &pmic->irq_data);
 	if (ret) {
@@ -149,20 +137,19 @@ static int hi655x_pmic_probe(struct platform_device *pdev)
 			      regmap_irq_get_domain(pmic->irq_data));
 	if (ret) {
 		dev_err(dev, "Failed to register device %d\n", ret);
-		regmap_del_irq_chip(gpio_to_irq(pmic->gpio), pmic->irq_data);
+		regmap_del_irq_chip(gpiod_to_irq(pmic->gpio), pmic->irq_data);
 		return ret;
 	}
 
 	return 0;
 }
 
-static int hi655x_pmic_remove(struct platform_device *pdev)
+static void hi655x_pmic_remove(struct platform_device *pdev)
 {
 	struct hi655x_pmic *pmic = platform_get_drvdata(pdev);
 
-	regmap_del_irq_chip(gpio_to_irq(pmic->gpio), pmic->irq_data);
+	regmap_del_irq_chip(gpiod_to_irq(pmic->gpio), pmic->irq_data);
 	mfd_remove_devices(&pdev->dev);
-	return 0;
 }
 
 static const struct of_device_id hi655x_pmic_match[] = {
@@ -174,10 +161,10 @@ MODULE_DEVICE_TABLE(of, hi655x_pmic_match);
 static struct platform_driver hi655x_pmic_driver = {
 	.driver	= {
 		.name =	"hi655x-pmic",
-		.of_match_table = of_match_ptr(hi655x_pmic_match),
+		.of_match_table = hi655x_pmic_match,
 	},
 	.probe  = hi655x_pmic_probe,
-	.remove = hi655x_pmic_remove,
+	.remove_new = hi655x_pmic_remove,
 };
 module_platform_driver(hi655x_pmic_driver);
 

@@ -591,8 +591,6 @@ static int __net_init __ip_vs_ftp_init(struct net *net)
 		ret = register_ip_vs_app_inc(ipvs, app, app->protocol, ports[i]);
 		if (ret)
 			goto err_unreg;
-		pr_info("%s: loaded support on port[%d] = %u\n",
-			app->name, i, ports[i]);
 	}
 	return 0;
 
@@ -637,3 +635,4 @@ static void __exit ip_vs_ftp_exit(void)
 module_init(ip_vs_ftp_init);
 module_exit(ip_vs_ftp_exit);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("ipvs ftp helper");

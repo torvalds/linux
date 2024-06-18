@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// Copyright (C) 2021-2022 Samuel Holland <samuel@sholland.org>
+
+#include "sun20i-d1s.dtsi"
+#include "sunxi-d1-t113.dtsi"
+
+/ {
+	soc {
+		lradc: keys@2009800 {
+			compatible = "allwinner,sun20i-d1-lradc",
+				     "allwinner,sun50i-r329-lradc";
+			reg = <0x2009800 0x400>;
+			interrupts = <SOC_PERIPHERAL_IRQ(61) IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu CLK_BUS_LRADC>;
+			resets = <&ccu RST_BUS_LRADC>;
+			status = "disabled";
+		};
+
+		i2s0: i2s@2032000 {
+			compatible = "allwinner,sun20i-d1-i2s",
+				     "allwinner,sun50i-r329-i2s";
+			reg = <0x2032000 0x1000>;
+			interrupts = <SOC_PERIPHERAL_IRQ(26) IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu CLK_BUS_I2S0>,
+				 <&ccu CLK_I2S0>;
+			clock-names = "apb", "mod";
+			resets = <&ccu RST_BUS_I2S0>;
+			dmas = <&dma 3>, <&dma 3>;
+			dma-names = "rx", "tx";
+			status = "disabled";
+			#sound-dai-cells = <0>;
+		};
+	};
+};
+
+&pio {
+	/omit-if-no-ref/
+	dmic_pb11_d0_pin: dmic-pb11-d0-pin {
+		pins = "PB11";
+		function = "dmic";
+	};
+
+	/omit-if-no-ref/
+	dmic_pe17_clk_pin: dmic-pe17-clk-pin {
+		pins = "PE17";
+		function = "dmic";
+	};
+
+	/omit-if-no-ref/
+	i2c0_pb10_pins: i2c0-pb10-pins {
+		pins = "PB10", "PB11";
+		function = "i2c0";
+	};
+
+	/omit-if-no-ref/
+	i2c2_pb0_pins: i2c2-pb0-pins {
+		pins = "PB0", "PB1";
+		function = "i2c2";
+	};
+
+	/omit-if-no-ref/
+	uart0_pb8_pins: uart0-pb8-pins {
+		pins = "PB8", "PB9";
+		function = "uart0";
+	};
+};

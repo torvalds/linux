@@ -61,7 +61,7 @@ static void cmd640_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	struct ata_device *pair = ata_dev_pair(adev);
 
 	if (ata_timing_compute(adev, adev->pio_mode, &t, T, 0) < 0) {
-		printk(KERN_ERR DRV_NAME ": mode computation failed.\n");
+		ata_dev_err(adev, DRV_NAME ": mode computation failed.\n");
 		return;
 	}
 
@@ -172,7 +172,7 @@ static bool cmd640_sff_irq_check(struct ata_port *ap)
 	return irq_stat & irq_mask;
 }
 
-static struct scsi_host_template cmd640_sht = {
+static const struct scsi_host_template cmd640_sht = {
 	ATA_PIO_SHT(DRV_NAME),
 };
 

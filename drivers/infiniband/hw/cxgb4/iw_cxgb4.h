@@ -314,7 +314,6 @@ enum db_state {
 struct c4iw_dev {
 	struct ib_device ibdev;
 	struct c4iw_rdev rdev;
-	u32 device_cap_flags;
 	struct xarray cqs;
 	struct xarray qps;
 	struct xarray mrs;
@@ -339,11 +338,6 @@ struct uld_ctx {
 static inline struct c4iw_dev *to_c4iw_dev(struct ib_device *ibdev)
 {
 	return container_of(ibdev, struct c4iw_dev, ibdev);
-}
-
-static inline struct c4iw_dev *rdev_to_c4iw_dev(struct c4iw_rdev *rdev)
-{
-	return container_of(rdev, struct c4iw_dev, rdev);
 }
 
 static inline struct c4iw_cq *get_chp(struct c4iw_dev *rhp, u32 cqid)
@@ -432,8 +426,8 @@ struct c4iw_cq {
 	struct t4_cq cq;
 	spinlock_t lock;
 	spinlock_t comp_handler_lock;
-	atomic_t refcnt;
-	wait_queue_head_t wait;
+	refcount_t refcnt;
+	struct completion cq_rel_comp;
 	struct c4iw_wr_wait *wr_waitp;
 };
 
@@ -659,12 +653,6 @@ static inline u32 c4iw_ib_to_tpt_access(int a)
 	       FW_RI_MEM_ACCESS_LOCAL_READ;
 }
 
-static inline u32 c4iw_ib_to_tpt_bind_access(int acc)
-{
-	return (acc & IB_ACCESS_REMOTE_WRITE ? FW_RI_MEM_ACCESS_REM_WRITE : 0) |
-	       (acc & IB_ACCESS_REMOTE_READ ? FW_RI_MEM_ACCESS_REM_READ : 0);
-}
-
 enum c4iw_mmid_state {
 	C4IW_STAG_STATE_VALID,
 	C4IW_STAG_STATE_INVALID
@@ -707,7 +695,7 @@ struct mpa_message {
 	u8 flags;
 	u8 revision;
 	__be16 private_data_size;
-	u8 private_data[0];
+	u8 private_data[];
 };
 
 struct mpa_v2_conn_params {
@@ -719,7 +707,7 @@ struct terminate_message {
 	u8 layer_etype;
 	u8 ecode;
 	__be16 hdrct_rsvd;
-	u8 len_hdrs[0];
+	u8 len_hdrs[];
 };
 
 #define TERM_MAX_LENGTH (sizeof(struct terminate_message) + 2 + 18 + 28)
@@ -942,8 +930,6 @@ void c4iw_id_table_free(struct c4iw_id_table *alloc);
 
 typedef int (*c4iw_handler_func)(struct c4iw_dev *dev, struct sk_buff *skb);
 
-int c4iw_ep_redirect(void *ctx, struct dst_entry *old, struct dst_entry *new,
-		     struct l2t_entry *l2t);
 void c4iw_put_qpid(struct c4iw_rdev *rdev, u32 qpid,
 		   struct c4iw_dev_ucontext *uctx);
 u32 c4iw_get_resource(struct c4iw_id_table *id_table);
@@ -980,32 +966,29 @@ int c4iw_reject_cr(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len);
 void c4iw_qp_add_ref(struct ib_qp *qp);
 void c4iw_qp_rem_ref(struct ib_qp *qp);
 struct ib_mr *c4iw_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
-			    u32 max_num_sg, struct ib_udata *udata);
+			    u32 max_num_sg);
 int c4iw_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
 		   unsigned int *sg_offset);
-int c4iw_dealloc_mw(struct ib_mw *mw);
 void c4iw_dealloc(struct uld_ctx *ctx);
-struct ib_mw *c4iw_alloc_mw(struct ib_pd *pd, enum ib_mw_type type,
-			    struct ib_udata *udata);
 struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start,
 					   u64 length, u64 virt, int acc,
 					   struct ib_udata *udata);
 struct ib_mr *c4iw_get_dma_mr(struct ib_pd *pd, int acc);
 int c4iw_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata);
-void c4iw_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata);
+int c4iw_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata);
+void c4iw_cq_rem_ref(struct c4iw_cq *chp);
 int c4iw_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		   struct ib_udata *udata);
 int c4iw_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
 int c4iw_modify_srq(struct ib_srq *ib_srq, struct ib_srq_attr *attr,
 		    enum ib_srq_attr_mask srq_attr_mask,
 		    struct ib_udata *udata);
-void c4iw_destroy_srq(struct ib_srq *ib_srq, struct ib_udata *udata);
+int c4iw_destroy_srq(struct ib_srq *ib_srq, struct ib_udata *udata);
 int c4iw_create_srq(struct ib_srq *srq, struct ib_srq_init_attr *attrs,
 		    struct ib_udata *udata);
 int c4iw_destroy_qp(struct ib_qp *ib_qp, struct ib_udata *udata);
-struct ib_qp *c4iw_create_qp(struct ib_pd *pd,
-			     struct ib_qp_init_attr *attrs,
-			     struct ib_udata *udata);
+int c4iw_create_qp(struct ib_qp *qp, struct ib_qp_init_attr *attrs,
+		   struct ib_udata *udata);
 int c4iw_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 				 int attr_mask, struct ib_udata *udata);
 int c4iw_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
@@ -1053,8 +1036,9 @@ int c4iw_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 		       const struct ib_recv_wr **bad_wr);
 struct c4iw_wr_wait *c4iw_alloc_wr_wait(gfp_t gfp);
 
-typedef int c4iw_restrack_func(struct sk_buff *msg,
-			       struct rdma_restrack_entry *res);
-extern c4iw_restrack_func *c4iw_restrack_funcs[RDMA_RESTRACK_MAX];
+int c4iw_fill_res_mr_entry(struct sk_buff *msg, struct ib_mr *ibmr);
+int c4iw_fill_res_cq_entry(struct sk_buff *msg, struct ib_cq *ibcq);
+int c4iw_fill_res_qp_entry(struct sk_buff *msg, struct ib_qp *ibqp);
+int c4iw_fill_res_cm_id_entry(struct sk_buff *msg, struct rdma_cm_id *cm_id);
 
 #endif

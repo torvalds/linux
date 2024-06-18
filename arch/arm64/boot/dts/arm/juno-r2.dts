@@ -9,6 +9,7 @@
 /dts-v1/;
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/arm/coresight-cti-dt.h>
 #include "juno-base.dtsi"
 #include "juno-cs-r1r2.dtsi"
 
@@ -194,16 +195,20 @@
 
 		A72_L2: l2-cache0 {
 			compatible = "cache";
+			cache-unified;
 			cache-size = <0x200000>;
 			cache-line-size = <64>;
 			cache-sets = <2048>;
+			cache-level = <2>;
 		};
 
 		A53_L2: l2-cache1 {
 			compatible = "cache";
+			cache-unified;
 			cache-size = <0x100000>;
 			cache-line-size = <64>;
 			cache-sets = <1024>;
+			cache-level = <2>;
 		};
 	};
 
@@ -233,6 +238,10 @@
 };
 
 &pcie_ctlr {
+	status = "okay";
+};
+
+&smmu_pcie {
 	status = "okay";
 };
 
@@ -313,5 +322,29 @@
 };
 
 &cpu_debug5 {
+	cpu = <&A53_3>;
+};
+
+&cti0 {
+	cpu = <&A72_0>;
+};
+
+&cti1 {
+	cpu = <&A72_1>;
+};
+
+&cti2 {
+	cpu = <&A53_0>;
+};
+
+&cti3 {
+	cpu = <&A53_1>;
+};
+
+&cti4 {
+	cpu = <&A53_2>;
+};
+
+&cti5 {
 	cpu = <&A53_3>;
 };

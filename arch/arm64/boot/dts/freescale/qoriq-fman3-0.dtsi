@@ -6,6 +6,8 @@
  *
  */
 
+#include <dt-bindings/clock/fsl,qoriq-clockgen.h>
+
 fman0: fman@1a00000 {
 	#address-cells = <1>;
 	#size-cells = <1>;
@@ -15,10 +17,11 @@ fman0: fman@1a00000 {
 	reg = <0x0 0x1a00000 0x0 0xfe000>;
 	interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>,
 		     <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
-	clocks = <&clockgen 3 0>;
+	clocks = <&clockgen QORIQ_CLK_FMAN 0>;
 	clock-names = "fmanclk";
 	fsl,qman-channel-range = <0x800 0x10>;
 	ptimer-handle = <&ptp_timer0>;
+	dma-coherent;
 
 	muram@0 {
 		compatible = "fsl,fman-muram";
@@ -80,5 +83,6 @@ ptp_timer0: ptp-timer@1afe000 {
 	compatible = "fsl,fman-ptp-timer";
 	reg = <0x0 0x1afe000 0x0 0x1000>;
 	interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
-	clocks = <&clockgen 3 0>;
+	clocks = <&clockgen QORIQ_CLK_FMAN 0>;
+	fsl,extts-fifo;
 };

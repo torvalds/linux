@@ -30,7 +30,7 @@ static void ab8500_power_off(void)
 {
 	sigset_t old;
 	sigset_t all;
-	static const char * const pss[] = {"ab8500_ac", "pm2301", "ab8500_usb"};
+	static const char * const pss[] = {"ab8500_ac", "ab8500_usb"};
 	int i;
 	bool charger_present = false;
 	union power_supply_propval val;
@@ -140,14 +140,12 @@ static int ab8500_sysctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ab8500_sysctrl_remove(struct platform_device *pdev)
+static void ab8500_sysctrl_remove(struct platform_device *pdev)
 {
 	sysctrl_dev = NULL;
 
 	if (pm_power_off == ab8500_power_off)
 		pm_power_off = NULL;
-
-	return 0;
 }
 
 static const struct of_device_id ab8500_sysctrl_match[] = {
@@ -161,7 +159,7 @@ static struct platform_driver ab8500_sysctrl_driver = {
 		.of_match_table = ab8500_sysctrl_match,
 	},
 	.probe = ab8500_sysctrl_probe,
-	.remove = ab8500_sysctrl_remove,
+	.remove_new = ab8500_sysctrl_remove,
 };
 
 static int __init ab8500_sysctrl_init(void)

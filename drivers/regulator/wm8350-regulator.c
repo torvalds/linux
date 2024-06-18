@@ -470,7 +470,7 @@ static int wm8350_dcdc_set_suspend_mode(struct regulator_dev *rdev,
 	return 0;
 }
 
-static const struct regulator_linear_range wm8350_ldo_ranges[] = {
+static const struct linear_range wm8350_ldo_ranges[] = {
 	REGULATOR_LINEAR_RANGE(900000, 0, 15, 50000),
 	REGULATOR_LINEAR_RANGE(1800000, 16, 31, 100000),
 };
@@ -1089,7 +1089,6 @@ static irqreturn_t pmic_uv_handler(int irq, void *data)
 {
 	struct regulator_dev *rdev = (struct regulator_dev *)data;
 
-	regulator_lock(rdev);
 	if (irq == WM8350_IRQ_CS1 || irq == WM8350_IRQ_CS2)
 		regulator_notifier_call_chain(rdev,
 					      REGULATOR_EVENT_REGULATION_OUT,
@@ -1098,7 +1097,6 @@ static irqreturn_t pmic_uv_handler(int irq, void *data)
 		regulator_notifier_call_chain(rdev,
 					      REGULATOR_EVENT_UNDER_VOLTAGE,
 					      NULL);
-	regulator_unlock(rdev);
 
 	return IRQ_HANDLED;
 }
@@ -1114,7 +1112,7 @@ static int wm8350_regulator_probe(struct platform_device *pdev)
 	if (pdev->id < WM8350_DCDC_1 || pdev->id > WM8350_ISINK_B)
 		return -ENODEV;
 
-	/* do any regulatior specific init */
+	/* do any regulator specific init */
 	switch (pdev->id) {
 	case WM8350_DCDC_1:
 		val = wm8350_reg_read(wm8350, WM8350_DCDC1_LOW_POWER);
@@ -1160,14 +1158,12 @@ static int wm8350_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int wm8350_regulator_remove(struct platform_device *pdev)
+static void wm8350_regulator_remove(struct platform_device *pdev)
 {
 	struct regulator_dev *rdev = platform_get_drvdata(pdev);
 	struct wm8350 *wm8350 = rdev_get_drvdata(rdev);
 
 	wm8350_free_irq(wm8350, wm8350_reg[pdev->id].irq, rdev);
-
-	return 0;
 }
 
 int wm8350_register_regulator(struct wm8350 *wm8350, int reg,
@@ -1216,11 +1212,11 @@ EXPORT_SYMBOL_GPL(wm8350_register_regulator);
 /**
  * wm8350_register_led - Register a WM8350 LED output
  *
- * @param wm8350 The WM8350 device to configure.
- * @param lednum LED device index to create.
- * @param dcdc The DCDC to use for the LED.
- * @param isink The ISINK to use for the LED.
- * @param pdata Configuration for the LED.
+ * @wm8350: The WM8350 device to configure.
+ * @lednum: LED device index to create.
+ * @dcdc: The DCDC to use for the LED.
+ * @isink: The ISINK to use for the LED.
+ * @pdata: Configuration for the LED.
  *
  * The WM8350 supports the use of an ISINK together with a DCDC to
  * provide a power-efficient LED driver.  This function registers the
@@ -1308,9 +1304,10 @@ EXPORT_SYMBOL_GPL(wm8350_register_led);
 
 static struct platform_driver wm8350_regulator_driver = {
 	.probe = wm8350_regulator_probe,
-	.remove = wm8350_regulator_remove,
+	.remove_new = wm8350_regulator_remove,
 	.driver		= {
 		.name	= "wm8350-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
 

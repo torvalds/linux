@@ -28,8 +28,6 @@ extern const struct regmap_config wm8998_i2c_regmap;
 
 extern const struct dev_pm_ops arizona_pm_ops;
 
-extern const struct of_device_id arizona_of_match[];
-
 extern const struct regmap_irq_chip wm5102_aod;
 extern const struct regmap_irq_chip wm5102_irq;
 
@@ -49,14 +47,5 @@ int arizona_dev_init(struct arizona *arizona);
 int arizona_dev_exit(struct arizona *arizona);
 int arizona_irq_init(struct arizona *arizona);
 int arizona_irq_exit(struct arizona *arizona);
-
-#ifdef CONFIG_OF
-unsigned long arizona_of_get_type(struct device *dev);
-#else
-static inline unsigned long arizona_of_get_type(struct device *dev)
-{
-	return 0;
-}
-#endif
 
 #endif

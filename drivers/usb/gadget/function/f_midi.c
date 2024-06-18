@@ -87,7 +87,7 @@ struct f_midi {
 	struct snd_rawmidi_substream *out_substream[MAX_PORTS];
 
 	unsigned long		out_triggered;
-	struct tasklet_struct	tasklet;
+	struct work_struct	work;
 	unsigned int in_ports;
 	unsigned int out_ports;
 	int index;
@@ -99,7 +99,7 @@ struct f_midi {
 	unsigned int in_last_port;
 	unsigned char free_ref;
 
-	struct gmidi_in_port	in_ports_array[/* in_ports */];
+	struct gmidi_in_port	in_ports_array[] __counted_by(in_ports);
 };
 
 static inline struct f_midi *func_to_midi(struct usb_function *f)
@@ -698,9 +698,11 @@ drop_out:
 	f_midi_drop_out_substreams(midi);
 }
 
-static void f_midi_in_tasklet(unsigned long data)
+static void f_midi_in_work(struct work_struct *work)
 {
-	struct f_midi *midi = (struct f_midi *) data;
+	struct f_midi *midi;
+
+	midi = container_of(work, struct f_midi, work);
 	f_midi_transmit(midi);
 }
 
@@ -737,7 +739,7 @@ static void f_midi_in_trigger(struct snd_rawmidi_substream *substream, int up)
 	VDBG(midi, "%s() %d\n", __func__, up);
 	midi->in_ports_array[substream->number].active = up;
 	if (up)
-		tasklet_hi_schedule(&midi->tasklet);
+		queue_work(system_highpri_wq, &midi->work);
 }
 
 static int f_midi_out_open(struct snd_rawmidi_substream *substream)
@@ -875,7 +877,7 @@ static int f_midi_bind(struct usb_configuration *c, struct usb_function *f)
 	int status, n, jack = 1, i = 0, endpoint_descriptor_index = 0;
 
 	midi->gadget = cdev->gadget;
-	tasklet_init(&midi->tasklet, f_midi_in_tasklet, (unsigned long) midi);
+	INIT_WORK(&midi->work, f_midi_in_work);
 	status = f_midi_register_card(midi);
 	if (status < 0)
 		goto fail_register;
@@ -1021,34 +1023,30 @@ static int f_midi_bind(struct usb_configuration *c, struct usb_function *f)
 	if (!f->fs_descriptors)
 		goto fail_f_midi;
 
-	if (gadget_is_dualspeed(c->cdev->gadget)) {
-		bulk_in_desc.wMaxPacketSize = cpu_to_le16(512);
-		bulk_out_desc.wMaxPacketSize = cpu_to_le16(512);
-		f->hs_descriptors = usb_copy_descriptors(midi_function);
-		if (!f->hs_descriptors)
-			goto fail_f_midi;
-	}
+	bulk_in_desc.wMaxPacketSize = cpu_to_le16(512);
+	bulk_out_desc.wMaxPacketSize = cpu_to_le16(512);
+	f->hs_descriptors = usb_copy_descriptors(midi_function);
+	if (!f->hs_descriptors)
+		goto fail_f_midi;
 
-	if (gadget_is_superspeed(c->cdev->gadget)) {
-		bulk_in_desc.wMaxPacketSize = cpu_to_le16(1024);
-		bulk_out_desc.wMaxPacketSize = cpu_to_le16(1024);
-		i = endpoint_descriptor_index;
-		midi_function[i++] = (struct usb_descriptor_header *)
-				     &bulk_out_desc;
-		midi_function[i++] = (struct usb_descriptor_header *)
-				     &bulk_out_ss_comp_desc;
-		midi_function[i++] = (struct usb_descriptor_header *)
-				     &ms_out_desc;
-		midi_function[i++] = (struct usb_descriptor_header *)
-				     &bulk_in_desc;
-		midi_function[i++] = (struct usb_descriptor_header *)
-				     &bulk_in_ss_comp_desc;
-		midi_function[i++] = (struct usb_descriptor_header *)
-				     &ms_in_desc;
-		f->ss_descriptors = usb_copy_descriptors(midi_function);
-		if (!f->ss_descriptors)
-			goto fail_f_midi;
-	}
+	bulk_in_desc.wMaxPacketSize = cpu_to_le16(1024);
+	bulk_out_desc.wMaxPacketSize = cpu_to_le16(1024);
+	i = endpoint_descriptor_index;
+	midi_function[i++] = (struct usb_descriptor_header *)
+			     &bulk_out_desc;
+	midi_function[i++] = (struct usb_descriptor_header *)
+			     &bulk_out_ss_comp_desc;
+	midi_function[i++] = (struct usb_descriptor_header *)
+			     &ms_out_desc;
+	midi_function[i++] = (struct usb_descriptor_header *)
+			     &bulk_in_desc;
+	midi_function[i++] = (struct usb_descriptor_header *)
+			     &bulk_in_ss_comp_desc;
+	midi_function[i++] = (struct usb_descriptor_header *)
+			     &ms_in_desc;
+	f->ss_descriptors = usb_copy_descriptors(midi_function);
+	if (!f->ss_descriptors)
+		goto fail_f_midi;
 
 	kfree(midi_function);
 
@@ -1089,7 +1087,7 @@ static ssize_t f_midi_opts_##name##_show(struct config_item *item, char *page) \
 	int result;							\
 									\
 	mutex_lock(&opts->lock);					\
-	result = sprintf(page, "%d\n", opts->name);			\
+	result = sprintf(page, "%u\n", opts->name);			\
 	mutex_unlock(&opts->lock);					\
 									\
 	return result;							\
@@ -1126,7 +1124,51 @@ end:									\
 									\
 CONFIGFS_ATTR(f_midi_opts_, name);
 
-F_MIDI_OPT(index, true, SNDRV_CARDS);
+#define F_MIDI_OPT_SIGNED(name, test_limit, limit)				\
+static ssize_t f_midi_opts_##name##_show(struct config_item *item, char *page) \
+{									\
+	struct f_midi_opts *opts = to_f_midi_opts(item);		\
+	int result;							\
+									\
+	mutex_lock(&opts->lock);					\
+	result = sprintf(page, "%d\n", opts->name);			\
+	mutex_unlock(&opts->lock);					\
+									\
+	return result;							\
+}									\
+									\
+static ssize_t f_midi_opts_##name##_store(struct config_item *item,	\
+					 const char *page, size_t len)	\
+{									\
+	struct f_midi_opts *opts = to_f_midi_opts(item);		\
+	int ret;							\
+	s32 num;							\
+									\
+	mutex_lock(&opts->lock);					\
+	if (opts->refcnt > 1) {						\
+		ret = -EBUSY;						\
+		goto end;						\
+	}								\
+									\
+	ret = kstrtos32(page, 0, &num);					\
+	if (ret)							\
+		goto end;						\
+									\
+	if (test_limit && num > limit) {				\
+		ret = -EINVAL;						\
+		goto end;						\
+	}								\
+	opts->name = num;						\
+	ret = len;							\
+									\
+end:									\
+	mutex_unlock(&opts->lock);					\
+	return ret;							\
+}									\
+									\
+CONFIGFS_ATTR(f_midi_opts_, name);
+
+F_MIDI_OPT_SIGNED(index, true, SNDRV_CARDS);
 F_MIDI_OPT(buflen, false, 0);
 F_MIDI_OPT(qlen, false, 0);
 F_MIDI_OPT(in_ports, true, MAX_PORTS);
@@ -1135,11 +1177,11 @@ F_MIDI_OPT(out_ports, true, MAX_PORTS);
 static ssize_t f_midi_opts_id_show(struct config_item *item, char *page)
 {
 	struct f_midi_opts *opts = to_f_midi_opts(item);
-	int result;
+	ssize_t result;
 
 	mutex_lock(&opts->lock);
 	if (opts->id) {
-		result = strlcpy(page, opts->id, PAGE_SIZE);
+		result = strscpy(page, opts->id, PAGE_SIZE);
 	} else {
 		page[0] = 0;
 		result = 0;
@@ -1307,6 +1349,7 @@ static struct usb_function *f_midi_alloc(struct usb_function_instance *fi)
 		status = -ENOMEM;
 		goto setup_fail;
 	}
+	midi->in_ports = opts->in_ports;
 
 	for (i = 0; i < opts->in_ports; i++)
 		midi->in_ports_array[i].cable = i;
@@ -1315,9 +1358,8 @@ static struct usb_function *f_midi_alloc(struct usb_function_instance *fi)
 	midi->id = kstrdup(opts->id, GFP_KERNEL);
 	if (opts->id && !midi->id) {
 		status = -ENOMEM;
-		goto setup_fail;
+		goto midi_free;
 	}
-	midi->in_ports = opts->in_ports;
 	midi->out_ports = opts->out_ports;
 	midi->index = opts->index;
 	midi->buflen = opts->buflen;
@@ -1327,7 +1369,7 @@ static struct usb_function *f_midi_alloc(struct usb_function_instance *fi)
 
 	status = kfifo_alloc(&midi->in_req_fifo, midi->qlen, GFP_KERNEL);
 	if (status)
-		goto setup_fail;
+		goto midi_free;
 
 	spin_lock_init(&midi->transmit_lock);
 
@@ -1343,9 +1385,13 @@ static struct usb_function *f_midi_alloc(struct usb_function_instance *fi)
 
 	return &midi->func;
 
+midi_free:
+	if (midi)
+		kfree(midi->id);
+	kfree(midi);
 setup_fail:
 	mutex_unlock(&opts->lock);
-	kfree(midi);
+
 	return ERR_PTR(status);
 }
 

@@ -1,0 +1,121 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/qcom,ipq8074-pinctrl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm IPQ8074 TLMM pin controller
+
+maintainers:
+  - Bjorn Andersson <andersson@kernel.org>
+  - Krzysztof Kozlowski <krzysztof.kozlowski@linaro.org>
+
+description:
+  Top Level Mode Multiplexer pin controller in Qualcomm IPQ8074 SoC.
+
+properties:
+  compatible:
+    const: qcom,ipq8074-pinctrl
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  gpio-reserved-ranges:
+    minItems: 1
+    maxItems: 35
+
+  gpio-line-names:
+    maxItems: 70
+
+patternProperties:
+  "-state$":
+    oneOf:
+      - $ref: "#/$defs/qcom-ipq8074-tlmm-state"
+      - patternProperties:
+          "-pins$":
+            $ref: "#/$defs/qcom-ipq8074-tlmm-state"
+        additionalProperties: false
+
+$defs:
+  qcom-ipq8074-tlmm-state:
+    type: object
+    description:
+      Pinctrl node's client devices use subnodes for desired pin configuration.
+      Client device subnodes use below standard properties.
+    $ref: qcom,tlmm-common.yaml#/$defs/qcom-tlmm-state
+    unevaluatedProperties: false
+
+    properties:
+      pins:
+        description:
+          List of gpio pins affected by the properties specified in this
+          subnode.
+        items:
+          pattern: "^gpio([0-9]|[1-6][0-9]|70)$"
+        minItems: 1
+        maxItems: 36
+
+      function:
+        description:
+          Specify the alternative function to be configured for the specified
+          pins.
+
+        enum: [ gpio, atest_char, atest_char0, atest_char1, atest_char2,
+                atest_char3, audio_rxbclk, audio_rxd, audio_rxfsync,
+                audio_rxmclk, audio_txbclk, audio_txd, audio_txfsync,
+                audio_txmclk, blsp0_i2c, blsp0_spi, blsp0_uart, blsp1_i2c,
+                blsp1_spi, blsp1_uart, blsp2_i2c, blsp2_spi, blsp2_uart,
+                blsp3_i2c, blsp3_spi, blsp3_spi0, blsp3_spi1, blsp3_spi2,
+                blsp3_spi3, blsp3_uart, blsp4_i2c0, blsp4_i2c1, blsp4_spi0,
+                blsp4_spi1, blsp4_uart0, blsp4_uart1, blsp5_i2c, blsp5_spi,
+                blsp5_uart, burn0, burn1, cri_trng, cri_trng0, cri_trng1, cxc0,
+                cxc1, dbg_out, gcc_plltest, gcc_tlmm, ldo_en, ldo_update, led0,
+                led1, led2, mac0_sa0, mac0_sa1, mac1_sa0, mac1_sa1, mac1_sa2,
+                mac1_sa3, mac2_sa0, mac2_sa1, mdc, mdio, pcie0_clk, pcie0_rst,
+                pcie0_wake, pcie1_clk, pcie1_rst, pcie1_wake, pcm_drx, pcm_dtx,
+                pcm_fsync, pcm_pclk, pcm_zsi0, pcm_zsi1, prng_rosc, pta1_0,
+                pta1_1, pta1_2, pta2_0, pta2_1, pta2_2, pwm0, pwm1, pwm2, pwm3,
+                qdss_cti_trig_in_a0, qdss_cti_trig_in_a1, qdss_cti_trig_in_b0,
+                qdss_cti_trig_in_b1, qdss_cti_trig_out_a0,
+                qdss_cti_trig_out_a1, qdss_cti_trig_out_b0,
+                qdss_cti_trig_out_b1, qdss_traceclk_a, qdss_traceclk_b,
+                qdss_tracectl_a, qdss_tracectl_b, qdss_tracedata_a,
+                qdss_tracedata_b, qpic, rx0, rx1, rx2, sd_card, sd_write,
+                tsens_max, wci2a, wci2b, wci2c, wci2d ]
+
+    required:
+      - pins
+
+allOf:
+  - $ref: /schemas/pinctrl/qcom,tlmm-common.yaml#
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    tlmm: pinctrl@1000000 {
+        compatible = "qcom,ipq8074-pinctrl";
+        reg = <0x01000000 0x300000>;
+        gpio-controller;
+        #gpio-cells = <0x2>;
+        gpio-ranges = <&tlmm 0 0 70>;
+        interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-controller;
+        #interrupt-cells = <0x2>;
+
+        serial4-state {
+            pins = "gpio23", "gpio24";
+            function = "blsp4_uart1";
+            drive-strength = <8>;
+            bias-disable;
+        };
+    };

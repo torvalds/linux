@@ -64,7 +64,8 @@ u8 pvclock_read_flags(struct pvclock_vcpu_time_info *src)
 	return flags & valid_flags;
 }
 
-u64 pvclock_clocksource_read(struct pvclock_vcpu_time_info *src)
+static __always_inline
+u64 __pvclock_clocksource_read(struct pvclock_vcpu_time_info *src, bool dowd)
 {
 	unsigned version;
 	u64 ret;
@@ -77,7 +78,7 @@ u64 pvclock_clocksource_read(struct pvclock_vcpu_time_info *src)
 		flags = src->flags;
 	} while (pvclock_read_retry(src, version));
 
-	if (unlikely((flags & PVCLOCK_GUEST_STOPPED) != 0)) {
+	if (dowd && unlikely((flags & PVCLOCK_GUEST_STOPPED) != 0)) {
 		src->flags &= ~PVCLOCK_GUEST_STOPPED;
 		pvclock_touch_watchdogs();
 	}
@@ -89,7 +90,7 @@ u64 pvclock_clocksource_read(struct pvclock_vcpu_time_info *src)
 	/*
 	 * Assumption here is that last_value, a global accumulator, always goes
 	 * forward. If we are less than that, we should not be much smaller.
-	 * We assume there is an error marging we're inside, and then the correction
+	 * We assume there is an error margin we're inside, and then the correction
 	 * does not sacrifice accuracy.
 	 *
 	 * For reads: global may have changed between test and return,
@@ -100,14 +101,23 @@ u64 pvclock_clocksource_read(struct pvclock_vcpu_time_info *src)
 	 * updating at the same time, and one of them could be slightly behind,
 	 * making the assumption that last_value always go forward fail to hold.
 	 */
-	last = atomic64_read(&last_value);
+	last = raw_atomic64_read(&last_value);
 	do {
-		if (ret < last)
+		if (ret <= last)
 			return last;
-		last = atomic64_cmpxchg(&last_value, last, ret);
-	} while (unlikely(last != ret));
+	} while (!raw_atomic64_try_cmpxchg(&last_value, &last, ret));
 
 	return ret;
+}
+
+u64 pvclock_clocksource_read(struct pvclock_vcpu_time_info *src)
+{
+	return __pvclock_clocksource_read(src, true);
+}
+
+noinstr u64 pvclock_clocksource_read_nowd(struct pvclock_vcpu_time_info *src)
+{
+	return __pvclock_clocksource_read(src, false);
 }
 
 void pvclock_read_wallclock(struct pvclock_wall_clock *wall_clock,
@@ -145,7 +155,7 @@ void pvclock_read_wallclock(struct pvclock_wall_clock *wall_clock,
 
 void pvclock_set_pvti_cpu0_va(struct pvclock_vsyscall_time_info *pvti)
 {
-	WARN_ON(vclock_was_used(VCLOCK_PVCLOCK));
+	WARN_ON(vclock_was_used(VDSO_CLOCKMODE_PVCLOCK));
 	pvti_cpu0_va = pvti;
 }
 

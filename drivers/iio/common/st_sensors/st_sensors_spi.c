@@ -9,12 +9,12 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/slab.h>
 #include <linux/iio/iio.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
+#include <linux/spi/spi.h>
 
 #include <linux/iio/common/st_sensors_spi.h>
-#include "st_sensors_core.h"
 
 #define ST_SENSORS_SPI_MULTIREAD	0xc0
 
@@ -37,14 +37,15 @@ static const struct regmap_config st_sensors_spi_regmap_multiread_bit_config = {
  */
 static bool st_sensors_is_spi_3_wire(struct spi_device *spi)
 {
-	struct device_node *np = spi->dev.of_node;
 	struct st_sensors_platform_data *pdata;
+	struct device *dev = &spi->dev;
 
-	pdata = (struct st_sensors_platform_data *)spi->dev.platform_data;
-	if ((np && of_property_read_bool(np, "spi-3wire")) ||
-	    (pdata && pdata->spi_3wire)) {
+	if (device_property_read_bool(dev, "spi-3wire"))
 		return true;
-	}
+
+	pdata = dev_get_platdata(dev);
+	if (pdata && pdata->spi_3wire)
+		return true;
 
 	return false;
 }
@@ -99,22 +100,20 @@ int st_sensors_spi_configure(struct iio_dev *indio_dev,
 
 	sdata->regmap = devm_regmap_init_spi(spi, config);
 	if (IS_ERR(sdata->regmap)) {
-		dev_err(&spi->dev, "Failed to register spi regmap (%d)\n",
-			(int)PTR_ERR(sdata->regmap));
+		dev_err(&spi->dev, "Failed to register spi regmap (%ld)\n",
+			PTR_ERR(sdata->regmap));
 		return PTR_ERR(sdata->regmap);
 	}
 
 	spi_set_drvdata(spi, indio_dev);
 
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi->modalias;
 
-	sdata->dev = &spi->dev;
 	sdata->irq = spi->irq;
 
 	return 0;
 }
-EXPORT_SYMBOL(st_sensors_spi_configure);
+EXPORT_SYMBOL_NS(st_sensors_spi_configure, IIO_ST_SENSORS);
 
 MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");
 MODULE_DESCRIPTION("STMicroelectronics ST-sensors spi driver");

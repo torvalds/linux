@@ -27,7 +27,8 @@
 #include <linux/bitops.h>
 #include <linux/dma-mapping.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/pgtable.h>
+#include <linux/platform_device.h>
 
 #include <asm/io.h>
 #include <asm/dma.h>
@@ -36,7 +37,6 @@
 #include <asm/openprom.h>
 #include <asm/oplib.h>
 #include <asm/auxio.h>
-#include <asm/pgtable.h>
 #include <asm/irq.h>
 
 #include "sunqe.h"
@@ -144,7 +144,7 @@ static int qe_init(struct sunqe *qep, int from_irq)
 	void __iomem *cregs = qep->qcregs;
 	void __iomem *mregs = qep->mregs;
 	void __iomem *gregs = qecp->gregs;
-	unsigned char *e = &qep->dev->dev_addr[0];
+	const unsigned char *e = &qep->dev->dev_addr[0];
 	__u32 qblk_dvma = (__u32)qep->qblock_dvma;
 	u32 tmp;
 	int i;
@@ -544,7 +544,7 @@ static void qe_tx_reclaim(struct sunqe *qep)
 	qep->tx_old = elem;
 }
 
-static void qe_tx_timeout(struct net_device *dev)
+static void qe_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct sunqe *qep = netdev_priv(dev);
 	int tx_full;
@@ -684,8 +684,8 @@ static void qe_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	struct sunqe *qep = netdev_priv(dev);
 	struct platform_device *op;
 
-	strlcpy(info->driver, "sunqe", sizeof(info->driver));
-	strlcpy(info->version, "3.0", sizeof(info->version));
+	strscpy(info->driver, "sunqe", sizeof(info->driver));
+	strscpy(info->version, "3.0", sizeof(info->version));
 
 	op = qep->op;
 	regs = of_get_property(op->dev.of_node, "reg", NULL);
@@ -844,7 +844,7 @@ static int qec_ether_init(struct platform_device *op)
 	if (!dev)
 		return -ENOMEM;
 
-	memcpy(dev->dev_addr, idprom->id_ethaddr, ETH_ALEN);
+	eth_hw_addr_set(dev, idprom->id_ethaddr);
 
 	qe = netdev_priv(dev);
 
@@ -933,7 +933,7 @@ static int qec_sbus_probe(struct platform_device *op)
 	return qec_ether_init(op);
 }
 
-static int qec_sbus_remove(struct platform_device *op)
+static void qec_sbus_remove(struct platform_device *op)
 {
 	struct sunqe *qp = platform_get_drvdata(op);
 	struct net_device *net_dev = qp->dev;
@@ -948,8 +948,6 @@ static int qec_sbus_remove(struct platform_device *op)
 			  qp->buffers, qp->buffers_dvma);
 
 	free_netdev(net_dev);
-
-	return 0;
 }
 
 static const struct of_device_id qec_sbus_match[] = {
@@ -967,7 +965,7 @@ static struct platform_driver qec_sbus_driver = {
 		.of_match_table = qec_sbus_match,
 	},
 	.probe		= qec_sbus_probe,
-	.remove		= qec_sbus_remove,
+	.remove_new	= qec_sbus_remove,
 };
 
 static int __init qec_init(void)

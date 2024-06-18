@@ -3,7 +3,7 @@
  *
  * Name: acglobal.h - Declarations for global variables
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2023, Intel Corp.
  *
  *****************************************************************************/
 
@@ -24,6 +24,7 @@ ACPI_GLOBAL(struct acpi_table_list, acpi_gbl_root_table_list);
 
 ACPI_GLOBAL(struct acpi_table_header *, acpi_gbl_DSDT);
 ACPI_GLOBAL(struct acpi_table_header, acpi_gbl_original_dsdt_header);
+ACPI_INIT_GLOBAL(char *, acpi_gbl_CDAT, NULL);
 ACPI_INIT_GLOBAL(u32, acpi_gbl_dsdt_index, ACPI_INVALID_TABLE_INDEX);
 ACPI_INIT_GLOBAL(u32, acpi_gbl_facs_index, ACPI_INVALID_TABLE_INDEX);
 ACPI_INIT_GLOBAL(u32, acpi_gbl_xfacs_index, ACPI_INVALID_TABLE_INDEX);
@@ -41,6 +42,12 @@ ACPI_GLOBAL(struct acpi_generic_address, acpi_gbl_xpm1a_enable);
 
 ACPI_GLOBAL(struct acpi_generic_address, acpi_gbl_xpm1b_status);
 ACPI_GLOBAL(struct acpi_generic_address, acpi_gbl_xpm1b_enable);
+
+#ifdef ACPI_GPE_USE_LOGICAL_ADDRESSES
+ACPI_GLOBAL(unsigned long, acpi_gbl_xgpe0_block_logical_address);
+ACPI_GLOBAL(unsigned long, acpi_gbl_xgpe1_block_logical_address);
+
+#endif				/* ACPI_GPE_USE_LOGICAL_ADDRESSES */
 
 /*
  * Handle both ACPI 1.0 and ACPI 2.0+ Integer widths. The integer width is
@@ -122,6 +129,7 @@ ACPI_GLOBAL(acpi_table_handler, acpi_gbl_table_handler);
 ACPI_GLOBAL(void *, acpi_gbl_table_handler_context);
 ACPI_GLOBAL(acpi_interface_handler, acpi_gbl_interface_handler);
 ACPI_GLOBAL(struct acpi_sci_handler_info *, acpi_gbl_sci_handler_list);
+ACPI_GLOBAL(struct acpi_ged_handler_info *, acpi_gbl_ged_handler_list);
 
 /* Owner ID support */
 
@@ -220,6 +228,8 @@ extern struct acpi_bit_register_info
     acpi_gbl_bit_register_info[ACPI_NUM_BITREG];
 ACPI_GLOBAL(u8, acpi_gbl_sleep_type_a);
 ACPI_GLOBAL(u8, acpi_gbl_sleep_type_b);
+ACPI_GLOBAL(u8, acpi_gbl_sleep_type_a_s0);
+ACPI_GLOBAL(u8, acpi_gbl_sleep_type_b_s0);
 
 /*****************************************************************************
  *
@@ -290,6 +300,7 @@ ACPI_GLOBAL(struct acpi_external_file *, acpi_gbl_external_file_list);
 #ifdef ACPI_DEBUGGER
 ACPI_INIT_GLOBAL(u8, acpi_gbl_abort_method, FALSE);
 ACPI_INIT_GLOBAL(acpi_thread_id, acpi_gbl_db_thread_id, ACPI_INVALID_THREAD_ID);
+ACPI_INIT_GLOBAL(u32, acpi_gbl_next_cmd_num, 1);
 
 ACPI_GLOBAL(u8, acpi_gbl_db_opt_no_ini_methods);
 ACPI_GLOBAL(u8, acpi_gbl_db_opt_no_region_support);

@@ -13,11 +13,15 @@
 static const struct snd_soc_dapm_widget bt_sco_widgets[] = {
 	SND_SOC_DAPM_INPUT("RX"),
 	SND_SOC_DAPM_OUTPUT("TX"),
+	SND_SOC_DAPM_AIF_IN("BT_SCO_RX", "Playback", 0,
+			    SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("BT_SCO_TX", "Capture", 0,
+			     SND_SOC_NOPM, 0, 0),
 };
 
 static const struct snd_soc_dapm_route bt_sco_routes[] = {
-	{ "Capture", NULL, "RX" },
-	{ "TX", NULL, "Playback" },
+	{ "BT_SCO_TX", NULL, "RX" },
+	{ "TX", NULL, "BT_SCO_RX" },
 };
 
 static struct snd_soc_dai_driver bt_sco_dai[] = {
@@ -65,7 +69,6 @@ static const struct snd_soc_component_driver soc_component_dev_bt_sco = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static int bt_sco_probe(struct platform_device *pdev)
@@ -73,11 +76,6 @@ static int bt_sco_probe(struct platform_device *pdev)
 	return devm_snd_soc_register_component(&pdev->dev,
 				      &soc_component_dev_bt_sco,
 				      bt_sco_dai, ARRAY_SIZE(bt_sco_dai));
-}
-
-static int bt_sco_remove(struct platform_device *pdev)
-{
-	return 0;
 }
 
 static const struct platform_device_id bt_sco_driver_ids[] = {
@@ -106,7 +104,6 @@ static struct platform_driver bt_sco_driver = {
 		.of_match_table = of_match_ptr(bt_sco_codec_of_match),
 	},
 	.probe = bt_sco_probe,
-	.remove = bt_sco_remove,
 	.id_table = bt_sco_driver_ids,
 };
 

@@ -21,7 +21,6 @@
 #include <asm/time.h>
 #include <asm/io.h>
 #include <asm/machdep.h>
-#include <asm/prom.h>
 #include <asm/mpc52xx.h>
 
 /* ************************************************************************
@@ -165,8 +164,6 @@ static void __init lite5200_setup_arch(void)
 	mpc52xx_suspend.board_resume_finish = lite5200_resume_finish;
 	lite5200_pm_init();
 #endif
-
-	mpc52xx_setup_pci();
 }
 
 static const char * const board[] __initconst = {
@@ -175,21 +172,13 @@ static const char * const board[] __initconst = {
 	NULL,
 };
 
-/*
- * Called very early, MMU is off, device-tree isn't unflattened
- */
-static int __init lite5200_probe(void)
-{
-	return of_device_compatible_match(of_root, board);
-}
-
 define_machine(lite5200) {
 	.name 		= "lite5200",
-	.probe 		= lite5200_probe,
+	.compatibles	= board,
 	.setup_arch 	= lite5200_setup_arch,
+	.discover_phbs	= mpc52xx_setup_pci,
 	.init		= mpc52xx_declare_of_platform_devices,
 	.init_IRQ 	= mpc52xx_init_irq,
 	.get_irq 	= mpc52xx_get_irq,
 	.restart	= mpc52xx_restart,
-	.calibrate_decr	= generic_calibrate_decr,
 };

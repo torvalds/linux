@@ -30,6 +30,7 @@ enum vmw_view_type {
 	vmw_view_sr,
 	vmw_view_rt,
 	vmw_view_ds,
+	vmw_view_ua,
 	vmw_view_max,
 };
 
@@ -61,6 +62,7 @@ union vmw_view_destroy {
 	struct SVGA3dCmdDXDestroyRenderTargetView rtv;
 	struct SVGA3dCmdDXDestroyShaderResourceView srv;
 	struct SVGA3dCmdDXDestroyDepthStencilView dsv;
+	struct SVGA3dCmdDXDestroyUAView uav;
 	u32 view_id;
 };
 
@@ -87,7 +89,14 @@ static inline enum vmw_view_type vmw_view_cmd_to_type(u32 id)
 {
 	u32 tmp = (id - SVGA_3D_CMD_DX_DEFINE_SHADERRESOURCE_VIEW) / 2;
 
-	if (tmp > (u32)vmw_view_max)
+	if (id == SVGA_3D_CMD_DX_DEFINE_UA_VIEW ||
+	    id == SVGA_3D_CMD_DX_DESTROY_UA_VIEW)
+		return vmw_view_ua;
+
+	if (id == SVGA_3D_CMD_DX_DEFINE_DEPTHSTENCIL_VIEW_V2)
+		return vmw_view_ds;
+
+	if (tmp > (u32)vmw_view_ds)
 		return vmw_view_max;
 
 	return (enum vmw_view_type) tmp;
@@ -117,12 +126,14 @@ static inline enum vmw_so_type vmw_so_cmd_to_type(u32 id)
 	case SVGA_3D_CMD_DX_DESTROY_DEPTHSTENCIL_STATE:
 		return vmw_so_ds;
 	case SVGA_3D_CMD_DX_DEFINE_RASTERIZER_STATE:
+	case SVGA_3D_CMD_DX_DEFINE_RASTERIZER_STATE_V2:
 	case SVGA_3D_CMD_DX_DESTROY_RASTERIZER_STATE:
 		return vmw_so_rs;
 	case SVGA_3D_CMD_DX_DEFINE_SAMPLER_STATE:
 	case SVGA_3D_CMD_DX_DESTROY_SAMPLER_STATE:
 		return vmw_so_ss;
 	case SVGA_3D_CMD_DX_DEFINE_STREAMOUTPUT:
+	case SVGA_3D_CMD_DX_DEFINE_STREAMOUTPUT_WITH_MOB:
 	case SVGA_3D_CMD_DX_DESTROY_STREAMOUTPUT:
 		return vmw_so_so;
 	default:

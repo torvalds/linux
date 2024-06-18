@@ -10,9 +10,11 @@
 #include <linux/virtio.h>
 #include <linux/crypto.h>
 #include <linux/spinlock.h>
+#include <linux/interrupt.h>
 #include <crypto/aead.h>
 #include <crypto/aes.h>
 #include <crypto/engine.h>
+#include <uapi/linux/virtio_crypto.h>
 
 
 /* Internal representation of a data virtqueue */
@@ -27,12 +29,16 @@ struct data_queue {
 	char name[32];
 
 	struct crypto_engine *engine;
+	struct tasklet_struct done_task;
 };
 
 struct virtio_crypto {
 	struct virtio_device *vdev;
 	struct virtqueue *ctrl_vq;
 	struct data_queue *data_vq;
+
+	/* Work struct for config space updates */
+	struct work_struct config_work;
 
 	/* To protect the vq operations for the controlq */
 	spinlock_t ctrl_lock;
@@ -56,6 +62,7 @@ struct virtio_crypto {
 	u32 mac_algo_l;
 	u32 mac_algo_h;
 	u32 aead_algo;
+	u32 akcipher_algo;
 
 	/* Maximum length of cipher key */
 	u32 max_cipher_key_len;
@@ -63,11 +70,6 @@ struct virtio_crypto {
 	u32 max_auth_key_len;
 	/* Maximum size of per request */
 	u64 max_size;
-
-	/* Control VQ buffers: protected by the ctrl_lock */
-	struct virtio_crypto_op_ctrl_req ctrl;
-	struct virtio_crypto_session_input input;
-	struct virtio_crypto_inhdr ctrl_status;
 
 	unsigned long status;
 	atomic_t ref_count;
@@ -82,6 +84,18 @@ struct virtio_crypto {
 struct virtio_crypto_sym_session_info {
 	/* Backend session id, which come from the host side */
 	__u64 session_id;
+};
+
+/*
+ * Note: there are padding fields in request, clear them to zero before
+ *       sending to host to avoid to divulge any information.
+ * Ex, virtio_crypto_ctrl_request::ctrl::u::destroy_session::padding[48]
+ */
+struct virtio_crypto_ctrl_request {
+	struct virtio_crypto_op_ctrl_req ctrl;
+	struct virtio_crypto_session_input input;
+	struct virtio_crypto_inhdr ctrl_status;
+	struct completion compl;
 };
 
 struct virtio_crypto_request;
@@ -112,7 +126,7 @@ struct virtio_crypto *virtcrypto_get_dev_node(int node,
 					      uint32_t algo);
 int virtcrypto_dev_start(struct virtio_crypto *vcrypto);
 void virtcrypto_dev_stop(struct virtio_crypto *vcrypto);
-int virtio_crypto_ablkcipher_crypt_req(
+int virtio_crypto_skcipher_crypt_req(
 	struct crypto_engine *engine, void *vreq);
 
 void
@@ -129,7 +143,12 @@ static inline int virtio_crypto_get_current_node(void)
 	return node;
 }
 
-int virtio_crypto_algs_register(struct virtio_crypto *vcrypto);
-void virtio_crypto_algs_unregister(struct virtio_crypto *vcrypto);
+int virtio_crypto_skcipher_algs_register(struct virtio_crypto *vcrypto);
+void virtio_crypto_skcipher_algs_unregister(struct virtio_crypto *vcrypto);
+int virtio_crypto_akcipher_algs_register(struct virtio_crypto *vcrypto);
+void virtio_crypto_akcipher_algs_unregister(struct virtio_crypto *vcrypto);
+int virtio_crypto_ctrl_vq_request(struct virtio_crypto *vcrypto, struct scatterlist *sgs[],
+				  unsigned int out_sgs, unsigned int in_sgs,
+				  struct virtio_crypto_ctrl_request *vc_ctrl_req);
 
 #endif /* _VIRTIO_CRYPTO_COMMON_H */

@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config NVMEM_LAYOUTS
+	bool
+	depends on OF
+
+if NVMEM_LAYOUTS
+
+menu "Layout Types"
+
+config NVMEM_LAYOUT_SL28_VPD
+	tristate "Kontron sl28 VPD layout support"
+	select CRC8
+	help
+	  Say Y here if you want to support the VPD layout of the Kontron
+	  SMARC-sAL28 boards.
+
+	  If unsure, say N.
+
+config NVMEM_LAYOUT_ONIE_TLV
+	tristate "ONIE tlv support"
+	select CRC32
+	help
+	  Say Y here if you want to support the Open Compute Project ONIE
+	  Type-Length-Value standard table.
+
+	  If unsure, say N.
+
+endmenu
+
+endif

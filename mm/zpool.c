@@ -21,17 +21,10 @@
 struct zpool {
 	struct zpool_driver *driver;
 	void *pool;
-	const struct zpool_ops *ops;
-	bool evictable;
-
-	struct list_head list;
 };
 
 static LIST_HEAD(drivers_head);
 static DEFINE_SPINLOCK(drivers_lock);
-
-static LIST_HEAD(pools_head);
-static DEFINE_SPINLOCK(pools_lock);
 
 /**
  * zpool_register_driver() - register a zpool implementation.
@@ -140,7 +133,6 @@ EXPORT_SYMBOL(zpool_has_pool);
  * @type:	The type of the zpool to create (e.g. zbud, zsmalloc)
  * @name:	The name of the zpool (e.g. zram0, zswap)
  * @gfp:	The GFP flags to use when allocating the pool.
- * @ops:	The optional ops callback.
  *
  * This creates a new zpool of the specified type.  The gfp flags will be
  * used when allocating memory, if the implementation supports it.  If the
@@ -152,8 +144,7 @@ EXPORT_SYMBOL(zpool_has_pool);
  *
  * Returns: New zpool on success, NULL on failure.
  */
-struct zpool *zpool_create_pool(const char *type, const char *name, gfp_t gfp,
-		const struct zpool_ops *ops)
+struct zpool *zpool_create_pool(const char *type, const char *name, gfp_t gfp)
 {
 	struct zpool_driver *driver;
 	struct zpool *zpool;
@@ -180,9 +171,7 @@ struct zpool *zpool_create_pool(const char *type, const char *name, gfp_t gfp,
 	}
 
 	zpool->driver = driver;
-	zpool->pool = driver->create(name, gfp, ops, zpool);
-	zpool->ops = ops;
-	zpool->evictable = driver->shrink && ops && ops->evict;
+	zpool->pool = driver->create(name, gfp);
 
 	if (!zpool->pool) {
 		pr_err("couldn't create %s pool\n", type);
@@ -192,10 +181,6 @@ struct zpool *zpool_create_pool(const char *type, const char *name, gfp_t gfp,
 	}
 
 	pr_debug("created pool type %s\n", type);
-
-	spin_lock(&pools_lock);
-	list_add(&zpool->list, &pools_head);
-	spin_unlock(&pools_lock);
 
 	return zpool;
 }
@@ -215,9 +200,6 @@ void zpool_destroy_pool(struct zpool *zpool)
 {
 	pr_debug("destroying pool type %s\n", zpool->driver->type);
 
-	spin_lock(&pools_lock);
-	list_del(&zpool->list);
-	spin_unlock(&pools_lock);
 	zpool->driver->destroy(zpool->pool);
 	zpool_put_driver(zpool->driver);
 	kfree(zpool);
@@ -239,15 +221,15 @@ const char *zpool_get_type(struct zpool *zpool)
 }
 
 /**
- * zpool_malloc_support_movable() - Check if the zpool support
- * allocate movable memory
+ * zpool_malloc_support_movable() - Check if the zpool supports
+ *	allocating movable memory
  * @zpool:	The zpool to check
  *
- * This returns if the zpool support allocate movable memory.
+ * This returns if the zpool supports allocating movable memory.
  *
  * Implementations must guarantee this to be thread-safe.
  *
- * Returns: true if if the zpool support allocate movable memory, false if not
+ * Returns: true if the zpool supports allocating movable memory, false if not
  */
 bool zpool_malloc_support_movable(struct zpool *zpool)
 {
@@ -296,30 +278,6 @@ void zpool_free(struct zpool *zpool, unsigned long handle)
 }
 
 /**
- * zpool_shrink() - Shrink the pool size
- * @zpool:	The zpool to shrink.
- * @pages:	The number of pages to shrink the pool.
- * @reclaimed:	The number of pages successfully evicted.
- *
- * This attempts to shrink the actual memory size of the pool
- * by evicting currently used handle(s).  If the pool was
- * created with no zpool_ops, or the evict call fails for any
- * of the handles, this will fail.  If non-NULL, the @reclaimed
- * parameter will be set to the number of pages reclaimed,
- * which may be more than the number of pages requested.
- *
- * Implementations must guarantee this to be thread-safe.
- *
- * Returns: 0 on success, negative value on error/failure.
- */
-int zpool_shrink(struct zpool *zpool, unsigned int pages,
-			unsigned int *reclaimed)
-{
-	return zpool->driver->shrink ?
-	       zpool->driver->shrink(zpool->pool, pages, reclaimed) : -EINVAL;
-}
-
-/**
  * zpool_map_handle() - Map a previously allocated handle into memory
  * @zpool:	The zpool that the handle was allocated from
  * @handle:	The handle to map
@@ -334,7 +292,7 @@ int zpool_shrink(struct zpool *zpool, unsigned int pages,
  * This may hold locks, disable interrupts, and/or preemption,
  * and the zpool_unmap_handle() must be called to undo those
  * actions.  The code that uses the mapped handle should complete
- * its operatons on the mapped handle memory quickly and unmap
+ * its operations on the mapped handle memory quickly and unmap
  * as soon as possible.  As the implementation may use per-cpu
  * data, multiple handles should not be mapped concurrently on
  * any cpu.
@@ -363,36 +321,35 @@ void zpool_unmap_handle(struct zpool *zpool, unsigned long handle)
 }
 
 /**
- * zpool_get_total_size() - The total size of the pool
+ * zpool_get_total_pages() - The total size of the pool
  * @zpool:	The zpool to check
  *
- * This returns the total size in bytes of the pool.
+ * This returns the total size in pages of the pool.
  *
- * Returns: Total size of the zpool in bytes.
+ * Returns: Total size of the zpool in pages.
  */
-u64 zpool_get_total_size(struct zpool *zpool)
+u64 zpool_get_total_pages(struct zpool *zpool)
 {
-	return zpool->driver->total_size(zpool->pool);
+	return zpool->driver->total_pages(zpool->pool);
 }
 
 /**
- * zpool_evictable() - Test if zpool is potentially evictable
+ * zpool_can_sleep_mapped - Test if zpool can sleep when do mapped.
  * @zpool:	The zpool to test
  *
- * Zpool is only potentially evictable when it's created with struct
- * zpool_ops.evict and its driver implements struct zpool_driver.shrink.
+ * Some allocators enter non-preemptible context in ->map() callback (e.g.
+ * disable pagefaults) and exit that context in ->unmap(), which limits what
+ * we can do with the mapped object. For instance, we cannot wait for
+ * asynchronous crypto API to decompress such an object or take mutexes
+ * since those will call into the scheduler. This function tells us whether
+ * we use such an allocator.
  *
- * However, it doesn't necessarily mean driver will use zpool_ops.evict
- * in its implementation of zpool_driver.shrink. It could do internal
- * defragmentation instead.
- *
- * Returns: true if potentially evictable; false otherwise.
+ * Returns: true if zpool can sleep; false otherwise.
  */
-bool zpool_evictable(struct zpool *zpool)
+bool zpool_can_sleep_mapped(struct zpool *zpool)
 {
-	return zpool->evictable;
+	return zpool->driver->sleep_mapped;
 }
 
-MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Dan Streetman <ddstreet@ieee.org>");
 MODULE_DESCRIPTION("Common API for compressed memory storage");

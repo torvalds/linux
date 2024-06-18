@@ -7,26 +7,36 @@
 #include <linux/netdevice.h>
 #include <linux/wait.h>
 #include <linux/refcount.h>
+#include <linux/cleanup.h>
 #include <uapi/linux/rtnetlink.h>
 
 extern int rtnetlink_send(struct sk_buff *skb, struct net *net, u32 pid, u32 group, int echo);
+
+static inline int rtnetlink_maybe_send(struct sk_buff *skb, struct net *net,
+				       u32 pid, u32 group, int echo)
+{
+	return !skb ? 0 : rtnetlink_send(skb, net, pid, group, echo);
+}
+
 extern int rtnl_unicast(struct sk_buff *skb, struct net *net, u32 pid);
 extern void rtnl_notify(struct sk_buff *skb, struct net *net, u32 pid,
-			u32 group, struct nlmsghdr *nlh, gfp_t flags);
+			u32 group, const struct nlmsghdr *nlh, gfp_t flags);
 extern void rtnl_set_sk_err(struct net *net, u32 group, int error);
 extern int rtnetlink_put_metrics(struct sk_buff *skb, u32 *metrics);
 extern int rtnl_put_cacheinfo(struct sk_buff *skb, struct dst_entry *dst,
 			      u32 id, long expires, u32 error);
 
-void rtmsg_ifinfo(int type, struct net_device *dev, unsigned change, gfp_t flags);
+void rtmsg_ifinfo(int type, struct net_device *dev, unsigned int change, gfp_t flags,
+		  u32 portid, const struct nlmsghdr *nlh);
 void rtmsg_ifinfo_newnet(int type, struct net_device *dev, unsigned int change,
 			 gfp_t flags, int *new_nsid, int new_ifindex);
 struct sk_buff *rtmsg_ifinfo_build_skb(int type, struct net_device *dev,
 				       unsigned change, u32 event,
 				       gfp_t flags, int *new_nsid,
-				       int new_ifindex);
+				       int new_ifindex, u32 portid,
+				       const struct nlmsghdr *nlh);
 void rtmsg_ifinfo_send(struct sk_buff *skb, struct net_device *dev,
-		       gfp_t flags);
+		       gfp_t flags, u32 portid, const struct nlmsghdr *nlh);
 
 
 /* RTNL is used as a global lock for all changes to network configuration  */
@@ -37,7 +47,10 @@ extern int rtnl_is_locked(void);
 extern int rtnl_lock_killable(void);
 extern bool refcount_dec_and_rtnl_lock(refcount_t *r);
 
+DEFINE_LOCK_GUARD_0(rtnl, rtnl_lock(), rtnl_unlock())
+
 extern wait_queue_head_t netdev_unregistering_wq;
+extern atomic_t dev_unreg_count;
 extern struct rw_semaphore pernet_ops_rwsem;
 extern struct rw_semaphore net_rwsem;
 
@@ -61,16 +74,6 @@ static inline bool lockdep_rtnl_is_held(void)
 	rcu_dereference_check(p, lockdep_rtnl_is_held())
 
 /**
- * rcu_dereference_bh_rtnl - rcu_dereference_bh with debug checking
- * @p: The pointer to read, prior to dereference
- *
- * Do an rcu_dereference_bh(p), but check caller either holds rcu_read_lock_bh()
- * or RTNL. Note : Please prefer rtnl_dereference() or rcu_dereference_bh()
- */
-#define rcu_dereference_bh_rtnl(p)				\
-	rcu_dereference_bh_check(p, lockdep_rtnl_is_held())
-
-/**
  * rtnl_dereference - fetch RCU pointer when updates are prevented by RTNL
  * @p: The pointer to read, prior to dereferencing
  *
@@ -79,6 +82,18 @@ static inline bool lockdep_rtnl_is_held(void)
  */
 #define rtnl_dereference(p)					\
 	rcu_dereference_protected(p, lockdep_rtnl_is_held())
+
+/**
+ * rcu_replace_pointer_rtnl - replace an RCU pointer under rtnl_lock, returning
+ * its old value
+ * @rp: RCU pointer, whose value is returned
+ * @p: regular pointer
+ *
+ * Perform a replacement under rtnl_lock, where @rp is an RCU-annotated
+ * pointer. The old value of @rp is returned, and @rp is set to @p
+ */
+#define rcu_replace_pointer_rtnl(rp, p)			\
+	rcu_replace_pointer(rp, p, lockdep_rtnl_is_held())
 
 static inline struct netdev_queue *dev_ingress_queue(struct net_device *dev)
 {
@@ -100,6 +115,7 @@ void net_dec_ingress_queue(void);
 #ifdef CONFIG_NET_EGRESS
 void net_inc_egress_queue(void);
 void net_dec_egress_queue(void);
+void netdev_xmit_skip_txqueue(bool skip);
 #endif
 
 void rtnetlink_init(void);
@@ -134,4 +150,31 @@ extern int ndo_dflt_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 				   int (*vlan_fill)(struct sk_buff *skb,
 						    struct net_device *dev,
 						    u32 filter_mask));
+
+extern void rtnl_offload_xstats_notify(struct net_device *dev);
+
+static inline int rtnl_has_listeners(const struct net *net, u32 group)
+{
+	struct sock *rtnl = net->rtnl;
+
+	return netlink_has_listeners(rtnl, group);
+}
+
+/**
+ * rtnl_notify_needed - check if notification is needed
+ * @net: Pointer to the net namespace
+ * @nlflags: netlink ingress message flags
+ * @group: rtnl group
+ *
+ * Based on the ingress message flags and rtnl group, returns true
+ * if a notification is needed, false otherwise.
+ */
+static inline bool
+rtnl_notify_needed(const struct net *net, u16 nlflags, u32 group)
+{
+	return (nlflags & NLM_F_ECHO) || rtnl_has_listeners(net, group);
+}
+
+void netdev_set_operstate(struct net_device *dev, int newstate);
+
 #endif	/* __LINUX_RTNETLINK_H */

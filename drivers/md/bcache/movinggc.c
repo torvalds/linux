@@ -35,16 +35,16 @@ static bool moving_pred(struct keybuf *buf, struct bkey *k)
 
 /* Moving GC - IO loop */
 
-static void moving_io_destructor(struct closure *cl)
+static CLOSURE_CALLBACK(moving_io_destructor)
 {
-	struct moving_io *io = container_of(cl, struct moving_io, cl);
+	closure_type(io, struct moving_io, cl);
 
 	kfree(io);
 }
 
-static void write_moving_finish(struct closure *cl)
+static CLOSURE_CALLBACK(write_moving_finish)
 {
-	struct moving_io *io = container_of(cl, struct moving_io, cl);
+	closure_type(io, struct moving_io, cl);
 	struct bio *bio = &io->bio.bio;
 
 	bio_free_pages(bio);
@@ -79,8 +79,8 @@ static void moving_init(struct moving_io *io)
 {
 	struct bio *bio = &io->bio.bio;
 
-	bio_init(bio, bio->bi_inline_vecs,
-		 DIV_ROUND_UP(KEY_SIZE(&io->w->key), PAGE_SECTORS));
+	bio_init(bio, NULL, bio->bi_inline_vecs,
+		 DIV_ROUND_UP(KEY_SIZE(&io->w->key), PAGE_SECTORS), 0);
 	bio_get(bio);
 	bio_set_prio(bio, IOPRIO_PRIO_VALUE(IOPRIO_CLASS_IDLE, 0));
 
@@ -89,9 +89,9 @@ static void moving_init(struct moving_io *io)
 	bch_bio_map(bio, NULL);
 }
 
-static void write_moving(struct closure *cl)
+static CLOSURE_CALLBACK(write_moving)
 {
-	struct moving_io *io = container_of(cl, struct moving_io, cl);
+	closure_type(io, struct moving_io, cl);
 	struct data_insert_op *op = &io->op;
 
 	if (!op->status) {
@@ -113,9 +113,9 @@ static void write_moving(struct closure *cl)
 	continue_at(cl, write_moving_finish, op->wq);
 }
 
-static void read_moving_submit(struct closure *cl)
+static CLOSURE_CALLBACK(read_moving_submit)
 {
-	struct moving_io *io = container_of(cl, struct moving_io, cl);
+	closure_type(io, struct moving_io, cl);
 	struct bio *bio = &io->bio.bio;
 
 	bch_submit_bbio(bio, io->op.c, &io->w->key, 0);
@@ -145,8 +145,8 @@ static void read_moving(struct cache_set *c)
 			continue;
 		}
 
-		io = kzalloc(sizeof(struct moving_io) + sizeof(struct bio_vec)
-			     * DIV_ROUND_UP(KEY_SIZE(&w->key), PAGE_SECTORS),
+		io = kzalloc(struct_size(io, bio.bio.bi_inline_vecs,
+					 DIV_ROUND_UP(KEY_SIZE(&w->key), PAGE_SECTORS)),
 			     GFP_KERNEL);
 		if (!io)
 			goto err;
@@ -160,7 +160,7 @@ static void read_moving(struct cache_set *c)
 		moving_init(io);
 		bio = &io->bio.bio;
 
-		bio_set_op_attrs(bio, REQ_OP_READ, 0);
+		bio->bi_opf = REQ_OP_READ;
 		bio->bi_end_io	= read_moving_endio;
 
 		if (bch_bio_alloc_pages(bio, GFP_KERNEL))
@@ -196,49 +196,47 @@ static unsigned int bucket_heap_top(struct cache *ca)
 
 void bch_moving_gc(struct cache_set *c)
 {
-	struct cache *ca;
+	struct cache *ca = c->cache;
 	struct bucket *b;
-	unsigned int i;
+	unsigned long sectors_to_move, reserve_sectors;
 
 	if (!c->copy_gc_enabled)
 		return;
 
 	mutex_lock(&c->bucket_lock);
 
-	for_each_cache(ca, c, i) {
-		unsigned int sectors_to_move = 0;
-		unsigned int reserve_sectors = ca->sb.bucket_size *
+	sectors_to_move = 0;
+	reserve_sectors = ca->sb.bucket_size *
 			     fifo_used(&ca->free[RESERVE_MOVINGGC]);
 
-		ca->heap.used = 0;
+	ca->heap.used = 0;
 
-		for_each_bucket(b, ca) {
-			if (GC_MARK(b) == GC_MARK_METADATA ||
-			    !GC_SECTORS_USED(b) ||
-			    GC_SECTORS_USED(b) == ca->sb.bucket_size ||
-			    atomic_read(&b->pin))
-				continue;
+	for_each_bucket(b, ca) {
+		if (GC_MARK(b) == GC_MARK_METADATA ||
+		    !GC_SECTORS_USED(b) ||
+		    GC_SECTORS_USED(b) == ca->sb.bucket_size ||
+		    atomic_read(&b->pin))
+			continue;
 
-			if (!heap_full(&ca->heap)) {
-				sectors_to_move += GC_SECTORS_USED(b);
-				heap_add(&ca->heap, b, bucket_cmp);
-			} else if (bucket_cmp(b, heap_peek(&ca->heap))) {
-				sectors_to_move -= bucket_heap_top(ca);
-				sectors_to_move += GC_SECTORS_USED(b);
+		if (!heap_full(&ca->heap)) {
+			sectors_to_move += GC_SECTORS_USED(b);
+			heap_add(&ca->heap, b, bucket_cmp);
+		} else if (bucket_cmp(b, heap_peek(&ca->heap))) {
+			sectors_to_move -= bucket_heap_top(ca);
+			sectors_to_move += GC_SECTORS_USED(b);
 
-				ca->heap.data[0] = b;
-				heap_sift(&ca->heap, 0, bucket_cmp);
-			}
+			ca->heap.data[0] = b;
+			heap_sift(&ca->heap, 0, bucket_cmp);
 		}
-
-		while (sectors_to_move > reserve_sectors) {
-			heap_pop(&ca->heap, b, bucket_cmp);
-			sectors_to_move -= GC_SECTORS_USED(b);
-		}
-
-		while (heap_pop(&ca->heap, b, bucket_cmp))
-			SET_GC_MOVE(b, 1);
 	}
+
+	while (sectors_to_move > reserve_sectors) {
+		heap_pop(&ca->heap, b, bucket_cmp);
+		sectors_to_move -= GC_SECTORS_USED(b);
+	}
+
+	while (heap_pop(&ca->heap, b, bucket_cmp))
+		SET_GC_MOVE(b, 1);
 
 	mutex_unlock(&c->bucket_lock);
 

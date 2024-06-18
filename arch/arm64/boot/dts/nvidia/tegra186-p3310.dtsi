@@ -8,9 +8,7 @@
 	compatible = "nvidia,p3310", "nvidia,tegra186";
 
 	aliases {
-		sdhci0 = "/sdhci@3460000";
-		sdhci1 = "/sdhci@3400000";
-		serial0 = &uarta;
+		ethernet0 = "/ethernet@2490000";
 		i2c0 = "/bpmp/i2c";
 		i2c1 = "/i2c@3160000";
 		i2c2 = "/i2c@c240000";
@@ -19,14 +17,17 @@
 		i2c5 = "/i2c@31c0000";
 		i2c6 = "/i2c@c250000";
 		i2c7 = "/i2c@31e0000";
+		mmc0 = "/mmc@3460000";
+		mmc1 = "/mmc@3400000";
+		serial0 = &uarta;
 	};
 
 	chosen {
-		bootargs = "earlycon console=ttyS0,115200n8";
+		bootargs = "earlycon console=ttyS0,115200n8 fw_devlink=on";
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x0 0x80000000 0x2 0x00000000>;
 	};
@@ -43,12 +44,14 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			phy: phy@0 {
+			phy: ethernet-phy@0 {
 				compatible = "ethernet-phy-ieee802.3-c22";
 				reg = <0x0>;
 				interrupt-parent = <&gpio>;
 				interrupts = <TEGRA186_MAIN_GPIO(M, 5)
 					      IRQ_TYPE_LEVEL_LOW>;
+
+				#phy-cells = <0>;
 			};
 		};
 	};
@@ -70,19 +73,19 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			channel@0 {
+			input@0 {
 				reg = <0x0>;
 				label = "VDD_SYS_GPU";
 				shunt-resistor-micro-ohms = <10000>;
 			};
 
-			channel@1 {
+			input@1 {
 				reg = <0x1>;
 				label = "VDD_SYS_SOC";
 				shunt-resistor-micro-ohms = <10000>;
 			};
 
-			channel@2 {
+			input@2 {
 				reg = <0x2>;
 				label = "VDD_3V8_WIFI";
 				shunt-resistor-micro-ohms = <10000>;
@@ -95,19 +98,19 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			channel@0 {
+			input@0 {
 				reg = <0x0>;
 				label = "VDD_IN";
 				shunt-resistor-micro-ohms = <5000>;
 			};
 
-			channel@1 {
+			input@1 {
 				reg = <0x1>;
 				label = "VDD_SYS_CPU";
 				shunt-resistor-micro-ohms = <10000>;
 			};
 
-			channel@2 {
+			input@2 {
 				reg = <0x2>;
 				label = "VDD_5V0_DDR";
 				shunt-resistor-micro-ohms = <10000>;
@@ -132,7 +135,7 @@
 	};
 
 	/* SDMMC1 (SD/MMC) */
-	sdhci@3400000 {
+	mmc@3400000 {
 		cd-gpios = <&gpio TEGRA186_MAIN_GPIO(P, 5) GPIO_ACTIVE_LOW>;
 		wp-gpios = <&gpio TEGRA186_MAIN_GPIO(P, 4) GPIO_ACTIVE_HIGH>;
 
@@ -140,12 +143,13 @@
 	};
 
 	/* SDMMC3 (SDIO) */
-	sdhci@3440000 {
+	mmc@3440000 {
 		status = "okay";
+		vqmmc-supply = <&vddio_sdmmc3>;
 	};
 
 	/* SDMMC4 (eMMC) */
-	sdhci@3460000 {
+	mmc@3460000 {
 		status = "okay";
 		bus-width = <8>;
 		non-removable;
@@ -170,8 +174,10 @@
 			compatible = "atmel,24c02";
 			reg = <0x50>;
 
-			address-bits = <8>;
-			page-size = <8>;
+			label = "module";
+			vcc-supply = <&vdd_1v8>;
+			address-width = <8>;
+			pagesize = <8>;
 			size = <256>;
 			read-only;
 		};
@@ -185,32 +191,6 @@
 		nvidia,invert-interrupt;
 	};
 
-	cpus {
-		cpu@0 {
-			enable-method = "psci";
-		};
-
-		cpu@1 {
-			enable-method = "psci";
-		};
-
-		cpu@2 {
-			enable-method = "psci";
-		};
-
-		cpu@3 {
-			enable-method = "psci";
-		};
-
-		cpu@4 {
-			enable-method = "psci";
-		};
-
-		cpu@5 {
-			enable-method = "psci";
-		};
-	};
-
 	bpmp {
 		i2c {
 			status = "okay";
@@ -219,7 +199,8 @@
 				compatible = "maxim,max77620";
 				reg = <0x3c>;
 
-				interrupts = <GIC_SPI 209 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&pmc>;
+				interrupts = <24 IRQ_TYPE_LEVEL_LOW>;
 				#interrupt-cells = <2>;
 				interrupt-controller;
 
@@ -228,6 +209,23 @@
 
 				pinctrl-names = "default";
 				pinctrl-0 = <&max77620_default>;
+
+				fps {
+					fps0 {
+						maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN0>;
+						maxim,shutdown-fps-time-period-us = <640>;
+					};
+
+					fps1 {
+						maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN1>;
+						maxim,shutdown-fps-time-period-us = <640>;
+					};
+
+					fps2 {
+						maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN0>;
+						maxim,shutdown-fps-time-period-us = <640>;
+					};
+				};
 
 				max77620_default: pinmux {
 					gpio0 {
@@ -275,23 +273,6 @@
 						pins = "gpio7";
 						function = "gpio";
 						drive-push-pull = <0>;
-					};
-				};
-
-				fps {
-					fps0 {
-						maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN0>;
-						maxim,shutdown-fps-time-period-us = <640>;
-					};
-
-					fps1 {
-						maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN1>;
-						maxim,shutdown-fps-time-period-us = <640>;
-					};
-
-					fps2 {
-						maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN0>;
-						maxim,shutdown-fps-time-period-us = <640>;
 					};
 				};
 
@@ -381,51 +362,65 @@
 		};
 	};
 
+	cpus {
+		cpu@0 {
+			enable-method = "psci";
+		};
+
+		cpu@1 {
+			enable-method = "psci";
+		};
+
+		cpu@2 {
+			enable-method = "psci";
+		};
+
+		cpu@3 {
+			enable-method = "psci";
+		};
+
+		cpu@4 {
+			enable-method = "psci";
+		};
+
+		cpu@5 {
+			enable-method = "psci";
+		};
+	};
+
 	psci {
 		compatible = "arm,psci-1.0";
 		status = "okay";
 		method = "smc";
 	};
 
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
+	gnd: regulator-gnd {
+		compatible = "regulator-fixed";
+		regulator-name = "GND";
+		regulator-min-microvolt = <0>;
+		regulator-max-microvolt = <0>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
 
-		gnd: regulator@0 {
-			compatible = "regulator-fixed";
-			reg = <0>;
+	vdd_5v0_sys: regulator-vdd-5v0-sys {
+		compatible = "regulator-fixed";
+		regulator-name = "VDD_5V0_SYS";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
 
-			regulator-name = "GND";
-			regulator-min-microvolt = <0>;
-			regulator-max-microvolt = <0>;
-			regulator-always-on;
-			regulator-boot-on;
-		};
+	vdd_1v8_ap: regulator-vdd-1v8-ap {
+		compatible = "regulator-fixed";
+		regulator-name = "VDD_1V8_AP";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
 
-		vdd_5v0_sys: regulator@1 {
-			compatible = "regulator-fixed";
-			reg = <1>;
+		gpio = <&pmic 1 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
 
-			regulator-name = "VDD_5V0_SYS";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			regulator-always-on;
-			regulator-boot-on;
-		};
-
-		vdd_1v8_ap: regulator@2 {
-			compatible = "regulator-fixed";
-			reg = <2>;
-
-			regulator-name = "VDD_1V8_AP";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-
-			gpio = <&pmic 1 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-
-			vin-supply = <&vdd_1v8>;
-		};
+		vin-supply = <&vdd_1v8>;
 	};
 };

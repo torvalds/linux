@@ -255,18 +255,32 @@ static void __j1939_session_drop(struct j1939_session *session)
 		return;
 
 	j1939_sock_pending_del(session->sk);
+	sock_put(session->sk);
 }
 
 static void j1939_session_destroy(struct j1939_session *session)
 {
-	if (session->err)
-		j1939_sk_errqueue(session, J1939_ERRQUEUE_ABORT);
-	else
-		j1939_sk_errqueue(session, J1939_ERRQUEUE_ACK);
+	struct sk_buff *skb;
+
+	if (session->transmission) {
+		if (session->err)
+			j1939_sk_errqueue(session, J1939_ERRQUEUE_TX_ABORT);
+		else
+			j1939_sk_errqueue(session, J1939_ERRQUEUE_TX_ACK);
+	} else if (session->err) {
+			j1939_sk_errqueue(session, J1939_ERRQUEUE_RX_ABORT);
+	}
 
 	netdev_dbg(session->priv->ndev, "%s: 0x%p\n", __func__, session);
 
-	skb_queue_purge(&session->skb_queue);
+	WARN_ON_ONCE(!list_empty(&session->sk_session_queue_entry));
+	WARN_ON_ONCE(!list_empty(&session->active_session_list_entry));
+
+	while ((skb = skb_dequeue(&session->skb_queue)) != NULL) {
+		/* drop ref taken in j1939_session_skb_queue() */
+		skb_unref(skb);
+		kfree_skb(skb);
+	}
 	__j1939_session_drop(session);
 	j1939_priv_put(session->priv);
 	kfree(session);
@@ -326,9 +340,14 @@ static void j1939_session_skb_drop_old(struct j1939_session *session)
 
 	if ((do_skcb->offset + do_skb->len) < offset_start) {
 		__skb_unlink(do_skb, &session->skb_queue);
+		/* drop ref taken in j1939_session_skb_queue() */
+		skb_unref(do_skb);
+		spin_unlock_irqrestore(&session->skb_queue.lock, flags);
+
 		kfree_skb(do_skb);
+	} else {
+		spin_unlock_irqrestore(&session->skb_queue.lock, flags);
 	}
-	spin_unlock_irqrestore(&session->skb_queue.lock, flags);
 }
 
 void j1939_session_skb_queue(struct j1939_session *session,
@@ -345,19 +364,19 @@ void j1939_session_skb_queue(struct j1939_session *session,
 
 	skcb->flags |= J1939_ECU_LOCAL_SRC;
 
+	skb_get(skb);
 	skb_queue_tail(&session->skb_queue, skb);
 }
 
-static struct sk_buff *j1939_session_skb_find(struct j1939_session *session)
+static struct
+sk_buff *j1939_session_skb_get_by_offset(struct j1939_session *session,
+					 unsigned int offset_start)
 {
 	struct j1939_priv *priv = session->priv;
+	struct j1939_sk_buff_cb *do_skcb;
 	struct sk_buff *skb = NULL;
 	struct sk_buff *do_skb;
-	struct j1939_sk_buff_cb *do_skcb;
-	unsigned int offset_start;
 	unsigned long flags;
-
-	offset_start = session->pkt.dpo * 7;
 
 	spin_lock_irqsave(&session->skb_queue.lock, flags);
 	skb_queue_walk(&session->skb_queue, do_skb) {
@@ -368,6 +387,10 @@ static struct sk_buff *j1939_session_skb_find(struct j1939_session *session)
 			skb = do_skb;
 		}
 	}
+
+	if (skb)
+		skb_get(skb);
+
 	spin_unlock_irqrestore(&session->skb_queue.lock, flags);
 
 	if (!skb)
@@ -376,6 +399,14 @@ static struct sk_buff *j1939_session_skb_find(struct j1939_session *session)
 			   skb_queue_len(&session->skb_queue));
 
 	return skb;
+}
+
+static struct sk_buff *j1939_session_skb_get(struct j1939_session *session)
+{
+	unsigned int offset_start;
+
+	offset_start = session->pkt.dpo * 7;
+	return j1939_session_skb_get_by_offset(session, offset_start);
 }
 
 /* see if we are receiver
@@ -569,10 +600,14 @@ sk_buff *j1939_tp_tx_dat_new(struct j1939_priv *priv,
 	skb->dev = priv->ndev;
 	can_skb_reserve(skb);
 	can_skb_prv(skb)->ifindex = priv->ndev->ifindex;
+	can_skb_prv(skb)->skbcnt = 0;
 	/* reserve CAN header */
 	skb_reserve(skb, offsetof(struct can_frame, data));
 
-	memcpy(skb->cb, re_skcb, sizeof(skb->cb));
+	/* skb->cb must be large enough to hold a j1939_sk_buff_cb structure */
+	BUILD_BUG_ON(sizeof(skb->cb) < sizeof(*re_skcb));
+
+	memcpy(skb->cb, re_skcb, sizeof(*re_skcb));
 	skcb = j1939_skb_to_cb(skb);
 	if (swap_src_dst)
 		j1939_skbcb_swap(skcb);
@@ -712,10 +747,12 @@ static int j1939_session_tx_rts(struct j1939_session *session)
 		return ret;
 
 	session->last_txcmd = dat[0];
-	if (dat[0] == J1939_TP_CMD_BAM)
+	if (dat[0] == J1939_TP_CMD_BAM) {
 		j1939_tp_schedule_txtimer(session, 50);
-
-	j1939_tp_set_rxtimeout(session, 1250);
+		j1939_tp_set_rxtimeout(session, 250);
+	} else {
+		j1939_tp_set_rxtimeout(session, 1250);
+	}
 
 	netdev_dbg(session->priv->ndev, "%s: 0x%p\n", __func__, session);
 
@@ -754,7 +791,7 @@ static int j1939_session_tx_dpo(struct j1939_session *session)
 static int j1939_session_tx_dat(struct j1939_session *session)
 {
 	struct j1939_priv *priv = session->priv;
-	struct j1939_sk_buff_cb *skcb;
+	struct j1939_sk_buff_cb *se_skcb;
 	int offset, pkt_done, pkt_end;
 	unsigned int len, pdelay;
 	struct sk_buff *se_skb;
@@ -762,11 +799,11 @@ static int j1939_session_tx_dat(struct j1939_session *session)
 	int ret = 0;
 	u8 dat[8];
 
-	se_skb = j1939_session_skb_find(session);
+	se_skb = j1939_session_skb_get_by_offset(session, session->pkt.tx * 7);
 	if (!se_skb)
 		return -ENOBUFS;
 
-	skcb = j1939_skb_to_cb(se_skb);
+	se_skcb = j1939_skb_to_cb(se_skb);
 	tpdat = se_skb->data;
 	ret = 0;
 	pkt_done = 0;
@@ -778,15 +815,29 @@ static int j1939_session_tx_dat(struct j1939_session *session)
 
 	while (session->pkt.tx < pkt_end) {
 		dat[0] = session->pkt.tx - session->pkt.dpo + 1;
-		offset = (session->pkt.tx * 7) - skcb->offset;
+		offset = (session->pkt.tx * 7) - se_skcb->offset;
 		len =  se_skb->len - offset;
 		if (len > 7)
 			len = 7;
 
+		if (offset + len > se_skb->len) {
+			netdev_err_once(priv->ndev,
+					"%s: 0x%p: requested data outside of queued buffer: offset %i, len %i, pkt.tx: %i\n",
+					__func__, session, se_skcb->offset,
+					se_skb->len , session->pkt.tx);
+			ret = -EOVERFLOW;
+			goto out_free;
+		}
+
+		if (!len) {
+			ret = -ENOBUFS;
+			break;
+		}
+
 		memcpy(&dat[1], &tpdat[offset], len);
 		ret = j1939_tp_tx_dat(session, dat, len + 1);
 		if (ret < 0) {
-			/* ENOBUS == CAN interface TX queue is full */
+			/* ENOBUFS == CAN interface TX queue is full */
 			if (ret != -ENOBUFS)
 				netdev_alert(priv->ndev,
 					     "%s: 0x%p: queue data error: %i\n",
@@ -808,6 +859,12 @@ static int j1939_session_tx_dat(struct j1939_session *session)
 
 	if (pkt_done)
 		j1939_tp_set_rxtimeout(session, 250);
+
+ out_free:
+	if (ret)
+		kfree_skb(se_skb);
+	else
+		consume_skb(se_skb);
 
 	return ret;
 }
@@ -835,7 +892,7 @@ static int j1939_xtp_txnext_transmiter(struct j1939_session *session)
 				return ret;
 		}
 
-		/* fall through */
+		fallthrough;
 	case J1939_TP_CMD_CTS:
 	case 0xff: /* did some data */
 	case J1939_ETP_CMD_DPO:
@@ -933,7 +990,7 @@ static int j1939_session_tx_eoma(struct j1939_session *session)
 	/* wait for the EOMA packet to come in */
 	j1939_tp_set_rxtimeout(session, 1250);
 
-	netdev_dbg(session->priv->ndev, "%p: 0x%p\n", __func__, session);
+	netdev_dbg(session->priv->ndev, "%s: 0x%p\n", __func__, session);
 
 	return 0;
 }
@@ -981,7 +1038,7 @@ static int j1939_xtp_txnext_receiver(struct j1939_session *session)
 static int j1939_simple_txnext(struct j1939_session *session)
 {
 	struct j1939_priv *priv = session->priv;
-	struct sk_buff *se_skb = j1939_session_skb_find(session);
+	struct sk_buff *se_skb = j1939_session_skb_get(session);
 	struct sk_buff *skb;
 	int ret;
 
@@ -989,8 +1046,10 @@ static int j1939_simple_txnext(struct j1939_session *session)
 		return 0;
 
 	skb = skb_clone(se_skb, GFP_ATOMIC);
-	if (!skb)
-		return -ENOMEM;
+	if (!skb) {
+		ret = -ENOMEM;
+		goto out_free;
+	}
 
 	can_skb_set_owner(skb, se_skb->sk);
 
@@ -998,12 +1057,18 @@ static int j1939_simple_txnext(struct j1939_session *session)
 
 	ret = j1939_send_one(priv, skb);
 	if (ret)
-		return ret;
+		goto out_free;
 
-	j1939_sk_errqueue(session, J1939_ERRQUEUE_SCHED);
+	j1939_sk_errqueue(session, J1939_ERRQUEUE_TX_SCHED);
 	j1939_sk_queue_activate_next(session);
 
-	return 0;
+ out_free:
+	if (ret)
+		kfree_skb(se_skb);
+	else
+		consume_skb(se_skb);
+
+	return ret;
 }
 
 static bool j1939_session_deactivate_locked(struct j1939_session *session)
@@ -1026,11 +1091,12 @@ static bool j1939_session_deactivate_locked(struct j1939_session *session)
 
 static bool j1939_session_deactivate(struct j1939_session *session)
 {
+	struct j1939_priv *priv = session->priv;
 	bool active;
 
-	j1939_session_list_lock(session->priv);
+	j1939_session_list_lock(priv);
 	active = j1939_session_deactivate_locked(session);
-	j1939_session_list_unlock(session->priv);
+	j1939_session_list_unlock(priv);
 
 	return active;
 }
@@ -1042,17 +1108,18 @@ j1939_session_deactivate_activate_next(struct j1939_session *session)
 		j1939_sk_queue_activate_next(session);
 }
 
-static void j1939_session_cancel(struct j1939_session *session,
-				 enum j1939_xtp_abort err)
+static void __j1939_session_cancel(struct j1939_session *session,
+				   enum j1939_xtp_abort err)
 {
 	struct j1939_priv *priv = session->priv;
 
 	WARN_ON_ONCE(!err);
+	lockdep_assert_held(&session->priv->active_session_list_lock);
 
 	session->err = j1939_xtp_abort_to_errno(priv, err);
+	session->state = J1939_SESSION_WAITING_ABORT;
 	/* do not send aborts on incoming broadcasts */
 	if (!j1939_cb_is_broadcast(&session->skcb)) {
-		session->state = J1939_SESSION_WAITING_ABORT;
 		j1939_xtp_tx_abort(priv, &session->skcb,
 				   !session->transmission,
 				   err, session->skcb.addr.pgn);
@@ -1060,6 +1127,23 @@ static void j1939_session_cancel(struct j1939_session *session,
 
 	if (session->sk)
 		j1939_sk_send_loop_abort(session->sk, session->err);
+}
+
+static void j1939_session_cancel(struct j1939_session *session,
+				 enum j1939_xtp_abort err)
+{
+	j1939_session_list_lock(session->priv);
+
+	if (session->state >= J1939_SESSION_ACTIVE &&
+	    session->state < J1939_SESSION_WAITING_ABORT) {
+		j1939_tp_set_rxtimeout(session, J1939_XTP_ABORT_TIMEOUT_MS);
+		__j1939_session_cancel(session, err);
+	}
+
+	j1939_session_list_unlock(session->priv);
+
+	if (!session->sk)
+		j1939_sk_errqueue(session, J1939_ERRQUEUE_RX_ABORT);
 }
 
 static enum hrtimer_restart j1939_tp_txtimer(struct hrtimer *hrtimer)
@@ -1084,7 +1168,7 @@ static enum hrtimer_restart j1939_tp_txtimer(struct hrtimer *hrtimer)
 		if (session->tx_retry < J1939_XTP_TX_RETRY_LIMIT) {
 			session->tx_retry++;
 			j1939_tp_schedule_txtimer(session,
-						  10 + prandom_u32_max(16));
+						  10 + get_random_u32_below(16));
 		} else {
 			netdev_alert(priv->ndev, "%s: 0x%p: tx retry count reached\n",
 				     __func__, session);
@@ -1101,6 +1185,9 @@ static enum hrtimer_restart j1939_tp_txtimer(struct hrtimer *hrtimer)
 		 * cleanup including propagation of the error to user space.
 		 */
 		break;
+	case -EOVERFLOW:
+		j1939_session_cancel(session, J1939_XTP_ABORT_ECTS_TOO_BIG);
+		break;
 	case 0:
 		session->tx_retry = 0;
 		break;
@@ -1108,8 +1195,6 @@ static enum hrtimer_restart j1939_tp_txtimer(struct hrtimer *hrtimer)
 		netdev_alert(priv->ndev, "%s: 0x%p: tx aborted with unknown reason: %i\n",
 			     __func__, session, ret);
 		if (session->skcb.addr.type != J1939_SIMPLE) {
-			j1939_tp_set_rxtimeout(session,
-					       J1939_XTP_ABORT_TIMEOUT_MS);
 			j1939_session_cancel(session, J1939_XTP_ABORT_OTHER);
 		} else {
 			session->err = ret;
@@ -1125,12 +1210,13 @@ static enum hrtimer_restart j1939_tp_txtimer(struct hrtimer *hrtimer)
 
 static void j1939_session_completed(struct j1939_session *session)
 {
-	struct sk_buff *skb;
+	struct sk_buff *se_skb;
 
 	if (!session->transmission) {
-		skb = j1939_session_skb_find(session);
+		se_skb = j1939_session_skb_get(session);
 		/* distribute among j1939 receivers */
-		j1939_sk_recv(session->priv, skb);
+		j1939_sk_recv(session->priv, se_skb);
+		consume_skb(se_skb);
 	}
 
 	j1939_session_deactivate_activate_next(session);
@@ -1159,19 +1245,21 @@ static enum hrtimer_restart j1939_tp_rxtimer(struct hrtimer *hrtimer)
 		session->err = -ETIME;
 		j1939_session_deactivate(session);
 	} else {
-		netdev_alert(priv->ndev, "%s: 0x%p: rx timeout, send abort\n",
-			     __func__, session);
-
 		j1939_session_list_lock(session->priv);
 		if (session->state >= J1939_SESSION_ACTIVE &&
 		    session->state < J1939_SESSION_ACTIVE_MAX) {
+			netdev_alert(priv->ndev, "%s: 0x%p: rx timeout, send abort\n",
+				     __func__, session);
 			j1939_session_get(session);
 			hrtimer_start(&session->rxtimer,
 				      ms_to_ktime(J1939_XTP_ABORT_TIMEOUT_MS),
 				      HRTIMER_MODE_REL_SOFT);
-			j1939_session_cancel(session, J1939_XTP_ABORT_TIMEOUT);
+			__j1939_session_cancel(session, J1939_XTP_ABORT_TIMEOUT);
 		}
 		j1939_session_list_unlock(session->priv);
+
+		if (!session->sk)
+			j1939_sk_errqueue(session, J1939_ERRQUEUE_RX_ABORT);
 	}
 
 	j1939_session_put(session);
@@ -1197,12 +1285,14 @@ static bool j1939_xtp_rx_cmd_bad_pgn(struct j1939_session *session,
 		break;
 
 	case J1939_ETP_CMD_RTS:
-	case J1939_TP_CMD_RTS: /* fall through */
+		fallthrough;
+	case J1939_TP_CMD_RTS:
 		abort = J1939_XTP_ABORT_BUSY;
 		break;
 
 	case J1939_ETP_CMD_CTS:
-	case J1939_TP_CMD_CTS: /* fall through */
+		fallthrough;
+	case J1939_TP_CMD_CTS:
 		abort = J1939_XTP_ABORT_ECTS_UNXPECTED_PGN;
 		break;
 
@@ -1211,7 +1301,8 @@ static bool j1939_xtp_rx_cmd_bad_pgn(struct j1939_session *session,
 		break;
 
 	case J1939_ETP_CMD_EOMA:
-	case J1939_TP_CMD_EOMA: /* fall through */
+		fallthrough;
+	case J1939_TP_CMD_EOMA:
 		abort = J1939_XTP_ABORT_OTHER;
 		break;
 
@@ -1255,6 +1346,8 @@ static void j1939_xtp_rx_abort_one(struct j1939_priv *priv, struct sk_buff *skb,
 	session->err = j1939_xtp_abort_to_errno(priv, abort);
 	if (session->sk)
 		j1939_sk_send_loop_abort(session->sk, session->err);
+	else
+		j1939_sk_errqueue(session, J1939_ERRQUEUE_RX_ABORT);
 	j1939_session_deactivate_activate_next(session);
 
 abort_put:
@@ -1273,8 +1366,26 @@ j1939_xtp_rx_abort(struct j1939_priv *priv, struct sk_buff *skb,
 static void
 j1939_xtp_rx_eoma_one(struct j1939_session *session, struct sk_buff *skb)
 {
+	struct j1939_sk_buff_cb *skcb = j1939_skb_to_cb(skb);
+	const u8 *dat;
+	int len;
+
 	if (j1939_xtp_rx_cmd_bad_pgn(session, skb))
 		return;
+
+	dat = skb->data;
+
+	if (skcb->addr.type == J1939_ETP)
+		len = j1939_etp_ctl_to_size(dat);
+	else
+		len = j1939_tp_ctl_to_size(dat);
+
+	if (session->total_message_size != len) {
+		netdev_warn_once(session->priv->ndev,
+				 "%s: 0x%p: Incorrect size. Expected: %i; got: %i.\n",
+				 __func__, session, session->total_message_size,
+				 len);
+	}
 
 	netdev_dbg(session->priv->ndev, "%s: 0x%p\n", __func__, session);
 
@@ -1345,7 +1456,7 @@ j1939_xtp_rx_cts_one(struct j1939_session *session, struct sk_buff *skb)
 		if (session->transmission) {
 			if (session->pkt.tx_acked)
 				j1939_sk_errqueue(session,
-						  J1939_ERRQUEUE_SCHED);
+						  J1939_ERRQUEUE_TX_SCHED);
 			j1939_session_txtimer_cancel(session);
 			j1939_tp_schedule_txtimer(session, 0);
 		}
@@ -1357,7 +1468,6 @@ j1939_xtp_rx_cts_one(struct j1939_session *session, struct sk_buff *skb)
 
  out_session_cancel:
 	j1939_session_timers_cancel(session);
-	j1939_tp_set_rxtimeout(session, J1939_XTP_ABORT_TIMEOUT_MS);
 	j1939_session_cancel(session, err);
 }
 
@@ -1429,10 +1539,11 @@ j1939_session *j1939_session_fresh_new(struct j1939_priv *priv,
 	skb->dev = priv->ndev;
 	can_skb_reserve(skb);
 	can_skb_prv(skb)->ifindex = priv->ndev->ifindex;
+	can_skb_prv(skb)->skbcnt = 0;
 	skcb = j1939_skb_to_cb(skb);
 	memcpy(skcb, rel_skcb, sizeof(*skcb));
 
-	session = j1939_session_new(priv, skb, skb->len);
+	session = j1939_session_new(priv, skb, size);
 	if (!session) {
 		kfree_skb(skb);
 		return NULL;
@@ -1508,6 +1619,8 @@ j1939_session *j1939_xtp_rx_rts_session_new(struct j1939_priv *priv,
 			abort = J1939_XTP_ABORT_FAULT;
 		else if (len > priv->tp_max_packet_size)
 			abort = J1939_XTP_ABORT_RESOURCE;
+		else if (len < J1939_MIN_TP_PACKET_SIZE)
+			abort = J1939_XTP_ABORT_FAULT;
 	}
 
 	if (abort != J1939_XTP_NO_ABORT) {
@@ -1537,6 +1650,9 @@ j1939_session *j1939_xtp_rx_rts_session_new(struct j1939_priv *priv,
 	session->pkt.rx = 0;
 	session->pkt.tx = 0;
 
+	session->tskey = priv->rx_tskey++;
+	j1939_sk_errqueue(session, J1939_ERRQUEUE_RX_RTS);
+
 	WARN_ON_ONCE(j1939_session_activate(session));
 
 	return session;
@@ -1554,7 +1670,6 @@ static int j1939_xtp_rx_rts_session_active(struct j1939_session *session,
 
 		/* RTS on active session */
 		j1939_session_timers_cancel(session);
-		j1939_tp_set_rxtimeout(session, J1939_XTP_ABORT_TIMEOUT_MS);
 		j1939_session_cancel(session, J1939_XTP_ABORT_BUSY);
 	}
 
@@ -1565,7 +1680,6 @@ static int j1939_xtp_rx_rts_session_active(struct j1939_session *session,
 			     session->last_cmd);
 
 		j1939_session_timers_cancel(session);
-		j1939_tp_set_rxtimeout(session, J1939_XTP_ABORT_TIMEOUT_MS);
 		j1939_session_cancel(session, J1939_XTP_ABORT_BUSY);
 
 		return -EBUSY;
@@ -1619,8 +1733,12 @@ static void j1939_xtp_rx_rts(struct j1939_priv *priv, struct sk_buff *skb,
 			return;
 		}
 		session = j1939_xtp_rx_rts_session_new(priv, skb);
-		if (!session)
+		if (!session) {
+			if (cmd == J1939_TP_CMD_BAM && j1939_sk_recv_match(priv, skcb))
+				netdev_info(priv->ndev, "%s: failed to create TP BAM session\n",
+					    __func__);
 			return;
+		}
 	} else {
 		if (j1939_xtp_rx_rts_session_active(session, skb)) {
 			j1939_session_put(session);
@@ -1629,11 +1747,15 @@ static void j1939_xtp_rx_rts(struct j1939_priv *priv, struct sk_buff *skb,
 	}
 	session->last_cmd = cmd;
 
-	j1939_tp_set_rxtimeout(session, 1250);
-
-	if (cmd != J1939_TP_CMD_BAM && !session->transmission) {
-		j1939_session_txtimer_cancel(session);
-		j1939_tp_schedule_txtimer(session, 0);
+	if (cmd == J1939_TP_CMD_BAM) {
+		if (!session->transmission)
+			j1939_tp_set_rxtimeout(session, 750);
+	} else {
+		if (!session->transmission) {
+			j1939_session_txtimer_cancel(session);
+			j1939_tp_schedule_txtimer(session, 0);
+		}
+		j1939_tp_set_rxtimeout(session, 1250);
 	}
 
 	j1939_session_put(session);
@@ -1653,6 +1775,9 @@ static void j1939_xtp_rx_dpo_one(struct j1939_session *session,
 	session->pkt.dpo = j1939_etp_ctl_to_packet(skb->data);
 	session->last_cmd = dat[0];
 	j1939_tp_set_rxtimeout(session, 750);
+
+	if (!session->transmission)
+		j1939_sk_errqueue(session, J1939_ERRQUEUE_RX_DPO);
 }
 
 static void j1939_xtp_rx_dpo(struct j1939_priv *priv, struct sk_buff *skb,
@@ -1676,22 +1801,26 @@ static void j1939_xtp_rx_dpo(struct j1939_priv *priv, struct sk_buff *skb,
 static void j1939_xtp_rx_dat_one(struct j1939_session *session,
 				 struct sk_buff *skb)
 {
+	enum j1939_xtp_abort abort = J1939_XTP_ABORT_FAULT;
 	struct j1939_priv *priv = session->priv;
-	struct j1939_sk_buff_cb *skcb;
-	struct sk_buff *se_skb;
+	struct j1939_sk_buff_cb *skcb, *se_skcb;
+	struct sk_buff *se_skb = NULL;
 	const u8 *dat;
 	u8 *tpdat;
 	int offset;
 	int nbytes;
 	bool final = false;
+	bool remain = false;
 	bool do_cts_eoma = false;
 	int packet;
 
 	skcb = j1939_skb_to_cb(skb);
 	dat = skb->data;
-	if (skb->len <= 1)
+	if (skb->len != 8) {
 		/* makes no sense */
+		abort = J1939_XTP_ABORT_UNEXPECTED_DATA;
 		goto out_session_cancel;
+	}
 
 	switch (session->last_cmd) {
 	case 0xff:
@@ -1699,12 +1828,13 @@ static void j1939_xtp_rx_dat_one(struct j1939_session *session,
 	case J1939_ETP_CMD_DPO:
 		if (skcb->addr.type == J1939_ETP)
 			break;
-		/* fall through */
-	case J1939_TP_CMD_BAM: /* fall through */
-	case J1939_TP_CMD_CTS: /* fall through */
+		fallthrough;
+	case J1939_TP_CMD_BAM:
+		fallthrough;
+	case J1939_TP_CMD_CTS:
 		if (skcb->addr.type != J1939_ETP)
 			break;
-		/* fall through */
+		fallthrough;
 	default:
 		netdev_info(priv->ndev, "%s: 0x%p: last %02x\n", __func__,
 			    session, session->last_cmd);
@@ -1718,15 +1848,16 @@ static void j1939_xtp_rx_dat_one(struct j1939_session *session,
 			    __func__, session);
 		goto out_session_cancel;
 	}
-	se_skb = j1939_session_skb_find(session);
+
+	se_skb = j1939_session_skb_get_by_offset(session, packet * 7);
 	if (!se_skb) {
 		netdev_warn(priv->ndev, "%s: 0x%p: no skb found\n", __func__,
 			    session);
 		goto out_session_cancel;
 	}
 
-	skcb = j1939_skb_to_cb(se_skb);
-	offset = packet * 7 - skcb->offset;
+	se_skcb = j1939_skb_to_cb(se_skb);
+	offset = packet * 7 - se_skcb->offset;
 	nbytes = se_skb->len - offset;
 	if (nbytes > 7)
 		nbytes = 7;
@@ -1737,14 +1868,29 @@ static void j1939_xtp_rx_dat_one(struct j1939_session *session,
 	}
 
 	tpdat = se_skb->data;
-	memcpy(&tpdat[offset], &dat[1], nbytes);
+	if (!session->transmission) {
+		memcpy(&tpdat[offset], &dat[1], nbytes);
+	} else {
+		int err;
+
+		err = memcmp(&tpdat[offset], &dat[1], nbytes);
+		if (err)
+			netdev_err_once(priv->ndev,
+					"%s: 0x%p: Data of RX-looped back packet (%*ph) doesn't match TX data (%*ph)!\n",
+					__func__, session,
+					nbytes, &dat[1],
+					nbytes, &tpdat[offset]);
+	}
+
 	if (packet == session->pkt.rx)
 		session->pkt.rx++;
 
-	if (skcb->addr.type != J1939_ETP &&
+	if (se_skcb->addr.type != J1939_ETP &&
 	    j1939_cb_is_broadcast(&session->skcb)) {
 		if (session->pkt.rx >= session->pkt.total)
 			final = true;
+		else
+			remain = true;
 	} else {
 		/* never final, an EOMA must follow */
 		if (session->pkt.rx >= session->pkt.last)
@@ -1752,23 +1898,28 @@ static void j1939_xtp_rx_dat_one(struct j1939_session *session,
 	}
 
 	if (final) {
+		j1939_session_timers_cancel(session);
 		j1939_session_completed(session);
+	} else if (remain) {
+		if (!session->transmission)
+			j1939_tp_set_rxtimeout(session, 750);
 	} else if (do_cts_eoma) {
 		j1939_tp_set_rxtimeout(session, 1250);
 		if (!session->transmission)
 			j1939_tp_schedule_txtimer(session, 0);
 	} else {
-		j1939_tp_set_rxtimeout(session, 250);
+		j1939_tp_set_rxtimeout(session, 750);
 	}
 	session->last_cmd = 0xff;
+	consume_skb(se_skb);
 	j1939_session_put(session);
 
 	return;
 
  out_session_cancel:
+	kfree_skb(se_skb);
 	j1939_session_timers_cancel(session);
-	j1939_tp_set_rxtimeout(session, J1939_XTP_ABORT_TIMEOUT_MS);
-	j1939_session_cancel(session, J1939_XTP_ABORT_FAULT);
+	j1939_session_cancel(session, abort);
 	j1939_session_put(session);
 }
 
@@ -1796,6 +1947,13 @@ static void j1939_xtp_rx_dat(struct j1939_priv *priv, struct sk_buff *skb)
 			netdev_info(priv->ndev, "%s: no rx connection found\n",
 				    __func__);
 		else
+			j1939_xtp_rx_dat_one(session, skb);
+	}
+
+	if (j1939_cb_is_broadcast(skcb)) {
+		session = j1939_session_get_by_addr(priv, &skcb->addr, false,
+						    false);
+		if (session)
 			j1939_xtp_rx_dat_one(session, skb);
 	}
 }
@@ -1848,6 +2006,7 @@ struct j1939_session *j1939_tp_send(struct j1939_priv *priv,
 		return ERR_PTR(-ENOMEM);
 
 	/* skb is recounted in j1939_session_new() */
+	sock_hold(skb->sk);
 	session->sk = skb->sk;
 	session->transmission = true;
 	session->pkt.total = (size + 6) / 7;
@@ -1858,7 +2017,7 @@ struct j1939_session *j1939_tp_send(struct j1939_priv *priv,
 		/* set the end-packet for broadcast */
 		session->pkt.last = session->pkt.total;
 
-	skcb->tskey = session->sk->sk_tskey++;
+	skcb->tskey = atomic_inc_return(&session->sk->sk_tskey) - 1;
 	session->tskey = skcb->tskey;
 
 	return session;
@@ -1873,9 +2032,15 @@ static void j1939_tp_cmd_recv(struct j1939_priv *priv, struct sk_buff *skb)
 	switch (cmd) {
 	case J1939_ETP_CMD_RTS:
 		extd = J1939_ETP;
-		/* fall through */
-	case J1939_TP_CMD_BAM: /* fall through */
-	case J1939_TP_CMD_RTS: /* fall through */
+		fallthrough;
+	case J1939_TP_CMD_BAM:
+		if (cmd == J1939_TP_CMD_BAM && !j1939_cb_is_broadcast(skcb)) {
+			netdev_err_once(priv->ndev, "%s: BAM to unicast (%02x), ignoring!\n",
+					__func__, skcb->addr.sa);
+			return;
+		}
+		fallthrough;
+	case J1939_TP_CMD_RTS:
 		if (skcb->addr.type != extd)
 			return;
 
@@ -1888,14 +2053,14 @@ static void j1939_tp_cmd_recv(struct j1939_priv *priv, struct sk_buff *skb)
 		if (j1939_tp_im_transmitter(skcb))
 			j1939_xtp_rx_rts(priv, skb, true);
 
-		if (j1939_tp_im_receiver(skcb))
+		if (j1939_tp_im_receiver(skcb) || j1939_cb_is_broadcast(skcb))
 			j1939_xtp_rx_rts(priv, skb, false);
 
 		break;
 
 	case J1939_ETP_CMD_CTS:
 		extd = J1939_ETP;
-		/* fall through */
+		fallthrough;
 	case J1939_TP_CMD_CTS:
 		if (skcb->addr.type != extd)
 			return;
@@ -1922,7 +2087,7 @@ static void j1939_tp_cmd_recv(struct j1939_priv *priv, struct sk_buff *skb)
 
 	case J1939_ETP_CMD_EOMA:
 		extd = J1939_ETP;
-		/* fall through */
+		fallthrough;
 	case J1939_TP_CMD_EOMA:
 		if (skcb->addr.type != extd)
 			return;
@@ -1936,6 +2101,12 @@ static void j1939_tp_cmd_recv(struct j1939_priv *priv, struct sk_buff *skb)
 		break;
 
 	case J1939_ETP_CMD_ABORT: /* && J1939_TP_CMD_ABORT */
+		if (j1939_cb_is_broadcast(skcb)) {
+			netdev_err_once(priv->ndev, "%s: abort to broadcast (%02x), ignoring!\n",
+					__func__, skcb->addr.sa);
+			return;
+		}
+
 		if (j1939_tp_im_transmitter(skcb))
 			j1939_xtp_rx_abort(priv, skb, true);
 
@@ -1952,20 +2123,20 @@ int j1939_tp_recv(struct j1939_priv *priv, struct sk_buff *skb)
 {
 	struct j1939_sk_buff_cb *skcb = j1939_skb_to_cb(skb);
 
-	if (!j1939_tp_im_involved_anydir(skcb))
+	if (!j1939_tp_im_involved_anydir(skcb) && !j1939_cb_is_broadcast(skcb))
 		return 0;
 
 	switch (skcb->addr.pgn) {
 	case J1939_ETP_PGN_DAT:
 		skcb->addr.type = J1939_ETP;
-		/* fall through */
+		fallthrough;
 	case J1939_TP_PGN_DAT:
 		j1939_xtp_rx_dat(priv, skb);
 		break;
 
 	case J1939_ETP_PGN_CTL:
 		skcb->addr.type = J1939_ETP;
-		/* fall through */
+		fallthrough;
 	case J1939_TP_PGN_CTL:
 		if (skb->len < 8)
 			return 0; /* Don't care. Nothing to extract here */
@@ -1983,6 +2154,10 @@ void j1939_simple_recv(struct j1939_priv *priv, struct sk_buff *skb)
 	struct j1939_session *session;
 
 	if (!skb->sk)
+		return;
+
+	if (skb->sk->sk_family != AF_CAN ||
+	    skb->sk->sk_protocol != CAN_J1939)
 		return;
 
 	j1939_session_list_lock(priv);
@@ -2010,7 +2185,11 @@ int j1939_cancel_active_session(struct j1939_priv *priv, struct sock *sk)
 				 &priv->active_session_list,
 				 active_session_list_entry) {
 		if (!sk || sk == session->sk) {
-			j1939_session_timers_cancel(session);
+			if (hrtimer_try_to_cancel(&session->txtimer) == 1)
+				j1939_session_put(session);
+			if (hrtimer_try_to_cancel(&session->rxtimer) == 1)
+				j1939_session_put(session);
+
 			session->err = ESHUTDOWN;
 			j1939_session_deactivate_locked(session);
 		}

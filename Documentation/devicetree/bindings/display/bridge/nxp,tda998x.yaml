@@ -1,0 +1,113 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/bridge/nxp,tda998x.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP TDA998x HDMI transmitter
+
+maintainers:
+  - Russell King <linux@armlinux.org.uk>
+
+properties:
+  compatible:
+    const: nxp,tda998x
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  video-ports:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    default: 0x230145
+    maximum: 0xffffff
+    description:
+      24 bits value which defines how the video controller output is wired to
+      the TDA998x input.
+
+  audio-ports:
+    description:
+      Array of 2 values per DAI (Documentation/sound/soc/dai.rst).
+      The implementation allows one or two DAIs.
+      If two DAIs are defined, they must be of different type.
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    minItems: 1
+    maxItems: 2
+    items:
+      items:
+        - description: |
+            The first value defines the DAI type: TDA998x_SPDIF or TDA998x_I2S
+            (see include/dt-bindings/display/tda998x.h).
+          enum: [ 1, 2 ]
+        - description:
+            The second value defines the tda998x AP_ENA reg content when the
+            DAI in question is used.
+          maximum: 0xff
+
+  '#sound-dai-cells':
+    enum: [ 0, 1 ]
+
+  nxp,calib-gpios:
+    maxItems: 1
+    description:
+      Calibration GPIO, which must correspond with the gpio used for the
+      TDA998x interrupt pin.
+
+  port:
+    $ref: /schemas/graph.yaml#/properties/port
+    description: Parallel input port
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+
+    properties:
+      port@0:
+        type: object
+        description: Parallel input port
+
+      port@1:
+        type: object
+        description: HDMI output port
+
+required:
+  - compatible
+  - reg
+
+oneOf:
+  - required:
+      - port
+  - required:
+      - ports
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/display/tda998x.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        tda998x: hdmi-encoder@70 {
+            compatible = "nxp,tda998x";
+            reg = <0x70>;
+            interrupt-parent = <&gpio0>;
+            interrupts = <27 IRQ_TYPE_EDGE_FALLING>;
+            video-ports = <0x230145>;
+
+            #sound-dai-cells = <1>;
+                         /* DAI-format / AP_ENA reg value */
+            audio-ports = <TDA998x_SPDIF 0x04>,
+                          <TDA998x_I2S 0x03>;
+
+            port {
+                tda998x_in: endpoint {
+                    remote-endpoint = <&lcdc_0>;
+                };
+            };
+        };
+    };

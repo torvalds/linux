@@ -747,34 +747,12 @@ __skip:
 }
 
 /*
- *  Compute ISA PnP checksum for first eight bytes.
- */
-static unsigned char __init isapnp_checksum(unsigned char *data)
-{
-	int i, j;
-	unsigned char checksum = 0x6a, bit, b;
-
-	for (i = 0; i < 8; i++) {
-		b = data[i];
-		for (j = 0; j < 8; j++) {
-			bit = 0;
-			if (b & (1 << j))
-				bit = 1;
-			checksum =
-			    ((((checksum ^ (checksum >> 1)) & 0x01) ^ bit) << 7)
-			    | (checksum >> 1);
-		}
-	}
-	return checksum;
-}
-
-/*
  *  Build device list for all present ISA PnP devices.
  */
 static int __init isapnp_build_device_list(void)
 {
 	int csn;
-	unsigned char header[9], checksum;
+	unsigned char header[9];
 	struct pnp_card *card;
 	u32 eisa_id;
 	char id[8];
@@ -784,7 +762,6 @@ static int __init isapnp_build_device_list(void)
 	for (csn = 1; csn <= isapnp_csn_count; csn++) {
 		isapnp_wake(csn);
 		isapnp_peek(header, 9);
-		checksum = isapnp_checksum(header);
 		eisa_id = header[0] | header[1] << 8 |
 			  header[2] << 16 | header[3] << 24;
 		pnp_eisa_id_to_string(eisa_id, id);

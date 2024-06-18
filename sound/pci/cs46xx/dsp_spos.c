@@ -27,7 +27,7 @@
 static int cs46xx_dsp_async_init (struct snd_cs46xx *chip,
 				  struct dsp_scb_descriptor * fg_entry);
 
-static enum wide_opcode wide_opcodes[] = { 
+static const enum wide_opcode wide_opcodes[] = {
 	WIDE_FOR_BEGIN_LOOP,
 	WIDE_FOR_BEGIN_LOOP2,
 	WIDE_COND_GOTO_ADDR,
@@ -617,7 +617,8 @@ static void cs46xx_dsp_proc_parameter_dump_read (struct snd_info_entry *entry,
 			col = 0;
 		}
 
-		if ( (symbol = cs46xx_dsp_lookup_symbol_addr (chip,i / sizeof(u32), SYMBOL_PARAMETER)) != NULL) {
+		symbol = cs46xx_dsp_lookup_symbol_addr(chip, i / sizeof(u32), SYMBOL_PARAMETER);
+		if (symbol) {
 			col = 0;
 			snd_iprintf (buffer,"\n%s:\n",symbol->symbol_name);
 		}
@@ -1038,7 +1039,7 @@ int cs46xx_dsp_scb_and_task_init (struct snd_cs46xx *chip)
 	
 	int fifo_addr, fifo_span, valid_slots;
 
-	static struct dsp_spos_control_block sposcb = {
+	static const struct dsp_spos_control_block sposcb = {
 		/* 0 */ HFG_TREE_SCB,HFG_STACK,
 		/* 1 */ SPOSCB_ADDR,BG_TREE_SCB_ADDR,
 		/* 2 */ DSP_SPOS_DC,0,

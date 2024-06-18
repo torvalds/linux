@@ -145,6 +145,22 @@ Supported chips:
 
     Datasheet: Not publicly available
 
+  * IT8792E/IT8795E
+
+    Prefix: 'it8792'
+
+    Addresses scanned: from Super I/O config space (8 I/O ports)
+
+    Datasheet: Not publicly available
+
+  * IT87952E
+
+    Prefix: 'it87952'
+
+    Addresses scanned: from Super I/O config space (8 I/O ports)
+
+    Datasheet: Not publicly available
+
   * SiS950   [clone of IT8705F]
 
     Prefix: 'it87'
@@ -162,7 +178,7 @@ Authors:
 Module Parameters
 -----------------
 
-* update_vbat: int
+* update_vbat bool
     0 if vbat should report power on value, 1 if vbat should be updated after
     each read. Default is 0. On some boards the battery voltage is provided
     by either the battery or the onboard power supply. Only the first reading
@@ -171,10 +187,30 @@ Module Parameters
     the chip so can be read at any time. Excessive reading may decrease
     battery life but no information is given in the datasheet.
 
-* fix_pwm_polarity int
+* fix_pwm_polarity bool
     Force PWM polarity to active high (DANGEROUS). Some chips are
     misconfigured by BIOS - PWM values would be inverted. This option tries
     to fix this. Please contact your BIOS manufacturer and ask him for fix.
+
+* force_id short, short
+
+  Force multiple chip ID to specified value, separated by ','.
+  For example "force_id=0x8689,0x8633".  A value of 0 is ignored
+  for that chip.
+  Note: A single force_id value (e.g. "force_id=0x8689") is used for
+  all chips, to only set the first chip use "force_id=0x8689,0".
+  Should only be used for testing.
+
+* ignore_resource_conflict bool
+
+  Similar to acpi_enforce_resources=lax, but only affects this driver.
+  ACPI resource conflicts are ignored if this parameter is provided and
+  set to 1.
+  Provided since there are reports that system-wide acpi_enfore_resources=lax
+  can result in boot failures on some systems.
+  Note: This is inherently risky since it means that both ACPI and this driver
+  may access the chip at the same time. This can result in race conditions and,
+  worst case, result in unexpected system reboots.
 
 
 Hardware Interfaces
@@ -193,8 +229,8 @@ Description
 
 This driver implements support for the IT8603E, IT8620E, IT8623E, IT8628E,
 IT8705F, IT8712F, IT8716F, IT8718F, IT8720F, IT8721F, IT8726F, IT8728F, IT8732F,
-IT8758E, IT8771E, IT8772E, IT8781F, IT8782F, IT8783E/F, IT8786E, IT8790E, and
-SiS950 chips.
+IT8758E, IT8771E, IT8772E, IT8781F, IT8782F, IT8783E/F, IT8786E, IT8790E,
+IT8792E/IT8795E, IT87952E and SiS950 chips.
 
 These chips are 'Super I/O chips', supporting floppy disks, infrared ports,
 joysticks and other miscellaneous stuff. For hardware monitoring, they
@@ -238,7 +274,8 @@ of the fan is not supported (value 0 of pwmX_enable).
 The IT8620E and IT8628E are custom designs, hardware monitoring part is similar
 to IT8728F. It only supports 16-bit fan mode. Both chips support up to 6 fans.
 
-The IT8790E supports up to 3 fans. 16-bit fan mode is always enabled.
+The IT8790E, IT8792E/IT8795E and IT87952E support up to 3 fans. 16-bit fan
+mode is always enabled.
 
 The IT8732F supports a closed-loop mode for fan control, but this is not
 currently implemented by the driver.

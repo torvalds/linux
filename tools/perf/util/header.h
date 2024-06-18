@@ -43,6 +43,10 @@ enum {
 	HEADER_BPF_PROG_INFO,
 	HEADER_BPF_BTF,
 	HEADER_COMPRESSED,
+	HEADER_CPU_PMU_CAPS,
+	HEADER_CLOCK_DATA,
+	HEADER_HYBRID_TOPOLOGY,
+	HEADER_PMU_CAPS,
 	HEADER_LAST_FEATURE,
 	HEADER_FEAT_BITS	= 256,
 };
@@ -50,10 +54,6 @@ enum {
 enum perf_header_version {
 	PERF_HEADER_VERSION_1,
 	PERF_HEADER_VERSION_2,
-};
-
-enum perf_dir_version {
-	PERF_DIR_VERSION	= 1,
 };
 
 struct perf_file_section {
@@ -115,11 +115,30 @@ struct perf_session;
 struct perf_tool;
 union perf_event;
 
-int perf_session__read_header(struct perf_session *session);
+extern const char perf_version_string[];
+
+int perf_session__read_header(struct perf_session *session, int repipe_fd);
 int perf_session__write_header(struct perf_session *session,
 			       struct evlist *evlist,
 			       int fd, bool at_exit);
 int perf_header__write_pipe(int fd);
+
+/* feat_writer writes a feature section to output */
+struct feat_writer {
+	int (*write)(struct feat_writer *fw, void *buf, size_t sz);
+};
+
+/* feat_copier copies a feature section using feat_writer to output */
+struct feat_copier {
+	int (*copy)(struct feat_copier *fc, int feat, struct feat_writer *fw);
+};
+
+int perf_session__inject_header(struct perf_session *session,
+				struct evlist *evlist,
+				int fd,
+				struct feat_copier *fc);
+
+size_t perf_session__data_offset(const struct evlist *evlist);
 
 void perf_header__set_feat(struct perf_header *header, int feat);
 void perf_header__clear_feat(struct perf_header *header, int feat);
@@ -143,8 +162,10 @@ int perf_event__process_event_update(struct perf_tool *tool,
 				     union perf_event *event,
 				     struct evlist **pevlist);
 size_t perf_event__fprintf_event_update(union perf_event *event, FILE *fp);
+#ifdef HAVE_LIBTRACEEVENT
 int perf_event__process_tracing_data(struct perf_session *session,
 				     union perf_event *event);
+#endif
 int perf_event__process_build_id(struct perf_session *session,
 				 union perf_event *event);
 bool is_perf_magic(u64 magic);
@@ -157,6 +178,11 @@ int do_write(struct feat_fd *fd, const void *buf, size_t size);
 
 int write_padded(struct feat_fd *fd, const void *bf,
 		 size_t count, size_t count_aligned);
+
+#define MAX_CACHE_LVL 4
+
+int is_cpu_online(unsigned int cpu);
+int build_caches_for_cpu(u32 cpu, struct cpu_cache_level caches[], u32 *cntp);
 
 /*
  * arch specific callback

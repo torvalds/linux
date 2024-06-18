@@ -2,7 +2,7 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include <traceevent/event-parse.h>
+#include "util/evlist.h"
 #include "evsel.h"
 #include "util/evsel_fprintf.h"
 #include "util/event.h"
@@ -11,6 +11,11 @@
 #include "strlist.h"
 #include "symbol.h"
 #include "srcline.h"
+#include "dso.h"
+
+#ifdef HAVE_LIBTRACEEVENT
+#include <traceevent/event-parse.h>
+#endif
 
 static int comma_fprintf(FILE *fp, bool *first, const char *fmt, ...)
 {
@@ -35,8 +40,7 @@ static int __print_attr__fprintf(FILE *fp, const char *name, const char *val, vo
 	return comma_fprintf(fp, (bool *)priv, " %s: %s", name, val);
 }
 
-int perf_evsel__fprintf(struct evsel *evsel,
-			struct perf_attr_details *details, FILE *fp)
+int evsel__fprintf(struct evsel *evsel, struct perf_attr_details *details, FILE *fp)
 {
 	bool first = true;
 	int printed = 0;
@@ -44,22 +48,22 @@ int perf_evsel__fprintf(struct evsel *evsel,
 	if (details->event_group) {
 		struct evsel *pos;
 
-		if (!perf_evsel__is_group_leader(evsel))
+		if (!evsel__is_group_leader(evsel))
 			return 0;
 
 		if (evsel->core.nr_members > 1)
 			printed += fprintf(fp, "%s{", evsel->group_name ?: "");
 
-		printed += fprintf(fp, "%s", perf_evsel__name(evsel));
+		printed += fprintf(fp, "%s", evsel__name(evsel));
 		for_each_group_member(pos, evsel)
-			printed += fprintf(fp, ",%s", perf_evsel__name(pos));
+			printed += fprintf(fp, ",%s", evsel__name(pos));
 
 		if (evsel->core.nr_members > 1)
 			printed += fprintf(fp, "}");
 		goto out;
 	}
 
-	printed += fprintf(fp, "%s", perf_evsel__name(evsel));
+	printed += fprintf(fp, "%s", evsel__name(evsel));
 
 	if (details->verbose) {
 		printed += perf_event_attr__fprintf(fp, &evsel->core.attr,
@@ -74,6 +78,7 @@ int perf_evsel__fprintf(struct evsel *evsel,
 					 term, (u64)evsel->core.attr.sample_freq);
 	}
 
+#ifdef HAVE_LIBTRACEEVENT
 	if (details->trace_fields) {
 		struct tep_format_field *field;
 
@@ -96,11 +101,13 @@ int perf_evsel__fprintf(struct evsel *evsel,
 			field = field->next;
 		}
 	}
+#endif
 out:
 	fputc('\n', fp);
 	return ++printed;
 }
 
+#ifndef PYTHON_PERF
 int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
 			      unsigned int print_opts, struct callchain_cursor *cursor,
 			      struct strlist *bt_stop_list, FILE *fp)
@@ -110,6 +117,7 @@ int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
 	int print_ip = print_opts & EVSEL__PRINT_IP;
 	int print_sym = print_opts & EVSEL__PRINT_SYM;
 	int print_dso = print_opts & EVSEL__PRINT_DSO;
+	int print_dsoff = print_opts & EVSEL__PRINT_DSOFF;
 	int print_symoffset = print_opts & EVSEL__PRINT_SYMOFFSET;
 	int print_oneline = print_opts & EVSEL__PRINT_ONELINE;
 	int print_srcline = print_opts & EVSEL__PRINT_SRCLINE;
@@ -119,19 +127,25 @@ int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
 	char s = print_oneline ? ' ' : '\t';
 	bool first = true;
 
-	if (sample->callchain) {
-		struct addr_location node_al;
+	if (cursor == NULL)
+		return fprintf(fp, "<not enough memory for the callchain cursor>%s", print_oneline ? "" : "\n");
 
+	if (sample->callchain) {
 		callchain_cursor_commit(cursor);
 
 		while (1) {
+			struct symbol *sym;
+			struct map *map;
 			u64 addr = 0;
 
 			node = callchain_cursor_current(cursor);
 			if (!node)
 				break;
 
-			if (node->sym && node->sym->ignore && print_skip_ignored)
+			sym = node->ms.sym;
+			map = node->ms.map;
+
+			if (sym && sym->ignore && print_skip_ignored)
 				goto next;
 
 			printed += fprintf(fp, "%-*.*s", left_alignment, left_alignment, " ");
@@ -139,45 +153,46 @@ int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
 			if (print_arrow && !first)
 				printed += fprintf(fp, " <-");
 
+			if (map)
+				addr = map__map_ip(map, node->ip);
+
 			if (print_ip)
 				printed += fprintf(fp, "%c%16" PRIx64, s, node->ip);
 
-			if (node->map)
-				addr = node->map->map_ip(node->map, node->ip);
-
 			if (print_sym) {
+				struct addr_location node_al;
+
+				addr_location__init(&node_al);
 				printed += fprintf(fp, " ");
 				node_al.addr = addr;
-				node_al.map  = node->map;
+				node_al.map  = map__get(map);
 
 				if (print_symoffset) {
-					printed += __symbol__fprintf_symname_offs(node->sym, &node_al,
+					printed += __symbol__fprintf_symname_offs(sym, &node_al,
 										  print_unknown_as_addr,
 										  true, fp);
 				} else {
-					printed += __symbol__fprintf_symname(node->sym, &node_al,
+					printed += __symbol__fprintf_symname(sym, &node_al,
 									     print_unknown_as_addr, fp);
 				}
+				addr_location__exit(&node_al);
 			}
 
-			if (print_dso && (!node->sym || !node->sym->inlined)) {
-				printed += fprintf(fp, " (");
-				printed += map__fprintf_dsoname(node->map, fp);
-				printed += fprintf(fp, ")");
-			}
+			if (print_dso && (!sym || !sym->inlined))
+				printed += map__fprintf_dsoname_dsoff(map, print_dsoff, addr, fp);
 
 			if (print_srcline)
-				printed += map__fprintf_srcline(node->map, addr, "\n  ", fp);
+				printed += map__fprintf_srcline(map, addr, "\n  ", fp);
 
-			if (node->sym && node->sym->inlined)
+			if (sym && sym->inlined)
 				printed += fprintf(fp, " (inlined)");
 
 			if (!print_oneline)
 				printed += fprintf(fp, "\n");
 
 			/* Add srccode here too? */
-			if (bt_stop_list && node->sym &&
-			    strlist__has_entry(bt_stop_list, node->sym->name)) {
+			if (bt_stop_list && sym &&
+			    strlist__has_entry(bt_stop_list, sym->name)) {
 				break;
 			}
 
@@ -198,6 +213,7 @@ int sample__fprintf_sym(struct perf_sample *sample, struct addr_location *al,
 	int print_ip = print_opts & EVSEL__PRINT_IP;
 	int print_sym = print_opts & EVSEL__PRINT_SYM;
 	int print_dso = print_opts & EVSEL__PRINT_DSO;
+	int print_dsoff = print_opts & EVSEL__PRINT_DSOFF;
 	int print_symoffset = print_opts & EVSEL__PRINT_SYMOFFSET;
 	int print_srcline = print_opts & EVSEL__PRINT_SRCLINE;
 	int print_unknown_as_addr = print_opts & EVSEL__PRINT_UNKNOWN_AS_ADDR;
@@ -223,11 +239,8 @@ int sample__fprintf_sym(struct perf_sample *sample, struct addr_location *al,
 			}
 		}
 
-		if (print_dso) {
-			printed += fprintf(fp, " (");
-			printed += map__fprintf_dsoname(al->map, fp);
-			printed += fprintf(fp, ")");
-		}
+		if (print_dso)
+			printed += map__fprintf_dsoname_dsoff(al->map, print_dsoff, al->addr, fp);
 
 		if (print_srcline)
 			printed += map__fprintf_srcline(al->map, al->addr, "\n  ", fp);
@@ -235,3 +248,4 @@ int sample__fprintf_sym(struct perf_sample *sample, struct addr_location *al,
 
 	return printed;
 }
+#endif /* PYTHON_PERF */

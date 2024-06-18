@@ -362,14 +362,14 @@ static bool tomoyo_merge_path_acl(struct tomoyo_acl_info *a,
 {
 	u16 * const a_perm = &container_of(a, struct tomoyo_path_acl, head)
 		->perm;
-	u16 perm = *a_perm;
+	u16 perm = READ_ONCE(*a_perm);
 	const u16 b_perm = container_of(b, struct tomoyo_path_acl, head)->perm;
 
 	if (is_delete)
 		perm &= ~b_perm;
 	else
 		perm |= b_perm;
-	*a_perm = perm;
+	WRITE_ONCE(*a_perm, perm);
 	return !perm;
 }
 
@@ -437,7 +437,7 @@ static bool tomoyo_merge_mkdev_acl(struct tomoyo_acl_info *a,
 {
 	u8 *const a_perm = &container_of(a, struct tomoyo_mkdev_acl,
 					 head)->perm;
-	u8 perm = *a_perm;
+	u8 perm = READ_ONCE(*a_perm);
 	const u8 b_perm = container_of(b, struct tomoyo_mkdev_acl, head)
 		->perm;
 
@@ -445,7 +445,7 @@ static bool tomoyo_merge_mkdev_acl(struct tomoyo_acl_info *a,
 		perm &= ~b_perm;
 	else
 		perm |= b_perm;
-	*a_perm = perm;
+	WRITE_ONCE(*a_perm, perm);
 	return !perm;
 }
 
@@ -517,14 +517,14 @@ static bool tomoyo_merge_path2_acl(struct tomoyo_acl_info *a,
 {
 	u8 * const a_perm = &container_of(a, struct tomoyo_path2_acl, head)
 		->perm;
-	u8 perm = *a_perm;
+	u8 perm = READ_ONCE(*a_perm);
 	const u8 b_perm = container_of(b, struct tomoyo_path2_acl, head)->perm;
 
 	if (is_delete)
 		perm &= ~b_perm;
 	else
 		perm |= b_perm;
-	*a_perm = perm;
+	WRITE_ONCE(*a_perm, perm);
 	return !perm;
 }
 
@@ -655,7 +655,7 @@ static bool tomoyo_merge_path_number_acl(struct tomoyo_acl_info *a,
 {
 	u8 * const a_perm = &container_of(a, struct tomoyo_path_number_acl,
 					  head)->perm;
-	u8 perm = *a_perm;
+	u8 perm = READ_ONCE(*a_perm);
 	const u8 b_perm = container_of(b, struct tomoyo_path_number_acl, head)
 		->perm;
 
@@ -663,7 +663,7 @@ static bool tomoyo_merge_path_number_acl(struct tomoyo_acl_info *a,
 		perm &= ~b_perm;
 	else
 		perm |= b_perm;
-	*a_perm = perm;
+	WRITE_ONCE(*a_perm, perm);
 	return !perm;
 }
 
@@ -717,7 +717,7 @@ int tomoyo_path_number_perm(const u8 type, const struct path *path,
 	int idx;
 
 	if (tomoyo_init_request_info(&r, NULL, tomoyo_pn2mac[type])
-	    == TOMOYO_CONFIG_DISABLED || !path->dentry)
+	    == TOMOYO_CONFIG_DISABLED)
 		return 0;
 	idx = tomoyo_read_lock();
 	if (!tomoyo_get_realpath(&buf, path))
@@ -927,7 +927,7 @@ int tomoyo_path2_perm(const u8 operation, const struct path *path1,
 	case TOMOYO_TYPE_LINK:
 		if (!d_is_dir(path1->dentry))
 			break;
-		/* fall through */
+		fallthrough;
 	case TOMOYO_TYPE_PIVOT_ROOT:
 		tomoyo_add_slash(&buf1);
 		tomoyo_add_slash(&buf2);

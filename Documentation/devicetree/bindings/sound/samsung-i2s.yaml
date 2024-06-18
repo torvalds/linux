@@ -1,0 +1,162 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/samsung-i2s.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung SoC I2S controller
+
+maintainers:
+  - Krzysztof Kozlowski <krzk@kernel.org>
+  - Sylwester Nawrocki <s.nawrocki@samsung.com>
+
+allOf:
+  - $ref: dai-common.yaml#
+
+properties:
+  compatible:
+    description: |
+      samsung,s3c6410-i2s: for 8/16/24bit stereo I2S.
+
+      samsung,s5pv210-i2s: for 8/16/24bit multichannel (5.1) I2S with
+      secondary FIFO, s/w reset control and internal mux for root clock
+      source.
+
+      samsung,exynos5420-i2s: for 8/16/24bit multichannel (5.1) I2S for
+      playback, stereo channel capture, secondary FIFO using internal
+      or external DMA, s/w reset control, internal mux for root clock
+      source and 7.1 channel TDM support for playback; TDM (Time division
+      multiplexing) is to allow transfer of multiple channel audio data on
+      single data line.
+
+      samsung,exynos7-i2s: with all the available features of Exynos5 I2S.
+      Exynos7 I2S has 7.1 channel TDM support for capture, secondary FIFO
+      with only external DMA and more number of root clock sampling
+      frequencies.
+
+      samsung,exynos7-i2s1: I2S1 on previous samsung platforms supports
+      stereo channels. Exynos7 I2S1 upgraded to 5.1 multichannel with
+      slightly modified bit offsets.
+
+      tesla,fsd-i2s: for 8/16/24bit stereo channel I2S for playback and
+      capture, secondary FIFO using external DMA, s/w reset control,
+      internal mux for root clock source with all root clock sampling
+      frequencies supported by Exynos7 I2S and 7.1 channel TDM support
+      for playback and capture TDM (Time division multiplexing) to allow
+      transfer of multiple channel audio data on single data line.
+    oneOf:
+      - enum:
+          - samsung,s3c6410-i2s
+          - samsung,s5pv210-i2s
+          - samsung,exynos5420-i2s
+          - samsung,exynos7-i2s
+          - samsung,exynos7-i2s1
+          - tesla,fsd-i2s
+      - items:
+          - enum:
+              - samsung,exynos5433-i2s
+          - const: samsung,exynos7-i2s
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
+  reg:
+    maxItems: 1
+
+  dmas:
+    minItems: 2
+    maxItems: 3
+
+  dma-names:
+    oneOf:
+      - items:
+          - const: tx
+          - const: rx
+      - items:
+          - const: tx
+          - const: rx
+          - const: tx-sec
+
+  clocks:
+    minItems: 1
+    maxItems: 3
+
+  clock-names:
+    oneOf:
+      - items:
+          - const: iis
+      - items: # for I2S0
+          - const: iis
+          - const: i2s_opclk0
+          - const: i2s_opclk1
+      - items: # for I2S1 and I2S2
+          - const: iis
+          - const: i2s_opclk0
+    description: |
+      "iis" is the I2S bus clock and i2s_opclk0, i2s_opclk1 are sources
+      of the root clock. I2S0 has internal mux to select the source
+      of root clock and I2S1 and I2S2 doesn't have any such mux.
+
+  "#clock-cells":
+    const: 1
+
+  clock-output-names:
+    deprecated: true
+    oneOf:
+      - items: # for I2S0
+          - const: i2s_cdclk0
+      - items: # for I2S1
+          - const: i2s_cdclk1
+      - items: # for I2S2
+          - const: i2s_cdclk2
+    description: Names of the CDCLK I2S output clocks.
+
+  interrupts:
+    maxItems: 1
+
+  samsung,idma-addr:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      Internal DMA register base address of the audio
+      subsystem (used in secondary sound source).
+
+  power-domains:
+    maxItems: 1
+
+  "#sound-dai-cells":
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - dmas
+  - dma-names
+  - clocks
+  - clock-names
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/exynos-audss-clk.h>
+
+    i2s0: i2s@3830000 {
+        compatible = "samsung,s5pv210-i2s";
+        reg = <0x03830000 0x100>;
+        dmas = <&pdma0 10>,
+                <&pdma0 9>,
+                <&pdma0 8>;
+        dma-names = "tx", "rx", "tx-sec";
+        clocks = <&clock_audss EXYNOS_I2S_BUS>,
+                <&clock_audss EXYNOS_I2S_BUS>,
+                <&clock_audss EXYNOS_SCLK_I2S>;
+        clock-names = "iis", "i2s_opclk0", "i2s_opclk1";
+        #clock-cells = <1>;
+        samsung,idma-addr = <0x03000000>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&i2s0_bus>;
+        #sound-dai-cells = <1>;
+    };

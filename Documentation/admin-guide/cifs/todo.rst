@@ -2,7 +2,8 @@
 TODO
 ====
 
-Version 2.14 December 21, 2018
+As of 6.7 kernel. See https://wiki.samba.org/index.php/LinuxCIFSKernel
+for list of features added by release
 
 A Partial List of Missing Features
 ==================================
@@ -12,25 +13,27 @@ for visible, important contributions to this module.  Here
 is a partial list of the known problems and missing features:
 
 a) SMB3 (and SMB3.1.1) missing optional features:
+   multichannel performance optimizations, algorithmic channel selection,
+   directory leases optimizations,
+   support for faster packet signing (GMAC),
+   support for compression over the network,
+   T10 copy offload ie "ODX" (copy chunk, and "Duplicate Extents" ioctl
+   are currently the only two server side copy mechanisms supported)
 
-   - multichannel (started), integration with RDMA
-   - directory leases (improved metadata caching), started (root dir only)
-   - T10 copy offload ie "ODX" (copy chunk, and "Duplicate Extents" ioctl
-     currently the only two server side copy mechanisms supported)
+b) Better optimized compounding and error handling for sparse file support,
+   perhaps addition of new optional SMB3.1.1 fsctls to make collapse range
+   and insert range more atomic
 
-b) improved sparse file support (fiemap and SEEK_HOLE are implemented
-   but additional features would be supportable by the protocol).
+c) Support for SMB3.1.1 over QUIC (and perhaps other socket based protocols
+   like SCTP)
 
-c) Directory entry caching relies on a 1 second timer, rather than
-   using Directory Leases, currently only the root file handle is cached longer
-
-d) quota support (needs minor kernel change since quota calls
-   to make it to network filesystems or deviceless filesystems)
+d) quota support (needs minor kernel change since quota calls otherwise
+   won't make it to network filesystems or deviceless filesystems).
 
 e) Additional use cases can be optimized to use "compounding" (e.g.
    open/query/close and open/setinfo/close) to reduce the number of
    roundtrips to the server and improve performance. Various cases
-   (stat, statfs, create, unlink, mkdir) already have been improved by
+   (stat, statfs, create, unlink, mkdir, xattrs) already have been improved by
    using compounding but more can be done. In addition we could
    significantly reduce redundant opens by using deferred close (with
    handle caching leases) and better using reference counters on file
@@ -60,7 +63,9 @@ k) Add tools to take advantage of more smb3 specific ioctls and features
    metadata attributes easier from tools (e.g. extending what was done
    in smb-info tool).
 
-l) encrypted file support
+l) encrypted file support (currently the attribute showing the file is
+   encrypted on the server is reported, but changing the attribute is not
+   supported).
 
 m) improved stats gathering tools (perhaps integration with nfsometer?)
    to extend and make easier to use what is currently in /proc/fs/cifs/Stats
@@ -69,14 +74,13 @@ n) Add support for claims based ACLs ("DAC")
 
 o) mount helper GUI (to simplify the various configuration options on mount)
 
-p) Add support for witness protocol (perhaps ioctl to cifs.ko from user space
-   tool listening on witness protocol RPC) to allow for notification of share
-   move, server failover, and server adapter changes.  And also improve other
-   failover scenarios, e.g. when client knows multiple DFS entries point to
-   different servers, and the server we are connected to has gone down.
+p) Expand support for witness protocol to allow for notification of share
+   move, and server network adapter changes. Currently only notifications by
+   the witness protocol for server move is supported by the Linux client.
 
 q) Allow mount.cifs to be more verbose in reporting errors with dialect
-   or unsupported feature errors.
+   or unsupported feature errors. This would now be easier due to the
+   implementation of the new mount API.
 
 r) updating cifs documentation, and user guide.
 
@@ -87,26 +91,22 @@ t) split cifs and smb3 support into separate modules so legacy (and less
    secure) CIFS dialect can be disabled in environments that don't need it
    and simplify the code.
 
-v) POSIX Extensions for SMB3.1.1 (started, create and mkdir support added
-   so far).
+v) Additional testing of POSIX Extensions for SMB3.1.1
 
-w) Add support for additional strong encryption types, and additional spnego
-   authentication mechanisms (see MS-SMB2)
+w) Support for the Mac SMB3.1.1 extensions to improve interop with Apple servers
 
-x) Finish support for SMB3.1.1 compression
+x) Support for additional authentication options (e.g. IAKERB, peer-to-peer
+   Kerberos, SCRAM and others supported by existing servers)
+
+y) Improved tracing, more eBPF trace points, better scripts for performance
+   analysis
 
 Known Bugs
 ==========
 
-See http://bugzilla.samba.org - search on product "CifsVFS" for
+See https://bugzilla.samba.org - search on product "CifsVFS" for
 current bug list.  Also check http://bugzilla.kernel.org (Product = File System, Component = CIFS)
-
-1) existing symbolic links (Windows reparse points) are recognized but
-   can not be created remotely. They are implemented for Samba and those that
-   support the CIFS Unix extensions, although earlier versions of Samba
-   overly restrict the pathnames.
-2) follow_link and readdir code does not follow dfs junctions
-   but recognizes them
+and xfstest results e.g. https://wiki.samba.org/index.php/Xfstest-results-smb3
 
 Misc testing to do
 ==================

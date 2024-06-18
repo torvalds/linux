@@ -1145,7 +1145,7 @@ static void bnx2x_dcbx_get_num_pg_traf_type(struct bnx2x *bp,
 					break;
 				}
 			}
-			if (false == pg_found) {
+			if (!pg_found) {
 				data[help_data->num_of_pg].pg = add_pg;
 				data[help_data->num_of_pg].pg_priority =
 						(1 << ttp[add_traf_type]);
@@ -1155,7 +1155,7 @@ static void bnx2x_dcbx_get_num_pg_traf_type(struct bnx2x *bp,
 		}
 		DP(BNX2X_MSG_DCB,
 		   "add_traf_type %d pg_found %s num_of_pg %d\n",
-		   add_traf_type, (false == pg_found) ? "NO" : "YES",
+		   add_traf_type, !pg_found ? "NO" : "YES",
 		   help_data->num_of_pg);
 	}
 }
@@ -1544,8 +1544,7 @@ static void bnx2x_dcbx_2cos_limit_cee_three_pg_to_cos_params(
 			if (pg_entry < DCBX_MAX_NUM_PG_BW_ENTRIES) {
 				entry = 0;
 
-				if (i == (num_of_pri-1) &&
-				    false == b_found_strict)
+				if (i == (num_of_pri-1) && !b_found_strict)
 					/* last entry will be handled separately
 					 * If no priority is strict than last
 					 * entry goes to last queue.

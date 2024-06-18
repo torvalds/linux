@@ -4,18 +4,18 @@
  * Copyright (C) 2016 William Breathitt Gray
  *
  * This driver supports the following Measurement Computing devices: CIO-DAC16,
- * CIO-DAC06, and PC104-DAC06.
+ * CIO-DAC08, and PC104-DAC06.
  */
-#include <linux/bitops.h>
+#include <linux/bits.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/err.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/types.h>
-#include <linux/io.h>
-#include <linux/ioport.h>
 #include <linux/isa.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/regmap.h>
+#include <linux/types.h>
 
 #define CIO_DAC_NUM_CHAN 16
 
@@ -34,25 +34,51 @@ static unsigned int num_cio_dac;
 module_param_hw_array(base, uint, ioport, &num_cio_dac, 0);
 MODULE_PARM_DESC(base, "Measurement Computing CIO-DAC base addresses");
 
+#define CIO_DAC_BASE 0x00
+#define CIO_DAC_CHANNEL_STRIDE 2
+
+static bool cio_dac_precious_reg(struct device *dev, unsigned int reg)
+{
+	/*
+	 * All registers are considered precious; if the XFER jumper is set on
+	 * the device, then no update occurs until a DAC register is read.
+	 */
+	return true;
+}
+
+static const struct regmap_config cio_dac_regmap_config = {
+	.reg_bits = 16,
+	.reg_stride = 2,
+	.val_bits = 16,
+	.io_port = true,
+	.max_register = 0x1F,
+	.precious_reg = cio_dac_precious_reg,
+};
+
 /**
  * struct cio_dac_iio - IIO device private data structure
- * @chan_out_states:	channels' output states
- * @base:		base port address of the IIO device
+ * @map: Regmap for the device
  */
 struct cio_dac_iio {
-	int chan_out_states[CIO_DAC_NUM_CHAN];
-	unsigned int base;
+	struct regmap *map;
 };
 
 static int cio_dac_read_raw(struct iio_dev *indio_dev,
 	struct iio_chan_spec const *chan, int *val, int *val2, long mask)
 {
 	struct cio_dac_iio *const priv = iio_priv(indio_dev);
+	const unsigned int offset = chan->channel * CIO_DAC_CHANNEL_STRIDE;
+	int err;
+	unsigned int dac_val;
 
 	if (mask != IIO_CHAN_INFO_RAW)
 		return -EINVAL;
 
-	*val = priv->chan_out_states[chan->channel];
+	err = regmap_read(priv->map, CIO_DAC_BASE + offset, &dac_val);
+	if (err)
+		return err;
+
+	*val = dac_val;
 
 	return IIO_VAL_INT;
 }
@@ -61,19 +87,16 @@ static int cio_dac_write_raw(struct iio_dev *indio_dev,
 	struct iio_chan_spec const *chan, int val, int val2, long mask)
 {
 	struct cio_dac_iio *const priv = iio_priv(indio_dev);
-	const unsigned int chan_addr_offset = 2 * chan->channel;
+	const unsigned int offset = chan->channel * CIO_DAC_CHANNEL_STRIDE;
 
 	if (mask != IIO_CHAN_INFO_RAW)
 		return -EINVAL;
 
-	/* DAC can only accept up to a 16-bit value */
-	if ((unsigned int)val > 65535)
+	/* DAC can only accept up to a 12-bit value */
+	if ((unsigned int)val > 4095)
 		return -EINVAL;
 
-	priv->chan_out_states[chan->channel] = val;
-	outw(val, priv->base + chan_addr_offset);
-
-	return 0;
+	return regmap_write(priv->map, CIO_DAC_BASE + offset, val);
 }
 
 static const struct iio_info cio_dac_info = {
@@ -92,7 +115,7 @@ static int cio_dac_probe(struct device *dev, unsigned int id)
 {
 	struct iio_dev *indio_dev;
 	struct cio_dac_iio *priv;
-	unsigned int i;
+	void __iomem *regs;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*priv));
 	if (!indio_dev)
@@ -105,19 +128,21 @@ static int cio_dac_probe(struct device *dev, unsigned int id)
 		return -EBUSY;
 	}
 
+	regs = devm_ioport_map(dev, base[id], CIO_DAC_EXTENT);
+	if (!regs)
+		return -ENOMEM;
+
+	priv = iio_priv(indio_dev);
+	priv->map = devm_regmap_init_mmio(dev, regs, &cio_dac_regmap_config);
+	if (IS_ERR(priv->map))
+		return dev_err_probe(dev, PTR_ERR(priv->map),
+				     "Unable to initialize register map\n");
+
 	indio_dev->info = &cio_dac_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = cio_dac_channels;
 	indio_dev->num_channels = CIO_DAC_NUM_CHAN;
 	indio_dev->name = dev_name(dev);
-	indio_dev->dev.parent = dev;
-
-	priv = iio_priv(indio_dev);
-	priv->base = base[id];
-
-	/* initialize DAC outputs to 0V */
-	for (i = 0; i < 32; i += 2)
-		outw(0, base[id] + i);
 
 	return devm_iio_device_register(dev, indio_dev);
 }

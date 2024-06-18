@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 =====================================
-GENERIC SYSTEM INTERCONNECT SUBSYSTEM
+Generic System Interconnect Subsystem
 =====================================
 
 Introduction
@@ -91,3 +91,50 @@ Interconnect consumers are the clients which use the interconnect APIs to
 get paths between endpoints and set their bandwidth/latency/QoS requirements
 for these interconnect paths.  These interfaces are not currently
 documented.
+
+Interconnect debugfs interfaces
+-------------------------------
+
+Like several other subsystems interconnect will create some files for debugging
+and introspection. Files in debugfs are not considered ABI so application
+software shouldn't rely on format details change between kernel versions.
+
+``/sys/kernel/debug/interconnect/interconnect_summary``:
+
+Show all interconnect nodes in the system with their aggregated bandwidth
+request. Indented under each node show bandwidth requests from each device.
+
+``/sys/kernel/debug/interconnect/interconnect_graph``:
+
+Show the interconnect graph in the graphviz dot format. It shows all
+interconnect nodes and links in the system and groups together nodes from the
+same provider as subgraphs. The format is human-readable and can also be piped
+through dot to generate diagrams in many graphical formats::
+
+        $ cat /sys/kernel/debug/interconnect/interconnect_graph | \
+                dot -Tsvg > interconnect_graph.svg
+
+The ``test-client`` directory provides interfaces for issuing BW requests to
+any arbitrary path. Note that for safety reasons, this feature is disabled by
+default without a Kconfig to enable it. Enabling it requires code changes to
+``#define INTERCONNECT_ALLOW_WRITE_DEBUGFS``. Example usage::
+
+        cd /sys/kernel/debug/interconnect/test-client/
+
+        # Configure node endpoints for the path from CPU to DDR on
+        # qcom/sm8550.
+        echo chm_apps > src_node
+        echo ebi > dst_node
+
+        # Get path between src_node and dst_node. This is only
+        # necessary after updating the node endpoints.
+        echo 1 > get
+
+        # Set desired BW to 1GBps avg and 2GBps peak.
+        echo 1000000 > avg_bw
+        echo 2000000 > peak_bw
+
+        # Vote for avg_bw and peak_bw on the latest path from "get".
+        # Voting for multiple paths is possible by repeating this
+        # process for different nodes endpoints.
+        echo 1 > commit

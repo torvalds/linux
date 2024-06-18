@@ -7,6 +7,8 @@
  *
  */
 
+#define pr_fmt(fmt) "ACPI: " fmt
+
 #include <linux/spinlock.h>
 #include <linux/export.h>
 #include <linux/proc_fs.h>
@@ -18,9 +20,6 @@
 #include <net/genetlink.h>
 
 #include "internal.h"
-
-#define _COMPONENT		ACPI_SYSTEM_COMPONENT
-ACPI_MODULE_NAME("event");
 
 /* ACPI notifier chain */
 static BLOCKING_NOTIFIER_HEAD(acpi_chain_head);
@@ -34,7 +33,7 @@ int acpi_notifier_call_chain(struct acpi_device *dev, u32 type, u32 data)
 	event.type = type;
 	event.data = data;
 	return (blocking_notifier_call_chain(&acpi_chain_head, 0, (void *)&event)
-                        == NOTIFY_BAD) ? -EINVAL : 0;
+			== NOTIFY_BAD) ? -EINVAL : 0;
 }
 EXPORT_SYMBOL(acpi_notifier_call_chain);
 
@@ -168,7 +167,7 @@ static int acpi_event_genetlink_init(void)
 
 static int __init acpi_event_init(void)
 {
-	int error = 0;
+	int error;
 
 	if (acpi_disabled)
 		return 0;
@@ -176,8 +175,8 @@ static int __init acpi_event_init(void)
 	/* create genetlink for acpi event */
 	error = acpi_event_genetlink_init();
 	if (error)
-		printk(KERN_WARNING PREFIX
-		       "Failed to create genetlink family for ACPI event\n");
+		pr_warn("Failed to create genetlink family for ACPI event\n");
+
 	return 0;
 }
 

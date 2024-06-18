@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/bitops.h>
 #include <linux/delay.h>
+#include <linux/isa-dma.h>
 #include <linux/pci.h>
 #include <asm/dma.h>
 #include <linux/io.h>
@@ -291,7 +292,7 @@ static void init_cyrix(struct cpuinfo_x86 *c)
 			mark_tsc_unstable("cyrix 5510/5520 detected");
 	}
 #endif
-		c->x86_cache_size = 16;	/* Yep 16K integrated cache thats it */
+		c->x86_cache_size = 16;	/* Yep 16K integrated cache that's it */
 
 		/* GXm supports extended cpuid levels 'ala' AMD */
 		if (c->cpuid_level == 2) {

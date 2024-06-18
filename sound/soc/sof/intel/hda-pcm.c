@@ -1,9 +1,9 @@
-// SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 //
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2018 Intel Corporation. All rights reserved.
+// Copyright(c) 2018 Intel Corporation
 //
 // Authors: Liam Girdwood <liam.r.girdwood@linux.intel.com>
 //	    Ranjani Sridharan <ranjani.sridharan@linux.intel.com>
@@ -15,8 +15,11 @@
  * Hardware interface for generic Intel audio DSP HDA IP
  */
 
+#include <linux/moduleparam.h>
 #include <sound/hda_register.h>
 #include <sound/pcm_params.h>
+#include <trace/events/sof_intel.h>
+#include "../sof-audio.h"
 #include "../ops.h"
 #include "hda.h"
 
@@ -26,7 +29,15 @@
 #define SDnFMT_BITS(x)	((x) << 4)
 #define SDnFMT_CHAN(x)	((x) << 0)
 
-static inline u32 get_mult_div(struct snd_sof_dev *sdev, int rate)
+static bool hda_always_enable_dmi_l1;
+module_param_named(always_enable_dmi_l1, hda_always_enable_dmi_l1, bool, 0444);
+MODULE_PARM_DESC(always_enable_dmi_l1, "SOF HDA always enable DMI l1");
+
+static bool hda_disable_rewinds;
+module_param_named(disable_rewinds, hda_disable_rewinds, bool, 0444);
+MODULE_PARM_DESC(disable_rewinds, "SOF HDA disable rewinds");
+
+u32 hda_dsp_get_mult_div(struct snd_sof_dev *sdev, int rate)
 {
 	switch (rate) {
 	case 8000:
@@ -60,7 +71,7 @@ static inline u32 get_mult_div(struct snd_sof_dev *sdev, int rate)
 	}
 };
 
-static inline u32 get_bits(struct snd_sof_dev *sdev, int sample_bits)
+u32 hda_dsp_get_bits(struct snd_sof_dev *sdev, int sample_bits)
 {
 	switch (sample_bits) {
 	case 8:
@@ -83,67 +94,100 @@ static inline u32 get_bits(struct snd_sof_dev *sdev, int sample_bits)
 int hda_dsp_pcm_hw_params(struct snd_sof_dev *sdev,
 			  struct snd_pcm_substream *substream,
 			  struct snd_pcm_hw_params *params,
-			  struct sof_ipc_stream_params *ipc_params)
+			  struct snd_sof_platform_stream_params *platform_params)
 {
 	struct hdac_stream *hstream = substream->runtime->private_data;
-	struct hdac_ext_stream *stream = stream_to_hdac_ext_stream(hstream);
+	struct hdac_ext_stream *hext_stream = stream_to_hdac_ext_stream(hstream);
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	struct snd_dma_buffer *dmab;
 	int ret;
-	u32 size, rate, bits;
-
-	size = params_buffer_bytes(params);
-	rate = get_mult_div(sdev, params_rate(params));
-	bits = get_bits(sdev, params_width(params));
 
 	hstream->substream = substream;
 
 	dmab = substream->runtime->dma_buffer_p;
 
-	hstream->format_val = rate | bits | (params_channels(params) - 1);
-	hstream->bufsize = size;
+	/*
+	 * Use the codec required format val (which is link_bps adjusted) when
+	 * the DSP is not in use
+	 */
+	if (!sdev->dspless_mode_selected) {
+		u32 rate = hda_dsp_get_mult_div(sdev, params_rate(params));
+		u32 bits = hda_dsp_get_bits(sdev, params_width(params));
+
+		hstream->format_val = rate | bits | (params_channels(params) - 1);
+	}
+
+	hstream->bufsize = params_buffer_bytes(params);
 	hstream->period_bytes = params_period_bytes(params);
 	hstream->no_period_wakeup  =
 			(params->info & SNDRV_PCM_INFO_NO_PERIOD_WAKEUP) &&
 			(params->flags & SNDRV_PCM_HW_PARAMS_NO_PERIOD_WAKEUP);
 
-	ret = hda_dsp_stream_hw_params(sdev, stream, dmab, params);
+	ret = hda_dsp_stream_hw_params(sdev, hext_stream, dmab, params);
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: hdac prepare failed: %x\n", ret);
+		dev_err(sdev->dev, "error: hdac prepare failed: %d\n", ret);
 		return ret;
 	}
 
-	/* disable SPIB, to enable buffer wrap for stream */
-	hda_dsp_stream_spib_config(sdev, stream, HDA_DSP_SPIB_DISABLE, 0);
+	/* enable SPIB when rewinds are disabled */
+	if (hda_disable_rewinds)
+		hda_dsp_stream_spib_config(sdev, hext_stream, HDA_DSP_SPIB_ENABLE, 0);
+	else
+		hda_dsp_stream_spib_config(sdev, hext_stream, HDA_DSP_SPIB_DISABLE, 0);
 
-	/* set host_period_bytes to 0 if no IPC position */
-	if (hda && hda->no_ipc_position)
-		ipc_params->host_period_bytes = 0;
+	if (hda)
+		platform_params->no_ipc_position = hda->no_ipc_position;
 
-	ipc_params->stream_tag = hstream->stream_tag;
+	platform_params->stream_tag = hstream->stream_tag;
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(hda_dsp_pcm_hw_params, SND_SOC_SOF_INTEL_HDA_COMMON);
+
+/* update SPIB register with appl position */
+int hda_dsp_pcm_ack(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream)
+{
+	struct hdac_stream *hstream = substream->runtime->private_data;
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	ssize_t appl_pos, buf_size;
+	u32 spib;
+
+	appl_pos = frames_to_bytes(runtime, runtime->control->appl_ptr);
+	buf_size = frames_to_bytes(runtime, runtime->buffer_size);
+
+	spib = appl_pos % buf_size;
+
+	/* Allowable value for SPIB is 1 byte to max buffer size */
+	if (!spib)
+		spib = buf_size;
+
+	sof_io_write(sdev, hstream->spib_addr, spib);
+
+	return 0;
+}
+EXPORT_SYMBOL_NS(hda_dsp_pcm_ack, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int hda_dsp_pcm_trigger(struct snd_sof_dev *sdev,
 			struct snd_pcm_substream *substream, int cmd)
 {
 	struct hdac_stream *hstream = substream->runtime->private_data;
-	struct hdac_ext_stream *stream = stream_to_hdac_ext_stream(hstream);
+	struct hdac_ext_stream *hext_stream = stream_to_hdac_ext_stream(hstream);
 
-	return hda_dsp_stream_trigger(sdev, stream, cmd);
+	return hda_dsp_stream_trigger(sdev, hext_stream, cmd);
 }
+EXPORT_SYMBOL_NS(hda_dsp_pcm_trigger, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 snd_pcm_uframes_t hda_dsp_pcm_pointer(struct snd_sof_dev *sdev,
 				      struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_component *scomp = sdev->component;
 	struct hdac_stream *hstream = substream->runtime->private_data;
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	struct snd_sof_pcm *spcm;
 	snd_pcm_uframes_t pos;
 
-	spcm = snd_sof_find_spcm_dai(sdev, rtd);
+	spcm = snd_sof_find_spcm_dai(scomp, rtd);
 	if (!spcm) {
 		dev_warn_ratelimited(sdev->dev, "warn: can't find PCM with DAI ID %d\n",
 				     rtd->dai_link->id);
@@ -156,68 +200,103 @@ snd_pcm_uframes_t hda_dsp_pcm_pointer(struct snd_sof_dev *sdev,
 		goto found;
 	}
 
-	/*
-	 * DPIB/posbuf position mode:
-	 * For Playback, Use DPIB register from HDA space which
-	 * reflects the actual data transferred.
-	 * For Capture, Use the position buffer for pointer, as DPIB
-	 * is not accurate enough, its update may be completed
-	 * earlier than the data written to DDR.
-	 */
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		pos = snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR,
-				       AZX_REG_VS_SDXDPIB_XBASE +
-				       (AZX_REG_VS_SDXDPIB_XINTERVAL *
-					hstream->index));
-	} else {
-		/*
-		 * For capture stream, we need more workaround to fix the
-		 * position incorrect issue:
-		 *
-		 * 1. Wait at least 20us before reading position buffer after
-		 * the interrupt generated(IOC), to make sure position update
-		 * happens on frame boundary i.e. 20.833uSec for 48KHz.
-		 * 2. Perform a dummy Read to DPIB register to flush DMA
-		 * position value.
-		 * 3. Read the DMA Position from posbuf. Now the readback
-		 * value should be >= period boundary.
-		 */
-		usleep_range(20, 21);
-		snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR,
-				 AZX_REG_VS_SDXDPIB_XBASE +
-				 (AZX_REG_VS_SDXDPIB_XINTERVAL *
-				  hstream->index));
-		pos = snd_hdac_stream_get_pos_posbuf(hstream);
-	}
-
-	if (pos >= hstream->bufsize)
-		pos = 0;
-
+	pos = hda_dsp_stream_get_position(hstream, substream->stream, true);
 found:
 	pos = bytes_to_frames(substream->runtime, pos);
 
-	dev_vdbg(sdev->dev, "PCM: stream %d dir %d position %lu\n",
-		 hstream->index, substream->stream, pos);
+	trace_sof_intel_hda_dsp_pcm(sdev, hstream, substream, pos);
 	return pos;
 }
+EXPORT_SYMBOL_NS(hda_dsp_pcm_pointer, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int hda_dsp_pcm_open(struct snd_sof_dev *sdev,
 		     struct snd_pcm_substream *substream)
 {
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_soc_component *scomp = sdev->component;
 	struct hdac_ext_stream *dsp_stream;
+	struct snd_sof_pcm *spcm;
 	int direction = substream->stream;
+	u32 flags = 0;
 
-	dsp_stream = hda_dsp_stream_get(sdev, direction);
+	spcm = snd_sof_find_spcm_dai(scomp, rtd);
+	if (!spcm) {
+		dev_err(sdev->dev, "error: can't find PCM with DAI ID %d\n", rtd->dai_link->id);
+		return -EINVAL;
+	}
 
+	/*
+	 * if we want the .ack to work, we need to prevent the control from being mapped.
+	 * The status can still be mapped.
+	 */
+	if (hda_disable_rewinds)
+		runtime->hw.info |= SNDRV_PCM_INFO_NO_REWINDS | SNDRV_PCM_INFO_SYNC_APPLPTR;
+
+	/*
+	 * All playback streams are DMI L1 capable, capture streams need
+	 * pause push/release to be disabled
+	 */
+	if (hda_always_enable_dmi_l1 && direction == SNDRV_PCM_STREAM_CAPTURE)
+		runtime->hw.info &= ~SNDRV_PCM_INFO_PAUSE;
+
+	if (hda_always_enable_dmi_l1 ||
+	    direction == SNDRV_PCM_STREAM_PLAYBACK ||
+	    spcm->stream[substream->stream].d0i3_compatible)
+		flags |= SOF_HDA_STREAM_DMI_L1_COMPATIBLE;
+
+	dsp_stream = hda_dsp_stream_get(sdev, direction, flags);
 	if (!dsp_stream) {
 		dev_err(sdev->dev, "error: no stream available\n");
 		return -ENODEV;
 	}
 
+	/* minimum as per HDA spec */
+	snd_pcm_hw_constraint_step(substream->runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_BYTES, 4);
+
+	/* avoid circular buffer wrap in middle of period */
+	snd_pcm_hw_constraint_integer(substream->runtime,
+				      SNDRV_PCM_HW_PARAM_PERIODS);
+
+	/* Only S16 and S32 supported by HDA hardware when used without DSP */
+	if (sdev->dspless_mode_selected)
+		snd_pcm_hw_constraint_mask64(substream->runtime, SNDRV_PCM_HW_PARAM_FORMAT,
+					     SNDRV_PCM_FMTBIT_S16 | SNDRV_PCM_FMTBIT_S32);
+
+	/*
+	 * The dsp_max_burst_size_in_ms is the length of the maximum burst size
+	 * of the host DMA in the ALSA buffer.
+	 *
+	 * On playback start the DMA will transfer dsp_max_burst_size_in_ms
+	 * amount of data in one initial burst to fill up the host DMA buffer.
+	 * Consequent DMA burst sizes are shorter and their length can vary.
+	 * To make sure that userspace allocate large enough ALSA buffer we need
+	 * to place a constraint on the buffer time.
+	 *
+	 * On capture the DMA will transfer 1ms chunks.
+	 *
+	 * Exact dsp_max_burst_size_in_ms constraint is racy, so set the
+	 * constraint to a minimum of 2x dsp_max_burst_size_in_ms.
+	 */
+	if (spcm->stream[direction].dsp_max_burst_size_in_ms)
+		snd_pcm_hw_constraint_minmax(substream->runtime,
+			SNDRV_PCM_HW_PARAM_BUFFER_TIME,
+			spcm->stream[direction].dsp_max_burst_size_in_ms * USEC_PER_MSEC * 2,
+			UINT_MAX);
+
 	/* binding pcm substream to hda stream */
 	substream->runtime->private_data = &dsp_stream->hstream;
+
+	/*
+	 * Reset the llp cache values (they are used for LLP compensation in
+	 * case the counter is not reset)
+	 */
+	dsp_stream->pplcllpl = 0;
+	dsp_stream->pplcllpu = 0;
+
 	return 0;
 }
+EXPORT_SYMBOL_NS(hda_dsp_pcm_open, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int hda_dsp_pcm_close(struct snd_sof_dev *sdev,
 		      struct snd_pcm_substream *substream)
@@ -237,3 +316,4 @@ int hda_dsp_pcm_close(struct snd_sof_dev *sdev,
 	substream->runtime->private_data = NULL;
 	return 0;
 }
+EXPORT_SYMBOL_NS(hda_dsp_pcm_close, SND_SOC_SOF_INTEL_HDA_COMMON);

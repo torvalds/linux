@@ -65,10 +65,10 @@ nvkm_falcon_intr(struct nvkm_engine *engine)
 	u32 dest = nvkm_rd32(device, base + 0x01c);
 	u32 intr = nvkm_rd32(device, base + 0x008) & dest & ~(dest >> 16);
 	u32 inst = nvkm_rd32(device, base + 0x050) & 0x3fffffff;
-	struct nvkm_fifo_chan *chan;
+	struct nvkm_chan *chan;
 	unsigned long flags;
 
-	chan = nvkm_fifo_chan_inst(device->fifo, (u64)inst << 12, &flags);
+	chan = nvkm_chan_get_inst(engine, (u64)inst << 12, &flags);
 
 	if (intr & 0x00000040) {
 		if (falcon->func->intr) {
@@ -89,7 +89,7 @@ nvkm_falcon_intr(struct nvkm_engine *engine)
 		nvkm_wr32(device, base + 0x004, intr);
 	}
 
-	nvkm_fifo_chan_put(device->fifo, flags, &chan);
+	nvkm_chan_put(&chan, flags);
 }
 
 static int
@@ -108,7 +108,7 @@ nvkm_falcon_fini(struct nvkm_engine *engine, bool suspend)
 		}
 	}
 
-	if (nvkm_mc_enabled(device, engine->subdev.index)) {
+	if (nvkm_mc_enabled(device, engine->subdev.type, engine->subdev.inst)) {
 		nvkm_mask(device, base + 0x048, 0x00000003, 0x00000000);
 		nvkm_wr32(device, base + 0x014, 0xffffffff);
 	}
@@ -318,14 +318,14 @@ nvkm_falcon_init(struct nvkm_engine *engine)
 }
 
 static void *
-nvkm_falcon_dtor(struct nvkm_engine *engine)
+nvkm_falcon_dtor_engine(struct nvkm_engine *engine)
 {
 	return nvkm_falcon(engine);
 }
 
 static const struct nvkm_engine_func
 nvkm_falcon = {
-	.dtor = nvkm_falcon_dtor,
+	.dtor = nvkm_falcon_dtor_engine,
 	.oneinit = nvkm_falcon_oneinit,
 	.init = nvkm_falcon_init,
 	.fini = nvkm_falcon_fini,
@@ -335,9 +335,9 @@ nvkm_falcon = {
 };
 
 int
-nvkm_falcon_new_(const struct nvkm_falcon_func *func,
-		 struct nvkm_device *device, int index, bool enable,
-		 u32 addr, struct nvkm_engine **pengine)
+nvkm_falcon_new_(const struct nvkm_falcon_func *func, struct nvkm_device *device,
+		 enum nvkm_subdev_type type, int inst, bool enable, u32 addr,
+		 struct nvkm_engine **pengine)
 {
 	struct nvkm_falcon *falcon;
 
@@ -351,6 +351,5 @@ nvkm_falcon_new_(const struct nvkm_falcon_func *func,
 	falcon->data.size = func->data.size;
 	*pengine = &falcon->engine;
 
-	return nvkm_engine_ctor(&nvkm_falcon, device, index,
-				enable, &falcon->engine);
+	return nvkm_engine_ctor(&nvkm_falcon, device, type, inst, enable, &falcon->engine);
 }

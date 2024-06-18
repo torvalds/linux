@@ -178,7 +178,6 @@ struct brcmf_sdio_dev {
 	bool sd_irq_requested;
 	bool irq_en;			/* irq enable flags */
 	spinlock_t irq_en_lock;
-	bool irq_wake;			/* irq wake enable flags */
 	bool sg_support;
 	uint max_request_size;
 	ushort max_segment_count;
@@ -187,9 +186,13 @@ struct brcmf_sdio_dev {
 	struct sg_table sgtable;
 	char fw_name[BRCMF_FW_NAME_LEN];
 	char nvram_name[BRCMF_FW_NAME_LEN];
+	char clm_name[BRCMF_FW_NAME_LEN];
 	bool wowl_enabled;
+	bool func1_power_manageable;
+	bool func2_power_manageable;
 	enum brcmf_sdiod_state state;
 	struct brcmf_sdiod_freezer *freezer;
+	const struct firmware *clm_fw;
 };
 
 /* sdio core registers */
@@ -347,30 +350,17 @@ int brcmf_sdiod_abort(struct brcmf_sdio_dev *sdiodev, struct sdio_func *func);
 void brcmf_sdiod_sgtable_alloc(struct brcmf_sdio_dev *sdiodev);
 void brcmf_sdiod_change_state(struct brcmf_sdio_dev *sdiodev,
 			      enum brcmf_sdiod_state state);
-#ifdef CONFIG_PM_SLEEP
 bool brcmf_sdiod_freezing(struct brcmf_sdio_dev *sdiodev);
 void brcmf_sdiod_try_freeze(struct brcmf_sdio_dev *sdiodev);
 void brcmf_sdiod_freezer_count(struct brcmf_sdio_dev *sdiodev);
 void brcmf_sdiod_freezer_uncount(struct brcmf_sdio_dev *sdiodev);
-#else
-static inline bool brcmf_sdiod_freezing(struct brcmf_sdio_dev *sdiodev)
-{
-	return false;
-}
-static inline void brcmf_sdiod_try_freeze(struct brcmf_sdio_dev *sdiodev)
-{
-}
-static inline void brcmf_sdiod_freezer_count(struct brcmf_sdio_dev *sdiodev)
-{
-}
-static inline void brcmf_sdiod_freezer_uncount(struct brcmf_sdio_dev *sdiodev)
-{
-}
-#endif /* CONFIG_PM_SLEEP */
+
+int brcmf_sdiod_probe(struct brcmf_sdio_dev *sdiodev);
+int brcmf_sdiod_remove(struct brcmf_sdio_dev *sdiodev);
 
 struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev);
 void brcmf_sdio_remove(struct brcmf_sdio *bus);
-void brcmf_sdio_isr(struct brcmf_sdio *bus);
+void brcmf_sdio_isr(struct brcmf_sdio *bus, bool in_isr);
 
 void brcmf_sdio_wd_timer(struct brcmf_sdio *bus, bool active);
 void brcmf_sdio_wowl_config(struct device *dev, bool enabled);

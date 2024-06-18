@@ -6,12 +6,17 @@
  * Copyright (C) 2010 IBM Corporation
  */
 
+
+#define pr_fmt(fmt) "mobility: " fmt
+
 #include <linux/cpu.h>
 #include <linux/kernel.h>
 #include <linux/kobject.h>
+#include <linux/nmi.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
 #include <linux/stat.h>
+#include <linux/stop_machine.h>
 #include <linux/completion.h>
 #include <linux/device.h>
 #include <linux/delay.h>
@@ -19,8 +24,10 @@
 #include <linux/stringify.h>
 
 #include <asm/machdep.h>
+#include <asm/nmi.h>
 #include <asm/rtas.h>
 #include "pseries.h"
+#include "vas.h"	/* vas_migration_handler() */
 #include "../../kernel/cacheinfo.h"
 
 static struct kobject *mobility_kobj;
@@ -42,6 +49,30 @@ struct update_props_workarea {
 #define MIGRATION_SCOPE	(1)
 #define PRRN_SCOPE -2
 
+#ifdef CONFIG_PPC_WATCHDOG
+static unsigned int nmi_wd_lpm_factor = 200;
+
+#ifdef CONFIG_SYSCTL
+static struct ctl_table nmi_wd_lpm_factor_ctl_table[] = {
+	{
+		.procname	= "nmi_wd_lpm_factor",
+		.data		= &nmi_wd_lpm_factor,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_douintvec_minmax,
+	},
+};
+
+static int __init register_nmi_wd_lpm_factor_sysctl(void)
+{
+	register_sysctl("kernel", nmi_wd_lpm_factor_ctl_table);
+
+	return 0;
+}
+device_initcall(register_nmi_wd_lpm_factor_sysctl);
+#endif /* CONFIG_SYSCTL */
+#endif /* CONFIG_PPC_WATCHDOG */
+
 static int mobility_rtas_call(int token, char *buf, s32 scope)
 {
 	int rc;
@@ -56,16 +87,31 @@ static int mobility_rtas_call(int token, char *buf, s32 scope)
 	return rc;
 }
 
-static int delete_dt_node(__be32 phandle)
+static int delete_dt_node(struct device_node *dn)
 {
-	struct device_node *dn;
+	struct device_node *pdn;
+	bool is_platfac;
 
-	dn = of_find_node_by_phandle(be32_to_cpu(phandle));
-	if (!dn)
-		return -ENOENT;
+	pdn = of_get_parent(dn);
+	is_platfac = of_node_is_type(dn, "ibm,platform-facilities") ||
+		     of_node_is_type(pdn, "ibm,platform-facilities");
+	of_node_put(pdn);
 
+	/*
+	 * The drivers that bind to nodes in the platform-facilities
+	 * hierarchy don't support node removal, and the removal directive
+	 * from firmware is always followed by an add of an equivalent
+	 * node. The capability (e.g. RNG, encryption, compression)
+	 * represented by the node is never interrupted by the migration.
+	 * So ignore changes to this part of the tree.
+	 */
+	if (is_platfac) {
+		pr_notice("ignoring remove operation for %pOFfp\n", dn);
+		return 0;
+	}
+
+	pr_debug("removing node %pOFfp\n", dn);
 	dlpar_detach_node(dn);
-	of_node_put(dn);
 	return 0;
 }
 
@@ -122,6 +168,7 @@ static int update_dt_property(struct device_node *dn, struct property **prop,
 	}
 
 	if (!more) {
+		pr_debug("updating node %pOF property %s\n", dn, name);
 		of_update_property(dn, new_prop);
 		*prop = NULL;
 	}
@@ -129,10 +176,9 @@ static int update_dt_property(struct device_node *dn, struct property **prop,
 	return 0;
 }
 
-static int update_dt_node(__be32 phandle, s32 scope)
+static int update_dt_node(struct device_node *dn, s32 scope)
 {
 	struct update_props_workarea *upwa;
-	struct device_node *dn;
 	struct property *prop = NULL;
 	int i, rc, rtas_rc;
 	char *prop_data;
@@ -141,7 +187,7 @@ static int update_dt_node(__be32 phandle, s32 scope)
 	u32 nprops;
 	u32 vd;
 
-	update_properties_token = rtas_token("ibm,update-properties");
+	update_properties_token = rtas_function_token(RTAS_FN_IBM_UPDATE_PROPERTIES);
 	if (update_properties_token == RTAS_UNKNOWN_SERVICE)
 		return -EINVAL;
 
@@ -149,14 +195,8 @@ static int update_dt_node(__be32 phandle, s32 scope)
 	if (!rtas_buf)
 		return -ENOMEM;
 
-	dn = of_find_node_by_phandle(be32_to_cpu(phandle));
-	if (!dn) {
-		kfree(rtas_buf);
-		return -ENOENT;
-	}
-
 	upwa = (struct update_props_workarea *)&rtas_buf[0];
-	upwa->phandle = phandle;
+	upwa->phandle = cpu_to_be32(dn->phandle);
 
 	do {
 		rtas_rc = mobility_rtas_call(update_properties_token, rtas_buf,
@@ -168,7 +208,7 @@ static int update_dt_node(__be32 phandle, s32 scope)
 		nprops = be32_to_cpu(upwa->nprops);
 
 		/* On the first call to ibm,update-properties for a node the
-		 * the first property value descriptor contains an empty
+		 * first property value descriptor contains an empty
 		 * property name, the property value length encoded as u32,
 		 * and the property value is the node path being updated.
 		 */
@@ -202,11 +242,12 @@ static int update_dt_node(__be32 phandle, s32 scope)
 				rc = update_dt_property(dn, &prop, prop_name,
 							vd, prop_data);
 				if (rc) {
-					printk(KERN_ERR "Could not update %s"
-					       " property\n", prop_name);
+					pr_err("updating %s property failed: %d\n",
+					       prop_name, rc);
 				}
 
 				prop_data += vd;
+				break;
 			}
 
 			cond_resched();
@@ -215,68 +256,51 @@ static int update_dt_node(__be32 phandle, s32 scope)
 		cond_resched();
 	} while (rtas_rc == 1);
 
-	of_node_put(dn);
 	kfree(rtas_buf);
 	return 0;
 }
 
-static int add_dt_node(__be32 parent_phandle, __be32 drc_index)
+static int add_dt_node(struct device_node *parent_dn, __be32 drc_index)
 {
 	struct device_node *dn;
-	struct device_node *parent_dn;
 	int rc;
 
-	parent_dn = of_find_node_by_phandle(be32_to_cpu(parent_phandle));
-	if (!parent_dn)
+	dn = dlpar_configure_connector(drc_index, parent_dn);
+	if (!dn)
 		return -ENOENT;
 
-	dn = dlpar_configure_connector(drc_index, parent_dn);
-	if (!dn) {
-		of_node_put(parent_dn);
-		return -ENOENT;
+	/*
+	 * Since delete_dt_node() ignores this node type, this is the
+	 * necessary counterpart. We also know that a platform-facilities
+	 * node returned from dlpar_configure_connector() has children
+	 * attached, and dlpar_attach_node() only adds the parent, leaking
+	 * the children. So ignore these on the add side for now.
+	 */
+	if (of_node_is_type(dn, "ibm,platform-facilities")) {
+		pr_notice("ignoring add operation for %pOF\n", dn);
+		dlpar_free_cc_nodes(dn);
+		return 0;
 	}
 
 	rc = dlpar_attach_node(dn, parent_dn);
 	if (rc)
 		dlpar_free_cc_nodes(dn);
 
-	of_node_put(parent_dn);
+	pr_debug("added node %pOFfp\n", dn);
+
 	return rc;
 }
 
-static void prrn_update_node(__be32 phandle)
-{
-	struct pseries_hp_errorlog hp_elog;
-	struct device_node *dn;
-
-	/*
-	 * If a node is found from a the given phandle, the phandle does not
-	 * represent the drc index of an LMB and we can ignore.
-	 */
-	dn = of_find_node_by_phandle(be32_to_cpu(phandle));
-	if (dn) {
-		of_node_put(dn);
-		return;
-	}
-
-	hp_elog.resource = PSERIES_HP_ELOG_RESOURCE_MEM;
-	hp_elog.action = PSERIES_HP_ELOG_ACTION_READD;
-	hp_elog.id_type = PSERIES_HP_ELOG_ID_DRC_INDEX;
-	hp_elog._drc_u.drc_index = phandle;
-
-	handle_dlpar_errorlog(&hp_elog);
-}
-
-int pseries_devicetree_update(s32 scope)
+static int pseries_devicetree_update(s32 scope)
 {
 	char *rtas_buf;
 	__be32 *data;
 	int update_nodes_token;
 	int rc;
 
-	update_nodes_token = rtas_token("ibm,update-nodes");
+	update_nodes_token = rtas_function_token(RTAS_FN_IBM_UPDATE_NODES);
 	if (update_nodes_token == RTAS_UNKNOWN_SERVICE)
-		return -EINVAL;
+		return 0;
 
 	rtas_buf = kzalloc(RTAS_DATA_BUF_SIZE, GFP_KERNEL);
 	if (!rtas_buf)
@@ -296,26 +320,31 @@ int pseries_devicetree_update(s32 scope)
 			data++;
 
 			for (i = 0; i < node_count; i++) {
+				struct device_node *np;
 				__be32 phandle = *data++;
 				__be32 drc_index;
 
+				np = of_find_node_by_phandle(be32_to_cpu(phandle));
+				if (!np) {
+					pr_warn("Failed lookup: phandle 0x%x for action 0x%x\n",
+						be32_to_cpu(phandle), action);
+					continue;
+				}
+
 				switch (action) {
 				case DELETE_DT_NODE:
-					delete_dt_node(phandle);
+					delete_dt_node(np);
 					break;
 				case UPDATE_DT_NODE:
-					update_dt_node(phandle, scope);
-
-					if (scope == PRRN_SCOPE)
-						prrn_update_node(phandle);
-
+					update_dt_node(np, scope);
 					break;
 				case ADD_DT_NODE:
 					drc_index = *data++;
-					add_dt_node(phandle, drc_index);
+					add_dt_node(np, drc_index);
 					break;
 				}
 
+				of_node_put(np);
 				cond_resched();
 			}
 		}
@@ -330,21 +359,8 @@ int pseries_devicetree_update(s32 scope)
 void post_mobility_fixup(void)
 {
 	int rc;
-	int activate_fw_token;
 
-	activate_fw_token = rtas_token("ibm,activate-firmware");
-	if (activate_fw_token == RTAS_UNKNOWN_SERVICE) {
-		printk(KERN_ERR "Could not make post-mobility "
-		       "activate-fw call.\n");
-		return;
-	}
-
-	do {
-		rc = rtas_call(activate_fw_token, 0, 1, NULL);
-	} while (rtas_busy_delay(rc));
-
-	if (rc)
-		printk(KERN_ERR "Post-mobility activate-fw failed: %d\n", rc);
+	rtas_activate_firmware();
 
 	/*
 	 * We don't want CPUs to go online/offline while the device
@@ -361,21 +377,410 @@ void post_mobility_fixup(void)
 
 	rc = pseries_devicetree_update(MIGRATION_SCOPE);
 	if (rc)
-		printk(KERN_ERR "Post-mobility device tree update "
-			"failed: %d\n", rc);
+		pr_err("device tree update failed: %d\n", rc);
 
 	cacheinfo_rebuild();
 
 	cpus_read_unlock();
 
-	/* Possibly switch to a new RFI flush type */
-	pseries_setup_rfi_flush();
+	/* Possibly switch to a new L1 flush type */
+	pseries_setup_security_mitigations();
+
+	/* Reinitialise system information for hv-24x7 */
+	read_24x7_sys_info();
 
 	return;
 }
 
-static ssize_t migration_store(struct class *class,
-			       struct class_attribute *attr, const char *buf,
+static int poll_vasi_state(u64 handle, unsigned long *res)
+{
+	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
+	long hvrc;
+	int ret;
+
+	hvrc = plpar_hcall(H_VASI_STATE, retbuf, handle);
+	switch (hvrc) {
+	case H_SUCCESS:
+		ret = 0;
+		*res = retbuf[0];
+		break;
+	case H_PARAMETER:
+		ret = -EINVAL;
+		break;
+	case H_FUNCTION:
+		ret = -EOPNOTSUPP;
+		break;
+	case H_HARDWARE:
+	default:
+		pr_err("unexpected H_VASI_STATE result %ld\n", hvrc);
+		ret = -EIO;
+		break;
+	}
+	return ret;
+}
+
+static int wait_for_vasi_session_suspending(u64 handle)
+{
+	unsigned long state;
+	int ret;
+
+	/*
+	 * Wait for transition from H_VASI_ENABLED to
+	 * H_VASI_SUSPENDING. Treat anything else as an error.
+	 */
+	while (true) {
+		ret = poll_vasi_state(handle, &state);
+
+		if (ret != 0 || state == H_VASI_SUSPENDING) {
+			break;
+		} else if (state == H_VASI_ENABLED) {
+			ssleep(1);
+		} else {
+			pr_err("unexpected H_VASI_STATE result %lu\n", state);
+			ret = -EIO;
+			break;
+		}
+	}
+
+	/*
+	 * Proceed even if H_VASI_STATE is unavailable. If H_JOIN or
+	 * ibm,suspend-me are also unimplemented, we'll recover then.
+	 */
+	if (ret == -EOPNOTSUPP)
+		ret = 0;
+
+	return ret;
+}
+
+static void wait_for_vasi_session_completed(u64 handle)
+{
+	unsigned long state = 0;
+	int ret;
+
+	pr_info("waiting for memory transfer to complete...\n");
+
+	/*
+	 * Wait for transition from H_VASI_RESUMED to H_VASI_COMPLETED.
+	 */
+	while (true) {
+		ret = poll_vasi_state(handle, &state);
+
+		/*
+		 * If the memory transfer is already complete and the migration
+		 * has been cleaned up by the hypervisor, H_PARAMETER is return,
+		 * which is translate in EINVAL by poll_vasi_state().
+		 */
+		if (ret == -EINVAL || (!ret && state == H_VASI_COMPLETED)) {
+			pr_info("memory transfer completed.\n");
+			break;
+		}
+
+		if (ret) {
+			pr_err("H_VASI_STATE return error (%d)\n", ret);
+			break;
+		}
+
+		if (state != H_VASI_RESUMED) {
+			pr_err("unexpected H_VASI_STATE result %lu\n", state);
+			break;
+		}
+
+		msleep(500);
+	}
+}
+
+static void prod_single(unsigned int target_cpu)
+{
+	long hvrc;
+	int hwid;
+
+	hwid = get_hard_smp_processor_id(target_cpu);
+	hvrc = plpar_hcall_norets(H_PROD, hwid);
+	if (hvrc == H_SUCCESS)
+		return;
+	pr_err_ratelimited("H_PROD of CPU %u (hwid %d) error: %ld\n",
+			   target_cpu, hwid, hvrc);
+}
+
+static void prod_others(void)
+{
+	unsigned int cpu;
+
+	for_each_online_cpu(cpu) {
+		if (cpu != smp_processor_id())
+			prod_single(cpu);
+	}
+}
+
+static u16 clamp_slb_size(void)
+{
+#ifdef CONFIG_PPC_64S_HASH_MMU
+	u16 prev = mmu_slb_size;
+
+	slb_set_size(SLB_MIN_SIZE);
+
+	return prev;
+#else
+	return 0;
+#endif
+}
+
+static int do_suspend(void)
+{
+	u16 saved_slb_size;
+	int status;
+	int ret;
+
+	pr_info("calling ibm,suspend-me on CPU %i\n", smp_processor_id());
+
+	/*
+	 * The destination processor model may have fewer SLB entries
+	 * than the source. We reduce mmu_slb_size to a safe minimum
+	 * before suspending in order to minimize the possibility of
+	 * programming non-existent entries on the destination. If
+	 * suspend fails, we restore it before returning. On success
+	 * the OF reconfig path will update it from the new device
+	 * tree after resuming on the destination.
+	 */
+	saved_slb_size = clamp_slb_size();
+
+	ret = rtas_ibm_suspend_me(&status);
+	if (ret != 0) {
+		pr_err("ibm,suspend-me error: %d\n", status);
+		slb_set_size(saved_slb_size);
+	}
+
+	return ret;
+}
+
+/**
+ * struct pseries_suspend_info - State shared between CPUs for join/suspend.
+ * @counter: Threads are to increment this upon resuming from suspend
+ *           or if an error is received from H_JOIN. The thread which performs
+ *           the first increment (i.e. sets it to 1) is responsible for
+ *           waking the other threads.
+ * @done: False if join/suspend is in progress. True if the operation is
+ *        complete (successful or not).
+ */
+struct pseries_suspend_info {
+	atomic_t counter;
+	bool done;
+};
+
+static int do_join(void *arg)
+{
+	struct pseries_suspend_info *info = arg;
+	atomic_t *counter = &info->counter;
+	long hvrc;
+	int ret;
+
+retry:
+	/* Must ensure MSR.EE off for H_JOIN. */
+	hard_irq_disable();
+	hvrc = plpar_hcall_norets(H_JOIN);
+
+	switch (hvrc) {
+	case H_CONTINUE:
+		/*
+		 * All other CPUs are offline or in H_JOIN. This CPU
+		 * attempts the suspend.
+		 */
+		ret = do_suspend();
+		break;
+	case H_SUCCESS:
+		/*
+		 * The suspend is complete and this cpu has received a
+		 * prod, or we've received a stray prod from unrelated
+		 * code (e.g. paravirt spinlocks) and we need to join
+		 * again.
+		 *
+		 * This barrier orders the return from H_JOIN above vs
+		 * the load of info->done. It pairs with the barrier
+		 * in the wakeup/prod path below.
+		 */
+		smp_mb();
+		if (READ_ONCE(info->done) == false) {
+			pr_info_ratelimited("premature return from H_JOIN on CPU %i, retrying",
+					    smp_processor_id());
+			goto retry;
+		}
+		ret = 0;
+		break;
+	case H_BAD_MODE:
+	case H_HARDWARE:
+	default:
+		ret = -EIO;
+		pr_err_ratelimited("H_JOIN error %ld on CPU %i\n",
+				   hvrc, smp_processor_id());
+		break;
+	}
+
+	if (atomic_inc_return(counter) == 1) {
+		pr_info("CPU %u waking all threads\n", smp_processor_id());
+		WRITE_ONCE(info->done, true);
+		/*
+		 * This barrier orders the store to info->done vs subsequent
+		 * H_PRODs to wake the other CPUs. It pairs with the barrier
+		 * in the H_SUCCESS case above.
+		 */
+		smp_mb();
+		prod_others();
+	}
+	/*
+	 * Execution may have been suspended for several seconds, so reset
+	 * the watchdogs. touch_nmi_watchdog() also touches the soft lockup
+	 * watchdog.
+	 */
+	rcu_cpu_stall_reset();
+	touch_nmi_watchdog();
+
+	return ret;
+}
+
+/*
+ * Abort reason code byte 0. We use only the 'Migrating partition' value.
+ */
+enum vasi_aborting_entity {
+	ORCHESTRATOR        = 1,
+	VSP_SOURCE          = 2,
+	PARTITION_FIRMWARE  = 3,
+	PLATFORM_FIRMWARE   = 4,
+	VSP_TARGET          = 5,
+	MIGRATING_PARTITION = 6,
+};
+
+static void pseries_cancel_migration(u64 handle, int err)
+{
+	u32 reason_code;
+	u32 detail;
+	u8 entity;
+	long hvrc;
+
+	entity = MIGRATING_PARTITION;
+	detail = abs(err) & 0xffffff;
+	reason_code = (entity << 24) | detail;
+
+	hvrc = plpar_hcall_norets(H_VASI_SIGNAL, handle,
+				  H_VASI_SIGNAL_CANCEL, reason_code);
+	if (hvrc)
+		pr_err("H_VASI_SIGNAL error: %ld\n", hvrc);
+}
+
+static int pseries_suspend(u64 handle)
+{
+	const unsigned int max_attempts = 5;
+	unsigned int retry_interval_ms = 1;
+	unsigned int attempt = 1;
+	int ret;
+
+	while (true) {
+		struct pseries_suspend_info info;
+		unsigned long vasi_state;
+		int vasi_err;
+
+		info = (struct pseries_suspend_info) {
+			.counter = ATOMIC_INIT(0),
+			.done = false,
+		};
+
+		ret = stop_machine(do_join, &info, cpu_online_mask);
+		if (ret == 0)
+			break;
+		/*
+		 * Encountered an error. If the VASI stream is still
+		 * in Suspending state, it's likely a transient
+		 * condition related to some device in the partition
+		 * and we can retry in the hope that the cause has
+		 * cleared after some delay.
+		 *
+		 * A better design would allow drivers etc to prepare
+		 * for the suspend and avoid conditions which prevent
+		 * the suspend from succeeding. For now, we have this
+		 * mitigation.
+		 */
+		pr_notice("Partition suspend attempt %u of %u error: %d\n",
+			  attempt, max_attempts, ret);
+
+		if (attempt == max_attempts)
+			break;
+
+		vasi_err = poll_vasi_state(handle, &vasi_state);
+		if (vasi_err == 0) {
+			if (vasi_state != H_VASI_SUSPENDING) {
+				pr_notice("VASI state %lu after failed suspend\n",
+					  vasi_state);
+				break;
+			}
+		} else if (vasi_err != -EOPNOTSUPP) {
+			pr_err("VASI state poll error: %d", vasi_err);
+			break;
+		}
+
+		pr_notice("Will retry partition suspend after %u ms\n",
+			  retry_interval_ms);
+
+		msleep(retry_interval_ms);
+		retry_interval_ms *= 10;
+		attempt++;
+	}
+
+	return ret;
+}
+
+static int pseries_migrate_partition(u64 handle)
+{
+	int ret;
+	unsigned int factor = 0;
+
+#ifdef CONFIG_PPC_WATCHDOG
+	factor = nmi_wd_lpm_factor;
+#endif
+	/*
+	 * When the migration is initiated, the hypervisor changes VAS
+	 * mappings to prepare before OS gets the notification and
+	 * closes all VAS windows. NX generates continuous faults during
+	 * this time and the user space can not differentiate these
+	 * faults from the migration event. So reduce this time window
+	 * by closing VAS windows at the beginning of this function.
+	 */
+	vas_migration_handler(VAS_SUSPEND);
+
+	ret = wait_for_vasi_session_suspending(handle);
+	if (ret)
+		goto out;
+
+	if (factor)
+		watchdog_hardlockup_set_timeout_pct(factor);
+
+	ret = pseries_suspend(handle);
+	if (ret == 0) {
+		post_mobility_fixup();
+		/*
+		 * Wait until the memory transfer is complete, so that the user
+		 * space process returns from the syscall after the transfer is
+		 * complete. This allows the user hooks to be executed at the
+		 * right time.
+		 */
+		wait_for_vasi_session_completed(handle);
+	} else
+		pseries_cancel_migration(handle, ret);
+
+	if (factor)
+		watchdog_hardlockup_set_timeout_pct(0);
+
+out:
+	vas_migration_handler(VAS_RESUME);
+
+	return ret;
+}
+
+int rtas_syscall_dispatch_ibm_suspend_me(u64 handle)
+{
+	return pseries_migrate_partition(handle);
+}
+
+static ssize_t migration_store(const struct class *class,
+			       const struct class_attribute *attr, const char *buf,
 			       size_t count)
 {
 	u64 streamid;
@@ -385,20 +790,9 @@ static ssize_t migration_store(struct class *class,
 	if (rc)
 		return rc;
 
-	stop_topology_update();
-
-	do {
-		rc = rtas_ibm_suspend_me(streamid);
-		if (rc == -EAGAIN)
-			ssleep(1);
-	} while (rc == -EAGAIN);
-
+	rc = pseries_migrate_partition(streamid);
 	if (rc)
 		return rc;
-
-	post_mobility_fixup();
-
-	start_topology_update();
 
 	return count;
 }
@@ -424,11 +818,11 @@ static int __init mobility_sysfs_init(void)
 
 	rc = sysfs_create_file(mobility_kobj, &class_attr_migration.attr);
 	if (rc)
-		pr_err("mobility: unable to create migration sysfs file (%d)\n", rc);
+		pr_err("unable to create migration sysfs file (%d)\n", rc);
 
 	rc = sysfs_create_file(mobility_kobj, &class_attr_api_version.attr.attr);
 	if (rc)
-		pr_err("mobility: unable to create api_version sysfs file (%d)\n", rc);
+		pr_err("unable to create api_version sysfs file (%d)\n", rc);
 
 	return 0;
 }

@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
- * Copyright 2014 Advanced Micro Devices, Inc.
+ * Copyright 2014-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,9 +27,14 @@
 #include "kfd_priv.h"
 #include "kfd_device_queue_manager.h"
 #include "kfd_pm4_headers_vi.h"
+#include "kfd_pm4_headers_aldebaran.h"
 #include "cwsr_trap_handler.h"
-#include "kfd_iommu.h"
 #include "amdgpu_amdkfd.h"
+#include "kfd_smi_events.h"
+#include "kfd_svm.h"
+#include "kfd_migrate.h"
+#include "amdgpu.h"
+#include "amdgpu_xcp.h"
 
 #define MQD_SIZE_ALIGNED 768
 
@@ -37,499 +43,398 @@
  * once locked, kfd driver will stop any further GPU execution.
  * create process (open) will return -EAGAIN.
  */
-static atomic_t kfd_locked = ATOMIC_INIT(0);
+static int kfd_locked;
 
-#ifdef KFD_SUPPORT_IOMMU_V2
-static const struct kfd_device_info kaveri_device_info = {
-	.asic_family = CHIP_KAVERI,
-	.asic_name = "kaveri",
-	.max_pasid_bits = 16,
-	/* max num of queues for KV.TODO should be a dynamic value */
-	.max_no_of_hqd	= 24,
-	.doorbell_size  = 4,
-	.ih_ring_entry_size = 4 * sizeof(uint32_t),
-	.event_interrupt_class = &event_interrupt_class_cik,
-	.num_of_watch_points = 4,
-	.mqd_size_aligned = MQD_SIZE_ALIGNED,
-	.supports_cwsr = false,
-	.needs_iommu_device = true,
-	.needs_pci_atomics = false,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
-	.num_sdma_queues_per_engine = 2,
-};
-
-static const struct kfd_device_info carrizo_device_info = {
-	.asic_family = CHIP_CARRIZO,
-	.asic_name = "carrizo",
-	.max_pasid_bits = 16,
-	/* max num of queues for CZ.TODO should be a dynamic value */
-	.max_no_of_hqd	= 24,
-	.doorbell_size  = 4,
-	.ih_ring_entry_size = 4 * sizeof(uint32_t),
-	.event_interrupt_class = &event_interrupt_class_cik,
-	.num_of_watch_points = 4,
-	.mqd_size_aligned = MQD_SIZE_ALIGNED,
-	.supports_cwsr = true,
-	.needs_iommu_device = true,
-	.needs_pci_atomics = false,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
-	.num_sdma_queues_per_engine = 2,
-};
-
-static const struct kfd_device_info raven_device_info = {
-	.asic_family = CHIP_RAVEN,
-	.asic_name = "raven",
-	.max_pasid_bits = 16,
-	.max_no_of_hqd  = 24,
-	.doorbell_size  = 8,
-	.ih_ring_entry_size = 8 * sizeof(uint32_t),
-	.event_interrupt_class = &event_interrupt_class_v9,
-	.num_of_watch_points = 4,
-	.mqd_size_aligned = MQD_SIZE_ALIGNED,
-	.supports_cwsr = true,
-	.needs_iommu_device = true,
-	.needs_pci_atomics = true,
-	.num_sdma_engines = 1,
-	.num_xgmi_sdma_engines = 0,
-	.num_sdma_queues_per_engine = 2,
-};
+#ifdef CONFIG_DRM_AMDGPU_CIK
+extern const struct kfd2kgd_calls gfx_v7_kfd2kgd;
 #endif
-
-static const struct kfd_device_info hawaii_device_info = {
-	.asic_family = CHIP_HAWAII,
-	.asic_name = "hawaii",
-	.max_pasid_bits = 16,
-	/* max num of queues for KV.TODO should be a dynamic value */
-	.max_no_of_hqd	= 24,
-	.doorbell_size  = 4,
-	.ih_ring_entry_size = 4 * sizeof(uint32_t),
-	.event_interrupt_class = &event_interrupt_class_cik,
-	.num_of_watch_points = 4,
-	.mqd_size_aligned = MQD_SIZE_ALIGNED,
-	.supports_cwsr = false,
-	.needs_iommu_device = false,
-	.needs_pci_atomics = false,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
-	.num_sdma_queues_per_engine = 2,
-};
-
-static const struct kfd_device_info tonga_device_info = {
-	.asic_family = CHIP_TONGA,
-	.asic_name = "tonga",
-	.max_pasid_bits = 16,
-	.max_no_of_hqd  = 24,
-	.doorbell_size  = 4,
-	.ih_ring_entry_size = 4 * sizeof(uint32_t),
-	.event_interrupt_class = &event_interrupt_class_cik,
-	.num_of_watch_points = 4,
-	.mqd_size_aligned = MQD_SIZE_ALIGNED,
-	.supports_cwsr = false,
-	.needs_iommu_device = false,
-	.needs_pci_atomics = true,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
-	.num_sdma_queues_per_engine = 2,
-};
-
-static const struct kfd_device_info fiji_device_info = {
-	.asic_family = CHIP_FIJI,
-	.asic_name = "fiji",
-	.max_pasid_bits = 16,
-	.max_no_of_hqd  = 24,
-	.doorbell_size  = 4,
-	.ih_ring_entry_size = 4 * sizeof(uint32_t),
-	.event_interrupt_class = &event_interrupt_class_cik,
-	.num_of_watch_points = 4,
-	.mqd_size_aligned = MQD_SIZE_ALIGNED,
-	.supports_cwsr = true,
-	.needs_iommu_device = false,
-	.needs_pci_atomics = true,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
-	.num_sdma_queues_per_engine = 2,
-};
-
-static const struct kfd_device_info fiji_vf_device_info = {
-	.asic_family = CHIP_FIJI,
-	.asic_name = "fiji",
-	.max_pasid_bits = 16,
-	.max_no_of_hqd  = 24,
-	.doorbell_size  = 4,
-	.ih_ring_entry_size = 4 * sizeof(uint32_t),
-	.event_interrupt_class = &event_interrupt_class_cik,
-	.num_of_watch_points = 4,
-	.mqd_size_aligned = MQD_SIZE_ALIGNED,
-	.supports_cwsr = true,
-	.needs_iommu_device = false,
-	.needs_pci_atomics = false,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
-	.num_sdma_queues_per_engine = 2,
-};
-
-
-static const struct kfd_device_info polaris10_device_info = {
-	.asic_family = CHIP_POLARIS10,
-	.asic_name = "polaris10",
-	.max_pasid_bits = 16,
-	.max_no_of_hqd  = 24,
-	.doorbell_size  = 4,
-	.ih_ring_entry_size = 4 * sizeof(uint32_t),
-	.event_interrupt_class = &event_interrupt_class_cik,
-	.num_of_watch_points = 4,
-	.mqd_size_aligned = MQD_SIZE_ALIGNED,
-	.supports_cwsr = true,
-	.needs_iommu_device = false,
-	.needs_pci_atomics = true,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
-	.num_sdma_queues_per_engine = 2,
-};
-
-static const struct kfd_device_info polaris10_vf_device_info = {
-	.asic_family = CHIP_POLARIS10,
-	.asic_name = "polaris10",
-	.max_pasid_bits = 16,
-	.max_no_of_hqd  = 24,
-	.doorbell_size  = 4,
-	.ih_ring_entry_size = 4 * sizeof(uint32_t),
-	.event_interrupt_class = &event_interrupt_class_cik,
-	.num_of_watch_points = 4,
-	.mqd_size_aligned = MQD_SIZE_ALIGNED,
-	.supports_cwsr = true,
-	.needs_iommu_device = false,
-	.needs_pci_atomics = false,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
-	.num_sdma_queues_per_engine = 2,
-};
-
-static const struct kfd_device_info polaris11_device_info = {
-	.asic_family = CHIP_POLARIS11,
-	.asic_name = "polaris11",
-	.max_pasid_bits = 16,
-	.max_no_of_hqd  = 24,
-	.doorbell_size  = 4,
-	.ih_ring_entry_size = 4 * sizeof(uint32_t),
-	.event_interrupt_class = &event_interrupt_class_cik,
-	.num_of_watch_points = 4,
-	.mqd_size_aligned = MQD_SIZE_ALIGNED,
-	.supports_cwsr = true,
-	.needs_iommu_device = false,
-	.needs_pci_atomics = true,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
-	.num_sdma_queues_per_engine = 2,
-};
-
-static const struct kfd_device_info polaris12_device_info = {
-	.asic_family = CHIP_POLARIS12,
-	.asic_name = "polaris12",
-	.max_pasid_bits = 16,
-	.max_no_of_hqd  = 24,
-	.doorbell_size  = 4,
-	.ih_ring_entry_size = 4 * sizeof(uint32_t),
-	.event_interrupt_class = &event_interrupt_class_cik,
-	.num_of_watch_points = 4,
-	.mqd_size_aligned = MQD_SIZE_ALIGNED,
-	.supports_cwsr = true,
-	.needs_iommu_device = false,
-	.needs_pci_atomics = true,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
-	.num_sdma_queues_per_engine = 2,
-};
-
-static const struct kfd_device_info vegam_device_info = {
-	.asic_family = CHIP_VEGAM,
-	.asic_name = "vegam",
-	.max_pasid_bits = 16,
-	.max_no_of_hqd  = 24,
-	.doorbell_size  = 4,
-	.ih_ring_entry_size = 4 * sizeof(uint32_t),
-	.event_interrupt_class = &event_interrupt_class_cik,
-	.num_of_watch_points = 4,
-	.mqd_size_aligned = MQD_SIZE_ALIGNED,
-	.supports_cwsr = true,
-	.needs_iommu_device = false,
-	.needs_pci_atomics = true,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
-	.num_sdma_queues_per_engine = 2,
-};
-
-static const struct kfd_device_info vega10_device_info = {
-	.asic_family = CHIP_VEGA10,
-	.asic_name = "vega10",
-	.max_pasid_bits = 16,
-	.max_no_of_hqd  = 24,
-	.doorbell_size  = 8,
-	.ih_ring_entry_size = 8 * sizeof(uint32_t),
-	.event_interrupt_class = &event_interrupt_class_v9,
-	.num_of_watch_points = 4,
-	.mqd_size_aligned = MQD_SIZE_ALIGNED,
-	.supports_cwsr = true,
-	.needs_iommu_device = false,
-	.needs_pci_atomics = false,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
-	.num_sdma_queues_per_engine = 2,
-};
-
-static const struct kfd_device_info vega10_vf_device_info = {
-	.asic_family = CHIP_VEGA10,
-	.asic_name = "vega10",
-	.max_pasid_bits = 16,
-	.max_no_of_hqd  = 24,
-	.doorbell_size  = 8,
-	.ih_ring_entry_size = 8 * sizeof(uint32_t),
-	.event_interrupt_class = &event_interrupt_class_v9,
-	.num_of_watch_points = 4,
-	.mqd_size_aligned = MQD_SIZE_ALIGNED,
-	.supports_cwsr = true,
-	.needs_iommu_device = false,
-	.needs_pci_atomics = false,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
-	.num_sdma_queues_per_engine = 2,
-};
-
-static const struct kfd_device_info vega12_device_info = {
-	.asic_family = CHIP_VEGA12,
-	.asic_name = "vega12",
-	.max_pasid_bits = 16,
-	.max_no_of_hqd  = 24,
-	.doorbell_size  = 8,
-	.ih_ring_entry_size = 8 * sizeof(uint32_t),
-	.event_interrupt_class = &event_interrupt_class_v9,
-	.num_of_watch_points = 4,
-	.mqd_size_aligned = MQD_SIZE_ALIGNED,
-	.supports_cwsr = true,
-	.needs_iommu_device = false,
-	.needs_pci_atomics = false,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
-	.num_sdma_queues_per_engine = 2,
-};
-
-static const struct kfd_device_info vega20_device_info = {
-	.asic_family = CHIP_VEGA20,
-	.asic_name = "vega20",
-	.max_pasid_bits = 16,
-	.max_no_of_hqd	= 24,
-	.doorbell_size	= 8,
-	.ih_ring_entry_size = 8 * sizeof(uint32_t),
-	.event_interrupt_class = &event_interrupt_class_v9,
-	.num_of_watch_points = 4,
-	.mqd_size_aligned = MQD_SIZE_ALIGNED,
-	.supports_cwsr = true,
-	.needs_iommu_device = false,
-	.needs_pci_atomics = false,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
-	.num_sdma_queues_per_engine = 8,
-};
-
-static const struct kfd_device_info arcturus_device_info = {
-	.asic_family = CHIP_ARCTURUS,
-	.asic_name = "arcturus",
-	.max_pasid_bits = 16,
-	.max_no_of_hqd	= 24,
-	.doorbell_size	= 8,
-	.ih_ring_entry_size = 8 * sizeof(uint32_t),
-	.event_interrupt_class = &event_interrupt_class_v9,
-	.num_of_watch_points = 4,
-	.mqd_size_aligned = MQD_SIZE_ALIGNED,
-	.supports_cwsr = true,
-	.needs_iommu_device = false,
-	.needs_pci_atomics = false,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 6,
-	.num_sdma_queues_per_engine = 8,
-};
-
-static const struct kfd_device_info navi10_device_info = {
-	.asic_family = CHIP_NAVI10,
-	.asic_name = "navi10",
-	.max_pasid_bits = 16,
-	.max_no_of_hqd  = 24,
-	.doorbell_size  = 8,
-	.ih_ring_entry_size = 8 * sizeof(uint32_t),
-	.event_interrupt_class = &event_interrupt_class_v9,
-	.num_of_watch_points = 4,
-	.mqd_size_aligned = MQD_SIZE_ALIGNED,
-	.needs_iommu_device = false,
-	.supports_cwsr = true,
-	.needs_pci_atomics = false,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
-	.num_sdma_queues_per_engine = 8,
-};
-
-struct kfd_deviceid {
-	unsigned short did;
-	const struct kfd_device_info *device_info;
-};
-
-static const struct kfd_deviceid supported_devices[] = {
-#ifdef KFD_SUPPORT_IOMMU_V2
-	{ 0x1304, &kaveri_device_info },	/* Kaveri */
-	{ 0x1305, &kaveri_device_info },	/* Kaveri */
-	{ 0x1306, &kaveri_device_info },	/* Kaveri */
-	{ 0x1307, &kaveri_device_info },	/* Kaveri */
-	{ 0x1309, &kaveri_device_info },	/* Kaveri */
-	{ 0x130A, &kaveri_device_info },	/* Kaveri */
-	{ 0x130B, &kaveri_device_info },	/* Kaveri */
-	{ 0x130C, &kaveri_device_info },	/* Kaveri */
-	{ 0x130D, &kaveri_device_info },	/* Kaveri */
-	{ 0x130E, &kaveri_device_info },	/* Kaveri */
-	{ 0x130F, &kaveri_device_info },	/* Kaveri */
-	{ 0x1310, &kaveri_device_info },	/* Kaveri */
-	{ 0x1311, &kaveri_device_info },	/* Kaveri */
-	{ 0x1312, &kaveri_device_info },	/* Kaveri */
-	{ 0x1313, &kaveri_device_info },	/* Kaveri */
-	{ 0x1315, &kaveri_device_info },	/* Kaveri */
-	{ 0x1316, &kaveri_device_info },	/* Kaveri */
-	{ 0x1317, &kaveri_device_info },	/* Kaveri */
-	{ 0x1318, &kaveri_device_info },	/* Kaveri */
-	{ 0x131B, &kaveri_device_info },	/* Kaveri */
-	{ 0x131C, &kaveri_device_info },	/* Kaveri */
-	{ 0x131D, &kaveri_device_info },	/* Kaveri */
-	{ 0x9870, &carrizo_device_info },	/* Carrizo */
-	{ 0x9874, &carrizo_device_info },	/* Carrizo */
-	{ 0x9875, &carrizo_device_info },	/* Carrizo */
-	{ 0x9876, &carrizo_device_info },	/* Carrizo */
-	{ 0x9877, &carrizo_device_info },	/* Carrizo */
-	{ 0x15DD, &raven_device_info },		/* Raven */
-	{ 0x15D8, &raven_device_info },		/* Raven */
-#endif
-	{ 0x67A0, &hawaii_device_info },	/* Hawaii */
-	{ 0x67A1, &hawaii_device_info },	/* Hawaii */
-	{ 0x67A2, &hawaii_device_info },	/* Hawaii */
-	{ 0x67A8, &hawaii_device_info },	/* Hawaii */
-	{ 0x67A9, &hawaii_device_info },	/* Hawaii */
-	{ 0x67AA, &hawaii_device_info },	/* Hawaii */
-	{ 0x67B0, &hawaii_device_info },	/* Hawaii */
-	{ 0x67B1, &hawaii_device_info },	/* Hawaii */
-	{ 0x67B8, &hawaii_device_info },	/* Hawaii */
-	{ 0x67B9, &hawaii_device_info },	/* Hawaii */
-	{ 0x67BA, &hawaii_device_info },	/* Hawaii */
-	{ 0x67BE, &hawaii_device_info },	/* Hawaii */
-	{ 0x6920, &tonga_device_info },		/* Tonga */
-	{ 0x6921, &tonga_device_info },		/* Tonga */
-	{ 0x6928, &tonga_device_info },		/* Tonga */
-	{ 0x6929, &tonga_device_info },		/* Tonga */
-	{ 0x692B, &tonga_device_info },		/* Tonga */
-	{ 0x6938, &tonga_device_info },		/* Tonga */
-	{ 0x6939, &tonga_device_info },		/* Tonga */
-	{ 0x7300, &fiji_device_info },		/* Fiji */
-	{ 0x730F, &fiji_vf_device_info },	/* Fiji vf*/
-	{ 0x67C0, &polaris10_device_info },	/* Polaris10 */
-	{ 0x67C1, &polaris10_device_info },	/* Polaris10 */
-	{ 0x67C2, &polaris10_device_info },	/* Polaris10 */
-	{ 0x67C4, &polaris10_device_info },	/* Polaris10 */
-	{ 0x67C7, &polaris10_device_info },	/* Polaris10 */
-	{ 0x67C8, &polaris10_device_info },	/* Polaris10 */
-	{ 0x67C9, &polaris10_device_info },	/* Polaris10 */
-	{ 0x67CA, &polaris10_device_info },	/* Polaris10 */
-	{ 0x67CC, &polaris10_device_info },	/* Polaris10 */
-	{ 0x67CF, &polaris10_device_info },	/* Polaris10 */
-	{ 0x67D0, &polaris10_vf_device_info },	/* Polaris10 vf*/
-	{ 0x67DF, &polaris10_device_info },	/* Polaris10 */
-	{ 0x6FDF, &polaris10_device_info },	/* Polaris10 */
-	{ 0x67E0, &polaris11_device_info },	/* Polaris11 */
-	{ 0x67E1, &polaris11_device_info },	/* Polaris11 */
-	{ 0x67E3, &polaris11_device_info },	/* Polaris11 */
-	{ 0x67E7, &polaris11_device_info },	/* Polaris11 */
-	{ 0x67E8, &polaris11_device_info },	/* Polaris11 */
-	{ 0x67E9, &polaris11_device_info },	/* Polaris11 */
-	{ 0x67EB, &polaris11_device_info },	/* Polaris11 */
-	{ 0x67EF, &polaris11_device_info },	/* Polaris11 */
-	{ 0x67FF, &polaris11_device_info },	/* Polaris11 */
-	{ 0x6980, &polaris12_device_info },	/* Polaris12 */
-	{ 0x6981, &polaris12_device_info },	/* Polaris12 */
-	{ 0x6985, &polaris12_device_info },	/* Polaris12 */
-	{ 0x6986, &polaris12_device_info },	/* Polaris12 */
-	{ 0x6987, &polaris12_device_info },	/* Polaris12 */
-	{ 0x6995, &polaris12_device_info },	/* Polaris12 */
-	{ 0x6997, &polaris12_device_info },	/* Polaris12 */
-	{ 0x699F, &polaris12_device_info },	/* Polaris12 */
-	{ 0x694C, &vegam_device_info },		/* VegaM */
-	{ 0x694E, &vegam_device_info },		/* VegaM */
-	{ 0x694F, &vegam_device_info },		/* VegaM */
-	{ 0x6860, &vega10_device_info },	/* Vega10 */
-	{ 0x6861, &vega10_device_info },	/* Vega10 */
-	{ 0x6862, &vega10_device_info },	/* Vega10 */
-	{ 0x6863, &vega10_device_info },	/* Vega10 */
-	{ 0x6864, &vega10_device_info },	/* Vega10 */
-	{ 0x6867, &vega10_device_info },	/* Vega10 */
-	{ 0x6868, &vega10_device_info },	/* Vega10 */
-	{ 0x6869, &vega10_device_info },	/* Vega10 */
-	{ 0x686A, &vega10_device_info },	/* Vega10 */
-	{ 0x686B, &vega10_device_info },	/* Vega10 */
-	{ 0x686C, &vega10_vf_device_info },	/* Vega10  vf*/
-	{ 0x686D, &vega10_device_info },	/* Vega10 */
-	{ 0x686E, &vega10_device_info },	/* Vega10 */
-	{ 0x686F, &vega10_device_info },	/* Vega10 */
-	{ 0x687F, &vega10_device_info },	/* Vega10 */
-	{ 0x69A0, &vega12_device_info },	/* Vega12 */
-	{ 0x69A1, &vega12_device_info },	/* Vega12 */
-	{ 0x69A2, &vega12_device_info },	/* Vega12 */
-	{ 0x69A3, &vega12_device_info },	/* Vega12 */
-	{ 0x69AF, &vega12_device_info },	/* Vega12 */
-	{ 0x66a0, &vega20_device_info },	/* Vega20 */
-	{ 0x66a1, &vega20_device_info },	/* Vega20 */
-	{ 0x66a2, &vega20_device_info },	/* Vega20 */
-	{ 0x66a3, &vega20_device_info },	/* Vega20 */
-	{ 0x66a4, &vega20_device_info },	/* Vega20 */
-	{ 0x66a7, &vega20_device_info },	/* Vega20 */
-	{ 0x66af, &vega20_device_info },	/* Vega20 */
-	{ 0x738C, &arcturus_device_info },	/* Arcturus */
-	{ 0x7388, &arcturus_device_info },	/* Arcturus */
-	{ 0x738E, &arcturus_device_info },	/* Arcturus */
-	{ 0x7390, &arcturus_device_info },	/* Arcturus vf */
-	{ 0x7310, &navi10_device_info },	/* Navi10 */
-	{ 0x7312, &navi10_device_info },	/* Navi10 */
-	{ 0x7318, &navi10_device_info },	/* Navi10 */
-	{ 0x731a, &navi10_device_info },	/* Navi10 */
-	{ 0x731f, &navi10_device_info },	/* Navi10 */
-};
+extern const struct kfd2kgd_calls gfx_v8_kfd2kgd;
+extern const struct kfd2kgd_calls gfx_v9_kfd2kgd;
+extern const struct kfd2kgd_calls arcturus_kfd2kgd;
+extern const struct kfd2kgd_calls aldebaran_kfd2kgd;
+extern const struct kfd2kgd_calls gc_9_4_3_kfd2kgd;
+extern const struct kfd2kgd_calls gfx_v10_kfd2kgd;
+extern const struct kfd2kgd_calls gfx_v10_3_kfd2kgd;
+extern const struct kfd2kgd_calls gfx_v11_kfd2kgd;
 
 static int kfd_gtt_sa_init(struct kfd_dev *kfd, unsigned int buf_size,
 				unsigned int chunk_size);
 static void kfd_gtt_sa_fini(struct kfd_dev *kfd);
 
-static int kfd_resume(struct kfd_dev *kfd);
+static int kfd_resume(struct kfd_node *kfd);
 
-static const struct kfd_device_info *lookup_device_info(unsigned short did)
+static void kfd_device_info_set_sdma_info(struct kfd_dev *kfd)
 {
-	size_t i;
+	uint32_t sdma_version = amdgpu_ip_version(kfd->adev, SDMA0_HWIP, 0);
 
-	for (i = 0; i < ARRAY_SIZE(supported_devices); i++) {
-		if (supported_devices[i].did == did) {
-			WARN_ON(!supported_devices[i].device_info);
-			return supported_devices[i].device_info;
-		}
+	switch (sdma_version) {
+	case IP_VERSION(4, 0, 0):/* VEGA10 */
+	case IP_VERSION(4, 0, 1):/* VEGA12 */
+	case IP_VERSION(4, 1, 0):/* RAVEN */
+	case IP_VERSION(4, 1, 1):/* RAVEN */
+	case IP_VERSION(4, 1, 2):/* RENOIR */
+	case IP_VERSION(5, 2, 1):/* VANGOGH */
+	case IP_VERSION(5, 2, 3):/* YELLOW_CARP */
+	case IP_VERSION(5, 2, 6):/* GC 10.3.6 */
+	case IP_VERSION(5, 2, 7):/* GC 10.3.7 */
+		kfd->device_info.num_sdma_queues_per_engine = 2;
+		break;
+	case IP_VERSION(4, 2, 0):/* VEGA20 */
+	case IP_VERSION(4, 2, 2):/* ARCTURUS */
+	case IP_VERSION(4, 4, 0):/* ALDEBARAN */
+	case IP_VERSION(4, 4, 2):
+	case IP_VERSION(5, 0, 0):/* NAVI10 */
+	case IP_VERSION(5, 0, 1):/* CYAN_SKILLFISH */
+	case IP_VERSION(5, 0, 2):/* NAVI14 */
+	case IP_VERSION(5, 0, 5):/* NAVI12 */
+	case IP_VERSION(5, 2, 0):/* SIENNA_CICHLID */
+	case IP_VERSION(5, 2, 2):/* NAVY_FLOUNDER */
+	case IP_VERSION(5, 2, 4):/* DIMGREY_CAVEFISH */
+	case IP_VERSION(5, 2, 5):/* BEIGE_GOBY */
+	case IP_VERSION(6, 0, 0):
+	case IP_VERSION(6, 0, 1):
+	case IP_VERSION(6, 0, 2):
+	case IP_VERSION(6, 0, 3):
+	case IP_VERSION(6, 1, 0):
+	case IP_VERSION(6, 1, 1):
+		kfd->device_info.num_sdma_queues_per_engine = 8;
+		break;
+	default:
+		dev_warn(kfd_device,
+			"Default sdma queue per engine(8) is set due to mismatch of sdma ip block(SDMA_HWIP:0x%x).\n",
+			sdma_version);
+		kfd->device_info.num_sdma_queues_per_engine = 8;
 	}
 
-	dev_warn(kfd_device, "DID %04x is missing in supported_devices\n",
-		 did);
+	bitmap_zero(kfd->device_info.reserved_sdma_queues_bitmap, KFD_MAX_SDMA_QUEUES);
 
-	return NULL;
+	switch (sdma_version) {
+	case IP_VERSION(6, 0, 0):
+	case IP_VERSION(6, 0, 1):
+	case IP_VERSION(6, 0, 2):
+	case IP_VERSION(6, 0, 3):
+	case IP_VERSION(6, 1, 0):
+	case IP_VERSION(6, 1, 1):
+		/* Reserve 1 for paging and 1 for gfx */
+		kfd->device_info.num_reserved_sdma_queues_per_engine = 2;
+		/* BIT(0)=engine-0 queue-0; BIT(1)=engine-1 queue-0; BIT(2)=engine-0 queue-1; ... */
+		bitmap_set(kfd->device_info.reserved_sdma_queues_bitmap, 0,
+			   kfd->adev->sdma.num_instances *
+			   kfd->device_info.num_reserved_sdma_queues_per_engine);
+		break;
+	default:
+		break;
+	}
 }
 
-struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd,
-	struct pci_dev *pdev, const struct kfd2kgd_calls *f2g)
+static void kfd_device_info_set_event_interrupt_class(struct kfd_dev *kfd)
 {
-	struct kfd_dev *kfd;
-	const struct kfd_device_info *device_info =
-					lookup_device_info(pdev->device);
+	uint32_t gc_version = KFD_GC_VERSION(kfd);
 
-	if (!device_info) {
-		dev_err(kfd_device, "kgd2kfd_probe failed\n");
+	switch (gc_version) {
+	case IP_VERSION(9, 0, 1): /* VEGA10 */
+	case IP_VERSION(9, 1, 0): /* RAVEN */
+	case IP_VERSION(9, 2, 1): /* VEGA12 */
+	case IP_VERSION(9, 2, 2): /* RAVEN */
+	case IP_VERSION(9, 3, 0): /* RENOIR */
+	case IP_VERSION(9, 4, 0): /* VEGA20 */
+	case IP_VERSION(9, 4, 1): /* ARCTURUS */
+	case IP_VERSION(9, 4, 2): /* ALDEBARAN */
+		kfd->device_info.event_interrupt_class = &event_interrupt_class_v9;
+		break;
+	case IP_VERSION(9, 4, 3): /* GC 9.4.3 */
+		kfd->device_info.event_interrupt_class =
+						&event_interrupt_class_v9_4_3;
+		break;
+	case IP_VERSION(10, 3, 1): /* VANGOGH */
+	case IP_VERSION(10, 3, 3): /* YELLOW_CARP */
+	case IP_VERSION(10, 3, 6): /* GC 10.3.6 */
+	case IP_VERSION(10, 3, 7): /* GC 10.3.7 */
+	case IP_VERSION(10, 1, 3): /* CYAN_SKILLFISH */
+	case IP_VERSION(10, 1, 4):
+	case IP_VERSION(10, 1, 10): /* NAVI10 */
+	case IP_VERSION(10, 1, 2): /* NAVI12 */
+	case IP_VERSION(10, 1, 1): /* NAVI14 */
+	case IP_VERSION(10, 3, 0): /* SIENNA_CICHLID */
+	case IP_VERSION(10, 3, 2): /* NAVY_FLOUNDER */
+	case IP_VERSION(10, 3, 4): /* DIMGREY_CAVEFISH */
+	case IP_VERSION(10, 3, 5): /* BEIGE_GOBY */
+		kfd->device_info.event_interrupt_class = &event_interrupt_class_v10;
+		break;
+	case IP_VERSION(11, 0, 0):
+	case IP_VERSION(11, 0, 1):
+	case IP_VERSION(11, 0, 2):
+	case IP_VERSION(11, 0, 3):
+	case IP_VERSION(11, 0, 4):
+	case IP_VERSION(11, 5, 0):
+	case IP_VERSION(11, 5, 1):
+		kfd->device_info.event_interrupt_class = &event_interrupt_class_v11;
+		break;
+	default:
+		dev_warn(kfd_device, "v9 event interrupt handler is set due to "
+			"mismatch of gc ip block(GC_HWIP:0x%x).\n", gc_version);
+		kfd->device_info.event_interrupt_class = &event_interrupt_class_v9;
+	}
+}
+
+static void kfd_device_info_init(struct kfd_dev *kfd,
+				 bool vf, uint32_t gfx_target_version)
+{
+	uint32_t gc_version = KFD_GC_VERSION(kfd);
+	uint32_t asic_type = kfd->adev->asic_type;
+
+	kfd->device_info.max_pasid_bits = 16;
+	kfd->device_info.max_no_of_hqd = 24;
+	kfd->device_info.num_of_watch_points = 4;
+	kfd->device_info.mqd_size_aligned = MQD_SIZE_ALIGNED;
+	kfd->device_info.gfx_target_version = gfx_target_version;
+
+	if (KFD_IS_SOC15(kfd)) {
+		kfd->device_info.doorbell_size = 8;
+		kfd->device_info.ih_ring_entry_size = 8 * sizeof(uint32_t);
+		kfd->device_info.supports_cwsr = true;
+
+		kfd_device_info_set_sdma_info(kfd);
+
+		kfd_device_info_set_event_interrupt_class(kfd);
+
+		if (gc_version < IP_VERSION(11, 0, 0)) {
+			/* Navi2x+, Navi1x+ */
+			if (gc_version == IP_VERSION(10, 3, 6))
+				kfd->device_info.no_atomic_fw_version = 14;
+			else if (gc_version == IP_VERSION(10, 3, 7))
+				kfd->device_info.no_atomic_fw_version = 3;
+			else if (gc_version >= IP_VERSION(10, 3, 0))
+				kfd->device_info.no_atomic_fw_version = 92;
+			else if (gc_version >= IP_VERSION(10, 1, 1))
+				kfd->device_info.no_atomic_fw_version = 145;
+
+			/* Navi1x+ */
+			if (gc_version >= IP_VERSION(10, 1, 1))
+				kfd->device_info.needs_pci_atomics = true;
+		} else if (gc_version < IP_VERSION(12, 0, 0)) {
+			/*
+			 * PCIe atomics support acknowledgment in GFX11 RS64 CPFW requires
+			 * MEC version >= 509. Prior RS64 CPFW versions (and all F32) require
+			 * PCIe atomics support.
+			 */
+			kfd->device_info.needs_pci_atomics = true;
+			kfd->device_info.no_atomic_fw_version = kfd->adev->gfx.rs64_enable ? 509 : 0;
+		}
+	} else {
+		kfd->device_info.doorbell_size = 4;
+		kfd->device_info.ih_ring_entry_size = 4 * sizeof(uint32_t);
+		kfd->device_info.event_interrupt_class = &event_interrupt_class_cik;
+		kfd->device_info.num_sdma_queues_per_engine = 2;
+
+		if (asic_type != CHIP_KAVERI &&
+		    asic_type != CHIP_HAWAII &&
+		    asic_type != CHIP_TONGA)
+			kfd->device_info.supports_cwsr = true;
+
+		if (asic_type != CHIP_HAWAII && !vf)
+			kfd->device_info.needs_pci_atomics = true;
+	}
+}
+
+struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
+{
+	struct kfd_dev *kfd = NULL;
+	const struct kfd2kgd_calls *f2g = NULL;
+	uint32_t gfx_target_version = 0;
+
+	switch (adev->asic_type) {
+#ifdef CONFIG_DRM_AMDGPU_CIK
+	case CHIP_KAVERI:
+		gfx_target_version = 70000;
+		if (!vf)
+			f2g = &gfx_v7_kfd2kgd;
+		break;
+#endif
+	case CHIP_CARRIZO:
+		gfx_target_version = 80001;
+		if (!vf)
+			f2g = &gfx_v8_kfd2kgd;
+		break;
+#ifdef CONFIG_DRM_AMDGPU_CIK
+	case CHIP_HAWAII:
+		gfx_target_version = 70001;
+		if (!amdgpu_exp_hw_support)
+			pr_info(
+	"KFD support on Hawaii is experimental. See modparam exp_hw_support\n"
+				);
+		else if (!vf)
+			f2g = &gfx_v7_kfd2kgd;
+		break;
+#endif
+	case CHIP_TONGA:
+		gfx_target_version = 80002;
+		if (!vf)
+			f2g = &gfx_v8_kfd2kgd;
+		break;
+	case CHIP_FIJI:
+	case CHIP_POLARIS10:
+		gfx_target_version = 80003;
+		f2g = &gfx_v8_kfd2kgd;
+		break;
+	case CHIP_POLARIS11:
+	case CHIP_POLARIS12:
+	case CHIP_VEGAM:
+		gfx_target_version = 80003;
+		if (!vf)
+			f2g = &gfx_v8_kfd2kgd;
+		break;
+	default:
+		switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
+		/* Vega 10 */
+		case IP_VERSION(9, 0, 1):
+			gfx_target_version = 90000;
+			f2g = &gfx_v9_kfd2kgd;
+			break;
+		/* Raven */
+		case IP_VERSION(9, 1, 0):
+		case IP_VERSION(9, 2, 2):
+			gfx_target_version = 90002;
+			if (!vf)
+				f2g = &gfx_v9_kfd2kgd;
+			break;
+		/* Vega12 */
+		case IP_VERSION(9, 2, 1):
+			gfx_target_version = 90004;
+			if (!vf)
+				f2g = &gfx_v9_kfd2kgd;
+			break;
+		/* Renoir */
+		case IP_VERSION(9, 3, 0):
+			gfx_target_version = 90012;
+			if (!vf)
+				f2g = &gfx_v9_kfd2kgd;
+			break;
+		/* Vega20 */
+		case IP_VERSION(9, 4, 0):
+			gfx_target_version = 90006;
+			if (!vf)
+				f2g = &gfx_v9_kfd2kgd;
+			break;
+		/* Arcturus */
+		case IP_VERSION(9, 4, 1):
+			gfx_target_version = 90008;
+			f2g = &arcturus_kfd2kgd;
+			break;
+		/* Aldebaran */
+		case IP_VERSION(9, 4, 2):
+			gfx_target_version = 90010;
+			f2g = &aldebaran_kfd2kgd;
+			break;
+		case IP_VERSION(9, 4, 3):
+			gfx_target_version = adev->rev_id >= 1 ? 90402
+					   : adev->flags & AMD_IS_APU ? 90400
+					   : 90401;
+			f2g = &gc_9_4_3_kfd2kgd;
+			break;
+		/* Navi10 */
+		case IP_VERSION(10, 1, 10):
+			gfx_target_version = 100100;
+			if (!vf)
+				f2g = &gfx_v10_kfd2kgd;
+			break;
+		/* Navi12 */
+		case IP_VERSION(10, 1, 2):
+			gfx_target_version = 100101;
+			f2g = &gfx_v10_kfd2kgd;
+			break;
+		/* Navi14 */
+		case IP_VERSION(10, 1, 1):
+			gfx_target_version = 100102;
+			if (!vf)
+				f2g = &gfx_v10_kfd2kgd;
+			break;
+		/* Cyan Skillfish */
+		case IP_VERSION(10, 1, 3):
+		case IP_VERSION(10, 1, 4):
+			gfx_target_version = 100103;
+			if (!vf)
+				f2g = &gfx_v10_kfd2kgd;
+			break;
+		/* Sienna Cichlid */
+		case IP_VERSION(10, 3, 0):
+			gfx_target_version = 100300;
+			f2g = &gfx_v10_3_kfd2kgd;
+			break;
+		/* Navy Flounder */
+		case IP_VERSION(10, 3, 2):
+			gfx_target_version = 100301;
+			f2g = &gfx_v10_3_kfd2kgd;
+			break;
+		/* Van Gogh */
+		case IP_VERSION(10, 3, 1):
+			gfx_target_version = 100303;
+			if (!vf)
+				f2g = &gfx_v10_3_kfd2kgd;
+			break;
+		/* Dimgrey Cavefish */
+		case IP_VERSION(10, 3, 4):
+			gfx_target_version = 100302;
+			f2g = &gfx_v10_3_kfd2kgd;
+			break;
+		/* Beige Goby */
+		case IP_VERSION(10, 3, 5):
+			gfx_target_version = 100304;
+			f2g = &gfx_v10_3_kfd2kgd;
+			break;
+		/* Yellow Carp */
+		case IP_VERSION(10, 3, 3):
+			gfx_target_version = 100305;
+			if (!vf)
+				f2g = &gfx_v10_3_kfd2kgd;
+			break;
+		case IP_VERSION(10, 3, 6):
+		case IP_VERSION(10, 3, 7):
+			gfx_target_version = 100306;
+			if (!vf)
+				f2g = &gfx_v10_3_kfd2kgd;
+			break;
+		case IP_VERSION(11, 0, 0):
+			gfx_target_version = 110000;
+			f2g = &gfx_v11_kfd2kgd;
+			break;
+		case IP_VERSION(11, 0, 1):
+		case IP_VERSION(11, 0, 4):
+			gfx_target_version = 110003;
+			f2g = &gfx_v11_kfd2kgd;
+			break;
+		case IP_VERSION(11, 0, 2):
+			gfx_target_version = 110002;
+			f2g = &gfx_v11_kfd2kgd;
+			break;
+		case IP_VERSION(11, 0, 3):
+			/* Note: Compiler version is 11.0.1 while HW version is 11.0.3 */
+			gfx_target_version = 110001;
+			f2g = &gfx_v11_kfd2kgd;
+			break;
+		case IP_VERSION(11, 5, 0):
+			gfx_target_version = 110500;
+			f2g = &gfx_v11_kfd2kgd;
+			break;
+		case IP_VERSION(11, 5, 1):
+			gfx_target_version = 110501;
+			f2g = &gfx_v11_kfd2kgd;
+			break;
+		default:
+			break;
+		}
+		break;
+	}
+
+	if (!f2g) {
+		if (amdgpu_ip_version(adev, GC_HWIP, 0))
+			dev_info(kfd_device,
+				"GC IP %06x %s not supported in kfd\n",
+				amdgpu_ip_version(adev, GC_HWIP, 0),
+				vf ? "VF" : "");
+		else
+			dev_info(kfd_device, "%s %s not supported in kfd\n",
+				amdgpu_asic_name[adev->asic_type], vf ? "VF" : "");
 		return NULL;
 	}
 
@@ -537,104 +442,291 @@ struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd,
 	if (!kfd)
 		return NULL;
 
-	/* Allow BIF to recode atomics to PCIe 3.0 AtomicOps.
-	 * 32 and 64-bit requests are possible and must be
-	 * supported.
-	 */
-	kfd->pci_atomic_requested = amdgpu_amdkfd_have_atomics_support(kgd);
-	if (device_info->needs_pci_atomics &&
-	    !kfd->pci_atomic_requested) {
-		dev_info(kfd_device,
-			 "skipped device %x:%x, PCI rejects atomics\n",
-			 pdev->vendor, pdev->device);
-		kfree(kfd);
-		return NULL;
-	}
-
-	kfd->kgd = kgd;
-	kfd->device_info = device_info;
-	kfd->pdev = pdev;
+	kfd->adev = adev;
+	kfd_device_info_init(kfd, vf, gfx_target_version);
 	kfd->init_complete = false;
 	kfd->kfd2kgd = f2g;
 	atomic_set(&kfd->compute_profile, 0);
 
 	mutex_init(&kfd->doorbell_mutex);
-	memset(&kfd->doorbell_available_index, 0,
-		sizeof(kfd->doorbell_available_index));
 
-	atomic_set(&kfd->sram_ecc_flag, 0);
+	ida_init(&kfd->doorbell_ida);
 
 	return kfd;
 }
 
 static void kfd_cwsr_init(struct kfd_dev *kfd)
 {
-	if (cwsr_enable && kfd->device_info->supports_cwsr) {
-		if (kfd->device_info->asic_family < CHIP_VEGA10) {
-			BUILD_BUG_ON(sizeof(cwsr_trap_gfx8_hex) > PAGE_SIZE);
+	if (cwsr_enable && kfd->device_info.supports_cwsr) {
+		if (KFD_GC_VERSION(kfd) < IP_VERSION(9, 0, 1)) {
+			BUILD_BUG_ON(sizeof(cwsr_trap_gfx8_hex)
+					     > KFD_CWSR_TMA_OFFSET);
 			kfd->cwsr_isa = cwsr_trap_gfx8_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx8_hex);
-		} else if (kfd->device_info->asic_family == CHIP_ARCTURUS) {
-			BUILD_BUG_ON(sizeof(cwsr_trap_arcturus_hex) > PAGE_SIZE);
+		} else if (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 1)) {
+			BUILD_BUG_ON(sizeof(cwsr_trap_arcturus_hex)
+					     > KFD_CWSR_TMA_OFFSET);
 			kfd->cwsr_isa = cwsr_trap_arcturus_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_arcturus_hex);
-		} else if (kfd->device_info->asic_family < CHIP_NAVI10) {
-			BUILD_BUG_ON(sizeof(cwsr_trap_gfx9_hex) > PAGE_SIZE);
+		} else if (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 2)) {
+			BUILD_BUG_ON(sizeof(cwsr_trap_aldebaran_hex)
+					     > KFD_CWSR_TMA_OFFSET);
+			kfd->cwsr_isa = cwsr_trap_aldebaran_hex;
+			kfd->cwsr_isa_size = sizeof(cwsr_trap_aldebaran_hex);
+		} else if (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3)) {
+			BUILD_BUG_ON(sizeof(cwsr_trap_gfx9_4_3_hex)
+					     > KFD_CWSR_TMA_OFFSET);
+			kfd->cwsr_isa = cwsr_trap_gfx9_4_3_hex;
+			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx9_4_3_hex);
+		} else if (KFD_GC_VERSION(kfd) < IP_VERSION(10, 1, 1)) {
+			BUILD_BUG_ON(sizeof(cwsr_trap_gfx9_hex)
+					     > KFD_CWSR_TMA_OFFSET);
 			kfd->cwsr_isa = cwsr_trap_gfx9_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx9_hex);
-		} else {
-			BUILD_BUG_ON(sizeof(cwsr_trap_gfx10_hex) > PAGE_SIZE);
+		} else if (KFD_GC_VERSION(kfd) < IP_VERSION(10, 3, 0)) {
+			BUILD_BUG_ON(sizeof(cwsr_trap_nv1x_hex)
+					     > KFD_CWSR_TMA_OFFSET);
+			kfd->cwsr_isa = cwsr_trap_nv1x_hex;
+			kfd->cwsr_isa_size = sizeof(cwsr_trap_nv1x_hex);
+		} else if (KFD_GC_VERSION(kfd) < IP_VERSION(11, 0, 0)) {
+			BUILD_BUG_ON(sizeof(cwsr_trap_gfx10_hex)
+					     > KFD_CWSR_TMA_OFFSET);
 			kfd->cwsr_isa = cwsr_trap_gfx10_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx10_hex);
+		} else {
+			/* The gfx11 cwsr trap handler must fit inside a single
+			   page. */
+			BUILD_BUG_ON(sizeof(cwsr_trap_gfx11_hex) > PAGE_SIZE);
+			kfd->cwsr_isa = cwsr_trap_gfx11_hex;
+			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx11_hex);
 		}
 
 		kfd->cwsr_enabled = true;
 	}
 }
 
+static int kfd_gws_init(struct kfd_node *node)
+{
+	int ret = 0;
+	struct kfd_dev *kfd = node->kfd;
+	uint32_t mes_rev = node->adev->mes.sched_version & AMDGPU_MES_VERSION_MASK;
+
+	if (node->dqm->sched_policy == KFD_SCHED_POLICY_NO_HWS)
+		return 0;
+
+	if (hws_gws_support || (KFD_IS_SOC15(node) &&
+		((KFD_GC_VERSION(node) == IP_VERSION(9, 0, 1)
+			&& kfd->mec2_fw_version >= 0x81b3) ||
+		(KFD_GC_VERSION(node) <= IP_VERSION(9, 4, 0)
+			&& kfd->mec2_fw_version >= 0x1b3)  ||
+		(KFD_GC_VERSION(node) == IP_VERSION(9, 4, 1)
+			&& kfd->mec2_fw_version >= 0x30)   ||
+		(KFD_GC_VERSION(node) == IP_VERSION(9, 4, 2)
+			&& kfd->mec2_fw_version >= 0x28) ||
+		(KFD_GC_VERSION(node) == IP_VERSION(9, 4, 3)) ||
+		(KFD_GC_VERSION(node) >= IP_VERSION(10, 3, 0)
+			&& KFD_GC_VERSION(node) < IP_VERSION(11, 0, 0)
+			&& kfd->mec2_fw_version >= 0x6b) ||
+		(KFD_GC_VERSION(node) >= IP_VERSION(11, 0, 0)
+			&& KFD_GC_VERSION(node) < IP_VERSION(12, 0, 0)
+			&& mes_rev >= 68))))
+		ret = amdgpu_amdkfd_alloc_gws(node->adev,
+				node->adev->gds.gws_size, &node->gws);
+
+	return ret;
+}
+
+static void kfd_smi_init(struct kfd_node *dev)
+{
+	INIT_LIST_HEAD(&dev->smi_clients);
+	spin_lock_init(&dev->smi_lock);
+}
+
+static int kfd_init_node(struct kfd_node *node)
+{
+	int err = -1;
+
+	if (kfd_interrupt_init(node)) {
+		dev_err(kfd_device, "Error initializing interrupts\n");
+		goto kfd_interrupt_error;
+	}
+
+	node->dqm = device_queue_manager_init(node);
+	if (!node->dqm) {
+		dev_err(kfd_device, "Error initializing queue manager\n");
+		goto device_queue_manager_error;
+	}
+
+	if (kfd_gws_init(node)) {
+		dev_err(kfd_device, "Could not allocate %d gws\n",
+			node->adev->gds.gws_size);
+		goto gws_error;
+	}
+
+	if (kfd_resume(node))
+		goto kfd_resume_error;
+
+	if (kfd_topology_add_device(node)) {
+		dev_err(kfd_device, "Error adding device to topology\n");
+		goto kfd_topology_add_device_error;
+	}
+
+	kfd_smi_init(node);
+
+	return 0;
+
+kfd_topology_add_device_error:
+kfd_resume_error:
+gws_error:
+	device_queue_manager_uninit(node->dqm);
+device_queue_manager_error:
+	kfd_interrupt_exit(node);
+kfd_interrupt_error:
+	if (node->gws)
+		amdgpu_amdkfd_free_gws(node->adev, node->gws);
+
+	/* Cleanup the node memory here */
+	kfree(node);
+	return err;
+}
+
+static void kfd_cleanup_nodes(struct kfd_dev *kfd, unsigned int num_nodes)
+{
+	struct kfd_node *knode;
+	unsigned int i;
+
+	for (i = 0; i < num_nodes; i++) {
+		knode = kfd->nodes[i];
+		device_queue_manager_uninit(knode->dqm);
+		kfd_interrupt_exit(knode);
+		kfd_topology_remove_device(knode);
+		if (knode->gws)
+			amdgpu_amdkfd_free_gws(knode->adev, knode->gws);
+		kfree(knode);
+		kfd->nodes[i] = NULL;
+	}
+}
+
+static void kfd_setup_interrupt_bitmap(struct kfd_node *node,
+				       unsigned int kfd_node_idx)
+{
+	struct amdgpu_device *adev = node->adev;
+	uint32_t xcc_mask = node->xcc_mask;
+	uint32_t xcc, mapped_xcc;
+	/*
+	 * Interrupt bitmap is setup for processing interrupts from
+	 * different XCDs and AIDs.
+	 * Interrupt bitmap is defined as follows:
+	 * 1. Bits 0-15 - correspond to the NodeId field.
+	 *    Each bit corresponds to NodeId number. For example, if
+	 *    a KFD node has interrupt bitmap set to 0x7, then this
+	 *    KFD node will process interrupts with NodeId = 0, 1 and 2
+	 *    in the IH cookie.
+	 * 2. Bits 16-31 - unused.
+	 *
+	 * Please note that the kfd_node_idx argument passed to this
+	 * function is not related to NodeId field received in the
+	 * IH cookie.
+	 *
+	 * In CPX mode, a KFD node will process an interrupt if:
+	 * - the Node Id matches the corresponding bit set in
+	 *   Bits 0-15.
+	 * - AND VMID reported in the interrupt lies within the
+	 *   VMID range of the node.
+	 */
+	for_each_inst(xcc, xcc_mask) {
+		mapped_xcc = GET_INST(GC, xcc);
+		node->interrupt_bitmap |= (mapped_xcc % 2 ? 5 : 3) << (4 * (mapped_xcc / 2));
+	}
+	dev_info(kfd_device, "Node: %d, interrupt_bitmap: %x\n", kfd_node_idx,
+							node->interrupt_bitmap);
+}
+
 bool kgd2kfd_device_init(struct kfd_dev *kfd,
 			 const struct kgd2kfd_shared_resources *gpu_resources)
 {
-	unsigned int size;
+	unsigned int size, map_process_packet_size, i;
+	struct kfd_node *node;
+	uint32_t first_vmid_kfd, last_vmid_kfd, vmid_num_kfd;
+	unsigned int max_proc_per_quantum;
+	int partition_mode;
+	int xcp_idx;
 
-	kfd->mec_fw_version = amdgpu_amdkfd_get_fw_version(kfd->kgd,
+	kfd->mec_fw_version = amdgpu_amdkfd_get_fw_version(kfd->adev,
 			KGD_ENGINE_MEC1);
-	kfd->sdma_fw_version = amdgpu_amdkfd_get_fw_version(kfd->kgd,
+	kfd->mec2_fw_version = amdgpu_amdkfd_get_fw_version(kfd->adev,
+			KGD_ENGINE_MEC2);
+	kfd->sdma_fw_version = amdgpu_amdkfd_get_fw_version(kfd->adev,
 			KGD_ENGINE_SDMA1);
 	kfd->shared_resources = *gpu_resources;
 
-	kfd->vm_info.first_vmid_kfd = ffs(gpu_resources->compute_vmid_bitmap)-1;
-	kfd->vm_info.last_vmid_kfd = fls(gpu_resources->compute_vmid_bitmap)-1;
-	kfd->vm_info.vmid_num_kfd = kfd->vm_info.last_vmid_kfd
-			- kfd->vm_info.first_vmid_kfd + 1;
+	kfd->num_nodes = amdgpu_xcp_get_num_xcp(kfd->adev->xcp_mgr);
 
-	/* Verify module parameters regarding mapped process number*/
-	if ((hws_max_conc_proc < 0)
-			|| (hws_max_conc_proc > kfd->vm_info.vmid_num_kfd)) {
+	if (kfd->num_nodes == 0) {
 		dev_err(kfd_device,
-			"hws_max_conc_proc %d must be between 0 and %d, use %d instead\n",
-			hws_max_conc_proc, kfd->vm_info.vmid_num_kfd,
-			kfd->vm_info.vmid_num_kfd);
-		kfd->max_proc_per_quantum = kfd->vm_info.vmid_num_kfd;
-	} else
-		kfd->max_proc_per_quantum = hws_max_conc_proc;
-
-	/* Allocate global GWS that is shared by all KFD processes */
-	if (hws_gws_support && amdgpu_amdkfd_alloc_gws(kfd->kgd,
-			amdgpu_amdkfd_get_num_gws(kfd->kgd), &kfd->gws)) {
-		dev_err(kfd_device, "Could not allocate %d gws\n",
-			amdgpu_amdkfd_get_num_gws(kfd->kgd));
+			"KFD num nodes cannot be 0, num_xcc_in_node: %d\n",
+			kfd->adev->gfx.num_xcc_per_xcp);
 		goto out;
 	}
+
+	/* Allow BIF to recode atomics to PCIe 3.0 AtomicOps.
+	 * 32 and 64-bit requests are possible and must be
+	 * supported.
+	 */
+	kfd->pci_atomic_requested = amdgpu_amdkfd_have_atomics_support(kfd->adev);
+	if (!kfd->pci_atomic_requested &&
+	    kfd->device_info.needs_pci_atomics &&
+	    (!kfd->device_info.no_atomic_fw_version ||
+	     kfd->mec_fw_version < kfd->device_info.no_atomic_fw_version)) {
+		dev_info(kfd_device,
+			 "skipped device %x:%x, PCI rejects atomics %d<%d\n",
+			 kfd->adev->pdev->vendor, kfd->adev->pdev->device,
+			 kfd->mec_fw_version,
+			 kfd->device_info.no_atomic_fw_version);
+		return false;
+	}
+
+	first_vmid_kfd = ffs(gpu_resources->compute_vmid_bitmap)-1;
+	last_vmid_kfd = fls(gpu_resources->compute_vmid_bitmap)-1;
+	vmid_num_kfd = last_vmid_kfd - first_vmid_kfd + 1;
+
+	/* For GFX9.4.3, we need special handling for VMIDs depending on
+	 * partition mode.
+	 * In CPX mode, the VMID range needs to be shared between XCDs.
+	 * Additionally, there are 13 VMIDs (3-15) available for KFD. To
+	 * divide them equally, we change starting VMID to 4 and not use
+	 * VMID 3.
+	 * If the VMID range changes for GFX9.4.3, then this code MUST be
+	 * revisited.
+	 */
+	if (kfd->adev->xcp_mgr) {
+		partition_mode = amdgpu_xcp_query_partition_mode(kfd->adev->xcp_mgr,
+								 AMDGPU_XCP_FL_LOCKED);
+		if (partition_mode == AMDGPU_CPX_PARTITION_MODE &&
+		    kfd->num_nodes != 1) {
+			vmid_num_kfd /= 2;
+			first_vmid_kfd = last_vmid_kfd + 1 - vmid_num_kfd*2;
+		}
+	}
+
+	/* Verify module parameters regarding mapped process number*/
+	if (hws_max_conc_proc >= 0)
+		max_proc_per_quantum = min((u32)hws_max_conc_proc, vmid_num_kfd);
+	else
+		max_proc_per_quantum = vmid_num_kfd;
+
 	/* calculate max size of mqds needed for queues */
 	size = max_num_of_queues_per_device *
-			kfd->device_info->mqd_size_aligned;
+			kfd->device_info.mqd_size_aligned;
 
 	/*
 	 * calculate max size of runlist packet.
 	 * There can be only 2 packets at once
 	 */
-	size += (KFD_MAX_NUM_OF_PROCESSES * sizeof(struct pm4_mes_map_process) +
+	map_process_packet_size = KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 2) ?
+				sizeof(struct pm4_mes_map_process_aldebaran) :
+				sizeof(struct pm4_mes_map_process);
+	size += (KFD_MAX_NUM_OF_PROCESSES * map_process_packet_size +
 		max_num_of_queues_per_device * sizeof(struct pm4_mes_map_queues)
 		+ sizeof(struct pm4_mes_runlist)) * 2;
 
@@ -645,7 +737,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	size += 512 * 1024;
 
 	if (amdgpu_amdkfd_alloc_gtt_mem(
-			kfd->kgd, size, &kfd->gtt_mem,
+			kfd->adev, size, &kfd->gtt_mem,
 			&kfd->gtt_start_gpu_addr, &kfd->gtt_start_cpu_ptr,
 			false)) {
 		dev_err(kfd_device, "Could not allocate %d bytes\n", size);
@@ -666,64 +758,116 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		goto kfd_doorbell_error;
 	}
 
-	if (kfd->kfd2kgd->get_hive_id)
-		kfd->hive_id = kfd->kfd2kgd->get_hive_id(kfd->kgd);
+	if (amdgpu_use_xgmi_p2p)
+		kfd->hive_id = kfd->adev->gmc.xgmi.hive_id;
 
-	if (kfd_interrupt_init(kfd)) {
-		dev_err(kfd_device, "Error initializing interrupts\n");
-		goto kfd_interrupt_error;
-	}
+	/*
+	 * For GFX9.4.3, the KFD abstracts all partitions within a socket as
+	 * xGMI connected in the topology so assign a unique hive id per
+	 * device based on the pci device location if device is in PCIe mode.
+	 */
+	if (!kfd->hive_id && (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3)) && kfd->num_nodes > 1)
+		kfd->hive_id = pci_dev_id(kfd->adev->pdev);
 
-	kfd->dqm = device_queue_manager_init(kfd);
-	if (!kfd->dqm) {
-		dev_err(kfd_device, "Error initializing queue manager\n");
-		goto device_queue_manager_error;
-	}
-
-	if (kfd_iommu_device_init(kfd)) {
-		dev_err(kfd_device, "Error initializing iommuv2\n");
-		goto device_iommu_error;
-	}
+	kfd->noretry = kfd->adev->gmc.noretry;
 
 	kfd_cwsr_init(kfd);
 
-	if (kfd_resume(kfd))
-		goto kfd_resume_error;
+	dev_info(kfd_device, "Total number of KFD nodes to be created: %d\n",
+				kfd->num_nodes);
 
-	kfd->dbgmgr = NULL;
+	/* Allocate the KFD nodes */
+	for (i = 0, xcp_idx = 0; i < kfd->num_nodes; i++) {
+		node = kzalloc(sizeof(struct kfd_node), GFP_KERNEL);
+		if (!node)
+			goto node_alloc_error;
 
-	if (kfd_topology_add_device(kfd)) {
-		dev_err(kfd_device, "Error adding device to topology\n");
-		goto kfd_topology_add_device_error;
+		node->node_id = i;
+		node->adev = kfd->adev;
+		node->kfd = kfd;
+		node->kfd2kgd = kfd->kfd2kgd;
+		node->vm_info.vmid_num_kfd = vmid_num_kfd;
+		node->xcp = amdgpu_get_next_xcp(kfd->adev->xcp_mgr, &xcp_idx);
+		/* TODO : Check if error handling is needed */
+		if (node->xcp) {
+			amdgpu_xcp_get_inst_details(node->xcp, AMDGPU_XCP_GFX,
+						    &node->xcc_mask);
+			++xcp_idx;
+		} else {
+			node->xcc_mask =
+				(1U << NUM_XCC(kfd->adev->gfx.xcc_mask)) - 1;
+		}
+
+		if (node->xcp) {
+			dev_info(kfd_device, "KFD node %d partition %d size %lldM\n",
+				node->node_id, node->xcp->mem_id,
+				KFD_XCP_MEMORY_SIZE(node->adev, node->node_id) >> 20);
+		}
+
+		if (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3) &&
+		    partition_mode == AMDGPU_CPX_PARTITION_MODE &&
+		    kfd->num_nodes != 1) {
+			/* For GFX9.4.3 and CPX mode, first XCD gets VMID range
+			 * 4-9 and second XCD gets VMID range 10-15.
+			 */
+
+			node->vm_info.first_vmid_kfd = (i%2 == 0) ?
+						first_vmid_kfd :
+						first_vmid_kfd+vmid_num_kfd;
+			node->vm_info.last_vmid_kfd = (i%2 == 0) ?
+						last_vmid_kfd-vmid_num_kfd :
+						last_vmid_kfd;
+			node->compute_vmid_bitmap =
+				((0x1 << (node->vm_info.last_vmid_kfd + 1)) - 1) -
+				((0x1 << (node->vm_info.first_vmid_kfd)) - 1);
+		} else {
+			node->vm_info.first_vmid_kfd = first_vmid_kfd;
+			node->vm_info.last_vmid_kfd = last_vmid_kfd;
+			node->compute_vmid_bitmap =
+				gpu_resources->compute_vmid_bitmap;
+		}
+		node->max_proc_per_quantum = max_proc_per_quantum;
+		atomic_set(&node->sram_ecc_flag, 0);
+
+		amdgpu_amdkfd_get_local_mem_info(kfd->adev,
+					&node->local_mem_info, node->xcp);
+
+		if (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3))
+			kfd_setup_interrupt_bitmap(node, i);
+
+		/* Initialize the KFD node */
+		if (kfd_init_node(node)) {
+			dev_err(kfd_device, "Error initializing KFD node\n");
+			goto node_init_error;
+		}
+		kfd->nodes[i] = node;
 	}
 
+	svm_range_set_max_pages(kfd->adev);
+
+	spin_lock_init(&kfd->watch_points_lock);
+
 	kfd->init_complete = true;
-	dev_info(kfd_device, "added device %x:%x\n", kfd->pdev->vendor,
-		 kfd->pdev->device);
+	dev_info(kfd_device, "added device %x:%x\n", kfd->adev->pdev->vendor,
+		 kfd->adev->pdev->device);
 
 	pr_debug("Starting kfd with the following scheduling policy %d\n",
-		kfd->dqm->sched_policy);
+		node->dqm->sched_policy);
 
 	goto out;
 
-kfd_topology_add_device_error:
-kfd_resume_error:
-device_iommu_error:
-	device_queue_manager_uninit(kfd->dqm);
-device_queue_manager_error:
-	kfd_interrupt_exit(kfd);
-kfd_interrupt_error:
+node_init_error:
+node_alloc_error:
+	kfd_cleanup_nodes(kfd, i);
 	kfd_doorbell_fini(kfd);
 kfd_doorbell_error:
 	kfd_gtt_sa_fini(kfd);
 kfd_gtt_sa_init_error:
-	amdgpu_amdkfd_free_gtt_mem(kfd->kgd, kfd->gtt_mem);
+	amdgpu_amdkfd_free_gtt_mem(kfd->adev, kfd->gtt_mem);
 alloc_gtt_mem_failure:
-	if (hws_gws_support)
-		amdgpu_amdkfd_free_gws(kfd->kgd, kfd->gws);
 	dev_err(kfd_device,
 		"device %x:%x NOT added due to errors\n",
-		kfd->pdev->vendor, kfd->pdev->device);
+		kfd->adev->pdev->vendor, kfd->adev->pdev->device);
 out:
 	return kfd->init_complete;
 }
@@ -731,15 +875,13 @@ out:
 void kgd2kfd_device_exit(struct kfd_dev *kfd)
 {
 	if (kfd->init_complete) {
-		kgd2kfd_suspend(kfd);
-		device_queue_manager_uninit(kfd->dqm);
-		kfd_interrupt_exit(kfd);
-		kfd_topology_remove_device(kfd);
+		/* Cleanup KFD nodes */
+		kfd_cleanup_nodes(kfd, kfd->num_nodes);
+		/* Cleanup common/shared resources */
 		kfd_doorbell_fini(kfd);
+		ida_destroy(&kfd->doorbell_ida);
 		kfd_gtt_sa_fini(kfd);
-		amdgpu_amdkfd_free_gtt_mem(kfd->kgd, kfd->gtt_mem);
-		if (hws_gws_support)
-			amdgpu_amdkfd_free_gws(kfd->kgd, kfd->gws);
+		amdgpu_amdkfd_free_gtt_mem(kfd->adev, kfd->gtt_mem);
 	}
 
 	kfree(kfd);
@@ -747,14 +889,23 @@ void kgd2kfd_device_exit(struct kfd_dev *kfd)
 
 int kgd2kfd_pre_reset(struct kfd_dev *kfd)
 {
+	struct kfd_node *node;
+	int i;
+
 	if (!kfd->init_complete)
 		return 0;
-	kgd2kfd_suspend(kfd);
 
-	/* hold dqm->lock to prevent further execution*/
-	dqm_lock(kfd->dqm);
+	for (i = 0; i < kfd->num_nodes; i++) {
+		node = kfd->nodes[i];
+		kfd_smi_event_update_gpu_reset(node, false);
+		node->dqm->ops.pre_reset(node->dqm);
+	}
 
-	kfd_signal_reset_event(kfd);
+	kgd2kfd_suspend(kfd, false);
+
+	for (i = 0; i < kfd->num_nodes; i++)
+		kfd_signal_reset_event(kfd->nodes[i]);
+
 	return 0;
 }
 
@@ -766,116 +917,149 @@ int kgd2kfd_pre_reset(struct kfd_dev *kfd)
 
 int kgd2kfd_post_reset(struct kfd_dev *kfd)
 {
-	int ret, count;
+	int ret;
+	struct kfd_node *node;
+	int i;
 
 	if (!kfd->init_complete)
 		return 0;
 
-	dqm_unlock(kfd->dqm);
+	for (i = 0; i < kfd->num_nodes; i++) {
+		ret = kfd_resume(kfd->nodes[i]);
+		if (ret)
+			return ret;
+	}
 
-	ret = kfd_resume(kfd);
-	if (ret)
-		return ret;
-	count = atomic_dec_return(&kfd_locked);
+	mutex_lock(&kfd_processes_mutex);
+	--kfd_locked;
+	mutex_unlock(&kfd_processes_mutex);
 
-	atomic_set(&kfd->sram_ecc_flag, 0);
+	for (i = 0; i < kfd->num_nodes; i++) {
+		node = kfd->nodes[i];
+		atomic_set(&node->sram_ecc_flag, 0);
+		kfd_smi_event_update_gpu_reset(node, true);
+	}
 
 	return 0;
 }
 
 bool kfd_is_locked(void)
 {
-	return  (atomic_read(&kfd_locked) > 0);
+	lockdep_assert_held(&kfd_processes_mutex);
+	return  (kfd_locked > 0);
 }
 
-void kgd2kfd_suspend(struct kfd_dev *kfd)
+void kgd2kfd_suspend(struct kfd_dev *kfd, bool run_pm)
 {
+	struct kfd_node *node;
+	int i;
+
 	if (!kfd->init_complete)
 		return;
 
-	/* For first KFD device suspend all the KFD processes */
-	if (atomic_inc_return(&kfd_locked) == 1)
-		kfd_suspend_all_processes();
+	/* for runtime suspend, skip locking kfd */
+	if (!run_pm) {
+		mutex_lock(&kfd_processes_mutex);
+		/* For first KFD device suspend all the KFD processes */
+		if (++kfd_locked == 1)
+			kfd_suspend_all_processes();
+		mutex_unlock(&kfd_processes_mutex);
+	}
 
-	kfd->dqm->ops.stop(kfd->dqm);
-
-	kfd_iommu_suspend(kfd);
+	for (i = 0; i < kfd->num_nodes; i++) {
+		node = kfd->nodes[i];
+		node->dqm->ops.stop(node->dqm);
+	}
 }
 
-int kgd2kfd_resume(struct kfd_dev *kfd)
+int kgd2kfd_resume(struct kfd_dev *kfd, bool run_pm)
 {
-	int ret, count;
+	int ret, i;
 
 	if (!kfd->init_complete)
 		return 0;
 
-	ret = kfd_resume(kfd);
-	if (ret)
-		return ret;
+	for (i = 0; i < kfd->num_nodes; i++) {
+		ret = kfd_resume(kfd->nodes[i]);
+		if (ret)
+			return ret;
+	}
 
-	count = atomic_dec_return(&kfd_locked);
-	WARN_ONCE(count < 0, "KFD suspend / resume ref. error");
-	if (count == 0)
-		ret = kfd_resume_all_processes();
+	/* for runtime resume, skip unlocking kfd */
+	if (!run_pm) {
+		mutex_lock(&kfd_processes_mutex);
+		if (--kfd_locked == 0)
+			ret = kfd_resume_all_processes();
+		WARN_ONCE(kfd_locked < 0, "KFD suspend / resume ref. error");
+		mutex_unlock(&kfd_processes_mutex);
+	}
 
 	return ret;
 }
 
-static int kfd_resume(struct kfd_dev *kfd)
+static int kfd_resume(struct kfd_node *node)
 {
 	int err = 0;
 
-	err = kfd_iommu_resume(kfd);
-	if (err) {
-		dev_err(kfd_device,
-			"Failed to resume IOMMU for device %x:%x\n",
-			kfd->pdev->vendor, kfd->pdev->device);
-		return err;
-	}
-
-	err = kfd->dqm->ops.start(kfd->dqm);
-	if (err) {
+	err = node->dqm->ops.start(node->dqm);
+	if (err)
 		dev_err(kfd_device,
 			"Error starting queue manager for device %x:%x\n",
-			kfd->pdev->vendor, kfd->pdev->device);
-		goto dqm_start_error;
-	}
+			node->adev->pdev->vendor, node->adev->pdev->device);
 
 	return err;
+}
 
-dqm_start_error:
-	kfd_iommu_suspend(kfd);
-	return err;
+static inline void kfd_queue_work(struct workqueue_struct *wq,
+				  struct work_struct *work)
+{
+	int cpu, new_cpu;
+
+	cpu = new_cpu = smp_processor_id();
+	do {
+		new_cpu = cpumask_next(new_cpu, cpu_online_mask) % nr_cpu_ids;
+		if (cpu_to_node(new_cpu) == numa_node_id())
+			break;
+	} while (cpu != new_cpu);
+
+	queue_work_on(new_cpu, wq, work);
 }
 
 /* This is called directly from KGD at ISR. */
 void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry)
 {
-	uint32_t patched_ihre[KFD_MAX_RING_ENTRY_SIZE];
+	uint32_t patched_ihre[KFD_MAX_RING_ENTRY_SIZE], i;
 	bool is_patched = false;
 	unsigned long flags;
+	struct kfd_node *node;
 
 	if (!kfd->init_complete)
 		return;
 
-	if (kfd->device_info->ih_ring_entry_size > sizeof(patched_ihre)) {
+	if (kfd->device_info.ih_ring_entry_size > sizeof(patched_ihre)) {
 		dev_err_once(kfd_device, "Ring entry too small\n");
 		return;
 	}
 
-	spin_lock_irqsave(&kfd->interrupt_lock, flags);
+	for (i = 0; i < kfd->num_nodes; i++) {
+		node = kfd->nodes[i];
+		spin_lock_irqsave(&node->interrupt_lock, flags);
 
-	if (kfd->interrupts_active
-	    && interrupt_is_wanted(kfd, ih_ring_entry,
-				   patched_ihre, &is_patched)
-	    && enqueue_ih_ring_entry(kfd,
-				     is_patched ? patched_ihre : ih_ring_entry))
-		queue_work(kfd->ih_wq, &kfd->interrupt_work);
+		if (node->interrupts_active
+		    && interrupt_is_wanted(node, ih_ring_entry,
+			    	patched_ihre, &is_patched)
+		    && enqueue_ih_ring_entry(node,
+			    	is_patched ? patched_ihre : ih_ring_entry)) {
+			kfd_queue_work(node->ih_wq, &node->interrupt_work);
+			spin_unlock_irqrestore(&node->interrupt_lock, flags);
+			return;
+		}
+		spin_unlock_irqrestore(&node->interrupt_lock, flags);
+	}
 
-	spin_unlock_irqrestore(&kfd->interrupt_lock, flags);
 }
 
-int kgd2kfd_quiesce_mm(struct mm_struct *mm)
+int kgd2kfd_quiesce_mm(struct mm_struct *mm, uint32_t trigger)
 {
 	struct kfd_process *p;
 	int r;
@@ -888,7 +1072,8 @@ int kgd2kfd_quiesce_mm(struct mm_struct *mm)
 	if (!p)
 		return -ESRCH;
 
-	r = kfd_process_evict_queues(p);
+	WARN(debug_evictions, "Evicting pid %d", p->lead_thread->pid);
+	r = kfd_process_evict_queues(p, trigger);
 
 	kfd_unref_process(p);
 	return r;
@@ -955,6 +1140,8 @@ int kgd2kfd_schedule_evict_and_restore_process(struct mm_struct *mm,
 	/* During process initialization eviction_work.dwork is initialized
 	 * to kfd_evict_bo_worker
 	 */
+	WARN(debug_evictions, "Scheduling eviction of pid %d in %ld jiffies",
+	     p->lead_thread->pid, delay_jiffies);
 	schedule_delayed_work(&p->eviction_work, delay_jiffies);
 out:
 	kfd_unref_process(p);
@@ -964,8 +1151,6 @@ out:
 static int kfd_gtt_sa_init(struct kfd_dev *kfd, unsigned int buf_size,
 				unsigned int chunk_size)
 {
-	unsigned int num_of_longs;
-
 	if (WARN_ON(buf_size < chunk_size))
 		return -EINVAL;
 	if (WARN_ON(buf_size == 0))
@@ -976,11 +1161,8 @@ static int kfd_gtt_sa_init(struct kfd_dev *kfd, unsigned int buf_size,
 	kfd->gtt_sa_chunk_size = chunk_size;
 	kfd->gtt_sa_num_of_chunks = buf_size / chunk_size;
 
-	num_of_longs = (kfd->gtt_sa_num_of_chunks + BITS_PER_LONG - 1) /
-		BITS_PER_LONG;
-
-	kfd->gtt_sa_bitmap = kcalloc(num_of_longs, sizeof(long), GFP_KERNEL);
-
+	kfd->gtt_sa_bitmap = bitmap_zalloc(kfd->gtt_sa_num_of_chunks,
+					   GFP_KERNEL);
 	if (!kfd->gtt_sa_bitmap)
 		return -ENOMEM;
 
@@ -990,13 +1172,12 @@ static int kfd_gtt_sa_init(struct kfd_dev *kfd, unsigned int buf_size,
 	mutex_init(&kfd->gtt_sa_lock);
 
 	return 0;
-
 }
 
 static void kfd_gtt_sa_fini(struct kfd_dev *kfd)
 {
 	mutex_destroy(&kfd->gtt_sa_lock);
-	kfree(kfd->gtt_sa_bitmap);
+	bitmap_free(kfd->gtt_sa_bitmap);
 }
 
 static inline uint64_t kfd_gtt_sa_calc_gpu_addr(uint64_t start_addr,
@@ -1013,10 +1194,11 @@ static inline uint32_t *kfd_gtt_sa_calc_cpu_addr(void *start_addr,
 	return (uint32_t *) ((uint64_t) start_addr + bit_num * chunk_size);
 }
 
-int kfd_gtt_sa_allocate(struct kfd_dev *kfd, unsigned int size,
+int kfd_gtt_sa_allocate(struct kfd_node *node, unsigned int size,
 			struct kfd_mem_obj **mem_obj)
 {
 	unsigned int found, start_search, cur_size;
+	struct kfd_dev *kfd = node->kfd;
 
 	if (size == 0)
 		return -EINVAL;
@@ -1064,7 +1246,7 @@ kfd_gtt_restart_search:
 	/* If we need only one chunk, mark it as allocated and get out */
 	if (size <= kfd->gtt_sa_chunk_size) {
 		pr_debug("Single bit\n");
-		set_bit(found, kfd->gtt_sa_bitmap);
+		__set_bit(found, kfd->gtt_sa_bitmap);
 		goto kfd_gtt_out;
 	}
 
@@ -1102,25 +1284,23 @@ kfd_gtt_restart_search:
 		(*mem_obj)->range_start, (*mem_obj)->range_end);
 
 	/* Mark the chunks as allocated */
-	for (found = (*mem_obj)->range_start;
-		found <= (*mem_obj)->range_end;
-		found++)
-		set_bit(found, kfd->gtt_sa_bitmap);
+	bitmap_set(kfd->gtt_sa_bitmap, (*mem_obj)->range_start,
+		   (*mem_obj)->range_end - (*mem_obj)->range_start + 1);
 
 kfd_gtt_out:
 	mutex_unlock(&kfd->gtt_sa_lock);
 	return 0;
 
 kfd_gtt_no_free_chunk:
-	pr_debug("Allocation failed with mem_obj = %p\n", mem_obj);
+	pr_debug("Allocation failed with mem_obj = %p\n", *mem_obj);
 	mutex_unlock(&kfd->gtt_sa_lock);
-	kfree(mem_obj);
+	kfree(*mem_obj);
 	return -ENOMEM;
 }
 
-int kfd_gtt_sa_free(struct kfd_dev *kfd, struct kfd_mem_obj *mem_obj)
+int kfd_gtt_sa_free(struct kfd_node *node, struct kfd_mem_obj *mem_obj)
 {
-	unsigned int bit;
+	struct kfd_dev *kfd = node->kfd;
 
 	/* Act like kfree when trying to free a NULL object */
 	if (!mem_obj)
@@ -1132,10 +1312,8 @@ int kfd_gtt_sa_free(struct kfd_dev *kfd, struct kfd_mem_obj *mem_obj)
 	mutex_lock(&kfd->gtt_sa_lock);
 
 	/* Mark the chunks as free */
-	for (bit = mem_obj->range_start;
-		bit <= mem_obj->range_end;
-		bit++)
-		clear_bit(bit, kfd->gtt_sa_bitmap);
+	bitmap_clear(kfd->gtt_sa_bitmap, mem_obj->range_start,
+		     mem_obj->range_end - mem_obj->range_start + 1);
 
 	mutex_unlock(&kfd->gtt_sa_lock);
 
@@ -1145,23 +1323,82 @@ int kfd_gtt_sa_free(struct kfd_dev *kfd, struct kfd_mem_obj *mem_obj)
 
 void kgd2kfd_set_sram_ecc_flag(struct kfd_dev *kfd)
 {
+	/*
+	 * TODO: Currently update SRAM ECC flag for first node.
+	 * This needs to be updated later when we can
+	 * identify SRAM ECC error on other nodes also.
+	 */
 	if (kfd)
-		atomic_inc(&kfd->sram_ecc_flag);
+		atomic_inc(&kfd->nodes[0]->sram_ecc_flag);
 }
 
-void kfd_inc_compute_active(struct kfd_dev *kfd)
+void kfd_inc_compute_active(struct kfd_node *node)
 {
-	if (atomic_inc_return(&kfd->compute_profile) == 1)
-		amdgpu_amdkfd_set_compute_idle(kfd->kgd, false);
+	if (atomic_inc_return(&node->kfd->compute_profile) == 1)
+		amdgpu_amdkfd_set_compute_idle(node->adev, false);
 }
 
-void kfd_dec_compute_active(struct kfd_dev *kfd)
+void kfd_dec_compute_active(struct kfd_node *node)
 {
-	int count = atomic_dec_return(&kfd->compute_profile);
+	int count = atomic_dec_return(&node->kfd->compute_profile);
 
 	if (count == 0)
-		amdgpu_amdkfd_set_compute_idle(kfd->kgd, true);
+		amdgpu_amdkfd_set_compute_idle(node->adev, true);
 	WARN_ONCE(count < 0, "Compute profile ref. count error");
+}
+
+void kgd2kfd_smi_event_throttle(struct kfd_dev *kfd, uint64_t throttle_bitmask)
+{
+	/*
+	 * TODO: For now, raise the throttling event only on first node.
+	 * This will need to change after we are able to determine
+	 * which node raised the throttling event.
+	 */
+	if (kfd && kfd->init_complete)
+		kfd_smi_event_update_thermal_throttling(kfd->nodes[0],
+							throttle_bitmask);
+}
+
+/* kfd_get_num_sdma_engines returns the number of PCIe optimized SDMA and
+ * kfd_get_num_xgmi_sdma_engines returns the number of XGMI SDMA.
+ * When the device has more than two engines, we reserve two for PCIe to enable
+ * full-duplex and the rest are used as XGMI.
+ */
+unsigned int kfd_get_num_sdma_engines(struct kfd_node *node)
+{
+	/* If XGMI is not supported, all SDMA engines are PCIe */
+	if (!node->adev->gmc.xgmi.supported)
+		return node->adev->sdma.num_instances/(int)node->kfd->num_nodes;
+
+	return min(node->adev->sdma.num_instances/(int)node->kfd->num_nodes, 2);
+}
+
+unsigned int kfd_get_num_xgmi_sdma_engines(struct kfd_node *node)
+{
+	/* After reserved for PCIe, the rest of engines are XGMI */
+	return node->adev->sdma.num_instances/(int)node->kfd->num_nodes -
+		kfd_get_num_sdma_engines(node);
+}
+
+int kgd2kfd_check_and_lock_kfd(void)
+{
+	mutex_lock(&kfd_processes_mutex);
+	if (!hash_empty(kfd_processes_table) || kfd_is_locked()) {
+		mutex_unlock(&kfd_processes_mutex);
+		return -EBUSY;
+	}
+
+	++kfd_locked;
+	mutex_unlock(&kfd_processes_mutex);
+
+	return 0;
+}
+
+void kgd2kfd_unlock_kfd(void)
+{
+	mutex_lock(&kfd_processes_mutex);
+	--kfd_locked;
+	mutex_unlock(&kfd_processes_mutex);
 }
 
 #if defined(CONFIG_DEBUG_FS)
@@ -1169,20 +1406,14 @@ void kfd_dec_compute_active(struct kfd_dev *kfd)
 /* This function will send a package to HIQ to hang the HWS
  * which will trigger a GPU reset and bring the HWS back to normal state
  */
-int kfd_debugfs_hang_hws(struct kfd_dev *dev)
+int kfd_debugfs_hang_hws(struct kfd_node *dev)
 {
-	int r = 0;
-
 	if (dev->dqm->sched_policy != KFD_SCHED_POLICY_HWS) {
 		pr_err("HWS is not enabled");
 		return -EINVAL;
 	}
 
-	r = pm_debugfs_hang_hws(&dev->dqm->packets);
-	if (!r)
-		r = dqm_debugfs_execute_queues(dev->dqm);
-
-	return r;
+	return dqm_debugfs_hang_hws(dev->dqm);
 }
 
 #endif

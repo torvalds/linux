@@ -7,16 +7,14 @@
  */
 
 #include <linux/err.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/nfc.h>
-#include <linux/of_gpio.h>
 #include <linux/of.h>
-#include <linux/of_irq.h>
 #include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/wait.h>
@@ -197,7 +195,7 @@ struct st95_digital_cmd_complete_arg {
  *	for spi communication between st95hf and host.
  * @ddev: nfc digital device object.
  * @nfcdev: nfc device object.
- * @enable_gpio: gpio used to enable st95hf transceiver.
+ * @enable_gpiod: gpio used to enable st95hf transceiver.
  * @complete_cb_arg: structure to store various context information
  *	that is passed from nfc requesting thread to the threaded ISR.
  * @st95hf_supply: regulator "consumer" for NFC device.
@@ -220,7 +218,7 @@ struct st95hf_context {
 	struct st95hf_spi_context spicontext;
 	struct nfc_digital_dev *ddev;
 	struct nfc_dev *nfcdev;
-	unsigned int enable_gpio;
+	struct gpio_desc *enable_gpiod;
 	struct st95_digital_cmd_complete_arg complete_cb_arg;
 	struct regulator *st95hf_supply;
 	unsigned char sendrcv_trflag;
@@ -452,19 +450,19 @@ static int st95hf_select_protocol(struct st95hf_context *stcontext, int type)
 static void st95hf_send_st95enable_negativepulse(struct st95hf_context *st95con)
 {
 	/* First make irq_in pin high */
-	gpio_set_value(st95con->enable_gpio, HIGH);
+	gpiod_set_value(st95con->enable_gpiod, HIGH);
 
 	/* wait for 1 milisecond */
 	usleep_range(1000, 2000);
 
 	/* Make irq_in pin low */
-	gpio_set_value(st95con->enable_gpio, LOW);
+	gpiod_set_value(st95con->enable_gpiod, LOW);
 
 	/* wait for minimum interrupt pulse to make st95 active */
 	usleep_range(1000, 2000);
 
 	/* At end make it high */
-	gpio_set_value(st95con->enable_gpio, HIGH);
+	gpiod_set_value(st95con->enable_gpiod, HIGH);
 }
 
 /*
@@ -926,10 +924,8 @@ static int st95hf_in_send_cmd(struct nfc_digital_dev *ddev,
 	int len_data_to_tag = 0;
 
 	skb_resp = nfc_alloc_recv_skb(MAX_RESPONSE_BUFFER_SIZE, GFP_KERNEL);
-	if (!skb_resp) {
-		rc = -ENOMEM;
-		goto error;
-	}
+	if (!skb_resp)
+		return -ENOMEM;
 
 	switch (stcontext->current_rf_tech) {
 	case NFC_DIGITAL_RF_TECH_106A:
@@ -966,7 +962,7 @@ static int st95hf_in_send_cmd(struct nfc_digital_dev *ddev,
 	rc = down_killable(&stcontext->exchange_lock);
 	if (rc) {
 		WARN(1, "Semaphore is not found up in st95hf_in_send_cmd\n");
-		return rc;
+		goto free_skb_resp;
 	}
 
 	rc = st95hf_spi_send(&stcontext->spicontext, skb->data,
@@ -986,7 +982,6 @@ static int st95hf_in_send_cmd(struct nfc_digital_dev *ddev,
 
 free_skb_resp:
 	kfree_skb(skb_resp);
-error:
 	return rc;
 }
 
@@ -1040,7 +1035,7 @@ static void st95hf_abort_cmd(struct nfc_digital_dev *ddev)
 {
 }
 
-static struct nfc_digital_ops st95hf_nfc_digital_ops = {
+static const struct nfc_digital_ops st95hf_nfc_digital_ops = {
 	.in_configure_hw = st95hf_in_configure_hw,
 	.in_send_cmd = st95hf_in_send_cmd,
 
@@ -1059,14 +1054,15 @@ static const struct spi_device_id st95hf_id[] = {
 };
 MODULE_DEVICE_TABLE(spi, st95hf_id);
 
-static const struct of_device_id st95hf_spi_of_match[] = {
-        { .compatible = "st,st95hf" },
-        { },
+static const struct of_device_id st95hf_spi_of_match[] __maybe_unused = {
+	{ .compatible = "st,st95hf" },
+	{},
 };
 MODULE_DEVICE_TABLE(of, st95hf_spi_of_match);
 
 static int st95hf_probe(struct spi_device *nfc_spi_dev)
 {
+	struct device *dev = &nfc_spi_dev->dev;
 	int ret;
 
 	struct st95hf_context *st95context;
@@ -1112,19 +1108,14 @@ static int st95hf_probe(struct spi_device *nfc_spi_dev)
 	 */
 	dev_set_drvdata(&nfc_spi_dev->dev, spicontext);
 
-	st95context->enable_gpio =
-		of_get_named_gpio(nfc_spi_dev->dev.of_node,
-				  "enable-gpio",
-				  0);
-	if (!gpio_is_valid(st95context->enable_gpio)) {
+	st95context->enable_gpiod = devm_gpiod_get(dev, "enable", GPIOD_OUT_HIGH);
+	if (IS_ERR(st95context->enable_gpiod)) {
+		ret = PTR_ERR(st95context->enable_gpiod);
 		dev_err(&nfc_spi_dev->dev, "No valid enable gpio\n");
-		ret = st95context->enable_gpio;
 		goto err_disable_regulator;
 	}
 
-	ret = devm_gpio_request_one(&nfc_spi_dev->dev, st95context->enable_gpio,
-				    GPIOF_DIR_OUT | GPIOF_INIT_HIGH,
-				    "enable_gpio");
+	ret = gpiod_set_consumer_name(st95context->enable_gpiod, "enable_gpio");
 	if (ret)
 		goto err_disable_regulator;
 
@@ -1202,7 +1193,7 @@ err_disable_regulator:
 	return ret;
 }
 
-static int st95hf_remove(struct spi_device *nfc_spi_dev)
+static void st95hf_remove(struct spi_device *nfc_spi_dev)
 {
 	int result = 0;
 	unsigned char reset_cmd = ST95HF_COMMAND_RESET;
@@ -1230,11 +1221,9 @@ static int st95hf_remove(struct spi_device *nfc_spi_dev)
 				 &reset_cmd,
 				 ST95HF_RESET_CMD_LEN,
 				 ASYNC);
-	if (result) {
+	if (result)
 		dev_err(&spictx->spidev->dev,
 			"ST95HF reset failed in remove() err = %d\n", result);
-		return result;
-	}
 
 	/* wait for 3 ms to complete the controller reset process */
 	usleep_range(3000, 4000);
@@ -1242,15 +1231,12 @@ static int st95hf_remove(struct spi_device *nfc_spi_dev)
 	/* disable regulator */
 	if (stcontext->st95hf_supply)
 		regulator_disable(stcontext->st95hf_supply);
-
-	return result;
 }
 
 /* Register as SPI protocol driver */
 static struct spi_driver st95hf_driver = {
 	.driver = {
 		.name = "st95hf",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(st95hf_spi_of_match),
 	},
 	.id_table = st95hf_id,

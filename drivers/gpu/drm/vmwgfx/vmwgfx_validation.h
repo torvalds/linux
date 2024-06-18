@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /**************************************************************************
  *
- * Copyright © 2018 VMware, Inc., Palo Alto, CA., USA
+ * Copyright © 2018 - 2022 VMware, Inc., Palo Alto, CA., USA
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -29,29 +29,14 @@
 #define _VMWGFX_VALIDATION_H_
 
 #include <linux/list.h>
+#include <linux/hashtable.h>
 #include <linux/ww_mutex.h>
 
-#include <drm/drm_hashtab.h>
 #include <drm/ttm/ttm_execbuf_util.h>
 
 #define VMW_RES_DIRTY_NONE 0
 #define VMW_RES_DIRTY_SET BIT(0)
 #define VMW_RES_DIRTY_CLEAR BIT(1)
-
-/**
- * struct vmw_validation_mem - Custom interface to provide memory reservations
- * for the validation code.
- * @reserve_mem: Callback to reserve memory
- * @unreserve_mem: Callback to unreserve memory
- * @gran: Reservation granularity. Contains a hint how much memory should
- * be reserved in each call to @reserve_mem(). A slow implementation may want
- * reservation to be done in large batches.
- */
-struct vmw_validation_mem {
-	int (*reserve_mem)(struct vmw_validation_mem *m, size_t size);
-	void (*unreserve_mem)(struct vmw_validation_mem *m, size_t size);
-	size_t gran;
-};
 
 /**
  * struct vmw_validation_context - Per command submission validation context
@@ -67,13 +52,9 @@ struct vmw_validation_mem {
  * buffer objects
  * @mem_size_left: Free memory left in the last page in @page_list
  * @page_address: Kernel virtual address of the last page in @page_list
- * @vm: A pointer to the memory reservation interface or NULL if no
- * memory reservation is needed.
- * @vm_size_left: Amount of reserved memory that so far has not been allocated.
- * @total_mem: Amount of reserved memory.
  */
 struct vmw_validation_context {
-	struct drm_open_hash *ht;
+	struct vmw_sw_context *sw_context;
 	struct list_head resource_list;
 	struct list_head resource_ctx_list;
 	struct list_head bo_list;
@@ -83,12 +64,9 @@ struct vmw_validation_context {
 	unsigned int merge_dups;
 	unsigned int mem_size_left;
 	u8 *page_address;
-	struct vmw_validation_mem *vm;
-	size_t vm_size_left;
-	size_t total_mem;
 };
 
-struct vmw_buffer_object;
+struct vmw_bo;
 struct vmw_resource;
 struct vmw_fence_obj;
 
@@ -96,16 +74,16 @@ struct vmw_fence_obj;
 /**
  * DECLARE_VAL_CONTEXT - Declare a validation context with initialization
  * @_name: The name of the variable
- * @_ht: The hash table used to find dups or NULL if none
+ * @_sw_context: Contains the hash table used to find dups or NULL if none
  * @_merge_dups: Whether to merge duplicate buffer object- or resource
  * entries. If set to true, ideally a hash table pointer should be supplied
  * as well unless the number of resources and buffer objects per validation
  * is known to be very small
  */
 #endif
-#define DECLARE_VAL_CONTEXT(_name, _ht, _merge_dups)			\
+#define DECLARE_VAL_CONTEXT(_name, _sw_context, _merge_dups)		\
 	struct vmw_validation_context _name =				\
-	{ .ht = _ht,							\
+	{ .sw_context = _sw_context,					\
 	  .resource_list = LIST_HEAD_INIT((_name).resource_list),	\
 	  .resource_ctx_list = LIST_HEAD_INIT((_name).resource_ctx_list), \
 	  .bo_list = LIST_HEAD_INIT((_name).bo_list),			\
@@ -129,34 +107,6 @@ vmw_validation_has_bos(struct vmw_validation_context *ctx)
 }
 
 /**
- * vmw_validation_set_val_mem - Register a validation mem object for
- * validation memory reservation
- * @ctx: The validation context
- * @vm: Pointer to a struct vmw_validation_mem
- *
- * Must be set before the first attempt to allocate validation memory.
- */
-static inline void
-vmw_validation_set_val_mem(struct vmw_validation_context *ctx,
-			   struct vmw_validation_mem *vm)
-{
-	ctx->vm = vm;
-}
-
-/**
- * vmw_validation_set_ht - Register a hash table for duplicate finding
- * @ctx: The validation context
- * @ht: Pointer to a hash table to use for duplicate finding
- * This function is intended to be used if the hash table wasn't
- * available at validation context declaration time
- */
-static inline void vmw_validation_set_ht(struct vmw_validation_context *ctx,
-					 struct drm_open_hash *ht)
-{
-	ctx->ht = ht;
-}
-
-/**
  * vmw_validation_bo_reserve - Reserve buffer objects registered with a
  * validation context
  * @ctx: The validation context
@@ -170,21 +120,7 @@ vmw_validation_bo_reserve(struct vmw_validation_context *ctx,
 			  bool intr)
 {
 	return ttm_eu_reserve_buffers(&ctx->ticket, &ctx->bo_list, intr,
-				      NULL, true);
-}
-
-/**
- * vmw_validation_bo_backoff - Unreserve buffer objects registered with a
- * validation context
- * @ctx: The validation context
- *
- * This function unreserves the buffer objects previously reserved using
- * vmw_validation_bo_reserve. It's typically used as part of an error path
- */
-static inline void
-vmw_validation_bo_backoff(struct vmw_validation_context *ctx)
-{
-	ttm_eu_backoff_reservation(&ctx->ticket, &ctx->bo_list);
+				      NULL);
 }
 
 /**
@@ -204,22 +140,6 @@ vmw_validation_bo_fence(struct vmw_validation_context *ctx,
 }
 
 /**
- * vmw_validation_context_init - Initialize a validation context
- * @ctx: Pointer to the validation context to initialize
- *
- * This function initializes a validation context with @merge_dups set
- * to false
- */
-static inline void
-vmw_validation_context_init(struct vmw_validation_context *ctx)
-{
-	memset(ctx, 0, sizeof(*ctx));
-	INIT_LIST_HEAD(&ctx->resource_list);
-	INIT_LIST_HEAD(&ctx->resource_ctx_list);
-	INIT_LIST_HEAD(&ctx->bo_list);
-}
-
-/**
  * vmw_validation_align - Align a validation memory allocation
  * @val: The size to be aligned
  *
@@ -232,11 +152,7 @@ static inline unsigned int vmw_validation_align(unsigned int val)
 }
 
 int vmw_validation_add_bo(struct vmw_validation_context *ctx,
-			  struct vmw_buffer_object *vbo,
-			  bool as_mob, bool cpu_blit);
-int vmw_validation_bo_validate_single(struct ttm_buffer_object *bo,
-				      bool interruptible,
-				      bool validate_as_mob);
+			  struct vmw_bo *vbo);
 int vmw_validation_bo_validate(struct vmw_validation_context *ctx, bool intr);
 void vmw_validation_unref_lists(struct vmw_validation_context *ctx);
 int vmw_validation_add_resource(struct vmw_validation_context *ctx,
@@ -252,7 +168,7 @@ void vmw_validation_res_unreserve(struct vmw_validation_context *ctx,
 				  bool backoff);
 void vmw_validation_res_switch_backup(struct vmw_validation_context *ctx,
 				      void *val_private,
-				      struct vmw_buffer_object *vbo,
+				      struct vmw_bo *vbo,
 				      unsigned long backup_offset);
 int vmw_validation_res_validate(struct vmw_validation_context *ctx, bool intr);
 
@@ -269,4 +185,6 @@ int vmw_validation_preload_res(struct vmw_validation_context *ctx,
 			       unsigned int size);
 void vmw_validation_res_set_dirty(struct vmw_validation_context *ctx,
 				  void *val_private, u32 dirty);
+void vmw_validation_bo_backoff(struct vmw_validation_context *ctx);
+
 #endif

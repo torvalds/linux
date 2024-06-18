@@ -27,6 +27,12 @@
 /* Asus */
 
 static const struct gpio_keys_button
+bcm47xx_buttons_asus_rtn10u[] __initconst = {
+	BCM47XX_GPIO_KEY(20, KEY_WPS_BUTTON),
+	BCM47XX_GPIO_KEY(21, KEY_RESTART),
+};
+
+static const struct gpio_keys_button
 bcm47xx_buttons_asus_rtn12[] __initconst = {
 	BCM47XX_GPIO_KEY(0, KEY_WPS_BUTTON),
 	BCM47XX_GPIO_KEY(1, KEY_RESTART),
@@ -141,21 +147,21 @@ static const struct gpio_keys_button
 bcm47xx_buttons_buffalo_whr_g125[] __initconst = {
 	BCM47XX_GPIO_KEY(0, KEY_WPS_BUTTON),
 	BCM47XX_GPIO_KEY(4, KEY_RESTART),
-	BCM47XX_GPIO_KEY(5, BTN_0), /* Router / AP mode swtich */
+	BCM47XX_GPIO_KEY(5, BTN_0), /* Router / AP mode switch */
 };
 
 static const struct gpio_keys_button
 bcm47xx_buttons_buffalo_whr_g54s[] __initconst = {
 	BCM47XX_GPIO_KEY(0, KEY_WPS_BUTTON),
 	BCM47XX_GPIO_KEY_H(4, KEY_RESTART),
-	BCM47XX_GPIO_KEY(5, BTN_0), /* Router / AP mode swtich */
+	BCM47XX_GPIO_KEY(5, BTN_0), /* Router / AP mode switch */
 };
 
 static const struct gpio_keys_button
 bcm47xx_buttons_buffalo_whr_hp_g54[] __initconst = {
 	BCM47XX_GPIO_KEY(0, KEY_WPS_BUTTON),
 	BCM47XX_GPIO_KEY(4, KEY_RESTART),
-	BCM47XX_GPIO_KEY(5, BTN_0), /* Router / AP mode swtich */
+	BCM47XX_GPIO_KEY(5, BTN_0), /* Router / AP mode switch */
 };
 
 static const struct gpio_keys_button
@@ -217,6 +223,12 @@ bcm47xx_buttons_linksys_e2000v1[] __initconst = {
 };
 
 static const struct gpio_keys_button
+bcm47xx_buttons_linksys_e2500v3[] __initconst = {
+	BCM47XX_GPIO_KEY(9, KEY_WPS_BUTTON),
+	BCM47XX_GPIO_KEY(10, KEY_RESTART),
+};
+
+static const struct gpio_keys_button
 bcm47xx_buttons_linksys_e3000v1[] __initconst = {
 	BCM47XX_GPIO_KEY(4, KEY_WPS_BUTTON),
 	BCM47XX_GPIO_KEY(6, KEY_RESTART),
@@ -274,6 +286,18 @@ static const struct gpio_keys_button
 bcm47xx_buttons_linksys_wrt310nv1[] __initconst = {
 	BCM47XX_GPIO_KEY(6, KEY_RESTART),
 	BCM47XX_GPIO_KEY(8, KEY_UNKNOWN),
+};
+
+static const struct gpio_keys_button
+bcm47xx_buttons_linksys_wrt310n_v2[] __initconst = {
+	BCM47XX_GPIO_KEY(5, KEY_WPS_BUTTON),
+	BCM47XX_GPIO_KEY(6, KEY_RESTART),
+};
+
+static const struct gpio_keys_button
+bcm47xx_buttons_linksys_wrt320n_v1[] __initconst = {
+	BCM47XX_GPIO_KEY(5, KEY_WPS_BUTTON),
+	BCM47XX_GPIO_KEY(8, KEY_RESTART),
 };
 
 static const struct gpio_keys_button
@@ -392,6 +416,17 @@ bcm47xx_buttons_netgear_r6200_v1[] __initconst = {
 };
 
 static const struct gpio_keys_button
+bcm47xx_buttons_netgear_r6300_v1[] __initconst = {
+	BCM47XX_GPIO_KEY(6, KEY_RESTART),
+};
+
+static const struct gpio_keys_button
+bcm47xx_buttons_netgear_wn2500rp_v1[] __initconst = {
+	BCM47XX_GPIO_KEY(12, KEY_RESTART),
+	BCM47XX_GPIO_KEY(31, KEY_WPS_BUTTON),
+};
+
+static const struct gpio_keys_button
 bcm47xx_buttons_netgear_wndr3400v1[] __initconst = {
 	BCM47XX_GPIO_KEY(4, KEY_RESTART),
 	BCM47XX_GPIO_KEY(6, KEY_WPS_BUTTON),
@@ -428,6 +463,13 @@ static const struct gpio_keys_button
 bcm47xx_buttons_netgear_wnr3500lv1[] __initconst = {
 	BCM47XX_GPIO_KEY(4, KEY_RESTART),
 	BCM47XX_GPIO_KEY(6, KEY_WPS_BUTTON),
+};
+
+static const struct gpio_keys_button
+bcm47xx_buttons_netgear_wnr3500lv2[] __initconst = {
+	BCM47XX_GPIO_KEY(4, KEY_RESTART),
+	BCM47XX_GPIO_KEY(6, KEY_WPS_BUTTON),
+	BCM47XX_GPIO_KEY(8, KEY_RFKILL),
 };
 
 static const struct gpio_keys_button
@@ -478,6 +520,9 @@ int __init bcm47xx_buttons_register(void)
 	int err;
 
 	switch (board) {
+	case BCM47XX_BOARD_ASUS_RTN10U:
+		err = bcm47xx_copy_bdata(bcm47xx_buttons_asus_rtn10u);
+		break;
 	case BCM47XX_BOARD_ASUS_RTN12:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_asus_rtn12);
 		break;
@@ -578,6 +623,9 @@ int __init bcm47xx_buttons_register(void)
 	case BCM47XX_BOARD_LINKSYS_E2000V1:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_linksys_e2000v1);
 		break;
+	case BCM47XX_BOARD_LINKSYS_E2500V3:
+		err = bcm47xx_copy_bdata(bcm47xx_buttons_linksys_e2500v3);
+		break;
 	case BCM47XX_BOARD_LINKSYS_E3000V1:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_linksys_e3000v1);
 		break;
@@ -607,6 +655,12 @@ int __init bcm47xx_buttons_register(void)
 		break;
 	case BCM47XX_BOARD_LINKSYS_WRT310NV1:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_linksys_wrt310nv1);
+		break;
+	case BCM47XX_BOARD_LINKSYS_WRT310NV2:
+		err = bcm47xx_copy_bdata(bcm47xx_buttons_linksys_wrt310n_v2);
+		break;
+	case BCM47XX_BOARD_LINKSYS_WRT320N_V1:
+		err = bcm47xx_copy_bdata(bcm47xx_buttons_linksys_wrt320n_v1);
 		break;
 	case BCM47XX_BOARD_LINKSYS_WRT54G3GV2:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_linksys_wrt54g3gv2);
@@ -674,6 +728,12 @@ int __init bcm47xx_buttons_register(void)
 	case BCM47XX_BOARD_NETGEAR_R6200_V1:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_netgear_r6200_v1);
 		break;
+	case BCM47XX_BOARD_NETGEAR_R6300_V1:
+		err = bcm47xx_copy_bdata(bcm47xx_buttons_netgear_r6300_v1);
+		break;
+	case BCM47XX_BOARD_NETGEAR_WN2500RP_V1:
+		err = bcm47xx_copy_bdata(bcm47xx_buttons_netgear_wn2500rp_v1);
+		break;
 	case BCM47XX_BOARD_NETGEAR_WNDR3400V1:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_netgear_wndr3400v1);
 		break;
@@ -691,6 +751,9 @@ int __init bcm47xx_buttons_register(void)
 		break;
 	case BCM47XX_BOARD_NETGEAR_WNR3500L:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_netgear_wnr3500lv1);
+		break;
+	case BCM47XX_BOARD_NETGEAR_WNR3500L_V2:
+		err = bcm47xx_copy_bdata(bcm47xx_buttons_netgear_wnr3500lv2);
 		break;
 	case BCM47XX_BOARD_NETGEAR_WNR834BV2:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_netgear_wnr834bv2);

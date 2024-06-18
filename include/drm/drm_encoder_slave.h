@@ -27,17 +27,13 @@
 #ifndef __DRM_ENCODER_SLAVE_H__
 #define __DRM_ENCODER_SLAVE_H__
 
+#include <linux/i2c.h>
+
 #include <drm/drm_crtc.h>
 #include <drm/drm_encoder.h>
 
 /**
  * struct drm_encoder_slave_funcs - Entry points exposed by a slave encoder driver
- * @set_config:	Initialize any encoder-specific modesetting parameters.
- *		The meaning of the @params parameter is implementation
- *		dependent. It will usually be a structure with DVO port
- *		data format settings or timings. It's not required for
- *		the new parameters to take effect until the next mode
- *		is set.
  *
  * Most of its members are analogous to the function pointers in
  * &drm_encoder_helper_funcs and they can optionally be used to
@@ -46,41 +42,85 @@
  * if the encoder is the currently selected one for the connector.
  */
 struct drm_encoder_slave_funcs {
+	/**
+	 * @set_config: Initialize any encoder-specific modesetting parameters.
+	 * The meaning of the @params parameter is implementation dependent. It
+	 * will usually be a structure with DVO port data format settings or
+	 * timings. It's not required for the new parameters to take effect
+	 * until the next mode is set.
+	 */
 	void (*set_config)(struct drm_encoder *encoder,
 			   void *params);
 
+	/**
+	 * @destroy: Analogous to &drm_encoder_funcs @destroy callback.
+	 */
 	void (*destroy)(struct drm_encoder *encoder);
+
+	/**
+	 * @dpms: Analogous to &drm_encoder_helper_funcs @dpms callback. Wrapped
+	 * by drm_i2c_encoder_dpms().
+	 */
 	void (*dpms)(struct drm_encoder *encoder, int mode);
+
+	/**
+	 * @save: Save state. Wrapped by drm_i2c_encoder_save().
+	 */
 	void (*save)(struct drm_encoder *encoder);
+
+	/**
+	 * @restore: Restore state. Wrapped by drm_i2c_encoder_restore().
+	 */
 	void (*restore)(struct drm_encoder *encoder);
+
+	/**
+	 * @mode_fixup: Analogous to &drm_encoder_helper_funcs @mode_fixup
+	 * callback. Wrapped by drm_i2c_encoder_mode_fixup().
+	 */
 	bool (*mode_fixup)(struct drm_encoder *encoder,
 			   const struct drm_display_mode *mode,
 			   struct drm_display_mode *adjusted_mode);
+
+	/**
+	 * @mode_valid: Analogous to &drm_encoder_helper_funcs @mode_valid.
+	 */
 	int (*mode_valid)(struct drm_encoder *encoder,
 			  struct drm_display_mode *mode);
+	/**
+	 * @mode_set: Analogous to &drm_encoder_helper_funcs @mode_set
+	 * callback. Wrapped by drm_i2c_encoder_mode_set().
+	 */
 	void (*mode_set)(struct drm_encoder *encoder,
 			 struct drm_display_mode *mode,
 			 struct drm_display_mode *adjusted_mode);
 
+	/**
+	 * @detect: Analogous to &drm_encoder_helper_funcs @detect
+	 * callback. Wrapped by drm_i2c_encoder_detect().
+	 */
 	enum drm_connector_status (*detect)(struct drm_encoder *encoder,
 					    struct drm_connector *connector);
+	/**
+	 * @get_modes: Get modes.
+	 */
 	int (*get_modes)(struct drm_encoder *encoder,
 			 struct drm_connector *connector);
+	/**
+	 * @create_resources: Create resources.
+	 */
 	int (*create_resources)(struct drm_encoder *encoder,
 				 struct drm_connector *connector);
+	/**
+	 * @set_property: Set property.
+	 */
 	int (*set_property)(struct drm_encoder *encoder,
 			    struct drm_connector *connector,
 			    struct drm_property *property,
 			    uint64_t val);
-
 };
 
 /**
  * struct drm_encoder_slave - Slave encoder struct
- * @base: DRM encoder object.
- * @slave_funcs: Slave encoder callbacks.
- * @slave_priv: Slave encoder private data.
- * @bus_priv: Bus specific data.
  *
  * A &drm_encoder_slave has two sets of callbacks, @slave_funcs and the
  * ones in @base. The former are never actually called by the common
@@ -93,10 +133,24 @@ struct drm_encoder_slave_funcs {
  * this.
  */
 struct drm_encoder_slave {
+	/**
+	 * @base: DRM encoder object.
+	 */
 	struct drm_encoder base;
 
+	/**
+	 * @slave_funcs: Slave encoder callbacks.
+	 */
 	const struct drm_encoder_slave_funcs *slave_funcs;
+
+	/**
+	 * @slave_priv: Slave encoder private data.
+	 */
 	void *slave_priv;
+
+	/**
+	 * @bus_priv: Bus specific data.
+	 */
 	void *bus_priv;
 };
 #define to_encoder_slave(x) container_of((x), struct drm_encoder_slave, base)
@@ -110,16 +164,20 @@ int drm_i2c_encoder_init(struct drm_device *dev,
 /**
  * struct drm_i2c_encoder_driver
  *
- * Describes a device driver for an encoder connected to the GPU
- * through an I2C bus. In addition to the entry points in @i2c_driver
- * an @encoder_init function should be provided. It will be called to
- * give the driver an opportunity to allocate any per-encoder data
- * structures and to initialize the @slave_funcs and (optionally)
- * @slave_priv members of @encoder.
+ * Describes a device driver for an encoder connected to the GPU through an I2C
+ * bus.
  */
 struct drm_i2c_encoder_driver {
+	/**
+	 * @i2c_driver: I2C device driver description.
+	 */
 	struct i2c_driver i2c_driver;
 
+	/**
+	 * @encoder_init: Callback to allocate any per-encoder data structures
+	 * and to initialize the @slave_funcs and (optionally) @slave_priv
+	 * members of @encoder.
+	 */
 	int (*encoder_init)(struct i2c_client *client,
 			    struct drm_device *dev,
 			    struct drm_encoder_slave *encoder);
@@ -131,6 +189,7 @@ struct drm_i2c_encoder_driver {
 
 /**
  * drm_i2c_encoder_get_client - Get the I2C client corresponding to an encoder
+ * @encoder: The encoder
  */
 static inline struct i2c_client *drm_i2c_encoder_get_client(struct drm_encoder *encoder)
 {

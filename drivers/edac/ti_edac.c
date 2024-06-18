@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2017 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2017 Texas Instruments Incorporated - https://www.ti.com/
  *
  * Texas Instruments DDR3 ECC error correction and detection driver
  *
@@ -135,7 +135,7 @@ static void ti_edac_setup_dimm(struct mem_ctl_info *mci, u32 type)
 	u32 val;
 	u32 memsize;
 
-	dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms, mci->n_layers, 0, 0, 0);
+	dimm = edac_get_dimm(mci, 0, 0, 0);
 
 	val = ti_edac_readl(edac, EMIF_SDRAM_CONFIG);
 
@@ -197,6 +197,7 @@ static const struct of_device_id ti_edac_of_match[] = {
 	{ .compatible = "ti,emif-dra7xx", .data = (void *)EMIF_TYPE_DRA7 },
 	{},
 };
+MODULE_DEVICE_TABLE(of, ti_edac_of_match);
 
 static int _emif_get_id(struct device_node *node)
 {
@@ -244,11 +245,8 @@ static int ti_edac_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	reg = devm_ioremap_resource(dev, res);
-	if (IS_ERR(reg)) {
-		edac_printk(KERN_ERR, EDAC_MOD_NAME,
-			    "EMIF controller regs not defined\n");
+	if (IS_ERR(reg))
 		return PTR_ERR(reg);
-	}
 
 	layers[0].type = EDAC_MC_LAYER_ALL_MEM;
 	layers[0].size = 1;
@@ -278,9 +276,8 @@ static int ti_edac_probe(struct platform_device *pdev)
 
 	/* add EMIF ECC error handler */
 	error_irq = platform_get_irq(pdev, 0);
-	if (!error_irq) {
-		edac_printk(KERN_ERR, EDAC_MOD_NAME,
-			    "EMIF irq number not defined.\n");
+	if (error_irq < 0) {
+		ret = error_irq;
 		goto err;
 	}
 
@@ -315,19 +312,17 @@ err:
 	return ret;
 }
 
-static int ti_edac_remove(struct platform_device *pdev)
+static void ti_edac_remove(struct platform_device *pdev)
 {
 	struct mem_ctl_info *mci = platform_get_drvdata(pdev);
 
 	edac_mc_del_mc(&pdev->dev);
 	edac_mc_free(mci);
-
-	return 0;
 }
 
 static struct platform_driver ti_edac_driver = {
 	.probe = ti_edac_probe,
-	.remove = ti_edac_remove,
+	.remove_new = ti_edac_remove,
 	.driver = {
 		   .name = EDAC_MOD_NAME,
 		   .of_match_table = ti_edac_of_match,

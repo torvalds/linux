@@ -27,6 +27,7 @@ struct wm_hubs_data {
 	int hp_startup_mode;
 	int series_startup;
 	int no_series_update;
+	bool micd_scthr;
 
 	bool no_cache_dac_hp_direct;
 	struct list_head dcs_cache;
@@ -55,7 +56,7 @@ extern int wm_hubs_handle_analogue_pdata(struct snd_soc_component *,
 					 int lineout1_diff, int lineout2_diff,
 					 int lineout1fb, int lineout2fb,
 					 int jd_scthr, int jd_thr,
-					 int micbias1_dly, int micbias2_dly,
+					 int micbias1_delay, int micbias2_delay,
 					 int micbias1_lvl, int micbias2_lvl);
 
 extern irqreturn_t wm_hubs_dcs_done(int irq, void *data);

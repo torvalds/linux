@@ -13,10 +13,6 @@
 #include <asm/cpu_device_id.h>
 #include "../perf_event.h"
 
-#define MSR_F15H_CU_PWR_ACCUMULATOR     0xc001007a
-#define MSR_F15H_CU_MAX_PWR_ACCUMULATOR 0xc001007b
-#define MSR_F15H_PTSC			0xc0010280
-
 /* Event code: LSB 8 bits, passed in attr->config any other bit is reserved. */
 #define AMD_POWER_EVENT_MASK		0xFFULL
 
@@ -217,6 +213,7 @@ static struct pmu pmu_class = {
 	.stop		= pmu_event_stop,
 	.read		= pmu_event_read,
 	.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
+	.module		= THIS_MODULE,
 };
 
 static int power_cpu_exit(unsigned int cpu)
@@ -259,7 +256,7 @@ static int power_cpu_init(unsigned int cpu)
 }
 
 static const struct x86_cpu_id cpu_match[] = {
-	{ .vendor = X86_VENDOR_AMD, .family = 0x15 },
+	X86_MATCH_VENDOR_FAM(AMD, 0x15, NULL),
 	{},
 };
 

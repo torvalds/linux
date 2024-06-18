@@ -3,7 +3,7 @@
 
 void test_task_fd_query_rawtp(void)
 {
-	const char *file = "./test_get_stack_rawtp.o";
+	const char *file = "./test_get_stack_rawtp.bpf.o";
 	__u64 probe_offset, probe_addr;
 	__u32 len, prog_id, fd_type;
 	struct bpf_object *obj;
@@ -11,7 +11,7 @@ void test_task_fd_query_rawtp(void)
 	__u32 duration = 0;
 	char buf[256];
 
-	err = bpf_prog_load(file, BPF_PROG_TYPE_RAW_TRACEPOINT, &obj, &prog_fd);
+	err = bpf_prog_test_load(file, BPF_PROG_TYPE_RAW_TRACEPOINT, &obj, &prog_fd);
 	if (CHECK(err, "prog_load raw tp", "err %d errno %d\n", err, errno))
 		return;
 

@@ -1,64 +1,9 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+/*
+ * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
+ * Copyright (C) 2016-2017 Intel Deutschland GmbH
+ */
 #include "mvm.h"
 #include "debugfs.h"
 
@@ -234,7 +179,7 @@ static ssize_t iwl_dbgfs_mac_params_read(struct file *file,
 
 	mutex_lock(&mvm->mutex);
 
-	ap_sta_id = mvmvif->ap_sta_id;
+	ap_sta_id = mvmvif->deflink.ap_sta_id;
 
 	switch (ieee80211_vif_type_p2p(vif)) {
 	case NL80211_IFTYPE_ADHOC:
@@ -266,14 +211,14 @@ static ssize_t iwl_dbgfs_mac_params_read(struct file *file,
 	pos += scnprintf(buf+pos, bufsz-pos, "Load: %d\n",
 			 mvm->tcm.result.load[mvmvif->id]);
 	pos += scnprintf(buf+pos, bufsz-pos, "QoS:\n");
-	for (i = 0; i < ARRAY_SIZE(mvmvif->queue_params); i++)
+	for (i = 0; i < ARRAY_SIZE(mvmvif->deflink.queue_params); i++)
 		pos += scnprintf(buf+pos, bufsz-pos,
 				 "\t%d: txop:%d - cw_min:%d - cw_max = %d - aifs = %d upasd = %d\n",
-				 i, mvmvif->queue_params[i].txop,
-				 mvmvif->queue_params[i].cw_min,
-				 mvmvif->queue_params[i].cw_max,
-				 mvmvif->queue_params[i].aifs,
-				 mvmvif->queue_params[i].uapsd);
+				 i, mvmvif->deflink.queue_params[i].txop,
+				 mvmvif->deflink.queue_params[i].cw_min,
+				 mvmvif->deflink.queue_params[i].cw_max,
+				 mvmvif->deflink.queue_params[i].aifs,
+				 mvmvif->deflink.queue_params[i].uapsd);
 
 	if (vif->type == NL80211_IFTYPE_STATION &&
 	    ap_sta_id != IWL_MVM_INVALID_STA) {
@@ -289,7 +234,7 @@ static ssize_t iwl_dbgfs_mac_params_read(struct file *file,
 	}
 
 	rcu_read_lock();
-	chanctx_conf = rcu_dereference(vif->chanctx_conf);
+	chanctx_conf = rcu_dereference(vif->bss_conf.chanctx_conf);
 	if (chanctx_conf)
 		pos += scnprintf(buf+pos, bufsz-pos,
 				 "idle rx chains %d, active rx chains: %d\n",
@@ -436,9 +381,9 @@ static ssize_t iwl_dbgfs_bf_params_write(struct ieee80211_vif *vif, char *buf,
 	mutex_lock(&mvm->mutex);
 	iwl_dbgfs_update_bf(vif, param, value);
 	if (param == MVM_DEBUGFS_BF_ENABLE_BEACON_FILTER && !value)
-		ret = iwl_mvm_disable_beacon_filter(mvm, vif, 0);
+		ret = iwl_mvm_disable_beacon_filter(mvm, vif);
 	else
-		ret = iwl_mvm_enable_beacon_filter(mvm, vif, 0);
+		ret = iwl_mvm_enable_beacon_filter(mvm, vif);
 	mutex_unlock(&mvm->mutex);
 
 	return ret ?: count;
@@ -462,7 +407,7 @@ static ssize_t iwl_dbgfs_bf_params_read(struct file *file,
 	};
 
 	iwl_mvm_beacon_filter_debugfs_parameters(vif, &cmd);
-	if (mvmvif->bf_data.bf_enabled)
+	if (mvmvif->bf_enabled)
 		cmd.bf_enable_beacon_filter = cpu_to_le32(1);
 	else
 		cmd.bf_enable_beacon_filter = 0;
@@ -493,13 +438,6 @@ static ssize_t iwl_dbgfs_bf_params_read(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
-static inline char *iwl_dbgfs_is_match(char *name, char *buf)
-{
-	int len = strlen(name);
-
-	return !strncmp(name, buf, len) ? buf + len : NULL;
-}
-
 static ssize_t iwl_dbgfs_os_device_timediff_read(struct file *file,
 						 char __user *user_buf,
 						 size_t count, loff_t *ppos)
@@ -514,7 +452,10 @@ static ssize_t iwl_dbgfs_os_device_timediff_read(struct file *file,
 	const size_t bufsz = sizeof(buf);
 	int pos = 0;
 
-	iwl_mvm_get_sync_time(mvm, &curr_gp2, &curr_os);
+	mutex_lock(&mvm->mutex);
+	iwl_mvm_get_sync_time(mvm, CLOCK_BOOTTIME, &curr_gp2, &curr_os, NULL);
+	mutex_unlock(&mvm->mutex);
+
 	do_div(curr_os, NSEC_PER_USEC);
 	diff = curr_os - curr_gp2;
 	pos += scnprintf(buf + pos, bufsz - pos, "diff=%lld\n", diff);
@@ -613,7 +554,7 @@ static ssize_t iwl_dbgfs_uapsd_misbehaving_read(struct file *file,
 	char buf[20];
 	int len;
 
-	len = sprintf(buf, "%pM\n", mvmvif->uapsd_misbehaving_bssid);
+	len = sprintf(buf, "%pM\n", mvmvif->uapsd_misbehaving_ap_addr);
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
@@ -626,7 +567,7 @@ static ssize_t iwl_dbgfs_uapsd_misbehaving_write(struct ieee80211_vif *vif,
 	bool ret;
 
 	mutex_lock(&mvm->mutex);
-	ret = mac_pton(buf, mvmvif->uapsd_misbehaving_bssid);
+	ret = mac_pton(buf, mvmvif->uapsd_misbehaving_ap_addr);
 	mutex_unlock(&mvm->mutex);
 
 	return ret ? count : -EINVAL;
@@ -637,34 +578,47 @@ static ssize_t iwl_dbgfs_rx_phyinfo_write(struct ieee80211_vif *vif, char *buf,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm *mvm = mvmvif->mvm;
-	struct ieee80211_chanctx_conf *chanctx_conf;
-	struct iwl_mvm_phy_ctxt *phy_ctxt;
+	struct ieee80211_bss_conf *link_conf;
 	u16 value;
-	int ret;
+	int link_id, ret = -EINVAL;
 
 	ret = kstrtou16(buf, 0, &value);
 	if (ret)
 		return ret;
 
 	mutex_lock(&mvm->mutex);
-	rcu_read_lock();
-
-	chanctx_conf = rcu_dereference(vif->chanctx_conf);
-	/* make sure the channel context is assigned */
-	if (!chanctx_conf) {
-		rcu_read_unlock();
-		mutex_unlock(&mvm->mutex);
-		return -EINVAL;
-	}
-
-	phy_ctxt = &mvm->phy_ctxts[*(u16 *)chanctx_conf->drv_priv];
-	rcu_read_unlock();
 
 	mvm->dbgfs_rx_phyinfo = value;
 
-	ret = iwl_mvm_phy_ctxt_changed(mvm, phy_ctxt, &chanctx_conf->min_def,
-				       chanctx_conf->rx_chains_static,
-				       chanctx_conf->rx_chains_dynamic);
+	for_each_vif_active_link(vif, link_conf, link_id) {
+		struct ieee80211_chanctx_conf *chanctx_conf;
+		struct cfg80211_chan_def min_def, ap_def;
+		struct iwl_mvm_phy_ctxt *phy_ctxt;
+		u8 chains_static, chains_dynamic;
+
+		rcu_read_lock();
+		chanctx_conf = rcu_dereference(link_conf->chanctx_conf);
+		if (!chanctx_conf) {
+			rcu_read_unlock();
+			continue;
+		}
+		/* A command can't be sent with RCU lock held, so copy
+		 * everything here and use it after unlocking
+		 */
+		min_def = chanctx_conf->min_def;
+		ap_def = chanctx_conf->ap;
+		chains_static = chanctx_conf->rx_chains_static;
+		chains_dynamic = chanctx_conf->rx_chains_dynamic;
+		rcu_read_unlock();
+
+		phy_ctxt = mvmvif->link[link_id]->phy_ctxt;
+		if (!phy_ctxt)
+			continue;
+
+		ret = iwl_mvm_phy_ctxt_changed(mvm, phy_ctxt, &min_def, &ap_def,
+					       chains_static, chains_dynamic);
+	}
+
 	mutex_unlock(&mvm->mutex);
 
 	return ret ?: count;
@@ -738,6 +692,96 @@ static ssize_t iwl_dbgfs_quota_min_read(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
+static ssize_t iwl_dbgfs_int_mlo_scan_write(struct ieee80211_vif *vif,
+					    char *buf, size_t count,
+					    loff_t *ppos)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm *mvm = mvmvif->mvm;
+	u32 action;
+	int ret;
+
+	if (!vif->cfg.assoc || !ieee80211_vif_is_mld(vif))
+		return -EINVAL;
+
+	if (kstrtou32(buf, 0, &action))
+		return -EINVAL;
+
+	mutex_lock(&mvm->mutex);
+
+	if (!action) {
+		ret = iwl_mvm_scan_stop(mvm, IWL_MVM_SCAN_INT_MLO, false);
+	} else if (action == 1) {
+		ret = iwl_mvm_int_mlo_scan(mvm, vif);
+	} else {
+		ret = -EINVAL;
+	}
+
+	mutex_unlock(&mvm->mutex);
+
+	return ret ?: count;
+}
+
+static ssize_t iwl_dbgfs_esr_disable_reason_read(struct file *file,
+						 char __user *user_buf,
+						 size_t count, loff_t *ppos)
+{
+	struct ieee80211_vif *vif = file->private_data;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm *mvm = mvmvif->mvm;
+	unsigned long esr_mask;
+	char *buf;
+	int bufsz, pos, i;
+	ssize_t rv;
+
+	mutex_lock(&mvm->mutex);
+	esr_mask = mvmvif->esr_disable_reason;
+	mutex_unlock(&mvm->mutex);
+
+	bufsz = hweight32(esr_mask) * 32 + 40;
+	buf = kmalloc(bufsz, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	pos = scnprintf(buf, bufsz, "EMLSR state: '0x%lx'\nreasons:\n",
+			esr_mask);
+	for_each_set_bit(i, &esr_mask, BITS_PER_LONG)
+		pos += scnprintf(buf + pos, bufsz - pos, " - %s\n",
+				 iwl_get_esr_state_string(BIT(i)));
+
+	rv = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+	kfree(buf);
+	return rv;
+}
+
+static ssize_t iwl_dbgfs_esr_disable_reason_write(struct ieee80211_vif *vif,
+						  char *buf, size_t count,
+						  loff_t *ppos)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm *mvm = mvmvif->mvm;
+	u32 reason;
+	u8 block;
+	int ret;
+
+	ret = sscanf(buf, "%u %hhu", &reason, &block);
+	if (ret < 0)
+		return ret;
+
+	if (hweight16(reason) != 1 || !(reason & IWL_MVM_BLOCK_ESR_REASONS))
+		return -EINVAL;
+
+	mutex_lock(&mvm->mutex);
+	if (block)
+		iwl_mvm_block_esr(mvm, vif, reason,
+				  iwl_mvm_get_primary_link(vif));
+	else
+		iwl_mvm_unblock_esr(mvm, vif, reason);
+	mutex_unlock(&mvm->mutex);
+
+	return count;
+}
+
 #define MVM_DEBUGFS_WRITE_FILE_OPS(name, bufsz) \
 	_MVM_DEBUGFS_WRITE_FILE_OPS(name, bufsz, struct ieee80211_vif)
 #define MVM_DEBUGFS_READ_WRITE_FILE_OPS(name, bufsz) \
@@ -757,20 +801,14 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(uapsd_misbehaving, 20);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(rx_phyinfo, 10);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(quota_min, 32);
 MVM_DEBUGFS_READ_FILE_OPS(os_device_timediff);
+MVM_DEBUGFS_WRITE_FILE_OPS(int_mlo_scan, 32);
+MVM_DEBUGFS_READ_WRITE_FILE_OPS(esr_disable_reason, 32);
 
-
-void iwl_mvm_vif_dbgfs_register(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+void iwl_mvm_vif_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct dentry *dbgfs_dir = vif->debugfs_dir;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	char buf[100];
-
-	/*
-	 * Check if debugfs directory already exist before creating it.
-	 * This may happen when, for example, resetting hw or suspend-resume
-	 */
-	if (!dbgfs_dir || mvmvif->dbgfs_dir)
-		return;
 
 	mvmvif->dbgfs_dir = debugfs_create_dir("iwlmvm", dbgfs_dir);
 	if (IS_ERR_OR_NULL(mvmvif->dbgfs_dir)) {
@@ -792,10 +830,27 @@ void iwl_mvm_vif_dbgfs_register(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	MVM_DEBUGFS_ADD_FILE_VIF(rx_phyinfo, mvmvif->dbgfs_dir, 0600);
 	MVM_DEBUGFS_ADD_FILE_VIF(quota_min, mvmvif->dbgfs_dir, 0600);
 	MVM_DEBUGFS_ADD_FILE_VIF(os_device_timediff, mvmvif->dbgfs_dir, 0400);
+	debugfs_create_bool("ftm_unprotected", 0200, mvmvif->dbgfs_dir,
+			    &mvmvif->ftm_unprotected);
+	MVM_DEBUGFS_ADD_FILE_VIF(int_mlo_scan, mvmvif->dbgfs_dir, 0200);
+	MVM_DEBUGFS_ADD_FILE_VIF(esr_disable_reason, mvmvif->dbgfs_dir, 0600);
 
 	if (vif->type == NL80211_IFTYPE_STATION && !vif->p2p &&
 	    mvmvif == mvm->bf_allowed_vif)
 		MVM_DEBUGFS_ADD_FILE_VIF(bf_params, mvmvif->dbgfs_dir, 0600);
+}
+
+void iwl_mvm_vif_dbgfs_add_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+{
+	struct dentry *dbgfs_dir = vif->debugfs_dir;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	char buf[3 * 3 + 11 + (NL80211_WIPHY_NAME_MAXLEN + 1) +
+		 (7 + IFNAMSIZ + 1) + 6 + 1];
+	char name[7 + IFNAMSIZ + 1];
+
+	/* this will happen in monitor mode */
+	if (!dbgfs_dir)
+		return;
 
 	/*
 	 * Create symlink for convenience pointing to interface specific
@@ -804,21 +859,63 @@ void iwl_mvm_vif_dbgfs_register(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	 * find
 	 * netdev:wlan0 -> ../../../ieee80211/phy0/netdev:wlan0/iwlmvm/
 	 */
-	snprintf(buf, 100, "../../../%pd3/%pd",
-		 dbgfs_dir,
-		 mvmvif->dbgfs_dir);
+	snprintf(name, sizeof(name), "%pd", dbgfs_dir);
+	snprintf(buf, sizeof(buf), "../../../%pd3/iwlmvm", dbgfs_dir);
 
-	mvmvif->dbgfs_slink = debugfs_create_symlink(dbgfs_dir->d_name.name,
-						     mvm->debugfs_dir, buf);
+	mvmvif->dbgfs_slink =
+		debugfs_create_symlink(name, mvm->debugfs_dir, buf);
 }
 
-void iwl_mvm_vif_dbgfs_clean(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+void iwl_mvm_vif_dbgfs_rm_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
 	debugfs_remove(mvmvif->dbgfs_slink);
 	mvmvif->dbgfs_slink = NULL;
+}
 
-	debugfs_remove_recursive(mvmvif->dbgfs_dir);
-	mvmvif->dbgfs_dir = NULL;
+#define MVM_DEBUGFS_WRITE_LINK_FILE_OPS(name, bufsz)			\
+	_MVM_DEBUGFS_WRITE_FILE_OPS(link_##name, bufsz,			\
+				    struct ieee80211_bss_conf)
+#define MVM_DEBUGFS_READ_WRITE_LINK_FILE_OPS(name, bufsz)		\
+	_MVM_DEBUGFS_READ_WRITE_FILE_OPS(link_##name, bufsz,		\
+					 struct ieee80211_bss_conf)
+#define MVM_DEBUGFS_ADD_LINK_FILE(name, parent, mode)			\
+	debugfs_create_file(#name, mode, parent, link_conf,		\
+			    &iwl_dbgfs_link_##name##_ops)
+
+static void iwl_mvm_debugfs_add_link_files(struct ieee80211_vif *vif,
+					   struct ieee80211_bss_conf *link_conf,
+					   struct dentry *mvm_dir)
+{
+	/* Add per-link files here*/
+}
+
+void iwl_mvm_link_add_debugfs(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif,
+			      struct ieee80211_bss_conf *link_conf,
+			      struct dentry *dir)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm *mvm = mvmvif->mvm;
+	unsigned int link_id = link_conf->link_id;
+	struct iwl_mvm_vif_link_info *link_info = mvmvif->link[link_id];
+	struct dentry *mvm_dir;
+
+	if (WARN_ON(!link_info) || !dir)
+		return;
+
+	if (dir == vif->debugfs_dir) {
+		WARN_ON(!mvmvif->dbgfs_dir);
+		mvm_dir = mvmvif->dbgfs_dir;
+	} else {
+		mvm_dir = debugfs_create_dir("iwlmvm", dir);
+		if (IS_ERR_OR_NULL(mvm_dir)) {
+			IWL_ERR(mvm, "Failed to create debugfs directory under %pd\n",
+				dir);
+			return;
+		}
+	}
+
+	iwl_mvm_debugfs_add_link_files(vif, link_conf, mvm_dir);
 }

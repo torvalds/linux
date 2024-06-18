@@ -21,27 +21,39 @@
  *
  * Authors: Ben Skeggs
  */
-#include "nv50.h"
+#include "priv.h"
+#include "chan.h"
 #include "head.h"
 #include "ior.h"
-#include "rootnv50.h"
 
-static const struct nv50_disp_func
+#include <nvif/class.h>
+
+static const struct nvkm_disp_func
 gk110_disp = {
+	.oneinit = nv50_disp_oneinit,
 	.init = gf119_disp_init,
 	.fini = gf119_disp_fini,
 	.intr = gf119_disp_intr,
 	.intr_error = gf119_disp_intr_error,
-	.uevent = &gf119_disp_chan_uevent,
 	.super = gf119_disp_super,
-	.root = &gk110_disp_root_oclass,
+	.uevent = &gf119_disp_chan_uevent,
 	.head = { .cnt = gf119_head_cnt, .new = gf119_head_new },
 	.dac = { .cnt = gf119_dac_cnt, .new = gf119_dac_new },
 	.sor = { .cnt = gf119_sor_cnt, .new = gk104_sor_new },
+	.root = { 0,0,GK110_DISP },
+	.user = {
+		{{0,0,GK104_DISP_CURSOR             }, nvkm_disp_chan_new, &gf119_disp_curs },
+		{{0,0,GK104_DISP_OVERLAY            }, nvkm_disp_chan_new, &gf119_disp_oimm },
+		{{0,0,GK110_DISP_BASE_CHANNEL_DMA   }, nvkm_disp_chan_new, &gf119_disp_base },
+		{{0,0,GK110_DISP_CORE_CHANNEL_DMA   }, nvkm_disp_core_new, &gk104_disp_core },
+		{{0,0,GK104_DISP_OVERLAY_CONTROL_DMA}, nvkm_disp_chan_new, &gk104_disp_ovly },
+		{}
+	},
 };
 
 int
-gk110_disp_new(struct nvkm_device *device, int index, struct nvkm_disp **pdisp)
+gk110_disp_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	       struct nvkm_disp **pdisp)
 {
-	return nv50_disp_new_(&gk110_disp, device, index, pdisp);
+	return nvkm_disp_new_(&gk110_disp, device, type, inst, pdisp);
 }

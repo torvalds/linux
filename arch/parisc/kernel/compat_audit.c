@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <linux/audit_arch.h>
 #include <asm/unistd.h>
 
 unsigned int parisc32_dir_class[] = {
@@ -25,17 +26,3 @@ unsigned int parisc32_signal_class[] = {
 #include <asm-generic/audit_signal.h>
 ~0U
 };
-
-int parisc32_classify_syscall(unsigned syscall)
-{
-	switch (syscall) {
-	case __NR_open:
-		return 2;
-	case __NR_openat:
-		return 3;
-	case __NR_execve:
-		return 5;
-	default:
-		return 1;
-	}
-}

@@ -1,24 +1,23 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Code commons to all DaVinci SoCs.
  *
  * Author: Mark A. Greer <mgreer@mvista.com>
  *
- * 2009 (c) MontaVista Software, Inc. This file is licensed under
- * the terms of the GNU General Public License version 2. This program
- * is licensed "as is" without any warranty of any kind, whether express
- * or implied.
+ * 2009 (c) MontaVista Software, Inc.
  */
 #include <linux/module.h>
 #include <linux/io.h>
 #include <linux/etherdevice.h>
 #include <linux/davinci_emac.h>
 #include <linux/dma-mapping.h>
+#include <linux/platform_data/davinci-cpufreq.h>
 
 #include <asm/tlb.h>
 #include <asm/mach/map.h>
 
-#include <mach/common.h>
-#include <mach/cputype.h>
+#include "common.h"
+#include "cputype.h"
 
 struct davinci_soc_info davinci_soc_info;
 EXPORT_SYMBOL(davinci_soc_info);

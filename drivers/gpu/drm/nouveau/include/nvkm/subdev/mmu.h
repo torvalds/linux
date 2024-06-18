@@ -2,6 +2,7 @@
 #ifndef __NVKM_MMU_H__
 #define __NVKM_MMU_H__
 #include <core/subdev.h>
+#include <subdev/gsp.h>
 
 struct nvkm_vma {
 	struct list_head head;
@@ -15,9 +16,9 @@ struct nvkm_vma {
 	u8   refd:3; /* Current page type (index, or NONE for unreferenced). */
 	bool used:1; /* Region allocated. */
 	bool part:1; /* Region was split from an allocated region by map(). */
-	bool user:1; /* Region user-allocated. */
 	bool busy:1; /* Region busy (for temporarily preventing user access). */
 	bool mapped:1; /* Region contains valid pages. */
+	bool no_comp:1; /* Force no memory compression. */
 	struct nvkm_memory *memory; /* Memory currently mapped into VMA. */
 	struct nvkm_tags *tags; /* Compression tag reference. */
 };
@@ -28,10 +29,26 @@ struct nvkm_vmm {
 	const char *name;
 	u32 debug;
 	struct kref kref;
-	struct mutex mutex;
+
+	struct {
+		struct mutex vmm;
+		struct mutex ref;
+		struct mutex map;
+	} mutex;
 
 	u64 start;
 	u64 limit;
+	struct {
+		struct {
+			u64 addr;
+			u64 size;
+		} p;
+		struct {
+			u64 addr;
+			u64 size;
+		} n;
+		bool raw;
+	} managed;
 
 	struct nvkm_vmm_pt *pd;
 	struct list_head join;
@@ -47,6 +64,16 @@ struct nvkm_vmm {
 	void *nullp;
 
 	bool replay;
+
+	struct {
+		u64 bar2_pdb;
+
+		struct nvkm_gsp_client client;
+		struct nvkm_gsp_device device;
+		struct nvkm_gsp_object object;
+
+		struct nvkm_vma *rsvd;
+	} rm;
 };
 
 int nvkm_vmm_new(struct nvkm_device *, u64 addr, u64 size, void *argv, u32 argc,
@@ -71,6 +98,7 @@ struct nvkm_vmm_map {
 
 	const struct nvkm_vmm_page *page;
 
+	bool no_comp;
 	struct nvkm_tags *tags;
 	u64 next;
 	u64 type;
@@ -117,22 +145,24 @@ struct nvkm_mmu {
 		struct list_head list;
 	} ptc, ptp;
 
+	struct mutex mutex; /* serialises mmu invalidations */
+
 	struct nvkm_device_oclass user;
 };
 
-int nv04_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
-int nv41_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
-int nv44_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
-int nv50_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
-int g84_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
-int mcp77_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
-int gf100_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
-int gk104_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
-int gk20a_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
-int gm200_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
-int gm20b_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
-int gp100_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
-int gp10b_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
-int gv100_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
-int tu102_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
+int nv04_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_mmu **);
+int nv41_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_mmu **);
+int nv44_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_mmu **);
+int nv50_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_mmu **);
+int g84_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_mmu **);
+int mcp77_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_mmu **);
+int gf100_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_mmu **);
+int gk104_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_mmu **);
+int gk20a_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_mmu **);
+int gm200_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_mmu **);
+int gm20b_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_mmu **);
+int gp100_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_mmu **);
+int gp10b_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_mmu **);
+int gv100_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_mmu **);
+int tu102_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_mmu **);
 #endif

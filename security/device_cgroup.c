@@ -5,6 +5,7 @@
  * Copyright 2007 IBM Corp
  */
 
+#include <linux/bpf-cgroup.h>
 #include <linux/device_cgroup.h>
 #include <linux/cgroup.h>
 #include <linux/ctype.h>
@@ -14,6 +15,8 @@
 #include <linux/slab.h>
 #include <linux/rcupdate.h>
 #include <linux/mutex.h>
+
+#ifdef CONFIG_CGROUP_DEVICE
 
 static DEFINE_MUTEX(devcgroup_mutex);
 
@@ -77,6 +80,17 @@ free_and_exit:
 		kfree(ex);
 	}
 	return -ENOMEM;
+}
+
+static void dev_exceptions_move(struct list_head *dest, struct list_head *orig)
+{
+	struct dev_exception_item *ex, *tmp;
+
+	lockdep_assert_held(&devcgroup_mutex);
+
+	list_for_each_entry_safe(ex, tmp, orig, list) {
+		list_move_tail(&ex->list, dest);
+	}
 }
 
 /*
@@ -202,7 +216,7 @@ static void devcgroup_offline(struct cgroup_subsys_state *css)
 }
 
 /*
- * called from kernel/cgroup.c with cgroup_lock() held.
+ * called from kernel/cgroup/cgroup.c with cgroup_lock() held.
  */
 static struct cgroup_subsys_state *
 devcgroup_css_alloc(struct cgroup_subsys_state *parent_css)
@@ -352,7 +366,8 @@ static bool match_exception_partial(struct list_head *exceptions, short type,
 {
 	struct dev_exception_item *ex;
 
-	list_for_each_entry_rcu(ex, exceptions, list) {
+	list_for_each_entry_rcu(ex, exceptions, list,
+				lockdep_is_held(&devcgroup_mutex)) {
 		if ((type & DEVCG_DEV_BLOCK) && !(ex->type & DEVCG_DEV_BLOCK))
 			continue;
 		if ((type & DEVCG_DEV_CHAR) && !(ex->type & DEVCG_DEV_CHAR))
@@ -406,7 +421,7 @@ static bool verify_new_ex(struct dev_cgroup *dev_cgroup,
 		} else {
 			/*
 			 * new exception in the child will add more devices
-			 * that can be acessed, so it can't match any of
+			 * that can be accessed, so it can't match any of
 			 * parent's exceptions, even slightly
 			 */ 
 			match = match_exception_partial(&dev_cgroup->exceptions,
@@ -600,11 +615,13 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 	int count, rc = 0;
 	struct dev_exception_item ex;
 	struct dev_cgroup *parent = css_to_devcgroup(devcgroup->css.parent);
+	struct dev_cgroup tmp_devcgrp;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
 	memset(&ex, 0, sizeof(ex));
+	memset(&tmp_devcgrp, 0, sizeof(tmp_devcgrp));
 	b = buffer;
 
 	switch (*b) {
@@ -616,15 +633,27 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 
 			if (!may_allow_all(parent))
 				return -EPERM;
-			dev_exception_clean(devcgroup);
-			devcgroup->behavior = DEVCG_DEFAULT_ALLOW;
-			if (!parent)
+			if (!parent) {
+				devcgroup->behavior = DEVCG_DEFAULT_ALLOW;
+				dev_exception_clean(devcgroup);
 				break;
+			}
 
-			rc = dev_exceptions_copy(&devcgroup->exceptions,
-						 &parent->exceptions);
+			INIT_LIST_HEAD(&tmp_devcgrp.exceptions);
+			rc = dev_exceptions_copy(&tmp_devcgrp.exceptions,
+						 &devcgroup->exceptions);
 			if (rc)
 				return rc;
+			dev_exception_clean(devcgroup);
+			rc = dev_exceptions_copy(&devcgroup->exceptions,
+						 &parent->exceptions);
+			if (rc) {
+				dev_exceptions_move(&devcgroup->exceptions,
+						    &tmp_devcgrp.exceptions);
+				return rc;
+			}
+			devcgroup->behavior = DEVCG_DEFAULT_ALLOW;
+			dev_exception_clean(&tmp_devcgrp);
 			break;
 		case DEVCG_DENY:
 			if (css_has_online_children(&devcgroup->css))
@@ -792,8 +821,7 @@ struct cgroup_subsys devices_cgrp_subsys = {
 };
 
 /**
- * __devcgroup_check_permission - checks if an inode operation is permitted
- * @dev_cgroup: the dev cgroup to be tested against
+ * devcgroup_legacy_check_permission - checks if an inode operation is permitted
  * @type: device type
  * @major: device major number
  * @minor: device minor number
@@ -801,8 +829,8 @@ struct cgroup_subsys devices_cgrp_subsys = {
  *
  * returns 0 on success, -EPERM case the operation is not permitted
  */
-int __devcgroup_check_permission(short type, u32 major, u32 minor,
-				 short access)
+static int devcgroup_legacy_check_permission(short type, u32 major, u32 minor,
+					short access)
 {
 	struct dev_cgroup *dev_cgroup;
 	bool rc;
@@ -824,3 +852,25 @@ int __devcgroup_check_permission(short type, u32 major, u32 minor,
 
 	return 0;
 }
+
+#endif /* CONFIG_CGROUP_DEVICE */
+
+#if defined(CONFIG_CGROUP_DEVICE) || defined(CONFIG_CGROUP_BPF)
+
+int devcgroup_check_permission(short type, u32 major, u32 minor, short access)
+{
+	int rc = BPF_CGROUP_RUN_PROG_DEVICE_CGROUP(type, major, minor, access);
+
+	if (rc)
+		return rc;
+
+	#ifdef CONFIG_CGROUP_DEVICE
+	return devcgroup_legacy_check_permission(type, major, minor, access);
+
+	#else /* CONFIG_CGROUP_DEVICE */
+	return 0;
+
+	#endif /* CONFIG_CGROUP_DEVICE */
+}
+EXPORT_SYMBOL(devcgroup_check_permission);
+#endif /* defined(CONFIG_CGROUP_DEVICE) || defined(CONFIG_CGROUP_BPF) */

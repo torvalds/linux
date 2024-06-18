@@ -6,18 +6,15 @@
 ifdef CONFIG_FUNCTION_TRACER
 # do not trace tracer code
 CFLAGS_REMOVE_ftrace.o = $(CC_FLAGS_FTRACE)
+CFLAGS_REMOVE_ftrace_64_pg.o = $(CC_FLAGS_FTRACE)
 endif
 
-obj32-$(CONFIG_FUNCTION_TRACER)		+= ftrace_32.o
-obj64-$(CONFIG_FUNCTION_TRACER)		+= ftrace_64.o
+obj32-$(CONFIG_FUNCTION_TRACER)		+= ftrace.o ftrace_entry.o
 ifdef CONFIG_MPROFILE_KERNEL
-obj64-$(CONFIG_FUNCTION_TRACER)		+= ftrace_64_mprofile.o
+obj64-$(CONFIG_FUNCTION_TRACER)		+= ftrace.o ftrace_entry.o
 else
-obj64-$(CONFIG_FUNCTION_TRACER)		+= ftrace_64_pg.o
+obj64-$(CONFIG_FUNCTION_TRACER)		+= ftrace_64_pg.o ftrace_64_pg_entry.o
 endif
-obj-$(CONFIG_DYNAMIC_FTRACE)		+= ftrace.o
-obj-$(CONFIG_FUNCTION_GRAPH_TRACER)	+= ftrace.o
-obj-$(CONFIG_FTRACE_SYSCALLS)		+= ftrace.o
 obj-$(CONFIG_TRACING)			+= trace_clock.o
 
 obj-$(CONFIG_PPC64)			+= $(obj64-y)
@@ -26,4 +23,9 @@ obj-$(CONFIG_PPC32)			+= $(obj32-y)
 # Disable GCOV, KCOV & sanitizers in odd or sensitive code
 GCOV_PROFILE_ftrace.o := n
 KCOV_INSTRUMENT_ftrace.o := n
+KCSAN_SANITIZE_ftrace.o := n
 UBSAN_SANITIZE_ftrace.o := n
+GCOV_PROFILE_ftrace_64_pg.o := n
+KCOV_INSTRUMENT_ftrace_64_pg.o := n
+KCSAN_SANITIZE_ftrace_64_pg.o := n
+UBSAN_SANITIZE_ftrace_64_pg.o := n

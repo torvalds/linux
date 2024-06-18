@@ -27,7 +27,6 @@
 #include <linux/netdevice.h>
 #include <linux/dma-mapping.h>
 #include <linux/spinlock.h>
-#include <linux/of_platform.h>
 #include <linux/slab.h>
 
 #include <asm/io.h>
@@ -171,7 +170,7 @@ struct emac_instance {
 	struct mal_commac		commac;
 
 	/* PHY infos */
-	int				phy_mode;
+	phy_interface_t			phy_mode;
 	u32				phy_map;
 	u32				phy_address;
 	u32				phy_feat_exc;

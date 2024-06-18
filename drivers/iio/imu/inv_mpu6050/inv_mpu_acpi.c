@@ -65,7 +65,7 @@ static int asus_acpi_get_sensor_info(struct acpi_device *adev,
 
 			sub_elem = &elem->package.elements[j];
 			if (sub_elem->type == ACPI_TYPE_STRING)
-				strlcpy(info->type, sub_elem->string.pointer,
+				strscpy(info->type, sub_elem->string.pointer,
 					sizeof(info->type));
 			else if (sub_elem->type == ACPI_TYPE_INTEGER) {
 				if (sub_elem->integer.value != client->addr) {
@@ -101,8 +101,8 @@ static int inv_mpu_process_acpi_config(struct i2c_client *client,
 				       unsigned short *primary_addr,
 				       unsigned short *secondary_addr)
 {
+	struct acpi_device *adev = ACPI_COMPANION(&client->dev);
 	const struct acpi_device_id *id;
-	struct acpi_device *adev;
 	u32 i2c_addr = 0;
 	LIST_HEAD(resources);
 	int ret;
@@ -110,10 +110,6 @@ static int inv_mpu_process_acpi_config(struct i2c_client *client,
 	id = acpi_match_device(client->dev.driver->acpi_match_table,
 			       &client->dev);
 	if (!id)
-		return -ENODEV;
-
-	adev = ACPI_COMPANION(&client->dev);
-	if (!adev)
 		return -ENODEV;
 
 	ret = acpi_dev_get_resources(adev, &resources,
@@ -131,14 +127,14 @@ static int inv_mpu_process_acpi_config(struct i2c_client *client,
 int inv_mpu_acpi_create_mux_client(struct i2c_client *client)
 {
 	struct inv_mpu6050_state *st = iio_priv(dev_get_drvdata(&client->dev));
+	struct acpi_device *adev = ACPI_COMPANION(&client->dev);
 
 	st->mux_client = NULL;
-	if (ACPI_HANDLE(&client->dev)) {
+	if (adev) {
 		struct i2c_board_info info;
-		struct acpi_device *adev;
+		struct i2c_client *mux_client;
 		int ret = -1;
 
-		adev = ACPI_COMPANION(&client->dev);
 		memset(&info, 0, sizeof(info));
 
 		dmi_check_system(inv_mpu_dev_list);
@@ -162,7 +158,7 @@ int inv_mpu_acpi_create_mux_client(struct i2c_client *client)
 				char *name;
 
 				info.addr = secondary;
-				strlcpy(info.type, dev_name(&adev->dev),
+				strscpy(info.type, dev_name(&adev->dev),
 					sizeof(info.type));
 				name = strchr(info.type, ':');
 				if (name)
@@ -172,9 +168,10 @@ int inv_mpu_acpi_create_mux_client(struct i2c_client *client)
 			} else
 				return 0; /* no secondary addr, which is OK */
 		}
-		st->mux_client = i2c_new_device(st->muxc->adapter[0], &info);
-		if (!st->mux_client)
-			return -ENODEV;
+		mux_client = i2c_new_client_device(st->muxc->adapter[0], &info);
+		if (IS_ERR(mux_client))
+			return PTR_ERR(mux_client);
+		st->mux_client = mux_client;
 	}
 
 	return 0;

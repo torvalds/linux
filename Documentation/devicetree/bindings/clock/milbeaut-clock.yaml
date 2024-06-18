@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/bindings/clock/milbeaut-clock.yaml#
+$id: http://devicetree.org/schemas/clock/milbeaut-clock.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Milbeaut SoCs Clock Controller Binding
+title: Milbeaut SoCs Clock Controller
 
 maintainers:
   - Taichi Sugaya <sugaya.taichi@socionext.com>
@@ -18,10 +18,12 @@ description: |
 
 properties:
   compatible:
-    oneOf:
-      - items:
-          - enum:
-              - socionext,milbeaut-m10v-ccu
+    enum:
+      - socionext,milbeaut-m10v-ccu
+
+  reg:
+    maxItems: 1
+
   clocks:
     maxItems: 1
     description: external clock
@@ -35,11 +37,13 @@ required:
   - clocks
   - '#clock-cells'
 
+additionalProperties: false
+
 examples:
   # Clock controller node:
   - |
     m10v-clk-ctrl@1d021000 {
-        compatible = "socionext,milbeaut-m10v-clk-ccu";
+        compatible = "socionext,milbeaut-m10v-ccu";
         reg = <0x1d021000 0x4000>;
         #clock-cells = <1>;
         clocks = <&clki40mhz>;

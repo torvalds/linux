@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 // Test
-// 1) read of every file in /proc
+// 1) read and lseek on every file in /proc
 // 2) readlink of every symlink in /proc
 // 3) recursively (1) + (2) for every directory in /proc
 // 4) write to /proc/*/clear_refs and /proc/*/task/*/clear_refs
@@ -45,6 +45,8 @@ static void f_reg(DIR *d, const char *filename)
 	fd = openat(dirfd(d), filename, O_RDONLY|O_NONBLOCK);
 	if (fd == -1)
 		return;
+	/* struct proc_ops::proc_lseek is mandatory if file is seekable. */
+	(void)lseek(fd, 0, SEEK_SET);
 	rv = read(fd, buf, sizeof(buf));
 	assert((0 <= rv && rv <= sizeof(buf)) || rv == -1);
 	close(fd);

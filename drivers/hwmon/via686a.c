@@ -34,6 +34,8 @@
 #include <linux/acpi.h>
 #include <linux/io.h>
 
+#define DRIVER_NAME "via686a"
+
 /*
  * If force_addr is set to anything different from 0, we forcibly enable
  * the device at the given address.
@@ -304,7 +306,7 @@ struct via686a_data {
 	const char *name;
 	struct device *hwmon_dev;
 	struct mutex update_lock;
-	char valid;		/* !=0 if following fields are valid */
+	bool valid;		/* true if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 
 	u8 in[5];		/* Register value */
@@ -321,9 +323,6 @@ struct via686a_data {
 
 static struct pci_dev *s_bridge;	/* pointer to the (only) via686a */
 
-static int via686a_probe(struct platform_device *pdev);
-static int via686a_remove(struct platform_device *pdev);
-
 static inline int via686a_read_value(struct via686a_data *data, u8 reg)
 {
 	return inb_p(data->addr + reg);
@@ -335,8 +334,76 @@ static inline void via686a_write_value(struct via686a_data *data, u8 reg,
 	outb_p(value, data->addr + reg);
 }
 
-static struct via686a_data *via686a_update_device(struct device *dev);
-static void via686a_init_device(struct via686a_data *data);
+static void via686a_update_fan_div(struct via686a_data *data)
+{
+	int reg = via686a_read_value(data, VIA686A_REG_FANDIV);
+	data->fan_div[0] = (reg >> 4) & 0x03;
+	data->fan_div[1] = reg >> 6;
+}
+
+static struct via686a_data *via686a_update_device(struct device *dev)
+{
+	struct via686a_data *data = dev_get_drvdata(dev);
+	int i;
+
+	mutex_lock(&data->update_lock);
+
+	if (time_after(jiffies, data->last_updated + HZ + HZ / 2)
+	    || !data->valid) {
+		for (i = 0; i <= 4; i++) {
+			data->in[i] =
+			    via686a_read_value(data, VIA686A_REG_IN(i));
+			data->in_min[i] = via686a_read_value(data,
+							     VIA686A_REG_IN_MIN
+							     (i));
+			data->in_max[i] =
+			    via686a_read_value(data, VIA686A_REG_IN_MAX(i));
+		}
+		for (i = 1; i <= 2; i++) {
+			data->fan[i - 1] =
+			    via686a_read_value(data, VIA686A_REG_FAN(i));
+			data->fan_min[i - 1] = via686a_read_value(data,
+						     VIA686A_REG_FAN_MIN(i));
+		}
+		for (i = 0; i <= 2; i++) {
+			data->temp[i] = via686a_read_value(data,
+						 VIA686A_REG_TEMP[i]) << 2;
+			data->temp_over[i] =
+			    via686a_read_value(data,
+					       VIA686A_REG_TEMP_OVER[i]);
+			data->temp_hyst[i] =
+			    via686a_read_value(data,
+					       VIA686A_REG_TEMP_HYST[i]);
+		}
+		/*
+		 * add in lower 2 bits
+		 * temp1 uses bits 7-6 of VIA686A_REG_TEMP_LOW1
+		 * temp2 uses bits 5-4 of VIA686A_REG_TEMP_LOW23
+		 * temp3 uses bits 7-6 of VIA686A_REG_TEMP_LOW23
+		 */
+		data->temp[0] |= (via686a_read_value(data,
+						     VIA686A_REG_TEMP_LOW1)
+				  & 0xc0) >> 6;
+		data->temp[1] |=
+		    (via686a_read_value(data, VIA686A_REG_TEMP_LOW23) &
+		     0x30) >> 4;
+		data->temp[2] |=
+		    (via686a_read_value(data, VIA686A_REG_TEMP_LOW23) &
+		     0xc0) >> 6;
+
+		via686a_update_fan_div(data);
+		data->alarms =
+		    via686a_read_value(data,
+				       VIA686A_REG_ALARM1) |
+		    (via686a_read_value(data, VIA686A_REG_ALARM2) << 8);
+		data->last_updated = jiffies;
+		data->valid = true;
+	}
+
+	mutex_unlock(&data->update_lock);
+
+	return data;
+}
 
 /* following are the sysfs callback functions */
 
@@ -654,13 +721,23 @@ static const struct attribute_group via686a_group = {
 	.attrs = via686a_attributes,
 };
 
-static struct platform_driver via686a_driver = {
-	.driver = {
-		.name	= "via686a",
-	},
-	.probe		= via686a_probe,
-	.remove		= via686a_remove,
-};
+static void via686a_init_device(struct via686a_data *data)
+{
+	u8 reg;
+
+	/* Start monitoring */
+	reg = via686a_read_value(data, VIA686A_REG_CONFIG);
+	via686a_write_value(data, VIA686A_REG_CONFIG, (reg | 0x01) & 0x7F);
+
+	/* Configure temp interrupt mode for continuous-interrupt operation */
+	reg = via686a_read_value(data, VIA686A_REG_TEMP_MODE);
+	via686a_write_value(data, VIA686A_REG_TEMP_MODE,
+			    (reg & ~VIA686A_TEMP_MODE_MASK)
+			    | VIA686A_TEMP_MODE_CONTINUOUS);
+
+	/* Pre-read fan clock divisor values */
+	via686a_update_fan_div(data);
+}
 
 /* This is called when the module is loaded */
 static int via686a_probe(struct platform_device *pdev)
@@ -672,7 +749,7 @@ static int via686a_probe(struct platform_device *pdev)
 	/* Reserve the ISA region */
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if (!devm_request_region(&pdev->dev, res->start, VIA686A_EXTENT,
-				 via686a_driver.driver.name)) {
+				 DRIVER_NAME)) {
 		dev_err(&pdev->dev, "Region 0x%lx-0x%lx already in use!\n",
 			(unsigned long)res->start, (unsigned long)res->end);
 		return -ENODEV;
@@ -685,7 +762,7 @@ static int via686a_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, data);
 	data->addr = res->start;
-	data->name = "via686a";
+	data->name = DRIVER_NAME;
 	mutex_init(&data->update_lock);
 
 	/* Initialize the VIA686A chip */
@@ -709,104 +786,21 @@ exit_remove_files:
 	return err;
 }
 
-static int via686a_remove(struct platform_device *pdev)
+static void via686a_remove(struct platform_device *pdev)
 {
 	struct via686a_data *data = platform_get_drvdata(pdev);
 
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&pdev->dev.kobj, &via686a_group);
-
-	return 0;
 }
 
-static void via686a_update_fan_div(struct via686a_data *data)
-{
-	int reg = via686a_read_value(data, VIA686A_REG_FANDIV);
-	data->fan_div[0] = (reg >> 4) & 0x03;
-	data->fan_div[1] = reg >> 6;
-}
-
-static void via686a_init_device(struct via686a_data *data)
-{
-	u8 reg;
-
-	/* Start monitoring */
-	reg = via686a_read_value(data, VIA686A_REG_CONFIG);
-	via686a_write_value(data, VIA686A_REG_CONFIG, (reg | 0x01) & 0x7F);
-
-	/* Configure temp interrupt mode for continuous-interrupt operation */
-	reg = via686a_read_value(data, VIA686A_REG_TEMP_MODE);
-	via686a_write_value(data, VIA686A_REG_TEMP_MODE,
-			    (reg & ~VIA686A_TEMP_MODE_MASK)
-			    | VIA686A_TEMP_MODE_CONTINUOUS);
-
-	/* Pre-read fan clock divisor values */
-	via686a_update_fan_div(data);
-}
-
-static struct via686a_data *via686a_update_device(struct device *dev)
-{
-	struct via686a_data *data = dev_get_drvdata(dev);
-	int i;
-
-	mutex_lock(&data->update_lock);
-
-	if (time_after(jiffies, data->last_updated + HZ + HZ / 2)
-	    || !data->valid) {
-		for (i = 0; i <= 4; i++) {
-			data->in[i] =
-			    via686a_read_value(data, VIA686A_REG_IN(i));
-			data->in_min[i] = via686a_read_value(data,
-							     VIA686A_REG_IN_MIN
-							     (i));
-			data->in_max[i] =
-			    via686a_read_value(data, VIA686A_REG_IN_MAX(i));
-		}
-		for (i = 1; i <= 2; i++) {
-			data->fan[i - 1] =
-			    via686a_read_value(data, VIA686A_REG_FAN(i));
-			data->fan_min[i - 1] = via686a_read_value(data,
-						     VIA686A_REG_FAN_MIN(i));
-		}
-		for (i = 0; i <= 2; i++) {
-			data->temp[i] = via686a_read_value(data,
-						 VIA686A_REG_TEMP[i]) << 2;
-			data->temp_over[i] =
-			    via686a_read_value(data,
-					       VIA686A_REG_TEMP_OVER[i]);
-			data->temp_hyst[i] =
-			    via686a_read_value(data,
-					       VIA686A_REG_TEMP_HYST[i]);
-		}
-		/*
-		 * add in lower 2 bits
-		 * temp1 uses bits 7-6 of VIA686A_REG_TEMP_LOW1
-		 * temp2 uses bits 5-4 of VIA686A_REG_TEMP_LOW23
-		 * temp3 uses bits 7-6 of VIA686A_REG_TEMP_LOW23
-		 */
-		data->temp[0] |= (via686a_read_value(data,
-						     VIA686A_REG_TEMP_LOW1)
-				  & 0xc0) >> 6;
-		data->temp[1] |=
-		    (via686a_read_value(data, VIA686A_REG_TEMP_LOW23) &
-		     0x30) >> 4;
-		data->temp[2] |=
-		    (via686a_read_value(data, VIA686A_REG_TEMP_LOW23) &
-		     0xc0) >> 6;
-
-		via686a_update_fan_div(data);
-		data->alarms =
-		    via686a_read_value(data,
-				       VIA686A_REG_ALARM1) |
-		    (via686a_read_value(data, VIA686A_REG_ALARM2) << 8);
-		data->last_updated = jiffies;
-		data->valid = 1;
-	}
-
-	mutex_unlock(&data->update_lock);
-
-	return data;
-}
+static struct platform_driver via686a_driver = {
+	.driver = {
+		.name	= DRIVER_NAME,
+	},
+	.probe		= via686a_probe,
+	.remove_new	= via686a_remove,
+};
 
 static const struct pci_device_id via686a_pci_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C686_4) },
@@ -819,7 +813,7 @@ static int via686a_device_add(unsigned short address)
 	struct resource res = {
 		.start	= address,
 		.end	= address + VIA686A_EXTENT - 1,
-		.name	= "via686a",
+		.name	= DRIVER_NAME,
 		.flags	= IORESOURCE_IO,
 	};
 	int err;
@@ -828,7 +822,7 @@ static int via686a_device_add(unsigned short address)
 	if (err)
 		goto exit;
 
-	pdev = platform_device_alloc("via686a", address);
+	pdev = platform_device_alloc(DRIVER_NAME, address);
 	if (!pdev) {
 		err = -ENOMEM;
 		pr_err("Device allocation failed\n");
@@ -859,16 +853,17 @@ static int via686a_pci_probe(struct pci_dev *dev,
 				       const struct pci_device_id *id)
 {
 	u16 address, val;
+	int ret;
 
 	if (force_addr) {
 		address = force_addr & ~(VIA686A_EXTENT - 1);
 		dev_warn(&dev->dev, "Forcing ISA address 0x%x\n", address);
-		if (PCIBIOS_SUCCESSFUL !=
-		    pci_write_config_word(dev, VIA686A_BASE_REG, address | 1))
+		ret = pci_write_config_word(dev, VIA686A_BASE_REG, address | 1);
+		if (ret != PCIBIOS_SUCCESSFUL)
 			return -ENODEV;
 	}
-	if (PCIBIOS_SUCCESSFUL !=
-	    pci_read_config_word(dev, VIA686A_BASE_REG, &val))
+	ret = pci_read_config_word(dev, VIA686A_BASE_REG, &val);
+	if (ret != PCIBIOS_SUCCESSFUL)
 		return -ENODEV;
 
 	address = val & ~(VIA686A_EXTENT - 1);
@@ -878,8 +873,8 @@ static int via686a_pci_probe(struct pci_dev *dev,
 		return -ENODEV;
 	}
 
-	if (PCIBIOS_SUCCESSFUL !=
-	    pci_read_config_word(dev, VIA686A_ENABLE_REG, &val))
+	ret = pci_read_config_word(dev, VIA686A_ENABLE_REG, &val);
+	if (ret != PCIBIOS_SUCCESSFUL)
 		return -ENODEV;
 	if (!(val & 0x0001)) {
 		if (!force_addr) {
@@ -890,9 +885,8 @@ static int via686a_pci_probe(struct pci_dev *dev,
 		}
 
 		dev_warn(&dev->dev, "Enabling sensors\n");
-		if (PCIBIOS_SUCCESSFUL !=
-		    pci_write_config_word(dev, VIA686A_ENABLE_REG,
-					  val | 0x0001))
+		ret = pci_write_config_word(dev, VIA686A_ENABLE_REG, val | 0x1);
+		if (ret != PCIBIOS_SUCCESSFUL)
 			return -ENODEV;
 	}
 
@@ -918,7 +912,7 @@ exit:
 }
 
 static struct pci_driver via686a_pci_driver = {
-	.name		= "via686a",
+	.name		= DRIVER_NAME,
 	.id_table	= via686a_pci_ids,
 	.probe		= via686a_pci_probe,
 };

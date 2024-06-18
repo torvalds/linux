@@ -8,6 +8,7 @@
 #define MT_CT_DMA_BUF_NUM		2
 
 #define MT_RXD0_LENGTH			GENMASK(15, 0)
+#define MT_RXD0_PKT_FLAG                GENMASK(19, 16)
 #define MT_RXD0_PKT_TYPE		GENMASK(31, 29)
 
 #define MT_RXD0_NORMAL_ETH_TYPE_OFS	GENMASK(22, 16)
@@ -18,19 +19,11 @@
 #define MT_RXD0_NORMAL_GROUP_3		BIT(27)
 #define MT_RXD0_NORMAL_GROUP_4		BIT(28)
 
-enum rx_pkt_type {
-	PKT_TYPE_TXS,
-	PKT_TYPE_TXRXV,
-	PKT_TYPE_NORMAL,
-	PKT_TYPE_RX_DUP_RFB,
-	PKT_TYPE_RX_TMR,
-	PKT_TYPE_RETRIEVE,
-	PKT_TYPE_TXRX_NOTIFY,
-	PKT_TYPE_RX_EVENT
-};
-
 #define MT_RXD1_NORMAL_BSSID		GENMASK(31, 26)
 #define MT_RXD1_NORMAL_PAYLOAD_FORMAT	GENMASK(25, 24)
+#define MT_RXD1_FIRST_AMSDU_FRAME	GENMASK(1, 0)
+#define MT_RXD1_MID_AMSDU_FRAME		BIT(1)
+#define MT_RXD1_LAST_AMSDU_FRAME	BIT(0)
 #define MT_RXD1_NORMAL_HDR_TRANS	BIT(23)
 #define MT_RXD1_NORMAL_HDR_OFFSET	BIT(22)
 #define MT_RXD1_NORMAL_MAC_HDR_LEN	GENMASK(21, 16)
@@ -76,6 +69,13 @@ enum rx_pkt_type {
 #define MT_RXD3_NORMAL_TSF_COMPARE_LOSS	BIT(8)
 #define MT_RXD3_NORMAL_RXV_SEQ		GENMASK(7, 0)
 
+#define MT_RXD4_FRAME_CONTROL		GENMASK(15, 0)
+
+#define MT_RXD6_SEQ_CTRL		GENMASK(15, 0)
+#define MT_RXD6_QOS_CTL			GENMASK(31, 16)
+
+#define MT_RXD7_HT_CONTROL		GENMASK(31, 0)
+
 #define MT_RXV1_ACID_DET_H		BIT(31)
 #define MT_RXV1_ACID_DET_L		BIT(30)
 #define MT_RXV1_VHTA2_B8_B3		GENMASK(29, 24)
@@ -98,10 +98,20 @@ enum rx_pkt_type {
 #define MT_RXV2_GROUP_ID		GENMASK(26, 21)
 #define MT_RXV2_LENGTH			GENMASK(20, 0)
 
+#define MT_RXV3_WB_RSSI			GENMASK(31, 24)
+#define MT_RXV3_IB_RSSI			GENMASK(23, 16)
+
 #define MT_RXV4_RCPI3			GENMASK(31, 24)
 #define MT_RXV4_RCPI2			GENMASK(23, 16)
 #define MT_RXV4_RCPI1			GENMASK(15, 8)
 #define MT_RXV4_RCPI0			GENMASK(7, 0)
+
+#define MT_RXV5_FOE			GENMASK(11, 0)
+
+#define MT_RXV6_NF3			GENMASK(31, 24)
+#define MT_RXV6_NF2			GENMASK(23, 16)
+#define MT_RXV6_NF1			GENMASK(15, 8)
+#define MT_RXV6_NF0			GENMASK(7, 0)
 
 enum tx_header_format {
 	MT_HDR_FORMAT_802_3,
@@ -115,17 +125,6 @@ enum tx_pkt_type {
 	MT_TX_TYPE_SF,
 	MT_TX_TYPE_CMD,
 	MT_TX_TYPE_FW,
-};
-
-enum tx_pkt_queue_idx {
-	MT_LMAC_AC00,
-	MT_LMAC_AC01,
-	MT_LMAC_AC02,
-	MT_LMAC_AC03,
-	MT_LMAC_ALTX0 = 0x10,
-	MT_LMAC_BMC0,
-	MT_LMAC_BCN0,
-	MT_LMAC_PSMP0,
 };
 
 enum tx_port_idx {
@@ -153,8 +152,6 @@ enum tx_phy_bandwidth {
 #define MT_CT_INFO_MGMT_FRAME		BIT(2)
 #define MT_CT_INFO_NONE_CIPHER_FRAME	BIT(3)
 #define MT_CT_INFO_HSR2_TX		BIT(4)
-
-#define MT_TXD_SIZE			(8 * 4)
 
 #define MT_TXD0_P_IDX			BIT(31)
 #define MT_TXD0_Q_IDX			GENMASK(30, 26)
@@ -220,34 +217,20 @@ enum tx_phy_bandwidth {
 #define MT_TXD6_FIXED_BW		BIT(2)
 #define MT_TXD6_BW			GENMASK(1, 0)
 
+/* MT7663 DW7 HW-AMSDU */
+#define MT_TXD7_HW_AMSDU_CAP		BIT(30)
 #define MT_TXD7_TYPE			GENMASK(21, 20)
 #define MT_TXD7_SUB_TYPE		GENMASK(19, 16)
+#define MT_TXD7_SPE_IDX			GENMASK(15, 11)
+#define MT_TXD7_SPE_IDX_SLE		BIT(10)
+
+#define MT_TXD8_L_TYPE			GENMASK(5, 4)
+#define MT_TXD8_L_SUB_TYPE		GENMASK(3, 0)
 
 #define MT_TX_RATE_STBC			BIT(11)
 #define MT_TX_RATE_NSS			GENMASK(10, 9)
 #define MT_TX_RATE_MODE			GENMASK(8, 6)
 #define MT_TX_RATE_IDX			GENMASK(5, 0)
-
-#define MT_TXP_MAX_BUF_NUM		6
-
-struct mt7615_txp {
-	__le16 flags;
-	__le16 token;
-	u8 bss_idx;
-	u8 rept_wds_wcid;
-	u8 rsv;
-	u8 nbuf;
-	__le32 buf[MT_TXP_MAX_BUF_NUM];
-	__le16 len[MT_TXP_MAX_BUF_NUM];
-} __packed;
-
-struct mt7615_tx_free {
-	__le16 rx_byte_cnt;
-	__le16 ctrl;
-	u8 txd_cnt;
-	u8 rsv[3];
-	__le16 token[];
-} __packed;
 
 #define MT_TX_FREE_MSDU_ID_CNT		GENMASK(6, 0)
 
@@ -302,32 +285,41 @@ struct mt7615_tx_free {
 #define MT_TXS6_F1_RCPI_1		GENMASK(15, 8)
 #define MT_TXS6_F1_RCPI_0		GENMASK(7, 0)
 
-enum mt7615_cipher_type {
-	MT_CIPHER_NONE,
-	MT_CIPHER_WEP40,
-	MT_CIPHER_TKIP,
-	MT_CIPHER_TKIP_NO_MIC,
-	MT_CIPHER_AES_CCMP,
-	MT_CIPHER_WEP104,
-	MT_CIPHER_BIP_CMAC_128,
-	MT_CIPHER_WEP128,
-	MT_CIPHER_WAPI,
-	MT_CIPHER_CCMP_256 = 10,
-	MT_CIPHER_GCMP,
-	MT_CIPHER_GCMP_256,
+struct mt7615_dfs_pulse {
+	u32 max_width;		/* us */
+	int max_pwr;		/* dbm */
+	int min_pwr;		/* dbm */
+	u32 min_stgr_pri;	/* us */
+	u32 max_stgr_pri;	/* us */
+	u32 min_cr_pri;		/* us */
+	u32 max_cr_pri;		/* us */
 };
 
-static inline struct mt7615_txp *
-mt7615_txwi_to_txp(struct mt76_dev *dev, struct mt76_txwi_cache *t)
+struct mt7615_dfs_pattern {
+	u8 enb;
+	u8 stgr;
+	u8 min_crpn;
+	u8 max_crpn;
+	u8 min_crpr;
+	u8 min_pw;
+	u8 max_pw;
+	u32 min_pri;
+	u32 max_pri;
+	u8 min_crbn;
+	u8 max_crbn;
+	u8 min_stgpn;
+	u8 max_stgpn;
+	u8 min_stgpr;
+};
+
+struct mt7615_dfs_radar_spec {
+	struct mt7615_dfs_pulse pulse_th;
+	struct mt7615_dfs_pattern radar_pattern[16];
+};
+
+static inline u32 mt7615_mac_wtbl_addr(struct mt7615_dev *dev, int wcid)
 {
-	u8 *txwi;
-
-	if (!t)
-		return NULL;
-
-	txwi = mt76_get_txwi_ptr(dev, t);
-
-	return (struct mt7615_txp *)(txwi + MT_TXD_SIZE);
+	return MT_WTBL_BASE(dev) + wcid * MT_WTBL_ENTRY_SIZE;
 }
 
 #endif

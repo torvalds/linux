@@ -8,7 +8,6 @@
 
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
-#include <linux/async.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_eh.h>
 #include "sas_internal.h"
@@ -16,7 +15,7 @@
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_transport_sas.h>
 #include <scsi/sas_ata.h>
-#include "../scsi_sas_internal.h"
+#include "scsi_sas_internal.h"
 
 /* ---------- Basic task processing for discovery purposes ---------- */
 
@@ -75,18 +74,27 @@ static int sas_get_port_device(struct asd_sas_port *port)
 		struct dev_to_host_fis *fis =
 			(struct dev_to_host_fis *) dev->frame_rcvd;
 		if (fis->interrupt_reason == 1 && fis->lbal == 1 &&
-		    fis->byte_count_low==0x69 && fis->byte_count_high == 0x96
+		    fis->byte_count_low == 0x69 && fis->byte_count_high == 0x96
 		    && (fis->device & ~0x10) == 0)
 			dev->dev_type = SAS_SATA_PM;
 		else
 			dev->dev_type = SAS_SATA_DEV;
 		dev->tproto = SAS_PROTOCOL_SATA;
-	} else {
+	} else if (port->oob_mode == SAS_OOB_MODE) {
 		struct sas_identify_frame *id =
 			(struct sas_identify_frame *) dev->frame_rcvd;
 		dev->dev_type = id->dev_type;
 		dev->iproto = id->initiator_bits;
 		dev->tproto = id->target_bits;
+	} else {
+		/* If the oob mode is OOB_NOT_CONNECTED, the port is
+		 * disconnected due to race with PHY down. We cannot
+		 * continue to discover this port
+		 */
+		sas_put_device(dev);
+		pr_warn("Port %016llx is disconnected when discovering\n",
+			SAS_ADDR(port->attached_sas_addr));
+		return -ENODEV;
 	}
 
 	sas_init_dev(dev);
@@ -99,7 +107,7 @@ static int sas_get_port_device(struct asd_sas_port *port)
 			rphy = NULL;
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	case SAS_END_DEVICE:
 		rphy = sas_end_device_alloc(port->port);
 		break;
@@ -162,7 +170,7 @@ int sas_notify_lldd_dev_found(struct domain_device *dev)
 {
 	int res = 0;
 	struct sas_ha_struct *sas_ha = dev->port->ha;
-	struct Scsi_Host *shost = sas_ha->core.shost;
+	struct Scsi_Host *shost = sas_ha->shost;
 	struct sas_internal *i = to_sas_internal(shost->transportt);
 
 	if (!i->dft->lldd_dev_found)
@@ -170,20 +178,21 @@ int sas_notify_lldd_dev_found(struct domain_device *dev)
 
 	res = i->dft->lldd_dev_found(dev);
 	if (res) {
-		pr_warn("driver on host %s cannot handle device %llx, error:%d\n",
+		pr_warn("driver on host %s cannot handle device %016llx, error:%d\n",
 			dev_name(sas_ha->dev),
 			SAS_ADDR(dev->sas_addr), res);
+		return res;
 	}
 	set_bit(SAS_DEV_FOUND, &dev->state);
 	kref_get(&dev->kref);
-	return res;
+	return 0;
 }
 
 
 void sas_notify_lldd_dev_gone(struct domain_device *dev)
 {
 	struct sas_ha_struct *sas_ha = dev->port->ha;
-	struct Scsi_Host *shost = sas_ha->core.shost;
+	struct Scsi_Host *shost = sas_ha->shost;
 	struct sas_internal *i = to_sas_internal(shost->transportt);
 
 	if (!i->dft->lldd_dev_gone)
@@ -225,7 +234,7 @@ static void sas_suspend_devices(struct work_struct *work)
 	struct domain_device *dev;
 	struct sas_discovery_event *ev = to_sas_discovery_event(work);
 	struct asd_sas_port *port = ev->port;
-	struct Scsi_Host *shost = port->ha->core.shost;
+	struct Scsi_Host *shost = port->ha->shost;
 	struct sas_internal *si = to_sas_internal(shost->transportt);
 
 	clear_bit(DISCE_SUSPEND, &port->disc.pending);
@@ -266,15 +275,9 @@ static void sas_resume_devices(struct work_struct *work)
  *
  * See comment in sas_discover_sata().
  */
-int sas_discover_end_dev(struct domain_device *dev)
+static int sas_discover_end_dev(struct domain_device *dev)
 {
-	int res;
-
-	res = sas_notify_lldd_dev_found(dev);
-	if (res)
-		return res;
-
-	return 0;
+	return sas_notify_lldd_dev_found(dev);
 }
 
 /* ---------- Device registration and unregistration ---------- */
@@ -298,7 +301,7 @@ void sas_free_device(struct kref *kref)
 
 	if (dev_is_sata(dev) && dev->sata_dev.ap) {
 		ata_sas_tport_delete(dev->sata_dev.ap);
-		ata_sas_port_destroy(dev->sata_dev.ap);
+		kfree(dev->sata_dev.ap);
 		ata_host_put(dev->sata_dev.ata_host);
 		dev->sata_dev.ata_host = NULL;
 		dev->sata_dev.ap = NULL;
@@ -357,6 +360,33 @@ static void sas_destruct_ports(struct asd_sas_port *port)
 	}
 }
 
+static bool sas_abort_cmd(struct request *req, void *data)
+{
+	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(req);
+	struct domain_device *dev = data;
+
+	if (dev == cmd_to_domain_dev(cmd))
+		blk_abort_request(req);
+	return true;
+}
+
+static void sas_abort_device_scsi_cmds(struct domain_device *dev)
+{
+	struct sas_ha_struct *sas_ha = dev->port->ha;
+	struct Scsi_Host *shost = sas_ha->shost;
+
+	if (dev_is_expander(dev->dev_type))
+		return;
+
+	/*
+	 * For removed device with active IOs, the user space applications have
+	 * to spend very long time waiting for the timeout. This is not
+	 * necessary because a removed device will not return the IOs.
+	 * Abort the inflight IOs here so that EH can be quickly kicked in.
+	 */
+	blk_mq_tagset_busy_iter(&shost->tag_set, sas_abort_cmd, dev);
+}
+
 void sas_unregister_dev(struct asd_sas_port *port, struct domain_device *dev)
 {
 	if (!test_bit(SAS_DEV_DESTROY, &dev->state) &&
@@ -369,6 +399,8 @@ void sas_unregister_dev(struct asd_sas_port *port, struct domain_device *dev)
 	}
 
 	if (!test_and_set_bit(SAS_DEV_DESTROY, &dev->state)) {
+		if (test_bit(SAS_DEV_GONE, &dev->state))
+			sas_abort_device_scsi_cmds(dev);
 		sas_rphy_unlink(dev->rphy);
 		list_move_tail(&dev->disco_list_node, &port->destroy_list);
 	}
@@ -452,14 +484,8 @@ static void sas_discover_domain(struct work_struct *work)
 		break;
 	case SAS_SATA_DEV:
 	case SAS_SATA_PM:
-#ifdef CONFIG_SCSI_SAS_ATA
 		error = sas_discover_sata(dev);
 		break;
-#else
-		pr_notice("ATA device seen but CONFIG_SCSI_SAS_ATA=N so cannot attach\n");
-		/* Fall through */
-#endif
-		/* Fall through - only for the #else condition above. */
 	default:
 		error = -ENXIO;
 		pr_err("unhandled device %d\n", dev->dev_type);
@@ -542,19 +568,17 @@ static void sas_chain_event(int event, unsigned long *pending,
 	}
 }
 
-int sas_discover_event(struct asd_sas_port *port, enum discover_event ev)
+void sas_discover_event(struct asd_sas_port *port, enum discover_event ev)
 {
 	struct sas_discovery *disc;
 
 	if (!port)
-		return 0;
+		return;
 	disc = &port->disc;
 
 	BUG_ON(ev >= DISC_NUM_EVENTS);
 
 	sas_chain_event(ev, &disc->pending, &disc->disc_work[ev].work, port->ha);
-
-	return 0;
 }
 
 /**

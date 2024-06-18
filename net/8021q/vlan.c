@@ -51,21 +51,28 @@ static int vlan_group_prealloc_vid(struct vlan_group *vg,
 				   __be16 vlan_proto, u16 vlan_id)
 {
 	struct net_device **array;
-	unsigned int pidx, vidx;
+	unsigned int vidx;
 	unsigned int size;
+	int pidx;
 
 	ASSERT_RTNL();
 
 	pidx  = vlan_proto_idx(vlan_proto);
+	if (pidx < 0)
+		return -EINVAL;
+
 	vidx  = vlan_id / VLAN_GROUP_ARRAY_PART_LEN;
 	array = vg->vlan_devices_arrays[pidx][vidx];
 	if (array != NULL)
 		return 0;
 
 	size = sizeof(struct net_device *) * VLAN_GROUP_ARRAY_PART_LEN;
-	array = kzalloc(size, GFP_KERNEL);
+	array = kzalloc(size, GFP_KERNEL_ACCOUNT);
 	if (array == NULL)
 		return -ENOBUFS;
+
+	/* paired with smp_rmb() in __vlan_group_get_device() */
+	smp_wmb();
 
 	vg->vlan_devices_arrays[pidx][vidx] = array;
 	return 0;
@@ -116,9 +123,6 @@ void unregister_vlan_dev(struct net_device *dev, struct list_head *head)
 	}
 
 	vlan_vid_del(real_dev, vlan->vlan_proto, vlan_id);
-
-	/* Get rid of the vlan's reference to real_dev */
-	dev_put(real_dev);
 }
 
 int vlan_check_real_dev(struct net_device *real_dev,
@@ -172,7 +176,6 @@ int register_vlan_dev(struct net_device *dev, struct netlink_ext_ack *extack)
 	if (err < 0)
 		goto out_uninit_mvrp;
 
-	vlan->nest_level = dev_get_nest_level(real_dev) + 1;
 	err = register_netdevice(dev);
 	if (err < 0)
 		goto out_uninit_mvrp;
@@ -180,9 +183,6 @@ int register_vlan_dev(struct net_device *dev, struct netlink_ext_ack *extack)
 	err = netdev_upper_dev_link(real_dev, dev, extack);
 	if (err)
 		goto out_unregister_netdev;
-
-	/* Account for reference in struct vlan_dev_priv */
-	dev_hold(real_dev);
 
 	vlan_stacked_transfer_operstate(real_dev, dev, vlan);
 	linkwatch_fire_event(dev); /* _MUST_ call rfc2863_policy() */
@@ -281,8 +281,7 @@ static int register_vlan_device(struct net_device *real_dev, u16 vlan_id)
 	return 0;
 
 out_free_newdev:
-	if (new_dev->reg_state == NETREG_UNINITIALIZED)
-		free_netdev(new_dev);
+	free_netdev(new_dev);
 	return err;
 }
 
@@ -320,8 +319,7 @@ static void vlan_transfer_features(struct net_device *dev,
 {
 	struct vlan_dev_priv *vlan = vlan_dev_priv(vlandev);
 
-	vlandev->gso_max_size = dev->gso_max_size;
-	vlandev->gso_max_segs = dev->gso_max_segs;
+	netif_inherit_tso_max(vlandev, dev);
 
 	if (vlan_hw_offload_capable(dev->features, vlan->vlan_proto))
 		vlandev->hard_header_len = dev->hard_header_len;
@@ -633,7 +631,8 @@ static int vlan_ioctl_handler(struct net *net, void __user *arg)
 
 	case GET_VLAN_REALDEV_NAME_CMD:
 		err = 0;
-		vlan_dev_get_realdev_name(dev, args.u.device2);
+		vlan_dev_get_realdev_name(dev, args.u.device2,
+					  sizeof(args.u.device2));
 		if (copy_to_user(arg, &args,
 				 sizeof(struct vlan_ioctl_args)))
 			err = -EFAULT;
@@ -739,5 +738,6 @@ static void __exit vlan_cleanup_module(void)
 module_init(vlan_proto_init);
 module_exit(vlan_cleanup_module);
 
+MODULE_DESCRIPTION("802.1Q/802.1ad VLAN Protocol");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);

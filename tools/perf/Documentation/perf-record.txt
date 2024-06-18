@@ -9,7 +9,7 @@ SYNOPSIS
 --------
 [verse]
 'perf record' [-e <EVENT> | --event=EVENT] [-a] <command>
-'perf record' [-e <EVENT> | --event=EVENT] [-a] -- <command> [<options>]
+'perf record' [-e <EVENT> | --event=EVENT] [-a] \-- <command> [<options>]
 
 DESCRIPTION
 -----------
@@ -30,8 +30,14 @@ OPTIONS
 
         - a symbolic event name	(use 'perf list' to list all events)
 
-        - a raw PMU event (eventsel+umask) in the form of rNNN where NNN is a
-	  hexadecimal event descriptor.
+        - a raw PMU event in the form of rN where N is a hexadecimal value
+          that represents the raw register encoding with the layout of the
+          event control registers as described by entries in
+          /sys/bus/event_source/devices/cpu/format/*.
+
+        - a symbolic or raw PMU event followed by an optional colon
+	  and a list of event modifiers, e.g., cpu-cycles:p.  See the
+	  linkperf:perf-list[1] man page for details on event modifiers.
 
 	- a symbolically formed PMU event like 'pmu/param1=0x3,param2/' where
 	  'param1', 'param2', etc are defined as formats for the PMU in
@@ -62,6 +68,9 @@ OPTIONS
 		    like this: name=\'CPU_CLK_UNHALTED.THREAD:cmask=0x1\'.
 	  - 'aux-output': Generate AUX records instead of events. This requires
 			  that an AUX area event is also provided.
+	  - 'aux-sample-size': Set sample size for AUX area sampling. If the
+	  '--aux-sample' option has been used, set aux-sample-size=0 to disable
+	  AUX area sampling for the event.
 
           See the linkperf:perf-list[1] man page for more parameters.
 
@@ -90,29 +99,18 @@ OPTIONS
           If you want to profile write accesses in [0x1000~1008), just set
           'mem:0x1000/8:w'.
 
-        - a BPF source file (ending in .c) or a precompiled object file (ending
-          in .o) selects one or more BPF events.
-          The BPF program can attach to various perf events based on the ELF section
-          names.
-
-          When processing a '.c' file, perf searches an installed LLVM to compile it
-          into an object file first. Optional clang options can be passed via the
-          '--clang-opt' command line option, e.g.:
-
-            perf record --clang-opt "-DLINUX_VERSION_CODE=0x50000" \
-                        -e tests/bpf-script-example.c
-
-          Note: '--clang-opt' must be placed before '--event/-e'.
-
 	- a group of events surrounded by a pair of brace ("{event1,event2,...}").
 	  Each event is separated by commas and the group should be quoted to
 	  prevent the shell interpretation.  You also need to use --group on
 	  "perf report" to view group events together.
 
 --filter=<filter>::
-        Event filter. This option should follow an event selector (-e) which
-	selects either tracepoint event(s) or a hardware trace PMU
-	(e.g. Intel PT or CoreSight).
+	Event filter.  This option should follow an event selector (-e).
+	If the event is a tracepoint, the filter string will be parsed by
+	the kernel.  If the event is a hardware trace PMU (e.g. Intel PT
+	or CoreSight), it'll be processed as an address filter.  Otherwise
+	it means a general filter using BPF which can be applied for any
+	kind of event.
 
 	- tracepoint filters
 
@@ -166,6 +164,57 @@ OPTIONS
 	examined to determine if that is a possibility.
 
 	Multiple filters can be separated with space or comma.
+
+	- bpf filters
+
+	A BPF filter can access the sample data and make a decision based on the
+	data.  Users need to set an appropriate sample type to use the BPF
+	filter.  BPF filters need root privilege.
+
+	The sample data field can be specified in lower case letter.  Multiple
+	filters can be separated with comma.  For example,
+
+	  --filter 'period > 1000, cpu == 1'
+	or
+	  --filter 'mem_op == load || mem_op == store, mem_lvl > l1'
+
+	The former filter only accept samples with period greater than 1000 AND
+	CPU number is 1.  The latter one accepts either load and store memory
+	operations but it should have memory level above the L1.  Since the
+	mem_op and mem_lvl fields come from the (memory) data_source, it'd only
+	work with some events which set the data_source field.
+
+	Also user should request to collect that information (with -d option in
+	the above case).  Otherwise, the following message will be shown.
+
+	  $ sudo perf record -e cycles --filter 'mem_op == load'
+	  Error: cycles event does not have PERF_SAMPLE_DATA_SRC
+	   Hint: please add -d option to perf record.
+	  failed to set filter "BPF" on event cycles with 22 (Invalid argument)
+
+	Essentially the BPF filter expression is:
+
+	  <term> <operator> <value> (("," | "||") <term> <operator> <value>)*
+
+	The <term> can be one of:
+	  ip, id, tid, pid, cpu, time, addr, period, txn, weight, phys_addr,
+	  code_pgsz, data_pgsz, weight1, weight2, weight3, ins_lat, retire_lat,
+	  p_stage_cyc, mem_op, mem_lvl, mem_snoop, mem_remote, mem_lock,
+	  mem_dtlb, mem_blk, mem_hops
+
+	The <operator> can be one of:
+	  ==, !=, >, >=, <, <=, &
+
+	The <value> can be one of:
+	  <number> (for any term)
+	  na, load, store, pfetch, exec (for mem_op)
+	  l1, l2, l3, l4, cxl, io, any_cache, lfb, ram, pmem (for mem_lvl)
+	  na, none, hit, miss, hitm, fwd, peer (for mem_snoop)
+	  remote (for mem_remote)
+	  na, locked (for mem_locked)
+	  na, l1_hit, l1_miss, l2_hit, l2_miss, any_hit, any_miss, walk, fault (for mem_dtlb)
+	  na, by_data, by_addr (for mem_blk)
+	  hops0, hops1, hops2, hops3 (for mem_hops)
 
 --exclude-perf::
 	Don't record events issued by perf itself. This option should follow
@@ -229,21 +278,23 @@ OPTIONS
 	Also, by adding a comma, the number of mmap pages for AUX
 	area tracing can be specified.
 
---group::
-	Put all events in a single event group.  This precedes the --event
-	option and remains only for backward compatibility.  See --event.
-
 -g::
-	Enables call-graph (stack chain/backtrace) recording.
+	Enables call-graph (stack chain/backtrace) recording for both
+	kernel space and user space.
 
 --call-graph::
 	Setup and enable call-graph (stack chain/backtrace) recording,
-	implies -g.  Default is "fp".
+	implies -g.  Default is "fp" (for user space).
 
-	Allows specifying "fp" (frame pointer) or "dwarf"
-	(DWARF's CFI - Call Frame Information) or "lbr"
-	(Hardware Last Branch Record facility) as the method to collect
-	the information used to show the call graphs.
+	The unwinding method used for kernel space is dependent on the
+	unwinder used by the active kernel configuration, i.e
+	CONFIG_UNWINDER_FRAME_POINTER (fp) or CONFIG_UNWINDER_ORC (orc)
+
+	Any option specified here controls the method used for user space.
+
+	Valid options are "fp" (frame pointer), "dwarf" (DWARF's CFI -
+	Call Frame Information) or "lbr" (Hardware Last Branch Record
+	facility).
 
 	In some systems, where binaries are build with gcc
 	--fomit-frame-pointer, using the "fp" method will produce bogus
@@ -260,9 +311,14 @@ OPTIONS
 	User can change the size by passing the size after comma like
 	"--call-graph dwarf,4096".
 
+	When "fp" recording is used, perf tries to save stack enties
+	up to the number specified in sysctl.kernel.perf_event_max_stack
+	by default.  User can change the number by passing it after comma
+	like "--call-graph fp,32".
+
 -q::
 --quiet::
-	Don't print any message, useful for scripting.
+	Don't print any warnings or messages, useful for scripting.
 
 -v::
 --verbose::
@@ -280,6 +336,12 @@ OPTIONS
 --phys-data::
 	Record the sample physical addresses.
 
+--data-page-size::
+	Record the sampled data address data page size.
+
+--code-page-size::
+	Record the sampled code address (ip) page size
+
 -T::
 --timestamp::
 	Record the sample timestamps. Use it with 'perf report -D' to see the
@@ -291,6 +353,11 @@ OPTIONS
 
 --sample-cpu::
 	Record the sample cpu.
+
+--sample-identifier::
+	Record the sample identifier i.e. PERF_SAMPLE_IDENTIFIER bit set in
+	the sample_type member of the struct perf_event_attr argument to the
+	perf_event_open system call.
 
 -n::
 --no-samples::
@@ -306,6 +373,9 @@ Collect samples only on the list of CPUs provided. Multiple CPUs can be provided
 comma-separated list with no space: 0,1. Ranges of CPUs are specified with -: 0-2.
 In per-thread mode with inheritance mode on (default), samples are captured only when
 the thread executes on the designated CPUs. Default is to monitor all CPUs.
+
+User space tasks can migrate between CPUs, so when tracing selected CPUs,
+a dummy event is created to track sideband for all CPUs.
 
 -B::
 --no-buildid::
@@ -357,6 +427,7 @@ following filters are defined:
         - any_call: any function call or system call
         - any_ret: any function return or system call return
         - ind_call: any indirect branch
+        - ind_jmp: any indirect jump
         - call: direct calls, including far (to/from kernel) calls
         - u:  only when the branch target is at the user level
         - k: only when the branch target is in the kernel
@@ -365,7 +436,19 @@ following filters are defined:
 	- no_tx: only when the target is not in a hardware transaction
 	- abort_tx: only when the target is a hardware transaction abort
 	- cond: conditional branches
+	- call_stack: save call stack
+	- no_flags: don't save branch flags e.g prediction, misprediction etc
+	- no_cycles: don't save branch cycles
+	- hw_index: save branch hardware index
 	- save_type: save branch type during sampling in case binary is not available later
+		     For the platforms with Intel Arch LBR support (12th-Gen+ client or
+		     4th-Gen Xeon+ server), the save branch type is unconditionally enabled
+		     when the taken branch stack sampling is enabled.
+	- priv: save privilege state during sampling in case binary is not available later
+	- counter: save occurrences of the event since the last branch entry. Currently, the
+		   feature is only supported by a newer CPU, e.g., Intel Sierra Forest and
+		   later platforms. An error out is expected if it's used on the unsupported
+		   kernel or CPUs.
 
 +
 The option requires at least one branch type among any, any_call, any_ret, ind_call, cond.
@@ -376,13 +459,17 @@ is enabled for all the sampling events. The sampled branch type is the same for 
 The various filters must be specified as a comma separated list: --branch-filter any_ret,u,k
 Note that this feature may not be available on all processors.
 
+-W::
 --weight::
 Enable weightened sampling. An additional weight is recorded per sample and can be
 displayed with the weight and local_weight sort keys.  This currently works for TSX
 abort events and some memory events in precise mode on modern Intel CPUs.
 
 --namespaces::
-Record events of type PERF_RECORD_NAMESPACES.
+Record events of type PERF_RECORD_NAMESPACES.  This enables 'cgroup_id' sort key.
+
+--all-cgroups::
+Record events of type PERF_RECORD_CGROUP.  This enables 'cgroup' sort key.
 
 --transaction::
 Record transaction flags for transaction related events.
@@ -395,8 +482,11 @@ if combined with -a or -C options.
 
 -D::
 --delay=::
-After starting the program, wait msecs before measuring. This is useful to
-filter out the startup phase of the program, which is often very different.
+After starting the program, wait msecs before measuring (-1: start with events
+disabled), or enable events only for specified ranges of msecs (e.g.
+-D 10-20,30-40 means wait 10 msecs, enable for 10 msecs, wait 10 msecs, enable
+for 10 msecs, then stop). Note, delaying enabling of events is useful to filter
+out the startup phase of the program, which is often very different.
 
 -I::
 --intr-regs::
@@ -426,12 +516,19 @@ CLOCK_BOOTTIME, CLOCK_REALTIME and CLOCK_TAI.
 Select AUX area tracing Snapshot Mode. This option is valid only with an
 AUX area tracing event. Optionally, certain snapshot capturing parameters
 can be specified in a string that follows this option:
-  'e': take one last snapshot on exit; guarantees that there is at least one
+
+  - 'e': take one last snapshot on exit; guarantees that there is at least one
        snapshot in the output file;
-  <size>: if the PMU supports this, specify the desired snapshot size.
+  - <size>: if the PMU supports this, specify the desired snapshot size.
 
 In Snapshot Mode trace data is captured only when signal SIGUSR2 is received
 and on exit if the above 'e' option is given.
+
+--aux-sample[=OPTIONS]::
+Select AUX area sampling. At least one of the events selected by the -e option
+must be an AUX area event. Samples on other events will be created containing
+data from the AUX area. Optionally sample size may be specified, otherwise it
+defaults to 4KiB.
 
 --proc-map-timeout::
 When processing pre-existing threads /proc/XXX/mmap, it may take a long time,
@@ -440,15 +537,9 @@ This option sets the time out limit. The default value is 500 ms.
 
 --switch-events::
 Record context switch events i.e. events of type PERF_RECORD_SWITCH or
-PERF_RECORD_SWITCH_CPU_WIDE.
-
---clang-path=PATH::
-Path to clang binary to use for compiling BPF scriptlets.
-(enabled when BPF support is on)
-
---clang-opt=OPTIONS::
-Options passed to clang when compiling BPF scriptlets.
-(enabled when BPF support is on)
+PERF_RECORD_SWITCH_CPU_WIDE. In some cases (e.g. Intel PT, CoreSight or Arm SPE)
+switch events will be enabled automatically, which can be suppressed by
+by the option --no-switch-events.
 
 --vmlinux=PATH::
 Specify vmlinux path which has debuginfo.
@@ -457,6 +548,9 @@ Specify vmlinux path which has debuginfo.
 --buildid-all::
 Record build-id of all DSOs regardless whether it's actually hit or not.
 
+--buildid-mmap::
+Record build ids in mmap2 events, disables build id cache (implies --no-buildid).
+
 --aio[=n]::
 Use <n> control blocks in asynchronous (Posix AIO) trace writing mode (default: 1, max: 4).
 Asynchronous mode is supported only when linking Perf tool with libc library
@@ -464,8 +558,9 @@ providing implementation for Posix AIO API.
 
 --affinity=mode::
 Set affinity mask of trace reading thread according to the policy defined by 'mode' value:
-  node - thread affinity mask is set to NUMA node cpu mask of the processed mmap buffer
-  cpu  - thread affinity mask is set to cpu of the processed mmap buffer
+
+  - node - thread affinity mask is set to NUMA node cpu mask of the processed mmap buffer
+  - cpu  - thread affinity mask is set to cpu of the processed mmap buffer
 
 --mmap-flush=number::
 
@@ -517,16 +612,17 @@ Record timestamp boundary (time of first/last samples).
 --switch-output[=mode]::
 Generate multiple perf.data files, timestamp prefixed, switching to a new one
 based on 'mode' value:
-  "signal" - when receiving a SIGUSR2 (default value) or
-  <size>   - when reaching the size threshold, size is expected to
-             be a number with appended unit character - B/K/M/G
-  <time>   - when reaching the time threshold, size is expected to
-             be a number with appended unit character - s/m/h/d
 
-             Note: the precision of  the size  threshold  hugely depends
-             on your configuration  - the number and size of  your  ring
-             buffers (-m). It is generally more precise for higher sizes
-             (like >5M), for lower values expect different sizes.
+  - "signal" - when receiving a SIGUSR2 (default value) or
+  - <size>   - when reaching the size threshold, size is expected to
+               be a number with appended unit character - B/K/M/G
+  - <time>   - when reaching the time threshold, size is expected to
+               be a number with appended unit character - s/m/h/d
+
+               Note: the precision of  the size  threshold  hugely depends
+               on your configuration  - the number and size of  your  ring
+               buffers (-m). It is generally more precise for higher sizes
+               (like >5M), for lower values expect different sizes.
 
 A possible use case is to, given an external event, slice the perf.data file
 that gets then processed, possibly via a perf script, to decide if that
@@ -538,6 +634,19 @@ overhead. You can still switch them on with:
 
   --switch-output --no-no-buildid  --no-no-buildid-cache
 
+--switch-output-event::
+Events that will cause the switch of the perf.data file, auto-selecting
+--switch-output=signal, the results are similar as internally the side band
+thread will also send a SIGUSR2 to the main one.
+
+Uses the same syntax as --event, it will just not be recorded, serving only to
+switch the perf.data file as soon as the --switch-output event is processed by
+a separate sideband thread.
+
+This sideband thread is also used to other purposes, like processing the
+PERF_RECORD_BPF_EVENT records as they happen, asking the kernel for extra BPF
+information, etc.
+
 --switch-max-files=N::
 
 When rotating perf.data with --switch-output, only keep N files.
@@ -548,6 +657,23 @@ options.
 
 'perf record --dry-run -e' can act as a BPF script compiler if llvm.dump-obj
 in config file is set to true.
+
+--synth=TYPE::
+Collect and synthesize given type of events (comma separated).  Note that
+this option controls the synthesis from the /proc filesystem which represent
+task status for pre-existing threads.
+
+Kernel (and some other) events are recorded regardless of the
+choice in this option.  For example, --synth=no would have MMAP events for
+kernel and modules.
+
+Available types are:
+
+  - 'task'    - synthesize FORK and COMM events for each task
+  - 'mmap'    - synthesize MMAP events for each process (implies 'task')
+  - 'cgroup'  - synthesize CGROUP events for each cgroup
+  - 'all'     - synthesize all events (default)
+  - 'no'      - do not synthesize any of the above events
 
 --tail-synthesize::
 Instead of collecting non-sample events (for example, fork, comm, mmap) at
@@ -571,6 +697,139 @@ config terms. For example: 'cycles/overwrite/' and 'instructions/no-overwrite/'.
 
 Implies --tail-synthesize.
 
+--kcore::
+Make a copy of /proc/kcore and place it into a directory with the perf data file.
+
+--max-size=<size>::
+Limit the sample data max size, <size> is expected to be a number with
+appended unit character - B/K/M/G
+
+--num-thread-synthesize::
+	The number of threads to run when synthesizing events for existing processes.
+	By default, the number of threads equals 1.
+
+ifdef::HAVE_LIBPFM[]
+--pfm-events events::
+Select a PMU event using libpfm4 syntax (see http://perfmon2.sf.net)
+including support for event filters. For example '--pfm-events
+inst_retired:any_p:u:c=1:i'. More than one event can be passed to the
+option using the comma separator. Hardware events and generic hardware
+events cannot be mixed together. The latter must be used with the -e
+option. The -e option and this one can be mixed and matched.  Events
+can be grouped using the {} notation.
+endif::HAVE_LIBPFM[]
+
+--control=fifo:ctl-fifo[,ack-fifo]::
+--control=fd:ctl-fd[,ack-fd]::
+ctl-fifo / ack-fifo are opened and used as ctl-fd / ack-fd as follows.
+Listen on ctl-fd descriptor for command to control measurement.
+
+Available commands:
+
+  - 'enable'           : enable events
+  - 'disable'          : disable events
+  - 'enable name'      : enable event 'name'
+  - 'disable name'     : disable event 'name'
+  - 'snapshot'         : AUX area tracing snapshot).
+  - 'stop'             : stop perf record
+  - 'ping'             : ping
+  - 'evlist [-v|-g|-F] : display all events
+
+                         -F  Show just the sample frequency used for each event.
+                         -v  Show all fields.
+                         -g  Show event group information.
+
+Measurements can be started with events disabled using --delay=-1 option. Optionally
+send control command completion ('ack\n') to ack-fd descriptor to synchronize with the
+controlling process.  Example of bash shell script to enable and disable events during
+measurements:
+
+ #!/bin/bash
+
+ ctl_dir=/tmp/
+
+ ctl_fifo=${ctl_dir}perf_ctl.fifo
+ test -p ${ctl_fifo} && unlink ${ctl_fifo}
+ mkfifo ${ctl_fifo}
+ exec {ctl_fd}<>${ctl_fifo}
+
+ ctl_ack_fifo=${ctl_dir}perf_ctl_ack.fifo
+ test -p ${ctl_ack_fifo} && unlink ${ctl_ack_fifo}
+ mkfifo ${ctl_ack_fifo}
+ exec {ctl_fd_ack}<>${ctl_ack_fifo}
+
+ perf record -D -1 -e cpu-cycles -a               \
+             --control fd:${ctl_fd},${ctl_fd_ack} \
+             -- sleep 30 &
+ perf_pid=$!
+
+ sleep 5  && echo 'enable' >&${ctl_fd} && read -u ${ctl_fd_ack} e1 && echo "enabled(${e1})"
+ sleep 10 && echo 'disable' >&${ctl_fd} && read -u ${ctl_fd_ack} d1 && echo "disabled(${d1})"
+
+ exec {ctl_fd_ack}>&-
+ unlink ${ctl_ack_fifo}
+
+ exec {ctl_fd}>&-
+ unlink ${ctl_fifo}
+
+ wait -n ${perf_pid}
+ exit $?
+
+--threads=<spec>::
+Write collected trace data into several data files using parallel threads.
+<spec> value can be user defined list of masks. Masks separated by colon
+define CPUs to be monitored by a thread and affinity mask of that thread
+is separated by slash:
+
+    <cpus mask 1>/<affinity mask 1>:<cpus mask 2>/<affinity mask 2>:...
+
+CPUs or affinity masks must not overlap with other corresponding masks.
+Invalid CPUs are ignored, but masks containing only invalid CPUs are not
+allowed.
+
+For example user specification like the following:
+
+    0,2-4/2-4:1,5-7/5-7
+
+specifies parallel threads layout that consists of two threads,
+the first thread monitors CPUs 0 and 2-4 with the affinity mask 2-4,
+the second monitors CPUs 1 and 5-7 with the affinity mask 5-7.
+
+<spec> value can also be a string meaning predefined parallel threads
+layout:
+
+    - cpu    - create new data streaming thread for every monitored cpu
+    - core   - create new thread to monitor CPUs grouped by a core
+    - package - create new thread to monitor CPUs grouped by a package
+    - numa   - create new threed to monitor CPUs grouped by a NUMA domain
+
+Predefined layouts can be used on systems with large number of CPUs in
+order not to spawn multiple per-cpu streaming threads but still avoid LOST
+events in data directory files. Option specified with no or empty value
+defaults to CPU layout. Masks defined or provided by the option value are
+filtered through the mask provided by -C option.
+
+--debuginfod[=URLs]::
+	Specify debuginfod URL to be used when cacheing perf.data binaries,
+	it follows the same syntax as the DEBUGINFOD_URLS variable, like:
+
+	  http://192.168.122.174:8002
+
+	If the URLs is not specified, the value of DEBUGINFOD_URLS
+	system environment variable is used.
+
+--off-cpu::
+	Enable off-cpu profiling with BPF.  The BPF program will collect
+	task scheduling information with (user) stacktrace and save them
+	as sample data of a software event named "offcpu-time".  The
+	sample period will have the time the task slept in nanoseconds.
+
+	Note that BPF can collect stack traces using frame pointer ("fp")
+	only, as of now.  So the applications built without the frame
+	pointer might see bogus addresses.
+
+include::intel-hybrid.txt[]
+
 SEE ALSO
 --------
-linkperf:perf-stat[1], linkperf:perf-list[1]
+linkperf:perf-stat[1], linkperf:perf-list[1], linkperf:perf-intel-pt[1]

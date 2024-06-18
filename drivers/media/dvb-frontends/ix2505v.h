@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/**
+/*
  * Driver for Sharp IX2505V (marked B0017) DVB-S silicon tuner
  *
  * Copyright (C) 2010 Malcolm Priestley
@@ -31,7 +31,7 @@ struct ix2505v_config {
 
 #if IS_REACHABLE(CONFIG_DVB_IX2505V)
 /**
- * Attach a ix2505v tuner to the supplied frontend structure.
+ * ix2505v_attach - Attach a ix2505v tuner to the supplied frontend structure.
  *
  * @fe: Frontend to attach to.
  * @config: pointer to &struct ix2505v_config

@@ -17,7 +17,7 @@ typedef struct
 
 #define LOCAL_INIT(i)	{ (i) }
 
-static __inline__ long local_read(local_t *l)
+static __inline__ long local_read(const local_t *l)
 {
 	return READ_ONCE(l->v);
 }
@@ -90,6 +90,17 @@ static __inline__ long local_cmpxchg(local_t *l, long o, long n)
 	return t;
 }
 
+static __inline__ bool local_try_cmpxchg(local_t *l, long *po, long n)
+{
+	long o = *po, r;
+
+	r = local_cmpxchg(l, o, n);
+	if (unlikely(r != o))
+		*po = r;
+
+	return likely(r == o);
+}
+
 static __inline__ long local_xchg(local_t *l, long n)
 {
 	long t;
@@ -104,23 +115,23 @@ static __inline__ long local_xchg(local_t *l, long n)
 }
 
 /**
- * local_add_unless - add unless the number is a given value
+ * local_add_unless - add unless the number is already a given value
  * @l: pointer of type local_t
  * @a: the amount to add to v...
  * @u: ...unless v is equal to u.
  *
- * Atomically adds @a to @l, so long as it was not @u.
- * Returns non-zero if @l was not @u, and zero otherwise.
+ * Atomically adds @a to @l, if @v was not already @u.
+ * Returns true if the addition was done.
  */
-static __inline__ int local_add_unless(local_t *l, long a, long u)
+static __inline__ bool local_add_unless(local_t *l, long a, long u)
 {
 	unsigned long flags;
-	int ret = 0;
+	bool ret = false;
 
 	powerpc_local_irq_pmu_save(flags);
 	if (l->v != u) {
 		l->v += a;
-		ret = 1;
+		ret = true;
 	}
 	powerpc_local_irq_pmu_restore(flags);
 

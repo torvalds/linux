@@ -808,7 +808,7 @@ static int dib7000m_agc_startup(struct dvb_frontend *demod)
 
 			dib7000m_restart_agc(state);
 
-			dprintk("SPLIT %p: %hd\n", demod, agc_split);
+			dprintk("SPLIT %p: %u\n", demod, agc_split);
 
 			(*agc_state)++;
 			ret = 5;
@@ -1434,7 +1434,7 @@ error:
 	kfree(st);
 	return NULL;
 }
-EXPORT_SYMBOL(dib7000m_attach);
+EXPORT_SYMBOL_GPL(dib7000m_attach);
 
 static const struct dvb_frontend_ops dib7000m_ops = {
 	.delsys = { SYS_DVBT },

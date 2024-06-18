@@ -14,10 +14,10 @@
 #include <linux/hw_random.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
 #include <linux/module.h>
-#include <linux/of_platform.h>
-#include <linux/of_irq.h>
-#include <linux/of_address.h>
+#include <linux/mod_devicetable.h>
+#include <linux/platform_device.h>
 #include <linux/timer.h>
 
 #define RNG_MAX_DATUM			4
@@ -84,7 +84,6 @@ struct xgene_rng_dev {
 	unsigned long failure_ts;/* First failure timestamp */
 	struct timer_list failure_timer;
 	struct device *dev;
-	struct clk *clk;
 };
 
 static void xgene_rng_expired_timer(struct timer_list *t)
@@ -200,7 +199,7 @@ static void xgene_rng_chk_overflow(struct xgene_rng_dev *ctx)
 
 static irqreturn_t xgene_rng_irq_handler(int irq, void *id)
 {
-	struct xgene_rng_dev *ctx = (struct xgene_rng_dev *) id;
+	struct xgene_rng_dev *ctx = id;
 
 	/* RNG Alarm Counter overflow */
 	xgene_rng_chk_overflow(ctx);
@@ -313,8 +312,8 @@ static struct hwrng xgene_rng_func = {
 
 static int xgene_rng_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	struct xgene_rng_dev *ctx;
+	struct clk *clk;
 	int rc = 0;
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
@@ -322,18 +321,14 @@ static int xgene_rng_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ctx->dev = &pdev->dev;
-	platform_set_drvdata(pdev, ctx);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ctx->csr_base = devm_ioremap_resource(&pdev->dev, res);
+	ctx->csr_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ctx->csr_base))
 		return PTR_ERR(ctx->csr_base);
 
 	rc = platform_get_irq(pdev, 0);
-	if (rc < 0) {
-		dev_err(&pdev->dev, "No IRQ resource\n");
+	if (rc < 0)
 		return rc;
-	}
 	ctx->irq = rc;
 
 	dev_dbg(&pdev->dev, "APM X-Gene RNG BASE %p ALARM IRQ %d",
@@ -341,58 +336,34 @@ static int xgene_rng_probe(struct platform_device *pdev)
 
 	rc = devm_request_irq(&pdev->dev, ctx->irq, xgene_rng_irq_handler, 0,
 				dev_name(&pdev->dev), ctx);
-	if (rc) {
-		dev_err(&pdev->dev, "Could not request RNG alarm IRQ\n");
-		return rc;
-	}
+	if (rc)
+		return dev_err_probe(&pdev->dev, rc, "Could not request RNG alarm IRQ\n");
 
 	/* Enable IP clock */
-	ctx->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(ctx->clk)) {
-		dev_warn(&pdev->dev, "Couldn't get the clock for RNG\n");
-	} else {
-		rc = clk_prepare_enable(ctx->clk);
-		if (rc) {
-			dev_warn(&pdev->dev,
-				 "clock prepare enable failed for RNG");
-			return rc;
-		}
-	}
+	clk = devm_clk_get_optional_enabled(&pdev->dev, NULL);
+	if (IS_ERR(clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(clk), "Couldn't get the clock for RNG\n");
 
 	xgene_rng_func.priv = (unsigned long) ctx;
 
 	rc = devm_hwrng_register(&pdev->dev, &xgene_rng_func);
-	if (rc) {
-		dev_err(&pdev->dev, "RNG registering failed error %d\n", rc);
-		if (!IS_ERR(ctx->clk))
-			clk_disable_unprepare(ctx->clk);
-		return rc;
-	}
+	if (rc)
+		return dev_err_probe(&pdev->dev, rc, "RNG registering failed\n");
 
 	rc = device_init_wakeup(&pdev->dev, 1);
-	if (rc) {
-		dev_err(&pdev->dev, "RNG device_init_wakeup failed error %d\n",
-			rc);
-		if (!IS_ERR(ctx->clk))
-			clk_disable_unprepare(ctx->clk);
-		return rc;
-	}
+	if (rc)
+		return dev_err_probe(&pdev->dev, rc, "RNG device_init_wakeup failed\n");
 
 	return 0;
 }
 
-static int xgene_rng_remove(struct platform_device *pdev)
+static void xgene_rng_remove(struct platform_device *pdev)
 {
-	struct xgene_rng_dev *ctx = platform_get_drvdata(pdev);
 	int rc;
 
 	rc = device_init_wakeup(&pdev->dev, 0);
 	if (rc)
 		dev_err(&pdev->dev, "RNG init wakeup failed error %d\n", rc);
-	if (!IS_ERR(ctx->clk))
-		clk_disable_unprepare(ctx->clk);
-
-	return rc;
 }
 
 static const struct of_device_id xgene_rng_of_match[] = {
@@ -404,7 +375,7 @@ MODULE_DEVICE_TABLE(of, xgene_rng_of_match);
 
 static struct platform_driver xgene_rng_driver = {
 	.probe = xgene_rng_probe,
-	.remove	= xgene_rng_remove,
+	.remove_new = xgene_rng_remove,
 	.driver = {
 		.name		= "xgene-rng",
 		.of_match_table = xgene_rng_of_match,

@@ -2,6 +2,8 @@
 #ifndef __ASM_MACH_LOONGSON64_BOOT_PARAM_H_
 #define __ASM_MACH_LOONGSON64_BOOT_PARAM_H_
 
+#include <linux/types.h>
+
 #define SYSTEM_RAM_LOW		1
 #define SYSTEM_RAM_HIGH		2
 #define SYSTEM_RAM_RESERVED	3
@@ -12,7 +14,11 @@
 #define ADAPTER_ROM		8
 #define ACPI_TABLE		9
 #define SMBIOS_TABLE		10
-#define MAX_MEMORY_TYPE		11
+#define UMA_VIDEO_RAM		11
+#define VUMA_VIDEO_RAM		12
+#define MAX_MEMORY_TYPE		13
+
+#define MEM_SIZE_IS_IN_BYTES	(1 << 31)
 
 #define LOONGSON3_BOOT_MEM_MAP_MAX 128
 struct efi_memory_map_loongson {
@@ -115,7 +121,8 @@ struct irq_source_routing_table {
 	u64 pci_io_start_addr;
 	u64 pci_io_end_addr;
 	u64 pci_config_addr;
-	u32 dma_mask_bits;
+	u16 dma_mask_bits;
+	u16 dma_noncoherent;
 } __packed;
 
 struct interface_info {
@@ -190,32 +197,22 @@ struct boot_params {
 	struct efi_reset_system_t reset_system;
 };
 
-struct loongson_system_configuration {
-	u32 nr_cpus;
-	u32 nr_nodes;
-	int cores_per_node;
-	int cores_per_package;
-	u16 boot_cpu_id;
-	u16 reserved_cpus_mask;
-	enum loongson_cpu_type cputype;
-	u64 ht_control_base;
-	u64 pci_mem_start_addr;
-	u64 pci_mem_end_addr;
-	u64 pci_io_base;
-	u64 restart_addr;
-	u64 poweroff_addr;
-	u64 suspend_addr;
-	u64 vgabios_addr;
-	u32 dma_mask_bits;
-	char ecname[32];
-	u32 nr_uarts;
-	struct uart_device uarts[MAX_UARTS];
-	u32 nr_sensors;
-	struct sensor_device sensors[MAX_SENSORS];
-	u64 workarounds;
+enum loongson_bridge_type {
+	LS7A = 1,
+	RS780E = 2,
+	VIRTUAL = 3
 };
 
 extern struct efi_memory_map_loongson *loongson_memmap;
 extern struct loongson_system_configuration loongson_sysconf;
+
+extern struct board_devices *eboard;
+extern struct interface_info *einter;
+extern struct loongson_special_attribute *especial;
+
+extern u32 node_id_offset;
+extern void ls7a_early_config(void);
+extern void rs780e_early_config(void);
+extern void virtual_early_config(void);
 
 #endif

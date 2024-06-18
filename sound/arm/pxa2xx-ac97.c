@@ -21,8 +21,7 @@
 #include <sound/pxa2xx-lib.h>
 #include <sound/dmaengine_pcm.h>
 
-#include <mach/regs-ac97.h>
-#include <mach/audio.h>
+#include <linux/platform_data/asoc-pxa.h>
 
 static void pxa2xx_ac97_legacy_reset(struct snd_ac97 *ac97)
 {
@@ -47,12 +46,10 @@ static unsigned short pxa2xx_ac97_legacy_read(struct snd_ac97 *ac97,
 static void pxa2xx_ac97_legacy_write(struct snd_ac97 *ac97,
 				     unsigned short reg, unsigned short val)
 {
-	int __always_unused ret;
-
-	ret = pxa2xx_ac97_write(ac97->num, reg, val);
+	pxa2xx_ac97_write(ac97->num, reg, val);
 }
 
-static struct snd_ac97_bus_ops pxa2xx_ac97_ops = {
+static const struct snd_ac97_bus_ops pxa2xx_ac97_ops = {
 	.read	= pxa2xx_ac97_legacy_read,
 	.write	= pxa2xx_ac97_legacy_write,
 	.reset	= pxa2xx_ac97_legacy_reset,
@@ -114,8 +111,6 @@ static int pxa2xx_ac97_pcm_prepare(struct snd_pcm_substream *substream)
 	return snd_ac97_set_rate(pxa2xx_ac97_ac97, reg, runtime->rate);
 }
 
-#ifdef CONFIG_PM_SLEEP
-
 static int pxa2xx_ac97_do_suspend(struct snd_card *card)
 {
 	pxa2xx_audio_ops_t *platform_ops = card->dev->platform_data;
@@ -167,46 +162,34 @@ static int pxa2xx_ac97_resume(struct device *dev)
 	return ret;
 }
 
-static SIMPLE_DEV_PM_OPS(pxa2xx_ac97_pm_ops, pxa2xx_ac97_suspend, pxa2xx_ac97_resume);
-#endif
+static DEFINE_SIMPLE_DEV_PM_OPS(pxa2xx_ac97_pm_ops, pxa2xx_ac97_suspend, pxa2xx_ac97_resume);
 
 static const struct snd_pcm_ops pxa2xx_ac97_pcm_ops = {
 	.open		= pxa2xx_ac97_pcm_open,
 	.close		= pxa2xx_ac97_pcm_close,
-	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= pxa2xx_pcm_hw_params,
-	.hw_free	= pxa2xx_pcm_hw_free,
 	.prepare	= pxa2xx_ac97_pcm_prepare,
 	.trigger	= pxa2xx_pcm_trigger,
 	.pointer	= pxa2xx_pcm_pointer,
-	.mmap		= pxa2xx_pcm_mmap,
 };
 
 
 static int pxa2xx_ac97_pcm_new(struct snd_card *card)
 {
 	struct snd_pcm *pcm;
-	int stream, ret;
+	int ret;
 
 	ret = snd_pcm_new(card, "PXA2xx-PCM", 0, 1, 1, &pcm);
 	if (ret)
 		goto out;
 
-	pcm->private_free = pxa2xx_pcm_free_dma_buffers;
-
 	ret = dma_coerce_mask_and_coherent(card->dev, DMA_BIT_MASK(32));
 	if (ret)
 		goto out;
 
-	stream = SNDRV_PCM_STREAM_PLAYBACK;
-	snd_pcm_set_ops(pcm, stream, &pxa2xx_ac97_pcm_ops);
-	ret = pxa2xx_pcm_preallocate_dma_buffer(pcm, stream);
-	if (ret)
-		goto out;
-
-	stream = SNDRV_PCM_STREAM_CAPTURE;
-	snd_pcm_set_ops(pcm, stream, &pxa2xx_ac97_pcm_ops);
-	ret = pxa2xx_pcm_preallocate_dma_buffer(pcm, stream);
+	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &pxa2xx_ac97_pcm_ops);
+	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &pxa2xx_ac97_pcm_ops);
+	ret = pxa2xx_pcm_preallocate_dma_buffer(pcm);
 	if (ret)
 		goto out;
 
@@ -236,7 +219,7 @@ static int pxa2xx_ac97_probe(struct platform_device *dev)
 	if (ret < 0)
 		goto err;
 
-	strlcpy(card->driver, dev->dev.driver->name, sizeof(card->driver));
+	strscpy(card->driver, dev->dev.driver->name, sizeof(card->driver));
 
 	ret = pxa2xx_ac97_pcm_new(card);
 	if (ret)
@@ -276,7 +259,7 @@ err_dev:
 	return ret;
 }
 
-static int pxa2xx_ac97_remove(struct platform_device *dev)
+static void pxa2xx_ac97_remove(struct platform_device *dev)
 {
 	struct snd_card *card = platform_get_drvdata(dev);
 
@@ -284,18 +267,14 @@ static int pxa2xx_ac97_remove(struct platform_device *dev)
 		snd_card_free(card);
 		pxa2xx_ac97_hw_remove(dev);
 	}
-
-	return 0;
 }
 
 static struct platform_driver pxa2xx_ac97_driver = {
 	.probe		= pxa2xx_ac97_probe,
-	.remove		= pxa2xx_ac97_remove,
+	.remove_new	= pxa2xx_ac97_remove,
 	.driver		= {
 		.name	= "pxa2xx-ac97",
-#ifdef CONFIG_PM_SLEEP
 		.pm	= &pxa2xx_ac97_pm_ops,
-#endif
 	},
 };
 

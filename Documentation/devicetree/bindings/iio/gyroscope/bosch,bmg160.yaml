@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/gyroscope/bosch,bmg160.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Bosch BMG160 triaxial rotation sensor (gyroscope)
+
+maintainers:
+  - H. Nikolaus Schaller <hns@goldelico.com>
+
+properties:
+  compatible:
+    enum:
+      - bosch,bmg160
+      - bosch,bmi055_gyro
+      - bosch,bmi088_gyro
+
+  reg:
+    maxItems: 1
+
+  vdd-supply: true
+  vddio-supply: true
+
+  spi-max-frequency:
+    maximum: 10000000
+
+  interrupts:
+    minItems: 1
+    maxItems: 2
+    description:
+      Should be configured with type IRQ_TYPE_EDGE_RISING.
+      If two interrupts are provided, expected order is INT1 and INT2.
+
+required:
+  - compatible
+  - reg
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        gyroscope@69 {
+            compatible = "bosch,bmg160";
+            reg = <0x69>;
+            interrupt-parent = <&gpio6>;
+            interrupts = <18 IRQ_TYPE_EDGE_RISING>;
+        };
+    };
+...

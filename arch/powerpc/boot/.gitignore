@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 addnote
 decompress_inflate.c
 empty.c
@@ -15,6 +16,7 @@ kernel-vmlinux.strip.c
 kernel-vmlinux.strip.gz
 mktree
 otheros.bld
+otheros-too-big.bld
 uImage
 cuImage.*
 dtbImage.*

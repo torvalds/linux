@@ -144,8 +144,6 @@ static int maxiradio_probe(struct pci_dev *pdev,
 	dev->tea.v4l2_dev = v4l2_dev;
 	dev->tea.radio_nr = radio_nr;
 	strscpy(dev->tea.card, "Maxi Radio FM2000", sizeof(dev->tea.card));
-	snprintf(dev->tea.bus_info, sizeof(dev->tea.bus_info),
-			"PCI:%s", pci_name(pdev));
 
 	retval = -ENODEV;
 
@@ -176,7 +174,7 @@ errfr:
 
 static void maxiradio_remove(struct pci_dev *pdev)
 {
-	struct v4l2_device *v4l2_dev = dev_get_drvdata(&pdev->dev);
+	struct v4l2_device *v4l2_dev = pci_get_drvdata(pdev);
 	struct maxiradio *dev = to_maxiradio(v4l2_dev);
 
 	snd_tea575x_exit(&dev->tea);

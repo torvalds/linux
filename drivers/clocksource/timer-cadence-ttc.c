@@ -13,8 +13,11 @@
 #include <linux/clocksource.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/sched_clock.h>
+#include <linux/module.h>
+#include <linux/of_platform.h>
 
 /*
  * This driver configures the 2 16/32-bit count-up timers as follows:
@@ -66,7 +69,7 @@
  * @base_addr:	Base address of timer
  * @freq:	Timer input clock frequency
  * @clk:	Associated clock source
- * @clk_rate_change_nb	Notifier block for clock rate changes
+ * @clk_rate_change_nb:	Notifier block for clock rate changes
  */
 struct ttc_timer {
 	void __iomem *base_addr;
@@ -131,7 +134,7 @@ static void ttc_set_interval(struct ttc_timer *timer,
  * @irq:	IRQ number of the Timer
  * @dev_id:	void pointer to the ttc_timer instance
  *
- * returns: Always IRQ_HANDLED - success
+ * Returns: Always IRQ_HANDLED - success
  **/
 static irqreturn_t ttc_clock_event_interrupt(int irq, void *dev_id)
 {
@@ -148,8 +151,9 @@ static irqreturn_t ttc_clock_event_interrupt(int irq, void *dev_id)
 
 /**
  * __ttc_clocksource_read - Reads the timer counter register
+ * @cs: &clocksource to read from
  *
- * returns: Current timer counter register value
+ * Returns: Current timer counter register value
  **/
 static u64 __ttc_clocksource_read(struct clocksource *cs)
 {
@@ -170,7 +174,7 @@ static u64 notrace ttc_sched_clock_read(void)
  * @cycles:	Timer interval ticks
  * @evt:	Address of clock event instance
  *
- * returns: Always 0 - success
+ * Returns: Always %0 - success
  **/
 static int ttc_set_next_event(unsigned long cycles,
 					struct clock_event_device *evt)
@@ -183,9 +187,12 @@ static int ttc_set_next_event(unsigned long cycles,
 }
 
 /**
- * ttc_set_{shutdown|oneshot|periodic} - Sets the state of timer
- *
+ * ttc_shutdown - Sets the state of timer
  * @evt:	Address of clock event instance
+ *
+ * Used for shutdown or oneshot.
+ *
+ * Returns: Always %0 - success
  **/
 static int ttc_shutdown(struct clock_event_device *evt)
 {
@@ -199,6 +206,12 @@ static int ttc_shutdown(struct clock_event_device *evt)
 	return 0;
 }
 
+/**
+ * ttc_set_periodic - Sets the state of timer
+ * @evt:	Address of clock event instance
+ *
+ * Returns: Always %0 - success
+ */
 static int ttc_set_periodic(struct clock_event_device *evt)
 {
 	struct ttc_timer_clockevent *ttce = to_ttc_timer_clkevent(evt);
@@ -307,7 +320,7 @@ static int ttc_rate_change_clocksource_cb(struct notifier_block *nb,
 		/* restore original register value */
 		writel_relaxed(ttccs->scale_clk_ctrl_reg_old,
 			       ttccs->ttc.base_addr + TTC_CLK_CNTRL_OFFSET);
-		/* fall through */
+		fallthrough;
 	default:
 		return NOTIFY_DONE;
 	}
@@ -390,7 +403,7 @@ static int ttc_rate_change_clockevent_cb(struct notifier_block *nb,
 
 		clockevents_update_freq(&ttcce->ce, ndata->new_rate / PRESCALE);
 
-		/* fall through */
+		fallthrough;
 	case PRE_RATE_CHANGE:
 	case ABORT_RATE_CHANGE:
 	default:
@@ -411,10 +424,8 @@ static int __init ttc_setup_clockevent(struct clk *clk,
 	ttcce->ttc.clk = clk;
 
 	err = clk_prepare_enable(ttcce->ttc.clk);
-	if (err) {
-		kfree(ttcce);
-		return err;
-	}
+	if (err)
+		goto out_kfree;
 
 	ttcce->ttc.clk_rate_change_nb.notifier_call =
 		ttc_rate_change_clockevent_cb;
@@ -424,7 +435,7 @@ static int __init ttc_setup_clockevent(struct clk *clk,
 				    &ttcce->ttc.clk_rate_change_nb);
 	if (err) {
 		pr_warn("Unable to register clock notifier.\n");
-		return err;
+		goto out_kfree;
 	}
 
 	ttcce->ttc.freq = clk_get_rate(ttcce->ttc.clk);
@@ -453,24 +464,20 @@ static int __init ttc_setup_clockevent(struct clk *clk,
 
 	err = request_irq(irq, ttc_clock_event_interrupt,
 			  IRQF_TIMER, ttcce->ce.name, ttcce);
-	if (err) {
-		kfree(ttcce);
-		return err;
-	}
+	if (err)
+		goto out_kfree;
 
 	clockevents_config_and_register(&ttcce->ce,
 			ttcce->ttc.freq / PRESCALE, 1, 0xfffe);
 
 	return 0;
+
+out_kfree:
+	kfree(ttcce);
+	return err;
 }
 
-/**
- * ttc_timer_init - Initialize the timer
- *
- * Initializes the timer hardware and register the clock source and clock event
- * timers with Linux kernal timer framework
- */
-static int __init ttc_timer_init(struct device_node *timer)
+static int __init ttc_timer_probe(struct platform_device *pdev)
 {
 	unsigned int irq;
 	void __iomem *timer_baseaddr;
@@ -478,6 +485,7 @@ static int __init ttc_timer_init(struct device_node *timer)
 	static int initialized;
 	int clksel, ret;
 	u32 timer_width = 16;
+	struct device_node *timer = pdev->dev.of_node;
 
 	if (initialized)
 		return 0;
@@ -489,10 +497,10 @@ static int __init ttc_timer_init(struct device_node *timer)
 	 * and use it. Note that the event timer uses the interrupt and it's the
 	 * 2nd TTC hence the irq_of_parse_and_map(,1)
 	 */
-	timer_baseaddr = of_iomap(timer, 0);
-	if (!timer_baseaddr) {
+	timer_baseaddr = devm_of_iomap(&pdev->dev, timer, 0, NULL);
+	if (IS_ERR(timer_baseaddr)) {
 		pr_err("ERROR: invalid timer base address\n");
-		return -ENXIO;
+		return PTR_ERR(timer_baseaddr);
 	}
 
 	irq = irq_of_parse_and_map(timer, 1);
@@ -516,20 +524,40 @@ static int __init ttc_timer_init(struct device_node *timer)
 	clk_ce = of_clk_get(timer, clksel);
 	if (IS_ERR(clk_ce)) {
 		pr_err("ERROR: timer input clock not found\n");
-		return PTR_ERR(clk_ce);
+		ret = PTR_ERR(clk_ce);
+		goto put_clk_cs;
 	}
 
 	ret = ttc_setup_clocksource(clk_cs, timer_baseaddr, timer_width);
 	if (ret)
-		return ret;
+		goto put_clk_ce;
 
 	ret = ttc_setup_clockevent(clk_ce, timer_baseaddr + 4, irq);
 	if (ret)
-		return ret;
+		goto put_clk_ce;
 
 	pr_info("%pOFn #0 at %p, irq=%d\n", timer, timer_baseaddr, irq);
 
 	return 0;
+
+put_clk_ce:
+	clk_put(clk_ce);
+put_clk_cs:
+	clk_put(clk_cs);
+	return ret;
 }
 
-TIMER_OF_DECLARE(ttc, "cdns,ttc", ttc_timer_init);
+static const struct of_device_id ttc_timer_of_match[] = {
+	{.compatible = "cdns,ttc"},
+	{},
+};
+
+MODULE_DEVICE_TABLE(of, ttc_timer_of_match);
+
+static struct platform_driver ttc_timer_driver = {
+	.driver = {
+		.name	= "cdns_ttc_timer",
+		.of_match_table = ttc_timer_of_match,
+	},
+};
+builtin_platform_driver_probe(ttc_timer_driver, ttc_timer_probe);

@@ -46,7 +46,7 @@ Parameters::
         capi:authenc(hmac(sha256),xts(aes))-random
         capi:rfc7539(chacha20,poly1305)-random
 
-    The /proc/crypto contains a list of curently loaded crypto modes.
+    The /proc/crypto contains a list of currently loaded crypto modes.
 
 <key>
     Key used for encryption. It is encoded either as a hexadecimal number
@@ -67,7 +67,7 @@ Parameters::
     the value passed in <key_size>.
 
 <key_type>
-    Either 'logon' or 'user' kernel key type.
+    Either 'logon', 'user', 'encrypted' or 'trusted' kernel key type.
 
 <key_description>
     The kernel keyring key description crypt target should look for
@@ -92,7 +92,7 @@ Parameters::
 
 <#opt_params>
     Number of optional parameters. If there are no optional parameters,
-    the optional paramaters section can be skipped or #opt_params can be zero.
+    the optional parameters section can be skipped or #opt_params can be zero.
     Otherwise #opt_params is the number of following arguments.
 
     Example of optional parameters section:
@@ -113,6 +113,11 @@ same_cpu_crypt
     The default is to use an unbound workqueue so that encryption work
     is automatically balanced between available CPUs.
 
+high_priority
+    Set dm-crypt workqueues and the writer thread to high priority. This
+    improves throughput and latency of dm-crypt while degrading general
+    responsiveness of the system.
+
 submit_from_crypt_cpus
     Disable offloading writes to a separate thread after encryption.
     There are some situations where offloading write bios from the
@@ -120,6 +125,14 @@ submit_from_crypt_cpus
     significantly.  The default is to offload write bios to the same
     thread because it benefits CFQ to have writes submitted using the
     same context.
+
+no_read_workqueue
+    Bypass dm-crypt internal workqueue and process read requests synchronously.
+
+no_write_workqueue
+    Bypass dm-crypt internal workqueue and process write requests synchronously.
+    This option is automatically enabled for host-managed zoned block devices
+    (e.g. host-managed SMR hard-disks).
 
 integrity:<bytes>:<type>
     The device requires additional <bytes> metadata per-sector stored

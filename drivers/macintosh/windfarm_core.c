@@ -35,8 +35,6 @@
 #include <linux/mutex.h>
 #include <linux/freezer.h>
 
-#include <asm/prom.h>
-
 #include "windfarm.h"
 
 #define VERSION "0.2"
@@ -56,7 +54,7 @@ static BLOCKING_NOTIFIER_HEAD(wf_client_list);
 static int wf_client_count;
 static unsigned int wf_overtemp;
 static unsigned int wf_overtemp_counter;
-struct task_struct *wf_thread;
+static struct task_struct *wf_thread;
 
 static struct platform_device wf_platform_device = {
 	.name	= "windfarm",

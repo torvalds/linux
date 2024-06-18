@@ -36,7 +36,7 @@ struct stp_policy_id {
 	/* padding */
 	__u16		__reserved_0;
 	__u32		__reserved_1;
-	char		id[0];
+	char		id[];
 };
 
 #define STP_POLICY_ID_SET	_IOWR('%', 0, struct stp_policy_id)

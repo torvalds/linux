@@ -6,10 +6,11 @@
 menuconfig HWSPINLOCK
 	bool "Hardware Spinlock drivers"
 
+if HWSPINLOCK
+
 config HWSPINLOCK_OMAP
 	tristate "OMAP Hardware Spinlock device"
-	depends on HWSPINLOCK
-	depends on ARCH_OMAP4 || SOC_OMAP5 || SOC_DRA7XX || SOC_AM33XX || SOC_AM43XX || ARCH_K3
+	depends on ARCH_OMAP4 || SOC_OMAP5 || SOC_DRA7XX || SOC_AM33XX || SOC_AM43XX || ARCH_K3 || COMPILE_TEST
 	help
 	  Say y here to support the OMAP Hardware Spinlock device (firstly
 	  introduced in OMAP4).
@@ -18,8 +19,7 @@ config HWSPINLOCK_OMAP
 
 config HWSPINLOCK_QCOM
 	tristate "Qualcomm Hardware Spinlock device"
-	depends on HWSPINLOCK
-	depends on ARCH_QCOM
+	depends on ARCH_QCOM || COMPILE_TEST
 	select MFD_SYSCON
 	help
 	  Say y here to support the Qualcomm Hardware Mutex functionality, which
@@ -28,22 +28,9 @@ config HWSPINLOCK_QCOM
 
 	  If unsure, say N.
 
-config HWSPINLOCK_SIRF
-	tristate "SIRF Hardware Spinlock device"
-	depends on HWSPINLOCK
-	depends on ARCH_SIRF
-	help
-	  Say y here to support the SIRF Hardware Spinlock device, which
-	  provides a synchronisation mechanism for the various processors
-	  on the SoC.
-
-	  It's safe to say n here if you're not interested in SIRF hardware
-	  spinlock or just want a bare minimum kernel.
-
 config HWSPINLOCK_SPRD
 	tristate "SPRD Hardware Spinlock device"
-	depends on ARCH_SPRD
-	depends on HWSPINLOCK
+	depends on ARCH_SPRD || COMPILE_TEST
 	help
 	  Say y here to support the SPRD Hardware Spinlock device.
 
@@ -51,20 +38,29 @@ config HWSPINLOCK_SPRD
 
 config HWSPINLOCK_STM32
 	tristate "STM32 Hardware Spinlock device"
-	depends on MACH_STM32MP157
-	depends on HWSPINLOCK
+	depends on MACH_STM32MP157 || COMPILE_TEST
 	help
 	  Say y here to support the STM32 Hardware Spinlock device.
 
 	  If unsure, say N.
 
+config HWSPINLOCK_SUN6I
+	tristate "SUN6I Hardware Spinlock device"
+	depends on ARCH_SUNXI || COMPILE_TEST
+	help
+	  Say y here to support the SUN6I Hardware Spinlock device which can be
+	  found in most of the sun6i compatible Allwinner SoCs.
+
+	  If unsure, say N.
+
 config HSEM_U8500
 	tristate "STE Hardware Semaphore functionality"
-	depends on HWSPINLOCK
-	depends on ARCH_U8500
+	depends on ARCH_U8500 || COMPILE_TEST
 	help
 	  Say y here to support the STE Hardware Semaphore functionality, which
 	  provides a synchronisation mechanism for the various processor on the
 	  SoC.
 
 	  If unsure, say N.
+
+endif # HWSPINLOCK

@@ -32,18 +32,18 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/shmem_fs.h>
 #include <linux/slab.h>
-#include <linux/version.h>
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fb_cma_helper.h>
-#include <drm/drm_fb_helper.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_fbdev_dma.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_module.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_probe_helper.h>
@@ -65,7 +65,7 @@ static int tve200_modeset_init(struct drm_device *dev)
 	struct tve200_drm_dev_private *priv = dev->dev_private;
 	struct drm_panel *panel;
 	struct drm_bridge *bridge;
-	int ret = 0;
+	int ret;
 
 	drm_mode_config_init(dev);
 	mode_config = &dev->mode_config;
@@ -80,8 +80,8 @@ static int tve200_modeset_init(struct drm_device *dev)
 	if (ret && ret != -ENODEV)
 		return ret;
 	if (panel) {
-		bridge = drm_panel_bridge_add(panel,
-					      DRM_MODE_CONNECTOR_Unknown);
+		bridge = drm_panel_bridge_add_typed(panel,
+						    DRM_MODE_CONNECTOR_Unknown);
 		if (IS_ERR(bridge)) {
 			ret = PTR_ERR(bridge);
 			goto out_bridge;
@@ -93,6 +93,7 @@ static int tve200_modeset_init(struct drm_device *dev)
 		 * method to get the connector out of the bridge.
 		 */
 		dev_err(dev->dev, "the bridge is not a panel\n");
+		ret = -EINVAL;
 		goto out_bridge;
 	}
 
@@ -110,7 +111,7 @@ static int tve200_modeset_init(struct drm_device *dev)
 	}
 
 	priv->panel = panel;
-	priv->connector = panel->connector;
+	priv->connector = drm_panel_bridge_connector(bridge);
 	priv->bridge = bridge;
 
 	dev_info(dev->dev, "attached to panel %s\n",
@@ -135,9 +136,9 @@ finish:
 	return ret;
 }
 
-DEFINE_DRM_GEM_CMA_FOPS(drm_fops);
+DEFINE_DRM_GEM_DMA_FOPS(drm_fops);
 
-static struct drm_driver tve200_drm_driver = {
+static const struct drm_driver tve200_drm_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 	.ioctls = NULL,
 	.fops = &drm_fops,
@@ -147,17 +148,7 @@ static struct drm_driver tve200_drm_driver = {
 	.major = 1,
 	.minor = 0,
 	.patchlevel = 0,
-	.dumb_create = drm_gem_cma_dumb_create,
-	.gem_free_object_unlocked = drm_gem_cma_free_object,
-	.gem_vm_ops = &drm_gem_cma_vm_ops,
-
-	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
-	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
-	.gem_prime_get_sg_table	= drm_gem_cma_prime_get_sg_table,
-	.gem_prime_import_sg_table = drm_gem_cma_prime_import_sg_table,
-	.gem_prime_vmap = drm_gem_cma_prime_vmap,
-	.gem_prime_vunmap = drm_gem_cma_prime_vunmap,
-	.gem_prime_mmap = drm_gem_cma_prime_mmap,
+	DRM_GEM_DMA_DRIVER_OPS,
 };
 
 static int tve200_probe(struct platform_device *pdev)
@@ -165,7 +156,6 @@ static int tve200_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct tve200_drm_dev_private *priv;
 	struct drm_device *drm;
-	struct resource *res;
 	int irq;
 	int ret;
 
@@ -201,8 +191,7 @@ static int tve200_probe(struct platform_device *pdev)
 		goto clk_disable;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->regs = devm_ioremap_resource(dev, res);
+	priv->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->regs)) {
 		dev_err(dev, "%s failed mmio\n", __func__);
 		ret = -EINVAL;
@@ -210,8 +199,8 @@ static int tve200_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (!irq) {
-		ret = -EINVAL;
+	if (irq < 0) {
+		ret = irq;
 		goto clk_disable;
 	}
 
@@ -236,7 +225,7 @@ static int tve200_probe(struct platform_device *pdev)
 	 * Passing in 16 here will make the RGB565 mode the default
 	 * Passing in 32 will use XRGB8888 mode
 	 */
-	drm_fbdev_generic_setup(drm, 16);
+	drm_fbdev_dma_setup(drm, 16);
 
 	return 0;
 
@@ -247,19 +236,23 @@ dev_unref:
 	return ret;
 }
 
-static int tve200_remove(struct platform_device *pdev)
+static void tve200_remove(struct platform_device *pdev)
 {
 	struct drm_device *drm = platform_get_drvdata(pdev);
 	struct tve200_drm_dev_private *priv = drm->dev_private;
 
 	drm_dev_unregister(drm);
+	drm_atomic_helper_shutdown(drm);
 	if (priv->panel)
 		drm_panel_bridge_remove(priv->bridge);
 	drm_mode_config_cleanup(drm);
 	clk_disable_unprepare(priv->pclk);
 	drm_dev_put(drm);
+}
 
-	return 0;
+static void tve200_shutdown(struct platform_device *pdev)
+{
+	drm_atomic_helper_shutdown(platform_get_drvdata(pdev));
 }
 
 static const struct of_device_id tve200_of_match[] = {
@@ -272,12 +265,13 @@ static const struct of_device_id tve200_of_match[] = {
 static struct platform_driver tve200_driver = {
 	.driver = {
 		.name           = "tve200",
-		.of_match_table = of_match_ptr(tve200_of_match),
+		.of_match_table = tve200_of_match,
 	},
 	.probe = tve200_probe,
-	.remove = tve200_remove,
+	.remove_new = tve200_remove,
+	.shutdown = tve200_shutdown,
 };
-module_platform_driver(tve200_driver);
+drm_module_platform_driver(tve200_driver);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR("Linus Walleij <linus.walleij@linaro.org>");

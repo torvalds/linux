@@ -40,6 +40,28 @@ DEFINE_EVENT(cpu, cpu_idle,
 	TP_ARGS(state, cpu_id)
 );
 
+TRACE_EVENT(cpu_idle_miss,
+
+	TP_PROTO(unsigned int cpu_id, unsigned int state, bool below),
+
+	TP_ARGS(cpu_id, state, below),
+
+	TP_STRUCT__entry(
+		__field(u32,		cpu_id)
+		__field(u32,		state)
+		__field(bool,		below)
+	),
+
+	TP_fast_assign(
+		__entry->cpu_id = cpu_id;
+		__entry->state = state;
+		__entry->below = below;
+	),
+
+	TP_printk("cpu_id=%lu state=%lu type=%s", (unsigned long)__entry->cpu_id,
+		(unsigned long)__entry->state, (__entry->below)?"below":"above")
+);
+
 TRACE_EVENT(powernv_throttle,
 
 	TP_PROTO(int chip_id, const char *reason, int pmax),
@@ -54,7 +76,7 @@ TRACE_EVENT(powernv_throttle,
 
 	TP_fast_assign(
 		__entry->chip_id = chip_id;
-		__assign_str(reason, reason);
+		__assign_str(reason);
 		__entry->pmax = pmax;
 	),
 
@@ -188,11 +210,10 @@ TRACE_EVENT(device_pm_callback_start,
 	),
 
 	TP_fast_assign(
-		__assign_str(device, dev_name(dev));
-		__assign_str(driver, dev_driver_string(dev));
-		__assign_str(parent,
-			dev->parent ? dev_name(dev->parent) : "none");
-		__assign_str(pm_ops, pm_ops ? pm_ops : "none ");
+		__assign_str(device);
+		__assign_str(driver);
+		__assign_str(parent);
+		__assign_str(pm_ops);
 		__entry->event = event;
 	),
 
@@ -214,8 +235,8 @@ TRACE_EVENT(device_pm_callback_end,
 	),
 
 	TP_fast_assign(
-		__assign_str(device, dev_name(dev));
-		__assign_str(driver, dev_driver_string(dev));
+		__assign_str(device);
+		__assign_str(driver);
 		__entry->error = error;
 	),
 
@@ -257,7 +278,7 @@ DECLARE_EVENT_CLASS(wakeup_source,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, name);
+		__assign_str(name);
 		__entry->state = state;
 	),
 
@@ -296,7 +317,7 @@ DECLARE_EVENT_CLASS(clock,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, name);
+		__assign_str(name);
 		__entry->state = state;
 		__entry->cpu_id = cpu_id;
 	),
@@ -342,7 +363,7 @@ DECLARE_EVENT_CLASS(power_domain,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, name);
+		__assign_str(name);
 		__entry->state = state;
 		__entry->cpu_id = cpu_id;
 ),
@@ -359,75 +380,50 @@ DEFINE_EVENT(power_domain, power_domain_target,
 );
 
 /*
- * The pm qos events are used for pm qos update
+ * CPU latency QoS events used for global CPU latency QoS list updates
  */
-DECLARE_EVENT_CLASS(pm_qos_request,
+DECLARE_EVENT_CLASS(cpu_latency_qos_request,
 
-	TP_PROTO(int pm_qos_class, s32 value),
+	TP_PROTO(s32 value),
 
-	TP_ARGS(pm_qos_class, value),
+	TP_ARGS(value),
 
 	TP_STRUCT__entry(
-		__field( int,                    pm_qos_class   )
 		__field( s32,                    value          )
 	),
 
 	TP_fast_assign(
-		__entry->pm_qos_class = pm_qos_class;
 		__entry->value = value;
 	),
 
-	TP_printk("pm_qos_class=%s value=%d",
-		  __print_symbolic(__entry->pm_qos_class,
-			{ PM_QOS_CPU_DMA_LATENCY,	"CPU_DMA_LATENCY" }),
+	TP_printk("CPU_DMA_LATENCY value=%d",
 		  __entry->value)
 );
 
-DEFINE_EVENT(pm_qos_request, pm_qos_add_request,
+DEFINE_EVENT(cpu_latency_qos_request, pm_qos_add_request,
 
-	TP_PROTO(int pm_qos_class, s32 value),
+	TP_PROTO(s32 value),
 
-	TP_ARGS(pm_qos_class, value)
+	TP_ARGS(value)
 );
 
-DEFINE_EVENT(pm_qos_request, pm_qos_update_request,
+DEFINE_EVENT(cpu_latency_qos_request, pm_qos_update_request,
 
-	TP_PROTO(int pm_qos_class, s32 value),
+	TP_PROTO(s32 value),
 
-	TP_ARGS(pm_qos_class, value)
+	TP_ARGS(value)
 );
 
-DEFINE_EVENT(pm_qos_request, pm_qos_remove_request,
+DEFINE_EVENT(cpu_latency_qos_request, pm_qos_remove_request,
 
-	TP_PROTO(int pm_qos_class, s32 value),
+	TP_PROTO(s32 value),
 
-	TP_ARGS(pm_qos_class, value)
+	TP_ARGS(value)
 );
 
-TRACE_EVENT(pm_qos_update_request_timeout,
-
-	TP_PROTO(int pm_qos_class, s32 value, unsigned long timeout_us),
-
-	TP_ARGS(pm_qos_class, value, timeout_us),
-
-	TP_STRUCT__entry(
-		__field( int,                    pm_qos_class   )
-		__field( s32,                    value          )
-		__field( unsigned long,          timeout_us     )
-	),
-
-	TP_fast_assign(
-		__entry->pm_qos_class = pm_qos_class;
-		__entry->value = value;
-		__entry->timeout_us = timeout_us;
-	),
-
-	TP_printk("pm_qos_class=%s value=%d, timeout_us=%ld",
-		  __print_symbolic(__entry->pm_qos_class,
-			{ PM_QOS_CPU_DMA_LATENCY,	"CPU_DMA_LATENCY" }),
-		  __entry->value, __entry->timeout_us)
-);
-
+/*
+ * General PM QoS events used for updates of PM QoS request lists
+ */
 DECLARE_EVENT_CLASS(pm_qos_update,
 
 	TP_PROTO(enum pm_qos_req_action action, int prev_value, int curr_value),
@@ -489,7 +485,7 @@ DECLARE_EVENT_CLASS(dev_pm_qos_request,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, name);
+		__assign_str(name);
 		__entry->type = type;
 		__entry->new_value = new_value;
 	),
@@ -525,6 +521,35 @@ DEFINE_EVENT(dev_pm_qos_request, dev_pm_qos_remove_request,
 
 	TP_ARGS(name, type, new_value)
 );
+
+TRACE_EVENT(guest_halt_poll_ns,
+
+	TP_PROTO(bool grow, unsigned int new, unsigned int old),
+
+	TP_ARGS(grow, new, old),
+
+	TP_STRUCT__entry(
+		__field(bool, grow)
+		__field(unsigned int, new)
+		__field(unsigned int, old)
+	),
+
+	TP_fast_assign(
+		__entry->grow   = grow;
+		__entry->new    = new;
+		__entry->old    = old;
+	),
+
+	TP_printk("halt_poll_ns %u (%s %u)",
+		__entry->new,
+		__entry->grow ? "grow" : "shrink",
+		__entry->old)
+);
+
+#define trace_guest_halt_poll_ns_grow(new, old) \
+	trace_guest_halt_poll_ns(true, new, old)
+#define trace_guest_halt_poll_ns_shrink(new, old) \
+	trace_guest_halt_poll_ns(false, new, old)
 #endif /* _TRACE_POWER_H */
 
 /* This part must be outside protection */

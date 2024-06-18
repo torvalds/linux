@@ -5,7 +5,6 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <asm/compiler.h>
-#include <asm/pgalloc.h>
 
 #ifndef __EXTERN_INLINE
 #define __EXTERN_INLINE extern inline
@@ -14,16 +13,6 @@
 
 extern void __load_new_mm_context(struct mm_struct *);
 
-
-/* Use a few helper functions to hide the ugly broken ASN
-   numbers on early Alphas (ev4 and ev45).  */
-
-__EXTERN_INLINE void
-ev4_flush_tlb_current(struct mm_struct *mm)
-{
-	__load_new_mm_context(mm);
-	tbiap();
-}
 
 __EXTERN_INLINE void
 ev5_flush_tlb_current(struct mm_struct *mm)
@@ -34,19 +23,6 @@ ev5_flush_tlb_current(struct mm_struct *mm)
 /* Flush just one page in the current TLB set.  We need to be very
    careful about the icache here, there is no way to invalidate a
    specific icache page.  */
-
-__EXTERN_INLINE void
-ev4_flush_tlb_current_page(struct mm_struct * mm,
-			   struct vm_area_struct *vma,
-			   unsigned long addr)
-{
-	int tbi_flag = 2;
-	if (vma->vm_flags & VM_EXEC) {
-		__load_new_mm_context(mm);
-		tbi_flag = 3;
-	}
-	tbi(tbi_flag, addr);
-}
 
 __EXTERN_INLINE void
 ev5_flush_tlb_current_page(struct mm_struct * mm,
@@ -60,18 +36,8 @@ ev5_flush_tlb_current_page(struct mm_struct * mm,
 }
 
 
-#ifdef CONFIG_ALPHA_GENERIC
-# define flush_tlb_current		alpha_mv.mv_flush_tlb_current
-# define flush_tlb_current_page		alpha_mv.mv_flush_tlb_current_page
-#else
-# ifdef CONFIG_ALPHA_EV4
-#  define flush_tlb_current		ev4_flush_tlb_current
-#  define flush_tlb_current_page	ev4_flush_tlb_current_page
-# else
-#  define flush_tlb_current		ev5_flush_tlb_current
-#  define flush_tlb_current_page	ev5_flush_tlb_current_page
-# endif
-#endif
+#define flush_tlb_current	ev5_flush_tlb_current
+#define flush_tlb_current_page	ev5_flush_tlb_current_page
 
 #ifdef __MMU_EXTERN_INLINE
 #undef __EXTERN_INLINE

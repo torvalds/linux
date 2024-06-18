@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config USB_VIDEO_CLASS
 	tristate "USB Video Class (UVC)"
-	depends on VIDEO_V4L2
+	depends on VIDEO_DEV
 	select VIDEOBUF2_VMALLOC
+	select UVC_COMMON
 	help
 	  Support for the USB Video Class (UVC).  Currently only video
 	  input devices, such as webcams, are supported.

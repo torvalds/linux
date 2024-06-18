@@ -5,14 +5,14 @@
 #include <asm/types.h>
 
 /**
- * __fls - find last (most-significant) set bit in a long word
+ * generic___fls - find last (most-significant) set bit in a long word
  * @word: the word to search
  *
  * Undefined if no set bit exists, so code should check against 0 first.
  */
-static __always_inline unsigned long __fls(unsigned long word)
+static __always_inline unsigned int generic___fls(unsigned long word)
 {
-	int num = BITS_PER_LONG - 1;
+	unsigned int num = BITS_PER_LONG - 1;
 
 #if BITS_PER_LONG == 64
 	if (!(word & (~0ul << 32))) {
@@ -40,5 +40,9 @@ static __always_inline unsigned long __fls(unsigned long word)
 		num -= 1;
 	return num;
 }
+
+#ifndef __HAVE_ARCH___FLS
+#define __fls(word) generic___fls(word)
+#endif
 
 #endif /* _ASM_GENERIC_BITOPS___FLS_H_ */

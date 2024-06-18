@@ -17,17 +17,14 @@
 #define GDM_TTY_MAJOR 0
 #define GDM_TTY_MINOR 32
 
-#define ACM_CTRL_DTR 0x01
-#define ACM_CTRL_RTS 0x02
-#define ACM_CTRL_DSR 0x02
-#define ACM_CTRL_RI  0x08
-#define ACM_CTRL_DCD 0x01
-
 #define WRITE_SIZE 2048
 
 #define MUX_TX_MAX_SIZE 2048
 
-#define GDM_TTY_READY(gdm) (gdm && gdm->tty_dev && gdm->port.count)
+static inline bool gdm_tty_ready(struct gdm *gdm)
+{
+	return gdm && gdm->tty_dev && gdm->port.count;
+}
 
 static struct tty_driver *gdm_driver[TTY_MAX_COUNT];
 static struct gdm *gdm_table[TTY_MAX_COUNT][GDM_TTY_MINOR];
@@ -119,7 +116,7 @@ static int gdm_tty_recv_complete(void *data,
 {
 	struct gdm *gdm = tty_dev->gdm[index];
 
-	if (!GDM_TTY_READY(gdm)) {
+	if (!gdm_tty_ready(gdm)) {
 		if (complete == RECV_PACKET_PROCESS_COMPLETE)
 			gdm->tty_dev->recv_func(gdm->tty_dev->priv_dev,
 						gdm_tty_recv_complete);
@@ -146,28 +143,24 @@ static void gdm_tty_send_complete(void *arg)
 {
 	struct gdm *gdm = arg;
 
-	if (!GDM_TTY_READY(gdm))
+	if (!gdm_tty_ready(gdm))
 		return;
 
 	tty_port_tty_wakeup(&gdm->port);
 }
 
-static int gdm_tty_write(struct tty_struct *tty, const unsigned char *buf,
-			 int len)
+static ssize_t gdm_tty_write(struct tty_struct *tty, const u8 *buf, size_t len)
 {
 	struct gdm *gdm = tty->driver_data;
-	int remain = len;
-	int sent_len = 0;
-	int sending_len = 0;
+	size_t remain = len;
+	size_t sent_len = 0;
 
-	if (!GDM_TTY_READY(gdm))
+	if (!gdm_tty_ready(gdm))
 		return -ENODEV;
 
-	if (!len)
-		return 0;
+	while (remain) {
+		size_t sending_len = min_t(size_t, MUX_TX_MAX_SIZE, remain);
 
-	while (1) {
-		sending_len = min(MUX_TX_MAX_SIZE, remain);
 		gdm->tty_dev->send_func(gdm->tty_dev->priv_dev,
 					(void *)(buf + sent_len),
 					sending_len,
@@ -176,19 +169,17 @@ static int gdm_tty_write(struct tty_struct *tty, const unsigned char *buf,
 					gdm);
 		sent_len += sending_len;
 		remain -= sending_len;
-		if (remain <= 0)
-			break;
 	}
 
 	return len;
 }
 
-static int gdm_tty_write_room(struct tty_struct *tty)
+static unsigned int gdm_tty_write_room(struct tty_struct *tty)
 {
 	struct gdm *gdm = tty->driver_data;
 
-	if (!GDM_TTY_READY(gdm))
-		return -ENODEV;
+	if (!gdm_tty_ready(gdm))
+		return 0;
 
 	return WRITE_SIZE;
 }
@@ -281,9 +272,10 @@ int register_lte_tty_driver(void)
 	int ret;
 
 	for (i = 0; i < TTY_MAX_COUNT; i++) {
-		tty_driver = alloc_tty_driver(GDM_TTY_MINOR);
-		if (!tty_driver)
-			return -ENOMEM;
+		tty_driver = tty_alloc_driver(GDM_TTY_MINOR,
+				TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV);
+		if (IS_ERR(tty_driver))
+			return PTR_ERR(tty_driver);
 
 		tty_driver->owner = THIS_MODULE;
 		tty_driver->driver_name = DRIVER_STRING[i];
@@ -291,8 +283,6 @@ int register_lte_tty_driver(void)
 		tty_driver->major = GDM_TTY_MAJOR;
 		tty_driver->type = TTY_DRIVER_TYPE_SERIAL;
 		tty_driver->subtype = SERIAL_TYPE_NORMAL;
-		tty_driver->flags = TTY_DRIVER_REAL_RAW |
-					TTY_DRIVER_DYNAMIC_DEV;
 		tty_driver->init_termios = tty_std_termios;
 		tty_driver->init_termios.c_cflag = B9600 | CS8 | HUPCL | CLOCAL;
 		tty_driver->init_termios.c_lflag = ISIG | ICANON | IEXTEN;
@@ -300,7 +290,7 @@ int register_lte_tty_driver(void)
 
 		ret = tty_register_driver(tty_driver);
 		if (ret) {
-			put_tty_driver(tty_driver);
+			tty_driver_kref_put(tty_driver);
 			return ret;
 		}
 
@@ -319,7 +309,7 @@ void unregister_lte_tty_driver(void)
 		tty_driver = gdm_driver[i];
 		if (tty_driver) {
 			tty_unregister_driver(tty_driver);
-			put_tty_driver(tty_driver);
+			tty_driver_kref_put(tty_driver);
 		}
 	}
 }

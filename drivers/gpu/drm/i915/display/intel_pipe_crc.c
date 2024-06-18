@@ -24,12 +24,14 @@
  *
  */
 
-#include <linux/circ_buf.h>
 #include <linux/ctype.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 
+#include "i915_irq.h"
+#include "i915_reg.h"
 #include "intel_atomic.h"
+#include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_pipe_crc.h"
 
@@ -70,20 +72,18 @@ static int i8xx_pipe_crc_ctl_reg(enum intel_pipe_crc_source *source,
 	return 0;
 }
 
-static int i9xx_pipe_crc_auto_source(struct drm_i915_private *dev_priv,
-				     enum pipe pipe,
-				     enum intel_pipe_crc_source *source)
+static void i9xx_pipe_crc_auto_source(struct drm_i915_private *dev_priv,
+				      enum pipe pipe,
+				      enum intel_pipe_crc_source *source)
 {
-	struct drm_device *dev = &dev_priv->drm;
 	struct intel_encoder *encoder;
 	struct intel_crtc *crtc;
 	struct intel_digital_port *dig_port;
-	int ret = 0;
 
 	*source = INTEL_PIPE_CRC_SOURCE_PIPE;
 
-	drm_modeset_lock_all(dev);
-	for_each_intel_encoder(dev, encoder) {
+	drm_modeset_lock_all(&dev_priv->drm);
+	for_each_intel_encoder(&dev_priv->drm, encoder) {
 		if (!encoder->base.crtc)
 			continue;
 
@@ -98,7 +98,7 @@ static int i9xx_pipe_crc_auto_source(struct drm_i915_private *dev_priv,
 			break;
 		case INTEL_OUTPUT_DP:
 		case INTEL_OUTPUT_EDP:
-			dig_port = enc_to_dig_port(&encoder->base);
+			dig_port = enc_to_dig_port(encoder);
 			switch (dig_port->base.port) {
 			case PORT_B:
 				*source = INTEL_PIPE_CRC_SOURCE_DP_B;
@@ -110,8 +110,8 @@ static int i9xx_pipe_crc_auto_source(struct drm_i915_private *dev_priv,
 				*source = INTEL_PIPE_CRC_SOURCE_DP_D;
 				break;
 			default:
-				WARN(1, "nonexisting DP port %c\n",
-				     port_name(dig_port->base.port));
+				drm_WARN(&dev_priv->drm, 1, "nonexisting DP port %c\n",
+					 port_name(dig_port->base.port));
 				break;
 			}
 			break;
@@ -119,9 +119,7 @@ static int i9xx_pipe_crc_auto_source(struct drm_i915_private *dev_priv,
 			break;
 		}
 	}
-	drm_modeset_unlock_all(dev);
-
-	return ret;
+	drm_modeset_unlock_all(&dev_priv->drm);
 }
 
 static int vlv_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
@@ -131,11 +129,8 @@ static int vlv_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 {
 	bool need_stable_symbols = false;
 
-	if (*source == INTEL_PIPE_CRC_SOURCE_AUTO) {
-		int ret = i9xx_pipe_crc_auto_source(dev_priv, pipe, source);
-		if (ret)
-			return ret;
-	}
+	if (*source == INTEL_PIPE_CRC_SOURCE_AUTO)
+		i9xx_pipe_crc_auto_source(dev_priv, pipe, source);
 
 	switch (*source) {
 	case INTEL_PIPE_CRC_SOURCE_PIPE:
@@ -172,7 +167,7 @@ static int vlv_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 	 *   - DisplayPort scrambling: used for EMI reduction
 	 */
 	if (need_stable_symbols) {
-		u32 tmp = I915_READ(PORT_DFT2_G4X);
+		u32 tmp = intel_de_read(dev_priv, PORT_DFT2_G4X);
 
 		tmp |= DC_BALANCE_RESET_VLV;
 		switch (pipe) {
@@ -188,7 +183,7 @@ static int vlv_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 		default:
 			return -EINVAL;
 		}
-		I915_WRITE(PORT_DFT2_G4X, tmp);
+		intel_de_write(dev_priv, PORT_DFT2_G4X, tmp);
 	}
 
 	return 0;
@@ -199,11 +194,8 @@ static int i9xx_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 				 enum intel_pipe_crc_source *source,
 				 u32 *val)
 {
-	if (*source == INTEL_PIPE_CRC_SOURCE_AUTO) {
-		int ret = i9xx_pipe_crc_auto_source(dev_priv, pipe, source);
-		if (ret)
-			return ret;
-	}
+	if (*source == INTEL_PIPE_CRC_SOURCE_AUTO)
+		i9xx_pipe_crc_auto_source(dev_priv, pipe, source);
 
 	switch (*source) {
 	case INTEL_PIPE_CRC_SOURCE_PIPE:
@@ -237,7 +229,7 @@ static int i9xx_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 static void vlv_undo_pipe_scramble_reset(struct drm_i915_private *dev_priv,
 					 enum pipe pipe)
 {
-	u32 tmp = I915_READ(PORT_DFT2_G4X);
+	u32 tmp = intel_de_read(dev_priv, PORT_DFT2_G4X);
 
 	switch (pipe) {
 	case PIPE_A:
@@ -254,7 +246,7 @@ static void vlv_undo_pipe_scramble_reset(struct drm_i915_private *dev_priv,
 	}
 	if (!(tmp & PIPE_SCRAMBLE_RESET_MASK))
 		tmp &= ~DC_BALANCE_RESET_VLV;
-	I915_WRITE(PORT_DFT2_G4X, tmp);
+	intel_de_write(dev_priv, PORT_DFT2_G4X, tmp);
 }
 
 static int ilk_pipe_crc_ctl_reg(enum intel_pipe_crc_source *source,
@@ -301,6 +293,7 @@ intel_crtc_crc_setup_workarounds(struct intel_crtc *crtc, bool enable)
 	}
 
 	state->acquire_ctx = &ctx;
+	to_intel_atomic_state(state)->internal = true;
 
 retry:
 	pipe_config = intel_atomic_get_crtc_state(state, crtc);
@@ -309,13 +302,13 @@ retry:
 		goto put_state;
 	}
 
-	pipe_config->base.mode_changed = pipe_config->has_psr;
+	pipe_config->uapi.mode_changed = pipe_config->has_psr;
 	pipe_config->crc_enabled = enable;
 
 	if (IS_HASWELL(dev_priv) &&
-	    pipe_config->base.active && crtc->pipe == PIPE_A &&
+	    pipe_config->hw.active && crtc->pipe == PIPE_A &&
 	    pipe_config->cpu_transcoder == TRANSCODER_EDP)
-		pipe_config->base.mode_changed = true;
+		pipe_config->uapi.mode_changed = true;
 
 	ret = drm_atomic_commit(state);
 
@@ -328,7 +321,8 @@ put_state:
 
 	drm_atomic_state_put(state);
 unlock:
-	WARN(ret, "Toggling workaround to %i returns %i\n", enable, ret);
+	drm_WARN(&dev_priv->drm, ret,
+		 "Toggling workaround to %i returns %i\n", enable, ret);
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
 }
@@ -408,15 +402,15 @@ static int get_new_crc_ctl_reg(struct drm_i915_private *dev_priv,
 			       enum pipe pipe,
 			       enum intel_pipe_crc_source *source, u32 *val)
 {
-	if (IS_GEN(dev_priv, 2))
+	if (DISPLAY_VER(dev_priv) == 2)
 		return i8xx_pipe_crc_ctl_reg(source, val);
-	else if (INTEL_GEN(dev_priv) < 5)
+	else if (DISPLAY_VER(dev_priv) < 5)
 		return i9xx_pipe_crc_ctl_reg(dev_priv, pipe, source, val);
 	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		return vlv_pipe_crc_ctl_reg(dev_priv, pipe, source, val);
-	else if (IS_GEN_RANGE(dev_priv, 5, 6))
+	else if (IS_IRONLAKE(dev_priv) || IS_SANDYBRIDGE(dev_priv))
 		return ilk_pipe_crc_ctl_reg(source, val);
-	else if (INTEL_GEN(dev_priv) < 9)
+	else if (DISPLAY_VER(dev_priv) < 9)
 		return ivb_pipe_crc_ctl_reg(dev_priv, pipe, source, val);
 	else
 		return skl_pipe_crc_ctl_reg(dev_priv, pipe, source, val);
@@ -440,15 +434,11 @@ display_crc_ctl_parse_source(const char *buf, enum intel_pipe_crc_source *s)
 	return 0;
 }
 
-void intel_display_crc_init(struct drm_i915_private *dev_priv)
+void intel_crtc_crc_init(struct intel_crtc *crtc)
 {
-	enum pipe pipe;
+	struct intel_pipe_crc *pipe_crc = &crtc->pipe_crc;
 
-	for_each_pipe(dev_priv, pipe) {
-		struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[pipe];
-
-		spin_lock_init(&pipe_crc->lock);
-	}
+	spin_lock_init(&pipe_crc->lock);
 }
 
 static int i8xx_crc_source_valid(struct drm_i915_private *dev_priv,
@@ -542,15 +532,15 @@ static int
 intel_is_valid_crc_source(struct drm_i915_private *dev_priv,
 			  const enum intel_pipe_crc_source source)
 {
-	if (IS_GEN(dev_priv, 2))
+	if (DISPLAY_VER(dev_priv) == 2)
 		return i8xx_crc_source_valid(dev_priv, source);
-	else if (INTEL_GEN(dev_priv) < 5)
+	else if (DISPLAY_VER(dev_priv) < 5)
 		return i9xx_crc_source_valid(dev_priv, source);
 	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		return vlv_crc_source_valid(dev_priv, source);
-	else if (IS_GEN_RANGE(dev_priv, 5, 6))
+	else if (IS_IRONLAKE(dev_priv) || IS_SANDYBRIDGE(dev_priv))
 		return ilk_crc_source_valid(dev_priv, source);
-	else if (INTEL_GEN(dev_priv) < 9)
+	else if (DISPLAY_VER(dev_priv) < 9)
 		return ivb_crc_source_valid(dev_priv, source);
 	else
 		return skl_crc_source_valid(dev_priv, source);
@@ -570,7 +560,7 @@ int intel_crtc_verify_crc_source(struct drm_crtc *crtc, const char *source_name,
 	enum intel_pipe_crc_source source;
 
 	if (display_crc_ctl_parse_source(source_name, &source) < 0) {
-		DRM_DEBUG_DRIVER("unknown source %s\n", source_name);
+		drm_dbg(&dev_priv->drm, "unknown source %s\n", source_name);
 		return -EINVAL;
 	}
 
@@ -583,89 +573,92 @@ int intel_crtc_verify_crc_source(struct drm_crtc *crtc, const char *source_name,
 	return -EINVAL;
 }
 
-int intel_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_name)
+int intel_crtc_set_crc_source(struct drm_crtc *_crtc, const char *source_name)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
-	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[crtc->index];
+	struct intel_crtc *crtc = to_intel_crtc(_crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_pipe_crc *pipe_crc = &crtc->pipe_crc;
 	enum intel_display_power_domain power_domain;
 	enum intel_pipe_crc_source source;
+	enum pipe pipe = crtc->pipe;
 	intel_wakeref_t wakeref;
 	u32 val = 0; /* shut up gcc */
 	int ret = 0;
 	bool enable;
 
 	if (display_crc_ctl_parse_source(source_name, &source) < 0) {
-		DRM_DEBUG_DRIVER("unknown source %s\n", source_name);
+		drm_dbg(&dev_priv->drm, "unknown source %s\n", source_name);
 		return -EINVAL;
 	}
 
-	power_domain = POWER_DOMAIN_PIPE(crtc->index);
+	power_domain = POWER_DOMAIN_PIPE(pipe);
 	wakeref = intel_display_power_get_if_enabled(dev_priv, power_domain);
 	if (!wakeref) {
-		DRM_DEBUG_KMS("Trying to capture CRC while pipe is off\n");
+		drm_dbg_kms(&dev_priv->drm,
+			    "Trying to capture CRC while pipe is off\n");
 		return -EIO;
 	}
 
 	enable = source != INTEL_PIPE_CRC_SOURCE_NONE;
 	if (enable)
-		intel_crtc_crc_setup_workarounds(to_intel_crtc(crtc), true);
+		intel_crtc_crc_setup_workarounds(crtc, true);
 
-	ret = get_new_crc_ctl_reg(dev_priv, crtc->index, &source, &val);
+	ret = get_new_crc_ctl_reg(dev_priv, pipe, &source, &val);
 	if (ret != 0)
 		goto out;
 
 	pipe_crc->source = source;
-	I915_WRITE(PIPE_CRC_CTL(crtc->index), val);
-	POSTING_READ(PIPE_CRC_CTL(crtc->index));
+	intel_de_write(dev_priv, PIPE_CRC_CTL(pipe), val);
+	intel_de_posting_read(dev_priv, PIPE_CRC_CTL(pipe));
 
 	if (!source) {
 		if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-			vlv_undo_pipe_scramble_reset(dev_priv, crtc->index);
+			vlv_undo_pipe_scramble_reset(dev_priv, pipe);
 	}
 
 	pipe_crc->skipped = 0;
 
 out:
 	if (!enable)
-		intel_crtc_crc_setup_workarounds(to_intel_crtc(crtc), false);
+		intel_crtc_crc_setup_workarounds(crtc, false);
 
 	intel_display_power_put(dev_priv, power_domain, wakeref);
 
 	return ret;
 }
 
-void intel_crtc_enable_pipe_crc(struct intel_crtc *intel_crtc)
+void intel_crtc_enable_pipe_crc(struct intel_crtc *crtc)
 {
-	struct drm_crtc *crtc = &intel_crtc->base;
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
-	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[crtc->index];
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_pipe_crc *pipe_crc = &crtc->pipe_crc;
+	enum pipe pipe = crtc->pipe;
 	u32 val = 0;
 
-	if (!crtc->crc.opened)
+	if (!crtc->base.crc.opened)
 		return;
 
-	if (get_new_crc_ctl_reg(dev_priv, crtc->index, &pipe_crc->source, &val) < 0)
+	if (get_new_crc_ctl_reg(dev_priv, pipe, &pipe_crc->source, &val) < 0)
 		return;
 
 	/* Don't need pipe_crc->lock here, IRQs are not generated. */
 	pipe_crc->skipped = 0;
 
-	I915_WRITE(PIPE_CRC_CTL(crtc->index), val);
-	POSTING_READ(PIPE_CRC_CTL(crtc->index));
+	intel_de_write(dev_priv, PIPE_CRC_CTL(pipe), val);
+	intel_de_posting_read(dev_priv, PIPE_CRC_CTL(pipe));
 }
 
-void intel_crtc_disable_pipe_crc(struct intel_crtc *intel_crtc)
+void intel_crtc_disable_pipe_crc(struct intel_crtc *crtc)
 {
-	struct drm_crtc *crtc = &intel_crtc->base;
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
-	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[crtc->index];
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_pipe_crc *pipe_crc = &crtc->pipe_crc;
+	enum pipe pipe = crtc->pipe;
 
 	/* Swallow crc's until we stop generating them. */
 	spin_lock_irq(&pipe_crc->lock);
 	pipe_crc->skipped = INT_MIN;
 	spin_unlock_irq(&pipe_crc->lock);
 
-	I915_WRITE(PIPE_CRC_CTL(crtc->index), 0);
-	POSTING_READ(PIPE_CRC_CTL(crtc->index));
+	intel_de_write(dev_priv, PIPE_CRC_CTL(pipe), 0);
+	intel_de_posting_read(dev_priv, PIPE_CRC_CTL(pipe));
 	intel_synchronize_irq(dev_priv);
 }

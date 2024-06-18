@@ -125,7 +125,7 @@ int pvrdma_query_device(struct ib_device *ibdev,
  *
  * @return: 0 on success, otherwise negative errno
  */
-int pvrdma_query_port(struct ib_device *ibdev, u8 port,
+int pvrdma_query_port(struct ib_device *ibdev, u32 port,
 		      struct ib_port_attr *props)
 {
 	struct pvrdma_dev *dev = to_vdev(ibdev);
@@ -183,7 +183,7 @@ int pvrdma_query_port(struct ib_device *ibdev, u8 port,
  *
  * @return: 0 on success, otherwise negative errno
  */
-int pvrdma_query_gid(struct ib_device *ibdev, u8 port, int index,
+int pvrdma_query_gid(struct ib_device *ibdev, u32 port, int index,
 		     union ib_gid *gid)
 {
 	struct pvrdma_dev *dev = to_vdev(ibdev);
@@ -205,7 +205,7 @@ int pvrdma_query_gid(struct ib_device *ibdev, u8 port, int index,
  *
  * @return: 0 on success, otherwise negative errno
  */
-int pvrdma_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
+int pvrdma_query_pkey(struct ib_device *ibdev, u32 port, u16 index,
 		      u16 *pkey)
 {
 	int err = 0;
@@ -232,7 +232,7 @@ int pvrdma_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
 }
 
 enum rdma_link_layer pvrdma_port_link_layer(struct ib_device *ibdev,
-					    u8 port)
+					    u32 port)
 {
 	return IB_LINK_LAYER_ETHERNET;
 }
@@ -274,7 +274,7 @@ int pvrdma_modify_device(struct ib_device *ibdev, int mask,
  *
  * @return: 0 on success, otherwise negative errno
  */
-int pvrdma_modify_port(struct ib_device *ibdev, u8 port, int mask,
+int pvrdma_modify_port(struct ib_device *ibdev, u32 port, int mask,
 		       struct ib_port_modify *props)
 {
 	struct ib_port_attr attr;
@@ -408,7 +408,7 @@ int pvrdma_mmap(struct ib_ucontext *ibcontext, struct vm_area_struct *vma)
 	}
 
 	/* Map UAR to kernel space, VM_LOCKED? */
-	vma->vm_flags |= VM_DONTCOPY | VM_DONTEXPAND;
+	vm_flags_set(vma, VM_DONTCOPY | VM_DONTEXPAND);
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 	if (io_remap_pfn_range(vma, start, context->uar.pfn, size,
 			       vma->vm_page_prot))
@@ -479,9 +479,9 @@ err:
  * @pd: the protection domain to be released
  * @udata: user data or null for kernel object
  *
- * @return: 0 on success, otherwise errno.
+ * @return: Always 0
  */
-void pvrdma_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
+int pvrdma_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
 {
 	struct pvrdma_dev *dev = to_vdev(pd->device);
 	union pvrdma_cmd_req req = {};
@@ -498,24 +498,25 @@ void pvrdma_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
 			 ret);
 
 	atomic_dec(&dev->num_pds);
+	return 0;
 }
 
 /**
  * pvrdma_create_ah - create an address handle
- * @pd: the protection domain
- * @ah_attr: the attributes of the AH
- * @udata: user data blob
- * @flags: create address handle flags (see enum rdma_create_ah_flags)
+ * @ibah: the IB address handle
+ * @init_attr: the attributes of the AH
+ * @udata: pointer to user data
  *
  * @return: 0 on success, otherwise errno.
  */
-int pvrdma_create_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr,
-		     u32 flags, struct ib_udata *udata)
+int pvrdma_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
+		     struct ib_udata *udata)
 {
+	struct rdma_ah_attr *ah_attr = init_attr->ah_attr;
 	struct pvrdma_dev *dev = to_vdev(ibah->device);
 	struct pvrdma_ah *ah = to_vah(ibah);
 	const struct ib_global_route *grh;
-	u8 port_num = rdma_ah_get_port_num(ah_attr);
+	u32 port_num = rdma_ah_get_port_num(ah_attr);
 
 	if (!(rdma_ah_get_ah_flags(ah_attr) & IB_AH_GRH))
 		return -EINVAL;
@@ -547,9 +548,10 @@ int pvrdma_create_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr,
  * @flags: destroy address handle flags (see enum rdma_destroy_ah_flags)
  *
  */
-void pvrdma_destroy_ah(struct ib_ah *ah, u32 flags)
+int pvrdma_destroy_ah(struct ib_ah *ah, u32 flags)
 {
 	struct pvrdma_dev *dev = to_vdev(ah->device);
 
 	atomic_dec(&dev->num_ahs);
+	return 0;
 }

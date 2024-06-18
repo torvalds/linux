@@ -4,7 +4,7 @@ menu "Certificates for signature checking"
 config MODULE_SIG_KEY
 	string "File name or PKCS#11 URI of module signing key"
 	default "certs/signing_key.pem"
-	depends on MODULE_SIG
+	depends on MODULE_SIG || (IMA_APPRAISE_MODSIG && MODULES)
 	help
          Provide the file name of a private key/certificate in PEM format,
          or a PKCS#11 URI according to RFC7512. The file should contain, or
@@ -15,10 +15,37 @@ config MODULE_SIG_KEY
          then the kernel will automatically generate the private key and
          certificate as described in Documentation/admin-guide/module-signing.rst
 
+choice
+	prompt "Type of module signing key to be generated"
+	depends on MODULE_SIG || (IMA_APPRAISE_MODSIG && MODULES)
+	help
+	 The type of module signing key type to generate. This option
+	 does not apply if a #PKCS11 URI is used.
+
+config MODULE_SIG_KEY_TYPE_RSA
+	bool "RSA"
+	help
+	 Use an RSA key for module signing.
+
+config MODULE_SIG_KEY_TYPE_ECDSA
+	bool "ECDSA"
+	select CRYPTO_ECDSA
+	depends on !(MODULE_SIG_SHA256 || MODULE_SIG_SHA3_256)
+	help
+	 Use an elliptic curve key (NIST P384) for module signing. Use
+	 a strong hash of same or higher bit length, i.e. sha384 or
+	 sha512 for hashing modules.
+
+	 Note: Remove all ECDSA signing keys, e.g. certs/signing_key.pem,
+	 when falling back to building Linux 5.14 and older kernels.
+
+endchoice
+
 config SYSTEM_TRUSTED_KEYRING
 	bool "Provide system-wide ring of trusted keys"
 	depends on KEYS
 	depends on ASYMMETRIC_KEY_TYPE
+	depends on X509_CERTIFICATE_PARSER = y
 	help
 	  Provide a system keyring to which trusted keys can be added.  Keys in
 	  the keyring are considered to be trusted.  Keys may be added at will
@@ -63,7 +90,21 @@ config SECONDARY_TRUSTED_KEYRING
 	help
 	  If set, provide a keyring to which extra keys may be added, provided
 	  those keys are not blacklisted and are vouched for by a key built
-	  into the kernel or already in the secondary trusted keyring.
+	  into the kernel, machine keyring (if configured), or already in the
+	  secondary trusted keyring.
+
+config SECONDARY_TRUSTED_KEYRING_SIGNED_BY_BUILTIN
+	bool "Only allow additional certs signed by keys on the builtin trusted keyring"
+	depends on SECONDARY_TRUSTED_KEYRING
+	help
+	  If set, only certificates signed by keys on the builtin trusted
+	  keyring may be loaded onto the secondary trusted keyring.
+
+	  Note: The machine keyring, if configured, will be linked to the
+	  secondary keyring.  When enabling this option, it is recommended
+	  to also configure INTEGRITY_CA_MACHINE_KEYRING_MAX to prevent
+	  linking code signing keys with imputed trust to the secondary
+	  trusted keyring.
 
 config SYSTEM_BLACKLIST_KEYRING
 	bool "Provide system-wide ring of blacklisted keys"
@@ -80,7 +121,37 @@ config SYSTEM_BLACKLIST_HASH_LIST
 	help
 	  If set, this option should be the filename of a list of hashes in the
 	  form "<hash>", "<hash>", ... .  This will be included into a C
-	  wrapper to incorporate the list into the kernel.  Each <hash> should
-	  be a string of hex digits.
+	  wrapper to incorporate the list into the kernel.  Each <hash> must be a
+	  string starting with a prefix ("tbs" or "bin"), then a colon (":"), and
+	  finally an even number of hexadecimal lowercase characters (up to 128).
+	  Certificate hashes can be generated with
+	  tools/certs/print-cert-tbs-hash.sh .
+
+config SYSTEM_REVOCATION_LIST
+	bool "Provide system-wide ring of revocation certificates"
+	depends on SYSTEM_BLACKLIST_KEYRING
+	depends on PKCS7_MESSAGE_PARSER=y
+	help
+	  If set, this allows revocation certificates to be stored in the
+	  blacklist keyring and implements a hook whereby a PKCS#7 message can
+	  be checked to see if it matches such a certificate.
+
+config SYSTEM_REVOCATION_KEYS
+	string "X.509 certificates to be preloaded into the system blacklist keyring"
+	depends on SYSTEM_REVOCATION_LIST
+	help
+	  If set, this option should be the filename of a PEM-formatted file
+	  containing X.509 certificates to be included in the default blacklist
+	  keyring.
+
+config SYSTEM_BLACKLIST_AUTH_UPDATE
+	bool "Allow root to add signed blacklist keys"
+	depends on SYSTEM_BLACKLIST_KEYRING
+	depends on SYSTEM_DATA_VERIFICATION
+	help
+	  If set, provide the ability to load new blacklist keys at run time if
+	  they are signed and vouched by a certificate from the builtin trusted
+	  keyring.  The PKCS#7 signature of the description is set in the key
+	  payload.  Blacklist keys cannot be removed.
 
 endmenu

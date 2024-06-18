@@ -1,29 +1,26 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Board-level suspend/resume support.
  *
  * Copyright (C) 2014-2015 Marvell
  *
  * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 #include <linux/delay.h>
-#include <linux/gpio.h>
+#include <linux/err.h>
+#include <linux/gpio/consumer.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_gpio.h>
 #include <linux/slab.h>
 #include "common.h"
 
 #define ARMADA_PIC_NR_GPIOS 3
 
 static void __iomem *gpio_ctrl;
-static int pic_gpios[ARMADA_PIC_NR_GPIOS];
+static struct gpio_desc *pic_gpios[ARMADA_PIC_NR_GPIOS];
 static int pic_raw_gpios[ARMADA_PIC_NR_GPIOS];
 
 static void mvebu_armada_pm_enter(void __iomem *sdram_reg, u32 srcmd)
@@ -93,27 +90,17 @@ static int __init mvebu_armada_pm_init(void)
 		char *name;
 		struct of_phandle_args args;
 
-		pic_gpios[i] = of_get_named_gpio(np, "ctrl-gpios", i);
-		if (pic_gpios[i] < 0) {
-			ret = -ENODEV;
-			goto out;
-		}
-
 		name = kasprintf(GFP_KERNEL, "pic-pin%d", i);
 		if (!name) {
 			ret = -ENOMEM;
 			goto out;
 		}
 
-		ret = gpio_request(pic_gpios[i], name);
-		if (ret < 0) {
-			kfree(name);
-			goto out;
-		}
-
-		ret = gpio_direction_output(pic_gpios[i], 0);
-		if (ret < 0) {
-			gpio_free(pic_gpios[i]);
+		pic_gpios[i] = fwnode_gpiod_get_index(of_fwnode_handle(np),
+						      "ctrl", i, GPIOD_OUT_HIGH,
+						      name);
+		ret = PTR_ERR_OR_ZERO(pic_gpios[i]);
+		if (ret) {
 			kfree(name);
 			goto out;
 		}
@@ -121,7 +108,7 @@ static int __init mvebu_armada_pm_init(void)
 		ret = of_parse_phandle_with_fixed_args(np, "ctrl-gpios", 2,
 						       i, &args);
 		if (ret < 0) {
-			gpio_free(pic_gpios[i]);
+			gpiod_put(pic_gpios[i]);
 			kfree(name);
 			goto out;
 		}

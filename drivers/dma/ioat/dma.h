@@ -74,12 +74,18 @@ struct ioatdma_device {
 	struct dca_provider *dca;
 	enum ioat_irq_mode irq_mode;
 	u32 cap;
+	int chancnt;
 
 	/* shadow version for CB3.3 chan reset errata workaround */
 	u64 msixtba0;
 	u64 msixdata0;
 	u32 msixpba;
 };
+
+#define IOAT_MAX_ORDER 16
+#define IOAT_MAX_DESCS (1 << IOAT_MAX_ORDER)
+#define IOAT_CHUNK_SIZE (SZ_512K)
+#define IOAT_DESCS_PER_CHUNK (IOAT_CHUNK_SIZE / IOAT_DESC_SZ)
 
 struct ioat_descs {
 	void *virt;
@@ -99,8 +105,6 @@ struct ioatdma_chan {
 	#define IOAT_RUN 5
 	#define IOAT_CHAN_ACTIVE 6
 	struct timer_list timer;
-	#define COMPLETION_TIMEOUT msecs_to_jiffies(100)
-	#define IDLE_TIMEOUT msecs_to_jiffies(2000)
 	#define RESET_DELAY msecs_to_jiffies(100)
 	struct ioatdma_device *ioat_dma;
 	dma_addr_t completion_dma;
@@ -128,7 +132,7 @@ struct ioatdma_chan {
 	u16 produce;
 	struct ioat_ring_ent **ring;
 	spinlock_t prep_lock;
-	struct ioat_descs descs[2];
+	struct ioat_descs descs[IOAT_MAX_DESCS / IOAT_DESCS_PER_CHUNK];
 	int desc_chunks;
 	int intr_coalesce;
 	int prev_intr_coalesce;
@@ -193,10 +197,8 @@ extern const struct sysfs_ops ioat_sysfs_ops;
 extern struct ioat_sysfs_entry ioat_version_attr;
 extern struct ioat_sysfs_entry ioat_cap_attr;
 extern int ioat_pending_level;
-extern int ioat_ring_alloc_order;
 extern struct kobj_type ioat_ktype;
 extern struct kmem_cache *ioat_cache;
-extern int ioat_ring_max_alloc_order;
 extern struct kmem_cache *ioat_sed_cache;
 
 static inline struct ioatdma_chan *to_ioat_chan(struct dma_chan *c)
@@ -301,9 +303,6 @@ static inline bool is_ioat_bug(unsigned long err)
 	return !!err;
 }
 
-#define IOAT_MAX_ORDER 16
-#define IOAT_MAX_DESCS 65536
-#define IOAT_DESCS_PER_2M 32768
 
 static inline u32 ioat_ring_size(struct ioatdma_chan *ioat_chan)
 {
@@ -393,7 +392,7 @@ int ioat_reset_hw(struct ioatdma_chan *ioat_chan);
 enum dma_status
 ioat_tx_status(struct dma_chan *c, dma_cookie_t cookie,
 		struct dma_tx_state *txstate);
-void ioat_cleanup_event(unsigned long data);
+void ioat_cleanup_event(struct tasklet_struct *t);
 void ioat_timer_event(struct timer_list *t);
 int ioat_check_space_lock(struct ioatdma_chan *ioat_chan, int num_descs);
 void ioat_issue_pending(struct dma_chan *chan);

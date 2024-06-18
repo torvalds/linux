@@ -121,4 +121,4 @@ device-specific data or tunable interfaces.
 
 More information about the sysfs directory layout can be found in
 the other documents in this directory and in the file
-Documentation/filesystems/sysfs.txt.
+Documentation/filesystems/sysfs.rst.

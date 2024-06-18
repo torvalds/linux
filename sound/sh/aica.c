@@ -32,7 +32,6 @@
 MODULE_AUTHOR("Adrian McMenamin <adrian@mcmen.demon.co.uk>");
 MODULE_DESCRIPTION("Dreamcast AICA sound (pcm) driver");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Yamaha/SEGA, AICA}}");
 MODULE_FIRMWARE("aica_firmware.bin");
 
 /* module parameters */
@@ -101,10 +100,10 @@ static void spu_memset(u32 toi, u32 what, int length)
 }
 
 /* spu_memload - write to SPU address space */
-static void spu_memload(u32 toi, void *from, int length)
+static void spu_memload(u32 toi, const void *from, int length)
 {
 	unsigned long flags;
-	u32 *froml = from;
+	const u32 *froml = from;
 	u32 __iomem *to = (u32 __iomem *) (SPU_MEMORY_BASE + toi);
 	int i;
 	u32 val;
@@ -279,7 +278,8 @@ static void run_spu_dma(struct work_struct *work)
 		dreamcastcard->clicks++;
 		if (unlikely(dreamcastcard->clicks >= AICA_PERIOD_NUMBER))
 			dreamcastcard->clicks %= AICA_PERIOD_NUMBER;
-		mod_timer(&dreamcastcard->timer, jiffies + 1);
+		if (snd_pcm_running(dreamcastcard->substream))
+			mod_timer(&dreamcastcard->timer, jiffies + 1);
 	}
 }
 
@@ -291,6 +291,8 @@ static void aica_period_elapsed(struct timer_list *t)
 	/*timer function - so cannot sleep */
 	int play_period;
 	struct snd_pcm_runtime *runtime;
+	if (!snd_pcm_running(substream))
+		return;
 	runtime = substream->runtime;
 	dreamcastcard = substream->pcm->private_data;
 	/* Have we played out an additional period? */
@@ -351,33 +353,23 @@ static int snd_aicapcm_pcm_open(struct snd_pcm_substream
 	return 0;
 }
 
+static int snd_aicapcm_pcm_sync_stop(struct snd_pcm_substream *substream)
+{
+	struct snd_card_aica *dreamcastcard = substream->pcm->private_data;
+
+	del_timer_sync(&dreamcastcard->timer);
+	cancel_work_sync(&dreamcastcard->spu_dma_work);
+	return 0;
+}
+
 static int snd_aicapcm_pcm_close(struct snd_pcm_substream
 				 *substream)
 {
 	struct snd_card_aica *dreamcastcard = substream->pcm->private_data;
-	flush_work(&(dreamcastcard->spu_dma_work));
-	del_timer(&dreamcastcard->timer);
 	dreamcastcard->substream = NULL;
 	kfree(dreamcastcard->channel);
 	spu_disable();
 	return 0;
-}
-
-static int snd_aicapcm_pcm_hw_free(struct snd_pcm_substream
-				   *substream)
-{
-	/* Free the DMA buffer */
-	return snd_pcm_lib_free_pages(substream);
-}
-
-static int snd_aicapcm_pcm_hw_params(struct snd_pcm_substream
-				     *substream, struct snd_pcm_hw_params
-				     *hw_params)
-{
-	/* Allocate a DMA buffer using ALSA built-ins */
-	return
-	    snd_pcm_lib_malloc_pages(substream,
-				     params_buffer_bytes(hw_params));
 }
 
 static int snd_aicapcm_pcm_prepare(struct snd_pcm_substream
@@ -416,12 +408,10 @@ static unsigned long snd_aicapcm_pcm_pointer(struct snd_pcm_substream
 static const struct snd_pcm_ops snd_aicapcm_playback_ops = {
 	.open = snd_aicapcm_pcm_open,
 	.close = snd_aicapcm_pcm_close,
-	.ioctl = snd_pcm_lib_ioctl,
-	.hw_params = snd_aicapcm_pcm_hw_params,
-	.hw_free = snd_aicapcm_pcm_hw_free,
 	.prepare = snd_aicapcm_pcm_prepare,
 	.trigger = snd_aicapcm_pcm_trigger,
 	.pointer = snd_aicapcm_pcm_pointer,
+	.sync_stop = snd_aicapcm_pcm_sync_stop,
 };
 
 /* TO DO: set up to handle more than one pcm instance */
@@ -441,11 +431,11 @@ static int __init snd_aicapcmchip(struct snd_card_aica
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK,
 			&snd_aicapcm_playback_ops);
 	/* Allocate the DMA buffers */
-	snd_pcm_lib_preallocate_pages_for_all(pcm,
-					      SNDRV_DMA_TYPE_CONTINUOUS,
-					      snd_dma_continuous_data(GFP_KERNEL),
-					      AICA_BUFFER_SIZE,
-					      AICA_BUFFER_SIZE);
+	snd_pcm_set_managed_buffer_all(pcm,
+				       SNDRV_DMA_TYPE_CONTINUOUS,
+				       NULL,
+				       AICA_BUFFER_SIZE,
+				       AICA_BUFFER_SIZE);
 	return 0;
 }
 
@@ -560,15 +550,12 @@ static int add_aicamixer_controls(struct snd_card_aica *dreamcastcard)
 	return 0;
 }
 
-static int snd_aica_remove(struct platform_device *devptr)
+static void snd_aica_remove(struct platform_device *devptr)
 {
 	struct snd_card_aica *dreamcastcard;
 	dreamcastcard = platform_get_drvdata(devptr);
-	if (unlikely(!dreamcastcard))
-		return -ENODEV;
 	snd_card_free(dreamcastcard->card);
 	kfree(dreamcastcard);
-	return 0;
 }
 
 static int snd_aica_probe(struct platform_device *devptr)
@@ -615,7 +602,7 @@ static int snd_aica_probe(struct platform_device *devptr)
 
 static struct platform_driver snd_aica_driver = {
 	.probe = snd_aica_probe,
-	.remove = snd_aica_remove,
+	.remove_new = snd_aica_remove,
 	.driver = {
 		.name = SND_AICA_DRIVER,
 	},

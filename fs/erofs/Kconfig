@@ -3,17 +3,25 @@
 config EROFS_FS
 	tristate "EROFS filesystem support"
 	depends on BLOCK
+	select FS_IOMAP
+	select LIBCRC32C
 	help
-	  EROFS (Enhanced Read-Only File System) is a lightweight
-	  read-only file system with modern designs (eg. page-sized
-	  blocks, inline xattrs/data, etc.) for scenarios which need
-	  high-performance read-only requirements, e.g. Android OS
-	  for mobile phones and LIVECDs.
+	  EROFS (Enhanced Read-Only File System) is a lightweight read-only
+	  file system with modern designs (e.g. no buffer heads, inline
+	  xattrs/data, chunk-based deduplication, multiple devices, etc.) for
+	  scenarios which need high-performance read-only solutions, e.g.
+	  smartphones with Android OS, LiveCDs and high-density hosts with
+	  numerous containers;
 
-	  It also provides fixed-sized output compression support,
-	  which improves storage density, keeps relatively higher
-	  compression ratios, which is more useful to achieve high
-	  performance for embedded devices with limited memory.
+	  It also provides fixed-sized output compression support in order to
+	  improve storage density as well as keep relatively higher compression
+	  ratios and implements in-place decompression to reuse the file page
+	  for compressed data temporarily with proper strategies, which is
+	  quite useful to ensure guaranteed end-to-end runtime decompression
+	  performance under extremely memory pressure without extra cost.
+
+	  See the documentation at <file:Documentation/filesystems/erofs.rst>
+	  and the web pages at <https://erofs.docs.kernel.org> for more details.
 
 	  If unsure, say N.
 
@@ -30,6 +38,7 @@ config EROFS_FS_DEBUG
 config EROFS_FS_XATTR
 	bool "EROFS extended attributes"
 	depends on EROFS_FS
+	select XXHASH
 	default y
 	help
 	  Extended attributes are name:value pairs associated with inodes by
@@ -75,17 +84,77 @@ config EROFS_FS_ZIP
 
 	  If you don't want to enable compression feature, say N.
 
-config EROFS_FS_CLUSTER_PAGE_LIMIT
-	int "EROFS Cluster Pages Hard Limit"
+config EROFS_FS_ZIP_LZMA
+	bool "EROFS LZMA compressed data support"
 	depends on EROFS_FS_ZIP
-	range 1 256
-	default "1"
+	select XZ_DEC
+	select XZ_DEC_MICROLZMA
 	help
-	  Indicates maximum # of pages of a compressed
-	  physical cluster.
+	  Saying Y here includes support for reading EROFS file systems
+	  containing LZMA compressed data, specifically called microLZMA. It
+	  gives better compression ratios than the default LZ4 format, at the
+	  expense of more CPU overhead.
 
-	  For example, if files in a image were compressed
-	  into 8k-unit, hard limit should not be configured
-	  less than 2. Otherwise, the image will be refused
-	  to mount on this kernel.
+	  If unsure, say N.
 
+config EROFS_FS_ZIP_DEFLATE
+	bool "EROFS DEFLATE compressed data support"
+	depends on EROFS_FS_ZIP
+	select ZLIB_INFLATE
+	help
+	  Saying Y here includes support for reading EROFS file systems
+	  containing DEFLATE compressed data.  It gives better compression
+	  ratios than the default LZ4 format, while it costs more CPU
+	  overhead.
+
+	  DEFLATE support is an experimental feature for now and so most
+	  file systems will be readable without selecting this option.
+
+	  If unsure, say N.
+
+config EROFS_FS_ZIP_ZSTD
+	bool "EROFS Zstandard compressed data support"
+	depends on EROFS_FS_ZIP
+	select ZSTD_DECOMPRESS
+	help
+	  Saying Y here includes support for reading EROFS file systems
+	  containing Zstandard compressed data.  It gives better compression
+	  ratios than the default LZ4 format, while it costs more CPU
+	  overhead.
+
+	  Zstandard support is an experimental feature for now and so most
+	  file systems will be readable without selecting this option.
+
+	  If unsure, say N.
+
+config EROFS_FS_ONDEMAND
+	bool "EROFS fscache-based on-demand read support"
+	depends on EROFS_FS
+	select NETFS_SUPPORT
+	select FSCACHE
+	select CACHEFILES
+	select CACHEFILES_ONDEMAND
+	help
+	  This permits EROFS to use fscache-backed data blobs with on-demand
+	  read support.
+
+	  If unsure, say N.
+
+config EROFS_FS_PCPU_KTHREAD
+	bool "EROFS per-cpu decompression kthread workers"
+	depends on EROFS_FS_ZIP
+	help
+	  Saying Y here enables per-CPU kthread workers pool to carry out
+	  async decompression for low latencies on some architectures.
+
+	  If unsure, say N.
+
+config EROFS_FS_PCPU_KTHREAD_HIPRI
+	bool "EROFS high priority per-CPU kthread workers"
+	depends on EROFS_FS_ZIP && EROFS_FS_PCPU_KTHREAD
+	default y
+	help
+	  This permits EROFS to configure per-CPU kthread workers to run
+	  at higher priority.
+
+	  If unsure, say N.

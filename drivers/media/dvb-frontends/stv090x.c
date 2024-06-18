@@ -4990,8 +4990,7 @@ static struct dvb_frontend *stv090x_get_dvb_frontend(struct i2c_client *client)
 	return &state->frontend;
 }
 
-static int stv090x_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int stv090x_probe(struct i2c_client *client)
 {
 	int ret = 0;
 	struct stv090x_config *config = client->dev.platform_data;
@@ -5032,12 +5031,11 @@ error:
 	return ret;
 }
 
-static int stv090x_remove(struct i2c_client *client)
+static void stv090x_remove(struct i2c_client *client)
 {
 	struct stv090x_state *state = i2c_get_clientdata(client);
 
 	stv090x_release(&state->frontend);
-	return 0;
 }
 
 struct dvb_frontend *stv090x_attach(struct stv090x_config *config,
@@ -5073,7 +5071,7 @@ error:
 	kfree(state);
 	return NULL;
 }
-EXPORT_SYMBOL(stv090x_attach);
+EXPORT_SYMBOL_GPL(stv090x_attach);
 
 static const struct i2c_device_id stv090x_id_table[] = {
 	{"stv090x", 0},

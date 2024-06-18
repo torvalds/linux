@@ -9,7 +9,7 @@ SYNOPSIS
 --------
 [verse]
 'perf c2c record' [<options>] <command>
-'perf c2c record' [<options>] -- [<record command options>] <command>
+'perf c2c record' [<options>] \-- [<record command options>] <command>
 'perf c2c report' [<options>]
 
 DESCRIPTION
@@ -19,9 +19,14 @@ C2C stands for Cache To Cache.
 The perf c2c tool provides means for Shared Data C2C/HITM analysis. It allows
 you to track down the cacheline contentions.
 
-On x86, the tool is based on load latency and precise store facility events
+On Intel, the tool is based on load latency and precise store facility events
 provided by Intel CPUs. On PowerPC, the tool uses random instruction sampling
-with thresholding feature.
+with thresholding feature. On AMD, the tool uses IBS op pmu (due to hardware
+limitations, perf c2c is not supported on Zen3 cpus). On Arm64 it uses SPE to
+sample load and store operations, therefore hardware and kernel support is
+required. See linkperf:perf-arm-spe[1] for a setup guide. Due to the
+statistical nature of Arm SPE sampling, not every memory operation will be
+sampled.
 
 These events provide:
   - memory address of the access
@@ -40,7 +45,7 @@ RECORD OPTIONS
 --------------
 -e::
 --event=::
-	Select the PMU event. Use 'perf mem record -e list'
+	Select the PMU event. Use 'perf c2c record -e list'
 	to list available events.
 
 -v::
@@ -49,7 +54,8 @@ RECORD OPTIONS
 
 -l::
 --ldlat::
-	Configure mem-loads latency. (x86 only)
+	Configure mem-loads latency. Supported on Intel and Arm64 processors
+	only. Ignored on other archs.
 
 -k::
 --all-kernel::
@@ -109,7 +115,26 @@ REPORT OPTIONS
 
 -d::
 --display::
-	Switch to HITM type (rmt, lcl) to display and sort on. Total HITMs as default.
+	Switch to HITM type (rmt, lcl) or peer snooping type (peer) to display
+	and sort on. Total HITMs (tot) as default, except Arm64 uses peer mode
+	as default.
+
+--stitch-lbr::
+	Show callgraph with stitched LBRs, which may have more complete
+	callgraph. The perf.data file must have been obtained using
+	perf c2c record --call-graph lbr.
+	Disabled by default. In common cases with call stack overflows,
+	it can recreate better call stacks than the default lbr call stack
+	output. But this approach is not foolproof. There can be cases
+	where it creates incorrect call stacks from incorrect matches.
+	The known limitations include exception handing such as
+	setjmp/longjmp will have calls/returns not match.
+
+--double-cl::
+	Group the detection of shared cacheline events into double cacheline
+	granularity. Some architectures have an Adjacent Cacheline Prefetch
+	feature, which causes cacheline sharing to behave like the cacheline
+	size is doubled.
 
 C2C RECORD
 ----------
@@ -122,10 +147,14 @@ Following perf record options are configured by default:
   -W,-d,--phys-data,--sample-cpu
 
 Unless specified otherwise with '-e' option, following events are monitored by
-default on x86:
+default on Intel:
 
   cpu/mem-loads,ldlat=30/P
   cpu/mem-stores/P
+
+following on AMD:
+
+  ibs_op//
 
 and following on PowerPC:
 
@@ -163,42 +192,57 @@ For each cacheline in the 1) list we display following data:
   Cacheline
   - cacheline address (hex number)
 
+  Rmt/Lcl Hitm (Display with HITM types)
+  - cacheline percentage of all Remote/Local HITM accesses
+
+  Peer Snoop (Display with peer type)
+  - cacheline percentage of all peer accesses
+
+  LLC Load Hitm - Total, LclHitm, RmtHitm (For display with HITM types)
+  - count of Total/Local/Remote load HITMs
+
+  Load Peer - Total, Local, Remote (For display with peer type)
+  - count of Total/Local/Remote load from peer cache or DRAM
+
   Total records
   - sum of all cachelines accesses
 
-  Rmt/Lcl Hitm
-  - cacheline percentage of all Remote/Local HITM accesses
-
-  LLC Load Hitm - Total, Lcl, Rmt
-  - count of Total/Local/Remote load HITMs
-
-  Store Reference - Total, L1Hit, L1Miss
-    Total - all store accesses
-    L1Hit - store accesses that hit L1
-    L1Hit - store accesses that missed L1
-
-  Load Dram
-  - count of local and remote DRAM accesses
-
-  LLC Ld Miss
-  - count of all accesses that missed LLC
-
-  Total Loads
+  Total loads
   - sum of all load accesses
+
+  Total stores
+  - sum of all store accesses
+
+  Store Reference - L1Hit, L1Miss, N/A
+    L1Hit - store accesses that hit L1
+    L1Miss - store accesses that missed L1
+    N/A - store accesses with memory level is not available
 
   Core Load Hit - FB, L1, L2
   - count of load hits in FB (Fill Buffer), L1 and L2 cache
 
-  LLC Load Hit - Llc, Rmt
-  - count of LLC and Remote load hits
+  LLC Load Hit - LlcHit, LclHitm
+  - count of LLC load accesses, includes LLC hits and LLC HITMs
+
+  RMT Load Hit - RmtHit, RmtHitm
+  - count of remote load accesses, includes remote hits and remote HITMs;
+    on Arm neoverse cores, RmtHit is used to account remote accesses,
+    includes remote DRAM or any upward cache level in remote node
+
+  Load Dram - Lcl, Rmt
+  - count of local and remote DRAM accesses
 
 For each offset in the 2) list we display following data:
 
-  HITM - Rmt, Lcl
+  HITM - Rmt, Lcl (Display with HITM types)
   - % of Remote/Local HITM accesses for given offset within cacheline
 
-  Store Refs - L1 Hit, L1 Miss
-  - % of store accesses that hit/missed L1 for given offset within cacheline
+  Peer Snoop - Rmt, Lcl (Display with peer type)
+  - % of Remote/Local peer accesses for given offset within cacheline
+
+  Store Refs - L1 Hit, L1 Miss, N/A
+  - % of store accesses that hit L1, missed L1 and N/A (no available) memory
+    level for given offset within cacheline
 
   Data address - Offset
   - offset address
@@ -212,8 +256,11 @@ For each offset in the 2) list we display following data:
   Code address
   - code address responsible for the accesses
 
-  cycles - rmt hitm, lcl hitm, load
+  cycles - rmt hitm, lcl hitm, load (Display with HITM types)
     - sum of cycles for given accesses - Remote/Local HITM and generic load
+
+  cycles - rmt peer, lcl peer, load (Display with peer type)
+    - sum of cycles for given accesses - Remote/Local peer load and generic load
 
   cpu cnt
     - number of cpus that participated on the access
@@ -236,7 +283,8 @@ The 'Node' field displays nodes that accesses given cacheline
 offset. Its output comes in 3 flavors:
   - node IDs separated by ','
   - node IDs with stats for each ID, in following format:
-      Node{cpus %hitms %stores}
+      Node{cpus %hitms %stores} (Display with HITM types)
+      Node{cpus %peers %stores} (Display with peer type)
   - node IDs with list of affected CPUs in following format:
       Node{cpu list}
 
@@ -248,7 +296,7 @@ COALESCE
 User can specify how to sort offsets for cacheline.
 
 Following fields are available and governs the final
-output fields set for caheline offsets output:
+output fields set for cacheline offsets output:
 
   tid   - coalesced by process TIDs
   pid   - coalesced by process PIDs
@@ -295,4 +343,4 @@ Check Joe's blog on c2c tool for detailed use case explanation:
 
 SEE ALSO
 --------
-linkperf:perf-record[1], linkperf:perf-mem[1]
+linkperf:perf-record[1], linkperf:perf-mem[1], linkperf:perf-arm-spe[1]

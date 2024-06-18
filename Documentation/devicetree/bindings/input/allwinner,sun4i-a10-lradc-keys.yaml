@@ -4,11 +4,11 @@
 $id: http://devicetree.org/schemas/input/allwinner,sun4i-a10-lradc-keys.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A10 LRADC Device Tree Bindings
+title: Allwinner A10 LRADC
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
-  - Maxime Ripard <maxime.ripard@bootlin.com>
+  - Maxime Ripard <mripard@kernel.org>
 
 properties:
   compatible:
@@ -16,10 +16,22 @@ properties:
       - const: allwinner,sun4i-a10-lradc-keys
       - const: allwinner,sun8i-a83t-r-lradc
       - items:
-        - const: allwinner,sun50i-a64-lradc
-        - const: allwinner,sun8i-a83t-r-lradc
+          - enum:
+              - allwinner,suniv-f1c100s-lradc
+              - allwinner,sun50i-a64-lradc
+          - const: allwinner,sun8i-a83t-r-lradc
+      - const: allwinner,sun50i-r329-lradc
+      - items:
+          - const: allwinner,sun20i-d1-lradc
+          - const: allwinner,sun50i-r329-lradc
 
   reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  resets:
     maxItems: 1
 
   interrupts:
@@ -29,22 +41,21 @@ properties:
     description:
       Regulator for the LRADC reference voltage
 
+  wakeup-source: true
+
 patternProperties:
   "^button-[0-9]+$":
     type: object
+    $ref: input.yaml#
     properties:
       label:
-        $ref: /schemas/types.yaml#/definitions/string
         description: Descriptive name of the key
 
-      linux,code:
-        $ref: /schemas/types.yaml#/definitions/uint32
-        description: Keycode to emit
+      linux,code: true
 
       channel:
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
-          - enum: [0, 1]
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [0, 1]
         description: ADC Channel this key is attached to
 
       voltage:
@@ -66,6 +77,18 @@ required:
   - reg
   - interrupts
   - vref-supply
+
+if:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - allwinner,sun50i-r329-lradc
+
+then:
+  required:
+    - clocks
+    - resets
 
 additionalProperties: false
 

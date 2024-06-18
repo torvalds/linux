@@ -120,12 +120,6 @@ static irqreturn_t gt641xx_timer0_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct irqaction gt641xx_timer0_irqaction = {
-	.handler	= gt641xx_timer0_interrupt,
-	.flags		= IRQF_PERCPU | IRQF_TIMER,
-	.name		= "gt641xx_timer0",
-};
-
 static int __init gt641xx_timer0_clockevent_init(void)
 {
 	struct clock_event_device *cd;
@@ -146,6 +140,7 @@ static int __init gt641xx_timer0_clockevent_init(void)
 
 	clockevents_register_device(&gt641xx_timer0_clockevent);
 
-	return setup_irq(GT641XX_TIMER0_IRQ, &gt641xx_timer0_irqaction);
+	return request_irq(GT641XX_TIMER0_IRQ, gt641xx_timer0_interrupt,
+			   IRQF_PERCPU | IRQF_TIMER, "gt641xx_timer0", NULL);
 }
 arch_initcall(gt641xx_timer0_clockevent_init);

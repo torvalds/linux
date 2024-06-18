@@ -174,7 +174,7 @@ static int hns_mdio_wait_ready(struct mii_bus *bus)
 	u32 cmd_reg_value;
 	int i;
 
-	/* waitting for MDIO_COMMAND_REG 's mdio_start==0 */
+	/* waiting for MDIO_COMMAND_REG's mdio_start==0 */
 	/* after that can do read or write*/
 	for (i = 0; i < MDIO_TIMEOUT; i++) {
 		cmd_reg_value = MDIO_GET_REG_BIT(mdio_dev,
@@ -206,29 +206,27 @@ static void hns_mdio_cmd_write(struct hns_mdio_device *mdio_dev,
 }
 
 /**
- * hns_mdio_write - access phy register
+ * hns_mdio_write_c22 - access phy register
  * @bus: mdio bus
  * @phy_id: phy id
  * @regnum: register num
- * @value: register value
+ * @data: register value
  *
  * Return 0 on success, negative on failure
  */
-static int hns_mdio_write(struct mii_bus *bus,
-			  int phy_id, int regnum, u16 data)
+static int hns_mdio_write_c22(struct mii_bus *bus,
+			      int phy_id, int regnum, u16 data)
 {
-	int ret;
-	struct hns_mdio_device *mdio_dev = (struct hns_mdio_device *)bus->priv;
-	u8 devad = ((regnum >> 16) & 0x1f);
-	u8 is_c45 = !!(regnum & MII_ADDR_C45);
+	struct hns_mdio_device *mdio_dev = bus->priv;
 	u16 reg = (u16)(regnum & 0xffff);
-	u8 op;
 	u16 cmd_reg_cfg;
+	int ret;
+	u8 op;
 
 	dev_dbg(&bus->dev, "mdio write %s,base is %p\n",
 		bus->id, mdio_dev->vbase);
-	dev_dbg(&bus->dev, "phy id=%d, is_c45=%d, devad=%d, reg=%#x, write data=%d\n",
-		phy_id, is_c45, devad, reg, data);
+	dev_dbg(&bus->dev, "phy id=%d, reg=%#x, write data=%d\n",
+		phy_id, reg, data);
 
 	/* wait for ready */
 	ret = hns_mdio_wait_ready(bus);
@@ -237,59 +235,91 @@ static int hns_mdio_write(struct mii_bus *bus,
 		return ret;
 	}
 
-	if (!is_c45) {
-		cmd_reg_cfg = reg;
-		op = MDIO_C22_WRITE;
-	} else {
-		/* config the cmd-reg to write addr*/
-		MDIO_SET_REG_FIELD(mdio_dev, MDIO_ADDR_REG, MDIO_ADDR_DATA_M,
-				   MDIO_ADDR_DATA_S, reg);
-
-		hns_mdio_cmd_write(mdio_dev, is_c45,
-				   MDIO_C45_WRITE_ADDR, phy_id, devad);
-
-		/* check for read or write opt is finished */
-		ret = hns_mdio_wait_ready(bus);
-		if (ret) {
-			dev_err(&bus->dev, "MDIO bus is busy\n");
-			return ret;
-		}
-
-		/* config the data needed writing */
-		cmd_reg_cfg = devad;
-		op = MDIO_C45_WRITE_DATA;
-	}
+	cmd_reg_cfg = reg;
+	op = MDIO_C22_WRITE;
 
 	MDIO_SET_REG_FIELD(mdio_dev, MDIO_WDATA_REG, MDIO_WDATA_DATA_M,
 			   MDIO_WDATA_DATA_S, data);
 
-	hns_mdio_cmd_write(mdio_dev, is_c45, op, phy_id, cmd_reg_cfg);
+	hns_mdio_cmd_write(mdio_dev, false, op, phy_id, cmd_reg_cfg);
 
 	return 0;
 }
 
 /**
- * hns_mdio_read - access phy register
+ * hns_mdio_write_c45 - access phy register
+ * @bus: mdio bus
+ * @phy_id: phy id
+ * @devad: device address to read
+ * @regnum: register num
+ * @data: register value
+ *
+ * Return 0 on success, negative on failure
+ */
+static int hns_mdio_write_c45(struct mii_bus *bus, int phy_id, int devad,
+			      int regnum, u16 data)
+{
+	struct hns_mdio_device *mdio_dev = bus->priv;
+	u16 reg = (u16)(regnum & 0xffff);
+	u16 cmd_reg_cfg;
+	int ret;
+	u8 op;
+
+	dev_dbg(&bus->dev, "mdio write %s,base is %p\n",
+		bus->id, mdio_dev->vbase);
+	dev_dbg(&bus->dev, "phy id=%d, devad=%d, reg=%#x, write data=%d\n",
+		phy_id, devad, reg, data);
+
+	/* wait for ready */
+	ret = hns_mdio_wait_ready(bus);
+	if (ret) {
+		dev_err(&bus->dev, "MDIO bus is busy\n");
+		return ret;
+	}
+
+	/* config the cmd-reg to write addr*/
+	MDIO_SET_REG_FIELD(mdio_dev, MDIO_ADDR_REG, MDIO_ADDR_DATA_M,
+			   MDIO_ADDR_DATA_S, reg);
+
+	hns_mdio_cmd_write(mdio_dev, true, MDIO_C45_WRITE_ADDR, phy_id, devad);
+
+	/* check for read or write opt is finished */
+	ret = hns_mdio_wait_ready(bus);
+	if (ret) {
+		dev_err(&bus->dev, "MDIO bus is busy\n");
+		return ret;
+	}
+
+	/* config the data needed writing */
+	cmd_reg_cfg = devad;
+	op = MDIO_C45_WRITE_DATA;
+
+	MDIO_SET_REG_FIELD(mdio_dev, MDIO_WDATA_REG, MDIO_WDATA_DATA_M,
+			   MDIO_WDATA_DATA_S, data);
+
+	hns_mdio_cmd_write(mdio_dev, true, op, phy_id, cmd_reg_cfg);
+
+	return 0;
+}
+
+/**
+ * hns_mdio_read_c22 - access phy register
  * @bus: mdio bus
  * @phy_id: phy id
  * @regnum: register num
- * @value: register value
  *
  * Return phy register value
  */
-static int hns_mdio_read(struct mii_bus *bus, int phy_id, int regnum)
+static int hns_mdio_read_c22(struct mii_bus *bus, int phy_id, int regnum)
 {
-	int ret;
-	u16 reg_val = 0;
-	u8 devad = ((regnum >> 16) & 0x1f);
-	u8 is_c45 = !!(regnum & MII_ADDR_C45);
+	struct hns_mdio_device *mdio_dev = bus->priv;
 	u16 reg = (u16)(regnum & 0xffff);
-	struct hns_mdio_device *mdio_dev = (struct hns_mdio_device *)bus->priv;
+	u16 reg_val;
+	int ret;
 
 	dev_dbg(&bus->dev, "mdio read %s,base is %p\n",
 		bus->id, mdio_dev->vbase);
-	dev_dbg(&bus->dev, "phy id=%d, is_c45=%d, devad=%d, reg=%#x!\n",
-		phy_id, is_c45, devad, reg);
+	dev_dbg(&bus->dev, "phy id=%d, reg=%#x!\n", phy_id, reg);
 
 	/* Step 1: wait for ready */
 	ret = hns_mdio_wait_ready(bus);
@@ -298,29 +328,74 @@ static int hns_mdio_read(struct mii_bus *bus, int phy_id, int regnum)
 		return ret;
 	}
 
-	if (!is_c45) {
-		hns_mdio_cmd_write(mdio_dev, is_c45,
-				   MDIO_C22_READ, phy_id, reg);
-	} else {
-		MDIO_SET_REG_FIELD(mdio_dev, MDIO_ADDR_REG, MDIO_ADDR_DATA_M,
-				   MDIO_ADDR_DATA_S, reg);
+	hns_mdio_cmd_write(mdio_dev, false, MDIO_C22_READ, phy_id, reg);
 
-		/* Step 2; config the cmd-reg to write addr*/
-		hns_mdio_cmd_write(mdio_dev, is_c45,
-				   MDIO_C45_WRITE_ADDR, phy_id, devad);
-
-		/* Step 3: check for read or write opt is finished */
-		ret = hns_mdio_wait_ready(bus);
-		if (ret) {
-			dev_err(&bus->dev, "MDIO bus is busy\n");
-			return ret;
-		}
-
-		hns_mdio_cmd_write(mdio_dev, is_c45,
-				   MDIO_C45_READ, phy_id, devad);
+	/* Step 2: waiting for MDIO_COMMAND_REG 's mdio_start==0,*/
+	/* check for read or write opt is finished */
+	ret = hns_mdio_wait_ready(bus);
+	if (ret) {
+		dev_err(&bus->dev, "MDIO bus is busy\n");
+		return ret;
 	}
 
-	/* Step 5: waitting for MDIO_COMMAND_REG 's mdio_start==0,*/
+	reg_val = MDIO_GET_REG_BIT(mdio_dev, MDIO_STA_REG, MDIO_STATE_STA_B);
+	if (reg_val) {
+		dev_err(&bus->dev, " ERROR! MDIO Read failed!\n");
+		return -EBUSY;
+	}
+
+	/* Step 3; get out data*/
+	reg_val = (u16)MDIO_GET_REG_FIELD(mdio_dev, MDIO_RDATA_REG,
+					  MDIO_RDATA_DATA_M, MDIO_RDATA_DATA_S);
+
+	return reg_val;
+}
+
+/**
+ * hns_mdio_read_c45 - access phy register
+ * @bus: mdio bus
+ * @phy_id: phy id
+ * @devad: device address to read
+ * @regnum: register num
+ *
+ * Return phy register value
+ */
+static int hns_mdio_read_c45(struct mii_bus *bus, int phy_id, int devad,
+			     int regnum)
+{
+	struct hns_mdio_device *mdio_dev = bus->priv;
+	u16 reg = (u16)(regnum & 0xffff);
+	u16 reg_val;
+	int ret;
+
+	dev_dbg(&bus->dev, "mdio read %s,base is %p\n",
+		bus->id, mdio_dev->vbase);
+	dev_dbg(&bus->dev, "phy id=%d, devad=%d, reg=%#x!\n",
+		phy_id, devad, reg);
+
+	/* Step 1: wait for ready */
+	ret = hns_mdio_wait_ready(bus);
+	if (ret) {
+		dev_err(&bus->dev, "MDIO bus is busy\n");
+		return ret;
+	}
+
+	MDIO_SET_REG_FIELD(mdio_dev, MDIO_ADDR_REG, MDIO_ADDR_DATA_M,
+			   MDIO_ADDR_DATA_S, reg);
+
+	/* Step 2; config the cmd-reg to write addr*/
+	hns_mdio_cmd_write(mdio_dev, true, MDIO_C45_WRITE_ADDR, phy_id, devad);
+
+	/* Step 3: check for read or write opt is finished */
+	ret = hns_mdio_wait_ready(bus);
+	if (ret) {
+		dev_err(&bus->dev, "MDIO bus is busy\n");
+		return ret;
+	}
+
+	hns_mdio_cmd_write(mdio_dev, true, MDIO_C45_READ, phy_id, devad);
+
+	/* Step 5: waiting for MDIO_COMMAND_REG 's mdio_start==0,*/
 	/* check for read or write opt is finished */
 	ret = hns_mdio_wait_ready(bus);
 	if (ret) {
@@ -349,13 +424,13 @@ static int hns_mdio_read(struct mii_bus *bus, int phy_id, int regnum)
  */
 static int hns_mdio_reset(struct mii_bus *bus)
 {
-	struct hns_mdio_device *mdio_dev = (struct hns_mdio_device *)bus->priv;
+	struct hns_mdio_device *mdio_dev = bus->priv;
 	const struct hns_mdio_sc_reg *sc_reg;
 	int ret;
 
 	if (dev_of_node(bus->parent)) {
 		if (!mdio_dev->subctrl_vbase) {
-			dev_err(&bus->dev, "mdio sys ctl reg has not maped\n");
+			dev_err(&bus->dev, "mdio sys ctl reg has not mapped\n");
 			return -ENODEV;
 		}
 
@@ -421,7 +496,7 @@ static int hns_mdio_probe(struct platform_device *pdev)
 {
 	struct hns_mdio_device *mdio_dev;
 	struct mii_bus *new_bus;
-	int ret = -ENODEV;
+	int ret;
 
 	if (!pdev) {
 		dev_err(NULL, "pdev is NULL!\r\n");
@@ -439,8 +514,10 @@ static int hns_mdio_probe(struct platform_device *pdev)
 	}
 
 	new_bus->name = MDIO_BUS_NAME;
-	new_bus->read = hns_mdio_read;
-	new_bus->write = hns_mdio_write;
+	new_bus->read = hns_mdio_read_c22;
+	new_bus->write = hns_mdio_write_c22;
+	new_bus->read_c45 = hns_mdio_read_c45;
+	new_bus->write_c45 = hns_mdio_write_c45;
 	new_bus->reset = hns_mdio_reset;
 	new_bus->priv = mdio_dev;
 	new_bus->parent = &pdev->dev;
@@ -533,7 +610,7 @@ static int hns_mdio_probe(struct platform_device *pdev)
  *
  * Return 0 on success, negative on failure
  */
-static int hns_mdio_remove(struct platform_device *pdev)
+static void hns_mdio_remove(struct platform_device *pdev)
 {
 	struct mii_bus *bus;
 
@@ -541,7 +618,6 @@ static int hns_mdio_remove(struct platform_device *pdev)
 
 	mdiobus_unregister(bus);
 	platform_set_drvdata(pdev, NULL);
-	return 0;
 }
 
 static const struct of_device_id hns_mdio_match[] = {
@@ -559,7 +635,7 @@ MODULE_DEVICE_TABLE(acpi, hns_mdio_acpi_match);
 
 static struct platform_driver hns_mdio_driver = {
 	.probe = hns_mdio_probe,
-	.remove = hns_mdio_remove,
+	.remove_new = hns_mdio_remove,
 	.driver = {
 		   .name = MDIO_DRV_NAME,
 		   .of_match_table = hns_mdio_match,

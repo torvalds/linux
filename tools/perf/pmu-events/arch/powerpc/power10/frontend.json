@@ -1,0 +1,92 @@
+[
+  {
+    "EventCode": "0x1D054",
+    "EventName": "PM_DTLB_HIT_2M",
+    "BriefDescription": "Data TLB hit (DERAT reload) page size 2M. Implies radix translation. When MMCR1[16]=0 this event counts only DERAT reloads for demand misses. When MMCR1[16]=1 this event includes demand misses and prefetches."
+  },
+  {
+    "EventCode": "0x1D058",
+    "EventName": "PM_ITLB_HIT_64K",
+    "BriefDescription": "Instruction TLB hit (IERAT reload) page size 64K. When MMCR1[17]=0 this event counts only for demand misses. When MMCR1[17]=1 this event includes demand misses and prefetches."
+  },
+  {
+    "EventCode": "0x1F054",
+    "EventName": "PM_DTLB_HIT",
+    "BriefDescription": "The PTE required by the instruction was resident in the TLB (data TLB access). When MMCR1[16]=0 this event counts only demand hits. When MMCR1[16]=1 this event includes demand and prefetch. Applies to both HPT and RPT."
+  },
+  {
+    "EventCode": "0x100F2",
+    "EventName": "PM_1PLUS_PPC_CMPL",
+    "BriefDescription": "Cycles in which at least one instruction is completed by this thread."
+  },
+  {
+    "EventCode": "0x100F6",
+    "EventName": "PM_IERAT_MISS",
+    "BriefDescription": "IERAT Reloaded to satisfy an IERAT miss. All page sizes are counted by this event. This event only counts instruction demand access."
+  },
+  {
+    "EventCode": "0x24050",
+    "EventName": "PM_IOPS_DISP",
+    "BriefDescription": "Internal Operations dispatched. PM_IOPS_DISP / PM_INST_DISP will show the average number of internal operations per PowerPC instruction."
+  },
+  {
+    "EventCode": "0x2405E",
+    "EventName": "PM_ISSUE_CANCEL",
+    "BriefDescription": "An instruction issued and the issue was later cancelled. Only one cancel per PowerPC instruction."
+  },
+  {
+    "EventCode": "0x200FA",
+    "EventName": "PM_BR_TAKEN_CMPL",
+    "BriefDescription": "Branch Taken instruction completed."
+  },
+  {
+    "EventCode": "0x3000A",
+    "EventName": "PM_DISP_STALL_ITLB_MISS",
+    "BriefDescription": "Cycles when dispatch was stalled while waiting to resolve an instruction TLB miss."
+  },
+  {
+    "EventCode": "0x30012",
+    "EventName": "PM_FLUSH_COMPLETION",
+    "BriefDescription": "The instruction that was next to complete (oldest in the pipeline) did not complete because it suffered a flush."
+  },
+  {
+    "EventCode": "0x3F046",
+    "EventName": "PM_ITLB_HIT_1G",
+    "BriefDescription": "Instruction TLB hit (IERAT reload) page size 1G, which implies Radix Page Table translation is in use. When MMCR1[17]=0 this event counts only for demand misses. When MMCR1[17]=1 this event includes demand misses and prefetches."
+  },
+  {
+    "EventCode": "0x3C05A",
+    "EventName": "PM_DTLB_HIT_64K",
+    "BriefDescription": "Data TLB hit (DERAT reload) page size 64K. When MMCR1[16]=0 this event counts only for demand misses. When MMCR1[16]=1 this event includes demand misses and prefetches."
+  },
+  {
+    "EventCode": "0x3E054",
+    "EventName": "PM_LD_MISS_L1",
+    "BriefDescription": "Load missed L1, counted at finish time. LMQ merges are not included in this count. i.e. if a load instruction misses on an address that is already allocated on the LMQ, this event will not increment for that load). Note that this count is per slice, so if a load spans multiple slices this event will increment multiple times for a single load."
+  },
+  {
+    "EventCode": "0x300FA",
+    "EventName": "PM_INST_FROM_L3MISS",
+    "BriefDescription": "The processor's instruction cache was reloaded from beyond the local core's L3 due to a demand miss."
+  },
+  {
+    "EventCode": "0x40006",
+    "EventName": "PM_ISSUE_KILL",
+    "BriefDescription": "Cycles in which an instruction or group of instructions were cancelled after being issued. This event increments once per occurrence, regardless of how many instructions are included in the issue group."
+  },
+  {
+    "EventCode": "0x44056",
+    "EventName": "PM_VECTOR_ST_CMPL",
+    "BriefDescription": "Vector store instruction completed."
+  },
+  {
+    "EventCode": "0x4E054",
+    "EventName": "PM_DTLB_HIT_1G",
+    "BriefDescription": "Data TLB hit (DERAT reload) page size 1G. Implies radix translation. When MMCR1[16]=0 this event counts only for demand misses. When MMCR1[16]=1 this event includes demand misses and prefetches."
+  },
+  {
+    "EventCode": "0x400FC",
+    "EventName": "PM_ITLB_MISS",
+    "BriefDescription": "Instruction TLB reload (after a miss), all page sizes. Includes only demand misses."
+  }
+]

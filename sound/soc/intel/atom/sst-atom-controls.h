@@ -410,7 +410,7 @@ struct sst_cmd_set_gain_dual {
 struct sst_cmd_set_params {
 	struct sst_destination_id dst;
 	u16 command_id;
-	char params[0];
+	char params[];
 } __packed;
 
 
@@ -439,8 +439,8 @@ struct sst_cmd_tone_stop {
 } __packed;
 
 enum sst_ssp_mode {
-	SSP_MODE_MASTER = 0,
-	SSP_MODE_SLAVE = 1,
+	SSP_MODE_PROVIDER = 0,
+	SSP_MODE_CONSUMER = 1,
 };
 
 enum sst_ssp_pcm_mode {

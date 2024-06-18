@@ -55,7 +55,7 @@ static const struct regmap_config axg_tdmout_regmap_cfg = {
 static struct snd_soc_dai *
 axg_tdmout_get_be(struct snd_soc_dapm_widget *w)
 {
-	struct snd_soc_dapm_path *p = NULL;
+	struct snd_soc_dapm_path *p;
 	struct snd_soc_dai *be;
 
 	snd_soc_dapm_widget_for_each_sink_path(w, p) {
@@ -81,7 +81,7 @@ axg_tdmout_get_tdm_stream(struct snd_soc_dapm_widget *w)
 	if (!be)
 		return NULL;
 
-	return be->playback_dma_data;
+	return snd_soc_dai_dma_data_get_playback(be);
 }
 
 static void axg_tdmout_enable(struct regmap *map)
@@ -238,7 +238,6 @@ static const struct axg_tdm_formatter_driver axg_tdmout_drv = {
 	.regmap_cfg	= &axg_tdmout_regmap_cfg,
 	.ops		= &axg_tdmout_ops,
 	.quirks		= &(const struct axg_tdm_formatter_hw) {
-		.invert_sclk = true,
 		.skew_offset = 1,
 	},
 };
@@ -248,7 +247,6 @@ static const struct axg_tdm_formatter_driver g12a_tdmout_drv = {
 	.regmap_cfg	= &axg_tdmout_regmap_cfg,
 	.ops		= &axg_tdmout_ops,
 	.quirks		= &(const struct axg_tdm_formatter_hw) {
-		.invert_sclk = true,
 		.skew_offset = 2,
 	},
 };
@@ -309,7 +307,6 @@ static const struct axg_tdm_formatter_driver sm1_tdmout_drv = {
 	.regmap_cfg	= &axg_tdmout_regmap_cfg,
 	.ops		= &axg_tdmout_ops,
 	.quirks		= &(const struct axg_tdm_formatter_hw) {
-		.invert_sclk = true,
 		.skew_offset = 2,
 	},
 };

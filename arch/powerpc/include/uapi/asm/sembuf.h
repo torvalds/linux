@@ -2,6 +2,8 @@
 #ifndef _ASM_POWERPC_SEMBUF_H
 #define _ASM_POWERPC_SEMBUF_H
 
+#include <asm/ipcbuf.h>
+
 /*
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,8 +28,8 @@ struct semid64_ds {
 	unsigned long	sem_ctime_high;
 	unsigned long	sem_ctime;	/* last change time */
 #else
-	__kernel_time_t	sem_otime;	/* last semop time */
-	__kernel_time_t	sem_ctime;	/* last change time */
+	long		sem_otime;	/* last semop time */
+	long		sem_ctime;	/* last change time */
 #endif
 	unsigned long	sem_nsems;	/* no. of semaphores in array */
 	unsigned long	__unused3;

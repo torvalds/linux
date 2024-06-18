@@ -13,7 +13,9 @@
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/slot-gpio.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <asm/octeon/octeon.h>
 #include "cavium.h"
 
@@ -148,7 +150,6 @@ static int octeon_mmc_probe(struct platform_device *pdev)
 {
 	struct device_node *cn, *node = pdev->dev.of_node;
 	struct cvm_mmc_host *host;
-	struct resource	*res;
 	void __iomem *base;
 	int mmc_irq[9];
 	int i, ret = 0;
@@ -205,26 +206,16 @@ static int octeon_mmc_probe(struct platform_device *pdev)
 
 	host->last_slot = -1;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "Platform resource[0] is missing\n");
-		return -ENXIO;
-	}
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
-	host->base = (void __iomem *)base;
+	host->base = base;
 	host->reg_off = 0;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (!res) {
-		dev_err(&pdev->dev, "Platform resource[1] is missing\n");
-		return -EINVAL;
-	}
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
-	host->dma_base = (void __iomem *)base;
+	host->dma_base = base;
 	/*
 	 * To keep the register addresses shared we intentionaly use
 	 * a negative offset here, first register used on Octeon therefore
@@ -288,6 +279,7 @@ static int octeon_mmc_probe(struct platform_device *pdev)
 		if (ret) {
 			dev_err(&pdev->dev, "Error populating slots\n");
 			octeon_mmc_set_shared_power(host, 0);
+			of_node_put(cn);
 			goto error;
 		}
 		i++;
@@ -304,7 +296,7 @@ error:
 	return ret;
 }
 
-static int octeon_mmc_remove(struct platform_device *pdev)
+static void octeon_mmc_remove(struct platform_device *pdev)
 {
 	struct cvm_mmc_host *host = platform_get_drvdata(pdev);
 	u64 dma_cfg;
@@ -319,7 +311,6 @@ static int octeon_mmc_remove(struct platform_device *pdev)
 	writeq(dma_cfg, host->dma_base + MIO_EMM_DMA_CFG(host));
 
 	octeon_mmc_set_shared_power(host, 0);
-	return 0;
 }
 
 static const struct of_device_id octeon_mmc_match[] = {
@@ -335,9 +326,10 @@ MODULE_DEVICE_TABLE(of, octeon_mmc_match);
 
 static struct platform_driver octeon_mmc_driver = {
 	.probe		= octeon_mmc_probe,
-	.remove		= octeon_mmc_remove,
+	.remove_new	= octeon_mmc_remove,
 	.driver		= {
 		.name	= KBUILD_MODNAME,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = octeon_mmc_match,
 	},
 };

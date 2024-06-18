@@ -11,7 +11,6 @@
 #ifndef __DRIVERS_PINCTRL_IMX_H
 #define __DRIVERS_PINCTRL_IMX_H
 
-#include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinmux.h>
 
 struct platform_device;
@@ -67,39 +66,6 @@ struct imx_pin_reg {
 	s16 conf_reg;
 };
 
-/* decode a generic config into raw register value */
-struct imx_cfg_params_decode {
-	enum pin_config_param param;
-	u32 mask;
-	u8 shift;
-	bool invert;
-};
-
-struct imx_pinctrl_soc_info {
-	const struct pinctrl_pin_desc *pins;
-	unsigned int npins;
-	unsigned int flags;
-	const char *gpr_compatible;
-
-	/* MUX_MODE shift and mask in case SHARE_MUX_CONF_REG */
-	unsigned int mux_mask;
-	u8 mux_shift;
-
-	/* generic pinconf */
-	bool generic_pinconf;
-	const struct pinconf_generic_params *custom_params;
-	unsigned int num_custom_params;
-	const struct imx_cfg_params_decode *decodes;
-	unsigned int num_decodes;
-	void (*fixup)(unsigned long *configs, unsigned int num_configs,
-		      u32 *raw_config);
-
-	int (*gpio_set_direction)(struct pinctrl_dev *pctldev,
-				  struct pinctrl_gpio_range *range,
-				  unsigned offset,
-				  bool input);
-};
-
 /**
  * @dev: a pointer back to containing device
  * @base: the offset to the controller in virtual memory
@@ -115,11 +81,28 @@ struct imx_pinctrl {
 	struct mutex mutex;
 };
 
-#define IMX_CFG_PARAMS_DECODE(p, m, o) \
-	{ .param = p, .mask = m, .shift = o, .invert = false, }
+struct imx_pinctrl_soc_info {
+	const struct pinctrl_pin_desc *pins;
+	unsigned int npins;
+	unsigned int flags;
+	const char *gpr_compatible;
 
-#define IMX_CFG_PARAMS_DECODE_INVERT(p, m, o) \
-	{ .param = p, .mask = m, .shift = o, .invert = true, }
+	/* MUX_MODE shift and mask in case SHARE_MUX_CONF_REG */
+	unsigned int mux_mask;
+	u8 mux_shift;
+
+	int (*gpio_set_direction)(struct pinctrl_dev *pctldev,
+				  struct pinctrl_gpio_range *range,
+				  unsigned offset,
+				  bool input);
+	int (*imx_pinconf_get)(struct pinctrl_dev *pctldev, unsigned int pin_id,
+			       unsigned long *config);
+	int (*imx_pinconf_set)(struct pinctrl_dev *pctldev, unsigned int pin_id,
+			       unsigned long *configs, unsigned int num_configs);
+	void (*imx_pinctrl_parse_pin)(struct imx_pinctrl *ipctl,
+				      unsigned int *pin_id, struct imx_pin *pin,
+				      const __be32 **list_p);
+};
 
 #define SHARE_MUX_CONF_REG	BIT(0)
 #define ZERO_OFFSET_VALID	BIT(1)
@@ -137,7 +120,6 @@ struct imx_pinctrl {
 int imx_pinctrl_probe(struct platform_device *pdev,
 			const struct imx_pinctrl_soc_info *info);
 
-#ifdef CONFIG_PINCTRL_IMX_SCU
 #define BM_PAD_CTL_GP_ENABLE		BIT(30)
 #define BM_PAD_CTL_IFMUX_ENABLE		BIT(31)
 #define BP_PAD_CTL_IFMUX		27
@@ -150,23 +132,4 @@ int imx_pinconf_set_scu(struct pinctrl_dev *pctldev, unsigned pin_id,
 void imx_pinctrl_parse_pin_scu(struct imx_pinctrl *ipctl,
 			       unsigned int *pin_id, struct imx_pin *pin,
 			       const __be32 **list_p);
-#else
-static inline int imx_pinconf_get_scu(struct pinctrl_dev *pctldev,
-				      unsigned pin_id, unsigned long *config)
-{
-	return -EINVAL;
-}
-static inline int imx_pinconf_set_scu(struct pinctrl_dev *pctldev,
-				      unsigned pin_id, unsigned long *configs,
-				      unsigned num_configs)
-{
-	return -EINVAL;
-}
-static inline void imx_pinctrl_parse_pin_scu(struct imx_pinctrl *ipctl,
-					    unsigned int *pin_id,
-					    struct imx_pin *pin,
-					    const __be32 **list_p)
-{
-}
-#endif
 #endif /* __DRIVERS_PINCTRL_IMX_H */

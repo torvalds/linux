@@ -43,6 +43,7 @@ struct mcif_arb_params {
 	unsigned int		arbitration_slice;
 	unsigned int		slice_lines;
 	unsigned int		max_scaled_time;
+	unsigned int		dram_speed_change_duration;
 };
 
 struct mcif_irq_params {
@@ -72,6 +73,9 @@ struct mcif_wb {
 
 struct mcif_wb_funcs {
 
+	void (*warmup_mcif)(
+		struct mcif_wb *mcif_wb,
+		struct mcif_warmup_params *params);
 	void (*enable_mcif)(struct mcif_wb *mcif_wb);
 
 	void (*disable_mcif)(struct mcif_wb *mcif_wb);

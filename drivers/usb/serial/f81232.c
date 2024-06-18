@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Fintek F81232 USB to serial adaptor driver
+ * Fintek F81532A/534A/535/536 USB to 2/4/8/12 serial adaptor driver
  *
  * Copyright (C) 2012 Greg Kroah-Hartman (gregkh@linuxfoundation.org)
  * Copyright (C) 2012 Linux Foundation
@@ -21,11 +22,45 @@
 #include <linux/usb/serial.h>
 #include <linux/serial_reg.h>
 
-static const struct usb_device_id id_table[] = {
-	{ USB_DEVICE(0x1934, 0x0706) },
+#define F81232_ID		\
+	{ USB_DEVICE(0x1934, 0x0706) }	/* 1 port UART device */
+
+#define F81534A_SERIES_ID	\
+	{ USB_DEVICE(0x2c42, 0x1602) },	/* In-Box 2 port UART device */	\
+	{ USB_DEVICE(0x2c42, 0x1604) },	/* In-Box 4 port UART device */	\
+	{ USB_DEVICE(0x2c42, 0x1605) },	/* In-Box 8 port UART device */	\
+	{ USB_DEVICE(0x2c42, 0x1606) },	/* In-Box 12 port UART device */ \
+	{ USB_DEVICE(0x2c42, 0x1608) },	/* Non-Flash type */ \
+	{ USB_DEVICE(0x2c42, 0x1632) },	/* 2 port UART device */ \
+	{ USB_DEVICE(0x2c42, 0x1634) },	/* 4 port UART device */ \
+	{ USB_DEVICE(0x2c42, 0x1635) },	/* 8 port UART device */ \
+	{ USB_DEVICE(0x2c42, 0x1636) }	/* 12 port UART device */
+
+#define F81534A_CTRL_ID		\
+	{ USB_DEVICE(0x2c42, 0x16f8) }	/* Global control device */
+
+static const struct usb_device_id f81232_id_table[] = {
+	F81232_ID,
 	{ }					/* Terminating entry */
 };
-MODULE_DEVICE_TABLE(usb, id_table);
+
+static const struct usb_device_id f81534a_id_table[] = {
+	F81534A_SERIES_ID,
+	{ }					/* Terminating entry */
+};
+
+static const struct usb_device_id f81534a_ctrl_id_table[] = {
+	F81534A_CTRL_ID,
+	{ }					/* Terminating entry */
+};
+
+static const struct usb_device_id combined_id_table[] = {
+	F81232_ID,
+	F81534A_SERIES_ID,
+	F81534A_CTRL_ID,
+	{ }					/* Terminating entry */
+};
+MODULE_DEVICE_TABLE(usb, combined_id_table);
 
 /* Maximum baudrate for F81232 */
 #define F81232_MAX_BAUDRATE		1500000
@@ -35,6 +70,7 @@ MODULE_DEVICE_TABLE(usb, id_table);
 #define F81232_REGISTER_REQUEST		0xa0
 #define F81232_GET_REGISTER		0xc0
 #define F81232_SET_REGISTER		0x40
+#define F81534A_ACCESS_REG_RETRY	2
 
 #define SERIAL_BASE_ADDRESS		0x0120
 #define RECEIVE_BUFFER_REGISTER		(0x00 + SERIAL_BASE_ADDRESS)
@@ -61,6 +97,22 @@ MODULE_DEVICE_TABLE(usb, id_table);
 #define F81232_CLK_14_77_MHZ		(BIT(1) | BIT(0))
 #define F81232_CLK_MASK			GENMASK(1, 0)
 
+#define F81534A_MODE_REG		0x107
+#define F81534A_TRIGGER_MASK		GENMASK(3, 2)
+#define F81534A_TRIGGER_MULTIPLE_4X	BIT(3)
+#define F81534A_FIFO_128BYTE		(BIT(1) | BIT(0))
+
+/* Serial port self GPIO control, 2bytes [control&output data][input data] */
+#define F81534A_GPIO_REG		0x10e
+#define F81534A_GPIO_MODE2_DIR		BIT(6) /* 1: input, 0: output */
+#define F81534A_GPIO_MODE1_DIR		BIT(5)
+#define F81534A_GPIO_MODE0_DIR		BIT(4)
+#define F81534A_GPIO_MODE2_OUTPUT	BIT(2)
+#define F81534A_GPIO_MODE1_OUTPUT	BIT(1)
+#define F81534A_GPIO_MODE0_OUTPUT	BIT(0)
+
+#define F81534A_CTRL_CMD_ENABLE_PORT	0x116
+
 struct f81232_private {
 	struct mutex lock;
 	u8 modem_control;
@@ -78,80 +130,52 @@ static u8 const clock_table[] = { F81232_CLK_1_846_MHZ, F81232_CLK_14_77_MHZ,
 
 static int calc_baud_divisor(speed_t baudrate, speed_t clockrate)
 {
-	if (!baudrate)
-		return 0;
-
 	return DIV_ROUND_CLOSEST(clockrate, baudrate);
 }
 
 static int f81232_get_register(struct usb_serial_port *port, u16 reg, u8 *val)
 {
 	int status;
-	u8 *tmp;
 	struct usb_device *dev = port->serial->dev;
 
-	tmp = kmalloc(sizeof(*val), GFP_KERNEL);
-	if (!tmp)
-		return -ENOMEM;
-
-	status = usb_control_msg(dev,
-				usb_rcvctrlpipe(dev, 0),
-				F81232_REGISTER_REQUEST,
-				F81232_GET_REGISTER,
-				reg,
-				0,
-				tmp,
-				sizeof(*val),
-				USB_CTRL_GET_TIMEOUT);
-	if (status != sizeof(*val)) {
+	status = usb_control_msg_recv(dev,
+				      0,
+				      F81232_REGISTER_REQUEST,
+				      F81232_GET_REGISTER,
+				      reg,
+				      0,
+				      val,
+				      sizeof(*val),
+				      USB_CTRL_GET_TIMEOUT,
+				      GFP_KERNEL);
+	if (status) {
 		dev_err(&port->dev, "%s failed status: %d\n", __func__, status);
-
-		if (status < 0)
-			status = usb_translate_errors(status);
-		else
-			status = -EIO;
-	} else {
-		status = 0;
-		*val = *tmp;
+		status = usb_translate_errors(status);
 	}
 
-	kfree(tmp);
 	return status;
 }
 
 static int f81232_set_register(struct usb_serial_port *port, u16 reg, u8 val)
 {
 	int status;
-	u8 *tmp;
 	struct usb_device *dev = port->serial->dev;
 
-	tmp = kmalloc(sizeof(val), GFP_KERNEL);
-	if (!tmp)
-		return -ENOMEM;
-
-	*tmp = val;
-
-	status = usb_control_msg(dev,
-				usb_sndctrlpipe(dev, 0),
-				F81232_REGISTER_REQUEST,
-				F81232_SET_REGISTER,
-				reg,
-				0,
-				tmp,
-				sizeof(val),
-				USB_CTRL_SET_TIMEOUT);
-	if (status != sizeof(val)) {
+	status = usb_control_msg_send(dev,
+				      0,
+				      F81232_REGISTER_REQUEST,
+				      F81232_SET_REGISTER,
+				      reg,
+				      0,
+				      &val,
+				      sizeof(val),
+				      USB_CTRL_SET_TIMEOUT,
+				      GFP_KERNEL);
+	if (status) {
 		dev_err(&port->dev, "%s failed status: %d\n", __func__, status);
-
-		if (status < 0)
-			status = usb_translate_errors(status);
-		else
-			status = -EIO;
-	} else {
-		status = 0;
+		status = usb_translate_errors(status);
 	}
 
-	kfree(tmp);
 	return status;
 }
 
@@ -322,10 +346,38 @@ exit:
 			__func__, retval);
 }
 
+static char f81232_handle_lsr(struct usb_serial_port *port, u8 lsr)
+{
+	struct f81232_private *priv = usb_get_serial_port_data(port);
+	char tty_flag = TTY_NORMAL;
+
+	if (!(lsr & UART_LSR_BRK_ERROR_BITS))
+		return tty_flag;
+
+	if (lsr & UART_LSR_BI) {
+		tty_flag = TTY_BREAK;
+		port->icount.brk++;
+		usb_serial_handle_break(port);
+	} else if (lsr & UART_LSR_PE) {
+		tty_flag = TTY_PARITY;
+		port->icount.parity++;
+	} else if (lsr & UART_LSR_FE) {
+		tty_flag = TTY_FRAME;
+		port->icount.frame++;
+	}
+
+	if (lsr & UART_LSR_OE) {
+		port->icount.overrun++;
+		schedule_work(&priv->lsr_work);
+		tty_insert_flip_char(&port->port, 0, TTY_OVERRUN);
+	}
+
+	return tty_flag;
+}
+
 static void f81232_process_read_urb(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
-	struct f81232_private *priv = usb_get_serial_port_data(port);
 	unsigned char *data = urb->transfer_buffer;
 	char tty_flag;
 	unsigned int i;
@@ -341,31 +393,10 @@ static void f81232_process_read_urb(struct urb *urb)
 	/* bulk-in data: [LSR(1Byte)+DATA(1Byte)][LSR(1Byte)+DATA(1Byte)]... */
 
 	for (i = 0; i < urb->actual_length; i += 2) {
-		tty_flag = TTY_NORMAL;
 		lsr = data[i];
+		tty_flag = f81232_handle_lsr(port, lsr);
 
-		if (lsr & UART_LSR_BRK_ERROR_BITS) {
-			if (lsr & UART_LSR_BI) {
-				tty_flag = TTY_BREAK;
-				port->icount.brk++;
-				usb_serial_handle_break(port);
-			} else if (lsr & UART_LSR_PE) {
-				tty_flag = TTY_PARITY;
-				port->icount.parity++;
-			} else if (lsr & UART_LSR_FE) {
-				tty_flag = TTY_FRAME;
-				port->icount.frame++;
-			}
-
-			if (lsr & UART_LSR_OE) {
-				port->icount.overrun++;
-				schedule_work(&priv->lsr_work);
-				tty_insert_flip_char(&port->port, 0,
-						TTY_OVERRUN);
-			}
-		}
-
-		if (port->port.console && port->sysrq) {
+		if (port->sysrq) {
 			if (usb_serial_handle_sysrq_char(port, data[i + 1]))
 				continue;
 		}
@@ -376,7 +407,48 @@ static void f81232_process_read_urb(struct urb *urb)
 	tty_flip_buffer_push(&port->port);
 }
 
-static void f81232_break_ctl(struct tty_struct *tty, int break_state)
+static void f81534a_process_read_urb(struct urb *urb)
+{
+	struct usb_serial_port *port = urb->context;
+	unsigned char *data = urb->transfer_buffer;
+	char tty_flag;
+	unsigned int i;
+	u8 lsr;
+	u8 len;
+
+	if (urb->actual_length < 3) {
+		dev_err(&port->dev, "short message received: %d\n",
+				urb->actual_length);
+		return;
+	}
+
+	len = data[0];
+	if (len != urb->actual_length) {
+		dev_err(&port->dev, "malformed message received: %d (%d)\n",
+				urb->actual_length, len);
+		return;
+	}
+
+	/* bulk-in data: [LEN][Data.....][LSR] */
+	lsr = data[len - 1];
+	tty_flag = f81232_handle_lsr(port, lsr);
+
+	if (port->sysrq) {
+		for (i = 1; i < len - 1; ++i) {
+			if (!usb_serial_handle_sysrq_char(port, data[i])) {
+				tty_insert_flip_char(&port->port, data[i],
+						tty_flag);
+			}
+		}
+	} else {
+		tty_insert_flip_string_fixed_flag(&port->port, &data[1],
+							tty_flag, len - 2);
+	}
+
+	tty_flip_buffer_push(&port->port);
+}
+
+static int f81232_break_ctl(struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct f81232_private *priv = usb_get_serial_port_data(port);
@@ -395,6 +467,8 @@ static void f81232_break_ctl(struct tty_struct *tty, int break_state)
 		dev_err(&port->dev, "set break failed: %d\n", status);
 
 	mutex_unlock(&priv->lock);
+
+	return status;
 }
 
 static int f81232_find_clk(speed_t baudrate)
@@ -423,9 +497,14 @@ static void f81232_set_baudrate(struct tty_struct *tty,
 	speed_t baud_list[] = { baudrate, old_baudrate, F81232_DEF_BAUDRATE };
 
 	for (i = 0; i < ARRAY_SIZE(baud_list); ++i) {
-		idx = f81232_find_clk(baud_list[i]);
+		baudrate = baud_list[i];
+		if (baudrate == 0) {
+			tty_encode_baud_rate(tty, 0, 0);
+			return;
+		}
+
+		idx = f81232_find_clk(baudrate);
 		if (idx >= 0) {
-			baudrate = baud_list[i];
 			tty_encode_baud_rate(tty, baudrate, baudrate);
 			break;
 		}
@@ -528,7 +607,8 @@ static int f81232_port_disable(struct usb_serial_port *port)
 }
 
 static void f81232_set_termios(struct tty_struct *tty,
-		struct usb_serial_port *port, struct ktermios *old_termios)
+			       struct usb_serial_port *port,
+			       const struct ktermios *old_termios)
 {
 	struct f81232_private *priv = usb_get_serial_port_data(port);
 	u8 new_lcr = 0;
@@ -568,21 +648,7 @@ static void f81232_set_termios(struct tty_struct *tty,
 	if (C_CSTOPB(tty))
 		new_lcr |= UART_LCR_STOP;
 
-	switch (C_CSIZE(tty)) {
-	case CS5:
-		new_lcr |= UART_LCR_WLEN5;
-		break;
-	case CS6:
-		new_lcr |= UART_LCR_WLEN6;
-		break;
-	case CS7:
-		new_lcr |= UART_LCR_WLEN7;
-		break;
-	default:
-	case CS8:
-		new_lcr |= UART_LCR_WLEN8;
-		break;
-	}
+	new_lcr |= UART_LCR_WLEN(tty_get_char_size(tty->termios.c_cflag));
 
 	mutex_lock(&priv->lock);
 
@@ -659,6 +725,24 @@ static int f81232_open(struct tty_struct *tty, struct usb_serial_port *port)
 	return 0;
 }
 
+static int f81534a_open(struct tty_struct *tty, struct usb_serial_port *port)
+{
+	int status;
+	u8 mask;
+	u8 val;
+
+	val = F81534A_TRIGGER_MULTIPLE_4X | F81534A_FIFO_128BYTE;
+	mask = F81534A_TRIGGER_MASK | F81534A_FIFO_128BYTE;
+
+	status = f81232_set_mask_register(port, F81534A_MODE_REG, mask, val);
+	if (status) {
+		dev_err(&port->dev, "failed to set MODE_REG: %d\n", status);
+		return status;
+	}
+
+	return f81232_open(tty, port);
+}
+
 static void f81232_close(struct usb_serial_port *port)
 {
 	struct f81232_private *port_priv = usb_get_serial_port_data(port);
@@ -678,6 +762,20 @@ static void f81232_dtr_rts(struct usb_serial_port *port, int on)
 		f81232_set_mctrl(port, 0, TIOCM_DTR | TIOCM_RTS);
 }
 
+static bool f81232_tx_empty(struct usb_serial_port *port)
+{
+	int status;
+	u8 tmp;
+
+	status = f81232_get_register(port, LINE_STATUS_REGISTER, &tmp);
+	if (!status) {
+		if ((tmp & UART_LSR_TEMT) != UART_LSR_TEMT)
+			return false;
+	}
+
+	return true;
+}
+
 static int f81232_carrier_raised(struct usb_serial_port *port)
 {
 	u8 msr;
@@ -692,17 +790,12 @@ static int f81232_carrier_raised(struct usb_serial_port *port)
 	return 0;
 }
 
-static int f81232_get_serial_info(struct tty_struct *tty,
-		struct serial_struct *ss)
+static void f81232_get_serial(struct tty_struct *tty, struct serial_struct *ss)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct f81232_private *priv = usb_get_serial_port_data(port);
 
-	ss->type = PORT_16550A;
-	ss->line = port->minor;
-	ss->port = port->port_number;
 	ss->baud_base = priv->baud_base;
-	return 0;
 }
 
 static void  f81232_interrupt_work(struct work_struct *work)
@@ -728,11 +821,87 @@ static void f81232_lsr_worker(struct work_struct *work)
 		dev_warn(&port->dev, "read LSR failed: %d\n", status);
 }
 
+static int f81534a_ctrl_set_register(struct usb_interface *intf, u16 reg,
+					u16 size, void *val)
+{
+	struct usb_device *dev = interface_to_usbdev(intf);
+	int retry = F81534A_ACCESS_REG_RETRY;
+	int status;
+
+	while (retry--) {
+		status = usb_control_msg_send(dev,
+					      0,
+					      F81232_REGISTER_REQUEST,
+					      F81232_SET_REGISTER,
+					      reg,
+					      0,
+					      val,
+					      size,
+					      USB_CTRL_SET_TIMEOUT,
+					      GFP_KERNEL);
+		if (status) {
+			status = usb_translate_errors(status);
+			if (status == -EIO)
+				continue;
+		}
+
+		break;
+	}
+
+	if (status) {
+		dev_err(&intf->dev, "failed to set register 0x%x: %d\n",
+				reg, status);
+	}
+
+	return status;
+}
+
+static int f81534a_ctrl_enable_all_ports(struct usb_interface *intf, bool en)
+{
+	unsigned char enable[2] = {0};
+	int status;
+
+	/*
+	 * Enable all available serial ports, define as following:
+	 * bit 15	: Reset behavior (when HUB got soft reset)
+	 *			0: maintain all serial port enabled state.
+	 *			1: disable all serial port.
+	 * bit 0~11	: Serial port enable bit.
+	 */
+	if (en) {
+		enable[0] = 0xff;
+		enable[1] = 0x8f;
+	}
+
+	status = f81534a_ctrl_set_register(intf, F81534A_CTRL_CMD_ENABLE_PORT,
+			sizeof(enable), enable);
+	if (status)
+		dev_err(&intf->dev, "failed to enable ports: %d\n", status);
+
+	return status;
+}
+
+static int f81534a_ctrl_probe(struct usb_interface *intf,
+				const struct usb_device_id *id)
+{
+	return f81534a_ctrl_enable_all_ports(intf, true);
+}
+
+static void f81534a_ctrl_disconnect(struct usb_interface *intf)
+{
+	f81534a_ctrl_enable_all_ports(intf, false);
+}
+
+static int f81534a_ctrl_resume(struct usb_interface *intf)
+{
+	return f81534a_ctrl_enable_all_ports(intf, true);
+}
+
 static int f81232_port_probe(struct usb_serial_port *port)
 {
 	struct f81232_private *priv;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(&port->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -742,20 +911,22 @@ static int f81232_port_probe(struct usb_serial_port *port)
 
 	usb_set_serial_port_data(port, priv);
 
-	port->port.drain_delay = 256;
 	priv->port = port;
 
 	return 0;
 }
 
-static int f81232_port_remove(struct usb_serial_port *port)
+static int f81534a_port_probe(struct usb_serial_port *port)
 {
-	struct f81232_private *priv;
+	int status;
 
-	priv = usb_get_serial_port_data(port);
-	kfree(priv);
+	/* tri-state with pull-high, default RS232 Mode */
+	status = f81232_set_register(port, F81534A_GPIO_REG,
+					F81534A_GPIO_MODE2_DIR);
+	if (status)
+		return status;
 
-	return 0;
+	return f81232_port_probe(port);
 }
 
 static int f81232_suspend(struct usb_serial *serial, pm_message_t message)
@@ -799,7 +970,7 @@ static struct usb_serial_driver f81232_device = {
 		.owner =	THIS_MODULE,
 		.name =		"f81232",
 	},
-	.id_table =		id_table,
+	.id_table =		f81232_id_table,
 	.num_ports =		1,
 	.bulk_in_size =		256,
 	.bulk_out_size =	256,
@@ -807,28 +978,88 @@ static struct usb_serial_driver f81232_device = {
 	.close =		f81232_close,
 	.dtr_rts =		f81232_dtr_rts,
 	.carrier_raised =	f81232_carrier_raised,
-	.get_serial =		f81232_get_serial_info,
+	.get_serial =		f81232_get_serial,
 	.break_ctl =		f81232_break_ctl,
 	.set_termios =		f81232_set_termios,
 	.tiocmget =		f81232_tiocmget,
 	.tiocmset =		f81232_tiocmset,
 	.tiocmiwait =		usb_serial_generic_tiocmiwait,
+	.tx_empty =		f81232_tx_empty,
 	.process_read_urb =	f81232_process_read_urb,
 	.read_int_callback =	f81232_read_int_callback,
 	.port_probe =		f81232_port_probe,
-	.port_remove =		f81232_port_remove,
+	.suspend =		f81232_suspend,
+	.resume =		f81232_resume,
+};
+
+static struct usb_serial_driver f81534a_device = {
+	.driver = {
+		.owner =	THIS_MODULE,
+		.name =		"f81534a",
+	},
+	.id_table =		f81534a_id_table,
+	.num_ports =		1,
+	.open =			f81534a_open,
+	.close =		f81232_close,
+	.dtr_rts =		f81232_dtr_rts,
+	.carrier_raised =	f81232_carrier_raised,
+	.get_serial =		f81232_get_serial,
+	.break_ctl =		f81232_break_ctl,
+	.set_termios =		f81232_set_termios,
+	.tiocmget =		f81232_tiocmget,
+	.tiocmset =		f81232_tiocmset,
+	.tiocmiwait =		usb_serial_generic_tiocmiwait,
+	.tx_empty =		f81232_tx_empty,
+	.process_read_urb =	f81534a_process_read_urb,
+	.read_int_callback =	f81232_read_int_callback,
+	.port_probe =		f81534a_port_probe,
 	.suspend =		f81232_suspend,
 	.resume =		f81232_resume,
 };
 
 static struct usb_serial_driver * const serial_drivers[] = {
 	&f81232_device,
+	&f81534a_device,
 	NULL,
 };
 
-module_usb_serial_driver(serial_drivers, id_table);
+static struct usb_driver f81534a_ctrl_driver = {
+	.name =		"f81534a_ctrl",
+	.id_table =	f81534a_ctrl_id_table,
+	.probe =	f81534a_ctrl_probe,
+	.disconnect =	f81534a_ctrl_disconnect,
+	.resume =	f81534a_ctrl_resume,
+};
 
-MODULE_DESCRIPTION("Fintek F81232 USB to serial adaptor driver");
+static int __init f81232_init(void)
+{
+	int status;
+
+	status = usb_register_driver(&f81534a_ctrl_driver, THIS_MODULE,
+			KBUILD_MODNAME);
+	if (status)
+		return status;
+
+	status = usb_serial_register_drivers(serial_drivers, KBUILD_MODNAME,
+			combined_id_table);
+	if (status) {
+		usb_deregister(&f81534a_ctrl_driver);
+		return status;
+	}
+
+	return 0;
+}
+
+static void __exit f81232_exit(void)
+{
+	usb_serial_deregister_drivers(serial_drivers);
+	usb_deregister(&f81534a_ctrl_driver);
+}
+
+module_init(f81232_init);
+module_exit(f81232_exit);
+
+MODULE_DESCRIPTION("Fintek F81232/532A/534A/535/536 USB to serial driver");
 MODULE_AUTHOR("Greg Kroah-Hartman <gregkh@linuxfoundation.org>");
 MODULE_AUTHOR("Peter Hong <peter_hong@fintek.com.tw>");
 MODULE_LICENSE("GPL v2");

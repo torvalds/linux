@@ -2,18 +2,28 @@
 # Copyright 2019 BayLibre, SAS
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/watchdog/amlogic,meson-gxbb-wdt.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/watchdog/amlogic,meson-gxbb-wdt.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Meson GXBB SoCs Watchdog timer
 
 maintainers:
-  - Neil Armstrong <narmstrong@baylibre.com>
+  - Neil Armstrong <neil.armstrong@linaro.org>
+
+allOf:
+  - $ref: watchdog.yaml#
 
 properties:
   compatible:
-    enum:
-      - amlogic,meson-gxbb-wdt
+    oneOf:
+      - enum:
+          - amlogic,meson-gxbb-wdt
+          - amlogic,t7-wdt
+      - items:
+          - enum:
+              - amlogic,c3-wdt
+              - amlogic,s4-wdt
+          - const: amlogic,t7-wdt
 
   reg:
     maxItems: 1
@@ -28,10 +38,12 @@ required:
   - reg
   - clocks
 
+unevaluatedProperties: false
+
 examples:
   - |
     watchdog@98d0 {
-          compatible = "amlogic,meson-gxbb-wdt";
-          reg = <0x98d0 0x10>;
-          clocks = <&xtal>;
+        compatible = "amlogic,meson-gxbb-wdt";
+        reg = <0x98d0 0x10>;
+        clocks = <&xtal>;
     };

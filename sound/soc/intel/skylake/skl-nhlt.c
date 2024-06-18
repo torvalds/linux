@@ -13,108 +13,6 @@
 #include "skl.h"
 #include "skl-i2s.h"
 
-static struct nhlt_specific_cfg *skl_get_specific_cfg(
-		struct device *dev, struct nhlt_fmt *fmt,
-		u8 no_ch, u32 rate, u16 bps, u8 linktype)
-{
-	struct nhlt_specific_cfg *sp_config;
-	struct wav_fmt *wfmt;
-	struct nhlt_fmt_cfg *fmt_config = fmt->fmt_config;
-	int i;
-
-	dev_dbg(dev, "Format count =%d\n", fmt->fmt_count);
-
-	for (i = 0; i < fmt->fmt_count; i++) {
-		wfmt = &fmt_config->fmt_ext.fmt;
-		dev_dbg(dev, "ch=%d fmt=%d s_rate=%d\n", wfmt->channels,
-			 wfmt->bits_per_sample, wfmt->samples_per_sec);
-		if (wfmt->channels == no_ch && wfmt->bits_per_sample == bps) {
-			/*
-			 * if link type is dmic ignore rate check as the blob is
-			 * generic for all rates
-			 */
-			sp_config = &fmt_config->config;
-			if (linktype == NHLT_LINK_DMIC)
-				return sp_config;
-
-			if (wfmt->samples_per_sec == rate)
-				return sp_config;
-		}
-
-		fmt_config = (struct nhlt_fmt_cfg *)(fmt_config->config.caps +
-						fmt_config->config.size);
-	}
-
-	return NULL;
-}
-
-static void dump_config(struct device *dev, u32 instance_id, u8 linktype,
-		u8 s_fmt, u8 num_channels, u32 s_rate, u8 dirn, u16 bps)
-{
-	dev_dbg(dev, "Input configuration\n");
-	dev_dbg(dev, "ch=%d fmt=%d s_rate=%d\n", num_channels, s_fmt, s_rate);
-	dev_dbg(dev, "vbus_id=%d link_type=%d\n", instance_id, linktype);
-	dev_dbg(dev, "bits_per_sample=%d\n", bps);
-}
-
-static bool skl_check_ep_match(struct device *dev, struct nhlt_endpoint *epnt,
-		u32 instance_id, u8 link_type, u8 dirn, u8 dev_type)
-{
-	dev_dbg(dev, "vbus_id=%d link_type=%d dir=%d dev_type = %d\n",
-			epnt->virtual_bus_id, epnt->linktype,
-			epnt->direction, epnt->device_type);
-
-	if ((epnt->virtual_bus_id == instance_id) &&
-			(epnt->linktype == link_type) &&
-			(epnt->direction == dirn)) {
-		/* do not check dev_type for DMIC link type */
-		if (epnt->linktype == NHLT_LINK_DMIC)
-			return true;
-
-		if (epnt->device_type == dev_type)
-			return true;
-	}
-
-	return false;
-}
-
-struct nhlt_specific_cfg
-*skl_get_ep_blob(struct skl_dev *skl, u32 instance, u8 link_type,
-			u8 s_fmt, u8 num_ch, u32 s_rate,
-			u8 dirn, u8 dev_type)
-{
-	struct nhlt_fmt *fmt;
-	struct nhlt_endpoint *epnt;
-	struct hdac_bus *bus = skl_to_bus(skl);
-	struct device *dev = bus->dev;
-	struct nhlt_specific_cfg *sp_config;
-	struct nhlt_acpi_table *nhlt = skl->nhlt;
-	u16 bps = (s_fmt == 16) ? 16 : 32;
-	u8 j;
-
-	dump_config(dev, instance, link_type, s_fmt, num_ch, s_rate, dirn, bps);
-
-	epnt = (struct nhlt_endpoint *)nhlt->desc;
-
-	dev_dbg(dev, "endpoint count =%d\n", nhlt->endpoint_count);
-
-	for (j = 0; j < nhlt->endpoint_count; j++) {
-		if (skl_check_ep_match(dev, epnt, instance, link_type,
-						dirn, dev_type)) {
-			fmt = (struct nhlt_fmt *)(epnt->config.caps +
-						 epnt->config.size);
-			sp_config = skl_get_specific_cfg(dev, fmt, num_ch,
-							s_rate, bps, link_type);
-			if (sp_config)
-				return sp_config;
-		}
-
-		epnt = (struct nhlt_endpoint *)((u8 *)epnt + epnt->length);
-	}
-
-	return NULL;
-}
-
 static void skl_nhlt_trim_space(char *trim)
 {
 	char *s = trim;
@@ -149,8 +47,8 @@ int skl_nhlt_update_topology_bin(struct skl_dev *skl)
 	return 0;
 }
 
-static ssize_t skl_nhlt_platform_id_show(struct device *dev,
-			struct device_attribute *attr, char *buf)
+static ssize_t platform_id_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	struct pci_dev *pci = to_pci_dev(dev);
 	struct hdac_bus *bus = pci_get_drvdata(pci);
@@ -163,10 +61,10 @@ static ssize_t skl_nhlt_platform_id_show(struct device *dev,
 			nhlt->header.oem_revision);
 
 	skl_nhlt_trim_space(platform_id);
-	return sprintf(buf, "%s\n", platform_id);
+	return sysfs_emit(buf, "%s\n", platform_id);
 }
 
-static DEVICE_ATTR(platform_id, 0444, skl_nhlt_platform_id_show, NULL);
+static DEVICE_ATTR_RO(platform_id);
 
 int skl_nhlt_create_sysfs(struct skl_dev *skl)
 {
@@ -182,7 +80,8 @@ void skl_nhlt_remove_sysfs(struct skl_dev *skl)
 {
 	struct device *dev = &skl->pci->dev;
 
-	sysfs_remove_file(&dev->kobj, &dev_attr_platform_id.attr);
+	if (skl->nhlt)
+		sysfs_remove_file(&dev->kobj, &dev_attr_platform_id.attr);
 }
 
 /*
@@ -199,8 +98,7 @@ static void skl_get_ssp_clks(struct skl_dev *skl, struct skl_ssp_clk *ssp_clks,
 	struct skl_ssp_clk *sclk, *sclkfs;
 	struct nhlt_fmt_cfg *fmt_cfg;
 	struct wav_fmt_ext *wav_fmt;
-	unsigned long rate = 0;
-	bool present = false;
+	unsigned long rate;
 	int rate_index = 0;
 	u16 channels, bps;
 	u8 clk_src;
@@ -213,9 +111,12 @@ static void skl_get_ssp_clks(struct skl_dev *skl, struct skl_ssp_clk *ssp_clks,
 	if (fmt->fmt_count == 0)
 		return;
 
+	fmt_cfg = (struct nhlt_fmt_cfg *)fmt->fmt_config;
 	for (i = 0; i < fmt->fmt_count; i++) {
-		fmt_cfg = &fmt->fmt_config[i];
-		wav_fmt = &fmt_cfg->fmt_ext;
+		struct nhlt_fmt_cfg *saved_fmt_cfg = fmt_cfg;
+		bool present = false;
+
+		wav_fmt = &saved_fmt_cfg->fmt_ext;
 
 		channels = wav_fmt->fmt.channels;
 		bps = wav_fmt->fmt.bits_per_sample;
@@ -233,12 +134,18 @@ static void skl_get_ssp_clks(struct skl_dev *skl, struct skl_ssp_clk *ssp_clks,
 		 * derive the rate.
 		 */
 		for (j = i; j < fmt->fmt_count; j++) {
-			fmt_cfg = &fmt->fmt_config[j];
-			wav_fmt = &fmt_cfg->fmt_ext;
+			struct nhlt_fmt_cfg *tmp_fmt_cfg = fmt_cfg;
+
+			wav_fmt = &tmp_fmt_cfg->fmt_ext;
 			if ((fs == wav_fmt->fmt.samples_per_sec) &&
-			   (bps == wav_fmt->fmt.bits_per_sample))
+			   (bps == wav_fmt->fmt.bits_per_sample)) {
 				channels = max_t(u16, channels,
 						wav_fmt->fmt.channels);
+				saved_fmt_cfg = tmp_fmt_cfg;
+			}
+			/* Move to the next nhlt_fmt_cfg */
+			tmp_fmt_cfg = (struct nhlt_fmt_cfg *)(tmp_fmt_cfg->config.caps +
+							      tmp_fmt_cfg->config.size);
 		}
 
 		rate = channels * bps * fs;
@@ -254,8 +161,11 @@ static void skl_get_ssp_clks(struct skl_dev *skl, struct skl_ssp_clk *ssp_clks,
 
 		/* Fill rate and parent for sclk/sclkfs */
 		if (!present) {
+			struct nhlt_fmt_cfg *first_fmt_cfg;
+
+			first_fmt_cfg = (struct nhlt_fmt_cfg *)fmt->fmt_config;
 			i2s_config_ext = (struct skl_i2s_config_blob_ext *)
-						fmt->fmt_config[0].config.caps;
+						first_fmt_cfg->config.caps;
 
 			/* MCLK Divider Source Select */
 			if (is_legacy_blob(i2s_config_ext->hdr.sig)) {
@@ -269,6 +179,9 @@ static void skl_get_ssp_clks(struct skl_dev *skl, struct skl_ssp_clk *ssp_clks,
 
 			parent = skl_get_parent_clk(clk_src);
 
+			/* Move to the next nhlt_fmt_cfg */
+			fmt_cfg = (struct nhlt_fmt_cfg *)(fmt_cfg->config.caps +
+							  fmt_cfg->config.size);
 			/*
 			 * Do not copy the config data if there is no parent
 			 * clock available for this clock source select
@@ -277,9 +190,9 @@ static void skl_get_ssp_clks(struct skl_dev *skl, struct skl_ssp_clk *ssp_clks,
 				continue;
 
 			sclk[id].rate_cfg[rate_index].rate = rate;
-			sclk[id].rate_cfg[rate_index].config = fmt_cfg;
+			sclk[id].rate_cfg[rate_index].config = saved_fmt_cfg;
 			sclkfs[id].rate_cfg[rate_index].rate = rate;
-			sclkfs[id].rate_cfg[rate_index].config = fmt_cfg;
+			sclkfs[id].rate_cfg[rate_index].config = saved_fmt_cfg;
 			sclk[id].parent_name = parent->name;
 			sclkfs[id].parent_name = parent->name;
 
@@ -293,13 +206,13 @@ static void skl_get_mclk(struct skl_dev *skl, struct skl_ssp_clk *mclk,
 {
 	struct skl_i2s_config_blob_ext *i2s_config_ext;
 	struct skl_i2s_config_blob_legacy *i2s_config;
-	struct nhlt_specific_cfg *fmt_cfg;
+	struct nhlt_fmt_cfg *fmt_cfg;
 	struct skl_clk_parent_src *parent;
 	u32 clkdiv, div_ratio;
 	u8 clk_src;
 
-	fmt_cfg = &fmt->fmt_config[0].config;
-	i2s_config_ext = (struct skl_i2s_config_blob_ext *)fmt_cfg->caps;
+	fmt_cfg = (struct nhlt_fmt_cfg *)fmt->fmt_config;
+	i2s_config_ext = (struct skl_i2s_config_blob_ext *)fmt_cfg->config.caps;
 
 	/* MCLK Divider Source Select and divider */
 	if (is_legacy_blob(i2s_config_ext->hdr.sig)) {
@@ -328,7 +241,7 @@ static void skl_get_mclk(struct skl_dev *skl, struct skl_ssp_clk *mclk,
 		return;
 
 	mclk[id].rate_cfg[0].rate = parent->rate/div_ratio;
-	mclk[id].rate_cfg[0].config = &fmt->fmt_config[0];
+	mclk[id].rate_cfg[0].config = fmt_cfg;
 	mclk[id].parent_name = parent->name;
 }
 

@@ -28,7 +28,7 @@ static ssize_t ctcm_buffer_show(struct device *dev,
 
 	if (!priv)
 		return -ENODEV;
-	return sprintf(buf, "%d\n", priv->buffer_size);
+	return sysfs_emit(buf, "%d\n", priv->buffer_size);
 }
 
 static ssize_t ctcm_buffer_write(struct device *dev,
@@ -39,11 +39,12 @@ static ssize_t ctcm_buffer_write(struct device *dev,
 	struct ctcm_priv *priv = dev_get_drvdata(dev);
 	int rc;
 
-	ndev = priv->channel[CTCM_READ]->netdev;
-	if (!(priv && priv->channel[CTCM_READ] && ndev)) {
+	if (!(priv && priv->channel[CTCM_READ] &&
+	      priv->channel[CTCM_READ]->netdev)) {
 		CTCM_DBF_TEXT(SETUP, CTC_DBF_ERROR, "bfnondev");
 		return -ENODEV;
 	}
+	ndev = priv->channel[CTCM_READ]->netdev;
 
 	rc = kstrtouint(buf, 0, &bs1);
 	if (rc)
@@ -85,24 +86,24 @@ static void ctcm_print_statistics(struct ctcm_priv *priv)
 		return;
 	p = sbuf;
 
-	p += sprintf(p, "  Device FSM state: %s\n",
-		     fsm_getstate_str(priv->fsm));
-	p += sprintf(p, "  RX channel FSM state: %s\n",
-		     fsm_getstate_str(priv->channel[CTCM_READ]->fsm));
-	p += sprintf(p, "  TX channel FSM state: %s\n",
-		     fsm_getstate_str(priv->channel[CTCM_WRITE]->fsm));
-	p += sprintf(p, "  Max. TX buffer used: %ld\n",
-		     priv->channel[WRITE]->prof.maxmulti);
-	p += sprintf(p, "  Max. chained SKBs: %ld\n",
-		     priv->channel[WRITE]->prof.maxcqueue);
-	p += sprintf(p, "  TX single write ops: %ld\n",
-		     priv->channel[WRITE]->prof.doios_single);
-	p += sprintf(p, "  TX multi write ops: %ld\n",
-		     priv->channel[WRITE]->prof.doios_multi);
-	p += sprintf(p, "  Netto bytes written: %ld\n",
-		     priv->channel[WRITE]->prof.txlen);
-	p += sprintf(p, "  Max. TX IO-time: %u\n",
-		     jiffies_to_usecs(priv->channel[WRITE]->prof.tx_time));
+	p += scnprintf(p, CTCM_STATSIZE_LIMIT, "  Device FSM state: %s\n",
+		       fsm_getstate_str(priv->fsm));
+	p += scnprintf(p, CTCM_STATSIZE_LIMIT, "  RX channel FSM state: %s\n",
+		       fsm_getstate_str(priv->channel[CTCM_READ]->fsm));
+	p += scnprintf(p, CTCM_STATSIZE_LIMIT, "  TX channel FSM state: %s\n",
+		       fsm_getstate_str(priv->channel[CTCM_WRITE]->fsm));
+	p += scnprintf(p, CTCM_STATSIZE_LIMIT, "  Max. TX buffer used: %ld\n",
+		       priv->channel[WRITE]->prof.maxmulti);
+	p += scnprintf(p, CTCM_STATSIZE_LIMIT, "  Max. chained SKBs: %ld\n",
+		       priv->channel[WRITE]->prof.maxcqueue);
+	p += scnprintf(p, CTCM_STATSIZE_LIMIT, "  TX single write ops: %ld\n",
+		       priv->channel[WRITE]->prof.doios_single);
+	p += scnprintf(p, CTCM_STATSIZE_LIMIT, "  TX multi write ops: %ld\n",
+		       priv->channel[WRITE]->prof.doios_multi);
+	p += scnprintf(p, CTCM_STATSIZE_LIMIT, "  Netto bytes written: %ld\n",
+		       priv->channel[WRITE]->prof.txlen);
+	p += scnprintf(p, CTCM_STATSIZE_LIMIT, "  Max. TX IO-time: %u\n",
+		       jiffies_to_usecs(priv->channel[WRITE]->prof.tx_time));
 
 	printk(KERN_INFO "Statistics for %s:\n%s",
 				priv->channel[CTCM_WRITE]->netdev->name, sbuf);
@@ -119,7 +120,7 @@ static ssize_t stats_show(struct device *dev,
 	if (!priv || gdev->state != CCWGROUP_ONLINE)
 		return -ENODEV;
 	ctcm_print_statistics(priv);
-	return sprintf(buf, "0\n");
+	return sysfs_emit(buf, "0\n");
 }
 
 static ssize_t stats_write(struct device *dev, struct device_attribute *attr,
@@ -141,7 +142,7 @@ static ssize_t ctcm_proto_show(struct device *dev,
 	if (!priv)
 		return -ENODEV;
 
-	return sprintf(buf, "%d\n", priv->protocol);
+	return sysfs_emit(buf, "%d\n", priv->protocol);
 }
 
 static ssize_t ctcm_proto_store(struct device *dev,
@@ -183,8 +184,8 @@ static ssize_t ctcm_type_show(struct device *dev,
 	if (!cgdev)
 		return -ENODEV;
 
-	return sprintf(buf, "%s\n",
-			ctcm_type[cgdev->cdev[0]->id.driver_info]);
+	return sysfs_emit(buf, "%s\n",
+			  ctcm_type[cgdev->cdev[0]->id.driver_info]);
 }
 
 static DEVICE_ATTR(buffer, 0644, ctcm_buffer_show, ctcm_buffer_write);

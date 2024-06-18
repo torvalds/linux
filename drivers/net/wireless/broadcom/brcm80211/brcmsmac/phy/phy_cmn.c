@@ -383,8 +383,9 @@ struct shared_phy *wlc_phy_shared_attach(struct shared_phy_params *shp)
 	return sh;
 }
 
-static void wlc_phy_timercb_phycal(struct brcms_phy *pi)
+static void wlc_phy_timercb_phycal(void *ptr)
 {
+	struct brcms_phy *pi = ptr;
 	uint delay = 5;
 
 	if (PHY_PERICAL_MPHASE_PENDING(pi)) {
@@ -551,8 +552,7 @@ wlc_phy_attach(struct shared_phy *sh, struct bcma_device *d11core,
 		if (!pi->phycal_timer)
 			goto err;
 
-		if (!wlc_phy_attach_nphy(pi))
-			goto err;
+		wlc_phy_attach_nphy(pi);
 
 	} else if (ISLCNPHY(pi)) {
 		if (!wlc_phy_attach_lcnphy(pi))
@@ -1513,14 +1513,12 @@ static s8 wlc_phy_env_measure_temperature(struct brcms_phy *pi)
 static void wlc_phy_upd_env_txpwr_rate_limits(struct brcms_phy *pi, u32 band)
 {
 	u8 i;
-	s8 temp, vbat;
 
 	for (i = 0; i < TXP_NUM_RATES; i++)
 		pi->txpwr_env_limit[i] = BRCMS_TXPWR_MAX;
 
-	vbat = wlc_phy_env_measure_vbat(pi);
-	temp = wlc_phy_env_measure_temperature(pi);
-
+	wlc_phy_env_measure_vbat(pi);
+	wlc_phy_env_measure_temperature(pi);
 }
 
 static s8

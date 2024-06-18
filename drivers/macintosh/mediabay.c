@@ -16,8 +16,8 @@
 #include <linux/init.h>
 #include <linux/kthread.h>
 #include <linux/mutex.h>
-#include <asm/prom.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
+
 #include <asm/io.h>
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>
@@ -703,7 +703,7 @@ static const struct mb_ops keylargo_mb_ops = {
  * Therefore we do it all by polling the media bay once each tick.
  */
 
-static struct of_device_id media_bay_match[] =
+static const struct of_device_id media_bay_match[] =
 {
 	{
 	.name		= "media-bay",

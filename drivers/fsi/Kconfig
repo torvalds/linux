@@ -7,7 +7,7 @@ menuconfig FSI
 	tristate "FSI support"
 	depends on OF
 	select CRC4
-	---help---
+	help
 	  FSI - the FRU Support Interface - is a simple bus for low-level
 	  access to POWER-based hardware.
 
@@ -16,7 +16,7 @@ if FSI
 config FSI_NEW_DEV_NODE
 	bool "Create '/dev/fsi' directory for char devices"
 	default n
-	---help---
+	help
 	This option causes char devices created for FSI devices to be
 	located under a common /dev/fsi/ directory. Set to N unless your
 	userspace has been updated to handle the new location.
@@ -32,12 +32,12 @@ config FSI_MASTER_GPIO
 	tristate "GPIO-based FSI master"
 	depends on GPIOLIB
 	select CRC4
-	---help---
+	help
 	This option enables a FSI master driver using GPIO lines.
 
 config FSI_MASTER_HUB
 	tristate "FSI hub master"
-	---help---
+	help
 	This option enables a FSI hub master driver.  Hub is a type of FSI
 	master that is connected to the upstream master via a slave.  Hubs
 	allow chaining of FSI links to an arbitrary depth.  This allows for
@@ -48,20 +48,38 @@ config FSI_MASTER_AST_CF
 	depends on GPIOLIB
 	depends on GPIO_ASPEED
 	select GENERIC_ALLOCATOR
-	---help---
+	help
 	This option enables a FSI master using the AST2400 and AST2500 GPIO
 	lines driven by the internal ColdFire coprocessor. This requires
 	the corresponding machine specific ColdFire firmware to be available.
 
+config FSI_MASTER_ASPEED
+	tristate "FSI ASPEED master"
+	depends on HAS_IOMEM
+	help
+	 This option enables a FSI master that is present behind an OPB bridge
+	 in the AST2600.
+
+	 Enable it for your BMC kernel in an OpenPower or IBM Power system.
+
+config FSI_MASTER_I2CR
+	tristate "IBM I2C Responder virtual FSI master"
+	depends on I2C
+	help
+	  This option enables a virtual FSI master in order to access a CFAM
+	  behind an IBM I2C Responder (I2CR) chip. The I2CR is an I2C device
+	  that translates I2C commands to CFAM or SCOM operations, effectively
+	  implementing an FSI master and bus.
+
 config FSI_SCOM
 	tristate "SCOM FSI client device driver"
-	---help---
+	help
 	This option enables an FSI based SCOM device driver.
 
 config FSI_SBEFIFO
 	tristate "SBEFIFO FSI client device driver"
 	depends on OF_ADDRESS
-	---help---
+	help
 	This option enables an FSI based SBEFIFO device driver. The SBEFIFO is
 	a pipe-like FSI device for communicating with the self boot engine
 	(SBE) on POWER processors.
@@ -69,11 +87,19 @@ config FSI_SBEFIFO
 config FSI_OCC
 	tristate "OCC SBEFIFO client device driver"
 	depends on FSI_SBEFIFO
-	---help---
+	help
 	This option enables an SBEFIFO based On-Chip Controller (OCC) device
 	driver. The OCC is a device embedded on a POWER processor that collects
 	and aggregates sensor data from the processor and system. The OCC can
 	provide the raw sensor data as well as perform thermal and power
 	management on the system.
+
+config I2CR_SCOM
+	tristate "IBM I2C Responder SCOM driver"
+	depends on FSI_MASTER_I2CR
+	help
+	  This option enables an I2C Responder based SCOM device driver. The
+	  I2CR has the capability to directly perform SCOM operations instead
+	  of using the FSI2PIB engine.
 
 endif

@@ -10,13 +10,13 @@
 #include <linux/bug.h>
 #include <linux/io.h>
 #include <linux/slab.h>
+#include <linux/debugfs.h>
 
 #include <asm/machdep.h>
 #include <asm/firmware.h>
 #include <asm/opal.h>
 #include <asm/prom.h>
 #include <linux/uaccess.h>
-#include <asm/debugfs.h>
 #include <asm/isa-bridge.h>
 
 static int opal_lpc_chip_id = -1;
@@ -197,7 +197,7 @@ static ssize_t lpc_debug_read(struct file *filp, char __user *ubuf,
 
 		/*
 		 * Select access size based on count and alignment and
-		 * access type. IO and MEM only support byte acceses,
+		 * access type. IO and MEM only support byte accesses,
 		 * FW supports all 3.
 		 */
 		len = 1;
@@ -371,7 +371,7 @@ static int opal_lpc_init_debugfs(void)
 	if (opal_lpc_chip_id < 0)
 		return -ENODEV;
 
-	root = debugfs_create_dir("lpc", powerpc_debugfs_root);
+	root = debugfs_create_dir("lpc", arch_debugfs_dir);
 
 	rc |= opal_lpc_debugfs_create_type(root, "io", OPAL_LPC_IO);
 	rc |= opal_lpc_debugfs_create_type(root, "mem", OPAL_LPC_MEM);
@@ -396,13 +396,14 @@ void __init opal_lpc_init(void)
 		if (!of_get_property(np, "primary", NULL))
 			continue;
 		opal_lpc_chip_id = of_get_ibm_chip_id(np);
+		of_node_put(np);
 		break;
 	}
 	if (opal_lpc_chip_id < 0)
 		return;
 
 	/* Does it support direct mapping ? */
-	if (of_get_property(np, "ranges", NULL)) {
+	if (of_property_present(np, "ranges")) {
 		pr_info("OPAL: Found memory mapped LPC bus on chip %d\n",
 			opal_lpc_chip_id);
 		isa_bridge_init_non_pci(np);

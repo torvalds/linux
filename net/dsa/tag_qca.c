@@ -4,111 +4,123 @@
  */
 
 #include <linux/etherdevice.h>
+#include <linux/bitfield.h>
+#include <net/dsa.h>
+#include <linux/dsa/tag_qca.h>
 
-#include "dsa_priv.h"
+#include "tag.h"
 
-#define QCA_HDR_LEN	2
-#define QCA_HDR_VERSION	0x2
-
-#define QCA_HDR_RECV_VERSION_MASK	GENMASK(15, 14)
-#define QCA_HDR_RECV_VERSION_S		14
-#define QCA_HDR_RECV_PRIORITY_MASK	GENMASK(13, 11)
-#define QCA_HDR_RECV_PRIORITY_S		11
-#define QCA_HDR_RECV_TYPE_MASK		GENMASK(10, 6)
-#define QCA_HDR_RECV_TYPE_S		6
-#define QCA_HDR_RECV_FRAME_IS_TAGGED	BIT(3)
-#define QCA_HDR_RECV_SOURCE_PORT_MASK	GENMASK(2, 0)
-
-#define QCA_HDR_XMIT_VERSION_MASK	GENMASK(15, 14)
-#define QCA_HDR_XMIT_VERSION_S		14
-#define QCA_HDR_XMIT_PRIORITY_MASK	GENMASK(13, 11)
-#define QCA_HDR_XMIT_PRIORITY_S		11
-#define QCA_HDR_XMIT_CONTROL_MASK	GENMASK(10, 8)
-#define QCA_HDR_XMIT_CONTROL_S		8
-#define QCA_HDR_XMIT_FROM_CPU		BIT(7)
-#define QCA_HDR_XMIT_DP_BIT_MASK	GENMASK(6, 0)
+#define QCA_NAME "qca"
 
 static struct sk_buff *qca_tag_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct dsa_port *dp = dsa_slave_to_port(dev);
-	u16 *phdr, hdr;
-
-	dev->stats.tx_packets++;
-	dev->stats.tx_bytes += skb->len;
-
-	if (skb_cow_head(skb, 0) < 0)
-		return NULL;
+	struct dsa_port *dp = dsa_user_to_port(dev);
+	__be16 *phdr;
+	u16 hdr;
 
 	skb_push(skb, QCA_HDR_LEN);
 
-	memmove(skb->data, skb->data + QCA_HDR_LEN, 2 * ETH_ALEN);
-	phdr = (u16 *)(skb->data + 2 * ETH_ALEN);
+	dsa_alloc_etype_header(skb, QCA_HDR_LEN);
+	phdr = dsa_etype_header_pos_tx(skb);
 
 	/* Set the version field, and set destination port information */
-	hdr = QCA_HDR_VERSION << QCA_HDR_XMIT_VERSION_S |
-		QCA_HDR_XMIT_FROM_CPU | BIT(dp->index);
+	hdr = FIELD_PREP(QCA_HDR_XMIT_VERSION, QCA_HDR_VERSION);
+	hdr |= QCA_HDR_XMIT_FROM_CPU;
+	hdr |= FIELD_PREP(QCA_HDR_XMIT_DP_BIT, BIT(dp->index));
 
 	*phdr = htons(hdr);
 
 	return skb;
 }
 
-static struct sk_buff *qca_tag_rcv(struct sk_buff *skb, struct net_device *dev,
-				   struct packet_type *pt)
+static struct sk_buff *qca_tag_rcv(struct sk_buff *skb, struct net_device *dev)
 {
-	u8 ver;
+	struct qca_tagger_data *tagger_data;
+	struct dsa_port *dp = dev->dsa_ptr;
+	struct dsa_switch *ds = dp->ds;
+	u8 ver, pk_type;
+	__be16 *phdr;
 	int port;
-	__be16 *phdr, hdr;
+	u16 hdr;
+
+	BUILD_BUG_ON(sizeof(struct qca_mgmt_ethhdr) != QCA_HDR_MGMT_HEADER_LEN + QCA_HDR_LEN);
+
+	tagger_data = ds->tagger_data;
 
 	if (unlikely(!pskb_may_pull(skb, QCA_HDR_LEN)))
 		return NULL;
 
-	/* The QCA header is added by the switch between src addr and Ethertype
-	 * At this point, skb->data points to ethertype so header should be
-	 * right before
-	 */
-	phdr = (__be16 *)(skb->data - 2);
+	phdr = dsa_etype_header_pos_rx(skb);
 	hdr = ntohs(*phdr);
 
 	/* Make sure the version is correct */
-	ver = (hdr & QCA_HDR_RECV_VERSION_MASK) >> QCA_HDR_RECV_VERSION_S;
+	ver = FIELD_GET(QCA_HDR_RECV_VERSION, hdr);
 	if (unlikely(ver != QCA_HDR_VERSION))
+		return NULL;
+
+	/* Get pk type */
+	pk_type = FIELD_GET(QCA_HDR_RECV_TYPE, hdr);
+
+	/* Ethernet mgmt read/write packet */
+	if (pk_type == QCA_HDR_RECV_TYPE_RW_REG_ACK) {
+		if (likely(tagger_data->rw_reg_ack_handler))
+			tagger_data->rw_reg_ack_handler(ds, skb);
+		return NULL;
+	}
+
+	/* Ethernet MIB counter packet */
+	if (pk_type == QCA_HDR_RECV_TYPE_MIB) {
+		if (likely(tagger_data->mib_autocast_handler))
+			tagger_data->mib_autocast_handler(ds, skb);
+		return NULL;
+	}
+
+	/* Get source port information */
+	port = FIELD_GET(QCA_HDR_RECV_SOURCE_PORT, hdr);
+
+	skb->dev = dsa_conduit_find_user(dev, 0, port);
+	if (!skb->dev)
 		return NULL;
 
 	/* Remove QCA tag and recalculate checksum */
 	skb_pull_rcsum(skb, QCA_HDR_LEN);
-	memmove(skb->data - ETH_HLEN, skb->data - ETH_HLEN - QCA_HDR_LEN,
-		ETH_HLEN - QCA_HDR_LEN);
-
-	/* Get source port information */
-	port = (hdr & QCA_HDR_RECV_SOURCE_PORT_MASK);
-
-	skb->dev = dsa_master_find_slave(dev, 0, port);
-	if (!skb->dev)
-		return NULL;
+	dsa_strip_etype_header(skb, QCA_HDR_LEN);
 
 	return skb;
 }
 
-static int qca_tag_flow_dissect(const struct sk_buff *skb, __be16 *proto,
-                                int *offset)
+static int qca_tag_connect(struct dsa_switch *ds)
 {
-	*offset = QCA_HDR_LEN;
-	*proto = ((__be16 *)skb->data)[0];
+	struct qca_tagger_data *tagger_data;
+
+	tagger_data = kzalloc(sizeof(*tagger_data), GFP_KERNEL);
+	if (!tagger_data)
+		return -ENOMEM;
+
+	ds->tagger_data = tagger_data;
 
 	return 0;
 }
 
+static void qca_tag_disconnect(struct dsa_switch *ds)
+{
+	kfree(ds->tagger_data);
+	ds->tagger_data = NULL;
+}
+
 static const struct dsa_device_ops qca_netdev_ops = {
-	.name	= "qca",
+	.name	= QCA_NAME,
 	.proto	= DSA_TAG_PROTO_QCA,
+	.connect = qca_tag_connect,
+	.disconnect = qca_tag_disconnect,
 	.xmit	= qca_tag_xmit,
 	.rcv	= qca_tag_rcv,
-	.flow_dissect = qca_tag_flow_dissect,
-	.overhead = QCA_HDR_LEN,
+	.needed_headroom = QCA_HDR_LEN,
+	.promisc_on_conduit = true,
 };
 
+MODULE_DESCRIPTION("DSA tag driver for Qualcomm Atheros QCA8K switches");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_QCA);
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_QCA, QCA_NAME);
 
 module_dsa_tag_driver(qca_netdev_ops);

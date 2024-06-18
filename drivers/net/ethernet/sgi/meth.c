@@ -90,7 +90,7 @@ struct meth_private {
 	spinlock_t meth_lock;
 };
 
-static void meth_tx_timeout(struct net_device *dev);
+static void meth_tx_timeout(struct net_device *dev, unsigned int txqueue);
 static irqreturn_t meth_interrupt(int irq, void *dev_id);
 
 /* global, initialized in ip32-setup.c */
@@ -727,7 +727,7 @@ static netdev_tx_t meth_tx(struct sk_buff *skb, struct net_device *dev)
 /*
  * Deal with a transmit timeout.
  */
-static void meth_tx_timeout(struct net_device *dev)
+static void meth_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct meth_private *priv = netdev_priv(dev);
 	unsigned long flags;
@@ -812,7 +812,7 @@ static const struct net_device_ops meth_netdev_ops = {
 	.ndo_open		= meth_open,
 	.ndo_stop		= meth_release,
 	.ndo_start_xmit		= meth_tx,
-	.ndo_do_ioctl		= meth_ioctl,
+	.ndo_eth_ioctl		= meth_ioctl,
 	.ndo_tx_timeout		= meth_tx_timeout,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
@@ -836,7 +836,7 @@ static int meth_probe(struct platform_device *pdev)
 	dev->watchdog_timeo	= timeout;
 	dev->irq		= MACE_ETHERNET_IRQ;
 	dev->base_addr		= (unsigned long)&mace->eth;
-	memcpy(dev->dev_addr, o2meth_eaddr, ETH_ALEN);
+	eth_hw_addr_set(dev, o2meth_eaddr);
 
 	priv = netdev_priv(dev);
 	priv->pdev = pdev;
@@ -854,19 +854,17 @@ static int meth_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int meth_remove(struct platform_device *pdev)
+static void meth_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 
 	unregister_netdev(dev);
 	free_netdev(dev);
-
-	return 0;
 }
 
 static struct platform_driver meth_driver = {
 	.probe	= meth_probe,
-	.remove	= meth_remove,
+	.remove_new = meth_remove,
 	.driver = {
 		.name	= "meth",
 	}

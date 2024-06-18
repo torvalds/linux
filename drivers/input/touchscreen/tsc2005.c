@@ -64,9 +64,9 @@ static int tsc2005_probe(struct spi_device *spi)
 			     tsc2005_cmd);
 }
 
-static int tsc2005_remove(struct spi_device *spi)
+static void tsc2005_remove(struct spi_device *spi)
 {
-	return tsc200x_remove(&spi->dev);
+	tsc200x_remove(&spi->dev);
 }
 
 #ifdef CONFIG_OF
@@ -79,9 +79,10 @@ MODULE_DEVICE_TABLE(of, tsc2005_of_match);
 
 static struct spi_driver tsc2005_driver = {
 	.driver	= {
-		.name	= "tsc2005",
-		.of_match_table = of_match_ptr(tsc2005_of_match),
-		.pm	= &tsc200x_pm_ops,
+		.name		= "tsc2005",
+		.dev_groups	= tsc200x_groups,
+		.of_match_table	= of_match_ptr(tsc2005_of_match),
+		.pm		= pm_sleep_ptr(&tsc200x_pm_ops),
 	},
 	.probe	= tsc2005_probe,
 	.remove	= tsc2005_remove,

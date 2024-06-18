@@ -11,9 +11,9 @@
 
 #include <linux/dvb/version.h>
 #include <media/dvb_frontend.h>
-#include <media/dvb_math.h>
+#include <linux/int_log.h>
 #include "cxd2820r.h"
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h> /* For gpio_chip */
 #include <linux/math64.h>
 #include <linux/regmap.h>
 
@@ -51,8 +51,6 @@ struct cxd2820r_priv {
 };
 
 /* cxd2820r_core.c */
-
-extern int cxd2820r_debug;
 
 int cxd2820r_gpio(struct dvb_frontend *fe, u8 *gpio);
 

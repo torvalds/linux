@@ -40,8 +40,10 @@
  * 4. Modulus and exponent key are not required by driver. They may not appear
  *    in fw. So driver will load a truncated firmware in this case.
  *
- * The only difference between GuC and HuC firmwares is how the version
- * information is saved.
+ * Starting from DG2, the HuC is loaded by the GSC instead of i915. The GSC
+ * firmware performs all the required integrity checks, we just need to check
+ * the version. Note that the header for GSC-managed blobs is different from the
+ * CSS used for dma-loaded firmwares.
  */
 
 struct uc_css_header {
@@ -69,12 +71,15 @@ struct uc_css_header {
 	char username[8];
 	char buildnumber[12];
 	u32 sw_version;
-#define CSS_SW_VERSION_GUC_MAJOR	(0xFF << 16)
-#define CSS_SW_VERSION_GUC_MINOR	(0xFF << 8)
-#define CSS_SW_VERSION_GUC_PATCH	(0xFF << 0)
-#define CSS_SW_VERSION_HUC_MAJOR	(0xFFFF << 16)
-#define CSS_SW_VERSION_HUC_MINOR	(0xFFFF << 0)
-	u32 reserved[14];
+#define CSS_SW_VERSION_UC_MAJOR		(0xFF << 16)
+#define CSS_SW_VERSION_UC_MINOR		(0xFF << 8)
+#define CSS_SW_VERSION_UC_PATCH		(0xFF << 0)
+	u32 vf_version;
+	u32 reserved0[12];
+	union {
+		u32 private_data_size; /* only applies to GuC */
+		u32 reserved1;
+	};
 	u32 header_info;
 } __packed;
 static_assert(sizeof(struct uc_css_header) == 128);

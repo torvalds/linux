@@ -26,7 +26,6 @@
 
 #define DRV_DESC "QE UCC Gigabit Ethernet Controller"
 #define DRV_NAME "ucc_geth"
-#define DRV_VERSION "1.1"
 
 #define NUM_TX_QUEUES                   8
 #define NUM_RX_QUEUES                   8
@@ -576,7 +575,14 @@ struct ucc_geth_tx_global_pram {
 	u32 vtagtable[0x8];	/* 8 4-byte VLAN tags */
 	u32 tqptr;		/* a base pointer to the Tx Queues Memory
 				   Region */
-	u8 res2[0x80 - 0x74];
+	u8 res2[0x78 - 0x74];
+	u64 snums_en;
+	u32 l2l3baseptr;	/* top byte consists of a few other bit fields */
+
+	u16 mtu[8];
+	u8 res3[0xa8 - 0x94];
+	u32 wrrtablebase;	/* top byte is reserved */
+	u8 res4[0xc0 - 0xac];
 } __packed;
 
 /* structure representing Extended Filtering Global Parameters in PRAM */
@@ -883,7 +889,6 @@ struct ucc_geth_hardware_statistics {
 							   addresses */
 
 #define TX_TIMEOUT                              (1*HZ)
-#define SKB_ALLOC_TIMEOUT                       100000
 #define PHY_INIT_TIMEOUT                        100000
 #define PHY_CHANGE_TIME                         2
 
@@ -1071,8 +1076,6 @@ struct ucc_geth_tad_params {
 /* GETH protocol initialization structure */
 struct ucc_geth_info {
 	struct ucc_fast_info uf_info;
-	u8 numQueuesTx;
-	u8 numQueuesRx;
 	int ipCheckSumCheck;
 	int ipCheckSumGenerate;
 	int rxExtendedFiltering;
@@ -1160,9 +1163,7 @@ struct ucc_geth_private {
 	struct ucc_geth_exf_global_pram __iomem *p_exf_glbl_param;
 	u32 exf_glbl_param_offset;
 	struct ucc_geth_rx_global_pram __iomem *p_rx_glbl_pram;
-	u32 rx_glbl_pram_offset;
 	struct ucc_geth_tx_global_pram __iomem *p_tx_glbl_pram;
-	u32 tx_glbl_pram_offset;
 	struct ucc_geth_send_queue_mem_region __iomem *p_send_q_mem_reg;
 	u32 send_q_mem_reg_offset;
 	struct ucc_geth_thread_data_tx __iomem *p_thread_data_tx;
@@ -1180,9 +1181,7 @@ struct ucc_geth_private {
 	struct ucc_geth_rx_bd_queues_entry __iomem *p_rx_bd_qs_tbl;
 	u32 rx_bd_qs_tbl_offset;
 	u8 __iomem *p_tx_bd_ring[NUM_TX_QUEUES];
-	u32 tx_bd_ring_offset[NUM_TX_QUEUES];
 	u8 __iomem *p_rx_bd_ring[NUM_RX_QUEUES];
-	u32 rx_bd_ring_offset[NUM_RX_QUEUES];
 	u8 __iomem *confBd[NUM_TX_QUEUES];
 	u8 __iomem *txBd[NUM_TX_QUEUES];
 	u8 __iomem *rxBd[NUM_RX_QUEUES];

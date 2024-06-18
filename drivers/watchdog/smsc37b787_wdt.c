@@ -474,7 +474,7 @@ static long wb_smsc_wdt_ioctl(struct file *file,
 			return -EINVAL;
 		timeout = new_timeout;
 		wb_smsc_wdt_set_timeout(timeout);
-		/* fall through - and return the new timeout... */
+		fallthrough;	/* and return the new timeout */
 	case WDIOC_GETTIMEOUT:
 		new_timeout = timeout;
 		if (unit == UNIT_MINUTE)
@@ -505,6 +505,7 @@ static const struct file_operations wb_smsc_wdt_fops = {
 	.llseek		= no_llseek,
 	.write		= wb_smsc_wdt_write,
 	.unlocked_ioctl	= wb_smsc_wdt_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= wb_smsc_wdt_open,
 	.release	= wb_smsc_wdt_release,
 };

@@ -1,0 +1,550 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+# Copyright 2021 ARM Ltd.
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/firmware/arm,scmi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: System Control and Management Interface (SCMI) Message Protocol
+
+maintainers:
+  - Sudeep Holla <sudeep.holla@arm.com>
+
+description: |
+  The SCMI is intended to allow agents such as OSPM to manage various functions
+  that are provided by the hardware platform it is running on, including power
+  and performance functions.
+
+  This binding is intended to define the interface the firmware implementing
+  the SCMI as described in ARM document number ARM DEN 0056 ("ARM System Control
+  and Management Interface Platform Design Document")[0] provide for OSPM in
+  the device tree.
+
+  [0] https://developer.arm.com/documentation/den0056/latest
+
+properties:
+  $nodename:
+    const: scmi
+
+  compatible:
+    oneOf:
+      - description: SCMI compliant firmware with mailbox transport
+        items:
+          - const: arm,scmi
+      - description: SCMI compliant firmware with ARM SMC/HVC transport
+        items:
+          - const: arm,scmi-smc
+      - description: SCMI compliant firmware with ARM SMC/HVC transport
+                     with shmem address(4KB-page, offset) as parameters
+        items:
+          - const: arm,scmi-smc-param
+      - description: SCMI compliant firmware with Qualcomm SMC/HVC transport
+        items:
+          - const: qcom,scmi-smc
+      - description: SCMI compliant firmware with SCMI Virtio transport.
+                     The virtio transport only supports a single device.
+        items:
+          - const: arm,scmi-virtio
+      - description: SCMI compliant firmware with OP-TEE transport
+        items:
+          - const: linaro,scmi-optee
+
+  interrupts:
+    description:
+      The interrupt that indicates message completion by the platform
+      rather than by the return of the smc call. This should not be used
+      except when the platform requires such behavior.
+    maxItems: 1
+
+  interrupt-names:
+    const: a2p
+
+  mbox-names:
+    description:
+      Specifies the mailboxes used to communicate with SCMI compliant
+      firmware.
+    oneOf:
+      - items:
+          - const: tx
+          - const: rx
+        minItems: 1
+      - items:
+          - const: tx
+          - const: tx_reply
+          - const: rx
+        minItems: 2
+
+  mboxes:
+    description:
+      List of phandle and mailbox channel specifiers. It should contain
+      exactly one, two or three mailboxes; the first one or two for transmitting
+      messages ("tx") and another optional ("rx") for receiving notifications
+      and delayed responses, if supported by the platform.
+      The number of mailboxes needed for transmitting messages depends on the
+      type of channels exposed by the specific underlying mailbox controller;
+      one single channel descriptor is enough if such channel is bidirectional,
+      while two channel descriptors are needed to represent the SCMI ("tx")
+      channel if the underlying mailbox channels are of unidirectional type.
+      The effective combination in numbers of mboxes and shmem descriptors let
+      the SCMI subsystem determine unambiguosly which type of SCMI channels are
+      made available by the underlying mailbox controller and how to use them.
+       1 mbox / 1 shmem => SCMI TX over 1 mailbox bidirectional channel
+       2 mbox / 2 shmem => SCMI TX and RX over 2 mailbox bidirectional channels
+       2 mbox / 1 shmem => SCMI TX over 2 mailbox unidirectional channels
+       3 mbox / 2 shmem => SCMI TX and RX over 3 mailbox unidirectional channels
+      Any other combination of mboxes and shmem is invalid.
+    minItems: 1
+    maxItems: 3
+
+  shmem:
+    description:
+      List of phandle pointing to the shared memory(SHM) area, for each
+      transport channel specified.
+    minItems: 1
+    maxItems: 2
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
+  atomic-threshold-us:
+    description:
+      An optional time value, expressed in microseconds, representing, on this
+      platform, the threshold above which any SCMI command, advertised to have
+      an higher-than-threshold execution latency, should not be considered for
+      atomic mode of operation, even if requested.
+    default: 0
+
+  arm,smc-id:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      SMC id required when using smc or hvc transports
+
+  linaro,optee-channel-id:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Channel specifier required when using OP-TEE transport.
+
+  protocol@11:
+    $ref: '#/$defs/protocol-node'
+    unevaluatedProperties: false
+
+    properties:
+      reg:
+        const: 0x11
+
+      '#power-domain-cells':
+        const: 1
+
+    required:
+      - '#power-domain-cells'
+
+  protocol@13:
+    $ref: '#/$defs/protocol-node'
+    unevaluatedProperties: false
+
+    properties:
+      reg:
+        const: 0x13
+
+      '#clock-cells':
+        const: 1
+
+      '#power-domain-cells':
+        const: 1
+
+    oneOf:
+      - required:
+          - '#clock-cells'
+
+      - required:
+          - '#power-domain-cells'
+
+  protocol@14:
+    $ref: '#/$defs/protocol-node'
+    unevaluatedProperties: false
+
+    properties:
+      reg:
+        const: 0x14
+
+      '#clock-cells':
+        const: 1
+
+    required:
+      - '#clock-cells'
+
+  protocol@15:
+    $ref: '#/$defs/protocol-node'
+    unevaluatedProperties: false
+
+    properties:
+      reg:
+        const: 0x15
+
+      '#thermal-sensor-cells':
+        const: 1
+
+    required:
+      - '#thermal-sensor-cells'
+
+  protocol@16:
+    $ref: '#/$defs/protocol-node'
+    unevaluatedProperties: false
+
+    properties:
+      reg:
+        const: 0x16
+
+      '#reset-cells':
+        const: 1
+
+    required:
+      - '#reset-cells'
+
+  protocol@17:
+    $ref: '#/$defs/protocol-node'
+    unevaluatedProperties: false
+
+    properties:
+      reg:
+        const: 0x17
+
+      regulators:
+        type: object
+        additionalProperties: false
+        description:
+          The list of all regulators provided by this SCMI controller.
+
+        properties:
+          '#address-cells':
+            const: 1
+
+          '#size-cells':
+            const: 0
+
+        patternProperties:
+          '^regulator@[0-9a-f]+$':
+            type: object
+            $ref: /schemas/regulator/regulator.yaml#
+            unevaluatedProperties: false
+
+            properties:
+              reg:
+                maxItems: 1
+                description: Identifier for the voltage regulator.
+
+            required:
+              - reg
+
+  protocol@18:
+    $ref: '#/$defs/protocol-node'
+    unevaluatedProperties: false
+
+    properties:
+      reg:
+        const: 0x18
+
+  protocol@19:
+    type: object
+    allOf:
+      - $ref: '#/$defs/protocol-node'
+      - $ref: /schemas/pinctrl/pinctrl.yaml
+
+    unevaluatedProperties: false
+
+    properties:
+      reg:
+        const: 0x19
+
+    patternProperties:
+      '-pins$':
+        type: object
+        allOf:
+          - $ref: /schemas/pinctrl/pincfg-node.yaml#
+          - $ref: /schemas/pinctrl/pinmux-node.yaml#
+        unevaluatedProperties: false
+
+        description:
+          A pin multiplexing sub-node describes how to configure a
+          set of pins in some desired function.
+          A single sub-node may define several pin configurations.
+          This sub-node is using the default pinctrl bindings to configure
+          pin multiplexing and using SCMI protocol to apply a specified
+          configuration.
+
+    required:
+      - reg
+
+additionalProperties: false
+
+$defs:
+  protocol-node:
+    type: object
+    description:
+      Each sub-node represents a protocol supported. If the platform
+      supports a dedicated communication channel for a particular protocol,
+      then the corresponding transport properties must be present.
+      The virtio transport does not support a dedicated communication channel.
+
+    properties:
+      reg:
+        maxItems: 1
+
+      mbox-names:
+        oneOf:
+          - items:
+              - const: tx
+              - const: rx
+            minItems: 1
+          - items:
+              - const: tx
+              - const: tx_reply
+              - const: rx
+            minItems: 2
+
+      mboxes:
+        minItems: 1
+        maxItems: 3
+
+      shmem:
+        minItems: 1
+        maxItems: 2
+
+      linaro,optee-channel-id:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          Channel specifier required when using OP-TEE transport and
+          protocol has a dedicated communication channel.
+
+    required:
+      - reg
+
+required:
+  - compatible
+
+if:
+  properties:
+    compatible:
+      contains:
+        const: arm,scmi
+then:
+  properties:
+    interrupts: false
+    interrupt-names: false
+
+  required:
+    - mboxes
+    - shmem
+
+else:
+  if:
+    properties:
+      compatible:
+        contains:
+          enum:
+            - arm,scmi-smc
+            - arm,scmi-smc-param
+            - qcom,scmi-smc
+  then:
+    required:
+      - arm,smc-id
+      - shmem
+
+  else:
+    if:
+      properties:
+        compatible:
+          contains:
+            const: linaro,scmi-optee
+    then:
+      required:
+        - linaro,optee-channel-id
+
+examples:
+  - |
+    firmware {
+        scmi {
+            compatible = "arm,scmi";
+            mboxes = <&mhuB 0 0>,
+                     <&mhuB 0 1>;
+            mbox-names = "tx", "rx";
+            shmem = <&cpu_scp_lpri0>,
+                    <&cpu_scp_lpri1>;
+
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            atomic-threshold-us = <10000>;
+
+            scmi_devpd: protocol@11 {
+                reg = <0x11>;
+                #power-domain-cells = <1>;
+            };
+
+            scmi_dvfs: protocol@13 {
+                reg = <0x13>;
+                #power-domain-cells = <1>;
+
+                mboxes = <&mhuB 1 0>,
+                         <&mhuB 1 1>;
+                mbox-names = "tx", "rx";
+                shmem = <&cpu_scp_hpri0>,
+                        <&cpu_scp_hpri1>;
+            };
+
+            scmi_clk: protocol@14 {
+                reg = <0x14>;
+                #clock-cells = <1>;
+            };
+
+            scmi_sensors: protocol@15 {
+                reg = <0x15>;
+                #thermal-sensor-cells = <1>;
+            };
+
+            scmi_reset: protocol@16 {
+                reg = <0x16>;
+                #reset-cells = <1>;
+            };
+
+            scmi_voltage: protocol@17 {
+                reg = <0x17>;
+                regulators {
+                    #address-cells = <1>;
+                    #size-cells = <0>;
+
+                    regulator_devX: regulator@0 {
+                        reg = <0x0>;
+                        regulator-max-microvolt = <3300000>;
+                    };
+
+                    regulator_devY: regulator@9 {
+                        reg = <0x9>;
+                        regulator-min-microvolt = <500000>;
+                        regulator-max-microvolt = <4200000>;
+                    };
+                };
+            };
+
+            scmi_powercap: protocol@18 {
+                reg = <0x18>;
+            };
+
+            scmi_pinctrl: protocol@19 {
+                reg = <0x19>;
+
+                i2c2-pins {
+                    groups = "g_i2c2_a", "g_i2c2_b";
+                    function = "f_i2c2";
+                };
+
+                mdio-pins {
+                    groups = "g_avb_mdio";
+                    drive-strength = <24>;
+                };
+
+                keys_pins: keys-pins {
+                    pins = "gpio_5_17", "gpio_5_20", "gpio_5_22", "gpio_2_1";
+                    bias-pull-up;
+                };
+            };
+        };
+    };
+
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        sram@50000000 {
+            compatible = "mmio-sram";
+            reg = <0x0 0x50000000 0x0 0x10000>;
+
+            #address-cells = <1>;
+            #size-cells = <1>;
+            ranges = <0 0x0 0x50000000 0x10000>;
+
+            cpu_scp_lpri0: scp-sram-section@0 {
+                compatible = "arm,scmi-shmem";
+                reg = <0x0 0x80>;
+            };
+
+            cpu_scp_lpri1: scp-sram-section@80 {
+                compatible = "arm,scmi-shmem";
+                reg = <0x80 0x80>;
+            };
+
+            cpu_scp_hpri0: scp-sram-section@100 {
+                compatible = "arm,scmi-shmem";
+                reg = <0x100 0x80>;
+            };
+
+            cpu_scp_hpri2: scp-sram-section@180 {
+                compatible = "arm,scmi-shmem";
+                reg = <0x180 0x80>;
+            };
+        };
+    };
+
+  - |
+    firmware {
+        scmi {
+            compatible = "arm,scmi-smc";
+            shmem = <&cpu_scp_lpri0>, <&cpu_scp_lpri1>;
+            arm,smc-id = <0xc3000001>;
+
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            scmi_devpd1: protocol@11 {
+                reg = <0x11>;
+                #power-domain-cells = <1>;
+            };
+        };
+    };
+
+  - |
+    firmware {
+        scmi {
+            compatible = "linaro,scmi-optee";
+            linaro,optee-channel-id = <0>;
+
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            scmi_dvfs1: protocol@13 {
+                reg = <0x13>;
+                linaro,optee-channel-id = <1>;
+                shmem = <&cpu_optee_lpri0>;
+                #power-domain-cells = <1>;
+            };
+
+            scmi_clk0: protocol@14 {
+                reg = <0x14>;
+                #clock-cells = <1>;
+            };
+        };
+    };
+
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        sram@51000000 {
+            compatible = "mmio-sram";
+            reg = <0x0 0x51000000 0x0 0x10000>;
+
+            #address-cells = <1>;
+            #size-cells = <1>;
+            ranges = <0 0x0 0x51000000 0x10000>;
+
+            cpu_optee_lpri0: optee-sram-section@0 {
+                compatible = "arm,scmi-shmem";
+                reg = <0x0 0x80>;
+            };
+        };
+    };
+
+...

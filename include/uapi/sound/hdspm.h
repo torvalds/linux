@@ -4,24 +4,11 @@
 /*
  *   Copyright (C) 2003 Winfried Ritsch (IEM)
  *   based on hdsp.h from Thomas Charbonnel (thomas@undata.org)
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#ifdef __linux__
 #include <linux/types.h>
+#endif
 
 /* Maximum channels is 64 even on 56Mode you have 64playbacks to matrix */
 #define HDSPM_MAX_CHANNELS      64
@@ -220,13 +207,5 @@ struct hdspm_mixer_ioctl {
 
 /* use indirect access due to the limit of ioctl bit size */
 #define SNDRV_HDSPM_IOCTL_GET_MIXER _IOR('H', 0x44, struct hdspm_mixer_ioctl)
-
-/* typedefs for compatibility to user-space */
-typedef struct hdspm_peak_rms hdspm_peak_rms_t;
-typedef struct hdspm_config_info hdspm_config_info_t;
-typedef struct hdspm_version hdspm_version_t;
-typedef struct hdspm_channelfader snd_hdspm_channelfader_t;
-typedef struct hdspm_mixer hdspm_mixer_t;
-
 
 #endif

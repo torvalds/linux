@@ -8,7 +8,7 @@
 #include <linux/kprobes.h>
 #include <linux/sched.h>
 
-notrace static nokprobe_inline
+noinstr static
 unsigned int check_preemption_disabled(const char *what1, const char *what2)
 {
 	int this_cpu = raw_smp_processor_id();
@@ -19,12 +19,13 @@ unsigned int check_preemption_disabled(const char *what1, const char *what2)
 	if (irqs_disabled())
 		goto out;
 
-	/*
-	 * Kernel threads bound to a single CPU can safely use
-	 * smp_processor_id():
-	 */
-	if (cpumask_equal(current->cpus_ptr, cpumask_of(this_cpu)))
+	if (is_percpu_thread())
 		goto out;
+
+#ifdef CONFIG_SMP
+	if (current->migration_disabled)
+		goto out;
+#endif
 
 	/*
 	 * It is valid to assume CPU-locality during early bootup:
@@ -37,6 +38,7 @@ unsigned int check_preemption_disabled(const char *what1, const char *what2)
 	 */
 	preempt_disable_notrace();
 
+	instrumentation_begin();
 	if (!printk_ratelimit())
 		goto out_enable;
 
@@ -47,21 +49,20 @@ unsigned int check_preemption_disabled(const char *what1, const char *what2)
 	dump_stack();
 
 out_enable:
+	instrumentation_end();
 	preempt_enable_no_resched_notrace();
 out:
 	return this_cpu;
 }
 
-notrace unsigned int debug_smp_processor_id(void)
+noinstr unsigned int debug_smp_processor_id(void)
 {
 	return check_preemption_disabled("smp_processor_id", "");
 }
 EXPORT_SYMBOL(debug_smp_processor_id);
-NOKPROBE_SYMBOL(debug_smp_processor_id);
 
-notrace void __this_cpu_preempt_check(const char *op)
+noinstr void __this_cpu_preempt_check(const char *op)
 {
 	check_preemption_disabled("__this_cpu_", op);
 }
 EXPORT_SYMBOL(__this_cpu_preempt_check);
-NOKPROBE_SYMBOL(__this_cpu_preempt_check);

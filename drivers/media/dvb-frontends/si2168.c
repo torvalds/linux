@@ -448,23 +448,10 @@ static int si2168_init(struct dvb_frontend *fe)
 	/* request the firmware, this will block and timeout */
 	ret = request_firmware(&fw, dev->firmware_name, &client->dev);
 	if (ret) {
-		/* fallback mechanism to handle old name for Si2168 B40 fw */
-		if (dev->chip_id == SI2168_CHIP_ID_B40) {
-			dev->firmware_name = SI2168_B40_FIRMWARE_FALLBACK;
-			ret = request_firmware(&fw, dev->firmware_name,
-					       &client->dev);
-		}
-
-		if (ret == 0) {
-			dev_notice(&client->dev,
-					"please install firmware file '%s'\n",
-					SI2168_B40_FIRMWARE);
-		} else {
-			dev_err(&client->dev,
-					"firmware file '%s' not found\n",
-					dev->firmware_name);
-			goto err_release_firmware;
-		}
+		dev_err(&client->dev,
+			"firmware file '%s' not found\n",
+			dev->firmware_name);
+		goto err_release_firmware;
 	}
 
 	dev_info(&client->dev, "downloading firmware from file '%s'\n",
@@ -527,6 +514,7 @@ static int si2168_init(struct dvb_frontend *fe)
 		goto err;
 
 	dev->warm = true;
+	dev->initialized = true;
 warm:
 	/* Init stats here to indicate which stats are supported */
 	c->cnr.len = 1;
@@ -546,6 +534,26 @@ err_release_firmware:
 err:
 	dev_dbg(&client->dev, "failed=%d\n", ret);
 	return ret;
+}
+
+static int si2168_resume(struct dvb_frontend *fe)
+{
+	struct i2c_client *client = fe->demodulator_priv;
+	struct si2168_dev *dev = i2c_get_clientdata(client);
+
+	/*
+	 * check whether si2168_init() has been called successfully
+	 * outside of a resume cycle. Only call it (and load firmware)
+	 * in this case. si2168_init() is only called during resume
+	 * once the device has actually been used. Otherwise, leave the
+	 * device untouched.
+	 */
+	if (dev->initialized) {
+		dev_dbg(&client->dev, "previously initialized, call si2168_init()\n");
+		return si2168_init(fe);
+	}
+	dev_dbg(&client->dev, "not initialized yet, skipping init on resume\n");
+	return 0;
 }
 
 static int si2168_sleep(struct dvb_frontend *fe)
@@ -657,14 +665,14 @@ static const struct dvb_frontend_ops si2168_ops = {
 
 	.init = si2168_init,
 	.sleep = si2168_sleep,
+	.resume = si2168_resume,
 
 	.set_frontend = si2168_set_frontend,
 
 	.read_status = si2168_read_status,
 };
 
-static int si2168_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int si2168_probe(struct i2c_client *client)
 {
 	struct si2168_config *config = client->dev.platform_data;
 	struct si2168_dev *dev;
@@ -736,7 +744,7 @@ static int si2168_probe(struct i2c_client *client,
 		goto err_kfree;
 	}
 	dev->muxc->priv = client;
-	ret = i2c_mux_add_adapter(dev->muxc, 0, 0, 0);
+	ret = i2c_mux_add_adapter(dev->muxc, 0, 0);
 	if (ret)
 		goto err_kfree;
 
@@ -765,7 +773,7 @@ err:
 	return ret;
 }
 
-static int si2168_remove(struct i2c_client *client)
+static void si2168_remove(struct i2c_client *client)
 {
 	struct si2168_dev *dev = i2c_get_clientdata(client);
 
@@ -777,8 +785,6 @@ static int si2168_remove(struct i2c_client *client)
 	dev->fe.demodulator_priv = NULL;
 
 	kfree(dev);
-
-	return 0;
 }
 
 static const struct i2c_device_id si2168_id_table[] = {

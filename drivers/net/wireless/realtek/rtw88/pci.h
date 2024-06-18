@@ -5,25 +5,40 @@
 #ifndef __RTK_PCI_H_
 #define __RTK_PCI_H_
 
-#define RTK_PCI_DEVICE(vend, dev, hw_config)	\
-	PCI_DEVICE(vend, dev),			\
-	.driver_data = (kernel_ulong_t)&(hw_config),
+#include "main.h"
 
 #define RTK_DEFAULT_TX_DESC_NUM 128
 #define RTK_BEQ_TX_DESC_NUM	256
 
 #define RTK_MAX_RX_DESC_NUM	512
-/* 8K + rx desc size */
-#define RTK_PCI_RX_BUF_SIZE	(8192 + 24)
+/* 11K + rx desc size */
+#define RTK_PCI_RX_BUF_SIZE	(11454 + 24)
 
 #define RTK_PCI_CTRL		0x300
 #define BIT_RST_TRXDMA_INTF	BIT(20)
 #define BIT_RX_TAG_EN		BIT(15)
 #define REG_DBI_WDATA_V1	0x03E8
+#define REG_DBI_RDATA_V1	0x03EC
 #define REG_DBI_FLAG_V1		0x03F0
+#define BIT_DBI_RFLAG		BIT(17)
+#define BIT_DBI_WFLAG		BIT(16)
+#define BITS_DBI_WREN		GENMASK(15, 12)
+#define BITS_DBI_ADDR_MASK	GENMASK(11, 2)
+
 #define REG_MDIO_V1		0x03F4
 #define REG_PCIE_MIX_CFG	0x03F8
+#define BITS_MDIO_ADDR_MASK	GENMASK(4, 0)
 #define BIT_MDIO_WFLAG_V1	BIT(5)
+#define RTW_PCI_MDIO_PG_SZ	BIT(5)
+#define RTW_PCI_MDIO_PG_OFFS_G1	0
+#define RTW_PCI_MDIO_PG_OFFS_G2	2
+#define RTW_PCI_WR_RETRY_CNT	20
+
+#define RTK_PCIE_LINK_CFG	0x0719
+#define BIT_CLKREQ_SW_EN	BIT(4)
+#define BIT_L1_SW_EN		BIT(3)
+#define BIT_CLKREQ_N_PAD	BIT(0)
+#define RTK_PCIE_CLKDLY_CTRL	0x0725
 
 #define BIT_PCI_BCNQ_FLAG	BIT(4)
 #define RTK_PCI_TXBD_DESA_BCNQ	0x308
@@ -35,6 +50,9 @@
 #define RTK_PCI_TXBD_DESA_VOQ	0x318
 #define RTK_PCI_TXBD_DESA_HI0Q	0x340
 #define RTK_PCI_RXBD_DESA_MPDUQ	0x338
+
+#define TRX_BD_IDX_MASK		GENMASK(11, 0)
+#define TRX_BD_HW_IDX_MASK	GENMASK(27, 16)
 
 /* BCNQ is specialized for rsvd page, does not need to specify a number */
 #define RTK_PCI_TXBD_NUM_H2CQ	0x1328
@@ -126,6 +144,12 @@
 /* IMR 3 */
 #define IMR_H2CDOK		BIT(16)
 
+enum rtw_pci_flags {
+	RTW_PCI_FLAG_NAPI_RUNNING,
+
+	NUM_OF_RTW_PCI_FLAGS,
+};
+
 /* one element is reserved to know if the ring is closed */
 static inline int avail_desc(u32 wp, u32 rp, u32 len)
 {
@@ -182,19 +206,37 @@ struct rtw_pci_rx_ring {
 struct rtw_pci {
 	struct pci_dev *pdev;
 
-	/* used for pci interrupt */
+	/* Used for PCI interrupt. */
+	spinlock_t hwirq_lock;
+	/* Used for PCI TX ring/queueing, and enable INT. */
 	spinlock_t irq_lock;
 	u32 irq_mask[4];
 	bool irq_enabled;
+	bool running;
+
+	/* napi structure */
+	struct net_device netdev;
+	struct napi_struct napi;
 
 	u16 rx_tag;
+	DECLARE_BITMAP(tx_queued, RTK_MAX_TX_QUEUE_NUM);
 	struct rtw_pci_tx_ring tx_rings[RTK_MAX_TX_QUEUE_NUM];
 	struct rtw_pci_rx_ring rx_rings[RTK_MAX_RX_QUEUE_NUM];
+	u16 link_ctrl;
+	atomic_t link_usage;
+	bool rx_no_aspm;
+	DECLARE_BITMAP(flags, NUM_OF_RTW_PCI_FLAGS);
 
 	void __iomem *mmap;
 };
 
-static u32 max_num_of_tx_queue(u8 queue)
+extern const struct dev_pm_ops rtw_pm_ops;
+
+int rtw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id);
+void rtw_pci_remove(struct pci_dev *pdev);
+void rtw_pci_shutdown(struct pci_dev *pdev);
+
+static inline u32 max_num_of_tx_queue(u8 queue)
 {
 	u32 max_num;
 

@@ -4,22 +4,24 @@
  *
  * Copyright (C) 2018 Prevas A/S
  *
- * http://www.ti.com/lit/ds/symlink/dac5571.pdf
- * http://www.ti.com/lit/ds/symlink/dac6571.pdf
- * http://www.ti.com/lit/ds/symlink/dac7571.pdf
- * http://www.ti.com/lit/ds/symlink/dac5574.pdf
- * http://www.ti.com/lit/ds/symlink/dac6574.pdf
- * http://www.ti.com/lit/ds/symlink/dac7574.pdf
- * http://www.ti.com/lit/ds/symlink/dac5573.pdf
- * http://www.ti.com/lit/ds/symlink/dac6573.pdf
- * http://www.ti.com/lit/ds/symlink/dac7573.pdf
+ * https://www.ti.com/lit/ds/symlink/dac5571.pdf
+ * https://www.ti.com/lit/ds/symlink/dac6571.pdf
+ * https://www.ti.com/lit/ds/symlink/dac7571.pdf
+ * https://www.ti.com/lit/ds/symlink/dac5574.pdf
+ * https://www.ti.com/lit/ds/symlink/dac6574.pdf
+ * https://www.ti.com/lit/ds/symlink/dac7574.pdf
+ * https://www.ti.com/lit/ds/symlink/dac5573.pdf
+ * https://www.ti.com/lit/ds/symlink/dac6573.pdf
+ * https://www.ti.com/lit/ds/symlink/dac7573.pdf
+ * https://www.ti.com/lit/ds/symlink/dac081c081.pdf
+ * https://www.ti.com/lit/ds/symlink/dac121c081.pdf
  */
 
 #include <linux/iio/iio.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
-#include <linux/of.h>
+#include <linux/mod_devicetable.h>
+#include <linux/property.h>
 #include <linux/regulator/consumer.h>
 
 enum chip_id {
@@ -47,12 +49,12 @@ struct dac5571_data {
 	struct mutex lock;
 	struct regulator *vref;
 	u16 val[4];
-	bool powerdown;
-	u8 powerdown_mode;
+	bool powerdown[4];
+	u8 powerdown_mode[4];
 	struct dac5571_spec const *spec;
 	int (*dac5571_cmd)(struct dac5571_data *data, int channel, u16 val);
 	int (*dac5571_pwrdwn)(struct dac5571_data *data, int channel, u8 pwrdwn);
-	u8 buf[3] ____cacheline_aligned;
+	u8 buf[3] __aligned(IIO_DMA_MINALIGN);
 };
 
 #define DAC5571_POWERDOWN(mode)		((mode) + 1)
@@ -125,7 +127,7 @@ static int dac5571_get_powerdown_mode(struct iio_dev *indio_dev,
 {
 	struct dac5571_data *data = iio_priv(indio_dev);
 
-	return data->powerdown_mode;
+	return data->powerdown_mode[chan->channel];
 }
 
 static int dac5571_set_powerdown_mode(struct iio_dev *indio_dev,
@@ -135,17 +137,17 @@ static int dac5571_set_powerdown_mode(struct iio_dev *indio_dev,
 	struct dac5571_data *data = iio_priv(indio_dev);
 	int ret = 0;
 
-	if (data->powerdown_mode == mode)
+	if (data->powerdown_mode[chan->channel] == mode)
 		return 0;
 
 	mutex_lock(&data->lock);
-	if (data->powerdown) {
+	if (data->powerdown[chan->channel]) {
 		ret = data->dac5571_pwrdwn(data, chan->channel,
 					   DAC5571_POWERDOWN(mode));
 		if (ret)
 			goto out;
 	}
-	data->powerdown_mode = mode;
+	data->powerdown_mode[chan->channel] = mode;
 
  out:
 	mutex_unlock(&data->lock);
@@ -167,7 +169,7 @@ static ssize_t dac5571_read_powerdown(struct iio_dev *indio_dev,
 {
 	struct dac5571_data *data = iio_priv(indio_dev);
 
-	return sprintf(buf, "%d\n", data->powerdown);
+	return sysfs_emit(buf, "%d\n", data->powerdown[chan->channel]);
 }
 
 static ssize_t dac5571_write_powerdown(struct iio_dev *indio_dev,
@@ -179,23 +181,24 @@ static ssize_t dac5571_write_powerdown(struct iio_dev *indio_dev,
 	bool powerdown;
 	int ret;
 
-	ret = strtobool(buf, &powerdown);
+	ret = kstrtobool(buf, &powerdown);
 	if (ret)
 		return ret;
 
-	if (data->powerdown == powerdown)
+	if (data->powerdown[chan->channel] == powerdown)
 		return len;
 
 	mutex_lock(&data->lock);
 	if (powerdown)
 		ret = data->dac5571_pwrdwn(data, chan->channel,
-			    DAC5571_POWERDOWN(data->powerdown_mode));
+			    DAC5571_POWERDOWN(data->powerdown_mode[chan->channel]));
 	else
-		ret = data->dac5571_cmd(data, chan->channel, data->val[0]);
+		ret = data->dac5571_cmd(data, chan->channel,
+				data->val[chan->channel]);
 	if (ret)
 		goto out;
 
-	data->powerdown = powerdown;
+	data->powerdown[chan->channel] = powerdown;
 
  out:
 	mutex_unlock(&data->lock);
@@ -209,10 +212,10 @@ static const struct iio_chan_spec_ext_info dac5571_ext_info[] = {
 		.name	   = "powerdown",
 		.read	   = dac5571_read_powerdown,
 		.write	   = dac5571_write_powerdown,
-		.shared	   = IIO_SHARED_BY_TYPE,
+		.shared	   = IIO_SEPARATE,
 	},
-	IIO_ENUM("powerdown_mode", IIO_SHARED_BY_TYPE, &dac5571_powerdown_mode),
-	IIO_ENUM_AVAILABLE("powerdown_mode", &dac5571_powerdown_mode),
+	IIO_ENUM("powerdown_mode", IIO_SEPARATE, &dac5571_powerdown_mode),
+	IIO_ENUM_AVAILABLE("powerdown_mode", IIO_SHARED_BY_TYPE, &dac5571_powerdown_mode),
 	{},
 };
 
@@ -276,7 +279,7 @@ static int dac5571_write_raw(struct iio_dev *indio_dev,
 		if (val >= (1 << data->spec->resolution) || val < 0)
 			return -EINVAL;
 
-		if (data->powerdown)
+		if (data->powerdown[chan->channel])
 			return -EBUSY;
 
 		mutex_lock(&data->lock);
@@ -304,9 +307,9 @@ static const struct iio_info dac5571_info = {
 	.write_raw_get_fmt = dac5571_write_raw_get_fmt,
 };
 
-static int dac5571_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int dac5571_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct device *dev = &client->dev;
 	const struct dac5571_spec *spec;
 	struct dac5571_data *data;
@@ -321,14 +324,13 @@ static int dac5571_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
 
-	indio_dev->dev.parent = dev;
-	indio_dev->dev.of_node = client->dev.of_node;
 	indio_dev->info = &dac5571_info;
 	indio_dev->name = id->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = dac5571_channels;
 
-	spec = &dac5571_spec[id->driver_data];
+	spec = i2c_get_match_data(client);
+
 	indio_dev->num_channels = spec->num_channels;
 	data->spec = spec;
 
@@ -352,6 +354,7 @@ static int dac5571_probe(struct i2c_client *client,
 		data->dac5571_pwrdwn = dac5571_pwrdwn_quad;
 		break;
 	default:
+		ret = -EINVAL;
 		goto err;
 	}
 
@@ -374,43 +377,43 @@ static int dac5571_probe(struct i2c_client *client,
 	return ret;
 }
 
-static int dac5571_remove(struct i2c_client *i2c)
+static void dac5571_remove(struct i2c_client *i2c)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(i2c);
 	struct dac5571_data *data = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
 	regulator_disable(data->vref);
-
-	return 0;
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id dac5571_of_id[] = {
-	{.compatible = "ti,dac5571"},
-	{.compatible = "ti,dac6571"},
-	{.compatible = "ti,dac7571"},
-	{.compatible = "ti,dac5574"},
-	{.compatible = "ti,dac6574"},
-	{.compatible = "ti,dac7574"},
-	{.compatible = "ti,dac5573"},
-	{.compatible = "ti,dac6573"},
-	{.compatible = "ti,dac7573"},
+	{.compatible = "ti,dac081c081", .data = &dac5571_spec[single_8bit] },
+	{.compatible = "ti,dac121c081", .data = &dac5571_spec[single_12bit] },
+	{.compatible = "ti,dac5571", .data = &dac5571_spec[single_8bit] },
+	{.compatible = "ti,dac6571", .data = &dac5571_spec[single_10bit] },
+	{.compatible = "ti,dac7571", .data = &dac5571_spec[single_12bit] },
+	{.compatible = "ti,dac5574", .data = &dac5571_spec[quad_8bit] },
+	{.compatible = "ti,dac6574", .data = &dac5571_spec[quad_10bit] },
+	{.compatible = "ti,dac7574", .data = &dac5571_spec[quad_12bit] },
+	{.compatible = "ti,dac5573", .data = &dac5571_spec[quad_8bit] },
+	{.compatible = "ti,dac6573", .data = &dac5571_spec[quad_10bit] },
+	{.compatible = "ti,dac7573", .data = &dac5571_spec[quad_12bit] },
 	{}
 };
 MODULE_DEVICE_TABLE(of, dac5571_of_id);
-#endif
 
 static const struct i2c_device_id dac5571_id[] = {
-	{"dac5571", single_8bit},
-	{"dac6571", single_10bit},
-	{"dac7571", single_12bit},
-	{"dac5574", quad_8bit},
-	{"dac6574", quad_10bit},
-	{"dac7574", quad_12bit},
-	{"dac5573", quad_8bit},
-	{"dac6573", quad_10bit},
-	{"dac7573", quad_12bit},
+	{"dac081c081", (kernel_ulong_t)&dac5571_spec[single_8bit] },
+	{"dac121c081", (kernel_ulong_t)&dac5571_spec[single_12bit] },
+	{"dac5571", (kernel_ulong_t)&dac5571_spec[single_8bit] },
+	{"dac6571", (kernel_ulong_t)&dac5571_spec[single_10bit] },
+	{"dac7571", (kernel_ulong_t)&dac5571_spec[single_12bit] },
+	{"dac5574", (kernel_ulong_t)&dac5571_spec[quad_8bit] },
+	{"dac6574", (kernel_ulong_t)&dac5571_spec[quad_10bit] },
+	{"dac7574", (kernel_ulong_t)&dac5571_spec[quad_12bit] },
+	{"dac5573", (kernel_ulong_t)&dac5571_spec[quad_8bit] },
+	{"dac6573", (kernel_ulong_t)&dac5571_spec[quad_10bit] },
+	{"dac7573", (kernel_ulong_t)&dac5571_spec[quad_12bit] },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, dac5571_id);
@@ -418,9 +421,9 @@ MODULE_DEVICE_TABLE(i2c, dac5571_id);
 static struct i2c_driver dac5571_driver = {
 	.driver = {
 		   .name = "ti-dac5571",
-		   .of_match_table = of_match_ptr(dac5571_of_id),
+		   .of_match_table = dac5571_of_id,
 	},
-	.probe	  = dac5571_probe,
+	.probe = dac5571_probe,
 	.remove   = dac5571_remove,
 	.id_table = dac5571_id,
 };

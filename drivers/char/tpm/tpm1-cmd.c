@@ -312,7 +312,7 @@ unsigned long tpm1_calc_ordinal_duration(struct tpm_chip *chip, u32 ordinal)
 #define TPM_ST_CLEAR 1
 
 /**
- * tpm_startup() - turn on the TPM
+ * tpm1_startup() - turn on the TPM
  * @chip: TPM chip to use
  *
  * Normally the firmware should start the TPM. This function is provided as a
@@ -343,6 +343,7 @@ int tpm1_get_timeouts(struct tpm_chip *chip)
 {
 	cap_t cap;
 	unsigned long timeout_old[4], timeout_chip[4], timeout_eff[4];
+	unsigned long durations[3];
 	ssize_t rc;
 
 	rc = tpm1_getcap(chip, TPM_CAP_PROP_TIS_TIMEOUT, &cap, NULL,
@@ -426,6 +427,20 @@ int tpm1_get_timeouts(struct tpm_chip *chip)
 	chip->duration[TPM_LONG] =
 		usecs_to_jiffies(be32_to_cpu(cap.duration.tpm_long));
 	chip->duration[TPM_LONG_LONG] = 0; /* not used under 1.2 */
+
+	/*
+	 * Provide the ability for vendor overrides of duration values in case
+	 * of misreporting.
+	 */
+	if (chip->ops->update_durations)
+		chip->ops->update_durations(chip, durations);
+
+	if (chip->duration_adjusted) {
+		dev_info(&chip->dev, HW_ERR "Adjusting reported durations.");
+		chip->duration[TPM_SHORT] = durations[0];
+		chip->duration[TPM_MEDIUM] = durations[1];
+		chip->duration[TPM_LONG] = durations[2];
+	}
 
 	/* The Broadcom BCM0102 chipset in a Dell Latitude D820 gets the above
 	 * value wrong and apparently reports msecs rather than usecs. So we
@@ -596,7 +611,7 @@ out:
 
 #define TPM_ORD_CONTINUE_SELFTEST 83
 /**
- * tpm_continue_selftest() - run TPM's selftest
+ * tpm1_continue_selftest() - run TPM's selftest
  * @chip: TPM chip to use
  *
  * Returns 0 on success, < 0 in case of fatal error or a value > 0 representing
@@ -694,7 +709,12 @@ int tpm1_auto_startup(struct tpm_chip *chip)
 	if (rc)
 		goto out;
 	rc = tpm1_do_selftest(chip);
-	if (rc) {
+	if (rc == TPM_ERR_FAILEDSELFTEST) {
+		dev_warn(&chip->dev, "TPM self test failed, switching to the firmware upgrade mode\n");
+		/* A TPM in this state possibly allows or needs a firmware upgrade */
+		chip->flags |= TPM_CHIP_FLAG_FIRMWARE_UPGRADE;
+		return 0;
+	} else if (rc) {
 		dev_err(&chip->dev, "TPM self test failed\n");
 		goto out;
 	}

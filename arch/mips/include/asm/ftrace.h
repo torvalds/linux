@@ -32,7 +32,7 @@ do {							\
 		".previous\n"				\
 							\
 		".section\t__ex_table,\"a\"\n\t"	\
-		STR(PTR) "\t1b, 3b\n\t"			\
+		STR(PTR_WD) "\t1b, 3b\n\t"		\
 		".previous\n"				\
 							\
 		: [tmp_dst] "=&r" (dst), [tmp_err] "=r" (error)\
@@ -54,7 +54,7 @@ do {						\
 		".previous\n"			\
 						\
 		".section\t__ex_table,\"a\"\n\t"\
-		STR(PTR) "\t1b, 3b\n\t"		\
+		STR(PTR_WD) "\t1b, 3b\n\t"	\
 		".previous\n"			\
 						\
 		: [tmp_err] "=r" (error)	\
@@ -85,6 +85,10 @@ struct dyn_arch_ftrace {
 };
 
 #endif /*  CONFIG_DYNAMIC_FTRACE */
+
+void prepare_ftrace_return(unsigned long *parent_ra_addr, unsigned long self_ra,
+			   unsigned long fp);
+
 #endif /* __ASSEMBLY__ */
 #endif /* CONFIG_FUNCTION_TRACER */
 #endif /* _ASM_MIPS_FTRACE_H */

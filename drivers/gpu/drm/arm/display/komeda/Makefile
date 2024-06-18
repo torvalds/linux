@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 
 ccflags-y := \
-	-I $(srctree)/$(src)/../include \
-	-I $(srctree)/$(src)
+	-I $(src)/../include \
+	-I $(src)
 
 komeda-y := \
 	komeda_drv.o \
@@ -16,7 +16,8 @@ komeda-y := \
 	komeda_crtc.o \
 	komeda_plane.o \
 	komeda_wb_connector.o \
-	komeda_private_obj.o
+	komeda_private_obj.o \
+	komeda_event.o
 
 komeda-y += \
 	d71/d71_dev.o \

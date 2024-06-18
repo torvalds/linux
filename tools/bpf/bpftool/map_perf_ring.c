@@ -6,7 +6,7 @@
  */
 #include <errno.h>
 #include <fcntl.h>
-#include <libbpf.h>
+#include <bpf/libbpf.h>
 #include <poll.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -21,8 +21,7 @@
 #include <sys/mman.h>
 #include <sys/syscall.h>
 
-#include <bpf.h>
-#include <perf-sys.h>
+#include <bpf/bpf.h>
 
 #include "main.h"
 
@@ -30,16 +29,9 @@
 
 static volatile bool stop;
 
-struct event_ring_info {
-	int fd;
-	int key;
-	unsigned int cpu;
-	void *mem;
-};
-
 struct perf_event_sample {
 	struct perf_event_header header;
-	u64 time;
+	__u64 time;
 	__u32 size;
 	unsigned char data[];
 };
@@ -125,7 +117,7 @@ int do_event_pipe(int argc, char **argv)
 		.wakeup_events = 1,
 	};
 	struct bpf_map_info map_info = {};
-	struct perf_buffer_raw_opts opts = {};
+	LIBBPF_OPTS(perf_buffer_raw_opts, opts);
 	struct event_pipe_ctx ctx = {
 		.all_cpus = true,
 		.cpu = -1,
@@ -191,18 +183,14 @@ int do_event_pipe(int argc, char **argv)
 		ctx.idx = 0;
 	}
 
-	opts.attr = &perf_attr;
-	opts.event_cb = print_bpf_output;
-	opts.ctx = &ctx;
 	opts.cpu_cnt = ctx.all_cpus ? 0 : 1;
 	opts.cpus = &ctx.cpu;
 	opts.map_keys = &ctx.idx;
-
-	pb = perf_buffer__new_raw(map_fd, MMAP_PAGE_CNT, &opts);
-	err = libbpf_get_error(pb);
-	if (err) {
+	pb = perf_buffer__new_raw(map_fd, MMAP_PAGE_CNT, &perf_attr,
+				  print_bpf_output, &ctx, &opts);
+	if (!pb) {
 		p_err("failed to create perf buffer: %s (%d)",
-		      strerror(err), err);
+		      strerror(errno), errno);
 		goto err_close_map;
 	}
 
@@ -217,7 +205,7 @@ int do_event_pipe(int argc, char **argv)
 		err = perf_buffer__poll(pb, 200);
 		if (err < 0 && err != -EINTR) {
 			p_err("perf buffer polling failed: %s (%d)",
-			      strerror(err), err);
+			      strerror(errno), errno);
 			goto err_close_pb;
 		}
 	}

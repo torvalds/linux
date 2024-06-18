@@ -89,8 +89,6 @@ enum wl1251_commands {
 struct wl1251_cmd_header {
 	u16 id;
 	u16 status;
-	/* payload */
-	u8 data[0];
 } __packed;
 
 struct  wl1251_command {
@@ -281,7 +279,7 @@ struct wl1251_cmd_packet_template {
 	struct wl1251_cmd_header header;
 
 	__le16 size;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 #define TIM_ELE_ID    5

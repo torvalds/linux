@@ -6,31 +6,12 @@
 
 #include <linux/errno.h>
 #include <linux/jiffies.h>
+#include <asm/cacheflush.h>
 #include <asm/cp15.h>
 #include <asm/proc-fns.h>
 
 #include "common.h"
-
-static inline void cpu_enter_lowpower(void)
-{
-	unsigned int v;
-
-	asm volatile(
-		"mcr	p15, 0, %1, c7, c5, 0\n"
-	"	mcr	p15, 0, %1, c7, c10, 4\n"
-	/*
-	 * Turn off coherency
-	 */
-	"	mrc	p15, 0, %0, c1, c0, 1\n"
-	"	bic	%0, %0, %3\n"
-	"	mcr	p15, 0, %0, c1, c0, 1\n"
-	"	mrc	p15, 0, %0, c1, c0, 0\n"
-	"	bic	%0, %0, %2\n"
-	"	mcr	p15, 0, %0, c1, c0, 0\n"
-	  : "=&r" (v)
-	  : "r" (0), "Ir" (CR_C), "Ir" (0x40)
-	  : "cc");
-}
+#include "hardware.h"
 
 /*
  * platform-specific code to shutdown a CPU
@@ -39,7 +20,7 @@ static inline void cpu_enter_lowpower(void)
  */
 void imx_cpu_die(unsigned int cpu)
 {
-	cpu_enter_lowpower();
+	v7_exit_coherency_flush(louis);
 	/*
 	 * We use the cpu jumping argument register to sync with
 	 * imx_cpu_kill() which is running on cpu0 and waiting for
@@ -60,5 +41,7 @@ int imx_cpu_kill(unsigned int cpu)
 			return 0;
 	imx_enable_cpu(cpu, false);
 	imx_set_cpu_arg(cpu, 0);
+	if (cpu_is_imx7d())
+		imx_gpcv2_set_core1_pdn_pup_by_software(true);
 	return 1;
 }

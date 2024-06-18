@@ -6,9 +6,9 @@
 #include <linux/clk/tegra.h>
 #include <linux/genalloc.h>
 #include <linux/mailbox_client.h>
+#include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/semaphore.h>
@@ -200,13 +200,13 @@ static ssize_t __tegra_bpmp_channel_read(struct tegra_bpmp_channel *channel,
 	int err;
 
 	if (data && size > 0)
-		memcpy(data, channel->ib->data, size);
+		tegra_bpmp_mb_read(data, &channel->ib, size);
 
 	err = tegra_bpmp_ack_response(channel);
 	if (err < 0)
 		return err;
 
-	*ret = channel->ib->code;
+	*ret = tegra_bpmp_mb_read_field(&channel->ib, code);
 
 	return 0;
 }
@@ -240,11 +240,11 @@ static ssize_t __tegra_bpmp_channel_write(struct tegra_bpmp_channel *channel,
 					  unsigned int mrq, unsigned long flags,
 					  const void *data, size_t size)
 {
-	channel->ob->code = mrq;
-	channel->ob->flags = flags;
+	tegra_bpmp_mb_write_field(&channel->ob, code, mrq);
+	tegra_bpmp_mb_write_field(&channel->ob, flags, flags);
 
 	if (data && size > 0)
-		memcpy(channel->ob->data, data, size);
+		tegra_bpmp_mb_write(&channel->ob, data, size);
 
 	return tegra_bpmp_post_request(channel);
 }
@@ -313,6 +313,8 @@ static ssize_t tegra_bpmp_channel_write(struct tegra_bpmp_channel *channel,
 	return __tegra_bpmp_channel_write(channel, mrq, flags, data, size);
 }
 
+static int __maybe_unused tegra_bpmp_resume(struct device *dev);
+
 int tegra_bpmp_transfer_atomic(struct tegra_bpmp *bpmp,
 			       struct tegra_bpmp_message *msg)
 {
@@ -324,6 +326,14 @@ int tegra_bpmp_transfer_atomic(struct tegra_bpmp *bpmp,
 
 	if (!tegra_bpmp_message_valid(msg))
 		return -EINVAL;
+
+	if (bpmp->suspended) {
+		/* Reset BPMP IPC channels during resume based on flags passed */
+		if (msg->flags & TEGRA_BPMP_MESSAGE_RESET)
+			tegra_bpmp_resume(bpmp->dev);
+		else
+			return -EAGAIN;
+	}
 
 	channel = bpmp->tx_channel;
 
@@ -364,6 +374,14 @@ int tegra_bpmp_transfer(struct tegra_bpmp *bpmp,
 	if (!tegra_bpmp_message_valid(msg))
 		return -EINVAL;
 
+	if (bpmp->suspended) {
+		/* Reset BPMP IPC channels during resume based on flags passed */
+		if (msg->flags & TEGRA_BPMP_MESSAGE_RESET)
+			tegra_bpmp_resume(bpmp->dev);
+		else
+			return -EAGAIN;
+	}
+
 	channel = tegra_bpmp_write_threaded(bpmp, msg->mrq, msg->tx.data,
 					    msg->tx.size);
 	if (IS_ERR(channel))
@@ -399,7 +417,7 @@ static struct tegra_bpmp_mrq *tegra_bpmp_find_mrq(struct tegra_bpmp *bpmp,
 void tegra_bpmp_mrq_return(struct tegra_bpmp_channel *channel, int code,
 			   const void *data, size_t size)
 {
-	unsigned long flags = channel->ib->flags;
+	unsigned long flags = tegra_bpmp_mb_read_field(&channel->ib, flags);
 	struct tegra_bpmp *bpmp = channel->bpmp;
 	int err;
 
@@ -416,10 +434,10 @@ void tegra_bpmp_mrq_return(struct tegra_bpmp_channel *channel, int code,
 	if (WARN_ON(!tegra_bpmp_is_response_channel_free(channel)))
 		return;
 
-	channel->ob->code = code;
+	tegra_bpmp_mb_write_field(&channel->ob, code, code);
 
 	if (data && size > 0)
-		memcpy(channel->ob->data, data, size);
+		tegra_bpmp_mb_write(&channel->ob, data, size);
 
 	err = tegra_bpmp_post_response(channel);
 	if (WARN_ON(err < 0))
@@ -501,7 +519,7 @@ EXPORT_SYMBOL_GPL(tegra_bpmp_free_mrq);
 
 bool tegra_bpmp_mrq_is_supported(struct tegra_bpmp *bpmp, unsigned int mrq)
 {
-	struct mrq_query_abi_request req = { .mrq = cpu_to_le32(mrq) };
+	struct mrq_query_abi_request req = { .mrq = mrq };
 	struct mrq_query_abi_response resp;
 	struct tegra_bpmp_message msg = {
 		.mrq = MRQ_QUERY_ABI,
@@ -514,10 +532,10 @@ bool tegra_bpmp_mrq_is_supported(struct tegra_bpmp *bpmp, unsigned int mrq)
 			.size = sizeof(resp),
 		},
 	};
-	int ret;
+	int err;
 
-	ret = tegra_bpmp_transfer(bpmp, &msg);
-	if (ret || msg.rx.ret)
+	err = tegra_bpmp_transfer(bpmp, &msg);
+	if (err || msg.rx.ret)
 		return false;
 
 	return resp.status == 0;
@@ -528,13 +546,13 @@ static void tegra_bpmp_mrq_handle_ping(unsigned int mrq,
 				       struct tegra_bpmp_channel *channel,
 				       void *data)
 {
-	struct mrq_ping_request *request;
+	struct mrq_ping_request request;
 	struct mrq_ping_response response;
 
-	request = (struct mrq_ping_request *)channel->ib->data;
+	tegra_bpmp_mb_read(&request, &channel->ib, sizeof(request));
 
 	memset(&response, 0, sizeof(response));
-	response.reply = request->challenge << 1;
+	response.reply = request.challenge << 1;
 
 	tegra_bpmp_mrq_return(channel, 0, &response, sizeof(response));
 }
@@ -647,7 +665,7 @@ static int tegra_bpmp_get_firmware_tag(struct tegra_bpmp *bpmp, char *tag,
 
 static void tegra_bpmp_channel_signal(struct tegra_bpmp_channel *channel)
 {
-	unsigned long flags = channel->ob->flags;
+	unsigned long flags = tegra_bpmp_mb_read_field(&channel->ob, flags);
 
 	if ((flags & MSG_RING) == 0)
 		return;
@@ -665,8 +683,11 @@ void tegra_bpmp_handle_rx(struct tegra_bpmp *bpmp)
 	count = bpmp->soc->channels.thread.count;
 	busy = bpmp->threaded.busy;
 
-	if (tegra_bpmp_is_request_ready(channel))
-		tegra_bpmp_handle_mrq(bpmp, channel->ib->code, channel);
+	if (tegra_bpmp_is_request_ready(channel)) {
+		unsigned int mrq = tegra_bpmp_mb_read_field(&channel->ib, code);
+
+		tegra_bpmp_handle_mrq(bpmp, mrq, channel);
+	}
 
 	spin_lock(&bpmp->lock);
 
@@ -731,6 +752,8 @@ static int tegra_bpmp_probe(struct platform_device *pdev)
 	if (!bpmp->threaded_channels)
 		return -ENOMEM;
 
+	platform_set_drvdata(pdev, bpmp);
+
 	err = bpmp->soc->ops->init(bpmp);
 	if (err < 0)
 		return err;
@@ -754,25 +777,23 @@ static int tegra_bpmp_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "firmware: %.*s\n", (int)sizeof(tag), tag);
 
-	platform_set_drvdata(pdev, bpmp);
-
 	err = of_platform_default_populate(pdev->dev.of_node, NULL, &pdev->dev);
 	if (err < 0)
 		goto free_mrq;
 
-	if (of_find_property(pdev->dev.of_node, "#clock-cells", NULL)) {
+	if (of_property_present(pdev->dev.of_node, "#clock-cells")) {
 		err = tegra_bpmp_init_clocks(bpmp);
 		if (err < 0)
 			goto free_mrq;
 	}
 
-	if (of_find_property(pdev->dev.of_node, "#reset-cells", NULL)) {
+	if (of_property_present(pdev->dev.of_node, "#reset-cells")) {
 		err = tegra_bpmp_init_resets(bpmp);
 		if (err < 0)
 			goto free_mrq;
 	}
 
-	if (of_find_property(pdev->dev.of_node, "#power-domain-cells", NULL)) {
+	if (of_property_present(pdev->dev.of_node, "#power-domain-cells")) {
 		err = tegra_bpmp_init_powergates(bpmp);
 		if (err < 0)
 			goto free_mrq;
@@ -793,9 +814,20 @@ deinit:
 	return err;
 }
 
+static int __maybe_unused tegra_bpmp_suspend(struct device *dev)
+{
+	struct tegra_bpmp *bpmp = dev_get_drvdata(dev);
+
+	bpmp->suspended = true;
+
+	return 0;
+}
+
 static int __maybe_unused tegra_bpmp_resume(struct device *dev)
 {
 	struct tegra_bpmp *bpmp = dev_get_drvdata(dev);
+
+	bpmp->suspended = false;
 
 	if (bpmp->soc->ops->resume)
 		return bpmp->soc->ops->resume(bpmp);
@@ -804,11 +836,13 @@ static int __maybe_unused tegra_bpmp_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops tegra_bpmp_pm_ops = {
-	.resume_early = tegra_bpmp_resume,
+	.suspend_noirq = tegra_bpmp_suspend,
+	.resume_noirq = tegra_bpmp_resume,
 };
 
 #if IS_ENABLED(CONFIG_ARCH_TEGRA_186_SOC) || \
-    IS_ENABLED(CONFIG_ARCH_TEGRA_194_SOC)
+    IS_ENABLED(CONFIG_ARCH_TEGRA_194_SOC) || \
+    IS_ENABLED(CONFIG_ARCH_TEGRA_234_SOC)
 static const struct tegra_bpmp_soc tegra186_soc = {
 	.channels = {
 		.cpu_tx = {
@@ -855,7 +889,8 @@ static const struct tegra_bpmp_soc tegra210_soc = {
 
 static const struct of_device_id tegra_bpmp_match[] = {
 #if IS_ENABLED(CONFIG_ARCH_TEGRA_186_SOC) || \
-    IS_ENABLED(CONFIG_ARCH_TEGRA_194_SOC)
+    IS_ENABLED(CONFIG_ARCH_TEGRA_194_SOC) || \
+    IS_ENABLED(CONFIG_ARCH_TEGRA_234_SOC)
 	{ .compatible = "nvidia,tegra186-bpmp", .data = &tegra186_soc },
 #endif
 #if IS_ENABLED(CONFIG_ARCH_TEGRA_210_SOC)
@@ -869,12 +904,8 @@ static struct platform_driver tegra_bpmp_driver = {
 		.name = "tegra-bpmp",
 		.of_match_table = tegra_bpmp_match,
 		.pm = &tegra_bpmp_pm_ops,
+		.suppress_bind_attrs = true,
 	},
 	.probe = tegra_bpmp_probe,
 };
-
-static int __init tegra_bpmp_init(void)
-{
-	return platform_driver_register(&tegra_bpmp_driver);
-}
-core_initcall(tegra_bpmp_init);
+builtin_platform_driver(tegra_bpmp_driver);

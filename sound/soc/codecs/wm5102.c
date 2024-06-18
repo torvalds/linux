@@ -44,7 +44,7 @@ static DECLARE_TLV_DB_SCALE(digital_tlv, -6400, 50, 0);
 static DECLARE_TLV_DB_SCALE(noise_tlv, -13200, 600, 0);
 static DECLARE_TLV_DB_SCALE(ng_tlv, -10200, 600, 0);
 
-static const struct wm_adsp_region wm5102_dsp1_regions[] = {
+static const struct cs_dsp_region wm5102_dsp1_regions[] = {
 	{ .type = WMFW_ADSP2_PM, .base = 0x100000 },
 	{ .type = WMFW_ADSP2_ZM, .base = 0x180000 },
 	{ .type = WMFW_ADSP2_XM, .base = 0x190000 },
@@ -680,14 +680,17 @@ static int wm5102_out_comp_coeff_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	struct arizona *arizona = dev_get_drvdata(component->dev->parent);
+	uint16_t dac_comp_coeff = get_unaligned_be16(ucontrol->value.bytes.data);
+	int ret = 0;
 
 	mutex_lock(&arizona->dac_comp_lock);
-	memcpy(&arizona->dac_comp_coeff, ucontrol->value.bytes.data,
-	       sizeof(arizona->dac_comp_coeff));
-	arizona->dac_comp_coeff = be16_to_cpu(arizona->dac_comp_coeff);
+	if (arizona->dac_comp_coeff != dac_comp_coeff) {
+		arizona->dac_comp_coeff = dac_comp_coeff;
+		ret = 1;
+	}
 	mutex_unlock(&arizona->dac_comp_lock);
 
-	return 0;
+	return ret;
 }
 
 static int wm5102_out_comp_switch_get(struct snd_kcontrol *kcontrol,
@@ -708,12 +711,20 @@ static int wm5102_out_comp_switch_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	struct arizona *arizona = dev_get_drvdata(component->dev->parent);
+	struct soc_mixer_control *mc = (struct soc_mixer_control *)kcontrol->private_value;
+	int ret = 0;
+
+	if (ucontrol->value.integer.value[0] > mc->max)
+		return -EINVAL;
 
 	mutex_lock(&arizona->dac_comp_lock);
-	arizona->dac_comp_enabled = ucontrol->value.integer.value[0];
+	if (arizona->dac_comp_enabled != ucontrol->value.integer.value[0]) {
+		arizona->dac_comp_enabled = ucontrol->value.integer.value[0];
+		ret = 1;
+	}
 	mutex_unlock(&arizona->dac_comp_lock);
 
-	return 0;
+	return ret;
 }
 
 static const char * const wm5102_osr_text[] = {
@@ -1762,6 +1773,10 @@ static int wm5102_set_fll(struct snd_soc_component *component, int fll_id,
 #define WM5102_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
+static const struct snd_soc_dai_ops wm5102_dai_ops = {
+	.compress_new = snd_soc_new_compress,
+};
+
 static struct snd_soc_dai_driver wm5102_dai[] = {
 	{
 		.name = "wm5102-aif1",
@@ -1782,8 +1797,8 @@ static struct snd_soc_dai_driver wm5102_dai[] = {
 			 .formats = WM5102_FORMATS,
 		 },
 		.ops = &arizona_dai_ops,
-		.symmetric_rates = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_rate = 1,
+		.symmetric_sample_bits = 1,
 	},
 	{
 		.name = "wm5102-aif2",
@@ -1804,8 +1819,8 @@ static struct snd_soc_dai_driver wm5102_dai[] = {
 			 .formats = WM5102_FORMATS,
 		 },
 		.ops = &arizona_dai_ops,
-		.symmetric_rates = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_rate = 1,
+		.symmetric_sample_bits = 1,
 	},
 	{
 		.name = "wm5102-aif3",
@@ -1826,8 +1841,8 @@ static struct snd_soc_dai_driver wm5102_dai[] = {
 			 .formats = WM5102_FORMATS,
 		 },
 		.ops = &arizona_dai_ops,
-		.symmetric_rates = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_rate = 1,
+		.symmetric_sample_bits = 1,
 	},
 	{
 		.name = "wm5102-slim1",
@@ -1895,7 +1910,7 @@ static struct snd_soc_dai_driver wm5102_dai[] = {
 			.rates = WM5102_RATES,
 			.formats = WM5102_FORMATS,
 		},
-		.compress_new = snd_soc_new_compress,
+		.ops = &wm5102_dai_ops,
 	},
 	{
 		.name = "wm5102-dsp-trace",
@@ -1909,10 +1924,9 @@ static struct snd_soc_dai_driver wm5102_dai[] = {
 	},
 };
 
-static int wm5102_open(struct snd_compr_stream *stream)
+static int wm5102_open(struct snd_soc_component *component,
+		       struct snd_compr_stream *stream)
 {
-	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct wm5102_priv *priv = snd_soc_component_get_drvdata(component);
 
 	return wm_adsp_compr_open(&priv->core.adsp[0], stream);
@@ -1992,7 +2006,7 @@ static unsigned int wm5102_digital_vu[] = {
 	ARIZONA_DAC_DIGITAL_VOLUME_5R,
 };
 
-static struct snd_compr_ops wm5102_compr_ops = {
+static const struct snd_compress_ops wm5102_compress_ops = {
 	.open		= wm5102_open,
 	.free		= wm_adsp_compr_free,
 	.set_params	= wm_adsp_compr_set_params,
@@ -2007,8 +2021,9 @@ static const struct snd_soc_component_driver soc_component_dev_wm5102 = {
 	.remove			= wm5102_component_remove,
 	.set_sysclk		= arizona_set_sysclk,
 	.set_pll		= wm5102_set_fll,
+	.set_jack		= arizona_jack_set_jack,
 	.name			= DRV_NAME,
-	.compr_ops		= &wm5102_compr_ops,
+	.compress_ops		= &wm5102_compress_ops,
 	.controls		= wm5102_snd_controls,
 	.num_controls		= ARRAY_SIZE(wm5102_snd_controls),
 	.dapm_widgets		= wm5102_dapm_widgets,
@@ -2017,7 +2032,6 @@ static const struct snd_soc_component_driver soc_component_dev_wm5102 = {
 	.num_dapm_routes	= ARRAY_SIZE(wm5102_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static int wm5102_probe(struct platform_device *pdev)
@@ -2048,16 +2062,21 @@ static int wm5102_probe(struct platform_device *pdev)
 	arizona_init_dvfs(&wm5102->core);
 
 	wm5102->core.adsp[0].part = "wm5102";
-	wm5102->core.adsp[0].num = 1;
-	wm5102->core.adsp[0].type = WMFW_ADSP2;
-	wm5102->core.adsp[0].base = ARIZONA_DSP1_CONTROL_1;
-	wm5102->core.adsp[0].dev = arizona->dev;
-	wm5102->core.adsp[0].regmap = arizona->regmap;
-	wm5102->core.adsp[0].mem = wm5102_dsp1_regions;
-	wm5102->core.adsp[0].num_mems = ARRAY_SIZE(wm5102_dsp1_regions);
+	wm5102->core.adsp[0].cs_dsp.num = 1;
+	wm5102->core.adsp[0].cs_dsp.type = WMFW_ADSP2;
+	wm5102->core.adsp[0].cs_dsp.base = ARIZONA_DSP1_CONTROL_1;
+	wm5102->core.adsp[0].cs_dsp.dev = arizona->dev;
+	wm5102->core.adsp[0].cs_dsp.regmap = arizona->regmap;
+	wm5102->core.adsp[0].cs_dsp.mem = wm5102_dsp1_regions;
+	wm5102->core.adsp[0].cs_dsp.num_mems = ARRAY_SIZE(wm5102_dsp1_regions);
 
 	ret = wm_adsp2_init(&wm5102->core.adsp[0]);
 	if (ret != 0)
+		return ret;
+
+	/* This may return -EPROBE_DEFER, so do this early on */
+	ret = arizona_jack_codec_dev_probe(&wm5102->core, &pdev->dev);
+	if (ret)
 		return ret;
 
 	for (i = 0; i < ARRAY_SIZE(wm5102->fll); i++)
@@ -2092,7 +2111,7 @@ static int wm5102_probe(struct platform_device *pdev)
 				  wm5102);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request DSP IRQ: %d\n", ret);
-		return ret;
+		goto err_jack_codec_dev;
 	}
 
 	ret = arizona_set_irq_wake(arizona, ARIZONA_IRQ_DSP_IRQ1, 1);
@@ -2126,11 +2145,14 @@ err_spk_irqs:
 err_dsp_irq:
 	arizona_set_irq_wake(arizona, ARIZONA_IRQ_DSP_IRQ1, 0);
 	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, wm5102);
+err_jack_codec_dev:
+	pm_runtime_disable(&pdev->dev);
+	arizona_jack_codec_dev_remove(&wm5102->core);
 
 	return ret;
 }
 
-static int wm5102_remove(struct platform_device *pdev)
+static void wm5102_remove(struct platform_device *pdev)
 {
 	struct wm5102_priv *wm5102 = platform_get_drvdata(pdev);
 	struct arizona *arizona = wm5102->core.arizona;
@@ -2144,7 +2166,7 @@ static int wm5102_remove(struct platform_device *pdev)
 	arizona_set_irq_wake(arizona, ARIZONA_IRQ_DSP_IRQ1, 0);
 	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, wm5102);
 
-	return 0;
+	arizona_jack_codec_dev_remove(&wm5102->core);
 }
 
 static struct platform_driver wm5102_codec_driver = {
@@ -2152,7 +2174,7 @@ static struct platform_driver wm5102_codec_driver = {
 		.name = "wm5102-codec",
 	},
 	.probe = wm5102_probe,
-	.remove = wm5102_remove,
+	.remove_new = wm5102_remove,
 };
 
 module_platform_driver(wm5102_codec_driver);

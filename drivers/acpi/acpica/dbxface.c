@@ -409,6 +409,7 @@ acpi_status acpi_initialize_debugger(void)
 	acpi_gbl_db_output_flags = ACPI_DB_CONSOLE_OUTPUT;
 
 	acpi_gbl_db_opt_no_ini_methods = FALSE;
+	acpi_gbl_db_opt_no_region_support = FALSE;
 
 	acpi_gbl_db_buffer = acpi_os_allocate(ACPI_DEBUG_BUFFER_SIZE);
 	if (!acpi_gbl_db_buffer) {

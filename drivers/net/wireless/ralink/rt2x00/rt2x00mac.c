@@ -165,6 +165,15 @@ int rt2x00mac_start(struct ieee80211_hw *hw)
 	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
 		return 0;
 
+	if (test_bit(DEVICE_STATE_STARTED, &rt2x00dev->flags)) {
+		/*
+		 * This is special case for ieee80211_restart_hw(), otherwise
+		 * mac80211 never call start() two times in row without stop();
+		 */
+		set_bit(DEVICE_STATE_RESET, &rt2x00dev->flags);
+		rt2x00dev->ops->lib->pre_reset_hw(rt2x00dev);
+		rt2x00lib_stop(rt2x00dev);
+	}
 	return rt2x00lib_start(rt2x00dev);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_start);
@@ -179,6 +188,17 @@ void rt2x00mac_stop(struct ieee80211_hw *hw)
 	rt2x00lib_stop(rt2x00dev);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_stop);
+
+void
+rt2x00mac_reconfig_complete(struct ieee80211_hw *hw,
+			    enum ieee80211_reconfig_type reconfig_type)
+{
+	struct rt2x00_dev *rt2x00dev = hw->priv;
+
+	if (reconfig_type == IEEE80211_RECONFIG_TYPE_RESTART)
+		clear_bit(DEVICE_STATE_RESET, &rt2x00dev->flags);
+}
+EXPORT_SYMBOL_GPL(rt2x00mac_reconfig_complete);
 
 int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 			    struct ieee80211_vif *vif)
@@ -305,7 +325,7 @@ int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
 	 */
 	rt2x00queue_stop_queue(rt2x00dev->rx);
 
-	/* Do not race with with link tuner. */
+	/* Do not race with link tuner. */
 	mutex_lock(&rt2x00dev->conf_mutex);
 
 	/*
@@ -388,8 +408,7 @@ static void rt2x00mac_set_tim_iter(void *data, u8 *mac,
 
 	if (vif->type != NL80211_IFTYPE_AP &&
 	    vif->type != NL80211_IFTYPE_ADHOC &&
-	    vif->type != NL80211_IFTYPE_MESH_POINT &&
-	    vif->type != NL80211_IFTYPE_WDS)
+	    vif->type != NL80211_IFTYPE_MESH_POINT)
 		return;
 
 	set_bit(DELAYED_UPDATE_BEACON, &intf->delayed_flags);
@@ -448,7 +467,8 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
 		return 0;
 
-	if (!rt2x00_has_cap_hw_crypto(rt2x00dev))
+	/* The hardware can't do MFP */
+	if (!rt2x00_has_cap_hw_crypto(rt2x00dev) || (sta && sta->mfp))
 		return -EOPNOTSUPP;
 
 	/*
@@ -554,7 +574,7 @@ EXPORT_SYMBOL_GPL(rt2x00mac_get_stats);
 void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif,
 				struct ieee80211_bss_conf *bss_conf,
-				u32 changes)
+				u64 changes)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct rt2x00_intf *intf = vif_to_intf(vif);
@@ -578,6 +598,17 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 	 */
 	if (changes & BSS_CHANGED_BEACON_ENABLED) {
 		mutex_lock(&intf->beacon_skb_mutex);
+
+		/*
+		 * Clear the 'enable_beacon' flag and clear beacon because
+		 * the beacon queue has been stopped after hardware reset.
+		 */
+		if (test_bit(DEVICE_STATE_RESET, &rt2x00dev->flags) &&
+		    intf->enable_beacon) {
+			intf->enable_beacon = false;
+			rt2x00queue_clear_beacon(rt2x00dev, vif);
+		}
+
 		if (!bss_conf->enable_beacon && intf->enable_beacon) {
 			rt2x00dev->intf_beaconing--;
 			intf->enable_beacon = false;
@@ -625,7 +656,7 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 	if (changes & BSS_CHANGED_ASSOC) {
 		rt2x00dev->link.count = 0;
 
-		if (bss_conf->assoc)
+		if (vif->cfg.assoc)
 			rt2x00dev->intf_associated++;
 		else
 			rt2x00dev->intf_associated--;
@@ -645,7 +676,8 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 EXPORT_SYMBOL_GPL(rt2x00mac_bss_info_changed);
 
 int rt2x00mac_conf_tx(struct ieee80211_hw *hw,
-		      struct ieee80211_vif *vif, u16 queue_idx,
+		      struct ieee80211_vif *vif,
+		      unsigned int link_id, u16 queue_idx,
 		      const struct ieee80211_tx_queue_params *params)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;

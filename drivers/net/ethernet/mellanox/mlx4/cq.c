@@ -55,11 +55,11 @@
 #define TASKLET_MAX_TIME 2
 #define TASKLET_MAX_TIME_JIFFIES msecs_to_jiffies(TASKLET_MAX_TIME)
 
-void mlx4_cq_tasklet_cb(unsigned long data)
+void mlx4_cq_tasklet_cb(struct tasklet_struct *t)
 {
 	unsigned long flags;
 	unsigned long end = jiffies + TASKLET_MAX_TIME_JIFFIES;
-	struct mlx4_eq_tasklet *ctx = (struct mlx4_eq_tasklet *)data;
+	struct mlx4_eq_tasklet *ctx = from_tasklet(ctx, t, task);
 	struct mlx4_cq *mcq, *temp;
 
 	spin_lock_irqsave(&ctx->lock, flags);
@@ -115,7 +115,7 @@ void mlx4_cq_completion(struct mlx4_dev *dev, u32 cqn)
 		return;
 	}
 
-	/* Acessing the CQ outside of rcu_read_lock is safe, because
+	/* Accessing the CQ outside of rcu_read_lock is safe, because
 	 * the CQ is freed only after interrupt handling is completed.
 	 */
 	++cq->arm_sn;
@@ -137,7 +137,7 @@ void mlx4_cq_event(struct mlx4_dev *dev, u32 cqn, int event_type)
 		return;
 	}
 
-	/* Acessing the CQ outside of rcu_read_lock is safe, because
+	/* Accessing the CQ outside of rcu_read_lock is safe, because
 	 * the CQ is freed only after interrupt handling is completed.
 	 */
 	cq->event(cq, event_type);
@@ -314,7 +314,8 @@ static int mlx4_init_user_cqes(void *buf, int entries, int cqe_size)
 			buf += PAGE_SIZE;
 		}
 	} else {
-		err = copy_to_user((void __user *)buf, init_ents, entries * cqe_size) ?
+		err = copy_to_user((void __user *)buf, init_ents,
+				   array_size(entries, cqe_size)) ?
 			-EFAULT : 0;
 	}
 
@@ -462,19 +463,14 @@ EXPORT_SYMBOL_GPL(mlx4_cq_free);
 int mlx4_init_cq_table(struct mlx4_dev *dev)
 {
 	struct mlx4_cq_table *cq_table = &mlx4_priv(dev)->cq_table;
-	int err;
 
 	spin_lock_init(&cq_table->lock);
 	INIT_RADIX_TREE(&cq_table->tree, GFP_ATOMIC);
 	if (mlx4_is_slave(dev))
 		return 0;
 
-	err = mlx4_bitmap_init(&cq_table->bitmap, dev->caps.num_cqs,
-			       dev->caps.num_cqs - 1, dev->caps.reserved_cqs, 0);
-	if (err)
-		return err;
-
-	return 0;
+	return mlx4_bitmap_init(&cq_table->bitmap, dev->caps.num_cqs,
+				dev->caps.num_cqs - 1, dev->caps.reserved_cqs, 0);
 }
 
 void mlx4_cleanup_cq_table(struct mlx4_dev *dev)

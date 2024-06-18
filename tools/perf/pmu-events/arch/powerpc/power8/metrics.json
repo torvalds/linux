@@ -169,7 +169,7 @@
     },
     {
         "BriefDescription": "Cycles GCT empty where dispatch was held",
-        "MetricExpr": "(PM_GCT_NOSLOT_DISP_HELD_MAP + PM_GCT_NOSLOT_DISP_HELD_SRQ + PM_GCT_NOSLOT_DISP_HELD_ISSQ + PM_GCT_NOSLOT_DISP_HELD_OTHER) / PM_RUN_INST_CMPL)",
+        "MetricExpr": "(PM_GCT_NOSLOT_DISP_HELD_MAP + PM_GCT_NOSLOT_DISP_HELD_SRQ + PM_GCT_NOSLOT_DISP_HELD_ISSQ + PM_GCT_NOSLOT_DISP_HELD_OTHER) / PM_RUN_INST_CMPL",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "gct_empty_disp_held_cpi"
     },
@@ -885,37 +885,37 @@
         "MetricName": "flush_rate_percent"
     },
     {
-        "BriefDescription": "GCT slot utilization (11 to 14) as a % of cycles this thread had atleast 1 slot valid",
+        "BriefDescription": "GCT slot utilization (11 to 14) as a % of cycles this thread had at least 1 slot valid",
         "MetricExpr": "PM_GCT_UTIL_11_14_ENTRIES / ( PM_RUN_CYC - PM_GCT_NOSLOT_CYC) * 100",
         "MetricGroup": "general",
         "MetricName": "gct_util_11to14_slots_percent"
     },
     {
-        "BriefDescription": "GCT slot utilization (15 to 17) as a % of cycles this thread had atleast 1 slot valid",
+        "BriefDescription": "GCT slot utilization (15 to 17) as a % of cycles this thread had at least 1 slot valid",
         "MetricExpr": "PM_GCT_UTIL_15_17_ENTRIES / ( PM_RUN_CYC - PM_GCT_NOSLOT_CYC) * 100",
         "MetricGroup": "general",
         "MetricName": "gct_util_15to17_slots_percent"
     },
     {
-        "BriefDescription": "GCT slot utilization 18+ as a % of cycles this thread had atleast 1 slot valid",
+        "BriefDescription": "GCT slot utilization 18+ as a % of cycles this thread had at least 1 slot valid",
         "MetricExpr": "PM_GCT_UTIL_18_ENTRIES / ( PM_RUN_CYC - PM_GCT_NOSLOT_CYC) * 100",
         "MetricGroup": "general",
         "MetricName": "gct_util_18plus_slots_percent"
     },
     {
-        "BriefDescription": "GCT slot utilization (1 to 2) as a % of cycles this thread had atleast 1 slot valid",
+        "BriefDescription": "GCT slot utilization (1 to 2) as a % of cycles this thread had at least 1 slot valid",
         "MetricExpr": "PM_GCT_UTIL_1_2_ENTRIES /  ( PM_RUN_CYC - PM_GCT_NOSLOT_CYC) * 100",
         "MetricGroup": "general",
         "MetricName": "gct_util_1to2_slots_percent"
     },
     {
-        "BriefDescription": "GCT slot utilization (3 to 6) as a % of cycles this thread had atleast 1 slot valid",
+        "BriefDescription": "GCT slot utilization (3 to 6) as a % of cycles this thread had at least 1 slot valid",
         "MetricExpr": "PM_GCT_UTIL_3_6_ENTRIES / ( PM_RUN_CYC - PM_GCT_NOSLOT_CYC) * 100",
         "MetricGroup": "general",
         "MetricName": "gct_util_3to6_slots_percent"
     },
     {
-        "BriefDescription": "GCT slot utilization (7 to 10) as a % of cycles this thread had atleast 1 slot valid",
+        "BriefDescription": "GCT slot utilization (7 to 10) as a % of cycles this thread had at least 1 slot valid",
         "MetricExpr": "PM_GCT_UTIL_7_10_ENTRIES / ( PM_RUN_CYC - PM_GCT_NOSLOT_CYC) * 100",
         "MetricGroup": "general",
         "MetricName": "gct_util_7to10_slots_percent"

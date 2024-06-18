@@ -10,9 +10,7 @@
 #ifndef __MFD_LP8788_H__
 #define __MFD_LP8788_H__
 
-#include <linux/gpio.h>
 #include <linux/irqdomain.h>
-#include <linux/pwm.h>
 #include <linux/regmap.h>
 
 #define LP8788_DEV_BUCK		"lp8788-buck"
@@ -88,12 +86,6 @@ enum lp8788_charger_event {
 	CHARGER_DETECTED,
 };
 
-enum lp8788_bl_ctrl_mode {
-	LP8788_BL_REGISTER_ONLY,
-	LP8788_BL_COMB_PWM_BASED,	/* PWM + I2C, changed by PWM input */
-	LP8788_BL_COMB_REGISTER_BASED,	/* PWM + I2C, changed by I2C */
-};
-
 enum lp8788_bl_dim_mode {
 	LP8788_DIM_EXPONENTIAL,
 	LP8788_DIM_LINEAR,
@@ -159,21 +151,17 @@ struct lp8788;
 
 /*
  * lp8788_buck1_dvs
- * @gpio         : gpio pin number for dvs control
  * @vsel         : dvs selector for buck v1 register
  */
 struct lp8788_buck1_dvs {
-	int gpio;
 	enum lp8788_dvs_sel vsel;
 };
 
 /*
  * lp8788_buck2_dvs
- * @gpio         : two gpio pin numbers are used for dvs
  * @vsel         : dvs selector for buck v2 register
  */
 struct lp8788_buck2_dvs {
-	int gpio[LP8788_NUM_BUCK2_DVS];
 	enum lp8788_dvs_sel vsel;
 };
 
@@ -204,31 +192,6 @@ struct lp8788_charger_platform_data {
 	int num_chg_params;
 	void (*charger_event) (struct lp8788 *lp,
 				enum lp8788_charger_event event);
-};
-
-/*
- * struct lp8788_backlight_platform_data
- * @name                  : backlight driver name. (default: "lcd-backlight")
- * @initial_brightness    : initial value of backlight brightness
- * @bl_mode               : brightness control by pwm or lp8788 register
- * @dim_mode              : dimming mode selection
- * @full_scale            : full scale current setting
- * @rise_time             : brightness ramp up step time
- * @fall_time             : brightness ramp down step time
- * @pwm_pol               : pwm polarity setting when bl_mode is pwm based
- * @period_ns             : platform specific pwm period value. unit is nano.
-			    Only valid when bl_mode is LP8788_BL_COMB_PWM_BASED
- */
-struct lp8788_backlight_platform_data {
-	char *name;
-	int initial_brightness;
-	enum lp8788_bl_ctrl_mode bl_mode;
-	enum lp8788_bl_dim_mode dim_mode;
-	enum lp8788_bl_full_scale_current full_scale;
-	enum lp8788_bl_ramp_step rise_time;
-	enum lp8788_bl_ramp_step fall_time;
-	enum pwm_polarity pwm_pol;
-	unsigned int period_ns;
 };
 
 /*
@@ -268,11 +231,10 @@ struct lp8788_vib_platform_data {
  * @buck_data    : regulator initial data for buck
  * @dldo_data    : regulator initial data for digital ldo
  * @aldo_data    : regulator initial data for analog ldo
- * @buck1_dvs    : gpio configurations for buck1 dvs
- * @buck2_dvs    : gpio configurations for buck2 dvs
+ * @buck1_dvs    : configurations for buck1 dvs
+ * @buck2_dvs    : configurations for buck2 dvs
  * @chg_pdata    : platform data for charger driver
  * @alarm_sel    : rtc alarm selection (1 or 2)
- * @bl_pdata     : configurable data for backlight driver
  * @led_pdata    : configurable data for led driver
  * @vib_pdata    : configurable data for vibrator driver
  * @adc_pdata    : iio map data for adc driver
@@ -293,9 +255,6 @@ struct lp8788_platform_data {
 
 	/* rtc alarm */
 	enum lp8788_alarm_sel alarm_sel;
-
-	/* backlight */
-	struct lp8788_backlight_platform_data *bl_pdata;
 
 	/* current sinks */
 	struct lp8788_led_platform_data *led_pdata;

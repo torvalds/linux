@@ -37,15 +37,16 @@
 
 /* function prototypes for a Belkin USB Serial Adapter F5U103 */
 static int belkin_sa_port_probe(struct usb_serial_port *port);
-static int belkin_sa_port_remove(struct usb_serial_port *port);
+static void belkin_sa_port_remove(struct usb_serial_port *port);
 static int  belkin_sa_open(struct tty_struct *tty,
 			struct usb_serial_port *port);
 static void belkin_sa_close(struct usb_serial_port *port);
 static void belkin_sa_read_int_callback(struct urb *urb);
 static void belkin_sa_process_read_urb(struct urb *urb);
 static void belkin_sa_set_termios(struct tty_struct *tty,
-			struct usb_serial_port *port, struct ktermios * old);
-static void belkin_sa_break_ctl(struct tty_struct *tty, int break_state);
+				  struct usb_serial_port *port,
+				  const struct ktermios *old_termios);
+static int belkin_sa_break_ctl(struct tty_struct *tty, int break_state);
 static int  belkin_sa_tiocmget(struct tty_struct *tty);
 static int  belkin_sa_tiocmset(struct tty_struct *tty,
 					unsigned int set, unsigned int clear);
@@ -134,14 +135,12 @@ static int belkin_sa_port_probe(struct usb_serial_port *port)
 	return 0;
 }
 
-static int belkin_sa_port_remove(struct usb_serial_port *port)
+static void belkin_sa_port_remove(struct usb_serial_port *port)
 {
 	struct belkin_sa_private *priv;
 
 	priv = usb_get_serial_port_data(port);
 	kfree(priv);
-
-	return 0;
 }
 
 static int belkin_sa_open(struct tty_struct *tty,
@@ -275,7 +274,8 @@ static void belkin_sa_process_read_urb(struct urb *urb)
 }
 
 static void belkin_sa_set_termios(struct tty_struct *tty,
-		struct usb_serial_port *port, struct ktermios *old_termios)
+				  struct usb_serial_port *port,
+				  const struct ktermios *old_termios)
 {
 	struct usb_serial *serial = port->serial;
 	struct belkin_sa_private *priv = usb_get_serial_port_data(port);
@@ -358,25 +358,7 @@ static void belkin_sa_set_termios(struct tty_struct *tty,
 
 	/* set the number of data bits */
 	if ((cflag & CSIZE) != (old_cflag & CSIZE)) {
-		switch (cflag & CSIZE) {
-		case CS5:
-			urb_value = BELKIN_SA_DATA_BITS(5);
-			break;
-		case CS6:
-			urb_value = BELKIN_SA_DATA_BITS(6);
-			break;
-		case CS7:
-			urb_value = BELKIN_SA_DATA_BITS(7);
-			break;
-		case CS8:
-			urb_value = BELKIN_SA_DATA_BITS(8);
-			break;
-		default:
-			dev_dbg(&port->dev,
-				"CSIZE was not CS5-CS8, using default of 8\n");
-			urb_value = BELKIN_SA_DATA_BITS(8);
-			break;
-		}
+		urb_value = BELKIN_SA_DATA_BITS(tty_get_char_size(cflag));
 		if (BSA_USB_CMD(BELKIN_SA_SET_DATA_BITS_REQUEST, urb_value) < 0)
 			dev_err(&port->dev, "Set data bits error\n");
 	}
@@ -417,13 +399,19 @@ static void belkin_sa_set_termios(struct tty_struct *tty,
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
-static void belkin_sa_break_ctl(struct tty_struct *tty, int break_state)
+static int belkin_sa_break_ctl(struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct usb_serial *serial = port->serial;
+	int ret;
 
-	if (BSA_USB_CMD(BELKIN_SA_SET_BREAK_REQUEST, break_state ? 1 : 0) < 0)
+	ret = BSA_USB_CMD(BELKIN_SA_SET_BREAK_REQUEST, break_state ? 1 : 0);
+	if (ret < 0) {
 		dev_err(&port->dev, "Set break_ctl %d\n", break_state);
+		return ret;
+	}
+
+	return 0;
 }
 
 static int belkin_sa_tiocmget(struct tty_struct *tty)

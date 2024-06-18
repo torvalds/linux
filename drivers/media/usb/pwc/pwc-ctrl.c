@@ -523,7 +523,7 @@ int pwc_set_leds(struct pwc_device *pdev, int on_value, int off_value)
 #ifdef CONFIG_USB_PWC_DEBUG
 int pwc_get_cmos_sensor(struct pwc_device *pdev, int *sensor)
 {
-	int ret = -1, request;
+	int ret, request;
 
 	if (pdev->type < 675)
 		request = SENSOR_TYPE_FORMATTER1;

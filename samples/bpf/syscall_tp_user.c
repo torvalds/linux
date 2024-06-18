@@ -5,16 +5,11 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdlib.h>
-#include <signal.h>
-#include <linux/bpf.h>
 #include <string.h>
 #include <linux/perf_event.h>
 #include <errno.h>
-#include <assert.h>
-#include <stdbool.h>
-#include <sys/resource.h>
+#include <bpf/libbpf.h>
 #include <bpf/bpf.h>
-#include "bpf_load.h"
 
 /* This program verifies bpf attachment to tracepoint sys_enter_* and sys_exit_*.
  * This requires kernel CONFIG_FTRACE_SYSCALLS to be set.
@@ -22,9 +17,9 @@
 
 static void usage(const char *cmd)
 {
-	printf("USAGE: %s [-i num_progs] [-h]\n", cmd);
-	printf("       -i num_progs      # number of progs of the test\n");
-	printf("       -h                # help\n");
+	printf("USAGE: %s [-i nr_tests] [-h]\n", cmd);
+	printf("       -i nr_tests      # rounds of test to run\n");
+	printf("       -h               # help\n");
 }
 
 static void verify_map(int map_id)
@@ -40,6 +35,9 @@ static void verify_map(int map_id)
 		fprintf(stderr, "failed: map #%d returns value 0\n", map_id);
 		return;
 	}
+
+	printf("verify map:%d val: %d\n", map_id, val);
+
 	val = 0;
 	if (bpf_map_update_elem(map_id, &key, &val, BPF_ANY) != 0) {
 		fprintf(stderr, "map_update failed: %s\n", strerror(errno));
@@ -47,18 +45,59 @@ static void verify_map(int map_id)
 	}
 }
 
-static int test(char *filename, int num_progs)
+static int test(char *filename, int nr_tests)
 {
-	int i, fd, map0_fds[num_progs], map1_fds[num_progs];
+	int map0_fds[nr_tests], map1_fds[nr_tests], fd, i, j = 0;
+	struct bpf_link **links = NULL;
+	struct bpf_object *objs[nr_tests];
+	struct bpf_program *prog;
 
-	for (i = 0; i < num_progs; i++) {
-		if (load_bpf_file(filename)) {
-			fprintf(stderr, "%s", bpf_log_buf);
-			return 1;
+	for (i = 0; i < nr_tests; i++) {
+		objs[i] = bpf_object__open_file(filename, NULL);
+		if (libbpf_get_error(objs[i])) {
+			fprintf(stderr, "opening BPF object file failed\n");
+			objs[i] = NULL;
+			goto cleanup;
 		}
-		printf("prog #%d: map ids %d %d\n", i, map_fd[0], map_fd[1]);
-		map0_fds[i] = map_fd[0];
-		map1_fds[i] = map_fd[1];
+
+		/* One-time initialization */
+		if (!links) {
+			int nr_progs = 0;
+
+			bpf_object__for_each_program(prog, objs[i])
+				nr_progs += 1;
+
+			links = calloc(nr_progs * nr_tests, sizeof(struct bpf_link *));
+
+			if (!links)
+				goto cleanup;
+		}
+
+		/* load BPF program */
+		if (bpf_object__load(objs[i])) {
+			fprintf(stderr, "loading BPF object file failed\n");
+			goto cleanup;
+		}
+
+		map0_fds[i] = bpf_object__find_map_fd_by_name(objs[i],
+							      "enter_open_map");
+		map1_fds[i] = bpf_object__find_map_fd_by_name(objs[i],
+							      "exit_open_map");
+		if (map0_fds[i] < 0 || map1_fds[i] < 0) {
+			fprintf(stderr, "finding a map in obj file failed\n");
+			goto cleanup;
+		}
+
+		bpf_object__for_each_program(prog, objs[i]) {
+			links[j] = bpf_program__attach(prog);
+			if (libbpf_get_error(links[j])) {
+				fprintf(stderr, "bpf_program__attach failed\n");
+				links[j] = NULL;
+				goto cleanup;
+			}
+			j++;
+		}
+		printf("prog #%d: map ids %d %d\n", i, map0_fds[i], map1_fds[i]);
 	}
 
 	/* current load_bpf_file has perf_event_open default pid = -1
@@ -75,24 +114,33 @@ static int test(char *filename, int num_progs)
 	close(fd);
 
 	/* verify the map */
-	for (i = 0; i < num_progs; i++) {
+	for (i = 0; i < nr_tests; i++) {
 		verify_map(map0_fds[i]);
 		verify_map(map1_fds[i]);
 	}
 
+cleanup:
+	if (links) {
+		for (j--; j >= 0; j--)
+			bpf_link__destroy(links[j]);
+
+		free(links);
+	}
+
+	for (i--; i >= 0; i--)
+		bpf_object__close(objs[i]);
 	return 0;
 }
 
 int main(int argc, char **argv)
 {
-	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
-	int opt, num_progs = 1;
+	int opt, nr_tests = 1;
 	char filename[256];
 
 	while ((opt = getopt(argc, argv, "i:h")) != -1) {
 		switch (opt) {
 		case 'i':
-			num_progs = atoi(optarg);
+			nr_tests = atoi(optarg);
 			break;
 		case 'h':
 		default:
@@ -101,8 +149,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	setrlimit(RLIMIT_MEMLOCK, &r);
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
 
-	return test(filename, num_progs);
+	return test(filename, nr_tests);
 }

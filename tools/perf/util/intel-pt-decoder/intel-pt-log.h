@@ -14,9 +14,10 @@
 struct intel_pt_pkt;
 
 void *intel_pt_log_fp(void);
-void intel_pt_log_enable(void);
+void intel_pt_log_enable(bool dump_log_on_error, unsigned int log_on_error_size);
 void intel_pt_log_disable(void);
 void intel_pt_log_set_name(const char *name);
+void intel_pt_log_dump_buf(void);
 
 void __intel_pt_log_packet(const struct intel_pt_pkt *packet, int pkt_len,
 			   uint64_t pos, const unsigned char *buf);
@@ -66,5 +67,10 @@ static inline void intel_pt_log_to(const char *msg, uint64_t u)
 {
 	intel_pt_log("%s to " x64_fmt "\n", msg, u);
 }
+
+#define intel_pt_log_var(var, fmt) intel_pt_log("%s: " #var " " fmt "\n", __func__, var)
+
+#define intel_pt_log_x32(var) intel_pt_log_var(var, "%#x")
+#define intel_pt_log_x64(var) intel_pt_log_var(var, "%#" PRIx64)
 
 #endif

@@ -23,8 +23,7 @@
  *
  */
 
-#include <linux/slab.h>
-
+#include "core_types.h"
 #include "dm_services.h"
 #include "dcn10_opp.h"
 #include "reg_helper.h"
@@ -39,14 +38,14 @@
 #define CTX \
 	oppn10->base.ctx
 
-
-/************* FORMATTER ************/
-
 /**
- *	set_truncation
+ * opp1_set_truncation():
  *	1) set truncation depth: 0 for 18 bpp or 1 for 24 bpp
  *	2) enable truncation
  *	3) HW remove 12bit FMT support for DCE11 power saving reason.
+ *
+ * @oppn10: output_pixel_processor struct instance for dcn10.
+ * @params: pointer to bit_depth_reduction_params.
  */
 static void opp1_set_truncation(
 		struct dcn10_opp *oppn10,
@@ -151,41 +150,61 @@ void opp1_program_bit_depth_reduction(
 }
 
 /**
- *	set_pixel_encoding
- *
- *	Set Pixel Encoding
+ * opp1_set_pixel_encoding():
  *		0: RGB 4:4:4 or YCbCr 4:4:4 or YOnly
  *		1: YCbCr 4:2:2
+ *
+ * @oppn10: output_pixel_processor struct instance for dcn10.
+ * @params: pointer to clamping_and_pixel_encoding_params.
  */
 static void opp1_set_pixel_encoding(
 	struct dcn10_opp *oppn10,
 	const struct clamping_and_pixel_encoding_params *params)
 {
+	bool force_chroma_subsampling_1tap =
+			oppn10->base.ctx->dc->debug.force_chroma_subsampling_1tap;
+
 	switch (params->pixel_encoding)	{
 
 	case PIXEL_ENCODING_RGB:
 	case PIXEL_ENCODING_YCBCR444:
+		REG_UPDATE_3(FMT_CONTROL,
+				FMT_PIXEL_ENCODING, 0,
+				FMT_SUBSAMPLING_MODE, 0,
+				FMT_CBCR_BIT_REDUCTION_BYPASS, 0);
 		REG_UPDATE(FMT_CONTROL, FMT_PIXEL_ENCODING, 0);
 		break;
 	case PIXEL_ENCODING_YCBCR422:
-		REG_UPDATE(FMT_CONTROL, FMT_PIXEL_ENCODING, 1);
+		REG_UPDATE_3(FMT_CONTROL,
+				FMT_PIXEL_ENCODING, 1,
+				FMT_SUBSAMPLING_MODE, 2,
+				FMT_CBCR_BIT_REDUCTION_BYPASS, 0);
 		break;
 	case PIXEL_ENCODING_YCBCR420:
-		REG_UPDATE(FMT_CONTROL, FMT_PIXEL_ENCODING, 2);
+		REG_UPDATE_3(FMT_CONTROL,
+				FMT_PIXEL_ENCODING, 2,
+				FMT_SUBSAMPLING_MODE, 2,
+				FMT_CBCR_BIT_REDUCTION_BYPASS, 1);
 		break;
 	default:
 		break;
 	}
+
+	if (force_chroma_subsampling_1tap)
+		REG_UPDATE(FMT_CONTROL,	FMT_SUBSAMPLING_MODE, 0);
 }
 
 /**
- *	Set Clamping
+ * opp1_set_clamping():
  *	1) Set clamping format based on bpc - 0 for 6bpc (No clamping)
  *		1 for 8 bpc
  *		2 for 10 bpc
  *		3 for 12 bpc
  *		7 for programable
  *	2) Enable clamp if Limited range requested
+ *
+ * @oppn10: output_pixel_processor struct instance for dcn10.
+ * @params: pointer to clamping_and_pixel_encoding_params.
  */
 static void opp1_set_clamping(
 	struct dcn10_opp *oppn10,
@@ -236,6 +255,9 @@ void opp1_set_dyn_expansion(
 	REG_UPDATE_2(FMT_DYNAMIC_EXP_CNTL,
 			FMT_DYNAMIC_EXP_EN, 0,
 			FMT_DYNAMIC_EXP_MODE, 0);
+
+	if (opp->dyn_expansion == DYN_EXPANSION_DISABLE)
+		return;
 
 	/*00 - 10-bit -> 12-bit dynamic expansion*/
 	/*01 - 8-bit  -> 12-bit dynamic expansion*/
@@ -342,38 +364,6 @@ void opp1_program_stereo(
 	*/
 }
 
-void opp1_program_oppbuf(
-	struct output_pixel_processor *opp,
-	struct oppbuf_params *oppbuf)
-{
-	struct dcn10_opp *oppn10 = TO_DCN10_OPP(opp);
-
-	/* Program the oppbuf active width to be the frame width from mpc */
-	REG_UPDATE(OPPBUF_CONTROL, OPPBUF_ACTIVE_WIDTH, oppbuf->active_width);
-
-	/* Specifies the number of segments in multi-segment mode (DP-MSO operation)
-	 * description  "In 1/2/4 segment mode, specifies the horizontal active width in pixels of the display panel.
-	 * In 4 segment split left/right mode, specifies the horizontal 1/2 active width in pixels of the display panel.
-	 * Used to determine segment boundaries in multi-segment mode. Used to determine the width of the vertical active space in 3D frame packed modes.
-	 * OPPBUF_ACTIVE_WIDTH must be integer divisible by the total number of segments."
-	 */
-	REG_UPDATE(OPPBUF_CONTROL, OPPBUF_DISPLAY_SEGMENTATION, oppbuf->mso_segmentation);
-
-	/* description  "Specifies the number of overlap pixels (1-8 overlapping pixels supported), used in multi-segment mode (DP-MSO operation)" */
-	REG_UPDATE(OPPBUF_CONTROL, OPPBUF_OVERLAP_PIXEL_NUM, oppbuf->mso_overlap_pixel_num);
-
-	/* description  "Specifies the number of times a pixel is replicated (0-15 pixel replications supported).
-	 * A value of 0 disables replication. The total number of times a pixel is output is OPPBUF_PIXEL_REPETITION + 1."
-	 */
-	REG_UPDATE(OPPBUF_CONTROL, OPPBUF_PIXEL_REPETITION, oppbuf->pixel_repetition);
-
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
-	/* Controls the number of padded pixels at the end of a segment */
-	if (REG(OPPBUF_CONTROL1))
-		REG_UPDATE(OPPBUF_CONTROL1, OPPBUF_NUM_SEGMENT_PADDED_PIXELS, oppbuf->num_segment_padded_pixels);
-#endif
-}
-
 void opp1_pipe_clock_control(struct output_pixel_processor *opp, bool enable)
 {
 	struct dcn10_opp *oppn10 = TO_DCN10_OPP(opp);
@@ -398,9 +388,10 @@ static const struct opp_funcs dcn10_opp_funcs = {
 		.opp_program_bit_depth_reduction = opp1_program_bit_depth_reduction,
 		.opp_program_stereo = opp1_program_stereo,
 		.opp_pipe_clock_control = opp1_pipe_clock_control,
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 		.opp_set_disp_pattern_generator = NULL,
-#endif
+		.opp_program_dpg_dimensions = NULL,
+		.dpg_is_blanked = NULL,
+		.dpg_is_pending = NULL,
 		.opp_destroy = opp1_destroy
 };
 

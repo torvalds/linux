@@ -1,11 +1,16 @@
 perf-y += header.o
 perf-y += tsc.o
 perf-y += pmu.o
-perf-y += kvm-stat.o
+perf-$(CONFIG_LIBTRACEEVENT) += kvm-stat.o
 perf-y += perf_regs.o
-perf-y += group.o
+perf-y += topdown.o
 perf-y += machine.o
 perf-y += event.o
+perf-y += evlist.o
+perf-y += mem-events.o
+perf-y += evsel.o
+perf-y += iostat.o
+perf-y += env.o
 
 perf-$(CONFIG_DWARF) += dwarf-regs.o
 perf-$(CONFIG_BPF_PROLOGUE) += dwarf-regs.o

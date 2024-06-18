@@ -22,6 +22,7 @@
 #include <linux/list.h>
 #include <linux/string.h>
 #include <linux/delay.h>
+#include <linux/of.h>
 
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
@@ -35,7 +36,7 @@
 
 #define IBMVSCSIS_VERSION	"v0.2"
 
-#define	INITIAL_SRP_LIMIT	800
+#define	INITIAL_SRP_LIMIT	1024
 #define	DEFAULT_MAX_SECTORS	256
 #define MAX_TXU			1024 * 1024
 
@@ -128,10 +129,10 @@ static bool connection_broken(struct scsi_info *vscsi)
  * This function calls h_free_q then frees the interrupt bit etc.
  * It must release the lock before doing so because of the time it can take
  * for h_free_crq in PHYP
- * NOTE: the caller must make sure that state and or flags will prevent
- *	 interrupt handler from scheduling work.
- * NOTE: anyone calling this function may need to set the CRQ_CLOSED flag
- *	 we can't do it here, because we don't have the lock
+ * NOTE: * the caller must make sure that state and or flags will prevent
+ *	   interrupt handler from scheduling work.
+ *       * anyone calling this function may need to set the CRQ_CLOSED flag
+ *	   we can't do it here, because we don't have the lock
  *
  * EXECUTION ENVIRONMENT:
  *	Process level
@@ -443,7 +444,7 @@ static void ibmvscsis_disconnect(struct work_struct *work)
 		break;
 
 	/*
-	 * Can transition from this state to to unconfiguring
+	 * Can transition from this state to unconfiguring
 	 * or err disconnect.
 	 */
 	case ERR_DISCONNECT_RECONNECT:
@@ -1550,18 +1551,18 @@ static long ibmvscsis_adapter_info(struct scsi_info *vscsi,
 	if (vscsi->client_data.partition_number == 0)
 		vscsi->client_data.partition_number =
 			be32_to_cpu(info->partition_number);
-	strncpy(vscsi->client_data.srp_version, info->srp_version,
+	strscpy(vscsi->client_data.srp_version, info->srp_version,
 		sizeof(vscsi->client_data.srp_version));
-	strncpy(vscsi->client_data.partition_name, info->partition_name,
+	strscpy(vscsi->client_data.partition_name, info->partition_name,
 		sizeof(vscsi->client_data.partition_name));
 	vscsi->client_data.mad_version = be32_to_cpu(info->mad_version);
 	vscsi->client_data.os_type = be32_to_cpu(info->os_type);
 
 	/* Copy our info */
-	strncpy(info->srp_version, SRP_VERSION,
-		sizeof(info->srp_version));
-	strncpy(info->partition_name, vscsi->dds.partition_name,
-		sizeof(info->partition_name));
+	strscpy_pad(info->srp_version, SRP_VERSION,
+		    sizeof(info->srp_version));
+	strscpy_pad(info->partition_name, vscsi->dds.partition_name,
+		    sizeof(info->partition_name));
 	info->partition_number = cpu_to_be32(vscsi->dds.partition_num);
 	info->mad_version = cpu_to_be32(MAD_VERSION_1);
 	info->os_type = cpu_to_be32(LINUX);
@@ -1581,7 +1582,7 @@ static long ibmvscsis_adapter_info(struct scsi_info *vscsi,
 	case H_PERMISSION:
 		if (connection_broken(vscsi))
 			flag_bits = (RESPONSE_Q_DOWN | CLIENT_FAILED);
-		/* Fall through */
+		fallthrough;
 	default:
 		dev_err(&vscsi->dev, "adapter_info: h_copy_rdma to client failed, rc %ld\n",
 			rc);
@@ -1644,8 +1645,8 @@ static int ibmvscsis_cap_mad(struct scsi_info *vscsi, struct iu_entry *iue)
 			 be64_to_cpu(mad->buffer),
 			 vscsi->dds.window[LOCAL].liobn, token);
 	if (rc == H_SUCCESS) {
-		strncpy(cap->name, dev_name(&vscsi->dma_dev->dev),
-			SRP_MAX_LOC_LEN);
+		strscpy_pad(cap->name, dev_name(&vscsi->dma_dev->dev),
+			sizeof(cap->name));
 
 		len = olen - min_len;
 		status = VIOSRP_MAD_SUCCESS;
@@ -1871,13 +1872,9 @@ static void srp_snd_msg_failed(struct scsi_info *vscsi, long rc)
  */
 static void ibmvscsis_send_messages(struct scsi_info *vscsi)
 {
-	u64 msg_hi = 0;
-	/* note do not attempt to access the IU_data_ptr with this pointer
-	 * it is not valid
-	 */
-	struct viosrp_crq *crq = (struct viosrp_crq *)&msg_hi;
+	struct viosrp_crq empty_crq = { };
+	struct viosrp_crq *crq = &empty_crq;
 	struct ibmvscsis_cmd *cmd, *nxt;
-	struct iu_entry *iue;
 	long rc = ADAPT_SUCCESS;
 	bool retry = false;
 
@@ -1931,8 +1928,6 @@ static void ibmvscsis_send_messages(struct scsi_info *vscsi)
 					 */
 					vscsi->credit += 1;
 				} else {
-					iue = cmd->iue;
-
 					crq->valid = VALID_CMD_RESP_EL;
 					crq->format = cmd->rsp.format;
 
@@ -1942,7 +1937,7 @@ static void ibmvscsis_send_messages(struct scsi_info *vscsi)
 					crq->IU_length = cpu_to_be16(cmd->rsp.len);
 
 					rc = h_send_crq(vscsi->dma_dev->unit_address,
-							be64_to_cpu(msg_hi),
+							be64_to_cpu(crq->high),
 							be64_to_cpu(cmd->rsp.tag));
 
 					dev_dbg(&vscsi->dev, "send_messages: cmd %p, tag 0x%llx, rc %ld\n",
@@ -2354,7 +2349,6 @@ static long ibmvscsis_srp_i_logout(struct scsi_info *vscsi,
 {
 	struct iu_entry *iue = cmd->iue;
 	struct srp_i_logout *log_out = &vio_iu(iue)->srp.i_logout;
-	long rc = ADAPT_SUCCESS;
 
 	if ((vscsi->debit > 0) || !list_empty(&vscsi->schedule_q) ||
 	    !list_empty(&vscsi->waiting_rsp)) {
@@ -2370,7 +2364,7 @@ static long ibmvscsis_srp_i_logout(struct scsi_info *vscsi,
 		ibmvscsis_post_disconnect(vscsi, WAIT_IDLE, 0);
 	}
 
-	return rc;
+	return ADAPT_SUCCESS;
 }
 
 /* Called with intr lock held */
@@ -2493,10 +2487,10 @@ static long ibmvscsis_ping_response(struct scsi_info *vscsi)
 		break;
 	case H_CLOSED:
 		vscsi->flags |= CLIENT_FAILED;
-		/* Fall through */
+		fallthrough;
 	case H_DROPPED:
 		vscsi->flags |= RESPONSE_Q_DOWN;
-		/* Fall through */
+		fallthrough;
 	case H_REMOTE_PARM:
 		dev_err(&vscsi->dev, "ping_response: h_send_crq failed, rc %ld\n",
 			rc);
@@ -2674,7 +2668,6 @@ static void ibmvscsis_parse_cmd(struct scsi_info *vscsi,
 	u64 data_len = 0;
 	enum dma_data_direction dir;
 	int attr = 0;
-	int rc = 0;
 
 	nexus = vscsi->tport.ibmv_nexus;
 	/*
@@ -2729,17 +2722,9 @@ static void ibmvscsis_parse_cmd(struct scsi_info *vscsi,
 
 	srp->lun.scsi_lun[0] &= 0x3f;
 
-	rc = target_submit_cmd(&cmd->se_cmd, nexus->se_sess, srp->cdb,
-			       cmd->sense_buf, scsilun_to_int(&srp->lun),
-			       data_len, attr, dir, 0);
-	if (rc) {
-		dev_err(&vscsi->dev, "target_submit_cmd failed, rc %d\n", rc);
-		spin_lock_bh(&vscsi->intr_lock);
-		list_del(&cmd->list);
-		ibmvscsis_free_cmd_resources(vscsi, cmd);
-		spin_unlock_bh(&vscsi->intr_lock);
-		goto fail;
-	}
+	target_submit_cmd(&cmd->se_cmd, nexus->se_sess, srp->cdb,
+			  cmd->sense_buf, scsilun_to_int(&srp->lun),
+			  data_len, attr, dir, 0);
 	return;
 
 fail:
@@ -3599,7 +3584,7 @@ free_adapter:
 	return rc;
 }
 
-static int ibmvscsis_remove(struct vio_dev *vdev)
+static void ibmvscsis_remove(struct vio_dev *vdev)
 {
 	struct scsi_info *vscsi = dev_get_drvdata(&vdev->dev);
 
@@ -3626,20 +3611,12 @@ static int ibmvscsis_remove(struct vio_dev *vdev)
 	list_del(&vscsi->list);
 	spin_unlock_bh(&ibmvscsis_dev_lock);
 	kfree(vscsi);
-
-	return 0;
-}
-
-static ssize_t system_id_show(struct device *dev,
-			      struct device_attribute *attr, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%s\n", system_id);
 }
 
 static ssize_t partition_number_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%x\n", partition_number);
+	return sysfs_emit(buf, "%x\n", partition_number);
 }
 
 static ssize_t unit_address_show(struct device *dev,
@@ -3647,7 +3624,7 @@ static ssize_t unit_address_show(struct device *dev,
 {
 	struct scsi_info *vscsi = container_of(dev, struct scsi_info, dev);
 
-	return snprintf(buf, PAGE_SIZE, "%x\n", vscsi->dma_dev->unit_address);
+	return sysfs_emit(buf, "%x\n", vscsi->dma_dev->unit_address);
 }
 
 static int ibmvscsis_get_system_info(void)
@@ -3667,7 +3644,7 @@ static int ibmvscsis_get_system_info(void)
 
 	name = of_get_property(rootdn, "ibm,partition-name", NULL);
 	if (name)
-		strncpy(partition_name, name, sizeof(partition_name));
+		strscpy(partition_name, name, sizeof(partition_name));
 
 	num = of_get_property(rootdn, "ibm,partition-no", NULL);
 	if (num)
@@ -3715,16 +3692,6 @@ static int ibmvscsis_check_true(struct se_portal_group *se_tpg)
 	return 1;
 }
 
-static int ibmvscsis_check_false(struct se_portal_group *se_tpg)
-{
-	return 0;
-}
-
-static u32 ibmvscsis_tpg_get_inst_index(struct se_portal_group *se_tpg)
-{
-	return 1;
-}
-
 static int ibmvscsis_check_stop_free(struct se_cmd *se_cmd)
 {
 	return target_put_sess_cmd(se_cmd);
@@ -3741,11 +3708,6 @@ static void ibmvscsis_release_cmd(struct se_cmd *se_cmd)
 	list_move_tail(&cmd->list, &vscsi->waiting_rsp);
 	ibmvscsis_send_messages(vscsi);
 	spin_unlock_bh(&vscsi->intr_lock);
-}
-
-static u32 ibmvscsis_sess_get_index(struct se_session *se_sess)
-{
-	return 0;
 }
 
 static int ibmvscsis_write_pending(struct se_cmd *se_cmd)
@@ -3782,22 +3744,12 @@ static int ibmvscsis_write_pending(struct se_cmd *se_cmd)
 	return 0;
 }
 
-static void ibmvscsis_set_default_node_attrs(struct se_node_acl *nacl)
-{
-}
-
-static int ibmvscsis_get_cmd_state(struct se_cmd *se_cmd)
-{
-	return 0;
-}
-
 static int ibmvscsis_queue_data_in(struct se_cmd *se_cmd)
 {
 	struct ibmvscsis_cmd *cmd = container_of(se_cmd, struct ibmvscsis_cmd,
 						 se_cmd);
 	struct iu_entry *iue = cmd->iue;
 	struct scsi_info *vscsi = cmd->adapter;
-	char *sd;
 	uint len = 0;
 	int rc;
 
@@ -3805,7 +3757,6 @@ static int ibmvscsis_queue_data_in(struct se_cmd *se_cmd)
 			       1);
 	if (rc) {
 		dev_err(&vscsi->dev, "srp_transfer_data failed: %d\n", rc);
-		sd = se_cmd->sense_buffer;
 		se_cmd->scsi_sense_length = 18;
 		memset(se_cmd->sense_buffer, 0, se_cmd->scsi_sense_length);
 		/* Logical Unit Communication Time-out asc/ascq = 0x0801 */
@@ -3964,41 +3915,16 @@ static struct configfs_attribute *ibmvscsis_wwn_attrs[] = {
 	NULL,
 };
 
-static ssize_t ibmvscsis_tpg_enable_show(struct config_item *item,
-					 char *page)
-{
-	struct se_portal_group *se_tpg = to_tpg(item);
-	struct ibmvscsis_tport *tport = container_of(se_tpg,
-						     struct ibmvscsis_tport,
-						     se_tpg);
 
-	return snprintf(page, PAGE_SIZE, "%d\n", (tport->enabled) ? 1 : 0);
-}
-
-static ssize_t ibmvscsis_tpg_enable_store(struct config_item *item,
-					  const char *page, size_t count)
+static int ibmvscsis_enable_tpg(struct se_portal_group *se_tpg, bool enable)
 {
-	struct se_portal_group *se_tpg = to_tpg(item);
 	struct ibmvscsis_tport *tport = container_of(se_tpg,
 						     struct ibmvscsis_tport,
 						     se_tpg);
 	struct scsi_info *vscsi = container_of(tport, struct scsi_info, tport);
-	unsigned long tmp;
-	int rc;
 	long lrc;
 
-	rc = kstrtoul(page, 0, &tmp);
-	if (rc < 0) {
-		dev_err(&vscsi->dev, "Unable to extract srpt_tpg_store_enable\n");
-		return -EINVAL;
-	}
-
-	if ((tmp != 0) && (tmp != 1)) {
-		dev_err(&vscsi->dev, "Illegal value for srpt_tpg_store_enable\n");
-		return -EINVAL;
-	}
-
-	if (tmp) {
+	if (enable) {
 		spin_lock_bh(&vscsi->intr_lock);
 		tport->enabled = true;
 		lrc = ibmvscsis_enable_change_state(vscsi);
@@ -4014,17 +3940,8 @@ static ssize_t ibmvscsis_tpg_enable_store(struct config_item *item,
 		spin_unlock_bh(&vscsi->intr_lock);
 	}
 
-	dev_dbg(&vscsi->dev, "tpg_enable_store, tmp %ld, state %d\n", tmp,
-		vscsi->state);
-
-	return count;
+	return 0;
 }
-CONFIGFS_ATTR(ibmvscsis_tpg_, enable);
-
-static struct configfs_attribute *ibmvscsis_tpg_attrs[] = {
-	&ibmvscsis_tpg_attr_enable,
-	NULL,
-};
 
 static const struct target_core_fabric_ops ibmvscsis_ops = {
 	.module				= THIS_MODULE,
@@ -4035,15 +3952,9 @@ static const struct target_core_fabric_ops ibmvscsis_ops = {
 	.tpg_get_default_depth		= ibmvscsis_get_default_depth,
 	.tpg_check_demo_mode		= ibmvscsis_check_true,
 	.tpg_check_demo_mode_cache	= ibmvscsis_check_true,
-	.tpg_check_demo_mode_write_protect = ibmvscsis_check_false,
-	.tpg_check_prod_mode_write_protect = ibmvscsis_check_false,
-	.tpg_get_inst_index		= ibmvscsis_tpg_get_inst_index,
 	.check_stop_free		= ibmvscsis_check_stop_free,
 	.release_cmd			= ibmvscsis_release_cmd,
-	.sess_get_index			= ibmvscsis_sess_get_index,
 	.write_pending			= ibmvscsis_write_pending,
-	.set_default_node_attributes	= ibmvscsis_set_default_node_attrs,
-	.get_cmd_state			= ibmvscsis_get_cmd_state,
 	.queue_data_in			= ibmvscsis_queue_data_in,
 	.queue_status			= ibmvscsis_queue_status,
 	.queue_tm_rsp			= ibmvscsis_queue_tm_rsp,
@@ -4054,16 +3965,18 @@ static const struct target_core_fabric_ops ibmvscsis_ops = {
 	.fabric_make_wwn		= ibmvscsis_make_tport,
 	.fabric_drop_wwn		= ibmvscsis_drop_tport,
 	.fabric_make_tpg		= ibmvscsis_make_tpg,
+	.fabric_enable_tpg		= ibmvscsis_enable_tpg,
 	.fabric_drop_tpg		= ibmvscsis_drop_tpg,
 
 	.tfc_wwn_attrs			= ibmvscsis_wwn_attrs,
-	.tfc_tpg_base_attrs		= ibmvscsis_tpg_attrs,
+
+	.default_submit_type		= TARGET_DIRECT_SUBMIT,
+	.direct_submit_supp		= 1,
 };
 
 static void ibmvscsis_dev_release(struct device *dev) {};
 
-static struct device_attribute dev_attr_system_id =
-	__ATTR(system_id, S_IRUGO, system_id_show, NULL);
+static DEVICE_STRING_ATTR_RO(system_id, S_IRUGO, system_id);
 
 static struct device_attribute dev_attr_partition_number =
 	__ATTR(partition_number, S_IRUGO, partition_number_show, NULL);
@@ -4072,7 +3985,7 @@ static struct device_attribute dev_attr_unit_address =
 	__ATTR(unit_address, S_IRUGO, unit_address_show, NULL);
 
 static struct attribute *ibmvscsis_dev_attrs[] = {
-	&dev_attr_system_id.attr,
+	&dev_attr_system_id.attr.attr,
 	&dev_attr_partition_number.attr,
 	&dev_attr_unit_address.attr,
 };

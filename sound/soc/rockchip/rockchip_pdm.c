@@ -8,7 +8,6 @@
 #include <linux/module.h>
 #include <linux/clk.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/rational.h>
 #include <linux/regmap.h>
@@ -20,10 +19,12 @@
 
 #define PDM_DMA_BURST_SIZE	(8) /* size * width: 8*4 = 32 bytes */
 #define PDM_SIGNOFF_CLK_RATE	(100000000)
+#define PDM_PATH_MAX		(4)
 
 enum rk_pdm_version {
 	RK_PDM_RK3229,
 	RK_PDM_RK3308,
+	RK_PDM_RV1126,
 };
 
 struct rk_pdm_dev {
@@ -121,6 +122,55 @@ static unsigned int get_pdm_ds_ratio(unsigned int sr)
 	return ratio;
 }
 
+static unsigned int get_pdm_cic_ratio(unsigned int clk)
+{
+	switch (clk) {
+	case 4096000:
+	case 5644800:
+	case 6144000:
+		return 0;
+	case 2048000:
+	case 2822400:
+	case 3072000:
+		return 1;
+	case 1024000:
+	case 1411200:
+	case 1536000:
+		return 2;
+	default:
+		return 1;
+	}
+}
+
+static unsigned int samplerate_to_bit(unsigned int samplerate)
+{
+	switch (samplerate) {
+	case 8000:
+	case 11025:
+	case 12000:
+		return 0;
+	case 16000:
+	case 22050:
+	case 24000:
+		return 1;
+	case 32000:
+		return 2;
+	case 44100:
+	case 48000:
+		return 3;
+	case 64000:
+	case 88200:
+	case 96000:
+		return 4;
+	case 128000:
+	case 176400:
+	case 192000:
+		return 5;
+	default:
+		return 1;
+	}
+}
+
 static inline struct rk_pdm_dev *to_info(struct snd_soc_dai *dai)
 {
 	return snd_soc_dai_get_drvdata(dai);
@@ -166,7 +216,8 @@ static int rockchip_pdm_hw_params(struct snd_pcm_substream *substream,
 	if (ret)
 		return -EINVAL;
 
-	if (pdm->version == RK_PDM_RK3308) {
+	if (pdm->version == RK_PDM_RK3308 ||
+	    pdm->version == RK_PDM_RV1126) {
 		rational_best_approximation(clk_out, clk_src,
 					    GENMASK(16 - 1, 0),
 					    GENMASK(16 - 1, 0),
@@ -194,8 +245,18 @@ static int rockchip_pdm_hw_params(struct snd_pcm_substream *substream,
 				   PDM_CLK_FD_RATIO_MSK,
 				   val);
 	}
-	val = get_pdm_ds_ratio(samplerate);
-	regmap_update_bits(pdm->regmap, PDM_CLK_CTRL, PDM_DS_RATIO_MSK, val);
+
+	if (pdm->version == RK_PDM_RV1126) {
+		val = get_pdm_cic_ratio(clk_out);
+		regmap_update_bits(pdm->regmap, PDM_CLK_CTRL, PDM_CIC_RATIO_MSK, val);
+		val = samplerate_to_bit(samplerate);
+		regmap_update_bits(pdm->regmap, PDM_CTRL0,
+				   PDM_SAMPLERATE_MSK, PDM_SAMPLERATE(val));
+	} else {
+		val = get_pdm_ds_ratio(samplerate);
+		regmap_update_bits(pdm->regmap, PDM_CLK_CTRL, PDM_DS_RATIO_MSK, val);
+	}
+
 	regmap_update_bits(pdm->regmap, PDM_HPF_CTRL,
 			   PDM_HPF_CF_MSK, PDM_HPF_60HZ);
 	regmap_update_bits(pdm->regmap, PDM_HPF_CTRL,
@@ -229,13 +290,13 @@ static int rockchip_pdm_hw_params(struct snd_pcm_substream *substream,
 	switch (params_channels(params)) {
 	case 8:
 		val |= PDM_PATH3_EN;
-		/* fallthrough */
+		fallthrough;
 	case 6:
 		val |= PDM_PATH2_EN;
-		/* fallthrough */
+		fallthrough;
 	case 4:
 		val |= PDM_PATH1_EN;
-		/* fallthrough */
+		fallthrough;
 	case 2:
 		val |= PDM_PATH0_EN;
 		break;
@@ -311,12 +372,13 @@ static int rockchip_pdm_dai_probe(struct snd_soc_dai *dai)
 {
 	struct rk_pdm_dev *pdm = to_info(dai);
 
-	dai->capture_dma_data = &pdm->capture_dma_data;
+	snd_soc_dai_dma_data_set_capture(dai, &pdm->capture_dma_data);
 
 	return 0;
 }
 
 static const struct snd_soc_dai_ops rockchip_pdm_dai_ops = {
+	.probe = rockchip_pdm_dai_probe,
 	.set_fmt = rockchip_pdm_set_fmt,
 	.trigger = rockchip_pdm_trigger,
 	.hw_params = rockchip_pdm_hw_params,
@@ -329,7 +391,6 @@ static const struct snd_soc_dai_ops rockchip_pdm_dai_ops = {
 			      SNDRV_PCM_FMTBIT_S32_LE)
 
 static struct snd_soc_dai_driver rockchip_pdm_dai = {
-	.probe = rockchip_pdm_dai_probe,
 	.capture = {
 		.stream_name = "Capture",
 		.channels_min = 2,
@@ -338,11 +399,12 @@ static struct snd_soc_dai_driver rockchip_pdm_dai = {
 		.formats = ROCKCHIP_PDM_FORMATS,
 	},
 	.ops = &rockchip_pdm_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 };
 
 static const struct snd_soc_component_driver rockchip_pdm_component = {
 	.name = "rockchip-pdm",
+	.legacy_dai_naming = 1,
 };
 
 static int rockchip_pdm_runtime_suspend(struct device *dev)
@@ -368,6 +430,7 @@ static int rockchip_pdm_runtime_resume(struct device *dev)
 
 	ret = clk_prepare_enable(pdm->hclk);
 	if (ret) {
+		clk_disable_unprepare(pdm->clk);
 		dev_err(pdm->dev, "hclock enable failed %d\n", ret);
 		return ret;
 	}
@@ -441,9 +504,10 @@ static bool rockchip_pdm_precious_reg(struct device *dev, unsigned int reg)
 }
 
 static const struct reg_default rockchip_pdm_reg_defaults[] = {
-	{0x04, 0x78000017},
-	{0x08, 0x0bb8ea60},
-	{0x18, 0x0000001f},
+	{ PDM_CTRL0, 0x78000017 },
+	{ PDM_CTRL1, 0x0bb8ea60 },
+	{ PDM_CLK_CTRL, 0x0000e401 },
+	{ PDM_DMA_CTRL, 0x0000001f },
 };
 
 static const struct regmap_config rockchip_pdm_regmap_config = {
@@ -460,7 +524,7 @@ static const struct regmap_config rockchip_pdm_regmap_config = {
 	.cache_type = REGCACHE_FLAT,
 };
 
-static const struct of_device_id rockchip_pdm_match[] = {
+static const struct of_device_id rockchip_pdm_match[] __maybe_unused = {
 	{ .compatible = "rockchip,pdm",
 	  .data = (void *)RK_PDM_RK3229 },
 	{ .compatible = "rockchip,px30-pdm",
@@ -469,13 +533,44 @@ static const struct of_device_id rockchip_pdm_match[] = {
 	  .data = (void *)RK_PDM_RK3308 },
 	{ .compatible = "rockchip,rk3308-pdm",
 	  .data = (void *)RK_PDM_RK3308 },
+	{ .compatible = "rockchip,rk3568-pdm",
+	  .data = (void *)RK_PDM_RV1126 },
+	{ .compatible = "rockchip,rv1126-pdm",
+	  .data = (void *)RK_PDM_RV1126 },
 	{},
 };
 MODULE_DEVICE_TABLE(of, rockchip_pdm_match);
 
+static int rockchip_pdm_path_parse(struct rk_pdm_dev *pdm, struct device_node *node)
+{
+	unsigned int path[PDM_PATH_MAX];
+	int cnt = 0, ret = 0, i = 0, val = 0, msk = 0;
+
+	cnt = of_count_phandle_with_args(node, "rockchip,path-map",
+					 NULL);
+	if (cnt != PDM_PATH_MAX)
+		return cnt;
+
+	ret = of_property_read_u32_array(node, "rockchip,path-map",
+					 path, cnt);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < cnt; i++) {
+		if (path[i] >= PDM_PATH_MAX)
+			return -EINVAL;
+		msk |= PDM_PATH_MASK(i);
+		val |= PDM_PATH(i, path[i]);
+	}
+
+	regmap_update_bits(pdm->regmap, PDM_CLK_CTRL, msk, val);
+
+	return 0;
+}
+
 static int rockchip_pdm_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
+	struct device_node *node = pdev->dev.of_node;
 	struct rk_pdm_dev *pdm;
 	struct resource *res;
 	void __iomem *regs;
@@ -485,18 +580,14 @@ static int rockchip_pdm_probe(struct platform_device *pdev)
 	if (!pdm)
 		return -ENOMEM;
 
-	match = of_match_device(rockchip_pdm_match, &pdev->dev);
-	if (match)
-		pdm->version = (enum rk_pdm_version)match->data;
-
+	pdm->version = (enum rk_pdm_version)device_get_match_data(&pdev->dev);
 	if (pdm->version == RK_PDM_RK3308) {
 		pdm->reset = devm_reset_control_get(&pdev->dev, "pdm-m");
 		if (IS_ERR(pdm->reset))
 			return PTR_ERR(pdm->reset);
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	regs = devm_ioremap_resource(&pdev->dev, res);
+	regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
@@ -541,6 +632,11 @@ static int rockchip_pdm_probe(struct platform_device *pdev)
 	}
 
 	rockchip_pdm_rxctrl(pdm, 0);
+
+	ret = rockchip_pdm_path_parse(pdm, node);
+	if (ret != 0 && ret != -ENOENT)
+		goto err_suspend;
+
 	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 	if (ret) {
 		dev_err(&pdev->dev, "could not register pcm: %d\n", ret);
@@ -560,7 +656,7 @@ err_pm_disable:
 	return ret;
 }
 
-static int rockchip_pdm_remove(struct platform_device *pdev)
+static void rockchip_pdm_remove(struct platform_device *pdev)
 {
 	struct rk_pdm_dev *pdm = dev_get_drvdata(&pdev->dev);
 
@@ -570,8 +666,6 @@ static int rockchip_pdm_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(pdm->clk);
 	clk_disable_unprepare(pdm->hclk);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -589,7 +683,7 @@ static int rockchip_pdm_resume(struct device *dev)
 	struct rk_pdm_dev *pdm = dev_get_drvdata(dev);
 	int ret;
 
-	ret = pm_runtime_get_sync(dev);
+	ret = pm_runtime_resume_and_get(dev);
 	if (ret < 0)
 		return ret;
 
@@ -609,7 +703,7 @@ static const struct dev_pm_ops rockchip_pdm_pm_ops = {
 
 static struct platform_driver rockchip_pdm_driver = {
 	.probe  = rockchip_pdm_probe,
-	.remove = rockchip_pdm_remove,
+	.remove_new = rockchip_pdm_remove,
 	.driver = {
 		.name = "rockchip-pdm",
 		.of_match_table = of_match_ptr(rockchip_pdm_match),

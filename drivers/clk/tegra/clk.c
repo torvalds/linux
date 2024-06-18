@@ -9,63 +9,25 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/clk/tegra.h>
+#include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/reset-controller.h>
+#include <linux/string_helpers.h>
 
 #include <soc/tegra/fuse.h>
 
 #include "clk.h"
 
-#define CLK_OUT_ENB_L			0x010
-#define CLK_OUT_ENB_H			0x014
-#define CLK_OUT_ENB_U			0x018
-#define CLK_OUT_ENB_V			0x360
-#define CLK_OUT_ENB_W			0x364
-#define CLK_OUT_ENB_X			0x280
-#define CLK_OUT_ENB_Y			0x298
-#define CLK_OUT_ENB_SET_L		0x320
-#define CLK_OUT_ENB_CLR_L		0x324
-#define CLK_OUT_ENB_SET_H		0x328
-#define CLK_OUT_ENB_CLR_H		0x32c
-#define CLK_OUT_ENB_SET_U		0x330
-#define CLK_OUT_ENB_CLR_U		0x334
-#define CLK_OUT_ENB_SET_V		0x440
-#define CLK_OUT_ENB_CLR_V		0x444
-#define CLK_OUT_ENB_SET_W		0x448
-#define CLK_OUT_ENB_CLR_W		0x44c
-#define CLK_OUT_ENB_SET_X		0x284
-#define CLK_OUT_ENB_CLR_X		0x288
-#define CLK_OUT_ENB_SET_Y		0x29c
-#define CLK_OUT_ENB_CLR_Y		0x2a0
-
-#define RST_DEVICES_L			0x004
-#define RST_DEVICES_H			0x008
-#define RST_DEVICES_U			0x00C
-#define RST_DEVICES_V			0x358
-#define RST_DEVICES_W			0x35C
-#define RST_DEVICES_X			0x28C
-#define RST_DEVICES_Y			0x2a4
-#define RST_DEVICES_SET_L		0x300
-#define RST_DEVICES_CLR_L		0x304
-#define RST_DEVICES_SET_H		0x308
-#define RST_DEVICES_CLR_H		0x30c
-#define RST_DEVICES_SET_U		0x310
-#define RST_DEVICES_CLR_U		0x314
-#define RST_DEVICES_SET_V		0x430
-#define RST_DEVICES_CLR_V		0x434
-#define RST_DEVICES_SET_W		0x438
-#define RST_DEVICES_CLR_W		0x43c
-#define RST_DEVICES_SET_X		0x290
-#define RST_DEVICES_CLR_X		0x294
-#define RST_DEVICES_SET_Y		0x2a8
-#define RST_DEVICES_CLR_Y		0x2ac
-
 /* Global data of Tegra CPU CAR ops */
+static struct device_node *tegra_car_np;
 static struct tegra_cpu_car_ops dummy_car_ops;
 struct tegra_cpu_car_ops *tegra_cpu_car_ops = &dummy_car_ops;
 
 int *periph_clk_enb_refcnt;
 static int periph_banks;
+static u32 *periph_state_ctx;
 static struct clk **clks;
 static int clk_num;
 static struct clk_onecell_data clk_data;
@@ -199,6 +161,65 @@ const struct tegra_clk_periph_regs *get_reg_bank(int clkid)
 	}
 }
 
+void tegra_clk_set_pllp_out_cpu(bool enable)
+{
+	u32 val;
+
+	val = readl_relaxed(clk_base + CLK_OUT_ENB_Y);
+	if (enable)
+		val |= CLK_ENB_PLLP_OUT_CPU;
+	else
+		val &= ~CLK_ENB_PLLP_OUT_CPU;
+
+	writel_relaxed(val, clk_base + CLK_OUT_ENB_Y);
+}
+
+void tegra_clk_periph_suspend(void)
+{
+	unsigned int i, idx;
+
+	idx = 0;
+	for (i = 0; i < periph_banks; i++, idx++)
+		periph_state_ctx[idx] =
+			readl_relaxed(clk_base + periph_regs[i].enb_reg);
+
+	for (i = 0; i < periph_banks; i++, idx++)
+		periph_state_ctx[idx] =
+			readl_relaxed(clk_base + periph_regs[i].rst_reg);
+}
+
+void tegra_clk_periph_resume(void)
+{
+	unsigned int i, idx;
+
+	idx = 0;
+	for (i = 0; i < periph_banks; i++, idx++)
+		writel_relaxed(periph_state_ctx[idx],
+			       clk_base + periph_regs[i].enb_reg);
+	/*
+	 * All non-boot peripherals will be in reset state on resume.
+	 * Wait for 5us of reset propagation delay before de-asserting
+	 * the peripherals based on the saved context.
+	 */
+	fence_udelay(5, clk_base);
+
+	for (i = 0; i < periph_banks; i++, idx++)
+		writel_relaxed(periph_state_ctx[idx],
+			       clk_base + periph_regs[i].rst_reg);
+
+	fence_udelay(2, clk_base);
+}
+
+static int tegra_clk_periph_ctx_init(int banks)
+{
+	periph_state_ctx = kcalloc(2 * banks, sizeof(*periph_state_ctx),
+				   GFP_KERNEL);
+	if (!periph_state_ctx)
+		return -ENOMEM;
+
+	return 0;
+}
+
 struct clk ** __init tegra_clk_init(void __iomem *regs, int num, int banks)
 {
 	clk_base = regs;
@@ -215,10 +236,20 @@ struct clk ** __init tegra_clk_init(void __iomem *regs, int num, int banks)
 	periph_banks = banks;
 
 	clks = kcalloc(num, sizeof(struct clk *), GFP_KERNEL);
-	if (!clks)
+	if (!clks) {
 		kfree(periph_clk_enb_refcnt);
+		return NULL;
+	}
 
 	clk_num = num;
+
+	if (IS_ENABLED(CONFIG_PM_SLEEP)) {
+		if (tegra_clk_periph_ctx_init(banks)) {
+			kfree(periph_clk_enb_refcnt);
+			kfree(clks);
+			return NULL;
+		}
+	}
 
 	return clks;
 }
@@ -235,8 +266,8 @@ void __init tegra_init_dup_clks(struct tegra_clk_duplicate *dup_list,
 	}
 }
 
-void __init tegra_init_from_table(struct tegra_clk_init_table *tbl,
-				  struct clk *clks[], int clk_max)
+void tegra_init_from_table(struct tegra_clk_init_table *tbl,
+			   struct clk *clks[], int clk_max)
 {
 	struct clk *clk;
 
@@ -294,6 +325,8 @@ void __init tegra_add_of_provider(struct device_node *np,
 {
 	int i;
 
+	tegra_car_np = np;
+
 	for (i = 0; i < clk_num; i++) {
 		if (IS_ERR(clks[i])) {
 			pr_err
@@ -322,7 +355,7 @@ void __init tegra_init_special_resets(unsigned int num,
 	special_reset_deassert = deassert;
 }
 
-void __init tegra_register_devclks(struct tegra_devclk *dev_clks, int num)
+void tegra_register_devclks(struct tegra_devclk *dev_clks, int num)
 {
 	int i;
 
@@ -344,6 +377,66 @@ struct clk ** __init tegra_lookup_dt_id(int clk_id,
 		return &clks[tegra_clk[clk_id].dt_id];
 	else
 		return NULL;
+}
+
+static struct device_node *tegra_clk_get_of_node(struct clk_hw *hw)
+{
+	struct device_node *np;
+	char *node_name;
+
+	node_name = kstrdup_and_replace(hw->init->name, '_', '-', GFP_KERNEL);
+	if (!node_name)
+		return NULL;
+
+	for_each_child_of_node(tegra_car_np, np) {
+		if (!strcmp(np->name, node_name))
+			break;
+	}
+
+	kfree(node_name);
+
+	return np;
+}
+
+struct clk *tegra_clk_dev_register(struct clk_hw *hw)
+{
+	struct platform_device *pdev, *parent;
+	const char *dev_name = NULL;
+	struct device *dev = NULL;
+	struct device_node *np;
+
+	np = tegra_clk_get_of_node(hw);
+
+	if (!of_device_is_available(np))
+		goto put_node;
+
+	dev_name = kasprintf(GFP_KERNEL, "tegra_clk_%s", hw->init->name);
+	if (!dev_name)
+		goto put_node;
+
+	parent = of_find_device_by_node(tegra_car_np);
+	if (parent) {
+		pdev = of_platform_device_create(np, dev_name, &parent->dev);
+		put_device(&parent->dev);
+
+		if (!pdev) {
+			pr_err("%s: failed to create device for %pOF\n",
+			       __func__, np);
+			goto free_name;
+		}
+
+		dev = &pdev->dev;
+		pm_runtime_enable(dev);
+	} else {
+		WARN(1, "failed to find device for %pOF\n", tegra_car_np);
+	}
+
+free_name:
+	kfree(dev_name);
+put_node:
+	of_node_put(np);
+
+	return clk_register(dev, hw);
 }
 
 tegra_clk_apply_init_table_func tegra_clk_apply_init_table;

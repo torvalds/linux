@@ -10,7 +10,6 @@
 #ifndef _RSLIB_H_
 #define _RSLIB_H_
 
-#include <linux/list.h>
 #include <linux/types.h>	/* for gfp_t */
 #include <linux/gfp.h>		/* for GFP_KERNEL */
 
@@ -54,7 +53,7 @@ struct rs_codec {
  */
 struct rs_control {
 	struct rs_codec	*codec;
-	uint16_t	buffers[0];
+	uint16_t	buffers[];
 };
 
 /* General purpose RS codec, 8-bit data width, symbol width 1-15 bit  */

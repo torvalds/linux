@@ -161,7 +161,6 @@ static const struct snd_soc_component_driver soc_codec_bd = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static struct snd_soc_dai_driver soc_dai_bd = {
@@ -222,7 +221,7 @@ static int bd28623_probe(struct platform_device *pdev)
 					       &soc_dai_bd, 1);
 }
 
-static const struct of_device_id bd28623_of_match[] = {
+static const struct of_device_id bd28623_of_match[] __maybe_unused = {
 	{ .compatible = "rohm,bd28623", },
 	{}
 };

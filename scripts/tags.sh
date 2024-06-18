@@ -3,12 +3,12 @@
 # Generate tags or cscope files
 # Usage tags.sh <mode>
 #
-# mode may be any of: tags, TAGS, cscope
+# mode may be any of: tags, gtags, TAGS, cscope
 #
 # Uses the following environment variables:
 # SUBARCH, SRCARCH, srctree
 
-if [ "$KBUILD_VERBOSE" = "1" ]; then
+if [[ "$KBUILD_VERBOSE" =~ 1 ]]; then
 	set -x
 fi
 
@@ -16,6 +16,13 @@ fi
 ignore="$(echo "$RCS_FIND_IGNORE" | sed 's|\\||g' )"
 # tags and cscope files should also ignore MODVERSION *.mod.c files
 ignore="$ignore ( -name *.mod.c ) -prune -o"
+
+# ignore arbitrary directories
+if [ -n "${IGNORE_DIRS}" ]; then
+	for i in ${IGNORE_DIRS}; do
+		ignore="${ignore} ( -path $i ) -prune -o"
+	done
+fi
 
 # Use make KBUILD_ABS_SRCTREE=1 {tags|cscope}
 # to force full paths for a non-O= build
@@ -25,8 +32,12 @@ else
 	tree=${srctree}/
 fi
 
-# ignore userspace tools
-ignore="$ignore ( -path ${tree}tools ) -prune -o"
+# gtags(1) refuses to index any file outside of its current working dir.
+# If gtags indexing is requested and the build output directory is not
+# the kernel source tree, index all files in absolute-path form.
+if [[ "$1" == "gtags" && -n "${tree}" ]]; then
+	tree=$(realpath "$tree")/
+fi
 
 # Detect if ALLSOURCE_ARCHS is set. If not, we assume SRCARCH
 if [ "${ALLSOURCE_ARCHS}" = "" ]; then
@@ -39,7 +50,7 @@ fi
 find_arch_sources()
 {
 	for i in $archincludedir; do
-		prune="$prune -wholename $i -prune -o"
+		local prune="$prune ( -path $i ) -prune -o"
 	done
 	find ${tree}arch/$1 $ignore $prune -name "$2" -not -type l -print;
 }
@@ -47,7 +58,7 @@ find_arch_sources()
 # find sources in arch/$1/include
 find_arch_include_sources()
 {
-	include=$(find ${tree}arch/$1/ -name include -type d -print);
+	local include=$(find ${tree}arch/$1/ -name include -type d -print);
 	if [ -n "$include" ]; then
 		archincludedir="$archincludedir $include"
 		find $include $ignore -name "$2" -not -type l -print;
@@ -70,41 +81,29 @@ find_other_sources()
 	       -name "$1" -not -type l -print;
 }
 
-find_sources()
-{
-	find_arch_sources $1 "$2"
-}
-
 all_sources()
 {
 	find_arch_include_sources ${SRCARCH} '*.[chS]'
-	if [ ! -z "$archinclude" ]; then
+	if [ -n "$archinclude" ]; then
 		find_arch_include_sources $archinclude '*.[chS]'
 	fi
 	find_include_sources '*.[chS]'
 	for arch in $ALLSOURCE_ARCHS
 	do
-		find_sources $arch '*.[chS]'
+		find_arch_sources $arch '*.[chS]'
 	done
 	find_other_sources '*.[chS]'
 }
 
 all_compiled_sources()
 {
-	for i in $(all_sources); do
-		case "$i" in
-			*.[cS])
-				j=${i/\.[cS]/\.o}
-				j="${j#$tree}"
-				if [ -e $j ]; then
-					echo $i
-				fi
-				;;
-			*)
-				echo $i
-				;;
-		esac
-	done
+	{
+		echo include/generated/autoconf.h
+		find $ignore -name "*.cmd" -exec \
+			grep -Poh '(?<=^  )\S+|(?<== )\S+[^\\](?=$)' {} \+ |
+		awk '!a[$0]++'
+	} | xargs realpath -esq $([ -z "$KBUILD_ABS_SRCTREE" ] && echo --relative-to=.) |
+	sort -u
 }
 
 all_target_sources()
@@ -121,7 +120,7 @@ all_kconfigs()
 	find ${tree}arch/ -maxdepth 1 $ignore \
 	       -name "Kconfig*" -not -type l -print;
 	for arch in $ALLSOURCE_ARCHS; do
-		find_sources $arch 'Kconfig*'
+		find_arch_sources $arch 'Kconfig*'
 	done
 	find_other_sources 'Kconfig*'
 }
@@ -134,7 +133,7 @@ docscope()
 
 dogtags()
 {
-	all_target_sources | gtags -i -f -
+	all_target_sources | gtags -i -C "${tree:-.}" -f - "$PWD"
 }
 
 # Basic regular expressions with an optional /kind-spec/ for ctags and
@@ -146,71 +145,73 @@ dogtags()
 # - etags regular expressions have to match at the start of a line;
 #   a ^[^#] is prepended by setup_regex unless an anchor is already present
 regex_asm=(
-	'/^\(ENTRY\|_GLOBAL\)(\([[:alnum:]_\\]*\)).*/\2/'
+	'/^\(ENTRY\|_GLOBAL\)([[:space:]]*\([[:alnum:]_\\]*\)).*/\2/'
 )
 regex_c=(
-	'/^SYSCALL_DEFINE[0-9](\([[:alnum:]_]*\).*/sys_\1/'
-	'/^BPF_CALL_[0-9](\([[:alnum:]_]*\).*/\1/'
-	'/^COMPAT_SYSCALL_DEFINE[0-9](\([[:alnum:]_]*\).*/compat_sys_\1/'
-	'/^TRACE_EVENT(\([[:alnum:]_]*\).*/trace_\1/'
-	'/^TRACE_EVENT(\([[:alnum:]_]*\).*/trace_\1_rcuidle/'
-	'/^DEFINE_EVENT([^,)]*, *\([[:alnum:]_]*\).*/trace_\1/'
-	'/^DEFINE_EVENT([^,)]*, *\([[:alnum:]_]*\).*/trace_\1_rcuidle/'
-	'/^DEFINE_INSN_CACHE_OPS(\([[:alnum:]_]*\).*/get_\1_slot/'
-	'/^DEFINE_INSN_CACHE_OPS(\([[:alnum:]_]*\).*/free_\1_slot/'
-	'/^PAGEFLAG(\([[:alnum:]_]*\).*/Page\1/'
-	'/^PAGEFLAG(\([[:alnum:]_]*\).*/SetPage\1/'
-	'/^PAGEFLAG(\([[:alnum:]_]*\).*/ClearPage\1/'
-	'/^TESTSETFLAG(\([[:alnum:]_]*\).*/TestSetPage\1/'
-	'/^TESTPAGEFLAG(\([[:alnum:]_]*\).*/Page\1/'
-	'/^SETPAGEFLAG(\([[:alnum:]_]*\).*/SetPage\1/'
-	'/\<__SETPAGEFLAG(\([[:alnum:]_]*\).*/__SetPage\1/'
-	'/\<TESTCLEARFLAG(\([[:alnum:]_]*\).*/TestClearPage\1/'
-	'/\<__TESTCLEARFLAG(\([[:alnum:]_]*\).*/TestClearPage\1/'
-	'/\<CLEARPAGEFLAG(\([[:alnum:]_]*\).*/ClearPage\1/'
-	'/\<__CLEARPAGEFLAG(\([[:alnum:]_]*\).*/__ClearPage\1/'
-	'/^__PAGEFLAG(\([[:alnum:]_]*\).*/__SetPage\1/'
-	'/^__PAGEFLAG(\([[:alnum:]_]*\).*/__ClearPage\1/'
-	'/^PAGEFLAG_FALSE(\([[:alnum:]_]*\).*/Page\1/'
-	'/\<TESTSCFLAG(\([[:alnum:]_]*\).*/TestSetPage\1/'
-	'/\<TESTSCFLAG(\([[:alnum:]_]*\).*/TestClearPage\1/'
-	'/\<SETPAGEFLAG_NOOP(\([[:alnum:]_]*\).*/SetPage\1/'
-	'/\<CLEARPAGEFLAG_NOOP(\([[:alnum:]_]*\).*/ClearPage\1/'
-	'/\<__CLEARPAGEFLAG_NOOP(\([[:alnum:]_]*\).*/__ClearPage\1/'
-	'/\<TESTCLEARFLAG_FALSE(\([[:alnum:]_]*\).*/TestClearPage\1/'
-	'/^PAGE_TYPE_OPS(\([[:alnum:]_]*\).*/Page\1/'
-	'/^PAGE_TYPE_OPS(\([[:alnum:]_]*\).*/__SetPage\1/'
-	'/^PAGE_TYPE_OPS(\([[:alnum:]_]*\).*/__ClearPage\1/'
-	'/^TASK_PFA_TEST([^,]*, *\([[:alnum:]_]*\))/task_\1/'
-	'/^TASK_PFA_SET([^,]*, *\([[:alnum:]_]*\))/task_set_\1/'
-	'/^TASK_PFA_CLEAR([^,]*, *\([[:alnum:]_]*\))/task_clear_\1/'
-	'/^DEF_MMIO_\(IN\|OUT\)_[XD](\([[:alnum:]_]*\),[^)]*)/\2/'
-	'/^DEBUGGER_BOILERPLATE(\([[:alnum:]_]*\))/\1/'
-	'/^DEF_PCI_AC_\(\|NO\)RET(\([[:alnum:]_]*\).*/\2/'
-	'/^PCI_OP_READ(\(\w*\).*[1-4])/pci_bus_read_config_\1/'
-	'/^PCI_OP_WRITE(\(\w*\).*[1-4])/pci_bus_write_config_\1/'
-	'/\<DEFINE_\(RT_MUTEX\|MUTEX\|SEMAPHORE\|SPINLOCK\)(\([[:alnum:]_]*\)/\2/v/'
-	'/\<DEFINE_\(RAW_SPINLOCK\|RWLOCK\|SEQLOCK\)(\([[:alnum:]_]*\)/\2/v/'
-	'/\<DECLARE_\(RWSEM\|COMPLETION\)(\([[:alnum:]_]\+\)/\2/v/'
-	'/\<DECLARE_BITMAP(\([[:alnum:]_]*\)/\1/v/'
-	'/\(^\|\s\)\(\|L\|H\)LIST_HEAD(\([[:alnum:]_]*\)/\3/v/'
-	'/\(^\|\s\)RADIX_TREE(\([[:alnum:]_]*\)/\2/v/'
-	'/\<DEFINE_PER_CPU([^,]*, *\([[:alnum:]_]*\)/\1/v/'
-	'/\<DEFINE_PER_CPU_SHARED_ALIGNED([^,]*, *\([[:alnum:]_]*\)/\1/v/'
-	'/\<DECLARE_WAIT_QUEUE_HEAD(\([[:alnum:]_]*\)/\1/v/'
-	'/\<DECLARE_\(TASKLET\|WORK\|DELAYED_WORK\)(\([[:alnum:]_]*\)/\2/v/'
-	'/\(^\s\)OFFSET(\([[:alnum:]_]*\)/\2/v/'
-	'/\(^\s\)DEFINE(\([[:alnum:]_]*\)/\2/v/'
-	'/\<\(DEFINE\|DECLARE\)_HASHTABLE(\([[:alnum:]_]*\)/\2/v/'
-	'/\<DEFINE_ID\(R\|A\)(\([[:alnum:]_]\+\)/\2/'
-	'/\<DEFINE_WD_CLASS(\([[:alnum:]_]\+\)/\1/'
-	'/\<ATOMIC_NOTIFIER_HEAD(\([[:alnum:]_]\+\)/\1/'
-	'/\<RAW_NOTIFIER_HEAD(\([[:alnum:]_]\+\)/\1/'
-	'/\<DECLARE_FAULT_ATTR(\([[:alnum:]_]\+\)/\1/'
-	'/\<BLOCKING_NOTIFIER_HEAD(\([[:alnum:]_]\+\)/\1/'
-	'/\<DEVICE_ATTR_\(RW\|RO\|WO\)(\([[:alnum:]_]\+\)/dev_attr_\2/'
-	'/\<DRIVER_ATTR_\(RW\|RO\|WO\)(\([[:alnum:]_]\+\)/driver_attr_\2/'
-	'/\<\(DEFINE\|DECLARE\)_STATIC_KEY_\(TRUE\|FALSE\)\(\|_RO\)(\([[:alnum:]_]\+\)/\4/'
+	'/^SYSCALL_DEFINE[0-9]([[:space:]]*\([[:alnum:]_]*\).*/sys_\1/'
+	'/^BPF_CALL_[0-9]([[:space:]]*\([[:alnum:]_]*\).*/\1/'
+	'/^COMPAT_SYSCALL_DEFINE[0-9]([[:space:]]*\([[:alnum:]_]*\).*/compat_sys_\1/'
+	'/^TRACE_EVENT([[:space:]]*\([[:alnum:]_]*\).*/trace_\1/'
+	'/^TRACE_EVENT([[:space:]]*\([[:alnum:]_]*\).*/trace_\1_rcuidle/'
+	'/^DEFINE_EVENT([^,)]*,[[:space:]]*\([[:alnum:]_]*\).*/trace_\1/'
+	'/^DEFINE_EVENT([^,)]*,[[:space:]]*\([[:alnum:]_]*\).*/trace_\1_rcuidle/'
+	'/^DEFINE_INSN_CACHE_OPS([[:space:]]*\([[:alnum:]_]*\).*/get_\1_slot/'
+	'/^DEFINE_INSN_CACHE_OPS([[:space:]]*\([[:alnum:]_]*\).*/free_\1_slot/'
+	'/^PAGEFLAG([[:space:]]*\([[:alnum:]_]*\).*/Page\1/'
+	'/^PAGEFLAG([[:space:]]*\([[:alnum:]_]*\).*/SetPage\1/'
+	'/^PAGEFLAG([[:space:]]*\([[:alnum:]_]*\).*/ClearPage\1/'
+	'/^TESTSETFLAG([[:space:]]*\([[:alnum:]_]*\).*/TestSetPage\1/'
+	'/^TESTPAGEFLAG([[:space:]]*\([[:alnum:]_]*\).*/Page\1/'
+	'/^SETPAGEFLAG([[:space:]]*\([[:alnum:]_]*\).*/SetPage\1/'
+	'/\<__SETPAGEFLAG([[:space:]]*\([[:alnum:]_]*\).*/__SetPage\1/'
+	'/\<TESTCLEARFLAG([[:space:]]*\([[:alnum:]_]*\).*/TestClearPage\1/'
+	'/\<__TESTCLEARFLAG([[:space:]]*\([[:alnum:]_]*\).*/TestClearPage\1/'
+	'/\<CLEARPAGEFLAG([[:space:]]*\([[:alnum:]_]*\).*/ClearPage\1/'
+	'/\<__CLEARPAGEFLAG([[:space:]]*\([[:alnum:]_]*\).*/__ClearPage\1/'
+	'/^__PAGEFLAG([[:space:]]*\([[:alnum:]_]*\).*/__SetPage\1/'
+	'/^__PAGEFLAG([[:space:]]*\([[:alnum:]_]*\).*/__ClearPage\1/'
+	'/^PAGEFLAG_FALSE([[:space:]]*\([[:alnum:]_]*\).*/Page\1/'
+	'/\<TESTSCFLAG([[:space:]]*\([[:alnum:]_]*\).*/TestSetPage\1/'
+	'/\<TESTSCFLAG([[:space:]]*\([[:alnum:]_]*\).*/TestClearPage\1/'
+	'/\<SETPAGEFLAG_NOOP([[:space:]]*\([[:alnum:]_]*\).*/SetPage\1/'
+	'/\<CLEARPAGEFLAG_NOOP([[:space:]]*\([[:alnum:]_]*\).*/ClearPage\1/'
+	'/\<__CLEARPAGEFLAG_NOOP([[:space:]]*\([[:alnum:]_]*\).*/__ClearPage\1/'
+	'/\<TESTCLEARFLAG_FALSE([[:space:]]*\([[:alnum:]_]*\).*/TestClearPage\1/'
+	'/^PAGE_TYPE_OPS([[:space:]]*\([[:alnum:]_]*\).*/Page\1/'
+	'/^PAGE_TYPE_OPS([[:space:]]*\([[:alnum:]_]*\).*/__SetPage\1/'
+	'/^PAGE_TYPE_OPS([[:space:]]*\([[:alnum:]_]*\).*/__ClearPage\1/'
+	'/^TASK_PFA_TEST([^,]*,[[:space:]]*\([[:alnum:]_]*\))/task_\1/'
+	'/^TASK_PFA_SET([^,]*,[[:space:]]*\([[:alnum:]_]*\))/task_set_\1/'
+	'/^TASK_PFA_CLEAR([^,]*,[[:space:]]*\([[:alnum:]_]*\))/task_clear_\1/'
+	'/^DEF_MMIO_\(IN\|OUT\)_[XD]([[:space:]]*\([[:alnum:]_]*\),[^)]*)/\2/'
+	'/^DEBUGGER_BOILERPLATE([[:space:]]*\([[:alnum:]_]*\))/\1/'
+	'/^DEF_PCI_AC_\(\|NO\)RET([[:space:]]*\([[:alnum:]_]*\).*/\2/'
+	'/^PCI_OP_READ([[:space:]]*\(\w*\).*[1-4])/pci_bus_read_config_\1/'
+	'/^PCI_OP_WRITE([[:space:]]*\(\w*\).*[1-4])/pci_bus_write_config_\1/'
+	'/\<DEFINE_\(RT_MUTEX\|MUTEX\|SEMAPHORE\|SPINLOCK\)([[:space:]]*\([[:alnum:]_]*\)/\2/v/'
+	'/\<DEFINE_\(RAW_SPINLOCK\|RWLOCK\|SEQLOCK\)([[:space:]]*\([[:alnum:]_]*\)/\2/v/'
+	'/\<DECLARE_\(RWSEM\|COMPLETION\)([[:space:]]*\([[:alnum:]_]\+\)/\2/v/'
+	'/\<DECLARE_BITMAP([[:space:]]*\([[:alnum:]_]*\)/\1/v/'
+	'/\(^\|\s\)\(\|L\|H\)LIST_HEAD([[:space:]]*\([[:alnum:]_]*\)/\3/v/'
+	'/\(^\|\s\)RADIX_TREE([[:space:]]*\([[:alnum:]_]*\)/\2/v/'
+	'/\<DEFINE_PER_CPU([^,]*,[[:space:]]*\([[:alnum:]_]*\)/\1/v/'
+	'/\<DEFINE_PER_CPU_SHARED_ALIGNED([^,]*,[[:space:]]*\([[:alnum:]_]*\)/\1/v/'
+	'/\<DECLARE_WAIT_QUEUE_HEAD([[:space:]]*\([[:alnum:]_]*\)/\1/v/'
+	'/\<DECLARE_\(TASKLET\|WORK\|DELAYED_WORK\)([[:space:]]*\([[:alnum:]_]*\)/\2/v/'
+	'/\(^\s\)OFFSET([[:space:]]*\([[:alnum:]_]*\)/\2/v/'
+	'/\(^\s\)DEFINE([[:space:]]*\([[:alnum:]_]*\)/\2/v/'
+	'/\<\(DEFINE\|DECLARE\)_HASHTABLE([[:space:]]*\([[:alnum:]_]*\)/\2/v/'
+	'/\<DEFINE_ID\(R\|A\)([[:space:]]*\([[:alnum:]_]\+\)/\2/'
+	'/\<DEFINE_WD_CLASS([[:space:]]*\([[:alnum:]_]\+\)/\1/'
+	'/\<ATOMIC_NOTIFIER_HEAD([[:space:]]*\([[:alnum:]_]\+\)/\1/'
+	'/\<RAW_NOTIFIER_HEAD([[:space:]]*\([[:alnum:]_]\+\)/\1/'
+	'/\<DECLARE_FAULT_ATTR([[:space:]]*\([[:alnum:]_]\+\)/\1/'
+	'/\<BLOCKING_NOTIFIER_HEAD([[:space:]]*\([[:alnum:]_]\+\)/\1/'
+	'/\<DEVICE_ATTR_\(RW\|RO\|WO\)([[:space:]]*\([[:alnum:]_]\+\)/dev_attr_\2/'
+	'/\<DRIVER_ATTR_\(RW\|RO\|WO\)([[:space:]]*\([[:alnum:]_]\+\)/driver_attr_\2/'
+	'/\<\(DEFINE\|DECLARE\)_STATIC_KEY_\(TRUE\|FALSE\)\(\|_RO\)([[:space:]]*\([[:alnum:]_]\+\)/\4/'
+	'/^SEQCOUNT_LOCKTYPE(\([^,]*\),[[:space:]]*\([^,]*\),[^)]*)/seqcount_\2_t/'
+	'/^SEQCOUNT_LOCKTYPE(\([^,]*\),[[:space:]]*\([^,]*\),[^)]*)/seqcount_\2_init/'
 )
 regex_kconfig=(
 	'/^[[:blank:]]*\(menu\|\)config[[:blank:]]\+\([[:alnum:]_]\+\)/\2/'
@@ -251,6 +252,10 @@ setup_regex()
 
 exuberant()
 {
+	CTAGS_EXTRA="extra"
+	if $1 --version 2>&1 | grep -iq universal; then
+	    CTAGS_EXTRA="extras"
+	fi
 	setup_regex exuberant asm c
 	all_target_sources | xargs $1 -a                        \
 	-I __initdata,__exitdata,__initconst,__ro_after_init	\
@@ -265,13 +270,15 @@ exuberant()
 	-I EXPORT_SYMBOL,EXPORT_SYMBOL_GPL,ACPI_EXPORT_SYMBOL   \
 	-I DEFINE_TRACE,EXPORT_TRACEPOINT_SYMBOL,EXPORT_TRACEPOINT_SYMBOL_GPL \
 	-I static,const						\
-	--extra=+fq --c-kinds=+px --fields=+iaS --langmap=c:+.h \
+	--$CTAGS_EXTRA=+fq --c-kinds=+px --fields=+iaS --langmap=c:+.h \
 	"${regex[@]}"
 
-	setup_regex exuberant kconfig
-	all_kconfigs | xargs $1 -a                              \
-	--langdef=kconfig --language-force=kconfig "${regex[@]}"
-
+	KCONFIG_ARGS=()
+	if ! $1 --list-languages | grep -iq kconfig; then
+		setup_regex exuberant kconfig
+		KCONFIG_ARGS=(--langdef=kconfig --language-force=kconfig "${regex[@]}")
+	fi
+	all_kconfigs | xargs $1 -a "${KCONFIG_ARGS[@]}"
 }
 
 emacs()
@@ -330,5 +337,5 @@ esac
 
 # Remove structure forward declarations.
 if [ -n "$remove_structs" ]; then
-    LANG=C sed -i -e '/^\([a-zA-Z_][a-zA-Z0-9_]*\)\t.*\t\/\^struct \1;.*\$\/;"\tx$/d' $1
+    LC_ALL=C sed -i -e '/^\([a-zA-Z_][a-zA-Z0-9_]*\)\t.*\t\/\^struct \1;.*\$\/;"\tx$/d' $1
 fi

@@ -31,7 +31,7 @@ static int lio_vf_rep_open(struct net_device *ndev);
 static int lio_vf_rep_stop(struct net_device *ndev);
 static netdev_tx_t lio_vf_rep_pkt_xmit(struct sk_buff *skb,
 				       struct net_device *ndev);
-static void lio_vf_rep_tx_timeout(struct net_device *netdev);
+static void lio_vf_rep_tx_timeout(struct net_device *netdev, unsigned int txqueue);
 static int lio_vf_rep_phys_port_name(struct net_device *dev,
 				     char *buf, size_t len);
 static void lio_vf_rep_get_stats64(struct net_device *dev,
@@ -172,7 +172,7 @@ lio_vf_rep_stop(struct net_device *ndev)
 }
 
 static void
-lio_vf_rep_tx_timeout(struct net_device *ndev)
+lio_vf_rep_tx_timeout(struct net_device *ndev, unsigned int txqueue)
 {
 	netif_trans_update(ndev);
 
@@ -218,7 +218,7 @@ lio_vf_rep_change_mtu(struct net_device *ndev, int new_mtu)
 		return -EIO;
 	}
 
-	ndev->mtu = new_mtu;
+	WRITE_ONCE(ndev->mtu, new_mtu);
 
 	return 0;
 }
@@ -272,13 +272,12 @@ lio_vf_rep_copy_packet(struct octeon_device *oct,
 				pg_info->page_offset;
 			memcpy(skb->data, va, MIN_SKB_SIZE);
 			skb_put(skb, MIN_SKB_SIZE);
+			skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
+					pg_info->page,
+					pg_info->page_offset + MIN_SKB_SIZE,
+					len - MIN_SKB_SIZE,
+					LIO_RXBUFFER_SZ);
 		}
-
-		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
-				pg_info->page,
-				pg_info->page_offset + MIN_SKB_SIZE,
-				len - MIN_SKB_SIZE,
-				LIO_RXBUFFER_SZ);
 	} else {
 		struct octeon_skb_page_info *pg_info =
 			((struct octeon_skb_page_info *)(skb->cb));
@@ -638,7 +637,8 @@ lio_vf_rep_netdev_event(struct notifier_block *nb,
 	memset(&rep_cfg, 0, sizeof(rep_cfg));
 	rep_cfg.req_type = LIO_VF_REP_REQ_DEVNAME;
 	rep_cfg.ifidx = vf_rep->ifidx;
-	strncpy(rep_cfg.rep_name.name, ndev->name, LIO_IF_NAME_SIZE);
+	strscpy(rep_cfg.rep_name.name, ndev->name,
+		sizeof(rep_cfg.rep_name.name));
 
 	ret = lio_vf_rep_send_soft_command(oct, &rep_cfg,
 					   sizeof(rep_cfg), NULL, 0);

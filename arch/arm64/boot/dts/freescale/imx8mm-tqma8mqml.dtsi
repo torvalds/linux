@@ -1,0 +1,348 @@
+// SPDX-License-Identifier: (GPL-2.0-or-later OR MIT)
+/*
+ * Copyright 2020-2021 TQ-Systems GmbH
+ */
+
+#include <dt-bindings/phy/phy-imx8-pcie.h>
+#include "imx8mm.dtsi"
+
+/ {
+	model = "TQ-Systems GmbH i.MX8MM TQMa8MxML";
+	compatible = "tq,imx8mm-tqma8mqml", "fsl,imx8mm";
+
+	memory@40000000 {
+		device_type = "memory";
+		/*  our minimum RAM config will be 1024 MiB */
+		reg = <0x00000000 0x40000000 0 0x40000000>;
+	};
+
+	/* e-MMC IO, needed for HS modes */
+	reg_vcc1v8: regulator-vcc1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "TQMA8MXML_VCC1V8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
+	/* identical to buck4_reg, but should never change */
+	reg_vcc3v3: regulator-vcc3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "TQMA8MXML_VCC3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		/* global autoconfigured region for contiguous allocations */
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* 640 MiB */
+			size = <0 0x28000000>;
+			/*  1024 - 128 MiB, our minimum RAM config will be 1024 MiB */
+			alloc-ranges = <0 0x40000000 0 0x78000000>;
+			linux,cma-default;
+		};
+	};
+};
+
+&A53_0 {
+	cpu-supply = <&buck2_reg>;
+};
+
+&flexspi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_flexspi>;
+	status = "okay";
+
+	flash0: flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		spi-max-frequency = <84000000>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <4>;
+	};
+};
+
+&gpu_2d {
+	status = "okay";
+};
+
+&gpu_3d {
+	status = "okay";
+};
+
+&i2c1 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default", "gpio";
+	pinctrl-0 = <&pinctrl_i2c1>;
+	pinctrl-1 = <&pinctrl_i2c1_gpio>;
+	scl-gpios = <&gpio5 14 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio5 15 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	status = "okay";
+
+	sensor0: temperature-sensor@1b {
+		compatible = "nxp,se97b", "jedec,jc-42.4-temp";
+		reg = <0x1b>;
+	};
+
+	pca9450: pmic@25 {
+		compatible = "nxp,pca9450a";
+		reg = <0x25>;
+
+		/* PMIC PCA9450 PMIC_nINT GPIO1_IO08 */
+		pinctrl-0 = <&pinctrl_pmic>;
+		pinctrl-names = "default";
+		interrupt-parent = <&gpio1>;
+		interrupts = <8 IRQ_TYPE_LEVEL_LOW>;
+
+		regulators {
+			/* V_0V85_SOC: 0.85 */
+			buck1_reg: BUCK1 {
+				regulator-name = "BUCK1";
+				regulator-min-microvolt = <850000>;
+				regulator-max-microvolt = <850000>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-ramp-delay = <3125>;
+			};
+
+			/* VDD_ARM */
+			buck2_reg: BUCK2 {
+				regulator-name = "BUCK2";
+				regulator-min-microvolt = <850000>;
+				regulator-max-microvolt = <1000000>;
+				regulator-boot-on;
+				regulator-always-on;
+				nxp,dvs-run-voltage = <950000>;
+				nxp,dvs-standby-voltage = <850000>;
+				regulator-ramp-delay = <3125>;
+			};
+
+			/* V_0V85_GPU / DRAM / VPU */
+			buck3_reg: BUCK3 {
+				regulator-name = "BUCK3";
+				regulator-min-microvolt = <850000>;
+				regulator-max-microvolt = <950000>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-ramp-delay = <3125>;
+			};
+
+			/* VCC3V3 -> VMMC, ... must not be changed */
+			buck4_reg: BUCK4 {
+				regulator-name = "BUCK4";
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			/* V_1V8 -> VQMMC, SPI-NOR, ... must not be changed */
+			buck5_reg: BUCK5 {
+				regulator-name = "BUCK5";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			/* V_1V1 -> RAM, ... must not be changed */
+			buck6_reg: BUCK6 {
+				regulator-name = "BUCK6";
+				regulator-min-microvolt = <1100000>;
+				regulator-max-microvolt = <1100000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			/* V_1V8_SNVS */
+			ldo1_reg: LDO1 {
+				regulator-name = "LDO1";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			/* V_0V8_SNVS */
+			ldo2_reg: LDO2 {
+				regulator-name = "LDO2";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <850000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			/* V_1V8_ANA */
+			ldo3_reg: LDO3 {
+				regulator-name = "LDO3";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			/* V_0V9_MIPI */
+			ldo4_reg: LDO4 {
+				regulator-name = "LDO4";
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <900000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			/* VCC SD IO - switched using SD2 VSELECT */
+			ldo5_reg: LDO5 {
+				regulator-name = "LDO5";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3300000>;
+			};
+		};
+	};
+
+
+	pcf85063: rtc@51 {
+		compatible = "nxp,pcf85063a";
+		reg = <0x51>;
+		quartz-load-femtofarads = <7000>;
+	};
+
+	eeprom1: eeprom@53 {
+		compatible = "nxp,se97b", "atmel,24c02";
+		read-only;
+		reg = <0x53>;
+		pagesize = <16>;
+		vcc-supply = <&reg_vcc3v3>;
+	};
+
+	eeprom0: eeprom@57 {
+		compatible = "atmel,24c64";
+		reg = <0x57>;
+		pagesize = <32>;
+		vcc-supply = <&reg_vcc3v3>;
+	};
+};
+
+&mipi_dsi {
+	vddcore-supply = <&ldo4_reg>;
+	vddio-supply = <&ldo3_reg>;
+};
+
+&pcie_phy {
+	fsl,refclk-pad-mode = <IMX8_PCIE_REFCLK_PAD_INPUT>;
+	fsl,clkreq-unsupported;
+};
+
+&usdhc3 {
+	pinctrl-names = "default", "state_100mhz", "state_200mhz";
+	pinctrl-0 = <&pinctrl_usdhc3>;
+	pinctrl-1 = <&pinctrl_usdhc3_100mhz>;
+	pinctrl-2 = <&pinctrl_usdhc3_200mhz>;
+	bus-width = <8>;
+	non-removable;
+	no-sd;
+	no-sdio;
+	vmmc-supply = <&reg_vcc3v3>;
+	vqmmc-supply = <&reg_vcc1v8>;
+	status = "okay";
+};
+
+/*
+ * Attention:
+ * wdog reset is routed to PMIC, PMIC must be preconfigured to force POR
+ * without LDO for SNVS. GPIO1_IO02 must not be used as GPIO.
+ */
+&wdog1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_wdog>;
+	fsl,ext-reset-output;
+	status = "okay";
+};
+
+&iomuxc {
+	pinctrl_flexspi: flexspigrp {
+		fsl,pins = <MX8MM_IOMUXC_NAND_ALE_QSPI_A_SCLK		0x82>,
+			   <MX8MM_IOMUXC_NAND_CE0_B_QSPI_A_SS0_B	0x82>,
+			   <MX8MM_IOMUXC_NAND_DATA00_QSPI_A_DATA0	0x82>,
+			   <MX8MM_IOMUXC_NAND_DATA01_QSPI_A_DATA1	0x82>,
+			   <MX8MM_IOMUXC_NAND_DATA02_QSPI_A_DATA2	0x82>,
+			   <MX8MM_IOMUXC_NAND_DATA03_QSPI_A_DATA3	0x82>;
+	};
+
+	pinctrl_i2c1: i2c1grp {
+		fsl,pins = <MX8MM_IOMUXC_I2C1_SCL_I2C1_SCL		0x40000004>,
+			   <MX8MM_IOMUXC_I2C1_SDA_I2C1_SDA		0x40000004>;
+	};
+
+	pinctrl_i2c1_gpio: i2c1gpiogrp {
+		fsl,pins = <MX8MM_IOMUXC_I2C1_SCL_GPIO5_IO14		0x40000004>,
+			   <MX8MM_IOMUXC_I2C1_SDA_GPIO5_IO15		0x40000004>;
+	};
+
+	pinctrl_pmic: pmicgrp {
+		fsl,pins = <MX8MM_IOMUXC_GPIO1_IO08_GPIO1_IO8		0x94>;
+	};
+
+	pinctrl_reg_usdhc2_vmmc: regusdhc2vmmcgrp {
+		fsl,pins = <MX8MM_IOMUXC_SD2_RESET_B_GPIO2_IO19		0x84>;
+	};
+
+	pinctrl_usdhc3: usdhc3grp {
+		fsl,pins = <MX8MM_IOMUXC_NAND_WE_B_USDHC3_CLK		0x1d4>,
+			   <MX8MM_IOMUXC_NAND_WP_B_USDHC3_CMD		0x1d2>,
+			   <MX8MM_IOMUXC_NAND_DATA04_USDHC3_DATA0	0x1d4>,
+			   <MX8MM_IOMUXC_NAND_DATA05_USDHC3_DATA1	0x1d4>,
+			   <MX8MM_IOMUXC_NAND_DATA06_USDHC3_DATA2	0x1d4>,
+			   <MX8MM_IOMUXC_NAND_DATA07_USDHC3_DATA3	0x1d4>,
+			   <MX8MM_IOMUXC_NAND_RE_B_USDHC3_DATA4		0x1d4>,
+			   <MX8MM_IOMUXC_NAND_CE2_B_USDHC3_DATA5	0x1d4>,
+			   <MX8MM_IOMUXC_NAND_CE3_B_USDHC3_DATA6	0x1d4>,
+			   <MX8MM_IOMUXC_NAND_CLE_USDHC3_DATA7		0x1d4>,
+			   <MX8MM_IOMUXC_NAND_CE1_B_USDHC3_STROBE	0x84>,
+			   /* option USDHC3_RESET_B not defined, only in RM */
+			   <MX8MM_IOMUXC_NAND_READY_B_GPIO3_IO16	0x84>;
+	};
+
+	pinctrl_usdhc3_100mhz: usdhc3-100mhzgrp {
+		fsl,pins = <MX8MM_IOMUXC_NAND_WE_B_USDHC3_CLK		0x1d2>,
+			   <MX8MM_IOMUXC_NAND_WP_B_USDHC3_CMD		0x1d2>,
+			   <MX8MM_IOMUXC_NAND_DATA04_USDHC3_DATA0	0x1d4>,
+			   <MX8MM_IOMUXC_NAND_DATA05_USDHC3_DATA1	0x1d4>,
+			   <MX8MM_IOMUXC_NAND_DATA06_USDHC3_DATA2	0x1d4>,
+			   <MX8MM_IOMUXC_NAND_DATA07_USDHC3_DATA3	0x1d4>,
+			   <MX8MM_IOMUXC_NAND_RE_B_USDHC3_DATA4		0x1d4>,
+			   <MX8MM_IOMUXC_NAND_CE2_B_USDHC3_DATA5	0x1d4>,
+			   <MX8MM_IOMUXC_NAND_CE3_B_USDHC3_DATA6	0x1d4>,
+			   <MX8MM_IOMUXC_NAND_CLE_USDHC3_DATA7		0x1d4>,
+			   <MX8MM_IOMUXC_NAND_CE1_B_USDHC3_STROBE	0x84>,
+			   /* option USDHC3_RESET_B not defined, only in RM */
+			   <MX8MM_IOMUXC_NAND_READY_B_GPIO3_IO16	0x84>;
+	};
+
+	pinctrl_usdhc3_200mhz: usdhc3-200mhzgrp {
+		fsl,pins = <MX8MM_IOMUXC_NAND_WE_B_USDHC3_CLK		0x1d6>,
+			   <MX8MM_IOMUXC_NAND_WP_B_USDHC3_CMD		0x1d2>,
+			   <MX8MM_IOMUXC_NAND_DATA04_USDHC3_DATA0	0x1d4>,
+			   <MX8MM_IOMUXC_NAND_DATA05_USDHC3_DATA1	0x1d4>,
+			   <MX8MM_IOMUXC_NAND_DATA06_USDHC3_DATA2	0x1d4>,
+			   <MX8MM_IOMUXC_NAND_DATA07_USDHC3_DATA3	0x1d4>,
+			   <MX8MM_IOMUXC_NAND_RE_B_USDHC3_DATA4		0x1d4>,
+			   <MX8MM_IOMUXC_NAND_CE2_B_USDHC3_DATA5	0x1d4>,
+			   <MX8MM_IOMUXC_NAND_CE3_B_USDHC3_DATA6	0x1d4>,
+			   <MX8MM_IOMUXC_NAND_CLE_USDHC3_DATA7		0x1d4>,
+			   <MX8MM_IOMUXC_NAND_CE1_B_USDHC3_STROBE	0x84>,
+			   /* option USDHC3_RESET_B not defined, only in RM */
+			   <MX8MM_IOMUXC_NAND_READY_B_GPIO3_IO16	0x84>;
+	};
+
+	pinctrl_wdog: wdoggrp {
+		fsl,pins = <MX8MM_IOMUXC_GPIO1_IO02_WDOG1_WDOG_B	0x84>;
+	};
+};

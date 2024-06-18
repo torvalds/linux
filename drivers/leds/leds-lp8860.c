@@ -15,7 +15,6 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/slab.h>
 
@@ -85,14 +84,14 @@
 #define LP8860_NAME			"lp8860"
 
 /**
- * struct lp8860_led -
- * @lock - Lock for reading/writing the device
- * @client - Pointer to the I2C client
- * @led_dev - led class device pointer
- * @regmap - Devices register map
- * @eeprom_regmap - EEPROM register map
- * @enable_gpio - VDDIO/EN gpio to enable communication interface
- * @regulator - LED supply regulator pointer
+ * struct lp8860_led
+ * @lock: Lock for reading/writing the device
+ * @client: Pointer to the I2C client
+ * @led_dev: led class device pointer
+ * @regmap: Devices register map
+ * @eeprom_regmap: EEPROM register map
+ * @enable_gpio: VDDIO/EN gpio to enable communication interface
+ * @regulator: LED supply regulator pointer
  */
 struct lp8860_led {
 	struct mutex lock;
@@ -250,8 +249,7 @@ static int lp8860_init(struct lp8860_led *led)
 		}
 	}
 
-	if (led->enable_gpio)
-		gpiod_direction_output(led->enable_gpio, 1);
+	gpiod_direction_output(led->enable_gpio, 1);
 
 	ret = lp8860_fault_check(led);
 	if (ret)
@@ -294,8 +292,7 @@ static int lp8860_init(struct lp8860_led *led)
 
 out:
 	if (ret)
-		if (led->enable_gpio)
-			gpiod_direction_output(led->enable_gpio, 0);
+		gpiod_direction_output(led->enable_gpio, 0);
 
 	if (led->regulator) {
 		ret = regulator_disable(led->regulator);
@@ -375,12 +372,11 @@ static const struct regmap_config lp8860_eeprom_regmap_config = {
 	.cache_type = REGCACHE_NONE,
 };
 
-static int lp8860_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int lp8860_probe(struct i2c_client *client)
 {
 	int ret;
 	struct lp8860_led *led;
-	struct device_node *np = client->dev.of_node;
+	struct device_node *np = dev_of_node(&client->dev);
 	struct device_node *child_node;
 	struct led_init_data init_data = {};
 
@@ -391,10 +387,6 @@ static int lp8860_probe(struct i2c_client *client,
 	child_node = of_get_next_available_child(np, NULL);
 	if (!child_node)
 		return -EINVAL;
-
-	led->led_dev.default_trigger = of_get_property(child_node,
-					    "linux,default-trigger",
-					    NULL);
 
 	led->enable_gpio = devm_gpiod_get_optional(&client->dev,
 						   "enable", GPIOD_OUT_LOW);
@@ -449,13 +441,12 @@ static int lp8860_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int lp8860_remove(struct i2c_client *client)
+static void lp8860_remove(struct i2c_client *client)
 {
 	struct lp8860_led *led = i2c_get_clientdata(client);
 	int ret;
 
-	if (led->enable_gpio)
-		gpiod_direction_output(led->enable_gpio, 0);
+	gpiod_direction_output(led->enable_gpio, 0);
 
 	if (led->regulator) {
 		ret = regulator_disable(led->regulator);
@@ -465,8 +456,6 @@ static int lp8860_remove(struct i2c_client *client)
 	}
 
 	mutex_destroy(&led->lock);
-
-	return 0;
 }
 
 static const struct i2c_device_id lp8860_id[] = {

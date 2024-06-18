@@ -5,6 +5,7 @@
 #ifndef _ASM_POWERPC_SWITCH_TO_H
 #define _ASM_POWERPC_SWITCH_TO_H
 
+#include <linux/sched.h>
 #include <asm/reg.h>
 
 struct thread_struct;
@@ -22,6 +23,16 @@ extern void switch_booke_debug_regs(struct debug_reg *new_debug);
 
 extern int emulate_altivec(struct pt_regs *);
 
+#ifdef CONFIG_PPC_BOOK3S_64
+void restore_math(struct pt_regs *regs);
+#else
+static inline void restore_math(struct pt_regs *regs)
+{
+}
+#endif
+
+void restore_tm_state(struct pt_regs *regs);
+
 extern void flush_all_to_thread(struct task_struct *);
 extern void giveup_all(struct task_struct *);
 
@@ -37,6 +48,10 @@ static inline void disable_kernel_fp(void)
 #else
 static inline void save_fpu(struct task_struct *t) { }
 static inline void flush_fp_to_thread(struct task_struct *t) { }
+static inline void enable_kernel_fp(void)
+{
+	BUILD_BUG();
+}
 #endif
 
 #ifdef CONFIG_ALTIVEC
@@ -51,6 +66,15 @@ static inline void disable_kernel_altivec(void)
 #else
 static inline void save_altivec(struct task_struct *t) { }
 static inline void __giveup_altivec(struct task_struct *t) { }
+static inline void enable_kernel_altivec(void)
+{
+	BUILD_BUG();
+}
+
+static inline void disable_kernel_altivec(void)
+{
+	BUILD_BUG();
+}
 #endif
 
 #ifdef CONFIG_VSX
@@ -59,6 +83,16 @@ extern void flush_vsx_to_thread(struct task_struct *);
 static inline void disable_kernel_vsx(void)
 {
 	msr_check_and_clear(MSR_FP|MSR_VEC|MSR_VSX);
+}
+#else
+static inline void enable_kernel_vsx(void)
+{
+	BUILD_BUG();
+}
+
+static inline void disable_kernel_vsx(void)
+{
+	BUILD_BUG();
 }
 #endif
 
@@ -91,7 +125,8 @@ static inline void clear_task_ebb(struct task_struct *t)
 #endif
 }
 
-extern int set_thread_uses_vas(void);
+void kvmppc_save_user_regs(void);
+void kvmppc_save_current_sprs(void);
 
 extern int set_thread_tidr(struct task_struct *t);
 

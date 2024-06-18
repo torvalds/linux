@@ -15,7 +15,7 @@ if USB_NET_DRIVERS
 config USB_CATC
 	tristate "USB CATC NetMate-based Ethernet device support"
 	select CRC32
-	---help---
+	help
 	  Say Y if you want to use one of the following 10Mbps USB Ethernet
 	  device based on the EL1210A chip. Supported devices are:
 	  Belkin F5U011
@@ -33,7 +33,7 @@ config USB_CATC
 
 config USB_KAWETH
 	tristate "USB KLSI KL5USB101-based ethernet device support"
-	---help---
+	help
 	  Say Y here if you want to use one of the following 10Mbps only
 	  USB Ethernet adapters based on the KLSI KL5KUSB101B chipset:
 	  3Com 3C19250
@@ -73,7 +73,7 @@ config USB_KAWETH
 config USB_PEGASUS
 	tristate "USB Pegasus/Pegasus-II based ethernet device support"
 	select MII
-	---help---
+	help
 	  Say Y here if you know you have Pegasus or Pegasus-II based adapter.
 	  If in doubt then look at <file:drivers/net/usb/pegasus.h> for the
 	  complete list of supported devices.
@@ -99,6 +99,11 @@ config USB_RTL8150
 config USB_RTL8152
 	tristate "Realtek RTL8152/RTL8153 Based USB Ethernet Adapters"
 	select MII
+	select PHYLIB
+	select CRC32
+	select CRYPTO
+	select CRYPTO_HASH
+	select CRYPTO_SHA256
 	help
 	  This option adds support for Realtek RTL8152 based USB 2.0
 	  10/100 Ethernet adapters and RTL8153 based USB 3.0 10/100/1000
@@ -113,6 +118,7 @@ config USB_LAN78XX
 	select PHYLIB
 	select MICROCHIP_PHY
 	select FIXED_PHY
+	select CRC32
 	help
 	  This option adds support for Microchip LAN78XX based USB 2
 	  & USB 3 10/100/1000 Ethernet adapters.
@@ -128,7 +134,7 @@ config USB_LAN78XX
 config USB_USBNET
 	tristate "Multi-purpose USB Networking Framework"
 	select MII
-	---help---
+	help
 	  This driver supports several kinds of network links over USB,
 	  with "minidrivers" built around a common network driver core
 	  that supports deep queues for efficient transfers.  (This gives
@@ -163,13 +169,15 @@ config USB_NET_AX8817X
 	tristate "ASIX AX88xxx Based USB 2.0 Ethernet Adapters"
 	depends on USB_USBNET
 	select CRC32
-	select PHYLIB
+	select PHYLINK
+	select AX88796B_PHY
+	imply NET_SELFTESTS
 	default y
 	help
 	  This option adds support for ASIX AX88xxx based USB 2.0
 	  10/100 Ethernet adapters.
 
- 	  This driver should work with at least the following devices:
+	  This driver should work with at least the following devices:
 	    * Aten UC210T
 	    * ASIX AX88172
 	    * Billionton Systems, USB2AR
@@ -220,13 +228,13 @@ config USB_NET_CDCETHER
 	  CDC Ethernet is an implementation option for DOCSIS cable modems
 	  that support USB connectivity, used for non-Microsoft USB hosts.
 	  The Linux-USB CDC Ethernet Gadget driver is an open implementation.
- 	  This driver should work with at least the following devices:
+	  This driver should work with at least the following devices:
 
 	    * Dell Wireless 5530 HSPA
- 	    * Ericsson PipeRider (all variants)
+	    * Ericsson PipeRider (all variants)
 	    * Ericsson Mobile Broadband Module (all variants)
- 	    * Motorola (DM100 and SB4100)
- 	    * Broadcom Cable Modem (reference design)
+	    * Motorola (DM100 and SB4100)
+	    * Broadcom Cable Modem (reference design)
 	    * Toshiba (PCX1100U and F3507g/F3607gw)
 	    * ...
 
@@ -252,6 +260,7 @@ config USB_NET_CDC_EEM
 config USB_NET_CDC_NCM
 	tristate "CDC NCM support"
 	depends on USB_USBNET
+	select USB_NET_CDCETHER
 	default y
 	help
 	  This driver provides support for CDC NCM (Network Control Model
@@ -321,7 +330,7 @@ config USB_NET_SR9800
 	tristate "CoreChip-sz SR9800 based USB 2.0 10/100 ethernet devices"
 	depends on USB_USBNET
 	select CRC32
-	---help---
+	help
 	  Say Y if you want to use one of the following 100Mbps USB Ethernet
 	  device based on the CoreChip-sz SR9800 chip.
 
@@ -345,9 +354,12 @@ config USB_NET_SMSC75XX
 config USB_NET_SMSC95XX
 	tristate "SMSC LAN95XX based USB 2.0 10/100 ethernet devices"
 	depends on USB_USBNET
+	select PHYLIB
+	select SMSC_PHY
 	select BITREVERSE
 	select CRC16
 	select CRC32
+	imply NET_SELFTESTS
 	help
 	  This option adds support for SMSC LAN95XX based USB 2.0
 	  10/100 Ethernet adapters.
@@ -570,14 +582,12 @@ config USB_CDC_PHONET
 config USB_IPHETH
 	tristate "Apple iPhone USB Ethernet driver"
 	default n
-	---help---
+	help
 	  Module used to share Internet connection (tethering) from your
-	  iPhone (Original, 3G and 3GS) to your system.
-	  Note that you need userspace libraries and programs that are needed
-	  to pair your device with your system and that understand the iPhone
-	  protocol.
-
-	  For more information: http://giagio.com/wiki/moin.cgi/iPhoneEthernetDriver
+	  iPhone to your system.
+	  Note that you need a corresponding userspace library/program
+	  to pair your device with your system, for example usbmuxd
+	  <https://github.com/libimobiledevice/usbmuxd>.
 
 config USB_SIERRA_NET
 	tristate "USB-to-WWAN Driver for Sierra Wireless modems"
@@ -624,5 +634,14 @@ config USB_NET_AQC111
 
 	  This driver should work with at least the following devices:
 	  * Aquantia AQtion USB to 5GbE
+
+config USB_RTL8153_ECM
+	tristate
+	depends on USB_NET_CDCETHER && (USB_RTL8152 || USB_RTL8152=n)
+	default y
+	help
+	  This option supports ECM mode for RTL8153 ethernet adapter, when
+	  CONFIG_USB_RTL8152 is not set, or the RTL8153 device is not
+	  supported by r8152 driver.
 
 endif # USB_NET_DRIVERS

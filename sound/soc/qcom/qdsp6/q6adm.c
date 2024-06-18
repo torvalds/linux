@@ -90,7 +90,7 @@ struct q6adm_session_map_node_v5 {
 static struct q6copp *q6adm_find_copp(struct q6adm *adm, int port_idx,
 				  int copp_idx)
 {
-	struct q6copp *c = NULL;
+	struct q6copp *c;
 	struct q6copp *ret = NULL;
 	unsigned long flags;
 
@@ -180,7 +180,7 @@ static int q6adm_callback(struct apr_device *adev, struct apr_resp_pkt *data)
 			u32 status;
 			u16 copp_id;
 			u16 reserved;
-		} __packed * open = data->payload;
+		} __packed *open = data->payload;
 
 		copp = q6adm_find_copp(adm, port_idx, copp_idx);
 		if (!copp)
@@ -217,7 +217,7 @@ static struct q6copp *q6adm_alloc_copp(struct q6adm *adm, int port_idx)
 	idx = find_first_zero_bit(&adm->copp_bitmap[port_idx],
 				  MAX_COPPS_PER_PORT);
 
-	if (idx > MAX_COPPS_PER_PORT)
+	if (idx >= MAX_COPPS_PER_PORT)
 		return ERR_PTR(-EBUSY);
 
 	c = kzalloc(sizeof(*c), GFP_ATOMIC);
@@ -299,7 +299,7 @@ static struct q6copp *q6adm_find_matching_copp(struct q6adm *adm,
 					       int channel_mode, int bit_width,
 					       int app_type)
 {
-	struct q6copp *c = NULL;
+	struct q6copp *c;
 	struct q6copp *ret = NULL;
 	unsigned long flags;
 
@@ -390,7 +390,7 @@ struct q6copp *q6adm_open(struct device *dev, int port_id, int path, int rate,
 	int ret = 0;
 
 	if (port_id < 0) {
-		dev_err(dev, "Invalid port_id 0x%x\n", port_id);
+		dev_err(dev, "Invalid port_id %d\n", port_id);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -403,7 +403,7 @@ struct q6copp *q6adm_open(struct device *dev, int port_id, int path, int rate,
 
 	spin_lock_irqsave(&adm->copps_list_lock, flags);
 	copp = q6adm_alloc_copp(adm, port_id);
-	if (IS_ERR_OR_NULL(copp)) {
+	if (IS_ERR(copp)) {
 		spin_unlock_irqrestore(&adm->copps_list_lock, flags);
 		return ERR_CAST(copp);
 	}
@@ -418,7 +418,6 @@ struct q6copp *q6adm_open(struct device *dev, int port_id, int path, int rate,
 	copp->channels = channel_mode;
 	copp->bit_width = bit_width;
 	copp->app_type = app_type;
-
 
 	ret = q6adm_device_open(adm, copp, port_id, path, topology,
 				channel_mode, bit_width, rate);
@@ -466,7 +465,7 @@ int q6adm_matrix_map(struct device *dev, int path,
 	struct apr_pkt *pkt;
 	uint16_t *copps_list;
 	int pkt_size, ret, i, copp_idx;
-	void *matrix_map = NULL;
+	void *matrix_map;
 	struct q6copp *copp;
 
 	/* Assumes port_ids have already been validated during adm_open */
@@ -509,7 +508,7 @@ int q6adm_matrix_map(struct device *dev, int path,
 		int port_idx = payload_map.port_id[i];
 
 		if (port_idx < 0) {
-			dev_err(dev, "Invalid port_id 0x%x\n",
+			dev_err(dev, "Invalid port_id %d\n",
 				payload_map.port_id[i]);
 			kfree(pkt);
 			return -EINVAL;
@@ -588,12 +587,12 @@ static int q6adm_probe(struct apr_device *adev)
 	struct device *dev = &adev->dev;
 	struct q6adm *adm;
 
-	adm = devm_kzalloc(&adev->dev, sizeof(*adm), GFP_KERNEL);
+	adm = devm_kzalloc(dev, sizeof(*adm), GFP_KERNEL);
 	if (!adm)
 		return -ENOMEM;
 
 	adm->apr = adev;
-	dev_set_drvdata(&adev->dev, adm);
+	dev_set_drvdata(dev, adm);
 	adm->dev = dev;
 	q6core_get_svc_api_info(adev->svc_id, &adm->ainfo);
 	mutex_init(&adm->lock);
@@ -602,25 +601,19 @@ static int q6adm_probe(struct apr_device *adev)
 	INIT_LIST_HEAD(&adm->copps_list);
 	spin_lock_init(&adm->copps_list_lock);
 
-	return of_platform_populate(dev->of_node, NULL, NULL, dev);
+	return devm_of_platform_populate(dev);
 }
 
-static int q6adm_remove(struct apr_device *adev)
-{
-	of_platform_depopulate(&adev->dev);
-
-	return 0;
-}
-
+#ifdef CONFIG_OF
 static const struct of_device_id q6adm_device_id[]  = {
 	{ .compatible = "qcom,q6adm" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, q6adm_device_id);
+#endif
 
 static struct apr_driver qcom_q6adm_driver = {
 	.probe = q6adm_probe,
-	.remove = q6adm_remove,
 	.callback = q6adm_callback,
 	.driver = {
 		.name = "qcom-q6adm",

@@ -129,6 +129,9 @@ wpan_phy_new(const struct cfg802154_ops *ops, size_t priv_size)
 	wpan_phy_net_set(&rdev->wpan_phy, &init_net);
 
 	init_waitqueue_head(&rdev->dev_wait);
+	init_waitqueue_head(&rdev->wpan_phy.sync_txq);
+
+	spin_lock_init(&rdev->wpan_phy.queue_lock);
 
 	return &rdev->wpan_phy;
 }
@@ -194,6 +197,25 @@ void wpan_phy_free(struct wpan_phy *phy)
 	put_device(&phy->dev);
 }
 EXPORT_SYMBOL(wpan_phy_free);
+
+static void cfg802154_free_peer_structures(struct wpan_dev *wpan_dev)
+{
+	struct ieee802154_pan_device *child, *tmp;
+
+	mutex_lock(&wpan_dev->association_lock);
+
+	kfree(wpan_dev->parent);
+	wpan_dev->parent = NULL;
+
+	list_for_each_entry_safe(child, tmp, &wpan_dev->children, node) {
+		list_del(&child->node);
+		kfree(child);
+	}
+
+	wpan_dev->nchildren = 0;
+
+	mutex_unlock(&wpan_dev->association_lock);
+}
 
 int cfg802154_switch_netns(struct cfg802154_registered_device *rdev,
 			   struct net *net)
@@ -273,6 +295,9 @@ static int cfg802154_netdev_notifier_call(struct notifier_block *nb,
 		wpan_dev->identifier = ++rdev->wpan_dev_id;
 		list_add_rcu(&wpan_dev->list, &rdev->wpan_dev_list);
 		rdev->devlist_generation++;
+		mutex_init(&wpan_dev->association_lock);
+		INIT_LIST_HEAD(&wpan_dev->children);
+		wpan_dev->max_associations = SZ_16K;
 
 		wpan_dev->netdev = dev;
 		break;
@@ -288,6 +313,8 @@ static int cfg802154_netdev_notifier_call(struct notifier_block *nb,
 		rdev->opencount++;
 		break;
 	case NETDEV_UNREGISTER:
+		cfg802154_free_peer_structures(wpan_dev);
+
 		/* It is possible to get NETDEV_UNREGISTER
 		 * multiple times. To detect that, check
 		 * that the interface is still on the list

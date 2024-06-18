@@ -7,14 +7,17 @@
 
 #define RTW_HW_PORT_NUM		5
 #define cut_version_to_mask(cut) (0x1 << ((cut) + 1))
-#define SDIO_LOCAL_OFFSET	0x10250000
 #define DDMA_POLLING_COUNT	1000
 #define C2H_PKT_BUF		256
+#define REPORT_BUF		128
 #define PHY_STATUS_SIZE		4
 #define ILLEGAL_KEY_GROUP	0xFAAAAA00
 
 /* HW memory address */
+#define OCPBASE_RXBUF_FW_88XX		0x18680000
 #define OCPBASE_TXBUF_88XX		0x18780000
+#define OCPBASE_ROM_88XX		0x00000000
+#define OCPBASE_IMEM_88XX		0x00030000
 #define OCPBASE_DMEM_88XX		0x00200000
 #define OCPBASE_EMEM_88XX		0x00100000
 
@@ -31,5 +34,12 @@ int rtw_mac_power_on(struct rtw_dev *rtwdev);
 void rtw_mac_power_off(struct rtw_dev *rtwdev);
 int rtw_download_firmware(struct rtw_dev *rtwdev, struct rtw_fw_state *fw);
 int rtw_mac_init(struct rtw_dev *rtwdev);
+void rtw_mac_flush_queues(struct rtw_dev *rtwdev, u32 queues, bool drop);
+int rtw_ddma_to_fw_fifo(struct rtw_dev *rtwdev, u32 ocp_src, u32 size);
+
+static inline void rtw_mac_flush_all_queues(struct rtw_dev *rtwdev, bool drop)
+{
+	rtw_mac_flush_queues(rtwdev, BIT(rtwdev->hw->queues) - 1, drop);
+}
 
 #endif

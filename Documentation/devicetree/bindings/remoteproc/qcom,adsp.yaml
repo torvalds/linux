@@ -1,0 +1,220 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/remoteproc/qcom,adsp.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm ADSP Peripheral Image Loader
+
+maintainers:
+  - Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
+
+description:
+  This document defines the binding for a component that loads and boots
+  firmware on the Qualcomm ADSP Hexagon core.
+
+properties:
+  compatible:
+    enum:
+      - qcom,msm8226-adsp-pil
+      - qcom,msm8953-adsp-pil
+      - qcom,msm8974-adsp-pil
+      - qcom,msm8996-adsp-pil
+      - qcom,msm8996-slpi-pil
+      - qcom,msm8998-adsp-pas
+      - qcom,msm8998-slpi-pas
+      - qcom,sdm660-adsp-pas
+      - qcom,sdm845-adsp-pas
+      - qcom,sdm845-cdsp-pas
+      - qcom,sdm845-slpi-pas
+
+  reg:
+    maxItems: 1
+
+  cx-supply:
+    description: Phandle to the CX regulator
+
+  px-supply:
+    description: Phandle to the PX regulator
+
+  qcom,qmp:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: Reference to the AOSS side-channel message RAM.
+
+  memory-region:
+    maxItems: 1
+    description: Reference to the reserved-memory for the Hexagon core
+
+  firmware-name:
+    maxItems: 1
+    description: Firmware name for the Hexagon core
+
+required:
+  - compatible
+  - memory-region
+
+unevaluatedProperties: false
+
+allOf:
+  - $ref: /schemas/remoteproc/qcom,pas-common.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,msm8226-adsp-pil
+              - qcom,msm8953-adsp-pil
+              - qcom,msm8974-adsp-pil
+              - qcom,msm8996-adsp-pil
+              - qcom,msm8996-slpi-pil
+              - qcom,msm8998-adsp-pas
+              - qcom,msm8998-slpi-pas
+              - qcom,sdm845-adsp-pas
+              - qcom,sdm845-cdsp-pas
+              - qcom,sdm845-slpi-pas
+    then:
+      properties:
+        clocks:
+          items:
+            - description: XO clock
+        clock-names:
+          items:
+            - const: xo
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,msm8226-adsp-pil
+              - qcom,msm8953-adsp-pil
+              - qcom,msm8974-adsp-pil
+              - qcom,msm8996-adsp-pil
+              - qcom,msm8996-slpi-pil
+              - qcom,msm8998-adsp-pas
+              - qcom,msm8998-slpi-pas
+              - qcom,sdm845-adsp-pas
+              - qcom,sdm845-cdsp-pas
+              - qcom,sdm845-slpi-pas
+    then:
+      properties:
+        interrupts:
+          maxItems: 5
+        interrupt-names:
+          maxItems: 5
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,msm8974-adsp-pil
+    then:
+      required:
+        - cx-supply
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,msm8226-adsp-pil
+              - qcom,msm8953-adsp-pil
+              - qcom,msm8996-adsp-pil
+              - qcom,msm8998-adsp-pas
+    then:
+      properties:
+        power-domains:
+          items:
+            - description: CX power domain
+        power-domain-names:
+          items:
+            - const: cx
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,msm8996-slpi-pil
+              - qcom,msm8998-slpi-pas
+    then:
+      properties:
+        power-domains:
+          items:
+            - description: SSC-CX power domain
+        power-domain-names:
+          items:
+            - const: ssc_cx
+      required:
+        - px-supply
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,sdm845-slpi-pas
+    then:
+      properties:
+        power-domains:
+          items:
+            - description: LCX power domain
+            - description: LMX power domain
+        power-domain-names:
+          items:
+            - const: lcx
+            - const: lmx
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,msm8226-adsp-pil
+              - qcom,msm8953-adsp-pil
+              - qcom,msm8974-adsp-pil
+              - qcom,msm8996-adsp-pil
+              - qcom,msm8996-slpi-pil
+              - qcom,msm8998-adsp-pas
+              - qcom,msm8998-slpi-pas
+              - qcom,sdm660-adsp-pas
+    then:
+      properties:
+        qcom,qmp: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/qcom,rpmcc.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    adsp {
+        compatible = "qcom,msm8974-adsp-pil";
+
+        interrupts-extended = <&intc GIC_SPI 162 IRQ_TYPE_EDGE_RISING>,
+                      <&adsp_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
+                      <&adsp_smp2p_in 1 IRQ_TYPE_EDGE_RISING>,
+                      <&adsp_smp2p_in 2 IRQ_TYPE_EDGE_RISING>,
+                      <&adsp_smp2p_in 3 IRQ_TYPE_EDGE_RISING>;
+        interrupt-names = "wdog",
+                  "fatal",
+                  "ready",
+                  "handover",
+                  "stop-ack";
+
+        clocks = <&rpmcc RPM_CXO_CLK>;
+        clock-names = "xo";
+
+        cx-supply = <&pm8841_s2>;
+
+        memory-region = <&adsp_region>;
+
+        qcom,smem-states = <&adsp_smp2p_out 0>;
+        qcom,smem-state-names = "stop";
+
+        smd-edge {
+            interrupts = <GIC_SPI 156 IRQ_TYPE_EDGE_RISING>;
+
+            qcom,ipc = <&apcs 8 8>;
+            qcom,smd-edge = <1>;
+        };
+    };

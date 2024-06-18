@@ -15,7 +15,7 @@
  * RC6-6A-32	(MCE version with toggle bit in body)
  */
 
-#define RC6_UNIT		444444	/* nanosecs */
+#define RC6_UNIT		444	/* microseconds */
 #define RC6_HEADER_NBITS	4	/* not including toggle bit */
 #define RC6_0_NBITS		16
 #define RC6_6A_32_NBITS		32
@@ -64,7 +64,7 @@ static enum rc6_mode rc6_mode(struct rc6_dec *data)
 	case 6:
 		if (!data->toggle)
 			return RC6_MODE_6A;
-		/* fall through */
+		fallthrough;
 	default:
 		return RC6_MODE_UNKNOWN;
 	}
@@ -85,7 +85,7 @@ static int ir_rc6_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	enum rc_proto protocol;
 
 	if (!is_timing_event(ev)) {
-		if (ev.reset)
+		if (ev.overflow)
 			data->state = STATE_INACTIVE;
 		return 0;
 	}
@@ -95,7 +95,7 @@ static int ir_rc6_decode(struct rc_dev *dev, struct ir_raw_event ev)
 
 again:
 	dev_dbg(&dev->dev, "RC6 decode started at state %i (%uus %s)\n",
-		data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+		data->state, ev.duration, TO_STR(ev.pulse));
 
 	if (!geq_margin(ev.duration, RC6_UNIT, RC6_UNIT / 2))
 		return 0;
@@ -270,7 +270,7 @@ again:
 
 out:
 	dev_dbg(&dev->dev, "RC6 decode failed at state %i (%uus %s)\n",
-		data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+		data->state, ev.duration, TO_STR(ev.pulse));
 	data->state = STATE_INACTIVE;
 	return -EINVAL;
 }

@@ -8,6 +8,7 @@
 / {
 	model = "Asus NovaGo TP370QL";
 	compatible = "asus,novago-tp370ql", "qcom,msm8998";
+	chassis-type = "convertible";
 };
 
 &blsp1_i2c6 {
@@ -15,33 +16,26 @@
 
 	touchpad@15 {
 		compatible = "hid-over-i2c";
-		interrupt-parent = <&tlmm>;
-		interrupts = <0x7b IRQ_TYPE_LEVEL_LOW>;
 		reg = <0x15>;
-		hid-descr-addr = <0x0001>;
-
 		pinctrl-names = "default";
 		pinctrl-0 = <&touchpad>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <123 IRQ_TYPE_LEVEL_LOW>;
+
+		hid-descr-addr = <0x0001>;
 	};
 
 	keyboard@3a {
 		compatible = "hid-over-i2c";
-		interrupt-parent = <&tlmm>;
-		interrupts = <0x25 IRQ_TYPE_LEVEL_LOW>;
 		reg = <0x3a>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <37 IRQ_TYPE_LEVEL_LOW>;
+
 		hid-descr-addr = <0x0001>;
 	};
 };
 
 &sdhc2 {
 	cd-gpios = <&tlmm 95 GPIO_ACTIVE_HIGH>;
-};
-
-&tlmm {
-	touchpad: touchpad {
-		config {
-			pins = "gpio123";
-			bias-pull-up;
-		};
-	};
 };

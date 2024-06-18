@@ -7,7 +7,7 @@ config NET_VENDOR_XIRCOM
 	bool "Xircom devices"
 	default y
 	depends on PCMCIA
-	---help---
+	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -19,8 +19,8 @@ if NET_VENDOR_XIRCOM
 
 config PCMCIA_XIRC2PS
 	tristate "Xircom 16-bit PCMCIA support"
-	depends on PCMCIA
-	---help---
+	depends on PCMCIA && HAS_IOPORT
+	help
 	  Say Y here if you intend to attach a Xircom 16-bit PCMCIA (PC-card)
 	  Ethernet or Fast Ethernet card to your computer.
 

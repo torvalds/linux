@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Device Tree Source for the R-Car H3e-2G (R8A779M1) SoC
+ *
+ * Copyright (C) 2021 Glider bv
+ */
+
+#include "r8a77951.dtsi"
+
+/ {
+	compatible = "renesas,r8a779m1", "renesas,r8a7795";
+};
+
+&cluster0_opp {
+	opp-1700000000 {
+		/delete-property/ turbo-mode;
+	};
+	opp-2000000000 {
+		opp-hz = /bits/ 64 <2000000000>;
+		opp-microvolt = <960000>;
+		clock-latency-ns = <300000>;
+		turbo-mode;
+	};
+};

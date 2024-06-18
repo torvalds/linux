@@ -31,6 +31,7 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_device.h>
 #include <linux/libata.h>
+#include <trace/events/libata.h>
 
 #define DRV_NAME			"sata_nv"
 #define DRV_VERSION			"3.5"
@@ -295,9 +296,10 @@ static void nv_nf2_freeze(struct ata_port *ap);
 static void nv_nf2_thaw(struct ata_port *ap);
 static void nv_ck804_freeze(struct ata_port *ap);
 static void nv_ck804_thaw(struct ata_port *ap);
-static int nv_adma_slave_config(struct scsi_device *sdev);
+static int nv_adma_device_configure(struct scsi_device *sdev,
+		struct queue_limits *lim);
 static int nv_adma_check_atapi_dma(struct ata_queued_cmd *qc);
-static void nv_adma_qc_prep(struct ata_queued_cmd *qc);
+static enum ata_completion_errors nv_adma_qc_prep(struct ata_queued_cmd *qc);
 static unsigned int nv_adma_qc_issue(struct ata_queued_cmd *qc);
 static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance);
 static void nv_adma_irq_clear(struct ata_port *ap);
@@ -317,9 +319,10 @@ static void nv_adma_tf_read(struct ata_port *ap, struct ata_taskfile *tf);
 static void nv_mcp55_thaw(struct ata_port *ap);
 static void nv_mcp55_freeze(struct ata_port *ap);
 static void nv_swncq_error_handler(struct ata_port *ap);
-static int nv_swncq_slave_config(struct scsi_device *sdev);
+static int nv_swncq_device_configure(struct scsi_device *sdev,
+		struct queue_limits *lim);
 static int nv_swncq_port_start(struct ata_port *ap);
-static void nv_swncq_qc_prep(struct ata_queued_cmd *qc);
+static enum ata_completion_errors nv_swncq_qc_prep(struct ata_queued_cmd *qc);
 static void nv_swncq_fill_sg(struct ata_queued_cmd *qc);
 static unsigned int nv_swncq_qc_issue(struct ata_queued_cmd *qc);
 static void nv_swncq_irq_clear(struct ata_port *ap, u16 fis);
@@ -370,24 +373,30 @@ static struct pci_driver nv_pci_driver = {
 	.remove			= ata_pci_remove_one,
 };
 
-static struct scsi_host_template nv_sht = {
+static const struct scsi_host_template nv_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 
-static struct scsi_host_template nv_adma_sht = {
-	ATA_NCQ_SHT(DRV_NAME),
+static const struct scsi_host_template nv_adma_sht = {
+	__ATA_BASE_SHT(DRV_NAME),
 	.can_queue		= NV_ADMA_MAX_CPBS,
 	.sg_tablesize		= NV_ADMA_SGTBL_TOTAL_LEN,
 	.dma_boundary		= NV_ADMA_DMA_BOUNDARY,
-	.slave_configure	= nv_adma_slave_config,
+	.device_configure	= nv_adma_device_configure,
+	.sdev_groups		= ata_ncq_sdev_groups,
+	.change_queue_depth     = ata_scsi_change_queue_depth,
+	.tag_alloc_policy	= BLK_TAG_ALLOC_RR,
 };
 
-static struct scsi_host_template nv_swncq_sht = {
-	ATA_NCQ_SHT(DRV_NAME),
+static const struct scsi_host_template nv_swncq_sht = {
+	__ATA_BASE_SHT(DRV_NAME),
 	.can_queue		= ATA_MAX_QUEUE - 1,
 	.sg_tablesize		= LIBATA_MAX_PRD,
 	.dma_boundary		= ATA_DMA_BOUNDARY,
-	.slave_configure	= nv_swncq_slave_config,
+	.device_configure	= nv_swncq_device_configure,
+	.sdev_groups		= ata_ncq_sdev_groups,
+	.change_queue_depth     = ata_scsi_change_queue_depth,
+	.tag_alloc_policy	= BLK_TAG_ALLOC_RR,
 };
 
 /*
@@ -513,7 +522,7 @@ static struct ata_port_operations nv_swncq_ops = {
 
 struct nv_pi_priv {
 	irq_handler_t			irq_handler;
-	struct scsi_host_template	*sht;
+	const struct scsi_host_template	*sht;
 };
 
 #define NV_PI_PRIV(_irq_handler, _sht) \
@@ -654,7 +663,8 @@ static void nv_adma_mode(struct ata_port *ap)
 	pp->flags &= ~NV_ADMA_PORT_REGISTER_MODE;
 }
 
-static int nv_adma_slave_config(struct scsi_device *sdev)
+static int nv_adma_device_configure(struct scsi_device *sdev,
+		struct queue_limits *lim)
 {
 	struct ata_port *ap = ata_shost_to_port(sdev->host);
 	struct nv_adma_port_priv *pp = ap->private_data;
@@ -666,7 +676,7 @@ static int nv_adma_slave_config(struct scsi_device *sdev)
 	int adma_enable;
 	u32 current_reg, new_reg, config_mask;
 
-	rc = ata_scsi_slave_config(sdev);
+	rc = ata_scsi_device_configure(sdev, lim);
 
 	if (sdev->id >= ATA_MAX_DEVICES || sdev->channel || sdev->lun)
 		/* Not a proper libata device, ignore */
@@ -733,8 +743,8 @@ static int nv_adma_slave_config(struct scsi_device *sdev)
 		rc = dma_set_mask(&pdev->dev, pp->adma_dma_mask);
 	}
 
-	blk_queue_segment_boundary(sdev->request_queue, segment_boundary);
-	blk_queue_max_segments(sdev->request_queue, sg_tablesize);
+	lim->seg_boundary_mask = segment_boundary;
+	lim->max_segments = sg_tablesize;
 	ata_port_info(ap,
 		      "DMA mask 0x%llX, segment boundary 0x%lX, hw segs %hu\n",
 		      (unsigned long long)*ap->host->dev->dma_mask,
@@ -802,7 +812,7 @@ static int nv_adma_check_cpb(struct ata_port *ap, int cpb_num, int force_err)
 	struct nv_adma_port_priv *pp = ap->private_data;
 	u8 flags = pp->cpb[cpb_num].resp_flags;
 
-	VPRINTK("CPB %d, flags=0x%x\n", cpb_num, flags);
+	ata_port_dbg(ap, "CPB %d, flags=0x%x\n", cpb_num, flags);
 
 	if (unlikely((force_err ||
 		     flags & (NV_CPB_RESP_ATA_ERR |
@@ -984,7 +994,7 @@ static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance)
 					check_commands = 0;
 				check_commands &= ~(1 << pos);
 			}
-			ata_qc_complete_multiple(ap, ap->qc_active ^ done_mask);
+			ata_qc_complete_multiple(ap, ata_qc_get_active(ap) ^ done_mask);
 		}
 	}
 
@@ -1094,8 +1104,6 @@ static int nv_adma_port_start(struct ata_port *ap)
 	struct pci_dev *pdev = to_pci_dev(dev);
 	u16 tmp;
 
-	VPRINTK("ENTER\n");
-
 	/*
 	 * Ensure DMA mask is set to 32-bit before allocating legacy PRD and
 	 * pad buffers.
@@ -1184,7 +1192,6 @@ static void nv_adma_port_stop(struct ata_port *ap)
 	struct nv_adma_port_priv *pp = ap->private_data;
 	void __iomem *mmio = pp->ctl_block;
 
-	VPRINTK("ENTER\n");
 	writew(0, mmio + NV_ADMA_CTL);
 }
 
@@ -1246,8 +1253,6 @@ static void nv_adma_setup_port(struct ata_port *ap)
 	void __iomem *mmio = ap->host->iomap[NV_MMIO_BAR];
 	struct ata_ioports *ioport = &ap->ioaddr;
 
-	VPRINTK("ENTER\n");
-
 	mmio += NV_ADMA_PORT + ap->port_no * NV_ADMA_PORT_SIZE;
 
 	ioport->cmd_addr	= mmio;
@@ -1270,8 +1275,6 @@ static int nv_adma_host_init(struct ata_host *host)
 	struct pci_dev *pdev = to_pci_dev(host->dev);
 	unsigned int i;
 	u32 tmp32;
-
-	VPRINTK("ENTER\n");
 
 	/* enable ADMA on the ports */
 	pci_read_config_dword(pdev, NV_MCP_SATA_CFG_20, &tmp32);
@@ -1314,8 +1317,6 @@ static void nv_adma_fill_sg(struct ata_queued_cmd *qc, struct nv_adma_cpb *cpb)
 	struct scatterlist *sg;
 	unsigned int si;
 
-	VPRINTK("ENTER\n");
-
 	for_each_sg(qc->sg, sg, qc->n_elem, si) {
 		aprd = (si < 5) ? &cpb->aprd[si] :
 			&pp->aprd[NV_ADMA_SGTBL_LEN * qc->hw_tag + (si-5)];
@@ -1344,7 +1345,7 @@ static int nv_adma_use_reg_mode(struct ata_queued_cmd *qc)
 	return 1;
 }
 
-static void nv_adma_qc_prep(struct ata_queued_cmd *qc)
+static enum ata_completion_errors nv_adma_qc_prep(struct ata_queued_cmd *qc)
 {
 	struct nv_adma_port_priv *pp = qc->ap->private_data;
 	struct nv_adma_cpb *cpb = &pp->cpb[qc->hw_tag];
@@ -1356,7 +1357,7 @@ static void nv_adma_qc_prep(struct ata_queued_cmd *qc)
 			(qc->flags & ATA_QCFLAG_DMAMAP));
 		nv_adma_register_mode(qc->ap);
 		ata_bmdma_qc_prep(qc);
-		return;
+		return AC_ERR_OK;
 	}
 
 	cpb->resp_flags = NV_CPB_RESP_DONE;
@@ -1372,8 +1373,6 @@ static void nv_adma_qc_prep(struct ata_queued_cmd *qc)
 	if (qc->tf.protocol == ATA_PROT_NCQ)
 		ctl_flags |= NV_CPB_CTL_QUEUE | NV_CPB_CTL_FPDMA;
 
-	VPRINTK("qc->flags = 0x%lx\n", qc->flags);
-
 	nv_adma_tf_to_cpb(&qc->tf, cpb->tf);
 
 	if (qc->flags & ATA_QCFLAG_DMAMAP) {
@@ -1388,6 +1387,8 @@ static void nv_adma_qc_prep(struct ata_queued_cmd *qc)
 	cpb->ctl_flags = ctl_flags;
 	wmb();
 	cpb->resp_flags = 0;
+
+	return AC_ERR_OK;
 }
 
 static unsigned int nv_adma_qc_issue(struct ata_queued_cmd *qc)
@@ -1395,8 +1396,6 @@ static unsigned int nv_adma_qc_issue(struct ata_queued_cmd *qc)
 	struct nv_adma_port_priv *pp = qc->ap->private_data;
 	void __iomem *mmio = pp->ctl_block;
 	int curr_ncq = (qc->tf.protocol == ATA_PROT_NCQ);
-
-	VPRINTK("ENTER\n");
 
 	/* We can't handle result taskfile with NCQ commands, since
 	   retrieving the taskfile switches us out of ADMA mode and would abort
@@ -1409,7 +1408,6 @@ static unsigned int nv_adma_qc_issue(struct ata_queued_cmd *qc)
 
 	if (nv_adma_use_reg_mode(qc)) {
 		/* use ATA register mode */
-		VPRINTK("using ATA register mode: 0x%lx\n", qc->flags);
 		BUG_ON(!(pp->flags & NV_ADMA_ATAPI_SETUP_COMPLETE) &&
 			(qc->flags & ATA_QCFLAG_DMAMAP));
 		nv_adma_register_mode(qc->ap);
@@ -1429,8 +1427,6 @@ static unsigned int nv_adma_qc_issue(struct ata_queued_cmd *qc)
 	}
 
 	writew(qc->hw_tag, mmio + NV_ADMA_APPEND);
-
-	DPRINTK("Issued tag %u\n", qc->hw_tag);
 
 	return 0;
 }
@@ -1536,7 +1532,7 @@ static int nv_hardreset(struct ata_link *link, unsigned int *class,
 		sata_link_hardreset(link, sata_deb_timing_hotplug, deadline,
 				    NULL, NULL);
 	else {
-		const unsigned long *timing = sata_ehc_deb_timing(ehc);
+		const unsigned int *timing = sata_ehc_deb_timing(ehc);
 		int rc;
 
 		if (!(ehc->i.flags & ATA_EHI_QUIET))
@@ -1863,19 +1859,20 @@ static void nv_swncq_host_init(struct ata_host *host)
 
 	/* enable swncq */
 	tmp = readl(mmio + NV_CTL_MCP55);
-	VPRINTK("HOST_CTL:0x%X\n", tmp);
+	dev_dbg(&pdev->dev, "HOST_CTL:0x%X\n", tmp);
 	writel(tmp | NV_CTL_PRI_SWNCQ | NV_CTL_SEC_SWNCQ, mmio + NV_CTL_MCP55);
 
 	/* enable irq intr */
 	tmp = readl(mmio + NV_INT_ENABLE_MCP55);
-	VPRINTK("HOST_ENABLE:0x%X\n", tmp);
+	dev_dbg(&pdev->dev, "HOST_ENABLE:0x%X\n", tmp);
 	writel(tmp | 0x00fd00fd, mmio + NV_INT_ENABLE_MCP55);
 
 	/*  clear port irq */
 	writel(~0x0, mmio + NV_INT_STATUS_MCP55);
 }
 
-static int nv_swncq_slave_config(struct scsi_device *sdev)
+static int nv_swncq_device_configure(struct scsi_device *sdev,
+		struct queue_limits *lim)
 {
 	struct ata_port *ap = ata_shost_to_port(sdev->host);
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
@@ -1885,7 +1882,7 @@ static int nv_swncq_slave_config(struct scsi_device *sdev)
 	u8 check_maxtor = 0;
 	unsigned char model_num[ATA_ID_PROD_LEN + 1];
 
-	rc = ata_scsi_slave_config(sdev);
+	rc = ata_scsi_device_configure(sdev, lim);
 	if (sdev->id >= ATA_MAX_DEVICES || sdev->channel || sdev->lun)
 		/* Not a proper libata device, ignore */
 		return rc;
@@ -1950,17 +1947,19 @@ static int nv_swncq_port_start(struct ata_port *ap)
 	return 0;
 }
 
-static void nv_swncq_qc_prep(struct ata_queued_cmd *qc)
+static enum ata_completion_errors nv_swncq_qc_prep(struct ata_queued_cmd *qc)
 {
 	if (qc->tf.protocol != ATA_PROT_NCQ) {
 		ata_bmdma_qc_prep(qc);
-		return;
+		return AC_ERR_OK;
 	}
 
 	if (!(qc->flags & ATA_QCFLAG_DMAMAP))
-		return;
+		return AC_ERR_OK;
 
 	nv_swncq_fill_sg(qc);
+
+	return AC_ERR_OK;
 }
 
 static void nv_swncq_fill_sg(struct ata_queued_cmd *qc)
@@ -2007,18 +2006,16 @@ static unsigned int nv_swncq_issue_atacmd(struct ata_port *ap,
 	if (qc == NULL)
 		return 0;
 
-	DPRINTK("Enter\n");
-
 	writel((1 << qc->hw_tag), pp->sactive_block);
 	pp->last_issue_tag = qc->hw_tag;
 	pp->dhfis_bits &= ~(1 << qc->hw_tag);
 	pp->dmafis_bits &= ~(1 << qc->hw_tag);
 	pp->qc_active |= (0x1 << qc->hw_tag);
 
+	trace_ata_tf_load(ap, &qc->tf);
 	ap->ops->sff_tf_load(ap, &qc->tf);	 /* load tf registers */
+	trace_ata_exec_command(ap, &qc->tf, qc->hw_tag);
 	ap->ops->sff_exec_command(ap, &qc->tf);
-
-	DPRINTK("Issued tag %u\n", qc->hw_tag);
 
 	return 0;
 }
@@ -2030,8 +2027,6 @@ static unsigned int nv_swncq_qc_issue(struct ata_queued_cmd *qc)
 
 	if (qc->tf.protocol != ATA_PROT_NCQ)
 		return ata_bmdma_qc_issue(qc);
-
-	DPRINTK("Enter\n");
 
 	if (!pp->qc_active)
 		nv_swncq_issue_atacmd(ap, qc);
@@ -2077,6 +2072,7 @@ static int nv_swncq_sdbfis(struct ata_port *ap)
 	u8 lack_dhfis = 0;
 
 	host_stat = ap->ops->bmdma_status(ap);
+	trace_ata_bmdma_status(ap, host_stat);
 	if (unlikely(host_stat & ATA_DMA_ERR)) {
 		/* error when transferring data to/from memory */
 		ata_ehi_clear_desc(ehi);
@@ -2096,10 +2092,10 @@ static int nv_swncq_sdbfis(struct ata_port *ap)
 	pp->dhfis_bits &= ~done_mask;
 	pp->dmafis_bits &= ~done_mask;
 	pp->sdbfis_bits |= done_mask;
-	ata_qc_complete_multiple(ap, ap->qc_active ^ done_mask);
+	ata_qc_complete_multiple(ap, ata_qc_get_active(ap) ^ done_mask);
 
 	if (!ap->qc_active) {
-		DPRINTK("over\n");
+		ata_port_dbg(ap, "over\n");
 		nv_swncq_pp_reinit(ap);
 		return 0;
 	}
@@ -2114,12 +2110,12 @@ static int nv_swncq_sdbfis(struct ata_port *ap)
 		 */
 		lack_dhfis = 1;
 
-	DPRINTK("id 0x%x QC: qc_active 0x%x,"
-		"SWNCQ:qc_active 0x%X defer_bits %X "
-		"dhfis 0x%X dmafis 0x%X last_issue_tag %x\n",
-		ap->print_id, ap->qc_active, pp->qc_active,
-		pp->defer_queue.defer_bits, pp->dhfis_bits,
-		pp->dmafis_bits, pp->last_issue_tag);
+	ata_port_dbg(ap, "QC: qc_active 0x%llx,"
+		     "SWNCQ:qc_active 0x%X defer_bits %X "
+		     "dhfis 0x%X dmafis 0x%X last_issue_tag %x\n",
+		     ap->qc_active, pp->qc_active,
+		     pp->defer_queue.defer_bits, pp->dhfis_bits,
+		     pp->dmafis_bits, pp->last_issue_tag);
 
 	nv_swncq_fis_reinit(ap);
 
@@ -2159,7 +2155,7 @@ static void nv_swncq_dmafis(struct ata_port *ap)
 	__ata_bmdma_stop(ap);
 	tag = nv_swncq_tag(ap);
 
-	DPRINTK("dma setup tag 0x%x\n", tag);
+	ata_port_dbg(ap, "dma setup tag 0x%x\n", tag);
 	qc = ata_qc_from_tag(ap, tag);
 
 	if (unlikely(!qc))
@@ -2193,7 +2189,7 @@ static void nv_swncq_host_interrupt(struct ata_port *ap, u16 fis)
 	if (!fis)
 		return;
 
-	if (ap->pflags & ATA_PFLAG_FROZEN)
+	if (ata_port_is_frozen(ap))
 		return;
 
 	if (fis & NV_SWNCQ_IRQ_HOTPLUG) {
@@ -2227,9 +2223,9 @@ static void nv_swncq_host_interrupt(struct ata_port *ap, u16 fis)
 
 	if (fis & NV_SWNCQ_IRQ_SDBFIS) {
 		pp->ncq_flags |= ncq_saw_sdb;
-		DPRINTK("id 0x%x SWNCQ: qc_active 0x%X "
+		ata_port_dbg(ap, "SWNCQ: qc_active 0x%X "
 			"dhfis 0x%X dmafis 0x%X sactive 0x%X\n",
-			ap->print_id, pp->qc_active, pp->dhfis_bits,
+			pp->qc_active, pp->dhfis_bits,
 			pp->dmafis_bits, readl(pp->sactive_block));
 		if (nv_swncq_sdbfis(ap) < 0)
 			goto irq_error;
@@ -2255,7 +2251,7 @@ static void nv_swncq_host_interrupt(struct ata_port *ap, u16 fis)
 				goto irq_exit;
 
 			if (pp->defer_queue.defer_bits) {
-				DPRINTK("send next command\n");
+				ata_port_dbg(ap, "send next command\n");
 				qc = nv_swncq_qc_from_dq(ap);
 				nv_swncq_issue_atacmd(ap, qc);
 			}
@@ -2325,7 +2321,7 @@ static int nv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
         // Make sure this is a SATA controller by counting the number of bars
         // (NVIDIA SATA controllers will always have six bars).  Otherwise,
         // it's an IDE controller and we ignore it.
-	for (bar = 0; bar < 6; bar++)
+	for (bar = 0; bar < PCI_STD_NUM_BARS; bar++)
 		if (pci_resource_start(pdev, bar) == 0)
 			return -ENODEV;
 

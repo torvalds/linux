@@ -23,23 +23,30 @@ void bacct_add_tsk(struct user_namespace *user_ns,
 {
 	const struct cred *tcred;
 	u64 utime, stime, utimescaled, stimescaled;
-	u64 delta;
+	u64 now_ns, delta;
+	time64_t btime;
 
 	BUILD_BUG_ON(TS_COMM_LEN < TASK_COMM_LEN);
 
 	/* calculate task elapsed time in nsec */
-	delta = ktime_get_ns() - tsk->start_time;
+	now_ns = ktime_get_ns();
+	/* store whole group time first */
+	delta = now_ns - tsk->group_leader->start_time;
 	/* Convert to micro seconds */
 	do_div(delta, NSEC_PER_USEC);
+	stats->ac_tgetime = delta;
+	delta = now_ns - tsk->start_time;
+	do_div(delta, NSEC_PER_USEC);
 	stats->ac_etime = delta;
-	/* Convert to seconds for btime */
-	do_div(delta, USEC_PER_SEC);
-	stats->ac_btime = get_seconds() - delta;
-	if (thread_group_leader(tsk)) {
+	/* Convert to seconds for btime (note y2106 limit) */
+	btime = ktime_get_real_seconds() - div_u64(delta, USEC_PER_SEC);
+	stats->ac_btime = clamp_t(time64_t, btime, 0, U32_MAX);
+	stats->ac_btime64 = btime;
+
+	if (tsk->flags & PF_EXITING)
 		stats->ac_exitcode = tsk->exit_code;
-		if (tsk->flags & PF_FORKNOEXEC)
-			stats->ac_flag |= AFORK;
-	}
+	if (thread_group_leader(tsk) && (tsk->flags & PF_FORKNOEXEC))
+		stats->ac_flag |= AFORK;
 	if (tsk->flags & PF_SUPERPRIV)
 		stats->ac_flag |= ASU;
 	if (tsk->flags & PF_DUMPCORE)
@@ -49,6 +56,7 @@ void bacct_add_tsk(struct user_namespace *user_ns,
 	stats->ac_nice	 = task_nice(tsk);
 	stats->ac_sched	 = tsk->policy;
 	stats->ac_pid	 = task_pid_nr_ns(tsk, pid_ns);
+	stats->ac_tgid   = task_tgid_nr_ns(tsk, pid_ns);
 	rcu_read_lock();
 	tcred = __task_cred(tsk);
 	stats->ac_uid	 = from_kuid_munged(user_ns, tcred->uid);
@@ -134,7 +142,7 @@ static void __acct_update_integrals(struct task_struct *tsk,
 	 * the rest of the math is done in xacct_add_tsk.
 	 */
 	tsk->acct_rss_mem1 += delta * get_mm_rss(tsk->mm) >> 10;
-	tsk->acct_vm_mem1 += delta * tsk->mm->total_vm >> 10;
+	tsk->acct_vm_mem1 += delta * READ_ONCE(tsk->mm->total_vm) >> 10;
 }
 
 /**

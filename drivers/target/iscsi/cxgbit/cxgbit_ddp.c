@@ -227,14 +227,14 @@ rel_ppods:
 }
 
 void
-cxgbit_get_r2t_ttt(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
+cxgbit_get_r2t_ttt(struct iscsit_conn *conn, struct iscsit_cmd *cmd,
 		   struct iscsi_r2t *r2t)
 {
 	struct cxgbit_sock *csk = conn->context;
 	struct cxgbit_device *cdev = csk->com.cdev;
 	struct cxgbit_cmd *ccmd = iscsit_priv_cmd(cmd);
 	struct cxgbi_task_tag_info *ttinfo = &ccmd->ttinfo;
-	int ret = -EINVAL;
+	int ret;
 
 	if ((!ccmd->setup_ddp) ||
 	    (!test_bit(CSK_DDP_ENABLE, &csk->com.flags)))
@@ -260,17 +260,18 @@ out:
 	r2t->targ_xfer_tag = ttinfo->tag;
 }
 
-void cxgbit_unmap_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd)
+void cxgbit_unmap_cmd(struct iscsit_conn *conn, struct iscsit_cmd *cmd)
 {
 	struct cxgbit_cmd *ccmd = iscsit_priv_cmd(cmd);
 
 	if (ccmd->release) {
-		struct cxgbi_task_tag_info *ttinfo = &ccmd->ttinfo;
-
-		if (ttinfo->sgl) {
+		if (cmd->se_cmd.se_cmd_flags & SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC) {
+			put_page(sg_page(&ccmd->sg));
+		} else {
 			struct cxgbit_sock *csk = conn->context;
 			struct cxgbit_device *cdev = csk->com.cdev;
 			struct cxgbi_ppm *ppm = cdev2ppm(cdev);
+			struct cxgbi_task_tag_info *ttinfo = &ccmd->ttinfo;
 
 			/* Abort the TCP conn if DDP is not complete to
 			 * avoid any possibility of DDP after freeing
@@ -280,14 +281,14 @@ void cxgbit_unmap_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd)
 				     cmd->se_cmd.data_length))
 				cxgbit_abort_conn(csk);
 
+			if (unlikely(ttinfo->sgl)) {
+				dma_unmap_sg(&ppm->pdev->dev, ttinfo->sgl,
+					     ttinfo->nents, DMA_FROM_DEVICE);
+				ttinfo->nents = 0;
+				ttinfo->sgl = NULL;
+			}
 			cxgbi_ppm_ppod_release(ppm, ttinfo->idx);
-
-			dma_unmap_sg(&ppm->pdev->dev, ttinfo->sgl,
-				     ttinfo->nents, DMA_FROM_DEVICE);
-		} else {
-			put_page(sg_page(&ccmd->sg));
 		}
-
 		ccmd->release = false;
 	}
 }
@@ -297,15 +298,12 @@ int cxgbit_ddp_init(struct cxgbit_device *cdev)
 	struct cxgb4_lld_info *lldi = &cdev->lldi;
 	struct net_device *ndev = cdev->lldi.ports[0];
 	struct cxgbi_tag_format tformat;
-	unsigned int ppmax;
 	int ret, i;
 
 	if (!lldi->vr->iscsi.size) {
 		pr_warn("%s, iscsi NOT enabled, check config!\n", ndev->name);
 		return -EACCES;
 	}
-
-	ppmax = lldi->vr->iscsi.size >> PPOD_SIZE_SHIFT;
 
 	memset(&tformat, 0, sizeof(struct cxgbi_tag_format));
 	for (i = 0; i < 4; i++)

@@ -57,6 +57,7 @@
 
 struct cuse_conn {
 	struct list_head	list;	/* linked on cuse_conntbl */
+	struct fuse_mount	fm;	/* Dummy mount referencing fc */
 	struct fuse_conn	fc;	/* fuse connection */
 	struct cdev		*cdev;	/* associated character device */
 	struct device		*dev;	/* device representing @cdev */
@@ -134,7 +135,7 @@ static int cuse_open(struct inode *inode, struct file *file)
 	 * Generic permission check is already done against the chrdev
 	 * file, proceed to open.
 	 */
-	rc = fuse_do_open(&cc->fc, 0, file, 0);
+	rc = fuse_do_open(&cc->fm, 0, file, 0);
 	if (rc)
 		fuse_conn_put(&cc->fc);
 	return rc;
@@ -143,10 +144,10 @@ static int cuse_open(struct inode *inode, struct file *file)
 static int cuse_release(struct inode *inode, struct file *file)
 {
 	struct fuse_file *ff = file->private_data;
-	struct fuse_conn *fc = ff->fc;
+	struct fuse_mount *fm = ff->fm;
 
 	fuse_sync_release(NULL, ff, file->f_flags);
-	fuse_conn_put(fc);
+	fuse_conn_put(fm->fc);
 
 	return 0;
 }
@@ -155,7 +156,7 @@ static long cuse_file_ioctl(struct file *file, unsigned int cmd,
 			    unsigned long arg)
 {
 	struct fuse_file *ff = file->private_data;
-	struct cuse_conn *cc = fc_to_cc(ff->fc);
+	struct cuse_conn *cc = fc_to_cc(ff->fm->fc);
 	unsigned int flags = 0;
 
 	if (cc->unrestricted_ioctl)
@@ -168,7 +169,7 @@ static long cuse_file_compat_ioctl(struct file *file, unsigned int cmd,
 				   unsigned long arg)
 {
 	struct fuse_file *ff = file->private_data;
-	struct cuse_conn *cc = fc_to_cc(ff->fc);
+	struct cuse_conn *cc = fc_to_cc(ff->fm->fc);
 	unsigned int flags = FUSE_IOCTL_COMPAT;
 
 	if (cc->unrestricted_ioctl)
@@ -255,7 +256,7 @@ static int cuse_parse_one(char **pp, char *end, char **keyp, char **valp)
 }
 
 /**
- * cuse_parse_dev_info - parse device info
+ * cuse_parse_devinfo - parse device info
  * @p: device info string
  * @len: length of device info string
  * @devinfo: out parameter for parsed device info
@@ -270,7 +271,7 @@ static int cuse_parse_one(char **pp, char *end, char **keyp, char **valp)
 static int cuse_parse_devinfo(char *p, size_t len, struct cuse_devinfo *devinfo)
 {
 	char *end = p + len;
-	char *uninitialized_var(key), *uninitialized_var(val);
+	char *key, *val;
 	int rc;
 
 	while (true) {
@@ -309,13 +310,18 @@ struct cuse_init_args {
 /**
  * cuse_process_init_reply - finish initializing CUSE channel
  *
+ * @fm: The fuse mount information containing the CUSE connection.
+ * @args: The arguments passed to the init reply.
+ * @error: The error code signifying if any error occurred during the process.
+ *
  * This function creates the character device and sets up all the
  * required data structures for it.  Please read the comment at the
  * top of this file for high level overview.
  */
-static void cuse_process_init_reply(struct fuse_conn *fc,
+static void cuse_process_init_reply(struct fuse_mount *fm,
 				    struct fuse_args *args, int error)
 {
+	struct fuse_conn *fc = fm->fc;
 	struct cuse_init_args *ia = container_of(args, typeof(*ia), ap.args);
 	struct fuse_args_pages *ap = &ia->ap;
 	struct cuse_conn *cc = fc_to_cc(fc), *pos;
@@ -424,7 +430,7 @@ static int cuse_send_init(struct cuse_conn *cc)
 {
 	int rc;
 	struct page *page;
-	struct fuse_conn *fc = &cc->fc;
+	struct fuse_mount *fm = &cc->fm;
 	struct cuse_init_args *ia;
 	struct fuse_args_pages *ap;
 
@@ -451,8 +457,8 @@ static int cuse_send_init(struct cuse_conn *cc)
 	ap->args.out_args[0].size = sizeof(ia->out);
 	ap->args.out_args[0].value = &ia->out;
 	ap->args.out_args[1].size = CUSE_INIT_INFO_MAX;
-	ap->args.out_argvar = 1;
-	ap->args.out_pages = 1;
+	ap->args.out_argvar = true;
+	ap->args.out_pages = true;
 	ap->num_pages = 1;
 	ap->pages = &ia->page;
 	ap->descs = &ia->desc;
@@ -460,7 +466,7 @@ static int cuse_send_init(struct cuse_conn *cc)
 	ia->desc.length = ap->args.out_args[1].size;
 	ap->args.end = cuse_process_init_reply;
 
-	rc = fuse_simple_background(fc, &ap->args, GFP_KERNEL);
+	rc = fuse_simple_background(fm, &ap->args, GFP_KERNEL);
 	if (rc) {
 		kfree(ia);
 err_free_page:
@@ -472,8 +478,7 @@ err:
 
 static void cuse_fc_release(struct fuse_conn *fc)
 {
-	struct cuse_conn *cc = fc_to_cc(fc);
-	kfree_rcu(cc, fc.rcu);
+	kfree(fc_to_cc(fc));
 }
 
 /**
@@ -506,22 +511,21 @@ static int cuse_channel_open(struct inode *inode, struct file *file)
 	 * Limit the cuse channel to requests that can
 	 * be represented in file->f_cred->user_ns.
 	 */
-	fuse_conn_init(&cc->fc, file->f_cred->user_ns, &fuse_dev_fiq_ops, NULL);
+	fuse_conn_init(&cc->fc, &cc->fm, file->f_cred->user_ns,
+		       &fuse_dev_fiq_ops, NULL);
 
+	cc->fc.release = cuse_fc_release;
 	fud = fuse_dev_alloc_install(&cc->fc);
-	if (!fud) {
-		kfree(cc);
+	fuse_conn_put(&cc->fc);
+	if (!fud)
 		return -ENOMEM;
-	}
 
 	INIT_LIST_HEAD(&cc->list);
-	cc->fc.release = cuse_fc_release;
 
 	cc->fc.initialized = 1;
 	rc = cuse_send_init(cc);
 	if (rc) {
 		fuse_dev_free(fud);
-		fuse_conn_put(&cc->fc);
 		return rc;
 	}
 	file->private_data = fud;
@@ -544,7 +548,6 @@ static int cuse_channel_release(struct inode *inode, struct file *file)
 {
 	struct fuse_dev *fud = file->private_data;
 	struct cuse_conn *cc = fc_to_cc(fud->fc);
-	int rc;
 
 	/* remove from the conntbl, no more access from this point on */
 	mutex_lock(&cuse_lock);
@@ -558,12 +561,8 @@ static int cuse_channel_release(struct inode *inode, struct file *file)
 		unregister_chrdev_region(cc->cdev->dev, 1);
 		cdev_del(cc->cdev);
 	}
-	/* Base reference is now owned by "fud" */
-	fuse_conn_put(&cc->fc);
 
-	rc = fuse_dev_release(inode, file);	/* puts the base reference */
-
-	return rc;
+	return fuse_dev_release(inode, file);
 }
 
 static struct file_operations cuse_channel_fops; /* initialized during init */
@@ -624,8 +623,10 @@ static int __init cuse_init(void)
 	cuse_channel_fops.owner		= THIS_MODULE;
 	cuse_channel_fops.open		= cuse_channel_open;
 	cuse_channel_fops.release	= cuse_channel_release;
+	/* CUSE is not prepared for FUSE_DEV_IOC_CLONE */
+	cuse_channel_fops.unlocked_ioctl	= NULL;
 
-	cuse_class = class_create(THIS_MODULE, "cuse");
+	cuse_class = class_create("cuse");
 	if (IS_ERR(cuse_class))
 		return PTR_ERR(cuse_class);
 

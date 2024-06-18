@@ -86,18 +86,23 @@ __dualdiv_get_setting(unsigned long rate, unsigned long parent_rate,
 	return (struct meson_clk_dualdiv_param *)&table[best_i];
 }
 
-static long meson_clk_dualdiv_round_rate(struct clk_hw *hw, unsigned long rate,
-					 unsigned long *parent_rate)
+static int meson_clk_dualdiv_determine_rate(struct clk_hw *hw,
+					    struct clk_rate_request *req)
 {
 	struct clk_regmap *clk = to_clk_regmap(hw);
 	struct meson_clk_dualdiv_data *dualdiv = meson_clk_dualdiv_data(clk);
-	const struct meson_clk_dualdiv_param *setting =
-		__dualdiv_get_setting(rate, *parent_rate, dualdiv);
+	const struct meson_clk_dualdiv_param *setting;
 
-	if (!setting)
-		return meson_clk_dualdiv_recalc_rate(hw, *parent_rate);
+	setting = __dualdiv_get_setting(req->rate, req->best_parent_rate,
+					dualdiv);
+	if (setting)
+		req->rate = __dualdiv_param_to_rate(req->best_parent_rate,
+						    setting);
+	else
+		req->rate = meson_clk_dualdiv_recalc_rate(hw,
+							  req->best_parent_rate);
 
-	return __dualdiv_param_to_rate(*parent_rate, setting);
+	return 0;
 }
 
 static int meson_clk_dualdiv_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -122,7 +127,7 @@ static int meson_clk_dualdiv_set_rate(struct clk_hw *hw, unsigned long rate,
 
 const struct clk_ops meson_clk_dualdiv_ops = {
 	.recalc_rate	= meson_clk_dualdiv_recalc_rate,
-	.round_rate	= meson_clk_dualdiv_round_rate,
+	.determine_rate	= meson_clk_dualdiv_determine_rate,
 	.set_rate	= meson_clk_dualdiv_set_rate,
 };
 EXPORT_SYMBOL_GPL(meson_clk_dualdiv_ops);
@@ -135,4 +140,4 @@ EXPORT_SYMBOL_GPL(meson_clk_dualdiv_ro_ops);
 MODULE_DESCRIPTION("Amlogic dual divider driver");
 MODULE_AUTHOR("Neil Armstrong <narmstrong@baylibre.com>");
 MODULE_AUTHOR("Jerome Brunet <jbrunet@baylibre.com>");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");

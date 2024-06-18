@@ -26,69 +26,13 @@
 #include <core/option.h>
 #include <subdev/mc.h>
 
-static struct lock_class_key nvkm_subdev_lock_class[NVKM_SUBDEV_NR];
-
 const char *
-nvkm_subdev_name[NVKM_SUBDEV_NR] = {
-	[NVKM_SUBDEV_BAR     ] = "bar",
-	[NVKM_SUBDEV_VBIOS   ] = "bios",
-	[NVKM_SUBDEV_BUS     ] = "bus",
-	[NVKM_SUBDEV_CLK     ] = "clk",
-	[NVKM_SUBDEV_DEVINIT ] = "devinit",
-	[NVKM_SUBDEV_FAULT   ] = "fault",
-	[NVKM_SUBDEV_FB      ] = "fb",
-	[NVKM_SUBDEV_FUSE    ] = "fuse",
-	[NVKM_SUBDEV_GPIO    ] = "gpio",
-	[NVKM_SUBDEV_GSP     ] = "gsp",
-	[NVKM_SUBDEV_I2C     ] = "i2c",
-	[NVKM_SUBDEV_IBUS    ] = "priv",
-	[NVKM_SUBDEV_ICCSENSE] = "iccsense",
-	[NVKM_SUBDEV_INSTMEM ] = "imem",
-	[NVKM_SUBDEV_LTC     ] = "ltc",
-	[NVKM_SUBDEV_MC      ] = "mc",
-	[NVKM_SUBDEV_MMU     ] = "mmu",
-	[NVKM_SUBDEV_MXM     ] = "mxm",
-	[NVKM_SUBDEV_PCI     ] = "pci",
-	[NVKM_SUBDEV_PMU     ] = "pmu",
-	[NVKM_SUBDEV_SECBOOT ] = "secboot",
-	[NVKM_SUBDEV_THERM   ] = "therm",
-	[NVKM_SUBDEV_TIMER   ] = "tmr",
-	[NVKM_SUBDEV_TOP     ] = "top",
-	[NVKM_SUBDEV_VOLT    ] = "volt",
-	[NVKM_ENGINE_BSP     ] = "bsp",
-	[NVKM_ENGINE_CE0     ] = "ce0",
-	[NVKM_ENGINE_CE1     ] = "ce1",
-	[NVKM_ENGINE_CE2     ] = "ce2",
-	[NVKM_ENGINE_CE3     ] = "ce3",
-	[NVKM_ENGINE_CE4     ] = "ce4",
-	[NVKM_ENGINE_CE5     ] = "ce5",
-	[NVKM_ENGINE_CE6     ] = "ce6",
-	[NVKM_ENGINE_CE7     ] = "ce7",
-	[NVKM_ENGINE_CE8     ] = "ce8",
-	[NVKM_ENGINE_CIPHER  ] = "cipher",
-	[NVKM_ENGINE_DISP    ] = "disp",
-	[NVKM_ENGINE_DMAOBJ  ] = "dma",
-	[NVKM_ENGINE_FIFO    ] = "fifo",
-	[NVKM_ENGINE_GR      ] = "gr",
-	[NVKM_ENGINE_IFB     ] = "ifb",
-	[NVKM_ENGINE_ME      ] = "me",
-	[NVKM_ENGINE_MPEG    ] = "mpeg",
-	[NVKM_ENGINE_MSENC   ] = "msenc",
-	[NVKM_ENGINE_MSPDEC  ] = "mspdec",
-	[NVKM_ENGINE_MSPPP   ] = "msppp",
-	[NVKM_ENGINE_MSVLD   ] = "msvld",
-	[NVKM_ENGINE_NVENC0  ] = "nvenc0",
-	[NVKM_ENGINE_NVENC1  ] = "nvenc1",
-	[NVKM_ENGINE_NVENC2  ] = "nvenc2",
-	[NVKM_ENGINE_NVDEC0  ] = "nvdec0",
-	[NVKM_ENGINE_NVDEC1  ] = "nvdec1",
-	[NVKM_ENGINE_NVDEC2  ] = "nvdec2",
-	[NVKM_ENGINE_PM      ] = "pm",
-	[NVKM_ENGINE_SEC     ] = "sec",
-	[NVKM_ENGINE_SEC2    ] = "sec2",
-	[NVKM_ENGINE_SW      ] = "sw",
-	[NVKM_ENGINE_VIC     ] = "vic",
-	[NVKM_ENGINE_VP      ] = "vp",
+nvkm_subdev_type[NVKM_SUBDEV_NR] = {
+#define NVKM_LAYOUT_ONCE(type,data,ptr,...) [type] = #ptr,
+#define NVKM_LAYOUT_INST(A...) NVKM_LAYOUT_ONCE(A)
+#include <core/layout.h>
+#undef NVKM_LAYOUT_ONCE
+#undef NVKM_LAYOUT_INST
 };
 
 void
@@ -110,7 +54,7 @@ int
 nvkm_subdev_fini(struct nvkm_subdev *subdev, bool suspend)
 {
 	struct nvkm_device *device = subdev->device;
-	const char *action = suspend ? "suspend" : "fini";
+	const char *action = suspend ? "suspend" : subdev->use.enabled ? "fini" : "reset";
 	s64 time;
 
 	nvkm_trace(subdev, "%s running...\n", action);
@@ -124,8 +68,9 @@ nvkm_subdev_fini(struct nvkm_subdev *subdev, bool suspend)
 				return ret;
 		}
 	}
+	subdev->use.enabled = false;
 
-	nvkm_mc_reset(device, subdev->index);
+	nvkm_mc_reset(device, subdev->type, subdev->inst);
 
 	time = ktime_to_us(ktime_get()) - time;
 	nvkm_trace(subdev, "%s completed in %lldus\n", action, time);
@@ -153,29 +98,48 @@ nvkm_subdev_preinit(struct nvkm_subdev *subdev)
 	return 0;
 }
 
-int
-nvkm_subdev_init(struct nvkm_subdev *subdev)
+static int
+nvkm_subdev_oneinit_(struct nvkm_subdev *subdev)
 {
 	s64 time;
 	int ret;
 
+	if (!subdev->func->oneinit || subdev->oneinit)
+		return 0;
+
+	nvkm_trace(subdev, "one-time init running...\n");
+	time = ktime_to_us(ktime_get());
+	ret = subdev->func->oneinit(subdev);
+	if (ret) {
+		nvkm_error(subdev, "one-time init failed, %d\n", ret);
+		return ret;
+	}
+
+	subdev->oneinit = true;
+	time = ktime_to_us(ktime_get()) - time;
+	nvkm_trace(subdev, "one-time init completed in %lldus\n", time);
+	return 0;
+}
+
+static int
+nvkm_subdev_init_(struct nvkm_subdev *subdev)
+{
+	s64 time;
+	int ret;
+
+	if (subdev->use.enabled) {
+		nvkm_trace(subdev, "init skipped, already running\n");
+		return 0;
+	}
+
 	nvkm_trace(subdev, "init running...\n");
 	time = ktime_to_us(ktime_get());
 
-	if (subdev->func->oneinit && !subdev->oneinit) {
-		s64 time;
-		nvkm_trace(subdev, "one-time init running...\n");
-		time = ktime_to_us(ktime_get());
-		ret = subdev->func->oneinit(subdev);
-		if (ret) {
-			nvkm_error(subdev, "one-time init failed, %d\n", ret);
-			return ret;
-		}
+	ret = nvkm_subdev_oneinit_(subdev);
+	if (ret)
+		return ret;
 
-		subdev->oneinit = true;
-		time = ktime_to_us(ktime_get()) - time;
-		nvkm_trace(subdev, "one-time init completed in %lldus\n", time);
-	}
+	subdev->use.enabled = true;
 
 	if (subdev->func->init) {
 		ret = subdev->func->init(subdev);
@@ -190,6 +154,64 @@ nvkm_subdev_init(struct nvkm_subdev *subdev)
 	return 0;
 }
 
+int
+nvkm_subdev_init(struct nvkm_subdev *subdev)
+{
+	int ret;
+
+	mutex_lock(&subdev->use.mutex);
+	if (refcount_read(&subdev->use.refcount) == 0) {
+		nvkm_trace(subdev, "init skipped, no users\n");
+		mutex_unlock(&subdev->use.mutex);
+		return 0;
+	}
+
+	ret = nvkm_subdev_init_(subdev);
+	mutex_unlock(&subdev->use.mutex);
+	return ret;
+}
+
+int
+nvkm_subdev_oneinit(struct nvkm_subdev *subdev)
+{
+	int ret;
+
+	mutex_lock(&subdev->use.mutex);
+	ret = nvkm_subdev_oneinit_(subdev);
+	mutex_unlock(&subdev->use.mutex);
+	return ret;
+}
+
+void
+nvkm_subdev_unref(struct nvkm_subdev *subdev)
+{
+	if (refcount_dec_and_mutex_lock(&subdev->use.refcount, &subdev->use.mutex)) {
+		nvkm_subdev_fini(subdev, false);
+		mutex_unlock(&subdev->use.mutex);
+	}
+}
+
+int
+nvkm_subdev_ref(struct nvkm_subdev *subdev)
+{
+	int ret;
+
+	if (subdev && !refcount_inc_not_zero(&subdev->use.refcount)) {
+		mutex_lock(&subdev->use.mutex);
+		if (!refcount_inc_not_zero(&subdev->use.refcount)) {
+			if ((ret = nvkm_subdev_init_(subdev))) {
+				mutex_unlock(&subdev->use.mutex);
+				return ret;
+			}
+
+			refcount_set(&subdev->use.refcount, 1);
+		}
+		mutex_unlock(&subdev->use.mutex);
+	}
+
+	return 0;
+}
+
 void
 nvkm_subdev_del(struct nvkm_subdev **psubdev)
 {
@@ -199,8 +221,10 @@ nvkm_subdev_del(struct nvkm_subdev **psubdev)
 	if (subdev && !WARN_ON(!subdev->func)) {
 		nvkm_trace(subdev, "destroy running...\n");
 		time = ktime_to_us(ktime_get());
+		list_del(&subdev->head);
 		if (subdev->func->dtor)
 			*psubdev = subdev->func->dtor(subdev);
+		mutex_destroy(&subdev->use.mutex);
 		time = ktime_to_us(ktime_get()) - time;
 		nvkm_trace(subdev, "destroy completed in %lldus\n", time);
 		kfree(*psubdev);
@@ -209,15 +233,43 @@ nvkm_subdev_del(struct nvkm_subdev **psubdev)
 }
 
 void
-nvkm_subdev_ctor(const struct nvkm_subdev_func *func,
-		 struct nvkm_device *device, int index,
-		 struct nvkm_subdev *subdev)
+nvkm_subdev_disable(struct nvkm_device *device, enum nvkm_subdev_type type, int inst)
 {
-	const char *name = nvkm_subdev_name[index];
+	struct nvkm_subdev *subdev;
+	list_for_each_entry(subdev, &device->subdev, head) {
+		if (subdev->type == type && subdev->inst == inst) {
+			*subdev->pself = NULL;
+			nvkm_subdev_del(&subdev);
+			break;
+		}
+	}
+}
+
+void
+__nvkm_subdev_ctor(const struct nvkm_subdev_func *func, struct nvkm_device *device,
+		   enum nvkm_subdev_type type, int inst, struct nvkm_subdev *subdev)
+{
 	subdev->func = func;
 	subdev->device = device;
-	subdev->index = index;
+	subdev->type = type;
+	subdev->inst = inst < 0 ? 0 : inst;
 
-	__mutex_init(&subdev->mutex, name, &nvkm_subdev_lock_class[index]);
-	subdev->debug = nvkm_dbgopt(device->dbgopt, name);
+	if (inst >= 0)
+		snprintf(subdev->name, sizeof(subdev->name), "%s%d", nvkm_subdev_type[type], inst);
+	else
+		strscpy(subdev->name, nvkm_subdev_type[type], sizeof(subdev->name));
+	subdev->debug = nvkm_dbgopt(device->dbgopt, subdev->name);
+
+	refcount_set(&subdev->use.refcount, 1);
+	list_add_tail(&subdev->head, &device->subdev);
+}
+
+int
+nvkm_subdev_new_(const struct nvkm_subdev_func *func, struct nvkm_device *device,
+		 enum nvkm_subdev_type type, int inst, struct nvkm_subdev **psubdev)
+{
+	if (!(*psubdev = kzalloc(sizeof(**psubdev), GFP_KERNEL)))
+		return -ENOMEM;
+	nvkm_subdev_ctor(func, device, type, inst, *psubdev);
+	return 0;
 }

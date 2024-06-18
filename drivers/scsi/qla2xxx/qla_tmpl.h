@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * QLogic Fibre Channel HBA Driver
  * Copyright (c)  2003-2014 QLogic Corporation
- *
- * See LICENSE.qla2xxx for copyright and licensing details.
  */
 
 #ifndef __QLA_DMP27_H__
@@ -13,21 +12,21 @@
 struct __packed qla27xx_fwdt_template {
 	__le32 template_type;
 	__le32 entry_offset;
-	uint32_t template_size;
+	__le32 template_size;
 	uint32_t count;		/* borrow field for running/residual count */
 
 	__le32 entry_count;
 	uint32_t template_version;
-	uint32_t capture_timestamp;
+	__le32 capture_timestamp;
 	uint32_t template_checksum;
 
 	uint32_t reserved_2;
-	uint32_t driver_info[3];
+	__le32 driver_info[3];
 
 	uint32_t saved_state[16];
 
 	uint32_t reserved_3[8];
-	uint32_t firmware_version[5];
+	__le32 firmware_version[5];
 };
 
 #define TEMPLATE_TYPE_FWDUMP		99

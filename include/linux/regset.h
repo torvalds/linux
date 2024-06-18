@@ -17,6 +17,64 @@
 struct task_struct;
 struct user_regset;
 
+struct membuf {
+	void *p;
+	size_t left;
+};
+
+static inline int membuf_zero(struct membuf *s, size_t size)
+{
+	if (s->left) {
+		if (size > s->left)
+			size = s->left;
+		memset(s->p, 0, size);
+		s->p += size;
+		s->left -= size;
+	}
+	return s->left;
+}
+
+static inline int membuf_write(struct membuf *s, const void *v, size_t size)
+{
+	if (s->left) {
+		if (size > s->left)
+			size = s->left;
+		memcpy(s->p, v, size);
+		s->p += size;
+		s->left -= size;
+	}
+	return s->left;
+}
+
+static inline struct membuf membuf_at(const struct membuf *s, size_t offs)
+{
+	struct membuf n = *s;
+
+	if (offs > n.left)
+		offs = n.left;
+	n.p += offs;
+	n.left -= offs;
+
+	return n;
+}
+
+/* current s->p must be aligned for v; v must be a scalar */
+#define membuf_store(s, v)				\
+({							\
+	struct membuf *__s = (s);			\
+        if (__s->left) {				\
+		typeof(v) __v = (v);			\
+		size_t __size = sizeof(__v);		\
+		if (unlikely(__size > __s->left)) {	\
+			__size = __s->left;		\
+			memcpy(__s->p, &__v, __size);	\
+		} else {				\
+			*(typeof(__v + 0) *)__s->p = __v;	\
+		}					\
+		__s->p += __size;			\
+		__s->left -= __size;			\
+	}						\
+	__s->left;})
 
 /**
  * user_regset_active_fn - type of @active function in &struct user_regset
@@ -36,26 +94,9 @@ struct user_regset;
 typedef int user_regset_active_fn(struct task_struct *target,
 				  const struct user_regset *regset);
 
-/**
- * user_regset_get_fn - type of @get function in &struct user_regset
- * @target:	thread being examined
- * @regset:	regset being examined
- * @pos:	offset into the regset data to access, in bytes
- * @count:	amount of data to copy, in bytes
- * @kbuf:	if not %NULL, a kernel-space pointer to copy into
- * @ubuf:	if @kbuf is %NULL, a user-space pointer to copy into
- *
- * Fetch register values.  Return %0 on success; -%EIO or -%ENODEV
- * are usual failure returns.  The @pos and @count values are in
- * bytes, but must be properly aligned.  If @kbuf is non-null, that
- * buffer is used and @ubuf is ignored.  If @kbuf is %NULL, then
- * ubuf gives a userland pointer to access directly, and an -%EFAULT
- * return value is possible.
- */
-typedef int user_regset_get_fn(struct task_struct *target,
+typedef int user_regset_get2_fn(struct task_struct *target,
 			       const struct user_regset *regset,
-			       unsigned int pos, unsigned int count,
-			       void *kbuf, void __user *ubuf);
+			       struct membuf to);
 
 /**
  * user_regset_set_fn - type of @set function in &struct user_regset
@@ -104,28 +145,6 @@ typedef int user_regset_writeback_fn(struct task_struct *target,
 				     int immediate);
 
 /**
- * user_regset_get_size_fn - type of @get_size function in &struct user_regset
- * @target:	thread being examined
- * @regset:	regset being examined
- *
- * This call is optional; usually the pointer is %NULL.
- *
- * When provided, this function must return the current size of regset
- * data, as observed by the @get function in &struct user_regset.  The
- * value returned must be a multiple of @size.  The returned size is
- * required to be valid only until the next time (if any) @regset is
- * modified for @target.
- *
- * This function is intended for dynamically sized regsets.  A regset
- * that is statically sized does not need to implement it.
- *
- * This function should not be called directly: instead, callers should
- * call regset_size() to determine the current size of a regset.
- */
-typedef unsigned int user_regset_get_size_fn(struct task_struct *target,
-					     const struct user_regset *regset);
-
-/**
  * struct user_regset - accessible thread CPU state
  * @n:			Number of slots (registers).
  * @size:		Size in bytes of a slot (register).
@@ -136,7 +155,6 @@ typedef unsigned int user_regset_get_size_fn(struct task_struct *target,
  * @set:		Function to store values.
  * @active:		Function to report if regset is active, or %NULL.
  * @writeback:		Function to write data back to user memory, or %NULL.
- * @get_size:		Function to return the regset's size, or %NULL.
  *
  * This data structure describes a machine resource we call a register set.
  * This is part of the state of an individual thread, not necessarily
@@ -144,12 +162,7 @@ typedef unsigned int user_regset_get_size_fn(struct task_struct *target,
  * similar slots, given by @n.  Each slot is @size bytes, and aligned to
  * @align bytes (which is at least @size).  For dynamically-sized
  * regsets, @n must contain the maximum possible number of slots for the
- * regset, and @get_size must point to a function that returns the
- * current regset size.
- *
- * Callers that need to know only the current size of the regset and do
- * not care about its internal structure should call regset_size()
- * instead of inspecting @n or calling @get_size.
+ * regset.
  *
  * For backward compatibility, the @get and @set methods must pad to, or
  * accept, @n * @size bytes, even if the current regset size is smaller.
@@ -185,11 +198,10 @@ typedef unsigned int user_regset_get_size_fn(struct task_struct *target,
  * omitted when there is an @active function and it returns zero.
  */
 struct user_regset {
-	user_regset_get_fn		*get;
+	user_regset_get2_fn		*regset_get;
 	user_regset_set_fn		*set;
 	user_regset_active_fn		*active;
 	user_regset_writeback_fn	*writeback;
-	user_regset_get_size_fn		*get_size;
 	unsigned int			n;
 	unsigned int 			size;
 	unsigned int 			align;
@@ -238,44 +250,6 @@ struct user_regset_view {
  */
 const struct user_regset_view *task_user_regset_view(struct task_struct *tsk);
 
-
-/*
- * These are helpers for writing regset get/set functions in arch code.
- * Because @start_pos and @end_pos are always compile-time constants,
- * these are inlined into very little code though they look large.
- *
- * Use one or more calls sequentially for each chunk of regset data stored
- * contiguously in memory.  Call with constants for @start_pos and @end_pos,
- * giving the range of byte positions in the regset that data corresponds
- * to; @end_pos can be -1 if this chunk is at the end of the regset layout.
- * Each call updates the arguments to point past its chunk.
- */
-
-static inline int user_regset_copyout(unsigned int *pos, unsigned int *count,
-				      void **kbuf,
-				      void __user **ubuf, const void *data,
-				      const int start_pos, const int end_pos)
-{
-	if (*count == 0)
-		return 0;
-	BUG_ON(*pos < start_pos);
-	if (end_pos < 0 || *pos < end_pos) {
-		unsigned int copy = (end_pos < 0 ? *count
-				     : min(*count, end_pos - *pos));
-		data += *pos - start_pos;
-		if (*kbuf) {
-			memcpy(*kbuf, data, copy);
-			*kbuf += copy;
-		} else if (__copy_to_user(*ubuf, data, copy))
-			return -EFAULT;
-		else
-			*ubuf += copy;
-		*pos += copy;
-		*count -= copy;
-	}
-	return 0;
-}
-
 static inline int user_regset_copyin(unsigned int *pos, unsigned int *count,
 				     const void **kbuf,
 				     const void __user **ubuf, void *data,
@@ -301,44 +275,15 @@ static inline int user_regset_copyin(unsigned int *pos, unsigned int *count,
 	return 0;
 }
 
-/*
- * These two parallel the two above, but for portions of a regset layout
- * that always read as all-zero or for which writes are ignored.
- */
-static inline int user_regset_copyout_zero(unsigned int *pos,
-					   unsigned int *count,
-					   void **kbuf, void __user **ubuf,
-					   const int start_pos,
-					   const int end_pos)
+static inline void user_regset_copyin_ignore(unsigned int *pos,
+					     unsigned int *count,
+					     const void **kbuf,
+					     const void __user **ubuf,
+					     const int start_pos,
+					     const int end_pos)
 {
 	if (*count == 0)
-		return 0;
-	BUG_ON(*pos < start_pos);
-	if (end_pos < 0 || *pos < end_pos) {
-		unsigned int copy = (end_pos < 0 ? *count
-				     : min(*count, end_pos - *pos));
-		if (*kbuf) {
-			memset(*kbuf, 0, copy);
-			*kbuf += copy;
-		} else if (__clear_user(*ubuf, copy))
-			return -EFAULT;
-		else
-			*ubuf += copy;
-		*pos += copy;
-		*count -= copy;
-	}
-	return 0;
-}
-
-static inline int user_regset_copyin_ignore(unsigned int *pos,
-					    unsigned int *count,
-					    const void **kbuf,
-					    const void __user **ubuf,
-					    const int start_pos,
-					    const int end_pos)
-{
-	if (*count == 0)
-		return 0;
+		return;
 	BUG_ON(*pos < start_pos);
 	if (end_pos < 0 || *pos < end_pos) {
 		unsigned int copy = (end_pos < 0 ? *count
@@ -350,34 +295,21 @@ static inline int user_regset_copyin_ignore(unsigned int *pos,
 		*pos += copy;
 		*count -= copy;
 	}
-	return 0;
 }
 
-/**
- * copy_regset_to_user - fetch a thread's user_regset data into user memory
- * @target:	thread to be examined
- * @view:	&struct user_regset_view describing user thread machine state
- * @setno:	index in @view->regsets
- * @offset:	offset into the regset data, in bytes
- * @size:	amount of data to copy, in bytes
- * @data:	user-mode pointer to copy into
- */
-static inline int copy_regset_to_user(struct task_struct *target,
-				      const struct user_regset_view *view,
-				      unsigned int setno,
-				      unsigned int offset, unsigned int size,
-				      void __user *data)
-{
-	const struct user_regset *regset = &view->regsets[setno];
+extern int regset_get(struct task_struct *target,
+		      const struct user_regset *regset,
+		      unsigned int size, void *data);
 
-	if (!regset->get)
-		return -EOPNOTSUPP;
+extern int regset_get_alloc(struct task_struct *target,
+			    const struct user_regset *regset,
+			    unsigned int size,
+			    void **data);
 
-	if (!access_ok(data, size))
-		return -EFAULT;
-
-	return regset->get(target, regset, offset, size, NULL, data);
-}
+extern int copy_regset_to_user(struct task_struct *target,
+			       const struct user_regset_view *view,
+			       unsigned int setno, unsigned int offset,
+			       unsigned int size, void __user *data);
 
 /**
  * copy_regset_from_user - store into thread's user_regset data from user memory
@@ -403,23 +335,6 @@ static inline int copy_regset_from_user(struct task_struct *target,
 		return -EFAULT;
 
 	return regset->set(target, regset, offset, size, NULL, data);
-}
-
-/**
- * regset_size - determine the current size of a regset
- * @target:	thread to be examined
- * @regset:	regset to be examined
- *
- * Note that the returned size is valid only until the next time
- * (if any) @regset is modified for @target.
- */
-static inline unsigned int regset_size(struct task_struct *target,
-				       const struct user_regset *regset)
-{
-	if (!regset->get_size)
-		return regset->n * regset->size;
-	else
-		return regset->get_size(target, regset);
 }
 
 #endif	/* <linux/regset.h> */

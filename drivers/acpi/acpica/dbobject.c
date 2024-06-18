@@ -47,7 +47,7 @@ acpi_db_dump_method_info(acpi_status status, struct acpi_walk_state *walk_state)
 
 	/* Ignore control codes, they are not errors */
 
-	if ((status & AE_CODE_MASK) == AE_CODE_CONTROL) {
+	if (ACPI_CNTL_EXCEPTION(status)) {
 		return;
 	}
 
@@ -464,7 +464,6 @@ void acpi_db_decode_arguments(struct acpi_walk_state *walk_state)
 	u8 display_args = FALSE;
 
 	node = walk_state->method_node;
-	obj_desc = walk_state->method_desc;
 
 	/* There are no arguments for the module-level code case */
 

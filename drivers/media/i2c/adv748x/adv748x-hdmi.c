@@ -176,9 +176,9 @@ static int adv748x_hdmi_set_video_timings(struct adv748x_state *state,
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(adv748x_hdmi_video_standards); i++) {
-		if (!v4l2_match_dv_timings(timings, &stds[i].timings, 250000,
-					   false))
-			continue;
+		if (v4l2_match_dv_timings(timings, &stds[i].timings, 250000,
+					  false))
+			break;
 	}
 
 	if (i >= ARRAY_SIZE(adv748x_hdmi_video_standards))
@@ -214,7 +214,7 @@ static int adv748x_hdmi_set_video_timings(struct adv748x_state *state,
  * v4l2_subdev_video_ops
  */
 
-static int adv748x_hdmi_s_dv_timings(struct v4l2_subdev *sd,
+static int adv748x_hdmi_s_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
 				     struct v4l2_dv_timings *timings)
 {
 	struct adv748x_hdmi *hdmi = adv748x_sd_to_hdmi(sd);
@@ -254,7 +254,7 @@ error:
 	return ret;
 }
 
-static int adv748x_hdmi_g_dv_timings(struct v4l2_subdev *sd,
+static int adv748x_hdmi_g_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
 				     struct v4l2_dv_timings *timings)
 {
 	struct adv748x_hdmi *hdmi = adv748x_sd_to_hdmi(sd);
@@ -269,7 +269,7 @@ static int adv748x_hdmi_g_dv_timings(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int adv748x_hdmi_query_dv_timings(struct v4l2_subdev *sd,
+static int adv748x_hdmi_query_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
 					 struct v4l2_dv_timings *timings)
 {
 	struct adv748x_hdmi *hdmi = adv748x_sd_to_hdmi(sd);
@@ -282,6 +282,16 @@ static int adv748x_hdmi_query_dv_timings(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	memset(timings, 0, sizeof(struct v4l2_dv_timings));
+
+	/*
+	 * If the pattern generator is enabled the device shall not be queried
+	 * for timings. Instead the timings programmed shall be reported as they
+	 * are the ones being used to generate the pattern.
+	 */
+	if (cp_read(state, ADV748X_CP_PAT_GEN) & ADV748X_CP_PAT_GEN_EN) {
+		*timings = hdmi->timings;
+		return 0;
+	}
 
 	if (!adv748x_hdmi_has_signal(state))
 		return -ENOLINK;
@@ -382,9 +392,6 @@ static int adv748x_hdmi_g_pixelaspect(struct v4l2_subdev *sd,
 }
 
 static const struct v4l2_subdev_video_ops adv748x_video_ops_hdmi = {
-	.s_dv_timings = adv748x_hdmi_s_dv_timings,
-	.g_dv_timings = adv748x_hdmi_g_dv_timings,
-	.query_dv_timings = adv748x_hdmi_query_dv_timings,
 	.g_input_status = adv748x_hdmi_g_input_status,
 	.s_stream = adv748x_hdmi_s_stream,
 	.g_pixelaspect = adv748x_hdmi_g_pixelaspect,
@@ -403,13 +410,13 @@ static int adv748x_hdmi_propagate_pixelrate(struct adv748x_hdmi *hdmi)
 	if (!tx)
 		return -ENOLINK;
 
-	adv748x_hdmi_query_dv_timings(&hdmi->sd, &timings);
+	adv748x_hdmi_query_dv_timings(&hdmi->sd, 0, &timings);
 
 	return adv748x_csi2_set_pixelrate(tx, timings.bt.pixelclock);
 }
 
 static int adv748x_hdmi_enum_mbus_code(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->index != 0)
@@ -421,7 +428,7 @@ static int adv748x_hdmi_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int adv748x_hdmi_get_format(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_format *sdformat)
 {
 	struct adv748x_hdmi *hdmi = adv748x_sd_to_hdmi(sd);
@@ -431,7 +438,8 @@ static int adv748x_hdmi_get_format(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	if (sdformat->which == V4L2_SUBDEV_FORMAT_TRY) {
-		mbusformat = v4l2_subdev_get_try_format(sd, cfg, sdformat->pad);
+		mbusformat = v4l2_subdev_state_get_format(sd_state,
+							  sdformat->pad);
 		sdformat->format = *mbusformat;
 	} else {
 		adv748x_hdmi_fill_format(hdmi, &sdformat->format);
@@ -442,7 +450,7 @@ static int adv748x_hdmi_get_format(struct v4l2_subdev *sd,
 }
 
 static int adv748x_hdmi_set_format(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_format *sdformat)
 {
 	struct v4l2_mbus_framefmt *mbusformat;
@@ -451,9 +459,9 @@ static int adv748x_hdmi_set_format(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	if (sdformat->which == V4L2_SUBDEV_FORMAT_ACTIVE)
-		return adv748x_hdmi_get_format(sd, cfg, sdformat);
+		return adv748x_hdmi_get_format(sd, sd_state, sdformat);
 
-	mbusformat = v4l2_subdev_get_try_format(sd, cfg, sdformat->pad);
+	mbusformat = v4l2_subdev_state_get_format(sd_state, sdformat->pad);
 	*mbusformat = sdformat->format;
 
 	return 0;
@@ -599,6 +607,9 @@ static const struct v4l2_subdev_pad_ops adv748x_pad_ops_hdmi = {
 	.get_fmt = adv748x_hdmi_get_format,
 	.get_edid = adv748x_hdmi_get_edid,
 	.set_edid = adv748x_hdmi_set_edid,
+	.s_dv_timings = adv748x_hdmi_s_dv_timings,
+	.g_dv_timings = adv748x_hdmi_g_dv_timings,
+	.query_dv_timings = adv748x_hdmi_query_dv_timings,
 	.dv_timings_cap = adv748x_hdmi_dv_timings_cap,
 	.enum_dv_timings = adv748x_hdmi_enum_dv_timings,
 };
@@ -720,11 +731,10 @@ static int adv748x_hdmi_init_controls(struct adv748x_hdmi *hdmi)
 int adv748x_hdmi_init(struct adv748x_hdmi *hdmi)
 {
 	struct adv748x_state *state = adv748x_hdmi_to_state(hdmi);
-	static const struct v4l2_dv_timings cea1280x720 =
-		V4L2_DV_BT_CEA_1280X720P30;
+	struct v4l2_dv_timings cea1280x720 = V4L2_DV_BT_CEA_1280X720P30;
 	int ret;
 
-	hdmi->timings = cea1280x720;
+	adv748x_hdmi_s_dv_timings(&hdmi->sd, 0, &cea1280x720);
 
 	/* Initialise a default 16:9 aspect ratio */
 	hdmi->aspect_ratio.numerator = 16;

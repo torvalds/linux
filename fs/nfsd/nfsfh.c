@@ -14,6 +14,7 @@
 #include "nfsd.h"
 #include "vfs.h"
 #include "auth.h"
+#include "trace.h"
 
 #define NFSDDBG_FACILITY		NFSDDBG_FH
 
@@ -39,7 +40,8 @@ static int nfsd_acceptable(void *expv, struct dentry *dentry)
 		/* make sure parents give x permission to user */
 		int err;
 		parent = dget_parent(tdentry);
-		err = inode_permission(d_inode(parent), MAY_EXEC);
+		err = inode_permission(&nop_mnt_idmap,
+				       d_inode(parent), MAY_EXEC);
 		if (err < 0) {
 			dput(parent);
 			break;
@@ -152,11 +154,12 @@ static inline __be32 check_pseudo_root(struct svc_rqst *rqstp,
 static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp)
 {
 	struct knfsd_fh	*fh = &fhp->fh_handle;
-	struct fid *fid = NULL, sfid;
+	struct fid *fid = NULL;
 	struct svc_export *exp;
 	struct dentry *dentry;
 	int fileid_type;
 	int data_left = fh->fh_size/4;
+	int len;
 	__be32 error;
 
 	error = nfserr_stale;
@@ -165,55 +168,45 @@ static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp)
 	if (rqstp->rq_vers == 4 && fh->fh_size == 0)
 		return nfserr_nofilehandle;
 
-	if (fh->fh_version == 1) {
-		int len;
-
-		if (--data_left < 0)
-			return error;
-		if (fh->fh_auth_type != 0)
-			return error;
-		len = key_len(fh->fh_fsid_type) / 4;
-		if (len == 0)
-			return error;
-		if  (fh->fh_fsid_type == FSID_MAJOR_MINOR) {
-			/* deprecated, convert to type 3 */
-			len = key_len(FSID_ENCODE_DEV)/4;
-			fh->fh_fsid_type = FSID_ENCODE_DEV;
-			/*
-			 * struct knfsd_fh uses host-endian fields, which are
-			 * sometimes used to hold net-endian values. This
-			 * confuses sparse, so we must use __force here to
-			 * keep it from complaining.
-			 */
-			fh->fh_fsid[0] = new_encode_dev(MKDEV(ntohl((__force __be32)fh->fh_fsid[0]),
-							ntohl((__force __be32)fh->fh_fsid[1])));
-			fh->fh_fsid[1] = fh->fh_fsid[2];
-		}
-		data_left -= len;
-		if (data_left < 0)
-			return error;
-		exp = rqst_exp_find(rqstp, fh->fh_fsid_type, fh->fh_fsid);
-		fid = (struct fid *)(fh->fh_fsid + len);
-	} else {
-		__u32 tfh[2];
-		dev_t xdev;
-		ino_t xino;
-
-		if (fh->fh_size != NFS_FHSIZE)
-			return error;
-		/* assume old filehandle format */
-		xdev = old_decode_dev(fh->ofh_xdev);
-		xino = u32_to_ino_t(fh->ofh_xino);
-		mk_fsid(FSID_DEV, tfh, xdev, xino, 0, NULL);
-		exp = rqst_exp_find(rqstp, FSID_DEV, tfh);
-	}
-
-	error = nfserr_stale;
-	if (PTR_ERR(exp) == -ENOENT)
+	if (fh->fh_version != 1)
 		return error;
 
-	if (IS_ERR(exp))
+	if (--data_left < 0)
+		return error;
+	if (fh->fh_auth_type != 0)
+		return error;
+	len = key_len(fh->fh_fsid_type) / 4;
+	if (len == 0)
+		return error;
+	if (fh->fh_fsid_type == FSID_MAJOR_MINOR) {
+		/* deprecated, convert to type 3 */
+		len = key_len(FSID_ENCODE_DEV)/4;
+		fh->fh_fsid_type = FSID_ENCODE_DEV;
+		/*
+		 * struct knfsd_fh uses host-endian fields, which are
+		 * sometimes used to hold net-endian values. This
+		 * confuses sparse, so we must use __force here to
+		 * keep it from complaining.
+		 */
+		fh->fh_fsid[0] = new_encode_dev(MKDEV(ntohl((__force __be32)fh->fh_fsid[0]),
+						      ntohl((__force __be32)fh->fh_fsid[1])));
+		fh->fh_fsid[1] = fh->fh_fsid[2];
+	}
+	data_left -= len;
+	if (data_left < 0)
+		return error;
+	exp = rqst_exp_find(rqstp, fh->fh_fsid_type, fh->fh_fsid);
+	fid = (struct fid *)(fh->fh_fsid + len);
+
+	error = nfserr_stale;
+	if (IS_ERR(exp)) {
+		trace_nfsd_set_fh_dentry_badexport(rqstp, fhp, PTR_ERR(exp));
+
+		if (PTR_ERR(exp) == -ENOENT)
+			return error;
+
 		return nfserrno(PTR_ERR(exp));
+	}
 
 	if (exp->ex_flags & NFSEXP_NOSUBTREECHECK) {
 		/* Elevate privileges so that the lack of 'r' or 'x'
@@ -248,25 +241,25 @@ static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp)
 	if (rqstp->rq_vers > 2)
 		error = nfserr_badhandle;
 
-	if (fh->fh_version != 1) {
-		sfid.i32.ino = fh->ofh_ino;
-		sfid.i32.gen = fh->ofh_generation;
-		sfid.i32.parent_ino = fh->ofh_dirino;
-		fid = &sfid;
-		data_left = 3;
-		if (fh->ofh_dirino == 0)
-			fileid_type = FILEID_INO32_GEN;
-		else
-			fileid_type = FILEID_INO32_GEN_PARENT;
-	} else
-		fileid_type = fh->fh_fileid_type;
+	fileid_type = fh->fh_fileid_type;
 
 	if (fileid_type == FILEID_ROOT)
 		dentry = dget(exp->ex_path.dentry);
 	else {
-		dentry = exportfs_decode_fh(exp->ex_path.mnt, fid,
-				data_left, fileid_type,
-				nfsd_acceptable, exp);
+		dentry = exportfs_decode_fh_raw(exp->ex_path.mnt, fid,
+						data_left, fileid_type,
+						nfsd_acceptable, exp);
+		if (IS_ERR_OR_NULL(dentry)) {
+			trace_nfsd_set_fh_dentry_badhandle(rqstp, fhp,
+					dentry ?  PTR_ERR(dentry) : -ESTALE);
+			switch (PTR_ERR(dentry)) {
+			case -ENOMEM:
+			case -ETIMEDOUT:
+				break;
+			default:
+				dentry = ERR_PTR(-ESTALE);
+			}
+		}
 	}
 	if (dentry == NULL)
 		goto out;
@@ -284,6 +277,20 @@ static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp)
 
 	fhp->fh_dentry = dentry;
 	fhp->fh_export = exp;
+
+	switch (rqstp->rq_vers) {
+	case 4:
+		if (dentry->d_sb->s_export_op->flags & EXPORT_OP_NOATOMIC_ATTR)
+			fhp->fh_no_atomic_attr = true;
+		break;
+	case 3:
+		if (dentry->d_sb->s_export_op->flags & EXPORT_OP_NOWCC)
+			fhp->fh_no_wcc = true;
+		break;
+	case 2:
+		fhp->fh_no_wcc = true;
+	}
+
 	return 0;
 out:
 	exp_put(exp);
@@ -320,11 +327,10 @@ out:
 __be32
 fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, umode_t type, int access)
 {
-	struct svc_export *exp;
+	struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
+	struct svc_export *exp = NULL;
 	struct dentry	*dentry;
 	__be32		error;
-
-	dprintk("nfsd: fh_verify(%s)\n", SVCFH_fmt(fhp));
 
 	if (!fhp->fh_dentry) {
 		error = nfsd_set_fh_dentry(rqstp, fhp);
@@ -333,6 +339,9 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, umode_t type, int access)
 	}
 	dentry = fhp->fh_dentry;
 	exp = fhp->fh_export;
+
+	trace_nfsd_fh_verify(rqstp, fhp, type, access);
+
 	/*
 	 * We still have to do all these permission checks, even when
 	 * fh_dentry is already set:
@@ -384,16 +393,10 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, umode_t type, int access)
 skip_pseudoflavor_check:
 	/* Finally, check access permissions. */
 	error = nfsd_permission(rqstp, exp, dentry, access);
-
-	if (error) {
-		dprintk("fh_verify: %pd2 permission failure, "
-			"acc=%x, error=%d\n",
-			dentry,
-			access, ntohl(error));
-	}
 out:
+	trace_nfsd_fh_verify_err(rqstp, fhp, type, access, error);
 	if (error == nfserr_stale)
-		nfsdstats.fh_stale++;
+		nfsd_stats_fh_stale_inc(nn, exp);
 	return error;
 }
 
@@ -412,28 +415,17 @@ static void _fh_update(struct svc_fh *fhp, struct svc_export *exp,
 		struct fid *fid = (struct fid *)
 			(fhp->fh_handle.fh_fsid + fhp->fh_handle.fh_size/4 - 1);
 		int maxsize = (fhp->fh_maxsize - fhp->fh_handle.fh_size)/4;
-		int subtreecheck = !(exp->ex_flags & NFSEXP_NOSUBTREECHECK);
+		int fh_flags = (exp->ex_flags & NFSEXP_NOSUBTREECHECK) ? 0 :
+				EXPORT_FH_CONNECTABLE;
+		int fileid_type =
+			exportfs_encode_fh(dentry, fid, &maxsize, fh_flags);
 
 		fhp->fh_handle.fh_fileid_type =
-			exportfs_encode_fh(dentry, fid, &maxsize, subtreecheck);
+			fileid_type > 0 ? fileid_type : FILEID_INVALID;
 		fhp->fh_handle.fh_size += maxsize * 4;
 	} else {
 		fhp->fh_handle.fh_fileid_type = FILEID_ROOT;
 	}
-}
-
-/*
- * for composing old style file handles
- */
-static inline void _fh_update_old(struct dentry *dentry,
-				  struct svc_export *exp,
-				  struct knfsd_fh *fh)
-{
-	fh->ofh_ino = ino_t_to_u32(d_inode(dentry)->i_ino);
-	fh->ofh_generation = d_inode(dentry)->i_generation;
-	if (d_is_dir(dentry) ||
-	    (exp->ex_flags & NFSEXP_NOSUBTREECHECK))
-		fh->ofh_dirino = 0;
 }
 
 static bool is_root_export(struct svc_export *exp)
@@ -452,7 +444,7 @@ static bool fsid_type_ok_for_exp(u8 fsid_type, struct svc_export *exp)
 	case FSID_DEV:
 		if (!old_valid_dev(exp_sb(exp)->s_dev))
 			return false;
-		/* FALL THROUGH */
+		fallthrough;
 	case FSID_MAJOR_MINOR:
 	case FSID_ENCODE_DEV:
 		return exp_sb(exp)->s_type->fs_flags & FS_REQUIRES_DEV;
@@ -462,7 +454,7 @@ static bool fsid_type_ok_for_exp(u8 fsid_type, struct svc_export *exp)
 	case FSID_UUID16:
 		if (!is_root_export(exp))
 			return false;
-		/* fall through */
+		fallthrough;
 	case FSID_UUID4_INUM:
 	case FSID_UUID16_INUM:
 		return exp->ex_uuid != NULL;
@@ -532,9 +524,6 @@ fh_compose(struct svc_fh *fhp, struct svc_export *exp, struct dentry *dentry,
 	/* ref_fh is a reference file handle.
 	 * if it is non-null and for the same filesystem, then we should compose
 	 * a filehandle which is of the same version, where possible.
-	 * Currently, that means that if ref_fh->fh_handle.fh_version == 0xca
-	 * Then create a 32byte filehandle using nfs_fhbase_old
-	 *
 	 */
 
 	struct inode * inode = d_inode(dentry);
@@ -552,10 +541,13 @@ fh_compose(struct svc_fh *fhp, struct svc_export *exp, struct dentry *dentry,
 	 */
 	set_version_and_fsid_type(fhp, exp, ref_fh);
 
+	/* If we have a ref_fh, then copy the fh_no_wcc setting from it. */
+	fhp->fh_no_wcc = ref_fh ? ref_fh->fh_no_wcc : false;
+
 	if (ref_fh == fhp)
 		fh_put(ref_fh);
 
-	if (fhp->fh_locked || fhp->fh_dentry) {
+	if (fhp->fh_dentry) {
 		printk(KERN_ERR "fh_compose: fh %pd2 not initialized!\n",
 		       dentry);
 	}
@@ -567,35 +559,21 @@ fh_compose(struct svc_fh *fhp, struct svc_export *exp, struct dentry *dentry,
 	fhp->fh_dentry = dget(dentry); /* our internal copy */
 	fhp->fh_export = exp_get(exp);
 
-	if (fhp->fh_handle.fh_version == 0xca) {
-		/* old style filehandle please */
-		memset(&fhp->fh_handle.fh_base, 0, NFS_FHSIZE);
-		fhp->fh_handle.fh_size = NFS_FHSIZE;
-		fhp->fh_handle.ofh_dcookie = 0xfeebbaca;
-		fhp->fh_handle.ofh_dev =  old_encode_dev(ex_dev);
-		fhp->fh_handle.ofh_xdev = fhp->fh_handle.ofh_dev;
-		fhp->fh_handle.ofh_xino =
-			ino_t_to_u32(d_inode(exp->ex_path.dentry)->i_ino);
-		fhp->fh_handle.ofh_dirino = ino_t_to_u32(parent_ino(dentry));
-		if (inode)
-			_fh_update_old(dentry, exp, &fhp->fh_handle);
-	} else {
-		fhp->fh_handle.fh_size =
-			key_len(fhp->fh_handle.fh_fsid_type) + 4;
-		fhp->fh_handle.fh_auth_type = 0;
+	fhp->fh_handle.fh_size =
+		key_len(fhp->fh_handle.fh_fsid_type) + 4;
+	fhp->fh_handle.fh_auth_type = 0;
 
-		mk_fsid(fhp->fh_handle.fh_fsid_type,
-			fhp->fh_handle.fh_fsid,
-			ex_dev,
-			d_inode(exp->ex_path.dentry)->i_ino,
-			exp->ex_fsid, exp->ex_uuid);
+	mk_fsid(fhp->fh_handle.fh_fsid_type,
+		fhp->fh_handle.fh_fsid,
+		ex_dev,
+		d_inode(exp->ex_path.dentry)->i_ino,
+		exp->ex_fsid, exp->ex_uuid);
 
-		if (inode)
-			_fh_update(fhp, exp, dentry);
-		if (fhp->fh_handle.fh_fileid_type == FILEID_INVALID) {
-			fh_put(fhp);
-			return nfserr_opnotsupp;
-		}
+	if (inode)
+		_fh_update(fhp, exp, dentry);
+	if (fhp->fh_handle.fh_fileid_type == FILEID_INVALID) {
+		fh_put(fhp);
+		return nfserr_stale;
 	}
 
 	return 0;
@@ -616,16 +594,12 @@ fh_update(struct svc_fh *fhp)
 	dentry = fhp->fh_dentry;
 	if (d_really_is_negative(dentry))
 		goto out_negative;
-	if (fhp->fh_handle.fh_version != 1) {
-		_fh_update_old(dentry, fhp->fh_export, &fhp->fh_handle);
-	} else {
-		if (fhp->fh_handle.fh_fileid_type != FILEID_ROOT)
-			return 0;
+	if (fhp->fh_handle.fh_fileid_type != FILEID_ROOT)
+		return 0;
 
-		_fh_update(fhp, fhp->fh_export, dentry);
-		if (fhp->fh_handle.fh_fileid_type == FILEID_INVALID)
-			return nfserr_opnotsupp;
-	}
+	_fh_update(fhp, fhp->fh_export, dentry);
+	if (fhp->fh_handle.fh_fileid_type == FILEID_INVALID)
+		return nfserr_stale;
 	return 0;
 out_bad:
 	printk(KERN_ERR "fh_update: fh not verified!\n");
@@ -634,6 +608,87 @@ out_negative:
 	printk(KERN_ERR "fh_update: %pd2 still negative!\n",
 		dentry);
 	return nfserr_serverfault;
+}
+
+/**
+ * fh_fill_pre_attrs - Fill in pre-op attributes
+ * @fhp: file handle to be updated
+ *
+ */
+__be32 __must_check fh_fill_pre_attrs(struct svc_fh *fhp)
+{
+	bool v4 = (fhp->fh_maxsize == NFS4_FHSIZE);
+	struct inode *inode;
+	struct kstat stat;
+	__be32 err;
+
+	if (fhp->fh_no_wcc || fhp->fh_pre_saved)
+		return nfs_ok;
+
+	inode = d_inode(fhp->fh_dentry);
+	err = fh_getattr(fhp, &stat);
+	if (err)
+		return err;
+
+	if (v4)
+		fhp->fh_pre_change = nfsd4_change_attribute(&stat, inode);
+
+	fhp->fh_pre_mtime = stat.mtime;
+	fhp->fh_pre_ctime = stat.ctime;
+	fhp->fh_pre_size  = stat.size;
+	fhp->fh_pre_saved = true;
+	return nfs_ok;
+}
+
+/**
+ * fh_fill_post_attrs - Fill in post-op attributes
+ * @fhp: file handle to be updated
+ *
+ */
+__be32 fh_fill_post_attrs(struct svc_fh *fhp)
+{
+	bool v4 = (fhp->fh_maxsize == NFS4_FHSIZE);
+	struct inode *inode = d_inode(fhp->fh_dentry);
+	__be32 err;
+
+	if (fhp->fh_no_wcc)
+		return nfs_ok;
+
+	if (fhp->fh_post_saved)
+		printk("nfsd: inode locked twice during operation.\n");
+
+	err = fh_getattr(fhp, &fhp->fh_post_attr);
+	if (err)
+		return err;
+
+	fhp->fh_post_saved = true;
+	if (v4)
+		fhp->fh_post_change =
+			nfsd4_change_attribute(&fhp->fh_post_attr, inode);
+	return nfs_ok;
+}
+
+/**
+ * fh_fill_both_attrs - Fill pre-op and post-op attributes
+ * @fhp: file handle to be updated
+ *
+ * This is used when the directory wasn't changed, but wcc attributes
+ * are needed anyway.
+ */
+__be32 __must_check fh_fill_both_attrs(struct svc_fh *fhp)
+{
+	__be32 err;
+
+	err = fh_fill_post_attrs(fhp);
+	if (err)
+		return err;
+
+	fhp->fh_pre_change = fhp->fh_post_change;
+	fhp->fh_pre_mtime = fhp->fh_post_attr.mtime;
+	fhp->fh_pre_ctime = fhp->fh_post_attr.ctime;
+	fhp->fh_pre_size = fhp->fh_post_attr.size;
+	fhp->fh_pre_saved = true;
+	return nfs_ok;
 }
 
 /*
@@ -645,16 +700,16 @@ fh_put(struct svc_fh *fhp)
 	struct dentry * dentry = fhp->fh_dentry;
 	struct svc_export * exp = fhp->fh_export;
 	if (dentry) {
-		fh_unlock(fhp);
 		fhp->fh_dentry = NULL;
 		dput(dentry);
-		fh_clear_wcc(fhp);
+		fh_clear_pre_post_attrs(fhp);
 	}
 	fh_drop_write(fhp);
 	if (exp) {
 		exp_put(exp);
 		fhp->fh_export = NULL;
 	}
+	fhp->fh_no_wcc = false;
 	return;
 }
 
@@ -664,20 +719,15 @@ fh_put(struct svc_fh *fhp)
 char * SVCFH_fmt(struct svc_fh *fhp)
 {
 	struct knfsd_fh *fh = &fhp->fh_handle;
+	static char buf[2+1+1+64*3+1];
 
-	static char buf[80];
-	sprintf(buf, "%d: %08x %08x %08x %08x %08x %08x",
-		fh->fh_size,
-		fh->fh_base.fh_pad[0],
-		fh->fh_base.fh_pad[1],
-		fh->fh_base.fh_pad[2],
-		fh->fh_base.fh_pad[3],
-		fh->fh_base.fh_pad[4],
-		fh->fh_base.fh_pad[5]);
+	if (fh->fh_size < 0 || fh->fh_size> 64)
+		return "bad-fh";
+	sprintf(buf, "%d: %*ph", fh->fh_size, fh->fh_size, fh->fh_raw);
 	return buf;
 }
 
-enum fsid_source fsid_source(struct svc_fh *fhp)
+enum fsid_source fsid_source(const struct svc_fh *fhp)
 {
 	if (fhp->fh_handle.fh_version != 1)
 		return FSIDSOURCE_DEV;
@@ -703,4 +753,38 @@ enum fsid_source fsid_source(struct svc_fh *fhp)
 	if (fhp->fh_export->ex_uuid)
 		return FSIDSOURCE_UUID;
 	return FSIDSOURCE_DEV;
+}
+
+/*
+ * We could use i_version alone as the change attribute.  However, i_version
+ * can go backwards on a regular file after an unclean shutdown.  On its own
+ * that doesn't necessarily cause a problem, but if i_version goes backwards
+ * and then is incremented again it could reuse a value that was previously
+ * used before boot, and a client who queried the two values might incorrectly
+ * assume nothing changed.
+ *
+ * By using both ctime and the i_version counter we guarantee that as long as
+ * time doesn't go backwards we never reuse an old value. If the filesystem
+ * advertises STATX_ATTR_CHANGE_MONOTONIC, then this mitigation is not
+ * needed.
+ *
+ * We only need to do this for regular files as well. For directories, we
+ * assume that the new change attr is always logged to stable storage in some
+ * fashion before the results can be seen.
+ */
+u64 nfsd4_change_attribute(const struct kstat *stat, const struct inode *inode)
+{
+	u64 chattr;
+
+	if (stat->result_mask & STATX_CHANGE_COOKIE) {
+		chattr = stat->change_cookie;
+		if (S_ISREG(inode->i_mode) &&
+		    !(stat->attributes & STATX_ATTR_CHANGE_MONOTONIC)) {
+			chattr += (u64)stat->ctime.tv_sec << 30;
+			chattr += stat->ctime.tv_nsec;
+		}
+	} else {
+		chattr = time_to_chattr(&stat->ctime);
+	}
+	return chattr;
 }

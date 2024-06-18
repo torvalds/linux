@@ -63,9 +63,9 @@ typedef enum {
  * connected to this port. On chips supporting multiple MII
  * busses the bus number is encoded in bits <15:8>.
  *
- * This function must be modifed for every new Octeon board.
+ * This function must be modified for every new Octeon board.
  * Internally it uses switch statements based on the cvmx_sysinfo
- * data to determine board types and revisions. It relys on the
+ * data to determine board types and revisions. It relies on the
  * fact that every Octeon board receives a unique board type
  * enumeration from the bootloader.
  *
@@ -81,9 +81,9 @@ extern int cvmx_helper_board_get_mii_address(int ipd_port);
  * and are handled by the fall through case. This function must be
  * updated for boards that don't have the normal Marvell PHYs.
  *
- * This function must be modifed for every new Octeon board.
+ * This function must be modified for every new Octeon board.
  * Internally it uses switch statements based on the cvmx_sysinfo
- * data to determine board types and revisions. It relys on the
+ * data to determine board types and revisions. It relies on the
  * fact that every Octeon board receives a unique board type
  * enumeration from the bootloader.
  *
@@ -93,7 +93,7 @@ extern int cvmx_helper_board_get_mii_address(int ipd_port);
  * Returns The ports link status. If the link isn't fully resolved, this must
  *	   return zero.
  */
-extern cvmx_helper_link_info_t __cvmx_helper_board_link_get(int ipd_port);
+extern union cvmx_helper_link_info __cvmx_helper_board_link_get(int ipd_port);
 
 /**
  * This function is called by cvmx_helper_interface_probe() after it
@@ -103,9 +103,9 @@ extern cvmx_helper_link_info_t __cvmx_helper_board_link_get(int ipd_port);
  * support and should return the number of actual ports on the
  * board.
  *
- * This function must be modifed for every new Octeon board.
+ * This function must be modified for every new Octeon board.
  * Internally it uses switch statements based on the cvmx_sysinfo
- * data to determine board types and revisions. It relys on the
+ * data to determine board types and revisions. It relies on the
  * fact that every Octeon board receives a unique board type
  * enumeration from the bootloader.
  *

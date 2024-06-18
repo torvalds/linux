@@ -9,9 +9,11 @@ extern const struct rtw_table rtw8822b_mac_tbl;
 extern const struct rtw_table rtw8822b_agc_tbl;
 extern const struct rtw_table rtw8822b_bb_tbl;
 extern const struct rtw_table rtw8822b_bb_pg_type2_tbl;
+extern const struct rtw_table rtw8822b_bb_pg_type3_tbl;
 extern const struct rtw_table rtw8822b_bb_pg_type5_tbl;
 extern const struct rtw_table rtw8822b_rf_a_tbl;
 extern const struct rtw_table rtw8822b_rf_b_tbl;
+extern const struct rtw_table rtw8822b_txpwr_lmt_type0_tbl;
 extern const struct rtw_table rtw8822b_txpwr_lmt_type2_tbl;
 extern const struct rtw_table rtw8822b_txpwr_lmt_type5_tbl;
 

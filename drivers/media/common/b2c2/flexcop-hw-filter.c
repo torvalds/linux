@@ -69,7 +69,7 @@ vpid.vregname.field = onoff ? pid : 0x1fff; \
 vpid.vregname.trans_field = transval; \
 v208.ctrl_208.enablefield = onoff; \
 fc->write_ibi_reg(fc, vregname, vpid); \
-fc->write_ibi_reg(fc, ctrl_208, v208);
+fc->write_ibi_reg(fc, ctrl_208, v208)
 
 static void flexcop_pid_Stream1_PID_ctrl(struct flexcop_device *fc,
 		u16 pid, int onoff)

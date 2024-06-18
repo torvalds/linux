@@ -29,14 +29,26 @@
 void apei_mce_report_mem_error(int severity, struct cper_sec_mem_err *mem_err)
 {
 	struct mce m;
+	int lsb;
 
 	if (!(mem_err->validation_bits & CPER_MEM_VALID_PA))
 		return;
 
+	/*
+	 * Even if the ->validation_bits are set for address mask,
+	 * to be extra safe, check and reject an error radius '0',
+	 * and fall back to the default page size.
+	 */
+	if (mem_err->validation_bits & CPER_MEM_VALID_PA_MASK)
+		lsb = find_first_bit((void *)&mem_err->physical_addr_mask, PAGE_SHIFT);
+	else
+		lsb = PAGE_SHIFT;
+
 	mce_setup(&m);
 	m.bank = -1;
 	/* Fake a memory read error with unknown channel */
-	m.status = MCI_STATUS_VAL | MCI_STATUS_EN | MCI_STATUS_ADDRV | 0x9f;
+	m.status = MCI_STATUS_VAL | MCI_STATUS_EN | MCI_STATUS_ADDRV | MCI_STATUS_MISCV | 0x9f;
+	m.misc = (MCI_MISC_ADDR_PHYS << 6) | lsb;
 
 	if (severity >= GHES_SEV_RECOVERABLE)
 		m.status |= MCI_STATUS_UC;
@@ -50,6 +62,67 @@ void apei_mce_report_mem_error(int severity, struct cper_sec_mem_err *mem_err)
 	mce_log(&m);
 }
 EXPORT_SYMBOL_GPL(apei_mce_report_mem_error);
+
+int apei_smca_report_x86_error(struct cper_ia_proc_ctx *ctx_info, u64 lapic_id)
+{
+	const u64 *i_mce = ((const u64 *) (ctx_info + 1));
+	unsigned int cpu;
+	struct mce m;
+
+	if (!boot_cpu_has(X86_FEATURE_SMCA))
+		return -EINVAL;
+
+	/*
+	 * The starting address of the register array extracted from BERT must
+	 * match with the first expected register in the register layout of
+	 * SMCA address space. This address corresponds to banks's MCA_STATUS
+	 * register.
+	 *
+	 * Match any MCi_STATUS register by turning off bank numbers.
+	 */
+	if ((ctx_info->msr_addr & MSR_AMD64_SMCA_MC0_STATUS) !=
+				  MSR_AMD64_SMCA_MC0_STATUS)
+		return -EINVAL;
+
+	/*
+	 * The register array size must be large enough to include all the
+	 * SMCA registers which need to be extracted.
+	 *
+	 * The number of registers in the register array is determined by
+	 * Register Array Size/8 as defined in UEFI spec v2.8, sec N.2.4.2.2.
+	 * The register layout is fixed and currently the raw data in the
+	 * register array includes 6 SMCA registers which the kernel can
+	 * extract.
+	 */
+	if (ctx_info->reg_arr_size < 48)
+		return -EINVAL;
+
+	mce_setup(&m);
+
+	m.extcpu = -1;
+	m.socketid = -1;
+
+	for_each_possible_cpu(cpu) {
+		if (cpu_data(cpu).topo.initial_apicid == lapic_id) {
+			m.extcpu = cpu;
+			m.socketid = cpu_data(m.extcpu).topo.pkg_id;
+			break;
+		}
+	}
+
+	m.apicid = lapic_id;
+	m.bank = (ctx_info->msr_addr >> 4) & 0xFF;
+	m.status = *i_mce;
+	m.addr = *(i_mce + 1);
+	m.misc = *(i_mce + 2);
+	/* Skipping MCA_CONFIG */
+	m.ipid = *(i_mce + 4);
+	m.synd = *(i_mce + 5);
+
+	mce_log(&m);
+
+	return 0;
+}
 
 #define CPER_CREATOR_MCE						\
 	GUID_INIT(0x75a574e3, 0x5052, 0x4b29, 0x8a, 0x8e, 0xbe, 0x2c,	\
@@ -115,16 +188,14 @@ retry:
 	/* no more record */
 	if (*record_id == APEI_ERST_INVALID_RECORD_ID)
 		goto out;
-	rc = erst_read(*record_id, &rcd.hdr, sizeof(rcd));
+	rc = erst_read_record(*record_id, &rcd.hdr, sizeof(rcd), sizeof(rcd),
+			&CPER_CREATOR_MCE);
 	/* someone else has cleared the record, try next one */
 	if (rc == -ENOENT)
 		goto retry;
 	else if (rc < 0)
 		goto out;
-	/* try to skip other type records in storage */
-	else if (rc != sizeof(rcd) ||
-		 !guid_equal(&rcd.hdr.creator_id, &CPER_CREATOR_MCE))
-		goto retry;
+
 	memcpy(m, &rcd.mce, sizeof(*m));
 	rc = sizeof(*m);
 out:

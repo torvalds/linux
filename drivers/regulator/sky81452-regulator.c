@@ -32,7 +32,7 @@ static const struct regulator_ops sky81452_reg_ops = {
 	.is_enabled = regulator_is_enabled_regmap,
 };
 
-static const struct regulator_linear_range sky81452_reg_ranges[] = {
+static const struct linear_range sky81452_reg_ranges[] = {
 	REGULATOR_LINEAR_RANGE(4500000, 0, 14, 250000),
 	REGULATOR_LINEAR_RANGE(9000000, 15, 31, 1000000),
 };
@@ -79,6 +79,7 @@ static int sky81452_reg_probe(struct platform_device *pdev)
 static struct platform_driver sky81452_reg_driver = {
 	.driver = {
 		.name = "sky81452-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = sky81452_reg_probe,
 };

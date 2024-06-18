@@ -12,6 +12,7 @@ menuconfig ARCH_STM32
 	select PINCTRL
 	select RESET_CONTROLLER
 	select STM32_EXTI
+	select STM32_FIREWALL
 	help
 	  Support for STMicroelectronics STM32 processors.
 
@@ -47,6 +48,14 @@ config MACH_STM32MP157
 	bool "STMicroelectronics STM32MP157"
 	select ARM_ERRATA_814220
 	default y
+
+config MACH_STM32MP13
+	bool "STMicroelectronics STM32MP13x"
+	select ARM_ERRATA_814220
+	default y
+	help
+	  Support for STM32MP13 SoCs:
+	  STM32MP131, STM32MP133, STM32MP135
 
 endif # ARMv7-A
 

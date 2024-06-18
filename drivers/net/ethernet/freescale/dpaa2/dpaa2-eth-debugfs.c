@@ -21,7 +21,7 @@ static int dpaa2_dbg_cpu_show(struct seq_file *file, void *offset)
 	seq_printf(file, "Per-CPU stats for %s\n", priv->net_dev->name);
 	seq_printf(file, "%s%16s%16s%16s%16s%16s%16s%16s%16s%16s\n",
 		   "CPU", "Rx", "Rx Err", "Rx SG", "Tx", "Tx Err", "Tx conf",
-		   "Tx SG", "Tx realloc", "Enq busy");
+		   "Tx SG", "Tx converted to SG", "Enq busy");
 
 	for_each_online_cpu(i) {
 		stats = per_cpu_ptr(priv->percpu_stats, i);
@@ -35,31 +35,14 @@ static int dpaa2_dbg_cpu_show(struct seq_file *file, void *offset)
 			   stats->tx_errors,
 			   extras->tx_conf_frames,
 			   extras->tx_sg_frames,
-			   extras->tx_reallocs,
+			   extras->tx_converted_sg_frames,
 			   extras->tx_portal_busy);
 	}
 
 	return 0;
 }
 
-static int dpaa2_dbg_cpu_open(struct inode *inode, struct file *file)
-{
-	int err;
-	struct dpaa2_eth_priv *priv = (struct dpaa2_eth_priv *)inode->i_private;
-
-	err = single_open(file, dpaa2_dbg_cpu_show, priv);
-	if (err < 0)
-		netdev_err(priv->net_dev, "single_open() failed\n");
-
-	return err;
-}
-
-static const struct file_operations dpaa2_dbg_cpu_ops = {
-	.open = dpaa2_dbg_cpu_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(dpaa2_dbg_cpu);
 
 static char *fq_type_to_str(struct dpaa2_eth_fq *fq)
 {
@@ -81,8 +64,8 @@ static int dpaa2_dbg_fqs_show(struct seq_file *file, void *offset)
 	int i, err;
 
 	seq_printf(file, "FQ stats for %s:\n", priv->net_dev->name);
-	seq_printf(file, "%s%16s%16s%16s%16s\n",
-		   "VFQID", "CPU", "Type", "Frames", "Pending frames");
+	seq_printf(file, "%s%16s%16s%16s%16s%16s\n",
+		   "VFQID", "CPU", "TC", "Type", "Frames", "Pending frames");
 
 	for (i = 0; i <  priv->num_fqs; i++) {
 		fq = &priv->fq[i];
@@ -90,9 +73,14 @@ static int dpaa2_dbg_fqs_show(struct seq_file *file, void *offset)
 		if (err)
 			fcnt = 0;
 
-		seq_printf(file, "%5d%16d%16s%16llu%16u\n",
+		/* Skip FQs with no traffic */
+		if (!fq->stats.frames && !fcnt)
+			continue;
+
+		seq_printf(file, "%5d%16d%16d%16s%16llu%16u\n",
 			   fq->fqid,
 			   fq->target_cpu,
+			   fq->tc,
 			   fq_type_to_str(fq),
 			   fq->stats.frames,
 			   fcnt);
@@ -101,24 +89,7 @@ static int dpaa2_dbg_fqs_show(struct seq_file *file, void *offset)
 	return 0;
 }
 
-static int dpaa2_dbg_fqs_open(struct inode *inode, struct file *file)
-{
-	int err;
-	struct dpaa2_eth_priv *priv = (struct dpaa2_eth_priv *)inode->i_private;
-
-	err = single_open(file, dpaa2_dbg_fqs_show, priv);
-	if (err < 0)
-		netdev_err(priv->net_dev, "single_open() failed\n");
-
-	return err;
-}
-
-static const struct file_operations dpaa2_dbg_fq_ops = {
-	.open = dpaa2_dbg_fqs_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(dpaa2_dbg_fqs);
 
 static int dpaa2_dbg_ch_show(struct seq_file *file, void *offset)
 {
@@ -127,57 +98,96 @@ static int dpaa2_dbg_ch_show(struct seq_file *file, void *offset)
 	int i;
 
 	seq_printf(file, "Channel stats for %s:\n", priv->net_dev->name);
-	seq_printf(file, "%s%16s%16s%16s%16s\n",
-		   "CHID", "CPU", "Deq busy", "CDANs", "Buf count");
+	seq_printf(file, "%s  %5s%16s%16s%16s%16s%16s%16s\n",
+		   "IDX", "CHID", "CPU", "Deq busy", "Frames", "CDANs",
+		   "Avg Frm/CDAN", "Buf count");
 
 	for (i = 0; i < priv->num_channels; i++) {
 		ch = priv->channel[i];
-		seq_printf(file, "%4d%16d%16llu%16llu%16d\n",
-			   ch->ch_id,
+		seq_printf(file, "%3s%d%6d%16d%16llu%16llu%16llu%16llu%16d\n",
+			   "CH#", i, ch->ch_id,
 			   ch->nctx.desired_cpu,
 			   ch->stats.dequeue_portal_busy,
+			   ch->stats.frames,
 			   ch->stats.cdan,
+			   div64_u64(ch->stats.frames, ch->stats.cdan),
 			   ch->buf_count);
 	}
 
 	return 0;
 }
 
-static int dpaa2_dbg_ch_open(struct inode *inode, struct file *file)
+DEFINE_SHOW_ATTRIBUTE(dpaa2_dbg_ch);
+
+static int dpaa2_dbg_bp_show(struct seq_file *file, void *offset)
 {
+	struct dpaa2_eth_priv *priv = (struct dpaa2_eth_priv *)file->private;
+	int i, j, num_queues, buf_cnt;
+	struct dpaa2_eth_bp *bp;
+	char ch_name[10];
 	int err;
-	struct dpaa2_eth_priv *priv = (struct dpaa2_eth_priv *)inode->i_private;
 
-	err = single_open(file, dpaa2_dbg_ch_show, priv);
-	if (err < 0)
-		netdev_err(priv->net_dev, "single_open() failed\n");
+	/* Print out the header */
+	seq_printf(file, "Buffer pool info for %s:\n", priv->net_dev->name);
+	seq_printf(file, "%s  %10s%15s", "IDX", "BPID", "Buf count");
+	num_queues = dpaa2_eth_queue_count(priv);
+	for (i = 0; i < num_queues; i++) {
+		snprintf(ch_name, sizeof(ch_name), "CH#%d", i);
+		seq_printf(file, "%10s", ch_name);
+	}
+	seq_printf(file, "\n");
 
-	return err;
+	/* For each buffer pool, print out its BPID, the number of buffers in
+	 * that buffer pool and the channels which are using it.
+	 */
+	for (i = 0; i < priv->num_bps; i++) {
+		bp = priv->bp[i];
+
+		err = dpaa2_io_query_bp_count(NULL, bp->bpid, &buf_cnt);
+		if (err) {
+			netdev_warn(priv->net_dev, "Buffer count query error %d\n", err);
+			return err;
+		}
+
+		seq_printf(file, "%3s%d%10d%15d", "BP#", i, bp->bpid, buf_cnt);
+		for (j = 0; j < num_queues; j++) {
+			if (priv->channel[j]->bp == bp)
+				seq_printf(file, "%10s", "x");
+			else
+				seq_printf(file, "%10s", "");
+		}
+		seq_printf(file, "\n");
+	}
+
+	return 0;
 }
 
-static const struct file_operations dpaa2_dbg_ch_ops = {
-	.open = dpaa2_dbg_ch_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(dpaa2_dbg_bp);
 
 void dpaa2_dbg_add(struct dpaa2_eth_priv *priv)
 {
+	struct fsl_mc_device *dpni_dev;
 	struct dentry *dir;
+	char name[10];
 
 	/* Create a directory for the interface */
-	dir = debugfs_create_dir(priv->net_dev->name, dpaa2_dbg_root);
+	dpni_dev = to_fsl_mc_device(priv->net_dev->dev.parent);
+	snprintf(name, 10, "dpni.%d", dpni_dev->obj_desc.id);
+	dir = debugfs_create_dir(name, dpaa2_dbg_root);
 	priv->dbg.dir = dir;
 
 	/* per-cpu stats file */
-	debugfs_create_file("cpu_stats", 0444, dir, priv, &dpaa2_dbg_cpu_ops);
+	debugfs_create_file("cpu_stats", 0444, dir, priv, &dpaa2_dbg_cpu_fops);
 
 	/* per-fq stats file */
-	debugfs_create_file("fq_stats", 0444, dir, priv, &dpaa2_dbg_fq_ops);
+	debugfs_create_file("fq_stats", 0444, dir, priv, &dpaa2_dbg_fqs_fops);
 
 	/* per-fq stats file */
-	debugfs_create_file("ch_stats", 0444, dir, priv, &dpaa2_dbg_ch_ops);
+	debugfs_create_file("ch_stats", 0444, dir, priv, &dpaa2_dbg_ch_fops);
+
+	/* per buffer pool stats file */
+	debugfs_create_file("bp_stats", 0444, dir, priv, &dpaa2_dbg_bp_fops);
+
 }
 
 void dpaa2_dbg_remove(struct dpaa2_eth_priv *priv)

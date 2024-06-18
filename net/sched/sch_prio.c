@@ -39,14 +39,14 @@ prio_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 	*qerr = NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
 	if (TC_H_MAJ(skb->priority) != sch->handle) {
 		fl = rcu_dereference_bh(q->filter_list);
-		err = tcf_classify(skb, fl, &res, false);
+		err = tcf_classify(skb, NULL, fl, &res, false);
 #ifdef CONFIG_NET_CLS_ACT
 		switch (err) {
 		case TC_ACT_STOLEN:
 		case TC_ACT_QUEUED:
 		case TC_ACT_TRAP:
 			*qerr = NET_XMIT_SUCCESS | __NET_XMIT_STOLEN;
-			/* fall through */
+			fallthrough;
 		case TC_ACT_SHOT:
 			return NULL;
 		}
@@ -135,8 +135,6 @@ prio_reset(struct Qdisc *sch)
 
 	for (prio = 0; prio < q->bands; prio++)
 		qdisc_reset(q->queues[prio]);
-	sch->qstats.backlog = 0;
-	sch->q.qlen = 0;
 }
 
 static int prio_offload(struct Qdisc *sch, struct tc_prio_qopt *qopt)
@@ -187,7 +185,7 @@ static int prio_tune(struct Qdisc *sch, struct nlattr *opt,
 		return -EINVAL;
 	qopt = nla_data(opt);
 
-	if (qopt->bands > TCQ_PRIO_BANDS || qopt->bands < 2)
+	if (qopt->bands > TCQ_PRIO_BANDS || qopt->bands < TCQ_MIN_PRIO_BANDS)
 		return -EINVAL;
 
 	for (i = 0; i <= TC_PRIO_MAX; i++) {
@@ -292,8 +290,14 @@ static int prio_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 	struct tc_prio_qopt_offload graft_offload;
 	unsigned long band = arg - 1;
 
-	if (new == NULL)
-		new = &noop_qdisc;
+	if (!new) {
+		new = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops,
+					TC_H_MAKE(sch->handle, arg), extack);
+		if (!new)
+			new = &noop_qdisc;
+		else
+			qdisc_hash_add(new, true);
+	}
 
 	*old = qdisc_replace(sch, new, &q->queues[band]);
 
@@ -355,8 +359,8 @@ static int prio_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 	struct Qdisc *cl_q;
 
 	cl_q = q->queues[cl - 1];
-	if (gnet_stats_copy_basic(qdisc_root_sleeping_running(sch),
-				  d, NULL, &cl_q->bstats) < 0 ||
+	if (gnet_stats_copy_basic(d, cl_q->cpu_bstats,
+				  &cl_q->bstats, true) < 0 ||
 	    qdisc_qstats_copy(d, cl_q) < 0)
 		return -1;
 
@@ -372,15 +376,8 @@ static void prio_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 		return;
 
 	for (prio = 0; prio < q->bands; prio++) {
-		if (arg->count < arg->skip) {
-			arg->count++;
-			continue;
-		}
-		if (arg->fn(sch, prio + 1, arg) < 0) {
-			arg->stop = 1;
+		if (!tc_qdisc_stats_dump(sch, prio + 1, arg))
 			break;
-		}
-		arg->count++;
 	}
 }
 
@@ -421,6 +418,7 @@ static struct Qdisc_ops prio_qdisc_ops __read_mostly = {
 	.dump		=	prio_dump,
 	.owner		=	THIS_MODULE,
 };
+MODULE_ALIAS_NET_SCH("prio");
 
 static int __init prio_module_init(void)
 {
@@ -436,3 +434,4 @@ module_init(prio_module_init)
 module_exit(prio_module_exit)
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Simple 3-band priority qdisc");

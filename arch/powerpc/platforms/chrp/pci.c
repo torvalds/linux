@@ -8,12 +8,12 @@
 #include <linux/delay.h>
 #include <linux/string.h>
 #include <linux/init.h>
+#include <linux/pgtable.h>
+#include <linux/of_address.h>
 
 #include <asm/io.h>
-#include <asm/pgtable.h>
 #include <asm/irq.h>
 #include <asm/hydra.h>
-#include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/sections.h>
 #include <asm/pci-bridge.h>
@@ -104,7 +104,7 @@ static int rtas_read_config(struct pci_bus *bus, unsigned int devfn, int offset,
         int ret = -1;
 	int rval;
 
-	rval = rtas_call(rtas_token("read-pci-config"), 2, 2, &ret, addr, len);
+	rval = rtas_call(rtas_function_token(RTAS_FN_READ_PCI_CONFIG), 2, 2, &ret, addr, len);
 	*val = ret;
 	return rval? PCIBIOS_DEVICE_NOT_FOUND: PCIBIOS_SUCCESSFUL;
 }
@@ -118,7 +118,7 @@ static int rtas_write_config(struct pci_bus *bus, unsigned int devfn, int offset
 		| (hose->global_number << 24);
 	int rval;
 
-	rval = rtas_call(rtas_token("write-pci-config"), 3, 1, NULL,
+	rval = rtas_call(rtas_function_token(RTAS_FN_WRITE_PCI_CONFIG), 3, 1, NULL,
 			 addr, len, val);
 	return rval? PCIBIOS_DEVICE_NOT_FOUND: PCIBIOS_SUCCESSFUL;
 }
@@ -131,8 +131,7 @@ static struct pci_ops rtas_pci_ops =
 
 volatile struct Hydra __iomem *Hydra = NULL;
 
-int __init
-hydra_init(void)
+static int __init hydra_init(void)
 {
 	struct device_node *np;
 	struct resource r;
@@ -314,6 +313,14 @@ chrp_find_bridges(void)
 		}
 	}
 	of_node_put(root);
+
+	/*
+	 *  "Temporary" fixes for PCI devices.
+	 *  -- Geert
+	 */
+	hydra_init();		/* Mac I/O */
+
+	pci_create_OF_bus_map();
 }
 
 /* SL82C105 IDE Control/Status Register */

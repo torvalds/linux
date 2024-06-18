@@ -61,10 +61,10 @@
 #include <linux/hdreg.h>
 #include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/major.h>
 #include <linux/mutex.h>
 #include <linux/fs.h>
 #include <linux/blk-mq.h>
-#include <linux/elevator.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 
@@ -201,7 +201,7 @@ struct amiga_floppy_struct {
 	int busy;			/* true when drive is active */
 	int dirty;			/* true when trackbuf is not on disk */
 	int status;			/* current error code for unit */
-	struct gendisk *gendisk;
+	struct gendisk *gendisk[2];
 	struct blk_mq_tag_set tag_set;
 };
 
@@ -1505,7 +1505,7 @@ static blk_status_t amiflop_queue_rq(struct blk_mq_hw_ctx *hctx,
 				     const struct blk_mq_queue_data *bd)
 {
 	struct request *rq = bd->rq;
-	struct amiga_floppy_struct *floppy = rq->rq_disk->private_data;
+	struct amiga_floppy_struct *floppy = rq->q->disk->private_data;
 	blk_status_t err;
 
 	if (!spin_trylock_irq(&amiflop_lock))
@@ -1532,7 +1532,7 @@ static int fd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-static int fd_locked_ioctl(struct block_device *bdev, fmode_t mode,
+static int fd_locked_ioctl(struct block_device *bdev, blk_mode_t mode,
 		    unsigned int cmd, unsigned long param)
 {
 	struct amiga_floppy_struct *p = bdev->bd_disk->private_data;
@@ -1547,7 +1547,6 @@ static int fd_locked_ioctl(struct block_device *bdev, fmode_t mode,
 			rel_fdc();
 			return -EBUSY;
 		}
-		fsync_bdev(bdev);
 		if (fd_motor_on(drive) == 0) {
 			rel_fdc();
 			return -ENODEV;
@@ -1607,7 +1606,7 @@ static int fd_locked_ioctl(struct block_device *bdev, fmode_t mode,
 	return 0;
 }
 
-static int fd_ioctl(struct block_device *bdev, fmode_t mode,
+static int fd_ioctl(struct block_device *bdev, blk_mode_t mode,
 			     unsigned int cmd, unsigned long param)
 {
 	int ret;
@@ -1654,10 +1653,10 @@ static void fd_probe(int dev)
  * /dev/PS0 etc), and disallows simultaneous access to the same
  * drive with different device numbers.
  */
-static int floppy_open(struct block_device *bdev, fmode_t mode)
+static int floppy_open(struct gendisk *disk, blk_mode_t mode)
 {
-	int drive = MINOR(bdev->bd_dev) & 3;
-	int system =  (MINOR(bdev->bd_dev) & 4) >> 2;
+	int drive = disk->first_minor & 3;
+	int system = (disk->first_minor & 4) >> 2;
 	int old_dev;
 	unsigned long flags;
 
@@ -1669,9 +1668,13 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 		return -EBUSY;
 	}
 
-	if (mode & (FMODE_READ|FMODE_WRITE)) {
-		check_disk_change(bdev);
-		if (mode & FMODE_WRITE) {
+	if (unit[drive].type->code == FD_NODRIVE) {
+		mutex_unlock(&amiflop_mutex);
+		return -ENXIO;
+	}
+	if (mode & (BLK_OPEN_READ | BLK_OPEN_WRITE)) {
+		disk_check_media_change(disk);
+		if (mode & BLK_OPEN_WRITE) {
 			int wrprot;
 
 			get_fdc(drive);
@@ -1686,7 +1689,6 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 			}
 		}
 	}
-
 	local_irq_save(flags);
 	fd_ref[drive]++;
 	fd_device[drive] = system;
@@ -1695,7 +1697,7 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 	unit[drive].dtype=&data_types[system];
 	unit[drive].blocks=unit[drive].type->heads*unit[drive].type->tracks*
 		data_types[system].sects*unit[drive].type->sect_mult;
-	set_capacity(unit[drive].gendisk, unit[drive].blocks);
+	set_capacity(unit[drive].gendisk[system], unit[drive].blocks);
 
 	printk(KERN_INFO "fd%d: accessing %s-disk with %s-layout\n",drive,
 	       unit[drive].type->name, data_types[system].name);
@@ -1704,7 +1706,7 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 	return 0;
 }
 
-static void floppy_release(struct gendisk *disk, fmode_t mode)
+static void floppy_release(struct gendisk *disk)
 {
 	struct amiga_floppy_struct *p = disk->private_data;
 	int drive = p - unit;
@@ -1772,36 +1774,64 @@ static const struct blk_mq_ops amiflop_mq_ops = {
 	.queue_rq = amiflop_queue_rq,
 };
 
-static struct gendisk *fd_alloc_disk(int drive)
+static int fd_alloc_disk(int drive, int system)
 {
 	struct gendisk *disk;
+	int err;
 
-	disk = alloc_disk(1);
-	if (!disk)
-		goto out;
+	disk = blk_mq_alloc_disk(&unit[drive].tag_set, NULL, NULL);
+	if (IS_ERR(disk))
+		return PTR_ERR(disk);
 
-	disk->queue = blk_mq_init_sq_queue(&unit[drive].tag_set, &amiflop_mq_ops,
-						2, BLK_MQ_F_SHOULD_MERGE);
-	if (IS_ERR(disk->queue)) {
-		disk->queue = NULL;
-		goto out_put_disk;
-	}
+	disk->major = FLOPPY_MAJOR;
+	disk->first_minor = drive + system;
+	disk->minors = 1;
+	disk->fops = &floppy_fops;
+	disk->flags |= GENHD_FL_NO_PART;
+	disk->events = DISK_EVENT_MEDIA_CHANGE;
+	if (system)
+		sprintf(disk->disk_name, "fd%d_msdos", drive);
+	else
+		sprintf(disk->disk_name, "fd%d", drive);
+	disk->private_data = &unit[drive];
+	set_capacity(disk, 880 * 2);
 
+	unit[drive].gendisk[system] = disk;
+	err = add_disk(disk);
+	if (err)
+		put_disk(disk);
+	return err;
+}
+
+static int fd_alloc_drive(int drive)
+{
 	unit[drive].trackbuf = kmalloc(FLOPPY_MAX_SECTORS * 512, GFP_KERNEL);
 	if (!unit[drive].trackbuf)
-		goto out_cleanup_queue;
+		goto out;
 
-	return disk;
+	memset(&unit[drive].tag_set, 0, sizeof(unit[drive].tag_set));
+	unit[drive].tag_set.ops = &amiflop_mq_ops;
+	unit[drive].tag_set.nr_hw_queues = 1;
+	unit[drive].tag_set.nr_maps = 1;
+	unit[drive].tag_set.queue_depth = 2;
+	unit[drive].tag_set.numa_node = NUMA_NO_NODE;
+	unit[drive].tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
+	if (blk_mq_alloc_tag_set(&unit[drive].tag_set))
+		goto out_cleanup_trackbuf;
 
-out_cleanup_queue:
-	blk_cleanup_queue(disk->queue);
-	disk->queue = NULL;
+	pr_cont(" fd%d", drive);
+
+	if (fd_alloc_disk(drive, 0) || fd_alloc_disk(drive, 1))
+		goto out_cleanup_tagset;
+	return 0;
+
+out_cleanup_tagset:
 	blk_mq_free_tag_set(&unit[drive].tag_set);
-out_put_disk:
-	put_disk(disk);
+out_cleanup_trackbuf:
+	kfree(unit[drive].trackbuf);
 out:
 	unit[drive].type->code = FD_NODRIVE;
-	return NULL;
+	return -ENOMEM;
 }
 
 static int __init fd_probe_drives(void)
@@ -1812,29 +1842,16 @@ static int __init fd_probe_drives(void)
 	drives=0;
 	nomem=0;
 	for(drive=0;drive<FD_MAX_UNITS;drive++) {
-		struct gendisk *disk;
 		fd_probe(drive);
 		if (unit[drive].type->code == FD_NODRIVE)
 			continue;
 
-		disk = fd_alloc_disk(drive);
-		if (!disk) {
+		if (fd_alloc_drive(drive) < 0) {
 			pr_cont(" no mem for fd%d", drive);
 			nomem = 1;
 			continue;
 		}
-		unit[drive].gendisk = disk;
 		drives++;
-
-		pr_cont(" fd%d",drive);
-		disk->major = FLOPPY_MAJOR;
-		disk->first_minor = drive;
-		disk->fops = &floppy_fops;
-		disk->events = DISK_EVENT_MEDIA_CHANGE;
-		sprintf(disk->disk_name, "fd%d", drive);
-		disk->private_data = &unit[drive];
-		set_capacity(disk, 880*2);
-		add_disk(disk);
 	}
 	if ((drives > 0) || (nomem == 0)) {
 		if (drives == 0)
@@ -1846,15 +1863,6 @@ static int __init fd_probe_drives(void)
 	return -ENOMEM;
 }
  
-static struct kobject *floppy_find(dev_t dev, int *part, void *data)
-{
-	int drive = *part & 3;
-	if (unit[drive].type->code == FD_NODRIVE)
-		return NULL;
-	*part = 0;
-	return get_disk_and_module(unit[drive].gendisk);
-}
-
 static int __init amiga_floppy_probe(struct platform_device *pdev)
 {
 	int i, ret;
@@ -1883,9 +1891,6 @@ static int __init amiga_floppy_probe(struct platform_device *pdev)
 	ret = -ENODEV;
 	if (fd_probe_drives() < 1) /* No usable drives */
 		goto out_probe;
-
-	blk_register_region(MKDEV(FLOPPY_MAJOR, 0), 256, THIS_MODULE,
-				floppy_find, NULL, NULL);
 
 	/* initialize variables */
 	timer_setup(&motor_on_timer, motor_on_callback, 0);

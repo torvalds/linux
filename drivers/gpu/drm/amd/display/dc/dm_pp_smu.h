@@ -30,8 +30,6 @@
  * interface to PPLIB/SMU to setup clocks and pstate requirements on SoC
  */
 
-typedef bool BOOLEAN;
-
 enum pp_smu_ver {
 	/*
 	 * PP_SMU_INTERFACE_X should be interpreted as the interface defined
@@ -41,12 +39,8 @@ enum pp_smu_ver {
 	 */
 	PP_SMU_UNSUPPORTED,
 	PP_SMU_VER_RV,
-#ifndef CONFIG_TRIM_DRM_AMD_DC_DCN2_0
 	PP_SMU_VER_NV,
-#endif
-#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 	PP_SMU_VER_RN,
-#endif
 
 	PP_SMU_VER_MAX
 };
@@ -143,7 +137,6 @@ struct pp_smu_funcs_rv {
 	void (*set_pme_wa_enable)(struct pp_smu *pp);
 };
 
-#ifndef CONFIG_TRIM_DRM_AMD_DC_DCN2_0
 /* Used by pp_smu_funcs_nv.set_voltage_by_freq
  *
  */
@@ -245,16 +238,16 @@ struct pp_smu_funcs_nv {
 	 * DC hardware
 	 */
 	enum pp_smu_status (*set_pstate_handshake_support)(struct pp_smu *pp,
-			BOOLEAN pstate_handshake_supported);
+			bool pstate_handshake_supported);
 };
-#endif
-
-#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 
 #define PP_SMU_NUM_SOCCLK_DPM_LEVELS  8
-#define PP_SMU_NUM_DCFCLK_DPM_LEVELS  4
+#define PP_SMU_NUM_DCFCLK_DPM_LEVELS  8
 #define PP_SMU_NUM_FCLK_DPM_LEVELS    4
 #define PP_SMU_NUM_MEMCLK_DPM_LEVELS  4
+#define PP_SMU_NUM_DCLK_DPM_LEVELS    8
+#define PP_SMU_NUM_VCLK_DPM_LEVELS    8
+#define PP_SMU_NUM_VPECLK_DPM_LEVELS  8
 
 struct dpm_clock {
   uint32_t  Freq;    // In MHz
@@ -268,6 +261,9 @@ struct dpm_clocks {
 	struct dpm_clock SocClocks[PP_SMU_NUM_SOCCLK_DPM_LEVELS];
 	struct dpm_clock FClocks[PP_SMU_NUM_FCLK_DPM_LEVELS];
 	struct dpm_clock MemClocks[PP_SMU_NUM_MEMCLK_DPM_LEVELS];
+	struct dpm_clock VClocks[PP_SMU_NUM_VCLK_DPM_LEVELS];
+	struct dpm_clock DClocks[PP_SMU_NUM_DCLK_DPM_LEVELS];
+	struct dpm_clock VPEClocks[PP_SMU_NUM_VPECLK_DPM_LEVELS];
 };
 
 
@@ -288,19 +284,36 @@ struct pp_smu_funcs_rn {
 	enum pp_smu_status (*get_dpm_clock_table) (struct pp_smu *pp,
 			struct dpm_clocks *clock_table);
 };
-#endif
+
+struct pp_smu_funcs_vgh {
+	struct pp_smu pp_smu;
+
+	/*
+	 * reader and writer WM's are sent together as part of one table
+	 *
+	 * PPSMC_MSG_SetDriverDramAddrHigh
+	 * PPSMC_MSG_SetDriverDramAddrLow
+	 * PPSMC_MSG_TransferTableDram2Smu
+	 *
+	 */
+	// TODO: Check whether this is moved to DAL, and remove as needed
+	enum pp_smu_status (*set_wm_ranges)(struct pp_smu *pp,
+			struct pp_smu_wm_range_sets *ranges);
+
+	// TODO: Check whether this is moved to DAL, and remove as needed
+	enum pp_smu_status (*get_dpm_clock_table) (struct pp_smu *pp,
+			struct dpm_clocks *clock_table);
+
+	enum pp_smu_status (*notify_smu_timeout) (struct pp_smu *pp);
+};
 
 struct pp_smu_funcs {
 	struct pp_smu ctx;
 	union {
 		struct pp_smu_funcs_rv rv_funcs;
-#ifndef CONFIG_TRIM_DRM_AMD_DC_DCN2_0
 		struct pp_smu_funcs_nv nv_funcs;
-#endif
-#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 		struct pp_smu_funcs_rn rn_funcs;
-#endif
-
+		struct pp_smu_funcs_vgh vgh_funcs;
 	};
 };
 

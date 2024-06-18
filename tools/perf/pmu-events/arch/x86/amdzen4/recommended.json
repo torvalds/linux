@@ -1,0 +1,418 @@
+[
+  {
+    "MetricName": "branch_misprediction_ratio",
+    "BriefDescription": "Execution-time branch misprediction ratio (non-speculative).",
+    "MetricExpr": "d_ratio(ex_ret_brn_misp, ex_ret_brn)",
+    "MetricGroup": "branch_prediction",
+    "ScaleUnit": "100%"
+  },
+  {
+    "EventName": "all_data_cache_accesses",
+    "EventCode": "0x29",
+    "BriefDescription": "All data cache accesses.",
+    "UMask": "0x07"
+  },
+  {
+    "MetricName": "all_l2_cache_accesses",
+    "BriefDescription": "All L2 cache accesses.",
+    "MetricExpr": "l2_request_g1.all_no_prefetch + l2_pf_hit_l2.all + l2_pf_miss_l2_hit_l3.all + l2_pf_miss_l2_l3.all",
+    "MetricGroup": "l2_cache"
+  },
+  {
+    "MetricName": "l2_cache_accesses_from_l1_ic_misses",
+    "BriefDescription": "L2 cache accesses from L1 instruction cache misses (including prefetch).",
+    "MetricExpr": "l2_request_g1.cacheable_ic_read",
+    "MetricGroup": "l2_cache"
+  },
+  {
+    "MetricName": "l2_cache_accesses_from_l1_dc_misses",
+    "BriefDescription": "L2 cache accesses from L1 data cache misses (including prefetch).",
+    "MetricExpr": "l2_request_g1.all_dc",
+    "MetricGroup": "l2_cache"
+  },
+  {
+    "MetricName": "l2_cache_accesses_from_l2_hwpf",
+    "BriefDescription": "L2 cache accesses from L2 cache hardware prefetcher.",
+    "MetricExpr": "l2_pf_hit_l2.all + l2_pf_miss_l2_hit_l3.all + l2_pf_miss_l2_l3.all",
+    "MetricGroup": "l2_cache"
+  },
+  {
+    "MetricName": "all_l2_cache_misses",
+    "BriefDescription": "All L2 cache misses.",
+    "MetricExpr": "l2_cache_req_stat.ic_dc_miss_in_l2 + l2_pf_miss_l2_hit_l3.all + l2_pf_miss_l2_l3.all",
+    "MetricGroup": "l2_cache"
+  },
+  {
+    "MetricName": "l2_cache_misses_from_l1_ic_miss",
+    "BriefDescription": "L2 cache misses from L1 instruction cache misses.",
+    "MetricExpr": "l2_cache_req_stat.ic_fill_miss",
+    "MetricGroup": "l2_cache"
+  },
+  {
+    "MetricName": "l2_cache_misses_from_l1_dc_miss",
+    "BriefDescription": "L2 cache misses from L1 data cache misses.",
+    "MetricExpr": "l2_cache_req_stat.ls_rd_blk_c",
+    "MetricGroup": "l2_cache"
+  },
+  {
+    "MetricName": "l2_cache_misses_from_l2_hwpf",
+    "BriefDescription": "L2 cache misses from L2 cache hardware prefetcher.",
+    "MetricExpr": "l2_pf_miss_l2_hit_l3.all + l2_pf_miss_l2_l3.all",
+    "MetricGroup": "l2_cache"
+  },
+  {
+    "MetricName": "all_l2_cache_hits",
+    "BriefDescription": "All L2 cache hits.",
+    "MetricExpr": "l2_cache_req_stat.ic_dc_hit_in_l2 + l2_pf_hit_l2.all",
+    "MetricGroup": "l2_cache"
+  },
+  {
+    "MetricName": "l2_cache_hits_from_l1_ic_miss",
+    "BriefDescription": "L2 cache hits from L1 instruction cache misses.",
+    "MetricExpr": "l2_cache_req_stat.ic_hit_in_l2",
+    "MetricGroup": "l2_cache"
+  },
+  {
+    "MetricName": "l2_cache_hits_from_l1_dc_miss",
+    "BriefDescription": "L2 cache hits from L1 data cache misses.",
+    "MetricExpr": "l2_cache_req_stat.dc_hit_in_l2",
+    "MetricGroup": "l2_cache"
+  },
+  {
+    "MetricName": "l2_cache_hits_from_l2_hwpf",
+    "BriefDescription": "L2 cache hits from L2 cache hardware prefetcher.",
+    "MetricExpr": "l2_pf_hit_l2.all",
+    "MetricGroup": "l2_cache"
+  },
+  {
+    "MetricName": "l3_cache_accesses",
+    "BriefDescription": "L3 cache accesses.",
+    "MetricExpr": "l3_lookup_state.all_coherent_accesses_to_l3",
+    "MetricGroup": "l3_cache"
+  },
+  {
+    "MetricName": "l3_misses",
+    "BriefDescription": "L3 misses (including cacheline state change requests).",
+    "MetricExpr": "l3_lookup_state.l3_miss",
+    "MetricGroup": "l3_cache"
+  },
+  {
+    "MetricName": "l3_read_miss_latency",
+    "BriefDescription": "Average L3 read miss latency (in core clocks).",
+    "MetricExpr": "(l3_xi_sampled_latency.all * 10) / l3_xi_sampled_latency_requests.all",
+    "MetricGroup": "l3_cache",
+    "ScaleUnit": "1core clocks"
+  },
+  {
+    "MetricName": "op_cache_fetch_miss_ratio",
+    "BriefDescription": "Op cache miss ratio for all fetches.",
+    "MetricExpr": "d_ratio(op_cache_hit_miss.op_cache_miss, op_cache_hit_miss.all_op_cache_accesses)",
+    "ScaleUnit": "100%"
+  },
+  {
+    "MetricName": "ic_fetch_miss_ratio",
+    "BriefDescription": "Instruction cache miss ratio for all fetches. An instruction cache miss will not be counted by this metric if it is an OC hit.",
+    "MetricExpr": "d_ratio(ic_tag_hit_miss.instruction_cache_miss, ic_tag_hit_miss.all_instruction_cache_accesses)",
+    "ScaleUnit": "100%"
+  },
+  {
+    "MetricName": "l1_data_cache_fills_from_memory",
+    "BriefDescription": "L1 data cache fills from DRAM or MMIO in any NUMA node.",
+    "MetricExpr": "ls_any_fills_from_sys.dram_io_all",
+    "MetricGroup": "l1_dcache"
+  },
+  {
+    "MetricName": "l1_data_cache_fills_from_remote_node",
+    "BriefDescription": "L1 data cache fills from a different NUMA node.",
+    "MetricExpr": "ls_any_fills_from_sys.far_all",
+    "MetricGroup": "l1_dcache"
+  },
+  {
+    "MetricName": "l1_data_cache_fills_from_same_ccx",
+    "BriefDescription": "L1 data cache fills from within the same CCX.",
+    "MetricExpr": "ls_any_fills_from_sys.local_all",
+    "MetricGroup": "l1_dcache"
+  },
+  {
+    "MetricName": "l1_data_cache_fills_from_different_ccx",
+    "BriefDescription": "L1 data cache fills from another CCX cache in any NUMA node.",
+    "MetricExpr": "ls_any_fills_from_sys.remote_cache",
+    "MetricGroup": "l1_dcache"
+  },
+  {
+    "MetricName": "all_l1_data_cache_fills",
+    "BriefDescription": "All L1 data cache fills.",
+    "MetricExpr": "ls_any_fills_from_sys.all",
+    "MetricGroup": "l1_dcache"
+  },
+  {
+    "MetricName": "l1_demand_data_cache_fills_from_local_l2",
+    "BriefDescription": "L1 demand data cache fills from local L2 cache.",
+    "MetricExpr": "ls_dmnd_fills_from_sys.local_l2",
+    "MetricGroup": "l1_dcache"
+  },
+  {
+    "MetricName": "l1_demand_data_cache_fills_from_same_ccx",
+    "BriefDescription": "L1 demand data cache fills from within the same CCX.",
+    "MetricExpr": "ls_dmnd_fills_from_sys.local_ccx",
+    "MetricGroup": "l1_dcache"
+  },
+  {
+    "MetricName": "l1_demand_data_cache_fills_from_near_cache",
+    "BriefDescription": "L1 demand data cache fills from another CCX cache in the same NUMA node.",
+    "MetricExpr": "ls_dmnd_fills_from_sys.near_cache",
+    "MetricGroup": "l1_dcache"
+  },
+  {
+    "MetricName": "l1_demand_data_cache_fills_from_near_memory",
+    "BriefDescription": "L1 demand data cache fills from DRAM or MMIO in the same NUMA node.",
+    "MetricExpr": "ls_dmnd_fills_from_sys.dram_io_near",
+    "MetricGroup": "l1_dcache"
+  },
+  {
+    "MetricName": "l1_demand_data_cache_fills_from_far_cache",
+    "BriefDescription": "L1 demand data cache fills from another CCX cache in a different NUMA node.",
+    "MetricExpr": "ls_dmnd_fills_from_sys.far_cache",
+    "MetricGroup": "l1_dcache"
+  },
+  {
+    "MetricName": "l1_demand_data_cache_fills_from_far_memory",
+    "BriefDescription": "L1 demand data cache fills from DRAM or MMIO in a different NUMA node.",
+    "MetricExpr": "ls_dmnd_fills_from_sys.dram_io_far",
+    "MetricGroup": "l1_dcache"
+  },
+  {
+    "MetricName": "l1_itlb_misses",
+    "BriefDescription": "L1 instruction TLB misses.",
+    "MetricExpr": "bp_l1_tlb_miss_l2_tlb_hit + bp_l1_tlb_miss_l2_tlb_miss.all",
+    "MetricGroup": "tlb"
+  },
+  {
+    "MetricName": "l2_itlb_misses",
+    "BriefDescription": "L2 instruction TLB misses and instruction page walks.",
+    "MetricExpr": "bp_l1_tlb_miss_l2_tlb_miss.all",
+    "MetricGroup": "tlb"
+  },
+  {
+    "MetricName": "l1_dtlb_misses",
+    "BriefDescription": "L1 data TLB misses.",
+    "MetricExpr": "ls_l1_d_tlb_miss.all",
+    "MetricGroup": "tlb"
+  },
+  {
+    "MetricName": "l2_dtlb_misses",
+    "BriefDescription": "L2 data TLB misses and data page walks.",
+    "MetricExpr": "ls_l1_d_tlb_miss.all_l2_miss",
+    "MetricGroup": "tlb"
+  },
+  {
+    "MetricName": "all_tlbs_flushed",
+    "BriefDescription": "All TLBs flushed.",
+    "MetricExpr": "ls_tlb_flush.all",
+    "MetricGroup": "tlb"
+  },
+  {
+    "MetricName": "macro_ops_dispatched",
+    "BriefDescription": "Macro-ops dispatched.",
+    "MetricExpr": "de_src_op_disp.all",
+    "MetricGroup": "decoder"
+  },
+  {
+    "MetricName": "sse_avx_stalls",
+    "BriefDescription": "Mixed SSE/AVX stalls.",
+    "MetricExpr": "fp_disp_faults.sse_avx_all"
+  },
+  {
+    "MetricName": "macro_ops_retired",
+    "BriefDescription": "Macro-ops retired.",
+    "MetricExpr": "ex_ret_ops"
+  },
+  {
+    "MetricName": "dram_read_data_for_local_processor",
+    "BriefDescription": "DRAM read data for local processor.",
+    "MetricExpr": "local_processor_read_data_beats_cs0 + local_processor_read_data_beats_cs1 + local_processor_read_data_beats_cs2 + local_processor_read_data_beats_cs3 + local_processor_read_data_beats_cs4 + local_processor_read_data_beats_cs5 + local_processor_read_data_beats_cs6 + local_processor_read_data_beats_cs7 + local_processor_read_data_beats_cs8 + local_processor_read_data_beats_cs9 + local_processor_read_data_beats_cs10 + local_processor_read_data_beats_cs11",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "6.103515625e-5MiB"
+  },
+  {
+    "MetricName": "dram_write_data_for_local_processor",
+    "BriefDescription": "DRAM write data for local processor.",
+    "MetricExpr": "local_processor_write_data_beats_cs0 + local_processor_write_data_beats_cs1 + local_processor_write_data_beats_cs2 + local_processor_write_data_beats_cs3 + local_processor_write_data_beats_cs4 + local_processor_write_data_beats_cs5 + local_processor_write_data_beats_cs6 + local_processor_write_data_beats_cs7 + local_processor_write_data_beats_cs8 + local_processor_write_data_beats_cs9 + local_processor_write_data_beats_cs10 + local_processor_write_data_beats_cs11",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "6.103515625e-5MiB"
+  },
+  {
+    "MetricName": "dram_read_data_for_remote_processor",
+    "BriefDescription": "DRAM read data for remote processor.",
+    "MetricExpr": "remote_processor_read_data_beats_cs0 + remote_processor_read_data_beats_cs1 + remote_processor_read_data_beats_cs2 + remote_processor_read_data_beats_cs3 + remote_processor_read_data_beats_cs4 + remote_processor_read_data_beats_cs5 + remote_processor_read_data_beats_cs6 + remote_processor_read_data_beats_cs7 + remote_processor_read_data_beats_cs8 + remote_processor_read_data_beats_cs9 + remote_processor_read_data_beats_cs10 + remote_processor_read_data_beats_cs11",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "6.103515625e-5MiB"
+  },
+  {
+    "MetricName": "dram_write_data_for_remote_processor",
+    "BriefDescription": "DRAM write data for remote processor.",
+    "MetricExpr": "remote_processor_write_data_beats_cs0 + remote_processor_write_data_beats_cs1 + remote_processor_write_data_beats_cs2 + remote_processor_write_data_beats_cs3 + remote_processor_write_data_beats_cs4 + remote_processor_write_data_beats_cs5 + remote_processor_write_data_beats_cs6 + remote_processor_write_data_beats_cs7 + remote_processor_write_data_beats_cs8 + remote_processor_write_data_beats_cs9 + remote_processor_write_data_beats_cs10 + remote_processor_write_data_beats_cs11",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "6.103515625e-5MiB"
+  },
+  {
+    "MetricName": "local_socket_upstream_dma_read_data",
+    "BriefDescription": "Local socket upstream DMA read data.",
+    "MetricExpr": "local_socket_upstream_read_beats_iom0 + local_socket_upstream_read_beats_iom1 + local_socket_upstream_read_beats_iom2 + local_socket_upstream_read_beats_iom3",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "6.103515625e-5MiB"
+  },
+  {
+    "MetricName": "local_socket_upstream_dma_write_data",
+    "BriefDescription": "Local socket upstream DMA write data.",
+    "MetricExpr": "local_socket_upstream_write_beats_iom0 + local_socket_upstream_write_beats_iom1 + local_socket_upstream_write_beats_iom2 + local_socket_upstream_write_beats_iom3",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "6.103515625e-5MiB"
+  },
+  {
+    "MetricName": "remote_socket_upstream_dma_read_data",
+    "BriefDescription": "Remote socket upstream DMA read data.",
+    "MetricExpr": "remote_socket_upstream_read_beats_iom0 + remote_socket_upstream_read_beats_iom1 + remote_socket_upstream_read_beats_iom2 + remote_socket_upstream_read_beats_iom3",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "6.103515625e-5MiB"
+  },
+  {
+    "MetricName": "remote_socket_upstream_dma_write_data",
+    "BriefDescription": "Remote socket upstream DMA write data.",
+    "MetricExpr": "remote_socket_upstream_write_beats_iom0 + remote_socket_upstream_write_beats_iom1 + remote_socket_upstream_write_beats_iom2 + remote_socket_upstream_write_beats_iom3",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "6.103515625e-5MiB"
+  },
+  {
+    "MetricName": "local_socket_inbound_data_to_cpu",
+    "BriefDescription": "Local socket inbound data to the CPU (e.g. read data).",
+    "MetricExpr": "local_socket_inf0_inbound_data_beats_ccm0 + local_socket_inf1_inbound_data_beats_ccm0 + local_socket_inf0_inbound_data_beats_ccm1 + local_socket_inf1_inbound_data_beats_ccm1 + local_socket_inf0_inbound_data_beats_ccm2 + local_socket_inf1_inbound_data_beats_ccm2 + local_socket_inf0_inbound_data_beats_ccm3 + local_socket_inf1_inbound_data_beats_ccm3 + local_socket_inf0_inbound_data_beats_ccm4 + local_socket_inf1_inbound_data_beats_ccm4 + local_socket_inf0_inbound_data_beats_ccm5 + local_socket_inf1_inbound_data_beats_ccm5 + local_socket_inf0_inbound_data_beats_ccm6 + local_socket_inf1_inbound_data_beats_ccm6 + local_socket_inf0_inbound_data_beats_ccm7 + local_socket_inf1_inbound_data_beats_ccm7",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "3.0517578125e-5MiB"
+  },
+  {
+    "MetricName": "local_socket_outbound_data_from_cpu",
+    "BriefDescription": "Local socket outbound data from the CPU (e.g. write data).",
+    "MetricExpr": "local_socket_inf0_outbound_data_beats_ccm0 + local_socket_inf1_outbound_data_beats_ccm0 + local_socket_inf0_outbound_data_beats_ccm1 + local_socket_inf1_outbound_data_beats_ccm1 + local_socket_inf0_outbound_data_beats_ccm2 + local_socket_inf1_outbound_data_beats_ccm2 + local_socket_inf0_outbound_data_beats_ccm3 + local_socket_inf1_outbound_data_beats_ccm3 + local_socket_inf0_outbound_data_beats_ccm4 + local_socket_inf1_outbound_data_beats_ccm4 + local_socket_inf0_outbound_data_beats_ccm5 + local_socket_inf1_outbound_data_beats_ccm5 + local_socket_inf0_outbound_data_beats_ccm6 + local_socket_inf1_outbound_data_beats_ccm6 + local_socket_inf0_outbound_data_beats_ccm7 + local_socket_inf1_outbound_data_beats_ccm7",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "6.103515625e-5MiB"
+  },
+  {
+    "MetricName": "remote_socket_inbound_data_to_cpu",
+    "BriefDescription": "Remote socket inbound data to the CPU (e.g. read data).",
+    "MetricExpr": "remote_socket_inf0_inbound_data_beats_ccm0 + remote_socket_inf1_inbound_data_beats_ccm0 + remote_socket_inf0_inbound_data_beats_ccm1 + remote_socket_inf1_inbound_data_beats_ccm1 + remote_socket_inf0_inbound_data_beats_ccm2 + remote_socket_inf1_inbound_data_beats_ccm2 + remote_socket_inf0_inbound_data_beats_ccm3 + remote_socket_inf1_inbound_data_beats_ccm3 + remote_socket_inf0_inbound_data_beats_ccm4 + remote_socket_inf1_inbound_data_beats_ccm4 + remote_socket_inf0_inbound_data_beats_ccm5 + remote_socket_inf1_inbound_data_beats_ccm5 + remote_socket_inf0_inbound_data_beats_ccm6 + remote_socket_inf1_inbound_data_beats_ccm6 + remote_socket_inf0_inbound_data_beats_ccm7 + remote_socket_inf1_inbound_data_beats_ccm7",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "3.0517578125e-5MiB"
+  },
+  {
+    "MetricName": "remote_socket_outbound_data_from_cpu",
+    "BriefDescription": "Remote socket outbound data from the CPU (e.g. write data).",
+    "MetricExpr": "remote_socket_inf0_outbound_data_beats_ccm0 + remote_socket_inf1_outbound_data_beats_ccm0 + remote_socket_inf0_outbound_data_beats_ccm1 + remote_socket_inf1_outbound_data_beats_ccm1 + remote_socket_inf0_outbound_data_beats_ccm2 + remote_socket_inf1_outbound_data_beats_ccm2 + remote_socket_inf0_outbound_data_beats_ccm3 + remote_socket_inf1_outbound_data_beats_ccm3 + remote_socket_inf0_outbound_data_beats_ccm4 + remote_socket_inf1_outbound_data_beats_ccm4 + remote_socket_inf0_outbound_data_beats_ccm5 + remote_socket_inf1_outbound_data_beats_ccm5 + remote_socket_inf0_outbound_data_beats_ccm6 + remote_socket_inf1_outbound_data_beats_ccm6 + remote_socket_inf0_outbound_data_beats_ccm7 + remote_socket_inf1_outbound_data_beats_ccm7",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "6.103515625e-5MiB"
+  },
+  {
+    "MetricName": "local_socket_outbound_data_from_all_links",
+    "BriefDescription": "Outbound data from all links (local socket).",
+    "MetricExpr": "local_socket_outbound_data_beats_link0 + local_socket_outbound_data_beats_link1 + local_socket_outbound_data_beats_link2 + local_socket_outbound_data_beats_link3 + local_socket_outbound_data_beats_link4 + local_socket_outbound_data_beats_link5 + local_socket_outbound_data_beats_link6 + local_socket_outbound_data_beats_link7",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "6.103515625e-5MiB"
+  },
+  {
+    "MetricName": "umc_data_bus_utilization",
+    "BriefDescription": "Memory controller data bus utilization.",
+    "MetricExpr": "d_ratio(umc_data_slot_clks.all / 2, umc_mem_clk)",
+    "MetricGroup": "memory_controller",
+    "PerPkg": "1",
+    "ScaleUnit": "100%"
+  },
+  {
+    "MetricName": "umc_cas_cmd_rate",
+    "BriefDescription": "Memory controller CAS command rate.",
+    "MetricExpr": "d_ratio(umc_cas_cmd.all * 1000, umc_mem_clk)",
+    "MetricGroup": "memory_controller",
+    "PerPkg": "1"
+  },
+  {
+    "MetricName": "umc_cas_cmd_read_ratio",
+    "BriefDescription": "Ratio of memory controller CAS commands for reads.",
+    "MetricExpr": "d_ratio(umc_cas_cmd.rd, umc_cas_cmd.all)",
+    "MetricGroup": "memory_controller",
+    "PerPkg": "1",
+    "ScaleUnit": "100%"
+  },
+  {
+    "MetricName": "umc_cas_cmd_write_ratio",
+    "BriefDescription": "Ratio of memory controller CAS commands for writes.",
+    "MetricExpr": "d_ratio(umc_cas_cmd.wr, umc_cas_cmd.all)",
+    "MetricGroup": "memory_controller",
+    "PerPkg": "1",
+    "ScaleUnit": "100%"
+  },
+  {
+    "MetricName": "umc_mem_read_bandwidth",
+    "BriefDescription": "Estimated memory read bandwidth.",
+    "MetricExpr": "(umc_cas_cmd.rd * 64) / 1e6 / duration_time",
+    "MetricGroup": "memory_controller",
+    "PerPkg": "1",
+    "ScaleUnit": "1MB/s"
+  },
+  {
+    "MetricName": "umc_mem_write_bandwidth",
+    "BriefDescription": "Estimated memory write bandwidth.",
+    "MetricExpr": "(umc_cas_cmd.wr * 64) / 1e6 / duration_time",
+    "MetricGroup": "memory_controller",
+    "PerPkg": "1",
+    "ScaleUnit": "1MB/s"
+  },
+  {
+    "MetricName": "umc_mem_bandwidth",
+    "BriefDescription": "Estimated combined memory bandwidth.",
+    "MetricExpr": "(umc_cas_cmd.all * 64) / 1e6 / duration_time",
+    "MetricGroup": "memory_controller",
+    "PerPkg": "1",
+    "ScaleUnit": "1MB/s"
+  },
+  {
+    "MetricName": "umc_cas_cmd_read_ratio",
+    "BriefDescription": "Ratio of memory controller CAS commands for reads.",
+    "MetricExpr": "d_ratio(umc_cas_cmd.rd, umc_cas_cmd.all)",
+    "MetricGroup": "memory_controller",
+    "PerPkg": "1",
+    "ScaleUnit": "100%"
+  },
+  {
+    "MetricName": "umc_cas_cmd_rate",
+    "BriefDescription": "Memory controller CAS command rate.",
+    "MetricExpr": "d_ratio(umc_cas_cmd.all * 1000, umc_mem_clk)",
+    "MetricGroup": "memory_controller",
+    "PerPkg": "1"
+  },
+  {
+    "MetricName": "umc_activate_cmd_rate",
+    "BriefDescription": "Memory controller ACTIVATE command rate.",
+    "MetricExpr": "d_ratio(umc_act_cmd.all * 1000, umc_mem_clk)",
+    "MetricGroup": "memory_controller",
+    "PerPkg": "1"
+  },
+  {
+    "MetricName": "umc_precharge_cmd_rate",
+    "BriefDescription": "Memory controller PRECHARGE command rate.",
+    "MetricExpr": "d_ratio(umc_pchg_cmd.all * 1000, umc_mem_clk)",
+    "MetricGroup": "memory_controller",
+    "PerPkg": "1"
+  }
+]

@@ -14,37 +14,9 @@
 
 #include <asm/eeh.h>
 #include <asm/pci-bridge.h>
-#include <asm/prom.h>
 #include <asm/ppc-pci.h>
 #include <asm/pci.h>
 #include "pseries.h"
-
-#if 0
-void pcibios_name_device(struct pci_dev *dev)
-{
-	struct device_node *dn;
-
-	/*
-	 * Add IBM loc code (slot) as a prefix to the device names for service
-	 */
-	dn = pci_device_to_OF_node(dev);
-	if (dn) {
-		const char *loc_code = of_get_property(dn, "ibm,loc-code",
-				NULL);
-		if (loc_code) {
-			int loc_len = strlen(loc_code);
-			if (loc_len < sizeof(dev->dev.name)) {
-				memmove(dev->dev.name+loc_len+1, dev->dev.name,
-					sizeof(dev->dev.name)-loc_len-1);
-				memcpy(dev->dev.name, loc_code, loc_len);
-				dev->dev.name[loc_len] = ' ';
-				dev->dev.name[sizeof(dev->dev.name)-1] = '\0';
-			}
-		}
-	}
-}
-DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, pcibios_name_device);
-#endif
 
 #ifdef CONFIG_PCI_IOV
 #define MAX_VFS_FOR_MAP_PE 256
@@ -55,14 +27,13 @@ struct pe_map_bar_entry {
 	__be32     reserved;  /* Reserved Space */
 };
 
-int pseries_send_map_pe(struct pci_dev *pdev,
-			u16 num_vfs,
-			struct pe_map_bar_entry *vf_pe_array)
+static int pseries_send_map_pe(struct pci_dev *pdev, u16 num_vfs,
+			       struct pe_map_bar_entry *vf_pe_array)
 {
 	struct pci_dn *pdn;
 	int rc;
 	unsigned long buid, addr;
-	int ibm_map_pes = rtas_token("ibm,open-sriov-map-pe-number");
+	int ibm_map_pes = rtas_function_token(RTAS_FN_IBM_OPEN_SRIOV_MAP_PE_NUMBER);
 
 	if (ibm_map_pes == RTAS_UNKNOWN_SERVICE)
 		return -EINVAL;
@@ -88,7 +59,7 @@ int pseries_send_map_pe(struct pci_dev *pdev,
 	return rc;
 }
 
-void pseries_set_pe_num(struct pci_dev *pdev, u16 vf_index, __be16 pe_num)
+static void pseries_set_pe_num(struct pci_dev *pdev, u16 vf_index, __be16 pe_num)
 {
 	struct pci_dn *pdn;
 
@@ -102,7 +73,7 @@ void pseries_set_pe_num(struct pci_dev *pdev, u16 vf_index, __be16 pe_num)
 		pdn->pe_num_map[vf_index]);
 }
 
-int pseries_associate_pes(struct pci_dev *pdev, u16 num_vfs)
+static int pseries_associate_pes(struct pci_dev *pdev, u16 num_vfs)
 {
 	struct pci_dn *pdn;
 	int i, rc, vf_index;
@@ -146,7 +117,7 @@ int pseries_associate_pes(struct pci_dev *pdev, u16 num_vfs)
 	return rc;
 }
 
-int pseries_pci_sriov_enable(struct pci_dev *pdev, u16 num_vfs)
+static int pseries_pci_sriov_enable(struct pci_dev *pdev, u16 num_vfs)
 {
 	struct pci_dn         *pdn;
 	int                    rc;
@@ -189,14 +160,14 @@ int pseries_pci_sriov_enable(struct pci_dev *pdev, u16 num_vfs)
 	return rc;
 }
 
-int pseries_pcibios_sriov_enable(struct pci_dev *pdev, u16 num_vfs)
+static int pseries_pcibios_sriov_enable(struct pci_dev *pdev, u16 num_vfs)
 {
 	/* Allocate PCI data */
-	add_dev_pci_data(pdev);
+	add_sriov_vf_pdns(pdev);
 	return pseries_pci_sriov_enable(pdev, num_vfs);
 }
 
-int pseries_pcibios_sriov_disable(struct pci_dev *pdev)
+static int pseries_pcibios_sriov_disable(struct pci_dev *pdev)
 {
 	struct pci_dn         *pdn;
 
@@ -204,7 +175,7 @@ int pseries_pcibios_sriov_disable(struct pci_dev *pdev)
 	/* Releasing pe_num_map */
 	kfree(pdn->pe_num_map);
 	/* Release PCI data */
-	remove_dev_pci_data(pdev);
+	remove_sriov_vf_pdns(pdev);
 	pci_vf_drivers_autoprobe(pdev, true);
 	return 0;
 }
@@ -225,8 +196,6 @@ static void __init pSeries_request_regions(void)
 
 void __init pSeries_final_fixup(void)
 {
-	struct pci_controller *hose;
-
 	pSeries_request_regions();
 
 	eeh_show_enabled();
@@ -235,27 +204,6 @@ void __init pSeries_final_fixup(void)
 	ppc_md.pcibios_sriov_enable = pseries_pcibios_sriov_enable;
 	ppc_md.pcibios_sriov_disable = pseries_pcibios_sriov_disable;
 #endif
-	list_for_each_entry(hose, &hose_list, list_node) {
-		struct device_node *dn = hose->dn, *nvdn;
-
-		while (1) {
-			dn = of_find_all_nodes(dn);
-			if (!dn)
-				break;
-			nvdn = of_parse_phandle(dn, "ibm,nvlink", 0);
-			if (!nvdn)
-				continue;
-			if (!of_device_is_compatible(nvdn, "ibm,npu-link"))
-				continue;
-			if (!of_device_is_compatible(nvdn->parent,
-						"ibm,power9-npu"))
-				continue;
-#ifdef CONFIG_PPC_POWERNV
-			WARN_ON_ONCE(pnv_npu2_init(hose));
-#endif
-			break;
-		}
-	}
 }
 
 /*
@@ -265,7 +213,7 @@ void __init pSeries_final_fixup(void)
  */
 static void fixup_winbond_82c105(struct pci_dev* dev)
 {
-	int i;
+	struct resource *r;
 	unsigned int reg;
 
 	if (!machine_is(pseries))
@@ -276,19 +224,38 @@ static void fixup_winbond_82c105(struct pci_dev* dev)
 	/* Enable LEGIRQ to use INTC instead of ISA interrupts */
 	pci_write_config_dword(dev, 0x40, reg | (1<<11));
 
-	for (i = 0; i < DEVICE_COUNT_RESOURCE; ++i) {
+	pci_dev_for_each_resource(dev, r) {
 		/* zap the 2nd function of the winbond chip */
-		if (dev->resource[i].flags & IORESOURCE_IO
-		    && dev->bus->number == 0 && dev->devfn == 0x81)
-			dev->resource[i].flags &= ~IORESOURCE_IO;
-		if (dev->resource[i].start == 0 && dev->resource[i].end) {
-			dev->resource[i].flags = 0;
-			dev->resource[i].end = 0;
+		if (dev->bus->number == 0 && dev->devfn == 0x81 &&
+		    r->flags & IORESOURCE_IO)
+			r->flags &= ~IORESOURCE_IO;
+		if (r->start == 0 && r->end) {
+			r->flags = 0;
+			r->end = 0;
 		}
 	}
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_WINBOND, PCI_DEVICE_ID_WINBOND_82C105,
 			 fixup_winbond_82c105);
+
+static enum pci_bus_speed prop_to_pci_speed(u32 prop)
+{
+	switch (prop) {
+	case 0x01:
+		return PCIE_SPEED_2_5GT;
+	case 0x02:
+		return PCIE_SPEED_5_0GT;
+	case 0x04:
+		return PCIE_SPEED_8_0GT;
+	case 0x08:
+		return PCIE_SPEED_16_0GT;
+	case 0x10:
+		return PCIE_SPEED_32_0GT;
+	default:
+		pr_debug("Unexpected PCI link speed property value\n");
+		return PCI_SPEED_UNKNOWN;
+	}
+}
 
 int pseries_root_bridge_prepare(struct pci_host_bridge *bridge)
 {
@@ -322,35 +289,7 @@ int pseries_root_bridge_prepare(struct pci_host_bridge *bridge)
 		return 0;
 	}
 
-	switch (pcie_link_speed_stats[0]) {
-	case 0x01:
-		bus->max_bus_speed = PCIE_SPEED_2_5GT;
-		break;
-	case 0x02:
-		bus->max_bus_speed = PCIE_SPEED_5_0GT;
-		break;
-	case 0x04:
-		bus->max_bus_speed = PCIE_SPEED_8_0GT;
-		break;
-	default:
-		bus->max_bus_speed = PCI_SPEED_UNKNOWN;
-		break;
-	}
-
-	switch (pcie_link_speed_stats[1]) {
-	case 0x01:
-		bus->cur_bus_speed = PCIE_SPEED_2_5GT;
-		break;
-	case 0x02:
-		bus->cur_bus_speed = PCIE_SPEED_5_0GT;
-		break;
-	case 0x04:
-		bus->cur_bus_speed = PCIE_SPEED_8_0GT;
-		break;
-	default:
-		bus->cur_bus_speed = PCI_SPEED_UNKNOWN;
-		break;
-	}
-
+	bus->max_bus_speed = prop_to_pci_speed(pcie_link_speed_stats[0]);
+	bus->cur_bus_speed = prop_to_pci_speed(pcie_link_speed_stats[1]);
 	return 0;
 }

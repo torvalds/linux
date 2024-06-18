@@ -26,7 +26,7 @@ inline void iowait_clear_flag(struct iowait *wait, u32 flag)
 	clear_bit(flag, &wait->flags);
 }
 
-/**
+/*
  * iowait_init() - initialize wait structure
  * @wait: wait struct to initialize
  * @tx_limit: limit for overflow queuing
@@ -81,12 +81,14 @@ void iowait_init(struct iowait *wait, u32 tx_limit,
 void iowait_cancel_work(struct iowait *w)
 {
 	cancel_work_sync(&iowait_get_ib_work(w)->iowork);
-	cancel_work_sync(&iowait_get_tid_work(w)->iowork);
+	/* Make sure that the iowork for TID RDMA is used */
+	if (iowait_get_tid_work(w)->iowork.func)
+		cancel_work_sync(&iowait_get_tid_work(w)->iowork);
 }
 
 /**
  * iowait_set_work_flag - set work flag based on leg
- * @w - the iowait work struct
+ * @w: the iowait work struct
  */
 int iowait_set_work_flag(struct iowait_work *w)
 {

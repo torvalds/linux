@@ -49,11 +49,6 @@
  */
 extern cpm8xx_t __iomem *cpmp; /* Pointer to comm processor */
 
-#define cpm_dpalloc cpm_muram_alloc
-#define cpm_dpfree cpm_muram_free
-#define cpm_dpram_addr cpm_muram_addr
-#define cpm_dpram_phys cpm_muram_dma
-
 extern void cpm_setbrg(uint brg, uint rate);
 
 extern void __init cpm_load_patch(cpm8xx_t *cp);
@@ -68,6 +63,7 @@ extern void cpm_reset(void);
 #define PROFF_SPI	((uint)0x0180)
 #define PROFF_SCC3	((uint)0x0200)
 #define PROFF_SMC1	((uint)0x0280)
+#define PROFF_DSP1	((uint)0x02c0)
 #define PROFF_SCC4	((uint)0x0300)
 #define PROFF_SMC2	((uint)0x0380)
 

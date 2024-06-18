@@ -17,9 +17,8 @@
 #include <asm/stackframe.h>
 #include <asm/isadep.h>
 #include <asm/thread_info.h>
-#include <asm/war.h>
 
-#ifndef CONFIG_PREEMPT
+#ifndef CONFIG_PREEMPTION
 #define resume_kernel	restore_all
 #else
 #define __ret_from_irq	ret_from_exception
@@ -27,7 +26,7 @@
 
 	.text
 	.align	5
-#ifndef CONFIG_PREEMPT
+#ifndef CONFIG_PREEMPTION
 FEXPORT(ret_from_exception)
 	local_irq_disable			# preempt stop
 	b	__ret_from_irq
@@ -53,7 +52,7 @@ resume_userspace:
 	bnez	t0, work_pending
 	j	restore_all
 
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 resume_kernel:
 	local_irq_disable
 	lw	t0, TI_PRE_COUNT($28)
@@ -101,7 +100,7 @@ restore_partial:		# restore partial frame
 	SAVE_AT
 	SAVE_TEMP
 	LONG_L	v0, PT_STATUS(sp)
-#if defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX)
+#if defined(CONFIG_CPU_R3000)
 	and	v0, ST0_IEP
 #else
 	and	v0, ST0_IE
@@ -169,8 +168,8 @@ syscall_exit_work:
 	jal	syscall_trace_leave
 	b	resume_userspace
 
-#if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR6) || \
-    defined(CONFIG_MIPS_MT)
+#if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR5) || \
+    defined(CONFIG_CPU_MIPSR6) || defined(CONFIG_MIPS_MT)
 
 /*
  * MIPS32R2 Instruction Hazard Barrier - must be called
@@ -183,4 +182,4 @@ LEAF(mips_ihb)
 	nop
 	END(mips_ihb)
 
-#endif /* CONFIG_CPU_MIPSR2 or CONFIG_CPU_MIPSR6 or CONFIG_MIPS_MT */
+#endif /* CONFIG_CPU_MIPSR2 - CONFIG_CPU_MIPSR6 or CONFIG_MIPS_MT */

@@ -8,12 +8,12 @@ ATOMICTBL=${ATOMICDIR}/atomics.tbl
 LINUXDIR=${ATOMICDIR}/../..
 
 cat <<EOF |
-gen-atomic-instrumented.sh      asm-generic/atomic-instrumented.h
-gen-atomic-long.sh              asm-generic/atomic-long.h
-gen-atomic-fallback.sh          linux/atomic-fallback.h
+gen-atomic-instrumented.sh      linux/atomic/atomic-instrumented.h
+gen-atomic-long.sh              linux/atomic/atomic-long.h
+gen-atomic-fallback.sh          linux/atomic/atomic-arch-fallback.h
 EOF
-while read script header; do
-	/bin/sh ${ATOMICDIR}/${script} ${ATOMICTBL} > ${LINUXDIR}/include/${header}
+while read script header args; do
+	/bin/sh ${ATOMICDIR}/${script} ${ATOMICTBL} ${args} > ${LINUXDIR}/include/${header}
 	HASH="$(sha1sum ${LINUXDIR}/include/${header})"
 	HASH="${HASH%% *}"
 	printf "// %s\n" "${HASH}" >> ${LINUXDIR}/include/${header}

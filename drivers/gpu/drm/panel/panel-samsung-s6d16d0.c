@@ -7,12 +7,11 @@
 #include <drm/drm_modes.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_panel.h>
-#include <drm/drm_print.h>
 
 #include <linux/gpio/consumer.h>
 #include <linux/regulator/consumer.h>
 #include <linux/delay.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 
 struct s6d16d0 {
@@ -37,12 +36,6 @@ static const struct drm_display_mode samsung_s6d16d0_mode = {
 	.vsync_start = 480 + 1,
 	.vsync_end = 480 + 1 + 1,
 	.vtotal = 480 + 1 + 1 + 1,
-	/*
-	 * This depends on the clocking HS vs LP rate, this value
-	 * is calculated as:
-	 * vrefresh = (clock * 1000) / (htotal*vtotal)
-	 */
-	.vrefresh = 816,
 	.width_mm = 84,
 	.height_mm = 48,
 };
@@ -61,8 +54,7 @@ static int s6d16d0_unprepare(struct drm_panel *panel)
 	/* Enter sleep mode */
 	ret = mipi_dsi_dcs_enter_sleep_mode(dsi);
 	if (ret) {
-		DRM_DEV_ERROR(s6->dev, "failed to enter sleep mode (%d)\n",
-			      ret);
+		dev_err(s6->dev, "failed to enter sleep mode (%d)\n", ret);
 		return ret;
 	}
 
@@ -81,7 +73,7 @@ static int s6d16d0_prepare(struct drm_panel *panel)
 
 	ret = regulator_enable(s6->supply);
 	if (ret) {
-		DRM_DEV_ERROR(s6->dev, "failed to enable supply (%d)\n", ret);
+		dev_err(s6->dev, "failed to enable supply (%d)\n", ret);
 		return ret;
 	}
 
@@ -96,15 +88,13 @@ static int s6d16d0_prepare(struct drm_panel *panel)
 	ret = mipi_dsi_dcs_set_tear_on(dsi,
 				       MIPI_DSI_DCS_TEAR_MODE_VBLANK);
 	if (ret) {
-		DRM_DEV_ERROR(s6->dev, "failed to enable vblank TE (%d)\n",
-			      ret);
+		dev_err(s6->dev, "failed to enable vblank TE (%d)\n", ret);
 		return ret;
 	}
 	/* Exit sleep mode and power on */
 	ret = mipi_dsi_dcs_exit_sleep_mode(dsi);
 	if (ret) {
-		DRM_DEV_ERROR(s6->dev, "failed to exit sleep mode (%d)\n",
-			      ret);
+		dev_err(s6->dev, "failed to exit sleep mode (%d)\n", ret);
 		return ret;
 	}
 
@@ -119,8 +109,7 @@ static int s6d16d0_enable(struct drm_panel *panel)
 
 	ret = mipi_dsi_dcs_set_display_on(dsi);
 	if (ret) {
-		DRM_DEV_ERROR(s6->dev, "failed to turn display on (%d)\n",
-			      ret);
+		dev_err(s6->dev, "failed to turn display on (%d)\n", ret);
 		return ret;
 	}
 
@@ -135,22 +124,21 @@ static int s6d16d0_disable(struct drm_panel *panel)
 
 	ret = mipi_dsi_dcs_set_display_off(dsi);
 	if (ret) {
-		DRM_DEV_ERROR(s6->dev, "failed to turn display off (%d)\n",
-			      ret);
+		dev_err(s6->dev, "failed to turn display off (%d)\n", ret);
 		return ret;
 	}
 
 	return 0;
 }
 
-static int s6d16d0_get_modes(struct drm_panel *panel)
+static int s6d16d0_get_modes(struct drm_panel *panel,
+			     struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(panel->drm, &samsung_s6d16d0_mode);
+	mode = drm_mode_duplicate(connector->dev, &samsung_s6d16d0_mode);
 	if (!mode) {
-		DRM_ERROR("bad mode or failed to add mode\n");
+		dev_err(panel->dev, "bad mode or failed to add mode\n");
 		return -EINVAL;
 	}
 	drm_mode_set_name(mode);
@@ -196,9 +184,7 @@ static int s6d16d0_probe(struct mipi_dsi_device *dsi)
 	 * As we only send commands we do not need to be continuously
 	 * clocked.
 	 */
-	dsi->mode_flags =
-		MIPI_DSI_CLOCK_NON_CONTINUOUS |
-		MIPI_DSI_MODE_EOT_PACKET;
+	dsi->mode_flags = MIPI_DSI_CLOCK_NON_CONTINUOUS;
 
 	s6->supply = devm_regulator_get(dev, "vdd1");
 	if (IS_ERR(s6->supply))
@@ -210,18 +196,14 @@ static int s6d16d0_probe(struct mipi_dsi_device *dsi)
 	if (IS_ERR(s6->reset_gpio)) {
 		ret = PTR_ERR(s6->reset_gpio);
 		if (ret != -EPROBE_DEFER)
-			DRM_DEV_ERROR(dev, "failed to request GPIO (%d)\n",
-				      ret);
+			dev_err(dev, "failed to request GPIO (%d)\n", ret);
 		return ret;
 	}
 
-	drm_panel_init(&s6->panel);
-	s6->panel.dev = dev;
-	s6->panel.funcs = &s6d16d0_drm_funcs;
+	drm_panel_init(&s6->panel, dev, &s6d16d0_drm_funcs,
+		       DRM_MODE_CONNECTOR_DSI);
 
-	ret = drm_panel_add(&s6->panel);
-	if (ret < 0)
-		return ret;
+	drm_panel_add(&s6->panel);
 
 	ret = mipi_dsi_attach(dsi);
 	if (ret < 0)
@@ -230,14 +212,12 @@ static int s6d16d0_probe(struct mipi_dsi_device *dsi)
 	return ret;
 }
 
-static int s6d16d0_remove(struct mipi_dsi_device *dsi)
+static void s6d16d0_remove(struct mipi_dsi_device *dsi)
 {
 	struct s6d16d0 *s6 = mipi_dsi_get_drvdata(dsi);
 
 	mipi_dsi_detach(dsi);
 	drm_panel_remove(&s6->panel);
-
-	return 0;
 }
 
 static const struct of_device_id s6d16d0_of_match[] = {

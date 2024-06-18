@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/leds/regulator-led.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Regulator LEDs
+
+maintainers:
+  - Linus Walleij <linus.walleij@linaro.org>
+
+description: |
+  Regulator LEDs are powered by a single regulator such that they can
+  be turned on or off by enabling or disabling the regulator. The available
+  brightness settings will be inferred from the available voltages on the
+  regulator, and any constraints on the voltage or current will need to be
+  specified on the regulator.
+
+allOf:
+  - $ref: common.yaml#
+
+properties:
+  $nodename:
+    pattern: '^led.*$'
+
+  compatible:
+    const: regulator-led
+
+  vled-supply:
+    description:
+      The regulator controlling the current to the LED.
+
+  function: true
+  color: true
+  linux,default-trigger: true
+  default-state: true
+
+required:
+  - compatible
+  - vled-supply
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/leds/common.h>
+
+    led-heartbeat {
+        compatible = "regulator-led";
+        vled-supply = <&regulator>;
+        function = LED_FUNCTION_STATUS;
+        color = <LED_COLOR_ID_BLUE>;
+        linux,default-trigger = "heartbeat";
+    };
+...

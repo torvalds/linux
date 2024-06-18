@@ -44,11 +44,16 @@
  * @LPORT_ST_DISABLED: Disabled
  * @LPORT_ST_FLOGI:    Fabric login (FLOGI) sent
  * @LPORT_ST_DNS:      Waiting for name server remote port to become ready
- * @LPORT_ST_RPN_ID:   Register port name by ID (RPN_ID) sent
+ * @LPORT_ST_RNN_ID:   Register port name by ID (RNN_ID) sent
+ * @LPORT_ST_RSNN_NN:  Waiting for host symbolic node name
+ * @LPORT_ST_RSPN_ID:  Waiting for host symbolic port name
  * @LPORT_ST_RFT_ID:   Register Fibre Channel types by ID (RFT_ID) sent
  * @LPORT_ST_RFF_ID:   Register FC-4 Features by ID (RFF_ID) sent
  * @LPORT_ST_FDMI:     Waiting for mgmt server rport to become ready
- * @LPORT_ST_RHBA:
+ * @LPORT_ST_RHBA:     Register HBA
+ * @LPORT_ST_RPA:      Register Port Attributes
+ * @LPORT_ST_DHBA:     Deregister HBA
+ * @LPORT_ST_DPRT:     Deregister Port
  * @LPORT_ST_SCR:      State Change Register (SCR) sent
  * @LPORT_ST_READY:    Ready for use
  * @LPORT_ST_LOGO:     Local port logout (LOGO) sent
@@ -183,7 +188,7 @@ struct fc_rport_libfc_priv {
  * @r_a_tov:        Resource allocation timeout value (in msec)
  * @rp_mutex:       The mutex that protects the remote port
  * @retry_work:     Handle for retries
- * @event_callback: Callback when READY, FAILED or LOGO states complete
+ * @lld_event_callback: Callback when READY, FAILED or LOGO states complete
  * @prli_count:     Count of open PRLI sessions in providers
  * @rcu:	    Structure used for freeing in an RCU-safe manner
  */
@@ -289,6 +294,7 @@ struct fc_seq_els_data {
  * @timer:           The command timer
  * @tm_done:         Completion indicator
  * @wait_for_comp:   Indicator to wait for completion of the I/O (in jiffies)
+ * @timer_delay:     FCP packet timer delay in jiffies
  * @data_len:        The length of the data
  * @cdb_cmd:         The CDB command
  * @xfer_len:        The transfer length
@@ -352,6 +358,15 @@ struct fc_fcp_pkt {
 } ____cacheline_aligned_in_smp;
 
 /*
+ * @fsp should be tested and set under the scsi_pkt_queue lock
+ */
+struct libfc_cmd_priv {
+	struct fc_fcp_pkt *fsp;
+	u32 resid_len;
+	u8 status;
+};
+
+/*
  * Structure and function definitions for managing Fibre Channel Exchanges
  * and Sequences
  *
@@ -399,7 +414,7 @@ struct fc_seq {
  * @sid:          Source FCID
  * @did:          Destination FCID
  * @esb_stat:     ESB exchange status
- * @r_a_tov:      Resouce allocation time out value (in msecs)
+ * @r_a_tov:      Resource allocation time out value (in msecs)
  * @seq_id:       The next sequence ID to use
  * @encaps:       encapsulation information for lower-level driver
  * @f_ctl:        F_CTL flags for the sequence
@@ -668,7 +683,7 @@ enum fc_lport_event {
  * @wwnn:                  World Wide Node Name
  * @service_params:        Common service parameters
  * @e_d_tov:               Error detection timeout value
- * @r_a_tov:               Resouce allocation timeout value
+ * @r_a_tov:               Resource allocation timeout value
  * @rnid_gen:              RNID information
  * @sg_supp:               Indicates if scatter gather is supported
  * @seq_offload:           Indicates if sequence offload is supported
@@ -779,6 +794,8 @@ void fc_fc4_deregister_provider(enum fc_fh_type type, struct fc4_prov *);
 /**
  * fc_lport_test_ready() - Determine if a local port is in the READY state
  * @lport: The local port to test
+ *
+ * Returns: %true if local port is in the READY state, %false otherwise
  */
 static inline int fc_lport_test_ready(struct fc_lport *lport)
 {
@@ -821,6 +838,8 @@ static inline void fc_lport_state_enter(struct fc_lport *lport,
 /**
  * fc_lport_init_stats() - Allocate per-CPU statistics for a local port
  * @lport: The local port whose statistics are to be initialized
+ *
+ * Returns: %0 on success, %-ENOMEM on failure
  */
 static inline int fc_lport_init_stats(struct fc_lport *lport)
 {
@@ -841,7 +860,9 @@ static inline void fc_lport_free_stats(struct fc_lport *lport)
 
 /**
  * lport_priv() - Return the private data from a local port
- * @lport: The local port whose private data is to be retreived
+ * @lport: The local port whose private data is to be retrieved
+ *
+ * Returns: the local port's private data pointer
  */
 static inline void *lport_priv(const struct fc_lport *lport)
 {
@@ -857,7 +878,7 @@ static inline void *lport_priv(const struct fc_lport *lport)
  * Returns: libfc lport
  */
 static inline struct fc_lport *
-libfc_host_alloc(struct scsi_host_template *sht, int priv_size)
+libfc_host_alloc(const struct scsi_host_template *sht, int priv_size)
 {
 	struct fc_lport *lport;
 	struct Scsi_Host *shost;

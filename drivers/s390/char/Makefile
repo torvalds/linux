@@ -21,9 +21,7 @@ obj-y += ctrlchar.o keyboard.o defkeymap.o sclp.o sclp_rw.o sclp_quiesce.o \
 	 sclp_cmd.o sclp_config.o sclp_cpi_sys.o sclp_ocf.o sclp_ctl.o \
 	 sclp_early.o sclp_early_core.o sclp_sd.o
 
-obj-$(CONFIG_TN3270) += raw3270.o
-obj-$(CONFIG_TN3270_CONSOLE) += con3270.o
-obj-$(CONFIG_TN3270_TTY) += tty3270.o
+obj-$(CONFIG_TN3270) += raw3270.o con3270.o
 obj-$(CONFIG_TN3270_FS) += fs3270.o
 
 obj-$(CONFIG_TN3215) += con3215.o
@@ -33,6 +31,8 @@ obj-$(CONFIG_SCLP_CONSOLE) += sclp_con.o
 obj-$(CONFIG_SCLP_VT220_TTY) += sclp_vt220.o
 
 obj-$(CONFIG_PCI) += sclp_pci.o
+
+obj-$(subst m,y,$(CONFIG_AP)) += sclp_ap.o
 
 obj-$(CONFIG_VMLOGRDR) += vmlogrdr.o
 obj-$(CONFIG_VMCP) += vmcp.o
@@ -46,6 +46,7 @@ obj-$(CONFIG_MONREADER) += monreader.o
 obj-$(CONFIG_MONWRITER) += monwriter.o
 obj-$(CONFIG_S390_VMUR) += vmur.o
 obj-$(CONFIG_CRASH_DUMP) += sclp_sdias.o zcore.o
+obj-$(CONFIG_S390_UV_UAPI) += uvdevice.o
 
 hmcdrv-objs := hmcdrv_mod.o hmcdrv_dev.o hmcdrv_ftp.o hmcdrv_cache.o diag_ftp.o sclp_ftp.o
 obj-$(CONFIG_HMC_DRV) += hmcdrv.o

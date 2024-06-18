@@ -55,4 +55,28 @@ struct scom_access {
 #define FSI_SCOM_WRITE	_IOWR('s', 0x02, struct scom_access)
 #define FSI_SCOM_RESET	_IOW('s', 0x03, __u32)
 
+/*
+ * /dev/sbefifo* ioctl interface
+ */
+
+/**
+ * FSI_SBEFIFO_CMD_TIMEOUT sets the timeout for writing data to the SBEFIFO.
+ *
+ * The command timeout is specified in seconds.  The minimum value of command
+ * timeout is 1 seconds (default) and the maximum value of command timeout is
+ * 120 seconds.  A command timeout of 0 will reset the value to the default of
+ * 1 seconds.
+ */
+#define FSI_SBEFIFO_CMD_TIMEOUT_SECONDS		_IOW('s', 0x01, __u32)
+
+/**
+ * FSI_SBEFIFO_READ_TIMEOUT sets the read timeout for response from SBE.
+ *
+ * The read timeout is specified in seconds.  The minimum value of read
+ * timeout is 10 seconds (default) and the maximum value of read timeout is
+ * 120 seconds.  A read timeout of 0 will reset the value to the default of
+ * (10 seconds).
+ */
+#define FSI_SBEFIFO_READ_TIMEOUT_SECONDS	_IOW('s', 0x00, __u32)
+
 #endif /* _UAPI_LINUX_FSI_H */

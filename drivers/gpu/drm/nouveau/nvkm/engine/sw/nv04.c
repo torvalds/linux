@@ -106,7 +106,7 @@ nv04_sw_chan = {
 };
 
 static int
-nv04_sw_chan_new(struct nvkm_sw *sw, struct nvkm_fifo_chan *fifo,
+nv04_sw_chan_new(struct nvkm_sw *sw, struct nvkm_chan *fifo,
 		 const struct nvkm_oclass *oclass, struct nvkm_object **pobject)
 {
 	struct nv04_sw_chan *chan;
@@ -133,7 +133,7 @@ nv04_sw = {
 };
 
 int
-nv04_sw_new(struct nvkm_device *device, int index, struct nvkm_sw **psw)
+nv04_sw_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_sw **psw)
 {
-	return nvkm_sw_new_(&nv04_sw, device, index, psw);
+	return nvkm_sw_new_(&nv04_sw, device, type, inst, psw);
 }

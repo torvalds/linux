@@ -22,154 +22,139 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
+#include <linux/limits.h>
+
+#include <drm/ttm/ttm_range_manager.h>
+#include <drm/drm_cache.h>
+
 #include "nouveau_drv.h"
 #include "nouveau_gem.h"
 #include "nouveau_mem.h"
 #include "nouveau_ttm.h"
 
-#include <drm/drm_legacy.h>
-
 #include <core/tegra.h>
 
-static int
-nouveau_manager_init(struct ttm_mem_type_manager *man, unsigned long psize)
-{
-	return 0;
-}
-
-static int
-nouveau_manager_fini(struct ttm_mem_type_manager *man)
-{
-	return 0;
-}
-
 static void
-nouveau_manager_del(struct ttm_mem_type_manager *man, struct ttm_mem_reg *reg)
+nouveau_manager_del(struct ttm_resource_manager *man,
+		    struct ttm_resource *reg)
 {
-	nouveau_mem_del(reg);
+	nouveau_mem_del(man, reg);
 }
 
-static void
-nouveau_manager_debug(struct ttm_mem_type_manager *man,
-		      struct drm_printer *printer)
+static bool
+nouveau_manager_intersects(struct ttm_resource_manager *man,
+			   struct ttm_resource *res,
+			   const struct ttm_place *place,
+			   size_t size)
 {
+	return nouveau_mem_intersects(res, place, size);
+}
+
+static bool
+nouveau_manager_compatible(struct ttm_resource_manager *man,
+			   struct ttm_resource *res,
+			   const struct ttm_place *place,
+			   size_t size)
+{
+	return nouveau_mem_compatible(res, place, size);
 }
 
 static int
-nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
+nouveau_vram_manager_new(struct ttm_resource_manager *man,
 			 struct ttm_buffer_object *bo,
 			 const struct ttm_place *place,
-			 struct ttm_mem_reg *reg)
+			 struct ttm_resource **res)
 {
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
-	struct nouveau_mem *mem;
 	int ret;
 
 	if (drm->client.device.info.ram_size == 0)
 		return -ENOMEM;
 
-	ret = nouveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, reg);
-	mem = nouveau_mem(reg);
+	ret = nouveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, res);
 	if (ret)
 		return ret;
 
-	ret = nouveau_mem_vram(reg, nvbo->contig, nvbo->page);
+	ttm_resource_init(bo, place, *res);
+
+	ret = nouveau_mem_vram(*res, nvbo->contig, nvbo->page);
 	if (ret) {
-		nouveau_mem_del(reg);
-		if (ret == -ENOSPC) {
-			reg->mm_node = NULL;
-			return 0;
-		}
+		nouveau_mem_del(man, *res);
 		return ret;
 	}
 
 	return 0;
 }
 
-const struct ttm_mem_type_manager_func nouveau_vram_manager = {
-	.init = nouveau_manager_init,
-	.takedown = nouveau_manager_fini,
-	.get_node = nouveau_vram_manager_new,
-	.put_node = nouveau_manager_del,
-	.debug = nouveau_manager_debug,
+const struct ttm_resource_manager_func nouveau_vram_manager = {
+	.alloc = nouveau_vram_manager_new,
+	.free = nouveau_manager_del,
+	.intersects = nouveau_manager_intersects,
+	.compatible = nouveau_manager_compatible,
 };
 
 static int
-nouveau_gart_manager_new(struct ttm_mem_type_manager *man,
+nouveau_gart_manager_new(struct ttm_resource_manager *man,
 			 struct ttm_buffer_object *bo,
 			 const struct ttm_place *place,
-			 struct ttm_mem_reg *reg)
+			 struct ttm_resource **res)
 {
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
-	struct nouveau_mem *mem;
 	int ret;
 
-	ret = nouveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, reg);
-	mem = nouveau_mem(reg);
+	ret = nouveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, res);
 	if (ret)
 		return ret;
 
-	reg->start = 0;
+	ttm_resource_init(bo, place, *res);
+	(*res)->start = 0;
 	return 0;
 }
 
-const struct ttm_mem_type_manager_func nouveau_gart_manager = {
-	.init = nouveau_manager_init,
-	.takedown = nouveau_manager_fini,
-	.get_node = nouveau_gart_manager_new,
-	.put_node = nouveau_manager_del,
-	.debug = nouveau_manager_debug
+const struct ttm_resource_manager_func nouveau_gart_manager = {
+	.alloc = nouveau_gart_manager_new,
+	.free = nouveau_manager_del,
+	.intersects = nouveau_manager_intersects,
+	.compatible = nouveau_manager_compatible,
 };
 
 static int
-nv04_gart_manager_new(struct ttm_mem_type_manager *man,
+nv04_gart_manager_new(struct ttm_resource_manager *man,
 		      struct ttm_buffer_object *bo,
 		      const struct ttm_place *place,
-		      struct ttm_mem_reg *reg)
+		      struct ttm_resource **res)
 {
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct nouveau_mem *mem;
 	int ret;
 
-	ret = nouveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, reg);
-	mem = nouveau_mem(reg);
+	ret = nouveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, res);
 	if (ret)
 		return ret;
 
+	mem = nouveau_mem(*res);
+	ttm_resource_init(bo, place, *res);
 	ret = nvif_vmm_get(&mem->cli->vmm.vmm, PTES, false, 12, 0,
-			   reg->num_pages << PAGE_SHIFT, &mem->vma[0]);
+			   (long)(*res)->size, &mem->vma[0]);
 	if (ret) {
-		nouveau_mem_del(reg);
-		if (ret == -ENOSPC) {
-			reg->mm_node = NULL;
-			return 0;
-		}
+		nouveau_mem_del(man, *res);
 		return ret;
 	}
 
-	reg->start = mem->vma[0].addr >> PAGE_SHIFT;
+	(*res)->start = mem->vma[0].addr >> PAGE_SHIFT;
 	return 0;
 }
 
-const struct ttm_mem_type_manager_func nv04_gart_manager = {
-	.init = nouveau_manager_init,
-	.takedown = nouveau_manager_fini,
-	.get_node = nv04_gart_manager_new,
-	.put_node = nouveau_manager_del,
-	.debug = nouveau_manager_debug
+const struct ttm_resource_manager_func nv04_gart_manager = {
+	.alloc = nv04_gart_manager_new,
+	.free = nouveau_manager_del,
+	.intersects = nouveau_manager_intersects,
+	.compatible = nouveau_manager_compatible,
 };
-
-int
-nouveau_ttm_mmap(struct file *filp, struct vm_area_struct *vma)
-{
-	struct drm_file *file_priv = filp->private_data;
-	struct nouveau_drm *drm = nouveau_drm(file_priv->minor->dev);
-
-	return ttm_bo_mmap(filp, vma, &drm->ttm.bdev);
-}
 
 static int
 nouveau_ttm_init_host(struct nouveau_drm *drm, u8 kind)
@@ -190,6 +175,87 @@ nouveau_ttm_init_host(struct nouveau_drm *drm, u8 kind)
 
 	drm->ttm.type_ncoh[!!kind] = typei;
 	return 0;
+}
+
+static int
+nouveau_ttm_init_vram(struct nouveau_drm *drm)
+{
+	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
+		struct ttm_resource_manager *man = kzalloc(sizeof(*man), GFP_KERNEL);
+
+		if (!man)
+			return -ENOMEM;
+
+		man->func = &nouveau_vram_manager;
+
+		ttm_resource_manager_init(man, &drm->ttm.bdev,
+					  drm->gem.vram_available >> PAGE_SHIFT);
+		ttm_set_driver_manager(&drm->ttm.bdev, TTM_PL_VRAM, man);
+		ttm_resource_manager_set_used(man, true);
+		return 0;
+	} else {
+		return ttm_range_man_init(&drm->ttm.bdev, TTM_PL_VRAM, false,
+					  drm->gem.vram_available >> PAGE_SHIFT);
+	}
+}
+
+static void
+nouveau_ttm_fini_vram(struct nouveau_drm *drm)
+{
+	struct ttm_resource_manager *man = ttm_manager_type(&drm->ttm.bdev, TTM_PL_VRAM);
+
+	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
+		ttm_resource_manager_set_used(man, false);
+		ttm_resource_manager_evict_all(&drm->ttm.bdev, man);
+		ttm_resource_manager_cleanup(man);
+		ttm_set_driver_manager(&drm->ttm.bdev, TTM_PL_VRAM, NULL);
+		kfree(man);
+	} else
+		ttm_range_man_fini(&drm->ttm.bdev, TTM_PL_VRAM);
+}
+
+static int
+nouveau_ttm_init_gtt(struct nouveau_drm *drm)
+{
+	struct ttm_resource_manager *man;
+	unsigned long size_pages = drm->gem.gart_available >> PAGE_SHIFT;
+	const struct ttm_resource_manager_func *func = NULL;
+
+	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA)
+		func = &nouveau_gart_manager;
+	else if (!drm->agp.bridge)
+		func = &nv04_gart_manager;
+	else
+		return ttm_range_man_init(&drm->ttm.bdev, TTM_PL_TT, true,
+					  size_pages);
+
+	man = kzalloc(sizeof(*man), GFP_KERNEL);
+	if (!man)
+		return -ENOMEM;
+
+	man->func = func;
+	man->use_tt = true;
+	ttm_resource_manager_init(man, &drm->ttm.bdev, size_pages);
+	ttm_set_driver_manager(&drm->ttm.bdev, TTM_PL_TT, man);
+	ttm_resource_manager_set_used(man, true);
+	return 0;
+}
+
+static void
+nouveau_ttm_fini_gtt(struct nouveau_drm *drm)
+{
+	struct ttm_resource_manager *man = ttm_manager_type(&drm->ttm.bdev, TTM_PL_TT);
+
+	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA &&
+	    drm->agp.bridge)
+		ttm_range_man_fini(&drm->ttm.bdev, TTM_PL_TT);
+	else {
+		ttm_resource_manager_set_used(man, false);
+		ttm_resource_manager_evict_all(&drm->ttm.bdev, man);
+		ttm_resource_manager_cleanup(man);
+		ttm_set_driver_manager(&drm->ttm.bdev, TTM_PL_TT, NULL);
+		kfree(man);
+	}
 }
 
 int
@@ -233,10 +299,11 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 		drm->agp.cma = pci->agp.cma;
 	}
 
-	ret = ttm_bo_device_init(&drm->ttm.bdev,
-				  &nouveau_bo_driver,
+	ret = ttm_device_init(&drm->ttm.bdev, &nouveau_bo_driver, drm->dev->dev,
 				  dev->anon_inode->i_mapping,
-				  drm->client.mmu.dmabits <= 32 ? true : false);
+				  dev->vma_offset_manager,
+				  drm_need_swiotlb(drm->client.mmu.dmabits),
+				  drm->client.mmu.dmabits <= 32);
 	if (ret) {
 		NV_ERROR(drm, "error initialising bo driver, %d\n", ret);
 		return ret;
@@ -248,8 +315,7 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 	arch_io_reserve_memtype_wc(device->func->resource_addr(device, 1),
 				   device->func->resource_size(device, 1));
 
-	ret = ttm_bo_init_mm(&drm->ttm.bdev, TTM_PL_VRAM,
-			      drm->gem.vram_available >> PAGE_SHIFT);
+	ret = nouveau_ttm_init_vram(drm);
 	if (ret) {
 		NV_ERROR(drm, "VRAM mm init failed, %d\n", ret);
 		return ret;
@@ -265,12 +331,14 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 		drm->gem.gart_available = drm->agp.size;
 	}
 
-	ret = ttm_bo_init_mm(&drm->ttm.bdev, TTM_PL_TT,
-			      drm->gem.gart_available >> PAGE_SHIFT);
+	ret = nouveau_ttm_init_gtt(drm);
 	if (ret) {
 		NV_ERROR(drm, "GART mm init failed, %d\n", ret);
 		return ret;
 	}
+
+	mutex_init(&drm->ttm.io_reserve_mutex);
+	INIT_LIST_HEAD(&drm->ttm.io_reserve_lru);
 
 	NV_INFO(drm, "VRAM: %d MiB\n", (u32)(drm->gem.vram_available >> 20));
 	NV_INFO(drm, "GART: %d MiB\n", (u32)(drm->gem.gart_available >> 20));
@@ -282,10 +350,10 @@ nouveau_ttm_fini(struct nouveau_drm *drm)
 {
 	struct nvkm_device *device = nvxx_device(&drm->client.device);
 
-	ttm_bo_clean_mm(&drm->ttm.bdev, TTM_PL_VRAM);
-	ttm_bo_clean_mm(&drm->ttm.bdev, TTM_PL_TT);
+	nouveau_ttm_fini_vram(drm);
+	nouveau_ttm_fini_gtt(drm);
 
-	ttm_bo_device_release(&drm->ttm.bdev);
+	ttm_device_fini(&drm->ttm.bdev);
 
 	arch_phys_wc_del(drm->ttm.mtrr);
 	drm->ttm.mtrr = 0;

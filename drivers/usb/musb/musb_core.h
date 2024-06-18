@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * MUSB OTG driver defines
  *
@@ -27,6 +27,7 @@
 struct musb;
 struct musb_hw_ep;
 struct musb_ep;
+struct musb_qh;
 
 /* Helper defines for struct musb->hwvers */
 #define MUSB_HWVERS_MAJOR(x)	((x >> 10) & 0x1f)
@@ -119,10 +120,14 @@ struct musb_io;
  * @fifo_offset: returns the fifo offset
  * @readb:	read 8 bits
  * @writeb:	write 8 bits
+ * @clearb:	could be clear-on-readb or W1C
  * @readw:	read 16 bits
  * @writew:	write 16 bits
+ * @clearw:	could be clear-on-readw or W1C
  * @read_fifo:	reads the fifo
  * @write_fifo:	writes to fifo
+ * @get_toggle:	platform specific get toggle function
+ * @set_toggle:	platform specific set toggle function
  * @dma_init:	platform specific dma init function
  * @dma_exit:	platform specific dma exit function
  * @init:	turns on clocks, sets up platform-specific registers, etc
@@ -161,12 +166,16 @@ struct musb_platform_ops {
 	u16	fifo_mode;
 	u32	(*fifo_offset)(u8 epnum);
 	u32	(*busctl_offset)(u8 epnum, u16 offset);
-	u8	(*readb)(const void __iomem *addr, unsigned offset);
-	void	(*writeb)(void __iomem *addr, unsigned offset, u8 data);
-	u16	(*readw)(const void __iomem *addr, unsigned offset);
-	void	(*writew)(void __iomem *addr, unsigned offset, u16 data);
+	u8	(*readb)(void __iomem *addr, u32 offset);
+	void	(*writeb)(void __iomem *addr, u32 offset, u8 data);
+	u8	(*clearb)(void __iomem *addr, u32 offset);
+	u16	(*readw)(void __iomem *addr, u32 offset);
+	void	(*writew)(void __iomem *addr, u32 offset, u16 data);
+	u16	(*clearw)(void __iomem *addr, u32 offset);
 	void	(*read_fifo)(struct musb_hw_ep *hw_ep, u16 len, u8 *buf);
 	void	(*write_fifo)(struct musb_hw_ep *hw_ep, u16 len, const u8 *buf);
+	u16	(*get_toggle)(struct musb_qh *qh, int is_out);
+	u16	(*set_toggle)(struct musb_qh *qh, int is_out, struct urb *urb);
 	struct dma_controller *
 		(*dma_init) (struct musb *musb, void __iomem *base);
 	void	(*dma_exit)(struct dma_controller *c);
@@ -330,6 +339,8 @@ struct musb {
 	struct usb_phy		*xceiv;
 	struct phy		*phy;
 
+	enum usb_otg_state	otg_state;
+
 	int nIrq;
 	unsigned		irq_wake:1;
 
@@ -340,8 +351,6 @@ struct musb {
 	u16			vbuserr_retry;
 	u16 epmask;
 	u8 nr_endpoints;
-
-	int			(*board_set_power)(int state);
 
 	u8			min_power;	/* vbus for periph, in mA/2 */
 
@@ -366,11 +375,11 @@ struct musb {
 	unsigned		dyn_fifo:1;	/* dynamic FIFO supported? */
 
 	unsigned		bulk_split:1;
-#define	can_bulk_split(musb,type) \
+#define	can_bulk_split(musb, type) \
 	(((type) == USB_ENDPOINT_XFER_BULK) && (musb)->bulk_split)
 
 	unsigned		bulk_combine:1;
-#define	can_bulk_combine(musb,type) \
+#define	can_bulk_combine(musb, type) \
 	(((type) == USB_ENDPOINT_XFER_BULK) && (musb)->bulk_combine)
 
 	/* is_suspended means USB B_PERIPHERAL suspend */
@@ -487,6 +496,9 @@ extern void musb_start(struct musb *musb);
 extern void musb_write_fifo(struct musb_hw_ep *ep, u16 len, const u8 *src);
 extern void musb_read_fifo(struct musb_hw_ep *ep, u16 len, u8 *dst);
 
+extern int musb_set_host(struct musb *musb);
+extern int musb_set_peripheral(struct musb *musb);
+
 extern void musb_load_testpacket(struct musb *);
 
 extern irqreturn_t musb_interrupt(struct musb *);
@@ -578,6 +590,28 @@ static inline void musb_platform_clear_ep_rxintr(struct musb *musb, int epnum)
 {
 	if (musb->ops->clear_ep_rxintr)
 		musb->ops->clear_ep_rxintr(musb, epnum);
+}
+
+static inline void musb_set_state(struct musb *musb,
+				  enum usb_otg_state otg_state)
+{
+	if (musb->xceiv)
+		musb->xceiv->otg->state = otg_state;
+	else
+		musb->otg_state = otg_state;
+}
+
+static inline enum usb_otg_state musb_get_state(struct musb *musb)
+{
+	if (musb->xceiv)
+		return musb->xceiv->otg->state;
+
+	return musb->otg_state;
+}
+
+static inline const char *musb_otg_state_string(struct musb *musb)
+{
+	return usb_otg_state_string(musb_get_state(musb));
 }
 
 /*

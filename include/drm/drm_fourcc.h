@@ -22,8 +22,14 @@
 #ifndef __DRM_FOURCC_H__
 #define __DRM_FOURCC_H__
 
+#include <linux/math.h>
 #include <linux/types.h>
 #include <uapi/drm/drm_fourcc.h>
+
+/**
+ * DRM_FORMAT_MAX_PLANES - maximum number of planes a DRM format can have
+ */
+#define DRM_FORMAT_MAX_PLANES	4u
 
 /*
  * DRM formats are little endian.  Define host endian variants for the
@@ -78,7 +84,7 @@ struct drm_format_info {
 		 * triplet @char_per_block, @block_w, @block_h for better
 		 * describing the pixel format.
 		 */
-		u8 cpp[3];
+		u8 cpp[DRM_FORMAT_MAX_PLANES];
 
 		/**
 		 * @char_per_block:
@@ -104,7 +110,7 @@ struct drm_format_info {
 		 * information from their drm_mode_config.get_format_info hook
 		 * if they want the core to be validating the pitch.
 		 */
-		u8 char_per_block[3];
+		u8 char_per_block[DRM_FORMAT_MAX_PLANES];
 	};
 
 	/**
@@ -113,7 +119,7 @@ struct drm_format_info {
 	 * Block width in pixels, this is intended to be accessed through
 	 * drm_format_info_block_width()
 	 */
-	u8 block_w[3];
+	u8 block_w[DRM_FORMAT_MAX_PLANES];
 
 	/**
 	 * @block_h:
@@ -121,7 +127,7 @@ struct drm_format_info {
 	 * Block height in pixels, this is intended to be accessed through
 	 * drm_format_info_block_height()
 	 */
-	u8 block_h[3];
+	u8 block_h[DRM_FORMAT_MAX_PLANES];
 
 	/** @hsub: Horizontal chroma subsampling factor */
 	u8 hsub;
@@ -133,14 +139,9 @@ struct drm_format_info {
 
 	/** @is_yuv: Is it a YUV format? */
 	bool is_yuv;
-};
 
-/**
- * struct drm_format_name_buf - name of a DRM format
- * @str: string buffer containing the format name
- */
-struct drm_format_name_buf {
-	char str[32];
+	/** @is_color_indexed: Is it a color-indexed format? */
+	bool is_color_indexed;
 };
 
 /**
@@ -279,7 +280,7 @@ int drm_format_info_plane_width(const struct drm_format_info *info, int width,
 	if (plane == 0)
 		return width;
 
-	return width / info->hsub;
+	return DIV_ROUND_UP(width, info->hsub);
 }
 
 /**
@@ -301,7 +302,7 @@ int drm_format_info_plane_height(const struct drm_format_info *info, int height,
 	if (plane == 0)
 		return height;
 
-	return height / info->vsub;
+	return DIV_ROUND_UP(height, info->vsub);
 }
 
 const struct drm_format_info *__drm_format_info(u32 format);
@@ -316,8 +317,8 @@ unsigned int drm_format_info_block_width(const struct drm_format_info *info,
 					 int plane);
 unsigned int drm_format_info_block_height(const struct drm_format_info *info,
 					  int plane);
+unsigned int drm_format_info_bpp(const struct drm_format_info *info, int plane);
 uint64_t drm_format_info_min_pitch(const struct drm_format_info *info,
 				   int plane, unsigned int buffer_width);
-const char *drm_get_format_name(uint32_t format, struct drm_format_name_buf *buf);
 
 #endif /* __DRM_FOURCC_H__ */

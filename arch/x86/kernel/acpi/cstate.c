@@ -52,17 +52,25 @@ void acpi_processor_power_init_bm_check(struct acpi_processor_flags *flags,
 	if (c->x86_vendor == X86_VENDOR_INTEL &&
 	    (c->x86 > 0xf || (c->x86 == 6 && c->x86_model >= 0x0f)))
 			flags->bm_control = 0;
-	/*
-	 * For all recent Centaur CPUs, the ucode will make sure that each
-	 * core can keep cache coherence with each other while entering C3
-	 * type state. So, set bm_check to 1 to indicate that the kernel
-	 * doesn't need to execute a cache flush operation (WBINVD) when
-	 * entering C3 type state.
-	 */
+
 	if (c->x86_vendor == X86_VENDOR_CENTAUR) {
 		if (c->x86 > 6 || (c->x86 == 6 && c->x86_model == 0x0f &&
-		    c->x86_stepping >= 0x0e))
+		    c->x86_stepping >= 0x0e)) {
+			/*
+			 * For all recent Centaur CPUs, the ucode will make sure that each
+			 * core can keep cache coherence with each other while entering C3
+			 * type state. So, set bm_check to 1 to indicate that the kernel
+			 * doesn't need to execute a cache flush operation (WBINVD) when
+			 * entering C3 type state.
+			 */
 			flags->bm_check = 1;
+			/*
+			 * For all recent Centaur platforms, ARB_DISABLE is a nop.
+			 * Set bm_control to zero to indicate that ARB_DISABLE is
+			 * not required while entering C3 type state.
+			 */
+			flags->bm_control = 0;
+		}
 	}
 
 	if (c->x86_vendor == X86_VENDOR_ZHAOXIN) {
@@ -76,6 +84,21 @@ void acpi_processor_power_init_bm_check(struct acpi_processor_flags *flags,
 		 * On all recent Zhaoxin platforms, ARB_DISABLE is a nop.
 		 * So, set bm_control to zero to indicate that ARB_DISABLE
 		 * is not required while entering C3 type state.
+		 */
+		flags->bm_control = 0;
+	}
+	if (c->x86_vendor == X86_VENDOR_AMD && c->x86 >= 0x17) {
+		/*
+		 * For all AMD Zen or newer CPUs that support C3, caches
+		 * should not be flushed by software while entering C3
+		 * type state. Set bm->check to 1 so that kernel doesn't
+		 * need to execute cache flush operation.
+		 */
+		flags->bm_check = 1;
+		/*
+		 * In current AMD C state implementation ARB_DIS is no longer
+		 * used. So set bm_control to zero to indicate ARB_DIS is not
+		 * required while entering C3 type state.
 		 */
 		flags->bm_control = 0;
 	}
@@ -108,8 +131,8 @@ static long acpi_processor_ffh_cstate_probe_cpu(void *_cx)
 	cpuid(CPUID_MWAIT_LEAF, &eax, &ebx, &ecx, &edx);
 
 	/* Check whether this particular cx_type (in CST) is supported or not */
-	cstate_type = ((cx->address >> MWAIT_SUBSTATE_SIZE) &
-			MWAIT_CSTATE_MASK) + 1;
+	cstate_type = (((cx->address >> MWAIT_SUBSTATE_SIZE) &
+			MWAIT_CSTATE_MASK) + 1) & MWAIT_CSTATE_MASK;
 	edx_part = edx >> (cstate_type * MWAIT_SUBSTATE_SIZE);
 	num_cstate_subtype = edx_part & MWAIT_SUBSTATE_MASK;
 
@@ -161,7 +184,8 @@ int acpi_processor_ffh_cstate_probe(unsigned int cpu,
 
 	/* Make sure we are running on right CPU */
 
-	retval = work_on_cpu(cpu, acpi_processor_ffh_cstate_probe_cpu, cx);
+	retval = call_on_cpu(cpu, acpi_processor_ffh_cstate_probe_cpu, cx,
+			     false);
 	if (retval == 0) {
 		/* Use the hint in CST */
 		percpu_entry->states[cx->index].eax = cx->address;
@@ -196,7 +220,8 @@ static int __init ffh_cstate_init(void)
 	struct cpuinfo_x86 *c = &boot_cpu_data;
 
 	if (c->x86_vendor != X86_VENDOR_INTEL &&
-	    c->x86_vendor != X86_VENDOR_AMD)
+	    c->x86_vendor != X86_VENDOR_AMD &&
+	    c->x86_vendor != X86_VENDOR_HYGON)
 		return -1;
 
 	cpu_cstate_entry = alloc_percpu(struct cstate_entry);

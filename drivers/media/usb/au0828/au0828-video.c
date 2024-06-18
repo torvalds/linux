@@ -231,6 +231,7 @@ static int au0828_init_isoc(struct au0828_dev *dev, int max_packets,
 	for (i = 0; i < dev->isoc_ctl.num_bufs; i++) {
 		urb = usb_alloc_urb(max_packets, GFP_KERNEL);
 		if (!urb) {
+			au0828_isocdbg("cannot allocate URB\n");
 			au0828_uninit_isoc(dev);
 			return -ENOMEM;
 		}
@@ -239,16 +240,14 @@ static int au0828_init_isoc(struct au0828_dev *dev, int max_packets,
 		dev->isoc_ctl.transfer_buffer[i] = usb_alloc_coherent(dev->usbdev,
 			sb_size, GFP_KERNEL, &urb->transfer_dma);
 		if (!dev->isoc_ctl.transfer_buffer[i]) {
-			printk("unable to allocate %i bytes for transfer buffer %i%s\n",
-					sb_size, i,
-					in_interrupt() ? " while in int" : "");
+			au0828_isocdbg("cannot allocate transfer buffer\n");
 			au0828_uninit_isoc(dev);
 			return -ENOMEM;
 		}
 		memset(dev->isoc_ctl.transfer_buffer[i], 0, sb_size);
 
 		pipe = usb_rcvisocpipe(dev->usbdev,
-				       dev->isoc_in_endpointaddr),
+				       dev->isoc_in_endpointaddr);
 
 		usb_fill_int_urb(urb, dev->usbdev, pipe,
 				 dev->isoc_ctl.transfer_buffer[i], sb_size,
@@ -385,7 +384,7 @@ static void au0828_copy_video(struct au0828_dev *dev,
 }
 
 /*
- * video-buf generic routine to get the next available buffer
+ * generic routine to get the next available buffer
  */
 static inline void get_next_buf(struct au0828_dmaqueue *dma_q,
 				struct au0828_buffer **buf)
@@ -460,7 +459,7 @@ static void au0828_copy_vbi(struct au0828_dev *dev,
 
 
 /*
- * video-buf generic routine to get the next available VBI buffer
+ * generic routine to get the next available VBI buffer
  */
 static inline void vbi_get_next_buf(struct au0828_dmaqueue *dma_q,
 				    struct au0828_buffer **buf)
@@ -603,10 +602,7 @@ static inline int au0828_isoc_copy(struct au0828_dev *dev, struct urb *urb)
 		vbi_field_size = dev->vbi_width * dev->vbi_height * 2;
 		if (dev->vbi_read < vbi_field_size) {
 			remain  = vbi_field_size - dev->vbi_read;
-			if (len < remain)
-				lencopy = len;
-			else
-				lencopy = remain;
+			lencopy = umin(len, remain);
 
 			if (vbi_buf != NULL)
 				au0828_copy_vbi(dev, vbi_dma_q, vbi_buf, p,
@@ -916,6 +912,7 @@ static const struct vb2_ops au0828_video_qops = {
 	.queue_setup     = queue_setup,
 	.buf_prepare     = buffer_prepare,
 	.buf_queue       = buffer_queue,
+	.prepare_streaming = v4l_vb2q_enable_media_source,
 	.start_streaming = au0828_start_analog_streaming,
 	.stop_streaming  = au0828_stop_streaming,
 	.wait_prepare    = vb2_ops_wait_prepare,
@@ -938,8 +935,8 @@ int au0828_analog_unregister(struct au0828_dev *dev)
 		return 0;
 
 	mutex_lock(&au0828_sysfs_lock);
-	video_unregister_device(&dev->vdev);
-	video_unregister_device(&dev->vbi_dev);
+	vb2_video_unregister_device(&dev->vdev);
+	vb2_video_unregister_device(&dev->vbi_dev);
 	mutex_unlock(&au0828_sysfs_lock);
 
 	v4l2_device_disconnect(&dev->v4l2_dev);
@@ -1042,7 +1039,7 @@ static int au0828_v4l2_close(struct file *filp)
 		dev->streaming_users, dev->users);
 
 	mutex_lock(&dev->lock);
-	if (vdev->vfl_type == VFL_TYPE_GRABBER && dev->vid_timeout_running) {
+	if (vdev->vfl_type == VFL_TYPE_VIDEO && dev->vid_timeout_running) {
 		/* Cancel timeout thread in case they didn't call streamoff */
 		dev->vid_timeout_running = 0;
 		del_timer_sync(&dev->vid_timeout);
@@ -2007,12 +2004,11 @@ int au0828_analog_register(struct au0828_dev *dev,
 
 	/* Register the v4l2 device */
 	video_set_drvdata(&dev->vdev, dev);
-	retval = video_register_device(&dev->vdev, VFL_TYPE_GRABBER, -1);
+	retval = video_register_device(&dev->vdev, VFL_TYPE_VIDEO, -1);
 	if (retval != 0) {
 		dprintk(1, "unable to register video device (error = %d).\n",
 			retval);
-		ret = -ENODEV;
-		goto err_reg_vdev;
+		return -ENODEV;
 	}
 
 	/* Register the vbi device */
@@ -2040,10 +2036,7 @@ int au0828_analog_register(struct au0828_dev *dev,
 	return 0;
 
 err_reg_vbi_dev:
-	video_unregister_device(&dev->vdev);
-err_reg_vdev:
-	vb2_queue_release(&dev->vb_vidq);
-	vb2_queue_release(&dev->vb_vbiq);
+	vb2_video_unregister_device(&dev->vdev);
 	return ret;
 }
 

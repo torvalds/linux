@@ -7,11 +7,12 @@
  * PDM360NG board setup
  */
 
+#include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/io.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_fdt.h>
-#include <linux/of_platform.h>
 
 #include <asm/machdep.h>
 #include <asm/ipic.h>
@@ -100,7 +101,7 @@ static inline void __init pdm360ng_touchscreen_init(void)
 }
 #endif /* CONFIG_TOUCHSCREEN_ADS7846 */
 
-void __init pdm360ng_init(void)
+static void __init pdm360ng_init(void)
 {
 	mpc512x_init();
 	pdm360ng_touchscreen_init();
@@ -108,9 +109,6 @@ void __init pdm360ng_init(void)
 
 static int __init pdm360ng_probe(void)
 {
-	if (!of_machine_is_compatible("ifm,pdm360ng"))
-		return 0;
-
 	mpc512x_init_early();
 
 	return 1;
@@ -118,11 +116,11 @@ static int __init pdm360ng_probe(void)
 
 define_machine(pdm360ng) {
 	.name			= "PDM360NG",
+	.compatible		= "ifm,pdm360ng",
 	.probe			= pdm360ng_probe,
 	.setup_arch		= mpc512x_setup_arch,
 	.init			= pdm360ng_init,
 	.init_IRQ		= mpc512x_init_IRQ,
 	.get_irq		= ipic_get_irq,
-	.calibrate_decr		= generic_calibrate_decr,
 	.restart		= mpc512x_restart,
 };

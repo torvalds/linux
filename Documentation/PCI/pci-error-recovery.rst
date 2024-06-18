@@ -17,7 +17,7 @@ chipsets are able to deal with these errors; these include PCI-E chipsets,
 and the PCI-host bridges found on IBM Power4, Power5 and Power6-based
 pSeries boxes. A typical action taken is to disconnect the affected device,
 halting all I/O to it.  The goal of a disconnection is to avoid system
-corruption; for example, to halt system memory corruption due to DMA's
+corruption; for example, to halt system memory corruption due to DMAs
 to "wild" addresses. Typically, a reconnection mechanism is also
 offered, so that the affected PCI device(s) are reset and put back
 into working condition. The reset phase requires coordination
@@ -79,19 +79,20 @@ This structure has the form::
 
 	struct pci_error_handlers
 	{
-		int (*error_detected)(struct pci_dev *dev, enum pci_channel_state);
+		int (*error_detected)(struct pci_dev *dev, pci_channel_state_t);
 		int (*mmio_enabled)(struct pci_dev *dev);
 		int (*slot_reset)(struct pci_dev *dev);
 		void (*resume)(struct pci_dev *dev);
+		void (*cor_error_detected)(struct pci_dev *dev);
 	};
 
 The possible channel states are::
 
-	enum pci_channel_state {
+	typedef enum {
 		pci_channel_io_normal,  /* I/O channel is in normal state */
 		pci_channel_io_frozen,  /* I/O to channel is blocked */
 		pci_channel_io_perm_failure, /* PCI card is dead */
-	};
+	} pci_channel_state_t;
 
 Possible return values are::
 
@@ -177,9 +178,9 @@ is STEP 6 (Permanent Failure).
    complex and not worth implementing.
 
    The current powerpc implementation doesn't much care if the device
-   attempts I/O at this point, or not.  I/O's will fail, returning
+   attempts I/O at this point, or not.  I/Os will fail, returning
    a value of 0xff on read, and writes will be dropped. If more than
-   EEH_MAX_FAILS I/O's are attempted to a frozen adapter, EEH
+   EEH_MAX_FAILS I/Os are attempted to a frozen adapter, EEH
    assumes that the device driver has gone into an infinite loop
    and prints an error to syslog.  A reboot is then required to
    get the device working again.
@@ -203,7 +204,7 @@ instead will have gone directly to STEP 3 (Link Reset) or STEP 4 (Slot Reset)
 .. note::
 
    The following is proposed; no platform implements this yet:
-   Proposal: All I/O's should be done _synchronously_ from within
+   Proposal: All I/Os should be done _synchronously_ from within
    this callback, errors triggered by them will be returned via
    the normal pci_check_whatever() API, no new error_detected()
    callback will be issued due to an error happening here. However,
@@ -248,7 +249,7 @@ STEP 4: Slot Reset
 ------------------
 
 In response to a return value of PCI_ERS_RESULT_NEED_RESET, the
-the platform will perform a slot reset on the requesting PCI device(s).
+platform will perform a slot reset on the requesting PCI device(s).
 The actual steps taken by a platform to perform a slot reset
 will be platform-dependent. Upon completion of slot reset, the
 platform will call the device slot_reset() callback.
@@ -257,7 +258,7 @@ Powerpc platforms implement two levels of slot reset:
 soft reset(default) and fundamental(optional) reset.
 
 Powerpc soft reset consists of asserting the adapter #RST line and then
-restoring the PCI BAR's and PCI configuration header to a state
+restoring the PCI BARs and PCI configuration header to a state
 that is equivalent to what it would be after a fresh system
 power-on followed by power-on BIOS/system firmware initialization.
 Soft reset is also known as hot-reset.
@@ -295,7 +296,7 @@ and let the driver restart normal I/O processing.
 A driver can still return a critical failure for this function if
 it can't get the device operational after reset.  If the platform
 previously tried a soft reset, it might now try a hard reset (power
-cycle) and then call slot_reset() again.  It the device still can't
+cycle) and then call slot_reset() again.  If the device still can't
 be recovered, there is nothing more that can be done;  the platform
 will typically report a "permanent failure" in such a case.  The
 device will be considered "dead" in this case.
@@ -348,7 +349,7 @@ STEP 6: Permanent Failure
 -------------------------
 A "permanent failure" has occurred, and the platform cannot recover
 the device.  The platform will call error_detected() with a
-pci_channel_state value of pci_channel_io_perm_failure.
+pci_channel_state_t value of pci_channel_io_perm_failure.
 
 The device driver should, at this point, assume the worst. It should
 cancel all pending I/O, refuse all new I/O, returning -EIO to
@@ -361,9 +362,9 @@ permanent failure in some way.  If the device is hotplug-capable,
 the operator will probably want to remove and replace the device.
 Note, however, not all failures are truly "permanent". Some are
 caused by over-heating, some by a poorly seated card. Many
-PCI error events are caused by software bugs, e.g. DMA's to
+PCI error events are caused by software bugs, e.g. DMAs to
 wild addresses or bogus split transactions due to programming
-errors. See the discussion in powerpc/eeh-pci-error-recovery.txt
+errors. See the discussion in Documentation/arch/powerpc/eeh-pci-error-recovery.rst
 for additional detail on real-life experience of the causes of
 software errors.
 
@@ -403,7 +404,7 @@ That is, the recovery API only requires that:
 .. note::
 
    Implementation details for the powerpc platform are discussed in
-   the file Documentation/powerpc/eeh-pci-error-recovery.rst
+   the file Documentation/arch/powerpc/eeh-pci-error-recovery.rst
 
    As of this writing, there is a growing list of device drivers with
    patches implementing error recovery. Not all of these patches are in
@@ -417,10 +418,15 @@ That is, the recovery API only requires that:
    - drivers/next/e100.c
    - drivers/net/e1000
    - drivers/net/e1000e
-   - drivers/net/ixgb
    - drivers/net/ixgbe
    - drivers/net/cxgb3
    - drivers/net/s2io.c
+
+   The cor_error_detected() callback is invoked in handle_error_source() when
+   the error severity is "correctable". The callback is optional and allows
+   additional logging to be done if desired. See example:
+
+   - drivers/cxl/pci.c
 
 The End
 -------

@@ -13,7 +13,7 @@
 
 #define MAXNAME		32
 #define WPAN_PHY_ENTRY	__array(char, wpan_phy_name, MAXNAME)
-#define WPAN_PHY_ASSIGN	strlcpy(__entry->wpan_phy_name,	 \
+#define WPAN_PHY_ASSIGN	strscpy(__entry->wpan_phy_name,	 \
 				wpan_phy_name(wpan_phy), \
 				MAXNAME)
 #define WPAN_PHY_PR_FMT	"%s"
@@ -75,7 +75,7 @@ TRACE_EVENT(802154_rdev_add_virtual_intf,
 	),
 	TP_fast_assign(
 		WPAN_PHY_ASSIGN;
-		__assign_str(vir_intf_name, name ? name : "<noname>");
+		__assign_str(vir_intf_name);
 		__entry->type = type;
 		__entry->extended_addr = extended_addr;
 	),
@@ -293,6 +293,105 @@ TRACE_EVENT(802154_rdev_set_ackreq_default,
 	TP_printk(WPAN_PHY_PR_FMT ", " WPAN_DEV_PR_FMT
 		", ackreq default: %s", WPAN_PHY_PR_ARG,
 		WPAN_DEV_PR_ARG, BOOL_TO_STR(__entry->ackreq))
+);
+
+TRACE_EVENT(802154_rdev_trigger_scan,
+	TP_PROTO(struct wpan_phy *wpan_phy,
+		 struct cfg802154_scan_request *request),
+	TP_ARGS(wpan_phy, request),
+	TP_STRUCT__entry(
+		WPAN_PHY_ENTRY
+		__field(u8, page)
+		__field(u32, channels)
+		__field(u8, duration)
+	),
+	TP_fast_assign(
+		WPAN_PHY_ASSIGN;
+		__entry->page = request->page;
+		__entry->channels = request->channels;
+		__entry->duration = request->duration;
+	),
+	TP_printk(WPAN_PHY_PR_FMT ", scan, page: %d, channels: %x, duration %d",
+		  WPAN_PHY_PR_ARG, __entry->page, __entry->channels, __entry->duration)
+);
+
+TRACE_EVENT(802154_rdev_send_beacons,
+	TP_PROTO(struct wpan_phy *wpan_phy,
+		 struct cfg802154_beacon_request *request),
+	TP_ARGS(wpan_phy, request),
+	TP_STRUCT__entry(
+		WPAN_PHY_ENTRY
+		__field(u8, interval)
+	),
+	TP_fast_assign(
+		WPAN_PHY_ASSIGN;
+		__entry->interval = request->interval;
+	),
+	TP_printk(WPAN_PHY_PR_FMT ", sending beacons (interval order: %d)",
+		  WPAN_PHY_PR_ARG, __entry->interval)
+);
+
+DECLARE_EVENT_CLASS(802154_wdev_template,
+	TP_PROTO(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev),
+	TP_ARGS(wpan_phy, wpan_dev),
+	TP_STRUCT__entry(
+		WPAN_PHY_ENTRY
+		WPAN_DEV_ENTRY
+	),
+	TP_fast_assign(
+		WPAN_PHY_ASSIGN;
+		WPAN_DEV_ASSIGN;
+	),
+	TP_printk(WPAN_PHY_PR_FMT ", " WPAN_DEV_PR_FMT,
+		  WPAN_PHY_PR_ARG, WPAN_DEV_PR_ARG)
+);
+
+DEFINE_EVENT(802154_wdev_template, 802154_rdev_abort_scan,
+	TP_PROTO(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev),
+	TP_ARGS(wpan_phy, wpan_dev)
+);
+
+DEFINE_EVENT(802154_wdev_template, 802154_rdev_stop_beacons,
+	TP_PROTO(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev),
+	TP_ARGS(wpan_phy, wpan_dev)
+);
+
+TRACE_EVENT(802154_rdev_associate,
+	TP_PROTO(struct wpan_phy *wpan_phy,
+		 struct wpan_dev *wpan_dev,
+		 struct ieee802154_addr *coord),
+	TP_ARGS(wpan_phy, wpan_dev, coord),
+	TP_STRUCT__entry(
+		WPAN_PHY_ENTRY
+		WPAN_DEV_ENTRY
+		__field(__le64, addr)
+	),
+	TP_fast_assign(
+		WPAN_PHY_ASSIGN;
+		WPAN_DEV_ASSIGN;
+		__entry->addr = coord->extended_addr;
+	),
+	TP_printk(WPAN_PHY_PR_FMT ", " WPAN_DEV_PR_FMT ", associating with: 0x%llx",
+		  WPAN_PHY_PR_ARG, WPAN_DEV_PR_ARG, __entry->addr)
+);
+
+TRACE_EVENT(802154_rdev_disassociate,
+	TP_PROTO(struct wpan_phy *wpan_phy,
+		 struct wpan_dev *wpan_dev,
+		 struct ieee802154_addr *target),
+	TP_ARGS(wpan_phy, wpan_dev, target),
+	TP_STRUCT__entry(
+		WPAN_PHY_ENTRY
+		WPAN_DEV_ENTRY
+		__field(__le64, addr)
+	),
+	TP_fast_assign(
+		WPAN_PHY_ASSIGN;
+		WPAN_DEV_ASSIGN;
+		__entry->addr = target->extended_addr;
+	),
+	TP_printk(WPAN_PHY_PR_FMT ", " WPAN_DEV_PR_FMT ", disassociating with: 0x%llx",
+		  WPAN_PHY_PR_ARG, WPAN_DEV_PR_ARG, __entry->addr)
 );
 
 TRACE_EVENT(802154_rdev_return_int,

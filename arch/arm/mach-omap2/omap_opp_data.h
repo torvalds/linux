@@ -1,20 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * OMAP SoC specific OPP Data helpers
  *
- * Copyright (C) 2009-2010 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2009-2010 Texas Instruments Incorporated - https://www.ti.com/
  *	Nishanth Menon
  *	Kevin Hilman
  * Copyright (C) 2010 Nokia Corporation.
  *      Eduardo Valentin
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #ifndef __ARCH_ARM_MACH_OMAP2_OMAP_OPP_DATA_H
 #define __ARCH_ARM_MACH_OMAP2_OMAP_OPP_DATA_H
@@ -78,11 +70,6 @@ struct omap_opp_def {
 	.sr_errminlimit = _errminlimit,				       \
 	.vp_errgain	= _errgain				       \
 }
-
-/* Use this to initialize the default table */
-extern int __init omap_init_opp_table(struct omap_opp_def *opp_def,
-		u32 opp_def_size);
-
 
 extern struct omap_volt_data omap34xx_vddmpu_volt_data[];
 extern struct omap_volt_data omap34xx_vddcore_volt_data[];

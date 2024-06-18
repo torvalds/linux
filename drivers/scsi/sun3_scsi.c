@@ -334,9 +334,9 @@ static int sun3scsi_dma_residual(struct NCR5380_hostdata *hostdata)
 static int sun3scsi_dma_xfer_len(struct NCR5380_hostdata *hostdata,
                                  struct scsi_cmnd *cmd)
 {
-	int wanted_len = cmd->SCp.this_residual;
+	int wanted_len = NCR5380_to_ncmd(cmd)->this_residual;
 
-	if (wanted_len < DMA_MIN_SIZE || blk_rq_is_passthrough(cmd->request))
+	if (wanted_len < DMA_MIN_SIZE || blk_rq_is_passthrough(scsi_cmd_to_rq(cmd)))
 		return 0;
 
 	return wanted_len;
@@ -366,8 +366,9 @@ static inline int sun3scsi_dma_start(unsigned long count, unsigned char *data)
 }
 
 /* clean up after our dma is done */
-static int sun3scsi_dma_finish(int write_flag)
+static int sun3scsi_dma_finish(enum dma_data_direction data_dir)
 {
+	const bool write_flag = data_dir == DMA_TO_DEVICE;
 	unsigned short __maybe_unused count;
 	unsigned short fifo;
 	int ret = 0;
@@ -397,12 +398,12 @@ static int sun3scsi_dma_finish(int write_flag)
 		case CSR_LEFT_3:
 			*vaddr = (dregs->bpack_lo & 0xff00) >> 8;
 			vaddr--;
-			/* Fall through */
+			fallthrough;
 
 		case CSR_LEFT_2:
 			*vaddr = (dregs->bpack_hi & 0x00ff);
 			vaddr--;
-			/* Fall through */
+			fallthrough;
 
 		case CSR_LEFT_1:
 			*vaddr = (dregs->bpack_hi & 0xff00) >> 8;
@@ -501,10 +502,10 @@ static struct scsi_host_template sun3_scsi_template = {
 	.eh_host_reset_handler	= sun3scsi_host_reset,
 	.can_queue		= 16,
 	.this_id		= 7,
-	.sg_tablesize		= SG_NONE,
+	.sg_tablesize		= 1,
 	.cmd_per_lun		= 2,
 	.dma_boundary		= PAGE_SIZE - 1,
-	.cmd_size		= NCR5380_CMD_SIZE,
+	.cmd_size		= sizeof(struct NCR5380_cmd),
 };
 
 static int __init sun3_scsi_probe(struct platform_device *pdev)
@@ -523,7 +524,7 @@ static int __init sun3_scsi_probe(struct platform_device *pdev)
 		sun3_scsi_template.can_queue = setup_can_queue;
 	if (setup_cmd_per_lun > 0)
 		sun3_scsi_template.cmd_per_lun = setup_cmd_per_lun;
-	if (setup_sg_tablesize >= 0)
+	if (setup_sg_tablesize > 0)
 		sun3_scsi_template.sg_tablesize = setup_sg_tablesize;
 	if (setup_hostid >= 0)
 		sun3_scsi_template.this_id = setup_hostid & 7;
@@ -640,7 +641,7 @@ fail_alloc:
 	return error;
 }
 
-static int __exit sun3_scsi_remove(struct platform_device *pdev)
+static void __exit sun3_scsi_remove(struct platform_device *pdev)
 {
 	struct Scsi_Host *instance = platform_get_drvdata(pdev);
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
@@ -653,11 +654,10 @@ static int __exit sun3_scsi_remove(struct platform_device *pdev)
 	if (udc_regs)
 		dvma_free(udc_regs);
 	iounmap(ioaddr);
-	return 0;
 }
 
 static struct platform_driver sun3_scsi_driver = {
-	.remove = __exit_p(sun3_scsi_remove),
+	.remove_new = __exit_p(sun3_scsi_remove),
 	.driver = {
 		.name	= DRV_MODULE_NAME,
 	},

@@ -22,8 +22,8 @@ static int tobermory_set_bias_level(struct snd_soc_card *card,
 	struct snd_soc_dai *codec_dai;
 	int ret;
 
-	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[0].name);
-	codec_dai = rtd->codec_dai;
+	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[0]);
+	codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 
 	if (dapm->dev != codec_dai->dev)
 		return 0;
@@ -65,8 +65,8 @@ static int tobermory_set_bias_level_post(struct snd_soc_card *card,
 	struct snd_soc_dai *codec_dai;
 	int ret;
 
-	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[0].name);
-	codec_dai = rtd->codec_dai;
+	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[0]);
+	codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 
 	if (dapm->dev != codec_dai->dev)
 		return 0;
@@ -105,7 +105,7 @@ static int tobermory_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops tobermory_ops = {
+static const struct snd_soc_ops tobermory_ops = {
 	.hw_params = tobermory_hw_params,
 };
 
@@ -130,7 +130,7 @@ static const struct snd_kcontrol_new controls[] = {
 	SOC_DAPM_PIN_SWITCH("DMIC"),
 };
 
-static struct snd_soc_dapm_widget widgets[] = {
+static const struct snd_soc_dapm_widget widgets[] = {
 	SND_SOC_DAPM_HP("Headphone", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 
@@ -140,7 +140,7 @@ static struct snd_soc_dapm_widget widgets[] = {
 	SND_SOC_DAPM_SPK("Main Speaker", NULL),
 };
 
-static struct snd_soc_dapm_route audio_paths[] = {
+static const struct snd_soc_dapm_route audio_paths[] = {
 	{ "Headphone", NULL, "HPOUTL" },
 	{ "Headphone", NULL, "HPOUTR" },
 
@@ -180,19 +180,19 @@ static int tobermory_late_probe(struct snd_soc_card *card)
 	struct snd_soc_dai *codec_dai;
 	int ret;
 
-	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[0].name);
-	component = rtd->codec_dai->component;
-	codec_dai = rtd->codec_dai;
+	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[0]);
+	component = snd_soc_rtd_to_codec(rtd, 0)->component;
+	codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 
 	ret = snd_soc_dai_set_sysclk(codec_dai, WM8962_SYSCLK_MCLK,
 				     32768, SND_SOC_CLOCK_IN);
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_card_jack_new(card, "Headset", SND_JACK_HEADSET |
-				    SND_JACK_BTN_0, &tobermory_headset,
-				    tobermory_headset_pins,
-				    ARRAY_SIZE(tobermory_headset_pins));
+	ret = snd_soc_card_jack_new_pins(card, "Headset", SND_JACK_HEADSET |
+					 SND_JACK_BTN_0, &tobermory_headset,
+					 tobermory_headset_pins,
+					 ARRAY_SIZE(tobermory_headset_pins));
 	if (ret)
 		return ret;
 
@@ -230,8 +230,7 @@ static int tobermory_probe(struct platform_device *pdev)
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret)
-		dev_err(&pdev->dev, "snd_soc_register_card() failed: %d\n",
-			ret);
+		dev_err_probe(&pdev->dev, ret, "snd_soc_register_card() failed\n");
 
 	return ret;
 }

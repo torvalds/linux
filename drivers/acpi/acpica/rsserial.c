@@ -111,6 +111,55 @@ struct acpi_rsconvert_info acpi_rs_convert_gpio[18] = {
 
 /*******************************************************************************
  *
+ * acpi_rs_convert_clock_input
+ *
+ ******************************************************************************/
+
+struct acpi_rsconvert_info acpi_rs_convert_clock_input[8] = {
+	{ACPI_RSC_INITGET, ACPI_RESOURCE_TYPE_CLOCK_INPUT,
+	 ACPI_RS_SIZE(struct acpi_resource_clock_input),
+	 ACPI_RSC_TABLE_SIZE(acpi_rs_convert_clock_input)},
+
+	{ACPI_RSC_INITSET, ACPI_RESOURCE_NAME_CLOCK_INPUT,
+	 sizeof(struct aml_resource_clock_input),
+	 0}
+	,
+
+	{ACPI_RSC_MOVE8, ACPI_RS_OFFSET(data.clock_input.revision_id),
+	 AML_OFFSET(clock_input.revision_id),
+	 1}
+	,
+
+	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.clock_input.mode),
+	 AML_OFFSET(clock_input.flags),
+	 0}
+	,
+
+	{ACPI_RSC_2BITFLAG, ACPI_RS_OFFSET(data.clock_input.scale),
+	 AML_OFFSET(clock_input.flags),
+	 1}
+	,
+
+	{ACPI_RSC_MOVE16, ACPI_RS_OFFSET(data.clock_input.frequency_divisor),
+	 AML_OFFSET(clock_input.frequency_divisor),
+	 2}
+	,
+
+	{ACPI_RSC_MOVE32, ACPI_RS_OFFSET(data.clock_input.frequency_numerator),
+	 AML_OFFSET(clock_input.frequency_numerator),
+	 4}
+	,
+
+	/* Resource Source */
+	{ACPI_RSC_SOURCE, ACPI_RS_OFFSET(data.clock_input.resource_source),
+	 0,
+	 sizeof(struct aml_resource_clock_input)}
+	,
+
+};
+
+/*******************************************************************************
+ *
  * acpi_rs_convert_pinfunction
  *
  ******************************************************************************/
@@ -183,6 +232,81 @@ struct acpi_rsconvert_info acpi_rs_convert_pin_function[13] = {
 	{ACPI_RSC_MOVE_GPIO_RES, ACPI_RS_OFFSET(data.pin_function.vendor_data),
 	 AML_OFFSET(pin_function.vendor_offset),
 	 0},
+};
+
+/*******************************************************************************
+ *
+ * acpi_rs_convert_csi2_serial_bus
+ *
+ ******************************************************************************/
+
+struct acpi_rsconvert_info acpi_rs_convert_csi2_serial_bus[14] = {
+	{ ACPI_RSC_INITGET, ACPI_RESOURCE_TYPE_SERIAL_BUS,
+	 ACPI_RS_SIZE(struct acpi_resource_csi2_serialbus),
+	 ACPI_RSC_TABLE_SIZE(acpi_rs_convert_csi2_serial_bus) },
+
+	{ ACPI_RSC_INITSET, ACPI_RESOURCE_NAME_SERIAL_BUS,
+	 sizeof(struct aml_resource_csi2_serialbus),
+	 0 },
+
+	{ ACPI_RSC_MOVE8, ACPI_RS_OFFSET(data.common_serial_bus.revision_id),
+	 AML_OFFSET(common_serial_bus.revision_id),
+	 1 },
+
+	{ ACPI_RSC_MOVE8, ACPI_RS_OFFSET(data.csi2_serial_bus.type),
+	 AML_OFFSET(csi2_serial_bus.type),
+	 1 },
+
+	{ ACPI_RSC_1BITFLAG,
+	 ACPI_RS_OFFSET(data.csi2_serial_bus.producer_consumer),
+	 AML_OFFSET(csi2_serial_bus.flags),
+	 1 },
+
+	{ ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.csi2_serial_bus.slave_mode),
+	 AML_OFFSET(csi2_serial_bus.flags),
+	 0 },
+
+	{ ACPI_RSC_2BITFLAG, ACPI_RS_OFFSET(data.csi2_serial_bus.phy_type),
+	 AML_OFFSET(csi2_serial_bus.type_specific_flags),
+	 0 },
+
+	{ ACPI_RSC_6BITFLAG,
+	 ACPI_RS_OFFSET(data.csi2_serial_bus.local_port_instance),
+	 AML_OFFSET(csi2_serial_bus.type_specific_flags),
+	 2 },
+
+	{ ACPI_RSC_MOVE8, ACPI_RS_OFFSET(data.csi2_serial_bus.type_revision_id),
+	 AML_OFFSET(csi2_serial_bus.type_revision_id),
+	 1 },
+
+	/* Vendor data */
+
+	{ ACPI_RSC_COUNT_SERIAL_VEN,
+	 ACPI_RS_OFFSET(data.csi2_serial_bus.vendor_length),
+	 AML_OFFSET(csi2_serial_bus.type_data_length),
+	 AML_RESOURCE_CSI2_MIN_DATA_LEN },
+
+	{ ACPI_RSC_MOVE_SERIAL_VEN,
+	 ACPI_RS_OFFSET(data.csi2_serial_bus.vendor_data),
+	 0,
+	 sizeof(struct aml_resource_csi2_serialbus) },
+
+	/* Resource Source */
+
+	{ ACPI_RSC_MOVE8,
+	 ACPI_RS_OFFSET(data.csi2_serial_bus.resource_source.index),
+	 AML_OFFSET(csi2_serial_bus.res_source_index),
+	 1 },
+
+	{ ACPI_RSC_COUNT_SERIAL_RES,
+	 ACPI_RS_OFFSET(data.csi2_serial_bus.resource_source.string_length),
+	 AML_OFFSET(csi2_serial_bus.type_data_length),
+	 sizeof(struct aml_resource_csi2_serialbus) },
+
+	{ ACPI_RSC_MOVE_SERIAL_RES,
+	 ACPI_RS_OFFSET(data.csi2_serial_bus.resource_source.string_ptr),
+	 AML_OFFSET(csi2_serial_bus.type_data_length),
+	 sizeof(struct aml_resource_csi2_serialbus) },
 };
 
 /*******************************************************************************

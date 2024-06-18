@@ -68,7 +68,7 @@ struct uniphier_mdmac_device {
 	struct dma_device ddev;
 	struct clk *clk;
 	void __iomem *reg_base;
-	struct uniphier_mdmac_chan channels[0];
+	struct uniphier_mdmac_chan channels[];
 };
 
 static struct uniphier_mdmac_chan *
@@ -382,7 +382,6 @@ static int uniphier_mdmac_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct uniphier_mdmac_device *mdev;
 	struct dma_device *ddev;
-	struct resource *res;
 	int nr_chans, ret, i;
 
 	nr_chans = platform_irq_count(pdev);
@@ -398,8 +397,7 @@ static int uniphier_mdmac_probe(struct platform_device *pdev)
 	if (!mdev)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mdev->reg_base = devm_ioremap_resource(dev, res);
+	mdev->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mdev->reg_base))
 		return PTR_ERR(mdev->reg_base);
 
@@ -455,7 +453,7 @@ disable_clk:
 	return ret;
 }
 
-static int uniphier_mdmac_remove(struct platform_device *pdev)
+static void uniphier_mdmac_remove(struct platform_device *pdev)
 {
 	struct uniphier_mdmac_device *mdev = platform_get_drvdata(pdev);
 	struct dma_chan *chan;
@@ -470,16 +468,21 @@ static int uniphier_mdmac_remove(struct platform_device *pdev)
 	 */
 	list_for_each_entry(chan, &mdev->ddev.channels, device_node) {
 		ret = dmaengine_terminate_sync(chan);
-		if (ret)
-			return ret;
+		if (ret) {
+			/*
+			 * This results in resource leakage and maybe also
+			 * use-after-free errors as e.g. *mdev is kfreed.
+			 */
+			dev_alert(&pdev->dev, "Failed to terminate channel %d (%pe)\n",
+				  chan->chan_id, ERR_PTR(ret));
+			return;
+		}
 		uniphier_mdmac_free_chan_resources(chan);
 	}
 
 	of_dma_controller_free(pdev->dev.of_node);
 	dma_async_device_unregister(&mdev->ddev);
 	clk_disable_unprepare(mdev->clk);
-
-	return 0;
 }
 
 static const struct of_device_id uniphier_mdmac_match[] = {
@@ -490,7 +493,7 @@ MODULE_DEVICE_TABLE(of, uniphier_mdmac_match);
 
 static struct platform_driver uniphier_mdmac_driver = {
 	.probe = uniphier_mdmac_probe,
-	.remove = uniphier_mdmac_remove,
+	.remove_new = uniphier_mdmac_remove,
 	.driver = {
 		.name = "uniphier-mio-dmac",
 		.of_match_table = uniphier_mdmac_match,

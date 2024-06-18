@@ -1,12 +1,18 @@
 #ifndef __NV50_KMS_H__
 #define __NV50_KMS_H__
+#include <linux/workqueue.h>
 #include <nvif/mem.h>
+#include <nvif/push.h>
 
 #include "nouveau_display.h"
+
+struct nv50_msto;
+struct nouveau_encoder;
 
 struct nv50_disp {
 	struct nvif_disp *disp;
 	struct nv50_core *core;
+	struct nvif_object caps;
 
 #define NV50_DISP_SYNC(c, o)                                ((c) * 0x040 + (o))
 #define NV50_DISP_CORE_NTFY                       NV50_DISP_SYNC(0      , 0x00)
@@ -56,7 +62,8 @@ struct nv50_chan {
 struct nv50_dmac {
 	struct nv50_chan base;
 
-	struct nvif_mem push;
+	struct nvif_push _push;
+	struct nvif_push *push;
 	u32 *ptr;
 
 	struct nvif_object sync;
@@ -66,27 +73,45 @@ struct nv50_dmac {
 	 * grabbed by evo_wait (if the pushbuf reservation is successful) and
 	 * dropped again by evo_kick. */
 	struct mutex lock;
+
+	u32 cur;
+	u32 put;
+	u32 max;
+};
+
+struct nv50_outp_atom {
+	struct list_head head;
+
+	struct drm_encoder *encoder;
+
+	bool disabled;
+	bool enabled;
+
+	union nv50_outp_atom_mask {
+		struct {
+			bool ctrl:1;
+		};
+		u8 mask;
+	} set, clr;
 };
 
 int nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 		     const s32 *oclass, u8 head, void *data, u32 size,
-		     u64 syncbuf, struct nv50_dmac *dmac);
+		     s64 syncbuf, struct nv50_dmac *dmac);
 void nv50_dmac_destroy(struct nv50_dmac *);
+
+/*
+ * For normal encoders this just returns the encoder. For active MST encoders,
+ * this returns the real outp that's driving displays on the topology.
+ * Inactive MST encoders return NULL, since they would have no real outp to
+ * return anyway.
+ */
+struct nouveau_encoder *nv50_real_outp(struct drm_encoder *encoder);
 
 u32 *evo_wait(struct nv50_dmac *, int nr);
 void evo_kick(u32 *, struct nv50_dmac *);
 
-#define evo_mthd(p, m, s) do {						\
-	const u32 _m = (m), _s = (s);					\
-	if (drm_debug & DRM_UT_KMS)					\
-		pr_err("%04x %d %s\n", _m, _s, __func__);		\
-	*((p)++) = ((_s << 18) | _m);					\
-} while(0)
-
-#define evo_data(p, d) do {						\
-	const u32 _d = (d);						\
-	if (drm_debug & DRM_UT_KMS)					\
-		pr_err("\t%08x\n", _d);					\
-	*((p)++) = _d;							\
-} while(0)
+extern const u64 disp50xx_modifiers[];
+extern const u64 disp90xx_modifiers[];
+extern const u64 wndwc57e_modifiers[];
 #endif

@@ -67,7 +67,7 @@ MODULE_PARM_DESC(video,
 	"Video memory size in MB, width, height in pixels (default 2,800,600)");
 
 static void xenfb_make_preferred_console(void);
-static int xenfb_remove(struct xenbus_device *);
+static void xenfb_remove(struct xenbus_device *);
 static void xenfb_init_shared_page(struct xenfb_info *, struct fb_info *);
 static int xenfb_connect_backend(struct xenbus_device *, struct xenfb_info *);
 static void xenfb_disconnect_backend(struct xenfb_info *);
@@ -181,18 +181,17 @@ static void xenfb_refresh(struct xenfb_info *info,
 		xenfb_do_update(info, x1, y1, x2 - x1 + 1, y2 - y1 + 1);
 }
 
-static void xenfb_deferred_io(struct fb_info *fb_info,
-			      struct list_head *pagelist)
+static void xenfb_deferred_io(struct fb_info *fb_info, struct list_head *pagereflist)
 {
 	struct xenfb_info *info = fb_info->par;
-	struct page *page;
+	struct fb_deferred_io_pageref *pageref;
 	unsigned long beg, end;
 	int y1, y2, miny, maxy;
 
 	miny = INT_MAX;
 	maxy = 0;
-	list_for_each_entry(page, pagelist, lru) {
-		beg = page->index << PAGE_SHIFT;
+	list_for_each_entry(pageref, pagereflist, list) {
+		beg = pageref->offset;
 		end = beg + PAGE_SIZE - 1;
 		y1 = beg / fb_info->fix.line_length;
 		y2 = end / fb_info->fix.line_length;
@@ -224,7 +223,6 @@ static int xenfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	red = CNVT_TOHW(red, info->var.red.length);
 	green = CNVT_TOHW(green, info->var.green.length);
 	blue = CNVT_TOHW(blue, info->var.blue.length);
-	transp = CNVT_TOHW(transp, info->var.transp.length);
 #undef CNVT_TOHW
 
 	v = (red << info->var.red.offset) |
@@ -240,41 +238,6 @@ static int xenfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	}
 
 	return 0;
-}
-
-static void xenfb_fillrect(struct fb_info *p, const struct fb_fillrect *rect)
-{
-	struct xenfb_info *info = p->par;
-
-	sys_fillrect(p, rect);
-	xenfb_refresh(info, rect->dx, rect->dy, rect->width, rect->height);
-}
-
-static void xenfb_imageblit(struct fb_info *p, const struct fb_image *image)
-{
-	struct xenfb_info *info = p->par;
-
-	sys_imageblit(p, image);
-	xenfb_refresh(info, image->dx, image->dy, image->width, image->height);
-}
-
-static void xenfb_copyarea(struct fb_info *p, const struct fb_copyarea *area)
-{
-	struct xenfb_info *info = p->par;
-
-	sys_copyarea(p, area);
-	xenfb_refresh(info, area->dx, area->dy, area->width, area->height);
-}
-
-static ssize_t xenfb_write(struct fb_info *p, const char __user *buf,
-			size_t count, loff_t *ppos)
-{
-	struct xenfb_info *info = p->par;
-	ssize_t res;
-
-	res = fb_sys_write(p, buf, count, ppos);
-	xenfb_refresh(info, 0, 0, info->page->width, info->page->height);
-	return res;
 }
 
 static int
@@ -328,14 +291,29 @@ static int xenfb_set_par(struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops xenfb_fb_ops = {
+static void xenfb_defio_damage_range(struct fb_info *info, off_t off, size_t len)
+{
+	struct xenfb_info *xenfb_info = info->par;
+
+	xenfb_refresh(xenfb_info, 0, 0, xenfb_info->page->width, xenfb_info->page->height);
+}
+
+static void xenfb_defio_damage_area(struct fb_info *info, u32 x, u32 y,
+				    u32 width, u32 height)
+{
+	struct xenfb_info *xenfb_info = info->par;
+
+	xenfb_refresh(xenfb_info, x, y, width, height);
+}
+
+FB_GEN_DEFAULT_DEFERRED_SYSMEM_OPS(xenfb,
+				   xenfb_defio_damage_range,
+				   xenfb_defio_damage_area)
+
+static const struct fb_ops xenfb_fb_ops = {
 	.owner		= THIS_MODULE,
-	.fb_read	= fb_sys_read,
-	.fb_write	= xenfb_write,
+	FB_DEFAULT_DEFERRED_OPS(xenfb),
 	.fb_setcolreg	= xenfb_setcolreg,
-	.fb_fillrect	= xenfb_fillrect,
-	.fb_copyarea	= xenfb_copyarea,
-	.fb_imageblit	= xenfb_imageblit,
 	.fb_check_var	= xenfb_check_var,
 	.fb_set_par     = xenfb_set_par,
 };
@@ -430,7 +408,7 @@ static int xenfb_probe(struct xenbus_device *dev,
 	fb_info->pseudo_palette = fb_info->par;
 	fb_info->par = info;
 
-	fb_info->screen_base = info->fb;
+	fb_info->screen_buffer = info->fb;
 
 	fb_info->fbops = &xenfb_fb_ops;
 	fb_info->var.xres_virtual = fb_info->var.xres = video[KPARAM_WIDTH];
@@ -454,7 +432,7 @@ static int xenfb_probe(struct xenbus_device *dev,
 	fb_info->fix.type = FB_TYPE_PACKED_PIXELS;
 	fb_info->fix.accel = FB_ACCEL_NONE;
 
-	fb_info->flags = FBINFO_FLAG_DEFAULT | FBINFO_VIRTFB;
+	fb_info->flags = FBINFO_VIRTFB;
 
 	ret = fb_alloc_cmap(&fb_info->cmap, 256, 0);
 	if (ret < 0) {
@@ -505,18 +483,14 @@ static void xenfb_make_preferred_console(void)
 	if (console_set_on_cmdline)
 		return;
 
-	console_lock();
+	console_list_lock();
 	for_each_console(c) {
 		if (!strcmp(c->name, "tty") && c->index == 0)
 			break;
 	}
-	console_unlock();
-	if (c) {
-		unregister_console(c);
-		c->flags |= CON_CONSDEV;
-		c->flags &= ~CON_PRINTBUFFER; /* don't print again */
-		register_console(c);
-	}
+	if (c)
+		console_force_preferred_locked(c);
+	console_list_unlock();
 }
 
 static int xenfb_resume(struct xenbus_device *dev)
@@ -528,7 +502,7 @@ static int xenfb_resume(struct xenbus_device *dev)
 	return xenfb_connect_backend(dev, info);
 }
 
-static int xenfb_remove(struct xenbus_device *dev)
+static void xenfb_remove(struct xenbus_device *dev)
 {
 	struct xenfb_info *info = dev_get_drvdata(&dev->dev);
 
@@ -543,8 +517,6 @@ static int xenfb_remove(struct xenbus_device *dev)
 	vfree(info->gfns);
 	vfree(info->fb);
 	kfree(info);
-
-	return 0;
 }
 
 static unsigned long vmalloc_to_gfn(void *address)
@@ -677,7 +649,7 @@ static void xenfb_backend_changed(struct xenbus_device *dev,
 	case XenbusStateClosed:
 		if (dev->state == XenbusStateClosed)
 			break;
-		/* fall through - Missed the backend's CLOSING state. */
+		fallthrough;	/* Missed the backend's CLOSING state */
 	case XenbusStateClosing:
 		xenbus_frontend_closed(dev);
 		break;
@@ -695,6 +667,7 @@ static struct xenbus_driver xenfb_driver = {
 	.remove = xenfb_remove,
 	.resume = xenfb_resume,
 	.otherend_changed = xenfb_backend_changed,
+	.not_essential = true,
 };
 
 static int __init xenfb_init(void)

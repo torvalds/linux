@@ -11,7 +11,6 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/watchdog.h>
-#include <linux/of_device.h>
 
 enum wdt_reg {
 	WDT_RST,
@@ -22,7 +21,6 @@ enum wdt_reg {
 };
 
 #define QCOM_WDT_ENABLE		BIT(0)
-#define QCOM_WDT_ENABLE_IRQ	BIT(1)
 
 static const u32 reg_offset_data_apcs_tmr[] = {
 	[WDT_RST] = 0x38,
@@ -38,6 +36,12 @@ static const u32 reg_offset_data_kpss[] = {
 	[WDT_STS] = 0xC,
 	[WDT_BARK_TIME] = 0x10,
 	[WDT_BITE_TIME] = 0x14,
+};
+
+struct qcom_wdt_match_data {
+	const u32 *offset;
+	bool pretimeout;
+	u32 max_tick_count;
 };
 
 struct qcom_wdt {
@@ -58,16 +62,6 @@ struct qcom_wdt *to_qcom_wdt(struct watchdog_device *wdd)
 	return container_of(wdd, struct qcom_wdt, wdd);
 }
 
-static inline int qcom_get_enable(struct watchdog_device *wdd)
-{
-	int enable = QCOM_WDT_ENABLE;
-
-	if (wdd->pretimeout)
-		enable |= QCOM_WDT_ENABLE_IRQ;
-
-	return enable;
-}
-
 static irqreturn_t qcom_wdt_isr(int irq, void *arg)
 {
 	struct watchdog_device *wdd = arg;
@@ -86,7 +80,7 @@ static int qcom_wdt_start(struct watchdog_device *wdd)
 	writel(1, wdt_addr(wdt, WDT_RST));
 	writel(bark * wdt->rate, wdt_addr(wdt, WDT_BARK_TIME));
 	writel(wdd->timeout * wdt->rate, wdt_addr(wdt, WDT_BITE_TIME));
-	writel(qcom_get_enable(wdd), wdt_addr(wdt, WDT_EN));
+	writel(QCOM_WDT_ENABLE, wdt_addr(wdt, WDT_EN));
 	return 0;
 }
 
@@ -143,8 +137,15 @@ static int qcom_wdt_restart(struct watchdog_device *wdd, unsigned long action,
 	 */
 	wmb();
 
-	msleep(150);
+	mdelay(150);
 	return 0;
+}
+
+static int qcom_wdt_is_running(struct watchdog_device *wdd)
+{
+	struct qcom_wdt *wdt = to_qcom_wdt(wdd);
+
+	return (readl(wdt_addr(wdt, WDT_EN)) & QCOM_WDT_ENABLE);
 }
 
 static const struct watchdog_ops qcom_wdt_ops = {
@@ -174,10 +175,17 @@ static const struct watchdog_info qcom_wdt_pt_info = {
 	.identity	= KBUILD_MODNAME,
 };
 
-static void qcom_clk_disable_unprepare(void *data)
-{
-	clk_disable_unprepare(data);
-}
+static const struct qcom_wdt_match_data match_data_apcs_tmr = {
+	.offset = reg_offset_data_apcs_tmr,
+	.pretimeout = false,
+	.max_tick_count = 0x10000000U,
+};
+
+static const struct qcom_wdt_match_data match_data_kpss = {
+	.offset = reg_offset_data_kpss,
+	.pretimeout = true,
+	.max_tick_count = 0xFFFFFU,
+};
 
 static int qcom_wdt_probe(struct platform_device *pdev)
 {
@@ -185,13 +193,13 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	struct qcom_wdt *wdt;
 	struct resource *res;
 	struct device_node *np = dev->of_node;
-	const u32 *regs;
+	const struct qcom_wdt_match_data *data;
 	u32 percpu_offset;
 	int irq, ret;
 	struct clk *clk;
 
-	regs = of_device_get_match_data(dev);
-	if (!regs) {
+	data = of_device_get_match_data(dev);
+	if (!data) {
 		dev_err(dev, "Unsupported QCOM WDT module\n");
 		return -ENODEV;
 	}
@@ -215,20 +223,11 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	if (IS_ERR(wdt->base))
 		return PTR_ERR(wdt->base);
 
-	clk = devm_clk_get(dev, NULL);
+	clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(clk)) {
 		dev_err(dev, "failed to get input clock\n");
 		return PTR_ERR(clk);
 	}
-
-	ret = clk_prepare_enable(clk);
-	if (ret) {
-		dev_err(dev, "failed to setup clock\n");
-		return ret;
-	}
-	ret = devm_add_action_or_reset(dev, qcom_clk_disable_unprepare, clk);
-	if (ret)
-		return ret;
 
 	/*
 	 * We use the clock rate to calculate the max timeout, so ensure it's
@@ -240,16 +239,15 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	 */
 	wdt->rate = clk_get_rate(clk);
 	if (wdt->rate == 0 ||
-	    wdt->rate > 0x10000000U) {
+	    wdt->rate > data->max_tick_count) {
 		dev_err(dev, "invalid clock rate\n");
 		return -EINVAL;
 	}
 
 	/* check if there is pretimeout support */
-	irq = platform_get_irq(pdev, 0);
-	if (irq > 0) {
-		ret = devm_request_irq(dev, irq, qcom_wdt_isr,
-				       IRQF_TRIGGER_RISING,
+	irq = platform_get_irq_optional(pdev, 0);
+	if (data->pretimeout && irq > 0) {
+		ret = devm_request_irq(dev, irq, qcom_wdt_isr, 0,
 				       "wdt_bark", &wdt->wdd);
 		if (ret)
 			return ret;
@@ -265,9 +263,9 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 
 	wdt->wdd.ops = &qcom_wdt_ops;
 	wdt->wdd.min_timeout = 1;
-	wdt->wdd.max_timeout = 0x10000000U / wdt->rate;
+	wdt->wdd.max_timeout = data->max_tick_count / wdt->rate;
 	wdt->wdd.parent = dev;
-	wdt->layout = regs;
+	wdt->layout = data->offset;
 
 	if (readl(wdt_addr(wdt, WDT_STS)) & 1)
 		wdt->wdd.bootstatus = WDIOF_CARDRESET;
@@ -279,6 +277,17 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	 */
 	wdt->wdd.timeout = min(wdt->wdd.max_timeout, 30U);
 	watchdog_init_timeout(&wdt->wdd, 0, dev);
+
+	/*
+	 * If WDT is already running, call WDT start which
+	 * will stop the WDT, set timeouts as bootloader
+	 * might use different ones and set running bit
+	 * to inform the WDT subsystem to ping the WDT
+	 */
+	if (qcom_wdt_is_running(&wdt->wdd)) {
+		qcom_wdt_start(&wdt->wdd);
+		set_bit(WDOG_HW_RUNNING, &wdt->wdd.status);
+	}
 
 	ret = devm_watchdog_register_device(dev, &wdt->wdd);
 	if (ret)
@@ -308,12 +317,14 @@ static int __maybe_unused qcom_wdt_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(qcom_wdt_pm_ops, qcom_wdt_suspend, qcom_wdt_resume);
+static const struct dev_pm_ops qcom_wdt_pm_ops = {
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(qcom_wdt_suspend, qcom_wdt_resume)
+};
 
 static const struct of_device_id qcom_wdt_of_table[] = {
-	{ .compatible = "qcom,kpss-timer", .data = reg_offset_data_apcs_tmr },
-	{ .compatible = "qcom,scss-timer", .data = reg_offset_data_apcs_tmr },
-	{ .compatible = "qcom,kpss-wdt", .data = reg_offset_data_kpss },
+	{ .compatible = "qcom,kpss-timer", .data = &match_data_apcs_tmr },
+	{ .compatible = "qcom,scss-timer", .data = &match_data_apcs_tmr },
+	{ .compatible = "qcom,kpss-wdt", .data = &match_data_kpss },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, qcom_wdt_of_table);

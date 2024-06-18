@@ -9,7 +9,7 @@
  */
 
 #include <linux/atomic.h>
-#include <linux/crc-ccitt.h>
+#include <linux/crc-itu-t.h>
 #include <linux/delay.h>
 #include <linux/export.h>
 #include <linux/init.h>
@@ -18,7 +18,7 @@
 #include <linux/mfd/rave-sp.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <linux/sched.h>
 #include <linux/serdev.h>
 #include <asm/unaligned.h>
@@ -96,7 +96,7 @@ struct rave_sp_deframer {
  * @data:	Buffer to store reply payload in
  * @code:	Expected reply code
  * @ackid:	Expected reply ACK ID
- * @completion: Successful reply reception completion
+ * @received:   Successful reply reception completion
  */
 struct rave_sp_reply {
 	size_t length;
@@ -251,7 +251,7 @@ static void csum_8b2c(const u8 *buf, size_t size, u8 *crc)
 
 static void csum_ccitt(const u8 *buf, size_t size, u8 *crc)
 {
-	const u16 calculated = crc_ccitt_false(0xffff, buf, size);
+	const u16 calculated = crc_itu_t(0xffff, buf, size);
 
 	/*
 	 * While the rest of the wire protocol is little-endian,
@@ -270,7 +270,7 @@ static void *stuff(unsigned char *dest, const unsigned char *src, size_t n)
 		case RAVE_SP_ETX:
 		case RAVE_SP_DLE:
 			*dest++ = RAVE_SP_DLE;
-			/* FALLTHROUGH */
+			fallthrough;
 		default:
 			*dest++ = byte;
 		}
@@ -358,7 +358,7 @@ int rave_sp_exec(struct rave_sp *sp,
 
 	ackid       = atomic_inc_return(&sp->ackid);
 	reply.ackid = ackid;
-	reply.code  = rave_sp_reply_code((u8)command),
+	reply.code  = rave_sp_reply_code((u8)command);
 
 	mutex_lock(&sp->bus_lock);
 
@@ -471,17 +471,17 @@ static void rave_sp_receive_frame(struct rave_sp *sp,
 		rave_sp_receive_reply(sp, data, length);
 }
 
-static int rave_sp_receive_buf(struct serdev_device *serdev,
-			       const unsigned char *buf, size_t size)
+static size_t rave_sp_receive_buf(struct serdev_device *serdev,
+				  const u8 *buf, size_t size)
 {
 	struct device *dev = &serdev->dev;
 	struct rave_sp *sp = dev_get_drvdata(dev);
 	struct rave_sp_deframer *deframer = &sp->deframer;
-	const unsigned char *src = buf;
-	const unsigned char *end = buf + size;
+	const u8 *src = buf;
+	const u8 *end = buf + size;
 
 	while (src < end) {
-		const unsigned char byte = *src++;
+		const u8 byte = *src++;
 
 		switch (deframer->state) {
 		case RAVE_SP_EXPECT_SOF:
@@ -541,7 +541,7 @@ static int rave_sp_receive_buf(struct serdev_device *serdev,
 			 * deframer buffer
 			 */
 
-			/* FALLTHROUGH */
+			fallthrough;
 
 		case RAVE_SP_EXPECT_ESCAPED_DATA:
 			if (deframer->length == sizeof(deframer->data)) {

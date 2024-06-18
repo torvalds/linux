@@ -102,7 +102,7 @@ static struct inode *jfs_alloc_inode(struct super_block *sb)
 {
 	struct jfs_inode_info *jfs_inode;
 
-	jfs_inode = kmem_cache_alloc(jfs_inode_cachep, GFP_NOFS);
+	jfs_inode = alloc_inode_sb(sb, jfs_inode_cachep, GFP_NOFS);
 	if (!jfs_inode)
 		return NULL;
 #ifdef CONFIG_QUOTA
@@ -284,8 +284,7 @@ static int parse_options(char *options, struct super_block *sb, s64 *newLVSize,
 		}
 		case Opt_resize_nosize:
 		{
-			*newLVSize = i_size_read(sb->s_bdev->bd_inode) >>
-				sb->s_blocksize_bits;
+			*newLVSize = sb_bdev_nr_blocks(sb);
 			if (*newLVSize == 0)
 				pr_err("JFS: Cannot determine volume size\n");
 			break;
@@ -373,19 +372,16 @@ static int parse_options(char *options, struct super_block *sb, s64 *newLVSize,
 		}
 
 		case Opt_discard:
-		{
-			struct request_queue *q = bdev_get_queue(sb->s_bdev);
 			/* if set to 1, even copying files will cause
 			 * trimming :O
 			 * -> user has more control over the online trimming
 			 */
 			sbi->minblks_trim = 64;
-			if (blk_queue_discard(q))
+			if (bdev_max_discard_sectors(sb->s_bdev))
 				*flag |= JFS_DISCARD;
 			else
 				pr_err("JFS: discard option not supported on device\n");
 			break;
-		}
 
 		case Opt_nodiscard:
 			*flag &= ~JFS_DISCARD;
@@ -393,10 +389,9 @@ static int parse_options(char *options, struct super_block *sb, s64 *newLVSize,
 
 		case Opt_discard_minblk:
 		{
-			struct request_queue *q = bdev_get_queue(sb->s_bdev);
 			char *minblks_trim = args[0].from;
 			int rc;
-			if (blk_queue_discard(q)) {
+			if (bdev_max_discard_sectors(sb->s_bdev)) {
 				*flag |= JFS_DISCARD;
 				rc = kstrtouint(minblks_trim, 0,
 						&sbi->minblks_trim);
@@ -551,8 +546,7 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 		ret = -ENOMEM;
 		goto out_unload;
 	}
-	inode->i_ino = 0;
-	inode->i_size = i_size_read(sb->s_bdev->bd_inode);
+	inode->i_size = bdev_nr_bytes(sb->s_bdev);
 	inode->i_mapping->a_ops = &jfs_metapage_aops;
 	inode_fake_hash(inode);
 	mapping_set_gfp_mask(inode->i_mapping, GFP_NOFS);
@@ -751,8 +745,7 @@ static ssize_t jfs_quota_read(struct super_block *sb, int type, char *data,
 		len = i_size-off;
 	toread = len;
 	while (toread > 0) {
-		tocopy = sb->s_blocksize - offset < toread ?
-				sb->s_blocksize - offset : toread;
+		tocopy = min_t(size_t, sb->s_blocksize - offset, toread);
 
 		tmp_bh.b_state = 0;
 		tmp_bh.b_size = i_blocksize(inode);
@@ -791,8 +784,7 @@ static ssize_t jfs_quota_write(struct super_block *sb, int type,
 
 	inode_lock(inode);
 	while (towrite > 0) {
-		tocopy = sb->s_blocksize - offset < towrite ?
-				sb->s_blocksize - offset : towrite;
+		tocopy = min_t(size_t, sb->s_blocksize - offset, towrite);
 
 		tmp_bh.b_state = 0;
 		tmp_bh.b_size = i_blocksize(inode);
@@ -826,13 +818,13 @@ out:
 	}
 	if (inode->i_size < off+len-towrite)
 		i_size_write(inode, off+len-towrite);
-	inode->i_mtime = inode->i_ctime = current_time(inode);
+	inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
 	mark_inode_dirty(inode);
 	inode_unlock(inode);
 	return len - towrite;
 }
 
-static struct dquot **jfs_get_dquots(struct inode *inode)
+static struct dquot __rcu **jfs_get_dquots(struct inode *inode)
 {
 	return JFS_IP(inode)->i_dquot;
 }
@@ -904,6 +896,7 @@ static const struct super_operations jfs_super_operations = {
 };
 
 static const struct export_operations jfs_export_operations = {
+	.encode_fh	= generic_encode_ino32_fh,
 	.fh_to_dentry	= jfs_fh_to_dentry,
 	.fh_to_parent	= jfs_fh_to_parent,
 	.get_parent	= jfs_get_parent,
@@ -939,8 +932,9 @@ static int __init init_jfs_fs(void)
 
 	jfs_inode_cachep =
 	    kmem_cache_create_usercopy("jfs_ip", sizeof(struct jfs_inode_info),
-			0, SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|SLAB_ACCOUNT,
-			offsetof(struct jfs_inode_info, i_inline), IDATASIZE,
+			0, SLAB_RECLAIM_ACCOUNT|SLAB_ACCOUNT,
+			offsetof(struct jfs_inode_info, i_inline_all),
+			sizeof_field(struct jfs_inode_info, i_inline_all),
 			init_once);
 	if (jfs_inode_cachep == NULL)
 		return -ENOMEM;

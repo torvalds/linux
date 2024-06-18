@@ -749,7 +749,7 @@
 #define VDDCTRL_ST_SHIFT                                 0
 
 
-/*Register VDDCTRL_OP  (0x28) bit definitios */
+/*Register VDDCTRL_OP  (0x28) bit definitions */
 #define VDDCTRL_OP_CMD_MASK                              0x80
 #define VDDCTRL_OP_CMD_SHIFT                             7
 #define VDDCTRL_OP_SEL_MASK                              0x7F
@@ -890,11 +890,6 @@ struct tps65910 {
 	struct regmap *regmap;
 	unsigned long id;
 
-	/* Client devices */
-	struct tps65910_pmic *pmic;
-	struct tps65910_rtc *rtc;
-	struct tps65910_power *power;
-
 	/* Device node parsed board data */
 	struct tps65910_board *of_plat_data;
 
@@ -911,41 +906,6 @@ struct tps65910_platform_data {
 static inline int tps65910_chip_id(struct tps65910 *tps65910)
 {
 	return tps65910->id;
-}
-
-static inline int tps65910_reg_read(struct tps65910 *tps65910, u8 reg,
-		unsigned int *val)
-{
-	return regmap_read(tps65910->regmap, reg, val);
-}
-
-static inline int tps65910_reg_write(struct tps65910 *tps65910, u8 reg,
-		unsigned int val)
-{
-	return regmap_write(tps65910->regmap, reg, val);
-}
-
-static inline int tps65910_reg_set_bits(struct tps65910 *tps65910, u8 reg,
-		u8 mask)
-{
-	return regmap_update_bits(tps65910->regmap, reg, mask, mask);
-}
-
-static inline int tps65910_reg_clear_bits(struct tps65910 *tps65910, u8 reg,
-		u8 mask)
-{
-	return regmap_update_bits(tps65910->regmap, reg, mask, 0);
-}
-
-static inline int tps65910_reg_update_bits(struct tps65910 *tps65910, u8 reg,
-					   u8 mask, u8 val)
-{
-	return regmap_update_bits(tps65910->regmap, reg, mask, val);
-}
-
-static inline int tps65910_irq_get_virq(struct tps65910 *tps65910, int irq)
-{
-	return regmap_irq_get_virq(tps65910->irq_data, irq);
 }
 
 #endif /*  __LINUX_MFD_TPS65910_H */

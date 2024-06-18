@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * mtu3_debug.h - debug header
  *
@@ -12,12 +12,13 @@
 
 #include <linux/debugfs.h>
 
+struct ssusb_mtk;
+
 #define MTU3_DEBUGFS_NAME_LEN 32
 
 struct mtu3_regset {
 	char name[MTU3_DEBUGFS_NAME_LEN];
 	struct debugfs_regset32 regset;
-	size_t nregs;
 };
 
 struct mtu3_file_map {

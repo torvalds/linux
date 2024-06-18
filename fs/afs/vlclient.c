@@ -18,8 +18,7 @@ static int afs_deliver_vl_get_entry_by_name_u(struct afs_call *call)
 {
 	struct afs_uvldbentry__xdr *uvldb;
 	struct afs_vldb_entry *entry;
-	bool new_only = false;
-	u32 tmp, nr_servers, vlflags;
+	u32 nr_servers, vlflags;
 	int i, ret;
 
 	_enter("");
@@ -41,27 +40,14 @@ static int afs_deliver_vl_get_entry_by_name_u(struct afs_call *call)
 	entry->name[i] = 0;
 	entry->name_len = strlen(entry->name);
 
-	/* If there is a new replication site that we can use, ignore all the
-	 * sites that aren't marked as new.
-	 */
-	for (i = 0; i < nr_servers; i++) {
-		tmp = ntohl(uvldb->serverFlags[i]);
-		if (!(tmp & AFS_VLSF_DONTUSE) &&
-		    (tmp & AFS_VLSF_NEWREPSITE))
-			new_only = true;
-	}
-
 	vlflags = ntohl(uvldb->flags);
 	for (i = 0; i < nr_servers; i++) {
 		struct afs_uuid__xdr *xdr;
 		struct afs_uuid *uuid;
+		u32 tmp = ntohl(uvldb->serverFlags[i]);
 		int j;
 		int n = entry->nr_servers;
 
-		tmp = ntohl(uvldb->serverFlags[i]);
-		if (tmp & AFS_VLSF_DONTUSE ||
-		    (new_only && !(tmp & AFS_VLSF_NEWREPSITE)))
-			continue;
 		if (tmp & AFS_VLSF_RWVOL) {
 			entry->fs_mask[n] |= AFS_VOL_VTM_RW;
 			if (vlflags & AFS_VLF_BACKEXISTS)
@@ -82,6 +68,8 @@ static int afs_deliver_vl_get_entry_by_name_u(struct afs_call *call)
 		for (j = 0; j < 6; j++)
 			uuid->node[j] = (u8)ntohl(xdr->node[j]);
 
+		entry->vlsf_flags[n] = tmp;
+		entry->addr_version[n] = ntohl(uvldb->serverUnique[i]);
 		entry->nr_servers++;
 	}
 
@@ -105,12 +93,6 @@ static int afs_deliver_vl_get_entry_by_name_u(struct afs_call *call)
 	return 0;
 }
 
-static void afs_destroy_vl_get_entry_by_name_u(struct afs_call *call)
-{
-	kfree(call->ret_vldb);
-	afs_flat_call_destructor(call);
-}
-
 /*
  * VL.GetEntryByNameU operation type.
  */
@@ -118,7 +100,7 @@ static const struct afs_call_type afs_RXVLGetEntryByNameU = {
 	.name		= "VL.GetEntryByNameU",
 	.op		= afs_VL_GetEntryByNameU,
 	.deliver	= afs_deliver_vl_get_entry_by_name_u,
-	.destructor	= afs_destroy_vl_get_entry_by_name_u,
+	.destructor	= afs_flat_call_destructor,
 };
 
 /*
@@ -154,6 +136,8 @@ struct afs_vldb_entry *afs_vl_get_entry_by_name_u(struct afs_vl_cursor *vc,
 	call->key = vc->key;
 	call->ret_vldb = entry;
 	call->max_lifespan = AFS_VL_MAX_LIFESPAN;
+	call->peer = rxrpc_kernel_get_peer(vc->alist->addrs[vc->addr_index].peer);
+	call->service_id = vc->server->service_id;
 
 	/* Marshall the parameters */
 	bp = call->request;
@@ -164,8 +148,17 @@ struct afs_vldb_entry *afs_vl_get_entry_by_name_u(struct afs_vl_cursor *vc,
 		memset((void *)bp + volnamesz, 0, padsz);
 
 	trace_afs_make_vl_call(call);
-	afs_make_call(&vc->ac, call, GFP_KERNEL);
-	return (struct afs_vldb_entry *)afs_wait_for_call_to_complete(call, &vc->ac);
+	afs_make_call(call, GFP_KERNEL);
+	afs_wait_for_call_to_complete(call);
+	vc->call_abort_code	= call->abort_code;
+	vc->call_error		= call->error;
+	vc->call_responded	= call->responded;
+	afs_put_call(call);
+	if (vc->call_error) {
+		kfree(entry);
+		return ERR_PTR(vc->call_error);
+	}
+	return entry;
 }
 
 /*
@@ -185,7 +178,7 @@ static int afs_deliver_vl_get_addrs_u(struct afs_call *call)
 	int i, ret;
 
 	_enter("{%u,%zu/%u}",
-	       call->unmarshall, iov_iter_count(call->_iter), call->count);
+	       call->unmarshall, iov_iter_count(call->iter), call->count);
 
 	switch (call->unmarshall) {
 	case 0:
@@ -195,7 +188,7 @@ static int afs_deliver_vl_get_addrs_u(struct afs_call *call)
 
 		/* Extract the returned uuid, uniquifier, nentries and
 		 * blkaddrs size */
-		/* Fall through */
+		fallthrough;
 	case 1:
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
@@ -207,7 +200,7 @@ static int afs_deliver_vl_get_addrs_u(struct afs_call *call)
 		count		= ntohl(*bp);
 
 		nentries = min(nentries, count);
-		alist = afs_alloc_addrlist(nentries, FS_SERVICE, AFS_FS_PORT);
+		alist = afs_alloc_addrlist(nentries);
 		if (!alist)
 			return -ENOMEM;
 		alist->version = uniquifier;
@@ -220,7 +213,7 @@ static int afs_deliver_vl_get_addrs_u(struct afs_call *call)
 		count = min(call->count, 4U);
 		afs_extract_to_buf(call, count * sizeof(__be32));
 
-		/* Fall through - and extract entries */
+		fallthrough;	/* and extract entries */
 	case 2:
 		ret = afs_extract_data(call, call->count > 4);
 		if (ret < 0)
@@ -229,9 +222,13 @@ static int afs_deliver_vl_get_addrs_u(struct afs_call *call)
 		alist = call->ret_alist;
 		bp = call->buffer;
 		count = min(call->count, 4U);
-		for (i = 0; i < count; i++)
-			if (alist->nr_addrs < call->count2)
-				afs_merge_fs_addr4(alist, *bp++, AFS_FS_PORT);
+		for (i = 0; i < count; i++) {
+			if (alist->nr_addrs < call->count2) {
+				ret = afs_merge_fs_addr4(call->net, alist, *bp++, AFS_FS_PORT);
+				if (ret < 0)
+					return ret;
+			}
+		}
 
 		call->count -= count;
 		if (call->count > 0)
@@ -244,12 +241,6 @@ static int afs_deliver_vl_get_addrs_u(struct afs_call *call)
 	return 0;
 }
 
-static void afs_vl_get_addrs_u_destructor(struct afs_call *call)
-{
-	afs_put_addrlist(call->ret_alist);
-	return afs_flat_call_destructor(call);
-}
-
 /*
  * VL.GetAddrsU operation type.
  */
@@ -257,7 +248,7 @@ static const struct afs_call_type afs_RXVLGetAddrsU = {
 	.name		= "VL.GetAddrsU",
 	.op		= afs_VL_GetAddrsU,
 	.deliver	= afs_deliver_vl_get_addrs_u,
-	.destructor	= afs_vl_get_addrs_u_destructor,
+	.destructor	= afs_flat_call_destructor,
 };
 
 /*
@@ -268,6 +259,7 @@ struct afs_addr_list *afs_vl_get_addrs_u(struct afs_vl_cursor *vc,
 					 const uuid_t *uuid)
 {
 	struct afs_ListAddrByAttributes__xdr *r;
+	struct afs_addr_list *alist;
 	const struct afs_uuid *u = (const struct afs_uuid *)uuid;
 	struct afs_call *call;
 	struct afs_net *net = vc->cell->net;
@@ -285,6 +277,8 @@ struct afs_addr_list *afs_vl_get_addrs_u(struct afs_vl_cursor *vc,
 	call->key = vc->key;
 	call->ret_alist = NULL;
 	call->max_lifespan = AFS_VL_MAX_LIFESPAN;
+	call->peer = rxrpc_kernel_get_peer(vc->alist->addrs[vc->addr_index].peer);
+	call->service_id = vc->server->service_id;
 
 	/* Marshall the parameters */
 	bp = call->request;
@@ -303,8 +297,18 @@ struct afs_addr_list *afs_vl_get_addrs_u(struct afs_vl_cursor *vc,
 		r->uuid.node[i] = htonl(u->node[i]);
 
 	trace_afs_make_vl_call(call);
-	afs_make_call(&vc->ac, call, GFP_KERNEL);
-	return (struct afs_addr_list *)afs_wait_for_call_to_complete(call, &vc->ac);
+	afs_make_call(call, GFP_KERNEL);
+	afs_wait_for_call_to_complete(call);
+	vc->call_abort_code	= call->abort_code;
+	vc->call_error		= call->error;
+	vc->call_responded	= call->responded;
+	alist			= call->ret_alist;
+	afs_put_call(call);
+	if (vc->call_error) {
+		afs_put_addrlist(alist, afs_alist_trace_put_getaddru);
+		return ERR_PTR(vc->call_error);
+	}
+	return alist;
 }
 
 /*
@@ -316,14 +320,14 @@ static int afs_deliver_vl_get_capabilities(struct afs_call *call)
 	int ret;
 
 	_enter("{%u,%zu/%u}",
-	       call->unmarshall, iov_iter_count(call->_iter), call->count);
+	       call->unmarshall, iov_iter_count(call->iter), call->count);
 
 	switch (call->unmarshall) {
 	case 0:
 		afs_extract_to_tmp(call);
 		call->unmarshall++;
 
-		/* Fall through - and extract the capabilities word count */
+		fallthrough;	/* and extract the capabilities word count */
 	case 1:
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
@@ -336,7 +340,7 @@ static int afs_deliver_vl_get_capabilities(struct afs_call *call)
 		call->unmarshall++;
 		afs_extract_discard(call, count * sizeof(__be32));
 
-		/* Fall through - and extract capabilities words */
+		fallthrough;	/* and extract capabilities words */
 	case 2:
 		ret = afs_extract_data(call, false);
 		if (ret < 0)
@@ -354,6 +358,7 @@ static int afs_deliver_vl_get_capabilities(struct afs_call *call)
 
 static void afs_destroy_vl_get_capabilities(struct afs_call *call)
 {
+	afs_put_addrlist(call->vl_probe, afs_alist_trace_put_vlgetcaps);
 	afs_put_vlserver(call->net, call->vlserver);
 	afs_flat_call_destructor(call);
 }
@@ -377,7 +382,8 @@ static const struct afs_call_type afs_RXVLGetCapabilities = {
  * other end supports.
  */
 struct afs_call *afs_vl_get_capabilities(struct afs_net *net,
-					 struct afs_addr_cursor *ac,
+					 struct afs_addr_list *alist,
+					 unsigned int addr_index,
 					 struct key *key,
 					 struct afs_vlserver *server,
 					 unsigned int server_index)
@@ -394,6 +400,10 @@ struct afs_call *afs_vl_get_capabilities(struct afs_net *net,
 	call->key = key;
 	call->vlserver = afs_get_vlserver(server);
 	call->server_index = server_index;
+	call->peer = rxrpc_kernel_get_peer(alist->addrs[addr_index].peer);
+	call->vl_probe = afs_get_addrlist(alist, afs_alist_trace_get_vlgetcaps);
+	call->probe_index = addr_index;
+	call->service_id = server->service_id;
 	call->upgrade = true;
 	call->async = true;
 	call->max_lifespan = AFS_PROBE_MAX_LIFESPAN;
@@ -404,7 +414,7 @@ struct afs_call *afs_vl_get_capabilities(struct afs_net *net,
 
 	/* Can't take a ref on server */
 	trace_afs_make_vl_call(call);
-	afs_make_call(ac, call, GFP_KERNEL);
+	afs_make_call(call, GFP_KERNEL);
 	return call;
 }
 
@@ -425,7 +435,7 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 	int ret;
 
 	_enter("{%u,%zu,%u}",
-	       call->unmarshall, iov_iter_count(call->_iter), call->count2);
+	       call->unmarshall, iov_iter_count(call->iter), call->count2);
 
 	switch (call->unmarshall) {
 	case 0:
@@ -435,7 +445,7 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 		/* Extract the returned uuid, uniquifier, fsEndpoints count and
 		 * either the first fsEndpoint type or the volEndpoints
 		 * count if there are no fsEndpoints. */
-		/* Fall through */
+		fallthrough;
 	case 1:
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
@@ -447,10 +457,9 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 		call->count2	= ntohl(*bp); /* Type or next count */
 
 		if (call->count > YFS_MAXENDPOINTS)
-			return afs_protocol_error(call, -EBADMSG,
-						  afs_eproto_yvl_fsendpt_num);
+			return afs_protocol_error(call, afs_eproto_yvl_fsendpt_num);
 
-		alist = afs_alloc_addrlist(call->count, FS_SERVICE, AFS_FS_PORT);
+		alist = afs_alloc_addrlist(call->count);
 		if (!alist)
 			return -ENOMEM;
 		alist->version = uniquifier;
@@ -468,15 +477,14 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 			size = sizeof(__be32) * (1 + 4 + 1);
 			break;
 		default:
-			return afs_protocol_error(call, -EBADMSG,
-						  afs_eproto_yvl_fsendpt_type);
+			return afs_protocol_error(call, afs_eproto_yvl_fsendpt_type);
 		}
 
 		size += sizeof(__be32);
 		afs_extract_to_buf(call, size);
 		call->unmarshall = 2;
 
-		/* Fall through - and extract fsEndpoints[] entries */
+		fallthrough;	/* and extract fsEndpoints[] entries */
 	case 2:
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
@@ -487,21 +495,24 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 		switch (call->count2) {
 		case YFS_ENDPOINT_IPV4:
 			if (ntohl(bp[0]) != sizeof(__be32) * 2)
-				return afs_protocol_error(call, -EBADMSG,
-							  afs_eproto_yvl_fsendpt4_len);
-			afs_merge_fs_addr4(alist, bp[1], ntohl(bp[2]));
+				return afs_protocol_error(
+					call, afs_eproto_yvl_fsendpt4_len);
+			ret = afs_merge_fs_addr4(call->net, alist, bp[1], ntohl(bp[2]));
+			if (ret < 0)
+				return ret;
 			bp += 3;
 			break;
 		case YFS_ENDPOINT_IPV6:
 			if (ntohl(bp[0]) != sizeof(__be32) * 5)
-				return afs_protocol_error(call, -EBADMSG,
-							  afs_eproto_yvl_fsendpt6_len);
-			afs_merge_fs_addr6(alist, bp + 1, ntohl(bp[5]));
+				return afs_protocol_error(
+					call, afs_eproto_yvl_fsendpt6_len);
+			ret = afs_merge_fs_addr6(call->net, alist, bp + 1, ntohl(bp[5]));
+			if (ret < 0)
+				return ret;
 			bp += 6;
 			break;
 		default:
-			return afs_protocol_error(call, -EBADMSG,
-						  afs_eproto_yvl_fsendpt_type);
+			return afs_protocol_error(call, afs_eproto_yvl_fsendpt_type);
 		}
 
 		/* Got either the type of the next entry or the count of
@@ -519,8 +530,7 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 		if (!call->count)
 			goto end;
 		if (call->count > YFS_MAXENDPOINTS)
-			return afs_protocol_error(call, -EBADMSG,
-						  afs_eproto_yvl_vlendpt_type);
+			return afs_protocol_error(call, afs_eproto_yvl_vlendpt_type);
 
 		afs_extract_to_buf(call, 1 * sizeof(__be32));
 		call->unmarshall = 3;
@@ -529,7 +539,7 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 		 * extract the type of the next endpoint when we extract the
 		 * data of the current one, but this is the first...
 		 */
-		/* Fall through */
+		fallthrough;
 	case 3:
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
@@ -547,8 +557,7 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 			size = sizeof(__be32) * (1 + 4 + 1);
 			break;
 		default:
-			return afs_protocol_error(call, -EBADMSG,
-						  afs_eproto_yvl_vlendpt_type);
+			return afs_protocol_error(call, afs_eproto_yvl_vlendpt_type);
 		}
 
 		if (call->count > 1)
@@ -556,7 +565,7 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 		afs_extract_to_buf(call, size);
 		call->unmarshall = 4;
 
-		/* Fall through - and extract volEndpoints[] entries */
+		fallthrough;	/* and extract volEndpoints[] entries */
 	case 4:
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
@@ -566,19 +575,18 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 		switch (call->count2) {
 		case YFS_ENDPOINT_IPV4:
 			if (ntohl(bp[0]) != sizeof(__be32) * 2)
-				return afs_protocol_error(call, -EBADMSG,
-							  afs_eproto_yvl_vlendpt4_len);
+				return afs_protocol_error(
+					call, afs_eproto_yvl_vlendpt4_len);
 			bp += 3;
 			break;
 		case YFS_ENDPOINT_IPV6:
 			if (ntohl(bp[0]) != sizeof(__be32) * 5)
-				return afs_protocol_error(call, -EBADMSG,
-							  afs_eproto_yvl_vlendpt6_len);
+				return afs_protocol_error(
+					call, afs_eproto_yvl_vlendpt6_len);
 			bp += 6;
 			break;
 		default:
-			return afs_protocol_error(call, -EBADMSG,
-						  afs_eproto_yvl_vlendpt_type);
+			return afs_protocol_error(call, afs_eproto_yvl_vlendpt_type);
 		}
 
 		/* Got either the type of the next entry or the count of
@@ -592,12 +600,13 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 		afs_extract_discard(call, 0);
 		call->unmarshall = 5;
 
-		/* Fall through - Done */
+		fallthrough;	/* Done */
 	case 5:
 		ret = afs_extract_data(call, false);
 		if (ret < 0)
 			return ret;
 		call->unmarshall = 6;
+		fallthrough;
 
 	case 6:
 		break;
@@ -614,7 +623,7 @@ static const struct afs_call_type afs_YFSVLGetEndpoints = {
 	.name		= "YFSVL.GetEndpoints",
 	.op		= afs_YFSVL_GetEndpoints,
 	.deliver	= afs_deliver_yfsvl_get_endpoints,
-	.destructor	= afs_vl_get_addrs_u_destructor,
+	.destructor	= afs_flat_call_destructor,
 };
 
 /*
@@ -624,6 +633,7 @@ static const struct afs_call_type afs_YFSVLGetEndpoints = {
 struct afs_addr_list *afs_yfsvl_get_endpoints(struct afs_vl_cursor *vc,
 					      const uuid_t *uuid)
 {
+	struct afs_addr_list *alist;
 	struct afs_call *call;
 	struct afs_net *net = vc->cell->net;
 	__be32 *bp;
@@ -639,6 +649,8 @@ struct afs_addr_list *afs_yfsvl_get_endpoints(struct afs_vl_cursor *vc,
 	call->key = vc->key;
 	call->ret_alist = NULL;
 	call->max_lifespan = AFS_VL_MAX_LIFESPAN;
+	call->peer = rxrpc_kernel_get_peer(vc->alist->addrs[vc->addr_index].peer);
+	call->service_id = vc->server->service_id;
 
 	/* Marshall the parameters */
 	bp = call->request;
@@ -647,6 +659,134 @@ struct afs_addr_list *afs_yfsvl_get_endpoints(struct afs_vl_cursor *vc,
 	memcpy(bp, uuid, sizeof(*uuid)); /* Type opr_uuid */
 
 	trace_afs_make_vl_call(call);
-	afs_make_call(&vc->ac, call, GFP_KERNEL);
-	return (struct afs_addr_list *)afs_wait_for_call_to_complete(call, &vc->ac);
+	afs_make_call(call, GFP_KERNEL);
+	afs_wait_for_call_to_complete(call);
+	vc->call_abort_code	= call->abort_code;
+	vc->call_error		= call->error;
+	vc->call_responded	= call->responded;
+	alist			= call->ret_alist;
+	afs_put_call(call);
+	if (vc->call_error) {
+		afs_put_addrlist(alist, afs_alist_trace_put_getaddru);
+		return ERR_PTR(vc->call_error);
+	}
+	return alist;
+}
+
+/*
+ * Deliver reply data to a YFSVL.GetCellName operation.
+ */
+static int afs_deliver_yfsvl_get_cell_name(struct afs_call *call)
+{
+	char *cell_name;
+	u32 namesz, paddedsz;
+	int ret;
+
+	_enter("{%u,%zu/%u}",
+	       call->unmarshall, iov_iter_count(call->iter), call->count);
+
+	switch (call->unmarshall) {
+	case 0:
+		afs_extract_to_tmp(call);
+		call->unmarshall++;
+
+		fallthrough;	/* and extract the cell name length */
+	case 1:
+		ret = afs_extract_data(call, true);
+		if (ret < 0)
+			return ret;
+
+		namesz = ntohl(call->tmp);
+		if (namesz > AFS_MAXCELLNAME)
+			return afs_protocol_error(call, afs_eproto_cellname_len);
+		paddedsz = (namesz + 3) & ~3;
+		call->count = namesz;
+		call->count2 = paddedsz - namesz;
+
+		cell_name = kmalloc(namesz + 1, GFP_KERNEL);
+		if (!cell_name)
+			return -ENOMEM;
+		cell_name[namesz] = 0;
+		call->ret_str = cell_name;
+
+		afs_extract_begin(call, cell_name, namesz);
+		call->unmarshall++;
+
+		fallthrough;	/* and extract cell name */
+	case 2:
+		ret = afs_extract_data(call, true);
+		if (ret < 0)
+			return ret;
+
+		afs_extract_discard(call, call->count2);
+		call->unmarshall++;
+
+		fallthrough;	/* and extract padding */
+	case 3:
+		ret = afs_extract_data(call, false);
+		if (ret < 0)
+			return ret;
+
+		call->unmarshall++;
+		break;
+	}
+
+	_leave(" = 0 [done]");
+	return 0;
+}
+
+/*
+ * VL.GetCapabilities operation type
+ */
+static const struct afs_call_type afs_YFSVLGetCellName = {
+	.name		= "YFSVL.GetCellName",
+	.op		= afs_YFSVL_GetCellName,
+	.deliver	= afs_deliver_yfsvl_get_cell_name,
+	.destructor	= afs_flat_call_destructor,
+};
+
+/*
+ * Probe a volume server for the capabilities that it supports.  This can
+ * return up to 196 words.
+ *
+ * We use this to probe for service upgrade to determine what the server at the
+ * other end supports.
+ */
+char *afs_yfsvl_get_cell_name(struct afs_vl_cursor *vc)
+{
+	struct afs_call *call;
+	struct afs_net *net = vc->cell->net;
+	__be32 *bp;
+	char *cellname;
+
+	_enter("");
+
+	call = afs_alloc_flat_call(net, &afs_YFSVLGetCellName, 1 * 4, 0);
+	if (!call)
+		return ERR_PTR(-ENOMEM);
+
+	call->key = vc->key;
+	call->ret_str = NULL;
+	call->max_lifespan = AFS_VL_MAX_LIFESPAN;
+	call->peer = rxrpc_kernel_get_peer(vc->alist->addrs[vc->addr_index].peer);
+	call->service_id = vc->server->service_id;
+
+	/* marshall the parameters */
+	bp = call->request;
+	*bp++ = htonl(YVLGETCELLNAME);
+
+	/* Can't take a ref on server */
+	trace_afs_make_vl_call(call);
+	afs_make_call(call, GFP_KERNEL);
+	afs_wait_for_call_to_complete(call);
+	vc->call_abort_code	= call->abort_code;
+	vc->call_error		= call->error;
+	vc->call_responded	= call->responded;
+	cellname		= call->ret_str;
+	afs_put_call(call);
+	if (vc->call_error) {
+		kfree(cellname);
+		return ERR_PTR(vc->call_error);
+	}
+	return cellname;
 }

@@ -31,6 +31,8 @@
 #include <sys/ptrace.h>
 #include <sys/user.h>
 
+#include "helpers.h"
+
 static void sethandler(int sig, void (*handler)(int, siginfo_t *, void *),
 		       int flags)
 {
@@ -43,7 +45,18 @@ static void sethandler(int sig, void (*handler)(int, siginfo_t *, void *),
 		err(1, "sigaction");
 }
 
-static volatile sig_atomic_t sig_traps;
+static void clearhandler(int sig)
+{
+	struct sigaction sa;
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_handler = SIG_DFL;
+	sigemptyset(&sa.sa_mask);
+	if (sigaction(sig, &sa, 0))
+		err(1, "sigaction");
+}
+
+static volatile sig_atomic_t sig_traps, sig_eflags;
+sigjmp_buf jmpbuf;
 
 #ifdef __x86_64__
 # define REG_IP REG_RIP
@@ -54,21 +67,6 @@ static volatile sig_atomic_t sig_traps;
 # define WIDTH "l"
 # define INT80_CLOBBERS
 #endif
-
-static unsigned long get_eflags(void)
-{
-	unsigned long eflags;
-	asm volatile ("pushf" WIDTH "\n\tpop" WIDTH " %0" : "=rm" (eflags));
-	return eflags;
-}
-
-static void set_eflags(unsigned long eflags)
-{
-	asm volatile ("push" WIDTH " %0\n\tpopf" WIDTH
-		      : : "rm" (eflags) : "flags");
-}
-
-#define X86_EFLAGS_TF (1UL << 8)
 
 static void sigtrap(int sig, siginfo_t *info, void *ctx_void)
 {
@@ -90,6 +88,25 @@ static void sigtrap(int sig, siginfo_t *info, void *ctx_void)
 	}
 }
 
+static char const * const signames[] = {
+	[SIGSEGV] = "SIGSEGV",
+	[SIGBUS] = "SIBGUS",
+	[SIGTRAP] = "SIGTRAP",
+	[SIGILL] = "SIGILL",
+};
+
+static void print_and_longjmp(int sig, siginfo_t *si, void *ctx_void)
+{
+	ucontext_t *ctx = ctx_void;
+
+	printf("\tGot %s with RIP=%lx, TF=%ld\n", signames[sig],
+	       (unsigned long)ctx->uc_mcontext.gregs[REG_IP],
+	       (unsigned long)ctx->uc_mcontext.gregs[REG_EFL] & X86_EFLAGS_TF);
+
+	sig_eflags = (unsigned long)ctx->uc_mcontext.gregs[REG_EFL];
+	siglongjmp(jmpbuf, 1);
+}
+
 static void check_result(void)
 {
 	unsigned long new_eflags = get_eflags();
@@ -107,6 +124,22 @@ static void check_result(void)
 
 	printf("[OK]\tSurvived with TF set and %d traps\n", (int)sig_traps);
 	sig_traps = 0;
+}
+
+static void fast_syscall_no_tf(void)
+{
+	sig_traps = 0;
+	printf("[RUN]\tFast syscall with TF cleared\n");
+	fflush(stdout);  /* Force a syscall */
+	if (get_eflags() & X86_EFLAGS_TF) {
+		printf("[FAIL]\tTF is now set\n");
+		exit(1);
+	}
+	if (sig_traps) {
+		printf("[FAIL]\tGot SIGTRAP\n");
+		exit(1);
+	}
+	printf("[OK]\tNothing unexpected happened\n");
 }
 
 int main()
@@ -163,17 +196,47 @@ int main()
 	check_result();
 
 	/* Now make sure that another fast syscall doesn't set TF again. */
-	printf("[RUN]\tFast syscall with TF cleared\n");
-	fflush(stdout);  /* Force a syscall */
-	if (get_eflags() & X86_EFLAGS_TF) {
-		printf("[FAIL]\tTF is now set\n");
+	fast_syscall_no_tf();
+
+	/*
+	 * And do a forced SYSENTER to make sure that this works even if
+	 * fast syscalls don't use SYSENTER.
+	 *
+	 * Invoking SYSENTER directly breaks all the rules.  Just handle
+	 * the SIGSEGV.
+	 */
+	if (sigsetjmp(jmpbuf, 1) == 0) {
+		unsigned long nr = SYS_getpid;
+		printf("[RUN]\tSet TF and check SYSENTER\n");
+		stack_t stack = {
+			.ss_sp = malloc(sizeof(char) * SIGSTKSZ),
+			.ss_size = SIGSTKSZ,
+		};
+		if (sigaltstack(&stack, NULL) != 0)
+			err(1, "sigaltstack");
+		sethandler(SIGSEGV, print_and_longjmp,
+			   SA_RESETHAND | SA_ONSTACK);
+		sethandler(SIGILL, print_and_longjmp, SA_RESETHAND);
+		set_eflags(get_eflags() | X86_EFLAGS_TF);
+		free(stack.ss_sp);
+		/* Clear EBP first to make sure we segfault cleanly. */
+		asm volatile ("xorl %%ebp, %%ebp; SYSENTER" : "+a" (nr) :: "flags", "rcx"
+#ifdef __x86_64__
+				, "r11"
+#endif
+			);
+
+		/* We're unreachable here.  SYSENTER forgets RIP. */
+	}
+	clearhandler(SIGSEGV);
+	clearhandler(SIGILL);
+	if (!(sig_eflags & X86_EFLAGS_TF)) {
+		printf("[FAIL]\tTF was cleared\n");
 		exit(1);
 	}
-	if (sig_traps) {
-		printf("[FAIL]\tGot SIGTRAP\n");
-		exit(1);
-	}
-	printf("[OK]\tNothing unexpected happened\n");
+
+	/* Now make sure that another fast syscall doesn't set TF again. */
+	fast_syscall_no_tf();
 
 	return 0;
 }

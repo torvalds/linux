@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Device Tree file for the Kontron SMARC-sAL28 board.
+ *
+ * This is for the network variant 1 which has one ethernet port. It is
+ * different than the base variant, which also has one port, but here the
+ * port is connected via RGMII. This port is not TSN aware.
+ * None of the  four SerDes lanes are used by the module, instead they are
+ * all led out to the carrier for customer use.
+ *
+ * Copyright (C) 2021 Michael Walle <michael@walle.cc>
+ *
+ */
+
+/dts-v1/;
+#include "fsl-ls1028a-kontron-sl28.dts"
+#include <dt-bindings/net/qca-ar803x.h>
+
+/ {
+	model = "Kontron SMARC-sAL28 (4 Lanes)";
+	compatible = "kontron,sl28-var1", "kontron,sl28", "fsl,ls1028a";
+};
+
+&enetc_mdio_pf3 {
+	/* Delete unused phy node */
+	/delete-node/ ethernet-phy@5;
+
+	phy0: ethernet-phy@4 {
+		reg = <0x4>;
+		eee-broken-1000t;
+		eee-broken-100tx;
+		qca,clk-out-frequency = <125000000>;
+		qca,clk-out-strength = <AR803X_STRENGTH_FULL>;
+		qca,keep-pll-enabled;
+		vddio-supply = <&vddio>;
+
+		vddio: vddio-regulator {
+			regulator-name = "VDDIO";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+		};
+
+		vddh: vddh-regulator {
+			regulator-name = "VDDH";
+		};
+	};
+};
+
+&enetc_port0 {
+	status = "disabled";
+	/* Delete the phy-handle to the old phy0 label */
+	/delete-property/ phy-handle;
+};
+
+&enetc_port1 {
+	phy-handle = <&phy0>;
+	phy-mode = "rgmii-id";
+	nvmem-cells = <&base_mac_address 0>;
+	nvmem-cell-names = "mac-address";
+	status = "okay";
+};

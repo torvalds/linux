@@ -4,16 +4,25 @@
  * Private/internal definitions between modules
  *
  * Copyright 2008-2011 Freescale Semiconductor, Inc.
- * Copyright 2019 NXP
+ * Copyright 2019, 2023 NXP
  */
 
 #ifndef INTERN_H
 #define INTERN_H
 
 #include "ctrl.h"
+#include <crypto/engine.h>
 
 /* Currently comes from Kconfig param as a ^2 (driver-required) */
 #define JOBR_DEPTH (1 << CONFIG_CRYPTO_DEV_FSL_CAAM_RINGSIZE)
+
+/*
+ * Maximum size for crypto-engine software queue based on Job Ring
+ * size (JOBR_DEPTH) and a THRESHOLD (reserved for the non-crypto-API
+ * requests that are not passed through crypto-engine)
+ */
+#define THRESHOLD 15
+#define CRYPTO_ENGINE_MAX_QLEN (JOBR_DEPTH - THRESHOLD)
 
 /* Kconfig params for interrupt coalescing if selected (else zero) */
 #ifdef CONFIG_CRYPTO_DEV_FSL_CAAM_INTC
@@ -38,6 +47,16 @@ struct caam_jrentry_info {
 	u32 desc_size;	/* Stored size for postprocessing, header derived */
 };
 
+struct caam_jr_state {
+	dma_addr_t inpbusaddr;
+	dma_addr_t outbusaddr;
+};
+
+struct caam_jr_dequeue_params {
+	struct device *dev;
+	int enable_itr;
+};
+
 /* Private sub-storage for a single JobR */
 struct caam_drv_private_jr {
 	struct list_head	list_node;	/* Job Ring device list */
@@ -45,7 +64,9 @@ struct caam_drv_private_jr {
 	int ridx;
 	struct caam_job_ring __iomem *rregs;	/* JobR's register space */
 	struct tasklet_struct irqtask;
+	struct caam_jr_dequeue_params tasklet_params;
 	int irq;			/* One per queue */
+	bool hwrng;
 
 	/* Number of scatterlist crypt transforms active on the JobR */
 	atomic_t tfm_count ____cacheline_aligned;
@@ -60,6 +81,16 @@ struct caam_drv_private_jr {
 	int out_ring_read_index;	/* Output index "tail" */
 	int tail;			/* entinfo (s/w ring) tail index */
 	void *outring;			/* Base of output ring, DMA-safe */
+	struct crypto_engine *engine;
+
+	struct caam_jr_state state;	/* State of the JR during PM */
+};
+
+struct caam_ctl_state {
+	struct masterid deco_mid[16];
+	struct masterid jr_mid[4];
+	u32 mcr;
+	u32 scfgr;
 };
 
 /*
@@ -81,10 +112,10 @@ struct caam_drv_private {
 	 */
 	u8 total_jobrs;		/* Total Job Rings in device */
 	u8 qi_present;		/* Nonzero if QI present in device */
-#ifdef CONFIG_CAAM_QI
-	u8 qi_init;		/* Nonzero if QI has been initialized */
-#endif
+	u8 blob_present;	/* Nonzero if BLOB support present in device */
 	u8 mc_en;		/* Nonzero if MC f/w is active */
+	u8 optee_en;		/* Nonzero if OP-TEE f/w is active */
+	bool pr_support;        /* RNG prediction resistance available */
 	int secvio_irq;		/* Security violation interrupt number */
 	int virt_en;		/* Virtualization enabled in CAAM */
 	int era;		/* CAAM Era (internal HW revision) */
@@ -102,10 +133,12 @@ struct caam_drv_private {
 	 * variables at runtime.
 	 */
 #ifdef CONFIG_DEBUG_FS
-	struct dentry *dfs_root;
 	struct dentry *ctl; /* controller dir */
 	struct debugfs_blob_wrapper ctl_kek_wrap, ctl_tkek_wrap, ctl_tdsk_wrap;
 #endif
+
+	int caam_off_during_pm;		/* If the CAAM is reset after suspend */
+	struct caam_ctl_state state;	/* State of the CTL during PM */
 };
 
 #ifdef CONFIG_CRYPTO_DEV_FSL_CAAM_CRYPTO_API
@@ -165,7 +198,7 @@ static inline void caam_pkc_exit(void)
 #ifdef CONFIG_CRYPTO_DEV_FSL_CAAM_RNG_API
 
 int caam_rng_init(struct device *dev);
-void caam_rng_exit(void);
+void caam_rng_exit(struct device *dev);
 
 #else
 
@@ -174,11 +207,24 @@ static inline int caam_rng_init(struct device *dev)
 	return 0;
 }
 
-static inline void caam_rng_exit(void)
-{
-}
+static inline void caam_rng_exit(struct device *dev) {}
 
 #endif /* CONFIG_CRYPTO_DEV_FSL_CAAM_RNG_API */
+
+#ifdef CONFIG_CRYPTO_DEV_FSL_CAAM_PRNG_API
+
+int caam_prng_register(struct device *dev);
+void caam_prng_unregister(void *data);
+
+#else
+
+static inline int caam_prng_register(struct device *dev)
+{
+	return 0;
+}
+
+static inline void caam_prng_unregister(void *data) {}
+#endif /* CONFIG_CRYPTO_DEV_FSL_CAAM_PRNG_API */
 
 #ifdef CONFIG_CAAM_QI
 
@@ -197,23 +243,6 @@ static inline void caam_qi_algapi_exit(void)
 }
 
 #endif /* CONFIG_CAAM_QI */
-
-#ifdef CONFIG_DEBUG_FS
-static int caam_debugfs_u64_get(void *data, u64 *val)
-{
-	*val = caam64_to_cpu(*(u64 *)data);
-	return 0;
-}
-
-static int caam_debugfs_u32_get(void *data, u64 *val)
-{
-	*val = caam32_to_cpu(*(u32 *)data);
-	return 0;
-}
-
-DEFINE_SIMPLE_ATTRIBUTE(caam_fops_u32_ro, caam_debugfs_u32_get, NULL, "%llu\n");
-DEFINE_SIMPLE_ATTRIBUTE(caam_fops_u64_ro, caam_debugfs_u64_get, NULL, "%llu\n");
-#endif
 
 static inline u64 caam_get_dma_mask(struct device *dev)
 {

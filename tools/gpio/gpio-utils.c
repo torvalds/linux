@@ -17,10 +17,10 @@
 #include <linux/gpio.h>
 #include "gpio-utils.h"
 
-#define COMSUMER "gpio-utils"
+#define CONSUMER "gpio-utils"
 
 /**
- * doc: Operation of gpio
+ * DOC: Operation of gpio
  *
  * Provide the api of gpiochip for chardev interface. There are two
  * types of api.  The first one provide as same function as each
@@ -32,35 +32,34 @@
  * following api will request gpio lines, do the operation and then
  * release these lines.
  */
+
 /**
- * gpiotools_request_linehandle() - request gpio lines in a gpiochip
+ * gpiotools_request_line() - request gpio lines in a gpiochip
  * @device_name:	The name of gpiochip without prefix "/dev/",
  *			such as "gpiochip0"
  * @lines:		An array desired lines, specified by offset
  *			index for the associated GPIO device.
- * @nline:		The number of lines to request.
- * @flag:		The new flag for requsted gpio. Reference
- *			"linux/gpio.h" for the meaning of flag.
- * @data:		Default value will be set to gpio when flag is
- *			GPIOHANDLE_REQUEST_OUTPUT.
- * @consumer_label:	The name of consumer, such as "sysfs",
+ * @num_lines:		The number of lines to request.
+ * @config:		The new config for requested gpio. Reference
+ *			"linux/gpio.h" for config details.
+ * @consumer:		The name of consumer, such as "sysfs",
  *			"powerkey". This is useful for other users to
  *			know who is using.
  *
  * Request gpio lines through the ioctl provided by chardev. User
  * could call gpiotools_set_values() and gpiotools_get_values() to
  * read and write respectively through the returned fd. Call
- * gpiotools_release_linehandle() to release these lines after that.
+ * gpiotools_release_line() to release these lines after that.
  *
  * Return:		On success return the fd;
  *			On failure return the errno.
  */
-int gpiotools_request_linehandle(const char *device_name, unsigned int *lines,
-				 unsigned int nlines, unsigned int flag,
-				 struct gpiohandle_data *data,
-				 const char *consumer_label)
+int gpiotools_request_line(const char *device_name, unsigned int *lines,
+			   unsigned int num_lines,
+			   struct gpio_v2_line_config *config,
+			   const char *consumer)
 {
-	struct gpiohandle_request req;
+	struct gpio_v2_line_request req;
 	char *chrdev_name;
 	int fd;
 	int i;
@@ -75,45 +74,45 @@ int gpiotools_request_linehandle(const char *device_name, unsigned int *lines,
 		ret = -errno;
 		fprintf(stderr, "Failed to open %s, %s\n",
 			chrdev_name, strerror(errno));
-		goto exit_close_error;
+		goto exit_free_name;
 	}
 
-	for (i = 0; i < nlines; i++)
-		req.lineoffsets[i] = lines[i];
+	memset(&req, 0, sizeof(req));
+	for (i = 0; i < num_lines; i++)
+		req.offsets[i] = lines[i];
 
-	req.flags = flag;
-	strcpy(req.consumer_label, consumer_label);
-	req.lines = nlines;
-	if (flag & GPIOHANDLE_REQUEST_OUTPUT)
-		memcpy(req.default_values, data, sizeof(req.default_values));
+	req.config = *config;
+	strcpy(req.consumer, consumer);
+	req.num_lines = num_lines;
 
-	ret = ioctl(fd, GPIO_GET_LINEHANDLE_IOCTL, &req);
+	ret = ioctl(fd, GPIO_V2_GET_LINE_IOCTL, &req);
 	if (ret == -1) {
 		ret = -errno;
 		fprintf(stderr, "Failed to issue %s (%d), %s\n",
-			"GPIO_GET_LINEHANDLE_IOCTL", ret, strerror(errno));
+			"GPIO_GET_LINE_IOCTL", ret, strerror(errno));
 	}
 
-exit_close_error:
 	if (close(fd) == -1)
 		perror("Failed to close GPIO character device file");
+exit_free_name:
 	free(chrdev_name);
 	return ret < 0 ? ret : req.fd;
 }
+
 /**
- * gpiotools_set_values(): Set the value of gpio(s)
+ * gpiotools_set_values() - Set the value of gpio(s)
  * @fd:			The fd returned by
- *			gpiotools_request_linehandle().
- * @data:		The array of values want to set.
+ *			gpiotools_request_line().
+ * @values:		The array of values want to set.
  *
  * Return:		On success return 0;
  *			On failure return the errno.
  */
-int gpiotools_set_values(const int fd, struct gpiohandle_data *data)
+int gpiotools_set_values(const int fd, struct gpio_v2_line_values *values)
 {
 	int ret;
 
-	ret = ioctl(fd, GPIOHANDLE_SET_LINE_VALUES_IOCTL, data);
+	ret = ioctl(fd, GPIO_V2_LINE_SET_VALUES_IOCTL, values);
 	if (ret == -1) {
 		ret = -errno;
 		fprintf(stderr, "Failed to issue %s (%d), %s\n",
@@ -125,19 +124,19 @@ int gpiotools_set_values(const int fd, struct gpiohandle_data *data)
 }
 
 /**
- * gpiotools_get_values(): Get the value of gpio(s)
+ * gpiotools_get_values() - Get the value of gpio(s)
  * @fd:			The fd returned by
- *			gpiotools_request_linehandle().
- * @data:		The array of values get from hardware.
+ *			gpiotools_request_line().
+ * @values:		The array of values get from hardware.
  *
  * Return:		On success return 0;
  *			On failure return the errno.
  */
-int gpiotools_get_values(const int fd, struct gpiohandle_data *data)
+int gpiotools_get_values(const int fd, struct gpio_v2_line_values *values)
 {
 	int ret;
 
-	ret = ioctl(fd, GPIOHANDLE_GET_LINE_VALUES_IOCTL, data);
+	ret = ioctl(fd, GPIO_V2_LINE_GET_VALUES_IOCTL, values);
 	if (ret == -1) {
 		ret = -errno;
 		fprintf(stderr, "Failed to issue %s (%d), %s\n",
@@ -149,20 +148,20 @@ int gpiotools_get_values(const int fd, struct gpiohandle_data *data)
 }
 
 /**
- * gpiotools_release_linehandle(): Release the line(s) of gpiochip
+ * gpiotools_release_line() - Release the line(s) of gpiochip
  * @fd:			The fd returned by
- *			gpiotools_request_linehandle().
+ *			gpiotools_request_line().
  *
  * Return:		On success return 0;
  *			On failure return the errno.
  */
-int gpiotools_release_linehandle(const int fd)
+int gpiotools_release_line(const int fd)
 {
 	int ret;
 
 	ret = close(fd);
 	if (ret == -1) {
-		perror("Failed to close GPIO LINEHANDLE device file");
+		perror("Failed to close GPIO LINE device file");
 		ret = -errno;
 	}
 
@@ -170,7 +169,7 @@ int gpiotools_release_linehandle(const int fd)
 }
 
 /**
- * gpiotools_get(): Get value from specific line
+ * gpiotools_get() - Get value from specific line
  * @device_name:	The name of gpiochip without prefix "/dev/",
  *			such as "gpiochip0"
  * @line:		number of line, such as 2.
@@ -180,47 +179,58 @@ int gpiotools_release_linehandle(const int fd)
  */
 int gpiotools_get(const char *device_name, unsigned int line)
 {
-	struct gpiohandle_data data;
+	int ret;
+	unsigned int value;
 	unsigned int lines[] = {line};
 
-	gpiotools_gets(device_name, lines, 1, &data);
-	return data.values[0];
+	ret = gpiotools_gets(device_name, lines, 1, &value);
+	if (ret)
+		return ret;
+	return value;
 }
 
 
 /**
- * gpiotools_gets(): Get values from specific lines.
+ * gpiotools_gets() - Get values from specific lines.
  * @device_name:	The name of gpiochip without prefix "/dev/",
  *			such as "gpiochip0".
  * @lines:		An array desired lines, specified by offset
  *			index for the associated GPIO device.
- * @nline:		The number of lines to request.
- * @data:		The array of values get from gpiochip.
+ * @num_lines:		The number of lines to request.
+ * @values:		The array of values get from gpiochip.
  *
  * Return:		On success return 0;
  *			On failure return the errno.
  */
 int gpiotools_gets(const char *device_name, unsigned int *lines,
-		   unsigned int nlines, struct gpiohandle_data *data)
+		   unsigned int num_lines, unsigned int *values)
 {
-	int fd;
+	int fd, i;
 	int ret;
 	int ret_close;
+	struct gpio_v2_line_config config;
+	struct gpio_v2_line_values lv;
 
-	ret = gpiotools_request_linehandle(device_name, lines, nlines,
-					   GPIOHANDLE_REQUEST_INPUT, data,
-					   COMSUMER);
+	memset(&config, 0, sizeof(config));
+	config.flags = GPIO_V2_LINE_FLAG_INPUT;
+	ret = gpiotools_request_line(device_name, lines, num_lines,
+				     &config, CONSUMER);
 	if (ret < 0)
 		return ret;
 
 	fd = ret;
-	ret = gpiotools_get_values(fd, data);
-	ret_close = gpiotools_release_linehandle(fd);
+	for (i = 0; i < num_lines; i++)
+		gpiotools_set_bit(&lv.mask, i);
+	ret = gpiotools_get_values(fd, &lv);
+	if (!ret)
+		for (i = 0; i < num_lines; i++)
+			values[i] = gpiotools_test_bit(lv.bits, i);
+	ret_close = gpiotools_release_line(fd);
 	return ret < 0 ? ret : ret_close;
 }
 
 /**
- * gpiotools_set(): Set value to specific line
+ * gpiotools_set() - Set value to specific line
  * @device_name:	The name of gpiochip without prefix "/dev/",
  *			such as "gpiochip0"
  * @line:		number of line, such as 2.
@@ -232,36 +242,43 @@ int gpiotools_gets(const char *device_name, unsigned int *lines,
 int gpiotools_set(const char *device_name, unsigned int line,
 		  unsigned int value)
 {
-	struct gpiohandle_data data;
 	unsigned int lines[] = {line};
 
-	data.values[0] = value;
-	return gpiotools_sets(device_name, lines, 1, &data);
+	return gpiotools_sets(device_name, lines, 1, &value);
 }
 
 /**
- * gpiotools_sets(): Set values to specific lines.
+ * gpiotools_sets() - Set values to specific lines.
  * @device_name:	The name of gpiochip without prefix "/dev/",
  *			such as "gpiochip0".
  * @lines:		An array desired lines, specified by offset
  *			index for the associated GPIO device.
- * @nline:		The number of lines to request.
- * @data:		The array of values set to gpiochip, must be
+ * @num_lines:		The number of lines to request.
+ * @values:		The array of values set to gpiochip, must be
  *			0(low) or 1(high).
  *
  * Return:		On success return 0;
  *			On failure return the errno.
  */
 int gpiotools_sets(const char *device_name, unsigned int *lines,
-		   unsigned int nlines, struct gpiohandle_data *data)
+		   unsigned int num_lines, unsigned int *values)
 {
-	int ret;
+	int ret, i;
+	struct gpio_v2_line_config config;
 
-	ret = gpiotools_request_linehandle(device_name, lines, nlines,
-					   GPIOHANDLE_REQUEST_OUTPUT, data,
-					   COMSUMER);
+	memset(&config, 0, sizeof(config));
+	config.flags = GPIO_V2_LINE_FLAG_OUTPUT;
+	config.num_attrs = 1;
+	config.attrs[0].attr.id = GPIO_V2_LINE_ATTR_ID_OUTPUT_VALUES;
+	for (i = 0; i < num_lines; i++) {
+		gpiotools_set_bit(&config.attrs[0].mask, i);
+		gpiotools_assign_bit(&config.attrs[0].attr.values,
+				     i, values[i]);
+	}
+	ret = gpiotools_request_line(device_name, lines, num_lines,
+				     &config, CONSUMER);
 	if (ret < 0)
 		return ret;
 
-	return gpiotools_release_linehandle(ret);
+	return gpiotools_release_line(ret);
 }

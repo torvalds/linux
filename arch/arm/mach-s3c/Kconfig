@@ -1,0 +1,144 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# Copyright 2009 Simtec Electronics
+
+source "arch/arm/mach-s3c/Kconfig.s3c64xx"
+
+config PLAT_SAMSUNG
+	def_bool ARCH_S3C64XX
+	select GENERIC_IRQ_CHIP
+	select NO_IOPORT_MAP
+	select SOC_SAMSUNG
+	help
+	  Base platform code for all Samsung SoC based systems
+
+config SAMSUNG_PM
+	def_bool ARCH_S3C64XX
+	depends on PM
+	help
+	  Base platform power management code for samsung code
+
+if PLAT_SAMSUNG
+menu "Samsung Common options"
+
+# boot configurations
+
+comment "Boot options"
+
+config S3C_LOWLEVEL_UART_PORT
+	int "S3C UART to use for low-level messages"
+	depends on ARCH_S3C64XX
+	default 0
+	help
+	  Choice of which UART port to use for the low-level messages,
+	  such as the `Uncompressing...` at start time. The value of
+	  this configuration should be between zero and two. The port
+	  must have been initialised by the boot-loader before use.
+
+config SAMSUNG_ATAGS
+	def_bool n
+	depends on ATAGS
+	help
+	  This option enables ATAGS based boot support code for
+	  Samsung platforms, including static platform devices, legacy
+	  clock, timer and interrupt initialization, etc.
+
+	  Platforms that support only DT based boot need not to select
+	  this option.
+
+if SAMSUNG_ATAGS
+
+config S3C_GPIO_SPACE
+	int "Space between gpio banks"
+	default 0
+	help
+	  Add a number of spare GPIO entries between each bank for debugging
+	  purposes. This allows any problems where an counter overflows from
+	  one bank to another to be caught, at the expense of using a little
+	  more memory.
+
+config S3C_GPIO_TRACK
+	bool
+	help
+	  Internal configuration option to enable the s3c specific gpio
+	  chip tracking if the platform requires it.
+
+# device definitions to compile in
+
+config S3C_DEV_HSMMC
+	bool
+	help
+	  Compile in platform device definitions for HSMMC code
+
+config S3C_DEV_HSMMC1
+	bool
+	help
+	  Compile in platform device definitions for HSMMC channel 1
+
+config S3C_DEV_HSMMC2
+	bool
+	help
+	  Compile in platform device definitions for HSMMC channel 2
+
+config S3C_DEV_HSMMC3
+	bool
+	help
+	  Compile in platform device definitions for HSMMC channel 3
+
+config S3C_DEV_I2C1
+	bool
+	help
+	  Compile in platform device definitions for I2C channel 1
+
+config S3C_DEV_FB
+	bool
+	help
+	  Compile in platform device definition for framebuffer
+
+config S3C_DEV_USB_HOST
+	bool
+	help
+	  Compile in platform device definition for USB host.
+
+config S3C_DEV_USB_HSOTG
+	bool
+	help
+	  Compile in platform device definition for USB high-speed OtG
+
+config S3C64XX_DEV_SPI0
+	bool
+	help
+	  Compile in platform device definitions for S3C64XX's type
+	  SPI controller 0
+
+config SAMSUNG_DEV_KEYPAD
+	bool
+	help
+	  Compile in platform device definitions for keypad
+
+config SAMSUNG_DEV_PWM
+	bool
+	help
+	  Compile in platform device definition for PWM Timer
+
+config GPIO_SAMSUNG
+	def_bool y
+
+config SAMSUNG_PM_GPIO
+	bool
+	default y if GPIO_SAMSUNG && PM
+	help
+	  Include legacy GPIO power management code for platforms not using
+	  pinctrl-samsung driver.
+endif
+
+config SAMSUNG_WAKEMASK
+	bool
+	depends on PM
+	help
+	  Compile support for wakeup-mask controls found on the S3C6400
+	  and above. This code allows a set of interrupt to wakeup-mask
+	  mappings. See <plat/wakeup-mask.h>
+
+endmenu
+endif

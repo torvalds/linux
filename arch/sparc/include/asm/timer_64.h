@@ -7,6 +7,7 @@
 #ifndef _SPARC64_TIMER_H
 #define _SPARC64_TIMER_H
 
+#include <uapi/asm/asi.h>
 #include <linux/types.h>
 #include <linux/init.h>
 
@@ -33,7 +34,6 @@ extern struct sparc64_tick_ops *tick_ops;
 
 unsigned long sparc64_get_clock_tick(unsigned int cpu);
 void setup_sparc64_timer(void);
-void __init time_init(void);
 
 #define TICK_PRIV_BIT		BIT(63)
 #define TICKCMP_IRQ_BIT		BIT(63)

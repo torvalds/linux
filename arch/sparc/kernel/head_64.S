@@ -9,16 +9,17 @@
 
 #include <linux/version.h>
 #include <linux/errno.h>
+#include <linux/export.h>
 #include <linux/threads.h>
 #include <linux/init.h>
 #include <linux/linkage.h>
+#include <linux/pgtable.h>
 #include <asm/thread_info.h>
 #include <asm/asi.h>
 #include <asm/pstate.h>
 #include <asm/ptrace.h>
 #include <asm/spitfire.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/errno.h>
 #include <asm/signal.h>
 #include <asm/processor.h>
@@ -33,7 +34,6 @@
 #include <asm/estate.h>
 #include <asm/sfafsr.h>
 #include <asm/unistd.h>
-#include <asm/export.h>
 
 /* This section from from _start to sparc64_boot_end should fit into
  * 0x0000000000404000 to 0x0000000000408000.
@@ -706,7 +706,7 @@ tlb_fixup_done:
 	wr	%g0, ASI_P, %asi
 	mov	1, %g1
 	sllx	%g1, THREAD_SHIFT, %g1
-	sub	%g1, (STACKFRAME_SZ + STACK_BIAS), %g1
+	sub	%g1, (STACKFRAME_SZ + STACK_BIAS + TRACEREG_SZ), %g1
 	add	%g6, %g1, %sp
 
 	/* Set per-cpu pointer initially to zero, this makes

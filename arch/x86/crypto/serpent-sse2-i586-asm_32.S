@@ -497,7 +497,7 @@
 	pxor t0,		x3; \
 	movdqu x3,		(3*4*4)(out);
 
-ENTRY(__serpent_enc_blk_4way)
+SYM_FUNC_START(__serpent_enc_blk_4way)
 	/* input:
 	 *	arg_ctx(%esp): ctx, CTX
 	 *	arg_dst(%esp): dst
@@ -553,15 +553,15 @@ ENTRY(__serpent_enc_blk_4way)
 
 	write_blocks(%eax, RA, RB, RC, RD, RT0, RT1, RE);
 
-	ret;
+	RET;
 
 .L__enc_xor4:
 	xor_blocks(%eax, RA, RB, RC, RD, RT0, RT1, RE);
 
-	ret;
-ENDPROC(__serpent_enc_blk_4way)
+	RET;
+SYM_FUNC_END(__serpent_enc_blk_4way)
 
-ENTRY(serpent_dec_blk_4way)
+SYM_FUNC_START(serpent_dec_blk_4way)
 	/* input:
 	 *	arg_ctx(%esp): ctx, CTX
 	 *	arg_dst(%esp): dst
@@ -612,5 +612,5 @@ ENTRY(serpent_dec_blk_4way)
 	movl arg_dst(%esp), %eax;
 	write_blocks(%eax, RC, RD, RB, RE, RT0, RT1, RA);
 
-	ret;
-ENDPROC(serpent_dec_blk_4way)
+	RET;
+SYM_FUNC_END(serpent_dec_blk_4way)

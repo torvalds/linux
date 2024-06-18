@@ -22,7 +22,7 @@
 #include <linux/binfmts.h>
 #include <linux/bitops.h>
 #include <linux/syscalls.h>
-#include <linux/tracehook.h>
+#include <linux/resume_user_mode.h>
 
 #include <linux/uaccess.h>
 #include <asm/sigcontext.h>
@@ -150,9 +150,10 @@ restore_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs)
 {
 	unsigned long usp;
 	struct switch_stack *sw = (struct switch_stack *)regs - 1;
-	long i, err = __get_user(regs->pc, &sc->sc_pc);
+	long err = __get_user(regs->pc, &sc->sc_pc);
 
 	current->restart_block.fn = do_no_restart_syscall;
+	current_thread_info()->status |= TS_SAVED_FP | TS_RESTORE_FP;
 
 	sw->r26 = (unsigned long) ret_from_sys_call;
 
@@ -189,9 +190,9 @@ restore_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs)
 	err |= __get_user(usp, sc->sc_regs+30);
 	wrusp(usp);
 
-	for (i = 0; i < 31; i++)
-		err |= __get_user(sw->fp[i], sc->sc_fpregs+i);
-	err |= __get_user(sw->fp[31], &sc->sc_fpcr);
+	err |= __copy_from_user(current_thread_info()->fp,
+				sc->sc_fpregs, 31 * 8);
+	err |= __get_user(current_thread_info()->fp[31], &sc->sc_fpcr);
 
 	return err;
 }
@@ -219,7 +220,7 @@ do_sigreturn(struct sigcontext __user *sc)
 
 	/* Send SIGTRAP if we're single-stepping: */
 	if (ptrace_cancel_bpt (current)) {
-		send_sig_fault(SIGTRAP, TRAP_BRKPT, (void __user *) regs->pc, 0,
+		send_sig_fault(SIGTRAP, TRAP_BRKPT, (void __user *) regs->pc,
 			       current);
 	}
 	return;
@@ -247,7 +248,7 @@ do_rt_sigreturn(struct rt_sigframe __user *frame)
 
 	/* Send SIGTRAP if we're single-stepping: */
 	if (ptrace_cancel_bpt (current)) {
-		send_sig_fault(SIGTRAP, TRAP_BRKPT, (void __user *) regs->pc, 0,
+		send_sig_fault(SIGTRAP, TRAP_BRKPT, (void __user *) regs->pc,
 			       current);
 	}
 	return;
@@ -272,7 +273,7 @@ setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 		 unsigned long mask, unsigned long sp)
 {
 	struct switch_stack *sw = (struct switch_stack *)regs - 1;
-	long i, err = 0;
+	long err = 0;
 
 	err |= __put_user(on_sig_stack((unsigned long)sc), &sc->sc_onstack);
 	err |= __put_user(mask, &sc->sc_mask);
@@ -312,10 +313,10 @@ setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 	err |= __put_user(sp, sc->sc_regs+30);
 	err |= __put_user(0, sc->sc_regs+31);
 
-	for (i = 0; i < 31; i++)
-		err |= __put_user(sw->fp[i], sc->sc_fpregs+i);
+	err |= __copy_to_user(sc->sc_fpregs,
+			      current_thread_info()->fp, 31 * 8);
 	err |= __put_user(0, sc->sc_fpregs+31);
-	err |= __put_user(sw->fp[31], &sc->sc_fpcr);
+	err |= __put_user(current_thread_info()->fp[31], &sc->sc_fpcr);
 
 	err |= __put_user(regs->trap_a0, &sc->sc_traparg_a0);
 	err |= __put_user(regs->trap_a1, &sc->sc_traparg_a1);
@@ -453,7 +454,7 @@ syscall_restart(unsigned long r0, unsigned long r19,
 			regs->r0 = EINTR;
 			break;
 		}
-		/* fallthrough */
+		fallthrough;
 	case ERESTARTNOINTR:
 		regs->r0 = r0;	/* reset v0 and a3 and replay syscall */
 		regs->r19 = r19;
@@ -527,15 +528,17 @@ do_work_pending(struct pt_regs *regs, unsigned long thread_flags,
 			schedule();
 		} else {
 			local_irq_enable();
-			if (thread_flags & _TIF_SIGPENDING) {
+			if (thread_flags & (_TIF_SIGPENDING|_TIF_NOTIFY_SIGNAL)) {
+				preempt_disable();
+				save_fpu();
+				preempt_enable();
 				do_signal(regs, r0, r19);
 				r0 = 0;
 			} else {
-				clear_thread_flag(TIF_NOTIFY_RESUME);
-				tracehook_notify_resume(regs);
+				resume_user_mode_work(regs);
 			}
 		}
 		local_irq_disable();
-		thread_flags = current_thread_info()->flags;
+		thread_flags = read_thread_flags();
 	} while (thread_flags & _TIF_WORK_MASK);
 }

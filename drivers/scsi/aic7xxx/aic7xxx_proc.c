@@ -97,17 +97,17 @@ ahc_format_transinfo(struct seq_file *m, struct ahc_transinfo *tinfo)
 	u_int freq;
 	u_int mb;
 
-        speed = 3300;
-        freq = 0;
+	speed = 3300;
+	freq = 0;
 	if (tinfo->offset != 0) {
 		freq = ahc_calc_syncsrate(tinfo->period);
 		speed = freq;
 	}
 	speed *= (0x01 << tinfo->width);
-        mb = speed / 1000;
-        if (mb > 0)
+	mb = speed / 1000;
+	if (mb > 0)
 		seq_printf(m, "%d.%03dMB/s transfers", mb, speed % 1000);
-        else
+	else
 		seq_printf(m, "%dKB/s transfers", speed);
 
 	if (freq != 0) {
@@ -234,7 +234,7 @@ ahc_proc_write_seeprom(struct Scsi_Host *shost, char *buffer, int length)
 	if ((ahc->chip & AHC_VL) != 0) {
 		sd.sd_control_offset = SEECTL_2840;
 		sd.sd_status_offset = STATUS_2840;
-		sd.sd_dataout_offset = STATUS_2840;		
+		sd.sd_dataout_offset = STATUS_2840;
 		sd.sd_chip = C46;
 		sd.sd_MS = 0;
 		sd.sd_RDY = EEPROM_TF;
@@ -255,7 +255,8 @@ ahc_proc_write_seeprom(struct Scsi_Host *shost, char *buffer, int length)
 		u_int start_addr;
 
 		if (ahc->seep_config == NULL) {
-			ahc->seep_config = kmalloc(sizeof(*ahc->seep_config), GFP_ATOMIC);
+			ahc->seep_config = kmalloc(sizeof(*ahc->seep_config),
+						   GFP_ATOMIC);
 			if (ahc->seep_config == NULL) {
 				printk("aic7xxx: Unable to allocate serial "
 				       "eeprom buffer.  Write failing\n");

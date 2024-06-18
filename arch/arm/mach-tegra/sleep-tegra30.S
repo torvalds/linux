@@ -59,6 +59,9 @@
 #define CLK_RESET_PLLX_MISC3_IDDQ	3
 #define CLK_RESET_PLLM_MISC_IDDQ	5
 #define CLK_RESET_PLLC_MISC_IDDQ	26
+#define CLK_RESET_PLLP_RESHIFT		0x528
+#define CLK_RESET_PLLP_RESHIFT_DEFAULT	0x3b
+#define CLK_RESET_PLLP_RESHIFT_ENABLE	0x3
 
 #define CLK_RESET_CLK_SOURCE_MSELECT	0x3b4
 
@@ -67,6 +70,15 @@
 #define LOCK_DELAY 50 /* safety delay after lock is detected */
 
 #define TEGRA30_POWER_HOTPLUG_SHUTDOWN	(1 << 27) /* Hotplug shutdown */
+
+#define PLLA_STORE_MASK			(1 << 0)
+#define PLLC_STORE_MASK			(1 << 1)
+#define PLLM_STORE_MASK			(1 << 2)
+#define PLLP_STORE_MASK			(1 << 3)
+#define PLLX_STORE_MASK			(1 << 4)
+#define PLLM_PMC_STORE_MASK		(1 << 5)
+
+.arch armv7-a
 
 .macro emc_device_mask, rd, base
 	ldr	\rd, [\base, #EMC_ADR_CFG]
@@ -84,7 +96,43 @@
 	bne	1001b
 .endm
 
-.macro pll_enable, rd, r_car_base, pll_base, pll_misc
+.macro test_pll_state, rd, test_mask
+	ldr	\rd, tegra_pll_state
+	tst	\rd, #\test_mask
+.endm
+
+.macro store_pll_state, rd, tmp, r_car_base, pll_base, pll_mask
+	ldr	\rd, [\r_car_base, #\pll_base]
+	tst	\rd, #(1 << 30)
+	ldr	\rd, tegra_pll_state
+	biceq	\rd, \rd, #\pll_mask
+	orrne	\rd, \rd, #\pll_mask
+	adr	\tmp, tegra_pll_state
+	str	\rd, [\tmp]
+.endm
+
+.macro store_pllm_pmc_state, rd, tmp, pmc_base
+	ldr	\rd, [\pmc_base, #PMC_PLLP_WB0_OVERRIDE]
+	tst	\rd, #(1 << 12)
+	ldr	\rd, tegra_pll_state
+	biceq	\rd, \rd, #PLLM_PMC_STORE_MASK
+	orrne	\rd, \rd, #PLLM_PMC_STORE_MASK
+	adr	\tmp, tegra_pll_state
+	str	\rd, [\tmp]
+.endm
+
+.macro pllm_pmc_enable, rd, pmc_base
+	test_pll_state \rd, PLLM_PMC_STORE_MASK
+
+	ldrne	\rd, [\pmc_base, #PMC_PLLP_WB0_OVERRIDE]
+	orrne	\rd, \rd, #(1 << 12)
+	strne	\rd, [\pmc_base, #PMC_PLLP_WB0_OVERRIDE]
+.endm
+
+.macro pll_enable, rd, r_car_base, pll_base, pll_misc, test_mask
+	test_pll_state \rd, \test_mask
+	beq	1f
+
 	ldr	\rd, [\r_car_base, #\pll_base]
 	tst	\rd, #(1 << 30)
 	orreq	\rd, \rd, #(1 << 30)
@@ -99,13 +147,17 @@
 	orr	\rd, \rd, #(1 << 18)
 	str	\rd, [\r_car_base, #\pll_misc]
 	.endif
+1:
 .endm
 
-.macro pll_locked, rd, r_car_base, pll_base
+.macro pll_locked, rd, r_car_base, pll_base, test_mask
+	test_pll_state \rd, \test_mask
+	beq	2f
 1:
 	ldr	\rd, [\r_car_base, #\pll_base]
 	tst	\rd, #(1 << 27)
 	beq	1b
+2:
 .endm
 
 .macro pll_iddq_exit, rd, car, iddq, iddq_bit
@@ -262,11 +314,11 @@ ENTRY(tegra30_sleep_core_finish)
 ENDPROC(tegra30_sleep_core_finish)
 
 /*
- * tegra30_sleep_cpu_secondary_finish(unsigned long v2p)
+ * tegra30_pm_secondary_cpu_suspend(unsigned long unused_arg)
  *
  * Enters LP2 on secondary CPU by exiting coherency and powergating the CPU.
  */
-ENTRY(tegra30_sleep_cpu_secondary_finish)
+ENTRY(tegra30_pm_secondary_cpu_suspend)
 	mov	r7, lr
 
 	/* Flush and disable the L1 data cache */
@@ -278,7 +330,7 @@ ENTRY(tegra30_sleep_cpu_secondary_finish)
 	bl	tegra30_cpu_shutdown
 	mov	r0, #1                          @ never return here
 	ret	r7
-ENDPROC(tegra30_sleep_cpu_secondary_finish)
+ENDPROC(tegra30_pm_secondary_cpu_suspend)
 
 /*
  * tegra30_tear_down_cpu
@@ -339,36 +391,49 @@ ENTRY(tegra30_lp1_reset)
 
 	/* enable PLLM via PMC */
 	mov32	r2, TEGRA_PMC_BASE
-	ldr	r1, [r2, #PMC_PLLP_WB0_OVERRIDE]
-	orr	r1, r1, #(1 << 12)
-	str	r1, [r2, #PMC_PLLP_WB0_OVERRIDE]
+	pllm_pmc_enable r1, r2
 
-	pll_enable r1, r0, CLK_RESET_PLLM_BASE, 0
-	pll_enable r1, r0, CLK_RESET_PLLC_BASE, 0
-	pll_enable r1, r0, CLK_RESET_PLLX_BASE, 0
+	pll_enable r1, r0, CLK_RESET_PLLM_BASE, 0, PLLM_STORE_MASK
+	pll_enable r1, r0, CLK_RESET_PLLC_BASE, 0, PLLC_STORE_MASK
+	pll_enable r1, r0, CLK_RESET_PLLX_BASE, 0, PLLX_STORE_MASK
 
 	b	_pll_m_c_x_done
 
 _no_pll_iddq_exit:
 	/* enable PLLM via PMC */
 	mov32	r2, TEGRA_PMC_BASE
-	ldr	r1, [r2, #PMC_PLLP_WB0_OVERRIDE]
-	orr	r1, r1, #(1 << 12)
-	str	r1, [r2, #PMC_PLLP_WB0_OVERRIDE]
+	pllm_pmc_enable r1, r2
 
-	pll_enable r1, r0, CLK_RESET_PLLM_BASE, CLK_RESET_PLLM_MISC
-	pll_enable r1, r0, CLK_RESET_PLLC_BASE, CLK_RESET_PLLC_MISC
-	pll_enable r1, r0, CLK_RESET_PLLX_BASE, CLK_RESET_PLLX_MISC
+	pll_enable r1, r0, CLK_RESET_PLLM_BASE, CLK_RESET_PLLM_MISC, PLLM_STORE_MASK
+	pll_enable r1, r0, CLK_RESET_PLLC_BASE, CLK_RESET_PLLC_MISC, PLLC_STORE_MASK
 
 _pll_m_c_x_done:
-	pll_enable r1, r0, CLK_RESET_PLLP_BASE, CLK_RESET_PLLP_MISC
-	pll_enable r1, r0, CLK_RESET_PLLA_BASE, CLK_RESET_PLLA_MISC
+	pll_enable r1, r0, CLK_RESET_PLLP_BASE, CLK_RESET_PLLP_MISC, PLLP_STORE_MASK
+	pll_enable r1, r0, CLK_RESET_PLLA_BASE, CLK_RESET_PLLA_MISC, PLLA_STORE_MASK
 
-	pll_locked r1, r0, CLK_RESET_PLLM_BASE
-	pll_locked r1, r0, CLK_RESET_PLLP_BASE
-	pll_locked r1, r0, CLK_RESET_PLLA_BASE
-	pll_locked r1, r0, CLK_RESET_PLLC_BASE
-	pll_locked r1, r0, CLK_RESET_PLLX_BASE
+	pll_locked r1, r0, CLK_RESET_PLLM_BASE, PLLM_STORE_MASK
+	pll_locked r1, r0, CLK_RESET_PLLP_BASE, PLLP_STORE_MASK
+	pll_locked r1, r0, CLK_RESET_PLLA_BASE, PLLA_STORE_MASK
+	pll_locked r1, r0, CLK_RESET_PLLC_BASE, PLLC_STORE_MASK
+
+	/*
+	 * CPUFreq driver could select other PLL for CPU. PLLX will be
+	 * enabled by the Tegra30 CLK driver on an as-needed basis, see
+	 * tegra30_cpu_clock_resume().
+	 */
+	tegra_get_soc_id TEGRA_APB_MISC_BASE, r1
+	cmp	r1, #TEGRA30
+	beq	1f
+
+	pll_locked r1, r0, CLK_RESET_PLLX_BASE, PLLX_STORE_MASK
+
+	ldr	r1, [r0, #CLK_RESET_PLLP_BASE]
+	bic	r1, r1, #(1<<31)	@ disable PllP bypass
+	str	r1, [r0, #CLK_RESET_PLLP_BASE]
+
+	mov	r1, #CLK_RESET_PLLP_RESHIFT_DEFAULT
+	str	r1, [r0, #CLK_RESET_PLLP_RESHIFT]
+1:
 
 	mov32	r7, TEGRA_TMRUS_BASE
 	ldr	r1, [r7]
@@ -383,11 +448,8 @@ _pll_m_c_x_done:
 	ldr	r4, [r5, #0x1C]		@ restore SCLK_BURST
 	str	r4, [r0, #CLK_RESET_SCLK_BURST]
 
-	cmp	r10, #TEGRA30
-	movweq	r4, #:lower16:((1 << 28) | (0x8))	@ burst policy is PLLX
-	movteq	r4, #:upper16:((1 << 28) | (0x8))
-	movwne	r4, #:lower16:((1 << 28) | (0xe))
-	movtne	r4, #:upper16:((1 << 28) | (0xe))
+	movw	r4, #:lower16:((1 << 28) | (0x4))	@ burst policy is PLLP
+	movt	r4, #:upper16:((1 << 28) | (0x4))
 	str	r4, [r0, #CLK_RESET_CCLK_BURST]
 
 	/* Restore pad power state to normal */
@@ -576,6 +638,9 @@ tegra_sdram_pad_save:
 	.long	0
 	.endr
 
+tegra_pll_state:
+	.word	0x0
+
 /*
  * tegra30_tear_down_core
  *
@@ -624,15 +689,30 @@ tegra30_switch_cpu_to_clk32k:
 	add	r1, r1, #2
 	wait_until r1, r7, r9
 
+	/* store enable-state of PLLs */
+	store_pll_state r0, r1, r5, CLK_RESET_PLLA_BASE, PLLA_STORE_MASK
+	store_pll_state r0, r1, r5, CLK_RESET_PLLC_BASE, PLLC_STORE_MASK
+	store_pll_state r0, r1, r5, CLK_RESET_PLLM_BASE, PLLM_STORE_MASK
+	store_pll_state r0, r1, r5, CLK_RESET_PLLP_BASE, PLLP_STORE_MASK
+	store_pll_state r0, r1, r5, CLK_RESET_PLLX_BASE, PLLX_STORE_MASK
+	store_pllm_pmc_state r0, r1, r4
+
 	/* disable PLLM via PMC in LP1 */
 	ldr	r0, [r4, #PMC_PLLP_WB0_OVERRIDE]
 	bic	r0, r0, #(1 << 12)
 	str	r0, [r4, #PMC_PLLP_WB0_OVERRIDE]
 
 	/* disable PLLP, PLLA, PLLC and PLLX */
+	tegra_get_soc_id TEGRA_APB_MISC_BASE, r1
+	cmp	r1, #TEGRA30
 	ldr	r0, [r5, #CLK_RESET_PLLP_BASE]
+	orrne	r0, r0, #(1 << 31)	@ enable PllP bypass on fast cluster
 	bic	r0, r0, #(1 << 30)
 	str	r0, [r5, #CLK_RESET_PLLP_BASE]
+	beq	1f
+	mov	r0, #CLK_RESET_PLLP_RESHIFT_ENABLE
+	str	r0, [r5, #CLK_RESET_PLLP_RESHIFT]
+1:
 	ldr	r0, [r5, #CLK_RESET_PLLA_BASE]
 	bic	r0, r0, #(1 << 30)
 	str	r0, [r5, #CLK_RESET_PLLA_BASE]
@@ -648,8 +728,12 @@ tegra30_switch_cpu_to_clk32k:
 	pll_iddq_entry r1, r5, CLK_RESET_PLLX_MISC3, CLK_RESET_PLLX_MISC3_IDDQ
 _no_pll_in_iddq:
 
-	/* switch to CLKS */
-	mov	r0, #0	/* brust policy = 32KHz */
+	/*
+	 * Switch to clk_s (32KHz); bits 28:31=0
+	 * Enable burst on CPU IRQ; bit 24=1
+	 * Set IRQ burst clock source to clk_m; bits 10:8=0
+	 */
+	mov	r0, #(1 << 24)
 	str	r0, [r5, #CLK_RESET_SCLK_BURST]
 
 	ret	lr
@@ -682,10 +766,12 @@ tegra30_enter_sleep:
 	dsb
 	ldr	r0, [r6, r2] /* memory barrier */
 
+	cmp	r10, #TEGRA30
 halted:
 	isb
 	dsb
-	wfi	/* CPU should be power gated here */
+	wfine	/* CPU should be power gated here */
+	wfeeq
 
 	/* !!!FIXME!!! Implement halt failure handler */
 	b	halted

@@ -6,15 +6,14 @@
  *    Author(s): Ingo Adlung <adlung@de.ibm.com>,
  *		 Martin Schwidefsky <schwidefsky@de.ibm.com>,
  *		 Cornelia Huck <cornelia.huck@de.ibm.com>,
- *		 Heiko Carstens <heiko.carstens@de.ibm.com>,
  */
 
 #include <linux/mutex.h>
 #include <linux/kthread.h>
 #include <linux/init.h>
 #include <linux/wait.h>
+#include <asm/ctlreg.h>
 #include <asm/crw.h>
-#include <asm/ctl_reg.h>
 #include "ioasm.h"
 
 static DEFINE_MUTEX(crw_handler_mutex);
@@ -157,7 +156,7 @@ static int __init crw_machine_check_init(void)
 	task = kthread_run(crw_collect_info, NULL, "kmcheck");
 	if (IS_ERR(task))
 		return PTR_ERR(task);
-	ctl_set_bit(14, 28);	/* enable channel report MCH */
+	system_ctl_set_bit(14, CR14_CHANNEL_REPORT_SUBMASK_BIT);
 	return 0;
 }
 device_initcall(crw_machine_check_init);

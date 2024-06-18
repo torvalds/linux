@@ -17,6 +17,7 @@
 #define sv_pc	r6
 #define mask	r7
 #define sv_lr	r8
+#define loglvl	r9
 
 ENTRY(c_backtrace)
 
@@ -99,6 +100,7 @@ ENDPROC(c_backtrace)
 						@ to ensure 8 byte alignment
 		movs	frame, r0		@ if frame pointer is zero
 		beq	no_frame		@ we have no stack frames
+		mov	loglvl, r2
 		tst	r1, #0x10		@ 26 or 32-bit mode?
 		moveq	mask, #0xfc000003
 		movne	mask, #0		@ mask for 32-bit
@@ -142,7 +144,7 @@ for_each_frame:	tst	frame, mask		@ Check for address exceptions
  */
 1003:		ldr	sv_lr, [sv_fp, #4]	@ get saved lr from next frame
 
-		ldr	r0, [sv_lr, #-4]	@ get call instruction
+1004:		ldr	r0, [sv_lr, #-4]	@ get call instruction
 		ldr	r3, .Lopcode+4
 		and	r2, r3, r0		@ is this a bl call
 		teq	r2, r3
@@ -162,11 +164,12 @@ finished_setup:
 /*
  * Print the function (sv_pc) and where it was called from (sv_lr).
  */
-1004:		mov	r0, sv_pc
+		mov	r0, sv_pc
 
 		mov	r1, sv_lr
 		mov	r2, frame
 		bic	r1, r1, mask		@ mask PC/LR for the mode
+		mov	r3, loglvl
 		bl	dump_backtrace_entry
 
 /*
@@ -183,6 +186,7 @@ finished_setup:
 		ldr	r0, [frame]		@ locals are stored in
 						@ the preceding frame
 		subeq	r0, r0, #4
+		mov	r2, loglvl
 		bleq	dump_backtrace_stm	@ dump saved registers
 
 /*
@@ -193,11 +197,20 @@ finished_setup:
 
 		cmp	sv_fp, frame		@ next frame must be
 		mov	frame, sv_fp		@ above the current frame
+#ifdef CONFIG_IRQSTACKS
+		@
+		@ Kernel stacks may be discontiguous in memory. If the next
+		@ frame is below the previous frame, accept it as long as it
+		@ lives in kernel memory.
+		@
+		cmpls	sv_fp, #PAGE_OFFSET
+#endif
 		bhi	for_each_frame
 
 1006:		adr	r0, .Lbad
-		mov	r1, frame
-		bl	printk
+		mov	r1, loglvl
+		mov	r2, frame
+		bl	_printk
 no_frame:	ldmfd	sp!, {r4 - r9, fp, pc}
 ENDPROC(c_backtrace)
 		.pushsection __ex_table,"a"
@@ -205,11 +218,11 @@ ENDPROC(c_backtrace)
 		.long	1001b, 1006b
 		.long	1002b, 1006b
 		.long	1003b, 1006b
-		.long	1004b, 1006b
+		.long	1004b, finished_setup
 		.long   1005b, 1006b
 		.popsection
 
-.Lbad:		.asciz	"Backtrace aborted due to bad frame pointer <%p>\n"
+.Lbad:		.asciz	"%sBacktrace aborted due to bad frame pointer <%p>\n"
 		.align
 .Lopcode:	.word	0xe92d4800 >> 11	@ stmfd sp!, {... fp, lr}
 		.word	0x0b000000		@ bl if these bits are set

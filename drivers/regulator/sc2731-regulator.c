@@ -1,4 +1,4 @@
- //SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2017 Spreadtrum Communications Inc.
  */
@@ -245,6 +245,7 @@ static int sc2731_regulator_probe(struct platform_device *pdev)
 static struct platform_driver sc2731_regulator_driver = {
 	.driver = {
 		.name = "sc27xx-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = sc2731_regulator_probe,
 };

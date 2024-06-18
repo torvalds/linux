@@ -3,8 +3,6 @@
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
  *
- * File: mac.h
- *
  * Purpose: MAC routines
  *
  * Author: Tevin Chen
@@ -20,6 +18,7 @@
 #ifndef __MAC_H__
 #define __MAC_H__
 
+#include <linux/bits.h>
 #include "device.h"
 
 #define REV_ID_VT3253_A0	0x00
@@ -142,109 +141,109 @@
 #define MAC_REG_RSPINF_A_72	0xfc
 
 /* Bits in the I2MCFG EEPROM register */
-#define I2MCFG_BOUNDCTL		0x80
-#define I2MCFG_WAITCTL		0x20
-#define I2MCFG_SCLOECTL		0x10
-#define I2MCFG_WBUSYCTL		0x08
-#define I2MCFG_NORETRY		0x04
-#define I2MCFG_I2MLDSEQ		0x02
-#define I2MCFG_I2CMFAST		0x01
+#define I2MCFG_BOUNDCTL		BIT(7)
+#define I2MCFG_WAITCTL		BIT(5)
+#define I2MCFG_SCLOECTL		BIT(4)
+#define I2MCFG_WBUSYCTL		BIT(3)
+#define I2MCFG_NORETRY		BIT(2)
+#define I2MCFG_I2MLDSEQ		BIT(1)
+#define I2MCFG_I2CMFAST		BIT(0)
 
 /* Bits in the I2MCSR EEPROM register */
-#define I2MCSR_EEMW		0x80
-#define I2MCSR_EEMR		0x40
-#define I2MCSR_AUTOLD		0x08
-#define I2MCSR_NACK		0x02
-#define I2MCSR_DONE		0x01
+#define I2MCSR_EEMW		BIT(7)
+#define I2MCSR_EEMR		BIT(6)
+#define I2MCSR_AUTOLD		BIT(3)
+#define I2MCSR_NACK		BIT(1)
+#define I2MCSR_DONE		BIT(0)
 
 /* Bits in the TMCTL register */
-#define TMCTL_TSUSP		0x04
-#define TMCTL_TMD		0x02
-#define TMCTL_TE		0x01
+#define TMCTL_TSUSP		BIT(2)
+#define TMCTL_TMD		BIT(1)
+#define TMCTL_TE		BIT(0)
 
 /* Bits in the TFTCTL register */
-#define TFTCTL_HWUTSF		0x80
-#define TFTCTL_TBTTSYNC		0x40
-#define TFTCTL_HWUTSFEN		0x20
-#define TFTCTL_TSFCNTRRD	0x10
-#define TFTCTL_TBTTSYNCEN	0x08
-#define TFTCTL_TSFSYNCEN	0x04
-#define TFTCTL_TSFCNTRST	0x02
-#define TFTCTL_TSFCNTREN	0x01
+#define TFTCTL_HWUTSF		BIT(7)
+#define TFTCTL_TBTTSYNC		BIT(6)
+#define TFTCTL_HWUTSFEN		BIT(5)
+#define TFTCTL_TSFCNTRRD	BIT(4)
+#define TFTCTL_TBTTSYNCEN	BIT(3)
+#define TFTCTL_TSFSYNCEN	BIT(2)
+#define TFTCTL_TSFCNTRST	BIT(1)
+#define TFTCTL_TSFCNTREN	BIT(0)
 
 /* Bits in the EnhanceCFG_0 register */
-#define EnCFG_BBType_a		0x00
-#define EnCFG_BBType_b		0x01
-#define EnCFG_BBType_g		0x02
-#define EnCFG_BBType_MASK	0x03
-#define EnCFG_ProtectMd		0x20
+#define EN_CFG_BB_TYPE_A	0x00
+#define EN_CFG_BB_TYPE_B	BIT(0)
+#define EN_CFG_BB_TYPE_G	BIT(1)
+#define EN_CFG_BB_TYPE_MASK	(EN_CFG_BB_TYPE_B | EN_CFG_BB_TYPE_G)
+#define EN_CFG_PROTECT_MD	BIT(5)
 
 /* Bits in the EnhanceCFG_1 register */
-#define EnCFG_BcnSusInd		0x01
-#define EnCFG_BcnSusClr		0x02
+#define EN_CFG_BCN_SUS_IND	BIT(0)
+#define EN_CFG_BCN_SUS_CLR	BIT(1)
 
 /* Bits in the EnhanceCFG_2 register */
-#define EnCFG_NXTBTTCFPSTR	0x01
-#define EnCFG_BarkerPream	0x02
-#define EnCFG_PktBurstMode	0x04
+#define EN_CFG_NXTBTTCFPSTR	BIT(0)
+#define EN_CFG_BARKER_PREAM	BIT(1)
+#define EN_CFG_PKT_BURST_MD	BIT(2)
 
 /* Bits in the CFG register */
-#define CFG_TKIPOPT		0x80
-#define CFG_RXDMAOPT		0x40
-#define CFG_TMOT_SW		0x20
-#define CFG_TMOT_HWLONG		0x10
+#define CFG_TKIPOPT		BIT(7)
+#define CFG_RXDMAOPT		BIT(6)
+#define CFG_TMOT_SW		BIT(5)
+#define CFG_TMOT_HWLONG		BIT(4)
 #define CFG_TMOT_HW		0x00
-#define CFG_CFPENDOPT		0x08
-#define CFG_BCNSUSEN		0x04
-#define CFG_NOTXTIMEOUT		0x02
-#define CFG_NOBUFOPT		0x01
+#define CFG_CFPENDOPT		BIT(3)
+#define CFG_BCNSUSEN		BIT(2)
+#define CFG_NOTXTIMEOUT		BIT(1)
+#define CFG_NOBUFOPT		BIT(0)
 
 /* Bits in the TEST register */
-#define TEST_LBEXT		0x80
-#define TEST_LBINT		0x40
+#define TEST_LBEXT		BIT(7)
+#define TEST_LBINT		BIT(6)
 #define TEST_LBNONE		0x00
-#define TEST_SOFTINT		0x20
-#define TEST_CONTTX		0x10
-#define TEST_TXPE		0x08
-#define TEST_NAVDIS		0x04
-#define TEST_NOCTS		0x02
-#define TEST_NOACK		0x01
+#define TEST_SOFTINT		BIT(5)
+#define TEST_CONTTX		BIT(4)
+#define TEST_TXPE		BIT(3)
+#define TEST_NAVDIS		BIT(2)
+#define TEST_NOCTS		BIT(1)
+#define TEST_NOACK		BIT(0)
 
 /* Bits in the HOSTCR register */
-#define HOSTCR_TXONST		0x80
-#define HOSTCR_RXONST		0x40
-#define HOSTCR_ADHOC		0x20
-#define HOSTCR_AP		0x10
-#define HOSTCR_TXON		0x08
-#define HOSTCR_RXON		0x04
-#define HOSTCR_MACEN		0x02
-#define HOSTCR_SOFTRST		0x01
+#define HOSTCR_TXONST		BIT(7)
+#define HOSTCR_RXONST		BIT(6)
+#define HOSTCR_ADHOC		BIT(5)
+#define HOSTCR_AP		BIT(4)
+#define HOSTCR_TXON		BIT(3)
+#define HOSTCR_RXON		BIT(2)
+#define HOSTCR_MACEN		BIT(1)
+#define HOSTCR_SOFTRST		BIT(0)
 
 /* Bits in the MACCR register */
-#define MACCR_SYNCFLUSHOK	0x04
-#define MACCR_SYNCFLUSH		0x02
-#define MACCR_CLRNAV		0x01
+#define MACCR_SYNCFLUSHOK	BIT(2)
+#define MACCR_SYNCFLUSH		BIT(1)
+#define MACCR_CLRNAV		BIT(0)
 
 /* Bits in the RCR register */
-#define RCR_SSID		0x80
-#define RCR_RXALLTYPE		0x40
-#define RCR_UNICAST		0x20
-#define RCR_BROADCAST		0x10
-#define RCR_MULTICAST		0x08
-#define RCR_WPAERR		0x04
-#define RCR_ERRCRC		0x02
-#define RCR_BSSID		0x01
+#define RCR_SSID		BIT(7)
+#define RCR_RXALLTYPE		BIT(6)
+#define RCR_UNICAST		BIT(5)
+#define RCR_BROADCAST		BIT(4)
+#define RCR_MULTICAST		BIT(3)
+#define RCR_WPAERR		BIT(2)
+#define RCR_ERRCRC		BIT(1)
+#define RCR_BSSID		BIT(0)
 
 /* Bits in the TCR register */
-#define TCR_SYNCDCFOPT		0x02
-#define TCR_AUTOBCNTX		0x01
+#define TCR_SYNCDCFOPT		BIT(1)
+#define TCR_AUTOBCNTX		BIT(0)
 
 /* ISR1 */
-#define ISR_GPIO3		0x40
-#define ISR_RXNOBUF		0x08
-#define ISR_MIBNEARFULL		0x04
-#define ISR_SOFTINT		0x02
-#define ISR_FETALERR		0x01
+#define ISR_GPIO3		BIT(6)
+#define ISR_RXNOBUF		BIT(3)
+#define ISR_MIBNEARFULL		BIT(2)
+#define ISR_SOFTINT		BIT(1)
+#define ISR_FETALERR		BIT(0)
 
 #define LEDSTS_STS		0x06
 #define LEDSTS_TMLEN		0x78
@@ -254,87 +253,87 @@
 #define LEDSTS_INTER		0x06
 
 /* ISR0 */
-#define ISR_WATCHDOG		0x80
-#define ISR_SOFTTIMER		0x40
-#define ISR_GPIO0		0x20
-#define ISR_TBTT		0x10
-#define ISR_RXDMA0		0x08
-#define ISR_BNTX		0x04
-#define ISR_ACTX		0x01
+#define ISR_WATCHDOG		BIT(7)
+#define ISR_SOFTTIMER		BIT(6)
+#define ISR_GPIO0		BIT(5)
+#define ISR_TBTT		BIT(4)
+#define ISR_RXDMA0		BIT(3)
+#define ISR_BNTX		BIT(2)
+#define ISR_ACTX		BIT(0)
 
 /* Bits in the PSCFG register */
-#define PSCFG_PHILIPMD		0x40
-#define PSCFG_WAKECALEN		0x20
-#define PSCFG_WAKETMREN		0x10
-#define PSCFG_BBPSPROG		0x08
-#define PSCFG_WAKESYN		0x04
-#define PSCFG_SLEEPSYN		0x02
-#define PSCFG_AUTOSLEEP		0x01
+#define PSCFG_PHILIPMD		BIT(6)
+#define PSCFG_WAKECALEN		BIT(5)
+#define PSCFG_WAKETMREN		BIT(4)
+#define PSCFG_BBPSPROG		BIT(3)
+#define PSCFG_WAKESYN		BIT(2)
+#define PSCFG_SLEEPSYN		BIT(1)
+#define PSCFG_AUTOSLEEP		BIT(0)
 
 /* Bits in the PSCTL register */
-#define PSCTL_WAKEDONE		0x20
-#define PSCTL_PS		0x10
-#define PSCTL_GO2DOZE		0x08
-#define PSCTL_LNBCN		0x04
-#define PSCTL_ALBCN		0x02
-#define PSCTL_PSEN		0x01
+#define PSCTL_WAKEDONE		BIT(5)
+#define PSCTL_PS		BIT(4)
+#define PSCTL_GO2DOZE		BIT(3)
+#define PSCTL_LNBCN		BIT(2)
+#define PSCTL_ALBCN		BIT(1)
+#define PSCTL_PSEN		BIT(0)
 
 /* Bits in the PSPWSIG register */
-#define PSSIG_WPE3		0x80
-#define PSSIG_WPE2		0x40
-#define PSSIG_WPE1		0x20
-#define PSSIG_WRADIOPE		0x10
-#define PSSIG_SPE3		0x08
-#define PSSIG_SPE2		0x04
-#define PSSIG_SPE1		0x02
-#define PSSIG_SRADIOPE		0x01
+#define PSSIG_WPE3		BIT(7)
+#define PSSIG_WPE2		BIT(6)
+#define PSSIG_WPE1		BIT(5)
+#define PSSIG_WRADIOPE		BIT(4)
+#define PSSIG_SPE3		BIT(3)
+#define PSSIG_SPE2		BIT(2)
+#define PSSIG_SPE1		BIT(1)
+#define PSSIG_SRADIOPE		BIT(0)
 
 /* Bits in the BBREGCTL register */
-#define BBREGCTL_DONE		0x04
-#define BBREGCTL_REGR		0x02
-#define BBREGCTL_REGW		0x01
+#define BBREGCTL_DONE		BIT(2)
+#define BBREGCTL_REGR		BIT(1)
+#define BBREGCTL_REGW		BIT(0)
 
 /* Bits in the IFREGCTL register */
-#define IFREGCTL_DONE		0x04
-#define IFREGCTL_IFRF		0x02
-#define IFREGCTL_REGW		0x01
+#define IFREGCTL_DONE		BIT(2)
+#define IFREGCTL_IFRF		BIT(1)
+#define IFREGCTL_REGW		BIT(0)
 
 /* Bits in the SOFTPWRCTL register */
-#define SOFTPWRCTL_RFLEOPT	0x08
-#define SOFTPWRCTL_TXPEINV	0x02
-#define SOFTPWRCTL_SWPECTI	0x01
-#define SOFTPWRCTL_SWPAPE	0x20
-#define SOFTPWRCTL_SWCALEN	0x10
-#define SOFTPWRCTL_SWRADIO_PE	0x08
-#define SOFTPWRCTL_SWPE2	0x04
-#define SOFTPWRCTL_SWPE1	0x02
-#define SOFTPWRCTL_SWPE3	0x01
+#define SOFTPWRCTL_RFLEOPT	BIT(3)
+#define SOFTPWRCTL_TXPEINV	BIT(1)
+#define SOFTPWRCTL_SWPECTI	BIT(0)
+#define SOFTPWRCTL_SWPAPE	BIT(5)
+#define SOFTPWRCTL_SWCALEN	BIT(4)
+#define SOFTPWRCTL_SWRADIO_PE	BIT(3)
+#define SOFTPWRCTL_SWPE2	BIT(2)
+#define SOFTPWRCTL_SWPE1	BIT(1)
+#define SOFTPWRCTL_SWPE3	BIT(0)
 
 /* Bits in the GPIOCTL1 register */
-#define GPIO3_MD		0x20
-#define GPIO3_DATA		0x40
-#define GPIO3_INTMD		0x80
+#define GPIO3_MD		BIT(5)
+#define GPIO3_DATA		BIT(6)
+#define GPIO3_INTMD		BIT(7)
 
 /* Bits in the MISCFFCTL register */
-#define MISCFFCTL_WRITE		0x0001
+#define MISCFFCTL_WRITE		BIT(0)
 
 /* Loopback mode */
-#define MAC_LB_EXT		0x02
-#define MAC_LB_INTERNAL		0x01
+#define MAC_LB_EXT		BIT(1)
+#define MAC_LB_INTERNAL		BIT(0)
 #define MAC_LB_NONE		0x00
 
 /* Ethernet address filter type */
 #define PKT_TYPE_NONE		0x00 /* turn off receiver */
-#define PKT_TYPE_ALL_MULTICAST	0x80
-#define PKT_TYPE_PROMISCUOUS	0x40
-#define PKT_TYPE_DIRECTED	0x20 /* obselete */
-#define PKT_TYPE_BROADCAST	0x10
-#define PKT_TYPE_MULTICAST	0x08
-#define PKT_TYPE_ERROR_WPA	0x04
-#define PKT_TYPE_ERROR_CRC	0x02
-#define PKT_TYPE_BSSID		0x01
+#define PKT_TYPE_ALL_MULTICAST	BIT(7)
+#define PKT_TYPE_PROMISCUOUS	BIT(6)
+#define PKT_TYPE_DIRECTED	BIT(5)	/* obselete */
+#define PKT_TYPE_BROADCAST	BIT(4)
+#define PKT_TYPE_MULTICAST	BIT(3)
+#define PKT_TYPE_ERROR_WPA	BIT(2)
+#define PKT_TYPE_ERROR_CRC	BIT(1)
+#define PKT_TYPE_BSSID		BIT(0)
 
-#define Default_BI              0x200
+#define DEFAULT_BI		0x200
 
 /* MiscFIFO Offset */
 #define MISCFIFO_KEYETRY0	32
@@ -354,21 +353,21 @@ struct vnt_mac_set_key {
 	u8 key[WLAN_KEY_LEN_CCMP];
 } __packed;
 
-void vnt_mac_set_filter(struct vnt_private *priv, u64 mc_filter);
-void vnt_mac_shutdown(struct vnt_private *priv);
-void vnt_mac_set_bb_type(struct vnt_private *priv, u8 type);
-void vnt_mac_disable_keyentry(struct vnt_private *priv, u8 entry_idx);
-void vnt_mac_set_keyentry(struct vnt_private *priv, u16 key_ctl, u32 entry_idx,
-			  u32 key_idx, u8 *addr, u8 *key);
+int vnt_mac_set_filter(struct vnt_private *priv, u64 mc_filter);
+int vnt_mac_shutdown(struct vnt_private *priv);
+int vnt_mac_set_bb_type(struct vnt_private *priv, u8 type);
+int vnt_mac_disable_keyentry(struct vnt_private *priv, u8 entry_idx);
+int vnt_mac_set_keyentry(struct vnt_private *priv, u16 key_ctl, u32 entry_idx,
+			 u32 key_idx, u8 *addr, u8 *key);
 int vnt_mac_reg_bits_off(struct vnt_private *priv, u8 reg_ofs, u8 bits);
 int vnt_mac_reg_bits_on(struct vnt_private *priv, u8 reg_ofs, u8 bits);
-void vnt_mac_write_word(struct vnt_private *priv, u8 reg_ofs, u16 word);
-void vnt_mac_set_bssid_addr(struct vnt_private *priv, u8 *addr);
-void vnt_mac_enable_protect_mode(struct vnt_private *priv);
-void vnt_mac_disable_protect_mode(struct vnt_private *priv);
-void vnt_mac_enable_barker_preamble_mode(struct vnt_private *priv);
-void vnt_mac_disable_barker_preamble_mode(struct vnt_private *priv);
-void vnt_mac_set_beacon_interval(struct vnt_private *priv, u16 interval);
+int vnt_mac_write_word(struct vnt_private *priv, u8 reg_ofs, u16 word);
+int vnt_mac_set_bssid_addr(struct vnt_private *priv, u8 *addr);
+int vnt_mac_enable_protect_mode(struct vnt_private *priv);
+int vnt_mac_disable_protect_mode(struct vnt_private *priv);
+int vnt_mac_enable_barker_preamble_mode(struct vnt_private *priv);
+int vnt_mac_disable_barker_preamble_mode(struct vnt_private *priv);
+int vnt_mac_set_beacon_interval(struct vnt_private *priv, u16 interval);
 int vnt_mac_set_led(struct vnt_private *privpriv, u8 state, u8 led);
 
 #endif /* __MAC_H__ */

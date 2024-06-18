@@ -35,12 +35,6 @@ struct sim_dev_reg {
 	struct sim_reg sim_reg;
 };
 
-struct sim_reg_op {
-	void (*init)(struct sim_dev_reg *reg);
-	void (*read)(struct sim_dev_reg *reg, u32 value);
-	void (*write)(struct sim_dev_reg *reg, u32 value);
-};
-
 #define MB (1024 * 1024)
 #define KB (1024)
 #define SIZE_TO_MASK(size) (~(size - 1))
@@ -83,7 +77,7 @@ static void ehci_reg_read(struct sim_dev_reg *reg, u32 *value)
 		*value |= 0x100;
 }
 
-void sata_revid_init(struct sim_dev_reg *reg)
+static void sata_revid_init(struct sim_dev_reg *reg)
 {
 	reg->sim_reg.value = 0x01060100;
 	reg->sim_reg.mask = 0;
@@ -172,7 +166,7 @@ static inline void extract_bytes(u32 *value, int reg, int len)
 	*value &= mask;
 }
 
-int bridge_read(unsigned int devfn, int reg, int len, u32 *value)
+static int bridge_read(unsigned int devfn, int reg, int len, u32 *value)
 {
 	u32 av_bridge_base, av_bridge_limit;
 	int retval = 0;

@@ -17,13 +17,9 @@
 #include <sound/initval.h>
 #include <sound/tlv.h>
 
-/*
- */
-
 MODULE_AUTHOR("Takashi Iwai <tiwai@suse.de>");
 MODULE_DESCRIPTION("Digigram VXPocket");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Digigram,VXPocket},{Digigram,VXPocket440}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
@@ -55,19 +51,6 @@ static void vxpocket_release(struct pcmcia_device *link)
 }
 
 /*
- * destructor, called from snd_card_free_when_closed()
- */
-static int snd_vxpocket_dev_free(struct snd_device *device)
-{
-	struct vx_core *chip = device->device_data;
-
-	snd_vx_free_firmware(chip);
-	kfree(chip);
-	return 0;
-}
-
-
-/*
  * Hardware information
  */
 
@@ -82,7 +65,7 @@ static int snd_vxpocket_dev_free(struct snd_device *device)
 
 static const DECLARE_TLV_DB_SCALE(db_scale_old_vol, -11350, 50, 0);
 
-static struct snd_vx_hardware vxpocket_hw = {
+static const struct snd_vx_hardware vxpocket_hw = {
 	.name = "VXPocket",
 	.type = VX_TYPE_VXPOCKET,
 
@@ -104,7 +87,7 @@ static struct snd_vx_hardware vxpocket_hw = {
  * UER, but only for the first two inputs and outputs.
  */
 
-static struct snd_vx_hardware vxp440_hw = {
+static const struct snd_vx_hardware vxp440_hw = {
 	.name = "VXPocket440",
 	.type = VX_TYPE_VXP440,
 
@@ -126,21 +109,12 @@ static int snd_vxpocket_new(struct snd_card *card, int ibl,
 {
 	struct vx_core *chip;
 	struct snd_vxpocket *vxp;
-	static struct snd_device_ops ops = {
-		.dev_free =	snd_vxpocket_dev_free,
-	};
-	int err;
 
 	chip = snd_vx_create(card, &vxpocket_hw, &snd_vxpocket_ops,
 			     sizeof(struct snd_vxpocket) - sizeof(struct vx_core));
 	if (!chip)
 		return -ENOMEM;
 
-	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
-	if (err < 0) {
-		kfree(chip);
-		return err;
-	}
 	chip->ibl.size = ibl;
 
 	vxp = to_vxpocket(chip);
@@ -185,8 +159,10 @@ static int snd_vxpocket_assign_resources(struct vx_core *chip, int port, int irq
 		card->shortname, port, irq);
 
 	chip->irq = irq;
+	card->sync_irq = chip->irq;
 
-	if ((err = snd_vx_setup_firmware(chip)) < 0)
+	err = snd_vx_setup_firmware(chip);
+	if (err < 0)
 		return err;
 
 	return 0;

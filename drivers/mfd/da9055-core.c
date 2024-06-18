@@ -245,7 +245,7 @@ const struct regmap_config da9055_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 
 	.max_register = DA9055_MAX_REGISTER_CNT,
 	.readable_reg = da9055_register_readable,
@@ -254,41 +254,19 @@ const struct regmap_config da9055_regmap_config = {
 };
 EXPORT_SYMBOL_GPL(da9055_regmap_config);
 
-static struct resource da9055_onkey_resource = {
-	.name = "ONKEY",
-	.start = DA9055_IRQ_NONKEY,
-	.end   = DA9055_IRQ_NONKEY,
-	.flags = IORESOURCE_IRQ,
+static const struct resource da9055_onkey_resource =
+	DEFINE_RES_IRQ_NAMED(DA9055_IRQ_NONKEY, "ONKEY");
+
+static const struct resource da9055_rtc_resource[] = {
+	DEFINE_RES_IRQ_NAMED(DA9055_IRQ_ALARM, "ALM"),
+	DEFINE_RES_IRQ_NAMED(DA9055_IRQ_TICK, "TICK"),
 };
 
-static struct resource da9055_rtc_resource[] = {
-	{
-		.name = "ALM",
-		.start = DA9055_IRQ_ALARM,
-		.end   = DA9055_IRQ_ALARM,
-		.flags = IORESOURCE_IRQ,
-	},
-	{
-		.name = "TICK",
-		.start = DA9055_IRQ_TICK,
-		.end   = DA9055_IRQ_TICK,
-		.flags = IORESOURCE_IRQ,
-	},
-};
+static const struct resource da9055_hwmon_resource =
+	DEFINE_RES_IRQ_NAMED(DA9055_IRQ_HWMON, "HWMON");
 
-static struct resource da9055_hwmon_resource = {
-	.name = "HWMON",
-	.start = DA9055_IRQ_HWMON,
-	.end   = DA9055_IRQ_HWMON,
-	.flags = IORESOURCE_IRQ,
-};
-
-static struct resource da9055_ld05_6_resource = {
-	.name = "REGULATOR",
-	.start = DA9055_IRQ_REGULATOR,
-	.end   = DA9055_IRQ_REGULATOR,
-	.flags = IORESOURCE_IRQ,
-};
+static const struct resource da9055_ld05_6_resource =
+	DEFINE_RES_IRQ_NAMED(DA9055_IRQ_REGULATOR, "REGULATOR");
 
 static const struct mfd_cell da9055_devs[] = {
 	{
@@ -420,5 +398,4 @@ void da9055_device_exit(struct da9055 *da9055)
 }
 
 MODULE_DESCRIPTION("Core support for the DA9055 PMIC");
-MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Dajun Chen <dchen@diasemi.com>");

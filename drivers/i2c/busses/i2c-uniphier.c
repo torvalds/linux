@@ -35,9 +35,6 @@
 #define UNIPHIER_I2C_NOISE	0x1c	/* noise filter control */
 #define UNIPHIER_I2C_SETUP	0x20	/* setup time control */
 
-#define UNIPHIER_I2C_DEFAULT_SPEED	100000
-#define UNIPHIER_I2C_MAX_SPEED		400000
-
 struct uniphier_i2c_priv {
 	struct completion comp;
 	struct i2c_adapter adap;
@@ -74,10 +71,8 @@ static int uniphier_i2c_xfer_byte(struct i2c_adapter *adap, u32 txdata,
 	writel(txdata, priv->membase + UNIPHIER_I2C_DTRM);
 
 	time_left = wait_for_completion_timeout(&priv->comp, adap->timeout);
-	if (unlikely(!time_left)) {
-		dev_err(&adap->dev, "transaction timeout\n");
+	if (unlikely(!time_left))
 		return -ETIMEDOUT;
-	}
 
 	rxdata = readl(priv->membase + UNIPHIER_I2C_DREC);
 	if (rxdatap)
@@ -327,34 +322,27 @@ static int uniphier_i2c_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->membase);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "failed to get IRQ number\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	if (of_property_read_u32(dev->of_node, "clock-frequency", &bus_speed))
-		bus_speed = UNIPHIER_I2C_DEFAULT_SPEED;
+		bus_speed = I2C_MAX_STANDARD_MODE_FREQ;
 
-	if (!bus_speed || bus_speed > UNIPHIER_I2C_MAX_SPEED) {
+	if (!bus_speed || bus_speed > I2C_MAX_FAST_MODE_FREQ) {
 		dev_err(dev, "invalid clock-frequency %d\n", bus_speed);
 		return -EINVAL;
 	}
 
-	priv->clk = devm_clk_get(dev, NULL);
+	priv->clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(priv->clk)) {
-		dev_err(dev, "failed to get clock\n");
+		dev_err(dev, "failed to enable clock\n");
 		return PTR_ERR(priv->clk);
 	}
-
-	ret = clk_prepare_enable(priv->clk);
-	if (ret)
-		return ret;
 
 	clk_rate = clk_get_rate(priv->clk);
 	if (!clk_rate) {
 		dev_err(dev, "input clock rate should not be zero\n");
-		ret = -EINVAL;
-		goto disable_clk;
+		return -EINVAL;
 	}
 
 	priv->clk_cycle = clk_rate / bus_speed;
@@ -363,7 +351,7 @@ static int uniphier_i2c_probe(struct platform_device *pdev)
 	priv->adap.algo = &uniphier_i2c_algo;
 	priv->adap.dev.parent = dev;
 	priv->adap.dev.of_node = dev->of_node;
-	strlcpy(priv->adap.name, "UniPhier I2C", sizeof(priv->adap.name));
+	strscpy(priv->adap.name, "UniPhier I2C", sizeof(priv->adap.name));
 	priv->adap.bus_recovery_info = &uniphier_i2c_bus_recovery_info;
 	i2c_set_adapdata(&priv->adap, priv);
 	platform_set_drvdata(pdev, priv);
@@ -374,25 +362,17 @@ static int uniphier_i2c_probe(struct platform_device *pdev)
 			       priv);
 	if (ret) {
 		dev_err(dev, "failed to request irq %d\n", irq);
-		goto disable_clk;
+		return ret;
 	}
 
-	ret = i2c_add_adapter(&priv->adap);
-disable_clk:
-	if (ret)
-		clk_disable_unprepare(priv->clk);
-
-	return ret;
+	return i2c_add_adapter(&priv->adap);
 }
 
-static int uniphier_i2c_remove(struct platform_device *pdev)
+static void uniphier_i2c_remove(struct platform_device *pdev)
 {
 	struct uniphier_i2c_priv *priv = platform_get_drvdata(pdev);
 
 	i2c_del_adapter(&priv->adap);
-	clk_disable_unprepare(priv->clk);
-
-	return 0;
 }
 
 static int __maybe_unused uniphier_i2c_suspend(struct device *dev)
@@ -430,7 +410,7 @@ MODULE_DEVICE_TABLE(of, uniphier_i2c_match);
 
 static struct platform_driver uniphier_i2c_drv = {
 	.probe  = uniphier_i2c_probe,
-	.remove = uniphier_i2c_remove,
+	.remove_new = uniphier_i2c_remove,
 	.driver = {
 		.name  = "uniphier-i2c",
 		.of_match_table = uniphier_i2c_match,

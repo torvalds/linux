@@ -7,7 +7,7 @@
  *
  * Chip details at:
  *
- * <http://www.onsemi.com/PowerSolutions/product.do?id=ADM1026>
+ * <https://www.onsemi.com/PowerSolutions/product.do?id=ADM1026>
  */
 
 #include <linux/module.h>
@@ -259,7 +259,7 @@ struct adm1026_data {
 	const struct attribute_group *groups[3];
 
 	struct mutex update_lock;
-	int valid;		/* !=0 if following fields are valid */
+	bool valid;		/* true if following fields are valid */
 	unsigned long last_reading;	/* In jiffies */
 	unsigned long last_config;	/* In jiffies */
 
@@ -459,7 +459,7 @@ static struct adm1026_data *adm1026_update_device(struct device *dev)
 		data->last_config = jiffies;
 	}	/* last_config */
 
-	data->valid = 1;
+	data->valid = true;
 	mutex_unlock(&data->update_lock);
 	return data;
 }
@@ -1610,7 +1610,7 @@ static int adm1026_detect(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	strlcpy(info->type, "adm1026", I2C_NAME_SIZE);
+	strscpy(info->type, "adm1026", I2C_NAME_SIZE);
 
 	return 0;
 }
@@ -1816,8 +1816,7 @@ static void adm1026_init_client(struct i2c_client *client)
 	}
 }
 
-static int adm1026_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int adm1026_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device *hwmon_dev;
@@ -1850,7 +1849,7 @@ static int adm1026_probe(struct i2c_client *client,
 }
 
 static const struct i2c_device_id adm1026_id[] = {
-	{ "adm1026", 0 },
+	{ "adm1026" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adm1026_id);

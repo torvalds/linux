@@ -8,13 +8,16 @@
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
+#include <linux/seq_file.h>
 #include <linux/slab.h>
+
 #include <linux/pinctrl/machine.h>
+#include <linux/pinctrl/pinconf-generic.h>
+#include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
-#include <linux/pinctrl/pinconf.h>
-#include <linux/pinctrl/pinconf-generic.h>
 
 #include <linux/mfd/madera/core.h>
 #include <linux/mfd/madera/registers.h>
@@ -560,7 +563,6 @@ static void __maybe_unused madera_pin_dbg_show(struct pinctrl_dev *pctldev,
 		seq_puts(s, " SCHMITT");
 }
 
-
 static const struct pinctrl_ops madera_pin_group_ops = {
 	.get_groups_count = madera_get_groups_count,
 	.get_group_name = madera_get_group_name,
@@ -1005,13 +1007,14 @@ static int madera_pin_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "%s\n", __func__);
 
+	device_set_node(&pdev->dev, dev_fwnode(pdev->dev.parent));
+
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
 	priv->dev = &pdev->dev;
 	priv->madera = madera;
-	pdev->dev.of_node = madera->dev->of_node;
 
 	switch (madera->type) {
 	case CS47L15:
@@ -1074,13 +1077,24 @@ static int madera_pin_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	platform_set_drvdata(pdev, priv);
+
 	dev_dbg(priv->dev, "pinctrl probed ok\n");
 
 	return 0;
 }
 
+static void madera_pin_remove(struct platform_device *pdev)
+{
+	struct madera_pin_private *priv = platform_get_drvdata(pdev);
+
+	if (priv->madera->pdata.gpio_configs)
+		pinctrl_unregister_mappings(priv->madera->pdata.gpio_configs);
+}
+
 static struct platform_driver madera_pin_driver = {
 	.probe = madera_pin_probe,
+	.remove_new = madera_pin_remove,
 	.driver = {
 		.name = "madera-pinctrl",
 	},

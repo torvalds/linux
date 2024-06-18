@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * isl6271a-regulator.c
  *
  * Support for Intersil ISL6271A voltage regulator
  *
  * Copyright (C) 2010 Marek Vasut <marek.vasut@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any kind,
- * whether express or implied; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -105,9 +97,9 @@ static const struct regulator_desc isl_rd[] = {
 	},
 };
 
-static int isl6271a_probe(struct i2c_client *i2c,
-				     const struct i2c_device_id *id)
+static int isl6271a_probe(struct i2c_client *i2c)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(i2c);
 	struct regulator_dev *rdev;
 	struct regulator_config config = { };
 	struct regulator_init_data *init_data	= dev_get_platdata(&i2c->dev);
@@ -155,6 +147,7 @@ MODULE_DEVICE_TABLE(i2c, isl6271a_id);
 static struct i2c_driver isl6271a_i2c_driver = {
 	.driver = {
 		.name = "isl6271a",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = isl6271a_probe,
 	.id_table = isl6271a_id,

@@ -296,21 +296,34 @@ static void *idr_throbber(void *arg)
 	return NULL;
 }
 
+/*
+ * There are always either 1 or 2 objects in the IDR.  If we find nothing,
+ * or we find something at an ID we didn't expect, that's a bug.
+ */
 void idr_find_test_1(int anchor_id, int throbber_id)
 {
 	pthread_t throbber;
 	time_t start = time(NULL);
 
-	pthread_create(&throbber, NULL, idr_throbber, &throbber_id);
-
 	BUG_ON(idr_alloc(&find_idr, xa_mk_value(anchor_id), anchor_id,
 				anchor_id + 1, GFP_KERNEL) != anchor_id);
 
+	pthread_create(&throbber, NULL, idr_throbber, &throbber_id);
+
+	rcu_read_lock();
 	do {
 		int id = 0;
 		void *entry = idr_get_next(&find_idr, &id);
-		BUG_ON(entry != xa_mk_value(id));
+		rcu_read_unlock();
+		if ((id != anchor_id && id != throbber_id) ||
+		    entry != xa_mk_value(id)) {
+			printf("%s(%d, %d): %p at %d\n", __func__, anchor_id,
+				throbber_id, entry, id);
+			abort();
+		}
+		rcu_read_lock();
 	} while (time(NULL) < start + 11);
+	rcu_read_unlock();
 
 	pthread_join(throbber, NULL);
 
@@ -523,8 +536,27 @@ static void *ida_random_fn(void *arg)
 	return NULL;
 }
 
+static void *ida_leak_fn(void *arg)
+{
+	struct ida *ida = arg;
+	time_t s = time(NULL);
+	int i, ret;
+
+	rcu_register_thread();
+
+	do for (i = 0; i < 1000; i++) {
+		ret = ida_alloc_range(ida, 128, 128, GFP_KERNEL);
+		if (ret >= 0)
+			ida_free(ida, 128);
+	} while (time(NULL) < s + 2);
+
+	rcu_unregister_thread();
+	return NULL;
+}
+
 void ida_thread_tests(void)
 {
+	DEFINE_IDA(ida);
 	pthread_t threads[20];
 	int i;
 
@@ -536,6 +568,16 @@ void ida_thread_tests(void)
 
 	while (i--)
 		pthread_join(threads[i], NULL);
+
+	for (i = 0; i < ARRAY_SIZE(threads); i++)
+		if (pthread_create(&threads[i], NULL, ida_leak_fn, &ida)) {
+			perror("creating ida thread");
+			exit(1);
+		}
+
+	while (i--)
+		pthread_join(threads[i], NULL);
+	assert(ida_is_empty(&ida));
 }
 
 void ida_tests(void)
@@ -548,6 +590,7 @@ void ida_tests(void)
 
 int __weak main(void)
 {
+	rcu_register_thread();
 	radix_tree_init();
 	idr_checks();
 	ida_tests();
@@ -555,5 +598,6 @@ int __weak main(void)
 	rcu_barrier();
 	if (nr_allocated)
 		printf("nr_allocated = %d\n", nr_allocated);
+	rcu_unregister_thread();
 	return 0;
 }

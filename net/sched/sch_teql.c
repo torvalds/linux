@@ -78,7 +78,7 @@ teql_enqueue(struct sk_buff *skb, struct Qdisc *sch, struct sk_buff **to_free)
 	struct net_device *dev = qdisc_dev(sch);
 	struct teql_sched_data *q = qdisc_priv(sch);
 
-	if (q->q.qlen < dev->tx_queue_len) {
+	if (q->q.qlen < READ_ONCE(dev->tx_queue_len)) {
 		__skb_queue_tail(&q->q, skb);
 		return NET_XMIT_SUCCESS;
 	}
@@ -124,7 +124,6 @@ teql_reset(struct Qdisc *sch)
 	struct teql_sched_data *dat = qdisc_priv(sch);
 
 	skb_queue_purge(&dat->q);
-	sch->q.qlen = 0;
 }
 
 static void
@@ -133,6 +132,9 @@ teql_destroy(struct Qdisc *sch)
 	struct Qdisc *q, *prev;
 	struct teql_sched_data *dat = qdisc_priv(sch);
 	struct teql_master *master = dat->m;
+
+	if (!master)
+		return;
 
 	prev = master->slaves;
 	if (prev) {
@@ -239,7 +241,7 @@ __teql_resolve(struct sk_buff *skb, struct sk_buff *skb_res,
 		char haddr[MAX_ADDR_LEN];
 
 		neigh_ha_snapshot(haddr, n, dev);
-		err = dev_hard_header(skb, dev, ntohs(tc_skb_protocol(skb)),
+		err = dev_hard_header(skb, dev, ntohs(skb_protocol(skb, false)),
 				      haddr, NULL, skb->len);
 
 		if (err < 0)
@@ -295,7 +297,7 @@ restart:
 		struct net_device *slave = qdisc_dev(q);
 		struct netdev_queue *slave_txq = netdev_get_tx_queue(slave, 0);
 
-		if (slave_txq->qdisc_sleeping != q)
+		if (rcu_access_pointer(slave_txq->qdisc_sleeping) != q)
 			continue;
 		if (netif_xmit_stopped(netdev_get_tx_queue(slave, subq)) ||
 		    !netif_running(slave)) {
@@ -422,7 +424,7 @@ static int teql_master_mtu(struct net_device *dev, int new_mtu)
 		} while ((q = NEXT_SLAVE(q)) != m->slaves);
 	}
 
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 	return 0;
 }
 
@@ -489,7 +491,7 @@ static int __init teql_init(void)
 
 		master = netdev_priv(dev);
 
-		strlcpy(master->qops.id, dev->name, IFNAMSIZ);
+		strscpy(master->qops.id, dev->name, IFNAMSIZ);
 		err = register_qdisc(&master->qops);
 
 		if (err) {
@@ -521,3 +523,4 @@ module_init(teql_init);
 module_exit(teql_exit);
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("True (or trivial) link equalizer qdisc");

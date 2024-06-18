@@ -40,6 +40,7 @@
 #include <linux/bitops.h>
 #include <linux/mm.h>
 #include <linux/gfp.h>
+#include <linux/of.h>
 
 #include <asm/io.h>
 #include <asm/byteorder.h>
@@ -52,7 +53,6 @@
 #endif
 
 #ifdef CONFIG_PPC_PMAC
-#include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>
 #endif
@@ -545,37 +545,25 @@ static int gem_pci_interrupt(struct net_device *dev, struct gem *gp, u32 gem_sta
 	}
 
 	if (pci_estat & GREG_PCIESTAT_OTHER) {
-		u16 pci_cfg_stat;
+		int pci_errs;
 
 		/* Interrogate PCI config space for the
 		 * true cause.
 		 */
-		pci_read_config_word(gp->pdev, PCI_STATUS,
-				     &pci_cfg_stat);
-		netdev_err(dev, "Read PCI cfg space status [%04x]\n",
-			   pci_cfg_stat);
-		if (pci_cfg_stat & PCI_STATUS_PARITY)
+		pci_errs = pci_status_get_and_clear_errors(gp->pdev);
+		netdev_err(dev, "PCI status errors[%04x]\n", pci_errs);
+		if (pci_errs & PCI_STATUS_PARITY)
 			netdev_err(dev, "PCI parity error detected\n");
-		if (pci_cfg_stat & PCI_STATUS_SIG_TARGET_ABORT)
+		if (pci_errs & PCI_STATUS_SIG_TARGET_ABORT)
 			netdev_err(dev, "PCI target abort\n");
-		if (pci_cfg_stat & PCI_STATUS_REC_TARGET_ABORT)
+		if (pci_errs & PCI_STATUS_REC_TARGET_ABORT)
 			netdev_err(dev, "PCI master acks target abort\n");
-		if (pci_cfg_stat & PCI_STATUS_REC_MASTER_ABORT)
+		if (pci_errs & PCI_STATUS_REC_MASTER_ABORT)
 			netdev_err(dev, "PCI master abort\n");
-		if (pci_cfg_stat & PCI_STATUS_SIG_SYSTEM_ERROR)
+		if (pci_errs & PCI_STATUS_SIG_SYSTEM_ERROR)
 			netdev_err(dev, "PCI system error SERR#\n");
-		if (pci_cfg_stat & PCI_STATUS_DETECTED_PARITY)
+		if (pci_errs & PCI_STATUS_DETECTED_PARITY)
 			netdev_err(dev, "PCI parity error\n");
-
-		/* Write the error bits back to clear them. */
-		pci_cfg_stat &= (PCI_STATUS_PARITY |
-				 PCI_STATUS_SIG_TARGET_ABORT |
-				 PCI_STATUS_REC_TARGET_ABORT |
-				 PCI_STATUS_REC_MASTER_ABORT |
-				 PCI_STATUS_SIG_SYSTEM_ERROR |
-				 PCI_STATUS_DETECTED_PARITY);
-		pci_write_config_word(gp->pdev,
-				      PCI_STATUS, pci_cfg_stat);
 	}
 
 	/* For all PCI errors, we should reset the chip. */
@@ -682,7 +670,8 @@ static __inline__ void gem_tx(struct net_device *dev, struct gem *gp, u32 gem_st
 			dma_addr = le64_to_cpu(txd->buffer);
 			dma_len = le64_to_cpu(txd->control_word) & TXDCTRL_BUFSZ;
 
-			pci_unmap_page(gp->pdev, dma_addr, dma_len, PCI_DMA_TODEVICE);
+			dma_unmap_page(&gp->pdev->dev, dma_addr, dma_len,
+				       DMA_TO_DEVICE);
 			entry = NEXT_TX(entry);
 		}
 
@@ -821,16 +810,15 @@ static int gem_rx(struct gem *gp, int work_to_do)
 				drops++;
 				goto drop_it;
 			}
-			pci_unmap_page(gp->pdev, dma_addr,
-				       RX_BUF_ALLOC_SIZE(gp),
-				       PCI_DMA_FROMDEVICE);
+			dma_unmap_page(&gp->pdev->dev, dma_addr,
+				       RX_BUF_ALLOC_SIZE(gp), DMA_FROM_DEVICE);
 			gp->rx_skbs[entry] = new_skb;
 			skb_put(new_skb, (gp->rx_buf_sz + RX_OFFSET));
-			rxd->buffer = cpu_to_le64(pci_map_page(gp->pdev,
+			rxd->buffer = cpu_to_le64(dma_map_page(&gp->pdev->dev,
 							       virt_to_page(new_skb->data),
 							       offset_in_page(new_skb->data),
 							       RX_BUF_ALLOC_SIZE(gp),
-							       PCI_DMA_FROMDEVICE));
+							       DMA_FROM_DEVICE));
 			skb_reserve(new_skb, RX_OFFSET);
 
 			/* Trim the original skb for the netif. */
@@ -845,9 +833,11 @@ static int gem_rx(struct gem *gp, int work_to_do)
 
 			skb_reserve(copy_skb, 2);
 			skb_put(copy_skb, len);
-			pci_dma_sync_single_for_cpu(gp->pdev, dma_addr, len, PCI_DMA_FROMDEVICE);
+			dma_sync_single_for_cpu(&gp->pdev->dev, dma_addr, len,
+						DMA_FROM_DEVICE);
 			skb_copy_from_linear_data(skb, copy_skb->data, len);
-			pci_dma_sync_single_for_device(gp->pdev, dma_addr, len, PCI_DMA_FROMDEVICE);
+			dma_sync_single_for_device(&gp->pdev->dev, dma_addr,
+						   len, DMA_FROM_DEVICE);
 
 			/* We'll reuse the original ring buffer. */
 			skb = copy_skb;
@@ -959,18 +949,7 @@ static irqreturn_t gem_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-static void gem_poll_controller(struct net_device *dev)
-{
-	struct gem *gp = netdev_priv(dev);
-
-	disable_irq(gp->pdev->irq);
-	gem_interrupt(gp->pdev->irq, dev);
-	enable_irq(gp->pdev->irq);
-}
-#endif
-
-static void gem_tx_timeout(struct net_device *dev)
+static void gem_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct gem *gp = netdev_priv(dev);
 
@@ -1032,10 +1011,10 @@ static netdev_tx_t gem_start_xmit(struct sk_buff *skb,
 		u32 len;
 
 		len = skb->len;
-		mapping = pci_map_page(gp->pdev,
+		mapping = dma_map_page(&gp->pdev->dev,
 				       virt_to_page(skb->data),
 				       offset_in_page(skb->data),
-				       len, PCI_DMA_TODEVICE);
+				       len, DMA_TO_DEVICE);
 		ctrl |= TXDCTRL_SOF | TXDCTRL_EOF | len;
 		if (gem_intme(entry))
 			ctrl |= TXDCTRL_INTME;
@@ -1058,9 +1037,10 @@ static netdev_tx_t gem_start_xmit(struct sk_buff *skb,
 		 * Otherwise we could race with the device.
 		 */
 		first_len = skb_headlen(skb);
-		first_mapping = pci_map_page(gp->pdev, virt_to_page(skb->data),
+		first_mapping = dma_map_page(&gp->pdev->dev,
+					     virt_to_page(skb->data),
 					     offset_in_page(skb->data),
-					     first_len, PCI_DMA_TODEVICE);
+					     first_len, DMA_TO_DEVICE);
 		entry = NEXT_TX(entry);
 
 		for (frag = 0; frag < skb_shinfo(skb)->nr_frags; frag++) {
@@ -1098,7 +1078,7 @@ static netdev_tx_t gem_start_xmit(struct sk_buff *skb,
 		netif_stop_queue(dev);
 
 		/* netif_stop_queue() must be done before checking
-		 * checking tx index in TX_BUFFS_AVAIL() below, because
+		 * tx index in TX_BUFFS_AVAIL() below, because
 		 * in gem_tx(), we update tx_old before checking for
 		 * netif_queue_stopped().
 		 */
@@ -1267,8 +1247,8 @@ static void gem_begin_auto_negotiation(struct gem *gp,
 			&advertising, ep->link_modes.advertising);
 
 	if (gp->phy_type != phy_mii_mdio0 &&
-     	    gp->phy_type != phy_mii_mdio1)
-     	    	goto non_mii;
+	    gp->phy_type != phy_mii_mdio1)
+		goto non_mii;
 
 	/* Setup advertise */
 	if (found_mii_phy(gp))
@@ -1419,7 +1399,7 @@ static int gem_set_link_modes(struct gem *gp)
 
 	if (gp->phy_type == phy_serialink ||
 	    gp->phy_type == phy_serdes) {
- 		u32 pcs_lpa = readl(gp->regs + PCS_MIILP);
+		u32 pcs_lpa = readl(gp->regs + PCS_MIILP);
 
 		if (pcs_lpa & (PCS_MIIADV_SP | PCS_MIIADV_AP))
 			pause = 1;
@@ -1586,9 +1566,9 @@ static void gem_clean_rings(struct gem *gp)
 		if (gp->rx_skbs[i] != NULL) {
 			skb = gp->rx_skbs[i];
 			dma_addr = le64_to_cpu(rxd->buffer);
-			pci_unmap_page(gp->pdev, dma_addr,
+			dma_unmap_page(&gp->pdev->dev, dma_addr,
 				       RX_BUF_ALLOC_SIZE(gp),
-				       PCI_DMA_FROMDEVICE);
+				       DMA_FROM_DEVICE);
 			dev_kfree_skb_any(skb);
 			gp->rx_skbs[i] = NULL;
 		}
@@ -1610,9 +1590,9 @@ static void gem_clean_rings(struct gem *gp)
 
 				txd = &gb->txd[ent];
 				dma_addr = le64_to_cpu(txd->buffer);
-				pci_unmap_page(gp->pdev, dma_addr,
+				dma_unmap_page(&gp->pdev->dev, dma_addr,
 					       le64_to_cpu(txd->control_word) &
-					       TXDCTRL_BUFSZ, PCI_DMA_TODEVICE);
+					       TXDCTRL_BUFSZ, DMA_TO_DEVICE);
 
 				if (frag != skb_shinfo(skb)->nr_frags)
 					i++;
@@ -1649,11 +1629,11 @@ static void gem_init_rings(struct gem *gp)
 
 		gp->rx_skbs[i] = skb;
 		skb_put(skb, (gp->rx_buf_sz + RX_OFFSET));
-		dma_addr = pci_map_page(gp->pdev,
+		dma_addr = dma_map_page(&gp->pdev->dev,
 					virt_to_page(skb->data),
 					offset_in_page(skb->data),
 					RX_BUF_ALLOC_SIZE(gp),
-					PCI_DMA_FROMDEVICE);
+					DMA_FROM_DEVICE);
 		rxd->buffer = cpu_to_le64(dma_addr);
 		dma_wmb();
 		rxd->status_word = cpu_to_le64(RXDCTRL_FRESH(gp));
@@ -1683,8 +1663,8 @@ static void gem_init_phy(struct gem *gp)
 	if (gp->pdev->vendor == PCI_VENDOR_ID_APPLE) {
 		int i;
 
-		/* Those delay sucks, the HW seem to love them though, I'll
-		 * serisouly consider breaking some locks here to be able
+		/* Those delays sucks, the HW seems to love them though, I'll
+		 * seriously consider breaking some locks here to be able
 		 * to schedule instead
 		 */
 		for (i = 0; i < 3; i++) {
@@ -1819,7 +1799,7 @@ static u32 gem_setup_multicast(struct gem *gp)
 
 static void gem_init_mac(struct gem *gp)
 {
-	unsigned char *e = &gp->dev->dev_addr[0];
+	const unsigned char *e = &gp->dev->dev_addr[0];
 
 	writel(0x1bf0, gp->regs + MAC_SNDPAUSE);
 
@@ -1901,7 +1881,7 @@ static void gem_init_mac(struct gem *gp)
 
 static void gem_init_pause_thresholds(struct gem *gp)
 {
-       	u32 cfg;
+	u32 cfg;
 
 	/* Calculate pause thresholds.  Setting the OFF threshold to the
 	 * full RX fifo size effectively disables PAUSE generation which
@@ -1923,15 +1903,15 @@ static void gem_init_pause_thresholds(struct gem *gp)
 	/* Configure the chip "burst" DMA mode & enable some
 	 * HW bug fixes on Apple version
 	 */
-       	cfg  = 0;
-       	if (gp->pdev->vendor == PCI_VENDOR_ID_APPLE)
+	cfg  = 0;
+	if (gp->pdev->vendor == PCI_VENDOR_ID_APPLE)
 		cfg |= GREG_CFG_RONPAULBIT | GREG_CFG_ENBUG2FIX;
 #if !defined(CONFIG_SPARC64) && !defined(CONFIG_ALPHA)
-       	cfg |= GREG_CFG_IBURST;
+	cfg |= GREG_CFG_IBURST;
 #endif
-       	cfg |= ((31 << 1) & GREG_CFG_TXDMALIM);
-       	cfg |= ((31 << 6) & GREG_CFG_RXDMALIM);
-       	writel(cfg, gp->regs + GREG_CFG);
+	cfg |= ((31 << 1) & GREG_CFG_TXDMALIM);
+	cfg |= ((31 << 6) & GREG_CFG_RXDMALIM);
+	writel(cfg, gp->regs + GREG_CFG);
 
 	/* If Infinite Burst didn't stick, then use different
 	 * thresholds (and Apple bug fixes don't exist)
@@ -2096,7 +2076,7 @@ static void gem_stop_phy(struct gem *gp, int wol)
 	writel(mifcfg, gp->regs + MIF_CFG);
 
 	if (wol && gp->has_wol) {
-		unsigned char *e = &gp->dev->dev_addr[0];
+		const unsigned char *e = &gp->dev->dev_addr[0];
 		u32 csr;
 
 		/* Setup wake-on-lan for MAGIC packet */
@@ -2151,20 +2131,6 @@ static int gem_do_start(struct net_device *dev)
 	struct gem *gp = netdev_priv(dev);
 	int rc;
 
-	/* Enable the cell */
-	gem_get_cell(gp);
-
-	/* Make sure PCI access and bus master are enabled */
-	rc = pci_enable_device(gp->pdev);
-	if (rc) {
-		netdev_err(dev, "Failed to enable chip on PCI bus !\n");
-
-		/* Put cell and forget it for now, it will be considered as
-		 * still asleep, a new sleep cycle may bring it back
-		 */
-		gem_put_cell(gp);
-		return -ENXIO;
-	}
 	pci_set_master(gp->pdev);
 
 	/* Init & setup chip hardware */
@@ -2242,13 +2208,6 @@ static void gem_do_stop(struct net_device *dev, int wol)
 
 	/* Shut the PHY down eventually and setup WOL */
 	gem_stop_phy(gp, wol);
-
-	/* Make sure bus master is disabled */
-	pci_disable_device(gp->pdev);
-
-	/* Cell not needed neither if no WOL */
-	if (!wol)
-		gem_put_cell(gp);
 }
 
 static void gem_reset_task(struct work_struct *work)
@@ -2300,26 +2259,53 @@ static void gem_reset_task(struct work_struct *work)
 
 static int gem_open(struct net_device *dev)
 {
+	struct gem *gp = netdev_priv(dev);
+	int rc;
+
 	/* We allow open while suspended, we just do nothing,
 	 * the chip will be initialized in resume()
 	 */
-	if (netif_device_present(dev))
+	if (netif_device_present(dev)) {
+		/* Enable the cell */
+		gem_get_cell(gp);
+
+		/* Make sure PCI access and bus master are enabled */
+		rc = pci_enable_device(gp->pdev);
+		if (rc) {
+			netdev_err(dev, "Failed to enable chip on PCI bus !\n");
+
+			/* Put cell and forget it for now, it will be considered
+			 *as still asleep, a new sleep cycle may bring it back
+			 */
+			gem_put_cell(gp);
+			return -ENXIO;
+		}
 		return gem_do_start(dev);
+	}
+
 	return 0;
 }
 
 static int gem_close(struct net_device *dev)
 {
-	if (netif_device_present(dev))
+	struct gem *gp = netdev_priv(dev);
+
+	if (netif_device_present(dev)) {
 		gem_do_stop(dev, 0);
 
+		/* Make sure bus master is disabled */
+		pci_disable_device(gp->pdev);
+
+		/* Cell not needed neither if no WOL */
+		if (!gp->asleep_wol)
+			gem_put_cell(gp);
+	}
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int gem_suspend(struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused gem_suspend(struct device *dev_d)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
+	struct net_device *dev = dev_get_drvdata(dev_d);
 	struct gem *gp = netdev_priv(dev);
 
 	/* Lock the network stack first to avoid racing with open/close,
@@ -2348,15 +2334,19 @@ static int gem_suspend(struct pci_dev *pdev, pm_message_t state)
 	gp->asleep_wol = !!gp->wake_on_lan;
 	gem_do_stop(dev, gp->asleep_wol);
 
+	/* Cell not needed neither if no WOL */
+	if (!gp->asleep_wol)
+		gem_put_cell(gp);
+
 	/* Unlock the network stack */
 	rtnl_unlock();
 
 	return 0;
 }
 
-static int gem_resume(struct pci_dev *pdev)
+static int __maybe_unused gem_resume(struct device *dev_d)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
+	struct net_device *dev = dev_get_drvdata(dev_d);
 	struct gem *gp = netdev_priv(dev);
 
 	/* See locking comment in gem_suspend */
@@ -2370,6 +2360,9 @@ static int gem_resume(struct pci_dev *pdev)
 		rtnl_unlock();
 		return 0;
 	}
+
+	/* Enable the cell */
+	gem_get_cell(gp);
 
 	/* Restart chip. If that fails there isn't much we can do, we
 	 * leave things stopped.
@@ -2387,7 +2380,6 @@ static int gem_resume(struct pci_dev *pdev)
 
 	return 0;
 }
-#endif /* CONFIG_PM */
 
 static struct net_device_stats *gem_get_stats(struct net_device *dev)
 {
@@ -2428,13 +2420,13 @@ static struct net_device_stats *gem_get_stats(struct net_device *dev)
 static int gem_set_mac_address(struct net_device *dev, void *addr)
 {
 	struct sockaddr *macaddr = (struct sockaddr *) addr;
+	const unsigned char *e = &dev->dev_addr[0];
 	struct gem *gp = netdev_priv(dev);
-	unsigned char *e = &dev->dev_addr[0];
 
 	if (!is_valid_ether_addr(macaddr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(dev->dev_addr, macaddr->sa_data, dev->addr_len);
+	eth_hw_addr_set(dev, macaddr->sa_data);
 
 	/* We'll just catch it later when the device is up'd or resumed */
 	if (!netif_running(dev) || !netif_device_present(dev))
@@ -2496,7 +2488,7 @@ static int gem_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct gem *gp = netdev_priv(dev);
 
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 
 	/* We'll just catch it later when the device is up'd or resumed */
 	if (!netif_running(dev) || !netif_device_present(dev))
@@ -2519,9 +2511,9 @@ static void gem_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info
 {
 	struct gem *gp = netdev_priv(dev);
 
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
-	strlcpy(info->bus_info, pci_name(gp->pdev), sizeof(info->bus_info));
+	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strscpy(info->version, DRV_VERSION, sizeof(info->version));
+	strscpy(info->bus_info, pci_name(gp->pdev), sizeof(info->bus_info));
 }
 
 static int gem_get_link_ksettings(struct net_device *dev,
@@ -2709,7 +2701,7 @@ static int gem_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	switch (cmd) {
 	case SIOCGMIIPHY:		/* Get address of MII PHY in use. */
 		data->phy_id = gp->mii_phy_addr;
-		/* Fallthrough... */
+		fallthrough;
 
 	case SIOCGMIIREG:		/* Read MII PHY register. */
 		data->val_out = __sungem_phy_read(gp, data->phy_id & 0x1f,
@@ -2794,9 +2786,12 @@ static int gem_get_device_address(struct gem *gp)
 		return -1;
 #endif
 	}
-	memcpy(dev->dev_addr, addr, ETH_ALEN);
+	eth_hw_addr_set(dev, addr);
 #else
-	get_gem_mac_nonobp(gp->pdev, gp->dev->dev_addr);
+	u8 addr[ETH_ALEN];
+
+	get_gem_mac_nonobp(gp->pdev, addr);
+	eth_hw_addr_set(gp->dev, addr);
 #endif
 	return 0;
 }
@@ -2814,10 +2809,8 @@ static void gem_remove_one(struct pci_dev *pdev)
 		cancel_work_sync(&gp->reset_task);
 
 		/* Free resources */
-		pci_free_consistent(pdev,
-				    sizeof(struct gem_init_block),
-				    gp->init_block,
-				    gp->gblock_dvma);
+		dma_free_coherent(&pdev->dev, sizeof(struct gem_init_block),
+				  gp->init_block, gp->gblock_dvma);
 		iounmap(gp->regs);
 		pci_release_regions(pdev);
 		free_netdev(dev);
@@ -2830,14 +2823,11 @@ static const struct net_device_ops gem_netdev_ops = {
 	.ndo_start_xmit		= gem_start_xmit,
 	.ndo_get_stats		= gem_get_stats,
 	.ndo_set_rx_mode	= gem_set_multicast,
-	.ndo_do_ioctl		= gem_ioctl,
+	.ndo_eth_ioctl		= gem_ioctl,
 	.ndo_tx_timeout		= gem_tx_timeout,
 	.ndo_change_mtu		= gem_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address    = gem_set_mac_address,
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller    = gem_poll_controller,
-#endif
 };
 
 static int gem_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -2873,10 +2863,10 @@ static int gem_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 	if (pdev->vendor == PCI_VENDOR_ID_SUN &&
 	    pdev->device == PCI_DEVICE_ID_SUN_GEM &&
-	    !pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
+	    !dma_set_mask(&pdev->dev, DMA_BIT_MASK(64))) {
 		pci_using_dac = 1;
 	} else {
-		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 		if (err) {
 			pr_err("No usable DMA configuration, aborting\n");
 			goto err_disable_device;
@@ -2964,9 +2954,8 @@ static int gem_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* It is guaranteed that the returned buffer will be at least
 	 * PAGE_SIZE aligned.
 	 */
-	gp->init_block = (struct gem_init_block *)
-		pci_alloc_consistent(pdev, sizeof(struct gem_init_block),
-				     &gp->gblock_dvma);
+	gp->init_block = dma_alloc_coherent(&pdev->dev, sizeof(struct gem_init_block),
+					    &gp->gblock_dvma, GFP_KERNEL);
 	if (!gp->init_block) {
 		pr_err("Cannot allocate init block, aborting\n");
 		err = -ENOMEM;
@@ -2978,7 +2967,7 @@ static int gem_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_free_consistent;
 
 	dev->netdev_ops = &gem_netdev_ops;
-	netif_napi_add(dev, &gp->napi, gem_poll, 64);
+	netif_napi_add(dev, &gp->napi, gem_poll);
 	dev->ethtool_ops = &gem_ethtool_ops;
 	dev->watchdog_timeo = 5 * HZ;
 	dev->dma = 0;
@@ -3031,16 +3020,14 @@ err_disable_device:
 
 }
 
+static SIMPLE_DEV_PM_OPS(gem_pm_ops, gem_suspend, gem_resume);
 
 static struct pci_driver gem_driver = {
 	.name		= GEM_MODULE_NAME,
 	.id_table	= gem_pci_tbl,
 	.probe		= gem_init_one,
 	.remove		= gem_remove_one,
-#ifdef CONFIG_PM
-	.suspend	= gem_suspend,
-	.resume		= gem_resume,
-#endif /* CONFIG_PM */
+	.driver.pm	= &gem_pm_ops,
 };
 
 module_pci_driver(gem_driver);

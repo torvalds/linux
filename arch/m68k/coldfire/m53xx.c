@@ -13,6 +13,7 @@
 
 /***************************************************************************/
 
+#include <linux/clkdev.h>
 #include <linux/kernel.h>
 #include <linux/param.h>
 #include <linux/init.h>
@@ -65,45 +66,42 @@ DEFINE_CLK(1, "mdha.0", 32, MCF_CLK);
 DEFINE_CLK(1, "skha.0", 33, MCF_CLK);
 DEFINE_CLK(1, "rng.0", 34, MCF_CLK);
 
-struct clk *mcf_clks[] = {
-	&__clk_0_2,	/* flexbus */
-	&__clk_0_8,	/* mcfcan.0 */
-	&__clk_0_12,	/* fec.0 */
-	&__clk_0_17,	/* edma */
-	&__clk_0_18,	/* intc.0 */
-	&__clk_0_19,	/* intc.1 */
-	&__clk_0_21,	/* iack.0 */
-	&__clk_0_22,	/* imx1-i2c.0 */
-	&__clk_0_23,	/* mcfqspi.0 */
-	&__clk_0_24,	/* mcfuart.0 */
-	&__clk_0_25,	/* mcfuart.1 */
-	&__clk_0_26,	/* mcfuart.2 */
-	&__clk_0_28,	/* mcftmr.0 */
-	&__clk_0_29,	/* mcftmr.1 */
-	&__clk_0_30,	/* mcftmr.2 */
-	&__clk_0_31,	/* mcftmr.3 */
-
-	&__clk_0_32,	/* mcfpit.0 */
-	&__clk_0_33,	/* mcfpit.1 */
-	&__clk_0_34,	/* mcfpit.2 */
-	&__clk_0_35,	/* mcfpit.3 */
-	&__clk_0_36,	/* mcfpwm.0 */
-	&__clk_0_37,	/* mcfeport.0 */
-	&__clk_0_38,	/* mcfwdt.0 */
-	&__clk_0_40,	/* sys.0 */
-	&__clk_0_41,	/* gpio.0 */
-	&__clk_0_42,	/* mcfrtc.0 */
-	&__clk_0_43,	/* mcflcd.0 */
-	&__clk_0_44,	/* mcfusb-otg.0 */
-	&__clk_0_45,	/* mcfusb-host.0 */
-	&__clk_0_46,	/* sdram.0 */
-	&__clk_0_47,	/* ssi.0 */
-	&__clk_0_48,	/* pll.0 */
-
-	&__clk_1_32,	/* mdha.0 */
-	&__clk_1_33,	/* skha.0 */
-	&__clk_1_34,	/* rng.0 */
-	NULL,
+static struct clk_lookup m53xx_clk_lookup[] = {
+	CLKDEV_INIT("flexbus", NULL, &__clk_0_2),
+	CLKDEV_INIT("mcfcan.0", NULL, &__clk_0_8),
+	CLKDEV_INIT("fec.0", NULL, &__clk_0_12),
+	CLKDEV_INIT("edma", NULL, &__clk_0_17),
+	CLKDEV_INIT("intc.0", NULL, &__clk_0_18),
+	CLKDEV_INIT("intc.1", NULL, &__clk_0_19),
+	CLKDEV_INIT("iack.0", NULL, &__clk_0_21),
+	CLKDEV_INIT("imx1-i2c.0", NULL, &__clk_0_22),
+	CLKDEV_INIT("mcfqspi.0", NULL, &__clk_0_23),
+	CLKDEV_INIT("mcfuart.0", NULL, &__clk_0_24),
+	CLKDEV_INIT("mcfuart.1", NULL, &__clk_0_25),
+	CLKDEV_INIT("mcfuart.2", NULL, &__clk_0_26),
+	CLKDEV_INIT("mcftmr.0", NULL, &__clk_0_28),
+	CLKDEV_INIT("mcftmr.1", NULL, &__clk_0_29),
+	CLKDEV_INIT("mcftmr.2", NULL, &__clk_0_30),
+	CLKDEV_INIT("mcftmr.3", NULL, &__clk_0_31),
+	CLKDEV_INIT("mcfpit.0", NULL, &__clk_0_32),
+	CLKDEV_INIT("mcfpit.1", NULL, &__clk_0_33),
+	CLKDEV_INIT("mcfpit.2", NULL, &__clk_0_34),
+	CLKDEV_INIT("mcfpit.3", NULL, &__clk_0_35),
+	CLKDEV_INIT("mcfpwm.0", NULL, &__clk_0_36),
+	CLKDEV_INIT("mcfeport.0", NULL, &__clk_0_37),
+	CLKDEV_INIT("mcfwdt.0", NULL, &__clk_0_38),
+	CLKDEV_INIT(NULL, "sys.0", &__clk_0_40),
+	CLKDEV_INIT("gpio.0", NULL, &__clk_0_41),
+	CLKDEV_INIT("mcfrtc.0", NULL, &__clk_0_42),
+	CLKDEV_INIT("mcflcd.0", NULL, &__clk_0_43),
+	CLKDEV_INIT("mcfusb-otg.0", NULL, &__clk_0_44),
+	CLKDEV_INIT("mcfusb-host.0", NULL, &__clk_0_45),
+	CLKDEV_INIT("sdram.0", NULL, &__clk_0_46),
+	CLKDEV_INIT("ssi.0", NULL, &__clk_0_47),
+	CLKDEV_INIT(NULL, "pll.0", &__clk_0_48),
+	CLKDEV_INIT("mdha.0", NULL, &__clk_1_32),
+	CLKDEV_INIT("skha.0", NULL, &__clk_1_33),
+	CLKDEV_INIT("rng.0", NULL, &__clk_1_34),
 };
 
 static struct clk * const enable_clks[] __initconst = {
@@ -158,6 +156,8 @@ static void __init m53xx_clk_init(void)
 	/* make sure these clocks are disabled */
 	for (i = 0; i < ARRAY_SIZE(disable_clks); ++i)
 		__clk_init_disabled(disable_clks[i]);
+
+	clkdev_add_table(m53xx_clk_lookup, ARRAY_SIZE(m53xx_clk_lookup));
 }
 
 /***************************************************************************/
@@ -532,7 +532,7 @@ int clock_pll(int fsys, int flags)
 		writel(readl(MCF_SDRAMC_SDCR) | MCF_SDRAMC_SDCR_CKE,
 			MCF_SDRAMC_SDCR);
 
-	/* Errata - workaround for SDRAM opeartion after exiting LIMP mode */
+	/* Errata - workaround for SDRAM operation after exiting LIMP mode */
 	writel(MCF_SDRAMC_REFRESH, MCF_SDRAMC_LIMP_FIX);
 
 	/* wait for DQS logic to relock */

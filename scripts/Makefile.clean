@@ -3,16 +3,13 @@
 # Cleaning up
 # ==========================================================================
 
-src := $(obj)
+src := $(if $(VPATH),$(VPATH)/)$(obj)
 
 PHONY := __clean
 __clean:
 
-include scripts/Kbuild.include
-
-# The filename Kbuild has precedence over Makefile
-kbuild-dir := $(if $(filter /%,$(src)),$(src),$(srctree)/$(src))
-include $(if $(wildcard $(kbuild-dir)/Kbuild), $(kbuild-dir)/Kbuild, $(kbuild-dir)/Makefile)
+include $(srctree)/scripts/Kbuild.include
+include $(kbuild-file)
 
 # Figure out what we need to build from the various variables
 # ==========================================================================
@@ -27,26 +24,23 @@ subdir-ymn	:= $(addprefix $(obj)/,$(subdir-ymn))
 # build a list of files to remove, usually relative to the current
 # directory
 
-__clean-files	:= $(extra-y) $(extra-m) $(extra-)       \
-		   $(always) $(targets) $(clean-files)   \
-		   $(hostprogs-y) $(hostprogs-m) $(hostprogs-) \
-		   $(hostlibs-y) $(hostlibs-m) $(hostlibs-) \
-		   $(hostcxxlibs-y) $(hostcxxlibs-m)
+__clean-files	:= \
+	$(clean-files) $(targets) $(hostprogs) $(userprogs) \
+	$(extra-y) $(extra-m) $(extra-) \
+	$(always-y) $(always-m) $(always-) \
+	$(hostprogs-always-y) $(hostprogs-always-m) $(hostprogs-always-) \
+	$(userprogs-always-y) $(userprogs-always-m) $(userprogs-always-)
 
 __clean-files   := $(filter-out $(no-clean-files), $(__clean-files))
 
-# clean-files is given relative to the current directory, unless it
-# starts with $(objtree)/ (which means "./", so do not add "./" unless
-# you want to delete a file from the toplevel object directory).
-
-__clean-files   := $(wildcard                                               \
-		   $(addprefix $(obj)/, $(filter-out $(objtree)/%, $(__clean-files))) \
-		   $(filter $(objtree)/%, $(__clean-files)))
+__clean-files   := $(wildcard $(addprefix $(obj)/, $(__clean-files)))
 
 # ==========================================================================
 
+# To make this rule robust against "Argument list too long" error,
+# remove $(obj)/ prefix, and restore it by a shell command.
 quiet_cmd_clean = CLEAN   $(obj)
-      cmd_clean = rm -rf $(__clean-files)
+      cmd_clean = printf '$(obj)/%s ' $(patsubst $(obj)/%,%,$(__clean-files)) | xargs rm -rf
 
 __clean: $(subdir-ymn)
 ifneq ($(strip $(__clean-files)),)

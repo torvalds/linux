@@ -121,10 +121,9 @@ static void pic32_sdhci_shared_bus(struct platform_device *pdev)
 	writel(bus, host->ioaddr + SDH_SHARED_BUS_CTRL);
 }
 
-static int pic32_sdhci_probe_platform(struct platform_device *pdev,
+static void pic32_sdhci_probe_platform(struct platform_device *pdev,
 				      struct pic32_sdhci_priv *pdata)
 {
-	int ret = 0;
 	u32 caps_slot_type;
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 
@@ -133,8 +132,6 @@ static int pic32_sdhci_probe_platform(struct platform_device *pdev,
 	caps_slot_type = (host->caps & SDH_CAPS_SDH_SLOT_TYPE_MASK) >> 30;
 	if (caps_slot_type == SDH_SLOT_TYPE_SHARED_BUS)
 		pic32_sdhci_shared_bus(pdev);
-
-	return ret;
 }
 
 static int pic32_sdhci_probe(struct platform_device *pdev)
@@ -193,11 +190,7 @@ static int pic32_sdhci_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_base_clk;
 
-	ret = pic32_sdhci_probe_platform(pdev, sdhci_pdata);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to probe platform!\n");
-		goto err_base_clk;
-	}
+	pic32_sdhci_probe_platform(pdev, sdhci_pdata);
 
 	ret = sdhci_add_host(host);
 	if (ret)
@@ -217,7 +210,7 @@ err:
 	return ret;
 }
 
-static int pic32_sdhci_remove(struct platform_device *pdev)
+static void pic32_sdhci_remove(struct platform_device *pdev)
 {
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct pic32_sdhci_priv *sdhci_pdata = sdhci_priv(host);
@@ -228,8 +221,6 @@ static int pic32_sdhci_remove(struct platform_device *pdev)
 	clk_disable_unprepare(sdhci_pdata->base_clk);
 	clk_disable_unprepare(sdhci_pdata->sys_clk);
 	sdhci_pltfm_free(pdev);
-
-	return 0;
 }
 
 static const struct of_device_id pic32_sdhci_id_table[] = {
@@ -241,10 +232,11 @@ MODULE_DEVICE_TABLE(of, pic32_sdhci_id_table);
 static struct platform_driver pic32_sdhci_driver = {
 	.driver = {
 		.name	= "pic32-sdhci",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(pic32_sdhci_id_table),
 	},
 	.probe		= pic32_sdhci_probe,
-	.remove		= pic32_sdhci_remove,
+	.remove_new	= pic32_sdhci_remove,
 };
 
 module_platform_driver(pic32_sdhci_driver);

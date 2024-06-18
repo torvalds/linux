@@ -6,26 +6,27 @@
  */
 
 #include <linux/firmware.h>
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/usb/phy.h>
-#include <linux/sys_soc.h>
 
 #include "xhci.h"
 #include "xhci-plat.h"
-#include "xhci-rcar.h"
+#include "xhci-rzv2m.h"
+
+#define XHCI_RCAR_FIRMWARE_NAME_V1	"r8a779x_usb3_v1.dlmem"
+#define XHCI_RCAR_FIRMWARE_NAME_V3	"r8a779x_usb3_v3.dlmem"
 
 /*
-* - The V3 firmware is for almost all R-Car Gen3 (except r8a7795 ES1.x)
-* - The V2 firmware is for r8a7795 ES1.x.
+* - The V3 firmware is for all R-Car Gen3
 * - The V2 firmware is possible to use on R-Car Gen2. However, the V2 causes
 *   performance degradation. So, this driver continues to use the V1 if R-Car
 *   Gen2.
 * - The V1 firmware is impossible to use on R-Car Gen3.
 */
 MODULE_FIRMWARE(XHCI_RCAR_FIRMWARE_NAME_V1);
-MODULE_FIRMWARE(XHCI_RCAR_FIRMWARE_NAME_V2);
 MODULE_FIRMWARE(XHCI_RCAR_FIRMWARE_NAME_V3);
 
 /*** Register Offset ***/
@@ -72,18 +73,6 @@ MODULE_FIRMWARE(XHCI_RCAR_FIRMWARE_NAME_V3);
 #define RCAR_USB3_RX_POL_VAL	BIT(21)
 #define RCAR_USB3_TX_POL_VAL	BIT(4)
 
-/* For soc_device_attribute */
-#define RCAR_XHCI_FIRMWARE_V2   BIT(0) /* FIRMWARE V2 */
-#define RCAR_XHCI_FIRMWARE_V3   BIT(1) /* FIRMWARE V3 */
-
-static const struct soc_device_attribute rcar_quirks_match[]  = {
-	{
-		.soc_id = "r8a7795", .revision = "ES1.*",
-		.data = (void *)RCAR_XHCI_FIRMWARE_V2,
-	},
-	{ /* sentinel */ },
-};
-
 static void xhci_rcar_start_gen2(struct usb_hcd *hcd)
 {
 	/* LCLK Select */
@@ -107,7 +96,7 @@ static int xhci_rcar_is_gen2(struct device *dev)
 		of_device_is_compatible(node, "renesas,rcar-gen2-xhci");
 }
 
-void xhci_rcar_start(struct usb_hcd *hcd)
+static void xhci_rcar_start(struct usb_hcd *hcd)
 {
 	u32 temp;
 
@@ -127,26 +116,18 @@ static int xhci_rcar_download_firmware(struct usb_hcd *hcd)
 	void __iomem *regs = hcd->regs;
 	struct xhci_plat_priv *priv = hcd_to_xhci_priv(hcd);
 	const struct firmware *fw;
-	int retval, index, j, time;
-	int timeout = 10000;
+	int retval, index, j;
 	u32 data, val, temp;
-	u32 quirks = 0;
-	const struct soc_device_attribute *attr;
-	const char *firmware_name;
 
-	attr = soc_device_match(rcar_quirks_match);
-	if (attr)
-		quirks = (uintptr_t)attr->data;
-
-	if (quirks & RCAR_XHCI_FIRMWARE_V2)
-		firmware_name = XHCI_RCAR_FIRMWARE_NAME_V2;
-	else if (quirks & RCAR_XHCI_FIRMWARE_V3)
-		firmware_name = XHCI_RCAR_FIRMWARE_NAME_V3;
-	else
-		firmware_name = priv->firmware_name;
+	/*
+	 * According to the datasheet, "Upon the completion of FW Download,
+	 * there is no need to write or reload FW".
+	 */
+	if (readl(regs + RCAR_USB3_DL_CTRL) & RCAR_USB3_DL_CTRL_FW_SUCCESS)
+		return 0;
 
 	/* request R-Car USB3.0 firmware */
-	retval = request_firmware(&fw, firmware_name, dev);
+	retval = request_firmware(&fw, priv->firmware_name, dev);
 	if (retval)
 		return retval;
 
@@ -166,32 +147,19 @@ static int xhci_rcar_download_firmware(struct usb_hcd *hcd)
 		temp |= RCAR_USB3_DL_CTRL_FW_SET_DATA0;
 		writel(temp, regs + RCAR_USB3_DL_CTRL);
 
-		for (time = 0; time < timeout; time++) {
-			val = readl(regs + RCAR_USB3_DL_CTRL);
-			if ((val & RCAR_USB3_DL_CTRL_FW_SET_DATA0) == 0)
-				break;
-			udelay(1);
-		}
-		if (time == timeout) {
-			retval = -ETIMEDOUT;
+		retval = readl_poll_timeout_atomic(regs + RCAR_USB3_DL_CTRL,
+				val, !(val & RCAR_USB3_DL_CTRL_FW_SET_DATA0),
+				1, 10000);
+		if (retval < 0)
 			break;
-		}
 	}
 
 	temp = readl(regs + RCAR_USB3_DL_CTRL);
 	temp &= ~RCAR_USB3_DL_CTRL_ENABLE;
 	writel(temp, regs + RCAR_USB3_DL_CTRL);
 
-	for (time = 0; time < timeout; time++) {
-		val = readl(regs + RCAR_USB3_DL_CTRL);
-		if (val & RCAR_USB3_DL_CTRL_FW_SUCCESS) {
-			retval = 0;
-			break;
-		}
-		udelay(1);
-	}
-	if (time == timeout)
-		retval = -ETIMEDOUT;
+	retval = readl_poll_timeout_atomic((regs + RCAR_USB3_DL_CTRL),
+			val, val & RCAR_USB3_DL_CTRL_FW_SUCCESS, 1, 10000);
 
 	release_firmware(fw);
 
@@ -200,22 +168,16 @@ static int xhci_rcar_download_firmware(struct usb_hcd *hcd)
 
 static bool xhci_rcar_wait_for_pll_active(struct usb_hcd *hcd)
 {
-	int timeout = 1000;
+	int retval;
 	u32 val, mask = RCAR_USB3_AXH_STA_PLL_ACTIVE_MASK;
 
-	while (timeout > 0) {
-		val = readl(hcd->regs + RCAR_USB3_AXH_STA);
-		if ((val & mask) == mask)
-			return true;
-		udelay(1);
-		timeout--;
-	}
-
-	return false;
+	retval = readl_poll_timeout_atomic(hcd->regs + RCAR_USB3_AXH_STA,
+			val, (val & mask) == mask, 1, 1000);
+	return !retval;
 }
 
 /* This function needs to initialize a "phy" of usb before */
-int xhci_rcar_init_quirk(struct usb_hcd *hcd)
+static int xhci_rcar_init_quirk(struct usb_hcd *hcd)
 {
 	/* If hcd->regs is NULL, we don't just call the following function */
 	if (!hcd->regs)
@@ -227,7 +189,7 @@ int xhci_rcar_init_quirk(struct usb_hcd *hcd)
 	return xhci_rcar_download_firmware(hcd);
 }
 
-int xhci_rcar_resume_quirk(struct usb_hcd *hcd)
+static int xhci_rcar_resume_quirk(struct usb_hcd *hcd)
 {
 	int ret;
 
@@ -237,3 +199,90 @@ int xhci_rcar_resume_quirk(struct usb_hcd *hcd)
 
 	return ret;
 }
+
+/*
+ * On R-Car Gen2 and Gen3, the AC64 bit (bit 0) of HCCPARAMS1 is set
+ * to 1. However, these SoCs don't support 64-bit address memory
+ * pointers. So, this driver clears the AC64 bit of xhci->hcc_params
+ * to call dma_set_coherent_mask(dev, DMA_BIT_MASK(32)) in
+ * xhci_gen_setup() by using the XHCI_NO_64BIT_SUPPORT quirk.
+ *
+ * And, since the firmware/internal CPU control the USBSTS.STS_HALT
+ * and the process speed is down when the roothub port enters U3,
+ * long delay for the handshake of STS_HALT is neeed in xhci_suspend()
+ * by using the XHCI_SLOW_SUSPEND quirk.
+ */
+#define SET_XHCI_PLAT_PRIV_FOR_RCAR(firmware)				\
+	.firmware_name = firmware,					\
+	.quirks = XHCI_NO_64BIT_SUPPORT |  XHCI_SLOW_SUSPEND,		\
+	.init_quirk = xhci_rcar_init_quirk,				\
+	.plat_start = xhci_rcar_start,					\
+	.resume_quirk = xhci_rcar_resume_quirk,
+
+static const struct xhci_plat_priv xhci_plat_renesas_rcar_gen2 = {
+	SET_XHCI_PLAT_PRIV_FOR_RCAR(XHCI_RCAR_FIRMWARE_NAME_V1)
+};
+
+static const struct xhci_plat_priv xhci_plat_renesas_rcar_gen3 = {
+	SET_XHCI_PLAT_PRIV_FOR_RCAR(XHCI_RCAR_FIRMWARE_NAME_V3)
+};
+
+static const struct xhci_plat_priv xhci_plat_renesas_rzv2m = {
+	.quirks = XHCI_NO_64BIT_SUPPORT | XHCI_SLOW_SUSPEND,
+	.init_quirk = xhci_rzv2m_init_quirk,
+	.plat_start = xhci_rzv2m_start,
+};
+
+static const struct of_device_id usb_xhci_of_match[] = {
+	{
+		.compatible = "renesas,xhci-r8a7790",
+		.data = &xhci_plat_renesas_rcar_gen2,
+	}, {
+		.compatible = "renesas,xhci-r8a7791",
+		.data = &xhci_plat_renesas_rcar_gen2,
+	}, {
+		.compatible = "renesas,xhci-r8a7793",
+		.data = &xhci_plat_renesas_rcar_gen2,
+	}, {
+		.compatible = "renesas,xhci-r8a7795",
+		.data = &xhci_plat_renesas_rcar_gen3,
+	}, {
+		.compatible = "renesas,xhci-r8a7796",
+		.data = &xhci_plat_renesas_rcar_gen3,
+	}, {
+		.compatible = "renesas,rcar-gen2-xhci",
+		.data = &xhci_plat_renesas_rcar_gen2,
+	}, {
+		.compatible = "renesas,rcar-gen3-xhci",
+		.data = &xhci_plat_renesas_rcar_gen3,
+	}, {
+		.compatible = "renesas,rzv2m-xhci",
+		.data = &xhci_plat_renesas_rzv2m,
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, usb_xhci_of_match);
+
+static int xhci_renesas_probe(struct platform_device *pdev)
+{
+	const struct xhci_plat_priv *priv_match;
+
+	priv_match = of_device_get_match_data(&pdev->dev);
+
+	return xhci_plat_probe(pdev, NULL, priv_match);
+}
+
+static struct platform_driver usb_xhci_renesas_driver = {
+	.probe = xhci_renesas_probe,
+	.remove_new = xhci_plat_remove,
+	.shutdown = usb_hcd_platform_shutdown,
+	.driver = {
+		.name = "xhci-renesas-hcd",
+		.pm = &xhci_plat_pm_ops,
+		.of_match_table = usb_xhci_of_match,
+	},
+};
+module_platform_driver(usb_xhci_renesas_driver);
+
+MODULE_DESCRIPTION("xHCI Platform Host Controller Driver for Renesas R-Car and RZ");
+MODULE_LICENSE("GPL");

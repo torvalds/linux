@@ -41,16 +41,12 @@ struct device *grudev = &gru_device;
  */
 int gru_cpu_fault_map_id(void)
 {
-#ifdef CONFIG_IA64
-	return uv_blade_processor_id() % GRU_NUM_TFM;
-#else
 	int cpu = smp_processor_id();
 	int id, core;
 
 	core = uv_cpu_core_number(cpu);
 	id = core + UV_MAX_INT_CORES * uv_cpu_socket_number(cpu);
 	return id;
-#endif
 }
 
 /*--------- ASID Management -------------------------------------------
@@ -152,7 +148,7 @@ static int gru_assign_asid(struct gru_state *gru)
  * Optionally, build an array of chars that contain the bit numbers allocated.
  */
 static unsigned long reserve_resources(unsigned long *p, int n, int mmax,
-				       char *idx)
+				       signed char *idx)
 {
 	unsigned long bits = 0;
 	int i;
@@ -170,14 +166,14 @@ static unsigned long reserve_resources(unsigned long *p, int n, int mmax,
 }
 
 unsigned long gru_reserve_cb_resources(struct gru_state *gru, int cbr_au_count,
-				       char *cbmap)
+				       signed char *cbmap)
 {
 	return reserve_resources(&gru->gs_cbr_map, cbr_au_count, GRU_CBR_AU,
 				 cbmap);
 }
 
 unsigned long gru_reserve_ds_resources(struct gru_state *gru, int dsr_au_count,
-				       char *dsmap)
+				       signed char *dsmap)
 {
 	return reserve_resources(&gru->gs_dsr_map, dsr_au_count, GRU_DSR_AU,
 				 dsmap);
@@ -282,7 +278,7 @@ static void gru_unload_mm_tracker(struct gru_state *gru,
  */
 void gts_drop(struct gru_thread_state *gts)
 {
-	if (gts && atomic_dec_return(&gts->ts_refcnt) == 0) {
+	if (gts && refcount_dec_and_test(&gts->ts_refcnt)) {
 		if (gts->ts_gms)
 			gru_drop_mmu_notifier(gts->ts_gms);
 		kfree(gts);
@@ -323,7 +319,7 @@ struct gru_thread_state *gru_alloc_gts(struct vm_area_struct *vma,
 
 	STAT(gts_alloc);
 	memset(gts, 0, sizeof(struct gru_thread_state)); /* zero out header */
-	atomic_set(&gts->ts_refcnt, 1);
+	refcount_set(&gts->ts_refcnt, 1);
 	mutex_init(&gts->ts_ctxlock);
 	gts->ts_cbr_au_count = cbr_au_count;
 	gts->ts_dsr_au_count = dsr_au_count;
@@ -716,9 +712,10 @@ static int gru_check_chiplet_assignment(struct gru_state *gru,
  * chiplet. Misassignment can occur if the process migrates to a different
  * blade or if the user changes the selected blade/chiplet.
  */
-void gru_check_context_placement(struct gru_thread_state *gts)
+int gru_check_context_placement(struct gru_thread_state *gts)
 {
 	struct gru_state *gru;
+	int ret = 0;
 
 	/*
 	 * If the current task is the context owner, verify that the
@@ -726,15 +723,23 @@ void gru_check_context_placement(struct gru_thread_state *gts)
 	 * references. Pthread apps use non-owner references to the CBRs.
 	 */
 	gru = gts->ts_gru;
+	/*
+	 * If gru or gts->ts_tgid_owner isn't initialized properly, return
+	 * success to indicate that the caller does not need to unload the
+	 * gru context.The caller is responsible for their inspection and
+	 * reinitialization if needed.
+	 */
 	if (!gru || gts->ts_tgid_owner != current->tgid)
-		return;
+		return ret;
 
 	if (!gru_check_chiplet_assignment(gru, gts)) {
 		STAT(check_context_unload);
-		gru_unload_context(gts, 1);
+		ret = -EINVAL;
 	} else if (gru_retarget_intr(gts)) {
 		STAT(check_context_retarget_intr);
 	}
+
+	return ret;
 }
 
 
@@ -888,7 +893,7 @@ again:
 		gts->ts_gru = gru;
 		gts->ts_blade = gru->gs_blade_id;
 		gts->ts_ctxnum = gru_assign_context_number(gru);
-		atomic_inc(&gts->ts_refcnt);
+		refcount_inc(&gts->ts_refcnt);
 		gru->gs_gts[gts->ts_ctxnum] = gts;
 		spin_unlock(&gru->gs_lock);
 
@@ -934,7 +939,12 @@ again:
 	mutex_lock(&gts->ts_ctxlock);
 	preempt_disable();
 
-	gru_check_context_placement(gts);
+	if (gru_check_context_placement(gts)) {
+		preempt_enable();
+		mutex_unlock(&gts->ts_ctxlock);
+		gru_unload_context(gts, 1);
+		return VM_FAULT_NOPAGE;
+	}
 
 	if (!gts->ts_gru) {
 		STAT(load_user_context);

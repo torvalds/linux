@@ -103,7 +103,7 @@ min_vecs argument set to this limit, and the PCI core will return -ENOSPC
 if it can't meet the minimum number of vectors.
 
 The flags argument is used to specify which type of interrupt can be used
-by the device and the driver (PCI_IRQ_LEGACY, PCI_IRQ_MSI, PCI_IRQ_MSIX).
+by the device and the driver (PCI_IRQ_INTX, PCI_IRQ_MSI, PCI_IRQ_MSIX).
 A convenient short-hand (PCI_IRQ_ALL_TYPES) is also available to ask for
 any possible kind of interrupt.  If the PCI_IRQ_AFFINITY flag is set,
 pci_alloc_irq_vectors() will spread the interrupts around the available CPUs.
@@ -236,7 +236,7 @@ including a full 'lspci -v' so we can add the quirks to the kernel.
 Disabling MSIs below a bridge
 -----------------------------
 
-Some PCI bridges are not able to route MSIs between busses properly.
+Some PCI bridges are not able to route MSIs between buses properly.
 In this case, MSIs must be disabled on all devices behind the bridge.
 
 Some bridges allow you to enable MSIs by changing some bits in their
@@ -283,5 +283,15 @@ or disabled (0).  If 0 is found in any of the msi_bus files belonging
 to bridges between the PCI root and the device, MSIs are disabled.
 
 It is also worth checking the device driver to see whether it supports MSIs.
-For example, it may contain calls to pci_irq_alloc_vectors() with the
+For example, it may contain calls to pci_alloc_irq_vectors() with the
 PCI_IRQ_MSI or PCI_IRQ_MSIX flags.
+
+
+List of device drivers MSI(-X) APIs
+===================================
+
+The PCI/MSI subsystem has a dedicated C file for its exported device driver
+APIs — `drivers/pci/msi/api.c`. The following functions are exported:
+
+.. kernel-doc:: drivers/pci/msi/api.c
+   :export:

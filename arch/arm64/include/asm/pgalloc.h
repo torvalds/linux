@@ -13,36 +13,13 @@
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 
-#include <asm-generic/pgalloc.h>	/* for pte_{alloc,free}_one */
+#define __HAVE_ARCH_PGD_FREE
+#define __HAVE_ARCH_PUD_FREE
+#include <asm-generic/pgalloc.h>
 
 #define PGD_SIZE	(PTRS_PER_PGD * sizeof(pgd_t))
 
 #if CONFIG_PGTABLE_LEVELS > 2
-
-static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
-{
-	gfp_t gfp = GFP_PGTABLE_USER;
-	struct page *page;
-
-	if (mm == &init_mm)
-		gfp = GFP_PGTABLE_KERNEL;
-
-	page = alloc_page(gfp);
-	if (!page)
-		return NULL;
-	if (!pgtable_pmd_page_ctor(page)) {
-		__free_page(page);
-		return NULL;
-	}
-	return page_address(page);
-}
-
-static inline void pmd_free(struct mm_struct *mm, pmd_t *pmdp)
-{
-	BUG_ON((unsigned long)pmdp & (PAGE_SIZE-1));
-	pgtable_pmd_page_dtor(virt_to_page(pmdp));
-	free_page((unsigned long)pmdp);
-}
 
 static inline void __pud_populate(pud_t *pudp, phys_addr_t pmdp, pudval_t prot)
 {
@@ -51,7 +28,10 @@ static inline void __pud_populate(pud_t *pudp, phys_addr_t pmdp, pudval_t prot)
 
 static inline void pud_populate(struct mm_struct *mm, pud_t *pudp, pmd_t *pmdp)
 {
-	__pud_populate(pudp, __pa(pmdp), PMD_TYPE_TABLE);
+	pudval_t pudval = PUD_TYPE_TABLE;
+
+	pudval |= (mm == &init_mm) ? PUD_TABLE_UXN : PUD_TABLE_PXN;
+	__pud_populate(pudp, __pa(pmdp), pudval);
 }
 #else
 static inline void __pud_populate(pud_t *pudp, phys_addr_t pmdp, pudval_t prot)
@@ -62,32 +42,73 @@ static inline void __pud_populate(pud_t *pudp, phys_addr_t pmdp, pudval_t prot)
 
 #if CONFIG_PGTABLE_LEVELS > 3
 
-static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
+static inline void __p4d_populate(p4d_t *p4dp, phys_addr_t pudp, p4dval_t prot)
 {
-	return (pud_t *)__get_free_page(GFP_PGTABLE_USER);
+	if (pgtable_l4_enabled())
+		set_p4d(p4dp, __p4d(__phys_to_p4d_val(pudp) | prot));
 }
 
-static inline void pud_free(struct mm_struct *mm, pud_t *pudp)
+static inline void p4d_populate(struct mm_struct *mm, p4d_t *p4dp, pud_t *pudp)
 {
-	BUG_ON((unsigned long)pudp & (PAGE_SIZE-1));
-	free_page((unsigned long)pudp);
+	p4dval_t p4dval = P4D_TYPE_TABLE;
+
+	p4dval |= (mm == &init_mm) ? P4D_TABLE_UXN : P4D_TABLE_PXN;
+	__p4d_populate(p4dp, __pa(pudp), p4dval);
 }
 
-static inline void __pgd_populate(pgd_t *pgdp, phys_addr_t pudp, pgdval_t prot)
+static inline void pud_free(struct mm_struct *mm, pud_t *pud)
 {
-	set_pgd(pgdp, __pgd(__phys_to_pgd_val(pudp) | prot));
-}
-
-static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgdp, pud_t *pudp)
-{
-	__pgd_populate(pgdp, __pa(pudp), PUD_TYPE_TABLE);
+	if (!pgtable_l4_enabled())
+		return;
+	__pud_free(mm, pud);
 }
 #else
-static inline void __pgd_populate(pgd_t *pgdp, phys_addr_t pudp, pgdval_t prot)
+static inline void __p4d_populate(p4d_t *p4dp, phys_addr_t pudp, p4dval_t prot)
 {
 	BUILD_BUG();
 }
 #endif	/* CONFIG_PGTABLE_LEVELS > 3 */
+
+#if CONFIG_PGTABLE_LEVELS > 4
+
+static inline void __pgd_populate(pgd_t *pgdp, phys_addr_t p4dp, pgdval_t prot)
+{
+	if (pgtable_l5_enabled())
+		set_pgd(pgdp, __pgd(__phys_to_pgd_val(p4dp) | prot));
+}
+
+static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgdp, p4d_t *p4dp)
+{
+	pgdval_t pgdval = PGD_TYPE_TABLE;
+
+	pgdval |= (mm == &init_mm) ? PGD_TABLE_UXN : PGD_TABLE_PXN;
+	__pgd_populate(pgdp, __pa(p4dp), pgdval);
+}
+
+static inline p4d_t *p4d_alloc_one(struct mm_struct *mm, unsigned long addr)
+{
+	gfp_t gfp = GFP_PGTABLE_USER;
+
+	if (mm == &init_mm)
+		gfp = GFP_PGTABLE_KERNEL;
+	return (p4d_t *)get_zeroed_page(gfp);
+}
+
+static inline void p4d_free(struct mm_struct *mm, p4d_t *p4d)
+{
+	if (!pgtable_l5_enabled())
+		return;
+	BUG_ON((unsigned long)p4d & (PAGE_SIZE-1));
+	free_page((unsigned long)p4d);
+}
+
+#define __p4d_free_tlb(tlb, p4d, addr)  p4d_free((tlb)->mm, p4d)
+#else
+static inline void __pgd_populate(pgd_t *pgdp, phys_addr_t p4dp, pgdval_t prot)
+{
+	BUILD_BUG();
+}
+#endif	/* CONFIG_PGTABLE_LEVELS > 4 */
 
 extern pgd_t *pgd_alloc(struct mm_struct *mm);
 extern void pgd_free(struct mm_struct *mm, pgd_t *pgdp);
@@ -105,17 +126,15 @@ static inline void __pmd_populate(pmd_t *pmdp, phys_addr_t ptep,
 static inline void
 pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmdp, pte_t *ptep)
 {
-	/*
-	 * The pmd must be loaded with the physical address of the PTE table
-	 */
-	__pmd_populate(pmdp, __pa(ptep), PMD_TYPE_TABLE);
+	VM_BUG_ON(mm && mm != &init_mm);
+	__pmd_populate(pmdp, __pa(ptep), PMD_TYPE_TABLE | PMD_TABLE_UXN);
 }
 
 static inline void
 pmd_populate(struct mm_struct *mm, pmd_t *pmdp, pgtable_t ptep)
 {
-	__pmd_populate(pmdp, page_to_phys(ptep), PMD_TYPE_TABLE);
+	VM_BUG_ON(mm == &init_mm);
+	__pmd_populate(pmdp, page_to_phys(ptep), PMD_TYPE_TABLE | PMD_TABLE_PXN);
 }
-#define pmd_pgtable(pmd) pmd_page(pmd)
 
 #endif

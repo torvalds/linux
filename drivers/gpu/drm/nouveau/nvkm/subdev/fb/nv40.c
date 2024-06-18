@@ -33,7 +33,7 @@ nv40_fb_tile_comp(struct nvkm_fb *fb, int i, u32 size, u32 flags,
 	u32 tiles = DIV_ROUND_UP(size, 0x80);
 	u32 tags  = round_up(tiles / fb->ram->parts, 0x100);
 	if ( (flags & 2) &&
-	    !nvkm_mm_head(&fb->tags, 0, 1, tags, tags, 1, &tile->tag)) {
+	    !nvkm_mm_head(&fb->tags.mm, 0, 1, tags, tags, 1, &tile->tag)) {
 		tile->zcomp  = 0x28000000; /* Z24S8_SPLIT_GRAD */
 		tile->zcomp |= ((tile->tag->offset           ) >> 8);
 		tile->zcomp |= ((tile->tag->offset + tags - 1) >> 8) << 13;
@@ -62,7 +62,7 @@ nv40_fb = {
 };
 
 int
-nv40_fb_new(struct nvkm_device *device, int index, struct nvkm_fb **pfb)
+nv40_fb_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_fb **pfb)
 {
-	return nvkm_fb_new_(&nv40_fb, device, index, pfb);
+	return nvkm_fb_new_(&nv40_fb, device, type, inst, pfb);
 }

@@ -8,12 +8,14 @@
 /dts-v1/;
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/leds/common.h>
 
 #include "mt7622.dtsi"
 #include "mt6380.dtsi"
 
 / {
 	model = "Bananapi BPI-R64";
+	chassis-type = "embedded";
 	compatible = "bananapi,bpi-r64", "mediatek,mt7622";
 
 	aliases {
@@ -40,37 +42,40 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		factory {
+		factory-key {
 			label = "factory";
 			linux,code = <BTN_0>;
 			gpios = <&pio 0 GPIO_ACTIVE_HIGH>;
 		};
 
-		wps {
+		wps-key {
 			label = "wps";
 			linux,code = <KEY_WPS_BUTTON>;
-			gpios = <&pio 102 GPIO_ACTIVE_HIGH>;
+			gpios = <&pio 102 GPIO_ACTIVE_LOW>;
 		};
 	};
 
 	leds {
 		compatible = "gpio-leds";
 
-		green {
+		led-0 {
 			label = "bpi-r64:pio:green";
+			color = <LED_COLOR_ID_GREEN>;
 			gpios = <&pio 89 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
-		red {
+		led-1 {
 			label = "bpi-r64:pio:red";
+			color = <LED_COLOR_ID_RED>;
 			gpios = <&pio 88 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 	};
 
-	memory {
+	memory@40000000 {
 		reg = <0 0x40000000 0 0x40000000>;
+		device_type = "memory";
 	};
 
 	reg_1p8v: regulator-1p8v {
@@ -143,6 +148,71 @@
 	mdio: mdio-bus {
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		switch@0 {
+			compatible = "mediatek,mt7531";
+			reg = <0>;
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			interrupts-extended = <&pio 53 IRQ_TYPE_LEVEL_HIGH>;
+			reset-gpios = <&pio 54 0>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					label = "wan";
+				};
+
+				port@1 {
+					reg = <1>;
+					label = "lan0";
+				};
+
+				port@2 {
+					reg = <2>;
+					label = "lan1";
+				};
+
+				port@3 {
+					reg = <3>;
+					label = "lan2";
+				};
+
+				port@4 {
+					reg = <4>;
+					label = "lan3";
+				};
+
+				port@5 {
+					reg = <5>;
+					ethernet = <&gmac1>;
+					phy-mode = "rgmii";
+
+					fixed-link {
+						speed = <1000>;
+						full-duplex;
+						pause;
+					};
+				};
+
+				port@6 {
+					reg = <6>;
+					label = "cpu";
+					ethernet = <&gmac0>;
+					phy-mode = "2500base-x";
+
+					fixed-link {
+						speed = <2500>;
+						full-duplex;
+						pause;
+					};
+				};
+			};
+		};
+
 	};
 };
 
@@ -182,7 +252,6 @@
 	bus-width = <4>;
 	max-frequency = <50000000>;
 	cap-sd-highspeed;
-	r_smpl = <1>;
 	cd-gpios = <&pio 81 GPIO_ACTIVE_LOW>;
 	vmmc-supply = <&reg_3p3v>;
 	vqmmc-supply = <&reg_3p3v>;
@@ -196,29 +265,55 @@
 	status = "disabled";
 };
 
-&nor_flash {
-	pinctrl-names = "default";
-	pinctrl-0 = <&spi_nor_pins>;
-	status = "disabled";
+&bch {
+	status = "okay";
+};
 
+&snfi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&serial_nand_pins>;
+	status = "okay";
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "spi-nand";
 		reg = <0>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+		nand-ecc-engine = <&snfi>;
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "bl2";
+				reg = <0x0 0x80000>;
+				read-only;
+			};
+
+			partition@80000 {
+				label = "fip";
+				reg = <0x80000 0x200000>;
+				read-only;
+			};
+
+			ubi: partition@280000 {
+				label = "ubi";
+				reg = <0x280000 0x7d80000>;
+			};
+		};
 	};
 };
 
-&pcie {
+&pcie0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pcie0_pins>, <&pcie1_pins>;
+	pinctrl-0 = <&pcie0_pins>;
 	status = "okay";
+};
 
-	pcie@0,0 {
-		status = "okay";
-	};
-
-	pcie@1,0 {
-		status = "okay";
-	};
+&pcie1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie1_pins>;
+	status = "okay";
 };
 
 &pio {
@@ -288,23 +383,23 @@
 	i2c1_pins: i2c1-pins {
 		mux {
 			function = "i2c";
-			groups =  "i2c1_0";
+			groups = "i2c1_0";
 		};
 	};
 
 	i2c2_pins: i2c2-pins {
 		mux {
 			function = "i2c";
-			groups =  "i2c2_0";
+			groups = "i2c2_0";
 		};
 	};
 
 	i2s1_pins: i2s1-pins {
 		mux {
 			function = "i2s";
-			groups =  "i2s_out_mclk_bclk_ws",
-				  "i2s1_in_data",
-				  "i2s1_out_data";
+			groups = "i2s_out_mclk_bclk_ws",
+				 "i2s1_in_data",
+				 "i2s1_out_data";
 		};
 
 		conf {
@@ -318,14 +413,14 @@
 	irrx_pins: irrx-pins {
 		mux {
 			function = "ir";
-			groups =  "ir_1_rx";
+			groups = "ir_1_rx";
 		};
 	};
 
 	irtx_pins: irtx-pins {
 		mux {
 			function = "ir";
-			groups =  "ir_1_tx";
+			groups = "ir_1_tx";
 		};
 	};
 
@@ -362,10 +457,15 @@
 		};
 	};
 
-	pwm7_pins: pwm1-2-pins {
+	pwm_pins: pwm-pins {
 		mux {
 			function = "pwm";
-			groups = "pwm_ch7_2";
+			groups = "pwm_ch1_0", /* mt7622_pwm_ch1_0_pins[] = { 51, }; */
+				 "pwm_ch2_0", /* mt7622_pwm_ch2_0_pins[] = { 52, }; */
+				 "pwm_ch3_2", /* mt7622_pwm_ch3_2_pins[] = { 97, }; */
+				 "pwm_ch4_1", /* mt7622_pwm_ch4_1_pins[] = { 67, }; */
+				 "pwm_ch5_0", /* mt7622_pwm_ch5_0_pins[] = { 68, }; */
+				 "pwm_ch6_0"; /* mt7622_pwm_ch6_0_pins[] = { 69, }; */
 		};
 	};
 
@@ -485,7 +585,7 @@
 
 &pwm {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pwm7_pins>;
+	pinctrl-0 = <&pwm_pins>;
 	status = "okay";
 };
 
@@ -497,11 +597,11 @@
 };
 
 &sata {
-	status = "disable";
+	status = "disabled";
 };
 
 &sata_phy {
-	status = "disable";
+	status = "disabled";
 };
 
 &spi0 {
@@ -513,7 +613,6 @@
 &spi1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&spic1_pins>;
-	status = "okay";
 };
 
 &ssusb {
@@ -535,11 +634,14 @@
 &uart2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart2_pins>;
-	status = "okay";
 };
 
 &watchdog {
 	pinctrl-names = "default";
 	pinctrl-0 = <&watchdog_pins>;
+	status = "okay";
+};
+
+&wmac {
 	status = "okay";
 };

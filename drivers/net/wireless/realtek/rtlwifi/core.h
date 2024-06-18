@@ -51,6 +51,8 @@ enum dm_dig_connect_e {
 };
 
 extern const struct ieee80211_ops rtl_ops;
+
+void rtl_init_sw_leds(struct ieee80211_hw *hw);
 void rtl_fw_cb(const struct firmware *firmware, void *context);
 void rtl_wowlan_fw_cb(const struct firmware *firmware, void *context);
 void rtl_addr_delay(u32 addr);
@@ -60,5 +62,6 @@ void rtl_bb_delay(struct ieee80211_hw *hw, u32 addr, u32 data);
 bool rtl_cmd_send_packet(struct ieee80211_hw *hw, struct sk_buff *skb);
 bool rtl_btc_status_false(void);
 void rtl_dm_diginit(struct ieee80211_hw *hw, u32 cur_igval);
+void rtl_update_beacon_work_callback(struct work_struct *work);
 
 #endif

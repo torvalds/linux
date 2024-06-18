@@ -66,7 +66,7 @@ Each connector message can include one or more w1_netlink_msg with
 zero or more attached w1_netlink_cmd messages.
 
 For event messages there are no w1_netlink_cmd embedded structures,
-only connector header and w1_netlink_msg strucutre with "len" field
+only connector header and w1_netlink_msg structure with "len" field
 being zero and filled type (one of event types) and id:
 either 8 bytes of slave unique id in host order,
 or master's id, which is assigned to bus master device

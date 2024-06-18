@@ -10,10 +10,13 @@
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/pm_runtime.h>
+#include <linux/pinctrl/consumer.h>
+#include <linux/reset.h>
 
 /* Register offsets for the I2C device. */
 #define CDNS_I2C_CR_OFFSET		0x00 /* Control Register, RW */
@@ -23,6 +26,7 @@
 #define CDNS_I2C_ISR_OFFSET		0x10 /* IRQ Status Register, RW */
 #define CDNS_I2C_XFER_SIZE_OFFSET	0x14 /* Transfer Size Register, RW */
 #define CDNS_I2C_TIME_OUT_OFFSET	0x1C /* Time Out Register, RW */
+#define CDNS_I2C_IMR_OFFSET		0x20 /* IRQ Mask Register, RO */
 #define CDNS_I2C_IER_OFFSET		0x24 /* IRQ Enable Register, WO */
 #define CDNS_I2C_IDR_OFFSET		0x28 /* IRQ Disable Register, WO */
 
@@ -40,9 +44,17 @@
 #define CDNS_I2C_CR_DIVB_SHIFT		8
 #define CDNS_I2C_CR_DIVB_MASK		(0x3f << CDNS_I2C_CR_DIVB_SHIFT)
 
+#define CDNS_I2C_CR_MASTER_EN_MASK	(CDNS_I2C_CR_NEA | \
+					 CDNS_I2C_CR_ACK_EN | \
+					 CDNS_I2C_CR_MS)
+
+#define CDNS_I2C_CR_SLAVE_EN_MASK	~CDNS_I2C_CR_MASTER_EN_MASK
+
 /* Status Register Bit mask definitions */
 #define CDNS_I2C_SR_BA		BIT(8)
+#define CDNS_I2C_SR_TXDV	BIT(6)
 #define CDNS_I2C_SR_RXDV	BIT(5)
+#define CDNS_I2C_SR_RXRW	BIT(3)
 
 /*
  * I2C Address Register Bit mask definitions
@@ -91,21 +103,24 @@
 					 CDNS_I2C_IXR_DATA | \
 					 CDNS_I2C_IXR_COMP)
 
+#define CDNS_I2C_IXR_SLAVE_INTR_MASK	(CDNS_I2C_IXR_RX_UNF | \
+					 CDNS_I2C_IXR_TX_OVF | \
+					 CDNS_I2C_IXR_RX_OVF | \
+					 CDNS_I2C_IXR_TO | \
+					 CDNS_I2C_IXR_NACK | \
+					 CDNS_I2C_IXR_DATA | \
+					 CDNS_I2C_IXR_COMP)
+
 #define CDNS_I2C_TIMEOUT		msecs_to_jiffies(1000)
 /* timeout for pm runtime autosuspend */
 #define CNDS_I2C_PM_TIMEOUT		1000	/* ms */
 
-#define CDNS_I2C_FIFO_DEPTH		16
-/* FIFO depth at which the DATA interrupt occurs */
-#define CDNS_I2C_DATA_INTR_DEPTH	(CDNS_I2C_FIFO_DEPTH - 2)
+#define CDNS_I2C_FIFO_DEPTH_DEFAULT	16
 #define CDNS_I2C_MAX_TRANSFER_SIZE	255
 /* Transfer size in multiples of data interrupt depth */
-#define CDNS_I2C_TRANSFER_SIZE	(CDNS_I2C_MAX_TRANSFER_SIZE - 3)
+#define CDNS_I2C_TRANSFER_SIZE(max)	((max) - 3)
 
 #define DRIVER_NAME		"cdns-i2c"
-
-#define CDNS_I2C_SPEED_MAX	400000
-#define CDNS_I2C_SPEED_DEFAULT	100000
 
 #define CDNS_I2C_DIVA_MAX	4
 #define CDNS_I2C_DIVB_MAX	64
@@ -113,9 +128,37 @@
 #define CDNS_I2C_TIMEOUT_MAX	0xFF
 
 #define CDNS_I2C_BROKEN_HOLD_BIT	BIT(0)
+#define CDNS_I2C_POLL_US	100000
+#define CDNS_I2C_TIMEOUT_US	500000
 
 #define cdns_i2c_readreg(offset)       readl_relaxed(id->membase + offset)
 #define cdns_i2c_writereg(val, offset) writel_relaxed(val, id->membase + offset)
+
+#if IS_ENABLED(CONFIG_I2C_SLAVE)
+/**
+ * enum cdns_i2c_mode - I2C Controller current operating mode
+ *
+ * @CDNS_I2C_MODE_SLAVE:       I2C controller operating in slave mode
+ * @CDNS_I2C_MODE_MASTER:      I2C Controller operating in master mode
+ */
+enum cdns_i2c_mode {
+	CDNS_I2C_MODE_SLAVE,
+	CDNS_I2C_MODE_MASTER,
+};
+
+/**
+ * enum cdns_i2c_slave_state - Slave state when I2C is operating in slave mode
+ *
+ * @CDNS_I2C_SLAVE_STATE_IDLE: I2C slave idle
+ * @CDNS_I2C_SLAVE_STATE_SEND: I2C slave sending data to master
+ * @CDNS_I2C_SLAVE_STATE_RECV: I2C slave receiving data from master
+ */
+enum cdns_i2c_slave_state {
+	CDNS_I2C_SLAVE_STATE_IDLE,
+	CDNS_I2C_SLAVE_STATE_SEND,
+	CDNS_I2C_SLAVE_STATE_RECV,
+};
+#endif
 
 /**
  * struct cdns_i2c - I2C device private data structure
@@ -131,13 +174,21 @@
  * @send_count:		Number of bytes still expected to send
  * @recv_count:		Number of bytes still expected to receive
  * @curr_recv_count:	Number of bytes to be received in current transfer
- * @irq:		IRQ number
  * @input_clk:		Input clock to I2C controller
  * @i2c_clk:		Maximum I2C clock speed
  * @bus_hold_flag:	Flag used in repeated start for clearing HOLD bit
  * @clk:		Pointer to struct clk
  * @clk_rate_change_nb:	Notifier block for clock rate changes
+ * @reset:		Reset control for the device
  * @quirks:		flag for broken hold bit usage in r1p10
+ * @ctrl_reg:		Cached value of the control register.
+ * @rinfo:		I2C GPIO recovery information
+ * @ctrl_reg_diva_divb: value of fields DIV_A and DIV_B from CR register
+ * @slave:		Registered slave instance.
+ * @dev_mode:		I2C operating role(master/slave).
+ * @slave_state:	I2C Slave state(idle/read/write).
+ * @fifo_depth:		The depth of the transfer FIFO
+ * @transfer_size:	The maximum number of bytes in one transfer
  */
 struct cdns_i2c {
 	struct device		*dev;
@@ -151,13 +202,23 @@ struct cdns_i2c {
 	unsigned int send_count;
 	unsigned int recv_count;
 	unsigned int curr_recv_count;
-	int irq;
 	unsigned long input_clk;
 	unsigned int i2c_clk;
 	unsigned int bus_hold_flag;
 	struct clk *clk;
 	struct notifier_block clk_rate_change_nb;
+	struct reset_control *reset;
 	u32 quirks;
+	u32 ctrl_reg;
+	struct i2c_bus_recovery_info rinfo;
+#if IS_ENABLED(CONFIG_I2C_SLAVE)
+	u16 ctrl_reg_diva_divb;
+	struct i2c_client *slave;
+	enum cdns_i2c_mode dev_mode;
+	enum cdns_i2c_slave_state slave_state;
+#endif
+	u32 fifo_depth;
+	unsigned int transfer_size;
 };
 
 struct cdns_platform_data {
@@ -183,24 +244,162 @@ static void cdns_i2c_clear_bus_hold(struct cdns_i2c *id)
 static inline bool cdns_is_holdquirk(struct cdns_i2c *id, bool hold_wrkaround)
 {
 	return (hold_wrkaround &&
-		(id->curr_recv_count == CDNS_I2C_FIFO_DEPTH + 1));
+		(id->curr_recv_count == id->fifo_depth + 1));
+}
+
+#if IS_ENABLED(CONFIG_I2C_SLAVE)
+static void cdns_i2c_set_mode(enum cdns_i2c_mode mode, struct cdns_i2c *id)
+{
+	/* Disable all interrupts */
+	cdns_i2c_writereg(CDNS_I2C_IXR_ALL_INTR_MASK, CDNS_I2C_IDR_OFFSET);
+
+	/* Clear FIFO and transfer size */
+	cdns_i2c_writereg(CDNS_I2C_CR_CLR_FIFO, CDNS_I2C_CR_OFFSET);
+
+	/* Update device mode and state */
+	id->dev_mode = mode;
+	id->slave_state = CDNS_I2C_SLAVE_STATE_IDLE;
+
+	switch (mode) {
+	case CDNS_I2C_MODE_MASTER:
+		/* Enable i2c master */
+		cdns_i2c_writereg(id->ctrl_reg_diva_divb |
+				  CDNS_I2C_CR_MASTER_EN_MASK,
+				  CDNS_I2C_CR_OFFSET);
+		/*
+		 * This delay is needed to give the IP some time to switch to
+		 * the master mode. With lower values(like 110 us) i2cdetect
+		 * will not detect any slave and without this delay, the IP will
+		 * trigger a timeout interrupt.
+		 */
+		usleep_range(115, 125);
+		break;
+	case CDNS_I2C_MODE_SLAVE:
+		/* Enable i2c slave */
+		cdns_i2c_writereg(id->ctrl_reg_diva_divb &
+				  CDNS_I2C_CR_SLAVE_EN_MASK,
+				  CDNS_I2C_CR_OFFSET);
+
+		/* Setting slave address */
+		cdns_i2c_writereg(id->slave->addr & CDNS_I2C_ADDR_MASK,
+				  CDNS_I2C_ADDR_OFFSET);
+
+		/* Enable slave send/receive interrupts */
+		cdns_i2c_writereg(CDNS_I2C_IXR_SLAVE_INTR_MASK,
+				  CDNS_I2C_IER_OFFSET);
+		break;
+	}
+}
+
+static void cdns_i2c_slave_rcv_data(struct cdns_i2c *id)
+{
+	u8 bytes;
+	unsigned char data;
+
+	/* Prepare backend for data reception */
+	if (id->slave_state == CDNS_I2C_SLAVE_STATE_IDLE) {
+		id->slave_state = CDNS_I2C_SLAVE_STATE_RECV;
+		i2c_slave_event(id->slave, I2C_SLAVE_WRITE_REQUESTED, NULL);
+	}
+
+	/* Fetch number of bytes to receive */
+	bytes = cdns_i2c_readreg(CDNS_I2C_XFER_SIZE_OFFSET);
+
+	/* Read data and send to backend */
+	while (bytes--) {
+		data = cdns_i2c_readreg(CDNS_I2C_DATA_OFFSET);
+		i2c_slave_event(id->slave, I2C_SLAVE_WRITE_RECEIVED, &data);
+	}
+}
+
+static void cdns_i2c_slave_send_data(struct cdns_i2c *id)
+{
+	u8 data;
+
+	/* Prepare backend for data transmission */
+	if (id->slave_state == CDNS_I2C_SLAVE_STATE_IDLE) {
+		id->slave_state = CDNS_I2C_SLAVE_STATE_SEND;
+		i2c_slave_event(id->slave, I2C_SLAVE_READ_REQUESTED, &data);
+	} else {
+		i2c_slave_event(id->slave, I2C_SLAVE_READ_PROCESSED, &data);
+	}
+
+	/* Send data over bus */
+	cdns_i2c_writereg(data, CDNS_I2C_DATA_OFFSET);
 }
 
 /**
- * cdns_i2c_isr - Interrupt handler for the I2C device
- * @irq:	irq number for the I2C device
- * @ptr:	void pointer to cdns_i2c structure
+ * cdns_i2c_slave_isr - Interrupt handler for the I2C device in slave role
+ * @ptr:       Pointer to I2C device private data
  *
- * This function handles the data interrupt, transfer complete interrupt and
- * the error interrupts of the I2C device.
+ * This function handles the data interrupt and transfer complete interrupt of
+ * the I2C device in slave role.
  *
  * Return: IRQ_HANDLED always
  */
-static irqreturn_t cdns_i2c_isr(int irq, void *ptr)
+static irqreturn_t cdns_i2c_slave_isr(void *ptr)
 {
-	unsigned int isr_status, avail_bytes, updatetx;
+	struct cdns_i2c *id = ptr;
+	unsigned int isr_status, i2c_status;
+
+	/* Fetch the interrupt status */
+	isr_status = cdns_i2c_readreg(CDNS_I2C_ISR_OFFSET);
+	cdns_i2c_writereg(isr_status, CDNS_I2C_ISR_OFFSET);
+
+	/* Ignore masked interrupts */
+	isr_status &= ~cdns_i2c_readreg(CDNS_I2C_IMR_OFFSET);
+
+	/* Fetch transfer mode (send/receive) */
+	i2c_status = cdns_i2c_readreg(CDNS_I2C_SR_OFFSET);
+
+	/* Handle data send/receive */
+	if (i2c_status & CDNS_I2C_SR_RXRW) {
+		/* Send data to master */
+		if (isr_status & CDNS_I2C_IXR_DATA)
+			cdns_i2c_slave_send_data(id);
+
+		if (isr_status & CDNS_I2C_IXR_COMP) {
+			id->slave_state = CDNS_I2C_SLAVE_STATE_IDLE;
+			i2c_slave_event(id->slave, I2C_SLAVE_STOP, NULL);
+		}
+	} else {
+		/* Receive data from master */
+		if (isr_status & CDNS_I2C_IXR_DATA)
+			cdns_i2c_slave_rcv_data(id);
+
+		if (isr_status & CDNS_I2C_IXR_COMP) {
+			cdns_i2c_slave_rcv_data(id);
+			id->slave_state = CDNS_I2C_SLAVE_STATE_IDLE;
+			i2c_slave_event(id->slave, I2C_SLAVE_STOP, NULL);
+		}
+	}
+
+	/* Master indicated xfer stop or fifo underflow/overflow */
+	if (isr_status & (CDNS_I2C_IXR_NACK | CDNS_I2C_IXR_RX_OVF |
+			  CDNS_I2C_IXR_RX_UNF | CDNS_I2C_IXR_TX_OVF)) {
+		id->slave_state = CDNS_I2C_SLAVE_STATE_IDLE;
+		i2c_slave_event(id->slave, I2C_SLAVE_STOP, NULL);
+		cdns_i2c_writereg(CDNS_I2C_CR_CLR_FIFO, CDNS_I2C_CR_OFFSET);
+	}
+
+	return IRQ_HANDLED;
+}
+#endif
+
+/**
+ * cdns_i2c_master_isr - Interrupt handler for the I2C device in master role
+ * @ptr:       Pointer to I2C device private data
+ *
+ * This function handles the data interrupt, transfer complete interrupt and
+ * the error interrupts of the I2C device in master role.
+ *
+ * Return: IRQ_HANDLED always
+ */
+static irqreturn_t cdns_i2c_master_isr(void *ptr)
+{
+	unsigned int isr_status, avail_bytes;
 	unsigned int bytes_to_send;
-	bool hold_quirk;
+	bool updatetx;
 	struct cdns_i2c *id = ptr;
 	/* Signal completion only after everything is updated */
 	int done_flag = 0;
@@ -208,6 +407,7 @@ static irqreturn_t cdns_i2c_isr(int irq, void *ptr)
 
 	isr_status = cdns_i2c_readreg(CDNS_I2C_ISR_OFFSET);
 	cdns_i2c_writereg(isr_status, CDNS_I2C_ISR_OFFSET);
+	id->err_status = 0;
 
 	/* Handling nack and arbitration lost interrupt */
 	if (isr_status & (CDNS_I2C_IXR_NACK | CDNS_I2C_IXR_ARB_LOST)) {
@@ -219,11 +419,7 @@ static irqreturn_t cdns_i2c_isr(int irq, void *ptr)
 	 * Check if transfer size register needs to be updated again for a
 	 * large data receive operation.
 	 */
-	updatetx = 0;
-	if (id->recv_count > id->curr_recv_count)
-		updatetx = 1;
-
-	hold_quirk = (id->quirks & CDNS_I2C_BROKEN_HOLD_BIT) && updatetx;
+	updatetx = id->recv_count > id->curr_recv_count;
 
 	/* When receiving, handle data interrupt and completion interrupt */
 	if (id->p_recv_buf &&
@@ -232,21 +428,29 @@ static irqreturn_t cdns_i2c_isr(int irq, void *ptr)
 		/* Read data if receive data valid is set */
 		while (cdns_i2c_readreg(CDNS_I2C_SR_OFFSET) &
 		       CDNS_I2C_SR_RXDV) {
-			/*
-			 * Clear hold bit that was set for FIFO control if
-			 * RX data left is less than FIFO depth, unless
-			 * repeated start is selected.
-			 */
-			if ((id->recv_count < CDNS_I2C_FIFO_DEPTH) &&
-			    !id->bus_hold_flag)
-				cdns_i2c_clear_bus_hold(id);
+			if (id->recv_count > 0) {
+				*(id->p_recv_buf)++ =
+					cdns_i2c_readreg(CDNS_I2C_DATA_OFFSET);
+				id->recv_count--;
+				id->curr_recv_count--;
 
-			*(id->p_recv_buf)++ =
-				cdns_i2c_readreg(CDNS_I2C_DATA_OFFSET);
-			id->recv_count--;
-			id->curr_recv_count--;
+				/*
+				 * Clear hold bit that was set for FIFO control
+				 * if RX data left is less than or equal to
+				 * FIFO DEPTH unless repeated start is selected
+				 */
+				if (id->recv_count <= id->fifo_depth &&
+				    !id->bus_hold_flag)
+					cdns_i2c_clear_bus_hold(id);
 
-			if (cdns_is_holdquirk(id, hold_quirk))
+			} else {
+				dev_err(id->adap.dev.parent,
+					"xfer_size reg rollover. xfer aborted!\n");
+				id->err_status |= CDNS_I2C_IXR_TO;
+				break;
+			}
+
+			if (cdns_is_holdquirk(id, updatetx))
 				break;
 		}
 
@@ -257,42 +461,26 @@ static irqreturn_t cdns_i2c_isr(int irq, void *ptr)
 		 * maintain transfer size non-zero while performing a large
 		 * receive operation.
 		 */
-		if (cdns_is_holdquirk(id, hold_quirk)) {
+		if (cdns_is_holdquirk(id, updatetx)) {
 			/* wait while fifo is full */
 			while (cdns_i2c_readreg(CDNS_I2C_XFER_SIZE_OFFSET) !=
-			       (id->curr_recv_count - CDNS_I2C_FIFO_DEPTH))
+			       (id->curr_recv_count - id->fifo_depth))
 				;
 
 			/*
 			 * Check number of bytes to be received against maximum
 			 * transfer size and update register accordingly.
 			 */
-			if (((int)(id->recv_count) - CDNS_I2C_FIFO_DEPTH) >
-			    CDNS_I2C_TRANSFER_SIZE) {
-				cdns_i2c_writereg(CDNS_I2C_TRANSFER_SIZE,
+			if (((int)(id->recv_count) - id->fifo_depth) >
+			    id->transfer_size) {
+				cdns_i2c_writereg(id->transfer_size,
 						  CDNS_I2C_XFER_SIZE_OFFSET);
-				id->curr_recv_count = CDNS_I2C_TRANSFER_SIZE +
-						      CDNS_I2C_FIFO_DEPTH;
+				id->curr_recv_count = id->transfer_size +
+						      id->fifo_depth;
 			} else {
 				cdns_i2c_writereg(id->recv_count -
-						  CDNS_I2C_FIFO_DEPTH,
+						  id->fifo_depth,
 						  CDNS_I2C_XFER_SIZE_OFFSET);
-				id->curr_recv_count = id->recv_count;
-			}
-		} else if (id->recv_count && !hold_quirk &&
-						!id->curr_recv_count) {
-
-			/* Set the slave address in address register*/
-			cdns_i2c_writereg(id->p_msg->addr & CDNS_I2C_ADDR_MASK,
-						CDNS_I2C_ADDR_OFFSET);
-
-			if (id->recv_count > CDNS_I2C_TRANSFER_SIZE) {
-				cdns_i2c_writereg(CDNS_I2C_TRANSFER_SIZE,
-						CDNS_I2C_XFER_SIZE_OFFSET);
-				id->curr_recv_count = CDNS_I2C_TRANSFER_SIZE;
-			} else {
-				cdns_i2c_writereg(id->recv_count,
-						CDNS_I2C_XFER_SIZE_OFFSET);
 				id->curr_recv_count = id->recv_count;
 			}
 		}
@@ -314,7 +502,7 @@ static irqreturn_t cdns_i2c_isr(int irq, void *ptr)
 		 * space available in FIFO and fill with that many bytes.
 		 */
 		if (id->send_count) {
-			avail_bytes = CDNS_I2C_FIFO_DEPTH -
+			avail_bytes = id->fifo_depth -
 			    cdns_i2c_readreg(CDNS_I2C_XFER_SIZE_OFFSET);
 			if (id->send_count > avail_bytes)
 				bytes_to_send = avail_bytes;
@@ -342,7 +530,7 @@ static irqreturn_t cdns_i2c_isr(int irq, void *ptr)
 	}
 
 	/* Update the status for errors */
-	id->err_status = isr_status & CDNS_I2C_IXR_ERR_INTR_MASK;
+	id->err_status |= isr_status & CDNS_I2C_IXR_ERR_INTR_MASK;
 	if (id->err_status)
 		status = IRQ_HANDLED;
 
@@ -353,6 +541,27 @@ static irqreturn_t cdns_i2c_isr(int irq, void *ptr)
 }
 
 /**
+ * cdns_i2c_isr - Interrupt handler for the I2C device
+ * @irq:	irq number for the I2C device
+ * @ptr:	void pointer to cdns_i2c structure
+ *
+ * This function passes the control to slave/master based on current role of
+ * i2c controller.
+ *
+ * Return: IRQ_HANDLED always
+ */
+static irqreturn_t cdns_i2c_isr(int irq, void *ptr)
+{
+#if IS_ENABLED(CONFIG_I2C_SLAVE)
+	struct cdns_i2c *id = ptr;
+
+	if (id->dev_mode == CDNS_I2C_MODE_SLAVE)
+		return cdns_i2c_slave_isr(ptr);
+#endif
+	return cdns_i2c_master_isr(ptr);
+}
+
+/**
  * cdns_i2c_mrecv - Prepare and start a master receive operation
  * @id:		pointer to the i2c device structure
  */
@@ -360,6 +569,11 @@ static void cdns_i2c_mrecv(struct cdns_i2c *id)
 {
 	unsigned int ctrl_reg;
 	unsigned int isr_status;
+	unsigned long flags;
+	bool hold_clear = false;
+	bool irq_save = false;
+
+	u32 addr;
 
 	id->p_recv_buf = id->p_msg->buf;
 	id->recv_count = id->p_msg->len;
@@ -368,8 +582,13 @@ static void cdns_i2c_mrecv(struct cdns_i2c *id)
 	ctrl_reg = cdns_i2c_readreg(CDNS_I2C_CR_OFFSET);
 	ctrl_reg |= CDNS_I2C_CR_RW | CDNS_I2C_CR_CLR_FIFO;
 
+	/*
+	 * Receive up to I2C_SMBUS_BLOCK_MAX data bytes, plus one message length
+	 * byte, plus one checksum byte if PEC is enabled. p_msg->len will be 2 if
+	 * PEC is enabled, otherwise 1.
+	 */
 	if (id->p_msg->flags & I2C_M_RECV_LEN)
-		id->recv_count = I2C_SMBUS_BLOCK_MAX + 1;
+		id->recv_count = I2C_SMBUS_BLOCK_MAX + id->p_msg->len;
 
 	id->curr_recv_count = id->recv_count;
 
@@ -377,10 +596,8 @@ static void cdns_i2c_mrecv(struct cdns_i2c *id)
 	 * Check for the message size against FIFO depth and set the
 	 * 'hold bus' bit if it is greater than FIFO depth.
 	 */
-	if ((id->recv_count > CDNS_I2C_FIFO_DEPTH)  || id->bus_hold_flag)
+	if (id->recv_count > id->fifo_depth)
 		ctrl_reg |= CDNS_I2C_CR_HOLD;
-	else
-		ctrl_reg = ctrl_reg & ~CDNS_I2C_CR_HOLD;
 
 	cdns_i2c_writereg(ctrl_reg, CDNS_I2C_CR_OFFSET);
 
@@ -394,22 +611,50 @@ static void cdns_i2c_mrecv(struct cdns_i2c *id)
 	 * receive if it is less than transfer size and transfer size if
 	 * it is more. Enable the interrupts.
 	 */
-	if (id->recv_count > CDNS_I2C_TRANSFER_SIZE) {
-		cdns_i2c_writereg(CDNS_I2C_TRANSFER_SIZE,
+	if (id->recv_count > id->transfer_size) {
+		cdns_i2c_writereg(id->transfer_size,
 				  CDNS_I2C_XFER_SIZE_OFFSET);
-		id->curr_recv_count = CDNS_I2C_TRANSFER_SIZE;
+		id->curr_recv_count = id->transfer_size;
 	} else {
 		cdns_i2c_writereg(id->recv_count, CDNS_I2C_XFER_SIZE_OFFSET);
 	}
 
-	/* Set the slave address in address register - triggers operation */
-	cdns_i2c_writereg(id->p_msg->addr & CDNS_I2C_ADDR_MASK,
-						CDNS_I2C_ADDR_OFFSET);
-	/* Clear the bus hold flag if bytes to receive is less than FIFO size */
-	if (!id->bus_hold_flag &&
-		((id->p_msg->flags & I2C_M_RECV_LEN) != I2C_M_RECV_LEN) &&
-		(id->recv_count <= CDNS_I2C_FIFO_DEPTH))
-			cdns_i2c_clear_bus_hold(id);
+	/* Determine hold_clear based on number of bytes to receive and hold flag */
+	if (!id->bus_hold_flag && id->recv_count <= id->fifo_depth) {
+		if (ctrl_reg & CDNS_I2C_CR_HOLD) {
+			hold_clear = true;
+			if (id->quirks & CDNS_I2C_BROKEN_HOLD_BIT)
+				irq_save = true;
+		}
+	}
+
+	addr = id->p_msg->addr;
+	addr &= CDNS_I2C_ADDR_MASK;
+
+	if (hold_clear) {
+		ctrl_reg &= ~CDNS_I2C_CR_HOLD;
+		ctrl_reg &= ~CDNS_I2C_CR_CLR_FIFO;
+		/*
+		 * In case of Xilinx Zynq SOC, clear the HOLD bit before transfer size
+		 * register reaches '0'. This is an IP bug which causes transfer size
+		 * register overflow to 0xFF. To satisfy this timing requirement,
+		 * disable the interrupts on current processor core between register
+		 * writes to slave address register and control register.
+		 */
+		if (irq_save)
+			local_irq_save(flags);
+
+		cdns_i2c_writereg(addr, CDNS_I2C_ADDR_OFFSET);
+		cdns_i2c_writereg(ctrl_reg, CDNS_I2C_CR_OFFSET);
+		/* Read it back to avoid bufferring and make sure write happens */
+		cdns_i2c_readreg(CDNS_I2C_CR_OFFSET);
+
+		if (irq_save)
+			local_irq_restore(flags);
+	} else {
+		cdns_i2c_writereg(addr, CDNS_I2C_ADDR_OFFSET);
+	}
+
 	cdns_i2c_writereg(CDNS_I2C_ENABLED_INTR_MASK, CDNS_I2C_IER_OFFSET);
 }
 
@@ -437,11 +682,8 @@ static void cdns_i2c_msend(struct cdns_i2c *id)
 	 * Check for the message size against FIFO depth and set the
 	 * 'hold bus' bit if it is greater than FIFO depth.
 	 */
-	if ((id->send_count > CDNS_I2C_FIFO_DEPTH) || id->bus_hold_flag)
+	if (id->send_count > id->fifo_depth)
 		ctrl_reg |= CDNS_I2C_CR_HOLD;
-	else
-		ctrl_reg = ctrl_reg & ~CDNS_I2C_CR_HOLD;
-
 	cdns_i2c_writereg(ctrl_reg, CDNS_I2C_CR_OFFSET);
 
 	/* Clear the interrupts in interrupt status register. */
@@ -453,7 +695,7 @@ static void cdns_i2c_msend(struct cdns_i2c *id)
 	 * against the space available, and fill the FIFO accordingly.
 	 * Enable the interrupts.
 	 */
-	avail_bytes = CDNS_I2C_FIFO_DEPTH -
+	avail_bytes = id->fifo_depth -
 				cdns_i2c_readreg(CDNS_I2C_XFER_SIZE_OFFSET);
 
 	if (id->send_count > avail_bytes)
@@ -500,7 +742,7 @@ static void cdns_i2c_master_reset(struct i2c_adapter *adap)
 	cdns_i2c_writereg(regval, CDNS_I2C_CR_OFFSET);
 	/* Update the transfercount register to zero */
 	cdns_i2c_writereg(0, CDNS_I2C_XFER_SIZE_OFFSET);
-	/* Clear the interupt status register */
+	/* Clear the interrupt status register */
 	regval = cdns_i2c_readreg(CDNS_I2C_ISR_OFFSET);
 	cdns_i2c_writereg(regval, CDNS_I2C_ISR_OFFSET);
 	/* Clear the status register */
@@ -511,7 +753,7 @@ static void cdns_i2c_master_reset(struct i2c_adapter *adap)
 static int cdns_i2c_process_msg(struct cdns_i2c *id, struct i2c_msg *msg,
 		struct i2c_adapter *adap)
 {
-	unsigned long time_left;
+	unsigned long time_left, msg_timeout;
 	u32 reg;
 
 	id->p_msg = msg;
@@ -536,12 +778,18 @@ static int cdns_i2c_process_msg(struct cdns_i2c *id, struct i2c_msg *msg,
 	else
 		cdns_i2c_msend(id);
 
+	/* Minimal time to execute this message */
+	msg_timeout = msecs_to_jiffies((1000 * msg->len * BITS_PER_BYTE) / id->i2c_clk);
+	/* Plus some wiggle room */
+	msg_timeout += msecs_to_jiffies(500);
+
+	if (msg_timeout < adap->timeout)
+		msg_timeout = adap->timeout;
+
 	/* Wait for the signal of completion */
-	time_left = wait_for_completion_timeout(&id->xfer_done, adap->timeout);
+	time_left = wait_for_completion_timeout(&id->xfer_done, msg_timeout);
 	if (time_left == 0) {
 		cdns_i2c_master_reset(adap);
-		dev_err(id->adap.dev.parent,
-				"timeout waiting on completion\n");
 		return -ETIMEDOUT;
 	}
 
@@ -551,6 +799,9 @@ static int cdns_i2c_process_msg(struct cdns_i2c *id, struct i2c_msg *msg,
 	/* If it is bus arbitration error, try again */
 	if (id->err_status & CDNS_I2C_IXR_ARB_LOST)
 		return -EAGAIN;
+
+	if (msg->flags & I2C_M_RECV_LEN)
+		msg->len += min_t(unsigned int, msg->buf[0], I2C_SMBUS_BLOCK_MAX);
 
 	return 0;
 }
@@ -572,13 +823,40 @@ static int cdns_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 	u32 reg;
 	struct cdns_i2c *id = adap->algo_data;
 	bool hold_quirk;
+#if IS_ENABLED(CONFIG_I2C_SLAVE)
+	bool change_role = false;
+#endif
 
-	ret = pm_runtime_get_sync(id->dev);
+	ret = pm_runtime_resume_and_get(id->dev);
 	if (ret < 0)
 		return ret;
+
+#if IS_ENABLED(CONFIG_I2C_SLAVE)
+	/* Check i2c operating mode and switch if possible */
+	if (id->dev_mode == CDNS_I2C_MODE_SLAVE) {
+		if (id->slave_state != CDNS_I2C_SLAVE_STATE_IDLE) {
+			ret = -EAGAIN;
+			goto out;
+		}
+
+		/* Set mode to master */
+		cdns_i2c_set_mode(CDNS_I2C_MODE_MASTER, id);
+
+		/* Mark flag to change role once xfer is completed */
+		change_role = true;
+	}
+#endif
+
 	/* Check if the bus is free */
-	if (cdns_i2c_readreg(CDNS_I2C_SR_OFFSET) & CDNS_I2C_SR_BA) {
+
+	ret = readl_relaxed_poll_timeout(id->membase + CDNS_I2C_SR_OFFSET,
+					 reg,
+					 !(reg & CDNS_I2C_SR_BA),
+					 CDNS_I2C_POLL_US, CDNS_I2C_TIMEOUT_US);
+	if (ret) {
 		ret = -EAGAIN;
+		if (id->adap.bus_recovery_info)
+			i2c_recover_bus(adap);
 		goto out;
 	}
 
@@ -634,7 +912,15 @@ static int cdns_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 	}
 
 	ret = num;
+
 out:
+
+#if IS_ENABLED(CONFIG_I2C_SLAVE)
+	/* Switch i2c mode to slave */
+	if (change_role)
+		cdns_i2c_set_mode(CDNS_I2C_MODE_SLAVE, id);
+#endif
+
 	pm_runtime_mark_last_busy(id->dev);
 	pm_runtime_put_autosuspend(id->dev);
 	return ret;
@@ -648,14 +934,67 @@ out:
  */
 static u32 cdns_i2c_func(struct i2c_adapter *adap)
 {
-	return I2C_FUNC_I2C | I2C_FUNC_10BIT_ADDR |
-		(I2C_FUNC_SMBUS_EMUL & ~I2C_FUNC_SMBUS_QUICK) |
-		I2C_FUNC_SMBUS_BLOCK_DATA;
+	u32 func = I2C_FUNC_I2C | I2C_FUNC_10BIT_ADDR |
+			(I2C_FUNC_SMBUS_EMUL & ~I2C_FUNC_SMBUS_QUICK) |
+			I2C_FUNC_SMBUS_BLOCK_DATA;
+
+#if IS_ENABLED(CONFIG_I2C_SLAVE)
+	func |= I2C_FUNC_SLAVE;
+#endif
+
+	return func;
 }
+
+#if IS_ENABLED(CONFIG_I2C_SLAVE)
+static int cdns_reg_slave(struct i2c_client *slave)
+{
+	int ret;
+	struct cdns_i2c *id = container_of(slave->adapter, struct cdns_i2c,
+									adap);
+
+	if (id->slave)
+		return -EBUSY;
+
+	if (slave->flags & I2C_CLIENT_TEN)
+		return -EAFNOSUPPORT;
+
+	ret = pm_runtime_resume_and_get(id->dev);
+	if (ret < 0)
+		return ret;
+
+	/* Store slave information */
+	id->slave = slave;
+
+	/* Enable I2C slave */
+	cdns_i2c_set_mode(CDNS_I2C_MODE_SLAVE, id);
+
+	return 0;
+}
+
+static int cdns_unreg_slave(struct i2c_client *slave)
+{
+	struct cdns_i2c *id = container_of(slave->adapter, struct cdns_i2c,
+									adap);
+
+	pm_runtime_put(id->dev);
+
+	/* Remove slave information */
+	id->slave = NULL;
+
+	/* Enable I2C master */
+	cdns_i2c_set_mode(CDNS_I2C_MODE_MASTER, id);
+
+	return 0;
+}
+#endif
 
 static const struct i2c_algorithm cdns_i2c_algo = {
 	.master_xfer	= cdns_i2c_master_xfer,
 	.functionality	= cdns_i2c_func,
+#if IS_ENABLED(CONFIG_I2C_SLAVE)
+	.reg_slave	= cdns_reg_slave,
+	.unreg_slave	= cdns_unreg_slave,
+#endif
 };
 
 /**
@@ -700,8 +1039,7 @@ static int cdns_i2c_calc_divs(unsigned long *f, unsigned long input_clk,
 		if (actual_fscl > fscl)
 			continue;
 
-		current_error = ((actual_fscl > fscl) ? (actual_fscl - fscl) :
-							(fscl - actual_fscl));
+		current_error = fscl - actual_fscl;
 
 		if (last_error > current_error) {
 			calc_div_a = div_a;
@@ -745,12 +1083,16 @@ static int cdns_i2c_setclk(unsigned long clk_in, struct cdns_i2c *id)
 	if (ret)
 		return ret;
 
-	ctrl_reg = cdns_i2c_readreg(CDNS_I2C_CR_OFFSET);
+	ctrl_reg = id->ctrl_reg;
 	ctrl_reg &= ~(CDNS_I2C_CR_DIVA_MASK | CDNS_I2C_CR_DIVB_MASK);
 	ctrl_reg |= ((div_a << CDNS_I2C_CR_DIVA_SHIFT) |
 			(div_b << CDNS_I2C_CR_DIVB_SHIFT));
+	id->ctrl_reg = ctrl_reg;
 	cdns_i2c_writereg(ctrl_reg, CDNS_I2C_CR_OFFSET);
-
+#if IS_ENABLED(CONFIG_I2C_SLAVE)
+	id->ctrl_reg_diva_divb = ctrl_reg & (CDNS_I2C_CR_DIVA_MASK |
+				 CDNS_I2C_CR_DIVB_MASK);
+#endif
 	return 0;
 }
 
@@ -833,6 +1175,38 @@ static int __maybe_unused cdns_i2c_runtime_suspend(struct device *dev)
 	return 0;
 }
 
+static int __maybe_unused cdns_i2c_suspend(struct device *dev)
+{
+	struct cdns_i2c *xi2c = dev_get_drvdata(dev);
+
+	i2c_mark_adapter_suspended(&xi2c->adap);
+
+	if (!pm_runtime_status_suspended(dev))
+		return cdns_i2c_runtime_suspend(dev);
+
+	return 0;
+}
+
+/**
+ * cdns_i2c_init -  Controller initialisation
+ * @id:		Device private data structure
+ *
+ * Initialise the i2c controller.
+ *
+ */
+static void cdns_i2c_init(struct cdns_i2c *id)
+{
+	cdns_i2c_writereg(id->ctrl_reg, CDNS_I2C_CR_OFFSET);
+	/*
+	 * Cadence I2C controller has a bug wherein it generates
+	 * invalid read transaction after HW timeout in master receiver mode.
+	 * HW timeout is not used by this driver and the interrupt is disabled.
+	 * But the feature itself cannot be disabled. Hence maximum value
+	 * is written to this register to reduce the chances of error.
+	 */
+	cdns_i2c_writereg(CDNS_I2C_TIMEOUT_MAX, CDNS_I2C_TIME_OUT_OFFSET);
+}
+
 /**
  * cdns_i2c_runtime_resume - Runtime resume
  * @dev:	Address of the platform_device structure
@@ -851,11 +1225,33 @@ static int __maybe_unused cdns_i2c_runtime_resume(struct device *dev)
 		dev_err(dev, "Cannot enable clock.\n");
 		return ret;
 	}
+	cdns_i2c_init(xi2c);
+
+	return 0;
+}
+
+static int __maybe_unused cdns_i2c_resume(struct device *dev)
+{
+	struct cdns_i2c *xi2c = dev_get_drvdata(dev);
+	int err;
+
+	err = cdns_i2c_runtime_resume(dev);
+	if (err)
+		return err;
+
+	if (pm_runtime_status_suspended(dev)) {
+		err = cdns_i2c_runtime_suspend(dev);
+		if (err)
+			return err;
+	}
+
+	i2c_mark_adapter_resumed(&xi2c->adap);
 
 	return 0;
 }
 
 static const struct dev_pm_ops cdns_i2c_dev_pm_ops = {
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(cdns_i2c_suspend, cdns_i2c_resume)
 	SET_RUNTIME_PM_OPS(cdns_i2c_runtime_suspend,
 			   cdns_i2c_runtime_resume, NULL)
 };
@@ -872,6 +1268,37 @@ static const struct of_device_id cdns_i2c_of_match[] = {
 MODULE_DEVICE_TABLE(of, cdns_i2c_of_match);
 
 /**
+ * cdns_i2c_detect_transfer_size - Detect the maximum transfer size supported
+ * @id: Device private data structure
+ *
+ * Detect the maximum transfer size that is supported by this instance of the
+ * Cadence I2C controller.
+ */
+static void cdns_i2c_detect_transfer_size(struct cdns_i2c *id)
+{
+	u32 val;
+
+	/*
+	 * Writing to the transfer size register is only possible if these two bits
+	 * are set in the control register.
+	 */
+	cdns_i2c_writereg(CDNS_I2C_CR_MS | CDNS_I2C_CR_RW, CDNS_I2C_CR_OFFSET);
+
+	/*
+	 * The number of writable bits of the transfer size register can be between
+	 * 4 and 8. This is a controlled through a synthesis parameter of the IP
+	 * core and can vary from instance to instance. The unused MSBs always read
+	 * back as 0. Writing 0xff and then reading the value back will report the
+	 * maximum supported transfer size.
+	 */
+	cdns_i2c_writereg(CDNS_I2C_MAX_TRANSFER_SIZE, CDNS_I2C_XFER_SIZE_OFFSET);
+	val = cdns_i2c_readreg(CDNS_I2C_XFER_SIZE_OFFSET);
+	id->transfer_size = CDNS_I2C_TRANSFER_SIZE(val);
+	cdns_i2c_writereg(0, CDNS_I2C_XFER_SIZE_OFFSET);
+	cdns_i2c_writereg(0, CDNS_I2C_CR_OFFSET);
+}
+
+/**
  * cdns_i2c_probe - Platform registration call
  * @pdev:	Handle to the platform device structure
  *
@@ -885,7 +1312,7 @@ static int cdns_i2c_probe(struct platform_device *pdev)
 {
 	struct resource *r_mem;
 	struct cdns_i2c *id;
-	int ret;
+	int ret, irq;
 	const struct of_device_id *match;
 
 	id = devm_kzalloc(&pdev->dev, sizeof(*id), GFP_KERNEL);
@@ -901,12 +1328,24 @@ static int cdns_i2c_probe(struct platform_device *pdev)
 		id->quirks = data->quirks;
 	}
 
-	r_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	id->membase = devm_ioremap_resource(&pdev->dev, r_mem);
+	id->rinfo.pinctrl = devm_pinctrl_get(&pdev->dev);
+	if (IS_ERR(id->rinfo.pinctrl)) {
+		int err = PTR_ERR(id->rinfo.pinctrl);
+
+		dev_info(&pdev->dev, "can't get pinctrl, bus recovery not supported\n");
+		if (err != -ENODEV)
+			return err;
+	} else {
+		id->adap.bus_recovery_info = &id->rinfo;
+	}
+
+	id->membase = devm_platform_get_and_ioremap_resource(pdev, 0, &r_mem);
 	if (IS_ERR(id->membase))
 		return PTR_ERR(id->membase);
 
-	id->irq = platform_get_irq(pdev, 0);
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
 
 	id->adap.owner = THIS_MODULE;
 	id->adap.dev.of_node = pdev->dev.of_node;
@@ -920,18 +1359,30 @@ static int cdns_i2c_probe(struct platform_device *pdev)
 		 "Cadence I2C at %08lx", (unsigned long)r_mem->start);
 
 	id->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(id->clk)) {
-		dev_err(&pdev->dev, "input clock not found.\n");
-		return PTR_ERR(id->clk);
-	}
+	if (IS_ERR(id->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(id->clk),
+				     "input clock not found.\n");
+
+	id->reset = devm_reset_control_get_optional_shared(&pdev->dev, NULL);
+	if (IS_ERR(id->reset))
+		return dev_err_probe(&pdev->dev, PTR_ERR(id->reset),
+				     "Failed to request reset.\n");
+
 	ret = clk_prepare_enable(id->clk);
 	if (ret)
 		dev_err(&pdev->dev, "Unable to enable clock.\n");
 
-	pm_runtime_enable(id->dev);
+	ret = reset_control_deassert(id->reset);
+	if (ret) {
+		dev_err_probe(&pdev->dev, ret,
+			      "Failed to de-assert reset.\n");
+		goto err_clk_dis;
+	}
+
 	pm_runtime_set_autosuspend_delay(id->dev, CNDS_I2C_PM_TIMEOUT);
 	pm_runtime_use_autosuspend(id->dev);
 	pm_runtime_set_active(id->dev);
+	pm_runtime_enable(id->dev);
 
 	id->clk_rate_change_nb.notifier_call = cdns_i2c_clk_notifier_cb;
 	if (clk_notifier_register(id->clk, &id->clk_rate_change_nb))
@@ -940,48 +1391,52 @@ static int cdns_i2c_probe(struct platform_device *pdev)
 
 	ret = of_property_read_u32(pdev->dev.of_node, "clock-frequency",
 			&id->i2c_clk);
-	if (ret || (id->i2c_clk > CDNS_I2C_SPEED_MAX))
-		id->i2c_clk = CDNS_I2C_SPEED_DEFAULT;
+	if (ret || (id->i2c_clk > I2C_MAX_FAST_MODE_FREQ))
+		id->i2c_clk = I2C_MAX_STANDARD_MODE_FREQ;
 
-	cdns_i2c_writereg(CDNS_I2C_CR_ACK_EN | CDNS_I2C_CR_NEA | CDNS_I2C_CR_MS,
-			  CDNS_I2C_CR_OFFSET);
+#if IS_ENABLED(CONFIG_I2C_SLAVE)
+	/* Set initial mode to master */
+	id->dev_mode = CDNS_I2C_MODE_MASTER;
+	id->slave_state = CDNS_I2C_SLAVE_STATE_IDLE;
+#endif
+	id->ctrl_reg = CDNS_I2C_CR_ACK_EN | CDNS_I2C_CR_NEA | CDNS_I2C_CR_MS;
+
+	id->fifo_depth = CDNS_I2C_FIFO_DEPTH_DEFAULT;
+	of_property_read_u32(pdev->dev.of_node, "fifo-depth", &id->fifo_depth);
+
+	cdns_i2c_detect_transfer_size(id);
 
 	ret = cdns_i2c_setclk(id->input_clk, id);
 	if (ret) {
 		dev_err(&pdev->dev, "invalid SCL clock: %u Hz\n", id->i2c_clk);
 		ret = -EINVAL;
-		goto err_clk_dis;
+		goto err_clk_notifier_unregister;
 	}
 
-	ret = devm_request_irq(&pdev->dev, id->irq, cdns_i2c_isr, 0,
+	ret = devm_request_irq(&pdev->dev, irq, cdns_i2c_isr, 0,
 				 DRIVER_NAME, id);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot get irq %d\n", id->irq);
-		goto err_clk_dis;
+		dev_err(&pdev->dev, "cannot get irq %d\n", irq);
+		goto err_clk_notifier_unregister;
 	}
-
-	/*
-	 * Cadence I2C controller has a bug wherein it generates
-	 * invalid read transaction after HW timeout in master receiver mode.
-	 * HW timeout is not used by this driver and the interrupt is disabled.
-	 * But the feature itself cannot be disabled. Hence maximum value
-	 * is written to this register to reduce the chances of error.
-	 */
-	cdns_i2c_writereg(CDNS_I2C_TIMEOUT_MAX, CDNS_I2C_TIME_OUT_OFFSET);
+	cdns_i2c_init(id);
 
 	ret = i2c_add_adapter(&id->adap);
 	if (ret < 0)
-		goto err_clk_dis;
+		goto err_clk_notifier_unregister;
 
 	dev_info(&pdev->dev, "%u kHz mmio %08lx irq %d\n",
-		 id->i2c_clk / 1000, (unsigned long)r_mem->start, id->irq);
+		 id->i2c_clk / 1000, (unsigned long)r_mem->start, irq);
 
 	return 0;
 
+err_clk_notifier_unregister:
+	clk_notifier_unregister(id->clk, &id->clk_rate_change_nb);
+	reset_control_assert(id->reset);
 err_clk_dis:
 	clk_disable_unprepare(id->clk);
-	pm_runtime_set_suspended(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
+	pm_runtime_set_suspended(&pdev->dev);
 	return ret;
 }
 
@@ -993,16 +1448,18 @@ err_clk_dis:
  *
  * Return: 0 always
  */
-static int cdns_i2c_remove(struct platform_device *pdev)
+static void cdns_i2c_remove(struct platform_device *pdev)
 {
 	struct cdns_i2c *id = platform_get_drvdata(pdev);
 
+	pm_runtime_disable(&pdev->dev);
+	pm_runtime_set_suspended(&pdev->dev);
+	pm_runtime_dont_use_autosuspend(&pdev->dev);
+
 	i2c_del_adapter(&id->adap);
 	clk_notifier_unregister(id->clk, &id->clk_rate_change_nb);
+	reset_control_assert(id->reset);
 	clk_disable_unprepare(id->clk);
-	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static struct platform_driver cdns_i2c_drv = {
@@ -1012,7 +1469,7 @@ static struct platform_driver cdns_i2c_drv = {
 		.pm = &cdns_i2c_dev_pm_ops,
 	},
 	.probe  = cdns_i2c_probe,
-	.remove = cdns_i2c_remove,
+	.remove_new = cdns_i2c_remove,
 };
 
 module_platform_driver(cdns_i2c_drv);

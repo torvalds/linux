@@ -7,7 +7,7 @@
 
 #include <linux/io.h>
 #include <linux/bitops.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/irqdomain.h>
@@ -100,7 +100,7 @@ static void ralink_intc_irq_handler(struct irq_desc *desc)
 
 	if (pending) {
 		struct irq_domain *domain = irq_desc_get_handler_data(desc);
-		generic_handle_irq(irq_find_mapping(domain, __ffs(pending)));
+		generic_handle_domain_irq(domain, __ffs(pending));
 	} else {
 		spurious_interrupt();
 	}
@@ -165,7 +165,7 @@ static int __init intc_of_init(struct device_node *node,
 				res.name))
 		pr_err("Failed to request intc memory");
 
-	rt_intc_membase = ioremap_nocache(res.start,
+	rt_intc_membase = ioremap(res.start,
 					resource_size(&res));
 	if (!rt_intc_membase)
 		panic("Failed to remap intc memory");

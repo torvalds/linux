@@ -10,7 +10,7 @@
 #include <linux/export.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 
 #include <asm/fhc.h>
@@ -55,7 +55,7 @@ static int clock_board_calc_nslots(struct clock_board *p)
 			else
 				return 5;
 		}
-		/* Fallthrough */
+		fallthrough;
 	default:
 		return 4;
 	}

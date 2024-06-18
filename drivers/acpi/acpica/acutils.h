@@ -3,7 +3,7 @@
  *
  * Name: acutils.h -- prototypes for the common (subsystem-wide) procedures
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2023, Intel Corp.
  *
  *****************************************************************************/
 
@@ -28,6 +28,7 @@ extern const char *acpi_gbl_max_decode[];
 extern const char *acpi_gbl_mem_decode[];
 extern const char *acpi_gbl_min_decode[];
 extern const char *acpi_gbl_mtp_decode[];
+extern const char *acpi_gbl_phy_decode[];
 extern const char *acpi_gbl_rng_decode[];
 extern const char *acpi_gbl_rw_decode[];
 extern const char *acpi_gbl_shr_decode[];
@@ -52,6 +53,8 @@ extern const char *acpi_gbl_sb_decode[];
 extern const char *acpi_gbl_fc_decode[];
 extern const char *acpi_gbl_pt_decode[];
 extern const char *acpi_gbl_ptyp_decode[];
+extern const char *acpi_gbl_clock_input_mode[];
+extern const char *acpi_gbl_clock_input_scale[];
 #endif
 
 /*
@@ -142,10 +145,11 @@ struct acpi_pkg_info {
 
 /* acpi_ut_dump_buffer */
 
-#define DB_BYTE_DISPLAY     1
-#define DB_WORD_DISPLAY     2
-#define DB_DWORD_DISPLAY    4
-#define DB_QWORD_DISPLAY    8
+#define DB_BYTE_DISPLAY      0x01
+#define DB_WORD_DISPLAY      0x02
+#define DB_DWORD_DISPLAY     0x04
+#define DB_QWORD_DISPLAY     0x08
+#define DB_DISPLAY_DATA_ONLY 0x10
 
 /*
  * utascii - ASCII utilities
@@ -155,6 +159,19 @@ u8 acpi_ut_valid_nameseg(char *signature);
 u8 acpi_ut_valid_name_char(char character, u32 position);
 
 void acpi_ut_check_and_repair_ascii(u8 *name, char *repaired_name, u32 count);
+
+/*
+ * utcksum - Checksum utilities
+ */
+u8 acpi_ut_generate_checksum(void *table, u32 length, u8 original_checksum);
+
+u8 acpi_ut_checksum(u8 *buffer, u32 length);
+
+acpi_status
+acpi_ut_verify_cdat_checksum(struct acpi_table_cdat *cdat_table, u32 length);
+
+acpi_status
+acpi_ut_verify_checksum(struct acpi_table_header *table, u32 length);
 
 /*
  * utnonansi - Non-ANSI C library functions
@@ -735,6 +752,8 @@ const char *acpi_ah_match_uuid(u8 *data);
  */
 #if (defined ACPI_ASL_COMPILER || defined ACPI_EXEC_APP || defined ACPI_HELP_APP)
 void acpi_ut_convert_string_to_uuid(char *in_string, u8 *uuid_buffer);
+
+acpi_status acpi_ut_convert_uuid_to_string(char *uuid_buffer, char *out_string);
 #endif
 
 #endif				/* _ACUTILS_H */

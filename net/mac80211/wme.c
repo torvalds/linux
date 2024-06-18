@@ -2,6 +2,7 @@
 /*
  * Copyright 2004, Instant802 Networks, Inc.
  * Copyright 2013-2014  Intel Mobile Communications GmbH
+ * Copyright (C) 2022 Intel Corporation
  */
 
 #include <linux/netdevice.h>
@@ -118,9 +119,14 @@ u16 ieee80211_select_queue_80211(struct ieee80211_sub_if_data *sdata,
 				 struct ieee80211_hdr *hdr)
 {
 	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	u8 *p;
 
-	if (local->hw.queues < IEEE80211_NUM_ACS)
+	/* Ensure hash is set prior to potential SW encryption */
+	skb_get_hash(skb);
+
+	if ((info->control.flags & IEEE80211_TX_CTRL_DONT_REORDER) ||
+	    local->hw.queues < IEEE80211_NUM_ACS)
 		return 0;
 
 	if (!ieee80211_is_data(hdr->frame_control)) {
@@ -138,15 +144,20 @@ u16 ieee80211_select_queue_80211(struct ieee80211_sub_if_data *sdata,
 	return ieee80211_downgrade_queue(sdata, NULL, skb);
 }
 
-u16 __ieee80211_select_queue(struct ieee80211_sub_if_data *sdata,
-			     struct sta_info *sta, struct sk_buff *skb)
+u16 ieee80211_select_queue(struct ieee80211_sub_if_data *sdata,
+			   struct sta_info *sta, struct sk_buff *skb)
 {
+	const struct ethhdr *eth = (void *)skb->data;
 	struct mac80211_qos_map *qos_map;
 	bool qos;
 
+	/* Ensure hash is set prior to potential SW encryption */
+	skb_get_hash(skb);
+
 	/* all mesh/ocb stations are required to support WME */
-	if (sdata->vif.type == NL80211_IFTYPE_MESH_POINT ||
-	    sdata->vif.type == NL80211_IFTYPE_OCB)
+	if ((sdata->vif.type == NL80211_IFTYPE_MESH_POINT &&
+	    !is_multicast_ether_addr(eth->h_dest)) ||
+	    (sdata->vif.type == NL80211_IFTYPE_OCB && sta))
 		qos = true;
 	else if (sta)
 		qos = sta->sta.wme;
@@ -173,62 +184,6 @@ u16 __ieee80211_select_queue(struct ieee80211_sub_if_data *sdata,
 	return ieee80211_downgrade_queue(sdata, sta, skb);
 }
 
-
-/* Indicate which queue to use. */
-u16 ieee80211_select_queue(struct ieee80211_sub_if_data *sdata,
-			   struct sk_buff *skb)
-{
-	struct ieee80211_local *local = sdata->local;
-	struct sta_info *sta = NULL;
-	const u8 *ra = NULL;
-	u16 ret;
-
-	/* when using iTXQ, we can do this later */
-	if (local->ops->wake_tx_queue)
-		return 0;
-
-	if (local->hw.queues < IEEE80211_NUM_ACS || skb->len < 6) {
-		skb->priority = 0; /* required for correct WPA/11i MIC */
-		return 0;
-	}
-
-	rcu_read_lock();
-	switch (sdata->vif.type) {
-	case NL80211_IFTYPE_AP_VLAN:
-		sta = rcu_dereference(sdata->u.vlan.sta);
-		if (sta)
-			break;
-		/* fall through */
-	case NL80211_IFTYPE_AP:
-		ra = skb->data;
-		break;
-	case NL80211_IFTYPE_WDS:
-		ra = sdata->u.wds.remote_addr;
-		break;
-	case NL80211_IFTYPE_STATION:
-		/* might be a TDLS station */
-		sta = sta_info_get(sdata, skb->data);
-		if (sta)
-			break;
-
-		ra = sdata->u.mgd.bssid;
-		break;
-	case NL80211_IFTYPE_ADHOC:
-		ra = skb->data;
-		break;
-	default:
-		break;
-	}
-
-	if (!sta && ra && !is_multicast_ether_addr(ra))
-		sta = sta_info_get(sdata, ra);
-
-	ret = __ieee80211_select_queue(sdata, sta, skb);
-
-	rcu_read_unlock();
-	return ret;
-}
-
 /**
  * ieee80211_set_qos_hdr - Fill in the QoS header if there is one.
  *
@@ -248,6 +203,14 @@ void ieee80211_set_qos_hdr(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	p = ieee80211_get_qos_ctl(hdr);
+
+	/* don't overwrite the QoS field of injected frames */
+	if (info->flags & IEEE80211_TX_CTL_INJECTED) {
+		/* do take into account Ack policy of injected frames */
+		if (*p & IEEE80211_QOS_CTL_ACK_POLICY_NOACK)
+			info->flags |= IEEE80211_TX_CTL_NO_ACK;
+		return;
+	}
 
 	/* set up the first byte */
 

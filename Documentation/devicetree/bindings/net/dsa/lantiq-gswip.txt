@@ -5,6 +5,10 @@ Required properties for GSWIP core:
 
 - compatible	: "lantiq,xrx200-gswip" for the embedded GSWIP in the
 		  xRX200 SoC
+		  "lantiq,xrx300-gswip" for the embedded GSWIP in the
+		  xRX300 SoC
+		  "lantiq,xrx330-gswip" for the embedded GSWIP in the
+		  xRX330 SoC
 - reg		: memory range of the GSWIP core registers
 		: memory range of the GSWIP MDIO registers
 		: memory range of the GSWIP MII registers
@@ -92,7 +96,6 @@ switch@e108000 {
 
 		port@6 {
 			reg = <0x6>;
-			label = "cpu";
 			ethernet = <&eth0>;
 		};
 	};

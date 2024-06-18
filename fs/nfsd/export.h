@@ -6,6 +6,7 @@
 #define NFSD_EXPORT_H
 
 #include <linux/sunrpc/cache.h>
+#include <linux/percpu_counter.h>
 #include <uapi/linux/nfsd/export.h>
 #include <linux/nfs4.h>
 
@@ -46,14 +47,27 @@ struct exp_flavor_info {
 	u32	flags;
 };
 
+/* Per-export stats */
+enum {
+	EXP_STATS_FH_STALE,
+	EXP_STATS_IO_READ,
+	EXP_STATS_IO_WRITE,
+	EXP_STATS_COUNTERS_NUM
+};
+
+struct export_stats {
+	time64_t		start_time;
+	struct percpu_counter	counter[EXP_STATS_COUNTERS_NUM];
+};
+
 struct svc_export {
 	struct cache_head	h;
 	struct auth_domain *	ex_client;
 	int			ex_flags;
+	int			ex_fsid;
 	struct path		ex_path;
 	kuid_t			ex_anon_uid;
 	kgid_t			ex_anon_gid;
-	int			ex_fsid;
 	unsigned char *		ex_uuid; /* 16 byte fsid */
 	struct nfsd4_fs_locations ex_fslocs;
 	uint32_t		ex_nflavors;
@@ -62,6 +76,8 @@ struct svc_export {
 	struct nfsd4_deviceid_map *ex_devid_map;
 	struct cache_detail	*cd;
 	struct rcu_head		ex_rcu;
+	unsigned long		ex_xprtsec_modes;
+	struct export_stats	*ex_stats;
 };
 
 /* an "export key" (expkey) maps a filehandlefragement to an
@@ -100,7 +116,6 @@ struct svc_export *	rqst_find_fsidzero_export(struct svc_rqst *);
 int			exp_rootfh(struct net *, struct auth_domain *,
 					char *path, struct knfsd_fh *, int maxsize);
 __be32			exp_pseudoroot(struct svc_rqst *, struct svc_fh *);
-__be32			nfserrno(int errno);
 
 static inline void exp_put(struct svc_export *exp)
 {

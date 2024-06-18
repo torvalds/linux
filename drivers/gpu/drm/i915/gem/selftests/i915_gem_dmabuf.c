@@ -6,8 +6,13 @@
 
 #include "i915_drv.h"
 #include "i915_selftest.h"
+#include "gem/i915_gem_context.h"
+#include "gt/intel_gt.h"
 
+#include "mock_context.h"
 #include "mock_dmabuf.h"
+#include "igt_gem_utils.h"
+#include "selftests/mock_drm.h"
 #include "selftests/mock_gem_device.h"
 
 static int igt_dmabuf_export(void *arg)
@@ -35,7 +40,7 @@ static int igt_dmabuf_export(void *arg)
 static int igt_dmabuf_import_self(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
-	struct drm_i915_gem_object *obj;
+	struct drm_i915_gem_object *obj, *import_obj;
 	struct drm_gem_object *import;
 	struct dma_buf *dmabuf;
 	int err;
@@ -59,6 +64,7 @@ static int igt_dmabuf_import_self(void *arg)
 		err = PTR_ERR(import);
 		goto out_dmabuf;
 	}
+	import_obj = to_intel_bo(import);
 
 	if (import != &obj->base) {
 		pr_err("i915_gem_prime_import created a new object!\n");
@@ -66,14 +72,273 @@ static int igt_dmabuf_import_self(void *arg)
 		goto out_import;
 	}
 
+	i915_gem_object_lock(import_obj, NULL);
+	err = __i915_gem_object_get_pages(import_obj);
+	i915_gem_object_unlock(import_obj);
+	if (err) {
+		pr_err("Same object dma-buf get_pages failed!\n");
+		goto out_import;
+	}
+
 	err = 0;
 out_import:
-	i915_gem_object_put(to_intel_bo(import));
+	i915_gem_object_put(import_obj);
 out_dmabuf:
 	dma_buf_put(dmabuf);
 out:
 	i915_gem_object_put(obj);
 	return err;
+}
+
+static int igt_dmabuf_import_same_driver_lmem(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct intel_memory_region *lmem = i915->mm.regions[INTEL_REGION_LMEM_0];
+	struct drm_i915_gem_object *obj;
+	struct drm_gem_object *import;
+	struct dma_buf *dmabuf;
+	int err;
+
+	if (!lmem)
+		return 0;
+
+	force_different_devices = true;
+
+	obj = __i915_gem_object_create_user(i915, PAGE_SIZE, &lmem, 1);
+	if (IS_ERR(obj)) {
+		pr_err("__i915_gem_object_create_user failed with err=%ld\n",
+		       PTR_ERR(obj));
+		err = PTR_ERR(obj);
+		goto out_ret;
+	}
+
+	dmabuf = i915_gem_prime_export(&obj->base, 0);
+	if (IS_ERR(dmabuf)) {
+		pr_err("i915_gem_prime_export failed with err=%ld\n",
+		       PTR_ERR(dmabuf));
+		err = PTR_ERR(dmabuf);
+		goto out;
+	}
+
+	/*
+	 * We expect an import of an LMEM-only object to fail with
+	 * -EOPNOTSUPP because it can't be migrated to SMEM.
+	 */
+	import = i915_gem_prime_import(&i915->drm, dmabuf);
+	if (!IS_ERR(import)) {
+		drm_gem_object_put(import);
+		pr_err("i915_gem_prime_import succeeded when it shouldn't have\n");
+		err = -EINVAL;
+	} else if (PTR_ERR(import) != -EOPNOTSUPP) {
+		pr_err("i915_gem_prime_import failed with the wrong err=%ld\n",
+		       PTR_ERR(import));
+		err = PTR_ERR(import);
+	} else {
+		err = 0;
+	}
+
+	dma_buf_put(dmabuf);
+out:
+	i915_gem_object_put(obj);
+out_ret:
+	force_different_devices = false;
+	return err;
+}
+
+static int verify_access(struct drm_i915_private *i915,
+			 struct drm_i915_gem_object *native_obj,
+			 struct drm_i915_gem_object *import_obj)
+{
+	struct i915_gem_engines_iter it;
+	struct i915_gem_context *ctx;
+	struct intel_context *ce;
+	struct i915_vma *vma;
+	struct file *file;
+	u32 *vaddr;
+	int err = 0, i;
+	unsigned int mode;
+
+	file = mock_file(i915);
+	if (IS_ERR(file))
+		return PTR_ERR(file);
+
+	ctx = live_context(i915, file);
+	if (IS_ERR(ctx)) {
+		err = PTR_ERR(ctx);
+		goto out_file;
+	}
+
+	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it) {
+		if (intel_engine_can_store_dword(ce->engine))
+			break;
+	}
+	i915_gem_context_unlock_engines(ctx);
+	if (!ce)
+		goto out_file;
+
+	vma = i915_vma_instance(import_obj, ce->vm, NULL);
+	if (IS_ERR(vma)) {
+		err = PTR_ERR(vma);
+		goto out_file;
+	}
+
+	err = i915_vma_pin(vma, 0, 0, PIN_USER);
+	if (err)
+		goto out_file;
+
+	err = igt_gpu_fill_dw(ce, vma, 0,
+			      vma->size >> PAGE_SHIFT, 0xdeadbeaf);
+	i915_vma_unpin(vma);
+	if (err)
+		goto out_file;
+
+	err = i915_gem_object_wait(import_obj, 0, MAX_SCHEDULE_TIMEOUT);
+	if (err)
+		goto out_file;
+
+	mode = intel_gt_coherent_map_type(to_gt(i915), native_obj, false);
+	vaddr = i915_gem_object_pin_map_unlocked(native_obj, mode);
+	if (IS_ERR(vaddr)) {
+		err = PTR_ERR(vaddr);
+		goto out_file;
+	}
+
+	for (i = 0; i < native_obj->base.size / sizeof(u32); i += PAGE_SIZE / sizeof(u32)) {
+		if (vaddr[i] != 0xdeadbeaf) {
+			pr_err("Data mismatch [%d]=%u\n", i, vaddr[i]);
+			err = -EINVAL;
+			goto out_file;
+		}
+	}
+
+out_file:
+	fput(file);
+	return err;
+}
+
+static int igt_dmabuf_import_same_driver(struct drm_i915_private *i915,
+					 struct intel_memory_region **regions,
+					 unsigned int num_regions)
+{
+	struct drm_i915_gem_object *obj, *import_obj;
+	struct drm_gem_object *import;
+	struct dma_buf *dmabuf;
+	struct dma_buf_attachment *import_attach;
+	struct sg_table *st;
+	long timeout;
+	int err;
+
+	force_different_devices = true;
+
+	obj = __i915_gem_object_create_user(i915, SZ_8M,
+					    regions, num_regions);
+	if (IS_ERR(obj)) {
+		pr_err("__i915_gem_object_create_user failed with err=%ld\n",
+		       PTR_ERR(obj));
+		err = PTR_ERR(obj);
+		goto out_ret;
+	}
+
+	dmabuf = i915_gem_prime_export(&obj->base, 0);
+	if (IS_ERR(dmabuf)) {
+		pr_err("i915_gem_prime_export failed with err=%ld\n",
+		       PTR_ERR(dmabuf));
+		err = PTR_ERR(dmabuf);
+		goto out;
+	}
+
+	import = i915_gem_prime_import(&i915->drm, dmabuf);
+	if (IS_ERR(import)) {
+		pr_err("i915_gem_prime_import failed with err=%ld\n",
+		       PTR_ERR(import));
+		err = PTR_ERR(import);
+		goto out_dmabuf;
+	}
+	import_obj = to_intel_bo(import);
+
+	if (import == &obj->base) {
+		pr_err("i915_gem_prime_import reused gem object!\n");
+		err = -EINVAL;
+		goto out_import;
+	}
+
+	i915_gem_object_lock(import_obj, NULL);
+	err = __i915_gem_object_get_pages(import_obj);
+	if (err) {
+		pr_err("Different objects dma-buf get_pages failed!\n");
+		i915_gem_object_unlock(import_obj);
+		goto out_import;
+	}
+
+	/*
+	 * If the exported object is not in system memory, something
+	 * weird is going on. TODO: When p2p is supported, this is no
+	 * longer considered weird.
+	 */
+	if (obj->mm.region != i915->mm.regions[INTEL_REGION_SMEM]) {
+		pr_err("Exported dma-buf is not in system memory\n");
+		err = -EINVAL;
+	}
+
+	i915_gem_object_unlock(import_obj);
+
+	err = verify_access(i915, obj, import_obj);
+	if (err)
+		goto out_import;
+
+	/* Now try a fake an importer */
+	import_attach = dma_buf_attach(dmabuf, obj->base.dev->dev);
+	if (IS_ERR(import_attach)) {
+		err = PTR_ERR(import_attach);
+		goto out_import;
+	}
+
+	st = dma_buf_map_attachment_unlocked(import_attach, DMA_BIDIRECTIONAL);
+	if (IS_ERR(st)) {
+		err = PTR_ERR(st);
+		goto out_detach;
+	}
+
+	timeout = dma_resv_wait_timeout(dmabuf->resv, DMA_RESV_USAGE_WRITE,
+					true, 5 * HZ);
+	if (!timeout) {
+		pr_err("dmabuf wait for exclusive fence timed out.\n");
+		timeout = -ETIME;
+	}
+	err = timeout > 0 ? 0 : timeout;
+	dma_buf_unmap_attachment_unlocked(import_attach, st, DMA_BIDIRECTIONAL);
+out_detach:
+	dma_buf_detach(dmabuf, import_attach);
+out_import:
+	i915_gem_object_put(import_obj);
+out_dmabuf:
+	dma_buf_put(dmabuf);
+out:
+	i915_gem_object_put(obj);
+out_ret:
+	force_different_devices = false;
+	return err;
+}
+
+static int igt_dmabuf_import_same_driver_smem(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct intel_memory_region *smem = i915->mm.regions[INTEL_REGION_SMEM];
+
+	return igt_dmabuf_import_same_driver(i915, &smem, 1);
+}
+
+static int igt_dmabuf_import_same_driver_lmem_smem(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct intel_memory_region *regions[2];
+
+	if (!i915->mm.regions[INTEL_REGION_LMEM_0])
+		return 0;
+
+	regions[0] = i915->mm.regions[INTEL_REGION_LMEM_0];
+	regions[1] = i915->mm.regions[INTEL_REGION_SMEM];
+	return igt_dmabuf_import_same_driver(i915, regions, 2);
 }
 
 static int igt_dmabuf_import(void *arg)
@@ -82,6 +347,7 @@ static int igt_dmabuf_import(void *arg)
 	struct drm_i915_gem_object *obj;
 	struct dma_buf *dmabuf;
 	void *obj_map, *dma_map;
+	struct iosys_map map;
 	u32 pattern[] = { 0, 0xaa, 0xcc, 0x55, 0xff };
 	int err, i;
 
@@ -110,7 +376,8 @@ static int igt_dmabuf_import(void *arg)
 		goto out_obj;
 	}
 
-	dma_map = dma_buf_vmap(dmabuf);
+	err = dma_buf_vmap_unlocked(dmabuf, &map);
+	dma_map = err ? NULL : map.vaddr;
 	if (!dma_map) {
 		pr_err("dma_buf_vmap failed\n");
 		err = -ENOMEM;
@@ -150,7 +417,7 @@ static int igt_dmabuf_import(void *arg)
 
 	err = 0;
 out_dma_map:
-	dma_buf_vunmap(dmabuf, dma_map);
+	dma_buf_vunmap_unlocked(dmabuf, &map);
 out_obj:
 	i915_gem_object_put(obj);
 out_dmabuf:
@@ -163,6 +430,7 @@ static int igt_dmabuf_import_ownership(void *arg)
 	struct drm_i915_private *i915 = arg;
 	struct drm_i915_gem_object *obj;
 	struct dma_buf *dmabuf;
+	struct iosys_map map;
 	void *ptr;
 	int err;
 
@@ -170,7 +438,8 @@ static int igt_dmabuf_import_ownership(void *arg)
 	if (IS_ERR(dmabuf))
 		return PTR_ERR(dmabuf);
 
-	ptr = dma_buf_vmap(dmabuf);
+	err = dma_buf_vmap_unlocked(dmabuf, &map);
+	ptr = err ? NULL : map.vaddr;
 	if (!ptr) {
 		pr_err("dma_buf_vmap failed\n");
 		err = -ENOMEM;
@@ -178,7 +447,7 @@ static int igt_dmabuf_import_ownership(void *arg)
 	}
 
 	memset(ptr, 0xc5, PAGE_SIZE);
-	dma_buf_vunmap(dmabuf, ptr);
+	dma_buf_vunmap_unlocked(dmabuf, &map);
 
 	obj = to_intel_bo(i915_gem_prime_import(&i915->drm, dmabuf));
 	if (IS_ERR(obj)) {
@@ -190,7 +459,7 @@ static int igt_dmabuf_import_ownership(void *arg)
 
 	dma_buf_put(dmabuf);
 
-	err = i915_gem_object_pin_pages(obj);
+	err = i915_gem_object_pin_pages_unlocked(obj);
 	if (err) {
 		pr_err("i915_gem_object_pin_pages failed with err=%d\n", err);
 		goto out_obj;
@@ -212,6 +481,7 @@ static int igt_dmabuf_export_vmap(void *arg)
 	struct drm_i915_private *i915 = arg;
 	struct drm_i915_gem_object *obj;
 	struct dma_buf *dmabuf;
+	struct iosys_map map;
 	void *ptr;
 	int err;
 
@@ -228,7 +498,8 @@ static int igt_dmabuf_export_vmap(void *arg)
 	}
 	i915_gem_object_put(obj);
 
-	ptr = dma_buf_vmap(dmabuf);
+	err = dma_buf_vmap_unlocked(dmabuf, &map);
+	ptr = err ? NULL : map.vaddr;
 	if (!ptr) {
 		pr_err("dma_buf_vmap failed\n");
 		err = -ENOMEM;
@@ -236,7 +507,7 @@ static int igt_dmabuf_export_vmap(void *arg)
 	}
 
 	if (memchr_inv(ptr, 0, dmabuf->size)) {
-		pr_err("Exported object not initialiased to zero!\n");
+		pr_err("Exported object not initialised to zero!\n");
 		err = -EINVAL;
 		goto out;
 	}
@@ -244,113 +515,13 @@ static int igt_dmabuf_export_vmap(void *arg)
 	memset(ptr, 0xc5, dmabuf->size);
 
 	err = 0;
-	dma_buf_vunmap(dmabuf, ptr);
+	dma_buf_vunmap_unlocked(dmabuf, &map);
 out:
 	dma_buf_put(dmabuf);
 	return err;
 
 err_obj:
 	i915_gem_object_put(obj);
-	return err;
-}
-
-static int igt_dmabuf_export_kmap(void *arg)
-{
-	struct drm_i915_private *i915 = arg;
-	struct drm_i915_gem_object *obj;
-	struct dma_buf *dmabuf;
-	void *ptr;
-	int err;
-
-	obj = i915_gem_object_create_shmem(i915, 2 * PAGE_SIZE);
-	if (IS_ERR(obj))
-		return PTR_ERR(obj);
-
-	dmabuf = i915_gem_prime_export(&obj->base, 0);
-	i915_gem_object_put(obj);
-	if (IS_ERR(dmabuf)) {
-		err = PTR_ERR(dmabuf);
-		pr_err("i915_gem_prime_export failed with err=%d\n", err);
-		return err;
-	}
-
-	ptr = dma_buf_kmap(dmabuf, 0);
-	if (!ptr) {
-		pr_err("dma_buf_kmap failed\n");
-		err = -ENOMEM;
-		goto err;
-	}
-
-	if (memchr_inv(ptr, 0, PAGE_SIZE)) {
-		dma_buf_kunmap(dmabuf, 0, ptr);
-		pr_err("Exported page[0] not initialiased to zero!\n");
-		err = -EINVAL;
-		goto err;
-	}
-
-	memset(ptr, 0xc5, PAGE_SIZE);
-	dma_buf_kunmap(dmabuf, 0, ptr);
-
-	ptr = i915_gem_object_pin_map(obj, I915_MAP_WB);
-	if (IS_ERR(ptr)) {
-		err = PTR_ERR(ptr);
-		pr_err("i915_gem_object_pin_map failed with err=%d\n", err);
-		goto err;
-	}
-	memset(ptr + PAGE_SIZE, 0xaa, PAGE_SIZE);
-	i915_gem_object_flush_map(obj);
-	i915_gem_object_unpin_map(obj);
-
-	ptr = dma_buf_kmap(dmabuf, 1);
-	if (!ptr) {
-		pr_err("dma_buf_kmap failed\n");
-		err = -ENOMEM;
-		goto err;
-	}
-
-	if (memchr_inv(ptr, 0xaa, PAGE_SIZE)) {
-		dma_buf_kunmap(dmabuf, 1, ptr);
-		pr_err("Exported page[1] not set to 0xaa!\n");
-		err = -EINVAL;
-		goto err;
-	}
-
-	memset(ptr, 0xc5, PAGE_SIZE);
-	dma_buf_kunmap(dmabuf, 1, ptr);
-
-	ptr = dma_buf_kmap(dmabuf, 0);
-	if (!ptr) {
-		pr_err("dma_buf_kmap failed\n");
-		err = -ENOMEM;
-		goto err;
-	}
-	if (memchr_inv(ptr, 0xc5, PAGE_SIZE)) {
-		dma_buf_kunmap(dmabuf, 0, ptr);
-		pr_err("Exported page[0] did not retain 0xc5!\n");
-		err = -EINVAL;
-		goto err;
-	}
-	dma_buf_kunmap(dmabuf, 0, ptr);
-
-	ptr = dma_buf_kmap(dmabuf, 2);
-	if (ptr) {
-		pr_err("Erroneously kmapped beyond the end of the object!\n");
-		dma_buf_kunmap(dmabuf, 2, ptr);
-		err = -EINVAL;
-		goto err;
-	}
-
-	ptr = dma_buf_kmap(dmabuf, -1);
-	if (ptr) {
-		pr_err("Erroneously kmapped before the start of the object!\n");
-		dma_buf_kunmap(dmabuf, -1, ptr);
-		err = -EINVAL;
-		goto err;
-	}
-
-	err = 0;
-err:
-	dma_buf_put(dmabuf);
 	return err;
 }
 
@@ -362,7 +533,6 @@ int i915_gem_dmabuf_mock_selftests(void)
 		SUBTEST(igt_dmabuf_import),
 		SUBTEST(igt_dmabuf_import_ownership),
 		SUBTEST(igt_dmabuf_export_vmap),
-		SUBTEST(igt_dmabuf_export_kmap),
 	};
 	struct drm_i915_private *i915;
 	int err;
@@ -373,7 +543,7 @@ int i915_gem_dmabuf_mock_selftests(void)
 
 	err = i915_subtests(tests, i915);
 
-	drm_dev_put(&i915->drm);
+	mock_destroy_device(i915);
 	return err;
 }
 
@@ -381,7 +551,10 @@ int i915_gem_dmabuf_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_dmabuf_export),
+		SUBTEST(igt_dmabuf_import_same_driver_lmem),
+		SUBTEST(igt_dmabuf_import_same_driver_smem),
+		SUBTEST(igt_dmabuf_import_same_driver_lmem_smem),
 	};
 
-	return i915_subtests(tests, i915);
+	return i915_live_subtests(tests, i915);
 }

@@ -1,0 +1,93 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/nvidia,tegra-audio-wm8903.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra audio complex with WM8903 CODEC
+
+maintainers:
+  - Jon Hunter <jonathanh@nvidia.com>
+  - Thierry Reding <thierry.reding@gmail.com>
+
+allOf:
+  - $ref: nvidia,tegra-audio-common.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - pattern: '^[a-z0-9]+,tegra-audio-wm8903(-[a-z0-9]+)+$'
+          - const: nvidia,tegra-audio-wm8903
+      - items:
+          - pattern: ad,tegra-audio-plutux
+          - const: nvidia,tegra-audio-wm8903
+
+  nvidia,audio-routing:
+    $ref: /schemas/types.yaml#/definitions/non-unique-string-array
+    description: |
+      A list of the connections between audio components.
+      Each entry is a pair of strings, the first being the connection's sink,
+      the second being the connection's source. Valid names for sources and
+      sinks are the pins (documented in the binding document),
+      and the jacks on the board.
+    minItems: 2
+    items:
+      enum:
+        # Board Connectors
+        - Headphone Jack
+        - Int Spk
+        - Mic Jack
+        - Int Mic
+
+        # CODEC Pins
+        - IN1L
+        - IN1R
+        - IN2L
+        - IN2R
+        - IN3L
+        - IN3R
+        - DMICDAT
+        - HPOUTL
+        - HPOUTR
+        - LINEOUTL
+        - LINEOUTR
+        - LOP
+        - LON
+        - ROP
+        - RON
+        - MICBIAS
+
+required:
+  - nvidia,i2s-controller
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    sound {
+        compatible = "nvidia,tegra-audio-wm8903-harmony",
+                     "nvidia,tegra-audio-wm8903";
+        nvidia,model = "tegra-wm8903-harmony";
+
+        nvidia,audio-routing =
+                "Headphone Jack", "HPOUTR",
+                "Headphone Jack", "HPOUTL",
+                "Int Spk", "ROP",
+                "Int Spk", "RON",
+                "Int Spk", "LOP",
+                "Int Spk", "LON",
+                "Mic Jack", "MICBIAS",
+                "IN1L", "Mic Jack";
+
+        nvidia,i2s-controller = <&i2s1>;
+        nvidia,audio-codec = <&wm8903>;
+
+        nvidia,spkr-en-gpios = <&codec 2 0>;
+        nvidia,hp-det-gpios = <&gpio 178 0>;
+        nvidia,int-mic-en-gpios = <&gpio 184 0>;
+        nvidia,ext-mic-en-gpios = <&gpio 185 0>;
+
+        clocks = <&clk 112>, <&clk 113>, <&clk 93>;
+        clock-names = "pll_a", "pll_a_out0", "mclk";
+    };

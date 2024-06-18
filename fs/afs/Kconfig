@@ -4,11 +4,12 @@ config AFS_FS
 	depends on INET
 	select AF_RXRPC
 	select DNS_RESOLVER
+	select NETFS_SUPPORT
 	help
 	  If you say Y here, you will get an experimental Andrew File System
 	  driver. It currently only supports unsecured read-only AFS access.
 
-	  See <file:Documentation/filesystems/afs.txt> for more information.
+	  See <file:Documentation/filesystems/afs.rst> for more information.
 
 	  If unsure, say N.
 
@@ -18,7 +19,7 @@ config AFS_DEBUG
 	help
 	  Say Y here to make runtime controllable debugging messages appear.
 
-	  See <file:Documentation/filesystems/afs.txt> for more information.
+	  See <file:Documentation/filesystems/afs.rst> for more information.
 
 	  If unsure, say N.
 
@@ -37,6 +38,6 @@ config AFS_DEBUG_CURSOR
 	  the dmesg log if the server rotation algorithm fails to successfully
 	  contact a server.
 
-	  See <file:Documentation/filesystems/afs.txt> for more information.
+	  See <file:Documentation/filesystems/afs.rst> for more information.
 
 	  If unsure, say N.

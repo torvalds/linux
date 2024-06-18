@@ -13,30 +13,6 @@
 #include "cedrus_hw.h"
 #include "cedrus_regs.h"
 
-/* Default MPEG-2 quantization coefficients, from the specification. */
-
-static const u8 intra_quantization_matrix_default[64] = {
-	8,  16, 16, 19, 16, 19, 22, 22,
-	22, 22, 22, 22, 26, 24, 26, 27,
-	27, 27, 26, 26, 26, 26, 27, 27,
-	27, 29, 29, 29, 34, 34, 34, 29,
-	29, 29, 27, 27, 29, 29, 32, 32,
-	34, 34, 37, 38, 37, 35, 35, 34,
-	35, 38, 38, 40, 40, 40, 48, 48,
-	46, 46, 56, 56, 58, 69, 69, 83
-};
-
-static const u8 non_intra_quantization_matrix_default[64] = {
-	16, 16, 16, 16, 16, 16, 16, 16,
-	16, 16, 16, 16, 16, 16, 16, 16,
-	16, 16, 16, 16, 16, 16, 16, 16,
-	16, 16, 16, 16, 16, 16, 16, 16,
-	16, 16, 16, 16, 16, 16, 16, 16,
-	16, 16, 16, 16, 16, 16, 16, 16,
-	16, 16, 16, 16, 16, 16, 16, 16,
-	16, 16, 16, 16, 16, 16, 16, 16
-};
-
 static enum cedrus_irq_status cedrus_mpeg2_irq_status(struct cedrus_ctx *ctx)
 {
 	struct cedrus_dev *dev = ctx->dev;
@@ -72,39 +48,28 @@ static void cedrus_mpeg2_irq_disable(struct cedrus_ctx *ctx)
 	cedrus_write(dev, VE_DEC_MPEG_CTRL, reg);
 }
 
-static void cedrus_mpeg2_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
+static int cedrus_mpeg2_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
 {
-	const struct v4l2_ctrl_mpeg2_slice_params *slice_params;
-	const struct v4l2_mpeg2_sequence *sequence;
-	const struct v4l2_mpeg2_picture *picture;
-	const struct v4l2_ctrl_mpeg2_quantization *quantization;
+	const struct v4l2_ctrl_mpeg2_sequence *seq;
+	const struct v4l2_ctrl_mpeg2_picture *pic;
+	const struct v4l2_ctrl_mpeg2_quantisation *quantisation;
 	dma_addr_t src_buf_addr, dst_luma_addr, dst_chroma_addr;
-	dma_addr_t fwd_luma_addr, fwd_chroma_addr;
-	dma_addr_t bwd_luma_addr, bwd_chroma_addr;
 	struct cedrus_dev *dev = ctx->dev;
 	struct vb2_queue *vq;
 	const u8 *matrix;
-	int forward_idx;
-	int backward_idx;
 	unsigned int i;
 	u32 reg;
 
-	slice_params = run->mpeg2.slice_params;
-	sequence = &slice_params->sequence;
-	picture = &slice_params->picture;
+	seq = run->mpeg2.sequence;
+	pic = run->mpeg2.picture;
 
-	quantization = run->mpeg2.quantization;
+	quantisation = run->mpeg2.quantisation;
 
 	/* Activate MPEG engine. */
-	cedrus_engine_enable(dev, CEDRUS_CODEC_MPEG2);
+	cedrus_engine_enable(ctx);
 
-	/* Set intra quantization matrix. */
-
-	if (quantization && quantization->load_intra_quantiser_matrix)
-		matrix = quantization->intra_quantiser_matrix;
-	else
-		matrix = intra_quantization_matrix_default;
-
+	/* Set intra quantisation matrix. */
+	matrix = quantisation->intra_quantiser_matrix;
 	for (i = 0; i < 64; i++) {
 		reg = VE_DEC_MPEG_IQMINPUT_WEIGHT(i, matrix[i]);
 		reg |= VE_DEC_MPEG_IQMINPUT_FLAG_INTRA;
@@ -112,13 +77,8 @@ static void cedrus_mpeg2_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
 		cedrus_write(dev, VE_DEC_MPEG_IQMINPUT, reg);
 	}
 
-	/* Set non-intra quantization matrix. */
-
-	if (quantization && quantization->load_non_intra_quantiser_matrix)
-		matrix = quantization->non_intra_quantiser_matrix;
-	else
-		matrix = non_intra_quantization_matrix_default;
-
+	/* Set non-intra quantisation matrix. */
+	matrix = quantisation->non_intra_quantiser_matrix;
 	for (i = 0; i < 64; i++) {
 		reg = VE_DEC_MPEG_IQMINPUT_WEIGHT(i, matrix[i]);
 		reg |= VE_DEC_MPEG_IQMINPUT_FLAG_NON_INTRA;
@@ -128,19 +88,19 @@ static void cedrus_mpeg2_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
 
 	/* Set MPEG picture header. */
 
-	reg = VE_DEC_MPEG_MP12HDR_SLICE_TYPE(picture->picture_coding_type);
-	reg |= VE_DEC_MPEG_MP12HDR_F_CODE(0, 0, picture->f_code[0][0]);
-	reg |= VE_DEC_MPEG_MP12HDR_F_CODE(0, 1, picture->f_code[0][1]);
-	reg |= VE_DEC_MPEG_MP12HDR_F_CODE(1, 0, picture->f_code[1][0]);
-	reg |= VE_DEC_MPEG_MP12HDR_F_CODE(1, 1, picture->f_code[1][1]);
-	reg |= VE_DEC_MPEG_MP12HDR_INTRA_DC_PRECISION(picture->intra_dc_precision);
-	reg |= VE_DEC_MPEG_MP12HDR_INTRA_PICTURE_STRUCTURE(picture->picture_structure);
-	reg |= VE_DEC_MPEG_MP12HDR_TOP_FIELD_FIRST(picture->top_field_first);
-	reg |= VE_DEC_MPEG_MP12HDR_FRAME_PRED_FRAME_DCT(picture->frame_pred_frame_dct);
-	reg |= VE_DEC_MPEG_MP12HDR_CONCEALMENT_MOTION_VECTORS(picture->concealment_motion_vectors);
-	reg |= VE_DEC_MPEG_MP12HDR_Q_SCALE_TYPE(picture->q_scale_type);
-	reg |= VE_DEC_MPEG_MP12HDR_INTRA_VLC_FORMAT(picture->intra_vlc_format);
-	reg |= VE_DEC_MPEG_MP12HDR_ALTERNATE_SCAN(picture->alternate_scan);
+	reg = VE_DEC_MPEG_MP12HDR_SLICE_TYPE(pic->picture_coding_type);
+	reg |= VE_DEC_MPEG_MP12HDR_F_CODE(0, 0, pic->f_code[0][0]);
+	reg |= VE_DEC_MPEG_MP12HDR_F_CODE(0, 1, pic->f_code[0][1]);
+	reg |= VE_DEC_MPEG_MP12HDR_F_CODE(1, 0, pic->f_code[1][0]);
+	reg |= VE_DEC_MPEG_MP12HDR_F_CODE(1, 1, pic->f_code[1][1]);
+	reg |= VE_DEC_MPEG_MP12HDR_INTRA_DC_PRECISION(pic->intra_dc_precision);
+	reg |= VE_DEC_MPEG_MP12HDR_INTRA_PICTURE_STRUCTURE(pic->picture_structure);
+	reg |= VE_DEC_MPEG_MP12HDR_TOP_FIELD_FIRST(pic->flags & V4L2_MPEG2_PIC_FLAG_TOP_FIELD_FIRST);
+	reg |= VE_DEC_MPEG_MP12HDR_FRAME_PRED_FRAME_DCT(pic->flags & V4L2_MPEG2_PIC_FLAG_FRAME_PRED_DCT);
+	reg |= VE_DEC_MPEG_MP12HDR_CONCEALMENT_MOTION_VECTORS(pic->flags & V4L2_MPEG2_PIC_FLAG_CONCEALMENT_MV);
+	reg |= VE_DEC_MPEG_MP12HDR_Q_SCALE_TYPE(pic->flags & V4L2_MPEG2_PIC_FLAG_Q_SCALE_TYPE);
+	reg |= VE_DEC_MPEG_MP12HDR_INTRA_VLC_FORMAT(pic->flags & V4L2_MPEG2_PIC_FLAG_INTRA_VLC);
+	reg |= VE_DEC_MPEG_MP12HDR_ALTERNATE_SCAN(pic->flags & V4L2_MPEG2_PIC_FLAG_ALT_SCAN);
 	reg |= VE_DEC_MPEG_MP12HDR_FULL_PEL_FORWARD_VECTOR(0);
 	reg |= VE_DEC_MPEG_MP12HDR_FULL_PEL_BACKWARD_VECTOR(0);
 
@@ -148,8 +108,8 @@ static void cedrus_mpeg2_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
 
 	/* Set frame dimensions. */
 
-	reg = VE_DEC_MPEG_PICCODEDSIZE_WIDTH(sequence->horizontal_size);
-	reg |= VE_DEC_MPEG_PICCODEDSIZE_HEIGHT(sequence->vertical_size);
+	reg = VE_DEC_MPEG_PICCODEDSIZE_WIDTH(seq->horizontal_size);
+	reg |= VE_DEC_MPEG_PICCODEDSIZE_HEIGHT(seq->vertical_size);
 
 	cedrus_write(dev, VE_DEC_MPEG_PICCODEDSIZE, reg);
 
@@ -159,37 +119,28 @@ static void cedrus_mpeg2_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
 	cedrus_write(dev, VE_DEC_MPEG_PICBOUNDSIZE, reg);
 
 	/* Forward and backward prediction reference buffers. */
-
 	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
 
-	forward_idx = vb2_find_timestamp(vq, slice_params->forward_ref_ts, 0);
-	fwd_luma_addr = cedrus_dst_buf_addr(ctx, forward_idx, 0);
-	fwd_chroma_addr = cedrus_dst_buf_addr(ctx, forward_idx, 1);
-
-	cedrus_write(dev, VE_DEC_MPEG_FWD_REF_LUMA_ADDR, fwd_luma_addr);
-	cedrus_write(dev, VE_DEC_MPEG_FWD_REF_CHROMA_ADDR, fwd_chroma_addr);
-
-	backward_idx = vb2_find_timestamp(vq, slice_params->backward_ref_ts, 0);
-	bwd_luma_addr = cedrus_dst_buf_addr(ctx, backward_idx, 0);
-	bwd_chroma_addr = cedrus_dst_buf_addr(ctx, backward_idx, 1);
-
-	cedrus_write(dev, VE_DEC_MPEG_BWD_REF_LUMA_ADDR, bwd_luma_addr);
-	cedrus_write(dev, VE_DEC_MPEG_BWD_REF_CHROMA_ADDR, bwd_chroma_addr);
+	cedrus_write_ref_buf_addr(ctx, vq, pic->forward_ref_ts,
+				  VE_DEC_MPEG_FWD_REF_LUMA_ADDR,
+				  VE_DEC_MPEG_FWD_REF_CHROMA_ADDR);
+	cedrus_write_ref_buf_addr(ctx, vq, pic->backward_ref_ts,
+				  VE_DEC_MPEG_BWD_REF_LUMA_ADDR,
+				  VE_DEC_MPEG_BWD_REF_CHROMA_ADDR);
 
 	/* Destination luma and chroma buffers. */
 
-	dst_luma_addr = cedrus_dst_buf_addr(ctx, run->dst->vb2_buf.index, 0);
-	dst_chroma_addr = cedrus_dst_buf_addr(ctx, run->dst->vb2_buf.index, 1);
+	dst_luma_addr = cedrus_dst_buf_addr(ctx, &run->dst->vb2_buf, 0);
+	dst_chroma_addr = cedrus_dst_buf_addr(ctx, &run->dst->vb2_buf, 1);
 
 	cedrus_write(dev, VE_DEC_MPEG_REC_LUMA, dst_luma_addr);
 	cedrus_write(dev, VE_DEC_MPEG_REC_CHROMA, dst_chroma_addr);
 
 	/* Source offset and length in bits. */
 
-	cedrus_write(dev, VE_DEC_MPEG_VLD_OFFSET,
-		     slice_params->data_bit_offset);
+	cedrus_write(dev, VE_DEC_MPEG_VLD_OFFSET, 0);
 
-	reg = slice_params->bit_size - slice_params->data_bit_offset;
+	reg = vb2_get_plane_payload(&run->src->vb2_buf, 0) * 8;
 	cedrus_write(dev, VE_DEC_MPEG_VLD_LEN, reg);
 
 	/* Source beginning and end addresses. */
@@ -203,7 +154,7 @@ static void cedrus_mpeg2_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
 
 	cedrus_write(dev, VE_DEC_MPEG_VLD_ADDR, reg);
 
-	reg = src_buf_addr + DIV_ROUND_UP(slice_params->bit_size, 8);
+	reg = src_buf_addr + vb2_get_plane_payload(&run->src->vb2_buf, 0);
 	cedrus_write(dev, VE_DEC_MPEG_VLD_END_ADDR, reg);
 
 	/* Macroblock address: start at the beginning. */
@@ -222,6 +173,8 @@ static void cedrus_mpeg2_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
 	      VE_DEC_MPEG_CTRL_MC_CACHE_EN;
 
 	cedrus_write(dev, VE_DEC_MPEG_CTRL, reg);
+
+	return 0;
 }
 
 static void cedrus_mpeg2_trigger(struct cedrus_ctx *ctx)

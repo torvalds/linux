@@ -79,7 +79,7 @@ static void keyring_revoke(struct key *keyring);
 static void keyring_destroy(struct key *keyring);
 static void keyring_describe(const struct key *keyring, struct seq_file *m);
 static long keyring_read(const struct key *keyring,
-			 char __user *buffer, size_t buflen);
+			 char *buffer, size_t buflen);
 
 struct key_type key_type_keyring = {
 	.name		= "keyring",
@@ -452,14 +452,13 @@ static void keyring_describe(const struct key *keyring, struct seq_file *m)
 struct keyring_read_iterator_context {
 	size_t			buflen;
 	size_t			count;
-	key_serial_t __user	*buffer;
+	key_serial_t		*buffer;
 };
 
 static int keyring_read_iterator(const void *object, void *data)
 {
 	struct keyring_read_iterator_context *ctx = data;
 	const struct key *key = keyring_ptr_to_key(object);
-	int ret;
 
 	kenter("{%s,%d},,{%zu/%zu}",
 	       key->type->name, key->serial, ctx->count, ctx->buflen);
@@ -467,10 +466,7 @@ static int keyring_read_iterator(const void *object, void *data)
 	if (ctx->count >= ctx->buflen)
 		return 1;
 
-	ret = put_user(key->serial, ctx->buffer);
-	if (ret < 0)
-		return ret;
-	ctx->buffer++;
+	*ctx->buffer++ = key->serial;
 	ctx->count += sizeof(key->serial);
 	return 0;
 }
@@ -483,7 +479,7 @@ static int keyring_read_iterator(const void *object, void *data)
  * times.
  */
 static long keyring_read(const struct key *keyring,
-			 char __user *buffer, size_t buflen)
+			 char *buffer, size_t buflen)
 {
 	struct keyring_read_iterator_context ctx;
 	long ret;
@@ -495,7 +491,7 @@ static long keyring_read(const struct key *keyring,
 
 	/* Copy as many key IDs as fit into the buffer */
 	if (buffer && buflen) {
-		ctx.buffer = (key_serial_t __user *)buffer;
+		ctx.buffer = (key_serial_t *)buffer;
 		ctx.buflen = buflen;
 		ctx.count = 0;
 		ret = assoc_array_iterate(&keyring->keys,
@@ -885,7 +881,7 @@ found:
  *
  * Keys are matched to the type provided and are then filtered by the match
  * function, which is given the description to use in any way it sees fit.  The
- * match function may use any attributes of a key that it wishes to to
+ * match function may use any attributes of a key that it wishes to
  * determine the match.  Normally the match function from the key type would be
  * used.
  *
@@ -1060,12 +1056,14 @@ int keyring_restrict(key_ref_t keyring_ref, const char *type,
 	down_write(&keyring->sem);
 	down_write(&keyring_serialise_restrict_sem);
 
-	if (keyring->restrict_link)
+	if (keyring->restrict_link) {
 		ret = -EEXIST;
-	else if (keyring_detect_restriction_cycle(keyring, restrict_link))
+	} else if (keyring_detect_restriction_cycle(keyring, restrict_link)) {
 		ret = -EDEADLK;
-	else
+	} else {
 		keyring->restrict_link = restrict_link;
+		notify_key(keyring, NOTIFY_KEY_SETATTR, 0);
+	}
 
 	up_write(&keyring_serialise_restrict_sem);
 	up_write(&keyring->sem);
@@ -1206,7 +1204,7 @@ static int keyring_detect_cycle_iterator(const void *object,
 }
 
 /*
- * See if a cycle will will be created by inserting acyclic tree B in acyclic
+ * See if a cycle will be created by inserting acyclic tree B in acyclic
  * tree A at the topmost level (ie: as a direct child of A).
  *
  * Since we are adding B to A at the top level, checking for cycles should just
@@ -1366,12 +1364,14 @@ int __key_link_check_live_key(struct key *keyring, struct key *key)
  * holds at most one link to any given key of a particular type+description
  * combination.
  */
-void __key_link(struct key *key, struct assoc_array_edit **_edit)
+void __key_link(struct key *keyring, struct key *key,
+		struct assoc_array_edit **_edit)
 {
 	__key_get(key);
 	assoc_array_insert_set_object(*_edit, keyring_key_to_ptr(key));
 	assoc_array_apply_edit(*_edit);
 	*_edit = NULL;
+	notify_key(keyring, NOTIFY_KEY_LINKED, key_serial(key));
 }
 
 /*
@@ -1455,7 +1455,7 @@ int key_link(struct key *keyring, struct key *key)
 	if (ret == 0)
 		ret = __key_link_check_live_key(keyring, key);
 	if (ret == 0)
-		__key_link(key, &edit);
+		__key_link(keyring, key, &edit);
 
 error_end:
 	__key_link_end(keyring, &key->index_key, edit);
@@ -1487,7 +1487,7 @@ static int __key_unlink_begin(struct key *keyring, struct key *key,
 	struct assoc_array_edit *edit;
 
 	BUG_ON(*_edit != NULL);
-	
+
 	edit = assoc_array_delete(&keyring->keys, &keyring_assoc_array_ops,
 				  &key->index_key);
 	if (IS_ERR(edit))
@@ -1507,6 +1507,7 @@ static void __key_unlink(struct key *keyring, struct key *key,
 			 struct assoc_array_edit **_edit)
 {
 	assoc_array_apply_edit(*_edit);
+	notify_key(keyring, NOTIFY_KEY_UNLINKED, key_serial(key));
 	*_edit = NULL;
 	key_payload_reserve(keyring, keyring->datalen - KEYQUOTA_LINK_BYTES);
 }
@@ -1625,7 +1626,7 @@ int key_move(struct key *key,
 		goto error;
 
 	__key_unlink(from_keyring, key, &from_edit);
-	__key_link(key, &to_edit);
+	__key_link(to_keyring, key, &to_edit);
 error:
 	__key_link_end(to_keyring, &key->index_key, to_edit);
 	__key_unlink_end(from_keyring, key, from_edit);
@@ -1659,6 +1660,7 @@ int keyring_clear(struct key *keyring)
 	} else {
 		if (edit)
 			assoc_array_apply_edit(edit);
+		notify_key(keyring, NOTIFY_KEY_CLEARED, 0);
 		key_payload_reserve(keyring, 0);
 		ret = 0;
 	}

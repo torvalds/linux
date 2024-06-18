@@ -19,14 +19,14 @@
 #include <asm/sun3ints.h>
 #include <asm/setup.h>
 #include <asm/oplib.h>
+#include <asm/config.h>
 
 #include "time.h"
+#include "../sun3/sun3.h"
 
 volatile char *clock_va;
 
-extern void sun3_get_model(char *model);
-
-void sun3_leds(unsigned int i)
+void sun3_leds(unsigned char byte)
 {
 
 }
@@ -43,8 +43,6 @@ void __init config_sun3x(void)
 {
 
 	sun3x_prom_init();
-
-	mach_max_dma_address = 0xffffffff; /* we can DMA anywhere, whee */
 
 	mach_sched_init      = sun3x_sched_init;
 	mach_init_IRQ        = sun3_init_IRQ;
@@ -70,7 +68,6 @@ void __init config_sun3x(void)
 		break;
 	default:
 		serial_console = 0;
-		conswitchp = &dummy_con;
 		break;
 	}
 #endif

@@ -5,6 +5,7 @@
  * PA-RISC kprobes implementation
  *
  * Copyright (c) 2019 Sven Schnelle <svens@stackframe.org>
+ * Copyright (c) 2022 Helge Deller <deller@gmx.de>
  */
 
 #include <linux/types.h>
@@ -25,9 +26,14 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 	if (!p->ainsn.insn)
 		return -ENOMEM;
 
-	memcpy(p->ainsn.insn, p->addr,
-		MAX_INSN_SIZE * sizeof(kprobe_opcode_t));
+	/*
+	 * Set up new instructions. Second break instruction will
+	 * trigger call of parisc_kprobe_ss_handler().
+	 */
 	p->opcode = *p->addr;
+	p->ainsn.insn[0] = p->opcode;
+	p->ainsn.insn[1] = PARISC_KPROBES_BREAK_INSN2;
+
 	flush_insn_slot(p);
 	return 0;
 }
@@ -73,9 +79,7 @@ static void __kprobes setup_singlestep(struct kprobe *p,
 {
 	kcb->iaoq[0] = regs->iaoq[0];
 	kcb->iaoq[1] = regs->iaoq[1];
-	regs->iaoq[0] = (unsigned long)p->ainsn.insn;
-	mtctl(0, 0);
-	regs->gr[0] |= PSW_R;
+	instruction_pointer_set(regs, (unsigned long)p->ainsn.insn);
 }
 
 int __kprobes parisc_kprobe_break_handler(struct pt_regs *regs)
@@ -148,7 +152,7 @@ int __kprobes parisc_kprobe_ss_handler(struct pt_regs *regs)
 	/* for absolute branch instructions we can copy iaoq_b. for relative
 	 * branch instructions we need to calculate the new address based on the
 	 * difference between iaoq_f and iaoq_b. We cannot use iaoq_b without
-	 * modificationt because it's based on our ainsn.insn address.
+	 * modifications because it's based on our ainsn.insn address.
 	 */
 
 	if (p->post_handler)
@@ -165,9 +169,8 @@ int __kprobes parisc_kprobe_ss_handler(struct pt_regs *regs)
 		regs->iaoq[0] = kcb->iaoq[1];
 		break;
 	default:
-		regs->iaoq[1] = kcb->iaoq[0];
-		regs->iaoq[1] += (regs->iaoq[1] - regs->iaoq[0]) + 4;
 		regs->iaoq[0] = kcb->iaoq[1];
+		regs->iaoq[1] = regs->iaoq[0] + 4;
 		break;
 	}
 	kcb->kprobe_status = KPROBE_HIT_SSDONE;
@@ -175,7 +178,7 @@ int __kprobes parisc_kprobe_ss_handler(struct pt_regs *regs)
 	return 1;
 }
 
-static inline void kretprobe_trampoline(void)
+void __kretprobe_trampoline(void)
 {
 	asm volatile("nop");
 	asm volatile("nop");
@@ -191,87 +194,22 @@ static struct kprobe trampoline_p = {
 static int __kprobes trampoline_probe_handler(struct kprobe *p,
 					      struct pt_regs *regs)
 {
-	struct kretprobe_instance *ri = NULL;
-	struct hlist_head *head, empty_rp;
-	struct hlist_node *tmp;
-	unsigned long flags, orig_ret_address = 0;
-	unsigned long trampoline_address = (unsigned long)trampoline_p.addr;
-	kprobe_opcode_t *correct_ret_addr = NULL;
+	__kretprobe_trampoline_handler(regs, NULL);
 
-	INIT_HLIST_HEAD(&empty_rp);
-	kretprobe_hash_lock(current, &head, &flags);
-
-	/*
-	 * It is possible to have multiple instances associated with a given
-	 * task either because multiple functions in the call path have
-	 * a return probe installed on them, and/or more than one return
-	 * probe was registered for a target function.
-	 *
-	 * We can handle this because:
-	 *     - instances are always inserted at the head of the list
-	 *     - when multiple return probes are registered for the same
-	 *       function, the first instance's ret_addr will point to the
-	 *       real return address, and all the rest will point to
-	 *       kretprobe_trampoline
-	 */
-	hlist_for_each_entry_safe(ri, tmp, head, hlist) {
-		if (ri->task != current)
-			/* another task is sharing our hash bucket */
-			continue;
-
-		orig_ret_address = (unsigned long)ri->ret_addr;
-
-		if (orig_ret_address != trampoline_address)
-			/*
-			 * This is the real return address. Any other
-			 * instances associated with this task are for
-			 * other calls deeper on the call stack
-			 */
-			break;
-	}
-
-	kretprobe_assert(ri, orig_ret_address, trampoline_address);
-
-	correct_ret_addr = ri->ret_addr;
-	hlist_for_each_entry_safe(ri, tmp, head, hlist) {
-		if (ri->task != current)
-			/* another task is sharing our hash bucket */
-			continue;
-
-		orig_ret_address = (unsigned long)ri->ret_addr;
-		if (ri->rp && ri->rp->handler) {
-			__this_cpu_write(current_kprobe, &ri->rp->kp);
-			get_kprobe_ctlblk()->kprobe_status = KPROBE_HIT_ACTIVE;
-			ri->ret_addr = correct_ret_addr;
-			ri->rp->handler(ri, regs);
-			__this_cpu_write(current_kprobe, NULL);
-		}
-
-		recycle_rp_inst(ri, &empty_rp);
-
-		if (orig_ret_address != trampoline_address)
-			/*
-			 * This is the real return address. Any other
-			 * instances associated with this task are for
-			 * other calls deeper on the call stack
-			 */
-			break;
-	}
-
-	kretprobe_hash_unlock(current, &flags);
-
-	hlist_for_each_entry_safe(ri, tmp, &empty_rp, hlist) {
-		hlist_del(&ri->hlist);
-		kfree(ri);
-	}
-	instruction_pointer_set(regs, orig_ret_address);
 	return 1;
+}
+
+void arch_kretprobe_fixup_return(struct pt_regs *regs,
+				 kprobe_opcode_t *correct_ret_addr)
+{
+	regs->gr[2] = (unsigned long)correct_ret_addr;
 }
 
 void __kprobes arch_prepare_kretprobe(struct kretprobe_instance *ri,
 				      struct pt_regs *regs)
 {
 	ri->ret_addr = (kprobe_opcode_t *)regs->gr[2];
+	ri->fp = NULL;
 
 	/* Replace the return addr with trampoline addr. */
 	regs->gr[2] = (unsigned long)trampoline_p.addr;
@@ -285,6 +223,6 @@ int __kprobes arch_trampoline_kprobe(struct kprobe *p)
 int __init arch_init_kprobes(void)
 {
 	trampoline_p.addr = (kprobe_opcode_t *)
-		dereference_function_descriptor(kretprobe_trampoline);
+		dereference_function_descriptor(__kretprobe_trampoline);
 	return register_kprobe(&trampoline_p);
 }

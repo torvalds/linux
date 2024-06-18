@@ -2,30 +2,11 @@
 #ifndef _LINUX_KERNEL_FTRACE_INTERNAL_H
 #define  _LINUX_KERNEL_FTRACE_INTERNAL_H
 
+int __register_ftrace_function(struct ftrace_ops *ops);
+int __unregister_ftrace_function(struct ftrace_ops *ops);
+
 #ifdef CONFIG_FUNCTION_TRACER
 
-/*
- * Traverse the ftrace_global_list, invoking all entries.  The reason that we
- * can use rcu_dereference_raw_check() is that elements removed from this list
- * are simply leaked, so there is no need to interact with a grace-period
- * mechanism.  The rcu_dereference_raw_check() calls are needed to handle
- * concurrent insertions into the ftrace_global_list.
- *
- * Silly Alpha and silly pointer-speculation compiler optimizations!
- */
-#define do_for_each_ftrace_op(op, list)			\
-	op = rcu_dereference_raw_check(list);			\
-	do
-
-/*
- * Optimized for just a single item in the list (as that is the normal case).
- */
-#define while_for_each_ftrace_op(op)				\
-	while (likely(op = rcu_dereference_raw_check((op)->next)) &&	\
-	       unlikely((op) != &ftrace_list_end))
-
-extern struct ftrace_ops __rcu *ftrace_ops_list;
-extern struct ftrace_ops ftrace_list_end;
 extern struct mutex ftrace_lock;
 extern struct ftrace_ops global_ops;
 
@@ -37,8 +18,6 @@ int ftrace_ops_test(struct ftrace_ops *ops, unsigned long ip, void *regs);
 
 #else /* !CONFIG_DYNAMIC_FTRACE */
 
-int __register_ftrace_function(struct ftrace_ops *ops);
-int __unregister_ftrace_function(struct ftrace_ops *ops);
 /* Keep as macros so we do not need to define the commands */
 # define ftrace_startup(ops, command)					\
 	({								\

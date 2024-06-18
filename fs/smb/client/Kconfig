@@ -1,0 +1,207 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config CIFS
+	tristate "SMB3 and CIFS support (advanced network filesystem)"
+	depends on INET
+	select NETFS_SUPPORT
+	select NLS
+	select NLS_UCS2_UTILS
+	select CRYPTO
+	select CRYPTO_MD5
+	select CRYPTO_SHA256
+	select CRYPTO_SHA512
+	select CRYPTO_CMAC
+	select CRYPTO_HMAC
+	select CRYPTO_AEAD2
+	select CRYPTO_CCM
+	select CRYPTO_GCM
+	select CRYPTO_ECB
+	select CRYPTO_AES
+	select KEYS
+	select DNS_RESOLVER
+	select ASN1
+	select OID_REGISTRY
+	select NETFS_SUPPORT
+	help
+	  This is the client VFS module for the SMB3 family of network file
+	  protocols (including the most recent, most secure dialect SMB3.1.1).
+	  This module also includes support for earlier dialects such as
+	  SMB2.1, SMB2 and even the old Common Internet File System (CIFS)
+	  protocol.  CIFS was the successor to the original network filesystem
+	  protocol, Server Message Block (SMB ie SMB1), the native file sharing
+	  mechanism for most early PC operating systems.
+
+	  The SMB3.1.1 protocol is supported by most modern operating systems
+	  and NAS appliances (e.g. Samba, Windows 11, Windows Server 2022,
+	  MacOS) and even in the cloud (e.g. Microsoft Azure) and also by the
+	  Linux kernel server, ksmbd.  Support for the older CIFS protocol was
+	  included in Windows NT4, 2000 and XP (and later). Use of dialects
+	  older than SMB2.1 is often discouraged on public networks.
+	  This module also provides limited support for OS/2 and Windows ME
+	  and similar very old servers.
+
+	  This module provides an advanced network file system client for
+	  mounting to SMB3 (and CIFS) compliant servers.  It includes support
+	  for DFS (hierarchical name space), secure per-user session
+	  establishment via Kerberos or NTLMv2, RDMA (smbdirect), advanced
+	  security features, per-share encryption, packet-signing, snapshots,
+	  directory leases, safe distributed caching (leases), multichannel,
+	  Unicode and other internationalization improvements.
+
+	  In general, the default dialects, SMB3 and later, enable better
+	  performance, security and features, than would be possible with CIFS.
+
+	  If you need to mount to Samba, Azure, ksmbd, Macs or Windows from this
+	  machine, say Y.
+
+config CIFS_STATS2
+	bool "Extended statistics"
+	depends on CIFS
+	default y
+	help
+	  Enabling this option will allow more detailed statistics on SMB
+	  request timing to be displayed in /proc/fs/cifs/DebugData and also
+	  allow optional logging of slow responses to dmesg (depending on the
+	  value of /proc/fs/cifs/cifsFYI). See Documentation/admin-guide/cifs/usage.rst
+	  for more details. These additional statistics may have a minor effect
+	  on performance and memory utilization.
+
+	  If unsure, say Y.
+
+config CIFS_ALLOW_INSECURE_LEGACY
+	bool "Support legacy servers which use less secure dialects"
+	depends on CIFS
+	default y
+	help
+	  Modern dialects, SMB2.1 and later (including SMB3 and 3.1.1), have
+	  additional security features, including protection against
+	  man-in-the-middle attacks and stronger crypto hashes, so the use
+	  of legacy dialects (SMB1/CIFS and SMB2.0) is discouraged.
+
+	  Disabling this option prevents users from using vers=1.0 or vers=2.0
+	  on mounts with cifs.ko
+
+	  If unsure, say Y.
+
+config CIFS_UPCALL
+	bool "Kerberos/SPNEGO advanced session setup"
+	depends on CIFS
+	help
+	  Enables an upcall mechanism for CIFS which accesses userspace helper
+	  utilities to provide SPNEGO packaged (RFC 4178) Kerberos tickets
+	  which are needed to mount to certain secure servers (for which more
+	  secure Kerberos authentication is required). If unsure, say Y.
+
+config CIFS_XATTR
+	bool "CIFS extended attributes"
+	depends on CIFS
+	help
+	  Extended attributes are name:value pairs associated with inodes by
+	  the kernel or by users (see the attr(5) manual page for details).
+	  CIFS maps the name of extended attributes beginning with the user
+	  namespace prefix to SMB/CIFS EAs.  EAs are stored on Windows
+	  servers without the user namespace prefix, but their names are
+	  seen by Linux cifs clients prefaced by the user namespace prefix.
+	  The system namespace (used by some filesystems to store ACLs) is
+	  not supported at this time.
+
+	  If unsure, say Y.
+
+config CIFS_POSIX
+	bool "CIFS POSIX Extensions"
+	depends on CIFS && CIFS_ALLOW_INSECURE_LEGACY && CIFS_XATTR
+	help
+	  Enabling this option will cause the cifs client to attempt to
+	  negotiate a feature of the older cifs dialect with servers, such as
+	  Samba 3.0.5 or later, that optionally can handle more POSIX like
+	  (rather than Windows like) file behavior.  It also enables support
+	  for POSIX ACLs (getfacl and setfacl) to servers (such as Samba 3.10
+	  and later) which can negotiate CIFS POSIX ACL support.  This config
+	  option is not needed when mounting with SMB3.1.1. If unsure, say N.
+
+config CIFS_DEBUG
+	bool "Enable CIFS debugging routines"
+	default y
+	depends on CIFS
+	help
+	  Enabling this option adds helpful debugging messages to
+	  the cifs code which increases the size of the cifs module.
+	  If unsure, say Y.
+
+config CIFS_DEBUG2
+	bool "Enable additional CIFS debugging routines"
+	depends on CIFS_DEBUG
+	help
+	  Enabling this option adds a few more debugging routines
+	  to the cifs code which slightly increases the size of
+	  the cifs module and can cause additional logging of debug
+	  messages in some error paths, slowing performance. This
+	  option can be turned off unless you are debugging
+	  cifs problems.  If unsure, say N.
+
+config CIFS_DEBUG_DUMP_KEYS
+	bool "Dump encryption keys for offline decryption (Unsafe)"
+	depends on CIFS_DEBUG
+	help
+	  Enabling this will dump the encryption and decryption keys
+	  used to communicate on an encrypted share connection on the
+	  console. This allows Wireshark to decrypt and dissect
+	  encrypted network captures. Enable this carefully.
+	  If unsure, say N.
+
+config CIFS_DFS_UPCALL
+	bool "DFS feature support"
+	depends on CIFS
+	help
+	  Distributed File System (DFS) support is used to access shares
+	  transparently in an enterprise name space, even if the share
+	  moves to a different server.  This feature also enables
+	  an upcall mechanism for CIFS which contacts userspace helper
+	  utilities to provide server name resolution (host names to
+	  IP addresses) which is needed in order to reconnect to
+	  servers if their addresses change or for implicit mounts of
+	  DFS junction points. If unsure, say Y.
+
+config CIFS_SWN_UPCALL
+	bool "SWN feature support"
+	depends on CIFS
+	help
+	  The Service Witness Protocol (SWN) is used to get notifications
+	  from a highly available server of resource state changes. This
+	  feature enables an upcall mechanism for CIFS which contacts a
+	  userspace daemon to establish the DCE/RPC connection to retrieve
+	  the cluster available interfaces and resource change notifications.
+	  If unsure, say Y.
+
+config CIFS_NFSD_EXPORT
+	bool "Allow nfsd to export CIFS file system"
+	depends on CIFS && BROKEN
+	help
+	  Allows NFS server to export a CIFS mounted share (nfsd over cifs)
+
+if CIFS
+
+config CIFS_SMB_DIRECT
+	bool "SMB Direct support"
+	depends on CIFS=m && INFINIBAND && INFINIBAND_ADDR_TRANS || CIFS=y && INFINIBAND=y && INFINIBAND_ADDR_TRANS=y
+	help
+	  Enables SMB Direct support for SMB 3.0, 3.02 and 3.1.1.
+	  SMB Direct allows transferring SMB packets over RDMA. If unsure,
+	  say Y.
+
+config CIFS_FSCACHE
+	bool "Provide CIFS client caching support"
+	depends on CIFS=m && FSCACHE || CIFS=y && FSCACHE=y
+	help
+	  Makes CIFS FS-Cache capable. Say Y here if you want your CIFS data
+	  to be cached locally on disk through the general filesystem cache
+	  manager. If unsure, say N.
+
+config CIFS_ROOT
+	bool "SMB root file system (Experimental)"
+	depends on CIFS=y && IP_PNP
+	help
+	  Enables root file system support over SMB protocol.
+
+	  Most people say N here.
+
+endif

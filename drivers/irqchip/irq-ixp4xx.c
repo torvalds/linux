@@ -13,7 +13,6 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/irqchip.h>
-#include <linux/irqchip/irq-ixp4xx.h>
 #include <linux/irqdomain.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -106,7 +105,8 @@ static void ixp4xx_irq_unmask(struct irq_data *d)
 	}
 }
 
-asmlinkage void __exception_irq_entry ixp4xx_handle_irq(struct pt_regs *regs)
+static asmlinkage void __exception_irq_entry
+ixp4xx_handle_irq(struct pt_regs *regs)
 {
 	struct ixp4xx_irq *ixi = &ixirq;
 	unsigned long status;
@@ -114,7 +114,7 @@ asmlinkage void __exception_irq_entry ixp4xx_handle_irq(struct pt_regs *regs)
 
 	status = __raw_readl(ixi->irqbase + IXP4XX_ICIP);
 	for_each_set_bit(i, &status, 32)
-		handle_domain_irq(ixi->domain, i, regs);
+		generic_handle_domain_irq(ixi->domain, i);
 
 	/*
 	 * IXP465/IXP435 has an upper IRQ status register
@@ -122,7 +122,7 @@ asmlinkage void __exception_irq_entry ixp4xx_handle_irq(struct pt_regs *regs)
 	if (ixi->is_356) {
 		status = __raw_readl(ixi->irqbase + IXP4XX_ICIP2);
 		for_each_set_bit(i, &status, 32)
-			handle_domain_irq(ixi->domain, i + 32, regs);
+			generic_handle_domain_irq(ixi->domain, i + 32);
 	}
 }
 
@@ -196,56 +196,6 @@ static const struct irq_domain_ops ixp4xx_irqdomain_ops = {
 };
 
 /**
- * ixp4xx_get_irq_domain() - retrieve the ixp4xx irq domain
- *
- * This function will go away when we transition to DT probing.
- */
-struct irq_domain *ixp4xx_get_irq_domain(void)
-{
-	struct ixp4xx_irq *ixi = &ixirq;
-
-	return ixi->domain;
-}
-EXPORT_SYMBOL_GPL(ixp4xx_get_irq_domain);
-
-/*
- * This is the Linux IRQ to hwirq mapping table. This goes away when
- * we have DT support as all IRQ resources are defined in the device
- * tree. It will register all the IRQs that are not used by the hierarchical
- * GPIO IRQ chip. The "holes" inbetween these IRQs will be requested by
- * the GPIO driver using . This is a step-gap solution.
- */
-struct ixp4xx_irq_chunk {
-	int irq;
-	int hwirq;
-	int nr_irqs;
-};
-
-static const struct ixp4xx_irq_chunk ixp4xx_irq_chunks[] = {
-	{
-		.irq = 16,
-		.hwirq = 0,
-		.nr_irqs = 6,
-	},
-	{
-		.irq = 24,
-		.hwirq = 8,
-		.nr_irqs = 11,
-	},
-	{
-		.irq = 46,
-		.hwirq = 30,
-		.nr_irqs = 2,
-	},
-	/* Only on the 436 variants */
-	{
-		.irq = 48,
-		.hwirq = 32,
-		.nr_irqs = 10,
-	},
-};
-
-/**
  * ixp4x_irq_setup() - Common setup code for the IXP4xx interrupt controller
  * @ixi: State container
  * @irqbase: Virtual memory base for the interrupt controller
@@ -298,75 +248,8 @@ static int __init ixp4xx_irq_setup(struct ixp4xx_irq *ixi,
 	return 0;
 }
 
-/**
- * ixp4xx_irq_init() - Function to initialize the irqchip from boardfiles
- * @irqbase: physical base for the irq controller
- * @is_356: if this is an IXP43x, IXP45x or IXP46x SoC variant
- */
-void __init ixp4xx_irq_init(resource_size_t irqbase,
-			    bool is_356)
-{
-	struct ixp4xx_irq *ixi = &ixirq;
-	void __iomem *base;
-	struct fwnode_handle *fwnode;
-	struct irq_fwspec fwspec;
-	int nr_chunks;
-	int ret;
-	int i;
-
-	base = ioremap(irqbase, 0x100);
-	if (!base) {
-		pr_crit("IXP4XX: could not ioremap interrupt controller\n");
-		return;
-	}
-	fwnode = irq_domain_alloc_fwnode(&irqbase);
-	if (!fwnode) {
-		pr_crit("IXP4XX: no domain handle\n");
-		return;
-	}
-	ret = ixp4xx_irq_setup(ixi, base, fwnode, is_356);
-	if (ret) {
-		pr_crit("IXP4XX: failed to set up irqchip\n");
-		irq_domain_free_fwnode(fwnode);
-	}
-
-	nr_chunks = ARRAY_SIZE(ixp4xx_irq_chunks);
-	if (!is_356)
-		nr_chunks--;
-
-	/*
-	 * After adding OF support, this is no longer needed: irqs
-	 * will be allocated for the respective fwnodes.
-	 */
-	for (i = 0; i < nr_chunks; i++) {
-		const struct ixp4xx_irq_chunk *chunk = &ixp4xx_irq_chunks[i];
-
-		pr_info("Allocate Linux IRQs %d..%d HW IRQs %d..%d\n",
-			chunk->irq, chunk->irq + chunk->nr_irqs - 1,
-			chunk->hwirq, chunk->hwirq + chunk->nr_irqs - 1);
-		fwspec.fwnode = fwnode;
-		fwspec.param[0] = chunk->hwirq;
-		fwspec.param[1] = IRQ_TYPE_LEVEL_HIGH;
-		fwspec.param_count = 2;
-		ret = __irq_domain_alloc_irqs(ixi->domain,
-					      chunk->irq,
-					      chunk->nr_irqs,
-					      NUMA_NO_NODE,
-					      &fwspec,
-					      false,
-					      NULL);
-		if (ret < 0) {
-			pr_crit("IXP4XX: can not allocate irqs in hierarchy %d\n",
-				ret);
-			return;
-		}
-	}
-}
-EXPORT_SYMBOL_GPL(ixp4xx_irq_init);
-
-#ifdef CONFIG_OF
-int __init ixp4xx_of_init_irq(struct device_node *np,
-			      struct device_node *parent)
+static int __init ixp4xx_of_init_irq(struct device_node *np,
+				     struct device_node *parent)
 {
 	struct ixp4xx_irq *ixi = &ixirq;
 	void __iomem *base;
@@ -400,4 +283,3 @@ IRQCHIP_DECLARE(ixp45x, "intel,ixp45x-interrupt",
 		ixp4xx_of_init_irq);
 IRQCHIP_DECLARE(ixp46x, "intel,ixp46x-interrupt",
 		ixp4xx_of_init_irq);
-#endif

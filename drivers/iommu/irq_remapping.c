@@ -24,6 +24,8 @@ int no_x2apic_optout;
 
 int disable_irq_post = 0;
 
+bool enable_posted_msi __ro_after_init;
+
 static int disable_irq_remap;
 static struct irq_remap_ops *remap_ops;
 
@@ -70,7 +72,8 @@ static __init int setup_irqremap(char *str)
 			no_x2apic_optout = 1;
 		else if (!strncmp(str, "nopost", 6))
 			disable_irq_post = 1;
-
+		else if (IS_ENABLED(CONFIG_X86_POSTED_MSI) && !strncmp(str, "posted_msi", 10))
+			enable_posted_msi = true;
 		str += strcspn(str, ",");
 		while (*str == ',')
 			str++;
@@ -99,7 +102,8 @@ int __init irq_remapping_prepare(void)
 	if (disable_irq_remap)
 		return -ENOSYS;
 
-	if (intel_irq_remap_ops.prepare() == 0)
+	if (IS_ENABLED(CONFIG_INTEL_IOMMU) &&
+	    intel_irq_remap_ops.prepare() == 0)
 		remap_ops = &intel_irq_remap_ops;
 	else if (IS_ENABLED(CONFIG_AMD_IOMMU) &&
 		 amd_iommu_irq_ops.prepare() == 0)
@@ -150,46 +154,14 @@ int __init irq_remap_enable_fault_handling(void)
 	if (!remap_ops->enable_faulting)
 		return -ENODEV;
 
-	return remap_ops->enable_faulting();
+	cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "dmar:enable_fault_handling",
+			  remap_ops->enable_faulting, NULL);
+
+	return remap_ops->enable_faulting(smp_processor_id());
 }
 
 void panic_if_irq_remap(const char *msg)
 {
 	if (irq_remapping_enabled)
 		panic(msg);
-}
-
-/**
- * irq_remapping_get_ir_irq_domain - Get the irqdomain associated with the IOMMU
- *				     device serving request @info
- * @info: interrupt allocation information, used to identify the IOMMU device
- *
- * It's used to get parent irqdomain for HPET and IOAPIC irqdomains.
- * Returns pointer to IRQ domain, or NULL on failure.
- */
-struct irq_domain *
-irq_remapping_get_ir_irq_domain(struct irq_alloc_info *info)
-{
-	if (!remap_ops || !remap_ops->get_ir_irq_domain)
-		return NULL;
-
-	return remap_ops->get_ir_irq_domain(info);
-}
-
-/**
- * irq_remapping_get_irq_domain - Get the irqdomain serving the request @info
- * @info: interrupt allocation information, used to identify the IOMMU device
- *
- * There will be one PCI MSI/MSIX irqdomain associated with each interrupt
- * remapping device, so this interface is used to retrieve the PCI MSI/MSIX
- * irqdomain serving request @info.
- * Returns pointer to IRQ domain, or NULL on failure.
- */
-struct irq_domain *
-irq_remapping_get_irq_domain(struct irq_alloc_info *info)
-{
-	if (!remap_ops || !remap_ops->get_irq_domain)
-		return NULL;
-
-	return remap_ops->get_irq_domain(info);
 }

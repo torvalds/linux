@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/**
+/*
  * AMCC SoC PPC4xx Crypto Driver
  *
  * Copyright (c) 2008 Applied Micro Circuits Corporation.
@@ -20,7 +20,7 @@
 #include <crypto/aead.h>
 #include <crypto/aes.h>
 #include <crypto/gcm.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
 #include <crypto/ctr.h>
 #include <crypto/skcipher.h>
 #include "crypto4xx_reg_def.h"
@@ -55,7 +55,7 @@ static void set_dynamic_sa_command_1(struct dynamic_sa_ctl *sa, u32 cm,
 	sa->sa_command_1.w = 0;
 	sa->sa_command_1.bf.crypto_mode31 = (cm & 4) >> 2;
 	sa->sa_command_1.bf.crypto_mode9_8 = cm & 3;
-	sa->sa_command_1.bf.feedback_mode = cfb,
+	sa->sa_command_1.bf.feedback_mode = cfb;
 	sa->sa_command_1.bf.sa_rev = 1;
 	sa->sa_command_1.bf.hmac_muting = hmac_mc;
 	sa->sa_command_1.bf.extended_seq_num = esn;
@@ -115,7 +115,7 @@ int crypto4xx_decrypt_iv_block(struct skcipher_request *req)
 	return crypto4xx_crypt(req, AES_IV_SIZE, true, true);
 }
 
-/**
+/*
  * AES Functions
  */
 static int crypto4xx_setkey_aes(struct crypto_skcipher *cipher,
@@ -128,12 +128,9 @@ static int crypto4xx_setkey_aes(struct crypto_skcipher *cipher,
 	struct dynamic_sa_ctl *sa;
 	int    rc;
 
-	if (keylen != AES_KEYSIZE_256 &&
-		keylen != AES_KEYSIZE_192 && keylen != AES_KEYSIZE_128) {
-		crypto_skcipher_set_flags(cipher,
-				CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (keylen != AES_KEYSIZE_256 && keylen != AES_KEYSIZE_192 &&
+	    keylen != AES_KEYSIZE_128)
 		return -EINVAL;
-	}
 
 	/* Create SA */
 	if (ctx->sa_in || ctx->sa_out)
@@ -184,25 +181,11 @@ int crypto4xx_setkey_aes_cbc(struct crypto_skcipher *cipher,
 				    CRYPTO_FEEDBACK_MODE_NO_FB);
 }
 
-int crypto4xx_setkey_aes_cfb(struct crypto_skcipher *cipher,
-			     const u8 *key, unsigned int keylen)
-{
-	return crypto4xx_setkey_aes(cipher, key, keylen, CRYPTO_MODE_CFB,
-				    CRYPTO_FEEDBACK_MODE_128BIT_CFB);
-}
-
 int crypto4xx_setkey_aes_ecb(struct crypto_skcipher *cipher,
 			     const u8 *key, unsigned int keylen)
 {
 	return crypto4xx_setkey_aes(cipher, key, keylen, CRYPTO_MODE_ECB,
 				    CRYPTO_FEEDBACK_MODE_NO_FB);
-}
-
-int crypto4xx_setkey_aes_ofb(struct crypto_skcipher *cipher,
-			     const u8 *key, unsigned int keylen)
-{
-	return crypto4xx_setkey_aes(cipher, key, keylen, CRYPTO_MODE_OFB,
-				    CRYPTO_FEEDBACK_MODE_64BIT_OFB);
 }
 
 int crypto4xx_setkey_rfc3686(struct crypto_skcipher *cipher,
@@ -292,19 +275,11 @@ static int crypto4xx_sk_setup_fallback(struct crypto4xx_ctx *ctx,
 				       const u8 *key,
 				       unsigned int keylen)
 {
-	int rc;
-
 	crypto_sync_skcipher_clear_flags(ctx->sw_cipher.cipher,
 				    CRYPTO_TFM_REQ_MASK);
 	crypto_sync_skcipher_set_flags(ctx->sw_cipher.cipher,
 		crypto_skcipher_get_flags(cipher) & CRYPTO_TFM_REQ_MASK);
-	rc = crypto_sync_skcipher_setkey(ctx->sw_cipher.cipher, key, keylen);
-	crypto_skcipher_clear_flags(cipher, CRYPTO_TFM_RES_MASK);
-	crypto_skcipher_set_flags(cipher,
-		crypto_sync_skcipher_get_flags(ctx->sw_cipher.cipher) &
-			CRYPTO_TFM_RES_MASK);
-
-	return rc;
+	return crypto_sync_skcipher_setkey(ctx->sw_cipher.cipher, key, keylen);
 }
 
 int crypto4xx_setkey_aes_ctr(struct crypto_skcipher *cipher,
@@ -379,21 +354,13 @@ static int crypto4xx_aead_setup_fallback(struct crypto4xx_ctx *ctx,
 					 const u8 *key,
 					 unsigned int keylen)
 {
-	int rc;
-
 	crypto_aead_clear_flags(ctx->sw_cipher.aead, CRYPTO_TFM_REQ_MASK);
 	crypto_aead_set_flags(ctx->sw_cipher.aead,
 		crypto_aead_get_flags(cipher) & CRYPTO_TFM_REQ_MASK);
-	rc = crypto_aead_setkey(ctx->sw_cipher.aead, key, keylen);
-	crypto_aead_clear_flags(cipher, CRYPTO_TFM_RES_MASK);
-	crypto_aead_set_flags(cipher,
-		crypto_aead_get_flags(ctx->sw_cipher.aead) &
-			CRYPTO_TFM_RES_MASK);
-
-	return rc;
+	return crypto_aead_setkey(ctx->sw_cipher.aead, key, keylen);
 }
 
-/**
+/*
  * AES-CCM Functions
  */
 
@@ -508,7 +475,7 @@ int crypto4xx_setauthsize_aead(struct crypto_aead *cipher,
 	return crypto_aead_setauthsize(ctx->sw_cipher.aead, authsize);
 }
 
-/**
+/*
  * AES-GCM Functions
  */
 
@@ -551,10 +518,8 @@ int crypto4xx_setkey_aes_gcm(struct crypto_aead *cipher,
 	struct dynamic_sa_ctl *sa;
 	int    rc = 0;
 
-	if (crypto4xx_aes_gcm_validate_keylen(keylen) != 0) {
-		crypto_aead_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (crypto4xx_aes_gcm_validate_keylen(keylen) != 0)
 		return -EINVAL;
-	}
 
 	rc = crypto4xx_aead_setup_fallback(ctx, cipher, key, keylen);
 	if (rc)
@@ -638,7 +603,7 @@ int crypto4xx_decrypt_aes_gcm(struct aead_request *req)
 	return crypto4xx_crypt_aes_gcm(req, true);
 }
 
-/**
+/*
  * HASH SHA1 Functions
  */
 static int crypto4xx_hash_alg_init(struct crypto_tfm *tfm,
@@ -732,7 +697,7 @@ int crypto4xx_hash_digest(struct ahash_request *req)
 				  ctx->sa_len, 0, NULL);
 }
 
-/**
+/*
  * SHA1 Algorithm
  */
 int crypto4xx_sha1_alg_init(struct crypto_tfm *tfm)

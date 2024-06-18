@@ -146,8 +146,7 @@ static const struct tpm_class_ops i2c_atmel = {
 	.req_canceled = i2c_atmel_req_canceled,
 };
 
-static int i2c_atmel_probe(struct i2c_client *client,
-			   const struct i2c_device_id *id)
+static int i2c_atmel_probe(struct i2c_client *client)
 {
 	struct tpm_chip *chip;
 	struct device *dev = &client->dev;
@@ -179,12 +178,11 @@ static int i2c_atmel_probe(struct i2c_client *client,
 	return tpm_chip_register(chip);
 }
 
-static int i2c_atmel_remove(struct i2c_client *client)
+static void i2c_atmel_remove(struct i2c_client *client)
 {
 	struct device *dev = &(client->dev);
 	struct tpm_chip *chip = dev_get_drvdata(dev);
 	tpm_chip_unregister(chip);
-	return 0;
 }
 
 static const struct i2c_device_id i2c_atmel_id[] = {

@@ -17,10 +17,11 @@
 #include <linux/kobject.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/efi.h>
 #include <linux/of.h>
-#include <linux/of_fdt.h>
+#include <linux/initrd.h>
 #include <linux/io.h>
 #include <linux/kexec.h>
 #include <linux/platform_device.h>
@@ -31,36 +32,44 @@
 #include <linux/ucs2_string.h>
 #include <linux/memblock.h>
 #include <linux/security.h>
+#include <linux/notifier.h>
 
 #include <asm/early_ioremap.h>
 
 struct efi __read_mostly efi = {
-	.mps			= EFI_INVALID_TABLE_ADDR,
+	.runtime_supported_mask = EFI_RT_SUPPORTED_ALL,
 	.acpi			= EFI_INVALID_TABLE_ADDR,
 	.acpi20			= EFI_INVALID_TABLE_ADDR,
 	.smbios			= EFI_INVALID_TABLE_ADDR,
 	.smbios3		= EFI_INVALID_TABLE_ADDR,
-	.boot_info		= EFI_INVALID_TABLE_ADDR,
-	.hcdp			= EFI_INVALID_TABLE_ADDR,
-	.uga			= EFI_INVALID_TABLE_ADDR,
-	.fw_vendor		= EFI_INVALID_TABLE_ADDR,
-	.runtime		= EFI_INVALID_TABLE_ADDR,
-	.config_table		= EFI_INVALID_TABLE_ADDR,
 	.esrt			= EFI_INVALID_TABLE_ADDR,
-	.properties_table	= EFI_INVALID_TABLE_ADDR,
-	.mem_attr_table		= EFI_INVALID_TABLE_ADDR,
-	.rng_seed		= EFI_INVALID_TABLE_ADDR,
 	.tpm_log		= EFI_INVALID_TABLE_ADDR,
 	.tpm_final_log		= EFI_INVALID_TABLE_ADDR,
-	.mem_reserve		= EFI_INVALID_TABLE_ADDR,
+#ifdef CONFIG_LOAD_UEFI_KEYS
+	.mokvar_table		= EFI_INVALID_TABLE_ADDR,
+#endif
+#ifdef CONFIG_EFI_COCO_SECRET
+	.coco_secret		= EFI_INVALID_TABLE_ADDR,
+#endif
+#ifdef CONFIG_UNACCEPTED_MEMORY
+	.unaccepted		= EFI_INVALID_TABLE_ADDR,
+#endif
 };
 EXPORT_SYMBOL(efi);
 
+unsigned long __ro_after_init efi_rng_seed = EFI_INVALID_TABLE_ADDR;
+static unsigned long __initdata mem_reserve = EFI_INVALID_TABLE_ADDR;
+static unsigned long __initdata rt_prop = EFI_INVALID_TABLE_ADDR;
+static unsigned long __initdata initrd = EFI_INVALID_TABLE_ADDR;
+
+extern unsigned long screen_info_table;
+
 struct mm_struct efi_mm = {
-	.mm_rb			= RB_ROOT,
+	.mm_mt			= MTREE_INIT_EXT(mm_mt, MM_MT_FLAGS, efi_mm.mmap_lock),
 	.mm_users		= ATOMIC_INIT(2),
 	.mm_count		= ATOMIC_INIT(1),
-	.mmap_sem		= __RWSEM_INITIALIZER(efi_mm.mmap_sem),
+	.write_protect_seq      = SEQCNT_ZERO(efi_mm.write_protect_seq),
+	MMAP_LOCK_INITIALIZER(efi_mm)
 	.page_table_lock	= __SPIN_LOCK_UNLOCKED(efi_mm.page_table_lock),
 	.mmlist			= LIST_HEAD_INIT(efi_mm.mmlist),
 	.cpu_bitmap		= { [BITS_TO_LONGS(NR_CPUS)] = 0},
@@ -68,7 +77,7 @@ struct mm_struct efi_mm = {
 
 struct workqueue_struct *efi_rts_wq;
 
-static bool disable_runtime;
+static bool disable_runtime = IS_ENABLED(CONFIG_EFI_DISABLE_RUNTIME);
 static int __init setup_noefi(char *arg)
 {
 	disable_runtime = true;
@@ -79,6 +88,11 @@ early_param("noefi", setup_noefi);
 bool efi_runtime_disabled(void)
 {
 	return disable_runtime;
+}
+
+bool __pure __efi_soft_reserve_enabled(void)
+{
+	return !efi_enabled(EFI_MEM_NO_SOFT_RESERVE);
 }
 
 static int __init parse_efi_cmdline(char *str)
@@ -93,6 +107,12 @@ static int __init parse_efi_cmdline(char *str)
 
 	if (parse_option_str(str, "noruntime"))
 		disable_runtime = true;
+
+	if (parse_option_str(str, "runtime"))
+		disable_runtime = false;
+
+	if (parse_option_str(str, "nosoftreserve"))
+		set_bit(EFI_MEM_NO_SOFT_RESERVE, &efi.flags);
 
 	return 0;
 }
@@ -114,8 +134,6 @@ static ssize_t systab_show(struct kobject *kobj,
 	if (!kobj || !buf)
 		return -EINVAL;
 
-	if (efi.mps != EFI_INVALID_TABLE_ADDR)
-		str += sprintf(str, "MPS=0x%lx\n", efi.mps);
 	if (efi.acpi20 != EFI_INVALID_TABLE_ADDR)
 		str += sprintf(str, "ACPI20=0x%lx\n", efi.acpi20);
 	if (efi.acpi != EFI_INVALID_TABLE_ADDR)
@@ -129,30 +147,14 @@ static ssize_t systab_show(struct kobject *kobj,
 		str += sprintf(str, "SMBIOS3=0x%lx\n", efi.smbios3);
 	if (efi.smbios != EFI_INVALID_TABLE_ADDR)
 		str += sprintf(str, "SMBIOS=0x%lx\n", efi.smbios);
-	if (efi.hcdp != EFI_INVALID_TABLE_ADDR)
-		str += sprintf(str, "HCDP=0x%lx\n", efi.hcdp);
-	if (efi.boot_info != EFI_INVALID_TABLE_ADDR)
-		str += sprintf(str, "BOOTINFO=0x%lx\n", efi.boot_info);
-	if (efi.uga != EFI_INVALID_TABLE_ADDR)
-		str += sprintf(str, "UGA=0x%lx\n", efi.uga);
+
+	if (IS_ENABLED(CONFIG_X86))
+		str = efi_systab_show_arch(str);
 
 	return str - buf;
 }
 
 static struct kobj_attribute efi_attr_systab = __ATTR_RO_MODE(systab, 0400);
-
-#define EFI_FIELD(var) efi.var
-
-#define EFI_ATTR_SHOW(name) \
-static ssize_t name##_show(struct kobject *kobj, \
-				struct kobj_attribute *attr, char *buf) \
-{ \
-	return sprintf(buf, "0x%lx\n", EFI_FIELD(name)); \
-}
-
-EFI_ATTR_SHOW(fw_vendor);
-EFI_ATTR_SHOW(runtime);
-EFI_ATTR_SHOW(config_table);
 
 static ssize_t fw_platform_size_show(struct kobject *kobj,
 				     struct kobj_attribute *attr, char *buf)
@@ -160,36 +162,24 @@ static ssize_t fw_platform_size_show(struct kobject *kobj,
 	return sprintf(buf, "%d\n", efi_enabled(EFI_64BIT) ? 64 : 32);
 }
 
-static struct kobj_attribute efi_attr_fw_vendor = __ATTR_RO(fw_vendor);
-static struct kobj_attribute efi_attr_runtime = __ATTR_RO(runtime);
-static struct kobj_attribute efi_attr_config_table = __ATTR_RO(config_table);
+extern __weak struct kobj_attribute efi_attr_fw_vendor;
+extern __weak struct kobj_attribute efi_attr_runtime;
+extern __weak struct kobj_attribute efi_attr_config_table;
 static struct kobj_attribute efi_attr_fw_platform_size =
 	__ATTR_RO(fw_platform_size);
 
 static struct attribute *efi_subsys_attrs[] = {
 	&efi_attr_systab.attr,
+	&efi_attr_fw_platform_size.attr,
 	&efi_attr_fw_vendor.attr,
 	&efi_attr_runtime.attr,
 	&efi_attr_config_table.attr,
-	&efi_attr_fw_platform_size.attr,
 	NULL,
 };
 
-static umode_t efi_attr_is_visible(struct kobject *kobj,
-				   struct attribute *attr, int n)
+umode_t __weak efi_attr_is_visible(struct kobject *kobj, struct attribute *attr,
+				   int n)
 {
-	if (attr == &efi_attr_fw_vendor.attr) {
-		if (efi_enabled(EFI_PARAVIRT) ||
-				efi.fw_vendor == EFI_INVALID_TABLE_ADDR)
-			return 0;
-	} else if (attr == &efi_attr_runtime.attr) {
-		if (efi.runtime == EFI_INVALID_TABLE_ADDR)
-			return 0;
-	} else if (attr == &efi_attr_config_table.attr) {
-		if (efi.config_table == EFI_INVALID_TABLE_ADDR)
-			return 0;
-	}
-
 	return attr->mode;
 }
 
@@ -198,27 +188,69 @@ static const struct attribute_group efi_subsys_attr_group = {
 	.is_visible = efi_attr_is_visible,
 };
 
+struct blocking_notifier_head efivar_ops_nh;
+EXPORT_SYMBOL_GPL(efivar_ops_nh);
+
 static struct efivars generic_efivars;
 static struct efivar_operations generic_ops;
 
+static bool generic_ops_supported(void)
+{
+	unsigned long name_size;
+	efi_status_t status;
+	efi_char16_t name;
+	efi_guid_t guid;
+
+	name_size = sizeof(name);
+
+	if (!efi.get_next_variable)
+		return false;
+	status = efi.get_next_variable(&name_size, &name, &guid);
+	if (status == EFI_UNSUPPORTED)
+		return false;
+
+	return true;
+}
+
 static int generic_ops_register(void)
 {
+	if (!generic_ops_supported())
+		return 0;
+
 	generic_ops.get_variable = efi.get_variable;
-	generic_ops.set_variable = efi.set_variable;
-	generic_ops.set_variable_nonblocking = efi.set_variable_nonblocking;
 	generic_ops.get_next_variable = efi.get_next_variable;
 	generic_ops.query_variable_store = efi_query_variable_store;
+	generic_ops.query_variable_info = efi.query_variable_info;
 
-	return efivars_register(&generic_efivars, &generic_ops, efi_kobj);
+	if (efi_rt_services_supported(EFI_RT_SUPPORTED_SET_VARIABLE)) {
+		generic_ops.set_variable = efi.set_variable;
+		generic_ops.set_variable_nonblocking = efi.set_variable_nonblocking;
+	}
+	return efivars_register(&generic_efivars, &generic_ops);
 }
 
 static void generic_ops_unregister(void)
 {
+	if (!generic_ops.get_variable)
+		return;
+
 	efivars_unregister(&generic_efivars);
 }
 
-#if IS_ENABLED(CONFIG_ACPI)
-#define EFIVAR_SSDT_NAME_MAX	16
+void efivars_generic_ops_register(void)
+{
+	generic_ops_register();
+}
+EXPORT_SYMBOL_GPL(efivars_generic_ops_register);
+
+void efivars_generic_ops_unregister(void)
+{
+	generic_ops_unregister();
+}
+EXPORT_SYMBOL_GPL(efivars_generic_ops_unregister);
+
+#ifdef CONFIG_EFI_CUSTOM_SSDT_OVERLAYS
+#define EFIVAR_SSDT_NAME_MAX	16UL
 static char efivar_ssdt[EFIVAR_SSDT_NAME_MAX] __initdata;
 static int __init efivar_ssdt_setup(char *str)
 {
@@ -231,87 +263,128 @@ static int __init efivar_ssdt_setup(char *str)
 		memcpy(efivar_ssdt, str, strlen(str));
 	else
 		pr_warn("efivar_ssdt: name too long: %s\n", str);
-	return 0;
+	return 1;
 }
 __setup("efivar_ssdt=", efivar_ssdt_setup);
 
-static __init int efivar_ssdt_iter(efi_char16_t *name, efi_guid_t vendor,
-				   unsigned long name_size, void *data)
-{
-	struct efivar_entry *entry;
-	struct list_head *list = data;
-	char utf8_name[EFIVAR_SSDT_NAME_MAX];
-	int limit = min_t(unsigned long, EFIVAR_SSDT_NAME_MAX, name_size);
-
-	ucs2_as_utf8(utf8_name, name, limit - 1);
-	if (strncmp(utf8_name, efivar_ssdt, limit) != 0)
-		return 0;
-
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
-	if (!entry)
-		return 0;
-
-	memcpy(entry->var.VariableName, name, name_size);
-	memcpy(&entry->var.VendorGuid, &vendor, sizeof(efi_guid_t));
-
-	efivar_entry_add(entry, list);
-
-	return 0;
-}
-
 static __init int efivar_ssdt_load(void)
 {
-	LIST_HEAD(entries);
-	struct efivar_entry *entry, *aux;
-	unsigned long size;
-	void *data;
-	int ret;
+	unsigned long name_size = 256;
+	efi_char16_t *name = NULL;
+	efi_status_t status;
+	efi_guid_t guid;
 
-	ret = efivar_init(efivar_ssdt_iter, &entries, true, &entries);
+	if (!efivar_ssdt[0])
+		return 0;
 
-	list_for_each_entry_safe(entry, aux, &entries, list) {
-		pr_info("loading SSDT from variable %s-%pUl\n", efivar_ssdt,
-			&entry->var.VendorGuid);
+	name = kzalloc(name_size, GFP_KERNEL);
+	if (!name)
+		return -ENOMEM;
 
-		list_del(&entry->list);
+	for (;;) {
+		char utf8_name[EFIVAR_SSDT_NAME_MAX];
+		unsigned long data_size = 0;
+		void *data;
+		int limit;
 
-		ret = efivar_entry_size(entry, &size);
-		if (ret) {
-			pr_err("failed to get var size\n");
-			goto free_entry;
+		status = efi.get_next_variable(&name_size, name, &guid);
+		if (status == EFI_NOT_FOUND) {
+			break;
+		} else if (status == EFI_BUFFER_TOO_SMALL) {
+			efi_char16_t *name_tmp =
+				krealloc(name, name_size, GFP_KERNEL);
+			if (!name_tmp) {
+				kfree(name);
+				return -ENOMEM;
+			}
+			name = name_tmp;
+			continue;
 		}
 
-		data = kmalloc(size, GFP_KERNEL);
-		if (!data) {
-			ret = -ENOMEM;
-			goto free_entry;
+		limit = min(EFIVAR_SSDT_NAME_MAX, name_size);
+		ucs2_as_utf8(utf8_name, name, limit - 1);
+		if (strncmp(utf8_name, efivar_ssdt, limit) != 0)
+			continue;
+
+		pr_info("loading SSDT from variable %s-%pUl\n", efivar_ssdt, &guid);
+
+		status = efi.get_variable(name, &guid, NULL, &data_size, NULL);
+		if (status != EFI_BUFFER_TOO_SMALL || !data_size)
+			return -EIO;
+
+		data = kmalloc(data_size, GFP_KERNEL);
+		if (!data)
+			return -ENOMEM;
+
+		status = efi.get_variable(name, &guid, NULL, &data_size, data);
+		if (status == EFI_SUCCESS) {
+			acpi_status ret = acpi_load_table(data, NULL);
+			if (ret)
+				pr_err("failed to load table: %u\n", ret);
+			else
+				continue;
+		} else {
+			pr_err("failed to get var data: 0x%lx\n", status);
 		}
-
-		ret = efivar_entry_get(entry, NULL, &size, data);
-		if (ret) {
-			pr_err("failed to get var data\n");
-			goto free_data;
-		}
-
-		ret = acpi_load_table(data);
-		if (ret) {
-			pr_err("failed to load table: %d\n", ret);
-			goto free_data;
-		}
-
-		goto free_entry;
-
-free_data:
 		kfree(data);
-
-free_entry:
-		kfree(entry);
 	}
-
-	return ret;
+	return 0;
 }
 #else
 static inline int efivar_ssdt_load(void) { return 0; }
+#endif
+
+#ifdef CONFIG_DEBUG_FS
+
+#define EFI_DEBUGFS_MAX_BLOBS 32
+
+static struct debugfs_blob_wrapper debugfs_blob[EFI_DEBUGFS_MAX_BLOBS];
+
+static void __init efi_debugfs_init(void)
+{
+	struct dentry *efi_debugfs;
+	efi_memory_desc_t *md;
+	char name[32];
+	int type_count[EFI_BOOT_SERVICES_DATA + 1] = {};
+	int i = 0;
+
+	efi_debugfs = debugfs_create_dir("efi", NULL);
+	if (IS_ERR_OR_NULL(efi_debugfs))
+		return;
+
+	for_each_efi_memory_desc(md) {
+		switch (md->type) {
+		case EFI_BOOT_SERVICES_CODE:
+			snprintf(name, sizeof(name), "boot_services_code%d",
+				 type_count[md->type]++);
+			break;
+		case EFI_BOOT_SERVICES_DATA:
+			snprintf(name, sizeof(name), "boot_services_data%d",
+				 type_count[md->type]++);
+			break;
+		default:
+			continue;
+		}
+
+		if (i >= EFI_DEBUGFS_MAX_BLOBS) {
+			pr_warn("More then %d EFI boot service segments, only showing first %d in debugfs\n",
+				EFI_DEBUGFS_MAX_BLOBS, EFI_DEBUGFS_MAX_BLOBS);
+			break;
+		}
+
+		debugfs_blob[i].size = md->num_pages << EFI_PAGE_SHIFT;
+		debugfs_blob[i].data = memremap(md->phys_addr,
+						debugfs_blob[i].size,
+						MEMREMAP_WB);
+		if (!debugfs_blob[i].data)
+			continue;
+
+		debugfs_create_blob(name, 0400, efi_debugfs, &debugfs_blob[i]);
+		i++;
+	}
+}
+#else
+static inline void efi_debugfs_init(void) {}
 #endif
 
 /*
@@ -323,34 +396,48 @@ static int __init efisubsys_init(void)
 {
 	int error;
 
+	if (!efi_enabled(EFI_RUNTIME_SERVICES))
+		efi.runtime_supported_mask = 0;
+
 	if (!efi_enabled(EFI_BOOT))
 		return 0;
 
-	/*
-	 * Since we process only one efi_runtime_service() at a time, an
-	 * ordered workqueue (which creates only one execution context)
-	 * should suffice all our needs.
-	 */
-	efi_rts_wq = alloc_ordered_workqueue("efi_rts_wq", 0);
-	if (!efi_rts_wq) {
-		pr_err("Creating efi_rts_wq failed, EFI runtime services disabled.\n");
-		clear_bit(EFI_RUNTIME_SERVICES, &efi.flags);
-		return 0;
+	if (efi.runtime_supported_mask) {
+		/*
+		 * Since we process only one efi_runtime_service() at a time, an
+		 * ordered workqueue (which creates only one execution context)
+		 * should suffice for all our needs.
+		 */
+		efi_rts_wq = alloc_ordered_workqueue("efi_rts_wq", 0);
+		if (!efi_rts_wq) {
+			pr_err("Creating efi_rts_wq failed, EFI runtime services disabled.\n");
+			clear_bit(EFI_RUNTIME_SERVICES, &efi.flags);
+			efi.runtime_supported_mask = 0;
+			return 0;
+		}
 	}
+
+	if (efi_rt_services_supported(EFI_RT_SUPPORTED_TIME_SERVICES))
+		platform_device_register_simple("rtc-efi", 0, NULL, 0);
 
 	/* We register the efi directory at /sys/firmware/efi */
 	efi_kobj = kobject_create_and_add("efi", firmware_kobj);
 	if (!efi_kobj) {
 		pr_err("efi: Firmware registration failed.\n");
-		return -ENOMEM;
+		error = -ENOMEM;
+		goto err_destroy_wq;
 	}
 
-	error = generic_ops_register();
-	if (error)
-		goto err_put;
-
-	if (efi_enabled(EFI_RUNTIME_SERVICES))
+	if (efi_rt_services_supported(EFI_RT_SUPPORTED_GET_VARIABLE |
+				      EFI_RT_SUPPORTED_GET_NEXT_VARIABLE_NAME)) {
+		error = generic_ops_register();
+		if (error)
+			goto err_put;
 		efivar_ssdt_load();
+		platform_device_register_simple("efivars", 0, NULL, 0);
+	}
+
+	BLOCKING_INIT_NOTIFIER_HEAD(&efivar_ops_nh);
 
 	error = sysfs_create_group(efi_kobj, &efi_subsys_attr_group);
 	if (error) {
@@ -359,10 +446,6 @@ static int __init efisubsys_init(void)
 		goto err_unregister;
 	}
 
-	error = efi_runtime_map_init(efi_kobj);
-	if (error)
-		goto err_remove_group;
-
 	/* and the standard mountpoint for efivarfs */
 	error = sysfs_create_mount_point(efi_kobj, "efivars");
 	if (error) {
@@ -370,18 +453,56 @@ static int __init efisubsys_init(void)
 		goto err_remove_group;
 	}
 
+	if (efi_enabled(EFI_DBG) && efi_enabled(EFI_PRESERVE_BS_REGIONS))
+		efi_debugfs_init();
+
+#ifdef CONFIG_EFI_COCO_SECRET
+	if (efi.coco_secret != EFI_INVALID_TABLE_ADDR)
+		platform_device_register_simple("efi_secret", 0, NULL, 0);
+#endif
+
 	return 0;
 
 err_remove_group:
 	sysfs_remove_group(efi_kobj, &efi_subsys_attr_group);
 err_unregister:
-	generic_ops_unregister();
+	if (efi_rt_services_supported(EFI_RT_SUPPORTED_GET_VARIABLE |
+				      EFI_RT_SUPPORTED_GET_NEXT_VARIABLE_NAME))
+		generic_ops_unregister();
 err_put:
 	kobject_put(efi_kobj);
+	efi_kobj = NULL;
+err_destroy_wq:
+	if (efi_rts_wq)
+		destroy_workqueue(efi_rts_wq);
+
 	return error;
 }
 
 subsys_initcall(efisubsys_init);
+
+void __init efi_find_mirror(void)
+{
+	efi_memory_desc_t *md;
+	u64 mirror_size = 0, total_size = 0;
+
+	if (!efi_enabled(EFI_MEMMAP))
+		return;
+
+	for_each_efi_memory_desc(md) {
+		unsigned long long start = md->phys_addr;
+		unsigned long long size = md->num_pages << EFI_PAGE_SHIFT;
+
+		total_size += size;
+		if (md->attribute & EFI_MEMORY_MORE_RELIABLE) {
+			memblock_mark_mirror(start, size);
+			mirror_size += size;
+		}
+	}
+	if (mirror_size)
+		pr_info("Memory: %lldM/%lldM mirrored memory\n",
+			mirror_size>>20, total_size>>20);
+}
 
 /*
  * Find the efi memory descriptor for a given physical address.  Given a
@@ -389,7 +510,7 @@ subsys_initcall(efisubsys_init);
  * and if so, populate the supplied memory descriptor with the appropriate
  * data.
  */
-int efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md)
+int __efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md)
 {
 	efi_memory_desc_t *md;
 
@@ -407,6 +528,12 @@ int efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md)
 		u64 size;
 		u64 end;
 
+		/* skip bogus entries (including empty ones) */
+		if ((md->phys_addr & (EFI_PAGE_SIZE - 1)) ||
+		    (md->num_pages <= 0) ||
+		    (md->num_pages > (U64_MAX - md->phys_addr) >> EFI_PAGE_SHIFT))
+			continue;
+
 		size = md->num_pages << EFI_PAGE_SHIFT;
 		end = md->phys_addr + size;
 		if (phys_addr >= md->phys_addr && phys_addr < end) {
@@ -416,6 +543,9 @@ int efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md)
 	}
 	return -ENOENT;
 }
+
+extern int efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md)
+	__weak __alias(__efi_mem_desc_lookup);
 
 /*
  * Calculate the highest address of an efi memory descriptor.
@@ -443,6 +573,10 @@ void __init __weak efi_arch_mem_reserve(phys_addr_t addr, u64 size) {}
  */
 void __init efi_mem_reserve(phys_addr_t addr, u64 size)
 {
+	/* efi_mem_reserve() does not work under Xen */
+	if (WARN_ON_ONCE(efi_enabled(EFI_PARAVIRT)))
+		return;
+
 	if (!memblock_is_region_reserved(addr, size))
 		memblock_reserve(addr, size);
 
@@ -456,102 +590,145 @@ void __init efi_mem_reserve(phys_addr_t addr, u64 size)
 	efi_arch_mem_reserve(addr, size);
 }
 
-static __initdata efi_config_table_type_t common_tables[] = {
-	{ACPI_20_TABLE_GUID, "ACPI 2.0", &efi.acpi20},
-	{ACPI_TABLE_GUID, "ACPI", &efi.acpi},
-	{HCDP_TABLE_GUID, "HCDP", &efi.hcdp},
-	{MPS_TABLE_GUID, "MPS", &efi.mps},
-	{SMBIOS_TABLE_GUID, "SMBIOS", &efi.smbios},
-	{SMBIOS3_TABLE_GUID, "SMBIOS 3.0", &efi.smbios3},
-	{UGA_IO_PROTOCOL_GUID, "UGA", &efi.uga},
-	{EFI_SYSTEM_RESOURCE_TABLE_GUID, "ESRT", &efi.esrt},
-	{EFI_PROPERTIES_TABLE_GUID, "PROP", &efi.properties_table},
-	{EFI_MEMORY_ATTRIBUTES_TABLE_GUID, "MEMATTR", &efi.mem_attr_table},
-	{LINUX_EFI_RANDOM_SEED_TABLE_GUID, "RNG", &efi.rng_seed},
-	{LINUX_EFI_TPM_EVENT_LOG_GUID, "TPMEventLog", &efi.tpm_log},
-	{LINUX_EFI_TPM_FINAL_LOG_GUID, "TPMFinalLog", &efi.tpm_final_log},
-	{LINUX_EFI_MEMRESERVE_TABLE_GUID, "MEMRESERVE", &efi.mem_reserve},
+static const efi_config_table_type_t common_tables[] __initconst = {
+	{ACPI_20_TABLE_GUID,			&efi.acpi20,		"ACPI 2.0"	},
+	{ACPI_TABLE_GUID,			&efi.acpi,		"ACPI"		},
+	{SMBIOS_TABLE_GUID,			&efi.smbios,		"SMBIOS"	},
+	{SMBIOS3_TABLE_GUID,			&efi.smbios3,		"SMBIOS 3.0"	},
+	{EFI_SYSTEM_RESOURCE_TABLE_GUID,	&efi.esrt,		"ESRT"		},
+	{EFI_MEMORY_ATTRIBUTES_TABLE_GUID,	&efi_mem_attr_table,	"MEMATTR"	},
+	{LINUX_EFI_RANDOM_SEED_TABLE_GUID,	&efi_rng_seed,		"RNG"		},
+	{LINUX_EFI_TPM_EVENT_LOG_GUID,		&efi.tpm_log,		"TPMEventLog"	},
+	{EFI_TCG2_FINAL_EVENTS_TABLE_GUID,	&efi.tpm_final_log,	"TPMFinalLog"	},
+	{EFI_CC_FINAL_EVENTS_TABLE_GUID,	&efi.tpm_final_log,	"CCFinalLog"	},
+	{LINUX_EFI_MEMRESERVE_TABLE_GUID,	&mem_reserve,		"MEMRESERVE"	},
+	{LINUX_EFI_INITRD_MEDIA_GUID,		&initrd,		"INITRD"	},
+	{EFI_RT_PROPERTIES_TABLE_GUID,		&rt_prop,		"RTPROP"	},
 #ifdef CONFIG_EFI_RCI2_TABLE
-	{DELLEMC_EFI_RCI2_TABLE_GUID, NULL, &rci2_table_phys},
+	{DELLEMC_EFI_RCI2_TABLE_GUID,		&rci2_table_phys			},
 #endif
-	{NULL_GUID, NULL, NULL},
+#ifdef CONFIG_LOAD_UEFI_KEYS
+	{LINUX_EFI_MOK_VARIABLE_TABLE_GUID,	&efi.mokvar_table,	"MOKvar"	},
+#endif
+#ifdef CONFIG_EFI_COCO_SECRET
+	{LINUX_EFI_COCO_SECRET_AREA_GUID,	&efi.coco_secret,	"CocoSecret"	},
+#endif
+#ifdef CONFIG_UNACCEPTED_MEMORY
+	{LINUX_EFI_UNACCEPTED_MEM_TABLE_GUID,	&efi.unaccepted,	"Unaccepted"	},
+#endif
+#ifdef CONFIG_EFI_GENERIC_STUB
+	{LINUX_EFI_SCREEN_INFO_TABLE_GUID,	&screen_info_table			},
+#endif
+	{},
 };
 
-static __init int match_config_table(efi_guid_t *guid,
+static __init int match_config_table(const efi_guid_t *guid,
 				     unsigned long table,
-				     efi_config_table_type_t *table_types)
+				     const efi_config_table_type_t *table_types)
 {
 	int i;
 
-	if (table_types) {
-		for (i = 0; efi_guidcmp(table_types[i].guid, NULL_GUID); i++) {
-			if (!efi_guidcmp(*guid, table_types[i].guid)) {
-				*(table_types[i].ptr) = table;
-				if (table_types[i].name)
-					pr_cont(" %s=0x%lx ",
-						table_types[i].name, table);
-				return 1;
-			}
+	for (i = 0; efi_guidcmp(table_types[i].guid, NULL_GUID); i++) {
+		if (efi_guidcmp(*guid, table_types[i].guid))
+			continue;
+
+		if (!efi_config_table_is_usable(guid, table)) {
+			if (table_types[i].name[0])
+				pr_cont("(%s=0x%lx unusable) ",
+					table_types[i].name, table);
+			return 1;
 		}
+
+		*(table_types[i].ptr) = table;
+		if (table_types[i].name[0])
+			pr_cont("%s=0x%lx ", table_types[i].name, table);
+		return 1;
 	}
 
 	return 0;
 }
 
-int __init efi_config_parse_tables(void *config_tables, int count, int sz,
-				   efi_config_table_type_t *arch_tables)
+/**
+ * reserve_unaccepted - Map and reserve unaccepted configuration table
+ * @unaccepted: Pointer to unaccepted memory table
+ *
+ * memblock_add() makes sure that the table is mapped in direct mapping. During
+ * normal boot it happens automatically because the table is allocated from
+ * usable memory. But during crashkernel boot only memory specifically reserved
+ * for crash scenario is mapped. memblock_add() forces the table to be mapped
+ * in crashkernel case.
+ *
+ * Align the range to the nearest page borders. Ranges smaller than page size
+ * are not going to be mapped.
+ *
+ * memblock_reserve() makes sure that future allocations will not touch the
+ * table.
+ */
+
+static __init void reserve_unaccepted(struct efi_unaccepted_memory *unaccepted)
 {
-	void *tablep;
+	phys_addr_t start, size;
+
+	start = PAGE_ALIGN_DOWN(efi.unaccepted);
+	size = PAGE_ALIGN(sizeof(*unaccepted) + unaccepted->size);
+
+	memblock_add(start, size);
+	memblock_reserve(start, size);
+}
+
+int __init efi_config_parse_tables(const efi_config_table_t *config_tables,
+				   int count,
+				   const efi_config_table_type_t *arch_tables)
+{
+	const efi_config_table_64_t *tbl64 = (void *)config_tables;
+	const efi_config_table_32_t *tbl32 = (void *)config_tables;
+	const efi_guid_t *guid;
+	unsigned long table;
 	int i;
 
-	tablep = config_tables;
 	pr_info("");
 	for (i = 0; i < count; i++) {
-		efi_guid_t guid;
-		unsigned long table;
+		if (!IS_ENABLED(CONFIG_X86)) {
+			guid = &config_tables[i].guid;
+			table = (unsigned long)config_tables[i].table;
+		} else if (efi_enabled(EFI_64BIT)) {
+			guid = &tbl64[i].guid;
+			table = tbl64[i].table;
 
-		if (efi_enabled(EFI_64BIT)) {
-			u64 table64;
-			guid = ((efi_config_table_64_t *)tablep)->guid;
-			table64 = ((efi_config_table_64_t *)tablep)->table;
-			table = table64;
-#ifndef CONFIG_64BIT
-			if (table64 >> 32) {
+			if (IS_ENABLED(CONFIG_X86_32) &&
+			    tbl64[i].table > U32_MAX) {
 				pr_cont("\n");
 				pr_err("Table located above 4GB, disabling EFI.\n");
 				return -EINVAL;
 			}
-#endif
 		} else {
-			guid = ((efi_config_table_32_t *)tablep)->guid;
-			table = ((efi_config_table_32_t *)tablep)->table;
+			guid = &tbl32[i].guid;
+			table = tbl32[i].table;
 		}
 
-		if (!match_config_table(&guid, table, common_tables))
-			match_config_table(&guid, table, arch_tables);
-
-		tablep += sz;
+		if (!match_config_table(guid, table, common_tables) && arch_tables)
+			match_config_table(guid, table, arch_tables);
 	}
 	pr_cont("\n");
 	set_bit(EFI_CONFIG_TABLES, &efi.flags);
 
-	if (efi.rng_seed != EFI_INVALID_TABLE_ADDR) {
+	if (efi_rng_seed != EFI_INVALID_TABLE_ADDR) {
 		struct linux_efi_random_seed *seed;
 		u32 size = 0;
 
-		seed = early_memremap(efi.rng_seed, sizeof(*seed));
+		seed = early_memremap(efi_rng_seed, sizeof(*seed));
 		if (seed != NULL) {
-			size = seed->size;
+			size = min_t(u32, seed->size, SZ_1K); // sanity check
 			early_memunmap(seed, sizeof(*seed));
 		} else {
 			pr_err("Could not map UEFI random seed!\n");
 		}
 		if (size > 0) {
-			seed = early_memremap(efi.rng_seed,
+			seed = early_memremap(efi_rng_seed,
 					      sizeof(*seed) + size);
 			if (seed != NULL) {
-				pr_notice("seeding entropy pool\n");
-				add_device_randomness(seed->bits, seed->size);
+				add_bootloader_randomness(seed->bits, size);
+				memzero_explicit(seed->bits, size);
 				early_memunmap(seed, sizeof(*seed) + size);
 			} else {
 				pr_err("Could not map UEFI random seed!\n");
@@ -559,35 +736,17 @@ int __init efi_config_parse_tables(void *config_tables, int count, int sz,
 		}
 	}
 
-	if (efi_enabled(EFI_MEMMAP))
+	if (!IS_ENABLED(CONFIG_X86_32) && efi_enabled(EFI_MEMMAP))
 		efi_memattr_init();
 
 	efi_tpm_eventlog_init();
 
-	/* Parse the EFI Properties table if it exists */
-	if (efi.properties_table != EFI_INVALID_TABLE_ADDR) {
-		efi_properties_table_t *tbl;
-
-		tbl = early_memremap(efi.properties_table, sizeof(*tbl));
-		if (tbl == NULL) {
-			pr_err("Could not map Properties table!\n");
-			return -ENOMEM;
-		}
-
-		if (tbl->memory_protection_attribute &
-		    EFI_PROPERTIES_RUNTIME_MEMORY_PROTECTION_NON_EXECUTABLE_PE_DATA)
-			set_bit(EFI_NX_PE_DATA, &efi.flags);
-
-		early_memunmap(tbl, sizeof(*tbl));
-	}
-
-	if (efi.mem_reserve != EFI_INVALID_TABLE_ADDR) {
-		unsigned long prsv = efi.mem_reserve;
+	if (mem_reserve != EFI_INVALID_TABLE_ADDR) {
+		unsigned long prsv = mem_reserve;
 
 		while (prsv) {
 			struct linux_efi_memreserve *rsv;
 			u8 *p;
-			int i;
 
 			/*
 			 * Just map a full page: that is what we will get
@@ -604,7 +763,8 @@ int __init efi_config_parse_tables(void *config_tables, int count, int sz,
 			rsv = (void *)(p + prsv % PAGE_SIZE);
 
 			/* reserve the entry itself */
-			memblock_reserve(prsv, EFI_MEMRESERVE_SIZE(rsv->size));
+			memblock_reserve(prsv,
+					 struct_size(rsv, entry, rsv->size));
 
 			for (i = 0; i < atomic_read(&rsv->count); i++) {
 				memblock_reserve(rsv->entry[i].base,
@@ -616,188 +776,109 @@ int __init efi_config_parse_tables(void *config_tables, int count, int sz,
 		}
 	}
 
-	return 0;
-}
+	if (rt_prop != EFI_INVALID_TABLE_ADDR) {
+		efi_rt_properties_table_t *tbl;
 
-int __init efi_config_init(efi_config_table_type_t *arch_tables)
-{
-	void *config_tables;
-	int sz, ret;
-
-	if (efi.systab->nr_tables == 0)
-		return 0;
-
-	if (efi_enabled(EFI_64BIT))
-		sz = sizeof(efi_config_table_64_t);
-	else
-		sz = sizeof(efi_config_table_32_t);
-
-	/*
-	 * Let's see what config tables the firmware passed to us.
-	 */
-	config_tables = early_memremap(efi.systab->tables,
-				       efi.systab->nr_tables * sz);
-	if (config_tables == NULL) {
-		pr_err("Could not map Configuration table!\n");
-		return -ENOMEM;
+		tbl = early_memremap(rt_prop, sizeof(*tbl));
+		if (tbl) {
+			efi.runtime_supported_mask &= tbl->runtime_services_supported;
+			early_memunmap(tbl, sizeof(*tbl));
+		}
 	}
 
-	ret = efi_config_parse_tables(config_tables, efi.systab->nr_tables, sz,
-				      arch_tables);
+	if (IS_ENABLED(CONFIG_BLK_DEV_INITRD) &&
+	    initrd != EFI_INVALID_TABLE_ADDR && phys_initrd_size == 0) {
+		struct linux_efi_initrd *tbl;
 
-	early_memunmap(config_tables, efi.systab->nr_tables * sz);
-	return ret;
-}
-
-#ifdef CONFIG_EFI_VARS_MODULE
-static int __init efi_load_efivars(void)
-{
-	struct platform_device *pdev;
-
-	if (!efi_enabled(EFI_RUNTIME_SERVICES))
-		return 0;
-
-	pdev = platform_device_register_simple("efivars", 0, NULL, 0);
-	return PTR_ERR_OR_ZERO(pdev);
-}
-device_initcall(efi_load_efivars);
-#endif
-
-#ifdef CONFIG_EFI_PARAMS_FROM_FDT
-
-#define UEFI_PARAM(name, prop, field)			   \
-	{						   \
-		{ name },				   \
-		{ prop },				   \
-		offsetof(struct efi_fdt_params, field),    \
-		FIELD_SIZEOF(struct efi_fdt_params, field) \
+		tbl = early_memremap(initrd, sizeof(*tbl));
+		if (tbl) {
+			phys_initrd_start = tbl->base;
+			phys_initrd_size = tbl->size;
+			early_memunmap(tbl, sizeof(*tbl));
+		}
 	}
 
-struct params {
-	const char name[32];
-	const char propname[32];
-	int offset;
-	int size;
-};
+	if (IS_ENABLED(CONFIG_UNACCEPTED_MEMORY) &&
+	    efi.unaccepted != EFI_INVALID_TABLE_ADDR) {
+		struct efi_unaccepted_memory *unaccepted;
 
-static __initdata struct params fdt_params[] = {
-	UEFI_PARAM("System Table", "linux,uefi-system-table", system_table),
-	UEFI_PARAM("MemMap Address", "linux,uefi-mmap-start", mmap),
-	UEFI_PARAM("MemMap Size", "linux,uefi-mmap-size", mmap_size),
-	UEFI_PARAM("MemMap Desc. Size", "linux,uefi-mmap-desc-size", desc_size),
-	UEFI_PARAM("MemMap Desc. Version", "linux,uefi-mmap-desc-ver", desc_ver)
-};
+		unaccepted = early_memremap(efi.unaccepted, sizeof(*unaccepted));
+		if (unaccepted) {
 
-static __initdata struct params xen_fdt_params[] = {
-	UEFI_PARAM("System Table", "xen,uefi-system-table", system_table),
-	UEFI_PARAM("MemMap Address", "xen,uefi-mmap-start", mmap),
-	UEFI_PARAM("MemMap Size", "xen,uefi-mmap-size", mmap_size),
-	UEFI_PARAM("MemMap Desc. Size", "xen,uefi-mmap-desc-size", desc_size),
-	UEFI_PARAM("MemMap Desc. Version", "xen,uefi-mmap-desc-ver", desc_ver)
-};
+			if (unaccepted->version == 1) {
+				reserve_unaccepted(unaccepted);
+			} else {
+				efi.unaccepted = EFI_INVALID_TABLE_ADDR;
+			}
 
-#define EFI_FDT_PARAMS_SIZE	ARRAY_SIZE(fdt_params)
-
-static __initdata struct {
-	const char *uname;
-	const char *subnode;
-	struct params *params;
-} dt_params[] = {
-	{ "hypervisor", "uefi", xen_fdt_params },
-	{ "chosen", NULL, fdt_params },
-};
-
-struct param_info {
-	int found;
-	void *params;
-	const char *missing;
-};
-
-static int __init __find_uefi_params(unsigned long node,
-				     struct param_info *info,
-				     struct params *params)
-{
-	const void *prop;
-	void *dest;
-	u64 val;
-	int i, len;
-
-	for (i = 0; i < EFI_FDT_PARAMS_SIZE; i++) {
-		prop = of_get_flat_dt_prop(node, params[i].propname, &len);
-		if (!prop) {
-			info->missing = params[i].name;
-			return 0;
+			early_memunmap(unaccepted, sizeof(*unaccepted));
 		}
-
-		dest = info->params + params[i].offset;
-		info->found++;
-
-		val = of_read_number(prop, len / sizeof(u32));
-
-		if (params[i].size == sizeof(u32))
-			*(u32 *)dest = val;
-		else
-			*(u64 *)dest = val;
-
-		if (efi_enabled(EFI_DBG))
-			pr_info("  %s: 0x%0*llx\n", params[i].name,
-				params[i].size * 2, val);
-	}
-
-	return 1;
-}
-
-static int __init fdt_find_uefi_params(unsigned long node, const char *uname,
-				       int depth, void *data)
-{
-	struct param_info *info = data;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(dt_params); i++) {
-		const char *subnode = dt_params[i].subnode;
-
-		if (depth != 1 || strcmp(uname, dt_params[i].uname) != 0) {
-			info->missing = dt_params[i].params[0].name;
-			continue;
-		}
-
-		if (subnode) {
-			int err = of_get_flat_dt_subnode_by_name(node, subnode);
-
-			if (err < 0)
-				return 0;
-
-			node = err;
-		}
-
-		return __find_uefi_params(node, info, dt_params[i].params);
 	}
 
 	return 0;
 }
 
-int __init efi_get_fdt_params(struct efi_fdt_params *params)
+int __init efi_systab_check_header(const efi_table_hdr_t *systab_hdr)
 {
-	struct param_info info;
-	int ret;
+	if (systab_hdr->signature != EFI_SYSTEM_TABLE_SIGNATURE) {
+		pr_err("System table signature incorrect!\n");
+		return -EINVAL;
+	}
 
-	pr_info("Getting EFI parameters from FDT:\n");
+	return 0;
+}
 
-	info.found = 0;
-	info.params = params;
+static const efi_char16_t *__init map_fw_vendor(unsigned long fw_vendor,
+						size_t size)
+{
+	const efi_char16_t *ret;
 
-	ret = of_scan_flat_dt(fdt_find_uefi_params, &info);
-	if (!info.found)
-		pr_info("UEFI not found.\n");
-	else if (!ret)
-		pr_err("Can't find '%s' in device tree!\n",
-		       info.missing);
-
+	ret = early_memremap_ro(fw_vendor, size);
+	if (!ret)
+		pr_err("Could not map the firmware vendor!\n");
 	return ret;
 }
-#endif /* CONFIG_EFI_PARAMS_FROM_FDT */
 
-static __initdata char memory_type_name[][20] = {
+static void __init unmap_fw_vendor(const void *fw_vendor, size_t size)
+{
+	early_memunmap((void *)fw_vendor, size);
+}
+
+void __init efi_systab_report_header(const efi_table_hdr_t *systab_hdr,
+				     unsigned long fw_vendor)
+{
+	char vendor[100] = "unknown";
+	const efi_char16_t *c16;
+	size_t i;
+	u16 rev;
+
+	c16 = map_fw_vendor(fw_vendor, sizeof(vendor) * sizeof(efi_char16_t));
+	if (c16) {
+		for (i = 0; i < sizeof(vendor) - 1 && c16[i]; ++i)
+			vendor[i] = c16[i];
+		vendor[i] = '\0';
+
+		unmap_fw_vendor(c16, sizeof(vendor) * sizeof(efi_char16_t));
+	}
+
+	rev = (u16)systab_hdr->revision;
+	pr_info("EFI v%u.%u", systab_hdr->revision >> 16, rev / 10);
+
+	rev %= 10;
+	if (rev)
+		pr_cont(".%u", rev);
+
+	pr_cont(" by %s\n", vendor);
+
+	if (IS_ENABLED(CONFIG_X86_64) &&
+	    systab_hdr->revision > EFI_1_10_SYSTEM_TABLE_REVISION &&
+	    !strcmp(vendor, "Apple")) {
+		pr_info("Apple Mac detected, using EFI v1.10 runtime services only\n");
+		efi.runtime_version = EFI_1_10_SYSTEM_TABLE_REVISION;
+	}
+}
+
+static __initdata char memory_type_name[][13] = {
 	"Reserved",
 	"Loader Code",
 	"Loader Data",
@@ -805,14 +886,15 @@ static __initdata char memory_type_name[][20] = {
 	"Boot Data",
 	"Runtime Code",
 	"Runtime Data",
-	"Conventional Memory",
-	"Unusable Memory",
-	"ACPI Reclaim Memory",
-	"ACPI Memory NVS",
-	"Memory Mapped I/O",
-	"MMIO Port Space",
+	"Conventional",
+	"Unusable",
+	"ACPI Reclaim",
+	"ACPI Mem NVS",
+	"MMIO",
+	"MMIO Port",
 	"PAL Code",
-	"Persistent Memory",
+	"Persistent",
+	"Unaccepted",
 };
 
 char * __init efi_md_typeattr_format(char *buf, size_t size,
@@ -839,33 +921,30 @@ char * __init efi_md_typeattr_format(char *buf, size_t size,
 	if (attr & ~(EFI_MEMORY_UC | EFI_MEMORY_WC | EFI_MEMORY_WT |
 		     EFI_MEMORY_WB | EFI_MEMORY_UCE | EFI_MEMORY_RO |
 		     EFI_MEMORY_WP | EFI_MEMORY_RP | EFI_MEMORY_XP |
-		     EFI_MEMORY_NV |
+		     EFI_MEMORY_NV | EFI_MEMORY_SP | EFI_MEMORY_CPU_CRYPTO |
 		     EFI_MEMORY_RUNTIME | EFI_MEMORY_MORE_RELIABLE))
 		snprintf(pos, size, "|attr=0x%016llx]",
 			 (unsigned long long)attr);
 	else
 		snprintf(pos, size,
-			 "|%3s|%2s|%2s|%2s|%2s|%2s|%2s|%3s|%2s|%2s|%2s|%2s]",
-			 attr & EFI_MEMORY_RUNTIME ? "RUN" : "",
-			 attr & EFI_MEMORY_MORE_RELIABLE ? "MR" : "",
-			 attr & EFI_MEMORY_NV      ? "NV"  : "",
-			 attr & EFI_MEMORY_XP      ? "XP"  : "",
-			 attr & EFI_MEMORY_RP      ? "RP"  : "",
-			 attr & EFI_MEMORY_WP      ? "WP"  : "",
-			 attr & EFI_MEMORY_RO      ? "RO"  : "",
-			 attr & EFI_MEMORY_UCE     ? "UCE" : "",
-			 attr & EFI_MEMORY_WB      ? "WB"  : "",
-			 attr & EFI_MEMORY_WT      ? "WT"  : "",
-			 attr & EFI_MEMORY_WC      ? "WC"  : "",
-			 attr & EFI_MEMORY_UC      ? "UC"  : "");
+			 "|%3s|%2s|%2s|%2s|%2s|%2s|%2s|%2s|%2s|%3s|%2s|%2s|%2s|%2s]",
+			 attr & EFI_MEMORY_RUNTIME		? "RUN" : "",
+			 attr & EFI_MEMORY_MORE_RELIABLE	? "MR"  : "",
+			 attr & EFI_MEMORY_CPU_CRYPTO   	? "CC"  : "",
+			 attr & EFI_MEMORY_SP			? "SP"  : "",
+			 attr & EFI_MEMORY_NV			? "NV"  : "",
+			 attr & EFI_MEMORY_XP			? "XP"  : "",
+			 attr & EFI_MEMORY_RP			? "RP"  : "",
+			 attr & EFI_MEMORY_WP			? "WP"  : "",
+			 attr & EFI_MEMORY_RO			? "RO"  : "",
+			 attr & EFI_MEMORY_UCE			? "UCE" : "",
+			 attr & EFI_MEMORY_WB			? "WB"  : "",
+			 attr & EFI_MEMORY_WT			? "WT"  : "",
+			 attr & EFI_MEMORY_WC			? "WC"  : "",
+			 attr & EFI_MEMORY_UC			? "UC"  : "");
 	return buf;
 }
 
-/*
- * IA64 has a funky EFI memory map that doesn't work the same way as
- * other architectures.
- */
-#ifndef CONFIG_IA64
 /*
  * efi_mem_attributes - lookup memmap attributes for physical address
  * @phys_addr: the physical address to lookup
@@ -896,7 +975,7 @@ u64 efi_mem_attributes(unsigned long phys_addr)
  *
  * Search in the EFI memory map for the region covering @phys_addr.
  * Returns the EFI memory type if the region was found in the memory
- * map, EFI_RESERVED_TYPE (zero) otherwise.
+ * map, -EINVAL otherwise.
  */
 int efi_mem_type(unsigned long phys_addr)
 {
@@ -913,7 +992,6 @@ int efi_mem_type(unsigned long phys_addr)
 	}
 	return -EINVAL;
 }
-#endif
 
 int efi_status_to_err(efi_status_t status)
 {
@@ -950,21 +1028,51 @@ int efi_status_to_err(efi_status_t status)
 
 	return err;
 }
+EXPORT_SYMBOL_GPL(efi_status_to_err);
 
 static DEFINE_SPINLOCK(efi_mem_reserve_persistent_lock);
 static struct linux_efi_memreserve *efi_memreserve_root __ro_after_init;
 
 static int __init efi_memreserve_map_root(void)
 {
-	if (efi.mem_reserve == EFI_INVALID_TABLE_ADDR)
+	if (mem_reserve == EFI_INVALID_TABLE_ADDR)
 		return -ENODEV;
 
-	efi_memreserve_root = memremap(efi.mem_reserve,
+	efi_memreserve_root = memremap(mem_reserve,
 				       sizeof(*efi_memreserve_root),
 				       MEMREMAP_WB);
 	if (WARN_ON_ONCE(!efi_memreserve_root))
 		return -ENOMEM;
 	return 0;
+}
+
+static int efi_mem_reserve_iomem(phys_addr_t addr, u64 size)
+{
+	struct resource *res, *parent;
+	int ret;
+
+	res = kzalloc(sizeof(struct resource), GFP_ATOMIC);
+	if (!res)
+		return -ENOMEM;
+
+	res->name	= "reserved";
+	res->flags	= IORESOURCE_MEM;
+	res->start	= addr;
+	res->end	= addr + size - 1;
+
+	/* we expect a conflict with a 'System RAM' region */
+	parent = request_resource_conflict(&iomem_resource, res);
+	ret = parent ? request_resource(parent, res) : 0;
+
+	/*
+	 * Given that efi_mem_reserve_iomem() can be called at any
+	 * time, only call memblock_reserve() if the architecture
+	 * keeps the infrastructure around.
+	 */
+	if (IS_ENABLED(CONFIG_ARCH_KEEP_MEMBLOCK) && !ret)
+		memblock_reserve(addr, size);
+
+	return ret;
 }
 
 int __ref efi_mem_reserve_persistent(phys_addr_t addr, u64 size)
@@ -983,16 +1091,19 @@ int __ref efi_mem_reserve_persistent(phys_addr_t addr, u64 size)
 	}
 
 	/* first try to find a slot in an existing linked list entry */
-	for (prsv = efi_memreserve_root->next; prsv; prsv = rsv->next) {
+	for (prsv = efi_memreserve_root->next; prsv; ) {
 		rsv = memremap(prsv, sizeof(*rsv), MEMREMAP_WB);
+		if (!rsv)
+			return -ENOMEM;
 		index = atomic_fetch_add_unless(&rsv->count, 1, rsv->size);
 		if (index < rsv->size) {
 			rsv->entry[index].base = addr;
 			rsv->entry[index].size = size;
 
 			memunmap(rsv);
-			return 0;
+			return efi_mem_reserve_iomem(addr, size);
 		}
+		prsv = rsv->next;
 		memunmap(rsv);
 	}
 
@@ -1000,6 +1111,12 @@ int __ref efi_mem_reserve_persistent(phys_addr_t addr, u64 size)
 	rsv = (struct linux_efi_memreserve *)__get_free_page(GFP_ATOMIC);
 	if (!rsv)
 		return -ENOMEM;
+
+	rc = efi_mem_reserve_iomem(__pa(rsv), SZ_4K);
+	if (rc) {
+		free_page((unsigned long)rsv);
+		return rc;
+	}
 
 	/*
 	 * The memremap() call above assumes that a linux_efi_memreserve entry
@@ -1017,7 +1134,7 @@ int __ref efi_mem_reserve_persistent(phys_addr_t addr, u64 size)
 	efi_memreserve_root->next = __pa(rsv);
 	spin_unlock(&efi_mem_reserve_persistent_lock);
 
-	return 0;
+	return efi_mem_reserve_iomem(addr, size);
 }
 
 static int __init efi_memreserve_root_init(void)
@@ -1040,7 +1157,7 @@ static int update_efi_random_seed(struct notifier_block *nb,
 	if (!kexec_in_progress)
 		return NOTIFY_DONE;
 
-	seed = memremap(efi.rng_seed, sizeof(*seed), MEMREMAP_WB);
+	seed = memremap(efi_rng_seed, sizeof(*seed), MEMREMAP_WB);
 	if (seed != NULL) {
 		size = min(seed->size, EFI_RANDOM_SEED_SIZE);
 		memunmap(seed);
@@ -1048,7 +1165,7 @@ static int update_efi_random_seed(struct notifier_block *nb,
 		pr_err("Could not map UEFI random seed!\n");
 	}
 	if (size > 0) {
-		seed = memremap(efi.rng_seed, sizeof(*seed) + size,
+		seed = memremap(efi_rng_seed, sizeof(*seed) + size,
 				MEMREMAP_WB);
 		if (seed != NULL) {
 			seed->size = size;
@@ -1065,9 +1182,9 @@ static struct notifier_block efi_random_seed_nb = {
 	.notifier_call = update_efi_random_seed,
 };
 
-static int register_update_efi_random_seed(void)
+static int __init register_update_efi_random_seed(void)
 {
-	if (efi.rng_seed == EFI_INVALID_TABLE_ADDR)
+	if (efi_rng_seed == EFI_INVALID_TABLE_ADDR)
 		return 0;
 	return register_reboot_notifier(&efi_random_seed_nb);
 }

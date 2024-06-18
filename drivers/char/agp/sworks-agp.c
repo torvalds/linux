@@ -262,12 +262,9 @@ static void serverworks_tlbflush(struct agp_memory *temp)
 
 static int serverworks_configure(void)
 {
-	struct aper_size_info_lvl2 *current_size;
 	u32 temp;
 	u8 enable_reg;
 	u16 cap_reg;
-
-	current_size = A_SIZE_LVL2(agp_bridge->current_size);
 
 	/* Get the memory mapped registers */
 	pci_read_config_dword(agp_bridge->dev, serverworks_private.mm_addr_ofs, &temp);
@@ -350,7 +347,7 @@ static int serverworks_insert_memory(struct agp_memory *mem,
 	for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
 		addr = (j * PAGE_SIZE) + agp_bridge->gart_bus_addr;
 		cur_gatt = SVRWRKS_GET_GATT(addr);
-		writel(agp_bridge->driver->mask_memory(agp_bridge, 
+		writel(agp_bridge->driver->mask_memory(agp_bridge,
 				page_to_phys(mem->pages[i]), mem->type),
 		       cur_gatt+GET_GATT_OFF(addr));
 	}
@@ -513,7 +510,7 @@ static int agp_serverworks_probe(struct pci_dev *pdev,
 		return -ENOMEM;
 
 	bridge->driver = &sworks_driver;
-	bridge->dev_private_data = &serverworks_private,
+	bridge->dev_private_data = &serverworks_private;
 	bridge->dev = pci_dev_get(pdev);
 
 	pci_set_drvdata(pdev, bridge);

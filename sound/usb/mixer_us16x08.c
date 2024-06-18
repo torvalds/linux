@@ -329,7 +329,7 @@ static int snd_us16x08_bus_put(struct snd_kcontrol *kcontrol,
 		elem->cached |= 1;
 		elem->cache_val[0] = val;
 	} else {
-		usb_audio_dbg(chip, "Failed to set buss param, err:%d\n", err);
+		usb_audio_dbg(chip, "Failed to set bus parameter, err:%d\n", err);
 	}
 
 	return err > 0 ? 1 : 0;
@@ -607,7 +607,7 @@ static int snd_us16x08_eq_put(struct snd_kcontrol *kcontrol,
 static int snd_us16x08_meter_info(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_info *uinfo)
 {
-	uinfo->count = 1;
+	uinfo->count = 34;
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->value.integer.max = 0x7FFF;
 	uinfo->value.integer.min = 0;
@@ -637,10 +637,10 @@ static int snd_get_meter_comp_index(struct snd_us16x08_meter_store *store)
 		}
 	} else {
 		/* skip channels with no compressor active */
-		while (!store->comp_store->val[
+		while (store->comp_index <= SND_US16X08_MAX_CHANNELS
+			&& !store->comp_store->val[
 			COMP_STORE_IDX(SND_US16X08_ID_COMP_SWITCH)]
-			[store->comp_index - 1]
-			&& store->comp_index <= SND_US16X08_MAX_CHANNELS) {
+			[store->comp_index - 1]) {
 			store->comp_index++;
 		}
 		ret = store->comp_index++;
@@ -760,7 +760,7 @@ static int snd_us16x08_meter_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static struct snd_kcontrol_new snd_us16x08_ch_boolean_ctl = {
+static const struct snd_kcontrol_new snd_us16x08_ch_boolean_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
 	.count = 16,
@@ -770,7 +770,7 @@ static struct snd_kcontrol_new snd_us16x08_ch_boolean_ctl = {
 	.private_value = SND_US16X08_KCSET(SND_US16X08_NO_BIAS, 1, 0, 1)
 };
 
-static struct snd_kcontrol_new snd_us16x08_ch_int_ctl = {
+static const struct snd_kcontrol_new snd_us16x08_ch_int_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
 	.count = 16,
@@ -780,7 +780,7 @@ static struct snd_kcontrol_new snd_us16x08_ch_int_ctl = {
 	.private_value = SND_US16X08_KCSET(SND_US16X08_FADER_BIAS, 1, 0, 133)
 };
 
-static struct snd_kcontrol_new snd_us16x08_pan_int_ctl = {
+static const struct snd_kcontrol_new snd_us16x08_pan_int_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
 	.count = 16,
@@ -790,7 +790,7 @@ static struct snd_kcontrol_new snd_us16x08_pan_int_ctl = {
 	.private_value = SND_US16X08_KCSET(SND_US16X08_FADER_BIAS, 1, 0, 255)
 };
 
-static struct snd_kcontrol_new snd_us16x08_master_ctl = {
+static const struct snd_kcontrol_new snd_us16x08_master_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
 	.count = 1,
@@ -800,7 +800,7 @@ static struct snd_kcontrol_new snd_us16x08_master_ctl = {
 	.private_value = SND_US16X08_KCSET(SND_US16X08_FADER_BIAS, 1, 0, 133)
 };
 
-static struct snd_kcontrol_new snd_us16x08_route_ctl = {
+static const struct snd_kcontrol_new snd_us16x08_route_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
 	.count = 8,
@@ -810,7 +810,7 @@ static struct snd_kcontrol_new snd_us16x08_route_ctl = {
 	.private_value = SND_US16X08_KCSET(SND_US16X08_NO_BIAS, 1, 0, 9)
 };
 
-static struct snd_kcontrol_new snd_us16x08_bus_ctl = {
+static const struct snd_kcontrol_new snd_us16x08_bus_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
 	.count = 1,
@@ -820,7 +820,7 @@ static struct snd_kcontrol_new snd_us16x08_bus_ctl = {
 	.private_value = SND_US16X08_KCSET(SND_US16X08_NO_BIAS, 1, 0, 1)
 };
 
-static struct snd_kcontrol_new snd_us16x08_compswitch_ctl = {
+static const struct snd_kcontrol_new snd_us16x08_compswitch_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
 	.count = 16,
@@ -830,7 +830,7 @@ static struct snd_kcontrol_new snd_us16x08_compswitch_ctl = {
 	.private_value = SND_US16X08_KCSET(SND_US16X08_NO_BIAS, 1, 0, 1)
 };
 
-static struct snd_kcontrol_new snd_us16x08_comp_threshold_ctl = {
+static const struct snd_kcontrol_new snd_us16x08_comp_threshold_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
 	.count = 16,
@@ -841,7 +841,7 @@ static struct snd_kcontrol_new snd_us16x08_comp_threshold_ctl = {
 	0, 0x20)
 };
 
-static struct snd_kcontrol_new snd_us16x08_comp_ratio_ctl = {
+static const struct snd_kcontrol_new snd_us16x08_comp_ratio_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
 	.count = 16,
@@ -852,7 +852,7 @@ static struct snd_kcontrol_new snd_us16x08_comp_ratio_ctl = {
 	sizeof(ratio_map) - 1), /*max*/
 };
 
-static struct snd_kcontrol_new snd_us16x08_comp_gain_ctl = {
+static const struct snd_kcontrol_new snd_us16x08_comp_gain_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
 	.count = 16,
@@ -862,7 +862,7 @@ static struct snd_kcontrol_new snd_us16x08_comp_gain_ctl = {
 	.private_value = SND_US16X08_KCSET(SND_US16X08_NO_BIAS, 1, 0, 0x14)
 };
 
-static struct snd_kcontrol_new snd_us16x08_comp_attack_ctl = {
+static const struct snd_kcontrol_new snd_us16x08_comp_attack_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
 	.count = 16,
@@ -873,7 +873,7 @@ static struct snd_kcontrol_new snd_us16x08_comp_attack_ctl = {
 	SND_US16X08_KCSET(SND_US16X08_COMP_ATTACK_BIAS, 1, 0, 0xc6),
 };
 
-static struct snd_kcontrol_new snd_us16x08_comp_release_ctl = {
+static const struct snd_kcontrol_new snd_us16x08_comp_release_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
 	.count = 16,
@@ -884,7 +884,7 @@ static struct snd_kcontrol_new snd_us16x08_comp_release_ctl = {
 	SND_US16X08_KCSET(SND_US16X08_COMP_RELEASE_BIAS, 1, 0, 0x63),
 };
 
-static struct snd_kcontrol_new snd_us16x08_eq_gain_ctl = {
+static const struct snd_kcontrol_new snd_us16x08_eq_gain_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
 	.count = 16,
@@ -894,7 +894,7 @@ static struct snd_kcontrol_new snd_us16x08_eq_gain_ctl = {
 	.private_value = SND_US16X08_KCSET(SND_US16X08_NO_BIAS, 1, 0, 24),
 };
 
-static struct snd_kcontrol_new snd_us16x08_eq_low_freq_ctl = {
+static const struct snd_kcontrol_new snd_us16x08_eq_low_freq_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
 	.count = 16,
@@ -904,7 +904,7 @@ static struct snd_kcontrol_new snd_us16x08_eq_low_freq_ctl = {
 	.private_value = SND_US16X08_KCSET(SND_US16X08_NO_BIAS, 1, 0, 0x1F),
 };
 
-static struct snd_kcontrol_new snd_us16x08_eq_mid_freq_ctl = {
+static const struct snd_kcontrol_new snd_us16x08_eq_mid_freq_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
 	.count = 16,
@@ -914,7 +914,7 @@ static struct snd_kcontrol_new snd_us16x08_eq_mid_freq_ctl = {
 	.private_value = SND_US16X08_KCSET(SND_US16X08_NO_BIAS, 1, 0, 0x3F)
 };
 
-static struct snd_kcontrol_new snd_us16x08_eq_mid_width_ctl = {
+static const struct snd_kcontrol_new snd_us16x08_eq_mid_width_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
 	.count = 16,
@@ -924,7 +924,7 @@ static struct snd_kcontrol_new snd_us16x08_eq_mid_width_ctl = {
 	.private_value = SND_US16X08_KCSET(SND_US16X08_NO_BIAS, 1, 0, 0x06)
 };
 
-static struct snd_kcontrol_new snd_us16x08_eq_high_freq_ctl = {
+static const struct snd_kcontrol_new snd_us16x08_eq_high_freq_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
 	.count = 16,
@@ -935,7 +935,7 @@ static struct snd_kcontrol_new snd_us16x08_eq_high_freq_ctl = {
 	SND_US16X08_KCSET(SND_US16X08_EQ_HIGHFREQ_BIAS, 1, 0, 0x1F)
 };
 
-static struct snd_kcontrol_new snd_us16x08_eq_switch_ctl = {
+static const struct snd_kcontrol_new snd_us16x08_eq_switch_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
 	.count = 16,
@@ -945,7 +945,7 @@ static struct snd_kcontrol_new snd_us16x08_eq_switch_ctl = {
 	.private_value = SND_US16X08_KCSET(SND_US16X08_NO_BIAS, 1, 0, 1)
 };
 
-static struct snd_kcontrol_new snd_us16x08_meter_ctl = {
+static const struct snd_kcontrol_new snd_us16x08_meter_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
 	.count = 1,
@@ -1076,7 +1076,7 @@ static int add_new_ctl(struct usb_mixer_interface *mixer,
 	else
 		kctl->private_free = snd_usb_mixer_elem_free;
 
-	strlcpy(kctl->id.name, name, sizeof(kctl->id.name));
+	strscpy(kctl->id.name, name, sizeof(kctl->id.name));
 
 	err = snd_usb_mixer_add_control(&elem->head, kctl);
 	if (err < 0)
@@ -1109,7 +1109,7 @@ static const struct snd_us16x08_control_params eq_controls[] = {
 		.control_id = SND_US16X08_ID_EQLOWFREQ,
 		.type = USB_MIXER_U8,
 		.num_channels = 16,
-		.name = "EQ Low Frequence",
+		.name = "EQ Low Frequency",
 	},
 	{ /* EQ mid low gain */
 		.kcontrol_new = &snd_us16x08_eq_gain_ctl,
@@ -1123,7 +1123,7 @@ static const struct snd_us16x08_control_params eq_controls[] = {
 		.control_id = SND_US16X08_ID_EQLOWMIDFREQ,
 		.type = USB_MIXER_U8,
 		.num_channels = 16,
-		.name = "EQ MidLow Frequence",
+		.name = "EQ MidLow Frequency",
 	},
 	{ /* EQ mid low Q */
 		.kcontrol_new = &snd_us16x08_eq_mid_width_ctl,
@@ -1144,7 +1144,7 @@ static const struct snd_us16x08_control_params eq_controls[] = {
 		.control_id = SND_US16X08_ID_EQHIGHMIDFREQ,
 		.type = USB_MIXER_U8,
 		.num_channels = 16,
-		.name = "EQ MidHigh Frequence",
+		.name = "EQ MidHigh Frequency",
 	},
 	{ /* EQ mid high Q */
 		.kcontrol_new = &snd_us16x08_eq_mid_width_ctl,
@@ -1165,7 +1165,7 @@ static const struct snd_us16x08_control_params eq_controls[] = {
 		.control_id = SND_US16X08_ID_EQHIGHFREQ,
 		.type = USB_MIXER_U8,
 		.num_channels = 16,
-		.name = "EQ High Frequence",
+		.name = "EQ High Frequency",
 	},
 };
 

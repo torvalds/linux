@@ -60,11 +60,7 @@ struct thread_struct {
 #define KSTK_EIP(tsk) (pt_elr(task_pt_regs(tsk)))
 #define KSTK_ESP(tsk) (pt_psp(task_pt_regs(tsk)))
 
-/*  Free all resources held by a thread; defined in process.c  */
-extern void release_thread(struct task_struct *dead_task);
-
-/* Get wait channel for task P.  */
-extern unsigned long get_wchan(struct task_struct *p);
+extern unsigned long __get_wchan(struct task_struct *p);
 
 /*  The following stuff is pretty HEXAGON specific.  */
 

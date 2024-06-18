@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/tegra/nvidia,tegra186-dsi-padctl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra MIPI DSI pad controller
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+
+properties:
+  $nodename:
+    pattern: "^padctl@[0-9a-f]+$"
+
+  compatible:
+    const: nvidia,tegra186-dsi-padctl
+
+  reg:
+    maxItems: 1
+
+  resets:
+    items:
+      - description: module reset
+
+  reset-names:
+    items:
+      - const: dsi
+
+allOf:
+  - $ref: /schemas/reset/reset.yaml
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/reset/tegra186-reset.h>
+
+    padctl@15880000 {
+        compatible = "nvidia,tegra186-dsi-padctl";
+        reg = <0x15880000 0x10000>;
+        resets = <&bpmp TEGRA186_RESET_DSI>;
+        reset-names = "dsi";
+    };

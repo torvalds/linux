@@ -153,7 +153,7 @@ static int __must_check nr_add_node(ax25_address *nr, const char *mnemonic,
 		nr_neigh->digipeat = NULL;
 		nr_neigh->ax25     = NULL;
 		nr_neigh->dev      = dev;
-		nr_neigh->quality  = sysctl_netrom_default_path_quality;
+		nr_neigh->quality  = READ_ONCE(sysctl_netrom_default_path_quality);
 		nr_neigh->locked   = 0;
 		nr_neigh->count    = 0;
 		nr_neigh->number   = nr_neigh_no++;
@@ -208,6 +208,7 @@ static int __must_check nr_add_node(ax25_address *nr, const char *mnemonic,
 		/* refcount initialized at 1 */
 		spin_unlock_bh(&nr_node_list_lock);
 
+		nr_neigh_put(nr_neigh);
 		return 0;
 	}
 	nr_node_lock(nr_node);
@@ -262,9 +263,10 @@ static int __must_check nr_add_node(ax25_address *nr, const char *mnemonic,
 	case 3:
 		re_sort_routes(nr_node, 0, 1);
 		re_sort_routes(nr_node, 1, 2);
-		/* fall through */
+		fallthrough;
 	case 2:
 		re_sort_routes(nr_node, 0, 1);
+		break;
 	case 1:
 		break;
 	}
@@ -283,20 +285,12 @@ static int __must_check nr_add_node(ax25_address *nr, const char *mnemonic,
 	return 0;
 }
 
-static inline void __nr_remove_node(struct nr_node *nr_node)
+static void nr_remove_node_locked(struct nr_node *nr_node)
 {
+	lockdep_assert_held(&nr_node_list_lock);
+
 	hlist_del_init(&nr_node->node_node);
 	nr_node_put(nr_node);
-}
-
-#define nr_remove_node_locked(__node) \
-	__nr_remove_node(__node)
-
-static void nr_remove_node(struct nr_node *nr_node)
-{
-	spin_lock_bh(&nr_node_list_lock);
-	__nr_remove_node(nr_node);
-	spin_unlock_bh(&nr_node_list_lock);
 }
 
 static inline void __nr_remove_neigh(struct nr_neigh *nr_neigh)
@@ -337,6 +331,7 @@ static int nr_del_node(ax25_address *callsign, ax25_address *neighbour, struct n
 		return -EINVAL;
 	}
 
+	spin_lock_bh(&nr_node_list_lock);
 	nr_node_lock(nr_node);
 	for (i = 0; i < nr_node->count; i++) {
 		if (nr_node->routes[i].neighbour == nr_neigh) {
@@ -350,26 +345,29 @@ static int nr_del_node(ax25_address *callsign, ax25_address *neighbour, struct n
 			nr_node->count--;
 
 			if (nr_node->count == 0) {
-				nr_remove_node(nr_node);
+				nr_remove_node_locked(nr_node);
 			} else {
 				switch (i) {
 				case 0:
 					nr_node->routes[0] = nr_node->routes[1];
-					/* fall through */
+					fallthrough;
 				case 1:
 					nr_node->routes[1] = nr_node->routes[2];
+					fallthrough;
 				case 2:
 					break;
 				}
 				nr_node_put(nr_node);
 			}
 			nr_node_unlock(nr_node);
+			spin_unlock_bh(&nr_node_list_lock);
 
 			return 0;
 		}
 	}
 	nr_neigh_put(nr_neigh);
 	nr_node_unlock(nr_node);
+	spin_unlock_bh(&nr_node_list_lock);
 	nr_node_put(nr_node);
 
 	return -EINVAL;
@@ -478,9 +476,10 @@ static int nr_dec_obs(void)
 				switch (i) {
 				case 0:
 					s->routes[0] = s->routes[1];
-					/* Fallthrough */
+					fallthrough;
 				case 1:
 					s->routes[1] = s->routes[2];
+					break;
 				case 2:
 					break;
 				}
@@ -525,9 +524,10 @@ void nr_rt_device_down(struct net_device *dev)
 						switch (i) {
 						case 0:
 							t->routes[0] = t->routes[1];
-							/* fall through */
+							fallthrough;
 						case 1:
 							t->routes[1] = t->routes[2];
+							break;
 						case 2:
 							break;
 						}
@@ -577,8 +577,7 @@ struct net_device *nr_dev_first(void)
 			if (first == NULL || strncmp(dev->name, first->name, 3) < 0)
 				first = dev;
 	}
-	if (first)
-		dev_hold(first);
+	dev_hold(first);
 	rcu_read_unlock();
 
 	return first;
@@ -594,7 +593,7 @@ struct net_device *nr_dev_get(ax25_address *addr)
 	rcu_read_lock();
 	for_each_netdev_rcu(&init_net, dev) {
 		if ((dev->flags & IFF_UP) && dev->type == ARPHRD_NETROM &&
-		    ax25cmp(addr, (ax25_address *)dev->dev_addr) == 0) {
+		    ax25cmp(addr, (const ax25_address *)dev->dev_addr) == 0) {
 			dev_hold(dev);
 			goto out;
 		}
@@ -724,7 +723,7 @@ void nr_link_failed(ax25_cb *ax25, int reason)
 	nr_neigh->ax25 = NULL;
 	ax25_cb_put(ax25);
 
-	if (++nr_neigh->failed < sysctl_netrom_link_fails_count) {
+	if (++nr_neigh->failed < READ_ONCE(sysctl_netrom_link_fails_count)) {
 		nr_neigh_put(nr_neigh);
 		return;
 	}
@@ -762,7 +761,7 @@ int nr_route_frame(struct sk_buff *skb, ax25_cb *ax25)
 	if (ax25 != NULL) {
 		ret = nr_add_node(nr_src, "", &ax25->dest_addr, ax25->digipeat,
 				  ax25->ax25_dev->dev, 0,
-				  sysctl_netrom_obsolescence_count_initialiser);
+				  READ_ONCE(sysctl_netrom_obsolescence_count_initialiser));
 		if (ret)
 			return ret;
 	}
@@ -776,7 +775,7 @@ int nr_route_frame(struct sk_buff *skb, ax25_cb *ax25)
 		return ret;
 	}
 
-	if (!sysctl_netrom_routing_control && ax25 != NULL)
+	if (!READ_ONCE(sysctl_netrom_routing_control) && ax25 != NULL)
 		return 0;
 
 	/* Its Time-To-Live has expired */
@@ -821,7 +820,7 @@ int nr_route_frame(struct sk_buff *skb, ax25_cb *ax25)
 
 	ax25s = nr_neigh->ax25;
 	nr_neigh->ax25 = ax25_send_frame(skb, 256,
-					 (ax25_address *)dev->dev_addr,
+					 (const ax25_address *)dev->dev_addr,
 					 &nr_neigh->callsign,
 					 nr_neigh->digipeat, nr_neigh->dev);
 	if (ax25s)
@@ -838,6 +837,7 @@ int nr_route_frame(struct sk_buff *skb, ax25_cb *ax25)
 #ifdef CONFIG_PROC_FS
 
 static void *nr_node_start(struct seq_file *seq, loff_t *pos)
+	__acquires(&nr_node_list_lock)
 {
 	spin_lock_bh(&nr_node_list_lock);
 	return seq_hlist_start_head(&nr_node_list, *pos);
@@ -849,6 +849,7 @@ static void *nr_node_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void nr_node_stop(struct seq_file *seq, void *v)
+	__releases(&nr_node_list_lock)
 {
 	spin_unlock_bh(&nr_node_list_lock);
 }
@@ -893,6 +894,7 @@ const struct seq_operations nr_node_seqops = {
 };
 
 static void *nr_neigh_start(struct seq_file *seq, loff_t *pos)
+	__acquires(&nr_neigh_list_lock)
 {
 	spin_lock_bh(&nr_neigh_list_lock);
 	return seq_hlist_start_head(&nr_neigh_list, *pos);
@@ -904,6 +906,7 @@ static void *nr_neigh_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void nr_neigh_stop(struct seq_file *seq, void *v)
+	__releases(&nr_neigh_list_lock)
 {
 	spin_unlock_bh(&nr_neigh_list_lock);
 }

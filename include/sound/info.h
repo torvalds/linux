@@ -64,7 +64,7 @@ struct snd_info_entry {
 	unsigned short content;
 	union {
 		struct snd_info_entry_text text;
-		struct snd_info_entry_ops *ops;
+		const struct snd_info_entry_ops *ops;
 	} c;
 	struct snd_info_entry *parent;
 	struct module *module;
@@ -118,8 +118,6 @@ struct snd_info_entry *snd_info_create_card_entry(struct snd_card *card,
 					     const char *name,
 					     struct snd_info_entry *parent);
 void snd_info_free_entry(struct snd_info_entry *entry);
-int snd_info_store_text(struct snd_info_entry *entry);
-int snd_info_restore_text(struct snd_info_entry *entry);
 
 int snd_info_card_create(struct snd_card *card);
 int snd_info_card_register(struct snd_card *card);

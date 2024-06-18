@@ -69,7 +69,7 @@ static int opti_pre_reset(struct ata_link *link, unsigned long deadline)
 /**
  *	opti_write_reg		-	control register setup
  *	@ap: ATA port
- *	@value: value
+ *	@val: value
  *	@reg: control register number
  *
  *	The Opti uses magic 'trapdoor' register accesses to do configuration
@@ -148,7 +148,7 @@ static void opti_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	opti_write_reg(ap, 0x85, CNTRL_REG);
 }
 
-static struct scsi_host_template opti_sht = {
+static const struct scsi_host_template opti_sht = {
 	ATA_PIO_SHT(DRV_NAME),
 };
 

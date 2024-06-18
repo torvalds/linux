@@ -3,8 +3,11 @@
 .. note:: Per leggere la documentazione originale in inglese:
 	  :ref:`Documentation/doc-guide/index.rst <doc_guide>`
 
+.. title:: Commenti in kernel-doc
+
 .. _it_kernel_doc:
 
+=================================
 Scrivere i commenti in kernel-doc
 =================================
 
@@ -177,9 +180,9 @@ Il valore di ritorno, se c'è, viene descritto in una sezione dedicata di nome
      se provate a formattare bene il vostro testo come nel seguente esempio::
 
 	* Return:
-	* 0 - OK
-	* -EINVAL - invalid argument
-	* -ENOMEM - out of memory
+	* %0 - OK
+	* %-EINVAL - invalid argument
+	* %-ENOMEM - out of memory
 
      le righe verranno unite e il risultato sarà::
 
@@ -189,8 +192,8 @@ Il valore di ritorno, se c'è, viene descritto in una sezione dedicata di nome
      utilizzare una lista ReST, ad esempio::
 
       * Return:
-      * * 0		- OK to runtime suspend the device
-      * * -EBUSY	- Device should not be runtime suspended
+      * * %0		- OK to runtime suspend the device
+      * * %-EBUSY	- Device should not be runtime suspended
 
   #) Se il vostro testo ha delle righe che iniziano con una frase seguita dai
      due punti, allora ognuna di queste frasi verrà considerata come il nome
@@ -419,26 +422,24 @@ del `dominio Sphinx per il C`_.
 Riferimenti usando reStructuredText
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Per fare riferimento a funzioni e tipi di dato definiti nei commenti kernel-doc
-all'interno dei documenti reStructuredText, utilizzate i riferimenti dal
-`dominio Sphinx per il C`_. Per esempio::
+Nei documenti reStructuredText non serve alcuna sintassi speciale per
+fare riferimento a funzioni e tipi definiti nei commenti
+kernel-doc. Sarà sufficiente terminare i nomi di funzione con ``()``,
+e scrivere ``struct``, ``union``, ``enum``, o ``typedef`` prima di un
+tipo. Per esempio::
 
-  See function :c:func:`foo` and struct/union/enum/typedef :c:type:`bar`.
+  See foo()
+  See struct foo.
+  See union bar.
+  See enum baz.
+  See typedef meh.
 
-Nonostante il riferimento ai tipi di dato funzioni col solo nome,
-ovvero senza specificare struct/union/enum/typedef, potreste preferire il
-seguente::
+Tuttavia, la personalizzazione dei collegamenti è possibile solo con
+la seguente sintassi::
 
-  See :c:type:`struct foo <foo>`.
-  See :c:type:`union bar <bar>`.
-  See :c:type:`enum baz <baz>`.
-  See :c:type:`typedef meh <meh>`.
+  See :c:func:`my custom link text for function foo <foo>`.
+  See :c:type:`my custom link text for struct bar <bar>`.
 
-Questo produce dei collegamenti migliori, ed è in linea con il modo in cui
-kernel-doc gestisce i riferimenti.
-
-Per maggiori informazioni, siete pregati di consultare la documentazione
-del `dominio Sphinx per il C`_.
 
 Commenti per una documentazione generale
 ----------------------------------------
@@ -471,6 +472,7 @@ Il titolo che segue ``DOC:`` funziona da intestazione all'interno del file
 sorgente, ma anche come identificatore per l'estrazione di questi commenti di
 documentazione. Quindi, il titolo dev'essere unico all'interno del file.
 
+=======================================
 Includere i commenti di tipo kernel-doc
 =======================================
 
@@ -515,6 +517,22 @@ internal: *[source-pattern ...]*
     .. kernel-doc:: drivers/gpu/drm/i915/intel_audio.c
        :internal:
 
+identifiers: *[ function/type ...]*
+  Include la documentazione per ogni *function* e *type*  in *source*.
+  Se non vengono esplicitamente specificate le funzioni da includere, allora
+  verranno incluse tutte quelle disponibili in *source*.
+
+  Esempi::
+
+    .. kernel-doc:: lib/bitmap.c
+       :identifiers: bitmap_parselist bitmap_parselist_user
+
+    .. kernel-doc:: lib/idr.c
+       :identifiers:
+
+functions: *[ function ...]*
+  Questo è uno pseudonimo, deprecato, per la direttiva 'identifiers'.
+
 doc: *title*
   Include la documentazione del paragrafo ``DOC:`` identificato dal titolo
   (*title*) all'interno del file sorgente (*source*). Gli spazi in *title* sono
@@ -527,15 +545,6 @@ doc: *title*
 
     .. kernel-doc:: drivers/gpu/drm/i915/intel_audio.c
        :doc: High Definition Audio over HDMI and Display Port
-
-functions: *function* *[...]*
-  Dal file sorgente (*source*) include la documentazione per le funzioni
-  elencate (*function*).
-
-  Esempio::
-
-    .. kernel-doc:: lib/bitmap.c
-       :functions: bitmap_parselist bitmap_parselist_user
 
 Senza alcuna opzione, la direttiva kernel-doc include tutti i commenti di
 documentazione presenti nel file sorgente (*source*).

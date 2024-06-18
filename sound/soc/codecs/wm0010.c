@@ -18,7 +18,7 @@
 #include <linux/firmware.h>
 #include <linux/delay.h>
 #include <linux/fs.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/regulator/consumer.h>
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
@@ -43,7 +43,7 @@ struct dfw_binrec {
 	u8 command;
 	u32 length:24;
 	u32 address;
-	uint8_t data[0];
+	uint8_t data[];
 } __packed;
 
 struct dfw_inforec {
@@ -94,8 +94,7 @@ struct wm0010_priv {
 
 	struct wm0010_pdata pdata;
 
-	int gpio_reset;
-	int gpio_reset_value;
+	struct gpio_desc *reset;
 
 	struct regulator_bulk_data core_supplies[2];
 	struct regulator *dbvdd;
@@ -174,8 +173,7 @@ static void wm0010_halt(struct snd_soc_component *component)
 	case WM0010_STAGE2:
 	case WM0010_FIRMWARE:
 		/* Remember to put chip back into reset */
-		gpio_set_value_cansleep(wm0010->gpio_reset,
-					wm0010->gpio_reset_value);
+		gpiod_set_value_cansleep(wm0010->reset, 1);
 		/* Disable the regulators */
 		regulator_disable(wm0010->dbvdd);
 		regulator_bulk_disable(ARRAY_SIZE(wm0010->core_supplies),
@@ -346,7 +344,7 @@ static int wm0010_firmware_load(const char *name, struct snd_soc_component *comp
 	struct list_head xfer_list;
 	struct wm0010_boot_xfer *xfer;
 	int ret;
-	struct completion done;
+	DECLARE_COMPLETION_ONSTACK(done);
 	const struct firmware *fw;
 	const struct dfw_binrec *rec;
 	const struct dfw_inforec *inforec;
@@ -370,7 +368,6 @@ static int wm0010_firmware_load(const char *name, struct snd_soc_component *comp
 	wm0010->boot_failed = false;
 	if (WARN_ON(!list_empty(&xfer_list)))
 		return -EINVAL;
-	init_completion(&done);
 
 	/* First record should be INFO */
 	if (rec->command != DFW_CMD_INFO) {
@@ -515,7 +512,7 @@ static int wm0010_stage2_load(struct snd_soc_component *component)
 	dev_dbg(component->dev, "Downloading %zu byte stage 2 loader\n", fw->size);
 
 	/* Copy to local buffer first as vmalloc causes problems for dma */
-	img = kzalloc(fw->size, GFP_KERNEL | GFP_DMA);
+	img = kmemdup(&fw->data[0], fw->size, GFP_KERNEL | GFP_DMA);
 	if (!img) {
 		ret = -ENOMEM;
 		goto abort2;
@@ -526,8 +523,6 @@ static int wm0010_stage2_load(struct snd_soc_component *component)
 		ret = -ENOMEM;
 		goto abort1;
 	}
-
-	memcpy(img, &fw->data[0], fw->size);
 
 	spi_message_init(&m);
 	memset(&t, 0, sizeof(t));
@@ -613,7 +608,7 @@ static int wm0010_boot(struct snd_soc_component *component)
 	}
 
 	/* Release reset */
-	gpio_set_value_cansleep(wm0010->gpio_reset, !wm0010->gpio_reset_value);
+	gpiod_set_value_cansleep(wm0010->reset, 0);
 	spin_lock_irqsave(&wm0010->irq_lock, flags);
 	wm0010->state = WM0010_OUT_OF_RESET;
 	spin_unlock_irqrestore(&wm0010->irq_lock, flags);
@@ -792,7 +787,6 @@ static const struct snd_soc_component_driver soc_component_dev_wm0010 = {
 	.num_dapm_routes	= ARRAY_SIZE(wm0010_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 #define WM0010_RATES (SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)
@@ -867,7 +861,6 @@ static int wm0010_probe(struct snd_soc_component *component)
 
 static int wm0010_spi_probe(struct spi_device *spi)
 {
-	unsigned long gpio_flags;
 	int ret;
 	int trigger;
 	int irq;
@@ -907,31 +900,11 @@ static int wm0010_spi_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	if (wm0010->pdata.gpio_reset) {
-		wm0010->gpio_reset = wm0010->pdata.gpio_reset;
-
-		if (wm0010->pdata.reset_active_high)
-			wm0010->gpio_reset_value = 1;
-		else
-			wm0010->gpio_reset_value = 0;
-
-		if (wm0010->gpio_reset_value)
-			gpio_flags = GPIOF_OUT_INIT_HIGH;
-		else
-			gpio_flags = GPIOF_OUT_INIT_LOW;
-
-		ret = devm_gpio_request_one(wm0010->dev, wm0010->gpio_reset,
-					    gpio_flags, "wm0010 reset");
-		if (ret < 0) {
-			dev_err(wm0010->dev,
-				"Failed to request GPIO for DSP reset: %d\n",
-				ret);
-			return ret;
-		}
-	} else {
-		dev_err(wm0010->dev, "No reset GPIO configured\n");
-		return -EINVAL;
-	}
+	wm0010->reset = devm_gpiod_get(wm0010->dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(wm0010->reset))
+		return dev_err_probe(wm0010->dev, PTR_ERR(wm0010->reset),
+				     "could not get RESET GPIO\n");
+	gpiod_set_consumer_name(wm0010->reset, "wm0010 reset");
 
 	wm0010->state = WM0010_POWER_OFF;
 
@@ -972,19 +945,16 @@ static int wm0010_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int wm0010_spi_remove(struct spi_device *spi)
+static void wm0010_spi_remove(struct spi_device *spi)
 {
 	struct wm0010_priv *wm0010 = spi_get_drvdata(spi);
 
-	gpio_set_value_cansleep(wm0010->gpio_reset,
-				wm0010->gpio_reset_value);
+	gpiod_set_value_cansleep(wm0010->reset, 1);
 
 	irq_set_irq_wake(wm0010->irq, 0);
 
 	if (wm0010->irq)
 		free_irq(wm0010->irq, wm0010);
-
-	return 0;
 }
 
 static struct spi_driver wm0010_spi_driver = {
@@ -1000,3 +970,6 @@ module_spi_driver(wm0010_spi_driver);
 MODULE_DESCRIPTION("ASoC WM0010 driver");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");
 MODULE_LICENSE("GPL");
+
+MODULE_FIRMWARE("wm0010.dfw");
+MODULE_FIRMWARE("wm0010_stage2.bin");

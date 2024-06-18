@@ -9,8 +9,10 @@
  * Copyright (C) 2009 Texas Instruments
  * Added OMAP4 support - Santosh Shilimkar <santosh.shilimkar@ti.com>
  */
+#include <linux/cpu_pm.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/clk.h>
@@ -29,10 +31,9 @@
 #include <linux/of_platform.h>
 #include <linux/omap-gpmc.h>
 #include <linux/pm_runtime.h>
+#include <linux/sizes.h>
 
 #include <linux/platform_data/mtd-nand-omap2.h>
-
-#include <asm/mach-types.h>
 
 #define	DEVICE_NAME		"omap-gpmc"
 
@@ -108,8 +109,8 @@
 #define ENABLE_PREFETCH		(0x1 << 7)
 #define DMA_MPU_MODE		2
 
-#define	GPMC_REVISION_MAJOR(l)		((l >> 4) & 0xf)
-#define	GPMC_REVISION_MINOR(l)		(l & 0xf)
+#define	GPMC_REVISION_MAJOR(l)		(((l) >> 4) & 0xf)
+#define	GPMC_REVISION_MINOR(l)		((l) & 0xf)
 
 #define	GPMC_HAS_WR_ACCESS		0x1
 #define	GPMC_HAS_WR_DATA_MUX_BUS	0x2
@@ -133,6 +134,7 @@
 #define GPMC_CONFIG_DEV_SIZE	0x00000002
 #define GPMC_CONFIG_DEV_TYPE	0x00000003
 
+#define GPMC_CONFIG_WAITPINPOLARITY(pin)	(BIT(pin) << 8)
 #define GPMC_CONFIG1_WRAPBURST_SUPP     (1 << 31)
 #define GPMC_CONFIG1_READMULTIPLE_SUPP  (1 << 30)
 #define GPMC_CONFIG1_READTYPE_ASYNC     (0 << 29)
@@ -140,27 +142,27 @@
 #define GPMC_CONFIG1_WRITEMULTIPLE_SUPP (1 << 28)
 #define GPMC_CONFIG1_WRITETYPE_ASYNC    (0 << 27)
 #define GPMC_CONFIG1_WRITETYPE_SYNC     (1 << 27)
-#define GPMC_CONFIG1_CLKACTIVATIONTIME(val) ((val & 3) << 25)
+#define GPMC_CONFIG1_CLKACTIVATIONTIME(val) (((val) & 3) << 25)
 /** CLKACTIVATIONTIME Max Ticks */
 #define GPMC_CONFIG1_CLKACTIVATIONTIME_MAX 2
-#define GPMC_CONFIG1_PAGE_LEN(val)      ((val & 3) << 23)
+#define GPMC_CONFIG1_PAGE_LEN(val)      (((val) & 3) << 23)
 /** ATTACHEDDEVICEPAGELENGTH Max Value */
 #define GPMC_CONFIG1_ATTACHEDDEVICEPAGELENGTH_MAX 2
 #define GPMC_CONFIG1_WAIT_READ_MON      (1 << 22)
 #define GPMC_CONFIG1_WAIT_WRITE_MON     (1 << 21)
-#define GPMC_CONFIG1_WAIT_MON_TIME(val) ((val & 3) << 18)
+#define GPMC_CONFIG1_WAIT_MON_TIME(val) (((val) & 3) << 18)
 /** WAITMONITORINGTIME Max Ticks */
 #define GPMC_CONFIG1_WAITMONITORINGTIME_MAX  2
-#define GPMC_CONFIG1_WAIT_PIN_SEL(val)  ((val & 3) << 16)
-#define GPMC_CONFIG1_DEVICESIZE(val)    ((val & 3) << 12)
+#define GPMC_CONFIG1_WAIT_PIN_SEL(val)  (((val) & 3) << 16)
+#define GPMC_CONFIG1_DEVICESIZE(val)    (((val) & 3) << 12)
 #define GPMC_CONFIG1_DEVICESIZE_16      GPMC_CONFIG1_DEVICESIZE(1)
 /** DEVICESIZE Max Value */
 #define GPMC_CONFIG1_DEVICESIZE_MAX     1
-#define GPMC_CONFIG1_DEVICETYPE(val)    ((val & 3) << 10)
+#define GPMC_CONFIG1_DEVICETYPE(val)    (((val) & 3) << 10)
 #define GPMC_CONFIG1_DEVICETYPE_NOR     GPMC_CONFIG1_DEVICETYPE(0)
-#define GPMC_CONFIG1_MUXTYPE(val)       ((val & 3) << 8)
+#define GPMC_CONFIG1_MUXTYPE(val)       (((val) & 3) << 8)
 #define GPMC_CONFIG1_TIME_PARA_GRAN     (1 << 4)
-#define GPMC_CONFIG1_FCLK_DIV(val)      (val & 3)
+#define GPMC_CONFIG1_FCLK_DIV(val)      ((val) & 3)
 #define GPMC_CONFIG1_FCLK_DIV2          (GPMC_CONFIG1_FCLK_DIV(1))
 #define GPMC_CONFIG1_FCLK_DIV3          (GPMC_CONFIG1_FCLK_DIV(2))
 #define GPMC_CONFIG1_FCLK_DIV4          (GPMC_CONFIG1_FCLK_DIV(3))
@@ -228,12 +230,23 @@ struct omap3_gpmc_regs {
 	struct gpmc_cs_config cs_context[GPMC_CS_NUM];
 };
 
+struct gpmc_waitpin {
+	u32 pin;
+	u32 polarity;
+	struct gpio_desc *desc;
+};
+
 struct gpmc_device {
 	struct device *dev;
 	int irq;
 	struct irq_chip irq_chip;
 	struct gpio_chip gpio_chip;
+	struct notifier_block nb;
+	struct omap3_gpmc_regs context;
+	struct gpmc_waitpin *waitpins;
 	int nirqs;
+	unsigned int is_suspended:1;
+	struct resource *data;
 };
 
 static struct irq_domain *gpmc_irq_domain;
@@ -244,8 +257,7 @@ static DEFINE_SPINLOCK(gpmc_mem_lock);
 /* Define chip-selects as reserved by default until probe completes */
 static unsigned int gpmc_cs_num = GPMC_CS_NUM;
 static unsigned int gpmc_nr_waitpins;
-static resource_size_t phys_base, mem_size;
-static unsigned gpmc_capability;
+static unsigned int gpmc_capability;
 static void __iomem *gpmc_base;
 
 static struct clk *gpmc_l3_clk;
@@ -291,15 +303,14 @@ static unsigned long gpmc_get_fclk_period(void)
 
 /**
  * gpmc_get_clk_period - get period of selected clock domain in ps
- * @cs Chip Select Region.
- * @cd Clock Domain.
+ * @cs: Chip Select Region.
+ * @cd: Clock Domain.
  *
  * GPMC_CS_CONFIG1 GPMCFCLKDIVIDER for cs has to be setup
  * prior to calling this function with GPMC_CD_CLK.
  */
 static unsigned long gpmc_get_clk_period(int cs, enum gpmc_clk_domain cd)
 {
-
 	unsigned long tick_ps = gpmc_get_fclk_period();
 	u32 l;
 	int div;
@@ -313,13 +324,11 @@ static unsigned long gpmc_get_clk_period(int cs, enum gpmc_clk_domain cd)
 		tick_ps *= div;
 		break;
 	case GPMC_CD_FCLK:
-		/* FALL-THROUGH */
 	default:
 		break;
 	}
 
 	return tick_ps;
-
 }
 
 static unsigned int gpmc_ns_to_clk_ticks(unsigned int time_ns, int cs,
@@ -411,7 +420,7 @@ static void gpmc_cs_bool_timings(int cs, const struct gpmc_bool_timings *p)
  * @reg:     GPMC_CS_CONFIGn register offset.
  * @st_bit:  Start Bit
  * @end_bit: End Bit. Must be >= @st_bit.
- * @ma:x     Maximum parameter value (before optional @shift).
+ * @max:     Maximum parameter value (before optional @shift).
  *           If 0, maximum is as high as @st_bit and @end_bit allow.
  * @name:    DTS node name, w/o "gpmc,"
  * @cd:      Clock Domain of timing parameter.
@@ -511,7 +520,7 @@ static void gpmc_cs_show_timings(int cs, const char *desc)
 	GPMC_GET_RAW_BOOL(GPMC_CS_CONFIG1,  4,  4, "time-para-granularity");
 	GPMC_GET_RAW(GPMC_CS_CONFIG1,  8,  9, "mux-add-data");
 	GPMC_GET_RAW_SHIFT_MAX(GPMC_CS_CONFIG1, 12, 13, 1,
-			 GPMC_CONFIG1_DEVICESIZE_MAX, "device-width");
+			       GPMC_CONFIG1_DEVICESIZE_MAX, "device-width");
 	GPMC_GET_RAW(GPMC_CS_CONFIG1, 16, 17, "wait-pin");
 	GPMC_GET_RAW_BOOL(GPMC_CS_CONFIG1, 21, 21, "wait-on-write");
 	GPMC_GET_RAW_BOOL(GPMC_CS_CONFIG1, 22, 22, "wait-on-read");
@@ -625,9 +634,8 @@ static int set_gpmc_timing_reg(int cs, int reg, int st_bit, int end_bit, int max
 
 	l = gpmc_cs_read_reg(cs, reg);
 #ifdef CONFIG_OMAP_GPMC_DEBUG
-	pr_info(
-		"GPMC CS%d: %-17s: %3d ticks, %3lu ns (was %3i ticks) %3d ns\n",
-	       cs, name, ticks, gpmc_get_clk_period(cs, cd) * ticks / 1000,
+	pr_info("GPMC CS%d: %-17s: %3d ticks, %3lu ns (was %3i ticks) %3d ns\n",
+		cs, name, ticks, gpmc_get_clk_period(cs, cd) * ticks / 1000,
 			(l >> st_bit) & mask, time);
 #endif
 	l &= ~(mask << st_bit);
@@ -636,14 +644,6 @@ static int set_gpmc_timing_reg(int cs, int reg, int st_bit, int end_bit, int max
 
 	return 0;
 }
-
-#define GPMC_SET_ONE_CD_MAX(reg, st, end, max, field, cd)  \
-	if (set_gpmc_timing_reg(cs, (reg), (st), (end), (max), \
-	    t->field, (cd), #field) < 0)                       \
-		return -1
-
-#define GPMC_SET_ONE(reg, st, end, field) \
-	GPMC_SET_ONE_CD_MAX(reg, st, end, 0, field, GPMC_CD_FCLK)
 
 /**
  * gpmc_calc_waitmonitoring_divider - calculate proper GPMCFCLKDIVIDER based on WAITMONITORINGTIME
@@ -662,7 +662,6 @@ static int set_gpmc_timing_reg(int cs, int reg, int st_bit, int end_bit, int max
  */
 static int gpmc_calc_waitmonitoring_divider(unsigned int wait_monitoring)
 {
-
 	int div = gpmc_ns_to_ticks(wait_monitoring);
 
 	div += GPMC_CONFIG1_WAITMONITORINGTIME_MAX - 1;
@@ -674,7 +673,6 @@ static int gpmc_calc_waitmonitoring_divider(unsigned int wait_monitoring)
 		div = 1;
 
 	return div;
-
 }
 
 /**
@@ -705,12 +703,12 @@ int gpmc_calc_divider(unsigned int sync_clk)
 int gpmc_cs_set_timings(int cs, const struct gpmc_timings *t,
 			const struct gpmc_settings *s)
 {
-	int div;
+	int div, ret;
 	u32 l;
 
 	div = gpmc_calc_divider(t->sync_clk);
 	if (div < 0)
-		return div;
+		return -EINVAL;
 
 	/*
 	 * See if we need to change the divider for waitmonitoringtime.
@@ -728,64 +726,120 @@ int gpmc_cs_set_timings(int cs, const struct gpmc_timings *t,
 	if (!s->sync_read && !s->sync_write &&
 	    (s->wait_on_read || s->wait_on_write)
 	   ) {
-
 		div = gpmc_calc_waitmonitoring_divider(t->wait_monitoring);
 		if (div < 0) {
 			pr_err("%s: waitmonitoringtime %3d ns too large for greatest gpmcfclkdivider.\n",
 			       __func__,
 			       t->wait_monitoring
 			       );
-			return -1;
+			return -ENXIO;
 		}
 	}
 
-	GPMC_SET_ONE(GPMC_CS_CONFIG2,  0,  3, cs_on);
-	GPMC_SET_ONE(GPMC_CS_CONFIG2,  8, 12, cs_rd_off);
-	GPMC_SET_ONE(GPMC_CS_CONFIG2, 16, 20, cs_wr_off);
+	ret = 0;
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG2, 0, 3, 0, t->cs_on,
+				   GPMC_CD_FCLK, "cs_on");
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG2, 8, 12, 0, t->cs_rd_off,
+				   GPMC_CD_FCLK, "cs_rd_off");
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG2, 16, 20, 0, t->cs_wr_off,
+				   GPMC_CD_FCLK, "cs_wr_off");
+	if (ret)
+		return -ENXIO;
 
-	GPMC_SET_ONE(GPMC_CS_CONFIG3,  0,  3, adv_on);
-	GPMC_SET_ONE(GPMC_CS_CONFIG3,  8, 12, adv_rd_off);
-	GPMC_SET_ONE(GPMC_CS_CONFIG3, 16, 20, adv_wr_off);
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG3, 0, 3, 0, t->adv_on,
+				   GPMC_CD_FCLK, "adv_on");
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG3, 8, 12, 0, t->adv_rd_off,
+				   GPMC_CD_FCLK, "adv_rd_off");
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG3, 16, 20, 0, t->adv_wr_off,
+				   GPMC_CD_FCLK, "adv_wr_off");
+	if (ret)
+		return -ENXIO;
+
 	if (gpmc_capability & GPMC_HAS_MUX_AAD) {
-		GPMC_SET_ONE(GPMC_CS_CONFIG3,  4,  6, adv_aad_mux_on);
-		GPMC_SET_ONE(GPMC_CS_CONFIG3, 24, 26, adv_aad_mux_rd_off);
-		GPMC_SET_ONE(GPMC_CS_CONFIG3, 28, 30, adv_aad_mux_wr_off);
+		ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG3, 4, 6, 0,
+					   t->adv_aad_mux_on, GPMC_CD_FCLK,
+					   "adv_aad_mux_on");
+		ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG3, 24, 26, 0,
+					   t->adv_aad_mux_rd_off, GPMC_CD_FCLK,
+					   "adv_aad_mux_rd_off");
+		ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG3, 28, 30, 0,
+					   t->adv_aad_mux_wr_off, GPMC_CD_FCLK,
+					   "adv_aad_mux_wr_off");
+		if (ret)
+			return -ENXIO;
 	}
 
-	GPMC_SET_ONE(GPMC_CS_CONFIG4,  0,  3, oe_on);
-	GPMC_SET_ONE(GPMC_CS_CONFIG4,  8, 12, oe_off);
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG4, 0, 3, 0, t->oe_on,
+				   GPMC_CD_FCLK, "oe_on");
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG4, 8, 12, 0, t->oe_off,
+				   GPMC_CD_FCLK, "oe_off");
 	if (gpmc_capability & GPMC_HAS_MUX_AAD) {
-		GPMC_SET_ONE(GPMC_CS_CONFIG4,  4,  6, oe_aad_mux_on);
-		GPMC_SET_ONE(GPMC_CS_CONFIG4, 13, 15, oe_aad_mux_off);
+		ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG4, 4, 6, 0,
+					   t->oe_aad_mux_on, GPMC_CD_FCLK,
+					   "oe_aad_mux_on");
+		ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG4, 13, 15, 0,
+					   t->oe_aad_mux_off, GPMC_CD_FCLK,
+					   "oe_aad_mux_off");
 	}
-	GPMC_SET_ONE(GPMC_CS_CONFIG4, 16, 19, we_on);
-	GPMC_SET_ONE(GPMC_CS_CONFIG4, 24, 28, we_off);
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG4, 16, 19, 0, t->we_on,
+				   GPMC_CD_FCLK, "we_on");
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG4, 24, 28, 0, t->we_off,
+				   GPMC_CD_FCLK, "we_off");
+	if (ret)
+		return -ENXIO;
 
-	GPMC_SET_ONE(GPMC_CS_CONFIG5,  0,  4, rd_cycle);
-	GPMC_SET_ONE(GPMC_CS_CONFIG5,  8, 12, wr_cycle);
-	GPMC_SET_ONE(GPMC_CS_CONFIG5, 16, 20, access);
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG5, 0, 4, 0, t->rd_cycle,
+				   GPMC_CD_FCLK, "rd_cycle");
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG5, 8, 12, 0, t->wr_cycle,
+				   GPMC_CD_FCLK, "wr_cycle");
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG5, 16, 20, 0, t->access,
+				   GPMC_CD_FCLK, "access");
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG5, 24, 27, 0,
+				   t->page_burst_access, GPMC_CD_FCLK,
+				   "page_burst_access");
+	if (ret)
+		return -ENXIO;
 
-	GPMC_SET_ONE(GPMC_CS_CONFIG5, 24, 27, page_burst_access);
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG6, 0, 3, 0,
+				   t->bus_turnaround, GPMC_CD_FCLK,
+				   "bus_turnaround");
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG6, 8, 11, 0,
+				   t->cycle2cycle_delay, GPMC_CD_FCLK,
+				   "cycle2cycle_delay");
+	if (ret)
+		return -ENXIO;
 
-	GPMC_SET_ONE(GPMC_CS_CONFIG6, 0, 3, bus_turnaround);
-	GPMC_SET_ONE(GPMC_CS_CONFIG6, 8, 11, cycle2cycle_delay);
-
-	if (gpmc_capability & GPMC_HAS_WR_DATA_MUX_BUS)
-		GPMC_SET_ONE(GPMC_CS_CONFIG6, 16, 19, wr_data_mux_bus);
-	if (gpmc_capability & GPMC_HAS_WR_ACCESS)
-		GPMC_SET_ONE(GPMC_CS_CONFIG6, 24, 28, wr_access);
+	if (gpmc_capability & GPMC_HAS_WR_DATA_MUX_BUS) {
+		ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG6, 16, 19, 0,
+					   t->wr_data_mux_bus, GPMC_CD_FCLK,
+					   "wr_data_mux_bus");
+		if (ret)
+			return -ENXIO;
+	}
+	if (gpmc_capability & GPMC_HAS_WR_ACCESS) {
+		ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG6, 24, 28, 0,
+					   t->wr_access, GPMC_CD_FCLK,
+					   "wr_access");
+		if (ret)
+			return -ENXIO;
+	}
 
 	l = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG1);
 	l &= ~0x03;
 	l |= (div - 1);
 	gpmc_cs_write_reg(cs, GPMC_CS_CONFIG1, l);
 
-	GPMC_SET_ONE_CD_MAX(GPMC_CS_CONFIG1, 18, 19,
-			    GPMC_CONFIG1_WAITMONITORINGTIME_MAX,
-			    wait_monitoring, GPMC_CD_CLK);
-	GPMC_SET_ONE_CD_MAX(GPMC_CS_CONFIG1, 25, 26,
-			    GPMC_CONFIG1_CLKACTIVATIONTIME_MAX,
-			    clk_activation, GPMC_CD_FCLK);
+	ret = 0;
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG1, 18, 19,
+				   GPMC_CONFIG1_WAITMONITORINGTIME_MAX,
+				   t->wait_monitoring, GPMC_CD_CLK,
+				   "wait_monitoring");
+	ret |= set_gpmc_timing_reg(cs, GPMC_CS_CONFIG1, 25, 26,
+				   GPMC_CONFIG1_CLKACTIVATIONTIME_MAX,
+				   t->clk_activation, GPMC_CD_FCLK,
+				   "clk_activation");
+	if (ret)
+		return -ENXIO;
 
 #ifdef CONFIG_OMAP_GPMC_DEBUG
 	pr_info("GPMC CS%d CLK period is %lu ns (div %d)\n",
@@ -876,20 +930,6 @@ static bool gpmc_cs_reserved(int cs)
 	return gpmc->flags & GPMC_CS_RESERVED;
 }
 
-static void gpmc_cs_set_name(int cs, const char *name)
-{
-	struct gpmc_cs_data *gpmc = &gpmc_cs[cs];
-
-	gpmc->name = name;
-}
-
-static const char *gpmc_cs_get_name(int cs)
-{
-	struct gpmc_cs_data *gpmc = &gpmc_cs[cs];
-
-	return gpmc->name;
-}
-
 static unsigned long gpmc_mem_align(unsigned long size)
 {
 	int order;
@@ -935,56 +975,13 @@ static int gpmc_cs_delete_mem(int cs)
 	return r;
 }
 
-/**
- * gpmc_cs_remap - remaps a chip-select physical base address
- * @cs:		chip-select to remap
- * @base:	physical base address to re-map chip-select to
- *
- * Re-maps a chip-select to a new physical base address specified by
- * "base". Returns 0 on success and appropriate negative error code
- * on failure.
- */
-static int gpmc_cs_remap(int cs, u32 base)
-{
-	int ret;
-	u32 old_base, size;
-
-	if (cs > gpmc_cs_num) {
-		pr_err("%s: requested chip-select is disabled\n", __func__);
-		return -ENODEV;
-	}
-
-	/*
-	 * Make sure we ignore any device offsets from the GPMC partition
-	 * allocated for the chip select and that the new base confirms
-	 * to the GPMC 16MB minimum granularity.
-	 */ 
-	base &= ~(SZ_16M - 1);
-
-	gpmc_cs_get_memconf(cs, &old_base, &size);
-	if (base == old_base)
-		return 0;
-
-	ret = gpmc_cs_delete_mem(cs);
-	if (ret < 0)
-		return ret;
-
-	ret = gpmc_cs_insert_mem(cs, base, size);
-	if (ret < 0)
-		return ret;
-
-	ret = gpmc_cs_set_memconf(cs, base, size);
-
-	return ret;
-}
-
 int gpmc_cs_request(int cs, unsigned long size, unsigned long *base)
 {
 	struct gpmc_cs_data *gpmc = &gpmc_cs[cs];
 	struct resource *res = &gpmc->mem;
 	int r = -1;
 
-	if (cs > gpmc_cs_num) {
+	if (cs >= gpmc_cs_num) {
 		pr_err("%s: requested chip-select is disabled\n", __func__);
 		return -ENODEV;
 	}
@@ -1026,16 +1023,18 @@ EXPORT_SYMBOL(gpmc_cs_request);
 
 void gpmc_cs_free(int cs)
 {
-	struct gpmc_cs_data *gpmc = &gpmc_cs[cs];
-	struct resource *res = &gpmc->mem;
+	struct gpmc_cs_data *gpmc;
+	struct resource *res;
 
 	spin_lock(&gpmc_mem_lock);
 	if (cs >= gpmc_cs_num || cs < 0 || !gpmc_cs_reserved(cs)) {
-		printk(KERN_ERR "Trying to free non-reserved GPMC CS%d\n", cs);
-		BUG();
+		WARN(1, "Trying to free non-reserved GPMC CS%d\n", cs);
 		spin_unlock(&gpmc_mem_lock);
 		return;
 	}
+	gpmc = &gpmc_cs[cs];
+	res = &gpmc->mem;
+
 	gpmc_cs_disable_mem(cs);
 	if (res->flags)
 		release_resource(res);
@@ -1043,6 +1042,62 @@ void gpmc_cs_free(int cs)
 	spin_unlock(&gpmc_mem_lock);
 }
 EXPORT_SYMBOL(gpmc_cs_free);
+
+static bool gpmc_is_valid_waitpin(u32 waitpin)
+{
+	return waitpin < gpmc_nr_waitpins;
+}
+
+static int gpmc_alloc_waitpin(struct gpmc_device *gpmc,
+			      struct gpmc_settings *p)
+{
+	int ret;
+	struct gpmc_waitpin *waitpin;
+	struct gpio_desc *waitpin_desc;
+
+	if (!gpmc_is_valid_waitpin(p->wait_pin))
+		return -EINVAL;
+
+	waitpin = &gpmc->waitpins[p->wait_pin];
+
+	if (!waitpin->desc) {
+		/* Reserve the GPIO for wait pin usage.
+		 * GPIO polarity doesn't matter here. Wait pin polarity
+		 * is set in GPMC_CONFIG register.
+		 */
+		waitpin_desc = gpiochip_request_own_desc(&gpmc->gpio_chip,
+							 p->wait_pin, "WAITPIN",
+							 GPIO_ACTIVE_HIGH,
+							 GPIOD_IN);
+
+		ret = PTR_ERR(waitpin_desc);
+		if (IS_ERR(waitpin_desc) && ret != -EBUSY)
+			return ret;
+
+		/* New wait pin */
+		waitpin->desc = waitpin_desc;
+		waitpin->pin = p->wait_pin;
+		waitpin->polarity = p->wait_pin_polarity;
+	} else {
+		/* Shared wait pin */
+		if (p->wait_pin_polarity != waitpin->polarity ||
+		    p->wait_pin != waitpin->pin) {
+			dev_err(gpmc->dev,
+				"shared-wait-pin: invalid configuration\n");
+			return -EINVAL;
+		}
+		dev_info(gpmc->dev, "shared wait-pin: %d\n", waitpin->pin);
+	}
+
+	return 0;
+}
+
+static void gpmc_free_waitpin(struct gpmc_device *gpmc,
+			      int wait_pin)
+{
+	if (gpmc_is_valid_waitpin(wait_pin))
+		gpiochip_free_own_desc(gpmc->waitpins[wait_pin].desc);
+}
 
 /**
  * gpmc_configure - write request to configure gpmc
@@ -1087,7 +1142,7 @@ static struct gpmc_nand_ops nand_ops = {
 
 /**
  * gpmc_omap_get_nand_ops - Get the GPMC NAND interface
- * @regs: the GPMC NAND register map exclusive for NAND use.
+ * @reg: the GPMC NAND register map exclusive for NAND use.
  * @cs: GPMC chip select number on which the NAND sits. The
  *      register map returned will be specific to this chip select.
  *
@@ -1242,7 +1297,7 @@ int gpmc_omap_onenand_set_timings(struct device *dev, int cs, int freq,
 }
 EXPORT_SYMBOL_GPL(gpmc_omap_onenand_set_timings);
 
-int gpmc_get_client_irq(unsigned irq_config)
+int gpmc_get_client_irq(unsigned int irq_config)
 {
 	if (!gpmc_irq_domain) {
 		pr_warn("%s called before GPMC IRQ domain available\n",
@@ -1465,15 +1520,20 @@ static void gpmc_mem_exit(void)
 			continue;
 		gpmc_cs_delete_mem(cs);
 	}
-
 }
 
-static void gpmc_mem_init(void)
+static void gpmc_mem_init(struct gpmc_device *gpmc)
 {
 	int cs;
 
-	gpmc_mem_root.start = GPMC_MEM_START;
-	gpmc_mem_root.end = GPMC_MEM_END;
+	if (!gpmc->data) {
+		/* All legacy devices have same data IO window */
+		gpmc_mem_root.start = GPMC_MEM_START;
+		gpmc_mem_root.end = GPMC_MEM_END;
+	} else {
+		gpmc_mem_root.start = gpmc->data->start;
+		gpmc_mem_root.end = gpmc->data->end;
+	}
 
 	/* Reserve all regions that has been set up by bootloader */
 	for (cs = 0; cs < gpmc_cs_num; cs++) {
@@ -1634,17 +1694,14 @@ static int gpmc_calc_async_read_timings(struct gpmc_timings *gpmc_t,
 	/* oe_on */
 	temp = dev_t->t_oeasu;
 	if (mux)
-		temp = max_t(u32, temp,
-			gpmc_t->adv_rd_off + dev_t->t_aavdh);
+		temp = max_t(u32, temp, gpmc_t->adv_rd_off + dev_t->t_aavdh);
 	gpmc_t->oe_on = gpmc_round_ps_to_ticks(temp);
 
 	/* access */
 	temp = max_t(u32, dev_t->t_iaa, /* XXX: remove t_iaa in async ? */
-				gpmc_t->oe_on + dev_t->t_oe);
-	temp = max_t(u32, temp,
-				gpmc_t->cs_on + dev_t->t_ce);
-	temp = max_t(u32, temp,
-				gpmc_t->adv_on + dev_t->t_aa);
+		     gpmc_t->oe_on + dev_t->t_oe);
+	temp = max_t(u32, temp, gpmc_t->cs_on + dev_t->t_ce);
+	temp = max_t(u32, temp, gpmc_t->adv_on + dev_t->t_aa);
 	gpmc_t->access = gpmc_round_ps_to_ticks(temp);
 
 	gpmc_t->oe_off = gpmc_t->access + gpmc_ticks_to_ps(1);
@@ -1753,10 +1810,11 @@ static int gpmc_calc_common_timings(struct gpmc_timings *gpmc_t,
 	return 0;
 }
 
-/* TODO: remove this function once all peripherals are confirmed to
+/*
+ * TODO: remove this function once all peripherals are confirmed to
  * work with generic timing. Simultaneously gpmc_cs_set_timings()
  * has to be modified to handle timings in ps instead of ns
-*/
+ */
 static void gpmc_convert_ps_to_ns(struct gpmc_timings *t)
 {
 	t->cs_on /= 1000;
@@ -1860,7 +1918,8 @@ int gpmc_cs_program_settings(int cs, struct gpmc_settings *p)
 		}
 	}
 
-	if (p->wait_pin > gpmc_nr_waitpins) {
+	if (p->wait_pin != GPMC_WAITPIN_INVALID &&
+	    p->wait_pin > gpmc_nr_waitpins) {
 		pr_err("%s: invalid wait-pin (%d)\n", __func__, p->wait_pin);
 		return -EINVAL;
 	}
@@ -1892,18 +1951,77 @@ int gpmc_cs_program_settings(int cs, struct gpmc_settings *p)
 
 	gpmc_cs_write_reg(cs, GPMC_CS_CONFIG1, config1);
 
+	if (p->wait_pin_polarity != GPMC_WAITPINPOLARITY_INVALID) {
+		config1 = gpmc_read_reg(GPMC_CONFIG);
+
+		if (p->wait_pin_polarity == GPMC_WAITPINPOLARITY_ACTIVE_LOW)
+			config1 &= ~GPMC_CONFIG_WAITPINPOLARITY(p->wait_pin);
+		else if (p->wait_pin_polarity == GPMC_WAITPINPOLARITY_ACTIVE_HIGH)
+			config1 |= GPMC_CONFIG_WAITPINPOLARITY(p->wait_pin);
+
+		gpmc_write_reg(GPMC_CONFIG, config1);
+	}
+
 	return 0;
 }
 
 #ifdef CONFIG_OF
-static const struct of_device_id gpmc_dt_ids[] = {
-	{ .compatible = "ti,omap2420-gpmc" },
-	{ .compatible = "ti,omap2430-gpmc" },
-	{ .compatible = "ti,omap3430-gpmc" },	/* omap3430 & omap3630 */
-	{ .compatible = "ti,omap4430-gpmc" },	/* omap4430 & omap4460 & omap543x */
-	{ .compatible = "ti,am3352-gpmc" },	/* am335x devices */
-	{ }
-};
+static void gpmc_cs_set_name(int cs, const char *name)
+{
+	struct gpmc_cs_data *gpmc = &gpmc_cs[cs];
+
+	gpmc->name = name;
+}
+
+static const char *gpmc_cs_get_name(int cs)
+{
+	struct gpmc_cs_data *gpmc = &gpmc_cs[cs];
+
+	return gpmc->name;
+}
+
+/**
+ * gpmc_cs_remap - remaps a chip-select physical base address
+ * @cs:		chip-select to remap
+ * @base:	physical base address to re-map chip-select to
+ *
+ * Re-maps a chip-select to a new physical base address specified by
+ * "base". Returns 0 on success and appropriate negative error code
+ * on failure.
+ */
+static int gpmc_cs_remap(int cs, u32 base)
+{
+	int ret;
+	u32 old_base, size;
+
+	if (cs >= gpmc_cs_num) {
+		pr_err("%s: requested chip-select is disabled\n", __func__);
+		return -ENODEV;
+	}
+
+	/*
+	 * Make sure we ignore any device offsets from the GPMC partition
+	 * allocated for the chip select and that the new base confirms
+	 * to the GPMC 16MB minimum granularity.
+	 */
+	base &= ~(SZ_16M - 1);
+
+	gpmc_cs_get_memconf(cs, &old_base, &size);
+	if (base == old_base)
+		return 0;
+
+	ret = gpmc_cs_delete_mem(cs);
+	if (ret < 0)
+		return ret;
+
+	ret = gpmc_cs_insert_mem(cs, base, size);
+	if (ret < 0)
+		return ret;
+
+	ret = gpmc_cs_set_memconf(cs, base, size);
+
+	return ret;
+}
 
 /**
  * gpmc_read_settings_dt - read gpmc settings from device-tree
@@ -1933,7 +2051,25 @@ void gpmc_read_settings_dt(struct device_node *np, struct gpmc_settings *p)
 				__func__);
 	}
 
+	p->wait_pin = GPMC_WAITPIN_INVALID;
+	p->wait_pin_polarity = GPMC_WAITPINPOLARITY_INVALID;
+
 	if (!of_property_read_u32(np, "gpmc,wait-pin", &p->wait_pin)) {
+		if (!gpmc_is_valid_waitpin(p->wait_pin)) {
+			pr_err("%s: Invalid wait-pin (%d)\n", __func__, p->wait_pin);
+			p->wait_pin = GPMC_WAITPIN_INVALID;
+		}
+
+		if (!of_property_read_u32(np, "ti,wait-pin-polarity",
+					  &p->wait_pin_polarity)) {
+			if (p->wait_pin_polarity != GPMC_WAITPINPOLARITY_ACTIVE_HIGH &&
+			    p->wait_pin_polarity != GPMC_WAITPINPOLARITY_ACTIVE_LOW) {
+				pr_err("%s: Invalid wait-pin-polarity (%d)\n",
+				       __func__, p->wait_pin_polarity);
+				p->wait_pin_polarity = GPMC_WAITPINPOLARITY_INVALID;
+				}
+		}
+
 		p->wait_on_read = of_property_read_bool(np,
 							"gpmc,wait-on-read");
 		p->wait_on_write = of_property_read_bool(np,
@@ -2038,7 +2174,6 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 	const char *name;
 	int ret, cs;
 	u32 val;
-	struct gpio_desc *waitpin_desc = NULL;
 	struct gpmc_device *gpmc = platform_get_drvdata(pdev);
 
 	if (of_property_read_u32(child, "reg", &cs) < 0) {
@@ -2089,7 +2224,7 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 	gpmc_cs_disable_mem(cs);
 
 	/*
-	 * FIXME: gpmc_cs_request() will map the CS to an arbitary
+	 * FIXME: gpmc_cs_request() will map the CS to an arbitrary
 	 * location in the gpmc address space. When booting with
 	 * device-tree we want the NOR flash to be mapped to the
 	 * location specified in the device-tree blob. So remap the
@@ -2132,7 +2267,7 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 		}
 	}
 
-	if (of_device_is_compatible(child, "ti,omap2-nand")) {
+	if (of_match_node(omap_nand_ids, child)) {
 		/* NAND specific setup */
 		val = 8;
 		of_property_read_u32(child, "nand-bus-width", &val);
@@ -2166,17 +2301,9 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 
 	/* Reserve wait pin if it is required and valid */
 	if (gpmc_s.wait_on_read || gpmc_s.wait_on_write) {
-		unsigned int wait_pin = gpmc_s.wait_pin;
-
-		waitpin_desc = gpiochip_request_own_desc(&gpmc->gpio_chip,
-							 wait_pin, "WAITPIN",
-							 GPIO_ACTIVE_HIGH,
-							 GPIOD_IN);
-		if (IS_ERR(waitpin_desc)) {
-			dev_err(&pdev->dev, "invalid wait-pin: %d\n", wait_pin);
-			ret = PTR_ERR(waitpin_desc);
+		ret = gpmc_alloc_waitpin(gpmc, &gpmc_s);
+		if (ret < 0)
 			goto err;
-		}
 	}
 
 	gpmc_cs_show_timings(cs, "before gpmc_cs_program_settings");
@@ -2206,11 +2333,9 @@ no_timings:
 	if (!of_platform_device_create(child, NULL, &pdev->dev))
 		goto err_child_fail;
 
-	/* is child a common bus? */
-	if (of_match_node(of_default_bus_match_table, child))
-		/* create children and other common bus children */
-		if (of_platform_default_populate(child, NULL, &pdev->dev))
-			goto err_child_fail;
+	/* create children and other common bus children */
+	if (of_platform_default_populate(child, NULL, &pdev->dev))
+		goto err_child_fail;
 
 	return 0;
 
@@ -2220,12 +2345,14 @@ err_child_fail:
 	ret = -ENODEV;
 
 err_cs:
-	gpiochip_free_own_desc(waitpin_desc);
+	gpmc_free_waitpin(gpmc, gpmc_s.wait_pin);
 err:
 	gpmc_cs_free(cs);
 
 	return ret;
 }
+
+static const struct of_device_id gpmc_dt_ids[];
 
 static int gpmc_probe_dt(struct platform_device *pdev)
 {
@@ -2274,6 +2401,10 @@ static void gpmc_probe_dt_children(struct platform_device *pdev)
 	}
 }
 #else
+void gpmc_read_settings_dt(struct device_node *np, struct gpmc_settings *p)
+{
+	memset(p, 0, sizeof(*p));
+}
 static int gpmc_probe_dt(struct platform_device *pdev)
 {
 	return 0;
@@ -2341,9 +2472,109 @@ static int gpmc_gpio_init(struct gpmc_device *gpmc)
 	return 0;
 }
 
+static void omap3_gpmc_save_context(struct gpmc_device *gpmc)
+{
+	struct omap3_gpmc_regs *gpmc_context;
+	int i;
+
+	if (!gpmc || !gpmc_base)
+		return;
+
+	gpmc_context = &gpmc->context;
+
+	gpmc_context->sysconfig = gpmc_read_reg(GPMC_SYSCONFIG);
+	gpmc_context->irqenable = gpmc_read_reg(GPMC_IRQENABLE);
+	gpmc_context->timeout_ctrl = gpmc_read_reg(GPMC_TIMEOUT_CONTROL);
+	gpmc_context->config = gpmc_read_reg(GPMC_CONFIG);
+	gpmc_context->prefetch_config1 = gpmc_read_reg(GPMC_PREFETCH_CONFIG1);
+	gpmc_context->prefetch_config2 = gpmc_read_reg(GPMC_PREFETCH_CONFIG2);
+	gpmc_context->prefetch_control = gpmc_read_reg(GPMC_PREFETCH_CONTROL);
+	for (i = 0; i < gpmc_cs_num; i++) {
+		gpmc_context->cs_context[i].is_valid = gpmc_cs_mem_enabled(i);
+		if (gpmc_context->cs_context[i].is_valid) {
+			gpmc_context->cs_context[i].config1 =
+				gpmc_cs_read_reg(i, GPMC_CS_CONFIG1);
+			gpmc_context->cs_context[i].config2 =
+				gpmc_cs_read_reg(i, GPMC_CS_CONFIG2);
+			gpmc_context->cs_context[i].config3 =
+				gpmc_cs_read_reg(i, GPMC_CS_CONFIG3);
+			gpmc_context->cs_context[i].config4 =
+				gpmc_cs_read_reg(i, GPMC_CS_CONFIG4);
+			gpmc_context->cs_context[i].config5 =
+				gpmc_cs_read_reg(i, GPMC_CS_CONFIG5);
+			gpmc_context->cs_context[i].config6 =
+				gpmc_cs_read_reg(i, GPMC_CS_CONFIG6);
+			gpmc_context->cs_context[i].config7 =
+				gpmc_cs_read_reg(i, GPMC_CS_CONFIG7);
+		}
+	}
+}
+
+static void omap3_gpmc_restore_context(struct gpmc_device *gpmc)
+{
+	struct omap3_gpmc_regs *gpmc_context;
+	int i;
+
+	if (!gpmc || !gpmc_base)
+		return;
+
+	gpmc_context = &gpmc->context;
+
+	gpmc_write_reg(GPMC_SYSCONFIG, gpmc_context->sysconfig);
+	gpmc_write_reg(GPMC_IRQENABLE, gpmc_context->irqenable);
+	gpmc_write_reg(GPMC_TIMEOUT_CONTROL, gpmc_context->timeout_ctrl);
+	gpmc_write_reg(GPMC_CONFIG, gpmc_context->config);
+	gpmc_write_reg(GPMC_PREFETCH_CONFIG1, gpmc_context->prefetch_config1);
+	gpmc_write_reg(GPMC_PREFETCH_CONFIG2, gpmc_context->prefetch_config2);
+	gpmc_write_reg(GPMC_PREFETCH_CONTROL, gpmc_context->prefetch_control);
+	for (i = 0; i < gpmc_cs_num; i++) {
+		if (gpmc_context->cs_context[i].is_valid) {
+			gpmc_cs_write_reg(i, GPMC_CS_CONFIG1,
+					  gpmc_context->cs_context[i].config1);
+			gpmc_cs_write_reg(i, GPMC_CS_CONFIG2,
+					  gpmc_context->cs_context[i].config2);
+			gpmc_cs_write_reg(i, GPMC_CS_CONFIG3,
+					  gpmc_context->cs_context[i].config3);
+			gpmc_cs_write_reg(i, GPMC_CS_CONFIG4,
+					  gpmc_context->cs_context[i].config4);
+			gpmc_cs_write_reg(i, GPMC_CS_CONFIG5,
+					  gpmc_context->cs_context[i].config5);
+			gpmc_cs_write_reg(i, GPMC_CS_CONFIG6,
+					  gpmc_context->cs_context[i].config6);
+			gpmc_cs_write_reg(i, GPMC_CS_CONFIG7,
+					  gpmc_context->cs_context[i].config7);
+		} else {
+			gpmc_cs_write_reg(i, GPMC_CS_CONFIG7, 0);
+		}
+	}
+}
+
+static int omap_gpmc_context_notifier(struct notifier_block *nb,
+				      unsigned long cmd, void *v)
+{
+	struct gpmc_device *gpmc;
+
+	gpmc = container_of(nb, struct gpmc_device, nb);
+	if (gpmc->is_suspended || pm_runtime_suspended(gpmc->dev))
+		return NOTIFY_OK;
+
+	switch (cmd) {
+	case CPU_CLUSTER_PM_ENTER:
+		omap3_gpmc_save_context(gpmc);
+		break;
+	case CPU_CLUSTER_PM_ENTER_FAILED:	/* No need to restore context */
+		break;
+	case CPU_CLUSTER_PM_EXIT:
+		omap3_gpmc_restore_context(gpmc);
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
 static int gpmc_probe(struct platform_device *pdev)
 {
-	int rc;
+	int rc, i;
 	u32 l;
 	struct resource *res;
 	struct gpmc_device *gpmc;
@@ -2355,24 +2586,29 @@ static int gpmc_probe(struct platform_device *pdev)
 	gpmc->dev = &pdev->dev;
 	platform_set_drvdata(pdev, gpmc);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL)
-		return -ENOENT;
-
-	phys_base = res->start;
-	mem_size = resource_size(res);
-
-	gpmc_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(gpmc_base))
-		return PTR_ERR(gpmc_base);
-
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "cfg");
 	if (!res) {
-		dev_err(&pdev->dev, "Failed to get resource: irq\n");
-		return -ENOENT;
+		/* legacy DT */
+		gpmc_base = devm_platform_ioremap_resource(pdev, 0);
+		if (IS_ERR(gpmc_base))
+			return PTR_ERR(gpmc_base);
+	} else {
+		gpmc_base = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(gpmc_base))
+			return PTR_ERR(gpmc_base);
+
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "data");
+		if (!res) {
+			dev_err(&pdev->dev, "couldn't get data reg resource\n");
+			return -ENOENT;
+		}
+
+		gpmc->data = res;
 	}
 
-	gpmc->irq = res->start;
+	gpmc->irq = platform_get_irq(pdev, 0);
+	if (gpmc->irq < 0)
+		return gpmc->irq;
 
 	gpmc_l3_clk = devm_clk_get(&pdev->dev, "fck");
 	if (IS_ERR(gpmc_l3_clk)) {
@@ -2393,6 +2629,15 @@ static int gpmc_probe(struct platform_device *pdev)
 		gpmc_cs_num = GPMC_CS_NUM;
 		gpmc_nr_waitpins = GPMC_NR_WAITPINS;
 	}
+
+	gpmc->waitpins = devm_kzalloc(&pdev->dev,
+				      gpmc_nr_waitpins * sizeof(struct gpmc_waitpin),
+				      GFP_KERNEL);
+	if (!gpmc->waitpins)
+		return -ENOMEM;
+
+	for (i = 0; i < gpmc_nr_waitpins; i++)
+		gpmc->waitpins[i].pin = GPMC_WAITPIN_INVALID;
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
@@ -2418,7 +2663,7 @@ static int gpmc_probe(struct platform_device *pdev)
 	dev_info(gpmc->dev, "GPMC revision %d.%d\n", GPMC_REVISION_MAJOR(l),
 		 GPMC_REVISION_MINOR(l));
 
-	gpmc_mem_init();
+	gpmc_mem_init(gpmc);
 	rc = gpmc_gpio_init(gpmc);
 	if (rc)
 		goto gpio_init_failed;
@@ -2432,6 +2677,9 @@ static int gpmc_probe(struct platform_device *pdev)
 
 	gpmc_probe_dt_children(pdev);
 
+	gpmc->nb.notifier_call = omap_gpmc_context_notifier;
+	cpu_pm_register_notifier(&gpmc->nb);
+
 	return 0;
 
 gpio_init_failed:
@@ -2442,39 +2690,62 @@ gpio_init_failed:
 	return rc;
 }
 
-static int gpmc_remove(struct platform_device *pdev)
+static void gpmc_remove(struct platform_device *pdev)
 {
+	int i;
 	struct gpmc_device *gpmc = platform_get_drvdata(pdev);
 
+	cpu_pm_unregister_notifier(&gpmc->nb);
+	for (i = 0; i < gpmc_nr_waitpins; i++)
+		gpmc_free_waitpin(gpmc, i);
 	gpmc_free_irq(gpmc);
 	gpmc_mem_exit();
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
 static int gpmc_suspend(struct device *dev)
 {
-	omap3_gpmc_save_context();
+	struct gpmc_device *gpmc = dev_get_drvdata(dev);
+
+	omap3_gpmc_save_context(gpmc);
 	pm_runtime_put_sync(dev);
+	gpmc->is_suspended = 1;
+
 	return 0;
 }
 
 static int gpmc_resume(struct device *dev)
 {
+	struct gpmc_device *gpmc = dev_get_drvdata(dev);
+
 	pm_runtime_get_sync(dev);
-	omap3_gpmc_restore_context();
+	omap3_gpmc_restore_context(gpmc);
+	gpmc->is_suspended = 0;
+
 	return 0;
 }
 #endif
 
 static SIMPLE_DEV_PM_OPS(gpmc_pm_ops, gpmc_suspend, gpmc_resume);
 
+#ifdef CONFIG_OF
+static const struct of_device_id gpmc_dt_ids[] = {
+	{ .compatible = "ti,omap2420-gpmc" },
+	{ .compatible = "ti,omap2430-gpmc" },
+	{ .compatible = "ti,omap3430-gpmc" },	/* omap3430 & omap3630 */
+	{ .compatible = "ti,omap4430-gpmc" },	/* omap4430 & omap4460 & omap543x */
+	{ .compatible = "ti,am3352-gpmc" },	/* am335x devices */
+	{ .compatible = "ti,am64-gpmc" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, gpmc_dt_ids);
+#endif
+
 static struct platform_driver gpmc_driver = {
 	.probe		= gpmc_probe,
-	.remove		= gpmc_remove,
+	.remove_new	= gpmc_remove,
 	.driver		= {
 		.name	= DEVICE_NAME,
 		.of_match_table = of_match_ptr(gpmc_dt_ids),
@@ -2482,79 +2753,7 @@ static struct platform_driver gpmc_driver = {
 	},
 };
 
-static __init int gpmc_init(void)
-{
-	return platform_driver_register(&gpmc_driver);
-}
-postcore_initcall(gpmc_init);
+module_platform_driver(gpmc_driver);
 
-static struct omap3_gpmc_regs gpmc_context;
-
-void omap3_gpmc_save_context(void)
-{
-	int i;
-
-	if (!gpmc_base)
-		return;
-
-	gpmc_context.sysconfig = gpmc_read_reg(GPMC_SYSCONFIG);
-	gpmc_context.irqenable = gpmc_read_reg(GPMC_IRQENABLE);
-	gpmc_context.timeout_ctrl = gpmc_read_reg(GPMC_TIMEOUT_CONTROL);
-	gpmc_context.config = gpmc_read_reg(GPMC_CONFIG);
-	gpmc_context.prefetch_config1 = gpmc_read_reg(GPMC_PREFETCH_CONFIG1);
-	gpmc_context.prefetch_config2 = gpmc_read_reg(GPMC_PREFETCH_CONFIG2);
-	gpmc_context.prefetch_control = gpmc_read_reg(GPMC_PREFETCH_CONTROL);
-	for (i = 0; i < gpmc_cs_num; i++) {
-		gpmc_context.cs_context[i].is_valid = gpmc_cs_mem_enabled(i);
-		if (gpmc_context.cs_context[i].is_valid) {
-			gpmc_context.cs_context[i].config1 =
-				gpmc_cs_read_reg(i, GPMC_CS_CONFIG1);
-			gpmc_context.cs_context[i].config2 =
-				gpmc_cs_read_reg(i, GPMC_CS_CONFIG2);
-			gpmc_context.cs_context[i].config3 =
-				gpmc_cs_read_reg(i, GPMC_CS_CONFIG3);
-			gpmc_context.cs_context[i].config4 =
-				gpmc_cs_read_reg(i, GPMC_CS_CONFIG4);
-			gpmc_context.cs_context[i].config5 =
-				gpmc_cs_read_reg(i, GPMC_CS_CONFIG5);
-			gpmc_context.cs_context[i].config6 =
-				gpmc_cs_read_reg(i, GPMC_CS_CONFIG6);
-			gpmc_context.cs_context[i].config7 =
-				gpmc_cs_read_reg(i, GPMC_CS_CONFIG7);
-		}
-	}
-}
-
-void omap3_gpmc_restore_context(void)
-{
-	int i;
-
-	if (!gpmc_base)
-		return;
-
-	gpmc_write_reg(GPMC_SYSCONFIG, gpmc_context.sysconfig);
-	gpmc_write_reg(GPMC_IRQENABLE, gpmc_context.irqenable);
-	gpmc_write_reg(GPMC_TIMEOUT_CONTROL, gpmc_context.timeout_ctrl);
-	gpmc_write_reg(GPMC_CONFIG, gpmc_context.config);
-	gpmc_write_reg(GPMC_PREFETCH_CONFIG1, gpmc_context.prefetch_config1);
-	gpmc_write_reg(GPMC_PREFETCH_CONFIG2, gpmc_context.prefetch_config2);
-	gpmc_write_reg(GPMC_PREFETCH_CONTROL, gpmc_context.prefetch_control);
-	for (i = 0; i < gpmc_cs_num; i++) {
-		if (gpmc_context.cs_context[i].is_valid) {
-			gpmc_cs_write_reg(i, GPMC_CS_CONFIG1,
-				gpmc_context.cs_context[i].config1);
-			gpmc_cs_write_reg(i, GPMC_CS_CONFIG2,
-				gpmc_context.cs_context[i].config2);
-			gpmc_cs_write_reg(i, GPMC_CS_CONFIG3,
-				gpmc_context.cs_context[i].config3);
-			gpmc_cs_write_reg(i, GPMC_CS_CONFIG4,
-				gpmc_context.cs_context[i].config4);
-			gpmc_cs_write_reg(i, GPMC_CS_CONFIG5,
-				gpmc_context.cs_context[i].config5);
-			gpmc_cs_write_reg(i, GPMC_CS_CONFIG6,
-				gpmc_context.cs_context[i].config6);
-			gpmc_cs_write_reg(i, GPMC_CS_CONFIG7,
-				gpmc_context.cs_context[i].config7);
-		}
-	}
-}
+MODULE_DESCRIPTION("Texas Instruments GPMC driver");
+MODULE_LICENSE("GPL");

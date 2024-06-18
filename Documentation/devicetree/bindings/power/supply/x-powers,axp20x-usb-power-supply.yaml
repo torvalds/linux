@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/power/supply/x-powers,axp20x-usb-power-supply.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: AXP20x USB power-supply
+
+description: |
+  The AXP223 PMIC shares most of its behaviour with the AXP221 but has slight
+  variations such as the former being able to set the VBUS power supply max
+  current to 100mA, unlike the latter.
+
+maintainers:
+  - Chen-Yu Tsai <wens@csie.org>
+  - Sebastian Reichel <sre@kernel.org>
+
+allOf:
+  - $ref: power-supply.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - x-powers,axp192-usb-power-supply
+          - x-powers,axp202-usb-power-supply
+          - x-powers,axp221-usb-power-supply
+          - x-powers,axp223-usb-power-supply
+          - x-powers,axp813-usb-power-supply
+      - items:
+          - const: x-powers,axp803-usb-power-supply
+          - const: x-powers,axp813-usb-power-supply
+
+
+required:
+  - compatible
+
+additionalProperties: false

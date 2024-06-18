@@ -859,7 +859,7 @@ int dib3000mc_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 defa
 	int k;
 	u8 new_addr;
 
-	static u8 DIB3000MC_I2C_ADDRESS[] = {20,22,24,26};
+	static const u8 DIB3000MC_I2C_ADDRESS[] = { 20, 22, 24, 26 };
 
 	dmcst = kzalloc(sizeof(struct dib3000mc_state), GFP_KERNEL);
 	if (dmcst == NULL)
@@ -935,7 +935,7 @@ error:
 	kfree(st);
 	return NULL;
 }
-EXPORT_SYMBOL(dib3000mc_attach);
+EXPORT_SYMBOL_GPL(dib3000mc_attach);
 
 static const struct dvb_frontend_ops dib3000mc_ops = {
 	.delsys = { SYS_DVBT },

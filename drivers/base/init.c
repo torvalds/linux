@@ -8,6 +8,7 @@
 #include <linux/init.h>
 #include <linux/memory.h>
 #include <linux/of.h>
+#include <linux/backing-dev.h>
 
 #include "base.h"
 
@@ -20,6 +21,7 @@
 void __init driver_init(void)
 {
 	/* These are the core pieces */
+	bdi_init(&noop_backing_dev_info);
 	devtmpfs_init();
 	devices_init();
 	buses_init();
@@ -32,7 +34,9 @@ void __init driver_init(void)
 	 */
 	of_core_init();
 	platform_bus_init();
-	cpu_dev_init();
+	auxiliary_bus_init();
 	memory_dev_init();
+	node_dev_init();
+	cpu_dev_init();
 	container_dev_init();
 }

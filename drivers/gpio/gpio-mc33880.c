@@ -134,18 +134,14 @@ exit_destroy:
 	return ret;
 }
 
-static int mc33880_remove(struct spi_device *spi)
+static void mc33880_remove(struct spi_device *spi)
 {
 	struct mc33880 *mc;
 
 	mc = spi_get_drvdata(spi);
-	if (!mc)
-		return -ENODEV;
 
 	gpiochip_remove(&mc->chip);
 	mutex_destroy(&mc->lock);
-
-	return 0;
 }
 
 static struct spi_driver mc33880_driver = {
@@ -172,5 +168,6 @@ static void __exit mc33880_exit(void)
 module_exit(mc33880_exit);
 
 MODULE_AUTHOR("Mocean Laboratories <info@mocean-labs.com>");
+MODULE_DESCRIPTION("MC33880 high-side/low-side switch GPIO driver");
 MODULE_LICENSE("GPL v2");
 

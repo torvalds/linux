@@ -1,0 +1,166 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/i2c/renesas,rcar-i2c.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Renesas R-Car I2C Controller
+
+maintainers:
+  - Wolfram Sang <wsa+renesas@sang-engineering.com>
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - renesas,i2c-r8a7778      # R-Car M1A
+              - renesas,i2c-r8a7779      # R-Car H1
+          - const: renesas,rcar-gen1-i2c # R-Car Gen1
+
+      - items:
+          - enum:
+              - renesas,i2c-r8a7742      # RZ/G1H
+              - renesas,i2c-r8a7743      # RZ/G1M
+              - renesas,i2c-r8a7744      # RZ/G1N
+              - renesas,i2c-r8a7745      # RZ/G1E
+              - renesas,i2c-r8a77470     # RZ/G1C
+              - renesas,i2c-r8a7790      # R-Car H2
+              - renesas,i2c-r8a7791      # R-Car M2-W
+              - renesas,i2c-r8a7792      # R-Car V2H
+              - renesas,i2c-r8a7793      # R-Car M2-N
+              - renesas,i2c-r8a7794      # R-Car E2
+          - const: renesas,rcar-gen2-i2c # R-Car Gen2 and RZ/G1
+
+      - items:
+          - enum:
+              - renesas,i2c-r8a774a1     # RZ/G2M
+              - renesas,i2c-r8a774b1     # RZ/G2N
+              - renesas,i2c-r8a774c0     # RZ/G2E
+              - renesas,i2c-r8a774e1     # RZ/G2H
+              - renesas,i2c-r8a7795      # R-Car H3
+              - renesas,i2c-r8a7796      # R-Car M3-W
+              - renesas,i2c-r8a77961     # R-Car M3-W+
+              - renesas,i2c-r8a77965     # R-Car M3-N
+              - renesas,i2c-r8a77970     # R-Car V3M
+              - renesas,i2c-r8a77980     # R-Car V3H
+              - renesas,i2c-r8a77990     # R-Car E3
+              - renesas,i2c-r8a77995     # R-Car D3
+          - const: renesas,rcar-gen3-i2c # R-Car Gen3 and RZ/G2
+
+      - items:
+          - enum:
+              - renesas,i2c-r8a779a0     # R-Car V3U
+              - renesas,i2c-r8a779f0     # R-Car S4-8
+              - renesas,i2c-r8a779g0     # R-Car V4H
+              - renesas,i2c-r8a779h0     # R-Car V4M
+          - const: renesas,rcar-gen4-i2c # R-Car Gen4
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clock-frequency:
+    description:
+      Desired I2C bus clock frequency in Hz. The absence of this property
+      indicates the default frequency 100 kHz.
+
+  clocks:
+    maxItems: 1
+
+  power-domains:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+  dmas:
+    minItems: 2
+    maxItems: 4
+    description:
+      Must contain a list of pairs of references to DMA specifiers, one for
+      transmission, and one for reception.
+
+  dma-names:
+    minItems: 2
+    maxItems: 4
+    items:
+      enum:
+        - tx
+        - rx
+
+  i2c-scl-falling-time-ns:
+    default: 35
+    description:
+      Number of nanoseconds the SCL signal takes to fall; t(f) in the I2C
+      specification.
+
+  i2c-scl-internal-delay-ns:
+    default: 50
+    description:
+      Number of nanoseconds the IP core additionally needs to setup SCL.
+
+  i2c-scl-rising-time-ns:
+    default: 200
+    description:
+      Number of nanoseconds the SCL signal takes to rise; t(r) in the I2C
+      specification.
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - power-domains
+  - '#address-cells'
+  - '#size-cells'
+
+allOf:
+  - $ref: /schemas/i2c/i2c-controller.yaml#
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - renesas,rcar-gen1-i2c
+              - renesas,rcar-gen2-i2c
+    then:
+      properties:
+        dmas: false
+        dma-names: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - renesas,rcar-gen2-i2c
+              - renesas,rcar-gen3-i2c
+              - renesas,rcar-gen4-i2c
+    then:
+      required:
+        - resets
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/r8a7791-cpg-mssr.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/power/r8a7791-sysc.h>
+
+    i2c0: i2c@e6508000 {
+            #address-cells = <1>;
+            #size-cells = <0>;
+            compatible = "renesas,i2c-r8a7791", "renesas,rcar-gen2-i2c";
+            reg = <0xe6508000 0x40>;
+            interrupts = <GIC_SPI 287 IRQ_TYPE_LEVEL_HIGH>;
+            clock-frequency = <400000>;
+            clocks = <&cpg CPG_MOD 931>;
+            power-domains = <&sysc R8A7791_PD_ALWAYS_ON>;
+            resets = <&cpg 931>;
+            i2c-scl-internal-delay-ns = <6>;
+    };

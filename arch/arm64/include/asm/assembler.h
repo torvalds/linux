@@ -12,8 +12,11 @@
 #ifndef __ASM_ASSEMBLER_H
 #define __ASM_ASSEMBLER_H
 
-#include <asm-generic/export.h>
+#include <linux/export.h>
 
+#include <asm/alternative.h>
+#include <asm/asm-bug.h>
+#include <asm/asm-extable.h>
 #include <asm/asm-offsets.h>
 #include <asm/cpufeature.h>
 #include <asm/cputype.h>
@@ -23,32 +26,16 @@
 #include <asm/ptrace.h>
 #include <asm/thread_info.h>
 
-	.macro save_and_disable_daif, flags
-	mrs	\flags, daif
-	msr	daifset, #0xf
-	.endm
+	/*
+	 * Provide a wxN alias for each wN register so what we can paste a xN
+	 * reference after a 'w' to obtain the 32-bit version.
+	 */
+	.irp	n,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30
+	wx\n	.req	w\n
+	.endr
 
 	.macro disable_daif
 	msr	daifset, #0xf
-	.endm
-
-	.macro enable_daif
-	msr	daifclr, #0xf
-	.endm
-
-	.macro	restore_daif, flags:req
-	msr	daif, \flags
-	.endm
-
-	/* Only on aarch64 pstate, PSR_D_BIT is different for aarch32 */
-	.macro	inherit_daif, pstate:req, tmp:req
-	and	\tmp, \pstate, #(PSR_D_BIT | PSR_A_BIT | PSR_I_BIT | PSR_F_BIT)
-	msr	daif, \tmp
-	.endm
-
-	/* IRQ is the lowest priority flag, unconditionally unmask the rest. */
-	.macro enable_da_f
-	msr	daifclr, #(8 | 4 | 1)
 	.endm
 
 /*
@@ -56,15 +43,11 @@
  */
 	.macro	save_and_disable_irq, flags
 	mrs	\flags, daif
-	msr	daifset, #2
+	msr	daifset, #3
 	.endm
 
 	.macro	restore_irq, flags
 	msr	daif, \flags
-	.endm
-
-	.macro	enable_dbg
-	msr	daifclr, #8
 	.endm
 
 	.macro	disable_step_tsk, flgs, tmp
@@ -72,7 +55,7 @@
 	mrs	\tmp, mdscr_el1
 	bic	\tmp, \tmp, #DBG_MDSCR_SS
 	msr	mdscr_el1, \tmp
-	isb	// Synchronise with enable_dbg
+	isb	// Take effect before a subsequent clear of DAIF.D
 9990:
 	.endm
 
@@ -83,13 +66,6 @@
 	orr	\tmp, \tmp, #DBG_MDSCR_SS
 	msr	mdscr_el1, \tmp
 9990:
-	.endm
-
-/*
- * SMP data memory barrier
- */
-	.macro	smp_dmb, opt
-	dmb	\opt
 	.endm
 
 /*
@@ -108,6 +84,13 @@
  */
 	.macro	csdb
 	hint	#20
+	.endm
+
+/*
+ * Clear Branch History instruction
+ */
+	.macro clearbhb
+	hint	#22
 	.endm
 
 /*
@@ -131,20 +114,6 @@ alternative_endif
 	nop
 	.endr
 	.endm
-
-/*
- * Emit an entry into the exception table
- */
-	.macro		_asm_extable, from, to
-	.pushsection	__ex_table, "a"
-	.align		3
-	.long		(\from - .), (\to - .)
-	.popsection
-	.endm
-
-#define USER(l, x...)				\
-9999:	x;					\
-	_asm_extable	9999b, l
 
 /*
  * Register aliases.
@@ -232,6 +201,31 @@ lr	.req	x30		// link register
 	.endm
 
 	/*
+	 * @dst: destination register
+	 */
+#if defined(__KVM_NVHE_HYPERVISOR__) || defined(__KVM_VHE_HYPERVISOR__)
+	.macro	get_this_cpu_offset, dst
+	mrs	\dst, tpidr_el2
+	.endm
+#else
+	.macro	get_this_cpu_offset, dst
+alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
+	mrs	\dst, tpidr_el1
+alternative_else
+	mrs	\dst, tpidr_el2
+alternative_endif
+	.endm
+
+	.macro	set_this_cpu_offset, src
+alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
+	msr	tpidr_el1, \src
+alternative_else
+	msr	tpidr_el2, \src
+alternative_endif
+	.endm
+#endif
+
+	/*
 	 * @dst: Result of per_cpu(sym, smp_processor_id()) (can be SP)
 	 * @sym: The name of the per-cpu variable
 	 * @tmp: scratch register
@@ -239,11 +233,7 @@ lr	.req	x30		// link register
 	.macro adr_this_cpu, dst, sym, tmp
 	adrp	\tmp, \sym
 	add	\dst, \tmp, #:lo12:\sym
-alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
-	mrs	\tmp, tpidr_el1
-alternative_else
-	mrs	\tmp, tpidr_el2
-alternative_endif
+	get_this_cpu_offset \tmp
 	add	\dst, \dst, \tmp
 	.endm
 
@@ -254,11 +244,7 @@ alternative_endif
 	 */
 	.macro ldr_this_cpu dst, sym, tmp
 	adr_l	\dst, \sym
-alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
-	mrs	\tmp, tpidr_el1
-alternative_else
-	mrs	\tmp, tpidr_el2
-alternative_endif
+	get_this_cpu_offset \tmp
 	ldr	\dst, [\dst, \tmp]
 	.endm
 
@@ -270,22 +256,28 @@ alternative_endif
 	.endm
 
 /*
- * mmid - get context id from mm pointer (mm->context.id)
- */
-	.macro	mmid, rd, rn
-	ldr	\rd, [\rn, #MM_CONTEXT_ID]
-	.endm
-/*
  * read_ctr - read CTR_EL0. If the system has mismatched register fields,
  * provide the system wide safe value from arm64_ftr_reg_ctrel0.sys_val
  */
 	.macro	read_ctr, reg
+#ifndef __KVM_NVHE_HYPERVISOR__
 alternative_if_not ARM64_MISMATCHED_CACHE_TYPE
 	mrs	\reg, ctr_el0			// read CTR
 	nop
 alternative_else
 	ldr_l	\reg, arm64_ftr_reg_ctrel0 + ARM64_FTR_SYSVAL
 alternative_endif
+#else
+alternative_if_not ARM64_KVM_PROTECTED_MODE
+	ASM_BUG()
+alternative_else_nop_endif
+alternative_cb ARM64_ALWAYS_SYSTEM, kvm_compute_final_ctr_el0
+	movz	\reg, #0
+	movk	\reg, #0, lsl #16
+	movk	\reg, #0, lsl #32
+	movk	\reg, #0, lsl #48
+alternative_cb_end
+#endif
 	.endm
 
 
@@ -356,58 +348,76 @@ alternative_endif
 	.macro	tcr_compute_pa_size, tcr, pos, tmp0, tmp1
 	mrs	\tmp0, ID_AA64MMFR0_EL1
 	// Narrow PARange to fit the PS field in TCR_ELx
-	ubfx	\tmp0, \tmp0, #ID_AA64MMFR0_PARANGE_SHIFT, #3
-	mov	\tmp1, #ID_AA64MMFR0_PARANGE_MAX
+	ubfx	\tmp0, \tmp0, #ID_AA64MMFR0_EL1_PARANGE_SHIFT, #3
+	mov	\tmp1, #ID_AA64MMFR0_EL1_PARANGE_MAX
 	cmp	\tmp0, \tmp1
 	csel	\tmp0, \tmp1, \tmp0, hi
 	bfi	\tcr, \tmp0, \pos, #3
 	.endm
 
-/*
- * Macro to perform a data cache maintenance for the interval
- * [kaddr, kaddr + size)
- *
- * 	op:		operation passed to dc instruction
- * 	domain:		domain used in dsb instruciton
- * 	kaddr:		starting virtual address of the region
- * 	size:		size of the region
- * 	Corrupts:	kaddr, size, tmp1, tmp2
- */
-	.macro __dcache_op_workaround_clean_cache, op, kaddr
+	.macro __dcache_op_workaround_clean_cache, op, addr
 alternative_if_not ARM64_WORKAROUND_CLEAN_CACHE
-	dc	\op, \kaddr
+	dc	\op, \addr
 alternative_else
-	dc	civac, \kaddr
+	dc	civac, \addr
 alternative_endif
 	.endm
 
-	.macro dcache_by_line_op op, domain, kaddr, size, tmp1, tmp2
-	dcache_line_size \tmp1, \tmp2
-	add	\size, \kaddr, \size
-	sub	\tmp2, \tmp1, #1
-	bic	\kaddr, \kaddr, \tmp2
-9998:
+/*
+ * Macro to perform a data cache maintenance for the interval
+ * [start, end) with dcache line size explicitly provided.
+ *
+ * 	op:		operation passed to dc instruction
+ * 	domain:		domain used in dsb instruciton
+ * 	start:          starting virtual address of the region
+ * 	end:            end virtual address of the region
+ *	linesz:		dcache line size
+ * 	fixup:		optional label to branch to on user fault
+ * 	Corrupts:       start, end, tmp
+ */
+	.macro dcache_by_myline_op op, domain, start, end, linesz, tmp, fixup
+	sub	\tmp, \linesz, #1
+	bic	\start, \start, \tmp
+.Ldcache_op\@:
 	.ifc	\op, cvau
-	__dcache_op_workaround_clean_cache \op, \kaddr
+	__dcache_op_workaround_clean_cache \op, \start
 	.else
 	.ifc	\op, cvac
-	__dcache_op_workaround_clean_cache \op, \kaddr
+	__dcache_op_workaround_clean_cache \op, \start
 	.else
 	.ifc	\op, cvap
-	sys	3, c7, c12, 1, \kaddr	// dc cvap
+	sys	3, c7, c12, 1, \start	// dc cvap
 	.else
 	.ifc	\op, cvadp
-	sys	3, c7, c13, 1, \kaddr	// dc cvadp
+	sys	3, c7, c13, 1, \start	// dc cvadp
 	.else
-	dc	\op, \kaddr
+	dc	\op, \start
 	.endif
 	.endif
 	.endif
 	.endif
-	add	\kaddr, \kaddr, \tmp1
-	cmp	\kaddr, \size
-	b.lo	9998b
+	add	\start, \start, \linesz
+	cmp	\start, \end
+	b.lo	.Ldcache_op\@
 	dsb	\domain
+
+	_cond_uaccess_extable .Ldcache_op\@, \fixup
+	.endm
+
+/*
+ * Macro to perform a data cache maintenance for the interval
+ * [start, end)
+ *
+ * 	op:		operation passed to dc instruction
+ * 	domain:		domain used in dsb instruciton
+ * 	start:          starting virtual address of the region
+ * 	end:            end virtual address of the region
+ * 	fixup:		optional label to branch to on user fault
+ * 	Corrupts:       start, end, tmp1, tmp2
+ */
+	.macro dcache_by_line_op op, domain, start, end, tmp1, tmp2, fixup
+	dcache_line_size \tmp1, \tmp2
+	dcache_by_myline_op \op, \domain, \start, \end, \tmp1, \tmp2, \fixup
 	.endm
 
 /*
@@ -415,20 +425,50 @@ alternative_endif
  * [start, end)
  *
  * 	start, end:	virtual addresses describing the region
- *	label:		A label to branch to on user fault.
+ *	fixup:		optional label to branch to on user fault
  * 	Corrupts:	tmp1, tmp2
  */
-	.macro invalidate_icache_by_line start, end, tmp1, tmp2, label
+	.macro invalidate_icache_by_line start, end, tmp1, tmp2, fixup
 	icache_line_size \tmp1, \tmp2
 	sub	\tmp2, \tmp1, #1
 	bic	\tmp2, \start, \tmp2
-9997:
-USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
+.Licache_op\@:
+	ic	ivau, \tmp2			// invalidate I line PoU
 	add	\tmp2, \tmp2, \tmp1
 	cmp	\tmp2, \end
-	b.lo	9997b
+	b.lo	.Licache_op\@
 	dsb	ish
 	isb
+
+	_cond_uaccess_extable .Licache_op\@, \fixup
+	.endm
+
+/*
+ * load_ttbr1 - install @pgtbl as a TTBR1 page table
+ * pgtbl preserved
+ * tmp1/tmp2 clobbered, either may overlap with pgtbl
+ */
+	.macro		load_ttbr1, pgtbl, tmp1, tmp2
+	phys_to_ttbr	\tmp1, \pgtbl
+	offset_ttbr1 	\tmp1, \tmp2
+	msr		ttbr1_el1, \tmp1
+	isb
+	.endm
+
+/*
+ * To prevent the possibility of old and new partial table walks being visible
+ * in the tlb, switch the ttbr to a zero page when we invalidate the old
+ * records. D4.7.1 'General TLB maintenance requirements' in ARM DDI 0487A.i
+ * Even switching to our copied tables will cause a changed output address at
+ * each stage of the walk.
+ */
+	.macro break_before_make_ttbr_switch zero_page, page_table, tmp, tmp2
+	phys_to_ttbr \tmp, \zero_page
+	msr	ttbr1_el1, \tmp
+	isb
+	tlbi	vmalle1
+	dsb	nsh
+	load_ttbr1 \page_table, \tmp, \tmp2
 	.endm
 
 /*
@@ -436,13 +476,24 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
  */
 	.macro	reset_pmuserenr_el0, tmpreg
 	mrs	\tmpreg, id_aa64dfr0_el1
-	sbfx	\tmpreg, \tmpreg, #ID_AA64DFR0_PMUVER_SHIFT, #4
-	cmp	\tmpreg, #1			// Skip if no PMU present
-	b.lt	9000f
+	ubfx	\tmpreg, \tmpreg, #ID_AA64DFR0_EL1_PMUVer_SHIFT, #4
+	cmp	\tmpreg, #ID_AA64DFR0_EL1_PMUVer_NI
+	ccmp	\tmpreg, #ID_AA64DFR0_EL1_PMUVer_IMP_DEF, #4, ne
+	b.eq	9000f				// Skip if no PMU present or IMP_DEF
 	msr	pmuserenr_el0, xzr		// Disable PMU access from EL0
 9000:
 	.endm
 
+/*
+ * reset_amuserenr_el0 - reset AMUSERENR_EL0 if AMUv1 present
+ */
+	.macro	reset_amuserenr_el0, tmpreg
+	mrs	\tmpreg, id_aa64pfr0_el1	// Check ID_AA64PFR0_EL1
+	ubfx	\tmpreg, \tmpreg, #ID_AA64PFR0_EL1_AMU_SHIFT, #4
+	cbz	\tmpreg, .Lskip_\@		// Skip if no AMU present
+	msr_s	SYS_AMUSERENR_EL0, xzr		// Disable AMU access from EL0
+.Lskip_\@:
+	.endm
 /*
  * copy_page - copy src to dest using temp registers t1-t8
  */
@@ -462,17 +513,6 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
 	.endm
 
 /*
- * Annotate a function as position independent, i.e., safe to be called before
- * the kernel virtual mapping is activated.
- */
-#define ENDPIPROC(x)			\
-	.globl	__pi_##x;		\
-	.type 	__pi_##x, %function;	\
-	.set	__pi_##x, x;		\
-	.size	__pi_##x, . - x;	\
-	ENDPROC(x)
-
-/*
  * Annotate a function as being unsuitable for kprobes.
  */
 #ifdef CONFIG_KPROBES
@@ -484,7 +524,7 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
 #define NOKPROBE(x)
 #endif
 
-#ifdef CONFIG_KASAN
+#if defined(CONFIG_KASAN_GENERIC) || defined(CONFIG_KASAN_SW_TAGS)
 #define EXPORT_SYMBOL_NOKASAN(name)
 #else
 #define EXPORT_SYMBOL_NOKASAN(name)	EXPORT_SYMBOL(name)
@@ -529,29 +569,27 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
 	.endm
 
 /*
- * Offset ttbr1 to allow for 48-bit kernel VAs set with 52-bit PTRS_PER_PGD.
+ * If the kernel is built for 52-bit virtual addressing but the hardware only
+ * supports 48 bits, we cannot program the pgdir address into TTBR1 directly,
+ * but we have to add an offset so that the TTBR1 address corresponds with the
+ * pgdir entry that covers the lowest 48-bit addressable VA.
+ *
+ * Note that this trick is only used for LVA/64k pages - LPA2/4k pages uses an
+ * additional paging level, and on LPA2/16k pages, we would end up with a root
+ * level table with only 2 entries, which is suboptimal in terms of TLB
+ * utilization, so there we fall back to 47 bits of translation if LPA2 is not
+ * supported.
+ *
  * orr is used as it can cover the immediate value (and is idempotent).
- * In future this may be nop'ed out when dealing with 52-bit kernel VAs.
  * 	ttbr: Value of ttbr to set, modified.
  */
 	.macro	offset_ttbr1, ttbr, tmp
-#ifdef CONFIG_ARM64_VA_BITS_52
-	mrs_s	\tmp, SYS_ID_AA64MMFR2_EL1
-	and	\tmp, \tmp, #(0xf << ID_AA64MMFR2_LVA_SHIFT)
-	cbnz	\tmp, .Lskipoffs_\@
-	orr	\ttbr, \ttbr, #TTBR1_BADDR_4852_OFFSET
-.Lskipoffs_\@ :
-#endif
-	.endm
-
-/*
- * Perform the reverse of offset_ttbr1.
- * bic is used as it can cover the immediate value and, in future, won't need
- * to be nop'ed out when dealing with 52-bit kernel VAs.
- */
-	.macro	restore_ttbr1, ttbr
-#ifdef CONFIG_ARM64_VA_BITS_52
-	bic	\ttbr, \ttbr, #TTBR1_BADDR_4852_OFFSET
+#if defined(CONFIG_ARM64_VA_BITS_52) && !defined(CONFIG_ARM64_LPA2)
+	mrs	\tmp, tcr_el1
+	and	\tmp, \tmp, #TCR_T1SZ_MASK
+	cmp	\tmp, #TCR_T1SZ(VA_BITS_MIN)
+	orr	\tmp, \ttbr, #TTBR1_BADDR_4852_OFFSET
+	csel	\ttbr, \tmp, \ttbr, eq
 #endif
 	.endm
 
@@ -573,24 +611,10 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
 
 	.macro	phys_to_pte, pte, phys
 #ifdef CONFIG_ARM64_PA_BITS_52
-	/*
-	 * We assume \phys is 64K aligned and this is guaranteed by only
-	 * supporting this configuration with 64K pages.
-	 */
-	orr	\pte, \phys, \phys, lsr #36
-	and	\pte, \pte, #PTE_ADDR_MASK
+	orr	\pte, \phys, \phys, lsr #PTE_ADDR_HIGH_SHIFT
+	and	\pte, \pte, #PHYS_TO_PTE_ADDR_MASK
 #else
 	mov	\pte, \phys
-#endif
-	.endm
-
-	.macro	pte_to_phys, phys, pte
-#ifdef CONFIG_ARM64_PA_BITS_52
-	ubfiz	\phys, \pte, #(48 - 16 - 12), #16
-	bfxil	\phys, \pte, #16, #32
-	lsl	\phys, \phys, #16
-#else
-	and	\phys, \pte, #PTE_ADDR_MASK
 #endif
 	.endm
 
@@ -687,73 +711,156 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
 	.endm
 
 /*
- * Check whether to yield to another runnable task from kernel mode NEON code
- * (which runs with preemption disabled).
- *
- * if_will_cond_yield_neon
- *        // pre-yield patchup code
- * do_cond_yield_neon
- *        // post-yield patchup code
- * endif_yield_neon    <label>
- *
- * where <label> is optional, and marks the point where execution will resume
- * after a yield has been performed. If omitted, execution resumes right after
- * the endif_yield_neon invocation. Note that the entire sequence, including
- * the provided patchup code, will be omitted from the image if CONFIG_PREEMPT
- * is not defined.
- *
- * As a convenience, in the case where no patchup code is required, the above
- * sequence may be abbreviated to
- *
- * cond_yield_neon <label>
- *
- * Note that the patchup code does not support assembler directives that change
- * the output section, any use of such directives is undefined.
- *
- * The yield itself consists of the following:
- * - Check whether the preempt count is exactly 1 and a reschedule is also
- *   needed. If so, calling of preempt_enable() in kernel_neon_end() will
- *   trigger a reschedule. If it is not the case, yielding is pointless.
- * - Disable and re-enable kernel mode NEON, and branch to the yield fixup
- *   code.
- *
- * This macro sequence may clobber all CPU state that is not guaranteed by the
- * AAPCS to be preserved across an ordinary function call.
+ * Set SCTLR_ELx to the @reg value, and invalidate the local icache
+ * in the process. This is called when setting the MMU on.
  */
+.macro set_sctlr, sreg, reg
+	msr	\sreg, \reg
+	isb
+	/*
+	 * Invalidate the local I-cache so that any instructions fetched
+	 * speculatively from the PoC are discarded, since they may have
+	 * been dynamically patched at the PoU.
+	 */
+	ic	iallu
+	dsb	nsh
+	isb
+.endm
 
-	.macro		cond_yield_neon, lbl
-	if_will_cond_yield_neon
-	do_cond_yield_neon
-	endif_yield_neon	\lbl
-	.endm
+.macro set_sctlr_el1, reg
+	set_sctlr sctlr_el1, \reg
+.endm
 
-	.macro		if_will_cond_yield_neon
-#ifdef CONFIG_PREEMPT
-	get_current_task	x0
-	ldr		x0, [x0, #TSK_TI_PREEMPT]
-	sub		x0, x0, #PREEMPT_DISABLE_OFFSET
-	cbz		x0, .Lyield_\@
-	/* fall through to endif_yield_neon */
-	.subsection	1
-.Lyield_\@ :
-#else
-	.section	".discard.cond_yield_neon", "ax"
+.macro set_sctlr_el2, reg
+	set_sctlr sctlr_el2, \reg
+.endm
+
+	/*
+	 * Check whether asm code should yield as soon as it is able. This is
+	 * the case if we are currently running in task context, and the
+	 * TIF_NEED_RESCHED flag is set. (Note that the TIF_NEED_RESCHED flag
+	 * is stored negated in the top word of the thread_info::preempt_count
+	 * field)
+	 */
+	.macro		cond_yield, lbl:req, tmp:req, tmp2
+#ifdef CONFIG_PREEMPT_VOLUNTARY
+	get_current_task \tmp
+	ldr		\tmp, [\tmp, #TSK_TI_PREEMPT]
+	/*
+	 * If we are serving a softirq, there is no point in yielding: the
+	 * softirq will not be preempted no matter what we do, so we should
+	 * run to completion as quickly as we can. The preempt_count field will
+	 * have BIT(SOFTIRQ_SHIFT) set in this case, so the zero check will
+	 * catch this case too.
+	 */
+	cbz		\tmp, \lbl
 #endif
 	.endm
 
-	.macro		do_cond_yield_neon
-	bl		kernel_neon_end
-	bl		kernel_neon_begin
+/*
+ * Branch Target Identifier (BTI)
+ */
+	.macro  bti, targets
+	.equ	.L__bti_targets_c, 34
+	.equ	.L__bti_targets_j, 36
+	.equ	.L__bti_targets_jc,38
+	hint	#.L__bti_targets_\targets
 	.endm
 
-	.macro		endif_yield_neon, lbl
-	.ifnb		\lbl
-	b		\lbl
-	.else
-	b		.Lyield_out_\@
-	.endif
-	.previous
-.Lyield_out_\@ :
+/*
+ * This macro emits a program property note section identifying
+ * architecture features which require special handling, mainly for
+ * use in assembly files included in the VDSO.
+ */
+
+#define NT_GNU_PROPERTY_TYPE_0  5
+#define GNU_PROPERTY_AARCH64_FEATURE_1_AND      0xc0000000
+
+#define GNU_PROPERTY_AARCH64_FEATURE_1_BTI      (1U << 0)
+#define GNU_PROPERTY_AARCH64_FEATURE_1_PAC      (1U << 1)
+
+#ifdef CONFIG_ARM64_BTI_KERNEL
+#define GNU_PROPERTY_AARCH64_FEATURE_1_DEFAULT		\
+		((GNU_PROPERTY_AARCH64_FEATURE_1_BTI |	\
+		  GNU_PROPERTY_AARCH64_FEATURE_1_PAC))
+#endif
+
+#ifdef GNU_PROPERTY_AARCH64_FEATURE_1_DEFAULT
+.macro emit_aarch64_feature_1_and, feat=GNU_PROPERTY_AARCH64_FEATURE_1_DEFAULT
+	.pushsection .note.gnu.property, "a"
+	.align  3
+	.long   2f - 1f
+	.long   6f - 3f
+	.long   NT_GNU_PROPERTY_TYPE_0
+1:      .string "GNU"
+2:
+	.align  3
+3:      .long   GNU_PROPERTY_AARCH64_FEATURE_1_AND
+	.long   5f - 4f
+4:
+	/*
+	 * This is described with an array of char in the Linux API
+	 * spec but the text and all other usage (including binutils,
+	 * clang and GCC) treat this as a 32 bit value so no swizzling
+	 * is required for big endian.
+	 */
+	.long   \feat
+5:
+	.align  3
+6:
+	.popsection
+.endm
+
+#else
+.macro emit_aarch64_feature_1_and, feat=0
+.endm
+
+#endif /* GNU_PROPERTY_AARCH64_FEATURE_1_DEFAULT */
+
+	.macro __mitigate_spectre_bhb_loop      tmp
+#ifdef CONFIG_MITIGATE_SPECTRE_BRANCH_HISTORY
+alternative_cb ARM64_ALWAYS_SYSTEM, spectre_bhb_patch_loop_iter
+	mov	\tmp, #32		// Patched to correct the immediate
+alternative_cb_end
+.Lspectre_bhb_loop\@:
+	b	. + 4
+	subs	\tmp, \tmp, #1
+	b.ne	.Lspectre_bhb_loop\@
+	sb
+#endif /* CONFIG_MITIGATE_SPECTRE_BRANCH_HISTORY */
 	.endm
 
+	.macro mitigate_spectre_bhb_loop	tmp
+#ifdef CONFIG_MITIGATE_SPECTRE_BRANCH_HISTORY
+alternative_cb ARM64_ALWAYS_SYSTEM, spectre_bhb_patch_loop_mitigation_enable
+	b	.L_spectre_bhb_loop_done\@	// Patched to NOP
+alternative_cb_end
+	__mitigate_spectre_bhb_loop	\tmp
+.L_spectre_bhb_loop_done\@:
+#endif /* CONFIG_MITIGATE_SPECTRE_BRANCH_HISTORY */
+	.endm
+
+	/* Save/restores x0-x3 to the stack */
+	.macro __mitigate_spectre_bhb_fw
+#ifdef CONFIG_MITIGATE_SPECTRE_BRANCH_HISTORY
+	stp	x0, x1, [sp, #-16]!
+	stp	x2, x3, [sp, #-16]!
+	mov	w0, #ARM_SMCCC_ARCH_WORKAROUND_3
+alternative_cb ARM64_ALWAYS_SYSTEM, smccc_patch_fw_mitigation_conduit
+	nop					// Patched to SMC/HVC #0
+alternative_cb_end
+	ldp	x2, x3, [sp], #16
+	ldp	x0, x1, [sp], #16
+#endif /* CONFIG_MITIGATE_SPECTRE_BRANCH_HISTORY */
+	.endm
+
+	.macro mitigate_spectre_bhb_clear_insn
+#ifdef CONFIG_MITIGATE_SPECTRE_BRANCH_HISTORY
+alternative_cb ARM64_ALWAYS_SYSTEM, spectre_bhb_patch_clearbhb
+	/* Patched to NOP when not supported */
+	clearbhb
+	isb
+alternative_cb_end
+#endif /* CONFIG_MITIGATE_SPECTRE_BRANCH_HISTORY */
+	.endm
 #endif	/* __ASM_ASSEMBLER_H */

@@ -1,0 +1,246 @@
+# SPDX-License-Identifier: GPL-2.0
+
+# Ignore header name
+ignore define _DVBFRONTEND_H_
+
+# Group layer A-C symbols together
+replace define DTV_ISDBT_LAYERA_FEC dtv-isdbt-layer-fec
+replace define DTV_ISDBT_LAYERB_FEC dtv-isdbt-layer-fec
+replace define DTV_ISDBT_LAYERC_FEC dtv-isdbt-layer-fec
+replace define DTV_ISDBT_LAYERA_MODULATION dtv-isdbt-layer-modulation
+replace define DTV_ISDBT_LAYERB_MODULATION dtv-isdbt-layer-modulation
+replace define DTV_ISDBT_LAYERC_MODULATION dtv-isdbt-layer-modulation
+replace define DTV_ISDBT_LAYERA_SEGMENT_COUNT dtv-isdbt-layer-segment-count
+replace define DTV_ISDBT_LAYERB_SEGMENT_COUNT dtv-isdbt-layer-segment-count
+replace define DTV_ISDBT_LAYERC_SEGMENT_COUNT dtv-isdbt-layer-segment-count
+replace define DTV_ISDBT_LAYERA_TIME_INTERLEAVING dtv-isdbt-layer-time-interleaving
+replace define DTV_ISDBT_LAYERB_TIME_INTERLEAVING dtv-isdbt-layer-time-interleaving
+replace define DTV_ISDBT_LAYERC_TIME_INTERLEAVING dtv-isdbt-layer-time-interleaving
+
+# Ignore legacy defines
+ignore define DTV_ISDBS_TS_ID_LEGACY
+ignore define SYS_DVBC_ANNEX_AC
+ignore define SYS_DMBTH
+
+# Ignore limits
+ignore define DTV_MAX_COMMAND
+ignore define MAX_DTV_STATS
+ignore define DTV_IOCTL_MAX_MSGS
+
+# the same reference is used for both get and set ioctls
+replace ioctl FE_SET_PROPERTY :c:type:`FE_GET_PROPERTY`
+
+# Typedefs that use the enum reference
+replace typedef fe_sec_voltage_t :c:type:`fe_sec_voltage`
+
+# Replaces for flag constants
+replace define FE_TUNE_MODE_ONESHOT :c:func:`FE_SET_FRONTEND_TUNE_MODE`
+replace define LNA_AUTO dtv-lna
+replace define NO_STREAM_ID_FILTER dtv-stream-id
+
+# Those enums are defined at the frontend.h header, and not externally
+
+ignore symbol FE_IS_STUPID
+ignore symbol FE_CAN_INVERSION_AUTO
+ignore symbol FE_CAN_FEC_1_2
+ignore symbol FE_CAN_FEC_2_3
+ignore symbol FE_CAN_FEC_3_4
+ignore symbol FE_CAN_FEC_4_5
+ignore symbol FE_CAN_FEC_5_6
+ignore symbol FE_CAN_FEC_6_7
+ignore symbol FE_CAN_FEC_7_8
+ignore symbol FE_CAN_FEC_8_9
+ignore symbol FE_CAN_FEC_AUTO
+ignore symbol FE_CAN_QPSK
+ignore symbol FE_CAN_QAM_16
+ignore symbol FE_CAN_QAM_32
+ignore symbol FE_CAN_QAM_64
+ignore symbol FE_CAN_QAM_128
+ignore symbol FE_CAN_QAM_256
+ignore symbol FE_CAN_QAM_AUTO
+ignore symbol FE_CAN_TRANSMISSION_MODE_AUTO
+ignore symbol FE_CAN_BANDWIDTH_AUTO
+ignore symbol FE_CAN_GUARD_INTERVAL_AUTO
+ignore symbol FE_CAN_HIERARCHY_AUTO
+ignore symbol FE_CAN_8VSB
+ignore symbol FE_CAN_16VSB
+ignore symbol FE_HAS_EXTENDED_CAPS
+ignore symbol FE_CAN_MULTISTREAM
+ignore symbol FE_CAN_TURBO_FEC
+ignore symbol FE_CAN_2G_MODULATION
+ignore symbol FE_NEEDS_BENDING
+ignore symbol FE_CAN_RECOVER
+ignore symbol FE_CAN_MUTE_TS
+
+ignore symbol QPSK
+ignore symbol QAM_16
+ignore symbol QAM_32
+ignore symbol QAM_64
+ignore symbol QAM_128
+ignore symbol QAM_256
+ignore symbol QAM_AUTO
+ignore symbol VSB_8
+ignore symbol VSB_16
+ignore symbol PSK_8
+ignore symbol APSK_16
+ignore symbol APSK_32
+ignore symbol DQPSK
+ignore symbol QAM_4_NR
+ignore symbol QAM_1024
+ignore symbol QAM_4096
+ignore symbol APSK_8_L
+ignore symbol APSK_16_L
+ignore symbol APSK_32_L
+ignore symbol APSK_64
+ignore symbol APSK_64_L
+
+ignore symbol SEC_VOLTAGE_13
+ignore symbol SEC_VOLTAGE_18
+ignore symbol SEC_VOLTAGE_OFF
+
+ignore symbol SEC_TONE_ON
+ignore symbol SEC_TONE_OFF
+
+ignore symbol SEC_MINI_A
+ignore symbol SEC_MINI_B
+
+ignore symbol FE_NONE
+ignore symbol FE_HAS_SIGNAL
+ignore symbol FE_HAS_CARRIER
+ignore symbol FE_HAS_VITERBI
+ignore symbol FE_HAS_SYNC
+ignore symbol FE_HAS_LOCK
+ignore symbol FE_REINIT
+ignore symbol FE_TIMEDOUT
+
+ignore symbol FEC_NONE
+ignore symbol FEC_1_2
+ignore symbol FEC_2_3
+ignore symbol FEC_3_4
+ignore symbol FEC_4_5
+ignore symbol FEC_5_6
+ignore symbol FEC_6_7
+ignore symbol FEC_7_8
+ignore symbol FEC_8_9
+ignore symbol FEC_AUTO
+ignore symbol FEC_3_5
+ignore symbol FEC_9_10
+ignore symbol FEC_2_5
+ignore symbol FEC_1_3
+ignore symbol FEC_1_4
+ignore symbol FEC_5_9
+ignore symbol FEC_7_9
+ignore symbol FEC_8_15
+ignore symbol FEC_11_15
+ignore symbol FEC_13_18
+ignore symbol FEC_9_20
+ignore symbol FEC_11_20
+ignore symbol FEC_23_36
+ignore symbol FEC_25_36
+ignore symbol FEC_13_45
+ignore symbol FEC_26_45
+ignore symbol FEC_28_45
+ignore symbol FEC_32_45
+ignore symbol FEC_77_90
+ignore symbol FEC_11_45
+ignore symbol FEC_4_15
+ignore symbol FEC_14_45
+ignore symbol FEC_7_15
+
+ignore symbol TRANSMISSION_MODE_AUTO
+ignore symbol TRANSMISSION_MODE_1K
+ignore symbol TRANSMISSION_MODE_2K
+ignore symbol TRANSMISSION_MODE_8K
+ignore symbol TRANSMISSION_MODE_4K
+ignore symbol TRANSMISSION_MODE_16K
+ignore symbol TRANSMISSION_MODE_32K
+ignore symbol TRANSMISSION_MODE_C1
+ignore symbol TRANSMISSION_MODE_C3780
+ignore symbol TRANSMISSION_MODE_2K
+ignore symbol TRANSMISSION_MODE_8K
+
+ignore symbol GUARD_INTERVAL_AUTO
+ignore symbol GUARD_INTERVAL_1_128
+ignore symbol GUARD_INTERVAL_1_32
+ignore symbol GUARD_INTERVAL_1_16
+ignore symbol GUARD_INTERVAL_1_8
+ignore symbol GUARD_INTERVAL_1_4
+ignore symbol GUARD_INTERVAL_19_128
+ignore symbol GUARD_INTERVAL_19_256
+ignore symbol GUARD_INTERVAL_PN420
+ignore symbol GUARD_INTERVAL_PN595
+ignore symbol GUARD_INTERVAL_PN945
+ignore symbol GUARD_INTERVAL_1_64
+
+ignore symbol HIERARCHY_NONE
+ignore symbol HIERARCHY_AUTO
+ignore symbol HIERARCHY_1
+ignore symbol HIERARCHY_2
+ignore symbol HIERARCHY_4
+
+ignore symbol INTERLEAVING_NONE
+ignore symbol INTERLEAVING_AUTO
+ignore symbol INTERLEAVING_240
+ignore symbol INTERLEAVING_720
+
+ignore symbol PILOT_ON
+ignore symbol PILOT_OFF
+ignore symbol PILOT_AUTO
+
+ignore symbol ROLLOFF_35
+ignore symbol ROLLOFF_20
+ignore symbol ROLLOFF_25
+ignore symbol ROLLOFF_AUTO
+ignore symbol ROLLOFF_15
+ignore symbol ROLLOFF_10
+ignore symbol ROLLOFF_5
+
+ignore symbol INVERSION_ON
+ignore symbol INVERSION_OFF
+ignore symbol INVERSION_AUTO
+
+ignore symbol SYS_UNDEFINED
+ignore symbol SYS_DVBC_ANNEX_A
+ignore symbol SYS_DVBC_ANNEX_B
+ignore symbol SYS_DVBC_ANNEX_C
+ignore symbol SYS_ISDBC
+ignore symbol SYS_DVBT
+ignore symbol SYS_DVBT2
+ignore symbol SYS_ISDBT
+ignore symbol SYS_ATSC
+ignore symbol SYS_ATSCMH
+ignore symbol SYS_DTMB
+ignore symbol SYS_DVBS
+ignore symbol SYS_DVBS2
+ignore symbol SYS_TURBO
+ignore symbol SYS_ISDBS
+ignore symbol SYS_DAB
+ignore symbol SYS_DSS
+ignore symbol SYS_CMMB
+ignore symbol SYS_DVBH
+ignore symbol SYS_DVBC2
+
+ignore symbol ATSCMH_SCCC_BLK_SEP
+ignore symbol ATSCMH_SCCC_BLK_COMB
+ignore symbol ATSCMH_SCCC_BLK_RES
+
+ignore symbol ATSCMH_SCCC_CODE_HLF
+ignore symbol ATSCMH_SCCC_CODE_QTR
+ignore symbol ATSCMH_SCCC_CODE_RES
+
+ignore symbol ATSCMH_RSFRAME_ENS_PRI
+ignore symbol ATSCMH_RSFRAME_ENS_SEC
+
+ignore symbol ATSCMH_RSFRAME_PRI_ONLY
+ignore symbol ATSCMH_RSFRAME_PRI_SEC
+ignore symbol ATSCMH_RSFRAME_RES
+
+ignore symbol ATSCMH_RSCODE_211_187
+ignore symbol ATSCMH_RSCODE_223_187
+ignore symbol ATSCMH_RSCODE_235_187
+ignore symbol ATSCMH_RSCODE_RES
+
+ignore symbol FE_SCALE_NOT_AVAILABLE
+ignore symbol FE_SCALE_DECIBEL
+ignore symbol FE_SCALE_RELATIVE
+ignore symbol FE_SCALE_COUNTER

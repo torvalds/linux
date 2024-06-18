@@ -80,7 +80,13 @@ Supported chips:
 
     Datasheet: Available from Nuvoton upon request
 
+  * Nuvoton NCT6796D-S/NCT6799D-R
 
+    Prefix: 'nct6799'
+
+    Addresses scanned: ISA address retrieved from Super I/O registers
+
+    Datasheet: Available from Nuvoton upon request
 
 Authors:
 
@@ -276,5 +282,8 @@ temperature measurement device. As a result, the temperature reported on CPUTIN
 will not reflect a usable value. It often reports unreasonably high
 temperatures, and in some cases the reported temperature declines if the actual
 temperature increases (similar to the raw PECI temperature value - see PECI
-specification for details). CPUTIN should therefore be be ignored on ASUS
-boards. The CPU temperature on ASUS boards is reported from PECI 0.
+specification for details). CPUTIN should therefore be ignored on ASUS
+boards. The CPU temperature on ASUS boards is reported from PECI 0 or TSI 0.
+
+NCT6796D-S and NCT6799D-R chips are very similar and their chip_id indicates
+they are different versions. This driver treats them the same way.

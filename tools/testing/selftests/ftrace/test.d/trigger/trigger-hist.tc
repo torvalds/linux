@@ -1,6 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: event trigger - test histogram trigger
+# requires: set_event events/sched/sched_process_fork/trigger events/sched/sched_process_fork/hist
 # flags: instance
 
 fail() { #msg
@@ -8,22 +9,7 @@ fail() { #msg
     exit_fail
 }
 
-if [ ! -f set_event -o ! -d events/sched ]; then
-    echo "event tracing is not supported"
-    exit_unsupported
-fi
-
-if [ ! -f events/sched/sched_process_fork/trigger ]; then
-    echo "event trigger is not supported"
-    exit_unsupported
-fi
-
-if [ ! -f events/sched/sched_process_fork/hist ]; then
-    echo "hist trigger is not supported"
-    exit_unsupported
-fi
-
-echo "Test histogram basic tigger"
+echo "Test histogram basic trigger"
 
 echo 'hist:keys=parent_pid:vals=child_pid' > events/sched/sched_process_fork/trigger
 for i in `seq 1 10` ; do ( echo "forked" > /dev/null); done
@@ -50,6 +36,24 @@ for i in `seq 1 10` ; do ( echo "forked" > /dev/null); done
 COMM=`cat /proc/$$/comm`
 grep "parent_comm: $COMM" events/sched/sched_process_fork/hist > /dev/null || \
     fail "string key on sched_process_fork did not work"
+
+reset_trigger
+
+echo "Test histogram with sym modifier"
+
+echo 'hist:keys=call_site.sym' > events/kmem/kmalloc/trigger
+for i in `seq 1 10` ; do ( echo "forked" > /dev/null); done
+grep '{ call_site: \[[0-9a-f][0-9a-f]*\] [_a-zA-Z][_a-zA-Z]* *}' events/kmem/kmalloc/hist > /dev/null || \
+    fail "sym modifier on kmalloc call_site did not work"
+
+reset_trigger
+
+echo "Test histogram with sym-offset modifier"
+
+echo 'hist:keys=call_site.sym-offset' > events/kmem/kmalloc/trigger
+for i in `seq 1 10` ; do ( echo "forked" > /dev/null); done
+grep '{ call_site: \[[0-9a-f][0-9a-f]*\] [_a-zA-Z][_a-zA-Z]*+0x[0-9a-f][0-9a-f]*' events/kmem/kmalloc/hist > /dev/null || \
+    fail "sym-offset modifier on kmalloc call_site did not work"
 
 reset_trigger
 

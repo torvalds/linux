@@ -2,6 +2,7 @@
 #include "debug.h"
 #include "evlist.h"
 #include "evsel.h"
+#include "evsel_config.h"
 #include "parse-events.h"
 #include <errno.h>
 #include <limits.h>
@@ -10,159 +11,110 @@
 #include <subcmd/parse-options.h>
 #include <perf/cpumap.h>
 #include "cloexec.h"
+#include "util/perf_api_probe.h"
 #include "record.h"
 #include "../perf-sys.h"
+#include "topdown.h"
+#include "map_symbol.h"
+#include "mem-events.h"
 
-typedef void (*setup_probe_fn_t)(struct evsel *evsel);
-
-static int perf_do_probe_api(setup_probe_fn_t fn, int cpu, const char *str)
+/*
+ * evsel__config_leader_sampling() uses special rules for leader sampling.
+ * However, if the leader is an AUX area event, then assume the event to sample
+ * is the next event.
+ */
+static struct evsel *evsel__read_sampler(struct evsel *evsel, struct evlist *evlist)
 {
-	struct evlist *evlist;
-	struct evsel *evsel;
-	unsigned long flags = perf_event_open_cloexec_flag();
-	int err = -EAGAIN, fd;
-	static pid_t pid = -1;
+	struct evsel *leader = evsel__leader(evsel);
 
-	evlist = evlist__new();
-	if (!evlist)
-		return -ENOMEM;
-
-	if (parse_events(evlist, str, NULL))
-		goto out_delete;
-
-	evsel = evlist__first(evlist);
-
-	while (1) {
-		fd = sys_perf_event_open(&evsel->core.attr, pid, cpu, -1, flags);
-		if (fd < 0) {
-			if (pid == -1 && errno == EACCES) {
-				pid = 0;
-				continue;
-			}
-			goto out_delete;
+	if (evsel__is_aux_event(leader) || arch_topdown_sample_read(leader) ||
+	    is_mem_loads_aux_event(leader)) {
+		evlist__for_each_entry(evlist, evsel) {
+			if (evsel__leader(evsel) == leader && evsel != evsel__leader(evsel))
+				return evsel;
 		}
-		break;
 	}
-	close(fd);
 
-	fn(evsel);
+	return leader;
+}
 
-	fd = sys_perf_event_open(&evsel->core.attr, pid, cpu, -1, flags);
-	if (fd < 0) {
-		if (errno == EINVAL)
-			err = -EINVAL;
-		goto out_delete;
+static u64 evsel__config_term_mask(struct evsel *evsel)
+{
+	struct evsel_config_term *term;
+	struct list_head *config_terms = &evsel->config_terms;
+	u64 term_types = 0;
+
+	list_for_each_entry(term, config_terms, list) {
+		term_types |= 1 << term->type;
 	}
-	close(fd);
-	err = 0;
-
-out_delete:
-	evlist__delete(evlist);
-	return err;
+	return term_types;
 }
 
-static bool perf_probe_api(setup_probe_fn_t fn)
+static void evsel__config_leader_sampling(struct evsel *evsel, struct evlist *evlist)
 {
-	const char *try[] = {"cycles:u", "instructions:u", "cpu-clock:u", NULL};
-	struct perf_cpu_map *cpus;
-	int cpu, ret, i = 0;
+	struct perf_event_attr *attr = &evsel->core.attr;
+	struct evsel *leader = evsel__leader(evsel);
+	struct evsel *read_sampler;
+	u64 term_types, freq_mask;
 
-	cpus = perf_cpu_map__new(NULL);
-	if (!cpus)
-		return false;
-	cpu = cpus->map[0];
-	perf_cpu_map__put(cpus);
+	if (!leader->sample_read)
+		return;
 
-	do {
-		ret = perf_do_probe_api(fn, cpu, try[i++]);
-		if (!ret)
-			return true;
-	} while (ret == -EAGAIN && try[i]);
+	read_sampler = evsel__read_sampler(evsel, evlist);
 
-	return false;
+	if (evsel == read_sampler)
+		return;
+
+	term_types = evsel__config_term_mask(evsel);
+	/*
+	 * Disable sampling for all group members except those with explicit
+	 * config terms or the leader. In the case of an AUX area event, the 2nd
+	 * event in the group is the one that 'leads' the sampling.
+	 */
+	freq_mask = (1 << EVSEL__CONFIG_TERM_FREQ) | (1 << EVSEL__CONFIG_TERM_PERIOD);
+	if ((term_types & freq_mask) == 0) {
+		attr->freq           = 0;
+		attr->sample_freq    = 0;
+		attr->sample_period  = 0;
+	}
+	if ((term_types & (1 << EVSEL__CONFIG_TERM_OVERWRITE)) == 0)
+		attr->write_backward = 0;
+
+	/*
+	 * We don't get a sample for slave events, we make them when delivering
+	 * the group leader sample. Set the slave event to follow the master
+	 * sample_type to ease up reporting.
+	 * An AUX area event also has sample_type requirements, so also include
+	 * the sample type bits from the leader's sample_type to cover that
+	 * case.
+	 */
+	attr->sample_type = read_sampler->core.attr.sample_type |
+			    leader->core.attr.sample_type;
 }
 
-static void perf_probe_sample_identifier(struct evsel *evsel)
-{
-	evsel->core.attr.sample_type |= PERF_SAMPLE_IDENTIFIER;
-}
-
-static void perf_probe_comm_exec(struct evsel *evsel)
-{
-	evsel->core.attr.comm_exec = 1;
-}
-
-static void perf_probe_context_switch(struct evsel *evsel)
-{
-	evsel->core.attr.context_switch = 1;
-}
-
-bool perf_can_sample_identifier(void)
-{
-	return perf_probe_api(perf_probe_sample_identifier);
-}
-
-static bool perf_can_comm_exec(void)
-{
-	return perf_probe_api(perf_probe_comm_exec);
-}
-
-bool perf_can_record_switch_events(void)
-{
-	return perf_probe_api(perf_probe_context_switch);
-}
-
-bool perf_can_record_cpu_wide(void)
-{
-	struct perf_event_attr attr = {
-		.type = PERF_TYPE_SOFTWARE,
-		.config = PERF_COUNT_SW_CPU_CLOCK,
-		.exclude_kernel = 1,
-	};
-	struct perf_cpu_map *cpus;
-	int cpu, fd;
-
-	cpus = perf_cpu_map__new(NULL);
-	if (!cpus)
-		return false;
-	cpu = cpus->map[0];
-	perf_cpu_map__put(cpus);
-
-	fd = sys_perf_event_open(&attr, -1, cpu, -1, 0);
-	if (fd < 0)
-		return false;
-	close(fd);
-
-	return true;
-}
-
-void perf_evlist__config(struct evlist *evlist, struct record_opts *opts,
-			 struct callchain_param *callchain)
+void evlist__config(struct evlist *evlist, struct record_opts *opts, struct callchain_param *callchain)
 {
 	struct evsel *evsel;
 	bool use_sample_identifier = false;
 	bool use_comm_exec;
 	bool sample_id = opts->sample_id;
 
-	/*
-	 * Set the evsel leader links before we configure attributes,
-	 * since some might depend on this info.
-	 */
-	if (opts->group)
-		perf_evlist__set_leader(evlist);
-
-	if (evlist->core.cpus->map[0] < 0)
+	if (perf_cpu_map__cpu(evlist->core.user_requested_cpus, 0).cpu < 0)
 		opts->no_inherit = true;
 
 	use_comm_exec = perf_can_comm_exec();
 
 	evlist__for_each_entry(evlist, evsel) {
-		perf_evsel__config(evsel, opts, callchain);
+		evsel__config(evsel, opts, callchain);
 		if (evsel->tracking && use_comm_exec)
 			evsel->core.attr.comm_exec = 1;
 	}
 
-	if (opts->full_auxtrace) {
+	/* Configure leader sampling here now that the sample type is known */
+	evlist__for_each_entry(evlist, evsel)
+		evsel__config_leader_sampling(evsel, evlist);
+
+	if (opts->full_auxtrace || opts->sample_identifier) {
 		/*
 		 * Need to be able to synthesize and parse selected events with
 		 * arbitrary sample types, which requires always being able to
@@ -184,10 +136,10 @@ void perf_evlist__config(struct evlist *evlist, struct record_opts *opts,
 
 	if (sample_id) {
 		evlist__for_each_entry(evlist, evsel)
-			perf_evsel__set_sample_id(evsel, use_sample_identifier);
+			evsel__set_sample_id(evsel, use_sample_identifier);
 	}
 
-	perf_evlist__set_id_pos(evlist);
+	evlist__set_id_pos(evlist);
 }
 
 static int get_max_rate(unsigned int *rate)
@@ -198,9 +150,15 @@ static int get_max_rate(unsigned int *rate)
 static int record_opts__config_freq(struct record_opts *opts)
 {
 	bool user_freq = opts->user_freq != UINT_MAX;
+	bool user_interval = opts->user_interval != ULLONG_MAX;
 	unsigned int max_rate;
 
-	if (opts->user_interval != ULLONG_MAX)
+	if (user_interval && user_freq) {
+		pr_err("cannot set frequency and period at the same time\n");
+		return -1;
+	}
+
+	if (user_interval)
 		opts->default_interval = opts->user_interval;
 	if (user_freq)
 		opts->freq = opts->user_freq;
@@ -245,10 +203,10 @@ static int record_opts__config_freq(struct record_opts *opts)
 	 * Default frequency is over current maximum.
 	 */
 	if (max_rate < opts->freq) {
-		pr_warning("Lowering default frequency rate to %u.\n"
+		pr_warning("Lowering default frequency rate from %u to %u.\n"
 			   "Please consider tweaking "
 			   "/proc/sys/kernel/perf_event_max_sample_rate.\n",
-			   max_rate);
+			   opts->freq, max_rate);
 		opts->freq = max_rate;
 	}
 
@@ -260,11 +218,12 @@ int record_opts__config(struct record_opts *opts)
 	return record_opts__config_freq(opts);
 }
 
-bool perf_evlist__can_select_event(struct evlist *evlist, const char *str)
+bool evlist__can_select_event(struct evlist *evlist, const char *str)
 {
 	struct evlist *temp_evlist;
 	struct evsel *evsel;
-	int err, fd, cpu;
+	int err, fd;
+	struct perf_cpu cpu = { .cpu = 0 };
 	bool ret = false;
 	pid_t pid = -1;
 
@@ -272,23 +231,25 @@ bool perf_evlist__can_select_event(struct evlist *evlist, const char *str)
 	if (!temp_evlist)
 		return false;
 
-	err = parse_events(temp_evlist, str, NULL);
+	err = parse_event(temp_evlist, str);
 	if (err)
 		goto out_delete;
 
 	evsel = evlist__last(temp_evlist);
 
-	if (!evlist || perf_cpu_map__empty(evlist->core.cpus)) {
-		struct perf_cpu_map *cpus = perf_cpu_map__new(NULL);
+	if (!evlist || perf_cpu_map__is_any_cpu_or_is_empty(evlist->core.user_requested_cpus)) {
+		struct perf_cpu_map *cpus = perf_cpu_map__new_online_cpus();
 
-		cpu =  cpus ? cpus->map[0] : 0;
+		if (cpus)
+			cpu =  perf_cpu_map__cpu(cpus, 0);
+
 		perf_cpu_map__put(cpus);
 	} else {
-		cpu = evlist->core.cpus->map[0];
+		cpu = perf_cpu_map__cpu(evlist->core.user_requested_cpus, 0);
 	}
 
 	while (1) {
-		fd = sys_perf_event_open(&evsel->core.attr, pid, cpu, -1,
+		fd = sys_perf_event_open(&evsel->core.attr, pid, cpu.cpu, -1,
 					 perf_event_open_cloexec_flag());
 		if (fd < 0) {
 			if (pid == -1 && errno == EACCES) {

@@ -9,11 +9,11 @@
 #include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/iopoll.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
-#include <linux/module.h>
 #include <linux/of_irq.h>
 #include <linux/pci.h>
 #include <linux/phy/phy.h>
@@ -32,6 +32,10 @@
 
 #define PCL_PIPEMON			0x0044
 #define PCL_PCLK_ALIVE			BIT(15)
+
+#define PCL_MODE			0x8000
+#define PCL_MODE_REGEN			BIT(8)
+#define PCL_MODE_REGVAL			BIT(0)
 
 #define PCL_APP_READY_CTRL		0x8008
 #define PCL_APP_LTSSM_ENABLE		BIT(0)
@@ -57,67 +61,73 @@
 #define PCL_RDLH_LINK_UP		BIT(1)
 #define PCL_XMLH_LINK_UP		BIT(0)
 
-struct uniphier_pcie_priv {
-	void __iomem *base;
+struct uniphier_pcie {
 	struct dw_pcie pci;
+	void __iomem *base;
 	struct clk *clk;
 	struct reset_control *rst;
 	struct phy *phy;
-	struct irq_domain *legacy_irq_domain;
+	struct irq_domain *intx_irq_domain;
 };
 
 #define to_uniphier_pcie(x)	dev_get_drvdata((x)->dev)
 
-static void uniphier_pcie_ltssm_enable(struct uniphier_pcie_priv *priv,
+static void uniphier_pcie_ltssm_enable(struct uniphier_pcie *pcie,
 				       bool enable)
 {
 	u32 val;
 
-	val = readl(priv->base + PCL_APP_READY_CTRL);
+	val = readl(pcie->base + PCL_APP_READY_CTRL);
 	if (enable)
 		val |= PCL_APP_LTSSM_ENABLE;
 	else
 		val &= ~PCL_APP_LTSSM_ENABLE;
-	writel(val, priv->base + PCL_APP_READY_CTRL);
+	writel(val, pcie->base + PCL_APP_READY_CTRL);
 }
 
-static void uniphier_pcie_init_rc(struct uniphier_pcie_priv *priv)
+static void uniphier_pcie_init_rc(struct uniphier_pcie *pcie)
 {
 	u32 val;
 
+	/* set RC MODE */
+	val = readl(pcie->base + PCL_MODE);
+	val |= PCL_MODE_REGEN;
+	val &= ~PCL_MODE_REGVAL;
+	writel(val, pcie->base + PCL_MODE);
+
 	/* use auxiliary power detection */
-	val = readl(priv->base + PCL_APP_PM0);
+	val = readl(pcie->base + PCL_APP_PM0);
 	val |= PCL_SYS_AUX_PWR_DET;
-	writel(val, priv->base + PCL_APP_PM0);
+	writel(val, pcie->base + PCL_APP_PM0);
 
 	/* assert PERST# */
-	val = readl(priv->base + PCL_PINCTRL0);
+	val = readl(pcie->base + PCL_PINCTRL0);
 	val &= ~(PCL_PERST_NOE_REGVAL | PCL_PERST_OUT_REGVAL
 		 | PCL_PERST_PLDN_REGVAL);
 	val |= PCL_PERST_NOE_REGEN | PCL_PERST_OUT_REGEN
 		| PCL_PERST_PLDN_REGEN;
-	writel(val, priv->base + PCL_PINCTRL0);
+	writel(val, pcie->base + PCL_PINCTRL0);
 
-	uniphier_pcie_ltssm_enable(priv, false);
+	uniphier_pcie_ltssm_enable(pcie, false);
 
 	usleep_range(100000, 200000);
 
 	/* deassert PERST# */
-	val = readl(priv->base + PCL_PINCTRL0);
+	val = readl(pcie->base + PCL_PINCTRL0);
 	val |= PCL_PERST_OUT_REGVAL | PCL_PERST_OUT_REGEN;
-	writel(val, priv->base + PCL_PINCTRL0);
+	writel(val, pcie->base + PCL_PINCTRL0);
 }
 
-static int uniphier_pcie_wait_rc(struct uniphier_pcie_priv *priv)
+static int uniphier_pcie_wait_rc(struct uniphier_pcie *pcie)
 {
 	u32 status;
 	int ret;
 
 	/* wait PIPE clock */
-	ret = readl_poll_timeout(priv->base + PCL_PIPEMON, status,
+	ret = readl_poll_timeout(pcie->base + PCL_PIPEMON, status,
 				 status & PCL_PCLK_ALIVE, 100000, 1000000);
 	if (ret) {
-		dev_err(priv->pci.dev,
+		dev_err(pcie->pci.dev,
 			"Failed to initialize controller in RC mode\n");
 		return ret;
 	}
@@ -127,88 +137,74 @@ static int uniphier_pcie_wait_rc(struct uniphier_pcie_priv *priv)
 
 static int uniphier_pcie_link_up(struct dw_pcie *pci)
 {
-	struct uniphier_pcie_priv *priv = to_uniphier_pcie(pci);
+	struct uniphier_pcie *pcie = to_uniphier_pcie(pci);
 	u32 val, mask;
 
-	val = readl(priv->base + PCL_STATUS_LINK);
+	val = readl(pcie->base + PCL_STATUS_LINK);
 	mask = PCL_RDLH_LINK_UP | PCL_XMLH_LINK_UP;
 
 	return (val & mask) == mask;
 }
 
-static int uniphier_pcie_establish_link(struct dw_pcie *pci)
+static int uniphier_pcie_start_link(struct dw_pcie *pci)
 {
-	struct uniphier_pcie_priv *priv = to_uniphier_pcie(pci);
+	struct uniphier_pcie *pcie = to_uniphier_pcie(pci);
 
-	if (dw_pcie_link_up(pci))
-		return 0;
+	uniphier_pcie_ltssm_enable(pcie, true);
 
-	uniphier_pcie_ltssm_enable(priv, true);
-
-	return dw_pcie_wait_for_link(pci);
+	return 0;
 }
 
 static void uniphier_pcie_stop_link(struct dw_pcie *pci)
 {
-	struct uniphier_pcie_priv *priv = to_uniphier_pcie(pci);
+	struct uniphier_pcie *pcie = to_uniphier_pcie(pci);
 
-	uniphier_pcie_ltssm_enable(priv, false);
+	uniphier_pcie_ltssm_enable(pcie, false);
 }
 
-static void uniphier_pcie_irq_enable(struct uniphier_pcie_priv *priv)
+static void uniphier_pcie_irq_enable(struct uniphier_pcie *pcie)
 {
-	writel(PCL_RCV_INT_ALL_ENABLE, priv->base + PCL_RCV_INT);
-	writel(PCL_RCV_INTX_ALL_ENABLE, priv->base + PCL_RCV_INTX);
+	writel(PCL_RCV_INT_ALL_ENABLE, pcie->base + PCL_RCV_INT);
+	writel(PCL_RCV_INTX_ALL_ENABLE, pcie->base + PCL_RCV_INTX);
 }
 
-static void uniphier_pcie_irq_disable(struct uniphier_pcie_priv *priv)
-{
-	writel(0, priv->base + PCL_RCV_INT);
-	writel(0, priv->base + PCL_RCV_INTX);
-}
-
-static void uniphier_pcie_irq_ack(struct irq_data *d)
-{
-	struct pcie_port *pp = irq_data_get_irq_chip_data(d);
-	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
-	struct uniphier_pcie_priv *priv = to_uniphier_pcie(pci);
-	u32 val;
-
-	val = readl(priv->base + PCL_RCV_INTX);
-	val &= ~PCL_RCV_INTX_ALL_STATUS;
-	val |= BIT(irqd_to_hwirq(d) + PCL_RCV_INTX_STATUS_SHIFT);
-	writel(val, priv->base + PCL_RCV_INTX);
-}
 
 static void uniphier_pcie_irq_mask(struct irq_data *d)
 {
-	struct pcie_port *pp = irq_data_get_irq_chip_data(d);
+	struct dw_pcie_rp *pp = irq_data_get_irq_chip_data(d);
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
-	struct uniphier_pcie_priv *priv = to_uniphier_pcie(pci);
+	struct uniphier_pcie *pcie = to_uniphier_pcie(pci);
+	unsigned long flags;
 	u32 val;
 
-	val = readl(priv->base + PCL_RCV_INTX);
-	val &= ~PCL_RCV_INTX_ALL_MASK;
+	raw_spin_lock_irqsave(&pp->lock, flags);
+
+	val = readl(pcie->base + PCL_RCV_INTX);
 	val |= BIT(irqd_to_hwirq(d) + PCL_RCV_INTX_MASK_SHIFT);
-	writel(val, priv->base + PCL_RCV_INTX);
+	writel(val, pcie->base + PCL_RCV_INTX);
+
+	raw_spin_unlock_irqrestore(&pp->lock, flags);
 }
 
 static void uniphier_pcie_irq_unmask(struct irq_data *d)
 {
-	struct pcie_port *pp = irq_data_get_irq_chip_data(d);
+	struct dw_pcie_rp *pp = irq_data_get_irq_chip_data(d);
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
-	struct uniphier_pcie_priv *priv = to_uniphier_pcie(pci);
+	struct uniphier_pcie *pcie = to_uniphier_pcie(pci);
+	unsigned long flags;
 	u32 val;
 
-	val = readl(priv->base + PCL_RCV_INTX);
-	val &= ~PCL_RCV_INTX_ALL_MASK;
+	raw_spin_lock_irqsave(&pp->lock, flags);
+
+	val = readl(pcie->base + PCL_RCV_INTX);
 	val &= ~BIT(irqd_to_hwirq(d) + PCL_RCV_INTX_MASK_SHIFT);
-	writel(val, priv->base + PCL_RCV_INTX);
+	writel(val, pcie->base + PCL_RCV_INTX);
+
+	raw_spin_unlock_irqrestore(&pp->lock, flags);
 }
 
 static struct irq_chip uniphier_pcie_irq_chip = {
 	.name = "PCI",
-	.irq_ack = uniphier_pcie_irq_ack,
 	.irq_mask = uniphier_pcie_irq_mask,
 	.irq_unmask = uniphier_pcie_irq_unmask,
 };
@@ -229,15 +225,15 @@ static const struct irq_domain_ops uniphier_intx_domain_ops = {
 
 static void uniphier_pcie_irq_handler(struct irq_desc *desc)
 {
-	struct pcie_port *pp = irq_desc_get_handler_data(desc);
+	struct dw_pcie_rp *pp = irq_desc_get_handler_data(desc);
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
-	struct uniphier_pcie_priv *priv = to_uniphier_pcie(pci);
+	struct uniphier_pcie *pcie = to_uniphier_pcie(pci);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned long reg;
-	u32 val, bit, virq;
+	u32 val, bit;
 
 	/* INT for debug */
-	val = readl(priv->base + PCL_RCV_INT);
+	val = readl(pcie->base + PCL_RCV_INT);
 
 	if (val & PCL_CFG_BW_MGT_STATUS)
 		dev_dbg(pci->dev, "Link Bandwidth Management Event\n");
@@ -248,26 +244,24 @@ static void uniphier_pcie_irq_handler(struct irq_desc *desc)
 	if (val & PCL_CFG_PME_MSI_STATUS)
 		dev_dbg(pci->dev, "PME Interrupt\n");
 
-	writel(val, priv->base + PCL_RCV_INT);
+	writel(val, pcie->base + PCL_RCV_INT);
 
 	/* INTx */
 	chained_irq_enter(chip, desc);
 
-	val = readl(priv->base + PCL_RCV_INTX);
+	val = readl(pcie->base + PCL_RCV_INTX);
 	reg = FIELD_GET(PCL_RCV_INTX_ALL_STATUS, val);
 
-	for_each_set_bit(bit, &reg, PCI_NUM_INTX) {
-		virq = irq_linear_revmap(priv->legacy_irq_domain, bit);
-		generic_handle_irq(virq);
-	}
+	for_each_set_bit(bit, &reg, PCI_NUM_INTX)
+		generic_handle_domain_irq(pcie->intx_irq_domain, bit);
 
 	chained_irq_exit(chip, desc);
 }
 
-static int uniphier_pcie_config_legacy_irq(struct pcie_port *pp)
+static int uniphier_pcie_config_intx_irq(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
-	struct uniphier_pcie_priv *priv = to_uniphier_pcie(pci);
+	struct uniphier_pcie *pcie = to_uniphier_pcie(pci);
 	struct device_node *np = pci->dev->of_node;
 	struct device_node *np_intc;
 	int ret = 0;
@@ -285,9 +279,9 @@ static int uniphier_pcie_config_legacy_irq(struct pcie_port *pp)
 		goto out_put_node;
 	}
 
-	priv->legacy_irq_domain = irq_domain_add_linear(np_intc, PCI_NUM_INTX,
+	pcie->intx_irq_domain = irq_domain_add_linear(np_intc, PCI_NUM_INTX,
 						&uniphier_intx_domain_ops, pp);
-	if (!priv->legacy_irq_domain) {
+	if (!pcie->intx_irq_domain) {
 		dev_err(pci->dev, "Failed to get INTx domain\n");
 		ret = -ENODEV;
 		goto out_put_node;
@@ -301,102 +295,61 @@ out_put_node:
 	return ret;
 }
 
-static int uniphier_pcie_host_init(struct pcie_port *pp)
+static int uniphier_pcie_host_init(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
-	struct uniphier_pcie_priv *priv = to_uniphier_pcie(pci);
+	struct uniphier_pcie *pcie = to_uniphier_pcie(pci);
 	int ret;
 
-	ret = uniphier_pcie_config_legacy_irq(pp);
+	ret = uniphier_pcie_config_intx_irq(pp);
 	if (ret)
 		return ret;
 
-	uniphier_pcie_irq_enable(priv);
-
-	dw_pcie_setup_rc(pp);
-	ret = uniphier_pcie_establish_link(pci);
-	if (ret)
-		return ret;
-
-	if (IS_ENABLED(CONFIG_PCI_MSI))
-		dw_pcie_msi_init(pp);
+	uniphier_pcie_irq_enable(pcie);
 
 	return 0;
 }
 
 static const struct dw_pcie_host_ops uniphier_pcie_host_ops = {
-	.host_init = uniphier_pcie_host_init,
+	.init = uniphier_pcie_host_init,
 };
 
-static int uniphier_add_pcie_port(struct uniphier_pcie_priv *priv,
-				  struct platform_device *pdev)
-{
-	struct dw_pcie *pci = &priv->pci;
-	struct pcie_port *pp = &pci->pp;
-	struct device *dev = &pdev->dev;
-	int ret;
-
-	pp->ops = &uniphier_pcie_host_ops;
-
-	if (IS_ENABLED(CONFIG_PCI_MSI)) {
-		pp->msi_irq = platform_get_irq_byname(pdev, "msi");
-		if (pp->msi_irq < 0)
-			return pp->msi_irq;
-	}
-
-	ret = dw_pcie_host_init(pp);
-	if (ret) {
-		dev_err(dev, "Failed to initialize host (%d)\n", ret);
-		return ret;
-	}
-
-	return 0;
-}
-
-static int uniphier_pcie_host_enable(struct uniphier_pcie_priv *priv)
+static int uniphier_pcie_host_enable(struct uniphier_pcie *pcie)
 {
 	int ret;
 
-	ret = clk_prepare_enable(priv->clk);
+	ret = clk_prepare_enable(pcie->clk);
 	if (ret)
 		return ret;
 
-	ret = reset_control_deassert(priv->rst);
+	ret = reset_control_deassert(pcie->rst);
 	if (ret)
 		goto out_clk_disable;
 
-	uniphier_pcie_init_rc(priv);
+	uniphier_pcie_init_rc(pcie);
 
-	ret = phy_init(priv->phy);
+	ret = phy_init(pcie->phy);
 	if (ret)
 		goto out_rst_assert;
 
-	ret = uniphier_pcie_wait_rc(priv);
+	ret = uniphier_pcie_wait_rc(pcie);
 	if (ret)
 		goto out_phy_exit;
 
 	return 0;
 
 out_phy_exit:
-	phy_exit(priv->phy);
+	phy_exit(pcie->phy);
 out_rst_assert:
-	reset_control_assert(priv->rst);
+	reset_control_assert(pcie->rst);
 out_clk_disable:
-	clk_disable_unprepare(priv->clk);
+	clk_disable_unprepare(pcie->clk);
 
 	return ret;
 }
 
-static void uniphier_pcie_host_disable(struct uniphier_pcie_priv *priv)
-{
-	uniphier_pcie_irq_disable(priv);
-	phy_exit(priv->phy);
-	reset_control_assert(priv->rst);
-	clk_disable_unprepare(priv->clk);
-}
-
 static const struct dw_pcie_ops dw_pcie_ops = {
-	.start_link = uniphier_pcie_establish_link,
+	.start_link = uniphier_pcie_start_link,
 	.stop_link = uniphier_pcie_stop_link,
 	.link_up = uniphier_pcie_link_up,
 };
@@ -404,73 +357,53 @@ static const struct dw_pcie_ops dw_pcie_ops = {
 static int uniphier_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct uniphier_pcie_priv *priv;
-	struct resource *res;
+	struct uniphier_pcie *pcie;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv)
+	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
+	if (!pcie)
 		return -ENOMEM;
 
-	priv->pci.dev = dev;
-	priv->pci.ops = &dw_pcie_ops;
+	pcie->pci.dev = dev;
+	pcie->pci.ops = &dw_pcie_ops;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
-	priv->pci.dbi_base = devm_pci_remap_cfg_resource(dev, res);
-	if (IS_ERR(priv->pci.dbi_base))
-		return PTR_ERR(priv->pci.dbi_base);
+	pcie->base = devm_platform_ioremap_resource_byname(pdev, "link");
+	if (IS_ERR(pcie->base))
+		return PTR_ERR(pcie->base);
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "link");
-	priv->base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(priv->base))
-		return PTR_ERR(priv->base);
+	pcie->clk = devm_clk_get(dev, NULL);
+	if (IS_ERR(pcie->clk))
+		return PTR_ERR(pcie->clk);
 
-	priv->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(priv->clk))
-		return PTR_ERR(priv->clk);
+	pcie->rst = devm_reset_control_get_shared(dev, NULL);
+	if (IS_ERR(pcie->rst))
+		return PTR_ERR(pcie->rst);
 
-	priv->rst = devm_reset_control_get_shared(dev, NULL);
-	if (IS_ERR(priv->rst))
-		return PTR_ERR(priv->rst);
+	pcie->phy = devm_phy_optional_get(dev, "pcie-phy");
+	if (IS_ERR(pcie->phy))
+		return PTR_ERR(pcie->phy);
 
-	priv->phy = devm_phy_optional_get(dev, "pcie-phy");
-	if (IS_ERR(priv->phy))
-		return PTR_ERR(priv->phy);
+	platform_set_drvdata(pdev, pcie);
 
-	platform_set_drvdata(pdev, priv);
-
-	ret = uniphier_pcie_host_enable(priv);
+	ret = uniphier_pcie_host_enable(pcie);
 	if (ret)
 		return ret;
 
-	return uniphier_add_pcie_port(priv, pdev);
-}
+	pcie->pci.pp.ops = &uniphier_pcie_host_ops;
 
-static int uniphier_pcie_remove(struct platform_device *pdev)
-{
-	struct uniphier_pcie_priv *priv = platform_get_drvdata(pdev);
-
-	uniphier_pcie_host_disable(priv);
-
-	return 0;
+	return dw_pcie_host_init(&pcie->pci.pp);
 }
 
 static const struct of_device_id uniphier_pcie_match[] = {
 	{ .compatible = "socionext,uniphier-pcie", },
 	{ /* sentinel */ },
 };
-MODULE_DEVICE_TABLE(of, uniphier_pcie_match);
 
 static struct platform_driver uniphier_pcie_driver = {
 	.probe  = uniphier_pcie_probe,
-	.remove = uniphier_pcie_remove,
 	.driver = {
 		.name = "uniphier-pcie",
 		.of_match_table = uniphier_pcie_match,
 	},
 };
 builtin_platform_driver(uniphier_pcie_driver);
-
-MODULE_AUTHOR("Kunihiko Hayashi <hayashi.kunihiko@socionext.com>");
-MODULE_DESCRIPTION("UniPhier PCIe host controller driver");
-MODULE_LICENSE("GPL v2");

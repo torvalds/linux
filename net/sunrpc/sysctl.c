@@ -40,45 +40,33 @@ EXPORT_SYMBOL_GPL(nlm_debug);
 
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 
-static struct ctl_table_header *sunrpc_table_header;
-static struct ctl_table sunrpc_table[];
-
-void
-rpc_register_sysctl(void)
-{
-	if (!sunrpc_table_header)
-		sunrpc_table_header = register_sysctl_table(sunrpc_table);
-}
-
-void
-rpc_unregister_sysctl(void)
-{
-	if (sunrpc_table_header) {
-		unregister_sysctl_table(sunrpc_table_header);
-		sunrpc_table_header = NULL;
-	}
-}
-
 static int proc_do_xprt(struct ctl_table *table, int write,
-			void __user *buffer, size_t *lenp, loff_t *ppos)
+			void *buffer, size_t *lenp, loff_t *ppos)
 {
 	char tmpbuf[256];
-	size_t len;
+	ssize_t len;
 
-	if ((*ppos && !write) || !*lenp) {
+	if (write || *ppos) {
 		*lenp = 0;
 		return 0;
 	}
 	len = svc_print_xprts(tmpbuf, sizeof(tmpbuf));
-	return simple_read_from_buffer(buffer, *lenp, ppos, tmpbuf, len);
+	len = memory_read_from_buffer(buffer, *lenp, ppos, tmpbuf, len);
+
+	if (len < 0) {
+		*lenp = 0;
+		return -EINVAL;
+	}
+	*lenp = len;
+	return 0;
 }
 
 static int
-proc_dodebug(struct ctl_table *table, int write,
-				void __user *buffer, size_t *lenp, loff_t *ppos)
+proc_dodebug(struct ctl_table *table, int write, void *buffer, size_t *lenp,
+	     loff_t *ppos)
 {
-	char		tmpbuf[20], c, *s = NULL;
-	char __user *p;
+	char		tmpbuf[20], *s = NULL;
+	char *p;
 	unsigned int	value;
 	size_t		left, len;
 
@@ -90,18 +78,17 @@ proc_dodebug(struct ctl_table *table, int write,
 	left = *lenp;
 
 	if (write) {
-		if (!access_ok(buffer, left))
-			return -EFAULT;
 		p = buffer;
-		while (left && __get_user(c, p) >= 0 && isspace(c))
-			left--, p++;
+		while (left && isspace(*p)) {
+			left--;
+			p++;
+		}
 		if (!left)
 			goto done;
 
 		if (left > sizeof(tmpbuf) - 1)
 			return -EINVAL;
-		if (copy_from_user(tmpbuf, p, left))
-			return -EFAULT;
+		memcpy(tmpbuf, p, left);
 		tmpbuf[left] = '\0';
 
 		value = simple_strtol(tmpbuf, &s, 0);
@@ -109,8 +96,10 @@ proc_dodebug(struct ctl_table *table, int write,
 			left -= (s - tmpbuf);
 			if (left && !isspace(*s))
 				return -EINVAL;
-			while (left && isspace(*s))
-				left--, s++;
+			while (left && isspace(*s)) {
+				left--;
+				s++;
+			}
 		} else
 			left = 0;
 		*(unsigned int *) table->data = value;
@@ -121,11 +110,9 @@ proc_dodebug(struct ctl_table *table, int write,
 		len = sprintf(tmpbuf, "0x%04x", *(unsigned int *) table->data);
 		if (len > left)
 			len = left;
-		if (copy_to_user(buffer, tmpbuf, len))
-			return -EFAULT;
+		memcpy(buffer, tmpbuf, len);
 		if ((left -= len) > 0) {
-			if (put_user('\n', (char __user *)buffer + len))
-				return -EFAULT;
+			*((char *)buffer + len) = '\n';
 			left--;
 		}
 	}
@@ -136,6 +123,7 @@ done:
 	return 0;
 }
 
+static struct ctl_table_header *sunrpc_table_header;
 
 static struct ctl_table debug_table[] = {
 	{
@@ -172,16 +160,21 @@ static struct ctl_table debug_table[] = {
 		.mode		= 0444,
 		.proc_handler	= proc_do_xprt,
 	},
-	{ }
 };
 
-static struct ctl_table sunrpc_table[] = {
-	{
-		.procname	= "sunrpc",
-		.mode		= 0555,
-		.child		= debug_table
-	},
-	{ }
-};
+void
+rpc_register_sysctl(void)
+{
+	if (!sunrpc_table_header)
+		sunrpc_table_header = register_sysctl("sunrpc", debug_table);
+}
 
+void
+rpc_unregister_sysctl(void)
+{
+	if (sunrpc_table_header) {
+		unregister_sysctl_table(sunrpc_table_header);
+		sunrpc_table_header = NULL;
+	}
+}
 #endif

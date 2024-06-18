@@ -41,6 +41,18 @@ config ADIS16260
 	  This driver can also be built as a module.  If so, the module
 	  will be called adis16260.
 
+config ADXRS290
+	tristate "Analog Devices ADXRS290 Dual-Axis MEMS Gyroscope SPI driver"
+	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Analog Devices ADXRS290 programmable
+	  digital output gyroscope.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called adxrs290.
+
 config ADXRS450
 	tristate "Analog Devices ADXRS450/3 Digital Output Gyroscope SPI driver"
 	depends on SPI
@@ -61,7 +73,7 @@ config BMG160
 	help
 	  Say yes here to build support for BOSCH BMG160 Tri-axis Gyro Sensor
 	  driver connected via I2C or SPI. This driver also supports BMI055
-	  gyroscope.
+	  and BMI088 gyroscope.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called bmg160_i2c or bmg160_spi.
@@ -75,31 +87,30 @@ config BMG160_SPI
 	select REGMAP_SPI
 
 config FXAS21002C
-       tristate "NXP FXAS21002C Gyro Sensor"
-       select IIO_BUFFER
-       select IIO_TRIGGERED_BUFFER
-       select FXAS21002C_I2C if (I2C)
-       select FXAS21002C_SPI if (SPI)
-       depends on (I2C || SPI_MASTER)
-       help
-         Say yes here to build support for NXP FXAS21002C Tri-axis Gyro
-         Sensor driver connected via I2C or SPI.
+	tristate "NXP FXAS21002C Gyro Sensor"
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select FXAS21002C_I2C if (I2C)
+	select FXAS21002C_SPI if (SPI)
+	depends on (I2C || SPI_MASTER)
+	help
+	  Say yes here to build support for NXP FXAS21002C Tri-axis Gyro
+	  Sensor driver connected via I2C or SPI.
 
-         This driver can also be built as a module.  If so, the module
-         will be called fxas21002c_i2c or fxas21002c_spi.
+	  This driver can also be built as a module.  If so, the module
+	  will be called fxas21002c_i2c or fxas21002c_spi.
 
 config FXAS21002C_I2C
-       tristate
-       select REGMAP_I2C
+	tristate
+	select REGMAP_I2C
 
 config FXAS21002C_SPI
-       tristate
-       select REGMAP_SPI
+	tristate
+	select REGMAP_SPI
 
 config HID_SENSOR_GYRO_3D
 	depends on HID_SENSOR_HUB
 	select IIO_BUFFER
-	select IIO_TRIGGERED_BUFFER
 	select HID_SENSOR_IIO_COMMON
 	select HID_SENSOR_IIO_TRIGGER
 	tristate "HID Gyroscope 3D"
@@ -115,7 +126,6 @@ config MPU3050
 
 config MPU3050_I2C
 	tristate "Invensense MPU3050 devices on I2C"
-	depends on !(INPUT_MPU3050=y || INPUT_MPU3050=m)
 	depends on I2C
 	select MPU3050
 	select REGMAP_I2C
@@ -129,30 +139,37 @@ config IIO_ST_GYRO_3AXIS
 	tristate "STMicroelectronics gyroscopes 3-Axis Driver"
 	depends on (I2C || SPI_MASTER) && SYSFS
 	select IIO_ST_SENSORS_CORE
-	select IIO_ST_GYRO_I2C_3AXIS if (I2C)
-	select IIO_ST_GYRO_SPI_3AXIS if (SPI_MASTER)
 	select IIO_TRIGGERED_BUFFER if (IIO_BUFFER)
 	help
 	  Say yes here to build support for STMicroelectronics gyroscopes:
 	  L3G4200D, LSM330DL, L3GD20, LSM330DLC, L3G4IS, LSM330, LSM9DS0.
 
-	  This driver can also be built as a module. If so, these modules
-	  will be created:
-	  - st_gyro (core functions for the driver [it is mandatory]);
-	  - st_gyro_i2c (necessary for the I2C devices [optional*]);
-	  - st_gyro_spi (necessary for the SPI devices [optional*]);
-
-	  (*) one of these is necessary to do something.
+	  Also need to enable at least one of I2C and SPI interface drivers
+	  below.
 
 config IIO_ST_GYRO_I2C_3AXIS
-	tristate
-	depends on IIO_ST_GYRO_3AXIS
-	depends on IIO_ST_SENSORS_I2C
+	tristate "STMicroelectronics gyroscopes 3-Axis I2C Interface"
+	depends on I2C && IIO_ST_GYRO_3AXIS
+	default I2C && IIO_ST_GYRO_3AXIS
+	select IIO_ST_SENSORS_I2C
+	help
+	  Build support for STMicroelectronics gyroscopes I2C interface.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called st_gyro_i2c.
+
 
 config IIO_ST_GYRO_SPI_3AXIS
-	tristate
-	depends on IIO_ST_GYRO_3AXIS
-	depends on IIO_ST_SENSORS_SPI
+	tristate "STMicroelectronics gyroscopes 3-Axis SPI Interface"
+	depends on SPI_MASTER && IIO_ST_GYRO_3AXIS
+	default SPI_MASTER && IIO_ST_GYRO_3AXIS
+	select IIO_ST_SENSORS_SPI
+	help
+	  Build support for STMicroelectronics gyroscopes SPI interface.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called st_gyro_spi.
+
 
 config ITG3200
 	tristate "InvenSense ITG3200 Digital 3-Axis Gyroscope I2C driver"

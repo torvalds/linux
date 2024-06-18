@@ -66,12 +66,12 @@
 #include <asm/assembler.h>
 
 	.text
-	.cpu		generic+crypto
+	.arch		armv8-a+crypto
 
-	init_crc	.req	w19
-	buf		.req	x20
-	len		.req	x21
-	fold_consts_ptr	.req	x22
+	init_crc	.req	w0
+	buf		.req	x1
+	len		.req	x2
+	fold_consts_ptr	.req	x3
 
 	fold_consts	.req	v10
 
@@ -131,7 +131,7 @@
 	tbl		bd4.16b, {\bd\().16b}, perm4.16b
 	.endm
 
-__pmull_p8_core:
+SYM_FUNC_START_LOCAL(__pmull_p8_core)
 .L__pmull_p8_core:
 	ext		t4.8b, ad.8b, ad.8b, #1			// A1
 	ext		t5.8b, ad.8b, ad.8b, #2			// A2
@@ -194,7 +194,7 @@ __pmull_p8_core:
 	eor		t4.16b, t4.16b, t5.16b
 	eor		t6.16b, t6.16b, t3.16b
 	ret
-ENDPROC(__pmull_p8_core)
+SYM_FUNC_END(__pmull_p8_core)
 
 	.macro		__pmull_p8, rq, ad, bd, i
 	.ifnc		\bd, fold_consts
@@ -257,12 +257,6 @@ CPU_LE(	ext		v12.16b, v12.16b, v12.16b, #8	)
 	.endm
 
 	.macro		crc_t10dif_pmull, p
-	frame_push	4, 128
-
-	mov		init_crc, w0
-	mov		buf, x1
-	mov		len, x2
-
 	__pmull_init_\p
 
 	// For sizes less than 256 bytes, we can't fold 128 bytes at a time.
@@ -317,26 +311,7 @@ CPU_LE(	ext		v7.16b, v7.16b, v7.16b, #8	)
 	fold_32_bytes	\p, v6, v7
 
 	subs		len, len, #128
-	b.lt		.Lfold_128_bytes_loop_done_\@
-
-	if_will_cond_yield_neon
-	stp		q0, q1, [sp, #.Lframe_local_offset]
-	stp		q2, q3, [sp, #.Lframe_local_offset + 32]
-	stp		q4, q5, [sp, #.Lframe_local_offset + 64]
-	stp		q6, q7, [sp, #.Lframe_local_offset + 96]
-	do_cond_yield_neon
-	ldp		q0, q1, [sp, #.Lframe_local_offset]
-	ldp		q2, q3, [sp, #.Lframe_local_offset + 32]
-	ldp		q4, q5, [sp, #.Lframe_local_offset + 64]
-	ldp		q6, q7, [sp, #.Lframe_local_offset + 96]
-	ld1		{fold_consts.2d}, [fold_consts_ptr]
-	__pmull_init_\p
-	__pmull_pre_\p	fold_consts
-	endif_yield_neon
-
-	b		.Lfold_128_bytes_loop_\@
-
-.Lfold_128_bytes_loop_done_\@:
+	b.ge		.Lfold_128_bytes_loop_\@
 
 	// Now fold the 112 bytes in v0-v6 into the 16 bytes in v7.
 
@@ -453,7 +428,9 @@ CPU_LE(	ext		v0.16b, v0.16b, v0.16b, #8	)
 	// Final CRC value (x^16 * M(x)) mod G(x) is in low 16 bits of v0.
 
 	umov		w0, v0.h[0]
+	.ifc		\p, p8
 	frame_pop
+	.endif
 	ret
 
 .Lless_than_256_bytes_\@:
@@ -488,9 +465,10 @@ CPU_LE(	ext		v7.16b, v7.16b, v7.16b, #8	)
 //
 // Assumes len >= 16.
 //
-ENTRY(crc_t10dif_pmull_p8)
-	crc_t10dif_pmull	p8
-ENDPROC(crc_t10dif_pmull_p8)
+SYM_FUNC_START(crc_t10dif_pmull_p8)
+	frame_push	1
+	crc_t10dif_pmull p8
+SYM_FUNC_END(crc_t10dif_pmull_p8)
 
 	.align		5
 //
@@ -498,9 +476,9 @@ ENDPROC(crc_t10dif_pmull_p8)
 //
 // Assumes len >= 16.
 //
-ENTRY(crc_t10dif_pmull_p64)
+SYM_FUNC_START(crc_t10dif_pmull_p64)
 	crc_t10dif_pmull	p64
-ENDPROC(crc_t10dif_pmull_p64)
+SYM_FUNC_END(crc_t10dif_pmull_p64)
 
 	.section	".rodata", "a"
 	.align		4

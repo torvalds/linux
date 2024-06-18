@@ -14,7 +14,9 @@
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
 #include <linux/firmware.h>
+#include <linux/pci.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm_qos.h>
 #include <linux/async.h>
@@ -25,7 +27,6 @@
 #include <asm/platform_sst_audio.h>
 #include "../sst-mfld-platform.h"
 #include "sst.h"
-#include "../../common/sst-dsp.h"
 
 MODULE_AUTHOR("Vinod Koul <vinod.koul@intel.com>");
 MODULE_AUTHOR("Harsha Priya <priya.harsha@intel.com>");
@@ -48,7 +49,7 @@ static irqreturn_t intel_sst_interrupt_mrfld(int irq, void *context)
 	union ipc_header_mrfld header;
 	union sst_imr_reg_mrfld imr;
 	struct ipc_post *msg = NULL;
-	unsigned int size = 0;
+	unsigned int size;
 	struct intel_sst_drv *drv = (struct intel_sst_drv *) context;
 	irqreturn_t retval = IRQ_HANDLED;
 
@@ -114,7 +115,7 @@ static irqreturn_t intel_sst_interrupt_mrfld(int irq, void *context)
 static irqreturn_t intel_sst_irq_thread_mrfld(int irq, void *context)
 {
 	struct intel_sst_drv *drv = (struct intel_sst_drv *) context;
-	struct ipc_post *__msg, *msg = NULL;
+	struct ipc_post *__msg, *msg;
 	unsigned long irq_flags;
 
 	spin_lock_irqsave(&drv->rx_msg_lock, irq_flags);
@@ -174,9 +175,9 @@ int sst_driver_ops(struct intel_sst_drv *sst)
 {
 
 	switch (sst->dev_id) {
-	case SST_MRFLD_PCI_ID:
-	case SST_BYT_ACPI_ID:
-	case SST_CHV_ACPI_ID:
+	case PCI_DEVICE_ID_INTEL_SST_TNG:
+	case PCI_DEVICE_ID_INTEL_SST_BYT:
+	case PCI_DEVICE_ID_INTEL_SST_BSW:
 		sst->tstamp = SST_TIME_STAMP_MRFLD;
 		sst->ops = &mrfld_ops;
 		return 0;
@@ -186,7 +187,7 @@ int sst_driver_ops(struct intel_sst_drv *sst)
 			"SST Driver capabilities missing for dev_id: %x",
 			sst->dev_id);
 		return -EINVAL;
-	};
+	}
 }
 
 void sst_process_pending_msg(struct work_struct *work)
@@ -221,8 +222,13 @@ static void sst_init_locks(struct intel_sst_drv *ctx)
 	spin_lock_init(&ctx->block_lock);
 }
 
+/*
+ * Driver handles PCI IDs in ACPI - sst_acpi_probe() - and we are using only
+ * device ID part. If real ACPI ID appears, the kstrtouint() returns error, so
+ * we are fine with using unsigned short as dev_id type.
+ */
 int sst_alloc_drv_context(struct intel_sst_drv **ctx,
-		struct device *dev, unsigned int dev_id)
+		struct device *dev, unsigned short dev_id)
 {
 	*ctx = devm_kzalloc(dev, sizeof(struct intel_sst_drv), GFP_KERNEL);
 	if (!(*ctx))
@@ -242,11 +248,11 @@ static ssize_t firmware_version_show(struct device *dev,
 
 	if (ctx->fw_version.type == 0 && ctx->fw_version.major == 0 &&
 	    ctx->fw_version.minor == 0 && ctx->fw_version.build == 0)
-		return sprintf(buf, "FW not yet loaded\n");
+		return sysfs_emit(buf, "FW not yet loaded\n");
 	else
-		return sprintf(buf, "v%02x.%02x.%02x.%02x\n",
-			       ctx->fw_version.type, ctx->fw_version.major,
-			       ctx->fw_version.minor, ctx->fw_version.build);
+		return sysfs_emit(buf, "v%02x.%02x.%02x.%02x\n",
+				  ctx->fw_version.type, ctx->fw_version.major,
+				  ctx->fw_version.minor, ctx->fw_version.build);
 
 }
 
@@ -324,8 +330,7 @@ int sst_context_init(struct intel_sst_drv *ctx)
 		ret = -ENOMEM;
 		goto do_free_mem;
 	}
-	pm_qos_add_request(ctx->qos, PM_QOS_CPU_DMA_LATENCY,
-				PM_QOS_DEFAULT_VALUE);
+	cpu_latency_qos_add_request(ctx->qos, PM_QOS_DEFAULT_VALUE);
 
 	dev_dbg(ctx->dev, "Requesting FW %s now...\n", ctx->firmware_name);
 	ret = request_firmware_nowait(THIS_MODULE, true, ctx->firmware_name,
@@ -361,16 +366,14 @@ void sst_context_cleanup(struct intel_sst_drv *ctx)
 	sst_unregister(ctx->dev);
 	sst_set_fw_state_locked(ctx, SST_SHUTDOWN);
 	sysfs_remove_group(&ctx->dev->kobj, &sst_fw_version_attr_group);
-	flush_scheduled_work();
 	destroy_workqueue(ctx->post_msg_wq);
-	pm_qos_remove_request(ctx->qos);
+	cpu_latency_qos_remove_request(ctx->qos);
 	kfree(ctx->fw_sg_list.src);
 	kfree(ctx->fw_sg_list.dst);
 	ctx->fw_sg_list.list_len = 0;
 	kfree(ctx->fw_in_mem);
 	ctx->fw_in_mem = NULL;
 	sst_memcpy_free_resources(ctx);
-	ctx = NULL;
 }
 EXPORT_SYMBOL_GPL(sst_context_cleanup);
 
@@ -424,7 +427,7 @@ static int intel_sst_suspend(struct device *dev)
 {
 	struct intel_sst_drv *ctx = dev_get_drvdata(dev);
 	struct sst_fw_save *fw_save;
-	int i, ret = 0;
+	int i, ret;
 
 	/* check first if we are already in SW reset */
 	if (ctx->sst_state == SST_RESET)

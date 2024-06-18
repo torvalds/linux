@@ -1,0 +1,360 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Copyright (C) 2020 Marvell International Ltd.
+ */
+
+#include "cn9130.dtsi" /* include SoC device tree */
+
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	aliases {
+		i2c0 = &cp0_i2c0;
+		ethernet0 = &cp0_eth0;
+		ethernet1 = &cp0_eth1;
+		ethernet2 = &cp0_eth2;
+		gpio1 = &cp0_gpio1;
+		gpio2 = &cp0_gpio2;
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x0 0x0 0x80000000>;
+	};
+
+	ap0_reg_mmc_vccq: regulator-1 {
+		compatible = "regulator-gpio";
+		regulator-name = "ap0_mmc_vccq";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+		gpios = <&expander0 5 GPIO_ACTIVE_HIGH>;
+		states = <1800000 0x1
+			  3300000 0x0>;
+	};
+
+	cp0_reg_usb3_vbus1: regulator-2 {
+		compatible = "regulator-fixed";
+		regulator-name = "cp0-xhci1-vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&expander0 8 GPIO_ACTIVE_HIGH>;
+	};
+
+	cp0_usb3_0_phy0: usb-phy-1 {
+		compatible = "usb-nop-xceiv";
+	};
+
+	cp0_usb3_0_phy1: usb-phy-2 {
+		compatible = "usb-nop-xceiv";
+		vcc-supply = <&cp0_reg_usb3_vbus1>;
+	};
+
+	cp0_reg_sd_vccq: regulator-3 {
+		compatible = "regulator-gpio";
+		regulator-name = "cp0_sd_vccq";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+		gpios = <&cp0_gpio2 18 GPIO_ACTIVE_HIGH>;
+		states = <1800000 0x1
+			  3300000 0x0>;
+	};
+
+	cp0_reg_sd_vcc: regulator-4 {
+		compatible = "regulator-fixed";
+		regulator-name = "cp0_sd_vcc";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&cp0_gpio2 19 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-always-on;
+	};
+
+	sfp: sfp {
+		compatible = "sff,sfp";
+		i2c-bus = <&cp0_i2c1>;
+		mod-def0-gpios = <&expander0 3 GPIO_ACTIVE_LOW>;
+		los-gpios = <&expander0 15 GPIO_ACTIVE_HIGH>;
+		tx-disable-gpios = <&expander0 2 GPIO_ACTIVE_HIGH>;
+		tx-fault-gpios = <&cp0_gpio1 24 GPIO_ACTIVE_HIGH>;
+		maximum-power-milliwatt = <3000>;
+	};
+};
+
+&uart0 {
+	status = "okay";
+};
+
+/* on-board eMMC U6 */
+&ap_sdhci0 {
+	pinctrl-names = "default";
+	bus-width = <8>;
+	status = "okay";
+	mmc-ddr-1_8v;
+	vqmmc-supply = <&ap0_reg_mmc_vccq>;
+};
+
+&cp0_syscon0 {
+	cp0_pinctrl: pinctrl {
+		compatible = "marvell,cp115-standalone-pinctrl";
+
+		cp0_i2c0_pins: cp0-i2c-pins-0 {
+			marvell,pins = "mpp37", "mpp38";
+			marvell,function = "i2c0";
+		};
+		cp0_i2c1_pins: cp0-i2c-pins-1 {
+			marvell,pins = "mpp35", "mpp36";
+			marvell,function = "i2c1";
+		};
+		cp0_sdhci_cd_pins_crb: cp0-sdhci-cd-pins-crb {
+			marvell,pins = "mpp55";
+			marvell,function = "gpio";
+		};
+		cp0_sdhci_pins: cp0-sdhi-pins-0 {
+			marvell,pins = "mpp56", "mpp57", "mpp58",
+				       "mpp59", "mpp60", "mpp61";
+			marvell,function = "sdio";
+		};
+		cp0_spi1_pins: cp0-spi-pins-1 {
+			marvell,pins = "mpp13", "mpp14", "mpp15", "mpp16";
+			marvell,function = "spi1";
+		};
+	};
+};
+
+&cp0_gpio1 {
+	status = "okay";
+};
+
+&cp0_gpio2 {
+	status = "okay";
+};
+
+&cp0_i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&cp0_i2c0_pins>;
+	status = "okay";
+	clock-frequency = <100000>;
+	expander0: mcp23x17@20 {
+		compatible = "microchip,mcp23017";
+		gpio-controller;
+		#gpio-cells = <2>;
+		reg = <0x20>;
+		status = "okay";
+	};
+};
+
+&cp0_i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&cp0_i2c1_pins>;
+	clock-frequency = <100000>;
+	status = "okay";
+};
+
+
+&cp0_sdhci0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&cp0_sdhci_pins
+		     &cp0_sdhci_cd_pins_crb>;
+	bus-width = <4>;
+	cd-gpios = <&cp0_gpio2 23 GPIO_ACTIVE_HIGH>;
+	vqmmc-supply = <&cp0_reg_sd_vccq>;
+	vmmc-supply = <&cp0_reg_sd_vcc>;
+	status = "okay";
+};
+
+&cp0_spi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&cp0_spi1_pins>;
+	reg = <0x700680 0x50>,		/* control */
+	      <0x2000000 0x1000000>;	/* CS0 */
+	status = "okay";
+
+	flash@0 {
+		#address-cells = <0x1>;
+		#size-cells = <0x1>;
+		compatible = "jedec,spi-nor";
+		reg = <0x0>;
+		/* On-board MUX does not allow higher frequencies */
+		spi-max-frequency = <40000000>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "U-Boot";
+				reg = <0x0 0x200000>;
+			};
+
+			partition@400000 {
+				label = "Filesystem";
+				reg = <0x200000 0xe00000>;
+			};
+		};
+	};
+};
+
+&cp0_mdio {
+	status = "okay";
+	phy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+
+	switch6: ethernet-switch@6 {
+		/* Actual device is MV88E6393X */
+		compatible = "marvell,mv88e6190";
+		reg = <6>;
+		interrupt-parent = <&cp0_gpio1>;
+		interrupts = <28 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+
+		dsa,member = <0 0>;
+
+		ethernet-ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			ethernet-port@1 {
+				reg = <1>;
+				label = "p1";
+				phy-handle = <&switch0phy1>;
+			};
+
+			ethernet-port@2 {
+				reg = <2>;
+				label = "p2";
+				phy-handle = <&switch0phy2>;
+			};
+
+			ethernet-port@3 {
+				reg = <3>;
+				label = "p3";
+				phy-handle = <&switch0phy3>;
+			};
+
+			ethernet-port@4 {
+				reg = <4>;
+				label = "p4";
+				phy-handle = <&switch0phy4>;
+			};
+
+			ethernet-port@5 {
+				reg = <5>;
+				label = "p5";
+				phy-handle = <&switch0phy5>;
+			};
+
+			ethernet-port@6 {
+				reg = <6>;
+				label = "p6";
+				phy-handle = <&switch0phy6>;
+			};
+
+			ethernet-port@7 {
+				reg = <7>;
+				label = "p7";
+				phy-handle = <&switch0phy7>;
+			};
+
+			ethernet-port@8 {
+				reg = <8>;
+				label = "p8";
+				phy-handle = <&switch0phy8>;
+			};
+
+			ethernet-port@9 {
+				reg = <9>;
+				label = "p9";
+				phy-mode = "10gbase-r";
+				sfp = <&sfp>;
+				managed = "in-band-status";
+			};
+
+			ethernet-port@a {
+				reg = <10>;
+				ethernet = <&cp0_eth0>;
+				phy-mode = "10gbase-r";
+				managed = "in-band-status";
+			};
+
+		};
+
+		mdio {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			switch0phy1: ethernet-phy@1 {
+				reg = <0x1>;
+			};
+
+			switch0phy2: ethernet-phy@2 {
+				reg = <0x2>;
+			};
+
+			switch0phy3: ethernet-phy@3 {
+				reg = <0x3>;
+			};
+
+			switch0phy4: ethernet-phy@4 {
+				reg = <0x4>;
+			};
+
+			switch0phy5: ethernet-phy@5 {
+				reg = <0x5>;
+			};
+
+			switch0phy6: ethernet-phy@6 {
+				reg = <0x6>;
+			};
+
+			switch0phy7: ethernet-phy@7 {
+				reg = <0x7>;
+			};
+
+			switch0phy8: ethernet-phy@8 {
+				reg = <0x8>;
+			};
+		};
+	};
+};
+
+&cp0_xmdio {
+	status = "okay";
+	nbaset_phy0: ethernet-phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c45";
+		reg = <0>;
+	};
+};
+
+&cp0_ethernet {
+	status = "okay";
+};
+
+&cp0_eth0 {
+	/* This port is connected to 88E6393X switch */
+	status = "okay";
+	phy-mode = "10gbase-r";
+	managed = "in-band-status";
+	phys = <&cp0_comphy4 0>;
+};
+
+&cp0_eth1 {
+	status = "okay";
+	phy = <&phy0>;
+	phy-mode = "rgmii-id";
+};
+
+&cp0_eth2 {
+	/* This port uses "2500base-t" phy-mode */
+	status = "disabled";
+	phy = <&nbaset_phy0>;
+	phys = <&cp0_comphy5 2>;
+};
+

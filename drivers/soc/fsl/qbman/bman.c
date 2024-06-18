@@ -660,7 +660,7 @@ int bm_shutdown_pool(u32 bpid)
 	}
 done:
 	put_affine_portal();
-	return 0;
+	return err;
 }
 
 struct gen_pool *bm_bpalloc;
@@ -709,7 +709,6 @@ struct bman_pool *bman_new_pool(void)
 	return pool;
 err:
 	bm_release_bpid(bpid);
-	kfree(pool);
 	return NULL;
 }
 EXPORT_SYMBOL(bman_new_pool);

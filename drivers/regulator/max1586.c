@@ -11,7 +11,7 @@
 #include <linux/regulator/driver.h>
 #include <linux/slab.h>
 #include <linux/regulator/max1586.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/regulator/of_regulator.h>
 
 #define MAX1586_V3_MAX_VSEL 31
@@ -201,29 +201,21 @@ static int of_get_max1586_platform_data(struct device *dev,
 	return 0;
 }
 
-static const struct of_device_id max1586_of_match[] = {
+static const struct of_device_id __maybe_unused max1586_of_match[] = {
 	{ .compatible = "maxim,max1586", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, max1586_of_match);
 
-static int max1586_pmic_probe(struct i2c_client *client,
-					const struct i2c_device_id *i2c_id)
+static int max1586_pmic_probe(struct i2c_client *client)
 {
 	struct max1586_platform_data *pdata, pdata_of;
 	struct regulator_config config = { };
 	struct max1586_data *max1586;
 	int i, id, ret;
-	const struct of_device_id *match;
 
 	pdata = dev_get_platdata(&client->dev);
 	if (client->dev.of_node && !pdata) {
-		match = of_match_device(of_match_ptr(max1586_of_match),
-					&client->dev);
-		if (!match) {
-			dev_err(&client->dev, "Error: No device match found\n");
-			return -ENODEV;
-		}
 		ret = of_get_max1586_platform_data(&client->dev, &pdata_of);
 		if (ret < 0)
 			return ret;
@@ -293,6 +285,7 @@ static struct i2c_driver max1586_pmic_driver = {
 	.probe = max1586_pmic_probe,
 	.driver		= {
 		.name	= "max1586",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(max1586_of_match),
 	},
 	.id_table	= max1586_id,

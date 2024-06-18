@@ -458,7 +458,7 @@ void b43_software_rfkill(struct b43_wldev *dev, bool blocked)
 	b43_mac_enable(dev);
 }
 
-/**
+/*
  * b43_phy_txpower_adjust_work - TX power workqueue.
  *
  * Workqueue for updating the TX power parameters in hardware.
@@ -559,7 +559,7 @@ bool b43_is_40mhz(struct b43_wldev *dev)
 	return dev->phy.chandef->width == NL80211_CHAN_WIDTH_40;
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/BmacPhyClkFgc */
+/* https://bcm-v4.sipsolutions.net/802.11/PHY/N/BmacPhyClkFgc */
 void b43_phy_force_clock(struct b43_wldev *dev, bool force)
 {
 	u32 tmp;

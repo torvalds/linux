@@ -7,18 +7,21 @@
  */
 
 #include <linux/debugfs.h>
+#include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/pmbus.h>
 #include <linux/gpio/driver.h>
+#include <linux/timekeeping.h>
 #include "pmbus.h"
 
-enum chips { ucd9000, ucd90120, ucd90124, ucd90160, ucd9090, ucd90910 };
+enum chips { ucd9000, ucd90120, ucd90124, ucd90160, ucd90320, ucd9090,
+	     ucd90910 };
 
 #define UCD9000_MONITOR_CONFIG		0xd5
 #define UCD9000_NUM_PAGES		0xd6
@@ -38,7 +41,7 @@ enum chips { ucd9000, ucd90120, ucd90124, ucd90160, ucd9090, ucd90910 };
 #define UCD9000_GPIO_OUTPUT		1
 
 #define UCD9000_MON_TYPE(x)	(((x) >> 5) & 0x07)
-#define UCD9000_MON_PAGE(x)	((x) & 0x0f)
+#define UCD9000_MON_PAGE(x)	((x) & 0x1f)
 
 #define UCD9000_MON_VOLTAGE	1
 #define UCD9000_MON_TEMPERATURE	2
@@ -50,10 +53,12 @@ enum chips { ucd9000, ucd90120, ucd90124, ucd90160, ucd9090, ucd90910 };
 #define UCD9000_GPIO_NAME_LEN	16
 #define UCD9090_NUM_GPIOS	23
 #define UCD901XX_NUM_GPIOS	26
+#define UCD90320_NUM_GPIOS	84
 #define UCD90910_NUM_GPIOS	26
 
 #define UCD9000_DEBUGFS_NAME_LEN	24
 #define UCD9000_GPI_COUNT		8
+#define UCD90320_GPI_COUNT		32
 
 struct ucd9000_data {
 	u8 fan_data[UCD9000_NUM_FAN][I2C_SMBUS_BLOCK_MAX];
@@ -62,6 +67,7 @@ struct ucd9000_data {
 	struct gpio_chip gpio;
 #endif
 	struct dentry *debugfs;
+	ktime_t write_time;
 };
 #define to_ucd9000_data(_info) container_of(_info, struct ucd9000_data, info)
 
@@ -69,6 +75,73 @@ struct ucd9000_debugfs_entry {
 	struct i2c_client *client;
 	u8 index;
 };
+
+/*
+ * It has been observed that the UCD90320 randomly fails register access when
+ * doing another access right on the back of a register write. To mitigate this
+ * make sure that there is a minimum delay between a write access and the
+ * following access. The 500 is based on experimental data. At a delay of
+ * 350us the issue seems to go away. Add a bit of extra margin to allow for
+ * system to system differences.
+ */
+#define UCD90320_WAIT_DELAY_US 500
+
+static inline void ucd90320_wait(const struct ucd9000_data *data)
+{
+	s64 delta = ktime_us_delta(ktime_get(), data->write_time);
+
+	if (delta < UCD90320_WAIT_DELAY_US)
+		udelay(UCD90320_WAIT_DELAY_US - delta);
+}
+
+static int ucd90320_read_word_data(struct i2c_client *client, int page,
+				   int phase, int reg)
+{
+	const struct pmbus_driver_info *info = pmbus_get_driver_info(client);
+	struct ucd9000_data *data = to_ucd9000_data(info);
+
+	if (reg >= PMBUS_VIRT_BASE)
+		return -ENXIO;
+
+	ucd90320_wait(data);
+	return pmbus_read_word_data(client, page, phase, reg);
+}
+
+static int ucd90320_read_byte_data(struct i2c_client *client, int page, int reg)
+{
+	const struct pmbus_driver_info *info = pmbus_get_driver_info(client);
+	struct ucd9000_data *data = to_ucd9000_data(info);
+
+	ucd90320_wait(data);
+	return pmbus_read_byte_data(client, page, reg);
+}
+
+static int ucd90320_write_word_data(struct i2c_client *client, int page,
+				    int reg, u16 word)
+{
+	const struct pmbus_driver_info *info = pmbus_get_driver_info(client);
+	struct ucd9000_data *data = to_ucd9000_data(info);
+	int ret;
+
+	ucd90320_wait(data);
+	ret = pmbus_write_word_data(client, page, reg, word);
+	data->write_time = ktime_get();
+
+	return ret;
+}
+
+static int ucd90320_write_byte(struct i2c_client *client, int page, u8 value)
+{
+	const struct pmbus_driver_info *info = pmbus_get_driver_info(client);
+	struct ucd9000_data *data = to_ucd9000_data(info);
+	int ret;
+
+	ucd90320_wait(data);
+	ret = pmbus_write_byte(client, page, value);
+	data->write_time = ktime_get();
+
+	return ret;
+}
 
 static int ucd9000_get_fan_config(struct i2c_client *client, int fan)
 {
@@ -131,6 +204,7 @@ static const struct i2c_device_id ucd9000_id[] = {
 	{"ucd90120", ucd90120},
 	{"ucd90124", ucd90124},
 	{"ucd90160", ucd90160},
+	{"ucd90320", ucd90320},
 	{"ucd9090", ucd9090},
 	{"ucd90910", ucd90910},
 	{}
@@ -153,6 +227,10 @@ static const struct of_device_id __maybe_unused ucd9000_of_match[] = {
 	{
 		.compatible = "ti,ucd90160",
 		.data = (void *)ucd90160
+	},
+	{
+		.compatible = "ti,ucd90320",
+		.data = (void *)ucd90320
 	},
 	{
 		.compatible = "ti,ucd9090",
@@ -322,6 +400,9 @@ static void ucd9000_probe_gpio(struct i2c_client *client,
 	case ucd90160:
 		data->gpio.ngpio = UCD901XX_NUM_GPIOS;
 		break;
+	case ucd90320:
+		data->gpio.ngpio = UCD90320_NUM_GPIOS;
+		break;
 	case ucd90910:
 		data->gpio.ngpio = UCD90910_NUM_GPIOS;
 		break;
@@ -359,7 +440,7 @@ static void ucd9000_probe_gpio(struct i2c_client *client,
 #ifdef CONFIG_DEBUG_FS
 static int ucd9000_get_mfr_status(struct i2c_client *client, u8 *buffer)
 {
-	int ret = pmbus_set_page(client, 0);
+	int ret = pmbus_set_page(client, 0, 0xff);
 
 	if (ret < 0)
 		return ret;
@@ -372,17 +453,18 @@ static int ucd9000_debugfs_show_mfr_status_bit(void *data, u64 *val)
 	struct ucd9000_debugfs_entry *entry = data;
 	struct i2c_client *client = entry->client;
 	u8 buffer[I2C_SMBUS_BLOCK_MAX];
-	int ret;
+	int ret, i;
 
 	ret = ucd9000_get_mfr_status(client, buffer);
 	if (ret < 0)
 		return ret;
 
 	/*
-	 * Attribute only created for devices with gpi fault bits at bits
-	 * 16-23, which is the second byte of the response.
+	 * GPI fault bits are in sets of 8, two bytes from end of response.
 	 */
-	*val = !!(buffer[1] & BIT(entry->index));
+	i = ret - 3 - entry->index / 8;
+	if (i >= 0)
+		*val = !!(buffer[i] & BIT(entry->index % 8));
 
 	return 0;
 }
@@ -422,7 +504,7 @@ static int ucd9000_init_debugfs(struct i2c_client *client,
 {
 	struct dentry *debugfs;
 	struct ucd9000_debugfs_entry *entries;
-	int i;
+	int i, gpi_count;
 	char name[UCD9000_DEBUGFS_NAME_LEN];
 
 	debugfs = pmbus_get_debugfs_dir(client);
@@ -430,23 +512,24 @@ static int ucd9000_init_debugfs(struct i2c_client *client,
 		return -ENOENT;
 
 	data->debugfs = debugfs_create_dir(client->name, debugfs);
-	if (!data->debugfs)
-		return -ENOENT;
 
 	/*
 	 * Of the chips this driver supports, only the UCD9090, UCD90160,
-	 * and UCD90910 report GPI faults in their MFR_STATUS register, so only
-	 * create the GPI fault debugfs attributes for those chips.
+	 * UCD90320, and UCD90910 report GPI faults in their MFR_STATUS
+	 * register, so only create the GPI fault debugfs attributes for those
+	 * chips.
 	 */
 	if (mid->driver_data == ucd9090 || mid->driver_data == ucd90160 ||
-	    mid->driver_data == ucd90910) {
+	    mid->driver_data == ucd90320 || mid->driver_data == ucd90910) {
+		gpi_count = mid->driver_data == ucd90320 ? UCD90320_GPI_COUNT
+							 : UCD9000_GPI_COUNT;
 		entries = devm_kcalloc(&client->dev,
-				       UCD9000_GPI_COUNT, sizeof(*entries),
+				       gpi_count, sizeof(*entries),
 				       GFP_KERNEL);
 		if (!entries)
 			return -ENOMEM;
 
-		for (i = 0; i < UCD9000_GPI_COUNT; i++) {
+		for (i = 0; i < gpi_count; i++) {
 			entries[i].client = client;
 			entries[i].index = i;
 			scnprintf(name, UCD9000_DEBUGFS_NAME_LEN,
@@ -472,8 +555,7 @@ static int ucd9000_init_debugfs(struct i2c_client *client,
 }
 #endif /* CONFIG_DEBUG_FS */
 
-static int ucd9000_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int ucd9000_probe(struct i2c_client *client)
 {
 	u8 block_buffer[I2C_SMBUS_BLOCK_MAX + 1];
 	struct ucd9000_data *data;
@@ -506,14 +588,14 @@ static int ucd9000_probe(struct i2c_client *client,
 	}
 
 	if (client->dev.of_node)
-		chip = (enum chips)of_device_get_match_data(&client->dev);
+		chip = (uintptr_t)of_device_get_match_data(&client->dev);
 	else
-		chip = id->driver_data;
+		chip = mid->driver_data;
 
-	if (chip != ucd9000 && chip != mid->driver_data)
+	if (chip != ucd9000 && strcmp(client->name, mid->name) != 0)
 		dev_notice(&client->dev,
 			   "Device mismatch: Configured %s, detected %s\n",
-			   id->name, mid->name);
+			   client->name, mid->name);
 
 	data = devm_kzalloc(&client->dev, sizeof(struct ucd9000_data),
 			    GFP_KERNEL);
@@ -584,11 +666,16 @@ static int ucd9000_probe(struct i2c_client *client,
 		info->read_byte_data = ucd9000_read_byte_data;
 		info->func[0] |= PMBUS_HAVE_FAN12 | PMBUS_HAVE_STATUS_FAN12
 		  | PMBUS_HAVE_FAN34 | PMBUS_HAVE_STATUS_FAN34;
+	} else if (mid->driver_data == ucd90320) {
+		info->read_byte_data = ucd90320_read_byte_data;
+		info->read_word_data = ucd90320_read_word_data;
+		info->write_byte = ucd90320_write_byte;
+		info->write_word_data = ucd90320_write_word_data;
 	}
 
 	ucd9000_probe_gpio(client, mid, data);
 
-	ret = pmbus_do_probe(client, mid, info);
+	ret = pmbus_do_probe(client, info);
 	if (ret)
 		return ret;
 
@@ -607,7 +694,6 @@ static struct i2c_driver ucd9000_driver = {
 		.of_match_table = of_match_ptr(ucd9000_of_match),
 	},
 	.probe = ucd9000_probe,
-	.remove = pmbus_do_remove,
 	.id_table = ucd9000_id,
 };
 
@@ -616,3 +702,4 @@ module_i2c_driver(ucd9000_driver);
 MODULE_AUTHOR("Guenter Roeck");
 MODULE_DESCRIPTION("PMBus driver for TI UCD90xxx");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(PMBUS);

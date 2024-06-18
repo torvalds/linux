@@ -1,0 +1,24 @@
+What:		/sys/bus/event_source/devices/<dev>/caps
+Date:		May 2022
+KernelVersion:	5.19
+Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Description:
+		Attribute group to describe the capabilities exposed
+		for a particular pmu. Each attribute of this group can
+		expose information specific to a PMU, say pmu_name, so that
+		userspace can understand some of the feature which the
+		platform specific PMU supports.
+
+		One of the example available capability in supported platform
+		like Intel is pmu_name, which exposes underlying CPU name known
+		to the PMU driver.
+
+		Example output in powerpc:
+		grep . /sys/bus/event_source/devices/cpu/caps/*
+		/sys/bus/event_source/devices/cpu/caps/pmu_name:POWER9
+
+		The "branch_counter_nr" in the supported platform exposes the
+		maximum number of counters which can be shown in the u64 counters
+		of PERF_SAMPLE_BRANCH_COUNTERS, while the "branch_counter_width"
+		exposes the width of each counter. Both of them can be used by
+		the perf tool to parse the logged counters in each branch.

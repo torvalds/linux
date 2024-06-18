@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+# Copyright 2015 Alban Bedel <albeu@free.fr>
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/reset/qca,ar7100-reset.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Atheros AR7xxx/AR9XXX reset controller
+
+maintainers:
+  - Alban Bedel <albeu@free.fr>
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - qca,ar9132-reset
+          - qca,ar9331-reset
+      - const: qca,ar7100-reset
+
+  reg:
+    maxItems: 1
+
+  "#reset-cells":
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - "#reset-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+    reset-controller@1806001c {
+          compatible = "qca,ar9132-reset", "qca,ar7100-reset";
+          reg = <0x1806001c 0x4>;
+          #reset-cells = <1>;
+    };

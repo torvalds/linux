@@ -8,9 +8,10 @@ function usage() {
     echo "Usage: $0 [-vx] -i ethX"
     echo "  -i : (\$DEV)       output interface/device (required)"
     echo "  -s : (\$PKT_SIZE)  packet size"
-    echo "  -d : (\$DEST_IP)   destination IP"
+    echo "  -d : (\$DEST_IP)   destination IP. CIDR (e.g. 198.18.0.0/15) is also allowed"
     echo "  -m : (\$DST_MAC)   destination MAC-addr"
     echo "  -p : (\$DST_PORT)  destination PORT range (e.g. 433-444) is also allowed"
+    echo "  -k : (\$UDP_CSUM)  enable UDP tx checksum"
     echo "  -t : (\$THREADS)   threads to start"
     echo "  -f : (\$F_THREAD)  index of first thread (zero indexed CPU number)"
     echo "  -c : (\$SKB_CLONE) SKB clones send before alloc new SKB"
@@ -19,12 +20,14 @@ function usage() {
     echo "  -v : (\$VERBOSE)   verbose"
     echo "  -x : (\$DEBUG)     debug"
     echo "  -6 : (\$IP6)       IPv6"
+    echo "  -w : (\$DELAY)     Tx Delay value (ns)"
+    echo "  -a : (\$APPEND)    Script will not reset generator's state, but will append its config"
     echo ""
 }
 
 ##  --- Parse command line arguments / parameters ---
 ## echo "Commandline options:"
-while getopts "s:i:d:m:p:f:t:c:n:b:vxh6" option; do
+while getopts "s:i:d:m:p:f:t:c:n:b:w:vxh6ak" option; do
     case $option in
         i) # interface
           export DEV=$OPTARG
@@ -66,6 +69,10 @@ while getopts "s:i:d:m:p:f:t:c:n:b:vxh6" option; do
 	  export BURST=$OPTARG
 	  info "SKB bursting: BURST=$BURST"
           ;;
+        w)
+	  export DELAY=$OPTARG
+	  info "DELAY=$DELAY"
+          ;;
         v)
           export VERBOSE=yes
           info "Verbose mode: VERBOSE=$VERBOSE"
@@ -78,6 +85,14 @@ while getopts "s:i:d:m:p:f:t:c:n:b:vxh6" option; do
 	  export IP6=6
 	  info "IP6: IP6=$IP6"
 	  ;;
+        a)
+          export APPEND=yes
+          info "Append mode: APPEND=$APPEND"
+          ;;
+        k)
+          export UDP_CSUM=yes
+          info "UDP tx checksum: UDP_CSUM=$UDP_CSUM"
+          ;;
         h|?|*)
           usage;
           err 2 "[ERROR] Unknown parameters!!!"
@@ -99,6 +114,9 @@ fi
 if [ -z "$THREADS" ]; then
     export THREADS=1
 fi
+
+# default DELAY
+[ -z "$DELAY" ] && export DELAY=0 # Zero means max speed
 
 export L_THREAD=$(( THREADS + F_THREAD - 1 ))
 

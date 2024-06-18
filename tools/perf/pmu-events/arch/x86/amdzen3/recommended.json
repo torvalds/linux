@@ -1,0 +1,215 @@
+[
+  {
+    "MetricName": "branch_misprediction_ratio",
+    "BriefDescription": "Execution-Time Branch Misprediction Ratio (Non-Speculative)",
+    "MetricExpr": "d_ratio(ex_ret_brn_misp, ex_ret_brn)",
+    "MetricGroup": "branch_prediction",
+    "ScaleUnit": "100%"
+  },
+  {
+    "EventName": "all_data_cache_accesses",
+    "EventCode": "0x29",
+    "BriefDescription": "All L1 Data Cache Accesses",
+    "UMask": "0x07"
+  },
+  {
+    "MetricName": "all_l2_cache_accesses",
+    "BriefDescription": "All L2 Cache Accesses",
+    "MetricExpr": "l2_request_g1.all_no_prefetch + l2_pf_hit_l2 + l2_pf_miss_l2_hit_l3 + l2_pf_miss_l2_l3",
+    "MetricGroup": "l2_cache"
+  },
+  {
+    "EventName": "l2_cache_accesses_from_ic_misses",
+    "EventCode": "0x60",
+    "BriefDescription": "L2 Cache Accesses from L1 Instruction Cache Misses (including prefetch)",
+    "UMask": "0x10"
+  },
+  {
+    "EventName": "l2_cache_accesses_from_dc_misses",
+    "EventCode": "0x60",
+    "BriefDescription": "L2 Cache Accesses from L1 Data Cache Misses (including prefetch)",
+    "UMask": "0xe8"
+  },
+  {
+    "MetricName": "l2_cache_accesses_from_l2_hwpf",
+    "BriefDescription": "L2 Cache Accesses from L2 HWPF",
+    "MetricExpr": "l2_pf_hit_l2 + l2_pf_miss_l2_hit_l3 + l2_pf_miss_l2_l3",
+    "MetricGroup": "l2_cache"
+  },
+  {
+    "MetricName": "all_l2_cache_misses",
+    "BriefDescription": "All L2 Cache Misses",
+    "MetricExpr": "l2_cache_req_stat.ic_dc_miss_in_l2 + l2_pf_miss_l2_hit_l3 + l2_pf_miss_l2_l3",
+    "MetricGroup": "l2_cache"
+  },
+  {
+    "EventName": "l2_cache_misses_from_ic_miss",
+    "EventCode": "0x64",
+    "BriefDescription": "L2 Cache Misses from L1 Instruction Cache Misses",
+    "UMask": "0x01"
+  },
+  {
+    "EventName": "l2_cache_misses_from_dc_misses",
+    "EventCode": "0x64",
+    "BriefDescription": "L2 Cache Misses from L1 Data Cache Misses",
+    "UMask": "0x08"
+  },
+  {
+    "MetricName": "l2_cache_misses_from_l2_hwpf",
+    "BriefDescription": "L2 Cache Misses from L2 Cache HWPF",
+    "MetricExpr": "l2_pf_miss_l2_hit_l3 + l2_pf_miss_l2_l3",
+    "MetricGroup": "l2_cache"
+  },
+  {
+    "MetricName": "all_l2_cache_hits",
+    "BriefDescription": "All L2 Cache Hits",
+    "MetricExpr": "l2_cache_req_stat.ic_dc_hit_in_l2 + l2_pf_hit_l2",
+    "MetricGroup": "l2_cache"
+  },
+  {
+    "EventName": "l2_cache_hits_from_ic_misses",
+    "EventCode": "0x64",
+    "BriefDescription": "L2 Cache Hits from L1 Instruction Cache Misses",
+    "UMask": "0x06"
+  },
+  {
+    "EventName": "l2_cache_hits_from_dc_misses",
+    "EventCode": "0x64",
+    "BriefDescription": "L2 Cache Hits from L1 Data Cache Misses",
+    "UMask": "0xf0"
+  },
+  {
+    "EventName": "l2_cache_hits_from_l2_hwpf",
+    "EventCode": "0x70",
+    "BriefDescription": "L2 Cache Hits from L2 Cache HWPF",
+    "UMask": "0xff"
+  },
+  {
+    "EventName": "l3_cache_accesses",
+    "EventCode": "0x04",
+    "BriefDescription": "L3 Cache Accesses",
+    "UMask": "0xff",
+    "Unit": "L3PMC"
+  },
+  {
+    "EventName": "l3_misses",
+    "EventCode": "0x04",
+    "BriefDescription": "L3 Misses (includes cacheline state change requests)",
+    "UMask": "0x01",
+    "Unit": "L3PMC"
+  },
+  {
+    "MetricName": "l3_read_miss_latency",
+    "BriefDescription": "Average L3 Read Miss Latency (in core clocks)",
+    "MetricExpr": "(xi_sys_fill_latency * 16) / xi_ccx_sdp_req1",
+    "MetricGroup": "l3_cache",
+    "ScaleUnit": "1core clocks"
+  },
+  {
+    "MetricName": "op_cache_fetch_miss_ratio",
+    "BriefDescription": "Op Cache (64B) Fetch Miss Ratio",
+    "MetricExpr": "d_ratio(op_cache_hit_miss.op_cache_miss, op_cache_hit_miss.all_op_cache_accesses)",
+    "MetricGroup": "l2_cache"
+  },
+  {
+    "MetricName": "ic_fetch_miss_ratio",
+    "BriefDescription": "Instruction Cache (32B) Fetch Miss Ratio",
+    "MetricExpr": "d_ratio(ic_tag_hit_miss.instruction_cache_miss, ic_tag_hit_miss.all_instruction_cache_accesses)",
+    "MetricGroup": "l2_cache",
+    "ScaleUnit": "100%"
+  },
+  {
+    "EventName": "l1_data_cache_fills_from_memory",
+    "EventCode": "0x44",
+    "BriefDescription": "L1 Data Cache Fills: From Memory",
+    "UMask": "0x48"
+  },
+  {
+    "EventName": "l1_data_cache_fills_from_remote_node",
+    "EventCode": "0x44",
+    "BriefDescription": "L1 Data Cache Fills: From Remote Node",
+    "UMask": "0x50"
+  },
+  {
+    "EventName": "l1_data_cache_fills_from_within_same_ccx",
+    "EventCode": "0x44",
+    "BriefDescription": "L1 Data Cache Fills: From within same CCX",
+    "UMask": "0x03"
+  },
+  {
+    "EventName": "l1_data_cache_fills_from_external_ccx_cache",
+    "EventCode": "0x44",
+    "BriefDescription": "L1 Data Cache Fills: From External CCX Cache",
+    "UMask": "0x14"
+  },
+  {
+    "EventName": "l1_data_cache_fills_all",
+    "EventCode": "0x44",
+    "BriefDescription": "L1 Data Cache Fills: All",
+    "UMask": "0xff"
+  },
+  {
+    "MetricName": "l1_itlb_misses",
+    "BriefDescription": "L1 ITLB Misses",
+    "MetricExpr": "bp_l1_tlb_miss_l2_tlb_hit + bp_l1_tlb_miss_l2_tlb_miss",
+    "MetricGroup": "tlb"
+  },
+  {
+    "EventName": "l2_itlb_misses",
+    "EventCode": "0x85",
+    "BriefDescription": "L2 ITLB Misses & Instruction page walks",
+    "UMask": "0x07"
+  },
+  {
+    "EventName": "l1_dtlb_misses",
+    "EventCode": "0x45",
+    "BriefDescription": "L1 DTLB Misses",
+    "UMask": "0xff"
+  },
+  {
+    "EventName": "l2_dtlb_misses",
+    "EventCode": "0x45",
+    "BriefDescription": "L2 DTLB Misses & Data page walks",
+    "UMask": "0xf0"
+  },
+  {
+    "EventName": "all_tlbs_flushed",
+    "EventCode": "0x78",
+    "BriefDescription": "All TLBs Flushed",
+    "UMask": "0xff"
+  },
+  {
+    "MetricName": "macro_ops_dispatched",
+    "BriefDescription": "Macro-ops Dispatched",
+    "MetricExpr": "de_dis_cops_from_decoder.disp_op_type.any_integer_dispatch + de_dis_cops_from_decoder.disp_op_type.any_fp_dispatch",
+    "MetricGroup": "decoder"
+  },
+  {
+    "EventName": "sse_avx_stalls",
+    "EventCode": "0x0e",
+    "BriefDescription": "Mixed SSE/AVX Stalls",
+    "UMask": "0x0e"
+  },
+  {
+    "EventName": "macro_ops_retired",
+    "EventCode": "0xc1",
+    "BriefDescription": "Macro-ops Retired"
+  },
+  {
+    "MetricName": "all_remote_links_outbound",
+    "BriefDescription": "Approximate: Outbound data bytes for all Remote Links for a node (die)",
+    "MetricExpr": "remote_outbound_data_controller_0 + remote_outbound_data_controller_1 + remote_outbound_data_controller_2 + remote_outbound_data_controller_3",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "3e-5MiB"
+  },
+  {
+    "MetricName": "nps1_die_to_dram",
+    "BriefDescription": "Approximate: Combined DRAM B/bytes of all channels on a NPS1 node (die)",
+    "MetricExpr": "dram_channel_data_controller_0 + dram_channel_data_controller_1 + dram_channel_data_controller_2 + dram_channel_data_controller_3 + dram_channel_data_controller_4 + dram_channel_data_controller_5 + dram_channel_data_controller_6 + dram_channel_data_controller_7",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "MetricConstraint": "NO_GROUP_EVENTS",
+    "ScaleUnit": "6.1e-5MiB"
+  }
+]

@@ -9,7 +9,6 @@ script_base=$(realpath $(dirname $0))
 exec $script_base/../../../scripts/checkpatch.pl \
 	--subjective \
 	--no-summary \
-	--max-line-length=90 \
 	--show-types \
 	--ignore ARCH_INCLUDE_LINUX \
 	--ignore BIT_MACRO \

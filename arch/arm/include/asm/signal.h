@@ -17,7 +17,14 @@ typedef struct {
 	unsigned long sig[_NSIG_WORDS];
 } sigset_t;
 
+#define __ARCH_UAPI_SA_FLAGS	(SA_THIRTYTWO | SA_RESTORER)
+
 #define __ARCH_HAS_SA_RESTORER
 
 #include <asm/sigcontext.h>
+
+void do_rseq_syscall(struct pt_regs *regs);
+int do_work_pending(struct pt_regs *regs, unsigned int thread_flags,
+		    int syscall);
+
 #endif

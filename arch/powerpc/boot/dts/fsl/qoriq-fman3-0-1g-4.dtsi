@@ -51,7 +51,8 @@ fman@400000 {
 		reg = <0xe8000 0x1000>;
 		fsl,fman-ports = <&fman0_rx_0x0c &fman0_tx_0x2c>;
 		ptp-timer = <&ptp_timer0>;
-		pcsphy-handle = <&pcsphy4>;
+		pcsphy-handle = <&pcsphy4>, <&pcsphy4>;
+		pcs-handle-names = "sgmii", "qsgmii";
 	};
 
 	mdio@e9000 {
@@ -59,6 +60,7 @@ fman@400000 {
 		#size-cells = <0>;
 		compatible = "fsl,fman-memac-mdio", "fsl,fman-xmdio";
 		reg = <0xe9000 0x1000>;
+		fsl,erratum-a011043; /* must ignore read errors */
 
 		pcsphy4: ethernet-phy@0 {
 			reg = <0x0>;

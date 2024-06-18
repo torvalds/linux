@@ -4,7 +4,7 @@
 static void test_task_fd_query_tp_core(const char *probe_name,
 				       const char *tp_name)
 {
-	const char *file = "./test_tracepoint.o";
+	const char *file = "./test_tracepoint.bpf.o";
 	int err, bytes, efd, prog_fd, pmu_fd;
 	struct perf_event_attr attr = {};
 	__u64 probe_offset, probe_addr;
@@ -13,12 +13,17 @@ static void test_task_fd_query_tp_core(const char *probe_name,
 	__u32 duration = 0;
 	char buf[256];
 
-	err = bpf_prog_load(file, BPF_PROG_TYPE_TRACEPOINT, &obj, &prog_fd);
-	if (CHECK(err, "bpf_prog_load", "err %d errno %d\n", err, errno))
+	err = bpf_prog_test_load(file, BPF_PROG_TYPE_TRACEPOINT, &obj, &prog_fd);
+	if (CHECK(err, "bpf_prog_test_load", "err %d errno %d\n", err, errno))
 		goto close_prog;
 
-	snprintf(buf, sizeof(buf),
-		 "/sys/kernel/debug/tracing/events/%s/id", probe_name);
+	if (access("/sys/kernel/tracing/trace", F_OK) == 0) {
+		snprintf(buf, sizeof(buf),
+			 "/sys/kernel/tracing/events/%s/id", probe_name);
+	} else {
+		snprintf(buf, sizeof(buf),
+			 "/sys/kernel/debug/tracing/events/%s/id", probe_name);
+	}
 	efd = open(buf, O_RDONLY, 0);
 	if (CHECK(efd < 0, "open", "err %d errno %d\n", efd, errno))
 		goto close_prog;

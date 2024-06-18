@@ -3,6 +3,8 @@
  *
  * Author(s):
  *	2011-2014 Arvid Brodin, arvid.brodin@alten.se
+ *
+ * include file for HSR and PRP.
  */
 
 #ifndef __HSR_NETLINK_H
@@ -21,7 +23,5 @@ void __exit hsr_netlink_exit(void);
 void hsr_nl_ringerror(struct hsr_priv *hsr, unsigned char addr[ETH_ALEN],
 		      struct hsr_port *port);
 void hsr_nl_nodedown(struct hsr_priv *hsr, unsigned char addr[ETH_ALEN]);
-void hsr_nl_framedrop(int dropcount, int dev_idx);
-void hsr_nl_linkdown(int dev_idx);
 
 #endif /* __HSR_NETLINK_H */

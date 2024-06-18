@@ -120,15 +120,11 @@ static ssize_t
 qedi_dbg_do_not_recover_cmd_read(struct file *filp, char __user *buffer,
 				 size_t count, loff_t *ppos)
 {
-	size_t cnt = 0;
+	char buf[64];
+	int len;
 
-	if (*ppos)
-		return 0;
-
-	cnt = sprintf(buffer, "do_not_recover=%d\n", qedi_do_not_recover);
-	cnt = min_t(int, count, cnt - *ppos);
-	*ppos += cnt;
-	return cnt;
+	len = sprintf(buf, "do_not_recover=%d\n", qedi_do_not_recover);
+	return simple_read_from_buffer(buffer, count, ppos, buf, len);
 }
 
 static int
@@ -136,7 +132,7 @@ qedi_gbl_ctx_show(struct seq_file *s, void *unused)
 {
 	struct qedi_fastpath *fp = NULL;
 	struct qed_sb_info *sb_info = NULL;
-	struct status_block_e4 *sb = NULL;
+	struct status_block *sb = NULL;
 	struct global_queue *que = NULL;
 	int id;
 	u16 prod_idx;
@@ -152,7 +148,7 @@ qedi_gbl_ctx_show(struct seq_file *s, void *unused)
 		sb_info = fp->sb_info;
 		sb = sb_info->sb_virt;
 		prod_idx = (sb->pi_array[QEDI_PROTO_CQ_PROD_IDX] &
-			    STATUS_BLOCK_E4_PROD_INDEX_MASK);
+			    STATUS_BLOCK_PROD_INDEX_MASK);
 		seq_printf(s, "SB PROD IDX: %d\n", prod_idx);
 		que = qedi->global_queues[fp->sb_id];
 		seq_printf(s, "DRV CONS IDX: %d\n", que->cq_cons_idx);

@@ -475,16 +475,14 @@ static void pipe_stop(struct r8a66597 *r8a66597, struct r8a66597_pipe *pipe)
 static void clear_all_buffer(struct r8a66597 *r8a66597,
 			     struct r8a66597_pipe *pipe)
 {
-	u16 tmp;
-
 	if (!pipe || pipe->info.pipenum == 0)
 		return;
 
 	pipe_stop(r8a66597, pipe);
 	r8a66597_bset(r8a66597, ACLRM, pipe->pipectr);
-	tmp = r8a66597_read(r8a66597, pipe->pipectr);
-	tmp = r8a66597_read(r8a66597, pipe->pipectr);
-	tmp = r8a66597_read(r8a66597, pipe->pipectr);
+	r8a66597_read(r8a66597, pipe->pipectr);
+	r8a66597_read(r8a66597, pipe->pipectr);
+	r8a66597_read(r8a66597, pipe->pipectr);
 	r8a66597_bclr(r8a66597, ACLRM, pipe->pipectr);
 }
 
@@ -1869,8 +1867,7 @@ static struct r8a66597_td *r8a66597_make_td(struct r8a66597 *r8a66597,
 	td->pipe = hep->hcpriv;
 	td->urb = urb;
 	td->address = get_urb_to_r8a66597_addr(r8a66597, urb);
-	td->maxpacket = usb_maxpacket(urb->dev, urb->pipe,
-				      !usb_pipein(urb->pipe));
+	td->maxpacket = usb_maxpacket(urb->dev, urb->pipe);
 	if (usb_pipecontrol(urb->pipe))
 		td->type = USB_PID_SETUP;
 	else if (usb_pipein(urb->pipe))
@@ -2382,7 +2379,7 @@ static const struct dev_pm_ops r8a66597_dev_pm_ops = {
 #define R8A66597_DEV_PM_OPS	NULL
 #endif
 
-static int r8a66597_remove(struct platform_device *pdev)
+static void r8a66597_remove(struct platform_device *pdev)
 {
 	struct r8a66597		*r8a66597 = platform_get_drvdata(pdev);
 	struct usb_hcd		*hcd = r8a66597_to_hcd(r8a66597);
@@ -2393,7 +2390,6 @@ static int r8a66597_remove(struct platform_device *pdev)
 	if (r8a66597->pdata->on_chip)
 		clk_put(r8a66597->clk);
 	usb_put_hcd(hcd);
-	return 0;
 }
 
 static int r8a66597_probe(struct platform_device *pdev)
@@ -2514,7 +2510,7 @@ clean_up:
 
 static struct platform_driver r8a66597_driver = {
 	.probe =	r8a66597_probe,
-	.remove =	r8a66597_remove,
+	.remove_new =	r8a66597_remove,
 	.driver		= {
 		.name = hcd_name,
 		.pm	= R8A66597_DEV_PM_OPS,

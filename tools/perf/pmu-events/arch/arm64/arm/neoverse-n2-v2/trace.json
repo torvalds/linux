@@ -1,0 +1,38 @@
+[
+    {
+        "ArchStdEvent": "TRB_WRAP",
+        "PublicDescription": "This event is generated each time the current write pointer is wrapped to the base pointer."
+    },
+    {
+        "ArchStdEvent": "TRCEXTOUT0",
+        "PublicDescription": "This event is generated each time an event is signaled by ETE external event 0."
+    },
+    {
+        "ArchStdEvent": "TRCEXTOUT1",
+        "PublicDescription": "This event is generated each time an event is signaled by ETE external event 1."
+    },
+    {
+        "ArchStdEvent": "TRCEXTOUT2",
+        "PublicDescription": "This event is generated each time an event is signaled by ETE external event 2."
+    },
+    {
+        "ArchStdEvent": "TRCEXTOUT3",
+        "PublicDescription": "This event is generated each time an event is signaled by ETE external event 3."
+    },
+    {
+        "ArchStdEvent": "CTI_TRIGOUT4",
+        "PublicDescription": "This event is generated each time an event is signaled on CTI output trigger 4."
+    },
+    {
+        "ArchStdEvent": "CTI_TRIGOUT5",
+        "PublicDescription": "This event is generated each time an event is signaled on CTI output trigger 5."
+    },
+    {
+        "ArchStdEvent": "CTI_TRIGOUT6",
+        "PublicDescription": "This event is generated each time an event is signaled on CTI output trigger 6."
+    },
+    {
+        "ArchStdEvent": "CTI_TRIGOUT7",
+        "PublicDescription": "This event is generated each time an event is signaled on CTI output trigger 7."
+    }
+]

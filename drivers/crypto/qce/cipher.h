@@ -14,7 +14,7 @@
 struct qce_cipher_ctx {
 	u8 enc_key[QCE_MAX_KEY_SIZE];
 	unsigned int enc_keylen;
-	struct crypto_sync_skcipher *fallback;
+	struct crypto_skcipher *fallback;
 };
 
 /**
@@ -40,17 +40,17 @@ struct qce_cipher_reqctx {
 	struct scatterlist result_sg;
 	struct sg_table dst_tbl;
 	struct scatterlist *dst_sg;
-	struct sg_table src_tbl;
 	struct scatterlist *src_sg;
 	unsigned int cryptlen;
+	struct skcipher_request fallback_req;	// keep at the end
 };
 
-static inline struct qce_alg_template *to_cipher_tmpl(struct crypto_tfm *tfm)
+static inline struct qce_alg_template *to_cipher_tmpl(struct crypto_skcipher *tfm)
 {
-	struct crypto_alg *alg = tfm->__crt_alg;
-	return container_of(alg, struct qce_alg_template, alg.crypto);
+	struct skcipher_alg *alg = crypto_skcipher_alg(tfm);
+	return container_of(alg, struct qce_alg_template, alg.skcipher);
 }
 
-extern const struct qce_algo_ops ablkcipher_ops;
+extern const struct qce_algo_ops skcipher_ops;
 
 #endif /* _CIPHER_H_ */

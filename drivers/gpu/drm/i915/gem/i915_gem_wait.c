@@ -5,9 +5,11 @@
  */
 
 #include <linux/dma-fence-array.h>
+#include <linux/dma-fence-chain.h>
 #include <linux/jiffies.h>
 
 #include "gt/intel_engine.h"
+#include "gt/intel_rps.h"
 
 #include "i915_gem_ioctls.h"
 #include "i915_gem_object.h"
@@ -23,11 +25,42 @@ i915_gem_object_wait_fence(struct dma_fence *fence,
 		return timeout;
 
 	if (dma_fence_is_i915(fence))
-		return i915_request_wait(to_request(fence), flags, timeout);
+		return i915_request_wait_timeout(to_request(fence), flags, timeout);
 
 	return dma_fence_wait_timeout(fence,
 				      flags & I915_WAIT_INTERRUPTIBLE,
 				      timeout);
+}
+
+static void
+i915_gem_object_boost(struct dma_resv *resv, unsigned int flags)
+{
+	struct dma_resv_iter cursor;
+	struct dma_fence *fence;
+
+	/*
+	 * Prescan all fences for potential boosting before we begin waiting.
+	 *
+	 * When we wait, we wait on outstanding fences serially. If the
+	 * dma-resv contains a sequence such as 1:1, 1:2 instead of a reduced
+	 * form 1:2, then as we look at each wait in turn we see that each
+	 * request is currently executing and not worthy of boosting. But if
+	 * we only happen to look at the final fence in the sequence (because
+	 * of request coalescing or splitting between read/write arrays by
+	 * the iterator), then we would boost. As such our decision to boost
+	 * or not is delicately balanced on the order we wait on fences.
+	 *
+	 * So instead of looking for boosts sequentially, look for all boosts
+	 * upfront and then wait on the outstanding fences.
+	 */
+
+	dma_resv_iter_begin(&cursor, resv,
+			    dma_resv_usage_rw(flags & I915_WAIT_ALL));
+	dma_resv_for_each_fence_unlocked(&cursor, fence)
+		if (dma_fence_is_i915(fence) &&
+		    !i915_request_started(to_request(fence)))
+			intel_rps_boost(to_request(fence));
+	dma_resv_iter_end(&cursor);
 }
 
 static long
@@ -35,66 +68,29 @@ i915_gem_object_wait_reservation(struct dma_resv *resv,
 				 unsigned int flags,
 				 long timeout)
 {
-	struct dma_fence *excl;
-	bool prune_fences = false;
+	struct dma_resv_iter cursor;
+	struct dma_fence *fence;
+	long ret = timeout ?: 1;
 
-	if (flags & I915_WAIT_ALL) {
-		struct dma_fence **shared;
-		unsigned int count, i;
-		int ret;
+	i915_gem_object_boost(resv, flags);
 
-		ret = dma_resv_get_fences_rcu(resv,
-							&excl, &count, &shared);
-		if (ret)
-			return ret;
+	dma_resv_iter_begin(&cursor, resv,
+			    dma_resv_usage_rw(flags & I915_WAIT_ALL));
+	dma_resv_for_each_fence_unlocked(&cursor, fence) {
+		ret = i915_gem_object_wait_fence(fence, flags, timeout);
+		if (ret <= 0)
+			break;
 
-		for (i = 0; i < count; i++) {
-			timeout = i915_gem_object_wait_fence(shared[i],
-							     flags, timeout);
-			if (timeout < 0)
-				break;
-
-			dma_fence_put(shared[i]);
-		}
-
-		for (; i < count; i++)
-			dma_fence_put(shared[i]);
-		kfree(shared);
-
-		/*
-		 * If both shared fences and an exclusive fence exist,
-		 * then by construction the shared fences must be later
-		 * than the exclusive fence. If we successfully wait for
-		 * all the shared fences, we know that the exclusive fence
-		 * must all be signaled. If all the shared fences are
-		 * signaled, we can prune the array and recover the
-		 * floating references on the fences/requests.
-		 */
-		prune_fences = count && timeout >= 0;
-	} else {
-		excl = dma_resv_get_excl_rcu(resv);
+		if (timeout)
+			timeout = ret;
 	}
+	dma_resv_iter_end(&cursor);
 
-	if (excl && timeout >= 0)
-		timeout = i915_gem_object_wait_fence(excl, flags, timeout);
-
-	dma_fence_put(excl);
-
-	/*
-	 * Opportunistically prune the fences iff we know they have *all* been
-	 * signaled.
-	 */
-	if (prune_fences && dma_resv_trylock(resv)) {
-		if (dma_resv_test_signaled_rcu(resv, true))
-			dma_resv_add_excl_fence(resv, NULL);
-		dma_resv_unlock(resv);
-	}
-
-	return timeout;
+	return ret;
 }
 
-static void __fence_set_priority(struct dma_fence *fence,
-				 const struct i915_sched_attr *attr)
+static void fence_set_priority(struct dma_fence *fence,
+			       const struct i915_sched_attr *attr)
 {
 	struct i915_request *rq;
 	struct intel_engine_cs *engine;
@@ -105,27 +101,47 @@ static void __fence_set_priority(struct dma_fence *fence,
 	rq = to_request(fence);
 	engine = rq->engine;
 
-	local_bh_disable();
 	rcu_read_lock(); /* RCU serialisation for set-wedged protection */
-	if (engine->schedule)
-		engine->schedule(rq, attr);
+	if (engine->sched_engine->schedule)
+		engine->sched_engine->schedule(rq, attr);
 	rcu_read_unlock();
-	local_bh_enable(); /* kick the tasklets if queues were reprioritised */
 }
 
-static void fence_set_priority(struct dma_fence *fence,
-			       const struct i915_sched_attr *attr)
+static inline bool __dma_fence_is_chain(const struct dma_fence *fence)
 {
+	return fence->ops == &dma_fence_chain_ops;
+}
+
+void i915_gem_fence_wait_priority(struct dma_fence *fence,
+				  const struct i915_sched_attr *attr)
+{
+	if (dma_fence_is_signaled(fence))
+		return;
+
+	local_bh_disable();
+
 	/* Recurse once into a fence-array */
 	if (dma_fence_is_array(fence)) {
 		struct dma_fence_array *array = to_dma_fence_array(fence);
 		int i;
 
 		for (i = 0; i < array->num_fences; i++)
-			__fence_set_priority(array->fences[i], attr);
+			fence_set_priority(array->fences[i], attr);
+	} else if (__dma_fence_is_chain(fence)) {
+		struct dma_fence *iter;
+
+		/* The chain is ordered; if we boost the last, we boost all */
+		dma_fence_chain_for_each(iter, fence) {
+			fence_set_priority(to_dma_fence_chain(iter)->fence,
+					   attr);
+			break;
+		}
+		dma_fence_put(iter);
 	} else {
-		__fence_set_priority(fence, attr);
+		fence_set_priority(fence, attr);
 	}
+
+	local_bh_enable(); /* kick the tasklets if queues were reprioritised */
 }
 
 int
@@ -133,37 +149,19 @@ i915_gem_object_wait_priority(struct drm_i915_gem_object *obj,
 			      unsigned int flags,
 			      const struct i915_sched_attr *attr)
 {
-	struct dma_fence *excl;
+	struct dma_resv_iter cursor;
+	struct dma_fence *fence;
 
-	if (flags & I915_WAIT_ALL) {
-		struct dma_fence **shared;
-		unsigned int count, i;
-		int ret;
-
-		ret = dma_resv_get_fences_rcu(obj->base.resv,
-							&excl, &count, &shared);
-		if (ret)
-			return ret;
-
-		for (i = 0; i < count; i++) {
-			fence_set_priority(shared[i], attr);
-			dma_fence_put(shared[i]);
-		}
-
-		kfree(shared);
-	} else {
-		excl = dma_resv_get_excl_rcu(obj->base.resv);
-	}
-
-	if (excl) {
-		fence_set_priority(excl, attr);
-		dma_fence_put(excl);
-	}
+	dma_resv_iter_begin(&cursor, obj->base.resv,
+			    dma_resv_usage_rw(flags & I915_WAIT_ALL));
+	dma_resv_for_each_fence_unlocked(&cursor, fence)
+		i915_gem_fence_wait_priority(fence, attr);
+	dma_resv_iter_end(&cursor);
 	return 0;
 }
 
 /**
- * Waits for rendering to the object to be completed
+ * i915_gem_object_wait - Waits for rendering to the object to be completed
  * @obj: i915 gem object
  * @flags: how to wait (under a lock, for all rendering or just for writes etc)
  * @timeout: how long to wait
@@ -178,13 +176,17 @@ i915_gem_object_wait(struct drm_i915_gem_object *obj,
 
 	timeout = i915_gem_object_wait_reservation(obj->base.resv,
 						   flags, timeout);
-	return timeout < 0 ? timeout : 0;
+
+	if (timeout < 0)
+		return timeout;
+
+	return !timeout ? -ETIME : 0;
 }
 
 static inline unsigned long nsecs_to_jiffies_timeout(const u64 n)
 {
 	/* nsecs_to_jiffies64() does not guard against overflow */
-	if (NSEC_PER_SEC % HZ &&
+	if ((NSEC_PER_SEC % HZ) != 0 &&
 	    div_u64(n, NSEC_PER_SEC) >= MAX_JIFFY_OFFSET / HZ)
 		return MAX_JIFFY_OFFSET;
 
@@ -271,4 +273,23 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 
 	i915_gem_object_put(obj);
 	return ret;
+}
+
+/**
+ * i915_gem_object_wait_migration - Sync an accelerated migration operation
+ * @obj: The migrating object.
+ * @flags: waiting flags. Currently supports only I915_WAIT_INTERRUPTIBLE.
+ *
+ * Wait for any pending async migration operation on the object,
+ * whether it's explicitly (i915_gem_object_migrate()) or implicitly
+ * (swapin, initial clearing) initiated.
+ *
+ * Return: 0 if successful, -ERESTARTSYS if a signal was hit during waiting.
+ */
+int i915_gem_object_wait_migration(struct drm_i915_gem_object *obj,
+				   unsigned int flags)
+{
+	might_sleep();
+
+	return i915_gem_object_wait_moving_fence(obj, !!(flags & I915_WAIT_INTERRUPTIBLE));
 }

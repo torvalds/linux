@@ -163,48 +163,34 @@ void vlan_proc_rem_dev(struct net_device *vlandev)
  * The following few functions build the content of /proc/net/vlan/config
  */
 
-/* start read of /proc/net/vlan/config */
+static void *vlan_seq_from_index(struct seq_file *seq, loff_t *pos)
+{
+	unsigned long ifindex = *pos;
+	struct net_device *dev;
+
+	for_each_netdev_dump(seq_file_net(seq), dev, ifindex) {
+		if (!is_vlan_dev(dev))
+			continue;
+		*pos = dev->ifindex;
+		return dev;
+	}
+	return NULL;
+}
+
 static void *vlan_seq_start(struct seq_file *seq, loff_t *pos)
 	__acquires(rcu)
 {
-	struct net_device *dev;
-	struct net *net = seq_file_net(seq);
-	loff_t i = 1;
-
 	rcu_read_lock();
 	if (*pos == 0)
 		return SEQ_START_TOKEN;
 
-	for_each_netdev_rcu(net, dev) {
-		if (!is_vlan_dev(dev))
-			continue;
-
-		if (i++ == *pos)
-			return dev;
-	}
-
-	return  NULL;
+	return vlan_seq_from_index(seq, pos);
 }
 
 static void *vlan_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	struct net_device *dev;
-	struct net *net = seq_file_net(seq);
-
 	++*pos;
-
-	dev = v;
-	if (v == SEQ_START_TOKEN)
-		dev = net_device_entry(&net->dev_base_head);
-
-	for_each_netdev_continue_rcu(net, dev) {
-		if (!is_vlan_dev(dev))
-			continue;
-
-		return dev;
-	}
-
-	return NULL;
+	return vlan_seq_from_index(seq, pos);
 }
 
 static void vlan_seq_stop(struct seq_file *seq, void *v)
@@ -252,7 +238,7 @@ static int vlandev_seq_show(struct seq_file *seq, void *offset)
 
 	stats = dev_get_stats(vlandev, &temp);
 	seq_printf(seq,
-		   "%s  VID: %d	 REORDER_HDR: %i  dev->priv_flags: %hx\n",
+		   "%s  VID: %d	 REORDER_HDR: %i  dev->priv_flags: %llx\n",
 		   vlandev->name, vlan->vlan_id,
 		   (int)(vlan->flags & 1), vlandev->priv_flags);
 
@@ -280,7 +266,7 @@ static int vlandev_seq_show(struct seq_file *seq, void *offset)
 		const struct vlan_priority_tci_mapping *mp
 			= vlan->egress_priority_map[i];
 		while (mp) {
-			seq_printf(seq, "%u:%hu ",
+			seq_printf(seq, "%u:%d ",
 				   mp->priority, ((mp->vlan_qos >> 13) & 0x7));
 			mp = mp->next;
 		}

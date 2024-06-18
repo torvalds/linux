@@ -2,7 +2,7 @@
 /*
  * Intel SST generic IPC Support
  *
- * Copyright (C) 2015, Intel Corporation. All rights reserved.
+ * Copyright (C) 2015, Intel Corporation
  */
 
 #include <linux/types.h>
@@ -253,33 +253,6 @@ void sst_ipc_tx_msg_reply_complete(struct sst_generic_ipc *ipc,
 		wake_up(&msg->waitq);
 }
 EXPORT_SYMBOL_GPL(sst_ipc_tx_msg_reply_complete);
-
-void sst_ipc_drop_all(struct sst_generic_ipc *ipc)
-{
-	struct ipc_message *msg, *tmp;
-	unsigned long flags;
-	int tx_drop_cnt = 0, rx_drop_cnt = 0;
-
-	/* drop all TX and Rx messages before we stall + reset DSP */
-	spin_lock_irqsave(&ipc->dsp->spinlock, flags);
-
-	list_for_each_entry_safe(msg, tmp, &ipc->tx_list, list) {
-		list_move(&msg->list, &ipc->empty_list);
-		tx_drop_cnt++;
-	}
-
-	list_for_each_entry_safe(msg, tmp, &ipc->rx_list, list) {
-		list_move(&msg->list, &ipc->empty_list);
-		rx_drop_cnt++;
-	}
-
-	spin_unlock_irqrestore(&ipc->dsp->spinlock, flags);
-
-	if (tx_drop_cnt || rx_drop_cnt)
-		dev_err(ipc->dev, "dropped IPC msg RX=%d, TX=%d\n",
-			tx_drop_cnt, rx_drop_cnt);
-}
-EXPORT_SYMBOL_GPL(sst_ipc_drop_all);
 
 int sst_ipc_init(struct sst_generic_ipc *ipc)
 {

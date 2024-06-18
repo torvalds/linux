@@ -24,13 +24,13 @@
  * Third Edition.
  */
 
-#include <asm/byteorder.h>
+#include <asm/unaligned.h>
+#include <crypto/algapi.h>
 #include <crypto/twofish.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/errno.h>
-#include <linux/crypto.h>
 #include <linux/bitops.h>
 
 /* Macros to compute the g() function in the encryption and decryption
@@ -83,11 +83,11 @@
  * whitening subkey number m. */
 
 #define INPACK(n, x, m) \
-   x = le32_to_cpu(src[n]) ^ ctx->w[m]
+   x = get_unaligned_le32(in + (n) * 4) ^ ctx->w[m]
 
 #define OUTUNPACK(n, x, m) \
    x ^= ctx->w[m]; \
-   dst[n] = cpu_to_le32(x)
+   put_unaligned_le32(x, out + (n) * 4)
 
 
 
@@ -95,8 +95,6 @@
 static void twofish_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
 	struct twofish_ctx *ctx = crypto_tfm_ctx(tfm);
-	const __le32 *src = (const __le32 *)in;
-	__le32 *dst = (__le32 *)out;
 
 	/* The four 32-bit chunks of the text. */
 	u32 a, b, c, d;
@@ -132,8 +130,6 @@ static void twofish_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 static void twofish_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
 	struct twofish_ctx *ctx = crypto_tfm_ctx(tfm);
-	const __le32 *src = (const __le32 *)in;
-	__le32 *dst = (__le32 *)out;
   
 	/* The four 32-bit chunks of the text. */
 	u32 a, b, c, d;
@@ -172,7 +168,6 @@ static struct crypto_alg alg = {
 	.cra_flags          =   CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize      =   TF_BLOCK_SIZE,
 	.cra_ctxsize        =   sizeof(struct twofish_ctx),
-	.cra_alignmask      =	3,
 	.cra_module         =   THIS_MODULE,
 	.cra_u              =   { .cipher = {
 	.cia_min_keysize    =   TF_MIN_KEY_SIZE,

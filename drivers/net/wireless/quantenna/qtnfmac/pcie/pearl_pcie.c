@@ -24,6 +24,7 @@
 #include "debug.h"
 
 #define PEARL_TX_BD_SIZE_DEFAULT	32
+#define PEARL_RX_BD_SIZE_DEFAULT	256
 
 struct qtnf_pearl_bda {
 	__le16 bda_len;
@@ -244,8 +245,6 @@ static int pearl_alloc_bd_table(struct qtnf_pcie_pearl_state *ps)
 
 	/* tx bd */
 
-	memset(vaddr, 0, len);
-
 	ps->bd_table_vaddr = vaddr;
 	ps->bd_table_paddr = paddr;
 	ps->bd_table_len = len;
@@ -287,7 +286,7 @@ static int pearl_skb2rbd_attach(struct qtnf_pcie_pearl_state *ps, u16 index)
 	struct sk_buff *skb;
 	dma_addr_t paddr;
 
-	skb = __netdev_alloc_skb_ip_align(NULL, SKB_BUF_SIZE, GFP_ATOMIC);
+	skb = netdev_alloc_skb_ip_align(NULL, SKB_BUF_SIZE);
 	if (!skb) {
 		priv->rx_skb[index] = NULL;
 		return -ENOMEM;
@@ -296,9 +295,9 @@ static int pearl_skb2rbd_attach(struct qtnf_pcie_pearl_state *ps, u16 index)
 	priv->rx_skb[index] = skb;
 	rxbd = &ps->rx_bd_vbase[index];
 
-	paddr = pci_map_single(priv->pdev, skb->data,
-			       SKB_BUF_SIZE, PCI_DMA_FROMDEVICE);
-	if (pci_dma_mapping_error(priv->pdev, paddr)) {
+	paddr = dma_map_single(&priv->pdev->dev, skb->data, SKB_BUF_SIZE,
+			       DMA_FROM_DEVICE);
+	if (dma_mapping_error(&priv->pdev->dev, paddr)) {
 		pr_err("skb DMA mapping error: %pad\n", &paddr);
 		return -ENOMEM;
 	}
@@ -358,8 +357,8 @@ static void qtnf_pearl_free_xfer_buffers(struct qtnf_pcie_pearl_state *ps)
 			skb = priv->rx_skb[i];
 			paddr = QTN_HOST_ADDR(le32_to_cpu(rxbd->addr_h),
 					      le32_to_cpu(rxbd->addr));
-			pci_unmap_single(priv->pdev, paddr, SKB_BUF_SIZE,
-					 PCI_DMA_FROMDEVICE);
+			dma_unmap_single(&priv->pdev->dev, paddr,
+					 SKB_BUF_SIZE, DMA_FROM_DEVICE);
 			dev_kfree_skb_any(skb);
 			priv->rx_skb[i] = NULL;
 		}
@@ -372,8 +371,8 @@ static void qtnf_pearl_free_xfer_buffers(struct qtnf_pcie_pearl_state *ps)
 			skb = priv->tx_skb[i];
 			paddr = QTN_HOST_ADDR(le32_to_cpu(txbd->addr_h),
 					      le32_to_cpu(txbd->addr));
-			pci_unmap_single(priv->pdev, paddr, skb->len,
-					 PCI_DMA_TODEVICE);
+			dma_unmap_single(&priv->pdev->dev, paddr, skb->len,
+					 DMA_TO_DEVICE);
 			dev_kfree_skb_any(skb);
 			priv->tx_skb[i] = NULL;
 		}
@@ -399,7 +398,8 @@ static int pearl_hhbm_init(struct qtnf_pcie_pearl_state *ps)
 }
 
 static int qtnf_pcie_pearl_init_xfer(struct qtnf_pcie_pearl_state *ps,
-				     unsigned int tx_bd_size)
+				     unsigned int tx_bd_size,
+				     unsigned int rx_bd_size)
 {
 	struct qtnf_pcie_bus_priv *priv = &ps->base;
 	int ret;
@@ -411,27 +411,28 @@ static int qtnf_pcie_pearl_init_xfer(struct qtnf_pcie_pearl_state *ps,
 	val = tx_bd_size * sizeof(struct qtnf_pearl_tx_bd);
 
 	if (!is_power_of_2(tx_bd_size) || val > PCIE_HHBM_MAX_SIZE) {
-		pr_warn("bad tx_bd_size value %u\n", tx_bd_size);
+		pr_warn("invalid tx_bd_size value %u, use default %u\n",
+			tx_bd_size, PEARL_TX_BD_SIZE_DEFAULT);
 		priv->tx_bd_num = PEARL_TX_BD_SIZE_DEFAULT;
 	} else {
 		priv->tx_bd_num = tx_bd_size;
 	}
 
+	if (rx_bd_size == 0)
+		rx_bd_size = PEARL_RX_BD_SIZE_DEFAULT;
+
+	val = rx_bd_size * sizeof(dma_addr_t);
+
+	if (!is_power_of_2(rx_bd_size) || val > PCIE_HHBM_MAX_SIZE) {
+		pr_warn("invalid rx_bd_size value %u, use default %u\n",
+			rx_bd_size, PEARL_RX_BD_SIZE_DEFAULT);
+		priv->rx_bd_num = PEARL_RX_BD_SIZE_DEFAULT;
+	} else {
+		priv->rx_bd_num = rx_bd_size;
+	}
+
 	priv->rx_bd_w_index = 0;
 	priv->rx_bd_r_index = 0;
-
-	if (!priv->rx_bd_num || !is_power_of_2(priv->rx_bd_num)) {
-		pr_err("rx_bd_size_param %u is not power of two\n",
-		       priv->rx_bd_num);
-		return -EINVAL;
-	}
-
-	val = priv->rx_bd_num * sizeof(dma_addr_t);
-	if (val > PCIE_HHBM_MAX_SIZE) {
-		pr_err("rx_bd_size_param %u is too large\n",
-		       priv->rx_bd_num);
-		return -EINVAL;
-	}
 
 	ret = pearl_hhbm_init(ps);
 	if (ret) {
@@ -484,11 +485,11 @@ static void qtnf_pearl_data_tx_reclaim(struct qtnf_pcie_pearl_state *ps)
 			txbd = &ps->tx_bd_vbase[i];
 			paddr = QTN_HOST_ADDR(le32_to_cpu(txbd->addr_h),
 					      le32_to_cpu(txbd->addr));
-			pci_unmap_single(priv->pdev, paddr, skb->len,
-					 PCI_DMA_TODEVICE);
+			dma_unmap_single(&priv->pdev->dev, paddr, skb->len,
+					 DMA_TO_DEVICE);
 
 			if (skb->dev) {
-				qtnf_update_tx_stats(skb->dev, skb);
+				dev_sw_netstats_tx_add(skb->dev, 1, skb->len);
 				if (unlikely(priv->tx_stopped)) {
 					qtnf_wake_all_queues(skb->dev);
 					priv->tx_stopped = 0;
@@ -531,7 +532,7 @@ static int qtnf_tx_queue_ready(struct qtnf_pcie_pearl_state *ps)
 	return 1;
 }
 
-static int qtnf_pcie_data_tx(struct qtnf_bus *bus, struct sk_buff *skb)
+static int qtnf_pcie_skb_send(struct qtnf_bus *bus, struct sk_buff *skb)
 {
 	struct qtnf_pcie_pearl_state *ps = get_bus_priv(bus);
 	struct qtnf_pcie_bus_priv *priv = &ps->base;
@@ -558,9 +559,9 @@ static int qtnf_pcie_data_tx(struct qtnf_bus *bus, struct sk_buff *skb)
 	priv->tx_skb[i] = skb;
 	len = skb->len;
 
-	skb_paddr = pci_map_single(priv->pdev, skb->data,
-				   skb->len, PCI_DMA_TODEVICE);
-	if (pci_dma_mapping_error(priv->pdev, skb_paddr)) {
+	skb_paddr = dma_map_single(&priv->pdev->dev, skb->data, skb->len,
+				   DMA_TO_DEVICE);
+	if (dma_mapping_error(&priv->pdev->dev, skb_paddr)) {
 		pr_err("skb DMA mapping error: %pad\n", &skb_paddr);
 		ret = -ENOMEM;
 		goto tx_done;
@@ -592,7 +593,7 @@ static int qtnf_pcie_data_tx(struct qtnf_bus *bus, struct sk_buff *skb)
 	priv->tx_bd_w_index = i;
 
 tx_done:
-	if (ret && skb) {
+	if (ret) {
 		pr_err_ratelimited("drop skb\n");
 		if (skb->dev)
 			skb->dev->stats.tx_dropped++;
@@ -605,6 +606,38 @@ tx_done:
 	qtnf_pearl_data_tx_reclaim(ps);
 
 	return NETDEV_TX_OK;
+}
+
+static int qtnf_pcie_data_tx(struct qtnf_bus *bus, struct sk_buff *skb,
+			     unsigned int macid, unsigned int vifid)
+{
+	return qtnf_pcie_skb_send(bus, skb);
+}
+
+static int qtnf_pcie_data_tx_meta(struct qtnf_bus *bus, struct sk_buff *skb,
+				  unsigned int macid, unsigned int vifid)
+{
+	struct qtnf_frame_meta_info *meta;
+	int tail_need = sizeof(*meta) - skb_tailroom(skb);
+	int ret;
+
+	if (tail_need > 0 && pskb_expand_head(skb, 0, tail_need, GFP_ATOMIC)) {
+		skb->dev->stats.tx_dropped++;
+		dev_kfree_skb_any(skb);
+		return NETDEV_TX_OK;
+	}
+
+	meta = skb_put(skb, sizeof(*meta));
+	meta->magic_s = HBM_FRAME_META_MAGIC_PATTERN_S;
+	meta->magic_e = HBM_FRAME_META_MAGIC_PATTERN_E;
+	meta->macid = macid;
+	meta->ifidx = vifid;
+
+	ret = qtnf_pcie_skb_send(bus, skb);
+	if (unlikely(ret == NETDEV_TX_BUSY))
+		__skb_trim(skb, skb->len - sizeof(*meta));
+
+	return ret;
 }
 
 static irqreturn_t qtnf_pcie_pearl_interrupt(int irq, void *data)
@@ -715,25 +748,25 @@ static int qtnf_pcie_pearl_rx_poll(struct napi_struct *napi, int budget)
 		if (skb) {
 			skb_paddr = QTN_HOST_ADDR(le32_to_cpu(rxbd->addr_h),
 						  le32_to_cpu(rxbd->addr));
-			pci_unmap_single(priv->pdev, skb_paddr, SKB_BUF_SIZE,
-					 PCI_DMA_FROMDEVICE);
+			dma_unmap_single(&priv->pdev->dev, skb_paddr,
+					 SKB_BUF_SIZE, DMA_FROM_DEVICE);
 		}
 
 		if (consume) {
 			skb_put(skb, psize);
 			ndev = qtnf_classify_skb(bus, skb);
 			if (likely(ndev)) {
-				qtnf_update_rx_stats(ndev, skb);
+				dev_sw_netstats_rx_add(ndev, skb->len);
 				skb->protocol = eth_type_trans(skb, ndev);
 				napi_gro_receive(napi, skb);
 			} else {
 				pr_debug("drop untagged skb\n");
-				bus->mux_dev.stats.rx_dropped++;
+				bus->mux_dev->stats.rx_dropped++;
 				dev_kfree_skb_any(skb);
 			}
 		} else {
 			if (skb) {
-				bus->mux_dev.stats.rx_dropped++;
+				bus->mux_dev->stats.rx_dropped++;
 				dev_kfree_skb_any(skb);
 			}
 		}
@@ -795,13 +828,22 @@ static void qtnf_pcie_data_rx_stop(struct qtnf_bus *bus)
 	qtnf_disable_hdp_irqs(ps);
 }
 
-static const struct qtnf_bus_ops qtnf_pcie_pearl_bus_ops = {
+static void qtnf_pearl_tx_use_meta_info_set(struct qtnf_bus *bus, bool use_meta)
+{
+	if (use_meta)
+		bus->bus_ops->data_tx = qtnf_pcie_data_tx_meta;
+	else
+		bus->bus_ops->data_tx = qtnf_pcie_data_tx;
+}
+
+static struct qtnf_bus_ops qtnf_pcie_pearl_bus_ops = {
 	/* control path methods */
 	.control_tx	= qtnf_pcie_control_tx,
 
 	/* data path methods */
 	.data_tx		= qtnf_pcie_data_tx,
 	.data_tx_timeout	= qtnf_pcie_data_tx_timeout,
+	.data_tx_use_meta_set	= qtnf_pearl_tx_use_meta_info_set,
 	.data_rx_start		= qtnf_pcie_data_rx_start,
 	.data_rx_stop		= qtnf_pcie_data_rx_stop,
 };
@@ -904,7 +946,7 @@ static int qtnf_ep_fw_send(struct pci_dev *pdev, uint32_t size,
 	memcpy(pdata, pblk, len);
 	hdr->crc = cpu_to_le32(~crc32(0, pdata, len));
 
-	ret = qtnf_pcie_data_tx(bus, skb);
+	ret = qtnf_pcie_skb_send(bus, skb);
 
 	return (ret == NETDEV_TX_OK) ? len : 0;
 }
@@ -1049,9 +1091,9 @@ fw_load_exit:
 	put_device(&pdev->dev);
 }
 
-static void qtnf_pearl_reclaim_tasklet_fn(unsigned long data)
+static void qtnf_pearl_reclaim_tasklet_fn(struct tasklet_struct *t)
 {
-	struct qtnf_pcie_pearl_state *ps = (void *)data;
+	struct qtnf_pcie_pearl_state *ps = from_tasklet(ps, t, base.reclaim_tq);
 
 	qtnf_pearl_data_tx_reclaim(ps);
 	qtnf_en_txdone_irq(ps);
@@ -1066,7 +1108,8 @@ static u64 qtnf_pearl_dma_mask_get(void)
 #endif
 }
 
-static int qtnf_pcie_pearl_probe(struct qtnf_bus *bus, unsigned int tx_bd_size)
+static int qtnf_pcie_pearl_probe(struct qtnf_bus *bus, unsigned int tx_bd_size,
+				 unsigned int rx_bd_size)
 {
 	struct qtnf_shm_ipc_int ipc_int;
 	struct qtnf_pcie_pearl_state *ps = get_bus_priv(bus);
@@ -1081,7 +1124,7 @@ static int qtnf_pcie_pearl_probe(struct qtnf_bus *bus, unsigned int tx_bd_size)
 	ps->bda = ps->base.epmem_bar;
 	writel(ps->base.msi_enabled, &ps->bda->bda_rc_msi_enabled);
 
-	ret = qtnf_pcie_pearl_init_xfer(ps, tx_bd_size);
+	ret = qtnf_pcie_pearl_init_xfer(ps, tx_bd_size, rx_bd_size);
 	if (ret) {
 		pr_err("PCIE xfer init failed\n");
 		return ret;
@@ -1102,10 +1145,9 @@ static int qtnf_pcie_pearl_probe(struct qtnf_bus *bus, unsigned int tx_bd_size)
 		return ret;
 	}
 
-	tasklet_init(&ps->base.reclaim_tq, qtnf_pearl_reclaim_tasklet_fn,
-		     (unsigned long)ps);
-	netif_napi_add(&bus->mux_dev, &bus->mux_napi,
-		       qtnf_pcie_pearl_rx_poll, 10);
+	tasklet_setup(&ps->base.reclaim_tq, qtnf_pearl_reclaim_tasklet_fn);
+	netif_napi_add_weight(bus->mux_dev, &bus->mux_napi,
+			      qtnf_pcie_pearl_rx_poll, 10);
 
 	ipc_int.fn = qtnf_pcie_pearl_ipc_gen_ep_int;
 	ipc_int.arg = ps;

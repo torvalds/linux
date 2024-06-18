@@ -186,7 +186,7 @@ static void make_sensor_label(struct device_node *np,
 	u32 id;
 	size_t n;
 
-	n = snprintf(sdata->label, sizeof(sdata->label), "%s", label);
+	n = scnprintf(sdata->label, sizeof(sdata->label), "%s", label);
 
 	/*
 	 * Core temp pretty print
@@ -199,11 +199,11 @@ static void make_sensor_label(struct device_node *np,
 			 * The digital thermal sensors are associated
 			 * with a core.
 			 */
-			n += snprintf(sdata->label + n,
+			n += scnprintf(sdata->label + n,
 				      sizeof(sdata->label) - n, " %d",
 				      cpuid);
 		else
-			n += snprintf(sdata->label + n,
+			n += scnprintf(sdata->label + n,
 				      sizeof(sdata->label) - n, " phy%d", id);
 	}
 
@@ -211,7 +211,7 @@ static void make_sensor_label(struct device_node *np,
 	 * Membuffer pretty print
 	 */
 	if (!of_property_read_u32(np, "ibm,chip-id", &id))
-		n += snprintf(sdata->label + n, sizeof(sdata->label) - n,
+		n += scnprintf(sdata->label + n, sizeof(sdata->label) - n,
 			      " %d", id & 0xffff);
 }
 
@@ -234,13 +234,13 @@ static int get_sensor_index_attr(const char *name, u32 *index, char *attr)
 	if (copy_len >= sizeof(buf))
 		return -EINVAL;
 
-	strncpy(buf, hash_pos + 1, copy_len);
+	memcpy(buf, hash_pos + 1, copy_len);
 
 	err = kstrtou32(buf, 10, index);
 	if (err)
 		return err;
 
-	strncpy(attr, dash_pos + 1, MAX_ATTR_LEN);
+	strscpy(attr, dash_pos + 1, MAX_ATTR_LEN);
 
 	return 0;
 }
@@ -456,9 +456,9 @@ static int populate_attr_groups(struct platform_device *pdev)
 		 */
 		if (!of_property_read_string(np, "label", &label))
 			sensor_groups[type].attr_count++;
-		if (of_find_property(np, "sensor-data-min", NULL))
+		if (of_property_present(np, "sensor-data-min"))
 			sensor_groups[type].attr_count++;
-		if (of_find_property(np, "sensor-data-max", NULL))
+		if (of_property_present(np, "sensor-data-max"))
 			sensor_groups[type].attr_count++;
 	}
 

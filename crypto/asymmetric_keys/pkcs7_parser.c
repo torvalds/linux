@@ -227,12 +227,6 @@ int pkcs7_sig_note_digest_algo(void *context, size_t hdrlen,
 	struct pkcs7_parse_context *ctx = context;
 
 	switch (ctx->last_oid) {
-	case OID_md4:
-		ctx->sinfo->sig->hash_algo = "md4";
-		break;
-	case OID_md5:
-		ctx->sinfo->sig->hash_algo = "md5";
-		break;
 	case OID_sha1:
 		ctx->sinfo->sig->hash_algo = "sha1";
 		break;
@@ -247,6 +241,24 @@ int pkcs7_sig_note_digest_algo(void *context, size_t hdrlen,
 		break;
 	case OID_sha224:
 		ctx->sinfo->sig->hash_algo = "sha224";
+		break;
+	case OID_sm3:
+		ctx->sinfo->sig->hash_algo = "sm3";
+		break;
+	case OID_gost2012Digest256:
+		ctx->sinfo->sig->hash_algo = "streebog256";
+		break;
+	case OID_gost2012Digest512:
+		ctx->sinfo->sig->hash_algo = "streebog512";
+		break;
+	case OID_sha3_256:
+		ctx->sinfo->sig->hash_algo = "sha3-256";
+		break;
+	case OID_sha3_384:
+		ctx->sinfo->sig->hash_algo = "sha3-384";
+		break;
+	case OID_sha3_512:
+		ctx->sinfo->sig->hash_algo = "sha3-512";
 		break;
 	default:
 		printk("Unsupported digest algo: %u\n", ctx->last_oid);
@@ -268,6 +280,26 @@ int pkcs7_sig_note_pkey_algo(void *context, size_t hdrlen,
 	case OID_rsaEncryption:
 		ctx->sinfo->sig->pkey_algo = "rsa";
 		ctx->sinfo->sig->encoding = "pkcs1";
+		break;
+	case OID_id_ecdsa_with_sha1:
+	case OID_id_ecdsa_with_sha224:
+	case OID_id_ecdsa_with_sha256:
+	case OID_id_ecdsa_with_sha384:
+	case OID_id_ecdsa_with_sha512:
+	case OID_id_ecdsa_with_sha3_256:
+	case OID_id_ecdsa_with_sha3_384:
+	case OID_id_ecdsa_with_sha3_512:
+		ctx->sinfo->sig->pkey_algo = "ecdsa";
+		ctx->sinfo->sig->encoding = "x962";
+		break;
+	case OID_SM2_with_SM3:
+		ctx->sinfo->sig->pkey_algo = "sm2";
+		ctx->sinfo->sig->encoding = "raw";
+		break;
+	case OID_gost2012PKey256:
+	case OID_gost2012PKey512:
+		ctx->sinfo->sig->pkey_algo = "ecrdsa";
+		ctx->sinfo->sig->encoding = "raw";
 		break;
 	default:
 		printk("Unsupported pkey algo: %u\n", ctx->last_oid);

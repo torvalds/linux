@@ -15,16 +15,11 @@
 struct group_info *groups_alloc(int gidsetsize)
 {
 	struct group_info *gi;
-	unsigned int len;
-
-	len = sizeof(struct group_info) + sizeof(kgid_t) * gidsetsize;
-	gi = kmalloc(len, GFP_KERNEL_ACCOUNT|__GFP_NOWARN|__GFP_NORETRY);
-	if (!gi)
-		gi = __vmalloc(len, GFP_KERNEL_ACCOUNT, PAGE_KERNEL);
+	gi = kvmalloc(struct_size(gi, gid, gidsetsize), GFP_KERNEL_ACCOUNT);
 	if (!gi)
 		return NULL;
 
-	atomic_set(&gi->usage, 1);
+	refcount_set(&gi->usage, 1);
 	gi->ngroups = gidsetsize;
 	return gi;
 }
@@ -139,13 +134,26 @@ EXPORT_SYMBOL(set_groups);
 int set_current_groups(struct group_info *group_info)
 {
 	struct cred *new;
+	const struct cred *old;
+	int retval;
 
 	new = prepare_creds();
 	if (!new)
 		return -ENOMEM;
 
+	old = current_cred();
+
 	set_groups(new, group_info);
+
+	retval = security_task_fix_setgroups(new, old);
+	if (retval < 0)
+		goto error;
+
 	return commit_creds(new);
+
+error:
+	abort_creds(new);
+	return retval;
 }
 
 EXPORT_SYMBOL(set_current_groups);
@@ -178,7 +186,7 @@ bool may_setgroups(void)
 {
 	struct user_namespace *user_ns = current_user_ns();
 
-	return ns_capable(user_ns, CAP_SETGID) &&
+	return ns_capable_setid(user_ns, CAP_SETGID) &&
 		userns_may_setgroups(user_ns);
 }
 

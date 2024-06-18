@@ -7,6 +7,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/jiffies.h>
@@ -54,10 +55,9 @@ static const u16 SCH5636_REG_FAN_VAL[SCH5636_NO_FANS] = {
 struct sch5636_data {
 	unsigned short addr;
 	struct device *hwmon_dev;
-	struct sch56xx_watchdog_data *watchdog;
 
 	struct mutex update_lock;
-	char valid;			/* !=0 if following fields are valid */
+	bool valid;			/* true if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 	u8 in[SCH5636_NO_INS];
 	u8 temp_val[SCH5636_NO_TEMPS];
@@ -141,7 +141,7 @@ static struct sch5636_data *sch5636_update_device(struct device *dev)
 	}
 
 	data->last_updated = jiffies;
-	data->valid = 1;
+	data->valid = true;
 abort:
 	mutex_unlock(&data->update_lock);
 	return ret;
@@ -160,7 +160,7 @@ static int reg_to_rpm(u16 reg)
 static ssize_t name_show(struct device *dev, struct device_attribute *devattr,
 			 char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%s\n", DEVNAME);
+	return sysfs_emit(buf, "%s\n", DEVNAME);
 }
 
 static ssize_t in_value_show(struct device *dev,
@@ -176,7 +176,7 @@ static ssize_t in_value_show(struct device *dev,
 	val = DIV_ROUND_CLOSEST(
 		data->in[attr->index] * SCH5636_REG_IN_FACTORS[attr->index],
 		255);
-	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+	return sysfs_emit(buf, "%d\n", val);
 }
 
 static ssize_t in_label_show(struct device *dev,
@@ -184,8 +184,8 @@ static ssize_t in_label_show(struct device *dev,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-			SCH5636_IN_LABELS[attr->index]);
+	return sysfs_emit(buf, "%s\n",
+			  SCH5636_IN_LABELS[attr->index]);
 }
 
 static ssize_t temp_value_show(struct device *dev,
@@ -199,7 +199,7 @@ static ssize_t temp_value_show(struct device *dev,
 		return PTR_ERR(data);
 
 	val = (data->temp_val[attr->index] - 64) * 1000;
-	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+	return sysfs_emit(buf, "%d\n", val);
 }
 
 static ssize_t temp_fault_show(struct device *dev,
@@ -213,7 +213,7 @@ static ssize_t temp_fault_show(struct device *dev,
 		return PTR_ERR(data);
 
 	val = (data->temp_ctrl[attr->index] & SCH5636_TEMP_WORKING) ? 0 : 1;
-	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+	return sysfs_emit(buf, "%d\n", val);
 }
 
 static ssize_t temp_alarm_show(struct device *dev,
@@ -227,7 +227,7 @@ static ssize_t temp_alarm_show(struct device *dev,
 		return PTR_ERR(data);
 
 	val = (data->temp_ctrl[attr->index] & SCH5636_TEMP_ALARM) ? 1 : 0;
-	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+	return sysfs_emit(buf, "%d\n", val);
 }
 
 static ssize_t fan_value_show(struct device *dev,
@@ -244,7 +244,7 @@ static ssize_t fan_value_show(struct device *dev,
 	if (val < 0)
 		return val;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+	return sysfs_emit(buf, "%d\n", val);
 }
 
 static ssize_t fan_fault_show(struct device *dev,
@@ -258,7 +258,7 @@ static ssize_t fan_fault_show(struct device *dev,
 		return PTR_ERR(data);
 
 	val = (data->fan_ctrl[attr->index] & SCH5636_FAN_NOT_PRESENT) ? 1 : 0;
-	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+	return sysfs_emit(buf, "%d\n", val);
 }
 
 static ssize_t fan_alarm_show(struct device *dev,
@@ -272,7 +272,7 @@ static ssize_t fan_alarm_show(struct device *dev,
 		return PTR_ERR(data);
 
 	val = (data->fan_ctrl[attr->index] & SCH5636_FAN_ALARM) ? 1 : 0;
-	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+	return sysfs_emit(buf, "%d\n", val);
 }
 
 static struct sensor_device_attribute sch5636_attr[] = {
@@ -367,13 +367,10 @@ static struct sensor_device_attribute sch5636_fan_attr[] = {
 	SENSOR_ATTR_RO(fan8_alarm, fan_alarm, 7),
 };
 
-static int sch5636_remove(struct platform_device *pdev)
+static void sch5636_remove(struct platform_device *pdev)
 {
 	struct sch5636_data *data = platform_get_drvdata(pdev);
 	int i;
-
-	if (data->watchdog)
-		sch56xx_watchdog_unregister(data->watchdog);
 
 	if (data->hwmon_dev)
 		hwmon_device_unregister(data->hwmon_dev);
@@ -388,8 +385,6 @@ static int sch5636_remove(struct platform_device *pdev)
 	for (i = 0; i < SCH5636_NO_FANS * 3; i++)
 		device_remove_file(&pdev->dev,
 				   &sch5636_fan_attr[i].dev_attr);
-
-	return 0;
 }
 
 static int sch5636_probe(struct platform_device *pdev)
@@ -495,9 +490,8 @@ static int sch5636_probe(struct platform_device *pdev)
 	}
 
 	/* Note failing to register the watchdog is not a fatal error */
-	data->watchdog = sch56xx_watchdog_register(&pdev->dev, data->addr,
-					(revision[0] << 8) | revision[1],
-					&data->update_lock, 0);
+	sch56xx_watchdog_register(&pdev->dev, data->addr, (revision[0] << 8) | revision[1],
+				  &data->update_lock, 0);
 
 	return 0;
 
@@ -506,12 +500,21 @@ error:
 	return err;
 }
 
+static const struct platform_device_id sch5636_device_id[] = {
+	{
+		.name = "sch5636",
+	},
+	{ }
+};
+MODULE_DEVICE_TABLE(platform, sch5636_device_id);
+
 static struct platform_driver sch5636_driver = {
 	.driver = {
 		.name	= DRVNAME,
 	},
 	.probe		= sch5636_probe,
-	.remove		= sch5636_remove,
+	.remove_new	= sch5636_remove,
+	.id_table	= sch5636_device_id,
 };
 
 module_platform_driver(sch5636_driver);

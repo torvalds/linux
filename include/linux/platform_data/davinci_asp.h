@@ -1,16 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * TI DaVinci Audio Serial Port support
  *
- * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * Copyright (C) 2012 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 #ifndef __DAVINCI_ASP_H
@@ -32,16 +24,6 @@ struct davinci_mcasp_pdata {
 	unsigned sram_size_playback;
 	unsigned sram_size_capture;
 	struct gen_pool *sram_pool;
-
-	/*
-	 * If McBSP peripheral gets the clock from an external pin,
-	 * there are three chooses, that are MCBSP_CLKX, MCBSP_CLKR
-	 * and MCBSP_CLKS.
-	 * Depending on different hardware connections it is possible
-	 * to use this setting to change the behaviour of McBSP
-	 * driver.
-	 */
-	int clk_input_pin;
 
 	/*
 	 * This flag works when both clock and FS are outputs for the cpu
@@ -96,11 +78,7 @@ enum {
 	MCASP_VERSION_2,	/* DA8xx/OMAPL1x */
 	MCASP_VERSION_3,        /* TI81xx/AM33xx */
 	MCASP_VERSION_4,	/* DRA7xxx */
-};
-
-enum mcbsp_clk_input_pin {
-	MCBSP_CLKR = 0,		/* as in DM365 */
-	MCBSP_CLKS,
+	MCASP_VERSION_OMAP,	/* OMAP4/5 */
 };
 
 #define INACTIVE_MODE	0

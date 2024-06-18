@@ -186,7 +186,7 @@ static ssize_t vmirror_show(struct device *dev, struct device_attribute *attr,
 {
 	struct td043mtea1_panel *lcd = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", lcd->vmirror);
+	return sysfs_emit(buf, "%d\n", lcd->vmirror);
 }
 
 static ssize_t vmirror_store(struct device *dev, struct device_attribute *attr,
@@ -214,7 +214,7 @@ static ssize_t mode_show(struct device *dev, struct device_attribute *attr,
 {
 	struct td043mtea1_panel *lcd = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", lcd->mode);
+	return sysfs_emit(buf, "%d\n", lcd->mode);
 }
 
 static ssize_t mode_store(struct device *dev, struct device_attribute *attr,
@@ -339,19 +339,18 @@ static const struct drm_display_mode td043mtea1_mode = {
 	.vsync_start = 480 + 39,
 	.vsync_end = 480 + 39 + 1,
 	.vtotal = 480 + 39 + 1 + 34,
-	.vrefresh = 60,
 	.type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED,
 	.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 	.width_mm = 94,
 	.height_mm = 56,
 };
 
-static int td043mtea1_get_modes(struct drm_panel *panel)
+static int td043mtea1_get_modes(struct drm_panel *panel,
+				struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(panel->drm, &td043mtea1_mode);
+	mode = drm_mode_duplicate(connector->dev, &td043mtea1_mode);
 	if (!mode)
 		return -ENOMEM;
 
@@ -432,16 +431,14 @@ static int td043mtea1_probe(struct spi_device *spi)
 	memcpy(lcd->gamma, td043mtea1_def_gamma, sizeof(lcd->gamma));
 
 	lcd->vcc_reg = devm_regulator_get(&spi->dev, "vcc");
-	if (IS_ERR(lcd->vcc_reg)) {
-		dev_err(&spi->dev, "failed to get VCC regulator\n");
-		return PTR_ERR(lcd->vcc_reg);
-	}
+	if (IS_ERR(lcd->vcc_reg))
+		return dev_err_probe(&spi->dev, PTR_ERR(lcd->vcc_reg),
+				     "failed to get VCC regulator\n");
 
 	lcd->reset_gpio = devm_gpiod_get(&spi->dev, "reset", GPIOD_OUT_HIGH);
-	if (IS_ERR(lcd->reset_gpio)) {
-		dev_err(&spi->dev, "failed to get reset GPIO\n");
-		return PTR_ERR(lcd->reset_gpio);
-	}
+	if (IS_ERR(lcd->reset_gpio))
+		return dev_err_probe(&spi->dev, PTR_ERR(lcd->reset_gpio),
+				     "failed to get reset GPIO\n");
 
 	spi->bits_per_word = 16;
 	spi->mode = SPI_MODE_0;
@@ -458,20 +455,15 @@ static int td043mtea1_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	drm_panel_init(&lcd->panel);
-	lcd->panel.dev = &lcd->spi->dev;
-	lcd->panel.funcs = &td043mtea1_funcs;
+	drm_panel_init(&lcd->panel, &lcd->spi->dev, &td043mtea1_funcs,
+		       DRM_MODE_CONNECTOR_DPI);
 
-	ret = drm_panel_add(&lcd->panel);
-	if (ret < 0) {
-		sysfs_remove_group(&spi->dev.kobj, &td043mtea1_attr_group);
-		return ret;
-	}
+	drm_panel_add(&lcd->panel);
 
 	return 0;
 }
 
-static int td043mtea1_remove(struct spi_device *spi)
+static void td043mtea1_remove(struct spi_device *spi)
 {
 	struct td043mtea1_panel *lcd = spi_get_drvdata(spi);
 
@@ -480,8 +472,6 @@ static int td043mtea1_remove(struct spi_device *spi)
 	drm_panel_unprepare(&lcd->panel);
 
 	sysfs_remove_group(&spi->dev.kobj, &td043mtea1_attr_group);
-
-	return 0;
 }
 
 static const struct of_device_id td043mtea1_of_match[] = {
@@ -491,9 +481,17 @@ static const struct of_device_id td043mtea1_of_match[] = {
 
 MODULE_DEVICE_TABLE(of, td043mtea1_of_match);
 
+static const struct spi_device_id td043mtea1_ids[] = {
+	{ "td043mtea1", 0 },
+	{ /* sentinel */ }
+};
+
+MODULE_DEVICE_TABLE(spi, td043mtea1_ids);
+
 static struct spi_driver td043mtea1_driver = {
 	.probe		= td043mtea1_probe,
 	.remove		= td043mtea1_remove,
+	.id_table	= td043mtea1_ids,
 	.driver		= {
 		.name	= "panel-tpo-td043mtea1",
 		.pm	= &td043mtea1_pm_ops,
@@ -503,7 +501,6 @@ static struct spi_driver td043mtea1_driver = {
 
 module_spi_driver(td043mtea1_driver);
 
-MODULE_ALIAS("spi:tpo,td043mtea1");
 MODULE_AUTHOR("Gražvydas Ignotas <notasas@gmail.com>");
 MODULE_DESCRIPTION("TPO TD043MTEA1 Panel Driver");
 MODULE_LICENSE("GPL");

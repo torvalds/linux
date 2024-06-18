@@ -8,7 +8,7 @@
  *
  * based on the other drivers in this same directory.
  *
- * http://www.semiconductors.philips.com/acrobat/datasheets/PCF8563-04.pdf
+ * https://www.nxp.com/docs/en/data-sheet/PCF8563.pdf
  */
 
 #include <linux/clk-provider.h>
@@ -22,8 +22,8 @@
 
 #define PCF8563_REG_ST1		0x00 /* status */
 #define PCF8563_REG_ST2		0x01
-#define PCF8563_BIT_AIE		(1 << 1)
-#define PCF8563_BIT_AF		(1 << 3)
+#define PCF8563_BIT_AIE		BIT(1)
+#define PCF8563_BIT_AF		BIT(3)
 #define PCF8563_BITS_ST2_N	(7 << 5)
 
 #define PCF8563_REG_SC		0x02 /* datetime */
@@ -76,7 +76,6 @@ struct pcf8563 {
 	 * 1970...2069.
 	 */
 	int c_polarity;	/* 0: MO_C=1 means 19xx, otherwise MO_C=1 means 20xx */
-	int voltage_low; /* incicates if a low_voltage was detected */
 
 	struct i2c_client *client;
 #ifdef CONFIG_COMMON_CLK
@@ -208,7 +207,6 @@ static int pcf8563_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		return err;
 
 	if (buf[PCF8563_REG_SC] & PCF8563_SC_LV) {
-		pcf8563->voltage_low = 1;
 		dev_err(&client->dev,
 			"low voltage detected, date/time is not reliable.\n");
 		return -EINVAL;
@@ -276,43 +274,23 @@ static int pcf8563_rtc_set_time(struct device *dev, struct rtc_time *tm)
 				9 - PCF8563_REG_SC, buf + PCF8563_REG_SC);
 }
 
-#ifdef CONFIG_RTC_INTF_DEV
 static int pcf8563_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 {
-	struct pcf8563 *pcf8563 = i2c_get_clientdata(to_i2c_client(dev));
-	struct rtc_time tm;
+	struct i2c_client *client = to_i2c_client(dev);
+	int ret;
 
 	switch (cmd) {
 	case RTC_VL_READ:
-		if (pcf8563->voltage_low)
-			dev_info(dev, "low voltage detected, date/time is not reliable.\n");
+		ret = i2c_smbus_read_byte_data(client, PCF8563_REG_SC);
+		if (ret < 0)
+			return ret;
 
-		if (copy_to_user((void __user *)arg, &pcf8563->voltage_low,
-					sizeof(int)))
-			return -EFAULT;
-		return 0;
-	case RTC_VL_CLR:
-		/*
-		 * Clear the VL bit in the seconds register in case
-		 * the time has not been set already (which would
-		 * have cleared it). This does not really matter
-		 * because of the cached voltage_low value but do it
-		 * anyway for consistency.
-		 */
-		if (pcf8563_rtc_read_time(dev, &tm))
-			pcf8563_rtc_set_time(dev, &tm);
-
-		/* Clear the cached value. */
-		pcf8563->voltage_low = 0;
-
-		return 0;
+		return put_user(ret & PCF8563_SC_LV ? RTC_VL_DATA_INVALID : 0,
+				(unsigned int __user *)arg);
 	default:
 		return -ENOIOCTLCMD;
 	}
 }
-#else
-#define pcf8563_rtc_ioctl NULL
-#endif
 
 static int pcf8563_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *tm)
 {
@@ -352,19 +330,6 @@ static int pcf8563_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *tm)
 	unsigned char buf[4];
 	int err;
 
-	/* The alarm has no seconds, round up to nearest minute */
-	if (tm->time.tm_sec) {
-		time64_t alarm_time = rtc_tm_to_time64(&tm->time);
-
-		alarm_time += 60 - tm->time.tm_sec;
-		rtc_time64_to_tm(alarm_time, &tm->time);
-	}
-
-	dev_dbg(dev, "%s, min=%d hour=%d wday=%d mday=%d "
-		"enabled=%d pending=%d\n", __func__,
-		tm->time.tm_min, tm->time.tm_hour, tm->time.tm_wday,
-		tm->time.tm_mday, tm->enabled, tm->pending);
-
 	buf[0] = bin2bcd(tm->time.tm_min);
 	buf[1] = bin2bcd(tm->time.tm_hour);
 	buf[2] = bin2bcd(tm->time.tm_mday);
@@ -390,7 +355,7 @@ static int pcf8563_irq_enable(struct device *dev, unsigned int enabled)
 
 #define clkout_hw_to_pcf8563(_hw) container_of(_hw, struct pcf8563, clkout_hw)
 
-static int clkout_rates[] = {
+static const int clkout_rates[] = {
 	32768,
 	1024,
 	32,
@@ -544,8 +509,7 @@ static const struct rtc_class_ops pcf8563_rtc_ops = {
 	.alarm_irq_enable = pcf8563_irq_enable,
 };
 
-static int pcf8563_probe(struct i2c_client *client,
-				const struct i2c_device_id *id)
+static int pcf8563_probe(struct i2c_client *client)
 {
 	struct pcf8563 *pcf8563;
 	int err;
@@ -563,7 +527,6 @@ static int pcf8563_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, pcf8563);
 	pcf8563->client = client;
-	device_set_wakeup_capable(&client->dev, 1);
 
 	/* Set timer to lowest frequency to save power (ref Haoyu datasheet) */
 	buf = PCF8563_TMRC_1_60;
@@ -587,24 +550,38 @@ static int pcf8563_probe(struct i2c_client *client,
 
 	pcf8563->rtc->ops = &pcf8563_rtc_ops;
 	/* the pcf8563 alarm only supports a minute accuracy */
-	pcf8563->rtc->uie_unsupported = 1;
+	set_bit(RTC_FEATURE_ALARM_RES_MINUTE, pcf8563->rtc->features);
+	clear_bit(RTC_FEATURE_UPDATE_INTERRUPT, pcf8563->rtc->features);
+	clear_bit(RTC_FEATURE_ALARM, pcf8563->rtc->features);
 	pcf8563->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	pcf8563->rtc->range_max = RTC_TIMESTAMP_END_2099;
 	pcf8563->rtc->set_start_time = true;
 
 	if (client->irq > 0) {
+		unsigned long irqflags = IRQF_TRIGGER_LOW;
+
+		if (dev_fwnode(&client->dev))
+			irqflags = 0;
+
 		err = devm_request_threaded_irq(&client->dev, client->irq,
 				NULL, pcf8563_irq,
-				IRQF_SHARED | IRQF_ONESHOT | IRQF_TRIGGER_LOW,
+				IRQF_SHARED | IRQF_ONESHOT | irqflags,
 				pcf8563_driver.driver.name, client);
 		if (err) {
 			dev_err(&client->dev, "unable to request IRQ %d\n",
 								client->irq);
 			return err;
 		}
+	} else {
+		client->irq = 0;
 	}
 
-	err = rtc_register_device(pcf8563->rtc);
+	if (client->irq > 0 || device_property_read_bool(&client->dev, "wakeup-source")) {
+		device_init_wakeup(&client->dev, true);
+		set_bit(RTC_FEATURE_ALARM, pcf8563->rtc->features);
+	}
+
+	err = devm_rtc_register_device(pcf8563->rtc);
 	if (err)
 		return err;
 
@@ -619,6 +596,7 @@ static int pcf8563_probe(struct i2c_client *client,
 static const struct i2c_device_id pcf8563_id[] = {
 	{ "pcf8563", 0 },
 	{ "rtc8564", 0 },
+	{ "pca8565", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pcf8563_id);
@@ -628,6 +606,7 @@ static const struct of_device_id pcf8563_of_match[] = {
 	{ .compatible = "nxp,pcf8563" },
 	{ .compatible = "epson,rtc8564" },
 	{ .compatible = "microcrystal,rv8564" },
+	{ .compatible = "nxp,pca8565" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, pcf8563_of_match);

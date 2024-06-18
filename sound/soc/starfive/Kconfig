@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config SND_SOC_STARFIVE
+	tristate "Audio support for StarFive SoC"
+	depends on COMPILE_TEST || ARCH_STARFIVE
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the Starfive SoCs' Audio interfaces. You will also need to
+	  select the audio interfaces to support below.
+
+config SND_SOC_JH7110_PWMDAC
+	tristate "JH7110 PWM-DAC device driver"
+	depends on HAVE_CLK && SND_SOC_STARFIVE
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	select SND_SOC_SPDIF
+	help
+	 Say Y or M if you want to add support for StarFive JH7110
+	 PWM-DAC driver.
+
+config SND_SOC_JH7110_TDM
+	tristate "JH7110 TDM device driver"
+	depends on HAVE_CLK && SND_SOC_STARFIVE
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Say Y or M if you want to add support for StarFive TDM driver.

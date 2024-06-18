@@ -121,6 +121,9 @@ void etnaviv_cmdbuf_free(struct etnaviv_cmdbuf *cmdbuf)
 	int order = order_base_2(ALIGN(cmdbuf->size, SUBALLOC_GRANULE) /
 				 SUBALLOC_GRANULE);
 
+	if (!suballoc)
+		return;
+
 	mutex_lock(&suballoc->lock);
 	bitmap_release_region(suballoc->granule_map,
 			      cmdbuf->suballoc_offset / SUBALLOC_GRANULE,

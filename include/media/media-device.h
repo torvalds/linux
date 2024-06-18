@@ -13,12 +13,13 @@
 
 #include <linux/list.h>
 #include <linux/mutex.h>
+#include <linux/pci.h>
+#include <linux/platform_device.h>
 
 #include <media/media-devnode.h>
 #include <media/media-entity.h>
 
 struct ida;
-struct device;
 struct media_device;
 
 /**
@@ -128,7 +129,7 @@ struct media_device_ops {
  *
  * Use-case: find tuner entity connected to the decoder
  * entity and check if it is available, and activate the
- * the link between them from @enable_source and deactivate
+ * link between them from @enable_source and deactivate
  * from @disable_source.
  *
  * .. note::
@@ -181,8 +182,7 @@ struct media_device {
 	atomic_t request_id;
 };
 
-/* We don't need to include pci.h or usb.h here */
-struct pci_dev;
+/* We don't need to include usb.h here */
 struct usb_device;
 
 #ifdef CONFIG_MEDIA_CONTROLLER
@@ -190,21 +190,6 @@ struct usb_device;
 /* Supported link_notify @notification values. */
 #define MEDIA_DEV_NOTIFY_PRE_LINK_CH	0
 #define MEDIA_DEV_NOTIFY_POST_LINK_CH	1
-
-/**
- * media_entity_enum_init - Initialise an entity enumeration
- *
- * @ent_enum: Entity enumeration to be initialised
- * @mdev: The related media device
- *
- * Return: zero on success or a negative error code.
- */
-static inline __must_check int media_entity_enum_init(
-	struct media_entity_enum *ent_enum, struct media_device *mdev)
-{
-	return __media_entity_enum_init(ent_enum,
-					mdev->entity_internal_idx_max + 1);
-}
 
 /**
  * media_device_init() - Initializes a media device element
@@ -219,6 +204,15 @@ static inline __must_check int media_entity_enum_init(
  * So drivers need to first initialize the media device, register any entity
  * within the media device, create pad to pad links and then finally register
  * the media device by calling media_device_register() as a final step.
+ *
+ * The caller is responsible for initializing the media device before
+ * registration. The following fields must be set:
+ *
+ * - dev must point to the parent device
+ * - model must be filled with the device model name
+ *
+ * The bus_info field is set by media_device_init() for PCI and platform devices
+ * if the field begins with '\0'.
  */
 void media_device_init(struct media_device *mdev);
 
@@ -243,28 +237,25 @@ void media_device_cleanup(struct media_device *mdev);
  * The caller is responsible for initializing the &media_device structure
  * before registration. The following fields of &media_device must be set:
  *
- *  - &media_entity.dev must point to the parent device (usually a &pci_dev,
- *    &usb_interface or &platform_device instance).
- *
- *  - &media_entity.model must be filled with the device model name as a
+ *  - &media_device.model must be filled with the device model name as a
  *    NUL-terminated UTF-8 string. The device/model revision must not be
  *    stored in this field.
  *
  * The following fields are optional:
  *
- *  - &media_entity.serial is a unique serial number stored as a
+ *  - &media_device.serial is a unique serial number stored as a
  *    NUL-terminated ASCII string. The field is big enough to store a GUID
  *    in text form. If the hardware doesn't provide a unique serial number
  *    this field must be left empty.
  *
- *  - &media_entity.bus_info represents the location of the device in the
+ *  - &media_device.bus_info represents the location of the device in the
  *    system as a NUL-terminated ASCII string. For PCI/PCIe devices
- *    &media_entity.bus_info must be set to "PCI:" (or "PCIe:") followed by
+ *    &media_device.bus_info must be set to "PCI:" (or "PCIe:") followed by
  *    the value of pci_name(). For USB devices,the usb_make_path() function
  *    must be used. This field is used by applications to distinguish between
  *    otherwise identical devices that don't provide a serial number.
  *
- *  - &media_entity.hw_revision is the hardware device revision in a
+ *  - &media_device.hw_revision is the hardware device revision in a
  *    driver-specific format. When possible the revision should be formatted
  *    with the KERNEL_VERSION() macro.
  *
@@ -373,7 +364,7 @@ void media_device_unregister_entity(struct media_entity *entity);
  *    media_entity_notify callbacks are invoked.
  */
 
-int __must_check media_device_register_entity_notify(struct media_device *mdev,
+void media_device_register_entity_notify(struct media_device *mdev,
 					struct media_entity_notify *nptr);
 
 /**
@@ -438,11 +429,17 @@ void __media_device_usb_init(struct media_device *mdev,
 			     const char *driver_name);
 
 #else
+static inline void media_device_init(struct media_device *mdev)
+{
+}
 static inline int media_device_register(struct media_device *mdev)
 {
 	return 0;
 }
 static inline void media_device_unregister(struct media_device *mdev)
+{
+}
+static inline void media_device_cleanup(struct media_device *mdev)
 {
 }
 static inline int media_device_register_entity(struct media_device *mdev,
@@ -453,11 +450,10 @@ static inline int media_device_register_entity(struct media_device *mdev,
 static inline void media_device_unregister_entity(struct media_entity *entity)
 {
 }
-static inline int media_device_register_entity_notify(
+static inline void media_device_register_entity_notify(
 					struct media_device *mdev,
 					struct media_entity_notify *nptr)
 {
-	return 0;
 }
 static inline void media_device_unregister_entity_notify(
 					struct media_device *mdev,
@@ -495,5 +491,28 @@ static inline void __media_device_usb_init(struct media_device *mdev,
  */
 #define media_device_usb_init(mdev, udev, name) \
 	__media_device_usb_init(mdev, udev, name, KBUILD_MODNAME)
+
+/**
+ * media_set_bus_info() - Set bus_info field
+ *
+ * @bus_info:		Variable where to write the bus info (char array)
+ * @bus_info_size:	Length of the bus_info
+ * @dev:		Related struct device
+ *
+ * Sets bus information based on &dev. This is currently done for PCI and
+ * platform devices. dev is required to be non-NULL for this to happen.
+ *
+ * This function is not meant to be called from drivers.
+ */
+static inline void
+media_set_bus_info(char *bus_info, size_t bus_info_size, struct device *dev)
+{
+	if (!dev)
+		strscpy(bus_info, "no bus info", bus_info_size);
+	else if (dev_is_platform(dev))
+		snprintf(bus_info, bus_info_size, "platform:%s", dev_name(dev));
+	else if (dev_is_pci(dev))
+		snprintf(bus_info, bus_info_size, "PCI:%s", dev_name(dev));
+}
 
 #endif

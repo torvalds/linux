@@ -37,8 +37,15 @@
 
 #include "rds_single_path.h"
 #include "ib_mr.h"
+#include "rds.h"
 
 struct workqueue_struct *rds_ib_mr_wq;
+struct rds_ib_dereg_odp_mr {
+	struct work_struct work;
+	struct ib_mr *mr;
+};
+
+static void rds_ib_odp_mr_worker(struct work_struct *work);
 
 static struct rds_ib_device *rds_ib_get_device(__be32 ipaddr)
 {
@@ -174,7 +181,7 @@ void rds_ib_get_mr_info(struct rds_ib_device *rds_ibdev, struct rds_info_rdma_co
 	struct rds_ib_mr_pool *pool_1m = rds_ibdev->mr_1m_pool;
 
 	iinfo->rdma_mr_max = pool_1m->max_items;
-	iinfo->rdma_mr_size = pool_1m->fmr_attr.max_pages;
+	iinfo->rdma_mr_size = pool_1m->max_pages;
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -184,7 +191,7 @@ void rds6_ib_get_mr_info(struct rds_ib_device *rds_ibdev,
 	struct rds_ib_mr_pool *pool_1m = rds_ibdev->mr_1m_pool;
 
 	iinfo6->rdma_mr_max = pool_1m->max_items;
-	iinfo6->rdma_mr_size = pool_1m->fmr_attr.max_pages;
+	iinfo6->rdma_mr_size = pool_1m->max_pages;
 }
 #endif
 
@@ -212,6 +219,9 @@ void rds_ib_sync_mr(void *trans_private, int direction)
 {
 	struct rds_ib_mr *ibmr = trans_private;
 	struct rds_ib_device *rds_ibdev = ibmr->device;
+
+	if (ibmr->odp)
+		return;
 
 	switch (direction) {
 	case DMA_FROM_DEVICE:
@@ -396,10 +406,7 @@ int rds_ib_flush_mr_pool(struct rds_ib_mr_pool *pool,
 	if (list_empty(&unmap_list))
 		goto out;
 
-	if (pool->use_fastreg)
-		rds_ib_unreg_frmr(&unmap_list, &nfreed, &unpinned, free_goal);
-	else
-		rds_ib_unreg_fmr(&unmap_list, &nfreed, &unpinned, free_goal);
+	rds_ib_unreg_frmr(&unmap_list, &nfreed, &unpinned, free_goal);
 
 	if (!list_empty(&unmap_list)) {
 		unsigned long flags;
@@ -482,11 +489,18 @@ void rds_ib_free_mr(void *trans_private, int invalidate)
 
 	rdsdebug("RDS/IB: free_mr nents %u\n", ibmr->sg_len);
 
+	if (ibmr->odp) {
+		/* A MR created and marked as use_once. We use delayed work,
+		 * because there is a change that we are in interrupt and can't
+		 * call to ib_dereg_mr() directly.
+		 */
+		INIT_DELAYED_WORK(&ibmr->work, rds_ib_odp_mr_worker);
+		queue_delayed_work(rds_ib_mr_wq, &ibmr->work, 0);
+		return;
+	}
+
 	/* Return it to the pool's free list */
-	if (rds_ibdev->use_fastreg)
-		rds_ib_free_frmr_list(ibmr);
-	else
-		rds_ib_free_fmr_list(ibmr);
+	rds_ib_free_frmr_list(ibmr);
 
 	atomic_add(ibmr->sg_len, &pool->free_pinned);
 	atomic_inc(&pool->dirty_count);
@@ -526,9 +540,17 @@ void rds_ib_flush_mrs(void)
 	up_read(&rds_ib_devices_lock);
 }
 
+u32 rds_ib_get_lkey(void *trans_private)
+{
+	struct rds_ib_mr *ibmr = trans_private;
+
+	return ibmr->u.mr->lkey;
+}
+
 void *rds_ib_get_mr(struct scatterlist *sg, unsigned long nents,
 		    struct rds_sock *rs, u32 *key_ret,
-		    struct rds_connection *conn)
+		    struct rds_connection *conn,
+		    u64 start, u64 length, int need_odp)
 {
 	struct rds_ib_device *rds_ibdev;
 	struct rds_ib_mr *ibmr = NULL;
@@ -541,6 +563,51 @@ void *rds_ib_get_mr(struct scatterlist *sg, unsigned long nents,
 		goto out;
 	}
 
+	if (need_odp == ODP_ZEROBASED || need_odp == ODP_VIRTUAL) {
+		u64 virt_addr = need_odp == ODP_ZEROBASED ? 0 : start;
+		int access_flags =
+			(IB_ACCESS_LOCAL_WRITE | IB_ACCESS_REMOTE_READ |
+			 IB_ACCESS_REMOTE_WRITE | IB_ACCESS_REMOTE_ATOMIC |
+			 IB_ACCESS_ON_DEMAND);
+		struct ib_sge sge = {};
+		struct ib_mr *ib_mr;
+
+		if (!rds_ibdev->odp_capable) {
+			ret = -EOPNOTSUPP;
+			goto out;
+		}
+
+		ib_mr = ib_reg_user_mr(rds_ibdev->pd, start, length, virt_addr,
+				       access_flags);
+
+		if (IS_ERR(ib_mr)) {
+			rdsdebug("rds_ib_get_user_mr returned %d\n",
+				 IS_ERR(ib_mr));
+			ret = PTR_ERR(ib_mr);
+			goto out;
+		}
+		if (key_ret)
+			*key_ret = ib_mr->rkey;
+
+		ibmr = kzalloc(sizeof(*ibmr), GFP_KERNEL);
+		if (!ibmr) {
+			ib_dereg_mr(ib_mr);
+			ret = -ENOMEM;
+			goto out;
+		}
+		ibmr->u.mr = ib_mr;
+		ibmr->odp = 1;
+
+		sge.addr = virt_addr;
+		sge.length = length;
+		sge.lkey = ib_mr->lkey;
+
+		ib_advise_mr(rds_ibdev->pd,
+			     IB_UVERBS_ADVISE_MR_ADVICE_PREFETCH_WRITE,
+			     IB_UVERBS_ADVISE_MR_FLAG_FLUSH, &sge, 1);
+		return ibmr;
+	}
+
 	if (conn)
 		ic = conn->c_transport_data;
 
@@ -549,10 +616,7 @@ void *rds_ib_get_mr(struct scatterlist *sg, unsigned long nents,
 		goto out;
 	}
 
-	if (rds_ibdev->use_fastreg)
-		ibmr = rds_ib_reg_frmr(rds_ibdev, ic, sg, nents, key_ret);
-	else
-		ibmr = rds_ib_reg_fmr(rds_ibdev, sg, nents, key_ret);
+	ibmr = rds_ib_reg_frmr(rds_ibdev, ic, sg, nents, key_ret);
 	if (IS_ERR(ibmr)) {
 		ret = PTR_ERR(ibmr);
 		pr_warn("RDS/IB: rds_ib_get_mr failed (errno=%d)\n", ret);
@@ -596,19 +660,16 @@ struct rds_ib_mr_pool *rds_ib_create_mr_pool(struct rds_ib_device *rds_ibdev,
 
 	if (pool_type == RDS_IB_MR_1M_POOL) {
 		/* +1 allows for unaligned MRs */
-		pool->fmr_attr.max_pages = RDS_MR_1M_MSG_SIZE + 1;
+		pool->max_pages = RDS_MR_1M_MSG_SIZE + 1;
 		pool->max_items = rds_ibdev->max_1m_mrs;
 	} else {
 		/* pool_type == RDS_IB_MR_8K_POOL */
-		pool->fmr_attr.max_pages = RDS_MR_8K_MSG_SIZE + 1;
+		pool->max_pages = RDS_MR_8K_MSG_SIZE + 1;
 		pool->max_items = rds_ibdev->max_8k_mrs;
 	}
 
-	pool->max_free_pinned = pool->max_items * pool->fmr_attr.max_pages / 4;
-	pool->fmr_attr.max_maps = rds_ibdev->fmr_max_remaps;
-	pool->fmr_attr.page_shift = PAGE_SHIFT;
+	pool->max_free_pinned = pool->max_items * pool->max_pages / 4;
 	pool->max_items_soft = rds_ibdev->max_mrs * 3 / 4;
-	pool->use_fastreg = rds_ibdev->use_fastreg;
 
 	return pool;
 }
@@ -628,4 +689,13 @@ int rds_ib_mr_init(void)
 void rds_ib_mr_exit(void)
 {
 	destroy_workqueue(rds_ib_mr_wq);
+}
+
+static void rds_ib_odp_mr_worker(struct work_struct  *work)
+{
+	struct rds_ib_mr *ibmr;
+
+	ibmr = container_of(work, struct rds_ib_mr, work.work);
+	ib_dereg_mr(ibmr->u.mr);
+	kfree(ibmr);
 }

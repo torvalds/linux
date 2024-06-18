@@ -11,9 +11,9 @@
 #include <linux/spinlock.h>
 #include <linux/mm.h>
 #include <linux/memblock.h>
-#include <linux/blkdev.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/console.h>
 #include <linux/screen_info.h>
 #include <linux/initrd.h>
 
@@ -25,7 +25,7 @@
 #include <asm/time.h>
 #include <asm/traps.h>
 #include <asm/sibyte/sb1250.h>
-#if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
+#ifdef CONFIG_SIBYTE_BCM1x80
 #include <asm/sibyte/bcm1480_regs.h>
 #elif defined(CONFIG_SIBYTE_SB1250) || defined(CONFIG_SIBYTE_BCM112X)
 #include <asm/sibyte/sb1250_regs.h>
@@ -35,7 +35,7 @@
 #include <asm/sibyte/sb1250_genbus.h>
 #include <asm/sibyte/board.h>
 
-#if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
+#ifdef CONFIG_SIBYTE_BCM1x80
 extern void bcm1480_setup(void);
 #elif defined(CONFIG_SIBYTE_SB1250) || defined(CONFIG_SIBYTE_BCM112X)
 extern void sb1250_setup(void);
@@ -113,9 +113,22 @@ int update_persistent_clock64(struct timespec64 now)
 	}
 }
 
+#ifdef CONFIG_VGA_CONSOLE
+static struct screen_info vgacon_screen_info = {
+	.orig_video_page	= 52,
+	.orig_video_mode	= 3,
+	.orig_video_cols	= 80,
+	.flags			= 12,
+	.orig_video_ega_bx	= 3,
+	.orig_video_lines	= 25,
+	.orig_video_isVGA	= 0x22,
+	.orig_video_points	= 16,
+};
+#endif
+
 void __init plat_mem_setup(void)
 {
-#if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
+#ifdef CONFIG_SIBYTE_BCM1x80
 	bcm1480_setup();
 #elif defined(CONFIG_SIBYTE_SB1250) || defined(CONFIG_SIBYTE_BCM112X)
 	sb1250_setup();
@@ -123,35 +136,20 @@ void __init plat_mem_setup(void)
 #error invalid SiByte board configuration
 #endif
 
-	board_be_handler = swarm_be_handler;
+	mips_set_be_handler(swarm_be_handler);
 
 	if (xicor_probe())
 		swarm_rtc_type = RTC_XICOR;
 	if (m41t81_probe())
 		swarm_rtc_type = RTC_M41T81;
 
-#ifdef CONFIG_VT
-	screen_info = (struct screen_info) {
-		.orig_video_page	= 52,
-		.orig_video_mode	= 3,
-		.orig_video_cols	= 80,
-		.flags			= 12,
-		.orig_video_ega_bx	= 3,
-		.orig_video_lines	= 25,
-		.orig_video_isVGA	= 0x22,
-		.orig_video_points	= 16,
-       };
+#ifdef CONFIG_VGA_CONSOLE
+	vgacon_register_screen(&vgacon_screen_info);
        /* XXXKW for CFE, get lines/cols from environment */
 #endif
 }
 
 #ifdef LEDS_PHYS
-
-#ifdef CONFIG_SIBYTE_CARMEL
-/* XXXKW need to detect Monterey/LittleSur/etc */
-#undef LEDS_PHYS
-#define LEDS_PHYS MLEDS_PHYS
-#endif
 
 void setleds(char *str)
 {

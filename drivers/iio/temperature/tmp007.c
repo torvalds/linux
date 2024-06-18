@@ -20,7 +20,7 @@
 #include <linux/module.h>
 #include <linux/pm.h>
 #include <linux/bitops.h>
-#include <linux/of.h>
+#include <linux/mod_devicetable.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 
@@ -439,9 +439,16 @@ static bool tmp007_identify(struct i2c_client *client)
 	return (manf_id == TMP007_MANUFACTURER_MAGIC && dev_id == TMP007_DEVICE_MAGIC);
 }
 
-static int tmp007_probe(struct i2c_client *client,
-			const struct i2c_device_id *tmp007_id)
+static void tmp007_powerdown_action_cb(void *priv)
 {
+	struct tmp007_data *data = priv;
+
+	tmp007_powerdown(data);
+}
+
+static int tmp007_probe(struct i2c_client *client)
+{
+	const struct i2c_device_id *tmp007_id = i2c_client_get_device_id(client);
 	struct tmp007_data *data;
 	struct iio_dev *indio_dev;
 	int ret;
@@ -463,7 +470,6 @@ static int tmp007_probe(struct i2c_client *client,
 	data->client = client;
 	mutex_init(&data->lock);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->name = "tmp007";
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &tmp007_info;
@@ -490,6 +496,10 @@ static int tmp007_probe(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
+	ret = devm_add_action_or_reset(&client->dev, tmp007_powerdown_action_cb, data);
+	if (ret)
+		return ret;
+
 	/*
 	 * Only the following flags can activate ALERT pin. Data conversion/validity flags
 	 * flags can still be polled for getting temperature data
@@ -503,7 +513,7 @@ static int tmp007_probe(struct i2c_client *client,
 
 	ret = i2c_smbus_read_word_swapped(data->client, TMP007_STATUS_MASK);
 	if (ret < 0)
-		goto error_powerdown;
+		return ret;
 
 	data->status_mask = ret;
 	data->status_mask |= (TMP007_STATUS_OHF | TMP007_STATUS_OLF
@@ -511,7 +521,7 @@ static int tmp007_probe(struct i2c_client *client,
 
 	ret = i2c_smbus_write_word_swapped(data->client, TMP007_STATUS_MASK, data->status_mask);
 	if (ret < 0)
-		goto error_powerdown;
+		return ret;
 
 	if (client->irq) {
 		ret = devm_request_threaded_irq(&client->dev, client->irq,
@@ -520,30 +530,13 @@ static int tmp007_probe(struct i2c_client *client,
 				tmp007_id->name, indio_dev);
 		if (ret) {
 			dev_err(&client->dev, "irq request error %d\n", -ret);
-			goto error_powerdown;
+			return ret;
 		}
 	}
 
-	return iio_device_register(indio_dev);
-
-error_powerdown:
-	tmp007_powerdown(data);
-
-	return ret;
+	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
-static int tmp007_remove(struct i2c_client *client)
-{
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-	struct tmp007_data *data = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	tmp007_powerdown(data);
-
-	return 0;
-}
-
-#ifdef CONFIG_PM_SLEEP
 static int tmp007_suspend(struct device *dev)
 {
 	struct tmp007_data *data = iio_priv(i2c_get_clientdata(
@@ -560,9 +553,8 @@ static int tmp007_resume(struct device *dev)
 	return i2c_smbus_write_word_swapped(data->client, TMP007_CONFIG,
 			data->config | TMP007_CONFIG_CONV_EN);
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(tmp007_pm_ops, tmp007_suspend, tmp007_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(tmp007_pm_ops, tmp007_suspend, tmp007_resume);
 
 static const struct of_device_id tmp007_of_match[] = {
 	{ .compatible = "ti,tmp007", },
@@ -579,11 +571,10 @@ MODULE_DEVICE_TABLE(i2c, tmp007_id);
 static struct i2c_driver tmp007_driver = {
 	.driver = {
 		.name	= "tmp007",
-		.of_match_table = of_match_ptr(tmp007_of_match),
-		.pm	= &tmp007_pm_ops,
+		.of_match_table = tmp007_of_match,
+		.pm	= pm_sleep_ptr(&tmp007_pm_ops),
 	},
 	.probe		= tmp007_probe,
-	.remove		= tmp007_remove,
 	.id_table	= tmp007_id,
 };
 module_i2c_driver(tmp007_driver);

@@ -59,8 +59,7 @@ struct ni_mc_reg_table {
 
 #define NISLANDS_MCREGISTERTABLE_FIRST_DRIVERSTATE_SLOT 2
 
-enum ni_dc_cac_level
-{
+enum ni_dc_cac_level {
 	NISLANDS_DCCAC_LEVEL_0 = 0,
 	NISLANDS_DCCAC_LEVEL_1,
 	NISLANDS_DCCAC_LEVEL_2,
@@ -72,8 +71,7 @@ enum ni_dc_cac_level
 	NISLANDS_DCCAC_MAX_LEVELS
 };
 
-struct ni_leakage_coeffients
-{
+struct ni_leakage_coeffients {
 	u32 at;
 	u32 bt;
 	u32 av;
@@ -83,8 +81,7 @@ struct ni_leakage_coeffients
 	u32 t_ref;
 };
 
-struct ni_cac_data
-{
+struct ni_cac_data {
 	struct ni_leakage_coeffients leakage_coefficients;
 	u32 i_leakage;
 	s32 leakage_minimum_temperature;
@@ -100,8 +97,7 @@ struct ni_cac_data
 	u8 lts_truncate_n;
 };
 
-struct ni_cac_weights
-{
+struct ni_cac_weights {
 	u32 weight_tcp_sig0;
 	u32 weight_tcp_sig1;
 	u32 weight_ta_sig;
@@ -246,5 +242,8 @@ void ni_set_uvd_clock_after_set_eng_clock(struct radeon_device *rdev,
 					  struct radeon_ps *old_ps);
 
 bool ni_dpm_vblank_too_short(struct radeon_device *rdev);
+
+struct ni_power_info *ni_get_pi(struct radeon_device *rdev);
+struct ni_ps *ni_get_ps(struct radeon_ps *rps);
 
 #endif

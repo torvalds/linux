@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+/*
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
  */
 #define pr_fmt(fmt)	"[drm:%s:%d] " fmt, __func__, __LINE__
 
@@ -59,6 +61,32 @@ static u32 dpu_hw_util_log_mask = DPU_DBG_MASK_NONE;
 #define QSEED3_SEP_LUT_SIZE \
 	(QSEED3_LUT_SIZE * QSEED3_SEPARABLE_LUTS * sizeof(u32))
 
+/* DPU_SCALER_QSEED3LITE */
+#define QSEED3LITE_COEF_LUT_Y_SEP_BIT         4
+#define QSEED3LITE_COEF_LUT_UV_SEP_BIT        5
+#define QSEED3LITE_COEF_LUT_CTRL              0x4C
+#define QSEED3LITE_COEF_LUT_SWAP_BIT          0
+#define QSEED3LITE_DIR_FILTER_WEIGHT          0x60
+#define QSEED3LITE_FILTERS                 2
+#define QSEED3LITE_SEPARABLE_LUTS             10
+#define QSEED3LITE_LUT_SIZE                   33
+#define QSEED3LITE_SEP_LUT_SIZE \
+	        (QSEED3LITE_LUT_SIZE * QSEED3LITE_SEPARABLE_LUTS * sizeof(u32))
+
+/* QOS_LUT */
+#define QOS_DANGER_LUT                    0x00
+#define QOS_SAFE_LUT                      0x04
+#define QOS_CREQ_LUT                      0x08
+#define QOS_QOS_CTRL                      0x0C
+#define QOS_CREQ_LUT_0                    0x14
+#define QOS_CREQ_LUT_1                    0x18
+
+/* QOS_QOS_CTRL */
+#define QOS_QOS_CTRL_DANGER_SAFE_EN       BIT(0)
+#define QOS_QOS_CTRL_DANGER_VBLANK_MASK   GENMASK(5, 4)
+#define QOS_QOS_CTRL_VBLANK_EN            BIT(16)
+#define QOS_QOS_CTRL_CREQ_VBLANK_MASK     GENMASK(21, 20)
+
 void dpu_reg_write(struct dpu_hw_blk_reg_map *c,
 		u32 reg_off,
 		u32 val,
@@ -67,13 +95,13 @@ void dpu_reg_write(struct dpu_hw_blk_reg_map *c,
 	/* don't need to mutex protect this */
 	if (c->log_mask & dpu_hw_util_log_mask)
 		DPU_DEBUG_DRIVER("[%s:0x%X] <= 0x%X\n",
-				name, c->blk_off + reg_off, val);
-	writel_relaxed(val, c->base_off + c->blk_off + reg_off);
+				name, reg_off, val);
+	writel_relaxed(val, c->blk_addr + reg_off);
 }
 
 int dpu_reg_read(struct dpu_hw_blk_reg_map *c, u32 reg_off)
 {
-	return readl_relaxed(c->base_off + c->blk_off + reg_off);
+	return readl_relaxed(c->blk_addr + reg_off);
 }
 
 u32 *dpu_hw_util_get_log_mask_ptr(void)
@@ -156,6 +184,57 @@ static void _dpu_hw_setup_scaler3_lut(struct dpu_hw_blk_reg_map *c,
 
 }
 
+static void _dpu_hw_setup_scaler3lite_lut(struct dpu_hw_blk_reg_map *c,
+		struct dpu_hw_scaler3_cfg *scaler3_cfg, u32 offset)
+{
+	int j, filter;
+	int config_lut = 0x0;
+	unsigned long lut_flags;
+	u32 lut_addr, lut_offset;
+	u32 *lut[QSEED3LITE_FILTERS] = {NULL, NULL};
+	static const uint32_t off_tbl[QSEED3_FILTERS] = { 0x000, 0x200 };
+
+	DPU_REG_WRITE(c, QSEED3LITE_DIR_FILTER_WEIGHT + offset, scaler3_cfg->dir_weight);
+
+	if (!scaler3_cfg->sep_lut)
+		return;
+
+	lut_flags = (unsigned long) scaler3_cfg->lut_flag;
+	if (test_bit(QSEED3_COEF_LUT_Y_SEP_BIT, &lut_flags) &&
+		(scaler3_cfg->y_rgb_sep_lut_idx < QSEED3LITE_SEPARABLE_LUTS) &&
+		(scaler3_cfg->sep_len == QSEED3LITE_SEP_LUT_SIZE)) {
+		lut[0] = scaler3_cfg->sep_lut +
+			scaler3_cfg->y_rgb_sep_lut_idx * QSEED3LITE_LUT_SIZE;
+		config_lut = 1;
+	}
+	if (test_bit(QSEED3_COEF_LUT_UV_SEP_BIT, &lut_flags) &&
+		(scaler3_cfg->uv_sep_lut_idx < QSEED3LITE_SEPARABLE_LUTS) &&
+		(scaler3_cfg->sep_len == QSEED3LITE_SEP_LUT_SIZE)) {
+		lut[1] = scaler3_cfg->sep_lut +
+			scaler3_cfg->uv_sep_lut_idx * QSEED3LITE_LUT_SIZE;
+		config_lut = 1;
+	}
+
+	if (config_lut) {
+		for (filter = 0; filter < QSEED3LITE_FILTERS; filter++) {
+			if (!lut[filter])
+				continue;
+			lut_offset = 0;
+			lut_addr = QSEED3_COEF_LUT + offset + off_tbl[filter];
+			for (j = 0; j < QSEED3LITE_LUT_SIZE; j++) {
+				DPU_REG_WRITE(c,
+					lut_addr,
+					(lut[filter])[lut_offset++]);
+				lut_addr += 4;
+			}
+		}
+	}
+
+	if (test_bit(QSEED3_COEF_LUT_SWAP_BIT, &lut_flags))
+		DPU_REG_WRITE(c, QSEED3_COEF_LUT_CTRL + offset, BIT(0));
+
+}
+
 static void _dpu_hw_setup_scaler3_de(struct dpu_hw_blk_reg_map *c,
 		struct dpu_hw_scaler3_de_cfg *de_cfg, u32 offset)
 {
@@ -203,7 +282,7 @@ static void _dpu_hw_setup_scaler3_de(struct dpu_hw_blk_reg_map *c,
 void dpu_hw_setup_scaler3(struct dpu_hw_blk_reg_map *c,
 		struct dpu_hw_scaler3_cfg *scaler3_cfg,
 		u32 scaler_offset, u32 scaler_version,
-		const struct dpu_format *format)
+		const struct msm_format *format)
 {
 	u32 op_mode = 0;
 	u32 phase_init, preload, src_y_rgb, src_uv, dst;
@@ -214,7 +293,7 @@ void dpu_hw_setup_scaler3(struct dpu_hw_blk_reg_map *c,
 	op_mode |= BIT(0);
 	op_mode |= (scaler3_cfg->y_rgb_filter_cfg & 0x3) << 16;
 
-	if (format && DPU_FORMAT_IS_YUV(format)) {
+	if (format && MSM_FORMAT_IS_YUV(format)) {
 		op_mode |= BIT(12);
 		op_mode |= (scaler3_cfg->uv_filter_cfg & 0x3) << 24;
 	}
@@ -242,9 +321,12 @@ void dpu_hw_setup_scaler3(struct dpu_hw_blk_reg_map *c,
 		op_mode |= BIT(8);
 	}
 
-	if (scaler3_cfg->lut_flag)
-		_dpu_hw_setup_scaler3_lut(c, scaler3_cfg,
-								scaler_offset);
+	if (scaler3_cfg->lut_flag) {
+		if (scaler_version < 0x2004)
+			_dpu_hw_setup_scaler3_lut(c, scaler3_cfg, scaler_offset);
+		else
+			_dpu_hw_setup_scaler3lite_lut(c, scaler3_cfg, scaler_offset);
+	}
 
 	if (scaler_version == 0x1002) {
 		phase_init =
@@ -285,7 +367,7 @@ void dpu_hw_setup_scaler3(struct dpu_hw_blk_reg_map *c,
 	DPU_REG_WRITE(c, QSEED3_DST_SIZE + scaler_offset, dst);
 
 end:
-	if (format && !DPU_FORMAT_IS_DX(format))
+	if (format && !MSM_FORMAT_IS_DX(format))
 		op_mode |= BIT(14);
 
 	if (format && format->alpha_enable) {
@@ -299,15 +381,9 @@ end:
 	DPU_REG_WRITE(c, QSEED3_OP_MODE + scaler_offset, op_mode);
 }
 
-u32 dpu_hw_get_scaler3_ver(struct dpu_hw_blk_reg_map *c,
-			u32 scaler_offset)
-{
-	return DPU_REG_READ(c, QSEED3_HW_VERSION + scaler_offset);
-}
-
 void dpu_hw_csc_setup(struct dpu_hw_blk_reg_map *c,
 		u32 csc_reg_off,
-		struct dpu_csc_cfg *data, bool csc10)
+		const struct dpu_csc_cfg *data, bool csc10)
 {
 	static const u32 matrix_shift = 7;
 	u32 clamp_shift = csc10 ? 16 : 8;
@@ -355,3 +431,173 @@ void dpu_hw_csc_setup(struct dpu_hw_blk_reg_map *c,
 	DPU_REG_WRITE(c, csc_reg_off + 0x3c, data->csc_post_bv[1]);
 	DPU_REG_WRITE(c, csc_reg_off + 0x40, data->csc_post_bv[2]);
 }
+
+/**
+ * _dpu_hw_get_qos_lut - get LUT mapping based on fill level
+ * @tbl:		Pointer to LUT table
+ * @total_fl:		fill level
+ * Return: LUT setting corresponding to the fill level
+ */
+u64 _dpu_hw_get_qos_lut(const struct dpu_qos_lut_tbl *tbl,
+		u32 total_fl)
+{
+	int i;
+
+	if (!tbl || !tbl->nentry || !tbl->entries)
+		return 0;
+
+	for (i = 0; i < tbl->nentry; i++)
+		if (total_fl <= tbl->entries[i].fl)
+			return tbl->entries[i].lut;
+
+	/* if last fl is zero, use as default */
+	if (!tbl->entries[i-1].fl)
+		return tbl->entries[i-1].lut;
+
+	return 0;
+}
+
+void _dpu_hw_setup_qos_lut(struct dpu_hw_blk_reg_map *c, u32 offset,
+			   bool qos_8lvl,
+			   const struct dpu_hw_qos_cfg *cfg)
+{
+	DPU_REG_WRITE(c, offset + QOS_DANGER_LUT, cfg->danger_lut);
+	DPU_REG_WRITE(c, offset + QOS_SAFE_LUT, cfg->safe_lut);
+
+	if (qos_8lvl) {
+		DPU_REG_WRITE(c, offset + QOS_CREQ_LUT_0, cfg->creq_lut);
+		DPU_REG_WRITE(c, offset + QOS_CREQ_LUT_1, cfg->creq_lut >> 32);
+	} else {
+		DPU_REG_WRITE(c, offset + QOS_CREQ_LUT, cfg->creq_lut);
+	}
+
+	DPU_REG_WRITE(c, offset + QOS_QOS_CTRL,
+		      cfg->danger_safe_en ? QOS_QOS_CTRL_DANGER_SAFE_EN : 0);
+}
+
+/*
+ * note: Aside from encoders, input_sel should be set to 0x0 by default
+ */
+void dpu_hw_setup_misr(struct dpu_hw_blk_reg_map *c,
+		u32 misr_ctrl_offset, u8 input_sel)
+{
+	u32 config = 0;
+
+	DPU_REG_WRITE(c, misr_ctrl_offset, MISR_CTRL_STATUS_CLEAR);
+
+	/* Clear old MISR value (in case it's read before a new value is calculated)*/
+	wmb();
+
+	config = MISR_FRAME_COUNT | MISR_CTRL_ENABLE | MISR_CTRL_FREE_RUN_MASK |
+		((input_sel & 0xF) << 24);
+	DPU_REG_WRITE(c, misr_ctrl_offset, config);
+}
+
+int dpu_hw_collect_misr(struct dpu_hw_blk_reg_map *c,
+		u32 misr_ctrl_offset,
+		u32 misr_signature_offset,
+		u32 *misr_value)
+{
+	u32 ctrl = 0;
+
+	if (!misr_value)
+		return -EINVAL;
+
+	ctrl = DPU_REG_READ(c, misr_ctrl_offset);
+
+	if (!(ctrl & MISR_CTRL_ENABLE))
+		return -ENODATA;
+
+	if (!(ctrl & MISR_CTRL_STATUS))
+		return -EINVAL;
+
+	*misr_value = DPU_REG_READ(c, misr_signature_offset);
+
+	return 0;
+}
+
+#define CDP_ENABLE		BIT(0)
+#define CDP_UBWC_META_ENABLE	BIT(1)
+#define CDP_TILE_AMORTIZE_ENABLE BIT(2)
+#define CDP_PRELOAD_AHEAD_64	BIT(3)
+
+void dpu_setup_cdp(struct dpu_hw_blk_reg_map *c, u32 offset,
+		   const struct msm_format *fmt, bool enable)
+{
+	u32 cdp_cntl = CDP_PRELOAD_AHEAD_64;
+
+	if (enable)
+		cdp_cntl |= CDP_ENABLE;
+	if (MSM_FORMAT_IS_UBWC(fmt))
+		cdp_cntl |= CDP_UBWC_META_ENABLE;
+	if (MSM_FORMAT_IS_UBWC(fmt) ||
+	    MSM_FORMAT_IS_TILE(fmt))
+		cdp_cntl |= CDP_TILE_AMORTIZE_ENABLE;
+
+	DPU_REG_WRITE(c, offset, cdp_cntl);
+}
+
+bool dpu_hw_clk_force_ctrl(struct dpu_hw_blk_reg_map *c,
+			   const struct dpu_clk_ctrl_reg *clk_ctrl_reg,
+			   bool enable)
+{
+	u32 reg_val, new_val;
+	bool clk_forced_on;
+
+	reg_val = DPU_REG_READ(c, clk_ctrl_reg->reg_off);
+
+	if (enable)
+		new_val = reg_val | BIT(clk_ctrl_reg->bit_off);
+	else
+		new_val = reg_val & ~BIT(clk_ctrl_reg->bit_off);
+
+	DPU_REG_WRITE(c, clk_ctrl_reg->reg_off, new_val);
+
+	clk_forced_on = !(reg_val & BIT(clk_ctrl_reg->bit_off));
+
+	return clk_forced_on;
+}
+
+#define TO_S15D16(_x_)((_x_) << 7)
+
+const struct dpu_csc_cfg dpu_csc_YUV2RGB_601L = {
+	{
+		/* S15.16 format */
+		0x00012A00, 0x00000000, 0x00019880,
+		0x00012A00, 0xFFFF9B80, 0xFFFF3000,
+		0x00012A00, 0x00020480, 0x00000000,
+	},
+	/* signed bias */
+	{ 0xfff0, 0xff80, 0xff80,},
+	{ 0x0, 0x0, 0x0,},
+	/* unsigned clamp */
+	{ 0x10, 0xeb, 0x10, 0xf0, 0x10, 0xf0,},
+	{ 0x00, 0xff, 0x00, 0xff, 0x00, 0xff,},
+};
+
+const struct dpu_csc_cfg dpu_csc10_YUV2RGB_601L = {
+	{
+		/* S15.16 format */
+		0x00012A00, 0x00000000, 0x00019880,
+		0x00012A00, 0xFFFF9B80, 0xFFFF3000,
+		0x00012A00, 0x00020480, 0x00000000,
+	},
+	/* signed bias */
+	{ 0xffc0, 0xfe00, 0xfe00,},
+	{ 0x0, 0x0, 0x0,},
+	/* unsigned clamp */
+	{ 0x40, 0x3ac, 0x40, 0x3c0, 0x40, 0x3c0,},
+	{ 0x00, 0x3ff, 0x00, 0x3ff, 0x00, 0x3ff,},
+};
+
+const struct dpu_csc_cfg dpu_csc10_rgb2yuv_601l = {
+	{
+		TO_S15D16(0x0083), TO_S15D16(0x0102), TO_S15D16(0x0032),
+		TO_S15D16(0x1fb5), TO_S15D16(0x1f6c), TO_S15D16(0x00e1),
+		TO_S15D16(0x00e1), TO_S15D16(0x1f45), TO_S15D16(0x1fdc)
+	},
+	{ 0x00, 0x00, 0x00 },
+	{ 0x0040, 0x0200, 0x0200 },
+	{ 0x000, 0x3ff, 0x000, 0x3ff, 0x000, 0x3ff },
+	{ 0x040, 0x3ac, 0x040, 0x3c0, 0x040, 0x3c0 },
+};

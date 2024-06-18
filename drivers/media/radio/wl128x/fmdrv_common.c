@@ -19,9 +19,12 @@
  *  Author: Manjunatha Halli <manjunatha_halli@ti.com>
  */
 
-#include <linux/module.h>
-#include <linux/firmware.h>
 #include <linux/delay.h>
+#include <linux/firmware.h>
+#include <linux/module.h>
+#include <linux/nospec.h>
+#include <linux/jiffies.h>
+
 #include "fmdrv.h"
 #include "fmdrv_v4l2.h"
 #include "fmdrv_common.h"
@@ -244,7 +247,7 @@ void fmc_update_region_info(struct fmdev *fmdev, u8 region_to_set)
  * FM common sub-module will schedule this tasklet whenever it receives
  * FM packet from ST driver.
  */
-static void recv_tasklet(unsigned long arg)
+static void recv_tasklet(struct tasklet_struct *t)
 {
 	struct fmdev *fmdev;
 	struct fm_irq *irq_info;
@@ -253,7 +256,7 @@ static void recv_tasklet(unsigned long arg)
 	u8 num_fm_hci_cmds;
 	unsigned long flags;
 
-	fmdev = (struct fmdev *)arg;
+	fmdev = from_tasklet(fmdev, t, tx_task);
 	irq_info = &fmdev->irq_info;
 	/* Process all packets in the RX queue */
 	while ((skb = skb_dequeue(&fmdev->rx_q))) {
@@ -328,19 +331,19 @@ static void recv_tasklet(unsigned long arg)
 }
 
 /* FM send tasklet: is scheduled when FM packet has to be sent to chip */
-static void send_tasklet(unsigned long arg)
+static void send_tasklet(struct tasklet_struct *t)
 {
 	struct fmdev *fmdev;
 	struct sk_buff *skb;
 	int len;
 
-	fmdev = (struct fmdev *)arg;
+	fmdev = from_tasklet(fmdev, t, tx_task);
 
 	if (!atomic_read(&fmdev->tx_cnt))
 		return;
 
 	/* Check, is there any timeout happened to last transmitted packet */
-	if ((jiffies - fmdev->last_tx_jiffies) > FM_DRV_TX_TIMEOUT) {
+	if (time_is_before_jiffies(fmdev->last_tx_jiffies + FM_DRV_TX_TIMEOUT)) {
 		fmerr("TX timeout occurred\n");
 		atomic_set(&fmdev->tx_cnt, 1);
 	}
@@ -700,7 +703,7 @@ static void fm_irq_handle_rdsdata_getcmd_resp(struct fmdev *fmdev)
 	struct fm_rds *rds = &fmdev->rx.rds;
 	unsigned long group_idx, flags;
 	u8 *rds_data, meta_data, tmpbuf[FM_RDS_BLK_SIZE];
-	u8 type, blk_idx;
+	u8 type, blk_idx, idx;
 	u16 cur_picode;
 	u32 rds_len;
 
@@ -733,9 +736,11 @@ static void fm_irq_handle_rdsdata_getcmd_resp(struct fmdev *fmdev)
 		}
 
 		/* Skip checkword (control) byte and copy only data byte */
-		memcpy(&rds_fmt.data.groupdatabuff.
-				buff[blk_idx * (FM_RDS_BLK_SIZE - 1)],
-				rds_data, (FM_RDS_BLK_SIZE - 1));
+		idx = array_index_nospec(blk_idx * (FM_RDS_BLK_SIZE - 1),
+					 FM_RX_RDS_INFO_FIELD_MAX - (FM_RDS_BLK_SIZE - 1));
+
+		memcpy(&rds_fmt.data.groupdatabuff.buff[idx], rds_data,
+		       FM_RDS_BLK_SIZE - 1);
 
 		rds->last_blk_idx = blk_idx;
 
@@ -1229,9 +1234,8 @@ static int fm_download_firmware(struct fmdev *fmdev, const u8 *fw_name)
 	struct bts_action *action;
 	struct bts_action_delay *delay;
 	u8 *fw_data;
-	int ret, fw_len, cmd_cnt;
+	int ret, fw_len;
 
-	cmd_cnt = 0;
 	set_bit(FM_FW_DW_INPROGRESS, &fmdev->flag);
 
 	ret = request_firmware(&fw_entry, fw_name,
@@ -1267,7 +1271,6 @@ static int fm_download_firmware(struct fmdev *fmdev, const u8 *fw_name)
 			if (ret)
 				goto rel_fw;
 
-			cmd_cnt++;
 			break;
 
 		case ACTION_DELAY:	/* Delay */
@@ -1279,7 +1282,8 @@ static int fm_download_firmware(struct fmdev *fmdev, const u8 *fw_name)
 		fw_data += (sizeof(struct bts_action) + (action->size));
 		fw_len -= (sizeof(struct bts_action) + (action->size));
 	}
-	fmdbg("Firmware commands(%d) loaded to chip\n", cmd_cnt);
+	fmdbg("Transferred only %d of %d bytes of the firmware to chip\n",
+	      fw_entry->size - fw_len, fw_entry->size);
 rel_fw:
 	release_firmware(fw_entry);
 	clear_bit(FM_FW_DW_INPROGRESS, &fmdev->flag);
@@ -1437,7 +1441,7 @@ static long fm_st_receive(void *arg, struct sk_buff *skb)
 {
 	struct fmdev *fmdev;
 
-	fmdev = (struct fmdev *)arg;
+	fmdev = arg;
 
 	if (skb == NULL) {
 		fmerr("Invalid SKB received from ST\n");
@@ -1535,11 +1539,11 @@ int fmc_prepare(struct fmdev *fmdev)
 
 	/* Initialize TX queue and TX tasklet */
 	skb_queue_head_init(&fmdev->tx_q);
-	tasklet_init(&fmdev->tx_task, send_tasklet, (unsigned long)fmdev);
+	tasklet_setup(&fmdev->tx_task, send_tasklet);
 
 	/* Initialize RX Queue and RX tasklet */
 	skb_queue_head_init(&fmdev->rx_q);
-	tasklet_init(&fmdev->rx_task, recv_tasklet, (unsigned long)fmdev);
+	tasklet_setup(&fmdev->rx_task, recv_tasklet);
 
 	fmdev->irq_info.stage = 0;
 	atomic_set(&fmdev->tx_cnt, 1);

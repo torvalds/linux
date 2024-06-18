@@ -189,8 +189,10 @@ int cpqhp_set_irq(u8 bus_num, u8 dev_num, u8 int_pin, u8 irq_num)
 		/* This should only be for x86 as it sets the Edge Level
 		 * Control Register
 		 */
-		outb((u8) (temp_word & 0xFF), 0x4d0); outb((u8) ((temp_word &
-		0xFF00) >> 8), 0x4d1); rc = 0; }
+		outb((u8)(temp_word & 0xFF), 0x4d0);
+		outb((u8)((temp_word & 0xFF00) >> 8), 0x4d1);
+		rc = 0;
+	}
 
 	return rc;
 }
@@ -361,7 +363,7 @@ int cpqhp_save_config(struct controller *ctrl, int busnumber, int is_hot_plug)
 			return rc;
 
 		/* If multi-function device, set max_functions to 8 */
-		if (header_type & 0x80)
+		if (header_type & PCI_HEADER_TYPE_MFD)
 			max_functions = 8;
 		else
 			max_functions = 1;
@@ -370,7 +372,7 @@ int cpqhp_save_config(struct controller *ctrl, int busnumber, int is_hot_plug)
 
 		do {
 			DevError = 0;
-			if ((header_type & 0x7F) == PCI_HEADER_TYPE_BRIDGE) {
+			if ((header_type & PCI_HEADER_TYPE_MASK) == PCI_HEADER_TYPE_BRIDGE) {
 				/* Recurse the subordinate bus
 				 * get the subordinate bus number
 				 */
@@ -471,7 +473,7 @@ int cpqhp_save_slot_config(struct controller *ctrl, struct pci_func *new_slot)
 	int sub_bus;
 	int max_functions;
 	int function = 0;
-	int cloop = 0;
+	int cloop;
 	int stop_it;
 
 	ID = 0xFFFFFFFF;
@@ -485,13 +487,13 @@ int cpqhp_save_slot_config(struct controller *ctrl, struct pci_func *new_slot)
 	pci_bus_read_config_byte(ctrl->pci_bus, PCI_DEVFN(new_slot->device, 0), 0x0B, &class_code);
 	pci_bus_read_config_byte(ctrl->pci_bus, PCI_DEVFN(new_slot->device, 0), PCI_HEADER_TYPE, &header_type);
 
-	if (header_type & 0x80)	/* Multi-function device */
+	if (header_type & PCI_HEADER_TYPE_MFD)
 		max_functions = 8;
 	else
 		max_functions = 1;
 
 	while (function < max_functions) {
-		if ((header_type & 0x7F) == PCI_HEADER_TYPE_BRIDGE) {
+		if ((header_type & PCI_HEADER_TYPE_MASK) == PCI_HEADER_TYPE_BRIDGE) {
 			/*  Recurse the subordinate bus */
 			pci_bus_read_config_byte(ctrl->pci_bus, PCI_DEVFN(new_slot->device, function), PCI_SECONDARY_BUS, &secondary_bus);
 
@@ -569,7 +571,7 @@ int cpqhp_save_base_addr_length(struct controller *ctrl, struct pci_func *func)
 		/* Check for Bridge */
 		pci_bus_read_config_byte(pci_bus, devfn, PCI_HEADER_TYPE, &header_type);
 
-		if ((header_type & 0x7F) == PCI_HEADER_TYPE_BRIDGE) {
+		if ((header_type & PCI_HEADER_TYPE_MASK) == PCI_HEADER_TYPE_BRIDGE) {
 			pci_bus_read_config_byte(pci_bus, devfn, PCI_SECONDARY_BUS, &secondary_bus);
 
 			sub_bus = (int) secondary_bus;
@@ -623,7 +625,7 @@ int cpqhp_save_base_addr_length(struct controller *ctrl, struct pci_func *func)
 
 			}	/* End of base register loop */
 
-		} else if ((header_type & 0x7F) == 0x00) {
+		} else if ((header_type & PCI_HEADER_TYPE_MASK) == PCI_HEADER_TYPE_NORMAL) {
 			/* Figure out IO and memory base lengths */
 			for (cloop = 0x10; cloop <= 0x24; cloop += 4) {
 				temp_register = 0xFFFFFFFF;
@@ -721,7 +723,7 @@ int cpqhp_save_used_resources(struct controller *ctrl, struct pci_func *func)
 		/* Check for Bridge */
 		pci_bus_read_config_byte(pci_bus, devfn, PCI_HEADER_TYPE, &header_type);
 
-		if ((header_type & 0x7F) == PCI_HEADER_TYPE_BRIDGE) {
+		if ((header_type & PCI_HEADER_TYPE_MASK) == PCI_HEADER_TYPE_BRIDGE) {
 			/* Clear Bridge Control Register */
 			command = 0x00;
 			pci_bus_write_config_word(pci_bus, devfn, PCI_BRIDGE_CONTROL, command);
@@ -856,7 +858,7 @@ int cpqhp_save_used_resources(struct controller *ctrl, struct pci_func *func)
 				}
 			}	/* End of base register loop */
 		/* Standard header */
-		} else if ((header_type & 0x7F) == 0x00) {
+		} else if ((header_type & PCI_HEADER_TYPE_MASK) == PCI_HEADER_TYPE_NORMAL) {
 			/* Figure out IO and memory base lengths */
 			for (cloop = 0x10; cloop <= 0x24; cloop += 4) {
 				pci_bus_read_config_dword(pci_bus, devfn, cloop, &save_base);
@@ -973,7 +975,7 @@ int cpqhp_configure_board(struct controller *ctrl, struct pci_func *func)
 		pci_bus_read_config_byte(pci_bus, devfn, PCI_HEADER_TYPE, &header_type);
 
 		/* If this is a bridge device, restore subordinate devices */
-		if ((header_type & 0x7F) == PCI_HEADER_TYPE_BRIDGE) {
+		if ((header_type & PCI_HEADER_TYPE_MASK) == PCI_HEADER_TYPE_BRIDGE) {
 			pci_bus_read_config_byte(pci_bus, devfn, PCI_SECONDARY_BUS, &secondary_bus);
 
 			sub_bus = (int) secondary_bus;
@@ -1065,7 +1067,7 @@ int cpqhp_valid_replace(struct controller *ctrl, struct pci_func *func)
 		/* Check for Bridge */
 		pci_bus_read_config_byte(pci_bus, devfn, PCI_HEADER_TYPE, &header_type);
 
-		if ((header_type & 0x7F) == PCI_HEADER_TYPE_BRIDGE) {
+		if ((header_type & PCI_HEADER_TYPE_MASK) == PCI_HEADER_TYPE_BRIDGE) {
 			/* In order to continue checking, we must program the
 			 * bus registers in the bridge to respond to accesses
 			 * for its subordinate bus(es)
@@ -1088,7 +1090,7 @@ int cpqhp_valid_replace(struct controller *ctrl, struct pci_func *func)
 
 		}
 		/* Check to see if it is a standard config header */
-		else if ((header_type & 0x7F) == PCI_HEADER_TYPE_NORMAL) {
+		else if ((header_type & PCI_HEADER_TYPE_MASK) == PCI_HEADER_TYPE_NORMAL) {
 			/* Check subsystem vendor and ID */
 			pci_bus_read_config_dword(pci_bus, devfn, PCI_SUBSYSTEM_VENDOR_ID, &temp_register);
 

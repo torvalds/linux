@@ -14,7 +14,9 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
-/**
+#include "cros_ec.h"
+
+/*
  * Request format for protocol v3
  * byte 0	0xda (EC_COMMAND_PROTOCOL_3)
  * byte 1-8	struct ec_host_request
@@ -70,13 +72,19 @@ static int cros_ec_pkt_xfer_i2c(struct cros_ec_device *ec_dev,
 	i2c_msg[1].flags = I2C_M_RD;
 
 	packet_len = msg->insize + response_header_size;
-	BUG_ON(packet_len > ec_dev->din_size);
+	if (packet_len > ec_dev->din_size) {
+		ret = -EINVAL;
+		goto done;
+	}
 	in_buf = ec_dev->din;
 	i2c_msg[1].len = packet_len;
 	i2c_msg[1].buf = (char *) in_buf;
 
 	packet_len = msg->outsize + request_header_size;
-	BUG_ON(packet_len > ec_dev->dout_size);
+	if (packet_len > ec_dev->dout_size) {
+		ret = -EINVAL;
+		goto done;
+	}
 	out_buf = ec_dev->dout;
 	i2c_msg[0].len = packet_len;
 	i2c_msg[0].buf = (char *) out_buf;
@@ -87,6 +95,8 @@ static int cros_ec_pkt_xfer_i2c(struct cros_ec_device *ec_dev,
 
 	ec_dev->dout++;
 	ret = cros_ec_prepare_tx(ec_dev, msg);
+	if (ret < 0)
+		goto done;
 	ec_dev->dout--;
 
 	/* send command to EC and read answer */
@@ -276,8 +286,7 @@ done:
 	return ret;
 }
 
-static int cros_ec_i2c_probe(struct i2c_client *client,
-			     const struct i2c_device_id *dev_id)
+static int cros_ec_i2c_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct cros_ec_device *ec_dev = NULL;
@@ -307,11 +316,11 @@ static int cros_ec_i2c_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int cros_ec_i2c_remove(struct i2c_client *client)
+static void cros_ec_i2c_remove(struct i2c_client *client)
 {
 	struct cros_ec_device *ec_dev = i2c_get_clientdata(client);
 
-	return cros_ec_unregister(ec_dev);
+	cros_ec_unregister(ec_dev);
 }
 
 #ifdef CONFIG_PM_SLEEP

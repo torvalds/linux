@@ -8,14 +8,15 @@
 
 #include <linux/bitops.h>
 #include <linux/device.h>
+#include <linux/devm-helpers.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/mfd/axp20x.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
 #include <linux/power_supply.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
@@ -23,6 +24,8 @@
 #include <linux/workqueue.h>
 
 #define DRVNAME "axp20x-usb-power-supply"
+
+#define AXP192_USB_OTG_STATUS		0x04
 
 #define AXP20X_PWR_STATUS_VBUS_PRESENT	BIT(5)
 #define AXP20X_PWR_STATUS_VBUS_USED	BIT(4)
@@ -32,21 +35,9 @@
 #define AXP20X_VBUS_VHOLD_uV(b)		(4000000 + (((b) >> 3) & 7) * 100000)
 #define AXP20X_VBUS_VHOLD_MASK		GENMASK(5, 3)
 #define AXP20X_VBUS_VHOLD_OFFSET	3
-#define AXP20X_VBUS_CLIMIT_MASK		3
-#define AXP20X_VBUS_CLIMIT_900mA	0
-#define AXP20X_VBUS_CLIMIT_500mA	1
-#define AXP20X_VBUS_CLIMIT_100mA	2
-#define AXP20X_VBUS_CLIMIT_NONE		3
-
-#define AXP813_VBUS_CLIMIT_900mA	0
-#define AXP813_VBUS_CLIMIT_1500mA	1
-#define AXP813_VBUS_CLIMIT_2000mA	2
-#define AXP813_VBUS_CLIMIT_2500mA	3
 
 #define AXP20X_ADC_EN1_VBUS_CURR	BIT(2)
 #define AXP20X_ADC_EN1_VBUS_VOLT	BIT(3)
-
-#define AXP20X_VBUS_MON_VBUS_VALID	BIT(3)
 
 /*
  * Note do not raise the debounce time, we must report Vusb high within
@@ -54,22 +45,61 @@
  */
 #define DEBOUNCE_TIME			msecs_to_jiffies(50)
 
+struct axp_data {
+	const struct power_supply_desc	*power_desc;
+	const char * const		*irq_names;
+	unsigned int			num_irq_names;
+	const int			*curr_lim_table;
+	int				curr_lim_table_size;
+	struct reg_field		curr_lim_fld;
+	struct reg_field		vbus_valid_bit;
+	struct reg_field		vbus_mon_bit;
+	struct reg_field		usb_bc_en_bit;
+	struct reg_field		usb_bc_det_fld;
+	struct reg_field		vbus_disable_bit;
+	bool				vbus_needs_polling: 1;
+};
+
 struct axp20x_usb_power {
-	struct device_node *np;
+	struct device *dev;
 	struct regmap *regmap;
+	struct regmap_field *curr_lim_fld;
+	struct regmap_field *vbus_valid_bit;
+	struct regmap_field *vbus_mon_bit;
+	struct regmap_field *usb_bc_en_bit;
+	struct regmap_field *usb_bc_det_fld;
+	struct regmap_field *vbus_disable_bit;
 	struct power_supply *supply;
-	enum axp20x_variants axp20x_id;
+	const struct axp_data *axp_data;
 	struct iio_channel *vbus_v;
 	struct iio_channel *vbus_i;
 	struct delayed_work vbus_detect;
 	unsigned int old_status;
+	unsigned int online;
+	unsigned int num_irqs;
+	unsigned int irqs[] __counted_by(num_irqs);
 };
+
+static bool axp20x_usb_vbus_needs_polling(struct axp20x_usb_power *power)
+{
+	/*
+	 * Polling is only necessary while VBUS is offline. While online, a
+	 * present->absent transition implies an online->offline transition
+	 * and will trigger the VBUS_REMOVAL IRQ.
+	 */
+	if (power->axp_data->vbus_needs_polling && !power->online)
+		return true;
+
+	return false;
+}
 
 static irqreturn_t axp20x_usb_power_irq(int irq, void *devid)
 {
 	struct axp20x_usb_power *power = devid;
 
 	power_supply_changed(power->supply);
+
+	mod_delayed_work(system_power_efficient_wq, &power->vbus_detect, DEBOUNCE_TIME);
 
 	return IRQ_HANDLED;
 }
@@ -89,71 +119,51 @@ static void axp20x_usb_power_poll_vbus(struct work_struct *work)
 	if (val != power->old_status)
 		power_supply_changed(power->supply);
 
+	if (power->usb_bc_en_bit && (val & AXP20X_PWR_STATUS_VBUS_PRESENT) !=
+		(power->old_status & AXP20X_PWR_STATUS_VBUS_PRESENT)) {
+		dev_dbg(power->dev, "Cable status changed, re-enabling USB BC");
+		ret = regmap_field_write(power->usb_bc_en_bit, 1);
+		if (ret)
+			dev_err(power->dev, "failed to enable USB BC: errno %d",
+				ret);
+	}
+
 	power->old_status = val;
+	power->online = val & AXP20X_PWR_STATUS_VBUS_USED;
 
 out:
-	mod_delayed_work(system_wq, &power->vbus_detect, DEBOUNCE_TIME);
+	if (axp20x_usb_vbus_needs_polling(power))
+		mod_delayed_work(system_power_efficient_wq, &power->vbus_detect, DEBOUNCE_TIME);
 }
 
-static bool axp20x_usb_vbus_needs_polling(struct axp20x_usb_power *power)
+static int axp20x_get_usb_type(struct axp20x_usb_power *power,
+			       union power_supply_propval *val)
 {
-	if (power->axp20x_id >= AXP221_ID)
-		return true;
+	unsigned int reg;
+	int ret;
 
-	return false;
-}
+	if (!power->usb_bc_det_fld)
+		return -EINVAL;
 
-static int axp20x_get_current_max(struct axp20x_usb_power *power, int *val)
-{
-	unsigned int v;
-	int ret = regmap_read(power->regmap, AXP20X_VBUS_IPSOUT_MGMT, &v);
-
+	ret = regmap_field_read(power->usb_bc_det_fld, &reg);
 	if (ret)
 		return ret;
 
-	switch (v & AXP20X_VBUS_CLIMIT_MASK) {
-	case AXP20X_VBUS_CLIMIT_100mA:
-		if (power->axp20x_id == AXP221_ID)
-			*val = -1; /* No 100mA limit */
-		else
-			*val = 100000;
+	switch (reg) {
+	case 1:
+		val->intval = POWER_SUPPLY_USB_TYPE_SDP;
 		break;
-	case AXP20X_VBUS_CLIMIT_500mA:
-		*val = 500000;
+	case 2:
+		val->intval = POWER_SUPPLY_USB_TYPE_CDP;
 		break;
-	case AXP20X_VBUS_CLIMIT_900mA:
-		*val = 900000;
+	case 3:
+		val->intval = POWER_SUPPLY_USB_TYPE_DCP;
 		break;
-	case AXP20X_VBUS_CLIMIT_NONE:
-		*val = -1;
+	default:
+		val->intval = POWER_SUPPLY_USB_TYPE_UNKNOWN;
 		break;
 	}
 
-	return 0;
-}
-
-static int axp813_get_current_max(struct axp20x_usb_power *power, int *val)
-{
-	unsigned int v;
-	int ret = regmap_read(power->regmap, AXP20X_VBUS_IPSOUT_MGMT, &v);
-
-	if (ret)
-		return ret;
-
-	switch (v & AXP20X_VBUS_CLIMIT_MASK) {
-	case AXP813_VBUS_CLIMIT_900mA:
-		*val = 900000;
-		break;
-	case AXP813_VBUS_CLIMIT_1500mA:
-		*val = 1500000;
-		break;
-	case AXP813_VBUS_CLIMIT_2000mA:
-		*val = 2000000;
-		break;
-	case AXP813_VBUS_CLIMIT_2500mA:
-		*val = 2500000;
-		break;
-	}
 	return 0;
 }
 
@@ -194,10 +204,17 @@ static int axp20x_usb_power_get_property(struct power_supply *psy,
 
 		val->intval = ret * 1700; /* 1 step = 1.7 mV */
 		return 0;
-	case POWER_SUPPLY_PROP_CURRENT_MAX:
-		if (power->axp20x_id == AXP813_ID)
-			return axp813_get_current_max(power, &val->intval);
-		return axp20x_get_current_max(power, &val->intval);
+	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
+		ret = regmap_field_read(power->curr_lim_fld, &v);
+		if (ret)
+			return ret;
+
+		if (v < power->axp_data->curr_lim_table_size)
+			val->intval = power->axp_data->curr_lim_table[v];
+		else
+			val->intval = power->axp_data->curr_lim_table[
+				power->axp_data->curr_lim_table_size - 1];
+		return 0;
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 		if (IS_ENABLED(CONFIG_AXP20X_ADC)) {
 			ret = iio_read_channel_processed(power->vbus_i,
@@ -220,6 +237,9 @@ static int axp20x_usb_power_get_property(struct power_supply *psy,
 
 		val->intval = ret * 375; /* 1 step = 0.375 mA */
 		return 0;
+
+	case POWER_SUPPLY_PROP_USB_TYPE:
+		return axp20x_get_usb_type(power, val);
 	default:
 		break;
 	}
@@ -238,16 +258,15 @@ static int axp20x_usb_power_get_property(struct power_supply *psy,
 
 		val->intval = POWER_SUPPLY_HEALTH_GOOD;
 
-		if (power->axp20x_id == AXP202_ID) {
-			ret = regmap_read(power->regmap,
-					  AXP20X_USB_OTG_STATUS, &v);
+		if (power->vbus_valid_bit) {
+			ret = regmap_field_read(power->vbus_valid_bit, &v);
 			if (ret)
 				return ret;
 
-			if (!(v & AXP20X_USB_STATUS_VBUS_VALID))
-				val->intval =
-					POWER_SUPPLY_HEALTH_UNSPEC_FAILURE;
+			if (v == 0)
+				val->intval = POWER_SUPPLY_HEALTH_UNSPEC_FAILURE;
 		}
+
 		break;
 	case POWER_SUPPLY_PROP_PRESENT:
 		val->intval = !!(input & AXP20X_PWR_STATUS_VBUS_PRESENT);
@@ -288,52 +307,37 @@ static int axp20x_usb_power_set_voltage_min(struct axp20x_usb_power *power,
 	return -EINVAL;
 }
 
-static int axp813_usb_power_set_current_max(struct axp20x_usb_power *power,
-					    int intval)
+static int axp20x_usb_power_set_input_current_limit(struct axp20x_usb_power *power,
+						    int intval)
 {
-	int val;
+	int ret;
+	unsigned int reg;
+	const unsigned int max = power->axp_data->curr_lim_table_size;
 
-	switch (intval) {
-	case 900000:
-		return regmap_update_bits(power->regmap,
-					  AXP20X_VBUS_IPSOUT_MGMT,
-					  AXP20X_VBUS_CLIMIT_MASK,
-					  AXP813_VBUS_CLIMIT_900mA);
-	case 1500000:
-	case 2000000:
-	case 2500000:
-		val = (intval - 1000000) / 500000;
-		return regmap_update_bits(power->regmap,
-					  AXP20X_VBUS_IPSOUT_MGMT,
-					  AXP20X_VBUS_CLIMIT_MASK, val);
-	default:
+	if (intval == -1)
 		return -EINVAL;
+
+	/*
+	 * BC1.2 detection can cause a race condition if we try to set a current
+	 * limit while it's in progress. When it finishes it will overwrite the
+	 * current limit we just set.
+	 */
+	if (power->usb_bc_en_bit) {
+		dev_dbg(power->dev,
+			"disabling BC1.2 detection because current limit was set");
+		ret = regmap_field_write(power->usb_bc_en_bit, 0);
+		if (ret)
+			return ret;
 	}
 
-	return -EINVAL;
-}
+	for (reg = max - 1; reg > 0; reg--)
+		if (power->axp_data->curr_lim_table[reg] <= intval)
+			break;
 
-static int axp20x_usb_power_set_current_max(struct axp20x_usb_power *power,
-					    int intval)
-{
-	int val;
+	dev_dbg(power->dev, "setting input current limit reg to %d (%d uA), requested %d uA",
+		reg, power->axp_data->curr_lim_table[reg], intval);
 
-	switch (intval) {
-	case 100000:
-		if (power->axp20x_id == AXP221_ID)
-			return -EINVAL;
-		/* fall through */
-	case 500000:
-	case 900000:
-		val = (900000 - intval) / 400000;
-		return regmap_update_bits(power->regmap,
-					  AXP20X_VBUS_IPSOUT_MGMT,
-					  AXP20X_VBUS_CLIMIT_MASK, val);
-	default:
-		return -EINVAL;
-	}
-
-	return -EINVAL;
+	return regmap_field_write(power->curr_lim_fld, reg);
 }
 
 static int axp20x_usb_power_set_property(struct power_supply *psy,
@@ -343,14 +347,17 @@ static int axp20x_usb_power_set_property(struct power_supply *psy,
 	struct axp20x_usb_power *power = power_supply_get_drvdata(psy);
 
 	switch (psp) {
+	case POWER_SUPPLY_PROP_ONLINE:
+		if (!power->vbus_disable_bit)
+			return -EINVAL;
+
+		return regmap_field_write(power->vbus_disable_bit, !val->intval);
+
 	case POWER_SUPPLY_PROP_VOLTAGE_MIN:
 		return axp20x_usb_power_set_voltage_min(power, val->intval);
 
-	case POWER_SUPPLY_PROP_CURRENT_MAX:
-		if (power->axp20x_id == AXP813_ID)
-			return axp813_usb_power_set_current_max(power,
-								val->intval);
-		return axp20x_usb_power_set_current_max(power, val->intval);
+	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
+		return axp20x_usb_power_set_input_current_limit(power, val->intval);
 
 	default:
 		return -EINVAL;
@@ -362,8 +369,20 @@ static int axp20x_usb_power_set_property(struct power_supply *psy,
 static int axp20x_usb_power_prop_writeable(struct power_supply *psy,
 					   enum power_supply_property psp)
 {
+	struct axp20x_usb_power *power = power_supply_get_drvdata(psy);
+
+	/*
+	 * The VBUS path select flag works differently on AXP288 and newer:
+	 *  - On AXP20x and AXP22x, the flag enables VBUS (ignoring N_VBUSEN).
+	 *  - On AXP288 and AXP8xx, the flag disables VBUS (ignoring N_VBUSEN).
+	 * We only expose the control on variants where it can be used to force
+	 * the VBUS input offline.
+	 */
+	if (psp == POWER_SUPPLY_PROP_ONLINE)
+		return power->vbus_disable_bit != NULL;
+
 	return psp == POWER_SUPPLY_PROP_VOLTAGE_MIN ||
-	       psp == POWER_SUPPLY_PROP_CURRENT_MAX;
+	       psp == POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT;
 }
 
 static enum power_supply_property axp20x_usb_power_properties[] = {
@@ -372,7 +391,7 @@ static enum power_supply_property axp20x_usb_power_properties[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_VOLTAGE_MIN,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_MAX,
+	POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 };
 
@@ -381,7 +400,23 @@ static enum power_supply_property axp22x_usb_power_properties[] = {
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_VOLTAGE_MIN,
-	POWER_SUPPLY_PROP_CURRENT_MAX,
+	POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
+};
+
+static enum power_supply_property axp813_usb_power_properties[] = {
+	POWER_SUPPLY_PROP_HEALTH,
+	POWER_SUPPLY_PROP_PRESENT,
+	POWER_SUPPLY_PROP_ONLINE,
+	POWER_SUPPLY_PROP_VOLTAGE_MIN,
+	POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
+	POWER_SUPPLY_PROP_USB_TYPE,
+};
+
+static enum power_supply_usb_type axp813_usb_types[] = {
+	POWER_SUPPLY_USB_TYPE_SDP,
+	POWER_SUPPLY_USB_TYPE_DCP,
+	POWER_SUPPLY_USB_TYPE_CDP,
+	POWER_SUPPLY_USB_TYPE_UNKNOWN,
 };
 
 static const struct power_supply_desc axp20x_usb_power_desc = {
@@ -403,6 +438,157 @@ static const struct power_supply_desc axp22x_usb_power_desc = {
 	.get_property = axp20x_usb_power_get_property,
 	.set_property = axp20x_usb_power_set_property,
 };
+
+static const struct power_supply_desc axp813_usb_power_desc = {
+	.name = "axp20x-usb",
+	.type = POWER_SUPPLY_TYPE_USB,
+	.properties = axp813_usb_power_properties,
+	.num_properties = ARRAY_SIZE(axp813_usb_power_properties),
+	.property_is_writeable = axp20x_usb_power_prop_writeable,
+	.get_property = axp20x_usb_power_get_property,
+	.set_property = axp20x_usb_power_set_property,
+	.usb_types = axp813_usb_types,
+	.num_usb_types = ARRAY_SIZE(axp813_usb_types),
+};
+
+static const char * const axp20x_irq_names[] = {
+	"VBUS_PLUGIN",
+	"VBUS_REMOVAL",
+	"VBUS_VALID",
+	"VBUS_NOT_VALID",
+};
+
+static const char * const axp22x_irq_names[] = {
+	"VBUS_PLUGIN",
+	"VBUS_REMOVAL",
+};
+
+static int axp192_usb_curr_lim_table[] = {
+	-1,
+	-1,
+	500000,
+	100000,
+};
+
+static int axp20x_usb_curr_lim_table[] = {
+	900000,
+	500000,
+	100000,
+	-1,
+};
+
+static int axp221_usb_curr_lim_table[] = {
+	900000,
+	500000,
+	-1,
+	-1,
+};
+
+static int axp813_usb_curr_lim_table[] = {
+	100000,
+	500000,
+	900000,
+	1500000,
+	2000000,
+	2500000,
+	3000000,
+	3500000,
+	4000000,
+};
+
+static const struct axp_data axp192_data = {
+	.power_desc	= &axp20x_usb_power_desc,
+	.irq_names	= axp20x_irq_names,
+	.num_irq_names	= ARRAY_SIZE(axp20x_irq_names),
+	.curr_lim_table = axp192_usb_curr_lim_table,
+	.curr_lim_table_size = ARRAY_SIZE(axp192_usb_curr_lim_table),
+	.curr_lim_fld   = REG_FIELD(AXP20X_VBUS_IPSOUT_MGMT, 0, 1),
+	.vbus_valid_bit = REG_FIELD(AXP192_USB_OTG_STATUS, 2, 2),
+	.vbus_mon_bit   = REG_FIELD(AXP20X_VBUS_MON, 3, 3),
+};
+
+static const struct axp_data axp202_data = {
+	.power_desc	= &axp20x_usb_power_desc,
+	.irq_names	= axp20x_irq_names,
+	.num_irq_names	= ARRAY_SIZE(axp20x_irq_names),
+	.curr_lim_table = axp20x_usb_curr_lim_table,
+	.curr_lim_table_size = ARRAY_SIZE(axp20x_usb_curr_lim_table),
+	.curr_lim_fld   = REG_FIELD(AXP20X_VBUS_IPSOUT_MGMT, 0, 1),
+	.vbus_valid_bit = REG_FIELD(AXP20X_USB_OTG_STATUS, 2, 2),
+	.vbus_mon_bit   = REG_FIELD(AXP20X_VBUS_MON, 3, 3),
+};
+
+static const struct axp_data axp221_data = {
+	.power_desc	= &axp22x_usb_power_desc,
+	.irq_names	= axp22x_irq_names,
+	.num_irq_names	= ARRAY_SIZE(axp22x_irq_names),
+	.curr_lim_table = axp221_usb_curr_lim_table,
+	.curr_lim_table_size = ARRAY_SIZE(axp221_usb_curr_lim_table),
+	.curr_lim_fld   = REG_FIELD(AXP20X_VBUS_IPSOUT_MGMT, 0, 1),
+	.vbus_needs_polling = true,
+};
+
+static const struct axp_data axp223_data = {
+	.power_desc	= &axp22x_usb_power_desc,
+	.irq_names	= axp22x_irq_names,
+	.num_irq_names	= ARRAY_SIZE(axp22x_irq_names),
+	.curr_lim_table = axp20x_usb_curr_lim_table,
+	.curr_lim_table_size = ARRAY_SIZE(axp20x_usb_curr_lim_table),
+	.curr_lim_fld   = REG_FIELD(AXP20X_VBUS_IPSOUT_MGMT, 0, 1),
+	.vbus_needs_polling = true,
+};
+
+static const struct axp_data axp813_data = {
+	.power_desc	= &axp813_usb_power_desc,
+	.irq_names	= axp22x_irq_names,
+	.num_irq_names	= ARRAY_SIZE(axp22x_irq_names),
+	.curr_lim_table = axp813_usb_curr_lim_table,
+	.curr_lim_table_size = ARRAY_SIZE(axp813_usb_curr_lim_table),
+	.curr_lim_fld	= REG_FIELD(AXP22X_CHRG_CTRL3, 4, 7),
+	.usb_bc_en_bit	= REG_FIELD(AXP288_BC_GLOBAL, 0, 0),
+	.usb_bc_det_fld = REG_FIELD(AXP288_BC_DET_STAT, 5, 7),
+	.vbus_disable_bit = REG_FIELD(AXP20X_VBUS_IPSOUT_MGMT, 7, 7),
+	.vbus_needs_polling = true,
+};
+
+#ifdef CONFIG_PM_SLEEP
+static int axp20x_usb_power_suspend(struct device *dev)
+{
+	struct axp20x_usb_power *power = dev_get_drvdata(dev);
+	int i = 0;
+
+	/*
+	 * Allow wake via VBUS_PLUGIN only.
+	 *
+	 * As nested threaded IRQs are not automatically disabled during
+	 * suspend, we must explicitly disable the remainder of the IRQs.
+	 */
+	if (device_may_wakeup(&power->supply->dev))
+		enable_irq_wake(power->irqs[i++]);
+	while (i < power->num_irqs)
+		disable_irq(power->irqs[i++]);
+
+	return 0;
+}
+
+static int axp20x_usb_power_resume(struct device *dev)
+{
+	struct axp20x_usb_power *power = dev_get_drvdata(dev);
+	int i = 0;
+
+	if (device_may_wakeup(&power->supply->dev))
+		disable_irq_wake(power->irqs[i++]);
+	while (i < power->num_irqs)
+		enable_irq(power->irqs[i++]);
+
+	mod_delayed_work(system_power_efficient_wq, &power->vbus_detect, DEBOUNCE_TIME);
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(axp20x_usb_power_pm_ops, axp20x_usb_power_suspend,
+						  axp20x_usb_power_resume);
 
 static int configure_iio_channels(struct platform_device *pdev,
 				  struct axp20x_usb_power *power)
@@ -434,17 +620,32 @@ static int configure_adc_registers(struct axp20x_usb_power *power)
 				  AXP20X_ADC_EN1_VBUS_VOLT);
 }
 
+static int axp20x_regmap_field_alloc_optional(struct device *dev,
+					      struct regmap *regmap,
+					      struct reg_field fdesc,
+					      struct regmap_field **fieldp)
+{
+	struct regmap_field *field;
+
+	if (fdesc.reg == 0) {
+		*fieldp = NULL;
+		return 0;
+	}
+
+	field = devm_regmap_field_alloc(dev, regmap, fdesc);
+	if (IS_ERR(field))
+		return PTR_ERR(field);
+
+	*fieldp = field;
+	return 0;
+}
+
 static int axp20x_usb_power_probe(struct platform_device *pdev)
 {
 	struct axp20x_dev *axp20x = dev_get_drvdata(pdev->dev.parent);
 	struct power_supply_config psy_cfg = {};
 	struct axp20x_usb_power *power;
-	static const char * const axp20x_irq_names[] = { "VBUS_PLUGIN",
-		"VBUS_REMOVAL", "VBUS_VALID", "VBUS_NOT_VALID", NULL };
-	static const char * const axp22x_irq_names[] = {
-		"VBUS_PLUGIN", "VBUS_REMOVAL", NULL };
-	const char * const *irq_names;
-	const struct power_supply_desc *usb_power_desc;
+	const struct axp_data *axp_data;
 	int i, irq, ret;
 
 	if (!of_device_is_available(pdev->dev.of_node))
@@ -455,22 +656,64 @@ static int axp20x_usb_power_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	power = devm_kzalloc(&pdev->dev, sizeof(*power), GFP_KERNEL);
+	axp_data = of_device_get_match_data(&pdev->dev);
+
+	power = devm_kzalloc(&pdev->dev,
+			     struct_size(power, irqs, axp_data->num_irq_names),
+			     GFP_KERNEL);
 	if (!power)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, power);
-	power->axp20x_id = (enum axp20x_variants)of_device_get_match_data(
-								&pdev->dev);
 
-	power->np = pdev->dev.of_node;
+	power->dev = &pdev->dev;
+	power->axp_data = axp_data;
 	power->regmap = axp20x->regmap;
+	power->num_irqs = axp_data->num_irq_names;
 
-	if (power->axp20x_id == AXP202_ID) {
+	power->curr_lim_fld = devm_regmap_field_alloc(&pdev->dev, power->regmap,
+						      axp_data->curr_lim_fld);
+	if (IS_ERR(power->curr_lim_fld))
+		return PTR_ERR(power->curr_lim_fld);
+
+	ret = axp20x_regmap_field_alloc_optional(&pdev->dev, power->regmap,
+						 axp_data->vbus_valid_bit,
+						 &power->vbus_valid_bit);
+	if (ret)
+		return ret;
+
+	ret = axp20x_regmap_field_alloc_optional(&pdev->dev, power->regmap,
+						 axp_data->vbus_mon_bit,
+						 &power->vbus_mon_bit);
+	if (ret)
+		return ret;
+
+	ret = axp20x_regmap_field_alloc_optional(&pdev->dev, power->regmap,
+						 axp_data->usb_bc_en_bit,
+						 &power->usb_bc_en_bit);
+	if (ret)
+		return ret;
+
+	ret = axp20x_regmap_field_alloc_optional(&pdev->dev, power->regmap,
+						 axp_data->usb_bc_det_fld,
+						 &power->usb_bc_det_fld);
+	if (ret)
+		return ret;
+
+	ret = axp20x_regmap_field_alloc_optional(&pdev->dev, power->regmap,
+						 axp_data->vbus_disable_bit,
+						 &power->vbus_disable_bit);
+	if (ret)
+		return ret;
+
+	ret = devm_delayed_work_autocancel(&pdev->dev, &power->vbus_detect,
+					   axp20x_usb_power_poll_vbus);
+	if (ret)
+		return ret;
+
+	if (power->vbus_mon_bit) {
 		/* Enable vbus valid checking */
-		ret = regmap_update_bits(power->regmap, AXP20X_VBUS_MON,
-					 AXP20X_VBUS_MON_VBUS_VALID,
-					 AXP20X_VBUS_MON_VBUS_VALID);
+		ret = regmap_field_write(power->vbus_mon_bit, 1);
 		if (ret)
 			return ret;
 
@@ -481,83 +724,73 @@ static int axp20x_usb_power_probe(struct platform_device *pdev)
 
 		if (ret)
 			return ret;
+	}
 
-		usb_power_desc = &axp20x_usb_power_desc;
-		irq_names = axp20x_irq_names;
-	} else if (power->axp20x_id == AXP221_ID ||
-		   power->axp20x_id == AXP223_ID ||
-		   power->axp20x_id == AXP813_ID) {
-		usb_power_desc = &axp22x_usb_power_desc;
-		irq_names = axp22x_irq_names;
-	} else {
-		dev_err(&pdev->dev, "Unsupported AXP variant: %ld\n",
-			axp20x->variant);
-		return -EINVAL;
+	if (power->usb_bc_en_bit) {
+		/* Enable USB Battery Charging specification detection */
+		ret = regmap_field_write(power->usb_bc_en_bit, 1);
+		if (ret)
+			return ret;
 	}
 
 	psy_cfg.of_node = pdev->dev.of_node;
 	psy_cfg.drv_data = power;
 
-	power->supply = devm_power_supply_register(&pdev->dev, usb_power_desc,
+	power->supply = devm_power_supply_register(&pdev->dev,
+						   axp_data->power_desc,
 						   &psy_cfg);
 	if (IS_ERR(power->supply))
 		return PTR_ERR(power->supply);
 
 	/* Request irqs after registering, as irqs may trigger immediately */
-	for (i = 0; irq_names[i]; i++) {
-		irq = platform_get_irq_byname(pdev, irq_names[i]);
-		if (irq < 0) {
-			dev_warn(&pdev->dev, "No IRQ for %s: %d\n",
-				 irq_names[i], irq);
-			continue;
+	for (i = 0; i < axp_data->num_irq_names; i++) {
+		irq = platform_get_irq_byname(pdev, axp_data->irq_names[i]);
+		if (irq < 0)
+			return irq;
+
+		power->irqs[i] = regmap_irq_get_virq(axp20x->regmap_irqc, irq);
+		ret = devm_request_any_context_irq(&pdev->dev, power->irqs[i],
+						   axp20x_usb_power_irq, 0,
+						   DRVNAME, power);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "Error requesting %s IRQ: %d\n",
+				axp_data->irq_names[i], ret);
+			return ret;
 		}
-		irq = regmap_irq_get_virq(axp20x->regmap_irqc, irq);
-		ret = devm_request_any_context_irq(&pdev->dev, irq,
-				axp20x_usb_power_irq, 0, DRVNAME, power);
-		if (ret < 0)
-			dev_warn(&pdev->dev, "Error requesting %s IRQ: %d\n",
-				 irq_names[i], ret);
 	}
 
-	INIT_DELAYED_WORK(&power->vbus_detect, axp20x_usb_power_poll_vbus);
 	if (axp20x_usb_vbus_needs_polling(power))
-		queue_delayed_work(system_wq, &power->vbus_detect, 0);
-
-	return 0;
-}
-
-static int axp20x_usb_power_remove(struct platform_device *pdev)
-{
-	struct axp20x_usb_power *power = platform_get_drvdata(pdev);
-
-	cancel_delayed_work_sync(&power->vbus_detect);
+		queue_delayed_work(system_power_efficient_wq, &power->vbus_detect, 0);
 
 	return 0;
 }
 
 static const struct of_device_id axp20x_usb_power_match[] = {
 	{
+		.compatible = "x-powers,axp192-usb-power-supply",
+		.data = &axp192_data,
+	}, {
 		.compatible = "x-powers,axp202-usb-power-supply",
-		.data = (void *)AXP202_ID,
+		.data = &axp202_data,
 	}, {
 		.compatible = "x-powers,axp221-usb-power-supply",
-		.data = (void *)AXP221_ID,
+		.data = &axp221_data,
 	}, {
 		.compatible = "x-powers,axp223-usb-power-supply",
-		.data = (void *)AXP223_ID,
+		.data = &axp223_data,
 	}, {
 		.compatible = "x-powers,axp813-usb-power-supply",
-		.data = (void *)AXP813_ID,
+		.data = &axp813_data,
 	}, { /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, axp20x_usb_power_match);
 
 static struct platform_driver axp20x_usb_power_driver = {
 	.probe = axp20x_usb_power_probe,
-	.remove = axp20x_usb_power_remove,
 	.driver = {
-		.name = DRVNAME,
-		.of_match_table = axp20x_usb_power_match,
+		.name		= DRVNAME,
+		.of_match_table	= axp20x_usb_power_match,
+		.pm		= &axp20x_usb_power_pm_ops,
 	},
 };
 

@@ -5,7 +5,7 @@ Kernel Lock Torture Test Operation
 CONFIG_LOCK_TORTURE_TEST
 ========================
 
-The CONFIG LOCK_TORTURE_TEST config option provides a kernel module
+The CONFIG_LOCK_TORTURE_TEST config option provides a kernel module
 that runs torture tests on core kernel locking primitives. The kernel
 module, 'locktorture', may be built after the fact on the running
 kernel to be tested, if desired. The tests periodically output status
@@ -67,7 +67,7 @@ torture_type
 
 		     - "rtmutex_lock":
 				rtmutex_lock() and rtmutex_unlock() pairs.
-				Kernel must have CONFIG_RT_MUTEX=y.
+				Kernel must have CONFIG_RT_MUTEXES=y.
 
 		     - "rwsem_lock":
 				read/write down() and up() semaphore pairs.
@@ -103,18 +103,17 @@ stat_interval
 		  Number of seconds between statistics-related printk()s.
 		  By default, locktorture will report stats every 60 seconds.
 		  Setting the interval to zero causes the statistics to
-		  be printed -only- when the module is unloaded, and this
-		  is the default.
+		  be printed -only- when the module is unloaded.
 
 stutter
 		  The length of time to run the test before pausing for this
 		  same period of time.  Defaults to "stutter=5", so as
 		  to run and pause for (roughly) five-second intervals.
 		  Specifying "stutter=0" causes the test to run continuously
-		  without pausing, which is the old default behavior.
+		  without pausing.
 
 shuffle_interval
-		  The number of seconds to keep the test threads affinitied
+		  The number of seconds to keep the test threads affinitized
 		  to a particular subset of the CPUs, defaults to 3 seconds.
 		  Used in conjunction with test_no_idle_hz.
 
@@ -167,4 +166,4 @@ checked for such errors.  The "rmmod" command forces a "SUCCESS",
 two are self-explanatory, while the last indicates that while there
 were no locking failures, CPU-hotplug problems were detected.
 
-Also see: Documentation/RCU/torture.txt
+Also see: Documentation/RCU/torture.rst

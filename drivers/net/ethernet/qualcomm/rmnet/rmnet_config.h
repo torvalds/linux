@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* Copyright (c) 2013-2014, 2016-2018 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2014, 2016-2018, 2021 The Linux Foundation.
+ * All rights reserved.
  *
  * RMNET Data configuration engine
  */
 
 #include <linux/skbuff.h>
+#include <linux/time.h>
 #include <net/gro_cells.h>
 
 #ifndef _RMNET_CONFIG_H_
@@ -18,6 +20,12 @@ struct rmnet_endpoint {
 	struct hlist_node hlnode;
 };
 
+struct rmnet_egress_agg_params {
+	u32 bytes;
+	u32 count;
+	u64 time_nsec;
+};
+
 /* One instance of this structure is instantiated for each real_dev associated
  * with rmnet.
  */
@@ -28,6 +36,20 @@ struct rmnet_port {
 	u8 rmnet_mode;
 	struct hlist_head muxed_ep[RMNET_MAX_LOGICAL_EP];
 	struct net_device *bridge_ep;
+	struct net_device *rmnet_dev;
+
+	/* Egress aggregation information */
+	struct rmnet_egress_agg_params egress_agg_params;
+	/* Protect aggregation related elements */
+	spinlock_t agg_lock;
+	struct sk_buff *skbagg_head;
+	struct sk_buff *skbagg_tail;
+	int agg_state;
+	u8 agg_count;
+	struct timespec64 agg_time;
+	struct timespec64 agg_last;
+	struct hrtimer hrtimer;
+	struct work_struct agg_wq;
 };
 
 extern struct rtnl_link_ops rmnet_link_ops;
@@ -47,6 +69,7 @@ struct rmnet_pcpu_stats {
 
 struct rmnet_priv_stats {
 	u64 csum_ok;
+	u64 csum_ip4_header_bad;
 	u64 csum_valid_unset;
 	u64 csum_validation_failed;
 	u64 csum_err_bad_buffer;
@@ -55,6 +78,7 @@ struct rmnet_priv_stats {
 	u64 csum_fragmented_pkt;
 	u64 csum_skipped;
 	u64 csum_sw;
+	u64 csum_hw;
 };
 
 struct rmnet_priv {
@@ -65,11 +89,13 @@ struct rmnet_priv {
 	struct rmnet_priv_stats stats;
 };
 
-struct rmnet_port *rmnet_get_port(struct net_device *real_dev);
+struct rmnet_port *rmnet_get_port_rcu(struct net_device *real_dev);
 struct rmnet_endpoint *rmnet_get_endpoint(struct rmnet_port *port, u8 mux_id);
 int rmnet_add_bridge(struct net_device *rmnet_dev,
 		     struct net_device *slave_dev,
 		     struct netlink_ext_ack *extack);
 int rmnet_del_bridge(struct net_device *rmnet_dev,
 		     struct net_device *slave_dev);
+struct rmnet_port*
+rmnet_get_port_rtnl(const struct net_device *real_dev);
 #endif /* _RMNET_CONFIG_H_ */

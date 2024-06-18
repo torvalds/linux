@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: GPL-2.0
+
+# to be include'd by arch/$(ARCH)/boot/Makefile after setting
+# EFI_ZBOOT_PAYLOAD, EFI_ZBOOT_BFD_TARGET, EFI_ZBOOT_MACH_TYPE and
+# EFI_ZBOOT_FORWARD_CFI
+
+quiet_cmd_copy_and_pad = PAD     $@
+      cmd_copy_and_pad = cp $< $@; \
+			 truncate -s $$(hexdump -s16 -n4 -e '"%u"' $<) $@
+
+# Pad the file to the size of the uncompressed image in memory, including BSS
+$(obj)/vmlinux.bin: $(obj)/$(EFI_ZBOOT_PAYLOAD) FORCE
+	$(call if_changed,copy_and_pad)
+
+comp-type-$(CONFIG_KERNEL_GZIP)		:= gzip
+comp-type-$(CONFIG_KERNEL_LZ4)		:= lz4
+comp-type-$(CONFIG_KERNEL_LZMA)		:= lzma
+comp-type-$(CONFIG_KERNEL_LZO)		:= lzo
+comp-type-$(CONFIG_KERNEL_XZ)		:= xzkern
+comp-type-$(CONFIG_KERNEL_ZSTD)		:= zstd22
+
+# in GZIP, the appended le32 carrying the uncompressed size is part of the
+# format, but in other cases, we just append it at the end for convenience,
+# causing the original tools to complain when checking image integrity.
+# So disregard it when calculating the payload size in the zimage header.
+zboot-method-y                         := $(comp-type-y)_with_size
+zboot-size-len-y                       := 4
+
+zboot-method-$(CONFIG_KERNEL_GZIP)     := gzip
+zboot-size-len-$(CONFIG_KERNEL_GZIP)   := 0
+
+$(obj)/vmlinuz: $(obj)/vmlinux.bin FORCE
+	$(call if_changed,$(zboot-method-y))
+
+# avoid eager evaluation to prevent references to non-existent build artifacts
+OBJCOPYFLAGS_vmlinuz.o = -I binary -O $(EFI_ZBOOT_BFD_TARGET) $(EFI_ZBOOT_OBJCOPY_FLAGS) \
+			  --rename-section .data=.gzdata,load,alloc,readonly,contents
+$(obj)/vmlinuz.o: $(obj)/vmlinuz FORCE
+	$(call if_changed,objcopy)
+
+aflags-zboot-header-$(EFI_ZBOOT_FORWARD_CFI) := \
+		-DPE_DLL_CHAR_EX=IMAGE_DLLCHARACTERISTICS_EX_FORWARD_CFI_COMPAT
+
+AFLAGS_zboot-header.o += -DMACHINE_TYPE=IMAGE_FILE_MACHINE_$(EFI_ZBOOT_MACH_TYPE) \
+			 -DZBOOT_EFI_PATH="\"$(realpath $(obj)/vmlinuz.efi.elf)\"" \
+			 -DZBOOT_SIZE_LEN=$(zboot-size-len-y) \
+			 -DCOMP_TYPE="\"$(comp-type-y)\"" \
+			 $(aflags-zboot-header-y)
+
+$(obj)/zboot-header.o: $(srctree)/drivers/firmware/efi/libstub/zboot-header.S FORCE
+	$(call if_changed_rule,as_o_S)
+
+ZBOOT_DEPS := $(obj)/zboot-header.o $(objtree)/drivers/firmware/efi/libstub/lib.a
+
+LDFLAGS_vmlinuz.efi.elf := -T $(srctree)/drivers/firmware/efi/libstub/zboot.lds
+$(obj)/vmlinuz.efi.elf: $(obj)/vmlinuz.o $(ZBOOT_DEPS) FORCE
+	$(call if_changed,ld)
+
+OBJCOPYFLAGS_vmlinuz.efi := -O binary
+$(obj)/vmlinuz.efi: $(obj)/vmlinuz.efi.elf FORCE
+	$(call if_changed,objcopy)
+
+targets += zboot-header.o vmlinux.bin vmlinuz vmlinuz.o vmlinuz.efi.elf vmlinuz.efi

@@ -28,7 +28,7 @@
 #include <linux/reboot.h>
 #include <linux/slab.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/platform_device.h>
 
 #include <linux/uaccess.h>
 #include <asm/envctrl.h>
@@ -36,8 +36,6 @@
 
 #define DRIVER_NAME	"envctrl"
 #define PFX		DRIVER_NAME ": "
-
-#define ENVCTRL_MINOR	162
 
 #define PCF8584_ADDRESS	0x55
 
@@ -365,8 +363,8 @@ static int envctrl_read_cpu_info(int cpu, struct i2c_child_t *pchild,
 				 char mon_type, unsigned char *bufdata)
 {
 	unsigned char data;
-	int i;
-	char *tbl, j = -1;
+	int i, j = -1;
+	char *tbl;
 
 	/* Find the right monitor type and channel. */
 	for (i = 0; i < PCF8584_MAX_CHANNELS; i++) {
@@ -715,9 +713,7 @@ static const struct file_operations envctrl_fops = {
 	.owner =		THIS_MODULE,
 	.read =			envctrl_read,
 	.unlocked_ioctl =	envctrl_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl =		envctrl_ioctl,
-#endif
+	.compat_ioctl =		compat_ptr_ioctl,
 	.open =			envctrl_open,
 	.release =		envctrl_release,
 	.llseek =		noop_llseek,
@@ -1101,7 +1097,7 @@ out_iounmap:
 	return err;
 }
 
-static int envctrl_remove(struct platform_device *op)
+static void envctrl_remove(struct platform_device *op)
 {
 	int index;
 
@@ -1112,8 +1108,6 @@ static int envctrl_remove(struct platform_device *op)
 
 	for (index = 0; index < ENVCTRL_MAX_CPU * 2; index++)
 		kfree(i2c_childlist[index].tables);
-
-	return 0;
 }
 
 static const struct of_device_id envctrl_match[] = {
@@ -1131,7 +1125,7 @@ static struct platform_driver envctrl_driver = {
 		.of_match_table = envctrl_match,
 	},
 	.probe		= envctrl_probe,
-	.remove		= envctrl_remove,
+	.remove_new	= envctrl_remove,
 };
 
 module_platform_driver(envctrl_driver);

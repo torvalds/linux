@@ -26,6 +26,7 @@
 
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/sort.h>
 #include <asm/unaligned.h>
 
 #include "ath5k.h"
@@ -1554,6 +1555,11 @@ static void ath5k_hw_update_nfcal_hist(struct ath5k_hw *ah, s16 noise_floor)
 	hist->nfval[hist->index] = noise_floor;
 }
 
+static int cmps16(const void *a, const void *b)
+{
+	return *(s16 *)a - *(s16 *)b;
+}
+
 /**
  * ath5k_hw_get_median_noise_floor() - Get median NF from history buffer
  * @ah: The &struct ath5k_hw
@@ -1561,25 +1567,16 @@ static void ath5k_hw_update_nfcal_hist(struct ath5k_hw *ah, s16 noise_floor)
 static s16
 ath5k_hw_get_median_noise_floor(struct ath5k_hw *ah)
 {
-	s16 sort[ATH5K_NF_CAL_HIST_MAX];
-	s16 tmp;
-	int i, j;
+	s16 sorted_nfval[ATH5K_NF_CAL_HIST_MAX];
+	int i;
 
-	memcpy(sort, ah->ah_nfcal_hist.nfval, sizeof(sort));
-	for (i = 0; i < ATH5K_NF_CAL_HIST_MAX - 1; i++) {
-		for (j = 1; j < ATH5K_NF_CAL_HIST_MAX - i; j++) {
-			if (sort[j] > sort[j - 1]) {
-				tmp = sort[j];
-				sort[j] = sort[j - 1];
-				sort[j - 1] = tmp;
-			}
-		}
-	}
+	memcpy(sorted_nfval, ah->ah_nfcal_hist.nfval, sizeof(sorted_nfval));
+	sort(sorted_nfval, ATH5K_NF_CAL_HIST_MAX, sizeof(s16), cmps16, NULL);
 	for (i = 0; i < ATH5K_NF_CAL_HIST_MAX; i++) {
 		ATH5K_DBG(ah, ATH5K_DEBUG_CALIBRATE,
-			"cal %d:%d\n", i, sort[i]);
+			"cal %d:%d\n", i, sorted_nfval[i]);
 	}
-	return sort[(ATH5K_NF_CAL_HIST_MAX - 1) / 2];
+	return sorted_nfval[(ATH5K_NF_CAL_HIST_MAX - 1) / 2];
 }
 
 /**
@@ -3136,7 +3133,7 @@ ath5k_combine_pwr_to_pdadc_curves(struct ath5k_hw *ah,
 		pdadc_n = gain_boundaries[pdg] + pd_gain_overlap - pwr_min[pdg];
 		/* Limit it to be inside pwr range */
 		table_size = pwr_max[pdg] - pwr_min[pdg];
-		max_idx = (pdadc_n < table_size) ? pdadc_n : table_size;
+		max_idx = min(pdadc_n, table_size);
 
 		/* Fill pdadc_out table */
 		while (pdadc_0 < max_idx && pdadc_i < 128)
@@ -3229,10 +3226,10 @@ ath5k_write_pwr_to_pdadc_table(struct ath5k_hw *ah, u8 ee_mode)
 	switch (pdcurves) {
 	case 3:
 		reg |= AR5K_REG_SM(pdg_to_idx[2], AR5K_PHY_TPC_RG1_PDGAIN_3);
-		/* Fall through */
+		fallthrough;
 	case 2:
 		reg |= AR5K_REG_SM(pdg_to_idx[1], AR5K_PHY_TPC_RG1_PDGAIN_2);
-		/* Fall through */
+		fallthrough;
 	case 1:
 		reg |= AR5K_REG_SM(pdg_to_idx[0], AR5K_PHY_TPC_RG1_PDGAIN_1);
 		break;
@@ -3353,7 +3350,7 @@ ath5k_setup_channel_powertable(struct ath5k_hw *ah,
 					table_min[pdg] = table_max[pdg] - 126;
 			}
 
-			/* Fall through */
+			fallthrough;
 		case AR5K_PWRTABLE_PWR_TO_PCDAC:
 		case AR5K_PWRTABLE_PWR_TO_PDADC:
 

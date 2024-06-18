@@ -69,6 +69,8 @@ enum twl6030_module_ids {
 	TWL6030_MODULE_GPADC,
 	TWL6030_MODULE_GASGAUGE,
 
+	/* A few extra registers before the registers shared with the 6030 */
+	TWL6032_MODULE_CHARGE,
 	TWL6030_MODULE_LAST,
 };
 
@@ -181,14 +183,18 @@ static inline int twl_i2c_read_u8(u8 mod_no, u8 *val, u8 reg) {
 }
 
 static inline int twl_i2c_write_u16(u8 mod_no, u16 val, u8 reg) {
-	val = cpu_to_le16(val);
-	return twl_i2c_write(mod_no, (u8*) &val, reg, 2);
+	__le16 value;
+
+	value = cpu_to_le16(val);
+	return twl_i2c_write(mod_no, (u8 *) &value, reg, 2);
 }
 
 static inline int twl_i2c_read_u16(u8 mod_no, u16 *val, u8 reg) {
 	int ret;
-	ret = twl_i2c_read(mod_no, (u8*) val, reg, 2);
-	*val = le16_to_cpu(*val);
+	__le16 value;
+
+	ret = twl_i2c_read(mod_no, (u8 *) &value, reg, 2);
+	*val = le16_to_cpu(value);
 	return ret;
 }
 
@@ -455,6 +461,7 @@ static inline int twl6030_mmc_card_detect(struct device *dev, int slot)
 
 #define TWL4030_PM_MASTER_GLOBAL_TST		0xb6
 
+#define TWL6030_PHOENIX_DEV_ON                  0x06
 /*----------------------------------------------------------------------*/
 
 /* Power bus message definitions */
@@ -587,11 +594,6 @@ struct twl4030_gpio_platform_data {
 	 */
 	u32		pullups;
 	u32		pulldowns;
-
-	int		(*setup)(struct device *dev,
-				unsigned gpio, unsigned ngpio);
-	int		(*teardown)(struct device *dev,
-				unsigned gpio, unsigned ngpio);
 };
 
 struct twl4030_madc_platform_data {
@@ -690,61 +692,6 @@ struct twl4030_audio_data {
 	unsigned int irq_base;
 };
 
-struct twl4030_platform_data {
-	struct twl4030_clock_init_data		*clock;
-	struct twl4030_bci_platform_data	*bci;
-	struct twl4030_gpio_platform_data	*gpio;
-	struct twl4030_madc_platform_data	*madc;
-	struct twl4030_keypad_data		*keypad;
-	struct twl4030_usb_data			*usb;
-	struct twl4030_power_data		*power;
-	struct twl4030_audio_data		*audio;
-
-	/* Common LDO regulators for TWL4030/TWL6030 */
-	struct regulator_init_data		*vdac;
-	struct regulator_init_data		*vaux1;
-	struct regulator_init_data		*vaux2;
-	struct regulator_init_data		*vaux3;
-	struct regulator_init_data		*vdd1;
-	struct regulator_init_data		*vdd2;
-	struct regulator_init_data		*vdd3;
-	/* TWL4030 LDO regulators */
-	struct regulator_init_data		*vpll1;
-	struct regulator_init_data		*vpll2;
-	struct regulator_init_data		*vmmc1;
-	struct regulator_init_data		*vmmc2;
-	struct regulator_init_data		*vsim;
-	struct regulator_init_data		*vaux4;
-	struct regulator_init_data		*vio;
-	struct regulator_init_data		*vintana1;
-	struct regulator_init_data		*vintana2;
-	struct regulator_init_data		*vintdig;
-	/* TWL6030 LDO regulators */
-	struct regulator_init_data              *vmmc;
-	struct regulator_init_data              *vpp;
-	struct regulator_init_data              *vusim;
-	struct regulator_init_data              *vana;
-	struct regulator_init_data              *vcxio;
-	struct regulator_init_data              *vusb;
-	struct regulator_init_data		*clk32kg;
-	struct regulator_init_data              *v1v8;
-	struct regulator_init_data              *v2v1;
-	/* TWL6032 LDO regulators */
-	struct regulator_init_data		*ldo1;
-	struct regulator_init_data		*ldo2;
-	struct regulator_init_data		*ldo3;
-	struct regulator_init_data		*ldo4;
-	struct regulator_init_data		*ldo5;
-	struct regulator_init_data		*ldo6;
-	struct regulator_init_data		*ldo7;
-	struct regulator_init_data		*ldoln;
-	struct regulator_init_data		*ldousb;
-	/* TWL6032 DCDC regulators */
-	struct regulator_init_data		*smps3;
-	struct regulator_init_data		*smps4;
-	struct regulator_init_data		*vio6025;
-};
-
 struct twl_regulator_driver_data {
 	int		(*set_voltage)(void *data, int target_uV);
 	int		(*get_voltage)(void *data);
@@ -776,8 +723,6 @@ int twl4030_sih_setup(struct device *dev, int module, int irq_base);
 #define TWL4030_VAUX2_DEDICATED		0x1E
 #define TWL4030_VAUX3_DEV_GRP		0x1F
 #define TWL4030_VAUX3_DEDICATED		0x22
-
-static inline int twl4030charger_usb_en(int enable) { return 0; }
 
 /*----------------------------------------------------------------------*/
 

@@ -3,7 +3,7 @@
  *
  * Name: acbuffer.h - Support for buffers returned by ACPI predefined names
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2023, Intel Corp.
  *
  *****************************************************************************/
 
@@ -206,5 +206,15 @@ struct acpi_pld_info {
 
 #define ACPI_PLD_GET_HORIZ_OFFSET(dword)        ACPI_GET_BITS (dword, 16, ACPI_16BIT_MASK)
 #define ACPI_PLD_SET_HORIZ_OFFSET(dword,value)  ACPI_SET_BITS (dword, 16, ACPI_16BIT_MASK, value)	/* Offset 128+16=144, Len 16 */
+
+/* Panel position defined in _PLD section of ACPI Specification 6.3 */
+
+#define ACPI_PLD_PANEL_TOP      0
+#define ACPI_PLD_PANEL_BOTTOM   1
+#define ACPI_PLD_PANEL_LEFT     2
+#define ACPI_PLD_PANEL_RIGHT    3
+#define ACPI_PLD_PANEL_FRONT    4
+#define ACPI_PLD_PANEL_BACK     5
+#define ACPI_PLD_PANEL_UNKNOWN  6
 
 #endif				/* ACBUFFER_H */

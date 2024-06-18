@@ -8,6 +8,7 @@
 #include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/slab.h>
+#include <asm/sections.h>
 
 /* Whitelist of symbols that can be overridden for error injection. */
 static LIST_HEAD(error_injection_list);
@@ -39,12 +40,18 @@ bool within_error_injection_list(unsigned long addr)
 int get_injectable_error_type(unsigned long addr)
 {
 	struct ei_entry *ent;
+	int ei_type = -EINVAL;
 
+	mutex_lock(&ei_mutex);
 	list_for_each_entry(ent, &error_injection_list, list) {
-		if (addr >= ent->start_addr && addr < ent->end_addr)
-			return ent->etype;
+		if (addr >= ent->start_addr && addr < ent->end_addr) {
+			ei_type = ent->etype;
+			break;
+		}
 	}
-	return EI_ETYPE_NONE;
+	mutex_unlock(&ei_mutex);
+
+	return ei_type;
 }
 
 /*
@@ -64,7 +71,7 @@ static void populate_error_injection_list(struct error_injection_entry *start,
 
 	mutex_lock(&ei_mutex);
 	for (iter = start; iter < end; iter++) {
-		entry = arch_deref_entry_point((void *)iter->addr);
+		entry = (unsigned long)dereference_symbol_descriptor((void *)iter->addr);
 
 		if (!kernel_text_address(entry) ||
 		    !kallsyms_lookup_size_offset(entry, &size, &offset)) {
@@ -180,6 +187,8 @@ static const char *error_type_string(int etype)
 		return "ERRNO";
 	case EI_ETYPE_ERRNO_NULL:
 		return "ERRNO_NULL";
+	case EI_ETYPE_TRUE:
+		return "TRUE";
 	default:
 		return "(unknown)";
 	}
@@ -194,34 +203,22 @@ static int ei_seq_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static const struct seq_operations ei_seq_ops = {
+static const struct seq_operations ei_sops = {
 	.start = ei_seq_start,
 	.next  = ei_seq_next,
 	.stop  = ei_seq_stop,
 	.show  = ei_seq_show,
 };
 
-static int ei_open(struct inode *inode, struct file *filp)
-{
-	return seq_open(filp, &ei_seq_ops);
-}
-
-static const struct file_operations debugfs_ei_ops = {
-	.open           = ei_open,
-	.read           = seq_read,
-	.llseek         = seq_lseek,
-	.release        = seq_release,
-};
+DEFINE_SEQ_ATTRIBUTE(ei);
 
 static int __init ei_debugfs_init(void)
 {
 	struct dentry *dir, *file;
 
 	dir = debugfs_create_dir("error_injection", NULL);
-	if (!dir)
-		return -ENOMEM;
 
-	file = debugfs_create_file("list", 0444, dir, NULL, &debugfs_ei_ops);
+	file = debugfs_create_file("list", 0444, dir, NULL, &ei_fops);
 	if (!file) {
 		debugfs_remove(dir);
 		return -ENOMEM;

@@ -49,9 +49,7 @@ MODULE_PARM_DESC(debug, "Debug level (0-2)");
 
 struct mt9v011 {
 	struct v4l2_subdev sd;
-#ifdef CONFIG_MEDIA_CONTROLLER
 	struct media_pad pad;
-#endif
 	struct v4l2_ctrl_handler ctrls;
 	unsigned width, height;
 	unsigned xtal;
@@ -327,7 +325,7 @@ static int mt9v011_reset(struct v4l2_subdev *sd, u32 val)
 }
 
 static int mt9v011_enum_mbus_code(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->pad || code->index > 0)
@@ -338,7 +336,7 @@ static int mt9v011_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int mt9v011_set_fmt(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *fmt = &format->format;
@@ -358,15 +356,23 @@ static int mt9v011_set_fmt(struct v4l2_subdev *sd,
 
 		set_res(sd);
 	} else {
-		cfg->try_fmt = *fmt;
+		*v4l2_subdev_state_get_format(sd_state, 0) = *fmt;
 	}
 
 	return 0;
 }
 
-static int mt9v011_g_frame_interval(struct v4l2_subdev *sd,
-				    struct v4l2_subdev_frame_interval *ival)
+static int mt9v011_get_frame_interval(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_state *sd_state,
+				      struct v4l2_subdev_frame_interval *ival)
 {
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (ival->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
+
 	calc_fps(sd,
 		 &ival->interval.numerator,
 		 &ival->interval.denominator);
@@ -374,11 +380,19 @@ static int mt9v011_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int mt9v011_s_frame_interval(struct v4l2_subdev *sd,
-				    struct v4l2_subdev_frame_interval *ival)
+static int mt9v011_set_frame_interval(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_state *sd_state,
+				      struct v4l2_subdev_frame_interval *ival)
 {
 	struct v4l2_fract *tpf = &ival->interval;
 	u16 speed;
+
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (ival->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	speed = calc_speed(sd, tpf->numerator, tpf->denominator);
 
@@ -457,19 +471,15 @@ static const struct v4l2_subdev_core_ops mt9v011_core_ops = {
 #endif
 };
 
-static const struct v4l2_subdev_video_ops mt9v011_video_ops = {
-	.g_frame_interval = mt9v011_g_frame_interval,
-	.s_frame_interval = mt9v011_s_frame_interval,
-};
-
 static const struct v4l2_subdev_pad_ops mt9v011_pad_ops = {
 	.enum_mbus_code = mt9v011_enum_mbus_code,
 	.set_fmt = mt9v011_set_fmt,
+	.get_frame_interval = mt9v011_get_frame_interval,
+	.set_frame_interval = mt9v011_set_frame_interval,
 };
 
 static const struct v4l2_subdev_ops mt9v011_ops = {
 	.core  = &mt9v011_core_ops,
-	.video = &mt9v011_video_ops,
 	.pad   = &mt9v011_pad_ops,
 };
 
@@ -478,15 +488,12 @@ static const struct v4l2_subdev_ops mt9v011_ops = {
 			I2C Client & Driver
  ****************************************************************************/
 
-static int mt9v011_probe(struct i2c_client *c,
-			 const struct i2c_device_id *id)
+static int mt9v011_probe(struct i2c_client *c)
 {
 	u16 version;
 	struct mt9v011 *core;
 	struct v4l2_subdev *sd;
-#ifdef CONFIG_MEDIA_CONTROLLER
 	int ret;
-#endif
 
 	/* Check if the adapter supports the needed features */
 	if (!i2c_check_functionality(c->adapter,
@@ -500,14 +507,12 @@ static int mt9v011_probe(struct i2c_client *c,
 	sd = &core->sd;
 	v4l2_i2c_subdev_init(sd, c, &mt9v011_ops);
 
-#ifdef CONFIG_MEDIA_CONTROLLER
 	core->pad.flags = MEDIA_PAD_FL_SOURCE;
 	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
 	ret = media_entity_pads_init(&sd->entity, 1, &core->pad);
 	if (ret < 0)
 		return ret;
-#endif
 
 	/* Check if the sensor is really a MT9V011 */
 	version = mt9v011_read(sd, R00_MT9V011_CHIP_VERSION);
@@ -561,7 +566,7 @@ static int mt9v011_probe(struct i2c_client *c,
 	return 0;
 }
 
-static int mt9v011_remove(struct i2c_client *c)
+static void mt9v011_remove(struct i2c_client *c)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(c);
 	struct mt9v011 *core = to_mt9v011(sd);
@@ -572,8 +577,6 @@ static int mt9v011_remove(struct i2c_client *c)
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&core->ctrls);
-
-	return 0;
 }
 
 /* ----------------------------------------------------------------------- */

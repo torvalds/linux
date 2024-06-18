@@ -1,0 +1,206 @@
+# SPDX-License-Identifier: GPL-2.0
+menu "Speakup console speech"
+
+config SPEAKUP
+	depends on VT
+	tristate "Speakup core"
+	help
+		This is the Speakup screen reader.  Think of it as a
+		video console for blind people.  If built in to the
+		kernel, it can speak everything on the text console from
+		boot up to shutdown.  For more information on Speakup,
+		point your browser at <http://www.linux-speakup.org/>.
+		There is also a mailing list at the above url that you
+		can subscribe to.
+
+		Supported synthesizers are accent sa, accent pc,
+		appollo II., Auddapter, Braille 'n Speak, Dectalk
+		external (old), Dectalk PC (full length isa board),
+		Dectalk express, Doubletalk, Doubletalk LT or
+		Litetalk, Keynote Gold internal PC, software
+		synthesizers, Speakout, transport, and a dummy module
+		that can be used with a plain text terminal.
+
+		Speakup can either be built in or compiled as a module
+		by answering y or m.  If you answer y here, then you
+		must answer either y or m to at least one of the
+		synthesizer drivers below.  If you answer m here, then
+		the synthesizer drivers below can only be built as
+		modules.
+
+		These drivers are not standalone drivers, but must be
+		used in conjunction with Speakup.  Think of them as
+		video cards for blind people.
+
+
+		The Dectalk pc driver can only be built as a module, and
+		requires software to be pre-loaded on to the card before
+		the module can be loaded.  See the decpc choice below
+		for more details.
+
+		If you are not a blind person, or don't have access to
+		one of the listed synthesizers, you should say n.
+
+if SPEAKUP
+
+config SPEAKUP_SERIALIO
+	def_bool y
+	depends on ISA || COMPILE_TEST
+	depends on HAS_IOPORT
+
+config SPEAKUP_SYNTH_ACNTSA
+	tristate "Accent SA synthesizer support"
+	help
+		This is the Speakup driver for the Accent SA
+		synthesizer.  You can say y to build it into the kernel,
+		or m to build it as a module.  See the configuration
+		help on the Speakup choice above for more info.
+
+config SPEAKUP_SYNTH_ACNTPC
+	tristate "Accent PC synthesizer support"
+	depends on SPEAKUP_SERIALIO
+	help
+		This is the Speakup driver for the accent pc
+		synthesizer.  You can say y to build it into the kernel,
+		or m to build it as a module.  See the configuration
+		help on the Speakup choice above for more info.
+
+config SPEAKUP_SYNTH_APOLLO
+	tristate "Apollo II synthesizer support"
+	help
+		This is the Speakup driver for the Apollo II
+		synthesizer.  You can say y to build it into the kernel,
+		or m to build it as a module.  See the configuration
+		help on the Speakup choice above for more info.
+
+config SPEAKUP_SYNTH_AUDPTR
+	tristate "Audapter synthesizer support"
+	help
+		This is the Speakup driver for the Audapter synthesizer.
+		 You can say y to build it into the kernel, or m to
+		build it as a module.  See the configuration help on the
+		Speakup choice above for more info.
+
+config SPEAKUP_SYNTH_BNS
+	tristate "Braille 'n' Speak synthesizer support"
+	help
+		This is the Speakup driver for the Braille 'n' Speak
+		synthesizer.  You can say y to build it into the kernel,
+		or m to build it as a module.  See the configuration
+		help on the Speakup choice above for more info.
+
+config SPEAKUP_SYNTH_DECTLK
+	tristate "DECtalk Express synthesizer support"
+	help
+
+		This is the Speakup driver for the DecTalk Express
+		synthesizer.  You can say y to build it into the kernel,
+		or m to build it as a module.  See the configuration
+		help on the Speakup choice above for more info.
+
+config SPEAKUP_SYNTH_DECEXT
+	tristate "DECtalk External (old) synthesizer support"
+	help
+
+		This is the Speakup driver for the DecTalk External
+		(old) synthesizer.  You can say y to build it into the
+		kernel, or m to build it as a module.  See the
+		configuration help on the Speakup choice above for more
+		info.
+
+config SPEAKUP_SYNTH_DECPC
+	depends on m
+	depends on SPEAKUP_SERIALIO
+	tristate "DECtalk PC (big ISA card) synthesizer support"
+	help
+
+		This is the Speakup driver for the DecTalk PC (full
+		length ISA) synthesizer.  You can say m to build it as
+		a module.  See the configuration help on the Speakup
+		choice above for more info.
+
+		In order to use the DecTalk PC driver, you must download
+		the dec_pc.tgz file from linux-speakup.org.  It is in
+		the pub/linux/goodies directory.  The dec_pc.tgz file
+		contains the software which must be pre-loaded on to the
+		DecTalk PC board in order to use it with this driver.
+		This driver must be built as a module, and can not be
+		loaded until the file system is mounted and the DecTalk
+		PC software has been pre-loaded on to the board.
+
+		See the README file in the dec_pc.tgz file for more
+		details.
+
+config SPEAKUP_SYNTH_DTLK
+	tristate "DoubleTalk PC synthesizer support"
+	depends on SPEAKUP_SERIALIO
+	help
+
+		This is the Speakup driver for the internal DoubleTalk
+		PC synthesizer.  You can say y to build it into the
+		kernel, or m to build it as a module.  See the
+		configuration help on the Speakup choice above for more
+		info.
+
+config SPEAKUP_SYNTH_KEYPC
+	tristate "Keynote Gold PC synthesizer support"
+	depends on SPEAKUP_SERIALIO
+	help
+
+		This is the Speakup driver for the Keynote Gold
+		PC synthesizer.  You can say y to build it into the
+		kernel, or m to build it as a module.  See the
+		configuration help on the Speakup choice above for more
+		info.
+
+config SPEAKUP_SYNTH_LTLK
+	tristate "DoubleTalk LT/LiteTalk synthesizer support"
+help
+
+		This is the Speakup driver for the LiteTalk/DoubleTalk
+		LT synthesizer.  You can say y to build it into the
+		kernel, or m to build it as a module.  See the
+		configuration help on the Speakup choice above for more
+		info.
+
+config SPEAKUP_SYNTH_SOFT
+	tristate "Userspace software synthesizer support"
+	help
+
+		This is the software synthesizer device node.  It will
+		register a device /dev/softsynth which midware programs
+		and speech daemons may open and read to provide kernel
+		output to software synths such as espeak, festival,
+		flite and so forth.  You can select 'y' or 'm' to have
+		it built-in to the kernel or loaded as a module.
+
+config SPEAKUP_SYNTH_SPKOUT
+	tristate "Speak Out synthesizer support"
+	help
+
+		This is the Speakup driver for the Speakout synthesizer.
+		 You can say y to build it into the kernel, or m to
+		build it as a module.  See the configuration help on the
+		Speakup choice above for more info.
+
+config SPEAKUP_SYNTH_TXPRT
+	tristate "Transport synthesizer support"
+	help
+
+		This is the Speakup driver for the Transport
+		synthesizer.  You can say y to build it into the kernel,
+		or m to build it as a module.  See the configuration
+		help on the Speakup choice above for more info.
+
+config SPEAKUP_SYNTH_DUMMY
+	tristate "Dummy synthesizer driver (for testing)"
+	help
+
+		This is a dummy Speakup driver for plugging a mere serial
+		terminal.  This is handy if you want to test speakup but
+		don't have the hardware.  You can say y to build it into
+		the kernel, or m to build it as a module.  See the
+		configuration help on the Speakup choice above for more info.
+
+endif	# SPEAKUP
+endmenu

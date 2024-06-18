@@ -3,11 +3,10 @@
 #include "perf_regs.h"
 #include "thread.h"
 #include "map.h"
-#include "map_groups.h"
+#include "maps.h"
 #include "event.h"
 #include "debug.h"
 #include "tests/tests.h"
-#include "arch-tests.h"
 
 #define STACK_SIZE 8192
 
@@ -27,17 +26,25 @@ static int sample_ustack(struct perf_sample *sample,
 
 	sp = (unsigned long) regs[PERF_REG_X86_SP];
 
-	map = map_groups__find(thread->mg, (u64)sp);
+	map = maps__find(thread__maps(thread), (u64)sp);
 	if (!map) {
 		pr_debug("failed to get stack map\n");
 		free(buf);
 		return -1;
 	}
 
-	stack_size = map->end - sp;
+	stack_size = map__end(map) - sp;
+	map__put(map);
 	stack_size = stack_size > STACK_SIZE ? STACK_SIZE : stack_size;
 
 	memcpy(buf, (void *) sp, stack_size);
+#ifdef MEMORY_SANITIZER
+	/*
+	 * Copying the stack may copy msan poison, avoid false positives in the
+	 * unwinder by removing the poison here.
+	 */
+	__msan_unpoison(buf, stack_size);
+#endif
 	stack->data = (char *) buf;
 	stack->size = stack_size;
 	return 0;
@@ -55,6 +62,14 @@ int test__arch_unwind_sample(struct perf_sample *sample,
 		return -1;
 	}
 
+#ifdef MEMORY_SANITIZER
+	/*
+	 * Assignments to buf in the assembly function perf_regs_load aren't
+	 * seen by memory sanitizer. Zero the memory to convince memory
+	 * sanitizer the memory is initialized.
+	 */
+	memset(buf, 0, sizeof(u64) * PERF_REGS_MAX);
+#endif
 	perf_regs_load(buf);
 	regs->abi  = PERF_SAMPLE_REGS_ABI;
 	regs->regs = buf;

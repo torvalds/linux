@@ -32,6 +32,7 @@
 
 #include "en.h"
 #include "ipoib.h"
+#include "en/fs_ethtool.h"
 
 static void mlx5i_get_drvinfo(struct net_device *dev,
 			      struct ethtool_drvinfo *drvinfo)
@@ -39,7 +40,7 @@ static void mlx5i_get_drvinfo(struct net_device *dev,
 	struct mlx5e_priv *priv = mlx5i_epriv(dev);
 
 	mlx5e_ethtool_get_drvinfo(priv, drvinfo);
-	strlcpy(drvinfo->driver, DRIVER_NAME "[ib_ipoib]",
+	strscpy(drvinfo->driver, KBUILD_MODNAME "[ib_ipoib]",
 		sizeof(drvinfo->driver));
 }
 
@@ -67,7 +68,9 @@ static void mlx5i_get_ethtool_stats(struct net_device *dev,
 }
 
 static int mlx5i_set_ringparam(struct net_device *dev,
-			       struct ethtool_ringparam *param)
+			       struct ethtool_ringparam *param,
+			       struct kernel_ethtool_ringparam *kernel_param,
+			       struct netlink_ext_ack *extack)
 {
 	struct mlx5e_priv *priv = mlx5i_epriv(dev);
 
@@ -75,19 +78,33 @@ static int mlx5i_set_ringparam(struct net_device *dev,
 }
 
 static void mlx5i_get_ringparam(struct net_device *dev,
-				struct ethtool_ringparam *param)
+				struct ethtool_ringparam *param,
+				struct kernel_ethtool_ringparam *kernel_param,
+				struct netlink_ext_ack *extack)
 {
 	struct mlx5e_priv *priv = mlx5i_epriv(dev);
 
-	mlx5e_ethtool_get_ringparam(priv, param);
+	mlx5e_ethtool_get_ringparam(priv, param, kernel_param);
 }
 
 static int mlx5i_set_channels(struct net_device *dev,
 			      struct ethtool_channels *ch)
 {
-	struct mlx5e_priv *priv = mlx5i_epriv(dev);
+	struct mlx5i_priv *ipriv = netdev_priv(dev);
+	struct mlx5e_priv *epriv = mlx5i_epriv(dev);
 
-	return mlx5e_ethtool_set_channels(priv, ch);
+	/* rtnl lock protects from race between this ethtool op and sub
+	 * interface ndo_init/uninit.
+	 */
+	ASSERT_RTNL();
+	if (ipriv->num_sub_interfaces > 0) {
+		mlx5_core_warn(epriv->mdev,
+			       "can't change number of channels for interfaces with sub interfaces (%u)\n",
+			       ipriv->num_sub_interfaces);
+		return -EINVAL;
+	}
+
+	return mlx5e_ethtool_set_channels(epriv, ch);
 }
 
 static void mlx5i_get_channels(struct net_device *dev,
@@ -99,19 +116,23 @@ static void mlx5i_get_channels(struct net_device *dev,
 }
 
 static int mlx5i_set_coalesce(struct net_device *netdev,
-			      struct ethtool_coalesce *coal)
+			      struct ethtool_coalesce *coal,
+			      struct kernel_ethtool_coalesce *kernel_coal,
+			      struct netlink_ext_ack *extack)
 {
 	struct mlx5e_priv *priv = mlx5i_epriv(netdev);
 
-	return mlx5e_ethtool_set_coalesce(priv, coal);
+	return mlx5e_ethtool_set_coalesce(priv, coal, kernel_coal, extack);
 }
 
 static int mlx5i_get_coalesce(struct net_device *netdev,
-			      struct ethtool_coalesce *coal)
+			      struct ethtool_coalesce *coal,
+			      struct kernel_ethtool_coalesce *kernel_coal,
+			      struct netlink_ext_ack *extack)
 {
 	struct mlx5e_priv *priv = mlx5i_epriv(netdev);
 
-	return mlx5e_ethtool_get_coalesce(priv, coal);
+	return mlx5e_ethtool_get_coalesce(priv, coal, kernel_coal);
 }
 
 static int mlx5i_get_ts_info(struct net_device *netdev,
@@ -129,14 +150,6 @@ static int mlx5i_flash_device(struct net_device *netdev,
 
 	return mlx5e_ethtool_flash_device(priv, flash);
 }
-
-enum mlx5_ptys_width {
-	MLX5_PTYS_WIDTH_1X	= 1 << 0,
-	MLX5_PTYS_WIDTH_2X	= 1 << 1,
-	MLX5_PTYS_WIDTH_4X	= 1 << 2,
-	MLX5_PTYS_WIDTH_8X	= 1 << 3,
-	MLX5_PTYS_WIDTH_12X	= 1 << 4,
-};
 
 static inline int mlx5_ptys_width_enum_to_int(enum mlx5_ptys_width width)
 {
@@ -158,6 +171,8 @@ enum mlx5_ptys_rate {
 	MLX5_PTYS_RATE_FDR	= 1 << 4,
 	MLX5_PTYS_RATE_EDR	= 1 << 5,
 	MLX5_PTYS_RATE_HDR	= 1 << 6,
+	MLX5_PTYS_RATE_NDR	= 1 << 7,
+	MLX5_PTYS_RATE_XDR	= 1 << 8,
 };
 
 static inline int mlx5_ptys_rate_enum_to_int(enum mlx5_ptys_rate rate)
@@ -170,38 +185,22 @@ static inline int mlx5_ptys_rate_enum_to_int(enum mlx5_ptys_rate rate)
 	case MLX5_PTYS_RATE_FDR:   return 14000;
 	case MLX5_PTYS_RATE_EDR:   return 25000;
 	case MLX5_PTYS_RATE_HDR:   return 50000;
+	case MLX5_PTYS_RATE_NDR:   return 100000;
+	case MLX5_PTYS_RATE_XDR:   return 200000;
 	default:		   return -1;
 	}
 }
 
-static int mlx5i_get_port_settings(struct net_device *netdev,
-				   u16 *ib_link_width_oper, u16 *ib_proto_oper)
-{
-	struct mlx5e_priv *priv    = mlx5i_epriv(netdev);
-	struct mlx5_core_dev *mdev = priv->mdev;
-	u32 out[MLX5_ST_SZ_DW(ptys_reg)] = {0};
-	int ret;
-
-	ret = mlx5_query_port_ptys(mdev, out, sizeof(out), MLX5_PTYS_IB, 1);
-	if (ret)
-		return ret;
-
-	*ib_link_width_oper = MLX5_GET(ptys_reg, out, ib_link_width_oper);
-	*ib_proto_oper      = MLX5_GET(ptys_reg, out, ib_proto_oper);
-
-	return 0;
-}
-
-static int mlx5i_get_speed_settings(u16 ib_link_width_oper, u16 ib_proto_oper)
+static u32 mlx5i_get_speed_settings(u16 ib_link_width_oper, u16 ib_proto_oper)
 {
 	int rate, width;
 
 	rate = mlx5_ptys_rate_enum_to_int(ib_proto_oper);
 	if (rate < 0)
-		return -EINVAL;
+		return SPEED_UNKNOWN;
 	width = mlx5_ptys_width_enum_to_int(ib_link_width_oper);
 	if (width < 0)
-		return -EINVAL;
+		return SPEED_UNKNOWN;
 
 	return rate * width;
 }
@@ -209,11 +208,14 @@ static int mlx5i_get_speed_settings(u16 ib_link_width_oper, u16 ib_proto_oper)
 static int mlx5i_get_link_ksettings(struct net_device *netdev,
 				    struct ethtool_link_ksettings *link_ksettings)
 {
+	struct mlx5e_priv *priv = mlx5i_epriv(netdev);
+	struct mlx5_core_dev *mdev = priv->mdev;
 	u16 ib_link_width_oper;
 	u16 ib_proto_oper;
 	int speed, ret;
 
-	ret = mlx5i_get_port_settings(netdev, &ib_link_width_oper, &ib_proto_oper);
+	ret = mlx5_query_ib_port_oper(mdev, &ib_link_width_oper, &ib_proto_oper,
+				      1);
 	if (ret)
 		return ret;
 
@@ -221,20 +223,54 @@ static int mlx5i_get_link_ksettings(struct net_device *netdev,
 	ethtool_link_ksettings_zero_link_mode(link_ksettings, advertising);
 
 	speed = mlx5i_get_speed_settings(ib_link_width_oper, ib_proto_oper);
-	if (speed < 0)
-		return -EINVAL;
+	link_ksettings->base.speed = speed;
+	link_ksettings->base.duplex = speed == SPEED_UNKNOWN ? DUPLEX_UNKNOWN : DUPLEX_FULL;
 
-	link_ksettings->base.duplex = DUPLEX_FULL;
 	link_ksettings->base.port = PORT_OTHER;
 
 	link_ksettings->base.autoneg = AUTONEG_DISABLE;
 
-	link_ksettings->base.speed = speed;
-
 	return 0;
 }
 
+static u32 mlx5i_flow_type_mask(u32 flow_type)
+{
+	return flow_type & ~(FLOW_EXT | FLOW_MAC_EXT | FLOW_RSS);
+}
+
+static int mlx5i_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
+{
+	struct mlx5e_priv *priv = mlx5i_epriv(dev);
+	struct ethtool_rx_flow_spec *fs = &cmd->fs;
+
+	if (mlx5i_flow_type_mask(fs->flow_type) == ETHER_FLOW)
+		return -EINVAL;
+
+	return mlx5e_ethtool_set_rxnfc(priv, cmd);
+}
+
+static int mlx5i_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
+			   u32 *rule_locs)
+{
+	struct mlx5e_priv *priv = mlx5i_epriv(dev);
+
+	/* ETHTOOL_GRXRINGS is needed by ethtool -x which is not part
+	 * of rxnfc. We keep this logic out of mlx5e_ethtool_get_rxnfc,
+	 * to avoid breaking "ethtool -x" when mlx5e_ethtool_get_rxnfc
+	 * is compiled out via CONFIG_MLX5_EN_RXNFC=n.
+	 */
+	if (info->cmd == ETHTOOL_GRXRINGS) {
+		info->data = priv->channels.params.num_channels;
+		return 0;
+	}
+
+	return mlx5e_ethtool_get_rxnfc(priv, info, rule_locs);
+}
+
 const struct ethtool_ops mlx5i_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_MAX_FRAMES |
+				     ETHTOOL_COALESCE_USE_ADAPTIVE,
 	.get_drvinfo        = mlx5i_get_drvinfo,
 	.get_strings        = mlx5i_get_strings,
 	.get_sset_count     = mlx5i_get_sset_count,
@@ -247,6 +283,8 @@ const struct ethtool_ops mlx5i_ethtool_ops = {
 	.get_coalesce       = mlx5i_get_coalesce,
 	.set_coalesce       = mlx5i_set_coalesce,
 	.get_ts_info        = mlx5i_get_ts_info,
+	.get_rxnfc          = mlx5i_get_rxnfc,
+	.set_rxnfc          = mlx5i_set_rxnfc,
 	.get_link_ksettings = mlx5i_get_link_ksettings,
 	.get_link           = ethtool_op_get_link,
 };

@@ -14,7 +14,6 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/serial_reg.h>
-#include <linux/kallsyms.h>
 #include <linux/of.h>
 #include <linux/io.h>
 #include <linux/clk.h>
@@ -75,7 +74,6 @@ static int qnap_power_off_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct resource *res;
 	struct clk *clk;
-	char symname[KSYM_NAME_LEN];
 
 	const struct of_device_id *match =
 		of_match_node(qnap_power_off_of_match_table, np);
@@ -104,10 +102,8 @@ static int qnap_power_off_probe(struct platform_device *pdev)
 
 	/* Check that nothing else has already setup a handler */
 	if (pm_power_off) {
-		lookup_symbol_name((ulong)pm_power_off, symname);
-		dev_err(&pdev->dev,
-			"pm_power_off already claimed %p %s",
-			pm_power_off, symname);
+		dev_err(&pdev->dev, "pm_power_off already claimed for %ps",
+			pm_power_off);
 		return -EBUSY;
 	}
 	pm_power_off = qnap_power_off;
@@ -115,15 +111,14 @@ static int qnap_power_off_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int qnap_power_off_remove(struct platform_device *pdev)
+static void qnap_power_off_remove(struct platform_device *pdev)
 {
 	pm_power_off = NULL;
-	return 0;
 }
 
 static struct platform_driver qnap_power_off_driver = {
 	.probe	= qnap_power_off_probe,
-	.remove	= qnap_power_off_remove,
+	.remove_new = qnap_power_off_remove,
 	.driver	= {
 		.name	= "qnap_power_off",
 		.of_match_table = of_match_ptr(qnap_power_off_of_match_table),

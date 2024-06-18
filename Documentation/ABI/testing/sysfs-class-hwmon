@@ -1,0 +1,1075 @@
+What:		/sys/class/hwmon/hwmonX/name
+Description:
+		The chip name.
+		This should be a short, lowercase string, not containing
+		whitespace, dashes, or the wildcard character '*'.
+		This attribute represents the chip name. It is the only
+		mandatory attribute.
+		I2C devices get this attribute created automatically.
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/label
+Description:
+		A descriptive label that allows to uniquely identify a
+		device within the system.
+		The contents of the label are free-form.
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/update_interval
+Description:
+		The interval at which the chip will update readings.
+		Unit: millisecond
+
+		RW
+
+		Some devices have a variable update rate or interval.
+		This attribute can be used to change it to the desired value.
+
+What:		/sys/class/hwmon/hwmonX/inY_min
+Description:
+		Voltage min value.
+
+		Unit: millivolt
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/inY_lcrit
+Description:
+		Voltage critical min value.
+
+		Unit: millivolt
+
+		RW
+
+		If voltage drops to or below this limit, the system may
+		take drastic action such as power down or reset. At the very
+		least, it should report a fault.
+
+What:		/sys/class/hwmon/hwmonX/inY_max
+Description:
+		Voltage max value.
+
+		Unit: millivolt
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/inY_crit
+Description:
+		Voltage critical max value.
+
+		Unit: millivolt
+
+		RW
+
+		If voltage reaches or exceeds this limit, the system may
+		take drastic action such as power down or reset. At the very
+		least, it should report a fault.
+
+What:		/sys/class/hwmon/hwmonX/inY_input
+Description:
+		Voltage input value.
+
+		Unit: millivolt
+
+		RO
+
+		Voltage measured on the chip pin.
+
+		Actual voltage depends on the scaling resistors on the
+		motherboard, as recommended in the chip datasheet.
+
+		This varies by chip and by motherboard.
+		Because of this variation, values are generally NOT scaled
+		by the chip driver, and must be done by the application.
+		However, some drivers (notably lm87 and via686a)
+		do scale, because of internal resistors built into a chip.
+		These drivers will output the actual voltage. Rule of
+		thumb: drivers should report the voltage values at the
+		"pins" of the chip.
+
+What:		/sys/class/hwmon/hwmonX/inY_average
+Description:
+		Average voltage
+
+		Unit: millivolt
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/inY_lowest
+Description:
+		Historical minimum voltage
+
+		Unit: millivolt
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/inY_highest
+Description:
+		Historical maximum voltage
+
+		Unit: millivolt
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/inY_reset_history
+Description:
+		Reset inX_lowest and inX_highest
+
+		WO
+
+What:		/sys/class/hwmon/hwmonX/in_reset_history
+Description:
+		Reset inX_lowest and inX_highest for all sensors
+
+		WO
+
+What:		/sys/class/hwmon/hwmonX/inY_label
+Description:
+		Suggested voltage channel label.
+
+		Text string
+
+		Should only be created if the driver has hints about what
+		this voltage channel is being used for, and user-space
+		doesn't. In all other cases, the label is provided by
+		user-space.
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/inY_enable
+Description:
+		Enable or disable the sensors.
+
+		When disabled the sensor read will return -ENODATA.
+
+		- 1: Enable
+		- 0: Disable
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/inY_fault
+Description:
+		Reports a voltage hard failure (eg: shorted component)
+
+		- 1: Failed
+		- 0: Ok
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/cpuY_vid
+Description:
+		CPU core reference voltage.
+
+		Unit: millivolt
+
+		RO
+
+		Not always correct.
+
+What:		/sys/class/hwmon/hwmonX/vrm
+Description:
+		Voltage Regulator Module version number.
+
+		RW (but changing it should no more be necessary)
+
+		Originally the VRM standard version multiplied by 10, but now
+		an arbitrary number, as not all standards have a version
+		number.
+
+		Affects the way the driver calculates the CPU core reference
+		voltage from the vid pins.
+
+What:		/sys/class/hwmon/hwmonX/inY_rated_min
+Description:
+		Minimum rated voltage.
+
+		Unit: millivolt
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/inY_rated_max
+Description:
+		Maximum rated voltage.
+
+		Unit: millivolt
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/fanY_min
+Description:
+		Fan minimum value
+
+		Unit: revolution/min (RPM)
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/fanY_max
+Description:
+		Fan maximum value
+
+		Unit: revolution/min (RPM)
+
+		Only rarely supported by the hardware.
+		RW
+
+What:		/sys/class/hwmon/hwmonX/fanY_input
+Description:
+		Fan input value.
+
+		Unit: revolution/min (RPM)
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/fanY_div
+Description:
+		Fan divisor.
+
+		Integer value in powers of two (1, 2, 4, 8, 16, 32, 64, 128).
+
+		RW
+
+		Some chips only support values 1, 2, 4 and 8.
+		Note that this is actually an internal clock divisor, which
+		affects the measurable speed range, not the read value.
+
+What:		/sys/class/hwmon/hwmonX/fanY_pulses
+Description:
+		Number of tachometer pulses per fan revolution.
+
+		Integer value, typically between 1 and 4.
+
+		RW
+
+		This value is a characteristic of the fan connected to the
+		device's input, so it has to be set in accordance with the fan
+		model.
+
+		Should only be created if the chip has a register to configure
+		the number of pulses. In the absence of such a register (and
+		thus attribute) the value assumed by all devices is 2 pulses
+		per fan revolution.
+
+What:		/sys/class/hwmon/hwmonX/fanY_target
+Description:
+		Desired fan speed
+
+		Unit: revolution/min (RPM)
+
+		RW
+
+		Only makes sense if the chip supports closed-loop fan speed
+		control based on the measured fan speed.
+
+What:		/sys/class/hwmon/hwmonX/fanY_label
+Description:
+		Suggested fan channel label.
+
+		Text string
+
+		Should only be created if the driver has hints about what
+		this fan channel is being used for, and user-space doesn't.
+		In all other cases, the label is provided by user-space.
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/fanY_enable
+Description:
+		Enable or disable the sensors.
+
+		When disabled the sensor read will return -ENODATA.
+
+		- 1: Enable
+		- 0: Disable
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/fanY_fault
+Description:
+		Reports if a fan has reported failure.
+
+		- 1: Failed
+		- 0: Ok
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/pwmY
+Description:
+		Pulse width modulation fan control.
+
+		Integer value in the range 0 to 255
+
+		RW
+
+		255 is max or 100%.
+
+What:		/sys/class/hwmon/hwmonX/pwmY_enable
+Description:
+		Fan speed control method:
+
+		- 0: no fan speed control (i.e. fan at full speed)
+		- 1: manual fan speed control enabled (using `pwmY`)
+		- 2+: automatic fan speed control enabled
+
+		Check individual chip documentation files for automatic mode
+		details.
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/pwmY_mode
+Description:
+		- 0: DC mode (direct current)
+		- 1: PWM mode (pulse-width modulation)
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/pwmY_freq
+Description:
+		Base PWM frequency in Hz.
+
+		Only possibly available when pwmN_mode is PWM, but not always
+		present even then.
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/pwmY_auto_channels_temp
+Description:
+		Select which temperature channels affect this PWM output in
+		auto mode.
+
+		Bitfield, 1 is temp1, 2 is temp2, 4 is temp3 etc...
+		Which values are possible depend on the chip used.
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/pwmY_auto_pointZ_pwm
+What:		/sys/class/hwmon/hwmonX/pwmY_auto_pointZ_temp
+What:		/sys/class/hwmon/hwmonX/pwmY_auto_pointZ_temp_hyst
+Description:
+		Define the PWM vs temperature curve.
+
+		Number of trip points is chip-dependent. Use this for chips
+		which associate trip points to PWM output channels.
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/tempY_auto_pointZ_pwm
+What:		/sys/class/hwmon/hwmonX/tempY_auto_pointZ_temp
+What:		/sys/class/hwmon/hwmonX/tempY_auto_pointZ_temp_hyst
+Description:
+		Define the PWM vs temperature curve.
+
+		Number of trip points is chip-dependent. Use this for chips
+		which associate trip points to temperature channels.
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/tempY_type
+Description:
+		Sensor type selection.
+
+		Integers 1 to 6
+
+		RW
+
+		- 1: CPU embedded diode
+		- 2: 3904 transistor
+		- 3: thermal diode
+		- 4: thermistor
+		- 5: AMD AMDSI
+		- 6: Intel PECI
+
+		Not all types are supported by all chips
+
+What:		/sys/class/hwmon/hwmonX/tempY_max
+Description:
+		Temperature max value.
+
+		Unit: millidegree Celsius (or millivolt, see below)
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/tempY_max_alarm
+Description:
+		Maximum temperature alarm flag.
+
+		- 0: OK
+		- 1: temperature has reached tempY_max
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/tempY_min
+Description:
+		Temperature min value.
+
+		Unit: millidegree Celsius
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/tempY_min_alarm
+Description:
+		Minimum temperature alarm flag.
+
+		- 0: OK
+		- 1: temperature has reached tempY_min
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/tempY_max_hyst
+Description:
+		Temperature hysteresis value for max limit.
+
+		Unit: millidegree Celsius
+
+		Must be reported as an absolute temperature, NOT a delta
+		from the max value.
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/tempY_min_hyst
+Description:
+		Temperature hysteresis value for min limit.
+		Unit: millidegree Celsius
+
+		Must be reported as an absolute temperature, NOT a delta
+		from the min value.
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/tempY_input
+Description:
+		Temperature input value.
+
+		Unit: millidegree Celsius
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/tempY_crit
+Description:
+		Temperature critical max value, typically greater than
+		corresponding temp_max values.
+
+		Unit: millidegree Celsius
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/tempY_crit_alarm
+Description:
+		Critical high temperature alarm flag.
+
+		- 0: OK
+		- 1: temperature has reached tempY_crit
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/tempY_crit_hyst
+Description:
+		Temperature hysteresis value for critical limit.
+
+		Unit: millidegree Celsius
+
+		Must be reported as an absolute temperature, NOT a delta
+		from the critical value.
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/tempY_emergency
+Description:
+		Temperature emergency max value, for chips supporting more than
+		two upper temperature limits. Must be equal or greater than
+		corresponding temp_crit values.
+
+		Unit: millidegree Celsius
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/tempY_emergency_alarm
+Description:
+		Emergency high temperature alarm flag.
+
+		- 0: OK
+		- 1: temperature has reached tempY_emergency
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/tempY_emergency_hyst
+Description:
+		Temperature hysteresis value for emergency limit.
+
+		Unit: millidegree Celsius
+
+		Must be reported as an absolute temperature, NOT a delta
+		from the emergency value.
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/tempY_lcrit
+Description:
+		Temperature critical min value, typically lower than
+		corresponding temp_min values.
+
+		Unit: millidegree Celsius
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/tempY_lcrit_hyst
+Description:
+		Temperature hysteresis value for critical min limit.
+
+		Unit: millidegree Celsius
+
+		Must be reported as an absolute temperature, NOT a delta
+		from the critical min value.
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/tempY_offset
+Description:
+		Temperature offset which is added to the temperature reading
+		by the chip.
+
+		Unit: millidegree Celsius
+
+		Read/Write value.
+
+What:		/sys/class/hwmon/hwmonX/tempY_label
+Description:
+		Suggested temperature channel label.
+
+		Text string
+
+		Should only be created if the driver has hints about what
+		this temperature channel is being used for, and user-space
+		doesn't. In all other cases, the label is provided by
+		user-space.
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/tempY_lowest
+Description:
+		Historical minimum temperature
+
+		Unit: millidegree Celsius
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/tempY_highest
+Description:
+		Historical maximum temperature
+
+		Unit: millidegree Celsius
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/tempY_reset_history
+Description:
+		Reset temp_lowest and temp_highest
+
+		WO
+
+What:		/sys/class/hwmon/hwmonX/temp_reset_history
+Description:
+		Reset temp_lowest and temp_highest for all sensors
+
+		WO
+
+What:		/sys/class/hwmon/hwmonX/tempY_enable
+Description:
+		Enable or disable the sensors.
+
+		When disabled the sensor read will return -ENODATA.
+
+		- 1: Enable
+		- 0: Disable
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/tempY_rated_min
+Description:
+		Minimum rated temperature.
+
+		Unit: millidegree Celsius
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/tempY_rated_max
+Description:
+		Maximum rated temperature.
+
+		Unit: millidegree Celsius
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/currY_max
+Description:
+		Current max value
+
+		Unit: milliampere
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/currY_min
+Description:
+		Current min value.
+
+		Unit: milliampere
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/currY_lcrit
+Description:
+		Current critical low value
+
+		Unit: milliampere
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/currY_crit
+Description:
+		Current critical high value.
+
+		Unit: milliampere
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/currY_input
+Description:
+		Current input value
+
+		Unit: milliampere
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/currY_average
+Description:
+		Average current use
+
+		Unit: milliampere
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/currY_lowest
+Description:
+		Historical minimum current
+
+		Unit: milliampere
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/currY_highest
+Description:
+		Historical maximum current
+		Unit: milliampere
+		RO
+
+What:		/sys/class/hwmon/hwmonX/currY_reset_history
+Description:
+		Reset currX_lowest and currX_highest
+
+		WO
+
+What:		/sys/class/hwmon/hwmonX/curr_reset_history
+Description:
+		Reset currX_lowest and currX_highest for all sensors
+
+		WO
+
+What:		/sys/class/hwmon/hwmonX/currY_enable
+Description:
+		Enable or disable the sensors.
+
+		When disabled the sensor read will return -ENODATA.
+
+		- 1: Enable
+		- 0: Disable
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/currY_rated_min
+Description:
+		Minimum rated current.
+
+		Unit: milliampere
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/currY_rated_max
+Description:
+		Maximum rated current.
+
+		Unit: milliampere
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/powerY_average
+Description:
+		Average power use
+
+		Unit: microWatt
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/powerY_average_interval
+Description:
+		Power use averaging interval.  A poll
+		notification is sent to this file if the
+		hardware changes the averaging interval.
+
+		Unit: milliseconds
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/powerY_average_interval_max
+Description:
+		Maximum power use averaging interval
+
+		Unit: milliseconds
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/powerY_average_interval_min
+Description:
+		Minimum power use averaging interval
+
+		Unit: milliseconds
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/powerY_average_highest
+Description:
+		Historical average maximum power use
+
+		Unit: microWatt
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/powerY_average_lowest
+Description:
+		Historical average minimum power use
+
+		Unit: microWatt
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/powerY_average_max
+Description:
+		A poll notification is sent to
+		`powerY_average` when power use
+		rises above this value.
+
+		Unit: microWatt
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/powerY_average_min
+Description:
+		A poll notification is sent to
+		`powerY_average` when power use
+		sinks below this value.
+
+		Unit: microWatt
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/powerY_input
+Description:
+		Instantaneous power use
+
+		Unit: microWatt
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/powerY_input_highest
+Description:
+		Historical maximum power use
+
+		Unit: microWatt
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/powerY_input_lowest
+Description:
+		Historical minimum power use
+
+		Unit: microWatt
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/powerY_reset_history
+Description:
+		Reset input_highest, input_lowest,
+		average_highest and average_lowest.
+
+		WO
+
+What:		/sys/class/hwmon/hwmonX/powerY_accuracy
+Description:
+		Accuracy of the power meter.
+
+		Unit: Percent
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/powerY_cap
+Description:
+		If power use rises above this limit, the
+		system should take action to reduce power use.
+		A poll notification is sent to this file if the
+		cap is changed by the hardware.  The `*_cap`
+		files only appear if the cap is known to be
+		enforced by hardware.
+
+		Unit: microWatt
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/powerY_cap_hyst
+Description:
+		Margin of hysteresis built around capping and
+		notification.
+
+		Unit: microWatt
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/powerY_cap_max
+Description:
+		Maximum cap that can be set.
+
+		Unit: microWatt
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/powerY_cap_min
+Description:
+		Minimum cap that can be set.
+
+		Unit: microWatt
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/powerY_max
+Description:
+		Maximum power.
+
+		Unit: microWatt
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/powerY_crit
+Description:
+		Critical maximum power.
+
+		If power rises to or above this limit, the
+		system is expected take drastic action to reduce
+		power consumption, such as a system shutdown or
+		a forced powerdown of some devices.
+
+		Unit: microWatt
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/powerY_enable
+Description:
+		Enable or disable the sensors.
+
+		When disabled the sensor read will return
+		-ENODATA.
+
+		- 1: Enable
+		- 0: Disable
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/powerY_rated_min
+Description:
+		Minimum rated power.
+
+		Unit: microWatt
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/powerY_rated_max
+Description:
+		Maximum rated power.
+
+		Unit: microWatt
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/energyY_input
+Description:
+		Cumulative energy use
+
+		Unit: microJoule
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/energyY_enable
+Description:
+		Enable or disable the sensors.
+
+		When disabled the sensor read will return
+		-ENODATA.
+
+		- 1: Enable
+		- 0: Disable
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/humidityY_alarm
+Description:
+		Humidity limit detection
+
+		- 0: OK
+		- 1: Humidity limit has been reached
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/humidityY_enable
+Description:
+		Enable or disable the sensors
+
+		When disabled the sensor read will return
+		-ENODATA.
+
+		- 1: Enable
+		- 0: Disable
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/humidityY_fault
+Description:
+		Reports a humidity sensor failure.
+
+		- 1: Failed
+		- 0: Ok
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/humidityY_input
+Description:
+		Humidity
+
+		Unit: milli-percent (per cent mille, pcm)
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/humidityY_label
+Description:
+		Suggested humidity channel label.
+
+		Text string
+
+		Should only be created if the driver has hints about what
+		this humidity channel is being used for, and user-space
+		doesn't. In all other cases, the label is provided by
+		user-space.
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/humidityY_max
+Description:
+		Humidity max value.
+
+		Unit: milli-percent (per cent mille, pcm)
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/humidityY_max_alarm
+Description:
+		Maximum humidity detection
+
+		- 0: OK
+		- 1: Maximum humidity detected
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/humidityY_max_hyst
+Description:
+		Humidity hysteresis value for max limit.
+
+		Unit: milli-percent (per cent mille, pcm)
+
+		Must be reported as an absolute humidity, NOT a delta
+		from the max value.
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/humidityY_min
+Description:
+		Humidity min value.
+
+		Unit: milli-percent (per cent mille, pcm)
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/humidityY_min_alarm
+Description:
+		Minimum humidity detection
+
+		- 0: OK
+		- 1: Minimum humidity detected
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/humidityY_min_hyst
+Description:
+		Humidity hysteresis value for min limit.
+
+		Unit: milli-percent (per cent mille, pcm)
+
+		Must be reported as an absolute humidity, NOT a delta
+		from the min value.
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/humidityY_rated_min
+Description:
+		Minimum rated humidity.
+
+		Unit: milli-percent (per cent mille, pcm)
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/humidityY_rated_max
+Description:
+		Maximum rated humidity.
+
+		Unit: milli-percent (per cent mille, pcm)
+
+		RO
+
+
+What:		/sys/class/hwmon/hwmonX/intrusionY_alarm
+Description:
+		Chassis intrusion detection
+
+		- 0: OK
+		- 1: intrusion detected
+
+		RW
+
+		Contrary to regular alarm flags which clear themselves
+		automatically when read, this one sticks until cleared by
+		the user. This is done by writing 0 to the file. Writing
+		other values is unsupported.
+
+What:		/sys/class/hwmon/hwmonX/intrusionY_beep
+Description:
+		Chassis intrusion beep
+
+		- 0: disable
+		- 1: enable
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/device/pec
+Description:
+		PEC support on I2C devices
+
+		- 0, off, n: disable
+		- 1, on, y: enable
+
+		RW

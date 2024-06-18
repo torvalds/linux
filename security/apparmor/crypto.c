@@ -28,15 +28,15 @@ unsigned int aa_hash_size(void)
 char *aa_calc_hash(void *data, size_t len)
 {
 	SHASH_DESC_ON_STACK(desc, apparmor_tfm);
-	char *hash = NULL;
-	int error = -ENOMEM;
+	char *hash;
+	int error;
 
 	if (!apparmor_tfm)
 		return NULL;
 
 	hash = kzalloc(apparmor_hash_size, GFP_KERNEL);
 	if (!hash)
-		goto fail;
+		return ERR_PTR(-ENOMEM);
 
 	desc->tfm = apparmor_tfm;
 
@@ -62,7 +62,7 @@ int aa_calc_profile_hash(struct aa_profile *profile, u32 version, void *start,
 			 size_t len)
 {
 	SHASH_DESC_ON_STACK(desc, apparmor_tfm);
-	int error = -ENOMEM;
+	int error;
 	__le32 le32_version = cpu_to_le32(version);
 
 	if (!aa_g_hash_policy)
@@ -73,7 +73,7 @@ int aa_calc_profile_hash(struct aa_profile *profile, u32 version, void *start,
 
 	profile->hash = kzalloc(apparmor_hash_size, GFP_KERNEL);
 	if (!profile->hash)
-		goto fail;
+		return -ENOMEM;
 
 	desc->tfm = apparmor_tfm;
 
@@ -106,16 +106,16 @@ static int __init init_profile_hash(void)
 	if (!apparmor_initialized)
 		return 0;
 
-	tfm = crypto_alloc_shash("sha1", 0, 0);
+	tfm = crypto_alloc_shash("sha256", 0, 0);
 	if (IS_ERR(tfm)) {
 		int error = PTR_ERR(tfm);
-		AA_ERROR("failed to setup profile sha1 hashing: %d\n", error);
+		AA_ERROR("failed to setup profile sha256 hashing: %d\n", error);
 		return error;
 	}
 	apparmor_tfm = tfm;
 	apparmor_hash_size = crypto_shash_digestsize(apparmor_tfm);
 
-	aa_info_message("AppArmor sha1 policy hashing enabled");
+	aa_info_message("AppArmor sha256 policy hashing enabled");
 
 	return 0;
 }

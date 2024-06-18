@@ -18,7 +18,7 @@ nv25_gr_chan = {
 };
 
 static int
-nv25_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
+nv25_gr_chan_new(struct nvkm_gr *base, struct nvkm_chan *fifoch,
 		 const struct nvkm_oclass *oclass, struct nvkm_object **pobject)
 {
 	struct nv20_gr *gr = nv20_gr(base);
@@ -29,7 +29,7 @@ nv25_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
 		return -ENOMEM;
 	nvkm_object_ctor(&nv25_gr_chan, oclass, &chan->object);
 	chan->gr = gr;
-	chan->chid = fifoch->chid;
+	chan->chid = fifoch->id;
 	*pobject = &chan->object;
 
 	ret = nvkm_memory_new(gr->base.engine.subdev.device,
@@ -129,7 +129,7 @@ nv25_gr = {
 };
 
 int
-nv25_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
+nv25_gr_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_gr **pgr)
 {
-	return nv20_gr_new_(&nv25_gr, device, index, pgr);
+	return nv20_gr_new_(&nv25_gr, device, type, inst, pgr);
 }

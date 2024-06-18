@@ -73,7 +73,7 @@ bool tomoyo_memory_ok(void *ptr)
  */
 void *tomoyo_commit_ok(void *data, const unsigned int size)
 {
-	void *ptr = kzalloc(size, GFP_NOFS);
+	void *ptr = kzalloc(size, GFP_NOFS | __GFP_NOWARN);
 
 	if (tomoyo_memory_ok(ptr)) {
 		memmove(ptr, data, size);
@@ -170,7 +170,7 @@ const struct tomoyo_path_info *tomoyo_get_name(const char *name)
 		atomic_inc(&ptr->head.users);
 		goto out;
 	}
-	ptr = kzalloc(sizeof(*ptr) + len, GFP_NOFS);
+	ptr = kzalloc(sizeof(*ptr) + len, GFP_NOFS | __GFP_NOWARN);
 	if (tomoyo_memory_ok(ptr)) {
 		ptr->entry.name = ((char *) ptr) + sizeof(*ptr);
 		memmove((char *) ptr->entry.name, name, len);

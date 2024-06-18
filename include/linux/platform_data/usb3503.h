@@ -12,14 +12,12 @@ enum usb3503_mode {
 	USB3503_MODE_UNKNOWN,
 	USB3503_MODE_HUB,
 	USB3503_MODE_STANDBY,
+	USB3503_MODE_BYPASS,
 };
 
 struct usb3503_platform_data {
 	enum usb3503_mode	initial_mode;
 	u8	port_off_mask;
-	int	gpio_intn;
-	int	gpio_connect;
-	int	gpio_reset;
 };
 
 #endif

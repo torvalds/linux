@@ -1,0 +1,27 @@
+[
+    {
+        "BriefDescription": "Cycles the FP divide unit is busy",
+        "EventCode": "0xCD",
+        "EventName": "CYCLES_DIV_BUSY.FPDIV",
+        "PublicDescription": "Counts core cycles the floating point divide unit is busy.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "Machine clears due to FP assists",
+        "EventCode": "0xC3",
+        "EventName": "MACHINE_CLEARS.FP_ASSIST",
+        "PublicDescription": "Counts machine clears due to floating point (FP) operations needing assists.  For instance, if the result was a floating point denormal, the hardware clears the pipeline and reissues uops to produce the correct IEEE compliant denormal result.",
+        "SampleAfterValue": "20003",
+        "UMask": "0x4"
+    },
+    {
+        "BriefDescription": "Floating point divide uops retired (Precise Event Capable)",
+        "EventCode": "0xC2",
+        "EventName": "UOPS_RETIRED.FPDIV",
+        "PEBS": "2",
+        "PublicDescription": "Counts the number of floating point divide uops retired.",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x8"
+    }
+]

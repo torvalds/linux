@@ -31,38 +31,24 @@
  */
 
 #include "en.h"
+#include "lib/crypto.h"
 
 /* mlx5e global resources should be placed in this file.
- * Global resources are common to all the netdevices crated on the same nic.
+ * Global resources are common to all the netdevices created on the same nic.
  */
 
-int mlx5e_create_tir(struct mlx5_core_dev *mdev,
-		     struct mlx5e_tir *tir, u32 *in, int inlen)
+void mlx5e_mkey_set_relaxed_ordering(struct mlx5_core_dev *mdev, void *mkc)
 {
-	int err;
+	bool ro_write = MLX5_CAP_GEN(mdev, relaxed_ordering_write);
+	bool ro_read = MLX5_CAP_GEN(mdev, relaxed_ordering_read) ||
+		       (pcie_relaxed_ordering_enabled(mdev->pdev) &&
+			MLX5_CAP_GEN(mdev, relaxed_ordering_read_pci_enabled));
 
-	err = mlx5_core_create_tir(mdev, in, inlen, &tir->tirn);
-	if (err)
-		return err;
-
-	mutex_lock(&mdev->mlx5e_res.td.list_lock);
-	list_add(&tir->list, &mdev->mlx5e_res.td.tirs_list);
-	mutex_unlock(&mdev->mlx5e_res.td.list_lock);
-
-	return 0;
+	MLX5_SET(mkc, mkc, relaxed_ordering_read, ro_read);
+	MLX5_SET(mkc, mkc, relaxed_ordering_write, ro_write);
 }
 
-void mlx5e_destroy_tir(struct mlx5_core_dev *mdev,
-		       struct mlx5e_tir *tir)
-{
-	mutex_lock(&mdev->mlx5e_res.td.list_lock);
-	mlx5_core_destroy_tir(mdev, tir->tirn);
-	list_del(&tir->list);
-	mutex_unlock(&mdev->mlx5e_res.td.list_lock);
-}
-
-static int mlx5e_create_mkey(struct mlx5_core_dev *mdev, u32 pdn,
-			     struct mlx5_core_mkey *mkey)
+int mlx5e_create_mkey(struct mlx5_core_dev *mdev, u32 pdn, u32 *mkey)
 {
 	int inlen = MLX5_ST_SZ_BYTES(create_mkey_in);
 	void *mkc;
@@ -77,7 +63,7 @@ static int mlx5e_create_mkey(struct mlx5_core_dev *mdev, u32 pdn,
 	MLX5_SET(mkc, mkc, access_mode_1_0, MLX5_MKC_ACCESS_MODE_PA);
 	MLX5_SET(mkc, mkc, lw, 1);
 	MLX5_SET(mkc, mkc, lr, 1);
-
+	mlx5e_mkey_set_relaxed_ordering(mdev, mkc);
 	MLX5_SET(mkc, mkc, pd, pdn);
 	MLX5_SET(mkc, mkc, length64, 1);
 	MLX5_SET(mkc, mkc, qpn, 0xffffff);
@@ -88,9 +74,75 @@ static int mlx5e_create_mkey(struct mlx5_core_dev *mdev, u32 pdn,
 	return err;
 }
 
-int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev)
+int mlx5e_create_tis(struct mlx5_core_dev *mdev, void *in, u32 *tisn)
 {
-	struct mlx5e_resources *res = &mdev->mlx5e_res;
+	void *tisc = MLX5_ADDR_OF(create_tis_in, in, ctx);
+
+	MLX5_SET(tisc, tisc, transport_domain, mdev->mlx5e_res.hw_objs.td.tdn);
+
+	if (mlx5_lag_is_lacp_owner(mdev))
+		MLX5_SET(tisc, tisc, strict_lag_tx_port_affinity, 1);
+
+	return mlx5_core_create_tis(mdev, in, tisn);
+}
+
+void mlx5e_destroy_tis(struct mlx5_core_dev *mdev, u32 tisn)
+{
+	mlx5_core_destroy_tis(mdev, tisn);
+}
+
+static void mlx5e_destroy_tises(struct mlx5_core_dev *mdev, u32 tisn[MLX5_MAX_PORTS][MLX5_MAX_NUM_TC])
+{
+	int tc, i;
+
+	for (i = 0; i < mlx5e_get_num_lag_ports(mdev); i++)
+		for (tc = 0; tc < MLX5_MAX_NUM_TC; tc++)
+			mlx5e_destroy_tis(mdev, tisn[i][tc]);
+}
+
+static bool mlx5_lag_should_assign_affinity(struct mlx5_core_dev *mdev)
+{
+	return MLX5_CAP_GEN(mdev, lag_tx_port_affinity) && mlx5e_get_num_lag_ports(mdev) > 1;
+}
+
+static int mlx5e_create_tises(struct mlx5_core_dev *mdev, u32 tisn[MLX5_MAX_PORTS][MLX5_MAX_NUM_TC])
+{
+	int tc, i;
+	int err;
+
+	for (i = 0; i < mlx5e_get_num_lag_ports(mdev); i++) {
+		for (tc = 0; tc < MLX5_MAX_NUM_TC; tc++) {
+			u32 in[MLX5_ST_SZ_DW(create_tis_in)] = {};
+			void *tisc;
+
+			tisc = MLX5_ADDR_OF(create_tis_in, in, ctx);
+
+			MLX5_SET(tisc, tisc, prio, tc << 1);
+
+			if (mlx5_lag_should_assign_affinity(mdev))
+				MLX5_SET(tisc, tisc, lag_tx_port_affinity, i + 1);
+
+			err = mlx5e_create_tis(mdev, in, &tisn[i][tc]);
+			if (err)
+				goto err_close_tises;
+		}
+	}
+
+	return 0;
+
+err_close_tises:
+	for (; i >= 0; i--) {
+		for (tc--; tc >= 0; tc--)
+			mlx5e_destroy_tis(mdev, tisn[i][tc]);
+		tc = MLX5_MAX_NUM_TC;
+	}
+
+	return err;
+}
+
+int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev, bool create_tises)
+{
+	struct mlx5e_hw_objs *res = &mdev->mlx5e_res.hw_objs;
 	int err;
 
 	err = mlx5_core_alloc_pd(mdev, &res->pdn);
@@ -117,13 +169,31 @@ int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev)
 		goto err_destroy_mkey;
 	}
 
-	INIT_LIST_HEAD(&mdev->mlx5e_res.td.tirs_list);
-	mutex_init(&mdev->mlx5e_res.td.list_lock);
+	if (create_tises) {
+		err = mlx5e_create_tises(mdev, res->tisn);
+		if (err) {
+			mlx5_core_err(mdev, "alloc tises failed, %d\n", err);
+			goto err_destroy_bfreg;
+		}
+		res->tisn_valid = true;
+	}
+
+	INIT_LIST_HEAD(&res->td.tirs_list);
+	mutex_init(&res->td.list_lock);
+
+	mdev->mlx5e_res.dek_priv = mlx5_crypto_dek_init(mdev);
+	if (IS_ERR(mdev->mlx5e_res.dek_priv)) {
+		mlx5_core_err(mdev, "crypto dek init failed, %ld\n",
+			      PTR_ERR(mdev->mlx5e_res.dek_priv));
+		mdev->mlx5e_res.dek_priv = NULL;
+	}
 
 	return 0;
 
+err_destroy_bfreg:
+	mlx5_free_bfreg(mdev, &res->bfreg);
 err_destroy_mkey:
-	mlx5_core_destroy_mkey(mdev, &res->mkey);
+	mlx5_core_destroy_mkey(mdev, res->mkey);
 err_dealloc_transport_domain:
 	mlx5_core_dealloc_transport_domain(mdev, res->td.tdn);
 err_dealloc_pd:
@@ -133,19 +203,25 @@ err_dealloc_pd:
 
 void mlx5e_destroy_mdev_resources(struct mlx5_core_dev *mdev)
 {
-	struct mlx5e_resources *res = &mdev->mlx5e_res;
+	struct mlx5e_hw_objs *res = &mdev->mlx5e_res.hw_objs;
 
+	mlx5_crypto_dek_cleanup(mdev->mlx5e_res.dek_priv);
+	mdev->mlx5e_res.dek_priv = NULL;
+	if (res->tisn_valid)
+		mlx5e_destroy_tises(mdev, res->tisn);
 	mlx5_free_bfreg(mdev, &res->bfreg);
-	mlx5_core_destroy_mkey(mdev, &res->mkey);
+	mlx5_core_destroy_mkey(mdev, res->mkey);
 	mlx5_core_dealloc_transport_domain(mdev, res->td.tdn);
 	mlx5_core_dealloc_pd(mdev, res->pdn);
 	memset(res, 0, sizeof(*res));
 }
 
-int mlx5e_refresh_tirs(struct mlx5e_priv *priv, bool enable_uc_lb)
+int mlx5e_refresh_tirs(struct mlx5e_priv *priv, bool enable_uc_lb,
+		       bool enable_mc_lb)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5e_tir *tir;
+	u8 lb_flags = 0;
 	int err  = 0;
 	u32 tirn = 0;
 	int inlen;
@@ -153,30 +229,32 @@ int mlx5e_refresh_tirs(struct mlx5e_priv *priv, bool enable_uc_lb)
 
 	inlen = MLX5_ST_SZ_BYTES(modify_tir_in);
 	in = kvzalloc(inlen, GFP_KERNEL);
-	if (!in) {
-		err = -ENOMEM;
-		goto out;
-	}
+	if (!in)
+		return -ENOMEM;
 
 	if (enable_uc_lb)
-		MLX5_SET(modify_tir_in, in, ctx.self_lb_block,
-			 MLX5_TIRC_SELF_LB_BLOCK_BLOCK_UNICAST);
+		lb_flags = MLX5_TIRC_SELF_LB_BLOCK_BLOCK_UNICAST;
+
+	if (enable_mc_lb)
+		lb_flags |= MLX5_TIRC_SELF_LB_BLOCK_BLOCK_MULTICAST;
+
+	if (lb_flags)
+		MLX5_SET(modify_tir_in, in, ctx.self_lb_block, lb_flags);
 
 	MLX5_SET(modify_tir_in, in, bitmask.self_lb_en, 1);
 
-	mutex_lock(&mdev->mlx5e_res.td.list_lock);
-	list_for_each_entry(tir, &mdev->mlx5e_res.td.tirs_list, list) {
+	mutex_lock(&mdev->mlx5e_res.hw_objs.td.list_lock);
+	list_for_each_entry(tir, &mdev->mlx5e_res.hw_objs.td.tirs_list, list) {
 		tirn = tir->tirn;
-		err = mlx5_core_modify_tir(mdev, tirn, in, inlen);
+		err = mlx5_core_modify_tir(mdev, tirn, in);
 		if (err)
-			goto out;
+			break;
 	}
+	mutex_unlock(&mdev->mlx5e_res.hw_objs.td.list_lock);
 
-out:
 	kvfree(in);
 	if (err)
 		netdev_err(priv->netdev, "refresh tir(0x%x) failed, %d\n", tirn, err);
-	mutex_unlock(&mdev->mlx5e_res.td.list_lock);
 
 	return err;
 }

@@ -74,7 +74,7 @@ static void cleanup_worker_threads(struct cpt_vf *cptvf)
 	for (i = 0; i < cptvf->nr_queues; i++)
 		tasklet_kill(&cwqe_info->vq_wqe[i].twork);
 
-	kzfree(cwqe_info);
+	kfree_sensitive(cwqe_info);
 	cptvf->wqe_info = NULL;
 }
 
@@ -88,7 +88,7 @@ static void free_pending_queues(struct pending_qinfo *pqinfo)
 			continue;
 
 		/* free single queue */
-		kzfree((queue->head));
+		kfree_sensitive((queue->head));
 
 		queue->front = 0;
 		queue->rear = 0;
@@ -104,17 +104,14 @@ static int alloc_pending_queues(struct pending_qinfo *pqinfo, u32 qlen,
 				u32 nr_queues)
 {
 	u32 i;
-	size_t size;
 	int ret;
 	struct pending_queue *queue = NULL;
 
 	pqinfo->nr_queues = nr_queues;
 	pqinfo->qlen = qlen;
 
-	size = (qlen * sizeof(struct pending_entry));
-
 	for_each_pending_queue(pqinfo, queue, i) {
-		queue->head = kzalloc((size), GFP_KERNEL);
+		queue->head = kcalloc(qlen, sizeof(*queue->head), GFP_KERNEL);
 		if (!queue->head) {
 			ret = -ENOMEM;
 			goto pending_qfail;
@@ -189,7 +186,7 @@ static void free_command_queues(struct cpt_vf *cptvf,
 			chunk->head = NULL;
 			chunk->dma_addr = 0;
 			hlist_del(&chunk->nextchunk);
-			kzfree(chunk);
+			kfree_sensitive(chunk);
 		}
 
 		queue->nchunks = 0;
@@ -233,10 +230,10 @@ static int alloc_command_queues(struct cpt_vf *cptvf,
 
 			c_size = (rem_q_size > qcsize_bytes) ? qcsize_bytes :
 					rem_q_size;
-			curr->head = (u8 *)dma_alloc_coherent(&pdev->dev,
-							      c_size + CPT_NEXT_CHUNK_PTR_SIZE,
-							      &curr->dma_addr,
-							      GFP_KERNEL);
+			curr->head = dma_alloc_coherent(&pdev->dev,
+							c_size + CPT_NEXT_CHUNK_PTR_SIZE,
+							&curr->dma_addr,
+							GFP_KERNEL);
 			if (!curr->head) {
 				dev_err(&pdev->dev, "Command Q (%d) chunk (%d) allocation failed\n",
 					i, queue->nchunks);
@@ -687,15 +684,9 @@ static int cptvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	/* Mark as VF driver */
 	cptvf->flags |= CPT_FLAG_VF_DRIVER;
-	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(48));
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(48));
 	if (err) {
-		dev_err(dev, "Unable to get usable DMA configuration\n");
-		goto cptvf_err_release_regions;
-	}
-
-	err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(48));
-	if (err) {
-		dev_err(dev, "Unable to get 48-bit DMA for consistent allocations\n");
+		dev_err(dev, "Unable to get usable 48-bit DMA configuration\n");
 		goto cptvf_err_release_regions;
 	}
 

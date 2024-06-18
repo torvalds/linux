@@ -1,18 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Regulator driver for LP873X PMIC
  *
- * Copyright (C) 2016 Texas Instruments Incorporated - http://www.ti.com/
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether expressed or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License version 2 for more details.
+ * Copyright (C) 2016 Texas Instruments Incorporated - https://www.ti.com/
  */
 
+#include <linux/bitfield.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
@@ -54,14 +47,14 @@ struct lp873x_regulator {
 
 static const struct lp873x_regulator regulators[];
 
-static const struct regulator_linear_range buck0_buck1_ranges[] = {
+static const struct linear_range buck0_buck1_ranges[] = {
 	REGULATOR_LINEAR_RANGE(0, 0x0, 0x13, 0),
 	REGULATOR_LINEAR_RANGE(700000, 0x14, 0x17, 10000),
 	REGULATOR_LINEAR_RANGE(735000, 0x18, 0x9d, 5000),
 	REGULATOR_LINEAR_RANGE(1420000, 0x9e, 0xff, 20000),
 };
 
-static const struct regulator_linear_range ldo0_ldo1_ranges[] = {
+static const struct linear_range ldo0_ldo1_ranges[] = {
 	REGULATOR_LINEAR_RANGE(800000, 0x0, 0x19, 100000),
 };
 
@@ -101,7 +94,7 @@ static int lp873x_buck_set_ramp_delay(struct regulator_dev *rdev,
 
 	ret = regmap_update_bits(lp873->regmap, regulators[id].ctrl2_reg,
 				 LP873X_BUCK0_CTRL_2_BUCK0_SLEW_RATE,
-				 reg << __ffs(LP873X_BUCK0_CTRL_2_BUCK0_SLEW_RATE));
+				 FIELD_PREP(LP873X_BUCK0_CTRL_2_BUCK0_SLEW_RATE, reg));
 	if (ret) {
 		dev_err(lp873->dev, "SLEW RATE write failed: %d\n", ret);
 		return ret;
@@ -195,6 +188,7 @@ MODULE_DEVICE_TABLE(platform, lp873x_regulator_id_table);
 static struct platform_driver lp873x_regulator_driver = {
 	.driver = {
 		.name = "lp873x-pmic",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = lp873x_regulator_probe,
 	.id_table = lp873x_regulator_id_table,

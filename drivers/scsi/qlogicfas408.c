@@ -4,9 +4,9 @@
    Use at your own risk.  Support Tort Reform so you won't have to read all
    these silly disclaimers.
 
-   Copyright 1994, Tom Zerucha.   
+   Copyright 1994, Tom Zerucha.
    tz@execpc.com
-   
+
    Additional Code, and much appreciated help by
    Michael A. Griffith
    grif@cs.ucr.edu
@@ -22,12 +22,12 @@
 
    Functions as standalone, loadable, and PCMCIA driver, the latter from
    Dave Hinds' PCMCIA package.
-   
+
    Cleaned up 26/10/2002 by Alan Cox <alan@lxorguk.ukuu.org.uk> as part of the 2.5
    SCSI driver cleanup and audit. This driver still needs work on the
    following
-   	-	Non terminating hardware waits
-   	-	Some layering violations with its pcmcia stub
+	-	Non terminating hardware waits
+	-	Some layering violations with its pcmcia stub
 
    Redistributable under terms of the GNU General Public License
 
@@ -55,8 +55,12 @@
 #include <asm/irq.h>
 #include <asm/dma.h>
 
-#include "scsi.h"
+#include <scsi/scsi.h>
+#include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_device.h>
+#include <scsi/scsi_eh.h>
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_tcq.h>
 #include "qlogicfas408.h"
 
 /*----------------------------------------------------------------*/
@@ -92,8 +96,9 @@ static void ql_zap(struct qlogicfas408_priv *priv)
 /*
  *	Do a pseudo-dma tranfer
  */
- 
-static int ql_pdma(struct qlogicfas408_priv *priv, int phase, char *request, int reqlen)
+
+static int ql_pdma(struct qlogicfas408_priv *priv, int phase, char *request,
+		   int reqlen)
 {
 	int j;
 	int qbase = priv->qbase;
@@ -108,7 +113,7 @@ static int ql_pdma(struct qlogicfas408_priv *priv, int phase, char *request, int
 			request += 128;
 		}
 		while (reqlen >= 84 && !(j & 0xc0))	/* 2/3 */
-			if ((j = inb(qbase + 8)) & 4) 
+			if ((j = inb(qbase + 8)) & 4)
 			{
 				insl(qbase + 4, request, 21);
 				reqlen -= 84;
@@ -123,11 +128,11 @@ static int ql_pdma(struct qlogicfas408_priv *priv, int phase, char *request, int
 		/* until both empty and int (or until reclen is 0) */
 		rtrc(7)
 		j = 0;
-		while (reqlen && !((j & 0x10) && (j & 0xc0))) 
+		while (reqlen && !((j & 0x10) && (j & 0xc0)))
 		{
 			/* while bytes to receive and not empty */
 			j &= 0xc0;
-			while (reqlen && !((j = inb(qbase + 8)) & 0x10)) 
+			while (reqlen && !((j = inb(qbase + 8)) & 0x10))
 			{
 				*request++ = inb(qbase + 4);
 				reqlen--;
@@ -161,7 +166,7 @@ static int ql_pdma(struct qlogicfas408_priv *priv, int phase, char *request, int
 		    j = 0;
 		while (reqlen && !((j & 2) && (j & 0xc0))) {
 			/* while bytes to send and not full */
-			while (reqlen && !((j = inb(qbase + 8)) & 2)) 
+			while (reqlen && !((j = inb(qbase + 8)) & 2))
 			{
 				outb(*request++, qbase + 4);
 				reqlen--;
@@ -175,7 +180,7 @@ static int ql_pdma(struct qlogicfas408_priv *priv, int phase, char *request, int
 }
 
 /*
- *	Wait for interrupt flag (polled - not real hardware interrupt) 
+ *	Wait for interrupt flag (polled - not real hardware interrupt)
  */
 
 static int ql_wai(struct qlogicfas408_priv *priv)
@@ -205,14 +210,14 @@ static int ql_wai(struct qlogicfas408_priv *priv)
 }
 
 /*
- *	Initiate scsi command - queueing handler 
+ *	Initiate scsi command - queueing handler
  *	caller must hold host lock
  */
 
 static void ql_icmd(struct scsi_cmnd *cmd)
 {
 	struct qlogicfas408_priv *priv = get_priv_by_cmd(cmd);
-	int 	qbase = priv->qbase;
+	int	qbase = priv->qbase;
 	int	int_type = priv->int_type;
 	unsigned int i;
 
@@ -253,14 +258,13 @@ static void ql_icmd(struct scsi_cmnd *cmd)
 }
 
 /*
- *	Process scsi command - usually after interrupt 
+ *	Process scsi command - usually after interrupt
  */
 
-static unsigned int ql_pcmd(struct scsi_cmnd *cmd)
+static void ql_pcmd(struct scsi_cmnd *cmd)
 {
 	unsigned int i, j;
 	unsigned long k;
-	unsigned int result;	/* ultimate return result */
 	unsigned int status;	/* scsi returned status */
 	unsigned int message;	/* scsi returned message */
 	unsigned int phase;	/* recorded scsi phase */
@@ -274,13 +278,15 @@ static unsigned int ql_pcmd(struct scsi_cmnd *cmd)
 	j = inb(qbase + 6);
 	i = inb(qbase + 5);
 	if (i == 0x20) {
-		return (DID_NO_CONNECT << 16);
+		set_host_byte(cmd, DID_NO_CONNECT);
+		return;
 	}
 	i |= inb(qbase + 5);	/* the 0x10 bit can be set after the 0x08 */
 	if (i != 0x18) {
 		printk(KERN_ERR "Ql:Bad Interrupt status:%02x\n", i);
 		ql_zap(priv);
-		return (DID_BAD_INTR << 16);
+		set_host_byte(cmd, DID_BAD_INTR);
+		return;
 	}
 	j &= 7;			/* j = inb( qbase + 7 ) >> 5; */
 
@@ -293,9 +299,10 @@ static unsigned int ql_pcmd(struct scsi_cmnd *cmd)
 		printk(KERN_ERR "Ql:Bad sequence for command %d, int %02X, cmdleft = %d\n",
 		     j, i, inb(qbase + 7) & 0x1f);
 		ql_zap(priv);
-		return (DID_ERROR << 16);
+		set_host_byte(cmd, DID_ERROR);
+		return;
 	}
-	result = DID_OK;
+
 	if (inb(qbase + 7) & 0x1f)	/* if some bytes in fifo */
 		outb(1, qbase + 3);	/* clear fifo */
 	/* note that request_bufflen is the total xfer size when sg is used */
@@ -314,28 +321,31 @@ static unsigned int ql_pcmd(struct scsi_cmnd *cmd)
 		scsi_for_each_sg(cmd, sg, scsi_sg_count(cmd), i) {
 			if (priv->qabort) {
 				REG0;
-				return ((priv->qabort == 1 ?
-					 DID_ABORT : DID_RESET) << 16);
+				set_host_byte(cmd,
+					      priv->qabort == 1 ?
+					      DID_ABORT : DID_RESET);
 			}
 			buf = sg_virt(sg);
 			if (ql_pdma(priv, phase, buf, sg->length))
 				break;
 		}
 		REG0;
-		rtrc(2)
+		rtrc(2);
 		/*
 		 *	Wait for irq (split into second state of irq handler
-		 *	if this can take time) 
+		 *	if this can take time)
 		 */
-		if ((k = ql_wai(priv)))
-			return (k << 16);
+		if ((k = ql_wai(priv))) {
+			set_host_byte(cmd, k);
+			return;
+		}
 		k = inb(qbase + 5);	/* should be 0x10, bus service */
 	}
 
 	/*
-	 *	Enter Status (and Message In) Phase 
+	 *	Enter Status (and Message In) Phase
 	 */
-	 
+
 	k = jiffies + WATCHDOG;
 
 	while (time_before(jiffies, k) && !priv->qabort &&
@@ -344,57 +354,72 @@ static unsigned int ql_pcmd(struct scsi_cmnd *cmd)
 
 	if (time_after_eq(jiffies, k)) {
 		ql_zap(priv);
-		return (DID_TIME_OUT << 16);
+		set_host_byte(cmd, DID_TIME_OUT);
+		return;
 	}
 
 	/* FIXME: timeout ?? */
 	while (inb(qbase + 5))
 		cpu_relax();	/* clear pending ints */
 
-	if (priv->qabort)
-		return ((priv->qabort == 1 ? DID_ABORT : DID_RESET) << 16);
+	if (priv->qabort) {
+		set_host_byte(cmd,
+			      priv->qabort == 1 ? DID_ABORT : DID_RESET);
+		return;
+	}
 
 	outb(0x11, qbase + 3);	/* get status and message */
-	if ((k = ql_wai(priv)))
-		return (k << 16);
+	if ((k = ql_wai(priv))) {
+		set_host_byte(cmd, k);
+		return;
+	}
 	i = inb(qbase + 5);	/* get chip irq stat */
 	j = inb(qbase + 7) & 0x1f;	/* and bytes rec'd */
 	status = inb(qbase + 2);
 	message = inb(qbase + 2);
 
 	/*
-	 *	Should get function complete int if Status and message, else 
-	 *	bus serv if only status 
+	 *	Should get function complete int if Status and message, else
+	 *	bus serv if only status
 	 */
 	if (!((i == 8 && j == 2) || (i == 0x10 && j == 1))) {
 		printk(KERN_ERR "Ql:Error during status phase, int=%02X, %d bytes recd\n", i, j);
-		result = DID_ERROR;
+		set_host_byte(cmd, DID_ERROR);
 	}
 	outb(0x12, qbase + 3);	/* done, disconnect */
-	rtrc(1)
-	if ((k = ql_wai(priv)))
-		return (k << 16);
+	rtrc(1);
+	if ((k = ql_wai(priv))) {
+		set_host_byte(cmd, k);
+		return;
+	}
 
 	/*
-	 *	Should get bus service interrupt and disconnect interrupt 
+	 *	Should get bus service interrupt and disconnect interrupt
 	 */
-	 
+
 	i = inb(qbase + 5);	/* should be bus service */
 	while (!priv->qabort && ((i & 0x20) != 0x20)) {
 		barrier();
 		cpu_relax();
 		i |= inb(qbase + 5);
 	}
-	rtrc(0)
+	rtrc(0);
 
-	if (priv->qabort)
-		return ((priv->qabort == 1 ? DID_ABORT : DID_RESET) << 16);
-		
-	return (result << 16) | (message << 8) | (status & STATUS_MASK);
+	if (priv->qabort) {
+		set_host_byte(cmd,
+			      priv->qabort == 1 ? DID_ABORT : DID_RESET);
+		return;
+	}
+
+	set_host_byte(cmd, DID_OK);
+	if (message != COMMAND_COMPLETE)
+		scsi_msg_to_host_byte(cmd, message);
+	set_status_byte(cmd, status);
+	return;
 }
 
 /*
- *	Interrupt handler 
+ *	Interrupt handler
  */
 
 static void ql_ihandl(void *dev_id)
@@ -415,13 +440,13 @@ static void ql_ihandl(void *dev_id)
 		return;
 	}
 	icmd = priv->qlcmd;
-	icmd->result = ql_pcmd(icmd);
+	ql_pcmd(icmd);
 	priv->qlcmd = NULL;
 	/*
-	 *	If result is CHECK CONDITION done calls qcommand to request 
-	 *	sense 
+	 *	If result is CHECK CONDITION done calls qcommand to request
+	 *	sense
 	 */
-	(icmd->scsi_done) (icmd);
+	scsi_done(icmd);
 }
 
 irqreturn_t qlogicfas408_ihandl(int irq, void *dev_id)
@@ -439,17 +464,19 @@ irqreturn_t qlogicfas408_ihandl(int irq, void *dev_id)
  *	Queued command
  */
 
-static int qlogicfas408_queuecommand_lck(struct scsi_cmnd *cmd,
-			      void (*done) (struct scsi_cmnd *))
+static int qlogicfas408_queuecommand_lck(struct scsi_cmnd *cmd)
 {
+	void (*done)(struct scsi_cmnd *) = scsi_done;
 	struct qlogicfas408_priv *priv = get_priv_by_cmd(cmd);
+
+	set_host_byte(cmd, DID_OK);
+	set_status_byte(cmd, SAM_STAT_GOOD);
 	if (scmd_id(cmd) == priv->qinitid) {
-		cmd->result = DID_BAD_TARGET << 16;
+		set_host_byte(cmd, DID_BAD_TARGET);
 		done(cmd);
 		return 0;
 	}
 
-	cmd->scsi_done = done;
 	/* wait for the last command's interrupt to finish */
 	while (priv->qlcmd != NULL) {
 		barrier();
@@ -461,8 +488,8 @@ static int qlogicfas408_queuecommand_lck(struct scsi_cmnd *cmd,
 
 DEF_SCSI_QCMD(qlogicfas408_queuecommand)
 
-/* 
- *	Return bios parameters 
+/*
+ *	Return bios parameters
  */
 
 int qlogicfas408_biosparam(struct scsi_device *disk, struct block_device *dev,
@@ -487,7 +514,7 @@ int qlogicfas408_biosparam(struct scsi_device *disk, struct block_device *dev,
 /*
  *	Abort a command in progress
  */
- 
+
 int qlogicfas408_abort(struct scsi_cmnd *cmd)
 {
 	struct qlogicfas408_priv *priv = get_priv_by_cmd(cmd);
@@ -566,9 +593,9 @@ void qlogicfas408_setup(int qbase, int id, int int_type)
 
 int qlogicfas408_detect(int qbase, int int_type)
 {
-        REG1;
+	REG1;
 	return (((inb(qbase + 0xe) ^ inb(qbase + 0xe)) == 7) &&
-	       ((inb(qbase + 0xe) ^ inb(qbase + 0xe)) == 7));		
+		((inb(qbase + 0xe) ^ inb(qbase + 0xe)) == 7));
 }
 
 /*

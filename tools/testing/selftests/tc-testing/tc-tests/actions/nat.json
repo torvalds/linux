@@ -6,6 +6,9 @@
             "actions",
             "nat"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action nat",
@@ -30,6 +33,9 @@
             "actions",
             "nat"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action nat",
@@ -54,6 +60,9 @@
             "actions",
             "nat"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action nat",
@@ -78,6 +87,9 @@
             "actions",
             "nat"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action nat",
@@ -102,6 +114,9 @@
             "actions",
             "nat"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action nat",
@@ -126,6 +141,9 @@
             "actions",
             "nat"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action nat",
@@ -150,6 +168,9 @@
             "actions",
             "nat"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action nat",
@@ -174,6 +195,9 @@
             "actions",
             "nat"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action nat",
@@ -203,6 +227,9 @@
             "actions",
             "nat"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action nat",
@@ -232,6 +259,9 @@
             "actions",
             "nat"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action nat",
@@ -261,6 +291,9 @@
             "actions",
             "nat"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action nat",
@@ -285,6 +318,9 @@
             "actions",
             "nat"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action nat",
@@ -309,6 +345,9 @@
             "actions",
             "nat"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action nat",
@@ -333,6 +372,9 @@
             "actions",
             "nat"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action nat",
@@ -357,6 +399,9 @@
             "actions",
             "nat"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action nat",
@@ -381,6 +426,9 @@
             "actions",
             "nat"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action nat",
@@ -405,6 +453,9 @@
             "actions",
             "nat"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action nat",
@@ -429,6 +480,9 @@
             "actions",
             "nat"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action nat",
@@ -453,6 +507,9 @@
             "actions",
             "nat"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action nat",
@@ -477,6 +534,9 @@
             "actions",
             "nat"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action nat",
@@ -501,6 +561,9 @@
             "actions",
             "nat"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action nat",
@@ -525,6 +588,9 @@
             "actions",
             "nat"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action nat",
@@ -549,6 +615,9 @@
             "actions",
             "nat"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action nat",
@@ -573,6 +642,9 @@
             "actions",
             "nat"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action nat",
@@ -597,6 +669,9 @@
             "actions",
             "nat"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action nat",
@@ -610,6 +685,62 @@
         "expExitCode": "255",
         "verifyCmd": "$TC actions get action nat index 90",
         "matchPattern": "action order [0-9]+:  nat ingress 1.18.1.1/32 1.18.2.2 drop.*index 90 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action nat"
+        ]
+    },
+    {
+        "id": "b811",
+        "name": "Delete nat action with valid index",
+        "category": [
+            "actions",
+            "nat"
+        ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC actions flush action nat",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action nat ingress 1.1.1.1 2.2.2.2 drop index 20"
+        ],
+        "cmdUnderTest": "$TC actions del action nat index 20",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions ls action nat index 20",
+        "matchPattern": "action order [0-9]+:  nat ingress 1.1.1.1/32 2.2.2.2 drop.*index 20 ref",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action nat"
+        ]
+    },
+    {
+        "id": "a521",
+        "name": "Delete nat action with invalid index",
+        "category": [
+            "actions",
+            "nat"
+        ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC actions flush action nat",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action nat ingress 1.1.1.1 2.2.2.2 drop index 20"
+        ],
+        "cmdUnderTest": "$TC actions del action nat index 10",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions ls action nat index 20",
+        "matchPattern": "action order [0-9]+:  nat ingress 1.1.1.1/32 2.2.2.2 drop.*index 20 ref",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action nat"

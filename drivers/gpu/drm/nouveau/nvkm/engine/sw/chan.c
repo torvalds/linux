@@ -23,7 +23,6 @@
  */
 #include "chan.h"
 
-#include <core/notify.h>
 #include <engine/fifo.h>
 
 #include <nvif/event.h>
@@ -36,7 +35,7 @@ nvkm_sw_chan_mthd(struct nvkm_sw_chan *chan, int subc, u32 mthd, u32 data)
 	case 0x0000:
 		return true;
 	case 0x0500:
-		nvkm_event_send(&chan->event, 1, 0, NULL, 0);
+		nvkm_event_ntfy(&chan->event, 0, NVKM_SW_CHAN_EVENT_PAGE_FLIP);
 		return true;
 	default:
 		if (chan->func->mthd)
@@ -46,27 +45,8 @@ nvkm_sw_chan_mthd(struct nvkm_sw_chan *chan, int subc, u32 mthd, u32 data)
 	return false;
 }
 
-static int
-nvkm_sw_chan_event_ctor(struct nvkm_object *object, void *data, u32 size,
-			struct nvkm_notify *notify)
-{
-	union {
-		struct nvif_notify_uevent_req none;
-	} *req = data;
-	int ret = -ENOSYS;
-
-	if (!(ret = nvif_unvers(ret, &data, &size, req->none))) {
-		notify->size  = sizeof(struct nvif_notify_uevent_rep);
-		notify->types = 1;
-		notify->index = 0;
-	}
-
-	return ret;
-}
-
 static const struct nvkm_event_func
 nvkm_sw_chan_event = {
-	.ctor = nvkm_sw_chan_event_ctor,
 };
 
 static void *
@@ -94,7 +74,7 @@ nvkm_sw_chan = {
 
 int
 nvkm_sw_chan_ctor(const struct nvkm_sw_chan_func *func, struct nvkm_sw *sw,
-		  struct nvkm_fifo_chan *fifo, const struct nvkm_oclass *oclass,
+		  struct nvkm_chan *fifo, const struct nvkm_oclass *oclass,
 		  struct nvkm_sw_chan *chan)
 {
 	unsigned long flags;
@@ -107,5 +87,5 @@ nvkm_sw_chan_ctor(const struct nvkm_sw_chan_func *func, struct nvkm_sw *sw,
 	list_add(&chan->head, &sw->chan);
 	spin_unlock_irqrestore(&sw->engine.lock, flags);
 
-	return nvkm_event_init(&nvkm_sw_chan_event, 1, 1, &chan->event);
+	return nvkm_event_init(&nvkm_sw_chan_event, &sw->engine.subdev, 1, 1, &chan->event);
 }

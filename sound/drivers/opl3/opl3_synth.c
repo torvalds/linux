@@ -91,6 +91,8 @@ int snd_opl3_ioctl(struct snd_hwdep * hw, struct file *file,
 		{
 			struct snd_dm_fm_info info;
 
+			memset(&info, 0, sizeof(info));
+
 			info.fm_mode = opl3->fm_mode;
 			info.rhythm = opl3->rhythm;
 			if (copy_to_user(argp, &info, sizeof(struct snd_dm_fm_info)))
@@ -288,7 +290,7 @@ int snd_opl3_load_patch(struct snd_opl3 *opl3,
 	}
 
 	if (name)
-		strlcpy(patch->name, name, sizeof(patch->name));
+		strscpy(patch->name, name, sizeof(patch->name));
 
 	return 0;
 }

@@ -51,16 +51,11 @@ static int dvic_connect(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
-	int r;
 
 	if (omapdss_device_is_connected(dssdev))
 		return 0;
 
-	r = in->ops.dvi->connect(in, dssdev);
-	if (r)
-		return r;
-
-	return 0;
+	return in->ops.dvi->connect(in, dssdev);
 }
 
 static void dvic_disconnect(struct omap_dss_device *dssdev)
@@ -251,6 +246,7 @@ static int dvic_probe_of(struct platform_device *pdev)
 	adapter_node = of_parse_phandle(node, "ddc-i2c-bus", 0);
 	if (adapter_node) {
 		adapter = of_get_i2c_adapter_by_node(adapter_node);
+		of_node_put(adapter_node);
 		if (adapter == NULL) {
 			dev_err(&pdev->dev, "failed to parse ddc-i2c-bus\n");
 			omap_dss_put_device(ddata->in);
@@ -307,7 +303,7 @@ err_reg:
 	return r;
 }
 
-static int __exit dvic_remove(struct platform_device *pdev)
+static void dvic_remove(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
 	struct omap_dss_device *dssdev = &ddata->dssdev;
@@ -321,8 +317,6 @@ static int __exit dvic_remove(struct platform_device *pdev)
 	omap_dss_put_device(in);
 
 	i2c_put_adapter(ddata->i2c_adapter);
-
-	return 0;
 }
 
 static const struct of_device_id dvic_of_match[] = {
@@ -334,11 +328,10 @@ MODULE_DEVICE_TABLE(of, dvic_of_match);
 
 static struct platform_driver dvi_connector_driver = {
 	.probe	= dvic_probe,
-	.remove	= __exit_p(dvic_remove),
+	.remove_new = dvic_remove,
 	.driver	= {
 		.name	= "connector-dvi",
 		.of_match_table = dvic_of_match,
-		.suppress_bind_attrs = true,
 	},
 };
 

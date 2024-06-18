@@ -30,16 +30,15 @@
 #ifndef RADEON_MODE_H
 #define RADEON_MODE_H
 
+#include <drm/display/drm_dp_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_edid.h>
 #include <drm/drm_encoder.h>
-#include <drm/drm_dp_helper.h>
-#include <drm/drm_dp_mst_helper.h>
 #include <drm/drm_fixed.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_modeset_helper_vtables.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 
+struct edid;
 struct radeon_bo;
 struct radeon_device;
 
@@ -230,8 +229,6 @@ enum radeon_dvo_chip {
 	DVO_SIL1178,
 };
 
-struct radeon_fbdev;
-
 struct radeon_afmt {
 	bool enabled;
 	int offset;
@@ -268,8 +265,6 @@ struct radeon_mode_info {
 	struct edid *bios_hardcoded_edid;
 	int bios_hardcoded_edid_size;
 
-	/* pointer to fbdev info structure */
-	struct radeon_fbdev *rfbdev;
 	/* firmware flags */
 	u16 firmware_flags;
 	/* pointer to backlight encoder */
@@ -281,14 +276,10 @@ struct radeon_mode_info {
 
 #define RADEON_MAX_BL_LEVEL 0xFF
 
-#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) || defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
-
 struct radeon_backlight_privdata {
 	struct radeon_encoder *encoder;
 	uint8_t negative;
 };
-
-#endif
 
 #define MAX_H_CODE_TIMING_LEN 32
 #define MAX_V_CODE_TIMING_LEN 32
@@ -327,7 +318,6 @@ enum radeon_flip_status {
 struct radeon_crtc {
 	struct drm_crtc base;
 	int crtc_id;
-	u16 lut_r[256], lut_g[256], lut_b[256];
 	bool enabled;
 	bool can_tile;
 	bool cursor_out_of_bounds;
@@ -441,22 +431,10 @@ struct radeon_encoder_atom_dig {
 	int panel_mode;
 	struct radeon_afmt *afmt;
 	struct r600_audio_pin *pin;
-	int active_mst_links;
 };
 
 struct radeon_encoder_atom_dac {
 	enum radeon_tv_std tv_std;
-};
-
-struct radeon_encoder_mst {
-	int crtc;
-	struct radeon_encoder *primary;
-	struct radeon_connector *connector;
-	struct drm_dp_mst_port *port;
-	int pbn;
-	int fe;
-	bool fe_from_be;
-	bool enc_active;
 };
 
 struct radeon_encoder {
@@ -480,8 +458,6 @@ struct radeon_encoder {
 	enum radeon_output_csc output_csc;
 	bool can_mst;
 	uint32_t offset;
-	bool is_mst_encoder;
-	/* front end for this mst encoder */
 };
 
 struct radeon_connector_atom_dig {
@@ -492,7 +468,6 @@ struct radeon_connector_atom_dig {
 	int dp_clock;
 	int dp_lane_count;
 	bool edp_on;
-	bool is_mst;
 };
 
 struct radeon_gpio_rec {
@@ -536,11 +511,6 @@ enum radeon_connector_dither {
 	RADEON_FMT_DITHER_ENABLE = 1,
 };
 
-struct stream_attribs {
-	uint16_t fe;
-	uint16_t slots;
-};
-
 struct radeon_connector {
 	struct drm_connector base;
 	uint32_t connector_id;
@@ -563,14 +533,6 @@ struct radeon_connector {
 	enum radeon_connector_audio audio;
 	enum radeon_connector_dither dither;
 	int pixelclock_for_modeset;
-	bool is_mst_connector;
-	struct radeon_connector *mst_port;
-	struct drm_dp_mst_port *port;
-	struct drm_dp_mst_topology_mgr mst_mgr;
-
-	struct radeon_encoder *mst_encoder;
-	struct stream_attribs cur_stream_attribs[6];
-	int enabled_attribs;
 };
 
 #define ENCODER_MODE_IS_DP(em) (((em) == ATOM_ENCODER_MODE_DP) || \
@@ -641,8 +603,7 @@ struct atom_memory_info {
 
 #define MAX_AC_TIMING_ENTRIES 16
 
-struct atom_memory_clock_range_table
-{
+struct atom_memory_clock_range_table {
 	u8 num_entries;
 	u8 rsv[3];
 	u32 mclk[MAX_AC_TIMING_ENTRIES];
@@ -670,14 +631,12 @@ struct atom_mc_reg_table {
 
 #define MAX_VOLTAGE_ENTRIES 32
 
-struct atom_voltage_table_entry
-{
+struct atom_voltage_table_entry {
 	u16 value;
 	u32 smio_low;
 };
 
-struct atom_voltage_table
-{
+struct atom_voltage_table {
 	u32 count;
 	u32 mask_low;
 	u32 phase_delay;
@@ -772,8 +731,6 @@ extern void atombios_dig_transmitter_setup(struct drm_encoder *encoder,
 extern void atombios_dig_transmitter_setup2(struct drm_encoder *encoder,
 					    int action, uint8_t lane_num,
 					    uint8_t lane_set, int fe);
-extern void atombios_set_mst_encoder_crtc_source(struct drm_encoder *encoder,
-						 int fe);
 extern void radeon_atom_ext_encoder_setup_ddc(struct drm_encoder *encoder);
 extern struct drm_encoder *radeon_get_external_encoder(struct drm_encoder *encoder);
 void radeon_atom_copy_swap(u8 *dst, u8 *src, u8 num_bytes, bool to_le);
@@ -881,6 +838,12 @@ extern int radeon_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 				      ktime_t *stime, ktime_t *etime,
 				      const struct drm_display_mode *mode);
 
+extern bool
+radeon_get_crtc_scanout_position(struct drm_crtc *crtc, bool in_vblank_irq,
+				 int *vpos, int *hpos,
+				 ktime_t *stime, ktime_t *etime,
+				 const struct drm_display_mode *mode);
+
 extern bool radeon_combios_check_hardcoded_edid(struct radeon_device *rdev);
 extern struct edid *
 radeon_bios_get_hardcoded_edid(struct radeon_device *rdev);
@@ -904,7 +867,6 @@ extern struct radeon_encoder_tv_dac *
 radeon_atombios_get_tv_dac_info(struct radeon_encoder *encoder);
 extern struct radeon_encoder_lvds *
 radeon_combios_get_lvds_info(struct radeon_encoder *encoder);
-extern void radeon_combios_get_ext_tmds_info(struct radeon_encoder *encoder);
 extern struct radeon_encoder_tv_dac *
 radeon_combios_get_tv_dac_info(struct radeon_encoder *encoder);
 extern struct radeon_encoder_primary_dac *
@@ -974,28 +936,24 @@ void dce4_program_fmt(struct drm_encoder *encoder);
 void dce8_program_fmt(struct drm_encoder *encoder);
 
 /* fbdev layer */
-int radeon_fbdev_init(struct radeon_device *rdev);
-void radeon_fbdev_fini(struct radeon_device *rdev);
+#if defined(CONFIG_DRM_FBDEV_EMULATION)
+void radeon_fbdev_setup(struct radeon_device *rdev);
 void radeon_fbdev_set_suspend(struct radeon_device *rdev, int state);
 bool radeon_fbdev_robj_is_fb(struct radeon_device *rdev, struct radeon_bo *robj);
+#else
+static inline void radeon_fbdev_setup(struct radeon_device *rdev)
+{ }
+static inline void radeon_fbdev_set_suspend(struct radeon_device *rdev, int state)
+{ }
+static inline bool radeon_fbdev_robj_is_fb(struct radeon_device *rdev, struct radeon_bo *robj)
+{
+	return false;
+}
+#endif
 
 void radeon_crtc_handle_vblank(struct radeon_device *rdev, int crtc_id);
 
-void radeon_fb_add_connector(struct radeon_device *rdev, struct drm_connector *connector);
-void radeon_fb_remove_connector(struct radeon_device *rdev, struct drm_connector *connector);
-
 void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id);
-
-int radeon_align_pitch(struct radeon_device *rdev, int width, int bpp, bool tiled);
-
-/* mst */
-int radeon_dp_mst_init(struct radeon_connector *radeon_connector);
-int radeon_dp_mst_probe(struct radeon_connector *radeon_connector);
-int radeon_dp_mst_check_status(struct radeon_connector *radeon_connector);
-int radeon_mst_debugfs_init(struct radeon_device *rdev);
-void radeon_dp_mst_prepare_pll(struct drm_crtc *crtc, struct drm_display_mode *mode);
-
-void radeon_setup_mst_connector(struct drm_device *dev);
 
 int radeon_atom_pick_dig_encoder(struct drm_encoder *encoder, int fe_idx);
 void radeon_atom_release_dig_encoder(struct radeon_device *rdev, int enc_idx);

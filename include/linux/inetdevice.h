@@ -24,6 +24,8 @@ struct ipv4_devconf {
 
 struct in_device {
 	struct net_device	*dev;
+	netdevice_tracker	dev_tracker;
+
 	refcount_t		refcnt;
 	int			dead;
 	struct in_ifaddr	__rcu *ifa_list;/* IP ifaddr chain		*/
@@ -41,7 +43,7 @@ struct in_device {
 	unsigned long		mr_qri;		/* Query Response Interval */
 	unsigned char		mr_qrv;		/* Query Robustness Variable */
 	unsigned char		mr_gq_running;
-	unsigned char		mr_ifc_count;
+	u32			mr_ifc_count;
 	struct timer_list	mr_gq_timer;	/* general query timer */
 	struct timer_list	mr_ifc_timer;	/* interface change timer */
 
@@ -51,13 +53,15 @@ struct in_device {
 };
 
 #define IPV4_DEVCONF(cnf, attr) ((cnf).data[IPV4_DEVCONF_ ## attr - 1])
+#define IPV4_DEVCONF_RO(cnf, attr) READ_ONCE(IPV4_DEVCONF(cnf, attr))
 #define IPV4_DEVCONF_ALL(net, attr) \
 	IPV4_DEVCONF((*(net)->ipv4.devconf_all), attr)
+#define IPV4_DEVCONF_ALL_RO(net, attr) READ_ONCE(IPV4_DEVCONF_ALL(net, attr))
 
-static inline int ipv4_devconf_get(struct in_device *in_dev, int index)
+static inline int ipv4_devconf_get(const struct in_device *in_dev, int index)
 {
 	index--;
-	return in_dev->cnf.data[index];
+	return READ_ONCE(in_dev->cnf.data[index]);
 }
 
 static inline void ipv4_devconf_set(struct in_device *in_dev, int index,
@@ -65,7 +69,7 @@ static inline void ipv4_devconf_set(struct in_device *in_dev, int index,
 {
 	index--;
 	set_bit(index, in_dev->cnf.state);
-	in_dev->cnf.data[index] = val;
+	WRITE_ONCE(in_dev->cnf.data[index], val);
 }
 
 static inline void ipv4_devconf_setall(struct in_device *in_dev)
@@ -79,18 +83,18 @@ static inline void ipv4_devconf_setall(struct in_device *in_dev)
 	ipv4_devconf_set((in_dev), IPV4_DEVCONF_ ## attr, (val))
 
 #define IN_DEV_ANDCONF(in_dev, attr) \
-	(IPV4_DEVCONF_ALL(dev_net(in_dev->dev), attr) && \
+	(IPV4_DEVCONF_ALL_RO(dev_net(in_dev->dev), attr) && \
 	 IN_DEV_CONF_GET((in_dev), attr))
 
 #define IN_DEV_NET_ORCONF(in_dev, net, attr) \
-	(IPV4_DEVCONF_ALL(net, attr) || \
+	(IPV4_DEVCONF_ALL_RO(net, attr) || \
 	 IN_DEV_CONF_GET((in_dev), attr))
 
 #define IN_DEV_ORCONF(in_dev, attr) \
 	IN_DEV_NET_ORCONF(in_dev, dev_net(in_dev->dev), attr)
 
 #define IN_DEV_MAXCONF(in_dev, attr) \
-	(max(IPV4_DEVCONF_ALL(dev_net(in_dev->dev), attr), \
+	(max(IPV4_DEVCONF_ALL_RO(dev_net(in_dev->dev), attr), \
 	     IN_DEV_CONF_GET((in_dev), attr)))
 
 #define IN_DEV_FORWARD(in_dev)		IN_DEV_CONF_GET((in_dev), FORWARDING)
@@ -105,7 +109,7 @@ static inline void ipv4_devconf_setall(struct in_device *in_dev)
 
 #define IN_DEV_LOG_MARTIANS(in_dev)	IN_DEV_ORCONF((in_dev), LOG_MARTIANS)
 #define IN_DEV_PROXY_ARP(in_dev)	IN_DEV_ORCONF((in_dev), PROXY_ARP)
-#define IN_DEV_PROXY_ARP_PVLAN(in_dev)	IN_DEV_CONF_GET(in_dev, PROXY_ARP_PVLAN)
+#define IN_DEV_PROXY_ARP_PVLAN(in_dev)	IN_DEV_ORCONF((in_dev), PROXY_ARP_PVLAN)
 #define IN_DEV_SHARED_MEDIA(in_dev)	IN_DEV_ORCONF((in_dev), SHARED_MEDIA)
 #define IN_DEV_TX_REDIRECTS(in_dev)	IN_DEV_ORCONF((in_dev), SEND_REDIRECTS)
 #define IN_DEV_SEC_REDIRECTS(in_dev)	IN_DEV_ORCONF((in_dev), \
@@ -126,13 +130,15 @@ static inline void ipv4_devconf_setall(struct in_device *in_dev)
 	  IN_DEV_ORCONF((in_dev), ACCEPT_REDIRECTS)))
 
 #define IN_DEV_IGNORE_ROUTES_WITH_LINKDOWN(in_dev) \
-	IN_DEV_CONF_GET((in_dev), IGNORE_ROUTES_WITH_LINKDOWN)
+	IN_DEV_ORCONF((in_dev), IGNORE_ROUTES_WITH_LINKDOWN)
 
 #define IN_DEV_ARPFILTER(in_dev)	IN_DEV_ORCONF((in_dev), ARPFILTER)
-#define IN_DEV_ARP_ACCEPT(in_dev)	IN_DEV_ORCONF((in_dev), ARP_ACCEPT)
+#define IN_DEV_ARP_ACCEPT(in_dev)	IN_DEV_MAXCONF((in_dev), ARP_ACCEPT)
 #define IN_DEV_ARP_ANNOUNCE(in_dev)	IN_DEV_MAXCONF((in_dev), ARP_ANNOUNCE)
 #define IN_DEV_ARP_IGNORE(in_dev)	IN_DEV_MAXCONF((in_dev), ARP_IGNORE)
 #define IN_DEV_ARP_NOTIFY(in_dev)	IN_DEV_MAXCONF((in_dev), ARP_NOTIFY)
+#define IN_DEV_ARP_EVICT_NOCARRIER(in_dev) IN_DEV_ANDCONF((in_dev), \
+							  ARP_EVICT_NOCARRIER)
 
 struct in_ifaddr {
 	struct hlist_node	hash;
@@ -146,6 +152,7 @@ struct in_ifaddr {
 	__be32			ifa_broadcast;
 	unsigned char		ifa_scope;
 	unsigned char		ifa_prefixlen;
+	unsigned char		ifa_proto;
 	__u32			ifa_flags;
 	char			ifa_label[IFNAMSIZ];
 
@@ -178,6 +185,15 @@ static inline struct net_device *ip_dev_find(struct net *net, __be32 addr)
 
 int inet_addr_onlink(struct in_device *in_dev, __be32 a, __be32 b);
 int devinet_ioctl(struct net *net, unsigned int cmd, struct ifreq *);
+#ifdef CONFIG_INET
+int inet_gifconf(struct net_device *dev, char __user *buf, int len, int size);
+#else
+static inline int inet_gifconf(struct net_device *dev, char __user *buf,
+			       int len, int size)
+{
+	return 0;
+}
+#endif
 void devinet_init(void);
 struct in_device *inetdev_by_index(struct net *, int);
 __be32 inet_select_addr(const struct net_device *dev, __be32 dst, int scope);

@@ -274,11 +274,6 @@ static const struct watchdog_ops cdns_wdt_ops = {
 	.set_timeout = cdns_wdt_settimeout,
 };
 
-static void cdns_clk_disable_unprepare(void *data)
-{
-	clk_disable_unprepare(data);
-}
-
 /************************Platform Operations*****************************/
 /**
  * cdns_wdt_probe - Probe call for the device.
@@ -333,21 +328,10 @@ static int cdns_wdt_probe(struct platform_device *pdev)
 	watchdog_stop_on_reboot(cdns_wdt_device);
 	watchdog_set_drvdata(cdns_wdt_device, wdt);
 
-	wdt->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(wdt->clk)) {
-		dev_err(dev, "input clock not found\n");
-		return PTR_ERR(wdt->clk);
-	}
-
-	ret = clk_prepare_enable(wdt->clk);
-	if (ret) {
-		dev_err(dev, "unable to enable clock\n");
-		return ret;
-	}
-	ret = devm_add_action_or_reset(dev, cdns_clk_disable_unprepare,
-				       wdt->clk);
-	if (ret)
-		return ret;
+	wdt->clk = devm_clk_get_enabled(dev, NULL);
+	if (IS_ERR(wdt->clk))
+		return dev_err_probe(dev, PTR_ERR(wdt->clk),
+				     "input clock not found\n");
 
 	clock_f = clk_get_rate(wdt->clk);
 	if (clock_f <= CDNS_WDT_CLK_75MHZ) {
@@ -367,9 +351,8 @@ static int cdns_wdt_probe(struct platform_device *pdev)
 		return ret;
 	platform_set_drvdata(pdev, wdt);
 
-	dev_info(dev, "Xilinx Watchdog Timer at %p with timeout %ds%s\n",
-		 wdt->regs, cdns_wdt_device->timeout,
-		 nowayout ? ", nowayout" : "");
+	dev_info(dev, "Xilinx Watchdog Timer with timeout %ds%s\n",
+		 cdns_wdt_device->timeout, nowayout ? ", nowayout" : "");
 
 	return 0;
 }

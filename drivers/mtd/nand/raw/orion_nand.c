@@ -22,6 +22,7 @@
 #include <linux/platform_data/mtd-orion_nand.h>
 
 struct orion_nand_info {
+	struct nand_controller controller;
 	struct nand_chip chip;
 	struct clk *clk;
 };
@@ -82,13 +83,25 @@ static void orion_nand_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
 		buf[i++] = readb(io_base);
 }
 
+static int orion_nand_attach_chip(struct nand_chip *chip)
+{
+	if (chip->ecc.engine_type == NAND_ECC_ENGINE_TYPE_SOFT &&
+	    chip->ecc.algo == NAND_ECC_ALGO_UNKNOWN)
+		chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
+
+	return 0;
+}
+
+static const struct nand_controller_ops orion_nand_ops = {
+	.attach_chip = orion_nand_attach_chip,
+};
+
 static int __init orion_nand_probe(struct platform_device *pdev)
 {
 	struct orion_nand_info *info;
 	struct mtd_info *mtd;
 	struct nand_chip *nc;
 	struct orion_nand_data *board;
-	struct resource *res;
 	void __iomem *io_base;
 	int ret = 0;
 	u32 val = 0;
@@ -101,8 +114,11 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 	nc = &info->chip;
 	mtd = nand_to_mtd(nc);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	io_base = devm_ioremap_resource(&pdev->dev, res);
+	nand_controller_init(&info->controller);
+	info->controller.ops = &orion_nand_ops;
+	nc->controller = &info->controller;
+
+	io_base = devm_platform_ioremap_resource(pdev, 0);
 
 	if (IS_ERR(io_base))
 		return PTR_ERR(io_base);
@@ -139,8 +155,6 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 	nc->legacy.IO_ADDR_R = nc->legacy.IO_ADDR_W = io_base;
 	nc->legacy.cmd_ctrl = orion_nand_cmd_ctrl;
 	nc->legacy.read_buf = orion_nand_read_buf;
-	nc->ecc.mode = NAND_ECC_SOFT;
-	nc->ecc.algo = NAND_ECC_HAMMING;
 
 	if (board->chip_delay)
 		nc->legacy.chip_delay = board->chip_delay;
@@ -154,53 +168,41 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, info);
 
-	/* Not all platforms can gate the clock, so it is not
-	   an error if the clock does not exists. */
-	info->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(info->clk)) {
-		ret = PTR_ERR(info->clk);
-		if (ret == -ENOENT) {
-			info->clk = NULL;
-		} else {
-			dev_err(&pdev->dev, "failed to get clock!\n");
-			return ret;
-		}
-	}
+	/* Not all platforms can gate the clock, so it is optional. */
+	info->clk = devm_clk_get_optional_enabled(&pdev->dev, NULL);
+	if (IS_ERR(info->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(info->clk),
+				     "failed to get and enable clock!\n");
 
-	ret = clk_prepare_enable(info->clk);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to prepare clock!\n");
-		return ret;
-	}
+	/*
+	 * This driver assumes that the default ECC engine should be TYPE_SOFT.
+	 * Set ->engine_type before registering the NAND devices in order to
+	 * provide a driver specific default value.
+	 */
+	nc->ecc.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
 
 	ret = nand_scan(nc, 1);
 	if (ret)
-		goto no_dev;
+		return ret;
 
 	mtd->name = "orion_nand";
 	ret = mtd_device_register(mtd, board->parts, board->nr_parts);
-	if (ret) {
-		nand_release(nc);
-		goto no_dev;
-	}
+	if (ret)
+		nand_cleanup(nc);
 
-	return 0;
-
-no_dev:
-	clk_disable_unprepare(info->clk);
 	return ret;
 }
 
-static int orion_nand_remove(struct platform_device *pdev)
+static void orion_nand_remove(struct platform_device *pdev)
 {
 	struct orion_nand_info *info = platform_get_drvdata(pdev);
 	struct nand_chip *chip = &info->chip;
+	int ret;
 
-	nand_release(chip);
+	ret = mtd_device_unregister(nand_to_mtd(chip));
+	WARN_ON(ret);
 
-	clk_disable_unprepare(info->clk);
-
-	return 0;
+	nand_cleanup(chip);
 }
 
 #ifdef CONFIG_OF
@@ -212,7 +214,7 @@ MODULE_DEVICE_TABLE(of, orion_nand_of_match_table);
 #endif
 
 static struct platform_driver orion_nand_driver = {
-	.remove		= orion_nand_remove,
+	.remove_new	= orion_nand_remove,
 	.driver		= {
 		.name	= "orion_nand",
 		.of_match_table = of_match_ptr(orion_nand_of_match_table),

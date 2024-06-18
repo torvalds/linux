@@ -1,37 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
  * Copyright (c) 2005 Voltaire Inc.  All rights reserved.
  * Copyright (c) 2005 Intel Corporation.  All rights reserved.
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 
-#if !defined(RDMA_CM_H)
+#ifndef RDMA_CM_H
 #define RDMA_CM_H
 
 #include <linux/socket.h>
@@ -79,7 +52,17 @@ struct rdma_addr {
 struct rdma_route {
 	struct rdma_addr addr;
 	struct sa_path_rec *path_rec;
-	int num_paths;
+
+	/* Optional path records of primary path */
+	struct sa_path_rec *path_rec_inbound;
+	struct sa_path_rec *path_rec_outbound;
+
+	/*
+	 * 0 - No primary nor alternate path is available
+	 * 1 - Only primary path is available
+	 * 2 - Both primary and alternate path are available
+	 */
+	int num_pri_alt_paths;
 };
 
 struct rdma_conn_param {
@@ -111,6 +94,7 @@ struct rdma_cm_event {
 		struct rdma_conn_param	conn;
 		struct rdma_ud_param	ud;
 	} param;
+	struct rdma_ucm_ece ece;
 };
 
 struct rdma_cm_id;
@@ -133,14 +117,18 @@ struct rdma_cm_id {
 	struct rdma_route	 route;
 	enum rdma_ucm_port_space ps;
 	enum ib_qp_type		 qp_type;
-	u8			 port_num;
+	u32			 port_num;
+	struct work_struct net_work;
 };
 
-struct rdma_cm_id *__rdma_create_id(struct net *net,
-				    rdma_cm_event_handler event_handler,
-				    void *context, enum rdma_ucm_port_space ps,
-				    enum ib_qp_type qp_type,
-				    const char *caller);
+struct rdma_cm_id *
+__rdma_create_kernel_id(struct net *net, rdma_cm_event_handler event_handler,
+			void *context, enum rdma_ucm_port_space ps,
+			enum ib_qp_type qp_type, const char *caller);
+struct rdma_cm_id *rdma_create_user_id(rdma_cm_event_handler event_handler,
+				       void *context,
+				       enum rdma_ucm_port_space ps,
+				       enum ib_qp_type qp_type);
 
 /**
  * rdma_create_id - Create an RDMA identifier.
@@ -158,9 +146,9 @@ struct rdma_cm_id *__rdma_create_id(struct net *net,
  * The event handler callback serializes on the id's mutex and is
  * allowed to sleep.
  */
-#define rdma_create_id(net, event_handler, context, ps, qp_type) \
-	__rdma_create_id((net), (event_handler), (context), (ps), (qp_type), \
-			 KBUILD_MODNAME)
+#define rdma_create_id(net, event_handler, context, ps, qp_type)               \
+	__rdma_create_kernel_id(net, event_handler, context, ps, qp_type,      \
+				KBUILD_MODNAME)
 
 /**
   * rdma_destroy_id - Destroys an RDMA identifier.
@@ -250,19 +238,12 @@ void rdma_destroy_qp(struct rdma_cm_id *id);
 int rdma_init_qp_attr(struct rdma_cm_id *id, struct ib_qp_attr *qp_attr,
 		       int *qp_attr_mask);
 
-/**
- * rdma_connect - Initiate an active connection request.
- * @id: Connection identifier to connect.
- * @conn_param: Connection information used for connected QPs.
- *
- * Users must have resolved a route for the rdma_cm_id to connect with
- * by having called rdma_resolve_route before calling this routine.
- *
- * This call will either connect to a remote QP or obtain remote QP
- * information for unconnected rdma_cm_id's.  The actual operation is
- * based on the rdma_cm_id's port space.
- */
 int rdma_connect(struct rdma_cm_id *id, struct rdma_conn_param *conn_param);
+int rdma_connect_locked(struct rdma_cm_id *id,
+			struct rdma_conn_param *conn_param);
+
+int rdma_connect_ece(struct rdma_cm_id *id, struct rdma_conn_param *conn_param,
+		     struct rdma_ucm_ece *ece);
 
 /**
  * rdma_listen - This function is called by the passive side to
@@ -273,26 +254,12 @@ int rdma_connect(struct rdma_cm_id *id, struct rdma_conn_param *conn_param);
  */
 int rdma_listen(struct rdma_cm_id *id, int backlog);
 
-int __rdma_accept(struct rdma_cm_id *id, struct rdma_conn_param *conn_param,
-		  const char *caller);
+int rdma_accept(struct rdma_cm_id *id, struct rdma_conn_param *conn_param);
 
-/**
- * rdma_accept - Called to accept a connection request or response.
- * @id: Connection identifier associated with the request.
- * @conn_param: Information needed to establish the connection.  This must be
- *   provided if accepting a connection request.  If accepting a connection
- *   response, this parameter must be NULL.
- *
- * Typically, this routine is only called by the listener to accept a connection
- * request.  It must also be called on the active side of a connection if the
- * user is performing their own QP transitions.
- *
- * In the case of error, a reject message is sent to the remote side and the
- * state of the qp associated with the id is modified to error, such that any
- * previously posted receive buffers would be flushed.
- */
-#define rdma_accept(id, conn_param) \
-	__rdma_accept((id), (conn_param),  KBUILD_MODNAME)
+void rdma_lock_handler(struct rdma_cm_id *id);
+void rdma_unlock_handler(struct rdma_cm_id *id);
+int rdma_accept_ece(struct rdma_cm_id *id, struct rdma_conn_param *conn_param,
+		    struct rdma_ucm_ece *ece);
 
 /**
  * rdma_notify - Notifies the RDMA CM of an asynchronous event that has
@@ -313,7 +280,7 @@ int rdma_notify(struct rdma_cm_id *id, enum ib_event_type event);
  * rdma_reject - Called to reject a connection request or response.
  */
 int rdma_reject(struct rdma_cm_id *id, const void *private_data,
-		u8 private_data_len);
+		u8 private_data_len, u8 reason);
 
 /**
  * rdma_disconnect - This function disconnects the associated QP and
@@ -375,6 +342,8 @@ int rdma_set_reuseaddr(struct rdma_cm_id *id, int reuse);
 int rdma_set_afonly(struct rdma_cm_id *id, int afonly);
 
 int rdma_set_ack_timeout(struct rdma_cm_id *id, u8 timeout);
+
+int rdma_set_min_rnr_timer(struct rdma_cm_id *id, u8 min_rnr_timer);
  /**
  * rdma_get_service_id - Return the IB service ID for a specified address.
  * @id: Communication identifier associated with the address.
@@ -389,14 +358,6 @@ __be64 rdma_get_service_id(struct rdma_cm_id *id, struct sockaddr *addr);
  */
 const char *__attribute_const__ rdma_reject_msg(struct rdma_cm_id *id,
 						int reason);
-/**
- * rdma_is_consumer_reject - return true if the consumer rejected the connect
- *                           request.
- * @id: Communication identifier that received the REJECT event.
- * @reason: Value returned in the REJECT event status field.
- */
-bool rdma_is_consumer_reject(struct rdma_cm_id *id, int reason);
-
 /**
  * rdma_consumer_reject_data - return the consumer reject private data and
  *			       length, if any.

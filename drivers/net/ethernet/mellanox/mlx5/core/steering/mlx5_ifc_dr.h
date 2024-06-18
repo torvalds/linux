@@ -5,97 +5,7 @@
 #define MLX5_IFC_DR_H
 
 enum {
-	MLX5DR_ACTION_MDFY_HW_FLD_L2_0		= 0,
-	MLX5DR_ACTION_MDFY_HW_FLD_L2_1		= 1,
-	MLX5DR_ACTION_MDFY_HW_FLD_L2_2		= 2,
-	MLX5DR_ACTION_MDFY_HW_FLD_L3_0		= 3,
-	MLX5DR_ACTION_MDFY_HW_FLD_L3_1		= 4,
-	MLX5DR_ACTION_MDFY_HW_FLD_L3_2		= 5,
-	MLX5DR_ACTION_MDFY_HW_FLD_L3_3		= 6,
-	MLX5DR_ACTION_MDFY_HW_FLD_L3_4		= 7,
-	MLX5DR_ACTION_MDFY_HW_FLD_L4_0		= 8,
-	MLX5DR_ACTION_MDFY_HW_FLD_L4_1		= 9,
-	MLX5DR_ACTION_MDFY_HW_FLD_MPLS		= 10,
-	MLX5DR_ACTION_MDFY_HW_FLD_L2_TNL_0	= 11,
-	MLX5DR_ACTION_MDFY_HW_FLD_REG_0		= 12,
-	MLX5DR_ACTION_MDFY_HW_FLD_REG_1		= 13,
-	MLX5DR_ACTION_MDFY_HW_FLD_REG_2		= 14,
-	MLX5DR_ACTION_MDFY_HW_FLD_REG_3		= 15,
-	MLX5DR_ACTION_MDFY_HW_FLD_L4_2		= 16,
-	MLX5DR_ACTION_MDFY_HW_FLD_FLEX_0	= 17,
-	MLX5DR_ACTION_MDFY_HW_FLD_FLEX_1	= 18,
-	MLX5DR_ACTION_MDFY_HW_FLD_FLEX_2	= 19,
-	MLX5DR_ACTION_MDFY_HW_FLD_FLEX_3	= 20,
-	MLX5DR_ACTION_MDFY_HW_FLD_L2_TNL_1	= 21,
-	MLX5DR_ACTION_MDFY_HW_FLD_METADATA	= 22,
-	MLX5DR_ACTION_MDFY_HW_FLD_RESERVED	= 23,
-};
-
-enum {
-	MLX5DR_ACTION_MDFY_HW_OP_SET		= 0x2,
-	MLX5DR_ACTION_MDFY_HW_OP_ADD		= 0x3,
-};
-
-enum {
-	MLX5DR_ACTION_MDFY_HW_HDR_L3_NONE	= 0x0,
-	MLX5DR_ACTION_MDFY_HW_HDR_L3_IPV4	= 0x1,
-	MLX5DR_ACTION_MDFY_HW_HDR_L3_IPV6	= 0x2,
-};
-
-enum {
-	MLX5DR_ACTION_MDFY_HW_HDR_L4_NONE	= 0x0,
-	MLX5DR_ACTION_MDFY_HW_HDR_L4_TCP	= 0x1,
-	MLX5DR_ACTION_MDFY_HW_HDR_L4_UDP	= 0x2,
-};
-
-enum {
-	MLX5DR_STE_LU_TYPE_NOP				= 0x00,
-	MLX5DR_STE_LU_TYPE_SRC_GVMI_AND_QP		= 0x05,
-	MLX5DR_STE_LU_TYPE_ETHL2_TUNNELING_I		= 0x0a,
-	MLX5DR_STE_LU_TYPE_ETHL2_DST_O			= 0x06,
-	MLX5DR_STE_LU_TYPE_ETHL2_DST_I			= 0x07,
-	MLX5DR_STE_LU_TYPE_ETHL2_DST_D			= 0x1b,
-	MLX5DR_STE_LU_TYPE_ETHL2_SRC_O			= 0x08,
-	MLX5DR_STE_LU_TYPE_ETHL2_SRC_I			= 0x09,
-	MLX5DR_STE_LU_TYPE_ETHL2_SRC_D			= 0x1c,
-	MLX5DR_STE_LU_TYPE_ETHL2_SRC_DST_O		= 0x36,
-	MLX5DR_STE_LU_TYPE_ETHL2_SRC_DST_I		= 0x37,
-	MLX5DR_STE_LU_TYPE_ETHL2_SRC_DST_D		= 0x38,
-	MLX5DR_STE_LU_TYPE_ETHL3_IPV6_DST_O		= 0x0d,
-	MLX5DR_STE_LU_TYPE_ETHL3_IPV6_DST_I		= 0x0e,
-	MLX5DR_STE_LU_TYPE_ETHL3_IPV6_DST_D		= 0x1e,
-	MLX5DR_STE_LU_TYPE_ETHL3_IPV6_SRC_O		= 0x0f,
-	MLX5DR_STE_LU_TYPE_ETHL3_IPV6_SRC_I		= 0x10,
-	MLX5DR_STE_LU_TYPE_ETHL3_IPV6_SRC_D		= 0x1f,
-	MLX5DR_STE_LU_TYPE_ETHL3_IPV4_5_TUPLE_O		= 0x11,
-	MLX5DR_STE_LU_TYPE_ETHL3_IPV4_5_TUPLE_I		= 0x12,
-	MLX5DR_STE_LU_TYPE_ETHL3_IPV4_5_TUPLE_D		= 0x20,
-	MLX5DR_STE_LU_TYPE_ETHL3_IPV4_MISC_O		= 0x29,
-	MLX5DR_STE_LU_TYPE_ETHL3_IPV4_MISC_I		= 0x2a,
-	MLX5DR_STE_LU_TYPE_ETHL3_IPV4_MISC_D		= 0x2b,
-	MLX5DR_STE_LU_TYPE_ETHL4_O			= 0x13,
-	MLX5DR_STE_LU_TYPE_ETHL4_I			= 0x14,
-	MLX5DR_STE_LU_TYPE_ETHL4_D			= 0x21,
-	MLX5DR_STE_LU_TYPE_ETHL4_MISC_O			= 0x2c,
-	MLX5DR_STE_LU_TYPE_ETHL4_MISC_I			= 0x2d,
-	MLX5DR_STE_LU_TYPE_ETHL4_MISC_D			= 0x2e,
-	MLX5DR_STE_LU_TYPE_MPLS_FIRST_O			= 0x15,
-	MLX5DR_STE_LU_TYPE_MPLS_FIRST_I			= 0x24,
-	MLX5DR_STE_LU_TYPE_MPLS_FIRST_D			= 0x25,
-	MLX5DR_STE_LU_TYPE_GRE				= 0x16,
-	MLX5DR_STE_LU_TYPE_FLEX_PARSER_0		= 0x22,
-	MLX5DR_STE_LU_TYPE_FLEX_PARSER_1		= 0x23,
-	MLX5DR_STE_LU_TYPE_FLEX_PARSER_TNL_HEADER	= 0x19,
-	MLX5DR_STE_LU_TYPE_GENERAL_PURPOSE		= 0x18,
-	MLX5DR_STE_LU_TYPE_STEERING_REGISTERS_0		= 0x2f,
-	MLX5DR_STE_LU_TYPE_STEERING_REGISTERS_1		= 0x30,
 	MLX5DR_STE_LU_TYPE_DONT_CARE			= 0x0f,
-};
-
-enum mlx5dr_ste_entry_type {
-	MLX5DR_STE_TYPE_TX		= 1,
-	MLX5DR_STE_TYPE_RX		= 2,
-	MLX5DR_STE_TYPE_MODIFY_PKT	= 6,
 };
 
 struct mlx5_ifc_ste_general_bits {
@@ -518,10 +428,7 @@ struct mlx5_ifc_ste_gre_bits {
 };
 
 struct mlx5_ifc_ste_flex_parser_0_bits {
-	u8         parser_3_label[0x14];
-	u8         parser_3_exp[0x3];
-	u8         parser_3_s_bos[0x1];
-	u8         parser_3_ttl[0x8];
+	u8         flex_parser_3[0x20];
 
 	u8         flex_parser_2[0x20];
 
@@ -540,12 +447,63 @@ struct mlx5_ifc_ste_flex_parser_1_bits {
 	u8         flex_parser_4[0x20];
 };
 
+struct mlx5_ifc_ste_flex_parser_ok_bits {
+	u8         flex_parser_3[0x20];
+	u8         flex_parser_2[0x20];
+	u8         flex_parsers_ok[0x8];
+	u8         reserved_at_48[0x18];
+	u8         flex_parser_0[0x20];
+};
+
 struct mlx5_ifc_ste_flex_parser_tnl_bits {
 	u8         flex_parser_tunneling_header_63_32[0x20];
 
 	u8         flex_parser_tunneling_header_31_0[0x20];
 
 	u8         reserved_at_40[0x40];
+};
+
+struct mlx5_ifc_ste_flex_parser_tnl_vxlan_gpe_bits {
+	u8         outer_vxlan_gpe_flags[0x8];
+	u8         reserved_at_8[0x10];
+	u8         outer_vxlan_gpe_next_protocol[0x8];
+
+	u8         outer_vxlan_gpe_vni[0x18];
+	u8         reserved_at_38[0x8];
+
+	u8         reserved_at_40[0x40];
+};
+
+struct mlx5_ifc_ste_flex_parser_tnl_geneve_bits {
+	u8         reserved_at_0[0x2];
+	u8         geneve_opt_len[0x6];
+	u8         geneve_oam[0x1];
+	u8         reserved_at_9[0x7];
+	u8         geneve_protocol_type[0x10];
+
+	u8         geneve_vni[0x18];
+	u8         reserved_at_38[0x8];
+
+	u8         reserved_at_40[0x40];
+};
+
+struct mlx5_ifc_ste_flex_parser_tnl_gtpu_bits {
+	u8	   reserved_at_0[0x5];
+	u8	   gtpu_msg_flags[0x3];
+	u8	   gtpu_msg_type[0x8];
+	u8	   reserved_at_10[0x10];
+
+	u8	   gtpu_teid[0x20];
+
+	u8	   reserved_at_40[0x40];
+};
+
+struct mlx5_ifc_ste_tunnel_header_bits {
+	u8	   tunnel_header_0[0x20];
+
+	u8	   tunnel_header_1[0x20];
+
+	u8	   reserved_at_40[0x40];
 };
 
 struct mlx5_ifc_ste_general_purpose_bits {
@@ -599,6 +557,47 @@ struct mlx5_ifc_dr_action_hw_set_bits {
 	u8         destination_length[0x5];
 
 	u8         inline_data[0x20];
+};
+
+struct mlx5_ifc_dr_action_hw_copy_bits {
+	u8         opcode[0x8];
+	u8         destination_field_code[0x8];
+	u8         reserved_at_10[0x2];
+	u8         destination_left_shifter[0x6];
+	u8         reserved_at_18[0x2];
+	u8         destination_length[0x6];
+
+	u8         reserved_at_20[0x8];
+	u8         source_field_code[0x8];
+	u8         reserved_at_30[0x2];
+	u8         source_left_shifter[0x6];
+	u8         reserved_at_38[0x8];
+};
+
+enum {
+	MLX5DR_ASO_FLOW_METER_NUM_PER_OBJ = 2,
+};
+
+struct mlx5_ifc_ste_aso_flow_meter_action_bits {
+	u8         reserved_at_0[0xc];
+	u8         action[0x1];
+	u8         initial_color[0x2];
+	u8         line_id[0x1];
+};
+
+struct mlx5_ifc_ste_double_action_aso_v1_bits {
+	u8         action_id[0x8];
+	u8         aso_context_number[0x18];
+
+	u8         dest_reg_id[0x2];
+	u8         change_ordering_tag[0x1];
+	u8         aso_check_ordering[0x1];
+	u8         aso_context_type[0x4];
+	u8         reserved_at_28[0x8];
+	union {
+		u8 aso_fields[0x10];
+		struct mlx5_ifc_ste_aso_flow_meter_action_bits flow_meter;
+	};
 };
 
 #endif /* MLX5_IFC_DR_H */

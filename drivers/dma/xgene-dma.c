@@ -18,8 +18,9 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/platform_device.h>
 
 #include "dmaengine.h"
 
@@ -287,6 +288,8 @@ struct xgene_dma_chan {
 
 /**
  * struct xgene_dma - internal representation of an X-Gene DMA device
+ * @dev: reference to this device's struct device
+ * @clk: reference to this device's clock
  * @err_irq: DMA error irq number
  * @ring_num: start id number for DMA ring
  * @csr_dma: base for DMA register access
@@ -973,9 +976,9 @@ static enum dma_status xgene_dma_tx_status(struct dma_chan *dchan,
 	return dma_cookie_status(dchan, cookie, txstate);
 }
 
-static void xgene_dma_tasklet_cb(unsigned long data)
+static void xgene_dma_tasklet_cb(struct tasklet_struct *t)
 {
-	struct xgene_dma_chan *chan = (struct xgene_dma_chan *)data;
+	struct xgene_dma_chan *chan = from_tasklet(chan, t, tasklet);
 
 	/* Run all cleanup for descriptors which have been completed */
 	xgene_dma_cleanup_descriptors(chan);
@@ -1537,8 +1540,7 @@ static int xgene_dma_async_register(struct xgene_dma *pdma, int id)
 	INIT_LIST_HEAD(&chan->ld_pending);
 	INIT_LIST_HEAD(&chan->ld_running);
 	INIT_LIST_HEAD(&chan->ld_completed);
-	tasklet_init(&chan->tasklet, xgene_dma_tasklet_cb,
-		     (unsigned long)chan);
+	tasklet_setup(&chan->tasklet, xgene_dma_tasklet_cb);
 
 	chan->pending = 0;
 	chan->desc_pool = NULL;
@@ -1774,7 +1776,7 @@ err_clk_enable:
 	return ret;
 }
 
-static int xgene_dma_remove(struct platform_device *pdev)
+static void xgene_dma_remove(struct platform_device *pdev)
 {
 	struct xgene_dma *pdma = platform_get_drvdata(pdev);
 	struct xgene_dma_chan *chan;
@@ -1795,8 +1797,6 @@ static int xgene_dma_remove(struct platform_device *pdev)
 
 	if (!IS_ERR(pdma->clk))
 		clk_disable_unprepare(pdma->clk);
-
-	return 0;
 }
 
 #ifdef CONFIG_ACPI
@@ -1815,7 +1815,7 @@ MODULE_DEVICE_TABLE(of, xgene_dma_of_match_ptr);
 
 static struct platform_driver xgene_dma_driver = {
 	.probe = xgene_dma_probe,
-	.remove = xgene_dma_remove,
+	.remove_new = xgene_dma_remove,
 	.driver = {
 		.name = "X-Gene-DMA",
 		.of_match_table = xgene_dma_of_match_ptr,

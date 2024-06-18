@@ -16,7 +16,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x0 0x80000000 0x0 0xc0000000>;
 	};
@@ -1321,6 +1321,8 @@
 	};
 
 	serial@70006000 {
+		/delete-property/ dmas;
+		/delete-property/ dma-names;
 		status = "okay";
 	};
 
@@ -1328,7 +1330,7 @@
 		status = "okay";
 		clock-frequency = <400000>;
 
-		max77620: max77620@3c {
+		pmic: pmic@3c {
 			compatible = "maxim,max77620";
 			reg = <0x3c>;
 			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
@@ -1341,54 +1343,6 @@
 
 			pinctrl-names = "default";
 			pinctrl-0 = <&max77620_default>;
-
-			max77620_default: pinmux@0 {
-				pin_gpio0 {
-					pins = "gpio0";
-					function = "gpio";
-				};
-
-				pin_gpio1 {
-					pins = "gpio1";
-					function = "fps-out";
-					drive-push-pull = <1>;
-					maxim,active-fps-source = <MAX77620_FPS_SRC_0>;
-					maxim,active-fps-power-up-slot = <7>;
-					maxim,active-fps-power-down-slot = <0>;
-				};
-
-				pin_gpio2_3 {
-					pins = "gpio2", "gpio3";
-					function = "fps-out";
-					drive-open-drain = <1>;
-					maxim,active-fps-source = <MAX77620_FPS_SRC_0>;
-				};
-
-				pin_gpio4 {
-					pins = "gpio4";
-					function = "32k-out1";
-				};
-
-				pin_gpio5_6_7 {
-					pins = "gpio5", "gpio6", "gpio7";
-					function = "gpio";
-					drive-push-pull = <1>;
-				};
-
-				pin_gpio2 {
-					maxim,active-fps-source = <MAX77620_FPS_SRC_0>;
-				};
-
-				pin_gpio3 {
-					maxim,active-fps-source = <MAX77620_FPS_SRC_0>;
-				};
-			};
-
-			spmic-default-output-high {
-				gpio-hog;
-				output-high;
-				gpios = <2 GPIO_ACTIVE_HIGH 7 GPIO_ACTIVE_HIGH>;
-			};
 
 			fps {
 				#address-cells = <1>;
@@ -1408,6 +1362,54 @@
 				fps2 {
 					reg = <2>;
 					maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN0>;
+				};
+			};
+
+			hog-0 {
+				gpio-hog;
+				output-high;
+				gpios = <2 GPIO_ACTIVE_HIGH>,
+					<7 GPIO_ACTIVE_HIGH>;
+			};
+
+			max77620_default: pinmux {
+				gpio0 {
+					pins = "gpio0";
+					function = "gpio";
+				};
+
+				gpio1 {
+					pins = "gpio1";
+					function = "fps-out";
+					drive-push-pull = <1>;
+					maxim,active-fps-source = <MAX77620_FPS_SRC_0>;
+					maxim,active-fps-power-up-slot = <7>;
+					maxim,active-fps-power-down-slot = <0>;
+				};
+
+				gpio2 {
+					pins = "gpio2";
+					function = "fps-out";
+					drive-open-drain = <1>;
+					maxim,active-fps-source = <MAX77620_FPS_SRC_0>;
+				};
+
+				gpio3 {
+					pins = "gpio3";
+					function = "fps-out";
+					drive-open-drain = <1>;
+					maxim,active-fps-source = <MAX77620_FPS_SRC_0>;
+				};
+
+				gpio4 {
+					pins = "gpio4";
+					function = "32k-out1";
+				};
+
+				gpio5_6_7 {
+					pins = "gpio5", "gpio6", "gpio7";
+					function = "gpio";
+					drive-push-pull = <1>;
 				};
 			};
 
@@ -1580,37 +1582,16 @@
 		status = "okay";
 	};
 
-	sdhci@700b0600 {
+	mmc@700b0600 {
 		bus-width = <8>;
 		non-removable;
 		status = "okay";
 	};
 
-	clocks {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		clk32k_in: clock@0 {
-			compatible = "fixed-clock";
-			reg = <0>;
-			#clock-cells = <0>;
-			clock-frequency = <32768>;
-		};
-	};
-
-	gpio-keys {
-		compatible = "gpio-keys";
-		status = "okay";
-
-		power {
-			debounce-interval = <30>;
-			gpios = <&gpio TEGRA_GPIO(X, 7) GPIO_ACTIVE_LOW>;
-			label = "Power";
-			linux,code = <KEY_POWER>;
-			wakeup-event-action = <EV_ACT_ASSERTED>;
-			wakeup-source;
-		};
+	clk32k_in: clock-32k {
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+		#clock-cells = <0>;
 	};
 
 	cpus {
@@ -1637,228 +1618,217 @@
 		};
 	};
 
+	gpio-keys {
+		compatible = "gpio-keys";
+		status = "okay";
+
+		key-power {
+			debounce-interval = <30>;
+			gpios = <&gpio TEGRA_GPIO(X, 7) GPIO_ACTIVE_LOW>;
+			label = "Power";
+			linux,code = <KEY_POWER>;
+			wakeup-event-action = <EV_ACT_ASSERTED>;
+			wakeup-source;
+		};
+	};
+
 	psci {
 		compatible = "arm,psci-1.0";
 		method = "smc";
 	};
 
-	regulators {
-		compatible = "simple-bus";
-		device_type = "fixed-regulators";
-		#address-cells = <1>;
-		#size-cells = <0>;
+	battery_reg: regulator-vdd-ac-bat {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd-ac-bat";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+	};
 
-		battery_reg: regulator@0 {
-			compatible = "regulator-fixed";
-			reg = <0>;
-			regulator-name = "vdd-ac-bat";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			regulator-always-on;
-		};
+	vdd_3v3: regulator-vdd-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd-3v3";
+		regulator-enable-ramp-delay = <160>;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
 
-		vdd_3v3: regulator@1 {
-			compatible = "regulator-fixed";
-			reg = <1>;
-			regulator-name = "vdd-3v3";
-			regulator-enable-ramp-delay = <160>;
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			regulator-always-on;
+		gpio = <&pmic 3 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
 
-			gpio = <&max77620 3 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-		};
+	max77620_gpio7: regulator-max77620-gpio7 {
+		compatible = "regulator-fixed";
+		regulator-name = "max77620-gpio7";
+		regulator-enable-ramp-delay = <240>;
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		vin-supply = <&max77620_ldo0>;
+		regulator-always-on;
+		regulator-boot-on;
 
-		max77620_gpio7: regulator@2 {
-			compatible = "regulator-fixed";
-			reg = <2>;
-			regulator-name = "max77620-gpio7";
-			regulator-enable-ramp-delay = <240>;
-			regulator-min-microvolt = <1200000>;
-			regulator-max-microvolt = <1200000>;
-			vin-supply = <&max77620_ldo0>;
-			regulator-always-on;
-			regulator-boot-on;
+		gpio = <&pmic 7 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
 
-			gpio = <&max77620 7 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-		};
+	lcd_bl_en: regulator-lcd-bl-en {
+		compatible = "regulator-fixed";
+		regulator-name = "lcd-bl-en";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
 
-		lcd_bl_en: regulator@3 {
-			compatible = "regulator-fixed";
-			reg = <3>;
-			regulator-name = "lcd-bl-en";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			regulator-boot-on;
+		gpio = <&gpio TEGRA_GPIO(V, 1) GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
 
-			gpio = <&gpio TEGRA_GPIO(V, 1) GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-		};
+	en_vdd_sd: regulator-vdd-sd {
+		compatible = "regulator-fixed";
+		regulator-name = "en-vdd-sd";
+		regulator-enable-ramp-delay = <472>;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vdd_3v3>;
 
-		en_vdd_sd: regulator@4 {
-			compatible = "regulator-fixed";
-			reg = <4>;
-			regulator-name = "en-vdd-sd";
-			regulator-enable-ramp-delay = <472>;
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			vin-supply = <&vdd_3v3>;
+		gpio = <&gpio TEGRA_GPIO(Z, 4) GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
 
-			gpio = <&gpio TEGRA_GPIO(Z, 4) GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-		};
+	en_vdd_cam: regulator-vdd-cam {
+		compatible = "regulator-fixed";
+		regulator-name = "en-vdd-cam";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
 
-		en_vdd_cam: regulator@5 {
-			compatible = "regulator-fixed";
-			reg = <5>;
-			regulator-name = "en-vdd-cam";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
+		gpio = <&gpio TEGRA_GPIO(S, 4) GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
 
-			gpio = <&gpio TEGRA_GPIO(S, 4) GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-		};
+	vdd_sys_boost: regulator-vdd-sys-boost {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd-sys-boost";
+		regulator-enable-ramp-delay = <3090>;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
 
-		vdd_sys_boost: regulator@6 {
-			compatible = "regulator-fixed";
-			reg = <6>;
-			regulator-name = "vdd-sys-boost";
-			regulator-enable-ramp-delay = <3090>;
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			regulator-always-on;
+		gpio = <&pmic 1 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
 
-			gpio = <&max77620 1 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-		};
+	vdd_hdmi: regulator-vdd-hdmi {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd-hdmi";
+		regulator-enable-ramp-delay = <468>;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&vdd_sys_boost>;
+		regulator-boot-on;
 
-		vdd_hdmi: regulator@7 {
-			compatible = "regulator-fixed";
-			reg = <7>;
-			regulator-name = "vdd-hdmi";
-			regulator-enable-ramp-delay = <468>;
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			vin-supply = <&vdd_sys_boost>;
-			regulator-boot-on;
+		gpio = <&gpio TEGRA_GPIO(CC, 7) GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
 
-			gpio = <&gpio TEGRA_GPIO(CC, 7) GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-		};
+	en_vdd_cpu_fixed: regulator-vdd-cpu-fixed {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd-cpu-fixed";
+		regulator-min-microvolt = <1000000>;
+		regulator-max-microvolt = <1000000>;
+	};
 
-		en_vdd_cpu_fixed: regulator@8 {
-			compatible = "regulator-fixed";
-			reg = <8>;
-			regulator-name = "vdd-cpu-fixed";
-			regulator-min-microvolt = <1000000>;
-			regulator-max-microvolt = <1000000>;
-		};
+	vdd_aux_3v3: regulator-vdd-aux-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "aux-3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
 
-		vdd_aux_3v3: regulator@9 {
-			compatible = "regulator-fixed";
-			reg = <9>;
-			regulator-name = "aux-3v3";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-		};
+	vdd_snsr_pm: regulator-vdd-snsr-pm {
+		compatible = "regulator-fixed";
+		regulator-name = "snsr_pm";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 
-		vdd_snsr_pm: regulator@10 {
-			compatible = "regulator-fixed";
-			reg = <10>;
-			regulator-name = "snsr_pm";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
+		enable-active-high;
+	};
 
-			enable-active-high;
-		};
+	vdd_usb_5v0: regulator-vdd-usb-5v0 {
+		compatible = "regulator-fixed";
+		status = "disabled";
+		regulator-name = "vdd-usb-5v0";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&vdd_3v3>;
 
-		vdd_usb_5v0: regulator@11 {
-			compatible = "regulator-fixed";
-			reg = <11>;
-			status = "disabled";
-			regulator-name = "vdd-usb-5v0";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			vin-supply = <&vdd_3v3>;
+		enable-active-high;
+	};
 
-			enable-active-high;
-		};
+	vdd_cdc_1v2_aud: regulator-vdd-cdc-1v2-aud {
+		compatible = "regulator-fixed";
+		status = "disabled";
+		regulator-name = "vdd_cdc_1v2_aud";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		startup-delay-us = <250000>;
 
-		vdd_cdc_1v2_aud: regulator@101 {
-			compatible = "regulator-fixed";
-			reg = <101>;
-			status = "disabled";
-			regulator-name = "vdd_cdc_1v2_aud";
-			regulator-min-microvolt = <1200000>;
-			regulator-max-microvolt = <1200000>;
-			startup-delay-us = <250000>;
+		enable-active-high;
+	};
 
-			enable-active-high;
-		};
+	vdd_disp_3v0: regulator-vdd-disp-3v0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd-disp-3v0";
+		regulator-enable-ramp-delay = <232>;
+		regulator-min-microvolt = <3000000>;
+		regulator-max-microvolt = <3000000>;
+		regulator-always-on;
 
-		vdd_disp_3v0: regulator@12 {
-			compatible = "regulator-fixed";
-			reg = <12>;
-			regulator-name = "vdd-disp-3v0";
-			regulator-enable-ramp-delay = <232>;
-			regulator-min-microvolt = <3000000>;
-			regulator-max-microvolt = <3000000>;
-			regulator-always-on;
+		gpio = <&gpio TEGRA_GPIO(I, 3) GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
 
-			gpio = <&gpio TEGRA_GPIO(I, 3) GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-		};
+	vdd_fan: regulator-vdd-fan {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd-fan";
+		regulator-enable-ramp-delay = <284>;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
 
-		vdd_fan: regulator@13 {
-			compatible = "regulator-fixed";
-			reg = <13>;
-			regulator-name = "vdd-fan";
-			regulator-enable-ramp-delay = <284>;
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
+		gpio = <&gpio TEGRA_GPIO(E, 4) GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
 
-			gpio = <&gpio TEGRA_GPIO(E, 4) GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-		};
+	usb_vbus1: regulator-usb-vbus1 {
+		compatible = "regulator-fixed";
+		regulator-name = "usb-vbus1";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
 
-		usb_vbus1: regulator@14 {
-			compatible = "regulator-fixed";
-			reg = <14>;
-			regulator-name = "usb-vbus1";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
+		gpio = <&gpio TEGRA_GPIO(CC, 5) GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		gpio-open-drain;
+	};
 
-			gpio = <&gpio TEGRA_GPIO(CC, 5) GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-			gpio-open-drain;
-		};
+	usb_vbus2: regulator-usb-vbus2 {
+		compatible = "regulator-fixed";
+		regulator-name = "usb-vbus2";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
 
-		usb_vbus2: regulator@15 {
-			compatible = "regulator-fixed";
-			reg = <15>;
-			regulator-name = "usb-vbus2";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
+		gpio = <&gpio TEGRA_GPIO(CC, 4) GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		gpio-open-drain;
+	};
 
-			gpio = <&gpio TEGRA_GPIO(CC, 4) GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-			gpio-open-drain;
-		};
+	vdd_3v3_eth: regulator-vdd-3v3-eth {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd-3v3-eth-a02";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+		regulator-boot-on;
 
-		vdd_3v3_eth: regulator@16 {
-			compatible = "regulator-fixed";
-			reg = <16>;
-			regulator-name = "vdd-3v3-eth-a02";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			regulator-always-on;
-			regulator-boot-on;
-
-			gpio = <&gpio TEGRA_GPIO(D, 4) GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-			gpio-open-drain;
-		};
+		gpio = <&gpio TEGRA_GPIO(D, 4) GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		gpio-open-drain;
 	};
 };

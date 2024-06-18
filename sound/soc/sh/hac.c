@@ -270,7 +270,6 @@ static const struct snd_soc_dai_ops hac_dai_ops = {
 static struct snd_soc_dai_driver sh4_hac_dai[] = {
 {
 	.name			= "hac-dai.0",
-	.bus_control		= true,
 	.playback = {
 		.rates		= AC97_RATES,
 		.formats	= AC97_FMTS,
@@ -308,7 +307,8 @@ static struct snd_soc_dai_driver sh4_hac_dai[] = {
 };
 
 static const struct snd_soc_component_driver sh4_hac_component = {
-	.name		= "sh4-hac",
+	.name			= "sh4-hac",
+	.legacy_dai_naming	= 1,
 };
 
 static int hac_soc_platform_probe(struct platform_device *pdev)
@@ -323,10 +323,9 @@ static int hac_soc_platform_probe(struct platform_device *pdev)
 					  sh4_hac_dai, ARRAY_SIZE(sh4_hac_dai));
 }
 
-static int hac_soc_platform_remove(struct platform_device *pdev)
+static void hac_soc_platform_remove(struct platform_device *pdev)
 {
 	snd_soc_set_ac97_ops(NULL);
-	return 0;
 }
 
 static struct platform_driver hac_pcm_driver = {
@@ -335,7 +334,7 @@ static struct platform_driver hac_pcm_driver = {
 	},
 
 	.probe = hac_soc_platform_probe,
-	.remove = hac_soc_platform_remove,
+	.remove_new = hac_soc_platform_remove,
 };
 
 module_platform_driver(hac_pcm_driver);

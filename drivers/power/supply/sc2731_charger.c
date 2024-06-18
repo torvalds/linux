@@ -368,7 +368,7 @@ static int sc2731_charger_usb_change(struct notifier_block *nb,
 
 static int sc2731_charger_hw_init(struct sc2731_charger_info *info)
 {
-	struct power_supply_battery_info bat_info = { };
+	struct power_supply_battery_info *bat_info;
 	u32 term_currrent, term_voltage, cur_val, vol_val;
 	int ret;
 
@@ -390,7 +390,7 @@ static int sc2731_charger_hw_init(struct sc2731_charger_info *info)
 		cur_val = 0x2;
 		vol_val = 0x1;
 	} else {
-		term_currrent = bat_info.charge_term_current_ua / 1000;
+		term_currrent = bat_info->charge_term_current_ua / 1000;
 
 		if (term_currrent <= 90)
 			cur_val = 0;
@@ -399,7 +399,7 @@ static int sc2731_charger_hw_init(struct sc2731_charger_info *info)
 		else
 			cur_val = ((term_currrent - 90) / 25) + 1;
 
-		term_voltage = bat_info.constant_charge_voltage_max_uv / 1000;
+		term_voltage = bat_info->constant_charge_voltage_max_uv / 1000;
 
 		if (term_voltage > 4500)
 			term_voltage = 4500;
@@ -409,7 +409,7 @@ static int sc2731_charger_hw_init(struct sc2731_charger_info *info)
 		else
 			vol_val = 0;
 
-		power_supply_put_battery_info(info->psy_usb, &bat_info);
+		power_supply_put_battery_info(info->psy_usb, bat_info);
 	}
 
 	/* Set charge termination current */
@@ -511,19 +511,18 @@ static int sc2731_charger_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int sc2731_charger_remove(struct platform_device *pdev)
+static void sc2731_charger_remove(struct platform_device *pdev)
 {
 	struct sc2731_charger_info *info = platform_get_drvdata(pdev);
 
 	usb_unregister_notifier(info->usb_phy, &info->usb_notify);
-
-	return 0;
 }
 
 static const struct of_device_id sc2731_charger_of_match[] = {
 	{ .compatible = "sprd,sc2731-charger", },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, sc2731_charger_of_match);
 
 static struct platform_driver sc2731_charger_driver = {
 	.driver = {
@@ -531,7 +530,7 @@ static struct platform_driver sc2731_charger_driver = {
 		.of_match_table = sc2731_charger_of_match,
 	},
 	.probe = sc2731_charger_probe,
-	.remove = sc2731_charger_remove,
+	.remove_new = sc2731_charger_remove,
 };
 
 module_platform_driver(sc2731_charger_driver);

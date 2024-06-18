@@ -444,6 +444,8 @@ void gspca_frame_add(struct gspca_dev *gspca_dev,
 	 * next first packet, wake up the application and advance
 	 * in the queue */
 	if (packet_type == LAST_PACKET) {
+		if (gspca_dev->image_len > gspca_dev->pixfmt.sizeimage)
+			gspca_dev->image_len = gspca_dev->pixfmt.sizeimage;
 		spin_lock_irqsave(&gspca_dev->qlock, flags);
 		list_del(&buf->list);
 		spin_unlock_irqrestore(&gspca_dev->qlock, flags);
@@ -925,7 +927,7 @@ static int wxh_to_nearest_mode(struct gspca_dev *gspca_dev,
 {
 	int i;
 
-	for (i = gspca_dev->cam.nmodes; --i > 0; ) {
+	for (i = gspca_dev->cam.nmodes; --i >= 0; ) {
 		if (width >= gspca_dev->cam.cam_mode[i].width
 		    && height >= gspca_dev->cam.cam_mode[i].height
 		    && pixelformat == gspca_dev->cam.cam_mode[i].pixelformat)
@@ -1255,7 +1257,7 @@ static int vidioc_g_parm(struct file *filp, void *priv,
 {
 	struct gspca_dev *gspca_dev = video_drvdata(filp);
 
-	parm->parm.capture.readbuffers = gspca_dev->queue.min_buffers_needed;
+	parm->parm.capture.readbuffers = gspca_dev->queue.min_queued_buffers;
 
 	if (!gspca_dev->sd_desc->get_streamparm)
 		return 0;
@@ -1271,7 +1273,7 @@ static int vidioc_s_parm(struct file *filp, void *priv,
 {
 	struct gspca_dev *gspca_dev = video_drvdata(filp);
 
-	parm->parm.capture.readbuffers = gspca_dev->queue.min_buffers_needed;
+	parm->parm.capture.readbuffers = gspca_dev->queue.min_queued_buffers;
 
 	if (!gspca_dev->sd_desc->set_streamparm) {
 		parm->parm.capture.capability = 0;
@@ -1461,7 +1463,7 @@ int gspca_dev_probe2(struct usb_interface *intf,
 		pr_err("couldn't kzalloc gspca struct\n");
 		return -ENOMEM;
 	}
-	gspca_dev->usb_buf = kmalloc(USB_BUF_SZ, GFP_KERNEL);
+	gspca_dev->usb_buf = kzalloc(USB_BUF_SZ, GFP_KERNEL);
 	if (!gspca_dev->usb_buf) {
 		pr_err("out of memory\n");
 		ret = -ENOMEM;
@@ -1515,7 +1517,7 @@ int gspca_dev_probe2(struct usb_interface *intf,
 	q->ops = &gspca_qops;
 	q->mem_ops = &vb2_vmalloc_memops;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-	q->min_buffers_needed = 2;
+	q->min_queued_buffers = 2;
 	q->lock = &gspca_dev->usb_lock;
 	ret = vb2_queue_init(q);
 	if (ret)
@@ -1555,7 +1557,7 @@ int gspca_dev_probe2(struct usb_interface *intf,
 
 	/* init video stuff */
 	ret = video_register_device(&gspca_dev->vdev,
-				  VFL_TYPE_GRABBER,
+				  VFL_TYPE_VIDEO,
 				  -1);
 	if (ret < 0) {
 		pr_err("video_register_device err %d\n", ret);
@@ -1575,6 +1577,9 @@ out:
 		input_unregister_device(gspca_dev->input_dev);
 #endif
 	v4l2_ctrl_handler_free(gspca_dev->vdev.ctrl_handler);
+	v4l2_device_unregister(&gspca_dev->v4l2_dev);
+	if (sd_desc->probe_error)
+		sd_desc->probe_error(gspca_dev);
 	kfree(gspca_dev->usb_buf);
 	kfree(gspca_dev);
 	return ret;

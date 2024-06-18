@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2008-2010 Cisco Systems, Inc.  All rights reserved.
  * Copyright 2007 Nuova Systems, Inc.  All rights reserved.
- *
- * This program is free software; you may redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- *
  */
 
 #include <linux/kernel.h>
@@ -159,23 +146,19 @@ EXPORT_SYMBOL(vnic_dev_get_res);
 static unsigned int vnic_dev_desc_ring_size(struct vnic_dev_ring *ring,
 	unsigned int desc_count, unsigned int desc_size)
 {
-	/* The base address of the desc rings must be 512 byte aligned.
-	 * Descriptor count is aligned to groups of 32 descriptors.  A
-	 * count of 0 means the maximum 4096 descriptors.  Descriptor
-	 * size is aligned to 16 bytes.
-	 */
 
-	unsigned int count_align = 32;
-	unsigned int desc_align = 16;
+	/* Descriptor ring base address alignment in bytes*/
+	ring->base_align = VNIC_DESC_BASE_ALIGN;
 
-	ring->base_align = 512;
-
+	/* A count of 0 means the maximum descriptors */
 	if (desc_count == 0)
-		desc_count = 4096;
+		desc_count = VNIC_DESC_MAX_COUNT;
 
-	ring->desc_count = ALIGN(desc_count, count_align);
+	/* Descriptor count aligned in groups of VNIC_DESC_COUNT_ALIGN descriptors */
+	ring->desc_count = ALIGN(desc_count, VNIC_DESC_COUNT_ALIGN);
 
-	ring->desc_size = ALIGN(desc_size, desc_align);
+	/* Descriptor size alignment in bytes */
+	ring->desc_size = ALIGN(desc_size, VNIC_DESC_SIZE_ALIGN);
 
 	ring->size = ring->desc_count * ring->desc_size;
 	ring->size_unaligned = ring->size + ring->base_align;
@@ -193,9 +176,10 @@ int vnic_dev_alloc_desc_ring(struct vnic_dev *vdev, struct vnic_dev_ring *ring,
 {
 	vnic_dev_desc_ring_size(ring, desc_count, desc_size);
 
-	ring->descs_unaligned = pci_alloc_consistent(vdev->pdev,
-		ring->size_unaligned,
-		&ring->base_addr_unaligned);
+	ring->descs_unaligned = dma_alloc_coherent(&vdev->pdev->dev,
+						   ring->size_unaligned,
+						   &ring->base_addr_unaligned,
+						   GFP_KERNEL);
 
 	if (!ring->descs_unaligned) {
 		vdev_err(vdev, "Failed to allocate ring (size=%d), aborting\n",
@@ -218,10 +202,9 @@ int vnic_dev_alloc_desc_ring(struct vnic_dev *vdev, struct vnic_dev_ring *ring,
 void vnic_dev_free_desc_ring(struct vnic_dev *vdev, struct vnic_dev_ring *ring)
 {
 	if (ring->descs) {
-		pci_free_consistent(vdev->pdev,
-			ring->size_unaligned,
-			ring->descs_unaligned,
-			ring->base_addr_unaligned);
+		dma_free_coherent(&vdev->pdev->dev, ring->size_unaligned,
+				  ring->descs_unaligned,
+				  ring->base_addr_unaligned);
 		ring->descs = NULL;
 	}
 }
@@ -551,9 +534,9 @@ int vnic_dev_fw_info(struct vnic_dev *vdev,
 	int err = 0;
 
 	if (!vdev->fw_info) {
-		vdev->fw_info = pci_zalloc_consistent(vdev->pdev,
-						      sizeof(struct vnic_devcmd_fw_info),
-						      &vdev->fw_info_pa);
+		vdev->fw_info = dma_alloc_coherent(&vdev->pdev->dev,
+						   sizeof(struct vnic_devcmd_fw_info),
+						   &vdev->fw_info_pa, GFP_ATOMIC);
 		if (!vdev->fw_info)
 			return -ENOMEM;
 
@@ -603,8 +586,9 @@ int vnic_dev_stats_dump(struct vnic_dev *vdev, struct vnic_stats **stats)
 	int wait = 1000;
 
 	if (!vdev->stats) {
-		vdev->stats = pci_alloc_consistent(vdev->pdev,
-			sizeof(struct vnic_stats), &vdev->stats_pa);
+		vdev->stats = dma_alloc_coherent(&vdev->pdev->dev,
+						 sizeof(struct vnic_stats),
+						 &vdev->stats_pa, GFP_ATOMIC);
 		if (!vdev->stats)
 			return -ENOMEM;
 	}
@@ -852,9 +836,9 @@ int vnic_dev_notify_set(struct vnic_dev *vdev, u16 intr)
 		return -EINVAL;
 	}
 
-	notify_addr = pci_alloc_consistent(vdev->pdev,
-			sizeof(struct vnic_devcmd_notify),
-			&notify_pa);
+	notify_addr = dma_alloc_coherent(&vdev->pdev->dev,
+					 sizeof(struct vnic_devcmd_notify),
+					 &notify_pa, GFP_ATOMIC);
 	if (!notify_addr)
 		return -ENOMEM;
 
@@ -882,10 +866,9 @@ static int vnic_dev_notify_unsetcmd(struct vnic_dev *vdev)
 int vnic_dev_notify_unset(struct vnic_dev *vdev)
 {
 	if (vdev->notify) {
-		pci_free_consistent(vdev->pdev,
-			sizeof(struct vnic_devcmd_notify),
-			vdev->notify,
-			vdev->notify_pa);
+		dma_free_coherent(&vdev->pdev->dev,
+				  sizeof(struct vnic_devcmd_notify),
+				  vdev->notify, vdev->notify_pa);
 	}
 
 	return vnic_dev_notify_unsetcmd(vdev);
@@ -1046,18 +1029,17 @@ void vnic_dev_unregister(struct vnic_dev *vdev)
 {
 	if (vdev) {
 		if (vdev->notify)
-			pci_free_consistent(vdev->pdev,
-				sizeof(struct vnic_devcmd_notify),
-				vdev->notify,
-				vdev->notify_pa);
+			dma_free_coherent(&vdev->pdev->dev,
+					  sizeof(struct vnic_devcmd_notify),
+					  vdev->notify, vdev->notify_pa);
 		if (vdev->stats)
-			pci_free_consistent(vdev->pdev,
-				sizeof(struct vnic_stats),
-				vdev->stats, vdev->stats_pa);
+			dma_free_coherent(&vdev->pdev->dev,
+					  sizeof(struct vnic_stats),
+					  vdev->stats, vdev->stats_pa);
 		if (vdev->fw_info)
-			pci_free_consistent(vdev->pdev,
-				sizeof(struct vnic_devcmd_fw_info),
-				vdev->fw_info, vdev->fw_info_pa);
+			dma_free_coherent(&vdev->pdev->dev,
+					  sizeof(struct vnic_devcmd_fw_info),
+					  vdev->fw_info, vdev->fw_info_pa);
 		if (vdev->devcmd2)
 			vnic_dev_deinit_devcmd2(vdev);
 
@@ -1127,7 +1109,7 @@ int vnic_dev_init_prov2(struct vnic_dev *vdev, u8 *buf, u32 len)
 	void *prov_buf;
 	int ret;
 
-	prov_buf = pci_alloc_consistent(vdev->pdev, len, &prov_pa);
+	prov_buf = dma_alloc_coherent(&vdev->pdev->dev, len, &prov_pa, GFP_ATOMIC);
 	if (!prov_buf)
 		return -ENOMEM;
 
@@ -1137,7 +1119,7 @@ int vnic_dev_init_prov2(struct vnic_dev *vdev, u8 *buf, u32 len)
 
 	ret = vnic_dev_cmd(vdev, CMD_INIT_PROV_INFO2, &a0, &a1, wait);
 
-	pci_free_consistent(vdev->pdev, len, prov_buf, prov_pa);
+	dma_free_coherent(&vdev->pdev->dev, len, prov_buf, prov_pa);
 
 	return ret;
 }
@@ -1217,7 +1199,8 @@ int vnic_dev_classifier(struct vnic_dev *vdev, u8 cmd, u16 *entry,
 		tlv_size = sizeof(struct filter) +
 			   sizeof(struct filter_action) +
 			   2 * sizeof(struct filter_tlv);
-		tlv_va = pci_alloc_consistent(vdev->pdev, tlv_size, &tlv_pa);
+		tlv_va = dma_alloc_coherent(&vdev->pdev->dev, tlv_size,
+					    &tlv_pa, GFP_ATOMIC);
 		if (!tlv_va)
 			return -ENOMEM;
 		tlv = tlv_va;
@@ -1240,7 +1223,7 @@ int vnic_dev_classifier(struct vnic_dev *vdev, u8 cmd, u16 *entry,
 
 		ret = vnic_dev_cmd(vdev, CMD_ADD_FILTER, &a0, &a1, wait);
 		*entry = (u16)a0;
-		pci_free_consistent(vdev->pdev, tlv_size, tlv_va, tlv_pa);
+		dma_free_coherent(&vdev->pdev->dev, tlv_size, tlv_va, tlv_pa);
 	} else if (cmd == CLSF_DEL) {
 		a0 = *entry;
 		ret = vnic_dev_cmd(vdev, CMD_DEL_FILTER, &a0, &a1, wait);

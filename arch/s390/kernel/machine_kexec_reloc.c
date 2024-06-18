@@ -27,6 +27,8 @@ int arch_kexec_do_relocs(int r_type, void *loc, unsigned long val,
 		*(u32 *)loc = val;
 		break;
 	case R_390_64:		/* Direct 64 bit.  */
+	case R_390_GLOB_DAT:
+	case R_390_JMP_SLOT:
 		*(u64 *)loc = val;
 		break;
 	case R_390_PC16:	/* PC relative 16 bit.	*/

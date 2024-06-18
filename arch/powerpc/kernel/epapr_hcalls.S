@@ -3,6 +3,7 @@
  * Copyright (C) 2012 Freescale Semiconductor, Inc.
  */
 
+#include <linux/export.h>
 #include <linux/threads.h>
 #include <asm/epapr_hcalls.h>
 #include <asm/reg.h>
@@ -12,7 +13,6 @@
 #include <asm/ppc_asm.h>
 #include <asm/asm-compat.h>
 #include <asm/asm-offsets.h>
-#include <asm/export.h>
 
 #ifndef CONFIG_PPC64
 /* epapr_ev_idle() was derived from e500_idle() */
@@ -21,7 +21,13 @@ _GLOBAL(epapr_ev_idle)
 	ori	r4, r4,_TLF_NAPPING	/* so when we take an exception */
 	PPC_STL	r4, TI_LOCAL_FLAGS(r2)	/* it will return to our caller */
 
+#ifdef CONFIG_BOOKE_OR_40x
 	wrteei	1
+#else
+	mfmsr	r4
+	ori	r4, r4, MSR_EE
+	mtmsr	r4
+#endif
 
 idle_loop:
 	LOAD_REG_IMMEDIATE(r11, EV_HCALL_TOKEN(EV_IDLE))

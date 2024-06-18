@@ -242,12 +242,15 @@ static int mac89x0_device_probe(struct platform_device *pdev)
 		pr_info("No EEPROM, giving up now.\n");
 		goto out1;
         } else {
+		u8 addr[ETH_ALEN];
+
                 for (i = 0; i < ETH_ALEN; i += 2) {
 			/* Big-endian (why??!) */
 			unsigned short s = readreg(dev, PP_IA + i);
-                        dev->dev_addr[i] = s >> 8;
-                        dev->dev_addr[i+1] = s & 0xff;
+			addr[i] = s >> 8;
+			addr[i+1] = s & 0xff;
                 }
+		eth_hw_addr_set(dev, addr);
         }
 
 	dev->irq = SLOT2IRQ(slot);
@@ -541,7 +544,7 @@ static int set_mac_address(struct net_device *dev, void *addr)
 	if (!is_valid_ether_addr(saddr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(dev->dev_addr, saddr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(dev, saddr->sa_data);
 	netdev_info(dev, "Setting MAC address to %pM\n", dev->dev_addr);
 
 	/* set the Ethernet address */
@@ -553,19 +556,18 @@ static int set_mac_address(struct net_device *dev, void *addr)
 
 MODULE_LICENSE("GPL");
 
-static int mac89x0_device_remove(struct platform_device *pdev)
+static void mac89x0_device_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 
 	unregister_netdev(dev);
 	nubus_writew(0, dev->base_addr + ADD_PORT);
 	free_netdev(dev);
-	return 0;
 }
 
 static struct platform_driver mac89x0_platform_driver = {
 	.probe = mac89x0_device_probe,
-	.remove = mac89x0_device_remove,
+	.remove_new = mac89x0_device_remove,
 	.driver = {
 		.name = "mac89x0",
 	},

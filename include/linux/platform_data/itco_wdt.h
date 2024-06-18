@@ -12,13 +12,16 @@
 #define ICH_RES_MEM_OFF		2
 #define ICH_RES_MEM_GCS_PMC	0
 
+/**
+ * struct itco_wdt_platform_data - iTCO_wdt platform data
+ * @name: Name of the platform
+ * @version: iTCO version
+ * @no_reboot_use_pmc: Use PMC BXT API to set and clear NO_REBOOT bit
+ */
 struct itco_wdt_platform_data {
 	char name[32];
 	unsigned int version;
-	/* private data to be passed to update_no_reboot_bit API */
-	void *no_reboot_priv;
-	/* pointer for platform specific no reboot update function */
-	int (*update_no_reboot_bit)(void *priv, bool set);
+	bool no_reboot_use_pmc;
 };
 
 #endif /* _ITCO_WDT_H_ */

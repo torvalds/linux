@@ -9,15 +9,11 @@
 
 
 # KBUILD_CFLAGS used when building rest of boot (takes effect recursively)
-KBUILD_CFLAGS	+= -fno-builtin -Iarch/$(ARCH)/boot/include
-HOSTFLAGS	+= -Iarch/$(ARCH)/boot/include
-
-BIG_ENDIAN	:= $(shell echo __XTENSA_EB__ | $(CC) -E - | grep -v "\#")
-
-export ccflags-y
-export BIG_ENDIAN
+KBUILD_CFLAGS	+= -fno-builtin
 
 subdir-y	:= lib
+targets		+= vmlinux.bin vmlinux.bin.gz
+targets		+= uImage xipImage
 
 # Subdirs for the boot loader(s)
 
@@ -29,24 +25,29 @@ all: $(boot-y)
 Image: boot-elf
 zImage: boot-redboot
 uImage: $(obj)/uImage
+xipImage: $(obj)/xipImage
 
 boot-elf boot-redboot: $(addprefix $(obj)/,$(subdir-y))
 	$(Q)$(MAKE) $(build)=$(obj)/$@ $(MAKECMDGOALS)
 
 OBJCOPYFLAGS = --strip-all -R .comment -R .notes -O binary
 
-vmlinux.bin: vmlinux FORCE
+$(obj)/vmlinux.bin: vmlinux FORCE
 	$(call if_changed,objcopy)
 
-vmlinux.bin.gz: vmlinux.bin FORCE
+$(obj)/vmlinux.bin.gz: $(obj)/vmlinux.bin FORCE
 	$(call if_changed,gzip)
 
-boot-elf: vmlinux.bin
-boot-redboot: vmlinux.bin.gz
+boot-elf: $(obj)/vmlinux.bin
+boot-redboot: $(obj)/vmlinux.bin.gz
 
 UIMAGE_LOADADDR = $(CONFIG_KERNEL_LOAD_ADDRESS)
 UIMAGE_COMPRESSION = gzip
 
-$(obj)/uImage: vmlinux.bin.gz FORCE
+$(obj)/uImage: $(obj)/vmlinux.bin.gz FORCE
 	$(call if_changed,uimage)
+	$(Q)$(kecho) '  Kernel: $@ is ready'
+
+$(obj)/xipImage: vmlinux FORCE
+	$(call if_changed,objcopy)
 	$(Q)$(kecho) '  Kernel: $@ is ready'

@@ -24,9 +24,7 @@ int dca_sysfs_add_req(struct dca_provider *dca, struct device *dev, int slot)
 
 	cd = device_create(dca_class, dca->cd, MKDEV(0, slot + 1), NULL,
 			   "requester%d", req_count++);
-	if (IS_ERR(cd))
-		return PTR_ERR(cd);
-	return 0;
+	return PTR_ERR_OR_ZERO(cd);
 }
 
 void dca_sysfs_remove_req(struct dca_provider *dca, int slot)
@@ -76,7 +74,7 @@ int __init dca_sysfs_init(void)
 	idr_init(&dca_idr);
 	spin_lock_init(&dca_idr_lock);
 
-	dca_class = class_create(THIS_MODULE, "dca");
+	dca_class = class_create("dca");
 	if (IS_ERR(dca_class)) {
 		idr_destroy(&dca_idr);
 		return PTR_ERR(dca_class);

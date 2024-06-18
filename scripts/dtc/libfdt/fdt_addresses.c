@@ -14,7 +14,7 @@
 static int fdt_cells(const void *fdt, int nodeoffset, const char *name)
 {
 	const fdt32_t *c;
-	int val;
+	uint32_t val;
 	int len;
 
 	c = fdt_getprop(fdt, nodeoffset, name, &len);
@@ -25,10 +25,10 @@ static int fdt_cells(const void *fdt, int nodeoffset, const char *name)
 		return -FDT_ERR_BADNCELLS;
 
 	val = fdt32_to_cpu(*c);
-	if ((val <= 0) || (val > FDT_MAX_NCELLS))
+	if (val > FDT_MAX_NCELLS)
 		return -FDT_ERR_BADNCELLS;
 
-	return val;
+	return (int)val;
 }
 
 int fdt_address_cells(const void *fdt, int nodeoffset)
@@ -36,6 +36,8 @@ int fdt_address_cells(const void *fdt, int nodeoffset)
 	int val;
 
 	val = fdt_cells(fdt, nodeoffset, "#address-cells");
+	if (val == 0)
+		return -FDT_ERR_BADNCELLS;
 	if (val == -FDT_ERR_NOTFOUND)
 		return 2;
 	return val;
@@ -71,7 +73,7 @@ int fdt_appendprop_addrrange(void *fdt, int parent, int nodeoffset,
 	/* check validity of address */
 	prop = data;
 	if (addr_cells == 1) {
-		if ((addr > UINT32_MAX) || ((UINT32_MAX + 1 - addr) < size))
+		if ((addr > UINT32_MAX) || (((uint64_t) UINT32_MAX + 1 - addr) < size))
 			return -FDT_ERR_BADVALUE;
 
 		fdt32_st(prop, (uint32_t)addr);

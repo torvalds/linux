@@ -71,6 +71,8 @@
 
 		L2_0: l2-cache0 {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 	};
 
@@ -95,7 +97,7 @@
 	};
 
 	gic: interrupt-controller@2c001000 {
-		compatible = "arm,cortex-a15-gic", "arm,cortex-a9-gic";
+		compatible = "arm,gic-400", "arm,cortex-a15-gic";
 		#interrupt-cells = <3>;
 		#address-cells = <0>;
 		interrupt-controller;
@@ -132,18 +134,7 @@
 		};
 	};
 
-	smb@8000000 {
-		compatible = "simple-bus";
-
-		#address-cells = <2>;
-		#size-cells = <1>;
-		ranges = <0 0 0 0x08000000 0x04000000>,
-			 <1 0 0 0x14000000 0x04000000>,
-			 <2 0 0 0x18000000 0x04000000>,
-			 <3 0 0 0x1c000000 0x04000000>,
-			 <4 0 0 0x0c000000 0x04000000>,
-			 <5 0 0 0x10000000 0x04000000>;
-
+	bus@8000000 {
 		#interrupt-cells = <1>;
 		interrupt-map-mask = <0 0 63>;
 		interrupt-map = <0 0  0 &gic GIC_SPI  0 IRQ_TYPE_LEVEL_HIGH>,

@@ -16,6 +16,7 @@
 #include <linux/ioport.h>
 #include <linux/fcntl.h>
 #include <linux/init.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/poll.h>
 #include <linux/mm.h>
 #include <linux/proc_fs.h>
@@ -63,25 +64,6 @@
 static DEFINE_MUTEX(hpet_mutex); /* replaces BKL */
 static u32 hpet_nhpet, hpet_max_freq = HPET_USER_FREQ;
 
-/* This clocksource driver currently only works on ia64 */
-#ifdef CONFIG_IA64
-static void __iomem *hpet_mctr;
-
-static u64 read_hpet(struct clocksource *cs)
-{
-	return (u64)read_counter((void __iomem *)hpet_mctr);
-}
-
-static struct clocksource clocksource_hpet = {
-	.name		= "hpet",
-	.rating		= 250,
-	.read		= read_hpet,
-	.mask		= CLOCKSOURCE_MASK(64),
-	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
-};
-static struct clocksource *hpet_clocksource;
-#endif
-
 /* A lock for concurrent access by app and isr hpet activity. */
 static DEFINE_SPINLOCK(hpet_lock);
 
@@ -105,12 +87,11 @@ struct hpets {
 	struct hpets *hp_next;
 	struct hpet __iomem *hp_hpet;
 	unsigned long hp_hpet_phys;
-	struct clocksource *hp_clocksource;
 	unsigned long long hp_tick_freq;
 	unsigned long hp_delta;
 	unsigned int hp_ntimer;
 	unsigned int hp_which;
-	struct hpet_dev hp_dev[1];
+	struct hpet_dev hp_dev[] __counted_by(hp_ntimer);
 };
 
 static struct hpets *hpets;
@@ -119,22 +100,6 @@ static struct hpets *hpets;
 #define	HPET_IE			0x0002	/* interrupt enabled */
 #define	HPET_PERIODIC		0x0004
 #define	HPET_SHARED_IRQ		0x0008
-
-
-#ifndef readq
-static inline unsigned long long readq(void __iomem *addr)
-{
-	return readl(addr) | (((unsigned long long)readl(addr + 4)) << 32LL);
-}
-#endif
-
-#ifndef writeq
-static inline void writeq(unsigned long long v, void __iomem *addr)
-{
-	writel(v & 0xffffffff, addr);
-	writel(v >> 32, addr + 4);
-}
-#endif
 
 static irqreturn_t hpet_interrupt(int irq, void *data)
 {
@@ -156,12 +121,12 @@ static irqreturn_t hpet_interrupt(int irq, void *data)
 	 * This has the effect of treating non-periodic like periodic.
 	 */
 	if ((devp->hd_flags & (HPET_IE | HPET_PERIODIC)) == HPET_IE) {
-		unsigned long m, t, mc, base, k;
+		unsigned long t, mc, base, k;
 		struct hpet __iomem *hpet = devp->hd_hpet;
 		struct hpets *hpetp = devp->hd_hpets;
 
 		t = devp->hd_ireqfreq;
-		m = read_counter(&devp->hd_timer->hpet_compare);
+		read_counter(&devp->hd_timer->hpet_compare);
 		mc = read_counter(&hpet->hpet_mc);
 		/* The time for the next interrupt would logically be t + m,
 		 * however, if we are very unlucky and the interrupt is delayed
@@ -268,9 +233,9 @@ static int hpet_open(struct inode *inode, struct file *file)
 
 	for (devp = NULL, hpetp = hpets; hpetp && !devp; hpetp = hpetp->hp_next)
 		for (i = 0; i < hpetp->hp_ntimer; i++)
-			if (hpetp->hp_dev[i].hd_flags & HPET_OPEN)
+			if (hpetp->hp_dev[i].hd_flags & HPET_OPEN) {
 				continue;
-			else {
+			} else {
 				devp = &hpetp->hp_dev[i];
 				break;
 			}
@@ -317,9 +282,9 @@ hpet_read(struct file *file, char __user *buf, size_t count, loff_t * ppos)
 		devp->hd_irqdata = 0;
 		spin_unlock_irq(&hpet_lock);
 
-		if (data)
+		if (data) {
 			break;
-		else if (file->f_flags & O_NONBLOCK) {
+		} else if (file->f_flags & O_NONBLOCK) {
 			retval = -EAGAIN;
 			goto out;
 		} else if (signal_pending(current)) {
@@ -743,27 +708,6 @@ static struct ctl_table hpet_table[] = {
 	 .mode = 0644,
 	 .proc_handler = proc_dointvec,
 	 },
-	{}
-};
-
-static struct ctl_table hpet_root[] = {
-	{
-	 .procname = "hpet",
-	 .maxlen = 0,
-	 .mode = 0555,
-	 .child = hpet_table,
-	 },
-	{}
-};
-
-static struct ctl_table dev_root[] = {
-	{
-	 .procname = "dev",
-	 .maxlen = 0,
-	 .mode = 0555,
-	 .child = hpet_root,
-	 },
-	{}
 };
 
 static struct ctl_table_header *sysctl_header;
@@ -855,7 +799,7 @@ int hpet_alloc(struct hpet_data *hdp)
 		return 0;
 	}
 
-	hpetp = kzalloc(struct_size(hpetp, hp_dev, hdp->hd_nirqs - 1),
+	hpetp = kzalloc(struct_size(hpetp, hp_dev, hdp->hd_nirqs),
 			GFP_KERNEL);
 
 	if (!hpetp)
@@ -942,17 +886,6 @@ int hpet_alloc(struct hpet_data *hdp)
 
 	hpetp->hp_delta = hpet_calibrate(hpetp);
 
-/* This clocksource driver currently only works on ia64 */
-#ifdef CONFIG_IA64
-	if (!hpet_clocksource) {
-		hpet_mctr = (void __iomem *)&hpetp->hp_hpet->hpet_mc;
-		clocksource_hpet.archdata.fsys_mmio = hpet_mctr;
-		clocksource_register_hz(&clocksource_hpet, hpetp->hp_tick_freq);
-		hpetp->hp_clocksource = &clocksource_hpet;
-		hpet_clocksource = &clocksource_hpet;
-	}
-#endif
-
 	return 0;
 }
 
@@ -984,6 +917,8 @@ static acpi_status hpet_resources(struct acpi_resource *res, void *data)
 		hdp->hd_phys_address = fixmem32->address;
 		hdp->hd_address = ioremap(fixmem32->address,
 						HPET_RANGE_SIZE);
+		if (!hdp->hd_address)
+			return AE_ERROR;
 
 		if (hpet_is_known(hdp)) {
 			iounmap(hdp->hd_address);
@@ -1000,7 +935,8 @@ static acpi_status hpet_resources(struct acpi_resource *res, void *data)
 				break;
 
 			irq = acpi_register_gsi(NULL, irqp->interrupts[i],
-				      irqp->triggering, irqp->polarity);
+						irqp->triggering,
+						irqp->polarity);
 			if (irq < 0)
 				return AE_ERROR;
 
@@ -1059,7 +995,7 @@ static int __init hpet_init(void)
 	if (result < 0)
 		return -ENODEV;
 
-	sysctl_header = register_sysctl_table(dev_root);
+	sysctl_header = register_sysctl("dev/hpet", hpet_table);
 
 	result = acpi_bus_register_driver(&hpet_acpi_driver);
 	if (result < 0) {

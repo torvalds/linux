@@ -47,7 +47,6 @@
 #include <asm/unaligned.h>
 
 #if defined(CONFIG_PPC_PMAC)
-#include <asm/prom.h>
 #include "../macmodes.h"
 #endif
 
@@ -86,7 +85,7 @@
 #ifdef DEBUG
 #define dprintk(X...)	printk(X)
 #else
-#define dprintk(X...)
+#define dprintk(X...)	no_printk(X)
 #endif
 
 #ifndef PCI_SS_VENDOR_ID_SIEMENS_NIXDORF
@@ -302,9 +301,9 @@ struct matrox_altout {
 	int		(*verifymode)(void* altout_dev, u_int32_t mode);
 	int		(*getqueryctrl)(void* altout_dev,
 					struct v4l2_queryctrl* ctrl);
-	int		(*getctrl)(void* altout_dev, 
+	int		(*getctrl)(void *altout_dev,
 				   struct v4l2_control* ctrl);
-	int		(*setctrl)(void* altout_dev, 
+	int		(*setctrl)(void *altout_dev,
 				   struct v4l2_control* ctrl);
 };
 

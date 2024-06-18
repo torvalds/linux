@@ -45,7 +45,8 @@
 
 static enum qman_cb_dqrr_result cb_dqrr(struct qman_portal *,
 					struct qman_fq *,
-					const struct qm_dqrr_entry *);
+					const struct qm_dqrr_entry *,
+					bool sched_napi);
 static void cb_ern(struct qman_portal *, struct qman_fq *,
 		   const union qm_mr_entry *);
 static void cb_fqs(struct qman_portal *, struct qman_fq *,
@@ -86,7 +87,7 @@ static void fd_inc(struct qm_fd *fd)
 	len--;
 	qm_fd_set_param(fd, fmt, off, len);
 
-	fd->cmd = cpu_to_be32(be32_to_cpu(fd->cmd) + 1);
+	be32_add_cpu(&fd->cmd, 1);
 }
 
 /* The only part of the 'fd' we can't memcmp() is the ppid */
@@ -208,7 +209,8 @@ failed:
 
 static enum qman_cb_dqrr_result cb_dqrr(struct qman_portal *p,
 					struct qman_fq *fq,
-					const struct qm_dqrr_entry *dq)
+					const struct qm_dqrr_entry *dq,
+					bool sched_napi)
 {
 	if (WARN_ON(fd_neq(&fd_dq, &dq->fd))) {
 		pr_err("BADNESS: dequeued frame doesn't match;\n");

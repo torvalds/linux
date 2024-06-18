@@ -90,7 +90,7 @@ i gestori d'interruzioni devono essere veloci: spesso si limitano
 esclusivamente a notificare la presa in carico dell'interruzione,
 programmare una 'interruzione software' per l'esecuzione e quindi terminare.
 
-Potete dire d'essere in una interruzione hardware perché :c:func:`in_irq()`
+Potete dire d'essere in una interruzione hardware perché in_hardirq()
 ritorna vero.
 
 .. warning::
@@ -129,8 +129,7 @@ eseguiti simultaneamente.
 .. warning::
 
     Il nome 'tasklet' è ingannevole: non hanno niente a che fare
-    con i 'processi' ('tasks'), e probabilmente hanno più a che vedere
-    con qualche pessima vodka che Alexey Kuznetsov si fece a quel tempo.
+    con i 'processi' ('tasks').
 
 Potete determinate se siete in un softirq (o tasklet) utilizzando la
 macro :c:func:`in_softirq()` (``include/linux/preempt.h``).
@@ -138,7 +137,7 @@ macro :c:func:`in_softirq()` (``include/linux/preempt.h``).
 .. warning::
 
     State attenti che questa macro ritornerà un falso positivo
-    se :ref:`botton half lock <it_local_bh_disable>` è bloccato.
+    se :ref:`bottom half lock <it_local_bh_disable>` è bloccato.
 
 Alcune regole basilari
 ======================
@@ -308,7 +307,7 @@ esse copiano una quantità arbitraria di dati da e verso lo spazio utente.
     Al contrario di:c:func:`put_user()` e :c:func:`get_user()`, queste
     funzioni ritornano la quantità di dati copiati (0 è comunque un successo).
 
-[Sì, questa stupida interfaccia mi imbarazza. La battaglia torna in auge anno
+[Sì, questa interfaccia mi imbarazza. La battaglia torna in auge anno
 dopo anno. --RR]
 
 Le funzioni potrebbero dormire implicitamente. Queste non dovrebbero mai essere
@@ -369,7 +368,7 @@ all'inizio dell'avvio del sistema è attraverso la procedura
 Prima di inventare la vostra cache per gli oggetti più usati, considerate
 l'uso di una cache slab disponibile in ``include/linux/slab.h``.
 
-:c:func:`current()`
+:c:macro:`current`
 -------------------
 
 Definita in ``include/asm/current.h``
@@ -402,7 +401,7 @@ il valore convertito. Tutte le varianti supportano anche il processo inverso:
 :c:func:`be32_to_cpu()`, eccetera.
 
 Queste funzioni hanno principalmente due varianti: la variante per
-puntatori, come :c:func:`cpu_to_be32p(), che prende un puntatore
+puntatori, come :c:func:`cpu_to_be32p()`, che prende un puntatore
 ad un tipo, e ritorna il valore convertito. L'altra variante per
 la famiglia di conversioni "in-situ", come :c:func:`cpu_to_be32s()`,
 che convertono il valore puntato da un puntatore, e ritornano void.
@@ -627,6 +626,24 @@ Alcuni manutentori e sviluppatori potrebbero comunque richiedere
 :c:func:`EXPORT_SYMBOL_GPL()` quando si aggiungono nuove funzionalità o
 interfacce.
 
+:c:func:`EXPORT_SYMBOL_NS()`
+----------------------------
+
+Definita in ``include/linux/export.h``
+
+Questa è una variate di `EXPORT_SYMBOL()` che permette di specificare uno
+spazio dei nomi. Lo spazio dei nomi è documentato in
+Documentation/translations/it_IT/core-api/symbol-namespaces.rst.
+
+:c:func:`EXPORT_SYMBOL_NS_GPL()`
+--------------------------------
+
+Definita in ``include/linux/export.h``
+
+Questa è una variate di `EXPORT_SYMBOL_GPL()` che permette di specificare uno
+spazio dei nomi. Lo spazio dei nomi è documentato in
+Documentation/translations/it_IT/core-api/symbol-namespaces.rst.
+
 Procedure e convenzioni
 =======================
 
@@ -661,9 +678,8 @@ tutti sulle spine: questo riflette cambiamenti fondamentati (eg. la funzione
 non può più essere chiamata con le funzioni attive, o fa controlli aggiuntivi,
 o non fa più controlli che venivano fatti in precedenza). Solitamente a questo
 s'accompagna un'adeguata e completa nota sulla lista di discussone
-linux-kernel; cercate negli archivi.
-Solitamente eseguire una semplice sostituzione su tutto un file rendere
-le cose **peggiori**.
+più adatta; cercate negli archivi. Solitamente eseguire una semplice
+sostituzione su tutto un file rendere le cose **peggiori**.
 
 Inizializzazione dei campi d'una struttura
 ------------------------------------------
@@ -741,14 +757,14 @@ Mettere le vostre cose nel kernel
 Al fine d'avere le vostre cose in ordine per l'inclusione ufficiale, o
 anche per avere patch pulite, c'è del lavoro amministrativo da fare:
 
--  Trovare di chi è lo stagno in cui state pisciando. Guardare in cima
+-  Trovare chi è responsabile del codice che state modificando. Guardare in cima
    ai file sorgenti, all'interno del file ``MAINTAINERS``, ed alla fine
    di tutti nel file ``CREDITS``. Dovreste coordinarvi con queste persone
    per evitare di duplicare gli sforzi, o provare qualcosa che è già stato
    rigettato.
 
    Assicuratevi di mettere il vostro nome ed indirizzo email in cima a
-   tutti i file che create o che mangeggiate significativamente. Questo è
+   tutti i file che create o che maneggiate significativamente. Questo è
    il primo posto dove le persone guarderanno quando troveranno un baco,
    o quando **loro** vorranno fare una modifica.
 
@@ -769,16 +785,15 @@ anche per avere patch pulite, c'è del lavoro amministrativo da fare:
    "obj-$(CONFIG_xxx) += xxx.o". La sintassi è documentata nel file
    ``Documentation/kbuild/makefiles.rst``.
 
--  Aggiungete voi stessi in ``CREDITS`` se avete fatto qualcosa di notevole,
-   solitamente qualcosa che supera il singolo file (comunque il vostro nome
-   dovrebbe essere all'inizio dei file sorgenti). ``MAINTAINERS`` significa
+-  Aggiungete voi stessi in ``CREDITS`` se credete di aver fatto qualcosa di
+   notevole, solitamente qualcosa che supera il singolo file (comunque il vostro
+   nome dovrebbe essere all'inizio dei file sorgenti). ``MAINTAINERS`` significa
    che volete essere consultati quando vengono fatte delle modifiche ad un
-   sottosistema, e quando ci sono dei bachi; questo implica molto di più
-   di un semplice impegno su una parte del codice.
+   sottosistema, e quando ci sono dei bachi; questo implica molto di più di un
+   semplice impegno su una parte del codice.
 
 -  Infine, non dimenticatevi di leggere
-   ``Documentation/process/submitting-patches.rst`` e possibilmente anche
-   ``Documentation/process/submitting-drivers.rst``.
+   ``Documentation/process/submitting-patches.rst``.
 
 Trucchetti del kernel
 =====================

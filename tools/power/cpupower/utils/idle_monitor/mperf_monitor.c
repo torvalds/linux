@@ -19,6 +19,10 @@
 #define MSR_APERF	0xE8
 #define MSR_MPERF	0xE7
 
+#define RDPRU ".byte 0x0f, 0x01, 0xfd"
+#define RDPRU_ECX_MPERF	0
+#define RDPRU_ECX_APERF	1
+
 #define MSR_TSC	0x10
 
 #define MSR_AMD_HWCR 0xc0010015
@@ -66,8 +70,8 @@ static int max_freq_mode;
  */
 static unsigned long max_frequency;
 
-static unsigned long long tsc_at_measure_start;
-static unsigned long long tsc_at_measure_end;
+static unsigned long long *tsc_at_measure_start;
+static unsigned long long *tsc_at_measure_end;
 static unsigned long long *mperf_previous_count;
 static unsigned long long *aperf_previous_count;
 static unsigned long long *mperf_current_count;
@@ -86,15 +90,51 @@ static int mperf_get_tsc(unsigned long long *tsc)
 	return ret;
 }
 
-static int mperf_init_stats(unsigned int cpu)
+static int get_aperf_mperf(int cpu, unsigned long long *aval,
+				    unsigned long long *mval)
 {
-	unsigned long long val;
+	unsigned long low_a, high_a;
+	unsigned long low_m, high_m;
 	int ret;
 
-	ret = read_msr(cpu, MSR_APERF, &val);
-	aperf_previous_count[cpu] = val;
-	ret |= read_msr(cpu, MSR_MPERF, &val);
-	mperf_previous_count[cpu] = val;
+	/*
+	 * Running on the cpu from which we read the registers will
+	 * prevent APERF/MPERF from going out of sync because of IPI
+	 * latency introduced by read_msr()s.
+	 */
+	if (mperf_monitor.flags.per_cpu_schedule) {
+		if (bind_cpu(cpu))
+			return 1;
+	}
+
+	if (cpupower_cpu_info.caps & CPUPOWER_CAP_AMD_RDPRU) {
+		asm volatile(RDPRU
+			     : "=a" (low_a), "=d" (high_a)
+			     : "c" (RDPRU_ECX_APERF));
+		asm volatile(RDPRU
+			     : "=a" (low_m), "=d" (high_m)
+			     : "c" (RDPRU_ECX_MPERF));
+
+		*aval = ((low_a) | (high_a) << 32);
+		*mval = ((low_m) | (high_m) << 32);
+
+		return 0;
+	}
+
+	ret  = read_msr(cpu, MSR_APERF, aval);
+	ret |= read_msr(cpu, MSR_MPERF, mval);
+
+	return ret;
+}
+
+static int mperf_init_stats(unsigned int cpu)
+{
+	unsigned long long aval, mval;
+	int ret;
+
+	ret = get_aperf_mperf(cpu, &aval, &mval);
+	aperf_previous_count[cpu] = aval;
+	mperf_previous_count[cpu] = mval;
 	is_valid[cpu] = !ret;
 
 	return 0;
@@ -102,13 +142,12 @@ static int mperf_init_stats(unsigned int cpu)
 
 static int mperf_measure_stats(unsigned int cpu)
 {
-	unsigned long long val;
+	unsigned long long aval, mval;
 	int ret;
 
-	ret = read_msr(cpu, MSR_APERF, &val);
-	aperf_current_count[cpu] = val;
-	ret |= read_msr(cpu, MSR_MPERF, &val);
-	mperf_current_count[cpu] = val;
+	ret = get_aperf_mperf(cpu, &aval, &mval);
+	aperf_current_count[cpu] = aval;
+	mperf_current_count[cpu] = mval;
 	is_valid[cpu] = !ret;
 
 	return 0;
@@ -130,7 +169,7 @@ static int mperf_get_count_percent(unsigned int id, double *percent,
 	aperf_diff = aperf_current_count[cpu] - aperf_previous_count[cpu];
 
 	if (max_freq_mode == MAX_FREQ_TSC_REF) {
-		tsc_diff = tsc_at_measure_end - tsc_at_measure_start;
+		tsc_diff = tsc_at_measure_end[cpu] - tsc_at_measure_start[cpu];
 		*percent = 100.0 * mperf_diff / tsc_diff;
 		dprint("%s: TSC Ref - mperf_diff: %llu, tsc_diff: %llu\n",
 		       mperf_cstates[id].name, mperf_diff, tsc_diff);
@@ -167,7 +206,7 @@ static int mperf_get_count_freq(unsigned int id, unsigned long long *count,
 
 	if (max_freq_mode == MAX_FREQ_TSC_REF) {
 		/* Calculate max_freq from TSC count */
-		tsc_diff = tsc_at_measure_end - tsc_at_measure_start;
+		tsc_diff = tsc_at_measure_end[cpu] - tsc_at_measure_start[cpu];
 		time_diff = timespec_diff_us(time_start, time_end);
 		max_frequency = tsc_diff / time_diff;
 	}
@@ -186,33 +225,27 @@ static int mperf_get_count_freq(unsigned int id, unsigned long long *count,
 static int mperf_start(void)
 {
 	int cpu;
-	unsigned long long dbg;
 
 	clock_gettime(CLOCK_REALTIME, &time_start);
-	mperf_get_tsc(&tsc_at_measure_start);
 
-	for (cpu = 0; cpu < cpu_count; cpu++)
+	for (cpu = 0; cpu < cpu_count; cpu++) {
+		mperf_get_tsc(&tsc_at_measure_start[cpu]);
 		mperf_init_stats(cpu);
+	}
 
-	mperf_get_tsc(&dbg);
-	dprint("TSC diff: %llu\n", dbg - tsc_at_measure_start);
 	return 0;
 }
 
 static int mperf_stop(void)
 {
-	unsigned long long dbg;
 	int cpu;
 
-	for (cpu = 0; cpu < cpu_count; cpu++)
+	for (cpu = 0; cpu < cpu_count; cpu++) {
 		mperf_measure_stats(cpu);
+		mperf_get_tsc(&tsc_at_measure_end[cpu]);
+	}
 
-	mperf_get_tsc(&tsc_at_measure_end);
 	clock_gettime(CLOCK_REALTIME, &time_end);
-
-	mperf_get_tsc(&dbg);
-	dprint("TSC diff: %llu\n", dbg - tsc_at_measure_end);
-
 	return 0;
 }
 
@@ -305,13 +338,17 @@ struct cpuidle_monitor *mperf_register(void)
 	if (init_maxfreq_mode())
 		return NULL;
 
+	if (cpupower_cpu_info.vendor == X86_VENDOR_AMD)
+		mperf_monitor.flags.per_cpu_schedule = 1;
+
 	/* Free this at program termination */
 	is_valid = calloc(cpu_count, sizeof(int));
 	mperf_previous_count = calloc(cpu_count, sizeof(unsigned long long));
 	aperf_previous_count = calloc(cpu_count, sizeof(unsigned long long));
 	mperf_current_count = calloc(cpu_count, sizeof(unsigned long long));
 	aperf_current_count = calloc(cpu_count, sizeof(unsigned long long));
-
+	tsc_at_measure_start = calloc(cpu_count, sizeof(unsigned long long));
+	tsc_at_measure_end = calloc(cpu_count, sizeof(unsigned long long));
 	mperf_monitor.name_len = strlen(mperf_monitor.name);
 	return &mperf_monitor;
 }
@@ -322,6 +359,8 @@ void mperf_unregister(void)
 	free(aperf_previous_count);
 	free(mperf_current_count);
 	free(aperf_current_count);
+	free(tsc_at_measure_start);
+	free(tsc_at_measure_end);
 	free(is_valid);
 }
 
@@ -333,7 +372,7 @@ struct cpuidle_monitor mperf_monitor = {
 	.stop			= mperf_stop,
 	.do_register		= mperf_register,
 	.unregister		= mperf_unregister,
-	.needs_root		= 1,
+	.flags.needs_root	= 1,
 	.overflow_s		= 922000000 /* 922337203 seconds TSC overflow
 					       at 20GHz */
 };

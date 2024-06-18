@@ -74,8 +74,8 @@ trans:
 		"3: ;"
 		: [res] "=r" (result), [texasr] "=r" (texasr)
 		: [sprn_texasr] "i"  (SPRN_TEXASR)
-		: "memory", "r0", "r1", "r3", "r4",
-		"r7", "r8", "r9", "r10", "r11"
+		: "memory", "r0", "r3", "r4",
+		  "r7", "r8", "r9", "r10", "r11", "lr"
 		);
 
 	if (result) {
@@ -128,7 +128,8 @@ int ptrace_tm_spd_vsx(void)
 	pid_t pid;
 	int ret, status, i;
 
-	SKIP_IF(!have_htm());
+	SKIP_IF_MSG(!have_htm(), "Don't have transactional memory");
+	SKIP_IF_MSG(htm_is_synthetic(), "Transactional memory is synthetic");
 	shm_id = shmget(IPC_PRIVATE, sizeof(int) * 3, 0777|IPC_CREAT);
 
 	for (i = 0; i < 128; i++) {

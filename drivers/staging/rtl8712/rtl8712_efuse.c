@@ -213,8 +213,8 @@ u16 r8712_efuse_get_current_size(struct _adapter *adapter)
 	u8 hworden = 0;
 	u8 efuse_data, word_cnts = 0;
 
-	while (bContinual && efuse_one_byte_read(adapter, efuse_addr,
-	       &efuse_data) && (efuse_addr < efuse_available_max_size)) {
+	while (bContinual && efuse_one_byte_read(adapter, efuse_addr, &efuse_data) &&
+	       (efuse_addr < efuse_available_max_size)) {
 		if (efuse_data != 0xFF) {
 			hworden =  efuse_data & 0x0F;
 			word_cnts = calculate_word_cnts(hworden);
@@ -252,9 +252,8 @@ u8 r8712_efuse_pg_packet_read(struct _adapter *adapter, u8 offset, u8 *data)
 				memset(tmpdata, 0xFF, PGPKT_DATA_SIZE);
 				for (tmpidx = 0; tmpidx < word_cnts * 2;
 				     tmpidx++) {
-					if (efuse_one_byte_read(adapter,
-					    efuse_addr + 1 + tmpidx,
-					    &efuse_data)) {
+					if (efuse_one_byte_read(adapter, efuse_addr + 1 + tmpidx,
+								&efuse_data)) {
 						tmpdata[tmpidx] = efuse_data;
 					} else {
 						ret = false;
@@ -298,25 +297,23 @@ static u8 fix_header(struct _adapter *adapter, u8 header, u16 header_addr)
 			continue;
 		}
 		for (i = 0; i < PGPKG_MAX_WORDS; i++) {
-			if (BIT(i) & word_en) {
-				if (BIT(i) & pkt.word_en) {
-					if (efuse_one_byte_read(
-							adapter, addr,
+			if (!(BIT(i) & word_en))
+				continue;
+			if (BIT(i) & pkt.word_en) {
+				if (efuse_one_byte_read(adapter,
+							addr,
 							&value))
-						pkt.data[i * 2] = value;
-					else
-						return false;
-					if (efuse_one_byte_read(
-							adapter,
+					pkt.data[i * 2] = value;
+				else
+					return false;
+				if (efuse_one_byte_read(adapter,
 							addr + 1,
 							&value))
-						pkt.data[i * 2 + 1] =
-							value;
-					else
-						return false;
-				}
-				addr += 2;
+					pkt.data[i * 2 + 1] = value;
+				else
+					return false;
 			}
+			addr += 2;
 		}
 	}
 	if (addr != header_addr)

@@ -182,7 +182,7 @@ get_endpoints(struct usbtest_dev *dev, struct usb_interface *intf)
 			case USB_ENDPOINT_XFER_ISOC:
 				if (dev->info->iso)
 					endpoint_update(edi, &iso_in, &iso_out, e);
-				/* FALLTHROUGH */
+				fallthrough;
 			default:
 				continue;
 			}
@@ -364,7 +364,7 @@ static void simple_fill_buf(struct urb *urb)
 
 	switch (pattern) {
 	default:
-		/* FALLTHROUGH */
+		fallthrough;
 	case 0:
 		memset(buf, 0, len);
 		break;
@@ -681,7 +681,7 @@ static int get_altsetting(struct usbtest_dev *dev)
 		return dev->buf[0];
 	case 0:
 		retval = -ERANGE;
-		/* FALLTHROUGH */
+		fallthrough;
 	default:
 		return retval;
 	}
@@ -705,7 +705,7 @@ static int is_good_config(struct usbtest_dev *tdev, int len)
 {
 	struct usb_config_descriptor	*config;
 
-	if (len < sizeof(*config))
+	if (len < (int)sizeof(*config))
 		return 0;
 	config = (struct usb_config_descriptor *) tdev->buf;
 
@@ -1951,7 +1951,7 @@ static void complicated_callback(struct urb *urb)
 			dev_err(&ctx->dev->intf->dev,
 					"resubmit err %d\n",
 					status);
-			/* FALLTHROUGH */
+			fallthrough;
 		case -ENODEV:			/* disconnected */
 		case -ESHUTDOWN:		/* endpoint disabled */
 			ctx->submit_error = 1;
@@ -2043,13 +2043,17 @@ test_queue(struct usbtest_dev *dev, struct usbtest_param_32 *param,
 	unsigned		i;
 	unsigned long		packets = 0;
 	int			status = 0;
-	struct urb		*urbs[MAX_SGLEN];
+	struct urb		**urbs;
 
 	if (!param->sglen || param->iterations > UINT_MAX / param->sglen)
 		return -EINVAL;
 
 	if (param->sglen > MAX_SGLEN)
 		return -EINVAL;
+
+	urbs = kcalloc(param->sglen, sizeof(*urbs), GFP_KERNEL);
+	if (!urbs)
+		return -ENOMEM;
 
 	memset(&context, 0, sizeof(context));
 	context.count = param->iterations * param->sglen;
@@ -2137,6 +2141,8 @@ test_queue(struct usbtest_dev *dev, struct usbtest_param_32 *param,
 	else if (context.errors >
 			(context.is_iso ? context.packet_count / 10 : 0))
 		status = -EIO;
+
+	kfree(urbs);
 	return status;
 
 fail:
@@ -2144,6 +2150,8 @@ fail:
 		if (urbs[i])
 			simple_free_urb(urbs[i]);
 	}
+
+	kfree(urbs);
 	return status;
 }
 
@@ -2630,7 +2638,7 @@ usbtest_do_ioctl(struct usb_interface *intf, struct usbtest_param_32 *param)
  * different busses) to use when testing, and allocate one thread per
  * test.  So discovery is simplified, and we have no device naming issues.
  *
- * Don't use these only as stress/load tests.  Use them along with with
+ * Don't use these only as stress/load tests.  Use them along with
  * other USB bus activity:  plugging, unplugging, mousing, mp3 playback,
  * video capture, and so on.  Run different tests at different times, in
  * different sequences.  Nothing here should interact with other devices,
@@ -2873,6 +2881,7 @@ static void usbtest_disconnect(struct usb_interface *intf)
 
 	usb_set_intfdata(intf, NULL);
 	dev_dbg(&intf->dev, "disconnect\n");
+	kfree(dev->buf);
 	kfree(dev);
 }
 

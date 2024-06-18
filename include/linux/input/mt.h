@@ -47,7 +47,7 @@ struct input_mt {
 	unsigned int flags;
 	unsigned int frame;
 	int *red;
-	struct input_mt_slot slots[];
+	struct input_mt_slot slots[] __counted_by(num_slots);
 };
 
 static inline void input_mt_set_value(struct input_mt_slot *slot,
@@ -99,6 +99,11 @@ static inline bool input_is_mt_axis(int axis)
 
 bool input_mt_report_slot_state(struct input_dev *dev,
 				unsigned int tool_type, bool active);
+
+static inline void input_mt_report_slot_inactive(struct input_dev *dev)
+{
+	input_mt_report_slot_state(dev, 0, false);
+}
 
 void input_mt_report_finger_count(struct input_dev *dev, int count);
 void input_mt_report_pointer_emulation(struct input_dev *dev, bool use_count);

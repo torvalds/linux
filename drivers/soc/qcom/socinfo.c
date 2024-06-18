@@ -11,9 +11,15 @@
 #include <linux/random.h>
 #include <linux/slab.h>
 #include <linux/soc/qcom/smem.h>
+#include <linux/soc/qcom/socinfo.h>
 #include <linux/string.h>
+#include <linux/stringify.h>
 #include <linux/sys_soc.h>
 #include <linux/types.h>
+
+#include <asm/unaligned.h>
+
+#include <dt-bindings/arm/qcom,ids.h>
 
 /*
  * SoC version type with major number in the upper 16 bits and minor
@@ -23,13 +29,9 @@
 #define SOCINFO_MINOR(ver) ((ver) & 0xffff)
 #define SOCINFO_VERSION(maj, min)  ((((maj) & 0xffff) << 16)|((min) & 0xffff))
 
-#define SMEM_SOCINFO_BUILD_ID_LENGTH           32
-
-/*
- * SMEM item id, used to acquire handles to respective
- * SMEM region.
- */
-#define SMEM_HW_SW_BUILD_ID            137
+/* Helper macros to create soc_id table */
+#define qcom_board_id(id) QCOM_ID_ ## id, __stringify(id)
+#define qcom_board_id_named(id, name) QCOM_ID_ ## id, (name)
 
 #ifdef CONFIG_DEBUG_FS
 #define SMEM_IMAGE_VERSION_BLOCKS_COUNT        32
@@ -49,6 +51,11 @@
 #define SMEM_IMAGE_TABLE_ADSP_INDEX     12
 #define SMEM_IMAGE_TABLE_CNSS_INDEX     13
 #define SMEM_IMAGE_TABLE_VIDEO_INDEX    14
+#define SMEM_IMAGE_TABLE_DSPS_INDEX     15
+#define SMEM_IMAGE_TABLE_CDSP_INDEX     16
+#define SMEM_IMAGE_TABLE_CDSP1_INDEX    19
+#define SMEM_IMAGE_TABLE_GPDSP_INDEX    20
+#define SMEM_IMAGE_TABLE_GPDSP1_INDEX   21
 #define SMEM_IMAGE_VERSION_TABLE       469
 
 /*
@@ -63,67 +70,72 @@ static const char *const socinfo_image_names[] = {
 	[SMEM_IMAGE_TABLE_RPM_INDEX] = "rpm",
 	[SMEM_IMAGE_TABLE_TZ_INDEX] = "tz",
 	[SMEM_IMAGE_TABLE_VIDEO_INDEX] = "video",
+	[SMEM_IMAGE_TABLE_DSPS_INDEX] = "dsps",
+	[SMEM_IMAGE_TABLE_CDSP_INDEX] = "cdsp",
+	[SMEM_IMAGE_TABLE_CDSP1_INDEX] = "cdsp1",
+	[SMEM_IMAGE_TABLE_GPDSP_INDEX] = "gpdsp",
+	[SMEM_IMAGE_TABLE_GPDSP1_INDEX] = "gpdsp1",
 };
 
 static const char *const pmic_models[] = {
 	[0]  = "Unknown PMIC model",
+	[1]  = "PM8941",
+	[2]  = "PM8841",
+	[3]  = "PM8019",
+	[4]  = "PM8226",
+	[5]  = "PM8110",
+	[6]  = "PMA8084",
+	[7]  = "PMI8962",
+	[8]  = "PMD9635",
 	[9]  = "PM8994",
+	[10] = "PMI8994",
 	[11] = "PM8916",
-	[13] = "PM8058",
+	[12] = "PM8004",
+	[13] = "PM8909/PM8058",
 	[14] = "PM8028",
 	[15] = "PM8901",
-	[16] = "PM8027",
-	[17] = "ISL9519",
-	[18] = "PM8921",
-	[19] = "PM8018",
-	[20] = "PM8015",
-	[21] = "PM8014",
+	[16] = "PM8950/PM8027",
+	[17] = "PMI8950/ISL9519",
+	[18] = "PMK8001/PM8921",
+	[19] = "PMI8996/PM8018",
+	[20] = "PM8998/PM8015",
+	[21] = "PMI8998/PM8014",
 	[22] = "PM8821",
 	[23] = "PM8038",
-	[24] = "PM8922",
-	[25] = "PM8917",
-};
-#endif /* CONFIG_DEBUG_FS */
-
-/* Socinfo SMEM item structure */
-struct socinfo {
-	__le32 fmt;
-	__le32 id;
-	__le32 ver;
-	char build_id[SMEM_SOCINFO_BUILD_ID_LENGTH];
-	/* Version 2 */
-	__le32 raw_id;
-	__le32 raw_ver;
-	/* Version 3 */
-	__le32 hw_plat;
-	/* Version 4 */
-	__le32 plat_ver;
-	/* Version 5 */
-	__le32 accessory_chip;
-	/* Version 6 */
-	__le32 hw_plat_subtype;
-	/* Version 7 */
-	__le32 pmic_model;
-	__le32 pmic_die_rev;
-	/* Version 8 */
-	__le32 pmic_model_1;
-	__le32 pmic_die_rev_1;
-	__le32 pmic_model_2;
-	__le32 pmic_die_rev_2;
-	/* Version 9 */
-	__le32 foundry_id;
-	/* Version 10 */
-	__le32 serial_num;
-	/* Version 11 */
-	__le32 num_pmics;
-	__le32 pmic_array_offset;
-	/* Version 12 */
-	__le32 chip_family;
-	__le32 raw_device_family;
-	__le32 raw_device_num;
+	[24] = "PM8005/PM8922",
+	[25] = "PM8917/PM8937",
+	[26] = "PM660L",
+	[27] = "PM660",
+	[30] = "PM8150",
+	[31] = "PM8150L",
+	[32] = "PM8150B",
+	[33] = "PMK8002",
+	[36] = "PM8009",
+	[37] = "PMI632",
+	[38] = "PM8150C",
+	[40] = "PM6150",
+	[41] = "SMB2351",
+	[44] = "PM8008",
+	[45] = "PM6125",
+	[46] = "PM7250B",
+	[47] = "PMK8350",
+	[48] = "PM8350",
+	[49] = "PM8350C",
+	[50] = "PM8350B",
+	[51] = "PMR735A",
+	[52] = "PMR735B",
+	[55] = "PM4125",
+	[58] = "PM8450",
+	[65] = "PM8010",
+	[69] = "PM8550VS",
+	[70] = "PM8550VE",
+	[71] = "PM8550B",
+	[72] = "PMR735D",
+	[73] = "PM8550",
+	[74] = "PMK8550",
+	[82] = "SMB2360",
 };
 
-#ifdef CONFIG_DEBUG_FS
 struct socinfo_params {
 	u32 raw_device_family;
 	u32 hw_plat_subtype;
@@ -135,6 +147,18 @@ struct socinfo_params {
 	u32 raw_ver;
 	u32 hw_plat;
 	u32 fmt;
+	u32 nproduct_id;
+	u32 num_clusters;
+	u32 ncluster_array_offset;
+	u32 num_subset_parts;
+	u32 nsubset_parts_array_offset;
+	u32 nmodem_supported;
+	u32 feature_code;
+	u32 pcode;
+	u32 oem_variant;
+	u32 num_func_clusters;
+	u32 boot_cluster;
+	u32 boot_core;
 };
 
 struct smem_image_version {
@@ -160,44 +184,267 @@ struct soc_id {
 };
 
 static const struct soc_id soc_id[] = {
-	{ 87, "MSM8960" },
-	{ 109, "APQ8064" },
-	{ 122, "MSM8660A" },
-	{ 123, "MSM8260A" },
-	{ 124, "APQ8060A" },
-	{ 126, "MSM8974" },
-	{ 130, "MPQ8064" },
-	{ 138, "MSM8960AB" },
-	{ 139, "APQ8060AB" },
-	{ 140, "MSM8260AB" },
-	{ 141, "MSM8660AB" },
-	{ 178, "APQ8084" },
-	{ 184, "APQ8074" },
-	{ 185, "MSM8274" },
-	{ 186, "MSM8674" },
-	{ 194, "MSM8974PRO" },
-	{ 206, "MSM8916" },
-	{ 208, "APQ8074-AA" },
-	{ 209, "APQ8074-AB" },
-	{ 210, "APQ8074PRO" },
-	{ 211, "MSM8274-AA" },
-	{ 212, "MSM8274-AB" },
-	{ 213, "MSM8274PRO" },
-	{ 214, "MSM8674-AA" },
-	{ 215, "MSM8674-AB" },
-	{ 216, "MSM8674PRO" },
-	{ 217, "MSM8974-AA" },
-	{ 218, "MSM8974-AB" },
-	{ 246, "MSM8996" },
-	{ 247, "APQ8016" },
-	{ 248, "MSM8216" },
-	{ 249, "MSM8116" },
-	{ 250, "MSM8616" },
-	{ 291, "APQ8096" },
-	{ 305, "MSM8996SG" },
-	{ 310, "MSM8996AU" },
-	{ 311, "APQ8096AU" },
-	{ 312, "APQ8096SG" },
+	{ qcom_board_id(MSM8260) },
+	{ qcom_board_id(MSM8660) },
+	{ qcom_board_id(APQ8060) },
+	{ qcom_board_id(MSM8960) },
+	{ qcom_board_id(APQ8064) },
+	{ qcom_board_id(MSM8930) },
+	{ qcom_board_id(MSM8630) },
+	{ qcom_board_id(MSM8230) },
+	{ qcom_board_id(APQ8030) },
+	{ qcom_board_id(MSM8627) },
+	{ qcom_board_id(MSM8227) },
+	{ qcom_board_id(MSM8660A) },
+	{ qcom_board_id(MSM8260A) },
+	{ qcom_board_id(APQ8060A) },
+	{ qcom_board_id(MSM8974) },
+	{ qcom_board_id(MSM8225) },
+	{ qcom_board_id(MSM8625) },
+	{ qcom_board_id(MPQ8064) },
+	{ qcom_board_id(MSM8960AB) },
+	{ qcom_board_id(APQ8060AB) },
+	{ qcom_board_id(MSM8260AB) },
+	{ qcom_board_id(MSM8660AB) },
+	{ qcom_board_id(MSM8930AA) },
+	{ qcom_board_id(MSM8630AA) },
+	{ qcom_board_id(MSM8230AA) },
+	{ qcom_board_id(MSM8626) },
+	{ qcom_board_id(MSM8610) },
+	{ qcom_board_id(APQ8064AB) },
+	{ qcom_board_id(MSM8930AB) },
+	{ qcom_board_id(MSM8630AB) },
+	{ qcom_board_id(MSM8230AB) },
+	{ qcom_board_id(APQ8030AB) },
+	{ qcom_board_id(MSM8226) },
+	{ qcom_board_id(MSM8526) },
+	{ qcom_board_id(APQ8030AA) },
+	{ qcom_board_id(MSM8110) },
+	{ qcom_board_id(MSM8210) },
+	{ qcom_board_id(MSM8810) },
+	{ qcom_board_id(MSM8212) },
+	{ qcom_board_id(MSM8612) },
+	{ qcom_board_id(MSM8112) },
+	{ qcom_board_id(MSM8125) },
+	{ qcom_board_id(MSM8225Q) },
+	{ qcom_board_id(MSM8625Q) },
+	{ qcom_board_id(MSM8125Q) },
+	{ qcom_board_id(APQ8064AA) },
+	{ qcom_board_id(APQ8084) },
+	{ qcom_board_id(MSM8130) },
+	{ qcom_board_id(MSM8130AA) },
+	{ qcom_board_id(MSM8130AB) },
+	{ qcom_board_id(MSM8627AA) },
+	{ qcom_board_id(MSM8227AA) },
+	{ qcom_board_id(APQ8074) },
+	{ qcom_board_id(MSM8274) },
+	{ qcom_board_id(MSM8674) },
+	{ qcom_board_id(MDM9635) },
+	{ qcom_board_id_named(MSM8974PRO_AC, "MSM8974PRO-AC") },
+	{ qcom_board_id(MSM8126) },
+	{ qcom_board_id(APQ8026) },
+	{ qcom_board_id(MSM8926) },
+	{ qcom_board_id(IPQ8062) },
+	{ qcom_board_id(IPQ8064) },
+	{ qcom_board_id(IPQ8066) },
+	{ qcom_board_id(IPQ8068) },
+	{ qcom_board_id(MSM8326) },
+	{ qcom_board_id(MSM8916) },
+	{ qcom_board_id(MSM8994) },
+	{ qcom_board_id_named(APQ8074PRO_AA, "APQ8074PRO-AA") },
+	{ qcom_board_id_named(APQ8074PRO_AB, "APQ8074PRO-AB") },
+	{ qcom_board_id_named(APQ8074PRO_AC, "APQ8074PRO-AC") },
+	{ qcom_board_id_named(MSM8274PRO_AA, "MSM8274PRO-AA") },
+	{ qcom_board_id_named(MSM8274PRO_AB, "MSM8274PRO-AB") },
+	{ qcom_board_id_named(MSM8274PRO_AC, "MSM8274PRO-AC") },
+	{ qcom_board_id_named(MSM8674PRO_AA, "MSM8674PRO-AA") },
+	{ qcom_board_id_named(MSM8674PRO_AB, "MSM8674PRO-AB") },
+	{ qcom_board_id_named(MSM8674PRO_AC, "MSM8674PRO-AC") },
+	{ qcom_board_id_named(MSM8974PRO_AA, "MSM8974PRO-AA") },
+	{ qcom_board_id_named(MSM8974PRO_AB, "MSM8974PRO-AB") },
+	{ qcom_board_id(APQ8028) },
+	{ qcom_board_id(MSM8128) },
+	{ qcom_board_id(MSM8228) },
+	{ qcom_board_id(MSM8528) },
+	{ qcom_board_id(MSM8628) },
+	{ qcom_board_id(MSM8928) },
+	{ qcom_board_id(MSM8510) },
+	{ qcom_board_id(MSM8512) },
+	{ qcom_board_id(MSM8936) },
+	{ qcom_board_id(MDM9640) },
+	{ qcom_board_id(MSM8939) },
+	{ qcom_board_id(APQ8036) },
+	{ qcom_board_id(APQ8039) },
+	{ qcom_board_id(MSM8236) },
+	{ qcom_board_id(MSM8636) },
+	{ qcom_board_id(MSM8909) },
+	{ qcom_board_id(MSM8996) },
+	{ qcom_board_id(APQ8016) },
+	{ qcom_board_id(MSM8216) },
+	{ qcom_board_id(MSM8116) },
+	{ qcom_board_id(MSM8616) },
+	{ qcom_board_id(MSM8992) },
+	{ qcom_board_id(APQ8092) },
+	{ qcom_board_id(APQ8094) },
+	{ qcom_board_id(MSM8209) },
+	{ qcom_board_id(MSM8208) },
+	{ qcom_board_id(MDM9209) },
+	{ qcom_board_id(MDM9309) },
+	{ qcom_board_id(MDM9609) },
+	{ qcom_board_id(MSM8239) },
+	{ qcom_board_id(MSM8952) },
+	{ qcom_board_id(APQ8009) },
+	{ qcom_board_id(MSM8956) },
+	{ qcom_board_id(MSM8929) },
+	{ qcom_board_id(MSM8629) },
+	{ qcom_board_id(MSM8229) },
+	{ qcom_board_id(APQ8029) },
+	{ qcom_board_id(APQ8056) },
+	{ qcom_board_id(MSM8609) },
+	{ qcom_board_id(APQ8076) },
+	{ qcom_board_id(MSM8976) },
+	{ qcom_board_id(IPQ8065) },
+	{ qcom_board_id(IPQ8069) },
+	{ qcom_board_id(MDM9650) },
+	{ qcom_board_id(MDM9655) },
+	{ qcom_board_id(MDM9250) },
+	{ qcom_board_id(MDM9255) },
+	{ qcom_board_id(MDM9350) },
+	{ qcom_board_id(APQ8052) },
+	{ qcom_board_id(MDM9607) },
+	{ qcom_board_id(APQ8096) },
+	{ qcom_board_id(MSM8998) },
+	{ qcom_board_id(MSM8953) },
+	{ qcom_board_id(MSM8937) },
+	{ qcom_board_id(APQ8037) },
+	{ qcom_board_id(MDM8207) },
+	{ qcom_board_id(MDM9207) },
+	{ qcom_board_id(MDM9307) },
+	{ qcom_board_id(MDM9628) },
+	{ qcom_board_id(MSM8909W) },
+	{ qcom_board_id(APQ8009W) },
+	{ qcom_board_id(MSM8996L) },
+	{ qcom_board_id(MSM8917) },
+	{ qcom_board_id(APQ8053) },
+	{ qcom_board_id(MSM8996SG) },
+	{ qcom_board_id(APQ8017) },
+	{ qcom_board_id(MSM8217) },
+	{ qcom_board_id(MSM8617) },
+	{ qcom_board_id(MSM8996AU) },
+	{ qcom_board_id(APQ8096AU) },
+	{ qcom_board_id(APQ8096SG) },
+	{ qcom_board_id(MSM8940) },
+	{ qcom_board_id(SDX201) },
+	{ qcom_board_id(SDM660) },
+	{ qcom_board_id(SDM630) },
+	{ qcom_board_id(APQ8098) },
+	{ qcom_board_id(MSM8920) },
+	{ qcom_board_id(SDM845) },
+	{ qcom_board_id(MDM9206) },
+	{ qcom_board_id(IPQ8074) },
+	{ qcom_board_id(SDA660) },
+	{ qcom_board_id(SDM658) },
+	{ qcom_board_id(SDA658) },
+	{ qcom_board_id(SDA630) },
+	{ qcom_board_id(MSM8905) },
+	{ qcom_board_id(SDX202) },
+	{ qcom_board_id(SDM450) },
+	{ qcom_board_id(SM8150) },
+	{ qcom_board_id(SDA845) },
+	{ qcom_board_id(IPQ8072) },
+	{ qcom_board_id(IPQ8076) },
+	{ qcom_board_id(IPQ8078) },
+	{ qcom_board_id(SDM636) },
+	{ qcom_board_id(SDA636) },
+	{ qcom_board_id(SDM632) },
+	{ qcom_board_id(SDA632) },
+	{ qcom_board_id(SDA450) },
+	{ qcom_board_id(SDM439) },
+	{ qcom_board_id(SDM429) },
+	{ qcom_board_id(SM8250) },
+	{ qcom_board_id(SA8155) },
+	{ qcom_board_id(SDA439) },
+	{ qcom_board_id(SDA429) },
+	{ qcom_board_id(SM7150) },
+	{ qcom_board_id(SM7150P) },
+	{ qcom_board_id(IPQ8070) },
+	{ qcom_board_id(IPQ8071) },
+	{ qcom_board_id(QM215) },
+	{ qcom_board_id(IPQ8072A) },
+	{ qcom_board_id(IPQ8074A) },
+	{ qcom_board_id(IPQ8076A) },
+	{ qcom_board_id(IPQ8078A) },
+	{ qcom_board_id(SM6125) },
+	{ qcom_board_id(IPQ8070A) },
+	{ qcom_board_id(IPQ8071A) },
+	{ qcom_board_id(IPQ8172) },
+	{ qcom_board_id(IPQ8173) },
+	{ qcom_board_id(IPQ8174) },
+	{ qcom_board_id(IPQ6018) },
+	{ qcom_board_id(IPQ6028) },
+	{ qcom_board_id(SDM429W) },
+	{ qcom_board_id(SM4250) },
+	{ qcom_board_id(IPQ6000) },
+	{ qcom_board_id(IPQ6010) },
+	{ qcom_board_id(SC7180) },
+	{ qcom_board_id(SM6350) },
+	{ qcom_board_id(QCM2150) },
+	{ qcom_board_id(SDA429W) },
+	{ qcom_board_id(SM8350) },
+	{ qcom_board_id(QCM2290) },
+	{ qcom_board_id(SM7125) },
+	{ qcom_board_id(SM6115) },
+	{ qcom_board_id(IPQ5010) },
+	{ qcom_board_id(IPQ5018) },
+	{ qcom_board_id(IPQ5028) },
+	{ qcom_board_id(SC8280XP) },
+	{ qcom_board_id(IPQ6005) },
+	{ qcom_board_id(QRB5165) },
+	{ qcom_board_id(SM8450) },
+	{ qcom_board_id(SM7225) },
+	{ qcom_board_id(SA8295P) },
+	{ qcom_board_id(SA8540P) },
+	{ qcom_board_id(QCM4290) },
+	{ qcom_board_id(QCS4290) },
+	{ qcom_board_id_named(SM8450_2, "SM8450") },
+	{ qcom_board_id_named(SM8450_3, "SM8450") },
+	{ qcom_board_id(SC7280) },
+	{ qcom_board_id(SC7180P) },
+	{ qcom_board_id(QCM6490) },
+	{ qcom_board_id(IPQ5000) },
+	{ qcom_board_id(IPQ0509) },
+	{ qcom_board_id(IPQ0518) },
+	{ qcom_board_id(SM6375) },
+	{ qcom_board_id(IPQ9514) },
+	{ qcom_board_id(IPQ9550) },
+	{ qcom_board_id(IPQ9554) },
+	{ qcom_board_id(IPQ9570) },
+	{ qcom_board_id(IPQ9574) },
+	{ qcom_board_id(SM8550) },
+	{ qcom_board_id(IPQ5016) },
+	{ qcom_board_id(IPQ9510) },
+	{ qcom_board_id(QRB4210) },
+	{ qcom_board_id(QRB2210) },
+	{ qcom_board_id(SM8475) },
+	{ qcom_board_id(SM8475P) },
+	{ qcom_board_id(SA8775P) },
+	{ qcom_board_id(QRU1000) },
+	{ qcom_board_id(SM8475_2) },
+	{ qcom_board_id(QDU1000) },
+	{ qcom_board_id(X1E80100) },
+	{ qcom_board_id(SM8650) },
+	{ qcom_board_id(SM4450) },
+	{ qcom_board_id(QDU1010) },
+	{ qcom_board_id(QRU1032) },
+	{ qcom_board_id(QRU1052) },
+	{ qcom_board_id(QRU1062) },
+	{ qcom_board_id(IPQ5332) },
+	{ qcom_board_id(IPQ5322) },
+	{ qcom_board_id(IPQ5312) },
+	{ qcom_board_id(IPQ5302) },
+	{ qcom_board_id(QCS8550) },
+	{ qcom_board_id(QCM8550) },
+	{ qcom_board_id(IPQ5300) },
 };
 
 static const char *socinfo_machine(struct device *dev, unsigned int id)
@@ -228,7 +475,7 @@ static const struct file_operations qcom_ ##name## _ops = {		\
 }
 
 #define DEBUGFS_ADD(info, name)						\
-	debugfs_create_file(__stringify(name), 0400,			\
+	debugfs_create_file(__stringify(name), 0444,			\
 			    qcom_socinfo->dbg_root,			\
 			    info, &qcom_ ##name## _ops)
 
@@ -250,7 +497,36 @@ static int qcom_show_pmic_model(struct seq_file *seq, void *p)
 	if (model < 0)
 		return -EINVAL;
 
-	seq_printf(seq, "%s\n", pmic_models[model]);
+	if (model < ARRAY_SIZE(pmic_models) && pmic_models[model])
+		seq_printf(seq, "%s\n", pmic_models[model]);
+	else
+		seq_printf(seq, "unknown (%d)\n", model);
+
+	return 0;
+}
+
+static int qcom_show_pmic_model_array(struct seq_file *seq, void *p)
+{
+	struct socinfo *socinfo = seq->private;
+	unsigned int num_pmics = le32_to_cpu(socinfo->num_pmics);
+	unsigned int pmic_array_offset = le32_to_cpu(socinfo->pmic_array_offset);
+	int i;
+	void *ptr = socinfo;
+
+	ptr += pmic_array_offset;
+
+	/* No need for bounds checking, it happened at socinfo_debugfs_init */
+	for (i = 0; i < num_pmics; i++) {
+		unsigned int model = SOCINFO_MINOR(get_unaligned_le32(ptr + 2 * i * sizeof(u32)));
+		unsigned int die_rev = get_unaligned_le32(ptr + (2 * i + 1) * sizeof(u32));
+
+		if (model < ARRAY_SIZE(pmic_models) && pmic_models[model])
+			seq_printf(seq, "%s %u.%u\n", pmic_models[model],
+				   SOCINFO_MAJOR(die_rev),
+				   SOCINFO_MINOR(die_rev));
+		else
+			seq_printf(seq, "unknown (%d)\n", model);
+	}
 
 	return 0;
 }
@@ -266,16 +542,27 @@ static int qcom_show_pmic_die_revision(struct seq_file *seq, void *p)
 	return 0;
 }
 
+static int qcom_show_chip_id(struct seq_file *seq, void *p)
+{
+	struct socinfo *socinfo = seq->private;
+
+	seq_printf(seq, "%s\n", socinfo->chip_id);
+
+	return 0;
+}
+
 QCOM_OPEN(build_id, qcom_show_build_id);
 QCOM_OPEN(pmic_model, qcom_show_pmic_model);
+QCOM_OPEN(pmic_model_array, qcom_show_pmic_model_array);
 QCOM_OPEN(pmic_die_rev, qcom_show_pmic_die_revision);
+QCOM_OPEN(chip_id, qcom_show_chip_id);
 
 #define DEFINE_IMAGE_OPS(type)					\
 static int show_image_##type(struct seq_file *seq, void *p)		  \
 {								  \
 	struct smem_image_version *image_version = seq->private;  \
-	seq_puts(seq, image_version->type);			  \
-	seq_puts(seq, "\n");					  \
+	if (image_version->type[0] != '\0')			  \
+		seq_printf(seq, "%s\n", image_version->type);	  \
 	return 0;						  \
 }								  \
 static int open_image_##type(struct inode *inode, struct file *file)	  \
@@ -295,18 +582,79 @@ DEFINE_IMAGE_OPS(variant);
 DEFINE_IMAGE_OPS(oem);
 
 static void socinfo_debugfs_init(struct qcom_socinfo *qcom_socinfo,
-				 struct socinfo *info)
+				 struct socinfo *info, size_t info_size)
 {
 	struct smem_image_version *versions;
 	struct dentry *dentry;
 	size_t size;
 	int i;
+	unsigned int num_pmics;
+	unsigned int pmic_array_offset;
 
 	qcom_socinfo->dbg_root = debugfs_create_dir("qcom_socinfo", NULL);
 
 	qcom_socinfo->info.fmt = __le32_to_cpu(info->fmt);
 
+	debugfs_create_x32("info_fmt", 0444, qcom_socinfo->dbg_root,
+			   &qcom_socinfo->info.fmt);
+
 	switch (qcom_socinfo->info.fmt) {
+	case SOCINFO_VERSION(0, 19):
+		qcom_socinfo->info.num_func_clusters = __le32_to_cpu(info->num_func_clusters);
+		qcom_socinfo->info.boot_cluster = __le32_to_cpu(info->boot_cluster);
+		qcom_socinfo->info.boot_core = __le32_to_cpu(info->boot_core);
+
+		debugfs_create_u32("num_func_clusters", 0444, qcom_socinfo->dbg_root,
+				   &qcom_socinfo->info.num_func_clusters);
+		debugfs_create_u32("boot_cluster", 0444, qcom_socinfo->dbg_root,
+				   &qcom_socinfo->info.boot_cluster);
+		debugfs_create_u32("boot_core", 0444, qcom_socinfo->dbg_root,
+				   &qcom_socinfo->info.boot_core);
+		fallthrough;
+	case SOCINFO_VERSION(0, 18):
+	case SOCINFO_VERSION(0, 17):
+		qcom_socinfo->info.oem_variant = __le32_to_cpu(info->oem_variant);
+		debugfs_create_u32("oem_variant", 0444, qcom_socinfo->dbg_root,
+				   &qcom_socinfo->info.oem_variant);
+		fallthrough;
+	case SOCINFO_VERSION(0, 16):
+		qcom_socinfo->info.feature_code = __le32_to_cpu(info->feature_code);
+		qcom_socinfo->info.pcode = __le32_to_cpu(info->pcode);
+
+		debugfs_create_u32("feature_code", 0444, qcom_socinfo->dbg_root,
+				   &qcom_socinfo->info.feature_code);
+		debugfs_create_u32("pcode", 0444, qcom_socinfo->dbg_root,
+				   &qcom_socinfo->info.pcode);
+		fallthrough;
+	case SOCINFO_VERSION(0, 15):
+		qcom_socinfo->info.nmodem_supported = __le32_to_cpu(info->nmodem_supported);
+
+		debugfs_create_u32("nmodem_supported", 0444, qcom_socinfo->dbg_root,
+				   &qcom_socinfo->info.nmodem_supported);
+		fallthrough;
+	case SOCINFO_VERSION(0, 14):
+		qcom_socinfo->info.num_clusters = __le32_to_cpu(info->num_clusters);
+		qcom_socinfo->info.ncluster_array_offset = __le32_to_cpu(info->ncluster_array_offset);
+		qcom_socinfo->info.num_subset_parts = __le32_to_cpu(info->num_subset_parts);
+		qcom_socinfo->info.nsubset_parts_array_offset =
+			__le32_to_cpu(info->nsubset_parts_array_offset);
+
+		debugfs_create_u32("num_clusters", 0444, qcom_socinfo->dbg_root,
+				   &qcom_socinfo->info.num_clusters);
+		debugfs_create_u32("ncluster_array_offset", 0444, qcom_socinfo->dbg_root,
+				   &qcom_socinfo->info.ncluster_array_offset);
+		debugfs_create_u32("num_subset_parts", 0444, qcom_socinfo->dbg_root,
+				   &qcom_socinfo->info.num_subset_parts);
+		debugfs_create_u32("nsubset_parts_array_offset", 0444, qcom_socinfo->dbg_root,
+				   &qcom_socinfo->info.nsubset_parts_array_offset);
+		fallthrough;
+	case SOCINFO_VERSION(0, 13):
+		qcom_socinfo->info.nproduct_id = __le32_to_cpu(info->nproduct_id);
+
+		debugfs_create_u32("nproduct_id", 0444, qcom_socinfo->dbg_root,
+				   &qcom_socinfo->info.nproduct_id);
+		DEBUGFS_ADD(info, chip_id);
+		fallthrough;
 	case SOCINFO_VERSION(0, 12):
 		qcom_socinfo->info.chip_family =
 			__le32_to_cpu(info->chip_family);
@@ -315,64 +663,69 @@ static void socinfo_debugfs_init(struct qcom_socinfo *qcom_socinfo,
 		qcom_socinfo->info.raw_device_num =
 			__le32_to_cpu(info->raw_device_num);
 
-		debugfs_create_x32("chip_family", 0400, qcom_socinfo->dbg_root,
+		debugfs_create_x32("chip_family", 0444, qcom_socinfo->dbg_root,
 				   &qcom_socinfo->info.chip_family);
-		debugfs_create_x32("raw_device_family", 0400,
+		debugfs_create_x32("raw_device_family", 0444,
 				   qcom_socinfo->dbg_root,
 				   &qcom_socinfo->info.raw_device_family);
-		debugfs_create_x32("raw_device_number", 0400,
+		debugfs_create_x32("raw_device_number", 0444,
 				   qcom_socinfo->dbg_root,
 				   &qcom_socinfo->info.raw_device_num);
-		/* Fall through */
+		fallthrough;
 	case SOCINFO_VERSION(0, 11):
+		num_pmics = le32_to_cpu(info->num_pmics);
+		pmic_array_offset = le32_to_cpu(info->pmic_array_offset);
+		if (pmic_array_offset + 2 * num_pmics * sizeof(u32) <= info_size)
+			DEBUGFS_ADD(info, pmic_model_array);
+		fallthrough;
 	case SOCINFO_VERSION(0, 10):
 	case SOCINFO_VERSION(0, 9):
 		qcom_socinfo->info.foundry_id = __le32_to_cpu(info->foundry_id);
 
-		debugfs_create_u32("foundry_id", 0400, qcom_socinfo->dbg_root,
+		debugfs_create_u32("foundry_id", 0444, qcom_socinfo->dbg_root,
 				   &qcom_socinfo->info.foundry_id);
-		/* Fall through */
+		fallthrough;
 	case SOCINFO_VERSION(0, 8):
 	case SOCINFO_VERSION(0, 7):
 		DEBUGFS_ADD(info, pmic_model);
 		DEBUGFS_ADD(info, pmic_die_rev);
-		/* Fall through */
+		fallthrough;
 	case SOCINFO_VERSION(0, 6):
 		qcom_socinfo->info.hw_plat_subtype =
 			__le32_to_cpu(info->hw_plat_subtype);
 
-		debugfs_create_u32("hardware_platform_subtype", 0400,
+		debugfs_create_u32("hardware_platform_subtype", 0444,
 				   qcom_socinfo->dbg_root,
 				   &qcom_socinfo->info.hw_plat_subtype);
-		/* Fall through */
+		fallthrough;
 	case SOCINFO_VERSION(0, 5):
 		qcom_socinfo->info.accessory_chip =
 			__le32_to_cpu(info->accessory_chip);
 
-		debugfs_create_u32("accessory_chip", 0400,
+		debugfs_create_u32("accessory_chip", 0444,
 				   qcom_socinfo->dbg_root,
 				   &qcom_socinfo->info.accessory_chip);
-		/* Fall through */
+		fallthrough;
 	case SOCINFO_VERSION(0, 4):
 		qcom_socinfo->info.plat_ver = __le32_to_cpu(info->plat_ver);
 
-		debugfs_create_u32("platform_version", 0400,
+		debugfs_create_u32("platform_version", 0444,
 				   qcom_socinfo->dbg_root,
 				   &qcom_socinfo->info.plat_ver);
-		/* Fall through */
+		fallthrough;
 	case SOCINFO_VERSION(0, 3):
 		qcom_socinfo->info.hw_plat = __le32_to_cpu(info->hw_plat);
 
-		debugfs_create_u32("hardware_platform", 0400,
+		debugfs_create_u32("hardware_platform", 0444,
 				   qcom_socinfo->dbg_root,
 				   &qcom_socinfo->info.hw_plat);
-		/* Fall through */
+		fallthrough;
 	case SOCINFO_VERSION(0, 2):
 		qcom_socinfo->info.raw_ver  = __le32_to_cpu(info->raw_ver);
 
-		debugfs_create_u32("raw_version", 0400, qcom_socinfo->dbg_root,
+		debugfs_create_u32("raw_version", 0444, qcom_socinfo->dbg_root,
 				   &qcom_socinfo->info.raw_ver);
-		/* Fall through */
+		fallthrough;
 	case SOCINFO_VERSION(0, 1):
 		DEBUGFS_ADD(info, build_id);
 		break;
@@ -387,11 +740,11 @@ static void socinfo_debugfs_init(struct qcom_socinfo *qcom_socinfo,
 
 		dentry = debugfs_create_dir(socinfo_image_names[i],
 					    qcom_socinfo->dbg_root);
-		debugfs_create_file("name", 0400, dentry, &versions[i],
+		debugfs_create_file("name", 0444, dentry, &versions[i],
 				    &qcom_image_name_ops);
-		debugfs_create_file("variant", 0400, dentry, &versions[i],
+		debugfs_create_file("variant", 0444, dentry, &versions[i],
 				    &qcom_image_variant_ops);
-		debugfs_create_file("oem", 0400, dentry, &versions[i],
+		debugfs_create_file("oem", 0444, dentry, &versions[i],
 				    &qcom_image_oem_ops);
 	}
 }
@@ -402,7 +755,7 @@ static void socinfo_debugfs_exit(struct qcom_socinfo *qcom_socinfo)
 }
 #else
 static void socinfo_debugfs_init(struct qcom_socinfo *qcom_socinfo,
-				 struct socinfo *info)
+				 struct socinfo *info, size_t info_size)
 {
 }
 static void socinfo_debugfs_exit(struct qcom_socinfo *qcom_socinfo) {  }
@@ -428,6 +781,8 @@ static int qcom_socinfo_probe(struct platform_device *pdev)
 	qs->attr.family = "Snapdragon";
 	qs->attr.machine = socinfo_machine(&pdev->dev,
 					   le32_to_cpu(info->id));
+	qs->attr.soc_id = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%u",
+					 le32_to_cpu(info->id));
 	qs->attr.revision = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%u.%u",
 					   SOCINFO_MAJOR(le32_to_cpu(info->ver)),
 					   SOCINFO_MINOR(le32_to_cpu(info->ver)));
@@ -440,30 +795,28 @@ static int qcom_socinfo_probe(struct platform_device *pdev)
 	if (IS_ERR(qs->soc_dev))
 		return PTR_ERR(qs->soc_dev);
 
-	socinfo_debugfs_init(qs, info);
+	socinfo_debugfs_init(qs, info, item_size);
 
 	/* Feed the soc specific unique data into entropy pool */
 	add_device_randomness(info, item_size);
 
-	platform_set_drvdata(pdev, qs->soc_dev);
+	platform_set_drvdata(pdev, qs);
 
 	return 0;
 }
 
-static int qcom_socinfo_remove(struct platform_device *pdev)
+static void qcom_socinfo_remove(struct platform_device *pdev)
 {
 	struct qcom_socinfo *qs = platform_get_drvdata(pdev);
 
 	soc_device_unregister(qs->soc_dev);
 
 	socinfo_debugfs_exit(qs);
-
-	return 0;
 }
 
 static struct platform_driver qcom_socinfo_driver = {
 	.probe = qcom_socinfo_probe,
-	.remove = qcom_socinfo_remove,
+	.remove_new = qcom_socinfo_remove,
 	.driver  = {
 		.name = "qcom-socinfo",
 	},

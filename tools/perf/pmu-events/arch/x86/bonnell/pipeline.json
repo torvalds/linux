@@ -1,364 +1,305 @@
 [
     {
-        "EventCode": "0x2",
-        "Counter": "0,1",
-        "UMask": "0x83",
-        "EventName": "STORE_FORWARDS.ANY",
-        "SampleAfterValue": "200000",
-        "BriefDescription": "All store forwards"
-    },
-    {
-        "EventCode": "0x2",
-        "Counter": "0,1",
-        "UMask": "0x81",
-        "EventName": "STORE_FORWARDS.GOOD",
-        "SampleAfterValue": "200000",
-        "BriefDescription": "Good store forwards"
-    },
-    {
-        "EventCode": "0x3",
-        "Counter": "0,1",
-        "UMask": "0x7f",
-        "EventName": "REISSUE.ANY",
-        "SampleAfterValue": "200000",
-        "BriefDescription": "Micro-op reissues for any cause"
-    },
-    {
-        "EventCode": "0x3",
-        "Counter": "0,1",
-        "UMask": "0xff",
-        "EventName": "REISSUE.ANY.AR",
-        "SampleAfterValue": "200000",
-        "BriefDescription": "Micro-op reissues for any cause (At Retirement)"
-    },
-    {
-        "EventCode": "0x12",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "MUL.S",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "Multiply operations executed."
-    },
-    {
-        "EventCode": "0x12",
-        "Counter": "0,1",
-        "UMask": "0x81",
-        "EventName": "MUL.AR",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "Multiply operations retired"
-    },
-    {
-        "EventCode": "0x13",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "DIV.S",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "Divide operations executed."
-    },
-    {
-        "EventCode": "0x13",
-        "Counter": "0,1",
-        "UMask": "0x81",
-        "EventName": "DIV.AR",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "Divide operations retired"
-    },
-    {
-        "EventCode": "0x14",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "CYCLES_DIV_BUSY",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "Cycles the divider is busy."
-    },
-    {
-        "EventCode": "0x3C",
-        "Counter": "0,1",
-        "UMask": "0x0",
-        "EventName": "CPU_CLK_UNHALTED.CORE_P",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "Core cycles when core is not halted"
-    },
-    {
-        "EventCode": "0x3C",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "CPU_CLK_UNHALTED.BUS",
-        "SampleAfterValue": "200000",
-        "BriefDescription": "Bus cycles when core is not halted"
-    },
-    {
-        "EventCode": "0xA",
-        "Counter": "Fixed counter 2",
-        "UMask": "0x0",
-        "EventName": "CPU_CLK_UNHALTED.CORE",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "Core cycles when core is not halted"
-    },
-    {
-        "EventCode": "0xA",
-        "Counter": "Fixed counter 3",
-        "UMask": "0x0",
-        "EventName": "CPU_CLK_UNHALTED.REF",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "Reference cycles when core is not halted."
-    },
-    {
-        "EventCode": "0x88",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "BR_INST_TYPE_RETIRED.COND",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "All macro conditional branch instructions."
-    },
-    {
-        "EventCode": "0x88",
-        "Counter": "0,1",
-        "UMask": "0x2",
-        "EventName": "BR_INST_TYPE_RETIRED.UNCOND",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "All macro unconditional branch instructions, excluding calls and indirects"
-    },
-    {
-        "EventCode": "0x88",
-        "Counter": "0,1",
-        "UMask": "0x4",
-        "EventName": "BR_INST_TYPE_RETIRED.IND",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "All indirect branches that are not calls."
-    },
-    {
-        "EventCode": "0x88",
-        "Counter": "0,1",
-        "UMask": "0x8",
-        "EventName": "BR_INST_TYPE_RETIRED.RET",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "All indirect branches that have a return mnemonic"
-    },
-    {
-        "EventCode": "0x88",
-        "Counter": "0,1",
-        "UMask": "0x10",
-        "EventName": "BR_INST_TYPE_RETIRED.DIR_CALL",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "All non-indirect calls"
-    },
-    {
-        "EventCode": "0x88",
-        "Counter": "0,1",
-        "UMask": "0x20",
-        "EventName": "BR_INST_TYPE_RETIRED.IND_CALL",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "All indirect calls, including both register and memory indirect."
-    },
-    {
-        "EventCode": "0x88",
-        "Counter": "0,1",
-        "UMask": "0x41",
-        "EventName": "BR_INST_TYPE_RETIRED.COND_TAKEN",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "Only taken macro conditional branch instructions"
-    },
-    {
-        "EventCode": "0x89",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "BR_MISSP_TYPE_RETIRED.COND",
-        "SampleAfterValue": "200000",
-        "BriefDescription": "Mispredicted cond branch instructions retired"
-    },
-    {
-        "EventCode": "0x89",
-        "Counter": "0,1",
-        "UMask": "0x2",
-        "EventName": "BR_MISSP_TYPE_RETIRED.IND",
-        "SampleAfterValue": "200000",
-        "BriefDescription": "Mispredicted ind branches that are not calls"
-    },
-    {
-        "EventCode": "0x89",
-        "Counter": "0,1",
-        "UMask": "0x4",
-        "EventName": "BR_MISSP_TYPE_RETIRED.RETURN",
-        "SampleAfterValue": "200000",
-        "BriefDescription": "Mispredicted return branches"
-    },
-    {
-        "EventCode": "0x89",
-        "Counter": "0,1",
-        "UMask": "0x8",
-        "EventName": "BR_MISSP_TYPE_RETIRED.IND_CALL",
-        "SampleAfterValue": "200000",
-        "BriefDescription": "Mispredicted indirect calls, including both register and memory indirect."
-    },
-    {
-        "EventCode": "0x89",
-        "Counter": "0,1",
-        "UMask": "0x11",
-        "EventName": "BR_MISSP_TYPE_RETIRED.COND_TAKEN",
-        "SampleAfterValue": "200000",
-        "BriefDescription": "Mispredicted and taken cond branch instructions retired"
-    },
-    {
-        "PEBS": "2",
-        "EventCode": "0xC0",
-        "Counter": "0,1",
-        "UMask": "0x0",
-        "EventName": "INST_RETIRED.ANY_P",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "Instructions retired (precise event)."
-    },
-    {
-        "EventCode": "0xA",
-        "Counter": "Fixed counter 1",
-        "UMask": "0x0",
-        "EventName": "INST_RETIRED.ANY",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "Instructions retired."
-    },
-    {
-        "EventCode": "0xC2",
-        "Counter": "0,1",
-        "UMask": "0x10",
-        "EventName": "UOPS_RETIRED.ANY",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "Micro-ops retired."
-    },
-    {
-        "EventCode": "0xC2",
-        "Counter": "0,1",
-        "UMask": "0x10",
-        "EventName": "UOPS_RETIRED.STALLED_CYCLES",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "Cycles no micro-ops retired."
-    },
-    {
-        "EventCode": "0xC2",
-        "Counter": "0,1",
-        "UMask": "0x10",
-        "EventName": "UOPS_RETIRED.STALLS",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "Periods no micro-ops retired."
-    },
-    {
-        "EventCode": "0xC3",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "MACHINE_CLEARS.SMC",
-        "SampleAfterValue": "200000",
-        "BriefDescription": "Self-Modifying Code detected."
-    },
-    {
-        "EventCode": "0xC4",
-        "Counter": "0,1",
-        "UMask": "0x0",
-        "EventName": "BR_INST_RETIRED.ANY",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "Retired branch instructions."
-    },
-    {
-        "EventCode": "0xC4",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "BR_INST_RETIRED.PRED_NOT_TAKEN",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "Retired branch instructions that were predicted not-taken."
-    },
-    {
-        "EventCode": "0xC4",
-        "Counter": "0,1",
-        "UMask": "0x2",
-        "EventName": "BR_INST_RETIRED.MISPRED_NOT_TAKEN",
-        "SampleAfterValue": "200000",
-        "BriefDescription": "Retired branch instructions that were mispredicted not-taken."
-    },
-    {
-        "EventCode": "0xC4",
-        "Counter": "0,1",
-        "UMask": "0x4",
-        "EventName": "BR_INST_RETIRED.PRED_TAKEN",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "Retired branch instructions that were predicted taken."
-    },
-    {
-        "EventCode": "0xC4",
-        "Counter": "0,1",
-        "UMask": "0x8",
-        "EventName": "BR_INST_RETIRED.MISPRED_TAKEN",
-        "SampleAfterValue": "200000",
-        "BriefDescription": "Retired branch instructions that were mispredicted taken."
-    },
-    {
-        "EventCode": "0xC4",
-        "Counter": "0,1",
-        "UMask": "0xc",
-        "EventName": "BR_INST_RETIRED.TAKEN",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "Retired taken branch instructions."
-    },
-    {
-        "EventCode": "0xC4",
-        "Counter": "0,1",
-        "UMask": "0xf",
-        "EventName": "BR_INST_RETIRED.ANY1",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "Retired branch instructions."
-    },
-    {
-        "PEBS": "1",
-        "EventCode": "0xC5",
-        "Counter": "0,1",
-        "UMask": "0x0",
-        "EventName": "BR_INST_RETIRED.MISPRED",
-        "SampleAfterValue": "200000",
-        "BriefDescription": "Retired mispredicted branch instructions (precise event)."
-    },
-    {
-        "EventCode": "0xDC",
-        "Counter": "0,1",
-        "UMask": "0x2",
-        "EventName": "RESOURCE_STALLS.DIV_BUSY",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "Cycles issue is stalled due to div busy."
-    },
-    {
-        "EventCode": "0xE0",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "BR_INST_DECODED",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "Branch instructions decoded"
-    },
-    {
+        "BriefDescription": "Bogus branches",
         "EventCode": "0xE4",
-        "Counter": "0,1",
-        "UMask": "0x1",
         "EventName": "BOGUS_BR",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Bogus branches"
+        "UMask": "0x1"
     },
     {
-        "EventCode": "0xE6",
-        "Counter": "0,1",
-        "UMask": "0x1",
-        "EventName": "BACLEARS.ANY",
+        "BriefDescription": "Branch instructions decoded",
+        "EventCode": "0xE0",
+        "EventName": "BR_INST_DECODED",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "BACLEARS asserted."
+        "UMask": "0x1"
     },
     {
+        "BriefDescription": "Retired branch instructions.",
+        "EventCode": "0xC4",
+        "EventName": "BR_INST_RETIRED.ANY",
+        "SampleAfterValue": "2000000"
+    },
+    {
+        "BriefDescription": "Retired branch instructions.",
+        "EventCode": "0xC4",
+        "EventName": "BR_INST_RETIRED.ANY1",
+        "SampleAfterValue": "2000000",
+        "UMask": "0xf"
+    },
+    {
+        "BriefDescription": "Retired mispredicted branch instructions (precise event).",
+        "EventCode": "0xC5",
+        "EventName": "BR_INST_RETIRED.MISPRED",
+        "PEBS": "1",
+        "SampleAfterValue": "200000"
+    },
+    {
+        "BriefDescription": "Retired branch instructions that were mispredicted not-taken.",
+        "EventCode": "0xC4",
+        "EventName": "BR_INST_RETIRED.MISPRED_NOT_TAKEN",
+        "SampleAfterValue": "200000",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "Retired branch instructions that were mispredicted taken.",
+        "EventCode": "0xC4",
+        "EventName": "BR_INST_RETIRED.MISPRED_TAKEN",
+        "SampleAfterValue": "200000",
+        "UMask": "0x8"
+    },
+    {
+        "BriefDescription": "Retired branch instructions that were predicted not-taken.",
+        "EventCode": "0xC4",
+        "EventName": "BR_INST_RETIRED.PRED_NOT_TAKEN",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Retired branch instructions that were predicted taken.",
+        "EventCode": "0xC4",
+        "EventName": "BR_INST_RETIRED.PRED_TAKEN",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x4"
+    },
+    {
+        "BriefDescription": "Retired taken branch instructions.",
+        "EventCode": "0xC4",
+        "EventName": "BR_INST_RETIRED.TAKEN",
+        "SampleAfterValue": "2000000",
+        "UMask": "0xc"
+    },
+    {
+        "BriefDescription": "All macro conditional branch instructions.",
+        "EventCode": "0x88",
+        "EventName": "BR_INST_TYPE_RETIRED.COND",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Only taken macro conditional branch instructions",
+        "EventCode": "0x88",
+        "EventName": "BR_INST_TYPE_RETIRED.COND_TAKEN",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x41"
+    },
+    {
+        "BriefDescription": "All non-indirect calls",
+        "EventCode": "0x88",
+        "EventName": "BR_INST_TYPE_RETIRED.DIR_CALL",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x10"
+    },
+    {
+        "BriefDescription": "All indirect branches that are not calls.",
+        "EventCode": "0x88",
+        "EventName": "BR_INST_TYPE_RETIRED.IND",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x4"
+    },
+    {
+        "BriefDescription": "All indirect calls, including both register and memory indirect.",
+        "EventCode": "0x88",
+        "EventName": "BR_INST_TYPE_RETIRED.IND_CALL",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x20"
+    },
+    {
+        "BriefDescription": "All indirect branches that have a return mnemonic",
+        "EventCode": "0x88",
+        "EventName": "BR_INST_TYPE_RETIRED.RET",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x8"
+    },
+    {
+        "BriefDescription": "All macro unconditional branch instructions, excluding calls and indirects",
+        "EventCode": "0x88",
+        "EventName": "BR_INST_TYPE_RETIRED.UNCOND",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "Mispredicted cond branch instructions retired",
+        "EventCode": "0x89",
+        "EventName": "BR_MISSP_TYPE_RETIRED.COND",
+        "SampleAfterValue": "200000",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Mispredicted and taken cond branch instructions retired",
+        "EventCode": "0x89",
+        "EventName": "BR_MISSP_TYPE_RETIRED.COND_TAKEN",
+        "SampleAfterValue": "200000",
+        "UMask": "0x11"
+    },
+    {
+        "BriefDescription": "Mispredicted ind branches that are not calls",
+        "EventCode": "0x89",
+        "EventName": "BR_MISSP_TYPE_RETIRED.IND",
+        "SampleAfterValue": "200000",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "Mispredicted indirect calls, including both register and memory indirect.",
+        "EventCode": "0x89",
+        "EventName": "BR_MISSP_TYPE_RETIRED.IND_CALL",
+        "SampleAfterValue": "200000",
+        "UMask": "0x8"
+    },
+    {
+        "BriefDescription": "Mispredicted return branches",
+        "EventCode": "0x89",
+        "EventName": "BR_MISSP_TYPE_RETIRED.RETURN",
+        "SampleAfterValue": "200000",
+        "UMask": "0x4"
+    },
+    {
+        "BriefDescription": "Bus cycles when core is not halted",
+        "EventCode": "0x3C",
+        "EventName": "CPU_CLK_UNHALTED.BUS",
+        "SampleAfterValue": "200000",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Core cycles when core is not halted",
+        "EventCode": "0xA",
+        "EventName": "CPU_CLK_UNHALTED.CORE",
+        "SampleAfterValue": "2000000"
+    },
+    {
+        "BriefDescription": "Core cycles when core is not halted",
+        "EventCode": "0x3C",
+        "EventName": "CPU_CLK_UNHALTED.CORE_P",
+        "SampleAfterValue": "2000000"
+    },
+    {
+        "BriefDescription": "Reference cycles when core is not halted.",
+        "EventCode": "0xA",
+        "EventName": "CPU_CLK_UNHALTED.REF",
+        "SampleAfterValue": "2000000"
+    },
+    {
+        "BriefDescription": "Cycles the divider is busy.",
+        "EventCode": "0x14",
+        "EventName": "CYCLES_DIV_BUSY",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Divide operations retired",
+        "EventCode": "0x13",
+        "EventName": "DIV.AR",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x81"
+    },
+    {
+        "BriefDescription": "Divide operations executed.",
+        "EventCode": "0x13",
+        "EventName": "DIV.S",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Instructions retired.",
+        "EventCode": "0xA",
+        "EventName": "INST_RETIRED.ANY",
+        "SampleAfterValue": "2000000"
+    },
+    {
+        "BriefDescription": "Instructions retired (precise event).",
+        "EventCode": "0xC0",
+        "EventName": "INST_RETIRED.ANY_P",
+        "PEBS": "2",
+        "SampleAfterValue": "2000000"
+    },
+    {
+        "BriefDescription": "Self-Modifying Code detected.",
+        "EventCode": "0xC3",
+        "EventName": "MACHINE_CLEARS.SMC",
+        "SampleAfterValue": "200000",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Multiply operations retired",
+        "EventCode": "0x12",
+        "EventName": "MUL.AR",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x81"
+    },
+    {
+        "BriefDescription": "Multiply operations executed.",
+        "EventCode": "0x12",
+        "EventName": "MUL.S",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Micro-op reissues for any cause",
         "EventCode": "0x3",
-        "Counter": "0,1",
-        "UMask": "0x1",
+        "EventName": "REISSUE.ANY",
+        "SampleAfterValue": "200000",
+        "UMask": "0x7f"
+    },
+    {
+        "BriefDescription": "Micro-op reissues for any cause (At Retirement)",
+        "EventCode": "0x3",
+        "EventName": "REISSUE.ANY.AR",
+        "SampleAfterValue": "200000",
+        "UMask": "0xff"
+    },
+    {
+        "BriefDescription": "Micro-op reissues on a store-load collision",
+        "EventCode": "0x3",
         "EventName": "REISSUE.OVERLAP_STORE",
         "SampleAfterValue": "200000",
-        "BriefDescription": "Micro-op reissues on a store-load collision"
+        "UMask": "0x1"
     },
     {
+        "BriefDescription": "Micro-op reissues on a store-load collision (At Retirement)",
         "EventCode": "0x3",
-        "Counter": "0,1",
-        "UMask": "0x81",
         "EventName": "REISSUE.OVERLAP_STORE.AR",
         "SampleAfterValue": "200000",
-        "BriefDescription": "Micro-op reissues on a store-load collision (At Retirement)"
+        "UMask": "0x81"
+    },
+    {
+        "BriefDescription": "Cycles issue is stalled due to div busy.",
+        "EventCode": "0xDC",
+        "EventName": "RESOURCE_STALLS.DIV_BUSY",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "All store forwards",
+        "EventCode": "0x2",
+        "EventName": "STORE_FORWARDS.ANY",
+        "SampleAfterValue": "200000",
+        "UMask": "0x83"
+    },
+    {
+        "BriefDescription": "Good store forwards",
+        "EventCode": "0x2",
+        "EventName": "STORE_FORWARDS.GOOD",
+        "SampleAfterValue": "200000",
+        "UMask": "0x81"
+    },
+    {
+        "BriefDescription": "Micro-ops retired.",
+        "EventCode": "0xC2",
+        "EventName": "UOPS_RETIRED.ANY",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x10"
+    },
+    {
+        "BriefDescription": "Cycles no micro-ops retired.",
+        "EventCode": "0xC2",
+        "EventName": "UOPS_RETIRED.STALLED_CYCLES",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x10"
+    },
+    {
+        "BriefDescription": "Periods no micro-ops retired.",
+        "EventCode": "0xC2",
+        "EventName": "UOPS_RETIRED.STALLS",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x10"
     }
 ]

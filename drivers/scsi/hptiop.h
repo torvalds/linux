@@ -228,7 +228,7 @@ struct hpt_iop_request_scsi_command {
 	u8     pad1;
 	u8     cdb[16];
 	__le32 dataxfer_length;
-	struct hpt_iopsg sg_list[1];
+	struct hpt_iopsg sg_list[];
 };
 
 struct hpt_iop_request_ioctl_command {
@@ -237,7 +237,7 @@ struct hpt_iop_request_ioctl_command {
 	__le32 inbuf_size;
 	__le32 outbuf_size;
 	__le32 bytes_returned;
-	u8     buf[1];
+	u8     buf[];
 	/* out data should be put at buf[(inbuf_size+3)&~3] */
 };
 
@@ -251,13 +251,13 @@ struct hptiop_request {
 	int                   index;
 };
 
-struct hpt_scsi_pointer {
+struct hpt_cmd_priv {
 	int mapped;
 	int sgcnt;
 	dma_addr_t dma_handle;
 };
 
-#define HPT_SCP(scp) ((struct hpt_scsi_pointer *)&(scp)->SCp)
+#define HPT_SCP(scp) ((struct hpt_cmd_priv *)scsi_cmd_priv(scp))
 
 enum hptiop_family {
 	UNKNOWN_BASED_IOP,

@@ -148,7 +148,7 @@ static u32 classbits[N_CLASSES - 1][2] = {
 };
 
 static int mpc7450_get_constraint(u64 event, unsigned long *maskp,
-				  unsigned long *valp)
+				  unsigned long *valp, u64 event_config1 __maybe_unused)
 {
 	int pmc, class;
 	u32 mask, value;
@@ -257,8 +257,9 @@ static const u32 pmcsel_mask[N_COUNTER] = {
  * Compute MMCR0/1/2 values for a set of events.
  */
 static int mpc7450_compute_mmcr(u64 event[], int n_ev, unsigned int hwc[],
-				unsigned long mmcr[],
-				struct perf_event *pevents[])
+				struct mmcr_regs *mmcr,
+				struct perf_event *pevents[],
+				u32 flags __maybe_unused)
 {
 	u8 event_index[N_CLASSES][N_COUNTER];
 	int n_classevent[N_CLASSES];
@@ -321,9 +322,16 @@ static int mpc7450_compute_mmcr(u64 event[], int n_ev, unsigned int hwc[],
 		mmcr0 |= MMCR0_PMCnCE;
 
 	/* Return MMCRx values */
-	mmcr[0] = mmcr0;
-	mmcr[1] = mmcr1;
-	mmcr[2] = mmcr2;
+	mmcr->mmcr0 = mmcr0;
+	mmcr->mmcr1 = mmcr1;
+	mmcr->mmcr2 = mmcr2;
+	/*
+	 * 32-bit doesn't have an MMCRA and uses SPRN_MMCR2 to define
+	 * SPRN_MMCRA. So assign mmcra of cpu_hw_events with `mmcr2`
+	 * value to ensure that any write to this SPRN_MMCRA will
+	 * use mmcr2 value.
+	 */
+	mmcr->mmcra = mmcr2;
 	return 0;
 }
 
@@ -331,12 +339,12 @@ static int mpc7450_compute_mmcr(u64 event[], int n_ev, unsigned int hwc[],
  * Disable counting by a PMC.
  * Note that the pmc argument is 0-based here, not 1-based.
  */
-static void mpc7450_disable_pmc(unsigned int pmc, unsigned long mmcr[])
+static void mpc7450_disable_pmc(unsigned int pmc, struct mmcr_regs *mmcr)
 {
 	if (pmc <= 1)
-		mmcr[0] &= ~(pmcsel_mask[pmc] << pmcsel_shift[pmc]);
+		mmcr->mmcr0 &= ~(pmcsel_mask[pmc] << pmcsel_shift[pmc]);
 	else
-		mmcr[1] &= ~(pmcsel_mask[pmc] << pmcsel_shift[pmc]);
+		mmcr->mmcr1 &= ~(pmcsel_mask[pmc] << pmcsel_shift[pmc]);
 }
 
 static int mpc7450_generic_events[] = {
@@ -354,7 +362,7 @@ static int mpc7450_generic_events[] = {
  * 0 means not supported, -1 means nonsensical, other values
  * are event codes.
  */
-static int mpc7450_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
+static u64 mpc7450_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 	[C(L1D)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
 		[C(OP_READ)] = {	0,		0x225	},
 		[C(OP_WRITE)] = {	0,		0x227	},
@@ -409,8 +417,9 @@ struct power_pmu mpc7450_pmu = {
 
 static int __init init_mpc7450_pmu(void)
 {
-	if (!cur_cpu_spec->oprofile_cpu_type ||
-	    strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc/7450"))
+	if (!pvr_version_is(PVR_VER_7450) && !pvr_version_is(PVR_VER_7455) &&
+	    !pvr_version_is(PVR_VER_7447) && !pvr_version_is(PVR_VER_7447A) &&
+	    !pvr_version_is(PVR_VER_7448))
 		return -ENODEV;
 
 	return register_power_pmu(&mpc7450_pmu);

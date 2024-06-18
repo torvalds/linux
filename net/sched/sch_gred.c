@@ -6,7 +6,7 @@
  *
  *             991129: -  Bug fix with grio mode
  *		       - a better sing. AvgQ mode with Grio(WRED)
- *		       - A finer grained VQ dequeue based on sugestion
+ *		       - A finer grained VQ dequeue based on suggestion
  *		         from Ren Liu
  *		       - More error checks
  *
@@ -56,6 +56,7 @@ struct gred_sched {
 	u32 		DPs;
 	u32 		def;
 	struct red_vars wred_set;
+	struct tc_gred_qopt_offload *opt;
 };
 
 static inline int gred_wred_mode(struct gred_sched *table)
@@ -311,48 +312,50 @@ static void gred_offload(struct Qdisc *sch, enum tc_gred_command command)
 {
 	struct gred_sched *table = qdisc_priv(sch);
 	struct net_device *dev = qdisc_dev(sch);
-	struct tc_gred_qopt_offload opt = {
-		.command	= command,
-		.handle		= sch->handle,
-		.parent		= sch->parent,
-	};
+	struct tc_gred_qopt_offload *opt = table->opt;
 
 	if (!tc_can_offload(dev) || !dev->netdev_ops->ndo_setup_tc)
 		return;
 
+	memset(opt, 0, sizeof(*opt));
+	opt->command = command;
+	opt->handle = sch->handle;
+	opt->parent = sch->parent;
+
 	if (command == TC_GRED_REPLACE) {
 		unsigned int i;
 
-		opt.set.grio_on = gred_rio_mode(table);
-		opt.set.wred_on = gred_wred_mode(table);
-		opt.set.dp_cnt = table->DPs;
-		opt.set.dp_def = table->def;
+		opt->set.grio_on = gred_rio_mode(table);
+		opt->set.wred_on = gred_wred_mode(table);
+		opt->set.dp_cnt = table->DPs;
+		opt->set.dp_def = table->def;
 
 		for (i = 0; i < table->DPs; i++) {
 			struct gred_sched_data *q = table->tab[i];
 
 			if (!q)
 				continue;
-			opt.set.tab[i].present = true;
-			opt.set.tab[i].limit = q->limit;
-			opt.set.tab[i].prio = q->prio;
-			opt.set.tab[i].min = q->parms.qth_min >> q->parms.Wlog;
-			opt.set.tab[i].max = q->parms.qth_max >> q->parms.Wlog;
-			opt.set.tab[i].is_ecn = gred_use_ecn(q);
-			opt.set.tab[i].is_harddrop = gred_use_harddrop(q);
-			opt.set.tab[i].probability = q->parms.max_P;
-			opt.set.tab[i].backlog = &q->backlog;
+			opt->set.tab[i].present = true;
+			opt->set.tab[i].limit = q->limit;
+			opt->set.tab[i].prio = q->prio;
+			opt->set.tab[i].min = q->parms.qth_min >> q->parms.Wlog;
+			opt->set.tab[i].max = q->parms.qth_max >> q->parms.Wlog;
+			opt->set.tab[i].is_ecn = gred_use_ecn(q);
+			opt->set.tab[i].is_harddrop = gred_use_harddrop(q);
+			opt->set.tab[i].probability = q->parms.max_P;
+			opt->set.tab[i].backlog = &q->backlog;
 		}
-		opt.set.qstats = &sch->qstats;
+		opt->set.qstats = &sch->qstats;
 	}
 
-	dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_QDISC_GRED, &opt);
+	dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_QDISC_GRED, opt);
 }
 
 static int gred_offload_dump_stats(struct Qdisc *sch)
 {
 	struct gred_sched *table = qdisc_priv(sch);
 	struct tc_gred_qopt_offload *hw_stats;
+	u64 bytes = 0, packets = 0;
 	unsigned int i;
 	int ret;
 
@@ -364,30 +367,34 @@ static int gred_offload_dump_stats(struct Qdisc *sch)
 	hw_stats->handle = sch->handle;
 	hw_stats->parent = sch->parent;
 
-	for (i = 0; i < MAX_DPs; i++)
+	for (i = 0; i < MAX_DPs; i++) {
+		gnet_stats_basic_sync_init(&hw_stats->stats.bstats[i]);
 		if (table->tab[i])
 			hw_stats->stats.xstats[i] = &table->tab[i]->stats;
+	}
 
 	ret = qdisc_offload_dump_helper(sch, TC_SETUP_QDISC_GRED, hw_stats);
 	/* Even if driver returns failure adjust the stats - in case offload
 	 * ended but driver still wants to adjust the values.
 	 */
+	sch_tree_lock(sch);
 	for (i = 0; i < MAX_DPs; i++) {
 		if (!table->tab[i])
 			continue;
-		table->tab[i]->packetsin += hw_stats->stats.bstats[i].packets;
-		table->tab[i]->bytesin += hw_stats->stats.bstats[i].bytes;
+		table->tab[i]->packetsin += u64_stats_read(&hw_stats->stats.bstats[i].packets);
+		table->tab[i]->bytesin += u64_stats_read(&hw_stats->stats.bstats[i].bytes);
 		table->tab[i]->backlog += hw_stats->stats.qstats[i].backlog;
 
-		_bstats_update(&sch->bstats,
-			       hw_stats->stats.bstats[i].bytes,
-			       hw_stats->stats.bstats[i].packets);
+		bytes += u64_stats_read(&hw_stats->stats.bstats[i].bytes);
+		packets += u64_stats_read(&hw_stats->stats.bstats[i].packets);
 		sch->qstats.qlen += hw_stats->stats.qstats[i].qlen;
 		sch->qstats.backlog += hw_stats->stats.qstats[i].backlog;
 		sch->qstats.drops += hw_stats->stats.qstats[i].drops;
 		sch->qstats.requeues += hw_stats->stats.qstats[i].requeues;
 		sch->qstats.overlimits += hw_stats->stats.qstats[i].overlimits;
 	}
+	_bstats_update(&sch->bstats, bytes, packets);
+	sch_tree_unlock(sch);
 
 	kfree(hw_stats);
 	return ret;
@@ -480,7 +487,7 @@ static inline int gred_change_vq(struct Qdisc *sch, int dp,
 	struct gred_sched *table = qdisc_priv(sch);
 	struct gred_sched_data *q = table->tab[dp];
 
-	if (!red_check_params(ctl->qth_min, ctl->qth_max, ctl->Wlog)) {
+	if (!red_check_params(ctl->qth_min, ctl->qth_max, ctl->Wlog, ctl->Scell_log, stab)) {
 		NL_SET_ERR_MSG_MOD(extack, "invalid RED parameters");
 		return -EINVAL;
 	}
@@ -643,9 +650,6 @@ static int gred_change(struct Qdisc *sch, struct nlattr *opt,
 	u32 max_P;
 	struct gred_sched_data *prealloc;
 
-	if (opt == NULL)
-		return -EINVAL;
-
 	err = nla_parse_nested_deprecated(tb, TCA_GRED_MAX, opt, gred_policy,
 					  extack);
 	if (err < 0)
@@ -728,6 +732,7 @@ err_unlock_free:
 static int gred_init(struct Qdisc *sch, struct nlattr *opt,
 		     struct netlink_ext_ack *extack)
 {
+	struct gred_sched *table = qdisc_priv(sch);
 	struct nlattr *tb[TCA_GRED_MAX + 1];
 	int err;
 
@@ -750,6 +755,12 @@ static int gred_init(struct Qdisc *sch, struct nlattr *opt,
 	else
 		sch->limit = qdisc_dev(sch)->tx_queue_len
 		             * psched_mtu(qdisc_dev(sch));
+
+	if (qdisc_dev(sch)->netdev_ops->ndo_setup_tc) {
+		table->opt = kzalloc(sizeof(*table->opt), GFP_KERNEL);
+		if (!table->opt)
+			return -ENOMEM;
+	}
 
 	return gred_change_table_def(sch, tb[TCA_GRED_DPS], extack);
 }
@@ -817,7 +828,6 @@ static int gred_dump(struct Qdisc *sch, struct sk_buff *skb)
 		opt.Wlog	= q->parms.Wlog;
 		opt.Plog	= q->parms.Plog;
 		opt.Scell_log	= q->parms.Scell_log;
-		opt.other	= q->stats.other;
 		opt.early	= q->stats.prob_drop;
 		opt.forced	= q->stats.forced_drop;
 		opt.pdrop	= q->stats.pdrop;
@@ -883,8 +893,6 @@ append_opt:
 			goto nla_put_failure;
 		if (nla_put_u32(skb, TCA_GRED_VQ_STAT_PDROP, q->stats.pdrop))
 			goto nla_put_failure;
-		if (nla_put_u32(skb, TCA_GRED_VQ_STAT_OTHER, q->stats.other))
-			goto nla_put_failure;
 
 		nla_nest_end(skb, vq);
 	}
@@ -902,11 +910,11 @@ static void gred_destroy(struct Qdisc *sch)
 	struct gred_sched *table = qdisc_priv(sch);
 	int i;
 
-	for (i = 0; i < table->DPs; i++) {
-		if (table->tab[i])
-			gred_destroy_vq(table->tab[i]);
-	}
+	for (i = 0; i < table->DPs; i++)
+		gred_destroy_vq(table->tab[i]);
+
 	gred_offload(sch, TC_GRED_DESTROY);
+	kfree(table->opt);
 }
 
 static struct Qdisc_ops gred_qdisc_ops __read_mostly = {
@@ -922,6 +930,7 @@ static struct Qdisc_ops gred_qdisc_ops __read_mostly = {
 	.dump		=	gred_dump,
 	.owner		=	THIS_MODULE,
 };
+MODULE_ALIAS_NET_SCH("gred");
 
 static int __init gred_module_init(void)
 {
@@ -937,3 +946,4 @@ module_init(gred_module_init)
 module_exit(gred_module_exit)
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Generic Random Early Detection qdisc");

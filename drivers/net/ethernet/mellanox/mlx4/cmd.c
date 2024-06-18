@@ -1994,21 +1994,16 @@ static void mlx4_allocate_port_vpps(struct mlx4_dev *dev, int port)
 
 static int mlx4_master_activate_admin_state(struct mlx4_priv *priv, int slave)
 {
-	int port, err;
+	int p, port, err;
 	struct mlx4_vport_state *vp_admin;
 	struct mlx4_vport_oper_state *vp_oper;
 	struct mlx4_slave_state *slave_state =
 		&priv->mfunc.master.slave_state[slave];
 	struct mlx4_active_ports actv_ports = mlx4_get_active_ports(
 			&priv->dev, slave);
-	int min_port = find_first_bit(actv_ports.ports,
-				      priv->dev.caps.num_ports) + 1;
-	int max_port = min_port - 1 +
-		bitmap_weight(actv_ports.ports, priv->dev.caps.num_ports);
 
-	for (port = min_port; port <= max_port; port++) {
-		if (!test_bit(port - 1, actv_ports.ports))
-			continue;
+	for_each_set_bit(p, actv_ports.ports, priv->dev.caps.num_ports) {
+		port = p + 1;
 		priv->mfunc.master.vf_oper[slave].smi_enabled[port] =
 			priv->mfunc.master.vf_admin[slave].enable_smi[port];
 		vp_oper = &priv->mfunc.master.vf_oper[slave].vport[port];
@@ -2063,19 +2058,13 @@ static int mlx4_master_activate_admin_state(struct mlx4_priv *priv, int slave)
 
 static void mlx4_master_deactivate_admin_state(struct mlx4_priv *priv, int slave)
 {
-	int port;
+	int p, port;
 	struct mlx4_vport_oper_state *vp_oper;
 	struct mlx4_active_ports actv_ports = mlx4_get_active_ports(
 			&priv->dev, slave);
-	int min_port = find_first_bit(actv_ports.ports,
-				      priv->dev.caps.num_ports) + 1;
-	int max_port = min_port - 1 +
-		bitmap_weight(actv_ports.ports, priv->dev.caps.num_ports);
 
-
-	for (port = min_port; port <= max_port; port++) {
-		if (!test_bit(port - 1, actv_ports.ports))
-			continue;
+	for_each_set_bit(p, actv_ports.ports, priv->dev.caps.num_ports) {
+		port = p + 1;
 		priv->mfunc.master.vf_oper[slave].smi_enabled[port] =
 			MLX4_VF_SMI_DISABLED;
 		vp_oper = &priv->mfunc.master.vf_oper[slave].vport[port];
@@ -2124,7 +2113,7 @@ static void mlx4_master_do_cmd(struct mlx4_dev *dev, int slave, u8 cmd,
 		if (MLX4_COMM_CMD_FLR == slave_state[slave].last_cmd)
 			goto inform_slave_state;
 
-		mlx4_dispatch_event(dev, MLX4_DEV_EVENT_SLAVE_SHUTDOWN, slave);
+		mlx4_dispatch_event(dev, MLX4_DEV_EVENT_SLAVE_SHUTDOWN, &slave);
 
 		/* write the version in the event field */
 		reply |= mlx4_comm_get_version();
@@ -2163,7 +2152,7 @@ static void mlx4_master_do_cmd(struct mlx4_dev *dev, int slave, u8 cmd,
 		if (mlx4_master_activate_admin_state(priv, slave))
 				goto reset_slave;
 		slave_state[slave].active = true;
-		mlx4_dispatch_event(dev, MLX4_DEV_EVENT_SLAVE_INIT, slave);
+		mlx4_dispatch_event(dev, MLX4_DEV_EVENT_SLAVE_INIT, &slave);
 		break;
 	case MLX4_COMM_CMD_VHCR_POST:
 		if ((slave_state[slave].last_cmd != MLX4_COMM_CMD_VHCR_EN) &&
@@ -2210,8 +2199,9 @@ reset_slave:
 	if (cmd != MLX4_COMM_CMD_RESET) {
 		mlx4_warn(dev, "Turn on internal error to force reset, slave=%d, cmd=0x%x\n",
 			  slave, cmd);
-		/* Turn on internal error letting slave reset itself immeditaly,
-		 * otherwise it might take till timeout on command is passed
+		/* Turn on internal error letting slave reset itself
+		 * immediately, otherwise it might take till timeout on
+		 * command is passed
 		 */
 		reply |= ((u32)COMM_CHAN_EVENT_INTERNAL_ERR);
 	}
@@ -2241,43 +2231,52 @@ void mlx4_master_comm_channel(struct work_struct *work)
 	struct mlx4_priv *priv =
 		container_of(mfunc, struct mlx4_priv, mfunc);
 	struct mlx4_dev *dev = &priv->dev;
-	__be32 *bit_vec;
+	u32 lbit_vec[COMM_CHANNEL_BIT_ARRAY_SIZE];
+	u32 nmbr_bits;
 	u32 comm_cmd;
-	u32 vec;
-	int i, j, slave;
+	int i, slave;
 	int toggle;
+	bool first = true;
 	int served = 0;
 	int reported = 0;
 	u32 slt;
 
-	bit_vec = master->comm_arm_bit_vector;
-	for (i = 0; i < COMM_CHANNEL_BIT_ARRAY_SIZE; i++) {
-		vec = be32_to_cpu(bit_vec[i]);
-		for (j = 0; j < 32; j++) {
-			if (!(vec & (1 << j)))
-				continue;
-			++reported;
-			slave = (i * 32) + j;
-			comm_cmd = swab32(readl(
-					  &mfunc->comm[slave].slave_write));
-			slt = swab32(readl(&mfunc->comm[slave].slave_read))
-				     >> 31;
-			toggle = comm_cmd >> 31;
-			if (toggle != slt) {
-				if (master->slave_state[slave].comm_toggle
-				    != slt) {
-					pr_info("slave %d out of sync. read toggle %d, state toggle %d. Resynching.\n",
-						slave, slt,
-						master->slave_state[slave].comm_toggle);
-					master->slave_state[slave].comm_toggle =
-						slt;
-				}
-				mlx4_master_do_cmd(dev, slave,
-						   comm_cmd >> 16 & 0xff,
-						   comm_cmd & 0xffff, toggle);
-				++served;
-			}
+	for (i = 0; i < COMM_CHANNEL_BIT_ARRAY_SIZE; i++)
+		lbit_vec[i] = be32_to_cpu(master->comm_arm_bit_vector[i]);
+	nmbr_bits = dev->persist->num_vfs + 1;
+	if (++master->next_slave >= nmbr_bits)
+		master->next_slave = 0;
+	slave = master->next_slave;
+	while (true) {
+		slave = find_next_bit((const unsigned long *)&lbit_vec, nmbr_bits, slave);
+		if  (!first && slave >= master->next_slave)
+			break;
+		if (slave == nmbr_bits) {
+			if (!first)
+				break;
+			first = false;
+			slave = 0;
+			continue;
 		}
+		++reported;
+		comm_cmd = swab32(readl(&mfunc->comm[slave].slave_write));
+		slt = swab32(readl(&mfunc->comm[slave].slave_read)) >> 31;
+		toggle = comm_cmd >> 31;
+		if (toggle != slt) {
+			if (master->slave_state[slave].comm_toggle
+			    != slt) {
+				pr_info("slave %d out of sync. read toggle %d, state toggle %d. Resynching.\n",
+					slave, slt,
+					master->slave_state[slave].comm_toggle);
+				master->slave_state[slave].comm_toggle =
+					slt;
+			}
+			mlx4_master_do_cmd(dev, slave,
+					   comm_cmd >> 16 & 0xff,
+					   comm_cmd & 0xffff, toggle);
+			++served;
+		}
+		slave++;
 	}
 
 	if (reported && reported != served)
@@ -2389,6 +2388,8 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 		if (!priv->mfunc.master.vf_oper)
 			goto err_comm_oper;
 
+		priv->mfunc.master.next_slave = 0;
+
 		for (i = 0; i < dev->num_slaves; ++i) {
 			vf_admin = &priv->mfunc.master.vf_admin[i];
 			vf_oper = &priv->mfunc.master.vf_oper[i];
@@ -2469,7 +2470,6 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 	return 0;
 
 err_thread:
-	flush_workqueue(priv->mfunc.master.comm_wq);
 	destroy_workqueue(priv->mfunc.master.comm_wq);
 err_slaves:
 	while (i--) {
@@ -2576,7 +2576,6 @@ void mlx4_multi_func_cleanup(struct mlx4_dev *dev)
 	int i, port;
 
 	if (mlx4_is_master(dev)) {
-		flush_workqueue(priv->mfunc.master.comm_wq);
 		destroy_workqueue(priv->mfunc.master.comm_wq);
 		for (i = 0; i < dev->num_slaves; i++) {
 			for (port = 1; port <= MLX4_MAX_PORTS; port++)
@@ -2956,7 +2955,7 @@ static bool mlx4_valid_vf_state_change(struct mlx4_dev *dev, int port,
 	dummy_admin.default_vlan = vlan;
 
 	/* VF wants to move to other VST state which is valid with current
-	 * rate limit. Either differnt default vlan in VST or other
+	 * rate limit. Either different default vlan in VST or other
 	 * supported QoS priority. Otherwise we don't allow this change when
 	 * the TX rate is still configured.
 	 */
@@ -2998,7 +2997,7 @@ int mlx4_set_vf_mac(struct mlx4_dev *dev, int port, int vf, u8 *mac)
 		return -EPERM;
 	}
 
-	s_info->mac = mlx4_mac_to_u64(mac);
+	s_info->mac = ether_addr_to_u64(mac);
 	mlx4_info(dev, "default mac on vf %d port %d to %llX will take effect only after vf restart\n",
 		  vf, port, s_info->mac);
 	return 0;
@@ -3184,7 +3183,7 @@ int mlx4_set_vf_spoofchk(struct mlx4_dev *dev, int port, int vf, bool setting)
 	port = mlx4_slaves_closest_port(dev, slave, port);
 	s_info = &priv->mfunc.master.vf_admin[slave].vport[port];
 
-	mlx4_u64_to_mac(mac, s_info->mac);
+	u64_to_ether_addr(s_info->mac, mac);
 	if (setting && !is_valid_ether_addr(mac)) {
 		mlx4_info(dev, "Illegal MAC with spoofchk\n");
 		return -EPERM;

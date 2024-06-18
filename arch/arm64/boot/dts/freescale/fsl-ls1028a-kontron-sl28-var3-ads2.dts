@@ -1,0 +1,129 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Device Tree file for the Kontron SMARC-sAL28 board on a SMARC Eval 2.0
+ * carrier (ADS2).
+ *
+ * Copyright (C) 2019 Michael Walle <michael@walle.cc>
+ *
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/clock/fsl,qoriq-clockgen.h>
+#include "fsl-ls1028a-kontron-sl28-var3.dts"
+
+/ {
+	model = "Kontron SMARC-sAL28 (Single PHY) on SMARC Eval 2.0 carrier";
+	compatible = "kontron,sl28-var3-ads2", "kontron,sl28-var3",
+		     "kontron,sl28", "fsl,ls1028a";
+
+	pwm-fan {
+		compatible = "pwm-fan";
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		pwms = <&sl28cpld_pwm0 0 4000000>;
+		cooling-levels = <1 128 192 255>;
+	};
+
+	sound {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "simple-audio-card";
+		simple-audio-card,widgets =
+			"Headphone", "Headphone Jack",
+			"Line", "Line Out Jack",
+			"Microphone", "Microphone Jack",
+			"Line", "Line In Jack";
+		simple-audio-card,routing =
+			"Line Out Jack", "LINEOUTR",
+			"Line Out Jack", "LINEOUTL",
+			"Headphone Jack", "HPOUTR",
+			"Headphone Jack", "HPOUTL",
+			"IN1L", "Line In Jack",
+			"IN1R", "Line In Jack",
+			"Microphone Jack", "MICBIAS",
+			"IN2L", "Microphone Jack",
+			"IN2R", "Microphone Jack";
+		simple-audio-card,mclk-fs = <256>;
+
+		simple-audio-card,dai-link@0 {
+			reg = <0>;
+			bitclock-master = <&dailink0_master>;
+			frame-master = <&dailink0_master>;
+			format = "i2s";
+
+			cpu {
+				sound-dai = <&sai6>;
+			};
+
+			dailink0_master: codec {
+				sound-dai = <&wm8904>;
+			};
+		};
+
+		simple-audio-card,dai-link@1 {
+			reg = <1>;
+			bitclock-master = <&dailink1_master>;
+			frame-master = <&dailink1_master>;
+			format = "i2s";
+
+			cpu {
+				sound-dai = <&sai5>;
+			};
+
+			dailink1_master: codec {
+				sound-dai = <&wm8904>;
+			};
+		};
+	};
+};
+
+&dspi2 {
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		m25p,fast-read;
+		spi-max-frequency = <100000000>;
+		reg = <0>;
+	};
+};
+
+&i2c3 {
+	eeprom@57 {
+		compatible = "atmel,24c64";
+		reg = <0x57>;
+		pagesize = <32>;
+	};
+};
+
+&i2c4 {
+	status = "okay";
+
+	wm8904: audio-codec@1a {
+		#sound-dai-cells = <0>;
+		compatible = "wlf,wm8904";
+		reg = <0x1a>;
+		clocks = <&mclk>;
+		clock-names = "mclk";
+		assigned-clocks = <&mclk>;
+		assigned-clock-rates = <1250000>;
+	};
+};
+
+&sai5 {
+	status = "okay";
+};
+
+&sai6 {
+	status = "okay";
+};
+
+&soc {
+	mclk: clock-mclk@f130080 {
+		compatible = "fsl,vf610-sai-clock";
+		reg = <0x0 0xf130080 0x0 0x80>;
+		clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
+				    QORIQ_CLK_PLL_DIV(2)>;
+		#clock-cells = <0>;
+	};
+};

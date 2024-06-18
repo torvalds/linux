@@ -13,8 +13,8 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/fs.h>
-#include <linux/mfd/cros_ec.h>
 #include <linux/miscdevice.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/notifier.h>
 #include <linux/platform_data/cros_ec_chardev.h>
@@ -49,7 +49,7 @@ struct ec_event {
 	struct list_head node;
 	size_t size;
 	u8 event_type;
-	u8 data[0];
+	u8 data[];
 };
 
 static int ec_get_version(struct cros_ec_dev *ec, char *str, int maxlen)
@@ -285,7 +285,7 @@ static long cros_ec_chardev_ioctl_xcmd(struct cros_ec_dev *ec, void __user *arg)
 	    u_cmd.insize > EC_MAX_MSG_BYTES)
 		return -EINVAL;
 
-	s_cmd = kmalloc(sizeof(*s_cmd) + max(u_cmd.outsize, u_cmd.insize),
+	s_cmd = kzalloc(sizeof(*s_cmd) + max(u_cmd.outsize, u_cmd.insize),
 			GFP_KERNEL);
 	if (!s_cmd)
 		return -ENOMEM;
@@ -327,6 +327,9 @@ static long cros_ec_chardev_ioctl_readmem(struct cros_ec_dev *ec,
 
 	if (copy_from_user(&s_mem, arg, sizeof(s_mem)))
 		return -EFAULT;
+
+	if (s_mem.bytes > sizeof(s_mem.buffer))
+		return -EINVAL;
 
 	num = ec_dev->cmd_readmem(ec_dev, s_mem.offset, s_mem.bytes,
 				  s_mem.buffer);
@@ -394,26 +397,30 @@ static int cros_ec_chardev_probe(struct platform_device *pdev)
 	return misc_register(&data->misc);
 }
 
-static int cros_ec_chardev_remove(struct platform_device *pdev)
+static void cros_ec_chardev_remove(struct platform_device *pdev)
 {
 	struct chardev_data *data = dev_get_drvdata(&pdev->dev);
 
 	misc_deregister(&data->misc);
-
-	return 0;
 }
+
+static const struct platform_device_id cros_ec_chardev_id[] = {
+	{ DRV_NAME, 0 },
+	{}
+};
+MODULE_DEVICE_TABLE(platform, cros_ec_chardev_id);
 
 static struct platform_driver cros_ec_chardev_driver = {
 	.driver = {
 		.name = DRV_NAME,
 	},
 	.probe = cros_ec_chardev_probe,
-	.remove = cros_ec_chardev_remove,
+	.remove_new = cros_ec_chardev_remove,
+	.id_table = cros_ec_chardev_id,
 };
 
 module_platform_driver(cros_ec_chardev_driver);
 
-MODULE_ALIAS("platform:" DRV_NAME);
 MODULE_AUTHOR("Enric Balletbo i Serra <enric.balletbo@collabora.com>");
 MODULE_DESCRIPTION("ChromeOS EC Miscellaneous Character Driver");
 MODULE_LICENSE("GPL");

@@ -1,10 +1,5 @@
-/*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
- * Copyright (C) 2012 MIPS Technologies, Inc.  All rights reserved.
- */
+// SPDX-License-Identifier: GPL-2.0
+// Copyright (C) 2012 MIPS Technologies, Inc.  All rights reserved.
 
 #define pr_fmt(fmt) "mips-gic-timer: " fmt
 
@@ -16,6 +11,7 @@
 #include <linux/notifier.h>
 #include <linux/of_irq.h>
 #include <linux/percpu.h>
+#include <linux/sched_clock.h>
 #include <linux/smp.h>
 #include <linux/time.h>
 #include <asm/mips-cps.h>
@@ -23,13 +19,13 @@
 static DEFINE_PER_CPU(struct clock_event_device, gic_clockevent_device);
 static int gic_timer_irq;
 static unsigned int gic_frequency;
+static bool __read_mostly gic_clock_unstable;
 
-static u64 notrace gic_read_count(void)
+static void gic_clocksource_unstable(char *reason);
+
+static u64 notrace gic_read_count_2x32(void)
 {
 	unsigned int hi, hi2, lo;
-
-	if (mips_cm_is64)
-		return read_gic_counter();
 
 	do {
 		hi = read_gic_counter_32h();
@@ -38,6 +34,19 @@ static u64 notrace gic_read_count(void)
 	} while (hi2 != hi);
 
 	return (((u64) hi) << 32) + lo;
+}
+
+static u64 notrace gic_read_count_64(void)
+{
+	return read_gic_counter();
+}
+
+static u64 notrace gic_read_count(void)
+{
+	if (mips_cm_is64)
+		return gic_read_count_64();
+
+	return gic_read_count_2x32();
 }
 
 static int gic_next_event(unsigned long delta, struct clock_event_device *evt)
@@ -114,8 +123,10 @@ static int gic_clk_notifier(struct notifier_block *nb, unsigned long action,
 {
 	struct clk_notifier_data *cnd = data;
 
-	if (action == POST_RATE_CHANGE)
+	if (action == POST_RATE_CHANGE) {
+		gic_clocksource_unstable("ref clock rate change");
 		on_each_cpu(gic_update_frequency, (void *)cnd->new_rate, 1);
+	}
 
 	return NOTIFY_OK;
 }
@@ -155,11 +166,23 @@ static u64 gic_hpt_read(struct clocksource *cs)
 }
 
 static struct clocksource gic_clocksource = {
-	.name		= "GIC",
-	.read		= gic_hpt_read,
-	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
-	.archdata	= { .vdso_clock_mode = VDSO_CLOCK_GIC },
+	.name			= "GIC",
+	.read			= gic_hpt_read,
+	.flags			= CLOCK_SOURCE_IS_CONTINUOUS,
+	.vdso_clock_mode	= VDSO_CLOCKMODE_GIC,
 };
+
+static void gic_clocksource_unstable(char *reason)
+{
+	if (gic_clock_unstable)
+		return;
+
+	gic_clock_unstable = true;
+
+	pr_info("GIC timer is unstable due to %s\n", reason);
+
+	clocksource_mark_unstable(&gic_clocksource);
+}
 
 static int __init __gic_clocksource_init(void)
 {
@@ -227,6 +250,18 @@ static int __init gic_clocksource_of_init(struct device_node *node)
 
 	/* And finally start the counter */
 	clear_gic_config(GIC_CONFIG_COUNTSTOP);
+
+	/*
+	 * It's safe to use the MIPS GIC timer as a sched clock source only if
+	 * its ticks are stable, which is true on either the platforms with
+	 * stable CPU frequency or on the platforms with CM3 and CPU frequency
+	 * change performed by the CPC core clocks divider.
+	 */
+	if (mips_cm_revision() >= CM_REV_CM3 || !IS_ENABLED(CONFIG_CPU_FREQ)) {
+		sched_clock_register(mips_cm_is64 ?
+				     gic_read_count_64 : gic_read_count_2x32,
+				     64, gic_frequency);
+	}
 
 	return 0;
 }

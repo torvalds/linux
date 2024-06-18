@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config LEDS_SIEMENS_SIMATIC_IPC
+	tristate "LED driver for Siemens Simatic IPCs"
+	depends on LEDS_CLASS
+	depends on SIEMENS_SIMATIC_IPC
+	default y
+	help
+	  This option enables support for the LEDs of several Industrial PCs
+	  from Siemens.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called simatic-ipc-leds.
+
+config LEDS_SIEMENS_SIMATIC_IPC_APOLLOLAKE
+	tristate "LED driver for Siemens Simatic IPCs based on Intel Apollo Lake GPIO"
+	depends on LEDS_GPIO
+	depends on PINCTRL_BROXTON
+	depends on SIEMENS_SIMATIC_IPC
+	default LEDS_SIEMENS_SIMATIC_IPC
+	help
+	  This option enables support for the LEDs of several Industrial PCs
+	  from Siemens based on Apollo Lake GPIO i.e. IPC127E.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called simatic-ipc-leds-gpio-apollolake.
+
+config LEDS_SIEMENS_SIMATIC_IPC_F7188X
+	tristate "LED driver for Siemens Simatic IPCs based on Nuvoton GPIO"
+	depends on LEDS_GPIO
+	depends on GPIO_F7188X
+	depends on SIEMENS_SIMATIC_IPC
+	default LEDS_SIEMENS_SIMATIC_IPC
+	help
+	  This option enables support for the LEDs of several Industrial PCs
+	  from Siemens based on Nuvoton GPIO i.e. IPC227G.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called simatic-ipc-leds-gpio-f7188x.
+
+config LEDS_SIEMENS_SIMATIC_IPC_ELKHARTLAKE
+	tristate "LED driver for Siemens Simatic IPCs based on Intel Elkhart Lake GPIO"
+	depends on LEDS_GPIO
+	depends on PINCTRL_ELKHARTLAKE
+	depends on SIEMENS_SIMATIC_IPC
+	default LEDS_SIEMENS_SIMATIC_IPC
+	help
+	  This option enables support for the LEDs of several Industrial PCs
+	  from Siemens based on Elkhart Lake GPIO i.e. BX-21A.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called simatic-ipc-leds-gpio-elkhartlake.

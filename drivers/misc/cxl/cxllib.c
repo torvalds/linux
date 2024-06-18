@@ -5,6 +5,7 @@
 
 #include <linux/hugetlb.h>
 #include <linux/sched/mm.h>
+#include <asm/opal-api.h>
 #include <asm/pnv-pci.h>
 #include <misc/cxllib.h>
 
@@ -170,8 +171,6 @@ int cxllib_get_PE_attributes(struct task_struct *task,
 			     unsigned long translation_mode,
 			     struct cxllib_pe_attributes *attr)
 {
-	struct mm_struct *mm = NULL;
-
 	if (translation_mode != CXL_TRANSLATED_MODE &&
 		translation_mode != CXL_REAL_MODE)
 		return -EINVAL;
@@ -182,7 +181,7 @@ int cxllib_get_PE_attributes(struct task_struct *task,
 				true);
 	attr->lpid = mfspr(SPRN_LPID);
 	if (task) {
-		mm = get_task_mm(task);
+		struct mm_struct *mm = get_task_mm(task);
 		if (mm == NULL)
 			return -EINVAL;
 		/*
@@ -207,7 +206,7 @@ static int get_vma_info(struct mm_struct *mm, u64 addr,
 	struct vm_area_struct *vma = NULL;
 	int rc = 0;
 
-	down_read(&mm->mmap_sem);
+	mmap_read_lock(mm);
 
 	vma = find_vma(mm, addr);
 	if (!vma) {
@@ -218,7 +217,7 @@ static int get_vma_info(struct mm_struct *mm, u64 addr,
 	*vma_start = vma->vm_start;
 	*vma_end = vma->vm_end;
 out:
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 	return rc;
 }
 
@@ -245,9 +244,8 @@ int cxllib_handle_fault(struct mm_struct *mm, u64 addr, u64 size, u64 flags)
 	     dar += page_size) {
 		if (dar < vma_start || dar >= vma_end) {
 			/*
-			 * We don't hold the mm->mmap_sem semaphore
-			 * while iterating, since the semaphore is
-			 * required by one of the lower-level page
+			 * We don't hold mm->mmap_lock while iterating, since
+			 * the lock is required by one of the lower-level page
 			 * fault processing functions and it could
 			 * create a deadlock.
 			 *

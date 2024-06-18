@@ -9,6 +9,12 @@
 #include <linux/regmap.h>
 #include <linux/watchdog.h>
 
+#define PON_POFF_REASON1		0x0c
+#define PON_POFF_REASON1_PMIC_WD	BIT(2)
+#define PON_POFF_REASON2		0x0d
+#define PON_POFF_REASON2_UVLO		BIT(5)
+#define PON_POFF_REASON2_OTST3		BIT(6)
+
 #define PON_INT_RT_STS			0x10
 #define PMIC_WD_BARK_STS_BIT		BIT(6)
 
@@ -58,9 +64,8 @@ static int pm8916_wdt_ping(struct watchdog_device *wdev)
 {
 	struct pm8916_wdt *wdt = watchdog_get_drvdata(wdev);
 
-	return regmap_update_bits(wdt->regmap,
-				  wdt->baseaddr + PON_PMIC_WD_RESET_PET,
-				  WATCHDOG_PET_BIT, WATCHDOG_PET_BIT);
+	return regmap_write(wdt->regmap, wdt->baseaddr + PON_PMIC_WD_RESET_PET,
+			    WATCHDOG_PET_BIT);
 }
 
 static int pm8916_wdt_configure_timers(struct watchdog_device *wdev)
@@ -111,12 +116,14 @@ static irqreturn_t pm8916_wdt_isr(int irq, void *arg)
 }
 
 static const struct watchdog_info pm8916_wdt_ident = {
-	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE,
+	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE |
+		   WDIOF_OVERHEAT | WDIOF_CARDRESET | WDIOF_POWERUNDER,
 	.identity = "QCOM PM8916 PON WDT",
 };
 
 static const struct watchdog_info pm8916_wdt_pt_ident = {
 	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE |
+		   WDIOF_OVERHEAT | WDIOF_CARDRESET | WDIOF_POWERUNDER |
 		   WDIOF_PRETIMEOUT,
 	.identity = "QCOM PM8916 PON WDT",
 };
@@ -135,7 +142,9 @@ static int pm8916_wdt_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct pm8916_wdt *wdt;
 	struct device *parent;
+	unsigned int val;
 	int err, irq;
+	u8 poff[2];
 
 	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
@@ -163,10 +172,42 @@ static int pm8916_wdt_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq > 0) {
-		if (devm_request_irq(dev, irq, pm8916_wdt_isr, 0, "pm8916_wdt",
-				     wdt))
-			irq = 0;
+		err = devm_request_irq(dev, irq, pm8916_wdt_isr, 0,
+				       "pm8916_wdt", wdt);
+		if (err)
+			return err;
+
+		wdt->wdev.info = &pm8916_wdt_pt_ident;
+	} else {
+		if (irq == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+
+		wdt->wdev.info = &pm8916_wdt_ident;
 	}
+
+	err = regmap_bulk_read(wdt->regmap, wdt->baseaddr + PON_POFF_REASON1,
+			       &poff, ARRAY_SIZE(poff));
+	if (err) {
+		dev_err(dev, "failed to read POFF reason: %d\n", err);
+		return err;
+	}
+
+	dev_dbg(dev, "POFF reason: %#x %#x\n", poff[0], poff[1]);
+	if (poff[0] & PON_POFF_REASON1_PMIC_WD)
+		wdt->wdev.bootstatus |= WDIOF_CARDRESET;
+	if (poff[1] & PON_POFF_REASON2_UVLO)
+		wdt->wdev.bootstatus |= WDIOF_POWERUNDER;
+	if (poff[1] & PON_POFF_REASON2_OTST3)
+		wdt->wdev.bootstatus |= WDIOF_OVERHEAT;
+
+	err = regmap_read(wdt->regmap, wdt->baseaddr + PON_PMIC_WD_RESET_S2_CTL2,
+			  &val);
+	if (err)  {
+		dev_err(dev, "failed to check if watchdog is active: %d\n", err);
+		return err;
+	}
+	if (val & S2_RESET_EN_BIT)
+		set_bit(WDOG_HW_RUNNING, &wdt->wdev.status);
 
 	/* Configure watchdog to hard-reset mode */
 	err = regmap_write(wdt->regmap,
@@ -177,7 +218,6 @@ static int pm8916_wdt_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	wdt->wdev.info = (irq > 0) ? &pm8916_wdt_pt_ident : &pm8916_wdt_ident,
 	wdt->wdev.ops = &pm8916_wdt_ops,
 	wdt->wdev.parent = dev;
 	wdt->wdev.min_timeout = PM8916_WDT_MIN_TIMEOUT;
@@ -185,12 +225,36 @@ static int pm8916_wdt_probe(struct platform_device *pdev)
 	wdt->wdev.timeout = PM8916_WDT_DEFAULT_TIMEOUT;
 	wdt->wdev.pretimeout = 0;
 	watchdog_set_drvdata(&wdt->wdev, wdt);
+	platform_set_drvdata(pdev, wdt);
 
 	watchdog_init_timeout(&wdt->wdev, 0, dev);
 	pm8916_wdt_configure_timers(&wdt->wdev);
 
 	return devm_watchdog_register_device(dev, &wdt->wdev);
 }
+
+static int __maybe_unused pm8916_wdt_suspend(struct device *dev)
+{
+	struct pm8916_wdt *wdt = dev_get_drvdata(dev);
+
+	if (watchdog_active(&wdt->wdev))
+		return pm8916_wdt_stop(&wdt->wdev);
+
+	return 0;
+}
+
+static int __maybe_unused pm8916_wdt_resume(struct device *dev)
+{
+	struct pm8916_wdt *wdt = dev_get_drvdata(dev);
+
+	if (watchdog_active(&wdt->wdev))
+		return pm8916_wdt_start(&wdt->wdev);
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(pm8916_wdt_pm_ops, pm8916_wdt_suspend,
+			 pm8916_wdt_resume);
 
 static const struct of_device_id pm8916_wdt_id_table[] = {
 	{ .compatible = "qcom,pm8916-wdt" },
@@ -202,7 +266,8 @@ static struct platform_driver pm8916_wdt_driver = {
 	.probe = pm8916_wdt_probe,
 	.driver = {
 		.name = "pm8916-wdt",
-		.of_match_table = of_match_ptr(pm8916_wdt_id_table),
+		.of_match_table = pm8916_wdt_id_table,
+		.pm = &pm8916_wdt_pm_ops,
 	},
 };
 module_platform_driver(pm8916_wdt_driver);

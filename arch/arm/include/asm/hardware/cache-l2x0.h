@@ -9,6 +9,8 @@
 #define __ASM_ARM_HARDWARE_L2X0_H
 
 #include <linux/errno.h>
+#include <linux/init.h>
+#include <linux/types.h>
 
 #define L2X0_CACHE_ID			0x000
 #define L2X0_CACHE_TYPE			0x004
@@ -118,6 +120,8 @@
 #define L310_AUX_CTRL_STORE_LIMITATION		BIT(11)	/* R2P0+ */
 #define L310_AUX_CTRL_EXCLUSIVE_CACHE		BIT(12)
 #define L310_AUX_CTRL_ASSOCIATIVITY_16		BIT(16)
+#define L310_AUX_CTRL_FWA_SHIFT			23
+#define L310_AUX_CTRL_FWA_MASK			(3 << 23)
 #define L310_AUX_CTRL_CACHE_REPLACE_RR		BIT(25)	/* R2P0+ */
 #define L310_AUX_CTRL_NS_LOCKDOWN		BIT(26)
 #define L310_AUX_CTRL_NS_INT_CTRL		BIT(27)

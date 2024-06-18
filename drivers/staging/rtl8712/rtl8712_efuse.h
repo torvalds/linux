@@ -15,14 +15,15 @@
 
 #define GET_EFUSE_OFFSET(header)	((header & 0xF0) >> 4)
 #define GET_EFUSE_WORD_EN(header)	(header & 0x0F)
-#define MAKE_EFUSE_HEADER(offset, word_en)	(((offset & 0x0F) << 4) | \
-						(word_en & 0x0F))
+#define MAKE_EFUSE_HEADER(offset, word_en)	((((offset) & 0x0F) << 4) | \
+						((word_en) & 0x0F))
 /*--------------------------------------------------------------------------*/
 struct PGPKT_STRUCT {
 	u8 offset;
 	u8 word_en;
 	u8 data[PGPKT_DATA_SIZE];
 };
+
 /*--------------------------------------------------------------------------*/
 u8 r8712_efuse_reg_init(struct _adapter *padapter);
 void r8712_efuse_reg_uninit(struct _adapter *padapter);

@@ -9,7 +9,7 @@ registers and memory translation windows, as well as non common features like
 scratchpad and message registers. Scratchpad registers are read-and-writable
 registers that are accessible from either side of the device, so that peers can
 exchange a small amount of information at a fixed address. Message registers can
-be utilized for the same purpose. Additionally they are provided with with
+be utilized for the same purpose. Additionally they are provided with
 special status bits to make sure the information isn't rewritten by another
 peer. Doorbell registers provide a way for peers to send interrupt events.
 Memory windows allow translated read and write access to the peer memory.
@@ -207,9 +207,9 @@ The MSI test client serves to test and debug the MSI library which
 allows for passing MSI interrupts across NTB memory windows. The
 test client is interacted with through the debugfs filesystem:
 
-* *debugfs*/ntb\_tool/*hw*/
+* *debugfs*/ntb\_msi\_test/*hw*/
 	A directory in debugfs will be created for each
-	NTB device probed by the tool.  This directory is shortened to *hw*
+	NTB device probed by the msi test.  This directory is shortened to *hw*
 	below.
 * *hw*/port
 	This file describes the local port number

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * tps62360.c -- TI tps62360
  *
@@ -6,20 +7,6 @@
  * Copyright (c) 2012, NVIDIA Corporation.
  *
  * Author: Laxman Dewangan <ldewangan@nvidia.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any kind,
- * whether express or implied; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
- * 02111-1307, USA
  */
 
 #include <linux/kernel.h>
@@ -28,13 +15,12 @@
 #include <linux/err.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/of_gpio.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/tps62360.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/regmap.h>
@@ -65,8 +51,8 @@ struct tps62360_chip {
 	struct regulator_desc desc;
 	struct regulator_dev *rdev;
 	struct regmap *regmap;
-	int vsel0_gpio;
-	int vsel1_gpio;
+	struct gpio_desc *vsel0_gpio;
+	struct gpio_desc *vsel1_gpio;
 	u8 voltage_reg_mask;
 	bool en_internal_pulldn;
 	bool en_discharge;
@@ -165,8 +151,8 @@ static int tps62360_dcdc_set_voltage_sel(struct regulator_dev *dev,
 
 	/* Select proper VSET register vio gpios */
 	if (tps->valid_gpios) {
-		gpio_set_value_cansleep(tps->vsel0_gpio, new_vset_id & 0x1);
-		gpio_set_value_cansleep(tps->vsel1_gpio,
+		gpiod_set_value_cansleep(tps->vsel0_gpio, new_vset_id & 0x1);
+		gpiod_set_value_cansleep(tps->vsel1_gpio,
 					(new_vset_id >> 1) & 0x1);
 	}
 	return 0;
@@ -233,7 +219,7 @@ static unsigned int tps62360_get_mode(struct regulator_dev *rdev)
 				REGULATOR_MODE_FAST : REGULATOR_MODE_NORMAL;
 }
 
-static struct regulator_ops tps62360_dcdc_ops = {
+static const struct regulator_ops tps62360_dcdc_ops = {
 	.get_voltage_sel	= tps62360_dcdc_get_voltage_sel,
 	.set_voltage_sel	= tps62360_dcdc_set_voltage_sel,
 	.list_voltage		= regulator_list_voltage_linear,
@@ -289,7 +275,7 @@ static const struct regmap_config tps62360_regmap_config = {
 	.reg_bits		= 8,
 	.val_bits		= 8,
 	.max_register		= REG_CHIPID,
-	.cache_type		= REGCACHE_RBTREE,
+	.cache_type		= REGCACHE_MAPLE,
 };
 
 static struct tps62360_regulator_platform_data *
@@ -310,20 +296,10 @@ static struct tps62360_regulator_platform_data *
 		return NULL;
 	}
 
-	pdata->vsel0_gpio = of_get_named_gpio(np, "vsel0-gpio", 0);
-	pdata->vsel1_gpio = of_get_named_gpio(np, "vsel1-gpio", 0);
-
-	if (of_find_property(np, "ti,vsel0-state-high", NULL))
-		pdata->vsel0_def_state = 1;
-
-	if (of_find_property(np, "ti,vsel1-state-high", NULL))
-		pdata->vsel1_def_state = 1;
-
-	if (of_find_property(np, "ti,enable-pull-down", NULL))
-		pdata->en_internal_pulldn = true;
-
-	if (of_find_property(np, "ti,enable-vout-discharge", NULL))
-		pdata->en_discharge = true;
+	pdata->vsel0_def_state = of_property_read_bool(np, "ti,vsel0-state-high");
+	pdata->vsel1_def_state = of_property_read_bool(np, "ti,vsel1-state-high");
+	pdata->en_internal_pulldn = of_property_read_bool(np, "ti,enable-pull-down");
+	pdata->en_discharge = of_property_read_bool(np, "ti,enable-vout-discharge");
 
 	return pdata;
 }
@@ -339,9 +315,9 @@ static const struct of_device_id tps62360_of_match[] = {
 MODULE_DEVICE_TABLE(of, tps62360_of_match);
 #endif
 
-static int tps62360_probe(struct i2c_client *client,
-				     const struct i2c_device_id *id)
+static int tps62360_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct regulator_config config = { };
 	struct tps62360_regulator_platform_data *pdata;
 	struct regulator_dev *rdev;
@@ -349,6 +325,7 @@ static int tps62360_probe(struct i2c_client *client,
 	int ret;
 	int i;
 	int chip_id;
+	int gpio_flags;
 
 	pdata = dev_get_platdata(&client->dev);
 
@@ -390,8 +367,6 @@ static int tps62360_probe(struct i2c_client *client,
 
 	tps->en_discharge = pdata->en_discharge;
 	tps->en_internal_pulldn = pdata->en_internal_pulldn;
-	tps->vsel0_gpio = pdata->vsel0_gpio;
-	tps->vsel1_gpio = pdata->vsel1_gpio;
 	tps->dev = &client->dev;
 
 	switch (chip_id) {
@@ -426,29 +401,27 @@ static int tps62360_probe(struct i2c_client *client,
 	tps->lru_index[0] = tps->curr_vset_id;
 	tps->valid_gpios = false;
 
-	if (gpio_is_valid(tps->vsel0_gpio) && gpio_is_valid(tps->vsel1_gpio)) {
-		int gpio_flags;
-		gpio_flags = (pdata->vsel0_def_state) ?
-				GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW;
-		ret = devm_gpio_request_one(&client->dev, tps->vsel0_gpio,
-				gpio_flags, "tps62360-vsel0");
-		if (ret) {
-			dev_err(&client->dev,
-				"%s(): Could not obtain vsel0 GPIO %d: %d\n",
-				__func__, tps->vsel0_gpio, ret);
-			return ret;
-		}
+	gpio_flags = (pdata->vsel0_def_state) ?
+			GPIOD_OUT_HIGH : GPIOD_OUT_LOW;
+	tps->vsel0_gpio = devm_gpiod_get_optional(&client->dev, "vsel0", gpio_flags);
+	if (IS_ERR(tps->vsel0_gpio)) {
+		dev_err(&client->dev,
+			"%s(): Could not obtain vsel0 GPIO: %ld\n",
+			__func__, PTR_ERR(tps->vsel0_gpio));
+		return PTR_ERR(tps->vsel0_gpio);
+	}
 
-		gpio_flags = (pdata->vsel1_def_state) ?
-				GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW;
-		ret = devm_gpio_request_one(&client->dev, tps->vsel1_gpio,
-				gpio_flags, "tps62360-vsel1");
-		if (ret) {
-			dev_err(&client->dev,
-				"%s(): Could not obtain vsel1 GPIO %d: %d\n",
-				__func__, tps->vsel1_gpio, ret);
-			return ret;
-		}
+	gpio_flags = (pdata->vsel1_def_state) ?
+			GPIOD_OUT_HIGH : GPIOD_OUT_LOW;
+	tps->vsel1_gpio = devm_gpiod_get_optional(&client->dev, "vsel1", gpio_flags);
+	if (IS_ERR(tps->vsel1_gpio)) {
+		dev_err(&client->dev,
+			"%s(): Could not obtain vsel1 GPIO: %ld\n",
+			__func__, PTR_ERR(tps->vsel1_gpio));
+		return PTR_ERR(tps->vsel1_gpio);
+	}
+
+	if (tps->vsel0_gpio != NULL && tps->vsel1_gpio != NULL) {
 		tps->valid_gpios = true;
 
 		/*
@@ -515,6 +488,7 @@ MODULE_DEVICE_TABLE(i2c, tps62360_id);
 static struct i2c_driver tps62360_i2c_driver = {
 	.driver = {
 		.name = "tps62360",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(tps62360_of_match),
 	},
 	.probe = tps62360_probe,

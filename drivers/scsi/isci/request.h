@@ -291,13 +291,16 @@ struct isci_request *isci_tmf_request_from_tag(struct isci_host *ihost,
 					       struct isci_tmf *isci_tmf,
 					       u16 tag);
 int isci_request_execute(struct isci_host *ihost, struct isci_remote_device *idev,
-			 struct sas_task *task, u16 tag);
+			 struct sas_task *task, struct isci_request *ireq);
+struct isci_request *isci_io_request_from_tag(struct isci_host *ihost,
+					      struct sas_task *task,
+					      u16 tag);
 enum sci_status
 sci_task_request_construct(struct isci_host *ihost,
 			    struct isci_remote_device *idev,
 			    u16 io_tag,
 			    struct isci_request *ireq);
-enum sci_status sci_task_request_construct_ssp(struct isci_request *ireq);
+void sci_task_request_construct_ssp(struct isci_request *ireq);
 void sci_smp_request_copy_response(struct isci_request *ireq);
 
 static inline int isci_task_is_ncq_recovery(struct sas_task *task)

@@ -19,302 +19,56 @@
 #include <linux/sysfs.h>
 #include <linux/mutex.h>
 #include <linux/regmap.h>
+#include <linux/util_macros.h>
 
 #define THERMAL_PID_REG		0xfd
 #define THERMAL_SMSC_ID_REG	0xfe
 #define THERMAL_REVISION_REG	0xff
 
-enum emc1403_chip { emc1402, emc1403, emc1404 };
+enum emc1403_chip { emc1402, emc1403, emc1404, emc1428 };
 
 struct thermal_data {
+	enum emc1403_chip chip;
 	struct regmap *regmap;
 	struct mutex mutex;
-	const struct attribute_group *groups[4];
 };
 
-static ssize_t temp_show(struct device *dev, struct device_attribute *attr,
-			 char *buf)
+static ssize_t power_state_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct sensor_device_attribute *sda = to_sensor_dev_attr(attr);
 	struct thermal_data *data = dev_get_drvdata(dev);
 	unsigned int val;
 	int retval;
 
-	retval = regmap_read(data->regmap, sda->index, &val);
+	retval = regmap_read(data->regmap, 0x03, &val);
 	if (retval < 0)
 		return retval;
-	return sprintf(buf, "%d000\n", val);
+	return sprintf(buf, "%d\n", !!(val & BIT(6)));
 }
 
-static ssize_t bit_show(struct device *dev, struct device_attribute *attr,
-			char *buf)
+static ssize_t power_state_store(struct device *dev, struct device_attribute *attr,
+				 const char *buf, size_t count)
 {
-	struct sensor_device_attribute_2 *sda = to_sensor_dev_attr_2(attr);
-	struct thermal_data *data = dev_get_drvdata(dev);
-	unsigned int val;
-	int retval;
-
-	retval = regmap_read(data->regmap, sda->nr, &val);
-	if (retval < 0)
-		return retval;
-	return sprintf(buf, "%d\n", !!(val & sda->index));
-}
-
-static ssize_t temp_store(struct device *dev, struct device_attribute *attr,
-			  const char *buf, size_t count)
-{
-	struct sensor_device_attribute *sda = to_sensor_dev_attr(attr);
 	struct thermal_data *data = dev_get_drvdata(dev);
 	unsigned long val;
 	int retval;
 
 	if (kstrtoul(buf, 10, &val))
 		return -EINVAL;
-	retval = regmap_write(data->regmap, sda->index,
-			      DIV_ROUND_CLOSEST(val, 1000));
+
+	retval = regmap_update_bits(data->regmap, 0x03, BIT(6),
+				    val ? BIT(6) : 0);
 	if (retval < 0)
 		return retval;
 	return count;
 }
 
-static ssize_t bit_store(struct device *dev, struct device_attribute *attr,
-			 const char *buf, size_t count)
-{
-	struct sensor_device_attribute_2 *sda = to_sensor_dev_attr_2(attr);
-	struct thermal_data *data = dev_get_drvdata(dev);
-	unsigned long val;
-	int retval;
-
-	if (kstrtoul(buf, 10, &val))
-		return -EINVAL;
-
-	retval = regmap_update_bits(data->regmap, sda->nr, sda->index,
-				    val ? sda->index : 0);
-	if (retval < 0)
-		return retval;
-	return count;
-}
-
-static ssize_t show_hyst_common(struct device *dev,
-				struct device_attribute *attr, char *buf,
-				bool is_min)
-{
-	struct sensor_device_attribute *sda = to_sensor_dev_attr(attr);
-	struct thermal_data *data = dev_get_drvdata(dev);
-	struct regmap *regmap = data->regmap;
-	unsigned int limit;
-	unsigned int hyst;
-	int retval;
-
-	retval = regmap_read(regmap, sda->index, &limit);
-	if (retval < 0)
-		return retval;
-
-	retval = regmap_read(regmap, 0x21, &hyst);
-	if (retval < 0)
-		return retval;
-
-	return sprintf(buf, "%d000\n", is_min ? limit + hyst : limit - hyst);
-}
-
-static ssize_t hyst_show(struct device *dev, struct device_attribute *attr,
-			 char *buf)
-{
-	return show_hyst_common(dev, attr, buf, false);
-}
-
-static ssize_t min_hyst_show(struct device *dev,
-			     struct device_attribute *attr, char *buf)
-{
-	return show_hyst_common(dev, attr, buf, true);
-}
-
-static ssize_t hyst_store(struct device *dev, struct device_attribute *attr,
-			  const char *buf, size_t count)
-{
-	struct sensor_device_attribute *sda = to_sensor_dev_attr(attr);
-	struct thermal_data *data = dev_get_drvdata(dev);
-	struct regmap *regmap = data->regmap;
-	unsigned int limit;
-	int retval;
-	int hyst;
-	unsigned long val;
-
-	if (kstrtoul(buf, 10, &val))
-		return -EINVAL;
-
-	mutex_lock(&data->mutex);
-	retval = regmap_read(regmap, sda->index, &limit);
-	if (retval < 0)
-		goto fail;
-
-	hyst = limit * 1000 - val;
-	hyst = clamp_val(DIV_ROUND_CLOSEST(hyst, 1000), 0, 255);
-	retval = regmap_write(regmap, 0x21, hyst);
-	if (retval == 0)
-		retval = count;
-fail:
-	mutex_unlock(&data->mutex);
-	return retval;
-}
-
-/*
- *	Sensors. We pass the actual i2c register to the methods.
- */
-
-static SENSOR_DEVICE_ATTR_RW(temp1_min, temp, 0x06);
-static SENSOR_DEVICE_ATTR_RW(temp1_max, temp, 0x05);
-static SENSOR_DEVICE_ATTR_RW(temp1_crit, temp, 0x20);
-static SENSOR_DEVICE_ATTR_RO(temp1_input, temp, 0x00);
-static SENSOR_DEVICE_ATTR_2_RO(temp1_min_alarm, bit, 0x36, 0x01);
-static SENSOR_DEVICE_ATTR_2_RO(temp1_max_alarm, bit, 0x35, 0x01);
-static SENSOR_DEVICE_ATTR_2_RO(temp1_crit_alarm, bit, 0x37, 0x01);
-static SENSOR_DEVICE_ATTR_RO(temp1_min_hyst, min_hyst, 0x06);
-static SENSOR_DEVICE_ATTR_RO(temp1_max_hyst, hyst, 0x05);
-static SENSOR_DEVICE_ATTR_RW(temp1_crit_hyst, hyst, 0x20);
-
-static SENSOR_DEVICE_ATTR_RW(temp2_min, temp, 0x08);
-static SENSOR_DEVICE_ATTR_RW(temp2_max, temp, 0x07);
-static SENSOR_DEVICE_ATTR_RW(temp2_crit, temp, 0x19);
-static SENSOR_DEVICE_ATTR_RO(temp2_input, temp, 0x01);
-static SENSOR_DEVICE_ATTR_2_RO(temp2_fault, bit, 0x1b, 0x02);
-static SENSOR_DEVICE_ATTR_2_RO(temp2_min_alarm, bit, 0x36, 0x02);
-static SENSOR_DEVICE_ATTR_2_RO(temp2_max_alarm, bit, 0x35, 0x02);
-static SENSOR_DEVICE_ATTR_2_RO(temp2_crit_alarm, bit, 0x37, 0x02);
-static SENSOR_DEVICE_ATTR_RO(temp2_min_hyst, min_hyst, 0x08);
-static SENSOR_DEVICE_ATTR_RO(temp2_max_hyst, hyst, 0x07);
-static SENSOR_DEVICE_ATTR_RO(temp2_crit_hyst, hyst, 0x19);
-
-static SENSOR_DEVICE_ATTR_RW(temp3_min, temp, 0x16);
-static SENSOR_DEVICE_ATTR_RW(temp3_max, temp, 0x15);
-static SENSOR_DEVICE_ATTR_RW(temp3_crit, temp, 0x1A);
-static SENSOR_DEVICE_ATTR_RO(temp3_input, temp, 0x23);
-static SENSOR_DEVICE_ATTR_2_RO(temp3_fault, bit, 0x1b, 0x04);
-static SENSOR_DEVICE_ATTR_2_RO(temp3_min_alarm, bit, 0x36, 0x04);
-static SENSOR_DEVICE_ATTR_2_RO(temp3_max_alarm, bit, 0x35, 0x04);
-static SENSOR_DEVICE_ATTR_2_RO(temp3_crit_alarm, bit, 0x37, 0x04);
-static SENSOR_DEVICE_ATTR_RO(temp3_min_hyst, min_hyst, 0x16);
-static SENSOR_DEVICE_ATTR_RO(temp3_max_hyst, hyst, 0x15);
-static SENSOR_DEVICE_ATTR_RO(temp3_crit_hyst, hyst, 0x1A);
-
-static SENSOR_DEVICE_ATTR_RW(temp4_min, temp, 0x2D);
-static SENSOR_DEVICE_ATTR_RW(temp4_max, temp, 0x2C);
-static SENSOR_DEVICE_ATTR_RW(temp4_crit, temp, 0x30);
-static SENSOR_DEVICE_ATTR_RO(temp4_input, temp, 0x2A);
-static SENSOR_DEVICE_ATTR_2_RO(temp4_fault, bit, 0x1b, 0x08);
-static SENSOR_DEVICE_ATTR_2_RO(temp4_min_alarm, bit, 0x36, 0x08);
-static SENSOR_DEVICE_ATTR_2_RO(temp4_max_alarm, bit, 0x35, 0x08);
-static SENSOR_DEVICE_ATTR_2_RO(temp4_crit_alarm, bit, 0x37, 0x08);
-static SENSOR_DEVICE_ATTR_RO(temp4_min_hyst, min_hyst, 0x2D);
-static SENSOR_DEVICE_ATTR_RO(temp4_max_hyst, hyst, 0x2C);
-static SENSOR_DEVICE_ATTR_RO(temp4_crit_hyst, hyst, 0x30);
-
-static SENSOR_DEVICE_ATTR_2_RW(power_state, bit, 0x03, 0x40);
-
-static struct attribute *emc1402_attrs[] = {
-	&sensor_dev_attr_temp1_min.dev_attr.attr,
-	&sensor_dev_attr_temp1_max.dev_attr.attr,
-	&sensor_dev_attr_temp1_crit.dev_attr.attr,
-	&sensor_dev_attr_temp1_input.dev_attr.attr,
-	&sensor_dev_attr_temp1_min_hyst.dev_attr.attr,
-	&sensor_dev_attr_temp1_max_hyst.dev_attr.attr,
-	&sensor_dev_attr_temp1_crit_hyst.dev_attr.attr,
-
-	&sensor_dev_attr_temp2_min.dev_attr.attr,
-	&sensor_dev_attr_temp2_max.dev_attr.attr,
-	&sensor_dev_attr_temp2_crit.dev_attr.attr,
-	&sensor_dev_attr_temp2_input.dev_attr.attr,
-	&sensor_dev_attr_temp2_min_hyst.dev_attr.attr,
-	&sensor_dev_attr_temp2_max_hyst.dev_attr.attr,
-	&sensor_dev_attr_temp2_crit_hyst.dev_attr.attr,
-
-	&sensor_dev_attr_power_state.dev_attr.attr,
-	NULL
-};
-
-static const struct attribute_group emc1402_group = {
-		.attrs = emc1402_attrs,
-};
+static DEVICE_ATTR_RW(power_state);
 
 static struct attribute *emc1403_attrs[] = {
-	&sensor_dev_attr_temp1_min_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp1_max_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp1_crit_alarm.dev_attr.attr,
-
-	&sensor_dev_attr_temp2_fault.dev_attr.attr,
-	&sensor_dev_attr_temp2_min_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp2_max_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp2_crit_alarm.dev_attr.attr,
-
-	&sensor_dev_attr_temp3_min.dev_attr.attr,
-	&sensor_dev_attr_temp3_max.dev_attr.attr,
-	&sensor_dev_attr_temp3_crit.dev_attr.attr,
-	&sensor_dev_attr_temp3_input.dev_attr.attr,
-	&sensor_dev_attr_temp3_fault.dev_attr.attr,
-	&sensor_dev_attr_temp3_min_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp3_max_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp3_crit_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp3_min_hyst.dev_attr.attr,
-	&sensor_dev_attr_temp3_max_hyst.dev_attr.attr,
-	&sensor_dev_attr_temp3_crit_hyst.dev_attr.attr,
+	&dev_attr_power_state.attr,
 	NULL
 };
-
-static const struct attribute_group emc1403_group = {
-	.attrs = emc1403_attrs,
-};
-
-static struct attribute *emc1404_attrs[] = {
-	&sensor_dev_attr_temp4_min.dev_attr.attr,
-	&sensor_dev_attr_temp4_max.dev_attr.attr,
-	&sensor_dev_attr_temp4_crit.dev_attr.attr,
-	&sensor_dev_attr_temp4_input.dev_attr.attr,
-	&sensor_dev_attr_temp4_fault.dev_attr.attr,
-	&sensor_dev_attr_temp4_min_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp4_max_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp4_crit_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp4_min_hyst.dev_attr.attr,
-	&sensor_dev_attr_temp4_max_hyst.dev_attr.attr,
-	&sensor_dev_attr_temp4_crit_hyst.dev_attr.attr,
-	NULL
-};
-
-static const struct attribute_group emc1404_group = {
-	.attrs = emc1404_attrs,
-};
-
-/*
- * EMC14x2 uses a different register and different bits to report alarm and
- * fault status. For simplicity, provide a separate attribute group for this
- * chip series.
- * Since we can not re-use the same attribute names, create a separate attribute
- * array.
- */
-static struct sensor_device_attribute_2 emc1402_alarms[] = {
-	SENSOR_ATTR_2_RO(temp1_min_alarm, bit, 0x02, 0x20),
-	SENSOR_ATTR_2_RO(temp1_max_alarm, bit, 0x02, 0x40),
-	SENSOR_ATTR_2_RO(temp1_crit_alarm, bit, 0x02, 0x01),
-
-	SENSOR_ATTR_2_RO(temp2_fault, bit, 0x02, 0x04),
-	SENSOR_ATTR_2_RO(temp2_min_alarm, bit, 0x02, 0x08),
-	SENSOR_ATTR_2_RO(temp2_max_alarm, bit, 0x02, 0x10),
-	SENSOR_ATTR_2_RO(temp2_crit_alarm, bit, 0x02, 0x02),
-};
-
-static struct attribute *emc1402_alarm_attrs[] = {
-	&emc1402_alarms[0].dev_attr.attr,
-	&emc1402_alarms[1].dev_attr.attr,
-	&emc1402_alarms[2].dev_attr.attr,
-	&emc1402_alarms[3].dev_attr.attr,
-	&emc1402_alarms[4].dev_attr.attr,
-	&emc1402_alarms[5].dev_attr.attr,
-	&emc1402_alarms[6].dev_attr.attr,
-	NULL,
-};
-
-static const struct attribute_group emc1402_alarm_group = {
-	.attrs = emc1402_alarm_attrs,
-};
+ATTRIBUTE_GROUPS(emc1403);
 
 static int emc1403_detect(struct i2c_client *client,
 			struct i2c_board_info *info)
@@ -329,22 +83,31 @@ static int emc1403_detect(struct i2c_client *client,
 	id = i2c_smbus_read_byte_data(client, THERMAL_PID_REG);
 	switch (id) {
 	case 0x20:
-		strlcpy(info->type, "emc1402", I2C_NAME_SIZE);
+		strscpy(info->type, "emc1402", I2C_NAME_SIZE);
 		break;
 	case 0x21:
-		strlcpy(info->type, "emc1403", I2C_NAME_SIZE);
+		strscpy(info->type, "emc1403", I2C_NAME_SIZE);
 		break;
 	case 0x22:
-		strlcpy(info->type, "emc1422", I2C_NAME_SIZE);
+		strscpy(info->type, "emc1422", I2C_NAME_SIZE);
 		break;
 	case 0x23:
-		strlcpy(info->type, "emc1423", I2C_NAME_SIZE);
+		strscpy(info->type, "emc1423", I2C_NAME_SIZE);
 		break;
 	case 0x25:
-		strlcpy(info->type, "emc1404", I2C_NAME_SIZE);
+		strscpy(info->type, "emc1404", I2C_NAME_SIZE);
 		break;
 	case 0x27:
-		strlcpy(info->type, "emc1424", I2C_NAME_SIZE);
+		strscpy(info->type, "emc1424", I2C_NAME_SIZE);
+		break;
+	case 0x29:
+		strscpy(info->type, "emc1428", I2C_NAME_SIZE);
+		break;
+	case 0x59:
+		strscpy(info->type, "emc1438", I2C_NAME_SIZE);
+		break;
+	case 0x60:
+		strscpy(info->type, "emc1442", I2C_NAME_SIZE);
 		break;
 	default:
 		return -ENODEV;
@@ -373,6 +136,14 @@ static bool emc1403_regmap_is_volatile(struct device *dev, unsigned int reg)
 	case 0x35:	/* high limit status */
 	case 0x36:	/* low limit status */
 	case 0x37:	/* therm limit status */
+	case 0x41:	/* external diode 4 high byte */
+	case 0x42:	/* external diode 4 low byte */
+	case 0x43:	/* external diode 5 high byte */
+	case 0x44:	/* external diode 5 low byte */
+	case 0x45:	/* external diode 6 high byte */
+	case 0x46:	/* external diode 6 low byte */
+	case 0x47:	/* external diode 7 high byte */
+	case 0x48:	/* external diode 7 low byte */
 		return true;
 	default:
 		return false;
@@ -382,53 +153,512 @@ static bool emc1403_regmap_is_volatile(struct device *dev, unsigned int reg)
 static const struct regmap_config emc1403_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.volatile_reg = emc1403_regmap_is_volatile,
 };
 
-static int emc1403_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+enum emc1403_reg_map {temp_min, temp_max, temp_crit, temp_input};
+
+static u8 ema1403_temp_map[] = {
+	[hwmon_temp_min] = temp_min,
+	[hwmon_temp_max] = temp_max,
+	[hwmon_temp_crit] = temp_crit,
+	[hwmon_temp_input] = temp_input,
+};
+
+static u8 emc1403_temp_regs[][4] = {
+	[0] = {
+		[temp_min] = 0x06,
+		[temp_max] = 0x05,
+		[temp_crit] = 0x20,
+		[temp_input] = 0x00,
+	},
+	[1] = {
+		[temp_min] = 0x08,
+		[temp_max] = 0x07,
+		[temp_crit] = 0x19,
+		[temp_input] = 0x01,
+	},
+	[2] = {
+		[temp_min] = 0x16,
+		[temp_max] = 0x15,
+		[temp_crit] = 0x1a,
+		[temp_input] = 0x23,
+	},
+	[3] = {
+		[temp_min] = 0x2d,
+		[temp_max] = 0x2c,
+		[temp_crit] = 0x30,
+		[temp_input] = 0x2a,
+	},
+	[4] = {
+		[temp_min] = 0x51,
+		[temp_max] = 0x50,
+		[temp_crit] = 0x64,
+		[temp_input] = 0x41,
+	},
+	[5] = {
+		[temp_min] = 0x55,
+		[temp_max] = 0x54,
+		[temp_crit] = 0x65,
+		[temp_input] = 0x43
+	},
+	[6] = {
+		[temp_min] = 0x59,
+		[temp_max] = 0x58,
+		[temp_crit] = 0x66,
+		[temp_input] = 0x45,
+	},
+	[7] = {
+		[temp_min] = 0x5d,
+		[temp_max] = 0x5c,
+		[temp_crit] = 0x67,
+		[temp_input] = 0x47,
+	},
+};
+
+static s8 emc1403_temp_regs_low[][4] = {
+	[0] = {
+		[temp_min] = -1,
+		[temp_max] = -1,
+		[temp_crit] = -1,
+		[temp_input] = 0x29,
+	},
+	[1] = {
+		[temp_min] = 0x14,
+		[temp_max] = 0x13,
+		[temp_crit] = -1,
+		[temp_input] = 0x10,
+	},
+	[2] = {
+		[temp_min] = 0x18,
+		[temp_max] = 0x17,
+		[temp_crit] = -1,
+		[temp_input] = 0x24,
+	},
+	[3] = {
+		[temp_min] = 0x2f,
+		[temp_max] = 0x2e,
+		[temp_crit] = -1,
+		[temp_input] = 0x2b,
+	},
+	[4] = {
+		[temp_min] = 0x53,
+		[temp_max] = 0x52,
+		[temp_crit] = -1,
+		[temp_input] = 0x42,
+	},
+	[5] = {
+		[temp_min] = 0x57,
+		[temp_max] = 0x56,
+		[temp_crit] = -1,
+		[temp_input] = 0x44,
+	},
+	[6] = {
+		[temp_min] = 0x5b,
+		[temp_max] = 0x5a,
+		[temp_crit] = -1,
+		[temp_input] = 0x46,
+	},
+	[7] = {
+		[temp_min] = 0x5f,
+		[temp_max] = 0x5e,
+		[temp_crit] = -1,
+		[temp_input] = 0x48,
+	},
+};
+
+static int __emc1403_get_temp(struct thermal_data *data, int channel,
+			      enum emc1403_reg_map map, long *val)
 {
-	struct thermal_data *data;
-	struct device *hwmon_dev;
+	unsigned int regvalh;
+	unsigned int regvall = 0;
+	int ret;
+	s8 reg;
 
-	data = devm_kzalloc(&client->dev, sizeof(struct thermal_data),
-			    GFP_KERNEL);
-	if (data == NULL)
-		return -ENOMEM;
+	ret = regmap_read(data->regmap, emc1403_temp_regs[channel][map], &regvalh);
+	if (ret < 0)
+		return ret;
 
-	data->regmap = devm_regmap_init_i2c(client, &emc1403_regmap_config);
-	if (IS_ERR(data->regmap))
-		return PTR_ERR(data->regmap);
-
-	mutex_init(&data->mutex);
-
-	switch (id->driver_data) {
-	case emc1404:
-		data->groups[2] = &emc1404_group;
-		/* fall through */
-	case emc1403:
-		data->groups[1] = &emc1403_group;
-		/* fall through */
-	case emc1402:
-		data->groups[0] = &emc1402_group;
+	reg = emc1403_temp_regs_low[channel][map];
+	if (reg >= 0) {
+		ret = regmap_read(data->regmap, reg, &regvall);
+		if (ret < 0)
+			return ret;
 	}
 
-	if (id->driver_data == emc1402)
-		data->groups[1] = &emc1402_alarm_group;
+	if (data->chip == emc1428)
+		*val = sign_extend32((regvalh << 3) | (regvall >> 5), 10) * 125;
+	else
+		*val = ((regvalh << 3) | (regvall >> 5)) * 125;
 
-	hwmon_dev = devm_hwmon_device_register_with_groups(&client->dev,
-							   client->name, data,
-							   data->groups);
-	if (IS_ERR(hwmon_dev))
-		return PTR_ERR(hwmon_dev);
-
-	dev_info(&client->dev, "%s Thermal chip found\n", id->name);
 	return 0;
 }
 
-static const unsigned short emc1403_address_list[] = {
-	0x18, 0x1c, 0x29, 0x4c, 0x4d, 0x5c, I2C_CLIENT_END
+static int emc1403_get_temp(struct thermal_data *data, int channel,
+			    enum emc1403_reg_map map, long *val)
+{
+	int ret;
+
+	mutex_lock(&data->mutex);
+	ret = __emc1403_get_temp(data, channel, map, val);
+	mutex_unlock(&data->mutex);
+
+	return ret;
+}
+
+static int emc1403_get_hyst(struct thermal_data *data, int channel,
+			    enum emc1403_reg_map map, long *val)
+{
+	int hyst, ret;
+	long limit;
+
+	mutex_lock(&data->mutex);
+	ret = __emc1403_get_temp(data, channel, map, &limit);
+	if (ret < 0)
+		goto unlock;
+	ret = regmap_read(data->regmap, 0x21, &hyst);
+	if (ret < 0)
+		goto unlock;
+	if (map == temp_min)
+		*val = limit + hyst * 1000;
+	else
+		*val = limit - hyst * 1000;
+unlock:
+	mutex_unlock(&data->mutex);
+	return ret;
+}
+
+static int emc1403_temp_read(struct thermal_data *data, u32 attr, int channel, long *val)
+{
+	unsigned int regval;
+	int ret;
+
+	switch (attr) {
+	case hwmon_temp_min:
+	case hwmon_temp_max:
+	case hwmon_temp_crit:
+	case hwmon_temp_input:
+		ret = emc1403_get_temp(data, channel, ema1403_temp_map[attr], val);
+		break;
+	case hwmon_temp_min_hyst:
+		ret = emc1403_get_hyst(data, channel, temp_min, val);
+		break;
+	case hwmon_temp_max_hyst:
+		ret = emc1403_get_hyst(data, channel, temp_max, val);
+		break;
+	case hwmon_temp_crit_hyst:
+		ret = emc1403_get_hyst(data, channel, temp_crit, val);
+		break;
+	case hwmon_temp_min_alarm:
+		if (data->chip == emc1402) {
+			ret = regmap_read(data->regmap, 0x02, &regval);
+			if (ret < 0)
+				break;
+			*val = !!(regval & BIT(5 - 2 * channel));
+		} else {
+			ret = regmap_read(data->regmap, 0x36, &regval);
+			if (ret < 0)
+				break;
+			*val = !!(regval & BIT(channel));
+		}
+		break;
+	case hwmon_temp_max_alarm:
+		if (data->chip == emc1402) {
+			ret = regmap_read(data->regmap, 0x02, &regval);
+			if (ret < 0)
+				break;
+			*val = !!(regval & BIT(6 - 2 * channel));
+		} else {
+			ret = regmap_read(data->regmap, 0x35, &regval);
+			if (ret < 0)
+				break;
+			*val = !!(regval & BIT(channel));
+		}
+		break;
+	case hwmon_temp_crit_alarm:
+		if (data->chip == emc1402) {
+			ret = regmap_read(data->regmap, 0x02, &regval);
+			if (ret < 0)
+				break;
+			*val = !!(regval & BIT(channel));
+		} else {
+			ret = regmap_read(data->regmap, 0x37, &regval);
+			if (ret < 0)
+				break;
+			*val = !!(regval & BIT(channel));
+		}
+		break;
+	case hwmon_temp_fault:
+		ret = regmap_read(data->regmap, 0x1b, &regval);
+		if (ret < 0)
+			break;
+		*val = !!(regval & BIT(channel));
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+	return ret;
+}
+
+static int emc1403_get_convrate(struct thermal_data *data, long *val)
+{
+	unsigned int convrate;
+	int ret;
+
+	ret = regmap_read(data->regmap, 0x04, &convrate);
+	if (ret < 0)
+		return ret;
+	if (convrate > 10)
+		convrate = 4;
+
+	*val = 16000 >> convrate;
+	return 0;
+}
+
+static int emc1403_chip_read(struct thermal_data *data, u32 attr, long *val)
+{
+	switch (attr) {
+	case hwmon_chip_update_interval:
+		return emc1403_get_convrate(data, val);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int emc1403_read(struct device *dev, enum hwmon_sensor_types type,
+			u32 attr, int channel, long *val)
+{
+	struct thermal_data *data = dev_get_drvdata(dev);
+
+	switch (type) {
+	case hwmon_temp:
+		return emc1403_temp_read(data, attr, channel, val);
+	case hwmon_chip:
+		return emc1403_chip_read(data, attr, val);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int emc1403_set_hyst(struct thermal_data *data, long val)
+{
+	int hyst, ret;
+	long limit;
+
+	if (data->chip == emc1428)
+		val = clamp_val(val, -128000, 127000);
+	else
+		val = clamp_val(val, 0, 255000);
+
+	mutex_lock(&data->mutex);
+	ret = __emc1403_get_temp(data, 0, temp_crit, &limit);
+	if (ret < 0)
+		goto unlock;
+
+	hyst = limit - val;
+	if (data->chip == emc1428)
+		hyst = clamp_val(DIV_ROUND_CLOSEST(hyst, 1000), 0, 127);
+	else
+		hyst = clamp_val(DIV_ROUND_CLOSEST(hyst, 1000), 0, 255);
+	ret = regmap_write(data->regmap, 0x21, hyst);
+unlock:
+	mutex_unlock(&data->mutex);
+	return ret;
+}
+
+static int emc1403_set_temp(struct thermal_data *data, int channel,
+			    enum emc1403_reg_map map, long val)
+{
+	unsigned int regval;
+	int ret;
+	u8 regh;
+	s8 regl;
+
+	regh = emc1403_temp_regs[channel][map];
+	regl = emc1403_temp_regs_low[channel][map];
+
+	mutex_lock(&data->mutex);
+	if (regl >= 0) {
+		if (data->chip == emc1428)
+			val = clamp_val(val, -128000, 127875);
+		else
+			val = clamp_val(val, 0, 255875);
+		regval = DIV_ROUND_CLOSEST(val, 125);
+		ret = regmap_write(data->regmap, regh, (regval >> 3) & 0xff);
+		if (ret < 0)
+			goto unlock;
+		ret = regmap_write(data->regmap, regl, (regval & 0x07) << 5);
+	} else {
+		if (data->chip == emc1428)
+			val = clamp_val(val, -128000, 127000);
+		else
+			val = clamp_val(val, 0, 255000);
+		regval = DIV_ROUND_CLOSEST(val, 1000);
+		ret = regmap_write(data->regmap, regh, regval);
+	}
+unlock:
+	mutex_unlock(&data->mutex);
+	return ret;
+}
+
+static int emc1403_temp_write(struct thermal_data *data, u32 attr, int channel, long val)
+{
+	switch (attr) {
+	case hwmon_temp_min:
+	case hwmon_temp_max:
+	case hwmon_temp_crit:
+		return emc1403_set_temp(data, channel, ema1403_temp_map[attr], val);
+	case hwmon_temp_crit_hyst:
+		return emc1403_set_hyst(data, val);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+/* Lookup table for temperature conversion times in msec */
+static const u16 ina3221_conv_time[] = {
+	16000, 8000, 4000, 2000, 1000, 500, 250, 125, 62, 31, 16
+};
+
+static int emc1403_set_convrate(struct thermal_data *data, unsigned int interval)
+{
+	int convrate;
+
+	convrate = find_closest_descending(interval, ina3221_conv_time,
+					   ARRAY_SIZE(ina3221_conv_time));
+	return regmap_write(data->regmap, 0x04, convrate);
+}
+
+static int emc1403_chip_write(struct thermal_data *data, u32 attr, long val)
+{
+	switch (attr) {
+	case hwmon_chip_update_interval:
+		return emc1403_set_convrate(data, clamp_val(val, 0, 100000));
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int emc1403_write(struct device *dev, enum hwmon_sensor_types type,
+			 u32 attr, int channel, long val)
+{
+	struct thermal_data *data = dev_get_drvdata(dev);
+
+	switch (type) {
+	case hwmon_temp:
+		return emc1403_temp_write(data, attr, channel, val);
+	case hwmon_chip:
+		return emc1403_chip_write(data, attr, val);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static umode_t emc1403_temp_is_visible(const void *_data, u32 attr, int channel)
+{
+	const struct thermal_data *data = _data;
+
+	if (data->chip == emc1402 && channel > 1)
+		return 0;
+	if (data->chip == emc1403 && channel > 2)
+		return 0;
+	if (data->chip != emc1428 && channel > 3)
+		return 0;
+
+	switch (attr) {
+	case hwmon_temp_input:
+	case hwmon_temp_min_alarm:
+	case hwmon_temp_max_alarm:
+	case hwmon_temp_crit_alarm:
+	case hwmon_temp_fault:
+	case hwmon_temp_min_hyst:
+	case hwmon_temp_max_hyst:
+		return 0444;
+	case hwmon_temp_min:
+	case hwmon_temp_max:
+	case hwmon_temp_crit:
+		return 0644;
+	case hwmon_temp_crit_hyst:
+		if (channel == 0)
+			return 0644;
+		return 0444;
+	default:
+		return 0;
+	}
+}
+
+static umode_t emc1403_chip_is_visible(const void *_data, u32 attr)
+{
+	switch (attr) {
+	case hwmon_chip_update_interval:
+		return 0644;
+	default:
+		return 0;
+	}
+}
+
+static umode_t emc1403_is_visible(const void *data, enum hwmon_sensor_types type,
+				  u32 attr, int channel)
+{
+	switch (type) {
+	case hwmon_temp:
+		return emc1403_temp_is_visible(data, attr, channel);
+	case hwmon_chip:
+		return emc1403_chip_is_visible(data, attr);
+	default:
+		return 0;
+	}
+}
+
+static const struct hwmon_channel_info * const emc1403_info[] = {
+	HWMON_CHANNEL_INFO(chip, HWMON_C_UPDATE_INTERVAL),
+	HWMON_CHANNEL_INFO(temp,
+			   HWMON_T_INPUT | HWMON_T_MIN | HWMON_T_MAX |
+			   HWMON_T_CRIT | HWMON_T_MIN_HYST | HWMON_T_MAX_HYST |
+			   HWMON_T_CRIT_HYST | HWMON_T_MIN_ALARM |
+			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM,
+			   HWMON_T_INPUT | HWMON_T_MIN | HWMON_T_MAX |
+			   HWMON_T_CRIT | HWMON_T_MIN_HYST | HWMON_T_MAX_HYST |
+			   HWMON_T_CRIT_HYST | HWMON_T_MIN_ALARM |
+			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM | HWMON_T_FAULT,
+			   HWMON_T_INPUT | HWMON_T_MIN | HWMON_T_MAX |
+			   HWMON_T_CRIT | HWMON_T_MIN_HYST | HWMON_T_MAX_HYST |
+			   HWMON_T_CRIT_HYST | HWMON_T_MIN_ALARM |
+			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM | HWMON_T_FAULT,
+			   HWMON_T_INPUT | HWMON_T_MIN | HWMON_T_MAX |
+			   HWMON_T_CRIT | HWMON_T_MIN_HYST | HWMON_T_MAX_HYST |
+			   HWMON_T_CRIT_HYST | HWMON_T_MIN_ALARM |
+			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM | HWMON_T_FAULT,
+			   HWMON_T_INPUT | HWMON_T_MIN | HWMON_T_MAX |
+			   HWMON_T_CRIT | HWMON_T_MIN_HYST | HWMON_T_MAX_HYST |
+			   HWMON_T_CRIT_HYST | HWMON_T_MIN_ALARM |
+			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM | HWMON_T_FAULT,
+			   HWMON_T_INPUT | HWMON_T_MIN | HWMON_T_MAX |
+			   HWMON_T_CRIT | HWMON_T_MIN_HYST | HWMON_T_MAX_HYST |
+			   HWMON_T_CRIT_HYST | HWMON_T_MIN_ALARM |
+			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM | HWMON_T_FAULT,
+			   HWMON_T_INPUT | HWMON_T_MIN | HWMON_T_MAX |
+			   HWMON_T_CRIT | HWMON_T_MIN_HYST | HWMON_T_MAX_HYST |
+			   HWMON_T_CRIT_HYST | HWMON_T_MIN_ALARM |
+			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM | HWMON_T_FAULT,
+			   HWMON_T_INPUT | HWMON_T_MIN | HWMON_T_MAX |
+			   HWMON_T_CRIT | HWMON_T_MIN_HYST | HWMON_T_MAX_HYST |
+			   HWMON_T_CRIT_HYST | HWMON_T_MIN_ALARM |
+			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM | HWMON_T_FAULT
+			   ),
+	NULL
+};
+
+static const struct hwmon_ops emc1403_hwmon_ops = {
+	.is_visible = emc1403_is_visible,
+	.read = emc1403_read,
+	.write = emc1403_write,
+};
+
+static const struct hwmon_chip_info emc1403_chip_info = {
+	.ops = &emc1403_hwmon_ops,
+	.info = emc1403_info,
 };
 
 /* Last digit of chip name indicates number of channels */
@@ -442,9 +672,41 @@ static const struct i2c_device_id emc1403_idtable[] = {
 	{ "emc1422", emc1402 },
 	{ "emc1423", emc1403 },
 	{ "emc1424", emc1404 },
+	{ "emc1428", emc1428 },
+	{ "emc1438", emc1428 },
+	{ "emc1442", emc1402 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, emc1403_idtable);
+
+static int emc1403_probe(struct i2c_client *client)
+{
+	struct thermal_data *data;
+	struct device *hwmon_dev;
+	const struct i2c_device_id *id = i2c_match_id(emc1403_idtable, client);
+
+	data = devm_kzalloc(&client->dev, sizeof(struct thermal_data),
+			    GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	data->chip = id->driver_data;
+	data->regmap = devm_regmap_init_i2c(client, &emc1403_regmap_config);
+	if (IS_ERR(data->regmap))
+		return PTR_ERR(data->regmap);
+
+	mutex_init(&data->mutex);
+
+	hwmon_dev = devm_hwmon_device_register_with_info(&client->dev,
+							 client->name, data,
+							 &emc1403_chip_info,
+							 emc1403_groups);
+	return PTR_ERR_OR_ZERO(hwmon_dev);
+}
+
+static const unsigned short emc1403_address_list[] = {
+	0x18, 0x1c, 0x29, 0x3c, 0x4c, 0x4d, 0x5c, I2C_CLIENT_END
+};
 
 static struct i2c_driver sensor_emc1403 = {
 	.class = I2C_CLASS_HWMON,

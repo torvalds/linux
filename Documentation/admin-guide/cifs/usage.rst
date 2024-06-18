@@ -16,8 +16,7 @@ standard for interoperating between Macs and Windows and major NAS appliances.
 
 Please see
 MS-SMB2 (for detailed SMB2/SMB3/SMB3.1.1 protocol specification)
-http://protocolfreedom.org/ and
-http://samba.org/samba/PFIF/
+or https://samba.org/samba/PFIF/
 for more details.
 
 
@@ -32,7 +31,7 @@ Build instructions
 
 For Linux:
 
-1) Download the kernel (e.g. from http://www.kernel.org)
+1) Download the kernel (e.g. from https://www.kernel.org)
    and change directory into the top of the kernel directory tree
    (e.g. /usr/src/linux-2.5.73)
 2) make menuconfig (or make xconfig)
@@ -46,7 +45,7 @@ Installation instructions
 
 If you have built the CIFS vfs as module (successfully) simply
 type ``make modules_install`` (or if you prefer, manually copy the file to
-the modules directory e.g. /lib/modules/2.4.10-4GB/kernel/fs/cifs/cifs.ko).
+the modules directory e.g. /lib/modules/6.3.0-060300-generic/kernel/fs/smb/client/cifs.ko).
 
 If you have built the CIFS vfs into the kernel itself, follow the instructions
 for your distribution on how to install a new kernel (usually you
@@ -67,24 +66,24 @@ If cifs is built as a module, then the size and number of network buffers
 and maximum number of simultaneous requests to one server can be configured.
 Changing these from their defaults is not recommended. By executing modinfo::
 
-	modinfo kernel/fs/cifs/cifs.ko
+	modinfo <path to cifs.ko>
 
-on kernel/fs/cifs/cifs.ko the list of configuration changes that can be made
+on kernel/fs/smb/client/cifs.ko the list of configuration changes that can be made
 at module initialization time (by running insmod cifs.ko) can be seen.
 
 Recommendations
 ===============
 
-To improve security the SMB2.1 dialect or later (usually will get SMB3) is now
+To improve security the SMB2.1 dialect or later (usually will get SMB3.1.1) is now
 the new default. To use old dialects (e.g. to mount Windows XP) use "vers=1.0"
 on mount (or vers=2.0 for Windows Vista).  Note that the CIFS (vers=1.0) is
 much older and less secure than the default dialect SMB3 which includes
 many advanced security features such as downgrade attack detection
 and encrypted shares and stronger signing and authentication algorithms.
 There are additional mount options that may be helpful for SMB3 to get
-improved POSIX behavior (NB: can use vers=3.0 to force only SMB3, never 2.1):
+improved POSIX behavior (NB: can use vers=3 to force SMB3 or later, never 2.1):
 
-     ``mfsymlinks`` and ``cifsacl`` and ``idsfromsid``
+   ``mfsymlinks`` and either ``cifsacl`` or ``modefromsid`` (usually with ``idsfromsid``)
 
 Allowing User Mounts
 ====================
@@ -116,7 +115,7 @@ later source tree in docs/manpages/mount.cifs.8
 Allowing User Unmounts
 ======================
 
-To permit users to ummount directories that they have user mounted (see above),
+To permit users to unmount directories that they have user mounted (see above),
 the utility umount.cifs may be used.  It may be invoked directly, or if
 umount.cifs is placed in /sbin, umount can invoke the cifs umount helper
 (at least for most versions of the umount utility) for umount of cifs
@@ -198,7 +197,7 @@ that is ignored by local server applications and non-cifs clients and that will
 not be traversed by the Samba server).  This is opaque to the Linux client
 application using the cifs vfs. Absolute symlinks will work to Samba 3.0.5 or
 later, but only for remote clients using the CIFS Unix extensions, and will
-be invisbile to Windows clients and typically will not affect local
+be invisible to Windows clients and typically will not affect local
 applications running on the same server as Samba.
 
 Use instructions
@@ -268,7 +267,7 @@ would be forbidden for Windows/CIFS semantics) as long as the server is
 configured for Unix Extensions (and the client has not disabled
 /proc/fs/cifs/LinuxExtensionsEnabled). In addition the mount option
 ``mapposix`` can be used on CIFS (vers=1.0) to force the mapping of
-illegal Windows/NTFS/SMB characters to a remap range (this mount parm
+illegal Windows/NTFS/SMB characters to a remap range (this mount parameter
 is the default for SMB3). This remap (``mapposix``) range is also
 compatible with Mac (and "Services for Mac" on some older Windows).
 
@@ -400,7 +399,7 @@ A partial list of the supported mount options follows:
   sep
 		if first mount option (after the -o), overrides
 		the comma as the separator between the mount
-		parms. e.g.::
+		parameters. e.g.::
 
 			-o user=myname,password=mypassword,domain=mydom
 
@@ -715,6 +714,8 @@ DebugData		Displays information about active CIFS sessions and
 			version.
 Stats			Lists summary resource usage information as well as per
 			share statistics.
+open_files		List all the open file handles on all active SMB sessions.
+mount_params            List of all mount parameters available for the module
 ======================= =======================================================
 
 Configuration pseudo-files:
@@ -734,10 +735,9 @@ SecurityFlags		Flags which control security negotiation and
 			using weaker password hashes is 0x37037 (lanman,
 			plaintext, ntlm, ntlmv2, signing allowed).  Some
 			SecurityFlags require the corresponding menuconfig
-			options to be enabled (lanman and plaintext require
-			CONFIG_CIFS_WEAK_PW_HASH for example).  Enabling
-			plaintext authentication currently requires also
-			enabling lanman authentication in the security flags
+			options to be enabled.  Enabling plaintext
+			authentication currently requires also enabling
+			lanman authentication in the security flags
 			because the cifs module only supports sending
 			laintext passwords using the older lanman dialect
 			form of the session setup SMB.  (e.g. for authentication
@@ -766,7 +766,7 @@ cifsFYI			If set to non-zero value, additional debug information
 			Some debugging statements are not compiled into the
 			cifs kernel unless CONFIG_CIFS_DEBUG2 is enabled in the
 			kernel configuration. cifsFYI may be set to one or
-			nore of the following flags (7 sets them all)::
+			more of the following flags (7 sets them all)::
 
 			  +-----------------------------------------------+------+
 			  | log cifs informational messages		  | 0x01 |
@@ -795,6 +795,8 @@ LinuxExtensionsEnabled	If set to one then the client will attempt to
 			support and want to map the uid and gid fields
 			to values supplied at mount (rather than the
 			actual values, then set this to zero. (default 1)
+dfscache		List the content of the DFS cache.
+			If set to 0, the client will clear the cache.
 ======================= =======================================================
 
 These experimental features and tracing can be enabled by changing flags in
@@ -831,7 +833,7 @@ the active sessions and the shares that are mounted.
 Enabling Kerberos (extended security) works but requires version 1.2 or later
 of the helper program cifs.upcall to be present and to be configured in the
 /etc/request-key.conf file.  The cifs.upcall helper program is from the Samba
-project(http://www.samba.org). NTLM and NTLMv2 and LANMAN support do not
+project(https://www.samba.org). NTLM and NTLMv2 and LANMAN support do not
 require this helper. Note that NTLMv2 security (which does not require the
 cifs.upcall helper program), instead of using Kerberos, is sufficient for
 some use cases.
@@ -857,11 +859,16 @@ CIFS kernel module parameters
 These module parameters can be specified or modified either during the time of
 module loading or during the runtime by using the interface::
 
-	/proc/module/cifs/parameters/<param>
+	/sys/module/cifs/parameters/<param>
 
 i.e.::
 
     echo "value" > /sys/module/cifs/parameters/<param>
+
+More detailed descriptions of the available module parameters and their values
+can be seen by doing:
+
+    modinfo cifs (or modinfo smb3)
 
 ================= ==========================================================
 1. enable_oplocks Enable or disable oplocks. Oplocks are enabled by default.

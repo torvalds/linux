@@ -549,8 +549,10 @@ restart:
 			val = msp_read_dsp(client, 0x1b);
 			if (val > 32767)
 				val -= 65536;
-			if (val1 < val)
-				val1 = val, max1 = i;
+			if (val1 < val) {
+				val1 = val;
+				max1 = i;
+			}
 			dev_dbg_lvl(&client->dev, 1, msp_debug,
 				"carrier1 val: %5d / %s\n", val, cd[i].name);
 		}
@@ -586,8 +588,10 @@ restart:
 			val = msp_read_dsp(client, 0x1b);
 			if (val > 32767)
 				val -= 65536;
-			if (val2 < val)
-				val2 = val, max2 = i;
+			if (val2 < val) {
+				val2 = val;
+				max2 = i;
+			}
 			dev_dbg_lvl(&client->dev, 1, msp_debug,
 				"carrier2 val: %5d / %s\n", val, cd[i].name);
 		}
@@ -646,7 +650,7 @@ restart:
 			break;
 		case 0: /* 4.5 */
 			state->detected_std = V4L2_STD_MN;
-			/* fall-through */
+			fallthrough;
 		default:
 no_second:
 			state->second = msp3400c_carrier_detect_main[max1].cdo;

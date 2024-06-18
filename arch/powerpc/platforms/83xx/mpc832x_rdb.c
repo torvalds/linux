@@ -15,14 +15,16 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/mmc_spi.h>
 #include <linux/mmc/host.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
+#include <linux/platform_device.h>
 #include <linux/fsl_devices.h>
 
 #include <asm/time.h>
 #include <asm/ipic.h>
 #include <asm/udbg.h>
 #include <soc/fsl/qe/qe.h>
-#include <soc/fsl/qe/qe_ic.h>
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
 
@@ -107,7 +109,7 @@ static int __init of_fsl_spi_probe(char *type, char *compatible, u32 sysclk,
 
 		goto next;
 unreg:
-		platform_device_del(pdev);
+		platform_device_put(pdev);
 err:
 		pr_err("%pOF: registration failed\n", np);
 next:
@@ -144,7 +146,7 @@ static int __init fsl_spi_init(struct spi_board_info *board_infos,
 
 static void mpc83xx_spi_cs_control(struct spi_device *spi, bool on)
 {
-	pr_debug("%s %d %d\n", __func__, spi->chip_select, on);
+	pr_debug("%s %d %d\n", __func__, spi_get_chipselect(spi, 0), on);
 	par_io_data_set(3, 13, on);
 }
 
@@ -162,6 +164,8 @@ static struct spi_board_info mpc832x_spi_boardinfo = {
 
 static int __init mpc832x_spi_init(void)
 {
+	struct device_node *np;
+
 	par_io_config_pin(3,  0, 3, 0, 1, 0); /* SPI1 MOSI, I/O */
 	par_io_config_pin(3,  1, 3, 0, 1, 0); /* SPI1 MISO, I/O */
 	par_io_config_pin(3,  2, 3, 0, 1, 0); /* SPI1 CLK,  I/O */
@@ -175,7 +179,9 @@ static int __init mpc832x_spi_init(void)
 	 * Don't bother with legacy stuff when device tree contains
 	 * mmc-spi-slot node.
 	 */
-	if (of_find_compatible_node(NULL, NULL, "mmc-spi-slot"))
+	np = of_find_compatible_node(NULL, NULL, "mmc-spi-slot");
+	of_node_put(np);
+	if (np)
 		return 0;
 	return fsl_spi_init(&mpc832x_spi_boardinfo, 1, mpc83xx_spi_cs_control);
 }
@@ -208,22 +214,14 @@ static void __init mpc832x_rdb_setup_arch(void)
 
 machine_device_initcall(mpc832x_rdb, mpc83xx_declare_of_platform_devices);
 
-/*
- * Called very early, MMU is off, device-tree isn't unflattened
- */
-static int __init mpc832x_rdb_probe(void)
-{
-	return of_machine_is_compatible("MPC832xRDB");
-}
-
 define_machine(mpc832x_rdb) {
 	.name		= "MPC832x RDB",
-	.probe		= mpc832x_rdb_probe,
+	.compatible	= "MPC832xRDB",
 	.setup_arch	= mpc832x_rdb_setup_arch,
-	.init_IRQ	= mpc83xx_ipic_and_qe_init_IRQ,
+	.discover_phbs  = mpc83xx_setup_pci,
+	.init_IRQ	= mpc83xx_ipic_init_IRQ,
 	.get_irq	= ipic_get_irq,
 	.restart	= mpc83xx_restart,
 	.time_init	= mpc83xx_time_init,
-	.calibrate_decr	= generic_calibrate_decr,
 	.progress	= udbg_progress,
 };

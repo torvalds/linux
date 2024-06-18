@@ -12,6 +12,8 @@
 #ifndef __CONFIG_DOT_H__
 #define __CONFIG_DOT_H__
 
+#define DLM_MAX_SOCKET_BUFSIZE	4096
+
 struct dlm_config_node {
 	int nodeid;
 	int weight;
@@ -19,7 +21,12 @@ struct dlm_config_node {
 	uint32_t comm_seq;
 };
 
+extern const struct rhashtable_params dlm_rhash_rsb_params;
+
 #define DLM_MAX_ADDR_COUNT 3
+
+#define DLM_PROTO_TCP	0
+#define DLM_PROTO_SCTP	1
 
 struct dlm_config_info {
 	int ci_tcp_port;
@@ -31,8 +38,7 @@ struct dlm_config_info {
 	int ci_log_debug;
 	int ci_log_info;
 	int ci_protocol;
-	int ci_timewarn_cs;
-	int ci_waitwarn_us;
+	int ci_mark;
 	int ci_new_rsb_count;
 	int ci_recover_callbacks;
 	char ci_cluster_name[DLM_LOCKSPACE_LEN];

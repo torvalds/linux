@@ -82,7 +82,6 @@ int qib_disarm_piobufs_ifneeded(struct qib_ctxtdata *rcd)
 	struct qib_devdata *dd = rcd->dd;
 	unsigned i;
 	unsigned last;
-	unsigned n = 0;
 
 	last = rcd->pio_base + rcd->piocnt;
 	/*
@@ -102,10 +101,8 @@ int qib_disarm_piobufs_ifneeded(struct qib_ctxtdata *rcd)
 	}
 	spin_lock_irq(&dd->pioavail_lock);
 	for (i = rcd->pio_base; i < last; i++) {
-		if (__test_and_clear_bit(i, dd->pio_need_disarm)) {
-			n++;
+		if (__test_and_clear_bit(i, dd->pio_need_disarm))
 			dd->f_sendctrl(rcd->ppd, QIB_SENDCTRL_DISARM_BUF(i));
-		}
 	}
 	spin_unlock_irq(&dd->pioavail_lock);
 	return 0;
@@ -377,6 +374,7 @@ void qib_sendbuf_done(struct qib_devdata *dd, unsigned n)
  * @start: the starting send buffer number
  * @len: the number of send buffers
  * @avail: true if the buffers are available for kernel use, false otherwise
+ * @rcd: the context pointer
  */
 void qib_chg_pioavailkernel(struct qib_devdata *dd, unsigned start,
 	unsigned len, u32 avail, struct qib_ctxtdata *rcd)

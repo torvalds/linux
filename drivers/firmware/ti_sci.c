@@ -2,7 +2,7 @@
 /*
  * Texas Instruments System Control Interface Protocol Driver
  *
- * Copyright (C) 2015-2016 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2015-2022 Texas Instruments Incorporated - https://www.ti.com/
  *	Nishanth Menon
  */
 
@@ -12,10 +12,14 @@
 #include <linux/debugfs.h>
 #include <linux/export.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/mailbox_client.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
+#include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/semaphore.h>
 #include <linux/slab.h>
 #include <linux/soc/ti/ti-msgmgr.h>
@@ -65,43 +69,24 @@ struct ti_sci_xfers_info {
 };
 
 /**
- * struct ti_sci_rm_type_map - Structure representing TISCI Resource
- *				management representation of dev_ids.
- * @dev_id:	TISCI device ID
- * @type:	Corresponding id as identified by TISCI RM.
- *
- * Note: This is used only as a work around for using RM range apis
- *	for AM654 SoC. For future SoCs dev_id will be used as type
- *	for RM range APIs. In order to maintain ABI backward compatibility
- *	type is not being changed for AM654 SoC.
- */
-struct ti_sci_rm_type_map {
-	u32 dev_id;
-	u16 type;
-};
-
-/**
  * struct ti_sci_desc - Description of SoC integration
  * @default_host_id:	Host identifier representing the compute entity
  * @max_rx_timeout_ms:	Timeout for communication with SoC (in Milliseconds)
  * @max_msgs: Maximum number of messages that can be pending
  *		  simultaneously in the system
  * @max_msg_size: Maximum size of data per message that can be handled.
- * @rm_type_map: RM resource type mapping structure.
  */
 struct ti_sci_desc {
 	u8 default_host_id;
 	int max_rx_timeout_ms;
 	int max_msgs;
 	int max_msg_size;
-	struct ti_sci_rm_type_map *rm_type_map;
 };
 
 /**
  * struct ti_sci_info - Structure representing a TI SCI instance
  * @dev:	Device pointer
  * @desc:	SoC description for this instance
- * @nb:	Reboot Notifier block
  * @d:		Debugfs file entry
  * @debug_region: Memory region where the debug message are available
  * @debug_region_size: Debug region size
@@ -117,7 +102,6 @@ struct ti_sci_desc {
  */
 struct ti_sci_info {
 	struct device *dev;
-	struct notifier_block nb;
 	const struct ti_sci_desc *desc;
 	struct dentry *d;
 	void __iomem *debug_region;
@@ -132,12 +116,10 @@ struct ti_sci_info {
 	u8 host_id;
 	/* protected by ti_sci_list_mutex */
 	int users;
-
 };
 
 #define cl_to_ti_sci_info(c)	container_of(c, struct ti_sci_info, cl)
 #define handle_to_ti_sci_info(h) container_of(h, struct ti_sci_info, handle)
-#define reboot_to_ti_sci_info(n) container_of(n, struct ti_sci_info, nb)
 
 #ifdef CONFIG_DEBUG_FS
 
@@ -179,7 +161,7 @@ static int ti_sci_debugfs_create(struct platform_device *pdev,
 {
 	struct device *dev = &pdev->dev;
 	struct resource *res;
-	char debug_name[50] = "ti_sci_debug@";
+	char debug_name[50];
 
 	/* Debug region is optional */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
@@ -196,10 +178,10 @@ static int ti_sci_debugfs_create(struct platform_device *pdev,
 	/* Setup NULL termination */
 	info->debug_buffer[info->debug_region_size] = 0;
 
-	info->d = debugfs_create_file(strncat(debug_name, dev_name(dev),
-					      sizeof(debug_name) -
-					      sizeof("ti_sci_debug@")),
-				      0444, NULL, info, &ti_sci_debug_fops);
+	snprintf(debug_name, sizeof(debug_name), "ti_sci_debug@%s",
+		 dev_name(dev));
+	info->d = debugfs_create_file(debug_name, 0444, NULL, info,
+				      &ti_sci_debug_fops);
 	if (IS_ERR(info->d))
 		return PTR_ERR(info->d);
 
@@ -208,19 +190,6 @@ static int ti_sci_debugfs_create(struct platform_device *pdev,
 	return 0;
 }
 
-/**
- * ti_sci_debugfs_destroy() - clean up log debug file
- * @pdev:	platform device pointer
- * @info:	Pointer to SCI entity information
- */
-static void ti_sci_debugfs_destroy(struct platform_device *pdev,
-				   struct ti_sci_info *info)
-{
-	if (IS_ERR(info->debug_region))
-		return;
-
-	debugfs_remove(info->d);
-}
 #else /* CONFIG_DEBUG_FS */
 static inline int ti_sci_debugfs_create(struct platform_device *dev,
 					struct ti_sci_info *info)
@@ -367,6 +336,8 @@ static struct ti_sci_xfer *ti_sci_get_one_xfer(struct ti_sci_info *info,
 
 	hdr = (struct ti_sci_msg_hdr *)xfer->tx_message.buf;
 	xfer->tx_message.len = tx_message_size;
+	xfer->tx_message.chan_rx = info->chan_rx;
+	xfer->tx_message.timeout_rx_ms = info->desc->max_rx_timeout_ms;
 	xfer->rx_len = (u8)rx_message_size;
 
 	reinit_completion(&xfer->done);
@@ -424,6 +395,7 @@ static inline int ti_sci_do_xfer(struct ti_sci_info *info,
 	int ret;
 	int timeout;
 	struct device *dev = info->dev;
+	bool done_state = true;
 
 	ret = mbox_send_message(info->chan_tx, &xfer->tx_message);
 	if (ret < 0)
@@ -431,13 +403,26 @@ static inline int ti_sci_do_xfer(struct ti_sci_info *info,
 
 	ret = 0;
 
-	/* And we wait for the response. */
-	timeout = msecs_to_jiffies(info->desc->max_rx_timeout_ms);
-	if (!wait_for_completion_timeout(&xfer->done, timeout)) {
+	if (system_state <= SYSTEM_RUNNING) {
+		/* And we wait for the response. */
+		timeout = msecs_to_jiffies(info->desc->max_rx_timeout_ms);
+		if (!wait_for_completion_timeout(&xfer->done, timeout))
+			ret = -ETIMEDOUT;
+	} else {
+		/*
+		 * If we are !running, we cannot use wait_for_completion_timeout
+		 * during noirq phase, so we must manually poll the completion.
+		 */
+		ret = read_poll_timeout_atomic(try_wait_for_completion, done_state,
+					       done_state, 1,
+					       info->desc->max_rx_timeout_ms * 1000,
+					       false, &xfer->done);
+	}
+
+	if (ret == -ETIMEDOUT)
 		dev_err(dev, "Mbox timedout in resp(caller: %pS)\n",
 			(void *)_RET_IP_);
-		ret = -ETIMEDOUT;
-	}
+
 	/*
 	 * NOTE: we might prefer not to need the mailbox ticker to manage the
 	 * transfer queueing since the protocol layer queues things by itself.
@@ -487,7 +472,7 @@ static int ti_sci_cmd_get_revision(struct ti_sci_info *info)
 	ver->abi_major = rev_info->abi_major;
 	ver->abi_minor = rev_info->abi_minor;
 	ver->firmware_revision = rev_info->firmware_revision;
-	strncpy(ver->firmware_description, rev_info->firmware_description,
+	strscpy(ver->firmware_description, rev_info->firmware_description,
 		sizeof(ver->firmware_description));
 
 fail:
@@ -1124,7 +1109,8 @@ static int ti_sci_cmd_get_clock(const struct ti_sci_handle *handle, u32 dev_id,
 static int ti_sci_cmd_idle_clock(const struct ti_sci_handle *handle,
 				 u32 dev_id, u32 clk_id)
 {
-	return ti_sci_set_clock_state(handle, dev_id, clk_id, 0,
+	return ti_sci_set_clock_state(handle, dev_id, clk_id,
+				      MSG_FLAG_CLOCK_ALLOW_FREQ_CHANGE,
 				      MSG_CLOCK_SW_STATE_UNREQ);
 }
 
@@ -1143,7 +1129,8 @@ static int ti_sci_cmd_idle_clock(const struct ti_sci_handle *handle,
 static int ti_sci_cmd_put_clock(const struct ti_sci_handle *handle,
 				u32 dev_id, u32 clk_id)
 {
-	return ti_sci_set_clock_state(handle, dev_id, clk_id, 0,
+	return ti_sci_set_clock_state(handle, dev_id, clk_id,
+				      MSG_FLAG_CLOCK_ALLOW_FREQ_CHANGE,
 				      MSG_CLOCK_SW_STATE_AUTO);
 }
 
@@ -1710,33 +1697,6 @@ fail:
 	return ret;
 }
 
-static int ti_sci_get_resource_type(struct ti_sci_info *info, u16 dev_id,
-				    u16 *type)
-{
-	struct ti_sci_rm_type_map *rm_type_map = info->desc->rm_type_map;
-	bool found = false;
-	int i;
-
-	/* If map is not provided then assume dev_id is used as type */
-	if (!rm_type_map) {
-		*type = dev_id;
-		return 0;
-	}
-
-	for (i = 0; rm_type_map[i].dev_id; i++) {
-		if (rm_type_map[i].dev_id == dev_id) {
-			*type = rm_type_map[i].type;
-			found = true;
-			break;
-		}
-	}
-
-	if (!found)
-		return -EINVAL;
-
-	return 0;
-}
-
 /**
  * ti_sci_get_resource_range - Helper to get a range of resources assigned
  *			       to a host. Resource is uniquely identified by
@@ -1746,26 +1706,25 @@ static int ti_sci_get_resource_type(struct ti_sci_info *info, u16 dev_id,
  * @subtype:		Resource assignment subtype that is being requested
  *			from the given device.
  * @s_host:		Host processor ID to which the resources are allocated
- * @range_start:	Start index of the resource range
- * @range_num:		Number of resources in the range
+ * @desc:		Pointer to ti_sci_resource_desc to be updated with the
+ *			resource range start index and number of resources
  *
  * Return: 0 if all went fine, else return appropriate error.
  */
 static int ti_sci_get_resource_range(const struct ti_sci_handle *handle,
 				     u32 dev_id, u8 subtype, u8 s_host,
-				     u16 *range_start, u16 *range_num)
+				     struct ti_sci_resource_desc *desc)
 {
 	struct ti_sci_msg_resp_get_resource_range *resp;
 	struct ti_sci_msg_req_get_resource_range *req;
 	struct ti_sci_xfer *xfer;
 	struct ti_sci_info *info;
 	struct device *dev;
-	u16 type;
 	int ret = 0;
 
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
-	if (!handle)
+	if (!handle || !desc)
 		return -EINVAL;
 
 	info = handle_to_ti_sci_info(handle);
@@ -1780,15 +1739,9 @@ static int ti_sci_get_resource_range(const struct ti_sci_handle *handle,
 		return ret;
 	}
 
-	ret = ti_sci_get_resource_type(info, dev_id, &type);
-	if (ret) {
-		dev_err(dev, "rm type lookup failed for %u\n", dev_id);
-		goto fail;
-	}
-
 	req = (struct ti_sci_msg_req_get_resource_range *)xfer->xfer_buf;
 	req->secondary_host = s_host;
-	req->type = type & MSG_RM_RESOURCE_TYPE_MASK;
+	req->type = dev_id & MSG_RM_RESOURCE_TYPE_MASK;
 	req->subtype = subtype & MSG_RM_RESOURCE_SUBTYPE_MASK;
 
 	ret = ti_sci_do_xfer(info, xfer);
@@ -1801,12 +1754,15 @@ static int ti_sci_get_resource_range(const struct ti_sci_handle *handle,
 
 	if (!ti_sci_is_response_ack(resp)) {
 		ret = -ENODEV;
-	} else if (!resp->range_start && !resp->range_num) {
+	} else if (!resp->range_num && !resp->range_num_sec) {
+		/* Neither of the two resource range is valid */
 		ret = -ENODEV;
 	} else {
-		*range_start = resp->range_start;
-		*range_num = resp->range_num;
-	};
+		desc->start = resp->range_start;
+		desc->num = resp->range_num;
+		desc->start_sec = resp->range_start_sec;
+		desc->num_sec = resp->range_num_sec;
+	}
 
 fail:
 	ti_sci_put_one_xfer(&info->minfo, xfer);
@@ -1821,18 +1777,18 @@ fail:
  * @dev_id:		TISCI device ID.
  * @subtype:		Resource assignment subtype that is being requested
  *			from the given device.
- * @range_start:	Start index of the resource range
- * @range_num:		Number of resources in the range
+ * @desc:		Pointer to ti_sci_resource_desc to be updated with the
+ *			resource range start index and number of resources
  *
  * Return: 0 if all went fine, else return appropriate error.
  */
 static int ti_sci_cmd_get_resource_range(const struct ti_sci_handle *handle,
 					 u32 dev_id, u8 subtype,
-					 u16 *range_start, u16 *range_num)
+					 struct ti_sci_resource_desc *desc)
 {
 	return ti_sci_get_resource_range(handle, dev_id, subtype,
 					 TI_SCI_IRQ_SECONDARY_HOST_INVALID,
-					 range_start, range_num);
+					 desc);
 }
 
 /**
@@ -1843,18 +1799,17 @@ static int ti_sci_cmd_get_resource_range(const struct ti_sci_handle *handle,
  * @subtype:		Resource assignment subtype that is being requested
  *			from the given device.
  * @s_host:		Host processor ID to which the resources are allocated
- * @range_start:	Start index of the resource range
- * @range_num:		Number of resources in the range
+ * @desc:		Pointer to ti_sci_resource_desc to be updated with the
+ *			resource range start index and number of resources
  *
  * Return: 0 if all went fine, else return appropriate error.
  */
 static
 int ti_sci_cmd_get_resource_range_from_shost(const struct ti_sci_handle *handle,
 					     u32 dev_id, u8 subtype, u8 s_host,
-					     u16 *range_start, u16 *range_num)
+					     struct ti_sci_resource_desc *desc)
 {
-	return ti_sci_get_resource_range(handle, dev_id, subtype, s_host,
-					 range_start, range_num);
+	return ti_sci_get_resource_range(handle, dev_id, subtype, s_host, desc);
 }
 
 /**
@@ -2008,8 +1963,6 @@ static int ti_sci_free_irq(const struct ti_sci_handle *handle, u32 valid_params,
  * @src_index:		IRQ source index within the source device
  * @dst_id:		Device ID of the IRQ destination
  * @dst_host_irq:	IRQ number of the destination device
- * @vint_irq:		Boolean specifying if this interrupt belongs to
- *			Interrupt Aggregator.
  *
  * Return: 0 if all went fine, else return appropriate error.
  */
@@ -2056,8 +2009,6 @@ static int ti_sci_cmd_set_event_map(const struct ti_sci_handle *handle,
  * @src_index:		IRQ source index within the source device
  * @dst_id:		Device ID of the IRQ destination
  * @dst_host_irq:	IRQ number of the destination device
- * @vint_irq:		Boolean specifying if this interrupt belongs to
- *			Interrupt Aggregator.
  *
  * Return: 0 if all went fine, else return appropriate error.
  */
@@ -2097,28 +2048,17 @@ static int ti_sci_cmd_free_event_map(const struct ti_sci_handle *handle,
 }
 
 /**
- * ti_sci_cmd_ring_config() - configure RA ring
- * @handle:		Pointer to TI SCI handle.
- * @valid_params:	Bitfield defining validity of ring configuration
- *			parameters
- * @nav_id:		Device ID of Navigator Subsystem from which the ring is
- *			allocated
- * @index:		Ring index
- * @addr_lo:		The ring base address lo 32 bits
- * @addr_hi:		The ring base address hi 32 bits
- * @count:		Number of ring elements
- * @mode:		The mode of the ring
- * @size:		The ring element size.
- * @order_id:		Specifies the ring's bus order ID
+ * ti_sci_cmd_rm_ring_cfg() - Configure a NAVSS ring
+ * @handle:	Pointer to TI SCI handle.
+ * @params:	Pointer to ti_sci_msg_rm_ring_cfg ring config structure
  *
  * Return: 0 if all went well, else returns appropriate error value.
  *
- * See @ti_sci_msg_rm_ring_cfg_req for more info.
+ * See @ti_sci_msg_rm_ring_cfg and @ti_sci_msg_rm_ring_cfg_req for
+ * more info.
  */
-static int ti_sci_cmd_ring_config(const struct ti_sci_handle *handle,
-				  u32 valid_params, u16 nav_id, u16 index,
-				  u32 addr_lo, u32 addr_hi, u32 count,
-				  u8 mode, u8 size, u8 order_id)
+static int ti_sci_cmd_rm_ring_cfg(const struct ti_sci_handle *handle,
+				  const struct ti_sci_msg_rm_ring_cfg *params)
 {
 	struct ti_sci_msg_rm_ring_cfg_req *req;
 	struct ti_sci_msg_hdr *resp;
@@ -2142,15 +2082,17 @@ static int ti_sci_cmd_ring_config(const struct ti_sci_handle *handle,
 		return ret;
 	}
 	req = (struct ti_sci_msg_rm_ring_cfg_req *)xfer->xfer_buf;
-	req->valid_params = valid_params;
-	req->nav_id = nav_id;
-	req->index = index;
-	req->addr_lo = addr_lo;
-	req->addr_hi = addr_hi;
-	req->count = count;
-	req->mode = mode;
-	req->size = size;
-	req->order_id = order_id;
+	req->valid_params = params->valid_params;
+	req->nav_id = params->nav_id;
+	req->index = params->index;
+	req->addr_lo = params->addr_lo;
+	req->addr_hi = params->addr_hi;
+	req->count = params->count;
+	req->mode = params->mode;
+	req->size = params->size;
+	req->order_id = params->order_id;
+	req->virtid = params->virtid;
+	req->asel = params->asel;
 
 	ret = ti_sci_do_xfer(info, xfer);
 	if (ret) {
@@ -2159,90 +2101,11 @@ static int ti_sci_cmd_ring_config(const struct ti_sci_handle *handle,
 	}
 
 	resp = (struct ti_sci_msg_hdr *)xfer->xfer_buf;
-	ret = ti_sci_is_response_ack(resp) ? 0 : -ENODEV;
+	ret = ti_sci_is_response_ack(resp) ? 0 : -EINVAL;
 
 fail:
 	ti_sci_put_one_xfer(&info->minfo, xfer);
-	dev_dbg(dev, "RM_RA:config ring %u ret:%d\n", index, ret);
-	return ret;
-}
-
-/**
- * ti_sci_cmd_ring_get_config() - get RA ring configuration
- * @handle:	Pointer to TI SCI handle.
- * @nav_id:	Device ID of Navigator Subsystem from which the ring is
- *		allocated
- * @index:	Ring index
- * @addr_lo:	Returns ring's base address lo 32 bits
- * @addr_hi:	Returns ring's base address hi 32 bits
- * @count:	Returns number of ring elements
- * @mode:	Returns mode of the ring
- * @size:	Returns ring element size
- * @order_id:	Returns ring's bus order ID
- *
- * Return: 0 if all went well, else returns appropriate error value.
- *
- * See @ti_sci_msg_rm_ring_get_cfg_req for more info.
- */
-static int ti_sci_cmd_ring_get_config(const struct ti_sci_handle *handle,
-				      u32 nav_id, u32 index, u8 *mode,
-				      u32 *addr_lo, u32 *addr_hi,
-				      u32 *count, u8 *size, u8 *order_id)
-{
-	struct ti_sci_msg_rm_ring_get_cfg_resp *resp;
-	struct ti_sci_msg_rm_ring_get_cfg_req *req;
-	struct ti_sci_xfer *xfer;
-	struct ti_sci_info *info;
-	struct device *dev;
-	int ret = 0;
-
-	if (IS_ERR_OR_NULL(handle))
-		return -EINVAL;
-
-	info = handle_to_ti_sci_info(handle);
-	dev = info->dev;
-
-	xfer = ti_sci_get_one_xfer(info, TI_SCI_MSG_RM_RING_GET_CFG,
-				   TI_SCI_FLAG_REQ_ACK_ON_PROCESSED,
-				   sizeof(*req), sizeof(*resp));
-	if (IS_ERR(xfer)) {
-		ret = PTR_ERR(xfer);
-		dev_err(dev,
-			"RM_RA:Message get config failed(%d)\n", ret);
-		return ret;
-	}
-	req = (struct ti_sci_msg_rm_ring_get_cfg_req *)xfer->xfer_buf;
-	req->nav_id = nav_id;
-	req->index = index;
-
-	ret = ti_sci_do_xfer(info, xfer);
-	if (ret) {
-		dev_err(dev, "RM_RA:Mbox get config send fail %d\n", ret);
-		goto fail;
-	}
-
-	resp = (struct ti_sci_msg_rm_ring_get_cfg_resp *)xfer->xfer_buf;
-
-	if (!ti_sci_is_response_ack(resp)) {
-		ret = -ENODEV;
-	} else {
-		if (mode)
-			*mode = resp->mode;
-		if (addr_lo)
-			*addr_lo = resp->addr_lo;
-		if (addr_hi)
-			*addr_hi = resp->addr_hi;
-		if (count)
-			*count = resp->count;
-		if (size)
-			*size = resp->size;
-		if (order_id)
-			*order_id = resp->order_id;
-	};
-
-fail:
-	ti_sci_put_one_xfer(&info->minfo, xfer);
-	dev_dbg(dev, "RM_RA:get config ring %u ret:%d\n", index, ret);
+	dev_dbg(dev, "RM_RA:config ring %u ret:%d\n", params->index, ret);
 	return ret;
 }
 
@@ -2412,6 +2275,8 @@ static int ti_sci_cmd_rm_udmap_tx_ch_cfg(const struct ti_sci_handle *handle,
 	req->fdepth = params->fdepth;
 	req->tx_sched_priority = params->tx_sched_priority;
 	req->tx_burst_size = params->tx_burst_size;
+	req->tx_tdtype = params->tx_tdtype;
+	req->extended_ch_type = params->extended_ch_type;
 
 	ret = ti_sci_do_xfer(info, xfer);
 	if (ret) {
@@ -2736,6 +2601,7 @@ fail:
  *				    configuration flags
  * @handle:		Pointer to TI SCI handle
  * @proc_id:		Processor ID this request is for
+ * @bootvector:		Processor Boot vector (start address)
  * @config_flags_set:	Configuration flags to be set
  * @config_flags_clear:	Configuration flags to be cleared.
  *
@@ -2852,9 +2718,13 @@ fail:
 }
 
 /**
- * ti_sci_cmd_get_boot_status() - Command to get the processor boot status
+ * ti_sci_cmd_proc_get_status() - Command to get the processor boot status
  * @handle:	Pointer to TI SCI handle
  * @proc_id:	Processor ID this request is for
+ * @bv:		Processor Boot vector (start address)
+ * @cfg_flags:	Processor specific configuration flags
+ * @ctrl_flags:	Processor specific control flags
+ * @sts_flags:	Processor specific status flags
  *
  * Return: 0 if all went well, else returns appropriate error value.
  */
@@ -2971,8 +2841,7 @@ static void ti_sci_setup_ops(struct ti_sci_info *info)
 	iops->free_irq = ti_sci_cmd_free_irq;
 	iops->free_event_map = ti_sci_cmd_free_event_map;
 
-	rops->config = ti_sci_cmd_ring_config;
-	rops->get_config = ti_sci_cmd_ring_get_config;
+	rops->set_cfg = ti_sci_cmd_rm_ring_cfg;
 
 	psilops->pair = ti_sci_cmd_rm_psil_pair;
 	psilops->unpair = ti_sci_cmd_rm_psil_unpair;
@@ -3004,7 +2873,6 @@ static void ti_sci_setup_ops(struct ti_sci_info *info)
 const struct ti_sci_handle *ti_sci_get_handle(struct device *dev)
 {
 	struct device_node *ti_sci_np;
-	struct list_head *p;
 	struct ti_sci_handle *handle = NULL;
 	struct ti_sci_info *info;
 
@@ -3019,8 +2887,7 @@ const struct ti_sci_handle *ti_sci_get_handle(struct device *dev)
 	}
 
 	mutex_lock(&ti_sci_list_mutex);
-	list_for_each(p, &ti_sci_list) {
-		info = list_entry(p, struct ti_sci_info, node);
+	list_for_each_entry(info, &ti_sci_list, node) {
 		if (ti_sci_np == info->dev->of_node) {
 			handle = &info->handle;
 			info->users++;
@@ -3130,7 +2997,6 @@ const struct ti_sci_handle *ti_sci_get_by_phandle(struct device_node *np,
 	struct ti_sci_handle *handle = NULL;
 	struct device_node *ti_sci_np;
 	struct ti_sci_info *info;
-	struct list_head *p;
 
 	if (!np) {
 		pr_err("I need a device pointer\n");
@@ -3142,8 +3008,7 @@ const struct ti_sci_handle *ti_sci_get_by_phandle(struct device_node *np,
 		return ERR_PTR(-ENODEV);
 
 	mutex_lock(&ti_sci_list_mutex);
-	list_for_each(p, &ti_sci_list) {
-		info = list_entry(p, struct ti_sci_info, node);
+	list_for_each_entry(info, &ti_sci_list, node) {
 		if (ti_sci_np == info->dev->of_node) {
 			handle = &info->handle;
 			info->users++;
@@ -3207,12 +3072,18 @@ u16 ti_sci_get_free_resource(struct ti_sci_resource *res)
 
 	raw_spin_lock_irqsave(&res->lock, flags);
 	for (set = 0; set < res->sets; set++) {
-		free_bit = find_first_zero_bit(res->desc[set].res_map,
-					       res->desc[set].num);
-		if (free_bit != res->desc[set].num) {
-			set_bit(free_bit, res->desc[set].res_map);
+		struct ti_sci_resource_desc *desc = &res->desc[set];
+		int res_count = desc->num + desc->num_sec;
+
+		free_bit = find_first_zero_bit(desc->res_map, res_count);
+		if (free_bit != res_count) {
+			__set_bit(free_bit, desc->res_map);
 			raw_spin_unlock_irqrestore(&res->lock, flags);
-			return res->desc[set].start + free_bit;
+
+			if (desc->num && free_bit < desc->num)
+				return desc->start + free_bit;
+			else
+				return desc->start_sec + free_bit;
 		}
 	}
 	raw_spin_unlock_irqrestore(&res->lock, flags);
@@ -3233,10 +3104,14 @@ void ti_sci_release_resource(struct ti_sci_resource *res, u16 id)
 
 	raw_spin_lock_irqsave(&res->lock, flags);
 	for (set = 0; set < res->sets; set++) {
-		if (res->desc[set].start <= id &&
-		    (res->desc[set].num + res->desc[set].start) > id)
-			clear_bit(id - res->desc[set].start,
-				  res->desc[set].res_map);
+		struct ti_sci_resource_desc *desc = &res->desc[set];
+
+		if (desc->num && desc->start <= id &&
+		    (desc->start + desc->num) > id)
+			__clear_bit(id - desc->start, desc->res_map);
+		else if (desc->num_sec && desc->start_sec <= id &&
+			 (desc->start_sec + desc->num_sec) > id)
+			__clear_bit(id - desc->start_sec, desc->res_map);
 	}
 	raw_spin_unlock_irqrestore(&res->lock, flags);
 }
@@ -3253,11 +3128,72 @@ u32 ti_sci_get_num_resources(struct ti_sci_resource *res)
 	u32 set, count = 0;
 
 	for (set = 0; set < res->sets; set++)
-		count += res->desc[set].num;
+		count += res->desc[set].num + res->desc[set].num_sec;
 
 	return count;
 }
 EXPORT_SYMBOL_GPL(ti_sci_get_num_resources);
+
+/**
+ * devm_ti_sci_get_resource_sets() - Get a TISCI resources assigned to a device
+ * @handle:	TISCI handle
+ * @dev:	Device pointer to which the resource is assigned
+ * @dev_id:	TISCI device id to which the resource is assigned
+ * @sub_types:	Array of sub_types assigned corresponding to device
+ * @sets:	Number of sub_types
+ *
+ * Return: Pointer to ti_sci_resource if all went well else appropriate
+ *	   error pointer.
+ */
+static struct ti_sci_resource *
+devm_ti_sci_get_resource_sets(const struct ti_sci_handle *handle,
+			      struct device *dev, u32 dev_id, u32 *sub_types,
+			      u32 sets)
+{
+	struct ti_sci_resource *res;
+	bool valid_set = false;
+	int i, ret, res_count;
+
+	res = devm_kzalloc(dev, sizeof(*res), GFP_KERNEL);
+	if (!res)
+		return ERR_PTR(-ENOMEM);
+
+	res->sets = sets;
+	res->desc = devm_kcalloc(dev, res->sets, sizeof(*res->desc),
+				 GFP_KERNEL);
+	if (!res->desc)
+		return ERR_PTR(-ENOMEM);
+
+	for (i = 0; i < res->sets; i++) {
+		ret = handle->ops.rm_core_ops.get_range(handle, dev_id,
+							sub_types[i],
+							&res->desc[i]);
+		if (ret) {
+			dev_dbg(dev, "dev = %d subtype %d not allocated for this host\n",
+				dev_id, sub_types[i]);
+			memset(&res->desc[i], 0, sizeof(res->desc[i]));
+			continue;
+		}
+
+		dev_dbg(dev, "dev/sub_type: %d/%d, start/num: %d/%d | %d/%d\n",
+			dev_id, sub_types[i], res->desc[i].start,
+			res->desc[i].num, res->desc[i].start_sec,
+			res->desc[i].num_sec);
+
+		valid_set = true;
+		res_count = res->desc[i].num + res->desc[i].num_sec;
+		res->desc[i].res_map = devm_bitmap_zalloc(dev, res_count,
+							  GFP_KERNEL);
+		if (!res->desc[i].res_map)
+			return ERR_PTR(-ENOMEM);
+	}
+	raw_spin_lock_init(&res->lock);
+
+	if (valid_set)
+		return res;
+
+	return ERR_PTR(-EINVAL);
+}
 
 /**
  * devm_ti_sci_get_of_resource() - Get a TISCI resource assigned to a device
@@ -3274,68 +3210,50 @@ devm_ti_sci_get_of_resource(const struct ti_sci_handle *handle,
 			    struct device *dev, u32 dev_id, char *of_prop)
 {
 	struct ti_sci_resource *res;
-	bool valid_set = false;
-	u32 resource_subtype;
-	int i, ret;
+	u32 *sub_types;
+	int sets;
 
-	res = devm_kzalloc(dev, sizeof(*res), GFP_KERNEL);
-	if (!res)
-		return ERR_PTR(-ENOMEM);
-
-	ret = of_property_count_elems_of_size(dev_of_node(dev), of_prop,
-					      sizeof(u32));
-	if (ret < 0) {
+	sets = of_property_count_elems_of_size(dev_of_node(dev), of_prop,
+					       sizeof(u32));
+	if (sets < 0) {
 		dev_err(dev, "%s resource type ids not available\n", of_prop);
-		return ERR_PTR(ret);
+		return ERR_PTR(sets);
 	}
-	res->sets = ret;
 
-	res->desc = devm_kcalloc(dev, res->sets, sizeof(*res->desc),
-				 GFP_KERNEL);
-	if (!res->desc)
+	sub_types = kcalloc(sets, sizeof(*sub_types), GFP_KERNEL);
+	if (!sub_types)
 		return ERR_PTR(-ENOMEM);
 
-	for (i = 0; i < res->sets; i++) {
-		ret = of_property_read_u32_index(dev_of_node(dev), of_prop, i,
-						 &resource_subtype);
-		if (ret)
-			return ERR_PTR(-EINVAL);
+	of_property_read_u32_array(dev_of_node(dev), of_prop, sub_types, sets);
+	res = devm_ti_sci_get_resource_sets(handle, dev, dev_id, sub_types,
+					    sets);
 
-		ret = handle->ops.rm_core_ops.get_range(handle, dev_id,
-							resource_subtype,
-							&res->desc[i].start,
-							&res->desc[i].num);
-		if (ret) {
-			dev_dbg(dev, "dev = %d subtype %d not allocated for this host\n",
-				dev_id, resource_subtype);
-			res->desc[i].start = 0;
-			res->desc[i].num = 0;
-			continue;
-		}
-
-		dev_dbg(dev, "dev = %d, subtype = %d, start = %d, num = %d\n",
-			dev_id, resource_subtype, res->desc[i].start,
-			res->desc[i].num);
-
-		valid_set = true;
-		res->desc[i].res_map =
-			devm_kzalloc(dev, BITS_TO_LONGS(res->desc[i].num) *
-				     sizeof(*res->desc[i].res_map), GFP_KERNEL);
-		if (!res->desc[i].res_map)
-			return ERR_PTR(-ENOMEM);
-	}
-	raw_spin_lock_init(&res->lock);
-
-	if (valid_set)
-		return res;
-
-	return ERR_PTR(-EINVAL);
+	kfree(sub_types);
+	return res;
 }
+EXPORT_SYMBOL_GPL(devm_ti_sci_get_of_resource);
 
-static int tisci_reboot_handler(struct notifier_block *nb, unsigned long mode,
-				void *cmd)
+/**
+ * devm_ti_sci_get_resource() - Get a resource range assigned to the device
+ * @handle:	TISCI handle
+ * @dev:	Device pointer to which the resource is assigned
+ * @dev_id:	TISCI device id to which the resource is assigned
+ * @sub_type:	TISCI resource subytpe representing the resource.
+ *
+ * Return: Pointer to ti_sci_resource if all went well else appropriate
+ *	   error pointer.
+ */
+struct ti_sci_resource *
+devm_ti_sci_get_resource(const struct ti_sci_handle *handle, struct device *dev,
+			 u32 dev_id, u32 sub_type)
 {
-	struct ti_sci_info *info = reboot_to_ti_sci_info(nb);
+	return devm_ti_sci_get_resource_sets(handle, dev, dev_id, &sub_type, 1);
+}
+EXPORT_SYMBOL_GPL(devm_ti_sci_get_resource);
+
+static int tisci_reboot_handler(struct sys_off_data *data)
+{
+	struct ti_sci_info *info = data->cb_data;
 	const struct ti_sci_handle *handle = &info->handle;
 
 	ti_sci_cmd_core_reboot(handle);
@@ -3352,17 +3270,6 @@ static const struct ti_sci_desc ti_sci_pmmc_k2g_desc = {
 	/* Limited by MBOX_TX_QUEUE_LEN. K2G can handle upto 128 messages! */
 	.max_msgs = 20,
 	.max_msg_size = 64,
-	.rm_type_map = NULL,
-};
-
-static struct ti_sci_rm_type_map ti_sci_am654_rm_type_map[] = {
-	{.dev_id = 56, .type = 0x00b}, /* GIC_IRQ */
-	{.dev_id = 179, .type = 0x000}, /* MAIN_NAV_UDMASS_IA0 */
-	{.dev_id = 187, .type = 0x009}, /* MAIN_NAV_RA */
-	{.dev_id = 188, .type = 0x006}, /* MAIN_NAV_UDMAP */
-	{.dev_id = 194, .type = 0x007}, /* MCU_NAV_UDMAP */
-	{.dev_id = 195, .type = 0x00a}, /* MCU_NAV_RA */
-	{.dev_id = 0, .type = 0x000}, /* end of table */
 };
 
 /* Description for AM654 */
@@ -3373,7 +3280,6 @@ static const struct ti_sci_desc ti_sci_pmmc_am654_desc = {
 	/* Limited by MBOX_TX_QUEUE_LEN. K2G can handle upto 128 messages! */
 	.max_msgs = 20,
 	.max_msg_size = 60,
-	.rm_type_map = ti_sci_am654_rm_type_map,
 };
 
 static const struct of_device_id ti_sci_of_match[] = {
@@ -3386,7 +3292,6 @@ MODULE_DEVICE_TABLE(of, ti_sci_of_match);
 static int ti_sci_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *of_id;
 	const struct ti_sci_desc *desc;
 	struct ti_sci_xfer *xfer;
 	struct ti_sci_info *info = NULL;
@@ -3394,15 +3299,9 @@ static int ti_sci_probe(struct platform_device *pdev)
 	struct mbox_client *cl;
 	int ret = -EINVAL;
 	int i;
-	int reboot = 0;
 	u32 h_id;
 
-	of_id = of_match_device(ti_sci_of_match, dev);
-	if (!of_id) {
-		dev_err(dev, "OF data missing\n");
-		return -EINVAL;
-	}
-	desc = of_id->data;
+	desc = device_get_match_data(dev);
 
 	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
@@ -3423,8 +3322,6 @@ static int ti_sci_probe(struct platform_device *pdev)
 		}
 	}
 
-	reboot = of_property_read_bool(dev->of_node,
-				       "ti,system-reboot-controller");
 	INIT_LIST_HEAD(&info->node);
 	minfo = &info->minfo;
 
@@ -3444,13 +3341,11 @@ static int ti_sci_probe(struct platform_device *pdev)
 	if (!minfo->xfer_block)
 		return -ENOMEM;
 
-	minfo->xfer_alloc_table = devm_kcalloc(dev,
-					       BITS_TO_LONGS(desc->max_msgs),
-					       sizeof(unsigned long),
-					       GFP_KERNEL);
+	minfo->xfer_alloc_table = devm_bitmap_zalloc(dev,
+						     desc->max_msgs,
+						     GFP_KERNEL);
 	if (!minfo->xfer_alloc_table)
 		return -ENOMEM;
-	bitmap_zero(minfo->xfer_alloc_table, desc->max_msgs);
 
 	/* Pre-initialize the buffer pointer to pre-allocated buffers */
 	for (i = 0, xfer = minfo->xfer_block; i < desc->max_msgs; i++, xfer++) {
@@ -3497,15 +3392,10 @@ static int ti_sci_probe(struct platform_device *pdev)
 
 	ti_sci_setup_ops(info);
 
-	if (reboot) {
-		info->nb.notifier_call = tisci_reboot_handler;
-		info->nb.priority = 128;
-
-		ret = register_restart_handler(&info->nb);
-		if (ret) {
-			dev_err(dev, "reboot registration fail(%d)\n", ret);
-			return ret;
-		}
+	ret = devm_register_restart_handler(dev, tisci_reboot_handler, info);
+	if (ret) {
+		dev_err(dev, "reboot registration fail(%d)\n", ret);
+		goto out;
 	}
 
 	dev_info(dev, "ABI: %d.%d (firmware rev 0x%04x '%s')\n",
@@ -3527,43 +3417,12 @@ out:
 	return ret;
 }
 
-static int ti_sci_remove(struct platform_device *pdev)
-{
-	struct ti_sci_info *info;
-	struct device *dev = &pdev->dev;
-	int ret = 0;
-
-	of_platform_depopulate(dev);
-
-	info = platform_get_drvdata(pdev);
-
-	if (info->nb.notifier_call)
-		unregister_restart_handler(&info->nb);
-
-	mutex_lock(&ti_sci_list_mutex);
-	if (info->users)
-		ret = -EBUSY;
-	else
-		list_del(&info->node);
-	mutex_unlock(&ti_sci_list_mutex);
-
-	if (!ret) {
-		ti_sci_debugfs_destroy(pdev, info);
-
-		/* Safe to free channels since no more users */
-		mbox_free_channel(info->chan_tx);
-		mbox_free_channel(info->chan_rx);
-	}
-
-	return ret;
-}
-
 static struct platform_driver ti_sci_driver = {
 	.probe = ti_sci_probe,
-	.remove = ti_sci_remove,
 	.driver = {
 		   .name = "ti-sci",
 		   .of_match_table = of_match_ptr(ti_sci_of_match),
+		   .suppress_bind_attrs = true,
 	},
 };
 module_platform_driver(ti_sci_driver);

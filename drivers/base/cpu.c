@@ -19,6 +19,7 @@
 #include <linux/cpufeature.h>
 #include <linux/tick.h>
 #include <linux/pm_qos.h>
+#include <linux/delay.h>
 #include <linux/sched/isolation.h>
 
 #include "base.h"
@@ -50,12 +51,30 @@ static int cpu_subsys_online(struct device *dev)
 	int cpuid = dev->id;
 	int from_nid, to_nid;
 	int ret;
+	int retries = 0;
 
 	from_nid = cpu_to_node(cpuid);
 	if (from_nid == NUMA_NO_NODE)
 		return -ENODEV;
 
-	ret = cpu_up(cpuid);
+retry:
+	ret = cpu_device_up(dev);
+
+	/*
+	 * If -EBUSY is returned, it is likely that hotplug is temporarily
+	 * disabled when cpu_hotplug_disable() was called. This condition is
+	 * transient. So we retry after waiting for an exponentially
+	 * increasing delay up to a total of at least 620ms as some PCI
+	 * device initialization can take quite a while.
+	 */
+	if (ret == -EBUSY) {
+		retries++;
+		if (retries > 5)
+			return ret;
+		msleep(10 * (1 << retries));
+		goto retry;
+	}
+
 	/*
 	 * When hot adding memory to memoryless node and enabling a cpu
 	 * on the node, node number of the cpu may internally change.
@@ -69,7 +88,7 @@ static int cpu_subsys_online(struct device *dev)
 
 static int cpu_subsys_offline(struct device *dev)
 {
-	return cpu_down(dev->id);
+	return cpu_device_down(dev);
 }
 
 void unregister_cpu(struct cpu *cpu)
@@ -125,25 +144,14 @@ static DEVICE_ATTR(release, S_IWUSR, NULL, cpu_release_store);
 #endif /* CONFIG_ARCH_CPU_PROBE_RELEASE */
 #endif /* CONFIG_HOTPLUG_CPU */
 
-struct bus_type cpu_subsys = {
-	.name = "cpu",
-	.dev_name = "cpu",
-	.match = cpu_subsys_match,
-#ifdef CONFIG_HOTPLUG_CPU
-	.online = cpu_subsys_online,
-	.offline = cpu_subsys_offline,
-#endif
-};
-EXPORT_SYMBOL_GPL(cpu_subsys);
-
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_CRASH_DUMP
 #include <linux/kexec.h>
 
-static ssize_t show_crash_notes(struct device *dev, struct device_attribute *attr,
+static ssize_t crash_notes_show(struct device *dev,
+				struct device_attribute *attr,
 				char *buf)
 {
 	struct cpu *cpu = container_of(dev, struct cpu, dev);
-	ssize_t rc;
 	unsigned long long addr;
 	int cpunum;
 
@@ -156,21 +164,18 @@ static ssize_t show_crash_notes(struct device *dev, struct device_attribute *att
 	 * operation should be safe. No locking required.
 	 */
 	addr = per_cpu_ptr_to_phys(per_cpu_ptr(crash_notes, cpunum));
-	rc = sprintf(buf, "%Lx\n", addr);
-	return rc;
-}
-static DEVICE_ATTR(crash_notes, 0400, show_crash_notes, NULL);
 
-static ssize_t show_crash_notes_size(struct device *dev,
+	return sysfs_emit(buf, "%llx\n", addr);
+}
+static DEVICE_ATTR_ADMIN_RO(crash_notes);
+
+static ssize_t crash_notes_size_show(struct device *dev,
 				     struct device_attribute *attr,
 				     char *buf)
 {
-	ssize_t rc;
-
-	rc = sprintf(buf, "%zu\n", sizeof(note_buf_t));
-	return rc;
+	return sysfs_emit(buf, "%zu\n", sizeof(note_buf_t));
 }
-static DEVICE_ATTR(crash_notes_size, 0400, show_crash_notes_size, NULL);
+static DEVICE_ATTR_ADMIN_RO(crash_notes_size);
 
 static struct attribute *crash_note_cpu_attrs[] = {
 	&dev_attr_crash_notes.attr,
@@ -178,20 +183,20 @@ static struct attribute *crash_note_cpu_attrs[] = {
 	NULL
 };
 
-static struct attribute_group crash_note_cpu_attr_group = {
+static const struct attribute_group crash_note_cpu_attr_group = {
 	.attrs = crash_note_cpu_attrs,
 };
 #endif
 
 static const struct attribute_group *common_cpu_attr_groups[] = {
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_CRASH_DUMP
 	&crash_note_cpu_attr_group,
 #endif
 	NULL
 };
 
 static const struct attribute_group *hotplugable_cpu_attr_groups[] = {
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_CRASH_DUMP
 	&crash_note_cpu_attr_group,
 #endif
 	NULL
@@ -231,8 +236,7 @@ static struct cpu_attr cpu_attrs[] = {
 static ssize_t print_cpus_kernel_max(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
-	int n = snprintf(buf, PAGE_SIZE-2, "%d\n", NR_CPUS - 1);
-	return n;
+	return sysfs_emit(buf, "%d\n", NR_CPUS - 1);
 }
 static DEVICE_ATTR(kernel_max, 0444, print_cpus_kernel_max, NULL);
 
@@ -242,63 +246,69 @@ unsigned int total_cpus;
 static ssize_t print_cpus_offline(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
-	int n = 0, len = PAGE_SIZE-2;
+	int len = 0;
 	cpumask_var_t offline;
 
 	/* display offline cpus < nr_cpu_ids */
 	if (!alloc_cpumask_var(&offline, GFP_KERNEL))
 		return -ENOMEM;
 	cpumask_andnot(offline, cpu_possible_mask, cpu_online_mask);
-	n = scnprintf(buf, len, "%*pbl", cpumask_pr_args(offline));
+	len += sysfs_emit_at(buf, len, "%*pbl", cpumask_pr_args(offline));
 	free_cpumask_var(offline);
 
 	/* display offline cpus >= nr_cpu_ids */
 	if (total_cpus && nr_cpu_ids < total_cpus) {
-		if (n && n < len)
-			buf[n++] = ',';
+		len += sysfs_emit_at(buf, len, ",");
 
 		if (nr_cpu_ids == total_cpus-1)
-			n += snprintf(&buf[n], len - n, "%u", nr_cpu_ids);
+			len += sysfs_emit_at(buf, len, "%u", nr_cpu_ids);
 		else
-			n += snprintf(&buf[n], len - n, "%u-%d",
-						      nr_cpu_ids, total_cpus-1);
+			len += sysfs_emit_at(buf, len, "%u-%d",
+					     nr_cpu_ids, total_cpus - 1);
 	}
 
-	n += snprintf(&buf[n], len - n, "\n");
-	return n;
+	len += sysfs_emit_at(buf, len, "\n");
+
+	return len;
 }
 static DEVICE_ATTR(offline, 0444, print_cpus_offline, NULL);
 
 static ssize_t print_cpus_isolated(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
-	int n = 0, len = PAGE_SIZE-2;
+	int len;
 	cpumask_var_t isolated;
 
 	if (!alloc_cpumask_var(&isolated, GFP_KERNEL))
 		return -ENOMEM;
 
 	cpumask_andnot(isolated, cpu_possible_mask,
-		       housekeeping_cpumask(HK_FLAG_DOMAIN));
-	n = scnprintf(buf, len, "%*pbl\n", cpumask_pr_args(isolated));
+		       housekeeping_cpumask(HK_TYPE_DOMAIN));
+	len = sysfs_emit(buf, "%*pbl\n", cpumask_pr_args(isolated));
 
 	free_cpumask_var(isolated);
 
-	return n;
+	return len;
 }
 static DEVICE_ATTR(isolated, 0444, print_cpus_isolated, NULL);
 
 #ifdef CONFIG_NO_HZ_FULL
 static ssize_t print_cpus_nohz_full(struct device *dev,
-				  struct device_attribute *attr, char *buf)
+				    struct device_attribute *attr, char *buf)
 {
-	int n = 0, len = PAGE_SIZE-2;
-
-	n = scnprintf(buf, len, "%*pbl\n", cpumask_pr_args(tick_nohz_full_mask));
-
-	return n;
+	return sysfs_emit(buf, "%*pbl\n", cpumask_pr_args(tick_nohz_full_mask));
 }
 static DEVICE_ATTR(nohz_full, 0444, print_cpus_nohz_full, NULL);
+#endif
+
+#ifdef CONFIG_CRASH_HOTPLUG
+static ssize_t crash_hotplug_show(struct device *dev,
+				     struct device_attribute *attr,
+				     char *buf)
+{
+	return sysfs_emit(buf, "%d\n", crash_check_hotplug_support());
+}
+static DEVICE_ATTR_ADMIN_RO(crash_hotplug);
 #endif
 
 static void cpu_device_release(struct device *dev)
@@ -325,25 +335,26 @@ static ssize_t print_cpu_modalias(struct device *dev,
 				  struct device_attribute *attr,
 				  char *buf)
 {
-	ssize_t n;
+	int len = 0;
 	u32 i;
 
-	n = sprintf(buf, "cpu:type:" CPU_FEATURE_TYPEFMT ":feature:",
-		    CPU_FEATURE_TYPEVAL);
+	len += sysfs_emit_at(buf, len,
+			     "cpu:type:" CPU_FEATURE_TYPEFMT ":feature:",
+			     CPU_FEATURE_TYPEVAL);
 
 	for (i = 0; i < MAX_CPU_FEATURES; i++)
 		if (cpu_have_feature(i)) {
-			if (PAGE_SIZE < n + sizeof(",XXXX\n")) {
+			if (len + sizeof(",XXXX\n") >= PAGE_SIZE) {
 				WARN(1, "CPU features overflow page\n");
 				break;
 			}
-			n += sprintf(&buf[n], ",%04X", i);
+			len += sysfs_emit_at(buf, len, ",%04X", i);
 		}
-	buf[n++] = '\n';
-	return n;
+	len += sysfs_emit_at(buf, len, "\n");
+	return len;
 }
 
-static int cpu_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int cpu_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
 	char *buf = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (buf) {
@@ -354,6 +365,20 @@ static int cpu_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 #endif
+
+const struct bus_type cpu_subsys = {
+	.name = "cpu",
+	.dev_name = "cpu",
+	.match = cpu_subsys_match,
+#ifdef CONFIG_HOTPLUG_CPU
+	.online = cpu_subsys_online,
+	.offline = cpu_subsys_offline,
+#endif
+#ifdef CONFIG_GENERIC_CPU_AUTOPROBE
+	.uevent = cpu_uevent,
+#endif
+};
+EXPORT_SYMBOL_GPL(cpu_subsys);
 
 /*
  * register_cpu - Setup a sysfs device for a CPU.
@@ -375,9 +400,6 @@ int register_cpu(struct cpu *cpu, int num)
 	cpu->dev.offline_disabled = !cpu->hotpluggable;
 	cpu->dev.offline = !cpu_online(num);
 	cpu->dev.of_node = of_get_cpu_node(num, NULL);
-#ifdef CONFIG_GENERIC_CPU_AUTOPROBE
-	cpu->dev.bus->uevent = cpu_uevent;
-#endif
 	cpu->dev.groups = common_cpu_attr_groups;
 	if (cpu->hotpluggable)
 		cpu->dev.groups = hotplugable_cpu_attr_groups;
@@ -395,7 +417,7 @@ int register_cpu(struct cpu *cpu, int num)
 	return 0;
 }
 
-struct device *get_cpu_device(unsigned cpu)
+struct device *get_cpu_device(unsigned int cpu)
 {
 	if (cpu < nr_cpu_ids && cpu_possible(cpu))
 		return per_cpu(cpu_sys_devices, cpu);
@@ -416,13 +438,11 @@ __cpu_device_create(struct device *parent, void *drvdata,
 		    const char *fmt, va_list args)
 {
 	struct device *dev = NULL;
-	int retval = -ENODEV;
+	int retval = -ENOMEM;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev) {
-		retval = -ENOMEM;
+	if (!dev)
 		goto error;
-	}
 
 	device_initialize(dev);
 	dev->parent = parent;
@@ -478,13 +498,16 @@ static struct attribute *cpu_root_attrs[] = {
 #ifdef CONFIG_NO_HZ_FULL
 	&dev_attr_nohz_full.attr,
 #endif
+#ifdef CONFIG_CRASH_HOTPLUG
+	&dev_attr_crash_hotplug.attr,
+#endif
 #ifdef CONFIG_GENERIC_CPU_AUTOPROBE
 	&dev_attr_modalias.attr,
 #endif
 	NULL
 };
 
-static struct attribute_group cpu_root_attr_group = {
+static const struct attribute_group cpu_root_attr_group = {
 	.attrs = cpu_root_attrs,
 };
 
@@ -493,66 +516,79 @@ static const struct attribute_group *cpu_root_attr_groups[] = {
 	NULL,
 };
 
-bool cpu_is_hotpluggable(unsigned cpu)
+bool cpu_is_hotpluggable(unsigned int cpu)
 {
 	struct device *dev = get_cpu_device(cpu);
-	return dev && container_of(dev, struct cpu, dev)->hotpluggable;
+	return dev && container_of(dev, struct cpu, dev)->hotpluggable
+		&& tick_nohz_cpu_hotpluggable(cpu);
 }
 EXPORT_SYMBOL_GPL(cpu_is_hotpluggable);
 
 #ifdef CONFIG_GENERIC_CPU_DEVICES
-static DEFINE_PER_CPU(struct cpu, cpu_devices);
-#endif
+DEFINE_PER_CPU(struct cpu, cpu_devices);
+
+bool __weak arch_cpu_is_hotpluggable(int cpu)
+{
+	return false;
+}
+
+int __weak arch_register_cpu(int cpu)
+{
+	struct cpu *c = &per_cpu(cpu_devices, cpu);
+
+	c->hotpluggable = arch_cpu_is_hotpluggable(cpu);
+
+	return register_cpu(c, cpu);
+}
+
+#ifdef CONFIG_HOTPLUG_CPU
+void __weak arch_unregister_cpu(int num)
+{
+	unregister_cpu(&per_cpu(cpu_devices, num));
+}
+#endif /* CONFIG_HOTPLUG_CPU */
+#endif /* CONFIG_GENERIC_CPU_DEVICES */
 
 static void __init cpu_dev_register_generic(void)
 {
-#ifdef CONFIG_GENERIC_CPU_DEVICES
-	int i;
+	int i, ret;
 
-	for_each_possible_cpu(i) {
-		if (register_cpu(&per_cpu(cpu_devices, i), i))
-			panic("Failed to register CPU device");
+	if (!IS_ENABLED(CONFIG_GENERIC_CPU_DEVICES))
+		return;
+
+	for_each_present_cpu(i) {
+		ret = arch_register_cpu(i);
+		if (ret)
+			pr_warn("register_cpu %d failed (%d)\n", i, ret);
 	}
-#endif
 }
 
 #ifdef CONFIG_GENERIC_CPU_VULNERABILITIES
-
-ssize_t __weak cpu_show_meltdown(struct device *dev,
-				 struct device_attribute *attr, char *buf)
+static ssize_t cpu_show_not_affected(struct device *dev,
+			      struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "Not affected\n");
+	return sysfs_emit(buf, "Not affected\n");
 }
 
-ssize_t __weak cpu_show_spectre_v1(struct device *dev,
-				   struct device_attribute *attr, char *buf)
-{
-	return sprintf(buf, "Not affected\n");
-}
+#define CPU_SHOW_VULN_FALLBACK(func)					\
+	ssize_t cpu_show_##func(struct device *,			\
+				  struct device_attribute *, char *)	\
+		 __attribute__((weak, alias("cpu_show_not_affected")))
 
-ssize_t __weak cpu_show_spectre_v2(struct device *dev,
-				   struct device_attribute *attr, char *buf)
-{
-	return sprintf(buf, "Not affected\n");
-}
-
-ssize_t __weak cpu_show_spec_store_bypass(struct device *dev,
-					  struct device_attribute *attr, char *buf)
-{
-	return sprintf(buf, "Not affected\n");
-}
-
-ssize_t __weak cpu_show_l1tf(struct device *dev,
-			     struct device_attribute *attr, char *buf)
-{
-	return sprintf(buf, "Not affected\n");
-}
-
-ssize_t __weak cpu_show_mds(struct device *dev,
-			    struct device_attribute *attr, char *buf)
-{
-	return sprintf(buf, "Not affected\n");
-}
+CPU_SHOW_VULN_FALLBACK(meltdown);
+CPU_SHOW_VULN_FALLBACK(spectre_v1);
+CPU_SHOW_VULN_FALLBACK(spectre_v2);
+CPU_SHOW_VULN_FALLBACK(spec_store_bypass);
+CPU_SHOW_VULN_FALLBACK(l1tf);
+CPU_SHOW_VULN_FALLBACK(mds);
+CPU_SHOW_VULN_FALLBACK(tsx_async_abort);
+CPU_SHOW_VULN_FALLBACK(itlb_multihit);
+CPU_SHOW_VULN_FALLBACK(srbds);
+CPU_SHOW_VULN_FALLBACK(mmio_stale_data);
+CPU_SHOW_VULN_FALLBACK(retbleed);
+CPU_SHOW_VULN_FALLBACK(spec_rstack_overflow);
+CPU_SHOW_VULN_FALLBACK(gds);
+CPU_SHOW_VULN_FALLBACK(reg_file_data_sampling);
 
 static DEVICE_ATTR(meltdown, 0444, cpu_show_meltdown, NULL);
 static DEVICE_ATTR(spectre_v1, 0444, cpu_show_spectre_v1, NULL);
@@ -560,6 +596,14 @@ static DEVICE_ATTR(spectre_v2, 0444, cpu_show_spectre_v2, NULL);
 static DEVICE_ATTR(spec_store_bypass, 0444, cpu_show_spec_store_bypass, NULL);
 static DEVICE_ATTR(l1tf, 0444, cpu_show_l1tf, NULL);
 static DEVICE_ATTR(mds, 0444, cpu_show_mds, NULL);
+static DEVICE_ATTR(tsx_async_abort, 0444, cpu_show_tsx_async_abort, NULL);
+static DEVICE_ATTR(itlb_multihit, 0444, cpu_show_itlb_multihit, NULL);
+static DEVICE_ATTR(srbds, 0444, cpu_show_srbds, NULL);
+static DEVICE_ATTR(mmio_stale_data, 0444, cpu_show_mmio_stale_data, NULL);
+static DEVICE_ATTR(retbleed, 0444, cpu_show_retbleed, NULL);
+static DEVICE_ATTR(spec_rstack_overflow, 0444, cpu_show_spec_rstack_overflow, NULL);
+static DEVICE_ATTR(gather_data_sampling, 0444, cpu_show_gds, NULL);
+static DEVICE_ATTR(reg_file_data_sampling, 0444, cpu_show_reg_file_data_sampling, NULL);
 
 static struct attribute *cpu_root_vulnerabilities_attrs[] = {
 	&dev_attr_meltdown.attr,
@@ -568,6 +612,14 @@ static struct attribute *cpu_root_vulnerabilities_attrs[] = {
 	&dev_attr_spec_store_bypass.attr,
 	&dev_attr_l1tf.attr,
 	&dev_attr_mds.attr,
+	&dev_attr_tsx_async_abort.attr,
+	&dev_attr_itlb_multihit.attr,
+	&dev_attr_srbds.attr,
+	&dev_attr_mmio_stale_data.attr,
+	&dev_attr_retbleed.attr,
+	&dev_attr_spec_rstack_overflow.attr,
+	&dev_attr_gather_data_sampling.attr,
+	&dev_attr_reg_file_data_sampling.attr,
 	NULL
 };
 
@@ -578,9 +630,13 @@ static const struct attribute_group cpu_root_vulnerabilities_group = {
 
 static void __init cpu_register_vulnerabilities(void)
 {
-	if (sysfs_create_group(&cpu_subsys.dev_root->kobj,
-			       &cpu_root_vulnerabilities_group))
-		pr_err("Unable to register CPU vulnerabilities\n");
+	struct device *dev = bus_get_dev_root(&cpu_subsys);
+
+	if (dev) {
+		if (sysfs_create_group(&dev->kobj, &cpu_root_vulnerabilities_group))
+			pr_err("Unable to register CPU vulnerabilities\n");
+		put_device(dev);
+	}
 }
 
 #else

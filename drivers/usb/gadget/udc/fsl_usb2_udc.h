@@ -508,53 +508,6 @@ struct fsl_udc {
 
 /*-------------------------------------------------------------------------*/
 
-#ifdef DEBUG
-#define DBG(fmt, args...) 	printk(KERN_DEBUG "[%s]  " fmt "\n", \
-				__func__, ## args)
-#else
-#define DBG(fmt, args...)	do{}while(0)
-#endif
-
-#if 0
-static void dump_msg(const char *label, const u8 * buf, unsigned int length)
-{
-	unsigned int start, num, i;
-	char line[52], *p;
-
-	if (length >= 512)
-		return;
-	DBG("%s, length %u:\n", label, length);
-	start = 0;
-	while (length > 0) {
-		num = min(length, 16u);
-		p = line;
-		for (i = 0; i < num; ++i) {
-			if (i == 8)
-				*p++ = ' ';
-			sprintf(p, " %02x", buf[i]);
-			p += 3;
-		}
-		*p = 0;
-		printk(KERN_DEBUG "%6x: %s\n", start, line);
-		buf += num;
-		start += num;
-		length -= num;
-	}
-}
-#endif
-
-#ifdef VERBOSE
-#define VDBG		DBG
-#else
-#define VDBG(stuff...)	do{}while(0)
-#endif
-
-#define ERR(stuff...)		pr_err("udc: " stuff)
-#define WARNING(stuff...)	pr_warn("udc: " stuff)
-#define INFO(stuff...)		pr_info("udc: " stuff)
-
-/*-------------------------------------------------------------------------*/
-
 /* ### Add board specific defines here
  */
 
@@ -587,24 +540,5 @@ static inline struct ep_queue_head *get_qh_by_ep(struct fsl_ep *ep)
 		return &ep->udc->ep_qh[(ep->udc->ep0_dir ==
 				USB_DIR_IN) ? 1 : 0];
 }
-
-struct platform_device;
-#ifdef CONFIG_ARCH_MXC
-int fsl_udc_clk_init(struct platform_device *pdev);
-int fsl_udc_clk_finalize(struct platform_device *pdev);
-void fsl_udc_clk_release(void);
-#else
-static inline int fsl_udc_clk_init(struct platform_device *pdev)
-{
-	return 0;
-}
-static inline int fsl_udc_clk_finalize(struct platform_device *pdev)
-{
-	return 0;
-}
-static inline void fsl_udc_clk_release(void)
-{
-}
-#endif
 
 #endif

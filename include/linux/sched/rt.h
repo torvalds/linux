@@ -30,6 +30,10 @@ static inline bool task_is_realtime(struct task_struct *tsk)
 }
 
 #ifdef CONFIG_RT_MUTEXES
+extern void rt_mutex_pre_schedule(void);
+extern void rt_mutex_schedule(void);
+extern void rt_mutex_post_schedule(void);
+
 /*
  * Must hold either p->pi_lock or task_rq(p)->lock.
  */
@@ -39,20 +43,12 @@ static inline struct task_struct *rt_mutex_get_top_task(struct task_struct *p)
 }
 extern void rt_mutex_setprio(struct task_struct *p, struct task_struct *pi_task);
 extern void rt_mutex_adjust_pi(struct task_struct *p);
-static inline bool tsk_is_pi_blocked(struct task_struct *tsk)
-{
-	return tsk->pi_blocked_on != NULL;
-}
 #else
 static inline struct task_struct *rt_mutex_get_top_task(struct task_struct *task)
 {
 	return NULL;
 }
 # define rt_mutex_adjust_pi(p)		do { } while (0)
-static inline bool tsk_is_pi_blocked(struct task_struct *tsk)
-{
-	return false;
-}
 #endif
 
 extern void normalize_rt_tasks(void);

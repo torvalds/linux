@@ -1006,9 +1006,9 @@ static int send_pending_packet(struct ipw_hardware *hw, int priority_limit)
 /*
  * Send and receive all queued packets.
  */
-static void ipwireless_do_tasklet(unsigned long hw_)
+static void ipwireless_do_tasklet(struct tasklet_struct *t)
 {
-	struct ipw_hardware *hw = (struct ipw_hardware *) hw_;
+	struct ipw_hardware *hw = from_tasklet(hw, t, tasklet);
 	unsigned long flags;
 
 	spin_lock_irqsave(&hw->lock, flags);
@@ -1292,7 +1292,7 @@ static void *alloc_ctrl_packet(int header_size,
 }
 
 int ipwireless_send_packet(struct ipw_hardware *hw, unsigned int channel_idx,
-			    const unsigned char *data, unsigned int length,
+			    const u8 *data, unsigned int length,
 			    void (*callback) (void *cb, unsigned int length),
 			    void *callback_data)
 {
@@ -1635,7 +1635,7 @@ struct ipw_hardware *ipwireless_hardware_create(void)
 	INIT_LIST_HEAD(&hw->rx_queue);
 	INIT_LIST_HEAD(&hw->rx_pool);
 	spin_lock_init(&hw->lock);
-	tasklet_init(&hw->tasklet, ipwireless_do_tasklet, (unsigned long) hw);
+	tasklet_setup(&hw->tasklet, ipwireless_do_tasklet);
 	INIT_WORK(&hw->work_rx, ipw_receive_data_work);
 	timer_setup(&hw->setup_timer, ipwireless_setup_timer, 0);
 

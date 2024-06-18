@@ -12,7 +12,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/watchdog.h>
@@ -162,11 +161,6 @@ static const struct of_device_id pic32_wdt_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, pic32_wdt_dt_ids);
 
-static void pic32_clk_disable_unprepare(void *data)
-{
-	clk_disable_unprepare(data);
-}
-
 static int pic32_wdt_drv_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -186,21 +180,11 @@ static int pic32_wdt_drv_probe(struct platform_device *pdev)
 	if (!wdt->rst_base)
 		return -ENOMEM;
 
-	wdt->clk = devm_clk_get(dev, NULL);
+	wdt->clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(wdt->clk)) {
 		dev_err(dev, "clk not found\n");
 		return PTR_ERR(wdt->clk);
 	}
-
-	ret = clk_prepare_enable(wdt->clk);
-	if (ret) {
-		dev_err(dev, "clk enable failed\n");
-		return ret;
-	}
-	ret = devm_add_action_or_reset(dev, pic32_clk_disable_unprepare,
-				       wdt->clk);
-	if (ret)
-		return ret;
 
 	if (pic32_wdt_is_win_enabled(wdt)) {
 		dev_err(dev, "windowed-clear mode is not supported.\n");

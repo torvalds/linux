@@ -7,6 +7,5 @@
 int  mlx5e_monitor_counter_supported(struct mlx5e_priv *priv);
 void mlx5e_monitor_counter_init(struct mlx5e_priv *priv);
 void mlx5e_monitor_counter_cleanup(struct mlx5e_priv *priv);
-void mlx5e_monitor_counter_arm(struct mlx5e_priv *priv);
 
 #endif /* __MLX5_MONITOR_H__ */

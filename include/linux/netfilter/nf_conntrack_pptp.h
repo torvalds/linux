@@ -10,7 +10,7 @@
 #include <net/netfilter/nf_conntrack_expect.h>
 #include <uapi/linux/netfilter/nf_conntrack_tuple_common.h>
 
-extern const char *const pptp_msg_name[];
+const char *pptp_msg_name(u_int16_t msg);
 
 /* state of the control session */
 enum pptp_ctrlsess_state {
@@ -300,26 +300,22 @@ union pptp_ctrl_union {
 	struct PptpSetLinkInfo		setlink;
 };
 
-extern int
-(*nf_nat_pptp_hook_outbound)(struct sk_buff *skb,
-			     struct nf_conn *ct, enum ip_conntrack_info ctinfo,
-			     unsigned int protoff,
-			     struct PptpControlHeader *ctlh,
-			     union pptp_ctrl_union *pptpReq);
+struct nf_nat_pptp_hook {
+	int (*outbound)(struct sk_buff *skb,
+			struct nf_conn *ct, enum ip_conntrack_info ctinfo,
+			unsigned int protoff,
+			struct PptpControlHeader *ctlh,
+			union pptp_ctrl_union *pptpReq);
+	int (*inbound)(struct sk_buff *skb,
+		       struct nf_conn *ct, enum ip_conntrack_info ctinfo,
+		       unsigned int protoff,
+		       struct PptpControlHeader *ctlh,
+		       union pptp_ctrl_union *pptpReq);
+	void (*exp_gre)(struct nf_conntrack_expect *exp_orig,
+			struct nf_conntrack_expect *exp_reply);
+	void (*expectfn)(struct nf_conn *ct,
+			 struct nf_conntrack_expect *exp);
+};
 
-extern int
-(*nf_nat_pptp_hook_inbound)(struct sk_buff *skb,
-			    struct nf_conn *ct, enum ip_conntrack_info ctinfo,
-			    unsigned int protoff,
-			    struct PptpControlHeader *ctlh,
-			    union pptp_ctrl_union *pptpReq);
-
-extern void
-(*nf_nat_pptp_hook_exp_gre)(struct nf_conntrack_expect *exp_orig,
-			    struct nf_conntrack_expect *exp_reply);
-
-extern void
-(*nf_nat_pptp_hook_expectfn)(struct nf_conn *ct,
-			     struct nf_conntrack_expect *exp);
-
+extern const struct nf_nat_pptp_hook __rcu *nf_nat_pptp_hook;
 #endif /* _NF_CONNTRACK_PPTP_H */

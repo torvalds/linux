@@ -21,6 +21,17 @@ END(_start)
 ENTRY(_start_smp_secondary)
 	SETUP_MMU
 
+#ifdef CONFIG_PAGE_OFFSET_80000000
+	lrw	r6, secondary_msa1
+	ld.w	r6, (r6, 0)
+	mtcr	r6, cr<31, 15>
+#endif
+
+	lrw     r6, secondary_pgd
+	ld.w	r6, (r6, 0)
+	mtcr	r6, cr<28, 15>
+	mtcr	r6, cr<29, 15>
+
 	/* set stack point */
 	lrw     r6, secondary_stack
 	ld.w	r6, (r6, 0)

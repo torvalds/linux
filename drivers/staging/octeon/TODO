@@ -6,4 +6,3 @@ TODO:
 	- make driver self-contained instead of being split between staging and
 	  arch/mips/cavium-octeon.
 
-Contact: Aaro Koskinen <aaro.koskinen@iki.fi>

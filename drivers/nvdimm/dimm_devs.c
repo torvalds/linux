@@ -18,10 +18,6 @@
 
 static DEFINE_IDA(dimm_ida);
 
-static bool noblk;
-module_param(noblk, bool, 0444);
-MODULE_PARM_DESC(noblk, "force disable BLK / local alias support");
-
 /*
  * Retrieve bus and dimm handle and return if this bus supports
  * get_config_data commands
@@ -32,7 +28,7 @@ int nvdimm_check_config_data(struct device *dev)
 
 	if (!nvdimm->cmd_mask ||
 	    !test_bit(ND_CMD_GET_CONFIG_DATA, &nvdimm->cmd_mask)) {
-		if (test_bit(NDD_ALIASING, &nvdimm->flags))
+		if (test_bit(NDD_LABELING, &nvdimm->flags))
 			return -ENXIO;
 		else
 			return -ENOTTY;
@@ -57,7 +53,9 @@ static int validate_dimm(struct nvdimm_drvdata *ndd)
 
 /**
  * nvdimm_init_nsarea - determine the geometry of a dimm's namespace area
- * @nvdimm: dimm to initialize
+ * @ndd: dimm to initialize
+ *
+ * Returns: %0 if the area is already valid, -errno on error
  */
 int nvdimm_init_nsarea(struct nvdimm_drvdata *ndd)
 {
@@ -173,11 +171,11 @@ int nvdimm_set_config_data(struct nvdimm_drvdata *ndd, size_t offset,
 	return rc;
 }
 
-void nvdimm_set_aliasing(struct device *dev)
+void nvdimm_set_labeling(struct device *dev)
 {
 	struct nvdimm *nvdimm = to_nvdimm(dev);
 
-	set_bit(NDD_ALIASING, &nvdimm->flags);
+	set_bit(NDD_LABELING, &nvdimm->flags);
 }
 
 void nvdimm_set_locked(struct device *dev)
@@ -198,18 +196,8 @@ static void nvdimm_release(struct device *dev)
 {
 	struct nvdimm *nvdimm = to_nvdimm(dev);
 
-	ida_simple_remove(&dimm_ida, nvdimm->id);
+	ida_free(&dimm_ida, nvdimm->id);
 	kfree(nvdimm);
-}
-
-static struct device_type nvdimm_device_type = {
-	.name = "nvdimm",
-	.release = nvdimm_release,
-};
-
-bool is_nvdimm(struct device *dev)
-{
-	return dev->type == &nvdimm_device_type;
 }
 
 struct nvdimm *to_nvdimm(struct device *dev)
@@ -220,22 +208,6 @@ struct nvdimm *to_nvdimm(struct device *dev)
 	return nvdimm;
 }
 EXPORT_SYMBOL_GPL(to_nvdimm);
-
-struct nvdimm *nd_blk_region_to_dimm(struct nd_blk_region *ndbr)
-{
-	struct nd_region *nd_region = &ndbr->nd_region;
-	struct nd_mapping *nd_mapping = &nd_region->mapping[0];
-
-	return nd_mapping->nvdimm;
-}
-EXPORT_SYMBOL_GPL(nd_blk_region_to_dimm);
-
-unsigned long nd_blk_memremap_flags(struct nd_blk_region *ndbr)
-{
-	/* pmem mapping properties are private to libnvdimm */
-	return ARCH_MEMREMAP_PMEM;
-}
-EXPORT_SYMBOL_GPL(nd_blk_memremap_flags);
 
 struct nvdimm_drvdata *to_ndd(struct nd_mapping *nd_mapping)
 {
@@ -323,7 +295,7 @@ static ssize_t flags_show(struct device *dev,
 	struct nvdimm *nvdimm = to_nvdimm(dev);
 
 	return sprintf(buf, "%s%s\n",
-			test_bit(NDD_ALIASING, &nvdimm->flags) ? "alias " : "",
+			test_bit(NDD_LABELING, &nvdimm->flags) ? "label " : "",
 			test_bit(NDD_LOCKED, &nvdimm->flags) ? "lock " : "");
 }
 static DEVICE_ATTR_RO(flags);
@@ -344,16 +316,16 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(state);
 
-static ssize_t available_slots_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t __available_slots_show(struct nvdimm_drvdata *ndd, char *buf)
 {
-	struct nvdimm_drvdata *ndd = dev_get_drvdata(dev);
+	struct device *dev;
 	ssize_t rc;
 	u32 nfree;
 
 	if (!ndd)
 		return -ENXIO;
 
+	dev = ndd->dev;
 	nvdimm_bus_lock(dev);
 	nfree = nd_label_nfree(ndd);
 	if (nfree - 1 > nfree) {
@@ -365,21 +337,40 @@ static ssize_t available_slots_show(struct device *dev,
 	nvdimm_bus_unlock(dev);
 	return rc;
 }
+
+static ssize_t available_slots_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
+{
+	ssize_t rc;
+
+	device_lock(dev);
+	rc = __available_slots_show(dev_get_drvdata(dev), buf);
+	device_unlock(dev);
+
+	return rc;
+}
 static DEVICE_ATTR_RO(available_slots);
 
-__weak ssize_t security_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t security_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	struct nvdimm *nvdimm = to_nvdimm(dev);
 
+	/*
+	 * For the test version we need to poll the "hardware" in order
+	 * to get the updated status for unlock testing.
+	 */
+	if (IS_ENABLED(CONFIG_NVDIMM_SECURITY_TEST))
+		nvdimm->sec.flags = nvdimm_security_flags(nvdimm, NVDIMM_USER);
+
+	if (test_bit(NVDIMM_SECURITY_OVERWRITE, &nvdimm->sec.flags))
+		return sprintf(buf, "overwrite\n");
 	if (test_bit(NVDIMM_SECURITY_DISABLED, &nvdimm->sec.flags))
 		return sprintf(buf, "disabled\n");
 	if (test_bit(NVDIMM_SECURITY_UNLOCKED, &nvdimm->sec.flags))
 		return sprintf(buf, "unlocked\n");
 	if (test_bit(NVDIMM_SECURITY_LOCKED, &nvdimm->sec.flags))
 		return sprintf(buf, "locked\n");
-	if (test_bit(NVDIMM_SECURITY_OVERWRITE, &nvdimm->sec.flags))
-		return sprintf(buf, "overwrite\n");
 	return -ENOTTY;
 }
 
@@ -404,12 +395,12 @@ static ssize_t security_store(struct device *dev,
 	 * done while probing is idle and the DIMM is not in active use
 	 * in any region.
 	 */
-	nd_device_lock(dev);
+	device_lock(dev);
 	nvdimm_bus_lock(dev);
 	wait_nvdimm_bus_probe_idle(dev);
 	rc = nvdimm_security_store(dev, buf, len);
 	nvdimm_bus_unlock(dev);
-	nd_device_unlock(dev);
+	device_unlock(dev);
 
 	return rc;
 }
@@ -450,17 +441,152 @@ static umode_t nvdimm_visible(struct kobject *kobj, struct attribute *a, int n)
 	return 0;
 }
 
-struct attribute_group nvdimm_attribute_group = {
+static const struct attribute_group nvdimm_attribute_group = {
 	.attrs = nvdimm_attributes,
 	.is_visible = nvdimm_visible,
 };
-EXPORT_SYMBOL_GPL(nvdimm_attribute_group);
+
+static ssize_t result_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct nvdimm *nvdimm = to_nvdimm(dev);
+	enum nvdimm_fwa_result result;
+
+	if (!nvdimm->fw_ops)
+		return -EOPNOTSUPP;
+
+	nvdimm_bus_lock(dev);
+	result = nvdimm->fw_ops->activate_result(nvdimm);
+	nvdimm_bus_unlock(dev);
+
+	switch (result) {
+	case NVDIMM_FWA_RESULT_NONE:
+		return sprintf(buf, "none\n");
+	case NVDIMM_FWA_RESULT_SUCCESS:
+		return sprintf(buf, "success\n");
+	case NVDIMM_FWA_RESULT_FAIL:
+		return sprintf(buf, "fail\n");
+	case NVDIMM_FWA_RESULT_NOTSTAGED:
+		return sprintf(buf, "not_staged\n");
+	case NVDIMM_FWA_RESULT_NEEDRESET:
+		return sprintf(buf, "need_reset\n");
+	default:
+		return -ENXIO;
+	}
+}
+static DEVICE_ATTR_ADMIN_RO(result);
+
+static ssize_t activate_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct nvdimm *nvdimm = to_nvdimm(dev);
+	enum nvdimm_fwa_state state;
+
+	if (!nvdimm->fw_ops)
+		return -EOPNOTSUPP;
+
+	nvdimm_bus_lock(dev);
+	state = nvdimm->fw_ops->activate_state(nvdimm);
+	nvdimm_bus_unlock(dev);
+
+	switch (state) {
+	case NVDIMM_FWA_IDLE:
+		return sprintf(buf, "idle\n");
+	case NVDIMM_FWA_BUSY:
+		return sprintf(buf, "busy\n");
+	case NVDIMM_FWA_ARMED:
+		return sprintf(buf, "armed\n");
+	default:
+		return -ENXIO;
+	}
+}
+
+static ssize_t activate_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t len)
+{
+	struct nvdimm *nvdimm = to_nvdimm(dev);
+	enum nvdimm_fwa_trigger arg;
+	int rc;
+
+	if (!nvdimm->fw_ops)
+		return -EOPNOTSUPP;
+
+	if (sysfs_streq(buf, "arm"))
+		arg = NVDIMM_FWA_ARM;
+	else if (sysfs_streq(buf, "disarm"))
+		arg = NVDIMM_FWA_DISARM;
+	else
+		return -EINVAL;
+
+	nvdimm_bus_lock(dev);
+	rc = nvdimm->fw_ops->arm(nvdimm, arg);
+	nvdimm_bus_unlock(dev);
+
+	if (rc < 0)
+		return rc;
+	return len;
+}
+static DEVICE_ATTR_ADMIN_RW(activate);
+
+static struct attribute *nvdimm_firmware_attributes[] = {
+	&dev_attr_activate.attr,
+	&dev_attr_result.attr,
+	NULL,
+};
+
+static umode_t nvdimm_firmware_visible(struct kobject *kobj, struct attribute *a, int n)
+{
+	struct device *dev = container_of(kobj, typeof(*dev), kobj);
+	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(dev);
+	struct nvdimm_bus_descriptor *nd_desc = nvdimm_bus->nd_desc;
+	struct nvdimm *nvdimm = to_nvdimm(dev);
+	enum nvdimm_fwa_capability cap;
+
+	if (!nd_desc->fw_ops)
+		return 0;
+	if (!nvdimm->fw_ops)
+		return 0;
+
+	nvdimm_bus_lock(dev);
+	cap = nd_desc->fw_ops->capability(nd_desc);
+	nvdimm_bus_unlock(dev);
+
+	if (cap < NVDIMM_FWA_CAP_QUIESCE)
+		return 0;
+
+	return a->mode;
+}
+
+static const struct attribute_group nvdimm_firmware_attribute_group = {
+	.name = "firmware",
+	.attrs = nvdimm_firmware_attributes,
+	.is_visible = nvdimm_firmware_visible,
+};
+
+static const struct attribute_group *nvdimm_attribute_groups[] = {
+	&nd_device_attribute_group,
+	&nvdimm_attribute_group,
+	&nvdimm_firmware_attribute_group,
+	NULL,
+};
+
+static const struct device_type nvdimm_device_type = {
+	.name = "nvdimm",
+	.release = nvdimm_release,
+	.groups = nvdimm_attribute_groups,
+};
+
+bool is_nvdimm(const struct device *dev)
+{
+	return dev->type == &nvdimm_device_type;
+}
+
+static struct lock_class_key nvdimm_key;
 
 struct nvdimm *__nvdimm_create(struct nvdimm_bus *nvdimm_bus,
 		void *provider_data, const struct attribute_group **groups,
 		unsigned long flags, unsigned long cmd_mask, int num_flush,
 		struct resource *flush_wpq, const char *dimm_id,
-		const struct nvdimm_security_ops *sec_ops)
+		const struct nvdimm_security_ops *sec_ops,
+		const struct nvdimm_fw_ops *fw_ops)
 {
 	struct nvdimm *nvdimm = kzalloc(sizeof(*nvdimm), GFP_KERNEL);
 	struct device *dev;
@@ -468,7 +594,7 @@ struct nvdimm *__nvdimm_create(struct nvdimm_bus *nvdimm_bus,
 	if (!nvdimm)
 		return NULL;
 
-	nvdimm->id = ida_simple_get(&dimm_ida, 0, 0, GFP_KERNEL);
+	nvdimm->id = ida_alloc(&dimm_ida, GFP_KERNEL);
 	if (nvdimm->id < 0) {
 		kfree(nvdimm);
 		return NULL;
@@ -476,8 +602,6 @@ struct nvdimm *__nvdimm_create(struct nvdimm_bus *nvdimm_bus,
 
 	nvdimm->dimm_id = dimm_id;
 	nvdimm->provider_data = provider_data;
-	if (noblk)
-		flags |= 1 << NDD_NOBLK;
 	nvdimm->flags = flags;
 	nvdimm->cmd_mask = cmd_mask;
 	nvdimm->num_flush = num_flush;
@@ -490,6 +614,7 @@ struct nvdimm *__nvdimm_create(struct nvdimm_bus *nvdimm_bus,
 	dev->devt = MKDEV(nvdimm_major, nvdimm->id);
 	dev->groups = groups;
 	nvdimm->sec.ops = sec_ops;
+	nvdimm->fw_ops = fw_ops;
 	nvdimm->sec.overwrite_tmo = 0;
 	INIT_DELAYED_WORK(&nvdimm->dwork, nvdimm_security_overwrite_query);
 	/*
@@ -499,11 +624,34 @@ struct nvdimm *__nvdimm_create(struct nvdimm_bus *nvdimm_bus,
 	/* get security state and extended (master) state */
 	nvdimm->sec.flags = nvdimm_security_flags(nvdimm, NVDIMM_USER);
 	nvdimm->sec.ext_flags = nvdimm_security_flags(nvdimm, NVDIMM_MASTER);
-	nd_device_register(dev);
+	device_initialize(dev);
+	lockdep_set_class(&dev->mutex, &nvdimm_key);
+	if (test_bit(NDD_REGISTER_SYNC, &flags))
+		nd_device_register_sync(dev);
+	else
+		nd_device_register(dev);
 
 	return nvdimm;
 }
 EXPORT_SYMBOL_GPL(__nvdimm_create);
+
+void nvdimm_delete(struct nvdimm *nvdimm)
+{
+	struct device *dev = &nvdimm->dev;
+	bool dev_put = false;
+
+	/* We are shutting down. Make state frozen artificially. */
+	nvdimm_bus_lock(dev);
+	set_bit(NVDIMM_SECURITY_FROZEN, &nvdimm->sec.flags);
+	if (test_and_clear_bit(NDD_WORK_PENDING, &nvdimm->flags))
+		dev_put = true;
+	nvdimm_bus_unlock(dev);
+	cancel_delayed_work_sync(&nvdimm->dwork);
+	if (dev_put)
+		put_device(dev);
+	nd_device_unregister(dev, ND_SYNC);
+}
+EXPORT_SYMBOL_GPL(nvdimm_delete);
 
 static void shutdown_security_notify(void *data)
 {
@@ -556,111 +704,19 @@ int nvdimm_security_freeze(struct nvdimm *nvdimm)
 	return rc;
 }
 
-int alias_dpa_busy(struct device *dev, void *data)
+static unsigned long dpa_align(struct nd_region *nd_region)
 {
-	resource_size_t map_end, blk_start, new;
-	struct blk_alloc_info *info = data;
-	struct nd_mapping *nd_mapping;
-	struct nd_region *nd_region;
-	struct nvdimm_drvdata *ndd;
-	struct resource *res;
-	int i;
+	struct device *dev = &nd_region->dev;
 
-	if (!is_memory(dev))
+	if (dev_WARN_ONCE(dev, !is_nvdimm_bus_locked(dev),
+				"bus lock required for capacity provision\n"))
 		return 0;
-
-	nd_region = to_nd_region(dev);
-	for (i = 0; i < nd_region->ndr_mappings; i++) {
-		nd_mapping  = &nd_region->mapping[i];
-		if (nd_mapping->nvdimm == info->nd_mapping->nvdimm)
-			break;
-	}
-
-	if (i >= nd_region->ndr_mappings)
+	if (dev_WARN_ONCE(dev, !nd_region->ndr_mappings || nd_region->align
+				% nd_region->ndr_mappings,
+				"invalid region align %#lx mappings: %d\n",
+				nd_region->align, nd_region->ndr_mappings))
 		return 0;
-
-	ndd = to_ndd(nd_mapping);
-	map_end = nd_mapping->start + nd_mapping->size - 1;
-	blk_start = nd_mapping->start;
-
-	/*
-	 * In the allocation case ->res is set to free space that we are
-	 * looking to validate against PMEM aliasing collision rules
-	 * (i.e. BLK is allocated after all aliased PMEM).
-	 */
-	if (info->res) {
-		if (info->res->start >= nd_mapping->start
-				&& info->res->start < map_end)
-			/* pass */;
-		else
-			return 0;
-	}
-
- retry:
-	/*
-	 * Find the free dpa from the end of the last pmem allocation to
-	 * the end of the interleave-set mapping.
-	 */
-	for_each_dpa_resource(ndd, res) {
-		if (strncmp(res->name, "pmem", 4) != 0)
-			continue;
-		if ((res->start >= blk_start && res->start < map_end)
-				|| (res->end >= blk_start
-					&& res->end <= map_end)) {
-			new = max(blk_start, min(map_end + 1, res->end + 1));
-			if (new != blk_start) {
-				blk_start = new;
-				goto retry;
-			}
-		}
-	}
-
-	/* update the free space range with the probed blk_start */
-	if (info->res && blk_start > info->res->start) {
-		info->res->start = max(info->res->start, blk_start);
-		if (info->res->start > info->res->end)
-			info->res->end = info->res->start - 1;
-		return 1;
-	}
-
-	info->available -= blk_start - nd_mapping->start;
-
-	return 0;
-}
-
-/**
- * nd_blk_available_dpa - account the unused dpa of BLK region
- * @nd_mapping: container of dpa-resource-root + labels
- *
- * Unlike PMEM, BLK namespaces can occupy discontiguous DPA ranges, but
- * we arrange for them to never start at an lower dpa than the last
- * PMEM allocation in an aliased region.
- */
-resource_size_t nd_blk_available_dpa(struct nd_region *nd_region)
-{
-	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(&nd_region->dev);
-	struct nd_mapping *nd_mapping = &nd_region->mapping[0];
-	struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
-	struct blk_alloc_info info = {
-		.nd_mapping = nd_mapping,
-		.available = nd_mapping->size,
-		.res = NULL,
-	};
-	struct resource *res;
-
-	if (!ndd)
-		return 0;
-
-	device_for_each_child(&nvdimm_bus->dev, &info, alias_dpa_busy);
-
-	/* now account for busy blk allocations in unaliased dpa */
-	for_each_dpa_resource(ndd, res) {
-		if (strncmp(res->name, "blk", 3) != 0)
-			continue;
-		info.available -= resource_size(res);
-	}
-
-	return info.available;
+	return nd_region->align / nd_region->ndr_mappings;
 }
 
 /**
@@ -668,6 +724,9 @@ resource_size_t nd_blk_available_dpa(struct nd_region *nd_region)
  *			   contiguous unallocated dpa range.
  * @nd_region: constrain available space check to this reference region
  * @nd_mapping: container of dpa-resource-root + labels
+ *
+ * Returns: %0 if there is an alignment error, otherwise the max
+ *		unallocated dpa range
  */
 resource_size_t nd_pmem_max_contiguous_dpa(struct nd_region *nd_region,
 					   struct nd_mapping *nd_mapping)
@@ -676,19 +735,31 @@ resource_size_t nd_pmem_max_contiguous_dpa(struct nd_region *nd_region,
 	struct nvdimm_bus *nvdimm_bus;
 	resource_size_t max = 0;
 	struct resource *res;
+	unsigned long align;
 
 	/* if a dimm is disabled the available capacity is zero */
 	if (!ndd)
+		return 0;
+
+	align = dpa_align(nd_region);
+	if (!align)
 		return 0;
 
 	nvdimm_bus = walk_to_nvdimm_bus(ndd->dev);
 	if (__reserve_free_pmem(&nd_region->dev, nd_mapping->nvdimm))
 		return 0;
 	for_each_dpa_resource(ndd, res) {
+		resource_size_t start, end;
+
 		if (strcmp(res->name, "pmem-reserve") != 0)
 			continue;
-		if (resource_size(res) > max)
-			max = resource_size(res);
+		/* trim free space relative to current alignment setting */
+		start = ALIGN(res->start, align);
+		end = ALIGN_DOWN(res->end + 1, align) - 1;
+		if (end < start)
+			continue;
+		if (end - start + 1 > max)
+			max = end - start + 1;
 	}
 	release_free_pmem(nvdimm_bus, nd_mapping);
 	return max;
@@ -698,66 +769,51 @@ resource_size_t nd_pmem_max_contiguous_dpa(struct nd_region *nd_region,
  * nd_pmem_available_dpa - for the given dimm+region account unallocated dpa
  * @nd_mapping: container of dpa-resource-root + labels
  * @nd_region: constrain available space check to this reference region
- * @overlap: calculate available space assuming this level of overlap
  *
  * Validate that a PMEM label, if present, aligns with the start of an
- * interleave set and truncate the available size at the lowest BLK
- * overlap point.
+ * interleave set.
  *
- * The expectation is that this routine is called multiple times as it
- * probes for the largest BLK encroachment for any single member DIMM of
- * the interleave set.  Once that value is determined the PMEM-limit for
- * the set can be established.
+ * Returns: %0 if there is an alignment error, otherwise the unallocated dpa
  */
 resource_size_t nd_pmem_available_dpa(struct nd_region *nd_region,
-		struct nd_mapping *nd_mapping, resource_size_t *overlap)
+				      struct nd_mapping *nd_mapping)
 {
-	resource_size_t map_start, map_end, busy = 0, available, blk_start;
 	struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
+	resource_size_t map_start, map_end, busy = 0;
 	struct resource *res;
-	const char *reason;
+	unsigned long align;
 
 	if (!ndd)
 		return 0;
 
+	align = dpa_align(nd_region);
+	if (!align)
+		return 0;
+
 	map_start = nd_mapping->start;
 	map_end = map_start + nd_mapping->size - 1;
-	blk_start = max(map_start, map_end + 1 - *overlap);
 	for_each_dpa_resource(ndd, res) {
-		if (res->start >= map_start && res->start < map_end) {
-			if (strncmp(res->name, "blk", 3) == 0)
-				blk_start = min(blk_start,
-						max(map_start, res->start));
-			else if (res->end > map_end) {
-				reason = "misaligned to iset";
-				goto err;
-			} else
-				busy += resource_size(res);
-		} else if (res->end >= map_start && res->end <= map_end) {
-			if (strncmp(res->name, "blk", 3) == 0) {
-				/*
-				 * If a BLK allocation overlaps the start of
-				 * PMEM the entire interleave set may now only
-				 * be used for BLK.
-				 */
-				blk_start = map_start;
-			} else
-				busy += resource_size(res);
-		} else if (map_start > res->start && map_start < res->end) {
+		resource_size_t start, end;
+
+		start = ALIGN_DOWN(res->start, align);
+		end = ALIGN(res->end + 1, align) - 1;
+		if (start >= map_start && start < map_end) {
+			if (end > map_end) {
+				nd_dbg_dpa(nd_region, ndd, res,
+					   "misaligned to iset\n");
+				return 0;
+			}
+			busy += end - start + 1;
+		} else if (end >= map_start && end <= map_end) {
+			busy += end - start + 1;
+		} else if (map_start > start && map_start < end) {
 			/* total eclipse of the mapping */
 			busy += nd_mapping->size;
-			blk_start = map_start;
 		}
 	}
 
-	*overlap = map_end + 1 - blk_start;
-	available = blk_start - map_start;
-	if (busy < available)
-		return available - busy;
-	return 0;
-
- err:
-	nd_dbg_dpa(nd_region, ndd, res, "%s\n", reason);
+	if (busy < nd_mapping->size)
+		return ALIGN_DOWN(nd_mapping->size - busy, align);
 	return 0;
 }
 
@@ -787,8 +843,10 @@ struct resource *nvdimm_allocate_dpa(struct nvdimm_drvdata *ndd,
 
 /**
  * nvdimm_allocated_dpa - sum up the dpa currently allocated to this label_id
- * @nvdimm: container of dpa-resource-root + labels
- * @label_id: dpa resource name of the form {pmem|blk}-<human readable uuid>
+ * @ndd: container of dpa-resource-root + labels
+ * @label_id: dpa resource name of the form pmem-<human readable uuid>
+ *
+ * Returns: sum of the dpa allocated to the label_id
  */
 resource_size_t nvdimm_allocated_dpa(struct nvdimm_drvdata *ndd,
 		struct nd_label_id *label_id)

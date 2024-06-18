@@ -22,7 +22,7 @@
  *    when the bridge is scanned and it loses a refcount when the bridge
  *    is removed.
  *  - When a P2P bridge is present, we elevate the refcount on the subordinate
- *    bus. It loses the refcount when the the driver unloads.
+ *    bus. It loses the refcount when the driver unloads.
  */
 
 #define pr_fmt(fmt) "acpiphp_glue: " fmt
@@ -122,13 +122,21 @@ static struct acpiphp_context *acpiphp_grab_context(struct acpi_device *adev)
 	struct acpiphp_context *context;
 
 	acpi_lock_hp_context();
+
 	context = acpiphp_get_context(adev);
-	if (!context || context->func.parent->is_going_away) {
-		acpi_unlock_hp_context();
-		return NULL;
+	if (!context)
+		goto unlock;
+
+	if (context->func.parent->is_going_away) {
+		acpiphp_put_context(context);
+		context = NULL;
+		goto unlock;
 	}
+
 	get_bridge(context->func.parent);
 	acpiphp_put_context(context);
+
+unlock:
 	acpi_unlock_hp_context();
 	return context;
 }
@@ -218,9 +226,9 @@ static void acpiphp_post_dock_fixup(struct acpi_device *adev)
 static acpi_status acpiphp_add_context(acpi_handle handle, u32 lvl, void *data,
 				       void **rv)
 {
+	struct acpi_device *adev = acpi_fetch_acpi_dev(handle);
 	struct acpiphp_bridge *bridge = data;
 	struct acpiphp_context *context;
-	struct acpi_device *adev;
 	struct acpiphp_slot *slot;
 	struct acpiphp_func *newfunc;
 	acpi_status status = AE_OK;
@@ -230,6 +238,9 @@ static acpi_status acpiphp_add_context(acpi_handle handle, u32 lvl, void *data,
 	struct pci_dev *pdev = bridge->pci_dev;
 	u32 val;
 
+	if (!adev)
+		return AE_OK;
+
 	status = acpi_evaluate_integer(handle, "_ADR", NULL, &adr);
 	if (ACPI_FAILURE(status)) {
 		if (status != AE_NOT_FOUND)
@@ -237,8 +248,6 @@ static acpi_status acpiphp_add_context(acpi_handle handle, u32 lvl, void *data,
 				"can't evaluate _ADR (%#x)\n", status);
 		return AE_OK;
 	}
-	if (acpi_bus_get_device(handle, &adev))
-		return AE_OK;
 
 	device = (adr >> 16) & 0xffff;
 	function = adr & 0xffff;
@@ -385,19 +394,12 @@ static unsigned char acpiphp_max_busnr(struct pci_bus *bus)
 static void acpiphp_set_acpi_region(struct acpiphp_slot *slot)
 {
 	struct acpiphp_func *func;
-	union acpi_object params[2];
-	struct acpi_object_list arg_list;
 
 	list_for_each_entry(func, &slot->funcs, sibling) {
-		arg_list.count = 2;
-		arg_list.pointer = params;
-		params[0].type = ACPI_TYPE_INTEGER;
-		params[0].integer.value = ACPI_ADR_SPACE_PCI_CONFIG;
-		params[1].type = ACPI_TYPE_INTEGER;
-		params[1].integer.value = 1;
 		/* _REG is optional, we don't care about if there is failure */
-		acpi_evaluate_object(func_to_handle(func), "_REG", &arg_list,
-				     NULL);
+		acpi_evaluate_reg(func_to_handle(func),
+				  ACPI_ADR_SPACE_PCI_CONFIG,
+				  ACPI_REG_CONNECT);
 	}
 }
 
@@ -407,6 +409,14 @@ static void check_hotplug_bridge(struct acpiphp_slot *slot, struct pci_dev *dev)
 
 	/* quirk, or pcie could set it already */
 	if (dev->is_hotplug_bridge)
+		return;
+
+	/*
+	 * In the PCIe case, only Root Ports and Downstream Ports are capable of
+	 * accommodating hotplug devices, so avoid marking Upstream Ports as
+	 * "hotplug bridges".
+	 */
+	if (pci_is_pcie(dev) && pci_pcie_type(dev) == PCI_EXP_TYPE_UPSTREAM)
 		return;
 
 	list_for_each_entry(func, &slot->funcs, sibling) {
@@ -449,8 +459,15 @@ static void acpiphp_native_scan_bridge(struct pci_dev *bridge)
 
 	/* Scan non-hotplug bridges that need to be reconfigured */
 	for_each_pci_bridge(dev, bus) {
-		if (!hotplug_is_native(dev))
-			max = pci_scan_bridge(bus, dev, max, 1);
+		if (hotplug_is_native(dev))
+			continue;
+
+		max = pci_scan_bridge(bus, dev, max, 1);
+		if (dev->subordinate) {
+			pcibios_resource_survey_bus(dev->subordinate);
+			pci_bus_size_bridges(dev->subordinate);
+			pci_bus_assign_resources(dev->subordinate);
+		}
 	}
 }
 
@@ -480,7 +497,6 @@ static void enable_slot(struct acpiphp_slot *slot, bool bridge)
 			if (PCI_SLOT(dev->devfn) == slot->device)
 				acpiphp_native_scan_bridge(dev);
 		}
-		pci_assign_unassigned_bridge_resources(bus->self);
 	} else {
 		LIST_HEAD(add_list);
 		int max, pass;
@@ -526,6 +542,7 @@ static void enable_slot(struct acpiphp_slot *slot, bool bridge)
 			slot->flags &= ~SLOT_ENABLED;
 			continue;
 		}
+		pci_dev_put(dev);
 	}
 }
 

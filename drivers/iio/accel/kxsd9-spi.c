@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include <linux/device.h>
 #include <linux/kernel.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/spi/spi.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/slab.h>
 #include <linux/regmap.h>
 
@@ -32,9 +31,9 @@ static int kxsd9_spi_probe(struct spi_device *spi)
 				  spi_get_device_id(spi)->name);
 }
 
-static int kxsd9_spi_remove(struct spi_device *spi)
+static void kxsd9_spi_remove(struct spi_device *spi)
 {
-	return kxsd9_common_remove(&spi->dev);
+	kxsd9_common_remove(&spi->dev);
 }
 
 static const struct spi_device_id kxsd9_spi_id[] = {
@@ -44,15 +43,15 @@ static const struct spi_device_id kxsd9_spi_id[] = {
 MODULE_DEVICE_TABLE(spi, kxsd9_spi_id);
 
 static const struct of_device_id kxsd9_of_match[] = {
-        { .compatible = "kionix,kxsd9" },
-        { },
+	{ .compatible = "kionix,kxsd9" },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, kxsd9_of_match);
 
 static struct spi_driver kxsd9_spi_driver = {
 	.driver = {
 		.name = "kxsd9",
-		.pm = &kxsd9_dev_pm_ops,
+		.pm = pm_ptr(&kxsd9_dev_pm_ops),
 		.of_match_table = kxsd9_of_match,
 	},
 	.probe = kxsd9_spi_probe,
@@ -64,3 +63,4 @@ module_spi_driver(kxsd9_spi_driver);
 MODULE_AUTHOR("Jonathan Cameron <jic23@kernel.org>");
 MODULE_DESCRIPTION("Kionix KXSD9 SPI driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_KXSD9);

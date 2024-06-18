@@ -6,6 +6,7 @@
  *  Copyright 2006 Sony Corp.
  */
 
+#include <linux/dma-mapping.h>
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/memblock.h>
@@ -13,7 +14,6 @@
 
 #include <asm/cell-regs.h>
 #include <asm/firmware.h>
-#include <asm/prom.h>
 #include <asm/udbg.h>
 #include <asm/lv1call.h>
 #include <asm/setup.h>
@@ -40,7 +40,7 @@ enum {
 	PAGE_SHIFT_16M = 24U,
 };
 
-static unsigned long make_page_sizes(unsigned long a, unsigned long b)
+static unsigned long __init make_page_sizes(unsigned long a, unsigned long b)
 {
 	return (a << 56) | (b << 48);
 }
@@ -194,24 +194,27 @@ fail:
 
 /**
  * ps3_mm_vas_destroy -
+ *
+ * called during kexec sequence with MMU off.
  */
 
-void ps3_mm_vas_destroy(void)
+notrace void ps3_mm_vas_destroy(void)
 {
 	int result;
 
-	DBG("%s:%d: map.vas_id    = %llu\n", __func__, __LINE__, map.vas_id);
-
 	if (map.vas_id) {
 		result = lv1_select_virtual_address_space(0);
-		BUG_ON(result);
-		result = lv1_destruct_virtual_address_space(map.vas_id);
-		BUG_ON(result);
+		result += lv1_destruct_virtual_address_space(map.vas_id);
+
+		if (result) {
+			lv1_panic(0);
+		}
+
 		map.vas_id = 0;
 	}
 }
 
-static int ps3_mm_get_repository_highmem(struct mem_region *r)
+static int __init ps3_mm_get_repository_highmem(struct mem_region *r)
 {
 	int result;
 
@@ -263,7 +266,7 @@ static int ps3_mm_region_create(struct mem_region *r, unsigned long size)
 	int result;
 	u64 muid;
 
-	r->size = _ALIGN_DOWN(size, 1 << PAGE_SHIFT_16M);
+	r->size = ALIGN_DOWN(size, 1 << PAGE_SHIFT_16M);
 
 	DBG("%s:%d requested  %lxh\n", __func__, __LINE__, size);
 	DBG("%s:%d actual     %llxh\n", __func__, __LINE__, r->size);
@@ -304,19 +307,20 @@ static void ps3_mm_region_destroy(struct mem_region *r)
 	int result;
 
 	if (!r->destroy) {
-		pr_info("%s:%d: Not destroying high region: %llxh %llxh\n",
-			__func__, __LINE__, r->base, r->size);
 		return;
 	}
 
-	DBG("%s:%d: r->base = %llxh\n", __func__, __LINE__, r->base);
-
 	if (r->base) {
 		result = lv1_release_memory(r->base);
-		BUG_ON(result);
+
+		if (result) {
+			lv1_panic(0);
+		}
+
 		r->size = r->base = r->offset = 0;
 		map.total = map.rm.size;
 	}
+
 	ps3_mm_set_repository_highmem(NULL);
 }
 
@@ -359,7 +363,7 @@ static void  __maybe_unused _dma_dump_region(const struct ps3_dma_region *r,
  * @bus_addr: Starting ioc bus address of the area to map.
  * @len: Length in bytes of the area to map.
  * @link: A struct list_head used with struct ps3_dma_region.chunk_list, the
- * list of all chuncks owned by the region.
+ * list of all chunks owned by the region.
  *
  * This implementation uses a very simple dma page manager
  * based on the dma_chunk structure.  This scheme assumes
@@ -394,8 +398,8 @@ static struct dma_chunk * dma_find_chunk(struct ps3_dma_region *r,
 	unsigned long bus_addr, unsigned long len)
 {
 	struct dma_chunk *c;
-	unsigned long aligned_bus = _ALIGN_DOWN(bus_addr, 1 << r->page_size);
-	unsigned long aligned_len = _ALIGN_UP(len+bus_addr-aligned_bus,
+	unsigned long aligned_bus = ALIGN_DOWN(bus_addr, 1 << r->page_size);
+	unsigned long aligned_len = ALIGN(len+bus_addr-aligned_bus,
 					      1 << r->page_size);
 
 	list_for_each_entry(c, &r->chunk_list.head, link) {
@@ -423,8 +427,8 @@ static struct dma_chunk *dma_find_chunk_lpar(struct ps3_dma_region *r,
 	unsigned long lpar_addr, unsigned long len)
 {
 	struct dma_chunk *c;
-	unsigned long aligned_lpar = _ALIGN_DOWN(lpar_addr, 1 << r->page_size);
-	unsigned long aligned_len = _ALIGN_UP(len + lpar_addr - aligned_lpar,
+	unsigned long aligned_lpar = ALIGN_DOWN(lpar_addr, 1 << r->page_size);
+	unsigned long aligned_len = ALIGN(len + lpar_addr - aligned_lpar,
 					      1 << r->page_size);
 
 	list_for_each_entry(c, &r->chunk_list.head, link) {
@@ -775,8 +779,8 @@ static int dma_sb_map_area(struct ps3_dma_region *r, unsigned long virt_addr,
 	struct dma_chunk *c;
 	unsigned long phys_addr = is_kernel_addr(virt_addr) ? __pa(virt_addr)
 		: virt_addr;
-	unsigned long aligned_phys = _ALIGN_DOWN(phys_addr, 1 << r->page_size);
-	unsigned long aligned_len = _ALIGN_UP(len + phys_addr - aligned_phys,
+	unsigned long aligned_phys = ALIGN_DOWN(phys_addr, 1 << r->page_size);
+	unsigned long aligned_len = ALIGN(len + phys_addr - aligned_phys,
 					      1 << r->page_size);
 	*bus_addr = dma_sb_lpar_to_bus(r, ps3_mm_phys_to_lpar(phys_addr));
 
@@ -830,8 +834,8 @@ static int dma_ioc0_map_area(struct ps3_dma_region *r, unsigned long virt_addr,
 	struct dma_chunk *c;
 	unsigned long phys_addr = is_kernel_addr(virt_addr) ? __pa(virt_addr)
 		: virt_addr;
-	unsigned long aligned_phys = _ALIGN_DOWN(phys_addr, 1 << r->page_size);
-	unsigned long aligned_len = _ALIGN_UP(len + phys_addr - aligned_phys,
+	unsigned long aligned_phys = ALIGN_DOWN(phys_addr, 1 << r->page_size);
+	unsigned long aligned_len = ALIGN(len + phys_addr - aligned_phys,
 					      1 << r->page_size);
 
 	DBG(KERN_ERR "%s: vaddr=%#lx, len=%#lx\n", __func__,
@@ -889,9 +893,9 @@ static int dma_sb_unmap_area(struct ps3_dma_region *r, dma_addr_t bus_addr,
 	c = dma_find_chunk(r, bus_addr, len);
 
 	if (!c) {
-		unsigned long aligned_bus = _ALIGN_DOWN(bus_addr,
+		unsigned long aligned_bus = ALIGN_DOWN(bus_addr,
 			1 << r->page_size);
-		unsigned long aligned_len = _ALIGN_UP(len + bus_addr
+		unsigned long aligned_len = ALIGN(len + bus_addr
 			- aligned_bus, 1 << r->page_size);
 		DBG("%s:%d: not found: bus_addr %llxh\n",
 			__func__, __LINE__, bus_addr);
@@ -926,9 +930,9 @@ static int dma_ioc0_unmap_area(struct ps3_dma_region *r,
 	c = dma_find_chunk(r, bus_addr, len);
 
 	if (!c) {
-		unsigned long aligned_bus = _ALIGN_DOWN(bus_addr,
+		unsigned long aligned_bus = ALIGN_DOWN(bus_addr,
 							1 << r->page_size);
-		unsigned long aligned_len = _ALIGN_UP(len + bus_addr
+		unsigned long aligned_len = ALIGN(len + bus_addr
 						      - aligned_bus,
 						      1 << r->page_size);
 		DBG("%s:%d: not found: bus_addr %llxh\n",
@@ -974,7 +978,7 @@ static int dma_sb_region_create_linear(struct ps3_dma_region *r)
 			pr_info("%s:%d: forcing 16M pages for linear map\n",
 				__func__, __LINE__);
 			r->page_size = PS3_DMA_16M;
-			r->len = _ALIGN_UP(r->len, 1 << r->page_size);
+			r->len = ALIGN(r->len, 1 << r->page_size);
 		}
 	}
 
@@ -1116,6 +1120,7 @@ int ps3_dma_region_init(struct ps3_system_bus_device *dev,
 	enum ps3_dma_region_type region_type, void *addr, unsigned long len)
 {
 	unsigned long lpar_addr;
+	int result;
 
 	lpar_addr = addr ? ps3_mm_phys_to_lpar(__pa(addr)) : 0;
 
@@ -1125,7 +1130,17 @@ int ps3_dma_region_init(struct ps3_system_bus_device *dev,
 	r->offset = lpar_addr;
 	if (r->offset >= map.rm.size)
 		r->offset -= map.r1.offset;
-	r->len = len ? len : _ALIGN_UP(map.total, 1 << r->page_size);
+	r->len = len ? len : ALIGN(map.total, 1 << r->page_size);
+
+	dev->core.dma_mask = &r->dma_mask;
+
+	result = dma_set_mask_and_coherent(&dev->core, DMA_BIT_MASK(32));
+
+	if (result < 0) {
+		dev_err(&dev->core, "%s:%d: dma_set_mask_and_coherent failed: %d\n",
+			__func__, __LINE__, result);
+		return result;
+	}
 
 	switch (dev->dev_type) {
 	case PS3_DEVICE_TYPE_SB:
@@ -1229,9 +1244,11 @@ void __init ps3_mm_init(void)
 
 /**
  * ps3_mm_shutdown - final cleanup of address space
+ *
+ * called during kexec sequence with MMU off.
  */
 
-void ps3_mm_shutdown(void)
+notrace void ps3_mm_shutdown(void)
 {
 	ps3_mm_region_destroy(&map.r1);
 }

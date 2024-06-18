@@ -2,14 +2,13 @@
 /*
  * Copyright 2013-2016 Freescale Semiconductor Inc.
  * Copyright 2016-2018 NXP
+ * Copyright 2020 NXP
  */
 
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/msi.h>
 #include <linux/fsl/mc.h>
-#include <linux/fsl/ptp_qoriq.h>
 
 #include "dpaa2-ptp.h"
 
@@ -27,6 +26,20 @@ static int dpaa2_ptp_enable(struct ptp_clock_info *ptp,
 	mc_dev = to_fsl_mc_device(dev);
 
 	switch (rq->type) {
+	case PTP_CLK_REQ_EXTTS:
+		switch (rq->extts.index) {
+		case 0:
+			bit = DPRTC_EVENT_ETS1;
+			break;
+		case 1:
+			bit = DPRTC_EVENT_ETS2;
+			break;
+		default:
+			return -EINVAL;
+		}
+		if (on)
+			extts_clean_up(ptp_qoriq, rq->extts.index, false);
+		break;
 	case PTP_CLK_REQ_PPS:
 		bit = DPRTC_EVENT_PPS;
 		break;
@@ -96,6 +109,12 @@ static irqreturn_t dpaa2_ptp_irq_handler_thread(int irq, void *priv)
 		ptp_clock_event(ptp_qoriq->clock, &event);
 	}
 
+	if (status & DPRTC_EVENT_ETS1)
+		extts_clean_up(ptp_qoriq, 0, true);
+
+	if (status & DPRTC_EVENT_ETS2)
+		extts_clean_up(ptp_qoriq, 1, true);
+
 	err = dprtc_clear_irq_status(mc_dev->mc_io, 0, mc_dev->mc_handle,
 				     DPRTC_IRQ_INDEX, status);
 	if (unlikely(err)) {
@@ -109,7 +128,6 @@ static irqreturn_t dpaa2_ptp_irq_handler_thread(int irq, void *priv)
 static int dpaa2_ptp_probe(struct fsl_mc_device *mc_dev)
 {
 	struct device *dev = &mc_dev->dev;
-	struct fsl_mc_device_irq *irq;
 	struct ptp_qoriq *ptp_qoriq;
 	struct device_node *node;
 	void __iomem *base;
@@ -148,7 +166,7 @@ static int dpaa2_ptp_probe(struct fsl_mc_device *mc_dev)
 	base = of_iomap(node, 0);
 	if (!base) {
 		err = -ENOMEM;
-		goto err_close;
+		goto err_put;
 	}
 
 	err = fsl_mc_allocate_irqs(mc_dev);
@@ -157,13 +175,12 @@ static int dpaa2_ptp_probe(struct fsl_mc_device *mc_dev)
 		goto err_unmap;
 	}
 
-	irq = mc_dev->irqs[0];
-	ptp_qoriq->irq = irq->msi_desc->irq;
+	ptp_qoriq->irq = mc_dev->irqs[0]->virq;
 
-	err = devm_request_threaded_irq(dev, ptp_qoriq->irq, NULL,
-					dpaa2_ptp_irq_handler_thread,
-					IRQF_NO_SUSPEND | IRQF_ONESHOT,
-					dev_name(dev), ptp_qoriq);
+	err = request_threaded_irq(ptp_qoriq->irq, NULL,
+				   dpaa2_ptp_irq_handler_thread,
+				   IRQF_NO_SUSPEND | IRQF_ONESHOT,
+				   dev_name(dev), ptp_qoriq);
 	if (err < 0) {
 		dev_err(dev, "devm_request_threaded_irq(): %d\n", err);
 		goto err_free_mc_irq;
@@ -173,22 +190,27 @@ static int dpaa2_ptp_probe(struct fsl_mc_device *mc_dev)
 				   DPRTC_IRQ_INDEX, 1);
 	if (err < 0) {
 		dev_err(dev, "dprtc_set_irq_enable(): %d\n", err);
-		goto err_free_mc_irq;
+		goto err_free_threaded_irq;
 	}
 
 	err = ptp_qoriq_init(ptp_qoriq, base, &dpaa2_ptp_caps);
 	if (err)
-		goto err_free_mc_irq;
+		goto err_free_threaded_irq;
 
 	dpaa2_phc_index = ptp_qoriq->phc_index;
+	dpaa2_ptp = ptp_qoriq;
 	dev_set_drvdata(dev, ptp_qoriq);
 
 	return 0;
 
+err_free_threaded_irq:
+	free_irq(ptp_qoriq->irq, ptp_qoriq);
 err_free_mc_irq:
 	fsl_mc_free_irqs(mc_dev);
 err_unmap:
 	iounmap(base);
+err_put:
+	of_node_put(node);
 err_close:
 	dprtc_close(mc_dev->mc_io, 0, mc_dev->mc_handle);
 err_free_mcp:
@@ -197,7 +219,7 @@ err_exit:
 	return err;
 }
 
-static int dpaa2_ptp_remove(struct fsl_mc_device *mc_dev)
+static void dpaa2_ptp_remove(struct fsl_mc_device *mc_dev)
 {
 	struct device *dev = &mc_dev->dev;
 	struct ptp_qoriq *ptp_qoriq;
@@ -210,8 +232,6 @@ static int dpaa2_ptp_remove(struct fsl_mc_device *mc_dev)
 	fsl_mc_free_irqs(mc_dev);
 	dprtc_close(mc_dev->mc_io, 0, mc_dev->mc_handle);
 	fsl_mc_portal_free(mc_dev->mc_io);
-
-	return 0;
 }
 
 static const struct fsl_mc_device_id dpaa2_ptp_match_id_table[] = {

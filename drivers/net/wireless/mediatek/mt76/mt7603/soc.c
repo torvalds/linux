@@ -20,10 +20,8 @@ mt76_wmac_probe(struct platform_device *pdev)
 		return irq;
 
 	mem_base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(mem_base)) {
-		dev_err(&pdev->dev, "Failed to get memory resource\n");
+	if (IS_ERR(mem_base))
 		return PTR_ERR(mem_base);
-	}
 
 	mdev = mt76_alloc_device(&pdev->dev, sizeof(*dev), &mt7603_ops,
 				 &mt7603_drv_ops);
@@ -36,6 +34,8 @@ mt76_wmac_probe(struct platform_device *pdev)
 	mdev->rev = (mt76_rr(dev, MT_HW_CHIPID) << 16) |
 		    (mt76_rr(dev, MT_HW_REV) & 0xff);
 	dev_info(mdev->dev, "ASIC revision: %04x\n", mdev->rev);
+
+	mt76_wr(dev, MT_INT_MASK_CSR, 0);
 
 	ret = devm_request_irq(mdev->dev, irq, mt7603_irq_handler,
 			       IRQF_SHARED, KBUILD_MODNAME, dev);
@@ -52,15 +52,12 @@ error:
 	return ret;
 }
 
-static int
-mt76_wmac_remove(struct platform_device *pdev)
+static void mt76_wmac_remove(struct platform_device *pdev)
 {
 	struct mt76_dev *mdev = platform_get_drvdata(pdev);
 	struct mt7603_dev *dev = container_of(mdev, struct mt7603_dev, mt76);
 
 	mt7603_unregister_device(dev);
-
-	return 0;
 }
 
 static const struct of_device_id of_wmac_match[] = {
@@ -74,7 +71,7 @@ MODULE_FIRMWARE(MT7628_FIRMWARE_E2);
 
 struct platform_driver mt76_wmac_driver = {
 	.probe		= mt76_wmac_probe,
-	.remove		= mt76_wmac_remove,
+	.remove_new	= mt76_wmac_remove,
 	.driver = {
 		.name = "mt76_wmac",
 		.of_match_table = of_wmac_match,

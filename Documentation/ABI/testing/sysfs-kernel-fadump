@@ -1,0 +1,58 @@
+What:		/sys/kernel/fadump/*
+Date:		Dec 2019
+Contact:	linuxppc-dev@lists.ozlabs.org
+Description:
+		The /sys/kernel/fadump/* is a collection of FADump sysfs
+		file provide information about the configuration status
+		of Firmware Assisted Dump (FADump).
+
+What:		/sys/kernel/fadump/enabled
+Date:		Dec 2019
+Contact:	linuxppc-dev@lists.ozlabs.org
+Description:	read only
+		Primarily used to identify whether the FADump is enabled in
+		the kernel or not.
+User:		Kdump service
+
+What:		/sys/kernel/fadump/registered
+Date:		Dec 2019
+Contact:	linuxppc-dev@lists.ozlabs.org
+Description:	read/write
+		Helps to control the dump collect feature from userspace.
+		Setting 1 to this file enables the system to collect the
+		dump and 0 to disable it.
+User:		Kdump service
+
+What:		/sys/kernel/fadump/release_mem
+Date:		Dec 2019
+Contact:	linuxppc-dev@lists.ozlabs.org
+Description:	write only
+		This is a special sysfs file and only available when
+		the system is booted to capture the vmcore using FADump.
+		It is used to release the memory reserved by FADump to
+		save the crash dump.
+
+What:		/sys/kernel/fadump/mem_reserved
+Date:		Dec 2019
+Contact:	linuxppc-dev@lists.ozlabs.org
+Description:	read only
+		Provide information about the amount of memory reserved by
+		FADump to save the crash dump in bytes.
+
+What:		/sys/kernel/fadump/hotplug_ready
+Date:		Apr 2024
+Contact:	linuxppc-dev@lists.ozlabs.org
+Description:	read only
+		Kdump udev rule re-registers fadump on memory add/remove events,
+		primarily to update the elfcorehdr. This sysfs indicates the
+		kdump udev rule that fadump re-registration is not required on
+		memory add/remove events because elfcorehdr is now prepared in
+		the second/fadump kernel.
+User:		kexec-tools
+
+What:		/sys/kernel/fadump/bootargs_append
+Date:		May 2024
+Contact:	linuxppc-dev@lists.ozlabs.org
+Description:	read/write
+		This is a special sysfs file available to setup additional
+		parameters to be passed to capture kernel.

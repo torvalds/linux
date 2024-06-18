@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (C) 2019-2022 Texas Instruments Incorporated - https://www.ti.com/
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+&i2c1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	touchscreen: edt-ft5506@38 {
+		compatible = "edt,edt-ft5506", "edt,edt-ft5x06";
+
+		reg = <0x38>;
+
+		interrupt-parent = <&gpio3>;
+		interrupts = <14 IRQ_TYPE_EDGE_FALLING>;
+
+		/* GPIO line is inverted before going to touch panel */
+		reset-gpios = <&gpio6 15 GPIO_ACTIVE_LOW>;
+
+		touchscreen-size-x = <1920>;
+		touchscreen-size-y = <1200>;
+
+		wakeup-source;
+	};
+};

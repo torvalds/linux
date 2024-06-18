@@ -1,0 +1,15 @@
+cat <<EOF
+/**
+ * ${class}${atomicname}() - atomic compare and exchange with ${desc_order} ordering
+ * @v: pointer to ${atomic}_t
+ * @old: ${int} value to compare with
+ * @new: ${int} value to assign
+ *
+ * If (@v == @old), atomically updates @v to @new with ${desc_order} ordering.
+ * Otherwise, @v is not modified and relaxed ordering is provided.
+ *
+ * ${desc_noinstr}
+ *
+ * Return: The original value of @v.
+ */
+EOF

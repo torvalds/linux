@@ -40,7 +40,7 @@ struct resync_info {
 
 /* Lock the send communication. This is done through
  * bit manipulation as opposed to a mutex in order to
- * accomodate lock and hold. See next comment.
+ * accommodate lock and hold. See next comment.
  */
 #define		MD_CLUSTER_SEND_LOCK			4
 /* If cluster operations (such as adding a disk) must lock the
@@ -75,14 +75,14 @@ struct md_cluster_info {
 	sector_t suspend_hi;
 	int suspend_from; /* the slot which broadcast suspend_lo/hi */
 
-	struct md_thread *recovery_thread;
+	struct md_thread __rcu *recovery_thread;
 	unsigned long recovery_map;
 	/* communication loc resources */
 	struct dlm_lock_resource *ack_lockres;
 	struct dlm_lock_resource *message_lockres;
 	struct dlm_lock_resource *token_lockres;
 	struct dlm_lock_resource *no_new_dev_lockres;
-	struct md_thread *recv_thread;
+	struct md_thread __rcu *recv_thread;
 	struct completion newdisk_completion;
 	wait_queue_head_t wait;
 	unsigned long state;
@@ -201,7 +201,7 @@ static struct dlm_lock_resource *lockres_init(struct mddev *mddev,
 		pr_err("md-cluster: Unable to allocate resource name for resource %s\n", name);
 		goto out_err;
 	}
-	strlcpy(res->name, name, namelen + 1);
+	strscpy(res->name, name, namelen + 1);
 	if (with_lvb) {
 		res->lksb.sb_lvbptr = kzalloc(LVB_SIZE, GFP_KERNEL);
 		if (!res->lksb.sb_lvbptr) {
@@ -362,8 +362,8 @@ static void __recover_slot(struct mddev *mddev, int slot)
 
 	set_bit(slot, &cinfo->recovery_map);
 	if (!cinfo->recovery_thread) {
-		cinfo->recovery_thread = md_register_thread(recover_bitmaps,
-				mddev, "recover");
+		rcu_assign_pointer(cinfo->recovery_thread,
+			md_register_thread(recover_bitmaps, mddev, "recover"));
 		if (!cinfo->recovery_thread) {
 			pr_warn("md-cluster: Could not create recovery thread\n");
 			return;
@@ -501,7 +501,7 @@ static void process_suspend_info(struct mddev *mddev,
 	mddev->pers->quiesce(mddev, 0);
 }
 
-static void process_add_new_disk(struct mddev *mddev, struct cluster_msg *cmsg)
+static int process_add_new_disk(struct mddev *mddev, struct cluster_msg *cmsg)
 {
 	char disk_uuid[64];
 	struct md_cluster_info *cinfo = mddev->cluster_info;
@@ -509,6 +509,7 @@ static void process_add_new_disk(struct mddev *mddev, struct cluster_msg *cmsg)
 	char raid_slot[16];
 	char *envp[] = {event_name, disk_uuid, raid_slot, NULL};
 	int len;
+	int res = 0;
 
 	len = snprintf(disk_uuid, 64, "DEVICE_UUID=");
 	sprintf(disk_uuid + len, "%pU", cmsg->uuid);
@@ -517,20 +518,29 @@ static void process_add_new_disk(struct mddev *mddev, struct cluster_msg *cmsg)
 	init_completion(&cinfo->newdisk_completion);
 	set_bit(MD_CLUSTER_WAITING_FOR_NEWDISK, &cinfo->state);
 	kobject_uevent_env(&disk_to_dev(mddev->gendisk)->kobj, KOBJ_CHANGE, envp);
-	wait_for_completion_timeout(&cinfo->newdisk_completion,
-			NEW_DEV_TIMEOUT);
+	if (!wait_for_completion_timeout(&cinfo->newdisk_completion,
+					NEW_DEV_TIMEOUT)) {
+		pr_err("md-cluster(%s:%d): timeout on a new disk adding\n",
+			__func__, __LINE__);
+		res = -1;
+	}
 	clear_bit(MD_CLUSTER_WAITING_FOR_NEWDISK, &cinfo->state);
+	return res;
 }
 
 
 static void process_metadata_update(struct mddev *mddev, struct cluster_msg *msg)
 {
 	int got_lock = 0;
+	struct md_thread *thread;
 	struct md_cluster_info *cinfo = mddev->cluster_info;
 	mddev->good_device_nr = le32_to_cpu(msg->raid_slot);
 
 	dlm_lock_sync(cinfo->no_new_dev_lockres, DLM_LOCK_CR);
-	wait_event(mddev->thread->wqueue,
+
+	/* daemaon thread must exist */
+	thread = rcu_dereference_protected(mddev->thread, true);
+	wait_event(thread->wqueue,
 		   (got_lock = mddev_trylock(mddev)) ||
 		    test_bit(MD_CLUSTER_HOLDING_MUTEX_FOR_RECVD, &cinfo->state));
 	md_reload_sb(mddev, mddev->good_device_nr);
@@ -574,15 +584,14 @@ static int process_recvd_msg(struct mddev *mddev, struct cluster_msg *msg)
 	int ret = 0;
 
 	if (WARN(mddev->cluster_info->slot_number - 1 == le32_to_cpu(msg->slot),
-		"node %d received it's own msg\n", le32_to_cpu(msg->slot)))
+		"node %d received its own msg\n", le32_to_cpu(msg->slot)))
 		return -1;
 	switch (le32_to_cpu(msg->type)) {
 	case METADATA_UPDATED:
 		process_metadata_update(mddev, msg);
 		break;
 	case CHANGE_CAPACITY:
-		set_capacity(mddev->gendisk, mddev->array_sectors);
-		revalidate_disk(mddev->gendisk);
+		set_capacity_and_notify(mddev->gendisk, mddev->array_sectors);
 		break;
 	case RESYNCING:
 		set_bit(MD_RESYNCING_REMOTE, &mddev->recovery);
@@ -591,7 +600,8 @@ static int process_recvd_msg(struct mddev *mddev, struct cluster_msg *msg)
 				     le64_to_cpu(msg->high));
 		break;
 	case NEWDISK:
-		process_add_new_disk(mddev, msg);
+		if (process_add_new_disk(mddev, msg))
+			ret = -1;
 		break;
 	case REMOVE:
 		process_remove_disk(mddev, msg);
@@ -664,35 +674,18 @@ out:
  * Takes the lock on the TOKEN lock resource so no other
  * node can communicate while the operation is underway.
  */
-static int lock_token(struct md_cluster_info *cinfo, bool mddev_locked)
+static int lock_token(struct md_cluster_info *cinfo)
 {
-	int error, set_bit = 0;
-	struct mddev *mddev = cinfo->mddev;
+	int error;
 
-	/*
-	 * If resync thread run after raid1d thread, then process_metadata_update
-	 * could not continue if raid1d held reconfig_mutex (and raid1d is blocked
-	 * since another node already got EX on Token and waitting the EX of Ack),
-	 * so let resync wake up thread in case flag is set.
-	 */
-	if (mddev_locked && !test_bit(MD_CLUSTER_HOLDING_MUTEX_FOR_RECVD,
-				      &cinfo->state)) {
-		error = test_and_set_bit_lock(MD_CLUSTER_HOLDING_MUTEX_FOR_RECVD,
-					      &cinfo->state);
-		WARN_ON_ONCE(error);
-		md_wakeup_thread(mddev->thread);
-		set_bit = 1;
-	}
 	error = dlm_lock_sync(cinfo->token_lockres, DLM_LOCK_EX);
-	if (set_bit)
-		clear_bit_unlock(MD_CLUSTER_HOLDING_MUTEX_FOR_RECVD, &cinfo->state);
-
-	if (error)
+	if (error) {
 		pr_err("md-cluster(%s:%d): failed to get EX on TOKEN (%d)\n",
 				__func__, __LINE__, error);
-
-	/* Lock the receive sequence */
-	mutex_lock(&cinfo->recv_mutex);
+	} else {
+		/* Lock the receive sequence */
+		mutex_lock(&cinfo->recv_mutex);
+	}
 	return error;
 }
 
@@ -701,10 +694,30 @@ static int lock_token(struct md_cluster_info *cinfo, bool mddev_locked)
  */
 static int lock_comm(struct md_cluster_info *cinfo, bool mddev_locked)
 {
+	int rv, set_bit = 0;
+	struct mddev *mddev = cinfo->mddev;
+
+	/*
+	 * If resync thread run after raid1d thread, then process_metadata_update
+	 * could not continue if raid1d held reconfig_mutex (and raid1d is blocked
+	 * since another node already got EX on Token and waiting the EX of Ack),
+	 * so let resync wake up thread in case flag is set.
+	 */
+	if (mddev_locked && !test_bit(MD_CLUSTER_HOLDING_MUTEX_FOR_RECVD,
+				      &cinfo->state)) {
+		rv = test_and_set_bit_lock(MD_CLUSTER_HOLDING_MUTEX_FOR_RECVD,
+					      &cinfo->state);
+		WARN_ON_ONCE(rv);
+		md_wakeup_thread(mddev->thread);
+		set_bit = 1;
+	}
+
 	wait_event(cinfo->wait,
 		   !test_and_set_bit(MD_CLUSTER_SEND_LOCK, &cinfo->state));
-
-	return lock_token(cinfo, mddev_locked);
+	rv = lock_token(cinfo);
+	if (set_bit)
+		clear_bit_unlock(MD_CLUSTER_HOLDING_MUTEX_FOR_RECVD, &cinfo->state);
+	return rv;
 }
 
 static void unlock_comm(struct md_cluster_info *cinfo)
@@ -784,9 +797,11 @@ static int sendmsg(struct md_cluster_info *cinfo, struct cluster_msg *cmsg,
 {
 	int ret;
 
-	lock_comm(cinfo, mddev_locked);
-	ret = __sendmsg(cinfo, cmsg);
-	unlock_comm(cinfo);
+	ret = lock_comm(cinfo, mddev_locked);
+	if (!ret) {
+		ret = __sendmsg(cinfo, cmsg);
+		unlock_comm(cinfo);
+	}
 	return ret;
 }
 
@@ -872,8 +887,8 @@ static int join(struct mddev *mddev, int nodes)
 	memset(str, 0, 64);
 	sprintf(str, "%pU", mddev->uuid);
 	ret = dlm_new_lockspace(str, mddev->bitmap_info.cluster_name,
-				DLM_LSFL_FS, LVB_SIZE,
-				&md_ls_ops, mddev, &ops_rv, &cinfo->lockspace);
+				0, LVB_SIZE, &md_ls_ops, mddev,
+				&ops_rv, &cinfo->lockspace);
 	if (ret)
 		goto err;
 	wait_for_completion(&cinfo->completion);
@@ -885,7 +900,8 @@ static int join(struct mddev *mddev, int nodes)
 	}
 	/* Initiate the communication resources */
 	ret = -ENOMEM;
-	cinfo->recv_thread = md_register_thread(recv_daemon, mddev, "cluster_recv");
+	rcu_assign_pointer(cinfo->recv_thread,
+			md_register_thread(recv_daemon, mddev, "cluster_recv"));
 	if (!cinfo->recv_thread) {
 		pr_err("md-cluster: cannot allocate memory for recv_thread!\n");
 		goto err;
@@ -943,8 +959,8 @@ static int join(struct mddev *mddev, int nodes)
 	return 0;
 err:
 	set_bit(MD_CLUSTER_HOLDING_MUTEX_FOR_RECVD, &cinfo->state);
-	md_unregister_thread(&cinfo->recovery_thread);
-	md_unregister_thread(&cinfo->recv_thread);
+	md_unregister_thread(mddev, &cinfo->recovery_thread);
+	md_unregister_thread(mddev, &cinfo->recv_thread);
 	lockres_free(cinfo->message_lockres);
 	lockres_free(cinfo->token_lockres);
 	lockres_free(cinfo->ack_lockres);
@@ -1006,8 +1022,8 @@ static int leave(struct mddev *mddev)
 		resync_bitmap(mddev);
 
 	set_bit(MD_CLUSTER_HOLDING_MUTEX_FOR_RECVD, &cinfo->state);
-	md_unregister_thread(&cinfo->recovery_thread);
-	md_unregister_thread(&cinfo->recv_thread);
+	md_unregister_thread(mddev, &cinfo->recovery_thread);
+	md_unregister_thread(mddev, &cinfo->recv_thread);
 	lockres_free(cinfo->message_lockres);
 	lockres_free(cinfo->token_lockres);
 	lockres_free(cinfo->ack_lockres);
@@ -1061,7 +1077,7 @@ static int metadata_update_start(struct mddev *mddev)
 		return 0;
 	}
 
-	ret = lock_token(cinfo, 1);
+	ret = lock_token(cinfo);
 	clear_bit_unlock(MD_CLUSTER_HOLDING_MUTEX_FOR_RECVD, &cinfo->state);
 	return ret;
 }
@@ -1139,6 +1155,7 @@ static int resize_bitmaps(struct mddev *mddev, sector_t newsize, sector_t oldsiz
 		bitmap = get_bitmap_from_slot(mddev, i);
 		if (IS_ERR(bitmap)) {
 			pr_err("can't get bitmap from slot %d\n", i);
+			bitmap = NULL;
 			goto out;
 		}
 		counts = &bitmap->counts;
@@ -1165,6 +1182,7 @@ static int resize_bitmaps(struct mddev *mddev, sector_t newsize, sector_t oldsiz
 			 * can't resize bitmap
 			 */
 			goto out;
+		md_bitmap_free(bitmap);
 	}
 
 	return 0;
@@ -1253,7 +1271,10 @@ static void update_size(struct mddev *mddev, sector_t old_dev_sectors)
 	int raid_slot = -1;
 
 	md_update_sb(mddev, 1);
-	lock_comm(cinfo, 1);
+	if (lock_comm(cinfo, 1)) {
+		pr_err("%s: lock_comm failed\n", __func__);
+		return;
+	}
 
 	memset(&cmsg, 0, sizeof(cmsg));
 	cmsg.type = cpu_to_le32(METADATA_UPDATED);
@@ -1294,13 +1315,10 @@ static void update_size(struct mddev *mddev, sector_t old_dev_sectors)
 		if (ret)
 			pr_err("%s:%d: failed to send CHANGE_CAPACITY msg\n",
 			       __func__, __LINE__);
-		set_capacity(mddev->gendisk, mddev->array_sectors);
-		revalidate_disk(mddev->gendisk);
+		set_capacity_and_notify(mddev->gendisk, mddev->array_sectors);
 	} else {
 		/* revert to previous sectors */
 		ret = mddev->pers->resize(mddev, old_dev_sectors);
-		if (!ret)
-			revalidate_disk(mddev->gendisk);
 		ret = __sendmsg(cinfo, &cmsg);
 		if (ret)
 			pr_err("%s:%d: failed to send METADATA_UPDATED msg\n",
@@ -1405,7 +1423,8 @@ static int add_new_disk(struct mddev *mddev, struct md_rdev *rdev)
 	cmsg.type = cpu_to_le32(NEWDISK);
 	memcpy(cmsg.uuid, uuid, 16);
 	cmsg.raid_slot = cpu_to_le32(rdev->desc_nr);
-	lock_comm(cinfo, 1);
+	if (lock_comm(cinfo, 1))
+		return -EAGAIN;
 	ret = __sendmsg(cinfo, &cmsg);
 	if (ret) {
 		unlock_comm(cinfo);
@@ -1518,6 +1537,7 @@ static void unlock_all_bitmaps(struct mddev *mddev)
 			}
 		}
 		kfree(cinfo->other_bitmap_lockres);
+		cinfo->other_bitmap_lockres = NULL;
 	}
 }
 

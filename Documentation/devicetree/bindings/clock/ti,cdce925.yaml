@@ -1,0 +1,103 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/ti,cdce925.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI CDCE913/925/937/949 programmable I2C clock synthesizers
+
+maintainers:
+  - Alexander Stein <alexander.stein@ew.tq-group.com>
+
+description: |
+  Flexible Low Power LVCMOS Clock Generator with SSC Support for EMI Reduction
+
+  - CDCE(L)913: 1-PLL, 3 Outputs https://www.ti.com/product/cdce913
+  - CDCE(L)925: 2-PLL, 5 Outputs https://www.ti.com/product/cdce925
+  - CDCE(L)937: 3-PLL, 7 Outputs https://www.ti.com/product/cdce937
+  - CDCE(L)949: 4-PLL, 9 Outputs https://www.ti.com/product/cdce949
+
+properties:
+  compatible:
+    enum:
+      - ti,cdce913
+      - ti,cdce925
+      - ti,cdce937
+      - ti,cdce949
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: fixed parent clock
+
+  "#clock-cells":
+    const: 1
+
+  vdd-supply:
+    description: Regulator that provides 1.8V Vdd power supply
+
+  vddout-supply:
+    description: |
+      Regulator that provides Vddout power supply.
+      non-L variant: 2.5V or 3.3V for
+      L variant: 1.8V for
+
+  xtal-load-pf:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      Crystal load-capacitor value to fine-tune performance on a
+      board, or to compensate for external influences.
+
+patternProperties:
+  "^PLL[1-4]$":
+    type: object
+    description: |
+      optional child node can be used to specify spread
+      spectrum clocking parameters for a board
+
+    additionalProperties: false
+
+    properties:
+      spread-spectrum:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description: SSC mode as defined in the data sheet
+
+      spread-spectrum-center:
+        type: boolean
+        description: |
+          Use "centered" mode instead of "max" mode. When
+          present, the clock runs at the requested frequency on average.
+          Otherwise the requested frequency is the maximum value of the
+          SCC range.
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - "#clock-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        cdce925: clock-controller@64 {
+            compatible = "ti,cdce925";
+            reg = <0x64>;
+            clocks = <&xtal_27Mhz>;
+            #clock-cells = <1>;
+            xtal-load-pf = <5>;
+            vdd-supply = <&reg_1v8>;
+            vddout-supply = <&reg_3v3>;
+            /* PLL options to get SSC 1% centered */
+            PLL2 {
+                spread-spectrum = <4>;
+                spread-spectrum-center;
+            };
+        };
+    };

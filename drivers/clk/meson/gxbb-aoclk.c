@@ -5,11 +5,14 @@
  */
 #include <linux/platform_device.h>
 #include <linux/mfd/syscon.h>
+#include <linux/module.h>
 #include "meson-aoclk.h"
-#include "gxbb-aoclk.h"
 
 #include "clk-regmap.h"
 #include "clk-dualdiv.h"
+
+#include <dt-bindings/clock/gxbb-aoclkc.h>
+#include <dt-bindings/reset/gxbb-aoclkc.h>
 
 /* AO Configuration Clock registers offsets */
 #define AO_RTI_PWR_CNTL_REG1	0x0c
@@ -251,8 +254,7 @@ static struct clk_regmap *gxbb_aoclk[] = {
 	&ao_cts_cec,
 };
 
-static const struct clk_hw_onecell_data gxbb_aoclk_onecell_data = {
-	.hws = {
+static struct clk_hw *gxbb_aoclk_hw_clks[] = {
 		[CLKID_AO_REMOTE] = &remote_ao.hw,
 		[CLKID_AO_I2C_MASTER] = &i2c_master_ao.hw,
 		[CLKID_AO_I2C_SLAVE] = &i2c_slave_ao.hw,
@@ -267,8 +269,6 @@ static const struct clk_hw_onecell_data gxbb_aoclk_onecell_data = {
 		[CLKID_AO_32K] = &ao_32k.hw,
 		[CLKID_AO_CTS_RTC_OSCIN] = &ao_cts_rtc_oscin.hw,
 		[CLKID_AO_CLK81] = &ao_clk81.hw,
-	},
-	.num = NR_CLKS,
 };
 
 static const struct meson_aoclk_data gxbb_aoclkc_data = {
@@ -277,7 +277,10 @@ static const struct meson_aoclk_data gxbb_aoclkc_data = {
 	.reset		= gxbb_aoclk_reset,
 	.num_clks	= ARRAY_SIZE(gxbb_aoclk),
 	.clks		= gxbb_aoclk,
-	.hw_data	= &gxbb_aoclk_onecell_data,
+	.hw_clks	= {
+		.hws	= gxbb_aoclk_hw_clks,
+		.num	= ARRAY_SIZE(gxbb_aoclk_hw_clks),
+	},
 };
 
 static const struct of_device_id gxbb_aoclkc_match_table[] = {
@@ -287,6 +290,7 @@ static const struct of_device_id gxbb_aoclkc_match_table[] = {
 	},
 	{ }
 };
+MODULE_DEVICE_TABLE(of, gxbb_aoclkc_match_table);
 
 static struct platform_driver gxbb_aoclkc_driver = {
 	.probe		= meson_aoclkc_probe,
@@ -295,4 +299,5 @@ static struct platform_driver gxbb_aoclkc_driver = {
 		.of_match_table = gxbb_aoclkc_match_table,
 	},
 };
-builtin_platform_driver(gxbb_aoclkc_driver);
+module_platform_driver(gxbb_aoclkc_driver);
+MODULE_LICENSE("GPL");

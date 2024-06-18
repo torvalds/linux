@@ -10,14 +10,14 @@
 #include <linux/of_address.h>
 #include <linux/clk-provider.h>
 #include <linux/mfd/dbx500-prcmu.h>
+
 #include "clk.h"
+#include "prcc.h"
+#include "reset-prcc.h"
 
-#define PRCC_NUM_PERIPH_CLUSTERS 6
-#define PRCC_PERIPHS_PER_CLUSTER 32
-
-static struct clk *prcmu_clk[PRCMU_NUM_CLKS];
 static struct clk *prcc_pclk[(PRCC_NUM_PERIPH_CLUSTERS + 1) * PRCC_PERIPHS_PER_CLUSTER];
 static struct clk *prcc_kclk[(PRCC_NUM_PERIPH_CLUSTERS + 1) * PRCC_PERIPHS_PER_CLUSTER];
+static struct clk_hw *clkout_clk[2];
 
 #define PRCC_SHOW(clk, base, bit) \
 	clk[(base * PRCC_PERIPHS_PER_CLUSTER) + bit]
@@ -46,15 +46,81 @@ static struct clk *ux500_twocell_get(struct of_phandle_args *clkspec,
 	return PRCC_SHOW(clk_data, base, bit);
 }
 
-/* CLKRST4 is missing making it hard to index things */
-enum clkrst_index {
-	CLKRST1_INDEX = 0,
-	CLKRST2_INDEX,
-	CLKRST3_INDEX,
-	CLKRST5_INDEX,
-	CLKRST6_INDEX,
-	CLKRST_MAX,
+static struct clk_hw_onecell_data u8500_prcmu_hw_clks = {
+	.hws = {
+		/*
+		 * This assignment makes sure the dynamic array
+		 * gets the right size.
+		 */
+		[PRCMU_NUM_CLKS] = NULL,
+	},
+	.num = PRCMU_NUM_CLKS,
 };
+
+/* Essentially names for the first PRCMU_CLKSRC_* defines */
+static const char * const u8500_clkout_parents[] = {
+	"clk38m_to_clkgen",
+	"aclk",
+	/* Just called "sysclk" in documentation */
+	"ab8500_sysclk",
+	"lcdclk",
+	"sdmmcclk",
+	"tvclk",
+	"timclk",
+	/* CLK009 is not implemented, add it if you need it */
+	"clk009",
+};
+
+static struct clk_hw *ux500_clkout_get(struct of_phandle_args *clkspec,
+				       void *data)
+{
+	u32 id, source, divider;
+	struct clk_hw *clkout;
+
+	if (clkspec->args_count != 3)
+		return  ERR_PTR(-EINVAL);
+
+	id = clkspec->args[0];
+	source = clkspec->args[1];
+	divider = clkspec->args[2];
+
+	if (id > 1) {
+		pr_err("%s: invalid clkout ID %d\n", __func__, id);
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (clkout_clk[id]) {
+		pr_info("%s: clkout%d already registered, not reconfiguring\n",
+			__func__, id + 1);
+		return clkout_clk[id];
+	}
+
+	if (source > 7) {
+		pr_err("%s: invalid source ID %d\n", __func__, source);
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (divider == 0 || divider > 63) {
+		pr_err("%s: invalid divider %d\n", __func__, divider);
+		return ERR_PTR(-EINVAL);
+	}
+
+	pr_debug("registering clkout%d with source %d and divider %d\n",
+		 id + 1, source, divider);
+
+	clkout = clk_reg_prcmu_clkout(id ? "clkout2" : "clkout1",
+				      u8500_clkout_parents,
+				      ARRAY_SIZE(u8500_clkout_parents),
+				      source, divider);
+	if (IS_ERR(clkout)) {
+		pr_err("failed to register clkout%d\n",  id + 1);
+		return ERR_CAST(clkout);
+	}
+
+	clkout_clk[id] = clkout;
+
+	return clkout;
+}
 
 static void u8500_clk_init(struct device_node *np)
 {
@@ -63,7 +129,17 @@ static void u8500_clk_init(struct device_node *np)
 	const char *sgaclk_parent = NULL;
 	struct clk *clk, *rtc_clk, *twd_clk;
 	u32 bases[CLKRST_MAX];
+	struct u8500_prcc_reset *rstc;
 	int i;
+
+	/*
+	 * We allocate the reset controller here so that we can fill in the
+	 * base addresses properly and pass to the reset controller init
+	 * function later on.
+	 */
+	rstc = kzalloc(sizeof(*rstc), GFP_KERNEL);
+	if (!rstc)
+		return;
 
 	for (i = 0; i < ARRAY_SIZE(bases); i++) {
 		struct resource r;
@@ -73,22 +149,33 @@ static void u8500_clk_init(struct device_node *np)
 			pr_err("failed to get CLKRST %d base address\n",
 			       i + 1);
 		bases[i] = r.start;
+		rstc->phy_base[i] = r.start;
 	}
 
 	/* Clock sources */
-	clk = clk_reg_prcmu_gate("soc0_pll", NULL, PRCMU_PLLSOC0,
-				CLK_IGNORE_UNUSED);
-	prcmu_clk[PRCMU_PLLSOC0] = clk;
+	u8500_prcmu_hw_clks.hws[PRCMU_PLLSOC0] =
+		clk_reg_prcmu_gate("soc0_pll", NULL, PRCMU_PLLSOC0,
+				   CLK_IGNORE_UNUSED);
 
-	clk = clk_reg_prcmu_gate("soc1_pll", NULL, PRCMU_PLLSOC1,
-				CLK_IGNORE_UNUSED);
-	prcmu_clk[PRCMU_PLLSOC1] = clk;
+	u8500_prcmu_hw_clks.hws[PRCMU_PLLSOC1] =
+		clk_reg_prcmu_gate("soc1_pll", NULL, PRCMU_PLLSOC1,
+				   CLK_IGNORE_UNUSED);
 
-	clk = clk_reg_prcmu_gate("ddr_pll", NULL, PRCMU_PLLDDR,
-				CLK_IGNORE_UNUSED);
-	prcmu_clk[PRCMU_PLLDDR] = clk;
+	u8500_prcmu_hw_clks.hws[PRCMU_PLLDDR] =
+		clk_reg_prcmu_gate("ddr_pll", NULL, PRCMU_PLLDDR,
+				   CLK_IGNORE_UNUSED);
 
-	/* FIXME: Add sys, ulp and int clocks here. */
+	/*
+	 * Read-only clocks that only return their current rate, only used
+	 * as parents to other clocks and not visible in the device tree.
+	 * clk38m_to_clkgen is the same as the SYSCLK, i.e. the root clock.
+	 */
+	clk_reg_prcmu_rate("clk38m_to_clkgen", NULL, PRCMU_SYSCLK,
+			   CLK_IGNORE_UNUSED);
+	clk_reg_prcmu_rate("aclk", NULL, PRCMU_ACLK,
+			   CLK_IGNORE_UNUSED);
+
+	/* TODO: add CLK009 if needed */
 
 	rtc_clk = clk_register_fixed_rate(NULL, "rtc32k", "NULL",
 				CLK_IGNORE_UNUSED,
@@ -99,8 +186,11 @@ static void u8500_clk_init(struct device_node *np)
 	if (fw_version != NULL) {
 		switch (fw_version->project) {
 		case PRCMU_FW_PROJECT_U8500_C2:
+		case PRCMU_FW_PROJECT_U8500_SSG1:
 		case PRCMU_FW_PROJECT_U8520:
 		case PRCMU_FW_PROJECT_U8420:
+		case PRCMU_FW_PROJECT_U8420_SYSCLK:
+		case PRCMU_FW_PROJECT_U8500_SSG2:
 			sgaclk_parent = "soc0_pll";
 			break;
 		default:
@@ -109,145 +199,105 @@ static void u8500_clk_init(struct device_node *np)
 	}
 
 	if (sgaclk_parent)
-		clk = clk_reg_prcmu_gate("sgclk", sgaclk_parent,
-					PRCMU_SGACLK, 0);
+		u8500_prcmu_hw_clks.hws[PRCMU_SGACLK] =
+			clk_reg_prcmu_gate("sgclk", sgaclk_parent,
+					   PRCMU_SGACLK, 0);
 	else
-		clk = clk_reg_prcmu_gate("sgclk", NULL, PRCMU_SGACLK, 0);
-	prcmu_clk[PRCMU_SGACLK] = clk;
+		u8500_prcmu_hw_clks.hws[PRCMU_SGACLK] =
+			clk_reg_prcmu_gate("sgclk", NULL, PRCMU_SGACLK, 0);
 
-	clk = clk_reg_prcmu_gate("uartclk", NULL, PRCMU_UARTCLK, 0);
-	prcmu_clk[PRCMU_UARTCLK] = clk;
-
-	clk = clk_reg_prcmu_gate("msp02clk", NULL, PRCMU_MSP02CLK, 0);
-	prcmu_clk[PRCMU_MSP02CLK] = clk;
-
-	clk = clk_reg_prcmu_gate("msp1clk", NULL, PRCMU_MSP1CLK, 0);
-	prcmu_clk[PRCMU_MSP1CLK] = clk;
-
-	clk = clk_reg_prcmu_gate("i2cclk", NULL, PRCMU_I2CCLK, 0);
-	prcmu_clk[PRCMU_I2CCLK] = clk;
-
-	clk = clk_reg_prcmu_gate("slimclk", NULL, PRCMU_SLIMCLK, 0);
-	prcmu_clk[PRCMU_SLIMCLK] = clk;
-
-	clk = clk_reg_prcmu_gate("per1clk", NULL, PRCMU_PER1CLK, 0);
-	prcmu_clk[PRCMU_PER1CLK] = clk;
-
-	clk = clk_reg_prcmu_gate("per2clk", NULL, PRCMU_PER2CLK, 0);
-	prcmu_clk[PRCMU_PER2CLK] = clk;
-
-	clk = clk_reg_prcmu_gate("per3clk", NULL, PRCMU_PER3CLK, 0);
-	prcmu_clk[PRCMU_PER3CLK] = clk;
-
-	clk = clk_reg_prcmu_gate("per5clk", NULL, PRCMU_PER5CLK, 0);
-	prcmu_clk[PRCMU_PER5CLK] = clk;
-
-	clk = clk_reg_prcmu_gate("per6clk", NULL, PRCMU_PER6CLK, 0);
-	prcmu_clk[PRCMU_PER6CLK] = clk;
-
-	clk = clk_reg_prcmu_gate("per7clk", NULL, PRCMU_PER7CLK, 0);
-	prcmu_clk[PRCMU_PER7CLK] = clk;
-
-	clk = clk_reg_prcmu_scalable("lcdclk", NULL, PRCMU_LCDCLK, 0,
-				CLK_SET_RATE_GATE);
-	prcmu_clk[PRCMU_LCDCLK] = clk;
-
-	clk = clk_reg_prcmu_opp_gate("bmlclk", NULL, PRCMU_BMLCLK, 0);
-	prcmu_clk[PRCMU_BMLCLK] = clk;
-
-	clk = clk_reg_prcmu_scalable("hsitxclk", NULL, PRCMU_HSITXCLK, 0,
-				CLK_SET_RATE_GATE);
-	prcmu_clk[PRCMU_HSITXCLK] = clk;
-
-	clk = clk_reg_prcmu_scalable("hsirxclk", NULL, PRCMU_HSIRXCLK, 0,
-				CLK_SET_RATE_GATE);
-	prcmu_clk[PRCMU_HSIRXCLK] = clk;
-
-	clk = clk_reg_prcmu_scalable("hdmiclk", NULL, PRCMU_HDMICLK, 0,
-				CLK_SET_RATE_GATE);
-	prcmu_clk[PRCMU_HDMICLK] = clk;
-
-	clk = clk_reg_prcmu_gate("apeatclk", NULL, PRCMU_APEATCLK, 0);
-	prcmu_clk[PRCMU_APEATCLK] = clk;
-
-	clk = clk_reg_prcmu_scalable("apetraceclk", NULL, PRCMU_APETRACECLK, 0,
-				CLK_SET_RATE_GATE);
-	prcmu_clk[PRCMU_APETRACECLK] = clk;
-
-	clk = clk_reg_prcmu_gate("mcdeclk", NULL, PRCMU_MCDECLK, 0);
-	prcmu_clk[PRCMU_MCDECLK] = clk;
-
-	clk = clk_reg_prcmu_opp_gate("ipi2cclk", NULL, PRCMU_IPI2CCLK, 0);
-	prcmu_clk[PRCMU_IPI2CCLK] = clk;
-
-	clk = clk_reg_prcmu_gate("dsialtclk", NULL, PRCMU_DSIALTCLK, 0);
-	prcmu_clk[PRCMU_DSIALTCLK] = clk;
-
-	clk = clk_reg_prcmu_gate("dmaclk", NULL, PRCMU_DMACLK, 0);
-	prcmu_clk[PRCMU_DMACLK] = clk;
-
-	clk = clk_reg_prcmu_gate("b2r2clk", NULL, PRCMU_B2R2CLK, 0);
-	prcmu_clk[PRCMU_B2R2CLK] = clk;
-
-	clk = clk_reg_prcmu_scalable("tvclk", NULL, PRCMU_TVCLK, 0,
-				CLK_SET_RATE_GATE);
-	prcmu_clk[PRCMU_TVCLK] = clk;
-
-	clk = clk_reg_prcmu_gate("sspclk", NULL, PRCMU_SSPCLK, 0);
-	prcmu_clk[PRCMU_SSPCLK] = clk;
-
-	clk = clk_reg_prcmu_gate("rngclk", NULL, PRCMU_RNGCLK, 0);
-	prcmu_clk[PRCMU_RNGCLK] = clk;
-
-	clk = clk_reg_prcmu_gate("uiccclk", NULL, PRCMU_UICCCLK, 0);
-	prcmu_clk[PRCMU_UICCCLK] = clk;
-
-	clk = clk_reg_prcmu_gate("timclk", NULL, PRCMU_TIMCLK, 0);
-	prcmu_clk[PRCMU_TIMCLK] = clk;
-
-	clk = clk_reg_prcmu_gate("ab8500_sysclk", NULL, PRCMU_SYSCLK, 0);
-	prcmu_clk[PRCMU_SYSCLK] = clk;
-
-	clk = clk_reg_prcmu_opp_volt_scalable("sdmmcclk", NULL, PRCMU_SDMMCCLK,
-					100000000, CLK_SET_RATE_GATE);
-	prcmu_clk[PRCMU_SDMMCCLK] = clk;
-
-	clk = clk_reg_prcmu_scalable("dsi_pll", "hdmiclk",
-				PRCMU_PLLDSI, 0, CLK_SET_RATE_GATE);
-	prcmu_clk[PRCMU_PLLDSI] = clk;
-
-	clk = clk_reg_prcmu_scalable("dsi0clk", "dsi_pll",
-				PRCMU_DSI0CLK, 0, CLK_SET_RATE_GATE);
-	prcmu_clk[PRCMU_DSI0CLK] = clk;
-
-	clk = clk_reg_prcmu_scalable("dsi1clk", "dsi_pll",
-				PRCMU_DSI1CLK, 0, CLK_SET_RATE_GATE);
-	prcmu_clk[PRCMU_DSI1CLK] = clk;
-
-	clk = clk_reg_prcmu_scalable("dsi0escclk", "tvclk",
-				PRCMU_DSI0ESCCLK, 0, CLK_SET_RATE_GATE);
-	prcmu_clk[PRCMU_DSI0ESCCLK] = clk;
-
-	clk = clk_reg_prcmu_scalable("dsi1escclk", "tvclk",
-				PRCMU_DSI1ESCCLK, 0, CLK_SET_RATE_GATE);
-	prcmu_clk[PRCMU_DSI1ESCCLK] = clk;
-
-	clk = clk_reg_prcmu_scalable("dsi2escclk", "tvclk",
-				PRCMU_DSI2ESCCLK, 0, CLK_SET_RATE_GATE);
-	prcmu_clk[PRCMU_DSI2ESCCLK] = clk;
-
-	clk = clk_reg_prcmu_scalable_rate("armss", NULL,
-				PRCMU_ARMSS, 0, CLK_IGNORE_UNUSED);
-	prcmu_clk[PRCMU_ARMSS] = clk;
+	u8500_prcmu_hw_clks.hws[PRCMU_UARTCLK] =
+		clk_reg_prcmu_gate("uartclk", NULL, PRCMU_UARTCLK, 0);
+	u8500_prcmu_hw_clks.hws[PRCMU_MSP02CLK] =
+		clk_reg_prcmu_gate("msp02clk", NULL, PRCMU_MSP02CLK, 0);
+	u8500_prcmu_hw_clks.hws[PRCMU_MSP1CLK] =
+		clk_reg_prcmu_gate("msp1clk", NULL, PRCMU_MSP1CLK, 0);
+	u8500_prcmu_hw_clks.hws[PRCMU_I2CCLK] =
+		clk_reg_prcmu_gate("i2cclk", NULL, PRCMU_I2CCLK, 0);
+	u8500_prcmu_hw_clks.hws[PRCMU_SLIMCLK] =
+		clk_reg_prcmu_gate("slimclk", NULL, PRCMU_SLIMCLK, 0);
+	u8500_prcmu_hw_clks.hws[PRCMU_PER1CLK] =
+		clk_reg_prcmu_gate("per1clk", NULL, PRCMU_PER1CLK, 0);
+	u8500_prcmu_hw_clks.hws[PRCMU_PER2CLK] =
+		clk_reg_prcmu_gate("per2clk", NULL, PRCMU_PER2CLK, 0);
+	u8500_prcmu_hw_clks.hws[PRCMU_PER3CLK] =
+		clk_reg_prcmu_gate("per3clk", NULL, PRCMU_PER3CLK, 0);
+	u8500_prcmu_hw_clks.hws[PRCMU_PER5CLK] =
+		clk_reg_prcmu_gate("per5clk", NULL, PRCMU_PER5CLK, 0);
+	u8500_prcmu_hw_clks.hws[PRCMU_PER6CLK] =
+		clk_reg_prcmu_gate("per6clk", NULL, PRCMU_PER6CLK, 0);
+	u8500_prcmu_hw_clks.hws[PRCMU_PER7CLK] =
+		clk_reg_prcmu_gate("per7clk", NULL, PRCMU_PER7CLK, 0);
+	u8500_prcmu_hw_clks.hws[PRCMU_LCDCLK] =
+		clk_reg_prcmu_scalable("lcdclk", NULL, PRCMU_LCDCLK, 0,
+				       CLK_SET_RATE_GATE);
+	u8500_prcmu_hw_clks.hws[PRCMU_BMLCLK] =
+		clk_reg_prcmu_opp_gate("bmlclk", NULL, PRCMU_BMLCLK, 0);
+	u8500_prcmu_hw_clks.hws[PRCMU_HSITXCLK] =
+		clk_reg_prcmu_scalable("hsitxclk", NULL, PRCMU_HSITXCLK, 0,
+				       CLK_SET_RATE_GATE);
+	u8500_prcmu_hw_clks.hws[PRCMU_HSIRXCLK] =
+		clk_reg_prcmu_scalable("hsirxclk", NULL, PRCMU_HSIRXCLK, 0,
+				       CLK_SET_RATE_GATE);
+	u8500_prcmu_hw_clks.hws[PRCMU_HDMICLK] =
+		clk_reg_prcmu_scalable("hdmiclk", NULL, PRCMU_HDMICLK, 0,
+				       CLK_SET_RATE_GATE);
+	u8500_prcmu_hw_clks.hws[PRCMU_APEATCLK] =
+		clk_reg_prcmu_gate("apeatclk", NULL, PRCMU_APEATCLK, 0);
+	u8500_prcmu_hw_clks.hws[PRCMU_APETRACECLK] =
+		clk_reg_prcmu_scalable("apetraceclk", NULL, PRCMU_APETRACECLK, 0,
+				       CLK_SET_RATE_GATE);
+	u8500_prcmu_hw_clks.hws[PRCMU_MCDECLK] =
+		clk_reg_prcmu_gate("mcdeclk", NULL, PRCMU_MCDECLK, 0);
+	u8500_prcmu_hw_clks.hws[PRCMU_IPI2CCLK] =
+		clk_reg_prcmu_opp_gate("ipi2cclk", NULL, PRCMU_IPI2CCLK, 0);
+	u8500_prcmu_hw_clks.hws[PRCMU_DSIALTCLK] =
+		clk_reg_prcmu_gate("dsialtclk", NULL, PRCMU_DSIALTCLK, 0);
+	u8500_prcmu_hw_clks.hws[PRCMU_DMACLK] =
+		clk_reg_prcmu_gate("dmaclk", NULL, PRCMU_DMACLK, 0);
+	u8500_prcmu_hw_clks.hws[PRCMU_B2R2CLK] =
+		clk_reg_prcmu_gate("b2r2clk", NULL, PRCMU_B2R2CLK, 0);
+	u8500_prcmu_hw_clks.hws[PRCMU_TVCLK] =
+		clk_reg_prcmu_scalable("tvclk", NULL, PRCMU_TVCLK, 0,
+				       CLK_SET_RATE_GATE);
+	u8500_prcmu_hw_clks.hws[PRCMU_SSPCLK] =
+		clk_reg_prcmu_gate("sspclk", NULL, PRCMU_SSPCLK, 0);
+	u8500_prcmu_hw_clks.hws[PRCMU_RNGCLK] =
+		clk_reg_prcmu_gate("rngclk", NULL, PRCMU_RNGCLK, 0);
+	u8500_prcmu_hw_clks.hws[PRCMU_UICCCLK] =
+		clk_reg_prcmu_gate("uiccclk", NULL, PRCMU_UICCCLK, 0);
+	u8500_prcmu_hw_clks.hws[PRCMU_TIMCLK] =
+		clk_reg_prcmu_gate("timclk", NULL, PRCMU_TIMCLK, 0);
+	u8500_prcmu_hw_clks.hws[PRCMU_SYSCLK] =
+		clk_reg_prcmu_gate("ab8500_sysclk", NULL, PRCMU_SYSCLK, 0);
+	u8500_prcmu_hw_clks.hws[PRCMU_SDMMCCLK] =
+		clk_reg_prcmu_opp_volt_scalable("sdmmcclk", NULL,
+						PRCMU_SDMMCCLK, 100000000,
+						CLK_SET_RATE_GATE);
+	u8500_prcmu_hw_clks.hws[PRCMU_PLLDSI] =
+		clk_reg_prcmu_scalable("dsi_pll", "hdmiclk",
+				       PRCMU_PLLDSI, 0, CLK_SET_RATE_GATE);
+	u8500_prcmu_hw_clks.hws[PRCMU_DSI0CLK] =
+		clk_reg_prcmu_scalable("dsi0clk", "dsi_pll",
+				       PRCMU_DSI0CLK, 0, CLK_SET_RATE_GATE);
+	u8500_prcmu_hw_clks.hws[PRCMU_DSI1CLK] =
+		clk_reg_prcmu_scalable("dsi1clk", "dsi_pll",
+				       PRCMU_DSI1CLK, 0, CLK_SET_RATE_GATE);
+	u8500_prcmu_hw_clks.hws[PRCMU_DSI0ESCCLK] =
+		clk_reg_prcmu_scalable("dsi0escclk", "tvclk",
+				       PRCMU_DSI0ESCCLK, 0, CLK_SET_RATE_GATE);
+	u8500_prcmu_hw_clks.hws[PRCMU_DSI1ESCCLK] =
+		clk_reg_prcmu_scalable("dsi1escclk", "tvclk",
+				       PRCMU_DSI1ESCCLK, 0, CLK_SET_RATE_GATE);
+	u8500_prcmu_hw_clks.hws[PRCMU_DSI2ESCCLK] =
+		clk_reg_prcmu_scalable("dsi2escclk", "tvclk",
+				       PRCMU_DSI2ESCCLK, 0, CLK_SET_RATE_GATE);
+	u8500_prcmu_hw_clks.hws[PRCMU_ARMSS] =
+		clk_reg_prcmu_scalable_rate("armss", NULL,
+					    PRCMU_ARMSS, 0, CLK_IGNORE_UNUSED);
 
 	twd_clk = clk_register_fixed_factor(NULL, "smp_twd", "armss",
 				CLK_IGNORE_UNUSED, 1, 2);
-
-	/*
-	 * FIXME: Add special handled PRCMU clocks here:
-	 * 1. clkout0yuv, use PRCMU as parent + need regulator + pinctrl.
-	 * 2. ab9540_clkout1yuv, see clkout0yuv
-	 */
 
 	/* PRCC P-clocks */
 	clk = clk_reg_prcc_pclk("p1_pclk0", "per1clk", bases[CLKRST1_INDEX],
@@ -542,13 +592,13 @@ static void u8500_clk_init(struct device_node *np)
 	PRCC_KCLK_STORE(clk, 6, 0);
 
 	for_each_child_of_node(np, child) {
-		static struct clk_onecell_data clk_data;
+		if (of_node_name_eq(child, "prcmu-clock"))
+			of_clk_add_hw_provider(child, of_clk_hw_onecell_get,
+					       &u8500_prcmu_hw_clks);
 
-		if (of_node_name_eq(child, "prcmu-clock")) {
-			clk_data.clks = prcmu_clk;
-			clk_data.clk_num = ARRAY_SIZE(prcmu_clk);
-			of_clk_add_provider(child, of_clk_src_onecell_get, &clk_data);
-		}
+		if (of_node_name_eq(child, "clkout-clock"))
+			of_clk_add_hw_provider(child, ux500_clkout_get, NULL);
+
 		if (of_node_name_eq(child, "prcc-periph-clock"))
 			of_clk_add_provider(child, ux500_twocell_get, prcc_pclk);
 
@@ -560,6 +610,9 @@ static void u8500_clk_init(struct device_node *np)
 
 		if (of_node_name_eq(child, "smp-twd-clock"))
 			of_clk_add_provider(child, of_clk_src_simple_get, twd_clk);
+
+		if (of_node_name_eq(child, "prcc-reset-controller"))
+			u8500_prcc_reset_init(child, rstc);
 	}
 }
 CLK_OF_DECLARE(u8500_clks, "stericsson,u8500-clks", u8500_clk_init);

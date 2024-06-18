@@ -10,6 +10,7 @@
 #include <linux/iommu.h>
 #include <net/ip.h>
 #include <net/tso.h>
+#include <uapi/linux/bpf.h>
 
 #include "nic_reg.h"
 #include "nic.h"
@@ -460,9 +461,9 @@ void nicvf_rbdr_work(struct work_struct *work)
 }
 
 /* In Softirq context, alloc rcv buffers in atomic mode */
-void nicvf_rbdr_task(unsigned long data)
+void nicvf_rbdr_task(struct tasklet_struct *t)
 {
-	struct nicvf *nic = (struct nicvf *)data;
+	struct nicvf *nic = from_tasklet(nic, t, rbdr_task);
 
 	nicvf_refill_rbdr(nic, GFP_ATOMIC);
 	if (nic->rb_alloc_fail) {
@@ -770,13 +771,13 @@ static void nicvf_rcv_queue_config(struct nicvf *nic, struct queue_set *qs,
 	rq->caching = 1;
 
 	/* Driver have no proper error path for failed XDP RX-queue info reg */
-	WARN_ON(xdp_rxq_info_reg(&rq->xdp_rxq, nic->netdev, qidx) < 0);
+	WARN_ON(xdp_rxq_info_reg(&rq->xdp_rxq, nic->netdev, qidx, 0) < 0);
 
 	/* Send a mailbox msg to PF to config RQ */
 	mbx.rq.msg = NIC_MBOX_MSG_RQ_CFG;
 	mbx.rq.qs_num = qs->vnic_id;
 	mbx.rq.rq_num = qidx;
-	mbx.rq.cfg = (rq->caching << 26) | (rq->cq_qs << 19) |
+	mbx.rq.cfg = ((u64)rq->caching << 26) | (rq->cq_qs << 19) |
 			  (rq->cq_idx << 16) | (rq->cont_rbdr_qs << 9) |
 			  (rq->cont_qs_rbdr_idx << 8) |
 			  (rq->start_rbdr_qs << 1) | (rq->start_qs_rbdr_idx);
@@ -1179,13 +1180,12 @@ void nicvf_sq_disable(struct nicvf *nic, int qidx)
 void nicvf_sq_free_used_descs(struct net_device *netdev, struct snd_queue *sq,
 			      int qidx)
 {
-	u64 head, tail;
+	u64 head;
 	struct sk_buff *skb;
 	struct nicvf *nic = netdev_priv(netdev);
 	struct sq_hdr_subdesc *hdr;
 
 	head = nicvf_queue_reg_read(nic, NIC_QSET_SQ_0_7_HEAD, qidx) >> 4;
-	tail = nicvf_queue_reg_read(nic, NIC_QSET_SQ_0_7_TAIL, qidx) >> 4;
 	while (sq->head != head) {
 		hdr = (struct sq_hdr_subdesc *)GET_SQ_DESC(sq, sq->head);
 		if (hdr->subdesc_type != SQ_DESC_TYPE_HEADER) {
@@ -1261,7 +1261,7 @@ int nicvf_xdp_sq_append_pkt(struct nicvf *nic, struct snd_queue *sq,
 static int nicvf_tso_count_subdescs(struct sk_buff *skb)
 {
 	struct skb_shared_info *sh = skb_shinfo(skb);
-	unsigned int sh_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
+	unsigned int sh_len = skb_tcp_all_headers(skb);
 	unsigned int data_len = skb->len - sh_len;
 	unsigned int p_len = sh->gso_size;
 	long f_id = -1;    /* id of the current fragment */
@@ -1382,7 +1382,7 @@ nicvf_sq_add_hdr_subdesc(struct nicvf *nic, struct snd_queue *sq, int qentry,
 
 	if (nic->hw_tso && skb_shinfo(skb)->gso_size) {
 		hdr->tso = 1;
-		hdr->tso_start = skb_transport_offset(skb) + tcp_hdrlen(skb);
+		hdr->tso_start = skb_tcp_all_headers(skb);
 		hdr->tso_max_paysize = skb_shinfo(skb)->gso_size;
 		/* For non-tunneled pkts, point this to L2 ethertype */
 		hdr->inner_l3_offset = skb_network_offset(skb) - 2;
@@ -1490,9 +1490,10 @@ static int nicvf_sq_append_tso(struct nicvf *nic, struct snd_queue *sq,
 	int seg_subdescs = 0, desc_cnt = 0;
 	int seg_len, total_len, data_left;
 	int hdr_qentry = qentry;
-	int hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
+	int hdr_len;
 
-	tso_start(skb, &tso);
+	hdr_len = tso_start(skb, &tso);
+
 	total_len = skb->len - hdr_len;
 	while (total_len > 0) {
 		char *hdr;

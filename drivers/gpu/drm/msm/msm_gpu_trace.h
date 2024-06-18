@@ -83,6 +83,100 @@ TRACE_EVENT(msm_gpu_submit_retired,
 		    __entry->start_ticks, __entry->end_ticks)
 );
 
+
+TRACE_EVENT(msm_gpu_freq_change,
+		TP_PROTO(u32 freq),
+		TP_ARGS(freq),
+		TP_STRUCT__entry(
+			__field(u32, freq)
+			),
+		TP_fast_assign(
+			/* trace freq in MHz to match intel_gpu_freq_change, to make life easier
+			 * for userspace
+			 */
+			__entry->freq = DIV_ROUND_UP(freq, 1000000);
+			),
+		TP_printk("new_freq=%u", __entry->freq)
+);
+
+
+TRACE_EVENT(msm_gmu_freq_change,
+		TP_PROTO(u32 freq, u32 perf_index),
+		TP_ARGS(freq, perf_index),
+		TP_STRUCT__entry(
+			__field(u32, freq)
+			__field(u32, perf_index)
+			),
+		TP_fast_assign(
+			__entry->freq = freq;
+			__entry->perf_index = perf_index;
+			),
+		TP_printk("freq=%u, perf_index=%u", __entry->freq, __entry->perf_index)
+);
+
+
+TRACE_EVENT(msm_gem_shrink,
+		TP_PROTO(u32 nr_to_scan, u32 purged, u32 evicted,
+			 u32 active_purged, u32 active_evicted),
+		TP_ARGS(nr_to_scan, purged, evicted, active_purged, active_evicted),
+		TP_STRUCT__entry(
+			__field(u32, nr_to_scan)
+			__field(u32, purged)
+			__field(u32, evicted)
+			__field(u32, active_purged)
+			__field(u32, active_evicted)
+			),
+		TP_fast_assign(
+			__entry->nr_to_scan = nr_to_scan;
+			__entry->purged = purged;
+			__entry->evicted = evicted;
+			__entry->active_purged = active_purged;
+			__entry->active_evicted = active_evicted;
+			),
+		TP_printk("nr_to_scan=%u pg, purged=%u pg, evicted=%u pg, active_purged=%u pg, active_evicted=%u pg",
+			  __entry->nr_to_scan, __entry->purged, __entry->evicted,
+			  __entry->active_purged, __entry->active_evicted)
+);
+
+
+TRACE_EVENT(msm_gem_purge_vmaps,
+		TP_PROTO(u32 unmapped),
+		TP_ARGS(unmapped),
+		TP_STRUCT__entry(
+			__field(u32, unmapped)
+			),
+		TP_fast_assign(
+			__entry->unmapped = unmapped;
+			),
+		TP_printk("Purging %u vmaps", __entry->unmapped)
+);
+
+
+TRACE_EVENT(msm_gpu_suspend,
+		TP_PROTO(int dummy),
+		TP_ARGS(dummy),
+		TP_STRUCT__entry(
+			__field(u32, dummy)
+			),
+		TP_fast_assign(
+			__entry->dummy = dummy;
+			),
+		TP_printk("%u", __entry->dummy)
+);
+
+
+TRACE_EVENT(msm_gpu_resume,
+		TP_PROTO(int dummy),
+		TP_ARGS(dummy),
+		TP_STRUCT__entry(
+			__field(u32, dummy)
+			),
+		TP_fast_assign(
+			__entry->dummy = dummy;
+			),
+		TP_printk("%u", __entry->dummy)
+);
+
 #endif
 
 #undef TRACE_INCLUDE_PATH

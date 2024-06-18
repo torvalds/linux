@@ -11,11 +11,11 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/types.h>
 #include <linux/watchdog.h>
 
@@ -162,7 +162,6 @@ static int meson_wdt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct meson_wdt_dev *meson_wdt;
-	const struct of_device_id *of_id;
 	int err;
 
 	meson_wdt = devm_kzalloc(dev, sizeof(*meson_wdt), GFP_KERNEL);
@@ -173,12 +172,7 @@ static int meson_wdt_probe(struct platform_device *pdev)
 	if (IS_ERR(meson_wdt->wdt_base))
 		return PTR_ERR(meson_wdt->wdt_base);
 
-	of_id = of_match_device(meson_wdt_dt_ids, dev);
-	if (!of_id) {
-		dev_err(dev, "Unable to initialize WDT data\n");
-		return -ENODEV;
-	}
-	meson_wdt->data = of_id->data;
+	meson_wdt->data = device_get_match_data(dev);
 
 	meson_wdt->wdt_dev.parent = dev;
 	meson_wdt->wdt_dev.info = &meson_wdt_info;

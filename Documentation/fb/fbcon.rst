@@ -20,8 +20,8 @@ A. Configuration
 ================
 
 The framebuffer console can be enabled by using your favorite kernel
-configuration tool.  It is under Device Drivers->Graphics Support->Frame
-buffer Devices->Console display driver support->Framebuffer Console Support.
+configuration tool.  It is under Device Drivers->Graphics Support->
+Console display driver support->Framebuffer Console Support.
 Select 'y' to compile support statically or 'm' for module support.  The
 module will be fbcon.
 
@@ -81,21 +81,14 @@ C. Boot options
 1. fbcon=font:<name>
 
 	Select the initial font to use. The value 'name' can be any of the
-	compiled-in fonts: 10x18, 6x10, 7x14, Acorn8x8, MINI4x6,
+	compiled-in fonts: 10x18, 6x10, 6x8, 7x14, Acorn8x8, MINI4x6,
 	PEARL8x8, ProFont6x11, SUN12x22, SUN8x16, TER16x32, VGA8x16, VGA8x8.
 
 	Note, not all drivers can handle font with widths not divisible by 8,
 	such as vga16fb.
 
-2. fbcon=scrollback:<value>[k]
 
-	The scrollback buffer is memory that is used to preserve display
-	contents that has already scrolled past your view.  This is accessed
-	by using the Shift-PageUp key combination.  The value 'value' is any
-	integer. It defaults to 32KB.  The 'k' suffix is optional, and will
-	multiply the 'value' by 1024.
-
-3. fbcon=map:<0123>
+2. fbcon=map:<0123>
 
 	This is an interesting option. It tells which driver gets mapped to
 	which console. The value '0123' is a sequence that gets repeated until
@@ -116,7 +109,7 @@ C. Boot options
 	Later on, when you want to map the console the to the framebuffer
 	device, you can use the con2fbmap utility.
 
-4. fbcon=vc:<n1>-<n2>
+3. fbcon=vc:<n1>-<n2>
 
 	This option tells fbcon to take over only a range of consoles as
 	specified by the values 'n1' and 'n2'. The rest of the consoles
@@ -174,6 +167,11 @@ C. Boot options
 	displayed due to multiple CPUs, the collected line of logos is moved
 	as a whole.
 
+8. fbcon=logo-count:<n>
+
+	The value 'n' overrides the number of bootup logos. 0 disables the
+	logo, and -1 gives the default which is the number of online CPUs.
+
 C. Attaching, Detaching and Unloading
 
 Before going on to how to attach, detach and unload the framebuffer console, an
@@ -209,9 +207,9 @@ Documentation/driver-api/console.rst. To summarize:
 Echo a value to the bind file that represents the framebuffer console
 driver. So assuming vtcon1 represents fbcon, then::
 
-  echo 1 > sys/class/vtconsole/vtcon1/bind - attach framebuffer console to
+  echo 1 > /sys/class/vtconsole/vtcon1/bind - attach framebuffer console to
 					     console layer
-  echo 0 > sys/class/vtconsole/vtcon1/bind - detach framebuffer console from
+  echo 0 > /sys/class/vtconsole/vtcon1/bind - detach framebuffer console from
 					     console layer
 
 If fbcon is detached from the console layer, your boot console driver (which is

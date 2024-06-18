@@ -2,8 +2,6 @@
 #ifndef _ASM_PARISC_KEXEC_H
 #define _ASM_PARISC_KEXEC_H
 
-#ifdef CONFIG_KEXEC
-
 /* Maximum physical address we can use pages from */
 #define KEXEC_SOURCE_MEMORY_LIMIT (-1UL)
 /* Maximum address we can reach in physical address mode */
@@ -31,7 +29,5 @@ static inline void crash_setup_regs(struct pt_regs *newregs,
 }
 
 #endif /* __ASSEMBLY__ */
-
-#endif /* CONFIG_KEXEC */
 
 #endif /* _ASM_PARISC_KEXEC_H */

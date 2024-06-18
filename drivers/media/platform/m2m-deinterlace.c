@@ -953,7 +953,7 @@ static int deinterlace_probe(struct platform_device *pdev)
 	vfd->lock = &pcdev->dev_mutex;
 	vfd->v4l2_dev = &pcdev->v4l2_dev;
 
-	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
+	ret = video_register_device(vfd, VFL_TYPE_VIDEO, 0);
 	if (ret) {
 		v4l2_err(&pcdev->v4l2_dev, "Failed to register video device\n");
 		goto unreg_dev;
@@ -984,7 +984,7 @@ rel_dma:
 	return ret;
 }
 
-static int deinterlace_remove(struct platform_device *pdev)
+static void deinterlace_remove(struct platform_device *pdev)
 {
 	struct deinterlace_dev *pcdev = platform_get_drvdata(pdev);
 
@@ -993,13 +993,11 @@ static int deinterlace_remove(struct platform_device *pdev)
 	video_unregister_device(&pcdev->vfd);
 	v4l2_device_unregister(&pcdev->v4l2_dev);
 	dma_release_channel(pcdev->dma_chan);
-
-	return 0;
 }
 
 static struct platform_driver deinterlace_pdrv = {
 	.probe		= deinterlace_probe,
-	.remove		= deinterlace_remove,
+	.remove_new	= deinterlace_remove,
 	.driver		= {
 		.name	= MEM2MEM_NAME,
 	},

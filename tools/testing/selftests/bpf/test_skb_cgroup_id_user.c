@@ -15,7 +15,6 @@
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 
-#include "bpf_rlimit.h"
 #include "cgroup_helpers.h"
 
 #define CGROUP_PATH		"/skb_cgroup_test"
@@ -94,7 +93,7 @@ int get_map_fd_by_prog_id(int prog_id)
 	info.nr_map_ids = 1;
 	info.map_ids = (__u64) (unsigned long) map_ids;
 
-	if (bpf_obj_get_info_by_fd(prog_fd, &info, &info_len)) {
+	if (bpf_prog_get_info_by_fd(prog_fd, &info, &info_len)) {
 		log_err("Failed to get info by prog fd %d", prog_fd);
 		goto err;
 	}
@@ -120,7 +119,7 @@ int check_ancestor_cgroup_ids(int prog_id)
 	int err = 0;
 	int map_fd;
 
-	expected_ids[0] = 0x100000001;	/* root cgroup */
+	expected_ids[0] = get_cgroup_id("/..");	/* root cgroup */
 	expected_ids[1] = get_cgroup_id("");
 	expected_ids[2] = get_cgroup_id(CGROUP_PATH);
 	expected_ids[3] = 0; /* non-existent cgroup */
@@ -160,14 +159,11 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	if (setup_cgroup_environment())
-		goto err;
+	/* Use libbpf 1.0 API mode */
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 
-	cgfd = create_and_get_cgroup(CGROUP_PATH);
+	cgfd = cgroup_setup_and_join(CGROUP_PATH);
 	if (cgfd < 0)
-		goto err;
-
-	if (join_cgroup(CGROUP_PATH))
 		goto err;
 
 	if (send_packet(argv[1]))

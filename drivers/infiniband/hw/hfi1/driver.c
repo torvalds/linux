@@ -1,48 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright(c) 2015-2018 Intel Corporation.
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * BSD LICENSE
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
+ * Copyright(c) 2015-2020 Intel Corporation.
+ * Copyright(c) 2021 Cornelis Networks.
  */
 
 #include <linux/spinlock.h>
@@ -54,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/prefetch.h>
 #include <rdma/ib_verbs.h>
+#include <linux/etherdevice.h>
 
 #include "hfi.h"
 #include "trace.h"
@@ -63,14 +23,11 @@
 #include "vnic.h"
 #include "fault.h"
 
+#include "ipoib.h"
+#include "netdev.h"
+
 #undef pr_fmt
 #define pr_fmt(fmt) DRIVER_NAME ": " fmt
-
-/*
- * The size has to be longer than this string, so we can append
- * board/chip information to it in the initialization code.
- */
-const char ib_hfi1_version[] = HFI1_DRIVER_VERSION "\n";
 
 DEFINE_MUTEX(hfi1_mutex);	/* general driver use */
 
@@ -94,7 +51,7 @@ module_param_cb(cap_mask, &cap_ops, &hfi1_cap_mask, S_IWUSR | S_IRUGO);
 MODULE_PARM_DESC(cap_mask, "Bit mask of enabled/disabled HW features");
 
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_DESCRIPTION("Intel Omni-Path Architecture driver");
+MODULE_DESCRIPTION("Cornelis Omni-Path Express driver");
 
 /*
  * MAX_PKT_RCV is the max # if packets processed per receive interrupt.
@@ -155,7 +112,7 @@ static int hfi1_caps_get(char *buffer, const struct kernel_param *kp)
 	cap_mask &= ~HFI1_CAP_LOCKED_SMASK;
 	cap_mask |= ((cap_mask & HFI1_CAP_K2U) << HFI1_CAP_USER_SHIFT);
 
-	return scnprintf(buffer, PAGE_SIZE, "0x%lx", cap_mask);
+	return sysfs_emit(buffer, "0x%lx\n", cap_mask);
 }
 
 struct pci_dev *get_pci_dev(struct rvt_dev_info *rdi)
@@ -411,14 +368,14 @@ drop:
 static inline void init_packet(struct hfi1_ctxtdata *rcd,
 			       struct hfi1_packet *packet)
 {
-	packet->rsize = rcd->rcvhdrqentsize; /* words */
-	packet->maxcnt = rcd->rcvhdrq_cnt * packet->rsize; /* words */
+	packet->rsize = get_hdrqentsize(rcd); /* words */
+	packet->maxcnt = get_hdrq_cnt(rcd) * packet->rsize; /* words */
 	packet->rcd = rcd;
 	packet->updegr = 0;
 	packet->etail = -1;
 	packet->rhf_addr = get_rhf_addr(rcd);
 	packet->rhf = rhf_to_cpu(packet->rhf_addr);
-	packet->rhqoff = rcd->head;
+	packet->rhqoff = hfi1_rcd_head(rcd);
 	packet->numpkt = 0;
 }
 
@@ -551,22 +508,22 @@ static inline void init_ps_mdata(struct ps_mdata *mdata,
 	mdata->maxcnt = packet->maxcnt;
 	mdata->ps_head = packet->rhqoff;
 
-	if (HFI1_CAP_KGET_MASK(rcd->flags, DMA_RTAIL)) {
+	if (get_dma_rtail_setting(rcd)) {
 		mdata->ps_tail = get_rcvhdrtail(rcd);
 		if (rcd->ctxt == HFI1_CTRL_CTXT)
-			mdata->ps_seq = rcd->seq_cnt;
+			mdata->ps_seq = hfi1_seq_cnt(rcd);
 		else
 			mdata->ps_seq = 0; /* not used with DMA_RTAIL */
 	} else {
 		mdata->ps_tail = 0; /* used only with DMA_RTAIL*/
-		mdata->ps_seq = rcd->seq_cnt;
+		mdata->ps_seq = hfi1_seq_cnt(rcd);
 	}
 }
 
 static inline int ps_done(struct ps_mdata *mdata, u64 rhf,
 			  struct hfi1_ctxtdata *rcd)
 {
-	if (HFI1_CAP_KGET_MASK(rcd->flags, DMA_RTAIL))
+	if (get_dma_rtail_setting(rcd))
 		return mdata->ps_head == mdata->ps_tail;
 	return mdata->ps_seq != rhf_rcv_seq(rhf);
 }
@@ -592,11 +549,9 @@ static inline void update_ps_mdata(struct ps_mdata *mdata,
 		mdata->ps_head = 0;
 
 	/* Control context must do seq counting */
-	if (!HFI1_CAP_KGET_MASK(rcd->flags, DMA_RTAIL) ||
-	    (rcd->ctxt == HFI1_CTRL_CTXT)) {
-		if (++mdata->ps_seq > 13)
-			mdata->ps_seq = 1;
-	}
+	if (!get_dma_rtail_setting(rcd) ||
+	    rcd->ctxt == HFI1_CTRL_CTXT)
+		mdata->ps_seq = hfi1_seq_incr_wrap(mdata->ps_seq);
 }
 
 /*
@@ -734,6 +689,7 @@ static noinline int skip_rcv_packet(struct hfi1_packet *packet, int thread)
 {
 	int ret;
 
+	packet->rcd->dd->ctx0_seq_drop++;
 	/* Set up for the next packet */
 	packet->rhqoff += packet->rsize;
 	if (packet->rhqoff >= packet->maxcnt)
@@ -747,6 +703,39 @@ static noinline int skip_rcv_packet(struct hfi1_packet *packet, int thread)
 	packet->rhf = rhf_to_cpu(packet->rhf_addr);
 
 	return ret;
+}
+
+static void process_rcv_packet_napi(struct hfi1_packet *packet)
+{
+	packet->etype = rhf_rcv_type(packet->rhf);
+
+	/* total length */
+	packet->tlen = rhf_pkt_len(packet->rhf); /* in bytes */
+	/* retrieve eager buffer details */
+	packet->etail = rhf_egr_index(packet->rhf);
+	packet->ebuf = get_egrbuf(packet->rcd, packet->rhf,
+				  &packet->updegr);
+	/*
+	 * Prefetch the contents of the eager buffer.  It is
+	 * OK to send a negative length to prefetch_range().
+	 * The +2 is the size of the RHF.
+	 */
+	prefetch_range(packet->ebuf,
+		       packet->tlen - ((packet->rcd->rcvhdrqentsize -
+				       (rhf_hdrq_offset(packet->rhf)
+					+ 2)) * 4));
+
+	packet->rcd->rhf_rcv_function_map[packet->etype](packet);
+	packet->numpkt++;
+
+	/* Set up for the next packet */
+	packet->rhqoff += packet->rsize;
+	if (packet->rhqoff >= packet->maxcnt)
+		packet->rhqoff = 0;
+
+	packet->rhf_addr = (__le32 *)packet->rcd->rcvhdrq + packet->rhqoff +
+				      packet->rcd->rhf_offset;
+	packet->rhf = rhf_to_cpu(packet->rhf_addr);
 }
 
 static inline int process_rcv_packet(struct hfi1_packet *packet, int thread)
@@ -769,7 +758,7 @@ static inline int process_rcv_packet(struct hfi1_packet *packet, int thread)
 		 * The +2 is the size of the RHF.
 		 */
 		prefetch_range(packet->ebuf,
-			       packet->tlen - ((packet->rcd->rcvhdrqentsize -
+			       packet->tlen - ((get_hdrqentsize(packet->rcd) -
 					       (rhf_hdrq_offset(packet->rhf)
 						+ 2)) * 4));
 	}
@@ -823,8 +812,38 @@ static inline void finish_packet(struct hfi1_packet *packet)
 	 * The only thing we need to do is a final update and call for an
 	 * interrupt
 	 */
-	update_usrhead(packet->rcd, packet->rcd->head, packet->updegr,
+	update_usrhead(packet->rcd, hfi1_rcd_head(packet->rcd), packet->updegr,
 		       packet->etail, rcv_intr_dynamic, packet->numpkt);
+}
+
+/*
+ * handle_receive_interrupt_napi_fp - receive a packet
+ * @rcd: the context
+ * @budget: polling budget
+ *
+ * Called from interrupt handler for receive interrupt.
+ * This is the fast path interrupt handler
+ * when executing napi soft irq environment.
+ */
+int handle_receive_interrupt_napi_fp(struct hfi1_ctxtdata *rcd, int budget)
+{
+	struct hfi1_packet packet;
+
+	init_packet(rcd, &packet);
+	if (last_rcv_seq(rcd, rhf_rcv_seq(packet.rhf)))
+		goto bail;
+
+	while (packet.numpkt < budget) {
+		process_rcv_packet_napi(&packet);
+		if (hfi1_seq_incr(rcd, rhf_rcv_seq(packet.rhf)))
+			break;
+
+		process_rcv_update(0, &packet);
+	}
+	hfi1_set_rcd_head(rcd, packet.rhqoff);
+bail:
+	finish_packet(&packet);
+	return packet.numpkt;
 }
 
 /*
@@ -832,13 +851,11 @@ static inline void finish_packet(struct hfi1_packet *packet)
  */
 int handle_receive_interrupt_nodma_rtail(struct hfi1_ctxtdata *rcd, int thread)
 {
-	u32 seq;
 	int last = RCV_PKT_OK;
 	struct hfi1_packet packet;
 
 	init_packet(rcd, &packet);
-	seq = rhf_rcv_seq(packet.rhf);
-	if (seq != rcd->seq_cnt) {
+	if (last_rcv_seq(rcd, rhf_rcv_seq(packet.rhf))) {
 		last = RCV_PKT_DONE;
 		goto bail;
 	}
@@ -847,15 +864,12 @@ int handle_receive_interrupt_nodma_rtail(struct hfi1_ctxtdata *rcd, int thread)
 
 	while (last == RCV_PKT_OK) {
 		last = process_rcv_packet(&packet, thread);
-		seq = rhf_rcv_seq(packet.rhf);
-		if (++rcd->seq_cnt > 13)
-			rcd->seq_cnt = 1;
-		if (seq != rcd->seq_cnt)
+		if (hfi1_seq_incr(rcd, rhf_rcv_seq(packet.rhf)))
 			last = RCV_PKT_DONE;
 		process_rcv_update(last, &packet);
 	}
 	process_rcv_qp_work(&packet);
-	rcd->head = packet.rhqoff;
+	hfi1_set_rcd_head(rcd, packet.rhqoff);
 bail:
 	finish_packet(&packet);
 	return last;
@@ -884,15 +898,14 @@ int handle_receive_interrupt_dma_rtail(struct hfi1_ctxtdata *rcd, int thread)
 		process_rcv_update(last, &packet);
 	}
 	process_rcv_qp_work(&packet);
-	rcd->head = packet.rhqoff;
+	hfi1_set_rcd_head(rcd, packet.rhqoff);
 bail:
 	finish_packet(&packet);
 	return last;
 }
 
-static inline void set_nodma_rtail(struct hfi1_devdata *dd, u16 ctxt)
+static void set_all_fastpath(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd)
 {
-	struct hfi1_ctxtdata *rcd;
 	u16 i;
 
 	/*
@@ -900,50 +913,17 @@ static inline void set_nodma_rtail(struct hfi1_devdata *dd, u16 ctxt)
 	 * interrupt handler only for that context. Otherwise, switch
 	 * interrupt handler for all statically allocated kernel contexts.
 	 */
-	if (ctxt >= dd->first_dyn_alloc_ctxt) {
-		rcd = hfi1_rcd_get_by_index_safe(dd, ctxt);
-		if (rcd) {
-			rcd->do_interrupt =
-				&handle_receive_interrupt_nodma_rtail;
-			hfi1_rcd_put(rcd);
-		}
-		return;
-	}
-
-	for (i = HFI1_CTRL_CTXT + 1; i < dd->first_dyn_alloc_ctxt; i++) {
-		rcd = hfi1_rcd_get_by_index(dd, i);
-		if (rcd)
-			rcd->do_interrupt =
-				&handle_receive_interrupt_nodma_rtail;
+	if (rcd->ctxt >= dd->first_dyn_alloc_ctxt && !rcd->is_vnic) {
+		hfi1_rcd_get(rcd);
+		hfi1_set_fast(rcd);
 		hfi1_rcd_put(rcd);
-	}
-}
-
-static inline void set_dma_rtail(struct hfi1_devdata *dd, u16 ctxt)
-{
-	struct hfi1_ctxtdata *rcd;
-	u16 i;
-
-	/*
-	 * For dynamically allocated kernel contexts (like vnic) switch
-	 * interrupt handler only for that context. Otherwise, switch
-	 * interrupt handler for all statically allocated kernel contexts.
-	 */
-	if (ctxt >= dd->first_dyn_alloc_ctxt) {
-		rcd = hfi1_rcd_get_by_index_safe(dd, ctxt);
-		if (rcd) {
-			rcd->do_interrupt =
-				&handle_receive_interrupt_dma_rtail;
-			hfi1_rcd_put(rcd);
-		}
 		return;
 	}
 
-	for (i = HFI1_CTRL_CTXT + 1; i < dd->first_dyn_alloc_ctxt; i++) {
+	for (i = HFI1_CTRL_CTXT + 1; i < dd->num_rcv_contexts; i++) {
 		rcd = hfi1_rcd_get_by_index(dd, i);
-		if (rcd)
-			rcd->do_interrupt =
-				&handle_receive_interrupt_dma_rtail;
+		if (rcd && (i < dd->first_dyn_alloc_ctxt || rcd->is_vnic))
+			hfi1_set_fast(rcd);
 		hfi1_rcd_put(rcd);
 	}
 }
@@ -959,17 +939,14 @@ void set_all_slowpath(struct hfi1_devdata *dd)
 		if (!rcd)
 			continue;
 		if (i < dd->first_dyn_alloc_ctxt || rcd->is_vnic)
-			rcd->do_interrupt = &handle_receive_interrupt;
+			rcd->do_interrupt = rcd->slow_handler;
 
 		hfi1_rcd_put(rcd);
 	}
 }
 
-static inline int set_armed_to_active(struct hfi1_ctxtdata *rcd,
-				      struct hfi1_packet *packet,
-				      struct hfi1_devdata *dd)
+static bool __set_armed_to_active(struct hfi1_packet *packet)
 {
-	struct work_struct *lsaw = &rcd->ppd->linkstate_active_work;
 	u8 etype = rhf_rcv_type(packet->rhf);
 	u8 sc = SC15_PACKET;
 
@@ -984,19 +961,34 @@ static inline int set_armed_to_active(struct hfi1_ctxtdata *rcd,
 		sc = hfi1_16B_get_sc(hdr);
 	}
 	if (sc != SC15_PACKET) {
-		int hwstate = driver_lstate(rcd->ppd);
+		int hwstate = driver_lstate(packet->rcd->ppd);
+		struct work_struct *lsaw =
+				&packet->rcd->ppd->linkstate_active_work;
 
 		if (hwstate != IB_PORT_ACTIVE) {
-			dd_dev_info(dd,
+			dd_dev_info(packet->rcd->dd,
 				    "Unexpected link state %s\n",
 				    opa_lstate_name(hwstate));
-			return 0;
+			return false;
 		}
 
-		queue_work(rcd->ppd->link_wq, lsaw);
-		return 1;
+		queue_work(packet->rcd->ppd->link_wq, lsaw);
+		return true;
 	}
-	return 0;
+	return false;
+}
+
+/**
+ * set_armed_to_active  - the fast path for armed to active
+ * @packet: the packet structure
+ *
+ * Return true if packet processing needs to bail.
+ */
+static bool set_armed_to_active(struct hfi1_packet *packet)
+{
+	if (likely(packet->rcd->ppd->host_link_state != HLS_UP_ARMED))
+		return false;
+	return __set_armed_to_active(packet);
 }
 
 /*
@@ -1014,15 +1006,15 @@ int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread)
 	struct hfi1_packet packet;
 	int skip_pkt = 0;
 
+	if (!rcd->rcvhdrq)
+		return RCV_PKT_OK;
 	/* Control context will always use the slow path interrupt handler */
 	needset = (rcd->ctxt == HFI1_CTRL_CTXT) ? 0 : 1;
 
 	init_packet(rcd, &packet);
 
-	if (!HFI1_CAP_KGET_MASK(rcd->flags, DMA_RTAIL)) {
-		u32 seq = rhf_rcv_seq(packet.rhf);
-
-		if (seq != rcd->seq_cnt) {
+	if (!get_dma_rtail_setting(rcd)) {
+		if (last_rcv_seq(rcd, rhf_rcv_seq(packet.rhf))) {
 			last = RCV_PKT_DONE;
 			goto bail;
 		}
@@ -1039,22 +1031,15 @@ int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread)
 		 * Control context can potentially receive an invalid
 		 * rhf. Drop such packets.
 		 */
-		if (rcd->ctxt == HFI1_CTRL_CTXT) {
-			u32 seq = rhf_rcv_seq(packet.rhf);
-
-			if (seq != rcd->seq_cnt)
+		if (rcd->ctxt == HFI1_CTRL_CTXT)
+			if (last_rcv_seq(rcd, rhf_rcv_seq(packet.rhf)))
 				skip_pkt = 1;
-		}
 	}
 
 	prescan_rxq(rcd, &packet);
 
 	while (last == RCV_PKT_OK) {
-		if (unlikely(dd->do_drop &&
-			     atomic_xchg(&dd->drop_packet, DROP_PACKET_OFF) ==
-			     DROP_PACKET_ON)) {
-			dd->do_drop = 0;
-
+		if (hfi1_need_drop(dd)) {
 			/* On to the next packet */
 			packet.rhqoff += packet.rsize;
 			packet.rhf_addr = (__le32 *)rcd->rcvhdrq +
@@ -1066,26 +1051,14 @@ int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread)
 			last = skip_rcv_packet(&packet, thread);
 			skip_pkt = 0;
 		} else {
-			/* Auto activate link on non-SC15 packet receive */
-			if (unlikely(rcd->ppd->host_link_state ==
-				     HLS_UP_ARMED) &&
-			    set_armed_to_active(rcd, &packet, dd))
+			if (set_armed_to_active(&packet))
 				goto bail;
 			last = process_rcv_packet(&packet, thread);
 		}
 
-		if (!HFI1_CAP_KGET_MASK(rcd->flags, DMA_RTAIL)) {
-			u32 seq = rhf_rcv_seq(packet.rhf);
-
-			if (++rcd->seq_cnt > 13)
-				rcd->seq_cnt = 1;
-			if (seq != rcd->seq_cnt)
+		if (!get_dma_rtail_setting(rcd)) {
+			if (hfi1_seq_incr(rcd, rhf_rcv_seq(packet.rhf)))
 				last = RCV_PKT_DONE;
-			if (needset) {
-				dd_dev_info(dd, "Switching to NO_DMA_RTAIL\n");
-				set_nodma_rtail(dd, rcd->ctxt);
-				needset = 0;
-			}
 		} else {
 			if (packet.rhqoff == hdrqtail)
 				last = RCV_PKT_DONE;
@@ -1094,27 +1067,24 @@ int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread)
 			 * rhf. Drop such packets.
 			 */
 			if (rcd->ctxt == HFI1_CTRL_CTXT) {
-				u32 seq = rhf_rcv_seq(packet.rhf);
+				bool lseq;
 
-				if (++rcd->seq_cnt > 13)
-					rcd->seq_cnt = 1;
-				if (!last && (seq != rcd->seq_cnt))
+				lseq = hfi1_seq_incr(rcd,
+						     rhf_rcv_seq(packet.rhf));
+				if (!last && lseq)
 					skip_pkt = 1;
-			}
-
-			if (needset) {
-				dd_dev_info(dd,
-					    "Switching to DMA_RTAIL\n");
-				set_dma_rtail(dd, rcd->ctxt);
-				needset = 0;
 			}
 		}
 
+		if (needset) {
+			needset = false;
+			set_all_fastpath(dd, rcd);
+		}
 		process_rcv_update(last, &packet);
 	}
 
 	process_rcv_qp_work(&packet);
-	rcd->head = packet.rhqoff;
+	hfi1_set_rcd_head(rcd, packet.rhqoff);
 
 bail:
 	/*
@@ -1123,6 +1093,63 @@ bail:
 	 */
 	finish_packet(&packet);
 	return last;
+}
+
+/*
+ * handle_receive_interrupt_napi_sp - receive a packet
+ * @rcd: the context
+ * @budget: polling budget
+ *
+ * Called from interrupt handler for errors or receive interrupt.
+ * This is the slow path interrupt handler
+ * when executing napi soft irq environment.
+ */
+int handle_receive_interrupt_napi_sp(struct hfi1_ctxtdata *rcd, int budget)
+{
+	struct hfi1_devdata *dd = rcd->dd;
+	int last = RCV_PKT_OK;
+	bool needset = true;
+	struct hfi1_packet packet;
+
+	init_packet(rcd, &packet);
+	if (last_rcv_seq(rcd, rhf_rcv_seq(packet.rhf)))
+		goto bail;
+
+	while (last != RCV_PKT_DONE && packet.numpkt < budget) {
+		if (hfi1_need_drop(dd)) {
+			/* On to the next packet */
+			packet.rhqoff += packet.rsize;
+			packet.rhf_addr = (__le32 *)rcd->rcvhdrq +
+					  packet.rhqoff +
+					  rcd->rhf_offset;
+			packet.rhf = rhf_to_cpu(packet.rhf_addr);
+
+		} else {
+			if (set_armed_to_active(&packet))
+				goto bail;
+			process_rcv_packet_napi(&packet);
+		}
+
+		if (hfi1_seq_incr(rcd, rhf_rcv_seq(packet.rhf)))
+			last = RCV_PKT_DONE;
+
+		if (needset) {
+			needset = false;
+			set_all_fastpath(dd, rcd);
+		}
+
+		process_rcv_update(last, &packet);
+	}
+
+	hfi1_set_rcd_head(rcd, packet.rhqoff);
+
+bail:
+	/*
+	 * Always write head at end, and setup rcv interrupt, even
+	 * if no packets were processed.
+	 */
+	finish_packet(&packet);
+	return packet.numpkt;
 }
 
 /*
@@ -1570,7 +1597,7 @@ static int hfi1_setup_bypass_packet(struct hfi1_packet *packet)
 
 	return 0;
 drop:
-	hfi1_cdbg(PKT, "%s: packet dropped\n", __func__);
+	hfi1_cdbg(PKT, "%s: packet dropped", __func__);
 	ibp->rvp.n_pkt_drops++;
 	return -EINVAL;
 }
@@ -1602,59 +1629,114 @@ void handle_eflags(struct hfi1_packet *packet)
 		show_eflags_errs(packet);
 }
 
+static void hfi1_ipoib_ib_rcv(struct hfi1_packet *packet)
+{
+	struct hfi1_ibport *ibp;
+	struct net_device *netdev;
+	struct hfi1_ctxtdata *rcd = packet->rcd;
+	struct napi_struct *napi = rcd->napi;
+	struct sk_buff *skb;
+	struct hfi1_netdev_rxq *rxq = container_of(napi,
+			struct hfi1_netdev_rxq, napi);
+	u32 extra_bytes;
+	u32 tlen, qpnum;
+	bool do_work, do_cnp;
+
+	trace_hfi1_rcvhdr(packet);
+
+	hfi1_setup_ib_header(packet);
+
+	packet->ohdr = &((struct ib_header *)packet->hdr)->u.oth;
+	packet->grh = NULL;
+
+	if (unlikely(rhf_err_flags(packet->rhf))) {
+		handle_eflags(packet);
+		return;
+	}
+
+	qpnum = ib_bth_get_qpn(packet->ohdr);
+	netdev = hfi1_netdev_get_data(rcd->dd, qpnum);
+	if (!netdev)
+		goto drop_no_nd;
+
+	trace_input_ibhdr(rcd->dd, packet, !!(rhf_dc_info(packet->rhf)));
+	trace_ctxt_rsm_hist(rcd->ctxt);
+
+	/* handle congestion notifications */
+	do_work = hfi1_may_ecn(packet);
+	if (unlikely(do_work)) {
+		do_cnp = (packet->opcode != IB_OPCODE_CNP);
+		(void)hfi1_process_ecn_slowpath(hfi1_ipoib_priv(netdev)->qp,
+						 packet, do_cnp);
+	}
+
+	/*
+	 * We have split point after last byte of DETH
+	 * lets strip padding and CRC and ICRC.
+	 * tlen is whole packet len so we need to
+	 * subtract header size as well.
+	 */
+	tlen = packet->tlen;
+	extra_bytes = ib_bth_get_pad(packet->ohdr) + (SIZE_OF_CRC << 2) +
+			packet->hlen;
+	if (unlikely(tlen < extra_bytes))
+		goto drop;
+
+	tlen -= extra_bytes;
+
+	skb = hfi1_ipoib_prepare_skb(rxq, tlen, packet->ebuf);
+	if (unlikely(!skb))
+		goto drop;
+
+	dev_sw_netstats_rx_add(netdev, skb->len);
+
+	skb->dev = netdev;
+	skb->pkt_type = PACKET_HOST;
+	netif_receive_skb(skb);
+
+	return;
+
+drop:
+	++netdev->stats.rx_dropped;
+drop_no_nd:
+	ibp = rcd_to_iport(packet->rcd);
+	++ibp->rvp.n_pkt_drops;
+}
+
 /*
  * The following functions are called by the interrupt handler. They are type
  * specific handlers for each packet type.
  */
-static int process_receive_ib(struct hfi1_packet *packet)
+static void process_receive_ib(struct hfi1_packet *packet)
 {
 	if (hfi1_setup_9B_packet(packet))
-		return RHF_RCV_CONTINUE;
+		return;
 
 	if (unlikely(hfi1_dbg_should_fault_rx(packet)))
-		return RHF_RCV_CONTINUE;
+		return;
 
 	trace_hfi1_rcvhdr(packet);
 
 	if (unlikely(rhf_err_flags(packet->rhf))) {
 		handle_eflags(packet);
-		return RHF_RCV_CONTINUE;
+		return;
 	}
 
 	hfi1_ib_rcv(packet);
-	return RHF_RCV_CONTINUE;
 }
 
-static inline bool hfi1_is_vnic_packet(struct hfi1_packet *packet)
-{
-	/* Packet received in VNIC context via RSM */
-	if (packet->rcd->is_vnic)
-		return true;
-
-	if ((hfi1_16B_get_l2(packet->ebuf) == OPA_16B_L2_TYPE) &&
-	    (hfi1_16B_get_l4(packet->ebuf) == OPA_16B_L4_ETHR))
-		return true;
-
-	return false;
-}
-
-static int process_receive_bypass(struct hfi1_packet *packet)
+static void process_receive_bypass(struct hfi1_packet *packet)
 {
 	struct hfi1_devdata *dd = packet->rcd->dd;
 
-	if (hfi1_is_vnic_packet(packet)) {
-		hfi1_vnic_bypass_rcv(packet);
-		return RHF_RCV_CONTINUE;
-	}
-
 	if (hfi1_setup_bypass_packet(packet))
-		return RHF_RCV_CONTINUE;
+		return;
 
 	trace_hfi1_rcvhdr(packet);
 
 	if (unlikely(rhf_err_flags(packet->rhf))) {
 		handle_eflags(packet);
-		return RHF_RCV_CONTINUE;
+		return;
 	}
 
 	if (hfi1_16B_get_l2(packet->hdr) == 0x2) {
@@ -1677,17 +1759,16 @@ static int process_receive_bypass(struct hfi1_packet *packet)
 				(OPA_EI_STATUS_SMASK | BAD_L2_ERR);
 		}
 	}
-	return RHF_RCV_CONTINUE;
 }
 
-static int process_receive_error(struct hfi1_packet *packet)
+static void process_receive_error(struct hfi1_packet *packet)
 {
 	/* KHdrHCRCErr -- KDETH packet with a bad HCRC */
 	if (unlikely(
 		 hfi1_dbg_fault_suppress_err(&packet->rcd->dd->verbs_dev) &&
 		 (rhf_rcv_type_err(packet->rhf) == RHF_RCV_TYPE_ERROR ||
 		  packet->rhf & RHF_DC_ERR)))
-		return RHF_RCV_CONTINUE;
+		return;
 
 	hfi1_setup_ib_header(packet);
 	handle_eflags(packet);
@@ -1695,32 +1776,29 @@ static int process_receive_error(struct hfi1_packet *packet)
 	if (unlikely(rhf_err_flags(packet->rhf)))
 		dd_dev_err(packet->rcd->dd,
 			   "Unhandled error packet received. Dropping.\n");
-
-	return RHF_RCV_CONTINUE;
 }
 
-static int kdeth_process_expected(struct hfi1_packet *packet)
+static void kdeth_process_expected(struct hfi1_packet *packet)
 {
 	hfi1_setup_9B_packet(packet);
 	if (unlikely(hfi1_dbg_should_fault_rx(packet)))
-		return RHF_RCV_CONTINUE;
+		return;
 
 	if (unlikely(rhf_err_flags(packet->rhf))) {
 		struct hfi1_ctxtdata *rcd = packet->rcd;
 
 		if (hfi1_handle_kdeth_eflags(rcd, rcd->ppd, packet))
-			return RHF_RCV_CONTINUE;
+			return;
 	}
 
 	hfi1_kdeth_expected_rcv(packet);
-	return RHF_RCV_CONTINUE;
 }
 
-static int kdeth_process_eager(struct hfi1_packet *packet)
+static void kdeth_process_eager(struct hfi1_packet *packet)
 {
 	hfi1_setup_9B_packet(packet);
 	if (unlikely(hfi1_dbg_should_fault_rx(packet)))
-		return RHF_RCV_CONTINUE;
+		return;
 
 	trace_hfi1_rcvhdr(packet);
 	if (unlikely(rhf_err_flags(packet->rhf))) {
@@ -1728,37 +1806,41 @@ static int kdeth_process_eager(struct hfi1_packet *packet)
 
 		show_eflags_errs(packet);
 		if (hfi1_handle_kdeth_eflags(rcd, rcd->ppd, packet))
-			return RHF_RCV_CONTINUE;
+			return;
 	}
 
 	hfi1_kdeth_eager_rcv(packet);
-	return RHF_RCV_CONTINUE;
 }
 
-static int process_receive_invalid(struct hfi1_packet *packet)
+static void process_receive_invalid(struct hfi1_packet *packet)
 {
 	dd_dev_err(packet->rcd->dd, "Invalid packet type %d. Dropping\n",
 		   rhf_rcv_type(packet->rhf));
-	return RHF_RCV_CONTINUE;
 }
+
+#define HFI1_RCVHDR_DUMP_MAX	5
 
 void seqfile_dump_rcd(struct seq_file *s, struct hfi1_ctxtdata *rcd)
 {
 	struct hfi1_packet packet;
 	struct ps_mdata mdata;
+	int i;
 
-	seq_printf(s, "Rcd %u: RcvHdr cnt %u entsize %u %s head %llu tail %llu\n",
-		   rcd->ctxt, rcd->rcvhdrq_cnt, rcd->rcvhdrqentsize,
-		   HFI1_CAP_KGET_MASK(rcd->flags, DMA_RTAIL) ?
+	seq_printf(s, "Rcd %u: RcvHdr cnt %u entsize %u %s ctrl 0x%08llx status 0x%08llx, head %llu tail %llu  sw head %u\n",
+		   rcd->ctxt, get_hdrq_cnt(rcd), get_hdrqentsize(rcd),
+		   get_dma_rtail_setting(rcd) ?
 		   "dma_rtail" : "nodma_rtail",
+		   read_kctxt_csr(rcd->dd, rcd->ctxt, RCV_CTXT_CTRL),
+		   read_kctxt_csr(rcd->dd, rcd->ctxt, RCV_CTXT_STATUS),
 		   read_uctxt_csr(rcd->dd, rcd->ctxt, RCV_HDR_HEAD) &
 		   RCV_HDR_HEAD_HEAD_MASK,
-		   read_uctxt_csr(rcd->dd, rcd->ctxt, RCV_HDR_TAIL));
+		   read_uctxt_csr(rcd->dd, rcd->ctxt, RCV_HDR_TAIL),
+		   rcd->head);
 
 	init_packet(rcd, &packet);
 	init_ps_mdata(&mdata, &packet);
 
-	while (1) {
+	for (i = 0; i < HFI1_RCVHDR_DUMP_MAX; i++) {
 		__le32 *rhf_addr = (__le32 *)rcd->rcvhdrq + mdata.ps_head +
 					 rcd->rhf_offset;
 		struct ib_header *hdr;
@@ -1806,6 +1888,17 @@ const rhf_rcv_function_ptr normal_rhf_rcv_functions[] = {
 	[RHF_RCV_TYPE_IB] = process_receive_ib,
 	[RHF_RCV_TYPE_ERROR] = process_receive_error,
 	[RHF_RCV_TYPE_BYPASS] = process_receive_bypass,
+	[RHF_RCV_TYPE_INVALID5] = process_receive_invalid,
+	[RHF_RCV_TYPE_INVALID6] = process_receive_invalid,
+	[RHF_RCV_TYPE_INVALID7] = process_receive_invalid,
+};
+
+const rhf_rcv_function_ptr netdev_rhf_rcv_functions[] = {
+	[RHF_RCV_TYPE_EXPECTED] = process_receive_invalid,
+	[RHF_RCV_TYPE_EAGER] = process_receive_invalid,
+	[RHF_RCV_TYPE_IB] = hfi1_ipoib_ib_rcv,
+	[RHF_RCV_TYPE_ERROR] = process_receive_error,
+	[RHF_RCV_TYPE_BYPASS] = hfi1_vnic_bypass_rcv,
 	[RHF_RCV_TYPE_INVALID5] = process_receive_invalid,
 	[RHF_RCV_TYPE_INVALID6] = process_receive_invalid,
 	[RHF_RCV_TYPE_INVALID7] = process_receive_invalid,

@@ -12,11 +12,13 @@
 #include <linux/sched.h>
 #include <linux/stacktrace.h>
 
+#include <asm/ftrace.h>
+#include <asm/sections.h>
 #include <asm/stacktrace.h>
 #include <asm/traps.h>
 #include <linux/uaccess.h>
 
-#if IS_ENABLED(CONFIG_OPROFILE) || IS_ENABLED(CONFIG_PERF_EVENTS)
+#if IS_ENABLED(CONFIG_PERF_EVENTS)
 
 /* Address of common_exception_return, used to check the
  * transition from kernel to user space.
@@ -188,7 +190,7 @@ void walk_stackframe(unsigned long *sp,
 		if (a1 <= (unsigned long)sp)
 			break;
 
-		frame.pc = MAKE_PC_FROM_RA(a0, a1);
+		frame.pc = MAKE_PC_FROM_RA(a0, _text);
 		frame.sp = a1;
 
 		if (fn(&frame, data))
@@ -237,8 +239,6 @@ EXPORT_SYMBOL_GPL(save_stack_trace);
 
 #endif
 
-#ifdef CONFIG_FRAME_POINTER
-
 struct return_addr_data {
 	unsigned long addr;
 	unsigned skip;
@@ -271,5 +271,3 @@ unsigned long return_address(unsigned level)
 	return r.addr;
 }
 EXPORT_SYMBOL(return_address);
-
-#endif

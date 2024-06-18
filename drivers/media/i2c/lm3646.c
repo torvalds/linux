@@ -134,7 +134,7 @@ static int lm3646_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct lm3646_flash *flash = to_lm3646_flash(ctrl);
 	unsigned int reg_val;
-	int rval = -EINVAL;
+	int rval;
 
 	switch (ctrl->id) {
 	case V4L2_CID_FLASH_LED_MODE:
@@ -334,8 +334,7 @@ static int lm3646_init_device(struct lm3646_flash *flash)
 	return regmap_read(flash->regmap, REG_FLAG, &reg_val);
 }
 
-static int lm3646_probe(struct i2c_client *client,
-			const struct i2c_device_id *devid)
+static int lm3646_probe(struct i2c_client *client)
 {
 	struct lm3646_flash *flash;
 	struct lm3646_platform_data *pdata = dev_get_platdata(&client->dev);
@@ -377,15 +376,13 @@ static int lm3646_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int lm3646_remove(struct i2c_client *client)
+static void lm3646_remove(struct i2c_client *client)
 {
 	struct lm3646_flash *flash = i2c_get_clientdata(client);
 
 	v4l2_device_unregister_subdev(&flash->subdev_led);
 	v4l2_ctrl_handler_free(&flash->ctrls_led);
 	media_entity_cleanup(&flash->subdev_led.entity);
-
-	return 0;
 }
 
 static const struct i2c_device_id lm3646_id_table[] = {

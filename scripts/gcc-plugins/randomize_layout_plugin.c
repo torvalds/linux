@@ -34,27 +34,9 @@ __visible int plugin_is_GPL_compatible;
 static int performance_mode;
 
 static struct plugin_info randomize_layout_plugin_info = {
-	.version	= "201402201816vanilla",
+	.version	= PLUGIN_VERSION,
 	.help		= "disable\t\t\tdo not activate plugin\n"
 			  "performance-mode\tenable cacheline-aware layout randomization\n"
-};
-
-struct whitelist_entry {
-	const char *pathname;
-	const char *lhs;
-	const char *rhs;
-};
-
-static const struct whitelist_entry whitelist[] = {
-	/* NIU overloads mapping with page struct */
-	{ "drivers/net/ethernet/sun/niu.c", "page", "address_space" },
-	/* unix_skb_parms via UNIXCB() buffer */
-	{ "net/unix/af_unix.c", "unix_skb_parms", "char" },
-	/* big_key payload.data struct splashing */
-	{ "security/keys/big_key.c", "path", "void *" },
-	/* walk struct security_hook_heads as an array of struct hlist_head */
-	{ "security/security.c", "hlist_head", "security_hook_heads" },
-	{ }
 };
 
 /* from old Linux dcache.h */
@@ -209,12 +191,14 @@ static void partition_struct(tree *fields, unsigned long length, struct partitio
 
 static void performance_shuffle(tree *newtree, unsigned long length, ranctx *prng_state)
 {
-	unsigned long i, x;
+	unsigned long i, x, index;
 	struct partition_group size_group[length];
 	unsigned long num_groups = 0;
 	unsigned long randnum;
 
 	partition_struct(newtree, length, (struct partition_group *)&size_group, &num_groups);
+
+	/* FIXME: this group shuffle is currently a no-op. */
 	for (i = num_groups - 1; i > 0; i--) {
 		struct partition_group tmp;
 		randnum = ranval(prng_state) % (i + 1);
@@ -224,11 +208,14 @@ static void performance_shuffle(tree *newtree, unsigned long length, ranctx *prn
 	}
 
 	for (x = 0; x < num_groups; x++) {
-		for (i = size_group[x].start + size_group[x].length - 1; i > size_group[x].start; i--) {
+		for (index = size_group[x].length - 1; index > 0; index--) {
 			tree tmp;
+
+			i = size_group[x].start + index;
 			if (DECL_BIT_FIELD_TYPE(newtree[i]))
 				continue;
-			randnum = ranval(prng_state) % (i + 1);
+			randnum = ranval(prng_state) % (index + 1);
+			randnum += size_group[x].start;
 			// we could handle this case differently if desired
 			if (DECL_BIT_FIELD_TYPE(newtree[randnum]))
 				continue;
@@ -291,8 +278,6 @@ static bool is_flexible_array(const_tree field)
 {
 	const_tree fieldtype;
 	const_tree typesize;
-	const_tree elemtype;
-	const_tree elemsize;
 
 	fieldtype = TREE_TYPE(field);
 	typesize = TYPE_SIZE(fieldtype);
@@ -300,18 +285,10 @@ static bool is_flexible_array(const_tree field)
 	if (TREE_CODE(fieldtype) != ARRAY_TYPE)
 		return false;
 
-	elemtype = TREE_TYPE(fieldtype);
-	elemsize = TYPE_SIZE(elemtype);
-
 	/* size of type is represented in bits */
 
 	if (typesize == NULL_TREE && TYPE_DOMAIN(fieldtype) != NULL_TREE &&
 	    TYPE_MAX_VALUE(TYPE_DOMAIN(fieldtype)) == NULL_TREE)
-		return true;
-
-	if (typesize != NULL_TREE &&
-	    (TREE_CONSTANT(typesize) && (!tree_to_uhwi(typesize) ||
-	     tree_to_uhwi(typesize) == tree_to_uhwi(elemsize))))
 		return true;
 
 	return false;
@@ -362,8 +339,7 @@ static int relayout_struct(tree type)
 
 	/*
 	 * enforce that we don't randomize the layout of the last
-	 * element of a struct if it's a 0 or 1-length array
-	 * or a proper flexible array
+	 * element of a struct if it's a proper flexible array
 	 */
 	if (is_flexible_array(newtree[num_fields - 1])) {
 		has_flexarray = true;
@@ -590,16 +566,12 @@ static void register_attributes(void *event_data, void *data)
 	randomize_layout_attr.name		= "randomize_layout";
 	randomize_layout_attr.type_required	= true;
 	randomize_layout_attr.handler		= handle_randomize_layout_attr;
-#if BUILDING_GCC_VERSION >= 4007
 	randomize_layout_attr.affects_type_identity = true;
-#endif
 
 	no_randomize_layout_attr.name		= "no_randomize_layout";
 	no_randomize_layout_attr.type_required	= true;
 	no_randomize_layout_attr.handler	= handle_randomize_layout_attr;
-#if BUILDING_GCC_VERSION >= 4007
 	no_randomize_layout_attr.affects_type_identity = true;
-#endif
 
 	randomize_considered_attr.name		= "randomize_considered";
 	randomize_considered_attr.type_required	= true;
@@ -746,60 +718,6 @@ static void handle_local_var_initializers(void)
 	}
 }
 
-static bool type_name_eq(gimple stmt, const_tree type_tree, const char *wanted_name)
-{
-	const char *type_name;
-
-	if (type_tree == NULL_TREE)
-		return false;
-
-	switch (TREE_CODE(type_tree)) {
-	case RECORD_TYPE:
-		type_name = TYPE_NAME_POINTER(type_tree);
-		break;
-	case INTEGER_TYPE:
-		if (TYPE_PRECISION(type_tree) == CHAR_TYPE_SIZE)
-			type_name = "char";
-		else {
-			INFORM(gimple_location(stmt), "found non-char INTEGER_TYPE cast comparison: %qT\n", type_tree);
-			debug_tree(type_tree);
-			return false;
-		}
-		break;
-	case POINTER_TYPE:
-		if (TREE_CODE(TREE_TYPE(type_tree)) == VOID_TYPE) {
-			type_name = "void *";
-			break;
-		} else {
-			INFORM(gimple_location(stmt), "found non-void POINTER_TYPE cast comparison %qT\n", type_tree);
-			debug_tree(type_tree);
-			return false;
-		}
-	default:
-		INFORM(gimple_location(stmt), "unhandled cast comparison: %qT\n", type_tree);
-		debug_tree(type_tree);
-		return false;
-	}
-
-	return strcmp(type_name, wanted_name) == 0;
-}
-
-static bool whitelisted_cast(gimple stmt, const_tree lhs_tree, const_tree rhs_tree)
-{
-	const struct whitelist_entry *entry;
-	expanded_location xloc = expand_location(gimple_location(stmt));
-
-	for (entry = whitelist; entry->pathname; entry++) {
-		if (!strstr(xloc.file, entry->pathname))
-			continue;
-
-		if (type_name_eq(stmt, lhs_tree, entry->lhs) && type_name_eq(stmt, rhs_tree, entry->rhs))
-			return true;
-	}
-
-	return false;
-}
-
 /*
  * iterate over all statements to find "bad" casts:
  * those where the address of the start of a structure is cast
@@ -876,10 +794,7 @@ static unsigned int find_bad_casts_execute(void)
 #ifndef __DEBUG_PLUGIN
 				if (lookup_attribute("randomize_performed", TYPE_ATTRIBUTES(ptr_lhs_type)))
 #endif
-				{
-					if (!whitelisted_cast(stmt, ptr_lhs_type, ptr_rhs_type))
-						MISMATCH(gimple_location(stmt), "rhs", ptr_lhs_type, ptr_rhs_type);
-				}
+				MISMATCH(gimple_location(stmt), "rhs", ptr_lhs_type, ptr_rhs_type);
 				continue;
 			}
 
@@ -902,10 +817,7 @@ static unsigned int find_bad_casts_execute(void)
 #ifndef __DEBUG_PLUGIN
 				if (lookup_attribute("randomize_performed", TYPE_ATTRIBUTES(op0_type)))
 #endif
-				{
-					if (!whitelisted_cast(stmt, ptr_lhs_type, op0_type))
-						MISMATCH(gimple_location(stmt), "op0", ptr_lhs_type, op0_type);
-				}
+				MISMATCH(gimple_location(stmt), "op0", ptr_lhs_type, op0_type);
 			} else {
 				const_tree ssa_name_var = SSA_NAME_VAR(rhs1);
 				/* skip bogus type casts introduced by container_of */
@@ -915,10 +827,7 @@ static unsigned int find_bad_casts_execute(void)
 #ifndef __DEBUG_PLUGIN
 				if (lookup_attribute("randomize_performed", TYPE_ATTRIBUTES(ptr_rhs_type)))
 #endif
-				{
-					if (!whitelisted_cast(stmt, ptr_lhs_type, ptr_rhs_type))
-						MISMATCH(gimple_location(stmt), "ssa", ptr_lhs_type, ptr_rhs_type);
-				}
+				MISMATCH(gimple_location(stmt), "ssa", ptr_lhs_type, ptr_rhs_type);
 			}
 
 		}

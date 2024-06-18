@@ -1,66 +1,21 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2017        Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019        Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2017        Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019       Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
+/*
+ * Copyright (C) 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018-2023 Intel Corporation
+ */
 #ifndef __iwl_fw_acpi__
 #define __iwl_fw_acpi__
 
 #include <linux/acpi.h>
+#include "fw/regulatory.h"
+#include "fw/api/commands.h"
+#include "fw/api/power.h"
+#include "fw/api/phy.h"
+#include "fw/api/nvm-reg.h"
+#include "fw/api/config.h"
+#include "fw/img.h"
+#include "iwl-trans.h"
+
 
 #define ACPI_WRDS_METHOD	"WRDS"
 #define ACPI_EWRD_METHOD	"EWRD"
@@ -69,100 +24,203 @@
 #define ACPI_SPLC_METHOD	"SPLC"
 #define ACPI_ECKV_METHOD	"ECKV"
 #define ACPI_PPAG_METHOD	"PPAG"
+#define ACPI_WTAS_METHOD	"WTAS"
+#define ACPI_WPFC_METHOD	"WPFC"
+#define ACPI_GLAI_METHOD	"GLAI"
+#define ACPI_WBEM_METHOD	"WBEM"
 
 #define ACPI_WIFI_DOMAIN	(0x07)
 
-#define ACPI_SAR_TABLE_SIZE		10
 #define ACPI_SAR_PROFILE_NUM		4
 
-#define ACPI_GEO_TABLE_SIZE		6
 #define ACPI_NUM_GEO_PROFILES		3
+#define ACPI_NUM_GEO_PROFILES_REV3	8
 #define ACPI_GEO_PER_CHAIN_SIZE		3
 
-#define ACPI_SAR_NUM_CHAIN_LIMITS	2
-#define ACPI_SAR_NUM_SUB_BANDS		5
+#define ACPI_SAR_NUM_CHAINS_REV0	2
+#define ACPI_SAR_NUM_CHAINS_REV1	2
+#define ACPI_SAR_NUM_CHAINS_REV2	4
+#define ACPI_SAR_NUM_SUB_BANDS_REV0	5
+#define ACPI_SAR_NUM_SUB_BANDS_REV1	11
+#define ACPI_SAR_NUM_SUB_BANDS_REV2	11
 
-#define ACPI_WRDS_WIFI_DATA_SIZE	(ACPI_SAR_TABLE_SIZE + 2)
-#define ACPI_EWRD_WIFI_DATA_SIZE	((ACPI_SAR_PROFILE_NUM - 1) * \
-					 ACPI_SAR_TABLE_SIZE + 3)
-#define ACPI_WGDS_WIFI_DATA_SIZE	19
+#define ACPI_WRDS_WIFI_DATA_SIZE_REV0	(ACPI_SAR_NUM_CHAINS_REV0 * \
+					 ACPI_SAR_NUM_SUB_BANDS_REV0 + 2)
+#define ACPI_WRDS_WIFI_DATA_SIZE_REV1	(ACPI_SAR_NUM_CHAINS_REV1 * \
+					 ACPI_SAR_NUM_SUB_BANDS_REV1 + 2)
+#define ACPI_WRDS_WIFI_DATA_SIZE_REV2	(ACPI_SAR_NUM_CHAINS_REV2 * \
+					 ACPI_SAR_NUM_SUB_BANDS_REV2 + 2)
+#define ACPI_EWRD_WIFI_DATA_SIZE_REV0	((ACPI_SAR_PROFILE_NUM - 1) * \
+					 ACPI_SAR_NUM_CHAINS_REV0 * \
+					 ACPI_SAR_NUM_SUB_BANDS_REV0 + 3)
+#define ACPI_EWRD_WIFI_DATA_SIZE_REV1	((ACPI_SAR_PROFILE_NUM - 1) * \
+					 ACPI_SAR_NUM_CHAINS_REV1 * \
+					 ACPI_SAR_NUM_SUB_BANDS_REV1 + 3)
+#define ACPI_EWRD_WIFI_DATA_SIZE_REV2	((ACPI_SAR_PROFILE_NUM - 1) * \
+					 ACPI_SAR_NUM_CHAINS_REV2 * \
+					 ACPI_SAR_NUM_SUB_BANDS_REV2 + 3)
+#define ACPI_WPFC_WIFI_DATA_SIZE	5 /* domain and 4 filter config words */
+
+/* revision 0 and 1 are identical, except for the semantics in the FW */
+#define ACPI_GEO_NUM_BANDS_REV0		2
+#define ACPI_GEO_NUM_BANDS_REV2		3
+
 #define ACPI_WRDD_WIFI_DATA_SIZE	2
 #define ACPI_SPLC_WIFI_DATA_SIZE	2
 #define ACPI_ECKV_WIFI_DATA_SIZE	2
 
-#define ACPI_WGDS_NUM_BANDS		2
-#define ACPI_WGDS_TABLE_SIZE		3
+/*
+ * One element for domain type,
+ * and one for enablement of Wi-Fi 320MHz per MCC
+ */
+#define ACPI_WBEM_WIFI_DATA_SIZE	2
+/*
+ * One element for domain type,
+ * and one for the status
+ */
+#define ACPI_GLAI_WIFI_DATA_SIZE	2
+#define ACPI_GLAI_MAX_STATUS		2
+/*
+ * TAS size: 1 elelment for type,
+ *	     1 element for enabled field,
+ *	     1 element for block list size,
+ *	     16 elements for block list array
+ */
+#define ACPI_WTAS_WIFI_DATA_SIZE	(3 + IWL_WTAS_BLACK_LIST_MAX)
 
-#define ACPI_PPAG_NUM_CHAINS		2
-#define ACPI_PPAG_NUM_SUB_BANDS		5
-#define ACPI_PPAG_WIFI_DATA_SIZE	((ACPI_PPAG_NUM_CHAINS * \
-					ACPI_PPAG_NUM_SUB_BANDS) + 3)
+#define ACPI_PPAG_WIFI_DATA_SIZE_V1	((IWL_NUM_CHAIN_LIMITS * \
+					  IWL_NUM_SUB_BANDS_V1) + 2)
+#define ACPI_PPAG_WIFI_DATA_SIZE_V2	((IWL_NUM_CHAIN_LIMITS * \
+					  IWL_NUM_SUB_BANDS_V2) + 2)
 
-/* PPAG gain value bounds in 1/8 dBm */
-#define ACPI_PPAG_MIN_LB -16
-#define ACPI_PPAG_MAX_LB 24
-#define ACPI_PPAG_MIN_HB -16
-#define ACPI_PPAG_MAX_HB 40
+#define IWL_SAR_ENABLE_MSK		BIT(0)
+#define IWL_REDUCE_POWER_FLAGS_POS	1
+
+/* The Inidcator whether UEFI WIFI GUID tables are locked is read from ACPI */
+#define UEFI_WIFI_GUID_UNLOCKED		0
+
+#define ACPI_DSM_REV 0
+
+#define IWL_ACPI_WBEM_REV0_MASK (BIT(0) | BIT(1))
+#define IWL_ACPI_WBEM_REVISION 0
 
 #ifdef CONFIG_ACPI
 
-void *iwl_acpi_get_object(struct device *dev, acpi_string method);
-union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
-					 union acpi_object *data,
-					 int data_size, int *tbl_rev);
+struct iwl_fw_runtime;
+
+extern const guid_t iwl_guid;
 
 /**
  * iwl_acpi_get_mcc - read MCC from ACPI, if available
  *
- * @dev: the struct device
+ * @fwrt: the fw runtime struct
  * @mcc: output buffer (3 bytes) that will get the MCC
  *
  * This function tries to read the current MCC from ACPI if available.
  */
-int iwl_acpi_get_mcc(struct device *dev, char *mcc);
+int iwl_acpi_get_mcc(struct iwl_fw_runtime *fwrt, char *mcc);
 
-u64 iwl_acpi_get_pwr_limit(struct device *dev);
+int iwl_acpi_get_pwr_limit(struct iwl_fw_runtime *fwrt, u64 *dflt_pwr_limit);
 
 /*
  * iwl_acpi_get_eckv - read external clock validation from ACPI, if available
  *
- * @dev: the struct device
+ * @fwrt: the fw runtime struct
  * @extl_clk: output var (2 bytes) that will get the clk indication.
  *
  * This function tries to read the external clock indication
  * from ACPI if available.
  */
-int iwl_acpi_get_eckv(struct device *dev, u32 *extl_clk);
+int iwl_acpi_get_eckv(struct iwl_fw_runtime *fwrt, u32 *extl_clk);
 
+int iwl_acpi_get_wrds_table(struct iwl_fw_runtime *fwrt);
+
+int iwl_acpi_get_ewrd_table(struct iwl_fw_runtime *fwrt);
+
+int iwl_acpi_get_wgds_table(struct iwl_fw_runtime *fwrt);
+
+int iwl_acpi_get_tas_table(struct iwl_fw_runtime *fwrt,
+			   struct iwl_tas_data *data);
+
+int iwl_acpi_get_ppag_table(struct iwl_fw_runtime *fwrt);
+
+void iwl_acpi_get_phy_filters(struct iwl_fw_runtime *fwrt,
+			      struct iwl_phy_specific_cfg *filters);
+
+void iwl_acpi_get_guid_lock_status(struct iwl_fw_runtime *fwrt);
+
+int iwl_acpi_get_dsm(struct iwl_fw_runtime *fwrt,
+		     enum iwl_dsm_funcs func, u32 *value);
+
+int iwl_acpi_get_wbem(struct iwl_fw_runtime *fwrt, u32 *value);
 #else /* CONFIG_ACPI */
 
-static inline void *iwl_acpi_get_object(struct device *dev, acpi_string method)
+static inline void *iwl_acpi_get_dsm_object(struct device *dev, int rev,
+					    int func, union acpi_object *args)
 {
 	return ERR_PTR(-ENOENT);
 }
 
-static inline union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
-						       union acpi_object *data,
-						       int data_size,
-						       int *tbl_rev)
-{
-	return ERR_PTR(-ENOENT);
-}
-
-static inline int iwl_acpi_get_mcc(struct device *dev, char *mcc)
+static inline int iwl_acpi_get_mcc(struct iwl_fw_runtime *fwrt, char *mcc)
 {
 	return -ENOENT;
 }
 
-static inline u64 iwl_acpi_get_pwr_limit(struct device *dev)
+static inline int iwl_acpi_get_pwr_limit(struct iwl_fw_runtime *fwrt,
+					 u64 *dflt_pwr_limit)
 {
+	*dflt_pwr_limit = 0;
 	return 0;
 }
 
-static inline int iwl_acpi_get_eckv(struct device *dev, u32 *extl_clk)
+static inline int iwl_acpi_get_eckv(struct iwl_fw_runtime *fwrt, u32 *extl_clk)
 {
 	return -ENOENT;
 }
 
+static inline int iwl_acpi_get_wrds_table(struct iwl_fw_runtime *fwrt)
+{
+	return -ENOENT;
+}
+
+static inline int iwl_acpi_get_ewrd_table(struct iwl_fw_runtime *fwrt)
+{
+	return -ENOENT;
+}
+
+static inline int iwl_acpi_get_wgds_table(struct iwl_fw_runtime *fwrt)
+{
+	return 1;
+}
+
+static inline int iwl_acpi_get_tas_table(struct iwl_fw_runtime *fwrt,
+					 struct iwl_tas_data *data)
+{
+	return -ENOENT;
+}
+
+static inline int iwl_acpi_get_ppag_table(struct iwl_fw_runtime *fwrt)
+{
+	return -ENOENT;
+}
+
+/* macro since the second argument doesn't always exist */
+#define iwl_acpi_get_phy_filters(fwrt, filters) do { } while (0)
+
+static inline void iwl_acpi_get_guid_lock_status(struct iwl_fw_runtime *fwrt)
+{
+}
+
+static inline int iwl_acpi_get_dsm(struct iwl_fw_runtime *fwrt,
+				   enum iwl_dsm_funcs func, u32 *value)
+{
+	return -ENOENT;
+}
+
+static inline int iwl_acpi_get_wbem(struct iwl_fw_runtime *fwrt, u32 *value)
+{
+	return -ENOENT;
+}
 #endif /* CONFIG_ACPI */
+
 #endif /* __iwl_fw_acpi__ */

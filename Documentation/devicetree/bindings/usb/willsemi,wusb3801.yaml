@@ -1,0 +1,76 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/usb/willsemi,wusb3801.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: WUSB3801 Type-C port controller
+
+description:
+  The Will Semiconductor WUSB3801 is a USB Type-C port controller which
+  supports role and plug orientation detection using the CC pins. It is
+  compatible with the USB Type-C Cable and Connector Specification v1.2.
+
+maintainers:
+  - Samuel Holland <samuel@sholland.org>
+
+properties:
+  compatible:
+    enum:
+      - willsemi,wusb3801
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  connector:
+    type: object
+    $ref: ../connector/usb-connector.yaml#
+    unevaluatedProperties: false
+    description:
+      The managed USB Type-C connector. Since WUSB3801 does not support
+      Power Delivery, the node should have the "pd-disable" property.
+
+    properties:
+      compatible:
+        const: usb-c-connector
+
+    required:
+      - pd-disable
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - connector
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      tcpc@60 {
+        compatible = "willsemi,wusb3801";
+        reg = <0x60>;
+        interrupt-parent = <&gpio0>;
+        interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
+
+        connector {
+          compatible = "usb-c-connector";
+          label = "USB-C";
+          vbus-supply = <&otg_switch>;
+          power-role = "dual";
+          try-power-role = "sink";
+          data-role = "dual";
+          typec-power-opmode = "default";
+          pd-disable;
+        };
+      };
+    };

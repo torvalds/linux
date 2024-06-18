@@ -1,0 +1,96 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/vexpress-sysreg.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ARM Versatile Express system registers
+
+maintainers:
+  - Andre Przywara <andre.przywara@arm.com>
+
+description:
+  This is a system control registers block, providing multiple low level
+  platform functions like board detection and identification, software
+  interrupt generation, MMC and NOR Flash control, etc.
+
+properties:
+  compatible:
+    const: arm,vexpress-sysreg
+
+  reg:
+    maxItems: 1
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 1
+
+  ranges: true
+
+  gpio-controller:
+    deprecated: true
+
+  "#gpio-cells":
+    deprecated: true
+    const: 2
+
+additionalProperties: false
+
+patternProperties:
+  '^gpio@[0-9a-f]+$':
+    type: object
+    additionalProperties: false
+    description:
+      GPIO children
+
+    properties:
+      compatible:
+        enum:
+          - arm,vexpress-sysreg,sys_led
+          - arm,vexpress-sysreg,sys_mci
+          - arm,vexpress-sysreg,sys_flash
+
+      gpio-controller: true
+
+      "#gpio-cells":
+        const: 2
+        description: |
+          The first cell is the function number:
+          for sys_led : 0..7 = LED 0..7
+          for sys_mci : 0 = MMC CARDIN, 1 = MMC WPROT
+          for sys_flash : 0 = NOR FLASH WPn
+          The second cell can take standard GPIO flags.
+
+      reg:
+        maxItems: 1
+
+    required:
+      - compatible
+      - reg
+      - gpio-controller
+      - "#gpio-cells"
+
+required:
+  - compatible
+  - reg
+
+examples:
+  - |
+    sysreg@0 {
+        compatible = "arm,vexpress-sysreg";
+        reg = <0x00000 0x1000>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges = <0 0 0x1000>;
+
+        v2m_led_gpios: gpio@8 {
+            compatible = "arm,vexpress-sysreg,sys_led";
+            reg = <0x008 4>;
+            gpio-controller;
+            #gpio-cells = <2>;
+        };
+    };
+
+...

@@ -1,0 +1,237 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Device Tree Source for OMAP3430 ES1 clock data
+ *
+ * Copyright (C) 2013 Texas Instruments, Inc.
+ */
+&cm_clocks {
+	gfx_l3_ck: gfx_l3_ck@b10 {
+		#clock-cells = <0>;
+		compatible = "ti,wait-gate-clock";
+		clocks = <&l3_ick>;
+		reg = <0x0b10>;
+		ti,bit-shift = <0>;
+	};
+
+	gfx_l3_fck: gfx_l3_fck@b40 {
+		#clock-cells = <0>;
+		compatible = "ti,divider-clock";
+		clocks = <&l3_ick>;
+		ti,max-div = <7>;
+		reg = <0x0b40>;
+		ti,index-starts-at-one;
+	};
+
+	gfx_l3_ick: gfx_l3_ick {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&gfx_l3_ck>;
+		clock-mult = <1>;
+		clock-div = <1>;
+	};
+
+	gfx_cg1_ck: gfx_cg1_ck@b00 {
+		#clock-cells = <0>;
+		compatible = "ti,wait-gate-clock";
+		clocks = <&gfx_l3_fck>;
+		reg = <0x0b00>;
+		ti,bit-shift = <1>;
+	};
+
+	gfx_cg2_ck: gfx_cg2_ck@b00 {
+		#clock-cells = <0>;
+		compatible = "ti,wait-gate-clock";
+		clocks = <&gfx_l3_fck>;
+		reg = <0x0b00>;
+		ti,bit-shift = <2>;
+	};
+
+	clock@a00 {
+		compatible = "ti,clksel";
+		reg = <0xa00>;
+		#clock-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		d2d_26m_fck: clock-d2d-26m-fck@3 {
+			reg = <3>;
+			#clock-cells = <0>;
+			compatible = "ti,wait-gate-clock";
+			clock-output-names = "d2d_26m_fck";
+			clocks = <&sys_ck>;
+		};
+
+		fshostusb_fck: clock-fshostusb-fck@5 {
+			reg = <5>;
+			#clock-cells = <0>;
+			compatible = "ti,wait-gate-clock";
+			clock-output-names = "fshostusb_fck";
+			clocks = <&core_48m_fck>;
+		};
+
+		ssi_ssr_gate_fck_3430es1: clock-ssi-ssr-gate-fck-3430es1@0 {
+			reg = <0>;
+			#clock-cells = <0>;
+			compatible = "ti,composite-no-wait-gate-clock";
+			clock-output-names = "ssi_ssr_gate_fck_3430es1";
+			clocks = <&corex2_fck>;
+		};
+	};
+
+	clock@a40 {
+		compatible = "ti,clksel";
+		reg = <0xa40>;
+		#clock-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ssi_ssr_div_fck_3430es1: clock-ssi-ssr-div-fck-3430es1@8 {
+			reg = <8>;
+			#clock-cells = <0>;
+			compatible = "ti,composite-divider-clock";
+			clock-output-names = "ssi_ssr_div_fck_3430es1";
+			clocks = <&corex2_fck>;
+			ti,dividers = <0>, <1>, <2>, <3>, <4>, <0>, <6>, <0>, <8>;
+		};
+
+		usb_l4_div_ick: clock-usb-l4-div-ick@4 {
+			reg = <4>;
+			#clock-cells = <0>;
+			compatible = "ti,composite-divider-clock";
+			clock-output-names = "usb_l4_div_ick";
+			clocks = <&l4_ick>;
+			ti,max-div = <1>;
+			ti,index-starts-at-one;
+		};
+	};
+
+	ssi_ssr_fck: ssi_ssr_fck_3430es1 {
+		#clock-cells = <0>;
+		compatible = "ti,composite-clock";
+		clocks = <&ssi_ssr_gate_fck_3430es1>, <&ssi_ssr_div_fck_3430es1>;
+	};
+
+	ssi_sst_fck: ssi_sst_fck_3430es1 {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&ssi_ssr_fck>;
+		clock-mult = <1>;
+		clock-div = <2>;
+	};
+
+	clock@a10 {
+		compatible = "ti,clksel";
+		reg = <0xa10>;
+		#clock-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		hsotgusb_ick_3430es1: clock-hsotgusb-ick-3430es1@4 {
+			reg = <4>;
+			#clock-cells = <0>;
+			compatible = "ti,omap3-no-wait-interface-clock";
+			clock-output-names = "hsotgusb_ick_3430es1";
+			clocks = <&core_l3_ick>;
+		};
+
+		fac_ick: clock-fac-ick@8 {
+			reg = <8>;
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "fac_ick";
+			clocks = <&core_l4_ick>;
+		};
+
+		ssi_ick: clock-ssi-ick-3430es1@0 {
+			reg = <0>;
+			#clock-cells = <0>;
+			compatible = "ti,omap3-no-wait-interface-clock";
+			clock-output-names = "ssi_ick_3430es1";
+			clocks = <&ssi_l4_ick>;
+		};
+
+		usb_l4_gate_ick: clock-usb-l4-gate-ick@5 {
+			reg = <5>;
+			#clock-cells = <0>;
+			compatible = "ti,composite-interface-clock";
+			clock-output-names = "usb_l4_gate_ick";
+			clocks = <&l4_ick>;
+		};
+	};
+
+	ssi_l4_ick: ssi_l4_ick {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&l4_ick>;
+		clock-mult = <1>;
+		clock-div = <1>;
+	};
+
+	usb_l4_ick: usb_l4_ick {
+		#clock-cells = <0>;
+		compatible = "ti,composite-clock";
+		clocks = <&usb_l4_gate_ick>, <&usb_l4_div_ick>;
+	};
+
+	clock@e00 {
+		compatible = "ti,clksel";
+		reg = <0xe00>;
+		#clock-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		dss1_alwon_fck: clock-dss1-alwon-fck-3430es1@0 {
+			reg = <0>;
+			#clock-cells = <0>;
+			compatible = "ti,gate-clock";
+			clock-output-names = "dss1_alwon_fck_3430es1";
+			clocks = <&dpll4_m4x2_ck>;
+			ti,set-rate-parent;
+		};
+	};
+
+	dss_ick: dss_ick_3430es1@e10 {
+		#clock-cells = <0>;
+		compatible = "ti,omap3-no-wait-interface-clock";
+		clocks = <&l4_ick>;
+		reg = <0x0e10>;
+		ti,bit-shift = <0>;
+	};
+};
+
+&cm_clockdomains {
+	core_l3_clkdm: core_l3_clkdm {
+		compatible = "ti,clockdomain";
+		clocks = <&sdrc_ick>, <&hsotgusb_ick_3430es1>;
+	};
+
+	gfx_3430es1_clkdm: gfx_3430es1_clkdm {
+		compatible = "ti,clockdomain";
+		clocks = <&gfx_l3_ck>, <&gfx_cg1_ck>, <&gfx_cg2_ck>;
+	};
+
+	dss_clkdm: dss_clkdm {
+		compatible = "ti,clockdomain";
+		clocks = <&dss_tv_fck>, <&dss_96m_fck>, <&dss2_alwon_fck>,
+			 <&dss1_alwon_fck>, <&dss_ick>;
+	};
+
+	d2d_clkdm: d2d_clkdm {
+		compatible = "ti,clockdomain";
+		clocks = <&d2d_26m_fck>;
+	};
+
+	core_l4_clkdm: core_l4_clkdm {
+		compatible = "ti,clockdomain";
+		clocks = <&mmchs2_fck>, <&mmchs1_fck>, <&i2c3_fck>, <&i2c2_fck>,
+			 <&i2c1_fck>, <&mcspi4_fck>, <&mcspi3_fck>,
+			 <&mcspi2_fck>, <&mcspi1_fck>, <&uart2_fck>,
+			 <&uart1_fck>, <&hdq_fck>, <&mmchs2_ick>, <&mmchs1_ick>,
+			 <&hdq_ick>, <&mcspi4_ick>, <&mcspi3_ick>,
+			 <&mcspi2_ick>, <&mcspi1_ick>, <&i2c3_ick>, <&i2c2_ick>,
+			 <&i2c1_ick>, <&uart2_ick>, <&uart1_ick>, <&gpt11_ick>,
+			 <&gpt10_ick>, <&mcbsp5_ick>, <&mcbsp1_ick>,
+			 <&omapctrl_ick>, <&aes2_ick>, <&sha12_ick>,
+			 <&fshostusb_fck>, <&fac_ick>, <&ssi_ick>;
+	};
+};

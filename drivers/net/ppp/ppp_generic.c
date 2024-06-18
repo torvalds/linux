@@ -69,6 +69,8 @@
 #define MPHDRLEN	6	/* multilink protocol header length */
 #define MPHDRLEN_SSN	4	/* ditto with short sequence numbers */
 
+#define PPP_PROTO_LEN	2
+
 /*
  * An instance of /dev/ppp can be associated with either a ppp
  * interface unit or a ppp channel.  In both cases, file->private_data
@@ -173,8 +175,10 @@ struct channel {
 	spinlock_t	downl;		/* protects `chan', file.xq dequeue */
 	struct ppp	*ppp;		/* ppp unit we're connected to */
 	struct net	*chan_net;	/* the net channel belongs to */
+	netns_tracker	ns_tracker;
 	struct list_head clist;		/* link in list of channels per unit */
-	rwlock_t	upl;		/* protects `ppp' */
+	rwlock_t	upl;		/* protects `ppp' and 'bridge' */
+	struct channel __rcu *bridge;	/* "bridged" ppp channel */
 #ifdef CONFIG_PPP_MULTILINK
 	u8		avail;		/* flag used in multilink stuff */
 	u8		had_frag;	/* >= 1 fragments have been sent */
@@ -270,7 +274,7 @@ static void ppp_mp_insert(struct ppp *ppp, struct sk_buff *skb);
 static struct sk_buff *ppp_mp_reconstruct(struct ppp *ppp);
 static int ppp_mp_explode(struct ppp *ppp, struct sk_buff *skb);
 #endif /* CONFIG_PPP_MULTILINK */
-static int ppp_set_compress(struct ppp *ppp, unsigned long arg);
+static int ppp_set_compress(struct ppp *ppp, struct ppp_option_data *data);
 static void ppp_ccp_peek(struct ppp *ppp, struct sk_buff *skb, int inbound);
 static void ppp_ccp_closed(struct ppp *ppp);
 static struct compressor *find_compressor(int type);
@@ -283,7 +287,7 @@ static struct channel *ppp_find_channel(struct ppp_net *pn, int unit);
 static int ppp_connect_channel(struct channel *pch, int unit);
 static int ppp_disconnect_channel(struct channel *pch);
 static void ppp_destroy_channel(struct channel *pch);
-static int unit_get(struct idr *p, void *ptr);
+static int unit_get(struct idr *p, void *ptr, int min);
 static int unit_set(struct idr *p, void *ptr, int n);
 static void unit_put(struct idr *p, int n);
 static void *unit_find(struct idr *p, int n);
@@ -291,13 +295,13 @@ static void ppp_setup(struct net_device *dev);
 
 static const struct net_device_ops ppp_netdev_ops;
 
-static struct class *ppp_class;
+static const struct class ppp_class = {
+	.name = "ppp",
+};
 
 /* per net-namespace data */
 static inline struct ppp_net *ppp_pernet(struct net *net)
 {
-	BUG_ON(!net);
-
 	return net_generic(net, ppp_net_id);
 }
 
@@ -478,7 +482,7 @@ static ssize_t ppp_read(struct file *file, char __user *buf,
 	ret = -EFAULT;
 	iov.iov_base = buf;
 	iov.iov_len = count;
-	iov_iter_init(&to, READ, &iov, 1, count);
+	iov_iter_init(&to, ITER_DEST, &iov, 1, count);
 	if (skb_copy_datagram_iter(skb, 0, &to, skb->len))
 		goto outf;
 	ret = skb->len;
@@ -498,6 +502,9 @@ static ssize_t ppp_write(struct file *file, const char __user *buf,
 
 	if (!pf)
 		return -ENXIO;
+	/* All PPP packets should start with the 2-byte protocol */
+	if (count < PPP_PROTO_LEN)
+		return -EINVAL;
 	ret = -ENOMEM;
 	skb = alloc_skb(count + pf->hdrlen, GFP_KERNEL);
 	if (!skb)
@@ -554,36 +561,150 @@ static __poll_t ppp_poll(struct file *file, poll_table *wait)
 }
 
 #ifdef CONFIG_PPP_FILTER
-static int get_filter(void __user *arg, struct sock_filter **p)
+static struct bpf_prog *get_filter(struct sock_fprog *uprog)
+{
+	struct sock_fprog_kern fprog;
+	struct bpf_prog *res = NULL;
+	int err;
+
+	if (!uprog->len)
+		return NULL;
+
+	/* uprog->len is unsigned short, so no overflow here */
+	fprog.len = uprog->len;
+	fprog.filter = memdup_array_user(uprog->filter,
+					 uprog->len, sizeof(struct sock_filter));
+	if (IS_ERR(fprog.filter))
+		return ERR_CAST(fprog.filter);
+
+	err = bpf_prog_create(&res, &fprog);
+	kfree(fprog.filter);
+
+	return err ? ERR_PTR(err) : res;
+}
+
+static struct bpf_prog *ppp_get_filter(struct sock_fprog __user *p)
 {
 	struct sock_fprog uprog;
-	struct sock_filter *code = NULL;
-	int len;
 
-	if (copy_from_user(&uprog, arg, sizeof(uprog)))
-		return -EFAULT;
-
-	if (!uprog.len) {
-		*p = NULL;
-		return 0;
-	}
-
-	len = uprog.len * sizeof(struct sock_filter);
-	code = memdup_user(uprog.filter, len);
-	if (IS_ERR(code))
-		return PTR_ERR(code);
-
-	*p = code;
-	return uprog.len;
+	if (copy_from_user(&uprog, p, sizeof(struct sock_fprog)))
+		return ERR_PTR(-EFAULT);
+	return get_filter(&uprog);
 }
-#endif /* CONFIG_PPP_FILTER */
+
+#ifdef CONFIG_COMPAT
+struct sock_fprog32 {
+	unsigned short len;
+	compat_caddr_t filter;
+};
+
+#define PPPIOCSPASS32		_IOW('t', 71, struct sock_fprog32)
+#define PPPIOCSACTIVE32		_IOW('t', 70, struct sock_fprog32)
+
+static struct bpf_prog *compat_ppp_get_filter(struct sock_fprog32 __user *p)
+{
+	struct sock_fprog32 uprog32;
+	struct sock_fprog uprog;
+
+	if (copy_from_user(&uprog32, p, sizeof(struct sock_fprog32)))
+		return ERR_PTR(-EFAULT);
+	uprog.len = uprog32.len;
+	uprog.filter = compat_ptr(uprog32.filter);
+	return get_filter(&uprog);
+}
+#endif
+#endif
+
+/* Bridge one PPP channel to another.
+ * When two channels are bridged, ppp_input on one channel is redirected to
+ * the other's ops->start_xmit handler.
+ * In order to safely bridge channels we must reject channels which are already
+ * part of a bridge instance, or which form part of an existing unit.
+ * Once successfully bridged, each channel holds a reference on the other
+ * to prevent it being freed while the bridge is extant.
+ */
+static int ppp_bridge_channels(struct channel *pch, struct channel *pchb)
+{
+	write_lock_bh(&pch->upl);
+	if (pch->ppp ||
+	    rcu_dereference_protected(pch->bridge, lockdep_is_held(&pch->upl))) {
+		write_unlock_bh(&pch->upl);
+		return -EALREADY;
+	}
+	refcount_inc(&pchb->file.refcnt);
+	rcu_assign_pointer(pch->bridge, pchb);
+	write_unlock_bh(&pch->upl);
+
+	write_lock_bh(&pchb->upl);
+	if (pchb->ppp ||
+	    rcu_dereference_protected(pchb->bridge, lockdep_is_held(&pchb->upl))) {
+		write_unlock_bh(&pchb->upl);
+		goto err_unset;
+	}
+	refcount_inc(&pch->file.refcnt);
+	rcu_assign_pointer(pchb->bridge, pch);
+	write_unlock_bh(&pchb->upl);
+
+	return 0;
+
+err_unset:
+	write_lock_bh(&pch->upl);
+	/* Re-read pch->bridge with upl held in case it was modified concurrently */
+	pchb = rcu_dereference_protected(pch->bridge, lockdep_is_held(&pch->upl));
+	RCU_INIT_POINTER(pch->bridge, NULL);
+	write_unlock_bh(&pch->upl);
+	synchronize_rcu();
+
+	if (pchb)
+		if (refcount_dec_and_test(&pchb->file.refcnt))
+			ppp_destroy_channel(pchb);
+
+	return -EALREADY;
+}
+
+static int ppp_unbridge_channels(struct channel *pch)
+{
+	struct channel *pchb, *pchbb;
+
+	write_lock_bh(&pch->upl);
+	pchb = rcu_dereference_protected(pch->bridge, lockdep_is_held(&pch->upl));
+	if (!pchb) {
+		write_unlock_bh(&pch->upl);
+		return -EINVAL;
+	}
+	RCU_INIT_POINTER(pch->bridge, NULL);
+	write_unlock_bh(&pch->upl);
+
+	/* Only modify pchb if phcb->bridge points back to pch.
+	 * If not, it implies that there has been a race unbridging (and possibly
+	 * even rebridging) pchb.  We should leave pchb alone to avoid either a
+	 * refcount underflow, or breaking another established bridge instance.
+	 */
+	write_lock_bh(&pchb->upl);
+	pchbb = rcu_dereference_protected(pchb->bridge, lockdep_is_held(&pchb->upl));
+	if (pchbb == pch)
+		RCU_INIT_POINTER(pchb->bridge, NULL);
+	write_unlock_bh(&pchb->upl);
+
+	synchronize_rcu();
+
+	if (pchbb == pch)
+		if (refcount_dec_and_test(&pch->file.refcnt))
+			ppp_destroy_channel(pch);
+
+	if (refcount_dec_and_test(&pchb->file.refcnt))
+		ppp_destroy_channel(pchb);
+
+	return 0;
+}
 
 static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct ppp_file *pf;
 	struct ppp *ppp;
 	int err = -EFAULT, val, val2, i;
-	struct ppp_idle idle;
+	struct ppp_idle32 idle32;
+	struct ppp_idle64 idle64;
 	struct npioctl npi;
 	int unit, cflags;
 	struct slcompress *vj;
@@ -612,8 +733,9 @@ static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 
 	if (pf->kind == CHANNEL) {
-		struct channel *pch;
+		struct channel *pch, *pchb;
 		struct ppp_channel *chan;
+		struct ppp_net *pn;
 
 		pch = PF_TO_CHANNEL(pf);
 
@@ -626,6 +748,31 @@ static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		case PPPIOCDISCONN:
 			err = ppp_disconnect_channel(pch);
+			break;
+
+		case PPPIOCBRIDGECHAN:
+			if (get_user(unit, p))
+				break;
+			err = -ENXIO;
+			pn = ppp_pernet(current->nsproxy->net_ns);
+			spin_lock_bh(&pn->all_channels_lock);
+			pchb = ppp_find_channel(pn, unit);
+			/* Hold a reference to prevent pchb being freed while
+			 * we establish the bridge.
+			 */
+			if (pchb)
+				refcount_inc(&pchb->file.refcnt);
+			spin_unlock_bh(&pn->all_channels_lock);
+			if (!pchb)
+				break;
+			err = ppp_bridge_channels(pch, pchb);
+			/* Drop earlier refcount now bridge establishment is complete */
+			if (refcount_dec_and_test(&pchb->file.refcnt))
+				ppp_destroy_channel(pchb);
+			break;
+
+		case PPPIOCUNBRIDGECHAN:
+			err = ppp_unbridge_channels(pch);
 			break;
 
 		default:
@@ -679,9 +826,14 @@ static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 
 	case PPPIOCSCOMPRESS:
-		err = ppp_set_compress(ppp, arg);
+	{
+		struct ppp_option_data data;
+		if (copy_from_user(&data, argp, sizeof(data)))
+			err = -EFAULT;
+		else
+			err = ppp_set_compress(ppp, &data);
 		break;
-
+	}
 	case PPPIOCGUNIT:
 		if (put_user(ppp->file.index, p))
 			break;
@@ -701,10 +853,18 @@ static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		err = 0;
 		break;
 
-	case PPPIOCGIDLE:
-		idle.xmit_idle = (jiffies - ppp->last_xmit) / HZ;
-		idle.recv_idle = (jiffies - ppp->last_recv) / HZ;
-		if (copy_to_user(argp, &idle, sizeof(idle)))
+	case PPPIOCGIDLE32:
+                idle32.xmit_idle = (jiffies - ppp->last_xmit) / HZ;
+                idle32.recv_idle = (jiffies - ppp->last_recv) / HZ;
+                if (copy_to_user(argp, &idle32, sizeof(idle32)))
+			break;
+		err = 0;
+		break;
+
+	case PPPIOCGIDLE64:
+		idle64.xmit_idle = (jiffies - ppp->last_xmit) / HZ;
+		idle64.recv_idle = (jiffies - ppp->last_recv) / HZ;
+		if (copy_to_user(argp, &idle64, sizeof(idle64)))
 			break;
 		err = 0;
 		break;
@@ -753,55 +913,25 @@ static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 #ifdef CONFIG_PPP_FILTER
 	case PPPIOCSPASS:
-	{
-		struct sock_filter *code;
-
-		err = get_filter(argp, &code);
-		if (err >= 0) {
-			struct bpf_prog *pass_filter = NULL;
-			struct sock_fprog_kern fprog = {
-				.len = err,
-				.filter = code,
-			};
-
-			err = 0;
-			if (fprog.filter)
-				err = bpf_prog_create(&pass_filter, &fprog);
-			if (!err) {
-				ppp_lock(ppp);
-				if (ppp->pass_filter)
-					bpf_prog_destroy(ppp->pass_filter);
-				ppp->pass_filter = pass_filter;
-				ppp_unlock(ppp);
-			}
-			kfree(code);
-		}
-		break;
-	}
 	case PPPIOCSACTIVE:
 	{
-		struct sock_filter *code;
+		struct bpf_prog *filter = ppp_get_filter(argp);
+		struct bpf_prog **which;
 
-		err = get_filter(argp, &code);
-		if (err >= 0) {
-			struct bpf_prog *active_filter = NULL;
-			struct sock_fprog_kern fprog = {
-				.len = err,
-				.filter = code,
-			};
-
-			err = 0;
-			if (fprog.filter)
-				err = bpf_prog_create(&active_filter, &fprog);
-			if (!err) {
-				ppp_lock(ppp);
-				if (ppp->active_filter)
-					bpf_prog_destroy(ppp->active_filter);
-				ppp->active_filter = active_filter;
-				ppp_unlock(ppp);
-			}
-			kfree(code);
+		if (IS_ERR(filter)) {
+			err = PTR_ERR(filter);
+			break;
 		}
+		if (cmd == PPPIOCSPASS)
+			which = &ppp->pass_filter;
+		else
+			which = &ppp->active_filter;
+		ppp_lock(ppp);
+		if (*which)
+			bpf_prog_destroy(*which);
+		*which = filter;
+		ppp_unlock(ppp);
+		err = 0;
 		break;
 	}
 #endif /* CONFIG_PPP_FILTER */
@@ -826,6 +956,77 @@ out:
 
 	return err;
 }
+
+#ifdef CONFIG_COMPAT
+struct ppp_option_data32 {
+	compat_uptr_t		ptr;
+	u32			length;
+	compat_int_t		transmit;
+};
+#define PPPIOCSCOMPRESS32	_IOW('t', 77, struct ppp_option_data32)
+
+static long ppp_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	struct ppp_file *pf;
+	int err = -ENOIOCTLCMD;
+	void __user *argp = (void __user *)arg;
+
+	mutex_lock(&ppp_mutex);
+
+	pf = file->private_data;
+	if (pf && pf->kind == INTERFACE) {
+		struct ppp *ppp = PF_TO_PPP(pf);
+		switch (cmd) {
+#ifdef CONFIG_PPP_FILTER
+		case PPPIOCSPASS32:
+		case PPPIOCSACTIVE32:
+		{
+			struct bpf_prog *filter = compat_ppp_get_filter(argp);
+			struct bpf_prog **which;
+
+			if (IS_ERR(filter)) {
+				err = PTR_ERR(filter);
+				break;
+			}
+			if (cmd == PPPIOCSPASS32)
+				which = &ppp->pass_filter;
+			else
+				which = &ppp->active_filter;
+			ppp_lock(ppp);
+			if (*which)
+				bpf_prog_destroy(*which);
+			*which = filter;
+			ppp_unlock(ppp);
+			err = 0;
+			break;
+		}
+#endif /* CONFIG_PPP_FILTER */
+		case PPPIOCSCOMPRESS32:
+		{
+			struct ppp_option_data32 data32;
+			if (copy_from_user(&data32, argp, sizeof(data32))) {
+				err = -EFAULT;
+			} else {
+				struct ppp_option_data data = {
+					.ptr = compat_ptr(data32.ptr),
+					.length = data32.length,
+					.transmit = data32.transmit
+				};
+				err = ppp_set_compress(ppp, &data);
+			}
+			break;
+		}
+		}
+	}
+	mutex_unlock(&ppp_mutex);
+
+	/* all other commands have compatible arguments */
+	if (err == -ENOIOCTLCMD)
+		err = ppp_ioctl(file, cmd, (unsigned long)compat_ptr(arg));
+
+	return err;
+}
+#endif
 
 static int ppp_unattached_ioctl(struct net *net, struct ppp_file *pf,
 			struct file *file, unsigned int cmd, unsigned long arg)
@@ -895,6 +1096,9 @@ static const struct file_operations ppp_device_fops = {
 	.write		= ppp_write,
 	.poll		= ppp_poll,
 	.unlocked_ioctl	= ppp_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= ppp_compat_ioctl,
+#endif
 	.open		= ppp_open,
 	.release	= ppp_release,
 	.llseek		= noop_llseek,
@@ -959,9 +1163,20 @@ static int ppp_unit_register(struct ppp *ppp, int unit, bool ifname_is_set)
 	mutex_lock(&pn->all_ppp_mutex);
 
 	if (unit < 0) {
-		ret = unit_get(&pn->units_idr, ppp);
+		ret = unit_get(&pn->units_idr, ppp, 0);
 		if (ret < 0)
 			goto err;
+		if (!ifname_is_set) {
+			while (1) {
+				snprintf(ppp->dev->name, IFNAMSIZ, "ppp%i", ret);
+				if (!netdev_name_in_use(ppp->ppp_net, ppp->dev->name))
+					break;
+				unit_put(&pn->units_idr, ret);
+				ret = unit_get(&pn->units_idr, ppp, ret + 1);
+				if (ret < 0)
+					goto err;
+			}
+		}
 	} else {
 		/* Caller asked for a specific unit number. Fail with -EEXIST
 		 * if unavailable. For backward compatibility, return -EEXIST
@@ -1110,7 +1325,7 @@ static int ppp_nl_newlink(struct net *src_net, struct net_device *dev,
 	 * the PPP unit identifer as suffix (i.e. ppp<unit_id>). This allows
 	 * userspace to infer the device name using to the PPPIOCGUNIT ioctl.
 	 */
-	if (!tb[IFLA_IFNAME])
+	if (!tb[IFLA_IFNAME] || !nla_len(tb[IFLA_IFNAME]) || !*(char *)nla_data(tb[IFLA_IFNAME]))
 		conf.ifname_is_set = false;
 
 	err = ppp_dev_configure(src_net, dev, &conf);
@@ -1142,7 +1357,7 @@ static struct net *ppp_nl_get_link_net(const struct net_device *dev)
 {
 	struct ppp *ppp = netdev_priv(dev);
 
-	return ppp->ppp_net;
+	return READ_ONCE(ppp->ppp_net);
 }
 
 static struct rtnl_link_ops ppp_link_ops __read_mostly = {
@@ -1181,11 +1396,9 @@ static int __init ppp_init(void)
 		goto out_net;
 	}
 
-	ppp_class = class_create(THIS_MODULE, "ppp");
-	if (IS_ERR(ppp_class)) {
-		err = PTR_ERR(ppp_class);
+	err = class_register(&ppp_class);
+	if (err)
 		goto out_chrdev;
-	}
 
 	err = rtnl_link_register(&ppp_link_ops);
 	if (err) {
@@ -1194,12 +1407,12 @@ static int __init ppp_init(void)
 	}
 
 	/* not a big deal if we fail here :-) */
-	device_create(ppp_class, NULL, MKDEV(PPP_MAJOR, 0), NULL, "ppp");
+	device_create(&ppp_class, NULL, MKDEV(PPP_MAJOR, 0), NULL, "ppp");
 
 	return 0;
 
 out_class:
-	class_destroy(ppp_class);
+	class_unregister(&ppp_class);
 out_chrdev:
 	unregister_chrdev(PPP_MAJOR, "ppp");
 out_net:
@@ -1256,11 +1469,11 @@ ppp_start_xmit(struct sk_buff *skb, struct net_device *dev)
 }
 
 static int
-ppp_net_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+ppp_net_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
+		       void __user *addr, int cmd)
 {
 	struct ppp *ppp = netdev_priv(dev);
 	int err = -EFAULT;
-	void __user *addr = (void __user *) ifr->ifr_ifru.ifru_data;
 	struct ppp_stats stats;
 	struct ppp_comp_stats cstats;
 	char *vers;
@@ -1364,15 +1577,37 @@ static void ppp_dev_priv_destructor(struct net_device *dev)
 		ppp_destroy_interface(ppp);
 }
 
+static int ppp_fill_forward_path(struct net_device_path_ctx *ctx,
+				 struct net_device_path *path)
+{
+	struct ppp *ppp = netdev_priv(ctx->dev);
+	struct ppp_channel *chan;
+	struct channel *pch;
+
+	if (ppp->flags & SC_MULTILINK)
+		return -EOPNOTSUPP;
+
+	if (list_empty(&ppp->channels))
+		return -ENODEV;
+
+	pch = list_first_entry(&ppp->channels, struct channel, clist);
+	chan = pch->chan;
+	if (!chan->ops->fill_forward_path)
+		return -EOPNOTSUPP;
+
+	return chan->ops->fill_forward_path(ctx, path, chan);
+}
+
 static const struct net_device_ops ppp_netdev_ops = {
 	.ndo_init	 = ppp_dev_init,
 	.ndo_uninit      = ppp_dev_uninit,
 	.ndo_start_xmit  = ppp_start_xmit,
-	.ndo_do_ioctl    = ppp_net_ioctl,
+	.ndo_siocdevprivate = ppp_net_siocdevprivate,
 	.ndo_get_stats64 = ppp_get_stats64,
+	.ndo_fill_forward_path = ppp_fill_forward_path,
 };
 
-static struct device_type ppp_type = {
+static const struct device_type ppp_type = {
 	.name = "ppp",
 };
 
@@ -1508,6 +1743,8 @@ ppp_send_frame(struct ppp *ppp, struct sk_buff *skb)
 	int len;
 	unsigned char *cp;
 
+	skb->dev = ppp->dev;
+
 	if (proto < 0x8000) {
 #ifdef CONFIG_PPP_FILTER
 		/* check if we should pass this packet */
@@ -1515,7 +1752,7 @@ ppp_send_frame(struct ppp *ppp, struct sk_buff *skb)
 		   a four-byte PPP header on each packet */
 		*(u8 *)skb_push(skb, 2) = 1;
 		if (ppp->pass_filter &&
-		    BPF_PROG_RUN(ppp->pass_filter, skb) == 0) {
+		    bpf_prog_run(ppp->pass_filter, skb) == 0) {
 			if (ppp->debug & 1)
 				netdev_printk(KERN_DEBUG, ppp->dev,
 					      "PPP: outbound frame "
@@ -1525,7 +1762,7 @@ ppp_send_frame(struct ppp *ppp, struct sk_buff *skb)
 		}
 		/* if this packet passes the active filter, record the time */
 		if (!(ppp->active_filter &&
-		      BPF_PROG_RUN(ppp->active_filter, skb) == 0))
+		      bpf_prog_run(ppp->active_filter, skb) == 0))
 			ppp->last_xmit = jiffies;
 		skb_pull(skb, 2);
 #else
@@ -1535,7 +1772,7 @@ ppp_send_frame(struct ppp *ppp, struct sk_buff *skb)
 	}
 
 	++ppp->stats64.tx_packets;
-	ppp->stats64.tx_bytes += skb->len - 2;
+	ppp->stats64.tx_bytes += skb->len - PPP_PROTO_LEN;
 
 	switch (proto) {
 	case PPP_IP:
@@ -2003,6 +2240,40 @@ static bool ppp_decompress_proto(struct sk_buff *skb)
 	return pskb_may_pull(skb, 2);
 }
 
+/* Attempt to handle a frame via. a bridged channel, if one exists.
+ * If the channel is bridged, the frame is consumed by the bridge.
+ * If not, the caller must handle the frame by normal recv mechanisms.
+ * Returns true if the frame is consumed, false otherwise.
+ */
+static bool ppp_channel_bridge_input(struct channel *pch, struct sk_buff *skb)
+{
+	struct channel *pchb;
+
+	rcu_read_lock();
+	pchb = rcu_dereference(pch->bridge);
+	if (!pchb)
+		goto out_rcu;
+
+	spin_lock(&pchb->downl);
+	if (!pchb->chan) {
+		/* channel got unregistered */
+		kfree_skb(skb);
+		goto outl;
+	}
+
+	skb_scrub_packet(skb, !net_eq(pch->chan_net, pchb->chan_net));
+	if (!pchb->chan->ops->start_xmit(pchb->chan, skb))
+		kfree_skb(skb);
+
+outl:
+	spin_unlock(&pchb->downl);
+out_rcu:
+	rcu_read_unlock();
+
+	/* If pchb is set then we've consumed the packet */
+	return !!pchb;
+}
+
 void
 ppp_input(struct ppp_channel *chan, struct sk_buff *skb)
 {
@@ -2013,6 +2284,10 @@ ppp_input(struct ppp_channel *chan, struct sk_buff *skb)
 		kfree_skb(skb);
 		return;
 	}
+
+	/* If the channel is bridged, transmit via. bridge */
+	if (ppp_channel_bridge_input(pch, skb))
+		return;
 
 	read_lock_bh(&pch->upl);
 	if (!ppp_decompress_proto(skb)) {
@@ -2201,7 +2476,7 @@ ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
 
 			*(u8 *)skb_push(skb, 2) = 0;
 			if (ppp->pass_filter &&
-			    BPF_PROG_RUN(ppp->pass_filter, skb) == 0) {
+			    bpf_prog_run(ppp->pass_filter, skb) == 0) {
 				if (ppp->debug & 1)
 					netdev_printk(KERN_DEBUG, ppp->dev,
 						      "PPP: inbound frame "
@@ -2210,7 +2485,7 @@ ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
 				return;
 			}
 			if (!(ppp->active_filter &&
-			      BPF_PROG_RUN(ppp->active_filter, skb) == 0))
+			      bpf_prog_run(ppp->active_filter, skb) == 0))
 				ppp->last_recv = jiffies;
 			__skb_pull(skb, 2);
 		} else
@@ -2612,7 +2887,7 @@ int ppp_register_net_channel(struct net *net, struct ppp_channel *chan)
 
 	pch->ppp = NULL;
 	pch->chan = chan;
-	pch->chan_net = get_net(net);
+	pch->chan_net = get_net_track(net, &pch->ns_tracker, GFP_KERNEL);
 	chan->ppp = pch;
 	init_ppp_file(&pch->file, CHANNEL);
 	pch->file.hdrlen = chan->hdrlen;
@@ -2695,7 +2970,7 @@ ppp_unregister_channel(struct ppp_channel *chan)
 	chan->ppp = NULL;
 
 	/*
-	 * This ensures that we have returned from any calls into the
+	 * This ensures that we have returned from any calls into
 	 * the channel's start_xmit or ioctl routine before we proceed.
 	 */
 	down_write(&pch->chan_sem);
@@ -2710,8 +2985,11 @@ ppp_unregister_channel(struct ppp_channel *chan)
 	list_del(&pch->list);
 	spin_unlock_bh(&pn->all_channels_lock);
 
+	ppp_unbridge_channels(pch);
+
 	pch->file.dead = 1;
 	wake_up_interruptible(&pch->file.rwait);
+
 	if (refcount_dec_and_test(&pch->file.refcnt))
 		ppp_destroy_channel(pch);
 }
@@ -2736,24 +3014,20 @@ ppp_output_wakeup(struct ppp_channel *chan)
 
 /* Process the PPPIOCSCOMPRESS ioctl. */
 static int
-ppp_set_compress(struct ppp *ppp, unsigned long arg)
+ppp_set_compress(struct ppp *ppp, struct ppp_option_data *data)
 {
-	int err;
+	int err = -EFAULT;
 	struct compressor *cp, *ocomp;
-	struct ppp_option_data data;
 	void *state, *ostate;
 	unsigned char ccp_option[CCP_MAX_OPTION_LENGTH];
 
-	err = -EFAULT;
-	if (copy_from_user(&data, (void __user *) arg, sizeof(data)))
+	if (data->length > CCP_MAX_OPTION_LENGTH)
 		goto out;
-	if (data.length > CCP_MAX_OPTION_LENGTH)
-		goto out;
-	if (copy_from_user(ccp_option, (void __user *) data.ptr, data.length))
+	if (copy_from_user(ccp_option, data->ptr, data->length))
 		goto out;
 
 	err = -EINVAL;
-	if (data.length < 2 || ccp_option[1] < 2 || ccp_option[1] > data.length)
+	if (data->length < 2 || ccp_option[1] < 2 || ccp_option[1] > data->length)
 		goto out;
 
 	cp = try_then_request_module(
@@ -2763,8 +3037,8 @@ ppp_set_compress(struct ppp *ppp, unsigned long arg)
 		goto out;
 
 	err = -ENOBUFS;
-	if (data.transmit) {
-		state = cp->comp_alloc(ccp_option, data.length);
+	if (data->transmit) {
+		state = cp->comp_alloc(ccp_option, data->length);
 		if (state) {
 			ppp_xmit_lock(ppp);
 			ppp->xstate &= ~SC_COMP_RUN;
@@ -2782,7 +3056,7 @@ ppp_set_compress(struct ppp *ppp, unsigned long arg)
 			module_put(cp->owner);
 
 	} else {
-		state = cp->decomp_alloc(ccp_option, data.length);
+		state = cp->decomp_alloc(ccp_option, data->length);
 		if (state) {
 			ppp_recv_lock(ppp);
 			ppp->rstate &= ~SC_DECOMP_RUN;
@@ -3188,7 +3462,8 @@ ppp_connect_channel(struct channel *pch, int unit)
 		goto out;
 	write_lock_bh(&pch->upl);
 	ret = -EINVAL;
-	if (pch->ppp)
+	if (pch->ppp ||
+	    rcu_dereference_protected(pch->bridge, lockdep_is_held(&pch->upl)))
 		goto outl;
 
 	ppp_lock(ppp);
@@ -3252,7 +3527,7 @@ ppp_disconnect_channel(struct channel *pch)
  */
 static void ppp_destroy_channel(struct channel *pch)
 {
-	put_net(pch->chan_net);
+	put_net_track(pch->chan_net, &pch->ns_tracker);
 	pch->chan_net = NULL;
 
 	atomic_dec(&channel_count);
@@ -3274,8 +3549,8 @@ static void __exit ppp_cleanup(void)
 		pr_err("PPP: removing module but units remain!\n");
 	rtnl_link_unregister(&ppp_link_ops);
 	unregister_chrdev(PPP_MAJOR, "ppp");
-	device_destroy(ppp_class, MKDEV(PPP_MAJOR, 0));
-	class_destroy(ppp_class);
+	device_destroy(&ppp_class, MKDEV(PPP_MAJOR, 0));
+	class_unregister(&ppp_class);
 	unregister_pernet_device(&ppp_net_ops);
 }
 
@@ -3296,9 +3571,9 @@ static int unit_set(struct idr *p, void *ptr, int n)
 }
 
 /* get new free unit number and associate pointer with it */
-static int unit_get(struct idr *p, void *ptr)
+static int unit_get(struct idr *p, void *ptr, int min)
 {
-	return idr_alloc(p, ptr, 0, 0, GFP_KERNEL);
+	return idr_alloc(p, ptr, min, 0, GFP_KERNEL);
 }
 
 /* put unit number back to a pool */
@@ -3329,6 +3604,7 @@ EXPORT_SYMBOL(ppp_input_error);
 EXPORT_SYMBOL(ppp_output_wakeup);
 EXPORT_SYMBOL(ppp_register_compressor);
 EXPORT_SYMBOL(ppp_unregister_compressor);
+MODULE_DESCRIPTION("Generic PPP layer driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_CHARDEV(PPP_MAJOR, 0);
 MODULE_ALIAS_RTNL_LINK("ppp");

@@ -115,8 +115,7 @@ static const struct regmap_config lm4857_regmap_config = {
 	.num_reg_defaults = ARRAY_SIZE(lm4857_default_regs),
 };
 
-static int lm4857_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int lm4857_i2c_probe(struct i2c_client *i2c)
 {
 	struct regmap *regmap;
 
@@ -129,7 +128,7 @@ static int lm4857_i2c_probe(struct i2c_client *i2c,
 }
 
 static const struct i2c_device_id lm4857_i2c_id[] = {
-	{ "lm4857", 0 },
+	{ "lm4857" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm4857_i2c_id);

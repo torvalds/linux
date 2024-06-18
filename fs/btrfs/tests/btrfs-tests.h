@@ -23,6 +23,7 @@ enum {
 	TEST_ALLOC_INODE,
 	TEST_ALLOC_BLOCK_GROUP,
 	TEST_ALLOC_EXTENT_MAP,
+	TEST_ALLOC_CHUNK_MAP,
 };
 
 extern const char *test_error[];
@@ -41,11 +42,12 @@ struct inode *btrfs_new_test_inode(void);
 struct btrfs_fs_info *btrfs_alloc_dummy_fs_info(u32 nodesize, u32 sectorsize);
 void btrfs_free_dummy_fs_info(struct btrfs_fs_info *fs_info);
 void btrfs_free_dummy_root(struct btrfs_root *root);
-struct btrfs_block_group_cache *
+struct btrfs_block_group *
 btrfs_alloc_dummy_block_group(struct btrfs_fs_info *fs_info, unsigned long length);
-void btrfs_free_dummy_block_group(struct btrfs_block_group_cache *cache);
+void btrfs_free_dummy_block_group(struct btrfs_block_group *cache);
 void btrfs_init_dummy_trans(struct btrfs_trans_handle *trans,
 			    struct btrfs_fs_info *fs_info);
+struct btrfs_device *btrfs_alloc_dummy_device(struct btrfs_fs_info *fs_info);
 #else
 static inline int btrfs_run_sanity_tests(void)
 {

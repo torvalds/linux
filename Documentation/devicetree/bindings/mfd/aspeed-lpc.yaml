@@ -1,0 +1,199 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# # Copyright (c) 2021 Aspeed Tehchnology Inc.
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/aspeed-lpc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Aspeed Low Pin Count (LPC) Bus Controller
+
+maintainers:
+  - Andrew Jeffery <andrew@aj.id.au>
+  - Chia-Wei Wang <chiawei_wang@aspeedtech.com>
+
+description:
+  The LPC bus is a means to bridge a host CPU to a number of low-bandwidth
+  peripheral devices, replacing the use of the ISA bus in the age of PCI[0]. The
+  primary use case of the Aspeed LPC controller is as a slave on the bus
+  (typically in a Baseboard Management Controller SoC), but under certain
+  conditions it can also take the role of bus master.
+
+  The LPC controller is represented as a multi-function device to account for the
+  mix of functionality, which includes, but is not limited to
+
+  * An IPMI Block Transfer[2] Controller
+
+  * An LPC Host Interface Controller manages functions exposed to the host such
+    as LPC firmware hub cycles, configuration of the LPC-to-AHB mapping, UART
+    management and bus snoop configuration.
+
+  * A set of SuperIO[3] scratch registers enabling implementation of e.g. custom
+    hardware management protocols for handover between the host and baseboard
+    management controller.
+
+  Additionally the state of the LPC controller influences the pinmux
+  configuration, therefore the host portion of the controller is exposed as a
+  syscon as a means to arbitrate access.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - aspeed,ast2400-lpc-v2
+          - aspeed,ast2500-lpc-v2
+          - aspeed,ast2600-lpc-v2
+      - const: simple-mfd
+      - const: syscon
+
+  reg:
+    maxItems: 1
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 1
+
+  ranges: true
+
+patternProperties:
+  "^lpc-ctrl@[0-9a-f]+$":
+    type: object
+    additionalProperties: false
+
+    description: |
+      The LPC Host Interface Controller manages functions exposed to the host such as
+      LPC firmware hub cycles, configuration of the LPC-to-AHB mapping, UART management
+      and bus snoop configuration.
+
+    properties:
+      compatible:
+        items:
+          - enum:
+              - aspeed,ast2400-lpc-ctrl
+              - aspeed,ast2500-lpc-ctrl
+              - aspeed,ast2600-lpc-ctrl
+
+      reg:
+        maxItems: 1
+
+      clocks:
+        maxItems: 1
+
+      memory-region:
+        maxItems: 1
+        description: handle to memory reservation for the LPC to AHB mapping region
+
+      flash:
+        $ref: /schemas/types.yaml#/definitions/phandle
+        description: The SPI flash controller containing the flash to be exposed over the LPC to AHB mapping
+
+    required:
+      - compatible
+      - clocks
+
+  "^reset-controller@[0-9a-f]+$":
+    type: object
+    additionalProperties: false
+
+    description:
+      The UARTs present in the ASPEED SoC can have their resets tied to the reset
+      state of the LPC bus. Some systems may chose to modify this configuration
+
+    properties:
+      compatible:
+        items:
+          - enum:
+              - aspeed,ast2400-lpc-reset
+              - aspeed,ast2500-lpc-reset
+              - aspeed,ast2600-lpc-reset
+
+      reg:
+        maxItems: 1
+
+      '#reset-cells':
+        const: 1
+
+    required:
+      - compatible
+      - '#reset-cells'
+
+  "^lpc-snoop@[0-9a-f]+$":
+    type: object
+    additionalProperties: false
+
+    description:
+      The LPC snoop interface allows the BMC to listen on and record the data
+      bytes written by the Host to the targeted LPC I/O pots.
+
+    properties:
+      compatible:
+        items:
+          - enum:
+              - aspeed,ast2400-lpc-snoop
+              - aspeed,ast2500-lpc-snoop
+              - aspeed,ast2600-lpc-snoop
+
+      reg:
+        maxItems: 1
+
+      interrupts:
+        maxItems: 1
+
+      snoop-ports:
+        $ref: /schemas/types.yaml#/definitions/uint32-array
+        description: The LPC I/O ports to snoop
+
+    required:
+      - compatible
+      - interrupts
+      - snoop-ports
+
+  "^uart-routing@[0-9a-f]+$":
+    $ref: /schemas/soc/aspeed/uart-routing.yaml#
+    description: The UART routing control under LPC register space
+
+required:
+  - compatible
+  - reg
+  - "#address-cells"
+  - "#size-cells"
+  - ranges
+
+additionalProperties:
+  type: object
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/ast2600-clock.h>
+
+    lpc: lpc@1e789000 {
+        compatible = "aspeed,ast2600-lpc-v2", "simple-mfd", "syscon";
+        reg = <0x1e789000 0x1000>;
+
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges = <0x0 0x1e789000 0x1000>;
+
+        lpc_ctrl: lpc-ctrl@80 {
+            compatible = "aspeed,ast2600-lpc-ctrl";
+            reg = <0x80 0x80>;
+            clocks = <&syscon ASPEED_CLK_GATE_LCLK>;
+            memory-region = <&flash_memory>;
+            flash = <&spi>;
+        };
+
+        lpc_reset: reset-controller@98 {
+            compatible = "aspeed,ast2600-lpc-reset";
+            reg = <0x98 0x4>;
+            #reset-cells = <1>;
+        };
+
+        lpc_snoop: lpc-snoop@90 {
+            compatible = "aspeed,ast2600-lpc-snoop";
+            reg = <0x90 0x8>;
+            interrupts = <GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH>;
+            snoop-ports = <0x80>;
+        };
+    };

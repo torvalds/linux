@@ -3,6 +3,7 @@
  * PA-RISC KGDB support
  *
  * Copyright (c) 2019 Sven Schnelle <svens@stackframe.org>
+ * Copyright (c) 2022 Helge Deller <deller@gmx.de>
  *
  */
 
@@ -154,8 +155,8 @@ void kgdb_arch_set_pc(struct pt_regs *regs, unsigned long ip)
 
 int kgdb_arch_set_breakpoint(struct kgdb_bkpt *bpt)
 {
-	int ret = probe_kernel_read(bpt->saved_instr, (char *)bpt->bpt_addr,
-				BREAK_INSTR_SIZE);
+	int ret = copy_from_kernel_nofault(bpt->saved_instr,
+			(char *)bpt->bpt_addr, BREAK_INSTR_SIZE);
 	if (ret)
 		return ret;
 

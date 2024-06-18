@@ -63,8 +63,8 @@ s64 nvkm_timer_wait_test(struct nvkm_timer_wait *);
 		dev_WARN(_wait.tmr->subdev.device->dev, "timeout\n");          \
 	_taken;                                                                \
 })
-#define nvkm_usec(d,u,cond...) nvkm_nsec((d), (u) * 1000, ##cond)
-#define nvkm_msec(d,m,cond...) nvkm_usec((d), (m) * 1000, ##cond)
+#define nvkm_usec(d, u, cond...) nvkm_nsec((d), (u) * 1000ULL, ##cond)
+#define nvkm_msec(d, m, cond...) nvkm_usec((d), (m) * 1000ULL, ##cond)
 
 #define nvkm_wait_nsec(d,n,addr,mask,data)                                     \
 	nvkm_nsec(d, n,                                                        \
@@ -76,8 +76,8 @@ s64 nvkm_timer_wait_test(struct nvkm_timer_wait *);
 #define nvkm_wait_msec(d,m,addr,mask,data)                                     \
 	nvkm_wait_usec((d), (m) * 1000, (addr), (mask), (data))
 
-int nv04_timer_new(struct nvkm_device *, int, struct nvkm_timer **);
-int nv40_timer_new(struct nvkm_device *, int, struct nvkm_timer **);
-int nv41_timer_new(struct nvkm_device *, int, struct nvkm_timer **);
-int gk20a_timer_new(struct nvkm_device *, int, struct nvkm_timer **);
+int nv04_timer_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_timer **);
+int nv40_timer_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_timer **);
+int nv41_timer_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_timer **);
+int gk20a_timer_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_timer **);
 #endif

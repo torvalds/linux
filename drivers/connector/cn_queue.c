@@ -19,7 +19,7 @@
 
 static struct cn_callback_entry *
 cn_queue_alloc_callback_entry(struct cn_queue_dev *dev, const char *name,
-			      struct cb_id *id,
+			      const struct cb_id *id,
 			      void (*callback)(struct cn_msg *,
 					       struct netlink_skb_parms *))
 {
@@ -51,13 +51,13 @@ void cn_queue_release_callback(struct cn_callback_entry *cbq)
 	kfree(cbq);
 }
 
-int cn_cb_equal(struct cb_id *i1, struct cb_id *i2)
+int cn_cb_equal(const struct cb_id *i1, const struct cb_id *i2)
 {
 	return ((i1->idx == i2->idx) && (i1->val == i2->val));
 }
 
 int cn_queue_add_callback(struct cn_queue_dev *dev, const char *name,
-			  struct cb_id *id,
+			  const struct cb_id *id,
 			  void (*callback)(struct cn_msg *,
 					   struct netlink_skb_parms *))
 {
@@ -90,7 +90,7 @@ int cn_queue_add_callback(struct cn_queue_dev *dev, const char *name,
 	return 0;
 }
 
-void cn_queue_del_callback(struct cn_queue_dev *dev, struct cb_id *id)
+void cn_queue_del_callback(struct cn_queue_dev *dev, const struct cb_id *id)
 {
 	struct cn_callback_entry *cbq, *n;
 	int found = 0;

@@ -25,7 +25,7 @@ if [ "$1"x != "x" ]; then
 	elif  [ $1 -ge 0 ] 2>/dev/null ; then
 		taint=$1
 	else
-		echo "Error: Parameter '$1' not a positive interger. Aborting." >&2
+		echo "Error: Parameter '$1' not a positive integer. Aborting." >&2
 		exit 1
 	fi
 else
@@ -72,7 +72,7 @@ if [ `expr $T % 2` -eq 0 ]; then
 	addout " "
 else
 	addout "S"
-	echo " * SMP kernel oops on an officially SMP incapable processor (#2)"
+	echo " * kernel running on an out of specification system (#2)"
 fi
 
 T=`expr $T / 2`
@@ -187,6 +187,7 @@ else
 	echo " * auxiliary taint, defined for and used by distros (#16)"
 
 fi
+
 T=`expr $T / 2`
 if [ `expr $T % 2` -eq 0 ]; then
 	addout " "
@@ -195,8 +196,16 @@ else
 	echo " * kernel was built with the struct randomization plugin (#17)"
 fi
 
+T=`expr $T / 2`
+if [ `expr $T % 2` -eq 0 ]; then
+	addout " "
+else
+	addout "N"
+	echo " * an in-kernel test (such as a KUnit test) has been run (#18)"
+fi
+
 echo "For a more detailed explanation of the various taint flags see"
-echo " Documentation/admin-guide/tainted-kernels.rst in the the Linux kernel sources"
+echo " Documentation/admin-guide/tainted-kernels.rst in the Linux kernel sources"
 echo " or https://kernel.org/doc/html/latest/admin-guide/tainted-kernels.html"
 echo "Raw taint value as int/string: $taint/'$out'"
 #EOF#

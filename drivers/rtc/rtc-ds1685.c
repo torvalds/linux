@@ -31,7 +31,10 @@
 
 
 /* ----------------------------------------------------------------------- */
-/* Standard read/write functions if platform does not provide overrides */
+/*
+ *  Standard read/write
+ *  all registers are mapped in CPU address space
+ */
 
 /**
  * ds1685_read - read a value from an rtc register.
@@ -59,6 +62,35 @@ ds1685_write(struct ds1685_priv *rtc, int reg, u8 value)
 }
 /* ----------------------------------------------------------------------- */
 
+/*
+ * Indirect read/write functions
+ * access happens via address and data register mapped in CPU address space
+ */
+
+/**
+ * ds1685_indirect_read - read a value from an rtc register.
+ * @rtc: pointer to the ds1685 rtc structure.
+ * @reg: the register address to read.
+ */
+static u8
+ds1685_indirect_read(struct ds1685_priv *rtc, int reg)
+{
+	writeb(reg, rtc->regs);
+	return readb(rtc->data);
+}
+
+/**
+ * ds1685_indirect_write - write a value to an rtc register.
+ * @rtc: pointer to the ds1685 rtc structure.
+ * @reg: the register address to write.
+ * @value: value to write to the register.
+ */
+static void
+ds1685_indirect_write(struct ds1685_priv *rtc, int reg, u8 value)
+{
+	writeb(reg, rtc->regs);
+	writeb(value, rtc->data);
+}
 
 /* ----------------------------------------------------------------------- */
 /* Inlined functions */
@@ -100,7 +132,7 @@ ds1685_rtc_bin2bcd(struct ds1685_priv *rtc, u8 val, u8 bin_mask, u8 bcd_mask)
 }
 
 /**
- * s1685_rtc_check_mday - check validity of the day of month.
+ * ds1685_rtc_check_mday - check validity of the day of month.
  * @rtc: pointer to the ds1685 rtc structure.
  * @mday: day of month.
  *
@@ -161,12 +193,12 @@ ds1685_rtc_begin_data_access(struct ds1685_priv *rtc)
 	rtc->write(rtc, RTC_CTRL_B,
 		   (rtc->read(rtc, RTC_CTRL_B) | RTC_CTRL_B_SET));
 
+	/* Switch to Bank 1 */
+	ds1685_rtc_switch_to_bank1(rtc);
+
 	/* Read Ext Ctrl 4A and check the INCR bit to avoid a lockout. */
 	while (rtc->read(rtc, RTC_EXT_CTRL_4A) & RTC_CTRL_4A_INCR)
 		cpu_relax();
-
-	/* Switch to Bank 1 */
-	ds1685_rtc_switch_to_bank1(rtc);
 }
 
 /**
@@ -181,7 +213,7 @@ static inline void
 ds1685_rtc_end_data_access(struct ds1685_priv *rtc)
 {
 	/* Switch back to Bank 0 */
-	ds1685_rtc_switch_to_bank1(rtc);
+	ds1685_rtc_switch_to_bank0(rtc);
 
 	/* Clear the SET bit in Ctrl B */
 	rtc->write(rtc, RTC_CTRL_B,
@@ -229,7 +261,7 @@ static int
 ds1685_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct ds1685_priv *rtc = dev_get_drvdata(dev);
-	u8 ctrlb, century;
+	u8 century;
 	u8 seconds, minutes, hours, wday, mday, month, years;
 
 	/* Fetch the time info from the RTC registers. */
@@ -242,7 +274,6 @@ ds1685_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	month   = rtc->read(rtc, RTC_MONTH);
 	years   = rtc->read(rtc, RTC_YEAR);
 	century = rtc->read(rtc, RTC_CENTURY);
-	ctrlb   = rtc->read(rtc, RTC_CTRL_B);
 	ds1685_rtc_end_data_access(rtc);
 
 	/* bcd2bin if needed, perform fixups, and store to rtc_time. */
@@ -627,7 +658,6 @@ ds1685_rtc_irq_handler(int irq, void *dev_id)
 {
 	struct platform_device *pdev = dev_id;
 	struct ds1685_priv *rtc = platform_get_drvdata(pdev);
-	struct mutex *rtc_mutex;
 	u8 ctrlb, ctrlc;
 	unsigned long events = 0;
 	u8 num_irqs = 0;
@@ -636,8 +666,7 @@ ds1685_rtc_irq_handler(int irq, void *dev_id)
 	if (unlikely(!rtc))
 		return IRQ_HANDLED;
 
-	rtc_mutex = &rtc->dev->ops_lock;
-	mutex_lock(rtc_mutex);
+	rtc_lock(rtc->dev);
 
 	/* Ctrlb holds the interrupt-enable bits and ctrlc the flag bits. */
 	ctrlb = rtc->read(rtc, RTC_CTRL_B);
@@ -682,7 +711,7 @@ ds1685_rtc_irq_handler(int irq, void *dev_id)
 		}
 	}
 	rtc_update_irq(rtc->dev, num_irqs, events);
-	mutex_unlock(rtc_mutex);
+	rtc_unlock(rtc->dev);
 
 	return events ? IRQ_HANDLED : IRQ_NONE;
 }
@@ -723,7 +752,7 @@ static int
 ds1685_rtc_proc(struct device *dev, struct seq_file *seq)
 {
 	struct ds1685_priv *rtc = dev_get_drvdata(dev);
-	u8 ctrla, ctrlb, ctrlc, ctrld, ctrl4a, ctrl4b, ssn[8];
+	u8 ctrla, ctrlb, ctrld, ctrl4a, ctrl4b, ssn[8];
 	char *model;
 
 	/* Read all the relevant data from the control registers. */
@@ -731,7 +760,6 @@ ds1685_rtc_proc(struct device *dev, struct seq_file *seq)
 	ds1685_rtc_get_ssn(rtc, ssn);
 	ctrla = rtc->read(rtc, RTC_CTRL_A);
 	ctrlb = rtc->read(rtc, RTC_CTRL_B);
-	ctrlc = rtc->read(rtc, RTC_CTRL_C);
 	ctrld = rtc->read(rtc, RTC_CTRL_D);
 	ctrl4a = rtc->read(rtc, RTC_EXT_CTRL_4A);
 	ctrl4b = rtc->read(rtc, RTC_EXT_CTRL_4B);
@@ -1009,7 +1037,7 @@ ds1685_rtc_sysfs_serial_show(struct device *dev,
 }
 static DEVICE_ATTR(serial, S_IRUGO, ds1685_rtc_sysfs_serial_show, NULL);
 
-/**
+/*
  * struct ds1685_rtc_sysfs_misc_attrs - list for misc RTC features.
  */
 static struct attribute*
@@ -1020,7 +1048,7 @@ ds1685_rtc_sysfs_misc_attrs[] = {
 	NULL,
 };
 
-/**
+/*
  * struct ds1685_rtc_sysfs_misc_grp - attr group for misc RTC features.
  */
 static const struct attribute_group
@@ -1040,7 +1068,6 @@ static int
 ds1685_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtc_dev;
-	struct resource *res;
 	struct ds1685_priv *rtc;
 	struct ds1685_rtc_platform_data *pdata;
 	u8 ctrla, ctrlb, hours;
@@ -1063,59 +1090,35 @@ ds1685_rtc_probe(struct platform_device *pdev)
 	if (!rtc)
 		return -ENOMEM;
 
-	/*
-	 * Allocate/setup any IORESOURCE_MEM resources, if required.  Not all
-	 * platforms put the RTC in an easy-access place.  Like the SGI Octane,
-	 * which attaches the RTC to a "ByteBus", hooked to a SuperIO chip
-	 * that sits behind the IOC3 PCI metadevice.
-	 */
-	if (pdata->alloc_io_resources) {
-		/* Get the platform resources. */
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		if (!res)
-			return -ENXIO;
-		rtc->size = resource_size(res);
-
-		/* Request a memory region. */
-		/* XXX: mmio-only for now. */
-		if (!devm_request_mem_region(&pdev->dev, res->start, rtc->size,
-					     pdev->name))
-			return -EBUSY;
-
-		/*
-		 * Set the base address for the rtc, and ioremap its
-		 * registers.
-		 */
-		rtc->baseaddr = res->start;
-		rtc->regs = devm_ioremap(&pdev->dev, res->start, rtc->size);
-		if (!rtc->regs)
-			return -ENOMEM;
+	/* Setup resources and access functions */
+	switch (pdata->access_type) {
+	case ds1685_reg_direct:
+		rtc->regs = devm_platform_ioremap_resource(pdev, 0);
+		if (IS_ERR(rtc->regs))
+			return PTR_ERR(rtc->regs);
+		rtc->read = ds1685_read;
+		rtc->write = ds1685_write;
+		break;
+	case ds1685_reg_indirect:
+		rtc->regs = devm_platform_ioremap_resource(pdev, 0);
+		if (IS_ERR(rtc->regs))
+			return PTR_ERR(rtc->regs);
+		rtc->data = devm_platform_ioremap_resource(pdev, 1);
+		if (IS_ERR(rtc->data))
+			return PTR_ERR(rtc->data);
+		rtc->read = ds1685_indirect_read;
+		rtc->write = ds1685_indirect_write;
+		break;
 	}
-	rtc->alloc_io_resources = pdata->alloc_io_resources;
+
+	if (!rtc->read || !rtc->write)
+		return -ENXIO;
 
 	/* Get the register step size. */
 	if (pdata->regstep > 0)
 		rtc->regstep = pdata->regstep;
 	else
 		rtc->regstep = 1;
-
-	/* Platform read function, else default if mmio setup */
-	if (pdata->plat_read)
-		rtc->read = pdata->plat_read;
-	else
-		if (pdata->alloc_io_resources)
-			rtc->read = ds1685_read;
-		else
-			return -ENXIO;
-
-	/* Platform write function, else default if mmio setup */
-	if (pdata->plat_write)
-		rtc->write = pdata->plat_write;
-	else
-		if (pdata->alloc_io_resources)
-			rtc->write = ds1685_write;
-		else
-			return -ENXIO;
 
 	/* Platform pre-shutdown function, if defined. */
 	if (pdata->plat_prepare_poweroff)
@@ -1270,8 +1273,7 @@ ds1685_rtc_probe(struct platform_device *pdev)
 
 	/* See if the platform doesn't support UIE. */
 	if (pdata->uie_unsupported)
-		rtc_dev->uie_unsupported = 1;
-	rtc->uie_unsupported = pdata->uie_unsupported;
+		clear_bit(RTC_FEATURE_UPDATE_INTERRUPT, rtc_dev->features);
 
 	rtc->dev = rtc_dev;
 
@@ -1283,13 +1285,10 @@ ds1685_rtc_probe(struct platform_device *pdev)
 	 * there won't be an automatic way of notifying the kernel about it,
 	 * unless ctrlc is explicitly polled.
 	 */
-	if (!pdata->no_irq) {
-		ret = platform_get_irq(pdev, 0);
-		if (ret <= 0)
-			return ret;
-
-		rtc->irq_num = ret;
-
+	rtc->irq_num = platform_get_irq(pdev, 0);
+	if (rtc->irq_num <= 0) {
+		clear_bit(RTC_FEATURE_ALARM, rtc_dev->features);
+	} else {
 		/* Request an IRQ. */
 		ret = devm_request_threaded_irq(&pdev->dev, rtc->irq_num,
 				       NULL, ds1685_rtc_irq_handler,
@@ -1303,7 +1302,6 @@ ds1685_rtc_probe(struct platform_device *pdev)
 			rtc->irq_num = 0;
 		}
 	}
-	rtc->no_irq = pdata->no_irq;
 
 	/* Setup complete. */
 	ds1685_rtc_switch_to_bank0(rtc);
@@ -1312,20 +1310,19 @@ ds1685_rtc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	rtc_dev->nvram_old_abi = true;
 	nvmem_cfg.priv = rtc;
-	ret = rtc_nvmem_register(rtc_dev, &nvmem_cfg);
+	ret = devm_rtc_nvmem_register(rtc_dev, &nvmem_cfg);
 	if (ret)
 		return ret;
 
-	return rtc_register_device(rtc_dev);
+	return devm_rtc_register_device(rtc_dev);
 }
 
 /**
  * ds1685_rtc_remove - removes rtc driver.
  * @pdev: pointer to platform_device structure.
  */
-static int
+static void
 ds1685_rtc_remove(struct platform_device *pdev)
 {
 	struct ds1685_priv *rtc = platform_get_drvdata(pdev);
@@ -1347,11 +1344,9 @@ ds1685_rtc_remove(struct platform_device *pdev)
 	rtc->write(rtc, RTC_EXT_CTRL_4A,
 		   (rtc->read(rtc, RTC_EXT_CTRL_4A) &
 		    ~(RTC_CTRL_4A_RWK_MASK)));
-
-	return 0;
 }
 
-/**
+/*
  * ds1685_rtc_driver - rtc driver properties.
  */
 static struct platform_driver ds1685_rtc_driver = {
@@ -1359,7 +1354,7 @@ static struct platform_driver ds1685_rtc_driver = {
 		.name	= "rtc-ds1685",
 	},
 	.probe		= ds1685_rtc_probe,
-	.remove		= ds1685_rtc_remove,
+	.remove_new	= ds1685_rtc_remove,
 };
 module_platform_driver(ds1685_rtc_driver);
 /* ----------------------------------------------------------------------- */
@@ -1393,7 +1388,7 @@ ds1685_rtc_poweroff(struct platform_device *pdev)
 		 * have been taken care of by the shutdown scripts and this
 		 * is the final function call.
 		 */
-		if (!rtc->no_irq)
+		if (rtc->irq_num)
 			disable_irq_nosync(rtc->irq_num);
 
 		/* Oscillator must be on and the countdown chain enabled. */
@@ -1437,7 +1432,7 @@ ds1685_rtc_poweroff(struct platform_device *pdev)
 		unreachable();
 	}
 }
-EXPORT_SYMBOL(ds1685_rtc_poweroff);
+EXPORT_SYMBOL_GPL(ds1685_rtc_poweroff);
 /* ----------------------------------------------------------------------- */
 
 

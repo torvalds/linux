@@ -18,7 +18,7 @@
  *					Changed for 2.1.19 modules
  *	Jan 1997			Initial release
  *	Jun 1997			2.1.43+ changes
- *					Proper page locking in readpage
+ *					Proper page locking in read_folio
  *					Changed to work with 2.1.45+ fs
  *	Jul 1997			Fixed follow_link
  *			2.1.47
@@ -41,7 +41,7 @@
  *					  dentries in lookup
  *					clean up page flags setting
  *					  (error, uptodate, locking) in
- *					  in readpage
+ *					  in read_folio
  *					use init_special_inode for
  *					  fifos/sockets (and streamline) in
  *					  read_inode, fix _ops table order
@@ -99,8 +99,9 @@ static struct inode *romfs_iget(struct super_block *sb, unsigned long pos);
 /*
  * read a page worth of data from the image
  */
-static int romfs_readpage(struct file *file, struct page *page)
+static int romfs_read_folio(struct file *file, struct folio *folio)
 {
+	struct page *page = &folio->page;
 	struct inode *inode = page->mapping->host;
 	loff_t offset, size;
 	unsigned long fillsize, pos;
@@ -142,7 +143,7 @@ static int romfs_readpage(struct file *file, struct page *page)
 }
 
 static const struct address_space_operations romfs_aops = {
-	.readpage	= romfs_readpage
+	.read_folio	= romfs_read_folio
 };
 
 /*
@@ -321,8 +322,8 @@ static struct inode *romfs_iget(struct super_block *sb, unsigned long pos)
 
 	set_nlink(i, 1);		/* Hard to decide.. */
 	i->i_size = be32_to_cpu(ri.size);
-	i->i_mtime.tv_sec = i->i_atime.tv_sec = i->i_ctime.tv_sec = 0;
-	i->i_mtime.tv_nsec = i->i_atime.tv_nsec = i->i_ctime.tv_nsec = 0;
+	inode_set_mtime_to_ts(i,
+			      inode_set_atime_to_ts(i, inode_set_ctime(i, 0, 0)));
 
 	/* set up mode and ops */
 	mode = romfs_modemap[nextfh & ROMFH_TYPE];
@@ -356,6 +357,7 @@ static struct inode *romfs_iget(struct super_block *sb, unsigned long pos)
 	}
 
 	i->i_mode = mode;
+	i->i_blocks = (i->i_size + 511) >> 9;
 
 	unlock_new_inode(i);
 	return i;
@@ -374,7 +376,7 @@ static struct inode *romfs_alloc_inode(struct super_block *sb)
 {
 	struct romfs_inode_info *inode;
 
-	inode = kmem_cache_alloc(romfs_inode_cachep, GFP_KERNEL);
+	inode = alloc_inode_sb(sb, romfs_inode_cachep, GFP_KERNEL);
 	return inode ? &inode->vfs_inode : NULL;
 }
 
@@ -415,8 +417,7 @@ static int romfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_bfree = buf->f_bavail = buf->f_ffree;
 	buf->f_blocks =
 		(romfs_maxsize(dentry->d_sb) + ROMBSIZE - 1) >> ROMBSBITS;
-	buf->f_fsid.val[0] = (u32)id;
-	buf->f_fsid.val[1] = (u32)(id >> 32);
+	buf->f_fsid = u64_to_fsid(id);
 	return 0;
 }
 
@@ -582,16 +583,18 @@ static int romfs_init_fs_context(struct fs_context *fc)
  */
 static void romfs_kill_sb(struct super_block *sb)
 {
+	generic_shutdown_super(sb);
+
 #ifdef CONFIG_ROMFS_ON_MTD
 	if (sb->s_mtd) {
-		kill_mtd_super(sb);
-		return;
+		put_mtd_device(sb->s_mtd);
+		sb->s_mtd = NULL;
 	}
 #endif
 #ifdef CONFIG_ROMFS_ON_BLOCK
 	if (sb->s_bdev) {
-		kill_block_super(sb);
-		return;
+		sync_blockdev(sb->s_bdev);
+		bdev_fput(sb->s_bdev_file);
 	}
 #endif
 }
@@ -627,8 +630,8 @@ static int __init init_romfs_fs(void)
 	romfs_inode_cachep =
 		kmem_cache_create("romfs_i",
 				  sizeof(struct romfs_inode_info), 0,
-				  SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD |
-				  SLAB_ACCOUNT, romfs_i_init_once);
+				  SLAB_RECLAIM_ACCOUNT | SLAB_ACCOUNT,
+				  romfs_i_init_once);
 
 	if (!romfs_inode_cachep) {
 		pr_err("Failed to initialise inode cache\n");

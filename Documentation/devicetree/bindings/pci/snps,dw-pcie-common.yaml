@@ -1,0 +1,266 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pci/snps,dw-pcie-common.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Synopsys DWC PCIe RP/EP controller
+
+maintainers:
+  - Jingoo Han <jingoohan1@gmail.com>
+  - Gustavo Pimentel <gustavo.pimentel@synopsys.com>
+
+description:
+  Generic Synopsys DesignWare PCIe Root Port and Endpoint controller
+  properties.
+
+select: false
+
+properties:
+  reg:
+    description:
+      DWC PCIe CSR space is normally accessed over the dedicated Data Bus
+      Interface - DBI. In accordance with the reference manual the register
+      configuration space belongs to the Configuration-Dependent Module (CDM)
+      and is split up into several sub-parts Standard PCIe configuration
+      space, Port Logic Registers (PL), Shadow Config-space Registers,
+      iATU/eDMA registers. The particular sub-space is selected by the
+      CDM/ELBI (dbi_cs) and CS2 (dbi_cs2) signals (selector bits). Such
+      configuration provides a flexible interface for the system engineers to
+      either map the particular space at a desired MMIO address or just leave
+      them in a contiguous memory space if pure Native or AXI Bridge DBI access
+      is selected. Note the PCIe CFG-space, PL and Shadow registers are
+      specific for each activated function, while the rest of the sub-spaces
+      are common for all of them (if there are more than one).
+    minItems: 2
+    maxItems: 7
+
+  reg-names:
+    minItems: 2
+    maxItems: 7
+
+  interrupts:
+    description:
+      There are two main sub-blocks which are normally capable of
+      generating interrupts. It's System Information Interface and MSI
+      interface. While the former one has some common for the Host and
+      Endpoint controllers IRQ-signals, the later interface is obviously
+      Root Complex specific since it's responsible for the incoming MSI
+      messages signalling. The System Information IRQ signals are mainly
+      responsible for reporting the generic PCIe hierarchy and Root
+      Complex events like VPD IO request, general AER, PME, Hot-plug, link
+      bandwidth change, link equalization request, INTx asserted/deasserted
+      Message detection, embedded DMA Tx/Rx/Error.
+    minItems: 1
+    maxItems: 26
+
+  interrupt-names:
+    minItems: 1
+    maxItems: 26
+
+  clocks:
+    description:
+      DWC PCIe reference manual explicitly defines a set of the clocks required
+      to get the controller working correctly. In general all of them can
+      be divided into two groups':' application and core clocks. Note the
+      platforms may have some of the clock sources unspecified in case if the
+      corresponding domains are fed up from a common clock source.
+    minItems: 1
+    maxItems: 7
+
+  clock-names:
+    minItems: 1
+    maxItems: 7
+    items:
+      oneOf:
+        - description:
+            Data Bus Interface (DBI) clock. Clock signal for the AXI-bus
+            interface of the Configuration-Dependent Module, which is
+            basically the set of the controller CSRs.
+          const: dbi
+        - description:
+            Application AXI-bus Master interface clock. Basically this is
+            a clock for the controller DMA interface (PCI-to-CPU).
+          const: mstr
+        - description:
+            Application AXI-bus Slave interface clock. This is a clock for
+            the CPU-to-PCI memory IO interface.
+          const: slv
+        - description:
+            Controller Core-PCS PIPE interface clock. It's normally
+            supplied by an external PCS-PHY.
+          const: pipe
+        - description:
+            Controller Primary clock. It's assumed that all controller input
+            signals (except resets) are synchronous to this clock.
+          const: core
+        - description:
+            Auxiliary clock for the controller PMC domain. The controller
+            partitioning implies having some parts to operate with this
+            clock in some power management states.
+          const: aux
+        - description:
+            Generic reference clock. In case if there are several
+            interfaces fed up with a common clock source it's advisable to
+            define it with this name (for instance pipe, core and aux can
+            be connected to a single source of the periodic signal).
+          const: ref
+        - description:
+            Clock for the PHY registers interface. Originally this is
+            a PHY-viewport-based interface, but some platform may have
+            specifically designed one.
+          const: phy_reg
+        - description:
+            Vendor-specific clock names. Consider using the generic names
+            above for new bindings.
+          oneOf:
+            - description: See native 'dbi' clock for details
+              enum: [ pcie, pcie_apb_sys, aclk_dbi ]
+            - description: See native 'mstr/slv' clock for details
+              enum: [ pcie_bus, pcie_inbound_axi, pcie_aclk, aclk_mst, aclk_slv ]
+            - description: See native 'pipe' clock for details
+              enum: [ pcie_phy, pcie_phy_ref, link ]
+            - description: See native 'aux' clock for details
+              enum: [ pcie_aux ]
+            - description: See native 'ref' clock for details.
+              enum: [ gio ]
+            - description: See nativs 'phy_reg' clock for details
+              enum: [ pcie_apb_phy, pclk ]
+
+  resets:
+    description:
+      DWC PCIe reference manual explicitly defines a set of the reset
+      signals required to be de-asserted to properly activate the controller
+      sub-parts. All of these signals can be divided into two sub-groups':'
+      application and core resets with respect to the main sub-domains they
+      are supposed to reset. Note the platforms may have some of these signals
+      unspecified in case if they are automatically handled or aggregated into
+      a comprehensive control module.
+    minItems: 1
+    maxItems: 10
+
+  reset-names:
+    minItems: 1
+    maxItems: 10
+    items:
+      oneOf:
+        - description: Data Bus Interface (DBI) domain reset
+          const: dbi
+        - description: AXI-bus Master interface reset
+          const: mstr
+        - description: AXI-bus Slave interface reset
+          const: slv
+        - description: Application-dependent interface reset
+          const: app
+        - description: Controller Non-sticky CSR flags reset
+          const: non-sticky
+        - description: Controller sticky CSR flags reset
+          const: sticky
+        - description: PIPE-interface (Core-PCS) logic reset
+          const: pipe
+        - description:
+            Controller primary reset (resets everything except PMC module)
+          const: core
+        - description: PCS/PHY block reset
+          const: phy
+        - description: PMC hot reset signal
+          const: hot
+        - description: Cold reset signal
+          const: pwr
+        - description:
+            Vendor-specific reset names. Consider using the generic names
+            above for new bindings.
+          oneOf:
+            - description: See native 'app' reset for details
+              enum: [ apps, gio, apb ]
+            - description: See native 'phy' reset for details
+              enum: [ pciephy, link ]
+            - description: See native 'pwr' reset for details
+              enum: [ turnoff ]
+
+  phys:
+    description:
+      There can be up to the number of possible lanes PHYs specified placed in
+      the phandle array in the line-based order. Obviously each the specified
+      PHYs are supposed to be able to work in the PCIe mode with a speed
+      implied by the DWC PCIe controller they are attached to.
+    minItems: 1
+    maxItems: 16
+
+  phy-names:
+    minItems: 1
+    maxItems: 16
+    oneOf:
+      - description: Generic PHY names
+        items:
+          pattern: '^pcie[0-9]+$'
+      - description:
+          Vendor-specific PHY names. Consider using the generic
+          names above for new bindings.
+        items:
+          oneOf:
+            - pattern: '^pcie(-?phy[0-9]*)?$'
+            - pattern: '^p2u-[0-7]$'
+
+  reset-gpio:
+    deprecated: true
+    description:
+      Reference to the GPIO-controlled PERST# signal. It is used to reset all
+      the peripheral devices available on the PCIe bus.
+    maxItems: 1
+
+  reset-gpios:
+    description:
+      Reference to the GPIO-controlled PERST# signal. It is used to reset all
+      the peripheral devices available on the PCIe bus.
+    maxItems: 1
+
+  max-link-speed:
+    maximum: 5
+
+  num-lanes:
+    description:
+      Number of PCIe link lanes to use. Can be omitted if the already brought
+      up link is supposed to be preserved.
+    maximum: 16
+
+  num-ob-windows:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    deprecated: true
+    description:
+      Number of outbound address translation windows. This parameter can be
+      auto-detected based on the iATU memory writability. So there is no
+      point in having a dedicated DT-property for it.
+    maximum: 256
+
+  num-ib-windows:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    deprecated: true
+    description:
+      Number of inbound address translation windows. In the same way as
+      for the outbound AT windows, this parameter can be auto-detected based
+      on the iATU memory writability. There is no point having a dedicated
+      DT-property for it either.
+    maximum: 256
+
+  num-viewport:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    deprecated: true
+    description:
+      Number of outbound view ports configured in hardware. It's the same as
+      the number of outbound AT windows.
+    maximum: 256
+
+  snps,enable-cdm-check:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      Enable automatic checking of CDM (Configuration Dependent Module)
+      registers for data corruption. CDM registers include standard PCIe
+      configuration space registers, Port Logic registers, DMA and iATU
+      registers. This feature has been available since DWC PCIe v4.80a.
+
+  dma-coherent: true
+
+additionalProperties: true
+
+...

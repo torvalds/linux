@@ -1,68 +1,9 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
- * Copyright(c) 2019 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
- * Copyright(c) 2019 Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *****************************************************************************/
-
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
+/*
+ * Copyright (C) 2008-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
+ * Copyright (C) 2016-2017 Intel Deutschland GmbH
+ */
 #ifndef __iwl_fw_file_h__
 #define __iwl_fw_file_h__
 
@@ -79,7 +20,7 @@ struct iwl_ucode_header {
 			__le32 init_size;	/* bytes of init code */
 			__le32 init_data_size;	/* bytes of init data */
 			__le32 boot_size;	/* bytes of bootstrap code */
-			u8 data[0];		/* in same order as sizes */
+			u8 data[];		/* in same order as sizes */
 		} v1;
 		struct {
 			__le32 build;		/* build number */
@@ -88,12 +29,13 @@ struct iwl_ucode_header {
 			__le32 init_size;	/* bytes of init code */
 			__le32 init_data_size;	/* bytes of init data */
 			__le32 boot_size;	/* bytes of bootstrap code */
-			u8 data[0];		/* in same order as sizes */
+			u8 data[];		/* in same order as sizes */
 		} v2;
 	} u;
 };
 
-#define IWL_UCODE_INI_TLV_GROUP	0x1000000
+#define IWL_UCODE_TLV_DEBUG_BASE	0x1000005
+#define IWL_UCODE_TLV_CONST_BASE	0x100
 
 /*
  * new TLV uCode file layout
@@ -110,7 +52,8 @@ enum iwl_ucode_tlv_type {
 	IWL_UCODE_TLV_INIT_DATA		= 4,
 	IWL_UCODE_TLV_BOOT		= 5,
 	IWL_UCODE_TLV_PROBE_MAX_LEN	= 6, /* a u32 value */
-	IWL_UCODE_TLV_PAN		= 7,
+	IWL_UCODE_TLV_PAN		= 7, /* deprecated -- only used in DVM */
+	IWL_UCODE_TLV_MEM_DESC		= 7, /* replaces PAN in non-DVM */
 	IWL_UCODE_TLV_RUNT_EVTLOG_PTR	= 8,
 	IWL_UCODE_TLV_RUNT_EVTLOG_SIZE	= 9,
 	IWL_UCODE_TLV_RUNT_ERRLOG_PTR	= 10,
@@ -149,14 +92,26 @@ enum iwl_ucode_tlv_type {
 	IWL_UCODE_TLV_UMAC_DEBUG_ADDRS	= 54,
 	IWL_UCODE_TLV_LMAC_DEBUG_ADDRS	= 55,
 	IWL_UCODE_TLV_FW_RECOVERY_INFO	= 57,
-	IWL_UCODE_TLV_FW_FSEQ_VERSION	= 60,
+	IWL_UCODE_TLV_HW_TYPE			= 58,
+	IWL_UCODE_TLV_FW_FSEQ_VERSION		= 60,
+	IWL_UCODE_TLV_PHY_INTEGRATION_VERSION	= 61,
 
-	IWL_UCODE_TLV_DEBUG_BASE		= IWL_UCODE_INI_TLV_GROUP,
+	IWL_UCODE_TLV_PNVM_VERSION		= 62,
+	IWL_UCODE_TLV_PNVM_SKU			= 64,
+
+	IWL_UCODE_TLV_SEC_TABLE_ADDR		= 66,
+	IWL_UCODE_TLV_D3_KEK_KCK_ADDR		= 67,
+	IWL_UCODE_TLV_CURRENT_PC		= 68,
+
+	IWL_UCODE_TLV_FW_NUM_STATIONS		= IWL_UCODE_TLV_CONST_BASE + 0,
+	IWL_UCODE_TLV_FW_NUM_BEACONS		= IWL_UCODE_TLV_CONST_BASE + 2,
+
 	IWL_UCODE_TLV_TYPE_DEBUG_INFO		= IWL_UCODE_TLV_DEBUG_BASE + 0,
 	IWL_UCODE_TLV_TYPE_BUFFER_ALLOCATION	= IWL_UCODE_TLV_DEBUG_BASE + 1,
 	IWL_UCODE_TLV_TYPE_HCMD			= IWL_UCODE_TLV_DEBUG_BASE + 2,
 	IWL_UCODE_TLV_TYPE_REGIONS		= IWL_UCODE_TLV_DEBUG_BASE + 3,
 	IWL_UCODE_TLV_TYPE_TRIGGERS		= IWL_UCODE_TLV_DEBUG_BASE + 4,
+	IWL_UCODE_TLV_TYPE_CONF_SET		= IWL_UCODE_TLV_DEBUG_BASE + 5,
 	IWL_UCODE_TLV_DEBUG_MAX = IWL_UCODE_TLV_TYPE_TRIGGERS,
 
 	/* TLVs 0x1000-0x2000 are for internal driver usage */
@@ -166,7 +121,7 @@ enum iwl_ucode_tlv_type {
 struct iwl_ucode_tlv {
 	__le32 type;		/* see above */
 	__le32 length;		/* not including type/length fields */
-	u8 data[0];
+	u8 data[];
 };
 
 #define IWL_TLV_UCODE_MAGIC		0x0a4c5749
@@ -192,7 +147,7 @@ struct iwl_tlv_ucode_header {
 	 * Note that each TLV is padded to a length
 	 * that is a multiple of 4 for alignment.
 	 */
-	u8 data[0];
+	u8 data[];
 };
 
 /*
@@ -218,7 +173,7 @@ struct iwl_ucode_capa {
  *	treats good CRC threshold as a boolean
  * @IWL_UCODE_TLV_FLAGS_MFP: This uCode image supports MFP (802.11w).
  * @IWL_UCODE_TLV_FLAGS_UAPSD_SUPPORT: This uCode image supports uAPSD
- * @IWL_UCODE_TLV_FLAGS_SHORT_BL: 16 entries of black list instead of 64 in scan
+ * @IWL_UCODE_TLV_FLAGS_SHORT_BL: 16 entries of block list instead of 64 in scan
  *	offload profile config command.
  * @IWL_UCODE_TLV_FLAGS_D3_6_IPV6_ADDRS: D3 image supports up to six
  *	(rather than two) IPv6 addresses
@@ -228,7 +183,6 @@ struct iwl_ucode_capa {
  * @IWL_UCODE_TLV_FLAGS_NEW_NSOFFL_LARGE: new NS offload (large version)
  * @IWL_UCODE_TLV_FLAGS_UAPSD_SUPPORT: General support for uAPSD
  * @IWL_UCODE_TLV_FLAGS_P2P_PS_UAPSD: P2P client supports uAPSD power save
- * @IWL_UCODE_TLV_FLAGS_BCAST_FILTERING: uCode supports broadcast filtering.
  * @IWL_UCODE_TLV_FLAGS_EBS_SUPPORT: this uCode image supports EBS.
  */
 enum iwl_ucode_tlv_flag {
@@ -243,7 +197,6 @@ enum iwl_ucode_tlv_flag {
 	IWL_UCODE_TLV_FLAGS_UAPSD_SUPPORT	= BIT(24),
 	IWL_UCODE_TLV_FLAGS_EBS_SUPPORT		= BIT(25),
 	IWL_UCODE_TLV_FLAGS_P2P_PS_UAPSD	= BIT(26),
-	IWL_UCODE_TLV_FLAGS_BCAST_FILTERING	= BIT(29),
 };
 
 typedef unsigned int __bitwise iwl_ucode_tlv_api_t;
@@ -263,6 +216,7 @@ typedef unsigned int __bitwise iwl_ucode_tlv_api_t;
  *	ADD_MODIFY_STA_KEY_API_S_VER_2.
  * @IWL_UCODE_TLV_API_STA_TYPE: This ucode supports station type assignement.
  * @IWL_UCODE_TLV_API_NAN2_VER2: This ucode supports NAN API version 2
+ * @IWL_UCODE_TLV_API_ADAPTIVE_DWELL: support for adaptive dwell in scanning
  * @IWL_UCODE_TLV_API_NEW_RX_STATS: should new RX STATISTICS API be used
  * @IWL_UCODE_TLV_API_QUOTA_LOW_LATENCY: Quota command includes a field
  *	indicating low latency direction.
@@ -286,8 +240,21 @@ typedef unsigned int __bitwise iwl_ucode_tlv_api_t;
  *	SCAN_OFFLOAD_PROFILES_QUERY_RSP_S.
  * @IWL_UCODE_TLV_API_MBSSID_HE: This ucode supports v2 of
  *	STA_CONTEXT_DOT11AX_API_S
- * @IWL_UCODE_TLV_CAPA_SAR_TABLE_VER: This ucode supports different sar
+ * @IWL_UCODE_TLV_API_FTM_RTT_ACCURACY: version 7 of the range response API
+ *	is supported by FW, this indicates the RTT confidence value
+ * @IWL_UCODE_TLV_API_SAR_TABLE_VER: This ucode supports different sar
  *	version tables.
+ * @IWL_UCODE_TLV_API_REDUCED_SCAN_CONFIG: This ucode supports v3 of
+ *	SCAN_CONFIG_DB_CMD_API_S.
+ * @IWL_UCODE_TLV_API_ADWELL_HB_DEF_N_AP: support for setting adaptive dwell
+ *	number of APs in the 5 GHz band
+ * @IWL_UCODE_TLV_API_BAND_IN_RX_DATA: FW reports band number in RX notification
+ * @IWL_UCODE_TLV_API_NO_HOST_DISABLE_TX: Firmware offloaded the station disable tx
+ *	logic.
+ * @IWL_UCODE_TLV_API_INT_DBG_BUF_CLEAR: Firmware supports clearing the debug
+ *	internal buffer
+ * @IWL_UCODE_TLV_API_SMART_FIFO_OFFLOAD: Firmware doesn't need the host to
+ *	configure the smart fifo
  *
  * @NUM_IWL_UCODE_TLV_API: number of bits used
  */
@@ -321,13 +288,25 @@ enum iwl_ucode_tlv_api {
 	IWL_UCODE_TLV_API_WOWLAN_TCP_SYN_WAKE	= (__force iwl_ucode_tlv_api_t)53,
 	IWL_UCODE_TLV_API_FTM_RTT_ACCURACY      = (__force iwl_ucode_tlv_api_t)54,
 	IWL_UCODE_TLV_API_SAR_TABLE_VER         = (__force iwl_ucode_tlv_api_t)55,
+	IWL_UCODE_TLV_API_REDUCED_SCAN_CONFIG   = (__force iwl_ucode_tlv_api_t)56,
 	IWL_UCODE_TLV_API_ADWELL_HB_DEF_N_AP	= (__force iwl_ucode_tlv_api_t)57,
 	IWL_UCODE_TLV_API_SCAN_EXT_CHAN_VER	= (__force iwl_ucode_tlv_api_t)58,
+	IWL_UCODE_TLV_API_BAND_IN_RX_DATA	= (__force iwl_ucode_tlv_api_t)59,
+	/* API Set 2 */
+	IWL_UCODE_TLV_API_NO_HOST_DISABLE_TX	= (__force iwl_ucode_tlv_api_t)66,
+	IWL_UCODE_TLV_API_INT_DBG_BUF_CLEAR     = (__force iwl_ucode_tlv_api_t)67,
+	IWL_UCODE_TLV_API_SMART_FIFO_OFFLOAD    = (__force iwl_ucode_tlv_api_t)68,
 
 	NUM_IWL_UCODE_TLV_API
+/*
+ * This construction make both sparse (which cannot increment the previous
+ * member due to its bitwise type) and kernel-doc (which doesn't understand
+ * the ifdef/else properly) work.
+ */
 #ifdef __CHECKER__
-		/* sparse says it cannot increment the previous enum member */
-		= 128
+#define __CHECKER_NUM_IWL_UCODE_TLV_API	128
+		= (__force iwl_ucode_tlv_api_t)__CHECKER_NUM_IWL_UCODE_TLV_API,
+#define NUM_IWL_UCODE_TLV_API __CHECKER_NUM_IWL_UCODE_TLV_API
 #endif
 };
 
@@ -353,7 +332,6 @@ typedef unsigned int __bitwise iwl_ucode_tlv_capa_t;
  * @IWL_UCODE_TLV_CAPA_TDLS_CHANNEL_SWITCH: supports TDLS channel switching
  * @IWL_UCODE_TLV_CAPA_CNSLDTD_D3_D0_IMG: Consolidated D3-D0 image
  * @IWL_UCODE_TLV_CAPA_HOTSPOT_SUPPORT: supports Hot Spot Command
- * @IWL_UCODE_TLV_CAPA_DC2DC_SUPPORT: supports DC2DC Command
  * @IWL_UCODE_TLV_CAPA_CSUM_SUPPORT: supports TCP Checksum Offload
  * @IWL_UCODE_TLV_CAPA_RADIO_BEACON_STATS: support radio and beacon statistics
  * @IWL_UCODE_TLV_CAPA_P2P_SCM_UAPSD: supports U-APSD on p2p interface when it
@@ -365,6 +343,9 @@ typedef unsigned int __bitwise iwl_ucode_tlv_capa_t;
  *	is supported.
  * @IWL_UCODE_TLV_CAPA_BT_COEX_RRC: supports BT Coex RRC
  * @IWL_UCODE_TLV_CAPA_GSCAN_SUPPORT: supports gscan (no longer used)
+ * @IWL_UCODE_TLV_CAPA_FRAGMENTED_PNVM_IMG: supports fragmented PNVM image
+ * @IWL_UCODE_TLV_CAPA_SOC_LATENCY_SUPPORT: the firmware supports setting
+ *	stabilization latency for SoCs.
  * @IWL_UCODE_TLV_CAPA_STA_PM_NOTIF: firmware will send STA PM notification
  * @IWL_UCODE_TLV_CAPA_TLC_OFFLOAD: firmware implements rate scaling algorithm
  * @IWL_UCODE_TLV_CAPA_DYNAMIC_QUOTA: firmware implements quota related
@@ -403,8 +384,19 @@ typedef unsigned int __bitwise iwl_ucode_tlv_capa_t;
  *	to report the CSI information with (certain) RX frames
  * @IWL_UCODE_TLV_CAPA_FTM_CALIBRATED: has FTM calibrated and thus supports both
  *	initiator and responder
- *
  * @IWL_UCODE_TLV_CAPA_MLME_OFFLOAD: supports MLME offload
+ * @IWL_UCODE_TLV_CAPA_PROTECTED_TWT: Supports protection of TWT action frames
+ * @IWL_UCODE_TLV_CAPA_FW_RESET_HANDSHAKE: Supports the firmware handshake in
+ *	reset flow
+ * @IWL_UCODE_TLV_CAPA_PASSIVE_6GHZ_SCAN: Support for passive scan on 6GHz PSC
+ *      channels even when these are not enabled.
+ * @IWL_UCODE_TLV_CAPA_DUMP_COMPLETE_SUPPORT: Support for indicating dump collection
+ *	complete to FW.
+ * @IWL_UCODE_TLV_CAPA_SPP_AMSDU_SUPPORT: Support SPP (signaling and payload
+ *	protected) A-MSDU.
+ * @IWL_UCODE_TLV_CAPA_SECURE_LTF_SUPPORT: Support secure LTF measurement.
+ * @IWL_UCODE_TLV_CAPA_MONITOR_PASSIVE_CHANS: Support monitor mode on otherwise
+ *	passive channels
  *
  * @NUM_IWL_UCODE_TLV_CAPA: number of bits used
  */
@@ -423,7 +415,6 @@ enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_TDLS_CHANNEL_SWITCH		= (__force iwl_ucode_tlv_capa_t)13,
 	IWL_UCODE_TLV_CAPA_CNSLDTD_D3_D0_IMG		= (__force iwl_ucode_tlv_capa_t)17,
 	IWL_UCODE_TLV_CAPA_HOTSPOT_SUPPORT		= (__force iwl_ucode_tlv_capa_t)18,
-	IWL_UCODE_TLV_CAPA_DC2DC_CONFIG_SUPPORT		= (__force iwl_ucode_tlv_capa_t)19,
 	IWL_UCODE_TLV_CAPA_CSUM_SUPPORT			= (__force iwl_ucode_tlv_capa_t)21,
 	IWL_UCODE_TLV_CAPA_RADIO_BEACON_STATS		= (__force iwl_ucode_tlv_capa_t)22,
 	IWL_UCODE_TLV_CAPA_P2P_SCM_UAPSD		= (__force iwl_ucode_tlv_capa_t)26,
@@ -433,6 +424,8 @@ enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_GSCAN_SUPPORT		= (__force iwl_ucode_tlv_capa_t)31,
 
 	/* set 1 */
+	IWL_UCODE_TLV_CAPA_FRAGMENTED_PNVM_IMG		= (__force iwl_ucode_tlv_capa_t)32,
+	IWL_UCODE_TLV_CAPA_SOC_LATENCY_SUPPORT		= (__force iwl_ucode_tlv_capa_t)37,
 	IWL_UCODE_TLV_CAPA_STA_PM_NOTIF			= (__force iwl_ucode_tlv_capa_t)38,
 	IWL_UCODE_TLV_CAPA_BINDING_CDB_SUPPORT		= (__force iwl_ucode_tlv_capa_t)39,
 	IWL_UCODE_TLV_CAPA_CDB_SUPPORT			= (__force iwl_ucode_tlv_capa_t)40,
@@ -446,6 +439,16 @@ enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_CS_MODIFY			= (__force iwl_ucode_tlv_capa_t)49,
 	IWL_UCODE_TLV_CAPA_SET_LTR_GEN2			= (__force iwl_ucode_tlv_capa_t)50,
 	IWL_UCODE_TLV_CAPA_SET_PPAG			= (__force iwl_ucode_tlv_capa_t)52,
+	IWL_UCODE_TLV_CAPA_TAS_CFG			= (__force iwl_ucode_tlv_capa_t)53,
+	IWL_UCODE_TLV_CAPA_SESSION_PROT_CMD		= (__force iwl_ucode_tlv_capa_t)54,
+	IWL_UCODE_TLV_CAPA_PROTECTED_TWT		= (__force iwl_ucode_tlv_capa_t)56,
+	IWL_UCODE_TLV_CAPA_FW_RESET_HANDSHAKE		= (__force iwl_ucode_tlv_capa_t)57,
+	IWL_UCODE_TLV_CAPA_PASSIVE_6GHZ_SCAN		= (__force iwl_ucode_tlv_capa_t)58,
+	IWL_UCODE_TLV_CAPA_HIDDEN_6GHZ_SCAN		= (__force iwl_ucode_tlv_capa_t)59,
+	IWL_UCODE_TLV_CAPA_BROADCAST_TWT		= (__force iwl_ucode_tlv_capa_t)60,
+	IWL_UCODE_TLV_CAPA_COEX_HIGH_PRIO		= (__force iwl_ucode_tlv_capa_t)61,
+	IWL_UCODE_TLV_CAPA_RFIM_SUPPORT			= (__force iwl_ucode_tlv_capa_t)62,
+	IWL_UCODE_TLV_CAPA_BAID_ML_SUPPORT		= (__force iwl_ucode_tlv_capa_t)63,
 
 	/* set 2 */
 	IWL_UCODE_TLV_CAPA_EXTENDED_DTS_MEASURE		= (__force iwl_ucode_tlv_capa_t)64,
@@ -473,10 +476,37 @@ enum iwl_ucode_tlv_capa {
 	/* set 3 */
 	IWL_UCODE_TLV_CAPA_MLME_OFFLOAD			= (__force iwl_ucode_tlv_capa_t)96,
 
+	/*
+	 * @IWL_UCODE_TLV_CAPA_PSC_CHAN_SUPPORT: supports PSC channels
+	 */
+	IWL_UCODE_TLV_CAPA_PSC_CHAN_SUPPORT		= (__force iwl_ucode_tlv_capa_t)98,
+
+	IWL_UCODE_TLV_CAPA_BIGTK_SUPPORT		= (__force iwl_ucode_tlv_capa_t)100,
+	IWL_UCODE_TLV_CAPA_SPP_AMSDU_SUPPORT		= (__force iwl_ucode_tlv_capa_t)103,
+	IWL_UCODE_TLV_CAPA_DRAM_FRAG_SUPPORT		= (__force iwl_ucode_tlv_capa_t)104,
+	IWL_UCODE_TLV_CAPA_DUMP_COMPLETE_SUPPORT	= (__force iwl_ucode_tlv_capa_t)105,
+	IWL_UCODE_TLV_CAPA_SYNCED_TIME			= (__force iwl_ucode_tlv_capa_t)106,
+	IWL_UCODE_TLV_CAPA_TIME_SYNC_BOTH_FTM_TM        = (__force iwl_ucode_tlv_capa_t)108,
+	IWL_UCODE_TLV_CAPA_BIGTK_TX_SUPPORT		= (__force iwl_ucode_tlv_capa_t)109,
+	IWL_UCODE_TLV_CAPA_MLD_API_SUPPORT		= (__force iwl_ucode_tlv_capa_t)110,
+	IWL_UCODE_TLV_CAPA_SCAN_DONT_TOGGLE_ANT         = (__force iwl_ucode_tlv_capa_t)111,
+	IWL_UCODE_TLV_CAPA_PPAG_CHINA_BIOS_SUPPORT	= (__force iwl_ucode_tlv_capa_t)112,
+	IWL_UCODE_TLV_CAPA_OFFLOAD_BTM_SUPPORT		= (__force iwl_ucode_tlv_capa_t)113,
+	IWL_UCODE_TLV_CAPA_STA_EXP_MFP_SUPPORT		= (__force iwl_ucode_tlv_capa_t)114,
+	IWL_UCODE_TLV_CAPA_SNIFF_VALIDATE_SUPPORT	= (__force iwl_ucode_tlv_capa_t)116,
+	IWL_UCODE_TLV_CAPA_CHINA_22_REG_SUPPORT		= (__force iwl_ucode_tlv_capa_t)117,
+	IWL_UCODE_TLV_CAPA_SECURE_LTF_SUPPORT		= (__force iwl_ucode_tlv_capa_t)121,
+	IWL_UCODE_TLV_CAPA_MONITOR_PASSIVE_CHANS	= (__force iwl_ucode_tlv_capa_t)122,
 	NUM_IWL_UCODE_TLV_CAPA
+/*
+ * This construction make both sparse (which cannot increment the previous
+ * member due to its bitwise type) and kernel-doc (which doesn't understand
+ * the ifdef/else properly) work.
+ */
 #ifdef __CHECKER__
-		/* sparse says it cannot increment the previous enum member */
-		= 128
+#define __CHECKER_NUM_IWL_UCODE_TLV_CAPA	128
+		= (__force iwl_ucode_tlv_capa_t)__CHECKER_NUM_IWL_UCODE_TLV_CAPA,
+#define NUM_IWL_UCODE_TLV_CAPA __CHECKER_NUM_IWL_UCODE_TLV_CAPA
 #endif
 };
 
@@ -532,34 +562,6 @@ enum iwl_fw_phy_cfg {
 	FW_PHY_CFG_SHARED_CLK = BIT(31),
 };
 
-#define IWL_UCODE_MAX_CS		1
-
-/**
- * struct iwl_fw_cipher_scheme - a cipher scheme supported by FW.
- * @cipher: a cipher suite selector
- * @flags: cipher scheme flags (currently reserved for a future use)
- * @hdr_len: a size of MPDU security header
- * @pn_len: a size of PN
- * @pn_off: an offset of pn from the beginning of the security header
- * @key_idx_off: an offset of key index byte in the security header
- * @key_idx_mask: a bit mask of key_idx bits
- * @key_idx_shift: bit shift needed to get key_idx
- * @mic_len: mic length in bytes
- * @hw_cipher: a HW cipher index used in host commands
- */
-struct iwl_fw_cipher_scheme {
-	__le32 cipher;
-	u8 flags;
-	u8 hdr_len;
-	u8 pn_len;
-	u8 pn_off;
-	u8 key_idx_off;
-	u8 key_idx_mask;
-	u8 key_idx_shift;
-	u8 mic_len;
-	u8 hw_cipher;
-} __packed;
-
 enum iwl_fw_dbg_reg_operator {
 	CSR_ASSIGN,
 	CSR_SETBIT,
@@ -580,6 +582,7 @@ enum iwl_fw_dbg_reg_operator {
  * struct iwl_fw_dbg_reg_op - an operation on a register
  *
  * @op: &enum iwl_fw_dbg_reg_operator
+ * @reserved: reserved
  * @addr: offset of the register
  * @val: value
  */
@@ -626,6 +629,7 @@ struct iwl_fw_dbg_mem_seg_tlv {
  * @version: version of the TLV - currently 0
  * @monitor_mode: &enum iwl_fw_dbg_monitor_mode
  * @size_power: buffer size will be 2^(size_power + 11)
+ * @reserved: reserved
  * @base_reg: addr of the base addr register (PRPH)
  * @end_reg:  addr of the end addr register (PRPH)
  * @write_ptr_reg: the addr of the reg of the write pointer
@@ -647,7 +651,7 @@ struct iwl_fw_dbg_dest_tlv_v1 {
 	__le32 wrap_count;
 	u8 base_shift;
 	u8 end_shift;
-	struct iwl_fw_dbg_reg_op reg_ops[0];
+	struct iwl_fw_dbg_reg_op reg_ops[];
 } __packed;
 
 /* Mask of the register for defining the LDBG MAC2SMEM buffer SMEM size */
@@ -667,14 +671,14 @@ struct iwl_fw_dbg_dest_tlv {
 	__le32 wrap_count;
 	u8 base_shift;
 	u8 size_shift;
-	struct iwl_fw_dbg_reg_op reg_ops[0];
+	struct iwl_fw_dbg_reg_op reg_ops[];
 } __packed;
 
 struct iwl_fw_dbg_conf_hcmd {
 	u8 id;
 	u8 reserved;
 	__le16 len;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 /**
@@ -736,6 +740,8 @@ enum iwl_fw_dbg_trigger_vif_type {
  * @trig_dis_ms: the time, in milliseconds, after an occurrence of this
  *	trigger in which another occurrence should be ignored.
  * @flags: &enum iwl_fw_dbg_trigger_flags
+ * @reserved: reserved (for alignment)
+ * @data: trigger data
  */
 struct iwl_fw_dbg_trigger_tlv {
 	__le32 id;
@@ -749,7 +755,7 @@ struct iwl_fw_dbg_trigger_tlv {
 	u8 flags;
 	u8 reserved[5];
 
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 #define FW_DBG_START_FROM_ALIVE	0
@@ -776,7 +782,7 @@ struct iwl_fw_dbg_trigger_missed_bcon {
 
 /**
  * struct iwl_fw_dbg_trigger_cmd - configures trigger for messages from FW.
- * cmds: the list of commands to trigger the collection on
+ * @cmds: the list of commands to trigger the collection on
  */
 struct iwl_fw_dbg_trigger_cmd {
 	struct cmd {
@@ -786,7 +792,7 @@ struct iwl_fw_dbg_trigger_cmd {
 } __packed;
 
 /**
- * iwl_fw_dbg_trigger_stats - configures trigger for statistics
+ * struct iwl_fw_dbg_trigger_stats - configures trigger for statistics
  * @stop_offset: the offset of the value to be monitored
  * @stop_threshold: the threshold above which to collect
  * @start_offset: the offset of the value to be monitored
@@ -900,7 +906,7 @@ struct iwl_fw_dbg_trigger_time_event {
  * tx_bar: tid bitmap to configure on what tid the trigger should occur
  *	when a BAR is send (for an Rx BlocAck session).
  * frame_timeout: tid bitmap to configure on what tid the trigger should occur
- *	when a frame times out in the reodering buffer.
+ *	when a frame times out in the reordering buffer.
  */
 struct iwl_fw_dbg_trigger_ba {
 	__le16 rx_ba_start;
@@ -973,6 +979,14 @@ struct iwl_fw_cmd_version {
 	u8 notif_ver;
 } __packed;
 
+struct iwl_fw_tcm_error_addr {
+	__le32 addr;
+}; /* FW_TLV_TCM_ERROR_INFO_ADDRS_S */
+
+struct iwl_fw_dump_exclude {
+	__le32 addr, size;
+};
+
 static inline size_t _iwl_tlv_array_len(const struct iwl_ucode_tlv *tlv,
 					size_t fixed_size, size_t var_size)
 {
@@ -988,4 +1002,6 @@ static inline size_t _iwl_tlv_array_len(const struct iwl_ucode_tlv *tlv,
 	_iwl_tlv_array_len((_tlv_ptr), sizeof(*(_struct_ptr)),		\
 			   sizeof(_struct_ptr->_memb[0]))
 
+#define iwl_tlv_array_len_with_size(_tlv_ptr, _struct_ptr, _size)	\
+	_iwl_tlv_array_len((_tlv_ptr), sizeof(*(_struct_ptr)), _size)
 #endif  /* __iwl_fw_file_h__ */

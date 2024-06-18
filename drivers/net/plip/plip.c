@@ -84,6 +84,7 @@ static const char version[] = "NET3 PLIP version 2.4-parport gniibe@mri.co.jp\n"
     extra grounds are 18,19,20,21,22,23,24
 */
 
+#include <linux/compat.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -142,7 +143,7 @@ static void plip_timer_bh(struct work_struct *work);
 static void plip_interrupt(void *dev_id);
 
 /* Functions for DEV methods */
-static int plip_tx_packet(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t plip_tx_packet(struct sk_buff *skb, struct net_device *dev);
 static int plip_hard_header(struct sk_buff *skb, struct net_device *dev,
                             unsigned short type, const void *daddr,
 			    const void *saddr, unsigned len);
@@ -150,7 +151,8 @@ static int plip_hard_header_cache(const struct neighbour *neigh,
                                   struct hh_cache *hh, __be16 type);
 static int plip_open(struct net_device *dev);
 static int plip_close(struct net_device *dev);
-static int plip_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
+static int plip_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
+			       void __user *data, int cmd);
 static int plip_preempt(void *handle);
 static void plip_wakeup(void *handle);
 
@@ -265,7 +267,7 @@ static const struct net_device_ops plip_netdev_ops = {
 	.ndo_open		 = plip_open,
 	.ndo_stop		 = plip_close,
 	.ndo_start_xmit		 = plip_tx_packet,
-	.ndo_do_ioctl		 = plip_ioctl,
+	.ndo_siocdevprivate	 = plip_siocdevprivate,
 	.ndo_set_mac_address	 = eth_mac_addr,
 	.ndo_validate_addr	 = eth_validate_addr,
 };
@@ -282,12 +284,16 @@ static const struct net_device_ops plip_netdev_ops = {
 static void
 plip_init_netdev(struct net_device *dev)
 {
+	static const u8 addr_init[ETH_ALEN] = {
+		0xfc, 0xfc, 0xfc,
+		0xfc, 0xfc, 0xfc,
+	};
 	struct net_local *nl = netdev_priv(dev);
 
 	/* Then, override parts of it */
 	dev->tx_queue_len 	 = 10;
 	dev->flags	         = IFF_POINTOPOINT|IFF_NOARP;
-	memset(dev->dev_addr, 0xfc, ETH_ALEN);
+	eth_hw_addr_set(dev, addr_init);
 
 	dev->netdev_ops		 = &plip_netdev_ops;
 	dev->header_ops          = &plip_header_ops;
@@ -444,12 +450,12 @@ plip_bh_timeout_error(struct net_device *dev, struct net_local *nl,
 	}
 	rcv->state = PLIP_PK_DONE;
 	if (rcv->skb) {
-		kfree_skb(rcv->skb);
+		dev_kfree_skb_irq(rcv->skb);
 		rcv->skb = NULL;
 	}
 	snd->state = PLIP_PK_DONE;
 	if (snd->skb) {
-		dev_kfree_skb(snd->skb);
+		dev_consume_skb_irq(snd->skb);
 		snd->skb = NULL;
 	}
 	spin_unlock_irq(&nl->lock);
@@ -498,7 +504,7 @@ plip_receive(unsigned short nibble_timeout, struct net_device *dev,
 		*data_p = (c0 >> 3) & 0x0f;
 		write_data (dev, 0x10); /* send ACK */
 		*ns_p = PLIP_NB_1;
-		/* fall through */
+		fallthrough;
 
 	case PLIP_NB_1:
 		cx = nibble_timeout;
@@ -516,6 +522,7 @@ plip_receive(unsigned short nibble_timeout, struct net_device *dev,
 		*data_p |= (c0 << 1) & 0xf0;
 		write_data (dev, 0x00); /* send ACK */
 		*ns_p = PLIP_NB_BEGIN;
+		break;
 	case PLIP_NB_2:
 		break;
 	}
@@ -594,7 +601,7 @@ plip_receive_packet(struct net_device *dev, struct net_local *nl,
 			printk(KERN_DEBUG "%s: receive start\n", dev->name);
 		rcv->state = PLIP_PK_LENGTH_LSB;
 		rcv->nibble = PLIP_NB_BEGIN;
-		/* fall through */
+		fallthrough;
 
 	case PLIP_PK_LENGTH_LSB:
 		if (snd->state != PLIP_PK_DONE) {
@@ -615,7 +622,7 @@ plip_receive_packet(struct net_device *dev, struct net_local *nl,
 				return TIMEOUT;
 		}
 		rcv->state = PLIP_PK_LENGTH_MSB;
-		/* fall through */
+		fallthrough;
 
 	case PLIP_PK_LENGTH_MSB:
 		if (plip_receive(nibble_timeout, dev,
@@ -638,7 +645,7 @@ plip_receive_packet(struct net_device *dev, struct net_local *nl,
 		rcv->state = PLIP_PK_DATA;
 		rcv->byte = 0;
 		rcv->checksum = 0;
-		/* fall through */
+		fallthrough;
 
 	case PLIP_PK_DATA:
 		lbuf = rcv->skb->data;
@@ -651,7 +658,7 @@ plip_receive_packet(struct net_device *dev, struct net_local *nl,
 			rcv->checksum += lbuf[--rcv->byte];
 		} while (rcv->byte);
 		rcv->state = PLIP_PK_CHECKSUM;
-		/* fall through */
+		fallthrough;
 
 	case PLIP_PK_CHECKSUM:
 		if (plip_receive(nibble_timeout, dev,
@@ -664,12 +671,12 @@ plip_receive_packet(struct net_device *dev, struct net_local *nl,
 			return ERROR;
 		}
 		rcv->state = PLIP_PK_DONE;
-		/* fall through */
+		fallthrough;
 
 	case PLIP_PK_DONE:
 		/* Inform the upper layer for the arrival of a packet. */
 		rcv->skb->protocol=plip_type_trans(rcv->skb, dev);
-		netif_rx_ni(rcv->skb);
+		netif_rx(rcv->skb);
 		dev->stats.rx_bytes += rcv->length.h;
 		dev->stats.rx_packets++;
 		rcv->skb = NULL;
@@ -710,7 +717,7 @@ plip_send(unsigned short nibble_timeout, struct net_device *dev,
 	case PLIP_NB_BEGIN:
 		write_data (dev, data & 0x0f);
 		*ns_p = PLIP_NB_1;
-		/* fall through */
+		fallthrough;
 
 	case PLIP_NB_1:
 		write_data (dev, 0x10 | (data & 0x0f));
@@ -725,7 +732,7 @@ plip_send(unsigned short nibble_timeout, struct net_device *dev,
 		}
 		write_data (dev, 0x10 | (data >> 4));
 		*ns_p = PLIP_NB_2;
-		/* fall through */
+		fallthrough;
 
 	case PLIP_NB_2:
 		write_data (dev, (data >> 4));
@@ -808,13 +815,14 @@ plip_send_packet(struct net_device *dev, struct net_local *nl,
 				return HS_TIMEOUT;
 			}
 		}
+		break;
 
 	case PLIP_PK_LENGTH_LSB:
 		if (plip_send(nibble_timeout, dev,
 			      &snd->nibble, snd->length.b.lsb))
 			return TIMEOUT;
 		snd->state = PLIP_PK_LENGTH_MSB;
-		/* fall through */
+		fallthrough;
 
 	case PLIP_PK_LENGTH_MSB:
 		if (plip_send(nibble_timeout, dev,
@@ -823,7 +831,7 @@ plip_send_packet(struct net_device *dev, struct net_local *nl,
 		snd->state = PLIP_PK_DATA;
 		snd->byte = 0;
 		snd->checksum = 0;
-		/* fall through */
+		fallthrough;
 
 	case PLIP_PK_DATA:
 		do {
@@ -835,7 +843,7 @@ plip_send_packet(struct net_device *dev, struct net_local *nl,
 			snd->checksum += lbuf[--snd->byte];
 		} while (snd->byte);
 		snd->state = PLIP_PK_CHECKSUM;
-		/* fall through */
+		fallthrough;
 
 	case PLIP_PK_CHECKSUM:
 		if (plip_send(nibble_timeout, dev,
@@ -846,7 +854,7 @@ plip_send_packet(struct net_device *dev, struct net_local *nl,
 		dev_kfree_skb(snd->skb);
 		dev->stats.tx_packets++;
 		snd->state = PLIP_PK_DONE;
-		/* fall through */
+		fallthrough;
 
 	case PLIP_PK_DONE:
 		/* Close the connection */
@@ -935,7 +943,7 @@ plip_interrupt(void *dev_id)
 	switch (nl->connection) {
 	case PLIP_CN_CLOSING:
 		netif_wake_queue (dev);
-		/* fall through */
+		fallthrough;
 	case PLIP_CN_NONE:
 	case PLIP_CN_SEND:
 		rcv->state = PLIP_PK_TRIGGER;
@@ -958,7 +966,7 @@ plip_interrupt(void *dev_id)
 	spin_unlock_irqrestore(&nl->lock, flags);
 }
 
-static int
+static netdev_tx_t
 plip_tx_packet(struct sk_buff *skb, struct net_device *dev)
 {
 	struct net_local *nl = netdev_priv(dev);
@@ -1103,9 +1111,9 @@ plip_open(struct net_device *dev)
 		/* Any address will do - we take the first. We already
 		   have the first two bytes filled with 0xfc, from
 		   plip_init_dev(). */
-		const struct in_ifaddr *ifa = rcu_dereference(in_dev->ifa_list);
+		const struct in_ifaddr *ifa = rtnl_dereference(in_dev->ifa_list);
 		if (ifa != NULL) {
-			memcpy(dev->dev_addr+2, &ifa->ifa_local, 4);
+			dev_addr_mod(dev, 2, &ifa->ifa_local, 4);
 		}
 	}
 
@@ -1205,12 +1213,16 @@ plip_wakeup(void *handle)
 }
 
 static int
-plip_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
+plip_siocdevprivate(struct net_device *dev, struct ifreq *rq,
+		    void __user *data, int cmd)
 {
 	struct net_local *nl = netdev_priv(dev);
 	struct plipconf *pc = (struct plipconf *) &rq->ifr_ifru;
 
 	if (cmd != SIOCDEVPLIP)
+		return -EOPNOTSUPP;
+
+	if (in_compat_syscall())
 		return -EOPNOTSUPP;
 
 	switch(pc->pcmd) {
@@ -1425,4 +1437,5 @@ static int __init plip_init (void)
 
 module_init(plip_init);
 module_exit(plip_cleanup_module);
+MODULE_DESCRIPTION("PLIP (parallel port) network module");
 MODULE_LICENSE("GPL");

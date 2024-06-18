@@ -50,7 +50,12 @@
 #include <linux/page-flags.h>
 #include <linux/kernel.h>
 
-#define GNTTAB_RESERVED_XENSTORE 1
+/*
+ * Technically there's no reliably invalid grant reference or grant handle,
+ * so pick the value that is the most unlikely one to be observed valid.
+ */
+#define INVALID_GRANT_REF          ((grant_ref_t)-1)
+#define INVALID_GRANT_HANDLE       ((grant_handle_t)-1)
 
 /* NR_GRANT_FRAMES must be less than or equal to that configured in Xen */
 #define NR_GRANT_FRAMES 4
@@ -90,32 +95,45 @@ int gnttab_grant_foreign_access(domid_t domid, unsigned long frame,
  * longer in use.  Return 1 if the grant entry was freed, 0 if it is still in
  * use.
  */
-int gnttab_end_foreign_access_ref(grant_ref_t ref, int readonly);
+int gnttab_end_foreign_access_ref(grant_ref_t ref);
 
 /*
  * Eventually end access through the given grant reference, and once that
  * access has been ended, free the given page too.  Access will be ended
  * immediately iff the grant entry is not in use, otherwise it will happen
- * some time later.  page may be 0, in which case no freeing will occur.
+ * some time later.  page may be NULL, in which case no freeing will occur.
+ * Note that the granted page might still be accessed (read or write) by the
+ * other side after gnttab_end_foreign_access() returns, so even if page was
+ * specified as NULL it is not allowed to just reuse the page for other
+ * purposes immediately. gnttab_end_foreign_access() will take an additional
+ * reference to the granted page in this case, which is dropped only after
+ * the grant is no longer in use.
+ * This requires that multi page allocations for areas subject to
+ * gnttab_end_foreign_access() are done via alloc_pages_exact() (and freeing
+ * via free_pages_exact()) in order to avoid high order pages.
  */
-void gnttab_end_foreign_access(grant_ref_t ref, int readonly,
-			       unsigned long page);
+void gnttab_end_foreign_access(grant_ref_t ref, struct page *page);
 
-int gnttab_grant_foreign_transfer(domid_t domid, unsigned long pfn);
-
-unsigned long gnttab_end_foreign_transfer_ref(grant_ref_t ref);
-unsigned long gnttab_end_foreign_transfer(grant_ref_t ref);
-
-int gnttab_query_foreign_access(grant_ref_t ref);
+/*
+ * End access through the given grant reference, iff the grant entry is
+ * no longer in use.  In case of success ending foreign access, the
+ * grant reference is deallocated.
+ * Return 1 if the grant entry was freed, 0 if it is still in use.
+ */
+int gnttab_try_end_foreign_access(grant_ref_t ref);
 
 /*
  * operations on reserved batches of grant references
  */
 int gnttab_alloc_grant_references(u16 count, grant_ref_t *pprivate_head);
 
+int gnttab_alloc_grant_reference_seq(unsigned int count, grant_ref_t *first);
+
 void gnttab_free_grant_reference(grant_ref_t ref);
 
 void gnttab_free_grant_references(grant_ref_t head);
+
+void gnttab_free_grant_reference_seq(grant_ref_t head, unsigned int count);
 
 int gnttab_empty_grant_references(const grant_ref_t *pprivate_head);
 
@@ -140,9 +158,6 @@ static inline void gnttab_page_grant_foreign_access_ref_one(
 					readonly);
 }
 
-void gnttab_grant_foreign_transfer_ref(grant_ref_t, domid_t domid,
-				       unsigned long pfn);
-
 static inline void
 gnttab_set_map_op(struct gnttab_map_grant_ref *map, phys_addr_t addr,
 		  uint32_t flags, grant_ref_t ref, domid_t domid)
@@ -157,6 +172,7 @@ gnttab_set_map_op(struct gnttab_map_grant_ref *map, phys_addr_t addr,
 	map->flags = flags;
 	map->ref = ref;
 	map->dom = domid;
+	map->status = 1; /* arbitrary positive value */
 }
 
 static inline void
@@ -197,6 +213,23 @@ void gnttab_free_auto_xlat_frames(void);
 
 int gnttab_alloc_pages(int nr_pages, struct page **pages);
 void gnttab_free_pages(int nr_pages, struct page **pages);
+
+struct gnttab_page_cache {
+	spinlock_t		lock;
+#ifdef CONFIG_XEN_UNPOPULATED_ALLOC
+	struct page		*pages;
+#else
+	struct list_head	pages;
+#endif
+	unsigned int		num_pages;
+};
+
+void gnttab_page_cache_init(struct gnttab_page_cache *cache);
+int gnttab_page_cache_get(struct gnttab_page_cache *cache, struct page **page);
+void gnttab_page_cache_put(struct gnttab_page_cache *cache, struct page **page,
+			   unsigned int num);
+void gnttab_page_cache_shrink(struct gnttab_page_cache *cache,
+			      unsigned int num);
 
 #ifdef CONFIG_XEN_GRANT_DMA_ALLOC
 struct gnttab_dma_alloc_args {

@@ -23,7 +23,6 @@
 extern int threads_per_core;
 extern int threads_per_subcore;
 extern int threads_shift;
-extern bool has_big_cores;
 extern cpumask_t threads_core_mask;
 #else
 #define threads_per_core	1
@@ -33,42 +32,9 @@ extern cpumask_t threads_core_mask;
 #define threads_core_mask	(*get_cpu_mask(0))
 #endif
 
-/* cpu_thread_mask_to_cores - Return a cpumask of one per cores
- *                            hit by the argument
- *
- * @threads:	a cpumask of online threads
- *
- * This function returns a cpumask which will have one online cpu's
- * bit set for each core that has at least one thread set in the argument.
- *
- * This can typically be used for things like IPI for tlb invalidations
- * since those need to be done only once per core/TLB
- */
-static inline cpumask_t cpu_thread_mask_to_cores(const struct cpumask *threads)
-{
-	cpumask_t	tmp, res;
-	int		i, cpu;
-
-	cpumask_clear(&res);
-	for (i = 0; i < NR_CPUS; i += threads_per_core) {
-		cpumask_shift_left(&tmp, &threads_core_mask, i);
-		if (cpumask_intersects(threads, &tmp)) {
-			cpu = cpumask_next_and(-1, &tmp, cpu_online_mask);
-			if (cpu < nr_cpu_ids)
-				cpumask_set_cpu(cpu, &res);
-		}
-	}
-	return res;
-}
-
 static inline int cpu_nr_cores(void)
 {
 	return nr_cpu_ids >> threads_shift;
-}
-
-static inline cpumask_t cpu_online_cores_map(void)
-{
-	return cpu_thread_mask_to_cores(cpu_online_mask);
 }
 
 #ifdef CONFIG_SMP
@@ -97,6 +63,36 @@ static inline int cpu_first_thread_sibling(int cpu)
 static inline int cpu_last_thread_sibling(int cpu)
 {
 	return cpu | (threads_per_core - 1);
+}
+
+/*
+ * tlb_thread_siblings are siblings which share a TLB. This is not
+ * architected, is not something a hypervisor could emulate and a future
+ * CPU may change behaviour even in compat mode, so this should only be
+ * used on PowerNV, and only with care.
+ */
+static inline int cpu_first_tlb_thread_sibling(int cpu)
+{
+	if (cpu_has_feature(CPU_FTR_ARCH_300) && (threads_per_core == 8))
+		return cpu & ~0x6;	/* Big Core */
+	else
+		return cpu_first_thread_sibling(cpu);
+}
+
+static inline int cpu_last_tlb_thread_sibling(int cpu)
+{
+	if (cpu_has_feature(CPU_FTR_ARCH_300) && (threads_per_core == 8))
+		return cpu | 0x6;	/* Big Core */
+	else
+		return cpu_last_thread_sibling(cpu);
+}
+
+static inline int cpu_tlb_thread_sibling_step(void)
+{
+	if (cpu_has_feature(CPU_FTR_ARCH_300) && (threads_per_core == 8))
+		return 2;		/* Big Core */
+	else
+		return 1;
 }
 
 static inline u32 get_tensr(void)

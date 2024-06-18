@@ -50,7 +50,7 @@
 #include <linux/kdev_t.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>	/* for mdelay */
-#include <linux/interrupt.h>	/* needed for in_interrupt() proto */
+#include <linux/interrupt.h>
 #include <linux/reboot.h>	/* notifier code */
 #include <linux/workqueue.h>
 #include <linux/sort.h>
@@ -105,7 +105,7 @@ static int mptfc_abort(struct scsi_cmnd *SCpnt);
 static int mptfc_dev_reset(struct scsi_cmnd *SCpnt);
 static int mptfc_bus_reset(struct scsi_cmnd *SCpnt);
 
-static struct scsi_host_template mptfc_driver_template = {
+static const struct scsi_host_template mptfc_driver_template = {
 	.module				= THIS_MODULE,
 	.proc_name			= "mptfc",
 	.show_info			= mptscsih_show_info,
@@ -129,7 +129,8 @@ static struct scsi_host_template mptfc_driver_template = {
 	.sg_tablesize			= MPT_SCSI_SG_DEPTH,
 	.max_sectors			= 8192,
 	.cmd_per_lun			= 7,
-	.shost_attrs			= mptscsih_host_attrs,
+	.dma_alignment			= 511,
+	.shost_groups			= mptscsih_host_attr_groups,
 };
 
 /****************************************************************************
@@ -183,73 +184,109 @@ static struct fc_function_template mptfc_transport_functions = {
 };
 
 static int
-mptfc_block_error_handler(struct scsi_cmnd *SCpnt,
-			  int (*func)(struct scsi_cmnd *SCpnt),
-			  const char *caller)
+mptfc_block_error_handler(struct fc_rport *rport)
 {
 	MPT_SCSI_HOST		*hd;
-	struct scsi_device	*sdev = SCpnt->device;
-	struct Scsi_Host	*shost = sdev->host;
-	struct fc_rport		*rport = starget_to_rport(scsi_target(sdev));
+	struct Scsi_Host	*shost = rport_to_shost(rport);
 	unsigned long		flags;
 	int			ready;
-	MPT_ADAPTER 		*ioc;
+	MPT_ADAPTER		*ioc;
 	int			loops = 40;	/* seconds */
 
-	hd = shost_priv(SCpnt->device->host);
+	hd = shost_priv(shost);
 	ioc = hd->ioc;
 	spin_lock_irqsave(shost->host_lock, flags);
 	while ((ready = fc_remote_port_chkready(rport) >> 16) == DID_IMM_RETRY
 	 || (loops > 0 && ioc->active == 0)) {
 		spin_unlock_irqrestore(shost->host_lock, flags);
 		dfcprintk (ioc, printk(MYIOC_s_DEBUG_FMT
-			"mptfc_block_error_handler.%d: %d:%llu, port status is "
-			"%x, active flag %d, deferring %s recovery.\n",
+			"mptfc_block_error_handler.%d: %s, port status is "
+			"%x, active flag %d, deferring recovery.\n",
 			ioc->name, ioc->sh->host_no,
-			SCpnt->device->id, SCpnt->device->lun,
-			ready, ioc->active, caller));
+			dev_name(&rport->dev), ready, ioc->active));
 		msleep(1000);
 		spin_lock_irqsave(shost->host_lock, flags);
 		loops --;
 	}
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
-	if (ready == DID_NO_CONNECT || !SCpnt->device->hostdata
-	 || ioc->active == 0) {
+	if (ready == DID_NO_CONNECT || ioc->active == 0) {
 		dfcprintk (ioc, printk(MYIOC_s_DEBUG_FMT
-			"%s.%d: %d:%llu, failing recovery, "
-			"port state %x, active %d, vdevice %p.\n", caller,
+			"mpt_block_error_handler.%d: %s, failing recovery, "
+			"port state %x, active %d.\n",
 			ioc->name, ioc->sh->host_no,
-			SCpnt->device->id, SCpnt->device->lun, ready,
-			ioc->active, SCpnt->device->hostdata));
+			dev_name(&rport->dev), ready, ioc->active));
 		return FAILED;
 	}
-	dfcprintk (ioc, printk(MYIOC_s_DEBUG_FMT
-		"%s.%d: %d:%llu, executing recovery.\n", caller,
-		ioc->name, ioc->sh->host_no,
-		SCpnt->device->id, SCpnt->device->lun));
-	return (*func)(SCpnt);
+	return SUCCESS;
 }
 
 static int
 mptfc_abort(struct scsi_cmnd *SCpnt)
 {
-	return
-	    mptfc_block_error_handler(SCpnt, mptscsih_abort, __func__);
+	struct Scsi_Host *shost = SCpnt->device->host;
+	struct fc_rport *rport = starget_to_rport(scsi_target(SCpnt->device));
+	MPT_SCSI_HOST __maybe_unused *hd = shost_priv(shost);
+	int rtn;
+
+	rtn = mptfc_block_error_handler(rport);
+	if (rtn == SUCCESS) {
+		dfcprintk (hd->ioc, printk(MYIOC_s_DEBUG_FMT
+			"%s.%d: %d:%llu, executing recovery.\n", __func__,
+			hd->ioc->name, shost->host_no,
+			SCpnt->device->id, SCpnt->device->lun));
+		rtn = mptscsih_abort(SCpnt);
+	}
+	return rtn;
 }
 
 static int
 mptfc_dev_reset(struct scsi_cmnd *SCpnt)
 {
-	return
-	    mptfc_block_error_handler(SCpnt, mptscsih_dev_reset, __func__);
+	struct Scsi_Host *shost = SCpnt->device->host;
+	struct fc_rport *rport = starget_to_rport(scsi_target(SCpnt->device));
+	MPT_SCSI_HOST __maybe_unused *hd = shost_priv(shost);
+	int rtn;
+
+	rtn = mptfc_block_error_handler(rport);
+	if (rtn == SUCCESS) {
+		dfcprintk (hd->ioc, printk(MYIOC_s_DEBUG_FMT
+			"%s.%d: %d:%llu, executing recovery.\n", __func__,
+			hd->ioc->name, shost->host_no,
+			SCpnt->device->id, SCpnt->device->lun));
+		rtn = mptscsih_dev_reset(SCpnt);
+	}
+	return rtn;
 }
 
 static int
 mptfc_bus_reset(struct scsi_cmnd *SCpnt)
 {
-	return
-	    mptfc_block_error_handler(SCpnt, mptscsih_bus_reset, __func__);
+	struct Scsi_Host *shost = SCpnt->device->host;
+	MPT_SCSI_HOST __maybe_unused *hd = shost_priv(shost);
+	int channel = SCpnt->device->channel;
+	struct mptfc_rport_info *ri;
+	int rtn = FAILED;
+
+	list_for_each_entry(ri, &hd->ioc->fc_rports, list) {
+		if (ri->flags & MPT_RPORT_INFO_FLAGS_REGISTERED) {
+			VirtTarget *vtarget = ri->starget->hostdata;
+
+			if (!vtarget || vtarget->channel != channel)
+				continue;
+			rtn = fc_block_rport(ri->rport);
+			if (rtn != 0)
+				break;
+		}
+	}
+	if (rtn == 0) {
+		dfcprintk (hd->ioc, printk(MYIOC_s_DEBUG_FMT
+			"%s.%d: %d:%llu, executing recovery.\n", __func__,
+			hd->ioc->name, shost->host_no,
+			SCpnt->device->id, SCpnt->device->lun));
+		rtn = mptscsih_bus_reset(SCpnt);
+	}
+	return rtn;
 }
 
 static void
@@ -331,8 +368,8 @@ mptfc_GetFcDevPage0(MPT_ADAPTER *ioc, int ioc_port,
 			break;
 
 		data_sz = hdr.PageLength * 4;
-		ppage0_alloc = pci_alloc_consistent(ioc->pcidev, data_sz,
-		    					&page0_dma);
+		ppage0_alloc = dma_alloc_coherent(&ioc->pcidev->dev, data_sz,
+						  &page0_dma, GFP_KERNEL);
 		rc = -ENOMEM;
 		if (!ppage0_alloc)
 			break;
@@ -367,8 +404,8 @@ mptfc_GetFcDevPage0(MPT_ADAPTER *ioc, int ioc_port,
 			*p_p0 = *ppage0_alloc;	/* save data */
 			*p_pp0++ = p_p0++;	/* save addr */
 		}
-		pci_free_consistent(ioc->pcidev, data_sz,
-		    			(u8 *) ppage0_alloc, page0_dma);
+		dma_free_coherent(&ioc->pcidev->dev, data_sz,
+				  ppage0_alloc, page0_dma);
 		if (rc != 0)
 			break;
 
@@ -649,14 +686,14 @@ mptfc_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *SCpnt)
 
 	if (!vdevice || !vdevice->vtarget) {
 		SCpnt->result = DID_NO_CONNECT << 16;
-		SCpnt->scsi_done(SCpnt);
+		scsi_done(SCpnt);
 		return 0;
 	}
 
 	err = fc_remote_port_chkready(rport);
 	if (unlikely(err)) {
 		SCpnt->result = err;
-		SCpnt->scsi_done(SCpnt);
+		scsi_done(SCpnt);
 		return 0;
 	}
 
@@ -664,7 +701,7 @@ mptfc_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *SCpnt)
 	ri = *((struct mptfc_rport_info **)rport->dd_data);
 	if (unlikely(!ri)) {
 		SCpnt->result = DID_IMM_RETRY << 16;
-		SCpnt->scsi_done(SCpnt);
+		scsi_done(SCpnt);
 		return 0;
 	}
 
@@ -763,7 +800,8 @@ mptfc_GetFcPortPage0(MPT_ADAPTER *ioc, int portnum)
 
 	data_sz = hdr.PageLength * 4;
 	rc = -ENOMEM;
-	ppage0_alloc = (FCPortPage0_t *) pci_alloc_consistent(ioc->pcidev, data_sz, &page0_dma);
+	ppage0_alloc = dma_alloc_coherent(&ioc->pcidev->dev, data_sz,
+					  &page0_dma, GFP_KERNEL);
 	if (ppage0_alloc) {
 
  try_again:
@@ -817,7 +855,8 @@ mptfc_GetFcPortPage0(MPT_ADAPTER *ioc, int portnum)
 			mptfc_display_port_link_speed(ioc, portnum, pp0dest);
 		}
 
-		pci_free_consistent(ioc->pcidev, data_sz, (u8 *) ppage0_alloc, page0_dma);
+		dma_free_coherent(&ioc->pcidev->dev, data_sz, ppage0_alloc,
+				  page0_dma);
 	}
 
 	return rc;
@@ -904,9 +943,8 @@ start_over:
 		if (data_sz < sizeof(FCPortPage1_t))
 			data_sz = sizeof(FCPortPage1_t);
 
-		page1_alloc = (FCPortPage1_t *) pci_alloc_consistent(ioc->pcidev,
-						data_sz,
-						&page1_dma);
+		page1_alloc = dma_alloc_coherent(&ioc->pcidev->dev, data_sz,
+						 &page1_dma, GFP_KERNEL);
 		if (!page1_alloc)
 			return -ENOMEM;
 	}
@@ -916,13 +954,11 @@ start_over:
 		data_sz = ioc->fc_data.fc_port_page1[portnum].pg_sz;
 		if (hdr.PageLength * 4 > data_sz) {
 			ioc->fc_data.fc_port_page1[portnum].data = NULL;
-			pci_free_consistent(ioc->pcidev, data_sz, (u8 *)
-				page1_alloc, page1_dma);
+			dma_free_coherent(&ioc->pcidev->dev, data_sz,
+					  page1_alloc, page1_dma);
 			goto start_over;
 		}
 	}
-
-	memset(page1_alloc,0,data_sz);
 
 	cfg.physAddr = page1_dma;
 	cfg.action = MPI_CONFIG_ACTION_PAGE_READ_CURRENT;
@@ -934,8 +970,8 @@ start_over:
 	}
 	else {
 		ioc->fc_data.fc_port_page1[portnum].data = NULL;
-		pci_free_consistent(ioc->pcidev, data_sz, (u8 *)
-			page1_alloc, page1_dma);
+		dma_free_coherent(&ioc->pcidev->dev, data_sz, page1_alloc,
+				  page1_dma);
 	}
 
 	return rc;
@@ -1366,7 +1402,6 @@ static struct pci_driver mptfc_driver = {
 static int
 mptfc_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
 {
-	MPT_SCSI_HOST *hd;
 	u8 event = le32_to_cpu(pEvReply->Event) & 0xFF;
 	unsigned long flags;
 	int rc=1;
@@ -1377,8 +1412,7 @@ mptfc_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
 	devtverboseprintk(ioc, printk(MYIOC_s_DEBUG_FMT "MPT event (=%02Xh) routed to SCSI host driver!\n",
 			ioc->name, event));
 
-	if (ioc->sh == NULL ||
-		((hd = shost_priv(ioc->sh)) == NULL))
+	if (ioc->sh == NULL || shost_priv(ioc->sh) == NULL)
 		return 1;
 
 	switch (event) {
@@ -1516,10 +1550,10 @@ static void mptfc_remove(struct pci_dev *pdev)
 
 	for (ii=0; ii<ioc->facts.NumberOfPorts; ii++) {
 		if (ioc->fc_data.fc_port_page1[ii].data) {
-			pci_free_consistent(ioc->pcidev,
-				ioc->fc_data.fc_port_page1[ii].pg_sz,
-				(u8 *) ioc->fc_data.fc_port_page1[ii].data,
-				ioc->fc_data.fc_port_page1[ii].dma);
+			dma_free_coherent(&ioc->pcidev->dev,
+					  ioc->fc_data.fc_port_page1[ii].pg_sz,
+					  ioc->fc_data.fc_port_page1[ii].data,
+					  ioc->fc_data.fc_port_page1[ii].dma);
 			ioc->fc_data.fc_port_page1[ii].data = NULL;
 		}
 	}

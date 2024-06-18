@@ -458,6 +458,9 @@ static __u8 wiimote_cmd_read_ext(struct wiimote_data *wdata, __u8 *rmem)
 	if (rmem[0] == 0x00 && rmem[1] == 0x00 &&
 	    rmem[4] == 0x01 && rmem[5] == 0x03)
 		return WIIMOTE_EXT_GUITAR;
+	if (rmem[0] == 0x03 && rmem[1] == 0x00 &&
+	    rmem[4] == 0x01 && rmem[5] == 0x03)
+		return WIIMOTE_EXT_TURNTABLE;
 
 	return WIIMOTE_EXT_UNKNOWN;
 }
@@ -495,6 +498,7 @@ static bool wiimote_cmd_map_mp(struct wiimote_data *wdata, __u8 exttype)
 	case WIIMOTE_EXT_GUITAR:
 		wmem = 0x07;
 		break;
+	case WIIMOTE_EXT_TURNTABLE:
 	case WIIMOTE_EXT_NUNCHUK:
 		wmem = 0x05;
 		break;
@@ -1082,6 +1086,7 @@ static const char *wiimote_exttype_names[WIIMOTE_EXT_NUM] = {
 	[WIIMOTE_EXT_PRO_CONTROLLER] = "Nintendo Wii U Pro Controller",
 	[WIIMOTE_EXT_DRUMS] = "Nintendo Wii Drums",
 	[WIIMOTE_EXT_GUITAR] = "Nintendo Wii Guitar",
+	[WIIMOTE_EXT_TURNTABLE] = "Nintendo Wii Turntable"
 };
 
 /*
@@ -1482,7 +1487,7 @@ static void handler_return(struct wiimote_data *wdata, const __u8 *payload)
 		wdata->state.cmd_err = err;
 		wiimote_cmd_complete(wdata);
 	} else if (err) {
-		hid_warn(wdata->hdev, "Remote error %hhu on req %hhu\n", err,
+		hid_warn(wdata->hdev, "Remote error %u on req %u\n", err,
 									cmd);
 	}
 }
@@ -1586,7 +1591,7 @@ struct wiiproto_handler {
 	void (*func)(struct wiimote_data *wdata, const __u8 *payload);
 };
 
-static struct wiiproto_handler handlers[] = {
+static const struct wiiproto_handler handlers[] = {
 	{ .id = WIIPROTO_REQ_STATUS, .size = 6, .func = handler_status },
 	{ .id = WIIPROTO_REQ_STATUS, .size = 2, .func = handler_status_K },
 	{ .id = WIIPROTO_REQ_DATA, .size = 21, .func = handler_data },
@@ -1618,19 +1623,19 @@ static int wiimote_hid_event(struct hid_device *hdev, struct hid_report *report,
 							u8 *raw_data, int size)
 {
 	struct wiimote_data *wdata = hid_get_drvdata(hdev);
-	struct wiiproto_handler *h;
+	const struct wiiproto_handler *h;
 	int i;
 	unsigned long flags;
 
 	if (size < 1)
 		return -EINVAL;
 
-	spin_lock_irqsave(&wdata->state.lock, flags);
-
 	for (i = 0; handlers[i].id; ++i) {
 		h = &handlers[i];
 		if (h->id == raw_data[0] && h->size < size) {
+			spin_lock_irqsave(&wdata->state.lock, flags);
 			h->func(wdata, &raw_data[1]);
+			spin_unlock_irqrestore(&wdata->state.lock, flags);
 			break;
 		}
 	}
@@ -1638,8 +1643,6 @@ static int wiimote_hid_event(struct hid_device *hdev, struct hid_report *report,
 	if (!handlers[i].id)
 		hid_warn(hdev, "Unhandled report %hhu size %d\n", raw_data[0],
 									size);
-
-	spin_unlock_irqrestore(&wdata->state.lock, flags);
 
 	return 0;
 }
@@ -1671,8 +1674,9 @@ static ssize_t wiimote_ext_show(struct device *dev,
 		return sprintf(buf, "drums\n");
 	case WIIMOTE_EXT_GUITAR:
 		return sprintf(buf, "guitar\n");
+	case WIIMOTE_EXT_TURNTABLE:
+		return sprintf(buf, "turntable\n");
 	case WIIMOTE_EXT_UNKNOWN:
-		/* fallthrough */
 	default:
 		return sprintf(buf, "unknown\n");
 	}
@@ -1722,7 +1726,6 @@ static ssize_t wiimote_dev_show(struct device *dev,
 	case WIIMOTE_DEV_PENDING:
 		return sprintf(buf, "pending\n");
 	case WIIMOTE_DEV_UNKNOWN:
-		/* fallthrough */
 	default:
 		return sprintf(buf, "unknown\n");
 	}
@@ -1768,7 +1771,7 @@ static void wiimote_destroy(struct wiimote_data *wdata)
 	spin_unlock_irqrestore(&wdata->state.lock, flags);
 
 	cancel_work_sync(&wdata->init_worker);
-	del_timer_sync(&wdata->timer);
+	timer_shutdown_sync(&wdata->timer);
 
 	device_remove_file(&wdata->hdev->dev, &dev_attr_devtype);
 	device_remove_file(&wdata->hdev->dev, &dev_attr_extension);
@@ -1870,6 +1873,11 @@ static const struct hid_device_id wiimote_hid_devices[] = {
 				USB_DEVICE_ID_NINTENDO_WIIMOTE2) },
 	{ }
 };
+
+bool wiimote_dpad_as_analog = false;
+module_param_named(dpad_as_analog, wiimote_dpad_as_analog, bool, 0644);
+MODULE_PARM_DESC(dpad_as_analog, "Use D-Pad as main analog input");
+
 MODULE_DEVICE_TABLE(hid, wiimote_hid_devices);
 
 static struct hid_driver wiimote_hid_driver = {

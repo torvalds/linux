@@ -57,95 +57,11 @@ static int hfsplus_ioctl_bless(struct file *file, int __user *user_flags)
 	return 0;
 }
 
-static inline unsigned int hfsplus_getflags(struct inode *inode)
-{
-	struct hfsplus_inode_info *hip = HFSPLUS_I(inode);
-	unsigned int flags = 0;
-
-	if (inode->i_flags & S_IMMUTABLE)
-		flags |= FS_IMMUTABLE_FL;
-	if (inode->i_flags & S_APPEND)
-		flags |= FS_APPEND_FL;
-	if (hip->userflags & HFSPLUS_FLG_NODUMP)
-		flags |= FS_NODUMP_FL;
-	return flags;
-}
-
-static int hfsplus_ioctl_getflags(struct file *file, int __user *user_flags)
-{
-	struct inode *inode = file_inode(file);
-	unsigned int flags = hfsplus_getflags(inode);
-
-	return put_user(flags, user_flags);
-}
-
-static int hfsplus_ioctl_setflags(struct file *file, int __user *user_flags)
-{
-	struct inode *inode = file_inode(file);
-	struct hfsplus_inode_info *hip = HFSPLUS_I(inode);
-	unsigned int flags, new_fl = 0;
-	unsigned int oldflags = hfsplus_getflags(inode);
-	int err = 0;
-
-	err = mnt_want_write_file(file);
-	if (err)
-		goto out;
-
-	if (!inode_owner_or_capable(inode)) {
-		err = -EACCES;
-		goto out_drop_write;
-	}
-
-	if (get_user(flags, user_flags)) {
-		err = -EFAULT;
-		goto out_drop_write;
-	}
-
-	inode_lock(inode);
-
-	err = vfs_ioc_setflags_prepare(inode, oldflags, flags);
-	if (err)
-		goto out_unlock_inode;
-
-	/* don't silently ignore unsupported ext2 flags */
-	if (flags & ~(FS_IMMUTABLE_FL|FS_APPEND_FL|FS_NODUMP_FL)) {
-		err = -EOPNOTSUPP;
-		goto out_unlock_inode;
-	}
-
-	if (flags & FS_IMMUTABLE_FL)
-		new_fl |= S_IMMUTABLE;
-
-	if (flags & FS_APPEND_FL)
-		new_fl |= S_APPEND;
-
-	inode_set_flags(inode, new_fl, S_IMMUTABLE | S_APPEND);
-
-	if (flags & FS_NODUMP_FL)
-		hip->userflags |= HFSPLUS_FLG_NODUMP;
-	else
-		hip->userflags &= ~HFSPLUS_FLG_NODUMP;
-
-	inode->i_ctime = current_time(inode);
-	mark_inode_dirty(inode);
-
-out_unlock_inode:
-	inode_unlock(inode);
-out_drop_write:
-	mnt_drop_write_file(file);
-out:
-	return err;
-}
-
 long hfsplus_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
 
 	switch (cmd) {
-	case HFSPLUS_IOC_EXT2_GETFLAGS:
-		return hfsplus_ioctl_getflags(file, argp);
-	case HFSPLUS_IOC_EXT2_SETFLAGS:
-		return hfsplus_ioctl_setflags(file, argp);
 	case HFSPLUS_IOC_BLESS:
 		return hfsplus_ioctl_bless(file, argp);
 	default:

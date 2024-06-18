@@ -70,20 +70,20 @@ static int etnaviv_context_map(struct etnaviv_iommu_context *context,
 }
 
 static int etnaviv_iommu_map(struct etnaviv_iommu_context *context, u32 iova,
-			     struct sg_table *sgt, unsigned len, int prot)
+			     struct sg_table *sgt, int prot)
 {	struct scatterlist *sg;
 	unsigned int da = iova;
-	unsigned int i, j;
+	unsigned int i;
 	int ret;
 
 	if (!context || !sgt)
 		return -EINVAL;
 
-	for_each_sg(sgt->sgl, sg, sgt->nents, i) {
-		u32 pa = sg_dma_address(sg) - sg->offset;
+	for_each_sgtable_dma_sg(sgt, sg, i) {
+		phys_addr_t pa = sg_dma_address(sg) - sg->offset;
 		size_t bytes = sg_dma_len(sg) + sg->offset;
 
-		VERB("map[%d]: %08x %08x(%zx)", i, iova, pa, bytes);
+		VERB("map[%d]: %08x %pap(%zx)", i, iova, &pa, bytes);
 
 		ret = etnaviv_context_map(context, da, pa, bytes, prot);
 		if (ret)
@@ -92,17 +92,12 @@ static int etnaviv_iommu_map(struct etnaviv_iommu_context *context, u32 iova,
 		da += bytes;
 	}
 
+	context->flush_seq++;
+
 	return 0;
 
 fail:
-	da = iova;
-
-	for_each_sg(sgt->sgl, sg, i, j) {
-		size_t bytes = sg_dma_len(sg) + sg->offset;
-
-		etnaviv_context_unmap(context, da, bytes);
-		da += bytes;
-	}
+	etnaviv_context_unmap(context, iova, da - iova);
 	return ret;
 }
 
@@ -113,7 +108,7 @@ static void etnaviv_iommu_unmap(struct etnaviv_iommu_context *context, u32 iova,
 	unsigned int da = iova;
 	int i;
 
-	for_each_sg(sgt->sgl, sg, sgt->nents, i) {
+	for_each_sgtable_dma_sg(sgt, sg, i) {
 		size_t bytes = sg_dma_len(sg) + sg->offset;
 
 		etnaviv_context_unmap(context, da, bytes);
@@ -124,6 +119,8 @@ static void etnaviv_iommu_unmap(struct etnaviv_iommu_context *context, u32 iova,
 
 		da += bytes;
 	}
+
+	context->flush_seq++;
 }
 
 static void etnaviv_iommu_remove_mapping(struct etnaviv_iommu_context *context,
@@ -131,9 +128,24 @@ static void etnaviv_iommu_remove_mapping(struct etnaviv_iommu_context *context,
 {
 	struct etnaviv_gem_object *etnaviv_obj = mapping->object;
 
+	lockdep_assert_held(&context->lock);
+
 	etnaviv_iommu_unmap(context, mapping->vram_node.start,
 			    etnaviv_obj->sgt, etnaviv_obj->base.size);
 	drm_mm_remove_node(&mapping->vram_node);
+}
+
+void etnaviv_iommu_reap_mapping(struct etnaviv_vram_mapping *mapping)
+{
+	struct etnaviv_iommu_context *context = mapping->context;
+
+	lockdep_assert_held(&context->lock);
+	WARN_ON(mapping->use);
+
+	etnaviv_iommu_remove_mapping(context, mapping);
+	etnaviv_iommu_context_put(mapping->context);
+	mapping->context = NULL;
+	list_del_init(&mapping->mmu_node);
 }
 
 static int etnaviv_iommu_find_iova(struct etnaviv_iommu_context *context,
@@ -203,9 +215,7 @@ static int etnaviv_iommu_find_iova(struct etnaviv_iommu_context *context,
 		 * this mapping.
 		 */
 		list_for_each_entry_safe(m, n, &list, scan_node) {
-			etnaviv_iommu_remove_mapping(context, m);
-			m->context = NULL;
-			list_del_init(&m->mmu_node);
+			etnaviv_iommu_reap_mapping(m);
 			list_del_init(&m->scan_node);
 		}
 
@@ -223,6 +233,44 @@ static int etnaviv_iommu_find_iova(struct etnaviv_iommu_context *context,
 static int etnaviv_iommu_insert_exact(struct etnaviv_iommu_context *context,
 		   struct drm_mm_node *node, size_t size, u64 va)
 {
+	struct etnaviv_vram_mapping *m, *n;
+	struct drm_mm_node *scan_node;
+	LIST_HEAD(scan_list);
+	int ret;
+
+	lockdep_assert_held(&context->lock);
+
+	ret = drm_mm_insert_node_in_range(&context->mm, node, size, 0, 0, va,
+					  va + size, DRM_MM_INSERT_LOWEST);
+	if (ret != -ENOSPC)
+		return ret;
+
+	/*
+	 * When we can't insert the node, due to a existing mapping blocking
+	 * the address space, there are two possible reasons:
+	 * 1. Userspace genuinely messed up and tried to reuse address space
+	 * before the last job using this VMA has finished executing.
+	 * 2. The existing buffer mappings are idle, but the buffers are not
+	 * destroyed yet (likely due to being referenced by another context) in
+	 * which case the mappings will not be cleaned up and we must reap them
+	 * here to make space for the new mapping.
+	 */
+
+	drm_mm_for_each_node_in_range(scan_node, &context->mm, va, va + size) {
+		m = container_of(scan_node, struct etnaviv_vram_mapping,
+				 vram_node);
+
+		if (m->use)
+			return -ENOSPC;
+
+		list_add(&m->scan_node, &scan_list);
+	}
+
+	list_for_each_entry_safe(m, n, &scan_list, scan_node) {
+		etnaviv_iommu_reap_mapping(m);
+		list_del_init(&m->scan_node);
+	}
+
 	return drm_mm_insert_node_in_range(&context->mm, node, size, 0, 0, va,
 					   va + size, DRM_MM_INSERT_LOWEST);
 }
@@ -247,6 +295,7 @@ int etnaviv_iommu_map_gem(struct etnaviv_iommu_context *context,
 		iova = sg_dma_address(sgt->sgl) - memory_base;
 		if (iova < 0x80000000 - sg_dma_len(sgt->sgl)) {
 			mapping->iova = iova;
+			mapping->context = etnaviv_iommu_context_get(context);
 			list_add_tail(&mapping->mmu_node, &context->mappings);
 			ret = 0;
 			goto unlock;
@@ -265,7 +314,7 @@ int etnaviv_iommu_map_gem(struct etnaviv_iommu_context *context,
 		goto unlock;
 
 	mapping->iova = node->start;
-	ret = etnaviv_iommu_map(context, node->start, sgt, etnaviv_obj->base.size,
+	ret = etnaviv_iommu_map(context, node->start, sgt,
 				ETNAVIV_PROT_READ | ETNAVIV_PROT_WRITE);
 
 	if (ret < 0) {
@@ -273,8 +322,8 @@ int etnaviv_iommu_map_gem(struct etnaviv_iommu_context *context,
 		goto unlock;
 	}
 
+	mapping->context = etnaviv_iommu_context_get(context);
 	list_add_tail(&mapping->mmu_node, &context->mappings);
-	context->flush_seq++;
 unlock:
 	mutex_unlock(&context->lock);
 
@@ -288,13 +337,19 @@ void etnaviv_iommu_unmap_gem(struct etnaviv_iommu_context *context,
 
 	mutex_lock(&context->lock);
 
+	/* Bail if the mapping has been reaped by another thread */
+	if (!mapping->context) {
+		mutex_unlock(&context->lock);
+		return;
+	}
+
 	/* If the vram node is on the mm, unmap and remove the node */
 	if (mapping->vram_node.mm == &context->mm)
 		etnaviv_iommu_remove_mapping(context, mapping);
 
 	list_del(&mapping->mmu_node);
-	context->flush_seq++;
 	mutex_unlock(&context->lock);
+	etnaviv_iommu_context_put(context);
 }
 
 static void etnaviv_iommu_context_free(struct kref *kref)
@@ -328,12 +383,23 @@ etnaviv_iommu_context_init(struct etnaviv_iommu_global *global,
 
 	ret = etnaviv_cmdbuf_suballoc_map(suballoc, ctx, &ctx->cmdbuf_mapping,
 					  global->memory_base);
-	if (ret) {
-		global->ops->free(ctx);
-		return NULL;
+	if (ret)
+		goto out_free;
+
+	if (global->version == ETNAVIV_IOMMU_V1 &&
+	    ctx->cmdbuf_mapping.iova > 0x80000000) {
+		dev_err(global->dev,
+		        "command buffer outside valid memory window\n");
+		goto out_unmap;
 	}
 
 	return ctx;
+
+out_unmap:
+	etnaviv_cmdbuf_suballoc_unmap(ctx, &ctx->cmdbuf_mapping);
+out_free:
+	global->ops->free(ctx);
+	return NULL;
 }
 
 void etnaviv_iommu_restore(struct etnaviv_gpu *gpu,
@@ -486,6 +552,9 @@ void etnaviv_iommu_global_fini(struct etnaviv_gpu *gpu)
 {
 	struct etnaviv_drm_private *priv = gpu->drm->dev_private;
 	struct etnaviv_iommu_global *global = priv->mmu_global;
+
+	if (!global)
+		return;
 
 	if (--global->use > 0)
 		return;

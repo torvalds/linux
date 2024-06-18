@@ -1,13 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0-only
 
 #include <linux/clk.h>
 #include <linux/clkdev.h>
@@ -17,7 +8,9 @@
 #include <linux/io.h>
 #include <linux/math64.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/string.h>
 
 #define ADPLL_PLLSS_MMR_LOCK_OFFSET	0x00	/* Managed by MPPULL */
@@ -194,15 +187,8 @@ static const char *ti_adpll_clk_get_name(struct ti_adpll_data *d,
 		if (err)
 			return NULL;
 	} else {
-		const char *base_name = "adpll";
-		char *buf;
-
-		buf = devm_kzalloc(d->dev, 8 + 1 + strlen(base_name) + 1 +
-				    strlen(postfix), GFP_KERNEL);
-		if (!buf)
-			return NULL;
-		sprintf(buf, "%08lx.%s.%s", d->pa, base_name, postfix);
-		name = buf;
+		name = devm_kasprintf(d->dev, GFP_KERNEL, "%08lx.adpll.%s",
+				      d->pa, postfix);
 	}
 
 	return name;
@@ -814,7 +800,7 @@ static int ti_adpll_init_registers(struct ti_adpll_data *d)
 
 static int ti_adpll_init_inputs(struct ti_adpll_data *d)
 {
-	const char *error = "need at least %i inputs";
+	static const char error[] = "need at least %i inputs";
 	struct clk *clock;
 	int nr_inputs;
 
@@ -876,38 +862,23 @@ static int ti_adpll_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *match;
-	const struct ti_adpll_platform_data *pdata;
 	struct ti_adpll_data *d;
 	struct resource *res;
 	int err;
-
-	match = of_match_device(ti_adpll_match, dev);
-	if (match)
-		pdata = match->data;
-	else
-		return -ENODEV;
 
 	d = devm_kzalloc(dev, sizeof(*d), GFP_KERNEL);
 	if (!d)
 		return -ENOMEM;
 	d->dev = dev;
 	d->np = node;
-	d->c = pdata;
+	d->c = device_get_match_data(dev);
 	dev_set_drvdata(d->dev, d);
 	spin_lock_init(&d->lock);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-	d->pa = res->start;
-
-	d->iobase = devm_ioremap_resource(dev, res);
-	if (IS_ERR(d->iobase)) {
-		dev_err(dev, "could not get IO base: %li\n",
-			PTR_ERR(d->iobase));
+	d->iobase = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
+	if (IS_ERR(d->iobase))
 		return PTR_ERR(d->iobase);
-	}
+	d->pa = res->start;
 
 	err = ti_adpll_init_registers(d);
 	if (err)
@@ -950,13 +921,11 @@ free:
 	return err;
 }
 
-static int ti_adpll_remove(struct platform_device *pdev)
+static void ti_adpll_remove(struct platform_device *pdev)
 {
 	struct ti_adpll_data *d = dev_get_drvdata(&pdev->dev);
 
 	ti_adpll_free_resources(d);
-
-	return 0;
 }
 
 static struct platform_driver ti_adpll_driver = {
@@ -965,7 +934,7 @@ static struct platform_driver ti_adpll_driver = {
 		.of_match_table = ti_adpll_match,
 	},
 	.probe = ti_adpll_probe,
-	.remove = ti_adpll_remove,
+	.remove_new = ti_adpll_remove,
 };
 
 static int __init ti_adpll_init(void)

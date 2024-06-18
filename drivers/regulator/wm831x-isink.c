@@ -99,11 +99,9 @@ static irqreturn_t wm831x_isink_irq(int irq, void *data)
 {
 	struct wm831x_isink *isink = data;
 
-	regulator_lock(isink->regulator);
 	regulator_notifier_call_chain(isink->regulator,
 				      REGULATOR_EVENT_OVER_CURRENT,
 				      NULL);
-	regulator_unlock(isink->regulator);
 
 	return IRQ_HANDLED;
 }
@@ -191,6 +189,7 @@ static struct platform_driver wm831x_isink_driver = {
 	.probe = wm831x_isink_probe,
 	.driver		= {
 		.name	= "wm831x-isink",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
 

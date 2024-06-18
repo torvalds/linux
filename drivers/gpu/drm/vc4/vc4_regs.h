@@ -6,19 +6,18 @@
 #ifndef VC4_REGS_H
 #define VC4_REGS_H
 
+#include <linux/bitfield.h>
 #include <linux/bitops.h>
 
 #define VC4_MASK(high, low) ((u32)GENMASK(high, low))
 /* Using the GNU statement expression extension */
 #define VC4_SET_FIELD(value, field)					\
 	({								\
-		uint32_t fieldval = (value) << field##_SHIFT;		\
-		WARN_ON((fieldval & ~field##_MASK) != 0);		\
-		fieldval & field##_MASK;				\
+		WARN_ON(!FIELD_FIT(field##_MASK, value));		\
+		FIELD_PREP(field##_MASK, value);			\
 	 })
 
-#define VC4_GET_FIELD(word, field) (((word) & field##_MASK) >>		\
-				    field##_SHIFT)
+#define VC4_GET_FIELD(word, field) FIELD_GET(field##_MASK, word)
 
 #define V3D_IDENT0   0x00000
 # define V3D_EXPECTED_IDENT0 \
@@ -130,6 +129,8 @@
 #define V3D_ERRSTAT  0x00f20
 
 #define PV_CONTROL				0x00
+# define PV5_CONTROL_FIFO_LEVEL_HIGH_MASK	VC4_MASK(26, 25)
+# define PV5_CONTROL_FIFO_LEVEL_HIGH_SHIFT	25
 # define PV_CONTROL_FORMAT_MASK			VC4_MASK(23, 21)
 # define PV_CONTROL_FORMAT_SHIFT		21
 # define PV_CONTROL_FORMAT_24			0
@@ -209,11 +210,22 @@
 
 #define PV_HACT_ACT				0x30
 
+#define PV_MUX_CFG				0x34
+# define PV_MUX_CFG_RGB_PIXEL_MUX_MODE_MASK	VC4_MASK(5, 2)
+# define PV_MUX_CFG_RGB_PIXEL_MUX_MODE_SHIFT	2
+# define PV_MUX_CFG_RGB_PIXEL_MUX_MODE_NO_SWAP	8
+
 #define SCALER_CHANNELS_COUNT			3
 
 #define SCALER_DISPCTRL                         0x00000000
 /* Global register for clock gating the HVS */
 # define SCALER_DISPCTRL_ENABLE			BIT(31)
+# define SCALER_DISPCTRL_PANIC0_MASK		VC4_MASK(25, 24)
+# define SCALER_DISPCTRL_PANIC0_SHIFT		24
+# define SCALER_DISPCTRL_PANIC1_MASK		VC4_MASK(27, 26)
+# define SCALER_DISPCTRL_PANIC1_SHIFT		26
+# define SCALER_DISPCTRL_PANIC2_MASK		VC4_MASK(29, 28)
+# define SCALER_DISPCTRL_PANIC2_SHIFT		28
 # define SCALER_DISPCTRL_DSP3_MUX_MASK		VC4_MASK(19, 18)
 # define SCALER_DISPCTRL_DSP3_MUX_SHIFT		18
 
@@ -222,15 +234,21 @@
  * always enabled.
  */
 # define SCALER_DISPCTRL_DSPEISLUR(x)		BIT(13 + (x))
+# define SCALER5_DISPCTRL_DSPEISLUR(x)		BIT(9 + ((x) * 4))
 /* Enables Display 0 end-of-line-N contribution to
  * SCALER_DISPSTAT_IRQDISP0
  */
 # define SCALER_DISPCTRL_DSPEIEOLN(x)		BIT(8 + ((x) * 2))
+# define SCALER5_DISPCTRL_DSPEIEOLN(x)		BIT(8 + ((x) * 4))
 /* Enables Display 0 EOF contribution to SCALER_DISPSTAT_IRQDISP0 */
 # define SCALER_DISPCTRL_DSPEIEOF(x)		BIT(7 + ((x) * 2))
+# define SCALER5_DISPCTRL_DSPEIEOF(x)		BIT(7 + ((x) * 4))
 
-# define SCALER_DISPCTRL_SLVRDEIRQ		BIT(6)
-# define SCALER_DISPCTRL_SLVWREIRQ		BIT(5)
+# define SCALER5_DISPCTRL_DSPEIVST(x)		BIT(6 + ((x) * 4))
+
+# define SCALER_DISPCTRL_SLVRDEIRQ		BIT(6)	/* HVS4 only */
+# define SCALER_DISPCTRL_SLVWREIRQ		BIT(5)	/* HVS4 only */
+# define SCALER5_DISPCTRL_SLVEIRQ		BIT(5)
 # define SCALER_DISPCTRL_DMAEIRQ		BIT(4)
 /* Enables interrupt generation on the enabled EOF/EOLN/EISLUR
  * bits and short frames..
@@ -258,7 +276,7 @@
  * output line.
  */
 # define SCALER_DISPSTAT_ESLINE(x)		BIT(10 + ((x) * 8))
-/* Set when the the downstream tries to read from the display FIFO
+/* Set when the downstream tries to read from the display FIFO
  * while it's empty.
  */
 # define SCALER_DISPSTAT_EUFLOW(x)		BIT(9 + ((x) * 8))
@@ -287,9 +305,19 @@
 
 #define SCALER_DISPID                           0x00000008
 #define SCALER_DISPECTRL                        0x0000000c
+# define SCALER_DISPECTRL_DSP2_MUX_SHIFT	31
+# define SCALER_DISPECTRL_DSP2_MUX_MASK		VC4_MASK(31, 31)
+
 #define SCALER_DISPPROF                         0x00000010
+
 #define SCALER_DISPDITHER                       0x00000014
+# define SCALER_DISPDITHER_DSP5_MUX_SHIFT	30
+# define SCALER_DISPDITHER_DSP5_MUX_MASK	VC4_MASK(31, 30)
+
 #define SCALER_DISPEOLN                         0x00000018
+# define SCALER_DISPEOLN_DSP4_MUX_SHIFT		30
+# define SCALER_DISPEOLN_DSP4_MUX_MASK		VC4_MASK(31, 30)
+
 #define SCALER_DISPLIST0                        0x00000020
 #define SCALER_DISPLIST1                        0x00000024
 #define SCALER_DISPLIST2                        0x00000028
@@ -328,8 +356,23 @@
 # define SCALER_DISPCTRLX_HEIGHT_MASK		VC4_MASK(11, 0)
 # define SCALER_DISPCTRLX_HEIGHT_SHIFT		0
 
+# define SCALER5_DISPCTRLX_WIDTH_MASK		VC4_MASK(28, 16)
+# define SCALER5_DISPCTRLX_WIDTH_SHIFT		16
+/* Generates a single frame when VSTART is seen and stops at the last
+ * pixel read from the FIFO.
+ */
+# define SCALER5_DISPCTRLX_ONESHOT		BIT(15)
+/* Processes a single context in the dlist and then task switch,
+ * instead of an entire line.
+ */
+# define SCALER5_DISPCTRLX_ONECTX_MASK		VC4_MASK(14, 13)
+# define SCALER5_DISPCTRLX_ONECTX_SHIFT		13
+# define SCALER5_DISPCTRLX_HEIGHT_MASK		VC4_MASK(12, 0)
+# define SCALER5_DISPCTRLX_HEIGHT_SHIFT		0
+
 #define SCALER_DISPBKGND0                       0x00000044
 # define SCALER_DISPBKGND_AUTOHS		BIT(31)
+# define SCALER5_DISPBKGND_BCK2BCK		BIT(31)
 # define SCALER_DISPBKGND_INTERLACE		BIT(30)
 # define SCALER_DISPBKGND_GAMMA			BIT(29)
 # define SCALER_DISPBKGND_TESTMODE_MASK		VC4_MASK(28, 25)
@@ -349,8 +392,6 @@
 # define SCALER_DISPSTATX_MODE_EOF		3
 # define SCALER_DISPSTATX_FULL			BIT(29)
 # define SCALER_DISPSTATX_EMPTY			BIT(28)
-# define SCALER_DISPSTATX_FRAME_COUNT_MASK	VC4_MASK(17, 12)
-# define SCALER_DISPSTATX_FRAME_COUNT_SHIFT	12
 # define SCALER_DISPSTATX_LINE_MASK		VC4_MASK(11, 0)
 # define SCALER_DISPSTATX_LINE_SHIFT		0
 
@@ -373,9 +414,15 @@
 						 (x) * (SCALER_DISPBKGND1 - \
 							SCALER_DISPBKGND0))
 #define SCALER_DISPSTAT1                        0x00000058
+# define SCALER_DISPSTAT1_FRCNT0_MASK		VC4_MASK(23, 18)
+# define SCALER_DISPSTAT1_FRCNT0_SHIFT		18
+# define SCALER_DISPSTAT1_FRCNT1_MASK		VC4_MASK(17, 12)
+# define SCALER_DISPSTAT1_FRCNT1_SHIFT		12
+
 #define SCALER_DISPSTATX(x)			(SCALER_DISPSTAT0 +        \
 						 (x) * (SCALER_DISPSTAT1 - \
 							SCALER_DISPSTAT0))
+
 #define SCALER_DISPBASE1                        0x0000005c
 #define SCALER_DISPBASEX(x)			(SCALER_DISPBASE0 +        \
 						 (x) * (SCALER_DISPBASE1 - \
@@ -385,7 +432,11 @@
 						 (x) * (SCALER_DISPCTRL1 - \
 							SCALER_DISPCTRL0))
 #define SCALER_DISPBKGND2                       0x00000064
+
 #define SCALER_DISPSTAT2                        0x00000068
+# define SCALER_DISPSTAT2_FRCNT2_MASK		VC4_MASK(17, 12)
+# define SCALER_DISPSTAT2_FRCNT2_SHIFT		12
+
 #define SCALER_DISPBASE2                        0x0000006c
 #define SCALER_DISPALPHA2                       0x00000070
 #define SCALER_GAMADDR                          0x00000078
@@ -461,32 +512,18 @@
 #define SCALER_DLIST_START                      0x00002000
 #define SCALER_DLIST_SIZE                       0x00004000
 
-#define VC4_HDMI_CORE_REV			0x000
+#define SCALER5_DLIST_START			0x00004000
 
-#define VC4_HDMI_SW_RESET_CONTROL		0x004
 # define VC4_HDMI_SW_RESET_FORMAT_DETECT	BIT(1)
 # define VC4_HDMI_SW_RESET_HDMI			BIT(0)
 
-#define VC4_HDMI_HOTPLUG_INT			0x008
-
-#define VC4_HDMI_HOTPLUG			0x00c
 # define VC4_HDMI_HOTPLUG_CONNECTED		BIT(0)
 
-/* 3 bits per field, where each field maps from that corresponding MAI
- * bus channel to the given HDMI channel.
- */
-#define VC4_HDMI_MAI_CHANNEL_MAP		0x090
-
-#define VC4_HDMI_MAI_CONFIG			0x094
 # define VC4_HDMI_MAI_CONFIG_FORMAT_REVERSE		BIT(27)
 # define VC4_HDMI_MAI_CONFIG_BIT_REVERSE		BIT(26)
 # define VC4_HDMI_MAI_CHANNEL_MASK_MASK			VC4_MASK(15, 0)
 # define VC4_HDMI_MAI_CHANNEL_MASK_SHIFT		0
 
-/* Last received format word on the MAI bus. */
-#define VC4_HDMI_MAI_FORMAT			0x098
-
-#define VC4_HDMI_AUDIO_PACKET_CONFIG		0x09c
 # define VC4_HDMI_AUDIO_PACKET_ZERO_DATA_ON_SAMPLE_FLAT		BIT(29)
 # define VC4_HDMI_AUDIO_PACKET_ZERO_DATA_ON_INACTIVE_CHANNELS	BIT(24)
 # define VC4_HDMI_AUDIO_PACKET_FORCE_SAMPLE_PRESENT		BIT(19)
@@ -500,12 +537,38 @@
 # define VC4_HDMI_AUDIO_PACKET_CEA_MASK_MASK			VC4_MASK(7, 0)
 # define VC4_HDMI_AUDIO_PACKET_CEA_MASK_SHIFT			0
 
-#define VC4_HDMI_RAM_PACKET_CONFIG		0x0a0
+# define VC4_HDMI_MAI_FORMAT_AUDIO_FORMAT_MASK		VC4_MASK(23, 16)
+# define VC4_HDMI_MAI_FORMAT_AUDIO_FORMAT_SHIFT		16
+
+enum {
+	VC4_HDMI_MAI_FORMAT_PCM = 2,
+	VC4_HDMI_MAI_FORMAT_HBR = 200,
+};
+
+# define VC4_HDMI_MAI_FORMAT_SAMPLE_RATE_MASK		VC4_MASK(15, 8)
+# define VC4_HDMI_MAI_FORMAT_SAMPLE_RATE_SHIFT		8
+
+enum {
+	VC4_HDMI_MAI_SAMPLE_RATE_NOT_INDICATED = 0,
+	VC4_HDMI_MAI_SAMPLE_RATE_8000 = 1,
+	VC4_HDMI_MAI_SAMPLE_RATE_11025 = 2,
+	VC4_HDMI_MAI_SAMPLE_RATE_12000 = 3,
+	VC4_HDMI_MAI_SAMPLE_RATE_16000 = 4,
+	VC4_HDMI_MAI_SAMPLE_RATE_22050 = 5,
+	VC4_HDMI_MAI_SAMPLE_RATE_24000 = 6,
+	VC4_HDMI_MAI_SAMPLE_RATE_32000 = 7,
+	VC4_HDMI_MAI_SAMPLE_RATE_44100 = 8,
+	VC4_HDMI_MAI_SAMPLE_RATE_48000 = 9,
+	VC4_HDMI_MAI_SAMPLE_RATE_64000 = 10,
+	VC4_HDMI_MAI_SAMPLE_RATE_88200 = 11,
+	VC4_HDMI_MAI_SAMPLE_RATE_96000 = 12,
+	VC4_HDMI_MAI_SAMPLE_RATE_128000 = 13,
+	VC4_HDMI_MAI_SAMPLE_RATE_176400 = 14,
+	VC4_HDMI_MAI_SAMPLE_RATE_192000 = 15,
+};
+
 # define VC4_HDMI_RAM_PACKET_ENABLE		BIT(16)
 
-#define VC4_HDMI_RAM_PACKET_STATUS		0x0a4
-
-#define VC4_HDMI_CRP_CFG			0x0a8
 /* When set, the CTS_PERIOD counts based on MAI bus sync pulse instead
  * of pixel clock.
  */
@@ -519,24 +582,13 @@
 # define VC4_HDMI_CRP_CFG_N_MASK		VC4_MASK(19, 0)
 # define VC4_HDMI_CRP_CFG_N_SHIFT		0
 
-/* 20-bit fields containing CTS values to be transmitted if !EXTERNAL_CTS_EN */
-#define VC4_HDMI_CTS_0				0x0ac
-#define VC4_HDMI_CTS_1				0x0b0
-/* 20-bit fields containing number of clocks to send CTS0/1 before
- * switching to the other one.
- */
-#define VC4_HDMI_CTS_PERIOD_0			0x0b4
-#define VC4_HDMI_CTS_PERIOD_1			0x0b8
-
-#define VC4_HDMI_HORZA				0x0c4
 # define VC4_HDMI_HORZA_VPOS			BIT(14)
 # define VC4_HDMI_HORZA_HPOS			BIT(13)
 /* Horizontal active pixels (hdisplay). */
 # define VC4_HDMI_HORZA_HAP_MASK		VC4_MASK(12, 0)
 # define VC4_HDMI_HORZA_HAP_SHIFT		0
 
-#define VC4_HDMI_HORZB				0x0c8
-/* Horizontal pack porch (htotal - hsync_end). */
+/* Horizontal back porch (htotal - hsync_end). */
 # define VC4_HDMI_HORZB_HBP_MASK		VC4_MASK(29, 20)
 # define VC4_HDMI_HORZB_HBP_SHIFT		20
 /* Horizontal sync pulse (hsync_end - hsync_start). */
@@ -546,7 +598,6 @@
 # define VC4_HDMI_HORZB_HFP_MASK		VC4_MASK(9, 0)
 # define VC4_HDMI_HORZB_HFP_SHIFT		0
 
-#define VC4_HDMI_FIFO_CTL			0x05c
 # define VC4_HDMI_FIFO_CTL_RECENTER_DONE	BIT(14)
 # define VC4_HDMI_FIFO_CTL_USE_EMPTY		BIT(13)
 # define VC4_HDMI_FIFO_CTL_ON_VB		BIT(7)
@@ -559,15 +610,12 @@
 # define VC4_HDMI_FIFO_CTL_MASTER_SLAVE_N	BIT(0)
 # define VC4_HDMI_FIFO_VALID_WRITE_MASK		0xefff
 
-#define VC4_HDMI_SCHEDULER_CONTROL		0x0c0
 # define VC4_HDMI_SCHEDULER_CONTROL_MANUAL_FORMAT BIT(15)
 # define VC4_HDMI_SCHEDULER_CONTROL_IGNORE_VSYNC_PREDICTS BIT(5)
 # define VC4_HDMI_SCHEDULER_CONTROL_VERT_ALWAYS_KEEPOUT	BIT(3)
 # define VC4_HDMI_SCHEDULER_CONTROL_HDMI_ACTIVE	BIT(1)
 # define VC4_HDMI_SCHEDULER_CONTROL_MODE_HDMI	BIT(0)
 
-#define VC4_HDMI_VERTA0				0x0cc
-#define VC4_HDMI_VERTA1				0x0d4
 /* Vertical sync pulse (vsync_end - vsync_start). */
 # define VC4_HDMI_VERTA_VSP_MASK		VC4_MASK(24, 20)
 # define VC4_HDMI_VERTA_VSP_SHIFT		20
@@ -578,8 +626,6 @@
 # define VC4_HDMI_VERTA_VAL_MASK		VC4_MASK(12, 0)
 # define VC4_HDMI_VERTA_VAL_SHIFT		0
 
-#define VC4_HDMI_VERTB0				0x0d0
-#define VC4_HDMI_VERTB1				0x0d8
 /* Vertical sync pulse offset (for interlaced) */
 # define VC4_HDMI_VERTB_VSPO_MASK		VC4_MASK(21, 9)
 # define VC4_HDMI_VERTB_VSPO_SHIFT		9
@@ -587,7 +633,6 @@
 # define VC4_HDMI_VERTB_VBP_MASK		VC4_MASK(8, 0)
 # define VC4_HDMI_VERTB_VBP_SHIFT		0
 
-#define VC4_HDMI_CEC_CNTRL_1			0x0e8
 /* Set when the transmission has ended. */
 # define VC4_HDMI_CEC_TX_EOM			BIT(31)
 /* If set, transmission was acked on the 1st or 2nd attempt (only one
@@ -628,7 +673,6 @@
 /* Set these fields to how many bit clock cycles get to that many
  * microseconds.
  */
-#define VC4_HDMI_CEC_CNTRL_2			0x0ec
 # define VC4_HDMI_CEC_CNT_TO_1500_US_MASK	VC4_MASK(30, 24)
 # define VC4_HDMI_CEC_CNT_TO_1500_US_SHIFT	24
 # define VC4_HDMI_CEC_CNT_TO_1300_US_MASK	VC4_MASK(23, 17)
@@ -640,7 +684,6 @@
 # define VC4_HDMI_CEC_CNT_TO_400_US_MASK	VC4_MASK(4, 0)
 # define VC4_HDMI_CEC_CNT_TO_400_US_SHIFT	0
 
-#define VC4_HDMI_CEC_CNTRL_3			0x0f0
 # define VC4_HDMI_CEC_CNT_TO_2750_US_MASK	VC4_MASK(31, 24)
 # define VC4_HDMI_CEC_CNT_TO_2750_US_SHIFT	24
 # define VC4_HDMI_CEC_CNT_TO_2400_US_MASK	VC4_MASK(23, 16)
@@ -650,7 +693,6 @@
 # define VC4_HDMI_CEC_CNT_TO_1700_US_MASK	VC4_MASK(7, 0)
 # define VC4_HDMI_CEC_CNT_TO_1700_US_SHIFT	0
 
-#define VC4_HDMI_CEC_CNTRL_4			0x0f4
 # define VC4_HDMI_CEC_CNT_TO_4300_US_MASK	VC4_MASK(31, 24)
 # define VC4_HDMI_CEC_CNT_TO_4300_US_SHIFT	24
 # define VC4_HDMI_CEC_CNT_TO_3900_US_MASK	VC4_MASK(23, 16)
@@ -660,7 +702,6 @@
 # define VC4_HDMI_CEC_CNT_TO_3500_US_MASK	VC4_MASK(7, 0)
 # define VC4_HDMI_CEC_CNT_TO_3500_US_SHIFT	0
 
-#define VC4_HDMI_CEC_CNTRL_5			0x0f8
 # define VC4_HDMI_CEC_TX_SW_RESET		BIT(27)
 # define VC4_HDMI_CEC_RX_SW_RESET		BIT(26)
 # define VC4_HDMI_CEC_PAD_SW_RESET		BIT(25)
@@ -673,39 +714,11 @@
 # define VC4_HDMI_CEC_CNT_TO_4500_US_MASK	VC4_MASK(7, 0)
 # define VC4_HDMI_CEC_CNT_TO_4500_US_SHIFT	0
 
-/* Transmit data, first byte is low byte of the 32-bit reg.  MSB of
- * each byte transmitted first.
- */
-#define VC4_HDMI_CEC_TX_DATA_1			0x0fc
-#define VC4_HDMI_CEC_TX_DATA_2			0x100
-#define VC4_HDMI_CEC_TX_DATA_3			0x104
-#define VC4_HDMI_CEC_TX_DATA_4			0x108
-#define VC4_HDMI_CEC_RX_DATA_1			0x10c
-#define VC4_HDMI_CEC_RX_DATA_2			0x110
-#define VC4_HDMI_CEC_RX_DATA_3			0x114
-#define VC4_HDMI_CEC_RX_DATA_4			0x118
-
-#define VC4_HDMI_TX_PHY_RESET_CTL		0x2c0
-
-#define VC4_HDMI_TX_PHY_CTL0			0x2c4
 # define VC4_HDMI_TX_PHY_RNG_PWRDN		BIT(25)
 
-/* Interrupt status bits */
-#define VC4_HDMI_CPU_STATUS			0x340
-#define VC4_HDMI_CPU_SET			0x344
-#define VC4_HDMI_CPU_CLEAR			0x348
 # define VC4_HDMI_CPU_CEC			BIT(6)
 # define VC4_HDMI_CPU_HOTPLUG			BIT(0)
 
-#define VC4_HDMI_CPU_MASK_STATUS		0x34c
-#define VC4_HDMI_CPU_MASK_SET			0x350
-#define VC4_HDMI_CPU_MASK_CLEAR			0x354
-
-#define VC4_HDMI_GCP(x)				(0x400 + ((x) * 0x4))
-#define VC4_HDMI_RAM_PACKET(x)			(0x400 + ((x) * 0x24))
-#define VC4_HDMI_PACKET_STRIDE			0x24
-
-#define VC4_HD_M_CTL				0x00c
 /* Debug: Current receive value on the CEC pad. */
 # define VC4_HD_CECRXD				BIT(9)
 /* Debug: Override CEC output to 0. */
@@ -715,7 +728,6 @@
 # define VC4_HD_M_SW_RST			BIT(2)
 # define VC4_HD_M_ENABLE			BIT(0)
 
-#define VC4_HD_MAI_CTL				0x014
 /* Set when audio stream is received at a slower rate than the
  * sampling period, so MAI fifo goes empty.  Write 1 to clear.
  */
@@ -740,7 +752,6 @@
 /* Single-shot reset bit.  Read value is undefined. */
 # define VC4_HD_MAI_CTL_RESET			BIT(0)
 
-#define VC4_HD_MAI_THR				0x018
 # define VC4_HD_MAI_THR_PANICHIGH_MASK		VC4_MASK(29, 24)
 # define VC4_HD_MAI_THR_PANICHIGH_SHIFT		24
 # define VC4_HD_MAI_THR_PANICLOW_MASK		VC4_MASK(21, 16)
@@ -750,31 +761,23 @@
 # define VC4_HD_MAI_THR_DREQLOW_MASK		VC4_MASK(5, 0)
 # define VC4_HD_MAI_THR_DREQLOW_SHIFT		0
 
-/* Format header to be placed on the MAI data. Unused. */
-#define VC4_HD_MAI_FMT				0x01c
-
-/* Register for DMAing in audio data to be transported over the MAI
- * bus to the Falcon core.
- */
-#define VC4_HD_MAI_DATA				0x020
-
 /* Divider from HDMI HSM clock to MAI serial clock.  Sampling period
  * converges to N / (M + 1) cycles.
  */
-#define VC4_HD_MAI_SMP				0x02c
 # define VC4_HD_MAI_SMP_N_MASK			VC4_MASK(31, 8)
 # define VC4_HD_MAI_SMP_N_SHIFT			8
 # define VC4_HD_MAI_SMP_M_MASK			VC4_MASK(7, 0)
 # define VC4_HD_MAI_SMP_M_SHIFT			0
 
-#define VC4_HD_VID_CTL				0x038
 # define VC4_HD_VID_CTL_ENABLE			BIT(31)
 # define VC4_HD_VID_CTL_UNDERFLOW_ENABLE	BIT(30)
 # define VC4_HD_VID_CTL_FRAME_COUNTER_RESET	BIT(29)
 # define VC4_HD_VID_CTL_VSYNC_LOW		BIT(28)
 # define VC4_HD_VID_CTL_HSYNC_LOW		BIT(27)
+# define VC4_HD_VID_CTL_CLRSYNC			BIT(24)
+# define VC4_HD_VID_CTL_CLRRGB			BIT(23)
+# define VC4_HD_VID_CTL_BLANKPIX		BIT(18)
 
-#define VC4_HD_CSC_CTL				0x040
 # define VC4_HD_CSC_CTL_ORDER_MASK		VC4_MASK(7, 5)
 # define VC4_HD_CSC_CTL_ORDER_SHIFT		5
 # define VC4_HD_CSC_CTL_ORDER_RGB		0
@@ -792,14 +795,26 @@
 # define VC4_HD_CSC_CTL_RGB2YCC			BIT(1)
 # define VC4_HD_CSC_CTL_ENABLE			BIT(0)
 
-#define VC4_HD_CSC_12_11			0x044
-#define VC4_HD_CSC_14_13			0x048
-#define VC4_HD_CSC_22_21			0x04c
-#define VC4_HD_CSC_24_23			0x050
-#define VC4_HD_CSC_32_31			0x054
-#define VC4_HD_CSC_34_33			0x058
+# define VC5_MT_CP_CSC_CTL_USE_444_TO_422	BIT(6)
+# define VC5_MT_CP_CSC_CTL_FILTER_MODE_444_TO_422_MASK \
+						VC4_MASK(5, 4)
+# define VC5_MT_CP_CSC_CTL_FILTER_MODE_444_TO_422_STANDARD \
+						3
+# define VC5_MT_CP_CSC_CTL_USE_RNG_SUPPRESSION	BIT(3)
+# define VC5_MT_CP_CSC_CTL_ENABLE		BIT(2)
+# define VC5_MT_CP_CSC_CTL_MODE_MASK		VC4_MASK(1, 0)
 
-#define VC4_HD_FRAME_COUNT			0x068
+# define VC5_MT_CP_CHANNEL_CTL_OUTPUT_REMAP_MASK \
+						VC4_MASK(7, 6)
+# define VC5_MT_CP_CHANNEL_CTL_OUTPUT_REMAP_LEGACY_STYLE \
+						2
+
+# define VC4_DVP_HT_CLOCK_STOP_PIXEL		BIT(1)
+
+# define VC5_DVP_HT_VEC_INTERFACE_CFG_SEL_422_MASK \
+						VC4_MASK(3, 2)
+# define VC5_DVP_HT_VEC_INTERFACE_CFG_SEL_422_FORMAT_422_LEGACY \
+						2
 
 /* HVS display list information. */
 #define HVS_BOOTLOADER_DLIST_END                32
@@ -826,21 +841,26 @@ enum hvs_pixel_format {
 	HVS_PIXEL_FORMAT_PALETTE = 13,
 	HVS_PIXEL_FORMAT_YUV444_RGB = 14,
 	HVS_PIXEL_FORMAT_AYUV444_RGB = 15,
+	HVS_PIXEL_FORMAT_RGBA1010102 = 16,
+	HVS_PIXEL_FORMAT_YCBCR_10BIT = 17,
 };
 
 /* Note: the LSB is the rightmost character shown.  Only valid for
  * HVS_PIXEL_FORMAT_RGB8888, not RGB888.
  */
+/* For modes 332, 4444, 555, 5551, 6666, 8888, 10:10:10:2 */
 #define HVS_PIXEL_ORDER_RGBA			0
 #define HVS_PIXEL_ORDER_BGRA			1
 #define HVS_PIXEL_ORDER_ARGB			2
 #define HVS_PIXEL_ORDER_ABGR			3
 
+/* For modes 666 and 888 (4 & 5) */
 #define HVS_PIXEL_ORDER_XBRG			0
 #define HVS_PIXEL_ORDER_XRBG			1
 #define HVS_PIXEL_ORDER_XRGB			2
 #define HVS_PIXEL_ORDER_XBGR			3
 
+/* For YCbCr modes (8-12, and 17) */
 #define HVS_PIXEL_ORDER_XYCBCR			0
 #define HVS_PIXEL_ORDER_XYCRCB			1
 #define HVS_PIXEL_ORDER_YXCBCR			2
@@ -880,6 +900,10 @@ enum hvs_pixel_format {
 #define SCALER_CTL0_RGBA_EXPAND_MSB		2
 #define SCALER_CTL0_RGBA_EXPAND_ROUND		3
 
+#define SCALER5_CTL0_ALPHA_EXPAND		BIT(12)
+
+#define SCALER5_CTL0_RGB_EXPAND			BIT(11)
+
 #define SCALER_CTL0_SCL1_MASK			VC4_MASK(10, 8)
 #define SCALER_CTL0_SCL1_SHIFT			8
 
@@ -897,9 +921,12 @@ enum hvs_pixel_format {
 
 /* Set to indicate no scaling. */
 #define SCALER_CTL0_UNITY			BIT(4)
+#define SCALER5_CTL0_UNITY			BIT(15)
 
 #define SCALER_CTL0_PIXEL_FORMAT_MASK		VC4_MASK(3, 0)
 #define SCALER_CTL0_PIXEL_FORMAT_SHIFT		0
+
+#define SCALER5_CTL0_PIXEL_FORMAT_MASK		VC4_MASK(4, 0)
 
 #define SCALER_POS0_FIXED_ALPHA_MASK		VC4_MASK(31, 24)
 #define SCALER_POS0_FIXED_ALPHA_SHIFT		24
@@ -910,11 +937,47 @@ enum hvs_pixel_format {
 #define SCALER_POS0_START_X_MASK		VC4_MASK(11, 0)
 #define SCALER_POS0_START_X_SHIFT		0
 
+#define SCALER5_POS0_START_Y_MASK		VC4_MASK(27, 16)
+#define SCALER5_POS0_START_Y_SHIFT		16
+
+#define SCALER5_POS0_START_X_MASK		VC4_MASK(13, 0)
+#define SCALER5_POS0_START_X_SHIFT		0
+
+#define SCALER5_POS0_VFLIP			BIT(31)
+#define SCALER5_POS0_HFLIP			BIT(15)
+
+#define SCALER5_CTL2_ALPHA_MODE_MASK		VC4_MASK(31, 30)
+#define SCALER5_CTL2_ALPHA_MODE_SHIFT		30
+#define SCALER5_CTL2_ALPHA_MODE_PIPELINE		0
+#define SCALER5_CTL2_ALPHA_MODE_FIXED		1
+#define SCALER5_CTL2_ALPHA_MODE_FIXED_NONZERO	2
+#define SCALER5_CTL2_ALPHA_MODE_FIXED_OVER_0x07	3
+
+#define SCALER5_CTL2_ALPHA_PREMULT		BIT(29)
+
+#define SCALER5_CTL2_ALPHA_MIX			BIT(28)
+
+#define SCALER5_CTL2_ALPHA_LOC			BIT(25)
+
+#define SCALER5_CTL2_MAP_SEL_MASK		VC4_MASK(18, 17)
+#define SCALER5_CTL2_MAP_SEL_SHIFT		17
+
+#define SCALER5_CTL2_GAMMA			BIT(16)
+
+#define SCALER5_CTL2_ALPHA_MASK			VC4_MASK(15, 4)
+#define SCALER5_CTL2_ALPHA_SHIFT		4
+
 #define SCALER_POS1_SCL_HEIGHT_MASK		VC4_MASK(27, 16)
 #define SCALER_POS1_SCL_HEIGHT_SHIFT		16
 
 #define SCALER_POS1_SCL_WIDTH_MASK		VC4_MASK(11, 0)
 #define SCALER_POS1_SCL_WIDTH_SHIFT		0
+
+#define SCALER5_POS1_SCL_HEIGHT_MASK		VC4_MASK(28, 16)
+#define SCALER5_POS1_SCL_HEIGHT_SHIFT		16
+
+#define SCALER5_POS1_SCL_WIDTH_MASK		VC4_MASK(12, 0)
+#define SCALER5_POS1_SCL_WIDTH_SHIFT		0
 
 #define SCALER_POS2_ALPHA_MODE_MASK		VC4_MASK(31, 30)
 #define SCALER_POS2_ALPHA_MODE_SHIFT		30
@@ -930,6 +993,12 @@ enum hvs_pixel_format {
 
 #define SCALER_POS2_WIDTH_MASK			VC4_MASK(11, 0)
 #define SCALER_POS2_WIDTH_SHIFT			0
+
+#define SCALER5_POS2_HEIGHT_MASK		VC4_MASK(28, 16)
+#define SCALER5_POS2_HEIGHT_SHIFT		16
+
+#define SCALER5_POS2_WIDTH_MASK			VC4_MASK(12, 0)
+#define SCALER5_POS2_WIDTH_SHIFT		0
 
 /* Color Space Conversion words.  Some values are S2.8 signed
  * integers, except that the 2 integer bits map as {0x0: 0, 0x1: 1,
@@ -949,7 +1018,10 @@ enum hvs_pixel_format {
 #define SCALER_CSC0_COEF_CR_OFS_SHIFT		0
 #define SCALER_CSC0_ITR_R_601_5			0x00f00000
 #define SCALER_CSC0_ITR_R_709_3			0x00f00000
+#define SCALER_CSC0_ITR_R_2020			0x00f00000
 #define SCALER_CSC0_JPEG_JFIF			0x00000000
+#define SCALER_CSC0_ITR_R_709_3_FR		0x00000000
+#define SCALER_CSC0_ITR_R_2020_FR		0x00000000
 
 /* S2.8 contribution of Cb to Green */
 #define SCALER_CSC1_COEF_CB_GRN_MASK		VC4_MASK(31, 22)
@@ -964,8 +1036,11 @@ enum hvs_pixel_format {
 #define SCALER_CSC1_COEF_CR_BLU_MASK		VC4_MASK(1, 0)
 #define SCALER_CSC1_COEF_CR_BLU_SHIFT		0
 #define SCALER_CSC1_ITR_R_601_5			0xe73304a8
-#define SCALER_CSC1_ITR_R_709_3			0xf2b784a8
-#define SCALER_CSC1_JPEG_JFIF			0xea34a400
+#define SCALER_CSC1_ITR_R_709_3			0xf27784a8
+#define SCALER_CSC1_ITR_R_2020			0xf43594a8
+#define SCALER_CSC1_JPEG_JFIF			0xea349400
+#define SCALER_CSC1_ITR_R_709_3_FR		0xf4388400
+#define SCALER_CSC1_ITR_R_2020_FR		0xf5b6d400
 
 /* S2.8 contribution of Cb to Red */
 #define SCALER_CSC2_COEF_CB_RED_MASK		VC4_MASK(29, 20)
@@ -976,9 +1051,12 @@ enum hvs_pixel_format {
 /* S2.8 contribution of Cb to Blue */
 #define SCALER_CSC2_COEF_CB_BLU_MASK		VC4_MASK(19, 10)
 #define SCALER_CSC2_COEF_CB_BLU_SHIFT		10
-#define SCALER_CSC2_ITR_R_601_5			0x00066204
-#define SCALER_CSC2_ITR_R_709_3			0x00072a1c
-#define SCALER_CSC2_JPEG_JFIF			0x000599c5
+#define SCALER_CSC2_ITR_R_601_5			0x00066604
+#define SCALER_CSC2_ITR_R_709_3			0x00072e1d
+#define SCALER_CSC2_ITR_R_2020			0x0006b624
+#define SCALER_CSC2_JPEG_JFIF			0x00059dc6
+#define SCALER_CSC2_ITR_R_709_3_FR		0x00064ddb
+#define SCALER_CSC2_ITR_R_2020_FR		0x0005e5e2
 
 #define SCALER_TPZ0_VERT_RECALC			BIT(31)
 #define SCALER_TPZ0_SCALE_MASK			VC4_MASK(28, 8)

@@ -8,7 +8,7 @@
  * Copyright (C) 2004-2008 International Business Machines Corp.
  *   Author(s): Michael A. Halcrow <mahalcro@us.ibm.com>
  *              Trevor S. Highland <trevor.highland@gmail.com>
- *              Tyler Hicks <tyhicks@ou.edu>
+ *              Tyler Hicks <code@tyhicks.com>
  */
 
 #ifndef ECRYPTFS_KERNEL_H
@@ -262,10 +262,7 @@ struct ecryptfs_inode_info {
  * vfsmount too. */
 struct ecryptfs_dentry_info {
 	struct path lower_path;
-	union {
-		struct ecryptfs_crypt_stat *crypt_stat;
-		struct rcu_head rcu;
-	};
+	struct rcu_head rcu;
 };
 
 /**
@@ -496,12 +493,6 @@ ecryptfs_set_superblock_lower(struct super_block *sb,
 	((struct ecryptfs_sb_info *)sb->s_fs_info)->wsi_sb = lower_sb;
 }
 
-static inline struct ecryptfs_dentry_info *
-ecryptfs_dentry_to_private(struct dentry *dentry)
-{
-	return (struct ecryptfs_dentry_info *)dentry->d_fsdata;
-}
-
 static inline void
 ecryptfs_set_dentry_private(struct dentry *dentry,
 			    struct ecryptfs_dentry_info *dentry_info)
@@ -515,20 +506,14 @@ ecryptfs_dentry_to_lower(struct dentry *dentry)
 	return ((struct ecryptfs_dentry_info *)dentry->d_fsdata)->lower_path.dentry;
 }
 
-static inline struct vfsmount *
-ecryptfs_dentry_to_lower_mnt(struct dentry *dentry)
-{
-	return ((struct ecryptfs_dentry_info *)dentry->d_fsdata)->lower_path.mnt;
-}
-
-static inline struct path *
+static inline const struct path *
 ecryptfs_dentry_to_lower_path(struct dentry *dentry)
 {
 	return &((struct ecryptfs_dentry_info *)dentry->d_fsdata)->lower_path;
 }
 
 #define ecryptfs_printk(type, fmt, arg...) \
-        __ecryptfs_printk(type "%s: " fmt, __func__, ## arg);
+        __ecryptfs_printk(type "%s: " fmt, __func__, ## arg)
 __printf(1, 2)
 void __ecryptfs_printk(const char *fmt, ...);
 
@@ -717,6 +702,6 @@ int ecryptfs_set_f_namelen(long *namelen, long lower_namelen,
 int ecryptfs_derive_iv(char *iv, struct ecryptfs_crypt_stat *crypt_stat,
 		       loff_t offset);
 
-extern const struct xattr_handler *ecryptfs_xattr_handlers[];
+extern const struct xattr_handler * const ecryptfs_xattr_handlers[];
 
 #endif /* #ifndef ECRYPTFS_KERNEL_H */

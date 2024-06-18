@@ -23,14 +23,11 @@ enum hclge_shaper_level {
 #define HCLGE_SHAPER_BS_U_DEF	5
 #define HCLGE_SHAPER_BS_S_DEF	20
 
-#define HCLGE_ETHER_MAX_RATE	100000
-
 /* hclge_shaper_para_calc: calculate ir parameter for the shaper
  * @ir: Rate to be config, its unit is Mbps
  * @shaper_level: the shaper level. eg: port, pg, priority, queueset
- * @ir_b: IR_B parameter of IR shaper
- * @ir_u: IR_U parameter of IR shaper
- * @ir_s: IR_S parameter of IR shaper
+ * @ir_para: parameters of IR shaper
+ * @max_tm_rate: max tm rate is available to config
  *
  * the formula:
  *
@@ -41,12 +38,14 @@ enum hclge_shaper_level {
  * @return: 0: calculate sucessful, negative: fail
  */
 static int hclge_shaper_para_calc(u32 ir, u8 shaper_level,
-				  u8 *ir_b, u8 *ir_u, u8 *ir_s)
+				  struct hclge_shaper_ir_para *ir_para,
+				  u32 max_tm_rate)
 {
+#define DEFAULT_SHAPER_IR_B	126
 #define DIVISOR_CLK		(1000 * 8)
-#define DIVISOR_IR_B_126	(126 * DIVISOR_CLK)
+#define DEFAULT_DIVISOR_IR_B	(DEFAULT_SHAPER_IR_B * DIVISOR_CLK)
 
-	const u16 tick_array[HCLGE_SHAPER_LVL_CNT] = {
+	static const u16 tick_array[HCLGE_SHAPER_LVL_CNT] = {
 		6 * 256,        /* Prioriy level */
 		6 * 32,         /* Prioriy group level */
 		6 * 8,          /* Port level */
@@ -59,7 +58,7 @@ static int hclge_shaper_para_calc(u32 ir, u8 shaper_level,
 
 	/* Calc tick */
 	if (shaper_level >= HCLGE_SHAPER_LVL_CNT ||
-	    ir > HCLGE_ETHER_MAX_RATE)
+	    ir > max_tm_rate)
 		return -EINVAL;
 
 	tick = tick_array[shaper_level];
@@ -71,91 +70,93 @@ static int hclge_shaper_para_calc(u32 ir, u8 shaper_level,
 	 * ir_calc = ---------------- * 1000
 	 *		tick * 1
 	 */
-	ir_calc = (DIVISOR_IR_B_126 + (tick >> 1) - 1) / tick;
+	ir_calc = (DEFAULT_DIVISOR_IR_B + (tick >> 1) - 1) / tick;
 
 	if (ir_calc == ir) {
-		*ir_b = 126;
-		*ir_u = 0;
-		*ir_s = 0;
+		ir_para->ir_b = DEFAULT_SHAPER_IR_B;
+		ir_para->ir_u = 0;
+		ir_para->ir_s = 0;
 
 		return 0;
 	} else if (ir_calc > ir) {
 		/* Increasing the denominator to select ir_s value */
 		while (ir_calc >= ir && ir) {
 			ir_s_calc++;
-			ir_calc = DIVISOR_IR_B_126 / (tick * (1 << ir_s_calc));
+			ir_calc = DEFAULT_DIVISOR_IR_B /
+				  (tick * (1 << ir_s_calc));
 		}
 
-		*ir_b = (ir * tick * (1 << ir_s_calc) + (DIVISOR_CLK >> 1)) /
-			DIVISOR_CLK;
+		ir_para->ir_b = (ir * tick * (1 << ir_s_calc) +
+				(DIVISOR_CLK >> 1)) / DIVISOR_CLK;
 	} else {
 		/* Increasing the numerator to select ir_u value */
 		u32 numerator;
 
 		while (ir_calc < ir) {
 			ir_u_calc++;
-			numerator = DIVISOR_IR_B_126 * (1 << ir_u_calc);
+			numerator = DEFAULT_DIVISOR_IR_B * (1 << ir_u_calc);
 			ir_calc = (numerator + (tick >> 1)) / tick;
 		}
 
 		if (ir_calc == ir) {
-			*ir_b = 126;
+			ir_para->ir_b = DEFAULT_SHAPER_IR_B;
 		} else {
 			u32 denominator = DIVISOR_CLK * (1 << --ir_u_calc);
-			*ir_b = (ir * tick + (denominator >> 1)) / denominator;
+			ir_para->ir_b = (ir * tick + (denominator >> 1)) /
+					denominator;
 		}
 	}
 
-	*ir_u = ir_u_calc;
-	*ir_s = ir_s_calc;
+	ir_para->ir_u = ir_u_calc;
+	ir_para->ir_s = ir_s_calc;
 
 	return 0;
 }
 
-static int hclge_pfc_stats_get(struct hclge_dev *hdev,
-			       enum hclge_opcode_type opcode, u64 *stats)
+static const u16 hclge_pfc_tx_stats_offset[] = {
+	HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri0_pkt_num),
+	HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri1_pkt_num),
+	HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri2_pkt_num),
+	HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri3_pkt_num),
+	HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri4_pkt_num),
+	HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri5_pkt_num),
+	HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri6_pkt_num),
+	HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri7_pkt_num)
+};
+
+static const u16 hclge_pfc_rx_stats_offset[] = {
+	HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri0_pkt_num),
+	HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri1_pkt_num),
+	HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri2_pkt_num),
+	HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri3_pkt_num),
+	HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri4_pkt_num),
+	HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri5_pkt_num),
+	HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri6_pkt_num),
+	HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri7_pkt_num)
+};
+
+static void hclge_pfc_stats_get(struct hclge_dev *hdev, bool tx, u64 *stats)
 {
-	struct hclge_desc desc[HCLGE_TM_PFC_PKT_GET_CMD_NUM];
-	int ret, i, j;
+	const u16 *offset;
+	int i;
 
-	if (!(opcode == HCLGE_OPC_QUERY_PFC_RX_PKT_CNT ||
-	      opcode == HCLGE_OPC_QUERY_PFC_TX_PKT_CNT))
-		return -EINVAL;
+	if (tx)
+		offset = hclge_pfc_tx_stats_offset;
+	else
+		offset = hclge_pfc_rx_stats_offset;
 
-	for (i = 0; i < HCLGE_TM_PFC_PKT_GET_CMD_NUM - 1; i++) {
-		hclge_cmd_setup_basic_desc(&desc[i], opcode, true);
-		desc[i].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
-	}
-
-	hclge_cmd_setup_basic_desc(&desc[i], opcode, true);
-
-	ret = hclge_cmd_send(&hdev->hw, desc, HCLGE_TM_PFC_PKT_GET_CMD_NUM);
-	if (ret)
-		return ret;
-
-	for (i = 0; i < HCLGE_TM_PFC_PKT_GET_CMD_NUM; i++) {
-		struct hclge_pfc_stats_cmd *pfc_stats =
-				(struct hclge_pfc_stats_cmd *)desc[i].data;
-
-		for (j = 0; j < HCLGE_TM_PFC_NUM_GET_PER_CMD; j++) {
-			u32 index = i * HCLGE_TM_PFC_PKT_GET_CMD_NUM + j;
-
-			if (index < HCLGE_MAX_TC_NUM)
-				stats[index] =
-					le64_to_cpu(pfc_stats->pkt_num[j]);
-		}
-	}
-	return 0;
+	for (i = 0; i < HCLGE_MAX_TC_NUM; i++)
+		stats[i] = HCLGE_STATS_READ(&hdev->mac_stats, offset[i]);
 }
 
-int hclge_pfc_rx_stats_get(struct hclge_dev *hdev, u64 *stats)
+void hclge_pfc_rx_stats_get(struct hclge_dev *hdev, u64 *stats)
 {
-	return hclge_pfc_stats_get(hdev, HCLGE_OPC_QUERY_PFC_RX_PKT_CNT, stats);
+	hclge_pfc_stats_get(hdev, false, stats);
 }
 
-int hclge_pfc_tx_stats_get(struct hclge_dev *hdev, u64 *stats)
+void hclge_pfc_tx_stats_get(struct hclge_dev *hdev, u64 *stats)
 {
-	return hclge_pfc_stats_get(hdev, HCLGE_OPC_QUERY_PFC_TX_PKT_CNT, stats);
+	hclge_pfc_stats_get(hdev, true, stats);
 }
 
 int hclge_mac_pause_en_cfg(struct hclge_dev *hdev, bool tx, bool rx)
@@ -170,8 +171,8 @@ int hclge_mac_pause_en_cfg(struct hclge_dev *hdev, bool tx, bool rx)
 	return hclge_cmd_send(&hdev->hw, &desc, 1);
 }
 
-static int hclge_pfc_pause_en_cfg(struct hclge_dev *hdev, u8 tx_rx_bitmap,
-				  u8 pfc_bitmap)
+int hclge_pfc_pause_en_cfg(struct hclge_dev *hdev, u8 tx_rx_bitmap,
+			   u8 pfc_bitmap)
 {
 	struct hclge_desc desc;
 	struct hclge_pfc_en_cmd *pfc = (struct hclge_pfc_en_cmd *)desc.data;
@@ -247,7 +248,7 @@ static int hclge_fill_pri_array(struct hclge_dev *hdev, u8 *pri, u8 pri_id)
 	return 0;
 }
 
-static int hclge_up_to_tc_map(struct hclge_dev *hdev)
+int hclge_up_to_tc_map(struct hclge_dev *hdev)
 {
 	struct hclge_desc desc;
 	u8 *pri = (u8 *)desc.data;
@@ -263,6 +264,47 @@ static int hclge_up_to_tc_map(struct hclge_dev *hdev)
 	}
 
 	return hclge_cmd_send(&hdev->hw, &desc, 1);
+}
+
+static void hclge_dscp_to_prio_map_init(struct hclge_dev *hdev)
+{
+	u8 i;
+
+	hdev->vport[0].nic.kinfo.tc_map_mode = HNAE3_TC_MAP_MODE_PRIO;
+	hdev->vport[0].nic.kinfo.dscp_app_cnt = 0;
+	for (i = 0; i < HNAE3_MAX_DSCP; i++)
+		hdev->vport[0].nic.kinfo.dscp_prio[i] = HNAE3_PRIO_ID_INVALID;
+}
+
+int hclge_dscp_to_tc_map(struct hclge_dev *hdev)
+{
+	struct hclge_desc desc[HCLGE_DSCP_MAP_TC_BD_NUM];
+	u8 *req0 = (u8 *)desc[0].data;
+	u8 *req1 = (u8 *)desc[1].data;
+	u8 pri_id, tc_id, i, j;
+
+	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_QOS_MAP, false);
+	desc[0].flag |= cpu_to_le16(HCLGE_COMM_CMD_FLAG_NEXT);
+	hclge_cmd_setup_basic_desc(&desc[1], HCLGE_OPC_QOS_MAP, false);
+
+	/* The low 32 dscp setting use bd0, high 32 dscp setting use bd1 */
+	for (i = 0; i < HNAE3_MAX_DSCP / HCLGE_DSCP_MAP_TC_BD_NUM; i++) {
+		pri_id = hdev->vport[0].nic.kinfo.dscp_prio[i];
+		pri_id = pri_id == HNAE3_PRIO_ID_INVALID ? 0 : pri_id;
+		tc_id = hdev->tm_info.prio_tc[pri_id];
+		/* Each dscp setting has 4 bits, so each byte saves two dscp
+		 * setting
+		 */
+		req0[i >> 1] |= tc_id << HCLGE_DSCP_TC_SHIFT(i);
+
+		j = i + HNAE3_MAX_DSCP / HCLGE_DSCP_MAP_TC_BD_NUM;
+		pri_id = hdev->vport[0].nic.kinfo.dscp_prio[j];
+		pri_id = pri_id == HNAE3_PRIO_ID_INVALID ? 0 : pri_id;
+		tc_id = hdev->tm_info.prio_tc[pri_id];
+		req1[i >> 1] |= tc_id << HCLGE_DSCP_TC_SHIFT(i);
+	}
+
+	return hclge_cmd_send(&hdev->hw, desc, HCLGE_DSCP_MAP_TC_BD_NUM);
 }
 
 static int hclge_tm_pg_to_pri_map_cfg(struct hclge_dev *hdev,
@@ -281,8 +323,8 @@ static int hclge_tm_pg_to_pri_map_cfg(struct hclge_dev *hdev,
 	return hclge_cmd_send(&hdev->hw, &desc, 1);
 }
 
-static int hclge_tm_qs_to_pri_map_cfg(struct hclge_dev *hdev,
-				      u16 qs_id, u8 pri)
+static int hclge_tm_qs_to_pri_map_cfg(struct hclge_dev *hdev, u16 qs_id, u8 pri,
+				      bool link_vld)
 {
 	struct hclge_qs_to_pri_link_cmd *map;
 	struct hclge_desc desc;
@@ -293,7 +335,7 @@ static int hclge_tm_qs_to_pri_map_cfg(struct hclge_dev *hdev,
 
 	map->qs_id = cpu_to_le16(qs_id);
 	map->priority = pri;
-	map->link_vld = HCLGE_TM_QS_PRI_LINK_VLD_MSK;
+	map->link_vld = link_vld ? HCLGE_TM_QS_PRI_LINK_VLD_MSK : 0;
 
 	return hclge_cmd_send(&hdev->hw, &desc, 1);
 }
@@ -303,12 +345,30 @@ static int hclge_tm_q_to_qs_map_cfg(struct hclge_dev *hdev,
 {
 	struct hclge_nq_to_qs_link_cmd *map;
 	struct hclge_desc desc;
+	u16 qs_id_l;
+	u16 qs_id_h;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TM_NQ_TO_QS_LINK, false);
 
 	map = (struct hclge_nq_to_qs_link_cmd *)desc.data;
 
 	map->nq_id = cpu_to_le16(q_id);
+
+	/* convert qs_id to the following format to support qset_id >= 1024
+	 * qs_id: | 15 | 14 ~ 10 |  9 ~ 0   |
+	 *            /         / \         \
+	 *           /         /   \         \
+	 * qset_id: | 15 ~ 11 |  10 |  9 ~ 0  |
+	 *          | qs_id_h | vld | qs_id_l |
+	 */
+	qs_id_l = hnae3_get_field(qs_id, HCLGE_TM_QS_ID_L_MSK,
+				  HCLGE_TM_QS_ID_L_S);
+	qs_id_h = hnae3_get_field(qs_id, HCLGE_TM_QS_ID_H_MSK,
+				  HCLGE_TM_QS_ID_H_S);
+	hnae3_set_field(qs_id, HCLGE_TM_QS_ID_L_MSK, HCLGE_TM_QS_ID_L_S,
+			qs_id_l);
+	hnae3_set_field(qs_id, HCLGE_TM_QS_ID_H_EXT_MSK, HCLGE_TM_QS_ID_H_EXT_S,
+			qs_id_h);
 	map->qset_id = cpu_to_le16(qs_id | HCLGE_TM_Q_QS_LINK_VLD_MSK);
 
 	return hclge_cmd_send(&hdev->hw, &desc, 1);
@@ -378,7 +438,7 @@ static u32 hclge_tm_get_shapping_para(u8 ir_b, u8 ir_u, u8 ir_s,
 
 static int hclge_tm_pg_shapping_cfg(struct hclge_dev *hdev,
 				    enum hclge_shap_bucket bucket, u8 pg_id,
-				    u32 shapping_para)
+				    u32 shapping_para, u32 rate)
 {
 	struct hclge_pg_shapping_cmd *shap_cfg_cmd;
 	enum hclge_opcode_type opcode;
@@ -394,38 +454,47 @@ static int hclge_tm_pg_shapping_cfg(struct hclge_dev *hdev,
 
 	shap_cfg_cmd->pg_shapping_para = cpu_to_le32(shapping_para);
 
+	hnae3_set_bit(shap_cfg_cmd->flag, HCLGE_TM_RATE_VLD, 1);
+
+	shap_cfg_cmd->pg_rate = cpu_to_le32(rate);
+
 	return hclge_cmd_send(&hdev->hw, &desc, 1);
 }
 
-static int hclge_tm_port_shaper_cfg(struct hclge_dev *hdev)
+int hclge_tm_port_shaper_cfg(struct hclge_dev *hdev)
 {
 	struct hclge_port_shapping_cmd *shap_cfg_cmd;
+	struct hclge_shaper_ir_para ir_para;
 	struct hclge_desc desc;
-	u8 ir_u, ir_b, ir_s;
 	u32 shapping_para;
 	int ret;
 
-	ret = hclge_shaper_para_calc(hdev->hw.mac.speed,
-				     HCLGE_SHAPER_LVL_PORT,
-				     &ir_b, &ir_u, &ir_s);
+	ret = hclge_shaper_para_calc(hdev->hw.mac.speed, HCLGE_SHAPER_LVL_PORT,
+				     &ir_para,
+				     hdev->ae_dev->dev_specs.max_tm_rate);
 	if (ret)
 		return ret;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TM_PORT_SHAPPING, false);
 	shap_cfg_cmd = (struct hclge_port_shapping_cmd *)desc.data;
 
-	shapping_para = hclge_tm_get_shapping_para(ir_b, ir_u, ir_s,
+	shapping_para = hclge_tm_get_shapping_para(ir_para.ir_b, ir_para.ir_u,
+						   ir_para.ir_s,
 						   HCLGE_SHAPER_BS_U_DEF,
 						   HCLGE_SHAPER_BS_S_DEF);
 
 	shap_cfg_cmd->port_shapping_para = cpu_to_le32(shapping_para);
+
+	hnae3_set_bit(shap_cfg_cmd->flag, HCLGE_TM_RATE_VLD, 1);
+
+	shap_cfg_cmd->port_rate = cpu_to_le32(hdev->hw.mac.speed);
 
 	return hclge_cmd_send(&hdev->hw, &desc, 1);
 }
 
 static int hclge_tm_pri_shapping_cfg(struct hclge_dev *hdev,
 				     enum hclge_shap_bucket bucket, u8 pri_id,
-				     u32 shapping_para)
+				     u32 shapping_para, u32 rate)
 {
 	struct hclge_pri_shapping_cmd *shap_cfg_cmd;
 	enum hclge_opcode_type opcode;
@@ -441,6 +510,10 @@ static int hclge_tm_pri_shapping_cfg(struct hclge_dev *hdev,
 	shap_cfg_cmd->pri_id = pri_id;
 
 	shap_cfg_cmd->pri_shapping_para = cpu_to_le32(shapping_para);
+
+	hnae3_set_bit(shap_cfg_cmd->flag, HCLGE_TM_RATE_VLD, 1);
+
+	shap_cfg_cmd->pri_rate = cpu_to_le32(rate);
 
 	return hclge_cmd_send(&hdev->hw, &desc, 1);
 }
@@ -511,60 +584,165 @@ static int hclge_tm_qs_bp_cfg(struct hclge_dev *hdev, u8 tc, u8 grp_id,
 	return hclge_cmd_send(&hdev->hw, &desc, 1);
 }
 
-static void hclge_tm_vport_tc_info_update(struct hclge_vport *vport)
+int hclge_tm_qs_shaper_cfg(struct hclge_vport *vport, int max_tx_rate)
+{
+	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
+	struct hclge_qs_shapping_cmd *shap_cfg_cmd;
+	struct hclge_shaper_ir_para ir_para;
+	struct hclge_dev *hdev = vport->back;
+	struct hclge_desc desc;
+	u32 shaper_para;
+	int ret, i;
+
+	if (!max_tx_rate)
+		max_tx_rate = hdev->ae_dev->dev_specs.max_tm_rate;
+
+	ret = hclge_shaper_para_calc(max_tx_rate, HCLGE_SHAPER_LVL_QSET,
+				     &ir_para,
+				     hdev->ae_dev->dev_specs.max_tm_rate);
+	if (ret)
+		return ret;
+
+	shaper_para = hclge_tm_get_shapping_para(ir_para.ir_b, ir_para.ir_u,
+						 ir_para.ir_s,
+						 HCLGE_SHAPER_BS_U_DEF,
+						 HCLGE_SHAPER_BS_S_DEF);
+
+	for (i = 0; i < kinfo->tc_info.num_tc; i++) {
+		hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_QCN_SHAPPING_CFG,
+					   false);
+
+		shap_cfg_cmd = (struct hclge_qs_shapping_cmd *)desc.data;
+		shap_cfg_cmd->qs_id = cpu_to_le16(vport->qs_offset + i);
+		shap_cfg_cmd->qs_shapping_para = cpu_to_le32(shaper_para);
+
+		hnae3_set_bit(shap_cfg_cmd->flag, HCLGE_TM_RATE_VLD, 1);
+		shap_cfg_cmd->qs_rate = cpu_to_le32(max_tx_rate);
+
+		ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"vport%u, qs%u failed to set tx_rate:%d, ret=%d\n",
+				vport->vport_id, shap_cfg_cmd->qs_id,
+				max_tx_rate, ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static u16 hclge_vport_get_max_rss_size(struct hclge_vport *vport)
+{
+	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
+	struct hnae3_tc_info *tc_info = &kinfo->tc_info;
+	struct hclge_dev *hdev = vport->back;
+	u16 max_rss_size = 0;
+	int i;
+
+	if (!tc_info->mqprio_active)
+		return vport->alloc_tqps / tc_info->num_tc;
+
+	for (i = 0; i < HNAE3_MAX_TC; i++) {
+		if (!(hdev->hw_tc_map & BIT(i)) || i >= tc_info->num_tc)
+			continue;
+		if (max_rss_size < tc_info->tqp_count[i])
+			max_rss_size = tc_info->tqp_count[i];
+	}
+
+	return max_rss_size;
+}
+
+static u16 hclge_vport_get_tqp_num(struct hclge_vport *vport)
+{
+	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
+	struct hnae3_tc_info *tc_info = &kinfo->tc_info;
+	struct hclge_dev *hdev = vport->back;
+	int sum = 0;
+	int i;
+
+	if (!tc_info->mqprio_active)
+		return kinfo->rss_size * tc_info->num_tc;
+
+	for (i = 0; i < HNAE3_MAX_TC; i++) {
+		if (hdev->hw_tc_map & BIT(i) && i < tc_info->num_tc)
+			sum += tc_info->tqp_count[i];
+	}
+
+	return sum;
+}
+
+static void hclge_tm_update_kinfo_rss_size(struct hclge_vport *vport)
 {
 	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
 	struct hclge_dev *hdev = vport->back;
+	u16 vport_max_rss_size;
 	u16 max_rss_size;
-	u8 i;
 
 	/* TC configuration is shared by PF/VF in one port, only allow
 	 * one tc for VF for simplicity. VF's vport_id is non zero.
 	 */
-	kinfo->num_tc = vport->vport_id ? 1 :
+	if (vport->vport_id) {
+		kinfo->tc_info.max_tc = 1;
+		kinfo->tc_info.num_tc = 1;
+		vport->qs_offset = HNAE3_MAX_TC +
+				   vport->vport_id - HCLGE_VF_VPORT_START_NUM;
+		vport_max_rss_size = hdev->vf_rss_size_max;
+	} else {
+		kinfo->tc_info.max_tc = hdev->tc_max;
+		kinfo->tc_info.num_tc =
 			min_t(u16, vport->alloc_tqps, hdev->tm_info.num_tc);
-	vport->qs_offset = (vport->vport_id ? hdev->tm_info.num_tc : 0) +
-				(vport->vport_id ? (vport->vport_id - 1) : 0);
+		vport->qs_offset = 0;
+		vport_max_rss_size = hdev->pf_rss_size_max;
+	}
 
-	max_rss_size = min_t(u16, hdev->rss_size_max,
-			     vport->alloc_tqps / kinfo->num_tc);
+	max_rss_size = min_t(u16, vport_max_rss_size,
+			     hclge_vport_get_max_rss_size(vport));
 
 	/* Set to user value, no larger than max_rss_size. */
 	if (kinfo->req_rss_size != kinfo->rss_size && kinfo->req_rss_size &&
 	    kinfo->req_rss_size <= max_rss_size) {
-		dev_info(&hdev->pdev->dev, "rss changes from %d to %d\n",
+		dev_info(&hdev->pdev->dev, "rss changes from %u to %u\n",
 			 kinfo->rss_size, kinfo->req_rss_size);
 		kinfo->rss_size = kinfo->req_rss_size;
 	} else if (kinfo->rss_size > max_rss_size ||
 		   (!kinfo->req_rss_size && kinfo->rss_size < max_rss_size)) {
 		/* Set to the maximum specification value (max_rss_size). */
-		dev_info(&hdev->pdev->dev, "rss changes from %d to %d\n",
-			 kinfo->rss_size, max_rss_size);
 		kinfo->rss_size = max_rss_size;
 	}
+}
 
-	kinfo->num_tqps = kinfo->num_tc * kinfo->rss_size;
+static void hclge_tm_vport_tc_info_update(struct hclge_vport *vport)
+{
+	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
+	struct hclge_dev *hdev = vport->back;
+	u8 i;
+
+	hclge_tm_update_kinfo_rss_size(vport);
+	kinfo->num_tqps = hclge_vport_get_tqp_num(vport);
 	vport->dwrr = 100;  /* 100 percent as init */
-	vport->alloc_rss_size = kinfo->rss_size;
 	vport->bw_limit = hdev->tm_info.pg_info[0].bw_limit;
 
+	if (vport->vport_id == PF_VPORT_ID)
+		hdev->rss_cfg.rss_size = kinfo->rss_size;
+
+	/* when enable mqprio, the tc_info has been updated. */
+	if (kinfo->tc_info.mqprio_active)
+		return;
+
 	for (i = 0; i < HNAE3_MAX_TC; i++) {
-		if (hdev->hw_tc_map & BIT(i) && i < kinfo->num_tc) {
-			kinfo->tc_info[i].enable = true;
-			kinfo->tc_info[i].tqp_offset = i * kinfo->rss_size;
-			kinfo->tc_info[i].tqp_count = kinfo->rss_size;
-			kinfo->tc_info[i].tc = i;
+		if (hdev->hw_tc_map & BIT(i) && i < kinfo->tc_info.num_tc) {
+			kinfo->tc_info.tqp_offset[i] = i * kinfo->rss_size;
+			kinfo->tc_info.tqp_count[i] = kinfo->rss_size;
 		} else {
 			/* Set to default queue if TC is disable */
-			kinfo->tc_info[i].enable = false;
-			kinfo->tc_info[i].tqp_offset = 0;
-			kinfo->tc_info[i].tqp_count = 1;
-			kinfo->tc_info[i].tc = 0;
+			kinfo->tc_info.tqp_offset[i] = 0;
+			kinfo->tc_info.tqp_count[i] = 1;
 		}
 	}
 
-	memcpy(kinfo->prio_tc, hdev->tm_info.prio_tc,
-	       FIELD_SIZEOF(struct hnae3_knic_private_info, prio_tc));
+	memcpy(kinfo->tc_info.prio_tc, hdev->tm_info.prio_tc,
+	       sizeof_field(struct hnae3_tc_info, prio_tc));
 }
 
 static void hclge_tm_vport_info_update(struct hclge_dev *hdev)
@@ -581,32 +759,33 @@ static void hclge_tm_vport_info_update(struct hclge_dev *hdev)
 
 static void hclge_tm_tc_info_init(struct hclge_dev *hdev)
 {
-	u8 i;
+	u8 i, tc_sch_mode;
+	u32 bw_limit;
 
-	for (i = 0; i < hdev->tm_info.num_tc; i++) {
+	for (i = 0; i < hdev->tc_max; i++) {
+		if (i < hdev->tm_info.num_tc) {
+			tc_sch_mode = HCLGE_SCH_MODE_DWRR;
+			bw_limit = hdev->tm_info.pg_info[0].bw_limit;
+		} else {
+			tc_sch_mode = HCLGE_SCH_MODE_SP;
+			bw_limit = 0;
+		}
+
 		hdev->tm_info.tc_info[i].tc_id = i;
-		hdev->tm_info.tc_info[i].tc_sch_mode = HCLGE_SCH_MODE_DWRR;
+		hdev->tm_info.tc_info[i].tc_sch_mode = tc_sch_mode;
 		hdev->tm_info.tc_info[i].pgid = 0;
-		hdev->tm_info.tc_info[i].bw_limit =
-			hdev->tm_info.pg_info[0].bw_limit;
+		hdev->tm_info.tc_info[i].bw_limit = bw_limit;
 	}
 
 	for (i = 0; i < HNAE3_MAX_USER_PRIO; i++)
 		hdev->tm_info.prio_tc[i] =
 			(i >= hdev->tm_info.num_tc) ? 0 : i;
-
-	/* DCB is enabled if we have more than 1 TC or pfc_en is
-	 * non-zero.
-	 */
-	if (hdev->tm_info.num_tc > 1 || hdev->tm_info.pfc_en)
-		hdev->flag |= HCLGE_FLAG_DCB_ENABLE;
-	else
-		hdev->flag &= ~HCLGE_FLAG_DCB_ENABLE;
 }
 
 static void hclge_tm_pg_info_init(struct hclge_dev *hdev)
 {
 #define BW_PERCENT	100
+#define DEFAULT_BW_WEIGHT	1
 
 	u8 i;
 
@@ -618,7 +797,8 @@ static void hclge_tm_pg_info_init(struct hclge_dev *hdev)
 		hdev->tm_info.pg_info[i].pg_id = i;
 		hdev->tm_info.pg_info[i].pg_sch_mode = HCLGE_SCH_MODE_DWRR;
 
-		hdev->tm_info.pg_info[i].bw_limit = HCLGE_ETHER_MAX_RATE;
+		hdev->tm_info.pg_info[i].bw_limit =
+					hdev->ae_dev->dev_specs.max_tm_rate;
 
 		if (i != 0)
 			continue;
@@ -626,15 +806,17 @@ static void hclge_tm_pg_info_init(struct hclge_dev *hdev)
 		hdev->tm_info.pg_info[i].tc_bit_map = hdev->hw_tc_map;
 		for (k = 0; k < hdev->tm_info.num_tc; k++)
 			hdev->tm_info.pg_info[i].tc_dwrr[k] = BW_PERCENT;
+		for (; k < HNAE3_MAX_TC; k++)
+			hdev->tm_info.pg_info[i].tc_dwrr[k] = DEFAULT_BW_WEIGHT;
 	}
 }
 
-static void hclge_pfc_info_init(struct hclge_dev *hdev)
+static void hclge_update_fc_mode_by_dcb_flag(struct hclge_dev *hdev)
 {
-	if (!(hdev->flag & HCLGE_FLAG_DCB_ENABLE)) {
+	if (hdev->tm_info.num_tc == 1 && !hdev->tm_info.pfc_en) {
 		if (hdev->fc_mode_last_time == HCLGE_FC_PFC)
 			dev_warn(&hdev->pdev->dev,
-				 "DCB is disable, but last mode is FC_PFC\n");
+				 "Only 1 tc used, but last mode is FC_PFC\n");
 
 		hdev->tm_info.fc_mode = hdev->fc_mode_last_time;
 	} else if (hdev->tm_info.fc_mode != HCLGE_FC_PFC) {
@@ -647,6 +829,27 @@ static void hclge_pfc_info_init(struct hclge_dev *hdev)
 	}
 }
 
+static void hclge_update_fc_mode(struct hclge_dev *hdev)
+{
+	if (!hdev->tm_info.pfc_en) {
+		hdev->tm_info.fc_mode = hdev->fc_mode_last_time;
+		return;
+	}
+
+	if (hdev->tm_info.fc_mode != HCLGE_FC_PFC) {
+		hdev->fc_mode_last_time = hdev->tm_info.fc_mode;
+		hdev->tm_info.fc_mode = HCLGE_FC_PFC;
+	}
+}
+
+void hclge_tm_pfc_info_update(struct hclge_dev *hdev)
+{
+	if (hdev->ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V3)
+		hclge_update_fc_mode(hdev);
+	else
+		hclge_update_fc_mode_by_dcb_flag(hdev);
+}
+
 static void hclge_tm_schd_info_init(struct hclge_dev *hdev)
 {
 	hclge_tm_pg_info_init(hdev);
@@ -655,7 +858,7 @@ static void hclge_tm_schd_info_init(struct hclge_dev *hdev)
 
 	hclge_tm_vport_info_update(hdev);
 
-	hclge_pfc_info_init(hdev);
+	hclge_tm_pfc_info_update(hdev);
 }
 
 static int hclge_tm_pg_to_pri_map(struct hclge_dev *hdev)
@@ -679,7 +882,8 @@ static int hclge_tm_pg_to_pri_map(struct hclge_dev *hdev)
 
 static int hclge_tm_pg_shaper_cfg(struct hclge_dev *hdev)
 {
-	u8 ir_u, ir_b, ir_s;
+	u32 max_tm_rate = hdev->ae_dev->dev_specs.max_tm_rate;
+	struct hclge_shaper_ir_para ir_para;
 	u32 shaper_para;
 	int ret;
 	u32 i;
@@ -690,11 +894,11 @@ static int hclge_tm_pg_shaper_cfg(struct hclge_dev *hdev)
 
 	/* Pg to pri */
 	for (i = 0; i < hdev->tm_info.num_pg; i++) {
+		u32 rate = hdev->tm_info.pg_info[i].bw_limit;
+
 		/* Calc shaper para */
-		ret = hclge_shaper_para_calc(
-					hdev->tm_info.pg_info[i].bw_limit,
-					HCLGE_SHAPER_LVL_PG,
-					&ir_b, &ir_u, &ir_s);
+		ret = hclge_shaper_para_calc(rate, HCLGE_SHAPER_LVL_PG,
+					     &ir_para, max_tm_rate);
 		if (ret)
 			return ret;
 
@@ -703,16 +907,18 @@ static int hclge_tm_pg_shaper_cfg(struct hclge_dev *hdev)
 							 HCLGE_SHAPER_BS_S_DEF);
 		ret = hclge_tm_pg_shapping_cfg(hdev,
 					       HCLGE_TM_SHAP_C_BUCKET, i,
-					       shaper_para);
+					       shaper_para, rate);
 		if (ret)
 			return ret;
 
-		shaper_para = hclge_tm_get_shapping_para(ir_b, ir_u, ir_s,
+		shaper_para = hclge_tm_get_shapping_para(ir_para.ir_b,
+							 ir_para.ir_u,
+							 ir_para.ir_s,
 							 HCLGE_SHAPER_BS_U_DEF,
 							 HCLGE_SHAPER_BS_S_DEF);
 		ret = hclge_tm_pg_shapping_cfg(hdev,
 					       HCLGE_TM_SHAP_P_BUCKET, i,
-					       shaper_para);
+					       shaper_para, rate);
 		if (ret)
 			return ret;
 	}
@@ -744,15 +950,14 @@ static int hclge_vport_q_to_qs_map(struct hclge_dev *hdev,
 				   struct hclge_vport *vport)
 {
 	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
+	struct hnae3_tc_info *tc_info = &kinfo->tc_info;
 	struct hnae3_queue **tqp = kinfo->tqp;
-	struct hnae3_tc_info *v_tc_info;
 	u32 i, j;
 	int ret;
 
-	for (i = 0; i < kinfo->num_tc; i++) {
-		v_tc_info = &kinfo->tc_info[i];
-		for (j = 0; j < v_tc_info->tqp_count; j++) {
-			struct hnae3_queue *q = tqp[v_tc_info->tqp_offset + j];
+	for (i = 0; i < tc_info->num_tc; i++) {
+		for (j = 0; j < tc_info->tqp_count[i]; j++) {
+			struct hnae3_queue *q = tqp[tc_info->tqp_offset[i] + j];
 
 			ret = hclge_tm_q_to_qs_map_cfg(hdev,
 						       hclge_get_queue_id(q),
@@ -765,37 +970,65 @@ static int hclge_vport_q_to_qs_map(struct hclge_dev *hdev,
 	return 0;
 }
 
+static int hclge_tm_pri_q_qs_cfg_tc_base(struct hclge_dev *hdev)
+{
+	struct hclge_vport *vport = hdev->vport;
+	u16 i, k;
+	int ret;
+
+	/* Cfg qs -> pri mapping, one by one mapping */
+	for (k = 0; k < hdev->num_alloc_vport; k++) {
+		struct hnae3_knic_private_info *kinfo = &vport[k].nic.kinfo;
+
+		for (i = 0; i < kinfo->tc_info.max_tc; i++) {
+			u8 pri = i < kinfo->tc_info.num_tc ? i : 0;
+			bool link_vld = i < kinfo->tc_info.num_tc;
+
+			ret = hclge_tm_qs_to_pri_map_cfg(hdev,
+							 vport[k].qs_offset + i,
+							 pri, link_vld);
+			if (ret)
+				return ret;
+		}
+	}
+
+	return 0;
+}
+
+static int hclge_tm_pri_q_qs_cfg_vnet_base(struct hclge_dev *hdev)
+{
+	struct hclge_vport *vport = hdev->vport;
+	u16 i, k;
+	int ret;
+
+	/* Cfg qs -> pri mapping,  qs = tc, pri = vf, 8 qs -> 1 pri */
+	for (k = 0; k < hdev->num_alloc_vport; k++)
+		for (i = 0; i < HNAE3_MAX_TC; i++) {
+			ret = hclge_tm_qs_to_pri_map_cfg(hdev,
+							 vport[k].qs_offset + i,
+							 k, true);
+			if (ret)
+				return ret;
+		}
+
+	return 0;
+}
+
 static int hclge_tm_pri_q_qs_cfg(struct hclge_dev *hdev)
 {
 	struct hclge_vport *vport = hdev->vport;
 	int ret;
-	u32 i, k;
+	u32 i;
 
-	if (hdev->tx_sch_mode == HCLGE_FLAG_TC_BASE_SCH_MODE) {
-		/* Cfg qs -> pri mapping, one by one mapping */
-		for (k = 0; k < hdev->num_alloc_vport; k++) {
-			struct hnae3_knic_private_info *kinfo =
-				&vport[k].nic.kinfo;
-
-			for (i = 0; i < kinfo->num_tc; i++) {
-				ret = hclge_tm_qs_to_pri_map_cfg(
-					hdev, vport[k].qs_offset + i, i);
-				if (ret)
-					return ret;
-			}
-		}
-	} else if (hdev->tx_sch_mode == HCLGE_FLAG_VNET_BASE_SCH_MODE) {
-		/* Cfg qs -> pri mapping,  qs = tc, pri = vf, 8 qs -> 1 pri */
-		for (k = 0; k < hdev->num_alloc_vport; k++)
-			for (i = 0; i < HNAE3_MAX_TC; i++) {
-				ret = hclge_tm_qs_to_pri_map_cfg(
-					hdev, vport[k].qs_offset + i, k);
-				if (ret)
-					return ret;
-			}
-	} else {
+	if (hdev->tx_sch_mode == HCLGE_FLAG_TC_BASE_SCH_MODE)
+		ret = hclge_tm_pri_q_qs_cfg_tc_base(hdev);
+	else if (hdev->tx_sch_mode == HCLGE_FLAG_VNET_BASE_SCH_MODE)
+		ret = hclge_tm_pri_q_qs_cfg_vnet_base(hdev);
+	else
 		return -EINVAL;
-	}
+
+	if (ret)
+		return ret;
 
 	/* Cfg q -> qs mapping */
 	for (i = 0; i < hdev->num_alloc_vport; i++) {
@@ -811,32 +1044,41 @@ static int hclge_tm_pri_q_qs_cfg(struct hclge_dev *hdev)
 
 static int hclge_tm_pri_tc_base_shaper_cfg(struct hclge_dev *hdev)
 {
-	u8 ir_u, ir_b, ir_s;
-	u32 shaper_para;
+	u32 max_tm_rate = hdev->ae_dev->dev_specs.max_tm_rate;
+	struct hclge_shaper_ir_para ir_para;
+	u32 shaper_para_c, shaper_para_p;
 	int ret;
 	u32 i;
 
-	for (i = 0; i < hdev->tm_info.num_tc; i++) {
-		ret = hclge_shaper_para_calc(
-					hdev->tm_info.tc_info[i].bw_limit,
-					HCLGE_SHAPER_LVL_PRI,
-					&ir_b, &ir_u, &ir_s);
-		if (ret)
-			return ret;
+	for (i = 0; i < hdev->tc_max; i++) {
+		u32 rate = hdev->tm_info.tc_info[i].bw_limit;
 
-		shaper_para = hclge_tm_get_shapping_para(0, 0, 0,
-							 HCLGE_SHAPER_BS_U_DEF,
-							 HCLGE_SHAPER_BS_S_DEF);
+		if (rate) {
+			ret = hclge_shaper_para_calc(rate, HCLGE_SHAPER_LVL_PRI,
+						     &ir_para, max_tm_rate);
+			if (ret)
+				return ret;
+
+			shaper_para_c = hclge_tm_get_shapping_para(0, 0, 0,
+								   HCLGE_SHAPER_BS_U_DEF,
+								   HCLGE_SHAPER_BS_S_DEF);
+			shaper_para_p = hclge_tm_get_shapping_para(ir_para.ir_b,
+								   ir_para.ir_u,
+								   ir_para.ir_s,
+								   HCLGE_SHAPER_BS_U_DEF,
+								   HCLGE_SHAPER_BS_S_DEF);
+		} else {
+			shaper_para_c = 0;
+			shaper_para_p = 0;
+		}
+
 		ret = hclge_tm_pri_shapping_cfg(hdev, HCLGE_TM_SHAP_C_BUCKET, i,
-						shaper_para);
+						shaper_para_c, rate);
 		if (ret)
 			return ret;
 
-		shaper_para = hclge_tm_get_shapping_para(ir_b, ir_u, ir_s,
-							 HCLGE_SHAPER_BS_U_DEF,
-							 HCLGE_SHAPER_BS_S_DEF);
 		ret = hclge_tm_pri_shapping_cfg(hdev, HCLGE_TM_SHAP_P_BUCKET, i,
-						shaper_para);
+						shaper_para_p, rate);
 		if (ret)
 			return ret;
 	}
@@ -847,12 +1089,13 @@ static int hclge_tm_pri_tc_base_shaper_cfg(struct hclge_dev *hdev)
 static int hclge_tm_pri_vnet_base_shaper_pri_cfg(struct hclge_vport *vport)
 {
 	struct hclge_dev *hdev = vport->back;
-	u8 ir_u, ir_b, ir_s;
+	struct hclge_shaper_ir_para ir_para;
 	u32 shaper_para;
 	int ret;
 
 	ret = hclge_shaper_para_calc(vport->bw_limit, HCLGE_SHAPER_LVL_VF,
-				     &ir_b, &ir_u, &ir_s);
+				     &ir_para,
+				     hdev->ae_dev->dev_specs.max_tm_rate);
 	if (ret)
 		return ret;
 
@@ -860,15 +1103,18 @@ static int hclge_tm_pri_vnet_base_shaper_pri_cfg(struct hclge_vport *vport)
 						 HCLGE_SHAPER_BS_U_DEF,
 						 HCLGE_SHAPER_BS_S_DEF);
 	ret = hclge_tm_pri_shapping_cfg(hdev, HCLGE_TM_SHAP_C_BUCKET,
-					vport->vport_id, shaper_para);
+					vport->vport_id, shaper_para,
+					vport->bw_limit);
 	if (ret)
 		return ret;
 
-	shaper_para = hclge_tm_get_shapping_para(ir_b, ir_u, ir_s,
+	shaper_para = hclge_tm_get_shapping_para(ir_para.ir_b, ir_para.ir_u,
+						 ir_para.ir_s,
 						 HCLGE_SHAPER_BS_U_DEF,
 						 HCLGE_SHAPER_BS_S_DEF);
 	ret = hclge_tm_pri_shapping_cfg(hdev, HCLGE_TM_SHAP_P_BUCKET,
-					vport->vport_id, shaper_para);
+					vport->vport_id, shaper_para,
+					vport->bw_limit);
 	if (ret)
 		return ret;
 
@@ -879,15 +1125,15 @@ static int hclge_tm_pri_vnet_base_shaper_qs_cfg(struct hclge_vport *vport)
 {
 	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
 	struct hclge_dev *hdev = vport->back;
-	u8 ir_u, ir_b, ir_s;
+	u32 max_tm_rate = hdev->ae_dev->dev_specs.max_tm_rate;
+	struct hclge_shaper_ir_para ir_para;
 	u32 i;
 	int ret;
 
-	for (i = 0; i < kinfo->num_tc; i++) {
-		ret = hclge_shaper_para_calc(
-					hdev->tm_info.tc_info[i].bw_limit,
-					HCLGE_SHAPER_LVL_QSET,
-					&ir_b, &ir_u, &ir_s);
+	for (i = 0; i < kinfo->tc_info.num_tc; i++) {
+		ret = hclge_shaper_para_calc(hdev->tm_info.tc_info[i].bw_limit,
+					     HCLGE_SHAPER_LVL_QSET,
+					     &ir_para, max_tm_rate);
 		if (ret)
 			return ret;
 	}
@@ -942,7 +1188,7 @@ static int hclge_tm_pri_tc_base_dwrr_cfg(struct hclge_dev *hdev)
 	int ret;
 	u32 i, k;
 
-	for (i = 0; i < hdev->tm_info.num_tc; i++) {
+	for (i = 0; i < hdev->tc_max; i++) {
 		pg_info =
 			&hdev->tm_info.pg_info[hdev->tm_info.tc_info[i].pgid];
 		dwrr = pg_info->tc_dwrr[i];
@@ -952,9 +1198,15 @@ static int hclge_tm_pri_tc_base_dwrr_cfg(struct hclge_dev *hdev)
 			return ret;
 
 		for (k = 0; k < hdev->num_alloc_vport; k++) {
+			struct hnae3_knic_private_info *kinfo = &vport[k].nic.kinfo;
+
+			if (i >= kinfo->tc_info.max_tc)
+				continue;
+
+			dwrr = i < kinfo->tc_info.num_tc ? vport[k].dwrr : 0;
 			ret = hclge_tm_qs_weight_cfg(
 				hdev, vport[k].qs_offset + i,
-				vport[k].dwrr);
+				dwrr);
 			if (ret)
 				return ret;
 		}
@@ -965,7 +1217,6 @@ static int hclge_tm_pri_tc_base_dwrr_cfg(struct hclge_dev *hdev)
 
 static int hclge_tm_ets_tc_dwrr_cfg(struct hclge_dev *hdev)
 {
-#define DEFAULT_TC_WEIGHT	1
 #define DEFAULT_TC_OFFSET	14
 
 	struct hclge_ets_tc_weight_cmd *ets_weight;
@@ -978,13 +1229,7 @@ static int hclge_tm_ets_tc_dwrr_cfg(struct hclge_dev *hdev)
 	for (i = 0; i < HNAE3_MAX_TC; i++) {
 		struct hclge_pg_info *pg_info;
 
-		ets_weight->tc_weight[i] = DEFAULT_TC_WEIGHT;
-
-		if (!(hdev->hw_tc_map & BIT(i)))
-			continue;
-
-		pg_info =
-			&hdev->tm_info.pg_info[hdev->tm_info.tc_info[i].pgid];
+		pg_info = &hdev->tm_info.pg_info[hdev->tm_info.tc_info[i].pgid];
 		ets_weight->tc_weight[i] = pg_info->tc_dwrr[i];
 	}
 
@@ -1006,7 +1251,7 @@ static int hclge_tm_pri_vnet_base_dwrr_pri_cfg(struct hclge_vport *vport)
 		return ret;
 
 	/* Qset dwrr */
-	for (i = 0; i < kinfo->num_tc; i++) {
+	for (i = 0; i < kinfo->tc_info.num_tc; i++) {
 		ret = hclge_tm_qs_weight_cfg(
 			hdev, vport->qs_offset + i,
 			hdev->tm_info.pg_info[0].tc_dwrr[i]);
@@ -1049,7 +1294,7 @@ static int hclge_tm_pri_dwrr_cfg(struct hclge_dev *hdev)
 		ret = hclge_tm_ets_tc_dwrr_cfg(hdev);
 		if (ret == -EOPNOTSUPP) {
 			dev_warn(&hdev->pdev->dev,
-				 "fw %08x does't support ets tc weight cmd\n",
+				 "fw %08x doesn't support ets tc weight cmd\n",
 				 hdev->fw_version);
 			ret = 0;
 		}
@@ -1071,6 +1316,12 @@ static int hclge_tm_map_cfg(struct hclge_dev *hdev)
 	ret = hclge_up_to_tc_map(hdev);
 	if (ret)
 		return ret;
+
+	if (hdev->vport[0].nic.kinfo.tc_map_mode == HNAE3_TC_MAP_MODE_DSCP) {
+		ret = hclge_dscp_to_tc_map(hdev);
+		if (ret)
+			return ret;
+	}
 
 	ret = hclge_tm_pg_to_pri_map(hdev);
 	if (ret)
@@ -1123,6 +1374,35 @@ static int hclge_tm_lvl2_schd_mode_cfg(struct hclge_dev *hdev)
 	return 0;
 }
 
+static int hclge_tm_schd_mode_tc_base_cfg(struct hclge_dev *hdev, u8 pri_id)
+{
+	struct hclge_vport *vport = hdev->vport;
+	int ret;
+	u8 mode;
+	u16 i;
+
+	ret = hclge_tm_pri_schd_mode_cfg(hdev, pri_id);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < hdev->num_alloc_vport; i++) {
+		struct hnae3_knic_private_info *kinfo = &vport[i].nic.kinfo;
+
+		if (pri_id >= kinfo->tc_info.max_tc)
+			continue;
+
+		mode = pri_id < kinfo->tc_info.num_tc ? HCLGE_SCH_MODE_DWRR :
+		       HCLGE_SCH_MODE_SP;
+		ret = hclge_tm_qs_schd_mode_cfg(hdev,
+						vport[i].qs_offset + pri_id,
+						mode);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int hclge_tm_schd_mode_vnet_base_cfg(struct hclge_vport *vport)
 {
 	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
@@ -1137,7 +1417,7 @@ static int hclge_tm_schd_mode_vnet_base_cfg(struct hclge_vport *vport)
 	if (ret)
 		return ret;
 
-	for (i = 0; i < kinfo->num_tc; i++) {
+	for (i = 0; i < kinfo->tc_info.num_tc; i++) {
 		u8 sch_mode = hdev->tm_info.tc_info[i].tc_sch_mode;
 
 		ret = hclge_tm_qs_schd_mode_cfg(hdev, vport->qs_offset + i,
@@ -1153,21 +1433,13 @@ static int hclge_tm_lvl34_schd_mode_cfg(struct hclge_dev *hdev)
 {
 	struct hclge_vport *vport = hdev->vport;
 	int ret;
-	u8 i, k;
+	u8 i;
 
 	if (hdev->tx_sch_mode == HCLGE_FLAG_TC_BASE_SCH_MODE) {
-		for (i = 0; i < hdev->tm_info.num_tc; i++) {
-			ret = hclge_tm_pri_schd_mode_cfg(hdev, i);
+		for (i = 0; i < hdev->tc_max; i++) {
+			ret = hclge_tm_schd_mode_tc_base_cfg(hdev, i);
 			if (ret)
 				return ret;
-
-			for (k = 0; k < hdev->num_alloc_vport; k++) {
-				ret = hclge_tm_qs_schd_mode_cfg(
-					hdev, vport[k].qs_offset + i,
-					HCLGE_SCH_MODE_DWRR);
-				if (ret)
-					return ret;
-			}
 		}
 	} else {
 		for (i = 0; i < hdev->num_alloc_vport; i++) {
@@ -1213,7 +1485,11 @@ int hclge_tm_schd_setup_hw(struct hclge_dev *hdev)
 		return ret;
 
 	/* Cfg schd mode for each level schd */
-	return hclge_tm_schd_mode_hw(hdev);
+	ret = hclge_tm_schd_mode_hw(hdev);
+	if (ret)
+		return ret;
+
+	return hclge_tm_flush_cfg(hdev, false);
 }
 
 static int hclge_pause_param_setup_hw(struct hclge_dev *hdev)
@@ -1237,15 +1513,23 @@ static int hclge_pfc_setup_hw(struct hclge_dev *hdev)
 				      hdev->tm_info.pfc_en);
 }
 
-/* Each Tc has a 1024 queue sets to backpress, it divides to
- * 32 group, each group contains 32 queue sets, which can be
- * represented by u32 bitmap.
+/* for the queues that use for backpress, divides to several groups,
+ * each group contains 32 queue sets, which can be represented by u32 bitmap.
  */
 static int hclge_bp_setup_hw(struct hclge_dev *hdev, u8 tc)
 {
+	u16 grp_id_shift = HCLGE_BP_GRP_ID_S;
+	u16 grp_id_mask = HCLGE_BP_GRP_ID_M;
+	u8 grp_num = HCLGE_BP_GRP_NUM;
 	int i;
 
-	for (i = 0; i < HCLGE_BP_GRP_NUM; i++) {
+	if (hdev->num_tqps > HCLGE_TQP_MAX_SIZE_DEV_V2) {
+		grp_num = HCLGE_BP_EXT_GRP_NUM;
+		grp_id_mask = HCLGE_BP_EXT_GRP_ID_M;
+		grp_id_shift = HCLGE_BP_EXT_GRP_ID_S;
+	}
+
+	for (i = 0; i < grp_num; i++) {
 		u32 qs_bitmap = 0;
 		int k, ret;
 
@@ -1254,8 +1538,7 @@ static int hclge_bp_setup_hw(struct hclge_dev *hdev, u8 tc)
 			u16 qs_id = vport->qs_offset + tc;
 			u8 grp, sub_grp;
 
-			grp = hnae3_get_field(qs_id, HCLGE_BP_GRP_ID_M,
-					      HCLGE_BP_GRP_ID_S);
+			grp = hnae3_get_field(qs_id, grp_id_mask, grp_id_shift);
 			sub_grp = hnae3_get_field(qs_id, HCLGE_BP_SUB_GRP_ID_M,
 						  HCLGE_BP_SUB_GRP_ID_S);
 			if (i == grp)
@@ -1270,7 +1553,7 @@ static int hclge_bp_setup_hw(struct hclge_dev *hdev, u8 tc)
 	return 0;
 }
 
-static int hclge_mac_pause_setup_hw(struct hclge_dev *hdev)
+int hclge_mac_pause_setup_hw(struct hclge_dev *hdev)
 {
 	bool tx_en, rx_en;
 
@@ -1305,7 +1588,7 @@ static int hclge_mac_pause_setup_hw(struct hclge_dev *hdev)
 
 static int hclge_tm_bp_setup(struct hclge_dev *hdev)
 {
-	int ret = 0;
+	int ret;
 	int i;
 
 	for (i = 0; i < hdev->tm_info.num_tc; i++) {
@@ -1314,7 +1597,7 @@ static int hclge_tm_bp_setup(struct hclge_dev *hdev)
 			return ret;
 	}
 
-	return ret;
+	return 0;
 }
 
 int hclge_pause_setup_hw(struct hclge_dev *hdev, bool init)
@@ -1360,7 +1643,7 @@ void hclge_tm_prio_tc_info_update(struct hclge_dev *hdev, u8 *prio_tc)
 
 		for (k = 0;  k < hdev->num_alloc_vport; k++) {
 			kinfo = &vport[k].nic.kinfo;
-			kinfo->prio_tc[i] = prio_tc[i];
+			kinfo->tc_info.prio_tc[i] = prio_tc[i];
 		}
 	}
 }
@@ -1383,19 +1666,6 @@ void hclge_tm_schd_info_update(struct hclge_dev *hdev, u8 num_tc)
 	hdev->hw_tc_map = bit_map;
 
 	hclge_tm_schd_info_init(hdev);
-}
-
-void hclge_tm_pfc_info_update(struct hclge_dev *hdev)
-{
-	/* DCB is enabled if we have more than 1 TC or pfc_en is
-	 * non-zero.
-	 */
-	if (hdev->tm_info.num_tc > 1 || hdev->tm_info.pfc_en)
-		hdev->flag |= HCLGE_FLAG_DCB_ENABLE;
-	else
-		hdev->flag &= ~HCLGE_FLAG_DCB_ENABLE;
-
-	hclge_pfc_info_init(hdev);
 }
 
 int hclge_tm_init_hw(struct hclge_dev *hdev, bool init)
@@ -1428,6 +1698,7 @@ int hclge_tm_schd_init(struct hclge_dev *hdev)
 		return -EINVAL;
 
 	hclge_tm_schd_info_init(hdev);
+	hclge_dscp_to_prio_map_init(hdev);
 
 	return hclge_tm_init_hw(hdev, true);
 }
@@ -1443,8 +1714,448 @@ int hclge_tm_vport_map_update(struct hclge_dev *hdev)
 	if (ret)
 		return ret;
 
-	if (!(hdev->flag & HCLGE_FLAG_DCB_ENABLE))
+	if (hdev->tm_info.num_tc == 1 && !hdev->tm_info.pfc_en)
 		return 0;
 
 	return hclge_tm_bp_setup(hdev);
+}
+
+int hclge_tm_get_qset_num(struct hclge_dev *hdev, u16 *qset_num)
+{
+	struct hclge_tm_nodes_cmd *nodes;
+	struct hclge_desc desc;
+	int ret;
+
+	if (hdev->ae_dev->dev_version <= HNAE3_DEVICE_VERSION_V2) {
+		/* Each PF has 8 qsets and each VF has 1 qset */
+		*qset_num = HCLGE_TM_PF_MAX_QSET_NUM + pci_num_vf(hdev->pdev);
+		return 0;
+	}
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TM_NODES, true);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to get qset num, ret = %d\n", ret);
+		return ret;
+	}
+
+	nodes = (struct hclge_tm_nodes_cmd *)desc.data;
+	*qset_num = le16_to_cpu(nodes->qset_num);
+	return 0;
+}
+
+int hclge_tm_get_pri_num(struct hclge_dev *hdev, u8 *pri_num)
+{
+	struct hclge_tm_nodes_cmd *nodes;
+	struct hclge_desc desc;
+	int ret;
+
+	if (hdev->ae_dev->dev_version <= HNAE3_DEVICE_VERSION_V2) {
+		*pri_num = HCLGE_TM_PF_MAX_PRI_NUM;
+		return 0;
+	}
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TM_NODES, true);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to get pri num, ret = %d\n", ret);
+		return ret;
+	}
+
+	nodes = (struct hclge_tm_nodes_cmd *)desc.data;
+	*pri_num = nodes->pri_num;
+	return 0;
+}
+
+int hclge_tm_get_qset_map_pri(struct hclge_dev *hdev, u16 qset_id, u8 *priority,
+			      u8 *link_vld)
+{
+	struct hclge_qs_to_pri_link_cmd *map;
+	struct hclge_desc desc;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TM_QS_TO_PRI_LINK, true);
+	map = (struct hclge_qs_to_pri_link_cmd *)desc.data;
+	map->qs_id = cpu_to_le16(qset_id);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to get qset map priority, ret = %d\n", ret);
+		return ret;
+	}
+
+	*priority = map->priority;
+	*link_vld = map->link_vld;
+	return 0;
+}
+
+int hclge_tm_get_qset_sch_mode(struct hclge_dev *hdev, u16 qset_id, u8 *mode)
+{
+	struct hclge_qs_sch_mode_cfg_cmd *qs_sch_mode;
+	struct hclge_desc desc;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TM_QS_SCH_MODE_CFG, true);
+	qs_sch_mode = (struct hclge_qs_sch_mode_cfg_cmd *)desc.data;
+	qs_sch_mode->qs_id = cpu_to_le16(qset_id);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to get qset sch mode, ret = %d\n", ret);
+		return ret;
+	}
+
+	*mode = qs_sch_mode->sch_mode;
+	return 0;
+}
+
+int hclge_tm_get_qset_weight(struct hclge_dev *hdev, u16 qset_id, u8 *weight)
+{
+	struct hclge_qs_weight_cmd *qs_weight;
+	struct hclge_desc desc;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TM_QS_WEIGHT, true);
+	qs_weight = (struct hclge_qs_weight_cmd *)desc.data;
+	qs_weight->qs_id = cpu_to_le16(qset_id);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to get qset weight, ret = %d\n", ret);
+		return ret;
+	}
+
+	*weight = qs_weight->dwrr;
+	return 0;
+}
+
+int hclge_tm_get_qset_shaper(struct hclge_dev *hdev, u16 qset_id,
+			     struct hclge_tm_shaper_para *para)
+{
+	struct hclge_qs_shapping_cmd *shap_cfg_cmd;
+	struct hclge_desc desc;
+	u32 shapping_para;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_QCN_SHAPPING_CFG, true);
+	shap_cfg_cmd = (struct hclge_qs_shapping_cmd *)desc.data;
+	shap_cfg_cmd->qs_id = cpu_to_le16(qset_id);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to get qset %u shaper, ret = %d\n", qset_id,
+			ret);
+		return ret;
+	}
+
+	shapping_para = le32_to_cpu(shap_cfg_cmd->qs_shapping_para);
+	para->ir_b = hclge_tm_get_field(shapping_para, IR_B);
+	para->ir_u = hclge_tm_get_field(shapping_para, IR_U);
+	para->ir_s = hclge_tm_get_field(shapping_para, IR_S);
+	para->bs_b = hclge_tm_get_field(shapping_para, BS_B);
+	para->bs_s = hclge_tm_get_field(shapping_para, BS_S);
+	para->flag = shap_cfg_cmd->flag;
+	para->rate = le32_to_cpu(shap_cfg_cmd->qs_rate);
+	return 0;
+}
+
+int hclge_tm_get_pri_sch_mode(struct hclge_dev *hdev, u8 pri_id, u8 *mode)
+{
+	struct hclge_pri_sch_mode_cfg_cmd *pri_sch_mode;
+	struct hclge_desc desc;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TM_PRI_SCH_MODE_CFG, true);
+	pri_sch_mode = (struct hclge_pri_sch_mode_cfg_cmd *)desc.data;
+	pri_sch_mode->pri_id = pri_id;
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to get priority sch mode, ret = %d\n", ret);
+		return ret;
+	}
+
+	*mode = pri_sch_mode->sch_mode;
+	return 0;
+}
+
+int hclge_tm_get_pri_weight(struct hclge_dev *hdev, u8 pri_id, u8 *weight)
+{
+	struct hclge_priority_weight_cmd *priority_weight;
+	struct hclge_desc desc;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TM_PRI_WEIGHT, true);
+	priority_weight = (struct hclge_priority_weight_cmd *)desc.data;
+	priority_weight->pri_id = pri_id;
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to get priority weight, ret = %d\n", ret);
+		return ret;
+	}
+
+	*weight = priority_weight->dwrr;
+	return 0;
+}
+
+int hclge_tm_get_pri_shaper(struct hclge_dev *hdev, u8 pri_id,
+			    enum hclge_opcode_type cmd,
+			    struct hclge_tm_shaper_para *para)
+{
+	struct hclge_pri_shapping_cmd *shap_cfg_cmd;
+	struct hclge_desc desc;
+	u32 shapping_para;
+	int ret;
+
+	if (cmd != HCLGE_OPC_TM_PRI_C_SHAPPING &&
+	    cmd != HCLGE_OPC_TM_PRI_P_SHAPPING)
+		return -EINVAL;
+
+	hclge_cmd_setup_basic_desc(&desc, cmd, true);
+	shap_cfg_cmd = (struct hclge_pri_shapping_cmd *)desc.data;
+	shap_cfg_cmd->pri_id = pri_id;
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to get priority shaper(%#x), ret = %d\n",
+			cmd, ret);
+		return ret;
+	}
+
+	shapping_para = le32_to_cpu(shap_cfg_cmd->pri_shapping_para);
+	para->ir_b = hclge_tm_get_field(shapping_para, IR_B);
+	para->ir_u = hclge_tm_get_field(shapping_para, IR_U);
+	para->ir_s = hclge_tm_get_field(shapping_para, IR_S);
+	para->bs_b = hclge_tm_get_field(shapping_para, BS_B);
+	para->bs_s = hclge_tm_get_field(shapping_para, BS_S);
+	para->flag = shap_cfg_cmd->flag;
+	para->rate = le32_to_cpu(shap_cfg_cmd->pri_rate);
+	return 0;
+}
+
+int hclge_tm_get_q_to_qs_map(struct hclge_dev *hdev, u16 q_id, u16 *qset_id)
+{
+	struct hclge_nq_to_qs_link_cmd *map;
+	struct hclge_desc desc;
+	u16 qs_id_l;
+	u16 qs_id_h;
+	int ret;
+
+	map = (struct hclge_nq_to_qs_link_cmd *)desc.data;
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TM_NQ_TO_QS_LINK, true);
+	map->nq_id = cpu_to_le16(q_id);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to get queue to qset map, ret = %d\n", ret);
+		return ret;
+	}
+	*qset_id = le16_to_cpu(map->qset_id);
+
+	/* convert qset_id to the following format, drop the vld bit
+	 *            | qs_id_h | vld | qs_id_l |
+	 * qset_id:   | 15 ~ 11 |  10 |  9 ~ 0  |
+	 *             \         \   /         /
+	 *              \         \ /         /
+	 * qset_id: | 15 | 14 ~ 10 |  9 ~ 0  |
+	 */
+	qs_id_l = hnae3_get_field(*qset_id, HCLGE_TM_QS_ID_L_MSK,
+				  HCLGE_TM_QS_ID_L_S);
+	qs_id_h = hnae3_get_field(*qset_id, HCLGE_TM_QS_ID_H_EXT_MSK,
+				  HCLGE_TM_QS_ID_H_EXT_S);
+	*qset_id = 0;
+	hnae3_set_field(*qset_id, HCLGE_TM_QS_ID_L_MSK, HCLGE_TM_QS_ID_L_S,
+			qs_id_l);
+	hnae3_set_field(*qset_id, HCLGE_TM_QS_ID_H_MSK, HCLGE_TM_QS_ID_H_S,
+			qs_id_h);
+	return 0;
+}
+
+int hclge_tm_get_q_to_tc(struct hclge_dev *hdev, u16 q_id, u8 *tc_id)
+{
+#define HCLGE_TM_TC_MASK		0x7
+
+	struct hclge_tqp_tx_queue_tc_cmd *tc;
+	struct hclge_desc desc;
+	int ret;
+
+	tc = (struct hclge_tqp_tx_queue_tc_cmd *)desc.data;
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TQP_TX_QUEUE_TC, true);
+	tc->queue_id = cpu_to_le16(q_id);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to get queue to tc map, ret = %d\n", ret);
+		return ret;
+	}
+
+	*tc_id = tc->tc_id & HCLGE_TM_TC_MASK;
+	return 0;
+}
+
+int hclge_tm_get_pg_to_pri_map(struct hclge_dev *hdev, u8 pg_id,
+			       u8 *pri_bit_map)
+{
+	struct hclge_pg_to_pri_link_cmd *map;
+	struct hclge_desc desc;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TM_PG_TO_PRI_LINK, true);
+	map = (struct hclge_pg_to_pri_link_cmd *)desc.data;
+	map->pg_id = pg_id;
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to get pg to pri map, ret = %d\n", ret);
+		return ret;
+	}
+
+	*pri_bit_map = map->pri_bit_map;
+	return 0;
+}
+
+int hclge_tm_get_pg_weight(struct hclge_dev *hdev, u8 pg_id, u8 *weight)
+{
+	struct hclge_pg_weight_cmd *pg_weight_cmd;
+	struct hclge_desc desc;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TM_PG_WEIGHT, true);
+	pg_weight_cmd = (struct hclge_pg_weight_cmd *)desc.data;
+	pg_weight_cmd->pg_id = pg_id;
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to get pg weight, ret = %d\n", ret);
+		return ret;
+	}
+
+	*weight = pg_weight_cmd->dwrr;
+	return 0;
+}
+
+int hclge_tm_get_pg_sch_mode(struct hclge_dev *hdev, u8 pg_id, u8 *mode)
+{
+	struct hclge_desc desc;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TM_PG_SCH_MODE_CFG, true);
+	desc.data[0] = cpu_to_le32(pg_id);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to get pg sch mode, ret = %d\n", ret);
+		return ret;
+	}
+
+	*mode = (u8)le32_to_cpu(desc.data[1]);
+	return 0;
+}
+
+int hclge_tm_get_pg_shaper(struct hclge_dev *hdev, u8 pg_id,
+			   enum hclge_opcode_type cmd,
+			   struct hclge_tm_shaper_para *para)
+{
+	struct hclge_pg_shapping_cmd *shap_cfg_cmd;
+	struct hclge_desc desc;
+	u32 shapping_para;
+	int ret;
+
+	if (cmd != HCLGE_OPC_TM_PG_C_SHAPPING &&
+	    cmd != HCLGE_OPC_TM_PG_P_SHAPPING)
+		return -EINVAL;
+
+	hclge_cmd_setup_basic_desc(&desc, cmd, true);
+	shap_cfg_cmd = (struct hclge_pg_shapping_cmd *)desc.data;
+	shap_cfg_cmd->pg_id = pg_id;
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to get pg shaper(%#x), ret = %d\n",
+			cmd, ret);
+		return ret;
+	}
+
+	shapping_para = le32_to_cpu(shap_cfg_cmd->pg_shapping_para);
+	para->ir_b = hclge_tm_get_field(shapping_para, IR_B);
+	para->ir_u = hclge_tm_get_field(shapping_para, IR_U);
+	para->ir_s = hclge_tm_get_field(shapping_para, IR_S);
+	para->bs_b = hclge_tm_get_field(shapping_para, BS_B);
+	para->bs_s = hclge_tm_get_field(shapping_para, BS_S);
+	para->flag = shap_cfg_cmd->flag;
+	para->rate = le32_to_cpu(shap_cfg_cmd->pg_rate);
+	return 0;
+}
+
+int hclge_tm_get_port_shaper(struct hclge_dev *hdev,
+			     struct hclge_tm_shaper_para *para)
+{
+	struct hclge_port_shapping_cmd *port_shap_cfg_cmd;
+	struct hclge_desc desc;
+	u32 shapping_para;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TM_PORT_SHAPPING, true);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to get port shaper, ret = %d\n", ret);
+		return ret;
+	}
+
+	port_shap_cfg_cmd = (struct hclge_port_shapping_cmd *)desc.data;
+	shapping_para = le32_to_cpu(port_shap_cfg_cmd->port_shapping_para);
+	para->ir_b = hclge_tm_get_field(shapping_para, IR_B);
+	para->ir_u = hclge_tm_get_field(shapping_para, IR_U);
+	para->ir_s = hclge_tm_get_field(shapping_para, IR_S);
+	para->bs_b = hclge_tm_get_field(shapping_para, BS_B);
+	para->bs_s = hclge_tm_get_field(shapping_para, BS_S);
+	para->flag = port_shap_cfg_cmd->flag;
+	para->rate = le32_to_cpu(port_shap_cfg_cmd->port_rate);
+
+	return 0;
+}
+
+int hclge_tm_flush_cfg(struct hclge_dev *hdev, bool enable)
+{
+	struct hclge_desc desc;
+	int ret;
+
+	if (!hnae3_ae_dev_tm_flush_supported(hdev))
+		return 0;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TM_FLUSH, false);
+
+	desc.data[0] = cpu_to_le32(enable ? HCLGE_TM_FLUSH_EN_MSK : 0);
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to config tm flush, ret = %d\n", ret);
+		return ret;
+	}
+
+	if (enable)
+		msleep(HCLGE_TM_FLUSH_TIME_MS);
+
+	return ret;
+}
+
+void hclge_reset_tc_config(struct hclge_dev *hdev)
+{
+	struct hclge_vport *vport = &hdev->vport[0];
+	struct hnae3_knic_private_info *kinfo;
+
+	kinfo = &vport->nic.kinfo;
+
+	if (!kinfo->tc_info.mqprio_destroy)
+		return;
+
+	/* clear tc info, including mqprio_destroy and mqprio_active */
+	memset(&kinfo->tc_info, 0, sizeof(kinfo->tc_info));
+	hclge_tm_schd_info_update(hdev, 0);
+	hclge_comm_rss_indir_init_cfg(hdev->ae_dev, &hdev->rss_cfg);
 }

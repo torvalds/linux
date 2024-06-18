@@ -56,10 +56,10 @@ static int __init init_ts5500_map(void)
 {
 	int rc = 0;
 
-	ts5500_map.virt = ioremap_nocache(ts5500_map.phys, ts5500_map.size);
+	ts5500_map.virt = ioremap(ts5500_map.phys, ts5500_map.size);
 
 	if (!ts5500_map.virt) {
-		printk(KERN_ERR "Failed to ioremap_nocache\n");
+		printk(KERN_ERR "Failed to ioremap\n");
 		rc = -EIO;
 		goto err2;
 	}

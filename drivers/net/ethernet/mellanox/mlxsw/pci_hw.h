@@ -25,10 +25,8 @@
 #define MLXSW_PCI_CIR_CTRL_STATUS_SHIFT		24
 #define MLXSW_PCI_CIR_TIMEOUT_MSECS		1000
 
-#define MLXSW_PCI_SW_RESET			0xF0010
-#define MLXSW_PCI_SW_RESET_RST_BIT		BIT(0)
-#define MLXSW_PCI_SW_RESET_TIMEOUT_MSECS	20000
-#define MLXSW_PCI_SW_RESET_WAIT_MSECS		100
+#define MLXSW_PCI_SW_RESET_TIMEOUT_MSECS	900000
+#define MLXSW_PCI_SW_RESET_WAIT_MSECS		400
 #define MLXSW_PCI_FW_READY			0xA1844
 #define MLXSW_PCI_FW_READY_MASK			0xFFFF
 #define MLXSW_PCI_FW_READY_MAGIC		0x5E
@@ -43,13 +41,15 @@
 #define MLXSW_PCI_DOORBELL(offset, type_offset, num)	\
 	((offset) + (type_offset) + (num) * 4)
 
-#define MLXSW_PCI_FREE_RUNNING_CLOCK_H(offset)	(offset)
-#define MLXSW_PCI_FREE_RUNNING_CLOCK_L(offset)	((offset) + 4)
-
 #define MLXSW_PCI_CQS_MAX	96
-#define MLXSW_PCI_EQS_COUNT	2
-#define MLXSW_PCI_EQ_ASYNC_NUM	0
+#define MLXSW_PCI_EQS_MAX	2
+#define MLXSW_PCI_EQS_COUNT	1
 #define MLXSW_PCI_EQ_COMP_NUM	1
+
+#define MLXSW_PCI_SDQS_MIN	2 /* EMAD and control traffic */
+#define MLXSW_PCI_SDQ_EMAD_INDEX	0
+#define MLXSW_PCI_SDQ_EMAD_TC	0
+#define MLXSW_PCI_SDQ_CTL_TC	3
 
 #define MLXSW_PCI_AQ_PAGES	8
 #define MLXSW_PCI_AQ_SIZE	(MLXSW_PCI_PAGE_SIZE * MLXSW_PCI_AQ_PAGES)
@@ -170,10 +170,19 @@ MLXSW_ITEM32(pci, cqe, wqe_counter, 0x04, 16, 16);
  */
 MLXSW_ITEM32(pci, cqe, byte_count, 0x04, 0, 14);
 
+#define MLXSW_PCI_CQE2_MIRROR_CONG_INVALID	0xFFFF
+
+/* pci_cqe_mirror_cong_high
+ * Congestion level in units of 8KB of the egress traffic class of the original
+ * packet that does mirroring to the CPU. Value of 0xFFFF means that the
+ * congestion level is invalid.
+ */
+MLXSW_ITEM32(pci, cqe2, mirror_cong_high, 0x08, 16, 4);
+
 /* pci_cqe_trap_id
  * Trap ID that captured the packet.
  */
-MLXSW_ITEM32(pci, cqe, trap_id, 0x08, 0, 9);
+MLXSW_ITEM32(pci, cqe, trap_id, 0x08, 0, 10);
 
 /* pci_cqe_crc
  * Length include CRC. Indicates the length field includes
@@ -204,6 +213,156 @@ mlxsw_pci_cqe_item_helpers(sr, 0, 12, 12);
 MLXSW_ITEM32(pci, cqe0, dqn, 0x0C, 1, 5);
 MLXSW_ITEM32(pci, cqe12, dqn, 0x0C, 1, 6);
 mlxsw_pci_cqe_item_helpers(dqn, 0, 12, 12);
+
+/* pci_cqe_time_stamp_low
+ * Time stamp of the CQE
+ * Format according to time_stamp_type:
+ * 0: uSec - 1.024uSec (default for devices which do not support
+ * time_stamp_type). Only bits 15:0 are valid
+ * 1: FRC - Free Running Clock - units of 1nSec
+ * 2: UTC - time_stamp[37:30] = Sec
+ *	  - time_stamp[29:0] = nSec
+ * 3: Mirror_UTC. UTC time stamp of the original packet that has
+ * MIRROR_SESSION traps
+ *   - time_stamp[37:30] = Sec
+ *   - time_stamp[29:0] = nSec
+ *   Formats 0..2 are configured by
+ *   CONFIG_PROFILE.cqe_time_stamp_type for PTP traps
+ *   Format 3 is used for MIRROR_SESSION traps
+ *   Note that Spectrum does not reveal FRC, UTC and Mirror_UTC
+ */
+MLXSW_ITEM32(pci, cqe2, time_stamp_low, 0x0C, 16, 16);
+
+#define MLXSW_PCI_CQE2_MIRROR_TCLASS_INVALID	0x1F
+
+/* pci_cqe_mirror_tclass
+ * The egress traffic class of the original packet that does mirroring to the
+ * CPU. Value of 0x1F means that the traffic class is invalid.
+ */
+MLXSW_ITEM32(pci, cqe2, mirror_tclass, 0x10, 27, 5);
+
+/* pci_cqe_tx_lag
+ * The Tx port of a packet that is mirrored / sampled to the CPU is a LAG.
+ */
+MLXSW_ITEM32(pci, cqe2, tx_lag, 0x10, 24, 1);
+
+/* pci_cqe_tx_lag_subport
+ * The port index within the LAG of a packet that is mirrored / sampled to the
+ * CPU. Reserved when tx_lag is 0.
+ */
+MLXSW_ITEM32(pci, cqe2, tx_lag_subport, 0x10, 16, 8);
+
+#define MLXSW_PCI_CQE2_TX_PORT_MULTI_PORT	0xFFFE
+#define MLXSW_PCI_CQE2_TX_PORT_INVALID		0xFFFF
+
+/* pci_cqe_tx_lag_id
+ * The Tx LAG ID of the original packet that is mirrored / sampled to the CPU.
+ * Value of 0xFFFE means multi-port. Value fo 0xFFFF means that the Tx LAG ID
+ * is invalid. Reserved when tx_lag is 0.
+ */
+MLXSW_ITEM32(pci, cqe2, tx_lag_id, 0x10, 0, 16);
+
+/* pci_cqe_tx_system_port
+ * The Tx port of the original packet that is mirrored / sampled to the CPU.
+ * Value of 0xFFFE means multi-port. Value fo 0xFFFF means that the Tx port is
+ * invalid. Reserved when tx_lag is 1.
+ */
+MLXSW_ITEM32(pci, cqe2, tx_system_port, 0x10, 0, 16);
+
+/* pci_cqe_mirror_cong_low
+ * Congestion level in units of 8KB of the egress traffic class of the original
+ * packet that does mirroring to the CPU. Value of 0xFFFF means that the
+ * congestion level is invalid.
+ */
+MLXSW_ITEM32(pci, cqe2, mirror_cong_low, 0x14, 20, 12);
+
+#define MLXSW_PCI_CQE2_MIRROR_CONG_SHIFT	13	/* Units of 8KB. */
+
+static inline u16 mlxsw_pci_cqe2_mirror_cong_get(const char *cqe)
+{
+	u16 cong_high = mlxsw_pci_cqe2_mirror_cong_high_get(cqe);
+	u16 cong_low = mlxsw_pci_cqe2_mirror_cong_low_get(cqe);
+
+	return cong_high << 12 | cong_low;
+}
+
+/* pci_cqe_user_def_val_orig_pkt_len
+ * When trap_id is an ACL: User defined value from policy engine action.
+ */
+MLXSW_ITEM32(pci, cqe2, user_def_val_orig_pkt_len, 0x14, 0, 20);
+
+/* pci_cqe_mirror_reason
+ * Mirror reason.
+ */
+MLXSW_ITEM32(pci, cqe2, mirror_reason, 0x18, 24, 8);
+
+enum mlxsw_pci_cqe_time_stamp_type {
+	MLXSW_PCI_CQE_TIME_STAMP_TYPE_USEC,
+	MLXSW_PCI_CQE_TIME_STAMP_TYPE_FRC,
+	MLXSW_PCI_CQE_TIME_STAMP_TYPE_UTC,
+	MLXSW_PCI_CQE_TIME_STAMP_TYPE_MIRROR_UTC,
+};
+
+/* pci_cqe_time_stamp_type
+ * Time stamp type:
+ * 0: uSec - 1.024uSec (default for devices which do not support
+ * time_stamp_type)
+ * 1: FRC - Free Running Clock - units of 1nSec
+ * 2: UTC
+ * 3: Mirror_UTC. UTC time stamp of the original packet that has
+ * MIRROR_SESSION traps
+ */
+MLXSW_ITEM32(pci, cqe2, time_stamp_type, 0x18, 22, 2);
+
+#define MLXSW_PCI_CQE2_MIRROR_LATENCY_INVALID	0xFFFFFF
+
+/* pci_cqe_time_stamp_high
+ * Time stamp of the CQE
+ * Format according to time_stamp_type:
+ * 0: uSec - 1.024uSec (default for devices which do not support
+ * time_stamp_type). Only bits 15:0 are valid
+ * 1: FRC - Free Running Clock - units of 1nSec
+ * 2: UTC - time_stamp[37:30] = Sec
+ *	  - time_stamp[29:0] = nSec
+ * 3: Mirror_UTC. UTC time stamp of the original packet that has
+ * MIRROR_SESSION traps
+ *   - time_stamp[37:30] = Sec
+ *   - time_stamp[29:0] = nSec
+ *   Formats 0..2 are configured by
+ *   CONFIG_PROFILE.cqe_time_stamp_type for PTP traps
+ *   Format 3 is used for MIRROR_SESSION traps
+ *   Note that Spectrum does not reveal FRC, UTC and Mirror_UTC
+ */
+MLXSW_ITEM32(pci, cqe2, time_stamp_high, 0x18, 0, 22);
+
+static inline u64 mlxsw_pci_cqe2_time_stamp_get(const char *cqe)
+{
+	u64 ts_high = mlxsw_pci_cqe2_time_stamp_high_get(cqe);
+	u64 ts_low = mlxsw_pci_cqe2_time_stamp_low_get(cqe);
+
+	return ts_high << 16 | ts_low;
+}
+
+static inline u8 mlxsw_pci_cqe2_time_stamp_sec_get(const char *cqe)
+{
+	u64 full_ts = mlxsw_pci_cqe2_time_stamp_get(cqe);
+
+	return full_ts >> 30 & 0xFF;
+}
+
+static inline u32 mlxsw_pci_cqe2_time_stamp_nsec_get(const char *cqe)
+{
+	u64 full_ts = mlxsw_pci_cqe2_time_stamp_get(cqe);
+
+	return full_ts & 0x3FFFFFFF;
+}
+
+/* pci_cqe_mirror_latency
+ * End-to-end latency of the original packet that does mirroring to the CPU.
+ * Value of 0xFFFFFF means that the latency is invalid. Units are according to
+ * MOGCR.mirror_latency_units.
+ */
+MLXSW_ITEM32(pci, cqe2, mirror_latency, 0x1C, 8, 24);
 
 /* pci_cqe_owner
  * Ownership bit.

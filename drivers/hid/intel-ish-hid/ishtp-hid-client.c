@@ -11,6 +11,14 @@
 #include <linux/sched.h>
 #include "ishtp-hid.h"
 
+/* ISH Transport protocol (ISHTP in short) GUID */
+static const struct ishtp_device_id hid_ishtp_id_table[] = {
+	{ .guid = GUID_INIT(0x33AECD58, 0xB679, 0x4E54,
+		  0x9B, 0xD9, 0xA0, 0x4D, 0x34, 0xF0, 0xC2, 0x26), },
+	{ }
+};
+MODULE_DEVICE_TABLE(ishtp, hid_ishtp_id_table);
+
 /* Rx ring buffer pool size */
 #define HID_CL_RX_RING_SIZE	32
 #define HID_CL_TX_RING_SIZE	16
@@ -18,7 +26,7 @@
 #define cl_data_to_dev(client_data) ishtp_device(client_data->cl_device)
 
 /**
- * report_bad_packets() - Report bad packets
+ * report_bad_packet() - Report bad packets
  * @hid_ishtp_cl:	Client instance to get stats
  * @recv_buf:		Raw received host interface message
  * @cur_pos:		Current position index in payload
@@ -320,7 +328,7 @@ do_get_report:
 
 /**
  * ish_cl_event_cb() - bus driver callback for incoming message/packet
- * @device:	Pointer to the the ishtp client device for which this message
+ * @device:	Pointer to the ishtp client device for which this message
  *		is targeted
  *
  * Remove the packet from the list and process the message by calling
@@ -631,47 +639,26 @@ static int ishtp_get_report_descriptor(struct ishtp_cl *hid_ishtp_cl,
  *
  * Return: 0 on success, non zero on error
  */
-static int hid_ishtp_cl_init(struct ishtp_cl *hid_ishtp_cl, int reset)
+static int hid_ishtp_cl_init(struct ishtp_cl *hid_ishtp_cl, bool reset)
 {
-	struct ishtp_device *dev;
 	struct ishtp_cl_data *client_data = ishtp_get_client_data(hid_ishtp_cl);
-	struct ishtp_fw_client *fw_client;
 	int i;
 	int rv;
 
 	dev_dbg(cl_data_to_dev(client_data), "%s\n", __func__);
 	hid_ishtp_trace(client_data,  "%s reset flag: %d\n", __func__, reset);
 
-	rv = ishtp_cl_link(hid_ishtp_cl);
-	if (rv) {
-		dev_err(cl_data_to_dev(client_data),
-			"ishtp_cl_link failed\n");
-		return	-ENOMEM;
-	}
-
 	client_data->init_done = 0;
 
-	dev = ishtp_get_ishtp_device(hid_ishtp_cl);
-
-	/* Connect to FW client */
-	ishtp_set_tx_ring_size(hid_ishtp_cl, HID_CL_TX_RING_SIZE);
-	ishtp_set_rx_ring_size(hid_ishtp_cl, HID_CL_RX_RING_SIZE);
-
-	fw_client = ishtp_fw_cl_get_client(dev, &hid_ishtp_guid);
-	if (!fw_client) {
-		dev_err(cl_data_to_dev(client_data),
-			"ish client uuid not found\n");
-		return -ENOENT;
-	}
-	ishtp_cl_set_fw_client_id(hid_ishtp_cl,
-				  ishtp_get_fw_client_id(fw_client));
-	ishtp_set_connection_state(hid_ishtp_cl, ISHTP_CL_CONNECTING);
-
-	rv = ishtp_cl_connect(hid_ishtp_cl);
+	rv = ishtp_cl_establish_connection(hid_ishtp_cl,
+					   &hid_ishtp_id_table[0].guid,
+					   HID_CL_TX_RING_SIZE,
+					   HID_CL_RX_RING_SIZE,
+					   reset);
 	if (rv) {
 		dev_err(cl_data_to_dev(client_data),
 			"client connect fail\n");
-		goto err_cl_unlink;
+		goto err_cl_disconnect;
 	}
 
 	hid_ishtp_trace(client_data,  "%s client connected\n", __func__);
@@ -715,10 +702,7 @@ static int hid_ishtp_cl_init(struct ishtp_cl *hid_ishtp_cl, int reset)
 	return 0;
 
 err_cl_disconnect:
-	ishtp_set_connection_state(hid_ishtp_cl, ISHTP_CL_DISCONNECTING);
-	ishtp_cl_disconnect(hid_ishtp_cl);
-err_cl_unlink:
-	ishtp_cl_unlink(hid_ishtp_cl);
+	ishtp_cl_destroy_connection(hid_ishtp_cl, reset);
 	return rv;
 }
 
@@ -730,8 +714,7 @@ err_cl_unlink:
  */
 static void hid_ishtp_cl_deinit(struct ishtp_cl *hid_ishtp_cl)
 {
-	ishtp_cl_unlink(hid_ishtp_cl);
-	ishtp_cl_flush_queues(hid_ishtp_cl);
+	ishtp_cl_destroy_connection(hid_ishtp_cl, false);
 
 	/* disband and free all Tx and Rx client-level rings */
 	ishtp_cl_free(hid_ishtp_cl);
@@ -741,33 +724,23 @@ static void hid_ishtp_cl_reset_handler(struct work_struct *work)
 {
 	struct ishtp_cl_data *client_data;
 	struct ishtp_cl *hid_ishtp_cl;
-	struct ishtp_cl_device *cl_device;
 	int retry;
 	int rv;
 
 	client_data = container_of(work, struct ishtp_cl_data, work);
 
 	hid_ishtp_cl = client_data->hid_ishtp_cl;
-	cl_device = client_data->cl_device;
 
 	hid_ishtp_trace(client_data, "%s hid_ishtp_cl %p\n", __func__,
 			hid_ishtp_cl);
 	dev_dbg(ishtp_device(client_data->cl_device), "%s\n", __func__);
 
-	hid_ishtp_cl_deinit(hid_ishtp_cl);
-
-	hid_ishtp_cl = ishtp_cl_allocate(cl_device);
-	if (!hid_ishtp_cl)
-		return;
-
-	ishtp_set_drvdata(cl_device, hid_ishtp_cl);
-	ishtp_set_client_data(hid_ishtp_cl, client_data);
-	client_data->hid_ishtp_cl = hid_ishtp_cl;
+	ishtp_cl_destroy_connection(hid_ishtp_cl, true);
 
 	client_data->num_hid_devices = 0;
 
 	for (retry = 0; retry < 3; ++retry) {
-		rv = hid_ishtp_cl_init(hid_ishtp_cl, 1);
+		rv = hid_ishtp_cl_init(hid_ishtp_cl, true);
 		if (!rv)
 			break;
 		dev_err(cl_data_to_dev(client_data), "Retry reset init\n");
@@ -779,7 +752,18 @@ static void hid_ishtp_cl_reset_handler(struct work_struct *work)
 	}
 }
 
-void (*hid_print_trace)(void *unused, const char *format, ...);
+static void hid_ishtp_cl_resume_handler(struct work_struct *work)
+{
+	struct ishtp_cl_data *client_data = container_of(work, struct ishtp_cl_data, resume_work);
+	struct ishtp_cl *hid_ishtp_cl = client_data->hid_ishtp_cl;
+
+	if (ishtp_wait_resume(ishtp_get_ishtp_device(hid_ishtp_cl))) {
+		client_data->suspended = false;
+		wake_up_interruptible(&client_data->ishtp_resume_wait);
+	}
+}
+
+ishtp_print_log ishtp_hid_print_trace;
 
 /**
  * hid_ishtp_cl_probe() - ISHTP client driver probe
@@ -817,10 +801,12 @@ static int hid_ishtp_cl_probe(struct ishtp_cl_device *cl_device)
 	init_waitqueue_head(&client_data->ishtp_resume_wait);
 
 	INIT_WORK(&client_data->work, hid_ishtp_cl_reset_handler);
+	INIT_WORK(&client_data->resume_work, hid_ishtp_cl_resume_handler);
 
-	hid_print_trace = ishtp_trace_callback(cl_device);
 
-	rv = hid_ishtp_cl_init(hid_ishtp_cl, 0);
+	ishtp_hid_print_trace = ishtp_trace_callback(cl_device);
+
+	rv = hid_ishtp_cl_init(hid_ishtp_cl, false);
 	if (rv) {
 		ishtp_cl_free(hid_ishtp_cl);
 		return rv;
@@ -838,7 +824,7 @@ static int hid_ishtp_cl_probe(struct ishtp_cl_device *cl_device)
  *
  * Return: 0
  */
-static int hid_ishtp_cl_remove(struct ishtp_cl_device *cl_device)
+static void hid_ishtp_cl_remove(struct ishtp_cl_device *cl_device)
 {
 	struct ishtp_cl *hid_ishtp_cl = ishtp_get_drvdata(cl_device);
 	struct ishtp_cl_data *client_data = ishtp_get_client_data(hid_ishtp_cl);
@@ -847,17 +833,13 @@ static int hid_ishtp_cl_remove(struct ishtp_cl_device *cl_device)
 			hid_ishtp_cl);
 
 	dev_dbg(ishtp_device(cl_device), "%s\n", __func__);
-	ishtp_set_connection_state(hid_ishtp_cl, ISHTP_CL_DISCONNECTING);
-	ishtp_cl_disconnect(hid_ishtp_cl);
+	hid_ishtp_cl_deinit(hid_ishtp_cl);
 	ishtp_put_device(cl_device);
 	ishtp_hid_remove(client_data);
-	hid_ishtp_cl_deinit(hid_ishtp_cl);
 
 	hid_ishtp_cl = NULL;
 
 	client_data->num_hid_devices = 0;
-
-	return 0;
 }
 
 /**
@@ -918,7 +900,7 @@ static int hid_ishtp_cl_resume(struct device *device)
 
 	hid_ishtp_trace(client_data, "%s hid_ishtp_cl %p\n", __func__,
 			hid_ishtp_cl);
-	client_data->suspended = false;
+	schedule_work(&client_data->resume_work);
 	return 0;
 }
 
@@ -929,7 +911,7 @@ static const struct dev_pm_ops hid_ishtp_pm_ops = {
 
 static struct ishtp_cl_driver	hid_ishtp_cl_driver = {
 	.name = "ish-hid",
-	.guid = &hid_ishtp_guid,
+	.id = hid_ishtp_id_table,
 	.probe = hid_ishtp_cl_probe,
 	.remove = hid_ishtp_cl_remove,
 	.reset = hid_ishtp_cl_reset,
@@ -965,4 +947,3 @@ MODULE_AUTHOR("Daniel Drubin <daniel.drubin@intel.com>");
 MODULE_AUTHOR("Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>");
 
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("ishtp:*");

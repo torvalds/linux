@@ -11,16 +11,23 @@
 #include <unistd.h>
 #include <assert.h>
 #include <sys/wait.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
 #include <stdlib.h>
 #include <signal.h>
 #include <linux/bpf.h>
 #include <string.h>
 #include <time.h>
-#include <sys/resource.h>
 #include <bpf/bpf.h>
-#include "bpf_load.h"
+#include <bpf/libbpf.h>
 
 #define MAX_CNT 1000000
+#define DUMMY_IP "127.0.0.1"
+#define DUMMY_PORT 80
+
+static struct bpf_link *links[2];
+static struct bpf_object *obj;
+static int cnt;
 
 static __u64 time_get_ns(void)
 {
@@ -32,8 +39,8 @@ static __u64 time_get_ns(void)
 
 static void test_task_rename(int cpu)
 {
-	__u64 start_time;
 	char buf[] = "test\n";
+	__u64 start_time;
 	int i, fd;
 
 	fd = open("/proc/self/comm", O_WRONLY|O_TRUNC);
@@ -54,26 +61,32 @@ static void test_task_rename(int cpu)
 	close(fd);
 }
 
-static void test_urandom_read(int cpu)
+static void test_fib_table_lookup(int cpu)
 {
+	struct sockaddr_in addr;
+	char buf[] = "test\n";
 	__u64 start_time;
-	char buf[4];
 	int i, fd;
 
-	fd = open("/dev/urandom", O_RDONLY);
+	fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (fd < 0) {
-		printf("couldn't open /dev/urandom\n");
+		printf("couldn't open socket\n");
 		exit(1);
 	}
+	memset((char *)&addr, 0, sizeof(addr));
+	addr.sin_addr.s_addr = inet_addr(DUMMY_IP);
+	addr.sin_port = htons(DUMMY_PORT);
+	addr.sin_family = AF_INET;
 	start_time = time_get_ns();
 	for (i = 0; i < MAX_CNT; i++) {
-		if (read(fd, buf, sizeof(buf)) < 0) {
-			printf("failed to read from /dev/urandom: %s\n", strerror(errno));
+		if (sendto(fd, buf, strlen(buf), 0,
+			   (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+			printf("failed to start ping: %s\n", strerror(errno));
 			close(fd);
 			return;
 		}
 	}
-	printf("urandom_read:%d: %lld events per sec\n",
+	printf("fib_table_lookup:%d: %lld events per sec\n",
 	       cpu, MAX_CNT * 1000000000ll / (time_get_ns() - start_time));
 	close(fd);
 }
@@ -89,7 +102,7 @@ static void loop(int cpu, int flags)
 	if (flags & 1)
 		test_task_rename(cpu);
 	if (flags & 2)
-		test_urandom_read(cpu);
+		test_fib_table_lookup(cpu);
 }
 
 static void run_perf_test(int tasks, int flags)
@@ -115,22 +128,54 @@ static void run_perf_test(int tasks, int flags)
 	}
 }
 
+static int load_progs(char *filename)
+{
+	struct bpf_program *prog;
+	int err = 0;
+
+	obj = bpf_object__open_file(filename, NULL);
+	err = libbpf_get_error(obj);
+	if (err < 0) {
+		fprintf(stderr, "ERROR: opening BPF object file failed\n");
+		return err;
+	}
+
+	/* load BPF program */
+	err = bpf_object__load(obj);
+	if (err < 0) {
+		fprintf(stderr, "ERROR: loading BPF object file failed\n");
+		return err;
+	}
+
+	bpf_object__for_each_program(prog, obj) {
+		links[cnt] = bpf_program__attach(prog);
+		err = libbpf_get_error(links[cnt]);
+		if (err < 0) {
+			fprintf(stderr, "ERROR: bpf_program__attach failed\n");
+			links[cnt] = NULL;
+			return err;
+		}
+		cnt++;
+	}
+
+	return err;
+}
+
 static void unload_progs(void)
 {
-	close(prog_fd[0]);
-	close(prog_fd[1]);
-	close(event_fd[0]);
-	close(event_fd[1]);
+	while (cnt)
+		bpf_link__destroy(links[--cnt]);
+
+	bpf_object__close(obj);
 }
 
 int main(int argc, char **argv)
 {
-	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
-	char filename[256];
-	int num_cpu = 8;
+	int num_cpu = sysconf(_SC_NPROCESSORS_ONLN);
 	int test_flags = ~0;
+	char filename[256];
+	int err = 0;
 
-	setrlimit(RLIMIT_MEMLOCK, &r);
 
 	if (argc > 1)
 		test_flags = atoi(argv[1]) ? : test_flags;
@@ -144,39 +189,37 @@ int main(int argc, char **argv)
 
 	if (test_flags & 0xC) {
 		snprintf(filename, sizeof(filename),
-			 "%s_kprobe_kern.o", argv[0]);
-		if (load_bpf_file(filename)) {
-			printf("%s", bpf_log_buf);
-			return 1;
-		}
+			 "%s_kprobe.bpf.o", argv[0]);
+
 		printf("w/KPROBE\n");
-		run_perf_test(num_cpu, test_flags >> 2);
+		err = load_progs(filename);
+		if (!err)
+			run_perf_test(num_cpu, test_flags >> 2);
+
 		unload_progs();
 	}
 
 	if (test_flags & 0x30) {
 		snprintf(filename, sizeof(filename),
-			 "%s_tp_kern.o", argv[0]);
-		if (load_bpf_file(filename)) {
-			printf("%s", bpf_log_buf);
-			return 1;
-		}
+			 "%s_tp.bpf.o", argv[0]);
 		printf("w/TRACEPOINT\n");
-		run_perf_test(num_cpu, test_flags >> 4);
+		err = load_progs(filename);
+		if (!err)
+			run_perf_test(num_cpu, test_flags >> 4);
+
 		unload_progs();
 	}
 
 	if (test_flags & 0xC0) {
 		snprintf(filename, sizeof(filename),
-			 "%s_raw_tp_kern.o", argv[0]);
-		if (load_bpf_file(filename)) {
-			printf("%s", bpf_log_buf);
-			return 1;
-		}
+			 "%s_raw_tp.bpf.o", argv[0]);
 		printf("w/RAW_TRACEPOINT\n");
-		run_perf_test(num_cpu, test_flags >> 6);
+		err = load_progs(filename);
+		if (!err)
+			run_perf_test(num_cpu, test_flags >> 6);
+
 		unload_progs();
 	}
 
-	return 0;
+	return err;
 }

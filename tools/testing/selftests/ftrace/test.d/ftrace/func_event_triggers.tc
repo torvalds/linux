@@ -3,18 +3,14 @@
 # description: ftrace - test for function event triggers
 # flags: instance
 #
+# The triggers are set within the set_ftrace_filter file
+# requires: set_ftrace_filter
+#
 # Ftrace allows to add triggers to functions, such as enabling or disabling
 # tracing, enabling or disabling trace events, or recording a stack trace
 # within the ring buffer.
 #
 # This test is designed to test event triggers
-#
-
-# The triggers are set within the set_ftrace_filter file
-if [ ! -f set_ftrace_filter ]; then
-    echo "set_ftrace_filter not found? Is dynamic ftrace not set?"
-    exit_unsupported
-fi
 
 do_reset() {
     reset_ftrace_filter
@@ -42,11 +38,18 @@ cnt_trace() {
 
 test_event_enabled() {
     val=$1
+    check_times=10		# wait for 10 * SLEEP_TIME at most
 
-    e=`cat $EVENT_ENABLE`
-    if [ "$e" != $val ]; then
-	fail "Expected $val but found $e"
-    fi
+    while [ $check_times -ne 0 ]; do
+	e=`cat $EVENT_ENABLE`
+	if [ "$e" = $val ]; then
+	    return 0
+	fi
+	sleep $SLEEP_TIME
+	check_times=$((check_times - 1))
+    done
+
+    fail "Expected $val but found $e"
 }
 
 run_enable_disable() {
@@ -89,7 +92,7 @@ run_enable_disable() {
 	echo $check_disable > $EVENT_ENABLE
     done
     sleep $SLEEP_TIME
-    echo " make sure it's still works"
+    echo " make sure it still works"
     test_event_enabled $check_enable_star
 
     reset_ftrace_filter

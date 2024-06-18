@@ -10,6 +10,7 @@
 
 #include <linux/types.h>
 #include <linux/spinlock.h>
+#include <linux/intel-ish-client-if.h>
 #include "bus.h"
 #include "hbm.h"
 
@@ -118,6 +119,23 @@ struct ishtp_hw_ops {
 			unsigned long buffer_length);
 	uint32_t	(*get_fw_status)(struct ishtp_device *dev);
 	void	(*sync_fw_clock)(struct ishtp_device *dev);
+	bool	(*dma_no_cache_snooping)(struct ishtp_device *dev);
+};
+
+/**
+ * struct ishtp_driver_data - Driver-specific data for ISHTP devices
+ *
+ * This structure holds driver-specific data that can be associated with each
+ * ISHTP device instance. It allows for the storage of data that is unique to
+ * a particular driver or hardware variant.
+ *
+ * @fw_filename: The firmware filename associated with a specific hardware
+ *               variant of the Intel Integrated Sensor Hub (ISH). This allows
+ *               the driver to load the correct firmware based on the device's
+ *               hardware variant.
+ */
+struct ishtp_driver_data {
+	char *fw_filename;
 };
 
 /**
@@ -126,6 +144,7 @@ struct ishtp_hw_ops {
 struct ishtp_device {
 	struct device *devc;	/* pointer to lowest device */
 	struct pci_dev *pdev;	/* PCI device to get device ids */
+	struct ishtp_driver_data *driver_data; /* pointer to driver-specific data */
 
 	/* waitq for waiting for suspend response */
 	wait_queue_head_t suspend_wait;
@@ -144,6 +163,17 @@ struct ishtp_device {
 	bool recvd_hw_ready;
 	struct hbm_version version;
 	int transfer_path; /* Choice of transfer path: IPC or DMA */
+
+	/* work structure for scheduling firmware loading tasks */
+	struct work_struct work_fw_loader;
+	/* waitq for waiting for command response from the firmware loader */
+	wait_queue_head_t wait_loader_recvd_msg;
+	/* indicating whether a message from the firmware loader has been received */
+	bool fw_loader_received;
+	/* pointer to a buffer for receiving messages from the firmware loader */
+	void *fw_loader_rx_buf;
+	/* size of the buffer pointed to by fw_loader_rx_buf */
+	int fw_loader_rx_size;
 
 	/* ishtp device states */
 	enum ishtp_dev_state dev_state;
@@ -202,8 +232,7 @@ struct ishtp_device {
 	uint64_t ishtp_host_dma_rx_buf_phys;
 
 	/* Dump to trace buffers if enabled*/
-	__printf(2, 3) void (*print_log)(struct ishtp_device *dev,
-					 const char *format, ...);
+	ishtp_print_log print_log;
 
 	/* Debug stats */
 	unsigned int	ipc_rx_cnt;
@@ -214,7 +243,7 @@ struct ishtp_device {
 	const struct ishtp_hw_ops *ops;
 	size_t	mtu;
 	uint32_t	ishtp_msg_hdr;
-	char hw[0] __aligned(sizeof(void *));
+	char hw[] __aligned(sizeof(void *));
 };
 
 static inline unsigned long ishtp_secs_to_jiffies(unsigned long sec)

@@ -10,6 +10,11 @@
 
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
+#include <linux/filelock.h>
+#include <linux/nfs4.h>
+#include <linux/percpu_counter.h>
+#include <linux/siphash.h>
+#include <linux/sunrpc/stats.h>
 
 /* Hash tables for nfs4_clientid state */
 #define CLIENT_HASH_BITS                 4
@@ -20,6 +25,26 @@
 
 struct cld_net;
 struct nfsd4_client_tracking_ops;
+
+enum {
+	/* cache misses due only to checksum comparison failures */
+	NFSD_STATS_PAYLOAD_MISSES,
+	/* amount of memory (in bytes) currently consumed by the DRC */
+	NFSD_STATS_DRC_MEM_USAGE,
+	NFSD_STATS_RC_HITS,		/* repcache hits */
+	NFSD_STATS_RC_MISSES,		/* repcache misses */
+	NFSD_STATS_RC_NOCACHE,		/* uncached reqs */
+	NFSD_STATS_FH_STALE,		/* FH stale error */
+	NFSD_STATS_IO_READ,		/* bytes returned to read requests */
+	NFSD_STATS_IO_WRITE,		/* bytes passed in write requests */
+#ifdef CONFIG_NFSD_V4
+	NFSD_STATS_FIRST_NFS4_OP,	/* count of individual nfsv4 operations */
+	NFSD_STATS_LAST_NFS4_OP = NFSD_STATS_FIRST_NFS4_OP + LAST_NFS4_OP,
+#define NFSD_STATS_NFS4_OP(op)	(NFSD_STATS_FIRST_NFS4_OP + (op))
+	NFSD_STATS_WDELEG_GETATTR,	/* count of getattr conflict with wdeleg */
+#endif
+	NFSD_STATS_COUNTERS_NUM
+};
 
 /*
  * Represents a nfsd "container". With respect to nfsv4 state tracking, the
@@ -40,10 +65,7 @@ struct nfsd_net {
 
 	struct lock_manager nfsd4_manager;
 	bool grace_ended;
-	time_t boot_time;
-
-	/* internal mount of the "nfsd" pseudofilesystem: */
-	struct vfsmount *nfsd_mnt;
+	time64_t boot_time;
 
 	struct dentry *nfsd_client_dir;
 
@@ -92,8 +114,8 @@ struct nfsd_net {
 	bool in_grace;
 	const struct nfsd4_client_tracking_ops *client_tracking_ops;
 
-	time_t nfsd4_lease;
-	time_t nfsd4_grace;
+	time64_t nfsd4_lease;
+	time64_t nfsd4_grace;
 	bool somebody_reclaimed;
 
 	bool track_reclaim_completes;
@@ -102,9 +124,8 @@ struct nfsd_net {
 	bool nfsd_net_up;
 	bool lockd_up;
 
-	/* Time of server startup */
-	struct timespec64 nfssvc_boot;
-	seqlock_t boot_lock;
+	seqlock_t writeverf_lock;
+	unsigned char writeverf[8];
 
 	/*
 	 * Max number of connections this nfsd container will allow. Defaults
@@ -116,10 +137,9 @@ struct nfsd_net {
 	u32 clientid_counter;
 	u32 clverifier_counter;
 
-	struct svc_serv *nfsd_serv;
+	struct svc_info nfsd_info;
+#define nfsd_serv nfsd_info.serv
 
-	wait_queue_head_t ntf_wq;
-	atomic_t ntf_refcnt;
 
 	/*
 	 * clientid and stateid data for construction of net unique COPY
@@ -139,7 +159,6 @@ struct nfsd_net {
 	 * Duplicate reply cache
 	 */
 	struct nfsd_drc_bucket   *drc_hashtbl;
-	struct kmem_cache        *drc_slab;
 
 	/* max number of entries allowed in the cache */
 	unsigned int             max_drc_entries;
@@ -150,20 +169,19 @@ struct nfsd_net {
 
 	/*
 	 * Stats and other tracking of on the duplicate reply cache.
-	 * These fields and the "rc" fields in nfsdstats are modified
-	 * with only the per-bucket cache lock, which isn't really safe
-	 * and should be fixed if we want the statistics to be
-	 * completely accurate.
+	 * The longest_chain* fields are modified with only the per-bucket
+	 * cache lock, which isn't really safe and should be fixed if we want
+	 * these statistics to be completely accurate.
 	 */
 
 	/* total number of entries */
 	atomic_t                 num_drc_entries;
 
-	/* cache misses due only to checksum comparison failures */
-	unsigned int             payload_misses;
+	/* Per-netns stats counters */
+	struct percpu_counter    counter[NFSD_STATS_COUNTERS_NUM];
 
-	/* amount of memory (in bytes) currently consumed by the DRC */
-	unsigned int             drc_mem_usage;
+	/* sunrpc svc stats */
+	struct svc_stat          nfsd_svcstats;
 
 	/* longest hash chain seen */
 	unsigned int             longest_chain;
@@ -171,16 +189,40 @@ struct nfsd_net {
 	/* size of cache when we saw the longest hash chain */
 	unsigned int             longest_chain_cachesize;
 
-	struct shrinker		nfsd_reply_cache_shrinker;
+	struct shrinker		*nfsd_reply_cache_shrinker;
+
+	/* tracking server-to-server copy mounts */
+	spinlock_t              nfsd_ssc_lock;
+	struct list_head        nfsd_ssc_mount_list;
+	wait_queue_head_t       nfsd_ssc_waitq;
+
+	/* utsname taken from the process that starts the server */
+	char			nfsd_name[UNX_MAXNODENAME+1];
+
+	struct nfsd_fcache_disposal *fcache_disposal;
+
+	siphash_key_t		siphash_key;
+
+	atomic_t		nfs4_client_count;
+	int			nfs4_max_clients;
+
+	atomic_t		nfsd_courtesy_clients;
+	struct shrinker		*nfsd_client_shrinker;
+	struct work_struct	nfsd_shrinker_work;
+
+	/* last time an admin-revoke happened for NFSv4.0 */
+	time64_t		nfs40_last_revoke;
+
 };
 
 /* Simple check to find out if a given net was properly initialized */
 #define nfsd_netns_ready(nn) ((nn)->sessionid_hashtbl)
 
+extern bool nfsd_support_version(int vers);
 extern void nfsd_netns_free_versions(struct nfsd_net *nn);
 
 extern unsigned int nfsd_net_id;
 
-void nfsd_copy_boot_verifier(__be32 verf[2], struct nfsd_net *nn);
-void nfsd_reset_boot_verifier(struct nfsd_net *nn);
+void nfsd_copy_write_verifier(__be32 verf[2], struct nfsd_net *nn);
+void nfsd_reset_write_verifier(struct nfsd_net *nn);
 #endif /* __NFSD_NETNS_H__ */

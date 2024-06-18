@@ -169,7 +169,7 @@ static const struct regmap_config da9150_regmap_config = {
 	.num_ranges = ARRAY_SIZE(da9150_range_cfg),
 	.max_register = DA9150_TBAT_RES_B,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 
 	.volatile_reg = da9150_volatile_reg,
 };
@@ -350,18 +350,18 @@ static const struct regmap_irq_chip da9150_regmap_irq_chip = {
 	.num_irqs = ARRAY_SIZE(da9150_irqs),
 };
 
-static struct resource da9150_gpadc_resources[] = {
+static const struct resource da9150_gpadc_resources[] = {
 	DEFINE_RES_IRQ_NAMED(DA9150_IRQ_GPADC, "GPADC"),
 };
 
-static struct resource da9150_charger_resources[] = {
+static const struct resource da9150_charger_resources[] = {
 	DEFINE_RES_IRQ_NAMED(DA9150_IRQ_CHG, "CHG_STATUS"),
 	DEFINE_RES_IRQ_NAMED(DA9150_IRQ_TJUNC, "CHG_TJUNC"),
 	DEFINE_RES_IRQ_NAMED(DA9150_IRQ_VFAULT, "CHG_VFAULT"),
 	DEFINE_RES_IRQ_NAMED(DA9150_IRQ_VBUS, "CHG_VBUS"),
 };
 
-static struct resource da9150_fg_resources[] = {
+static const struct resource da9150_fg_resources[] = {
 	DEFINE_RES_IRQ_NAMED(DA9150_IRQ_FG, "FG"),
 };
 
@@ -392,8 +392,7 @@ static struct mfd_cell da9150_devs[] = {
 	},
 };
 
-static int da9150_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int da9150_probe(struct i2c_client *client)
 {
 	struct da9150 *da9150;
 	struct da9150_pdata *pdata = dev_get_platdata(&client->dev);
@@ -471,15 +470,13 @@ regmap_irq_fail:
 	return ret;
 }
 
-static int da9150_remove(struct i2c_client *client)
+static void da9150_remove(struct i2c_client *client)
 {
 	struct da9150 *da9150 = i2c_get_clientdata(client);
 
 	regmap_del_irq_chip(da9150->irq, da9150->regmap_irq_data);
 	mfd_remove_devices(da9150->dev);
 	i2c_unregister_device(da9150->core_qif);
-
-	return 0;
 }
 
 static void da9150_shutdown(struct i2c_client *client)
@@ -511,7 +508,7 @@ MODULE_DEVICE_TABLE(of, da9150_of_match);
 static struct i2c_driver da9150_driver = {
 	.driver	= {
 		.name	= "da9150",
-		.of_match_table = of_match_ptr(da9150_of_match),
+		.of_match_table = da9150_of_match,
 	},
 	.probe		= da9150_probe,
 	.remove		= da9150_remove,

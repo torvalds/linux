@@ -71,7 +71,7 @@ static int em3027_get_time(struct device *dev, struct rtc_time *tm)
 	tm->tm_hour	= bcd2bin(buf[2]);
 	tm->tm_mday	= bcd2bin(buf[3]);
 	tm->tm_wday	= bcd2bin(buf[4]);
-	tm->tm_mon	= bcd2bin(buf[5]);
+	tm->tm_mon	= bcd2bin(buf[5]) - 1;
 	tm->tm_year	= bcd2bin(buf[6]) + 100;
 
 	return 0;
@@ -94,7 +94,7 @@ static int em3027_set_time(struct device *dev, struct rtc_time *tm)
 	buf[3] = bin2bcd(tm->tm_hour);
 	buf[4] = bin2bcd(tm->tm_mday);
 	buf[5] = bin2bcd(tm->tm_wday);
-	buf[6] = bin2bcd(tm->tm_mon);
+	buf[6] = bin2bcd(tm->tm_mon + 1);
 	buf[7] = bin2bcd(tm->tm_year % 100);
 
 	/* write time/date registers */
@@ -111,8 +111,7 @@ static const struct rtc_class_ops em3027_rtc_ops = {
 	.set_time = em3027_set_time,
 };
 
-static int em3027_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int em3027_probe(struct i2c_client *client)
 {
 	struct rtc_device *rtc;
 
@@ -148,7 +147,7 @@ static struct i2c_driver em3027_driver = {
 		   .name = "rtc-em3027",
 		   .of_match_table = of_match_ptr(em3027_of_match),
 	},
-	.probe = &em3027_probe,
+	.probe = em3027_probe,
 	.id_table = em3027_id,
 };
 

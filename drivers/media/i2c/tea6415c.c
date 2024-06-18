@@ -116,8 +116,7 @@ static const struct v4l2_subdev_ops tea6415c_ops = {
 	.video = &tea6415c_video_ops,
 };
 
-static int tea6415c_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int tea6415c_probe(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd;
 
@@ -134,12 +133,11 @@ static int tea6415c_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int tea6415c_remove(struct i2c_client *client)
+static void tea6415c_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 
 	v4l2_device_unregister_subdev(sd);
-	return 0;
 }
 
 static const struct i2c_device_id tea6415c_id[] = {

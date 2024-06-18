@@ -1,0 +1,73 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/socionext,synquacer-netsec.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Socionext NetSec Ethernet Controller IP
+
+maintainers:
+  - Jassi Brar <jaswinder.singh@linaro.org>
+  - Ilias Apalodimas <ilias.apalodimas@linaro.org>
+
+allOf:
+  - $ref: ethernet-controller.yaml#
+
+properties:
+  compatible:
+    const: socionext,synquacer-netsec
+
+  reg:
+    items:
+      - description: control register area
+      - description: EEPROM holding the MAC address and microengine firmware
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    const: phy_ref_clk
+
+  dma-coherent: true
+
+  interrupts:
+    maxItems: 1
+
+  mdio:
+    $ref: mdio.yaml#
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - interrupts
+  - mdio
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    ethernet@522d0000 {
+        compatible = "socionext,synquacer-netsec";
+        reg = <0x522d0000 0x10000>, <0x10000000 0x10000>;
+        interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&clk_netsec>;
+        clock-names = "phy_ref_clk";
+        phy-mode = "rgmii";
+        max-speed = <1000>;
+        max-frame-size = <9000>;
+        phy-handle = <&phy1>;
+
+        mdio {
+            #address-cells = <1>;
+            #size-cells = <0>;
+            phy1: ethernet-phy@1 {
+                compatible = "ethernet-phy-ieee802.3-c22";
+                reg = <1>;
+            };
+        };
+    };
+...

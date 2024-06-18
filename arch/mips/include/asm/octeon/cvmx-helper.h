@@ -51,7 +51,7 @@ typedef enum {
 	CVMX_HELPER_INTERFACE_MODE_LOOP,
 } cvmx_helper_interface_mode_t;
 
-typedef union {
+union cvmx_helper_link_info {
 	uint64_t u64;
 	struct {
 		uint64_t reserved_20_63:44;
@@ -59,7 +59,7 @@ typedef union {
 		uint64_t full_duplex:1;	    /**< 1 if the link is full duplex */
 		uint64_t speed:18;	    /**< Speed of the link in Mbps */
 	} s;
-} cvmx_helper_link_info_t;
+};
 
 #include <asm/octeon/cvmx-helper-errata.h>
 #include <asm/octeon/cvmx-helper-loop.h>
@@ -92,13 +92,6 @@ extern int cvmx_helper_ipd_and_packet_input_enable(void);
  * Returns Zero on success, non-zero on failure
  */
 extern int cvmx_helper_initialize_packet_io_global(void);
-
-/**
- * Does core local initialization for packet io
- *
- * Returns Zero on success, non-zero on failure
- */
-extern int cvmx_helper_initialize_packet_io_local(void);
 
 /**
  * Returns the number of ports on the given interface.
@@ -145,7 +138,7 @@ extern cvmx_helper_interface_mode_t cvmx_helper_interface_get_mode(int
  *
  * Returns Link state
  */
-extern cvmx_helper_link_info_t cvmx_helper_link_get(int ipd_port);
+extern union cvmx_helper_link_info cvmx_helper_link_get(int ipd_port);
 
 /**
  * Configure an IPD/PKO port for the specified link state. This
@@ -159,7 +152,7 @@ extern cvmx_helper_link_info_t cvmx_helper_link_get(int ipd_port);
  * Returns Zero on success, negative on failure
  */
 extern int cvmx_helper_link_set(int ipd_port,
-				cvmx_helper_link_info_t link_info);
+				union cvmx_helper_link_info link_info);
 
 /**
  * This function probes an interface to determine the actual

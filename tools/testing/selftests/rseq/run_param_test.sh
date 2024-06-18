@@ -15,6 +15,7 @@ TEST_LIST=(
 	"-T m"
 	"-T m -M"
 	"-T i"
+	"-T r"
 )
 
 TEST_NAME=(
@@ -25,6 +26,7 @@ TEST_NAME=(
 	"memcpy"
 	"memcpy with barrier"
 	"increment"
+	"membarrier"
 )
 IFS="$OLDIFS"
 
@@ -40,6 +42,11 @@ function do_tests()
 		./param_test ${TEST_LIST[$i]} -r ${REPS} -t ${NR_THREADS} ${@} ${EXTRA_ARGS} || exit 1
 		echo "Running compare-twice test ${TEST_NAME[$i]}"
 		./param_test_compare_twice ${TEST_LIST[$i]} -r ${REPS} -t ${NR_THREADS} ${@} ${EXTRA_ARGS} || exit 1
+
+		echo "Running mm_cid test ${TEST_NAME[$i]}"
+		./param_test_mm_cid ${TEST_LIST[$i]} -r ${REPS} -t ${NR_THREADS} ${@} ${EXTRA_ARGS} || exit 1
+		echo "Running mm_cid compare-twice test ${TEST_NAME[$i]}"
+		./param_test_mm_cid_compare_twice ${TEST_LIST[$i]} -r ${REPS} -t ${NR_THREADS} ${@} ${EXTRA_ARGS} || exit 1
 		let "i++"
 	done
 }

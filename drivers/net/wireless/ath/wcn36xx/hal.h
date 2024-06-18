@@ -359,6 +359,8 @@ enum wcn36xx_hal_host_msg_type {
 	WCN36XX_HAL_START_SCAN_OFFLOAD_RSP = 205,
 	WCN36XX_HAL_STOP_SCAN_OFFLOAD_REQ = 206,
 	WCN36XX_HAL_STOP_SCAN_OFFLOAD_RSP = 207,
+	WCN36XX_HAL_UPDATE_CHANNEL_LIST_REQ = 208,
+	WCN36XX_HAL_UPDATE_CHANNEL_LIST_RSP = 209,
 	WCN36XX_HAL_SCAN_OFFLOAD_IND = 210,
 
 	WCN36XX_HAL_AVOID_FREQ_RANGE_IND = 233,
@@ -726,7 +728,137 @@ enum pe_stats_mask {
 #define WCN36XX_HAL_CFG_AP_LINK_MONITOR_TIMEOUT		102
 #define WCN36XX_HAL_CFG_BTC_DWELL_TIME_MULTIPLIER	103
 #define WCN36XX_HAL_CFG_ENABLE_TDLS_OXYGEN_MODE		104
-#define WCN36XX_HAL_CFG_MAX_PARAMS			105
+#define WCN36XX_HAL_CFG_ENABLE_NAT_KEEP_ALIVE_FILTER	105
+#define WCN36XX_HAL_CFG_ENABLE_SAP_OBSS_PROT		106
+#define WCN36XX_HAL_CFG_PSPOLL_DATA_RECEP_TIMEOUT	107
+#define WCN36XX_HAL_CFG_TDLS_PUAPSD_BUFFER_STA_CAPABLE	108
+#define WCN36XX_HAL_CFG_TDLS_PUAPSD_MASK		109
+#define WCN36XX_HAL_CFG_TDLS_PUAPSD_INACTIVITY_TIME	110
+#define WCN36XX_HAL_CFG_TDLS_PUAPSD_RX_FRAME_THRESHOLD	111
+#define WCN36XX_HAL_CFG_ANTENNA_DIVERSITY		112
+#define WCN36XX_HAL_CFG_ATH_DISABLE			113
+#define WCN36XX_HAL_CFG_FLEXCONNECT_POWER_FACTOR	114
+#define WCN36XX_HAL_CFG_ENABLE_ADAPTIVE_RX_DRAIN	115
+#define WCN36XX_HAL_CFG_TDLS_OFF_CHANNEL_CAPABLE	116
+#define WCN36XX_HAL_CFG_MWS_COEX_V1_WAN_FREQ		117
+#define WCN36XX_HAL_CFG_MWS_COEX_V1_WLAN_FREQ		118
+#define WCN36XX_HAL_CFG_MWS_COEX_V1_CONFIG		119
+#define WCN36XX_HAL_CFG_MWS_COEX_V1_CONFIG2		120
+#define WCN36XX_HAL_CFG_MWS_COEX_V2_WAN_FREQ		121
+#define WCN36XX_HAL_CFG_MWS_COEX_V2_WLAN_FREQ		122
+#define WCN36XX_HAL_CFG_MWS_COEX_V2_CONFIG		123
+#define WCN36XX_HAL_CFG_MWS_COEX_V2_CONFIG2		124
+#define WCN36XX_HAL_CFG_MWS_COEX_V3_WAN_FREQ		125
+#define WCN36XX_HAL_CFG_MWS_COEX_V3_WLAN_FREQ		126
+#define WCN36XX_HAL_CFG_MWS_COEX_V3_CONFIG		127
+#define WCN36XX_HAL_CFG_MWS_COEX_V3_CONFIG2		128
+#define WCN36XX_HAL_CFG_MWS_COEX_V4_WAN_FREQ		129
+#define WCN36XX_HAL_CFG_MWS_COEX_V4_WLAN_FREQ		130
+#define WCN36XX_HAL_CFG_MWS_COEX_V4_CONFIG		131
+#define WCN36XX_HAL_CFG_MWS_COEX_V4_CONFIG2		132
+#define WCN36XX_HAL_CFG_MWS_COEX_V5_WAN_FREQ		133
+#define WCN36XX_HAL_CFG_MWS_COEX_V5_WLAN_FREQ		134
+#define WCN36XX_HAL_CFG_MWS_COEX_V5_CONFIG		135
+#define WCN36XX_HAL_CFG_MWS_COEX_V5_CONFIG2		136
+#define WCN36XX_HAL_CFG_MWS_COEX_V6_WAN_FREQ		137
+#define WCN36XX_HAL_CFG_MWS_COEX_V6_WLAN_FREQ		138
+#define WCN36XX_HAL_CFG_MWS_COEX_V6_CONFIG		139
+#define WCN36XX_HAL_CFG_MWS_COEX_V6_CONFIG2		140
+#define WCN36XX_HAL_CFG_MWS_COEX_V7_WAN_FREQ		141
+#define WCN36XX_HAL_CFG_MWS_COEX_V7_WLAN_FREQ		142
+#define WCN36XX_HAL_CFG_MWS_COEX_V7_CONFIG		143
+#define WCN36XX_HAL_CFG_MWS_COEX_V7_CONFIG2		144
+#define WCN36XX_HAL_CFG_MWS_COEX_V8_WAN_FREQ		145
+#define WCN36XX_HAL_CFG_MWS_COEX_V8_WLAN_FREQ		146
+#define WCN36XX_HAL_CFG_MWS_COEX_V8_CONFIG		147
+#define WCN36XX_HAL_CFG_MWS_COEX_V8_CONFIG2		148
+#define WCN36XX_HAL_CFG_MWS_COEX_V9_WAN_FREQ		149
+#define WCN36XX_HAL_CFG_MWS_COEX_V9_WLAN_FREQ		150
+#define WCN36XX_HAL_CFG_MWS_COEX_V9_CONFIG		151
+#define WCN36XX_HAL_CFG_MWS_COEX_V9_CONFIG2		152
+#define WCN36XX_HAL_CFG_MWS_COEX_V10_WAN_FREQ		153
+#define WCN36XX_HAL_CFG_MWS_COEX_V10_WLAN_FREQ		154
+#define WCN36XX_HAL_CFG_MWS_COEX_V10_CONFIG		155
+#define WCN36XX_HAL_CFG_MWS_COEX_V10_CONFIG2		156
+#define WCN36XX_HAL_CFG_MWS_COEX_MODEM_BACKOFF		157
+#define WCN36XX_HAL_CFG_MWS_COEX_CONFIG1		158
+#define WCN36XX_HAL_CFG_MWS_COEX_CONFIG2		159
+#define WCN36XX_HAL_CFG_MWS_COEX_CONFIG3		160
+#define WCN36XX_HAL_CFG_MWS_COEX_CONFIG4		161
+#define WCN36XX_HAL_CFG_MWS_COEX_CONFIG5		162
+#define WCN36XX_HAL_CFG_MWS_COEX_CONFIG6		163
+#define WCN36XX_HAL_CFG_SAR_POWER_BACKOFF		164
+#define WCN36XX_HAL_CFG_GO_LINK_MONITOR_TIMEOUT		165
+#define WCN36XX_HAL_CFG_BTC_STATIC_OPP_WLAN_ACTIVE_WLAN_LEN	166
+#define WCN36XX_HAL_CFG_BTC_STATIC_OPP_WLAN_ACTIVE_BT_LEN	167
+#define WCN36XX_HAL_CFG_BTC_SAP_STATIC_OPP_ACTIVE_WLAN_LEN	168
+#define WCN36XX_HAL_CFG_BTC_SAP_STATIC_OPP_ACTIVE_BT_LEN	169
+#define WCN36XX_HAL_CFG_RMC_FIXED_RATE			170
+#define WCN36XX_HAL_CFG_ASD_PROBE_INTERVAL		171
+#define WCN36XX_HAL_CFG_ASD_TRIGGER_THRESHOLD		172
+#define WCN36XX_HAL_CFG_ASD_RTT_RSSI_HYST_THRESHOLD	173
+#define WCN36XX_HAL_CFG_BTC_CTS2S_ON_STA_DURING_SCO	174
+#define WCN36XX_HAL_CFG_SHORT_PREAMBLE			175
+#define WCN36XX_HAL_CFG_SHORT_SLOT_TIME			176
+#define WCN36XX_HAL_CFG_DELAYED_BA			177
+#define WCN36XX_HAL_CFG_IMMEDIATE_BA			178
+#define WCN36XX_HAL_CFG_DOT11_MODE			179
+#define WCN36XX_HAL_CFG_HT_CAPS				180
+#define WCN36XX_HAL_CFG_AMPDU_PARAMS			181
+#define WCN36XX_HAL_CFG_TX_BF_INFO			182
+#define WCN36XX_HAL_CFG_ASC_CAP_INFO			183
+#define WCN36XX_HAL_CFG_EXT_HT_CAPS			184
+#define WCN36XX_HAL_CFG_QOS_ENABLED			185
+#define WCN36XX_HAL_CFG_WME_ENABLED			186
+#define WCN36XX_HAL_CFG_WSM_ENABLED			187
+#define WCN36XX_HAL_CFG_WMM_ENABLED			188
+#define WCN36XX_HAL_CFG_UAPSD_PER_AC_BITMASK		189
+#define WCN36XX_HAL_CFG_MCS_RATES			190
+#define WCN36XX_HAL_CFG_VHT_CAPS			191
+#define WCN36XX_HAL_CFG_VHT_RX_SUPP_MCS			192
+#define WCN36XX_HAL_CFG_VHT_TX_SUPP_MCS			193
+#define WCN36XX_HAL_CFG_RA_FILTER_ENABLE		194
+#define WCN36XX_HAL_CFG_RA_RATE_LIMIT_INTERVAL		195
+#define WCN36XX_HAL_CFG_BTC_FATAL_HID_NSNIFF_BLK	196
+#define WCN36XX_HAL_CFG_BTC_CRITICAL_HID_NSNIFF_BLK	197
+#define WCN36XX_HAL_CFG_BTC_DYN_A2DP_TX_QUEUE_THOLD	198
+#define WCN36XX_HAL_CFG_BTC_DYN_OPP_TX_QUEUE_THOLD	199
+#define WCN36XX_HAL_CFG_LINK_FAIL_TIMEOUT		200
+#define WCN36XX_HAL_CFG_MAX_UAPSD_CONSEC_SP		201
+#define WCN36XX_HAL_CFG_MAX_UAPSD_CONSEC_RX_CNT		202
+#define WCN36XX_HAL_CFG_MAX_UAPSD_CONSEC_TX_CNT		203
+#define WCN36XX_HAL_CFG_MAX_UAPSD_CONSEC_RX_CNT_MEAS_WINDOW	204
+#define WCN36XX_HAL_CFG_MAX_UAPSD_CONSEC_TX_CNT_MEAS_WINDOW	205
+#define WCN36XX_HAL_CFG_MAX_PSPOLL_IN_WMM_UAPSD_PS_MODE	206
+#define WCN36XX_HAL_CFG_MAX_UAPSD_INACTIVITY_INTERVALS	207
+#define WCN36XX_HAL_CFG_ENABLE_DYNAMIC_WMMPS		208
+#define WCN36XX_HAL_CFG_BURST_MODE_BE_TXOP_VALUE	209
+#define WCN36XX_HAL_CFG_ENABLE_DYNAMIC_RA_START_RATE	210
+#define WCN36XX_HAL_CFG_BTC_FAST_WLAN_CONN_PREF		211
+#define WCN36XX_HAL_CFG_ENABLE_RTSCTS_HTVHT		212
+#define WCN36XX_HAL_CFG_BTC_STATIC_OPP_WLAN_IDLE_WLAN_LEN	213
+#define WCN36XX_HAL_CFG_BTC_STATIC_OPP_WLAN_IDLE_BT_LEN	214
+#define WCN36XX_HAL_CFG_LINK_FAIL_TX_CNT		215
+#define WCN36XX_HAL_CFG_TOGGLE_ARP_BDRATES		216
+#define WCN36XX_HAL_CFG_OPTIMIZE_CA_EVENT		217
+#define WCN36XX_HAL_CFG_EXT_SCAN_CONC_MODE		218
+#define WCN36XX_HAL_CFG_BAR_WAKEUP_HOST_DISABLE		219
+#define WCN36XX_HAL_CFG_SAR_BOFFSET_CORRECTION_ENABLE	220
+#define WCN36XX_HAL_CFG_UNITS_OF_BCN_WAIT_TIME		221
+#define WCN36XX_HAL_CFG_CONS_BCNMISS_COUNT		222
+#define WCN36XX_HAL_CFG_BTC_DISABLE_WLAN_LINK_CRITICAL	223
+#define WCN36XX_HAL_CFG_DISABLE_SCAN_DURING_SCO		224
+#define WCN36XX_HAL_CFG_TRIGGER_NULLFRAME_BEFORE_HB	225
+#define WCN36XX_HAL_CFG_ENABLE_POWERSAVE_OFFLOAD	226
+#define WCN36XX_HAL_CFG_MAX_PARAMS			227
+
+/* Specify the starting bitrate, 11B and 11A/G rates can be specified in
+ * multiples of 0.5 So for 5.5 mbps => 11. for MCS 0 - 7 rates, Bit 7 should
+ * set to 1 and Bit 0-6 represent the MCS index. so for MCS2 => 130.
+ * Any invalid non-zero value or unsupported rate will set the start rate
+ * to 6 mbps.
+ */
+#define WCN36XX_HAL_CFG_ENABLE_DYNAMIC_RA_START_RATE	210
 
 /* Message definitons - All the messages below need to be packed */
 
@@ -1223,6 +1355,36 @@ struct wcn36xx_hal_stop_scan_offload_rsp_msg {
 	u32 status;
 } __packed;
 
+#define WCN36XX_HAL_CHAN_REG1_MIN_PWR_MASK  0x000000ff
+#define WCN36XX_HAL_CHAN_REG1_MAX_PWR_MASK  0x0000ff00
+#define WCN36XX_HAL_CHAN_REG1_REG_PWR_MASK  0x00ff0000
+#define WCN36XX_HAL_CHAN_REG1_CLASS_ID_MASK 0xff000000
+#define WCN36XX_HAL_CHAN_REG2_ANT_GAIN_MASK 0x000000ff
+#define WCN36XX_HAL_CHAN_INFO_FLAG_PASSIVE  BIT(7)
+#define WCN36XX_HAL_CHAN_INFO_FLAG_DFS      BIT(10)
+#define WCN36XX_HAL_CHAN_INFO_FLAG_HT       BIT(11)
+#define WCN36XX_HAL_CHAN_INFO_FLAG_VHT      BIT(12)
+#define WCN36XX_HAL_CHAN_INFO_PHY_11A       0
+#define WCN36XX_HAL_CHAN_INFO_PHY_11BG      1
+#define WCN36XX_HAL_DEFAULT_ANT_GAIN        6
+#define WCN36XX_HAL_DEFAULT_MIN_POWER       6
+
+struct wcn36xx_hal_channel_param {
+	u32 mhz;
+	u32 band_center_freq1;
+	u32 band_center_freq2;
+	u32 channel_info;
+	u32 reg_info_1;
+	u32 reg_info_2;
+} __packed;
+
+struct wcn36xx_hal_update_channel_list_req_msg {
+	struct wcn36xx_hal_msg_header header;
+
+	u8 num_channel;
+	struct wcn36xx_hal_channel_param channels[80];
+} __packed;
+
 enum wcn36xx_hal_rate_index {
 	HW_RATE_INDEX_1MBPS	= 0x82,
 	HW_RATE_INDEX_2MBPS	= 0x84,
@@ -1405,6 +1567,76 @@ struct wcn36xx_hal_config_sta_req_msg {
 	struct wcn36xx_hal_config_sta_params sta_params;
 } __packed;
 
+struct wcn36xx_hal_supported_rates_v1 {
+	/* For Self STA Entry: this represents Self Mode.
+	 * For Peer Stations, this represents the mode of the peer.
+	 * On Station:
+	 *
+	 * --this mode is updated when PE adds the Self Entry.
+	 *
+	 * -- OR when PE sends 'ADD_BSS' message and station context in BSS
+	 *    is used to indicate the mode of the AP.
+	 *
+	 * ON AP:
+	 *
+	 * -- this mode is updated when PE sends 'ADD_BSS' and Sta entry
+	 *     for that BSS is used to indicate the self mode of the AP.
+	 *
+	 * -- OR when a station is associated, PE sends 'ADD_STA' message
+	 *    with this mode updated.
+	 */
+
+	enum sta_rate_mode op_rate_mode;
+
+	/* 11b, 11a and aniLegacyRates are IE rates which gives rate in
+	 * unit of 500Kbps
+	 */
+	u16 dsss_rates[WCN36XX_HAL_NUM_DSSS_RATES];
+	u16 ofdm_rates[WCN36XX_HAL_NUM_OFDM_RATES];
+	u16 legacy_rates[WCN36XX_HAL_NUM_POLARIS_RATES];
+	u16 reserved;
+
+	/* Taurus only supports 26 Titan Rates(no ESF/concat Rates will be
+	 * supported) First 26 bits are reserved for those Titan rates and
+	 * the last 4 bits(bit28-31) for Taurus, 2(bit26-27) bits are
+	 * reserved
+	 * Titan and Taurus Rates
+	 */
+	u32 enhanced_rate_bitmap;
+
+	/* 0-76 bits used, remaining reserved
+	 * bits 0-15 and 32 should be set.
+	 */
+	u8 supported_mcs_set[WCN36XX_HAL_MAC_MAX_SUPPORTED_MCS_SET];
+
+	/* RX Highest Supported Data Rate defines the highest data
+	 * rate that the STA is able to receive, in unites of 1Mbps.
+	 * This value is derived from "Supported MCS Set field" inside
+	 * the HT capability element.
+	 */
+	u16 rx_highest_data_rate;
+
+	/* Indicates the Maximum MCS that can be received for each spatial
+	 * stream.
+	 */
+	u16 vht_rx_mcs_map;
+
+	/* Indicates the highest VHT data rate that the STA is able to
+	 * receive.
+	 */
+	u16 vht_rx_highest_data_rate;
+
+	/* Indicates the Maximum MCS that can be transmitted for each spatial
+	 * stream.
+	 */
+	u16 vht_tx_mcs_map;
+
+	/* Indicates the highest VHT data rate that the STA is able to
+	 * transmit.
+	 */
+	u16 vht_tx_highest_data_rate;
+} __packed;
+
 struct wcn36xx_hal_config_sta_params_v1 {
 	/* BSSID of STA */
 	u8 bssid[ETH_ALEN];
@@ -1507,11 +1739,21 @@ struct wcn36xx_hal_config_sta_params_v1 {
 	u8 p2p;
 
 	/* Reserved to align next field on a dword boundary */
-	u8 reserved;
+	u8 ht_ldpc_enabled:1;
+	u8 vht_ldpc_enabled:1;
+	u8 vht_tx_bf_enabled:1;
+	u8 vht_tx_mu_beamformee_capable:1;
+	u8 reserved:4;
 
 	/* These rates are the intersection of peer and self capabilities. */
-	struct wcn36xx_hal_supported_rates supported_rates;
+	struct wcn36xx_hal_supported_rates_v1 supported_rates;
+
+	u8 vht_capable;
+	u8 vht_tx_channel_width_set;
+
 } __packed;
+
+#define WCN36XX_DIFF_STA_PARAMS_V1_NOVHT 10
 
 struct wcn36xx_hal_config_sta_req_msg_v1 {
 	struct wcn36xx_hal_msg_header header;
@@ -1719,7 +1961,7 @@ struct wcn36xx_hal_config_bss_params {
 
 	/* HAL should update the existing BSS entry, if this flag is set.
 	 * UMAC will set this flag in case of reassoc, where we want to
-	 * resue the the old BSSID and still return success 0 = Add, 1 =
+	 * resue the old BSSID and still return success 0 = Add, 1 =
 	 * Update */
 	u8 action;
 
@@ -1856,7 +2098,7 @@ struct wcn36xx_hal_config_bss_params_v1 {
 
 	/* HAL should update the existing BSS entry, if this flag is set.
 	 * UMAC will set this flag in case of reassoc, where we want to
-	 * resue the the old BSSID and still return success 0 = Add, 1 =
+	 * resue the old BSSID and still return success 0 = Add, 1 =
 	 * Update */
 	u8 action;
 
@@ -1933,7 +2175,13 @@ struct wcn36xx_hal_config_bss_params_v1 {
 	 *  "STA context"
 	 */
 	struct wcn36xx_hal_config_sta_params_v1 sta;
+
+	u8 vht_capable;
+	u8 vht_tx_channel_width_set;
+
 } __packed;
+
+#define WCN36XX_DIFF_BSS_PARAMS_V1_NOVHT (WCN36XX_DIFF_STA_PARAMS_V1_NOVHT + 2)
 
 struct wcn36xx_hal_config_bss_req_msg_v1 {
 	struct wcn36xx_hal_msg_header header;
@@ -2091,7 +2339,7 @@ struct wcn36xx_hal_set_bss_key_rsp_msg {
 /*
  * This is used  configure the key information on a given station.
  * When the sec_type is WEP40 or WEP104, the def_wep_idx is used to locate
- * a preconfigured key from a BSS the station assoicated with; otherwise
+ * a preconfigured key from a BSS the station associated with; otherwise
  * a new key descriptor is created based on the key field.
  */
 struct wcn36xx_hal_set_sta_key_req_msg {
@@ -2240,7 +2488,7 @@ struct wcn36xx_hal_process_ptt_msg_req_msg {
 	struct wcn36xx_hal_msg_header header;
 
 	/* Actual FTM Command body */
-	u8 ptt_msg[0];
+	u8 ptt_msg[];
 } __packed;
 
 struct wcn36xx_hal_process_ptt_msg_rsp_msg {
@@ -2249,7 +2497,7 @@ struct wcn36xx_hal_process_ptt_msg_rsp_msg {
 	/* FTM Command response status */
 	u32 ptt_msg_resp_status;
 	/* Actual FTM Command body */
-	u8 ptt_msg[0];
+	u8 ptt_msg[];
 } __packed;
 
 struct update_edca_params_req_msg {
@@ -2378,7 +2626,12 @@ enum tx_rate_info {
 	HAL_TX_RATE_SGI = 0x8,
 
 	/* Rate with Long guard interval */
-	HAL_TX_RATE_LGI = 0x10
+	HAL_TX_RATE_LGI = 0x10,
+
+	/* VHT rates */
+	HAL_TX_RATE_VHT20  = 0x20,
+	HAL_TX_RATE_VHT40  = 0x40,
+	HAL_TX_RATE_VHT80  = 0x80,
 };
 
 struct ani_global_class_a_stats_info {
@@ -2424,7 +2677,7 @@ struct ani_global_security_stats {
 	 * management information base (MIB) object is enabled */
 	u32 rx_wep_unencrypted_frm_cnt;
 
-	/* The number of received MSDU packets that that the 802.11 station
+	/* The number of received MSDU packets that the 802.11 station
 	 * discarded because of MIC failures */
 	u32 rx_mic_fail_cnt;
 
@@ -3168,11 +3421,11 @@ struct tl_hal_flush_ac_rsp_msg {
 
 struct wcn36xx_hal_enter_imps_req_msg {
 	struct wcn36xx_hal_msg_header header;
-};
+} __packed;
 
-struct wcn36xx_hal_exit_imps_req {
+struct wcn36xx_hal_exit_imps_req_msg {
 	struct wcn36xx_hal_msg_header header;
-};
+} __packed;
 
 struct wcn36xx_hal_enter_bmps_req_msg {
 	struct wcn36xx_hal_msg_header header;
@@ -3211,9 +3464,6 @@ struct wcn36xx_hal_missed_beacon_ind_msg {
 
 /* Beacon Filtering data structures */
 
-/* The above structure would be followed by multiple of below mentioned
- * structure
- */
 struct beacon_filter_ie {
 	u8 element_id;
 	u8 check_ie_presence;
@@ -3221,7 +3471,27 @@ struct beacon_filter_ie {
 	u8 value;
 	u8 bitmask;
 	u8 ref;
-};
+} __packed;
+
+#define WCN36XX_FILTER_CAPABILITY_MASK		0x73cf
+#define WCN36XX_FILTER_IE_DS_CHANNEL_MASK	0x00
+#define WCN36XX_FILTER_IE_ERP_FILTER_MASK	0xF8
+#define WCN36XX_FILTER_IE_EDCA_FILTER_MASK	0xF0
+#define WCN36XX_FILTER_IE_QOS_FILTER_MASK	0xF0
+#define WCN36XX_FILTER_IE_CHANNEL_SWITCH_MASK	0x00
+#define WCN36XX_FILTER_IE_HT_BYTE0_FILTER_MASK	0x00
+#define WCN36XX_FILTER_IE_HT_BYTE1_FILTER_MASK	0xF8
+#define WCN36XX_FILTER_IE_HT_BYTE2_FILTER_MASK	0xEB
+#define WCN36XX_FILTER_IE_HT_BYTE5_FILTER_MASK	0xFD
+#define WCN36XX_FILTER_IE_PWR_CONSTRAINT_MASK	0x00
+#define WCN36XX_FILTER_IE_OPMODE_NOTIF_MASK	0x00
+#define WCN36XX_FILTER_IE_VHTOP_CHWIDTH_MASK	0xFC
+#define WCN36XX_FILTER_IE_RSN_MASK		0x00
+#define WCN36XX_FILTER_IE_VENDOR_MASK		0x00
+
+/* The above structure would be followed by multiple of below mentioned
+ * structure
+ */
 
 struct wcn36xx_hal_add_bcn_filter_req_msg {
 	struct wcn36xx_hal_msg_header header;
@@ -3232,14 +3502,14 @@ struct wcn36xx_hal_add_bcn_filter_req_msg {
 	u16 ie_num;
 	u8 bss_index;
 	u8 reserved;
-};
+} __packed;
 
 struct wcn36xx_hal_rem_bcn_filter_req {
 	struct wcn36xx_hal_msg_header header;
 
 	u8 ie_Count;
 	u8 rem_ie_id[1];
-};
+} __packed;
 
 #define WCN36XX_HAL_IPV4_ARP_REPLY_OFFLOAD                  0
 #define WCN36XX_HAL_IPV6_NEIGHBOR_DISCOVERY_OFFLOAD         1
@@ -3248,8 +3518,12 @@ struct wcn36xx_hal_rem_bcn_filter_req {
 #define WCN36XX_HAL_OFFLOAD_DISABLE                         0
 #define WCN36XX_HAL_OFFLOAD_ENABLE                          1
 #define WCN36XX_HAL_OFFLOAD_BCAST_FILTER_ENABLE             0x2
+#define WCN36XX_HAL_OFFLOAD_MCAST_FILTER_ENABLE             0x4
+#define WCN36XX_HAL_OFFLOAD_NS_AND_MCAST_FILTER_ENABLE	\
+	(WCN36XX_HAL_OFFLOAD_ENABLE | WCN36XX_HAL_OFFLOAD_MCAST_FILTER_ENABLE)
 #define WCN36XX_HAL_OFFLOAD_ARP_AND_BCAST_FILTER_ENABLE	\
-	(HAL_OFFLOAD_ENABLE|HAL_OFFLOAD_BCAST_FILTER_ENABLE)
+	(WCN36XX_HAL_OFFLOAD_ENABLE | WCN36XX_HAL_OFFLOAD_BCAST_FILTER_ENABLE)
+#define WCN36XX_HAL_IPV6_OFFLOAD_ADDR_MAX		0x02
 
 struct wcn36xx_hal_ns_offload_params {
 	u8 src_ipv6_addr[WCN36XX_HAL_IPV6_ADDR_LEN];
@@ -3271,10 +3545,10 @@ struct wcn36xx_hal_ns_offload_params {
 	/* slot index for this offload */
 	u32 slot_index;
 	u8 bss_index;
-};
+} __packed;
 
 struct wcn36xx_hal_host_offload_req {
-	u8 offload_Type;
+	u8 offload_type;
 
 	/* enable or disable */
 	u8 enable;
@@ -3283,13 +3557,13 @@ struct wcn36xx_hal_host_offload_req {
 		u8 host_ipv4_addr[4];
 		u8 host_ipv6_addr[WCN36XX_HAL_IPV6_ADDR_LEN];
 	} u;
-};
+} __packed;
 
 struct wcn36xx_hal_host_offload_req_msg {
 	struct wcn36xx_hal_msg_header header;
 	struct wcn36xx_hal_host_offload_req host_offload_params;
 	struct wcn36xx_hal_ns_offload_params ns_offload_params;
-};
+} __packed;
 
 /* Packet Types. */
 #define WCN36XX_HAL_KEEP_ALIVE_NULL_PKT              1
@@ -3868,7 +4142,7 @@ struct wcn36xx_hal_dump_cmd_rsp_msg {
 	/* Length of the responce message */
 	u32 rsp_length;
 
-	/* FIXME: Currently considering the the responce will be less than
+	/* FIXME: Currently considering the responce will be less than
 	 * 100bytes */
 	u8 rsp_buffer[DUMPCMD_RSP_BUFFER];
 } __packed;
@@ -4484,74 +4758,6 @@ struct wcn36xx_hal_set_power_params_resp {
 	u32 status;
 } __packed;
 
-/* Capability bitmap exchange definitions and macros starts */
-
-enum place_holder_in_cap_bitmap {
-	MCC = 0,
-	P2P = 1,
-	DOT11AC = 2,
-	SLM_SESSIONIZATION = 3,
-	DOT11AC_OPMODE = 4,
-	SAP32STA = 5,
-	TDLS = 6,
-	P2P_GO_NOA_DECOUPLE_INIT_SCAN = 7,
-	WLANACTIVE_OFFLOAD = 8,
-	BEACON_OFFLOAD = 9,
-	SCAN_OFFLOAD = 10,
-	ROAM_OFFLOAD = 11,
-	BCN_MISS_OFFLOAD = 12,
-	STA_POWERSAVE = 13,
-	STA_ADVANCED_PWRSAVE = 14,
-	AP_UAPSD = 15,
-	AP_DFS = 16,
-	BLOCKACK = 17,
-	PHY_ERR = 18,
-	BCN_FILTER = 19,
-	RTT = 20,
-	RATECTRL = 21,
-	WOW = 22,
-	WLAN_ROAM_SCAN_OFFLOAD = 23,
-	SPECULATIVE_PS_POLL = 24,
-	SCAN_SCH = 25,
-	IBSS_HEARTBEAT_OFFLOAD = 26,
-	WLAN_SCAN_OFFLOAD = 27,
-	WLAN_PERIODIC_TX_PTRN = 28,
-	ADVANCE_TDLS = 29,
-	BATCH_SCAN = 30,
-	FW_IN_TX_PATH = 31,
-	EXTENDED_NSOFFLOAD_SLOT = 32,
-	CH_SWITCH_V1 = 33,
-	HT40_OBSS_SCAN = 34,
-	UPDATE_CHANNEL_LIST = 35,
-	WLAN_MCADDR_FLT = 36,
-	WLAN_CH144 = 37,
-	NAN = 38,
-	TDLS_SCAN_COEXISTENCE = 39,
-	LINK_LAYER_STATS_MEAS = 40,
-	MU_MIMO = 41,
-	EXTENDED_SCAN = 42,
-	DYNAMIC_WMM_PS = 43,
-	MAC_SPOOFED_SCAN = 44,
-	BMU_ERROR_GENERIC_RECOVERY = 45,
-	DISA = 46,
-	FW_STATS = 47,
-	WPS_PRBRSP_TMPL = 48,
-	BCN_IE_FLT_DELTA = 49,
-	TDLS_OFF_CHANNEL = 51,
-	RTT3 = 52,
-	MGMT_FRAME_LOGGING = 53,
-	ENHANCED_TXBD_COMPLETION = 54,
-	LOGGING_ENHANCEMENT = 55,
-	EXT_SCAN_ENHANCED = 56,
-	MEMORY_DUMP_SUPPORTED = 57,
-	PER_PKT_STATS_SUPPORTED = 58,
-	EXT_LL_STAT = 60,
-	WIFI_CONFIG = 61,
-	ANTENNA_DIVERSITY_SELECTION = 62,
-
-	MAX_FEATURE_SUPPORTED = 128,
-};
-
 #define WCN36XX_HAL_CAPS_SIZE 4
 
 struct wcn36xx_hal_feat_caps_msg {
@@ -4685,7 +4891,7 @@ struct wcn36xx_hal_gtk_offload_req_msg {
 	u64 key_replay_counter;
 
 	u8 bss_index;
-};
+} __packed;
 
 struct wcn36xx_hal_gtk_offload_rsp_msg {
 	struct wcn36xx_hal_msg_header header;
@@ -4699,7 +4905,7 @@ struct wcn36xx_hal_gtk_offload_rsp_msg {
 struct wcn36xx_hal_gtk_offload_get_info_req_msg {
 	struct wcn36xx_hal_msg_header header;
 	u8 bss_index;
-};
+} __packed;
 
 struct wcn36xx_hal_gtk_offload_get_info_rsp_msg {
 	struct wcn36xx_hal_msg_header header;
@@ -4723,7 +4929,7 @@ struct wcn36xx_hal_gtk_offload_get_info_rsp_msg {
 	u32 igtk_rekey_count;
 
 	u8 bss_index;
-};
+} __packed;
 
 struct dhcp_info {
 	/* Indicates the device mode which indicates about the DHCP activity */

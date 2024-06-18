@@ -72,7 +72,7 @@ static int get_pkey_and_subnet_prefix(struct ib_port_pkey *pp,
 	if (ret)
 		return ret;
 
-	ret = ib_get_cached_subnet_prefix(dev, pp->port_num, subnet_prefix);
+	ib_get_cached_subnet_prefix(dev, pp->port_num, subnet_prefix);
 
 	return ret;
 }
@@ -193,7 +193,7 @@ static void qp_to_error(struct ib_qp_security *sec)
 
 static inline void check_pkey_qps(struct pkey_index_qp_list *pkey,
 				  struct ib_device *device,
-				  u8 port_num,
+				  u32 port_num,
 				  u64 subnet_prefix)
 {
 	struct ib_port_pkey *pp, *tmp_pp;
@@ -245,7 +245,7 @@ static int port_pkey_list_insert(struct ib_port_pkey *pp)
 	struct pkey_index_qp_list *tmp_pkey;
 	struct pkey_index_qp_list *pkey;
 	struct ib_device *dev;
-	u8 port_num = pp->port_num;
+	u32 port_num = pp->port_num;
 	int ret = 0;
 
 	if (pp->state != IB_PORT_PKEY_VALID)
@@ -339,27 +339,20 @@ static struct ib_ports_pkeys *get_new_pps(const struct ib_qp *qp,
 	if (!new_pps)
 		return NULL;
 
-	if (qp_attr_mask & (IB_QP_PKEY_INDEX | IB_QP_PORT)) {
-		if (!qp_pps) {
-			new_pps->main.port_num = qp_attr->port_num;
-			new_pps->main.pkey_index = qp_attr->pkey_index;
-		} else {
-			new_pps->main.port_num = (qp_attr_mask & IB_QP_PORT) ?
-						  qp_attr->port_num :
-						  qp_pps->main.port_num;
-
-			new_pps->main.pkey_index =
-					(qp_attr_mask & IB_QP_PKEY_INDEX) ?
-					 qp_attr->pkey_index :
-					 qp_pps->main.pkey_index;
-		}
-		new_pps->main.state = IB_PORT_PKEY_VALID;
-	} else if (qp_pps) {
+	if (qp_attr_mask & IB_QP_PORT)
+		new_pps->main.port_num = qp_attr->port_num;
+	else if (qp_pps)
 		new_pps->main.port_num = qp_pps->main.port_num;
+
+	if (qp_attr_mask & IB_QP_PKEY_INDEX)
+		new_pps->main.pkey_index = qp_attr->pkey_index;
+	else if (qp_pps)
 		new_pps->main.pkey_index = qp_pps->main.pkey_index;
-		if (qp_pps->main.state != IB_PORT_PKEY_NOT_VALID)
-			new_pps->main.state = IB_PORT_PKEY_VALID;
-	}
+
+	if (((qp_attr_mask & IB_QP_PKEY_INDEX) &&
+	     (qp_attr_mask & IB_QP_PORT)) ||
+	    (qp_pps && qp_pps->main.state != IB_PORT_PKEY_NOT_VALID))
+		new_pps->main.state = IB_PORT_PKEY_VALID;
 
 	if (qp_attr_mask & IB_QP_ALT_PATH) {
 		new_pps->alt.port_num = qp_attr->alt_port_num;
@@ -426,7 +419,7 @@ int ib_create_qp_security(struct ib_qp *qp, struct ib_device *dev)
 	int ret;
 
 	rdma_for_each_port (dev, i) {
-		is_ib = rdma_protocol_ib(dev, i++);
+		is_ib = rdma_protocol_ib(dev, i);
 		if (is_ib)
 			break;
 	}
@@ -545,7 +538,7 @@ void ib_destroy_qp_security_end(struct ib_qp_security *sec)
 }
 
 void ib_security_cache_change(struct ib_device *device,
-			      u8 port_num,
+			      u32 port_num,
 			      u64 subnet_prefix)
 {
 	struct pkey_index_qp_list *pkey;
@@ -593,7 +586,7 @@ int ib_security_modify_qp(struct ib_qp *qp,
 	WARN_ONCE((qp_attr_mask & IB_QP_PORT &&
 		   rdma_protocol_ib(real_qp->device, qp_attr->port_num) &&
 		   !real_qp->qp_sec),
-		   "%s: QP security is not initialized for IB QP: %d\n",
+		   "%s: QP security is not initialized for IB QP: %u\n",
 		   __func__, real_qp->qp_num);
 
 	/* The port/pkey settings are maintained only for the real QP. Open
@@ -656,7 +649,7 @@ int ib_security_modify_qp(struct ib_qp *qp,
 }
 
 static int ib_security_pkey_access(struct ib_device *dev,
-				   u8 port_num,
+				   u32 port_num,
 				   u16 pkey_index,
 				   void *sec)
 {
@@ -671,10 +664,7 @@ static int ib_security_pkey_access(struct ib_device *dev,
 	if (ret)
 		return ret;
 
-	ret = ib_get_cached_subnet_prefix(dev, port_num, &subnet_prefix);
-
-	if (ret)
-		return ret;
+	ib_get_cached_subnet_prefix(dev, port_num, &subnet_prefix);
 
 	return security_ib_pkey_access(sec, subnet_prefix, pkey);
 }

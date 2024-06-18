@@ -12,7 +12,8 @@
 #include <linux/init.h>
 #include <linux/dma-mapping.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/gfp.h>
 
 #include <asm/irq.h>
@@ -146,7 +147,7 @@ static void esp_get_differential(struct esp *esp)
 	struct device_node *dp;
 
 	dp = op->dev.of_node;
-	if (of_find_property(dp, "differential", NULL))
+	if (of_property_read_bool(dp, "differential"))
 		esp->flags |= ESP_FLAG_DIFFERENTIAL;
 	else
 		esp->flags &= ~ESP_FLAG_DIFFERENTIAL;
@@ -451,7 +452,7 @@ static const struct esp_driver_ops sbus_esp_ops = {
 static int esp_sbus_probe_one(struct platform_device *op,
 			      struct platform_device *espdma, int hme)
 {
-	struct scsi_host_template *tpnt = &scsi_esp_template;
+	const struct scsi_host_template *tpnt = &scsi_esp_template;
 	struct Scsi_Host *host;
 	struct esp *esp;
 	int err;
@@ -549,7 +550,7 @@ static int esp_sbus_probe(struct platform_device *op)
 	return ret;
 }
 
-static int esp_sbus_remove(struct platform_device *op)
+static void esp_sbus_remove(struct platform_device *op)
 {
 	struct esp *esp = dev_get_drvdata(&op->dev);
 	struct platform_device *dma_of = esp->dma;
@@ -580,8 +581,6 @@ static int esp_sbus_remove(struct platform_device *op)
 	dev_set_drvdata(&op->dev, NULL);
 
 	put_device(&dma_of->dev);
-
-	return 0;
 }
 
 static const struct of_device_id esp_match[] = {
@@ -604,23 +603,11 @@ static struct platform_driver esp_sbus_driver = {
 		.of_match_table = esp_match,
 	},
 	.probe		= esp_sbus_probe,
-	.remove		= esp_sbus_remove,
+	.remove_new	= esp_sbus_remove,
 };
-
-static int __init sunesp_init(void)
-{
-	return platform_driver_register(&esp_sbus_driver);
-}
-
-static void __exit sunesp_exit(void)
-{
-	platform_driver_unregister(&esp_sbus_driver);
-}
+module_platform_driver(esp_sbus_driver);
 
 MODULE_DESCRIPTION("Sun ESP SCSI driver");
-MODULE_AUTHOR("David S. Miller (davem@davemloft.net)");
+MODULE_AUTHOR("David S. Miller <davem@davemloft.net>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
-
-module_init(sunesp_init);
-module_exit(sunesp_exit);

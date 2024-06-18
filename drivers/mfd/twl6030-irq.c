@@ -356,7 +356,7 @@ static const struct irq_domain_ops twl6030_irq_domain_ops = {
 	.xlate	= irq_domain_xlate_onetwocell,
 };
 
-static const struct of_device_id twl6030_of_match[] = {
+static const struct of_device_id twl6030_of_match[] __maybe_unused = {
 	{.compatible = "ti,twl6030", &twl6030_interrupt_mapping},
 	{.compatible = "ti,twl6032", &twl6032_interrupt_mapping},
 	{ },
@@ -438,7 +438,7 @@ fail_irq:
 	return status;
 }
 
-int twl6030_exit_irq(void)
+void twl6030_exit_irq(void)
 {
 	if (twl6030_irq && twl6030_irq->twl_irq) {
 		unregister_pm_notifier(&twl6030_irq->pm_nb);
@@ -453,6 +453,5 @@ int twl6030_exit_irq(void)
 		 * in this module.
 		 */
 	}
-	return 0;
 }
 

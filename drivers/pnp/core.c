@@ -31,18 +31,6 @@ DEFINE_MUTEX(pnp_lock);
 int pnp_platform_devices;
 EXPORT_SYMBOL(pnp_platform_devices);
 
-void *pnp_alloc(long size)
-{
-	void *result;
-
-	result = kzalloc(size, GFP_KERNEL);
-	if (!result) {
-		printk(KERN_ERR "pnp: Out of Memory\n");
-		return NULL;
-	}
-	return result;
-}
-
 static void pnp_remove_protocol(struct pnp_protocol *protocol)
 {
 	mutex_lock(&pnp_lock);
@@ -51,7 +39,7 @@ static void pnp_remove_protocol(struct pnp_protocol *protocol)
 }
 
 /**
- * pnp_protocol_register - adds a pnp protocol to the pnp layer
+ * pnp_register_protocol - adds a pnp protocol to the pnp layer
  * @protocol: pointer to the corresponding pnp_protocol structure
  *
  *  Ex protocols: ISAPNP, PNPBIOS, etc
@@ -91,7 +79,7 @@ int pnp_register_protocol(struct pnp_protocol *protocol)
 }
 
 /**
- * pnp_protocol_unregister - removes a pnp protocol from the pnp layer
+ * pnp_unregister_protocol - removes a pnp protocol from the pnp layer
  * @protocol: pointer to the corresponding pnp_protocol structure
  */
 void pnp_unregister_protocol(struct pnp_protocol *protocol)
@@ -160,13 +148,13 @@ struct pnp_dev *pnp_alloc_dev(struct pnp_protocol *protocol, int id,
 	dev->dev.coherent_dma_mask = dev->dma_mask;
 	dev->dev.release = &pnp_release_device;
 
-	dev_set_name(&dev->dev, "%02x:%02x", dev->protocol->number, dev->number);
-
 	dev_id = pnp_add_id(dev, pnpid);
 	if (!dev_id) {
 		kfree(dev);
 		return NULL;
 	}
+
+	dev_set_name(&dev->dev, "%02x:%02x", dev->protocol->number, dev->number);
 
 	return dev;
 }
@@ -227,9 +215,8 @@ int pnp_add_device(struct pnp_dev *dev)
 	for (id = dev->id; id; id = id->next)
 		len += scnprintf(buf + len, sizeof(buf) - len, " %s", id->id);
 
-	dev_printk(KERN_DEBUG, &dev->dev, "%s device, IDs%s (%s)\n",
-		   dev->protocol->name, buf,
-		   dev->active ? "active" : "disabled");
+	dev_dbg(&dev->dev, "%s device, IDs%s (%s)\n", dev->protocol->name, buf,
+		dev->active ? "active" : "disabled");
 	return 0;
 }
 

@@ -6981,6 +6981,7 @@
 #define ixAZALIA_F0_CODEC_PIN_CONTROL_RESPONSE_PIN_SENSE                        0x23
 #define ixAZALIA_F0_CODEC_PIN_CONTROL_WIDGET_CONTROL                            0x24
 #define ixAZALIA_F0_CODEC_PIN_CONTROL_CHANNEL_SPEAKER                           0x25
+#define ixAZALIA_F0_CODEC_PIN_CONTROL_ACP_DATA                                  0x27
 #define ixAZALIA_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR0                         0x28
 #define ixAZALIA_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR1                         0x29
 #define ixAZALIA_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR2                         0x2a

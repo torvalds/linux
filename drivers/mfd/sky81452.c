@@ -21,8 +21,7 @@ static const struct regmap_config sky81452_config = {
 	.val_bits = 8,
 };
 
-static int sky81452_probe(struct i2c_client *client,
-				const struct i2c_device_id *id)
+static int sky81452_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	const struct sky81452_platform_data *pdata = dev_get_platdata(dev);
@@ -47,8 +46,6 @@ static int sky81452_probe(struct i2c_client *client,
 	memset(cells, 0, sizeof(cells));
 	cells[0].name = "sky81452-backlight";
 	cells[0].of_compatible = "skyworks,sky81452-backlight";
-	cells[0].platform_data = pdata->bl_pdata;
-	cells[0].pdata_size = sizeof(*pdata->bl_pdata);
 	cells[1].name = "sky81452-regulator";
 	cells[1].platform_data = pdata->regulator_init_data;
 	cells[1].pdata_size = sizeof(*pdata->regulator_init_data);

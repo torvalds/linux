@@ -13,8 +13,6 @@
 #include <linux/i2c.h>
 #include <linux/regmap.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
-#include <linux/of_gpio.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
@@ -84,7 +82,7 @@ static const int pcm1681_deemph[] = { 44100, 48000, 32000 };
 static int pcm1681_set_deemph(struct snd_soc_component *component)
 {
 	struct pcm1681_private *priv = snd_soc_component_get_drvdata(component);
-	int i = 0, val = -1, enable = 0;
+	int i, val = -1, enable = 0;
 
 	if (priv->deemph) {
 		for (i = 0; i < ARRAY_SIZE(pcm1681_deemph); i++) {
@@ -136,8 +134,8 @@ static int pcm1681_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	struct snd_soc_component *component = codec_dai->component;
 	struct pcm1681_private *priv = snd_soc_component_get_drvdata(component);
 
-	/* The PCM1681 can only be slave to all clocks */
-	if ((format & SND_SOC_DAIFMT_MASTER_MASK) != SND_SOC_DAIFMT_CBS_CFS) {
+	/* The PCM1681 can only be consumer to all clocks */
+	if ((format & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) != SND_SOC_DAIFMT_CBC_CFC) {
 		dev_err(component->dev, "Invalid clocking mode\n");
 		return -EINVAL;
 	}
@@ -147,7 +145,7 @@ static int pcm1681_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	return 0;
 }
 
-static int pcm1681_digital_mute(struct snd_soc_dai *dai, int mute)
+static int pcm1681_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	struct pcm1681_private *priv = snd_soc_component_get_drvdata(component);
@@ -205,7 +203,8 @@ static int pcm1681_hw_params(struct snd_pcm_substream *substream,
 static const struct snd_soc_dai_ops pcm1681_dai_ops = {
 	.set_fmt	= pcm1681_set_dai_fmt,
 	.hw_params	= pcm1681_hw_params,
-	.digital_mute	= pcm1681_digital_mute,
+	.mute_stream	= pcm1681_mute,
+	.no_capture_mute = 1,
 };
 
 static const struct snd_soc_dapm_widget pcm1681_dapm_widgets[] = {
@@ -289,17 +288,15 @@ static const struct snd_soc_component_driver soc_component_dev_pcm1681 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct i2c_device_id pcm1681_i2c_id[] = {
-	{"pcm1681", 0},
+	{"pcm1681"},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, pcm1681_i2c_id);
 
-static int pcm1681_i2c_probe(struct i2c_client *client,
-			      const struct i2c_device_id *id)
+static int pcm1681_i2c_probe(struct i2c_client *client)
 {
 	int ret;
 	struct pcm1681_private *priv;

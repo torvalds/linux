@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * QLogic iSCSI HBA Driver
  * Copyright (c)  2003-2013 QLogic Corporation
- *
- * See LICENSE.qla4xxx for copyright and licensing details.
  */
 
 #include "ql4_def.h"
@@ -183,7 +182,7 @@ static void qla4xxx_status_entry(struct scsi_qla_host *ha,
 
 		cmd->result = DID_OK << 16 | scsi_status;
 
-		if (scsi_status != SCSI_CHECK_CONDITION)
+		if (scsi_status != SAM_STAT_CHECK_CONDITION)
 			break;
 
 		/* Copy Sense Data into sense buffer. */
@@ -473,14 +472,12 @@ static void qla4xxx_mbox_status_entry(struct scsi_qla_host *ha,
  **/
 void qla4xxx_process_response_queue(struct scsi_qla_host *ha)
 {
-	uint32_t count = 0;
 	struct srb *srb = NULL;
 	struct status_entry *sts_entry;
 
 	/* Process all responses from response queue */
 	while ((ha->response_ptr->signature != RESPONSE_PROCESSED)) {
 		sts_entry = (struct status_entry *) ha->response_ptr;
-		count++;
 
 		/* Advance pointers for next entry */
 		if (ha->response_out == (RESPONSE_QUEUE_DEPTH - 1)) {
@@ -582,7 +579,7 @@ exit_prq_error:
 /**
  * qla4_83xx_loopback_in_progress: Is loopback in progress?
  * @ha: Pointer to host adapter structure.
- * @ret: 1 = loopback in progress, 0 = loopback not in progress
+ * returns: 1 = loopback in progress, 0 = loopback not in progress
  **/
 static int qla4_83xx_loopback_in_progress(struct scsi_qla_host *ha)
 {
@@ -651,7 +648,7 @@ static void qla4xxx_default_router_changed(struct scsi_qla_host *ha,
 /**
  * qla4xxx_isr_decode_mailbox - decodes mailbox status
  * @ha: Pointer to host adapter structure.
- * @mailbox_status: Mailbox status.
+ * @mbox_status: Mailbox status.
  *
  * This routine decodes the mailbox status during the ISR.
  * Hardware_lock locked upon entry. runs in interrupt context.
@@ -1044,6 +1041,7 @@ void qla4_83xx_interrupt_service_routine(struct scsi_qla_host *ha,
 /**
  * qla4_82xx_interrupt_service_routine - isr
  * @ha: pointer to host adapter structure.
+ * @intr_status: Local interrupt status/type.
  *
  * This is the main interrupt service routine.
  * hardware_lock locked upon entry. runs in interrupt context.
@@ -1069,6 +1067,7 @@ void qla4_82xx_interrupt_service_routine(struct scsi_qla_host *ha,
 /**
  * qla4xxx_interrupt_service_routine - isr
  * @ha: pointer to host adapter structure.
+ * @intr_status: Local interrupt status/type.
  *
  * This is the main interrupt service routine.
  * hardware_lock locked upon entry. runs in interrupt context.

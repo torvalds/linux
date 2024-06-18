@@ -1,0 +1,104 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+# BPF interpreter that, for example, classic socket filters depend on.
+config BPF
+	bool
+	select CRYPTO_LIB_SHA1
+
+# Used by archs to tell that they support BPF JIT compiler plus which
+# flavour. Only one of the two can be selected for a specific arch since
+# eBPF JIT supersedes the cBPF JIT.
+
+# Classic BPF JIT (cBPF)
+config HAVE_CBPF_JIT
+	bool
+
+# Extended BPF JIT (eBPF)
+config HAVE_EBPF_JIT
+	bool
+
+# Used by archs to tell that they want the BPF JIT compiler enabled by
+# default for kernels that were compiled with BPF JIT support.
+config ARCH_WANT_DEFAULT_BPF_JIT
+	bool
+
+menu "BPF subsystem"
+
+config BPF_SYSCALL
+	bool "Enable bpf() system call"
+	select BPF
+	select IRQ_WORK
+	select NEED_TASKS_RCU
+	select TASKS_TRACE_RCU
+	select BINARY_PRINTF
+	select NET_SOCK_MSG if NET
+	select NET_XGRESS if NET
+	select PAGE_POOL if NET
+	default n
+	help
+	  Enable the bpf() system call that allows to manipulate BPF programs
+	  and maps via file descriptors.
+
+config BPF_JIT
+	bool "Enable BPF Just In Time compiler"
+	depends on BPF
+	depends on HAVE_CBPF_JIT || HAVE_EBPF_JIT
+	select EXECMEM
+	help
+	  BPF programs are normally handled by a BPF interpreter. This option
+	  allows the kernel to generate native code when a program is loaded
+	  into the kernel. This will significantly speed-up processing of BPF
+	  programs.
+
+	  Note, an admin should enable this feature changing:
+	  /proc/sys/net/core/bpf_jit_enable
+	  /proc/sys/net/core/bpf_jit_harden   (optional)
+	  /proc/sys/net/core/bpf_jit_kallsyms (optional)
+
+config BPF_JIT_ALWAYS_ON
+	bool "Permanently enable BPF JIT and remove BPF interpreter"
+	depends on BPF_SYSCALL && HAVE_EBPF_JIT && BPF_JIT
+	help
+	  Enables BPF JIT and removes BPF interpreter to avoid speculative
+	  execution of BPF instructions by the interpreter.
+
+	  When CONFIG_BPF_JIT_ALWAYS_ON is enabled, /proc/sys/net/core/bpf_jit_enable
+	  is permanently set to 1 and setting any other value than that will
+	  return failure.
+
+config BPF_JIT_DEFAULT_ON
+	def_bool ARCH_WANT_DEFAULT_BPF_JIT || BPF_JIT_ALWAYS_ON
+	depends on HAVE_EBPF_JIT && BPF_JIT
+
+config BPF_UNPRIV_DEFAULT_OFF
+	bool "Disable unprivileged BPF by default"
+	default y
+	depends on BPF_SYSCALL
+	help
+	  Disables unprivileged BPF by default by setting the corresponding
+	  /proc/sys/kernel/unprivileged_bpf_disabled knob to 2. An admin can
+	  still reenable it by setting it to 0 later on, or permanently
+	  disable it by setting it to 1 (from which no other transition to
+	  0 is possible anymore).
+
+	  Unprivileged BPF could be used to exploit certain potential
+	  speculative execution side-channel vulnerabilities on unmitigated
+	  affected hardware.
+
+	  If you are unsure how to answer this question, answer Y.
+
+source "kernel/bpf/preload/Kconfig"
+
+config BPF_LSM
+	bool "Enable BPF LSM Instrumentation"
+	depends on BPF_EVENTS
+	depends on BPF_SYSCALL
+	depends on SECURITY
+	depends on BPF_JIT
+	help
+	  Enables instrumentation of the security hooks with BPF programs for
+	  implementing dynamic MAC and Audit Policies.
+
+	  If you are unsure how to answer this question, answer N.
+
+endmenu # "BPF subsystem"

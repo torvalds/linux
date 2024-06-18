@@ -44,13 +44,10 @@
 #include <linux/module.h>
 #include <linux/io.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
-
-#include <mach/mux.h>
-
-#include <mach/omap7xx.h>	/* OMAP7XX_IO_CONF registers */
-
+#include <linux/soc/ti/omap1-io.h>
+#include <linux/soc/ti/omap1-soc.h>
+#include <linux/soc/ti/omap1-mux.h>
 
 /* FIXME address is now a platform device resource,
  * and irqs should show there too...
@@ -102,7 +99,7 @@ struct uwire_state {
  * Or, put it in a structure which is used throughout the driver;
  * that avoids having to issue two loads for each bit of static data.
  */
-static unsigned int uwire_idx_shift;
+static unsigned int uwire_idx_shift = 2;
 static void __iomem *uwire_base;
 
 static inline void uwire_write_reg(int idx, u16 val)
@@ -182,7 +179,7 @@ static void uwire_chipselect(struct spi_device *spi, int value)
 
 	w = uwire_read_reg(UWIRE_CSR);
 	old_cs = (w >> 10) & 0x03;
-	if (value == BITBANG_CS_INACTIVE || old_cs != spi->chip_select) {
+	if (value == BITBANG_CS_INACTIVE || old_cs != spi_get_chipselect(spi, 0)) {
 		/* Deselect this CS, or the previous CS */
 		w &= ~CS_CMD;
 		uwire_write_reg(UWIRE_CSR, w);
@@ -196,7 +193,7 @@ static void uwire_chipselect(struct spi_device *spi, int value)
 		else
 			uwire_write_reg(UWIRE_SR4, 0);
 
-		w = spi->chip_select << 10;
+		w = spi_get_chipselect(spi, 0) << 10;
 		w |= CS_CMD;
 		uwire_write_reg(UWIRE_CSR, w);
 	}
@@ -213,7 +210,7 @@ static int uwire_txrx(struct spi_device *spi, struct spi_transfer *t)
 	if (!t->tx_buf && !t->rx_buf)
 		return 0;
 
-	w = spi->chip_select << 10;
+	w = spi_get_chipselect(spi, 0) << 10;
 	w |= CS_CMD;
 
 	if (t->tx_buf) {
@@ -318,7 +315,7 @@ static int uwire_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 	int			div2;
 	int			status;
 
-	uwire = spi_master_get_devdata(spi->master);
+	uwire = spi_controller_get_devdata(spi->controller);
 
 	/* mode 0..3, clock inverted separately;
 	 * standard nCS signaling;
@@ -330,7 +327,7 @@ static int uwire_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 	if (spi->mode & SPI_CPOL)
 		flags |= UWIRE_CLK_INVERTED;
 
-	switch (spi->mode & (SPI_CPOL | SPI_CPHA)) {
+	switch (spi->mode & SPI_MODE_X_MASK) {
 	case SPI_MODE_0:
 	case SPI_MODE_3:
 		flags |= UWIRE_WRITE_FALLING_EDGE | UWIRE_READ_RISING_EDGE;
@@ -411,7 +408,7 @@ static int uwire_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 		rate /= 8;
 		break;
 	}
-	omap_uwire_configure_mode(spi->chip_select, flags);
+	omap_uwire_configure_mode(spi_get_chipselect(spi, 0), flags);
 	pr_debug("%s: uwire flags %02x, armxor %lu KHz, SCK %lu KHz\n",
 			__func__, flags,
 			clk_get_rate(uwire->ck) / 1000,
@@ -424,15 +421,22 @@ done:
 static int uwire_setup(struct spi_device *spi)
 {
 	struct uwire_state *ust = spi->controller_state;
+	bool initial_setup = false;
+	int status;
 
 	if (ust == NULL) {
 		ust = kzalloc(sizeof(*ust), GFP_KERNEL);
 		if (ust == NULL)
 			return -ENOMEM;
 		spi->controller_state = ust;
+		initial_setup = true;
 	}
 
-	return uwire_setup_transfer(spi, NULL);
+	status = uwire_setup_transfer(spi, NULL);
+	if (status && initial_setup)
+		kfree(ust);
+
+	return status;
 }
 
 static void uwire_cleanup(struct spi_device *spi)
@@ -443,26 +447,26 @@ static void uwire_cleanup(struct spi_device *spi)
 static void uwire_off(struct uwire_spi *uwire)
 {
 	uwire_write_reg(UWIRE_SR3, 0);
-	clk_disable(uwire->ck);
-	spi_master_put(uwire->bitbang.master);
+	clk_disable_unprepare(uwire->ck);
+	spi_controller_put(uwire->bitbang.ctlr);
 }
 
 static int uwire_probe(struct platform_device *pdev)
 {
-	struct spi_master	*master;
+	struct spi_controller	*host;
 	struct uwire_spi	*uwire;
 	int			status;
 
-	master = spi_alloc_master(&pdev->dev, sizeof *uwire);
-	if (!master)
+	host = spi_alloc_host(&pdev->dev, sizeof(*uwire));
+	if (!host)
 		return -ENODEV;
 
-	uwire = spi_master_get_devdata(master);
+	uwire = spi_controller_get_devdata(host);
 
 	uwire_base = devm_ioremap(&pdev->dev, UWIRE_BASE_PHYS, UWIRE_IO_SIZE);
 	if (!uwire_base) {
 		dev_dbg(&pdev->dev, "can't ioremap UWIRE\n");
-		spi_master_put(master);
+		spi_controller_put(host);
 		return -ENOMEM;
 	}
 
@@ -472,29 +476,24 @@ static int uwire_probe(struct platform_device *pdev)
 	if (IS_ERR(uwire->ck)) {
 		status = PTR_ERR(uwire->ck);
 		dev_dbg(&pdev->dev, "no functional clock?\n");
-		spi_master_put(master);
+		spi_controller_put(host);
 		return status;
 	}
-	clk_enable(uwire->ck);
-
-	if (cpu_is_omap7xx())
-		uwire_idx_shift = 1;
-	else
-		uwire_idx_shift = 2;
+	clk_prepare_enable(uwire->ck);
 
 	uwire_write_reg(UWIRE_SR3, 1);
 
 	/* the spi->mode bits understood by this driver: */
-	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
-	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 16);
-	master->flags = SPI_MASTER_HALF_DUPLEX;
+	host->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
+	host->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 16);
+	host->flags = SPI_CONTROLLER_HALF_DUPLEX;
 
-	master->bus_num = 2;	/* "official" */
-	master->num_chipselect = 4;
-	master->setup = uwire_setup;
-	master->cleanup = uwire_cleanup;
+	host->bus_num = 2;	/* "official" */
+	host->num_chipselect = 4;
+	host->setup = uwire_setup;
+	host->cleanup = uwire_cleanup;
 
-	uwire->bitbang.master = master;
+	uwire->bitbang.ctlr = host;
 	uwire->bitbang.chipselect = uwire_chipselect;
 	uwire->bitbang.setup_transfer = uwire_setup_transfer;
 	uwire->bitbang.txrx_bufs = uwire_txrx;
@@ -506,7 +505,7 @@ static int uwire_probe(struct platform_device *pdev)
 	return status;
 }
 
-static int uwire_remove(struct platform_device *pdev)
+static void uwire_remove(struct platform_device *pdev)
 {
 	struct uwire_spi	*uwire = platform_get_drvdata(pdev);
 
@@ -514,7 +513,6 @@ static int uwire_remove(struct platform_device *pdev)
 
 	spi_bitbang_stop(&uwire->bitbang);
 	uwire_off(uwire);
-	return 0;
 }
 
 /* work with hotplug and coldplug */
@@ -525,28 +523,13 @@ static struct platform_driver uwire_driver = {
 		.name		= "omap_uwire",
 	},
 	.probe = uwire_probe,
-	.remove = uwire_remove,
+	.remove_new = uwire_remove,
 	// suspend ... unuse ck
 	// resume ... use ck
 };
 
 static int __init omap_uwire_init(void)
 {
-	/* FIXME move these into the relevant board init code. also, include
-	 * H3 support; it uses tsc2101 like H2 (on a different chipselect).
-	 */
-
-	if (machine_is_omap_h2()) {
-		/* defaults: W21 SDO, U18 SDI, V19 SCL */
-		omap_cfg_reg(N14_1610_UWIRE_CS0);
-		omap_cfg_reg(N15_1610_UWIRE_CS1);
-	}
-	if (machine_is_omap_perseus2()) {
-		/* configure pins: MPU_UW_nSCS1, MPU_UW_SDO, MPU_UW_SCLK */
-		int val = omap_readl(OMAP7XX_IO_CONF_9) & ~0x00EEE000;
-		omap_writel(val | 0x00AAA000, OMAP7XX_IO_CONF_9);
-	}
-
 	return platform_driver_register(&uwire_driver);
 }
 

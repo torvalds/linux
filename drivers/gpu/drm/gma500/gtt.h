@@ -10,6 +10,8 @@
 
 #include <drm/drm_gem.h>
 
+struct drm_psb_private;
+
 /* This wants cleaning up with respect to the psb_dev and un-needed stuff */
 struct psb_gtt {
 	uint32_t gatt_start;
@@ -20,36 +22,20 @@ struct psb_gtt {
 	unsigned gatt_pages;
 	unsigned long stolen_size;
 	unsigned long vram_stolen_size;
-	struct rw_semaphore sem;
 };
 
 /* Exported functions */
-extern int psb_gtt_init(struct drm_device *dev, int resume);
-extern void psb_gtt_takedown(struct drm_device *dev);
+int psb_gtt_init(struct drm_device *dev);
+void psb_gtt_fini(struct drm_device *dev);
+int psb_gtt_resume(struct drm_device *dev);
 
-/* Each gtt_range describes an allocation in the GTT area */
-struct gtt_range {
-	struct resource resource;	/* Resource for our allocation */
-	u32 offset;			/* GTT offset of our object */
-	struct drm_gem_object gem;	/* GEM high level stuff */
-	int in_gart;			/* Currently in the GART (ref ct) */
-	bool stolen;			/* Backed from stolen RAM */
-	bool mmapping;			/* Is mmappable */
-	struct page **pages;		/* Backing pages if present */
-	int npage;			/* Number of backing pages */
-	int roll;			/* Roll applied to the GTT entries */
-};
+int psb_gtt_allocate_resource(struct drm_psb_private *pdev, struct resource *res,
+			      const char *name, resource_size_t size, resource_size_t align,
+			      bool stolen, u32 *offset);
 
-#define to_gtt_range(x) container_of(x, struct gtt_range, gem)
+uint32_t psb_gtt_mask_pte(uint32_t pfn, int type);
+void psb_gtt_insert_pages(struct drm_psb_private *pdev, const struct resource *res,
+			  struct page **pages);
+void psb_gtt_remove_pages(struct drm_psb_private *pdev, const struct resource *res);
 
-extern struct gtt_range *psb_gtt_alloc_range(struct drm_device *dev, int len,
-					     const char *name, int backed,
-					     u32 align);
-extern void psb_gtt_kref_put(struct gtt_range *gt);
-extern void psb_gtt_free_range(struct drm_device *dev, struct gtt_range *gt);
-extern int psb_gtt_pin(struct gtt_range *gt);
-extern void psb_gtt_unpin(struct gtt_range *gt);
-extern void psb_gtt_roll(struct drm_device *dev,
-					struct gtt_range *gt, int roll);
-extern int psb_gtt_restore(struct drm_device *dev);
 #endif

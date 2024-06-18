@@ -1,0 +1,106 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/bridge/nxp,ptn3460.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP PTN3460 eDP to LVDS bridge
+
+maintainers:
+  - Sean Paul <seanpaul@chromium.org>
+
+properties:
+  compatible:
+    const: nxp,ptn3460
+
+  reg:
+    description: I2C address of the bridge
+    maxItems: 1
+
+  edid-emulation:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      The EDID emulation entry to use
+      Value  Resolution  Description
+        0     1024x768   NXP Generic
+        1     1920x1080  NXP Generic
+        2     1920x1080  NXP Generic
+        3     1600x900   Samsung LTM200KT
+        4     1920x1080  Samsung LTM230HT
+        5     1366x768   NXP Generic
+        6     1600x900   ChiMei M215HGE
+    enum: [0, 1, 2, 3, 4, 5, 6]
+
+  powerdown-gpios:
+    description: GPIO connected to the PD_N signal.
+    maxItems: 1
+
+  reset-gpios:
+    description: GPIO connected to the RST_N signal.
+    maxItems: 1
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+
+    properties:
+      port@0:
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
+          Video port for LVDS output
+
+      port@1:
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
+          Video port for eDP input
+
+    required:
+      - port@0
+      - port@1
+
+required:
+  - compatible
+  - reg
+  - edid-emulation
+  - powerdown-gpios
+  - reset-gpios
+  - ports
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      bridge@20 {
+        compatible = "nxp,ptn3460";
+        reg = <0x20>;
+        edid-emulation = <5>;
+        powerdown-gpios = <&gpy2 5 GPIO_ACTIVE_HIGH>;
+        reset-gpios = <&gpx1 5 GPIO_ACTIVE_LOW>;
+
+        ports {
+          #address-cells = <1>;
+          #size-cells = <0>;
+
+          port@0 {
+            reg = <0>;
+            bridge_out: endpoint {
+              remote-endpoint = <&panel_in>;
+            };
+          };
+
+          port@1 {
+            reg = <1>;
+            bridge_in: endpoint {
+              remote-endpoint = <&dp_out>;
+            };
+          };
+        };
+      };
+    };
+
+...

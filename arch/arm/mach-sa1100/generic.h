@@ -30,9 +30,6 @@ struct resource;
 void sa11x0_register_mtd(struct flash_platform_data *flash,
 			 struct resource *res, int nr);
 
-struct irda_platform_data;
-void sa11x0_register_irda(struct irda_platform_data *irda);
-
 struct mcp_plat_data;
 void sa11x0_ppc_configure_mcp(void);
 void sa11x0_register_mcp(struct mcp_plat_data *data);

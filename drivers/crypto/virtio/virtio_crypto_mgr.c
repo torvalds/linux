@@ -237,8 +237,14 @@ struct virtio_crypto *virtcrypto_get_dev_node(int node, uint32_t service,
  */
 int virtcrypto_dev_start(struct virtio_crypto *vcrypto)
 {
-	if (virtio_crypto_algs_register(vcrypto)) {
-		pr_err("virtio_crypto: Failed to register crypto algs\n");
+	if (virtio_crypto_skcipher_algs_register(vcrypto)) {
+		pr_err("virtio_crypto: Failed to register crypto skcipher algs\n");
+		return -EFAULT;
+	}
+
+	if (virtio_crypto_akcipher_algs_register(vcrypto)) {
+		pr_err("virtio_crypto: Failed to register crypto akcipher algs\n");
+		virtio_crypto_skcipher_algs_unregister(vcrypto);
 		return -EFAULT;
 	}
 
@@ -257,7 +263,8 @@ int virtcrypto_dev_start(struct virtio_crypto *vcrypto)
  */
 void virtcrypto_dev_stop(struct virtio_crypto *vcrypto)
 {
-	virtio_crypto_algs_unregister(vcrypto);
+	virtio_crypto_skcipher_algs_unregister(vcrypto);
+	virtio_crypto_akcipher_algs_unregister(vcrypto);
 }
 
 /*
@@ -311,6 +318,10 @@ bool virtcrypto_algo_is_supported(struct virtio_crypto *vcrypto,
 
 	case VIRTIO_CRYPTO_SERVICE_AEAD:
 		algo_mask = vcrypto->aead_algo;
+		break;
+
+	case VIRTIO_CRYPTO_SERVICE_AKCIPHER:
+		algo_mask = vcrypto->akcipher_algo;
 		break;
 	}
 

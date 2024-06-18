@@ -139,11 +139,11 @@ static ssize_t show_color_common(struct device *dev, char *buf, int color)
 		return ret;
 	switch (color) {
 	case RED:
-		return scnprintf(buf, PAGE_SIZE, "%02X\n", data->red);
+		return sysfs_emit(buf, "%02X\n", data->red);
 	case GREEN:
-		return scnprintf(buf, PAGE_SIZE, "%02X\n", data->green);
+		return sysfs_emit(buf, "%02X\n", data->green);
 	case BLUE:
-		return scnprintf(buf, PAGE_SIZE, "%02X\n", data->blue);
+		return sysfs_emit(buf, "%02X\n", data->blue);
 	default:
 		return -EINVAL;
 	}
@@ -192,13 +192,13 @@ static int store_color_common(struct device *dev, const char *buf, int color)
 	return 0;
 }
 
-static ssize_t show_red(struct device *dev, struct device_attribute *attr,
+static ssize_t red_show(struct device *dev, struct device_attribute *attr,
 			char *buf)
 {
 	return show_color_common(dev, buf, RED);
 }
 
-static ssize_t store_red(struct device *dev, struct device_attribute *attr,
+static ssize_t red_store(struct device *dev, struct device_attribute *attr,
 			 const char *buf, size_t count)
 {
 	int ret;
@@ -209,15 +209,15 @@ static ssize_t store_red(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static DEVICE_ATTR(red, S_IRUGO | S_IWUSR, show_red, store_red);
+static DEVICE_ATTR_RW(red);
 
-static ssize_t show_green(struct device *dev, struct device_attribute *attr,
+static ssize_t green_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
 	return show_color_common(dev, buf, GREEN);
 }
 
-static ssize_t store_green(struct device *dev, struct device_attribute *attr,
+static ssize_t green_store(struct device *dev, struct device_attribute *attr,
 			   const char *buf, size_t count)
 {
 
@@ -229,15 +229,15 @@ static ssize_t store_green(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static DEVICE_ATTR(green, S_IRUGO | S_IWUSR, show_green, store_green);
+static DEVICE_ATTR_RW(green);
 
-static ssize_t show_blue(struct device *dev, struct device_attribute *attr,
+static ssize_t blue_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
 	return show_color_common(dev, buf, BLUE);
 }
 
-static ssize_t store_blue(struct device *dev, struct device_attribute *attr,
+static ssize_t blue_store(struct device *dev, struct device_attribute *attr,
 			  const char *buf, size_t count)
 {
 	int ret;
@@ -248,16 +248,16 @@ static ssize_t store_blue(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static DEVICE_ATTR(blue, S_IRUGO | S_IWUSR, show_blue, store_blue);
+static DEVICE_ATTR_RW(blue);
 
-static ssize_t show_test(struct device *dev, struct device_attribute *attr,
+static ssize_t test_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE,
+	return sysfs_emit(buf,
 			 "#Write into test to start test sequence!#\n");
 }
 
-static ssize_t store_test(struct device *dev, struct device_attribute *attr,
+static ssize_t test_store(struct device *dev, struct device_attribute *attr,
 			  const char *buf, size_t count)
 {
 
@@ -273,7 +273,7 @@ static ssize_t store_test(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static DEVICE_ATTR(test, S_IRUGO | S_IWUSR, show_test, store_test);
+static DEVICE_ATTR_RW(test);
 
 /* TODO: HSB, fade, timeadj, script ... */
 
@@ -480,9 +480,8 @@ static int blinkm_led_blue_set(struct led_classdev *led_cdev,
 
 static void blinkm_init_hw(struct i2c_client *client)
 {
-	int ret;
-	ret = blinkm_transfer_hw(client, BLM_STOP_SCRIPT);
-	ret = blinkm_transfer_hw(client, BLM_GO_RGB);
+	blinkm_transfer_hw(client, BLM_STOP_SCRIPT);
+	blinkm_transfer_hw(client, BLM_GO_RGB);
 }
 
 static int blinkm_test_run(struct i2c_client *client)
@@ -562,12 +561,11 @@ static int blinkm_detect(struct i2c_client *client, struct i2c_board_info *info)
 		return -ENODEV;
 	}
 
-	strlcpy(info->type, "blinkm", I2C_NAME_SIZE);
+	strscpy(info->type, "blinkm", I2C_NAME_SIZE);
 	return 0;
 }
 
-static int blinkm_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int blinkm_probe(struct i2c_client *client)
 {
 	struct blinkm_data *data;
 	struct blinkm_led *led[3];
@@ -678,7 +676,7 @@ exit:
 	return err;
 }
 
-static int blinkm_remove(struct i2c_client *client)
+static void blinkm_remove(struct i2c_client *client)
 {
 	struct blinkm_data *data = i2c_get_clientdata(client);
 	int ret = 0;
@@ -717,7 +715,6 @@ static int blinkm_remove(struct i2c_client *client)
 		dev_err(&client->dev, "Failure in blinkm_remove ignored. Continuing.\n");
 
 	sysfs_remove_group(&client->dev.kobj, &blinkm_group);
-	return 0;
 }
 
 static const struct i2c_device_id blinkm_id[] = {

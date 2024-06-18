@@ -17,7 +17,7 @@
 #include <asm/lse.h>
 
 #define ATOMIC_OP(op)							\
-static inline void arch_##op(int i, atomic_t *v)			\
+static __always_inline void arch_##op(int i, atomic_t *v)		\
 {									\
 	__lse_ll_sc_body(op, i, v);					\
 }
@@ -32,7 +32,7 @@ ATOMIC_OP(atomic_sub)
 #undef ATOMIC_OP
 
 #define ATOMIC_FETCH_OP(name, op)					\
-static inline int arch_##op##name(int i, atomic_t *v)			\
+static __always_inline int arch_##op##name(int i, atomic_t *v)		\
 {									\
 	return __lse_ll_sc_body(op##name, i, v);			\
 }
@@ -56,7 +56,7 @@ ATOMIC_FETCH_OPS(atomic_sub_return)
 #undef ATOMIC_FETCH_OPS
 
 #define ATOMIC64_OP(op)							\
-static inline void arch_##op(long i, atomic64_t *v)			\
+static __always_inline void arch_##op(long i, atomic64_t *v)		\
 {									\
 	__lse_ll_sc_body(op, i, v);					\
 }
@@ -71,7 +71,7 @@ ATOMIC64_OP(atomic64_sub)
 #undef ATOMIC64_OP
 
 #define ATOMIC64_FETCH_OP(name, op)					\
-static inline long arch_##op##name(long i, atomic64_t *v)		\
+static __always_inline long arch_##op##name(long i, atomic64_t *v)	\
 {									\
 	return __lse_ll_sc_body(op##name, i, v);			\
 }
@@ -94,15 +94,13 @@ ATOMIC64_FETCH_OPS(atomic64_sub_return)
 #undef ATOMIC64_FETCH_OP
 #undef ATOMIC64_FETCH_OPS
 
-static inline long arch_atomic64_dec_if_positive(atomic64_t *v)
+static __always_inline long arch_atomic64_dec_if_positive(atomic64_t *v)
 {
 	return __lse_ll_sc_body(atomic64_dec_if_positive, v);
 }
 
-#define ATOMIC_INIT(i)	{ (i) }
-
-#define arch_atomic_read(v)			READ_ONCE((v)->counter)
-#define arch_atomic_set(v, i)			WRITE_ONCE(((v)->counter), (i))
+#define arch_atomic_read(v)			__READ_ONCE((v)->counter)
+#define arch_atomic_set(v, i)			__WRITE_ONCE(((v)->counter), (i))
 
 #define arch_atomic_add_return_relaxed		arch_atomic_add_return_relaxed
 #define arch_atomic_add_return_acquire		arch_atomic_add_return_acquire
@@ -143,24 +141,6 @@ static inline long arch_atomic64_dec_if_positive(atomic64_t *v)
 #define arch_atomic_fetch_xor_acquire		arch_atomic_fetch_xor_acquire
 #define arch_atomic_fetch_xor_release		arch_atomic_fetch_xor_release
 #define arch_atomic_fetch_xor			arch_atomic_fetch_xor
-
-#define arch_atomic_xchg_relaxed(v, new) \
-	arch_xchg_relaxed(&((v)->counter), (new))
-#define arch_atomic_xchg_acquire(v, new) \
-	arch_xchg_acquire(&((v)->counter), (new))
-#define arch_atomic_xchg_release(v, new) \
-	arch_xchg_release(&((v)->counter), (new))
-#define arch_atomic_xchg(v, new) \
-	arch_xchg(&((v)->counter), (new))
-
-#define arch_atomic_cmpxchg_relaxed(v, old, new) \
-	arch_cmpxchg_relaxed(&((v)->counter), (old), (new))
-#define arch_atomic_cmpxchg_acquire(v, old, new) \
-	arch_cmpxchg_acquire(&((v)->counter), (old), (new))
-#define arch_atomic_cmpxchg_release(v, old, new) \
-	arch_cmpxchg_release(&((v)->counter), (old), (new))
-#define arch_atomic_cmpxchg(v, old, new) \
-	arch_cmpxchg(&((v)->counter), (old), (new))
 
 #define arch_atomic_andnot			arch_atomic_andnot
 
@@ -211,20 +191,8 @@ static inline long arch_atomic64_dec_if_positive(atomic64_t *v)
 #define arch_atomic64_fetch_xor_release		arch_atomic64_fetch_xor_release
 #define arch_atomic64_fetch_xor			arch_atomic64_fetch_xor
 
-#define arch_atomic64_xchg_relaxed		arch_atomic_xchg_relaxed
-#define arch_atomic64_xchg_acquire		arch_atomic_xchg_acquire
-#define arch_atomic64_xchg_release		arch_atomic_xchg_release
-#define arch_atomic64_xchg			arch_atomic_xchg
-
-#define arch_atomic64_cmpxchg_relaxed		arch_atomic_cmpxchg_relaxed
-#define arch_atomic64_cmpxchg_acquire		arch_atomic_cmpxchg_acquire
-#define arch_atomic64_cmpxchg_release		arch_atomic_cmpxchg_release
-#define arch_atomic64_cmpxchg			arch_atomic_cmpxchg
-
 #define arch_atomic64_andnot			arch_atomic64_andnot
 
 #define arch_atomic64_dec_if_positive		arch_atomic64_dec_if_positive
-
-#include <asm-generic/atomic-instrumented.h>
 
 #endif /* __ASM_ATOMIC_H */

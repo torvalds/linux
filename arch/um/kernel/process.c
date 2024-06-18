@@ -15,6 +15,7 @@
 #include <linux/proc_fs.h>
 #include <linux/ptrace.h>
 #include <linux/random.h>
+#include <linux/cpu.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
@@ -23,40 +24,26 @@
 #include <linux/seq_file.h>
 #include <linux/tick.h>
 #include <linux/threads.h>
-#include <linux/tracehook.h>
+#include <linux/resume_user_mode.h>
 #include <asm/current.h>
-#include <asm/pgtable.h>
 #include <asm/mmu_context.h>
+#include <asm/switch_to.h>
+#include <asm/exec.h>
 #include <linux/uaccess.h>
 #include <as-layout.h>
 #include <kern_util.h>
 #include <os.h>
 #include <skas.h>
-#include <timer-internal.h>
+#include <registers.h>
+#include <linux/time-internal.h>
+#include <linux/elfcore.h>
 
 /*
  * This is a per-cpu array.  A processor only modifies its entry and it only
  * cares about its entry, so it's OK if another processor is modifying its
  * entry.
  */
-struct cpu_task cpu_tasks[NR_CPUS] = { [0 ... NR_CPUS - 1] = { -1, NULL } };
-
-static inline int external_pid(void)
-{
-	/* FIXME: Need to look up userspace_pid by cpu */
-	return userspace_pid[0];
-}
-
-int pid_to_processor_id(int pid)
-{
-	int i;
-
-	for (i = 0; i < ncpus; i++) {
-		if (cpu_tasks[i].pid == pid)
-			return i;
-	}
-	return -1;
-}
+struct cpu_task cpu_tasks[NR_CPUS] = { [0 ... NR_CPUS - 1] = { NULL } };
 
 void free_stack(unsigned long stack, int order)
 {
@@ -77,13 +64,10 @@ unsigned long alloc_stack(int order, int atomic)
 
 static inline void set_current(struct task_struct *task)
 {
-	cpu_tasks[task_thread_info(task)->cpu] = ((struct cpu_task)
-		{ external_pid(), task });
+	cpu_tasks[task_thread_info(task)->cpu] = ((struct cpu_task) { task });
 }
 
-extern void arch_switch_to(struct task_struct *to);
-
-void *__switch_to(struct task_struct *from, struct task_struct *to)
+struct task_struct *__switch_to(struct task_struct *from, struct task_struct *to)
 {
 	to->thread.prev_sched = from;
 	set_current(to);
@@ -100,10 +84,11 @@ void interrupt_end(void)
 
 	if (need_resched())
 		schedule();
-	if (test_thread_flag(TIF_SIGPENDING))
+	if (test_thread_flag(TIF_SIGPENDING) ||
+	    test_thread_flag(TIF_NOTIFY_SIGNAL))
 		do_signal(regs);
-	if (test_and_clear_thread_flag(TIF_NOTIFY_RESUME))
-		tracehook_notify_resume(regs);
+	if (test_thread_flag(TIF_NOTIFY_RESUME))
+		resume_user_mode_work(regs);
 }
 
 int get_current_pid(void)
@@ -117,7 +102,7 @@ int get_current_pid(void)
  */
 void new_thread_handler(void)
 {
-	int (*fn)(void *), n;
+	int (*fn)(void *);
 	void *arg;
 
 	if (current->thread.prev_sched != NULL)
@@ -130,12 +115,12 @@ void new_thread_handler(void)
 	/*
 	 * callback returns only if the kernel thread execs a process
 	 */
-	n = fn(arg);
+	fn(arg);
 	userspace(&current->thread.regs.regs, current_thread_info()->aux_fp_regs);
 }
 
 /* Called magically, see new_thread_handler above */
-void fork_handler(void)
+static void fork_handler(void)
 {
 	force_flush_all();
 
@@ -153,16 +138,17 @@ void fork_handler(void)
 	userspace(&current->thread.regs.regs, current_thread_info()->aux_fp_regs);
 }
 
-int copy_thread(unsigned long clone_flags, unsigned long sp,
-		unsigned long arg, struct task_struct * p)
+int copy_thread(struct task_struct * p, const struct kernel_clone_args *args)
 {
+	unsigned long clone_flags = args->flags;
+	unsigned long sp = args->stack;
+	unsigned long tls = args->tls;
 	void (*handler)(void);
-	int kthread = current->flags & PF_KTHREAD;
 	int ret = 0;
 
 	p->thread = (struct thread_struct) INIT_THREAD;
 
-	if (!kthread) {
+	if (!args->fn) {
 	  	memcpy(&p->thread.regs.regs, current_pt_regs(),
 		       sizeof(p->thread.regs.regs));
 		PT_REGS_SET_SYSCALL_RETURN(&p->thread.regs, 0);
@@ -174,21 +160,21 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 		arch_copy_thread(&current->thread.arch, &p->thread.arch);
 	} else {
 		get_safe_registers(p->thread.regs.regs.gp, p->thread.regs.regs.fp);
-		p->thread.request.u.thread.proc = (int (*)(void *))sp;
-		p->thread.request.u.thread.arg = (void *)arg;
+		p->thread.request.u.thread.proc = args->fn;
+		p->thread.request.u.thread.arg = args->fn_arg;
 		handler = new_thread_handler;
 	}
 
 	new_thread(task_stack_page(p), &p->thread.switch_buf, handler);
 
-	if (!kthread) {
+	if (!args->fn) {
 		clear_flushed_tls(p);
 
 		/*
 		 * Set a new TLS for the child thread?
 		 */
 		if (clone_flags & CLONE_SETTLS)
-			ret = arch_copy_tls(p);
+			ret = arch_set_tls(p, tls);
 	}
 
 	return ret;
@@ -203,62 +189,20 @@ void initial_thread_cb(void (*proc)(void *), void *arg)
 	kmalloc_ok = save_kmalloc_ok;
 }
 
-static void time_travel_sleep(unsigned long long duration)
+void um_idle_sleep(void)
 {
-	unsigned long long next = time_travel_time + duration;
-
-	if (time_travel_mode != TT_MODE_INFCPU)
-		os_timer_disable();
-
-	while (time_travel_timer_mode == TT_TMR_PERIODIC &&
-	       time_travel_timer_expiry < time_travel_time)
-		time_travel_set_timer_expiry(time_travel_timer_expiry +
-					     time_travel_timer_interval);
-
-	if (time_travel_timer_mode != TT_TMR_DISABLED &&
-	    time_travel_timer_expiry < next) {
-		if (time_travel_timer_mode == TT_TMR_ONESHOT)
-			time_travel_set_timer_mode(TT_TMR_DISABLED);
-		/*
-		 * In basic mode, time_travel_time will be adjusted in
-		 * the timer IRQ handler so it works even when the signal
-		 * comes from the OS timer, see there.
-		 */
-		if (time_travel_mode != TT_MODE_BASIC)
-			time_travel_set_time(time_travel_timer_expiry);
-
-		deliver_alarm();
-	} else {
-		time_travel_set_time(next);
-	}
-
-	if (time_travel_mode != TT_MODE_INFCPU) {
-		if (time_travel_timer_mode == TT_TMR_PERIODIC)
-			os_timer_set_interval(time_travel_timer_interval);
-		else if (time_travel_timer_mode == TT_TMR_ONESHOT)
-			os_timer_one_shot(time_travel_timer_expiry - next);
-	}
-}
-
-static void um_idle_sleep(void)
-{
-	unsigned long long duration = UM_NSEC_PER_SEC;
-
-	if (time_travel_mode != TT_MODE_OFF) {
-		time_travel_sleep(duration);
-	} else {
-		os_idle_sleep(duration);
-	}
+	if (time_travel_mode != TT_MODE_OFF)
+		time_travel_sleep();
+	else
+		os_idle_sleep();
 }
 
 void arch_cpu_idle(void)
 {
-	cpu_tasks[current_thread_info()->cpu].pid = os_getpid();
 	um_idle_sleep();
-	local_irq_enable();
 }
 
-int __cant_sleep(void) {
+int __uml_cant_sleep(void) {
 	return in_atomic() || irqs_disabled() || in_interrupt();
 	/* Is in_interrupt() really needed? */
 }
@@ -288,37 +232,22 @@ char *uml_strdup(const char *string)
 }
 EXPORT_SYMBOL(uml_strdup);
 
-int copy_to_user_proc(void __user *to, void *from, int size)
-{
-	return copy_to_user(to, from, size);
-}
-
 int copy_from_user_proc(void *to, void __user *from, int size)
 {
 	return copy_from_user(to, from, size);
 }
 
-int clear_user_proc(void __user *buf, int size)
-{
-	return clear_user(buf, size);
-}
-
-int cpu(void)
-{
-	return current_thread_info()->cpu;
-}
-
 static atomic_t using_sysemu = ATOMIC_INIT(0);
 int sysemu_supported;
 
-void set_using_sysemu(int value)
+static void set_using_sysemu(int value)
 {
 	if (value > sysemu_supported)
 		return;
 	atomic_set(&using_sysemu, value);
 }
 
-int get_using_sysemu(void)
+static int get_using_sysemu(void)
 {
 	return atomic_read(&using_sysemu);
 }
@@ -348,22 +277,21 @@ static ssize_t sysemu_proc_write(struct file *file, const char __user *buf,
 	return count;
 }
 
-static const struct file_operations sysemu_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= sysemu_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= sysemu_proc_write,
+static const struct proc_ops sysemu_proc_ops = {
+	.proc_open	= sysemu_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= sysemu_proc_write,
 };
 
-int __init make_proc_sysemu(void)
+static int __init make_proc_sysemu(void)
 {
 	struct proc_dir_entry *ent;
 	if (!sysemu_supported)
 		return 0;
 
-	ent = proc_create("sysemu", 0600, NULL, &sysemu_proc_fops);
+	ent = proc_create("sysemu", 0600, NULL, &sysemu_proc_ops);
 
 	if (ent == NULL)
 	{
@@ -376,17 +304,9 @@ int __init make_proc_sysemu(void)
 
 late_initcall(make_proc_sysemu);
 
-int singlestepping(void * t)
+int singlestepping(void)
 {
-	struct task_struct *task = t ? t : current;
-
-	if (!(task->ptrace & PT_DTRACE))
-		return 0;
-
-	if (task->thread.singlestep_syscall)
-		return 1;
-
-	return 2;
+	return test_thread_flag(TIF_SINGLESTEP);
 }
 
 /*
@@ -400,18 +320,15 @@ int singlestepping(void * t)
 unsigned long arch_align_stack(unsigned long sp)
 {
 	if (!(current->personality & ADDR_NO_RANDOMIZE) && randomize_va_space)
-		sp -= get_random_int() % 8192;
+		sp -= get_random_u32_below(8192);
 	return sp & ~0xf;
 }
 #endif
 
-unsigned long get_wchan(struct task_struct *p)
+unsigned long __get_wchan(struct task_struct *p)
 {
 	unsigned long stack_page, sp, ip;
 	bool seen_sched = 0;
-
-	if ((p == NULL) || (p == current) || (p->state == TASK_RUNNING))
-		return 0;
 
 	stack_page = (unsigned long) task_stack_page(p);
 	/* Bail if the process has no kernel stack for some reason */
@@ -440,7 +357,7 @@ unsigned long get_wchan(struct task_struct *p)
 	return 0;
 }
 
-int elf_core_copy_fpregs(struct task_struct *t, elf_fpregset_t *fpu)
+int elf_core_copy_task_fpregs(struct task_struct *t, elf_fpregset_t *fpu)
 {
 	int cpu = current_thread_info()->cpu;
 

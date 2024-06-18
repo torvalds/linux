@@ -5,23 +5,24 @@
  */
 
 #include <linux/component.h>
+#include <linux/debugfs.h>
 #include <linux/dma-mapping.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/platform_device.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_debugfs.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fb_cma_helper.h>
-#include <drm/drm_fb_helper.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_fbdev_dma.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_of.h>
 #include <drm/drm_probe_helper.h>
 
-#include "sti_crtc.h"
 #include "sti_drv.h"
 #include "sti_plane.h"
 
@@ -93,24 +94,16 @@ static struct drm_info_list sti_drm_dbg_list[] = {
 	{"fps_get", sti_drm_fps_dbg_show, 0},
 };
 
-static int sti_drm_dbg_init(struct drm_minor *minor)
+static void sti_drm_dbg_init(struct drm_minor *minor)
 {
-	int ret;
-
-	ret = drm_debugfs_create_files(sti_drm_dbg_list,
-				       ARRAY_SIZE(sti_drm_dbg_list),
-				       minor->debugfs_root, minor);
-	if (ret)
-		goto err;
+	drm_debugfs_create_files(sti_drm_dbg_list,
+				 ARRAY_SIZE(sti_drm_dbg_list),
+				 minor->debugfs_root, minor);
 
 	debugfs_create_file("fps_show", S_IRUGO | S_IWUSR, minor->debugfs_root,
 			    minor->dev, &sti_drm_fps_fops);
 
 	DRM_INFO("%s: debugfs installed\n", DRIVER_NAME);
-	return 0;
-err:
-	DRM_ERROR("%s: cannot install debugfs\n", DRIVER_NAME);
-	return ret;
 }
 
 static const struct drm_mode_config_funcs sti_mode_config_funcs = {
@@ -137,25 +130,12 @@ static void sti_mode_config_init(struct drm_device *dev)
 	dev->mode_config.normalize_zpos = true;
 }
 
-DEFINE_DRM_GEM_CMA_FOPS(sti_driver_fops);
+DEFINE_DRM_GEM_DMA_FOPS(sti_driver_fops);
 
-static struct drm_driver sti_driver = {
+static const struct drm_driver sti_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
-	.gem_free_object_unlocked = drm_gem_cma_free_object,
-	.gem_vm_ops = &drm_gem_cma_vm_ops,
-	.dumb_create = drm_gem_cma_dumb_create,
 	.fops = &sti_driver_fops,
-
-	.enable_vblank = sti_crtc_enable_vblank,
-	.disable_vblank = sti_crtc_disable_vblank,
-
-	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
-	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
-	.gem_prime_get_sg_table = drm_gem_cma_prime_get_sg_table,
-	.gem_prime_import_sg_table = drm_gem_cma_prime_import_sg_table,
-	.gem_prime_vmap = drm_gem_cma_prime_vmap,
-	.gem_prime_vunmap = drm_gem_cma_prime_vunmap,
-	.gem_prime_mmap = drm_gem_cma_prime_mmap,
+	DRM_GEM_DMA_DRIVER_OPS,
 
 	.debugfs_init = sti_drm_dbg_init,
 
@@ -165,11 +145,6 @@ static struct drm_driver sti_driver = {
 	.major = DRIVER_MAJOR,
 	.minor = DRIVER_MINOR,
 };
-
-static int compare_of(struct device *dev, void *data)
-{
-	return dev->of_node == data;
-}
 
 static int sti_init(struct drm_device *ddev)
 {
@@ -200,6 +175,7 @@ static void sti_cleanup(struct drm_device *ddev)
 	drm_atomic_helper_shutdown(ddev);
 	drm_mode_config_cleanup(ddev);
 	component_unbind_all(ddev->dev, ddev);
+	dev_set_drvdata(ddev->dev, NULL);
 	kfree(private);
 	ddev->dev_private = NULL;
 }
@@ -227,7 +203,7 @@ static int sti_bind(struct device *dev)
 
 	drm_mode_config_reset(ddev);
 
-	drm_fbdev_generic_setup(ddev, 32);
+	drm_fbdev_dma_setup(ddev, 32);
 
 	return 0;
 
@@ -266,7 +242,7 @@ static int sti_platform_probe(struct platform_device *pdev)
 	child_np = of_get_next_available_child(node, NULL);
 
 	while (child_np) {
-		drm_of_component_match_add(dev, &match, compare_of,
+		drm_of_component_match_add(dev, &match, component_compare_of,
 					   child_np);
 		child_np = of_get_next_available_child(node, child_np);
 	}
@@ -274,11 +250,14 @@ static int sti_platform_probe(struct platform_device *pdev)
 	return component_master_add_with_match(dev, &sti_ops, match);
 }
 
-static int sti_platform_remove(struct platform_device *pdev)
+static void sti_platform_remove(struct platform_device *pdev)
 {
 	component_master_del(&pdev->dev, &sti_ops);
+}
 
-	return 0;
+static void sti_platform_shutdown(struct platform_device *pdev)
+{
+	drm_atomic_helper_shutdown(platform_get_drvdata(pdev));
 }
 
 static const struct of_device_id sti_dt_ids[] = {
@@ -289,7 +268,8 @@ MODULE_DEVICE_TABLE(of, sti_dt_ids);
 
 static struct platform_driver sti_platform_driver = {
 	.probe = sti_platform_probe,
-	.remove = sti_platform_remove,
+	.remove_new = sti_platform_remove,
+	.shutdown = sti_platform_shutdown,
 	.driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = sti_dt_ids,
@@ -309,6 +289,9 @@ static struct platform_driver * const drivers[] = {
 
 static int sti_drm_init(void)
 {
+	if (drm_firmware_drivers_only())
+		return -ENODEV;
+
 	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 }
 module_init(sti_drm_init);

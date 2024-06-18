@@ -245,7 +245,7 @@ static void read_ehdr(FILE *fp)
 		die("Unknown ELF version\n");
 
 	if (ehdr.e_ehsize != sizeof(Elf_Ehdr))
-		die("Bad Elf header size\n");
+		die("Bad ELF header size\n");
 
 	if (ehdr.e_phentsize != sizeof(Elf_Phdr))
 		die("Bad program header entry\n");
@@ -351,7 +351,7 @@ static void read_symtabs(FILE *fp)
 
 static void read_relocs(FILE *fp)
 {
-	static unsigned long base = 0;
+	static unsigned long base;
 	int i, j;
 
 	if (!base) {

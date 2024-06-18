@@ -63,14 +63,12 @@ static int au1000_debug = 3;
 				NETIF_MSG_LINK)
 
 #define DRV_NAME	"au1000_eth"
-#define DRV_VERSION	"1.7"
 #define DRV_AUTHOR	"Pete Popov <ppopov@embeddedalley.com>"
 #define DRV_DESC	"Au1xxx on-chip Ethernet driver"
 
 MODULE_AUTHOR(DRV_AUTHOR);
 MODULE_DESCRIPTION(DRV_DESC);
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);
 
 /* AU1000 MAC registers and bits */
 #define MAC_CONTROL		0x0
@@ -243,7 +241,6 @@ MODULE_VERSION(DRV_VERSION);
  * ps: make sure the used irqs are configured properly in the board
  * specific irq-map
  */
-
 static void au1000_enable_mac(struct net_device *dev, int force_reset)
 {
 	unsigned long flags;
@@ -558,7 +555,6 @@ static int au1000_mii_probe(struct net_device *dev)
 	return 0;
 }
 
-
 /*
  * Buffer allocation/deallocation routines. The buffer descriptor returned
  * has the virtual and dma address of a buffer suitable for
@@ -649,14 +645,12 @@ au1000_setup_hw_rings(struct au1000_private *aup, void __iomem *tx_base)
 /*
  * ethtool operations
  */
-
 static void
 au1000_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	struct au1000_private *aup = netdev_priv(dev);
 
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
 	snprintf(info->bus_info, sizeof(info->bus_info), "%s %d", DRV_NAME,
 		 aup->mac_id);
 }
@@ -681,7 +675,6 @@ static const struct ethtool_ops au1000_ethtool_ops = {
 	.get_link_ksettings = phy_ethtool_get_link_ksettings,
 	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
-
 
 /*
  * Initialize the interface.
@@ -793,7 +786,7 @@ static int au1000_rx(struct net_device *dev)
 			frmlen = (status & RX_FRAME_LEN_MASK);
 			frmlen -= 4; /* Remove FCS */
 			skb = netdev_alloc_skb(dev, frmlen + 2);
-			if (skb == NULL) {
+			if (!skb) {
 				dev->stats.rx_dropped++;
 				continue;
 			}
@@ -827,7 +820,7 @@ static int au1000_rx(struct net_device *dev)
 				pr_cont("\n");
 			}
 		}
-		prxd->buff_stat = (u32)(pDB->dma_addr | RX_DMA_ENABLE);
+		prxd->buff_stat = lower_32_bits(pDB->dma_addr) | RX_DMA_ENABLE;
 		aup->rx_head = (aup->rx_head + 1) & (NUM_RX_DMA - 1);
 		wmb(); /* drain writebuffer */
 
@@ -1003,7 +996,7 @@ static netdev_tx_t au1000_tx(struct sk_buff *skb, struct net_device *dev)
 	ps->tx_packets++;
 	ps->tx_bytes += ptxd->len;
 
-	ptxd->buff_stat = pDB->dma_addr | TX_DMA_ENABLE;
+	ptxd->buff_stat = lower_32_bits(pDB->dma_addr) | TX_DMA_ENABLE;
 	wmb(); /* drain writebuffer */
 	dev_kfree_skb(skb);
 	aup->tx_head = (aup->tx_head + 1) & (NUM_TX_DMA - 1);
@@ -1014,7 +1007,7 @@ static netdev_tx_t au1000_tx(struct sk_buff *skb, struct net_device *dev)
  * The Tx ring has been full longer than the watchdog timeout
  * value. The transmitter must be hung?
  */
-static void au1000_tx_timeout(struct net_device *dev)
+static void au1000_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	netdev_err(dev, "au1000_tx_timeout: dev=%p\n", dev);
 	au1000_reset_mac(dev);
@@ -1053,23 +1046,12 @@ static void au1000_multicast_list(struct net_device *dev)
 	writel(reg, &aup->mac->control);
 }
 
-static int au1000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
-{
-	if (!netif_running(dev))
-		return -EINVAL;
-
-	if (!dev->phydev)
-		return -EINVAL; /* PHY not controllable */
-
-	return phy_mii_ioctl(dev->phydev, rq, cmd);
-}
-
 static const struct net_device_ops au1000_netdev_ops = {
 	.ndo_open		= au1000_open,
 	.ndo_stop		= au1000_close,
 	.ndo_start_xmit		= au1000_tx,
 	.ndo_set_rx_mode	= au1000_multicast_list,
-	.ndo_do_ioctl		= au1000_ioctl,
+	.ndo_eth_ioctl		= phy_do_ioctl_running,
 	.ndo_tx_timeout		= au1000_tx_timeout,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -1149,10 +1131,9 @@ static int au1000_probe(struct platform_device *pdev)
 	/* Allocate the data buffers
 	 * Snooping works fine with eth on all au1xxx
 	 */
-	aup->vaddr = (u32)dma_alloc_attrs(&pdev->dev, MAX_BUF_SIZE *
-					  (NUM_TX_BUFFS + NUM_RX_BUFFS),
-					  &aup->dma_addr, 0,
-					  DMA_ATTR_NON_CONSISTENT);
+	aup->vaddr = dma_alloc_coherent(&pdev->dev, MAX_BUF_SIZE *
+					(NUM_TX_BUFFS + NUM_RX_BUFFS),
+					&aup->dma_addr, 0);
 	if (!aup->vaddr) {
 		dev_err(&pdev->dev, "failed to allocate data buffers\n");
 		err = -ENOMEM;
@@ -1161,7 +1142,7 @@ static int au1000_probe(struct platform_device *pdev)
 
 	/* aup->mac is the base address of the MAC's registers */
 	aup->mac = (struct mac_reg *)
-			ioremap_nocache(base->start, resource_size(base));
+			ioremap(base->start, resource_size(base));
 	if (!aup->mac) {
 		dev_err(&pdev->dev, "failed to ioremap MAC registers\n");
 		err = -ENXIO;
@@ -1169,7 +1150,7 @@ static int au1000_probe(struct platform_device *pdev)
 	}
 
 	/* Setup some variables for quick register address access */
-	aup->enable = (u32 *)ioremap_nocache(macen->start,
+	aup->enable = (u32 *)ioremap(macen->start,
 						resource_size(macen));
 	if (!aup->enable) {
 		dev_err(&pdev->dev, "failed to ioremap MAC enable register\n");
@@ -1178,7 +1159,7 @@ static int au1000_probe(struct platform_device *pdev)
 	}
 	aup->mac_id = pdev->id;
 
-	aup->macdma = ioremap_nocache(macdma->start, resource_size(macdma));
+	aup->macdma = ioremap(macdma->start, resource_size(macdma));
 	if (!aup->macdma) {
 		dev_err(&pdev->dev, "failed to ioremap MACDMA registers\n");
 		err = -ENXIO;
@@ -1197,7 +1178,7 @@ static int au1000_probe(struct platform_device *pdev)
 		aup->phy1_search_mac0 = 1;
 	} else {
 		if (is_valid_ether_addr(pd->mac)) {
-			memcpy(dev->dev_addr, pd->mac, ETH_ALEN);
+			eth_hw_addr_set(dev, pd->mac);
 		} else {
 			/* Set a random MAC since no valid provided by platform_data. */
 			eth_hw_addr_random(dev);
@@ -1218,7 +1199,7 @@ static int au1000_probe(struct platform_device *pdev)
 	}
 
 	aup->mii_bus = mdiobus_alloc();
-	if (aup->mii_bus == NULL) {
+	if (!aup->mii_bus) {
 		dev_err(&pdev->dev, "failed to allocate mdiobus structure\n");
 		err = -ENOMEM;
 		goto err_mdiobus_alloc;
@@ -1253,8 +1234,8 @@ static int au1000_probe(struct platform_device *pdev)
 	for (i = 0; i < (NUM_TX_BUFFS+NUM_RX_BUFFS); i++) {
 		pDB->pnext = pDBfree;
 		pDBfree = pDB;
-		pDB->vaddr = (u32 *)((unsigned)aup->vaddr + MAX_BUF_SIZE*i);
-		pDB->dma_addr = (dma_addr_t)virt_to_bus(pDB->vaddr);
+		pDB->vaddr = aup->vaddr + MAX_BUF_SIZE * i;
+		pDB->dma_addr = aup->dma_addr + MAX_BUF_SIZE * i;
 		pDB++;
 	}
 	aup->pDBfree = pDBfree;
@@ -1265,17 +1246,16 @@ static int au1000_probe(struct platform_device *pdev)
 		if (!pDB)
 			goto err_out;
 
-		aup->rx_dma_ring[i]->buff_stat = (unsigned)pDB->dma_addr;
+		aup->rx_dma_ring[i]->buff_stat = lower_32_bits(pDB->dma_addr);
 		aup->rx_db_inuse[i] = pDB;
 	}
 
-	err = -ENODEV;
 	for (i = 0; i < NUM_TX_DMA; i++) {
 		pDB = au1000_GetFreeDB(aup);
 		if (!pDB)
 			goto err_out;
 
-		aup->tx_dma_ring[i]->buff_stat = (unsigned)pDB->dma_addr;
+		aup->tx_dma_ring[i]->buff_stat = lower_32_bits(pDB->dma_addr);
 		aup->tx_dma_ring[i]->len = 0;
 		aup->tx_db_inuse[i] = pDB;
 	}
@@ -1301,12 +1281,10 @@ static int au1000_probe(struct platform_device *pdev)
 	netdev_info(dev, "Au1xx0 Ethernet found at 0x%lx, irq %d\n",
 			(unsigned long)base->start, irq);
 
-	pr_info_once("%s version %s %s\n", DRV_NAME, DRV_VERSION, DRV_AUTHOR);
-
 	return 0;
 
 err_out:
-	if (aup->mii_bus != NULL)
+	if (aup->mii_bus)
 		mdiobus_unregister(aup->mii_bus);
 
 	/* here we should have a valid dev plus aup-> register addresses
@@ -1331,9 +1309,8 @@ err_remap3:
 err_remap2:
 	iounmap(aup->mac);
 err_remap1:
-	dma_free_attrs(&pdev->dev, MAX_BUF_SIZE * (NUM_TX_BUFFS + NUM_RX_BUFFS),
-			(void *)aup->vaddr, aup->dma_addr,
-			DMA_ATTR_NON_CONSISTENT);
+	dma_free_coherent(&pdev->dev, MAX_BUF_SIZE * (NUM_TX_BUFFS + NUM_RX_BUFFS),
+			  aup->vaddr, aup->dma_addr);
 err_vaddr:
 	free_netdev(dev);
 err_alloc:
@@ -1346,7 +1323,7 @@ out:
 	return err;
 }
 
-static int au1000_remove(struct platform_device *pdev)
+static void au1000_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	struct au1000_private *aup = netdev_priv(dev);
@@ -1365,9 +1342,8 @@ static int au1000_remove(struct platform_device *pdev)
 		if (aup->tx_db_inuse[i])
 			au1000_ReleaseDB(aup, aup->tx_db_inuse[i]);
 
-	dma_free_attrs(&pdev->dev, MAX_BUF_SIZE * (NUM_TX_BUFFS + NUM_RX_BUFFS),
-			(void *)aup->vaddr, aup->dma_addr,
-			DMA_ATTR_NON_CONSISTENT);
+	dma_free_coherent(&pdev->dev, MAX_BUF_SIZE * (NUM_TX_BUFFS + NUM_RX_BUFFS),
+			  aup->vaddr, aup->dma_addr);
 
 	iounmap(aup->macdma);
 	iounmap(aup->mac);
@@ -1383,13 +1359,11 @@ static int au1000_remove(struct platform_device *pdev)
 	release_mem_region(macen->start, resource_size(macen));
 
 	free_netdev(dev);
-
-	return 0;
 }
 
 static struct platform_driver au1000_eth_driver = {
 	.probe  = au1000_probe,
-	.remove = au1000_remove,
+	.remove_new = au1000_remove,
 	.driver = {
 		.name   = "au1000-eth",
 	},

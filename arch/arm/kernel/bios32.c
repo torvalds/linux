@@ -142,15 +142,15 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_WINBOND2, PCI_DEVICE_ID_WINBOND2_89C940F,
  */
 static void pci_fixup_dec21285(struct pci_dev *dev)
 {
-	int i;
-
 	if (dev->devfn == 0) {
+		struct resource *r;
+
 		dev->class &= 0xff;
 		dev->class |= PCI_CLASS_BRIDGE_HOST << 8;
-		for (i = 0; i < PCI_NUM_RESOURCES; i++) {
-			dev->resource[i].start = 0;
-			dev->resource[i].end   = 0;
-			dev->resource[i].flags = 0;
+		pci_dev_for_each_resource(dev, r) {
+			r->start = 0;
+			r->end = 0;
+			r->flags = 0;
 		}
 	}
 }
@@ -162,13 +162,11 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_DEC, PCI_DEVICE_ID_DEC_21285, pci_fixup_d
 static void pci_fixup_ide_bases(struct pci_dev *dev)
 {
 	struct resource *r;
-	int i;
 
 	if ((dev->class >> 8) != PCI_CLASS_STORAGE_IDE)
 		return;
 
-	for (i = 0; i < PCI_NUM_RESOURCES; i++) {
-		r = dev->resource + i;
+	pci_dev_for_each_resource(dev, r) {
 		if ((r->start & ~0x80) == 0x374) {
 			r->start |= 2;
 			r->end = r->start;
@@ -251,23 +249,6 @@ static void pci_fixup_cy82c693(struct pci_dev *dev)
 	}
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_CONTAQ, PCI_DEVICE_ID_CONTAQ_82C693, pci_fixup_cy82c693);
-
-static void pci_fixup_it8152(struct pci_dev *dev)
-{
-	int i;
-	/* fixup for ITE 8152 devices */
-	/* FIXME: add defines for class 0x68000 and 0x80103 */
-	if ((dev->class >> 8) == PCI_CLASS_BRIDGE_HOST ||
-	    dev->class == 0x68000 ||
-	    dev->class == 0x80103) {
-		for (i = 0; i < PCI_NUM_RESOURCES; i++) {
-			dev->resource[i].start = 0;
-			dev->resource[i].end   = 0;
-			dev->resource[i].flags = 0;
-		}
-	}
-}
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_ITE, PCI_DEVICE_ID_ITE_8152, pci_fixup_it8152);
 
 /*
  * If the bus contains any of these devices, then we must not turn on
@@ -411,8 +392,7 @@ static int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	return irq;
 }
 
-static int pcibios_init_resource(int busnr, struct pci_sys_data *sys,
-				 int io_optional)
+static int pcibios_init_resource(int busnr, struct pci_sys_data *sys)
 {
 	int ret;
 	struct resource_entry *window;
@@ -421,14 +401,6 @@ static int pcibios_init_resource(int busnr, struct pci_sys_data *sys,
 		pci_add_resource_offset(&sys->resources,
 			 &iomem_resource, sys->mem_offset);
 	}
-
-	/*
-	 * If a platform says I/O port support is optional, we don't add
-	 * the default I/O space.  The platform is responsible for adding
-	 * any I/O space it needs.
-	 */
-	if (io_optional)
-		return 0;
 
 	resource_list_for_each_entry(window, &sys->resources)
 		if (resource_type(window->res) == IORESOURCE_IO)
@@ -479,7 +451,7 @@ static void pcibios_init_hw(struct device *parent, struct hw_pci *hw,
 
 		if (ret > 0) {
 
-			ret = pcibios_init_resource(nr, sys, hw->io_optional);
+			ret = pcibios_init_resource(nr, sys);
 			if (ret)  {
 				pci_free_host_bridge(bridge);
 				break;
@@ -497,9 +469,6 @@ static void pcibios_init_hw(struct device *parent, struct hw_pci *hw,
 				bridge->sysdata = sys;
 				bridge->busnr = sys->busnr;
 				bridge->ops = hw->ops;
-				bridge->msi = hw->msi_ctrl;
-				bridge->align_resource =
-						hw->align_resource;
 
 				ret = pci_scan_root_bus_bridge(bridge);
 			}

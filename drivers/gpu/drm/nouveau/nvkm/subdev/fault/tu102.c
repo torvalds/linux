@@ -22,18 +22,30 @@
 #include "priv.h"
 
 #include <core/memory.h>
+#include <subdev/gsp.h>
+#include <subdev/mc.h>
 #include <subdev/mmu.h>
+#include <subdev/vfn.h>
 #include <engine/fifo.h>
 
 #include <nvif/class.h>
 
+static irqreturn_t
+tu102_fault_buffer_notify(struct nvkm_inth *inth)
+{
+	struct nvkm_fault_buffer *buffer = container_of(inth, typeof(*buffer), inth);
+
+	nvkm_event_ntfy(&buffer->fault->event, buffer->id, NVKM_FAULT_BUFFER_EVENT_PENDING);
+	return IRQ_HANDLED;
+}
+
 static void
 tu102_fault_buffer_intr(struct nvkm_fault_buffer *buffer, bool enable)
 {
-	/*XXX: Earlier versions of RM touched the old regs on Turing,
-	 *     which don't appear to actually work anymore, but newer
-	 *     versions of RM don't appear to touch anything at all..
-	 */
+	if (enable)
+		nvkm_inth_allow(&buffer->inth);
+	else
+		nvkm_inth_block(&buffer->inth);
 }
 
 static void
@@ -41,6 +53,7 @@ tu102_fault_buffer_fini(struct nvkm_fault_buffer *buffer)
 {
 	struct nvkm_device *device = buffer->fault->subdev.device;
 	const u32 foff = buffer->id * 0x20;
+
 	nvkm_mask(device, 0xb83010 + foff, 0x80000000, 0x00000000);
 }
 
@@ -69,9 +82,10 @@ tu102_fault_buffer_info(struct nvkm_fault_buffer *buffer)
 	buffer->put = 0xb8300c + foff;
 }
 
-static void
-tu102_fault_intr_fault(struct nvkm_fault *fault)
+static irqreturn_t
+tu102_fault_info_fault(struct nvkm_inth *inth)
 {
+	struct nvkm_fault *fault = container_of(inth, typeof(*fault), info_fault);
 	struct nvkm_subdev *subdev = &fault->subdev;
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_fault_data info;
@@ -93,67 +107,65 @@ tu102_fault_intr_fault(struct nvkm_fault *fault)
 	info.reason = (info1 & 0x0000001f);
 
 	nvkm_fifo_fault(device->fifo, &info);
-}
 
-static void
-tu102_fault_intr(struct nvkm_fault *fault)
-{
-	struct nvkm_subdev *subdev = &fault->subdev;
-	struct nvkm_device *device = subdev->device;
-	u32 stat = nvkm_rd32(device, 0xb83094);
-
-	if (stat & 0x80000000) {
-		tu102_fault_intr_fault(fault);
-		nvkm_wr32(device, 0xb83094, 0x80000000);
-		stat &= ~0x80000000;
-	}
-
-	if (stat & 0x00000200) {
-		if (fault->buffer[0]) {
-			nvkm_event_send(&fault->event, 1, 0, NULL, 0);
-			stat &= ~0x00000200;
-		}
-	}
-
-	/*XXX: guess, can't confirm until we get fw... */
-	if (stat & 0x00000100) {
-		if (fault->buffer[1]) {
-			nvkm_event_send(&fault->event, 1, 1, NULL, 0);
-			stat &= ~0x00000100;
-		}
-	}
-
-	if (stat) {
-		nvkm_debug(subdev, "intr %08x\n", stat);
-	}
+	nvkm_wr32(device, 0xb83094, 0x80000000);
+	return IRQ_HANDLED;
 }
 
 static void
 tu102_fault_fini(struct nvkm_fault *fault)
 {
-	nvkm_notify_put(&fault->nrpfb);
+	nvkm_event_ntfy_block(&fault->nrpfb);
+	flush_work(&fault->nrpfb_work);
+
 	if (fault->buffer[0])
 		fault->func->buffer.fini(fault->buffer[0]);
-	/*XXX: disable priv faults */
+
+	nvkm_inth_block(&fault->info_fault);
 }
 
 static void
 tu102_fault_init(struct nvkm_fault *fault)
 {
-	/*XXX: enable priv faults */
+	nvkm_inth_allow(&fault->info_fault);
+
 	fault->func->buffer.init(fault->buffer[0]);
-	nvkm_notify_get(&fault->nrpfb);
+	nvkm_event_ntfy_allow(&fault->nrpfb);
+}
+
+static int
+tu102_fault_oneinit(struct nvkm_fault *fault)
+{
+	struct nvkm_device *device = fault->subdev.device;
+	struct nvkm_intr *intr = &device->vfn->intr;
+	int ret, i;
+
+	ret = nvkm_inth_add(intr, nvkm_rd32(device, 0x100ee0) & 0x0000ffff,
+			    NVKM_INTR_PRIO_NORMAL, &fault->subdev, tu102_fault_info_fault,
+			    &fault->info_fault);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < fault->buffer_nr; i++) {
+		ret = nvkm_inth_add(intr, nvkm_rd32(device, 0x100ee4 + (i * 4)) >> 16,
+				    NVKM_INTR_PRIO_NORMAL, &fault->subdev,
+				    tu102_fault_buffer_notify, &fault->buffer[i]->inth);
+		if (ret)
+			return ret;
+	}
+
+	return gv100_fault_oneinit(fault);
 }
 
 static const struct nvkm_fault_func
 tu102_fault = {
-	.oneinit = gv100_fault_oneinit,
+	.oneinit = tu102_fault_oneinit,
 	.init = tu102_fault_init,
 	.fini = tu102_fault_fini,
-	.intr = tu102_fault_intr,
 	.buffer.nr = 2,
 	.buffer.entry_size = 32,
 	.buffer.info = tu102_fault_buffer_info,
+	.buffer.pin = gp100_fault_buffer_pin,
 	.buffer.init = tu102_fault_buffer_init,
 	.buffer.fini = tu102_fault_buffer_fini,
 	.buffer.intr = tu102_fault_buffer_intr,
@@ -161,8 +173,18 @@ tu102_fault = {
 };
 
 int
-tu102_fault_new(struct nvkm_device *device, int index,
+tu102_fault_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 		struct nvkm_fault **pfault)
 {
-	return nvkm_fault_new_(&tu102_fault, device, index, pfault);
+	int ret;
+
+	if (nvkm_gsp_rm(device->gsp))
+		return -ENODEV;
+
+	ret = nvkm_fault_new_(&tu102_fault, device, type, inst, pfault);
+	if (ret)
+		return ret;
+
+	INIT_WORK(&(*pfault)->nrpfb_work, gv100_fault_buffer_process);
+	return 0;
 }

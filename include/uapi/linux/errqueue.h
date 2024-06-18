@@ -5,6 +5,13 @@
 #include <linux/types.h>
 #include <linux/time_types.h>
 
+/* RFC 4884: return offset to extension struct + validation */
+struct sock_ee_data_rfc4884 {
+	__u16	len;
+	__u8	flags;
+	__u8	reserved;
+};
+
 struct sock_extended_err {
 	__u32	ee_errno;	
 	__u8	ee_origin;
@@ -12,7 +19,10 @@ struct sock_extended_err {
 	__u8	ee_code;
 	__u8	ee_pad;
 	__u32   ee_info;
-	__u32   ee_data;
+	union	{
+		__u32   ee_data;
+		struct sock_ee_data_rfc4884 ee_rfc4884;
+	};
 };
 
 #define SO_EE_ORIGIN_NONE	0
@@ -31,15 +41,24 @@ struct sock_extended_err {
 #define SO_EE_CODE_TXTIME_INVALID_PARAM	1
 #define SO_EE_CODE_TXTIME_MISSED	2
 
+#define SO_EE_RFC4884_FLAG_INVALID	1
+
 /**
  *	struct scm_timestamping - timestamps exposed through cmsg
  *
  *	The timestamping interfaces SO_TIMESTAMPING, MSG_TSTAMP_*
  *	communicate network timestamps by passing this struct in a cmsg with
- *	recvmsg(). See Documentation/networking/timestamping.txt for details.
+ *	recvmsg(). See Documentation/networking/timestamping.rst for details.
+ *	User space sees a timespec definition that matches either
+ *	__kernel_timespec or __kernel_old_timespec, in the kernel we
+ *	require two structure definitions to provide both.
  */
 struct scm_timestamping {
+#ifdef __KERNEL__
+	struct __kernel_old_timespec ts[3];
+#else
 	struct timespec ts[3];
+#endif
 };
 
 struct scm_timestamping64 {

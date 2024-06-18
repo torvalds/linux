@@ -161,7 +161,7 @@ static irqreturn_t st_uvis25_trigger_handler_thread(int irq, void *private)
 	if (!(status & ST_UVIS25_REG_UV_DA_MASK))
 		return IRQ_NONE;
 
-	iio_trigger_poll_chained(hw->trig);
+	iio_trigger_poll_nested(hw->trig);
 
 	return IRQ_HANDLED;
 }
@@ -210,7 +210,6 @@ static int st_uvis25_allocate_trigger(struct iio_dev *iio_dev)
 		return -ENOMEM;
 
 	iio_trigger_set_drvdata(hw->trig, iio_dev);
-	hw->trig->dev.parent = dev;
 
 	return devm_iio_trigger_register(dev, hw->trig);
 }
@@ -227,24 +226,24 @@ static int st_uvis25_buffer_postdisable(struct iio_dev *iio_dev)
 
 static const struct iio_buffer_setup_ops st_uvis25_buffer_ops = {
 	.preenable = st_uvis25_buffer_preenable,
-	.postenable = iio_triggered_buffer_postenable,
-	.predisable = iio_triggered_buffer_predisable,
 	.postdisable = st_uvis25_buffer_postdisable,
 };
 
 static irqreturn_t st_uvis25_buffer_handler_thread(int irq, void *p)
 {
-	u8 buffer[ALIGN(sizeof(u8), sizeof(s64)) + sizeof(s64)];
 	struct iio_poll_func *pf = p;
 	struct iio_dev *iio_dev = pf->indio_dev;
 	struct st_uvis25_hw *hw = iio_priv(iio_dev);
+	unsigned int val;
 	int err;
 
-	err = regmap_read(hw->regmap, ST_UVIS25_REG_OUT_ADDR, (int *)buffer);
+	err = regmap_read(hw->regmap, ST_UVIS25_REG_OUT_ADDR, &val);
 	if (err < 0)
 		goto out;
 
-	iio_push_to_buffers_with_timestamp(iio_dev, buffer,
+	hw->scan.chan = val;
+
+	iio_push_to_buffers_with_timestamp(iio_dev, &hw->scan,
 					   iio_get_time_ns(iio_dev));
 
 out:
@@ -292,7 +291,7 @@ int st_uvis25_probe(struct device *dev, int irq, struct regmap *regmap)
 	if (!iio_dev)
 		return -ENOMEM;
 
-	dev_set_drvdata(dev, (void *)iio_dev);
+	dev_set_drvdata(dev, iio_dev);
 
 	hw = iio_priv(iio_dev);
 	hw->irq = irq;
@@ -303,7 +302,6 @@ int st_uvis25_probe(struct device *dev, int irq, struct regmap *regmap)
 		return err;
 
 	iio_dev->modes = INDIO_DIRECT_MODE;
-	iio_dev->dev.parent = dev;
 	iio_dev->channels = st_uvis25_channels;
 	iio_dev->num_channels = ARRAY_SIZE(st_uvis25_channels);
 	iio_dev->name = ST_UVIS25_DEV_NAME;
@@ -325,9 +323,9 @@ int st_uvis25_probe(struct device *dev, int irq, struct regmap *regmap)
 
 	return devm_iio_device_register(dev, iio_dev);
 }
-EXPORT_SYMBOL(st_uvis25_probe);
+EXPORT_SYMBOL_NS(st_uvis25_probe, IIO_UVIS25);
 
-static int __maybe_unused st_uvis25_suspend(struct device *dev)
+static int st_uvis25_suspend(struct device *dev)
 {
 	struct iio_dev *iio_dev = dev_get_drvdata(dev);
 	struct st_uvis25_hw *hw = iio_priv(iio_dev);
@@ -336,7 +334,7 @@ static int __maybe_unused st_uvis25_suspend(struct device *dev)
 				  ST_UVIS25_REG_ODR_MASK, 0);
 }
 
-static int __maybe_unused st_uvis25_resume(struct device *dev)
+static int st_uvis25_resume(struct device *dev)
 {
 	struct iio_dev *iio_dev = dev_get_drvdata(dev);
 	struct st_uvis25_hw *hw = iio_priv(iio_dev);
@@ -348,10 +346,7 @@ static int __maybe_unused st_uvis25_resume(struct device *dev)
 	return 0;
 }
 
-const struct dev_pm_ops st_uvis25_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(st_uvis25_suspend, st_uvis25_resume)
-};
-EXPORT_SYMBOL(st_uvis25_pm_ops);
+EXPORT_NS_SIMPLE_DEV_PM_OPS(st_uvis25_pm_ops, st_uvis25_suspend, st_uvis25_resume, IIO_UVIS25);
 
 MODULE_AUTHOR("Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>");
 MODULE_DESCRIPTION("STMicroelectronics uvis25 sensor driver");

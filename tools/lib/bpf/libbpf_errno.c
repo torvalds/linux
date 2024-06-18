@@ -12,6 +12,10 @@
 #include <string.h>
 
 #include "libbpf.h"
+#include "libbpf_internal.h"
+
+/* make sure libbpf doesn't use kernel-only integer typedefs */
+#pragma GCC poison u8 u16 u32 u64 s8 s16 s32 s64
 
 #define ERRNO_OFFSET(e)		((e) - __LIBBPF_ERRNO__START)
 #define ERRCODE_OFFSET(c)	ERRNO_OFFSET(LIBBPF_ERRNO__##c)
@@ -35,29 +39,37 @@ static const char *libbpf_strerror_table[NR_ERRNO] = {
 
 int libbpf_strerror(int err, char *buf, size_t size)
 {
+	int ret;
+
 	if (!buf || !size)
-		return -1;
+		return libbpf_err(-EINVAL);
 
 	err = err > 0 ? err : -err;
 
 	if (err < __LIBBPF_ERRNO__START) {
-		int ret;
-
 		ret = strerror_r(err, buf, size);
 		buf[size - 1] = '\0';
-		return ret;
+		return libbpf_err_errno(ret);
 	}
 
 	if (err < __LIBBPF_ERRNO__END) {
 		const char *msg;
 
 		msg = libbpf_strerror_table[ERRNO_OFFSET(err)];
-		snprintf(buf, size, "%s", msg);
+		ret = snprintf(buf, size, "%s", msg);
 		buf[size - 1] = '\0';
+		/* The length of the buf and msg is positive.
+		 * A negative number may be returned only when the
+		 * size exceeds INT_MAX. Not likely to appear.
+		 */
+		if (ret >= size)
+			return libbpf_err(-ERANGE);
 		return 0;
 	}
 
-	snprintf(buf, size, "Unknown libbpf error %d", err);
+	ret = snprintf(buf, size, "Unknown libbpf error %d", err);
 	buf[size - 1] = '\0';
-	return -1;
+	if (ret >= size)
+		return libbpf_err(-ERANGE);
+	return libbpf_err(-ENOENT);
 }

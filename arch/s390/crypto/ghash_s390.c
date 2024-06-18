@@ -43,10 +43,8 @@ static int ghash_setkey(struct crypto_shash *tfm,
 {
 	struct ghash_ctx *ctx = crypto_shash_ctx(tfm);
 
-	if (keylen != GHASH_BLOCK_SIZE) {
-		crypto_shash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (keylen != GHASH_BLOCK_SIZE)
 		return -EINVAL;
-	}
 
 	memcpy(ctx->key, key, GHASH_BLOCK_SIZE);
 
@@ -147,7 +145,7 @@ static void __exit ghash_mod_exit(void)
 	crypto_unregister_shash(&ghash_alg);
 }
 
-module_cpu_feature_match(MSA, ghash_mod_init);
+module_cpu_feature_match(S390_CPU_FEATURE_MSA, ghash_mod_init);
 module_exit(ghash_mod_exit);
 
 MODULE_ALIAS_CRYPTO("ghash");

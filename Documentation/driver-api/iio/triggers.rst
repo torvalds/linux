@@ -2,11 +2,9 @@
 Triggers
 ========
 
-* struct :c:type:`iio_trigger` — industrial I/O trigger device
+* struct iio_trigger — industrial I/O trigger device
 * :c:func:`devm_iio_trigger_alloc` — Resource-managed iio_trigger_alloc
-* :c:func:`devm_iio_trigger_free` — Resource-managed iio_trigger_free
 * :c:func:`devm_iio_trigger_register` — Resource-managed iio_trigger_register
-* :c:func:`devm_iio_trigger_unregister` — Resource-managed
   iio_trigger_unregister
 * :c:func:`iio_trigger_validate_own_device` — Check if a trigger and IIO
   device belong to the same device
@@ -65,7 +63,7 @@ Let's see a simple example of how to setup a trigger to be used by a driver::
 IIO trigger ops
 ===============
 
-* struct :c:type:`iio_trigger_ops` — operations structure for an iio_trigger.
+* struct iio_trigger_ops — operations structure for an iio_trigger.
 
 Notice that a trigger has a set of operations attached:
 

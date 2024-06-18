@@ -3,7 +3,7 @@
  *
  * Module Name: psobject - Support for parse objects
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2023, Intel Corp.
  *
  *****************************************************************************/
 
@@ -481,8 +481,7 @@ acpi_ps_complete_op(struct acpi_walk_state *walk_state,
 			walk_state->opcode = (*op)->common.aml_opcode;
 
 			status = walk_state->ascending_callback(walk_state);
-			status =
-			    acpi_ps_next_parse_state(walk_state, *op, status);
+			(void)acpi_ps_next_parse_state(walk_state, *op, status);
 
 			status2 = acpi_ps_complete_this_op(walk_state, *op);
 			if (ACPI_FAILURE(status2)) {
@@ -490,7 +489,6 @@ acpi_ps_complete_op(struct acpi_walk_state *walk_state,
 			}
 		}
 
-		status = AE_OK;
 		break;
 
 	case AE_CTRL_BREAK:
@@ -512,14 +510,13 @@ acpi_ps_complete_op(struct acpi_walk_state *walk_state,
 		walk_state->opcode = (*op)->common.aml_opcode;
 
 		status = walk_state->ascending_callback(walk_state);
-		status = acpi_ps_next_parse_state(walk_state, *op, status);
+		(void)acpi_ps_next_parse_state(walk_state, *op, status);
 
 		status2 = acpi_ps_complete_this_op(walk_state, *op);
 		if (ACPI_FAILURE(status2)) {
 			return_ACPI_STATUS(status2);
 		}
 
-		status = AE_OK;
 		break;
 
 	case AE_CTRL_TERMINATE:

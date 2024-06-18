@@ -181,7 +181,7 @@ static int ax25_process_rx_frame(ax25_cb *ax25, struct sk_buff *skb, int type, i
 }
 
 static int ax25_rcv(struct sk_buff *skb, struct net_device *dev,
-	ax25_address *dev_addr, struct packet_type *ptype)
+		    const ax25_address *dev_addr, struct packet_type *ptype)
 {
 	ax25_address src, dest, *next_digi = NULL;
 	int type = 0, mine = 0, dama;
@@ -356,7 +356,7 @@ static int ax25_rcv(struct sk_buff *skb, struct net_device *dev,
 
 		make->sk_state = TCP_ESTABLISHED;
 
-		sk->sk_ack_backlog++;
+		sk_acceptq_added(sk);
 		bh_unlock_sock(sk);
 	} else {
 		if (!mine)
@@ -447,5 +447,5 @@ int ax25_kiss_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	skb_pull(skb, AX25_KISS_HEADER_LEN);	/* Remove the KISS byte */
 
-	return ax25_rcv(skb, dev, (ax25_address *)dev->dev_addr, ptype);
+	return ax25_rcv(skb, dev, (const ax25_address *)dev->dev_addr, ptype);
 }

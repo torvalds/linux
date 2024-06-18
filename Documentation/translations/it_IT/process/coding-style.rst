@@ -62,7 +62,7 @@ i ``case``.  Un esempio.:
 	case 'K':
 	case 'k':
 		mem <<= 10;
-		/* fall through */
+		fallthrough;
 	default:
 		break;
 	}
@@ -75,8 +75,25 @@ stessa riga:
 	if (condition) do_this;
 	  do_something_everytime;
 
-né mettete più assegnamenti sulla stessa riga.  Lo stile del kernel
+Non usate le virgole per evitare le parentesi:
+
+.. code-block:: c
+
+	if (condition)
+               do_this(), do_that();
+
+Invece, usate sempre le parentesi per racchiudere più istruzioni.
+
+.. code-block:: c
+
+	if (condition) {
+               do_this();
+               do_that();
+       }
+
+Non mettete nemmeno più assegnamenti sulla stessa riga.  Lo stile del kernel
 è ultrasemplice.  Evitate espressioni intricate.
+
 
 Al di fuori dei commenti, della documentazione ed escludendo i Kconfig, gli
 spazi non vengono mai usati per l'indentazione, e l'esempio qui sopra è
@@ -92,16 +109,22 @@ delle righe.
 Lo stile del codice riguarda la leggibilità e la manutenibilità utilizzando
 strumenti comuni.
 
-Il limite delle righe è di 80 colonne e questo e un limite fortemente
-desiderato.
+Come limite di riga si preferiscono le 80 colonne.
 
-Espressioni più lunghe di 80 colonne saranno spezzettate in pezzi più piccoli,
-a meno che eccedere le 80 colonne non aiuti ad aumentare la leggibilità senza
-nascondere informazioni.  I pezzi derivati sono sostanzialmente più corti degli
-originali e vengono posizionati più a destra.  Lo stesso si applica, nei file
-d'intestazione, alle funzioni con una lista di argomenti molto lunga. Tuttavia,
-non spezzettate mai le stringhe visibili agli utenti come i messaggi di
-printk, questo perché inibireste la possibilità d'utilizzare grep per cercarle.
+Espressioni più lunghe di 80 colonne dovrebbero essere spezzettate in
+pezzi più piccoli, a meno che eccedere le 80 colonne non aiuti ad
+aumentare la leggibilità senza nascondere informazioni.
+
+I nuovi pezzi derivati sono sostanzialmente più corti degli originali
+e vengono posizionati più a destra. Uno stile molto comune è quello di
+allineare i nuovi pezzi alla parentesi aperta di una funzione.
+
+Lo stesso si applica, nei file d'intestazione, alle funzioni con una
+lista di argomenti molto lunga.
+
+Tuttavia, non spezzettate mai le stringhe visibili agli utenti come i
+messaggi di printk, questo perché inibireste la possibilità
+d'utilizzare grep per cercarle.
 
 3) Posizionamento di parentesi graffe e spazi
 ---------------------------------------------
@@ -191,7 +214,7 @@ Non usate inutilmente le graffe dove una singola espressione è sufficiente.
 
 e
 
-.. code-block:: none
+.. code-block:: c
 
 	if (condition)
 		do_this();
@@ -313,9 +336,8 @@ che conta gli utenti attivi, dovreste chiamarla ``count_active_users()`` o
 qualcosa di simile, **non** dovreste chiamarla ``cntusr()``.
 
 Codificare il tipo di funzione nel suo nome (quella cosa chiamata notazione
-ungherese) fa male al cervello - il compilatore conosce comunque il tipo e
-può verificarli, e inoltre confonde i programmatori.  Non c'è da
-sorprendersi che MicroSoft faccia programmi bacati.
+ungherese) è stupido - il compilatore conosce comunque il tipo e
+può verificarli, e inoltre confonde i programmatori.
 
 Le variabili LOCALI dovrebbero avere nomi corti, e significativi.  Se avete
 un qualsiasi contatore di ciclo, probabilmente sarà chiamato ``i``.
@@ -444,13 +466,51 @@ la riga della parentesi graffa di chiusura. Ad esempio:
 	}
 	EXPORT_SYMBOL(system_is_up);
 
+6.1) Prototipi di funzione
+**************************
+
 Nei prototipi di funzione, includete i nomi dei parametri e i loro tipi.
 Nonostante questo non sia richiesto dal linguaggio C, in Linux viene preferito
 perché è un modo semplice per aggiungere informazioni importanti per il
 lettore.
 
-Non usate la parola chiave ``extern`` coi prototipi di funzione perché
+Non usate la parola chiave ``extern`` con le dichiarazioni di funzione perché
 rende le righe più lunghe e non è strettamente necessario.
+
+Quando scrivete i prototipi di funzione mantenete `l'ordine degli elementi <https://lore.kernel.org/mm-commits/CAHk-=wiOCLRny5aifWNhr621kYrJwhfURsa0vFPeUEm8mF0ufg@mail.gmail.com/>`_.
+
+Prendiamo questa dichiarazione di funzione come esempio::
+
+ __init void * __must_check action(enum magic value, size_t size, u8 count,
+                                  char *fmt, ...) __printf(4, 5) __malloc;
+
+L'ordine suggerito per gli elementi di un prototipo di funzione è il seguente:
+
+- classe d'archiviazione (in questo caso ``static __always_inline``. Da notare
+  che ``__always_inline`` è tecnicamente un attributo ma che viene trattato come
+  ``inline``)
+- attributi della classe di archiviazione (in questo caso ``__init``, in altre
+  parole la sezione, ma anche cose tipo ``__cold``)
+- il tipo di ritorno (in questo caso, ``void *``)
+- attributi per il valore di ritorno (in questo caso, ``__must_check``)
+- il nome della funzione (in questo caso, ``action``)
+- i parametri della funzione(in questo caso,
+  ``(enum magic value, size_t size, u8 count, char *fmt, ...)``,
+  da notare che va messo anche il nome del parametro)
+- attributi dei parametri (in questo caso, ``__printf(4, 5)``)
+- attributi per il comportamento della funzione (in questo caso, ``__malloc_``)
+
+Notate che per la **definizione** di una funzione (il altre parole il corpo
+della funzione), il compilatore non permette di usare gli attributi per i
+parametri dopo i parametri. In questi casi, devono essere messi dopo gli
+attributi della classe d'archiviazione (notate che la posizione di
+``__printf(4,5)`` cambia rispetto alla **dichiarazione**)::
+
+ static __always_inline __init __printf(4, 5) void * __must_check action(enum magic value,
+              size_t size, u8 count, char *fmt, ...) __malloc
+ {
+         ...
+ }*)**``)**``)``)``*)``)``)``)``*``)``)``)*)
 
 7) Centralizzare il ritorno delle funzioni
 ------------------------------------------
@@ -515,9 +575,9 @@ due parti ``err_free_bar:`` e ``err_free_foo:``:
 
 .. code-block:: c
 
-	 err_free_bar:
+	err_free_bar:
 		kfree(foo->bar);
-	 err_free_foo:
+	err_free_foo:
 		kfree(foo);
 		return ret;
 
@@ -592,7 +652,7 @@ Quindi, potete sbarazzarvi di GNU emacs, o riconfigurarlo con valori più
 sensati.  Per fare quest'ultima cosa, potete appiccicare il codice che
 segue nel vostro file .emacs:
 
-.. code-block:: none
+.. code-block:: elisp
 
   (defun c-lineup-arglist-tabs-only (ignored)
     "Line up argument lists by tabs, not spaces"
@@ -611,7 +671,7 @@ segue nel vostro file .emacs:
           (c-offsets-alist . (
                   (arglist-close         . c-lineup-arglist-tabs-only)
                   (arglist-cont-nonempty .
-		      (c-lineup-gcc-asm-reg c-lineup-arglist-tabs-only))
+                      (c-lineup-gcc-asm-reg c-lineup-arglist-tabs-only))
                   (arglist-intro         . +)
                   (brace-list-intro      . +)
                   (c                     . c-lineup-C-comments)
@@ -668,6 +728,10 @@ il testo e altre cose simili.
 Per maggiori dettagli, consultate il file
 :ref:`Documentation/translations/it_IT/process/clang-format.rst <it_clangformat>`.
 
+Se utilizzate un programma compatibile con EditorConfig, allora alcune
+configurazioni basilari come l'indentazione e la fine delle righe verranno
+applicate automaticamente. Per maggiori informazioni consultate la pagina:
+https://editorconfig.org/
 
 10) File di configurazione Kconfig
 ----------------------------------
@@ -825,20 +889,22 @@ linguaggio assembler.
 
 Agli sviluppatori del kernel piace essere visti come dotti. Tenete un occhio
 di riguardo per l'ortografia e farete una belle figura. In inglese, evitate
-l'uso di parole mozzate come ``dont``: usate ``do not`` oppure ``don't``.
-Scrivete messaggi concisi, chiari, e inequivocabili.
+l'uso incorretto di abbreviazioni come ``dont``: usate ``do not`` oppure
+``don't``.  Scrivete messaggi concisi, chiari, e inequivocabili.
 
 I messaggi del kernel non devono terminare con un punto fermo.
 
 Scrivere i numeri fra parentesi (%d) non migliora alcunché e per questo
 dovrebbero essere evitati.
 
-Ci sono alcune macro per la diagnostica in <linux/device.h> che dovreste
+Ci sono alcune macro per la diagnostica in <linux/dev_printk.h> che dovreste
 usare per assicurarvi che i messaggi vengano associati correttamente ai
 dispositivi e ai driver, e che siano etichettati correttamente:  dev_err(),
 dev_warn(), dev_info(), e così via.  Per messaggi che non sono associati ad
 alcun dispositivo, <linux/printk.h> definisce pr_info(), pr_warn(), pr_err(),
-eccetera.
+eccetera. Quando tutto funziona correttamente, non dovrebbero esserci stampe,
+per cui preferite dev_dbg/pr_debug a meno che non sia qualcosa di sbagliato
+da segnalare.
 
 Tirar fuori un buon messaggio di debug può essere una vera sfida; e quando
 l'avete può essere d'enorme aiuto per risolvere problemi da remoto.
@@ -1005,7 +1071,7 @@ struttura, usate
 
 .. code-block:: c
 
-	#define FIELD_SIZEOF(t, f) (sizeof(((t*)0)->f))
+	#define sizeof_field(t, f) (sizeof(((t*)0)->f))
 
 Ci sono anche le macro min() e max() che, se vi serve, effettuano un controllo
 rigido sui tipi.  Sentitevi liberi di leggere attentamente questo file
@@ -1097,7 +1163,7 @@ la direttiva condizionale su di esse.
 
 Se avete una variabile o funzione che potrebbe non essere usata in alcune
 configurazioni, e quindi il compilatore potrebbe avvisarvi circa la definizione
-inutilizzata, marcate questa definizione come __maybe_used piuttosto che
+inutilizzata, marcate questa definizione come __maybe_unused piuttosto che
 racchiuderla in una direttiva condizionale del preprocessore.  (Comunque,
 se una variabile o funzione è *sempre* inutilizzata, rimuovetela).
 
@@ -1144,10 +1210,10 @@ ISBN 0-201-61586-X.
 
 Manuali GNU - nei casi in cui sono compatibili con K&R e questo documento -
 per indent, cpp, gcc e i suoi dettagli interni, tutto disponibile qui
-http://www.gnu.org/manual/
+https://www.gnu.org/manual/
 
 WG14 è il gruppo internazionale di standardizzazione per il linguaggio C,
-URL: http://www.open-std.org/JTC1/SC22/WG14/
+URL: https://www.open-std.org/JTC1/SC22/WG14/
 
-Kernel process/coding-style.rst, by greg@kroah.com at OLS 2002:
+Kernel CodingStyle, by greg@kroah.com at OLS 2002:
 http://www.kroah.com/linux/talks/ols_2002_kernel_codingstyle_talk/html/

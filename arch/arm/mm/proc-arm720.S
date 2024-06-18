@@ -20,11 +20,12 @@
  */
 #include <linux/linkage.h>
 #include <linux/init.h>
+#include <linux/cfi_types.h>
+#include <linux/pgtable.h>
 #include <asm/assembler.h>
 #include <asm/asm-offsets.h>
 #include <asm/hwcap.h>
 #include <asm/pgtable-hwdef.h>
-#include <asm/pgtable.h>
 #include <asm/ptrace.h>
 
 #include "proc-macros.S"
@@ -35,24 +36,30 @@
  *
  * Notes   : This processor does not require these
  */
-ENTRY(cpu_arm720_dcache_clean_area)
-ENTRY(cpu_arm720_proc_init)
+SYM_TYPED_FUNC_START(cpu_arm720_dcache_clean_area)
 		ret	lr
+SYM_FUNC_END(cpu_arm720_dcache_clean_area)
 
-ENTRY(cpu_arm720_proc_fin)
+SYM_TYPED_FUNC_START(cpu_arm720_proc_init)
+		ret	lr
+SYM_FUNC_END(cpu_arm720_proc_init)
+
+SYM_TYPED_FUNC_START(cpu_arm720_proc_fin)
 		mrc	p15, 0, r0, c1, c0, 0
 		bic	r0, r0, #0x1000			@ ...i............
 		bic	r0, r0, #0x000e			@ ............wca.
 		mcr	p15, 0, r0, c1, c0, 0		@ disable caches
 		ret	lr
+SYM_FUNC_END(cpu_arm720_proc_fin)
 
 /*
  * Function: arm720_proc_do_idle(void)
  * Params  : r0 = unused
  * Purpose : put the processor in proper idle mode
  */
-ENTRY(cpu_arm720_do_idle)
+SYM_TYPED_FUNC_START(cpu_arm720_do_idle)
 		ret	lr
+SYM_FUNC_END(cpu_arm720_do_idle)
 
 /*
  * Function: arm720_switch_mm(unsigned long pgd_phys)
@@ -60,7 +67,7 @@ ENTRY(cpu_arm720_do_idle)
  * Purpose : Perform a task switch, saving the old process' state and restoring
  *	     the new.
  */
-ENTRY(cpu_arm720_switch_mm)
+SYM_TYPED_FUNC_START(cpu_arm720_switch_mm)
 #ifdef CONFIG_MMU
 		mov	r1, #0
 		mcr	p15, 0, r1, c7, c7, 0		@ invalidate cache
@@ -68,6 +75,7 @@ ENTRY(cpu_arm720_switch_mm)
 		mcr	p15, 0, r1, c8, c7, 0		@ flush TLB (v4)
 #endif
 		ret	lr
+SYM_FUNC_END(cpu_arm720_switch_mm)
 
 /*
  * Function: arm720_set_pte_ext(pte_t *ptep, pte_t pte, unsigned int ext)
@@ -76,11 +84,12 @@ ENTRY(cpu_arm720_switch_mm)
  * Purpose : Set a PTE and flush it out of any WB cache
  */
 	.align	5
-ENTRY(cpu_arm720_set_pte_ext)
+SYM_TYPED_FUNC_START(cpu_arm720_set_pte_ext)
 #ifdef CONFIG_MMU
 	armv3_set_pte_ext wc_disable=0
 #endif
 	ret	lr
+SYM_FUNC_END(cpu_arm720_set_pte_ext)
 
 /*
  * Function: arm720_reset
@@ -88,7 +97,7 @@ ENTRY(cpu_arm720_set_pte_ext)
  * Notes   : This sets up everything for a reset
  */
 		.pushsection	.idmap.text, "ax"
-ENTRY(cpu_arm720_reset)
+SYM_TYPED_FUNC_START(cpu_arm720_reset)
 		mov	ip, #0
 		mcr	p15, 0, ip, c7, c7, 0		@ invalidate cache
 #ifdef CONFIG_MMU
@@ -99,7 +108,7 @@ ENTRY(cpu_arm720_reset)
 		bic	ip, ip, #0x2100			@ ..v....s........
 		mcr	p15, 0, ip, c1, c0, 0		@ ctrl register
 		ret	r0
-ENDPROC(cpu_arm720_reset)
+SYM_FUNC_END(cpu_arm720_reset)
 		.popsection
 
 	.type	__arm710_setup, #function
@@ -172,7 +181,7 @@ arm720_crval:
  * See <asm/procinfo.h> for a definition of this structure.
  */
 	
-		.section ".proc.info.init", #alloc
+		.section ".proc.info.init", "a"
 
 .macro arm720_proc_info name:req, cpu_val:req, cpu_mask:req, cpu_name:req, cpu_flush:req
 		.type	__\name\()_proc_info,#object

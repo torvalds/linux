@@ -99,9 +99,9 @@ static const struct iio_info ltc2471_info = {
 	.read_raw = ltc2471_read_raw,
 };
 
-static int ltc2471_i2c_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int ltc2471_i2c_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct iio_dev *indio_dev;
 	struct ltc2471_data *data;
 	int ret;
@@ -116,7 +116,6 @@ static int ltc2471_i2c_probe(struct i2c_client *client,
 	data = iio_priv(indio_dev);
 	data->client = client;
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->name = id->name;
 	indio_dev->info = &ltc2471_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -147,7 +146,7 @@ static struct i2c_driver ltc2471_i2c_driver = {
 	.driver = {
 		.name = "ltc2471",
 	},
-	.probe    = ltc2471_i2c_probe,
+	.probe = ltc2471_i2c_probe,
 	.id_table = ltc2471_i2c_id,
 };
 

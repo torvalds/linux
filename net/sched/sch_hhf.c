@@ -5,11 +5,11 @@
  * Copyright (C) 2013 Nandita Dukkipati <nanditad@google.com>
  */
 
-#include <linux/jhash.h>
 #include <linux/jiffies.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/vmalloc.h>
+#include <linux/siphash.h>
 #include <net/pkt_sched.h>
 #include <net/sock.h>
 
@@ -126,7 +126,7 @@ struct wdrr_bucket {
 
 struct hhf_sched_data {
 	struct wdrr_bucket buckets[WDRR_BUCKET_CNT];
-	u32		   perturbation;   /* hash perturbation */
+	siphash_key_t	   perturbation;   /* hash perturbation */
 	u32		   quantum;        /* psched_mtu(qdisc_dev(sch)); */
 	u32		   drop_overlimit; /* number of times max qdisc packet
 					    * limit was hit
@@ -264,7 +264,7 @@ static enum wdrr_bucket_idx hhf_classify(struct sk_buff *skb, struct Qdisc *sch)
 	}
 
 	/* Get hashed flow-id of the skb. */
-	hash = skb_get_hash_perturb(skb, q->perturbation);
+	hash = skb_get_hash_perturb(skb, &q->perturbation);
 
 	/* Check if this packet belongs to an already established HH flow. */
 	flow_pos = hash & HHF_BIT_MASK;
@@ -516,9 +516,6 @@ static int hhf_change(struct Qdisc *sch, struct nlattr *opt,
 	u32 new_quantum = q->quantum;
 	u32 new_hhf_non_hh_weight = q->hhf_non_hh_weight;
 
-	if (!opt)
-		return -EINVAL;
-
 	err = nla_parse_nested_deprecated(tb, TCA_HHF_MAX, opt, hhf_policy,
 					  NULL);
 	if (err < 0)
@@ -537,27 +534,31 @@ static int hhf_change(struct Qdisc *sch, struct nlattr *opt,
 	sch_tree_lock(sch);
 
 	if (tb[TCA_HHF_BACKLOG_LIMIT])
-		sch->limit = nla_get_u32(tb[TCA_HHF_BACKLOG_LIMIT]);
+		WRITE_ONCE(sch->limit, nla_get_u32(tb[TCA_HHF_BACKLOG_LIMIT]));
 
-	q->quantum = new_quantum;
-	q->hhf_non_hh_weight = new_hhf_non_hh_weight;
+	WRITE_ONCE(q->quantum, new_quantum);
+	WRITE_ONCE(q->hhf_non_hh_weight, new_hhf_non_hh_weight);
 
 	if (tb[TCA_HHF_HH_FLOWS_LIMIT])
-		q->hh_flows_limit = nla_get_u32(tb[TCA_HHF_HH_FLOWS_LIMIT]);
+		WRITE_ONCE(q->hh_flows_limit,
+			   nla_get_u32(tb[TCA_HHF_HH_FLOWS_LIMIT]));
 
 	if (tb[TCA_HHF_RESET_TIMEOUT]) {
 		u32 us = nla_get_u32(tb[TCA_HHF_RESET_TIMEOUT]);
 
-		q->hhf_reset_timeout = usecs_to_jiffies(us);
+		WRITE_ONCE(q->hhf_reset_timeout,
+			   usecs_to_jiffies(us));
 	}
 
 	if (tb[TCA_HHF_ADMIT_BYTES])
-		q->hhf_admit_bytes = nla_get_u32(tb[TCA_HHF_ADMIT_BYTES]);
+		WRITE_ONCE(q->hhf_admit_bytes,
+			   nla_get_u32(tb[TCA_HHF_ADMIT_BYTES]));
 
 	if (tb[TCA_HHF_EVICT_TIMEOUT]) {
 		u32 us = nla_get_u32(tb[TCA_HHF_EVICT_TIMEOUT]);
 
-		q->hhf_evict_timeout = usecs_to_jiffies(us);
+		WRITE_ONCE(q->hhf_evict_timeout,
+			   usecs_to_jiffies(us));
 	}
 
 	qlen = sch->q.qlen;
@@ -582,7 +583,7 @@ static int hhf_init(struct Qdisc *sch, struct nlattr *opt,
 
 	sch->limit = 1000;
 	q->quantum = psched_mtu(qdisc_dev(sch));
-	q->perturbation = prandom_u32();
+	get_random_bytes(&q->perturbation, sizeof(q->perturbation));
 	INIT_LIST_HEAD(&q->new_buckets);
 	INIT_LIST_HEAD(&q->old_buckets);
 
@@ -660,15 +661,18 @@ static int hhf_dump(struct Qdisc *sch, struct sk_buff *skb)
 	if (opts == NULL)
 		goto nla_put_failure;
 
-	if (nla_put_u32(skb, TCA_HHF_BACKLOG_LIMIT, sch->limit) ||
-	    nla_put_u32(skb, TCA_HHF_QUANTUM, q->quantum) ||
-	    nla_put_u32(skb, TCA_HHF_HH_FLOWS_LIMIT, q->hh_flows_limit) ||
+	if (nla_put_u32(skb, TCA_HHF_BACKLOG_LIMIT, READ_ONCE(sch->limit)) ||
+	    nla_put_u32(skb, TCA_HHF_QUANTUM, READ_ONCE(q->quantum)) ||
+	    nla_put_u32(skb, TCA_HHF_HH_FLOWS_LIMIT,
+			READ_ONCE(q->hh_flows_limit)) ||
 	    nla_put_u32(skb, TCA_HHF_RESET_TIMEOUT,
-			jiffies_to_usecs(q->hhf_reset_timeout)) ||
-	    nla_put_u32(skb, TCA_HHF_ADMIT_BYTES, q->hhf_admit_bytes) ||
+			jiffies_to_usecs(READ_ONCE(q->hhf_reset_timeout))) ||
+	    nla_put_u32(skb, TCA_HHF_ADMIT_BYTES,
+			READ_ONCE(q->hhf_admit_bytes)) ||
 	    nla_put_u32(skb, TCA_HHF_EVICT_TIMEOUT,
-			jiffies_to_usecs(q->hhf_evict_timeout)) ||
-	    nla_put_u32(skb, TCA_HHF_NON_HH_WEIGHT, q->hhf_non_hh_weight))
+			jiffies_to_usecs(READ_ONCE(q->hhf_evict_timeout))) ||
+	    nla_put_u32(skb, TCA_HHF_NON_HH_WEIGHT,
+			READ_ONCE(q->hhf_non_hh_weight)))
 		goto nla_put_failure;
 
 	return nla_nest_end(skb, opts);
@@ -705,6 +709,7 @@ static struct Qdisc_ops hhf_qdisc_ops __read_mostly = {
 	.dump_stats	=	hhf_dump_stats,
 	.owner		=	THIS_MODULE,
 };
+MODULE_ALIAS_NET_SCH("hhf");
 
 static int __init hhf_module_init(void)
 {
@@ -721,3 +726,4 @@ module_exit(hhf_module_exit)
 MODULE_AUTHOR("Terry Lam");
 MODULE_AUTHOR("Nandita Dukkipati");
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Heavy-Hitter Filter (HHF)");

@@ -22,13 +22,31 @@ static inline struct inotify_event_info *INOTIFY_E(struct fsnotify_event *fse)
 	return container_of(fse, struct inotify_event_info, fse);
 }
 
+/*
+ * INOTIFY_USER_FLAGS represents all of the mask bits that we expose to
+ * userspace.  There is at least one bit (FS_EVENT_ON_CHILD) which is
+ * used only internally to the kernel.
+ */
+#define INOTIFY_USER_MASK (IN_ALL_EVENTS)
+
+static inline __u32 inotify_mark_user_mask(struct fsnotify_mark *fsn_mark)
+{
+	__u32 mask = fsn_mark->mask & INOTIFY_USER_MASK;
+
+	if (fsn_mark->flags & FSNOTIFY_MARK_FLAG_EXCL_UNLINK)
+		mask |= IN_EXCL_UNLINK;
+	if (fsn_mark->flags & FSNOTIFY_MARK_FLAG_IN_ONESHOT)
+		mask |= IN_ONESHOT;
+
+	return mask;
+}
+
 extern void inotify_ignored_and_remove_idr(struct fsnotify_mark *fsn_mark,
 					   struct fsnotify_group *group);
-extern int inotify_handle_event(struct fsnotify_group *group,
-				struct inode *inode,
-				u32 mask, const void *data, int data_type,
-				const struct qstr *file_name, u32 cookie,
-				struct fsnotify_iter_info *iter_info);
+extern int inotify_handle_inode_event(struct fsnotify_mark *inode_mark,
+				      u32 mask, struct inode *inode,
+				      struct inode *dir,
+				      const struct qstr *name, u32 cookie);
 
 extern const struct fsnotify_ops inotify_fsnotify_ops;
 extern struct kmem_cache *inotify_inode_mark_cachep;

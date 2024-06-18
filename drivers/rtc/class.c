@@ -21,19 +21,72 @@
 #include "rtc-core.h"
 
 static DEFINE_IDA(rtc_ida);
-struct class *rtc_class;
 
 static void rtc_device_release(struct device *dev)
 {
 	struct rtc_device *rtc = to_rtc_device(dev);
+	struct timerqueue_head *head = &rtc->timerqueue;
+	struct timerqueue_node *node;
 
-	ida_simple_remove(&rtc_ida, rtc->id);
+	mutex_lock(&rtc->ops_lock);
+	while ((node = timerqueue_getnext(head)))
+		timerqueue_del(head, node);
+	mutex_unlock(&rtc->ops_lock);
+
+	cancel_work_sync(&rtc->irqwork);
+
+	ida_free(&rtc_ida, rtc->id);
+	mutex_destroy(&rtc->ops_lock);
 	kfree(rtc);
 }
 
 #ifdef CONFIG_RTC_HCTOSYS_DEVICE
 /* Result of the last RTC to system clock attempt. */
 int rtc_hctosys_ret = -ENODEV;
+
+/* IMPORTANT: the RTC only stores whole seconds. It is arbitrary
+ * whether it stores the most close value or the value with partial
+ * seconds truncated. However, it is important that we use it to store
+ * the truncated value. This is because otherwise it is necessary,
+ * in an rtc sync function, to read both xtime.tv_sec and
+ * xtime.tv_nsec. On some processors (i.e. ARM), an atomic read
+ * of >32bits is not possible. So storing the most close value would
+ * slow down the sync API. So here we have the truncated value and
+ * the best guess is to add 0.5s.
+ */
+
+static void rtc_hctosys(struct rtc_device *rtc)
+{
+	int err;
+	struct rtc_time tm;
+	struct timespec64 tv64 = {
+		.tv_nsec = NSEC_PER_SEC >> 1,
+	};
+
+	err = rtc_read_time(rtc, &tm);
+	if (err) {
+		dev_err(rtc->dev.parent,
+			"hctosys: unable to read the hardware clock\n");
+		goto err_read;
+	}
+
+	tv64.tv_sec = rtc_tm_to_time64(&tm);
+
+#if BITS_PER_LONG == 32
+	if (tv64.tv_sec > INT_MAX) {
+		err = -ERANGE;
+		goto err_read;
+	}
+#endif
+
+	err = do_settimeofday64(&tv64);
+
+	dev_info(rtc->dev.parent, "setting system clock to %ptR UTC (%lld)\n",
+		 &tm, (long long)tv64.tv_sec);
+
+err_read:
+	rtc_hctosys_ret = err;
+}
 #endif
 
 #if defined(CONFIG_PM_SLEEP) && defined(CONFIG_RTC_HCTOSYS_DEVICE)
@@ -145,6 +198,11 @@ static SIMPLE_DEV_PM_OPS(rtc_class_dev_pm_ops, rtc_suspend, rtc_resume);
 #define RTC_CLASS_DEV_PM_OPS	NULL
 #endif
 
+const struct class rtc_class = {
+	.name = "rtc",
+	.pm = RTC_CLASS_DEV_PM_OPS,
+};
+
 /* Ensure the caller will set the id before releasing the device */
 static struct rtc_device *rtc_allocate_device(void)
 {
@@ -156,12 +214,17 @@ static struct rtc_device *rtc_allocate_device(void)
 
 	device_initialize(&rtc->dev);
 
-	/* Drivers can revise this default after allocating the device. */
-	rtc->set_offset_nsec =  NSEC_PER_SEC / 2;
+	/*
+	 * Drivers can revise this default after allocating the device.
+	 * The default is what most RTCs do: Increment seconds exactly one
+	 * second after the write happened. This adds a default transport
+	 * time of 5ms which is at least halfways close to reality.
+	 */
+	rtc->set_offset_nsec = NSEC_PER_SEC + 5 * NSEC_PER_MSEC;
 
 	rtc->irq_freq = 1;
 	rtc->max_user_freq = 64;
-	rtc->dev.class = rtc_class;
+	rtc->dev.class = &rtc_class;
 	rtc->dev.groups = rtc_get_dev_attribute_groups();
 	rtc->dev.release = rtc_device_release;
 
@@ -181,6 +244,9 @@ static struct rtc_device *rtc_allocate_device(void)
 	rtc->pie_timer.function = rtc_pie_update_irq;
 	rtc->pie_enabled = 0;
 
+	set_bit(RTC_FEATURE_ALARM, rtc->features);
+	set_bit(RTC_FEATURE_UPDATE_INTERRUPT, rtc->features);
+
 	return rtc;
 }
 
@@ -194,13 +260,13 @@ static int rtc_device_get_id(struct device *dev)
 		of_id = of_alias_get_id(dev->parent->of_node, "rtc");
 
 	if (of_id >= 0) {
-		id = ida_simple_get(&rtc_ida, of_id, of_id + 1, GFP_KERNEL);
+		id = ida_alloc_range(&rtc_ida, of_id, of_id, GFP_KERNEL);
 		if (id < 0)
 			dev_warn(dev, "/aliases ID %d not available\n", of_id);
 	}
 
 	if (id < 0)
-		id = ida_simple_get(&rtc_ida, 0, 0, GFP_KERNEL);
+		id = ida_alloc(&rtc_ida, GFP_KERNEL);
 
 	return id;
 }
@@ -272,76 +338,59 @@ static void rtc_device_get_offset(struct rtc_device *rtc)
 		rtc->offset_secs = 0;
 }
 
-/**
- * rtc_device_unregister - removes the previously registered RTC class device
- *
- * @rtc: the RTC class device to destroy
- */
-static void rtc_device_unregister(struct rtc_device *rtc)
+static void devm_rtc_unregister_device(void *data)
 {
+	struct rtc_device *rtc = data;
+
 	mutex_lock(&rtc->ops_lock);
 	/*
 	 * Remove innards of this RTC, then disable it, before
 	 * letting any rtc_class_open() users access it again
 	 */
 	rtc_proc_del_device(rtc);
-	cdev_device_del(&rtc->char_dev, &rtc->dev);
+	if (!test_bit(RTC_NO_CDEV, &rtc->flags))
+		cdev_device_del(&rtc->char_dev, &rtc->dev);
 	rtc->ops = NULL;
 	mutex_unlock(&rtc->ops_lock);
-	put_device(&rtc->dev);
 }
 
-static void devm_rtc_release_device(struct device *dev, void *res)
+static void devm_rtc_release_device(void *res)
 {
-	struct rtc_device *rtc = *(struct rtc_device **)res;
+	struct rtc_device *rtc = res;
 
-	rtc_nvmem_unregister(rtc);
-
-	if (rtc->registered)
-		rtc_device_unregister(rtc);
-	else
-		put_device(&rtc->dev);
+	put_device(&rtc->dev);
 }
 
 struct rtc_device *devm_rtc_allocate_device(struct device *dev)
 {
-	struct rtc_device **ptr, *rtc;
+	struct rtc_device *rtc;
 	int id, err;
 
 	id = rtc_device_get_id(dev);
 	if (id < 0)
 		return ERR_PTR(id);
 
-	ptr = devres_alloc(devm_rtc_release_device, sizeof(*ptr), GFP_KERNEL);
-	if (!ptr) {
-		err = -ENOMEM;
-		goto exit_ida;
-	}
-
 	rtc = rtc_allocate_device();
 	if (!rtc) {
-		err = -ENOMEM;
-		goto exit_devres;
+		ida_free(&rtc_ida, id);
+		return ERR_PTR(-ENOMEM);
 	}
-
-	*ptr = rtc;
-	devres_add(dev, ptr);
 
 	rtc->id = id;
 	rtc->dev.parent = dev;
-	dev_set_name(&rtc->dev, "rtc%d", id);
+	err = devm_add_action_or_reset(dev, devm_rtc_release_device, rtc);
+	if (err)
+		return ERR_PTR(err);
+
+	err = dev_set_name(&rtc->dev, "rtc%d", id);
+	if (err)
+		return ERR_PTR(err);
 
 	return rtc;
-
-exit_devres:
-	devres_free(ptr);
-exit_ida:
-	ida_simple_remove(&rtc_ida, id);
-	return ERR_PTR(err);
 }
 EXPORT_SYMBOL_GPL(devm_rtc_allocate_device);
 
-int __rtc_register_device(struct module *owner, struct rtc_device *rtc)
+int __devm_rtc_register_device(struct module *owner, struct rtc_device *rtc)
 {
 	struct rtc_wkalrm alrm;
 	int err;
@@ -350,6 +399,12 @@ int __rtc_register_device(struct module *owner, struct rtc_device *rtc)
 		dev_dbg(&rtc->dev, "no ops set\n");
 		return -EINVAL;
 	}
+
+	if (!rtc->ops->set_alarm)
+		clear_bit(RTC_FEATURE_ALARM, rtc->features);
+
+	if (rtc->ops->set_offset)
+		set_bit(RTC_FEATURE_CORRECTION, rtc->features);
 
 	rtc->owner = owner;
 	rtc_device_get_offset(rtc);
@@ -362,22 +417,29 @@ int __rtc_register_device(struct module *owner, struct rtc_device *rtc)
 	rtc_dev_prepare(rtc);
 
 	err = cdev_device_add(&rtc->char_dev, &rtc->dev);
-	if (err)
+	if (err) {
+		set_bit(RTC_NO_CDEV, &rtc->flags);
 		dev_warn(rtc->dev.parent, "failed to add char device %d:%d\n",
 			 MAJOR(rtc->dev.devt), rtc->id);
-	else
+	} else {
 		dev_dbg(rtc->dev.parent, "char device (%d:%d)\n",
 			MAJOR(rtc->dev.devt), rtc->id);
+	}
 
 	rtc_proc_add_device(rtc);
 
-	rtc->registered = true;
 	dev_info(rtc->dev.parent, "registered as %s\n",
 		 dev_name(&rtc->dev));
 
-	return 0;
+#ifdef CONFIG_RTC_HCTOSYS_DEVICE
+	if (!strcmp(dev_name(&rtc->dev), CONFIG_RTC_HCTOSYS_DEVICE))
+		rtc_hctosys(rtc);
+#endif
+
+	return devm_add_action_or_reset(rtc->dev.parent,
+					devm_rtc_unregister_device, rtc);
 }
-EXPORT_SYMBOL_GPL(__rtc_register_device);
+EXPORT_SYMBOL_GPL(__devm_rtc_register_device);
 
 /**
  * devm_rtc_device_register - resource managed rtc_device_register()
@@ -407,7 +469,7 @@ struct rtc_device *devm_rtc_device_register(struct device *dev,
 
 	rtc->ops = ops;
 
-	err = __rtc_register_device(owner, rtc);
+	err = __devm_rtc_register_device(owner, rtc);
 	if (err)
 		return ERR_PTR(err);
 
@@ -417,13 +479,14 @@ EXPORT_SYMBOL_GPL(devm_rtc_device_register);
 
 static int __init rtc_init(void)
 {
-	rtc_class = class_create(THIS_MODULE, "rtc");
-	if (IS_ERR(rtc_class)) {
-		pr_err("couldn't create class\n");
-		return PTR_ERR(rtc_class);
-	}
-	rtc_class->pm = RTC_CLASS_DEV_PM_OPS;
+	int err;
+
+	err = class_register(&rtc_class);
+	if (err)
+		return err;
+
 	rtc_dev_init();
+
 	return 0;
 }
 subsys_initcall(rtc_init);

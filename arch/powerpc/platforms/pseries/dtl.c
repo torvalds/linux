@@ -11,15 +11,16 @@
 #include <linux/spinlock.h>
 #include <asm/smp.h>
 #include <linux/uaccess.h>
+#include <linux/debugfs.h>
 #include <asm/firmware.h>
+#include <asm/dtl.h>
 #include <asm/lppaca.h>
-#include <asm/debugfs.h>
 #include <asm/plpar_wrappers.h>
 #include <asm/machdep.h>
 
+#ifdef CONFIG_DTL
 struct dtl {
 	struct dtl_entry	*buf;
-	struct dentry		*file;
 	int			cpu;
 	int			buf_entries;
 	u64			last_idx;
@@ -37,6 +38,15 @@ static u8 dtl_event_mask = DTL_LOG_ALL;
 static int dtl_buf_entries = N_DISPATCH_LOG;
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
+
+/*
+ * When CONFIG_VIRT_CPU_ACCOUNTING_NATIVE = y, the cpu accounting code controls
+ * reading from the dispatch trace log.  If other code wants to consume
+ * DTL entries, it can set this pointer to a function that will get
+ * called once for each DTL entry that gets processed.
+ */
+static void (*dtl_consumer)(struct dtl_entry *entry, u64 index);
+
 struct dtl_ring {
 	u64	write_index;
 	struct dtl_entry *write_ptr;
@@ -320,46 +330,28 @@ static const struct file_operations dtl_fops = {
 
 static struct dentry *dtl_dir;
 
-static int dtl_setup_file(struct dtl *dtl)
+static void dtl_setup_file(struct dtl *dtl)
 {
 	char name[10];
 
 	sprintf(name, "cpu-%d", dtl->cpu);
 
-	dtl->file = debugfs_create_file(name, 0400, dtl_dir, dtl, &dtl_fops);
-	if (!dtl->file)
-		return -ENOMEM;
-
-	return 0;
+	debugfs_create_file(name, 0400, dtl_dir, dtl, &dtl_fops);
 }
 
 static int dtl_init(void)
 {
-	struct dentry *event_mask_file, *buf_entries_file;
-	int rc, i;
+	int i;
 
 	if (!firmware_has_feature(FW_FEATURE_SPLPAR))
 		return -ENODEV;
 
 	/* set up common debugfs structure */
 
-	rc = -ENOMEM;
-	dtl_dir = debugfs_create_dir("dtl", powerpc_debugfs_root);
-	if (!dtl_dir) {
-		printk(KERN_WARNING "%s: can't create dtl root dir\n",
-				__func__);
-		goto err;
-	}
+	dtl_dir = debugfs_create_dir("dtl", arch_debugfs_dir);
 
-	event_mask_file = debugfs_create_x8("dtl_event_mask", 0600,
-				dtl_dir, &dtl_event_mask);
-	buf_entries_file = debugfs_create_u32("dtl_buf_entries", 0400,
-				dtl_dir, &dtl_buf_entries);
-
-	if (!event_mask_file || !buf_entries_file) {
-		printk(KERN_WARNING "%s: can't create dtl files\n", __func__);
-		goto err_remove_dir;
-	}
+	debugfs_create_x8("dtl_event_mask", 0600, dtl_dir, &dtl_event_mask);
+	debugfs_create_u32("dtl_buf_entries", 0400, dtl_dir, &dtl_buf_entries);
 
 	/* set up the per-cpu log structures */
 	for_each_possible_cpu(i) {
@@ -367,16 +359,87 @@ static int dtl_init(void)
 		spin_lock_init(&dtl->lock);
 		dtl->cpu = i;
 
-		rc = dtl_setup_file(dtl);
-		if (rc)
-			goto err_remove_dir;
+		dtl_setup_file(dtl);
 	}
 
 	return 0;
-
-err_remove_dir:
-	debugfs_remove_recursive(dtl_dir);
-err:
-	return rc;
 }
 machine_arch_initcall(pseries, dtl_init);
+#endif /* CONFIG_DTL */
+
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
+/*
+ * Scan the dispatch trace log and count up the stolen time.
+ * Should be called with interrupts disabled.
+ */
+static notrace u64 scan_dispatch_log(u64 stop_tb)
+{
+	u64 i = local_paca->dtl_ridx;
+	struct dtl_entry *dtl = local_paca->dtl_curr;
+	struct dtl_entry *dtl_end = local_paca->dispatch_log_end;
+	struct lppaca *vpa = local_paca->lppaca_ptr;
+	u64 tb_delta;
+	u64 stolen = 0;
+	u64 dtb;
+
+	if (!dtl)
+		return 0;
+
+	if (i == be64_to_cpu(vpa->dtl_idx))
+		return 0;
+	while (i < be64_to_cpu(vpa->dtl_idx)) {
+		dtb = be64_to_cpu(dtl->timebase);
+		tb_delta = be32_to_cpu(dtl->enqueue_to_dispatch_time) +
+			be32_to_cpu(dtl->ready_to_enqueue_time);
+		barrier();
+		if (i + N_DISPATCH_LOG < be64_to_cpu(vpa->dtl_idx)) {
+			/* buffer has overflowed */
+			i = be64_to_cpu(vpa->dtl_idx) - N_DISPATCH_LOG;
+			dtl = local_paca->dispatch_log + (i % N_DISPATCH_LOG);
+			continue;
+		}
+		if (dtb > stop_tb)
+			break;
+#ifdef CONFIG_DTL
+		if (dtl_consumer)
+			dtl_consumer(dtl, i);
+#endif
+		stolen += tb_delta;
+		++i;
+		++dtl;
+		if (dtl == dtl_end)
+			dtl = local_paca->dispatch_log;
+	}
+	local_paca->dtl_ridx = i;
+	local_paca->dtl_curr = dtl;
+	return stolen;
+}
+
+/*
+ * Accumulate stolen time by scanning the dispatch trace log.
+ * Called on entry from user mode.
+ */
+void notrace pseries_accumulate_stolen_time(void)
+{
+	u64 sst, ust;
+	struct cpu_accounting_data *acct = &local_paca->accounting;
+
+	sst = scan_dispatch_log(acct->starttime_user);
+	ust = scan_dispatch_log(acct->starttime);
+	acct->stime -= sst;
+	acct->utime -= ust;
+	acct->steal_time += ust + sst;
+}
+
+u64 pseries_calculate_stolen_time(u64 stop_tb)
+{
+	if (!firmware_has_feature(FW_FEATURE_SPLPAR))
+		return 0;
+
+	if (get_paca()->dtl_ridx != be64_to_cpu(get_lppaca()->dtl_idx))
+		return scan_dispatch_log(stop_tb);
+
+	return 0;
+}
+
+#endif

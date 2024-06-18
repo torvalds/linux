@@ -5,7 +5,7 @@
 // Copyright (c) <2017> HiSilicon Technologies Co., Ltd.
 //              http://www.hisilicon.com
 // Copyright (c) <2017> Linaro Ltd.
-//              http://www.linaro.org
+//              https://www.linaro.org
 //
 // Author: Wang Xiaoyin <hw.wangxiaoyin@hisilicon.com>
 //         Guodong Xu <guodong.xu@linaro.org>
@@ -200,6 +200,7 @@ static struct platform_driver hi6421v530_regulator_driver = {
 	.id_table = hi6421v530_regulator_table,
 	.driver = {
 		.name	= "hi6421v530-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe	= hi6421v530_regulator_probe,
 };

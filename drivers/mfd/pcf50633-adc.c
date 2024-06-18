@@ -136,6 +136,7 @@ int pcf50633_adc_async_read(struct pcf50633 *pcf, int mux, int avg,
 			     void *callback_param)
 {
 	struct pcf50633_adc_request *req;
+	int ret;
 
 	/* req is freed when the result is ready, in interrupt handler */
 	req = kmalloc(sizeof(*req), GFP_KERNEL);
@@ -147,7 +148,11 @@ int pcf50633_adc_async_read(struct pcf50633 *pcf, int mux, int avg,
 	req->callback = callback;
 	req->callback_param = callback_param;
 
-	return adc_enqueue_request(pcf, req);
+	ret = adc_enqueue_request(pcf, req);
+	if (ret)
+		kfree(req);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(pcf50633_adc_async_read);
 
@@ -213,7 +218,7 @@ static int pcf50633_adc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int pcf50633_adc_remove(struct platform_device *pdev)
+static void pcf50633_adc_remove(struct platform_device *pdev)
 {
 	struct pcf50633_adc *adc = platform_get_drvdata(pdev);
 	int i, head;
@@ -231,8 +236,6 @@ static int pcf50633_adc_remove(struct platform_device *pdev)
 		kfree(adc->queue[i]);
 
 	mutex_unlock(&adc->queue_mutex);
-
-	return 0;
 }
 
 static struct platform_driver pcf50633_adc_driver = {
@@ -240,7 +243,7 @@ static struct platform_driver pcf50633_adc_driver = {
 		.name = "pcf50633-adc",
 	},
 	.probe = pcf50633_adc_probe,
-	.remove = pcf50633_adc_remove,
+	.remove_new = pcf50633_adc_remove,
 };
 
 module_platform_driver(pcf50633_adc_driver);

@@ -14,6 +14,7 @@
 #include <linux/mutex.h>
 #include <linux/err.h>
 #include <linux/hwmon.h>
+#include <linux/kstrtox.h>
 
 /* Insmod parameters */
 
@@ -179,8 +180,7 @@ static const struct attribute_group pcf8591_attr_group_opt = {
  * Real code
  */
 
-static int pcf8591_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int pcf8591_probe(struct i2c_client *client)
 {
 	struct pcf8591_data *data;
 	int err;
@@ -229,14 +229,13 @@ exit_sysfs_remove:
 	return err;
 }
 
-static int pcf8591_remove(struct i2c_client *client)
+static void pcf8591_remove(struct i2c_client *client)
 {
 	struct pcf8591_data *data = i2c_get_clientdata(client);
 
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &pcf8591_attr_group_opt);
 	sysfs_remove_group(&client->dev.kobj, &pcf8591_attr_group);
-	return 0;
 }
 
 /* Called when we have found a new PCF8591. */
@@ -286,7 +285,7 @@ static int pcf8591_read_channel(struct device *dev, int channel)
 }
 
 static const struct i2c_device_id pcf8591_id[] = {
-	{ "pcf8591", 0 },
+	{ "pcf8591" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pcf8591_id);

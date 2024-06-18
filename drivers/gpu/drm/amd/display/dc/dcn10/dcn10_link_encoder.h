@@ -31,10 +31,10 @@
 #define TO_DCN10_LINK_ENC(link_encoder)\
 	container_of(link_encoder, struct dcn10_link_encoder, base)
 
-
 #define AUX_REG_LIST(id)\
 	SRI(AUX_CONTROL, DP_AUX, id), \
-	SRI(AUX_DPHY_RX_CONTROL0, DP_AUX, id)
+	SRI(AUX_DPHY_RX_CONTROL0, DP_AUX, id), \
+	SRI(AUX_DPHY_RX_CONTROL1, DP_AUX, id)
 
 #define HPD_REG_LIST(id)\
 	SRI(DC_HPD_CONTROL, HPD, id)
@@ -42,6 +42,7 @@
 #define LE_DCN_COMMON_REG_LIST(id) \
 	SRI(DIG_BE_CNTL, DIG, id), \
 	SRI(DIG_BE_EN_CNTL, DIG, id), \
+	SRI(DIG_CLOCK_PATTERN, DIG, id), \
 	SRI(TMDS_CTL_BITS, DIG, id), \
 	SRI(DP_CONFIG, DP, id), \
 	SRI(DP_DPHY_CNTL, DP, id), \
@@ -62,19 +63,18 @@
 	SRI(DP_DPHY_FAST_TRAINING, DP, id), \
 	SRI(DP_SEC_CNTL1, DP, id), \
 	SRI(DP_DPHY_BS_SR_SWAP_CNTL, DP, id), \
-	SRI(DP_DPHY_INTERNAL_CTRL, DP, id), \
 	SRI(DP_DPHY_HBR2_PATTERN_CONTROL, DP, id)
 
 
 #define LE_DCN10_REG_LIST(id)\
+	SRI(DP_DPHY_INTERNAL_CTRL, DP, id), \
 	LE_DCN_COMMON_REG_LIST(id)
 
 struct dcn10_link_enc_aux_registers {
 	uint32_t AUX_CONTROL;
 	uint32_t AUX_DPHY_RX_CONTROL0;
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 	uint32_t AUX_DPHY_TX_CONTROL;
-#endif
+	uint32_t AUX_DPHY_RX_CONTROL1;
 };
 
 struct dcn10_link_enc_hpd_registers {
@@ -84,6 +84,7 @@ struct dcn10_link_enc_hpd_registers {
 struct dcn10_link_enc_registers {
 	uint32_t DIG_BE_CNTL;
 	uint32_t DIG_BE_EN_CNTL;
+	uint32_t DIG_CLOCK_PATTERN;
 	uint32_t DP_CONFIG;
 	uint32_t DP_DPHY_CNTL;
 	uint32_t DP_DPHY_INTERNAL_CTRL;
@@ -106,13 +107,47 @@ struct dcn10_link_enc_registers {
 	uint32_t DP_DPHY_HBR2_PATTERN_CONTROL;
 	uint32_t DP_SEC_CNTL1;
 	uint32_t TMDS_CTL_BITS;
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	/* DCCG  */
 	uint32_t CLOCK_ENABLE;
 	/* DIG */
 	uint32_t DIG_LANE_ENABLE;
 	/* UNIPHY */
 	uint32_t CHANNEL_XBAR_CNTL;
+	/* DPCS */
+	uint32_t RDPCSTX_PHY_CNTL3;
+	uint32_t RDPCSTX_PHY_CNTL4;
+	uint32_t RDPCSTX_PHY_CNTL5;
+	uint32_t RDPCSTX_PHY_CNTL6;
+	uint32_t RDPCSPIPE_PHY_CNTL6;
+	uint32_t RDPCSTX_PHY_CNTL7;
+	uint32_t RDPCSTX_PHY_CNTL8;
+	uint32_t RDPCSTX_PHY_CNTL9;
+	uint32_t RDPCSTX_PHY_CNTL10;
+	uint32_t RDPCSTX_PHY_CNTL11;
+	uint32_t RDPCSTX_PHY_CNTL12;
+	uint32_t RDPCSTX_PHY_CNTL13;
+	uint32_t RDPCSTX_PHY_CNTL14;
+	uint32_t RDPCSTX_PHY_CNTL15;
+	uint32_t RDPCSTX_CNTL;
+	uint32_t RDPCSTX_CLOCK_CNTL;
+	uint32_t RDPCSTX_PHY_CNTL0;
+	uint32_t RDPCSTX_PHY_CNTL2;
+	uint32_t RDPCSTX_PLL_UPDATE_DATA;
+	uint32_t RDPCS_TX_CR_ADDR;
+	uint32_t RDPCS_TX_CR_DATA;
+	uint32_t DPCSTX_TX_CLOCK_CNTL;
+	uint32_t DPCSTX_TX_CNTL;
+	uint32_t RDPCSTX_INTERRUPT_CONTROL;
+	uint32_t RDPCSTX_PHY_FUSE0;
+	uint32_t RDPCSTX_PHY_FUSE1;
+	uint32_t RDPCSTX_PHY_FUSE2;
+	uint32_t RDPCSTX_PHY_FUSE3;
+	uint32_t RDPCSTX_PHY_RX_LD_VAL;
+	uint32_t DPCSTX_DEBUG_CONFIG;
+	uint32_t RDPCSTX_DEBUG_CONFIG;
+	uint32_t RDPCSTX0_RDPCSTX_SCRATCH;
+	uint32_t RDPCSTX_DMCU_DPALT_DIS_BLOCK_REG;
+	uint32_t DCIO_SOFT_RESET;
 	/* indirect registers */
 	uint32_t RAWLANE0_DIG_PCS_XF_RX_OVRD_IN_2;
 	uint32_t RAWLANE0_DIG_PCS_XF_RX_OVRD_IN_3;
@@ -122,7 +157,18 @@ struct dcn10_link_enc_registers {
 	uint32_t RAWLANE2_DIG_PCS_XF_RX_OVRD_IN_3;
 	uint32_t RAWLANE3_DIG_PCS_XF_RX_OVRD_IN_2;
 	uint32_t RAWLANE3_DIG_PCS_XF_RX_OVRD_IN_3;
-#endif
+	uint32_t TMDS_DCBALANCER_CONTROL;
+	uint32_t PHYA_LINK_CNTL2;
+	uint32_t PHYB_LINK_CNTL2;
+	uint32_t PHYC_LINK_CNTL2;
+	uint32_t DIO_LINKA_CNTL;
+	uint32_t DIO_LINKB_CNTL;
+	uint32_t DIO_LINKC_CNTL;
+	uint32_t DIO_LINKD_CNTL;
+	uint32_t DIO_LINKE_CNTL;
+	uint32_t DIO_LINKF_CNTL;
+	uint32_t DIO_CLK_CNTL;
+	uint32_t DIG_BE_CLK_CNTL;
 };
 
 #define LE_SF(reg_name, field_name, post_fix)\
@@ -133,6 +179,7 @@ struct dcn10_link_enc_registers {
 	LE_SF(DIG0_DIG_BE_CNTL, DIG_HPD_SELECT, mask_sh),\
 	LE_SF(DIG0_DIG_BE_CNTL, DIG_MODE, mask_sh),\
 	LE_SF(DIG0_DIG_BE_CNTL, DIG_FE_SOURCE_SELECT, mask_sh),\
+	LE_SF(DIG0_DIG_CLOCK_PATTERN, DIG_CLOCK_PATTERN, mask_sh),\
 	LE_SF(DIG0_TMDS_CTL_BITS, TMDS_CTL0, mask_sh), \
 	LE_SF(DP0_DP_DPHY_CNTL, DPHY_BYPASS, mask_sh),\
 	LE_SF(DP0_DP_DPHY_CNTL, DPHY_ATEST_SEL_LANE0, mask_sh),\
@@ -183,6 +230,7 @@ struct dcn10_link_enc_registers {
 	type DIG_HPD_SELECT;\
 	type DIG_MODE;\
 	type DIG_FE_SOURCE_SELECT;\
+	type DIG_CLOCK_PATTERN;\
 	type DPHY_BYPASS;\
 	type DPHY_ATEST_SEL_LANE0;\
 	type DPHY_ATEST_SEL_LANE1;\
@@ -228,7 +276,6 @@ struct dcn10_link_enc_registers {
 	type AUX_LS_READ_EN;\
 	type AUX_RX_RECEIVE_WINDOW
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 
 #define DCN20_LINK_ENCODER_DPCS_REG_FIELD_LIST(type) \
 		type RDPCS_PHY_DP_TX0_DATA_EN;\
@@ -250,6 +297,10 @@ struct dcn10_link_enc_registers {
 		type RDPCS_EXT_REFCLK_EN;\
 		type RDPCS_TX_FIFO_EN;\
 		type UNIPHY_LINK_ENABLE;\
+		type UNIPHY_CHANNEL0_XBAR_SOURCE;\
+		type UNIPHY_CHANNEL1_XBAR_SOURCE;\
+		type UNIPHY_CHANNEL2_XBAR_SOURCE;\
+		type UNIPHY_CHANNEL3_XBAR_SOURCE;\
 		type UNIPHY_CHANNEL0_INVERT;\
 		type UNIPHY_CHANNEL1_INVERT;\
 		type UNIPHY_CHANNEL2_INVERT;\
@@ -337,16 +388,46 @@ struct dcn10_link_enc_registers {
 		type RDPCS_TX_FIFO_ERROR_MASK;\
 		type RDPCS_DPALT_DISABLE_TOGGLE_MASK;\
 		type RDPCS_DPALT_4LANE_TOGGLE_MASK;\
+		type RDPCS_PHY_DPALT_DP4;\
 		type RDPCS_PHY_DPALT_DISABLE;\
 		type RDPCS_PHY_DPALT_DISABLE_ACK;\
 		type RDPCS_PHY_DP_MPLLB_V2I;\
 		type RDPCS_PHY_DP_MPLLB_FREQ_VCO;\
+		type RDPCS_PHY_DP_MPLLB_CP_INT_GS;\
+		type RDPCS_PHY_RX_VREF_CTRL;\
 		type RDPCS_PHY_DP_MPLLB_CP_INT;\
 		type RDPCS_PHY_DP_MPLLB_CP_PROP;\
 		type RDPCS_PHY_RX_REF_LD_VAL;\
 		type RDPCS_PHY_RX_VCO_LD_VAL;\
 		type DPCSTX_DEBUG_CONFIG; \
-		type RDPCSTX_DEBUG_CONFIG
+		type RDPCSTX_DEBUG_CONFIG; \
+		type RDPCS_PHY_DP_TX0_EQ_MAIN;\
+		type RDPCS_PHY_DP_TX0_EQ_PRE;\
+		type RDPCS_PHY_DP_TX0_EQ_POST;\
+		type RDPCS_PHY_DP_TX1_EQ_MAIN;\
+		type RDPCS_PHY_DP_TX1_EQ_PRE;\
+		type RDPCS_PHY_DP_TX1_EQ_POST;\
+		type RDPCS_PHY_DP_TX2_EQ_MAIN;\
+		type RDPCS_PHY_DP_MPLLB_CP_PROP_GS;\
+		type RDPCS_PHY_DP_TX2_EQ_PRE;\
+		type RDPCS_PHY_DP_TX2_EQ_POST;\
+		type RDPCS_PHY_DP_TX3_EQ_MAIN;\
+		type RDPCS_PHY_DCO_RANGE;\
+		type RDPCS_PHY_DCO_FINETUNE;\
+		type RDPCS_PHY_DP_TX3_EQ_PRE;\
+		type RDPCS_PHY_DP_TX3_EQ_POST;\
+		type RDPCS_PHY_SUP_PRE_HP;\
+		type RDPCS_PHY_DP_TX0_VREGDRV_BYP;\
+		type RDPCS_PHY_DP_TX1_VREGDRV_BYP;\
+		type RDPCS_PHY_DP_TX2_VREGDRV_BYP;\
+		type RDPCS_PHY_DP_TX3_VREGDRV_BYP;\
+		type RDPCS_DMCU_DPALT_DIS_BLOCK_REG;\
+		type UNIPHYA_SOFT_RESET;\
+		type UNIPHYB_SOFT_RESET;\
+		type UNIPHYC_SOFT_RESET;\
+		type UNIPHYD_SOFT_RESET;\
+		type UNIPHYE_SOFT_RESET;\
+		type UNIPHYF_SOFT_RESET
 
 #define DCN20_LINK_ENCODER_REG_FIELD_LIST(type) \
 	type DIG_LANE0EN;\
@@ -374,21 +455,68 @@ struct dcn10_link_enc_registers {
 	type AUX_TX_PRECHARGE_LEN; \
 	type AUX_TX_PRECHARGE_SYMBOLS; \
 	type AUX_MODE_DET_CHECK_DELAY;\
-	type DPCS_DBG_CBUS_DIS
-#endif
+	type DPCS_DBG_CBUS_DIS;\
+	type AUX_RX_PRECHARGE_SKIP;\
+	type AUX_RX_TIMEOUT_LEN;\
+	type AUX_RX_TIMEOUT_LEN_MUL
+
+#define DCN30_LINK_ENCODER_REG_FIELD_LIST(type) \
+	type TMDS_SYNC_DCBAL_EN;\
+	type PHY_HPO_DIG_SRC_SEL;\
+	type PHY_HPO_ENC_SRC_SEL;\
+	type DPCS_TX_HDMI_FRL_MODE;\
+	type DPCS_TX_DATA_SWAP_10_BIT;\
+	type DPCS_TX_DATA_ORDER_INVERT_18_BIT;\
+	type RDPCS_TX_CLK_EN
+
+#define DCN31_LINK_ENCODER_REG_FIELD_LIST(type) \
+	type ENC_TYPE_SEL;\
+	type HPO_DP_ENC_SEL;\
+	type HPO_HDMI_ENC_SEL
+
+#define DCN35_LINK_ENCODER_REG_FIELD_LIST(type) \
+	type DIG_BE_ENABLE;\
+	type DIG_RB_SWITCH_EN;\
+	type DIG_BE_MODE;\
+	type DIG_BE_CLK_EN;\
+	type DIG_BE_SOFT_RESET;\
+	type HDCP_SOFT_RESET;\
+	type DIG_BE_SYMCLK_G_CLOCK_ON;\
+	type DIG_BE_SYMCLK_G_HDCP_CLOCK_ON;\
+	type DIG_BE_SYMCLK_G_TMDS_CLOCK_ON;\
+	type DISPCLK_R_GATE_DIS;\
+	type DISPCLK_G_GATE_DIS;\
+	type REFCLK_R_GATE_DIS;\
+	type REFCLK_G_GATE_DIS;\
+	type SOCCLK_G_GATE_DIS;\
+	type SYMCLK_FE_R_GATE_DIS;\
+	type SYMCLK_FE_G_GATE_DIS;\
+	type SYMCLK_R_GATE_DIS;\
+	type SYMCLK_G_GATE_DIS;\
+	type DIO_FGCG_REP_DIS;\
+	type DISPCLK_G_HDCP_GATE_DIS;\
+	type SYMCLKA_G_HDCP_GATE_DIS;\
+	type SYMCLKB_G_HDCP_GATE_DIS;\
+	type SYMCLKC_G_HDCP_GATE_DIS;\
+	type SYMCLKD_G_HDCP_GATE_DIS;\
+	type SYMCLKE_G_HDCP_GATE_DIS;\
+	type SYMCLKF_G_HDCP_GATE_DIS;\
+	type SYMCLKG_G_HDCP_GATE_DIS
 
 struct dcn10_link_enc_shift {
 	DCN_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	DCN20_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
-#endif
+	DCN30_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
+	DCN31_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
+	DCN35_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
 };
 
 struct dcn10_link_enc_mask {
 	DCN_LINK_ENCODER_REG_FIELD_LIST(uint32_t);
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	DCN20_LINK_ENCODER_REG_FIELD_LIST(uint32_t);
-#endif
+	DCN30_LINK_ENCODER_REG_FIELD_LIST(uint32_t);
+	DCN31_LINK_ENCODER_REG_FIELD_LIST(uint32_t);
+	DCN35_LINK_ENCODER_REG_FIELD_LIST(uint32_t);
 };
 
 struct dcn10_link_encoder {
@@ -459,6 +587,13 @@ void dcn10_link_encoder_enable_tmds_output(
 	enum signal_type signal,
 	uint32_t pixel_clock);
 
+void dcn10_link_encoder_enable_tmds_output_with_clk_pattern_wa(
+	struct link_encoder *enc,
+	enum clock_source_id clock_source,
+	enum dc_color_depth color_depth,
+	enum signal_type signal,
+	uint32_t pixel_clock);
+
 /* enables DP PHY output */
 void dcn10_link_encoder_enable_dp_output(
 	struct link_encoder *enc,
@@ -479,7 +614,8 @@ void dcn10_link_encoder_disable_output(
 /* set DP lane settings */
 void dcn10_link_encoder_dp_set_lane_settings(
 	struct link_encoder *enc,
-	const struct link_training_settings *link_settings);
+	const struct dc_link_settings *link_settings,
+	const struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX]);
 
 void dcn10_link_encoder_dp_set_phy_pattern(
 	struct link_encoder *enc,
@@ -517,4 +653,7 @@ void dcn10_aux_initialize(struct dcn10_link_encoder *enc10);
 
 enum signal_type dcn10_get_dig_mode(
 	struct link_encoder *enc);
+
+void dcn10_link_encoder_get_max_link_cap(struct link_encoder *enc,
+	struct dc_link_settings *link_settings);
 #endif /* __DC_LINK_ENCODER__DCN10_H__ */

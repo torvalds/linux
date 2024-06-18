@@ -22,7 +22,7 @@
 
 static int get_clock(void *data)
 {
-	struct psb_intel_i2c_chan *chan = data;
+	struct gma_i2c_chan *chan = data;
 	struct drm_device *dev = chan->drm_dev;
 	u32 val;
 
@@ -32,7 +32,7 @@ static int get_clock(void *data)
 
 static int get_data(void *data)
 {
-	struct psb_intel_i2c_chan *chan = data;
+	struct gma_i2c_chan *chan = data;
 	struct drm_device *dev = chan->drm_dev;
 	u32 val;
 
@@ -42,7 +42,7 @@ static int get_data(void *data)
 
 static void set_clock(void *data, int state_high)
 {
-	struct psb_intel_i2c_chan *chan = data;
+	struct gma_i2c_chan *chan = data;
 	struct drm_device *dev = chan->drm_dev;
 	u32 reserved = 0, clock_bits;
 
@@ -62,7 +62,7 @@ static void set_clock(void *data, int state_high)
 
 static void set_data(void *data, int state_high)
 {
-	struct psb_intel_i2c_chan *chan = data;
+	struct gma_i2c_chan *chan = data;
 	struct drm_device *dev = chan->drm_dev;
 	u32 reserved = 0, data_bits;
 
@@ -83,9 +83,8 @@ static void set_data(void *data, int state_high)
 }
 
 /**
- * psb_intel_i2c_create - instantiate an Intel i2c bus using the specified GPIO reg
+ * gma_i2c_create - instantiate an Intel i2c bus using the specified GPIO reg
  * @dev: DRM device
- * @output: driver specific output device
  * @reg: GPIO reg to use
  * @name: name for this bus
  *
@@ -103,21 +102,21 @@ static void set_data(void *data, int state_high)
  *   %GPIOH
  * see PRM for details on how these different busses are used.
  */
-struct psb_intel_i2c_chan *psb_intel_i2c_create(struct drm_device *dev,
-					const u32 reg, const char *name)
+struct gma_i2c_chan *gma_i2c_create(struct drm_device *dev, const u32 reg,
+				    const char *name)
 {
-	struct psb_intel_i2c_chan *chan;
+	struct gma_i2c_chan *chan;
 
-	chan = kzalloc(sizeof(struct psb_intel_i2c_chan), GFP_KERNEL);
+	chan = kzalloc(sizeof(struct gma_i2c_chan), GFP_KERNEL);
 	if (!chan)
 		goto out_free;
 
 	chan->drm_dev = dev;
 	chan->reg = reg;
-	snprintf(chan->adapter.name, I2C_NAME_SIZE, "intel drm %s", name);
-	chan->adapter.owner = THIS_MODULE;
-	chan->adapter.algo_data = &chan->algo;
-	chan->adapter.dev.parent = &dev->pdev->dev;
+	snprintf(chan->base.name, I2C_NAME_SIZE, "intel drm %s", name);
+	chan->base.owner = THIS_MODULE;
+	chan->base.algo_data = &chan->algo;
+	chan->base.dev.parent = dev->dev;
 	chan->algo.setsda = set_data;
 	chan->algo.setscl = set_clock;
 	chan->algo.getsda = get_data;
@@ -126,9 +125,9 @@ struct psb_intel_i2c_chan *psb_intel_i2c_create(struct drm_device *dev,
 	chan->algo.timeout = usecs_to_jiffies(2200);
 	chan->algo.data = chan;
 
-	i2c_set_adapdata(&chan->adapter, chan);
+	i2c_set_adapdata(&chan->base, chan);
 
-	if (i2c_bit_add_bus(&chan->adapter))
+	if (i2c_bit_add_bus(&chan->base))
 		goto out_free;
 
 	/* JJJ:  raise SCL and SDA? */
@@ -144,16 +143,16 @@ out_free:
 }
 
 /**
- * psb_intel_i2c_destroy - unregister and free i2c bus resources
- * @output: channel to free
+ * gma_i2c_destroy - unregister and free i2c bus resources
+ * @chan: channel to free
  *
  * Unregister the adapter from the i2c layer, then free the structure.
  */
-void psb_intel_i2c_destroy(struct psb_intel_i2c_chan *chan)
+void gma_i2c_destroy(struct gma_i2c_chan *chan)
 {
 	if (!chan)
 		return;
 
-	i2c_del_adapter(&chan->adapter);
+	i2c_del_adapter(&chan->base);
 	kfree(chan);
 }

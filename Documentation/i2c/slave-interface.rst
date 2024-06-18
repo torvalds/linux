@@ -32,9 +32,9 @@ User manual
 ===========
 
 I2C slave backends behave like standard I2C clients. So, you can instantiate
-them as described in the document 'instantiating-devices'. The only difference
-is that i2c slave backends have their own address space. So, you have to add
-0x1000 to the address you would originally request. An example for
+them as described in the document instantiating-devices.rst. The only
+difference is that i2c slave backends have their own address space. So, you
+have to add 0x1000 to the address you would originally request. An example for
 instantiating the slave-eeprom driver from userspace at the 7 bit address 0x64
 on bus 1::
 
@@ -59,7 +59,7 @@ The bus driver sends an event to the backend using the following function::
 
 	ret = i2c_slave_event(client, event, &val)
 
-'client' describes the i2c slave device. 'event' is one of the special event
+'client' describes the I2C slave device. 'event' is one of the special event
 types described hereafter. 'val' holds an u8 value for the data byte to be
 read/written and is thus bidirectional. The pointer to val must always be
 provided even if val is not used for an event, i.e. don't use NULL here. 'ret'
@@ -72,12 +72,15 @@ Event types:
 
   'val': unused
 
-  'ret': always 0
+  'ret': 0 if the backend is ready, otherwise some errno
 
 Another I2C master wants to write data to us. This event should be sent once
 our own address and the write bit was detected. The data did not arrive yet, so
-there is nothing to process or return. Wakeup or initialization probably needs
-to be done, though.
+there is nothing to process or return. After returning, the bus driver must
+always ack the address phase. If 'ret' is zero, backend initialization or
+wakeup is done and further data may be received. If 'ret' is an errno, the bus
+driver should nack all incoming bytes until the next stop condition to enforce
+a retry of the transmission.
 
 * I2C_SLAVE_READ_REQUESTED (mandatory)
 
@@ -143,7 +146,7 @@ Bus driver support
 If you want to add slave support to the bus driver:
 
 * implement calls to register/unregister the slave and add those to the
-  struct i2c_algorithm. When registering, you probably need to set the i2c
+  struct i2c_algorithm. When registering, you probably need to set the I2C
   slave address and enable slave specific interrupts. If you use runtime pm, you
   should use pm_runtime_get_sync() because your device usually needs to be
   powered on always to be able to detect its slave address. When unregistering,

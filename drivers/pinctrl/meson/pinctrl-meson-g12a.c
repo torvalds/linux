@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0+ or MIT)
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * Pin controller and GPIO driver for Amlogic Meson G12A SoC.
  *
@@ -8,6 +8,7 @@
  */
 
 #include <dt-bindings/gpio/meson-g12a-gpio.h>
+#include <dt-bindings/interrupt-controller/amlogic,meson-g12a-gpio-intc.h>
 #include "pinctrl-meson.h"
 #include "pinctrl-meson-axg-pmx.h"
 
@@ -283,6 +284,8 @@ static const unsigned int pwm_d_x6_pins[]		= { GPIOX_6 };
 static const unsigned int pwm_e_pins[]			= { GPIOX_16 };
 
 /* pwm_f */
+static const unsigned int pwm_f_z_pins[]		= { GPIOZ_12 };
+static const unsigned int pwm_f_a_pins[]		= { GPIOA_11 };
 static const unsigned int pwm_f_x_pins[]		= { GPIOX_7 };
 static const unsigned int pwm_f_h_pins[]		= { GPIOH_5 };
 
@@ -618,6 +621,7 @@ static struct meson_pmx_group meson_g12a_periphs_groups[] = {
 	GROUP(tdm_c_dout2_z,		4),
 	GROUP(tdm_c_dout3_z,		4),
 	GROUP(mclk1_z,			4),
+	GROUP(pwm_f_z,			5),
 
 	/* bank GPIOX */
 	GROUP(sdio_d0,			1),
@@ -768,6 +772,7 @@ static struct meson_pmx_group meson_g12a_periphs_groups[] = {
 	GROUP(tdm_c_dout3_a,		2),
 	GROUP(mclk0_a,			1),
 	GROUP(mclk1_a,			2),
+	GROUP(pwm_f_a,			3),
 };
 
 /* uart_ao_a */
@@ -1069,7 +1074,7 @@ static const char * const pwm_e_groups[] = {
 };
 
 static const char * const pwm_f_groups[] = {
-	"pwm_f_x", "pwm_f_h",
+	"pwm_f_z", "pwm_f_a", "pwm_f_x", "pwm_f_h",
 };
 
 static const char * const cec_ao_a_h_groups[] = {
@@ -1314,31 +1319,31 @@ static struct meson_pmx_func meson_g12a_aobus_functions[] = {
 
 static struct meson_bank meson_g12a_periphs_banks[] = {
 	/* name  first  last  irq  pullen  pull  dir  out  in  ds */
-	BANK_DS("Z",    GPIOZ_0,    GPIOZ_15, 12, 27,
-		4,  0,  4,  0,  12,  0,  13, 0,  14, 0, 5, 0),
-	BANK_DS("H",    GPIOH_0,    GPIOH_8, 28, 36,
-		3,  0,  3,  0,  9,  0,  10,  0,  11,  0, 4, 0),
-	BANK_DS("BOOT", BOOT_0,     BOOT_15,  37, 52,
-		0,  0,  0,  0,  0, 0,  1, 0,  2, 0, 0, 0),
-	BANK_DS("C",    GPIOC_0,    GPIOC_7,  53, 60,
-		1,  0,  1,  0,  3, 0,  4, 0,  5, 0, 1, 0),
-	BANK_DS("A",    GPIOA_0,    GPIOA_15,  61, 76,
-		5,  0,  5,  0,  16,  0,  17,  0,  18,  0, 6, 0),
-	BANK_DS("X",    GPIOX_0,    GPIOX_19,   77, 96,
-		2,  0,  2,  0,  6,  0,  7,  0,  8,  0, 2, 0),
+	BANK_DS("Z",    GPIOZ_0,  GPIOZ_15,  IRQID_GPIOZ_0,  IRQID_GPIOZ_15,
+		4,  0,  4,  0,  12,  0, 13,  0,  14,  0,  5, 0),
+	BANK_DS("H",    GPIOH_0,  GPIOH_8,   IRQID_GPIOH_0,  IRQID_GPIOH_8,
+		3,  0,  3,  0,   9,  0, 10,  0,  11,  0,  4, 0),
+	BANK_DS("BOOT", BOOT_0,   BOOT_15,   IRQID_BOOT_0,   IRQID_BOOT_15,
+		0,  0,  0,  0,   0,  0,  1,  0,   2,  0,  0, 0),
+	BANK_DS("C",    GPIOC_0,  GPIOC_7,   IRQID_GPIOC_0,  IRQID_GPIOC_7,
+		1,  0,  1,  0,   3,  0,  4,  0,   5,  0,  1, 0),
+	BANK_DS("A",    GPIOA_0,  GPIOA_15,  IRQID_GPIOA_0,  IRQID_GPIOA_15,
+		5,  0,  5,  0,  16,  0, 17,  0,  18,  0,  6, 0),
+	BANK_DS("X",    GPIOX_0,  GPIOX_19,  IRQID_GPIOX_0,  IRQID_GPIOX_19,
+		2,  0,  2,  0,   6,  0,  7,  0,   8,  0,  2, 0),
 };
 
 static struct meson_bank meson_g12a_aobus_banks[] = {
 	/* name  first  last  irq  pullen  pull  dir  out  in  ds */
-	BANK_DS("AO", GPIOAO_0, GPIOAO_11, 0, 11, 3, 0, 2, 0, 0, 0, 4, 0, 1, 0,
-		0, 0),
+	BANK_DS("AO",   GPIOAO_0, GPIOAO_11, IRQID_GPIOAO_0, IRQID_GPIOAO_11,
+		3,  0,  2,  0,   0,  0,  4,  0,   1,  0,  0, 0),
 	/* GPIOE actually located in the AO bank */
-	BANK_DS("E", GPIOE_0, GPIOE_2, 97, 99, 3, 16, 2, 16, 0, 16, 4, 16, 1,
-		16, 1, 0),
+	BANK_DS("E",    GPIOE_0,  GPIOE_2,   IRQID_GPIOE_0,  IRQID_GPIOE_2,
+		3, 16,  2, 16,   0, 16,  4, 16,   1, 16,  1, 0),
 };
 
 static struct meson_pmx_bank meson_g12a_periphs_pmx_banks[] = {
-	/*	 name	 first		lask	   reg	offset  */
+	/*	 name	 first	  last	    reg	 offset  */
 	BANK_PMX("Z",    GPIOZ_0, GPIOZ_15, 0x6, 0),
 	BANK_PMX("H",    GPIOH_0, GPIOH_8,  0xb, 0),
 	BANK_PMX("BOOT", BOOT_0,  BOOT_15,  0x0, 0),
@@ -1361,6 +1366,14 @@ static struct meson_axg_pmx_data meson_g12a_aobus_pmx_banks_data = {
 	.pmx_banks	= meson_g12a_aobus_pmx_banks,
 	.num_pmx_banks	= ARRAY_SIZE(meson_g12a_aobus_pmx_banks),
 };
+
+static int meson_g12a_aobus_parse_dt_extra(struct meson_pinctrl *pc)
+{
+	pc->reg_pull = pc->reg_gpio;
+	pc->reg_pullen = pc->reg_gpio;
+
+	return 0;
+}
 
 static struct meson_pinctrl_data meson_g12a_periphs_pinctrl_data = {
 	.name		= "periphs-banks",
@@ -1388,6 +1401,7 @@ static struct meson_pinctrl_data meson_g12a_aobus_pinctrl_data = {
 	.num_banks	= ARRAY_SIZE(meson_g12a_aobus_banks),
 	.pmx_ops	= &meson_axg_pmx_ops,
 	.pmx_data	= &meson_g12a_aobus_pmx_banks_data,
+	.parse_dt	= meson_g12a_aobus_parse_dt_extra,
 };
 
 static const struct of_device_id meson_g12a_pinctrl_dt_match[] = {
@@ -1401,6 +1415,7 @@ static const struct of_device_id meson_g12a_pinctrl_dt_match[] = {
 	},
 	{ },
 };
+MODULE_DEVICE_TABLE(of, meson_g12a_pinctrl_dt_match);
 
 static struct platform_driver meson_g12a_pinctrl_driver = {
 	.probe  = meson_pinctrl_probe,
@@ -1410,4 +1425,5 @@ static struct platform_driver meson_g12a_pinctrl_driver = {
 	},
 };
 
-builtin_platform_driver(meson_g12a_pinctrl_driver);
+module_platform_driver(meson_g12a_pinctrl_driver);
+MODULE_LICENSE("Dual BSD/GPL");

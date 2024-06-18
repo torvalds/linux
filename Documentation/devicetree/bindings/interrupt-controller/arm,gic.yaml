@@ -35,9 +35,14 @@ properties:
               - arm,gic-400
               - arm,pl390
               - arm,tc11mp-gic
-              - nvidia,tegra210-agic
               - qcom,msm-8660-qgic
               - qcom,msm-qgic2
+
+      - items:
+          - const: arm,gic-400
+          - enum:
+              - arm,cortex-a15-gic
+              - arm,cortex-a7-gic
 
       - items:
           - const: arm,arm1176jzf-devchip-gic
@@ -47,12 +52,21 @@ properties:
           - const: brcm,brahma-b15-gic
           - const: arm,cortex-a15-gic
 
+      - oneOf:
+          - const: nvidia,tegra210-agic
+          - items:
+              - enum:
+                  - nvidia,tegra186-agic
+                  - nvidia,tegra194-agic
+                  - nvidia,tegra234-agic
+              - const: nvidia,tegra210-agic
+
   interrupt-controller: true
 
   "#address-cells":
-    enum: [ 0, 1 ]
+    enum: [ 0, 1, 2 ]
   "#size-cells":
-    const: 1
+    enum: [ 1, 2 ]
 
   "#interrupt-cells":
     const: 3
@@ -119,10 +133,13 @@ properties:
       - items: # for "arm,cortex-a9-gic"
           - const: PERIPHCLK
           - const: PERIPHCLKEN
-      - const: clk # for "arm,gic-400" and "nvidia,tegra210"
-      - const: gclk #for "arm,pl390"
+      - const: clk  # for "arm,gic-400" and "nvidia,tegra210"
+      - const: gclk # for "arm,pl390"
 
   power-domains:
+    maxItems: 1
+
+  resets:
     maxItems: 1
 
 required:

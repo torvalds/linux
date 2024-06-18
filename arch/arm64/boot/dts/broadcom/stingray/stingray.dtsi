@@ -108,18 +108,26 @@
 
 		CLUSTER0_L2: l2-cache@0 {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 
 		CLUSTER1_L2: l2-cache@100 {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 
 		CLUSTER2_L2: l2-cache@200 {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 
 		CLUSTER3_L2: l2-cache@300 {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 	};
 
@@ -134,7 +142,7 @@
 	};
 
 	pmu {
-		compatible = "arm,armv8-pmuv3";
+		compatible = "arm,cortex-a72-pmu";
 		interrupts = <GIC_PPI 7 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
@@ -174,7 +182,7 @@
 			      <0x02e00000 0x600000>; /* GICR */
 			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
 
-			gic_its: gic-its@63c20000 {
+			gic_its: msi-controller@63c20000 {
 				compatible = "arm,gic-v3-its";
 				msi-controller;
 				#msi-cells = <1>;
@@ -182,7 +190,7 @@
 			};
 		};
 
-		smmu: mmu@3000000 {
+		smmu: iommu@3000000 {
 			compatible = "arm,mmu-500";
 			reg = <0x03000000 0x80000>;
 			#global-interrupts = <1>;
@@ -285,7 +293,6 @@
 	};
 
 	#include "stingray-fs4.dtsi"
-	#include "stingray-sata.dtsi"
 	#include "stingray-pcie.dtsi"
 	#include "stingray-usb.dtsi"
 
@@ -305,12 +312,6 @@
 
 			mdio@0 { /* PCIe serdes */
 				reg = <0x0>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-			};
-
-			mdio@2 { /* SATA */
-				reg = <0x2>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 			};
@@ -438,7 +439,7 @@
 			reg = <0x000c0000 0x1000>;
 			interrupts = <GIC_SPI 189 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&hsls_25m_div2_clk>, <&hsls_div4_clk>;
-			clock-names = "wdogclk", "apb_pclk";
+			clock-names = "wdog_clk", "apb_pclk";
 			timeout-sec = <60>;
 		};
 
@@ -449,6 +450,7 @@
 			#gpio-cells = <2>;
 			gpio-controller;
 			interrupt-controller;
+			#interrupt-cells = <2>;
 			interrupts = <GIC_SPI 183 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-ranges = <&pinmux 0 0 16>,
 					<&pinmux 16 71 2>,
@@ -464,8 +466,7 @@
 					<&pinmux 108 16 27>,
 					<&pinmux 135 77 6>,
 					<&pinmux 141 67 4>,
-					<&pinmux 145 149 6>,
-					<&pinmux 151 91 4>;
+					<&pinmux 145 149 6>;
 		};
 
 		i2c1: i2c@e0000 {
@@ -478,8 +479,7 @@
 			status = "disabled";
 		};
 
-		uart0: uart@100000 {
-			device_type = "serial";
+		uart0: serial@100000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x00100000 0x1000>;
 			reg-shift = <2>;
@@ -489,8 +489,7 @@
 			status = "disabled";
 		};
 
-		uart1: uart@110000 {
-			device_type = "serial";
+		uart1: serial@110000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x00110000 0x1000>;
 			reg-shift = <2>;
@@ -500,8 +499,7 @@
 			status = "disabled";
 		};
 
-		uart2: uart@120000 {
-			device_type = "serial";
+		uart2: serial@120000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x00120000 0x1000>;
 			reg-shift = <2>;
@@ -511,8 +509,7 @@
 			status = "disabled";
 		};
 
-		uart3: uart@130000 {
-			device_type = "serial";
+		uart3: serial@130000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x00130000 0x1000>;
 			reg-shift = <2>;
@@ -527,7 +524,7 @@
 			reg = <0x00180000 0x1000>;
 			interrupts = <GIC_SPI 187 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&hsls_div2_clk>, <&hsls_div2_clk>;
-			clock-names = "spiclk", "apb_pclk";
+			clock-names = "sspclk", "apb_pclk";
 			num-cs = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -539,7 +536,7 @@
 			reg = <0x00190000 0x1000>;
 			interrupts = <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&hsls_div2_clk>, <&hsls_div2_clk>;
-			clock-names = "spiclk", "apb_pclk";
+			clock-names = "sspclk", "apb_pclk";
 			num-cs = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -551,7 +548,7 @@
 			reg = <0x00220000 0x28>;
 		};
 
-		dma0: dma@310000 {
+		dma0: dma-controller@310000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0x00310000 0x1000>;
 			interrupts = <GIC_SPI 193 IRQ_TYPE_LEVEL_HIGH>,
@@ -564,20 +561,18 @@
 				     <GIC_SPI 200 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 201 IRQ_TYPE_LEVEL_HIGH>;
 			#dma-cells = <1>;
-			#dma-channels = <8>;
-			#dma-requests = <32>;
 			clocks = <&hsls_div2_clk>;
 			clock-names = "apb_pclk";
 			iommus = <&smmu 0x6000 0x0000>;
 		};
 
-		enet: ethernet@340000{
+		enet: ethernet@340000 {
 			compatible = "brcm,amac";
 			reg = <0x00340000 0x1000>;
 			reg-names = "amac_base";
 			dma-coherent;
 			interrupts = <GIC_SPI 213 IRQ_TYPE_LEVEL_HIGH>;
-			status= "disabled";
+			status = "disabled";
 		};
 
 		nand: nand@360000 {

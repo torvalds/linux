@@ -104,6 +104,7 @@
 #define DMA_MEMORY	1
 
 struct r852_device {
+	struct nand_controller		controller;
 	void __iomem *mmio;		/* mmio */
 	struct nand_chip *chip;		/* nand chip backpointer */
 	struct pci_dev *pci_dev;	/* pci backpointer */

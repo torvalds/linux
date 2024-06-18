@@ -21,8 +21,9 @@
 #include <asm/cacheflush.h>
 #include <asm/page.h>
 #include <asm/vdso.h>
-#include <asm/vdso_datapage.h>
 #include <clocksource/arm_arch_timer.h>
+#include <vdso/helpers.h>
+#include <vdso/vsyscall.h>
 
 #define MAX_SYMNAME	64
 
@@ -33,11 +34,8 @@ extern char vdso_start[], vdso_end[];
 /* Total number of pages needed for the data and text portions of the VDSO. */
 unsigned int vdso_total_pages __ro_after_init;
 
-/*
- * The VDSO data page.
- */
 static union vdso_data_store vdso_data_store __page_aligned_data;
-static struct vdso_data *vdso_data = &vdso_data_store.data;
+struct vdso_data *vdso_data = vdso_data_store.data;
 
 static struct page *vdso_data_page __ro_after_init;
 static const struct vm_special_mapping vdso_data_mapping = {
@@ -48,15 +46,6 @@ static const struct vm_special_mapping vdso_data_mapping = {
 static int vdso_mremap(const struct vm_special_mapping *sm,
 		struct vm_area_struct *new_vma)
 {
-	unsigned long new_size = new_vma->vm_end - new_vma->vm_start;
-	unsigned long vdso_size;
-
-	/* without VVAR page */
-	vdso_size = (vdso_total_pages - 1) << PAGE_SHIFT;
-
-	if (vdso_size != new_size)
-		return -EINVAL;
-
 	current->mm->context.vdso = new_vma->vm_start;
 
 	return 0;
@@ -77,7 +66,7 @@ struct elfinfo {
 /* Cached result of boot-time check for whether the arch timer exists,
  * and if so, whether the virtual counter is useable.
  */
-static bool cntvct_ok __ro_after_init;
+bool cntvct_ok __ro_after_init;
 
 static bool __init cntvct_functional(void)
 {
@@ -92,6 +81,8 @@ static bool __init cntvct_functional(void)
 	 * this.
 	 */
 	np = of_find_compatible_node(NULL, NULL, "arm,armv7-timer");
+	if (!np)
+		np = of_find_compatible_node(NULL, NULL, "arm,armv8-timer");
 	if (!np)
 		goto out_put;
 
@@ -140,7 +131,7 @@ static Elf32_Sym * __init find_symbol(struct elfinfo *lib, const char *symname)
 
 		if (lib->dynsym[i].st_name == 0)
 			continue;
-		strlcpy(name, lib->dynstr + lib->dynsym[i].st_name,
+		strscpy(name, lib->dynstr + lib->dynsym[i].st_name,
 			MAX_SYMNAME);
 		c = strchr(name, '@');
 		if (c)
@@ -180,6 +171,7 @@ static void __init patch_vdso(void *ehdr)
 	if (!cntvct_ok) {
 		vdso_nullpatch_one(&einfo, "__vdso_gettimeofday");
 		vdso_nullpatch_one(&einfo, "__vdso_clock_gettime");
+		vdso_nullpatch_one(&einfo, "__vdso_clock_gettime64");
 	}
 }
 
@@ -236,7 +228,7 @@ static int install_vvar(struct mm_struct *mm, unsigned long addr)
 	return PTR_ERR_OR_ZERO(vma);
 }
 
-/* assumes mmap_sem is write-locked */
+/* assumes mmap_lock is write-locked */
 void arm_install_vdso(struct mm_struct *mm, unsigned long addr)
 {
 	struct vm_area_struct *vma;
@@ -262,84 +254,3 @@ void arm_install_vdso(struct mm_struct *mm, unsigned long addr)
 		mm->context.vdso = addr;
 }
 
-static void vdso_write_begin(struct vdso_data *vdata)
-{
-	++vdso_data->seq_count;
-	smp_wmb(); /* Pairs with smp_rmb in vdso_read_retry */
-}
-
-static void vdso_write_end(struct vdso_data *vdata)
-{
-	smp_wmb(); /* Pairs with smp_rmb in vdso_read_begin */
-	++vdso_data->seq_count;
-}
-
-static bool tk_is_cntvct(const struct timekeeper *tk)
-{
-	if (!IS_ENABLED(CONFIG_ARM_ARCH_TIMER))
-		return false;
-
-	if (!tk->tkr_mono.clock->archdata.vdso_direct)
-		return false;
-
-	return true;
-}
-
-/**
- * update_vsyscall - update the vdso data page
- *
- * Increment the sequence counter, making it odd, indicating to
- * userspace that an update is in progress.  Update the fields used
- * for coarse clocks and, if the architected system timer is in use,
- * the fields used for high precision clocks.  Increment the sequence
- * counter again, making it even, indicating to userspace that the
- * update is finished.
- *
- * Userspace is expected to sample seq_count before reading any other
- * fields from the data page.  If seq_count is odd, userspace is
- * expected to wait until it becomes even.  After copying data from
- * the page, userspace must sample seq_count again; if it has changed
- * from its previous value, userspace must retry the whole sequence.
- *
- * Calls to update_vsyscall are serialized by the timekeeping core.
- */
-void update_vsyscall(struct timekeeper *tk)
-{
-	struct timespec64 *wtm = &tk->wall_to_monotonic;
-
-	if (!cntvct_ok) {
-		/* The entry points have been zeroed, so there is no
-		 * point in updating the data page.
-		 */
-		return;
-	}
-
-	vdso_write_begin(vdso_data);
-
-	vdso_data->tk_is_cntvct			= tk_is_cntvct(tk);
-	vdso_data->xtime_coarse_sec		= tk->xtime_sec;
-	vdso_data->xtime_coarse_nsec		= (u32)(tk->tkr_mono.xtime_nsec >>
-							tk->tkr_mono.shift);
-	vdso_data->wtm_clock_sec		= wtm->tv_sec;
-	vdso_data->wtm_clock_nsec		= wtm->tv_nsec;
-
-	if (vdso_data->tk_is_cntvct) {
-		vdso_data->cs_cycle_last	= tk->tkr_mono.cycle_last;
-		vdso_data->xtime_clock_sec	= tk->xtime_sec;
-		vdso_data->xtime_clock_snsec	= tk->tkr_mono.xtime_nsec;
-		vdso_data->cs_mult		= tk->tkr_mono.mult;
-		vdso_data->cs_shift		= tk->tkr_mono.shift;
-		vdso_data->cs_mask		= tk->tkr_mono.mask;
-	}
-
-	vdso_write_end(vdso_data);
-
-	flush_dcache_page(virt_to_page(vdso_data));
-}
-
-void update_vsyscall_tz(void)
-{
-	vdso_data->tz_minuteswest	= sys_tz.tz_minuteswest;
-	vdso_data->tz_dsttime		= sys_tz.tz_dsttime;
-	flush_dcache_page(virt_to_page(vdso_data));
-}

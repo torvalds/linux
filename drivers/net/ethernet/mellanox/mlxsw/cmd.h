@@ -276,6 +276,18 @@ MLXSW_ITEM32(cmd_mbox, query_fw, fw_month, 0x14, 8, 8);
  */
 MLXSW_ITEM32(cmd_mbox, query_fw, fw_day, 0x14, 0, 8);
 
+/* cmd_mbox_query_fw_lag_mode_support
+ * 0: CONFIG_PROFILE.lag_mode is not supported by FW
+ * 1: CONFIG_PROFILE.lag_mode is supported by FW
+ */
+MLXSW_ITEM32(cmd_mbox, query_fw, lag_mode_support, 0x18, 1, 1);
+
+/* cmd_mbox_query_fw_cff_support
+ * 0: CONFIG_PROFILE.flood_mode = 5 (CFF) is not supported by FW
+ * 1: CONFIG_PROFILE.flood_mode = 5 (CFF) is supported by FW
+ */
+MLXSW_ITEM32(cmd_mbox, query_fw, cff_support, 0x18, 2, 1);
+
 /* cmd_mbox_query_fw_clr_int_base_offset
  * Clear Interrupt register's offset from clr_int_bar register
  * in PCI address space.
@@ -328,6 +340,32 @@ MLXSW_ITEM64(cmd_mbox, query_fw, free_running_clock_offset, 0x50, 0, 64);
  * 1: 64 bit BAR
  */
 MLXSW_ITEM32(cmd_mbox, query_fw, fr_rn_clk_bar, 0x58, 30, 2);
+
+/* cmd_mbox_query_fw_utc_sec_offset
+ * The offset of the UTC_Sec page
+ */
+MLXSW_ITEM64(cmd_mbox, query_fw, utc_sec_offset, 0x70, 0, 64);
+
+/* cmd_mbox_query_fw_utc_sec_bar
+ * PCI base address register (BAR) of the UTC_Sec page
+ * 0: BAR 0
+ * 1: 64 bit BAR
+ * Reserved on SwitchX/-2, Switch-IB/2, Spectrum-1
+ */
+MLXSW_ITEM32(cmd_mbox, query_fw, utc_sec_bar, 0x78, 30, 2);
+
+/* cmd_mbox_query_fw_utc_nsec_offset
+ * The offset of the UTC_nSec page
+ */
+MLXSW_ITEM64(cmd_mbox, query_fw, utc_nsec_offset, 0x80, 0, 64);
+
+/* cmd_mbox_query_fw_utc_nsec_bar
+ * PCI base address register (BAR) of the UTC_nSec page
+ * 0: BAR 0
+ * 1: 64 bit BAR
+ * Reserved on SwitchX/-2, Switch-IB/2, Spectrum-1
+ */
+MLXSW_ITEM32(cmd_mbox, query_fw, utc_nsec_bar, 0x88, 30, 2);
 
 /* QUERY_BOARDINFO - Query Board Information
  * -----------------------------------------
@@ -633,29 +671,47 @@ MLXSW_ITEM32(cmd_mbox, config_profile,
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, set_ar_sec, 0x0C, 15, 1);
 
-/* cmd_mbox_config_set_kvd_linear_size
+/* cmd_mbox_config_profile_set_ubridge
+ * Capability bit. Setting a bit to 1 configures the profile
+ * according to the mailbox contents.
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, set_ubridge, 0x0C, 22, 1);
+
+/* cmd_mbox_config_profile_set_kvd_linear_size
  * Capability bit. Setting a bit to 1 configures the profile
  * according to the mailbox contents.
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, set_kvd_linear_size, 0x0C, 24, 1);
 
-/* cmd_mbox_config_set_kvd_hash_single_size
+/* cmd_mbox_config_profile_set_kvd_hash_single_size
  * Capability bit. Setting a bit to 1 configures the profile
  * according to the mailbox contents.
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, set_kvd_hash_single_size, 0x0C, 25, 1);
 
-/* cmd_mbox_config_set_kvd_hash_double_size
+/* cmd_mbox_config_profile_set_kvd_hash_double_size
  * Capability bit. Setting a bit to 1 configures the profile
  * according to the mailbox contents.
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, set_kvd_hash_double_size, 0x0C, 26, 1);
 
-/* cmd_mbox_config_set_cqe_version
+/* cmd_mbox_config_profile_set_cqe_version
  * Capability bit. Setting a bit to 1 configures the profile
  * according to the mailbox contents.
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, set_cqe_version, 0x08, 0, 1);
+
+/* cmd_mbox_config_profile_set_cqe_time_stamp_type
+ * Capability bit. Setting a bit to 1 configures the profile
+ * according to the mailbox contents.
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, set_cqe_time_stamp_type, 0x08, 2, 1);
+
+/* cmd_mbox_config_profile_set_lag_mode
+ * Capability bit. Setting a bit to 1 configures the lag_mode
+ * according to the mailbox contents.
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, set_lag_mode, 0x08, 7, 1);
 
 /* cmd_mbox_config_profile_max_vepa_channels
  * Maximum number of VEPA channels per port (0 through 16)
@@ -665,6 +721,9 @@ MLXSW_ITEM32(cmd_mbox, config_profile, max_vepa_channels, 0x10, 0, 8);
 
 /* cmd_mbox_config_profile_max_lag
  * Maximum number of LAG IDs requested.
+ * Reserved when Spectrum-1/2/3, supported from Spectrum-4 and above.
+ * For Spectrum-4, firmware sets 128 for values between 1-128 and 256 for values
+ * between 129-256.
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, max_lag, 0x14, 0, 16);
 
@@ -713,16 +772,30 @@ MLXSW_ITEM32(cmd_mbox, config_profile, max_flood_tables, 0x30, 16, 4);
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, max_vid_flood_tables, 0x30, 8, 4);
 
+enum mlxsw_cmd_mbox_config_profile_flood_mode {
+	/* Mixed mode, where:
+	 * max_flood_tables indicates the number of single-entry tables.
+	 * max_vid_flood_tables indicates the number of per-VID tables.
+	 * max_fid_offset_flood_tables indicates the number of FID-offset
+	 * tables. max_fid_flood_tables indicates the number of per-FID tables.
+	 * Reserved when unified bridge model is used.
+	 */
+	MLXSW_CMD_MBOX_CONFIG_PROFILE_FLOOD_MODE_MIXED = 3,
+	/* Controlled flood tables. Reserved when legacy bridge model is
+	 * used.
+	 */
+	MLXSW_CMD_MBOX_CONFIG_PROFILE_FLOOD_MODE_CONTROLLED = 4,
+	/* CFF - Compressed FID Flood (CFF) mode.
+	 * Reserved when legacy bridge model is used.
+	 * Supported only by Spectrum-2+.
+	 */
+	MLXSW_CMD_MBOX_CONFIG_PROFILE_FLOOD_MODE_CFF = 5,
+};
+
 /* cmd_mbox_config_profile_flood_mode
  * Flooding mode to use.
- * 0-2 - Backward compatible modes for SwitchX devices.
- * 3 - Mixed mode, where:
- * max_flood_tables indicates the number of single-entry tables.
- * max_vid_flood_tables indicates the number of per-VID tables.
- * max_fid_offset_flood_tables indicates the number of FID-offset tables.
- * max_fid_flood_tables indicates the number of per-FID tables.
  */
-MLXSW_ITEM32(cmd_mbox, config_profile, flood_mode, 0x30, 0, 2);
+MLXSW_ITEM32(cmd_mbox, config_profile, flood_mode, 0x30, 0, 3);
 
 /* cmd_mbox_config_profile_max_fid_offset_flood_tables
  * Maximum number of FID-offset flooding tables.
@@ -783,6 +856,28 @@ MLXSW_ITEM32(cmd_mbox, config_profile, adaptive_routing_group_cap, 0x4C, 0, 16);
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, arn, 0x50, 31, 1);
 
+/* cmd_mbox_config_profile_ubridge
+ * Unified Bridge
+ * 0 - non unified bridge
+ * 1 - unified bridge
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, ubridge, 0x50, 4, 1);
+
+enum mlxsw_cmd_mbox_config_profile_lag_mode {
+	/* FW manages PGT LAG table */
+	MLXSW_CMD_MBOX_CONFIG_PROFILE_LAG_MODE_FW,
+	/* SW manages PGT LAG table */
+	MLXSW_CMD_MBOX_CONFIG_PROFILE_LAG_MODE_SW,
+};
+
+/* cmd_mbox_config_profile_lag_mode
+ * LAG mode
+ * Configured if set_lag_mode is set
+ * Supported from Spectrum-2 and above.
+ * Supported only when ubridge = 1
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, lag_mode, 0x50, 3, 1);
+
 /* cmd_mbox_config_kvd_linear_size
  * KVD Linear Size
  * Valid for Spectrum only
@@ -790,7 +885,7 @@ MLXSW_ITEM32(cmd_mbox, config_profile, arn, 0x50, 31, 1);
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, kvd_linear_size, 0x54, 0, 24);
 
-/* cmd_mbox_config_kvd_hash_single_size
+/* cmd_mbox_config_profile_kvd_hash_single_size
  * KVD Hash single-entries size
  * Valid for Spectrum only
  * Allowed values are 128*N where N=0 or higher
@@ -799,7 +894,7 @@ MLXSW_ITEM32(cmd_mbox, config_profile, kvd_linear_size, 0x54, 0, 24);
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, kvd_hash_single_size, 0x58, 0, 24);
 
-/* cmd_mbox_config_kvd_hash_double_size
+/* cmd_mbox_config_profile_kvd_hash_double_size
  * KVD Hash double-entries size (units of single-size entries)
  * Valid for Spectrum only
  * Allowed values are 128*N where N=0 or higher
@@ -835,6 +930,26 @@ MLXSW_ITEM32_INDEXED(cmd_mbox, config_profile, swid_config_type,
  */
 MLXSW_ITEM32_INDEXED(cmd_mbox, config_profile, swid_config_properties,
 		     0x60, 0, 8, 0x08, 0x00, false);
+
+enum mlxsw_cmd_mbox_config_profile_cqe_time_stamp_type {
+	/* uSec - 1.024uSec (default). Only bits 15:0 are valid. */
+	MLXSW_CMD_MBOX_CONFIG_PROFILE_CQE_TIME_STAMP_TYPE_USEC,
+	/* FRC - Free Running Clock, units of 1nSec.
+	 * Reserved when SwitchX/-2, Switch-IB/2 and Spectrum-1.
+	 */
+	MLXSW_CMD_MBOX_CONFIG_PROFILE_CQE_TIME_STAMP_TYPE_FRC,
+	/* UTC. time_stamp[37:30] = Sec, time_stamp[29:0] = nSec.
+	 * Reserved when SwitchX/2, Switch-IB/2 and Spectrum-1.
+	 */
+	MLXSW_CMD_MBOX_CONFIG_PROFILE_CQE_TIME_STAMP_TYPE_UTC,
+};
+
+/* cmd_mbox_config_profile_cqe_time_stamp_type
+ * CQE time_stamp_type for non-mirror-packets.
+ * Configured if set_cqe_time_stamp_type is set.
+ * Reserved when SwitchX/-2, Switch-IB/2 and Spectrum-1.
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, cqe_time_stamp_type, 0xB0, 8, 2);
 
 /* cmd_mbox_config_profile_cqe_version
  * CQE version:
@@ -904,6 +1019,18 @@ static inline int mlxsw_cmd_sw2hw_rdq(struct mlxsw_core *mlxsw_core,
  * Number of the CQ that this Descriptor Queue reports completions to.
  */
 MLXSW_ITEM32(cmd_mbox, sw2hw_dq, cq, 0x00, 24, 8);
+
+enum mlxsw_cmd_mbox_sw2hw_dq_sdq_lp {
+	MLXSW_CMD_MBOX_SW2HW_DQ_SDQ_LP_WQE,
+	MLXSW_CMD_MBOX_SW2HW_DQ_SDQ_LP_IGNORE_WQE,
+};
+
+/* cmd_mbox_sw2hw_dq_sdq_lp
+ * SDQ local Processing
+ * 0: local processing by wqe.lp
+ * 1: local processing (ignoring wqe.lp)
+ */
+MLXSW_ITEM32(cmd_mbox, sw2hw_dq, sdq_lp, 0x00, 23, 1);
 
 /* cmd_mbox_sw2hw_dq_sdq_tclass
  * SDQ: CPU Egress TClass

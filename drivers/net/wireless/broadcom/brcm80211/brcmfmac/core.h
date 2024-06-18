@@ -13,6 +13,12 @@
 #include <net/cfg80211.h>
 #include "fweh.h"
 
+#if IS_MODULE(CONFIG_BRCMFMAC)
+#define BRCMF_EXPORT_SYMBOL_GPL(__sym)	EXPORT_SYMBOL_NS_GPL(__sym, BRCMFMAC)
+#else
+#define BRCMF_EXPORT_SYMBOL_GPL(__sym)
+#endif
+
 #define TOE_TX_CSUM_OL		0x00000001
 #define TOE_RX_CSUM_OL		0x00000002
 
@@ -116,7 +122,7 @@ struct brcmf_pub {
 	struct mutex proto_block;
 	unsigned char proto_buf[BRCMF_DCMD_MAXLEN];
 
-	struct brcmf_fweh_info fweh;
+	struct brcmf_fweh_info *fweh;
 
 	struct brcmf_ampdu_rx_reorder
 		*reorder_flows[BRCMF_AMPDU_RX_REORDER_MAXFLOWS];
@@ -136,6 +142,9 @@ struct brcmf_pub {
 	struct work_struct bus_reset;
 
 	u8 clmver[BRCMF_DCMD_SMLEN];
+	u8 sta_mac_idx;
+	const struct brcmf_fwvid_ops *vops;
+	void *vdata;
 };
 
 /* forward declarations */
@@ -201,15 +210,17 @@ int brcmf_netdev_wait_pend8021x(struct brcmf_if *ifp);
 char *brcmf_ifname(struct brcmf_if *ifp);
 struct brcmf_if *brcmf_get_ifp(struct brcmf_pub *drvr, int ifidx);
 void brcmf_configure_arp_nd_offload(struct brcmf_if *ifp, bool enable);
-int brcmf_net_attach(struct brcmf_if *ifp, bool rtnl_locked);
+int brcmf_net_attach(struct brcmf_if *ifp, bool locked);
 struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bsscfgidx, s32 ifidx,
 			      bool is_p2pdev, const char *name, u8 *mac_addr);
-void brcmf_remove_interface(struct brcmf_if *ifp, bool rtnl_locked);
+void brcmf_remove_interface(struct brcmf_if *ifp, bool locked);
 void brcmf_txflowblock_if(struct brcmf_if *ifp,
 			  enum brcmf_netif_stop_reason reason, bool state);
 void brcmf_txfinalize(struct brcmf_if *ifp, struct sk_buff *txp, bool success);
 void brcmf_netif_rx(struct brcmf_if *ifp, struct sk_buff *skb);
 void brcmf_netif_mon_rx(struct brcmf_if *ifp, struct sk_buff *skb);
+void brcmf_net_detach(struct net_device *ndev, bool locked);
+int brcmf_net_mon_attach(struct brcmf_if *ifp);
 void brcmf_net_setcarrier(struct brcmf_if *ifp, bool on);
 int __init brcmf_core_init(void);
 void __exit brcmf_core_exit(void);

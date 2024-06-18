@@ -11,7 +11,7 @@
 /*
  *struct bitfields_only_mixed_types {
  *	int a: 3;
- *	long int b: 2;
+ *	long b: 2;
  *	_Bool c: 1;
  *	enum {
  *		A = 0,
@@ -27,7 +27,7 @@
 
 struct bitfields_only_mixed_types {
 	int a: 3;
-	long int b: 2;
+	long b: 2;
 	bool c: 1; /* it's really a _Bool type */
 	enum {
 		A, /* A = 0, dumper is very explicit */
@@ -44,8 +44,8 @@ struct bitfields_only_mixed_types {
  *	char: 4;
  *	int a: 4;
  *	short b;
- *	long int c;
- *	long int d: 8;
+ *	long c;
+ *	long d: 8;
  *	int e;
  *	int f;
  *};
@@ -53,7 +53,7 @@ struct bitfields_only_mixed_types {
  */
 /* ------ END-EXPECTED-OUTPUT ------ */
 struct bitfield_mixed_with_others {
-	long: 4; /* char is enough as a backing field */
+	char: 4; /* char is enough as a backing field */
 	int a: 4;
 	/* 8-bit implicit padding */
 	short b; /* combined with previous bitfield */
@@ -71,7 +71,7 @@ struct bitfield_mixed_with_others {
  *struct bitfield_flushed {
  *	int a: 4;
  *	long: 60;
- *	long int b: 16;
+ *	long b: 16;
  *};
  *
  */

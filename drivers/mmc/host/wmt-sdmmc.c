@@ -21,7 +21,6 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <linux/of_device.h>
 
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
@@ -751,18 +750,15 @@ static int wmt_mci_probe(struct platform_device *pdev)
 	struct mmc_host *mmc;
 	struct wmt_mci_priv *priv;
 	struct device_node *np = pdev->dev.of_node;
-	const struct of_device_id *of_id =
-		of_match_device(wmt_mci_dt_ids, &pdev->dev);
 	const struct wmt_mci_caps *wmt_caps;
 	int ret;
 	int regular_irq, dma_irq;
 
-	if (!of_id || !of_id->data) {
+	wmt_caps = of_device_get_match_data(&pdev->dev);
+	if (!wmt_caps) {
 		dev_err(&pdev->dev, "Controller capabilities data missing\n");
 		return -EFAULT;
 	}
-
-	wmt_caps = of_id->data;
 
 	if (!np) {
 		dev_err(&pdev->dev, "Missing SDMMC description in devicetree\n");
@@ -805,10 +801,8 @@ static int wmt_mci_probe(struct platform_device *pdev)
 	priv->power_inverted = 0;
 	priv->cd_inverted = 0;
 
-	if (of_get_property(np, "sdon-inverted", NULL))
-		priv->power_inverted = 1;
-	if (of_get_property(np, "cd-inverted", NULL))
-		priv->cd_inverted = 1;
+	priv->power_inverted = of_property_read_bool(np, "sdon-inverted");
+	priv->cd_inverted = of_property_read_bool(np, "cd-inverted");
 
 	priv->sdmmc_base = of_iomap(np, 0);
 	if (!priv->sdmmc_base) {
@@ -849,7 +843,7 @@ static int wmt_mci_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->clk_sdmmc)) {
 		dev_err(&pdev->dev, "Error getting clock\n");
 		ret = PTR_ERR(priv->clk_sdmmc);
-		goto fail5;
+		goto fail5_and_a_half;
 	}
 
 	ret = clk_prepare_enable(priv->clk_sdmmc);
@@ -859,13 +853,20 @@ static int wmt_mci_probe(struct platform_device *pdev)
 	/* configure the controller to a known 'ready' state */
 	wmt_reset_hardware(mmc);
 
-	mmc_add_host(mmc);
+	ret = mmc_add_host(mmc);
+	if (ret)
+		goto fail7;
 
 	dev_info(&pdev->dev, "WMT SDHC Controller initialized\n");
 
 	return 0;
+fail7:
+	clk_disable_unprepare(priv->clk_sdmmc);
 fail6:
 	clk_put(priv->clk_sdmmc);
+fail5_and_a_half:
+	dma_free_coherent(&pdev->dev, mmc->max_blk_count * 16,
+			  priv->dma_desc_buffer, priv->dma_desc_device_addr);
 fail5:
 	free_irq(dma_irq, priv);
 fail4:
@@ -878,11 +879,10 @@ fail1:
 	return ret;
 }
 
-static int wmt_mci_remove(struct platform_device *pdev)
+static void wmt_mci_remove(struct platform_device *pdev)
 {
 	struct mmc_host *mmc;
 	struct wmt_mci_priv *priv;
-	struct resource *res;
 	u32 reg_tmp;
 
 	mmc = platform_get_drvdata(pdev);
@@ -910,14 +910,9 @@ static int wmt_mci_remove(struct platform_device *pdev)
 	clk_disable_unprepare(priv->clk_sdmmc);
 	clk_put(priv->clk_sdmmc);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(res->start, resource_size(res));
-
 	mmc_free_host(mmc);
 
 	dev_info(&pdev->dev, "WMT MCI device removed\n");
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -987,9 +982,10 @@ static const struct dev_pm_ops wmt_mci_pm = {
 
 static struct platform_driver wmt_mci_driver = {
 	.probe = wmt_mci_probe,
-	.remove = wmt_mci_remove,
+	.remove_new = wmt_mci_remove,
 	.driver = {
 		.name = DRIVER_NAME,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.pm = wmt_mci_pm_ops,
 		.of_match_table = wmt_mci_dt_ids,
 	},

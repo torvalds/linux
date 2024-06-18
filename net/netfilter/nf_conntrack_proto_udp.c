@@ -38,8 +38,7 @@ static void udp_error_log(const struct sk_buff *skb,
 			  const struct nf_hook_state *state,
 			  const char *msg)
 {
-	nf_l4proto_log_invalid(skb, state->net, state->pf,
-			       IPPROTO_UDP, "%s", msg);
+	nf_l4proto_log_invalid(skb, state, IPPROTO_UDP, "%s", msg);
 }
 
 static bool udp_error(struct sk_buff *skb,
@@ -89,6 +88,7 @@ int nf_conntrack_udp_packet(struct nf_conn *ct,
 			    const struct nf_hook_state *state)
 {
 	unsigned int *timeouts;
+	unsigned long status;
 
 	if (udp_error(skb, dataoff, state))
 		return -NF_ACCEPT;
@@ -97,27 +97,34 @@ int nf_conntrack_udp_packet(struct nf_conn *ct,
 	if (!timeouts)
 		timeouts = udp_get_timeouts(nf_ct_net(ct));
 
-	if (!nf_ct_is_confirmed(ct))
+	status = READ_ONCE(ct->status);
+	if ((status & IPS_CONFIRMED) == 0)
 		ct->proto.udp.stream_ts = 2 * HZ + jiffies;
 
 	/* If we've seen traffic both ways, this is some kind of UDP
 	 * stream. Set Assured.
 	 */
-	if (test_bit(IPS_SEEN_REPLY_BIT, &ct->status)) {
+	if (status & IPS_SEEN_REPLY) {
 		unsigned long extra = timeouts[UDP_CT_UNREPLIED];
+		bool stream = false;
 
 		/* Still active after two seconds? Extend timeout. */
-		if (time_after(jiffies, ct->proto.udp.stream_ts))
+		if (time_after(jiffies, ct->proto.udp.stream_ts)) {
 			extra = timeouts[UDP_CT_REPLIED];
+			stream = (status & IPS_ASSURED) == 0;
+		}
 
 		nf_ct_refresh_acct(ct, ctinfo, skb, extra);
 
+		/* never set ASSURED for IPS_NAT_CLASH, they time out soon */
+		if (unlikely((status & IPS_NAT_CLASH)))
+			return NF_ACCEPT;
+
 		/* Also, more likely to be important, and not a probe */
-		if (!test_and_set_bit(IPS_ASSURED_BIT, &ct->status))
+		if (stream && !test_and_set_bit(IPS_ASSURED_BIT, &ct->status))
 			nf_conntrack_event_cache(IPCT_ASSURED, ct);
 	} else {
-		nf_ct_refresh_acct(ct, ctinfo, skb,
-				   timeouts[UDP_CT_UNREPLIED]);
+		nf_ct_refresh_acct(ct, ctinfo, skb, timeouts[UDP_CT_UNREPLIED]);
 	}
 	return NF_ACCEPT;
 }
@@ -127,8 +134,7 @@ static void udplite_error_log(const struct sk_buff *skb,
 			      const struct nf_hook_state *state,
 			      const char *msg)
 {
-	nf_l4proto_log_invalid(skb, state->net, state->pf,
-			       IPPROTO_UDPLITE, "%s", msg);
+	nf_l4proto_log_invalid(skb, state, IPPROTO_UDPLITE, "%s", msg);
 }
 
 static bool udplite_error(struct sk_buff *skb,
@@ -194,12 +200,15 @@ int nf_conntrack_udplite_packet(struct nf_conn *ct,
 	if (test_bit(IPS_SEEN_REPLY_BIT, &ct->status)) {
 		nf_ct_refresh_acct(ct, ctinfo, skb,
 				   timeouts[UDP_CT_REPLIED]);
+
+		if (unlikely((ct->status & IPS_NAT_CLASH)))
+			return NF_ACCEPT;
+
 		/* Also, more likely to be important, and not a probe */
 		if (!test_and_set_bit(IPS_ASSURED_BIT, &ct->status))
 			nf_conntrack_event_cache(IPCT_ASSURED, ct);
 	} else {
-		nf_ct_refresh_acct(ct, ctinfo, skb,
-				   timeouts[UDP_CT_UNREPLIED]);
+		nf_ct_refresh_acct(ct, ctinfo, skb, timeouts[UDP_CT_UNREPLIED]);
 	}
 	return NF_ACCEPT;
 }
@@ -264,6 +273,10 @@ void nf_conntrack_udp_init_net(struct net *net)
 
 	for (i = 0; i < UDP_CT_MAX; i++)
 		un->timeouts[i] = udp_timeouts[i];
+
+#if IS_ENABLED(CONFIG_NF_FLOW_TABLE)
+	un->offload_timeout = 30 * HZ;
+#endif
 }
 
 const struct nf_conntrack_l4proto nf_conntrack_l4proto_udp =

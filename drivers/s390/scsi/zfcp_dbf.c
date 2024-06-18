@@ -4,7 +4,7 @@
  *
  * Debug traces for zfcp.
  *
- * Copyright IBM Corp. 2002, 2018
+ * Copyright IBM Corp. 2002, 2023
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -95,11 +95,93 @@ void zfcp_dbf_hba_fsf_res(char *tag, int level, struct zfcp_fsf_req *req)
 	memcpy(rec->u.res.fsf_status_qual, &q_head->fsf_status_qual,
 	       FSF_STATUS_QUALIFIER_SIZE);
 
-	if (q_head->fsf_command != FSF_QTCB_FCP_CMND) {
-		rec->pl_len = q_head->log_length;
-		zfcp_dbf_pl_write(dbf, (char *)q_pref + q_head->log_start,
-				  rec->pl_len, "fsf_res", req->req_id);
-	}
+	rec->pl_len = q_head->log_length;
+	zfcp_dbf_pl_write(dbf, (char *)q_pref + q_head->log_start,
+			  rec->pl_len, "fsf_res", req->req_id);
+
+	debug_event(dbf->hba, level, rec, sizeof(*rec));
+	spin_unlock_irqrestore(&dbf->hba_lock, flags);
+}
+
+/**
+ * zfcp_dbf_hba_fsf_fces - trace event for fsf responses related to
+ *			   FC Endpoint Security (FCES)
+ * @tag: tag indicating which kind of FC Endpoint Security event has occurred
+ * @req: request for which a response was received
+ * @wwpn: remote port or ZFCP_DBF_INVALID_WWPN
+ * @fc_security_old: old FC Endpoint Security of FCP device or connection
+ * @fc_security_new: new FC Endpoint Security of FCP device or connection
+ */
+void zfcp_dbf_hba_fsf_fces(char *tag, const struct zfcp_fsf_req *req, u64 wwpn,
+			   u32 fc_security_old, u32 fc_security_new)
+{
+	struct zfcp_dbf *dbf = req->adapter->dbf;
+	struct fsf_qtcb_prefix *q_pref = &req->qtcb->prefix;
+	struct fsf_qtcb_header *q_head = &req->qtcb->header;
+	struct zfcp_dbf_hba *rec = &dbf->hba_buf;
+	static int const level = 3;
+	unsigned long flags;
+
+	if (unlikely(!debug_level_enabled(dbf->hba, level)))
+		return;
+
+	spin_lock_irqsave(&dbf->hba_lock, flags);
+	memset(rec, 0, sizeof(*rec));
+
+	memcpy(rec->tag, tag, ZFCP_DBF_TAG_LEN);
+	rec->id = ZFCP_DBF_HBA_FCES;
+	rec->fsf_req_id = req->req_id;
+	rec->fsf_req_status = req->status;
+	rec->fsf_cmd = q_head->fsf_command;
+	rec->fsf_seq_no = q_pref->req_seq_no;
+	rec->u.fces.req_issued = req->issued;
+	rec->u.fces.fsf_status = q_head->fsf_status;
+	rec->u.fces.port_handle = q_head->port_handle;
+	rec->u.fces.wwpn = wwpn;
+	rec->u.fces.fc_security_old = fc_security_old;
+	rec->u.fces.fc_security_new = fc_security_new;
+
+	debug_event(dbf->hba, level, rec, sizeof(*rec));
+	spin_unlock_irqrestore(&dbf->hba_lock, flags);
+}
+
+/**
+ * zfcp_dbf_hba_fsf_reqid - trace only the tag and a request ID
+ * @tag: tag documenting the source
+ * @level: trace level
+ * @adapter: adapter instance the request ID belongs to
+ * @req_id: the request ID to trace
+ */
+void zfcp_dbf_hba_fsf_reqid(const char *const tag, const int level,
+			    struct zfcp_adapter *const adapter,
+			    const u64 req_id)
+{
+	struct zfcp_dbf *const dbf = adapter->dbf;
+	struct zfcp_dbf_hba *const rec = &dbf->hba_buf;
+	struct zfcp_dbf_hba_res *const res = &rec->u.res;
+	unsigned long flags;
+
+	if (unlikely(!debug_level_enabled(dbf->hba, level)))
+		return;
+
+	spin_lock_irqsave(&dbf->hba_lock, flags);
+	memset(rec, 0, sizeof(*rec));
+
+	memcpy(rec->tag, tag, ZFCP_DBF_TAG_LEN);
+
+	rec->id = ZFCP_DBF_HBA_RES;
+	rec->fsf_req_id = req_id;
+	rec->fsf_req_status = ~0u;
+	rec->fsf_cmd = ~0u;
+	rec->fsf_seq_no = ~0u;
+
+	res->req_issued = ~0ull;
+	res->prot_status = ~0u;
+	memset(res->prot_status_qual, 0xff, sizeof(res->prot_status_qual));
+	res->fsf_status = ~0u;
+	memset(res->fsf_status_qual, 0xff, sizeof(res->fsf_status_qual));
+	res->port_handle = ~0u;
+	res->lun_handle = ~0u;
 
 	debug_event(dbf->hba, level, rec, sizeof(*rec));
 	spin_unlock_irqrestore(&dbf->hba_lock, flags);
@@ -221,31 +303,6 @@ void zfcp_dbf_hba_def_err(struct zfcp_adapter *adapter, u64 req_id, u16 scount,
 	}
 
 	spin_unlock_irqrestore(&dbf->pay_lock, flags);
-}
-
-/**
- * zfcp_dbf_hba_basic - trace event for basic adapter events
- * @tag: identifier for event
- * @adapter: pointer to struct zfcp_adapter
- */
-void zfcp_dbf_hba_basic(char *tag, struct zfcp_adapter *adapter)
-{
-	struct zfcp_dbf *dbf = adapter->dbf;
-	struct zfcp_dbf_hba *rec = &dbf->hba_buf;
-	static int const level = 1;
-	unsigned long flags;
-
-	if (unlikely(!debug_level_enabled(dbf->hba, level)))
-		return;
-
-	spin_lock_irqsave(&dbf->hba_lock, flags);
-	memset(rec, 0, sizeof(*rec));
-
-	memcpy(rec->tag, tag, ZFCP_DBF_TAG_LEN);
-	rec->id = ZFCP_DBF_HBA_BASIC;
-
-	debug_event(dbf->hba, level, rec, sizeof(*rec));
-	spin_unlock_irqrestore(&dbf->hba_lock, flags);
 }
 
 static void zfcp_dbf_set_common(struct zfcp_dbf_rec *rec,
@@ -634,7 +691,7 @@ void zfcp_dbf_scsi_common(char *tag, int level, struct scsi_device *sdev,
 		rec->scsi_id = sc->device->id;
 		rec->scsi_lun = (u32)sc->device->lun;
 		rec->scsi_lun_64_hi = (u32)(sc->device->lun >> 32);
-		rec->host_scribble = (unsigned long)sc->host_scribble;
+		rec->host_scribble = (u64)sc->host_scribble;
 
 		memcpy(rec->scsi_opcode, sc->cmnd,
 		       min_t(int, sc->cmd_len, ZFCP_DBF_SCSI_OPCODE));
@@ -751,7 +808,7 @@ static void zfcp_dbf_unregister(struct zfcp_dbf *dbf)
 }
 
 /**
- * zfcp_adapter_debug_register - registers debug feature for an adapter
+ * zfcp_dbf_adapter_register - registers debug feature for an adapter
  * @adapter: pointer to adapter for which debug features should be registered
  * return: -ENOMEM on error, 0 otherwise
  */
@@ -809,7 +866,7 @@ err_out:
 }
 
 /**
- * zfcp_adapter_debug_unregister - unregisters debug feature for an adapter
+ * zfcp_dbf_adapter_unregister - unregisters debug feature for an adapter
  * @adapter: pointer to adapter for which debug features should be unregistered
  */
 void zfcp_dbf_adapter_unregister(struct zfcp_adapter *adapter)

@@ -5,6 +5,7 @@
  * Copyright (c) 2014-2016, Intel Corporation.
  */
 
+#include <linux/devm-helpers.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/delay.h>
@@ -77,7 +78,7 @@ static bool check_generated_interrupt(struct ishtp_device *dev)
 	bool interrupt_generated = true;
 	uint32_t pisr_val = 0;
 
-	if (dev->pdev->device == CHV_DEVICE_ID) {
+	if (dev->pdev->device == PCI_DEVICE_ID_INTEL_ISH_CHV) {
 		pisr_val = ish_reg_read(dev, IPC_REG_PISR_CHV_AB);
 		interrupt_generated =
 			IPC_INT_FROM_ISH_TO_HOST_CHV_AB(pisr_val);
@@ -116,7 +117,7 @@ static bool ish_is_input_ready(struct ishtp_device *dev)
  */
 static void set_host_ready(struct ishtp_device *dev)
 {
-	if (dev->pdev->device == CHV_DEVICE_ID) {
+	if (dev->pdev->device == PCI_DEVICE_ID_INTEL_ISH_CHV) {
 		if (dev->pdev->revision == REVISION_ID_CHT_A0 ||
 				(dev->pdev->revision & REVISION_ID_SI_MASK) ==
 				REVISION_ID_CHT_Ax_SI)
@@ -191,6 +192,33 @@ static void ish_clr_host_rdy(struct ishtp_device *dev)
 
 	IPC_CLEAR_HOST_READY(host_status);
 	ish_reg_write(dev, IPC_REG_HOST_COMM, host_status);
+}
+
+static bool ish_chk_host_rdy(struct ishtp_device *dev)
+{
+	uint32_t host_status = ish_reg_read(dev, IPC_REG_HOST_COMM);
+
+	return (host_status & IPC_HOSTCOMM_READY_BIT);
+}
+
+/**
+ * ish_set_host_ready() - reconfig ipc host registers
+ * @dev: ishtp device pointer
+ *
+ * Set host to ready state
+ * This API is called in some case:
+ *    fw is still on, but ipc is powered down.
+ *    such as OOB case.
+ *
+ * Return: 0 for success else error fault code
+ */
+void ish_set_host_ready(struct ishtp_device *dev)
+{
+	if (ish_chk_host_rdy(dev))
+		return;
+
+	ish_set_host_rdy(dev);
+	set_host_ready(dev);
 }
 
 /**
@@ -517,12 +545,12 @@ static int ish_fw_reset_handler(struct ishtp_device *dev)
 #define TIMEOUT_FOR_HW_RDY_MS			300
 
 /**
- * ish_fw_reset_work_fn() - FW reset worker function
- * @unused: not used
+ * fw_reset_work_fn() - FW reset worker function
+ * @work: Work item
  *
  * Call ish_fw_reset_handler to complete FW reset
  */
-static void fw_reset_work_fn(struct work_struct *unused)
+static void fw_reset_work_fn(struct work_struct *work)
 {
 	int	rv;
 
@@ -534,7 +562,8 @@ static void fw_reset_work_fn(struct work_struct *unused)
 		wake_up_interruptible(&ishtp_dev->wait_hw_ready);
 
 		/* ISHTP notification in IPC_RESET sequence completion */
-		ishtp_reset_compl_handler(ishtp_dev);
+		if (!work_pending(work))
+			ishtp_reset_compl_handler(ishtp_dev);
 	} else
 		dev_err(ishtp_dev->devc, "[ishtp-ish]: FW reset failed (%d)\n",
 			rv);
@@ -551,7 +580,7 @@ static void _ish_sync_fw_clock(struct ishtp_device *dev)
 	static unsigned long	prev_sync;
 	uint64_t	usec;
 
-	if (prev_sync && jiffies - prev_sync < 20 * HZ)
+	if (prev_sync && time_before(jiffies, prev_sync + 20 * HZ))
 		return;
 
 	prev_sync = jiffies;
@@ -594,7 +623,6 @@ static void	recv_ipc(struct ishtp_device *dev, uint32_t doorbell_val)
 	case MNG_RESET_NOTIFY:
 		if (!ishtp_dev) {
 			ishtp_dev = dev;
-			INIT_WORK(&fw_reset_work, fw_reset_work_fn);
 		}
 		schedule_work(&fw_reset_work);
 		break;
@@ -755,7 +783,7 @@ static int _ish_hw_reset(struct ishtp_device *dev)
 	csr |= PCI_D3hot;
 	pci_write_config_word(pdev, pdev->pm_cap + PCI_PM_CTRL, csr);
 
-	mdelay(pdev->d3_delay);
+	mdelay(pdev->d3hot_delay);
 
 	csr &= ~PCI_PM_CTRL_STATE_MASK;
 	csr |= PCI_D0;
@@ -862,6 +890,33 @@ static uint32_t ish_ipc_get_header(struct ishtp_device *dev, int length,
 	return drbl_val;
 }
 
+/**
+ * _dma_no_cache_snooping()
+ *
+ * Check on current platform, DMA supports cache snooping or not.
+ * This callback is used to notify uplayer driver if manully cache
+ * flush is needed when do DMA operation.
+ *
+ * Please pay attention to this callback implementation, if declare
+ * having cache snooping on a cache snooping not supported platform
+ * will cause uplayer driver receiving mismatched data; and if
+ * declare no cache snooping on a cache snooping supported platform
+ * will cause cache be flushed twice and performance hit.
+ *
+ * @dev: ishtp device pointer
+ *
+ * Return: false - has cache snooping capability
+ *         true - no cache snooping, need manually cache flush
+ */
+static bool _dma_no_cache_snooping(struct ishtp_device *dev)
+{
+	return (dev->pdev->device == PCI_DEVICE_ID_INTEL_ISH_EHL_Ax ||
+		dev->pdev->device == PCI_DEVICE_ID_INTEL_ISH_TGL_LP ||
+		dev->pdev->device == PCI_DEVICE_ID_INTEL_ISH_TGL_H ||
+		dev->pdev->device == PCI_DEVICE_ID_INTEL_ISH_ADL_S ||
+		dev->pdev->device == PCI_DEVICE_ID_INTEL_ISH_ADL_P);
+}
+
 static const struct ishtp_hw_ops ish_hw_ops = {
 	.hw_reset = _ish_hw_reset,
 	.ipc_reset = _ish_ipc_reset,
@@ -870,7 +925,8 @@ static const struct ishtp_hw_ops ish_hw_ops = {
 	.write = write_ipc_to_queue,
 	.get_fw_status = _ish_read_fw_sts_reg,
 	.sync_fw_clock = _ish_sync_fw_clock,
-	.ishtp_read_hdr = _ishtp_read_hdr
+	.ishtp_read_hdr = _ishtp_read_hdr,
+	.dma_no_cache_snooping = _dma_no_cache_snooping
 };
 
 /**
@@ -885,6 +941,7 @@ struct ishtp_device *ish_dev_init(struct pci_dev *pdev)
 {
 	struct ishtp_device *dev;
 	int	i;
+	int	ret;
 
 	dev = devm_kzalloc(&pdev->dev,
 			   sizeof(struct ishtp_device) + sizeof(struct ish_hw),
@@ -892,6 +949,7 @@ struct ishtp_device *ish_dev_init(struct pci_dev *pdev)
 	if (!dev)
 		return NULL;
 
+	dev->devc = &pdev->dev;
 	ishtp_device_init(dev);
 
 	init_waitqueue_head(&dev->wait_hw_ready);
@@ -920,8 +978,13 @@ struct ishtp_device *ish_dev_init(struct pci_dev *pdev)
 		list_add_tail(&tx_buf->link, &dev->wr_free_list);
 	}
 
+	ret = devm_work_autocancel(&pdev->dev, &fw_reset_work, fw_reset_work_fn);
+	if (ret) {
+		dev_err(dev->devc, "Failed to initialise FW reset work\n");
+		return NULL;
+	}
+
 	dev->ops = &ish_hw_ops;
-	dev->devc = &pdev->dev;
 	dev->mtu = IPC_PAYLOAD_SIZE - sizeof(struct ishtp_msg_hdr);
 	return dev;
 }

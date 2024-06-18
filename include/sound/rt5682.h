@@ -24,13 +24,22 @@ enum rt5682_jd_src {
 	RT5682_JD1,
 };
 
+enum rt5682_dai_clks {
+	RT5682_DAI_WCLK_IDX,
+	RT5682_DAI_BCLK_IDX,
+	RT5682_DAI_NUM_CLKS,
+};
+
 struct rt5682_platform_data {
-
-	int ldo1_en; /* GPIO for LDO1_EN */
-
 	enum rt5682_dmic1_data_pin dmic1_data_pin;
 	enum rt5682_dmic1_clk_pin dmic1_clk_pin;
 	enum rt5682_jd_src jd_src;
+	unsigned int btndet_delay;
+	unsigned int dmic_clk_rate;
+	unsigned int dmic_delay;
+	bool dmic_clk_driving_high;
+
+	const char *dai_clk_names[RT5682_DAI_NUM_CLKS];
 };
 
 #endif

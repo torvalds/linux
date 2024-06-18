@@ -31,7 +31,6 @@
 #include <asm/sections.h>
 #include <asm/pdc.h>
 #include <asm/led.h>
-#include <asm/machdep.h>	/* for pa7300lc_init() proto */
 #include <asm/pdc_chassis.h>
 #include <asm/io.h>
 #include <asm/setup.h>
@@ -40,40 +39,48 @@
 
 static char __initdata command_line[COMMAND_LINE_SIZE];
 
-/* Intended for ccio/sba/cpu statistics under /proc/bus/{runway|gsc} */
-struct proc_dir_entry * proc_runway_root __read_mostly = NULL;
-struct proc_dir_entry * proc_gsc_root __read_mostly = NULL;
-struct proc_dir_entry * proc_mckinley_root __read_mostly = NULL;
-
-void __init setup_cmdline(char **cmdline_p)
+static void __init setup_cmdline(char **cmdline_p)
 {
 	extern unsigned int boot_args[];
+	char *p;
 
-	/* Collect stuff passed in from the boot loader */
+	*cmdline_p = command_line;
 
 	/* boot_args[0] is free-mem start, boot_args[1] is ptr to command line */
-	if (boot_args[0] < 64) {
-		/* called from hpux boot loader */
-		boot_command_line[0] = '\0';
-	} else {
-		strlcpy(boot_command_line, (char *)__va(boot_args[1]),
-			COMMAND_LINE_SIZE);
+	if (boot_args[0] < 64)
+		return;	/* return if called from hpux boot loader */
 
-#ifdef CONFIG_BLK_DEV_INITRD
-		if (boot_args[2] != 0) /* did palo pass us a ramdisk? */
-		{
-		    initrd_start = (unsigned long)__va(boot_args[2]);
-		    initrd_end = (unsigned long)__va(boot_args[3]);
-		}
-#endif
+	/* Collect stuff passed in from the boot loader */
+	strscpy(boot_command_line, (char *)__va(boot_args[1]),
+		COMMAND_LINE_SIZE);
+
+	/* autodetect console type (if not done by palo yet) */
+	p = boot_command_line;
+	if (!str_has_prefix(p, "console=") && !strstr(p, " console=")) {
+		strlcat(p, " console=", COMMAND_LINE_SIZE);
+		if (PAGE0->mem_cons.cl_class == CL_DUPLEX)
+			strlcat(p, "ttyS0", COMMAND_LINE_SIZE);
+		else
+			strlcat(p, "tty0", COMMAND_LINE_SIZE);
 	}
 
-	strcpy(command_line, boot_command_line);
-	*cmdline_p = command_line;
+	/* default to use early console */
+	if (!strstr(p, "earlycon"))
+		strlcat(p, " earlycon=pdc", COMMAND_LINE_SIZE);
+
+#ifdef CONFIG_BLK_DEV_INITRD
+	/* did palo pass us a ramdisk? */
+	if (boot_args[2] != 0) {
+		initrd_start = (unsigned long)__va(boot_args[2]);
+		initrd_end = (unsigned long)__va(boot_args[3]);
+	}
+#endif
+
+	strscpy(command_line, boot_command_line, COMMAND_LINE_SIZE);
 }
 
 #ifdef CONFIG_PA11
-void __init dma_ops_init(void)
+static void __init dma_ops_init(void)
 {
 	switch (boot_cpu_data.cpu_type) {
 	case pcx:
@@ -85,21 +92,14 @@ void __init dma_ops_init(void)
 			"the PA-RISC 1.1 or 2.0 architecture specification.\n");
 
 	case pcxl2:
-		pa7300lc_init();
-		break;
 	default:
 		break;
 	}
 }
 #endif
 
-extern void collect_boot_cpu_data(void);
-
 void __init setup_arch(char **cmdline_p)
 {
-#ifdef CONFIG_64BIT
-	extern int parisc_narrow_firmware;
-#endif
 	unwind_init();
 
 	init_per_cpu(smp_processor_id());	/* Set Modes & Enable FP */
@@ -128,8 +128,6 @@ void __init setup_arch(char **cmdline_p)
 	if (__pa((unsigned long) &_end) >= KERNEL_INITIAL_SIZE)
 		panic("KERNEL_INITIAL_ORDER too small!");
 
-	pdc_console_init();
-
 #ifdef CONFIG_64BIT
 	if(parisc_narrow_firmware) {
 		printk(KERN_INFO "Kernel is using PDC in 32-bit mode.\n");
@@ -142,17 +140,8 @@ void __init setup_arch(char **cmdline_p)
 	parisc_cache_init();
 	paging_init();
 
-#ifdef CONFIG_CHASSIS_LCD_LED
-	/* initialize the LCD/LED after boot_cpu_data is available ! */
-	led_init();		/* LCD/LED initialization */
-#endif
-
 #ifdef CONFIG_PA11
 	dma_ops_init();
-#endif
-
-#if defined(CONFIG_VT) && defined(CONFIG_DUMMY_CONSOLE)
-	conswitchp = &dummy_con;	/* we use do_take_over_console() later ! */
 #endif
 
 	clear_sched_clock_stable();
@@ -160,10 +149,7 @@ void __init setup_arch(char **cmdline_p)
 
 /*
  * Display CPU info for all CPUs.
- * for parisc this is in processor.c
  */
-extern int show_cpuinfo (struct seq_file *m, void *v);
-
 static void *
 c_start (struct seq_file *m, loff_t *pos)
 {
@@ -193,48 +179,6 @@ const struct seq_operations cpuinfo_op = {
 	.stop	= c_stop,
 	.show	= show_cpuinfo
 };
-
-static void __init parisc_proc_mkdir(void)
-{
-	/*
-	** Can't call proc_mkdir() until after proc_root_init() has been
-	** called by start_kernel(). In other words, this code can't
-	** live in arch/.../setup.c because start_parisc() calls
-	** start_kernel().
-	*/
-	switch (boot_cpu_data.cpu_type) {
-	case pcxl:
-	case pcxl2:
-		if (NULL == proc_gsc_root)
-		{
-			proc_gsc_root = proc_mkdir("bus/gsc", NULL);
-		}
-		break;
-        case pcxt_:
-        case pcxu:
-        case pcxu_:
-        case pcxw:
-        case pcxw_:
-        case pcxw2:
-                if (NULL == proc_runway_root)
-                {
-                        proc_runway_root = proc_mkdir("bus/runway", NULL);
-                }
-                break;
-	case mako:
-	case mako2:
-                if (NULL == proc_mckinley_root)
-                {
-                        proc_mckinley_root = proc_mkdir("bus/mckinley", NULL);
-                }
-                break;
-	default:
-		/* FIXME: this was added to prevent the compiler 
-		 * complaining about missing pcx, pcxs and pcxt
-		 * I'm assuming they have neither gsc nor runway */
-		break;
-	}
-}
 
 static struct resource central_bus = {
 	.name	= "Central Bus",
@@ -272,7 +216,7 @@ static int __init parisc_init_resources(void)
 	result = request_resource(&iomem_resource, &local_broadcast);
 	if (result < 0) {
 		printk(KERN_ERR 
-		       "%s: failed to claim %saddress space!\n", 
+		       "%s: failed to claim %s address space!\n",
 		       __FILE__, local_broadcast.name);
 		return result;
 	}
@@ -288,21 +232,10 @@ static int __init parisc_init_resources(void)
 	return 0;
 }
 
-extern void gsc_init(void);
-extern void processor_init(void);
-extern void ccio_init(void);
-extern void hppb_init(void);
-extern void dino_init(void);
-extern void iosapic_init(void);
-extern void lba_init(void);
-extern void sba_init(void);
-extern void eisa_init(void);
-
 static int __init parisc_init(void)
 {
 	u32 osid = (OS_ID_LINUX << 16);
 
-	parisc_proc_mkdir();
 	parisc_init_resources();
 	do_device_inventory();                  /* probe for hardware */
 
@@ -337,55 +270,12 @@ static int __init parisc_init(void)
 
 	apply_alternatives_all();
 	parisc_setup_cache_timing();
-
-	/* These are in a non-obvious order, will fix when we have an iotree */
-#if defined(CONFIG_IOSAPIC)
-	iosapic_init();
-#endif
-#if defined(CONFIG_IOMMU_SBA)
-	sba_init();
-#endif
-#if defined(CONFIG_PCI_LBA)
-	lba_init();
-#endif
-
-	/* CCIO before any potential subdevices */
-#if defined(CONFIG_IOMMU_CCIO)
-	ccio_init();
-#endif
-
-	/*
-	 * Need to register Asp & Wax before the EISA adapters for the IRQ
-	 * regions.  EISA must come before PCI to be sure it gets IRQ region
-	 * 0.
-	 */
-#if defined(CONFIG_GSC_LASI) || defined(CONFIG_GSC_WAX)
-	gsc_init();
-#endif
-#ifdef CONFIG_EISA
-	eisa_init();
-#endif
-
-#if defined(CONFIG_HPPB)
-	hppb_init();
-#endif
-
-#if defined(CONFIG_GSC_DINO)
-	dino_init();
-#endif
-
-#ifdef CONFIG_CHASSIS_LCD_LED
-	register_led_regions();	/* register LED port info in procfs */
-#endif
-
 	return 0;
 }
 arch_initcall(parisc_init);
 
 void __init start_parisc(void)
 {
-	extern void early_trap_init(void);
-
 	int ret, cpunum;
 	struct pdc_coproc_cfg coproc_cfg;
 

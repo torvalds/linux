@@ -8,7 +8,9 @@
 #include <linux/ptrace.h>
 #include <linux/sched.h>
 #include <linux/types.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
+
+#include "bpf_compiler.h"
 
 typedef uint32_t pid_t;
 struct task_struct {};
@@ -24,9 +26,11 @@ struct task_struct {};
 #define STACK_TABLE_EPOCH_SHIFT 20
 #define STROBE_MAX_STR_LEN 1
 #define STROBE_MAX_CFGS 32
+#define READ_MAP_VAR_PAYLOAD_CAP					\
+	((1 + STROBE_MAX_MAP_ENTRIES * 2) * STROBE_MAX_STR_LEN)
 #define STROBE_MAX_PAYLOAD						\
 	(STROBE_MAX_STRS * STROBE_MAX_STR_LEN +				\
-	STROBE_MAX_MAPS * (1 + STROBE_MAX_MAP_ENTRIES * 2) * STROBE_MAX_STR_LEN)
+	 STROBE_MAX_MAPS * READ_MAP_VAR_PAYLOAD_CAP)
 
 struct strobe_value_header {
 	/*
@@ -98,7 +102,7 @@ struct strobe_map_raw {
 	/*
 	 * having volatile doesn't change anything on BPF side, but clang
 	 * emits warnings for passing `volatile const char *` into
-	 * bpf_probe_read_str that expects just `const char *`
+	 * bpf_probe_read_user_str that expects just `const char *`
 	 */
 	const char* tag;
 	/*
@@ -135,7 +139,7 @@ struct strobe_value_loc {
 	 * tpidr_el0 for aarch64).
 	 * TLS_IMM_EXEC: absolute address of GOT entry containing offset
 	 * from thread pointer;
-	 * TLS_GENERAL_DYN: absolute addres of double GOT entry
+	 * TLS_GENERAL_DYN: absolute address of double GOT entry
 	 * containing tls_index_t struct;
 	 */
 	int64_t offset;
@@ -266,8 +270,12 @@ struct tls_index {
 	uint64_t offset;
 };
 
-static __always_inline void *calc_location(struct strobe_value_loc *loc,
-					   void *tls_base)
+#ifdef SUBPROGS
+__noinline
+#else
+__always_inline
+#endif
+static void *calc_location(struct strobe_value_loc *loc, void *tls_base)
 {
 	/*
 	 * tls_mode value is:
@@ -309,34 +317,39 @@ static __always_inline void *calc_location(struct strobe_value_loc *loc,
 	dtv_t *dtv;
 	void *tls_ptr;
 
-	bpf_probe_read(&tls_index, sizeof(struct tls_index),
-		       (void *)loc->offset);
+	bpf_probe_read_user(&tls_index, sizeof(struct tls_index),
+			    (void *)loc->offset);
 	/* valid module index is always positive */
 	if (tls_index.module > 0) {
 		/* dtv = ((struct tcbhead *)tls_base)->dtv[tls_index.module] */
-		bpf_probe_read(&dtv, sizeof(dtv),
-			       &((struct tcbhead *)tls_base)->dtv);
+		bpf_probe_read_user(&dtv, sizeof(dtv),
+				    &((struct tcbhead *)tls_base)->dtv);
 		dtv += tls_index.module;
 	} else {
 		dtv = NULL;
 	}
-	bpf_probe_read(&tls_ptr, sizeof(void *), dtv);
+	bpf_probe_read_user(&tls_ptr, sizeof(void *), dtv);
 	/* if pointer has (void *)-1 value, then TLS wasn't initialized yet */
 	return tls_ptr && tls_ptr != (void *)-1
 		? tls_ptr + tls_index.offset
 		: NULL;
 }
 
-static __always_inline void read_int_var(struct strobemeta_cfg *cfg,
-					 size_t idx, void *tls_base,
-					 struct strobe_value_generic *value,
-					 struct strobemeta_payload *data)
+#ifdef SUBPROGS
+__noinline
+#else
+__always_inline
+#endif
+static void read_int_var(struct strobemeta_cfg *cfg,
+			 size_t idx, void *tls_base,
+			 struct strobe_value_generic *value,
+			 struct strobemeta_payload *data)
 {
 	void *location = calc_location(&cfg->int_locs[idx], tls_base);
 	if (!location)
 		return;
 
-	bpf_probe_read(value, sizeof(struct strobe_value_generic), location);
+	bpf_probe_read_user(value, sizeof(struct strobe_value_generic), location);
 	data->int_vals[idx] = value->val;
 	if (value->header.len)
 		data->int_vals_set_mask |= (1 << idx);
@@ -346,54 +359,53 @@ static __always_inline uint64_t read_str_var(struct strobemeta_cfg *cfg,
 					     size_t idx, void *tls_base,
 					     struct strobe_value_generic *value,
 					     struct strobemeta_payload *data,
-					     void *payload)
+					     size_t off)
 {
 	void *location;
-	uint32_t len;
+	uint64_t len;
 
 	data->str_lens[idx] = 0;
 	location = calc_location(&cfg->str_locs[idx], tls_base);
 	if (!location)
 		return 0;
 
-	bpf_probe_read(value, sizeof(struct strobe_value_generic), location);
-	len = bpf_probe_read_str(payload, STROBE_MAX_STR_LEN, value->ptr);
+	bpf_probe_read_user(value, sizeof(struct strobe_value_generic), location);
+	len = bpf_probe_read_user_str(&data->payload[off], STROBE_MAX_STR_LEN, value->ptr);
 	/*
-	 * if bpf_probe_read_str returns error (<0), due to casting to
+	 * if bpf_probe_read_user_str returns error (<0), due to casting to
 	 * unsinged int, it will become big number, so next check is
 	 * sufficient to check for errors AND prove to BPF verifier, that
-	 * bpf_probe_read_str won't return anything bigger than
+	 * bpf_probe_read_user_str won't return anything bigger than
 	 * STROBE_MAX_STR_LEN
 	 */
 	if (len > STROBE_MAX_STR_LEN)
 		return 0;
 
 	data->str_lens[idx] = len;
-	return len;
+	return off + len;
 }
 
-static __always_inline void *read_map_var(struct strobemeta_cfg *cfg,
-					  size_t idx, void *tls_base,
-					  struct strobe_value_generic *value,
-					  struct strobemeta_payload *data,
-					  void *payload)
+static __always_inline uint64_t read_map_var(struct strobemeta_cfg *cfg,
+					     size_t idx, void *tls_base,
+					     struct strobe_value_generic *value,
+					     struct strobemeta_payload *data,
+					     size_t off)
 {
 	struct strobe_map_descr* descr = &data->map_descrs[idx];
 	struct strobe_map_raw map;
 	void *location;
-	uint32_t len;
-	int i;
+	uint64_t len;
 
 	descr->tag_len = 0; /* presume no tag is set */
 	descr->cnt = -1; /* presume no value is set */
 
 	location = calc_location(&cfg->map_locs[idx], tls_base);
 	if (!location)
-		return payload;
+		return off;
 
-	bpf_probe_read(value, sizeof(struct strobe_value_generic), location);
-	if (bpf_probe_read(&map, sizeof(struct strobe_map_raw), value->ptr))
-		return payload;
+	bpf_probe_read_user(value, sizeof(struct strobe_value_generic), location);
+	if (bpf_probe_read_user(&map, sizeof(struct strobe_map_raw), value->ptr))
+		return off;
 
 	descr->id = map.id;
 	descr->cnt = map.cnt;
@@ -402,51 +414,109 @@ static __always_inline void *read_map_var(struct strobemeta_cfg *cfg,
 		data->req_meta_valid = 1;
 	}
 
-	len = bpf_probe_read_str(payload, STROBE_MAX_STR_LEN, map.tag);
+	len = bpf_probe_read_user_str(&data->payload[off], STROBE_MAX_STR_LEN, map.tag);
 	if (len <= STROBE_MAX_STR_LEN) {
 		descr->tag_len = len;
-		payload += len;
+		off += len;
 	}
 
 #ifdef NO_UNROLL
-#pragma clang loop unroll(disable)
+	__pragma_loop_no_unroll
 #else
-#pragma unroll
+	__pragma_loop_unroll
 #endif
 	for (int i = 0; i < STROBE_MAX_MAP_ENTRIES; ++i) {
 		if (i >= map.cnt)
 			break;
 
 		descr->key_lens[i] = 0;
-		len = bpf_probe_read_str(payload, STROBE_MAX_STR_LEN,
-					 map.entries[i].key);
+		len = bpf_probe_read_user_str(&data->payload[off], STROBE_MAX_STR_LEN,
+					      map.entries[i].key);
 		if (len <= STROBE_MAX_STR_LEN) {
 			descr->key_lens[i] = len;
-			payload += len;
+			off += len;
 		}
 		descr->val_lens[i] = 0;
-		len = bpf_probe_read_str(payload, STROBE_MAX_STR_LEN,
-					 map.entries[i].val);
+		len = bpf_probe_read_user_str(&data->payload[off], STROBE_MAX_STR_LEN,
+					      map.entries[i].val);
 		if (len <= STROBE_MAX_STR_LEN) {
 			descr->val_lens[i] = len;
-			payload += len;
+			off += len;
 		}
 	}
 
-	return payload;
+	return off;
 }
+
+#ifdef USE_BPF_LOOP
+enum read_type {
+	READ_INT_VAR,
+	READ_MAP_VAR,
+	READ_STR_VAR,
+};
+
+struct read_var_ctx {
+	struct strobemeta_payload *data;
+	void *tls_base;
+	struct strobemeta_cfg *cfg;
+	size_t payload_off;
+	/* value gets mutated */
+	struct strobe_value_generic *value;
+	enum read_type type;
+};
+
+static int read_var_callback(__u64 index, struct read_var_ctx *ctx)
+{
+	/* lose precision info for ctx->payload_off, verifier won't track
+	 * double xor, barrier_var() is needed to force clang keep both xors.
+	 */
+	ctx->payload_off ^= index;
+	barrier_var(ctx->payload_off);
+	ctx->payload_off ^= index;
+	switch (ctx->type) {
+	case READ_INT_VAR:
+		if (index >= STROBE_MAX_INTS)
+			return 1;
+		read_int_var(ctx->cfg, index, ctx->tls_base, ctx->value, ctx->data);
+		break;
+	case READ_MAP_VAR:
+		if (index >= STROBE_MAX_MAPS)
+			return 1;
+		if (ctx->payload_off > sizeof(ctx->data->payload) - READ_MAP_VAR_PAYLOAD_CAP)
+			return 1;
+		ctx->payload_off = read_map_var(ctx->cfg, index, ctx->tls_base,
+						ctx->value, ctx->data, ctx->payload_off);
+		break;
+	case READ_STR_VAR:
+		if (index >= STROBE_MAX_STRS)
+			return 1;
+		if (ctx->payload_off > sizeof(ctx->data->payload) - STROBE_MAX_STR_LEN)
+			return 1;
+		ctx->payload_off = read_str_var(ctx->cfg, index, ctx->tls_base,
+						ctx->value, ctx->data, ctx->payload_off);
+		break;
+	}
+	return 0;
+}
+#endif /* USE_BPF_LOOP */
 
 /*
  * read_strobe_meta returns NULL, if no metadata was read; otherwise returns
  * pointer to *right after* payload ends
  */
-static __always_inline void *read_strobe_meta(struct task_struct *task,
-					      struct strobemeta_payload *data)
+#ifdef SUBPROGS
+__noinline
+#else
+__always_inline
+#endif
+static void *read_strobe_meta(struct task_struct *task,
+			      struct strobemeta_payload *data)
 {
 	pid_t pid = bpf_get_current_pid_tgid() >> 32;
 	struct strobe_value_generic value = {0};
 	struct strobemeta_cfg *cfg;
-	void *tls_base, *payload;
+	size_t payload_off;
+	void *tls_base;
 
 	cfg = bpf_map_lookup_elem(&strobemeta_cfgs, &pid);
 	if (!cfg)
@@ -454,42 +524,74 @@ static __always_inline void *read_strobe_meta(struct task_struct *task,
 
 	data->int_vals_set_mask = 0;
 	data->req_meta_valid = 0;
-	payload = data->payload;
+	payload_off = 0;
 	/*
 	 * we don't have struct task_struct definition, it should be:
 	 * tls_base = (void *)task->thread.fsbase;
 	 */
 	tls_base = (void *)task;
 
-#ifdef NO_UNROLL
-#pragma clang loop unroll(disable)
+#ifdef USE_BPF_LOOP
+	struct read_var_ctx ctx = {
+		.cfg = cfg,
+		.tls_base = tls_base,
+		.value = &value,
+		.data = data,
+		.payload_off = 0,
+	};
+	int err;
+
+	ctx.type = READ_INT_VAR;
+	err = bpf_loop(STROBE_MAX_INTS, read_var_callback, &ctx, 0);
+	if (err != STROBE_MAX_INTS)
+		return NULL;
+
+	ctx.type = READ_STR_VAR;
+	err = bpf_loop(STROBE_MAX_STRS, read_var_callback, &ctx, 0);
+	if (err != STROBE_MAX_STRS)
+		return NULL;
+
+	ctx.type = READ_MAP_VAR;
+	err = bpf_loop(STROBE_MAX_MAPS, read_var_callback, &ctx, 0);
+	if (err != STROBE_MAX_MAPS)
+		return NULL;
+
+	payload_off = ctx.payload_off;
+	/* this should not really happen, here only to satisfy verifer */
+	if (payload_off > sizeof(data->payload))
+		payload_off = sizeof(data->payload);
 #else
-#pragma unroll
-#endif
+#ifdef NO_UNROLL
+	__pragma_loop_no_unroll
+#else
+	__pragma_loop_unroll
+#endif /* NO_UNROLL */
 	for (int i = 0; i < STROBE_MAX_INTS; ++i) {
 		read_int_var(cfg, i, tls_base, &value, data);
 	}
 #ifdef NO_UNROLL
-#pragma clang loop unroll(disable)
+	__pragma_loop_no_unroll
 #else
-#pragma unroll
-#endif
+	__pragma_loop_unroll
+#endif /* NO_UNROLL */
 	for (int i = 0; i < STROBE_MAX_STRS; ++i) {
-		payload += read_str_var(cfg, i, tls_base, &value, data, payload);
+		payload_off = read_str_var(cfg, i, tls_base, &value, data, payload_off);
 	}
 #ifdef NO_UNROLL
-#pragma clang loop unroll(disable)
+	__pragma_loop_no_unroll
 #else
-#pragma unroll
-#endif
+	__pragma_loop_unroll
+#endif /* NO_UNROLL */
 	for (int i = 0; i < STROBE_MAX_MAPS; ++i) {
-		payload = read_map_var(cfg, i, tls_base, &value, data, payload);
+		payload_off = read_map_var(cfg, i, tls_base, &value, data, payload_off);
 	}
+#endif /* USE_BPF_LOOP */
+
 	/*
 	 * return pointer right after end of payload, so it's possible to
 	 * calculate exact amount of useful data that needs to be sent
 	 */
-	return payload;
+	return &data->payload[payload_off];
 }
 
 SEC("raw_tracepoint/kfree_skb")

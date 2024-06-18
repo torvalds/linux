@@ -12,7 +12,6 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/cpufeature.h>
-#include <crypto/sha.h>
 #include <crypto/sha3.h>
 #include <asm/cpacf.h>
 
@@ -138,7 +137,7 @@ static void __exit sha3_256_s390_fini(void)
 	crypto_unregister_shash(&sha3_256_alg);
 }
 
-module_cpu_feature_match(MSA, sha3_256_s390_init);
+module_cpu_feature_match(S390_CPU_FEATURE_MSA, sha3_256_s390_init);
 module_exit(sha3_256_s390_fini);
 
 MODULE_ALIAS_CRYPTO("sha3-256");

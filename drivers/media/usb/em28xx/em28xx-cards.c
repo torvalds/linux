@@ -8,16 +8,6 @@
 //		      Mauro Carvalho Chehab <mchehab@kernel.org>
 //		      Sascha Sommer <saschasommer@freenet.de>
 // Copyright (C) 2012 Frank Schäfer <fschaefer.oss@googlemail.com>
-//
-// This program is free software; you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation; either version 2 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
 
 #include "em28xx.h"
 
@@ -549,6 +539,21 @@ static const struct em28xx_reg_seq hauppauge_dualhd_dvb[] = {
 	{-1,                             -1,   -1,     -1},
 };
 
+/* Hauppauge USB QuadHD */
+static struct em28xx_reg_seq hauppauge_usb_quadhd_atsc_reg_seq[] = {
+	{EM2874_R80_GPIO_P0_CTRL,      0xff, 0xff,      0},
+	{0x0d,                         0xff, 0xff,    200},
+	{0x50,                         0x04, 0xff,    300},
+	{EM2874_R80_GPIO_P0_CTRL,      0xb0, 0xf0,    100}, /* demod 1 reset */
+	{EM2874_R80_GPIO_P0_CTRL,      0xf0, 0xf0,    100},
+	{EM2874_R80_GPIO_P0_CTRL,      0xd0, 0xf0,    100}, /* demod 2 reset */
+	{EM2874_R80_GPIO_P0_CTRL,      0xf0, 0xf0,    100},
+	{EM2874_R5F_TS_ENABLE,         0x44, 0xff,     50},
+	{EM2874_R5D_TS1_PKT_SIZE,      0x05, 0xff,     50},
+	{EM2874_R5E_TS2_PKT_SIZE,      0x05, 0xff,     50},
+	{-1,                           -1,   -1,       -1},
+};
+
 /*
  *  Button definitions
  */
@@ -639,6 +644,22 @@ static struct em28xx_led hauppauge_dualhd_leds[] = {
 		.role      = EM28XX_LED_DIGITAL_CAPTURING_TS2,
 		.gpio_reg  = EM2874_R80_GPIO_P0_CTRL,
 		.gpio_mask = EM_GPIO_3,
+		.inverted  = 1,
+	},
+	{-1, 0, 0, 0},
+};
+
+static struct em28xx_led hauppauge_usb_quadhd_leds[] = {
+	{
+		.role      = EM28XX_LED_DIGITAL_CAPTURING,
+		.gpio_reg  = EM2874_R80_GPIO_P0_CTRL,
+		.gpio_mask = EM_GPIO_2,
+		.inverted  = 1,
+	},
+	{
+		.role      = EM28XX_LED_DIGITAL_CAPTURING_TS2,
+		.gpio_reg  = EM2874_R80_GPIO_P0_CTRL,
+		.gpio_mask = EM_GPIO_0,
 		.inverted  = 1,
 	},
 	{-1, 0, 0, 0},
@@ -2398,6 +2419,20 @@ const struct em28xx_board em28xx_boards[] = {
 		.ir_codes      = RC_MAP_PINNACLE_PCTV_HD,
 	},
 	/*
+	 * 2013:0259 PCTV DVB-S2 Stick (461e_v2)
+	 * Empia EM28178, Montage M88DS3103b, Montage M88TS2022, Allegro A8293
+	 */
+	[EM28178_BOARD_PCTV_461E_V2] = {
+		.def_i2c_bus   = 1,
+		.i2c_speed     = EM28XX_I2C_CLK_WAIT_ENABLE |
+				 EM28XX_I2C_FREQ_400_KHZ,
+		.name          = "PCTV DVB-S2 Stick (461e v2)",
+		.tuner_type    = TUNER_ABSENT,
+		.tuner_gpio    = pctv_461e,
+		.has_dvb       = 1,
+		.ir_codes      = RC_MAP_PINNACLE_PCTV_HD,
+	},
+	/*
 	 * 2013:025f PCTV tripleStick (292e).
 	 * Empia EM28178, Silicon Labs Si2168, Silicon Labs Si2157
 	 */
@@ -2463,12 +2498,17 @@ const struct em28xx_board em28xx_boards[] = {
 		.def_i2c_bus   = 1,
 		.i2c_speed     = EM28XX_I2C_CLK_WAIT_ENABLE |
 				 EM28XX_I2C_FREQ_400_KHZ,
-		.tuner_type    = TUNER_ABSENT,
+		.tuner_type    = TUNER_SI2157,
 		.tuner_gpio    = hauppauge_dualhd_dvb,
 		.has_dvb       = 1,
 		.has_dual_ts   = 1,
 		.ir_codes      = RC_MAP_HAUPPAUGE,
 		.leds          = hauppauge_dualhd_leds,
+		.input         = { {
+			.type     = EM28XX_VMUX_COMPOSITE,
+			.vmux     = TVP5150_COMPOSITE1,
+			.amux     = EM28XX_AMUX_LINE_IN,
+		} },
 	},
 	/*
 	 * 2040:026d Hauppauge WinTV-dualHD (model 01595 - ATSC/QAM) Isoc.
@@ -2486,6 +2526,57 @@ const struct em28xx_board em28xx_boards[] = {
 		.has_dual_ts   = 1,
 		.ir_codes      = RC_MAP_HAUPPAUGE,
 		.leds          = hauppauge_dualhd_leds,
+	},
+	/*
+	 * 1b80:e349 Magix USB Videowandler-2
+	 * (same chips as Honestech VIDBOX NW03)
+	 * Empia EM2860, Philips SAA7113, Empia EMP202, No Tuner
+	 */
+	[EM2861_BOARD_MAGIX_VIDEOWANDLER2] = {
+		.name                = "Magix USB Videowandler-2",
+		.tuner_type          = TUNER_ABSENT,
+		.decoder             = EM28XX_SAA711X,
+		.input               = { {
+			.type     = EM28XX_VMUX_COMPOSITE,
+			.vmux     = SAA7115_COMPOSITE0,
+			.amux     = EM28XX_AMUX_LINE_IN,
+		}, {
+			.type     = EM28XX_VMUX_SVIDEO,
+			.amux     = EM28XX_AMUX_LINE_IN,
+		} },
+	},
+	/*
+	 * 1f4d:1abe MyGica iGrabber
+	 * (same as several other EM2860 devices)
+	 * Empia EM2860, Philips SAA7113, Empia EMP202, No Tuner
+	 */
+	[EM2860_BOARD_MYGICA_IGRABBER] = {
+		.name         = "MyGica iGrabber",
+		.vchannels    = 2,
+		.tuner_type   = TUNER_ABSENT,
+		.decoder      = EM28XX_SAA711X,
+		.input           = { {
+			.type     = EM28XX_VMUX_COMPOSITE,
+			.vmux     = SAA7115_COMPOSITE0,
+			.amux     = EM28XX_AMUX_LINE_IN,
+		}, {
+			.type     = EM28XX_VMUX_SVIDEO,
+			.vmux     = SAA7115_SVIDEO3,
+			.amux     = EM28XX_AMUX_LINE_IN,
+		} },
+	},
+	/* 2040:826d Hauppauge USB QuadHD
+	 * Empia 28274, Max Linear 692 ATSC combo demod/tuner
+	 */
+	[EM2874_BOARD_HAUPPAUGE_USB_QUADHD] = {
+		.name          = "Hauppauge USB QuadHD ATSC",
+		.def_i2c_bus   = 1,
+		.has_dual_ts   = 1,
+		.has_dvb       = 1,
+		.i2c_speed     = EM28XX_I2C_CLK_WAIT_ENABLE | EM28XX_I2C_FREQ_100_KHZ,
+		.tuner_type    = TUNER_ABSENT,
+		.tuner_gpio    = hauppauge_usb_quadhd_atsc_reg_seq,
+		.leds          = hauppauge_usb_quadhd_leds,
 	},
 };
 EXPORT_SYMBOL_GPL(em28xx_boards);
@@ -2620,6 +2711,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM28174_BOARD_HAUPPAUGE_WINTV_DUALHD_01595 },
 	{ USB_DEVICE(0x2040, 0x826d),
 			.driver_info = EM28174_BOARD_HAUPPAUGE_WINTV_DUALHD_01595 },
+	{ USB_DEVICE(0x2040, 0x846d),
+			.driver_info = EM2874_BOARD_HAUPPAUGE_USB_QUADHD },
 	{ USB_DEVICE(0x0438, 0xb002),
 			.driver_info = EM2880_BOARD_AMD_ATI_TV_WONDER_HD_600 },
 	{ USB_DEVICE(0x2001, 0xf112),
@@ -2666,6 +2759,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2860_BOARD_EASYCAP },
 	{ USB_DEVICE(0x1b80, 0xe425),
 			.driver_info = EM2874_BOARD_MAXMEDIA_UB425_TC },
+	{ USB_DEVICE(0x1f4d, 0x1abe),
+			.driver_info = EM2860_BOARD_MYGICA_IGRABBER },
 	{ USB_DEVICE(0x2304, 0x0242),
 			.driver_info = EM2884_BOARD_PCTV_510E },
 	{ USB_DEVICE(0x2013, 0x0251),
@@ -2678,6 +2773,14 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2765_BOARD_SPEEDLINK_VAD_LAPLACE },
 	{ USB_DEVICE(0x2013, 0x0258),
 			.driver_info = EM28178_BOARD_PCTV_461E },
+	{ USB_DEVICE(0x2013, 0x8258), /* Bulk transport 461e */
+			.driver_info = EM28178_BOARD_PCTV_461E },
+	{ USB_DEVICE(0x2013, 0x0461),
+			.driver_info = EM28178_BOARD_PCTV_461E_V2 },
+	{ USB_DEVICE(0x2013, 0x8461), /* Bulk transport 461e v2 */
+			.driver_info = EM28178_BOARD_PCTV_461E_V2 },
+	{ USB_DEVICE(0x2013, 0x0259),
+			.driver_info = EM28178_BOARD_PCTV_461E_V2 },
 	{ USB_DEVICE(0x2013, 0x025f),
 			.driver_info = EM28178_BOARD_PCTV_292E },
 	{ USB_DEVICE(0x2013, 0x0264), /* Hauppauge WinTV-soloHD 292e SE */
@@ -2696,6 +2799,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM28178_BOARD_PLEX_PX_BCUD },
 	{ USB_DEVICE(0xeb1a, 0x5051), /* Ion Video 2 PC MKII / Startech svid2usb23 / Raygo R12-41373 */
 			.driver_info = EM2860_BOARD_TVP5150_REFERENCE_DESIGN },
+	{ USB_DEVICE(0x1b80, 0xe349), /* Magix USB Videowandler-2 */
+		.driver_info = EM2861_BOARD_MAGIX_VIDEOWANDLER2 },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, em28xx_id_table);
@@ -3515,8 +3620,10 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 
 	if (dev->is_audio_only) {
 		retval = em28xx_audio_setup(dev);
-		if (retval)
-			return -ENODEV;
+		if (retval) {
+			retval = -ENODEV;
+			goto err_deinit_media;
+		}
 		em28xx_init_extension(dev);
 
 		return 0;
@@ -3535,7 +3642,7 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 		dev_err(&dev->intf->dev,
 			"%s: em28xx_i2c_register bus 0 - error [%d]!\n",
 		       __func__, retval);
-		return retval;
+		goto err_deinit_media;
 	}
 
 	/* register i2c bus 1 */
@@ -3551,9 +3658,7 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 				"%s: em28xx_i2c_register bus 1 - error [%d]!\n",
 				__func__, retval);
 
-			em28xx_i2c_unregister(dev, 0);
-
-			return retval;
+			goto err_unreg_i2c;
 		}
 	}
 
@@ -3561,6 +3666,12 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 	em28xx_card_setup(dev);
 
 	return 0;
+
+err_unreg_i2c:
+	em28xx_i2c_unregister(dev, 0);
+err_deinit_media:
+	em28xx_unregister_media_device(dev);
+	return retval;
 }
 
 static int em28xx_duplicate_dev(struct em28xx *dev)
@@ -3815,6 +3926,8 @@ static int em28xx_usb_probe(struct usb_interface *intf,
 		goto err_free;
 	}
 
+	kref_init(&dev->ref);
+
 	dev->devno = nr;
 	dev->model = id->driver_info;
 	dev->alt   = -1;
@@ -3915,6 +4028,8 @@ static int em28xx_usb_probe(struct usb_interface *intf,
 	}
 
 	if (dev->board.has_dual_ts && em28xx_duplicate_dev(dev) == 0) {
+		kref_init(&dev->dev_next->ref);
+
 		dev->dev_next->ts = SECONDARY_TS;
 		dev->dev_next->alt   = -1;
 		dev->dev_next->is_audio_only = has_vendor_audio &&
@@ -3955,25 +4070,21 @@ static int em28xx_usb_probe(struct usb_interface *intf,
 		dev->dev_next->dvb_max_pkt_size_isoc = dev->dvb_max_pkt_size_isoc_ts2;
 		dev->dev_next->dvb_alt_isoc = dev->dvb_alt_isoc;
 
-		/* Configuare hardware to support TS2*/
+		/* Configure hardware to support TS2*/
 		if (dev->dvb_xfer_bulk) {
-			/* The ep4 and ep5 are configuared for BULK */
+			/* The ep4 and ep5 are configured for BULK */
 			em28xx_write_reg(dev, 0x0b, 0x96);
 			mdelay(100);
 			em28xx_write_reg(dev, 0x0b, 0x80);
 			mdelay(100);
 		} else {
-			/* The ep4 and ep5 are configuared for ISO */
+			/* The ep4 and ep5 are configured for ISO */
 			em28xx_write_reg(dev, 0x0b, 0x96);
 			mdelay(100);
 			em28xx_write_reg(dev, 0x0b, 0x82);
 			mdelay(100);
 		}
-
-		kref_init(&dev->dev_next->ref);
 	}
-
-	kref_init(&dev->ref);
 
 	request_modules(dev);
 
@@ -3983,6 +4094,10 @@ static int em28xx_usb_probe(struct usb_interface *intf,
 	 * topology will likely change after the load of the em28xx subdrivers.
 	 */
 #ifdef CONFIG_MEDIA_CONTROLLER
+	/*
+	 * No need to check the return value, the device will still be
+	 * usable without media controller API.
+	 */
 	retval = media_device_register(dev->media_dev);
 #endif
 

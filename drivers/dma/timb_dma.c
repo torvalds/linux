@@ -88,7 +88,7 @@ struct timb_dma {
 	struct dma_device	dma;
 	void __iomem		*membase;
 	struct tasklet_struct	tasklet;
-	struct timb_dma_chan	channels[0];
+	struct timb_dma_chan	channels[];
 };
 
 static struct device *chan2dev(struct dma_chan *chan)
@@ -563,9 +563,9 @@ static int td_terminate_all(struct dma_chan *chan)
 	return 0;
 }
 
-static void td_tasklet(unsigned long data)
+static void td_tasklet(struct tasklet_struct *t)
 {
-	struct timb_dma *td = (struct timb_dma *)data;
+	struct timb_dma *td = from_tasklet(td, t, tasklet);
 	u32 isr;
 	u32 ipr;
 	u32 ier;
@@ -658,7 +658,7 @@ static int td_probe(struct platform_device *pdev)
 	iowrite32(0x0, td->membase + TIMBDMA_IER);
 	iowrite32(0xFFFFFFFF, td->membase + TIMBDMA_ISR);
 
-	tasklet_init(&td->tasklet, td_tasklet, (unsigned long)td);
+	tasklet_setup(&td->tasklet, td_tasklet);
 
 	err = request_irq(irq, td_irq, IRQF_SHARED, DRIVER_NAME, td);
 	if (err) {
@@ -740,7 +740,7 @@ err_release_region:
 
 }
 
-static int td_remove(struct platform_device *pdev)
+static void td_remove(struct platform_device *pdev)
 {
 	struct timb_dma *td = platform_get_drvdata(pdev);
 	struct resource *iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -754,7 +754,6 @@ static int td_remove(struct platform_device *pdev)
 	release_mem_region(iomem->start, resource_size(iomem));
 
 	dev_dbg(&pdev->dev, "Removed...\n");
-	return 0;
 }
 
 static struct platform_driver td_driver = {
@@ -762,7 +761,7 @@ static struct platform_driver td_driver = {
 		.name	= DRIVER_NAME,
 	},
 	.probe	= td_probe,
-	.remove	= td_remove,
+	.remove_new = td_remove,
 };
 
 module_platform_driver(td_driver);

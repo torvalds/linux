@@ -192,9 +192,10 @@ static int sc1200_qc_defer(struct ata_queued_cmd *qc)
 	return 0;
 }
 
-static struct scsi_host_template sc1200_sht = {
-	ATA_BMDMA_SHT(DRV_NAME),
+static const struct scsi_host_template sc1200_sht = {
+	ATA_BASE_SHT(DRV_NAME),
 	.sg_tablesize	= LIBATA_DUMB_MAX_PRD,
+	.dma_boundary	= ATA_DMA_BOUNDARY,
 };
 
 static struct ata_port_operations sc1200_port_ops = {

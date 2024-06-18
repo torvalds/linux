@@ -5,6 +5,7 @@
  * Copyright (c) 2009 Daniel Mack <daniel@caiaq.de>
  */
 #include <linux/module.h>
+#include <linux/of_address.h>
 #include <linux/io.h>
 
 #include "hardware.h"
@@ -14,9 +15,16 @@ static int mx35_cpu_rev = -1;
 
 static int mx35_read_cpu_rev(void)
 {
+	void __iomem *iim_base;
+	struct device_node *np;
 	u32 rev;
 
-	rev = imx_readl(MX35_IO_ADDRESS(MX35_IIM_BASE_ADDR + MXC_IIMSREV));
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx35-iim");
+	iim_base = of_iomap(np, 0);
+	of_node_put(np);
+	BUG_ON(!iim_base);
+
+	rev = imx_readl(iim_base + MXC_IIMSREV);
 	switch (rev) {
 	case 0x00:
 		return IMX_CHIP_REVISION_1_0;

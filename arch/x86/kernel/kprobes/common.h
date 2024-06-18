@@ -6,6 +6,7 @@
 
 #include <asm/asm.h>
 #include <asm/frame.h>
+#include <asm/insn.h>
 
 #ifdef CONFIG_X86_64
 
@@ -77,7 +78,7 @@
 #endif
 
 /* Ensure if the instruction can be boostable */
-extern int can_boost(struct insn *insn, void *orig_addr);
+extern bool can_boost(struct insn *insn, void *orig_addr);
 /* Recover instruction if given address is probed */
 extern unsigned long recover_probed_instruction(kprobe_opcode_t *buf,
 					 unsigned long addr);

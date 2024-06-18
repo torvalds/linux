@@ -1,6 +1,10 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: %HERE DESCRIBE WHAT THIS DOES%
+# requires: %HERE LIST THE REQUIRED FILES, TRACERS OR README-STRINGS%
+# The required tracer needs :tracer suffix, e.g. function:tracer
+# The required README string needs :README suffix, e.g. "x8/16/32/64":README
+# and the README string is treated as a fixed-string instead of regexp pattern.
 # you have to add ".tc" extention for your testcase file
 # Note that all tests are run with "errexit" option.
 

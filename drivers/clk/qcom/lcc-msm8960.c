@@ -9,7 +9,6 @@
 #include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/clk-provider.h>
 #include <linux/regmap.h>
 
@@ -23,6 +22,10 @@
 #include "clk-regmap-divider.h"
 #include "clk-regmap-mux.h"
 
+static struct clk_parent_data pxo_parent_data = {
+	.fw_name = "pxo", .name = "pxo_board",
+};
+
 static struct clk_pll pll4 = {
 	.l_reg = 0x4,
 	.m_reg = 0x8,
@@ -33,7 +36,7 @@ static struct clk_pll pll4 = {
 	.status_bit = 16,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "pll4",
-		.parent_names = (const char *[]){ "pxo" },
+		.parent_data = &pxo_parent_data,
 		.num_parents = 1,
 		.ops = &clk_pll_ops,
 	},
@@ -49,9 +52,9 @@ static const struct parent_map lcc_pxo_pll4_map[] = {
 	{ P_PLL4, 2 }
 };
 
-static const char * const lcc_pxo_pll4[] = {
-	"pxo",
-	"pll4_vote",
+static struct clk_parent_data lcc_pxo_pll4[] = {
+	{ .fw_name = "pxo", .name = "pxo_board" },
+	{ .fw_name = "pll4_vote", .name = "pll4_vote" },
 };
 
 static struct freq_tbl clk_tbl_aif_osr_492[] = {
@@ -86,112 +89,7 @@ static struct freq_tbl clk_tbl_aif_osr_393[] = {
 	{ }
 };
 
-static struct clk_rcg mi2s_osr_src = {
-	.ns_reg = 0x48,
-	.md_reg = 0x4c,
-	.mn = {
-		.mnctr_en_bit = 8,
-		.mnctr_reset_bit = 7,
-		.mnctr_mode_shift = 5,
-		.n_val_shift = 24,
-		.m_val_shift = 8,
-		.width = 8,
-	},
-	.p = {
-		.pre_div_shift = 3,
-		.pre_div_width = 2,
-	},
-	.s = {
-		.src_sel_shift = 0,
-		.parent_map = lcc_pxo_pll4_map,
-	},
-	.freq_tbl = clk_tbl_aif_osr_393,
-	.clkr = {
-		.enable_reg = 0x48,
-		.enable_mask = BIT(9),
-		.hw.init = &(struct clk_init_data){
-			.name = "mi2s_osr_src",
-			.parent_names = lcc_pxo_pll4,
-			.num_parents = 2,
-			.ops = &clk_rcg_ops,
-			.flags = CLK_SET_RATE_GATE,
-		},
-	},
-};
-
-static const char * const lcc_mi2s_parents[] = {
-	"mi2s_osr_src",
-};
-
-static struct clk_branch mi2s_osr_clk = {
-	.halt_reg = 0x50,
-	.halt_bit = 1,
-	.halt_check = BRANCH_HALT_ENABLE,
-	.clkr = {
-		.enable_reg = 0x48,
-		.enable_mask = BIT(17),
-		.hw.init = &(struct clk_init_data){
-			.name = "mi2s_osr_clk",
-			.parent_names = lcc_mi2s_parents,
-			.num_parents = 1,
-			.ops = &clk_branch_ops,
-			.flags = CLK_SET_RATE_PARENT,
-		},
-	},
-};
-
-static struct clk_regmap_div mi2s_div_clk = {
-	.reg = 0x48,
-	.shift = 10,
-	.width = 4,
-	.clkr = {
-		.enable_reg = 0x48,
-		.enable_mask = BIT(15),
-		.hw.init = &(struct clk_init_data){
-			.name = "mi2s_div_clk",
-			.parent_names = lcc_mi2s_parents,
-			.num_parents = 1,
-			.ops = &clk_regmap_div_ops,
-		},
-	},
-};
-
-static struct clk_branch mi2s_bit_div_clk = {
-	.halt_reg = 0x50,
-	.halt_bit = 0,
-	.halt_check = BRANCH_HALT_ENABLE,
-	.clkr = {
-		.enable_reg = 0x48,
-		.enable_mask = BIT(15),
-		.hw.init = &(struct clk_init_data){
-			.name = "mi2s_bit_div_clk",
-			.parent_names = (const char *[]){ "mi2s_div_clk" },
-			.num_parents = 1,
-			.ops = &clk_branch_ops,
-			.flags = CLK_SET_RATE_PARENT,
-		},
-	},
-};
-
-static struct clk_regmap_mux mi2s_bit_clk = {
-	.reg = 0x48,
-	.shift = 14,
-	.width = 1,
-	.clkr = {
-		.hw.init = &(struct clk_init_data){
-			.name = "mi2s_bit_clk",
-			.parent_names = (const char *[]){
-				"mi2s_bit_div_clk",
-				"mi2s_codec_clk",
-			},
-			.num_parents = 2,
-			.ops = &clk_regmap_mux_closest_ops,
-			.flags = CLK_SET_RATE_PARENT,
-		},
-	},
-};
-
-#define CLK_AIF_OSR_DIV(prefix, _ns, _md, hr)			\
+#define CLK_AIF_OSR_SRC(prefix, _ns, _md)			\
 static struct clk_rcg prefix##_osr_src = {			\
 	.ns_reg = _ns,						\
 	.md_reg = _md,						\
@@ -217,85 +115,103 @@ static struct clk_rcg prefix##_osr_src = {			\
 		.enable_mask = BIT(9),				\
 		.hw.init = &(struct clk_init_data){		\
 			.name = #prefix "_osr_src",		\
-			.parent_names = lcc_pxo_pll4,		\
-			.num_parents = 2,			\
+			.parent_data = lcc_pxo_pll4,		\
+			.num_parents = ARRAY_SIZE(lcc_pxo_pll4), \
 			.ops = &clk_rcg_ops,			\
 			.flags = CLK_SET_RATE_GATE,		\
 		},						\
 	},							\
 };								\
-								\
-static const char * const lcc_##prefix##_parents[] = {		\
-	#prefix "_osr_src",					\
-};								\
-								\
+
+#define CLK_AIF_OSR_CLK(prefix, _ns, hr, en_bit)		\
 static struct clk_branch prefix##_osr_clk = {			\
 	.halt_reg = hr,						\
 	.halt_bit = 1,						\
 	.halt_check = BRANCH_HALT_ENABLE,			\
 	.clkr = {						\
 		.enable_reg = _ns,				\
-		.enable_mask = BIT(21),				\
+		.enable_mask = BIT(en_bit),			\
 		.hw.init = &(struct clk_init_data){		\
 			.name = #prefix "_osr_clk",		\
-			.parent_names = lcc_##prefix##_parents,	\
+			.parent_hws = (const struct clk_hw*[]){	\
+				&prefix##_osr_src.clkr.hw,	\
+			},					\
 			.num_parents = 1,			\
 			.ops = &clk_branch_ops,			\
 			.flags = CLK_SET_RATE_PARENT,		\
 		},						\
 	},							\
 };								\
-								\
+
+#define CLK_AIF_OSR_DIV_CLK(prefix, _ns, _width)		\
 static struct clk_regmap_div prefix##_div_clk = {		\
 	.reg = _ns,						\
 	.shift = 10,						\
-	.width = 8,						\
+	.width = _width,					\
 	.clkr = {						\
 		.hw.init = &(struct clk_init_data){		\
 			.name = #prefix "_div_clk",		\
-			.parent_names = lcc_##prefix##_parents,	\
+			.parent_hws = (const struct clk_hw*[]){	\
+				&prefix##_osr_src.clkr.hw,	\
+			},					\
 			.num_parents = 1,			\
 			.ops = &clk_regmap_div_ops,		\
 		},						\
 	},							\
 };								\
-								\
+
+#define CLK_AIF_OSR_BIT_DIV_CLK(prefix, _ns, hr, en_bit)	\
 static struct clk_branch prefix##_bit_div_clk = {		\
 	.halt_reg = hr,						\
 	.halt_bit = 0,						\
 	.halt_check = BRANCH_HALT_ENABLE,			\
 	.clkr = {						\
 		.enable_reg = _ns,				\
-		.enable_mask = BIT(19),				\
+		.enable_mask = BIT(en_bit),			\
 		.hw.init = &(struct clk_init_data){		\
 			.name = #prefix "_bit_div_clk",		\
-			.parent_names = (const char *[]){	\
-				#prefix "_div_clk"		\
-			}, 					\
+			.parent_hws = (const struct clk_hw*[]){	\
+				&prefix##_div_clk.clkr.hw,	\
+			},					\
 			.num_parents = 1,			\
 			.ops = &clk_branch_ops,			\
 			.flags = CLK_SET_RATE_PARENT,		\
 		},						\
 	},							\
 };								\
-								\
+
+#define CLK_AIF_OSR_BIT_CLK(prefix, _ns, _shift)		\
 static struct clk_regmap_mux prefix##_bit_clk = {		\
 	.reg = _ns,						\
-	.shift = 18,						\
+	.shift = _shift,					\
 	.width = 1,						\
 	.clkr = {						\
 		.hw.init = &(struct clk_init_data){		\
 			.name = #prefix "_bit_clk",		\
-			.parent_names = (const char *[]){	\
-				#prefix "_bit_div_clk",		\
-				#prefix "_codec_clk",		\
+			.parent_data = (const struct clk_parent_data[]){ \
+				{ .hw = &prefix##_bit_div_clk.clkr.hw, }, \
+				{ .fw_name = #prefix "_codec_clk", \
+				  .name = #prefix "_codec_clk", }, \
 			},					\
 			.num_parents = 2,			\
 			.ops = &clk_regmap_mux_closest_ops,	\
 			.flags = CLK_SET_RATE_PARENT,		\
 		},						\
 	},							\
-}
+};
+
+CLK_AIF_OSR_SRC(mi2s, 0x48, 0x4c)
+CLK_AIF_OSR_CLK(mi2s, 0x48, 0x50, 17)
+CLK_AIF_OSR_DIV_CLK(mi2s, 0x48, 4)
+CLK_AIF_OSR_BIT_DIV_CLK(mi2s, 0x48, 0x50, 15)
+CLK_AIF_OSR_BIT_CLK(mi2s, 0x48, 14)
+
+#define CLK_AIF_OSR_DIV(prefix, _ns, _md, hr)			\
+	CLK_AIF_OSR_SRC(prefix, _ns, _md)			\
+	CLK_AIF_OSR_CLK(prefix, _ns, hr, 21)			\
+	CLK_AIF_OSR_DIV_CLK(prefix, _ns, 8)			\
+	CLK_AIF_OSR_BIT_DIV_CLK(prefix, _ns, hr, 19)		\
+	CLK_AIF_OSR_BIT_CLK(prefix, _ns, 18)
 
 CLK_AIF_OSR_DIV(codec_i2s_mic, 0x60, 0x64, 0x68);
 CLK_AIF_OSR_DIV(spare_i2s_mic, 0x78, 0x7c, 0x80);
@@ -361,8 +277,8 @@ static struct clk_rcg pcm_src = {
 		.enable_mask = BIT(9),
 		.hw.init = &(struct clk_init_data){
 			.name = "pcm_src",
-			.parent_names = lcc_pxo_pll4,
-			.num_parents = 2,
+			.parent_data = lcc_pxo_pll4,
+			.num_parents = ARRAY_SIZE(lcc_pxo_pll4),
 			.ops = &clk_rcg_ops,
 			.flags = CLK_SET_RATE_GATE,
 		},
@@ -378,7 +294,9 @@ static struct clk_branch pcm_clk_out = {
 		.enable_mask = BIT(11),
 		.hw.init = &(struct clk_init_data){
 			.name = "pcm_clk_out",
-			.parent_names = (const char *[]){ "pcm_src" },
+			.parent_hws = (const struct clk_hw*[]){
+				&pcm_src.clkr.hw
+			},
 			.num_parents = 1,
 			.ops = &clk_branch_ops,
 			.flags = CLK_SET_RATE_PARENT,
@@ -393,9 +311,9 @@ static struct clk_regmap_mux pcm_clk = {
 	.clkr = {
 		.hw.init = &(struct clk_init_data){
 			.name = "pcm_clk",
-			.parent_names = (const char *[]){
-				"pcm_clk_out",
-				"pcm_codec_clk",
+			.parent_data = (const struct clk_parent_data[]){
+				{ .hw = &pcm_clk_out.clkr.hw },
+				{ .fw_name = "pcm_codec_clk", .name = "pcm_codec_clk" },
 			},
 			.num_parents = 2,
 			.ops = &clk_regmap_mux_closest_ops,
@@ -429,16 +347,12 @@ static struct clk_rcg slimbus_src = {
 		.enable_mask = BIT(9),
 		.hw.init = &(struct clk_init_data){
 			.name = "slimbus_src",
-			.parent_names = lcc_pxo_pll4,
-			.num_parents = 2,
+			.parent_data = lcc_pxo_pll4,
+			.num_parents = ARRAY_SIZE(lcc_pxo_pll4),
 			.ops = &clk_rcg_ops,
 			.flags = CLK_SET_RATE_GATE,
 		},
 	},
-};
-
-static const char * const lcc_slimbus_parents[] = {
-	"slimbus_src",
 };
 
 static struct clk_branch audio_slimbus_clk = {
@@ -450,7 +364,9 @@ static struct clk_branch audio_slimbus_clk = {
 		.enable_mask = BIT(10),
 		.hw.init = &(struct clk_init_data){
 			.name = "audio_slimbus_clk",
-			.parent_names = lcc_slimbus_parents,
+			.parent_hws = (const struct clk_hw*[]){
+				&slimbus_src.clkr.hw,
+			},
 			.num_parents = 1,
 			.ops = &clk_branch_ops,
 			.flags = CLK_SET_RATE_PARENT,
@@ -467,7 +383,9 @@ static struct clk_branch sps_slimbus_clk = {
 		.enable_mask = BIT(12),
 		.hw.init = &(struct clk_init_data){
 			.name = "sps_slimbus_clk",
-			.parent_names = lcc_slimbus_parents,
+			.parent_hws = (const struct clk_hw*[]){
+				&slimbus_src.clkr.hw,
+			},
 			.num_parents = 1,
 			.ops = &clk_branch_ops,
 			.flags = CLK_SET_RATE_PARENT,
@@ -527,6 +445,7 @@ static const struct qcom_cc_desc lcc_msm8960_desc = {
 static const struct of_device_id lcc_msm8960_match_table[] = {
 	{ .compatible = "qcom,lcc-msm8960" },
 	{ .compatible = "qcom,lcc-apq8064" },
+	{ .compatible = "qcom,lcc-mdm9615" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, lcc_msm8960_match_table);
@@ -535,6 +454,14 @@ static int lcc_msm8960_probe(struct platform_device *pdev)
 {
 	u32 val;
 	struct regmap *regmap;
+
+	/* patch for the cxo <-> pxo difference */
+	if (of_device_is_compatible(pdev->dev.of_node, "qcom,lcc-mdm9615")) {
+		pxo_parent_data.fw_name = "cxo";
+		pxo_parent_data.name = "cxo_board";
+		lcc_pxo_pll4[0].fw_name = "cxo";
+		lcc_pxo_pll4[0].name = "cxo_board";
+	}
 
 	regmap = qcom_cc_map(pdev, &lcc_msm8960_desc);
 	if (IS_ERR(regmap))

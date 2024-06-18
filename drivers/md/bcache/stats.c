@@ -46,7 +46,6 @@ read_attribute(cache_misses);
 read_attribute(cache_bypass_hits);
 read_attribute(cache_bypass_misses);
 read_attribute(cache_hit_ratio);
-read_attribute(cache_readaheads);
 read_attribute(cache_miss_collisions);
 read_attribute(bypassed);
 
@@ -64,7 +63,6 @@ SHOW(bch_stats)
 		    DIV_SAFE(var(cache_hits) * 100,
 			     var(cache_hits) + var(cache_misses)));
 
-	var_print(cache_readaheads);
 	var_print(cache_miss_collisions);
 	sysfs_hprint(bypassed,	var(sectors_bypassed) << 9);
 #undef var
@@ -80,17 +78,17 @@ static void bch_stats_release(struct kobject *k)
 {
 }
 
-static struct attribute *bch_stats_files[] = {
+static struct attribute *bch_stats_attrs[] = {
 	&sysfs_cache_hits,
 	&sysfs_cache_misses,
 	&sysfs_cache_bypass_hits,
 	&sysfs_cache_bypass_misses,
 	&sysfs_cache_hit_ratio,
-	&sysfs_cache_readaheads,
 	&sysfs_cache_miss_collisions,
 	&sysfs_bypassed,
 	NULL
 };
+ATTRIBUTE_GROUPS(bch_stats);
 static KTYPE(bch_stats);
 
 int bch_cache_accounting_add_kobjs(struct cache_accounting *acc,
@@ -109,9 +107,12 @@ int bch_cache_accounting_add_kobjs(struct cache_accounting *acc,
 
 void bch_cache_accounting_clear(struct cache_accounting *acc)
 {
-	memset(&acc->total.cache_hits,
-	       0,
-	       sizeof(struct cache_stats));
+	acc->total.cache_hits = 0;
+	acc->total.cache_misses = 0;
+	acc->total.cache_bypass_hits = 0;
+	acc->total.cache_bypass_misses = 0;
+	acc->total.cache_miss_collisions = 0;
+	acc->total.sectors_bypassed = 0;
 }
 
 void bch_cache_accounting_destroy(struct cache_accounting *acc)
@@ -141,7 +142,6 @@ static void scale_stats(struct cache_stats *stats, unsigned long rescale_at)
 		scale_stat(&stats->cache_misses);
 		scale_stat(&stats->cache_bypass_hits);
 		scale_stat(&stats->cache_bypass_misses);
-		scale_stat(&stats->cache_readaheads);
 		scale_stat(&stats->cache_miss_collisions);
 		scale_stat(&stats->sectors_bypassed);
 	}
@@ -164,7 +164,6 @@ static void scale_accounting(struct timer_list *t)
 	move_stat(cache_misses);
 	move_stat(cache_bypass_hits);
 	move_stat(cache_bypass_misses);
-	move_stat(cache_readaheads);
 	move_stat(cache_miss_collisions);
 	move_stat(sectors_bypassed);
 
@@ -203,14 +202,6 @@ void bch_mark_cache_accounting(struct cache_set *c, struct bcache_device *d,
 
 	mark_cache_stats(&dc->accounting.collector, hit, bypass);
 	mark_cache_stats(&c->accounting.collector, hit, bypass);
-}
-
-void bch_mark_cache_readahead(struct cache_set *c, struct bcache_device *d)
-{
-	struct cached_dev *dc = container_of(d, struct cached_dev, disk);
-
-	atomic_inc(&dc->accounting.collector.cache_readaheads);
-	atomic_inc(&c->accounting.collector.cache_readaheads);
 }
 
 void bch_mark_cache_miss_collision(struct cache_set *c, struct bcache_device *d)

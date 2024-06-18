@@ -93,21 +93,13 @@ enum orangefs_vfs_op_states {
 	OP_VFS_STATE_GIVEN_UP = 16,
 };
 
-/*
- * orangefs kernel memory related flags
- */
+extern const struct xattr_handler * const orangefs_xattr_handlers[];
 
-#if (defined CONFIG_DEBUG_SLAB)
-#define ORANGEFS_CACHE_CREATE_FLAGS SLAB_RED_ZONE
-#else
-#define ORANGEFS_CACHE_CREATE_FLAGS 0
-#endif
-
-extern int orangefs_init_acl(struct inode *inode, struct inode *dir);
-extern const struct xattr_handler *orangefs_xattr_handlers[];
-
-extern struct posix_acl *orangefs_get_acl(struct inode *inode, int type);
-extern int orangefs_set_acl(struct inode *inode, struct posix_acl *acl, int type);
+extern struct posix_acl *orangefs_get_acl(struct inode *inode, int type, bool rcu);
+extern int orangefs_set_acl(struct mnt_idmap *idmap,
+			    struct dentry *dentry, struct posix_acl *acl,
+			    int type);
+int __orangefs_set_acl(struct inode *inode, struct posix_acl *acl, int type);
 
 /*
  * orangefs data structures
@@ -239,10 +231,6 @@ struct orangefs_write_range {
 	kgid_t gid;
 };
 
-struct orangefs_read_options {
-	ssize_t blksiz;
-};
-
 extern struct orangefs_stats orangefs_stats;
 
 /*
@@ -358,19 +346,21 @@ void fsid_key_table_finalize(void);
 vm_fault_t orangefs_page_mkwrite(struct vm_fault *);
 struct inode *orangefs_new_inode(struct super_block *sb,
 			      struct inode *dir,
-			      int mode,
+			      umode_t mode,
 			      dev_t dev,
 			      struct orangefs_object_kref *ref);
 
 int __orangefs_setattr(struct inode *, struct iattr *);
-int orangefs_setattr(struct dentry *, struct iattr *);
+int __orangefs_setattr_mode(struct dentry *dentry, struct iattr *iattr);
+int orangefs_setattr(struct mnt_idmap *, struct dentry *, struct iattr *);
 
-int orangefs_getattr(const struct path *path, struct kstat *stat,
-		     u32 request_mask, unsigned int flags);
+int orangefs_getattr(struct mnt_idmap *idmap, const struct path *path,
+		     struct kstat *stat, u32 request_mask, unsigned int flags);
 
-int orangefs_permission(struct inode *inode, int mask);
+int orangefs_permission(struct mnt_idmap *idmap,
+			struct inode *inode, int mask);
 
-int orangefs_update_time(struct inode *, struct timespec64 *, int);
+int orangefs_update_time(struct inode *, int);
 
 /*
  * defined in xattr.c
@@ -398,7 +388,8 @@ bool __is_daemon_in_service(void);
  */
 int orangefs_revalidate_mapping(struct inode *);
 ssize_t wait_for_direct_io(enum ORANGEFS_io_type, struct inode *, loff_t *,
-    struct iov_iter *, size_t, loff_t, struct orangefs_write_range *, int *);
+    struct iov_iter *, size_t, loff_t, struct orangefs_write_range *, int *,
+    struct file *);
 ssize_t do_readv_writev(enum ORANGEFS_io_type, struct file *, loff_t *,
     struct iov_iter *);
 

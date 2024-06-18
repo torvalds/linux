@@ -139,7 +139,7 @@ END_BTB_FLUSH_SECTION
 	 * kvmppc_get_last_inst().
 	 */
 	li	r9, KVM_INST_FETCH_FAILED
-	stw	r9, VCPU_LAST_INST(r4)
+	PPC_STL	r9, VCPU_LAST_INST(r4)
 	.endif
 
 	.if	\flags & NEED_ESR
@@ -424,19 +424,11 @@ _GLOBAL(kvmppc_resume_host)
 	mtspr	SPRN_EPCR, r3
 	isync
 
-#ifdef CONFIG_64BIT
-	/*
-	 * We enter with interrupts disabled in hardware, but
-	 * we need to call RECONCILE_IRQ_STATE to ensure
-	 * that the software state is kept in sync.
-	 */
-	RECONCILE_IRQ_STATE(r3,r5)
-#endif
-
 	/* Switch to kernel stack and jump to handler. */
-	PPC_LL	r3, HOST_RUN(r1)
+	mr	r3, r4
 	mr	r5, r14 /* intno */
 	mr	r14, r4 /* Save vcpu pointer. */
+	mr	r4, r5
 	bl	kvmppc_handle_exit
 
 	/* Restore vcpu pointer and the nonvolatiles we used. */
@@ -525,15 +517,14 @@ heavyweight_exit:
 	blr
 
 /* Registers:
- *  r3: kvm_run pointer
- *  r4: vcpu pointer
+ *  r3: vcpu pointer
  */
 _GLOBAL(__kvmppc_vcpu_run)
 	stwu	r1, -HOST_STACK_SIZE(r1)
-	PPC_STL	r1, VCPU_HOST_STACK(r4)	/* Save stack pointer to vcpu. */
+	PPC_STL	r1, VCPU_HOST_STACK(r3)	/* Save stack pointer to vcpu. */
 
 	/* Save host state to stack. */
-	PPC_STL	r3, HOST_RUN(r1)
+	mr	r4, r3
 	mflr	r3
 	mfcr	r5
 	PPC_STL	r3, HOST_STACK_LR(r1)

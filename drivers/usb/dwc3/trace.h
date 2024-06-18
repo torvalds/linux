@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0
-/**
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
  * trace.h - DesignWare USB3 DRD Controller Trace Support
  *
- * Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2014 Texas Instruments Incorporated - https://www.ti.com
  *
  * Author: Felipe Balbi <balbi@ti.com>
  */
@@ -32,8 +32,10 @@ DECLARE_EVENT_CLASS(dwc3_log_io,
 		__entry->offset = offset;
 		__entry->value = value;
 	),
-	TP_printk("addr %p value %08x", __entry->base + __entry->offset,
-			__entry->value)
+	TP_printk("addr %p offset %04x value %08x",
+		__entry->base + __entry->offset,
+		__entry->offset,
+		__entry->value)
 );
 
 DEFINE_EVENT(dwc3_log_io, dwc3_readl,
@@ -52,14 +54,13 @@ DECLARE_EVENT_CLASS(dwc3_log_event,
 	TP_STRUCT__entry(
 		__field(u32, event)
 		__field(u32, ep0state)
-		__dynamic_array(char, str, DWC3_MSG_MAX)
 	),
 	TP_fast_assign(
 		__entry->event = event;
 		__entry->ep0state = dwc->ep0state;
 	),
 	TP_printk("event (%08x): %s", __entry->event,
-			dwc3_decode_event(__get_str(str), DWC3_MSG_MAX,
+			dwc3_decode_event(__get_buf(DWC3_MSG_MAX), DWC3_MSG_MAX,
 					__entry->event, __entry->ep0state))
 );
 
@@ -77,7 +78,6 @@ DECLARE_EVENT_CLASS(dwc3_log_ctrl,
 		__field(__u16, wValue)
 		__field(__u16, wIndex)
 		__field(__u16, wLength)
-		__dynamic_array(char, str, DWC3_MSG_MAX)
 	),
 	TP_fast_assign(
 		__entry->bRequestType = ctrl->bRequestType;
@@ -86,7 +86,7 @@ DECLARE_EVENT_CLASS(dwc3_log_ctrl,
 		__entry->wIndex = le16_to_cpu(ctrl->wIndex);
 		__entry->wLength = le16_to_cpu(ctrl->wLength);
 	),
-	TP_printk("%s", usb_decode_ctrl(__get_str(str), DWC3_MSG_MAX,
+	TP_printk("%s", usb_decode_ctrl(__get_buf(DWC3_MSG_MAX), DWC3_MSG_MAX,
 					__entry->bRequestType,
 					__entry->bRequest, __entry->wValue,
 					__entry->wIndex, __entry->wLength)
@@ -104,15 +104,15 @@ DECLARE_EVENT_CLASS(dwc3_log_request,
 	TP_STRUCT__entry(
 		__string(name, req->dep->name)
 		__field(struct dwc3_request *, req)
-		__field(unsigned, actual)
-		__field(unsigned, length)
+		__field(unsigned int, actual)
+		__field(unsigned int, length)
 		__field(int, status)
 		__field(int, zero)
 		__field(int, short_not_ok)
 		__field(int, no_interrupt)
 	),
 	TP_fast_assign(
-		__assign_str(name, req->dep->name);
+		__assign_str(name);
 		__entry->req = req;
 		__entry->actual = req->request.actual;
 		__entry->length = req->request.length;
@@ -193,7 +193,7 @@ DECLARE_EVENT_CLASS(dwc3_log_gadget_ep_cmd,
 		__field(int, cmd_status)
 	),
 	TP_fast_assign(
-		__assign_str(name, dep->name);
+		__assign_str(name);
 		__entry->cmd = cmd;
 		__entry->param0 = params->param0;
 		__entry->param1 = params->param1;
@@ -220,27 +220,31 @@ DECLARE_EVENT_CLASS(dwc3_log_trb,
 	TP_STRUCT__entry(
 		__string(name, dep->name)
 		__field(struct dwc3_trb *, trb)
-		__field(u32, allocated)
-		__field(u32, queued)
 		__field(u32, bpl)
 		__field(u32, bph)
 		__field(u32, size)
 		__field(u32, ctrl)
 		__field(u32, type)
+		__field(u32, enqueue)
+		__field(u32, dequeue)
 	),
 	TP_fast_assign(
-		__assign_str(name, dep->name);
+		__assign_str(name);
 		__entry->trb = trb;
 		__entry->bpl = trb->bpl;
 		__entry->bph = trb->bph;
 		__entry->size = trb->size;
 		__entry->ctrl = trb->ctrl;
 		__entry->type = usb_endpoint_type(dep->endpoint.desc);
+		__entry->enqueue = dep->trb_enqueue;
+		__entry->dequeue = dep->trb_dequeue;
 	),
-	TP_printk("%s: trb %p buf %08x%08x size %s%d ctrl %08x (%c%c%c%c:%c%c:%s)",
-		__get_str(name), __entry->trb, __entry->bph, __entry->bpl,
+	TP_printk("%s: trb %p (E%d:D%d) buf %08x%08x size %s%d ctrl %08x sofn %08x (%c%c%c%c:%c%c:%s)",
+		__get_str(name), __entry->trb, __entry->enqueue,
+		__entry->dequeue, __entry->bph, __entry->bpl,
 		({char *s;
 		int pcm = ((__entry->size >> 24) & 3) + 1;
+
 		switch (__entry->type) {
 		case USB_ENDPOINT_XFER_INT:
 		case USB_ENDPOINT_XFER_ISOC:
@@ -261,6 +265,7 @@ DECLARE_EVENT_CLASS(dwc3_log_trb,
 			s = "";
 		} s; }),
 		DWC3_TRB_SIZE_LENGTH(__entry->size), __entry->ctrl,
+		DWC3_TRB_CTRL_GET_SID_SOFN(__entry->ctrl),
 		__entry->ctrl & DWC3_TRB_CTRL_HWO ? 'H' : 'h',
 		__entry->ctrl & DWC3_TRB_CTRL_LST ? 'L' : 'l',
 		__entry->ctrl & DWC3_TRB_CTRL_CHN ? 'C' : 'c',
@@ -286,17 +291,17 @@ DECLARE_EVENT_CLASS(dwc3_log_ep,
 	TP_ARGS(dep),
 	TP_STRUCT__entry(
 		__string(name, dep->name)
-		__field(unsigned, maxpacket)
-		__field(unsigned, maxpacket_limit)
-		__field(unsigned, max_streams)
-		__field(unsigned, maxburst)
-		__field(unsigned, flags)
-		__field(unsigned, direction)
+		__field(unsigned int, maxpacket)
+		__field(unsigned int, maxpacket_limit)
+		__field(unsigned int, max_streams)
+		__field(unsigned int, maxburst)
+		__field(unsigned int, flags)
+		__field(unsigned int, direction)
 		__field(u8, trb_enqueue)
 		__field(u8, trb_dequeue)
 	),
 	TP_fast_assign(
-		__assign_str(name, dep->name);
+		__assign_str(name);
 		__entry->maxpacket = dep->endpoint.maxpacket;
 		__entry->maxpacket_limit = dep->endpoint.maxpacket_limit;
 		__entry->max_streams = dep->endpoint.max_streams;

@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree for ULCB + Audio Graph Card2
+ *
+ * Copyright (C) 2022 Renesas Electronics Corp.
+ */
+
+/*
+ *	(A) CPU0 <----> ak4613
+ *	(B) CPU1  ----> HDMI
+ *
+ *	(A) aplay   -D plughw:0,0 xxx.wav
+ *	(B) aplay   -D plughw:0,1 xxx.wav
+ *
+ *	(A) arecord -D plughw:0,0 xxx.wav
+ */
+#include "ulcb-audio-graph-card.dtsi"
+
+&sound_card {
+	compatible = "audio-graph-card2";
+
+	/delete-property/ dais;
+	links = <&snd_ulcb1	/* (A) CPU0 <-> ak4613 */
+		 &snd_ulcb2	/* (B) CPU1  -> HDMI   */
+		>;
+};

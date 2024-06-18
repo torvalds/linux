@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/linkage.h>
+#include <asm/desc_defs.h>
 #include <asm/segment.h>
 #include <asm/page_types.h>
 #include <asm/processor-flags.h>
@@ -19,7 +20,7 @@
  */
 	.section ".text32", "ax"
 	.code32
-ENTRY(machine_real_restart_asm)
+SYM_CODE_START(machine_real_restart_asm)
 
 #ifdef CONFIG_X86_64
 	/* Switch to trampoline GDT as it is guaranteed < 4 GiB */
@@ -33,7 +34,7 @@ ENTRY(machine_real_restart_asm)
 	movl	%eax, %cr0
 	ljmpl	$__KERNEL32_CS, $pa_machine_real_restart_paging_off
 
-GLOBAL(machine_real_restart_paging_off)
+SYM_INNER_LABEL(machine_real_restart_paging_off, SYM_L_GLOBAL)
 	xorl	%eax, %eax
 	xorl	%edx, %edx
 	movl	$MSR_EFER, %ecx
@@ -63,6 +64,7 @@ GLOBAL(machine_real_restart_paging_off)
 	movl	%ecx, %gs
 	movl	%ecx, %ss
 	ljmpw	$8, $1f
+SYM_CODE_END(machine_real_restart_asm)
 
 /*
  * This is 16-bit protected mode code to disable paging and the cache,
@@ -127,13 +129,13 @@ bios:
 	.section ".rodata", "a"
 
 	.balign	16
-GLOBAL(machine_real_restart_idt)
+SYM_DATA_START(machine_real_restart_idt)
 	.word	0xffff		/* Length - real mode default value */
 	.long	0		/* Base - real mode default value */
-END(machine_real_restart_idt)
+SYM_DATA_END(machine_real_restart_idt)
 
 	.balign	16
-GLOBAL(machine_real_restart_gdt)
+SYM_DATA_START(machine_real_restart_gdt)
 	/* Self-pointer */
 	.word	0xffff		/* Length - real mode default value */
 	.long	pa_machine_real_restart_gdt
@@ -152,5 +154,5 @@ GLOBAL(machine_real_restart_gdt)
 	 * base value 0x100; since this is consistent with real mode
 	 * semantics we don't have to reload the segments once CR0.PE = 0.
 	 */
-	.quad	GDT_ENTRY(0x0093, 0x100, 0xffff)
-END(machine_real_restart_gdt)
+	.quad	GDT_ENTRY(DESC_DATA16, 0x100, 0xffff)
+SYM_DATA_END(machine_real_restart_gdt)

@@ -12,6 +12,8 @@
 #include <linux/types.h>
 #include <asm/barrier.h>
 
+#include "powernv.h"
+
 /* OPAL in-memory console. Defined in OPAL source at core/console.c */
 struct memcons {
 	__be64 magic;
@@ -103,7 +105,7 @@ static struct bin_attribute opal_msglog_attr = {
 	.read = opal_msglog_read
 };
 
-struct memcons *memcons_init(struct device_node *node, const char *mc_prop_name)
+struct memcons *__init memcons_init(struct device_node *node, const char *mc_prop_name)
 {
 	u64 mcaddr;
 	struct memcons *mc;
@@ -131,7 +133,7 @@ out_err:
 	return NULL;
 }
 
-u32 memcons_get_size(struct memcons *mc)
+u32 __init memcons_get_size(struct memcons *mc)
 {
 	return be32_to_cpu(mc->ibuf_size) + be32_to_cpu(mc->obuf_size);
 }

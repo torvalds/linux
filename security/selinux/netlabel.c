@@ -29,6 +29,7 @@
 /**
  * selinux_netlbl_sidlookup_cached - Cache a SID lookup
  * @skb: the packet
+ * @family: the packet's address family
  * @secattr: the NetLabel security attributes
  * @sid: the SID
  *
@@ -45,7 +46,7 @@ static int selinux_netlbl_sidlookup_cached(struct sk_buff *skb,
 {
 	int rc;
 
-	rc = security_netlbl_secattr_to_sid(&selinux_state, secattr, sid);
+	rc = security_netlbl_secattr_to_sid(secattr, sid);
 	if (rc == 0 &&
 	    (secattr->flags & NETLBL_SECATTR_CACHEABLE) &&
 	    (secattr->flags & NETLBL_SECATTR_CACHE))
@@ -76,8 +77,7 @@ static struct netlbl_lsm_secattr *selinux_netlbl_sock_genattr(struct sock *sk)
 	secattr = netlbl_secattr_alloc(GFP_ATOMIC);
 	if (secattr == NULL)
 		return NULL;
-	rc = security_netlbl_sid_to_secattr(&selinux_state, sksec->sid,
-					    secattr);
+	rc = security_netlbl_sid_to_secattr(sksec->sid, secattr);
 	if (rc != 0) {
 		netlbl_secattr_free(secattr);
 		return NULL;
@@ -128,6 +128,7 @@ void selinux_netlbl_cache_invalidate(void)
 /**
  * selinux_netlbl_err - Handle a NetLabel packet error
  * @skb: the packet
+ * @family: the packet's address family
  * @error: the error code
  * @gateway: true if host is acting as a gateway, false otherwise
  *
@@ -153,14 +154,17 @@ void selinux_netlbl_err(struct sk_buff *skb, u16 family, int error, int gateway)
  */
 void selinux_netlbl_sk_security_free(struct sk_security_struct *sksec)
 {
-	if (sksec->nlbl_secattr != NULL)
-		netlbl_secattr_free(sksec->nlbl_secattr);
+	if (!sksec->nlbl_secattr)
+		return;
+
+	netlbl_secattr_free(sksec->nlbl_secattr);
+	sksec->nlbl_secattr = NULL;
+	sksec->nlbl_state = NLBL_UNSET;
 }
 
 /**
  * selinux_netlbl_sk_security_reset - Reset the NetLabel fields
  * @sksec: the sk_security_struct
- * @family: the socket family
  *
  * Description:
  * Called when the NetLabel state of a sk_security_struct needs to be reset.
@@ -194,6 +198,7 @@ int selinux_netlbl_skbuff_getsid(struct sk_buff *skb,
 	struct netlbl_lsm_secattr secattr;
 
 	if (!netlbl_enabled()) {
+		*type = NETLBL_NLTYPE_NONE;
 		*sid = SECSID_NULL;
 		return 0;
 	}
@@ -244,8 +249,7 @@ int selinux_netlbl_skbuff_setsid(struct sk_buff *skb,
 	if (secattr == NULL) {
 		secattr = &secattr_storage;
 		netlbl_secattr_init(secattr);
-		rc = security_netlbl_sid_to_secattr(&selinux_state, sid,
-						    secattr);
+		rc = security_netlbl_sid_to_secattr(sid, secattr);
 		if (rc != 0)
 			goto skbuff_setsid_return;
 	}
@@ -260,30 +264,29 @@ skbuff_setsid_return:
 
 /**
  * selinux_netlbl_sctp_assoc_request - Label an incoming sctp association.
- * @ep: incoming association endpoint.
+ * @asoc: incoming association.
  * @skb: the packet.
  *
  * Description:
- * A new incoming connection is represented by @ep, ......
+ * A new incoming connection is represented by @asoc, ......
  * Returns zero on success, negative values on failure.
  *
  */
-int selinux_netlbl_sctp_assoc_request(struct sctp_endpoint *ep,
+int selinux_netlbl_sctp_assoc_request(struct sctp_association *asoc,
 				     struct sk_buff *skb)
 {
 	int rc;
 	struct netlbl_lsm_secattr secattr;
-	struct sk_security_struct *sksec = ep->base.sk->sk_security;
+	struct sk_security_struct *sksec = asoc->base.sk->sk_security;
 	struct sockaddr_in addr4;
 	struct sockaddr_in6 addr6;
 
-	if (ep->base.sk->sk_family != PF_INET &&
-				ep->base.sk->sk_family != PF_INET6)
+	if (asoc->base.sk->sk_family != PF_INET &&
+	    asoc->base.sk->sk_family != PF_INET6)
 		return 0;
 
 	netlbl_secattr_init(&secattr);
-	rc = security_netlbl_sid_to_secattr(&selinux_state,
-					    ep->secid, &secattr);
+	rc = security_netlbl_sid_to_secattr(asoc->secid, &secattr);
 	if (rc != 0)
 		goto assoc_request_return;
 
@@ -293,11 +296,11 @@ int selinux_netlbl_sctp_assoc_request(struct sctp_endpoint *ep,
 	if (ip_hdr(skb)->version == 4) {
 		addr4.sin_family = AF_INET;
 		addr4.sin_addr.s_addr = ip_hdr(skb)->saddr;
-		rc = netlbl_conn_setattr(ep->base.sk, (void *)&addr4, &secattr);
+		rc = netlbl_conn_setattr(asoc->base.sk, (void *)&addr4, &secattr);
 	} else if (IS_ENABLED(CONFIG_IPV6) && ip_hdr(skb)->version == 6) {
 		addr6.sin6_family = AF_INET6;
 		addr6.sin6_addr = ipv6_hdr(skb)->saddr;
-		rc = netlbl_conn_setattr(ep->base.sk, (void *)&addr6, &secattr);
+		rc = netlbl_conn_setattr(asoc->base.sk, (void *)&addr6, &secattr);
 	} else {
 		rc = -EAFNOSUPPORT;
 	}
@@ -313,6 +316,7 @@ assoc_request_return:
 /**
  * selinux_netlbl_inet_conn_request - Label an incoming stream connection
  * @req: incoming connection request socket
+ * @family: the request socket's address family
  *
  * Description:
  * A new incoming connection request is represented by @req, we need to label
@@ -330,8 +334,7 @@ int selinux_netlbl_inet_conn_request(struct request_sock *req, u16 family)
 		return 0;
 
 	netlbl_secattr_init(&secattr);
-	rc = security_netlbl_sid_to_secattr(&selinux_state, req->secid,
-					    &secattr);
+	rc = security_netlbl_sid_to_secattr(req->secid, &secattr);
 	if (rc != 0)
 		goto inet_conn_request_return;
 	rc = netlbl_req_setattr(req, &secattr);
@@ -343,6 +346,7 @@ inet_conn_request_return:
 /**
  * selinux_netlbl_inet_csk_clone - Initialize the newly created sock
  * @sk: the new sock
+ * @family: the sock's address family
  *
  * Description:
  * A new connection has been established using @sk, we've already labeled the
@@ -378,7 +382,7 @@ void selinux_netlbl_sctp_sk_clone(struct sock *sk, struct sock *newsk)
 
 /**
  * selinux_netlbl_socket_post_create - Label a socket using NetLabel
- * @sock: the socket to label
+ * @sk: the sock to label
  * @family: protocol family
  *
  * Description:
@@ -398,7 +402,10 @@ int selinux_netlbl_socket_post_create(struct sock *sk, u16 family)
 	secattr = selinux_netlbl_sock_genattr(sk);
 	if (secattr == NULL)
 		return -ENOMEM;
-	rc = netlbl_sock_setattr(sk, family, secattr);
+	/* On socket creation, replacement of IP options is safe even if
+	 * the caller does not hold the socket lock.
+	 */
+	rc = netlbl_sock_setattr(sk, family, secattr, true);
 	switch (rc) {
 	case 0:
 		sksec->nlbl_state = NLBL_LABELED;
@@ -460,8 +467,7 @@ int selinux_netlbl_sock_rcv_skb(struct sk_security_struct *sksec,
 		perm = RAWIP_SOCKET__RECVFROM;
 	}
 
-	rc = avc_has_perm(&selinux_state,
-			  sksec->sid, nlbl_sid, sksec->sclass, perm, ad);
+	rc = avc_has_perm(sksec->sid, nlbl_sid, sksec->sclass, perm, ad);
 	if (rc == 0)
 		return 0;
 

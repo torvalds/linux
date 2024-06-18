@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2019 Nuvoton Technology corporation.
 
+#include <linux/bits.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
@@ -11,7 +12,7 @@
 #include <linux/io.h>
 #include <linux/vmalloc.h>
 #include <linux/regmap.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/spi/spi-mem.h>
 #include <linux/mfd/syscon.h>
 
@@ -35,6 +36,7 @@
 #define NPCM_FIU_UMA_DR1		0x34
 #define NPCM_FIU_UMA_DR2		0x38
 #define NPCM_FIU_UMA_DR3		0x3C
+#define NPCM_FIU_CFG			0x78
 #define NPCM_FIU_MAX_REG_LIMIT		0x80
 
 /* FIU Direct Read Configuration Register */
@@ -150,6 +152,9 @@
 #define NPCM_FIU_UMA_DR3_RB13		GENMASK(15, 8)
 #define NPCM_FIU_UMA_DR3_RB12		GENMASK(7, 0)
 
+/* FIU Configuration Register */
+#define NPCM_FIU_CFG_FIU_FIX		BIT(31)
+
 /* FIU Read Mode */
 enum {
 	DRD_SINGLE_WIRE_MODE	= 0,
@@ -177,7 +182,6 @@ enum {
 #define MAP_SIZE_16MB			0x1000000
 #define MAP_SIZE_8MB			0x800000
 
-#define NUM_BITS_IN_BYTE		8
 #define FIU_DRD_MAX_DUMMY_NUMBER	3
 #define NPCM_MAX_CHIP_NUM		4
 #define CHUNK_SIZE			16
@@ -187,6 +191,7 @@ enum {
 	FIU0 = 0,
 	FIU3,
 	FIUX,
+	FIU1,
 };
 
 struct npcm_fiu_info {
@@ -201,7 +206,7 @@ struct fiu_data {
 	int fiu_max;
 };
 
-static const struct npcm_fiu_info npxm7xx_fiu_info[] = {
+static const struct npcm_fiu_info npcm7xx_fiu_info[] = {
 	{.name = "FIU0", .fiu_id = FIU0,
 		.max_map_size = MAP_SIZE_128MB, .max_cs = 2},
 	{.name = "FIU3", .fiu_id = FIU3,
@@ -209,9 +214,24 @@ static const struct npcm_fiu_info npxm7xx_fiu_info[] = {
 	{.name = "FIUX", .fiu_id = FIUX,
 		.max_map_size = MAP_SIZE_16MB, .max_cs = 2} };
 
-static const struct fiu_data npxm7xx_fiu_data = {
-	.npcm_fiu_data_info = npxm7xx_fiu_info,
+static const struct fiu_data npcm7xx_fiu_data = {
+	.npcm_fiu_data_info = npcm7xx_fiu_info,
 	.fiu_max = 3,
+};
+
+static const struct npcm_fiu_info npxm8xx_fiu_info[] = {
+	{.name = "FIU0", .fiu_id = FIU0,
+		.max_map_size = MAP_SIZE_128MB, .max_cs = 2},
+	{.name = "FIU3", .fiu_id = FIU3,
+		.max_map_size = MAP_SIZE_128MB, .max_cs = 4},
+	{.name = "FIUX", .fiu_id = FIUX,
+		.max_map_size = MAP_SIZE_16MB, .max_cs = 2},
+	{.name = "FIU1", .fiu_id = FIU1,
+		.max_map_size = MAP_SIZE_16MB, .max_cs = 4} };
+
+static const struct fiu_data npxm8xx_fiu_data = {
+	.npcm_fiu_data_info = npxm8xx_fiu_info,
+	.fiu_max = 4,
 };
 
 struct npcm_fiu_spi;
@@ -252,8 +272,7 @@ static void npcm_fiu_set_drd(struct npcm_fiu_spi *fiu,
 	fiu->drd_op.addr.buswidth = op->addr.buswidth;
 	regmap_update_bits(fiu->regmap, NPCM_FIU_DRD_CFG,
 			   NPCM_FIU_DRD_CFG_DBW,
-			   ((op->dummy.nbytes * ilog2(op->addr.buswidth))
-			    / NUM_BITS_IN_BYTE) << NPCM_FIU_DRD_DBW_SHIFT);
+			   op->dummy.nbytes << NPCM_FIU_DRD_DBW_SHIFT);
 	fiu->drd_op.dummy.nbytes = op->dummy.nbytes;
 	regmap_update_bits(fiu->regmap, NPCM_FIU_DRD_CFG,
 			   NPCM_FIU_DRD_CFG_RDCMD, op->cmd.opcode);
@@ -268,8 +287,8 @@ static ssize_t npcm_fiu_direct_read(struct spi_mem_dirmap_desc *desc,
 				    u64 offs, size_t len, void *buf)
 {
 	struct npcm_fiu_spi *fiu =
-		spi_controller_get_devdata(desc->mem->spi->master);
-	struct npcm_fiu_chip *chip = &fiu->chip[desc->mem->spi->chip_select];
+		spi_controller_get_devdata(desc->mem->spi->controller);
+	struct npcm_fiu_chip *chip = &fiu->chip[spi_get_chipselect(desc->mem->spi, 0)];
 	void __iomem *src = (void __iomem *)(chip->flash_region_mapped_ptr +
 					     offs);
 	u8 *buf_rx = buf;
@@ -295,8 +314,8 @@ static ssize_t npcm_fiu_direct_write(struct spi_mem_dirmap_desc *desc,
 				     u64 offs, size_t len, const void *buf)
 {
 	struct npcm_fiu_spi *fiu =
-		spi_controller_get_devdata(desc->mem->spi->master);
-	struct npcm_fiu_chip *chip = &fiu->chip[desc->mem->spi->chip_select];
+		spi_controller_get_devdata(desc->mem->spi->controller);
+	struct npcm_fiu_chip *chip = &fiu->chip[spi_get_chipselect(desc->mem->spi, 0)];
 	void __iomem *dst = (void __iomem *)(chip->flash_region_mapped_ptr +
 					     offs);
 	const u8 *buf_tx = buf;
@@ -316,7 +335,7 @@ static int npcm_fiu_uma_read(struct spi_mem *mem,
 			      bool is_address_size, u8 *data, u32 data_size)
 {
 	struct npcm_fiu_spi *fiu =
-		spi_controller_get_devdata(mem->spi->master);
+		spi_controller_get_devdata(mem->spi->controller);
 	u32 uma_cfg = BIT(10);
 	u32 data_reg[4];
 	int ret;
@@ -325,7 +344,7 @@ static int npcm_fiu_uma_read(struct spi_mem *mem,
 
 	regmap_update_bits(fiu->regmap, NPCM_FIU_UMA_CTS,
 			   NPCM_FIU_UMA_CTS_DEV_NUM,
-			   (mem->spi->chip_select <<
+			   (spi_get_chipselect(mem->spi, 0) <<
 			    NPCM_FIU_UMA_CTS_DEV_NUM_SHIFT));
 	regmap_update_bits(fiu->regmap, NPCM_FIU_UMA_CMD,
 			   NPCM_FIU_UMA_CMD_CMD, op->cmd.opcode);
@@ -334,8 +353,9 @@ static int npcm_fiu_uma_read(struct spi_mem *mem,
 		uma_cfg |= ilog2(op->cmd.buswidth);
 		uma_cfg |= ilog2(op->addr.buswidth)
 			<< NPCM_FIU_UMA_CFG_ADBPCK_SHIFT;
-		uma_cfg |= ilog2(op->dummy.buswidth)
-			<< NPCM_FIU_UMA_CFG_DBPCK_SHIFT;
+		if (op->dummy.nbytes)
+			uma_cfg |= ilog2(op->dummy.buswidth)
+				<< NPCM_FIU_UMA_CFG_DBPCK_SHIFT;
 		uma_cfg |= ilog2(op->data.buswidth)
 			<< NPCM_FIU_UMA_CFG_RDBPCK_SHIFT;
 		uma_cfg |= op->dummy.nbytes << NPCM_FIU_UMA_CFG_DBSIZ_SHIFT;
@@ -371,7 +391,7 @@ static int npcm_fiu_uma_write(struct spi_mem *mem,
 			      bool is_address_size, u8 *data, u32 data_size)
 {
 	struct npcm_fiu_spi *fiu =
-		spi_controller_get_devdata(mem->spi->master);
+		spi_controller_get_devdata(mem->spi->controller);
 	u32 uma_cfg = BIT(10);
 	u32 data_reg[4] = {0};
 	u32 val;
@@ -379,7 +399,7 @@ static int npcm_fiu_uma_write(struct spi_mem *mem,
 
 	regmap_update_bits(fiu->regmap, NPCM_FIU_UMA_CTS,
 			   NPCM_FIU_UMA_CTS_DEV_NUM,
-			   (mem->spi->chip_select <<
+			   (spi_get_chipselect(mem->spi, 0) <<
 			    NPCM_FIU_UMA_CTS_DEV_NUM_SHIFT));
 
 	regmap_update_bits(fiu->regmap, NPCM_FIU_UMA_CMD,
@@ -420,7 +440,7 @@ static int npcm_fiu_manualwrite(struct spi_mem *mem,
 				const struct spi_mem_op *op)
 {
 	struct npcm_fiu_spi *fiu =
-		spi_controller_get_devdata(mem->spi->master);
+		spi_controller_get_devdata(mem->spi->controller);
 	u8 *data = (u8 *)op->data.buf.out;
 	u32 num_data_chunks;
 	u32 remain_data;
@@ -432,7 +452,7 @@ static int npcm_fiu_manualwrite(struct spi_mem *mem,
 
 	regmap_update_bits(fiu->regmap, NPCM_FIU_UMA_CTS,
 			   NPCM_FIU_UMA_CTS_DEV_NUM,
-			   (mem->spi->chip_select <<
+			   (spi_get_chipselect(mem->spi, 0) <<
 			    NPCM_FIU_UMA_CTS_DEV_NUM_SHIFT));
 	regmap_update_bits(fiu->regmap, NPCM_FIU_UMA_CTS,
 			   NPCM_FIU_UMA_CTS_SW_CS, 0);
@@ -525,8 +545,8 @@ static void npcm_fiux_set_direct_rd(struct npcm_fiu_spi *fiu)
 static int npcm_fiu_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 {
 	struct npcm_fiu_spi *fiu =
-		spi_controller_get_devdata(mem->spi->master);
-	struct npcm_fiu_chip *chip = &fiu->chip[mem->spi->chip_select];
+		spi_controller_get_devdata(mem->spi->controller);
+	struct npcm_fiu_chip *chip = &fiu->chip[spi_get_chipselect(mem->spi, 0)];
 	int ret = 0;
 	u8 *buf;
 
@@ -536,7 +556,7 @@ static int npcm_fiu_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 		op->data.nbytes);
 
 	if (fiu->spix_mode || op->addr.nbytes > 4)
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	if (fiu->clkrate != chip->clkrate) {
 		ret = clk_set_rate(fiu->clk, chip->clkrate);
@@ -585,8 +605,8 @@ static int npcm_fiu_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 static int npcm_fiu_dirmap_create(struct spi_mem_dirmap_desc *desc)
 {
 	struct npcm_fiu_spi *fiu =
-		spi_controller_get_devdata(desc->mem->spi->master);
-	struct npcm_fiu_chip *chip = &fiu->chip[desc->mem->spi->chip_select];
+		spi_controller_get_devdata(desc->mem->spi->controller);
+	struct npcm_fiu_chip *chip = &fiu->chip[spi_get_chipselect(desc->mem->spi, 0)];
 	struct regmap *gcr_regmap;
 
 	if (!fiu->res_mem) {
@@ -603,9 +623,9 @@ static int npcm_fiu_dirmap_create(struct spi_mem_dirmap_desc *desc)
 
 	if (!chip->flash_region_mapped_ptr) {
 		chip->flash_region_mapped_ptr =
-			devm_ioremap_nocache(fiu->dev, (fiu->res_mem->start +
+			devm_ioremap(fiu->dev, (fiu->res_mem->start +
 							(fiu->info->max_map_size *
-						    desc->mem->spi->chip_select)),
+						    spi_get_chipselect(desc->mem->spi, 0))),
 					     (u32)desc->info.length);
 		if (!chip->flash_region_mapped_ptr) {
 			dev_warn(fiu->dev, "Error mapping memory region, direct read disabled\n");
@@ -625,6 +645,10 @@ static int npcm_fiu_dirmap_create(struct spi_mem_dirmap_desc *desc)
 		regmap_update_bits(gcr_regmap, NPCM7XX_INTCR3_OFFSET,
 				   NPCM7XX_INTCR3_FIU_FIX,
 				   NPCM7XX_INTCR3_FIU_FIX);
+	} else {
+		regmap_update_bits(fiu->regmap, NPCM_FIU_CFG,
+				   NPCM_FIU_CFG_FIU_FIX,
+				   NPCM_FIU_CFG_FIU_FIX);
 	}
 
 	if (desc->info.op_tmpl.data.dir == SPI_MEM_DATA_IN) {
@@ -642,13 +666,13 @@ static int npcm_fiu_dirmap_create(struct spi_mem_dirmap_desc *desc)
 
 static int npcm_fiu_setup(struct spi_device *spi)
 {
-	struct spi_controller *ctrl = spi->master;
+	struct spi_controller *ctrl = spi->controller;
 	struct npcm_fiu_spi *fiu = spi_controller_get_devdata(ctrl);
 	struct npcm_fiu_chip *chip;
 
-	chip = &fiu->chip[spi->chip_select];
+	chip = &fiu->chip[spi_get_chipselect(spi, 0)];
 	chip->fiu = fiu;
-	chip->chipselect = spi->chip_select;
+	chip->chipselect = spi_get_chipselect(spi, 0);
 	chip->clkrate = spi->max_speed_hz;
 
 	fiu->clkrate = clk_get_rate(fiu->clk);
@@ -664,35 +688,32 @@ static const struct spi_controller_mem_ops npcm_fiu_mem_ops = {
 };
 
 static const struct of_device_id npcm_fiu_dt_ids[] = {
-	{ .compatible = "nuvoton,npcm750-fiu", .data = &npxm7xx_fiu_data  },
+	{ .compatible = "nuvoton,npcm750-fiu", .data = &npcm7xx_fiu_data  },
+	{ .compatible = "nuvoton,npcm845-fiu", .data = &npxm8xx_fiu_data  },
 	{ /* sentinel */ }
 };
 
 static int npcm_fiu_probe(struct platform_device *pdev)
 {
 	const struct fiu_data *fiu_data_match;
-	const struct of_device_id *match;
 	struct device *dev = &pdev->dev;
 	struct spi_controller *ctrl;
 	struct npcm_fiu_spi *fiu;
 	void __iomem *regbase;
-	struct resource *res;
-	int ret;
 	int id;
 
-	ctrl = spi_alloc_master(dev, sizeof(*fiu));
+	ctrl = devm_spi_alloc_host(dev, sizeof(*fiu));
 	if (!ctrl)
 		return -ENOMEM;
 
 	fiu = spi_controller_get_devdata(ctrl);
 
-	match = of_match_device(npcm_fiu_dt_ids, dev);
-	if (!match || !match->data) {
+	fiu_data_match = of_device_get_match_data(dev);
+	if (!fiu_data_match) {
 		dev_err(dev, "No compatible OF match\n");
 		return -ENODEV;
 	}
 
-	fiu_data_match = match->data;
 	id = of_alias_get_id(dev->of_node, "fiu");
 	if (id < 0 || id >= fiu_data_match->fiu_max) {
 		dev_err(dev, "Invalid platform device id: %d\n", id);
@@ -704,8 +725,7 @@ static int npcm_fiu_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, fiu);
 	fiu->dev = dev;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "control");
-	regbase = devm_ioremap_resource(dev, res);
+	regbase = devm_platform_ioremap_resource_byname(pdev, "control");
 	if (IS_ERR(regbase))
 		return PTR_ERR(regbase);
 
@@ -718,7 +738,7 @@ static int npcm_fiu_probe(struct platform_device *pdev)
 
 	fiu->res_mem = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						    "memory");
-	fiu->clk = devm_clk_get(dev, NULL);
+	fiu->clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(fiu->clk))
 		return PTR_ERR(fiu->clk);
 
@@ -726,7 +746,6 @@ static int npcm_fiu_probe(struct platform_device *pdev)
 					       "nuvoton,spix-mode");
 
 	platform_set_drvdata(pdev, fiu);
-	clk_prepare_enable(fiu->clk);
 
 	ctrl->mode_bits = SPI_RX_DUAL | SPI_RX_QUAD
 		| SPI_TX_DUAL | SPI_TX_QUAD;
@@ -736,19 +755,11 @@ static int npcm_fiu_probe(struct platform_device *pdev)
 	ctrl->num_chipselect = fiu->info->max_cs;
 	ctrl->dev.of_node = dev->of_node;
 
-	ret = devm_spi_register_master(dev, ctrl);
-	if (ret)
-		return ret;
-
-	return 0;
+	return devm_spi_register_controller(dev, ctrl);
 }
 
-static int npcm_fiu_remove(struct platform_device *pdev)
+static void npcm_fiu_remove(struct platform_device *pdev)
 {
-	struct npcm_fiu_spi *fiu = platform_get_drvdata(pdev);
-
-	clk_disable_unprepare(fiu->clk);
-	return 0;
 }
 
 MODULE_DEVICE_TABLE(of, npcm_fiu_dt_ids);
@@ -760,7 +771,7 @@ static struct platform_driver npcm_fiu_driver = {
 		.of_match_table = npcm_fiu_dt_ids,
 	},
 	.probe      = npcm_fiu_probe,
-	.remove	    = npcm_fiu_remove,
+	.remove_new	    = npcm_fiu_remove,
 };
 module_platform_driver(npcm_fiu_driver);
 

@@ -38,7 +38,7 @@
 
 #define NSEC_PER_SEC 1000000000LL
 
-int main(int argv, char **argc)
+int main(int argc, char **argv)
 {
 	struct timex tx;
 	int ret, ppm;
@@ -70,8 +70,8 @@ int main(int argv, char **argc)
 
 	if (ret) {
 		printf("[FAILED]\n");
-		return ksft_exit_fail();
+		ksft_exit_fail();
 	}
 	printf("[OK]\n");
-	return ksft_exit_pass();
+	ksft_exit_pass();
 }

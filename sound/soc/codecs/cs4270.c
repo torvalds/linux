@@ -21,6 +21,7 @@
  * - Power management is supported
  */
 
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <sound/core.h>
@@ -30,20 +31,10 @@
 #include <linux/delay.h>
 #include <linux/regulator/consumer.h>
 #include <linux/gpio/consumer.h>
-#include <linux/of_device.h>
 
-/*
- * The codec isn't really big-endian or little-endian, since the I2S
- * interface requires data to be sent serially with the MSbit first.
- * However, to support BE and LE I2S devices, we specify both here.  That
- * way, ALSA will always match the bit patterns.
- */
-#define CS4270_FORMATS (SNDRV_PCM_FMTBIT_S8      | \
-			SNDRV_PCM_FMTBIT_S16_LE  | SNDRV_PCM_FMTBIT_S16_BE  | \
-			SNDRV_PCM_FMTBIT_S18_3LE | SNDRV_PCM_FMTBIT_S18_3BE | \
-			SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S20_3BE | \
-			SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S24_3BE | \
-			SNDRV_PCM_FMTBIT_S24_LE  | SNDRV_PCM_FMTBIT_S24_BE)
+#define CS4270_FORMATS (SNDRV_PCM_FMTBIT_S8      | SNDRV_PCM_FMTBIT_S16_LE  | \
+			SNDRV_PCM_FMTBIT_S18_3LE | SNDRV_PCM_FMTBIT_S20_3LE | \
+			SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S24_LE)
 
 /* CS4270 registers addresses */
 #define CS4270_CHIPID	0x01	/* Chip ID */
@@ -137,6 +128,9 @@ struct cs4270_private {
 
 	/* power domain regulators */
 	struct regulator_bulk_data supplies[ARRAY_SIZE(supply_names)];
+
+	/* reset gpio */
+	struct gpio_desc *reset_gpio;
 };
 
 static const struct snd_soc_dapm_widget cs4270_dapm_widgets[] = {
@@ -352,7 +346,7 @@ static int cs4270_hw_params(struct snd_pcm_substream *substream,
 
 	/* Set the sample rate */
 
-	reg = snd_soc_component_read32(component, CS4270_MODE);
+	reg = snd_soc_component_read(component, CS4270_MODE);
 	reg &= ~(CS4270_MODE_SPEED_MASK | CS4270_MODE_DIV_MASK);
 	reg |= cs4270_mode_ratios[i].mclk;
 
@@ -369,7 +363,7 @@ static int cs4270_hw_params(struct snd_pcm_substream *substream,
 
 	/* Set the DAI format */
 
-	reg = snd_soc_component_read32(component, CS4270_FORMAT);
+	reg = snd_soc_component_read(component, CS4270_FORMAT);
 	reg &= ~(CS4270_FORMAT_DAC_MASK | CS4270_FORMAT_ADC_MASK);
 
 	switch (cs4270->mode) {
@@ -397,19 +391,20 @@ static int cs4270_hw_params(struct snd_pcm_substream *substream,
  * cs4270_dai_mute - enable/disable the CS4270 external mute
  * @dai: the SOC DAI
  * @mute: 0 = disable mute, 1 = enable mute
+ * @direction: (ignored)
  *
  * This function toggles the mute bits in the MUTE register.  The CS4270's
  * mute capability is intended for external muting circuitry, so if the
  * board does not have the MUTEA or MUTEB pins connected to such circuitry,
  * then this function will do nothing.
  */
-static int cs4270_dai_mute(struct snd_soc_dai *dai, int mute)
+static int cs4270_dai_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	struct cs4270_private *cs4270 = snd_soc_component_get_drvdata(component);
 	int reg6;
 
-	reg6 = snd_soc_component_read32(component, CS4270_MUTE);
+	reg6 = snd_soc_component_read(component, CS4270_MUTE);
 
 	if (mute)
 		reg6 |= CS4270_MUTE_DAC_A | CS4270_MUTE_DAC_B;
@@ -468,7 +463,8 @@ static const struct snd_soc_dai_ops cs4270_dai_ops = {
 	.hw_params	= cs4270_hw_params,
 	.set_sysclk	= cs4270_set_dai_sysclk,
 	.set_fmt	= cs4270_set_dai_fmt,
-	.digital_mute	= cs4270_dai_mute,
+	.mute_stream	= cs4270_dai_mute,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver cs4270_dai = {
@@ -496,7 +492,7 @@ static struct snd_soc_dai_driver cs4270_dai = {
 
 /**
  * cs4270_probe - ASoC probe function
- * @pdev: platform device
+ * @component: ASoC component
  *
  * This function is called when ASoC has all the pieces it needs to
  * instantiate a sound driver.
@@ -537,7 +533,7 @@ static int cs4270_probe(struct snd_soc_component *component)
 
 /**
  * cs4270_remove - ASoC remove function
- * @pdev: platform device
+ * @component: ASoC component
  *
  * This function is the counterpart to cs4270_probe().
  */
@@ -564,7 +560,7 @@ static int cs4270_soc_suspend(struct snd_soc_component *component)
 	struct cs4270_private *cs4270 = snd_soc_component_get_drvdata(component);
 	int reg, ret;
 
-	reg = snd_soc_component_read32(component, CS4270_PWRCTL) | CS4270_PWRCTL_PDN_ALL;
+	reg = snd_soc_component_read(component, CS4270_PWRCTL) | CS4270_PWRCTL_PDN_ALL;
 	if (reg < 0)
 		return reg;
 
@@ -596,7 +592,7 @@ static int cs4270_soc_resume(struct snd_soc_component *component)
 	regcache_sync(cs4270->regmap);
 
 	/* ... then disable the power-down bits */
-	reg = snd_soc_component_read32(component, CS4270_PWRCTL);
+	reg = snd_soc_component_read(component, CS4270_PWRCTL);
 	reg &= ~CS4270_PWRCTL_PDN_ALL;
 
 	return snd_soc_component_write(component, CS4270_PWRCTL, reg);
@@ -623,7 +619,6 @@ static const struct snd_soc_component_driver soc_component_device_cs4270 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 /*
@@ -641,7 +636,7 @@ static const struct regmap_config cs4270_regmap = {
 	.max_register =		CS4270_LASTREG,
 	.reg_defaults =		cs4270_reg_defaults,
 	.num_reg_defaults =	ARRAY_SIZE(cs4270_reg_defaults),
-	.cache_type =		REGCACHE_RBTREE,
+	.cache_type =		REGCACHE_MAPLE,
 	.write_flag_mask =	CS4270_I2C_INCR,
 
 	.readable_reg =		cs4270_reg_is_readable,
@@ -649,18 +644,29 @@ static const struct regmap_config cs4270_regmap = {
 };
 
 /**
+ * cs4270_i2c_remove - deinitialize the I2C interface of the CS4270
+ * @i2c_client: the I2C client object
+ *
+ * This function puts the chip into low power mode when the i2c device
+ * is removed.
+ */
+static void cs4270_i2c_remove(struct i2c_client *i2c_client)
+{
+	struct cs4270_private *cs4270 = i2c_get_clientdata(i2c_client);
+
+	gpiod_set_value_cansleep(cs4270->reset_gpio, 0);
+}
+
+/**
  * cs4270_i2c_probe - initialize the I2C interface of the CS4270
  * @i2c_client: the I2C client object
- * @id: the I2C device ID (ignored)
  *
  * This function is called whenever the I2C subsystem finds a device that
  * matches the device ID given via a prior call to i2c_add_driver().
  */
-static int cs4270_i2c_probe(struct i2c_client *i2c_client,
-	const struct i2c_device_id *id)
+static int cs4270_i2c_probe(struct i2c_client *i2c_client)
 {
 	struct cs4270_private *cs4270;
-	struct gpio_desc *reset_gpiod;
 	unsigned int val;
 	int ret, i;
 
@@ -679,11 +685,21 @@ static int cs4270_i2c_probe(struct i2c_client *i2c_client,
 	if (ret < 0)
 		return ret;
 
-	reset_gpiod = devm_gpiod_get_optional(&i2c_client->dev, "reset",
-					      GPIOD_OUT_HIGH);
-	if (IS_ERR(reset_gpiod) &&
-	    PTR_ERR(reset_gpiod) == -EPROBE_DEFER)
-		return -EPROBE_DEFER;
+	/* reset the device */
+	cs4270->reset_gpio = devm_gpiod_get_optional(&i2c_client->dev, "reset",
+						     GPIOD_OUT_LOW);
+	if (IS_ERR(cs4270->reset_gpio)) {
+		dev_dbg(&i2c_client->dev, "Error getting CS4270 reset GPIO\n");
+		return PTR_ERR(cs4270->reset_gpio);
+	}
+
+	if (cs4270->reset_gpio) {
+		dev_dbg(&i2c_client->dev, "Found reset GPIO\n");
+		gpiod_set_value_cansleep(cs4270->reset_gpio, 1);
+	}
+
+	/* Sleep 500ns before i2c communications */
+	ndelay(500);
 
 	cs4270->regmap = devm_regmap_init_i2c(i2c_client, &cs4270_regmap);
 	if (IS_ERR(cs4270->regmap))
@@ -718,7 +734,7 @@ static int cs4270_i2c_probe(struct i2c_client *i2c_client,
  * cs4270_id - I2C device IDs supported by this driver
  */
 static const struct i2c_device_id cs4270_id[] = {
-	{"cs4270", 0},
+	{"cs4270"},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, cs4270_id);
@@ -736,6 +752,7 @@ static struct i2c_driver cs4270_i2c_driver = {
 	},
 	.id_table = cs4270_id,
 	.probe = cs4270_i2c_probe,
+	.remove = cs4270_i2c_remove,
 };
 
 module_i2c_driver(cs4270_i2c_driver);

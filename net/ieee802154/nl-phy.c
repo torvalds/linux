@@ -30,7 +30,7 @@ static int ieee802154_nl_fill_phy(struct sk_buff *msg, u32 portid,
 {
 	void *hdr;
 	int i, pages = 0;
-	uint32_t *buf = kcalloc(32, sizeof(uint32_t), GFP_KERNEL);
+	u32 *buf = kcalloc(IEEE802154_MAX_PAGE + 1, sizeof(u32), GFP_KERNEL);
 
 	pr_debug("%s\n", __func__);
 
@@ -47,7 +47,7 @@ static int ieee802154_nl_fill_phy(struct sk_buff *msg, u32 portid,
 	    nla_put_u8(msg, IEEE802154_ATTR_PAGE, phy->current_page) ||
 	    nla_put_u8(msg, IEEE802154_ATTR_CHANNEL, phy->current_channel))
 		goto nla_put_failure;
-	for (i = 0; i < 32; i++) {
+	for (i = 0; i <= IEEE802154_MAX_PAGE; i++) {
 		if (phy->supported.channels[i])
 			buf[pages++] = phy->supported.channels[i] | (i << 27);
 	}
@@ -241,8 +241,10 @@ int ieee802154_add_iface(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if (nla_put_string(msg, IEEE802154_ATTR_PHY_NAME, wpan_phy_name(phy)) ||
-	    nla_put_string(msg, IEEE802154_ATTR_DEV_NAME, dev->name))
+	    nla_put_string(msg, IEEE802154_ATTR_DEV_NAME, dev->name)) {
+		rc = -EMSGSIZE;
 		goto nla_put_failure;
+	}
 	dev_put(dev);
 
 	wpan_phy_put(phy);
@@ -338,8 +340,7 @@ nla_put_failure:
 out_dev:
 	wpan_phy_put(phy);
 out:
-	if (dev)
-		dev_put(dev);
+	dev_put(dev);
 
 	return rc;
 }

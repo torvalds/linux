@@ -18,7 +18,8 @@
 #include <linux/kdev_t.h>
 #include <linux/delay.h>
 #include <linux/seq_file.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 
 #include <asm/time.h>
 #include <asm/machdep.h>
@@ -26,7 +27,6 @@
 #include <asm/mpic.h>
 #include <mm/mmu_decl.h>
 #include <asm/udbg.h>
-#include <asm/prom.h>
 
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
@@ -134,6 +134,8 @@ static void __init ksi8560_setup_arch(void)
 	else
 		printk(KERN_ERR "Can't find CPLD in device tree\n");
 
+	of_node_put(cpld);
+
 	if (ppc_md.progress)
 		ppc_md.progress("ksi8560_setup_arch()", 0);
 
@@ -171,21 +173,12 @@ static void ksi8560_show_cpuinfo(struct seq_file *m)
 
 machine_device_initcall(ksi8560, mpc85xx_common_publish_devices);
 
-/*
- * Called very early, device-tree isn't unflattened
- */
-static int __init ksi8560_probe(void)
-{
-	return of_machine_is_compatible("emerson,KSI8560");
-}
-
 define_machine(ksi8560) {
 	.name			= "KSI8560",
-	.probe			= ksi8560_probe,
+	.compatible		= "emerson,KSI8560",
 	.setup_arch		= ksi8560_setup_arch,
 	.init_IRQ		= ksi8560_pic_init,
 	.show_cpuinfo		= ksi8560_show_cpuinfo,
 	.get_irq		= mpic_get_irq,
 	.restart		= machine_restart,
-	.calibrate_decr		= generic_calibrate_decr,
 };

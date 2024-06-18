@@ -15,7 +15,6 @@
 /* thinfirm version: 5.132.X.pX */
 #define LBTF_FW_VER_MIN		0x05840300
 #define LBTF_FW_VER_MAX		0x0584ffff
-#define QOS_CONTROL_LEN		2
 
 /* Module parameters */
 unsigned int lbtf_debug;
@@ -121,7 +120,7 @@ static void lbtf_cmd_work(struct work_struct *work)
 	lbtf_deb_leave(LBTF_DEB_CMD);
 }
 
-/**
+/*
  *  This function handles the timeout of command sending.
  *  It will re-send the same command again.
  */
@@ -233,7 +232,8 @@ static void lbtf_tx_work(struct work_struct *work)
 			     ieee80211_get_tx_rate(priv->hw, info)->hw_value);
 
 	/* copy destination address from 802.11 header */
-	memcpy(txpd->tx_dest_addr_high, skb->data + sizeof(struct txpd) + 4,
+	BUILD_BUG_ON(sizeof(txpd->tx_dest_addr) != ETH_ALEN);
+	memcpy(&txpd->tx_dest_addr, skb->data + sizeof(struct txpd) + 4,
 		ETH_ALEN);
 	txpd->tx_packet_length = cpu_to_le16(len);
 	txpd->tx_packet_location = cpu_to_le32(sizeof(struct txpd));
@@ -417,7 +417,7 @@ static void lbtf_op_configure_filter(struct ieee80211_hw *hw,
 static void lbtf_op_bss_info_changed(struct ieee80211_hw *hw,
 			struct ieee80211_vif *vif,
 			struct ieee80211_bss_conf *bss_conf,
-			u32 changes)
+			u64 changes)
 {
 	struct lbtf_private *priv = hw->priv;
 	struct sk_buff *beacon;
@@ -427,7 +427,7 @@ static void lbtf_op_bss_info_changed(struct ieee80211_hw *hw,
 		switch (priv->vif->type) {
 		case NL80211_IFTYPE_AP:
 		case NL80211_IFTYPE_MESH_POINT:
-			beacon = ieee80211_beacon_get(hw, vif);
+			beacon = ieee80211_beacon_get(hw, vif, 0);
 			if (beacon) {
 				lbtf_beacon_set(priv, beacon);
 				kfree_skb(beacon);
@@ -473,7 +473,12 @@ static int lbtf_op_get_survey(struct ieee80211_hw *hw, int idx,
 }
 
 static const struct ieee80211_ops lbtf_ops = {
+	.add_chanctx = ieee80211_emulate_add_chanctx,
+	.remove_chanctx = ieee80211_emulate_remove_chanctx,
+	.change_chanctx = ieee80211_emulate_change_chanctx,
+	.switch_vif_chanctx = ieee80211_emulate_switch_vif_chanctx,
 	.tx			= lbtf_op_tx,
+	.wake_tx_queue		= ieee80211_handle_wake_tx_queue,
 	.start			= lbtf_op_start,
 	.stop			= lbtf_op_stop,
 	.add_interface		= lbtf_op_add_interface,
@@ -542,10 +547,8 @@ done:
 }
 EXPORT_SYMBOL_GPL(lbtf_rx);
 
-/**
+/*
  * lbtf_add_card: Add and initialize the card.
- *
- *  @card    A pointer to card
  *
  *  Returns: pointer to struct lbtf_priv.
  */
@@ -693,7 +696,7 @@ void lbtf_bcn_sent(struct lbtf_private *priv)
 		}
 	}
 
-	skb = ieee80211_beacon_get(priv->hw, priv->vif);
+	skb = ieee80211_beacon_get(priv->hw, priv->vif, 0);
 
 	if (skb) {
 		lbtf_beacon_set(priv, skb);

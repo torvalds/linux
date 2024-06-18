@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2006-2009 Red Hat, Inc.
  *
@@ -123,7 +124,7 @@ retry:
 }
 
 static int build_constructor_string(struct dm_target *ti,
-				    unsigned argc, char **argv,
+				    unsigned int argc, char **argv,
 				    char **ctr_str)
 {
 	int i, str_size;
@@ -188,7 +189,7 @@ static void do_flush(struct work_struct *work)
  * to the userspace ctr function.
  */
 static int userspace_ctr(struct dm_dirty_log *log, struct dm_target *ti,
-			 unsigned argc, char **argv)
+			 unsigned int argc, char **argv)
 {
 	int r = 0;
 	int str_size;
@@ -223,7 +224,7 @@ static int userspace_ctr(struct dm_dirty_log *log, struct dm_target *ti,
 
 	lc->usr_argc = argc;
 
-	strncpy(lc->uuid, argv[0], DM_UUID_LEN);
+	strscpy(lc->uuid, argv[0], sizeof(lc->uuid));
 	argc--;
 	argv++;
 	spin_lock_init(&lc->flush_lock);
@@ -345,8 +346,6 @@ static void userspace_dtr(struct dm_dirty_log *log)
 
 	kfree(lc->usr_argv_str);
 	kfree(lc);
-
-	return;
 }
 
 static int userspace_presuspend(struct dm_dirty_log *log)
@@ -660,8 +659,6 @@ static void userspace_mark_region(struct dm_dirty_log *log, region_t region)
 	fe->region = region;
 	list_add(&fe->list, &lc->mark_list);
 	spin_unlock_irqrestore(&lc->flush_lock, flags);
-
-	return;
 }
 
 /*
@@ -697,8 +694,6 @@ static void userspace_clear_region(struct dm_dirty_log *log, region_t region)
 	fe->region = region;
 	list_add(&fe->list, &lc->clear_list);
 	spin_unlock_irqrestore(&lc->flush_lock, flags);
-
-	return;
 }
 
 /*
@@ -755,7 +750,6 @@ static void userspace_set_region_sync(struct dm_dirty_log *log,
 	 * It would be nice to be able to report failures.
 	 * However, it is easy enough to detect and resolve.
 	 */
-	return;
 }
 
 /*
@@ -792,7 +786,7 @@ static region_t userspace_get_sync_count(struct dm_dirty_log *log)
  * Returns: amount of space consumed
  */
 static int userspace_status(struct dm_dirty_log *log, status_type_t status_type,
-			    char *result, unsigned maxlen)
+			    char *result, unsigned int maxlen)
 {
 	int r = 0;
 	char *table_args;
@@ -819,6 +813,9 @@ static int userspace_status(struct dm_dirty_log *log, status_type_t status_type,
 		if (lc->integrated_flush)
 			DMEMIT("integrated_flush ");
 		DMEMIT("%s ", table_args);
+		break;
+	case STATUSTYPE_IMA:
+		*result = '\0';
 		break;
 	}
 	return (r) ? 0 : (int)sz;
@@ -923,12 +920,11 @@ static void __exit userspace_dirty_log_exit(void)
 	kmem_cache_destroy(_flush_entry_cache);
 
 	DMINFO("version " DM_LOG_USERSPACE_VSN " unloaded");
-	return;
 }
 
 module_init(userspace_dirty_log_init);
 module_exit(userspace_dirty_log_exit);
 
 MODULE_DESCRIPTION(DM_NAME " userspace dirty log link");
-MODULE_AUTHOR("Jonathan Brassow <dm-devel@redhat.com>");
+MODULE_AUTHOR("Jonathan Brassow <dm-devel@lists.linux.dev>");
 MODULE_LICENSE("GPL");

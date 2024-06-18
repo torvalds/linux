@@ -10,17 +10,23 @@
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
 
 #include <linux/pinctrl/pinctrl.h>
 
 #include "pinctrl-intel.h"
 
-#define CNL_PAD_OWN		0x020
-#define CNL_PADCFGLOCK		0x080
+#define CNL_LP_PAD_OWN		0x020
+#define CNL_LP_PADCFGLOCK	0x080
 #define CNL_LP_HOSTSW_OWN	0x0b0
+#define CNL_LP_GPI_IS		0x100
+#define CNL_LP_GPI_IE		0x120
+
+#define CNL_H_PAD_OWN		0x020
+#define CNL_H_PADCFGLOCK	0x080
 #define CNL_H_HOSTSW_OWN	0x0c0
-#define CNL_GPI_IS		0x100
-#define CNL_GPI_IE		0x120
+#define CNL_H_GPI_IS		0x100
+#define CNL_H_GPI_IE		0x120
 
 #define CNL_GPP(r, s, e, g)				\
 	{						\
@@ -30,27 +36,11 @@
 		.gpio_base = (g),			\
 	}
 
-#define CNL_NO_GPIO	-1
+#define CNL_LP_COMMUNITY(b, s, e, g)			\
+	INTEL_COMMUNITY_GPPS(b, s, e, g, CNL_LP)
 
-#define CNL_COMMUNITY(b, s, e, o, g)			\
-	{						\
-		.barno = (b),				\
-		.padown_offset = CNL_PAD_OWN,		\
-		.padcfglock_offset = CNL_PADCFGLOCK,	\
-		.hostown_offset = (o),			\
-		.is_offset = CNL_GPI_IS,		\
-		.ie_offset = CNL_GPI_IE,		\
-		.pin_base = (s),			\
-		.npins = ((e) - (s) + 1),		\
-		.gpps = (g),				\
-		.ngpps = ARRAY_SIZE(g),			\
-	}
-
-#define CNLLP_COMMUNITY(b, s, e, g)			\
-	CNL_COMMUNITY(b, s, e, CNL_LP_HOSTSW_OWN, g)
-
-#define CNLH_COMMUNITY(b, s, e, g)			\
-	CNL_COMMUNITY(b, s, e, CNL_H_HOSTSW_OWN, g)
+#define CNL_H_COMMUNITY(b, s, e, g)			\
+	INTEL_COMMUNITY_GPPS(b, s, e, g, CNL_H)
 
 /* Cannon Lake-H */
 static const struct pinctrl_pin_desc cnlh_pins[] = {
@@ -377,27 +367,27 @@ static const struct intel_padgroup cnlh_community0_gpps[] = {
 };
 
 static const struct intel_padgroup cnlh_community1_gpps[] = {
-	CNL_GPP(0, 51, 74, 64),			/* GPP_C */
-	CNL_GPP(1, 75, 98, 96),			/* GPP_D */
-	CNL_GPP(2, 99, 106, 128),		/* GPP_G */
-	CNL_GPP(3, 107, 114, CNL_NO_GPIO),	/* AZA */
-	CNL_GPP(4, 115, 146, 160),		/* vGPIO_0 */
-	CNL_GPP(5, 147, 154, CNL_NO_GPIO),	/* vGPIO_1 */
+	CNL_GPP(0, 51, 74, 64),				/* GPP_C */
+	CNL_GPP(1, 75, 98, 96),				/* GPP_D */
+	CNL_GPP(2, 99, 106, 128),			/* GPP_G */
+	CNL_GPP(3, 107, 114, INTEL_GPIO_BASE_NOMAP),	/* AZA */
+	CNL_GPP(4, 115, 146, 160),			/* vGPIO_0 */
+	CNL_GPP(5, 147, 154, INTEL_GPIO_BASE_NOMAP),	/* vGPIO_1 */
 };
 
 static const struct intel_padgroup cnlh_community3_gpps[] = {
-	CNL_GPP(0, 155, 178, 192),		/* GPP_K */
-	CNL_GPP(1, 179, 202, 224),		/* GPP_H */
-	CNL_GPP(2, 203, 215, 256),		/* GPP_E */
-	CNL_GPP(3, 216, 239, 288),		/* GPP_F */
-	CNL_GPP(4, 240, 248, CNL_NO_GPIO),	/* SPI */
+	CNL_GPP(0, 155, 178, 192),			/* GPP_K */
+	CNL_GPP(1, 179, 202, 224),			/* GPP_H */
+	CNL_GPP(2, 203, 215, 256),			/* GPP_E */
+	CNL_GPP(3, 216, 239, 288),			/* GPP_F */
+	CNL_GPP(4, 240, 248, INTEL_GPIO_BASE_NOMAP),	/* SPI */
 };
 
 static const struct intel_padgroup cnlh_community4_gpps[] = {
-	CNL_GPP(0, 249, 259, CNL_NO_GPIO),	/* CPU */
-	CNL_GPP(1, 260, 268, CNL_NO_GPIO),	/* JTAG */
-	CNL_GPP(2, 269, 286, 320),		/* GPP_I */
-	CNL_GPP(3, 287, 298, 352),		/* GPP_J */
+	CNL_GPP(0, 249, 259, INTEL_GPIO_BASE_NOMAP),	/* CPU */
+	CNL_GPP(1, 260, 268, INTEL_GPIO_BASE_NOMAP),	/* JTAG */
+	CNL_GPP(2, 269, 286, 320),			/* GPP_I */
+	CNL_GPP(3, 287, 298, 352),			/* GPP_J */
 };
 
 static const unsigned int cnlh_spi0_pins[] = { 40, 41, 42, 43 };
@@ -451,10 +441,10 @@ static const struct intel_function cnlh_functions[] = {
 };
 
 static const struct intel_community cnlh_communities[] = {
-	CNLH_COMMUNITY(0, 0, 50, cnlh_community0_gpps),
-	CNLH_COMMUNITY(1, 51, 154, cnlh_community1_gpps),
-	CNLH_COMMUNITY(2, 155, 248, cnlh_community3_gpps),
-	CNLH_COMMUNITY(3, 249, 298, cnlh_community4_gpps),
+	CNL_H_COMMUNITY(0, 0, 50, cnlh_community0_gpps),
+	CNL_H_COMMUNITY(1, 51, 154, cnlh_community1_gpps),
+	CNL_H_COMMUNITY(2, 155, 248, cnlh_community3_gpps),
+	CNL_H_COMMUNITY(3, 249, 298, cnlh_community4_gpps),
 };
 
 static const struct intel_pinctrl_soc_data cnlh_soc_data = {
@@ -790,31 +780,31 @@ static const struct intel_function cnllp_functions[] = {
 };
 
 static const struct intel_padgroup cnllp_community0_gpps[] = {
-	CNL_GPP(0, 0, 24, 0),			/* GPP_A */
-	CNL_GPP(1, 25, 50, 32),			/* GPP_B */
-	CNL_GPP(2, 51, 58, 64),			/* GPP_G */
-	CNL_GPP(3, 59, 67, CNL_NO_GPIO),	/* SPI */
+	CNL_GPP(0, 0, 24, 0),				/* GPP_A */
+	CNL_GPP(1, 25, 50, 32),				/* GPP_B */
+	CNL_GPP(2, 51, 58, 64),				/* GPP_G */
+	CNL_GPP(3, 59, 67, INTEL_GPIO_BASE_NOMAP),	/* SPI */
 };
 
 static const struct intel_padgroup cnllp_community1_gpps[] = {
-	CNL_GPP(0, 68, 92, 96),			/* GPP_D */
-	CNL_GPP(1, 93, 116, 128),		/* GPP_F */
-	CNL_GPP(2, 117, 140, 160),		/* GPP_H */
-	CNL_GPP(3, 141, 172, 192),		/* vGPIO */
-	CNL_GPP(4, 173, 180, 224),		/* vGPIO */
+	CNL_GPP(0, 68, 92, 96),				/* GPP_D */
+	CNL_GPP(1, 93, 116, 128),			/* GPP_F */
+	CNL_GPP(2, 117, 140, 160),			/* GPP_H */
+	CNL_GPP(3, 141, 172, 192),			/* vGPIO */
+	CNL_GPP(4, 173, 180, 224),			/* vGPIO */
 };
 
 static const struct intel_padgroup cnllp_community4_gpps[] = {
-	CNL_GPP(0, 181, 204, 256),		/* GPP_C */
-	CNL_GPP(1, 205, 228, 288),		/* GPP_E */
-	CNL_GPP(2, 229, 237, CNL_NO_GPIO),	/* JTAG */
-	CNL_GPP(3, 238, 243, CNL_NO_GPIO),	/* HVCMOS */
+	CNL_GPP(0, 181, 204, 256),			/* GPP_C */
+	CNL_GPP(1, 205, 228, 288),			/* GPP_E */
+	CNL_GPP(2, 229, 237, INTEL_GPIO_BASE_NOMAP),	/* JTAG */
+	CNL_GPP(3, 238, 243, INTEL_GPIO_BASE_NOMAP),	/* HVCMOS */
 };
 
 static const struct intel_community cnllp_communities[] = {
-	CNLLP_COMMUNITY(0, 0, 67, cnllp_community0_gpps),
-	CNLLP_COMMUNITY(1, 68, 180, cnllp_community1_gpps),
-	CNLLP_COMMUNITY(2, 181, 243, cnllp_community4_gpps),
+	CNL_LP_COMMUNITY(0, 0, 67, cnllp_community0_gpps),
+	CNL_LP_COMMUNITY(1, 68, 180, cnllp_community1_gpps),
+	CNL_LP_COMMUNITY(2, 181, 243, cnllp_community4_gpps),
 };
 
 static const struct intel_pinctrl_soc_data cnllp_soc_data = {
@@ -835,19 +825,17 @@ static const struct acpi_device_id cnl_pinctrl_acpi_match[] = {
 };
 MODULE_DEVICE_TABLE(acpi, cnl_pinctrl_acpi_match);
 
-static INTEL_PINCTRL_PM_OPS(cnl_pinctrl_pm_ops);
-
 static struct platform_driver cnl_pinctrl_driver = {
 	.probe = intel_pinctrl_probe_by_hid,
 	.driver = {
 		.name = "cannonlake-pinctrl",
 		.acpi_match_table = cnl_pinctrl_acpi_match,
-		.pm = &cnl_pinctrl_pm_ops,
+		.pm = pm_sleep_ptr(&intel_pinctrl_pm_ops),
 	},
 };
-
 module_platform_driver(cnl_pinctrl_driver);
 
 MODULE_AUTHOR("Mika Westerberg <mika.westerberg@linux.intel.com>");
 MODULE_DESCRIPTION("Intel Cannon Lake PCH pinctrl/GPIO driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(PINCTRL_INTEL);

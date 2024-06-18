@@ -19,7 +19,6 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/gpio/consumer.h>
-#include <linux/seqlock.h>
 #include <linux/idr.h>
 #include <linux/netdevice.h>
 #include <linux/linkmode.h>
@@ -34,7 +33,6 @@ struct fixed_mdio_bus {
 struct fixed_phy {
 	int addr;
 	struct phy_device *phydev;
-	seqcount_t seqcount;
 	struct fixed_phy_status status;
 	bool no_carrier;
 	int (*link_update)(struct net_device *, struct fixed_phy_status *);
@@ -80,19 +78,17 @@ static int fixed_mdio_read(struct mii_bus *bus, int phy_addr, int reg_num)
 	list_for_each_entry(fp, &fmb->phys, node) {
 		if (fp->addr == phy_addr) {
 			struct fixed_phy_status state;
-			int s;
 
-			do {
-				s = read_seqcount_begin(&fp->seqcount);
-				fp->status.link = !fp->no_carrier;
-				/* Issue callback if user registered it. */
-				if (fp->link_update)
-					fp->link_update(fp->phydev->attached_dev,
-							&fp->status);
-				/* Check the GPIO for change in status */
-				fixed_phy_update(fp);
-				state = fp->status;
-			} while (read_seqcount_retry(&fp->seqcount, s));
+			fp->status.link = !fp->no_carrier;
+
+			/* Issue callback if user registered it. */
+			if (fp->link_update)
+				fp->link_update(fp->phydev->attached_dev,
+						&fp->status);
+
+			/* Check the GPIO for change in status */
+			fixed_phy_update(fp);
+			state = fp->status;
 
 			return swphy_read_reg(reg_num, &state);
 		}
@@ -150,8 +146,6 @@ static int fixed_phy_add_gpiod(unsigned int irq, int phy_addr,
 	if (!fp)
 		return -ENOMEM;
 
-	seqcount_init(&fp->seqcount);
-
 	if (irq != PHY_POLL)
 		fmb->mii_bus->irq[phy_addr] = irq;
 
@@ -167,8 +161,8 @@ static int fixed_phy_add_gpiod(unsigned int irq, int phy_addr,
 }
 
 int fixed_phy_add(unsigned int irq, int phy_addr,
-		  struct fixed_phy_status *status) {
-
+		  struct fixed_phy_status *status)
+{
 	return fixed_phy_add_gpiod(irq, phy_addr, status, NULL);
 }
 EXPORT_SYMBOL_GPL(fixed_phy_add);
@@ -186,7 +180,7 @@ static void fixed_phy_del(int phy_addr)
 			if (fp->link_gpiod)
 				gpiod_put(fp->link_gpiod);
 			kfree(fp);
-			ida_simple_remove(&phy_fixed_ida, phy_addr);
+			ida_free(&phy_fixed_ida, phy_addr);
 			return;
 		}
 	}
@@ -210,18 +204,15 @@ static struct gpio_desc *fixed_phy_get_gpiod(struct device_node *np)
 	 * Linux device associated with it, we simply have obtain
 	 * the GPIO descriptor from the device tree like this.
 	 */
-	gpiod = gpiod_get_from_of_node(fixed_link_node, "link-gpios", 0,
-				       GPIOD_IN, "mdio");
-	of_node_put(fixed_link_node);
-	if (IS_ERR(gpiod)) {
-		if (PTR_ERR(gpiod) == -EPROBE_DEFER)
-			return gpiod;
-
+	gpiod = fwnode_gpiod_get_index(of_fwnode_handle(fixed_link_node),
+				       "link", 0, GPIOD_IN, "mdio");
+	if (IS_ERR(gpiod) && PTR_ERR(gpiod) != -EPROBE_DEFER) {
 		if (PTR_ERR(gpiod) != -ENOENT)
 			pr_err("error getting GPIO for fixed link %pOF, proceed without\n",
 			       fixed_link_node);
 		gpiod = NULL;
 	}
+	of_node_put(fixed_link_node);
 
 	return gpiod;
 }
@@ -253,13 +244,13 @@ static struct phy_device *__fixed_phy_register(unsigned int irq,
 	}
 
 	/* Get the next available PHY address, up to PHY_MAX_ADDR */
-	phy_addr = ida_simple_get(&phy_fixed_ida, 0, PHY_MAX_ADDR, GFP_KERNEL);
+	phy_addr = ida_alloc_max(&phy_fixed_ida, PHY_MAX_ADDR - 1, GFP_KERNEL);
 	if (phy_addr < 0)
 		return ERR_PTR(phy_addr);
 
 	ret = fixed_phy_add_gpiod(irq, phy_addr, status, gpiod);
 	if (ret < 0) {
-		ida_simple_remove(&phy_fixed_ida, phy_addr);
+		ida_free(&phy_fixed_ida, phy_addr);
 		return ERR_PTR(ret);
 	}
 
@@ -288,13 +279,13 @@ static struct phy_device *__fixed_phy_register(unsigned int irq,
 				 phy->supported);
 		linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
 				 phy->supported);
-		/* fall through */
+		fallthrough;
 	case SPEED_100:
 		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT,
 				 phy->supported);
 		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT,
 				 phy->supported);
-		/* fall through */
+		fallthrough;
 	case SPEED_10:
 	default:
 		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT,
@@ -362,6 +353,7 @@ static int __init fixed_mdio_bus_init(void)
 	fmb->mii_bus->parent = &pdev->dev;
 	fmb->mii_bus->read = &fixed_mdio_read;
 	fmb->mii_bus->write = &fixed_mdio_write;
+	fmb->mii_bus->phy_mask = ~0;
 
 	ret = mdiobus_register(fmb->mii_bus);
 	if (ret)

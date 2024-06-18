@@ -8,13 +8,12 @@
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/mfd/core.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/notifier.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
@@ -35,13 +34,22 @@
 
 #define MADERA_32KZ_MCLK2	1
 
+#define MADERA_RESET_MIN_US	2000
+#define MADERA_RESET_MAX_US	3000
+
+#define ERRATA_DCVDD_MIN_US	10000
+#define ERRATA_DCVDD_MAX_US	15000
+
 static const char * const madera_core_supplies[] = {
 	"AVDD",
 	"DBVDD1",
 };
 
 static const struct mfd_cell madera_ldo1_devs[] = {
-	{ .name = "madera-ldo1" },
+	{
+		.name = "madera-ldo1",
+		.level = MFD_DEP_LEVEL_HIGH,
+	},
 };
 
 static const char * const cs47l15_supplies[] = {
@@ -52,8 +60,8 @@ static const char * const cs47l15_supplies[] = {
 
 static const struct mfd_cell cs47l15_devs[] = {
 	{ .name = "madera-pinctrl", },
-	{ .name = "madera-irq" },
-	{ .name = "madera-gpio" },
+	{ .name = "madera-irq", },
+	{ .name = "madera-gpio", },
 	{
 		.name = "madera-extcon",
 		.parent_supplies = cs47l15_supplies,
@@ -105,7 +113,7 @@ static const char * const cs47l85_supplies[] = {
 static const struct mfd_cell cs47l85_devs[] = {
 	{ .name = "madera-pinctrl", },
 	{ .name = "madera-irq", },
-	{ .name = "madera-micsupp" },
+	{ .name = "madera-micsupp", },
 	{ .name = "madera-gpio", },
 	{
 		.name = "madera-extcon",
@@ -152,10 +160,10 @@ static const char * const cs47l92_supplies[] = {
 };
 
 static const struct mfd_cell cs47l92_devs[] = {
-	{ .name = "madera-pinctrl" },
+	{ .name = "madera-pinctrl", },
 	{ .name = "madera-irq", },
 	{ .name = "madera-micsupp", },
-	{ .name = "madera-gpio" },
+	{ .name = "madera-gpio", },
 	{
 		.name = "madera-extcon",
 		.parent_supplies = cs47l92_supplies,
@@ -199,7 +207,7 @@ EXPORT_SYMBOL_GPL(madera_name_from_type);
 #define MADERA_BOOT_POLL_INTERVAL_USEC		5000
 #define MADERA_BOOT_POLL_TIMEOUT_USEC		25000
 
-static int madera_wait_for_boot(struct madera *madera)
+static int madera_wait_for_boot_noack(struct madera *madera)
 {
 	ktime_t timeout;
 	unsigned int val = 0;
@@ -226,6 +234,13 @@ static int madera_wait_for_boot(struct madera *madera)
 		ret = -ETIMEDOUT;
 	}
 
+	return ret;
+}
+
+static int madera_wait_for_boot(struct madera *madera)
+{
+	int ret = madera_wait_for_boot_noack(madera);
+
 	/*
 	 * BOOT_DONE defaults to unmasked on boot so we must ack it.
 	 * Do this even after a timeout to avoid interrupt storms.
@@ -249,16 +264,13 @@ static int madera_soft_reset(struct madera *madera)
 	}
 
 	/* Allow time for internal clocks to startup after reset */
-	usleep_range(1000, 2000);
+	usleep_range(MADERA_RESET_MIN_US, MADERA_RESET_MAX_US);
 
 	return 0;
 }
 
 static void madera_enable_hard_reset(struct madera *madera)
 {
-	if (!madera->pdata.reset)
-		return;
-
 	/*
 	 * There are many existing out-of-tree users of these codecs that we
 	 * can't break so preserve the expected behaviour of setting the line
@@ -269,11 +281,9 @@ static void madera_enable_hard_reset(struct madera *madera)
 
 static void madera_disable_hard_reset(struct madera *madera)
 {
-	if (!madera->pdata.reset)
-		return;
-
 	gpiod_set_raw_value_cansleep(madera->pdata.reset, 1);
-	usleep_range(1000, 2000);
+
+	usleep_range(MADERA_RESET_MIN_US, MADERA_RESET_MAX_US);
 }
 
 static int __maybe_unused madera_runtime_resume(struct device *dev)
@@ -283,6 +293,9 @@ static int __maybe_unused madera_runtime_resume(struct device *dev)
 
 	dev_dbg(dev, "Leaving sleep mode\n");
 
+	if (!madera->reset_errata)
+		madera_enable_hard_reset(madera);
+
 	ret = regulator_enable(madera->dcvdd);
 	if (ret) {
 		dev_err(dev, "Failed to enable DCVDD: %d\n", ret);
@@ -291,6 +304,23 @@ static int __maybe_unused madera_runtime_resume(struct device *dev)
 
 	regcache_cache_only(madera->regmap, false);
 	regcache_cache_only(madera->regmap_32bit, false);
+
+	if (madera->reset_errata)
+		usleep_range(ERRATA_DCVDD_MIN_US, ERRATA_DCVDD_MAX_US);
+	else
+		madera_disable_hard_reset(madera);
+
+	if (!madera->pdata.reset || madera->reset_errata) {
+		ret = madera_wait_for_boot(madera);
+		if (ret)
+			goto err;
+
+		ret = madera_soft_reset(madera);
+		if (ret) {
+			dev_err(dev, "Failed to reset: %d\n", ret);
+			goto err;
+		}
+	}
 
 	ret = madera_wait_for_boot(madera);
 	if (ret)
@@ -359,19 +389,14 @@ EXPORT_SYMBOL_GPL(madera_of_match);
 static int madera_get_reset_gpio(struct madera *madera)
 {
 	struct gpio_desc *reset;
-	int ret;
 
 	if (madera->pdata.reset)
 		return 0;
 
 	reset = devm_gpiod_get_optional(madera->dev, "reset", GPIOD_OUT_LOW);
-	if (IS_ERR(reset)) {
-		ret = PTR_ERR(reset);
-		if (ret != -EPROBE_DEFER)
-			dev_err(madera->dev, "Failed to request /RESET: %d\n",
-				ret);
-		return ret;
-	}
+	if (IS_ERR(reset))
+		return dev_err_probe(madera->dev, PTR_ERR(reset),
+				"Failed to request /RESET");
 
 	/*
 	 * A hard reset is needed for full reset of the chip. We allow running
@@ -450,6 +475,21 @@ int madera_dev_init(struct madera *madera)
 		       sizeof(madera->pdata));
 	}
 
+	madera->mclk[MADERA_MCLK1].id = "mclk1";
+	madera->mclk[MADERA_MCLK2].id = "mclk2";
+	madera->mclk[MADERA_MCLK3].id = "mclk3";
+
+	ret = devm_clk_bulk_get_optional(madera->dev, ARRAY_SIZE(madera->mclk),
+					 madera->mclk);
+	if (ret) {
+		dev_err(madera->dev, "Failed to get clocks: %d\n", ret);
+		return ret;
+	}
+
+	/* Not using devm_clk_get to prevent breakage of existing DTs */
+	if (!madera->mclk[MADERA_MCLK2].clk)
+		dev_warn(madera->dev, "Missing MCLK2, requires 32kHz clock\n");
+
 	ret = madera_get_reset_gpio(madera);
 	if (ret)
 		return ret;
@@ -469,6 +509,8 @@ int madera_dev_init(struct madera *madera)
 	 */
 	switch (madera->type) {
 	case CS47L15:
+		madera->reset_errata = true;
+		break;
 	case CS47L35:
 	case CS47L90:
 	case CS47L91:
@@ -519,16 +561,28 @@ int madera_dev_init(struct madera *madera)
 		goto err_dcvdd;
 	}
 
+	if (madera->reset_errata)
+		madera_disable_hard_reset(madera);
+
 	ret = regulator_enable(madera->dcvdd);
 	if (ret) {
 		dev_err(dev, "Failed to enable DCVDD: %d\n", ret);
 		goto err_enable;
 	}
 
-	madera_disable_hard_reset(madera);
+	if (madera->reset_errata)
+		usleep_range(ERRATA_DCVDD_MIN_US, ERRATA_DCVDD_MAX_US);
+	else
+		madera_disable_hard_reset(madera);
 
 	regcache_cache_only(madera->regmap, false);
 	regcache_cache_only(madera->regmap_32bit, false);
+
+	ret = madera_wait_for_boot_noack(madera);
+	if (ret) {
+		dev_err(madera->dev, "Device failed initial boot: %d\n", ret);
+		goto err_reset;
+	}
 
 	/*
 	 * Now we can power up and verify that this is a chip we know about
@@ -627,7 +681,7 @@ int madera_dev_init(struct madera *madera)
 	 * It looks like a device we support. If we don't have a hard reset
 	 * we can now attempt a soft reset.
 	 */
-	if (!madera->pdata.reset) {
+	if (!madera->pdata.reset || madera->reset_errata) {
 		ret = madera_soft_reset(madera);
 		if (ret)
 			goto err_reset;
@@ -635,7 +689,7 @@ int madera_dev_init(struct madera *madera)
 
 	ret = madera_wait_for_boot(madera);
 	if (ret) {
-		dev_err(madera->dev, "Device failed initial boot: %d\n", ret);
+		dev_err(madera->dev, "Failed to clear boot done: %d\n", ret);
 		goto err_reset;
 	}
 
@@ -660,13 +714,19 @@ int madera_dev_init(struct madera *madera)
 	}
 
 	/* Init 32k clock sourced from MCLK2 */
+	ret = clk_prepare_enable(madera->mclk[MADERA_MCLK2].clk);
+	if (ret) {
+		dev_err(madera->dev, "Failed to enable 32k clock: %d\n", ret);
+		goto err_reset;
+	}
+
 	ret = regmap_update_bits(madera->regmap,
 			MADERA_CLOCK_32K_1,
 			MADERA_CLK_32K_ENA_MASK | MADERA_CLK_32K_SRC_MASK,
 			MADERA_CLK_32K_ENA | MADERA_32KZ_MCLK2);
 	if (ret) {
 		dev_err(madera->dev, "Failed to init 32k clock: %d\n", ret);
-		goto err_reset;
+		goto err_clock;
 	}
 
 	pm_runtime_set_active(madera->dev);
@@ -687,6 +747,8 @@ int madera_dev_init(struct madera *madera)
 
 err_pm_runtime:
 	pm_runtime_disable(madera->dev);
+err_clock:
+	clk_disable_unprepare(madera->mclk[MADERA_MCLK2].clk);
 err_reset:
 	madera_enable_hard_reset(madera);
 	regulator_disable(madera->dcvdd);
@@ -707,16 +769,22 @@ int madera_dev_exit(struct madera *madera)
 	/* Prevent any IRQs being serviced while we clean up */
 	disable_irq(madera->irq);
 
-	/*
-	 * DCVDD could be supplied by a child node, we must disable it before
-	 * removing the children, and prevent PM runtime from turning it back on
-	 */
+	pm_runtime_get_sync(madera->dev);
+
+	mfd_remove_devices(madera->dev);
+
 	pm_runtime_disable(madera->dev);
 
 	regulator_disable(madera->dcvdd);
 	regulator_put(madera->dcvdd);
 
-	mfd_remove_devices(madera->dev);
+	mfd_remove_devices_late(madera->dev);
+
+	pm_runtime_set_suspended(madera->dev);
+	pm_runtime_put_noidle(madera->dev);
+
+	clk_disable_unprepare(madera->mclk[MADERA_MCLK2].clk);
+
 	madera_enable_hard_reset(madera);
 
 	regulator_bulk_disable(madera->num_core_supplies,

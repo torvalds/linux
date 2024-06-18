@@ -14,7 +14,7 @@
 #include <linux/bitops.h>
 
 #include <media/dvb_frontend.h>
-#include <media/dvb_math.h>
+#include <linux/int_log.h>
 #include "rtl2832.h"
 
 struct rtl2832_dev {

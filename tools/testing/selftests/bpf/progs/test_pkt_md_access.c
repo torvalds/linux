@@ -5,9 +5,7 @@
 #include <string.h>
 #include <linux/bpf.h>
 #include <linux/pkt_cls.h>
-#include "bpf_helpers.h"
-
-int _version SEC("version") = 1;
+#include <bpf/bpf_helpers.h>
 
 #if  __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 #define TEST_FIELD(TYPE, FIELD, MASK)					\
@@ -27,8 +25,8 @@ int _version SEC("version") = 1;
 	}
 #endif
 
-SEC("test1")
-int process(struct __sk_buff *skb)
+SEC("tc")
+int test_pkt_md_access(struct __sk_buff *skb)
 {
 	TEST_FIELD(__u8,  len, 0xFF);
 	TEST_FIELD(__u16, len, 0xFFFF);

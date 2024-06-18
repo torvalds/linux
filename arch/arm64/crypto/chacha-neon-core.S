@@ -36,7 +36,7 @@
  *
  * Clobbers: w3, x10, v4, v12
  */
-chacha_permute:
+SYM_FUNC_START_LOCAL(chacha_permute)
 
 	adr_l		x10, ROT8
 	ld1		{v12.4s}, [x10]
@@ -104,9 +104,9 @@ chacha_permute:
 	b.ne		.Ldoubleround
 
 	ret
-ENDPROC(chacha_permute)
+SYM_FUNC_END(chacha_permute)
 
-ENTRY(chacha_block_xor_neon)
+SYM_FUNC_START(chacha_block_xor_neon)
 	// x0: Input state matrix, s
 	// x1: 1 data block output, o
 	// x2: 1 data block input, i
@@ -143,9 +143,9 @@ ENTRY(chacha_block_xor_neon)
 
 	ldp		x29, x30, [sp], #16
 	ret
-ENDPROC(chacha_block_xor_neon)
+SYM_FUNC_END(chacha_block_xor_neon)
 
-ENTRY(hchacha_block_neon)
+SYM_FUNC_START(hchacha_block_neon)
 	// x0: Input state matrix, s
 	// x1: output (8 32-bit words)
 	// w2: nrounds
@@ -163,7 +163,7 @@ ENTRY(hchacha_block_neon)
 
 	ldp		x29, x30, [sp], #16
 	ret
-ENDPROC(hchacha_block_neon)
+SYM_FUNC_END(hchacha_block_neon)
 
 	a0		.req	w12
 	a1		.req	w13
@@ -183,7 +183,7 @@ ENDPROC(hchacha_block_neon)
 	a15		.req	w28
 
 	.align		6
-ENTRY(chacha_4block_xor_neon)
+SYM_FUNC_START(chacha_4block_xor_neon)
 	frame_push	10
 
 	// x0: Input state matrix, s
@@ -195,7 +195,6 @@ ENTRY(chacha_4block_xor_neon)
 	adr_l		x10, .Lpermute
 	and		x5, x4, #63
 	add		x10, x10, x5
-	add		x11, x10, #64
 
 	//
 	// This function encrypts four consecutive ChaCha blocks by loading
@@ -645,11 +644,11 @@ CPU_BE(	  rev		a15, a15	)
 	zip2		v31.4s, v14.4s, v15.4s
 	  eor		a15, a15, w9
 
-	mov		x3, #64
+	add		x3, x2, x4
+	sub		x3, x3, #128		// start of last block
+
 	subs		x5, x4, #128
-	add		x6, x5, x2
-	csel		x3, x3, xzr, ge
-	csel		x2, x2, x6, ge
+	csel		x2, x2, x3, ge
 
 	// interleave 64-bit words in state n, n+2
 	zip1		v0.2d, v16.2d, v18.2d
@@ -658,13 +657,10 @@ CPU_BE(	  rev		a15, a15	)
 	zip1		v8.2d, v17.2d, v19.2d
 	zip2		v12.2d, v17.2d, v19.2d
 	  stp		a2, a3, [x1, #-56]
-	ld1		{v16.16b-v19.16b}, [x2], x3
 
 	subs		x6, x4, #192
-	ccmp		x3, xzr, #4, lt
-	add		x7, x6, x2
-	csel		x3, x3, xzr, eq
-	csel		x2, x2, x7, eq
+	ld1		{v16.16b-v19.16b}, [x2], #64
+	csel		x2, x2, x3, ge
 
 	zip1		v1.2d, v20.2d, v22.2d
 	zip2		v5.2d, v20.2d, v22.2d
@@ -672,13 +668,10 @@ CPU_BE(	  rev		a15, a15	)
 	zip1		v9.2d, v21.2d, v23.2d
 	zip2		v13.2d, v21.2d, v23.2d
 	  stp		a6, a7, [x1, #-40]
-	ld1		{v20.16b-v23.16b}, [x2], x3
 
 	subs		x7, x4, #256
-	ccmp		x3, xzr, #4, lt
-	add		x8, x7, x2
-	csel		x3, x3, xzr, eq
-	csel		x2, x2, x8, eq
+	ld1		{v20.16b-v23.16b}, [x2], #64
+	csel		x2, x2, x3, ge
 
 	zip1		v2.2d, v24.2d, v26.2d
 	zip2		v6.2d, v24.2d, v26.2d
@@ -686,12 +679,10 @@ CPU_BE(	  rev		a15, a15	)
 	zip1		v10.2d, v25.2d, v27.2d
 	zip2		v14.2d, v25.2d, v27.2d
 	  stp		a10, a11, [x1, #-24]
-	ld1		{v24.16b-v27.16b}, [x2], x3
 
 	subs		x8, x4, #320
-	ccmp		x3, xzr, #4, lt
-	add		x9, x8, x2
-	csel		x2, x2, x9, eq
+	ld1		{v24.16b-v27.16b}, [x2], #64
+	csel		x2, x2, x3, ge
 
 	zip1		v3.2d, v28.2d, v30.2d
 	zip2		v7.2d, v28.2d, v30.2d
@@ -699,159 +690,113 @@ CPU_BE(	  rev		a15, a15	)
 	zip1		v11.2d, v29.2d, v31.2d
 	zip2		v15.2d, v29.2d, v31.2d
 	  stp		a14, a15, [x1, #-8]
+
+	tbnz		x5, #63, .Lt128
 	ld1		{v28.16b-v31.16b}, [x2]
 
 	// xor with corresponding input, write to output
-	tbnz		x5, #63, 0f
 	eor		v16.16b, v16.16b, v0.16b
 	eor		v17.16b, v17.16b, v1.16b
 	eor		v18.16b, v18.16b, v2.16b
 	eor		v19.16b, v19.16b, v3.16b
-	st1		{v16.16b-v19.16b}, [x1], #64
-	cbz		x5, .Lout
 
-	tbnz		x6, #63, 1f
+	tbnz		x6, #63, .Lt192
+
 	eor		v20.16b, v20.16b, v4.16b
 	eor		v21.16b, v21.16b, v5.16b
 	eor		v22.16b, v22.16b, v6.16b
 	eor		v23.16b, v23.16b, v7.16b
-	st1		{v20.16b-v23.16b}, [x1], #64
-	cbz		x6, .Lout
 
-	tbnz		x7, #63, 2f
+	st1		{v16.16b-v19.16b}, [x1], #64
+	tbnz		x7, #63, .Lt256
+
 	eor		v24.16b, v24.16b, v8.16b
 	eor		v25.16b, v25.16b, v9.16b
 	eor		v26.16b, v26.16b, v10.16b
 	eor		v27.16b, v27.16b, v11.16b
-	st1		{v24.16b-v27.16b}, [x1], #64
-	cbz		x7, .Lout
 
-	tbnz		x8, #63, 3f
+	st1		{v20.16b-v23.16b}, [x1], #64
+	tbnz		x8, #63, .Lt320
+
 	eor		v28.16b, v28.16b, v12.16b
 	eor		v29.16b, v29.16b, v13.16b
 	eor		v30.16b, v30.16b, v14.16b
 	eor		v31.16b, v31.16b, v15.16b
+
+	st1		{v24.16b-v27.16b}, [x1], #64
 	st1		{v28.16b-v31.16b}, [x1]
 
 .Lout:	frame_pop
 	ret
 
-	// fewer than 128 bytes of in/output
-0:	ld1		{v8.16b}, [x10]
-	ld1		{v9.16b}, [x11]
-	movi		v10.16b, #16
-	sub		x2, x1, #64
-	add		x1, x1, x5
-	ld1		{v16.16b-v19.16b}, [x2]
-	tbl		v4.16b, {v0.16b-v3.16b}, v8.16b
-	tbx		v20.16b, {v16.16b-v19.16b}, v9.16b
-	add		v8.16b, v8.16b, v10.16b
-	add		v9.16b, v9.16b, v10.16b
-	tbl		v5.16b, {v0.16b-v3.16b}, v8.16b
-	tbx		v21.16b, {v16.16b-v19.16b}, v9.16b
-	add		v8.16b, v8.16b, v10.16b
-	add		v9.16b, v9.16b, v10.16b
-	tbl		v6.16b, {v0.16b-v3.16b}, v8.16b
-	tbx		v22.16b, {v16.16b-v19.16b}, v9.16b
-	add		v8.16b, v8.16b, v10.16b
-	add		v9.16b, v9.16b, v10.16b
-	tbl		v7.16b, {v0.16b-v3.16b}, v8.16b
-	tbx		v23.16b, {v16.16b-v19.16b}, v9.16b
-
-	eor		v20.16b, v20.16b, v4.16b
-	eor		v21.16b, v21.16b, v5.16b
-	eor		v22.16b, v22.16b, v6.16b
-	eor		v23.16b, v23.16b, v7.16b
-	st1		{v20.16b-v23.16b}, [x1]
-	b		.Lout
-
 	// fewer than 192 bytes of in/output
-1:	ld1		{v8.16b}, [x10]
-	ld1		{v9.16b}, [x11]
-	movi		v10.16b, #16
-	add		x1, x1, x6
-	tbl		v0.16b, {v4.16b-v7.16b}, v8.16b
-	tbx		v20.16b, {v16.16b-v19.16b}, v9.16b
-	add		v8.16b, v8.16b, v10.16b
-	add		v9.16b, v9.16b, v10.16b
-	tbl		v1.16b, {v4.16b-v7.16b}, v8.16b
-	tbx		v21.16b, {v16.16b-v19.16b}, v9.16b
-	add		v8.16b, v8.16b, v10.16b
-	add		v9.16b, v9.16b, v10.16b
-	tbl		v2.16b, {v4.16b-v7.16b}, v8.16b
-	tbx		v22.16b, {v16.16b-v19.16b}, v9.16b
-	add		v8.16b, v8.16b, v10.16b
-	add		v9.16b, v9.16b, v10.16b
-	tbl		v3.16b, {v4.16b-v7.16b}, v8.16b
-	tbx		v23.16b, {v16.16b-v19.16b}, v9.16b
+.Lt192:	cbz		x5, 1f				// exactly 128 bytes?
+	ld1		{v28.16b-v31.16b}, [x10]
+	add		x5, x5, x1
+	tbl		v28.16b, {v4.16b-v7.16b}, v28.16b
+	tbl		v29.16b, {v4.16b-v7.16b}, v29.16b
+	tbl		v30.16b, {v4.16b-v7.16b}, v30.16b
+	tbl		v31.16b, {v4.16b-v7.16b}, v31.16b
 
-	eor		v20.16b, v20.16b, v0.16b
-	eor		v21.16b, v21.16b, v1.16b
-	eor		v22.16b, v22.16b, v2.16b
-	eor		v23.16b, v23.16b, v3.16b
-	st1		{v20.16b-v23.16b}, [x1]
+0:	eor		v20.16b, v20.16b, v28.16b
+	eor		v21.16b, v21.16b, v29.16b
+	eor		v22.16b, v22.16b, v30.16b
+	eor		v23.16b, v23.16b, v31.16b
+	st1		{v20.16b-v23.16b}, [x5]		// overlapping stores
+1:	st1		{v16.16b-v19.16b}, [x1]
 	b		.Lout
+
+	// fewer than 128 bytes of in/output
+.Lt128:	ld1		{v28.16b-v31.16b}, [x10]
+	add		x5, x5, x1
+	sub		x1, x1, #64
+	tbl		v28.16b, {v0.16b-v3.16b}, v28.16b
+	tbl		v29.16b, {v0.16b-v3.16b}, v29.16b
+	tbl		v30.16b, {v0.16b-v3.16b}, v30.16b
+	tbl		v31.16b, {v0.16b-v3.16b}, v31.16b
+	ld1		{v16.16b-v19.16b}, [x1]		// reload first output block
+	b		0b
 
 	// fewer than 256 bytes of in/output
-2:	ld1		{v4.16b}, [x10]
-	ld1		{v5.16b}, [x11]
-	movi		v6.16b, #16
-	add		x1, x1, x7
+.Lt256:	cbz		x6, 2f				// exactly 192 bytes?
+	ld1		{v4.16b-v7.16b}, [x10]
+	add		x6, x6, x1
 	tbl		v0.16b, {v8.16b-v11.16b}, v4.16b
-	tbx		v24.16b, {v20.16b-v23.16b}, v5.16b
-	add		v4.16b, v4.16b, v6.16b
-	add		v5.16b, v5.16b, v6.16b
-	tbl		v1.16b, {v8.16b-v11.16b}, v4.16b
-	tbx		v25.16b, {v20.16b-v23.16b}, v5.16b
-	add		v4.16b, v4.16b, v6.16b
-	add		v5.16b, v5.16b, v6.16b
-	tbl		v2.16b, {v8.16b-v11.16b}, v4.16b
-	tbx		v26.16b, {v20.16b-v23.16b}, v5.16b
-	add		v4.16b, v4.16b, v6.16b
-	add		v5.16b, v5.16b, v6.16b
-	tbl		v3.16b, {v8.16b-v11.16b}, v4.16b
-	tbx		v27.16b, {v20.16b-v23.16b}, v5.16b
-
-	eor		v24.16b, v24.16b, v0.16b
-	eor		v25.16b, v25.16b, v1.16b
-	eor		v26.16b, v26.16b, v2.16b
-	eor		v27.16b, v27.16b, v3.16b
-	st1		{v24.16b-v27.16b}, [x1]
-	b		.Lout
-
-	// fewer than 320 bytes of in/output
-3:	ld1		{v4.16b}, [x10]
-	ld1		{v5.16b}, [x11]
-	movi		v6.16b, #16
-	add		x1, x1, x8
-	tbl		v0.16b, {v12.16b-v15.16b}, v4.16b
-	tbx		v28.16b, {v24.16b-v27.16b}, v5.16b
-	add		v4.16b, v4.16b, v6.16b
-	add		v5.16b, v5.16b, v6.16b
-	tbl		v1.16b, {v12.16b-v15.16b}, v4.16b
-	tbx		v29.16b, {v24.16b-v27.16b}, v5.16b
-	add		v4.16b, v4.16b, v6.16b
-	add		v5.16b, v5.16b, v6.16b
-	tbl		v2.16b, {v12.16b-v15.16b}, v4.16b
-	tbx		v30.16b, {v24.16b-v27.16b}, v5.16b
-	add		v4.16b, v4.16b, v6.16b
-	add		v5.16b, v5.16b, v6.16b
-	tbl		v3.16b, {v12.16b-v15.16b}, v4.16b
-	tbx		v31.16b, {v24.16b-v27.16b}, v5.16b
+	tbl		v1.16b, {v8.16b-v11.16b}, v5.16b
+	tbl		v2.16b, {v8.16b-v11.16b}, v6.16b
+	tbl		v3.16b, {v8.16b-v11.16b}, v7.16b
 
 	eor		v28.16b, v28.16b, v0.16b
 	eor		v29.16b, v29.16b, v1.16b
 	eor		v30.16b, v30.16b, v2.16b
 	eor		v31.16b, v31.16b, v3.16b
-	st1		{v28.16b-v31.16b}, [x1]
+	st1		{v28.16b-v31.16b}, [x6]		// overlapping stores
+2:	st1		{v20.16b-v23.16b}, [x1]
 	b		.Lout
-ENDPROC(chacha_4block_xor_neon)
+
+	// fewer than 320 bytes of in/output
+.Lt320:	cbz		x7, 3f				// exactly 256 bytes?
+	ld1		{v4.16b-v7.16b}, [x10]
+	add		x7, x7, x1
+	tbl		v0.16b, {v12.16b-v15.16b}, v4.16b
+	tbl		v1.16b, {v12.16b-v15.16b}, v5.16b
+	tbl		v2.16b, {v12.16b-v15.16b}, v6.16b
+	tbl		v3.16b, {v12.16b-v15.16b}, v7.16b
+
+	eor		v28.16b, v28.16b, v0.16b
+	eor		v29.16b, v29.16b, v1.16b
+	eor		v30.16b, v30.16b, v2.16b
+	eor		v31.16b, v31.16b, v3.16b
+	st1		{v28.16b-v31.16b}, [x7]		// overlapping stores
+3:	st1		{v24.16b-v27.16b}, [x1]
+	b		.Lout
+SYM_FUNC_END(chacha_4block_xor_neon)
 
 	.section	".rodata", "a", %progbits
 	.align		L1_CACHE_SHIFT
 .Lpermute:
 	.set		.Li, 0
-	.rept		192
+	.rept		128
 	.byte		(.Li - 64)
 	.set		.Li, .Li + 1
 	.endr

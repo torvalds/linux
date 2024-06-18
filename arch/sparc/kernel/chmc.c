@@ -15,7 +15,8 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <asm/spitfire.h>
 #include <asm/chmctrl.h>
 #include <asm/cpudata.h>
@@ -29,7 +30,7 @@
 #define PFX DRV_MODULE_NAME	": "
 #define DRV_MODULE_VERSION	"0.2"
 
-MODULE_AUTHOR("David S. Miller (davem@davemloft.net)");
+MODULE_AUTHOR("David S. Miller <davem@davemloft.net>");
 MODULE_DESCRIPTION("UltraSPARC-III memory controller driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_MODULE_VERSION);
@@ -787,7 +788,7 @@ static void jbusmc_destroy(struct platform_device *op, struct jbusmc *p)
 	kfree(p);
 }
 
-static int us3mc_remove(struct platform_device *op)
+static void us3mc_remove(struct platform_device *op)
 {
 	void *p = dev_get_drvdata(&op->dev);
 
@@ -797,7 +798,6 @@ static int us3mc_remove(struct platform_device *op)
 		else if (mc_type == MC_TYPE_JBUS)
 			jbusmc_destroy(op, p);
 	}
-	return 0;
 }
 
 static const struct of_device_id us3mc_match[] = {
@@ -814,7 +814,7 @@ static struct platform_driver us3mc_driver = {
 		.of_match_table = us3mc_match,
 	},
 	.probe		= us3mc_probe,
-	.remove		= us3mc_remove,
+	.remove_new	= us3mc_remove,
 };
 
 static inline bool us3mc_platform(void)

@@ -10,7 +10,7 @@
 /* HW interface registers */
 #define HINIC_CSR_FUNC_ATTR0_ADDR                       0x0
 #define HINIC_CSR_FUNC_ATTR1_ADDR                       0x4
-
+#define HINIC_CSR_FUNC_ATTR2_ADDR			0x8
 #define HINIC_CSR_FUNC_ATTR4_ADDR                       0x10
 #define HINIC_CSR_FUNC_ATTR5_ADDR                       0x14
 
@@ -22,7 +22,6 @@
 	(HINIC_DMA_ATTR_BASE + (idx) * HINIC_DMA_ATTR_STRIDE)
 
 #define HINIC_PPF_ELECTION_STRIDE                       0x4
-#define HINIC_CSR_MAX_PORTS                             4
 
 #define HINIC_CSR_PPF_ELECTION_ADDR(idx)                \
 	(HINIC_ELECTION_BASE +  (idx) * HINIC_PPF_ELECTION_STRIDE)

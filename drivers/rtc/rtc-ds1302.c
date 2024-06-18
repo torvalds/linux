@@ -15,8 +15,6 @@
 #include <linux/rtc.h>
 #include <linux/spi/spi.h>
 
-#define DRV_NAME	"rtc-ds1302"
-
 #define	RTC_CMD_READ	0x81		/* Read command */
 #define	RTC_CMD_WRITE	0x80		/* Write command */
 
@@ -187,12 +185,6 @@ static int ds1302_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int ds1302_remove(struct spi_device *spi)
-{
-	spi_set_drvdata(spi, NULL);
-	return 0;
-}
-
 #ifdef CONFIG_OF
 static const struct of_device_id ds1302_dt_ids[] = {
 	{ .compatible = "maxim,ds1302", },
@@ -201,11 +193,17 @@ static const struct of_device_id ds1302_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, ds1302_dt_ids);
 #endif
 
+static const struct spi_device_id ds1302_spi_ids[] = {
+	{ .name = "ds1302", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(spi, ds1302_spi_ids);
+
 static struct spi_driver ds1302_driver = {
 	.driver.name	= "rtc-ds1302",
 	.driver.of_match_table = of_match_ptr(ds1302_dt_ids),
 	.probe		= ds1302_probe,
-	.remove		= ds1302_remove,
+	.id_table	= ds1302_spi_ids,
 };
 
 module_spi_driver(ds1302_driver);

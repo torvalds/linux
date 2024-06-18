@@ -23,8 +23,6 @@
  *
  */
 
-#include <linux/slab.h>
-
 #include "dm_services.h"
 
 #include "include/logger_interface.h"
@@ -63,27 +61,27 @@ static bool hpd_ack(struct irq_service *irq_service,
 	return true;
 }
 
-static const struct irq_source_info_funcs hpd_irq_info_funcs = {
+static struct irq_source_info_funcs hpd_irq_info_funcs  = {
 	.set = NULL,
 	.ack = hpd_ack
 };
 
-static const struct irq_source_info_funcs hpd_rx_irq_info_funcs = {
+static struct irq_source_info_funcs hpd_rx_irq_info_funcs = {
 	.set = NULL,
 	.ack = NULL
 };
 
-static const struct irq_source_info_funcs pflip_irq_info_funcs = {
+static struct irq_source_info_funcs pflip_irq_info_funcs = {
 	.set = NULL,
 	.ack = NULL
 };
 
-static const struct irq_source_info_funcs vblank_irq_info_funcs = {
+static struct irq_source_info_funcs vblank_irq_info_funcs = {
 	.set = dce110_vblank_set,
 	.ack = NULL
 };
 
-static const struct irq_source_info_funcs vupdate_irq_info_funcs = {
+static struct irq_source_info_funcs vupdate_irq_info_funcs = {
 	.set = NULL,
 	.ack = NULL
 };
@@ -185,16 +183,18 @@ bool dal_irq_service_dummy_set(struct irq_service *irq_service,
 			       const struct irq_source_info *info,
 			       bool enable)
 {
-	DC_LOG_ERROR("%s: called for non-implemented irq source\n",
-		     __func__);
+	DC_LOG_ERROR("%s: called for non-implemented irq source, src_id=%u, ext_id=%u\n",
+		     __func__, info->src_id, info->ext_id);
+
 	return false;
 }
 
 bool dal_irq_service_dummy_ack(struct irq_service *irq_service,
 			       const struct irq_source_info *info)
 {
-	DC_LOG_ERROR("%s: called for non-implemented irq source\n",
-		     __func__);
+	DC_LOG_ERROR("%s: called for non-implemented irq source, src_id=%u, ext_id=%u\n",
+		     __func__, info->src_id, info->ext_id);
+
 	return false;
 }
 
@@ -204,15 +204,19 @@ bool dce110_vblank_set(struct irq_service *irq_service,
 		       bool enable)
 {
 	struct dc_context *dc_ctx = irq_service->ctx;
-	struct dc *core_dc = irq_service->ctx->dc;
+	struct dc *dc = irq_service->ctx->dc;
 	enum dc_irq_source dal_irq_src =
 			dc_interrupt_to_irq_source(irq_service->ctx->dc,
 						   info->src_id,
 						   info->ext_id);
 	uint8_t pipe_offset = dal_irq_src - IRQ_TYPE_VBLANK;
 
-	struct timing_generator *tg =
-			core_dc->current_state->res_ctx.pipe_ctx[pipe_offset].stream_res.tg;
+	struct timing_generator *tg;
+
+	if (pipe_offset >= MAX_PIPES)
+		return false;
+
+	tg = dc->current_state->res_ctx.pipe_ctx[pipe_offset].stream_res.tg;
 
 	if (enable) {
 		if (!tg || !tg->funcs->arm_vert_intr(tg, 2)) {
@@ -225,7 +229,7 @@ bool dce110_vblank_set(struct irq_service *irq_service,
 	return true;
 }
 
-static const struct irq_source_info_funcs dummy_irq_info_funcs = {
+static struct irq_source_info_funcs dummy_irq_info_funcs = {
 	.set = dal_irq_service_dummy_set,
 	.ack = dal_irq_service_dummy_ack
 };
@@ -403,7 +407,7 @@ static const struct irq_service_funcs irq_service_funcs_dce110 = {
 		.to_dal_irq_source = to_dal_irq_source_dce110
 };
 
-static void construct(struct irq_service *irq_service,
+static void dce110_irq_construct(struct irq_service *irq_service,
 		      struct irq_service_init_data *init_data)
 {
 	dal_irq_service_construct(irq_service, init_data);
@@ -421,6 +425,6 @@ dal_irq_service_dce110_create(struct irq_service_init_data *init_data)
 	if (!irq_service)
 		return NULL;
 
-	construct(irq_service, init_data);
+	dce110_irq_construct(irq_service, init_data);
 	return irq_service;
 }

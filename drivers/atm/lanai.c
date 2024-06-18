@@ -765,8 +765,7 @@ static void lanai_shutdown_tx_vci(struct lanai_dev *lanai,
 	struct sk_buff *skb;
 	unsigned long flags, timeout;
 	int read, write, lastread = -1;
-	APRINTK(!in_interrupt(),
-	    "lanai_shutdown_tx_vci called w/o process context!\n");
+
 	if (lvcc->vbase == NULL)	/* We were never bound to a VCI */
 		return;
 	/* 15.2.1 - wait for queue to drain */
@@ -2019,7 +2018,7 @@ static int lanai_normalize_ci(struct lanai_dev *lanai,
 	switch (*vpip) {
 		case ATM_VPI_ANY:
 			*vpip = 0;
-			/* FALLTHROUGH */
+			fallthrough;
 		case 0:
 			break;
 		default:
@@ -2234,6 +2233,7 @@ static int lanai_dev_open(struct atm_dev *atmdev)
 	conf1_write(lanai);
 #endif
 	iounmap(lanai->base);
+	lanai->base = NULL;
     error_pci:
 	pci_disable_device(lanai->pci);
     error:
@@ -2246,6 +2246,8 @@ static int lanai_dev_open(struct atm_dev *atmdev)
 static void lanai_dev_close(struct atm_dev *atmdev)
 {
 	struct lanai_dev *lanai = (struct lanai_dev *) atmdev->dev_data;
+	if (lanai->base==NULL)
+		return;
 	printk(KERN_INFO DEV_LABEL "(itf %d): shutting down interface\n",
 	    lanai->number);
 	lanai_timed_poll_stop(lanai);
@@ -2537,8 +2539,6 @@ static const struct atmdev_ops ops = {
 	.dev_close	= lanai_dev_close,
 	.open		= lanai_open,
 	.close		= lanai_close,
-	.getsockopt	= NULL,
-	.setsockopt	= NULL,
 	.send		= lanai_send,
 	.phy_put	= NULL,
 	.phy_get	= NULL,
@@ -2555,7 +2555,7 @@ static int lanai_init_one(struct pci_dev *pci,
 	struct atm_dev *atmdev;
 	int result;
 
-	lanai = kmalloc(sizeof(*lanai), GFP_KERNEL);
+	lanai = kzalloc(sizeof(*lanai), GFP_KERNEL);
 	if (lanai == NULL) {
 		printk(KERN_ERR DEV_LABEL
 		       ": couldn't allocate dev_data structure!\n");

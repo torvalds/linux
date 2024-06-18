@@ -1,12 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0
 // TI LM3697 LED chip family driver
-// Copyright (C) 2018 Texas Instruments Incorporated - http://www.ti.com/
+// Copyright (C) 2018 Texas Instruments Incorporated - https://www.ti.com/
 
+#include <linux/bits.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
-#include <linux/of.h>
-#include <linux/of_gpio.h>
+#include <linux/mod_devicetable.h>
+#include <linux/module.h>
+#include <linux/property.h>
+#include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
+#include <linux/types.h>
+
 #include <linux/leds-ti-lmu-common.h>
 
 #define LM3697_REV			0x0
@@ -47,6 +52,8 @@
  * @lmu_data: Register and setting values for common code
  * @control_bank: Control bank the LED is associated to. 0 is control bank A
  *		   1 is control bank B
+ * @enabled: LED brightness level (or LED_OFF)
+ * @num_leds: Number of LEDs available
  */
 struct lm3697_led {
 	u32 hvled_strings[LM3697_MAX_LED_STRINGS];
@@ -68,6 +75,8 @@ struct lm3697_led {
  * @dev: Pointer to the devices device struct
  * @lock: Lock for reading/writing the device
  * @leds: Array of LED strings
+ * @bank_cfg: OUTPUT_CONFIG register values
+ * @num_banks: Number of control banks
  */
 struct lm3697 {
 	struct gpio_desc *enable_gpio;
@@ -78,8 +87,9 @@ struct lm3697 {
 	struct mutex lock;
 
 	int bank_cfg;
+	int num_banks;
 
-	struct lm3697_led leds[];
+	struct lm3697_led leds[] __counted_by(num_banks);
 };
 
 static const struct reg_default lm3697_reg_defs[] = {
@@ -115,6 +125,7 @@ static int lm3697_brightness_set(struct led_classdev *led_cdev,
 	struct lm3697_led *led = container_of(led_cdev, struct lm3697_led,
 					      led_dev);
 	int ctrl_en_val = (1 << led->control_bank);
+	struct device *dev = led->priv->dev;
 	int ret;
 
 	mutex_lock(&led->priv->lock);
@@ -123,7 +134,7 @@ static int lm3697_brightness_set(struct led_classdev *led_cdev,
 		ret = regmap_update_bits(led->priv->regmap, LM3697_CTRL_ENABLE,
 					 ctrl_en_val, ~ctrl_en_val);
 		if (ret) {
-			dev_err(&led->priv->client->dev, "Cannot write ctrl register\n");
+			dev_err(dev, "Cannot write ctrl register\n");
 			goto brightness_out;
 		}
 
@@ -131,8 +142,7 @@ static int lm3697_brightness_set(struct led_classdev *led_cdev,
 	} else {
 		ret = ti_lmu_common_set_brightness(&led->lmu_data, brt_val);
 		if (ret) {
-			dev_err(&led->priv->client->dev,
-				"Cannot write brightness\n");
+			dev_err(dev, "Cannot write brightness\n");
 			goto brightness_out;
 		}
 
@@ -141,8 +151,7 @@ static int lm3697_brightness_set(struct led_classdev *led_cdev,
 						 LM3697_CTRL_ENABLE,
 						 ctrl_en_val, ctrl_en_val);
 			if (ret) {
-				dev_err(&led->priv->client->dev,
-					"Cannot enable the device\n");
+				dev_err(dev, "Cannot enable the device\n");
 				goto brightness_out;
 			}
 
@@ -157,6 +166,7 @@ brightness_out:
 
 static int lm3697_init(struct lm3697 *priv)
 {
+	struct device *dev = priv->dev;
 	struct lm3697_led *led;
 	int i, ret;
 
@@ -165,26 +175,26 @@ static int lm3697_init(struct lm3697 *priv)
 	} else {
 		ret = regmap_write(priv->regmap, LM3697_RESET, LM3697_SW_RESET);
 		if (ret) {
-			dev_err(&priv->client->dev, "Cannot reset the device\n");
+			dev_err(dev, "Cannot reset the device\n");
 			goto out;
 		}
 	}
 
 	ret = regmap_write(priv->regmap, LM3697_CTRL_ENABLE, 0x0);
 	if (ret) {
-		dev_err(&priv->client->dev, "Cannot write ctrl enable\n");
+		dev_err(dev, "Cannot write ctrl enable\n");
 		goto out;
 	}
 
 	ret = regmap_write(priv->regmap, LM3697_OUTPUT_CONFIG, priv->bank_cfg);
 	if (ret)
-		dev_err(&priv->client->dev, "Cannot write OUTPUT config\n");
+		dev_err(dev, "Cannot write OUTPUT config\n");
 
-	for (i = 0; i < LM3697_MAX_CONTROL_BANKS; i++) {
+	for (i = 0; i < priv->num_banks; i++) {
 		led = &priv->leds[i];
 		ret = ti_lmu_common_set_ramp(&led->lmu_data);
 		if (ret)
-			dev_err(&priv->client->dev, "Setting the ramp rate failed\n");
+			dev_err(dev, "Setting the ramp rate failed\n");
 	}
 out:
 	return ret;
@@ -193,47 +203,44 @@ out:
 static int lm3697_probe_dt(struct lm3697 *priv)
 {
 	struct fwnode_handle *child = NULL;
+	struct device *dev = priv->dev;
 	struct lm3697_led *led;
-	const char *name;
+	int ret = -EINVAL;
 	int control_bank;
 	size_t i = 0;
-	int ret = -EINVAL;
 	int j;
 
-	priv->enable_gpio = devm_gpiod_get_optional(&priv->client->dev,
-						   "enable", GPIOD_OUT_LOW);
-	if (IS_ERR(priv->enable_gpio)) {
-		ret = PTR_ERR(priv->enable_gpio);
-		dev_err(&priv->client->dev, "Failed to get enable gpio: %d\n",
-			ret);
-		return ret;
-	}
+	priv->enable_gpio = devm_gpiod_get_optional(dev, "enable",
+						    GPIOD_OUT_LOW);
+	if (IS_ERR(priv->enable_gpio))
+		return dev_err_probe(dev, PTR_ERR(priv->enable_gpio),
+					  "Failed to get enable GPIO\n");
 
-	priv->regulator = devm_regulator_get(&priv->client->dev, "vled");
+	priv->regulator = devm_regulator_get(dev, "vled");
 	if (IS_ERR(priv->regulator))
 		priv->regulator = NULL;
 
-	device_for_each_child_node(priv->dev, child) {
+	device_for_each_child_node(dev, child) {
+		struct led_init_data init_data = {};
+
 		ret = fwnode_property_read_u32(child, "reg", &control_bank);
 		if (ret) {
-			dev_err(&priv->client->dev, "reg property missing\n");
-			fwnode_handle_put(child);
+			dev_err(dev, "reg property missing\n");
 			goto child_out;
 		}
 
 		if (control_bank > LM3697_CONTROL_B) {
-			dev_err(&priv->client->dev, "reg property is invalid\n");
+			dev_err(dev, "reg property is invalid\n");
 			ret = -EINVAL;
-			fwnode_handle_put(child);
 			goto child_out;
 		}
 
 		led = &priv->leds[i];
 
-		ret = ti_lmu_common_get_brt_res(&priv->client->dev,
-						child, &led->lmu_data);
+		ret = ti_lmu_common_get_brt_res(dev, child, &led->lmu_data);
 		if (ret)
-			dev_warn(&priv->client->dev, "brightness resolution property missing\n");
+			dev_warn(dev,
+				 "brightness resolution property missing\n");
 
 		led->control_bank = control_bank;
 		led->lmu_data.regmap = priv->regmap;
@@ -246,7 +253,7 @@ static int lm3697_probe_dt(struct lm3697 *priv)
 
 		led->num_leds = fwnode_property_count_u32(child, "led-sources");
 		if (led->num_leds > LM3697_MAX_LED_STRINGS) {
-			dev_err(&priv->client->dev, "To many LED strings defined\n");
+			dev_err(dev, "Too many LED strings defined\n");
 			continue;
 		}
 
@@ -254,8 +261,7 @@ static int lm3697_probe_dt(struct lm3697 *priv)
 						    led->hvled_strings,
 						    led->num_leds);
 		if (ret) {
-			dev_err(&priv->client->dev, "led-sources property missing\n");
-			fwnode_handle_put(child);
+			dev_err(dev, "led-sources property missing\n");
 			goto child_out;
 		}
 
@@ -263,57 +269,50 @@ static int lm3697_probe_dt(struct lm3697 *priv)
 			priv->bank_cfg |=
 				(led->control_bank << led->hvled_strings[j]);
 
-		ret = ti_lmu_common_get_ramp_params(&priv->client->dev,
-						    child, &led->lmu_data);
+		ret = ti_lmu_common_get_ramp_params(dev, child, &led->lmu_data);
 		if (ret)
-			dev_warn(&priv->client->dev, "runtime-ramp properties missing\n");
+			dev_warn(dev, "runtime-ramp properties missing\n");
 
-		fwnode_property_read_string(child, "linux,default-trigger",
-					    &led->led_dev.default_trigger);
-
-		ret = fwnode_property_read_string(child, "label", &name);
-		if (ret)
-			snprintf(led->label, sizeof(led->label),
-				"%s::", priv->client->name);
-		else
-			snprintf(led->label, sizeof(led->label),
-				 "%s:%s", priv->client->name, name);
+		init_data.fwnode = child;
+		init_data.devicename = priv->client->name;
+		/* for backwards compatibility if `label` is not present */
+		init_data.default_label = ":";
 
 		led->priv = priv;
-		led->led_dev.name = led->label;
 		led->led_dev.max_brightness = led->lmu_data.max_brightness;
 		led->led_dev.brightness_set_blocking = lm3697_brightness_set;
 
-		ret = devm_led_classdev_register(priv->dev, &led->led_dev);
+		ret = devm_led_classdev_register_ext(dev, &led->led_dev,
+						     &init_data);
 		if (ret) {
-			dev_err(&priv->client->dev, "led register err: %d\n",
-				ret);
-			fwnode_handle_put(child);
+			dev_err(dev, "led register err: %d\n", ret);
 			goto child_out;
 		}
 
 		i++;
 	}
 
+	return ret;
+
 child_out:
+	fwnode_handle_put(child);
 	return ret;
 }
 
-static int lm3697_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int lm3697_probe(struct i2c_client *client)
 {
+	struct device *dev = &client->dev;
 	struct lm3697 *led;
 	int count;
 	int ret;
 
-	count = device_get_child_node_count(&client->dev);
-	if (!count) {
-		dev_err(&client->dev, "LEDs are not defined in device tree!");
+	count = device_get_child_node_count(dev);
+	if (!count || count > LM3697_MAX_CONTROL_BANKS) {
+		dev_err(dev, "Strange device tree!");
 		return -ENODEV;
 	}
 
-	led = devm_kzalloc(&client->dev, struct_size(led, leds, count),
-			   GFP_KERNEL);
+	led = devm_kzalloc(dev, struct_size(led, leds, count), GFP_KERNEL);
 	if (!led)
 		return -ENOMEM;
 
@@ -321,12 +320,12 @@ static int lm3697_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, led);
 
 	led->client = client;
-	led->dev = &client->dev;
+	led->dev = dev;
+	led->num_banks = count;
 	led->regmap = devm_regmap_init_i2c(client, &lm3697_regmap_config);
 	if (IS_ERR(led->regmap)) {
 		ret = PTR_ERR(led->regmap);
-		dev_err(&client->dev, "Failed to allocate register map: %d\n",
-			ret);
+		dev_err(dev, "Failed to allocate register map: %d\n", ret);
 		return ret;
 	}
 
@@ -337,17 +336,16 @@ static int lm3697_probe(struct i2c_client *client,
 	return lm3697_init(led);
 }
 
-static int lm3697_remove(struct i2c_client *client)
+static void lm3697_remove(struct i2c_client *client)
 {
 	struct lm3697 *led = i2c_get_clientdata(client);
+	struct device *dev = &led->client->dev;
 	int ret;
 
 	ret = regmap_update_bits(led->regmap, LM3697_CTRL_ENABLE,
 				 LM3697_CTRL_A_B_EN, 0);
-	if (ret) {
-		dev_err(&led->client->dev, "Failed to disable the device\n");
-		return ret;
-	}
+	if (ret)
+		dev_err(dev, "Failed to disable the device\n");
 
 	if (led->enable_gpio)
 		gpiod_direction_output(led->enable_gpio, 0);
@@ -355,13 +353,10 @@ static int lm3697_remove(struct i2c_client *client)
 	if (led->regulator) {
 		ret = regulator_disable(led->regulator);
 		if (ret)
-			dev_err(&led->client->dev,
-				"Failed to disable regulator\n");
+			dev_err(dev, "Failed to disable regulator\n");
 	}
 
 	mutex_destroy(&led->lock);
-
-	return 0;
 }
 
 static const struct i2c_device_id lm3697_id[] = {

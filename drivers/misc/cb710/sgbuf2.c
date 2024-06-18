@@ -47,7 +47,7 @@ static inline bool needs_unaligned_copy(const void *ptr)
 #ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
 	return false;
 #else
-	return ((ptr - NULL) & 3) != 0;
+	return ((uintptr_t)ptr & 3) != 0;
 #endif
 }
 
@@ -117,6 +117,7 @@ static void sg_dwiter_write_slow(struct sg_mapping_iter *miter, uint32_t data)
 /**
  * cb710_sg_dwiter_write_next_block() - write next 32-bit word to sg buffer
  * @miter: sg mapping iterator used for writing
+ * @data: data to write to sg buffer
  *
  * Description:
  *   Writes 32-bit word starting at byte pointed to by @miter@

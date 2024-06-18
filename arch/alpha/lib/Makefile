@@ -4,7 +4,6 @@
 #
 
 asflags-y := $(KBUILD_CFLAGS)
-ccflags-y := -Werror
 
 # Many of these routines have implementations tuned for ev6.
 # Choose them iff we're targeting ev6 specifically.
@@ -14,6 +13,7 @@ ev6-$(CONFIG_ALPHA_EV6) := ev6-
 ev67-$(CONFIG_ALPHA_EV67) := ev67-
 
 lib-y =	__divqu.o __remqu.o __divlu.o __remlu.o \
+	udiv-qrnnd.o \
 	udelay.o \
 	$(ev6-y)memset.o \
 	$(ev6-y)memcpy.o \
@@ -44,17 +44,3 @@ AFLAGS___remlu.o =       -DREM -DINTSIZE
 $(addprefix $(obj)/,__divqu.o __remqu.o __divlu.o __remlu.o): \
 						$(src)/$(ev6-y)divide.S FORCE
 	$(call if_changed_rule,as_o_S)
-
-# There are direct branches between {str*cpy,str*cat} and stx*cpy.
-# Ensure the branches are within range by merging these objects.
-
-LDFLAGS_stycpy.o := -r
-LDFLAGS_styncpy.o := -r
-
-$(obj)/stycpy.o: $(obj)/strcpy.o $(obj)/$(ev67-y)strcat.o \
-		 $(obj)/$(ev6-y)stxcpy.o FORCE
-	$(call if_changed,ld)
-
-$(obj)/styncpy.o: $(obj)/strncpy.o $(obj)/$(ev67-y)strncat.o \
-		 $(obj)/$(ev6-y)stxncpy.o FORCE
-	$(call if_changed,ld)

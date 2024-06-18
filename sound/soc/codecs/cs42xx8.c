@@ -13,7 +13,6 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/gpio/consumer.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
@@ -362,7 +361,7 @@ static int cs42xx8_hw_free(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int cs42xx8_digital_mute(struct snd_soc_dai *dai, int mute)
+static int cs42xx8_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	struct cs42xx8_priv *cs42xx8 = snd_soc_component_get_drvdata(component);
@@ -380,7 +379,8 @@ static const struct snd_soc_dai_ops cs42xx8_dai_ops = {
 	.set_sysclk	= cs42xx8_set_dai_sysclk,
 	.hw_params	= cs42xx8_hw_params,
 	.hw_free	= cs42xx8_hw_free,
-	.digital_mute	= cs42xx8_digital_mute,
+	.mute_stream	= cs42xx8_mute,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver cs42xx8_dai = {
@@ -458,7 +458,7 @@ const struct regmap_config cs42xx8_regmap_config = {
 	.num_reg_defaults = ARRAY_SIZE(cs42xx8_reg),
 	.volatile_reg = cs42xx8_volatile_register,
 	.writeable_reg = cs42xx8_writeable_register,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 EXPORT_SYMBOL_GPL(cs42xx8_regmap_config);
 
@@ -496,7 +496,6 @@ static const struct snd_soc_component_driver cs42xx8_driver = {
 	.num_dapm_routes	= ARRAY_SIZE(cs42xx8_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 const struct cs42xx8_driver_data cs42448_data = {
@@ -511,17 +510,8 @@ const struct cs42xx8_driver_data cs42888_data = {
 };
 EXPORT_SYMBOL_GPL(cs42888_data);
 
-const struct of_device_id cs42xx8_of_match[] = {
-	{ .compatible = "cirrus,cs42448", .data = &cs42448_data, },
-	{ .compatible = "cirrus,cs42888", .data = &cs42888_data, },
-	{ /* sentinel */ }
-};
-MODULE_DEVICE_TABLE(of, cs42xx8_of_match);
-EXPORT_SYMBOL_GPL(cs42xx8_of_match);
-
-int cs42xx8_probe(struct device *dev, struct regmap *regmap)
+int cs42xx8_probe(struct device *dev, struct regmap *regmap, struct cs42xx8_driver_data *drvdata)
 {
-	const struct of_device_id *of_id;
 	struct cs42xx8_priv *cs42xx8;
 	int ret, val, i;
 
@@ -535,17 +525,11 @@ int cs42xx8_probe(struct device *dev, struct regmap *regmap)
 	if (cs42xx8 == NULL)
 		return -ENOMEM;
 
-	cs42xx8->regmap = regmap;
 	dev_set_drvdata(dev, cs42xx8);
 
-	of_id = of_match_device(cs42xx8_of_match, dev);
-	if (of_id)
-		cs42xx8->drvdata = of_id->data;
+	cs42xx8->regmap = regmap;
 
-	if (!cs42xx8->drvdata) {
-		dev_err(dev, "failed to find driver data\n");
-		return -EINVAL;
-	}
+	cs42xx8->drvdata = drvdata;
 
 	cs42xx8->gpiod_reset = devm_gpiod_get_optional(dev, "reset",
 							GPIOD_OUT_HIGH);

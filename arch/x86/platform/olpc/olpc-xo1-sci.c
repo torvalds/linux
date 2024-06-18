@@ -15,7 +15,6 @@
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/pm_wakeup.h>
-#include <linux/mfd/core.h>
 #include <linux/power_supply.h>
 #include <linux/suspend.h>
 #include <linux/workqueue.h>
@@ -53,7 +52,7 @@ static const char * const lid_wake_mode_names[] = {
 
 static void battery_status_changed(void)
 {
-	struct power_supply *psy = power_supply_get_by_name("olpc-battery");
+	struct power_supply *psy = power_supply_get_by_name("olpc_battery");
 
 	if (psy) {
 		power_supply_changed(psy);
@@ -63,7 +62,7 @@ static void battery_status_changed(void)
 
 static void ac_status_changed(void)
 {
-	struct power_supply *psy = power_supply_get_by_name("olpc-ac");
+	struct power_supply *psy = power_supply_get_by_name("olpc_ac");
 
 	if (psy) {
 		power_supply_changed(psy);
@@ -81,7 +80,7 @@ static void send_ebook_state(void)
 		return;
 	}
 
-	if (!!test_bit(SW_TABLET_MODE, ebook_switch_idev->sw) == state)
+	if (test_bit(SW_TABLET_MODE, ebook_switch_idev->sw) == !!state)
 		return; /* Nothing new to report. */
 
 	input_report_switch(ebook_switch_idev, SW_TABLET_MODE, state);
@@ -537,10 +536,6 @@ static int xo1_sci_probe(struct platform_device *pdev)
 	if (!machine_is_olpc())
 		return -ENODEV;
 
-	r = mfd_cell_enable(pdev);
-	if (r)
-		return r;
-
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "can't fetch device resource info\n");
@@ -603,9 +598,8 @@ err_ebook:
 	return r;
 }
 
-static int xo1_sci_remove(struct platform_device *pdev)
+static void xo1_sci_remove(struct platform_device *pdev)
 {
-	mfd_cell_disable(pdev);
 	free_irq(sci_irq, pdev);
 	cancel_work_sync(&sci_work);
 	free_ec_sci();
@@ -614,7 +608,6 @@ static int xo1_sci_remove(struct platform_device *pdev)
 	free_ebook_switch();
 	free_power_button();
 	acpi_base = 0;
-	return 0;
 }
 
 static struct platform_driver xo1_sci_driver = {
@@ -623,7 +616,7 @@ static struct platform_driver xo1_sci_driver = {
 		.dev_groups = lid_groups,
 	},
 	.probe = xo1_sci_probe,
-	.remove = xo1_sci_remove,
+	.remove_new = xo1_sci_remove,
 	.suspend = xo1_sci_suspend,
 	.resume = xo1_sci_resume,
 };

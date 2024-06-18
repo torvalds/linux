@@ -10,6 +10,16 @@
  * Author: Linus Walleij <linus.walleij@linaro.org>
  */
 
+#include <linux/errno.h>
+
+struct dentry;
+struct device_node;
+struct seq_file;
+
+struct pinctrl_dev;
+struct pinctrl_map;
+struct pinctrl_setting;
+
 #ifdef CONFIG_PINCONF
 
 int pinconf_check_ops(struct pinctrl_dev *pctldev);
@@ -19,14 +29,14 @@ int pinconf_map_to_setting(const struct pinctrl_map *map,
 void pinconf_free_setting(const struct pinctrl_setting *setting);
 int pinconf_apply_setting(const struct pinctrl_setting *setting);
 
-int pinconf_set_config(struct pinctrl_dev *pctldev, unsigned pin,
+int pinconf_set_config(struct pinctrl_dev *pctldev, unsigned int pin,
 		       unsigned long *configs, size_t nconfigs);
 
 /*
  * You will only be interested in these if you're using PINCONF
  * so don't supply any stubs for these.
  */
-int pin_config_get_for_pin(struct pinctrl_dev *pctldev, unsigned pin,
+int pin_config_get_for_pin(struct pinctrl_dev *pctldev, unsigned int pin,
 			   unsigned long *config);
 int pin_config_group_get(const char *dev_name, const char *pin_group,
 			 unsigned long *config);
@@ -58,7 +68,7 @@ static inline int pinconf_apply_setting(const struct pinctrl_setting *setting)
 	return 0;
 }
 
-static inline int pinconf_set_config(struct pinctrl_dev *pctldev, unsigned pin,
+static inline int pinconf_set_config(struct pinctrl_dev *pctldev, unsigned int pin,
 				     unsigned long *configs, size_t nconfigs)
 {
 	return -ENOTSUPP;
@@ -102,7 +112,7 @@ static inline void pinconf_init_device_debugfs(struct dentry *devroot,
 
 void pinconf_generic_dump_pins(struct pinctrl_dev *pctldev,
 			       struct seq_file *s, const char *gname,
-			       unsigned pin);
+			       unsigned int pin);
 
 void pinconf_generic_dump_config(struct pinctrl_dev *pctldev,
 				 struct seq_file *s, unsigned long config);
@@ -110,7 +120,7 @@ void pinconf_generic_dump_config(struct pinctrl_dev *pctldev,
 
 static inline void pinconf_generic_dump_pins(struct pinctrl_dev *pctldev,
 					     struct seq_file *s,
-					     const char *gname, unsigned pin)
+					     const char *gname, unsigned int pin)
 {
 	return;
 }

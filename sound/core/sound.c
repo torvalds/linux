@@ -9,6 +9,7 @@
 #include <linux/time.h>
 #include <linux/device.h>
 #include <linux/module.h>
+#include <linux/debugfs.h>
 #include <sound/core.h>
 #include <sound/minors.h>
 #include <sound/info.h>
@@ -38,6 +39,11 @@ MODULE_ALIAS_CHARDEV_MAJOR(CONFIG_SND_MAJOR);
  */
 int snd_ecards_limit;
 EXPORT_SYMBOL(snd_ecards_limit);
+
+#ifdef CONFIG_SND_DEBUG
+struct dentry *sound_debugfs_root;
+EXPORT_SYMBOL_GPL(sound_debugfs_root);
+#endif
 
 static struct snd_minor *snd_minors[SNDRV_OS_MINORS];
 static DEFINE_MUTEX(sound_mutex);
@@ -97,7 +103,7 @@ void *snd_lookup_minor_data(unsigned int minor, int type)
 
 	if (minor >= ARRAY_SIZE(snd_minors))
 		return NULL;
-	mutex_lock(&sound_mutex);
+	guard(mutex)(&sound_mutex);
 	mreg = snd_minors[minor];
 	if (mreg && mreg->type == type) {
 		private_data = mreg->private_data;
@@ -105,7 +111,6 @@ void *snd_lookup_minor_data(unsigned int minor, int type)
 			get_device(&mreg->card_ptr->card_dev);
 	} else
 		private_data = NULL;
-	mutex_unlock(&sound_mutex);
 	return private_data;
 }
 EXPORT_SYMBOL(snd_lookup_minor_data);
@@ -144,17 +149,15 @@ static int snd_open(struct inode *inode, struct file *file)
 
 	if (minor >= ARRAY_SIZE(snd_minors))
 		return -ENODEV;
-	mutex_lock(&sound_mutex);
-	mptr = snd_minors[minor];
-	if (mptr == NULL) {
-		mptr = autoload_device(minor);
-		if (!mptr) {
-			mutex_unlock(&sound_mutex);
-			return -ENODEV;
+	scoped_guard(mutex, &sound_mutex) {
+		mptr = snd_minors[minor];
+		if (mptr == NULL) {
+			mptr = autoload_device(minor);
+			if (!mptr)
+				return -ENODEV;
 		}
+		new_fops = fops_get(mptr->f_ops);
 	}
-	new_fops = fops_get(mptr->f_ops);
-	mutex_unlock(&sound_mutex);
 	if (!new_fops)
 		return -ENODEV;
 	replace_fops(file, new_fops);
@@ -263,7 +266,7 @@ int snd_register_device(int type, struct snd_card *card, int dev,
 	preg->f_ops = f_ops;
 	preg->private_data = private_data;
 	preg->card_ptr = card;
-	mutex_lock(&sound_mutex);
+	guard(mutex)(&sound_mutex);
 	minor = snd_find_free_minor(type, card, dev);
 	if (minor < 0) {
 		err = minor;
@@ -278,7 +281,6 @@ int snd_register_device(int type, struct snd_card *card, int dev,
 
 	snd_minors[minor] = preg;
  error:
-	mutex_unlock(&sound_mutex);
 	if (err < 0)
 		kfree(preg);
 	return err;
@@ -299,7 +301,7 @@ int snd_unregister_device(struct device *dev)
 	int minor;
 	struct snd_minor *preg;
 
-	mutex_lock(&sound_mutex);
+	guard(mutex)(&sound_mutex);
 	for (minor = 0; minor < ARRAY_SIZE(snd_minors); ++minor) {
 		preg = snd_minors[minor];
 		if (preg && preg->dev == dev) {
@@ -309,7 +311,6 @@ int snd_unregister_device(struct device *dev)
 			break;
 		}
 	}
-	mutex_unlock(&sound_mutex);
 	if (minor >= ARRAY_SIZE(snd_minors))
 		return -ENOENT;
 	return 0;
@@ -337,6 +338,8 @@ static const char *snd_device_type_name(int type)
 		return "sequencer";
 	case SNDRV_DEVICE_TYPE_TIMER:
 		return "timer";
+	case SNDRV_DEVICE_TYPE_COMPRESS:
+		return "compress";
 	default:
 		return "?";
 	}
@@ -347,9 +350,10 @@ static void snd_minor_info_read(struct snd_info_entry *entry, struct snd_info_bu
 	int minor;
 	struct snd_minor *mptr;
 
-	mutex_lock(&sound_mutex);
+	guard(mutex)(&sound_mutex);
 	for (minor = 0; minor < SNDRV_OS_MINORS; ++minor) {
-		if (!(mptr = snd_minors[minor]))
+		mptr = snd_minors[minor];
+		if (!mptr)
 			continue;
 		if (mptr->card >= 0) {
 			if (mptr->device >= 0)
@@ -364,7 +368,6 @@ static void snd_minor_info_read(struct snd_info_entry *entry, struct snd_info_bu
 			snd_iprintf(buffer, "%3i:        : %s\n", minor,
 				    snd_device_type_name(mptr->type));
 	}
-	mutex_unlock(&sound_mutex);
 }
 
 int __init snd_minor_info_init(void)
@@ -395,6 +398,10 @@ static int __init alsa_sound_init(void)
 		unregister_chrdev(major, "alsa");
 		return -ENOMEM;
 	}
+
+#ifdef CONFIG_SND_DEBUG
+	sound_debugfs_root = debugfs_create_dir("sound", NULL);
+#endif
 #ifndef MODULE
 	pr_info("Advanced Linux Sound Architecture Driver Initialized.\n");
 #endif
@@ -403,6 +410,9 @@ static int __init alsa_sound_init(void)
 
 static void __exit alsa_sound_exit(void)
 {
+#ifdef CONFIG_SND_DEBUG
+	debugfs_remove(sound_debugfs_root);
+#endif
 	snd_info_done();
 	unregister_chrdev(major, "alsa");
 }

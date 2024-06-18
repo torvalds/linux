@@ -3,13 +3,17 @@
 #include <linux/percpu.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
+#include <linux/pgtable.h>
+#include <linux/cpuidle.h>
 #include <asm/alternative.h>
 #include <asm/cacheflush.h>
 #include <asm/cpufeature.h>
+#include <asm/cpuidle.h>
 #include <asm/daifflags.h>
 #include <asm/debug-monitors.h>
 #include <asm/exec.h>
-#include <asm/pgtable.h>
+#include <asm/fpsimd.h>
+#include <asm/mte.h>
 #include <asm/memory.h>
 #include <asm/mmu_context.h>
 #include <asm/smp_plat.h>
@@ -41,6 +45,8 @@ void notrace __cpu_suspend_exit(void)
 {
 	unsigned int cpu = smp_processor_id();
 
+	mte_suspend_exit();
+
 	/*
 	 * We are resuming from reset with the idmap active in TTBR0_EL1.
 	 * We must uninstall the idmap and restore the expected MMU
@@ -50,14 +56,15 @@ void notrace __cpu_suspend_exit(void)
 
 	/* Restore CnP bit in TTBR1_EL1 */
 	if (system_supports_cnp())
-		cpu_replace_ttbr1(lm_alias(swapper_pg_dir));
+		cpu_enable_swapper_cnp();
 
 	/*
 	 * PSTATE was not saved over suspend/resume, re-enable any detected
 	 * features that might not have been set correctly.
 	 */
+	if (alternative_has_cap_unlikely(ARM64_HAS_DIT))
+		set_pstate_dit(1);
 	__uaccess_enable_hw_pan();
-	uao_thread_switch(current);
 
 	/*
 	 * Restore HW breakpoint registers to sane values
@@ -72,8 +79,12 @@ void notrace __cpu_suspend_exit(void)
 	 * have turned the mitigation on. If the user has forcefully
 	 * disabled it, make sure their wishes are obeyed.
 	 */
-	if (arm64_get_ssbd_state() == ARM64_SSBD_FORCE_DISABLE)
-		arm64_set_ssbd_mitigation(false);
+	spectre_v4_enable_mitigation(NULL);
+
+	sme_suspend_exit();
+
+	/* Restore additional feature-specific configuration */
+	ptrauth_suspend_exit();
 }
 
 /*
@@ -88,20 +99,45 @@ int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 	int ret = 0;
 	unsigned long flags;
 	struct sleep_stack_data state;
+	struct arm_cpuidle_irq_context context;
+
+	/*
+	 * Some portions of CPU state (e.g. PSTATE.{PAN,DIT}) are initialized
+	 * before alternatives are patched, but are only restored by
+	 * __cpu_suspend_exit() after alternatives are patched. To avoid
+	 * accidentally losing these bits we must not attempt to suspend until
+	 * after alternatives have been patched.
+	 */
+	WARN_ON(!system_capabilities_finalized());
+
+	/* Report any MTE async fault before going to suspend */
+	mte_suspend_enter();
 
 	/*
 	 * From this point debug exceptions are disabled to prevent
 	 * updates to mdscr register (saved and restored along with
 	 * general purpose registers) from kernel debuggers.
+	 *
+	 * Strictly speaking the trace_hardirqs_off() here is superfluous,
+	 * hardirqs should be firmly off by now. This really ought to use
+	 * something like raw_local_daif_save().
 	 */
 	flags = local_daif_save();
 
 	/*
-	 * Function graph tracer state gets incosistent when the kernel
+	 * Function graph tracer state gets inconsistent when the kernel
 	 * calls functions that never return (aka suspend finishers) hence
 	 * disable graph tracing during their execution.
 	 */
 	pause_graph_tracing();
+
+	/*
+	 * Switch to using DAIF.IF instead of PMR in order to reliably
+	 * resume if we're using pseudo-NMIs.
+	 */
+	arm_cpuidle_save_irq_context(&context);
+
+	ct_cpuidle_enter();
 
 	if (__cpu_suspend_enter(&state)) {
 		/* Call the suspend finisher */
@@ -116,16 +152,21 @@ int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 		 */
 		if (!ret)
 			ret = -EOPNOTSUPP;
+
+		ct_cpuidle_exit();
 	} else {
+		ct_cpuidle_exit();
 		__cpu_suspend_exit();
 	}
+
+	arm_cpuidle_restore_irq_context(&context);
 
 	unpause_graph_tracing();
 
 	/*
 	 * Restore pstate flags. OS lock and mdscr have been already
 	 * restored, so from this point onwards, debugging is fully
-	 * renabled if it was enabled when core started shutdown.
+	 * reenabled if it was enabled when core started shutdown.
 	 */
 	local_daif_restore(flags);
 

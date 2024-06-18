@@ -7,6 +7,7 @@
 #define __NETNS_CAN_H__
 
 #include <linux/spinlock.h>
+#include <linux/timer.h>
 
 struct can_dev_rcv_lists;
 struct can_pkg_stats;
@@ -15,7 +16,6 @@ struct can_rcv_lists_stats;
 struct netns_can {
 #if IS_ENABLED(CONFIG_PROC_FS)
 	struct proc_dir_entry *proc_dir;
-	struct proc_dir_entry *pde_version;
 	struct proc_dir_entry *pde_stats;
 	struct proc_dir_entry *pde_reset_stats;
 	struct proc_dir_entry *pde_rcvlist_all;

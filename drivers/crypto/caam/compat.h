@@ -34,7 +34,8 @@
 #include <crypto/ctr.h>
 #include <crypto/internal/des.h>
 #include <crypto/gcm.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
 #include <crypto/md5.h>
 #include <crypto/chacha.h>
 #include <crypto/poly1305.h>
@@ -43,7 +44,6 @@
 #include <crypto/akcipher.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/skcipher.h>
-#include <crypto/arc4.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/internal/hash.h>
 #include <crypto/internal/rsa.h>

@@ -20,7 +20,7 @@
 #define DRV_NAME "pata_isapnp"
 #define DRV_VERSION "0.2.5"
 
-static struct scsi_host_template isapnp_sht = {
+static const struct scsi_host_template isapnp_sht = {
 	ATA_PIO_SHT(DRV_NAME),
 };
 
@@ -82,6 +82,9 @@ static int isapnp_init_one(struct pnp_dev *idev, const struct pnp_device_id *dev
 	if (pnp_port_valid(idev, 1)) {
 		ctl_addr = devm_ioport_map(&idev->dev,
 					   pnp_port_start(idev, 1), 1);
+		if (!ctl_addr)
+			return -ENOMEM;
+
 		ap->ioaddr.altstatus_addr = ctl_addr;
 		ap->ioaddr.ctl_addr = ctl_addr;
 		ap->ops = &isapnp_port_ops;

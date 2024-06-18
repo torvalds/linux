@@ -40,8 +40,6 @@
  *	Includes, defines, variables, module parameters, ...
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 /* Module and version information */
 #define DRV_NAME	"iTCO_wdt"
 #define DRV_VERSION	"1.11"
@@ -64,6 +62,7 @@
 #include <linux/uaccess.h>		/* For copy_to_user/put_user/... */
 #include <linux/io.h>			/* For inb/outb/... */
 #include <linux/platform_data/itco_wdt.h>
+#include <linux/mfd/intel_pmc_bxt.h>
 
 #include "iTCO_vendor.h"
 
@@ -95,7 +94,6 @@ struct iTCO_wdt_private {
 	 * NO_REBOOT flag is Memory-Mapped GCS register bit 5 (TCO version 2),
 	 * or memory-mapped PMC register bit 4 (TCO version 3).
 	 */
-	struct resource *gcs_pmc_res;
 	unsigned long __iomem *gcs_pmc;
 	/* the lock for io operations */
 	spinlock_t io_lock;
@@ -233,12 +231,24 @@ static int update_no_reboot_bit_cnt(void *priv, bool set)
 	return val != newval ? -EIO : 0;
 }
 
-static void iTCO_wdt_no_reboot_bit_setup(struct iTCO_wdt_private *p,
-		struct itco_wdt_platform_data *pdata)
+static int update_no_reboot_bit_pmc(void *priv, bool set)
 {
-	if (pdata->update_no_reboot_bit) {
-		p->update_no_reboot_bit = pdata->update_no_reboot_bit;
-		p->no_reboot_priv = pdata->no_reboot_priv;
+	struct intel_pmc_dev *pmc = priv;
+	u32 bits = PMC_CFG_NO_REBOOT_EN;
+	u32 value = set ? bits : 0;
+
+	return intel_pmc_gcr_update(pmc, PMC_GCR_PMC_CFG_REG, bits, value);
+}
+
+static void iTCO_wdt_no_reboot_bit_setup(struct iTCO_wdt_private *p,
+					 struct platform_device *pdev,
+					 struct itco_wdt_platform_data *pdata)
+{
+	if (pdata->no_reboot_use_pmc) {
+		struct intel_pmc_dev *pmc = dev_get_drvdata(pdev->dev.parent);
+
+		p->update_no_reboot_bit = update_no_reboot_bit_pmc;
+		p->no_reboot_priv = pmc;
 		return;
 	}
 
@@ -266,7 +276,7 @@ static int iTCO_wdt_start(struct watchdog_device *wd_dev)
 	/* disable chipset's NO_REBOOT bit */
 	if (p->update_no_reboot_bit(p->no_reboot_priv, false)) {
 		spin_unlock(&p->io_lock);
-		pr_err("failed to reset NO_REBOOT flag, reboot disabled by hardware/BIOS\n");
+		dev_err(wd_dev->parent, "failed to reset NO_REBOOT flag, reboot disabled by hardware/BIOS\n");
 		return -EIO;
 	}
 
@@ -413,15 +423,28 @@ static unsigned int iTCO_wdt_get_timeleft(struct watchdog_device *wd_dev)
 	return time_left;
 }
 
+/* Returns true if the watchdog was running */
+static bool iTCO_wdt_set_running(struct iTCO_wdt_private *p)
+{
+	u16 val;
+
+	/* Bit 11: TCO Timer Halt -> 0 = The TCO timer is enabled */
+	val = inw(TCO1_CNT(p));
+	if (!(val & BIT(11))) {
+		set_bit(WDOG_HW_RUNNING, &p->wddev.status);
+		return true;
+	}
+	return false;
+}
+
 /*
  *	Kernel Interfaces
  */
 
-static const struct watchdog_info ident = {
+static struct watchdog_info ident = {
 	.options =		WDIOF_SETTIMEOUT |
 				WDIOF_KEEPALIVEPING |
 				WDIOF_MAGICCLOSE,
-	.firmware_version =	0,
 	.identity =		DRV_NAME,
 };
 
@@ -459,25 +482,34 @@ static int iTCO_wdt_probe(struct platform_device *pdev)
 	if (!p->tco_res)
 		return -ENODEV;
 
-	p->smi_res = platform_get_resource(pdev, IORESOURCE_IO, ICH_RES_IO_SMI);
-	if (!p->smi_res)
-		return -ENODEV;
-
 	p->iTCO_version = pdata->version;
 	p->pci_dev = to_pci_dev(dev->parent);
 
-	iTCO_wdt_no_reboot_bit_setup(p, pdata);
+	p->smi_res = platform_get_resource(pdev, IORESOURCE_IO, ICH_RES_IO_SMI);
+	if (p->smi_res) {
+		/* The TCO logic uses the TCO_EN bit in the SMI_EN register */
+		if (!devm_request_region(dev, p->smi_res->start,
+					 resource_size(p->smi_res),
+					 pdev->name)) {
+			dev_err(dev, "I/O address 0x%04llx already in use, device disabled\n",
+			       (u64)SMI_EN(p));
+			return -EBUSY;
+		}
+	} else if (iTCO_vendorsupport ||
+		   turn_SMI_watchdog_clear_off >= p->iTCO_version) {
+		dev_err(dev, "SMI I/O resource is missing\n");
+		return -ENODEV;
+	}
+
+	iTCO_wdt_no_reboot_bit_setup(p, pdev, pdata);
 
 	/*
 	 * Get the Memory-Mapped GCS or PMC register, we need it for the
 	 * NO_REBOOT flag (TCO v2 and v3).
 	 */
 	if (p->iTCO_version >= 2 && p->iTCO_version < 6 &&
-	    !pdata->update_no_reboot_bit) {
-		p->gcs_pmc_res = platform_get_resource(pdev,
-						       IORESOURCE_MEM,
-						       ICH_RES_MEM_GCS_PMC);
-		p->gcs_pmc = devm_ioremap_resource(dev, p->gcs_pmc_res);
+	    !pdata->no_reboot_use_pmc) {
+		p->gcs_pmc = devm_platform_ioremap_resource(pdev, ICH_RES_MEM_GCS_PMC);
 		if (IS_ERR(p->gcs_pmc))
 			return PTR_ERR(p->gcs_pmc);
 	}
@@ -485,21 +517,10 @@ static int iTCO_wdt_probe(struct platform_device *pdev)
 	/* Check chipset's NO_REBOOT bit */
 	if (p->update_no_reboot_bit(p->no_reboot_priv, false) &&
 	    iTCO_vendor_check_noreboot_on()) {
-		pr_info("unable to reset NO_REBOOT flag, device disabled by hardware/BIOS\n");
+		dev_info(dev, "unable to reset NO_REBOOT flag, device disabled by hardware/BIOS\n");
 		return -ENODEV;	/* Cannot reset NO_REBOOT bit */
 	}
 
-	/* Set the NO_REBOOT bit to prevent later reboots, just for sure */
-	p->update_no_reboot_bit(p->no_reboot_priv, true);
-
-	/* The TCO logic uses the TCO_EN bit in the SMI_EN register */
-	if (!devm_request_region(dev, p->smi_res->start,
-				 resource_size(p->smi_res),
-				 pdev->name)) {
-		pr_err("I/O address 0x%04llx already in use, device disabled\n",
-		       (u64)SMI_EN(p));
-		return -EBUSY;
-	}
 	if (turn_SMI_watchdog_clear_off >= p->iTCO_version) {
 		/*
 		 * Bit 13: TCO_EN -> 0
@@ -513,12 +534,12 @@ static int iTCO_wdt_probe(struct platform_device *pdev)
 	if (!devm_request_region(dev, p->tco_res->start,
 				 resource_size(p->tco_res),
 				 pdev->name)) {
-		pr_err("I/O address 0x%04llx already in use, device disabled\n",
+		dev_err(dev, "I/O address 0x%04llx already in use, device disabled\n",
 		       (u64)TCOBASE(p));
 		return -EBUSY;
 	}
 
-	pr_info("Found a %s TCO device (Version=%d, TCOBASE=0x%04llx)\n",
+	dev_info(dev, "Found a %s TCO device (Version=%d, TCOBASE=0x%04llx)\n",
 		pdata->name, pdata->version, (u64)TCOBASE(p));
 
 	/* Clear out the (probably old) status */
@@ -541,7 +562,8 @@ static int iTCO_wdt_probe(struct platform_device *pdev)
 		break;
 	}
 
-	p->wddev.info =	&ident,
+	ident.firmware_version = p->iTCO_version;
+	p->wddev.info = &ident,
 	p->wddev.ops = &iTCO_wdt_ops,
 	p->wddev.bootstatus = 0;
 	p->wddev.timeout = WATCHDOG_TIMEOUT;
@@ -551,14 +573,19 @@ static int iTCO_wdt_probe(struct platform_device *pdev)
 	watchdog_set_drvdata(&p->wddev, p);
 	platform_set_drvdata(pdev, p);
 
-	/* Make sure the watchdog is not running */
-	iTCO_wdt_stop(&p->wddev);
+	if (!iTCO_wdt_set_running(p)) {
+		/*
+		 * If the watchdog was not running set NO_REBOOT now to
+		 * prevent later reboots.
+		 */
+		p->update_no_reboot_bit(p->no_reboot_priv, true);
+	}
 
 	/* Check that the heartbeat value is within it's range;
 	   if not reset to the default */
 	if (iTCO_wdt_set_timeout(&p->wddev, heartbeat)) {
 		iTCO_wdt_set_timeout(&p->wddev, WATCHDOG_TIMEOUT);
-		pr_info("timeout value out of range, using %d\n",
+		dev_info(dev, "timeout value out of range, using %d\n",
 			WATCHDOG_TIMEOUT);
 	}
 
@@ -566,17 +593,16 @@ static int iTCO_wdt_probe(struct platform_device *pdev)
 	watchdog_stop_on_unregister(&p->wddev);
 	ret = devm_watchdog_register_device(dev, &p->wddev);
 	if (ret != 0) {
-		pr_err("cannot register watchdog device (err=%d)\n", ret);
+		dev_err(dev, "cannot register watchdog device (err=%d)\n", ret);
 		return ret;
 	}
 
-	pr_info("initialized. heartbeat=%d sec (nowayout=%d)\n",
+	dev_info(dev, "initialized. heartbeat=%d sec (nowayout=%d)\n",
 		heartbeat, nowayout);
 
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 /*
  * Suspend-to-idle requires this, because it stops the ticks and timekeeping, so
  * the watchdog cannot be pinged while in that state.  In ACPI sleep states the
@@ -584,15 +610,15 @@ static int iTCO_wdt_probe(struct platform_device *pdev)
  */
 
 #ifdef CONFIG_ACPI
-static inline bool need_suspend(void)
+static inline bool __maybe_unused need_suspend(void)
 {
 	return acpi_target_system_state() == ACPI_STATE_S0;
 }
 #else
-static inline bool need_suspend(void) { return true; }
+static inline bool __maybe_unused need_suspend(void) { return true; }
 #endif
 
-static int iTCO_wdt_suspend_noirq(struct device *dev)
+static int __maybe_unused iTCO_wdt_suspend_noirq(struct device *dev)
 {
 	struct iTCO_wdt_private *p = dev_get_drvdata(dev);
 	int ret = 0;
@@ -606,7 +632,7 @@ static int iTCO_wdt_suspend_noirq(struct device *dev)
 	return ret;
 }
 
-static int iTCO_wdt_resume_noirq(struct device *dev)
+static int __maybe_unused iTCO_wdt_resume_noirq(struct device *dev)
 {
 	struct iTCO_wdt_private *p = dev_get_drvdata(dev);
 
@@ -617,38 +643,19 @@ static int iTCO_wdt_resume_noirq(struct device *dev)
 }
 
 static const struct dev_pm_ops iTCO_wdt_pm = {
-	.suspend_noirq = iTCO_wdt_suspend_noirq,
-	.resume_noirq = iTCO_wdt_resume_noirq,
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(iTCO_wdt_suspend_noirq,
+				      iTCO_wdt_resume_noirq)
 };
-
-#define ITCO_WDT_PM_OPS	(&iTCO_wdt_pm)
-#else
-#define ITCO_WDT_PM_OPS	NULL
-#endif /* CONFIG_PM_SLEEP */
 
 static struct platform_driver iTCO_wdt_driver = {
 	.probe          = iTCO_wdt_probe,
 	.driver         = {
 		.name   = DRV_NAME,
-		.pm     = ITCO_WDT_PM_OPS,
+		.pm     = &iTCO_wdt_pm,
 	},
 };
 
-static int __init iTCO_wdt_init_module(void)
-{
-	pr_info("Intel TCO WatchDog Timer Driver v%s\n", DRV_VERSION);
-
-	return platform_driver_register(&iTCO_wdt_driver);
-}
-
-static void __exit iTCO_wdt_cleanup_module(void)
-{
-	platform_driver_unregister(&iTCO_wdt_driver);
-	pr_info("Watchdog Module Unloaded\n");
-}
-
-module_init(iTCO_wdt_init_module);
-module_exit(iTCO_wdt_cleanup_module);
+module_platform_driver(iTCO_wdt_driver);
 
 MODULE_AUTHOR("Wim Van Sebroeck <wim@iguana.be>");
 MODULE_DESCRIPTION("Intel TCO WatchDog Timer Driver");

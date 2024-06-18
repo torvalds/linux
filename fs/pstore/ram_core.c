@@ -13,28 +13,28 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/memblock.h>
-#include <linux/pstore_ram.h>
 #include <linux/rslib.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
+#include <linux/mm.h>
 #include <asm/page.h>
+
+#include "ram_internal.h"
 
 /**
  * struct persistent_ram_buffer - persistent circular RAM buffer
  *
- * @sig:
- *	signature to indicate header (PERSISTENT_RAM_SIG xor PRZ-type value)
- * @start:
- *	offset into @data where the beginning of the stored bytes begin
- * @size:
- *	number of valid bytes stored in @data
+ * @sig: Signature to indicate header (PERSISTENT_RAM_SIG xor PRZ-type value)
+ * @start: First valid byte in the buffer.
+ * @size: Number of valid bytes in the buffer.
+ * @data: The contents of the buffer.
  */
 struct persistent_ram_buffer {
 	uint32_t    sig;
 	atomic_t    start;
 	atomic_t    size;
-	uint8_t     data[0];
+	uint8_t     data[];
 };
 
 #define PERSISTENT_RAM_SIG (0x43474244) /* DBGC */
@@ -190,7 +190,7 @@ static int persistent_ram_init_ecc(struct persistent_ram_zone *prz,
 {
 	int numerr;
 	struct persistent_ram_buffer *buffer = prz->buffer;
-	int ecc_blocks;
+	size_t ecc_blocks;
 	size_t ecc_total;
 
 	if (!ecc_info || !ecc_info->ecc_size)
@@ -246,7 +246,7 @@ static int persistent_ram_init_ecc(struct persistent_ram_zone *prz,
 		pr_info("error in header, %d\n", numerr);
 		prz->corrected_bytes += numerr;
 	} else if (numerr < 0) {
-		pr_info("uncorrectable error in header\n");
+		pr_info_ratelimited("uncorrectable error in header\n");
 		prz->bad_blocks++;
 	}
 
@@ -263,10 +263,10 @@ ssize_t persistent_ram_ecc_string(struct persistent_ram_zone *prz,
 
 	if (prz->corrected_bytes || prz->bad_blocks)
 		ret = snprintf(str, len, ""
-			"\n%d Corrected bytes, %d unrecoverable blocks\n",
+			"\nECC: %d Corrected bytes, %d unrecoverable blocks\n",
 			prz->corrected_bytes, prz->bad_blocks);
 	else
-		ret = snprintf(str, len, "\nNo errors detected\n");
+		ret = snprintf(str, len, "\nECC: No errors detected\n");
 
 	return ret;
 }
@@ -283,7 +283,7 @@ static int notrace persistent_ram_update_user(struct persistent_ram_zone *prz,
 	const void __user *s, unsigned int start, unsigned int count)
 {
 	struct persistent_ram_buffer *buffer = prz->buffer;
-	int ret = unlikely(__copy_from_user(buffer->data + start, s, count)) ?
+	int ret = unlikely(copy_from_user(buffer->data + start, s, count)) ?
 		-EFAULT : 0;
 	persistent_ram_update_ecc(prz, start, count);
 	return ret;
@@ -300,7 +300,7 @@ void persistent_ram_save_old(struct persistent_ram_zone *prz)
 
 	if (!prz->old_log) {
 		persistent_ram_ecc_old(prz);
-		prz->old_log = kmalloc(size, GFP_KERNEL);
+		prz->old_log = kvzalloc(size, GFP_KERNEL);
 	}
 	if (!prz->old_log) {
 		pr_err("failed to allocate buffer\n");
@@ -348,8 +348,6 @@ int notrace persistent_ram_write_user(struct persistent_ram_zone *prz,
 	int rem, ret = 0, c = count;
 	size_t start;
 
-	if (unlikely(!access_ok(s, count)))
-		return -EFAULT;
 	if (unlikely(c > prz->buffer_size)) {
 		s += c - prz->buffer_size;
 		c = prz->buffer_size;
@@ -386,7 +384,7 @@ void *persistent_ram_old(struct persistent_ram_zone *prz)
 
 void persistent_ram_free_old(struct persistent_ram_zone *prz)
 {
-	kfree(prz->old_log);
+	kvfree(prz->old_log);
 	prz->old_log = NULL;
 	prz->old_log_size = 0;
 }
@@ -397,6 +395,10 @@ void persistent_ram_zap(struct persistent_ram_zone *prz)
 	atomic_set(&prz->buffer->size, 0);
 	persistent_ram_update_header_ecc(prz);
 }
+
+#define MEM_TYPE_WCOMBINE	0
+#define MEM_TYPE_NONCACHED	1
+#define MEM_TYPE_NORMAL		2
 
 static void *persistent_ram_vmap(phys_addr_t start, size_t size,
 		unsigned int memtype)
@@ -411,10 +413,20 @@ static void *persistent_ram_vmap(phys_addr_t start, size_t size,
 	page_start = start - offset_in_page(start);
 	page_count = DIV_ROUND_UP(size + offset_in_page(start), PAGE_SIZE);
 
-	if (memtype)
+	switch (memtype) {
+	case MEM_TYPE_NORMAL:
+		prot = PAGE_KERNEL;
+		break;
+	case MEM_TYPE_NONCACHED:
 		prot = pgprot_noncached(PAGE_KERNEL);
-	else
+		break;
+	case MEM_TYPE_WCOMBINE:
 		prot = pgprot_writecombine(PAGE_KERNEL);
+		break;
+	default:
+		pr_err("invalid mem_type=%d\n", memtype);
+		return NULL;
+	}
 
 	pages = kmalloc_array(page_count, sizeof(struct page *), GFP_KERNEL);
 	if (!pages) {
@@ -427,7 +439,11 @@ static void *persistent_ram_vmap(phys_addr_t start, size_t size,
 		phys_addr_t addr = page_start + i * PAGE_SIZE;
 		pages[i] = pfn_to_page(addr >> PAGE_SHIFT);
 	}
-	vaddr = vmap(pages, page_count, VM_MAP, prot);
+	/*
+	 * VM_IOREMAP used here to bypass this region during vread()
+	 * and kmap_atomic() (i.e. kcore) to avoid __va() failures.
+	 */
+	vaddr = vmap(pages, page_count, VM_MAP | VM_IOREMAP, prot);
 	kfree(pages);
 
 	/*
@@ -502,7 +518,7 @@ static int persistent_ram_post_init(struct persistent_ram_zone *prz, u32 sig,
 	sig ^= PERSISTENT_RAM_SIG;
 
 	if (prz->buffer->sig == sig) {
-		if (buffer_size(prz) == 0) {
+		if (buffer_size(prz) == 0 && buffer_start(prz) == 0) {
 			pr_debug("found existing empty buffer\n");
 			return 0;
 		}
@@ -531,8 +547,14 @@ static int persistent_ram_post_init(struct persistent_ram_zone *prz, u32 sig,
 	return 0;
 }
 
-void persistent_ram_free(struct persistent_ram_zone *prz)
+void persistent_ram_free(struct persistent_ram_zone **_prz)
 {
+	struct persistent_ram_zone *prz;
+
+	if (!_prz)
+		return;
+
+	prz = *_prz;
 	if (!prz)
 		return;
 
@@ -556,6 +578,7 @@ void persistent_ram_free(struct persistent_ram_zone *prz)
 	persistent_ram_free_old(prz);
 	kfree(prz->label);
 	kfree(prz);
+	*_prz = NULL;
 }
 
 struct persistent_ram_zone *persistent_ram_new(phys_addr_t start, size_t size,
@@ -574,7 +597,9 @@ struct persistent_ram_zone *persistent_ram_new(phys_addr_t start, size_t size,
 	/* Initialize general buffer state. */
 	raw_spin_lock_init(&prz->buffer_lock);
 	prz->flags = flags;
-	prz->label = label;
+	prz->label = kstrdup(label, GFP_KERNEL);
+	if (!prz->label)
+		goto err;
 
 	ret = persistent_ram_buffer_map(start, size, prz, memtype);
 	if (ret)
@@ -592,6 +617,6 @@ struct persistent_ram_zone *persistent_ram_new(phys_addr_t start, size_t size,
 
 	return prz;
 err:
-	persistent_ram_free(prz);
+	persistent_ram_free(&prz);
 	return ERR_PTR(ret);
 }

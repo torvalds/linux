@@ -4,7 +4,7 @@
 
    1 char	Memory devices
 		  1 = /dev/mem		Physical memory access
-		  2 = /dev/kmem		Kernel virtual memory access
+		  2 = /dev/kmem		OBSOLETE - replaced by /proc/kcore
 		  3 = /dev/null		Null device
 		  4 = /dev/port		I/O port access
 		  5 = /dev/zero		Null byte source
@@ -289,7 +289,7 @@
 		152 = /dev/kpoll	Kernel Poll Driver
 		153 = /dev/mergemem	Memory merge device
 		154 = /dev/pmu		Macintosh PowerBook power manager
-		155 = /dev/isictl	MultiTech ISICom serial control
+		155 =
 		156 = /dev/lcd		Front panel LCD display
 		157 = /dev/ac		Applicom Intl Profibus card
 		158 = /dev/nwbutton	Netwinder external button
@@ -319,7 +319,7 @@
 		182 = /dev/perfctr	Performance-monitoring counters
 		183 = /dev/hwrng	Generic random number generator
 		184 = /dev/cpu/microcode CPU microcode update interface
-		186 = /dev/atomicps	Atomic shapshot of process state data
+		186 = /dev/atomicps	Atomic snapshot of process state data
 		187 = /dev/irnet	IrNET device
 		188 = /dev/smbusbios	SMBus BIOS
 		189 = /dev/ussp_ctl	User space serial port control
@@ -375,8 +375,9 @@
 		239 = /dev/uhid		User-space I/O driver support for HID subsystem
 		240 = /dev/userio	Serio driver testing device
 		241 = /dev/vhost-vsock	Host kernel driver for virtio vsock
+		242 = /dev/rfkill	Turning off radio transmissions (rfkill)
 
-		242-254			Reserved for local use
+		243-254			Reserved for local use
 		255			Reserved for MISC_DYNAMIC_MINOR
 
   11 char	Raw keyboard device	(Linux/SPARC only)
@@ -476,11 +477,6 @@
   18 block	Sanyo CD-ROM
 		  0 = /dev/sjcd		Sanyo CD-ROM
 
-  19 char	Cyclades serial card
-		  0 = /dev/ttyC0	First Cyclades port
-		    ...
-		 31 = /dev/ttyC31	32nd Cyclades port
-
   19 block	"Double" compressed disk
 		  0 = /dev/double0	First compressed disk
 		    ...
@@ -491,11 +487,6 @@
 
 		See the Double documentation for the meaning of the
 		mirror devices.
-
-  20 char	Cyclades serial card - alternate devices
-		  0 = /dev/cub0		Callout device for ttyC0
-		    ...
-		 31 = /dev/cub31	Callout device for ttyC31
 
   20 block	Hitachi CD-ROM (under development)
 		  0 = /dev/hitcd	Hitachi CD-ROM
@@ -1442,7 +1433,7 @@
 		    ...
 
 		The driver and documentation may be obtained from
-		http://www.winradio.com/
+		https://www.winradio.com/
 
   82 block	I2O hard disk
 		  0 = /dev/i2o/hdag	33rd I2O hard disk, whole disk
@@ -1656,12 +1647,12 @@
 		dynamically, so there is no fixed mapping from subdevice
 		pathnames to minor numbers.
 
-		See http://www.comedi.org/ for information about the Comedi
+		See https://www.comedi.org/ for information about the Comedi
 		project.
 
   98 block	User-mode virtual block device
 		  0 = /dev/ubda		First user-mode block device
-		 16 = /dev/udbb		Second user-mode block device
+		 16 = /dev/ubdb		Second user-mode block device
 		    ...
 
 		Partitions are handled in the same way as for IDE
@@ -1723,7 +1714,7 @@
 		implementations a kernel presence for caching and easy
 		mounting.  For more information about the project,
 		write to <arla-drinkers@stacken.kth.se> or see
-		http://www.stacken.kth.se/project/arla/
+		https://www.stacken.kth.se/project/arla/
 
  103 block	Audit device
 		  0 = /dev/audit	Audit device
@@ -1942,7 +1933,7 @@
 		    ...
 		255= /dev/umem/d15p15  15th partition of 16th board.
 
- 117 char	COSA/SRP synchronous serial card
+ 117 char	[REMOVED] COSA/SRP synchronous serial card
 		  0 = /dev/cosa0c0	1st board, 1st channel
 		  1 = /dev/cosa0c1	1st board, 2nd channel
 		    ...
@@ -2348,13 +2339,7 @@
 		disks (see major number 3) except that the limit on
 		partitions is 31.
 
- 162 char	Raw block device interface
-		  0 = /dev/rawctl	Raw I/O control device
-		  1 = /dev/raw/raw1	First raw I/O device
-		  2 = /dev/raw/raw2	Second raw I/O device
-		    ...
-		 max minor number of raw device is set by kernel config
-		 MAX_RAW_DEVS or raw module parameter 'max_raw_devs'
+ 162 char	Used for (now removed) raw block device interface
 
  163 char
 
@@ -2706,18 +2691,9 @@
 		 45 = /dev/ttyMM1		Marvell MPSC - port 1 (obsolete unused)
 		 46 = /dev/ttyCPM0		PPC CPM (SCC or SMC) - port 0
 		    ...
-		 47 = /dev/ttyCPM5		PPC CPM (SCC or SMC) - port 5
-		 50 = /dev/ttyIOC0		Altix serial card
-		    ...
-		 81 = /dev/ttyIOC31		Altix serial card
+		 51 = /dev/ttyCPM5		PPC CPM (SCC or SMC) - port 5
 		 82 = /dev/ttyVR0		NEC VR4100 series SIU
 		 83 = /dev/ttyVR1		NEC VR4100 series DSIU
-		 84 = /dev/ttyIOC84		Altix ioc4 serial card
-		    ...
-		 115 = /dev/ttyIOC115		Altix ioc4 serial card
-		 116 = /dev/ttySIOC0		Altix ioc3 serial card
-		    ...
-		 147 = /dev/ttySIOC31		Altix ioc3 serial card
 		 148 = /dev/ttyPSC0		PPC PSC - port 0
 		    ...
 		 153 = /dev/ttyPSC5		PPC PSC - port 5
@@ -2728,6 +2704,9 @@
 		    ...
 		 185 = /dev/ttyNX15		Hilscher netX serial port 15
 		 186 = /dev/ttyJ0		JTAG1 DCC protocol based serial port emulation
+
+		 If maximum number of uartlite serial ports is more than 4, then the driver
+		 uses dynamic allocation instead of static allocation for major number.
 		 187 = /dev/ttyUL0		Xilinx uartlite - port 0
 		    ...
 		 190 = /dev/ttyUL3		Xilinx uartlite - port 3
@@ -2776,10 +2755,7 @@
 		 43 = /dev/ttycusmx2		Callout device for ttySMX2
 		 46 = /dev/cucpm0		Callout device for ttyCPM0
 		    ...
-		 49 = /dev/cucpm5		Callout device for ttyCPM5
-		 50 = /dev/cuioc40		Callout device for ttyIOC40
-		    ...
-		 81 = /dev/cuioc431		Callout device for ttyIOC431
+		 51 = /dev/cucpm5		Callout device for ttyCPM5
 		 82 = /dev/cuvr0		Callout device for ttyVR0
 		 83 = /dev/cuvr1		Callout device for ttyVR1
 
@@ -3002,10 +2978,10 @@
 		65 = /dev/infiniband/issm1     Second InfiniBand IsSM device
 		  ...
 		127 = /dev/infiniband/issm63    63rd InfiniBand IsSM device
-		128 = /dev/infiniband/uverbs0   First InfiniBand verbs device
-		129 = /dev/infiniband/uverbs1   Second InfiniBand verbs device
+		192 = /dev/infiniband/uverbs0   First InfiniBand verbs device
+		193 = /dev/infiniband/uverbs1   Second InfiniBand verbs device
 		  ...
-		159 = /dev/infiniband/uverbs31  31st InfiniBand verbs device
+		223 = /dev/infiniband/uverbs31  31st InfiniBand verbs device
 
  232 char	Biometric Devices
 		0 = /dev/biometric/sensor0/fingerprint	first fingerprint sensor on first device
@@ -3094,6 +3070,11 @@
 		  1 = /dev/osd1		Second OSD Device
 		  ...
 		  255 = /dev/osd255	256th OSD Device
+
+ 261 char	Compute Acceleration Devices
+		  0 = /dev/accel/accel0	First acceleration device
+		  1 = /dev/accel/accel1	Second acceleration device
+		    ...
 
  384-511 char	RESERVED FOR DYNAMIC ASSIGNMENT
 		Character devices that request a dynamic allocation of major

@@ -18,7 +18,6 @@
 #define cpu_has_4kex			1
 #define cpu_has_3k_cache		0
 #define cpu_has_4k_cache		1
-#define cpu_has_tx39_cache		0
 #define cpu_has_sb1_cache		0
 #define cpu_has_fpu			0
 #define cpu_has_32fpr			0
@@ -56,6 +55,5 @@
 #define cpu_has_64bits			0
 #define cpu_has_64bit_zero_reg		0
 #define cpu_has_64bit_gp_regs		0
-#define cpu_has_64bit_addresses		0
 
 #endif /* __ASM_MACH_ATH25_CPU_FEATURE_OVERRIDES_H */

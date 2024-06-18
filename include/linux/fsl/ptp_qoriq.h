@@ -135,7 +135,8 @@ struct ptp_qoriq_registers {
 #define DEFAULT_CKSEL		1
 #define DEFAULT_TMR_PRSC	2
 #define DEFAULT_FIPER1_PERIOD	1000000000
-#define DEFAULT_FIPER2_PERIOD	100000
+#define DEFAULT_FIPER2_PERIOD	1000000000
+#define DEFAULT_FIPER3_PERIOD	1000000000
 
 struct ptp_qoriq {
 	void __iomem *base;
@@ -147,16 +148,17 @@ struct ptp_qoriq {
 	struct dentry *debugfs_root;
 	struct device *dev;
 	bool extts_fifo_support;
+	bool fiper3_support;
+	bool etsec;
 	int irq;
 	int phc_index;
-	u64 alarm_interval; /* for periodic alarm */
-	u64 alarm_value;
 	u32 tclk_period;  /* nanoseconds */
 	u32 tmr_prsc;
 	u32 tmr_add;
 	u32 cksel;
 	u32 tmr_fiper1;
 	u32 tmr_fiper2;
+	u32 tmr_fiper3;
 	u32 (*read)(unsigned __iomem *addr);
 	void (*write)(unsigned __iomem *addr, u32 val);
 };
@@ -192,6 +194,7 @@ int ptp_qoriq_settime(struct ptp_clock_info *ptp,
 		      const struct timespec64 *ts);
 int ptp_qoriq_enable(struct ptp_clock_info *ptp,
 		     struct ptp_clock_request *rq, int on);
+int extts_clean_up(struct ptp_qoriq *ptp_qoriq, int index, bool update_event);
 #ifdef CONFIG_DEBUG_FS
 void ptp_qoriq_create_debugfs(struct ptp_qoriq *ptp_qoriq);
 void ptp_qoriq_remove_debugfs(struct ptp_qoriq *ptp_qoriq);

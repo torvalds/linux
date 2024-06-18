@@ -25,12 +25,22 @@ static int bcm63xx_config_intr(struct phy_device *phydev)
 	if (reg < 0)
 		return reg;
 
-	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
-		reg &= ~MII_BCM63XX_IR_GMASK;
-	else
-		reg |= MII_BCM63XX_IR_GMASK;
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = bcm_phy_ack_intr(phydev);
+		if (err)
+			return err;
 
-	err = phy_write(phydev, MII_BCM63XX_IR, reg);
+		reg &= ~MII_BCM63XX_IR_GMASK;
+		err = phy_write(phydev, MII_BCM63XX_IR, reg);
+	} else {
+		reg |= MII_BCM63XX_IR_GMASK;
+		err = phy_write(phydev, MII_BCM63XX_IR, reg);
+		if (err)
+			return err;
+
+		err = bcm_phy_ack_intr(phydev);
+	}
+
 	return err;
 }
 
@@ -67,17 +77,18 @@ static struct phy_driver bcm63xx_driver[] = {
 	/* PHY_BASIC_FEATURES */
 	.flags		= PHY_IS_INTERNAL,
 	.config_init	= bcm63xx_config_init,
-	.ack_interrupt	= bcm_phy_ack_intr,
 	.config_intr	= bcm63xx_config_intr,
+	.handle_interrupt = bcm_phy_handle_interrupt,
 }, {
 	/* same phy as above, with just a different OUI */
 	.phy_id		= 0x002bdc00,
 	.phy_id_mask	= 0xfffffc00,
+	.name		= "Broadcom BCM63XX (2)",
 	/* PHY_BASIC_FEATURES */
 	.flags		= PHY_IS_INTERNAL,
 	.config_init	= bcm63xx_config_init,
-	.ack_interrupt	= bcm_phy_ack_intr,
 	.config_intr	= bcm63xx_config_intr,
+	.handle_interrupt = bcm_phy_handle_interrupt,
 } };
 
 module_phy_driver(bcm63xx_driver);

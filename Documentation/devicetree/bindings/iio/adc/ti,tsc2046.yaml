@@ -1,0 +1,119 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/adc/ti,tsc2046.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments TSC2046 touch screen controller.
+
+maintainers:
+  - Oleksij Rempel <o.rempel@pengutronix.de>
+
+description: |
+  TSC2046 is a touch screen controller with 8 channels ADC.
+
+properties:
+  compatible:
+    enum:
+      - ti,tsc2046e-adc
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  vref-supply:
+    description: Optional supply of the reference voltage
+
+  "#io-channel-cells":
+    const: 1
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
+required:
+  - compatible
+  - reg
+
+patternProperties:
+  "^channel@[0-7]$":
+    $ref: adc.yaml
+    type: object
+
+    properties:
+      reg:
+        description: |
+          The channel number. It can have up to 8 channels
+        items:
+          minimum: 0
+          maximum: 7
+
+      settling-time-us: true
+      oversampling-ratio: true
+
+    required:
+      - reg
+
+    additionalProperties: false
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        adc@0 {
+            compatible = "ti,tsc2046e-adc";
+            reg = <0>;
+            spi-max-frequency = <1000000>;
+            interrupts-extended = <&gpio3 20 IRQ_TYPE_LEVEL_LOW>;
+            #io-channel-cells = <1>;
+
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            channel@0 {
+                reg = <0>;
+            };
+            channel@1 {
+                reg = <1>;
+                settling-time-us = <700>;
+                oversampling-ratio = <5>;
+            };
+            channel@2 {
+                reg = <2>;
+            };
+            channel@3 {
+                reg = <3>;
+                settling-time-us = <700>;
+                oversampling-ratio = <5>;
+            };
+            channel@4 {
+                reg = <4>;
+                settling-time-us = <700>;
+                oversampling-ratio = <5>;
+            };
+            channel@5 {
+                reg = <5>;
+                settling-time-us = <700>;
+                oversampling-ratio = <5>;
+            };
+            channel@6 {
+                reg = <6>;
+            };
+            channel@7 {
+                reg = <7>;
+            };
+        };
+    };
+...

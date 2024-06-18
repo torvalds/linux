@@ -4,8 +4,8 @@
 #include <linux/bpf.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
-#include "bpf_helpers.h"
-#include "bpf_endian.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_endian.h>
 
 struct grehdr {
 	__be16 flags;

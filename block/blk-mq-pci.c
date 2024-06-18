@@ -4,7 +4,6 @@
  */
 #include <linux/kobject.h>
 #include <linux/blkdev.h>
-#include <linux/blk-mq.h>
 #include <linux/blk-mq-pci.h>
 #include <linux/pci.h>
 #include <linux/module.h>
@@ -23,8 +22,8 @@
  * that maps a queue to the CPUs that have irq affinity for the corresponding
  * vector.
  */
-int blk_mq_pci_map_queues(struct blk_mq_queue_map *qmap, struct pci_dev *pdev,
-			    int offset)
+void blk_mq_pci_map_queues(struct blk_mq_queue_map *qmap, struct pci_dev *pdev,
+			   int offset)
 {
 	const struct cpumask *mask;
 	unsigned int queue, cpu;
@@ -38,11 +37,10 @@ int blk_mq_pci_map_queues(struct blk_mq_queue_map *qmap, struct pci_dev *pdev,
 			qmap->mq_map[cpu] = qmap->queue_offset + queue;
 	}
 
-	return 0;
+	return;
 
 fallback:
 	WARN_ON_ONCE(qmap->nr_queues > 1);
 	blk_mq_clear_mq_map(qmap);
-	return 0;
 }
 EXPORT_SYMBOL_GPL(blk_mq_pci_map_queues);

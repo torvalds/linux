@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright 2019 MediaTek Inc.
+ */
+
+/dts-v1/;
+#include "mt8173-elm-hana.dtsi"
+
+/ {
+	model = "Google Hanawl";
+	chassis-type = "laptop";
+	compatible = "google,hana-rev7", "mediatek,mt8173";
+};
+
+&cpu_thermal {
+	trips {
+		cpu_crit: cpu-crit0 {
+			temperature = <100000>;
+			type = "critical";
+		};
+	};
+};
+
+&gpio_keys {
+	/delete-node/switch-tablet-mode;
+	/delete-node/switch-volume-down;
+	/delete-node/switch-volume-up;
+};

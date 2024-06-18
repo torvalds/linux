@@ -20,8 +20,9 @@
 #include "meter.h"
 #include "vport-internal_dev.h"
 
-#define DP_MAX_PORTS           USHRT_MAX
-#define DP_VPORT_HASH_BUCKETS  1024
+#define DP_MAX_PORTS                USHRT_MAX
+#define DP_VPORT_HASH_BUCKETS       1024
+#define DP_MASKS_REBALANCE_INTERVAL 4000
 
 /**
  * struct dp_stats_percpu - per-cpu packet processing statistics for a given
@@ -37,13 +38,31 @@
  * @n_mask_hit: Number of masks looked up for flow match.
  *   @n_mask_hit / (@n_hit + @n_missed)  will be the average masks looked
  *   up per packet.
+ * @n_cache_hit: The number of received packets that had their mask found using
+ * the mask cache.
  */
 struct dp_stats_percpu {
 	u64 n_hit;
 	u64 n_missed;
 	u64 n_lost;
 	u64 n_mask_hit;
+	u64 n_cache_hit;
 	struct u64_stats_sync syncp;
+};
+
+/**
+ * struct dp_nlsk_pids - array of netlink portids of for a datapath.
+ *                       This is used when OVS_DP_F_DISPATCH_UPCALL_PER_CPU
+ *                       is enabled and must be protected by rcu.
+ * @rcu: RCU callback head for deferred destruction.
+ * @n_pids: Size of @pids array.
+ * @pids: Array storing the Netlink socket PIDs indexed by CPU ID for packets
+ *       that miss the flow table.
+ */
+struct dp_nlsk_pids {
+	struct rcu_head rcu;
+	u32 n_pids;
+	u32 pids[];
 };
 
 /**
@@ -57,6 +76,7 @@ struct dp_stats_percpu {
  * @net: Reference to net namespace.
  * @max_headroom: the maximum headroom of all vports in this datapath; it will
  * be used by all the internal vports in this dp.
+ * @upcall_portids: RCU protected 'struct dp_nlsk_pids'.
  *
  * Context: See the comment on locking at the top of datapath.c for additional
  * locking information.
@@ -82,7 +102,9 @@ struct datapath {
 	u32 max_headroom;
 
 	/* Switch meters. */
-	struct hlist_head *meters;
+	struct dp_meter_table meter_tbl;
+
+	struct dp_nlsk_pids __rcu *upcall_portids;
 };
 
 /**
@@ -131,12 +153,25 @@ struct dp_upcall_info {
 struct ovs_net {
 	struct list_head dps;
 	struct work_struct dp_notify_work;
+	struct delayed_work masks_rebalance;
 #if	IS_ENABLED(CONFIG_NETFILTER_CONNCOUNT)
 	struct ovs_ct_limit_info *ct_limit_info;
 #endif
 
 	/* Module reference for configuring conntrack. */
 	bool xt_label;
+};
+
+/**
+ * enum ovs_pkt_hash_types - hash info to include with a packet
+ * to send to userspace.
+ * @OVS_PACKET_HASH_SW_BIT: indicates hash was computed in software stack.
+ * @OVS_PACKET_HASH_L4_BIT: indicates hash is a canonical 4-tuple hash
+ * over transport ports.
+ */
+enum ovs_pkt_hash_types {
+	OVS_PACKET_HASH_SW_BIT = (1ULL << 32),
+	OVS_PACKET_HASH_L4_BIT = (1ULL << 33),
 };
 
 extern unsigned int ovs_net_id;
@@ -218,13 +253,13 @@ static inline struct datapath *get_dp(struct net *net, int dp_ifindex)
 extern struct notifier_block ovs_dp_device_notifier;
 extern struct genl_family dp_vport_genl_family;
 
-DECLARE_STATIC_KEY_FALSE(tc_recirc_sharing_support);
-
 void ovs_dp_process_packet(struct sk_buff *skb, struct sw_flow_key *key);
 void ovs_dp_detach_port(struct vport *);
 int ovs_dp_upcall(struct datapath *, struct sk_buff *,
 		  const struct sw_flow_key *, const struct dp_upcall_info *,
 		  uint32_t cutlen);
+
+u32 ovs_dp_get_upcall_portid(const struct datapath *dp, uint32_t cpu_id);
 
 const char *ovs_dp_name(const struct datapath *dp);
 struct sk_buff *ovs_vport_cmd_build_info(struct vport *vport, struct net *net,

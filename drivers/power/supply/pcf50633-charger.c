@@ -153,7 +153,7 @@ show_chgmode(struct device *dev, struct device_attribute *attr, char *buf)
 	u8 mbcs2 = pcf50633_reg_read(mbc->pcf, PCF50633_REG_MBCS2);
 	u8 chgmod = (mbcs2 & PCF50633_MBCS2_MBC_MASK);
 
-	return sprintf(buf, "%d\n", chgmod);
+	return sysfs_emit(buf, "%d\n", chgmod);
 }
 static DEVICE_ATTR(chgmode, S_IRUGO, show_chgmode, NULL);
 
@@ -174,7 +174,7 @@ show_usblim(struct device *dev, struct device_attribute *attr, char *buf)
 	else
 		ma = 0;
 
-	return sprintf(buf, "%u\n", ma);
+	return sysfs_emit(buf, "%u\n", ma);
 }
 
 static ssize_t set_usblim(struct device *dev,
@@ -207,7 +207,7 @@ show_chglim(struct device *dev, struct device_attribute *attr, char *buf)
 
 	ma = (mbc->pcf->pdata->charger_reference_current_ma *  mbcc5) >> 8;
 
-	return sprintf(buf, "%u\n", ma);
+	return sysfs_emit(buf, "%u\n", ma);
 }
 
 static ssize_t set_chglim(struct device *dev,
@@ -404,9 +404,9 @@ static int pcf50633_mbc_probe(struct platform_device *pdev)
 	psy_cfg.drv_data		= mbc;
 
 	/* Create power supplies */
-	mbc->adapter = power_supply_register(&pdev->dev,
-					     &pcf50633_mbc_adapter_desc,
-					     &psy_cfg);
+	mbc->adapter = devm_power_supply_register(&pdev->dev,
+						  &pcf50633_mbc_adapter_desc,
+						  &psy_cfg);
 	if (IS_ERR(mbc->adapter)) {
 		dev_err(mbc->pcf->dev, "failed to register adapter\n");
 		return PTR_ERR(mbc->adapter);
@@ -415,20 +415,19 @@ static int pcf50633_mbc_probe(struct platform_device *pdev)
 	usb_psy_cfg = psy_cfg;
 	usb_psy_cfg.attr_grp = pcf50633_mbc_sysfs_groups;
 
-	mbc->usb = power_supply_register(&pdev->dev, &pcf50633_mbc_usb_desc,
-					 &usb_psy_cfg);
+	mbc->usb = devm_power_supply_register(&pdev->dev,
+					      &pcf50633_mbc_usb_desc,
+					      &usb_psy_cfg);
 	if (IS_ERR(mbc->usb)) {
 		dev_err(mbc->pcf->dev, "failed to register usb\n");
-		power_supply_unregister(mbc->adapter);
 		return PTR_ERR(mbc->usb);
 	}
 
-	mbc->ac = power_supply_register(&pdev->dev, &pcf50633_mbc_ac_desc,
-					&psy_cfg);
+	mbc->ac = devm_power_supply_register(&pdev->dev,
+					     &pcf50633_mbc_ac_desc,
+					     &psy_cfg);
 	if (IS_ERR(mbc->ac)) {
 		dev_err(mbc->pcf->dev, "failed to register ac\n");
-		power_supply_unregister(mbc->adapter);
-		power_supply_unregister(mbc->usb);
 		return PTR_ERR(mbc->ac);
 	}
 
@@ -441,7 +440,7 @@ static int pcf50633_mbc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int pcf50633_mbc_remove(struct platform_device *pdev)
+static void pcf50633_mbc_remove(struct platform_device *pdev)
 {
 	struct pcf50633_mbc *mbc = platform_get_drvdata(pdev);
 	int i;
@@ -449,12 +448,6 @@ static int pcf50633_mbc_remove(struct platform_device *pdev)
 	/* Remove IRQ handlers */
 	for (i = 0; i < ARRAY_SIZE(mbc_irq_handlers); i++)
 		pcf50633_free_irq(mbc->pcf, mbc_irq_handlers[i]);
-
-	power_supply_unregister(mbc->usb);
-	power_supply_unregister(mbc->adapter);
-	power_supply_unregister(mbc->ac);
-
-	return 0;
 }
 
 static struct platform_driver pcf50633_mbc_driver = {
@@ -462,7 +455,7 @@ static struct platform_driver pcf50633_mbc_driver = {
 		.name = "pcf50633-mbc",
 	},
 	.probe = pcf50633_mbc_probe,
-	.remove = pcf50633_mbc_remove,
+	.remove_new = pcf50633_mbc_remove,
 };
 
 module_platform_driver(pcf50633_mbc_driver);

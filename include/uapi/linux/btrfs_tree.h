@@ -4,6 +4,28 @@
 
 #include <linux/btrfs.h>
 #include <linux/types.h>
+#ifdef __KERNEL__
+#include <linux/stddef.h>
+#else
+#include <stddef.h>
+#endif
+
+/* ASCII for _BHRfS_M, no terminating nul */
+#define BTRFS_MAGIC 0x4D5F53665248425FULL
+
+#define BTRFS_MAX_LEVEL 8
+
+/*
+ * We can actually store much bigger names, but lets not confuse the rest of
+ * linux.
+ */
+#define BTRFS_NAME_LEN 255
+
+/*
+ * Theoretical limit is larger, but we keep this down to a sane value. That
+ * should limit greatly the possibility of collisions on inode ref items.
+ */
+#define BTRFS_LINK_MAX 65535U
 
 /*
  * This header contains the structure definitions and constants used
@@ -48,13 +70,19 @@
 /* tracks free space in block groups. */
 #define BTRFS_FREE_SPACE_TREE_OBJECTID 10ULL
 
+/* Holds the block group items for extent tree v2. */
+#define BTRFS_BLOCK_GROUP_TREE_OBJECTID 11ULL
+
+/* Tracks RAID stripes in block groups. */
+#define BTRFS_RAID_STRIPE_TREE_OBJECTID 12ULL
+
 /* device stats in the device tree */
 #define BTRFS_DEV_STATS_OBJECTID 0ULL
 
 /* for storing balance parameters in the root tree */
 #define BTRFS_BALANCE_OBJECTID -4ULL
 
-/* orhpan objectid for tracking unlinked/truncated files */
+/* orphan objectid for tracking unlinked/truncated files */
 #define BTRFS_ORPHAN_OBJECTID -5ULL
 
 /* does write ahead logging to speed up fsyncs */
@@ -113,12 +141,37 @@
 #define BTRFS_INODE_REF_KEY		12
 #define BTRFS_INODE_EXTREF_KEY		13
 #define BTRFS_XATTR_ITEM_KEY		24
+
+/*
+ * fs verity items are stored under two different key types on disk.
+ * The descriptor items:
+ * [ inode objectid, BTRFS_VERITY_DESC_ITEM_KEY, offset ]
+ *
+ * At offset 0, we store a btrfs_verity_descriptor_item which tracks the size
+ * of the descriptor item and some extra data for encryption.
+ * Starting at offset 1, these hold the generic fs verity descriptor.  The
+ * latter are opaque to btrfs, we just read and write them as a blob for the
+ * higher level verity code.  The most common descriptor size is 256 bytes.
+ *
+ * The merkle tree items:
+ * [ inode objectid, BTRFS_VERITY_MERKLE_ITEM_KEY, offset ]
+ *
+ * These also start at offset 0, and correspond to the merkle tree bytes.  When
+ * fsverity asks for page 0 of the merkle tree, we pull up one page starting at
+ * offset 0 for this key type.  These are also opaque to btrfs, we're blindly
+ * storing whatever fsverity sends down.
+ */
+#define BTRFS_VERITY_DESC_ITEM_KEY	36
+#define BTRFS_VERITY_MERKLE_ITEM_KEY	37
+
 #define BTRFS_ORPHAN_ITEM_KEY		48
 /* reserve 2-15 close to the inode for later flexibility */
 
 /*
  * dir items are the name -> inode pointers in a directory.  There is one
- * for every name in a directory.
+ * for every name in a directory.  BTRFS_DIR_LOG_ITEM_KEY is no longer used
+ * but it's still defined here for documentation purposes and to help avoid
+ * having its numerical value reused in the future.
  */
 #define BTRFS_DIR_LOG_ITEM_KEY  60
 #define BTRFS_DIR_LOG_INDEX_KEY 72
@@ -166,11 +219,31 @@
  */
 #define BTRFS_METADATA_ITEM_KEY	169
 
+/*
+ * Special inline ref key which stores the id of the subvolume which originally
+ * created the extent. This subvolume owns the extent permanently from the
+ * perspective of simple quotas. Needed to know which subvolume to free quota
+ * usage from when the extent is deleted.
+ *
+ * Stored as an inline ref rather to avoid wasting space on a separate item on
+ * top of the existing extent item. However, unlike the other inline refs,
+ * there is one one owner ref per extent rather than one per extent.
+ *
+ * Because of this, it goes at the front of the list of inline refs, and thus
+ * must have a lower type value than any other inline ref type (to satisfy the
+ * disk format rule that inline refs have non-decreasing type).
+ */
+#define BTRFS_EXTENT_OWNER_REF_KEY	172
+
 #define BTRFS_TREE_BLOCK_REF_KEY	176
 
 #define BTRFS_EXTENT_DATA_REF_KEY	178
 
-#define BTRFS_EXTENT_REF_V0_KEY		180
+/*
+ * Obsolete key. Defintion removed in 6.6, value may be reused in the future.
+ *
+ * #define BTRFS_EXTENT_REF_V0_KEY	180
+ */
 
 #define BTRFS_SHARED_BLOCK_REF_KEY	182
 
@@ -206,6 +279,8 @@
 #define BTRFS_DEV_EXTENT_KEY	204
 #define BTRFS_DEV_ITEM_KEY	216
 #define BTRFS_CHUNK_ITEM_KEY	228
+
+#define BTRFS_RAID_STRIPE_KEY	230
 
 /*
  * Records the overall state of the qgroups.
@@ -270,7 +345,7 @@
 #define BTRFS_PERSISTENT_ITEM_KEY	249
 
 /*
- * Persistantly stores the device replace state in the device tree.
+ * Persistently stores the device replace state in the device tree.
  * The key is built like this: (0, BTRFS_DEV_REPLACE_KEY, 0).
  */
 #define BTRFS_DEV_REPLACE_KEY	250
@@ -294,7 +369,8 @@
  */
 #define BTRFS_STRING_ITEM_KEY	253
 
-
+/* Maximum metadata block size (nodesize) */
+#define BTRFS_MAX_METADATA_BLOCKSIZE			65536
 
 /* 32 bytes in various csum fields */
 #define BTRFS_CSUM_SIZE 32
@@ -302,6 +378,9 @@
 /* csum types */
 enum btrfs_csum_type {
 	BTRFS_CSUM_TYPE_CRC32	= 0,
+	BTRFS_CSUM_TYPE_XXHASH	= 1,
+	BTRFS_CSUM_TYPE_SHA256	= 2,
+	BTRFS_CSUM_TYPE_BLAKE2	= 3,
 };
 
 /*
@@ -322,6 +401,50 @@ enum btrfs_csum_type {
 #define BTRFS_FT_SYMLINK	7
 #define BTRFS_FT_XATTR		8
 #define BTRFS_FT_MAX		9
+/* Directory contains encrypted data */
+#define BTRFS_FT_ENCRYPTED	0x80
+
+static inline __u8 btrfs_dir_flags_to_ftype(__u8 flags)
+{
+	return flags & ~BTRFS_FT_ENCRYPTED;
+}
+
+/*
+ * Inode flags
+ */
+#define BTRFS_INODE_NODATASUM		(1U << 0)
+#define BTRFS_INODE_NODATACOW		(1U << 1)
+#define BTRFS_INODE_READONLY		(1U << 2)
+#define BTRFS_INODE_NOCOMPRESS		(1U << 3)
+#define BTRFS_INODE_PREALLOC		(1U << 4)
+#define BTRFS_INODE_SYNC		(1U << 5)
+#define BTRFS_INODE_IMMUTABLE		(1U << 6)
+#define BTRFS_INODE_APPEND		(1U << 7)
+#define BTRFS_INODE_NODUMP		(1U << 8)
+#define BTRFS_INODE_NOATIME		(1U << 9)
+#define BTRFS_INODE_DIRSYNC		(1U << 10)
+#define BTRFS_INODE_COMPRESS		(1U << 11)
+
+#define BTRFS_INODE_ROOT_ITEM_INIT	(1U << 31)
+
+#define BTRFS_INODE_FLAG_MASK						\
+	(BTRFS_INODE_NODATASUM |					\
+	 BTRFS_INODE_NODATACOW |					\
+	 BTRFS_INODE_READONLY |						\
+	 BTRFS_INODE_NOCOMPRESS |					\
+	 BTRFS_INODE_PREALLOC |						\
+	 BTRFS_INODE_SYNC |						\
+	 BTRFS_INODE_IMMUTABLE |					\
+	 BTRFS_INODE_APPEND |						\
+	 BTRFS_INODE_NODUMP |						\
+	 BTRFS_INODE_NOATIME |						\
+	 BTRFS_INODE_DIRSYNC |						\
+	 BTRFS_INODE_COMPRESS |						\
+	 BTRFS_INODE_ROOT_ITEM_INIT)
+
+#define BTRFS_INODE_RO_VERITY		(1U << 0)
+
+#define BTRFS_INODE_RO_FLAG_MASK	(BTRFS_INODE_RO_VERITY)
 
 /*
  * The key defines the order in the tree, and so it also defines (optimal)
@@ -350,6 +473,109 @@ struct btrfs_key {
 	__u64 objectid;
 	__u8 type;
 	__u64 offset;
+} __attribute__ ((__packed__));
+
+/*
+ * Every tree block (leaf or node) starts with this header.
+ */
+struct btrfs_header {
+	/* These first four must match the super block */
+	__u8 csum[BTRFS_CSUM_SIZE];
+	/* FS specific uuid */
+	__u8 fsid[BTRFS_FSID_SIZE];
+	/* Which block this node is supposed to live in */
+	__le64 bytenr;
+	__le64 flags;
+
+	/* Allowed to be different from the super from here on down */
+	__u8 chunk_tree_uuid[BTRFS_UUID_SIZE];
+	__le64 generation;
+	__le64 owner;
+	__le32 nritems;
+	__u8 level;
+} __attribute__ ((__packed__));
+
+/*
+ * This is a very generous portion of the super block, giving us room to
+ * translate 14 chunks with 3 stripes each.
+ */
+#define BTRFS_SYSTEM_CHUNK_ARRAY_SIZE 2048
+
+/*
+ * Just in case we somehow lose the roots and are not able to mount, we store
+ * an array of the roots from previous transactions in the super.
+ */
+#define BTRFS_NUM_BACKUP_ROOTS 4
+struct btrfs_root_backup {
+	__le64 tree_root;
+	__le64 tree_root_gen;
+
+	__le64 chunk_root;
+	__le64 chunk_root_gen;
+
+	__le64 extent_root;
+	__le64 extent_root_gen;
+
+	__le64 fs_root;
+	__le64 fs_root_gen;
+
+	__le64 dev_root;
+	__le64 dev_root_gen;
+
+	__le64 csum_root;
+	__le64 csum_root_gen;
+
+	__le64 total_bytes;
+	__le64 bytes_used;
+	__le64 num_devices;
+	/* future */
+	__le64 unused_64[4];
+
+	__u8 tree_root_level;
+	__u8 chunk_root_level;
+	__u8 extent_root_level;
+	__u8 fs_root_level;
+	__u8 dev_root_level;
+	__u8 csum_root_level;
+	/* future and to align */
+	__u8 unused_8[10];
+} __attribute__ ((__packed__));
+
+/*
+ * A leaf is full of items. offset and size tell us where to find the item in
+ * the leaf (relative to the start of the data area)
+ */
+struct btrfs_item {
+	struct btrfs_disk_key key;
+	__le32 offset;
+	__le32 size;
+} __attribute__ ((__packed__));
+
+/*
+ * Leaves have an item area and a data area:
+ * [item0, item1....itemN] [free space] [dataN...data1, data0]
+ *
+ * The data is separate from the items to get the keys closer together during
+ * searches.
+ */
+struct btrfs_leaf {
+	struct btrfs_header header;
+	struct btrfs_item items[];
+} __attribute__ ((__packed__));
+
+/*
+ * All non-leaf blocks are nodes, they hold only keys and pointers to other
+ * blocks.
+ */
+struct btrfs_key_ptr {
+	struct btrfs_disk_key key;
+	__le64 blockptr;
+	__le64 generation;
+} __attribute__ ((__packed__));
+
+struct btrfs_node {
+	struct btrfs_header header;
+	struct btrfs_key_ptr ptrs[];
 } __attribute__ ((__packed__));
 
 struct btrfs_dev_item {
@@ -435,6 +661,69 @@ struct btrfs_chunk {
 	/* additional stripes go here */
 } __attribute__ ((__packed__));
 
+/*
+ * The super block basically lists the main trees of the FS.
+ */
+struct btrfs_super_block {
+	/* The first 4 fields must match struct btrfs_header */
+	__u8 csum[BTRFS_CSUM_SIZE];
+	/* FS specific UUID, visible to user */
+	__u8 fsid[BTRFS_FSID_SIZE];
+	/* This block number */
+	__le64 bytenr;
+	__le64 flags;
+
+	/* Allowed to be different from the btrfs_header from here own down */
+	__le64 magic;
+	__le64 generation;
+	__le64 root;
+	__le64 chunk_root;
+	__le64 log_root;
+
+	/*
+	 * This member has never been utilized since the very beginning, thus
+	 * it's always 0 regardless of kernel version.  We always use
+	 * generation + 1 to read log tree root.  So here we mark it deprecated.
+	 */
+	__le64 __unused_log_root_transid;
+	__le64 total_bytes;
+	__le64 bytes_used;
+	__le64 root_dir_objectid;
+	__le64 num_devices;
+	__le32 sectorsize;
+	__le32 nodesize;
+	__le32 __unused_leafsize;
+	__le32 stripesize;
+	__le32 sys_chunk_array_size;
+	__le64 chunk_root_generation;
+	__le64 compat_flags;
+	__le64 compat_ro_flags;
+	__le64 incompat_flags;
+	__le16 csum_type;
+	__u8 root_level;
+	__u8 chunk_root_level;
+	__u8 log_root_level;
+	struct btrfs_dev_item dev_item;
+
+	char label[BTRFS_LABEL_SIZE];
+
+	__le64 cache_generation;
+	__le64 uuid_tree_generation;
+
+	/* The UUID written into btree blocks */
+	__u8 metadata_uuid[BTRFS_FSID_SIZE];
+
+	__u64 nr_global_roots;
+
+	/* Future expansion */
+	__le64 reserved[27];
+	__u8 sys_chunk_array[BTRFS_SYSTEM_CHUNK_ARRAY_SIZE];
+	struct btrfs_root_backup super_roots[BTRFS_NUM_BACKUP_ROOTS];
+
+	/* Padded to 4096 bytes */
+	__u8 padding[565];
+} __attribute__ ((__packed__));
+
 #define BTRFS_FREE_SPACE_EXTENT	1
 #define BTRFS_FREE_SPACE_BITMAP	2
 
@@ -449,6 +738,30 @@ struct btrfs_free_space_header {
 	__le64 generation;
 	__le64 num_entries;
 	__le64 num_bitmaps;
+} __attribute__ ((__packed__));
+
+struct btrfs_raid_stride {
+	/* The id of device this raid extent lives on. */
+	__le64 devid;
+	/* The physical location on disk. */
+	__le64 physical;
+} __attribute__ ((__packed__));
+
+/* The stripe_extent::encoding, 1:1 mapping of enum btrfs_raid_types. */
+#define BTRFS_STRIPE_RAID0	1
+#define BTRFS_STRIPE_RAID1	2
+#define BTRFS_STRIPE_DUP	3
+#define BTRFS_STRIPE_RAID10	4
+#define BTRFS_STRIPE_RAID5	5
+#define BTRFS_STRIPE_RAID6	6
+#define BTRFS_STRIPE_RAID1C3	7
+#define BTRFS_STRIPE_RAID1C4	8
+
+struct btrfs_stripe_extent {
+	__u8 encoding;
+	__u8 reserved[7];
+	/* An array of raid strides this stripe is composed of. */
+	struct btrfs_raid_stride strides[];
 } __attribute__ ((__packed__));
 
 #define BTRFS_HEADER_FLAG_WRITTEN	(1ULL << 0)
@@ -489,6 +802,14 @@ struct btrfs_extent_item_v0 {
 /* use full backrefs for extent pointers in the block */
 #define BTRFS_BLOCK_FLAG_FULL_BACKREF	(1ULL << 8)
 
+#define BTRFS_BACKREF_REV_MAX		256
+#define BTRFS_BACKREF_REV_SHIFT		56
+#define BTRFS_BACKREF_REV_MASK		(((u64)BTRFS_BACKREF_REV_MAX - 1) << \
+					 BTRFS_BACKREF_REV_SHIFT)
+
+#define BTRFS_OLD_BACKREF_REV		0
+#define BTRFS_MIXED_BACKREF_REV		1
+
 /*
  * this flag is only used internally by scrub and may be changed at any time
  * it is only declared here to avoid collisions
@@ -511,19 +832,14 @@ struct btrfs_shared_data_ref {
 	__le32 count;
 } __attribute__ ((__packed__));
 
+struct btrfs_extent_owner_ref {
+	__le64 root_id;
+} __attribute__ ((__packed__));
+
 struct btrfs_extent_inline_ref {
 	__u8 type;
 	__le64 offset;
 } __attribute__ ((__packed__));
-
-/* old style backrefs item */
-struct btrfs_extent_ref_v0 {
-	__le64 root;
-	__le64 generation;
-	__le64 objectid;
-	__le32 count;
-} __attribute__ ((__packed__));
-
 
 /* dev extents record free space on individual devices.  The owner
  * field points back to the chunk allocation mapping tree that allocated
@@ -547,7 +863,7 @@ struct btrfs_inode_extref {
 	__le64 parent_objectid;
 	__le64 index;
 	__le16 name_len;
-	__u8   name[0];
+	__u8   name[];
 	/* name goes here */
 } __attribute__ ((__packed__));
 
@@ -651,6 +967,15 @@ struct btrfs_root_item {
 } __attribute__ ((__packed__));
 
 /*
+ * Btrfs root item used to be smaller than current size.  The old format ends
+ * at where member generation_v2 is.
+ */
+static inline __u32 btrfs_legacy_root_item_size(void)
+{
+	return offsetof(struct btrfs_root_item, generation_v2);
+}
+
+/*
  * this is used for both forward and backward root refs
  */
 struct btrfs_root_ref {
@@ -737,10 +1062,12 @@ struct btrfs_balance_item {
 	__le64 unused[4];
 } __attribute__ ((__packed__));
 
-#define BTRFS_FILE_EXTENT_INLINE 0
-#define BTRFS_FILE_EXTENT_REG 1
-#define BTRFS_FILE_EXTENT_PREALLOC 2
-#define BTRFS_FILE_EXTENT_TYPES	2
+enum {
+	BTRFS_FILE_EXTENT_INLINE   = 0,
+	BTRFS_FILE_EXTENT_REG      = 1,
+	BTRFS_FILE_EXTENT_PREALLOC = 2,
+	BTRFS_NR_FILE_EXTENT_TYPES = 3,
+};
 
 struct btrfs_file_extent_item {
 	/*
@@ -836,19 +1163,10 @@ struct btrfs_dev_replace_item {
 #define BTRFS_BLOCK_GROUP_RAID10	(1ULL << 6)
 #define BTRFS_BLOCK_GROUP_RAID5         (1ULL << 7)
 #define BTRFS_BLOCK_GROUP_RAID6         (1ULL << 8)
+#define BTRFS_BLOCK_GROUP_RAID1C3       (1ULL << 9)
+#define BTRFS_BLOCK_GROUP_RAID1C4       (1ULL << 10)
 #define BTRFS_BLOCK_GROUP_RESERVED	(BTRFS_AVAIL_ALLOC_BIT_SINGLE | \
 					 BTRFS_SPACE_INFO_GLOBAL_RSV)
-
-enum btrfs_raid_types {
-	BTRFS_RAID_RAID10,
-	BTRFS_RAID_RAID1,
-	BTRFS_RAID_DUP,
-	BTRFS_RAID_RAID0,
-	BTRFS_RAID_SINGLE,
-	BTRFS_RAID_RAID5,
-	BTRFS_RAID_RAID6,
-	BTRFS_NR_RAID_TYPES
-};
 
 #define BTRFS_BLOCK_GROUP_TYPE_MASK	(BTRFS_BLOCK_GROUP_DATA |    \
 					 BTRFS_BLOCK_GROUP_SYSTEM |  \
@@ -856,6 +1174,8 @@ enum btrfs_raid_types {
 
 #define BTRFS_BLOCK_GROUP_PROFILE_MASK	(BTRFS_BLOCK_GROUP_RAID0 |   \
 					 BTRFS_BLOCK_GROUP_RAID1 |   \
+					 BTRFS_BLOCK_GROUP_RAID1C3 | \
+					 BTRFS_BLOCK_GROUP_RAID1C4 | \
 					 BTRFS_BLOCK_GROUP_RAID5 |   \
 					 BTRFS_BLOCK_GROUP_RAID6 |   \
 					 BTRFS_BLOCK_GROUP_DUP |     \
@@ -863,7 +1183,9 @@ enum btrfs_raid_types {
 #define BTRFS_BLOCK_GROUP_RAID56_MASK	(BTRFS_BLOCK_GROUP_RAID5 |   \
 					 BTRFS_BLOCK_GROUP_RAID6)
 
-#define BTRFS_BLOCK_GROUP_RAID1_MASK	(BTRFS_BLOCK_GROUP_RAID1)
+#define BTRFS_BLOCK_GROUP_RAID1_MASK	(BTRFS_BLOCK_GROUP_RAID1 |   \
+					 BTRFS_BLOCK_GROUP_RAID1C3 | \
+					 BTRFS_BLOCK_GROUP_RAID1C4)
 
 /*
  * We need a bit for restriper to be able to tell when chunks of type
@@ -909,9 +1231,9 @@ struct btrfs_free_space_info {
 #define BTRFS_FREE_SPACE_USING_BITMAPS (1ULL << 0)
 
 #define BTRFS_QGROUP_LEVEL_SHIFT		48
-static inline __u64 btrfs_qgroup_level(__u64 qgroupid)
+static inline __u16 btrfs_qgroup_level(__u64 qgroupid)
 {
-	return qgroupid >> BTRFS_QGROUP_LEVEL_SHIFT;
+	return (__u16)(qgroupid >> BTRFS_QGROUP_LEVEL_SHIFT);
 }
 
 /*
@@ -930,6 +1252,18 @@ static inline __u64 btrfs_qgroup_level(__u64 qgroupid)
  * Turning qouta off and on again makes it inconsistent, too.
  */
 #define BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT	(1ULL << 2)
+
+/*
+ * Whether or not this filesystem is using simple quotas.  Not exactly the
+ * incompat bit, because we support using simple quotas, disabling it, then
+ * going back to full qgroup quotas.
+ */
+#define BTRFS_QGROUP_STATUS_FLAG_SIMPLE_MODE	(1ULL << 3)
+
+#define BTRFS_QGROUP_STATUS_FLAGS_MASK	(BTRFS_QGROUP_STATUS_FLAG_ON |		\
+					 BTRFS_QGROUP_STATUS_FLAG_RESCAN |	\
+					 BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT | \
+					 BTRFS_QGROUP_STATUS_FLAG_SIMPLE_MODE)
 
 #define BTRFS_QGROUP_STATUS_VERSION        1
 
@@ -951,6 +1285,15 @@ struct btrfs_qgroup_status_item {
 	 * of the scan. It contains a logical address
 	 */
 	__le64 rescan;
+
+	/*
+	 * The generation when quotas were last enabled. Used by simple quotas to
+	 * avoid decrementing when freeing an extent that was written before
+	 * enable.
+	 *
+	 * Set only if flags contain BTRFS_QGROUP_STATUS_FLAG_SIMPLE_MODE.
+	 */
+	__le64 enable_gen;
 } __attribute__ ((__packed__));
 
 struct btrfs_qgroup_info_item {
@@ -970,6 +1313,18 @@ struct btrfs_qgroup_limit_item {
 	__le64 max_excl;
 	__le64 rsv_rfer;
 	__le64 rsv_excl;
+} __attribute__ ((__packed__));
+
+struct btrfs_verity_descriptor_item {
+	/* Size of the verity descriptor in bytes */
+	__le64 size;
+	/*
+	 * When we implement support for fscrypt, we will need to encrypt the
+	 * Merkle tree for encrypted verity files. These 128 bits are for the
+	 * eventual storage of an fscrypt initialization vector.
+	 */
+	__le64 reserved[2];
+	__u8 encryption;
 } __attribute__ ((__packed__));
 
 #endif /* _BTRFS_CTREE_H_ */

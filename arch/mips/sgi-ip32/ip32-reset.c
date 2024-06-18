@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/panic_notifier.h>
 #include <linux/sched.h>
 #include <linux/sched/signal.h>
 #include <linux/notifier.h>
@@ -27,6 +28,8 @@
 #include <asm/ip32/mace.h>
 #include <asm/ip32/crime.h>
 #include <asm/ip32/ip32_ints.h>
+
+#include "ip32-common.h"
 
 #define POWERDOWN_TIMEOUT	120
 /*

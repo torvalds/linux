@@ -41,21 +41,6 @@ struct dma_info *get_dma_info(unsigned int chan)
 }
 EXPORT_SYMBOL(get_dma_info);
 
-struct dma_info *get_dma_info_by_name(const char *dmac_name)
-{
-	struct dma_info *info;
-
-	list_for_each_entry(info, &registered_dmac_list, list) {
-		if (dmac_name && (strcmp(dmac_name, info->name) != 0))
-			continue;
-		else
-			return info;
-	}
-
-	return NULL;
-}
-EXPORT_SYMBOL(get_dma_info_by_name);
-
 static unsigned int get_nr_channels(void)
 {
 	struct dma_info *info;
@@ -101,93 +86,6 @@ int get_dma_residue(unsigned int chan)
 }
 EXPORT_SYMBOL(get_dma_residue);
 
-static int search_cap(const char **haystack, const char *needle)
-{
-	const char **p;
-
-	for (p = haystack; *p; p++)
-		if (strcmp(*p, needle) == 0)
-			return 1;
-
-	return 0;
-}
-
-/**
- * request_dma_bycap - Allocate a DMA channel based on its capabilities
- * @dmac: List of DMA controllers to search
- * @caps: List of capabilities
- *
- * Search all channels of all DMA controllers to find a channel which
- * matches the requested capabilities. The result is the channel
- * number if a match is found, or %-ENODEV if no match is found.
- *
- * Note that not all DMA controllers export capabilities, in which
- * case they can never be allocated using this API, and so
- * request_dma() must be used specifying the channel number.
- */
-int request_dma_bycap(const char **dmac, const char **caps, const char *dev_id)
-{
-	unsigned int found = 0;
-	struct dma_info *info;
-	const char **p;
-	int i;
-
-	BUG_ON(!dmac || !caps);
-
-	list_for_each_entry(info, &registered_dmac_list, list)
-		if (strcmp(*dmac, info->name) == 0) {
-			found = 1;
-			break;
-		}
-
-	if (!found)
-		return -ENODEV;
-
-	for (i = 0; i < info->nr_channels; i++) {
-		struct dma_channel *channel = &info->channels[i];
-
-		if (unlikely(!channel->caps))
-			continue;
-
-		for (p = caps; *p; p++) {
-			if (!search_cap(channel->caps, *p))
-				break;
-			if (request_dma(channel->chan, dev_id) == 0)
-				return channel->chan;
-		}
-	}
-
-	return -EINVAL;
-}
-EXPORT_SYMBOL(request_dma_bycap);
-
-int dmac_search_free_channel(const char *dev_id)
-{
-	struct dma_channel *channel = { 0 };
-	struct dma_info *info = get_dma_info(0);
-	int i;
-
-	for (i = 0; i < info->nr_channels; i++) {
-		channel = &info->channels[i];
-		if (unlikely(!channel))
-			return -ENODEV;
-
-		if (atomic_read(&channel->busy) == 0)
-			break;
-	}
-
-	if (info->ops->request) {
-		int result = info->ops->request(channel);
-		if (result)
-			return result;
-
-		atomic_set(&channel->busy, 1);
-		return channel->chan;
-	}
-
-	return -ENOSYS;
-}
-
 int request_dma(unsigned int chan, const char *dev_id)
 {
 	struct dma_channel *channel = { 0 };
@@ -198,7 +96,7 @@ int request_dma(unsigned int chan, const char *dev_id)
 	if (atomic_xchg(&channel->busy, 1))
 		return -EBUSY;
 
-	strlcpy(channel->dev_id, dev_id, sizeof(channel->dev_id));
+	strscpy(channel->dev_id, dev_id, sizeof(channel->dev_id));
 
 	if (info->ops->request) {
 		result = info->ops->request(channel);
@@ -240,35 +138,6 @@ void dma_wait_for_completion(unsigned int chan)
 }
 EXPORT_SYMBOL(dma_wait_for_completion);
 
-int register_chan_caps(const char *dmac, struct dma_chan_caps *caps)
-{
-	struct dma_info *info;
-	unsigned int found = 0;
-	int i;
-
-	list_for_each_entry(info, &registered_dmac_list, list)
-		if (strcmp(dmac, info->name) == 0) {
-			found = 1;
-			break;
-		}
-
-	if (unlikely(!found))
-		return -ENODEV;
-
-	for (i = 0; i < info->nr_channels; i++, caps++) {
-		struct dma_channel *channel;
-
-		if ((info->first_channel_nr + i) != caps->ch_num)
-			return -EINVAL;
-
-		channel = &info->channels[i];
-		channel->caps = caps->caplist;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(register_chan_caps);
-
 void dma_configure_channel(unsigned int chan, unsigned long flags)
 {
 	struct dma_info *info = get_dma_info(chan);
@@ -293,18 +162,6 @@ int dma_xfer(unsigned int chan, unsigned long from,
 	return info->ops->xfer(channel);
 }
 EXPORT_SYMBOL(dma_xfer);
-
-int dma_extend(unsigned int chan, unsigned long op, void *param)
-{
-	struct dma_info *info = get_dma_info(chan);
-	struct dma_channel *channel = get_dma_channel(chan);
-
-	if (info->ops->extend)
-		return info->ops->extend(channel, op, param);
-
-	return -ENOSYS;
-}
-EXPORT_SYMBOL(dma_extend);
 
 static int dma_proc_show(struct seq_file *m, void *v)
 {

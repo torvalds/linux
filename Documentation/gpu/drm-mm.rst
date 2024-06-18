@@ -8,7 +8,7 @@ the very dynamic nature of many of that data, managing graphics memory
 efficiently is thus crucial for the graphics stack and plays a central
 role in the DRM infrastructure.
 
-The DRM core includes two memory managers, namely Translation Table Maps
+The DRM core includes two memory managers, namely Translation Table Manager
 (TTM) and Graphics Execution Manager (GEM). TTM was the first DRM memory
 manager to be developed and tried to be a one-size-fits-them all
 solution. It provides a single userspace API to accommodate the need of
@@ -28,56 +28,53 @@ UMA devices.
 The Translation Table Manager (TTM)
 ===================================
 
-TTM design background and information belongs here.
+.. kernel-doc:: drivers/gpu/drm/ttm/ttm_module.c
+   :doc: TTM
 
-TTM initialization
-------------------
+.. kernel-doc:: include/drm/ttm/ttm_caching.h
+   :internal:
 
-    **Warning**
-    This section is outdated.
+TTM device object reference
+---------------------------
 
-Drivers wishing to support TTM must pass a filled :c:type:`ttm_bo_driver
-<ttm_bo_driver>` structure to ttm_bo_device_init, together with an
-initialized global reference to the memory manager.  The ttm_bo_driver
-structure contains several fields with function pointers for
-initializing the TTM, allocating and freeing memory, waiting for command
-completion and fence synchronization, and memory migration.
+.. kernel-doc:: include/drm/ttm/ttm_device.h
+   :internal:
 
-The :c:type:`struct drm_global_reference <drm_global_reference>` is made
-up of several fields:
+.. kernel-doc:: drivers/gpu/drm/ttm/ttm_device.c
+   :export:
 
-.. code-block:: c
+TTM resource placement reference
+--------------------------------
 
-              struct drm_global_reference {
-                      enum ttm_global_types global_type;
-                      size_t size;
-                      void *object;
-                      int (*init) (struct drm_global_reference *);
-                      void (*release) (struct drm_global_reference *);
-              };
+.. kernel-doc:: include/drm/ttm/ttm_placement.h
+   :internal:
 
+TTM resource object reference
+-----------------------------
 
-There should be one global reference structure for your memory manager
-as a whole, and there will be others for each object created by the
-memory manager at runtime. Your global TTM should have a type of
-TTM_GLOBAL_TTM_MEM. The size field for the global object should be
-sizeof(struct ttm_mem_global), and the init and release hooks should
-point at your driver-specific init and release routines, which probably
-eventually call ttm_mem_global_init and ttm_mem_global_release,
-respectively.
+.. kernel-doc:: include/drm/ttm/ttm_resource.h
+   :internal:
 
-Once your global TTM accounting structure is set up and initialized by
-calling ttm_global_item_ref() on it, you need to create a buffer
-object TTM to provide a pool for buffer object allocation by clients and
-the kernel itself. The type of this object should be
-TTM_GLOBAL_TTM_BO, and its size should be sizeof(struct
-ttm_bo_global). Again, driver-specific init and release functions may
-be provided, likely eventually calling ttm_bo_global_ref_init() and
-ttm_bo_global_ref_release(), respectively. Also, like the previous
-object, ttm_global_item_ref() is used to create an initial reference
-count for the TTM, which will call your initialization function.
+.. kernel-doc:: drivers/gpu/drm/ttm/ttm_resource.c
+   :export:
 
-See the radeon_ttm.c file for an example of usage.
+TTM TT object reference
+-----------------------
+
+.. kernel-doc:: include/drm/ttm/ttm_tt.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/ttm/ttm_tt.c
+   :export:
+
+TTM page pool reference
+-----------------------
+
+.. kernel-doc:: include/drm/ttm/ttm_pool.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/ttm/ttm_pool.c
+   :export:
 
 The Graphics Execution Manager (GEM)
 ====================================
@@ -149,19 +146,19 @@ struct :c:type:`struct drm_gem_object <drm_gem_object>`.
 To create a GEM object, a driver allocates memory for an instance of its
 specific GEM object type and initializes the embedded struct
 :c:type:`struct drm_gem_object <drm_gem_object>` with a call
-to :c:func:`drm_gem_object_init()`. The function takes a pointer
+to drm_gem_object_init(). The function takes a pointer
 to the DRM device, a pointer to the GEM object and the buffer object
 size in bytes.
 
 GEM uses shmem to allocate anonymous pageable memory.
-:c:func:`drm_gem_object_init()` will create an shmfs file of the
+drm_gem_object_init() will create an shmfs file of the
 requested size and store it into the struct :c:type:`struct
 drm_gem_object <drm_gem_object>` filp field. The memory is
 used as either main storage for the object when the graphics hardware
 uses system memory directly or as a backing store otherwise.
 
 Drivers are responsible for the actual physical pages allocation by
-calling :c:func:`shmem_read_mapping_page_gfp()` for each page.
+calling shmem_read_mapping_page_gfp() for each page.
 Note that they can decide to allocate pages when initializing the GEM
 object, or to delay allocation until the memory is needed (for instance
 when a page fault occurs as a result of a userspace memory access or
@@ -170,31 +167,26 @@ when the driver needs to start a DMA transfer involving the memory).
 Anonymous pageable memory allocation is not always desired, for instance
 when the hardware requires physically contiguous system memory as is
 often the case in embedded devices. Drivers can create GEM objects with
-no shmfs backing (called private GEM objects) by initializing them with
-a call to :c:func:`drm_gem_private_object_init()` instead of
-:c:func:`drm_gem_object_init()`. Storage for private GEM objects
-must be managed by drivers.
+no shmfs backing (called private GEM objects) by initializing them with a call
+to drm_gem_private_object_init() instead of drm_gem_object_init(). Storage for
+private GEM objects must be managed by drivers.
 
 GEM Objects Lifetime
 --------------------
 
 All GEM objects are reference-counted by the GEM core. References can be
-acquired and release by :c:func:`calling drm_gem_object_get()` and
-:c:func:`drm_gem_object_put()` respectively. The caller must hold the
-:c:type:`struct drm_device <drm_device>` struct_mutex lock when calling
-:c:func:`drm_gem_object_get()`. As a convenience, GEM provides
-:c:func:`drm_gem_object_put_unlocked()` functions that can be called without
-holding the lock.
+acquired and release by calling drm_gem_object_get() and drm_gem_object_put()
+respectively.
 
 When the last reference to a GEM object is released the GEM core calls
-the :c:type:`struct drm_driver <drm_driver>` gem_free_object_unlocked
+the :c:type:`struct drm_gem_object_funcs <gem_object_funcs>` free
 operation. That operation is mandatory for GEM-enabled drivers and must
 free the GEM object and all associated resources.
 
-void (\*gem_free_object) (struct drm_gem_object \*obj); Drivers are
+void (\*free) (struct drm_gem_object \*obj); Drivers are
 responsible for freeing all GEM object resources. This includes the
 resources created by the GEM core, which need to be released with
-:c:func:`drm_gem_object_release()`.
+drm_gem_object_release().
 
 GEM Objects Naming
 ------------------
@@ -210,13 +202,11 @@ to the GEM object in other standard or driver-specific ioctls. Closing a
 DRM file handle frees all its GEM handles and dereferences the
 associated GEM objects.
 
-To create a handle for a GEM object drivers call
-:c:func:`drm_gem_handle_create()`. The function takes a pointer
-to the DRM file and the GEM object and returns a locally unique handle.
-When the handle is no longer needed drivers delete it with a call to
-:c:func:`drm_gem_handle_delete()`. Finally the GEM object
-associated with a handle can be retrieved by a call to
-:c:func:`drm_gem_object_lookup()`.
+To create a handle for a GEM object drivers call drm_gem_handle_create(). The
+function takes a pointer to the DRM file and the GEM object and returns a
+locally unique handle.  When the handle is no longer needed drivers delete it
+with a call to drm_gem_handle_delete(). Finally the GEM object associated with a
+handle can be retrieved by a call to drm_gem_object_lookup().
 
 Handles don't take ownership of GEM objects, they only take a reference
 to the object that will be dropped when the handle is destroyed. To
@@ -258,7 +248,7 @@ The mmap system call can't be used directly to map GEM objects, as they
 don't have their own file handle. Two alternative methods currently
 co-exist to map GEM objects to userspace. The first method uses a
 driver-specific ioctl to perform the mapping operation, calling
-:c:func:`do_mmap()` under the hood. This is often considered
+do_mmap() under the hood. This is often considered
 dubious, seems to be discouraged for new GEM-enabled drivers, and will
 thus not be described here.
 
@@ -267,23 +257,22 @@ The second method uses the mmap system call on the DRM file handle. void
 offset); DRM identifies the GEM object to be mapped by a fake offset
 passed through the mmap offset argument. Prior to being mapped, a GEM
 object must thus be associated with a fake offset. To do so, drivers
-must call :c:func:`drm_gem_create_mmap_offset()` on the object.
+must call drm_gem_create_mmap_offset() on the object.
 
 Once allocated, the fake offset value must be passed to the application
 in a driver-specific way and can then be used as the mmap offset
 argument.
 
-The GEM core provides a helper method :c:func:`drm_gem_mmap()` to
+The GEM core provides a helper method drm_gem_mmap() to
 handle object mapping. The method can be set directly as the mmap file
 operation handler. It will look up the GEM object based on the offset
 value and set the VMA operations to the :c:type:`struct drm_driver
-<drm_driver>` gem_vm_ops field. Note that
-:c:func:`drm_gem_mmap()` doesn't map memory to userspace, but
-relies on the driver-provided fault handler to map pages individually.
+<drm_driver>` gem_vm_ops field. Note that drm_gem_mmap() doesn't map memory to
+userspace, but relies on the driver-provided fault handler to map pages
+individually.
 
-To use :c:func:`drm_gem_mmap()`, drivers must fill the struct
-:c:type:`struct drm_driver <drm_driver>` gem_vm_ops field
-with a pointer to VM operations.
+To use drm_gem_mmap(), drivers must fill the struct :c:type:`struct drm_driver
+<drm_driver>` gem_vm_ops field with a pointer to VM operations.
 
 The VM operations is a :c:type:`struct vm_operations_struct <vm_operations_struct>`
 made up of several fields, the more interesting ones being:
@@ -298,9 +287,8 @@ made up of several fields, the more interesting ones being:
 
 
 The open and close operations must update the GEM object reference
-count. Drivers can use the :c:func:`drm_gem_vm_open()` and
-:c:func:`drm_gem_vm_close()` helper functions directly as open
-and close handlers.
+count. Drivers can use the drm_gem_vm_open() and drm_gem_vm_close() helper
+functions directly as open and close handlers.
 
 The fault operation handler is responsible for mapping individual pages
 to userspace when a page fault occurs. Depending on the memory
@@ -312,15 +300,15 @@ Drivers that want to map the GEM object upfront instead of handling page
 faults can implement their own mmap file operation handler.
 
 For platforms without MMU the GEM core provides a helper method
-:c:func:`drm_gem_cma_get_unmapped_area`. The mmap() routines will call
-this to get a proposed address for the mapping.
+drm_gem_dma_get_unmapped_area(). The mmap() routines will call this to get a
+proposed address for the mapping.
 
-To use :c:func:`drm_gem_cma_get_unmapped_area`, drivers must fill the
-struct :c:type:`struct file_operations <file_operations>` get_unmapped_area
-field with a pointer on :c:func:`drm_gem_cma_get_unmapped_area`.
+To use drm_gem_dma_get_unmapped_area(), drivers must fill the struct
+:c:type:`struct file_operations <file_operations>` get_unmapped_area field with
+a pointer on drm_gem_dma_get_unmapped_area().
 
 More detailed information about get_unmapped_area can be found in
-Documentation/nommu-mmap.txt
+Documentation/admin-guide/mm/nommu-mmap.rst
 
 Memory Coherency
 ----------------
@@ -367,26 +355,29 @@ GEM Function Reference
 .. kernel-doc:: drivers/gpu/drm/drm_gem.c
    :export:
 
-GEM CMA Helper Functions Reference
+GEM DMA Helper Functions Reference
 ----------------------------------
 
-.. kernel-doc:: drivers/gpu/drm/drm_gem_cma_helper.c
-   :doc: cma helpers
+.. kernel-doc:: drivers/gpu/drm/drm_gem_dma_helper.c
+   :doc: dma helpers
 
-.. kernel-doc:: include/drm/drm_gem_cma_helper.h
+.. kernel-doc:: include/drm/drm_gem_dma_helper.h
    :internal:
 
-.. kernel-doc:: drivers/gpu/drm/drm_gem_cma_helper.c
+.. kernel-doc:: drivers/gpu/drm/drm_gem_dma_helper.c
    :export:
 
-VRAM Helper Function Reference
-==============================
+GEM SHMEM Helper Function Reference
+-----------------------------------
 
-.. kernel-doc:: drivers/gpu/drm/drm_vram_helper_common.c
+.. kernel-doc:: drivers/gpu/drm/drm_gem_shmem_helper.c
    :doc: overview
 
-.. kernel-doc:: include/drm/drm_gem_vram_helper.h
+.. kernel-doc:: include/drm/drm_gem_shmem_helper.h
    :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_gem_shmem_helper.c
+   :export:
 
 GEM VRAM Helper Functions Reference
 -----------------------------------
@@ -400,16 +391,13 @@ GEM VRAM Helper Functions Reference
 .. kernel-doc:: drivers/gpu/drm/drm_gem_vram_helper.c
    :export:
 
-VRAM MM Helper Functions Reference
-----------------------------------
+GEM TTM Helper Functions Reference
+-----------------------------------
 
-.. kernel-doc:: drivers/gpu/drm/drm_vram_mm_helper.c
+.. kernel-doc:: drivers/gpu/drm/drm_gem_ttm_helper.c
    :doc: overview
 
-.. kernel-doc:: include/drm/drm_vram_mm_helper.h
-   :internal:
-
-.. kernel-doc:: drivers/gpu/drm/drm_vram_mm_helper.c
+.. kernel-doc:: drivers/gpu/drm/drm_gem_ttm_helper.c
    :export:
 
 VMA Offset Manager
@@ -478,14 +466,65 @@ DRM MM Range Allocator Function References
 .. kernel-doc:: drivers/gpu/drm/drm_mm.c
    :export:
 
-DRM Cache Handling
-==================
+.. _drm_gpuvm:
+
+DRM GPUVM
+=========
+
+Overview
+--------
+
+.. kernel-doc:: drivers/gpu/drm/drm_gpuvm.c
+   :doc: Overview
+
+Split and Merge
+---------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_gpuvm.c
+   :doc: Split and Merge
+
+.. _drm_gpuvm_locking:
+
+Locking
+-------
+
+.. kernel-doc:: drivers/gpu/drm/drm_gpuvm.c
+   :doc: Locking
+
+Examples
+--------
+
+.. kernel-doc:: drivers/gpu/drm/drm_gpuvm.c
+   :doc: Examples
+
+DRM GPUVM Function References
+-----------------------------
+
+.. kernel-doc:: include/drm/drm_gpuvm.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_gpuvm.c
+   :export:
+
+DRM Buddy Allocator
+===================
+
+DRM Buddy Function References
+-----------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_buddy.c
+   :export:
+
+DRM Cache Handling and Fast WC memcpy()
+=======================================
 
 .. kernel-doc:: drivers/gpu/drm/drm_cache.c
    :export:
 
+.. _drm_sync_objects:
+
 DRM Sync Objects
-===========================
+================
 
 .. kernel-doc:: drivers/gpu/drm/drm_syncobj.c
    :doc: Overview
@@ -494,6 +533,18 @@ DRM Sync Objects
    :internal:
 
 .. kernel-doc:: drivers/gpu/drm/drm_syncobj.c
+   :export:
+
+DRM Execution context
+=====================
+
+.. kernel-doc:: drivers/gpu/drm/drm_exec.c
+   :doc: Overview
+
+.. kernel-doc:: include/drm/drm_exec.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_exec.c
    :export:
 
 GPU Scheduler
@@ -505,6 +556,12 @@ Overview
 .. kernel-doc:: drivers/gpu/drm/scheduler/sched_main.c
    :doc: Overview
 
+Flow Control
+------------
+
+.. kernel-doc:: drivers/gpu/drm/scheduler/sched_main.c
+   :doc: Flow Control
+
 Scheduler Function References
 -----------------------------
 
@@ -512,4 +569,7 @@ Scheduler Function References
    :internal:
 
 .. kernel-doc:: drivers/gpu/drm/scheduler/sched_main.c
+   :export:
+
+.. kernel-doc:: drivers/gpu/drm/scheduler/sched_entity.c
    :export:

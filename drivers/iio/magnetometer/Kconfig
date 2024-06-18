@@ -6,10 +6,21 @@
 
 menu "Magnetometer sensors"
 
+config AF8133J
+	tristate "Voltafield AF8133J 3-Axis Magnetometer"
+	depends on I2C
+	depends on OF
+	select REGMAP_I2C
+	help
+	  Say yes here to build support for Voltafield AF8133J I2C-based
+	  3-axis magnetometer chip.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called af8133j.
+
 config AK8974
 	tristate "Asahi Kasei AK8974 3-Axis Magnetometer"
 	depends on I2C
-	depends on OF
 	select REGMAP_I2C
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
@@ -28,7 +39,7 @@ config AK8975
 	select IIO_TRIGGERED_BUFFER
 	help
 	  Say yes here to build support for Asahi Kasei AK8975, AK8963,
-	  AK09911 or AK09912 3-Axis Magnetometer.
+	  AK09911, AK09912 or AK09916 3-Axis Magnetometer.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called ak8975.
@@ -95,7 +106,6 @@ config MAG3110
 config HID_SENSOR_MAGNETOMETER_3D
 	depends on HID_SENSOR_HUB
 	select IIO_BUFFER
-	select IIO_TRIGGERED_BUFFER
 	select HID_SENSOR_IIO_COMMON
 	select HID_SENSOR_IIO_TRIGGER
 	tristate "HID Magenetometer 3D"
@@ -118,30 +128,35 @@ config IIO_ST_MAGN_3AXIS
 	tristate "STMicroelectronics magnetometers 3-Axis Driver"
 	depends on (I2C || SPI_MASTER) && SYSFS
 	select IIO_ST_SENSORS_CORE
-	select IIO_ST_MAGN_I2C_3AXIS if (I2C)
-	select IIO_ST_MAGN_SPI_3AXIS if (SPI_MASTER)
 	select IIO_TRIGGERED_BUFFER if (IIO_BUFFER)
 	help
 	  Say yes here to build support for STMicroelectronics magnetometers:
-	  LSM303DLHC, LSM303DLM, LIS3MDL.
+	  LSM303C, LSM303DLHC, LSM303DLM, LIS3MDL.
 
-	  This driver can also be built as a module. If so, these modules
-	  will be created:
-	  - st_magn (core functions for the driver [it is mandatory]);
-	  - st_magn_i2c (necessary for the I2C devices [optional*]);
-	  - st_magn_spi (necessary for the SPI devices [optional*]);
-
-	  (*) one of these is necessary to do something.
+	  Also need to enable at least one of I2C and SPI interface drivers
+	  below.
 
 config IIO_ST_MAGN_I2C_3AXIS
-	tristate
-	depends on IIO_ST_MAGN_3AXIS
-	depends on IIO_ST_SENSORS_I2C
+	tristate "STMicroelectronics magnetometers 3-Axis I2C Interface"
+	depends on I2C && IIO_ST_MAGN_3AXIS
+	default I2C && IIO_ST_MAGN_3AXIS
+	select IIO_ST_SENSORS_I2C
+	help
+	  Build support for STMicroelectronics magnetometers I2C interface.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called st_magn_i2c.
 
 config IIO_ST_MAGN_SPI_3AXIS
-	tristate
-	depends on IIO_ST_MAGN_3AXIS
-	depends on IIO_ST_SENSORS_SPI
+	tristate "STMicroelectronics magnetometers 3-Axis SPI Interface"
+	depends on SPI_MASTER && IIO_ST_MAGN_3AXIS
+	default SPI_MASTER && IIO_ST_MAGN_3AXIS
+	select IIO_ST_SENSORS_SPI
+	help
+	  Build support for STMicroelectronics magnetometers SPI interface.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called st_magn_spi.
 
 config SENSORS_HMC5843
 	tristate
@@ -204,5 +219,32 @@ config SENSORS_RM3100_SPI
 	  This driver can also be compiled as a module.
 	  To compile this driver as a module, choose M here: the module
 	  will be called rm3100-spi.
+
+config TI_TMAG5273
+	tristate "TI TMAG5273 Low-Power Linear 3D Hall-Effect Sensor"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say Y here to add support for the TI TMAG5273 Low-Power
+	  Linear 3D Hall-Effect Sensor.
+
+	  This driver can also be compiled as a module.
+	  To compile this driver as a module, choose M here: the module
+	  will be called tmag5273.
+
+config YAMAHA_YAS530
+	tristate "Yamaha YAS530 family of 3-Axis Magnetometers (I2C)"
+	depends on I2C
+	select REGMAP_I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say Y here to add support for the Yamaha YAS530 series of
+	  3-Axis Magnetometers. YAS530, YAS532, YAS533 and YAS537 are
+	  supported.
+
+	  This driver can also be compiled as a module.
+	  To compile this driver as a module, choose M here: the module
+	  will be called yamaha-yas.
 
 endmenu

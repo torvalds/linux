@@ -1,0 +1,153 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/serial/fsl-imx-uart.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale i.MX Universal Asynchronous Receiver/Transmitter (UART)
+
+maintainers:
+  - Fabio Estevam <festevam@gmail.com>
+
+properties:
+  compatible:
+    oneOf:
+      - const: fsl,imx1-uart
+      - const: fsl,imx21-uart
+      - items:
+          - enum:
+              - fsl,imx25-uart
+              - fsl,imx27-uart
+              - fsl,imx31-uart
+              - fsl,imx35-uart
+              - fsl,imx50-uart
+              - fsl,imx51-uart
+              - fsl,imx53-uart
+              - fsl,imx6q-uart
+          - const: fsl,imx21-uart
+      - items:
+          - enum:
+              - fsl,imx6sl-uart
+              - fsl,imx6sll-uart
+              - fsl,imx6sx-uart
+          - const: fsl,imx6q-uart
+          - const: fsl,imx21-uart
+      - items:
+          - enum:
+              - fsl,imx6ul-uart
+              - fsl,imx7d-uart
+              - fsl,imx8mm-uart
+              - fsl,imx8mn-uart
+              - fsl,imx8mp-uart
+              - fsl,imx8mq-uart
+          - const: fsl,imx6q-uart
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 2
+
+  clock-names:
+    items:
+      - const: ipg
+      - const: per
+
+  dmas:
+    items:
+      - description: DMA controller phandle and request line for RX
+      - description: DMA controller phandle and request line for TX
+
+  dma-names:
+    items:
+      - const: rx
+      - const: tx
+
+  interrupts:
+    items:
+      - description: UART RX Interrupt
+      - description: UART TX Interrupt
+      - description: UART RTS Interrupt
+    minItems: 1
+
+  wakeup-source: true
+
+  fsl,dte-mode:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: |
+      Indicate the uart works in DTE mode. The uart works in DCE mode by default.
+
+  fsl,inverted-tx:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: |
+      Indicate that the hardware attached to the peripheral inverts the signal
+      transmitted, and that the peripheral should invert its output using the
+      INVT registers.
+
+  fsl,inverted-rx:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: |
+      Indicate that the hardware attached to the peripheral inverts the signal
+      received, and that the peripheral should invert its input using the
+      INVR registers.
+
+  fsl,dma-info:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 2
+    maxItems: 2
+    description: |
+      First cell contains the size of DMA buffer chunks, second cell contains
+      the amount of chunks used for the device. Multiplying both numbers is
+      the total size of memory used for receiving data.
+      When not being configured the system will use default settings, which
+      are sensible for most use cases. If you need low latency processing on
+      slow connections this needs to be configured appropriately.
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - interrupts
+
+allOf:
+  - $ref: serial.yaml#
+  - $ref: rs485.yaml#
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: fsl,imx1-uart
+    then:
+      properties:
+        interrupts:
+          minItems: 3
+          maxItems: 3
+    else:
+      properties:
+        interrupts:
+          maxItems: 1
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/imx5-clock.h>
+
+    aliases {
+        serial0 = &uart1;
+    };
+
+    uart1: serial@73fbc000 {
+        compatible = "fsl,imx51-uart", "fsl,imx21-uart";
+        reg = <0x73fbc000 0x4000>;
+        interrupts = <31>;
+        clocks = <&clks IMX5_CLK_UART1_IPG_GATE>,
+                 <&clks IMX5_CLK_UART1_PER_GATE>;
+        clock-names = "ipg", "per";
+        dmas = <&sdma 18 4 1>, <&sdma 19 4 2>;
+        dma-names = "rx", "tx";
+        uart-has-rtscts;
+        fsl,dte-mode;
+    };

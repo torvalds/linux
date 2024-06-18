@@ -406,7 +406,7 @@ static bool ar9003_aic_cal_post_process(struct ath_hw *ah)
 		sram.com_att_6db =
 			ar9003_aic_find_index(1, fixed_com_att_db);
 
-		sram.valid = 1;
+		sram.valid = true;
 
 		sram.rot_dir_att_db =
 			min(max(rot_dir_path_att_db,

@@ -339,9 +339,7 @@ static int isl29028_set_pm_runtime_busy(struct isl29028_chip *chip, bool on)
 	int ret;
 
 	if (on) {
-		ret = pm_runtime_get_sync(dev);
-		if (ret < 0)
-			pm_runtime_put_noidle(dev);
+		ret = pm_runtime_resume_and_get(dev);
 	} else {
 		pm_runtime_mark_last_busy(dev);
 		ret = pm_runtime_put_autosuspend(dev);
@@ -567,9 +565,9 @@ static const struct regmap_config isl29028_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static int isl29028_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int isl29028_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct isl29028_chip *chip;
 	struct iio_dev *indio_dev;
 	int ret;
@@ -620,7 +618,6 @@ static int isl29028_probe(struct i2c_client *client,
 	indio_dev->channels = isl29028_channels;
 	indio_dev->num_channels = ARRAY_SIZE(isl29028_channels);
 	indio_dev->name = id->name;
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	pm_runtime_enable(&client->dev);
@@ -628,7 +625,7 @@ static int isl29028_probe(struct i2c_client *client,
 					 ISL29028_POWER_OFF_DELAY_MS);
 	pm_runtime_use_autosuspend(&client->dev);
 
-	ret = devm_iio_device_register(indio_dev->dev.parent, indio_dev);
+	ret = iio_device_register(indio_dev);
 	if (ret < 0) {
 		dev_err(&client->dev,
 			"%s(): iio registration failed with error %d\n",
@@ -639,7 +636,7 @@ static int isl29028_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int isl29028_remove(struct i2c_client *client)
+static void isl29028_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct isl29028_chip *chip = iio_priv(indio_dev);
@@ -648,12 +645,11 @@ static int isl29028_remove(struct i2c_client *client)
 
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
 
-	return isl29028_clear_configure_reg(chip);
+	isl29028_clear_configure_reg(chip);
 }
 
-static int __maybe_unused isl29028_suspend(struct device *dev)
+static int isl29028_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
 	struct isl29028_chip *chip = iio_priv(indio_dev);
@@ -668,7 +664,7 @@ static int __maybe_unused isl29028_suspend(struct device *dev)
 	return ret;
 }
 
-static int __maybe_unused isl29028_resume(struct device *dev)
+static int isl29028_resume(struct device *dev)
 {
 	/**
 	 * The specific component (ALS/IR or proximity) will enable itself as
@@ -678,11 +674,8 @@ static int __maybe_unused isl29028_resume(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops isl29028_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
-	SET_RUNTIME_PM_OPS(isl29028_suspend, isl29028_resume, NULL)
-};
+static DEFINE_RUNTIME_DEV_PM_OPS(isl29028_pm_ops, isl29028_suspend,
+				 isl29028_resume, NULL);
 
 static const struct i2c_device_id isl29028_id[] = {
 	{"isl29028", 0},
@@ -702,10 +695,10 @@ MODULE_DEVICE_TABLE(of, isl29028_of_match);
 static struct i2c_driver isl29028_driver = {
 	.driver  = {
 		.name = "isl29028",
-		.pm = &isl29028_pm_ops,
+		.pm = pm_ptr(&isl29028_pm_ops),
 		.of_match_table = isl29028_of_match,
 	},
-	.probe	 = isl29028_probe,
+	.probe = isl29028_probe,
 	.remove  = isl29028_remove,
 	.id_table = isl29028_id,
 };

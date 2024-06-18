@@ -3,7 +3,6 @@
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
-#include <linux/aer.h>
 
 #include "fm10k.h"
 
@@ -221,8 +220,6 @@ static bool fm10k_prepare_for_reset(struct fm10k_intfc *interface)
 {
 	struct net_device *netdev = interface->netdev;
 
-	WARN_ON(in_interrupt());
-
 	/* put off any impending NetWatchDogTimeout */
 	netif_trans_update(netdev);
 
@@ -302,7 +299,7 @@ static int fm10k_handle_reset(struct fm10k_intfc *interface)
 		if (is_valid_ether_addr(hw->mac.perm_addr)) {
 			ether_addr_copy(hw->mac.addr, hw->mac.perm_addr);
 			ether_addr_copy(netdev->perm_addr, hw->mac.perm_addr);
-			ether_addr_copy(netdev->dev_addr, hw->mac.perm_addr);
+			eth_hw_addr_set(netdev, hw->mac.perm_addr);
 			netdev->addr_assign_type &= ~NET_ADDR_RANDOM;
 		}
 
@@ -629,6 +626,9 @@ void fm10k_update_stats(struct fm10k_intfc *interface)
 	/* Fill out the OS statistics structure */
 	net_stats->rx_errors = rx_errors;
 	net_stats->rx_dropped = interface->stats.nodesc_drop.count;
+
+	/* Update VF statistics */
+	fm10k_iov_update_stats(interface);
 
 	clear_bit(__FM10K_UPDATING_STATS, interface->state);
 }
@@ -1369,7 +1369,6 @@ static irqreturn_t fm10k_msix_mbx_pf(int __always_unused irq, void *data)
 	struct fm10k_hw *hw = &interface->hw;
 	struct fm10k_mbx_info *mbx = &hw->mbx;
 	u32 eicr;
-	s32 err = 0;
 
 	/* unmask any set bits related to this interrupt */
 	eicr = fm10k_read_reg(hw, FM10K_EICR);
@@ -1385,14 +1384,15 @@ static irqreturn_t fm10k_msix_mbx_pf(int __always_unused irq, void *data)
 
 	/* service mailboxes */
 	if (fm10k_mbx_trylock(interface)) {
-		err = mbx->ops.process(hw, mbx);
+		s32 err = mbx->ops.process(hw, mbx);
+
+		if (err == FM10K_ERR_RESET_REQUESTED)
+			set_bit(FM10K_FLAG_RESET_REQUESTED, interface->flags);
+
 		/* handle VFLRE events */
 		fm10k_iov_event(interface);
 		fm10k_mbx_unlock(interface);
 	}
-
-	if (err == FM10K_ERR_RESET_REQUESTED)
-		set_bit(FM10K_FLAG_RESET_REQUESTED, interface->flags);
 
 	/* if switch toggled state we should reset GLORTs */
 	if (eicr & FM10K_EICR_SWITCHNOTREADY) {
@@ -2044,7 +2044,7 @@ static int fm10k_sw_init(struct fm10k_intfc *interface,
 		netdev->addr_assign_type |= NET_ADDR_RANDOM;
 	}
 
-	ether_addr_copy(netdev->dev_addr, hw->mac.addr);
+	eth_hw_addr_set(netdev, hw->mac.addr);
 	ether_addr_copy(netdev->perm_addr, hw->mac.addr);
 
 	if (!is_valid_ether_addr(netdev->perm_addr)) {
@@ -2062,10 +2062,6 @@ static int fm10k_sw_init(struct fm10k_intfc *interface,
 	/* set default interrupt moderation */
 	interface->tx_itr = FM10K_TX_ITR_DEFAULT;
 	interface->rx_itr = FM10K_ITR_ADAPTIVE | FM10K_RX_ITR_DEFAULT;
-
-	/* initialize udp port lists */
-	INIT_LIST_HEAD(&interface->vxlan_port);
-	INIT_LIST_HEAD(&interface->geneve_port);
 
 	/* Initialize the MAC/VLAN queue */
 	INIT_LIST_HEAD(&interface->macvlan_requests);
@@ -2129,8 +2125,6 @@ static int fm10k_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			"pci_request_selected_regions failed: %d\n", err);
 		goto err_pci_reg;
 	}
-
-	pci_enable_pcie_error_reporting(pdev);
 
 	pci_set_master(pdev);
 	pci_save_state(pdev);
@@ -2283,8 +2277,6 @@ static void fm10k_remove(struct pci_dev *pdev)
 
 	pci_release_mem_regions(pdev);
 
-	pci_disable_pcie_error_reporting(pdev);
-
 	pci_disable_device(pdev);
 }
 
@@ -2350,7 +2342,7 @@ static int fm10k_handle_resume(struct fm10k_intfc *interface)
  * suspend or hibernation. This function does not need to handle lower PCIe
  * device state as the stack takes care of that for us.
  **/
-static int __maybe_unused fm10k_resume(struct device *dev)
+static int fm10k_resume(struct device *dev)
 {
 	struct fm10k_intfc *interface = dev_get_drvdata(dev);
 	struct net_device *netdev = interface->netdev;
@@ -2377,7 +2369,7 @@ static int __maybe_unused fm10k_resume(struct device *dev)
  * system suspend or hibernation. This function does not need to handle lower
  * PCIe device state as the stack takes care of that for us.
  **/
-static int __maybe_unused fm10k_suspend(struct device *dev)
+static int fm10k_suspend(struct device *dev)
 {
 	struct fm10k_intfc *interface = dev_get_drvdata(dev);
 	struct net_device *netdev = interface->netdev;
@@ -2510,16 +2502,14 @@ static const struct pci_error_handlers fm10k_err_handler = {
 	.reset_done = fm10k_io_reset_done,
 };
 
-static SIMPLE_DEV_PM_OPS(fm10k_pm_ops, fm10k_suspend, fm10k_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(fm10k_pm_ops, fm10k_suspend, fm10k_resume);
 
 static struct pci_driver fm10k_driver = {
 	.name			= fm10k_driver_name,
 	.id_table		= fm10k_pci_tbl,
 	.probe			= fm10k_probe,
 	.remove			= fm10k_remove,
-	.driver = {
-		.pm		= &fm10k_pm_ops,
-	},
+	.driver.pm		= pm_sleep_ptr(&fm10k_pm_ops),
 	.sriov_configure	= fm10k_iov_configure,
 	.err_handler		= &fm10k_err_handler
 };

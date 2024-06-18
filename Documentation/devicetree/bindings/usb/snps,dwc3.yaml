@@ -1,0 +1,495 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/usb/snps,dwc3.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Synopsys DesignWare USB3 Controller
+
+maintainers:
+  - Felipe Balbi <balbi@kernel.org>
+
+description:
+  This is usually a subnode to DWC3 glue to which it is connected, but can also
+  be presented as a standalone DT node with an optional vendor-specific
+  compatible string.
+
+allOf:
+  - $ref: usb-drd.yaml#
+  - if:
+      properties:
+        dr_mode:
+          const: peripheral
+
+      required:
+        - dr_mode
+    then:
+      $ref: usb.yaml#
+    else:
+      $ref: usb-xhci.yaml#
+
+properties:
+  compatible:
+    contains:
+      oneOf:
+        - const: snps,dwc3
+        - const: synopsys,dwc3
+          deprecated: true
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    description:
+      It's either a single common DWC3 interrupt (dwc_usb3) or individual
+      interrupts for the host, gadget and DRD modes.
+    minItems: 1
+    maxItems: 4
+
+  interrupt-names:
+    minItems: 1
+    maxItems: 4
+    oneOf:
+      - const: dwc_usb3
+      - items:
+          enum: [host, peripheral, otg, wakeup]
+
+  clocks:
+    description:
+      In general the core supports three types of clocks. bus_early is a
+      SoC Bus Clock (AHB/AXI/Native). ref generates ITP when the UTMI/ULPI
+      PHY is suspended. suspend clocks a small part of the USB3 core when
+      SS PHY in P3. But particular cases may differ from that having less
+      or more clock sources with another names.
+
+  clock-names:
+    contains:
+      anyOf:
+        - enum: [bus_early, ref, suspend]
+        - true
+
+  dma-coherent: true
+
+  extcon:
+    maxItems: 1
+    deprecated: true
+
+  iommus:
+    maxItems: 1
+
+  usb-phy:
+    minItems: 1
+    items:
+      - description: USB2/HS PHY
+      - description: USB3/SS PHY
+
+  phys:
+    minItems: 1
+    maxItems: 19
+
+  phy-names:
+    minItems: 1
+    maxItems: 19
+    oneOf:
+      - items:
+          enum: [ usb2-phy, usb3-phy ]
+      - items:
+          pattern: "^usb(2-([0-9]|1[0-4])|3-[0-3])$"
+
+  power-domains:
+    description:
+      The DWC3 has 2 power-domains. The power management unit (PMU) and
+      everything else. The PMU is typically always powered and may not have an
+      entry.
+    minItems: 1
+    items:
+      - description: Core
+      - description: Power management unit
+
+  resets:
+    minItems: 1
+
+  snps,usb2-lpm-disable:
+    description: Indicate if we don't want to enable USB2 HW LPM for host
+      mode.
+    type: boolean
+
+  snps,usb3_lpm_capable:
+    description: Determines if platform is USB3 LPM capable
+    type: boolean
+
+  snps,usb2-gadget-lpm-disable:
+    description: Indicate if we don't want to enable USB2 HW LPM for gadget
+      mode.
+    type: boolean
+
+  snps,dis-start-transfer-quirk:
+    description:
+      When set, disable isoc START TRANSFER command failure SW work-around
+      for DWC_usb31 version 1.70a-ea06 and prior.
+    type: boolean
+
+  snps,disable_scramble_quirk:
+    description:
+      True when SW should disable data scrambling. Only really useful for FPGA
+      builds.
+    type: boolean
+
+  snps,has-lpm-erratum:
+    description: True when DWC3 was configured with LPM Erratum enabled
+    type: boolean
+
+  snps,lpm-nyet-threshold:
+    description: LPM NYET threshold
+    $ref: /schemas/types.yaml#/definitions/uint8
+
+  snps,u2exit_lfps_quirk:
+    description: Set if we want to enable u2exit lfps quirk
+    type: boolean
+
+  snps,u2ss_inp3_quirk:
+    description: Set if we enable P3 OK for U2/SS Inactive quirk
+    type: boolean
+
+  snps,req_p1p2p3_quirk:
+    description:
+      When set, the core will always request for P1/P2/P3 transition sequence.
+    type: boolean
+
+  snps,del_p1p2p3_quirk:
+    description:
+      When set core will delay P1/P2/P3 until a certain amount of 8B10B errors
+      occur.
+    type: boolean
+
+  snps,del_phy_power_chg_quirk:
+    description: When set core will delay PHY power change from P0 to P1/P2/P3.
+    type: boolean
+
+  snps,lfps_filter_quirk:
+    description: When set core will filter LFPS reception.
+    type: boolean
+
+  snps,rx_detect_poll_quirk:
+    description:
+      when set core will disable a 400us delay to start Polling LFPS after
+      RX.Detect.
+    type: boolean
+
+  snps,tx_de_emphasis_quirk:
+    description: When set core will set Tx de-emphasis value
+    type: boolean
+
+  snps,tx_de_emphasis:
+    description:
+      The value driven to the PHY is controlled by the LTSSM during USB3
+      Compliance mode.
+    $ref: /schemas/types.yaml#/definitions/uint8
+    enum:
+      - 0 # -6dB de-emphasis
+      - 1 # -3.5dB de-emphasis
+      - 2 # No de-emphasis
+
+  snps,dis_u3_susphy_quirk:
+    description: When set core will disable USB3 suspend phy
+    type: boolean
+
+  snps,dis_u2_susphy_quirk:
+    description: When set core will disable USB2 suspend phy
+    type: boolean
+
+  snps,dis_enblslpm_quirk:
+    description:
+      When set clears the enblslpm in GUSB2PHYCFG, disabling the suspend signal
+      to the PHY.
+    type: boolean
+
+  snps,dis-u1-entry-quirk:
+    description: Set if link entering into U1 needs to be disabled
+    type: boolean
+
+  snps,dis-u2-entry-quirk:
+    description: Set if link entering into U2 needs to be disabled
+    type: boolean
+
+  snps,dis_rxdet_inp3_quirk:
+    description:
+      When set core will disable receiver detection in PHY P3 power state.
+    type: boolean
+
+  snps,dis-u2-freeclk-exists-quirk:
+    description:
+      When set, clear the u2_freeclk_exists in GUSB2PHYCFG, specify that USB2
+      PHY doesn't provide a free-running PHY clock.
+    type: boolean
+
+  snps,dis-del-phy-power-chg-quirk:
+    description:
+      When set core will change PHY power from P0 to P1/P2/P3 without delay.
+    type: boolean
+
+  snps,dis-tx-ipgap-linecheck-quirk:
+    description: When set, disable u2mac linestate check during HS transmit
+    type: boolean
+
+  snps,parkmode-disable-ss-quirk:
+    description:
+      When set, all SuperSpeed bus instances in park mode are disabled.
+    type: boolean
+
+  snps,parkmode-disable-hs-quirk:
+    description:
+      When set, all HighSpeed bus instances in park mode are disabled.
+    type: boolean
+
+  snps,dis_metastability_quirk:
+    description:
+      When set, disable metastability workaround. CAUTION! Use only if you are
+      absolutely sure of it.
+    type: boolean
+
+  snps,dis-split-quirk:
+    description:
+      When set, change the way URBs are handled by the driver. Needed to
+      avoid -EPROTO errors with usbhid on some devices (Hikey 970).
+    type: boolean
+
+  snps,gfladj-refclk-lpm-sel-quirk:
+    description:
+      When set, run the SOF/ITP counter based on ref_clk.
+    type: boolean
+
+  snps,resume-hs-terminations:
+    description:
+      Fix the issue of HS terminations CRC error on resume by enabling this
+      quirk. When set, all the termsel, xcvrsel, opmode becomes 0 during end
+      of resume. This option is to support certain legacy ULPI PHYs.
+    type: boolean
+
+  snps,ulpi-ext-vbus-drv:
+    description:
+      Some ULPI USB PHY does not support internal VBUS supply, and driving
+      the CPEN pin, requires the configuration of the ulpi DRVVBUSEXTERNAL
+      bit. When set, the xhci host will configure the USB2 PHY drives VBUS
+      with an external supply.
+    type: boolean
+
+  snps,is-utmi-l1-suspend:
+    description:
+      True when DWC3 asserts output signal utmi_l1_suspend_n, false when
+      asserts utmi_sleep_n.
+    type: boolean
+
+  snps,hird-threshold:
+    description: HIRD threshold
+    $ref: /schemas/types.yaml#/definitions/uint8
+
+  snps,hsphy_interface:
+    description:
+      High-Speed PHY interface selection between UTMI+ and ULPI when the
+      DWC_USB3_HSPHY_INTERFACE has value 3.
+    $ref: /schemas/types.yaml#/definitions/string
+    enum: [utmi, ulpi]
+
+  snps,quirk-frame-length-adjustment:
+    description:
+      Value for GFLADJ_30MHZ field of GFLADJ register for post-silicon frame
+      length adjustment when the fladj_30mhz_sdbnd signal is invalid or
+      incorrect.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 0x3f
+
+  snps,ref-clock-period-ns:
+    description:
+      Value for REFCLKPER field of GUCTL register for reference clock period in
+      nanoseconds, when the hardware set default does not match the actual
+      clock.
+
+      This binding is deprecated. Instead, provide an appropriate reference clock.
+    minimum: 8
+    maximum: 62
+    deprecated: true
+
+  snps,rx-thr-num-pkt:
+    description:
+      USB RX packet threshold count. In host mode, this field specifies
+      the space that must be available in the RX FIFO before the core can
+      start the corresponding USB RX transaction (burst).
+      In device mode, this field specifies the space that must be
+      available in the RX FIFO before the core can send ERDY for a
+      flow-controlled endpoint. It is only used for SuperSpeed.
+      The valid values for this field are from 1 to 15. (DWC3 SuperSpeed
+      USB 3.0 Controller Databook)
+    $ref: /schemas/types.yaml#/definitions/uint8
+    minimum: 1
+    maximum: 15
+
+  snps,rx-max-burst:
+    description:
+      Max USB RX burst size. In host mode, this field specifies the
+      Maximum Bulk IN burst the DWC_usb3 core can perform. When the system
+      bus is slower than the USB, RX FIFO can overrun during a long burst.
+      You can program a smaller value to this field to limit the RX burst
+      size that the core can perform. It only applies to SS Bulk,
+      Isochronous, and Interrupt IN endpoints in the host mode.
+      In device mode, this field specifies the NUMP value that is sent in
+      ERDY for an OUT endpoint.
+      The valid values for this field are from 1 to 16. (DWC3 SuperSpeed
+      USB 3.0 Controller Databook)
+    $ref: /schemas/types.yaml#/definitions/uint8
+    minimum: 1
+    maximum: 16
+
+  snps,tx-thr-num-pkt:
+    description:
+      USB TX packet threshold count. This field specifies the number of
+      packets that must be in the TXFIFO before the core can start
+      transmission for the corresponding USB transaction (burst).
+      This count is valid in both host and device modes. It is only used
+      for SuperSpeed operation.
+      Valid values are from 1 to 15. (DWC3 SuperSpeed USB 3.0 Controller
+      Databook)
+    $ref: /schemas/types.yaml#/definitions/uint8
+    minimum: 1
+    maximum: 15
+
+  snps,tx-max-burst:
+    description:
+      Max USB TX burst size. When the system bus is slower than the USB,
+      TX FIFO can underrun during a long burst. Program a smaller value
+      to this field to limit the TX burst size that the core can execute.
+      In Host mode, it only applies to SS Bulk, Isochronous, and Interrupt
+      OUT endpoints. This value is not used in device mode.
+      Valid values are from 1 to 16. (DWC3 SuperSpeed USB 3.0 Controller
+      Databook)
+    $ref: /schemas/types.yaml#/definitions/uint8
+    minimum: 1
+    maximum: 16
+
+  snps,rx-thr-num-pkt-prd:
+    description:
+      Periodic ESS RX packet threshold count (host mode only). Set this and
+      snps,rx-max-burst-prd to a valid, non-zero value 1-16 (DWC_usb31
+      programming guide section 1.2.4) to enable periodic ESS RX threshold.
+    $ref: /schemas/types.yaml#/definitions/uint8
+    minimum: 1
+    maximum: 16
+
+  snps,rx-max-burst-prd:
+    description:
+      Max periodic ESS RX burst size (host mode only). Set this and
+      snps,rx-thr-num-pkt-prd to a valid, non-zero value 1-16 (DWC_usb31
+      programming guide section 1.2.4) to enable periodic ESS RX threshold.
+    $ref: /schemas/types.yaml#/definitions/uint8
+    minimum: 1
+    maximum: 16
+
+  snps,tx-thr-num-pkt-prd:
+    description:
+      Periodic ESS TX packet threshold count (host mode only). Set this and
+      snps,tx-max-burst-prd to a valid, non-zero value 1-16 (DWC_usb31
+      programming guide section 1.2.3) to enable periodic ESS TX threshold.
+    $ref: /schemas/types.yaml#/definitions/uint8
+    minimum: 1
+    maximum: 16
+
+  snps,tx-max-burst-prd:
+    description:
+      Max periodic ESS TX burst size (host mode only). Set this and
+      snps,tx-thr-num-pkt-prd to a valid, non-zero value 1-16 (DWC_usb31
+      programming guide section 1.2.3) to enable periodic ESS TX threshold.
+    $ref: /schemas/types.yaml#/definitions/uint8
+    minimum: 1
+    maximum: 16
+
+  tx-fifo-resize:
+    description: Determines if the TX fifos can be dynamically resized depending
+      on the number of IN endpoints used and if bursting is supported.  This
+      may help improve bandwidth on platforms with higher system latencies, as
+      increased fifo space allows for the controller to prefetch data into its
+      internal memory.
+    type: boolean
+
+  tx-fifo-max-num:
+    description: Specifies the max number of packets the txfifo resizing logic
+      can account for when higher endpoint bursting is used. (bMaxBurst > 6) The
+      higher the number, the more fifo space the txfifo resizing logic will
+      allocate for that endpoint.
+    $ref: /schemas/types.yaml#/definitions/uint8
+    minimum: 3
+
+  snps,incr-burst-type-adjustment:
+    description:
+      Value for INCR burst type of GSBUSCFG0 register, undefined length INCR
+      burst type enable and INCRx type. A single value means INCRX burst mode
+      enabled. If more than one value specified, undefined length INCR burst
+      type will be enabled with burst lengths utilized up to the maximum
+      of the values passed in this property.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 8
+    uniqueItems: true
+    items:
+      enum: [1, 4, 8, 16, 32, 64, 128, 256]
+
+  num-hc-interrupters:
+    maximum: 8
+    default: 1
+
+  port:
+    $ref: /schemas/graph.yaml#/properties/port
+    description:
+      This port is used with the 'usb-role-switch' property  to connect the
+      dwc3 to type C connector.
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+    description:
+      Those ports should be used with any connector to the data bus of this
+      controller using the OF graph bindings specified if the "usb-role-switch"
+      property is used.
+
+    properties:
+      port@0:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: High Speed (HS) data bus.
+
+      port@1:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: Super Speed (SS) data bus.
+
+  wakeup-source:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      Enable USB remote wakeup.
+
+unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+examples:
+  - |
+    usb@4a030000 {
+      compatible = "snps,dwc3";
+      reg = <0x4a030000 0xcfff>;
+      interrupts = <0 92 4>;
+      usb-phy = <&usb2_phy>, <&usb3_phy>;
+      snps,incr-burst-type-adjustment = <1>, <4>, <8>, <16>;
+    };
+  - |
+    usb@4a000000 {
+      compatible = "snps,dwc3";
+      reg = <0x4a000000 0xcfff>;
+      interrupts = <0 92 4>;
+      clocks = <&clk 1>, <&clk 2>, <&clk 3>;
+      clock-names = "bus_early", "ref", "suspend";
+      phys = <&usb2_phy>, <&usb3_phy>;
+      phy-names = "usb2-phy", "usb3-phy";
+      snps,dis_u2_susphy_quirk;
+      snps,dis_enblslpm_quirk;
+    };
+...

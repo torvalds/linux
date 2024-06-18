@@ -129,8 +129,7 @@ static const struct v4l2_subdev_ops tlv320aic23b_ops = {
  * concerning the addresses: i2c wants 7 bit (without the r/w bit), so '>>1'
  */
 
-static int tlv320aic23b_probe(struct i2c_client *client,
-			      const struct i2c_device_id *id)
+static int tlv320aic23b_probe(struct i2c_client *client)
 {
 	struct tlv320aic23b_state *state;
 	struct v4l2_subdev *sd;
@@ -177,14 +176,13 @@ static int tlv320aic23b_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int tlv320aic23b_remove(struct i2c_client *client)
+static void tlv320aic23b_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct tlv320aic23b_state *state = to_state(sd);
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&state->hdl);
-	return 0;
 }
 
 /* ----------------------------------------------------------------------- */

@@ -325,8 +325,6 @@ struct cma3000_accl_data *cma3000_init(struct device *dev, int irq,
 	input_dev->open = cma3000_open;
 	input_dev->close = cma3000_close;
 
-	 __set_bit(EV_ABS, input_dev->evbit);
-
 	input_set_abs_params(input_dev, ABS_X,
 			-data->g_range, data->g_range, pdata->fuzz_x, 0);
 	input_set_abs_params(input_dev, ABS_Y,

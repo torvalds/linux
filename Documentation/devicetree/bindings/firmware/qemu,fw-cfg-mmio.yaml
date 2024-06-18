@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/firmware/qemu,fw-cfg-mmio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: QEMU Firmware Configuration
+
+maintainers:
+  - Rob Herring <robh@kernel.org>
+
+description: |
+  Various QEMU emulation / virtualization targets provide the following
+  Firmware Configuration interface on the "virt" machine type:
+
+  - A write-only, 16-bit wide selector (or control) register,
+  - a read-write, 64-bit wide data register.
+
+  QEMU exposes the control and data register to guests as memory mapped
+  registers; their location is communicated to the guest's UEFI firmware in the
+  DTB that QEMU places at the bottom of the guest's DRAM.
+
+  The authoritative guest-side hardware interface documentation to the fw_cfg
+  device can be found in "docs/specs/fw_cfg.txt" in the QEMU source tree.
+
+
+properties:
+  compatible:
+    const: qemu,fw-cfg-mmio
+
+  reg:
+    maxItems: 1
+    description: |
+      * Bytes 0x0 to 0x7 cover the data register.
+      * Bytes 0x8 to 0x9 cover the selector register.
+      * Further registers may be appended to the region in case of future interface
+        revisions / feature bits.
+
+  dma-coherent: true
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+
+    fw-cfg@9020000 {
+        compatible = "qemu,fw-cfg-mmio";
+        reg = <0x9020000 0xa>;
+    };
+...

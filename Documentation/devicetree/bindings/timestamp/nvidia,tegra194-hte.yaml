@@ -1,0 +1,140 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/timestamp/nvidia,tegra194-hte.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Tegra on chip generic hardware timestamping engine (HTE) provider
+
+maintainers:
+  - Dipen Patel <dipenp@nvidia.com>
+
+description:
+  Tegra SoC has two instances of generic hardware timestamping engines (GTE)
+  known as GTE GPIO and GTE IRQ, which can monitor subset of GPIO and on chip
+  IRQ lines for the state change respectively, upon detection it will record
+  timestamp (taken from system counter) in its internal hardware FIFO. It has
+  a bitmap array arranged in 32bit slices where each bit represent signal/line
+  to enable or disable for the hardware timestamping. The GTE GPIO monitors
+  GPIO lines from the AON (always on) GPIO controller.
+
+properties:
+  compatible:
+    enum:
+      - nvidia,tegra194-gte-aon
+      - nvidia,tegra194-gte-lic
+      - nvidia,tegra234-gte-aon
+      - nvidia,tegra234-gte-lic
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  nvidia,int-threshold:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      HTE device generates its interrupt based on this u32 FIFO threshold
+      value. The recommended value is 1.
+    minimum: 1
+    maximum: 256
+
+  nvidia,slices:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    deprecated: true
+    description:
+      HTE lines are arranged in 32 bit slice where each bit represents different
+      line/signal that it can enable/configure for the timestamp. It is u32
+      property and the value depends on the HTE instance in the chip. The AON
+      GTE instances for both Tegra194 and Tegra234 has 3 slices. The Tegra194
+      LIC instance has 11 slices and Tegra234 LIC has 17 slices.
+    enum: [3, 11, 17]
+
+  nvidia,gpio-controller:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      The phandle to AON gpio controller instance. This is required to handle
+      namespace conversion between GPIO and GTE.
+
+  '#timestamp-cells':
+    description:
+      This represents number of line id arguments as specified by the
+      consumers. For the GTE IRQ, this is IRQ number as mentioned in the
+      SoC technical reference manual. For the GTE GPIO, its value is same as
+      mentioned in the nvidia GPIO device tree binding document.
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - "#timestamp-cells"
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - nvidia,tegra194-gte-aon
+              - nvidia,tegra234-gte-aon
+    then:
+      properties:
+        nvidia,slices:
+          const: 3
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - nvidia,tegra194-gte-lic
+    then:
+      properties:
+        nvidia,slices:
+          const: 11
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - nvidia,tegra234-gte-lic
+    then:
+      properties:
+        nvidia,slices:
+          const: 17
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - nvidia,tegra234-gte-aon
+    then:
+      required:
+        - nvidia,gpio-controller
+
+additionalProperties: false
+
+examples:
+  - |
+    tegra_hte_aon: timestamp@c1e0000 {
+              compatible = "nvidia,tegra194-gte-aon";
+              reg = <0xc1e0000 0x10000>;
+              interrupts = <0 13 0x4>;
+              nvidia,int-threshold = <1>;
+              #timestamp-cells = <1>;
+    };
+
+  - |
+    tegra_hte_lic: timestamp@3aa0000 {
+              compatible = "nvidia,tegra194-gte-lic";
+              reg = <0x3aa0000 0x10000>;
+              interrupts = <0 11 0x4>;
+              nvidia,int-threshold = <1>;
+              #timestamp-cells = <1>;
+    };
+
+...

@@ -50,6 +50,8 @@
 #define PPC_FEATURE2_DARN		0x00200000 /* darn random number insn */
 #define PPC_FEATURE2_SCV		0x00100000 /* scv syscall */
 #define PPC_FEATURE2_HTM_NO_SUSPEND	0x00080000 /* TM w/out suspended state */
+#define PPC_FEATURE2_ARCH_3_1		0x00040000 /* ISA 3.1 */
+#define PPC_FEATURE2_MMA		0x00020000 /* Matrix Multiply Assist */
 
 /*
  * IMPORTANT!

@@ -625,7 +625,7 @@ static int w8001_connect(struct serio *serio, struct serio_driver *drv)
 	/* For backwards-compatibility we compose the basename based on
 	 * capabilities and then just append the tool type
 	 */
-	strlcpy(basename, "Wacom Serial", sizeof(basename));
+	strscpy(basename, "Wacom Serial", sizeof(basename));
 
 	err_pen = w8001_setup_pen(w8001, basename, sizeof(basename));
 	err_touch = w8001_setup_touch(w8001, basename, sizeof(basename));
@@ -635,7 +635,7 @@ static int w8001_connect(struct serio *serio, struct serio_driver *drv)
 	}
 
 	if (!err_pen) {
-		strlcpy(w8001->pen_name, basename, sizeof(w8001->pen_name));
+		strscpy(w8001->pen_name, basename, sizeof(w8001->pen_name));
 		strlcat(w8001->pen_name, " Pen", sizeof(w8001->pen_name));
 		input_dev_pen->name = w8001->pen_name;
 
@@ -651,7 +651,7 @@ static int w8001_connect(struct serio *serio, struct serio_driver *drv)
 	}
 
 	if (!err_touch) {
-		strlcpy(w8001->touch_name, basename, sizeof(w8001->touch_name));
+		strscpy(w8001->touch_name, basename, sizeof(w8001->touch_name));
 		strlcat(w8001->touch_name, " Finger",
 			sizeof(w8001->touch_name));
 		input_dev_touch->name = w8001->touch_name;

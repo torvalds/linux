@@ -1,11 +1,7 @@
 cat <<EOF
-static inline ${ret}
-${atomic}_${pfx}${name}${sfx}(${params})
-{
 	${ret} ret;
 	__atomic_pre_full_fence();
-	ret = ${atomic}_${pfx}${name}${sfx}_relaxed(${args});
+	ret = arch_${atomic}_${pfx}${name}${sfx}_relaxed(${args});
 	__atomic_post_full_fence();
 	return ret;
-}
 EOF

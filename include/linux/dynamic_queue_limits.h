@@ -38,11 +38,24 @@
 
 #ifdef __KERNEL__
 
+#include <linux/bitops.h>
+#include <asm/bug.h>
+
+#define DQL_HIST_LEN		4
+#define DQL_HIST_ENT(dql, idx)	((dql)->history[(idx) % DQL_HIST_LEN])
+
 struct dql {
 	/* Fields accessed in enqueue path (dql_queued) */
 	unsigned int	num_queued;		/* Total ever queued */
 	unsigned int	adj_limit;		/* limit + num_completed */
 	unsigned int	last_obj_cnt;		/* Count at last queuing */
+
+	/* Stall threshold (in jiffies), defined by user */
+	unsigned short	stall_thrs;
+
+	unsigned long	history_head;		/* top 58 bits of jiffies */
+	/* stall entries, a bit per entry */
+	unsigned long	history[DQL_HIST_LEN];
 
 	/* Fields accessed only by completion path (dql_completed) */
 
@@ -60,11 +73,50 @@ struct dql {
 	unsigned int	max_limit;		/* Max limit */
 	unsigned int	min_limit;		/* Minimum limit */
 	unsigned int	slack_hold_time;	/* Time to measure slack */
+
+	/* Longest stall detected, reported to user */
+	unsigned short	stall_max;
+	unsigned long	last_reap;		/* Last reap (in jiffies) */
+	unsigned long	stall_cnt;		/* Number of stalls */
 };
 
 /* Set some static maximums */
 #define DQL_MAX_OBJECT (UINT_MAX / 16)
 #define DQL_MAX_LIMIT ((UINT_MAX / 2) - DQL_MAX_OBJECT)
+
+/* Populate the bitmap to be processed later in dql_check_stall() */
+static inline void dql_queue_stall(struct dql *dql)
+{
+	unsigned long map, now, now_hi, i;
+
+	now = jiffies;
+	now_hi = now / BITS_PER_LONG;
+
+	/* The following code set a bit in the ring buffer, where each
+	 * bit trackes time the packet was queued. The dql->history buffer
+	 * tracks DQL_HIST_LEN * BITS_PER_LONG time (jiffies) slot
+	 */
+	if (unlikely(now_hi != dql->history_head)) {
+		/* About to reuse slots, clear them */
+		for (i = 0; i < DQL_HIST_LEN; i++) {
+			/* Multiplication masks high bits */
+			if (now_hi * BITS_PER_LONG ==
+			    (dql->history_head + i) * BITS_PER_LONG)
+				break;
+			DQL_HIST_ENT(dql, dql->history_head + i + 1) = 0;
+		}
+		/* pairs with smp_rmb() in dql_check_stall() */
+		smp_wmb();
+		WRITE_ONCE(dql->history_head, now_hi);
+	}
+
+	/* __set_bit() does not guarantee WRITE_ONCE() semantics */
+	map = DQL_HIST_ENT(dql, now_hi);
+
+	/* Populate the history with an entry (bit) per queued */
+	if (!(map & BIT_MASK(now)))
+		WRITE_ONCE(DQL_HIST_ENT(dql, now_hi), map | BIT_MASK(now));
+}
 
 /*
  * Record number of objects queued. Assumes that caller has already checked
@@ -72,7 +124,8 @@ struct dql {
  */
 static inline void dql_queued(struct dql *dql, unsigned int count)
 {
-	BUG_ON(count > DQL_MAX_OBJECT);
+	if (WARN_ON_ONCE(count > DQL_MAX_OBJECT))
+		return;
 
 	dql->last_obj_cnt = count;
 
@@ -84,6 +137,10 @@ static inline void dql_queued(struct dql *dql, unsigned int count)
 	barrier();
 
 	dql->num_queued += count;
+
+	/* Only populate stall information if the threshold is set */
+	if (READ_ONCE(dql->stall_thrs))
+		dql_queue_stall(dql);
 }
 
 /* Returns how many objects can be queued, < 0 indicates over limit. */

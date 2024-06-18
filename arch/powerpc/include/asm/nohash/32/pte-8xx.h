@@ -39,12 +39,19 @@
  * into the TLB.
  */
 #define _PAGE_GUARDED	0x0010	/* Copied to L1 G entry in DTLB */
-#define _PAGE_SPECIAL	0x0020	/* SW entry */
+#define _PAGE_ACCESSED	0x0020	/* Copied to L1 APG 1 entry in I/DTLB */
 #define _PAGE_EXEC	0x0040	/* Copied to PP (bit 21) in ITLB */
-#define _PAGE_ACCESSED	0x0080	/* software: page referenced */
+#define _PAGE_SPECIAL	0x0080	/* SW entry */
 
 #define _PAGE_NA	0x0200	/* Supervisor NA, User no access */
 #define _PAGE_RO	0x0600	/* Supervisor RO, User no access */
+
+#define _PAGE_HUGE	0x0800	/* Copied to L1 PS bit 29 */
+
+#define _PAGE_NAX	(_PAGE_NA | _PAGE_EXEC)
+#define _PAGE_ROX	(_PAGE_RO | _PAGE_EXEC)
+#define _PAGE_RW	0
+#define _PAGE_RWX	_PAGE_EXEC
 
 /* cache related flags non existing on 8xx */
 #define _PAGE_COHERENT	0
@@ -57,11 +64,12 @@
 
 #define _PMD_PRESENT	0x0001
 #define _PMD_PRESENT_MASK	_PMD_PRESENT
-#define _PMD_BAD	0x0fd0
+#define _PMD_BAD	0x0f90
 #define _PMD_PAGE_MASK	0x000c
 #define _PMD_PAGE_8M	0x000c
 #define _PMD_PAGE_512K	0x0004
-#define _PMD_USER	0x0020	/* APG 1 */
+#define _PMD_ACCESSED	0x0020	/* APG 1 */
+#define _PMD_USER	0x0040	/* APG 2 */
 
 #define _PTE_NONE_MASK	0
 
@@ -74,14 +82,7 @@
 #define _PAGE_BASE_NC	(_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_PSIZE)
 #define _PAGE_BASE	(_PAGE_BASE_NC)
 
-/* Permission masks used to generate the __P and __S table */
-#define PAGE_NONE	__pgprot(_PAGE_BASE | _PAGE_NA)
-#define PAGE_SHARED	__pgprot(_PAGE_BASE)
-#define PAGE_SHARED_X	__pgprot(_PAGE_BASE | _PAGE_EXEC)
-#define PAGE_COPY	__pgprot(_PAGE_BASE | _PAGE_RO)
-#define PAGE_COPY_X	__pgprot(_PAGE_BASE | _PAGE_RO | _PAGE_EXEC)
-#define PAGE_READONLY	__pgprot(_PAGE_BASE | _PAGE_RO)
-#define PAGE_READONLY_X	__pgprot(_PAGE_BASE | _PAGE_RO | _PAGE_EXEC)
+#include <asm/pgtable-masks.h>
 
 #ifndef __ASSEMBLY__
 static inline pte_t pte_wrprotect(pte_t pte)
@@ -91,6 +92,13 @@ static inline pte_t pte_wrprotect(pte_t pte)
 
 #define pte_wrprotect pte_wrprotect
 
+static inline int pte_read(pte_t pte)
+{
+	return (pte_val(pte) & _PAGE_RO) != _PAGE_NA;
+}
+
+#define pte_read pte_read
+
 static inline int pte_write(pte_t pte)
 {
 	return !(pte_val(pte) & _PAGE_RO);
@@ -98,40 +106,121 @@ static inline int pte_write(pte_t pte)
 
 #define pte_write pte_write
 
-static inline pte_t pte_mkwrite(pte_t pte)
+static inline pte_t pte_mkwrite_novma(pte_t pte)
 {
 	return __pte(pte_val(pte) & ~_PAGE_RO);
 }
 
-#define pte_mkwrite pte_mkwrite
-
-static inline bool pte_user(pte_t pte)
-{
-	return !(pte_val(pte) & _PAGE_SH);
-}
-
-#define pte_user pte_user
-
-static inline pte_t pte_mkprivileged(pte_t pte)
-{
-	return __pte(pte_val(pte) | _PAGE_SH);
-}
-
-#define pte_mkprivileged pte_mkprivileged
-
-static inline pte_t pte_mkuser(pte_t pte)
-{
-	return __pte(pte_val(pte) & ~_PAGE_SH);
-}
-
-#define pte_mkuser pte_mkuser
+#define pte_mkwrite_novma pte_mkwrite_novma
 
 static inline pte_t pte_mkhuge(pte_t pte)
 {
-	return __pte(pte_val(pte) | _PAGE_SPS);
+	return __pte(pte_val(pte) | _PAGE_SPS | _PAGE_HUGE);
 }
 
 #define pte_mkhuge pte_mkhuge
+
+static inline pte_basic_t pte_update(struct mm_struct *mm, unsigned long addr, pte_t *p,
+				     unsigned long clr, unsigned long set, int huge);
+
+static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
+{
+	pte_update(mm, addr, ptep, 0, _PAGE_RO, 0);
+}
+#define ptep_set_wrprotect ptep_set_wrprotect
+
+static inline void __ptep_set_access_flags(struct vm_area_struct *vma, pte_t *ptep,
+					   pte_t entry, unsigned long address, int psize)
+{
+	unsigned long set = pte_val(entry) & (_PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_EXEC);
+	unsigned long clr = ~pte_val(entry) & _PAGE_RO;
+	int huge = psize > mmu_virtual_psize ? 1 : 0;
+
+	pte_update(vma->vm_mm, address, ptep, clr, set, huge);
+
+	flush_tlb_page(vma, address);
+}
+#define __ptep_set_access_flags __ptep_set_access_flags
+
+static inline unsigned long pgd_leaf_size(pgd_t pgd)
+{
+	if (pgd_val(pgd) & _PMD_PAGE_8M)
+		return SZ_8M;
+	return SZ_4M;
+}
+
+#define pgd_leaf_size pgd_leaf_size
+
+static inline unsigned long pte_leaf_size(pte_t pte)
+{
+	pte_basic_t val = pte_val(pte);
+
+	if (val & _PAGE_HUGE)
+		return SZ_512K;
+	if (val & _PAGE_SPS)
+		return SZ_16K;
+	return SZ_4K;
+}
+
+#define pte_leaf_size pte_leaf_size
+
+/*
+ * On the 8xx, the page tables are a bit special. For 16k pages, we have
+ * 4 identical entries. For 512k pages, we have 128 entries as if it was
+ * 4k pages, but they are flagged as 512k pages for the hardware.
+ * For other page sizes, we have a single entry in the table.
+ */
+static pmd_t *pmd_off(struct mm_struct *mm, unsigned long addr);
+static int hugepd_ok(hugepd_t hpd);
+
+static inline int number_of_cells_per_pte(pmd_t *pmd, pte_basic_t val, int huge)
+{
+	if (!huge)
+		return PAGE_SIZE / SZ_4K;
+	else if (hugepd_ok(*((hugepd_t *)pmd)))
+		return 1;
+	else if (IS_ENABLED(CONFIG_PPC_4K_PAGES) && !(val & _PAGE_HUGE))
+		return SZ_16K / SZ_4K;
+	else
+		return SZ_512K / SZ_4K;
+}
+
+static inline pte_basic_t pte_update(struct mm_struct *mm, unsigned long addr, pte_t *p,
+				     unsigned long clr, unsigned long set, int huge)
+{
+	pte_basic_t *entry = (pte_basic_t *)p;
+	pte_basic_t old = pte_val(*p);
+	pte_basic_t new = (old & ~(pte_basic_t)clr) | set;
+	int num, i;
+	pmd_t *pmd = pmd_off(mm, addr);
+
+	num = number_of_cells_per_pte(pmd, new, huge);
+
+	for (i = 0; i < num; i += PAGE_SIZE / SZ_4K, new += PAGE_SIZE) {
+		*entry++ = new;
+		if (IS_ENABLED(CONFIG_PPC_16K_PAGES) && num != 1) {
+			*entry++ = new;
+			*entry++ = new;
+			*entry++ = new;
+		}
+	}
+
+	return old;
+}
+
+#define pte_update pte_update
+
+#ifdef CONFIG_PPC_16K_PAGES
+#define ptep_get ptep_get
+static inline pte_t ptep_get(pte_t *ptep)
+{
+	pte_basic_t val = READ_ONCE(ptep->pte);
+	pte_t pte = {val, val, val, val};
+
+	return pte;
+}
+#endif /* CONFIG_PPC_16K_PAGES */
+
 #endif
 
 #endif /* __KERNEL__ */

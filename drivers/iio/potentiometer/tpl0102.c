@@ -120,9 +120,9 @@ static const struct iio_info tpl0102_info = {
 	.write_raw = tpl0102_write_raw,
 };
 
-static int tpl0102_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int tpl0102_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct device *dev = &client->dev;
 	struct tpl0102_data *data;
 	struct iio_dev *indio_dev;
@@ -140,7 +140,6 @@ static int tpl0102_probe(struct i2c_client *client,
 		return PTR_ERR(data->regmap);
 	}
 
-	indio_dev->dev.parent = dev;
 	indio_dev->info = &tpl0102_info;
 	indio_dev->channels = tpl0102_channels;
 	indio_dev->num_channels = data->cfg->wipers;

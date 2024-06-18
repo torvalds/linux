@@ -54,6 +54,7 @@ static const struct {
 	ST(0x1480, 8),
 	ST(0x1500, 8),
 	ST(0x1520, 8),
+	ST(0x1540, 8),
 	ST(0x1608, 1),
 	ST(0x1610, 1),
 	ST(0x1658, 1),

@@ -135,7 +135,7 @@ static int synth_all(struct machine *machine)
 {
 	return perf_event__synthesize_threads(NULL,
 					      perf_event__process,
-					      machine, 0, 1);
+					      machine, 1, 0, 1);
 }
 
 static int synth_process(struct machine *machine)
@@ -147,7 +147,7 @@ static int synth_process(struct machine *machine)
 
 	err = perf_event__synthesize_thread_map(NULL, map,
 						perf_event__process,
-						machine, 0);
+						machine, 1, 0);
 
 	perf_thread_map__put(map);
 	return err;
@@ -187,6 +187,7 @@ static int mmap_events(synth_cb synth)
 		struct addr_location al;
 		struct thread *thread;
 
+		addr_location__init(&al);
 		thread = machine__findnew_thread(machine, getpid(), td->tid);
 
 		pr_debug("looking for map %p\n", td->map);
@@ -199,13 +200,14 @@ static int mmap_events(synth_cb synth)
 		if (!al.map) {
 			pr_debug("failed, couldn't find map\n");
 			err = -1;
+			addr_location__exit(&al);
 			break;
 		}
 
-		pr_debug("map %p, addr %" PRIx64 "\n", al.map, al.map->start);
+		pr_debug("map %p, addr %" PRIx64 "\n", al.map, map__start(al.map));
+		addr_location__exit(&al);
 	}
 
-	machine__delete_threads(machine);
 	machine__delete(machine);
 	return err;
 }
@@ -224,7 +226,7 @@ static int mmap_events(synth_cb synth)
  *
  * by using all thread objects.
  */
-int test__mmap_thread_lookup(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__mmap_thread_lookup(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	/* perf_event__synthesize_threads synthesize */
 	TEST_ASSERT_VAL("failed with sythesizing all",
@@ -236,3 +238,5 @@ int test__mmap_thread_lookup(struct test *test __maybe_unused, int subtest __may
 
 	return 0;
 }
+
+DEFINE_SUITE("Lookup mmap thread", mmap_thread_lookup);

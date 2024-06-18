@@ -197,7 +197,7 @@
 /* JACK_DET_CTRL (0x0D) */
 #define NAU8824_JACK_EJECT_DT_SFT	2
 #define NAU8824_JACK_EJECT_DT_MASK (0x3 << NAU8824_JACK_EJECT_DT_SFT)
-#define NAU8824_JACK_LOGIC		0x1
+#define NAU8824_JACK_LOGIC		(0x1 << 1)
 
 
 /* INTERRUPT_SETTING_1 (0x0F) */
@@ -436,6 +436,7 @@ struct nau8824 {
 	struct semaphore jd_sem;
 	int fs;
 	int irq;
+	int resume_lock;
 	int micbias_voltage;
 	int vref_impedance;
 	int jkdet_polarity;
@@ -470,6 +471,7 @@ struct nau8824_osr_attr {
 
 int nau8824_enable_jack_detect(struct snd_soc_component *component,
 	struct snd_soc_jack *jack);
+const char *nau8824_components(void);
 
 #endif				/* _NAU8824_H */
 

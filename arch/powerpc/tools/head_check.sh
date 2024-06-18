@@ -31,8 +31,10 @@
 # level entry code (boot, interrupt vectors, etc) until r2 is set up. This
 # could cause the kernel to die in early boot.
 
-# Turn this on if you want more debug output:
-# set -x
+# Allow for verbose output
+if [ "$V" = "1" ]; then
+	set -x
+fi
 
 if [ $# -lt 2 ]; then
 	echo "$0 [path to nm] [path to vmlinux]" 1>&2
@@ -44,33 +46,33 @@ nm="$1"
 vmlinux="$2"
 
 # gcc-4.6-era toolchain make _stext an A (absolute) symbol rather than T
-$nm "$vmlinux" | grep -e " [TA] _stext$" -e " t start_first_256B$" -e " a text_start$" -e " t start_text$" -m4 > .tmp_symbols.txt
+$nm "$vmlinux" | grep -e " [TA] _stext$" -e " t start_first_256B$" -e " a text_start$" -e " t start_text$" > .tmp_symbols.txt
 
 
-vma=$(cat .tmp_symbols.txt | grep -e " [TA] _stext$" | cut -d' ' -f1)
+vma=$(grep -e " [TA] _stext$" .tmp_symbols.txt | cut -d' ' -f1)
 
-expected_start_head_addr=$vma
+expected_start_head_addr="$vma"
 
-start_head_addr=$(cat .tmp_symbols.txt | grep " t start_first_256B$" | cut -d' ' -f1)
+start_head_addr=$(grep " t start_first_256B$" .tmp_symbols.txt | cut -d' ' -f1)
 
 if [ "$start_head_addr" != "$expected_start_head_addr" ]; then
-	echo "ERROR: head code starts at $start_head_addr, should be $expected_start_head_addr"
-	echo "ERROR: try to enable LD_HEAD_STUB_CATCH config option"
-	echo "ERROR: see comments in arch/powerpc/tools/head_check.sh"
+	echo "ERROR: head code starts at $start_head_addr, should be $expected_start_head_addr" 1>&2
+	echo "ERROR: try to enable LD_HEAD_STUB_CATCH config option" 1>&2
+	echo "ERROR: see comments in arch/powerpc/tools/head_check.sh" 1>&2
 
 	exit 1
 fi
 
-top_vma=$(echo $vma | cut -d'0' -f1)
+top_vma=$(echo "$vma" | cut -d'0' -f1)
 
-expected_start_text_addr=$(cat .tmp_symbols.txt | grep " a text_start$" | cut -d' ' -f1 | sed "s/^0/$top_vma/")
+expected_start_text_addr=$(grep " a text_start$" .tmp_symbols.txt | cut -d' ' -f1 | sed "s/^0/$top_vma/")
 
-start_text_addr=$(cat .tmp_symbols.txt | grep " t start_text$" | cut -d' ' -f1)
+start_text_addr=$(grep " t start_text$" .tmp_symbols.txt | cut -d' ' -f1)
 
 if [ "$start_text_addr" != "$expected_start_text_addr" ]; then
-	echo "ERROR: start_text address is $start_text_addr, should be $expected_start_text_addr"
-	echo "ERROR: try to enable LD_HEAD_STUB_CATCH config option"
-	echo "ERROR: see comments in arch/powerpc/tools/head_check.sh"
+	echo "ERROR: start_text address is $start_text_addr, should be $expected_start_text_addr" 1>&2
+	echo "ERROR: try to enable LD_HEAD_STUB_CATCH config option" 1>&2
+	echo "ERROR: see comments in arch/powerpc/tools/head_check.sh" 1>&2
 
 	exit 1
 fi

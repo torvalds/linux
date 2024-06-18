@@ -271,7 +271,7 @@ long st_kim_stop(void *);
 
 void st_kim_complete(void *);
 void kim_st_list_protocols(struct st_data_s *, void *);
-void st_kim_recv(void *, const unsigned char *, long);
+void st_kim_recv(void *disc_data, const u8 *data, size_t count);
 
 
 /*
@@ -295,7 +295,7 @@ struct bts_header {
 	u32 magic;
 	u32 version;
 	u8 future[24];
-	u8 actions[0];
+	u8 actions[];
 } __attribute__ ((packed));
 
 /**
@@ -305,7 +305,7 @@ struct bts_header {
 struct bts_action {
 	u16 type;
 	u16 size;
-	u8 data[0];
+	u8 data[];
 } __attribute__ ((packed));
 
 struct bts_action_send {
@@ -315,7 +315,7 @@ struct bts_action_send {
 struct bts_action_wait {
 	u32 msec;
 	u32 size;
-	u8 data[0];
+	u8 data[];
 } __attribute__ ((packed));
 
 struct bts_action_delay {

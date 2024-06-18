@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/nvmem/imx-iim.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale i.MX IC Identification Module (IIM)
+
+maintainers:
+  - Anson Huang <Anson.Huang@nxp.com>
+
+description: |
+  This binding represents the IC Identification Module (IIM) found on
+  i.MX25, i.MX27, i.MX31, i.MX35, i.MX51 and i.MX53 SoCs.
+
+allOf:
+  - $ref: nvmem.yaml#
+
+properties:
+  compatible:
+    enum:
+      - fsl,imx25-iim
+      - fsl,imx27-iim
+      - fsl,imx31-iim
+      - fsl,imx35-iim
+      - fsl,imx51-iim
+      - fsl,imx53-iim
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/imx5-clock.h>
+
+    iim: efuse@63f98000 {
+        compatible = "fsl,imx53-iim";
+        reg = <0x63f98000 0x4000>;
+        interrupts = <69>;
+        clocks = <&clks IMX5_CLK_IIM_GATE>;
+    };
+
+...

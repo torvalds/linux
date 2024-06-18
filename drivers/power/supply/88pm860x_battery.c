@@ -109,8 +109,8 @@ struct pm860x_battery_info {
 };
 
 struct ccnt {
-	unsigned long long int pos;
-	unsigned long long int neg;
+	unsigned long long pos;
+	unsigned long long neg;
 	unsigned int spos;
 	unsigned int sneg;
 
@@ -433,7 +433,7 @@ static void pm860x_init_battery(struct pm860x_battery_info *info)
 	int ret;
 	int data;
 	int bat_remove;
-	int soc;
+	int soc = 0;
 
 	/* measure enable on GPADC1 */
 	data = MEAS1_GP1;
@@ -496,7 +496,9 @@ static void pm860x_init_battery(struct pm860x_battery_info *info)
 	}
 	mutex_unlock(&info->lock);
 
-	calc_soc(info, OCV_MODE_ACTIVE, &soc);
+	ret = calc_soc(info, OCV_MODE_ACTIVE, &soc);
+	if (ret < 0)
+		goto out;
 
 	data = pm860x_reg_read(info->i2c, PM8607_POWER_UP_LOG);
 	bat_remove = data & BAT_WU_LOG;
@@ -919,16 +921,12 @@ static int pm860x_battery_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	info->irq_cc = platform_get_irq(pdev, 0);
-	if (info->irq_cc <= 0) {
-		dev_err(&pdev->dev, "No IRQ resource!\n");
-		return -EINVAL;
-	}
+	if (info->irq_cc < 0)
+		return info->irq_cc;
 
 	info->irq_batt = platform_get_irq(pdev, 1);
-	if (info->irq_batt <= 0) {
-		dev_err(&pdev->dev, "No IRQ resource!\n");
-		return -EINVAL;
-	}
+	if (info->irq_batt < 0)
+		return info->irq_batt;
 
 	info->chip = chip;
 	info->i2c =

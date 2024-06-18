@@ -11,6 +11,7 @@
 
 #include <asm/cpu-features.h>
 #include <asm/cpu-info.h>
+#include <asm/fpu.h>
 
 #ifdef CONFIG_MIPS_FP_SUPPORT
 
@@ -309,6 +310,11 @@ void mips_set_personality_nan(struct arch_elf_state *state)
 	struct cpuinfo_mips *c = &boot_cpu_data;
 	struct task_struct *t = current;
 
+	/* Do this early so t->thread.fpu.fcr31 won't be clobbered in case
+	 * we are preempted before the lose_fpu(0) in start_thread.
+	 */
+	lose_fpu(0);
+
 	t->thread.fpu.fcr31 = c->fpu_csr31;
 	switch (state->nan_2008) {
 	case 0:
@@ -328,16 +334,10 @@ void mips_set_personality_nan(struct arch_elf_state *state)
 
 int mips_elf_read_implies_exec(void *elf_ex, int exstack)
 {
-	if (exstack != EXSTACK_DISABLE_X) {
-		/* The binary doesn't request a non-executable stack */
-		return 1;
-	}
-
-	if (!cpu_has_rixi) {
-		/* The CPU doesn't support non-executable memory */
-		return 1;
-	}
-
-	return 0;
+	/*
+	 * Set READ_IMPLIES_EXEC only on non-NX systems that
+	 * do not request a specific state via PT_GNU_STACK.
+	 */
+	return (!cpu_has_rixi && exstack == EXSTACK_DEFAULT);
 }
 EXPORT_SYMBOL(mips_elf_read_implies_exec);

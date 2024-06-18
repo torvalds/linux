@@ -6,11 +6,12 @@
  *			 <benh@kernel.crashing.org>
  */
 
-#include <linux/device.h>
 #include <linux/mod_devicetable.h>
-#include <linux/pm.h>
-#include <linux/of_device.h>
-#include <linux/platform_device.h>
+
+struct device;
+struct device_node;
+struct of_device_id;
+struct platform_device;
 
 /**
  * struct of_dev_auxdata - lookup table entry for device names & platform_data
@@ -52,6 +53,11 @@ extern const struct of_device_id of_default_bus_match_table[];
 extern struct platform_device *of_device_alloc(struct device_node *np,
 					 const char *bus_id,
 					 struct device *parent);
+
+extern int of_device_add(struct platform_device *pdev);
+extern int of_device_register(struct platform_device *ofdev);
+extern void of_device_unregister(struct platform_device *ofdev);
+
 #ifdef CONFIG_OF
 extern struct platform_device *of_find_device_by_node(struct device_node *np);
 #else
@@ -61,16 +67,18 @@ static inline struct platform_device *of_find_device_by_node(struct device_node 
 }
 #endif
 
+extern int of_platform_bus_probe(struct device_node *root,
+				 const struct of_device_id *matches,
+				 struct device *parent);
+
+#ifdef CONFIG_OF_ADDRESS
 /* Platform devices and busses creation */
 extern struct platform_device *of_platform_device_create(struct device_node *np,
 						   const char *bus_id,
 						   struct device *parent);
 
 extern int of_platform_device_destroy(struct device *dev, void *data);
-extern int of_platform_bus_probe(struct device_node *root,
-				 const struct of_device_id *matches,
-				 struct device *parent);
-#ifdef CONFIG_OF_ADDRESS
+
 extern int of_platform_populate(struct device_node *root,
 				const struct of_device_id *matches,
 				const struct of_dev_auxdata *lookup,
@@ -84,6 +92,18 @@ extern int devm_of_platform_populate(struct device *dev);
 
 extern void devm_of_platform_depopulate(struct device *dev);
 #else
+/* Platform devices and busses creation */
+static inline struct platform_device *of_platform_device_create(struct device_node *np,
+								const char *bus_id,
+								struct device *parent)
+{
+	return NULL;
+}
+static inline int of_platform_device_destroy(struct device *dev, void *data)
+{
+	return -ENODEV;
+}
+
 static inline int of_platform_populate(struct device_node *root,
 					const struct of_device_id *matches,
 					const struct of_dev_auxdata *lookup,
@@ -105,12 +125,6 @@ static inline int devm_of_platform_populate(struct device *dev)
 }
 
 static inline void devm_of_platform_depopulate(struct device *dev) { }
-#endif
-
-#if defined(CONFIG_OF_DYNAMIC) && defined(CONFIG_OF_ADDRESS)
-extern void of_platform_register_reconfig_notifier(void);
-#else
-static inline void of_platform_register_reconfig_notifier(void) { }
 #endif
 
 #endif	/* _LINUX_OF_PLATFORM_H */

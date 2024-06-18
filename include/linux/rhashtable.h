@@ -33,7 +33,7 @@
  * of two or more hash tables when the rhashtable is being resized.
  * The end of the chain is marked with a special nulls marks which has
  * the least significant bit set but otherwise stores the address of
- * the hash bucket.  This allows us to be be sure we've found the end
+ * the hash bucket.  This allows us to be sure we've found the end
  * of the right list.
  * The value stored in the hash bucket has BIT(0) used as a lock bit.
  * This bit must be atomically set before any changes are made to
@@ -84,7 +84,7 @@ struct bucket_table {
 
 	struct lockdep_map	dep_map;
 
-	struct rhash_lock_head *buckets[] ____cacheline_aligned_in_smp;
+	struct rhash_lock_head __rcu *buckets[] ____cacheline_aligned_in_smp;
 };
 
 /*
@@ -261,13 +261,12 @@ void rhashtable_free_and_destroy(struct rhashtable *ht,
 				 void *arg);
 void rhashtable_destroy(struct rhashtable *ht);
 
-struct rhash_lock_head **rht_bucket_nested(const struct bucket_table *tbl,
-					   unsigned int hash);
-struct rhash_lock_head **__rht_bucket_nested(const struct bucket_table *tbl,
-					     unsigned int hash);
-struct rhash_lock_head **rht_bucket_nested_insert(struct rhashtable *ht,
-						  struct bucket_table *tbl,
-						  unsigned int hash);
+struct rhash_lock_head __rcu **rht_bucket_nested(
+	const struct bucket_table *tbl, unsigned int hash);
+struct rhash_lock_head __rcu **__rht_bucket_nested(
+	const struct bucket_table *tbl, unsigned int hash);
+struct rhash_lock_head __rcu **rht_bucket_nested_insert(
+	struct rhashtable *ht, struct bucket_table *tbl, unsigned int hash);
 
 #define rht_dereference(p, ht) \
 	rcu_dereference_protected(p, lockdep_rht_mutex_is_held(ht))
@@ -284,21 +283,21 @@ struct rhash_lock_head **rht_bucket_nested_insert(struct rhashtable *ht,
 #define rht_entry(tpos, pos, member) \
 	({ tpos = container_of(pos, typeof(*tpos), member); 1; })
 
-static inline struct rhash_lock_head *const *rht_bucket(
+static inline struct rhash_lock_head __rcu *const *rht_bucket(
 	const struct bucket_table *tbl, unsigned int hash)
 {
 	return unlikely(tbl->nest) ? rht_bucket_nested(tbl, hash) :
 				     &tbl->buckets[hash];
 }
 
-static inline struct rhash_lock_head **rht_bucket_var(
+static inline struct rhash_lock_head __rcu **rht_bucket_var(
 	struct bucket_table *tbl, unsigned int hash)
 {
 	return unlikely(tbl->nest) ? __rht_bucket_nested(tbl, hash) :
 				     &tbl->buckets[hash];
 }
 
-static inline struct rhash_lock_head **rht_bucket_insert(
+static inline struct rhash_lock_head __rcu **rht_bucket_insert(
 	struct rhashtable *ht, struct bucket_table *tbl, unsigned int hash)
 {
 	return unlikely(tbl->nest) ? rht_bucket_nested_insert(ht, tbl, hash) :
@@ -324,36 +323,43 @@ static inline struct rhash_lock_head **rht_bucket_insert(
  * When we write to a bucket without unlocking, we use rht_assign_locked().
  */
 
-static inline void rht_lock(struct bucket_table *tbl,
-			    struct rhash_lock_head **bkt)
+static inline unsigned long rht_lock(struct bucket_table *tbl,
+				     struct rhash_lock_head __rcu **bkt)
 {
-	local_bh_disable();
+	unsigned long flags;
+
+	local_irq_save(flags);
 	bit_spin_lock(0, (unsigned long *)bkt);
 	lock_map_acquire(&tbl->dep_map);
+	return flags;
 }
 
-static inline void rht_lock_nested(struct bucket_table *tbl,
-				   struct rhash_lock_head **bucket,
-				   unsigned int subclass)
+static inline unsigned long rht_lock_nested(struct bucket_table *tbl,
+					struct rhash_lock_head __rcu **bucket,
+					unsigned int subclass)
 {
-	local_bh_disable();
+	unsigned long flags;
+
+	local_irq_save(flags);
 	bit_spin_lock(0, (unsigned long *)bucket);
 	lock_acquire_exclusive(&tbl->dep_map, subclass, 0, NULL, _THIS_IP_);
+	return flags;
 }
 
 static inline void rht_unlock(struct bucket_table *tbl,
-			      struct rhash_lock_head **bkt)
+			      struct rhash_lock_head __rcu **bkt,
+			      unsigned long flags)
 {
 	lock_map_release(&tbl->dep_map);
 	bit_spin_unlock(0, (unsigned long *)bkt);
-	local_bh_enable();
+	local_irq_restore(flags);
 }
 
-static inline struct rhash_head __rcu *__rht_ptr(
-	struct rhash_lock_head *const *bkt)
+static inline struct rhash_head *__rht_ptr(
+	struct rhash_lock_head *p, struct rhash_lock_head __rcu *const *bkt)
 {
-	return (struct rhash_head __rcu *)
-		((unsigned long)*bkt & ~BIT(0) ?:
+	return (struct rhash_head *)
+		((unsigned long)p & ~BIT(0) ?:
 		 (unsigned long)RHT_NULLS_MARKER(bkt));
 }
 
@@ -365,50 +371,45 @@ static inline struct rhash_head __rcu *__rht_ptr(
  *            access is guaranteed, such as when destroying the table.
  */
 static inline struct rhash_head *rht_ptr_rcu(
-	struct rhash_lock_head *const *bkt)
+	struct rhash_lock_head __rcu *const *bkt)
 {
-	struct rhash_head __rcu *p = __rht_ptr(bkt);
-
-	return rcu_dereference(p);
+	return __rht_ptr(rcu_dereference(*bkt), bkt);
 }
 
 static inline struct rhash_head *rht_ptr(
-	struct rhash_lock_head *const *bkt,
+	struct rhash_lock_head __rcu *const *bkt,
 	struct bucket_table *tbl,
 	unsigned int hash)
 {
-	return rht_dereference_bucket(__rht_ptr(bkt), tbl, hash);
+	return __rht_ptr(rht_dereference_bucket(*bkt, tbl, hash), bkt);
 }
 
 static inline struct rhash_head *rht_ptr_exclusive(
-	struct rhash_lock_head *const *bkt)
+	struct rhash_lock_head __rcu *const *bkt)
 {
-	return rcu_dereference_protected(__rht_ptr(bkt), 1);
+	return __rht_ptr(rcu_dereference_protected(*bkt, 1), bkt);
 }
 
-static inline void rht_assign_locked(struct rhash_lock_head **bkt,
+static inline void rht_assign_locked(struct rhash_lock_head __rcu **bkt,
 				     struct rhash_head *obj)
 {
-	struct rhash_head __rcu **p = (struct rhash_head __rcu **)bkt;
-
 	if (rht_is_a_nulls(obj))
 		obj = NULL;
-	rcu_assign_pointer(*p, (void *)((unsigned long)obj | BIT(0)));
+	rcu_assign_pointer(*bkt, (void *)((unsigned long)obj | BIT(0)));
 }
 
 static inline void rht_assign_unlock(struct bucket_table *tbl,
-				     struct rhash_lock_head **bkt,
-				     struct rhash_head *obj)
+				     struct rhash_lock_head __rcu **bkt,
+				     struct rhash_head *obj,
+				     unsigned long flags)
 {
-	struct rhash_head __rcu **p = (struct rhash_head __rcu **)bkt;
-
 	if (rht_is_a_nulls(obj))
 		obj = NULL;
 	lock_map_release(&tbl->dep_map);
-	rcu_assign_pointer(*p, obj);
+	rcu_assign_pointer(*bkt, (void *)obj);
 	preempt_enable();
 	__release(bitlock);
-	local_bh_enable();
+	local_irq_restore(flags);
 }
 
 /**
@@ -593,7 +594,7 @@ static inline struct rhash_head *__rhashtable_lookup(
 		.ht = ht,
 		.key = key,
 	};
-	struct rhash_lock_head *const *bkt;
+	struct rhash_lock_head __rcu *const *bkt;
 	struct bucket_table *tbl;
 	struct rhash_head *he;
 	unsigned int hash;
@@ -632,7 +633,7 @@ restart:
  * @params:	hash table parameters
  *
  * Computes the hash value for the key and traverses the bucket chain looking
- * for a entry with an identical key. The first matching entry is returned.
+ * for an entry with an identical key. The first matching entry is returned.
  *
  * This must only be called under the RCU read lock.
  *
@@ -654,7 +655,7 @@ static inline void *rhashtable_lookup(
  * @params:	hash table parameters
  *
  * Computes the hash value for the key and traverses the bucket chain looking
- * for a entry with an identical key. The first matching entry is returned.
+ * for an entry with an identical key. The first matching entry is returned.
  *
  * Only use this function when you have other mechanisms guaranteeing
  * that the object won't go away after the RCU read lock is released.
@@ -681,7 +682,7 @@ static inline void *rhashtable_lookup_fast(
  * @params:	hash table parameters
  *
  * Computes the hash value for the key and traverses the bucket chain looking
- * for a entry with an identical key.  All matching entries are returned
+ * for an entry with an identical key.  All matching entries are returned
  * in a list.
  *
  * This must only be called under the RCU read lock.
@@ -698,7 +699,7 @@ static inline struct rhlist_head *rhltable_lookup(
 }
 
 /* Internal function, please use rhashtable_insert_fast() instead. This
- * function returns the existing element already in hashes in there is a clash,
+ * function returns the existing element already in hashes if there is a clash,
  * otherwise it returns an error via ERR_PTR().
  */
 static inline void *__rhashtable_insert_fast(
@@ -709,10 +710,11 @@ static inline void *__rhashtable_insert_fast(
 		.ht = ht,
 		.key = key,
 	};
-	struct rhash_lock_head **bkt;
+	struct rhash_lock_head __rcu **bkt;
 	struct rhash_head __rcu **pprev;
 	struct bucket_table *tbl;
 	struct rhash_head *head;
+	unsigned long flags;
 	unsigned int hash;
 	int elasticity;
 	void *data;
@@ -727,11 +729,11 @@ static inline void *__rhashtable_insert_fast(
 	if (!bkt)
 		goto out;
 	pprev = NULL;
-	rht_lock(tbl, bkt);
+	flags = rht_lock(tbl, bkt);
 
 	if (unlikely(rcu_access_pointer(tbl->future_tbl))) {
 slow_path:
-		rht_unlock(tbl, bkt);
+		rht_unlock(tbl, bkt, flags);
 		rcu_read_unlock();
 		return rhashtable_insert_slow(ht, key, obj);
 	}
@@ -763,9 +765,9 @@ slow_path:
 		RCU_INIT_POINTER(list->rhead.next, head);
 		if (pprev) {
 			rcu_assign_pointer(*pprev, obj);
-			rht_unlock(tbl, bkt);
+			rht_unlock(tbl, bkt, flags);
 		} else
-			rht_assign_unlock(tbl, bkt, obj);
+			rht_assign_unlock(tbl, bkt, obj, flags);
 		data = NULL;
 		goto out;
 	}
@@ -792,7 +794,7 @@ slow_path:
 	}
 
 	atomic_inc(&ht->nelems);
-	rht_assign_unlock(tbl, bkt, obj);
+	rht_assign_unlock(tbl, bkt, obj, flags);
 
 	if (rht_grow_above_75(ht, tbl))
 		schedule_work(&ht->run_work);
@@ -804,7 +806,7 @@ out:
 	return data;
 
 out_unlock:
-	rht_unlock(tbl, bkt);
+	rht_unlock(tbl, bkt, flags);
 	goto out;
 }
 
@@ -972,9 +974,9 @@ static inline int rhashtable_lookup_insert_key(
 /**
  * rhashtable_lookup_get_insert_key - lookup and insert object into hash table
  * @ht:		hash table
+ * @key:	key
  * @obj:	pointer to hash head inside object
  * @params:	hash table parameters
- * @data:	pointer to element data already in hashes
  *
  * Just like rhashtable_lookup_insert_key(), but this function returns the
  * object if it exists, NULL if it does not and the insertion was successful,
@@ -995,9 +997,10 @@ static inline int __rhashtable_remove_fast_one(
 	struct rhash_head *obj, const struct rhashtable_params params,
 	bool rhlist)
 {
-	struct rhash_lock_head **bkt;
+	struct rhash_lock_head __rcu **bkt;
 	struct rhash_head __rcu **pprev;
 	struct rhash_head *he;
+	unsigned long flags;
 	unsigned int hash;
 	int err = -ENOENT;
 
@@ -1006,7 +1009,7 @@ static inline int __rhashtable_remove_fast_one(
 	if (!bkt)
 		return -ENOENT;
 	pprev = NULL;
-	rht_lock(tbl, bkt);
+	flags = rht_lock(tbl, bkt);
 
 	rht_for_each_from(he, rht_ptr(bkt, tbl, hash), tbl, hash) {
 		struct rhlist_head *list;
@@ -1050,14 +1053,14 @@ static inline int __rhashtable_remove_fast_one(
 
 		if (pprev) {
 			rcu_assign_pointer(*pprev, obj);
-			rht_unlock(tbl, bkt);
+			rht_unlock(tbl, bkt, flags);
 		} else {
-			rht_assign_unlock(tbl, bkt, obj);
+			rht_assign_unlock(tbl, bkt, obj, flags);
 		}
 		goto unlocked;
 	}
 
-	rht_unlock(tbl, bkt);
+	rht_unlock(tbl, bkt, flags);
 unlocked:
 	if (err > 0) {
 		atomic_dec(&ht->nelems);
@@ -1127,7 +1130,7 @@ static inline int rhashtable_remove_fast(
  *
  * Since the hash chain is single linked, the removal operation needs to
  * walk the bucket chain upon removal. The removal operation is thus
- * considerable slow if the hash table is not correctly sized.
+ * considerably slower if the hash table is not correctly sized.
  *
  * Will automatically shrink the table if permitted when residency drops
  * below 30%
@@ -1147,9 +1150,10 @@ static inline int __rhashtable_replace_fast(
 	struct rhash_head *obj_old, struct rhash_head *obj_new,
 	const struct rhashtable_params params)
 {
-	struct rhash_lock_head **bkt;
+	struct rhash_lock_head __rcu **bkt;
 	struct rhash_head __rcu **pprev;
 	struct rhash_head *he;
+	unsigned long flags;
 	unsigned int hash;
 	int err = -ENOENT;
 
@@ -1165,7 +1169,7 @@ static inline int __rhashtable_replace_fast(
 		return -ENOENT;
 
 	pprev = NULL;
-	rht_lock(tbl, bkt);
+	flags = rht_lock(tbl, bkt);
 
 	rht_for_each_from(he, rht_ptr(bkt, tbl, hash), tbl, hash) {
 		if (he != obj_old) {
@@ -1176,15 +1180,15 @@ static inline int __rhashtable_replace_fast(
 		rcu_assign_pointer(obj_new->next, obj_old->next);
 		if (pprev) {
 			rcu_assign_pointer(*pprev, obj_new);
-			rht_unlock(tbl, bkt);
+			rht_unlock(tbl, bkt, flags);
 		} else {
-			rht_assign_unlock(tbl, bkt, obj_new);
+			rht_assign_unlock(tbl, bkt, obj_new, flags);
 		}
 		err = 0;
 		goto unlocked;
 	}
 
-	rht_unlock(tbl, bkt);
+	rht_unlock(tbl, bkt, flags);
 
 unlocked:
 	return err;

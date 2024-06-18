@@ -57,7 +57,7 @@ static struct shdwc {
 	void __iomem *mpddrc_base;
 } at91_shdwc;
 
-static void __init at91_wakeup_status(struct platform_device *pdev)
+static void at91_wakeup_status(struct platform_device *pdev)
 {
 	const char *reason;
 	u32 reg = readl(at91_shdwc.shdwc_base + AT91_SHDW_SR);
@@ -149,15 +149,13 @@ static void at91_poweroff_dt_set_wakeup_mode(struct platform_device *pdev)
 	writel(wakeup_mode | mode, at91_shdwc.shdwc_base + AT91_SHDW_MR);
 }
 
-static int __init at91_poweroff_probe(struct platform_device *pdev)
+static int at91_poweroff_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	struct device_node *np;
 	u32 ddr_type;
 	int ret;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	at91_shdwc.shdwc_base = devm_ioremap_resource(&pdev->dev, res);
+	at91_shdwc.shdwc_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(at91_shdwc.shdwc_base))
 		return PTR_ERR(at91_shdwc.shdwc_base);
 
@@ -204,7 +202,7 @@ clk_disable:
 	return ret;
 }
 
-static int __exit at91_poweroff_remove(struct platform_device *pdev)
+static void at91_poweroff_remove(struct platform_device *pdev)
 {
 	if (pm_power_off == at91_poweroff)
 		pm_power_off = NULL;
@@ -213,8 +211,6 @@ static int __exit at91_poweroff_remove(struct platform_device *pdev)
 		iounmap(at91_shdwc.mpddrc_base);
 
 	clk_disable_unprepare(at91_shdwc.sclk);
-
-	return 0;
 }
 
 static const struct of_device_id at91_poweroff_of_match[] = {
@@ -226,13 +222,14 @@ static const struct of_device_id at91_poweroff_of_match[] = {
 MODULE_DEVICE_TABLE(of, at91_poweroff_of_match);
 
 static struct platform_driver at91_poweroff_driver = {
-	.remove = __exit_p(at91_poweroff_remove),
+	.probe = at91_poweroff_probe,
+	.remove_new = at91_poweroff_remove,
 	.driver = {
 		.name = "at91-poweroff",
 		.of_match_table = at91_poweroff_of_match,
 	},
 };
-module_platform_driver_probe(at91_poweroff_driver, at91_poweroff_probe);
+module_platform_driver(at91_poweroff_driver);
 
 MODULE_AUTHOR("Atmel Corporation");
 MODULE_DESCRIPTION("Shutdown driver for Atmel SoCs");

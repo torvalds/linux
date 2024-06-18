@@ -332,7 +332,7 @@ static long wdrtas_ioctl(struct file *file, unsigned int cmd,
 			wdrtas_interval = i;
 		else
 			wdrtas_interval = wdrtas_get_interval(i);
-		/* fallthrough */
+		fallthrough;
 
 	case WDIOC_GETTIMEOUT:
 		return put_user(wdrtas_interval, argp);
@@ -472,6 +472,7 @@ static const struct file_operations wdrtas_fops = {
 	.llseek		= no_llseek,
 	.write		= wdrtas_write,
 	.unlocked_ioctl	= wdrtas_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= wdrtas_open,
 	.release	= wdrtas_close,
 };

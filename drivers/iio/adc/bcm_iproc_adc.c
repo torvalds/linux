@@ -4,7 +4,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/of.h>
+#include <linux/mod_devicetable.h>
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/mfd/syscon.h>
@@ -308,7 +308,7 @@ static int iproc_adc_do_read(struct iio_dev *indio_dev,
 				"IntMask set failed. Read will likely fail.");
 			read_len = -EIO;
 			goto adc_err;
-		};
+		}
 	}
 	regmap_read(adc_priv->regmap, IPROC_INTERRUPT_MASK, &val_check);
 
@@ -540,8 +540,8 @@ static int iproc_adc_probe(struct platform_device *pdev)
 	}
 
 	adc_priv->irqno = platform_get_irq(pdev, 0);
-	if (adc_priv->irqno <= 0)
-		return -ENODEV;
+	if (adc_priv->irqno < 0)
+		return adc_priv->irqno;
 
 	ret = regmap_update_bits(adc_priv->regmap, IPROC_REGCTL2,
 				IPROC_ADC_AUXIN_SCAN_ENA, 0);
@@ -573,8 +573,6 @@ static int iproc_adc_probe(struct platform_device *pdev)
 	}
 
 	indio_dev->name = "iproc-static-adc";
-	indio_dev->dev.parent = &pdev->dev;
-	indio_dev->dev.of_node = pdev->dev.of_node;
 	indio_dev->info = &iproc_adc_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = iproc_adc_iio_channels;
@@ -596,7 +594,7 @@ err_adc_enable:
 	return ret;
 }
 
-static int iproc_adc_remove(struct platform_device *pdev)
+static void iproc_adc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 	struct iproc_adc_priv *adc_priv = iio_priv(indio_dev);
@@ -604,8 +602,6 @@ static int iproc_adc_remove(struct platform_device *pdev)
 	iio_device_unregister(indio_dev);
 	iproc_adc_disable(indio_dev);
 	clk_disable_unprepare(adc_priv->adc_clk);
-
-	return 0;
 }
 
 static const struct of_device_id iproc_adc_of_match[] = {
@@ -616,10 +612,10 @@ MODULE_DEVICE_TABLE(of, iproc_adc_of_match);
 
 static struct platform_driver iproc_adc_driver = {
 	.probe  = iproc_adc_probe,
-	.remove	= iproc_adc_remove,
+	.remove_new = iproc_adc_remove,
 	.driver	= {
 		.name	= "iproc-static-adc",
-		.of_match_table = of_match_ptr(iproc_adc_of_match),
+		.of_match_table = iproc_adc_of_match,
 	},
 };
 module_platform_driver(iproc_adc_driver);

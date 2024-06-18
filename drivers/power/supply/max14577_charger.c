@@ -261,7 +261,7 @@ static int max14577_init_constant_voltage(struct max14577_charger *chg,
 static int max14577_init_eoc(struct max14577_charger *chg,
 		unsigned int uamp)
 {
-	unsigned int current_bits = 0xf;
+	unsigned int current_bits;
 	u8 reg_data;
 
 	switch (chg->max14577->dev_type) {
@@ -532,7 +532,7 @@ static ssize_t show_fast_charge_timer(struct device *dev,
 		break;
 	}
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n", val);
+	return sysfs_emit(buf, "%u\n", val);
 }
 
 static ssize_t store_fast_charge_timer(struct device *dev,
@@ -586,8 +586,9 @@ static int max14577_charger_probe(struct platform_device *pdev)
 	}
 
 	psy_cfg.drv_data = chg;
-	chg->charger = power_supply_register(&pdev->dev, &max14577_charger_desc,
-						&psy_cfg);
+	chg->charger = devm_power_supply_register(&pdev->dev,
+						  &max14577_charger_desc,
+						  &psy_cfg);
 	if (IS_ERR(chg->charger)) {
 		dev_err(&pdev->dev, "failed: power supply register\n");
 		ret = PTR_ERR(chg->charger);
@@ -606,14 +607,9 @@ err:
 	return ret;
 }
 
-static int max14577_charger_remove(struct platform_device *pdev)
+static void max14577_charger_remove(struct platform_device *pdev)
 {
-	struct max14577_charger *chg = platform_get_drvdata(pdev);
-
 	device_remove_file(&pdev->dev, &dev_attr_fast_charge_timer);
-	power_supply_unregister(chg->charger);
-
-	return 0;
 }
 
 static const struct platform_device_id max14577_charger_id[] = {
@@ -623,12 +619,22 @@ static const struct platform_device_id max14577_charger_id[] = {
 };
 MODULE_DEVICE_TABLE(platform, max14577_charger_id);
 
+static const struct of_device_id of_max14577_charger_dt_match[] = {
+	{ .compatible = "maxim,max14577-charger",
+	  .data = (void *)MAXIM_DEVICE_TYPE_MAX14577, },
+	{ .compatible = "maxim,max77836-charger",
+	  .data = (void *)MAXIM_DEVICE_TYPE_MAX77836, },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, of_max14577_charger_dt_match);
+
 static struct platform_driver max14577_charger_driver = {
 	.driver = {
 		.name	= "max14577-charger",
+		.of_match_table = of_max14577_charger_dt_match,
 	},
 	.probe		= max14577_charger_probe,
-	.remove		= max14577_charger_remove,
+	.remove_new	= max14577_charger_remove,
 	.id_table	= max14577_charger_id,
 };
 module_platform_driver(max14577_charger_driver);

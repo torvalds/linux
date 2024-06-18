@@ -3,38 +3,19 @@
  * Copyright (C) 1999 Hewlett-Packard (Frank Rowand)
  * Copyright (C) 1999 Philipp Rumpf <prumpf@tux.org>
  * Copyright (C) 1999 SuSE GmbH
+ * Copyright (C) 2021 Helge Deller <deller@gmx.de>
  */
 
 #ifndef _PARISC_ASSEMBLY_H
 #define _PARISC_ASSEMBLY_H
 
-#define CALLEE_FLOAT_FRAME_SIZE	80
-
 #ifdef CONFIG_64BIT
-#define LDREG	ldd
-#define STREG	std
-#define LDREGX  ldd,s
-#define LDREGM	ldd,mb
-#define STREGM	std,ma
-#define SHRREG	shrd
-#define SHLREG	shld
-#define ANDCM   andcm,*
-#define	COND(x)	* ## x
 #define RP_OFFSET	16
 #define FRAME_SIZE	128
 #define CALLEE_REG_FRAME_SIZE	144
 #define REG_SZ		8
 #define ASM_ULONG_INSN	.dword
 #else	/* CONFIG_64BIT */
-#define LDREG	ldw
-#define STREG	stw
-#define LDREGX  ldwx,s
-#define LDREGM	ldwm
-#define STREGM	stwm
-#define SHRREG	shr
-#define SHLREG	shlw
-#define ANDCM   andcm
-#define COND(x)	x
 #define RP_OFFSET	20
 #define FRAME_SIZE	64
 #define CALLEE_REG_FRAME_SIZE	128
@@ -42,6 +23,10 @@
 #define ASM_ULONG_INSN	.word
 #endif
 
+/* Frame alignment for 32- and 64-bit */
+#define FRAME_ALIGN     64
+
+#define CALLEE_FLOAT_FRAME_SIZE	80
 #define CALLEE_SAVE_FRAME_SIZE (CALLEE_REG_FRAME_SIZE + CALLEE_FLOAT_FRAME_SIZE)
 
 #ifdef CONFIG_PA20
@@ -58,7 +43,39 @@
 #define PA_ASM_LEVEL	1.1
 #endif
 
+/* Privilege level field in the rightmost two bits of the IA queues */
+#define PRIV_USER	3
+#define PRIV_KERNEL	0
+
+/* Space register used inside kernel */
+#define SR_KERNEL	0
+#define SR_TEMP1	1
+#define SR_TEMP2	2
+#define SR_USER		3
+
 #ifdef __ASSEMBLY__
+
+#ifdef CONFIG_64BIT
+#define LDREG	ldd
+#define STREG	std
+#define LDREGX  ldd,s
+#define LDREGM	ldd,mb
+#define STREGM	std,ma
+#define SHRREG	shrd
+#define SHLREG	shld
+#define ANDCM   andcm,*
+#define	COND(x)	* ## x
+#else	/* CONFIG_64BIT */
+#define LDREG	ldw
+#define STREG	stw
+#define LDREGX  ldwx,s
+#define LDREGM	ldwm
+#define STREGM	stwm
+#define SHRREG	shr
+#define SHLREG	shlw
+#define ANDCM   andcm
+#define COND(x)	x
+#endif
 
 #ifdef CONFIG_64BIT
 /* the 64-bit pa gnu assembler unfortunately defaults to .level 1.1 or 2.0 so
@@ -71,10 +88,7 @@
 #include <asm/types.h>
 
 #include <asm/asmregs.h>
-
-	sp	=	30
-	gp	=	27
-	ipsw	=	22
+#include <asm/psw.h>
 
 	/*
 	 * We provide two versions of each macro to convert from physical
@@ -83,26 +97,28 @@
 	 * version takes two arguments: a src and destination register.
 	 * However, the source and destination registers can not be
 	 * the same register.
+	 *
+	 * We use add,l to avoid clobbering the C/B bits in the PSW.
 	 */
 
 	.macro  tophys  grvirt, grphys
-	ldil    L%(__PAGE_OFFSET), \grphys
-	sub     \grvirt, \grphys, \grphys
+	ldil    L%(-__PAGE_OFFSET), \grphys
+	addl    \grvirt, \grphys, \grphys
 	.endm
-	
+
 	.macro  tovirt  grphys, grvirt
 	ldil    L%(__PAGE_OFFSET), \grvirt
-	add     \grphys, \grvirt, \grvirt
+	addl    \grphys, \grvirt, \grvirt
 	.endm
 
 	.macro  tophys_r1  gr
-	ldil    L%(__PAGE_OFFSET), %r1
-	sub     \gr, %r1, \gr
+	ldil    L%(-__PAGE_OFFSET), %r1
+	addl    \gr, %r1, \gr
 	.endm
-	
+
 	.macro  tovirt_r1  gr
 	ldil    L%(__PAGE_OFFSET), %r1
-	add     \gr, %r1, \gr
+	addl    \gr, %r1, \gr
 	.endm
 
 	.macro delay value
@@ -125,7 +141,7 @@
 	depd,z	\r, 63-(\sa), 64-(\sa), \t
 	.endm
 
-	/* Shift Right - note the r and t can NOT be the same! */
+	/* Shift Right for 32-bit. Clobbers upper 32-bit on PA2.0. */
 	.macro shr r, sa, t
 	extru \r, 31-(\sa), 32-(\sa), \t
 	.endm
@@ -133,6 +149,37 @@
 	/* pa20w version of shift right */
 	.macro shrd r, sa, t
 	extrd,u \r, 63-(\sa), 64-(\sa), \t
+	.endm
+
+	/* Extract unsigned for 32- and 64-bit
+	 * The extru instruction leaves the most significant 32 bits of the
+	 * target register in an undefined state on PA 2.0 systems. */
+	.macro extru_safe r, p, len, t
+#ifdef CONFIG_64BIT
+	extrd,u	\r, 32+(\p), \len, \t
+#else
+	extru	\r, \p, \len, \t
+#endif
+	.endm
+
+	/* The depi instruction leaves the most significant 32 bits of the
+	 * target register in an undefined state on PA 2.0 systems. */
+	.macro depi_safe i, p, len, t
+#ifdef CONFIG_64BIT
+	depdi	\i, 32+(\p), \len, \t
+#else
+	depi	\i, \p, \len, \t
+#endif
+	.endm
+
+	/* The depw instruction leaves the most significant 32 bits of the
+	 * target register in an undefined state on PA 2.0 systems. */
+	.macro dep_safe i, p, len, t
+#ifdef CONFIG_64BIT
+	depd	\i, 32+(\p), \len, \t
+#else
+	depw	\i, \p, \len, \t
+#endif
 	.endm
 
 	/* load 32-bit 'value' into 'reg' compensating for the ldil
@@ -497,6 +544,30 @@
 	nop	/* 7 */
 	.endm
 
+	/* Switch to virtual mapping, trashing only %r1 */
+	.macro  virt_map
+	/* pcxt_ssm_bug */
+	rsm	PSW_SM_I, %r0		/* barrier for "Relied upon Translation */
+	mtsp	%r0, %sr4
+	mtsp	%r0, %sr5
+	mtsp	%r0, %sr6
+	tovirt_r1 %r29
+	load32	KERNEL_PSW, %r1
+
+	rsm     PSW_SM_QUIET,%r0	/* second "heavy weight" ctl op */
+	mtctl	%r0, %cr17		/* Clear IIASQ tail */
+	mtctl	%r0, %cr17		/* Clear IIASQ head */
+	mtctl	%r1, %ipsw
+	load32	4f, %r1
+	mtctl	%r1, %cr18		/* Set IIAOQ tail */
+	ldo	4(%r1), %r1
+	mtctl	%r1, %cr18		/* Set IIAOQ head */
+	rfir
+	nop
+4:
+	.endm
+
+
 	/*
 	 * ASM_EXCEPTIONTABLE_ENTRY
 	 *
@@ -505,7 +576,9 @@
 	 */
 #define ASM_EXCEPTIONTABLE_ENTRY(fault_addr, except_addr)	\
 	.section __ex_table,"aw"			!	\
+	.align 4					!	\
 	.word (fault_addr - .), (except_addr - .)	!	\
+	or %r0,%r0,%r0					!	\
 	.previous
 
 

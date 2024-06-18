@@ -22,7 +22,6 @@
 
 #include "gpio-ep93xx.h"
 #include "hardware.h"
-#include <mach/irqs.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
@@ -151,7 +150,7 @@ static struct platform_device ts72xx_nand_flash = {
 	.num_resources		= ARRAY_SIZE(ts72xx_nand_resource),
 };
 
-void __init ts72xx_register_flash(struct mtd_partition *parts, int n,
+static void __init ts72xx_register_flash(struct mtd_partition *parts, int n,
 				  resource_size_t start)
 {
 	/*
@@ -350,11 +349,11 @@ static void __init ts72xx_init_machine(void)
 MACHINE_START(TS72XX, "Technologic Systems TS-72xx SBC")
 	/* Maintainer: Lennert Buytenhek <buytenh@wantstofly.org> */
 	.atag_offset	= 0x100,
+	.nr_irqs	= NR_EP93XX_IRQS,
 	.map_io		= ts72xx_map_io,
 	.init_irq	= ep93xx_init_irq,
 	.init_time	= ep93xx_timer_init,
 	.init_machine	= ts72xx_init_machine,
-	.init_late	= ep93xx_init_late,
 	.restart	= ep93xx_restart,
 MACHINE_END
 
@@ -414,10 +413,10 @@ static void __init bk3_init_machine(void)
 MACHINE_START(BK3, "Liebherr controller BK3.1")
 	/* Maintainer: Lukasz Majewski <lukma@denx.de> */
 	.atag_offset	= 0x100,
+	.nr_irqs	= NR_EP93XX_IRQS,
 	.map_io		= ts72xx_map_io,
 	.init_irq	= ep93xx_init_irq,
 	.init_time	= ep93xx_timer_init,
 	.init_machine	= bk3_init_machine,
-	.init_late	= ep93xx_init_late,
 	.restart	= ep93xx_restart,
 MACHINE_END

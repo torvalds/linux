@@ -10,6 +10,8 @@
 #include <asm/reg.h>
 #include <asm/cputable.h>
 
+#include "internal.h"
+
 /*
  * Bits in event code for POWER5+ (POWER5 GS) and POWER5++ (POWER5 GS DD3)
  */
@@ -130,7 +132,7 @@ static unsigned long unit_cons[PM_LASTUNIT+1][2] = {
 };
 
 static int power5p_get_constraint(u64 event, unsigned long *maskp,
-				  unsigned long *valp)
+				  unsigned long *valp, u64 event_config1 __maybe_unused)
 {
 	int pmc, byte, unit, sh;
 	int bit, fmask;
@@ -448,7 +450,9 @@ static int power5p_marked_instr_event(u64 event)
 }
 
 static int power5p_compute_mmcr(u64 event[], int n_ev,
-				unsigned int hwc[], unsigned long mmcr[], struct perf_event *pevents[])
+				unsigned int hwc[], struct mmcr_regs *mmcr,
+				struct perf_event *pevents[],
+				u32 flags __maybe_unused)
 {
 	unsigned long mmcr1 = 0;
 	unsigned long mmcra = 0;
@@ -586,20 +590,20 @@ static int power5p_compute_mmcr(u64 event[], int n_ev,
 	}
 
 	/* Return MMCRx values */
-	mmcr[0] = 0;
+	mmcr->mmcr0 = 0;
 	if (pmc_inuse & 1)
-		mmcr[0] = MMCR0_PMC1CE;
+		mmcr->mmcr0 = MMCR0_PMC1CE;
 	if (pmc_inuse & 0x3e)
-		mmcr[0] |= MMCR0_PMCjCE;
-	mmcr[1] = mmcr1;
-	mmcr[2] = mmcra;
+		mmcr->mmcr0 |= MMCR0_PMCjCE;
+	mmcr->mmcr1 = mmcr1;
+	mmcr->mmcra = mmcra;
 	return 0;
 }
 
-static void power5p_disable_pmc(unsigned int pmc, unsigned long mmcr[])
+static void power5p_disable_pmc(unsigned int pmc, struct mmcr_regs *mmcr)
 {
 	if (pmc <= 3)
-		mmcr[1] &= ~(0x7fUL << MMCR1_PMCSEL_SH(pmc));
+		mmcr->mmcr1 &= ~(0x7fUL << MMCR1_PMCSEL_SH(pmc));
 }
 
 static int power5p_generic_events[] = {
@@ -618,7 +622,7 @@ static int power5p_generic_events[] = {
  * 0 means not supported, -1 means nonsensical, other values
  * are event codes.
  */
-static int power5p_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
+static u64 power5p_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 	[C(L1D)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
 		[C(OP_READ)] = {	0x1c10a8,	0x3c1088	},
 		[C(OP_WRITE)] = {	0x2c10a8,	0xc10c3		},
@@ -673,11 +677,11 @@ static struct power_pmu power5p_pmu = {
 	.cache_events		= &power5p_cache_events,
 };
 
-int init_power5p_pmu(void)
+int __init init_power5p_pmu(void)
 {
-	if (!cur_cpu_spec->oprofile_cpu_type ||
-	    (strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/power5+")
-	     && strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/power5++")))
+	unsigned int pvr = mfspr(SPRN_PVR);
+
+	if (PVR_VER(pvr) != PVR_POWER5p)
 		return -ENODEV;
 
 	return register_power_pmu(&power5p_pmu);

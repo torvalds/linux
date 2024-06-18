@@ -26,7 +26,7 @@
 extern char input_data[];
 extern int input_len;
 /* output_len is inserted by the linker possibly at an unaligned address */
-extern __le32 output_len __aligned(1);
+extern char output_len;
 extern char _text, _end;
 extern char _bss, _ebss;
 extern char _startcode_end;
@@ -117,7 +117,7 @@ char *strchr(const char *s, int c)
 	return NULL;
 }
 
-int puts(const char *s)
+static int puts(const char *s)
 {
 	const char *nuline = s;
 
@@ -172,7 +172,7 @@ static int print_num(unsigned long num, int base)
 	return 0;
 }
 
-int printf(const char *fmt, ...)
+static int printf(const char *fmt, ...)
 {
 	va_list args;
 	int i = 0;
@@ -204,13 +204,13 @@ void abort(void)
 }
 
 #undef malloc
-void *malloc(size_t size)
+static void *malloc(size_t size)
 {
 	return malloc_gzip(size);
 }
 
 #undef free
-void free(void *ptr)
+static void free(void *ptr)
 {
 	return free_gzip(ptr);
 }
@@ -278,7 +278,7 @@ static void parse_elf(void *output)
 	free(phdrs);
 }
 
-unsigned long decompress_kernel(unsigned int started_wide,
+asmlinkage unsigned long __visible decompress_kernel(unsigned int started_wide,
 		unsigned int command_line,
 		const unsigned int rd_start,
 		const unsigned int rd_end)

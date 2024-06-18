@@ -39,6 +39,59 @@ struct ipmi_smi;
 #define IPMI_WATCH_MASK_CHECK_COMMANDS	(1 << 2)
 
 /*
+ * SMI messages
+ *
+ * When communicating with an SMI, messages come in two formats:
+ *
+ * * Normal (to a BMC over a BMC interface)
+ *
+ * * IPMB (over a IPMB to another MC)
+ *
+ * When normal, commands are sent using the format defined by a
+ * standard message over KCS (NetFn must be even):
+ *
+ *   +-----------+-----+------+
+ *   | NetFn/LUN | Cmd | Data |
+ *   +-----------+-----+------+
+ *
+ * And responses, similarly, with an completion code added (NetFn must
+ * be odd):
+ *
+ *   +-----------+-----+------+------+
+ *   | NetFn/LUN | Cmd | CC   | Data |
+ *   +-----------+-----+------+------+
+ *
+ * With normal messages, only commands are sent and only responses are
+ * received.
+ *
+ * In IPMB mode, we are acting as an IPMB device. Commands will be in
+ * the following format (NetFn must be even):
+ *
+ *   +-------------+------+-------------+-----+------+
+ *   | NetFn/rsLUN | Addr | rqSeq/rqLUN | Cmd | Data |
+ *   +-------------+------+-------------+-----+------+
+ *
+ * Responses will using the following format:
+ *
+ *   +-------------+------+-------------+-----+------+------+
+ *   | NetFn/rqLUN | Addr | rqSeq/rsLUN | Cmd | CC   | Data |
+ *   +-------------+------+-------------+-----+------+------+
+ *
+ * This is similar to the format defined in the IPMB manual section
+ * 2.11.1 with the checksums and the first address removed.  Also, the
+ * address is always the remote address.
+ *
+ * IPMB messages can be commands and responses in both directions.
+ * Received commands are handled as received commands from the message
+ * queue.
+ */
+
+enum ipmi_smi_msg_type {
+	IPMI_SMI_MSG_TYPE_NORMAL = 0,
+	IPMI_SMI_MSG_TYPE_IPMB_DIRECT
+};
+
+/*
  * Messages to/from the lower layer.  The smi interface will take one
  * of these to send. After the send has occurred and a response has
  * been received, it will report this same data structure back up to
@@ -53,6 +106,8 @@ struct ipmi_smi;
  */
 struct ipmi_smi_msg {
 	struct list_head link;
+
+	enum ipmi_smi_msg_type type;
 
 	long    msgid;
 	void    *user_data;
@@ -70,8 +125,18 @@ struct ipmi_smi_msg {
 	void (*done)(struct ipmi_smi_msg *msg);
 };
 
+#define INIT_IPMI_SMI_MSG(done_handler) \
+{						\
+	.done = done_handler,			\
+	.type = IPMI_SMI_MSG_TYPE_NORMAL	\
+}
+
 struct ipmi_smi_handlers {
 	struct module *owner;
+
+	/* Capabilities of the SMI. */
+#define IPMI_SMI_CAN_HANDLE_IPMB_DIRECT		(1 << 0)
+	unsigned int flags;
 
 	/*
 	 * The low-level interface cannot start sending messages to
@@ -224,10 +289,14 @@ static inline int ipmi_demangle_device_id(uint8_t netfn, uint8_t cmd,
  * is called, and the lower layer must get the interface from that
  * call.
  */
-int ipmi_register_smi(const struct ipmi_smi_handlers *handlers,
-		      void                     *send_info,
-		      struct device            *dev,
-		      unsigned char            slave_addr);
+int ipmi_add_smi(struct module            *owner,
+		 const struct ipmi_smi_handlers *handlers,
+		 void                     *send_info,
+		 struct device            *dev,
+		 unsigned char            slave_addr);
+
+#define ipmi_register_smi(handlers, send_info, dev, slave_addr) \
+	ipmi_add_smi(THIS_MODULE, handlers, send_info, dev, slave_addr)
 
 /*
  * Remove a low-level interface from the IPMI driver.  This will

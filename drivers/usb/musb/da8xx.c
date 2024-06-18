@@ -17,6 +17,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
@@ -368,8 +369,10 @@ static int da8xx_musb_init(struct musb *musb)
 
 	/* Returns zero if e.g. not clocked */
 	rev = musb_readl(reg_base, DA8XX_USB_REVISION_REG);
-	if (!rev)
+	if (!rev) {
+		ret = -ENODEV;
 		goto fail;
+	}
 
 	musb->xceiv = usb_get_phy(USB_PHY_TYPE_USB2);
 	if (IS_ERR_OR_NULL(musb->xceiv)) {
@@ -505,7 +508,6 @@ static struct of_dev_auxdata da8xx_auxdata_lookup[] = {
 
 static int da8xx_probe(struct platform_device *pdev)
 {
-	struct resource musb_resources[2];
 	struct musb_hdrc_platform_data	*pdata = dev_get_platdata(&pdev->dev);
 	struct da8xx_glue		*glue;
 	struct platform_device_info	pinfo;
@@ -524,11 +526,9 @@ static int da8xx_probe(struct platform_device *pdev)
 	}
 
 	glue->phy = devm_phy_get(&pdev->dev, "usb-phy");
-	if (IS_ERR(glue->phy)) {
-		if (PTR_ERR(glue->phy) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "failed to get phy\n");
-		return PTR_ERR(glue->phy);
-	}
+	if (IS_ERR(glue->phy))
+		return dev_err_probe(&pdev->dev, PTR_ERR(glue->phy),
+				     "failed to get phy\n");
 
 	glue->dev			= &pdev->dev;
 	glue->clk			= clk;
@@ -558,25 +558,14 @@ static int da8xx_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	memset(musb_resources, 0x00, sizeof(*musb_resources) *
-			ARRAY_SIZE(musb_resources));
-
-	musb_resources[0].name = pdev->resource[0].name;
-	musb_resources[0].start = pdev->resource[0].start;
-	musb_resources[0].end = pdev->resource[0].end;
-	musb_resources[0].flags = pdev->resource[0].flags;
-
-	musb_resources[1].name = pdev->resource[1].name;
-	musb_resources[1].start = pdev->resource[1].start;
-	musb_resources[1].end = pdev->resource[1].end;
-	musb_resources[1].flags = pdev->resource[1].flags;
-
 	pinfo = da8xx_dev_info;
 	pinfo.parent = &pdev->dev;
-	pinfo.res = musb_resources;
-	pinfo.num_res = ARRAY_SIZE(musb_resources);
+	pinfo.res = pdev->resource;
+	pinfo.num_res = pdev->num_resources;
 	pinfo.data = pdata;
 	pinfo.size_data = sizeof(*pdata);
+	pinfo.fwnode = of_fwnode_handle(np);
+	pinfo.of_node_reused = true;
 
 	glue->musb = platform_device_register_full(&pinfo);
 	ret = PTR_ERR_OR_ZERO(glue->musb);
@@ -588,14 +577,12 @@ static int da8xx_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int da8xx_remove(struct platform_device *pdev)
+static void da8xx_remove(struct platform_device *pdev)
 {
 	struct da8xx_glue		*glue = platform_get_drvdata(pdev);
 
 	platform_device_unregister(glue->musb);
 	usb_phy_generic_unregister(glue->usb_phy);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -638,7 +625,7 @@ MODULE_DEVICE_TABLE(of, da8xx_id_table);
 
 static struct platform_driver da8xx_driver = {
 	.probe		= da8xx_probe,
-	.remove		= da8xx_remove,
+	.remove_new	= da8xx_remove,
 	.driver		= {
 		.name	= "musb-da8xx",
 		.pm = &da8xx_pm_ops,

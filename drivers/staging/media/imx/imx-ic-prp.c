@@ -26,8 +26,8 @@
 /*
  * Min/Max supported width and heights.
  */
-#define MIN_W       176
-#define MIN_H       144
+#define MIN_W        32
+#define MIN_H        32
 #define MAX_W      4096
 #define MAX_H      4096
 #define W_ALIGN    4 /* multiple of 16 pixels */
@@ -79,13 +79,11 @@ static void prp_stop(struct prp_priv *priv)
 }
 
 static struct v4l2_mbus_framefmt *
-__prp_get_fmt(struct prp_priv *priv, struct v4l2_subdev_pad_config *cfg,
+__prp_get_fmt(struct prp_priv *priv, struct v4l2_subdev_state *sd_state,
 	      unsigned int pad, enum v4l2_subdev_format_whence which)
 {
-	struct imx_ic_priv *ic_priv = priv->ic_priv;
-
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(&ic_priv->sd, cfg, pad);
+		return v4l2_subdev_state_get_format(sd_state, pad);
 	else
 		return &priv->format_mbus;
 }
@@ -95,7 +93,7 @@ __prp_get_fmt(struct prp_priv *priv, struct v4l2_subdev_pad_config *cfg,
  */
 
 static int prp_enum_mbus_code(struct v4l2_subdev *sd,
-			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_state *sd_state,
 			      struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct prp_priv *priv = sd_to_priv(sd);
@@ -106,8 +104,8 @@ static int prp_enum_mbus_code(struct v4l2_subdev *sd,
 
 	switch (code->pad) {
 	case PRP_SINK_PAD:
-		ret = imx_media_enum_ipu_format(&code->code, code->index,
-						CS_SEL_ANY);
+		ret = imx_media_enum_ipu_formats(&code->code, code->index,
+						 PIXFMT_SEL_YUV_RGB);
 		break;
 	case PRP_SRC_PAD_PRPENC:
 	case PRP_SRC_PAD_PRPVF:
@@ -115,7 +113,8 @@ static int prp_enum_mbus_code(struct v4l2_subdev *sd,
 			ret = -EINVAL;
 			goto out;
 		}
-		infmt = __prp_get_fmt(priv, cfg, PRP_SINK_PAD, code->which);
+		infmt = __prp_get_fmt(priv, sd_state, PRP_SINK_PAD,
+				      code->which);
 		code->code = infmt->code;
 		break;
 	default:
@@ -127,7 +126,7 @@ out:
 }
 
 static int prp_get_fmt(struct v4l2_subdev *sd,
-		       struct v4l2_subdev_pad_config *cfg,
+		       struct v4l2_subdev_state *sd_state,
 		       struct v4l2_subdev_format *sdformat)
 {
 	struct prp_priv *priv = sd_to_priv(sd);
@@ -139,7 +138,7 @@ static int prp_get_fmt(struct v4l2_subdev *sd,
 
 	mutex_lock(&priv->lock);
 
-	fmt = __prp_get_fmt(priv, cfg, sdformat->pad, sdformat->which);
+	fmt = __prp_get_fmt(priv, sd_state, sdformat->pad, sdformat->which);
 	if (!fmt) {
 		ret = -EINVAL;
 		goto out;
@@ -152,7 +151,7 @@ out:
 }
 
 static int prp_set_fmt(struct v4l2_subdev *sd,
-		       struct v4l2_subdev_pad_config *cfg,
+		       struct v4l2_subdev_state *sd_state,
 		       struct v4l2_subdev_format *sdformat)
 {
 	struct prp_priv *priv = sd_to_priv(sd);
@@ -171,7 +170,7 @@ static int prp_set_fmt(struct v4l2_subdev *sd,
 		goto out;
 	}
 
-	infmt = __prp_get_fmt(priv, cfg, PRP_SINK_PAD, sdformat->which);
+	infmt = __prp_get_fmt(priv, sd_state, PRP_SINK_PAD, sdformat->which);
 
 	switch (sdformat->pad) {
 	case PRP_SINK_PAD:
@@ -180,10 +179,12 @@ static int prp_set_fmt(struct v4l2_subdev *sd,
 				      MIN_H, MAX_H, H_ALIGN, S_ALIGN);
 
 		cc = imx_media_find_ipu_format(sdformat->format.code,
-					       CS_SEL_ANY);
+					       PIXFMT_SEL_YUV_RGB);
 		if (!cc) {
-			imx_media_enum_ipu_format(&code, 0, CS_SEL_ANY);
-			cc = imx_media_find_ipu_format(code, CS_SEL_ANY);
+			imx_media_enum_ipu_formats(&code, 0,
+						   PIXFMT_SEL_YUV_RGB);
+			cc = imx_media_find_ipu_format(code,
+						       PIXFMT_SEL_YUV_RGB);
 			sdformat->format.code = cc->codes[0];
 		}
 
@@ -199,7 +200,7 @@ static int prp_set_fmt(struct v4l2_subdev *sd,
 
 	imx_media_try_colorimetry(&sdformat->format, true);
 
-	fmt = __prp_get_fmt(priv, cfg, sdformat->pad, sdformat->which);
+	fmt = __prp_get_fmt(priv, sd_state, sdformat->pad, sdformat->which);
 	*fmt = sdformat->format;
 out:
 	mutex_unlock(&priv->lock);
@@ -392,10 +393,18 @@ out:
 	return ret;
 }
 
-static int prp_g_frame_interval(struct v4l2_subdev *sd,
-				struct v4l2_subdev_frame_interval *fi)
+static int prp_get_frame_interval(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *sd_state,
+				  struct v4l2_subdev_frame_interval *fi)
 {
 	struct prp_priv *priv = sd_to_priv(sd);
+
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	if (fi->pad >= PRP_NUM_PADS)
 		return -EINVAL;
@@ -407,10 +416,18 @@ static int prp_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int prp_s_frame_interval(struct v4l2_subdev *sd,
-				struct v4l2_subdev_frame_interval *fi)
+static int prp_set_frame_interval(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *sd_state,
+				  struct v4l2_subdev_frame_interval *fi)
 {
 	struct prp_priv *priv = sd_to_priv(sd);
+
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	if (fi->pad >= PRP_NUM_PADS)
 		return -EINVAL;
@@ -428,45 +445,34 @@ static int prp_s_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-/*
- * retrieve our pads parsed from the OF graph by the media device
- */
 static int prp_registered(struct v4l2_subdev *sd)
 {
 	struct prp_priv *priv = sd_to_priv(sd);
-	int i, ret;
 	u32 code;
-
-	for (i = 0; i < PRP_NUM_PADS; i++) {
-		priv->pad[i].flags = (i == PRP_SINK_PAD) ?
-			MEDIA_PAD_FL_SINK : MEDIA_PAD_FL_SOURCE;
-	}
 
 	/* init default frame interval */
 	priv->frame_interval.numerator = 1;
 	priv->frame_interval.denominator = 30;
 
 	/* set a default mbus format  */
-	imx_media_enum_ipu_format(&code, 0, CS_SEL_YUV);
-	ret = imx_media_init_mbus_fmt(&priv->format_mbus, 640, 480, code,
-				      V4L2_FIELD_NONE, NULL);
-	if (ret)
-		return ret;
+	imx_media_enum_ipu_formats(&code, 0, PIXFMT_SEL_YUV);
 
-	return media_entity_pads_init(&sd->entity, PRP_NUM_PADS, priv->pad);
+	return imx_media_init_mbus_fmt(&priv->format_mbus,
+				       IMX_MEDIA_DEF_PIX_WIDTH,
+				       IMX_MEDIA_DEF_PIX_HEIGHT, code,
+				       V4L2_FIELD_NONE, NULL);
 }
 
 static const struct v4l2_subdev_pad_ops prp_pad_ops = {
-	.init_cfg = imx_media_init_cfg,
 	.enum_mbus_code = prp_enum_mbus_code,
 	.get_fmt = prp_get_fmt,
 	.set_fmt = prp_set_fmt,
+	.get_frame_interval = prp_get_frame_interval,
+	.set_frame_interval = prp_set_frame_interval,
 	.link_validate = prp_link_validate,
 };
 
 static const struct v4l2_subdev_video_ops prp_video_ops = {
-	.g_frame_interval = prp_g_frame_interval,
-	.s_frame_interval = prp_s_frame_interval,
 	.s_stream = prp_s_stream,
 };
 
@@ -481,12 +487,14 @@ static const struct v4l2_subdev_ops prp_subdev_ops = {
 };
 
 static const struct v4l2_subdev_internal_ops prp_internal_ops = {
+	.init_state = imx_media_init_state,
 	.registered = prp_registered,
 };
 
 static int prp_init(struct imx_ic_priv *ic_priv)
 {
 	struct prp_priv *priv;
+	int i;
 
 	priv = devm_kzalloc(ic_priv->ipu_dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -496,7 +504,12 @@ static int prp_init(struct imx_ic_priv *ic_priv)
 	ic_priv->task_priv = priv;
 	priv->ic_priv = ic_priv;
 
-	return 0;
+	for (i = 0; i < PRP_NUM_PADS; i++)
+		priv->pad[i].flags = (i == PRP_SINK_PAD) ?
+			MEDIA_PAD_FL_SINK : MEDIA_PAD_FL_SOURCE;
+
+	return media_entity_pads_init(&ic_priv->sd.entity, PRP_NUM_PADS,
+				      priv->pad);
 }
 
 static void prp_remove(struct imx_ic_priv *ic_priv)

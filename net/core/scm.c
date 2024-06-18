@@ -26,6 +26,7 @@
 #include <linux/nsproxy.h>
 #include <linux/slab.h>
 #include <linux/errqueue.h>
+#include <linux/io_uring.h>
 
 #include <linux/uaccess.h>
 
@@ -35,6 +36,7 @@
 #include <net/compat.h>
 #include <net/scm.h>
 #include <net/cls_cgroup.h>
+#include <net/af_unix.h>
 
 
 /*
@@ -79,13 +81,20 @@ static int scm_fp_copy(struct cmsghdr *cmsg, struct scm_fp_list **fplp)
 
 	if (!fpl)
 	{
-		fpl = kmalloc(sizeof(struct scm_fp_list), GFP_KERNEL);
+		fpl = kmalloc(sizeof(struct scm_fp_list), GFP_KERNEL_ACCOUNT);
 		if (!fpl)
 			return -ENOMEM;
 		*fplp = fpl;
 		fpl->count = 0;
+		fpl->count_unix = 0;
 		fpl->max = SCM_MAX_FD;
 		fpl->user = NULL;
+#if IS_ENABLED(CONFIG_UNIX)
+		fpl->inflight = false;
+		fpl->dead = false;
+		fpl->edges = NULL;
+		INIT_LIST_HEAD(&fpl->vertices);
+#endif
 	}
 	fpp = &fpl->fp[fpl->count];
 
@@ -103,6 +112,14 @@ static int scm_fp_copy(struct cmsghdr *cmsg, struct scm_fp_list **fplp)
 
 		if (fd < 0 || !(file = fget_raw(fd)))
 			return -EBADF;
+		/* don't allow io_uring files */
+		if (io_is_uring_fops(file)) {
+			fput(file);
+			return -EINVAL;
+		}
+		if (unix_get_socket(file))
+			fpl->count_unix++;
+
 		*fpp++ = file;
 		fpl->count++;
 	}
@@ -130,6 +147,7 @@ EXPORT_SYMBOL(__scm_destroy);
 
 int __scm_send(struct socket *sock, struct msghdr *msg, struct scm_cookie *p)
 {
+	const struct proto_ops *ops = READ_ONCE(sock->ops);
 	struct cmsghdr *cmsg;
 	int err;
 
@@ -153,7 +171,7 @@ int __scm_send(struct socket *sock, struct msghdr *msg, struct scm_cookie *p)
 		switch (cmsg->cmsg_type)
 		{
 		case SCM_RIGHTS:
-			if (!sock->ops || sock->ops->family != PF_UNIX)
+			if (!ops || ops->family != PF_UNIX)
 				goto error;
 			err=scm_fp_copy(cmsg, &p->fp);
 			if (err<0)
@@ -212,16 +230,12 @@ EXPORT_SYMBOL(__scm_send);
 
 int put_cmsg(struct msghdr * msg, int level, int type, int len, void *data)
 {
-	struct cmsghdr __user *cm
-		= (__force struct cmsghdr __user *)msg->msg_control;
-	struct cmsghdr cmhdr;
 	int cmlen = CMSG_LEN(len);
-	int err;
 
-	if (MSG_CMSG_COMPAT & msg->msg_flags)
+	if (msg->msg_flags & MSG_CMSG_COMPAT)
 		return put_cmsg_compat(msg, level, type, len, data);
 
-	if (cm==NULL || msg->msg_controllen < sizeof(*cm)) {
+	if (!msg->msg_control || msg->msg_controllen < sizeof(struct cmsghdr)) {
 		msg->msg_flags |= MSG_CTRUNC;
 		return 0; /* XXX: return error? check spec. */
 	}
@@ -229,23 +243,42 @@ int put_cmsg(struct msghdr * msg, int level, int type, int len, void *data)
 		msg->msg_flags |= MSG_CTRUNC;
 		cmlen = msg->msg_controllen;
 	}
-	cmhdr.cmsg_level = level;
-	cmhdr.cmsg_type = type;
-	cmhdr.cmsg_len = cmlen;
 
-	err = -EFAULT;
-	if (copy_to_user(cm, &cmhdr, sizeof cmhdr))
-		goto out;
-	if (copy_to_user(CMSG_DATA(cm), data, cmlen - sizeof(struct cmsghdr)))
-		goto out;
-	cmlen = CMSG_SPACE(len);
-	if (msg->msg_controllen < cmlen)
-		cmlen = msg->msg_controllen;
-	msg->msg_control += cmlen;
+	if (msg->msg_control_is_user) {
+		struct cmsghdr __user *cm = msg->msg_control_user;
+
+		check_object_size(data, cmlen - sizeof(*cm), true);
+
+		if (!user_write_access_begin(cm, cmlen))
+			goto efault;
+
+		unsafe_put_user(cmlen, &cm->cmsg_len, efault_end);
+		unsafe_put_user(level, &cm->cmsg_level, efault_end);
+		unsafe_put_user(type, &cm->cmsg_type, efault_end);
+		unsafe_copy_to_user(CMSG_USER_DATA(cm), data,
+				    cmlen - sizeof(*cm), efault_end);
+		user_write_access_end();
+	} else {
+		struct cmsghdr *cm = msg->msg_control;
+
+		cm->cmsg_level = level;
+		cm->cmsg_type = type;
+		cm->cmsg_len = cmlen;
+		memcpy(CMSG_DATA(cm), data, cmlen - sizeof(*cm));
+	}
+
+	cmlen = min(CMSG_SPACE(len), msg->msg_controllen);
+	if (msg->msg_control_is_user)
+		msg->msg_control_user += cmlen;
+	else
+		msg->msg_control += cmlen;
 	msg->msg_controllen -= cmlen;
-	err = 0;
-out:
-	return err;
+	return 0;
+
+efault_end:
+	user_write_access_end();
+efault:
+	return -EFAULT;
 }
 EXPORT_SYMBOL(put_cmsg);
 
@@ -268,85 +301,69 @@ void put_cmsg_scm_timestamping(struct msghdr *msg, struct scm_timestamping_inter
 	struct scm_timestamping tss;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(tss.ts); i++)
-		tss.ts[i] = timespec64_to_timespec(tss_internal->ts[i]);
+	for (i = 0; i < ARRAY_SIZE(tss.ts); i++) {
+		tss.ts[i].tv_sec = tss_internal->ts[i].tv_sec;
+		tss.ts[i].tv_nsec = tss_internal->ts[i].tv_nsec;
+	}
 
 	put_cmsg(msg, SOL_SOCKET, SO_TIMESTAMPING_OLD, sizeof(tss), &tss);
 }
 EXPORT_SYMBOL(put_cmsg_scm_timestamping);
 
+static int scm_max_fds(struct msghdr *msg)
+{
+	if (msg->msg_controllen <= sizeof(struct cmsghdr))
+		return 0;
+	return (msg->msg_controllen - sizeof(struct cmsghdr)) / sizeof(int);
+}
+
 void scm_detach_fds(struct msghdr *msg, struct scm_cookie *scm)
 {
-	struct cmsghdr __user *cm
-		= (__force struct cmsghdr __user*)msg->msg_control;
-
-	int fdmax = 0;
-	int fdnum = scm->fp->count;
-	struct file **fp = scm->fp->fp;
-	int __user *cmfptr;
+	struct cmsghdr __user *cm =
+		(__force struct cmsghdr __user *)msg->msg_control_user;
+	unsigned int o_flags = (msg->msg_flags & MSG_CMSG_CLOEXEC) ? O_CLOEXEC : 0;
+	int fdmax = min_t(int, scm_max_fds(msg), scm->fp->count);
+	int __user *cmsg_data = CMSG_USER_DATA(cm);
 	int err = 0, i;
 
-	if (MSG_CMSG_COMPAT & msg->msg_flags) {
+	/* no use for FD passing from kernel space callers */
+	if (WARN_ON_ONCE(!msg->msg_control_is_user))
+		return;
+
+	if (msg->msg_flags & MSG_CMSG_COMPAT) {
 		scm_detach_fds_compat(msg, scm);
 		return;
 	}
 
-	if (msg->msg_controllen > sizeof(struct cmsghdr))
-		fdmax = ((msg->msg_controllen - sizeof(struct cmsghdr))
-			 / sizeof(int));
-
-	if (fdnum < fdmax)
-		fdmax = fdnum;
-
-	for (i=0, cmfptr=(__force int __user *)CMSG_DATA(cm); i<fdmax;
-	     i++, cmfptr++)
-	{
-		struct socket *sock;
-		int new_fd;
-		err = security_file_receive(fp[i]);
-		if (err)
-			break;
-		err = get_unused_fd_flags(MSG_CMSG_CLOEXEC & msg->msg_flags
-					  ? O_CLOEXEC : 0);
+	for (i = 0; i < fdmax; i++) {
+		err = scm_recv_one_fd(scm->fp->fp[i], cmsg_data + i, o_flags);
 		if (err < 0)
 			break;
-		new_fd = err;
-		err = put_user(new_fd, cmfptr);
-		if (err) {
-			put_unused_fd(new_fd);
-			break;
-		}
-		/* Bump the usage count and install the file. */
-		sock = sock_from_file(fp[i], &err);
-		if (sock) {
-			sock_update_netprioidx(&sock->sk->sk_cgrp_data);
-			sock_update_classid(&sock->sk->sk_cgrp_data);
-		}
-		fd_install(new_fd, get_file(fp[i]));
 	}
 
-	if (i > 0)
-	{
-		int cmlen = CMSG_LEN(i*sizeof(int));
+	if (i > 0) {
+		int cmlen = CMSG_LEN(i * sizeof(int));
+
 		err = put_user(SOL_SOCKET, &cm->cmsg_level);
 		if (!err)
 			err = put_user(SCM_RIGHTS, &cm->cmsg_type);
 		if (!err)
 			err = put_user(cmlen, &cm->cmsg_len);
 		if (!err) {
-			cmlen = CMSG_SPACE(i*sizeof(int));
+			cmlen = CMSG_SPACE(i * sizeof(int));
 			if (msg->msg_controllen < cmlen)
 				cmlen = msg->msg_controllen;
-			msg->msg_control += cmlen;
+			msg->msg_control_user += cmlen;
 			msg->msg_controllen -= cmlen;
 		}
 	}
-	if (i < fdnum || (fdnum && fdmax <= 0))
+
+	if (i < scm->fp->count || (scm->fp->count && fdmax <= 0))
 		msg->msg_flags |= MSG_CTRUNC;
 
 	/*
-	 * All of the files that fit in the message have had their
-	 * usage counts incremented, so we just free the list.
+	 * All of the files that fit in the message have had their usage counts
+	 * incremented, so we just free the list.
 	 */
 	__scm_destroy(scm);
 }
@@ -361,12 +378,18 @@ struct scm_fp_list *scm_fp_dup(struct scm_fp_list *fpl)
 		return NULL;
 
 	new_fpl = kmemdup(fpl, offsetof(struct scm_fp_list, fp[fpl->count]),
-			  GFP_KERNEL);
+			  GFP_KERNEL_ACCOUNT);
 	if (new_fpl) {
 		for (i = 0; i < fpl->count; i++)
 			get_file(fpl->fp[i]);
+
 		new_fpl->max = new_fpl->count;
 		new_fpl->user = get_uid(fpl->user);
+#if IS_ENABLED(CONFIG_UNIX)
+		new_fpl->inflight = false;
+		new_fpl->edges = NULL;
+		INIT_LIST_HEAD(&new_fpl->vertices);
+#endif
 	}
 	return new_fpl;
 }

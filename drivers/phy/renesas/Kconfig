@@ -2,10 +2,18 @@
 #
 # Phy drivers for Renesas platforms
 #
+# NOTE: Please sorted config names alphabetically.
+config PHY_R8A779F0_ETHERNET_SERDES
+	tristate "Renesas R-Car S4-8 Ethernet SERDES driver"
+	depends on ARCH_RENESAS || COMPILE_TEST
+	select GENERIC_PHY
+	help
+	  Support for Ethernet SERDES found on Renesas R-Car S4-8 SoCs.
+
 config PHY_RCAR_GEN2
 	tristate "Renesas R-Car generation 2 USB PHY driver"
 	depends on ARCH_RENESAS
-	depends on GENERIC_PHY
+	select GENERIC_PHY
 	help
 	  Support for USB PHY found on Renesas R-Car generation 2 SoCs.
 

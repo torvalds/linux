@@ -1,8 +1,8 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 # SPDX-License-Identifier: GPL-2.0-or-later
 use strict;
 
-# Copyright (c) 2017-2019 Mauro Carvalho Chehab <mchehab@kernel.org>
+# Copyright (c) 2017-2020 Mauro Carvalho Chehab <mchehab@kernel.org>
 #
 
 my $prefix = "./";
@@ -22,10 +22,18 @@ my $need = 0;
 my $optional = 0;
 my $need_symlink = 0;
 my $need_sphinx = 0;
+my $need_pip = 0;
+my $need_virtualenv = 0;
 my $rec_sphinx_upgrade = 0;
+my $verbose_warn_install = 1;
 my $install = "";
 my $virtenv_dir = "";
+my $python_cmd = "";
+my $activate_cmd;
 my $min_version;
+my $cur_version;
+my $rec_version = "3.4.3";
+my $latest_avail_ver;
 
 #
 # Command line arguments
@@ -70,6 +78,7 @@ my %texlive = (
 	'ucs.sty'            => 'texlive-ucs',
 	'upquote.sty'        => 'texlive-upquote',
 	'wrapfig.sty'        => 'texlive-wrapfig',
+	'ctexhook.sty'       => 'texlive-ctex',
 );
 
 #
@@ -94,10 +103,12 @@ sub check_missing(%)
 			next;
 		}
 
-		if ($is_optional) {
-			print "Warning: better to also install \"$prog\".\n";
-		} else {
-			print "ERROR: please install \"$prog\", otherwise, build won't work.\n";
+		if ($verbose_warn_install) {
+			if ($is_optional) {
+				print "Warning: better to also install \"$prog\".\n";
+			} else {
+				print "ERROR: please install \"$prog\", otherwise, build won't work.\n";
+			}
 		}
 		if (defined($map{$prog})) {
 			$install .= " " . $map{$prog};
@@ -124,11 +135,13 @@ sub add_package($$)
 
 sub check_missing_file($$$)
 {
-	my $file = shift;
+	my $files = shift;
 	my $package = shift;
 	my $is_optional = shift;
 
-	return if(-e $file);
+	for (@$files) {
+		return if(-e $_);
+	}
 
 	add_package($package, $is_optional);
 }
@@ -140,12 +153,30 @@ sub findprog($)
 	}
 }
 
+sub find_python_no_venv()
+{
+	my $prog = shift;
+
+	my $cur_dir = qx(pwd);
+	$cur_dir =~ s/\s+$//;
+
+	foreach my $dir (split(/:/, $ENV{PATH})) {
+		next if ($dir =~ m,($cur_dir)/sphinx,);
+		return "$dir/python3" if(-x "$dir/python3");
+	}
+	foreach my $dir (split(/:/, $ENV{PATH})) {
+		next if ($dir =~ m,($cur_dir)/sphinx,);
+		return "$dir/python" if(-x "$dir/python");
+	}
+	return "python";
+}
+
 sub check_program($$)
 {
 	my $prog = shift;
 	my $is_optional = shift;
 
-	return if findprog($prog);
+	return $prog if findprog($prog);
 
 	add_package($prog, $is_optional);
 }
@@ -166,9 +197,9 @@ sub check_python_module($$)
 	my $prog = shift;
 	my $is_optional = shift;
 
-	my $err = system("python3 -c 'import $prog' 2>/dev/null /dev/null");
-	return if ($err == 0);
-	my $err = system("python -c 'import $prog' 2>/dev/null /dev/null");
+	return if (!$python_cmd);
+
+	my $err = system("$python_cmd -c 'import $prog' 2>/dev/null /dev/null");
 	return if ($err == 0);
 
 	add_package($prog, $is_optional);
@@ -223,24 +254,32 @@ sub get_sphinx_fname()
 		return $fname;
 	}
 
-	if ($virtualenv) {
-		my $prog = findprog("virtualenv-3");
-		$prog = findprog("virtualenv-3.5") if (!$prog);
-
-		check_program("virtualenv", 0) if (!$prog);
-		$need_sphinx = 1;
-	} else {
-		add_package("python-sphinx", 0);
-	}
-
 	return "";
+}
+
+sub get_sphinx_version($)
+{
+	my $cmd = shift;
+	my $ver;
+
+	open IN, "$cmd --version 2>&1 |";
+	while (<IN>) {
+		if (m/^\s*sphinx-build\s+([\d\.]+)((\+\/[\da-f]+)|(b\d+))?$/) {
+			$ver=$1;
+			last;
+		}
+		# Sphinx 1.2.x uses a different format
+		if (m/^\s*Sphinx.*\s+([\d\.]+)$/) {
+			$ver=$1;
+			last;
+		}
+	}
+	close IN;
+	return $ver;
 }
 
 sub check_sphinx()
 {
-	my $rec_version;
-	my $cur_version;
-
 	open IN, $conf or die "Can't open $conf";
 	while (<IN>) {
 		if (m/^\s*needs_sphinx\s*=\s*[\'\"]([\d\.]+)[\'\"]/) {
@@ -252,51 +291,27 @@ sub check_sphinx()
 
 	die "Can't get needs_sphinx version from $conf" if (!$min_version);
 
-	open IN, $requirement_file or die "Can't open $requirement_file";
-	while (<IN>) {
-		if (m/^\s*Sphinx\s*==\s*([\d\.]+)$/) {
-			$rec_version=$1;
-			last;
-		}
-	}
-	close IN;
-
-	die "Can't get recommended sphinx version from $requirement_file" if (!$min_version);
-
-	$virtenv_dir = $virtenv_prefix . $rec_version;
+	$virtenv_dir = $virtenv_prefix . "latest";
 
 	my $sphinx = get_sphinx_fname();
-	return if ($sphinx eq "");
-
-	open IN, "$sphinx --version 2>&1 |" or die "$sphinx returned an error";
-	while (<IN>) {
-		if (m/^\s*sphinx-build\s+([\d\.]+)$/) {
-			$cur_version=$1;
-			last;
-		}
-		# Sphinx 1.2.x uses a different format
-		if (m/^\s*Sphinx.*\s+([\d\.]+)$/) {
-			$cur_version=$1;
-			last;
-		}
-	}
-	close IN;
-
-	die "$sphinx didn't return its version" if (!$cur_version);
-
-	if ($cur_version lt $min_version) {
-		printf "ERROR: Sphinx version is %s. It should be >= %s (recommended >= %s)\n",
-		       $cur_version, $min_version, $rec_version;;
+	if ($sphinx eq "") {
 		$need_sphinx = 1;
 		return;
 	}
 
-	if ($cur_version lt $rec_version) {
-		printf "Sphinx version %s\n", $cur_version;
-		print "Warning: It is recommended at least Sphinx version $rec_version.\n";
-		$rec_sphinx_upgrade = 1;
+	$cur_version = get_sphinx_version($sphinx);
+	die ("$sphinx returned an error") if (!$cur_version);
+
+	die "$sphinx didn't return its version" if (!$cur_version);
+
+	if ($cur_version lt $min_version) {
+		printf "ERROR: Sphinx version is %s. It should be >= %s\n",
+		       $cur_version, $min_version;
+		$need_sphinx = 1;
 		return;
 	}
+
+	return if ($cur_version lt $rec_version);
 
 	# On version check mode, just assume Sphinx has all mandatory deps
 	exit (0) if ($version_check);
@@ -333,7 +348,8 @@ sub give_debian_hints()
 {
 	my %map = (
 		"python-sphinx"		=> "python3-sphinx",
-		"sphinx_rtd_theme"	=> "python3-sphinx-rtd-theme",
+		"yaml"			=> "python3-yaml",
+		"ensurepip"		=> "python3-venv",
 		"virtualenv"		=> "virtualenv",
 		"dot"			=> "graphviz",
 		"convert"		=> "imagemagick",
@@ -343,10 +359,15 @@ sub give_debian_hints()
 	);
 
 	if ($pdf) {
-		check_missing_file("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+		check_missing_file(["/usr/share/texlive/texmf-dist/tex/latex/ctex/ctexhook.sty"],
+				   "texlive-lang-chinese", 2);
+
+		check_missing_file(["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"],
 				   "fonts-dejavu", 2);
 
-		check_missing_file("/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+		check_missing_file(["/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+				    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+				    "/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc"],
 				   "fonts-noto-cjk", 2);
 	}
 
@@ -354,14 +375,15 @@ sub give_debian_hints()
 	check_missing(\%map);
 
 	return if (!$need && !$optional);
-	printf("You should run:\n\n\tsudo apt-get install $install\n");
+	printf("You should run:\n") if ($verbose_warn_install);
+	printf("\n\tsudo apt-get install $install\n");
 }
 
 sub give_redhat_hints()
 {
 	my %map = (
 		"python-sphinx"		=> "python3-sphinx",
-		"sphinx_rtd_theme"	=> "python3-sphinx_rtd_theme",
+		"yaml"			=> "python3-pyyaml",
 		"virtualenv"		=> "python3-virtualenv",
 		"dot"			=> "graphviz",
 		"convert"		=> "ImageMagick",
@@ -388,6 +410,7 @@ sub give_redhat_hints()
 	#
 	my $old = 0;
 	my $rel;
+	my $noto_sans_redhat = "google-noto-sans-cjk-ttc-fonts";
 	$rel = $1 if ($system_release =~ /release\s+(\d+)/);
 
 	if (!($system_release =~ /Fedora/)) {
@@ -405,6 +428,9 @@ sub give_redhat_hints()
 		if ($rel && $rel < 26) {
 			$old = 1;
 		}
+		if ($rel && $rel >= 38) {
+			$noto_sans_redhat = "google-noto-sans-cjk-fonts";
+		}
 	}
 	if (!$rel) {
 		printf("Couldn't identify release number\n");
@@ -413,8 +439,9 @@ sub give_redhat_hints()
 	}
 
 	if ($pdf) {
-		check_missing_file("/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",
-				   "google-noto-sans-cjk-ttc-fonts", 2);
+		check_missing_file(["/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",
+				    "/usr/share/fonts/google-noto-sans-cjk-fonts/NotoSansCJK-Regular.ttc"],
+				   $noto_sans_redhat, 2);
 	}
 
 	check_rpm_missing(\@fedora26_opt_pkgs, 2) if ($pdf && !$old);
@@ -426,10 +453,12 @@ sub give_redhat_hints()
 
 	if (!$old) {
 		# dnf, for Fedora 18+
-		printf("You should run:\n\n\tsudo dnf install -y $install\n");
+		printf("You should run:\n") if ($verbose_warn_install);
+		printf("\n\tsudo dnf install -y $install\n");
 	} else {
 		# yum, for RHEL (and clones) or Fedora version < 18
-		printf("You should run:\n\n\tsudo yum install -y $install\n");
+		printf("You should run:\n") if ($verbose_warn_install);
+		printf("\n\tsudo yum install -y $install\n");
 	}
 }
 
@@ -437,14 +466,16 @@ sub give_opensuse_hints()
 {
 	my %map = (
 		"python-sphinx"		=> "python3-sphinx",
-		"sphinx_rtd_theme"	=> "python3-sphinx_rtd_theme",
+		"yaml"			=> "python3-pyyaml",
 		"virtualenv"		=> "python3-virtualenv",
 		"dot"			=> "graphviz",
 		"convert"		=> "ImageMagick",
 		"Pod::Usage"		=> "perl-Pod-Usage",
 		"xelatex"		=> "texlive-xetex-bin",
-		"rsvg-convert"		=> "rsvg-view",
 	);
+
+	# On Tumbleweed, this package is also named rsvg-convert
+	$map{"rsvg-convert"} = "rsvg-view" if (!($system_release =~ /Tumbleweed/));
 
 	my @suse_tex_pkgs = (
 		"texlive-babel-english",
@@ -475,20 +506,21 @@ sub give_opensuse_hints()
 	check_missing(\%map);
 
 	return if (!$need && !$optional);
-	printf("You should run:\n\n\tsudo zypper install --no-recommends $install\n");
+	printf("You should run:\n") if ($verbose_warn_install);
+	printf("\n\tsudo zypper install --no-recommends $install\n");
 }
 
 sub give_mageia_hints()
 {
 	my %map = (
 		"python-sphinx"		=> "python3-sphinx",
-		"sphinx_rtd_theme"	=> "python3-sphinx_rtd_theme",
+		"yaml"			=> "python3-yaml",
 		"virtualenv"		=> "python3-virtualenv",
 		"dot"			=> "graphviz",
 		"convert"		=> "ImageMagick",
 		"Pod::Usage"		=> "perl-Pod-Usage",
 		"xelatex"		=> "texlive",
-		"rsvg-convert"		=> "librsvg2-tools",
+		"rsvg-convert"		=> "librsvg2",
 	);
 
 	my @tex_pkgs = (
@@ -497,26 +529,41 @@ sub give_mageia_hints()
 
 	$map{"latexmk"} = "texlive-collection-basic";
 
+	my $packager_cmd;
+	my $noto_sans;
+	if ($system_release =~ /OpenMandriva/) {
+		$packager_cmd = "dnf install";
+		$noto_sans = "noto-sans-cjk-fonts";
+		@tex_pkgs = ( "texlive-collection-fontsextra" );
+	} else {
+		$packager_cmd = "urpmi";
+		$noto_sans = "google-noto-sans-cjk-ttc-fonts";
+	}
+
+
 	if ($pdf) {
-		check_missing_file("/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",
-				   "google-noto-sans-cjk-ttc-fonts", 2);
+		check_missing_file(["/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",
+				    "/usr/share/fonts/TTF/NotoSans-Regular.ttf"],
+				   $noto_sans, 2);
 	}
 
 	check_rpm_missing(\@tex_pkgs, 2) if ($pdf);
 	check_missing(\%map);
 
 	return if (!$need && !$optional);
-	printf("You should run:\n\n\tsudo urpmi $install\n");
+	printf("You should run:\n") if ($verbose_warn_install);
+	printf("\n\tsudo $packager_cmd $install\n");
 }
 
 sub give_arch_linux_hints()
 {
 	my %map = (
-		"sphinx_rtd_theme"	=> "python-sphinx_rtd_theme",
+		"yaml"			=> "python-yaml",
 		"virtualenv"		=> "python-virtualenv",
 		"dot"			=> "graphviz",
 		"convert"		=> "imagemagick",
-		"xelatex"		=> "texlive-bin",
+		"xelatex"		=> "texlive-xetex",
+		"latexmk"		=> "texlive-core",
 		"rsvg-convert"		=> "extra/librsvg",
 	);
 
@@ -528,20 +575,21 @@ sub give_arch_linux_hints()
 	check_pacman_missing(\@archlinux_tex_pkgs, 2) if ($pdf);
 
 	if ($pdf) {
-		check_missing_file("/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+		check_missing_file(["/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc"],
 				   "noto-fonts-cjk", 2);
 	}
 
 	check_missing(\%map);
 
 	return if (!$need && !$optional);
-	printf("You should run:\n\n\tsudo pacman -S $install\n");
+	printf("You should run:\n") if ($verbose_warn_install);
+	printf("\n\tsudo pacman -S $install\n");
 }
 
 sub give_gentoo_hints()
 {
 	my %map = (
-		"sphinx_rtd_theme"	=> "dev-python/sphinx_rtd_theme",
+		"yaml"			=> "dev-python/pyyaml",
 		"virtualenv"		=> "dev-python/virtualenv",
 		"dot"			=> "media-gfx/graphviz",
 		"convert"		=> "media-gfx/imagemagick",
@@ -549,11 +597,12 @@ sub give_gentoo_hints()
 		"rsvg-convert"		=> "gnome-base/librsvg",
 	);
 
-	check_missing_file("/usr/share/fonts/dejavu/DejaVuSans.ttf",
+	check_missing_file(["/usr/share/fonts/dejavu/DejaVuSans.ttf"],
 			   "media-fonts/dejavu", 2) if ($pdf);
 
 	if ($pdf) {
-		check_missing_file("/usr/share/fonts/noto-cjk/NotoSansCJKsc-Regular.otf",
+		check_missing_file(["/usr/share/fonts/noto-cjk/NotoSansCJKsc-Regular.otf",
+				    "/usr/share/fonts/noto-cjk/NotoSerifCJK-Regular.ttc"],
 				   "media-fonts/noto-cjk", 2);
 	}
 
@@ -561,17 +610,18 @@ sub give_gentoo_hints()
 
 	return if (!$need && !$optional);
 
-	printf("You should run:\n\n");
+	printf("You should run:\n") if ($verbose_warn_install);
+	printf("\n");
 
 	my $imagemagick = "media-gfx/imagemagick svg png";
 	my $cairo = "media-gfx/graphviz cairo pdf";
 	my $portage_imagemagick = "/etc/portage/package.use/imagemagick";
 	my $portage_cairo = "/etc/portage/package.use/graphviz";
 
-	if (qx(cat $portage_imagemagick) ne "$imagemagick\n") {
+	if (qx(grep imagemagick $portage_imagemagick 2>/dev/null) eq "") {
 		printf("\tsudo su -c 'echo \"$imagemagick\" > $portage_imagemagick'\n")
 	}
-	if (qx(cat $portage_cairo) ne  "$cairo\n") {
+	if (qx(grep graphviz $portage_cairo 2>/dev/null) eq  "") {
 		printf("\tsudo su -c 'echo \"$cairo\" > $portage_cairo'\n");
 	}
 
@@ -618,6 +668,10 @@ sub check_distros()
 		give_mageia_hints;
 		return;
 	}
+	if ($system_release =~ /OpenMandriva/) {
+		give_mageia_hints;
+		return;
+	}
 	if ($system_release =~ /Arch Linux/) {
 		give_arch_linux_hints;
 		return;
@@ -645,24 +699,259 @@ sub check_distros()
 # Common dependencies
 #
 
+sub deactivate_help()
+{
+	printf "\n    If you want to exit the virtualenv, you can use:\n";
+	printf "\tdeactivate\n";
+}
+
+sub get_virtenv()
+{
+	my $ver;
+	my $min_activate = "$ENV{'PWD'}/${virtenv_prefix}${min_version}/bin/activate";
+	my @activates = glob "$ENV{'PWD'}/${virtenv_prefix}*/bin/activate";
+
+	@activates = sort {$b cmp $a} @activates;
+
+	foreach my $f (@activates) {
+		next if ($f lt $min_activate);
+
+		my $sphinx_cmd = $f;
+		$sphinx_cmd =~ s/activate/sphinx-build/;
+		next if (! -f $sphinx_cmd);
+
+		my $ver = get_sphinx_version($sphinx_cmd);
+
+		if (!$ver) {
+			$f =~ s#/bin/activate##;
+			print("Warning: virtual environment $f is not working.\nPython version upgrade? Remove it with:\n\n\trm -rf $f\n\n");
+		}
+
+		if ($need_sphinx && ($ver ge $min_version)) {
+			return ($f, $ver);
+		} elsif ($ver gt $cur_version) {
+			return ($f, $ver);
+		}
+	}
+	return ("", "");
+}
+
+sub recommend_sphinx_upgrade()
+{
+	my $venv_ver;
+
+	# Avoid running sphinx-builds from venv if $cur_version is good
+	if ($cur_version && ($cur_version ge $rec_version)) {
+		$latest_avail_ver = $cur_version;
+		return;
+	}
+
+	# Get the highest version from sphinx_*/bin/sphinx-build and the
+	# corresponding command to activate the venv/virtenv
+	($activate_cmd, $venv_ver) = get_virtenv();
+
+	# Store the highest version from Sphinx existing virtualenvs
+	if (($activate_cmd ne "") && ($venv_ver gt $cur_version)) {
+		$latest_avail_ver = $venv_ver;
+	} else {
+		$latest_avail_ver = $cur_version if ($cur_version);
+	}
+
+	# As we don't know package version of Sphinx, and there's no
+	# virtual environments, don't check if upgrades are needed
+	if (!$virtualenv) {
+		return if (!$latest_avail_ver);
+	}
+
+	# Either there are already a virtual env or a new one should be created
+	$need_pip = 1;
+
+	return if (!$latest_avail_ver);
+
+	# Return if the reason is due to an upgrade or not
+	if ($latest_avail_ver lt $rec_version) {
+		$rec_sphinx_upgrade = 1;
+	}
+
+	return $latest_avail_ver;
+}
+
+#
+# The logic here is complex, as it have to deal with different versions:
+#	- minimal supported version;
+#	- minimal PDF version;
+#	- recommended version.
+# It also needs to work fine with both distro's package and venv/virtualenv
+sub recommend_sphinx_version($)
+{
+	my $virtualenv_cmd = shift;
+
+	# Version is OK. Nothing to do.
+	if ($cur_version && ($cur_version ge $rec_version)) {
+		return;
+	};
+
+	if (!$need_sphinx) {
+		# sphinx-build is present and its version is >= $min_version
+
+		#only recommend enabling a newer virtenv version if makes sense.
+		if ($latest_avail_ver gt $cur_version) {
+			printf "\nYou may also use the newer Sphinx version $latest_avail_ver with:\n";
+			printf "\tdeactivate\n"  if ($ENV{'PWD'} =~ /${virtenv_prefix}/);
+			printf "\t. $activate_cmd\n";
+			deactivate_help();
+
+			return;
+		}
+		return if ($latest_avail_ver ge $rec_version);
+	}
+
+	if (!$virtualenv) {
+		# No sphinx either via package or via virtenv. As we can't
+		# Compare the versions here, just return, recommending the
+		# user to install it from the package distro.
+		return if (!$latest_avail_ver);
+
+		# User doesn't want a virtenv recommendation, but he already
+		# installed one via virtenv with a newer version.
+		# So, print commands to enable it
+		if ($latest_avail_ver gt $cur_version) {
+			printf "\nYou may also use the Sphinx virtualenv version $latest_avail_ver with:\n";
+			printf "\tdeactivate\n"  if ($ENV{'PWD'} =~ /${virtenv_prefix}/);
+			printf "\t. $activate_cmd\n";
+			deactivate_help();
+
+			return;
+		}
+		print "\n";
+	} else {
+		$need++ if ($need_sphinx);
+	}
+
+	# Suggest newer versions if current ones are too old
+	if ($latest_avail_ver && $latest_avail_ver ge $min_version) {
+		# If there's a good enough version, ask the user to enable it
+		if ($latest_avail_ver ge $rec_version) {
+			printf "\nNeed to activate Sphinx (version $latest_avail_ver) on virtualenv with:\n";
+			printf "\t. $activate_cmd\n";
+			deactivate_help();
+
+			return;
+		}
+
+		# Version is above the minimal required one, but may be
+		# below the recommended one. So, print warnings/notes
+
+		if ($latest_avail_ver lt $rec_version) {
+			print "Warning: It is recommended at least Sphinx version $rec_version.\n";
+		}
+	}
+
+	# At this point, either it needs Sphinx or upgrade is recommended,
+	# both via pip
+
+	if ($rec_sphinx_upgrade) {
+		if (!$virtualenv) {
+			print "Instead of install/upgrade Python Sphinx pkg, you could use pip/pypi with:\n\n";
+		} else {
+			print "To upgrade Sphinx, use:\n\n";
+		}
+	} else {
+		print "\nSphinx needs to be installed either:\n1) via pip/pypi with:\n\n";
+	}
+
+	$python_cmd = find_python_no_venv();
+
+	printf "\t$virtualenv_cmd $virtenv_dir\n";
+
+	printf "\t. $virtenv_dir/bin/activate\n";
+	printf "\tpip install -r $requirement_file\n";
+	deactivate_help();
+
+	printf "\n2) As a package with:\n";
+
+	my $old_need = $need;
+	my $old_optional = $optional;
+	%missing = ();
+	$pdf = 0;
+	$optional = 0;
+	$install = "";
+	$verbose_warn_install = 0;
+
+	add_package("python-sphinx", 0);
+
+	check_distros();
+
+	$need = $old_need;
+	$optional = $old_optional;
+
+	printf "\n    Please note that Sphinx >= 3.0 will currently produce false-positive\n";
+	printf "   warning when the same name is used for more than one type (functions,\n";
+	printf "   structs, enums,...). This is known Sphinx bug. For more details, see:\n";
+	printf "\thttps://github.com/sphinx-doc/sphinx/pull/8313\n";
+}
+
 sub check_needs()
 {
-	# Check for needed programs/tools
+	# Check if Sphinx is already accessible from current environment
 	check_sphinx();
 
 	if ($system_release) {
-		print "Detected OS: $system_release.\n\n";
+		print "Detected OS: $system_release.\n";
 	} else {
-		print "Unknown OS\n\n";
+		print "Unknown OS\n";
+	}
+	printf "Sphinx version: %s\n\n", $cur_version if ($cur_version);
+
+	# Check python command line, trying first python3
+	$python_cmd = findprog("python3");
+	$python_cmd = check_program("python", 0) if (!$python_cmd);
+
+	# Check the type of virtual env, depending on Python version
+	if ($python_cmd) {
+		if ($virtualenv) {
+			my $tmp = qx($python_cmd --version 2>&1);
+			if ($tmp =~ m/(\d+\.)(\d+\.)/) {
+				if ($1 < 3) {
+					# Fail if it finds python2 (or worse)
+					die "Python 3 is required to build the kernel docs\n";
+				}
+				if ($1 == 3 && $2 < 3) {
+					# Need Python 3.3 or upper for venv
+					$need_virtualenv = 1;
+				}
+			} else {
+				die "Warning: couldn't identify $python_cmd version!";
+			}
+		} else {
+			add_package("python-sphinx", 0);
+		}
 	}
 
-	print "To upgrade Sphinx, use:\n\n" if ($rec_sphinx_upgrade);
+	my $venv_ver = recommend_sphinx_upgrade();
+
+	my $virtualenv_cmd;
+
+	if ($need_pip) {
+		# Set virtualenv command line, if python < 3.3
+		if ($need_virtualenv) {
+			$virtualenv_cmd = findprog("virtualenv-3");
+			$virtualenv_cmd = findprog("virtualenv-3.5") if (!$virtualenv_cmd);
+			if (!$virtualenv_cmd) {
+				check_program("virtualenv", 0);
+				$virtualenv_cmd = "virtualenv";
+			}
+		} else {
+			$virtualenv_cmd = "$python_cmd -m venv";
+			check_python_module("ensurepip", 0);
+		}
+	}
 
 	# Check for needed programs/tools
 	check_perl_module("Pod::Usage", 0);
+	check_python_module("yaml", 0);
 	check_program("make", 0);
 	check_program("gcc", 0);
-	check_python_module("sphinx_rtd_theme", 1) if (!$virtualenv);
 	check_program("dot", 1);
 	check_program("convert", 1);
 
@@ -671,36 +960,24 @@ sub check_needs()
 	check_program("rsvg-convert", 2) if ($pdf);
 	check_program("latexmk", 2) if ($pdf);
 
+	# Do distro-specific checks and output distro-install commands
 	check_distros();
 
+	if (!$python_cmd) {
+		if ($need == 1) {
+			die "Can't build as $need mandatory dependency is missing";
+		} elsif ($need) {
+			die "Can't build as $need mandatory dependencies are missing";
+		}
+	}
+
+	# Check if sphinx-build is called sphinx-build-3
 	if ($need_symlink) {
 		printf "\tsudo ln -sf %s /usr/bin/sphinx-build\n\n",
 		       which("sphinx-build-3");
 	}
-	if ($need_sphinx || $rec_sphinx_upgrade) {
-		my $min_activate = "$ENV{'PWD'}/${virtenv_prefix}${min_version}/bin/activate";
-		my @activates = glob "$ENV{'PWD'}/${virtenv_prefix}*/bin/activate";
 
-		@activates = sort {$b cmp $a} @activates;
-
-		if ($need_sphinx && scalar @activates > 0 && $activates[0] ge $min_activate) {
-			printf "\nNeed to activate a compatible Sphinx version on virtualenv with:\n";
-			printf "\t. $activates[0]\n";
-			exit (1);
-		} else {
-			my $rec_activate = "$virtenv_dir/bin/activate";
-			my $virtualenv = findprog("virtualenv-3");
-			$virtualenv = findprog("virtualenv-3.5") if (!$virtualenv);
-			$virtualenv = findprog("virtualenv") if (!$virtualenv);
-			$virtualenv = "virtualenv" if (!$virtualenv);
-
-			printf "\t$virtualenv $virtenv_dir\n";
-			printf "\t. $rec_activate\n";
-			printf "\tpip install -r $requirement_file\n";
-
-			$need++ if (!$rec_sphinx_upgrade);
-		}
-	}
+	recommend_sphinx_version($virtualenv_cmd);
 	printf "\n";
 
 	print "All optional dependencies are met.\n" if (!$optional);
@@ -753,6 +1030,24 @@ $system_release = catcheck("/etc/system-release") if !$system_release;
 $system_release = catcheck("/etc/redhat-release") if !$system_release;
 $system_release = catcheck("/etc/lsb-release") if !$system_release;
 $system_release = catcheck("/etc/gentoo-release") if !$system_release;
+
+# This seems more common than LSB these days
+if (!$system_release) {
+	my %os_var;
+	if (open IN, "cat /etc/os-release|") {
+		while (<IN>) {
+			if (m/^([\w\d\_]+)=\"?([^\"]*)\"?\n/) {
+				$os_var{$1}=$2;
+			}
+		}
+		$system_release = $os_var{"NAME"};
+		if (defined($os_var{"VERSION_ID"})) {
+			$system_release .= " " . $os_var{"VERSION_ID"} if (defined($os_var{"VERSION_ID"}));
+		} else {
+			$system_release .= " " . $os_var{"VERSION"};
+		}
+	}
+}
 $system_release = catcheck("/etc/issue") if !$system_release;
 $system_release =~ s/\s+$//;
 

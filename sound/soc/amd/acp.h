@@ -55,6 +55,7 @@
 
 #define I2S_SP_INSTANCE                 0x01
 #define I2S_BT_INSTANCE                 0x02
+#define I2S_MICSP_INSTANCE		0x03
 #define CAP_CHANNEL0			0x00
 #define CAP_CHANNEL1			0x01
 
@@ -85,6 +86,10 @@
 #define I2S_TO_ACP_DMA_BT_INSTANCE_CH_NUM 10
 #define ACP_TO_SYSRAM_BT_INSTANCE_CH_NUM 11
 
+/* Playback DMA channels for I2S MICSP instance */
+#define SYSRAM_TO_ACP_MICSP_INSTANCE_CH_NUM  4
+#define ACP_TO_I2S_DMA_MICSP_INSTANCE_CH_NUM 5
+
 #define NUM_DSCRS_PER_CHANNEL 2
 
 #define PLAYBACK_START_DMA_DESCR_CH12 0
@@ -108,8 +113,15 @@
 #define CAPTURE_START_DMA_DESCR_CH11 14
 #define CAPTURE_END_DMA_DESCR_CH11 15
 
+/* I2S MICSP Instance DMA Descriptors */
+#define PLAYBACK_START_DMA_DESCR_CH4 0
+#define PLAYBACK_END_DMA_DESCR_CH4 1
+#define PLAYBACK_START_DMA_DESCR_CH5 2
+#define PLAYBACK_END_DMA_DESCR_CH5 3
+
 #define mmACP_I2S_16BIT_RESOLUTION_EN       0x5209
 #define ACP_I2S_MIC_16BIT_RESOLUTION_EN 0x01
+#define ACP_I2S_MICSP_16BIT_RESOLUTION_EN 0x01
 #define ACP_I2S_SP_16BIT_RESOLUTION_EN	0x02
 #define ACP_I2S_BT_16BIT_RESOLUTION_EN	0x04
 #define ACP_BT_UART_PAD_SELECT_MASK	0x1
@@ -149,8 +161,10 @@ struct audio_drv_data {
 	struct snd_pcm_substream *capture_i2ssp_stream;
 	struct snd_pcm_substream *play_i2sbt_stream;
 	struct snd_pcm_substream *capture_i2sbt_stream;
+	struct snd_pcm_substream *play_i2s_micsp_stream;
 	void __iomem *acp_mmio;
 	u32 asic_type;
+	snd_pcm_sframes_t delay;
 };
 
 /*
@@ -203,5 +217,7 @@ typedef struct acp_dma_dscr_transfer {
 	/* Reserved for future use */
 	u32 reserved;
 } acp_dma_dscr_transfer_t;
+
+extern bool acp_bt_uart_enable;
 
 #endif /*__ACP_HW_H */

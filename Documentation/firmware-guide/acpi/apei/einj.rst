@@ -32,6 +32,10 @@ configuration::
   CONFIG_ACPI_APEI
   CONFIG_ACPI_APEI_EINJ
 
+...and to (optionally) enable CXL protocol error injection set::
+
+  CONFIG_ACPI_APEI_EINJ_CXL
+
 The EINJ user interface is in <debugfs mount point>/apei/einj.
 
 The following files belong to it:
@@ -50,8 +54,8 @@ The following files belong to it:
   0x00000010        Memory Uncorrectable non-fatal
   0x00000020        Memory Uncorrectable fatal
   0x00000040        PCI Express Correctable
-  0x00000080        PCI Express Uncorrectable fatal
-  0x00000100        PCI Express Uncorrectable non-fatal
+  0x00000080        PCI Express Uncorrectable non-fatal
+  0x00000100        PCI Express Uncorrectable fatal
   0x00000200        Platform Correctable
   0x00000400        Platform Uncorrectable non-fatal
   0x00000800        Platform Uncorrectable fatal
@@ -118,6 +122,24 @@ The following files belong to it:
   this actually works depends on what operations the BIOS actually
   includes in the trigger phase.
 
+CXL error types are supported from ACPI 6.5 onwards (given a CXL port
+is present). The EINJ user interface for CXL error types is at
+<debugfs mount point>/cxl. The following files belong to it:
+
+- einj_types:
+
+  Provides the same functionality as available_error_types above, but
+  for CXL error types
+
+- $dport_dev/einj_inject:
+
+  Injects a CXL error type into the CXL port represented by $dport_dev,
+  where $dport_dev is the name of the CXL port (usually a PCIe device name).
+  Error injections targeting a CXL 2.0+ port can use the legacy interface
+  under <debugfs mount point>/apei/einj, while CXL 1.1/1.0 port injections
+  must use this file.
+
+
 BIOS versions based on the ACPI 4.0 specification have limited options
 in controlling where the errors are injected. Your BIOS may support an
 extension (enabled with the param_extension=1 module parameter, or boot
@@ -168,7 +190,7 @@ An error injection example::
   0x00000008	Memory Correctable
   0x00000010	Memory Uncorrectable non-fatal
   # echo 0x12345000 > param1		# Set memory address for injection
-  # echo $((-1 << 12)) > param2		# Mask 0xfffffffffffff000 - anywhere in this page
+  # echo 0xfffffffffffff000 > param2		# Mask - anywhere in this page
   # echo 0x8 > error_type			# Choose correctable memory error
   # echo 1 > error_inject			# Inject now
 
@@ -180,6 +202,37 @@ You should see something like this in dmesg::
   [22715.834759] EDAC sbridge MC3: ADDR 12345000 EDAC sbridge MC3: MISC 144780c86
   [22715.834759] EDAC sbridge MC3: PROCESSOR 0:306e7 TIME 1422553404 SOCKET 0 APIC 0
   [22716.616173] EDAC MC3: 1 CE memory read error on CPU_SrcID#0_Channel#0_DIMM#0 (channel:0 slot:0 page:0x12345 offset:0x0 grain:32 syndrome:0x0 -  area:DRAM err_code:0001:0090 socket:0 channel_mask:1 rank:0)
+
+A CXL error injection example with $dport_dev=0000:e0:01.1::
+
+    # cd /sys/kernel/debug/cxl/
+    # ls
+    0000:e0:01.1 0000:0c:00.0
+    # cat einj_types                # See which errors can be injected
+	0x00008000  CXL.mem Protocol Correctable
+	0x00010000  CXL.mem Protocol Uncorrectable non-fatal
+	0x00020000  CXL.mem Protocol Uncorrectable fatal
+    # cd 0000:e0:01.1               # Navigate to dport to inject into
+    # echo 0x8000 > einj_inject     # Inject error
+
+Special notes for injection into SGX enclaves:
+
+There may be a separate BIOS setup option to enable SGX injection.
+
+The injection process consists of setting some special memory controller
+trigger that will inject the error on the next write to the target
+address. But the h/w prevents any software outside of an SGX enclave
+from accessing enclave pages (even BIOS SMM mode).
+
+The following sequence can be used:
+  1) Determine physical address of enclave page
+  2) Use "notrigger=1" mode to inject (this will setup
+     the injection address, but will not actually inject)
+  3) Enter the enclave
+  4) Store data to the virtual address matching physical address from step 1
+  5) Execute CLFLUSH for that virtual address
+  6) Spin delay for 250ms
+  7) Read from the virtual address. This will trigger the error
 
 For more information about EINJ, please refer to ACPI specification
 version 4.0, section 17.5 and ACPI 5.0, section 18.6.

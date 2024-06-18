@@ -88,24 +88,17 @@ static int ravb_ptp_update_compare(struct ravb_private *priv, u32 ns)
 }
 
 /* PTP clock operations */
-static int ravb_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
+static int ravb_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 {
 	struct ravb_private *priv = container_of(ptp, struct ravb_private,
 						 ptp.info);
 	struct net_device *ndev = priv->ndev;
 	unsigned long flags;
-	u32 diff, addend;
-	bool neg_adj = false;
+	u32 addend;
 	u32 gccr;
 
-	if (ppb < 0) {
-		neg_adj = true;
-		ppb = -ppb;
-	}
-	addend = priv->ptp.default_addend;
-	diff = div_u64((u64)addend * ppb, NSEC_PER_SEC);
-
-	addend = neg_adj ? addend - diff : addend + diff;
+	addend = (u32)adjust_by_scaled_ppm(priv->ptp.default_addend,
+					   scaled_ppm);
 
 	spin_lock_irqsave(&priv->lock, flags);
 
@@ -179,8 +172,16 @@ static int ravb_ptp_extts(struct ptp_clock_info *ptp,
 {
 	struct ravb_private *priv = container_of(ptp, struct ravb_private,
 						 ptp.info);
+	const struct ravb_hw_info *info = priv->info;
 	struct net_device *ndev = priv->ndev;
 	unsigned long flags;
+
+	/* Reject requests with unsupported flags */
+	if (req->flags & ~(PTP_ENABLE_FEATURE |
+			   PTP_RISING_EDGE |
+			   PTP_FALLING_EDGE |
+			   PTP_STRICT_FLAGS))
+		return -EOPNOTSUPP;
 
 	if (req->index)
 		return -EINVAL;
@@ -190,7 +191,7 @@ static int ravb_ptp_extts(struct ptp_clock_info *ptp,
 	priv->ptp.extts[req->index] = on;
 
 	spin_lock_irqsave(&priv->lock, flags);
-	if (priv->chip_id == RCAR_GEN2)
+	if (!info->irq_en_dis)
 		ravb_modify(ndev, GIC, GIC_PTCE, on ? GIC_PTCE : 0);
 	else if (on)
 		ravb_write(ndev, GIE_PTCS, GIE);
@@ -206,10 +207,15 @@ static int ravb_ptp_perout(struct ptp_clock_info *ptp,
 {
 	struct ravb_private *priv = container_of(ptp, struct ravb_private,
 						 ptp.info);
+	const struct ravb_hw_info *info = priv->info;
 	struct net_device *ndev = priv->ndev;
 	struct ravb_ptp_perout *perout;
 	unsigned long flags;
 	int error = 0;
+
+	/* Reject requests with unsupported flags */
+	if (req->flags)
+		return -EOPNOTSUPP;
 
 	if (req->index)
 		return -EINVAL;
@@ -241,7 +247,7 @@ static int ravb_ptp_perout(struct ptp_clock_info *ptp,
 		error = ravb_ptp_update_compare(priv, (u32)start_ns);
 		if (!error) {
 			/* Unmask interrupt */
-			if (priv->chip_id == RCAR_GEN2)
+			if (!info->irq_en_dis)
 				ravb_modify(ndev, GIC, GIC_PTME, GIC_PTME);
 			else
 				ravb_write(ndev, GIE_PTMS0, GIE);
@@ -253,7 +259,7 @@ static int ravb_ptp_perout(struct ptp_clock_info *ptp,
 		perout->period = 0;
 
 		/* Mask interrupt */
-		if (priv->chip_id == RCAR_GEN2)
+		if (!info->irq_en_dis)
 			ravb_modify(ndev, GIC, GIC_PTME, 0);
 		else
 			ravb_write(ndev, GID_PTMD0, GID);
@@ -282,7 +288,7 @@ static const struct ptp_clock_info ravb_ptp_info = {
 	.max_adj	= 50000000,
 	.n_ext_ts	= N_EXT_TS,
 	.n_per_out	= N_PER_OUT,
-	.adjfreq	= ravb_ptp_adjfreq,
+	.adjfine	= ravb_ptp_adjfine,
 	.adjtime	= ravb_ptp_adjtime,
 	.gettime64	= ravb_ptp_gettime64,
 	.settime64	= ravb_ptp_settime64,

@@ -65,36 +65,39 @@
 		/* CON15,16 - CPM lane 4 */
 		compatible = "sff,sfp";
 		i2c-bus = <&sfpp0_i2c>;
-		los-gpio = <&cp1_gpio1 28 GPIO_ACTIVE_HIGH>;
-		mod-def0-gpio = <&cp1_gpio1 27 GPIO_ACTIVE_LOW>;
-		tx-disable-gpio = <&cp1_gpio1 29 GPIO_ACTIVE_HIGH>;
-		tx-fault-gpio  = <&cp1_gpio1 26 GPIO_ACTIVE_HIGH>;
+		los-gpios = <&cp1_gpio1 28 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios = <&cp1_gpio1 27 GPIO_ACTIVE_LOW>;
+		tx-disable-gpios = <&cp1_gpio1 29 GPIO_ACTIVE_HIGH>;
+		tx-fault-gpios = <&cp1_gpio1 26 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&cp1_sfpp0_pins>;
+		maximum-power-milliwatt = <2000>;
 	};
 
 	sfp_eth1: sfp-eth1 {
 		/* CON17,18 - CPS lane 4 */
 		compatible = "sff,sfp";
 		i2c-bus = <&sfpp1_i2c>;
-		los-gpio = <&cp1_gpio1 8 GPIO_ACTIVE_HIGH>;
-		mod-def0-gpio = <&cp1_gpio1 11 GPIO_ACTIVE_LOW>;
-		tx-disable-gpio = <&cp1_gpio1 10 GPIO_ACTIVE_HIGH>;
-		tx-fault-gpio = <&cp0_gpio2 30 GPIO_ACTIVE_HIGH>;
+		los-gpios = <&cp1_gpio1 8 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios = <&cp1_gpio1 11 GPIO_ACTIVE_LOW>;
+		tx-disable-gpios = <&cp1_gpio1 10 GPIO_ACTIVE_HIGH>;
+		tx-fault-gpios = <&cp0_gpio2 30 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&cp1_sfpp1_pins &cp0_sfpp1_pins>;
+		maximum-power-milliwatt = <2000>;
 	};
 
 	sfp_eth3: sfp-eth3 {
 		/* CON13,14 - CPS lane 5 */
 		compatible = "sff,sfp";
 		i2c-bus = <&sfp_1g_i2c>;
-		los-gpio = <&cp0_gpio2 22 GPIO_ACTIVE_HIGH>;
-		mod-def0-gpio = <&cp0_gpio2 21 GPIO_ACTIVE_LOW>;
-		tx-disable-gpio = <&cp1_gpio1 24 GPIO_ACTIVE_HIGH>;
-		tx-fault-gpio = <&cp0_gpio2 19 GPIO_ACTIVE_HIGH>;
+		los-gpios = <&cp0_gpio2 22 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios = <&cp0_gpio2 21 GPIO_ACTIVE_LOW>;
+		tx-disable-gpios = <&cp1_gpio1 24 GPIO_ACTIVE_HIGH>;
+		tx-fault-gpios = <&cp0_gpio2 19 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&cp0_sfp_1g_pins &cp1_sfp_1g_pins>;
+		maximum-power-milliwatt = <2000>;
 	};
 };
 
@@ -132,7 +135,7 @@
 	pinctrl-0 = <&cp0_i2c1_pins>;
 	status = "okay";
 
-	i2c-switch@70 {
+	i2c-mux@70 {
 		compatible = "nxp,pca9548";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -179,8 +182,7 @@
 	num-lanes = <4>;
 	num-viewport = <8>;
 	reset-gpios = <&cp0_gpio2 20 GPIO_ACTIVE_LOW>;
-	ranges = <0x81000000 0x0 0xf9010000 0x0 0xf9010000 0x0 0x10000
-		  0x82000000 0x0 0xc0000000 0x0 0xc0000000 0x0 0x20000000>;
+	ranges = <0x82000000 0x0 0xc0000000 0x0 0xc0000000 0x0 0x20000000>;
 	phys = <&cp0_comphy0 0>, <&cp0_comphy1 0>,
 	       <&cp0_comphy2 0>, <&cp0_comphy3 0>;
 	phy-names = "cp0-pcie0-x4-lane0-phy", "cp0-pcie0-x4-lane1-phy",
@@ -257,13 +259,23 @@
 	vqmmc-supply = <&v_3_3>;
 };
 
+&cp0_utmi {
+	status = "okay";
+};
+
 &cp0_usb3_0 {
 	/* J38? - USB2.0 only */
+	phys = <&cp0_utmi0>;
+	phy-names = "utmi";
+	dr_mode = "host";
 	status = "okay";
 };
 
 &cp0_usb3_1 {
 	/* J38? - USB2.0 only */
+	phys = <&cp0_utmi1>;
+	phy-names = "utmi";
+	dr_mode = "host";
 	status = "okay";
 };
 
@@ -348,7 +360,7 @@
 	pinctrl-0 = <&cp1_spi1_pins>;
 	status = "okay";
 
-	spi-flash@0 {
+	flash@0 {
 		compatible = "st,w25q32";
 		spi-max-frequency = <50000000>;
 		reg = <0>;
@@ -362,9 +374,14 @@
 	};
 };
 
+&cp1_utmi {
+	status = "okay";
+};
+
 &cp1_usb3_0 {
 	/* CPS Lane 2 - CON7 */
-	phys = <&cp1_comphy2 0>;
-	phy-names = "cp1-usb3h0-comphy";
+	phys = <&cp1_comphy2 0>, <&cp1_utmi0>;
+	phy-names = "cp1-usb3h0-comphy", "utmi";
+	dr_mode = "host";
 	status = "okay";
 };

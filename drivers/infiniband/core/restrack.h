@@ -25,7 +25,12 @@ struct rdma_restrack_root {
 
 int rdma_restrack_init(struct ib_device *dev);
 void rdma_restrack_clean(struct ib_device *dev);
-void rdma_restrack_attach_task(struct rdma_restrack_entry *res,
-			       struct task_struct *task);
-bool rdma_is_visible_in_pid_ns(struct rdma_restrack_entry *res);
+void rdma_restrack_add(struct rdma_restrack_entry *res);
+void rdma_restrack_del(struct rdma_restrack_entry *res);
+void rdma_restrack_new(struct rdma_restrack_entry *res,
+		       enum rdma_restrack_type type);
+void rdma_restrack_set_name(struct rdma_restrack_entry *res,
+			    const char *caller);
+void rdma_restrack_parent_name(struct rdma_restrack_entry *dst,
+			       const struct rdma_restrack_entry *parent);
 #endif /* _RDMA_CORE_RESTRACK_H_ */

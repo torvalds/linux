@@ -38,9 +38,10 @@ Default is to monitor all CPUS.
 -e <event>::
 --event=<event>::
 	Select the PMU event. Selection can be a symbolic event name
-	(use 'perf list' to list all events) or a raw PMU
-	event (eventsel+umask) in the form of rNNN where NNN is a
-	hexadecimal event descriptor.
+	(use 'perf list' to list all events) or a raw PMU event in the form
+	of rN where N is a hexadecimal value that represents the raw register
+	encoding with the layout of the event control registers as described
+	by entries in /sys/bus/event_source/devices/cpu/format/*.
 
 -E <entries>::
 --entries=<entries>::
@@ -50,8 +51,10 @@ Default is to monitor all CPUS.
 --count-filter=<count>::
 	Only display functions with more events than this.
 
---group::
-        Put the counters into a counter group.
+--group-sort-idx::
+	Sort the output by the event at the index n in group. If n is invalid,
+	sort by the first event. It can support multiple groups with different
+	amount of events. WARNING: This should be used on grouped events.
 
 -F <freq>::
 --freq=<freq>::
@@ -158,6 +161,18 @@ Default is to monitor all CPUS.
 -M::
 --disassembler-style=:: Set disassembler style for objdump.
 
+--addr2line=<path>::
+        Path to addr2line binary.
+
+--objdump=<path>::
+        Path to objdump binary.
+
+--prefix=PREFIX::
+--prefix-strip=N::
+        Remove first N entries from source file path names in executables
+        and add PREFIX. This allows to display source code compiled on systems
+        with different file system layout.
+
 --source::
 	Interleave source code with assembly code. Enabled by default,
 	disable with --no-source.
@@ -239,11 +254,45 @@ Default is to monitor all CPUS.
 	The various filters must be specified as a comma separated list: --branch-filter any_ret,u,k
 	Note that this feature may not be available on all processors.
 
+--branch-history::
+	Add the addresses of sampled taken branches to the callstack.
+	This allows to examine the path the program took to each sample.
+
 --raw-trace::
 	When displaying traceevent output, do not use print fmt or plugins.
 
+-H::
 --hierarchy::
-	Enable hierarchy output.
+	Enable hierarchical output.  In the hierarchy mode, each sort key groups
+	samples based on the criteria and then sub-divide it using the lower
+	level sort key.
+
+	For example, in normal output:
+
+	  perf report -s dso,sym
+	  #
+	  # Overhead  Shared Object      Symbol
+	  # ........  .................  ...........
+	      50.00%  [kernel.kallsyms]  [k] kfunc1
+	      20.00%  perf               [.] foo
+	      15.00%  [kernel.kallsyms]  [k] kfunc2
+	      10.00%  perf               [.] bar
+	       5.00%  libc.so            [.] libcall
+
+	In hierarchy output:
+
+	  perf report -s dso,sym --hierarchy
+	  #
+	  #   Overhead  Shared Object / Symbol
+	  # ..........  ......................
+	      65.00%    [kernel.kallsyms]
+	        50.00%    [k] kfunc1
+	        15.00%    [k] kfunc2
+	      30.00%    perf
+	        20.00%    [.] foo
+	        10.00%    [.] bar
+	       5.00%    libc.so
+	         5.00%    [.] libcall
 
 --overwrite::
 	Enable this to use just the most recent records, which helps in high core count
@@ -266,6 +315,22 @@ Default is to monitor all CPUS.
 	Record events of type PERF_RECORD_NAMESPACES and display it with the
 	'cgroup_id' sort key.
 
+-G name::
+--cgroup name::
+monitor only in the container (cgroup) called "name". This option is available only
+in per-cpu mode. The cgroup filesystem must be mounted. All threads belonging to
+container "name" are monitored when they run on the monitored CPUs. Multiple cgroups
+can be provided. Each cgroup is applied to the corresponding event, i.e., first cgroup
+to first event, second cgroup to second event and so on. It is possible to provide
+an empty cgroup (monitor all the time) using, e.g., -G foo,,bar. Cgroups must have
+corresponding events, i.e., they always refer to events defined earlier on the command
+line. If the user wants to track multiple events for a specific cgroup, the user can
+use '-e e1 -e e2 -G foo,foo' or just use '-e e1 -e e2 -G foo'.
+
+--all-cgroups::
+	Record events of type PERF_RECORD_CGROUP and display it with the
+	'cgroup' sort key.
+
 --switch-on EVENT_NAME::
 	Only consider events after this event is found.
 
@@ -285,10 +350,10 @@ Default is to monitor all CPUS.
 
 		perf top -e cycles,probe:icmp_rcv --switch-on=probe:icmp_rcv
 
-	   Alternatively one can ask for --group and then two overhead columns
+	   Alternatively one can ask for a group and then two overhead columns
            will appear, the first for cycles and the second for the switch-on event.
 
-		perf top --group -e cycles,probe:icmp_rcv --switch-on=probe:icmp_rcv
+		perf top -e '{cycles,probe:icmp_rcv}' --switch-on=probe:icmp_rcv
 
 	This may be interesting to measure a workload only after some initialization
 	phase is over, i.e. insert a perf probe at that point and use the above
@@ -302,8 +367,28 @@ Default is to monitor all CPUS.
 	but probably we'll make the default not to show the switch-on/off events
         on the --group mode and if there is only one event besides the off/on ones,
 	go straight to the histogram browser, just like 'perf top' with no events
-	explicitely specified does.
+	explicitly specified does.
 
+--stitch-lbr::
+	Show callgraph with stitched LBRs, which may have more complete
+	callgraph. The option must be used with --call-graph lbr recording.
+	Disabled by default. In common cases with call stack overflows,
+	it can recreate better call stacks than the default lbr call stack
+	output. But this approach is not foolproof. There can be cases
+	where it creates incorrect call stacks from incorrect matches.
+	The known limitations include exception handing such as
+	setjmp/longjmp will have calls/returns not match.
+
+ifdef::HAVE_LIBPFM[]
+--pfm-events events::
+Select a PMU event using libpfm4 syntax (see http://perfmon2.sf.net)
+including support for event filters. For example '--pfm-events
+inst_retired:any_p:u:c=1:i'. More than one event can be passed to the
+option using the comma separator. Hardware events and generic hardware
+events cannot be mixed together. The latter must be used with the -e
+option. The -e option and this one can be mixed and matched.  Events
+can be grouped using the {} notation.
+endif::HAVE_LIBPFM[]
 
 INTERACTIVE PROMPTING KEYS
 --------------------------

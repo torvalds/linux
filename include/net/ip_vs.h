@@ -14,6 +14,7 @@
 #include <linux/spinlock.h>             /* for struct rwlock_t */
 #include <linux/atomic.h>               /* for struct atomic_t */
 #include <linux/refcount.h>             /* for struct refcount_t */
+#include <linux/workqueue.h>
 
 #include <linux/compiler.h>
 #include <linux/timer.h>
@@ -24,13 +25,11 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>			/* for struct ipv6hdr */
 #include <net/ipv6.h>
-#if IS_ENABLED(CONFIG_IP_VS_IPV6)
-#include <linux/netfilter_ipv6/ip6_tables.h>
-#endif
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
 #include <net/netfilter/nf_conntrack.h>
 #endif
 #include <net/net_namespace.h>		/* Netw namespace */
+#include <linux/sched/isolation.h>
 
 #define IP_VS_HDR_INVERSE	1
 #define IP_VS_HDR_ICMP		2
@@ -43,6 +42,8 @@ static inline struct netns_ipvs *net_ipvs(struct net* net)
 
 /* Connections' size value needed by ip_vs_ctl.c */
 extern int ip_vs_conn_tab_size;
+
+extern struct mutex __ip_vs_mutex;
 
 struct ip_vs_iphdr {
 	int hdr_flags;	/* ipvs flags */
@@ -264,26 +265,6 @@ static inline const char *ip_vs_dbg_addr(int af, char *buf, size_t buf_len,
 			pr_err(msg, ##__VA_ARGS__);			\
 	} while (0)
 
-#ifdef CONFIG_IP_VS_DEBUG
-#define EnterFunction(level)						\
-	do {								\
-		if (level <= ip_vs_get_debug_level())			\
-			printk(KERN_DEBUG				\
-			       pr_fmt("Enter: %s, %s line %i\n"),	\
-			       __func__, __FILE__, __LINE__);		\
-	} while (0)
-#define LeaveFunction(level)						\
-	do {								\
-		if (level <= ip_vs_get_debug_level())			\
-			printk(KERN_DEBUG				\
-			       pr_fmt("Leave: %s, %s line %i\n"),	\
-			       __func__, __FILE__, __LINE__);		\
-	} while (0)
-#else
-#define EnterFunction(level)   do {} while (0)
-#define LeaveFunction(level)   do {} while (0)
-#endif
-
 /* The port number of FTP service (in network order). */
 #define FTPPORT  cpu_to_be16(21)
 #define FTPDATA  cpu_to_be16(20)
@@ -353,11 +334,11 @@ struct ip_vs_seq {
 
 /* counters per cpu */
 struct ip_vs_counters {
-	__u64		conns;		/* connections scheduled */
-	__u64		inpkts;		/* incoming packets */
-	__u64		outpkts;	/* outgoing packets */
-	__u64		inbytes;	/* incoming bytes */
-	__u64		outbytes;	/* outgoing bytes */
+	u64_stats_t	conns;		/* connections scheduled */
+	u64_stats_t	inpkts;		/* incoming packets */
+	u64_stats_t	outpkts;	/* outgoing packets */
+	u64_stats_t	inbytes;	/* incoming bytes */
+	u64_stats_t	outbytes;	/* outgoing bytes */
 };
 /* Stats per cpu */
 struct ip_vs_cpu_stats {
@@ -365,9 +346,12 @@ struct ip_vs_cpu_stats {
 	struct u64_stats_sync   syncp;
 };
 
+/* Default nice for estimator kthreads */
+#define IPVS_EST_NICE		0
+
 /* IPVS statistics objects */
 struct ip_vs_estimator {
-	struct list_head	list;
+	struct hlist_node	list;
 
 	u64			last_inbytes;
 	u64			last_outbytes;
@@ -380,6 +364,10 @@ struct ip_vs_estimator {
 	u64			outpps;
 	u64			inbps;
 	u64			outbps;
+
+	s32			ktid:16,	/* kthread ID, -1=temp list */
+				ktrow:8,	/* row/tick ID for kthread */
+				ktcid:8;	/* chain ID for kthread tick */
 };
 
 /*
@@ -405,6 +393,77 @@ struct ip_vs_stats {
 	struct ip_vs_cpu_stats __percpu	*cpustats;	/* per cpu counters */
 	spinlock_t		lock;		/* spin lock */
 	struct ip_vs_kstats	kstats0;	/* reset values */
+};
+
+struct ip_vs_stats_rcu {
+	struct ip_vs_stats	s;
+	struct rcu_head		rcu_head;
+};
+
+int ip_vs_stats_init_alloc(struct ip_vs_stats *s);
+struct ip_vs_stats *ip_vs_stats_alloc(void);
+void ip_vs_stats_release(struct ip_vs_stats *stats);
+void ip_vs_stats_free(struct ip_vs_stats *stats);
+
+/* Process estimators in multiple timer ticks (20/50/100, see ktrow) */
+#define IPVS_EST_NTICKS		50
+/* Estimation uses a 2-second period containing ticks (in jiffies) */
+#define IPVS_EST_TICK		((2 * HZ) / IPVS_EST_NTICKS)
+
+/* Limit of CPU load per kthread (8 for 12.5%), ratio of CPU capacity (1/C).
+ * Value of 4 and above ensures kthreads will take work without exceeding
+ * the CPU capacity under different circumstances.
+ */
+#define IPVS_EST_LOAD_DIVISOR	8
+
+/* Kthreads should not have work that exceeds the CPU load above 50% */
+#define IPVS_EST_CPU_KTHREADS	(IPVS_EST_LOAD_DIVISOR / 2)
+
+/* Desired number of chains per timer tick (chain load factor in 100us units),
+ * 48=4.8ms of 40ms tick (12% CPU usage):
+ * 2 sec * 1000 ms in sec * 10 (100us in ms) / 8 (12.5%) / 50
+ */
+#define IPVS_EST_CHAIN_FACTOR	\
+	ALIGN_DOWN(2 * 1000 * 10 / IPVS_EST_LOAD_DIVISOR / IPVS_EST_NTICKS, 8)
+
+/* Compiled number of chains per tick
+ * The defines should match cond_resched_rcu
+ */
+#if defined(CONFIG_DEBUG_ATOMIC_SLEEP) || !defined(CONFIG_PREEMPT_RCU)
+#define IPVS_EST_TICK_CHAINS	IPVS_EST_CHAIN_FACTOR
+#else
+#define IPVS_EST_TICK_CHAINS	1
+#endif
+
+#if IPVS_EST_NTICKS > 127
+#error Too many timer ticks for ktrow
+#endif
+
+/* Multiple chains processed in same tick */
+struct ip_vs_est_tick_data {
+	struct rcu_head		rcu_head;
+	struct hlist_head	chains[IPVS_EST_TICK_CHAINS];
+	DECLARE_BITMAP(present, IPVS_EST_TICK_CHAINS);
+	DECLARE_BITMAP(full, IPVS_EST_TICK_CHAINS);
+	int			chain_len[IPVS_EST_TICK_CHAINS];
+};
+
+/* Context for estimation kthread */
+struct ip_vs_est_kt_data {
+	struct netns_ipvs	*ipvs;
+	struct task_struct	*task;		/* task if running */
+	struct ip_vs_est_tick_data __rcu *ticks[IPVS_EST_NTICKS];
+	DECLARE_BITMAP(avail, IPVS_EST_NTICKS);	/* tick has space for ests */
+	unsigned long		est_timer;	/* estimation timer (jiffies) */
+	struct ip_vs_stats	*calc_stats;	/* Used for calculation */
+	int			tick_len[IPVS_EST_NTICKS];	/* est count */
+	int			id;		/* ktid per netns */
+	int			chain_max;	/* max ests per tick chain */
+	int			tick_max;	/* max ests per tick */
+	int			est_count;	/* attached ests to kthread */
+	int			est_max_count;	/* max ests per kthread */
+	int			add_row;	/* row for new ests */
+	int			est_row;	/* estimated row */
 };
 
 struct dst_entry;
@@ -525,7 +584,7 @@ struct ip_vs_conn {
 	spinlock_t              lock;           /* lock for state transition */
 	volatile __u16          state;          /* state info */
 	volatile __u16          old_state;      /* old state, to be used for
-						 * state transition triggerd
+						 * state transition triggered
 						 * synchronization
 						 */
 	__u32			fwmark;		/* Fire wall mark from skb */
@@ -551,8 +610,10 @@ struct ip_vs_conn {
 	 */
 	struct ip_vs_app        *app;           /* bound ip_vs_app object */
 	void                    *app_data;      /* Application private data */
-	struct ip_vs_seq        in_seq;         /* incoming seq. struct */
-	struct ip_vs_seq        out_seq;        /* outgoing seq. struct */
+	struct_group(sync_conn_opt,
+		struct ip_vs_seq  in_seq;       /* incoming seq. struct */
+		struct ip_vs_seq  out_seq;      /* outgoing seq. struct */
+	);
 
 	const struct ip_vs_pe	*pe;
 	char			*pe_data;
@@ -574,7 +635,7 @@ struct ip_vs_service_user_kern {
 	u16			protocol;
 	union nf_inet_addr	addr;		/* virtual ip address */
 	__be16			port;
-	u32			fwmark;		/* firwall mark of service */
+	u32			fwmark;		/* firewall mark of service */
 
 	/* virtual service options */
 	char			*sched_name;
@@ -690,6 +751,7 @@ struct ip_vs_dest {
 	union nf_inet_addr	vaddr;		/* virtual IP address */
 	__u32			vfwmark;	/* firewall mark of service */
 
+	struct rcu_head		rcu_head;
 	struct list_head	t_list;		/* in dest_trash */
 	unsigned int		in_rs_table:1;	/* we are in rs_table */
 };
@@ -871,9 +933,10 @@ struct netns_ipvs {
 	atomic_t		conn_count;      /* connection counter */
 
 	/* ip_vs_ctl */
-	struct ip_vs_stats		tot_stats;  /* Statistics & est. */
+	struct ip_vs_stats_rcu	*tot_stats;      /* Statistics & est. */
 
 	int			num_services;    /* no of virtual services */
+	int			num_services6;   /* IPv6 virtual services */
 
 	/* Trash for destinations */
 	struct list_head	dest_trash;
@@ -885,10 +948,13 @@ struct netns_ipvs {
 	atomic_t		conn_out_counter;
 
 #ifdef CONFIG_SYSCTL
+	/* delayed work for expiring no dest connections */
+	struct delayed_work	expire_nodest_conn_work;
 	/* 1/rate drop and drop-entry variables */
 	struct delayed_work	defense_work;   /* Work handler */
 	int			drop_rate;
 	int			drop_counter;
+	int			old_secure_tcp;
 	atomic_t		dropentry;
 	/* locks in ctl.c */
 	spinlock_t		dropentry_lock;  /* drop entry handling */
@@ -929,6 +995,13 @@ struct netns_ipvs {
 	int			sysctl_conn_reuse_mode;
 	int			sysctl_schedule_icmp;
 	int			sysctl_ignore_tunneled;
+	int			sysctl_run_estimation;
+#ifdef CONFIG_SYSCTL
+	cpumask_var_t		sysctl_est_cpulist;	/* kthread cpumask */
+	int			est_cpulist_valid;	/* cpulist set */
+	int			sysctl_est_nice;	/* kthread nice */
+	int			est_stopped;		/* stop tasks */
+#endif
 
 	/* ip_vs_lblc */
 	int			sysctl_lblc_expiration;
@@ -939,9 +1012,17 @@ struct netns_ipvs {
 	struct ctl_table_header	*lblcr_ctl_header;
 	struct ctl_table	*lblcr_ctl_table;
 	/* ip_vs_est */
-	struct list_head	est_list;	/* estimator list */
-	spinlock_t		est_lock;
-	struct timer_list	est_timer;	/* Estimation timer */
+	struct delayed_work	est_reload_work;/* Reload kthread tasks */
+	struct mutex		est_mutex;	/* protect kthread tasks */
+	struct hlist_head	est_temp_list;	/* Ests during calc phase */
+	struct ip_vs_est_kt_data **est_kt_arr;	/* Array of kthread data ptrs */
+	unsigned long		est_max_threads;/* Hard limit of kthreads */
+	int			est_calc_phase;	/* Calculation phase */
+	int			est_chain_max;	/* Calculated chain_max */
+	int			est_kt_count;	/* Allocated ptrs */
+	int			est_add_ktid;	/* ktid where to add ests */
+	atomic_t		est_genid;	/* kthreads reload genid */
+	atomic_t		est_genid_done;	/* applied genid */
 	/* ip_vs_sync */
 	spinlock_t		sync_lock;
 	struct ipvs_master_sync_state *ms;
@@ -955,10 +1036,11 @@ struct netns_ipvs {
 	struct ipvs_sync_daemon_cfg	bcfg;	/* Backup Configuration */
 	/* net name space ptr */
 	struct net		*net;            /* Needed by timer routines */
-	/* Number of heterogeneous destinations, needed becaus heterogeneous
+	/* Number of heterogeneous destinations, needed because heterogeneous
 	 * are not supported when synchronization is enabled.
 	 */
 	unsigned int		mixed_address_family_dests;
+	unsigned int		hooks_afmask;	/* &1=AF_INET, &2=AF_INET6 */
 };
 
 #define DEFAULT_SYNC_THRESHOLD	3
@@ -1048,6 +1130,11 @@ static inline int sysctl_conn_reuse_mode(struct netns_ipvs *ipvs)
 	return ipvs->sysctl_conn_reuse_mode;
 }
 
+static inline int sysctl_expire_nodest_conn(struct netns_ipvs *ipvs)
+{
+	return ipvs->sysctl_expire_nodest_conn;
+}
+
 static inline int sysctl_schedule_icmp(struct netns_ipvs *ipvs)
 {
 	return ipvs->sysctl_schedule_icmp;
@@ -1061,6 +1148,24 @@ static inline int sysctl_ignore_tunneled(struct netns_ipvs *ipvs)
 static inline int sysctl_cache_bypass(struct netns_ipvs *ipvs)
 {
 	return ipvs->sysctl_cache_bypass;
+}
+
+static inline int sysctl_run_estimation(struct netns_ipvs *ipvs)
+{
+	return ipvs->sysctl_run_estimation;
+}
+
+static inline const struct cpumask *sysctl_est_cpulist(struct netns_ipvs *ipvs)
+{
+	if (ipvs->est_cpulist_valid)
+		return ipvs->sysctl_est_cpulist;
+	else
+		return housekeeping_cpumask(HK_TYPE_KTHREAD);
+}
+
+static inline int sysctl_est_nice(struct netns_ipvs *ipvs)
+{
+	return ipvs->sysctl_est_nice;
 }
 
 #else
@@ -1135,6 +1240,11 @@ static inline int sysctl_conn_reuse_mode(struct netns_ipvs *ipvs)
 	return 1;
 }
 
+static inline int sysctl_expire_nodest_conn(struct netns_ipvs *ipvs)
+{
+	return 0;
+}
+
 static inline int sysctl_schedule_icmp(struct netns_ipvs *ipvs)
 {
 	return 0;
@@ -1148,6 +1258,21 @@ static inline int sysctl_ignore_tunneled(struct netns_ipvs *ipvs)
 static inline int sysctl_cache_bypass(struct netns_ipvs *ipvs)
 {
 	return 0;
+}
+
+static inline int sysctl_run_estimation(struct netns_ipvs *ipvs)
+{
+	return 1;
+}
+
+static inline const struct cpumask *sysctl_est_cpulist(struct netns_ipvs *ipvs)
+{
+	return housekeeping_cpumask(HK_TYPE_KTHREAD);
+}
+
+static inline int sysctl_est_nice(struct netns_ipvs *ipvs)
+{
+	return IPVS_EST_NICE;
 }
 
 #endif
@@ -1324,7 +1449,7 @@ void ip_vs_protocol_net_cleanup(struct netns_ipvs *ipvs);
 void ip_vs_control_net_cleanup(struct netns_ipvs *ipvs);
 void ip_vs_estimator_net_cleanup(struct netns_ipvs *ipvs);
 void ip_vs_sync_net_cleanup(struct netns_ipvs *ipvs);
-void ip_vs_service_net_cleanup(struct netns_ipvs *ipvs);
+void ip_vs_service_nets_cleanup(struct list_head *net_list);
 
 /* IPVS application functions
  * (from ip_vs_app.c)
@@ -1451,10 +1576,41 @@ int stop_sync_thread(struct netns_ipvs *ipvs, int state);
 void ip_vs_sync_conn(struct netns_ipvs *ipvs, struct ip_vs_conn *cp, int pkts);
 
 /* IPVS rate estimator prototypes (from ip_vs_est.c) */
-void ip_vs_start_estimator(struct netns_ipvs *ipvs, struct ip_vs_stats *stats);
+int ip_vs_start_estimator(struct netns_ipvs *ipvs, struct ip_vs_stats *stats);
 void ip_vs_stop_estimator(struct netns_ipvs *ipvs, struct ip_vs_stats *stats);
 void ip_vs_zero_estimator(struct ip_vs_stats *stats);
 void ip_vs_read_estimator(struct ip_vs_kstats *dst, struct ip_vs_stats *stats);
+void ip_vs_est_reload_start(struct netns_ipvs *ipvs);
+int ip_vs_est_kthread_start(struct netns_ipvs *ipvs,
+			    struct ip_vs_est_kt_data *kd);
+void ip_vs_est_kthread_stop(struct ip_vs_est_kt_data *kd);
+
+static inline void ip_vs_est_stopped_recalc(struct netns_ipvs *ipvs)
+{
+#ifdef CONFIG_SYSCTL
+	/* Stop tasks while cpulist is empty or if disabled with flag */
+	ipvs->est_stopped = !sysctl_run_estimation(ipvs) ||
+			    (ipvs->est_cpulist_valid &&
+			     cpumask_empty(sysctl_est_cpulist(ipvs)));
+#endif
+}
+
+static inline bool ip_vs_est_stopped(struct netns_ipvs *ipvs)
+{
+#ifdef CONFIG_SYSCTL
+	return ipvs->est_stopped;
+#else
+	return false;
+#endif
+}
+
+static inline int ip_vs_est_max_threads(struct netns_ipvs *ipvs)
+{
+	unsigned int limit = IPVS_EST_CPU_KTHREADS *
+			     cpumask_weight(sysctl_est_cpulist(ipvs));
+
+	return max(1U, limit);
+}
 
 /* Various IPVS packet transmitters (from ip_vs_xmit.c) */
 int ip_vs_null_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
@@ -1502,6 +1658,22 @@ static inline int ip_vs_todrop(struct netns_ipvs *ipvs)
 }
 #else
 static inline int ip_vs_todrop(struct netns_ipvs *ipvs) { return 0; }
+#endif
+
+#ifdef CONFIG_SYSCTL
+/* Enqueue delayed work for expiring no dest connections
+ * Only run when sysctl_expire_nodest=1
+ */
+static inline void ip_vs_enqueue_expire_nodest_conns(struct netns_ipvs *ipvs)
+{
+	if (sysctl_expire_nodest_conn(ipvs))
+		queue_delayed_work(system_long_wq,
+				   &ipvs->expire_nodest_conn_work, 1);
+}
+
+void ip_vs_expire_nodest_conn_flush(struct netns_ipvs *ipvs);
+#else
+static inline void ip_vs_enqueue_expire_nodest_conns(struct netns_ipvs *ipvs) {}
 #endif
 
 #define IP_VS_DFWD_METHOD(dest) (atomic_read(&(dest)->conn_flags) & \
@@ -1623,18 +1795,16 @@ static inline void ip_vs_conn_drop_conntrack(struct ip_vs_conn *cp)
 }
 #endif /* CONFIG_IP_VS_NFCT */
 
-/* Really using conntrack? */
-static inline bool ip_vs_conn_uses_conntrack(struct ip_vs_conn *cp,
-					     struct sk_buff *skb)
+/* Using old conntrack that can not be redirected to another real server? */
+static inline bool ip_vs_conn_uses_old_conntrack(struct ip_vs_conn *cp,
+						 struct sk_buff *skb)
 {
 #ifdef CONFIG_IP_VS_NFCT
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct;
 
-	if (!(cp->flags & IP_VS_CONN_F_NFCT))
-		return false;
 	ct = nf_ct_get(skb, &ctinfo);
-	if (ct)
+	if (ct && nf_ct_is_confirmed(ct))
 		return true;
 #endif
 	return false;
@@ -1669,6 +1839,9 @@ static inline void ip_vs_unregister_conntrack(struct ip_vs_service *svc)
 #endif
 }
 
+int ip_vs_register_hooks(struct netns_ipvs *ipvs, unsigned int af);
+void ip_vs_unregister_hooks(struct netns_ipvs *ipvs, unsigned int af);
+
 static inline int
 ip_vs_dest_conn_overhead(struct ip_vs_dest *dest)
 {
@@ -1682,4 +1855,15 @@ ip_vs_dest_conn_overhead(struct ip_vs_dest *dest)
 		atomic_read(&dest->inactconns);
 }
 
+#ifdef CONFIG_IP_VS_PROTO_TCP
+INDIRECT_CALLABLE_DECLARE(int
+	tcp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
+			 struct ip_vs_conn *cp, struct ip_vs_iphdr *iph));
+#endif
+
+#ifdef CONFIG_IP_VS_PROTO_UDP
+INDIRECT_CALLABLE_DECLARE(int
+	udp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
+			 struct ip_vs_conn *cp, struct ip_vs_iphdr *iph));
+#endif
 #endif	/* _NET_IP_VS_H */

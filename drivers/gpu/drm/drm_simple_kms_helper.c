@@ -8,7 +8,10 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_plane_helper.h>
+#include <drm/drm_bridge.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_gem_atomic_helper.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
 
@@ -25,11 +28,59 @@
  * entity. Some flexibility for code reuse is provided through a separately
  * allocated &drm_connector object and supporting optional &drm_bridge
  * encoder drivers.
+ *
+ * Many drivers require only a very simple encoder that fulfills the minimum
+ * requirements of the display pipeline and does not add additional
+ * functionality. The function drm_simple_encoder_init() provides an
+ * implementation of such an encoder.
  */
 
-static const struct drm_encoder_funcs drm_simple_kms_encoder_funcs = {
+static const struct drm_encoder_funcs drm_simple_encoder_funcs_cleanup = {
 	.destroy = drm_encoder_cleanup,
 };
+
+/**
+ * drm_simple_encoder_init - Initialize a preallocated encoder with
+ *                           basic functionality.
+ * @dev: drm device
+ * @encoder: the encoder to initialize
+ * @encoder_type: user visible type of the encoder
+ *
+ * Initialises a preallocated encoder that has no further functionality.
+ * Settings for possible CRTC and clones are left to their initial values.
+ * The encoder will be cleaned up automatically as part of the mode-setting
+ * cleanup.
+ *
+ * The caller of drm_simple_encoder_init() is responsible for freeing
+ * the encoder's memory after the encoder has been cleaned up. At the
+ * moment this only works reliably if the encoder data structure is
+ * stored in the device structure. Free the encoder's memory as part of
+ * the device release function.
+ *
+ * Note: consider using drmm_simple_encoder_alloc() instead of
+ * drm_simple_encoder_init() to let the DRM managed resource infrastructure
+ * take care of cleanup and deallocation.
+ *
+ * Returns:
+ * Zero on success, error code on failure.
+ */
+int drm_simple_encoder_init(struct drm_device *dev,
+			    struct drm_encoder *encoder,
+			    int encoder_type)
+{
+	return drm_encoder_init(dev, encoder,
+				&drm_simple_encoder_funcs_cleanup,
+				encoder_type, NULL);
+}
+EXPORT_SYMBOL(drm_simple_encoder_init);
+
+void *__drmm_simple_encoder_alloc(struct drm_device *dev, size_t size,
+				  size_t offset, int encoder_type)
+{
+	return __drmm_encoder_alloc(dev, size, offset, NULL, encoder_type,
+				    NULL);
+}
+EXPORT_SYMBOL(__drmm_simple_encoder_alloc);
 
 static enum drm_mode_status
 drm_simple_kms_crtc_mode_valid(struct drm_crtc *crtc,
@@ -42,24 +93,28 @@ drm_simple_kms_crtc_mode_valid(struct drm_crtc *crtc,
 		/* Anything goes */
 		return MODE_OK;
 
-	return pipe->funcs->mode_valid(crtc, mode);
+	return pipe->funcs->mode_valid(pipe, mode);
 }
 
 static int drm_simple_kms_crtc_check(struct drm_crtc *crtc,
-				     struct drm_crtc_state *state)
+				     struct drm_atomic_state *state)
 {
-	bool has_primary = state->plane_mask &
-			   drm_plane_mask(crtc->primary);
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+	int ret;
 
-	/* We always want to have an active plane with an active CRTC */
-	if (has_primary != state->enable)
-		return -EINVAL;
+	if (!crtc_state->enable)
+		goto out;
 
-	return drm_atomic_add_affected_planes(state->state, crtc);
+	ret = drm_atomic_helper_check_crtc_primary_plane(crtc_state);
+	if (ret)
+		return ret;
+
+out:
+	return drm_atomic_add_affected_planes(state, crtc);
 }
 
 static void drm_simple_kms_crtc_enable(struct drm_crtc *crtc,
-				       struct drm_crtc_state *old_state)
+				       struct drm_atomic_state *state)
 {
 	struct drm_plane *plane;
 	struct drm_simple_display_pipe *pipe;
@@ -73,7 +128,7 @@ static void drm_simple_kms_crtc_enable(struct drm_crtc *crtc,
 }
 
 static void drm_simple_kms_crtc_disable(struct drm_crtc *crtc,
-					struct drm_crtc_state *old_state)
+					struct drm_atomic_state *state)
 {
 	struct drm_simple_display_pipe *pipe;
 
@@ -90,6 +145,39 @@ static const struct drm_crtc_helper_funcs drm_simple_kms_crtc_helper_funcs = {
 	.atomic_enable = drm_simple_kms_crtc_enable,
 	.atomic_disable = drm_simple_kms_crtc_disable,
 };
+
+static void drm_simple_kms_crtc_reset(struct drm_crtc *crtc)
+{
+	struct drm_simple_display_pipe *pipe;
+
+	pipe = container_of(crtc, struct drm_simple_display_pipe, crtc);
+	if (!pipe->funcs || !pipe->funcs->reset_crtc)
+		return drm_atomic_helper_crtc_reset(crtc);
+
+	return pipe->funcs->reset_crtc(pipe);
+}
+
+static struct drm_crtc_state *drm_simple_kms_crtc_duplicate_state(struct drm_crtc *crtc)
+{
+	struct drm_simple_display_pipe *pipe;
+
+	pipe = container_of(crtc, struct drm_simple_display_pipe, crtc);
+	if (!pipe->funcs || !pipe->funcs->duplicate_crtc_state)
+		return drm_atomic_helper_crtc_duplicate_state(crtc);
+
+	return pipe->funcs->duplicate_crtc_state(pipe);
+}
+
+static void drm_simple_kms_crtc_destroy_state(struct drm_crtc *crtc, struct drm_crtc_state *state)
+{
+	struct drm_simple_display_pipe *pipe;
+
+	pipe = container_of(crtc, struct drm_simple_display_pipe, crtc);
+	if (!pipe->funcs || !pipe->funcs->destroy_crtc_state)
+		drm_atomic_helper_crtc_destroy_state(crtc, state);
+	else
+		pipe->funcs->destroy_crtc_state(pipe, state);
+}
 
 static int drm_simple_kms_crtc_enable_vblank(struct drm_crtc *crtc)
 {
@@ -114,31 +202,33 @@ static void drm_simple_kms_crtc_disable_vblank(struct drm_crtc *crtc)
 }
 
 static const struct drm_crtc_funcs drm_simple_kms_crtc_funcs = {
-	.reset = drm_atomic_helper_crtc_reset,
+	.reset = drm_simple_kms_crtc_reset,
 	.destroy = drm_crtc_cleanup,
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
-	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.atomic_duplicate_state = drm_simple_kms_crtc_duplicate_state,
+	.atomic_destroy_state = drm_simple_kms_crtc_destroy_state,
 	.enable_vblank = drm_simple_kms_crtc_enable_vblank,
 	.disable_vblank = drm_simple_kms_crtc_disable_vblank,
 };
 
 static int drm_simple_kms_plane_atomic_check(struct drm_plane *plane,
-					struct drm_plane_state *plane_state)
+					struct drm_atomic_state *state)
 {
+	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state,
+									     plane);
 	struct drm_simple_display_pipe *pipe;
 	struct drm_crtc_state *crtc_state;
 	int ret;
 
 	pipe = container_of(plane, struct drm_simple_display_pipe, plane);
-	crtc_state = drm_atomic_get_new_crtc_state(plane_state->state,
+	crtc_state = drm_atomic_get_new_crtc_state(state,
 						   &pipe->crtc);
 
 	ret = drm_atomic_helper_check_plane_state(plane_state, crtc_state,
-						  DRM_PLANE_HELPER_NO_SCALING,
-						  DRM_PLANE_HELPER_NO_SCALING,
-						  false, true);
+						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_NO_SCALING,
+						  false, false);
 	if (ret)
 		return ret;
 
@@ -152,8 +242,10 @@ static int drm_simple_kms_plane_atomic_check(struct drm_plane *plane,
 }
 
 static void drm_simple_kms_plane_atomic_update(struct drm_plane *plane,
-					struct drm_plane_state *old_pstate)
+					struct drm_atomic_state *state)
 {
+	struct drm_plane_state *old_pstate = drm_atomic_get_old_plane_state(state,
+									    plane);
 	struct drm_simple_display_pipe *pipe;
 
 	pipe = container_of(plane, struct drm_simple_display_pipe, plane);
@@ -169,8 +261,14 @@ static int drm_simple_kms_plane_prepare_fb(struct drm_plane *plane,
 	struct drm_simple_display_pipe *pipe;
 
 	pipe = container_of(plane, struct drm_simple_display_pipe, plane);
-	if (!pipe->funcs || !pipe->funcs->prepare_fb)
-		return 0;
+	if (!pipe->funcs || !pipe->funcs->prepare_fb) {
+		if (WARN_ON_ONCE(!drm_core_check_feature(plane->dev, DRIVER_GEM)))
+			return 0;
+
+		WARN_ON_ONCE(pipe->funcs && pipe->funcs->cleanup_fb);
+
+		return drm_gem_plane_helper_prepare_fb(plane, state);
+	}
 
 	return pipe->funcs->prepare_fb(pipe, state);
 }
@@ -187,6 +285,30 @@ static void drm_simple_kms_plane_cleanup_fb(struct drm_plane *plane,
 	pipe->funcs->cleanup_fb(pipe, state);
 }
 
+static int drm_simple_kms_plane_begin_fb_access(struct drm_plane *plane,
+						struct drm_plane_state *new_plane_state)
+{
+	struct drm_simple_display_pipe *pipe;
+
+	pipe = container_of(plane, struct drm_simple_display_pipe, plane);
+	if (!pipe->funcs || !pipe->funcs->begin_fb_access)
+		return 0;
+
+	return pipe->funcs->begin_fb_access(pipe, new_plane_state);
+}
+
+static void drm_simple_kms_plane_end_fb_access(struct drm_plane *plane,
+					       struct drm_plane_state *new_plane_state)
+{
+	struct drm_simple_display_pipe *pipe;
+
+	pipe = container_of(plane, struct drm_simple_display_pipe, plane);
+	if (!pipe->funcs || !pipe->funcs->end_fb_access)
+		return;
+
+	pipe->funcs->end_fb_access(pipe, new_plane_state);
+}
+
 static bool drm_simple_kms_format_mod_supported(struct drm_plane *plane,
 						uint32_t format,
 						uint64_t modifier)
@@ -197,17 +319,53 @@ static bool drm_simple_kms_format_mod_supported(struct drm_plane *plane,
 static const struct drm_plane_helper_funcs drm_simple_kms_plane_helper_funcs = {
 	.prepare_fb = drm_simple_kms_plane_prepare_fb,
 	.cleanup_fb = drm_simple_kms_plane_cleanup_fb,
+	.begin_fb_access = drm_simple_kms_plane_begin_fb_access,
+	.end_fb_access = drm_simple_kms_plane_end_fb_access,
 	.atomic_check = drm_simple_kms_plane_atomic_check,
 	.atomic_update = drm_simple_kms_plane_atomic_update,
 };
+
+static void drm_simple_kms_plane_reset(struct drm_plane *plane)
+{
+	struct drm_simple_display_pipe *pipe;
+
+	pipe = container_of(plane, struct drm_simple_display_pipe, plane);
+	if (!pipe->funcs || !pipe->funcs->reset_plane)
+		return drm_atomic_helper_plane_reset(plane);
+
+	return pipe->funcs->reset_plane(pipe);
+}
+
+static struct drm_plane_state *drm_simple_kms_plane_duplicate_state(struct drm_plane *plane)
+{
+	struct drm_simple_display_pipe *pipe;
+
+	pipe = container_of(plane, struct drm_simple_display_pipe, plane);
+	if (!pipe->funcs || !pipe->funcs->duplicate_plane_state)
+		return drm_atomic_helper_plane_duplicate_state(plane);
+
+	return pipe->funcs->duplicate_plane_state(pipe);
+}
+
+static void drm_simple_kms_plane_destroy_state(struct drm_plane *plane,
+					       struct drm_plane_state *state)
+{
+	struct drm_simple_display_pipe *pipe;
+
+	pipe = container_of(plane, struct drm_simple_display_pipe, plane);
+	if (!pipe->funcs || !pipe->funcs->destroy_plane_state)
+		drm_atomic_helper_plane_destroy_state(plane, state);
+	else
+		pipe->funcs->destroy_plane_state(pipe, state);
+}
 
 static const struct drm_plane_funcs drm_simple_kms_plane_funcs = {
 	.update_plane		= drm_atomic_helper_update_plane,
 	.disable_plane		= drm_atomic_helper_disable_plane,
 	.destroy		= drm_plane_cleanup,
-	.reset			= drm_atomic_helper_plane_reset,
-	.atomic_duplicate_state	= drm_atomic_helper_plane_duplicate_state,
-	.atomic_destroy_state	= drm_atomic_helper_plane_destroy_state,
+	.reset			= drm_simple_kms_plane_reset,
+	.atomic_duplicate_state	= drm_simple_kms_plane_duplicate_state,
+	.atomic_destroy_state	= drm_simple_kms_plane_destroy_state,
 	.format_mod_supported   = drm_simple_kms_format_mod_supported,
 };
 
@@ -228,7 +386,7 @@ static const struct drm_plane_funcs drm_simple_kms_plane_funcs = {
 int drm_simple_display_pipe_attach_bridge(struct drm_simple_display_pipe *pipe,
 					  struct drm_bridge *bridge)
 {
-	return drm_bridge_attach(&pipe->encoder, bridge, NULL);
+	return drm_bridge_attach(&pipe->encoder, bridge, NULL, 0);
 }
 EXPORT_SYMBOL(drm_simple_display_pipe_attach_bridge);
 
@@ -287,8 +445,7 @@ int drm_simple_display_pipe_init(struct drm_device *dev,
 		return ret;
 
 	encoder->possible_crtcs = drm_crtc_mask(crtc);
-	ret = drm_encoder_init(dev, encoder, &drm_simple_kms_encoder_funcs,
-			       DRM_MODE_ENCODER_NONE, NULL);
+	ret = drm_simple_encoder_init(dev, encoder, DRM_MODE_ENCODER_NONE);
 	if (ret || !connector)
 		return ret;
 

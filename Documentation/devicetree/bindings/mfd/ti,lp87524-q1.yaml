@@ -1,0 +1,117 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/ti,lp87524-q1.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI LP87524-Q1 four 1-phase output buck converter
+
+maintainers:
+  - Keerthy <j-keerthy@ti.com>
+
+properties:
+  compatible:
+    const: ti,lp87524-q1
+
+  reg:
+    description: I2C slave address
+    const: 0x60
+
+  reset-gpios:
+    description: GPIO connected to NRST pin (active low reset, pin 20)
+    maxItems: 1
+
+  gpio-controller: true
+
+  '#gpio-cells':
+    description:
+      The first cell is the pin number.
+      The second cell is is used to specify flags.
+      See ../gpio/gpio.txt for more information.
+    const: 2
+
+  regulators:
+    type: object
+
+    patternProperties:
+      "^buck[0123]$":
+        type: object
+        $ref: /schemas/regulator/regulator.yaml#
+        unevaluatedProperties: false
+
+    required:
+      - buck0
+      - buck1
+      - buck2
+      - buck3
+
+    additionalProperties: false
+
+patternProperties:
+  "^buck[0123]-in-supply$":
+    description: Voltage regulator supply for each BUCK converter
+
+required:
+  - compatible
+  - reg
+  - gpio-controller
+  - '#gpio-cells'
+  - buck0-in-supply
+  - buck1-in-supply
+  - buck2-in-supply
+  - buck3-in-supply
+  - regulators
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c@0 {
+        reg = <0x0 0x100>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        pmic@60 {
+            compatible = "ti,lp87524-q1";
+            reg = <0x60>;
+            gpio-controller;
+            #gpio-cells = <2>;
+
+            buck0-in-supply = <&vdd_5v0>;
+            buck1-in-supply = <&vdd_5v0>;
+            buck2-in-supply = <&vdd_5v0>;
+            buck3-in-supply = <&vdd_5v0>;
+
+            regulators {
+                buck0_reg: buck0 {
+                    regulator-name = "buck0";
+                    regulator-min-microvolt = <3300000>;
+                    regulator-max-microvolt = <3300000>;
+                    regulator-always-on;
+                };
+
+                buck1_reg: buck1 {
+                    regulator-name = "buck1";
+                    regulator-min-microvolt = <1350000>;
+                    regulator-max-microvolt = <1350000>;
+                    regulator-always-on;
+                };
+
+                buck2_reg: buck2 {
+                    regulator-name = "buck2";
+                    regulator-min-microvolt = <950000>;
+                    regulator-max-microvolt = <950000>;
+                    regulator-always-on;
+                };
+
+                buck3_reg: buck3 {
+                    regulator-name = "buck3";
+                    regulator-min-microvolt = <1800000>;
+                    regulator-max-microvolt = <1800000>;
+                    regulator-always-on;
+                };
+            };
+        };
+    };
+
+...

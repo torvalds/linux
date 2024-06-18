@@ -12,6 +12,7 @@
  *
  ****************************************************************************/
 
+#include <linux/kstrtox.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <generated/utsrelease.h>
@@ -72,6 +73,9 @@ static struct config_group target_core_hbagroup;
 static struct config_group alua_group;
 static struct config_group alua_lu_gps_group;
 
+static unsigned int target_devices;
+static DEFINE_MUTEX(target_devices_lock);
+
 static inline struct se_hba *
 item_to_hba(struct config_item *item)
 {
@@ -105,51 +109,48 @@ static ssize_t target_core_item_dbroot_store(struct config_item *item,
 {
 	ssize_t read_bytes;
 	struct file *fp;
+	ssize_t r = -EINVAL;
 
-	mutex_lock(&g_tf_lock);
-	if (!list_empty(&g_tf_list)) {
-		mutex_unlock(&g_tf_lock);
-		pr_err("db_root: cannot be changed: target drivers registered");
-		return -EINVAL;
+	mutex_lock(&target_devices_lock);
+	if (target_devices) {
+		pr_err("db_root: cannot be changed because it's in use\n");
+		goto unlock;
 	}
 
 	if (count > (DB_ROOT_LEN - 1)) {
-		mutex_unlock(&g_tf_lock);
 		pr_err("db_root: count %d exceeds DB_ROOT_LEN-1: %u\n",
 		       (int)count, DB_ROOT_LEN - 1);
-		return -EINVAL;
+		goto unlock;
 	}
 
 	read_bytes = snprintf(db_root_stage, DB_ROOT_LEN, "%s", page);
-	if (!read_bytes) {
-		mutex_unlock(&g_tf_lock);
-		return -EINVAL;
-	}
+	if (!read_bytes)
+		goto unlock;
+
 	if (db_root_stage[read_bytes - 1] == '\n')
 		db_root_stage[read_bytes - 1] = '\0';
 
 	/* validate new db root before accepting it */
 	fp = filp_open(db_root_stage, O_RDONLY, 0);
 	if (IS_ERR(fp)) {
-		mutex_unlock(&g_tf_lock);
 		pr_err("db_root: cannot open: %s\n", db_root_stage);
-		return -EINVAL;
+		goto unlock;
 	}
 	if (!S_ISDIR(file_inode(fp)->i_mode)) {
 		filp_close(fp, NULL);
-		mutex_unlock(&g_tf_lock);
 		pr_err("db_root: not a directory: %s\n", db_root_stage);
-		return -EINVAL;
+		goto unlock;
 	}
 	filp_close(fp, NULL);
 
 	strncpy(db_root, db_root_stage, read_bytes);
-
-	mutex_unlock(&g_tf_lock);
-
 	pr_debug("Target_Core_ConfigFS: db_root set to %s\n", db_root);
 
-	return read_bytes;
+	r = read_bytes;
+
+unlock:
+	mutex_unlock(&target_devices_lock);
+	return r;
 }
 
 CONFIGFS_ATTR(target_core_item_, dbroot);
@@ -334,6 +335,29 @@ EXPORT_SYMBOL(target_undepend_item);
 /*##############################################################################
 // Start functions called by external Target Fabrics Modules
 //############################################################################*/
+static int target_disable_feature(struct se_portal_group *se_tpg)
+{
+	return 0;
+}
+
+static u32 target_default_get_inst_index(struct se_portal_group *se_tpg)
+{
+	return 1;
+}
+
+static u32 target_default_sess_get_index(struct se_session *se_sess)
+{
+	return 0;
+}
+
+static void target_set_default_node_attributes(struct se_node_acl *se_acl)
+{
+}
+
+static int target_default_get_cmd_state(struct se_cmd *se_cmd)
+{
+	return 0;
+}
 
 static int target_fabric_tf_ops_check(const struct target_core_fabric_ops *tfo)
 {
@@ -361,44 +385,12 @@ static int target_fabric_tf_ops_check(const struct target_core_fabric_ops *tfo)
 		pr_err("Missing tfo->tpg_get_tag()\n");
 		return -EINVAL;
 	}
-	if (!tfo->tpg_check_demo_mode) {
-		pr_err("Missing tfo->tpg_check_demo_mode()\n");
-		return -EINVAL;
-	}
-	if (!tfo->tpg_check_demo_mode_cache) {
-		pr_err("Missing tfo->tpg_check_demo_mode_cache()\n");
-		return -EINVAL;
-	}
-	if (!tfo->tpg_check_demo_mode_write_protect) {
-		pr_err("Missing tfo->tpg_check_demo_mode_write_protect()\n");
-		return -EINVAL;
-	}
-	if (!tfo->tpg_check_prod_mode_write_protect) {
-		pr_err("Missing tfo->tpg_check_prod_mode_write_protect()\n");
-		return -EINVAL;
-	}
-	if (!tfo->tpg_get_inst_index) {
-		pr_err("Missing tfo->tpg_get_inst_index()\n");
-		return -EINVAL;
-	}
 	if (!tfo->release_cmd) {
 		pr_err("Missing tfo->release_cmd()\n");
 		return -EINVAL;
 	}
-	if (!tfo->sess_get_index) {
-		pr_err("Missing tfo->sess_get_index()\n");
-		return -EINVAL;
-	}
 	if (!tfo->write_pending) {
 		pr_err("Missing tfo->write_pending()\n");
-		return -EINVAL;
-	}
-	if (!tfo->set_default_node_attributes) {
-		pr_err("Missing tfo->set_default_node_attributes()\n");
-		return -EINVAL;
-	}
-	if (!tfo->get_cmd_state) {
-		pr_err("Missing tfo->get_cmd_state()\n");
 		return -EINVAL;
 	}
 	if (!tfo->queue_data_in) {
@@ -446,8 +438,36 @@ static int target_fabric_tf_ops_check(const struct target_core_fabric_ops *tfo)
 	return 0;
 }
 
+static void target_set_default_ops(struct target_core_fabric_ops *tfo)
+{
+	if (!tfo->tpg_check_demo_mode)
+		tfo->tpg_check_demo_mode = target_disable_feature;
+
+	if (!tfo->tpg_check_demo_mode_cache)
+		tfo->tpg_check_demo_mode_cache = target_disable_feature;
+
+	if (!tfo->tpg_check_demo_mode_write_protect)
+		tfo->tpg_check_demo_mode_write_protect = target_disable_feature;
+
+	if (!tfo->tpg_check_prod_mode_write_protect)
+		tfo->tpg_check_prod_mode_write_protect = target_disable_feature;
+
+	if (!tfo->tpg_get_inst_index)
+		tfo->tpg_get_inst_index = target_default_get_inst_index;
+
+	if (!tfo->sess_get_index)
+		tfo->sess_get_index = target_default_sess_get_index;
+
+	if (!tfo->set_default_node_attributes)
+		tfo->set_default_node_attributes = target_set_default_node_attributes;
+
+	if (!tfo->get_cmd_state)
+		tfo->get_cmd_state = target_default_get_cmd_state;
+}
+
 int target_register_template(const struct target_core_fabric_ops *fo)
 {
+	struct target_core_fabric_ops *tfo;
 	struct target_fabric_configfs *tf;
 	int ret;
 
@@ -460,10 +480,18 @@ int target_register_template(const struct target_core_fabric_ops *fo)
 		pr_err("%s: could not allocate memory!\n", __func__);
 		return -ENOMEM;
 	}
+	tfo = kzalloc(sizeof(struct target_core_fabric_ops), GFP_KERNEL);
+	if (!tfo) {
+		kfree(tf);
+		pr_err("%s: could not allocate memory!\n", __func__);
+		return -ENOMEM;
+	}
+	memcpy(tfo, fo, sizeof(*tfo));
+	target_set_default_ops(tfo);
 
 	INIT_LIST_HEAD(&tf->tf_list);
 	atomic_set(&tf->tf_access_cnt, 0);
-	tf->tf_ops = fo;
+	tf->tf_ops = tfo;
 	target_fabric_setup_cits(tf);
 
 	mutex_lock(&g_tf_lock);
@@ -490,6 +518,8 @@ void target_unregister_template(const struct target_core_fabric_ops *fo)
 			 * fabric driver unload of TFO->module to proceed.
 			 */
 			rcu_barrier();
+			kfree(t->tf_tpg_base_cit.ct_attrs);
+			kfree(t->tf_ops);
 			kfree(t);
 			return;
 		}
@@ -546,6 +576,8 @@ DEF_CONFIGFS_ATTRIB_SHOW(unmap_granularity);
 DEF_CONFIGFS_ATTRIB_SHOW(unmap_granularity_alignment);
 DEF_CONFIGFS_ATTRIB_SHOW(unmap_zeroes_data);
 DEF_CONFIGFS_ATTRIB_SHOW(max_write_same_len);
+DEF_CONFIGFS_ATTRIB_SHOW(emulate_rsoc);
+DEF_CONFIGFS_ATTRIB_SHOW(submit_type);
 
 #define DEF_CONFIGFS_ATTRIB_STORE_U32(_name)				\
 static ssize_t _name##_store(struct config_item *item, const char *page,\
@@ -576,7 +608,7 @@ static ssize_t _name##_store(struct config_item *item, const char *page,	\
 	bool flag;							\
 	int ret;							\
 									\
-	ret = strtobool(page, &flag);					\
+	ret = kstrtobool(page, &flag);					\
 	if (ret < 0)							\
 		return ret;						\
 	da->_name = flag;						\
@@ -618,7 +650,7 @@ static void dev_set_t10_wwn_model_alias(struct se_device *dev)
 	 * here without potentially breaking existing setups, so continue to
 	 * truncate one byte shorter than what can be carried in INQUIRY.
 	 */
-	strlcpy(dev->t10_wwn.model, configname, INQUIRY_MODEL_LEN);
+	strscpy(dev->t10_wwn.model, configname, INQUIRY_MODEL_LEN);
 }
 
 static ssize_t emulate_model_alias_store(struct config_item *item,
@@ -636,7 +668,7 @@ static ssize_t emulate_model_alias_store(struct config_item *item,
 		return -EINVAL;
 	}
 
-	ret = strtobool(page, &flag);
+	ret = kstrtobool(page, &flag);
 	if (ret < 0)
 		return ret;
 
@@ -644,7 +676,7 @@ static ssize_t emulate_model_alias_store(struct config_item *item,
 	if (flag) {
 		dev_set_t10_wwn_model_alias(dev);
 	} else {
-		strlcpy(dev->t10_wwn.model, dev->transport->inquiry_prod,
+		strscpy(dev->t10_wwn.model, dev->transport->inquiry_prod,
 			sizeof(dev->t10_wwn.model));
 	}
 	da->emulate_model_alias = flag;
@@ -658,7 +690,7 @@ static ssize_t emulate_write_cache_store(struct config_item *item,
 	bool flag;
 	int ret;
 
-	ret = strtobool(page, &flag);
+	ret = kstrtobool(page, &flag);
 	if (ret < 0)
 		return ret;
 
@@ -684,7 +716,9 @@ static ssize_t emulate_ua_intlck_ctrl_store(struct config_item *item,
 	if (ret < 0)
 		return ret;
 
-	if (val != 0 && val != 1 && val != 2) {
+	if (val != TARGET_UA_INTLCK_CTRL_CLEAR
+	 && val != TARGET_UA_INTLCK_CTRL_NO_CLEAR
+	 && val != TARGET_UA_INTLCK_CTRL_ESTABLISH_UA) {
 		pr_err("Illegal value %d\n", val);
 		return -EINVAL;
 	}
@@ -708,7 +742,7 @@ static ssize_t emulate_tas_store(struct config_item *item,
 	bool flag;
 	int ret;
 
-	ret = strtobool(page, &flag);
+	ret = kstrtobool(page, &flag);
 	if (ret < 0)
 		return ret;
 
@@ -725,14 +759,38 @@ static ssize_t emulate_tas_store(struct config_item *item,
 	return count;
 }
 
+static int target_try_configure_unmap(struct se_device *dev,
+				      const char *config_opt)
+{
+	if (!dev->transport->configure_unmap) {
+		pr_err("Generic Block Discard not supported\n");
+		return -ENOSYS;
+	}
+
+	if (!target_dev_configured(dev)) {
+		pr_err("Generic Block Discard setup for %s requires device to be configured\n",
+		       config_opt);
+		return -ENODEV;
+	}
+
+	if (!dev->transport->configure_unmap(dev)) {
+		pr_err("Generic Block Discard setup for %s failed\n",
+		       config_opt);
+		return -ENOSYS;
+	}
+
+	return 0;
+}
+
 static ssize_t emulate_tpu_store(struct config_item *item,
 		const char *page, size_t count)
 {
 	struct se_dev_attrib *da = to_attrib(item);
+	struct se_device *dev = da->da_dev;
 	bool flag;
 	int ret;
 
-	ret = strtobool(page, &flag);
+	ret = kstrtobool(page, &flag);
 	if (ret < 0)
 		return ret;
 
@@ -741,8 +799,9 @@ static ssize_t emulate_tpu_store(struct config_item *item,
 	 * Discard supported is detected iblock_create_virtdevice().
 	 */
 	if (flag && !da->max_unmap_block_desc_count) {
-		pr_err("Generic Block Discard not supported\n");
-		return -ENOSYS;
+		ret = target_try_configure_unmap(dev, "emulate_tpu");
+		if (ret)
+			return ret;
 	}
 
 	da->emulate_tpu = flag;
@@ -755,10 +814,11 @@ static ssize_t emulate_tpws_store(struct config_item *item,
 		const char *page, size_t count)
 {
 	struct se_dev_attrib *da = to_attrib(item);
+	struct se_device *dev = da->da_dev;
 	bool flag;
 	int ret;
 
-	ret = strtobool(page, &flag);
+	ret = kstrtobool(page, &flag);
 	if (ret < 0)
 		return ret;
 
@@ -767,8 +827,9 @@ static ssize_t emulate_tpws_store(struct config_item *item,
 	 * Discard supported is detected iblock_create_virtdevice().
 	 */
 	if (flag && !da->max_unmap_block_desc_count) {
-		pr_err("Generic Block Discard not supported\n");
-		return -ENOSYS;
+		ret = target_try_configure_unmap(dev, "emulate_tpws");
+		if (ret)
+			return ret;
 	}
 
 	da->emulate_tpws = flag;
@@ -854,7 +915,7 @@ static ssize_t pi_prot_format_store(struct config_item *item,
 	bool flag;
 	int ret;
 
-	ret = strtobool(page, &flag);
+	ret = kstrtobool(page, &flag);
 	if (ret < 0)
 		return ret;
 
@@ -891,7 +952,7 @@ static ssize_t pi_prot_verify_store(struct config_item *item,
 	bool flag;
 	int ret;
 
-	ret = strtobool(page, &flag);
+	ret = kstrtobool(page, &flag);
 	if (ret < 0)
 		return ret;
 
@@ -920,7 +981,7 @@ static ssize_t force_pr_aptpl_store(struct config_item *item,
 	bool flag;
 	int ret;
 
-	ret = strtobool(page, &flag);
+	ret = kstrtobool(page, &flag);
 	if (ret < 0)
 		return ret;
 	if (da->da_dev->export_count) {
@@ -942,7 +1003,7 @@ static ssize_t emulate_rest_reord_store(struct config_item *item,
 	bool flag;
 	int ret;
 
-	ret = strtobool(page, &flag);
+	ret = kstrtobool(page, &flag);
 	if (ret < 0)
 		return ret;
 
@@ -961,10 +1022,11 @@ static ssize_t unmap_zeroes_data_store(struct config_item *item,
 		const char *page, size_t count)
 {
 	struct se_dev_attrib *da = to_attrib(item);
+	struct se_device *dev = da->da_dev;
 	bool flag;
 	int ret;
 
-	ret = strtobool(page, &flag);
+	ret = kstrtobool(page, &flag);
 	if (ret < 0)
 		return ret;
 
@@ -979,10 +1041,9 @@ static ssize_t unmap_zeroes_data_store(struct config_item *item,
 	 * Discard supported is detected iblock_configure_device().
 	 */
 	if (flag && !da->max_unmap_block_desc_count) {
-		pr_err("dev[%p]: Thin Provisioning LBPRZ will not be set"
-		       " because max_unmap_block_desc_count is zero\n",
-		       da->da_dev);
-		return -ENOSYS;
+		ret = target_try_configure_unmap(dev, "unmap_zeroes_data");
+		if (ret)
+			return ret;
 	}
 	da->unmap_zeroes_data = flag;
 	pr_debug("dev[%p]: SE Device Thin Provisioning LBPRZ bit: %d\n",
@@ -1086,8 +1147,6 @@ static ssize_t block_size_store(struct config_item *item,
 	}
 
 	da->block_size = val;
-	if (da->max_bytes_per_io)
-		da->hw_max_sectors = da->max_bytes_per_io / val;
 
 	pr_debug("dev[%p]: SE Device block_size changed to %u\n",
 			da->da_dev, val);
@@ -1097,19 +1156,114 @@ static ssize_t block_size_store(struct config_item *item,
 static ssize_t alua_support_show(struct config_item *item, char *page)
 {
 	struct se_dev_attrib *da = to_attrib(item);
-	u8 flags = da->da_dev->transport->transport_flags;
+	u8 flags = da->da_dev->transport_flags;
 
 	return snprintf(page, PAGE_SIZE, "%d\n",
 			flags & TRANSPORT_FLAG_PASSTHROUGH_ALUA ? 0 : 1);
 }
 
+static ssize_t alua_support_store(struct config_item *item,
+		const char *page, size_t count)
+{
+	struct se_dev_attrib *da = to_attrib(item);
+	struct se_device *dev = da->da_dev;
+	bool flag, oldflag;
+	int ret;
+
+	ret = kstrtobool(page, &flag);
+	if (ret < 0)
+		return ret;
+
+	oldflag = !(dev->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_ALUA);
+	if (flag == oldflag)
+		return count;
+
+	if (!(dev->transport->transport_flags_changeable &
+	      TRANSPORT_FLAG_PASSTHROUGH_ALUA)) {
+		pr_err("dev[%p]: Unable to change SE Device alua_support:"
+			" alua_support has fixed value\n", dev);
+		return -ENOSYS;
+	}
+
+	if (flag)
+		dev->transport_flags &= ~TRANSPORT_FLAG_PASSTHROUGH_ALUA;
+	else
+		dev->transport_flags |= TRANSPORT_FLAG_PASSTHROUGH_ALUA;
+	return count;
+}
+
 static ssize_t pgr_support_show(struct config_item *item, char *page)
 {
 	struct se_dev_attrib *da = to_attrib(item);
-	u8 flags = da->da_dev->transport->transport_flags;
+	u8 flags = da->da_dev->transport_flags;
 
 	return snprintf(page, PAGE_SIZE, "%d\n",
 			flags & TRANSPORT_FLAG_PASSTHROUGH_PGR ? 0 : 1);
+}
+
+static ssize_t pgr_support_store(struct config_item *item,
+		const char *page, size_t count)
+{
+	struct se_dev_attrib *da = to_attrib(item);
+	struct se_device *dev = da->da_dev;
+	bool flag, oldflag;
+	int ret;
+
+	ret = kstrtobool(page, &flag);
+	if (ret < 0)
+		return ret;
+
+	oldflag = !(dev->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR);
+	if (flag == oldflag)
+		return count;
+
+	if (!(dev->transport->transport_flags_changeable &
+	      TRANSPORT_FLAG_PASSTHROUGH_PGR)) {
+		pr_err("dev[%p]: Unable to change SE Device pgr_support:"
+			" pgr_support has fixed value\n", dev);
+		return -ENOSYS;
+	}
+
+	if (flag)
+		dev->transport_flags &= ~TRANSPORT_FLAG_PASSTHROUGH_PGR;
+	else
+		dev->transport_flags |= TRANSPORT_FLAG_PASSTHROUGH_PGR;
+	return count;
+}
+
+static ssize_t emulate_rsoc_store(struct config_item *item,
+		const char *page, size_t count)
+{
+	struct se_dev_attrib *da = to_attrib(item);
+	bool flag;
+	int ret;
+
+	ret = kstrtobool(page, &flag);
+	if (ret < 0)
+		return ret;
+
+	da->emulate_rsoc = flag;
+	pr_debug("dev[%p]: SE Device REPORT_SUPPORTED_OPERATION_CODES_EMULATION flag: %d\n",
+			da->da_dev, flag);
+	return count;
+}
+
+static ssize_t submit_type_store(struct config_item *item, const char *page,
+				 size_t count)
+{
+	struct se_dev_attrib *da = to_attrib(item);
+	int ret;
+	u8 val;
+
+	ret = kstrtou8(page, 0, &val);
+	if (ret < 0)
+		return ret;
+
+	if (val > TARGET_QUEUE_SUBMIT)
+		return -EINVAL;
+
+	da->submit_type = val;
+	return count;
 }
 
 CONFIGFS_ATTR(, emulate_model_alias);
@@ -1124,6 +1278,7 @@ CONFIGFS_ATTR(, emulate_tpws);
 CONFIGFS_ATTR(, emulate_caw);
 CONFIGFS_ATTR(, emulate_3pc);
 CONFIGFS_ATTR(, emulate_pr);
+CONFIGFS_ATTR(, emulate_rsoc);
 CONFIGFS_ATTR(, pi_prot_type);
 CONFIGFS_ATTR_RO(, hw_pi_prot_type);
 CONFIGFS_ATTR(, pi_prot_format);
@@ -1144,8 +1299,9 @@ CONFIGFS_ATTR(, unmap_granularity);
 CONFIGFS_ATTR(, unmap_granularity_alignment);
 CONFIGFS_ATTR(, unmap_zeroes_data);
 CONFIGFS_ATTR(, max_write_same_len);
-CONFIGFS_ATTR_RO(, alua_support);
-CONFIGFS_ATTR_RO(, pgr_support);
+CONFIGFS_ATTR(, alua_support);
+CONFIGFS_ATTR(, pgr_support);
+CONFIGFS_ATTR(, submit_type);
 
 /*
  * dev_attrib attributes for devices using the target core SBC/SPC
@@ -1187,6 +1343,8 @@ struct configfs_attribute *sbc_attrib_attrs[] = {
 	&attr_max_write_same_len,
 	&attr_alua_support,
 	&attr_pgr_support,
+	&attr_emulate_rsoc,
+	&attr_submit_type,
 	NULL,
 };
 EXPORT_SYMBOL(sbc_attrib_attrs);
@@ -1201,11 +1359,24 @@ struct configfs_attribute *passthrough_attrib_attrs[] = {
 	&attr_hw_block_size,
 	&attr_hw_max_sectors,
 	&attr_hw_queue_depth,
+	&attr_emulate_pr,
 	&attr_alua_support,
 	&attr_pgr_support,
+	&attr_submit_type,
 	NULL,
 };
 EXPORT_SYMBOL(passthrough_attrib_attrs);
+
+/*
+ * pr related dev_attrib attributes for devices passing through CDBs,
+ * but allowing in core pr emulation.
+ */
+struct configfs_attribute *passthrough_pr_attrib_attrs[] = {
+	&attr_enforce_pr_isids,
+	&attr_force_pr_aptpl,
+	NULL,
+};
+EXPORT_SYMBOL(passthrough_pr_attrib_attrs);
 
 TB_CIT_SETUP_DRV(dev_attrib, NULL, NULL);
 TB_CIT_SETUP_DRV(dev_action, NULL, NULL);
@@ -1259,16 +1430,16 @@ static ssize_t target_wwn_vendor_id_store(struct config_item *item,
 	/* +2 to allow for a trailing (stripped) '\n' and null-terminator */
 	unsigned char buf[INQUIRY_VENDOR_LEN + 2];
 	char *stripped = NULL;
-	size_t len;
+	ssize_t len;
 	ssize_t ret;
 
-	len = strlcpy(buf, page, sizeof(buf));
-	if (len < sizeof(buf)) {
+	len = strscpy(buf, page, sizeof(buf));
+	if (len > 0) {
 		/* Strip any newline added from userspace. */
 		stripped = strstrip(buf);
 		len = strlen(stripped);
 	}
-	if (len > INQUIRY_VENDOR_LEN) {
+	if (len < 0 || len > INQUIRY_VENDOR_LEN) {
 		pr_err("Emulated T10 Vendor Identification exceeds"
 			" INQUIRY_VENDOR_LEN: " __stringify(INQUIRY_VENDOR_LEN)
 			"\n");
@@ -1293,7 +1464,7 @@ static ssize_t target_wwn_vendor_id_store(struct config_item *item,
 	}
 
 	BUILD_BUG_ON(sizeof(dev->t10_wwn.vendor) != INQUIRY_VENDOR_LEN + 1);
-	strlcpy(dev->t10_wwn.vendor, stripped, sizeof(dev->t10_wwn.vendor));
+	strscpy(dev->t10_wwn.vendor, stripped, sizeof(dev->t10_wwn.vendor));
 
 	pr_debug("Target_Core_ConfigFS: Set emulated T10 Vendor Identification:"
 		 " %s\n", dev->t10_wwn.vendor);
@@ -1315,16 +1486,16 @@ static ssize_t target_wwn_product_id_store(struct config_item *item,
 	/* +2 to allow for a trailing (stripped) '\n' and null-terminator */
 	unsigned char buf[INQUIRY_MODEL_LEN + 2];
 	char *stripped = NULL;
-	size_t len;
+	ssize_t len;
 	ssize_t ret;
 
-	len = strlcpy(buf, page, sizeof(buf));
-	if (len < sizeof(buf)) {
+	len = strscpy(buf, page, sizeof(buf));
+	if (len > 0) {
 		/* Strip any newline added from userspace. */
 		stripped = strstrip(buf);
 		len = strlen(stripped);
 	}
-	if (len > INQUIRY_MODEL_LEN) {
+	if (len < 0 || len > INQUIRY_MODEL_LEN) {
 		pr_err("Emulated T10 Vendor exceeds INQUIRY_MODEL_LEN: "
 			 __stringify(INQUIRY_MODEL_LEN)
 			"\n");
@@ -1349,7 +1520,7 @@ static ssize_t target_wwn_product_id_store(struct config_item *item,
 	}
 
 	BUILD_BUG_ON(sizeof(dev->t10_wwn.model) != INQUIRY_MODEL_LEN + 1);
-	strlcpy(dev->t10_wwn.model, stripped, sizeof(dev->t10_wwn.model));
+	strscpy(dev->t10_wwn.model, stripped, sizeof(dev->t10_wwn.model));
 
 	pr_debug("Target_Core_ConfigFS: Set emulated T10 Model Identification: %s\n",
 		 dev->t10_wwn.model);
@@ -1371,16 +1542,16 @@ static ssize_t target_wwn_revision_store(struct config_item *item,
 	/* +2 to allow for a trailing (stripped) '\n' and null-terminator */
 	unsigned char buf[INQUIRY_REVISION_LEN + 2];
 	char *stripped = NULL;
-	size_t len;
+	ssize_t len;
 	ssize_t ret;
 
-	len = strlcpy(buf, page, sizeof(buf));
-	if (len < sizeof(buf)) {
+	len = strscpy(buf, page, sizeof(buf));
+	if (len > 0) {
 		/* Strip any newline added from userspace. */
 		stripped = strstrip(buf);
 		len = strlen(stripped);
 	}
-	if (len > INQUIRY_REVISION_LEN) {
+	if (len < 0 || len > INQUIRY_REVISION_LEN) {
 		pr_err("Emulated T10 Revision exceeds INQUIRY_REVISION_LEN: "
 			 __stringify(INQUIRY_REVISION_LEN)
 			"\n");
@@ -1405,10 +1576,58 @@ static ssize_t target_wwn_revision_store(struct config_item *item,
 	}
 
 	BUILD_BUG_ON(sizeof(dev->t10_wwn.revision) != INQUIRY_REVISION_LEN + 1);
-	strlcpy(dev->t10_wwn.revision, stripped, sizeof(dev->t10_wwn.revision));
+	strscpy(dev->t10_wwn.revision, stripped, sizeof(dev->t10_wwn.revision));
 
 	pr_debug("Target_Core_ConfigFS: Set emulated T10 Revision: %s\n",
 		 dev->t10_wwn.revision);
+
+	return count;
+}
+
+static ssize_t
+target_wwn_company_id_show(struct config_item *item,
+				char *page)
+{
+	return snprintf(page, PAGE_SIZE, "%#08x\n",
+			to_t10_wwn(item)->company_id);
+}
+
+static ssize_t
+target_wwn_company_id_store(struct config_item *item,
+				 const char *page, size_t count)
+{
+	struct t10_wwn *t10_wwn = to_t10_wwn(item);
+	struct se_device *dev = t10_wwn->t10_dev;
+	u32 val;
+	int ret;
+
+	/*
+	 * The IEEE COMPANY_ID field should contain a 24-bit canonical
+	 * form OUI assigned by the IEEE.
+	 */
+	ret = kstrtou32(page, 0, &val);
+	if (ret < 0)
+		return ret;
+
+	if (val >= 0x1000000)
+		return -EOVERFLOW;
+
+	/*
+	 * Check to see if any active exports exist. If they do exist, fail
+	 * here as changing this information on the fly (underneath the
+	 * initiator side OS dependent multipath code) could cause negative
+	 * effects.
+	 */
+	if (dev->export_count) {
+		pr_err("Unable to set Company ID while %u exports exist\n",
+		       dev->export_count);
+		return -EINVAL;
+	}
+
+	t10_wwn->company_id = val;
+
+	pr_debug("Target_Core_ConfigFS: Set IEEE Company ID: %#08x\n",
+		 t10_wwn->company_id);
 
 	return count;
 }
@@ -1428,7 +1647,7 @@ static ssize_t target_wwn_vpd_unit_serial_store(struct config_item *item,
 {
 	struct t10_wwn *t10_wwn = to_t10_wwn(item);
 	struct se_device *dev = t10_wwn->t10_dev;
-	unsigned char buf[INQUIRY_VPD_SERIAL_LEN];
+	unsigned char buf[INQUIRY_VPD_SERIAL_LEN] = { };
 
 	/*
 	 * If Linux/SCSI subsystem_api_t plugin got a VPD Unit Serial
@@ -1470,7 +1689,6 @@ static ssize_t target_wwn_vpd_unit_serial_store(struct config_item *item,
 	 * Also, strip any newline added from the userspace
 	 * echo $UUID > $TARGET/$HBA/$STORAGE_OBJECT/wwn/vpd_unit_serial
 	 */
-	memset(buf, 0, INQUIRY_VPD_SERIAL_LEN);
 	snprintf(buf, INQUIRY_VPD_SERIAL_LEN, "%s", page);
 	snprintf(dev->t10_wwn.unit_serial, INQUIRY_VPD_SERIAL_LEN,
 			"%s", strstrip(buf));
@@ -1490,10 +1708,8 @@ static ssize_t target_wwn_vpd_protocol_identifier_show(struct config_item *item,
 {
 	struct t10_wwn *t10_wwn = to_t10_wwn(item);
 	struct t10_vpd *vpd;
-	unsigned char buf[VPD_TMP_BUF_SIZE];
+	unsigned char buf[VPD_TMP_BUF_SIZE] = { };
 	ssize_t len = 0;
-
-	memset(buf, 0, VPD_TMP_BUF_SIZE);
 
 	spin_lock(&t10_wwn->t10_vpd_lock);
 	list_for_each_entry(vpd, &t10_wwn->t10_vpd_list, vpd_list) {
@@ -1562,6 +1778,7 @@ DEF_DEV_WWN_ASSOC_SHOW(vpd_assoc_scsi_target_device, 0x20);
 CONFIGFS_ATTR(target_wwn_, vendor_id);
 CONFIGFS_ATTR(target_wwn_, product_id);
 CONFIGFS_ATTR(target_wwn_, revision);
+CONFIGFS_ATTR(target_wwn_, company_id);
 CONFIGFS_ATTR(target_wwn_, vpd_unit_serial);
 CONFIGFS_ATTR_RO(target_wwn_, vpd_protocol_identifier);
 CONFIGFS_ATTR_RO(target_wwn_, vpd_assoc_logical_unit);
@@ -1572,6 +1789,7 @@ static struct configfs_attribute *target_core_dev_wwn_attrs[] = {
 	&target_wwn_attr_vendor_id,
 	&target_wwn_attr_product_id,
 	&target_wwn_attr_revision,
+	&target_wwn_attr_company_id,
 	&target_wwn_attr_vpd_unit_serial,
 	&target_wwn_attr_vpd_protocol_identifier,
 	&target_wwn_attr_vpd_assoc_logical_unit,
@@ -1597,9 +1815,7 @@ static ssize_t target_core_dev_pr_show_spc3_res(struct se_device *dev,
 {
 	struct se_node_acl *se_nacl;
 	struct t10_pr_registration *pr_reg;
-	char i_buf[PR_REG_ISID_ID_LEN];
-
-	memset(i_buf, 0, PR_REG_ISID_ID_LEN);
+	char i_buf[PR_REG_ISID_ID_LEN] = { };
 
 	pr_reg = dev->dev_pr_res_holder;
 	if (!pr_reg)
@@ -1640,7 +1856,7 @@ static ssize_t target_pr_res_holder_show(struct config_item *item, char *page)
 	if (!dev->dev_attrib.emulate_pr)
 		return sprintf(page, "SPC_RESERVATIONS_DISABLED\n");
 
-	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR)
+	if (dev->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR)
 		return sprintf(page, "Passthrough\n");
 
 	spin_lock(&dev->dev_reservation_lock);
@@ -1782,7 +1998,7 @@ static ssize_t target_pr_res_type_show(struct config_item *item, char *page)
 
 	if (!dev->dev_attrib.emulate_pr)
 		return sprintf(page, "SPC_RESERVATIONS_DISABLED\n");
-	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR)
+	if (dev->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR)
 		return sprintf(page, "SPC_PASSTHROUGH\n");
 	if (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS)
 		return sprintf(page, "SPC2_RESERVATIONS\n");
@@ -1796,7 +2012,7 @@ static ssize_t target_pr_res_aptpl_active_show(struct config_item *item,
 	struct se_device *dev = pr_to_dev(item);
 
 	if (!dev->dev_attrib.emulate_pr ||
-	    (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR))
+	    (dev->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR))
 		return 0;
 
 	return sprintf(page, "APTPL Bit Status: %s\n",
@@ -1809,7 +2025,7 @@ static ssize_t target_pr_res_aptpl_metadata_show(struct config_item *item,
 	struct se_device *dev = pr_to_dev(item);
 
 	if (!dev->dev_attrib.emulate_pr ||
-	    (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR))
+	    (dev->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR))
 		return 0;
 
 	return sprintf(page, "Ready to process PR APTPL metadata..\n");
@@ -1856,7 +2072,7 @@ static ssize_t target_pr_res_aptpl_metadata_store(struct config_item *item,
 	u8 type = 0;
 
 	if (!dev->dev_attrib.emulate_pr ||
-	    (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR))
+	    (dev->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR))
 		return count;
 	if (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS)
 		return count;
@@ -2220,7 +2436,7 @@ static ssize_t target_dev_alua_lu_gp_store(struct config_item *item,
 	struct se_hba *hba = dev->se_hba;
 	struct t10_alua_lu_gp *lu_gp = NULL, *lu_gp_new = NULL;
 	struct t10_alua_lu_gp_member *lu_gp_mem;
-	unsigned char buf[LU_GROUP_NAME_BUF];
+	unsigned char buf[LU_GROUP_NAME_BUF] = { };
 	int move = 0;
 
 	lu_gp_mem = dev->dev_alua_lu_gp_mem;
@@ -2231,7 +2447,6 @@ static ssize_t target_dev_alua_lu_gp_store(struct config_item *item,
 		pr_err("ALUA LU Group Alias too large!\n");
 		return -EINVAL;
 	}
-	memset(buf, 0, LU_GROUP_NAME_BUF);
 	memcpy(buf, page, count);
 	/*
 	 * Any ALUA logical unit alias besides "NULL" means we will be
@@ -2549,9 +2764,7 @@ static ssize_t target_lu_gp_members_show(struct config_item *item, char *page)
 	struct se_hba *hba;
 	struct t10_alua_lu_gp_member *lu_gp_mem;
 	ssize_t len = 0, cur_len;
-	unsigned char buf[LU_GROUP_NAME_BUF];
-
-	memset(buf, 0, LU_GROUP_NAME_BUF);
+	unsigned char buf[LU_GROUP_NAME_BUF] = { };
 
 	spin_lock(&lu_gp->lu_gp_lock);
 	list_for_each_entry(lu_gp_mem, &lu_gp->lu_gp_mem_list, lu_gp_mem_list) {
@@ -2687,8 +2900,7 @@ static ssize_t target_tg_pt_gp_alua_access_state_store(struct config_item *item,
 	int new_state, ret;
 
 	if (!tg_pt_gp->tg_pt_gp_valid_id) {
-		pr_err("Unable to do implicit ALUA on non valid"
-			" tg_pt_gp ID: %hu\n", tg_pt_gp->tg_pt_gp_valid_id);
+		pr_err("Unable to do implicit ALUA on invalid tg_pt_gp ID\n");
 		return -EINVAL;
 	}
 	if (!target_dev_configured(dev)) {
@@ -2739,9 +2951,7 @@ static ssize_t target_tg_pt_gp_alua_access_status_store(
 	int new_status, ret;
 
 	if (!tg_pt_gp->tg_pt_gp_valid_id) {
-		pr_err("Unable to do set ALUA access status on non"
-			" valid tg_pt_gp ID: %hu\n",
-			tg_pt_gp->tg_pt_gp_valid_id);
+		pr_err("Unable to set ALUA access status on invalid tg_pt_gp ID\n");
 		return -EINVAL;
 	}
 
@@ -2794,9 +3004,7 @@ static ssize_t target_tg_pt_gp_alua_support_##_name##_store(		\
 	int ret;							\
 									\
 	if (!t->tg_pt_gp_valid_id) {					\
-		pr_err("Unable to do set " #_name " ALUA state on non"	\
-		       " valid tg_pt_gp ID: %hu\n",			\
-		       t->tg_pt_gp_valid_id);				\
+		pr_err("Unable to set " #_name " ALUA state on invalid tg_pt_gp ID\n"); \
 		return -EINVAL;						\
 	}								\
 									\
@@ -2954,9 +3162,7 @@ static ssize_t target_tg_pt_gp_members_show(struct config_item *item,
 	struct t10_alua_tg_pt_gp *tg_pt_gp = to_tg_pt_gp(item);
 	struct se_lun *lun;
 	ssize_t len = 0, cur_len;
-	unsigned char buf[TG_PT_GROUP_NAME_BUF];
-
-	memset(buf, 0, TG_PT_GROUP_NAME_BUF);
+	unsigned char buf[TG_PT_GROUP_NAME_BUF] = { };
 
 	spin_lock(&tg_pt_gp->tg_pt_gp_lock);
 	list_for_each_entry(lun, &tg_pt_gp->tg_pt_gp_lun_list,
@@ -3206,6 +3412,10 @@ static struct config_group *target_core_make_subdev(
 	 */
 	target_stat_setup_dev_default_groups(dev);
 
+	mutex_lock(&target_devices_lock);
+	target_devices++;
+	mutex_unlock(&target_devices_lock);
+
 	mutex_unlock(&hba->hba_access_mutex);
 	return &dev->dev_group;
 
@@ -3244,6 +3454,11 @@ static void target_core_drop_subdev(
 	 * se_dev is released from target_core_dev_item_ops->release()
 	 */
 	config_item_put(item);
+
+	mutex_lock(&target_devices_lock);
+	target_devices--;
+	mutex_unlock(&target_devices_lock);
+
 	mutex_unlock(&hba->hba_access_mutex);
 }
 
@@ -3343,11 +3558,10 @@ static struct config_group *target_core_call_addhbatotarget(
 {
 	char *se_plugin_str, *str, *str2;
 	struct se_hba *hba;
-	char buf[TARGET_CORE_NAME_MAX_LEN];
+	char buf[TARGET_CORE_NAME_MAX_LEN] = { };
 	unsigned long plugin_dep_id = 0;
 	int ret;
 
-	memset(buf, 0, TARGET_CORE_NAME_MAX_LEN);
 	if (strlen(name) >= TARGET_CORE_NAME_MAX_LEN) {
 		pr_err("Passed *name strlen(): %d exceeds"
 			" TARGET_CORE_NAME_MAX_LEN: %d\n", (int)strlen(name),
@@ -3458,6 +3672,8 @@ static int __init target_core_init_configfs(void)
 {
 	struct configfs_subsystem *subsys = &target_core_fabrics;
 	struct t10_alua_lu_gp *lu_gp;
+	struct cred *kern_cred;
+	const struct cred *old_cred;
 	int ret;
 
 	pr_debug("TARGET_CORE[0]: Loading Generic Kernel Storage"
@@ -3534,11 +3750,21 @@ static int __init target_core_init_configfs(void)
 	if (ret < 0)
 		goto out;
 
+	/* We use the kernel credentials to access the target directory */
+	kern_cred = prepare_kernel_cred(&init_task);
+	if (!kern_cred) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	old_cred = override_creds(kern_cred);
 	target_init_dbroot();
+	revert_creds(old_cred);
+	put_cred(kern_cred);
 
 	return 0;
 
 out:
+	target_xcopy_release_pt();
 	configfs_unregister_subsystem(subsys);
 	core_dev_release_virtual_lun0();
 	rd_module_exit();

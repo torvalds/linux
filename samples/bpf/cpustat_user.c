@@ -9,16 +9,16 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <linux/bpf.h>
 #include <locale.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-#include <sys/resource.h>
 #include <sys/wait.h>
 
 #include <bpf/bpf.h>
-#include "bpf_load.h"
+#include <bpf/libbpf.h>
+
+static int cstate_map_fd, pstate_map_fd;
 
 #define MAX_CPU			8
 #define MAX_PSTATE_ENTRIES	5
@@ -66,10 +66,10 @@ static void cpu_stat_print(void)
 
 		printf("CPU-%-6d ", j);
 		for (i = 0; i < MAX_CSTATE_ENTRIES; i++)
-			printf("%-11ld ", data->cstate[i] / 1000000);
+			printf("%-11lu ", data->cstate[i] / 1000000);
 
 		for (i = 0; i < MAX_PSTATE_ENTRIES; i++)
-			printf("%-11ld ", data->pstate[i] / 1000000);
+			printf("%-11lu ", data->pstate[i] / 1000000);
 
 		printf("\n");
 	}
@@ -181,21 +181,50 @@ static void int_exit(int sig)
 {
 	cpu_stat_inject_cpu_idle_event();
 	cpu_stat_inject_cpu_frequency_event();
-	cpu_stat_update(map_fd[1], map_fd[2]);
+	cpu_stat_update(cstate_map_fd, pstate_map_fd);
 	cpu_stat_print();
 	exit(0);
 }
 
 int main(int argc, char **argv)
 {
+	struct bpf_link *link = NULL;
+	struct bpf_program *prog;
+	struct bpf_object *obj;
 	char filename[256];
 	int ret;
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
+	obj = bpf_object__open_file(filename, NULL);
+	if (libbpf_get_error(obj)) {
+		fprintf(stderr, "ERROR: opening BPF object file failed\n");
+		return 0;
+	}
 
-	if (load_bpf_file(filename)) {
-		printf("%s", bpf_log_buf);
-		return 1;
+	prog = bpf_object__find_program_by_name(obj, "bpf_prog1");
+	if (!prog) {
+		printf("finding a prog in obj file failed\n");
+		goto cleanup;
+	}
+
+	/* load BPF program */
+	if (bpf_object__load(obj)) {
+		fprintf(stderr, "ERROR: loading BPF object file failed\n");
+		goto cleanup;
+	}
+
+	cstate_map_fd = bpf_object__find_map_fd_by_name(obj, "cstate_duration");
+	pstate_map_fd = bpf_object__find_map_fd_by_name(obj, "pstate_duration");
+	if (cstate_map_fd < 0 || pstate_map_fd < 0) {
+		fprintf(stderr, "ERROR: finding a map in obj file failed\n");
+		goto cleanup;
+	}
+
+	link = bpf_program__attach(prog);
+	if (libbpf_get_error(link)) {
+		fprintf(stderr, "ERROR: bpf_program__attach failed\n");
+		link = NULL;
+		goto cleanup;
 	}
 
 	ret = cpu_stat_inject_cpu_idle_event();
@@ -210,10 +239,13 @@ int main(int argc, char **argv)
 	signal(SIGTERM, int_exit);
 
 	while (1) {
-		cpu_stat_update(map_fd[1], map_fd[2]);
+		cpu_stat_update(cstate_map_fd, pstate_map_fd);
 		cpu_stat_print();
 		sleep(5);
 	}
 
+cleanup:
+	bpf_link__destroy(link);
+	bpf_object__close(obj);
 	return 0;
 }

@@ -32,7 +32,6 @@ struct minix_sb_info {
 	unsigned long s_zmap_blocks;
 	unsigned long s_firstdatazone;
 	unsigned long s_log_zone_size;
-	unsigned long s_max_size;
 	int s_dirsize;
 	int s_namelen;
 	struct buffer_head ** s_imap;
@@ -46,13 +45,14 @@ struct minix_sb_info {
 extern struct inode *minix_iget(struct super_block *, unsigned long);
 extern struct minix_inode * minix_V1_raw_inode(struct super_block *, ino_t, struct buffer_head **);
 extern struct minix2_inode * minix_V2_raw_inode(struct super_block *, ino_t, struct buffer_head **);
-extern struct inode * minix_new_inode(const struct inode *, umode_t, int *);
+extern struct inode * minix_new_inode(const struct inode *, umode_t);
 extern void minix_free_inode(struct inode * inode);
 extern unsigned long minix_count_free_inodes(struct super_block *sb);
 extern int minix_new_block(struct inode * inode);
 extern void minix_free_block(struct inode *inode, unsigned long block);
 extern unsigned long minix_count_free_blocks(struct super_block *sb);
-extern int minix_getattr(const struct path *, struct kstat *, u32, unsigned int);
+extern int minix_getattr(struct mnt_idmap *, const struct path *,
+			 struct kstat *, u32, unsigned int);
 extern int minix_prepare_chunk(struct page *page, loff_t pos, unsigned len);
 
 extern void V1_minix_truncate(struct inode *);
@@ -69,7 +69,8 @@ extern int minix_add_link(struct dentry*, struct inode*);
 extern int minix_delete_entry(struct minix_dir_entry*, struct page*);
 extern int minix_make_empty(struct inode*, struct inode*);
 extern int minix_empty_dir(struct inode*);
-extern void minix_set_link(struct minix_dir_entry*, struct page*, struct inode*);
+int minix_set_link(struct minix_dir_entry *de, struct page *page,
+		struct inode *inode);
 extern struct minix_dir_entry *minix_dotdot(struct inode*, struct page**);
 extern ino_t minix_inode_by_name(struct dentry*);
 

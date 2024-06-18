@@ -100,7 +100,7 @@ static int iuu_port_probe(struct usb_serial_port *port)
 	return 0;
 }
 
-static int iuu_port_remove(struct usb_serial_port *port)
+static void iuu_port_remove(struct usb_serial_port *port)
 {
 	struct iuu_private *priv = usb_get_serial_port_data(port);
 
@@ -108,8 +108,6 @@ static int iuu_port_remove(struct usb_serial_port *port)
 	kfree(priv->writebuf);
 	kfree(priv->buf);
 	kfree(priv);
-
-	return 0;
 }
 
 static int iuu_tiocmset(struct tty_struct *tty,
@@ -158,7 +156,6 @@ static int iuu_tiocmget(struct tty_struct *tty)
 static void iuu_rxcmd(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
-	int result;
 	int status = urb->status;
 
 	if (status) {
@@ -174,7 +171,7 @@ static void iuu_rxcmd(struct urb *urb)
 					  port->bulk_out_endpointAddress),
 			  port->write_urb->transfer_buffer, 1,
 			  read_rxcmd_callback, port);
-	result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
+	usb_submit_urb(port->write_urb, GFP_ATOMIC);
 }
 
 static int iuu_reset(struct usb_serial_port *port, u8 wt)
@@ -241,7 +238,6 @@ static void iuu_update_status_callback(struct urb *urb)
 static void iuu_status_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
-	int result;
 	int status = urb->status;
 
 	dev_dbg(&port->dev, "%s - status = %d\n", __func__, status);
@@ -250,7 +246,7 @@ static void iuu_status_callback(struct urb *urb)
 					  port->bulk_in_endpointAddress),
 			  port->read_urb->transfer_buffer, 256,
 			  iuu_update_status_callback, port);
-	result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
+	usb_submit_urb(port->read_urb, GFP_ATOMIC);
 }
 
 static int iuu_status(struct usb_serial_port *port)
@@ -351,12 +347,12 @@ static void iuu_rgbf_fill_buffer(u8 *buf, u8 r1, u8 r2, u8 g1, u8 g2, u8 b1,
 static void iuu_led_activity_on(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
-	int result;
 	char *buf_ptr = port->write_urb->transfer_buffer;
-	*buf_ptr++ = IUU_SET_LED;
+
 	if (xmas) {
-		get_random_bytes(buf_ptr, 6);
-		*(buf_ptr+7) = 1;
+		buf_ptr[0] = IUU_SET_LED;
+		get_random_bytes(buf_ptr + 1, 6);
+		buf_ptr[7] = 1;
 	} else {
 		iuu_rgbf_fill_buffer(buf_ptr, 255, 255, 0, 0, 0, 0, 255);
 	}
@@ -366,27 +362,27 @@ static void iuu_led_activity_on(struct urb *urb)
 					  port->bulk_out_endpointAddress),
 			  port->write_urb->transfer_buffer, 8 ,
 			  iuu_rxcmd, port);
-	result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
+	usb_submit_urb(port->write_urb, GFP_ATOMIC);
 }
 
 static void iuu_led_activity_off(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
-	int result;
 	char *buf_ptr = port->write_urb->transfer_buffer;
+
 	if (xmas) {
 		iuu_rxcmd(urb);
 		return;
-	} else {
-		*buf_ptr++ = IUU_SET_LED;
-		iuu_rgbf_fill_buffer(buf_ptr, 0, 0, 255, 255, 0, 0, 255);
 	}
+
+	iuu_rgbf_fill_buffer(buf_ptr, 0, 0, 255, 255, 0, 0, 255);
+
 	usb_fill_bulk_urb(port->write_urb, port->serial->dev,
 			  usb_sndbulkpipe(port->serial->dev,
 					  port->bulk_out_endpointAddress),
 			  port->write_urb->transfer_buffer, 8 ,
 			  iuu_rxcmd, port);
-	result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
+	usb_submit_urb(port->write_urb, GFP_ATOMIC);
 }
 
 
@@ -534,23 +530,29 @@ static int iuu_uart_flush(struct usb_serial_port *port)
 	struct device *dev = &port->dev;
 	int i;
 	int status;
-	u8 rxcmd = IUU_UART_RX;
+	u8 *rxcmd;
 	struct iuu_private *priv = usb_get_serial_port_data(port);
 
 	if (iuu_led(port, 0xF000, 0, 0, 0xFF) < 0)
 		return -EIO;
 
+	rxcmd = kmalloc(1, GFP_KERNEL);
+	if (!rxcmd)
+		return -ENOMEM;
+
+	rxcmd[0] = IUU_UART_RX;
+
 	for (i = 0; i < 2; i++) {
-		status = bulk_immediate(port, &rxcmd, 1);
+		status = bulk_immediate(port, rxcmd, 1);
 		if (status != IUU_OPERATION_OK) {
 			dev_dbg(dev, "%s - uart_flush_write error\n", __func__);
-			return status;
+			goto out_free;
 		}
 
 		status = read_immediate(port, &priv->len, 1);
 		if (status != IUU_OPERATION_OK) {
 			dev_dbg(dev, "%s - uart_flush_read error\n", __func__);
-			return status;
+			goto out_free;
 		}
 
 		if (priv->len > 0) {
@@ -558,12 +560,16 @@ static int iuu_uart_flush(struct usb_serial_port *port)
 			status = read_immediate(port, priv->buf, priv->len);
 			if (status != IUU_OPERATION_OK) {
 				dev_dbg(dev, "%s - uart_flush_read error\n", __func__);
-				return status;
+				goto out_free;
 			}
 		}
 	}
 	dev_dbg(dev, "%s - uart_flush_read OK!\n", __func__);
 	iuu_led(port, 0, 0xF000, 0, 0xFF);
+
+out_free:
+	kfree(rxcmd);
+
 	return status;
 }
 
@@ -637,7 +643,6 @@ static void iuu_uart_read_callback(struct urb *urb)
 	struct iuu_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 	int status = urb->status;
-	int error = 0;
 	int len = 0;
 	unsigned char *data = urb->transfer_buffer;
 	priv->poll++;
@@ -654,12 +659,11 @@ static void iuu_uart_read_callback(struct urb *urb)
 	if (urb->actual_length > 1) {
 		dev_dbg(&port->dev, "%s - urb->actual_length = %i\n", __func__,
 		    urb->actual_length);
-		error = 1;
 		return;
 	}
 	/* if len > 0 call readbuf */
 
-	if (len > 0 && error == 0) {
+	if (len > 0) {
 		dev_dbg(&port->dev, "%s - call read buf - len to read is %i\n",
 			__func__, len);
 		status = iuu_read_buf(port, len);
@@ -697,14 +701,16 @@ static int iuu_uart_write(struct tty_struct *tty, struct usb_serial_port *port,
 	struct iuu_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 
-	if (count > 256)
-		return -ENOMEM;
-
 	spin_lock_irqsave(&priv->lock, flags);
+
+	count = min(count, 256 - priv->writelen);
+	if (count == 0)
+		goto out;
 
 	/* fill the buffer */
 	memcpy(priv->writebuf + priv->writelen, buf, count);
 	priv->writelen += count;
+out:
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return count;
@@ -850,7 +856,6 @@ static int iuu_uart_baud(struct usb_serial_port *port, u32 baud_base,
 	default:
 		kfree(dataout);
 		return IUU_INVALID_PARAMETER;
-		break;
 	}
 
 	switch (parity & 0xF0) {
@@ -864,7 +869,6 @@ static int iuu_uart_baud(struct usb_serial_port *port, u32 baud_base,
 	default:
 		kfree(dataout);
 		return IUU_INVALID_PARAMETER;
-		break;
 	}
 
 	status = bulk_immediate(port, dataout, DataCount);
@@ -875,7 +879,8 @@ static int iuu_uart_baud(struct usb_serial_port *port, u32 baud_base,
 }
 
 static void iuu_set_termios(struct tty_struct *tty,
-		struct usb_serial_port *port, struct ktermios *old_termios)
+			    struct usb_serial_port *port,
+			    const struct ktermios *old_termios)
 {
 	const u32 supported_mask = CMSPAR|PARENB|PARODD;
 	struct iuu_private *priv = usb_get_serial_port_data(port);
@@ -1184,20 +1189,20 @@ MODULE_AUTHOR("Alain Degreffe eczema@ecze.com");
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
-module_param(xmas, bool, S_IRUGO | S_IWUSR);
+module_param(xmas, bool, 0644);
 MODULE_PARM_DESC(xmas, "Xmas colors enabled or not");
 
-module_param(boost, int, S_IRUGO | S_IWUSR);
+module_param(boost, int, 0644);
 MODULE_PARM_DESC(boost, "Card overclock boost (in percent 100-500)");
 
-module_param(clockmode, int, S_IRUGO | S_IWUSR);
+module_param(clockmode, int, 0644);
 MODULE_PARM_DESC(clockmode, "Card clock mode (1=3.579 MHz, 2=3.680 MHz, "
 		"3=6 Mhz)");
 
-module_param(cdmode, int, S_IRUGO | S_IWUSR);
+module_param(cdmode, int, 0644);
 MODULE_PARM_DESC(cdmode, "Card detect mode (0=none, 1=CD, 2=!CD, 3=DSR, "
 		 "4=!DSR, 5=CTS, 6=!CTS, 7=RING, 8=!RING)");
 
-module_param(vcc_default, int, S_IRUGO | S_IWUSR);
+module_param(vcc_default, int, 0644);
 MODULE_PARM_DESC(vcc_default, "Set default VCC (either 3 for 3.3V or 5 "
 		"for 5V). Default to 5.");

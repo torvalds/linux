@@ -33,13 +33,13 @@ nvkm_memory_tags_put(struct nvkm_memory *memory, struct nvkm_device *device,
 	struct nvkm_fb *fb = device->fb;
 	struct nvkm_tags *tags = *ptags;
 	if (tags) {
-		mutex_lock(&fb->subdev.mutex);
+		mutex_lock(&fb->tags.mutex);
 		if (refcount_dec_and_test(&tags->refcount)) {
-			nvkm_mm_free(&fb->tags, &tags->mn);
+			nvkm_mm_free(&fb->tags.mm, &tags->mn);
 			kfree(memory->tags);
 			memory->tags = NULL;
 		}
-		mutex_unlock(&fb->subdev.mutex);
+		mutex_unlock(&fb->tags.mutex);
 		*ptags = NULL;
 	}
 }
@@ -52,29 +52,29 @@ nvkm_memory_tags_get(struct nvkm_memory *memory, struct nvkm_device *device,
 	struct nvkm_fb *fb = device->fb;
 	struct nvkm_tags *tags;
 
-	mutex_lock(&fb->subdev.mutex);
+	mutex_lock(&fb->tags.mutex);
 	if ((tags = memory->tags)) {
 		/* If comptags exist for the memory, but a different amount
 		 * than requested, the buffer is being mapped with settings
 		 * that are incompatible with existing mappings.
 		 */
 		if (tags->mn && tags->mn->length != nr) {
-			mutex_unlock(&fb->subdev.mutex);
+			mutex_unlock(&fb->tags.mutex);
 			return -EINVAL;
 		}
 
 		refcount_inc(&tags->refcount);
-		mutex_unlock(&fb->subdev.mutex);
+		mutex_unlock(&fb->tags.mutex);
 		*ptags = tags;
 		return 0;
 	}
 
 	if (!(tags = kmalloc(sizeof(*tags), GFP_KERNEL))) {
-		mutex_unlock(&fb->subdev.mutex);
+		mutex_unlock(&fb->tags.mutex);
 		return -ENOMEM;
 	}
 
-	if (!nvkm_mm_head(&fb->tags, 0, 1, nr, nr, 1, &tags->mn)) {
+	if (!nvkm_mm_head(&fb->tags.mm, 0, 1, nr, nr, 1, &tags->mn)) {
 		if (clr)
 			clr(device, tags->mn->offset, tags->mn->length);
 	} else {
@@ -91,8 +91,8 @@ nvkm_memory_tags_get(struct nvkm_memory *memory, struct nvkm_device *device,
 	}
 
 	refcount_set(&tags->refcount, 1);
-	mutex_unlock(&fb->subdev.mutex);
-	*ptags = tags;
+	*ptags = memory->tags = tags;
+	mutex_unlock(&fb->tags.mutex);
 	return 0;
 }
 
@@ -140,12 +140,23 @@ nvkm_memory_new(struct nvkm_device *device, enum nvkm_memory_target target,
 {
 	struct nvkm_instmem *imem = device->imem;
 	struct nvkm_memory *memory;
-	int ret = -ENOSYS;
+	bool preserve = true;
+	int ret;
 
-	if (unlikely(target != NVKM_MEM_TARGET_INST || !imem))
+	if (unlikely(!imem))
 		return -ENOSYS;
 
-	ret = nvkm_instobj_new(imem, size, align, zero, &memory);
+	switch (target) {
+	case NVKM_MEM_TARGET_INST_SR_LOST:
+		preserve = false;
+		break;
+	case NVKM_MEM_TARGET_INST:
+		break;
+	default:
+		return -ENOSYS;
+	}
+
+	ret = nvkm_instobj_new(imem, size, align, zero, preserve, &memory);
 	if (ret)
 		return ret;
 

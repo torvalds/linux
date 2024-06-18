@@ -7,7 +7,7 @@
 #include <linux/mfd/motorola-cpcap.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
@@ -158,19 +158,14 @@ MODULE_DEVICE_TABLE(of, cpcap_led_of_match);
 
 static int cpcap_led_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
 	struct cpcap_led *led;
 	int err;
-
-	match = of_match_device(of_match_ptr(cpcap_led_of_match), &pdev->dev);
-	if (!match || !match->data)
-		return -EINVAL;
 
 	led = devm_kzalloc(&pdev->dev, sizeof(*led), GFP_KERNEL);
 	if (!led)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, led);
-	led->info = match->data;
+	led->info = device_get_match_data(&pdev->dev);
 	led->dev = &pdev->dev;
 
 	if (led->info->reg == 0x0000) {

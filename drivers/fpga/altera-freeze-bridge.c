@@ -7,8 +7,9 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/fpga/fpga-bridge.h>
 
 #define FREEZE_CSR_STATUS_OFFSET		0
@@ -211,14 +212,12 @@ static int altera_freeze_br_probe(struct platform_device *pdev)
 	void __iomem *base_addr;
 	struct altera_freeze_br_data *priv;
 	struct fpga_bridge *br;
-	struct resource *res;
 	u32 status, revision;
 
 	if (!np)
 		return -ENODEV;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base_addr = devm_ioremap_resource(dev, res);
+	base_addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base_addr))
 		return PTR_ERR(base_addr);
 
@@ -244,31 +243,29 @@ static int altera_freeze_br_probe(struct platform_device *pdev)
 
 	priv->base_addr = base_addr;
 
-	br = devm_fpga_bridge_create(dev, FREEZE_BRIDGE_NAME,
-				     &altera_freeze_br_br_ops, priv);
-	if (!br)
-		return -ENOMEM;
+	br = fpga_bridge_register(dev, FREEZE_BRIDGE_NAME,
+				  &altera_freeze_br_br_ops, priv);
+	if (IS_ERR(br))
+		return PTR_ERR(br);
 
 	platform_set_drvdata(pdev, br);
-
-	return fpga_bridge_register(br);
-}
-
-static int altera_freeze_br_remove(struct platform_device *pdev)
-{
-	struct fpga_bridge *br = platform_get_drvdata(pdev);
-
-	fpga_bridge_unregister(br);
 
 	return 0;
 }
 
+static void altera_freeze_br_remove(struct platform_device *pdev)
+{
+	struct fpga_bridge *br = platform_get_drvdata(pdev);
+
+	fpga_bridge_unregister(br);
+}
+
 static struct platform_driver altera_freeze_br_driver = {
 	.probe = altera_freeze_br_probe,
-	.remove = altera_freeze_br_remove,
+	.remove_new = altera_freeze_br_remove,
 	.driver = {
 		.name	= "altera_freeze_br",
-		.of_match_table = of_match_ptr(altera_freeze_br_of_match),
+		.of_match_table = altera_freeze_br_of_match,
 	},
 };
 

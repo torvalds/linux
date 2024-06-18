@@ -191,9 +191,10 @@ static int kvmppc_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 
 /* XXX Should probably auto-generate instruction decoding for a particular core
  * from opcode tables in the future. */
-int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
+int kvmppc_emulate_instruction(struct kvm_vcpu *vcpu)
 {
 	u32 inst;
+	ppc_inst_t pinst;
 	int rs, rt, sprn;
 	enum emulation_result emulated;
 	int advance = 1;
@@ -201,7 +202,8 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	/* this default type might be overwritten by subcategories */
 	kvmppc_set_exit_type(vcpu, EMULATED_INST_EXITS);
 
-	emulated = kvmppc_get_last_inst(vcpu, INST_GENERIC, &inst);
+	emulated = kvmppc_get_last_inst(vcpu, INST_GENERIC, &pinst);
+	inst = ppc_inst_val(pinst);
 	if (emulated != EMULATE_DONE)
 		return emulated;
 
@@ -270,9 +272,9 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		 * these are illegal instructions.
 		 */
 		if (inst == KVMPPC_INST_SW_BREAKPOINT) {
-			run->exit_reason = KVM_EXIT_DEBUG;
-			run->debug.arch.status = 0;
-			run->debug.arch.address = kvmppc_get_pc(vcpu);
+			vcpu->run->exit_reason = KVM_EXIT_DEBUG;
+			vcpu->run->debug.arch.status = 0;
+			vcpu->run->debug.arch.address = kvmppc_get_pc(vcpu);
 			emulated = EMULATE_EXIT_USER;
 			advance = 0;
 		} else
@@ -285,7 +287,7 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	}
 
 	if (emulated == EMULATE_FAIL) {
-		emulated = vcpu->kvm->arch.kvm_ops->emulate_op(run, vcpu, inst,
+		emulated = vcpu->kvm->arch.kvm_ops->emulate_op(vcpu, inst,
 							       &advance);
 		if (emulated == EMULATE_AGAIN) {
 			advance = 0;
@@ -299,6 +301,10 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	trace_kvm_ppc_instr(inst, kvmppc_get_pc(vcpu), emulated);
 
 	/* Advance past emulated instruction. */
+	/*
+	 * If this ever handles prefixed instructions, the 4
+	 * will need to become ppc_inst_len(pinst) instead.
+	 */
 	if (advance)
 		kvmppc_set_pc(vcpu, kvmppc_get_pc(vcpu) + 4);
 

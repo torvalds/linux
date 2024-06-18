@@ -164,16 +164,6 @@ static void xhci_histb_host_disable(struct xhci_hcd_histb *histb)
 	clk_disable_unprepare(histb->bus_clk);
 }
 
-static void xhci_histb_quirks(struct device *dev, struct xhci_hcd *xhci)
-{
-	/*
-	 * As of now platform drivers don't provide MSI support so we ensure
-	 * here that the generic code does not try to make a pci_dev from our
-	 * dev struct in order to setup MSI
-	 */
-	xhci->quirks |= XHCI_PLAT;
-}
-
 /* called during probe() after chip reset completes */
 static int xhci_histb_setup(struct usb_hcd *hcd)
 {
@@ -186,7 +176,7 @@ static int xhci_histb_setup(struct usb_hcd *hcd)
 			return ret;
 	}
 
-	return xhci_gen_setup(hcd, xhci_histb_quirks);
+	return xhci_gen_setup(hcd, NULL);
 }
 
 static const struct xhci_driver_overrides xhci_histb_overrides __initconst = {
@@ -219,8 +209,7 @@ static int xhci_histb_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	histb->ctrl = devm_ioremap_resource(&pdev->dev, res);
+	histb->ctrl = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(histb->ctrl))
 		return PTR_ERR(histb->ctrl);
 
@@ -241,7 +230,7 @@ static int xhci_histb_probe(struct platform_device *pdev)
 	/* Initialize dma_mask and coherent_dma_mask to 32-bits */
 	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
 	if (ret)
-		return ret;
+		goto disable_pm;
 
 	hcd = usb_create_hcd(driver, dev, dev_name(dev));
 	if (!hcd) {
@@ -320,7 +309,7 @@ disable_pm:
 	return ret;
 }
 
-static int xhci_histb_remove(struct platform_device *dev)
+static void xhci_histb_remove(struct platform_device *dev)
 {
 	struct xhci_hcd_histb *histb = platform_get_drvdata(dev);
 	struct usb_hcd *hcd = histb->hcd;
@@ -340,8 +329,6 @@ static int xhci_histb_remove(struct platform_device *dev)
 	usb_put_hcd(hcd);
 	pm_runtime_put_sync(&dev->dev);
 	pm_runtime_disable(&dev->dev);
-
-	return 0;
 }
 
 static int __maybe_unused xhci_histb_suspend(struct device *dev)
@@ -368,7 +355,7 @@ static int __maybe_unused xhci_histb_resume(struct device *dev)
 	if (!device_may_wakeup(dev))
 		xhci_histb_host_enable(histb);
 
-	return xhci_resume(xhci, 0);
+	return xhci_resume(xhci, PMSG_RESUME);
 }
 
 static const struct dev_pm_ops xhci_histb_pm_ops = {
@@ -386,7 +373,7 @@ MODULE_DEVICE_TABLE(of, histb_xhci_of_match);
 
 static struct platform_driver histb_xhci_driver = {
 	.probe	= xhci_histb_probe,
-	.remove	= xhci_histb_remove,
+	.remove_new = xhci_histb_remove,
 	.driver	= {
 		.name = "xhci-histb",
 		.pm = DEV_PM_OPS,

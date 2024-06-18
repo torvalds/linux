@@ -1,0 +1,46 @@
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltage-voltage_filter_mode_available
+KernelVersion:  6.2
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Reading returns a list with the possible filter modes.
+
+		  * "sinc4"       - Sinc 4. Excellent noise performance. Long
+                    1st conversion time. No natural 50/60Hz rejection.
+
+		  * "sinc4+sinc1" - Sinc4 + averaging by 8. Low 1st conversion
+		    time.
+
+		  * "sinc3"	      - Sinc3. Moderate 1st conversion time.
+		    Good noise performance.
+
+		  * "sinc3+rej60" - Sinc3 + 60Hz rejection. At a sampling
+		    frequency of 50Hz, achieves simultaneous 50Hz and 60Hz
+		    rejection.
+
+		  * "sinc3+sinc1" - Sinc3 + averaging by 8. Low 1st conversion
+		    time. Best used with a sampling frequency of at least
+		    216.19Hz.
+
+		  * "sinc3+pf1"   - Sinc3 + Post Filter 1. 53dB rejection @
+		    50Hz, 58dB rejection @ 60Hz.
+
+		  * "sinc3+pf2"   - Sinc3 + Post Filter 2. 70dB rejection @
+		    50Hz, 70dB rejection @ 60Hz.
+
+		  * "sinc3+pf3"   - Sinc3 + Post Filter 3. 99dB rejection @
+		    50Hz, 103dB rejection @ 60Hz.
+
+		  * "sinc3+pf4"   - Sinc3 + Post Filter 4. 103dB rejection @
+		    50Hz, 109dB rejection @ 60Hz.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY-voltageZ_filter_mode
+KernelVersion:  6.2
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Set the filter mode of the differential channel. When the filter
+		mode changes, the in_voltageY-voltageZ_sampling_frequency and
+		in_voltageY-voltageZ_sampling_frequency_available attributes
+		might also change to accommodate the new filter mode.
+		If the current sampling frequency is out of range for the new
+		filter mode, the sampling frequency will be changed to the
+		closest valid one.

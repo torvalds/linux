@@ -20,6 +20,8 @@
 #include <asm/opal.h>
 #include <asm/smp.h>
 
+#include <trace/events/ipi.h>
+
 #include "subcore.h"
 #include "powernv.h"
 
@@ -167,6 +169,16 @@ static void update_hid_in_slw(u64 hid0)
 
 		opal_slw_set_reg(cpu_pir, SPRN_HID0, hid0);
 	}
+}
+
+static inline void update_power8_hid0(unsigned long hid0)
+{
+	/*
+	 *  The HID0 update on Power8 should at the very least be
+	 *  preceded by a SYNC instruction followed by an ISYNC
+	 *  instruction
+	 */
+	asm volatile("sync; mtspr %0,%1; isync":: "i"(SPRN_HID0), "r"(hid0));
 }
 
 static void unsplit_core(void)
@@ -405,13 +417,16 @@ static DEVICE_ATTR(subcores_per_core, 0644,
 
 static int subcore_init(void)
 {
+	struct device *dev_root;
 	unsigned pvr_ver;
+	int rc = 0;
 
 	pvr_ver = PVR_VER(mfspr(SPRN_PVR));
 
 	if (pvr_ver != PVR_POWER8 &&
 	    pvr_ver != PVR_POWER8E &&
-	    pvr_ver != PVR_POWER8NVL)
+	    pvr_ver != PVR_POWER8NVL &&
+	    pvr_ver != PVR_HX_C2000)
 		return 0;
 
 	/*
@@ -425,7 +440,11 @@ static int subcore_init(void)
 
 	set_subcores_per_core(1);
 
-	return device_create_file(cpu_subsys.dev_root,
-				  &dev_attr_subcores_per_core);
+	dev_root = bus_get_dev_root(&cpu_subsys);
+	if (dev_root) {
+		rc = device_create_file(dev_root, &dev_attr_subcores_per_core);
+		put_device(dev_root);
+	}
+	return rc;
 }
 machine_device_initcall(powernv, subcore_init);

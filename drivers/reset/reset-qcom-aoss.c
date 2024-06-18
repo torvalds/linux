@@ -8,7 +8,7 @@
 #include <linux/reset-controller.h>
 #include <linux/delay.h>
 #include <linux/io.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <dt-bindings/reset/qcom,sdm845-aoss.h>
 
 struct qcom_aoss_reset_map {
@@ -90,7 +90,6 @@ static int qcom_aoss_reset_probe(struct platform_device *pdev)
 	struct qcom_aoss_reset_data *data;
 	struct device *dev = &pdev->dev;
 	const struct qcom_aoss_desc *desc;
-	struct resource *res;
 
 	desc = of_device_get_match_data(dev);
 	if (!desc)
@@ -101,8 +100,7 @@ static int qcom_aoss_reset_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	data->desc = desc;
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	data->base = devm_ioremap_resource(dev, res);
+	data->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(data->base))
 		return PTR_ERR(data->base);
 
@@ -118,6 +116,7 @@ static const struct of_device_id qcom_aoss_reset_of_match[] = {
 	{ .compatible = "qcom,sdm845-aoss-cc", .data = &sdm845_aoss_desc },
 	{}
 };
+MODULE_DEVICE_TABLE(of, qcom_aoss_reset_of_match);
 
 static struct platform_driver qcom_aoss_reset_driver = {
 	.probe = qcom_aoss_reset_probe,
@@ -127,7 +126,7 @@ static struct platform_driver qcom_aoss_reset_driver = {
 	},
 };
 
-builtin_platform_driver(qcom_aoss_reset_driver);
+module_platform_driver(qcom_aoss_reset_driver);
 
 MODULE_DESCRIPTION("Qualcomm AOSS Reset Driver");
 MODULE_LICENSE("GPL v2");

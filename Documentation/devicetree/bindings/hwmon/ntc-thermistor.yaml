@@ -1,0 +1,141 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+---
+$id: http://devicetree.org/schemas/hwmon/ntc-thermistor.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NTC thermistor temperature sensors
+
+maintainers:
+  - Linus Walleij <linus.walleij@linaro.org>
+
+description: |
+  Thermistors with negative temperature coefficient (NTC) are resistors that
+  vary in resistance in an often non-linear way in relation to temperature.
+  The negative temperature coefficient means that the resistance decreases
+  as the temperature rises. Since the relationship between resistance and
+  temperature is non-linear, software drivers most often need to use a look
+  up table and interpolation to get from resistance to temperature.
+
+  When used in practice, a thermistor is often connected between ground, a
+  pull-up resistor or/and a pull-down resistor and a fixed voltage like this:
+
+      + e.g. 5V = pull-up voltage (puv)
+      |
+     +-+
+     | |
+     | | Pull-up resistor
+     | | (puo)
+     +-+
+      |-------------------------o
+     +-+ |                      ^
+     | |/                       |
+     | /                        |
+     |/| Thermistor             | Measured voltage (mv)
+     / |                        | "connected ground"
+    /| |                        |
+     +-+                        |
+      |-------------------------o
+     +-+                        ^
+     | |                        |
+     | | Pull-down resistor     | Measured voltage (mv)
+     | | (pdo)                  | "connected positive"
+     +-+                        |
+      |                         |
+      |                         v
+      + GND                     GND
+
+  The arrangements of where we measure the voltage over the thermistor are
+  called "connected ground" and "connected positive" and shall be understood as
+  the cases when either pull-up or pull-down resistance is zero.
+
+  If the pull-up resistance is 0 one end of the thermistor is connected to the
+  positive voltage and we get the thermistor on top of a pull-down resistor
+  and we take the measure between the thermistor and the pull-down resistor.
+
+  Conversely if the pull-down resistance is zero, one end of the thermistor is
+  connected to ground and we get the thermistor under the pull-up resistor
+  and we take the measure between the pull-up resistor and the thermistor.
+
+  We can use both pull-up and pull-down resistors at the same time, and then
+  the figure illustrates where the voltage will be measured for the "connected
+  ground" and "connected positive" cases.
+
+properties:
+  $nodename:
+    pattern: "^thermistor(.*)?$"
+
+  compatible:
+    oneOf:
+      - const: epcos,b57330v2103
+      - const: epcos,b57891s0103
+      - const: murata,ncp15wb473
+      - const: murata,ncp18wb473
+      - const: murata,ncp21wb473
+      - const: murata,ncp03wb473
+      - const: murata,ncp15wl333
+      - const: murata,ncp03wf104
+      - const: murata,ncp15xh103
+      - const: samsung,1404-001221
+      # Deprecated "ntp," compatible strings
+      - const: ntc,ncp15wb473
+        deprecated: true
+      - const: ntc,ncp18wb473
+        deprecated: true
+      - const: ntc,ncp21wb473
+        deprecated: true
+      - const: ntc,ncp03wb473
+        deprecated: true
+      - const: ntc,ncp15wl333
+        deprecated: true
+
+  "#thermal-sensor-cells":
+    description: Thermal sensor cells if used for thermal sensoring.
+    const: 0
+
+  pullup-uv:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Pull-up voltage in micro volts. Must always be specified.
+
+  pullup-ohm:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Pull-up resistance in ohms. Must always be specified, even
+      if zero.
+
+  pulldown-ohm:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Pull-down resistance in ohms. Must always be specified, even
+      if zero.
+
+  connected-positive:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: Indicates how the thermistor is connected in series with
+      a pull-up and/or a pull-down resistor. See the description above for
+      an illustration. If this flag is NOT specified, the thermistor is assumed
+      to be connected-ground, which usually means a pull-down resistance of
+      zero but complex arrangements are possible.
+
+  # See /schemas/iio/adc/adc.yaml
+  io-channels:
+    maxItems: 1
+    description: IIO ADC channel to read the voltage over the resistor. Must
+      always be specified.
+
+required:
+  - compatible
+  - pullup-uv
+  - pullup-ohm
+  - pulldown-ohm
+  - io-channels
+
+additionalProperties: false
+
+examples:
+  - |
+    thermistor {
+      compatible = "murata,ncp18wb473";
+      io-channels = <&gpadc 0x06>;
+      pullup-uv = <1800000>;
+      pullup-ohm = <220000>;
+      pulldown-ohm = <0>;
+      #thermal-sensor-cells = <0>;
+    };

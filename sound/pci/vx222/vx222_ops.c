@@ -19,7 +19,7 @@
 #include "vx222.h"
 
 
-static int vx2_reg_offset[VX_REG_MAX] = {
+static const int vx2_reg_offset[VX_REG_MAX] = {
 	[VX_ICR]    = 0x00,
 	[VX_CVR]    = 0x04,
 	[VX_ISR]    = 0x08,
@@ -45,7 +45,7 @@ static int vx2_reg_offset[VX_REG_MAX] = {
 	[VX_GPIOC]  = 0x54,		// VX_GPIOC (new with PLX9030)
 };
 
-static int vx2_reg_index[VX_REG_MAX] = {
+static const int vx2_reg_index[VX_REG_MAX] = {
 	[VX_ICR]	= 1,
 	[VX_CVR]	= 1,
 	[VX_ISR]	= 1,
@@ -78,7 +78,7 @@ static inline unsigned long vx2_reg_addr(struct vx_core *_chip, int reg)
 }
 
 /**
- * snd_vx_inb - read a byte from the register
+ * vx2_inb - read a byte from the register
  * @chip: VX core instance
  * @offset: register enum
  */
@@ -88,7 +88,7 @@ static unsigned char vx2_inb(struct vx_core *chip, int offset)
 }
 
 /**
- * snd_vx_outb - write a byte on the register
+ * vx2_outb - write a byte on the register
  * @chip: VX core instance
  * @offset: the register offset
  * @val: the value to write
@@ -102,7 +102,7 @@ static void vx2_outb(struct vx_core *chip, int offset, unsigned char val)
 }
 
 /**
- * snd_vx_inl - read a 32bit word from the register
+ * vx2_inl - read a 32bit word from the register
  * @chip: VX core instance
  * @offset: register enum
  */
@@ -112,7 +112,7 @@ static unsigned int vx2_inl(struct vx_core *chip, int offset)
 }
 
 /**
- * snd_vx_outl - write a 32bit word on the register
+ * vx2_outl - write a 32bit word on the register
  * @chip: VX core instance
  * @offset: the register enum
  * @val: the value to write
@@ -213,7 +213,7 @@ static int vx2_test_xilinx(struct vx_core *_chip)
 
 
 /**
- * vx_setup_pseudo_dma - set up the pseudo dma read/write mode.
+ * vx2_setup_pseudo_dma - set up the pseudo dma read/write mode.
  * @chip: VX core instance
  * @do_write: 0 = read, 1 = set up for DMA write
  */
@@ -408,9 +408,11 @@ static int vx2_load_dsp(struct vx_core *vx, int index, const struct firmware *ds
 	switch (index) {
 	case 1:
 		/* xilinx image */
-		if ((err = vx2_load_xilinx_binary(vx, dsp)) < 0)
+		err = vx2_load_xilinx_binary(vx, dsp);
+		if (err < 0)
 			return err;
-		if ((err = vx2_test_xilinx(vx)) < 0)
+		err = vx2_test_xilinx(vx);
+		if (err < 0)
 			return err;
 		return 0;
 	case 2:
@@ -972,9 +974,11 @@ static int vx2_add_mic_controls(struct vx_core *_chip)
 	vx2_set_input_level(chip);
 
 	/* controls */
-	if ((err = snd_ctl_add(_chip->card, snd_ctl_new1(&vx_control_input_level, chip))) < 0)
+	err = snd_ctl_add(_chip->card, snd_ctl_new1(&vx_control_input_level, chip));
+	if (err < 0)
 		return err;
-	if ((err = snd_ctl_add(_chip->card, snd_ctl_new1(&vx_control_mic_level, chip))) < 0)
+	err = snd_ctl_add(_chip->card, snd_ctl_new1(&vx_control_mic_level, chip));
+	if (err < 0)
 		return err;
 
 	return 0;
@@ -984,7 +988,7 @@ static int vx2_add_mic_controls(struct vx_core *_chip)
 /*
  * callbacks
  */
-struct snd_vx_ops vx222_ops = {
+const struct snd_vx_ops vx222_ops = {
 	.in8 = vx2_inb,
 	.in32 = vx2_inl,
 	.out8 = vx2_outb,
@@ -1004,7 +1008,7 @@ struct snd_vx_ops vx222_ops = {
 };
 
 /* for old VX222 board */
-struct snd_vx_ops vx222_old_ops = {
+const struct snd_vx_ops vx222_old_ops = {
 	.in8 = vx2_inb,
 	.in32 = vx2_inl,
 	.out8 = vx2_outb,

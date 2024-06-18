@@ -31,12 +31,13 @@ gm107_fb = {
 	.init = gf100_fb_init,
 	.init_page = gf100_fb_init_page,
 	.intr = gf100_fb_intr,
+	.sysmem.flush_page_init = gf100_fb_sysmem_flush_page_init,
 	.ram_new = gm107_ram_new,
 	.default_bigpage = 17,
 };
 
 int
-gm107_fb_new(struct nvkm_device *device, int index, struct nvkm_fb **pfb)
+gm107_fb_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_fb **pfb)
 {
-	return gf100_fb_new_(&gm107_fb, device, index, pfb);
+	return gf100_fb_new_(&gm107_fb, device, type, inst, pfb);
 }

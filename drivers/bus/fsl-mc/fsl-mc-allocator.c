@@ -103,26 +103,32 @@ static int __must_check fsl_mc_resource_pool_remove_device(struct fsl_mc_device
 	struct fsl_mc_resource *resource;
 	int error = -EINVAL;
 
-	if (!fsl_mc_is_allocatable(mc_dev))
-		goto out;
-
-	resource = mc_dev->resource;
-	if (!resource || resource->data != mc_dev)
-		goto out;
-
 	mc_bus_dev = to_fsl_mc_device(mc_dev->dev.parent);
 	mc_bus = to_fsl_mc_bus(mc_bus_dev);
-	res_pool = resource->parent_pool;
-	if (res_pool != &mc_bus->resource_pools[resource->type])
+
+	resource = mc_dev->resource;
+	if (!resource || resource->data != mc_dev) {
+		dev_err(&mc_bus_dev->dev, "resource mismatch\n");
 		goto out;
+	}
+
+	res_pool = resource->parent_pool;
+	if (res_pool != &mc_bus->resource_pools[resource->type]) {
+		dev_err(&mc_bus_dev->dev, "pool mismatch\n");
+		goto out;
+	}
 
 	mutex_lock(&res_pool->mutex);
 
-	if (res_pool->max_count <= 0)
+	if (res_pool->max_count <= 0) {
+		dev_err(&mc_bus_dev->dev, "max_count underflow\n");
 		goto out_unlock;
+	}
 	if (res_pool->free_count <= 0 ||
-	    res_pool->free_count > res_pool->max_count)
+	    res_pool->free_count > res_pool->max_count) {
+		dev_err(&mc_bus_dev->dev, "free_count mismatch\n");
 		goto out_unlock;
+	}
 
 	/*
 	 * If the device is currently allocated, its resource is not
@@ -254,7 +260,7 @@ EXPORT_SYMBOL_GPL(fsl_mc_resource_free);
  * @mc_dev: fsl-mc device which is used in conjunction with the
  * allocated object
  * @pool_type: pool type
- * @new_mc_dev: pointer to area where the pointer to the allocated device
+ * @new_mc_adev: pointer to area where the pointer to the allocated device
  * is to be returned
  *
  * Allocatable objects are always used in conjunction with some functional
@@ -292,8 +298,10 @@ int __must_check fsl_mc_object_allocate(struct fsl_mc_device *mc_dev,
 		goto error;
 
 	mc_adev = resource->data;
-	if (!mc_adev)
+	if (!mc_adev) {
+		error = -EINVAL;
 		goto error;
+	}
 
 	mc_adev->consumer_link = device_link_add(&mc_dev->dev,
 						 &mc_adev->dev,
@@ -344,17 +352,20 @@ EXPORT_SYMBOL_GPL(fsl_mc_object_free);
  * Initialize the interrupt pool associated with an fsl-mc bus.
  * It allocates a block of IRQs from the GIC-ITS.
  */
-int fsl_mc_populate_irq_pool(struct fsl_mc_bus *mc_bus,
+int fsl_mc_populate_irq_pool(struct fsl_mc_device *mc_bus_dev,
 			     unsigned int irq_count)
 {
 	unsigned int i;
-	struct msi_desc *msi_desc;
 	struct fsl_mc_device_irq *irq_resources;
 	struct fsl_mc_device_irq *mc_dev_irq;
 	int error;
-	struct fsl_mc_device *mc_bus_dev = &mc_bus->mc_dev;
+	struct fsl_mc_bus *mc_bus = to_fsl_mc_bus(mc_bus_dev);
 	struct fsl_mc_resource_pool *res_pool =
 			&mc_bus->resource_pools[FSL_MC_POOL_IRQ];
+
+	/* do nothing if the IRQ pool is already populated */
+	if (mc_bus->irq_resources)
+		return 0;
 
 	if (irq_count == 0 ||
 	    irq_count > FSL_MC_IRQ_POOL_MAX_TOTAL_IRQS)
@@ -382,14 +393,10 @@ int fsl_mc_populate_irq_pool(struct fsl_mc_bus *mc_bus,
 		mc_dev_irq->resource.type = res_pool->type;
 		mc_dev_irq->resource.data = mc_dev_irq;
 		mc_dev_irq->resource.parent_pool = res_pool;
+		mc_dev_irq->virq = msi_get_virq(&mc_bus_dev->dev, i);
+		mc_dev_irq->resource.id = mc_dev_irq->virq;
 		INIT_LIST_HEAD(&mc_dev_irq->resource.node);
 		list_add_tail(&mc_dev_irq->resource.node, &res_pool->free_list);
-	}
-
-	for_each_msi_entry(msi_desc, &mc_bus_dev->dev) {
-		mc_dev_irq = &irq_resources[msi_desc->fsl_mc.msi_index];
-		mc_dev_irq->msi_desc = msi_desc;
-		mc_dev_irq->resource.id = msi_desc->irq;
 	}
 
 	res_pool->max_count = irq_count;
@@ -403,13 +410,13 @@ cleanup_msi_irqs:
 }
 EXPORT_SYMBOL_GPL(fsl_mc_populate_irq_pool);
 
-/**
+/*
  * Teardown the interrupt pool associated with an fsl-mc bus.
  * It frees the IRQs that were allocated to the pool, back to the GIC-ITS.
  */
-void fsl_mc_cleanup_irq_pool(struct fsl_mc_bus *mc_bus)
+void fsl_mc_cleanup_irq_pool(struct fsl_mc_device *mc_bus_dev)
 {
-	struct fsl_mc_device *mc_bus_dev = &mc_bus->mc_dev;
+	struct fsl_mc_bus *mc_bus = to_fsl_mc_bus(mc_bus_dev);
 	struct fsl_mc_resource_pool *res_pool =
 			&mc_bus->resource_pools[FSL_MC_POOL_IRQ];
 
@@ -430,7 +437,7 @@ void fsl_mc_cleanup_irq_pool(struct fsl_mc_bus *mc_bus)
 }
 EXPORT_SYMBOL_GPL(fsl_mc_cleanup_irq_pool);
 
-/**
+/*
  * Allocate the IRQs required by a given fsl-mc device.
  */
 int __must_check fsl_mc_allocate_irqs(struct fsl_mc_device *mc_dev)
@@ -556,12 +563,9 @@ static void fsl_mc_cleanup_resource_pool(struct fsl_mc_device *mc_bus_dev,
 	struct fsl_mc_bus *mc_bus = to_fsl_mc_bus(mc_bus_dev);
 	struct fsl_mc_resource_pool *res_pool =
 					&mc_bus->resource_pools[pool_type];
-	int free_count = 0;
 
-	list_for_each_entry_safe(resource, next, &res_pool->free_list, node) {
-		free_count++;
+	list_for_each_entry_safe(resource, next, &res_pool->free_list, node)
 		devm_kfree(&mc_bus_dev->dev, resource);
-	}
 }
 
 void fsl_mc_cleanup_all_resource_pools(struct fsl_mc_device *mc_bus_dev)
@@ -572,7 +576,7 @@ void fsl_mc_cleanup_all_resource_pools(struct fsl_mc_device *mc_bus_dev)
 		fsl_mc_cleanup_resource_pool(mc_bus_dev, pool_type);
 }
 
-/**
+/*
  * fsl_mc_allocator_probe - callback invoked when an allocatable device is
  * being added to the system
  */
@@ -604,26 +608,22 @@ static int fsl_mc_allocator_probe(struct fsl_mc_device *mc_dev)
 	return 0;
 }
 
-/**
+/*
  * fsl_mc_allocator_remove - callback invoked when an allocatable device is
  * being removed from the system
  */
-static int fsl_mc_allocator_remove(struct fsl_mc_device *mc_dev)
+static void fsl_mc_allocator_remove(struct fsl_mc_device *mc_dev)
 {
 	int error;
-
-	if (!fsl_mc_is_allocatable(mc_dev))
-		return -EINVAL;
 
 	if (mc_dev->resource) {
 		error = fsl_mc_resource_pool_remove_device(mc_dev);
 		if (error < 0)
-			return error;
+			return;
 	}
 
 	dev_dbg(&mc_dev->dev,
 		"Allocatable fsl-mc device unbound from fsl_mc_allocator driver");
-	return 0;
 }
 
 static const struct fsl_mc_device_id match_id_table[] = {

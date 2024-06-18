@@ -26,15 +26,18 @@
 #include <linux/sched/debug.h>
 #include <linux/sched/task_stack.h>
 #include <linux/irq.h>
+#include <linux/vmalloc.h>
 
 #include <linux/atomic.h>
 #include <asm/cacheflush.h>
 #include <asm/exception.h>
+#include <asm/spectre.h>
 #include <asm/unistd.h>
 #include <asm/traps.h>
 #include <asm/ptrace.h>
 #include <asm/unwind.h>
 #include <asm/tls.h>
+#include <asm/stacktrace.h>
 #include <asm/system_misc.h>
 #include <asm/opcodes.h>
 
@@ -60,21 +63,39 @@ static int __init user_debug_setup(char *str)
 __setup("user_debug=", user_debug_setup);
 #endif
 
-static void dump_mem(const char *, const char *, unsigned long, unsigned long);
-
-void dump_backtrace_entry(unsigned long where, unsigned long from, unsigned long frame)
+void dump_backtrace_entry(unsigned long where, unsigned long from,
+			  unsigned long frame, const char *loglvl)
 {
-#ifdef CONFIG_KALLSYMS
-	printk("[<%08lx>] (%ps) from [<%08lx>] (%pS)\n", where, (void *)where, from, (void *)from);
+	unsigned long end = frame + 4 + sizeof(struct pt_regs);
+
+	if (IS_ENABLED(CONFIG_UNWINDER_FRAME_POINTER) &&
+	    IS_ENABLED(CONFIG_CC_IS_GCC) &&
+	    end > ALIGN(frame, THREAD_SIZE)) {
+		/*
+		 * If we are walking past the end of the stack, it may be due
+		 * to the fact that we are on an IRQ or overflow stack. In this
+		 * case, we can load the address of the other stack from the
+		 * frame record.
+		 */
+		frame = ((unsigned long *)frame)[-2] - 4;
+		end = frame + 4 + sizeof(struct pt_regs);
+	}
+
+#ifndef CONFIG_KALLSYMS
+	printk("%sFunction entered at [<%08lx>] from [<%08lx>]\n",
+		loglvl, where, from);
+#elif defined CONFIG_BACKTRACE_VERBOSE
+	printk("%s[<%08lx>] (%ps) from [<%08lx>] (%pS)\n",
+		loglvl, where, (void *)where, from, (void *)from);
 #else
-	printk("Function entered at [<%08lx>] from [<%08lx>]\n", where, from);
+	printk("%s %ps from %pS\n", loglvl, (void *)where, (void *)from);
 #endif
 
-	if (in_entry_text(from))
-		dump_mem("", "Exception stack", frame + 4, frame + 4 + sizeof(struct pt_regs));
+	if (in_entry_text(from) && end <= ALIGN(frame, THREAD_SIZE))
+		dump_mem(loglvl, "Exception stack", frame + 4, end);
 }
 
-void dump_backtrace_stm(u32 *stack, u32 instruction)
+void dump_backtrace_stm(u32 *stack, u32 instruction, const char *loglvl)
 {
 	char str[80], *p;
 	unsigned int x;
@@ -86,12 +107,12 @@ void dump_backtrace_stm(u32 *stack, u32 instruction)
 			if (++x == 6) {
 				x = 0;
 				p = str;
-				printk("%s\n", str);
+				printk("%s%s\n", loglvl, str);
 			}
 		}
 	}
 	if (p != str)
-		printk("%s\n", str);
+		printk("%s%s\n", loglvl, str);
 }
 
 #ifndef CONFIG_ARM_UNWIND
@@ -103,7 +124,8 @@ void dump_backtrace_stm(u32 *stack, u32 instruction)
 static int verify_stack(unsigned long sp)
 {
 	if (sp < PAGE_OFFSET ||
-	    (sp > (unsigned long)high_memory && high_memory != NULL))
+	    (!IS_ENABLED(CONFIG_VMAP_STACK) &&
+	     sp > (unsigned long)high_memory && high_memory != NULL))
 		return -EFAULT;
 
 	return 0;
@@ -113,20 +135,11 @@ static int verify_stack(unsigned long sp)
 /*
  * Dump out the contents of some memory nicely...
  */
-static void dump_mem(const char *lvl, const char *str, unsigned long bottom,
-		     unsigned long top)
+void dump_mem(const char *lvl, const char *str, unsigned long bottom,
+	      unsigned long top)
 {
 	unsigned long first;
-	mm_segment_t fs;
 	int i;
-
-	/*
-	 * We need to switch to kernel mode so that we can use __get_user
-	 * to safely read from kernel space.  Note that we now dump the
-	 * code first, just in case the backtrace kills us.
-	 */
-	fs = get_fs();
-	set_fs(KERNEL_DS);
 
 	printk("%s%s(0x%08lx to 0x%08lx)\n", lvl, str, bottom, top);
 
@@ -140,7 +153,7 @@ static void dump_mem(const char *lvl, const char *str, unsigned long bottom,
 		for (p = first, i = 0; i < 8 && p < top; i++, p += 4) {
 			if (p >= bottom && p < top) {
 				unsigned long val;
-				if (__get_user(val, (unsigned long *)p) == 0)
+				if (!get_kernel_nofault(val, (unsigned long *)p))
 					sprintf(str + i * 9, " %08lx", val);
 				else
 					sprintf(str + i * 9, " ????????");
@@ -148,11 +161,9 @@ static void dump_mem(const char *lvl, const char *str, unsigned long bottom,
 		}
 		printk("%s%04lx:%s\n", lvl, first & 0xffff, str);
 	}
-
-	set_fs(fs);
 }
 
-static void __dump_instr(const char *lvl, struct pt_regs *regs)
+static void dump_instr(const char *lvl, struct pt_regs *regs)
 {
 	unsigned long addr = instruction_pointer(regs);
 	const int thumb = thumb_mode(regs);
@@ -168,10 +179,23 @@ static void __dump_instr(const char *lvl, struct pt_regs *regs)
 	for (i = -4; i < 1 + !!thumb; i++) {
 		unsigned int val, bad;
 
-		if (thumb)
-			bad = get_user(val, &((u16 *)addr)[i]);
-		else
-			bad = get_user(val, &((u32 *)addr)[i]);
+		if (thumb) {
+			u16 tmp;
+
+			if (user_mode(regs))
+				bad = get_user(tmp, &((u16 __user *)addr)[i]);
+			else
+				bad = get_kernel_nofault(tmp, &((u16 *)addr)[i]);
+
+			val = __mem_to_opcode_thumb16(tmp);
+		} else {
+			if (user_mode(regs))
+				bad = get_user(val, &((u32 __user *)addr)[i]);
+			else
+				bad = get_kernel_nofault(val, &((u32 *)addr)[i]);
+
+			val = __mem_to_opcode_arm(val);
+		}
 
 		if (!bad)
 			p += sprintf(p, i == 0 ? "(%0*x) " : "%0*x ",
@@ -184,32 +208,20 @@ static void __dump_instr(const char *lvl, struct pt_regs *regs)
 	printk("%sCode: %s\n", lvl, str);
 }
 
-static void dump_instr(const char *lvl, struct pt_regs *regs)
-{
-	mm_segment_t fs;
-
-	if (!user_mode(regs)) {
-		fs = get_fs();
-		set_fs(KERNEL_DS);
-		__dump_instr(lvl, regs);
-		set_fs(fs);
-	} else {
-		__dump_instr(lvl, regs);
-	}
-}
-
 #ifdef CONFIG_ARM_UNWIND
-static inline void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
+void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk,
+		    const char *loglvl)
 {
-	unwind_backtrace(regs, tsk);
+	unwind_backtrace(regs, tsk, loglvl);
 }
 #else
-static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
+void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk,
+		    const char *loglvl)
 {
 	unsigned int fp, mode;
 	int ok = 1;
 
-	printk("Backtrace: ");
+	printk("%sCall trace: ", loglvl);
 
 	if (!tsk)
 		tsk = current;
@@ -236,18 +248,20 @@ static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 	pr_cont("\n");
 
 	if (ok)
-		c_backtrace(fp, mode);
+		c_backtrace(fp, mode, loglvl);
 }
 #endif
 
-void show_stack(struct task_struct *tsk, unsigned long *sp)
+void show_stack(struct task_struct *tsk, unsigned long *sp, const char *loglvl)
 {
-	dump_backtrace(NULL, tsk);
+	dump_backtrace(NULL, tsk, loglvl);
 	barrier();
 }
 
 #ifdef CONFIG_PREEMPT
 #define S_PREEMPT " PREEMPT"
+#elif defined(CONFIG_PREEMPT_RT)
+#define S_PREEMPT " PREEMPT_RT"
 #else
 #define S_PREEMPT ""
 #endif
@@ -278,13 +292,15 @@ static int __die(const char *str, int err, struct pt_regs *regs)
 
 	print_modules();
 	__show_regs(regs);
+	__show_regs_alloc_free(regs);
 	pr_emerg("Process %.*s (pid: %d, stack limit = 0x%p)\n",
 		 TASK_COMM_LEN, tsk->comm, task_pid_nr(tsk), end_of_stack(tsk));
 
 	if (!user_mode(regs) || in_interrupt()) {
 		dump_mem(KERN_EMERG, "Stack: ", regs->ARM_sp,
-			 THREAD_SIZE + (unsigned long)task_stack_page(tsk));
-		dump_backtrace(regs, tsk);
+			 ALIGN(regs->ARM_sp - THREAD_SIZE, THREAD_ALIGN)
+			 + THREAD_SIZE);
+		dump_backtrace(regs, tsk, KERN_EMERG);
 		dump_instr(KERN_EMERG, regs);
 	}
 
@@ -338,7 +354,7 @@ static void oops_end(unsigned long flags, struct pt_regs *regs, int signr)
 	if (panic_on_oops)
 		panic("Fatal exception");
 	if (signr)
-		do_exit(signr);
+		make_task_dead(signr);
 }
 
 /*
@@ -387,7 +403,7 @@ int is_valid_bugaddr(unsigned long pc)
 	u32 insn = __opcode_to_mem_arm(BUG_INSTR_VALUE);
 #endif
 
-	if (probe_kernel_address((unsigned *)pc, bkpt))
+	if (get_kernel_nofault(bkpt, (void *)pc))
 		return 0;
 
 	return bkpt == insn;
@@ -475,7 +491,7 @@ asmlinkage void do_undefinstr(struct pt_regs *regs)
 die_sig:
 #ifdef CONFIG_DEBUG_USER
 	if (user_debug & UDBG_UNDEFINED) {
-		pr_info("%s (%d): undefined instruction: pc=%p\n",
+		pr_info("%s (%d): undefined instruction: pc=%px\n",
 			current->comm, task_pid_nr(current), pc);
 		__show_regs(regs);
 		dump_instr(KERN_INFO, regs);
@@ -562,7 +578,7 @@ __do_cache_op(unsigned long start, unsigned long end)
 		if (fatal_signal_pending(current))
 			return 0;
 
-		ret = flush_cache_user_range(start, start + chunk);
+		ret = flush_icache_user_range(start, start + chunk);
 		if (ret)
 			return ret;
 
@@ -579,7 +595,7 @@ do_cache_op(unsigned long start, unsigned long end, int flags)
 	if (end < start || flags)
 		return -EINVAL;
 
-	if (!access_ok(start, end - start))
+	if (!access_ok((void __user *)start, end - start))
 		return -EFAULT;
 
 	return __do_cache_op(start, end);
@@ -659,10 +675,10 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 	if (user_debug & UDBG_SYSCALL) {
 		pr_err("[%d] %s: arm syscall %d\n",
 		       task_pid_nr(current), current->comm, no);
-		dump_instr("", regs);
+		dump_instr(KERN_ERR, regs);
 		if (user_mode(regs)) {
 			__show_regs(regs);
-			c_backtrace(frame_pointer(regs), processor_mode(regs));
+			c_backtrace(frame_pointer(regs), processor_mode(regs), KERN_ERR);
 		}
 	}
 #endif
@@ -741,6 +757,7 @@ void __readwrite_bug(const char *fn)
 }
 EXPORT_SYMBOL(__readwrite_bug);
 
+#ifdef CONFIG_MMU
 void __pte_error(const char *file, int line, pte_t pte)
 {
 	pr_err("%s:%d: bad pte %08llx.\n", file, line, (long long)pte_val(pte));
@@ -755,6 +772,7 @@ void __pgd_error(const char *file, int line, pgd_t pgd)
 {
 	pr_err("%s:%d: bad pgd %08llx.\n", file, line, (long long)pgd_val(pgd));
 }
+#endif
 
 asmlinkage void __div0(void)
 {
@@ -769,11 +787,6 @@ void abort(void)
 
 	/* if that doesn't kill us, halt */
 	panic("Oops failed to kill thread");
-}
-
-void __init trap_init(void)
-{
-	return;
 }
 
 #ifdef CONFIG_KUSER_HELPERS
@@ -797,10 +810,59 @@ static inline void __init kuser_init(void *vectors)
 }
 #endif
 
+#ifndef CONFIG_CPU_V7M
+static void copy_from_lma(void *vma, void *lma_start, void *lma_end)
+{
+	memcpy(vma, lma_start, lma_end - lma_start);
+}
+
+static void flush_vectors(void *vma, size_t offset, size_t size)
+{
+	unsigned long start = (unsigned long)vma + offset;
+	unsigned long end = start + size;
+
+	flush_icache_range(start, end);
+}
+
+#ifdef CONFIG_HARDEN_BRANCH_HISTORY
+int spectre_bhb_update_vectors(unsigned int method)
+{
+	extern char __vectors_bhb_bpiall_start[], __vectors_bhb_bpiall_end[];
+	extern char __vectors_bhb_loop8_start[], __vectors_bhb_loop8_end[];
+	void *vec_start, *vec_end;
+
+	if (system_state >= SYSTEM_FREEING_INITMEM) {
+		pr_err("CPU%u: Spectre BHB workaround too late - system vulnerable\n",
+		       smp_processor_id());
+		return SPECTRE_VULNERABLE;
+	}
+
+	switch (method) {
+	case SPECTRE_V2_METHOD_LOOP8:
+		vec_start = __vectors_bhb_loop8_start;
+		vec_end = __vectors_bhb_loop8_end;
+		break;
+
+	case SPECTRE_V2_METHOD_BPIALL:
+		vec_start = __vectors_bhb_bpiall_start;
+		vec_end = __vectors_bhb_bpiall_end;
+		break;
+
+	default:
+		pr_err("CPU%u: unknown Spectre BHB state %d\n",
+		       smp_processor_id(), method);
+		return SPECTRE_VULNERABLE;
+	}
+
+	copy_from_lma(vectors_page, vec_start, vec_end);
+	flush_vectors(vectors_page, 0, vec_end - vec_start);
+
+	return SPECTRE_MITIGATED;
+}
+#endif
+
 void __init early_trap_init(void *vectors_base)
 {
-#ifndef CONFIG_CPU_V7M
-	unsigned long vectors = (unsigned long)vectors_base;
 	extern char __stubs_start[], __stubs_end[];
 	extern char __vectors_start[], __vectors_end[];
 	unsigned i;
@@ -821,17 +883,87 @@ void __init early_trap_init(void *vectors_base)
 	 * into the vector page, mapped at 0xffff0000, and ensure these
 	 * are visible to the instruction stream.
 	 */
-	memcpy((void *)vectors, __vectors_start, __vectors_end - __vectors_start);
-	memcpy((void *)vectors + 0x1000, __stubs_start, __stubs_end - __stubs_start);
+	copy_from_lma(vectors_base, __vectors_start, __vectors_end);
+	copy_from_lma(vectors_base + 0x1000, __stubs_start, __stubs_end);
 
 	kuser_init(vectors_base);
 
-	flush_icache_range(vectors, vectors + PAGE_SIZE * 2);
+	flush_vectors(vectors_base, 0, PAGE_SIZE * 2);
+}
 #else /* ifndef CONFIG_CPU_V7M */
+void __init early_trap_init(void *vectors_base)
+{
 	/*
 	 * on V7-M there is no need to copy the vector table to a dedicated
 	 * memory area. The address is configurable and so a table in the kernel
 	 * image can be used.
 	 */
-#endif
 }
+#endif
+
+#ifdef CONFIG_VMAP_STACK
+
+DECLARE_PER_CPU(u8 *, irq_stack_ptr);
+
+asmlinkage DEFINE_PER_CPU(u8 *, overflow_stack_ptr);
+
+static int __init allocate_overflow_stacks(void)
+{
+	u8 *stack;
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		stack = (u8 *)__get_free_page(GFP_KERNEL);
+		if (WARN_ON(!stack))
+			return -ENOMEM;
+		per_cpu(overflow_stack_ptr, cpu) = &stack[OVERFLOW_STACK_SIZE];
+	}
+	return 0;
+}
+early_initcall(allocate_overflow_stacks);
+
+asmlinkage void handle_bad_stack(struct pt_regs *regs)
+{
+	unsigned long tsk_stk = (unsigned long)current->stack;
+#ifdef CONFIG_IRQSTACKS
+	unsigned long irq_stk = (unsigned long)raw_cpu_read(irq_stack_ptr);
+#endif
+	unsigned long ovf_stk = (unsigned long)raw_cpu_read(overflow_stack_ptr);
+
+	console_verbose();
+	pr_emerg("Insufficient stack space to handle exception!");
+
+	pr_emerg("Task stack:     [0x%08lx..0x%08lx]\n",
+		 tsk_stk, tsk_stk + THREAD_SIZE);
+#ifdef CONFIG_IRQSTACKS
+	pr_emerg("IRQ stack:      [0x%08lx..0x%08lx]\n",
+		 irq_stk - THREAD_SIZE, irq_stk);
+#endif
+	pr_emerg("Overflow stack: [0x%08lx..0x%08lx]\n",
+		 ovf_stk - OVERFLOW_STACK_SIZE, ovf_stk);
+
+	die("kernel stack overflow", regs, 0);
+}
+
+#ifndef CONFIG_ARM_LPAE
+/*
+ * Normally, we rely on the logic in do_translation_fault() to update stale PMD
+ * entries covering the vmalloc space in a task's page tables when it first
+ * accesses the region in question. Unfortunately, this is not sufficient when
+ * the task stack resides in the vmalloc region, as do_translation_fault() is a
+ * C function that needs a stack to run.
+ *
+ * So we need to ensure that these PMD entries are up to date *before* the MM
+ * switch. As we already have some logic in the MM switch path that takes care
+ * of this, let's trigger it by bumping the counter every time the core vmalloc
+ * code modifies a PMD entry in the vmalloc region. Use release semantics on
+ * the store so that other CPUs observing the counter's new value are
+ * guaranteed to see the updated page table entries as well.
+ */
+void arch_sync_kernel_mappings(unsigned long start, unsigned long end)
+{
+	if (start < VMALLOC_END && end > VMALLOC_START)
+		atomic_inc_return_release(&init_mm.context.vmalloc_seq);
+}
+#endif
+#endif

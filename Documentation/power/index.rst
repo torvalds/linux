@@ -13,7 +13,6 @@ Power Management
     drivers-testing
     energy-model
     freezing-of-tasks
-    interface
     opp
     pci
     pm_qos_interface
@@ -31,6 +30,7 @@ Power Management
     userland-swsusp
 
     powercap/powercap
+    powercap/dtpm
 
     regulator/consumer
     regulator/design

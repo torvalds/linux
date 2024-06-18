@@ -97,8 +97,8 @@ ib_uverbs_init_udata_buf_or_null(struct ib_udata *udata,
  */
 
 struct ib_uverbs_device {
-	atomic_t				refcount;
-	int					num_comp_vectors;
+	refcount_t				refcount;
+	u32					num_comp_vectors;
 	struct completion			comp;
 	struct device				dev;
 	/* First group for device attributes, NULL terminated array */
@@ -111,7 +111,6 @@ struct ib_uverbs_device {
 	struct srcu_struct			disassociate_srcu;
 	struct mutex				lists_mutex; /* protect lists */
 	struct list_head			uverbs_file_list;
-	struct list_head			uverbs_events_file_list;
 	struct uverbs_api			*uapi;
 };
 
@@ -124,10 +123,9 @@ struct ib_uverbs_event_queue {
 };
 
 struct ib_uverbs_async_event_file {
+	struct ib_uobject			uobj;
 	struct ib_uverbs_event_queue		ev_queue;
-	struct ib_uverbs_file		       *uverbs_file;
-	struct kref				ref;
-	struct list_head			list;
+	struct ib_event_handler			event_handler;
 };
 
 struct ib_uverbs_completion_event_file {
@@ -144,8 +142,7 @@ struct ib_uverbs_file {
 	 * ucontext_lock held
 	 */
 	struct ib_ucontext		       *ucontext;
-	struct ib_event_handler			event_handler;
-	struct ib_uverbs_async_event_file       *async_file;
+	struct ib_uverbs_async_event_file      *default_async_file;
 	struct list_head			list;
 
 	/*
@@ -183,6 +180,8 @@ struct ib_uverbs_mcast_entry {
 
 struct ib_uevent_object {
 	struct ib_uobject	uobject;
+	struct ib_uverbs_async_event_file *event_file;
+	/* List member for ib_uverbs_async_event_file list */
 	struct list_head	event_list;
 	u32			events_reported;
 };
@@ -210,34 +209,35 @@ struct ib_uwq_object {
 };
 
 struct ib_ucq_object {
-	struct ib_uobject	uobject;
+	struct ib_uevent_object uevent;
 	struct list_head	comp_list;
-	struct list_head	async_list;
 	u32			comp_events_reported;
-	u32			async_events_reported;
 };
 
 extern const struct file_operations uverbs_event_fops;
+extern const struct file_operations uverbs_async_event_fops;
 void ib_uverbs_init_event_queue(struct ib_uverbs_event_queue *ev_queue);
-struct file *ib_uverbs_alloc_async_event_file(struct ib_uverbs_file *uverbs_file,
-					      struct ib_device *ib_dev);
-void ib_uverbs_free_async_event_file(struct ib_uverbs_file *uverbs_file);
+void ib_uverbs_init_async_event_file(struct ib_uverbs_async_event_file *ev_file);
+void ib_uverbs_free_event_queue(struct ib_uverbs_event_queue *event_queue);
 void ib_uverbs_flow_resources_free(struct ib_uflow_resources *uflow_res);
+int uverbs_async_event_release(struct inode *inode, struct file *filp);
 
-void ib_uverbs_release_ucq(struct ib_uverbs_file *file,
-			   struct ib_uverbs_completion_event_file *ev_file,
+int ib_alloc_ucontext(struct uverbs_attr_bundle *attrs);
+int ib_init_ucontext(struct uverbs_attr_bundle *attrs);
+
+void ib_uverbs_release_ucq(struct ib_uverbs_completion_event_file *ev_file,
 			   struct ib_ucq_object *uobj);
-void ib_uverbs_release_uevent(struct ib_uverbs_file *file,
-			      struct ib_uevent_object *uobj);
+void ib_uverbs_release_uevent(struct ib_uevent_object *uobj);
 void ib_uverbs_release_file(struct kref *ref);
+void ib_uverbs_async_handler(struct ib_uverbs_async_event_file *async_file,
+			     __u64 element, __u64 event,
+			     struct list_head *obj_list, u32 *counter);
 
 void ib_uverbs_comp_handler(struct ib_cq *cq, void *cq_context);
 void ib_uverbs_cq_event_handler(struct ib_event *event, void *context_ptr);
 void ib_uverbs_qp_event_handler(struct ib_event *event, void *context_ptr);
 void ib_uverbs_wq_event_handler(struct ib_event *event, void *context_ptr);
 void ib_uverbs_srq_event_handler(struct ib_event *event, void *context_ptr);
-void ib_uverbs_event_handler(struct ib_event_handler *handler,
-			     struct ib_event *event);
 int ib_uverbs_dealloc_xrcd(struct ib_uobject *uobject, struct ib_xrcd *xrcd,
 			   enum rdma_remove_reason why,
 			   struct uverbs_attr_bundle *attrs);
@@ -276,23 +276,6 @@ int ib_uverbs_kern_spec_to_ib_spec_filter(enum ib_flow_spec_type type,
 					  size_t kern_filter_sz,
 					  union ib_flow_spec *ib_spec);
 
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_DEVICE);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_PD);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_MR);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_COMP_CHANNEL);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_CQ);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_QP);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_AH);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_MW);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_SRQ);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_FLOW);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_WQ);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_RWQ_IND_TBL);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_XRCD);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_FLOW_ACTION);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_DM);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_COUNTERS);
-
 /*
  * ib_uverbs_query_port_resp.port_cap_flags started out as just a copy of the
  * PortInfo CapabilityMask, but was extended with unique bits.
@@ -314,6 +297,24 @@ static inline u32 make_port_cap_flags(const struct ib_port_attr *attr)
 	return res;
 }
 
+static inline struct ib_uverbs_async_event_file *
+ib_uverbs_get_async_event(struct uverbs_attr_bundle *attrs,
+			  u16 id)
+{
+	struct ib_uobject *async_ev_file_uobj;
+	struct ib_uverbs_async_event_file *async_ev_file;
+
+	async_ev_file_uobj = uverbs_attr_get_uobject(attrs, id);
+	if (IS_ERR(async_ev_file_uobj))
+		async_ev_file = READ_ONCE(attrs->ufile->default_async_file);
+	else
+		async_ev_file = container_of(async_ev_file_uobj,
+				       struct ib_uverbs_async_event_file,
+				       uobj);
+	if (async_ev_file)
+		uverbs_uobject_get(&async_ev_file->uobj);
+	return async_ev_file;
+}
 
 void copy_port_attr_to_resp(struct ib_port_attr *attr,
 			    struct ib_uverbs_query_port_resp *resp,

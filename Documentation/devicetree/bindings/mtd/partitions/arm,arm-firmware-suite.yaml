@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mtd/partitions/arm,arm-firmware-suite.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ARM Firmware Suite (AFS) Partitions
+
+maintainers:
+  - Linus Walleij <linus.walleij@linaro.org>
+
+select: false
+
+description: |
+  The ARM Firmware Suite is a flash partitioning system found on the
+  ARM reference designs: Integrator AP, Integrator CP, Versatile AB,
+  Versatile PB, the RealView family, Versatile Express and Juno.
+
+properties:
+  compatible:
+    const: arm,arm-firmware-suite
+
+additionalProperties: false
+
+examples:
+  - |
+    partitions {
+        compatible = "arm,arm-firmware-suite";
+    };
+...

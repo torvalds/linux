@@ -212,9 +212,6 @@ struct goldfish_pipe_dev {
 	int version;
 	unsigned char __iomem *base;
 
-	/* an irq tasklet to run goldfish_interrupt_task */
-	struct tasklet_struct irq_tasklet;
-
 	struct miscdevice miscdev;
 };
 
@@ -257,12 +254,12 @@ static int goldfish_pipe_error_convert(int status)
 	}
 }
 
-static int pin_user_pages(unsigned long first_page,
-			  unsigned long last_page,
-			  unsigned int last_page_size,
-			  int is_write,
-			  struct page *pages[MAX_BUFFERS_PER_COMMAND],
-			  unsigned int *iter_last_page_size)
+static int goldfish_pin_pages(unsigned long first_page,
+			      unsigned long last_page,
+			      unsigned int last_page_size,
+			      int is_write,
+			      struct page *pages[MAX_BUFFERS_PER_COMMAND],
+			      unsigned int *iter_last_page_size)
 {
 	int ret;
 	int requested_pages = ((last_page - first_page) >> PAGE_SHIFT) + 1;
@@ -274,7 +271,7 @@ static int pin_user_pages(unsigned long first_page,
 		*iter_last_page_size = last_page_size;
 	}
 
-	ret = get_user_pages_fast(first_page, requested_pages,
+	ret = pin_user_pages_fast(first_page, requested_pages,
 				  !is_write ? FOLL_WRITE : 0,
 				  pages);
 	if (ret <= 0)
@@ -283,18 +280,6 @@ static int pin_user_pages(unsigned long first_page,
 		*iter_last_page_size = PAGE_SIZE;
 
 	return ret;
-}
-
-static void release_user_pages(struct page **pages, int pages_count,
-			       int is_write, s32 consumed_size)
-{
-	int i;
-
-	for (i = 0; i < pages_count; i++) {
-		if (!is_write && consumed_size > 0)
-			set_page_dirty(pages[i]);
-		put_page(pages[i]);
-	}
 }
 
 /* Populate the call parameters, merging adjacent pages together */
@@ -354,9 +339,9 @@ static int transfer_max_buffers(struct goldfish_pipe *pipe,
 	if (mutex_lock_interruptible(&pipe->lock))
 		return -ERESTARTSYS;
 
-	pages_count = pin_user_pages(first_page, last_page,
-				     last_page_size, is_write,
-				     pipe->pages, &iter_last_page_size);
+	pages_count = goldfish_pin_pages(first_page, last_page,
+					 last_page_size, is_write,
+					 pipe->pages, &iter_last_page_size);
 	if (pages_count < 0) {
 		mutex_unlock(&pipe->lock);
 		return pages_count;
@@ -372,7 +357,8 @@ static int transfer_max_buffers(struct goldfish_pipe *pipe,
 
 	*consumed_size = pipe->command_buffer->rw_params.consumed_size;
 
-	release_user_pages(pipe->pages, pages_count, is_write, *consumed_size);
+	unpin_user_pages_dirty_lock(pipe->pages, pages_count,
+				    !is_write && *consumed_size > 0);
 
 	mutex_unlock(&pipe->lock);
 	return 0;
@@ -588,10 +574,10 @@ static struct goldfish_pipe *signalled_pipes_pop_front(
 	return pipe;
 }
 
-static void goldfish_interrupt_task(unsigned long dev_addr)
+static irqreturn_t goldfish_interrupt_task(int irq, void *dev_addr)
 {
 	/* Iterate over the signalled pipes and wake them one by one */
-	struct goldfish_pipe_dev *dev = (struct goldfish_pipe_dev *)dev_addr;
+	struct goldfish_pipe_dev *dev = dev_addr;
 	struct goldfish_pipe *pipe;
 	int wakes;
 
@@ -610,13 +596,14 @@ static void goldfish_interrupt_task(unsigned long dev_addr)
 		 */
 		wake_up_interruptible(&pipe->wake_queue);
 	}
+	return IRQ_HANDLED;
 }
 
 static void goldfish_pipe_device_deinit(struct platform_device *pdev,
 					struct goldfish_pipe_dev *dev);
 
 /*
- * The general idea of the interrupt handling:
+ * The general idea of the (threaded) interrupt handling:
  *
  *  1. device raises an interrupt if there's at least one signalled pipe
  *  2. IRQ handler reads the signalled pipes and their count from the device
@@ -625,8 +612,8 @@ static void goldfish_pipe_device_deinit(struct platform_device *pdev,
  *      otherwise it leaves it raised, so IRQ handler will be called
  *      again for the next chunk
  *  4. IRQ handler adds all returned pipes to the device's signalled pipes list
- *  5. IRQ handler launches a tasklet to process the signalled pipes from the
- *      list in a separate context
+ *  5. IRQ handler defers processing the signalled pipes from the list in a
+ *      separate context
  */
 static irqreturn_t goldfish_pipe_interrupt(int irq, void *dev_id)
 {
@@ -656,8 +643,7 @@ static irqreturn_t goldfish_pipe_interrupt(int irq, void *dev_id)
 
 	spin_unlock_irqrestore(&dev->lock, flags);
 
-	tasklet_schedule(&dev->irq_tasklet);
-	return IRQ_HANDLED;
+	return IRQ_WAKE_THREAD;
 }
 
 static int get_free_pipe_id_locked(struct goldfish_pipe_dev *dev)
@@ -822,12 +808,10 @@ static int goldfish_pipe_device_init(struct platform_device *pdev,
 {
 	int err;
 
-	tasklet_init(&dev->irq_tasklet, &goldfish_interrupt_task,
-		     (unsigned long)dev);
-
-	err = devm_request_irq(&pdev->dev, dev->irq,
-			       goldfish_pipe_interrupt,
-			       IRQF_SHARED, "goldfish_pipe", dev);
+	err = devm_request_threaded_irq(&pdev->dev, dev->irq,
+					goldfish_pipe_interrupt,
+					goldfish_interrupt_task,
+					IRQF_SHARED, "goldfish_pipe", dev);
 	if (err) {
 		dev_err(&pdev->dev, "unable to allocate IRQ for v2\n");
 		return err;
@@ -885,7 +869,6 @@ static void goldfish_pipe_device_deinit(struct platform_device *pdev,
 					struct goldfish_pipe_dev *dev)
 {
 	misc_deregister(&dev->miscdev);
-	tasklet_kill(&dev->irq_tasklet);
 	kfree(dev->pipes);
 	free_page((unsigned long)dev->buffers);
 }
@@ -913,11 +896,9 @@ static int goldfish_pipe_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	r = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!r)
-		return -EINVAL;
-
-	dev->irq = r->start;
+	dev->irq = platform_get_irq(pdev, 0);
+	if (dev->irq < 0)
+		return dev->irq;
 
 	/*
 	 * Exchange the versions with the host device
@@ -934,12 +915,11 @@ static int goldfish_pipe_probe(struct platform_device *pdev)
 	return goldfish_pipe_device_init(pdev, dev);
 }
 
-static int goldfish_pipe_remove(struct platform_device *pdev)
+static void goldfish_pipe_remove(struct platform_device *pdev)
 {
 	struct goldfish_pipe_dev *dev = platform_get_drvdata(pdev);
 
 	goldfish_pipe_device_deinit(pdev, dev);
-	return 0;
 }
 
 static const struct acpi_device_id goldfish_pipe_acpi_match[] = {
@@ -956,7 +936,7 @@ MODULE_DEVICE_TABLE(of, goldfish_pipe_of_match);
 
 static struct platform_driver goldfish_pipe_driver = {
 	.probe = goldfish_pipe_probe,
-	.remove = goldfish_pipe_remove,
+	.remove_new = goldfish_pipe_remove,
 	.driver = {
 		.name = "goldfish_pipe",
 		.of_match_table = goldfish_pipe_of_match,

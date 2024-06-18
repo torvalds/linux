@@ -3,6 +3,8 @@
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/blkdev.h>
+#include "internal.h"
 
 static int devinfo_show(struct seq_file *f, void *v)
 {
@@ -53,7 +55,10 @@ static const struct seq_operations devinfo_ops = {
 
 static int __init proc_devices_init(void)
 {
-	proc_create_seq("devices", 0, NULL, &devinfo_ops);
+	struct proc_dir_entry *pde;
+
+	pde = proc_create_seq("devices", 0, NULL, &devinfo_ops);
+	pde_make_permanent(pde);
 	return 0;
 }
 fs_initcall(proc_devices_init);

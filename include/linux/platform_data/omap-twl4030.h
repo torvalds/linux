@@ -3,7 +3,7 @@
  * omap-twl4030.h - ASoC machine driver for TI SoC based boards with twl4030
  *		    codec, header.
  *
- * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2012 Texas Instruments Incorporated - https://www.ti.com
  * All rights reserved.
  *
  * Author: Peter Ujfalusi <peter.ujfalusi@ti.com>
@@ -37,9 +37,6 @@ struct omap_tw4030_pdata {
 	bool	has_digimic0;
 	bool	has_digimic1;
 	u8	has_linein;
-
-	/* Jack detect GPIO or  <= 0 if it is not implemented */
-	int jack_detect;
 };
 
 #endif /* _OMAP_TWL4030_H_ */

@@ -2,6 +2,7 @@
 config SYSV_FS
 	tristate "System V/Xenix/V7/Coherent file system support"
 	depends on BLOCK
+	select BUFFER_HEAD
 	help
 	  SCO, Xenix and Coherent are commercial Unix systems for Intel
 	  machines, and Version 7 was used on the DEC PDP-11. Saying Y
@@ -28,7 +29,7 @@ config SYSV_FS
 	  tar" or preferably "info tar").  Note also that this option has
 	  nothing whatsoever to do with the option "System V IPC". Read about
 	  the System V file system in
-	  <file:Documentation/filesystems/sysv-fs.txt>.
+	  <file:Documentation/filesystems/sysv-fs.rst>.
 	  Saying Y here will enlarge your kernel by about 27 KB.
 
 	  To compile this as a module, choose M here: the module will be called

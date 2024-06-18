@@ -10,12 +10,14 @@
  * https://www.maxbotix.com/documents/I2CXL-MaxSonar-EZ_Datasheet.pdf
  */
 
+#include <linux/bitops.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
-#include <linux/of_irq.h>
 #include <linux/delay.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/bitops.h>
+#include <linux/property.h>
+
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
@@ -40,6 +42,11 @@ struct mb1232_data {
 	 */
 	struct completion	ranging;
 	int			irqnr;
+	/* Ensure correct alignment of data to push to IIO buffer */
+	struct {
+		s16 distance;
+		s64 ts __aligned(8);
+	} scan;
 };
 
 static irqreturn_t mb1232_handle_irq(int irq, void *dev_id)
@@ -69,7 +76,7 @@ static s16 mb1232_read_distance(struct mb1232_data *data)
 		goto error_unlock;
 	}
 
-	if (data->irqnr >= 0) {
+	if (data->irqnr > 0) {
 		/* it cannot take more than 100 ms */
 		ret = wait_for_completion_killable_timeout(&data->ranging,
 									HZ/10);
@@ -113,17 +120,13 @@ static irqreturn_t mb1232_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct mb1232_data *data = iio_priv(indio_dev);
-	/*
-	 * triggered buffer
-	 * 16-bit channel + 48-bit padding + 64-bit timestamp
-	 */
-	s16 buffer[8] = { 0 };
 
-	buffer[0] = mb1232_read_distance(data);
-	if (buffer[0] < 0)
+	data->scan.distance = mb1232_read_distance(data);
+	if (data->scan.distance < 0)
 		goto err;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, buffer, pf->timestamp);
+	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan,
+					   pf->timestamp);
 
 err:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -177,9 +180,9 @@ static const struct iio_info mb1232_info = {
 	.read_raw = mb1232_read_raw,
 };
 
-static int mb1232_probe(struct i2c_client *client,
-					 const struct i2c_device_id *id)
+static int mb1232_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct iio_dev *indio_dev;
 	struct mb1232_data *data;
 	int ret;
@@ -200,7 +203,6 @@ static int mb1232_probe(struct i2c_client *client,
 
 	indio_dev->info = &mb1232_info;
 	indio_dev->name = id->name;
-	indio_dev->dev.parent = dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = mb1232_channels;
 	indio_dev->num_channels = ARRAY_SIZE(mb1232_channels);
@@ -209,11 +211,8 @@ static int mb1232_probe(struct i2c_client *client,
 
 	init_completion(&data->ranging);
 
-	data->irqnr = irq_of_parse_and_map(dev->of_node, 0);
-	if (data->irqnr <= 0) {
-		/* usage of interrupt is optional */
-		data->irqnr = -1;
-	} else {
+	data->irqnr = fwnode_irq_get(dev_fwnode(&client->dev), 0);
+	if (data->irqnr > 0) {
 		ret = devm_request_irq(dev, data->irqnr, mb1232_handle_irq,
 				IRQF_TRIGGER_FALLING, id->name, indio_dev);
 		if (ret < 0) {

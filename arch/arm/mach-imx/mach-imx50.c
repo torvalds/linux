@@ -5,10 +5,15 @@
  * Copyright 2011 Linaro Ltd.
  */
 
-#include <linux/of_platform.h>
 #include <asm/mach/arch.h>
 
 #include "common.h"
+#include "hardware.h"
+
+static void __init imx50_init_early(void)
+{
+	mxc_set_cpu_type(MXC_CPU_MX50);
+}
 
 static const char * const imx50_dt_board_compat[] __initconst = {
 	"fsl,imx50",
@@ -16,5 +21,6 @@ static const char * const imx50_dt_board_compat[] __initconst = {
 };
 
 DT_MACHINE_START(IMX50_DT, "Freescale i.MX50 (Device Tree Support)")
+	.init_early	= imx50_init_early,
 	.dt_compat	= imx50_dt_board_compat,
 MACHINE_END

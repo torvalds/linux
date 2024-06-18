@@ -7,18 +7,14 @@ ARCH := $(shell echo $(ARCH) | sed -e s/ppc.*/powerpc/)
 
 ifeq ($(ARCH),powerpc)
 
-GIT_VERSION = $(shell git describe --always --long --dirty || echo "unknown")
-
-CFLAGS := -std=gnu99 -O2 -Wall -Werror -DGIT_VERSION='"$(GIT_VERSION)"' -I$(CURDIR)/include $(CFLAGS)
-
-export CFLAGS
-
 SUB_DIRS = alignment		\
 	   benchmarks		\
 	   cache_shape		\
 	   copyloops		\
+	   dexcr		\
 	   dscr			\
 	   mm			\
+	   nx-gzip		\
 	   pmu			\
 	   signal		\
 	   primitives		\
@@ -29,8 +25,12 @@ SUB_DIRS = alignment		\
 	   eeh			\
 	   vphn         \
 	   math		\
+	   papr_attributes	\
+	   papr_vpd		\
+	   papr_sysparm		\
 	   ptrace	\
-	   security
+	   security	\
+	   mce
 
 endif
 
@@ -40,30 +40,30 @@ $(SUB_DIRS):
 	BUILD_TARGET=$(OUTPUT)/$@; mkdir -p $$BUILD_TARGET; $(MAKE) OUTPUT=$$BUILD_TARGET -k -C $@ all
 
 include ../lib.mk
+include ./flags.mk
 
 override define RUN_TESTS
-	@for TARGET in $(SUB_DIRS); do \
+	+@for TARGET in $(SUB_DIRS); do \
 		BUILD_TARGET=$(OUTPUT)/$$TARGET;	\
 		$(MAKE) OUTPUT=$$BUILD_TARGET -C $$TARGET run_tests;\
 	done;
 endef
 
 override define INSTALL_RULE
-	@for TARGET in $(SUB_DIRS); do \
+	+@for TARGET in $(SUB_DIRS); do \
 		BUILD_TARGET=$(OUTPUT)/$$TARGET;	\
-		$(MAKE) OUTPUT=$$BUILD_TARGET -C $$TARGET install;\
+		$(MAKE) OUTPUT=$$BUILD_TARGET INSTALL_PATH=$$INSTALL_PATH/$$TARGET -C $$TARGET install;\
 	done;
 endef
 
-override define EMIT_TESTS
-	@for TARGET in $(SUB_DIRS); do \
+emit_tests:
+	+@for TARGET in $(SUB_DIRS); do \
 		BUILD_TARGET=$(OUTPUT)/$$TARGET;	\
-		$(MAKE) OUTPUT=$$BUILD_TARGET -s -C $$TARGET emit_tests;\
+		$(MAKE) OUTPUT=$$BUILD_TARGET COLLECTION=$(COLLECTION)/$$TARGET -s -C $$TARGET $@;\
 	done;
-endef
 
 override define CLEAN
-	@for TARGET in $(SUB_DIRS); do \
+	+@for TARGET in $(SUB_DIRS); do \
 		BUILD_TARGET=$(OUTPUT)/$$TARGET;	\
 		$(MAKE) OUTPUT=$$BUILD_TARGET -C $$TARGET clean; \
 	done;
@@ -73,4 +73,4 @@ endef
 tags:
 	find . -name '*.c' -o -name '*.h' | xargs ctags
 
-.PHONY: tags $(SUB_DIRS)
+.PHONY: tags $(SUB_DIRS) emit_tests

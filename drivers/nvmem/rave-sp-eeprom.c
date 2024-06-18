@@ -10,7 +10,7 @@
 #include <linux/mfd/rave-sp.h>
 #include <linux/module.h>
 #include <linux/nvmem-provider.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/sizes.h>
 
@@ -45,7 +45,7 @@ enum rave_sp_eeprom_header_size {
  * @type:	Access type (see enum rave_sp_eeprom_access_type)
  * @success:	Success flag (Success = 1, Failure = 0)
  * @data:	Read data
-
+ *
  * Note this structure corresponds to RSP_*_EEPROM payload from RAVE
  * SP ICD
  */
@@ -328,6 +328,7 @@ static int rave_sp_eeprom_probe(struct platform_device *pdev)
 	of_property_read_string(np, "zii,eeprom-name", &config.name);
 	config.priv		= eeprom;
 	config.dev		= dev;
+	config.add_legacy_fixed_of_cells	= true;
 	config.size		= size;
 	config.reg_read		= rave_sp_eeprom_reg_read;
 	config.reg_write	= rave_sp_eeprom_reg_write;

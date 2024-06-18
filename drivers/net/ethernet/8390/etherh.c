@@ -258,7 +258,7 @@ static int etherh_set_config(struct net_device *dev, struct ifmap *map)
 		 * media type, turn off automedia detection.
 		 */
 		dev->flags &= ~IFF_AUTOMEDIA;
-		dev->if_port = map->port;
+		WRITE_ONCE(dev->if_port, map->port);
 		break;
 
 	default:
@@ -555,9 +555,9 @@ static int __init etherm_addr(char *addr)
 
 static void etherh_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
-	strlcpy(info->bus_info, dev_name(dev->dev.parent),
+	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strscpy(info->version, DRV_VERSION, sizeof(info->version));
+	strscpy(info->bus_info, dev_name(dev->dev.parent),
 		sizeof(info->bus_info));
 }
 
@@ -655,6 +655,7 @@ etherh_probe(struct expansion_card *ec, const struct ecard_id *id)
 	struct ei_device *ei_local;
 	struct net_device *dev;
 	struct etherh_priv *eh;
+	u8 addr[ETH_ALEN];
 	int ret;
 
 	ret = ecard_request_resources(ec);
@@ -724,12 +725,13 @@ etherh_probe(struct expansion_card *ec, const struct ecard_id *id)
 	spin_lock_init(&ei_local->page_lock);
 
 	if (ec->cid.product == PROD_ANT_ETHERM) {
-		etherm_addr(dev->dev_addr);
+		etherm_addr(addr);
 		ei_local->reg_offset = etherm_regoffsets;
 	} else {
-		etherh_addr(dev->dev_addr, ec);
+		etherh_addr(addr, ec);
 		ei_local->reg_offset = etherh_regoffsets;
 	}
+	eth_hw_addr_set(dev, addr);
 
 	ei_local->name          = dev->name;
 	ei_local->word16        = 1;

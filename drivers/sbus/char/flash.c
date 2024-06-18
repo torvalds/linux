@@ -14,10 +14,9 @@
 #include <linux/spinlock.h>
 #include <linux/mm.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/platform_device.h>
 
 #include <linux/uaccess.h>
-#include <asm/pgtable.h>
 #include <asm/io.h>
 #include <asm/upa.h>
 
@@ -30,8 +29,6 @@ static struct {
 	unsigned long write_size;	/* Size of write area */
 	unsigned long busy;		/* In use? */
 } flash;
-
-#define FLASH_MINOR	152
 
 static int
 flash_mmap(struct file *file, struct vm_area_struct *vma)
@@ -157,7 +154,7 @@ static const struct file_operations flash_fops = {
 	.release =	flash_release,
 };
 
-static struct miscdevice flash_dev = { FLASH_MINOR, "flash", &flash_fops };
+static struct miscdevice flash_dev = { SBUS_FLASH_MINOR, "flash", &flash_fops };
 
 static int flash_probe(struct platform_device *op)
 {
@@ -190,11 +187,9 @@ static int flash_probe(struct platform_device *op)
 	return misc_register(&flash_dev);
 }
 
-static int flash_remove(struct platform_device *op)
+static void flash_remove(struct platform_device *op)
 {
 	misc_deregister(&flash_dev);
-
-	return 0;
 }
 
 static const struct of_device_id flash_match[] = {
@@ -211,7 +206,7 @@ static struct platform_driver flash_driver = {
 		.of_match_table = flash_match,
 	},
 	.probe		= flash_probe,
-	.remove		= flash_remove,
+	.remove_new	= flash_remove,
 };
 
 module_platform_driver(flash_driver);

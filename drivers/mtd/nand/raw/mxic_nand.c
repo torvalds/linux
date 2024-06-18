@@ -12,8 +12,8 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/mtd/mtd.h>
+#include <linux/mtd/nand-ecc-sw-hamming.h>
 #include <linux/mtd/rawnand.h>
-#include <linux/mtd/nand_ecc.h>
 #include <linux/platform_device.h>
 
 #include "internals.h"
@@ -393,6 +393,9 @@ static int mxic_nfc_exec_op(struct nand_chip *chip,
 	int ret = 0;
 	unsigned int op_id;
 
+	if (check_only)
+		return 0;
+
 	mxic_nfc_cs_enable(nfc);
 	init_completion(&nfc->complete);
 	for (op_id = 0; op_id < op->ninstrs; op_id++) {
@@ -448,8 +451,8 @@ static int mxic_nfc_exec_op(struct nand_chip *chip,
 	return ret;
 }
 
-static int mxic_nfc_setup_data_interface(struct nand_chip *chip, int chipnr,
-					 const struct nand_data_interface *conf)
+static int mxic_nfc_setup_interface(struct nand_chip *chip, int chipnr,
+				    const struct nand_interface_config *conf)
 {
 	struct mxic_nand_ctlr *nfc = nand_get_controller_data(chip);
 	const struct nand_sdr_timings *sdr;
@@ -477,7 +480,7 @@ static int mxic_nfc_setup_data_interface(struct nand_chip *chip, int chipnr,
 
 static const struct nand_controller_ops mxic_nand_controller_ops = {
 	.exec_op = mxic_nfc_exec_op,
-	.setup_data_interface = mxic_nfc_setup_data_interface,
+	.setup_interface = mxic_nfc_setup_interface,
 };
 
 static int mxic_nfc_probe(struct platform_device *pdev)
@@ -524,10 +527,8 @@ static int mxic_nfc_probe(struct platform_device *pdev)
 	nand_chip->controller = &nfc->controller;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "failed to retrieve irq\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	mxic_nfc_hw_init(nfc);
 
@@ -552,13 +553,17 @@ fail:
 	return err;
 }
 
-static int mxic_nfc_remove(struct platform_device *pdev)
+static void mxic_nfc_remove(struct platform_device *pdev)
 {
 	struct mxic_nand_ctlr *nfc = platform_get_drvdata(pdev);
+	struct nand_chip *chip = &nfc->chip;
+	int ret;
 
-	nand_release(&nfc->chip);
+	ret = mtd_device_unregister(nand_to_mtd(chip));
+	WARN_ON(ret);
+	nand_cleanup(chip);
+
 	mxic_nfc_clk_disable(nfc);
-	return 0;
 }
 
 static const struct of_device_id mxic_nfc_of_ids[] = {
@@ -569,7 +574,7 @@ MODULE_DEVICE_TABLE(of, mxic_nfc_of_ids);
 
 static struct platform_driver mxic_nfc_driver = {
 	.probe = mxic_nfc_probe,
-	.remove = mxic_nfc_remove,
+	.remove_new = mxic_nfc_remove,
 	.driver = {
 		.name = "mxic-nfc",
 		.of_match_table = mxic_nfc_of_ids,

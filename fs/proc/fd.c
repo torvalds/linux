@@ -6,10 +6,13 @@
 #include <linux/fdtable.h>
 #include <linux/namei.h>
 #include <linux/pid.h>
+#include <linux/ptrace.h>
+#include <linux/bitmap.h>
 #include <linux/security.h>
 #include <linux/file.h>
 #include <linux/seq_file.h>
 #include <linux/fs.h>
+#include <linux/filelock.h>
 
 #include <linux/proc_fs.h>
 
@@ -28,35 +31,35 @@ static int seq_show(struct seq_file *m, void *v)
 	if (!task)
 		return -ENOENT;
 
-	files = get_files_struct(task);
-	put_task_struct(task);
-
+	task_lock(task);
+	files = task->files;
 	if (files) {
 		unsigned int fd = proc_fd(m->private);
 
 		spin_lock(&files->file_lock);
-		file = fcheck_files(files, fd);
+		file = files_lookup_fd_locked(files, fd);
 		if (file) {
-			struct fdtable *fdt = files_fdtable(files);
-
 			f_flags = file->f_flags;
-			if (close_on_exec(fd, fdt))
+			if (close_on_exec(fd, files))
 				f_flags |= O_CLOEXEC;
 
 			get_file(file);
 			ret = 0;
 		}
 		spin_unlock(&files->file_lock);
-		put_files_struct(files);
 	}
+	task_unlock(task);
+	put_task_struct(task);
 
 	if (ret)
 		return ret;
 
-	seq_printf(m, "pos:\t%lli\nflags:\t0%o\nmnt_id:\t%i\n",
+	seq_printf(m, "pos:\t%lli\nflags:\t0%o\nmnt_id:\t%i\nino:\t%lu\n",
 		   (long long)file->f_pos, f_flags,
-		   real_mount(file->f_path.mnt)->mnt_id);
+		   real_mount(file->f_path.mnt)->mnt_id,
+		   file_inode(file)->i_ino);
 
+	/* show_fd_locks() never deferences files so a stale value is safe */
 	show_fd_locks(m, file, files);
 	if (seq_has_overflowed(m))
 		goto out;
@@ -74,6 +77,34 @@ static int seq_fdinfo_open(struct inode *inode, struct file *file)
 	return single_open(file, seq_show, inode);
 }
 
+/**
+ * Shared /proc/pid/fdinfo and /proc/pid/fdinfo/fd permission helper to ensure
+ * that the current task has PTRACE_MODE_READ in addition to the normal
+ * POSIX-like checks.
+ */
+static int proc_fdinfo_permission(struct mnt_idmap *idmap, struct inode *inode,
+				  int mask)
+{
+	bool allowed = false;
+	struct task_struct *task = get_proc_task(inode);
+
+	if (!task)
+		return -ESRCH;
+
+	allowed = ptrace_may_access(task, PTRACE_MODE_READ_FSCREDS);
+	put_task_struct(task);
+
+	if (!allowed)
+		return -EACCES;
+
+	return generic_permission(idmap, inode, mask);
+}
+
+static const struct inode_operations proc_fdinfo_file_inode_operations = {
+	.permission	= proc_fdinfo_permission,
+	.setattr	= proc_setattr,
+};
+
 static const struct file_operations proc_fdinfo_file_operations = {
 	.open		= seq_fdinfo_open,
 	.read		= seq_read,
@@ -83,18 +114,15 @@ static const struct file_operations proc_fdinfo_file_operations = {
 
 static bool tid_fd_mode(struct task_struct *task, unsigned fd, fmode_t *mode)
 {
-	struct files_struct *files = get_files_struct(task);
 	struct file *file;
 
-	if (!files)
-		return false;
-
 	rcu_read_lock();
-	file = fcheck_files(files, fd);
-	if (file)
-		*mode = file->f_mode;
+	file = task_lookup_fdget_rcu(task, fd);
 	rcu_read_unlock();
-	put_files_struct(files);
+	if (file) {
+		*mode = file->f_mode;
+		fput(file);
+	}
 	return !!file;
 }
 
@@ -146,29 +174,22 @@ static const struct dentry_operations tid_fd_dentry_operations = {
 
 static int proc_fd_link(struct dentry *dentry, struct path *path)
 {
-	struct files_struct *files = NULL;
 	struct task_struct *task;
 	int ret = -ENOENT;
 
 	task = get_proc_task(d_inode(dentry));
 	if (task) {
-		files = get_files_struct(task);
-		put_task_struct(task);
-	}
-
-	if (files) {
 		unsigned int fd = proc_fd(d_inode(dentry));
 		struct file *fd_file;
 
-		spin_lock(&files->file_lock);
-		fd_file = fcheck_files(files, fd);
+		fd_file = fget_task(task, fd);
 		if (fd_file) {
 			*path = fd_file->f_path;
 			path_get(&fd_file->f_path);
 			ret = 0;
+			fput(fd_file);
 		}
-		spin_unlock(&files->file_lock);
-		put_files_struct(files);
+		put_task_struct(task);
 	}
 
 	return ret;
@@ -229,7 +250,6 @@ static int proc_readfd_common(struct file *file, struct dir_context *ctx,
 			      instantiate_t instantiate)
 {
 	struct task_struct *p = get_proc_task(file_inode(file));
-	struct files_struct *files;
 	unsigned int fd;
 
 	if (!p)
@@ -237,39 +257,58 @@ static int proc_readfd_common(struct file *file, struct dir_context *ctx,
 
 	if (!dir_emit_dots(file, ctx))
 		goto out;
-	files = get_files_struct(p);
-	if (!files)
-		goto out;
 
 	rcu_read_lock();
-	for (fd = ctx->pos - 2;
-	     fd < files_fdtable(files)->max_fds;
-	     fd++, ctx->pos++) {
+	for (fd = ctx->pos - 2;; fd++) {
 		struct file *f;
 		struct fd_data data;
 		char name[10 + 1];
 		unsigned int len;
 
-		f = fcheck_files(files, fd);
+		f = task_lookup_next_fdget_rcu(p, &fd);
+		ctx->pos = fd + 2LL;
 		if (!f)
-			continue;
+			break;
 		data.mode = f->f_mode;
 		rcu_read_unlock();
+		fput(f);
 		data.fd = fd;
 
 		len = snprintf(name, sizeof(name), "%u", fd);
 		if (!proc_fill_cache(file, ctx,
 				     name, len, instantiate, p,
 				     &data))
-			goto out_fd_loop;
+			goto out;
 		cond_resched();
 		rcu_read_lock();
 	}
 	rcu_read_unlock();
-out_fd_loop:
-	put_files_struct(files);
 out:
 	put_task_struct(p);
+	return 0;
+}
+
+static int proc_readfd_count(struct inode *inode, loff_t *count)
+{
+	struct task_struct *p = get_proc_task(inode);
+	struct fdtable *fdt;
+
+	if (!p)
+		return -ENOENT;
+
+	task_lock(p);
+	if (p->files) {
+		rcu_read_lock();
+
+		fdt = files_fdtable(p->files);
+		*count = bitmap_weight(fdt->open_fds, fdt->max_fds);
+
+		rcu_read_unlock();
+	}
+	task_unlock(p);
+
+	put_task_struct(p);
+
 	return 0;
 }
 
@@ -294,12 +333,13 @@ static struct dentry *proc_lookupfd(struct inode *dir, struct dentry *dentry,
  * /proc/pid/fd needs a special permission handler so that a process can still
  * access /proc/self/fd after it has executed a setuid().
  */
-int proc_fd_permission(struct inode *inode, int mask)
+int proc_fd_permission(struct mnt_idmap *idmap,
+		       struct inode *inode, int mask)
 {
 	struct task_struct *p;
 	int rv;
 
-	rv = generic_permission(inode, mask);
+	rv = generic_permission(&nop_mnt_idmap, inode, mask);
 	if (rv == 0)
 		return rv;
 
@@ -312,9 +352,29 @@ int proc_fd_permission(struct inode *inode, int mask)
 	return rv;
 }
 
+static int proc_fd_getattr(struct mnt_idmap *idmap,
+			const struct path *path, struct kstat *stat,
+			u32 request_mask, unsigned int query_flags)
+{
+	struct inode *inode = d_inode(path->dentry);
+	int rv = 0;
+
+	generic_fillattr(&nop_mnt_idmap, request_mask, inode, stat);
+
+	/* If it's a directory, put the number of open fds there */
+	if (S_ISDIR(inode->i_mode)) {
+		rv = proc_readfd_count(inode, &stat->size);
+		if (rv < 0)
+			return rv;
+	}
+
+	return rv;
+}
+
 const struct inode_operations proc_fd_inode_operations = {
 	.lookup		= proc_lookupfd,
 	.permission	= proc_fd_permission,
+	.getattr	= proc_fd_getattr,
 	.setattr	= proc_setattr,
 };
 
@@ -325,12 +385,14 @@ static struct dentry *proc_fdinfo_instantiate(struct dentry *dentry,
 	struct proc_inode *ei;
 	struct inode *inode;
 
-	inode = proc_pid_make_inode(dentry->d_sb, task, S_IFREG | S_IRUSR);
+	inode = proc_pid_make_inode(dentry->d_sb, task, S_IFREG | S_IRUGO);
 	if (!inode)
 		return ERR_PTR(-ENOENT);
 
 	ei = PROC_I(inode);
 	ei->fd = data->fd;
+
+	inode->i_op = &proc_fdinfo_file_inode_operations;
 
 	inode->i_fop = &proc_fdinfo_file_operations;
 	tid_fd_update_inode(task, inode, 0);
@@ -353,6 +415,7 @@ static int proc_readfdinfo(struct file *file, struct dir_context *ctx)
 
 const struct inode_operations proc_fdinfo_inode_operations = {
 	.lookup		= proc_lookupfdinfo,
+	.permission	= proc_fdinfo_permission,
 	.setattr	= proc_setattr,
 };
 

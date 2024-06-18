@@ -47,7 +47,6 @@ static void free_substream(struct snd_usb_substream *subs)
 		return; /* not initialized */
 	list_for_each_entry_safe(fp, n, &subs->fmt_list, list)
 		audioformat_free(fp);
-	kfree(subs->rate_list.list);
 	kfree(subs->str_pd);
 	snd_media_stream_delete(subs);
 }
@@ -90,10 +89,11 @@ static void snd_usb_init_substream(struct snd_usb_stream *as,
 	subs->stream = as;
 	subs->direction = stream;
 	subs->dev = as->chip->dev;
-	subs->txfr_quirk = as->chip->txfr_quirk;
-	subs->tx_length_quirk = as->chip->tx_length_quirk;
+	subs->txfr_quirk = !!(as->chip->quirk_flags & QUIRK_FLAG_ALIGN_TRANSFER);
+	subs->tx_length_quirk = !!(as->chip->quirk_flags & QUIRK_FLAG_TX_LENGTH);
 	subs->speed = snd_usb_get_speed(subs->dev);
 	subs->pkt_offset_adj = 0;
+	subs->stream_offset_adj = 0;
 
 	snd_usb_set_pcm_ops(as->pcm, stream);
 
@@ -192,16 +192,16 @@ static int usb_chmap_ctl_get(struct snd_kcontrol *kcontrol,
 	struct snd_pcm_chmap *info = snd_kcontrol_chip(kcontrol);
 	struct snd_usb_substream *subs = info->private_data;
 	struct snd_pcm_chmap_elem *chmap = NULL;
-	int i;
+	int i = 0;
 
-	memset(ucontrol->value.integer.value, 0,
-	       sizeof(ucontrol->value.integer.value));
 	if (subs->cur_audiofmt)
 		chmap = subs->cur_audiofmt->chmap;
 	if (chmap) {
 		for (i = 0; i < chmap->channels; i++)
 			ucontrol->value.integer.value[i] = chmap->map[i];
 	}
+	for (; i < subs->channels_max; i++)
+		ucontrol->value.integer.value[i] = 0;
 	return 0;
 }
 
@@ -239,7 +239,7 @@ static int add_chmap(struct snd_pcm *pcm, int stream,
 static struct snd_pcm_chmap_elem *convert_chmap(int channels, unsigned int bits,
 						int protocol)
 {
-	static unsigned int uac1_maps[] = {
+	static const unsigned int uac1_maps[] = {
 		SNDRV_CHMAP_FL,		/* left front */
 		SNDRV_CHMAP_FR,		/* right front */
 		SNDRV_CHMAP_FC,		/* center front */
@@ -254,7 +254,7 @@ static struct snd_pcm_chmap_elem *convert_chmap(int channels, unsigned int bits,
 		SNDRV_CHMAP_TC,		/* top */
 		0 /* terminator */
 	};
-	static unsigned int uac2_maps[] = {
+	static const unsigned int uac2_maps[] = {
 		SNDRV_CHMAP_FL,		/* front left */
 		SNDRV_CHMAP_FR,		/* front right */
 		SNDRV_CHMAP_FC,		/* front center */
@@ -300,9 +300,12 @@ static struct snd_pcm_chmap_elem *convert_chmap(int channels, unsigned int bits,
 	c = 0;
 
 	if (bits) {
-		for (; bits && *maps; maps++, bits >>= 1)
+		for (; bits && *maps; maps++, bits >>= 1) {
 			if (bits & 1)
 				chmap->map[c++] = *maps;
+			if (c == chmap->channels)
+				break;
+		}
 	} else {
 		/* If we're missing wChannelConfig, then guess something
 		    to make sure the channel map is not skipped entirely */
@@ -495,6 +498,10 @@ static int __snd_usb_add_audio_stream(struct snd_usb_audio *chip,
 			return 0;
 		}
 	}
+
+	if (chip->card->registered)
+		chip->need_delayed_register = true;
+
 	/* look for an empty stream */
 	list_for_each_entry(as, &chip->pcm_list, list) {
 		if (as->fmt_type != fp->fmt_type)
@@ -1089,6 +1096,7 @@ static int __snd_usb_parse_audio_interface(struct snd_usb_audio *chip,
 	int i, altno, err, stream;
 	struct audioformat *fp = NULL;
 	struct snd_usb_power_domain *pd = NULL;
+	bool set_iface_first;
 	int num, protocol;
 
 	dev = chip->dev;
@@ -1102,7 +1110,7 @@ static int __snd_usb_parse_audio_interface(struct snd_usb_audio *chip,
 	 * Dallas DS4201 workaround: It presents 5 altsettings, but the last
 	 * one misses syncpipe, and does not produce any sound.
 	 */
-	if (chip->usb_id == USB_ID(0x04fa, 0x4201))
+	if (chip->usb_id == USB_ID(0x04fa, 0x4201) && num >= 4)
 		num = 4;
 
 	for (i = 0; i < num; i++) {
@@ -1143,9 +1151,8 @@ static int __snd_usb_parse_audio_interface(struct snd_usb_audio *chip,
 			dev_dbg(&dev->dev, "%u:%d: unknown interface protocol %#02x, assuming v1\n",
 				iface_no, altno, protocol);
 			protocol = UAC_VERSION_1;
-			/* fall through */
+			fallthrough;
 		case UAC_VERSION_1:
-			/* fall through */
 		case UAC_VERSION_2: {
 			int bm_quirk = 0;
 
@@ -1191,6 +1198,8 @@ static int __snd_usb_parse_audio_interface(struct snd_usb_audio *chip,
 			continue;
 		}
 
+		snd_usb_audioformat_set_sync_ep(chip, fp);
+
 		dev_dbg(&dev->dev, "%u:%d: add audio endpoint %#x\n", iface_no, altno, fp->endpoint);
 		if (protocol == UAC_VERSION_3)
 			err = snd_usb_add_audio_stream_v3(chip, stream, fp, pd);
@@ -1202,10 +1211,35 @@ static int __snd_usb_parse_audio_interface(struct snd_usb_audio *chip,
 			kfree(pd);
 			return err;
 		}
+
+		/* add endpoints */
+		err = snd_usb_add_endpoint(chip, fp->endpoint,
+					   SND_USB_ENDPOINT_TYPE_DATA);
+		if (err < 0)
+			return err;
+
+		if (fp->sync_ep) {
+			err = snd_usb_add_endpoint(chip, fp->sync_ep,
+						   fp->implicit_fb ?
+						   SND_USB_ENDPOINT_TYPE_DATA :
+						   SND_USB_ENDPOINT_TYPE_SYNC);
+			if (err < 0)
+				return err;
+		}
+
+		set_iface_first = false;
+		if (protocol == UAC_VERSION_1 ||
+		    (chip->quirk_flags & QUIRK_FLAG_SET_IFACE_FIRST))
+			set_iface_first = true;
+
 		/* try to set the interface... */
-		usb_set_interface(chip->dev, iface_no, altno);
-		snd_usb_init_pitch(chip, iface_no, alts, fp);
-		snd_usb_init_sample_rate(chip, iface_no, alts, fp, fp->rate_max);
+		usb_set_interface(chip->dev, iface_no, 0);
+		if (set_iface_first)
+			usb_set_interface(chip->dev, iface_no, altno);
+		snd_usb_init_pitch(chip, fp);
+		snd_usb_init_sample_rate(chip, fp, fp->rate_max);
+		if (!set_iface_first)
+			usb_set_interface(chip->dev, iface_no, altno);
 	}
 	return 0;
 }

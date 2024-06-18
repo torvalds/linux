@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Samsung's Exynos4412 based M0 (GT-I9300) board device tree source
+ *
+ * Copyright (c) 2013 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ */
+
+/dts-v1/;
+#include "exynos4412-galaxy-s3.dtsi"
+
+/ {
+	model = "Samsung Galaxy S3 (GT-I9300) based on Exynos4412";
+	compatible = "samsung,i9300", "samsung,midas", "samsung,exynos4412", "samsung,exynos4";
+	chassis-type = "handset";
+
+	/* bootargs are passed in by bootloader */
+
+	memory@40000000 {
+		device_type = "memory";
+		reg = <0x40000000 0x3fc00000>;
+	};
+};
+
+&sound {
+	fm-sel-gpios = <&gpl0 3 GPIO_ACTIVE_HIGH>;
+};

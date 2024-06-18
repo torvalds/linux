@@ -14,12 +14,13 @@
 /*
  * Most if the context management is out of line
  */
+#define init_new_context init_new_context
 extern int init_new_context(struct task_struct *tsk, struct mm_struct *mm);
+#define destroy_context destroy_context
 extern void destroy_context(struct mm_struct *mm);
 #ifdef CONFIG_SPAPR_TCE_IOMMU
 struct mm_iommu_table_group_mem_t;
 
-extern int isolate_lru_page(struct page *page);	/* from internal.h */
 extern bool mm_iommu_preregistered(struct mm_struct *mm);
 extern long mm_iommu_new(struct mm_struct *mm,
 		unsigned long ua, unsigned long entries,
@@ -30,18 +31,12 @@ extern long mm_iommu_newdev(struct mm_struct *mm, unsigned long ua,
 extern long mm_iommu_put(struct mm_struct *mm,
 		struct mm_iommu_table_group_mem_t *mem);
 extern void mm_iommu_init(struct mm_struct *mm);
-extern void mm_iommu_cleanup(struct mm_struct *mm);
 extern struct mm_iommu_table_group_mem_t *mm_iommu_lookup(struct mm_struct *mm,
 		unsigned long ua, unsigned long size);
-extern struct mm_iommu_table_group_mem_t *mm_iommu_lookup_rm(
-		struct mm_struct *mm, unsigned long ua, unsigned long size);
 extern struct mm_iommu_table_group_mem_t *mm_iommu_get(struct mm_struct *mm,
 		unsigned long ua, unsigned long entries);
 extern long mm_iommu_ua_to_hpa(struct mm_iommu_table_group_mem_t *mem,
 		unsigned long ua, unsigned int pageshift, unsigned long *hpa);
-extern long mm_iommu_ua_to_hpa_rm(struct mm_iommu_table_group_mem_t *mem,
-		unsigned long ua, unsigned int pageshift, unsigned long *hpa);
-extern void mm_iommu_ua_mark_dirty_rm(struct mm_struct *mm, unsigned long ua);
 extern bool mm_iommu_is_devmem(struct mm_struct *mm, unsigned long hpa,
 		unsigned int pageshift, unsigned long *size);
 extern long mm_iommu_mapped_inc(struct mm_iommu_table_group_mem_t *mem);
@@ -55,7 +50,6 @@ static inline bool mm_iommu_is_devmem(struct mm_struct *mm, unsigned long hpa,
 static inline void mm_iommu_init(struct mm_struct *mm) { }
 #endif
 extern void switch_slb(struct task_struct *tsk, struct mm_struct *mm);
-extern void set_context(unsigned long id, pgd_t *pgd);
 
 #ifdef CONFIG_PPC_BOOK3S_64
 extern void radix__switch_mmu_context(struct mm_struct *prev,
@@ -70,10 +64,11 @@ static inline void switch_mmu_context(struct mm_struct *prev,
 }
 
 extern int hash__alloc_context_id(void);
-extern void hash__reserve_context_id(int id);
+void __init hash__reserve_context_id(int id);
 extern void __destroy_context(int context_id);
 static inline void mmu_context_init(void) { }
 
+#ifdef CONFIG_PPC_64S_HASH_MMU
 static inline int alloc_extended_context(struct mm_struct *mm,
 					 unsigned long ea)
 {
@@ -99,6 +94,7 @@ static inline bool need_extra_context(struct mm_struct *mm, unsigned long ea)
 		return true;
 	return false;
 }
+#endif
 
 #else
 extern void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
@@ -120,13 +116,6 @@ static inline bool need_extra_context(struct mm_struct *mm, unsigned long ea)
 }
 #endif
 
-#if defined(CONFIG_KVM_BOOK3S_HV_POSSIBLE) && defined(CONFIG_PPC_RADIX_MMU)
-extern void radix_kvm_prefetch_workaround(struct mm_struct *mm);
-#else
-static inline void radix_kvm_prefetch_workaround(struct mm_struct *mm) { }
-#endif
-
-extern void switch_cop(struct mm_struct *next);
 extern int use_cop(unsigned long acop, struct mm_struct *mm);
 extern void drop_cop(unsigned long acop, struct mm_struct *mm);
 
@@ -138,6 +127,7 @@ static inline void inc_mm_active_cpus(struct mm_struct *mm)
 
 static inline void dec_mm_active_cpus(struct mm_struct *mm)
 {
+	VM_WARN_ON_ONCE(atomic_read(&mm->context.active_cpus) <= 0);
 	atomic_dec(&mm->context.active_cpus);
 }
 
@@ -162,8 +152,8 @@ static inline void mm_context_remove_copro(struct mm_struct *mm)
 	 * nMMU and/or PSL need to be cleaned up.
 	 *
 	 * Both the 'copros' and 'active_cpus' counts are looked at in
-	 * flush_all_mm() to determine the scope (local/global) of the
-	 * TLBIs, so we need to flush first before decrementing
+	 * radix__flush_all_mm() to determine the scope (local/global)
+	 * of the TLBIs, so we need to flush first before decrementing
 	 * 'copros'. If this API is used by several callers for the
 	 * same context, it can lead to over-flushing. It's hopefully
 	 * not common enough to be a problem.
@@ -175,7 +165,7 @@ static inline void mm_context_remove_copro(struct mm_struct *mm)
 	 * in-between.
 	 */
 	if (radix_enabled()) {
-		flush_all_mm(mm);
+		radix__flush_all_mm(mm);
 
 		c = atomic_dec_if_positive(&mm->context.copros);
 		/* Detect imbalance between add and remove */
@@ -185,6 +175,34 @@ static inline void mm_context_remove_copro(struct mm_struct *mm)
 			dec_mm_active_cpus(mm);
 	}
 }
+
+/*
+ * vas_windows counter shows number of open windows in the mm
+ * context. During context switch, use this counter to clear the
+ * foreign real address mapping (CP_ABORT) for the thread / process
+ * that intend to use COPY/PASTE. When a process closes all windows,
+ * disable CP_ABORT which is expensive to run.
+ *
+ * For user context, register a copro so that TLBIs are seen by the
+ * nest MMU. mm_context_add/remove_vas_window() are used only for user
+ * space windows.
+ */
+static inline void mm_context_add_vas_window(struct mm_struct *mm)
+{
+	atomic_inc(&mm->context.vas_windows);
+	mm_context_add_copro(mm);
+}
+
+static inline void mm_context_remove_vas_window(struct mm_struct *mm)
+{
+	int v;
+
+	mm_context_remove_copro(mm);
+	v = atomic_dec_if_positive(&mm->context.vas_windows);
+
+	/* Detect imbalance between add and remove */
+	WARN_ON(v < 0);
+}
 #else
 static inline void inc_mm_active_cpus(struct mm_struct *mm) { }
 static inline void dec_mm_active_cpus(struct mm_struct *mm) { }
@@ -192,6 +210,18 @@ static inline void mm_context_add_copro(struct mm_struct *mm) { }
 static inline void mm_context_remove_copro(struct mm_struct *mm) { }
 #endif
 
+#if defined(CONFIG_KVM_BOOK3S_HV_POSSIBLE) && defined(CONFIG_PPC_RADIX_MMU)
+void do_h_rpt_invalidate_prt(unsigned long pid, unsigned long lpid,
+			     unsigned long type, unsigned long pg_sizes,
+			     unsigned long start, unsigned long end);
+#else
+static inline void do_h_rpt_invalidate_prt(unsigned long pid,
+					   unsigned long lpid,
+					   unsigned long type,
+					   unsigned long pg_sizes,
+					   unsigned long start,
+					   unsigned long end) { }
+#endif
 
 extern void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 			       struct task_struct *tsk);
@@ -207,40 +237,36 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 }
 #define switch_mm_irqs_off switch_mm_irqs_off
 
-
-#define deactivate_mm(tsk,mm)	do { } while (0)
-
 /*
  * After we have set current->mm to a new value, this activates
  * the context for the new mm so we see the new mappings.
  */
+#define activate_mm activate_mm
 static inline void activate_mm(struct mm_struct *prev, struct mm_struct *next)
 {
-	switch_mm(prev, next, current);
+	switch_mm_irqs_off(prev, next, current);
 }
 
 /* We don't currently use enter_lazy_tlb() for anything */
+#ifdef CONFIG_PPC_BOOK3E_64
+#define enter_lazy_tlb enter_lazy_tlb
 static inline void enter_lazy_tlb(struct mm_struct *mm,
 				  struct task_struct *tsk)
 {
 	/* 64-bit Book3E keeps track of current PGD in the PACA */
-#ifdef CONFIG_PPC_BOOK3E_64
 	get_paca()->pgd = NULL;
-#endif
 }
+#endif
 
 extern void arch_exit_mmap(struct mm_struct *mm);
 
 static inline void arch_unmap(struct mm_struct *mm,
 			      unsigned long start, unsigned long end)
 {
-	if (start <= mm->context.vdso_base && mm->context.vdso_base < end)
-		mm->context.vdso_base = 0;
-}
+	unsigned long vdso_base = (unsigned long)mm->context.vdso;
 
-static inline void arch_bprm_mm_init(struct mm_struct *mm,
-				     struct vm_area_struct *vma)
-{
+	if (start <= vdso_base && vdso_base < end)
+		mm->context.vdso = NULL;
 }
 
 #ifdef CONFIG_PPC_MEM_KEYS
@@ -256,12 +282,9 @@ static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
 }
 
 #define pkey_mm_init(mm)
-#define thread_pkey_regs_save(thread)
-#define thread_pkey_regs_restore(new_thread, old_thread)
-#define thread_pkey_regs_init(thread)
 #define arch_dup_pkeys(oldmm, mm)
 
-static inline u64 pte_to_hpte_pkey_bits(u64 pteflags)
+static inline u64 pte_to_hpte_pkey_bits(u64 pteflags, unsigned long flags)
 {
 	return 0x0UL;
 }
@@ -274,6 +297,8 @@ static inline int arch_dup_mmap(struct mm_struct *oldmm,
 	arch_dup_pkeys(oldmm, mm);
 	return 0;
 }
+
+#include <asm-generic/mmu_context.h>
 
 #endif /* __KERNEL__ */
 #endif /* __ASM_POWERPC_MMU_CONTEXT_H */

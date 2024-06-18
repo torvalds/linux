@@ -1,0 +1,45 @@
+What:		/sys/bus/coreboot
+Date:		August 2022
+Contact:	Jack Rosenthal <jrosenth@chromium.org>
+Description:
+		The coreboot bus provides a variety of virtual devices used to
+		access data structures created by the Coreboot BIOS.
+
+What:		/sys/bus/coreboot/devices/cbmem-<id>
+Date:		August 2022
+Contact:	Jack Rosenthal <jrosenth@chromium.org>
+Description:
+		CBMEM is a downwards-growing memory region created by Coreboot,
+		and contains tagged data structures to be shared with payloads
+		in the boot process and the OS.  Each CBMEM entry is given a
+		directory in /sys/bus/coreboot/devices based on its id.
+		A list of ids known to Coreboot can be found in the coreboot
+		source tree at
+		``src/commonlib/bsd/include/commonlib/bsd/cbmem_id.h``.
+
+What:		/sys/bus/coreboot/devices/cbmem-<id>/address
+Date:		August 2022
+Contact:	Jack Rosenthal <jrosenth@chromium.org>
+Description:
+		This is the physical memory address that the CBMEM entry's data
+		begins at, in hexadecimal (e.g., ``0x76ffe000``).
+
+What:		/sys/bus/coreboot/devices/cbmem-<id>/size
+Date:		August 2022
+Contact:	Jack Rosenthal <jrosenth@chromium.org>
+Description:
+		This is the size of the CBMEM entry's data, in hexadecimal
+		(e.g., ``0x1234``).
+
+What:		/sys/bus/coreboot/devices/cbmem-<id>/mem
+Date:		August 2022
+Contact:	Jack Rosenthal <jrosenth@chromium.org>
+Description:
+		A file exposing read/write access to the entry's data.  Note
+		that this file does not support mmap(), as coreboot
+		does not guarantee that the data will be page-aligned.
+
+		The mode of this file is 0600.  While there shouldn't be
+		anything security-sensitive contained in CBMEM, read access
+		requires root privileges given this is exposing a small subset
+		of physical memory.

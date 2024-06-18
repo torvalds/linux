@@ -91,7 +91,7 @@ static int diag210_to_senseid(struct senseid *senseid, struct diag210 *diag)
 }
 
 /**
- * diag_get_dev_info - retrieve device information via diag 0x210
+ * diag210_get_dev_info - retrieve device information via diag 0x210
  * @cdev: ccw device
  *
  * Returns zero on success, non-zero otherwise.
@@ -210,7 +210,7 @@ void ccw_device_sense_id_start(struct ccw_device *cdev)
 	snsid_init(cdev);
 	/* Channel program setup. */
 	cp->cmd_code	= CCW_CMD_SENSE_ID;
-	cp->cda		= (u32) (addr_t) &cdev->private->dma_area->senseid;
+	cp->cda		= virt_to_dma32(&cdev->private->dma_area->senseid);
 	cp->count	= sizeof(struct senseid);
 	cp->flags	= CCW_FLAG_SLI;
 	/* Request setup. */

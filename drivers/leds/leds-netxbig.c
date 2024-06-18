@@ -12,16 +12,17 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/platform_device.h>
-#include <linux/gpio.h>
-#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/leds.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
 
 struct netxbig_gpio_ext {
-	unsigned int	*addr;
+	struct gpio_desc **addr;
 	int		num_addr;
-	unsigned int	*data;
+	struct gpio_desc **data;
 	int		num_data;
-	unsigned int	enable;
+	struct gpio_desc *enable;
 };
 
 enum netxbig_led_mode {
@@ -69,7 +70,7 @@ static void gpio_ext_set_addr(struct netxbig_gpio_ext *gpio_ext, int addr)
 	int pin;
 
 	for (pin = 0; pin < gpio_ext->num_addr; pin++)
-		gpio_set_value(gpio_ext->addr[pin], (addr >> pin) & 1);
+		gpiod_set_value(gpio_ext->addr[pin], (addr >> pin) & 1);
 }
 
 static void gpio_ext_set_data(struct netxbig_gpio_ext *gpio_ext, int data)
@@ -77,14 +78,14 @@ static void gpio_ext_set_data(struct netxbig_gpio_ext *gpio_ext, int data)
 	int pin;
 
 	for (pin = 0; pin < gpio_ext->num_data; pin++)
-		gpio_set_value(gpio_ext->data[pin], (data >> pin) & 1);
+		gpiod_set_value(gpio_ext->data[pin], (data >> pin) & 1);
 }
 
 static void gpio_ext_enable_select(struct netxbig_gpio_ext *gpio_ext)
 {
 	/* Enable select is done on the raising edge. */
-	gpio_set_value(gpio_ext->enable, 0);
-	gpio_set_value(gpio_ext->enable, 1);
+	gpiod_set_value(gpio_ext->enable, 0);
+	gpiod_set_value(gpio_ext->enable, 1);
 }
 
 static void gpio_ext_set_value(struct netxbig_gpio_ext *gpio_ext,
@@ -97,41 +98,6 @@ static void gpio_ext_set_value(struct netxbig_gpio_ext *gpio_ext,
 	gpio_ext_set_data(gpio_ext, value);
 	gpio_ext_enable_select(gpio_ext);
 	spin_unlock_irqrestore(&gpio_ext_lock, flags);
-}
-
-static int gpio_ext_init(struct platform_device *pdev,
-			 struct netxbig_gpio_ext *gpio_ext)
-{
-	int err;
-	int i;
-
-	if (unlikely(!gpio_ext))
-		return -EINVAL;
-
-	/* Configure address GPIOs. */
-	for (i = 0; i < gpio_ext->num_addr; i++) {
-		err = devm_gpio_request_one(&pdev->dev, gpio_ext->addr[i],
-					    GPIOF_OUT_INIT_LOW,
-					    "GPIO extension addr");
-		if (err)
-			return err;
-	}
-	/* Configure data GPIOs. */
-	for (i = 0; i < gpio_ext->num_data; i++) {
-		err = devm_gpio_request_one(&pdev->dev, gpio_ext->data[i],
-					    GPIOF_OUT_INIT_LOW,
-					    "GPIO extension data");
-		if (err)
-			return err;
-	}
-	/* Configure "enable select" GPIO. */
-	err = devm_gpio_request_one(&pdev->dev, gpio_ext->enable,
-				    GPIOF_OUT_INIT_LOW,
-				    "GPIO extension enable");
-	if (err)
-		return err;
-
-	return 0;
 }
 
 /*
@@ -238,9 +204,9 @@ static void netxbig_led_set(struct led_classdev *led_cdev,
 	spin_unlock_irqrestore(&led_dat->lock, flags);
 }
 
-static ssize_t netxbig_led_sata_store(struct device *dev,
-				      struct device_attribute *attr,
-				      const char *buff, size_t count)
+static ssize_t sata_store(struct device *dev,
+			  struct device_attribute *attr,
+			  const char *buff, size_t count)
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct netxbig_led_data *led_dat =
@@ -289,8 +255,8 @@ exit_unlock:
 	return ret;
 }
 
-static ssize_t netxbig_led_sata_show(struct device *dev,
-				     struct device_attribute *attr, char *buf)
+static ssize_t sata_show(struct device *dev,
+			 struct device_attribute *attr, char *buf)
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct netxbig_led_data *led_dat =
@@ -299,7 +265,7 @@ static ssize_t netxbig_led_sata_show(struct device *dev,
 	return sprintf(buf, "%d\n", led_dat->sata);
 }
 
-static DEVICE_ATTR(sata, 0644, netxbig_led_sata_show, netxbig_led_sata_store);
+static DEVICE_ATTR_RW(sata);
 
 static struct attribute *netxbig_led_attrs[] = {
 	&dev_attr_sata.attr,
@@ -347,15 +313,47 @@ static int create_netxbig_led(struct platform_device *pdev,
 	return devm_led_classdev_register(&pdev->dev, &led_dat->cdev);
 }
 
-static int gpio_ext_get_of_pdata(struct device *dev, struct device_node *np,
-				 struct netxbig_gpio_ext *gpio_ext)
+/**
+ * netxbig_gpio_ext_remove() - Clean up GPIO extension data
+ * @data: managed resource data to clean up
+ *
+ * Since we pick GPIO descriptors from another device than the device our
+ * driver is probing to, we need to register a specific callback to free
+ * these up using managed resources.
+ */
+static void netxbig_gpio_ext_remove(void *data)
 {
-	int *addr, *data;
+	struct netxbig_gpio_ext *gpio_ext = data;
+	int i;
+
+	for (i = 0; i < gpio_ext->num_addr; i++)
+		gpiod_put(gpio_ext->addr[i]);
+	for (i = 0; i < gpio_ext->num_data; i++)
+		gpiod_put(gpio_ext->data[i]);
+	gpiod_put(gpio_ext->enable);
+}
+
+/**
+ * netxbig_gpio_ext_get() - Obtain GPIO extension device data
+ * @dev: main LED device
+ * @gpio_ext_dev: the GPIO extension device
+ * @gpio_ext: the data structure holding the GPIO extension data
+ *
+ * This function walks the subdevice that only contain GPIO line
+ * handles in the device tree and obtains the GPIO descriptors from that
+ * device.
+ */
+static int netxbig_gpio_ext_get(struct device *dev,
+				struct device *gpio_ext_dev,
+				struct netxbig_gpio_ext *gpio_ext)
+{
+	struct gpio_desc **addr, **data;
 	int num_addr, num_data;
+	struct gpio_desc *gpiod;
 	int ret;
 	int i;
 
-	ret = of_gpio_named_count(np, "addr-gpios");
+	ret = gpiod_count(gpio_ext_dev, "addr");
 	if (ret < 0) {
 		dev_err(dev,
 			"Failed to count GPIOs in DT property addr-gpios\n");
@@ -366,16 +364,25 @@ static int gpio_ext_get_of_pdata(struct device *dev, struct device_node *np,
 	if (!addr)
 		return -ENOMEM;
 
+	/*
+	 * We cannot use devm_ managed resources with these GPIO descriptors
+	 * since they are associated with the "GPIO extension device" which
+	 * does not probe any driver. The device tree parser will however
+	 * populate a platform device for it so we can anyway obtain the
+	 * GPIO descriptors from the device.
+	 */
 	for (i = 0; i < num_addr; i++) {
-		ret = of_get_named_gpio(np, "addr-gpios", i);
-		if (ret < 0)
-			return ret;
-		addr[i] = ret;
+		gpiod = gpiod_get_index(gpio_ext_dev, "addr", i,
+					GPIOD_OUT_LOW);
+		if (IS_ERR(gpiod))
+			return PTR_ERR(gpiod);
+		gpiod_set_consumer_name(gpiod, "GPIO extension addr");
+		addr[i] = gpiod;
 	}
 	gpio_ext->addr = addr;
 	gpio_ext->num_addr = num_addr;
 
-	ret = of_gpio_named_count(np, "data-gpios");
+	ret = gpiod_count(gpio_ext_dev, "data");
 	if (ret < 0) {
 		dev_err(dev,
 			"Failed to count GPIOs in DT property data-gpios\n");
@@ -387,30 +394,35 @@ static int gpio_ext_get_of_pdata(struct device *dev, struct device_node *np,
 		return -ENOMEM;
 
 	for (i = 0; i < num_data; i++) {
-		ret = of_get_named_gpio(np, "data-gpios", i);
-		if (ret < 0)
-			return ret;
-		data[i] = ret;
+		gpiod = gpiod_get_index(gpio_ext_dev, "data", i,
+					GPIOD_OUT_LOW);
+		if (IS_ERR(gpiod))
+			return PTR_ERR(gpiod);
+		gpiod_set_consumer_name(gpiod, "GPIO extension data");
+		data[i] = gpiod;
 	}
 	gpio_ext->data = data;
 	gpio_ext->num_data = num_data;
 
-	ret = of_get_named_gpio(np, "enable-gpio", 0);
-	if (ret < 0) {
+	gpiod = gpiod_get(gpio_ext_dev, "enable", GPIOD_OUT_LOW);
+	if (IS_ERR(gpiod)) {
 		dev_err(dev,
 			"Failed to get GPIO from DT property enable-gpio\n");
-		return ret;
+		return PTR_ERR(gpiod);
 	}
-	gpio_ext->enable = ret;
+	gpiod_set_consumer_name(gpiod, "GPIO extension enable");
+	gpio_ext->enable = gpiod;
 
-	return 0;
+	return devm_add_action_or_reset(dev, netxbig_gpio_ext_remove, gpio_ext);
 }
 
 static int netxbig_leds_get_of_pdata(struct device *dev,
 				     struct netxbig_led_platform_data *pdata)
 {
-	struct device_node *np = dev->of_node;
+	struct device_node *np = dev_of_node(dev);
 	struct device_node *gpio_ext_np;
+	struct platform_device *gpio_ext_pdev;
+	struct device *gpio_ext_dev;
 	struct device_node *child;
 	struct netxbig_gpio_ext *gpio_ext;
 	struct netxbig_led_timer *timers;
@@ -426,35 +438,49 @@ static int netxbig_leds_get_of_pdata(struct device *dev,
 		dev_err(dev, "Failed to get DT handle gpio-ext\n");
 		return -EINVAL;
 	}
+	gpio_ext_pdev = of_find_device_by_node(gpio_ext_np);
+	if (!gpio_ext_pdev) {
+		dev_err(dev, "Failed to find platform device for gpio-ext\n");
+		return -ENODEV;
+	}
+	gpio_ext_dev = &gpio_ext_pdev->dev;
 
 	gpio_ext = devm_kzalloc(dev, sizeof(*gpio_ext), GFP_KERNEL);
 	if (!gpio_ext) {
 		of_node_put(gpio_ext_np);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto put_device;
 	}
-	ret = gpio_ext_get_of_pdata(dev, gpio_ext_np, gpio_ext);
+	ret = netxbig_gpio_ext_get(dev, gpio_ext_dev, gpio_ext);
 	of_node_put(gpio_ext_np);
 	if (ret)
-		return ret;
+		goto put_device;
 	pdata->gpio_ext = gpio_ext;
 
 	/* Timers (optional) */
 	ret = of_property_count_u32_elems(np, "timers");
 	if (ret > 0) {
-		if (ret % 3)
-			return -EINVAL;
+		if (ret % 3) {
+			ret = -EINVAL;
+			goto put_device;
+		}
+
 		num_timers = ret / 3;
 		timers = devm_kcalloc(dev, num_timers, sizeof(*timers),
 				      GFP_KERNEL);
-		if (!timers)
-			return -ENOMEM;
+		if (!timers) {
+			ret = -ENOMEM;
+			goto put_device;
+		}
 		for (i = 0; i < num_timers; i++) {
 			u32 tmp;
 
 			of_property_read_u32_index(np, "timers", 3 * i,
 						   &timers[i].mode);
-			if (timers[i].mode >= NETXBIG_LED_MODE_NUM)
-				return -EINVAL;
+			if (timers[i].mode >= NETXBIG_LED_MODE_NUM) {
+				ret = -EINVAL;
+				goto put_device;
+			}
 			of_property_read_u32_index(np, "timers",
 						   3 * i + 1, &tmp);
 			timers[i].delay_on = tmp;
@@ -467,18 +493,21 @@ static int netxbig_leds_get_of_pdata(struct device *dev,
 	}
 
 	/* LEDs */
-	num_leds = of_get_child_count(np);
+	num_leds = of_get_available_child_count(np);
 	if (!num_leds) {
 		dev_err(dev, "No LED subnodes found in DT\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto put_device;
 	}
 
 	leds = devm_kcalloc(dev, num_leds, sizeof(*leds), GFP_KERNEL);
-	if (!leds)
-		return -ENOMEM;
+	if (!leds) {
+		ret = -ENOMEM;
+		goto put_device;
+	}
 
 	led = leds;
-	for_each_child_of_node(np, child) {
+	for_each_available_child_of_node(np, child) {
 		const char *string;
 		int *mode_val;
 		int num_modes;
@@ -556,6 +585,8 @@ static int netxbig_leds_get_of_pdata(struct device *dev,
 
 err_node_put:
 	of_node_put(child);
+put_device:
+	put_device(gpio_ext_dev);
 	return ret;
 }
 
@@ -584,10 +615,6 @@ static int netxbig_led_probe(struct platform_device *pdev)
 				 GFP_KERNEL);
 	if (!leds_data)
 		return -ENOMEM;
-
-	ret = gpio_ext_init(pdev, pdata->gpio_ext);
-	if (ret < 0)
-		return ret;
 
 	for (i = 0; i < pdata->num_leds; i++) {
 		ret = create_netxbig_led(pdev, pdata,

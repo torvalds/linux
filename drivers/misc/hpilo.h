@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * linux/drivers/char/hpilo.h
  *
@@ -9,6 +9,9 @@
 #define __HPILO_H
 
 #define ILO_NAME "hpilo"
+
+/* iLO ASIC PCI revision id */
+#define PCI_REV_ID_NECHES	7
 
 /* max number of open channel control blocks per device, hw limited to 32 */
 #define MAX_CCB	       24
@@ -160,23 +163,23 @@ struct ccb_data {
 #define ILO_START_ALIGN	4096
 #define ILO_CACHE_SZ 	 128
 struct fifo {
-    u64 nrents;	/* user requested number of fifo entries */
-    u64 imask;  /* mask to extract valid fifo index */
-    u64 merge;	/*  O/C bits to merge in during enqueue operation */
-    u64 reset;	/* set to non-zero when the target device resets */
-    u8  pad_0[ILO_CACHE_SZ - (sizeof(u64) * 4)];
+	u64 nrents;	/* user requested number of fifo entries */
+	u64 imask;  /* mask to extract valid fifo index */
+	u64 merge;	/*  O/C bits to merge in during enqueue operation */
+	u64 reset;	/* set to non-zero when the target device resets */
+	u8  pad_0[ILO_CACHE_SZ - (sizeof(u64) * 4)];
 
-    u64 head;
-    u8  pad_1[ILO_CACHE_SZ - (sizeof(u64))];
+	u64 head;
+	u8  pad_1[ILO_CACHE_SZ - (sizeof(u64))];
 
-    u64 tail;
-    u8  pad_2[ILO_CACHE_SZ - (sizeof(u64))];
+	u64 tail;
+	u8  pad_2[ILO_CACHE_SZ - (sizeof(u64))];
 
-    u64 fifobar[1];
+	u64 fifobar[];
 };
 
 /* convert between struct fifo, and the fifobar, which is saved in the ccb */
-#define FIFOHANDLESIZE (sizeof(struct fifo) - sizeof(u64))
+#define FIFOHANDLESIZE (sizeof(struct fifo))
 #define FIFOBARTOHANDLE(_fifo) \
 	((struct fifo *)(((char *)(_fifo)) - FIFOHANDLESIZE))
 

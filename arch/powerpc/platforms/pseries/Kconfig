@@ -7,6 +7,7 @@ config PPC_PSERIES
 	select OF_DYNAMIC
 	select FORCE_PCI
 	select PCI_MSI
+	select GENERIC_ALLOCATOR
 	select PPC_XICS
 	select PPC_XIVE_SPAPR
 	select PPC_ICP_NATIVE
@@ -17,23 +18,36 @@ config PPC_PSERIES
 	select PPC_RTAS_DAEMON
 	select RTAS_ERROR_LOGGING
 	select PPC_UDBG_16550
-	select PPC_NATIVE
 	select PPC_DOORBELL
 	select HOTPLUG_CPU
-	select ARCH_RANDOM
-	select PPC_DOORBELL
 	select FORCE_SMP
 	select SWIOTLB
+	select ARCH_SUPPORTS_PER_VMA_LOCK
 	default y
 
+config PARAVIRT
+	bool
+
+config PARAVIRT_SPINLOCKS
+	bool
+
+config PARAVIRT_TIME_ACCOUNTING
+	select PARAVIRT
+	bool
+
 config PPC_SPLPAR
-	depends on PPC_PSERIES
 	bool "Support for shared-processor logical partitions"
+	depends on PPC_PSERIES
+	select PARAVIRT_SPINLOCKS if PPC_QUEUED_SPINLOCKS
+	select PARAVIRT_TIME_ACCOUNTING if VIRT_CPU_ACCOUNTING_GEN
+	default y
 	help
 	  Enabling this option will make the kernel run more efficiently
 	  on logically-partitioned pSeries systems which use shared
 	  processors, that is, which share physical processors between
 	  two or more partitions.
+
+	  Say Y if you are unsure.
 
 config DTL
 	bool "Dispatch Trace Log"
@@ -54,10 +68,6 @@ config PSERIES_ENERGY
 	  on supported PSERIES platforms.
 	  Provides: /sys/devices/system/cpu/pseries_(de)activation_hint_list
 	  and /sys/devices/system/cpu/cpuN/pseries_(de)activation_hint
-
-config SCANLOG
-	tristate "Scanlog dump interface"
-	depends on RTAS_PROC && PPC_PSERIES
 
 config IO_EVENT_IRQ
 	bool "IO Event Interrupt support"
@@ -108,6 +118,7 @@ config PPC_SMLPAR
 config CMM
 	tristate "Collaborative memory management"
 	depends on PPC_SMLPAR
+	select MEMORY_BALLOON
 	default y
 	help
 	  Select this option, if you want to enable the kernel interface
@@ -140,6 +151,25 @@ config IBMEBUS
 	help
 	  Bus device driver for GX bus based adapters.
 
+config PSERIES_PLPKS
+	depends on PPC_PSERIES
+	select NLS
+	bool
+	# PowerVM provides an isolated Platform Keystore (PKS) storage
+	# allocation for each LPAR with individually managed access
+	# controls to store sensitive information securely. It can be
+	# used to store asymmetric public keys or secrets as required
+	# by different usecases.
+	#
+	# This option is selected by in-kernel consumers that require
+	# access to the PKS.
+
+config PSERIES_PLPKS_SED
+	depends on PPC_PSERIES
+	bool
+	# This option is selected by in-kernel consumers that require
+	# access to the SED PKS keystore.
+
 config PAPR_SCM
 	depends on PPC_PSERIES && MEMORY_HOTPLUG && LIBNVDIMM
 	tristate "Support for the PAPR Storage Class Memory interface"
@@ -152,6 +182,7 @@ config PPC_SVM
 	select SWIOTLB
 	select ARCH_HAS_MEM_ENCRYPT
 	select ARCH_HAS_FORCE_DMA_UNENCRYPTED
+	select ARCH_HAS_CC_PLATFORM
 	help
 	 There are certain POWER platforms which support secure guests using
 	 the Protected Execution Facility, with the help of an Ultravisor

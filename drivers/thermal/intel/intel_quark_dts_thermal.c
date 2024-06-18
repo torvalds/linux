@@ -64,9 +64,6 @@
 #include <asm/cpu_device_id.h>
 #include <asm/iosf_mbi.h>
 
-#define X86_FAMILY_QUARK	0x5
-#define X86_MODEL_QUARK_X1000	0x9
-
 /* DTS reset is programmed via QRK_MBI_UNIT_SOC */
 #define QRK_DTS_REG_OFFSET_RESET	0x34
 #define QRK_DTS_RESET_BIT		BIT(0)
@@ -87,6 +84,7 @@
 #define QRK_DTS_MASK_TP_THRES		0xFF
 #define QRK_DTS_SHIFT_TP		8
 #define QRK_DTS_ID_TP_CRITICAL		0
+#define QRK_DTS_ID_TP_HOT		1
 #define QRK_DTS_SAFE_TP_THRES		105
 
 /* Thermal Sensor Register Lock */
@@ -95,10 +93,6 @@
 
 /* Quark DTS has 2 trip points: hot & catastrophic */
 #define QRK_MAX_DTS_TRIPS	2
-/* If DTS not locked, all trip points are configurable */
-#define QRK_DTS_WR_MASK_SET	0x3
-/* If DTS locked, all trip points are not configurable */
-#define QRK_DTS_WR_MASK_CLR	0
 
 #define DEFAULT_POLL_DELAY	2000
 
@@ -106,7 +100,6 @@ struct soc_sensor_entry {
 	bool locked;
 	u32 store_ptps;
 	u32 store_dts_enable;
-	enum thermal_device_mode mode;
 	struct thermal_zone_device *tzone;
 };
 
@@ -122,7 +115,7 @@ static DEFINE_MUTEX(dts_update_mutex);
 static int soc_dts_enable(struct thermal_zone_device *tzd)
 {
 	u32 out;
-	struct soc_sensor_entry *aux_entry = tzd->devdata;
+	struct soc_sensor_entry *aux_entry = thermal_zone_device_priv(tzd);
 	int ret;
 
 	ret = iosf_mbi_read(QRK_MBI_UNIT_RMU, MBI_REG_READ,
@@ -130,10 +123,8 @@ static int soc_dts_enable(struct thermal_zone_device *tzd)
 	if (ret)
 		return ret;
 
-	if (out & QRK_DTS_ENABLE_BIT) {
-		aux_entry->mode = THERMAL_DEVICE_ENABLED;
+	if (out & QRK_DTS_ENABLE_BIT)
 		return 0;
-	}
 
 	if (!aux_entry->locked) {
 		out |= QRK_DTS_ENABLE_BIT;
@@ -141,10 +132,7 @@ static int soc_dts_enable(struct thermal_zone_device *tzd)
 				     QRK_DTS_REG_OFFSET_ENABLE, out);
 		if (ret)
 			return ret;
-
-		aux_entry->mode = THERMAL_DEVICE_ENABLED;
 	} else {
-		aux_entry->mode = THERMAL_DEVICE_DISABLED;
 		pr_info("DTS is locked. Cannot enable DTS\n");
 		ret = -EPERM;
 	}
@@ -155,7 +143,7 @@ static int soc_dts_enable(struct thermal_zone_device *tzd)
 static int soc_dts_disable(struct thermal_zone_device *tzd)
 {
 	u32 out;
-	struct soc_sensor_entry *aux_entry = tzd->devdata;
+	struct soc_sensor_entry *aux_entry = thermal_zone_device_priv(tzd);
 	int ret;
 
 	ret = iosf_mbi_read(QRK_MBI_UNIT_RMU, MBI_REG_READ,
@@ -163,10 +151,8 @@ static int soc_dts_disable(struct thermal_zone_device *tzd)
 	if (ret)
 		return ret;
 
-	if (!(out & QRK_DTS_ENABLE_BIT)) {
-		aux_entry->mode = THERMAL_DEVICE_DISABLED;
+	if (!(out & QRK_DTS_ENABLE_BIT))
 		return 0;
-	}
 
 	if (!aux_entry->locked) {
 		out &= ~QRK_DTS_ENABLE_BIT;
@@ -175,10 +161,7 @@ static int soc_dts_disable(struct thermal_zone_device *tzd)
 
 		if (ret)
 			return ret;
-
-		aux_entry->mode = THERMAL_DEVICE_DISABLED;
 	} else {
-		aux_entry->mode = THERMAL_DEVICE_ENABLED;
 		pr_info("DTS is locked. Cannot disable DTS\n");
 		ret = -EPERM;
 	}
@@ -186,9 +169,9 @@ static int soc_dts_disable(struct thermal_zone_device *tzd)
 	return ret;
 }
 
-static int _get_trip_temp(int trip, int *temp)
+static int get_trip_temp(int trip)
 {
-	int status;
+	int status, temp;
 	u32 out;
 
 	mutex_lock(&dts_update_mutex);
@@ -197,7 +180,7 @@ static int _get_trip_temp(int trip, int *temp)
 	mutex_unlock(&dts_update_mutex);
 
 	if (status)
-		return status;
+		return THERMAL_TEMP_INVALID;
 
 	/*
 	 * Thermal Sensor Programmable Trip Point Register has 8-bit
@@ -205,21 +188,10 @@ static int _get_trip_temp(int trip, int *temp)
 	 * thresholds. The threshold value is always offset by its
 	 * temperature base (50 degree Celsius).
 	 */
-	*temp = (out >> (trip * QRK_DTS_SHIFT_TP)) & QRK_DTS_MASK_TP_THRES;
-	*temp -= QRK_DTS_TEMP_BASE;
+	temp = (out >> (trip * QRK_DTS_SHIFT_TP)) & QRK_DTS_MASK_TP_THRES;
+	temp -= QRK_DTS_TEMP_BASE;
 
-	return 0;
-}
-
-static inline int sys_get_trip_temp(struct thermal_zone_device *tzd,
-				int trip, int *temp)
-{
-	return _get_trip_temp(trip, temp);
-}
-
-static inline int sys_get_crit_temp(struct thermal_zone_device *tzd, int *temp)
-{
-	return _get_trip_temp(QRK_DTS_ID_TP_CRITICAL, temp);
+	return temp;
 }
 
 static int update_trip_temp(struct soc_sensor_entry *aux_entry,
@@ -273,18 +245,7 @@ failed:
 static inline int sys_set_trip_temp(struct thermal_zone_device *tzd, int trip,
 				int temp)
 {
-	return update_trip_temp(tzd->devdata, trip, temp);
-}
-
-static int sys_get_trip_type(struct thermal_zone_device *thermal,
-		int trip, enum thermal_trip_type *type)
-{
-	if (trip)
-		*type = THERMAL_TRIP_HOT;
-	else
-		*type = THERMAL_TRIP_CRITICAL;
-
-	return 0;
+	return update_trip_temp(thermal_zone_device_priv(tzd), trip, temp);
 }
 
 static int sys_get_curr_temp(struct thermal_zone_device *tzd,
@@ -312,16 +273,8 @@ static int sys_get_curr_temp(struct thermal_zone_device *tzd,
 	return 0;
 }
 
-static int sys_get_mode(struct thermal_zone_device *tzd,
-				enum thermal_device_mode *mode)
-{
-	struct soc_sensor_entry *aux_entry = tzd->devdata;
-	*mode = aux_entry->mode;
-	return 0;
-}
-
-static int sys_set_mode(struct thermal_zone_device *tzd,
-				enum thermal_device_mode mode)
+static int sys_change_mode(struct thermal_zone_device *tzd,
+			   enum thermal_device_mode mode)
 {
 	int ret;
 
@@ -335,14 +288,10 @@ static int sys_set_mode(struct thermal_zone_device *tzd,
 	return ret;
 }
 
-static struct thermal_zone_device_ops tzone_ops = {
+static const struct thermal_zone_device_ops tzone_ops = {
 	.get_temp = sys_get_curr_temp,
-	.get_trip_temp = sys_get_trip_temp,
-	.get_trip_type = sys_get_trip_type,
 	.set_trip_temp = sys_set_trip_temp,
-	.get_crit_temp = sys_get_crit_temp,
-	.get_mode = sys_get_mode,
-	.set_mode = sys_set_mode,
+	.change_mode = sys_change_mode,
 };
 
 static void free_soc_dts(struct soc_sensor_entry *aux_entry)
@@ -366,10 +315,10 @@ static void free_soc_dts(struct soc_sensor_entry *aux_entry)
 
 static struct soc_sensor_entry *alloc_soc_dts(void)
 {
+	struct thermal_trip trips[QRK_MAX_DTS_TRIPS] = { 0 };
 	struct soc_sensor_entry *aux_entry;
 	int err;
 	u32 out;
-	int wr_mask;
 
 	aux_entry = kzalloc(sizeof(*aux_entry), GFP_KERNEL);
 	if (!aux_entry) {
@@ -383,13 +332,7 @@ static struct soc_sensor_entry *alloc_soc_dts(void)
 	if (err)
 		goto err_ret;
 
-	if (out & QRK_DTS_LOCK_BIT) {
-		aux_entry->locked = true;
-		wr_mask = QRK_DTS_WR_MASK_CLR;
-	} else {
-		aux_entry->locked = false;
-		wr_mask = QRK_DTS_WR_MASK_SET;
-	}
+	aux_entry->locked = !!(out & QRK_DTS_LOCK_BIT);
 
 	/* Store DTS default state if DTS registers are not locked */
 	if (!aux_entry->locked) {
@@ -406,20 +349,29 @@ static struct soc_sensor_entry *alloc_soc_dts(void)
 				    &aux_entry->store_ptps);
 		if (err)
 			goto err_ret;
+
+		trips[QRK_DTS_ID_TP_CRITICAL].flags |= THERMAL_TRIP_FLAG_RW_TEMP;
+		trips[QRK_DTS_ID_TP_HOT].flags |= THERMAL_TRIP_FLAG_RW_TEMP;
 	}
 
-	aux_entry->tzone = thermal_zone_device_register("quark_dts",
-			QRK_MAX_DTS_TRIPS,
-			wr_mask,
-			aux_entry, &tzone_ops, NULL, 0, polling_delay);
+	trips[QRK_DTS_ID_TP_CRITICAL].temperature = get_trip_temp(QRK_DTS_ID_TP_CRITICAL);
+	trips[QRK_DTS_ID_TP_CRITICAL].type = THERMAL_TRIP_CRITICAL;
+
+	trips[QRK_DTS_ID_TP_HOT].temperature = get_trip_temp(QRK_DTS_ID_TP_HOT);
+	trips[QRK_DTS_ID_TP_HOT].type = THERMAL_TRIP_HOT;
+
+	aux_entry->tzone = thermal_zone_device_register_with_trips("quark_dts",
+								   trips,
+								   QRK_MAX_DTS_TRIPS,
+								   aux_entry,
+								   &tzone_ops,
+								   NULL, 0, polling_delay);
 	if (IS_ERR(aux_entry->tzone)) {
 		err = PTR_ERR(aux_entry->tzone);
 		goto err_ret;
 	}
 
-	mutex_lock(&dts_update_mutex);
-	err = soc_dts_enable(aux_entry->tzone);
-	mutex_unlock(&dts_update_mutex);
+	err = thermal_zone_device_enable(aux_entry->tzone);
 	if (err)
 		goto err_aux_status;
 
@@ -433,29 +385,21 @@ err_ret:
 }
 
 static const struct x86_cpu_id qrk_thermal_ids[] __initconst  = {
-	{ X86_VENDOR_INTEL, X86_FAMILY_QUARK, X86_MODEL_QUARK_X1000 },
+	X86_MATCH_VENDOR_FAM_MODEL(INTEL, 5, INTEL_FAM5_QUARK_X1000, NULL),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, qrk_thermal_ids);
 
 static int __init intel_quark_thermal_init(void)
 {
-	int err = 0;
-
 	if (!x86_match_cpu(qrk_thermal_ids) || !iosf_mbi_available())
 		return -ENODEV;
 
 	soc_dts = alloc_soc_dts();
-	if (IS_ERR(soc_dts)) {
-		err = PTR_ERR(soc_dts);
-		goto err_free;
-	}
+	if (IS_ERR(soc_dts))
+		return PTR_ERR(soc_dts);
 
 	return 0;
-
-err_free:
-	free_soc_dts(soc_dts);
-	return err;
 }
 
 static void __exit intel_quark_thermal_exit(void)

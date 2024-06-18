@@ -18,7 +18,6 @@
 #include <linux/delay.h>
 #include <linux/rtc.h>
 #include <linux/slab.h>
-#include <linux/of_device.h>
 #include <linux/of.h>
 #include <linux/stmp_device.h>
 #include <linux/stmp3xxx_rtc_wdt.h>
@@ -107,6 +106,8 @@ static void stmp3xxx_wdt_register(struct platform_device *rtc_pdev)
 		wdt_pdev->dev.parent = &rtc_pdev->dev;
 		wdt_pdev->dev.platform_data = &wdt_pdata;
 		rc = platform_device_add(wdt_pdev);
+		if (rc)
+			platform_device_put(wdt_pdev);
 	}
 
 	if (rc)
@@ -230,17 +231,15 @@ static const struct rtc_class_ops stmp3xxx_rtc_ops = {
 	.set_alarm	= stmp3xxx_rtc_set_alarm,
 };
 
-static int stmp3xxx_rtc_remove(struct platform_device *pdev)
+static void stmp3xxx_rtc_remove(struct platform_device *pdev)
 {
 	struct stmp3xxx_rtc_data *rtc_data = platform_get_drvdata(pdev);
 
 	if (!rtc_data)
-		return 0;
+		return;
 
 	writel(STMP3XXX_RTC_CTRL_ALARM_IRQ_EN,
 		rtc_data->io + STMP3XXX_RTC_CTRL + STMP_OFFSET_REG_CLR);
-
-	return 0;
 }
 
 static int stmp3xxx_rtc_probe(struct platform_device *pdev)
@@ -331,7 +330,7 @@ static int stmp3xxx_rtc_probe(struct platform_device *pdev)
 	default:
 		dev_warn(&pdev->dev,
 			 "invalid crystal-freq specified in device-tree. Assuming no crystal\n");
-		/* fall-through */
+		fallthrough;
 	case 0:
 		/* keep XTAL on in low-power mode */
 		pers0_set = STMP3XXX_RTC_PERSISTENT0_XTAL24MHZ_PWRUP;
@@ -366,7 +365,7 @@ static int stmp3xxx_rtc_probe(struct platform_device *pdev)
 	rtc_data->rtc->ops = &stmp3xxx_rtc_ops;
 	rtc_data->rtc->range_max = U32_MAX;
 
-	err = rtc_register_device(rtc_data->rtc);
+	err = devm_rtc_register_device(rtc_data->rtc);
 	if (err)
 		return err;
 
@@ -404,7 +403,7 @@ MODULE_DEVICE_TABLE(of, rtc_dt_ids);
 
 static struct platform_driver stmp3xxx_rtcdrv = {
 	.probe		= stmp3xxx_rtc_probe,
-	.remove		= stmp3xxx_rtc_remove,
+	.remove_new	= stmp3xxx_rtc_remove,
 	.driver		= {
 		.name	= "stmp3xxx-rtc",
 		.pm	= &stmp3xxx_rtc_pm_ops,
@@ -416,5 +415,5 @@ module_platform_driver(stmp3xxx_rtcdrv);
 
 MODULE_DESCRIPTION("STMP3xxx RTC Driver");
 MODULE_AUTHOR("dmitry pervushin <dpervushin@embeddedalley.com> and "
-		"Wolfram Sang <w.sang@pengutronix.de>");
+		"Wolfram Sang <kernel@pengutronix.de>");
 MODULE_LICENSE("GPL");

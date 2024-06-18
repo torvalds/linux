@@ -6,11 +6,13 @@
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
+
 #include <linux/hwmon.h>
-#include <linux/of.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/iio/consumer.h>
 #include <linux/iio/types.h>
@@ -75,9 +77,11 @@ static int iio_hwmon_probe(struct platform_device *pdev)
 
 	channels = devm_iio_channel_get_all(dev);
 	if (IS_ERR(channels)) {
-		if (PTR_ERR(channels) == -ENODEV)
-			return -EPROBE_DEFER;
-		return PTR_ERR(channels);
+		ret = PTR_ERR(channels);
+		if (ret == -ENODEV)
+			ret = -EPROBE_DEFER;
+		return dev_err_probe(dev, ret,
+				     "Failed to get channels\n");
 	}
 
 	st = devm_kzalloc(dev, sizeof(*st), GFP_KERNEL);
@@ -149,8 +153,8 @@ static int iio_hwmon_probe(struct platform_device *pdev)
 	st->attr_group.attrs = st->attrs;
 	st->groups[0] = &st->attr_group;
 
-	if (dev->of_node) {
-		sname = devm_kasprintf(dev, GFP_KERNEL, "%pOFn", dev->of_node);
+	if (dev_fwnode(dev)) {
+		sname = devm_kasprintf(dev, GFP_KERNEL, "%pfwP", dev_fwnode(dev));
 		if (!sname)
 			return -ENOMEM;
 		strreplace(sname, '-', '_');
@@ -169,7 +173,7 @@ static const struct of_device_id iio_hwmon_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, iio_hwmon_of_match);
 
-static struct platform_driver __refdata iio_hwmon_driver = {
+static struct platform_driver iio_hwmon_driver = {
 	.driver = {
 		.name = "iio_hwmon",
 		.of_match_table = iio_hwmon_of_match,

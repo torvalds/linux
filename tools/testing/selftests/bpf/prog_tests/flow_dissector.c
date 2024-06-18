@@ -1,17 +1,22 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <test_progs.h>
+#include <network_helpers.h>
 #include <error.h>
-#include <linux/if.h>
 #include <linux/if_tun.h>
 #include <sys/uio.h>
+
+#include "bpf_flow.skel.h"
+
+#define FLOW_CONTINUE_SADDR 0x7f00007f /* 127.0.0.127 */
 
 #ifndef IP_MF
 #define IP_MF 0x2000
 #endif
 
 #define CHECK_FLOW_KEYS(desc, got, expected)				\
-	CHECK_ATTR(memcmp(&got, &expected, sizeof(got)) != 0,		\
+	_CHECK(memcmp(&got, &expected, sizeof(got)) != 0,		\
 	      desc,							\
+	      topts.duration,						\
 	      "nhoff=%u/%u "						\
 	      "thoff=%u/%u "						\
 	      "addr_proto=0x%x/0x%x "					\
@@ -96,10 +101,12 @@ struct test {
 	} pkt;
 	struct bpf_flow_keys keys;
 	__u32 flags;
+	__u32 retval;
 };
 
 #define VLAN_HLEN	4
 
+static __u32 duration;
 struct test tests[] = {
 	{
 		.name = "ipv4",
@@ -121,6 +128,7 @@ struct test tests[] = {
 			.sport = 80,
 			.dport = 8080,
 		},
+		.retval = BPF_OK,
 	},
 	{
 		.name = "ipv6",
@@ -141,6 +149,7 @@ struct test tests[] = {
 			.sport = 80,
 			.dport = 8080,
 		},
+		.retval = BPF_OK,
 	},
 	{
 		.name = "802.1q-ipv4",
@@ -163,6 +172,7 @@ struct test tests[] = {
 			.sport = 80,
 			.dport = 8080,
 		},
+		.retval = BPF_OK,
 	},
 	{
 		.name = "802.1ad-ipv6",
@@ -186,6 +196,7 @@ struct test tests[] = {
 			.sport = 80,
 			.dport = 8080,
 		},
+		.retval = BPF_OK,
 	},
 	{
 		.name = "ipv4-frag",
@@ -212,6 +223,7 @@ struct test tests[] = {
 			.dport = 8080,
 		},
 		.flags = BPF_FLOW_DISSECTOR_F_PARSE_1ST_FRAG,
+		.retval = BPF_OK,
 	},
 	{
 		.name = "ipv4-no-frag",
@@ -234,6 +246,7 @@ struct test tests[] = {
 			.is_frag = true,
 			.is_first_frag = true,
 		},
+		.retval = BPF_OK,
 	},
 	{
 		.name = "ipv6-frag",
@@ -260,6 +273,7 @@ struct test tests[] = {
 			.dport = 8080,
 		},
 		.flags = BPF_FLOW_DISSECTOR_F_PARSE_1ST_FRAG,
+		.retval = BPF_OK,
 	},
 	{
 		.name = "ipv6-no-frag",
@@ -282,6 +296,7 @@ struct test tests[] = {
 			.is_frag = true,
 			.is_first_frag = true,
 		},
+		.retval = BPF_OK,
 	},
 	{
 		.name = "ipv6-flow-label",
@@ -304,6 +319,7 @@ struct test tests[] = {
 			.dport = 8080,
 			.flow_label = __bpf_constant_htonl(0xbeeef),
 		},
+		.retval = BPF_OK,
 	},
 	{
 		.name = "ipv6-no-flow-label",
@@ -326,6 +342,31 @@ struct test tests[] = {
 			.flow_label = __bpf_constant_htonl(0xbeeef),
 		},
 		.flags = BPF_FLOW_DISSECTOR_F_STOP_AT_FLOW_LABEL,
+		.retval = BPF_OK,
+	},
+	{
+		.name = "ipv6-empty-flow-label",
+		.pkt.ipv6 = {
+			.eth.h_proto = __bpf_constant_htons(ETH_P_IPV6),
+			.iph.nexthdr = IPPROTO_TCP,
+			.iph.payload_len = __bpf_constant_htons(MAGIC_BYTES),
+			.iph.flow_lbl = { 0x00, 0x00, 0x00 },
+			.tcp.doff = 5,
+			.tcp.source = 80,
+			.tcp.dest = 8080,
+		},
+		.keys = {
+			.flags = BPF_FLOW_DISSECTOR_F_STOP_AT_FLOW_LABEL,
+			.nhoff = ETH_HLEN,
+			.thoff = ETH_HLEN + sizeof(struct ipv6hdr),
+			.addr_proto = ETH_P_IPV6,
+			.ip_proto = IPPROTO_TCP,
+			.n_proto = __bpf_constant_htons(ETH_P_IPV6),
+			.sport = 80,
+			.dport = 8080,
+		},
+		.flags = BPF_FLOW_DISSECTOR_F_STOP_AT_FLOW_LABEL,
+		.retval = BPF_OK,
 	},
 	{
 		.name = "ipip-encap",
@@ -354,6 +395,7 @@ struct test tests[] = {
 			.sport = 80,
 			.dport = 8080,
 		},
+		.retval = BPF_OK,
 	},
 	{
 		.name = "ipip-no-encap",
@@ -381,6 +423,26 @@ struct test tests[] = {
 			.is_encap = true,
 		},
 		.flags = BPF_FLOW_DISSECTOR_F_STOP_AT_ENCAP,
+		.retval = BPF_OK,
+	},
+	{
+		.name = "ipip-encap-dissector-continue",
+		.pkt.ipip = {
+			.eth.h_proto = __bpf_constant_htons(ETH_P_IP),
+			.iph.ihl = 5,
+			.iph.protocol = IPPROTO_IPIP,
+			.iph.tot_len = __bpf_constant_htons(MAGIC_BYTES),
+			.iph.saddr = __bpf_constant_htonl(FLOW_CONTINUE_SADDR),
+			.iph_inner.ihl = 5,
+			.iph_inner.protocol = IPPROTO_TCP,
+			.iph_inner.tot_len =
+				__bpf_constant_htons(MAGIC_BYTES) -
+				sizeof(struct iphdr),
+			.tcp.doff = 5,
+			.tcp.source = 99,
+			.tcp.dest = 9090,
+		},
+		.retval = BPF_FLOW_DISSECTOR_CONTINUE,
 	},
 };
 
@@ -443,62 +505,47 @@ static int ifup(const char *ifname)
 	return 0;
 }
 
-void test_flow_dissector(void)
+static int init_prog_array(struct bpf_object *obj, struct bpf_map *prog_array)
 {
-	int i, err, prog_fd, keys_fd = -1, tap_fd;
-	struct bpf_object *obj;
-	__u32 duration = 0;
+	int i, err, map_fd, prog_fd;
+	struct bpf_program *prog;
+	char prog_name[32];
 
-	err = bpf_flow_load(&obj, "./bpf_flow.o", "flow_dissector",
-			    "jmp_table", "last_dissection", &prog_fd, &keys_fd);
-	if (CHECK_FAIL(err))
-		return;
+	map_fd = bpf_map__fd(prog_array);
+	if (map_fd < 0)
+		return -1;
 
-	for (i = 0; i < ARRAY_SIZE(tests); i++) {
-		struct bpf_flow_keys flow_keys;
-		struct bpf_prog_test_run_attr tattr = {
-			.prog_fd = prog_fd,
-			.data_in = &tests[i].pkt,
-			.data_size_in = sizeof(tests[i].pkt),
-			.data_out = &flow_keys,
-		};
-		static struct bpf_flow_keys ctx = {};
+	for (i = 0; i < bpf_map__max_entries(prog_array); i++) {
+		snprintf(prog_name, sizeof(prog_name), "flow_dissector_%d", i);
 
-		if (tests[i].flags) {
-			tattr.ctx_in = &ctx;
-			tattr.ctx_size_in = sizeof(ctx);
-			ctx.flags = tests[i].flags;
-		}
+		prog = bpf_object__find_program_by_name(obj, prog_name);
+		if (!prog)
+			return -1;
 
-		err = bpf_prog_test_run_xattr(&tattr);
-		CHECK_ATTR(tattr.data_size_out != sizeof(flow_keys) ||
-			   err || tattr.retval != 1,
-			   tests[i].name,
-			   "err %d errno %d retval %d duration %d size %u/%lu\n",
-			   err, errno, tattr.retval, tattr.duration,
-			   tattr.data_size_out, sizeof(flow_keys));
-		CHECK_FLOW_KEYS(tests[i].name, flow_keys, tests[i].keys);
+		prog_fd = bpf_program__fd(prog);
+		if (prog_fd < 0)
+			return -1;
+
+		err = bpf_map_update_elem(map_fd, &i, &prog_fd, BPF_ANY);
+		if (err)
+			return -1;
 	}
+	return 0;
+}
 
-	/* Do the same tests but for skb-less flow dissector.
-	 * We use a known path in the net/tun driver that calls
-	 * eth_get_headlen and we manually export bpf_flow_keys
-	 * via BPF map in this case.
-	 */
+static void run_tests_skb_less(int tap_fd, struct bpf_map *keys)
+{
+	int i, err, keys_fd;
 
-	err = bpf_prog_attach(prog_fd, 0, BPF_FLOW_DISSECTOR, 0);
-	CHECK(err, "bpf_prog_attach", "err %d errno %d\n", err, errno);
-
-	tap_fd = create_tap("tap0");
-	CHECK(tap_fd < 0, "create_tap", "tap_fd %d errno %d\n", tap_fd, errno);
-	err = ifup("tap0");
-	CHECK(err, "ifup", "err %d errno %d\n", err, errno);
+	keys_fd = bpf_map__fd(keys);
+	if (CHECK(keys_fd < 0, "bpf_map__fd", "err %d\n", keys_fd))
+		return;
 
 	for (i = 0; i < ARRAY_SIZE(tests); i++) {
 		/* Keep in sync with 'flags' from eth_get_headlen. */
 		__u32 eth_get_headlen_flags =
 			BPF_FLOW_DISSECTOR_F_PARSE_1ST_FRAG;
-		struct bpf_prog_test_run_attr tattr = {};
+		LIBBPF_OPTS(bpf_test_run_opts, topts);
 		struct bpf_flow_keys flow_keys = {};
 		__u32 key = (__u32)(tests[i].keys.sport) << 16 |
 			    tests[i].keys.dport;
@@ -513,16 +560,122 @@ void test_flow_dissector(void)
 		err = tx_tap(tap_fd, &tests[i].pkt, sizeof(tests[i].pkt));
 		CHECK(err < 0, "tx_tap", "err %d errno %d\n", err, errno);
 
-		err = bpf_map_lookup_elem(keys_fd, &key, &flow_keys);
-		CHECK_ATTR(err, tests[i].name, "bpf_map_lookup_elem %d\n", err);
+		/* check the stored flow_keys only if BPF_OK expected */
+		if (tests[i].retval != BPF_OK)
+			continue;
 
-		CHECK_ATTR(err, tests[i].name, "skb-less err %d\n", err);
+		err = bpf_map_lookup_elem(keys_fd, &key, &flow_keys);
+		ASSERT_OK(err, "bpf_map_lookup_elem");
+
 		CHECK_FLOW_KEYS(tests[i].name, flow_keys, tests[i].keys);
 
 		err = bpf_map_delete_elem(keys_fd, &key);
-		CHECK_ATTR(err, tests[i].name, "bpf_map_delete_elem %d\n", err);
+		ASSERT_OK(err, "bpf_map_delete_elem");
+	}
+}
+
+static void test_skb_less_prog_attach(struct bpf_flow *skel, int tap_fd)
+{
+	int err, prog_fd;
+
+	prog_fd = bpf_program__fd(skel->progs._dissect);
+	if (CHECK(prog_fd < 0, "bpf_program__fd", "err %d\n", prog_fd))
+		return;
+
+	err = bpf_prog_attach(prog_fd, 0, BPF_FLOW_DISSECTOR, 0);
+	if (CHECK(err, "bpf_prog_attach", "err %d errno %d\n", err, errno))
+		return;
+
+	run_tests_skb_less(tap_fd, skel->maps.last_dissection);
+
+	err = bpf_prog_detach2(prog_fd, 0, BPF_FLOW_DISSECTOR);
+	CHECK(err, "bpf_prog_detach2", "err %d errno %d\n", err, errno);
+}
+
+static void test_skb_less_link_create(struct bpf_flow *skel, int tap_fd)
+{
+	struct bpf_link *link;
+	int err, net_fd;
+
+	net_fd = open("/proc/self/ns/net", O_RDONLY);
+	if (CHECK(net_fd < 0, "open(/proc/self/ns/net)", "err %d\n", errno))
+		return;
+
+	link = bpf_program__attach_netns(skel->progs._dissect, net_fd);
+	if (!ASSERT_OK_PTR(link, "attach_netns"))
+		goto out_close;
+
+	run_tests_skb_less(tap_fd, skel->maps.last_dissection);
+
+	err = bpf_link__destroy(link);
+	CHECK(err, "bpf_link__destroy", "err %d\n", err);
+out_close:
+	close(net_fd);
+}
+
+void test_flow_dissector(void)
+{
+	int i, err, prog_fd, keys_fd = -1, tap_fd;
+	struct bpf_flow *skel;
+
+	skel = bpf_flow__open_and_load();
+	if (CHECK(!skel, "skel", "failed to open/load skeleton\n"))
+		return;
+
+	prog_fd = bpf_program__fd(skel->progs._dissect);
+	if (CHECK(prog_fd < 0, "bpf_program__fd", "err %d\n", prog_fd))
+		goto out_destroy_skel;
+	keys_fd = bpf_map__fd(skel->maps.last_dissection);
+	if (CHECK(keys_fd < 0, "bpf_map__fd", "err %d\n", keys_fd))
+		goto out_destroy_skel;
+	err = init_prog_array(skel->obj, skel->maps.jmp_table);
+	if (CHECK(err, "init_prog_array", "err %d\n", err))
+		goto out_destroy_skel;
+
+	for (i = 0; i < ARRAY_SIZE(tests); i++) {
+		struct bpf_flow_keys flow_keys;
+		LIBBPF_OPTS(bpf_test_run_opts, topts,
+			.data_in = &tests[i].pkt,
+			.data_size_in = sizeof(tests[i].pkt),
+			.data_out = &flow_keys,
+		);
+		static struct bpf_flow_keys ctx = {};
+
+		if (tests[i].flags) {
+			topts.ctx_in = &ctx;
+			topts.ctx_size_in = sizeof(ctx);
+			ctx.flags = tests[i].flags;
+		}
+
+		err = bpf_prog_test_run_opts(prog_fd, &topts);
+		ASSERT_OK(err, "test_run");
+		ASSERT_EQ(topts.retval, tests[i].retval, "test_run retval");
+
+		/* check the resulting flow_keys only if BPF_OK returned */
+		if (topts.retval != BPF_OK)
+			continue;
+		ASSERT_EQ(topts.data_size_out, sizeof(flow_keys),
+			  "test_run data_size_out");
+		CHECK_FLOW_KEYS(tests[i].name, flow_keys, tests[i].keys);
 	}
 
-	bpf_prog_detach(prog_fd, BPF_FLOW_DISSECTOR);
-	bpf_object__close(obj);
+	/* Do the same tests but for skb-less flow dissector.
+	 * We use a known path in the net/tun driver that calls
+	 * eth_get_headlen and we manually export bpf_flow_keys
+	 * via BPF map in this case.
+	 */
+
+	tap_fd = create_tap("tap0");
+	CHECK(tap_fd < 0, "create_tap", "tap_fd %d errno %d\n", tap_fd, errno);
+	err = ifup("tap0");
+	CHECK(err, "ifup", "err %d errno %d\n", err, errno);
+
+	/* Test direct prog attachment */
+	test_skb_less_prog_attach(skel, tap_fd);
+	/* Test indirect prog attachment via link */
+	test_skb_less_link_create(skel, tap_fd);
+
+	close(tap_fd);
+out_destroy_skel:
+	bpf_flow__destroy(skel);
 }

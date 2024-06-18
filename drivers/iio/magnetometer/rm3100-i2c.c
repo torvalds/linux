@@ -45,10 +45,11 @@ static struct i2c_driver rm3100_driver = {
 		.name = "rm3100-i2c",
 		.of_match_table = rm3100_dt_match,
 	},
-	.probe_new = rm3100_probe,
+	.probe = rm3100_probe,
 };
 module_i2c_driver(rm3100_driver);
 
 MODULE_AUTHOR("Song Qiang <songqiang1304521@gmail.com>");
 MODULE_DESCRIPTION("PNI RM3100 3-axis magnetometer i2c driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_RM3100);

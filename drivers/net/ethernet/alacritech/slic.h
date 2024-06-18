@@ -265,8 +265,6 @@
 #define SLIC_NUM_STAT_DESC_ARRAYS	4
 #define SLIC_INVALID_STAT_DESC_IDX	0xffffffff
 
-#define SLIC_NAPI_WEIGHT		64
-
 #define SLIC_UPR_LSTAT			0
 #define SLIC_UPR_CONFIG			1
 
@@ -290,13 +288,13 @@ do {						\
 	u64_stats_update_end(&(st)->syncp);	\
 } while (0)
 
-#define SLIC_GET_STATS_COUNTER(newst, st, counter)			\
-{									\
-	unsigned int start;						\
+#define SLIC_GET_STATS_COUNTER(newst, st, counter)		\
+{								\
+	unsigned int start;					\
 	do {							\
-		start = u64_stats_fetch_begin_irq(&(st)->syncp);	\
-		newst = (st)->counter;					\
-	} while (u64_stats_fetch_retry_irq(&(st)->syncp, start));	\
+		start = u64_stats_fetch_begin(&(st)->syncp);	\
+		newst = (st)->counter;				\
+	} while (u64_stats_fetch_retry(&(st)->syncp, start));	\
 }
 
 struct slic_upr {

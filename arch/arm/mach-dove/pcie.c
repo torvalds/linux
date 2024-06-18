@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/arm/mach-dove/pcie.c
  *
  * PCIe functions for Marvell Dove 88AP510 SoC
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 #include <linux/kernel.h>
@@ -38,6 +35,7 @@ static int num_pcie_ports;
 static int __init dove_pcie_setup(int nr, struct pci_sys_data *sys)
 {
 	struct pcie_port *pp;
+	struct resource realio;
 
 	if (nr >= num_pcie_ports)
 		return 0;
@@ -53,10 +51,10 @@ static int __init dove_pcie_setup(int nr, struct pci_sys_data *sys)
 
 	orion_pcie_setup(pp->base);
 
-	if (pp->index == 0)
-		pci_ioremap_io(sys->busnr * SZ_64K, DOVE_PCIE0_IO_PHYS_BASE);
-	else
-		pci_ioremap_io(sys->busnr * SZ_64K, DOVE_PCIE1_IO_PHYS_BASE);
+	realio.start = sys->busnr * SZ_64K;
+	realio.end = realio.start + SZ_64K - 1;
+	pci_remap_iospace(&realio, pp->index == 0 ? DOVE_PCIE0_IO_PHYS_BASE :
+						    DOVE_PCIE1_IO_PHYS_BASE);
 
 	/*
 	 * IORESOURCE_MEM
@@ -135,18 +133,23 @@ static struct pci_ops pcie_ops = {
 	.write = pcie_wr_conf,
 };
 
+/*
+ * The root complex has a hardwired class of PCI_CLASS_MEMORY_OTHER, when it
+ * is operating as a root complex this needs to be switched to
+ * PCI_CLASS_BRIDGE_HOST or Linux will errantly try to process the BAR's on
+ * the device. Decoding setup is handled by the orion code.
+ */
 static void rc_pci_fixup(struct pci_dev *dev)
 {
-	/*
-	 * Prevent enumeration of root complex.
-	 */
 	if (dev->bus->parent == NULL && dev->devfn == 0) {
-		int i;
+		struct resource *r;
 
-		for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
-			dev->resource[i].start = 0;
-			dev->resource[i].end   = 0;
-			dev->resource[i].flags = 0;
+		dev->class &= 0xff;
+		dev->class |= PCI_CLASS_BRIDGE_HOST << 8;
+		pci_dev_for_each_resource(dev, r) {
+			r->start = 0;
+			r->end   = 0;
+			r->flags = 0;
 		}
 	}
 }

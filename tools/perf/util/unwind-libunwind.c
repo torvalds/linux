@@ -12,40 +12,35 @@ struct unwind_libunwind_ops __weak *local_unwind_libunwind_ops;
 struct unwind_libunwind_ops __weak *x86_32_unwind_libunwind_ops;
 struct unwind_libunwind_ops __weak *arm64_unwind_libunwind_ops;
 
-static void unwind__register_ops(struct map_groups *mg,
-			  struct unwind_libunwind_ops *ops)
-{
-	mg->unwind_libunwind_ops = ops;
-}
-
-int unwind__prepare_access(struct map_groups *mg, struct map *map,
-			   bool *initialized)
+int unwind__prepare_access(struct maps *maps, struct map *map, bool *initialized)
 {
 	const char *arch;
 	enum dso_type dso_type;
 	struct unwind_libunwind_ops *ops = local_unwind_libunwind_ops;
+	struct dso *dso = map__dso(map);
+	struct machine *machine;
 	int err;
 
 	if (!dwarf_callchain_users)
 		return 0;
 
-	if (mg->addr_space) {
-		pr_debug("unwind: thread map already set, dso=%s\n",
-			 map->dso->name);
+	if (maps__addr_space(maps)) {
+		pr_debug("unwind: thread map already set, dso=%s\n", dso__name(dso));
 		if (initialized)
 			*initialized = true;
 		return 0;
 	}
 
+	machine = maps__machine(maps);
 	/* env->arch is NULL for live-mode (i.e. perf top) */
-	if (!mg->machine->env || !mg->machine->env->arch)
+	if (!machine->env || !machine->env->arch)
 		goto out_register;
 
-	dso_type = dso__type(map->dso, mg->machine);
+	dso_type = dso__type(dso, machine);
 	if (dso_type == DSO__TYPE_UNKNOWN)
 		return 0;
 
-	arch = perf_env__arch(mg->machine->env);
+	arch = perf_env__arch(machine->env);
 
 	if (!strcmp(arch, "x86")) {
 		if (dso_type != DSO__TYPE_64BIT)
@@ -56,35 +51,42 @@ int unwind__prepare_access(struct map_groups *mg, struct map *map,
 	}
 
 	if (!ops) {
-		pr_err("unwind: target platform=%s is not supported\n", arch);
+		pr_warning_once("unwind: target platform=%s is not supported\n", arch);
 		return 0;
 	}
 out_register:
-	unwind__register_ops(mg, ops);
+	maps__set_unwind_libunwind_ops(maps, ops);
 
-	err = mg->unwind_libunwind_ops->prepare_access(mg);
+	err = maps__unwind_libunwind_ops(maps)->prepare_access(maps);
 	if (initialized)
 		*initialized = err ? false : true;
 	return err;
 }
 
-void unwind__flush_access(struct map_groups *mg)
+void unwind__flush_access(struct maps *maps)
 {
-	if (mg->unwind_libunwind_ops)
-		mg->unwind_libunwind_ops->flush_access(mg);
+	const struct unwind_libunwind_ops *ops = maps__unwind_libunwind_ops(maps);
+
+	if (ops)
+		ops->flush_access(maps);
 }
 
-void unwind__finish_access(struct map_groups *mg)
+void unwind__finish_access(struct maps *maps)
 {
-	if (mg->unwind_libunwind_ops)
-		mg->unwind_libunwind_ops->finish_access(mg);
+	const struct unwind_libunwind_ops *ops = maps__unwind_libunwind_ops(maps);
+
+	if (ops)
+		ops->finish_access(maps);
 }
 
 int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 			 struct thread *thread,
-			 struct perf_sample *data, int max_stack)
+			 struct perf_sample *data, int max_stack,
+			 bool best_effort)
 {
-	if (thread->mg->unwind_libunwind_ops)
-		return thread->mg->unwind_libunwind_ops->get_entries(cb, arg, thread, data, max_stack);
+	const struct unwind_libunwind_ops *ops = maps__unwind_libunwind_ops(thread__maps(thread));
+
+	if (ops)
+		return ops->get_entries(cb, arg, thread, data, max_stack, best_effort);
 	return 0;
 }

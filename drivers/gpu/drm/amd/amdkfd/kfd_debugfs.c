@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
- * Copyright 2016-2017 Advanced Micro Devices, Inc.
+ * Copyright 2016-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -33,11 +34,16 @@ static int kfd_debugfs_open(struct inode *inode, struct file *file)
 
 	return single_open(file, show, NULL);
 }
+static int kfd_debugfs_hang_hws_read(struct seq_file *m, void *data)
+{
+	seq_puts(m, "echo gpu_id > hang_hws\n");
+	return 0;
+}
 
 static ssize_t kfd_debugfs_hang_hws_write(struct file *file,
 	const char __user *user_buf, size_t size, loff_t *ppos)
 {
-	struct kfd_dev *dev;
+	struct kfd_node *dev;
 	char tmp[16];
 	uint32_t gpu_id;
 	int ret = -EINVAL;
@@ -93,8 +99,10 @@ void kfd_debugfs_init(void)
 			    kfd_debugfs_hqds_by_device, &kfd_debugfs_fops);
 	debugfs_create_file("rls", S_IFREG | 0444, debugfs_root,
 			    kfd_debugfs_rls_by_device, &kfd_debugfs_fops);
-	debugfs_create_file("hang_hws", S_IFREG | 0644, debugfs_root,
-			    NULL, &kfd_debugfs_hang_hws_fops);
+	debugfs_create_file("hang_hws", S_IFREG | 0200, debugfs_root,
+			    kfd_debugfs_hang_hws_read, &kfd_debugfs_hang_hws_fops);
+	debugfs_create_file("mem_limit", S_IFREG | 0200, debugfs_root,
+			    kfd_debugfs_kfd_mem_limits, &kfd_debugfs_fops);
 }
 
 void kfd_debugfs_fini(void)

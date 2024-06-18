@@ -16,13 +16,24 @@ enum rtw_debug_mask {
 	RTW_DBG_RFK		= 0x00000080,
 	RTW_DBG_REGD		= 0x00000100,
 	RTW_DBG_DEBUGFS		= 0x00000200,
+	RTW_DBG_PS		= 0x00000400,
+	RTW_DBG_BF		= 0x00000800,
+	RTW_DBG_WOW		= 0x00001000,
+	RTW_DBG_CFO		= 0x00002000,
+	RTW_DBG_PATH_DIV	= 0x00004000,
+	RTW_DBG_ADAPTIVITY	= 0x00008000,
+	RTW_DBG_HW_SCAN		= 0x00010000,
+	RTW_DBG_STATE		= 0x00020000,
+	RTW_DBG_SDIO		= 0x00040000,
 
+	RTW_DBG_UNEXP		= 0x80000000,
 	RTW_DBG_ALL		= 0xffffffff
 };
 
 #ifdef CONFIG_RTW88_DEBUGFS
 
 void rtw_debugfs_init(struct rtw_dev *rtwdev);
+void rtw_debugfs_get_simple_phy_info(struct seq_file *m);
 
 #else
 
@@ -33,15 +44,25 @@ static inline void rtw_debugfs_init(struct rtw_dev *rtwdev) {}
 #ifdef CONFIG_RTW88_DEBUG
 
 __printf(3, 4)
-void __rtw_dbg(struct rtw_dev *rtwdev, enum rtw_debug_mask mask,
-	       const char *fmt, ...);
+void rtw_dbg(struct rtw_dev *rtwdev, enum rtw_debug_mask mask,
+	     const char *fmt, ...);
 
-#define rtw_dbg(rtwdev, a...) __rtw_dbg(rtwdev, ##a)
+static inline bool rtw_dbg_is_enabled(struct rtw_dev *rtwdev,
+				      enum rtw_debug_mask mask)
+{
+	return !!(rtw_debug_mask & mask);
+}
 
 #else
 
 static inline void rtw_dbg(struct rtw_dev *rtwdev, enum rtw_debug_mask mask,
 			   const char *fmt, ...) {}
+
+static inline bool rtw_dbg_is_enabled(struct rtw_dev *rtwdev,
+				      enum rtw_debug_mask mask)
+{
+	return false;
+}
 
 #endif /* CONFIG_RTW88_DEBUG */
 

@@ -2,12 +2,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2018 - 2019 Intel Corporation
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
+ * Copyright(c) 2018 - 2020, 2023 Intel Corporation
  *****************************************************************************/
 
 #include <linux/module.h>
@@ -42,17 +37,17 @@
 #define EEPROM_6035_TX_POWER_VERSION	(6)
 #define EEPROM_6035_EEPROM_VERSION	(0x753)
 
-#define IWL6000_FW_PRE "iwlwifi-6000-"
-#define IWL6000_MODULE_FIRMWARE(api) IWL6000_FW_PRE __stringify(api) ".ucode"
+#define IWL6000_FW_PRE "iwlwifi-6000"
+#define IWL6000_MODULE_FIRMWARE(api) IWL6000_FW_PRE "-" __stringify(api) ".ucode"
 
-#define IWL6050_FW_PRE "iwlwifi-6050-"
-#define IWL6050_MODULE_FIRMWARE(api) IWL6050_FW_PRE __stringify(api) ".ucode"
+#define IWL6050_FW_PRE "iwlwifi-6050"
+#define IWL6050_MODULE_FIRMWARE(api) IWL6050_FW_PRE "-" __stringify(api) ".ucode"
 
-#define IWL6005_FW_PRE "iwlwifi-6000g2a-"
-#define IWL6005_MODULE_FIRMWARE(api) IWL6005_FW_PRE __stringify(api) ".ucode"
+#define IWL6005_FW_PRE "iwlwifi-6000g2a"
+#define IWL6005_MODULE_FIRMWARE(api) IWL6005_FW_PRE "-" __stringify(api) ".ucode"
 
-#define IWL6030_FW_PRE "iwlwifi-6000g2b-"
-#define IWL6030_MODULE_FIRMWARE(api) IWL6030_FW_PRE __stringify(api) ".ucode"
+#define IWL6030_FW_PRE "iwlwifi-6000g2b"
+#define IWL6030_MODULE_FIRMWARE(api) IWL6030_FW_PRE "-" __stringify(api) ".ucode"
 
 static const struct iwl_base_params iwl6000_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_2K,
@@ -123,9 +118,7 @@ static const struct iwl_eeprom_params iwl6000_eeprom_params = {
 	.nvm_calib_ver = EEPROM_6005_TX_POWER_VERSION,	\
 	.trans.base_params = &iwl6000_g2_base_params,		\
 	.eeprom_params = &iwl6000_eeprom_params,		\
-	.led_mode = IWL_LED_RF_STATE,				\
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,	\
-	.trans.csr = &iwl_csr_v1
+	.led_mode = IWL_LED_RF_STATE
 
 const struct iwl_cfg iwl6005_2agn_cfg = {
 	.name = "Intel(R) Centrino(R) Advanced-N 6205 AGN",
@@ -178,9 +171,7 @@ const struct iwl_cfg iwl6005_2agn_mow2_cfg = {
 	.nvm_calib_ver = EEPROM_6030_TX_POWER_VERSION,	\
 	.trans.base_params = &iwl6000_g2_base_params,		\
 	.eeprom_params = &iwl6000_eeprom_params,		\
-	.led_mode = IWL_LED_RF_STATE,				\
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,	\
-	.trans.csr = &iwl_csr_v1
+	.led_mode = IWL_LED_RF_STATE
 
 const struct iwl_cfg iwl6030_2agn_cfg = {
 	.name = "Intel(R) Centrino(R) Advanced-N 6230 AGN",
@@ -215,9 +206,7 @@ const struct iwl_cfg iwl6030_2bg_cfg = {
 	.nvm_calib_ver = EEPROM_6030_TX_POWER_VERSION,	\
 	.trans.base_params = &iwl6000_g2_base_params,		\
 	.eeprom_params = &iwl6000_eeprom_params,		\
-	.led_mode = IWL_LED_RF_STATE,				\
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,	\
-	.trans.csr = &iwl_csr_v1
+	.led_mode = IWL_LED_RF_STATE
 
 const struct iwl_cfg iwl6035_2agn_cfg = {
 	.name = "Intel(R) Centrino(R) Advanced-N 6235 AGN",
@@ -271,9 +260,7 @@ const struct iwl_cfg iwl130_bg_cfg = {
 	.nvm_calib_ver = EEPROM_6000_TX_POWER_VERSION,	\
 	.trans.base_params = &iwl6000_base_params,		\
 	.eeprom_params = &iwl6000_eeprom_params,		\
-	.led_mode = IWL_LED_BLINK,				\
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,	\
-	.trans.csr = &iwl_csr_v1
+	.led_mode = IWL_LED_BLINK
 
 const struct iwl_cfg iwl6000i_2agn_cfg = {
 	.name = "Intel(R) Centrino(R) Advanced-N 6200 AGN",
@@ -305,9 +292,7 @@ const struct iwl_cfg iwl6000i_2bg_cfg = {
 	.trans.base_params = &iwl6050_base_params,		\
 	.eeprom_params = &iwl6000_eeprom_params,		\
 	.led_mode = IWL_LED_BLINK,				\
-	.internal_wimax_coex = true,				\
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,	\
-	.trans.csr = &iwl_csr_v1
+	.internal_wimax_coex = true
 
 const struct iwl_cfg iwl6050_2agn_cfg = {
 	.name = "Intel(R) Centrino(R) Advanced-N + WiMAX 6250 AGN",
@@ -332,9 +317,7 @@ const struct iwl_cfg iwl6050_2abg_cfg = {
 	.trans.base_params = &iwl6050_base_params,		\
 	.eeprom_params = &iwl6000_eeprom_params,		\
 	.led_mode = IWL_LED_BLINK,				\
-	.internal_wimax_coex = true,				\
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,	\
-	.trans.csr = &iwl_csr_v1
+	.internal_wimax_coex = true
 
 const struct iwl_cfg iwl6150_bgn_cfg = {
 	.name = "Intel(R) Centrino(R) Wireless-N + WiMAX 6150 BGN",
@@ -361,7 +344,6 @@ const struct iwl_cfg iwl6000_3agn_cfg = {
 	.eeprom_params = &iwl6000_eeprom_params,
 	.ht_params = &iwl6000_ht_params,
 	.led_mode = IWL_LED_BLINK,
-	.trans.csr = &iwl_csr_v1,
 };
 
 MODULE_FIRMWARE(IWL6000_MODULE_FIRMWARE(IWL6000_UCODE_API_MAX));

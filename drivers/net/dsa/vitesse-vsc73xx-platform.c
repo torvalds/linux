@@ -28,7 +28,7 @@
 #define VSC73XX_CMD_PLATFORM_SUBBLOCK_MASK		0xf
 #define VSC73XX_CMD_PLATFORM_REGISTER_SHIFT		2
 
-/**
+/*
  * struct vsc73xx_platform - VSC73xx Platform state container
  */
 struct vsc73xx_platform {
@@ -89,7 +89,6 @@ static int vsc73xx_platform_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct vsc73xx_platform *vsc_platform;
-	struct resource *res = NULL;
 	int ret;
 
 	vsc_platform = devm_kzalloc(dev, sizeof(*vsc_platform), GFP_KERNEL);
@@ -103,14 +102,7 @@ static int vsc73xx_platform_probe(struct platform_device *pdev)
 	vsc_platform->vsc.ops = &vsc73xx_platform_ops;
 
 	/* obtain I/O memory space */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "cannot obtain I/O memory space\n");
-		ret = -ENXIO;
-		return ret;
-	}
-
-	vsc_platform->base_addr = devm_ioremap_resource(&pdev->dev, res);
+	vsc_platform->base_addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(vsc_platform->base_addr)) {
 		dev_err(&pdev->dev, "cannot request I/O memory space\n");
 		ret = -ENXIO;
@@ -120,11 +112,26 @@ static int vsc73xx_platform_probe(struct platform_device *pdev)
 	return vsc73xx_probe(&vsc_platform->vsc);
 }
 
-static int vsc73xx_platform_remove(struct platform_device *pdev)
+static void vsc73xx_platform_remove(struct platform_device *pdev)
 {
 	struct vsc73xx_platform *vsc_platform = platform_get_drvdata(pdev);
 
-	return vsc73xx_remove(&vsc_platform->vsc);
+	if (!vsc_platform)
+		return;
+
+	vsc73xx_remove(&vsc_platform->vsc);
+}
+
+static void vsc73xx_platform_shutdown(struct platform_device *pdev)
+{
+	struct vsc73xx_platform *vsc_platform = platform_get_drvdata(pdev);
+
+	if (!vsc_platform)
+		return;
+
+	vsc73xx_shutdown(&vsc_platform->vsc);
+
+	platform_set_drvdata(pdev, NULL);
 }
 
 static const struct vsc73xx_ops vsc73xx_platform_ops = {
@@ -151,7 +158,8 @@ MODULE_DEVICE_TABLE(of, vsc73xx_of_match);
 
 static struct platform_driver vsc73xx_platform_driver = {
 	.probe = vsc73xx_platform_probe,
-	.remove = vsc73xx_platform_remove,
+	.remove_new = vsc73xx_platform_remove,
+	.shutdown = vsc73xx_platform_shutdown,
 	.driver = {
 		.name = "vsc73xx-platform",
 		.of_match_table = vsc73xx_of_match,

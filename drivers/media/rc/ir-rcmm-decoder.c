@@ -6,12 +6,12 @@
 #include "rc-core-priv.h"
 #include <linux/module.h>
 
-#define RCMM_UNIT		166667	/* nanosecs */
-#define RCMM_PREFIX_PULSE	416666  /* 166666.666666666*2.5 */
-#define RCMM_PULSE_0            277777  /* 166666.666666666*(1+2/3) */
-#define RCMM_PULSE_1            444444  /* 166666.666666666*(2+2/3) */
-#define RCMM_PULSE_2            611111  /* 166666.666666666*(3+2/3) */
-#define RCMM_PULSE_3            777778  /* 166666.666666666*(4+2/3) */
+#define RCMM_UNIT		166  /* microseconds */
+#define RCMM_PREFIX_PULSE	417  /* 166.666666666666*2.5 */
+#define RCMM_PULSE_0            278  /* 166.666666666666*(1+2/3) */
+#define RCMM_PULSE_1            444  /* 166.666666666666*(2+2/3) */
+#define RCMM_PULSE_2            611  /* 166.666666666666*(3+2/3) */
+#define RCMM_PULSE_3            778  /* 166.666666666666*(4+2/3) */
 
 enum rcmm_state {
 	STATE_INACTIVE,
@@ -64,12 +64,12 @@ static int ir_rcmm_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	int value;
 
 	if (!(dev->enabled_protocols & (RC_PROTO_BIT_RCMM32 |
-							RC_PROTO_BIT_RCMM24 |
-							RC_PROTO_BIT_RCMM12)))
+					RC_PROTO_BIT_RCMM24 |
+					RC_PROTO_BIT_RCMM12)))
 		return 0;
 
 	if (!is_timing_event(ev)) {
-		if (ev.reset)
+		if (ev.overflow)
 			data->state = STATE_INACTIVE;
 		return 0;
 	}
@@ -79,7 +79,7 @@ static int ir_rcmm_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		if (!ev.pulse)
 			break;
 
-		if (!eq_margin(ev.duration, RCMM_PREFIX_PULSE, RCMM_UNIT / 2))
+		if (!eq_margin(ev.duration, RCMM_PREFIX_PULSE, RCMM_UNIT))
 			break;
 
 		data->state = STATE_LOW;
@@ -91,7 +91,7 @@ static int ir_rcmm_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		if (ev.pulse)
 			break;
 
-		if (!eq_margin(ev.duration, RCMM_PULSE_0, RCMM_UNIT / 2))
+		if (!eq_margin(ev.duration, RCMM_PULSE_0, RCMM_UNIT))
 			break;
 
 		data->state = STATE_BUMP;
@@ -164,6 +164,8 @@ static int ir_rcmm_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		break;
 	}
 
+	dev_dbg(&dev->dev, "RC-MM decode failed at count %d state %d (%uus %s)\n",
+		data->count, data->state, ev.duration, TO_STR(ev.pulse));
 	data->state = STATE_INACTIVE;
 	return -EINVAL;
 }

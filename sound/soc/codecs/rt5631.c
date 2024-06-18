@@ -64,7 +64,7 @@ static const struct reg_default rt5631_reg[] = {
 	{ RT5631_PSEUDO_SPATL_CTRL, 0x0553 },
 };
 
-/**
+/*
  * rt5631_write_index - write index register of 2nd layer
  */
 static void rt5631_write_index(struct snd_soc_component *component,
@@ -74,7 +74,7 @@ static void rt5631_write_index(struct snd_soc_component *component,
 	snd_soc_component_write(component, RT5631_INDEX_DATA, value);
 }
 
-/**
+/*
  * rt5631_read_index - read index register of 2nd layer
  */
 static unsigned int rt5631_read_index(struct snd_soc_component *component,
@@ -83,7 +83,7 @@ static unsigned int rt5631_read_index(struct snd_soc_component *component,
 	unsigned int value;
 
 	snd_soc_component_write(component, RT5631_INDEX_ADD, reg);
-	value = snd_soc_component_read32(component, RT5631_INDEX_DATA);
+	value = snd_soc_component_read(component, RT5631_INDEX_DATA);
 
 	return value;
 }
@@ -285,7 +285,7 @@ static int check_sysclk1_source(struct snd_soc_dapm_widget *source,
 	struct snd_soc_component *component = snd_soc_dapm_to_component(source->dapm);
 	unsigned int reg;
 
-	reg = snd_soc_component_read32(component, RT5631_GLOBAL_CLK_CTRL);
+	reg = snd_soc_component_read(component, RT5631_GLOBAL_CLK_CTRL);
 	return reg & RT5631_SYSCLK_SOUR_SEL_PLL;
 }
 
@@ -303,7 +303,7 @@ static int check_dacl_to_outmixl(struct snd_soc_dapm_widget *source,
 	struct snd_soc_component *component = snd_soc_dapm_to_component(source->dapm);
 	unsigned int reg;
 
-	reg = snd_soc_component_read32(component, RT5631_OUTMIXER_L_CTRL);
+	reg = snd_soc_component_read(component, RT5631_OUTMIXER_L_CTRL);
 	return !(reg & RT5631_M_DAC_L_TO_OUTMIXER_L);
 }
 
@@ -313,7 +313,7 @@ static int check_dacr_to_outmixr(struct snd_soc_dapm_widget *source,
 	struct snd_soc_component *component = snd_soc_dapm_to_component(source->dapm);
 	unsigned int reg;
 
-	reg = snd_soc_component_read32(component, RT5631_OUTMIXER_R_CTRL);
+	reg = snd_soc_component_read(component, RT5631_OUTMIXER_R_CTRL);
 	return !(reg & RT5631_M_DAC_R_TO_OUTMIXER_R);
 }
 
@@ -323,7 +323,7 @@ static int check_dacl_to_spkmixl(struct snd_soc_dapm_widget *source,
 	struct snd_soc_component *component = snd_soc_dapm_to_component(source->dapm);
 	unsigned int reg;
 
-	reg = snd_soc_component_read32(component, RT5631_SPK_MIXER_CTRL);
+	reg = snd_soc_component_read(component, RT5631_SPK_MIXER_CTRL);
 	return !(reg & RT5631_M_DAC_L_TO_SPKMIXER_L);
 }
 
@@ -333,7 +333,7 @@ static int check_dacr_to_spkmixr(struct snd_soc_dapm_widget *source,
 	struct snd_soc_component *component = snd_soc_dapm_to_component(source->dapm);
 	unsigned int reg;
 
-	reg = snd_soc_component_read32(component, RT5631_SPK_MIXER_CTRL);
+	reg = snd_soc_component_read(component, RT5631_SPK_MIXER_CTRL);
 	return !(reg & RT5631_M_DAC_R_TO_SPKMIXER_R);
 }
 
@@ -343,7 +343,7 @@ static int check_adcl_select(struct snd_soc_dapm_widget *source,
 	struct snd_soc_component *component = snd_soc_dapm_to_component(source->dapm);
 	unsigned int reg;
 
-	reg = snd_soc_component_read32(component, RT5631_ADC_REC_MIXER);
+	reg = snd_soc_component_read(component, RT5631_ADC_REC_MIXER);
 	return !(reg & RT5631_M_MIC1_TO_RECMIXER_L);
 }
 
@@ -353,12 +353,13 @@ static int check_adcr_select(struct snd_soc_dapm_widget *source,
 	struct snd_soc_component *component = snd_soc_dapm_to_component(source->dapm);
 	unsigned int reg;
 
-	reg = snd_soc_component_read32(component, RT5631_ADC_REC_MIXER);
+	reg = snd_soc_component_read(component, RT5631_ADC_REC_MIXER);
 	return !(reg & RT5631_M_MIC2_TO_RECMIXER_R);
 }
 
 /**
  * onebit_depop_power_stage - auto depop in power stage.
+ * @component: ASoC component
  * @enable: power on/off
  *
  * When power on/off headphone, the depop sequence is done by hardware.
@@ -372,9 +373,9 @@ static void onebit_depop_power_stage(struct snd_soc_component *component, int en
 				RT5631_EN_ONE_BIT_DEPOP, 0);
 
 	/* keep soft volume and zero crossing setting */
-	soft_vol = snd_soc_component_read32(component, RT5631_SOFT_VOL_CTRL);
+	soft_vol = snd_soc_component_read(component, RT5631_SOFT_VOL_CTRL);
 	snd_soc_component_write(component, RT5631_SOFT_VOL_CTRL, 0);
-	hp_zc = snd_soc_component_read32(component, RT5631_INT_ST_IRQ_CTRL_2);
+	hp_zc = snd_soc_component_read(component, RT5631_INT_ST_IRQ_CTRL_2);
 	snd_soc_component_write(component, RT5631_INT_ST_IRQ_CTRL_2, hp_zc & 0xf7ff);
 	if (enable) {
 		/* config one-bit depop parameter */
@@ -397,6 +398,7 @@ static void onebit_depop_power_stage(struct snd_soc_component *component, int en
 
 /**
  * onebit_depop_mute_stage - auto depop in mute stage.
+ * @component: ASoC component
  * @enable: mute/unmute
  *
  * When mute/unmute headphone, the depop sequence is done by hardware.
@@ -410,9 +412,9 @@ static void onebit_depop_mute_stage(struct snd_soc_component *component, int ena
 				RT5631_EN_ONE_BIT_DEPOP, 0);
 
 	/* keep soft volume and zero crossing setting */
-	soft_vol = snd_soc_component_read32(component, RT5631_SOFT_VOL_CTRL);
+	soft_vol = snd_soc_component_read(component, RT5631_SOFT_VOL_CTRL);
 	snd_soc_component_write(component, RT5631_SOFT_VOL_CTRL, 0);
-	hp_zc = snd_soc_component_read32(component, RT5631_INT_ST_IRQ_CTRL_2);
+	hp_zc = snd_soc_component_read(component, RT5631_INT_ST_IRQ_CTRL_2);
 	snd_soc_component_write(component, RT5631_INT_ST_IRQ_CTRL_2, hp_zc & 0xf7ff);
 	if (enable) {
 		schedule_timeout_uninterruptible(msecs_to_jiffies(10));
@@ -434,7 +436,8 @@ static void onebit_depop_mute_stage(struct snd_soc_component *component, int ena
 }
 
 /**
- * onebit_depop_power_stage - step by step depop sequence in power stage.
+ * depop_seq_power_stage - step by step depop sequence in power stage.
+ * @component: ASoC component
  * @enable: power on/off
  *
  * When power on/off headphone, the depop sequence is done in step by step.
@@ -448,9 +451,9 @@ static void depop_seq_power_stage(struct snd_soc_component *component, int enabl
 		RT5631_EN_ONE_BIT_DEPOP, RT5631_EN_ONE_BIT_DEPOP);
 
 	/* keep soft volume and zero crossing setting */
-	soft_vol = snd_soc_component_read32(component, RT5631_SOFT_VOL_CTRL);
+	soft_vol = snd_soc_component_read(component, RT5631_SOFT_VOL_CTRL);
 	snd_soc_component_write(component, RT5631_SOFT_VOL_CTRL, 0);
-	hp_zc = snd_soc_component_read32(component, RT5631_INT_ST_IRQ_CTRL_2);
+	hp_zc = snd_soc_component_read(component, RT5631_INT_ST_IRQ_CTRL_2);
 	snd_soc_component_write(component, RT5631_INT_ST_IRQ_CTRL_2, hp_zc & 0xf7ff);
 	if (enable) {
 		/* config depop sequence parameter */
@@ -507,6 +510,7 @@ static void depop_seq_power_stage(struct snd_soc_component *component, int enabl
 
 /**
  * depop_seq_mute_stage - step by step depop sequence in mute stage.
+ * @component: ASoC component
  * @enable: mute/unmute
  *
  * When mute/unmute headphone, the depop sequence is done in step by step.
@@ -520,9 +524,9 @@ static void depop_seq_mute_stage(struct snd_soc_component *component, int enable
 		RT5631_EN_ONE_BIT_DEPOP, RT5631_EN_ONE_BIT_DEPOP);
 
 	/* keep soft volume and zero crossing setting */
-	soft_vol = snd_soc_component_read32(component, RT5631_SOFT_VOL_CTRL);
+	soft_vol = snd_soc_component_read(component, RT5631_SOFT_VOL_CTRL);
 	snd_soc_component_write(component, RT5631_SOFT_VOL_CTRL, 0);
-	hp_zc = snd_soc_component_read32(component, RT5631_INT_ST_IRQ_CTRL_2);
+	hp_zc = snd_soc_component_read(component, RT5631_INT_ST_IRQ_CTRL_2);
 	snd_soc_component_write(component, RT5631_INT_ST_IRQ_CTRL_2, hp_zc & 0xf7ff);
 	if (enable) {
 		schedule_timeout_uninterruptible(msecs_to_jiffies(10));
@@ -1279,7 +1283,7 @@ static const struct pll_div codec_slave_pll_div[] = {
 	{3072000,  12288000,  0x0a90},
 };
 
-static struct coeff_clk_div coeff_div[] = {
+static const struct coeff_clk_div coeff_div[] = {
 	/* sysclk is 256fs */
 	{2048000,  8000 * 32,  8000, 0x1000},
 	{2048000,  8000 * 64,  8000, 0x0000},
@@ -1662,12 +1666,11 @@ static const struct snd_soc_component_driver soc_component_dev_rt5631 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct i2c_device_id rt5631_i2c_id[] = {
-	{ "rt5631", 0 },
-	{ "alc5631", 0 },
+	{ "rt5631" },
+	{ "alc5631" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rt5631_i2c_id);
@@ -1690,11 +1693,12 @@ static const struct regmap_config rt5631_regmap_config = {
 	.max_register = RT5631_VENDOR_ID2,
 	.reg_defaults = rt5631_reg,
 	.num_reg_defaults = ARRAY_SIZE(rt5631_reg),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
+	.use_single_read = true,
+	.use_single_write = true,
 };
 
-static int rt5631_i2c_probe(struct i2c_client *i2c,
-		    const struct i2c_device_id *id)
+static int rt5631_i2c_probe(struct i2c_client *i2c)
 {
 	struct rt5631_priv *rt5631;
 	int ret;
@@ -1716,17 +1720,15 @@ static int rt5631_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static int rt5631_i2c_remove(struct i2c_client *client)
-{
-	return 0;
-}
+static void rt5631_i2c_remove(struct i2c_client *client)
+{}
 
 static struct i2c_driver rt5631_i2c_driver = {
 	.driver = {
 		.name = "rt5631",
 		.of_match_table = of_match_ptr(rt5631_i2c_dt_ids),
 	},
-	.probe = rt5631_i2c_probe,
+	.probe    = rt5631_i2c_probe,
 	.remove   = rt5631_i2c_remove,
 	.id_table = rt5631_i2c_id,
 };

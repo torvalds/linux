@@ -39,7 +39,7 @@ struct ext2_xattr_entry {
 	__le32	e_value_block;	/* disk block attribute is stored on (n/i) */
 	__le32	e_value_size;	/* size of attribute value */
 	__le32	e_hash;		/* hash value of name and value */
-	char	e_name[0];	/* attribute name */
+	char	e_name[];	/* attribute name */
 };
 
 #define EXT2_XATTR_PAD_BITS		2
@@ -72,7 +72,7 @@ extern void ext2_xattr_delete_inode(struct inode *);
 extern struct mb_cache *ext2_xattr_create_cache(void);
 extern void ext2_xattr_destroy_cache(struct mb_cache *cache);
 
-extern const struct xattr_handler *ext2_xattr_handlers[];
+extern const struct xattr_handler * const ext2_xattr_handlers[];
 
 # else  /* CONFIG_EXT2_FS_XATTR */
 
@@ -100,6 +100,7 @@ static inline void ext2_xattr_destroy_cache(struct mb_cache *cache)
 }
 
 #define ext2_xattr_handlers NULL
+#define ext2_listxattr NULL
 
 # endif  /* CONFIG_EXT2_FS_XATTR */
 

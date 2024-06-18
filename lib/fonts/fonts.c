@@ -57,6 +57,9 @@ static const struct font_desc *fonts[] = {
 #ifdef CONFIG_FONT_TER16x32
 	&font_ter_16x32,
 #endif
+#ifdef CONFIG_FONT_6x8
+	&font_6x8,
+#endif
 };
 
 #define num_fonts ARRAY_SIZE(fonts)
@@ -93,18 +96,21 @@ EXPORT_SYMBOL(find_font);
  *	get_default_font - get default font
  *	@xres: screen size of X
  *	@yres: screen size of Y
- *      @font_w: bit array of supported widths (1 - 32)
- *      @font_h: bit array of supported heights (1 - 32)
+ *	@font_w: bit array of supported widths (1 - FB_MAX_BLIT_WIDTH)
+ *	@font_h: bit array of supported heights (1 - FB_MAX_BLIT_HEIGHT)
  *
  *	Get the default font for a specified screen size.
  *	Dimensions are in pixels.
+ *
+ *	font_w or font_h being NULL means all values are supported.
  *
  *	Returns %NULL if no font is found, or a pointer to the
  *	chosen font.
  *
  */
-const struct font_desc *get_default_font(int xres, int yres, u32 font_w,
-					 u32 font_h)
+const struct font_desc *get_default_font(int xres, int yres,
+					 unsigned long *font_w,
+					 unsigned long *font_h)
 {
 	int i, c, cc, res;
 	const struct font_desc *f, *g;
@@ -132,8 +138,8 @@ const struct font_desc *get_default_font(int xres, int yres, u32 font_w,
 		if (res > 20)
 			c += 20 - res;
 
-		if ((font_w & (1 << (f->width - 1))) &&
-		    (font_h & (1 << (f->height - 1))))
+		if ((!font_w || test_bit(f->width - 1, font_w)) &&
+		    (!font_h || test_bit(f->height - 1, font_h)))
 			c += 1000;
 
 		if (c > cc) {

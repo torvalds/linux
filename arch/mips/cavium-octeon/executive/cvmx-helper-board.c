@@ -44,7 +44,7 @@
 #include <asm/octeon/cvmx-gmxx-defs.h>
 #include <asm/octeon/cvmx-asxx-defs.h>
 
-/**
+/*
  * Return the MII PHY address associated with the given IPD
  * port. A result of -1 means there isn't a MII capable PHY
  * connected to this port. On chips supporting multiple MII
@@ -189,7 +189,7 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
 	return -1;
 }
 
-/**
+/*
  * This function is the board specific method of determining an
  * ethernet ports link speed. Most Octeon boards have Marvell PHYs
  * and are handled by the fall through case. This function must be
@@ -207,11 +207,11 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
  * Returns The ports link status. If the link isn't fully resolved, this must
  *	   return zero.
  */
-cvmx_helper_link_info_t __cvmx_helper_board_link_get(int ipd_port)
+union cvmx_helper_link_info __cvmx_helper_board_link_get(int ipd_port)
 {
-	cvmx_helper_link_info_t result;
+	union cvmx_helper_link_info result;
 
-	WARN(!octeon_is_simulation(),
+	WARN_ONCE(!octeon_is_simulation(),
 	     "Using deprecated link status - please update your DT");
 
 	/* Unless we fix it later, all links are defaulted to down */
@@ -274,7 +274,7 @@ cvmx_helper_link_info_t __cvmx_helper_board_link_get(int ipd_port)
 	return result;
 }
 
-/**
+/*
  * This function is called by cvmx_helper_interface_probe() after it
  * determines the number of ports Octeon can support on a specific
  * interface. This function is the per board location to override
@@ -282,9 +282,9 @@ cvmx_helper_link_info_t __cvmx_helper_board_link_get(int ipd_port)
  * support and should return the number of actual ports on the
  * board.
  *
- * This function must be modifed for every new Octeon board.
+ * This function must be modified for every new Octeon board.
  * Internally it uses switch statements based on the cvmx_sysinfo
- * data to determine board types and revisions. It relys on the
+ * data to determine board types and revisions. It relies on the
  * fact that every Octeon board receives a unique board type
  * enumeration from the bootloader.
  *
@@ -320,7 +320,7 @@ int __cvmx_helper_board_interface_probe(int interface, int supported_ports)
 	return supported_ports;
 }
 
-/**
+/*
  * Get the clock type used for the USB block based on board type.
  * Used by the USB code for auto configuration of clock type.
  *

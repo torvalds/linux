@@ -5,7 +5,7 @@ config XZ_DEC
 	help
 	  LZMA2 compression algorithm and BCJ filters are supported using
 	  the .xz file format as the container. For integrity checking,
-	  CRC32 is supported. See Documentation/xz.txt for more information.
+	  CRC32 is supported. See Documentation/staging/xz.rst for more information.
 
 if XZ_DEC
 
@@ -16,11 +16,6 @@ config XZ_DEC_X86
 
 config XZ_DEC_POWERPC
 	bool "PowerPC BCJ filter decoder" if EXPERT
-	default y
-	select XZ_DEC_BCJ
-
-config XZ_DEC_IA64
-	bool "IA-64 BCJ filter decoder" if EXPERT
 	default y
 	select XZ_DEC_BCJ
 
@@ -38,6 +33,19 @@ config XZ_DEC_SPARC
 	bool "SPARC BCJ filter decoder" if EXPERT
 	default y
 	select XZ_DEC_BCJ
+
+config XZ_DEC_MICROLZMA
+	bool "MicroLZMA decoder"
+	default n
+	help
+	  MicroLZMA is a header format variant where the first byte
+	  of a raw LZMA stream (without the end of stream marker) has
+	  been replaced with a bitwise-negation of the lc/lp/pb
+	  properties byte. MicroLZMA was created to be used in EROFS
+	  but can be used by other things too where wasting minimal
+	  amount of space for headers is important.
+
+	  Unless you know that you need this, say N.
 
 endif
 

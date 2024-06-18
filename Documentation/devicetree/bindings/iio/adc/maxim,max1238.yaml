@@ -1,0 +1,78 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/adc/maxim,max1238.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Maxim MAX1238 and similar ADCs
+
+maintainers:
+  - Jonathan Cameron <jic23@kernel.org>
+
+description: |
+  Family of simple ADCs with i2c interface and internal references.
+
+properties:
+  compatible:
+    enum:
+      - maxim,max1036
+      - maxim,max1037
+      - maxim,max1038
+      - maxim,max1039
+      - maxim,max1136
+      - maxim,max1137
+      - maxim,max1138
+      - maxim,max1139
+      - maxim,max1236
+      - maxim,max1237
+      - maxim,max1238
+      - maxim,max1239
+      - maxim,max11600
+      - maxim,max11601
+      - maxim,max11602
+      - maxim,max11603
+      - maxim,max11604
+      - maxim,max11605
+      - maxim,max11606
+      - maxim,max11607
+      - maxim,max11608
+      - maxim,max11609
+      - maxim,max11610
+      - maxim,max11611
+      - maxim,max11612
+      - maxim,max11613
+      - maxim,max11614
+      - maxim,max11615
+      - maxim,max11616
+      - maxim,max11617
+      - maxim,max11644
+      - maxim,max11645
+      - maxim,max11646
+      - maxim,max11647
+
+  reg:
+    maxItems: 1
+
+  vcc-supply: true
+  vref-supply:
+    description: Optional external reference.  If not supplied, internal
+      reference will be used.
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        adc@36 {
+            compatible = "maxim,max1238";
+            reg = <0x36>;
+        };
+    };
+...

@@ -31,10 +31,10 @@ static struct nf_logger *__find_logger(int pf, const char *str_logger)
 	int i;
 
 	for (i = 0; i < NF_LOG_TYPE_MAX; i++) {
-		if (loggers[pf][i] == NULL)
+		log = nft_log_dereference(loggers[pf][i]);
+		if (!log)
 			continue;
 
-		log = nft_log_dereference(loggers[pf][i]);
 		if (!strncasecmp(str_logger, log->name, strlen(log->name)))
 			return log;
 	}
@@ -151,17 +151,15 @@ void nf_log_unbind_pf(struct net *net, u_int8_t pf)
 }
 EXPORT_SYMBOL(nf_log_unbind_pf);
 
-void nf_logger_request_module(int pf, enum nf_log_type type)
-{
-	if (loggers[pf][type] == NULL)
-		request_module("nf-logger-%u-%u", pf, type);
-}
-EXPORT_SYMBOL_GPL(nf_logger_request_module);
-
 int nf_logger_find_get(int pf, enum nf_log_type type)
 {
 	struct nf_logger *logger;
 	int ret = -ENOENT;
+
+	if (pf >= ARRAY_SIZE(loggers))
+		return -EINVAL;
+	if (type >= NF_LOG_TYPE_MAX)
+		return -EINVAL;
 
 	if (pf == NFPROTO_INET) {
 		ret = nf_logger_find_get(NFPROTO_IPV4, type);
@@ -176,9 +174,6 @@ int nf_logger_find_get(int pf, enum nf_log_type type)
 
 		return 0;
 	}
-
-	if (rcu_access_pointer(loggers[pf][type]) == NULL)
-		request_module("nf-logger-%u-%u", pf, type);
 
 	rcu_read_lock();
 	logger = rcu_dereference(loggers[pf][type]);
@@ -203,11 +198,12 @@ void nf_logger_put(int pf, enum nf_log_type type)
 		return;
 	}
 
-	BUG_ON(loggers[pf][type] == NULL);
-
 	rcu_read_lock();
 	logger = rcu_dereference(loggers[pf][type]);
-	module_put(logger->me);
+	if (!logger)
+		WARN_ON_ONCE(1);
+	else
+		module_put(logger->me);
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(nf_logger_put);
@@ -399,7 +395,7 @@ static const struct seq_operations nflog_seq_ops = {
 
 #ifdef CONFIG_SYSCTL
 static char nf_log_sysctl_fnames[NFPROTO_NUMPROTO-NFPROTO_UNSPEC][3];
-static struct ctl_table nf_log_sysctl_table[NFPROTO_NUMPROTO+1];
+static struct ctl_table nf_log_sysctl_table[NFPROTO_NUMPROTO];
 static struct ctl_table_header *nf_log_sysctl_fhdr;
 
 static struct ctl_table nf_log_sysctl_ftable[] = {
@@ -410,11 +406,10 @@ static struct ctl_table nf_log_sysctl_ftable[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
-	{ }
 };
 
 static int nf_log_proc_dostring(struct ctl_table *table, int write,
-			 void __user *buffer, size_t *lenp, loff_t *ppos)
+			 void *buffer, size_t *lenp, loff_t *ppos)
 {
 	const struct nf_logger *logger;
 	char buf[NFLOGGER_NAME_LEN];
@@ -453,9 +448,9 @@ static int nf_log_proc_dostring(struct ctl_table *table, int write,
 		mutex_lock(&nf_log_mutex);
 		logger = nft_log_dereference(net->nf.nf_loggers[tindex]);
 		if (!logger)
-			strlcpy(buf, "NONE", sizeof(buf));
+			strscpy(buf, "NONE", sizeof(buf));
 		else
-			strlcpy(buf, logger->name, sizeof(buf));
+			strscpy(buf, logger->name, sizeof(buf));
 		mutex_unlock(&nf_log_mutex);
 		r = proc_dostring(&tmp, write, buffer, lenp, ppos);
 	}
@@ -497,9 +492,10 @@ static int netfilter_log_sysctl_init(struct net *net)
 	for (i = NFPROTO_UNSPEC; i < NFPROTO_NUMPROTO; i++)
 		table[i].extra2 = net;
 
-	net->nf.nf_log_dir_header = register_net_sysctl(net,
-						"net/netfilter/nf_log",
-						table);
+	net->nf.nf_log_dir_header = register_net_sysctl_sz(net,
+							   "net/netfilter/nf_log",
+							   table,
+							   ARRAY_SIZE(nf_log_sysctl_table));
 	if (!net->nf.nf_log_dir_header)
 		goto err_reg;
 
@@ -517,7 +513,7 @@ err_alloc:
 
 static void netfilter_log_sysctl_exit(struct net *net)
 {
-	struct ctl_table *table;
+	const struct ctl_table *table;
 
 	table = net->nf.nf_log_dir_header->ctl_table_arg;
 	unregister_net_sysctl_table(net->nf.nf_log_dir_header);

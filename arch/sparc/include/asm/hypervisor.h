@@ -430,7 +430,7 @@ unsigned long sun4v_cpu_mondo_send(unsigned long cpu_count,
  * ERRORS:	No errors defined.
  *
  * Return the hypervisor ID handle for the current CPU.  Use by a
- * virtual CPU to discover it's own identity.
+ * virtual CPU to discover its own identity.
  */
 #define HV_FAST_CPU_MYID		0x16
 
@@ -1221,7 +1221,7 @@ unsigned long sun4v_con_write(unsigned long buffer,
  *		EBADALIGNED	software state description is not correctly
  *				aligned
  *
- * This allows the guest to report it's soft state to the hypervisor.  There
+ * This allows the guest to report its soft state to the hypervisor.  There
  * are two primary components to this state.  The first part states whether
  * the guest software is running or not.  The second containts optional
  * details specific to the software.
@@ -1502,7 +1502,7 @@ struct hv_trap_trace_entry {
  * configuration error of some sort.
  *
  * The dump services provide an opaque buffer into which the
- * hypervisor can place it's internal state in order to assist in
+ * hypervisor can place its internal state in order to assist in
  * debugging such situations.  The contents are opaque and extremely
  * platform and hypervisor implementation specific.  The guest, during
  * a core dump, requests that the hypervisor update any information in

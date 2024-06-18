@@ -28,7 +28,6 @@
 #include <linux/sysctl.h>
 
 #include <asm/io.h>
-#include <asm/dma.h>
 #include <linux/uaccess.h>
 #include <asm/superio.h>
 
@@ -41,7 +40,6 @@
 
 MODULE_AUTHOR("Helge Deller <deller@gmx.de>");
 MODULE_DESCRIPTION("HP-PARISC PC-style parallel port driver");
-MODULE_SUPPORTED_DEVICE("integrated PC-style parallel port");
 MODULE_LICENSE("GPL");
 
 
@@ -227,9 +225,9 @@ static int parport_PS2_supported(struct parport *pb)
 
 /* --- Initialisation code -------------------------------- */
 
-struct parport *parport_gsc_probe_port(unsigned long base,
+static struct parport *parport_gsc_probe_port(unsigned long base,
 				       unsigned long base_hi, int irq,
-				       int dma, struct parisc_device *padev)
+				       struct parisc_device *padev)
 {
 	struct parport_gsc_private *priv;
 	struct parport_operations *ops;
@@ -238,25 +236,22 @@ struct parport *parport_gsc_probe_port(unsigned long base,
 
 	priv = kzalloc (sizeof (struct parport_gsc_private), GFP_KERNEL);
 	if (!priv) {
-		printk (KERN_DEBUG "parport (0x%lx): no memory!\n", base);
+		printk(KERN_DEBUG "parport (0x%lx): no memory!\n", base);
 		return NULL;
 	}
 	ops = kmemdup(&parport_gsc_ops, sizeof(struct parport_operations),
 		      GFP_KERNEL);
 	if (!ops) {
-		printk (KERN_DEBUG "parport (0x%lx): no memory for ops!\n",
-			base);
+		printk(KERN_DEBUG "parport (0x%lx): no memory for ops!\n",
+		       base);
 		kfree (priv);
 		return NULL;
 	}
 	priv->ctr = 0xc;
 	priv->ctr_writable = 0xff;
-	priv->dma_buf = NULL;
-	priv->dma_handle = 0;
 	p->base = base;
 	p->base_hi = base_hi;
 	p->irq = irq;
-	p->dma = dma;
 	p->modes = PARPORT_MODE_PCSPP | PARPORT_MODE_SAFEININT;
 	p->ops = ops;
 	p->private_data = priv;
@@ -282,29 +277,25 @@ struct parport *parport_gsc_probe_port(unsigned long base,
 	p->size = (p->modes & PARPORT_MODE_EPP)?8:3;
 	p->private_data = priv;
 
-	printk(KERN_INFO "%s: PC-style at 0x%lx", p->name, p->base);
+	pr_info("%s: PC-style at 0x%lx", p->name, p->base);
 	p->irq = irq;
 	if (p->irq == PARPORT_IRQ_AUTO) {
 		p->irq = PARPORT_IRQ_NONE;
 	}
-	if (p->irq != PARPORT_IRQ_NONE) {
+	if (p->irq != PARPORT_IRQ_NONE)
 		pr_cont(", irq %d", p->irq);
 
-		if (p->dma == PARPORT_DMA_AUTO) {
-			p->dma = PARPORT_DMA_NONE;
-		}
-	}
-	if (p->dma == PARPORT_DMA_AUTO) /* To use DMA, giving the irq
-                                           is mandatory (see above) */
-		p->dma = PARPORT_DMA_NONE;
-
 	pr_cont(" [");
-#define printmode(x) {if(p->modes&PARPORT_MODE_##x){pr_cont("%s%s",f?",":"",#x);f++;}}
+#define printmode(x)							\
+do {									\
+	if (p->modes & PARPORT_MODE_##x)				\
+		pr_cont("%s%s", f++ ? "," : "", #x);			\
+} while (0)
 	{
 		int f = 0;
 		printmode(PCSPP);
 		printmode(TRISTATE);
-		printmode(COMPAT)
+		printmode(COMPAT);
 		printmode(EPP);
 //		printmode(ECP);
 //		printmode(DMA);
@@ -315,11 +306,9 @@ struct parport *parport_gsc_probe_port(unsigned long base,
 	if (p->irq != PARPORT_IRQ_NONE) {
 		if (request_irq (p->irq, parport_irq_handler,
 				 0, p->name, p)) {
-			printk (KERN_WARNING "%s: irq %d in use, "
-				"resorting to polled operation\n",
+			pr_warn("%s: irq %d in use, resorting to polled operation\n",
 				p->name, p->irq);
 			p->irq = PARPORT_IRQ_NONE;
-			p->dma = PARPORT_DMA_NONE;
 		}
 	}
 
@@ -347,7 +336,7 @@ static int __init parport_init_chip(struct parisc_device *dev)
 	unsigned long port;
 
 	if (!dev->irq) {
-		printk(KERN_WARNING "IRQ not found for parallel device at 0x%llx\n",
+		pr_warn("IRQ not found for parallel device at 0x%llx\n",
 			(unsigned long long)dev->hpa.start);
 		return -ENODEV;
 	}
@@ -360,15 +349,14 @@ static int __init parport_init_chip(struct parisc_device *dev)
 	if (boot_cpu_data.cpu_type > pcxt && !pdc_add_valid(port+4)) {
 
 		/* Initialize bidirectional-mode (0x10) & data-tranfer-mode #1 (0x20) */
-		printk("%s: initialize bidirectional-mode.\n", __func__);
+		pr_info("%s: initialize bidirectional-mode\n", __func__);
 		parport_writeb ( (0x10 + 0x20), port + 4);
 
 	} else {
-		printk("%s: enhanced parport-modes not supported.\n", __func__);
+		pr_info("%s: enhanced parport-modes not supported\n", __func__);
 	}
 	
-	p = parport_gsc_probe_port(port, 0, dev->irq,
-			/* PARPORT_IRQ_NONE */ PARPORT_DMA_NONE, dev);
+	p = parport_gsc_probe_port(port, 0, dev->irq, dev);
 	if (p)
 		parport_count++;
 	dev_set_drvdata(&dev->dev, p);
@@ -376,26 +364,18 @@ static int __init parport_init_chip(struct parisc_device *dev)
 	return 0;
 }
 
-static int __exit parport_remove_chip(struct parisc_device *dev)
+static void __exit parport_remove_chip(struct parisc_device *dev)
 {
 	struct parport *p = dev_get_drvdata(&dev->dev);
 	if (p) {
-		struct parport_gsc_private *priv = p->private_data;
 		struct parport_operations *ops = p->ops;
 		parport_remove_port(p);
-		if (p->dma != PARPORT_DMA_NONE)
-			free_dma(p->dma);
 		if (p->irq != PARPORT_IRQ_NONE)
 			free_irq(p->irq, p);
-		if (priv->dma_buf)
-			pci_free_consistent(priv->dev, PAGE_SIZE,
-					    priv->dma_buf,
-					    priv->dma_handle);
 		kfree (p->private_data);
 		parport_put_port(p);
 		kfree (ops); /* hope no-one cached it */
 	}
-	return 0;
 }
 
 static const struct parisc_device_id parport_tbl[] __initconst = {
@@ -412,7 +392,7 @@ static struct parisc_driver parport_driver __refdata = {
 	.remove		= __exit_p(parport_remove_chip),
 };
 
-int parport_gsc_init(void)
+static int parport_gsc_init(void)
 {
 	return register_parisc_driver(&parport_driver);
 }

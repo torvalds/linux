@@ -2,18 +2,46 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/memblock.h>
-#include <linux/mem_encrypt.h>
+#include <linux/cc_platform.h>
+#include <linux/pgtable.h>
 
 #include <asm/set_memory.h>
-#include <asm/pgtable.h>
 #include <asm/realmode.h>
 #include <asm/tlbflush.h>
+#include <asm/crash.h>
+#include <asm/sev.h>
 
 struct real_mode_header *real_mode_header;
 u32 *trampoline_cr4_features;
 
 /* Hold the pgd entry used on booting additional CPUs */
 pgd_t trampoline_pgd_entry;
+
+void load_trampoline_pgtable(void)
+{
+#ifdef CONFIG_X86_32
+	load_cr3(initial_page_table);
+#else
+	/*
+	 * This function is called before exiting to real-mode and that will
+	 * fail with CR4.PCIDE still set.
+	 */
+	if (boot_cpu_has(X86_FEATURE_PCID))
+		cr4_clear_bits(X86_CR4_PCIDE);
+
+	write_cr3(real_mode_header->trampoline_pgd);
+#endif
+
+	/*
+	 * The CR3 write above will not flush global TLB entries.
+	 * Stale, global entries from previous page tables may still be
+	 * present.  Flush those stale entries.
+	 *
+	 * This ensures that memory accessed while running with
+	 * trampoline_pgd is *actually* mapped into trampoline_pgd.
+	 */
+	__flush_tlb_all();
+}
 
 void __init reserve_real_mode(void)
 {
@@ -26,14 +54,36 @@ void __init reserve_real_mode(void)
 	WARN_ON(slab_is_available());
 
 	/* Has to be under 1M so we can execute real-mode AP code. */
-	mem = memblock_find_in_range(0, 1<<20, size, PAGE_SIZE);
-	if (!mem) {
+	mem = memblock_phys_alloc_range(size, PAGE_SIZE, 0, 1<<20);
+	if (!mem)
 		pr_info("No sub-1M memory is available for the trampoline\n");
-		return;
-	}
+	else
+		set_real_mode_mem(mem);
 
-	memblock_reserve(mem, size);
-	set_real_mode_mem(mem);
+	/*
+	 * Unconditionally reserve the entire first 1M, see comment in
+	 * setup_arch().
+	 */
+	memblock_reserve(0, SZ_1M);
+}
+
+static void __init sme_sev_setup_real_mode(struct trampoline_header *th)
+{
+#ifdef CONFIG_AMD_MEM_ENCRYPT
+	if (cc_platform_has(CC_ATTR_HOST_MEM_ENCRYPT))
+		th->flags |= TH_FLAGS_SME_ACTIVE;
+
+	if (cc_platform_has(CC_ATTR_GUEST_STATE_ENCRYPT)) {
+		/*
+		 * Skip the call to verify_cpu() in secondary_startup_64 as it
+		 * will cause #VC exceptions when the AP can't handle them yet.
+		 */
+		th->start = (u64) secondary_startup_64_no_verify;
+
+		if (sev_es_setup_ap_jump_table(real_mode_header))
+			panic("Failed to get/update SEV-ES AP Jump Table");
+	}
+#endif
 }
 
 static void __init setup_real_mode(void)
@@ -48,6 +98,7 @@ static void __init setup_real_mode(void)
 #ifdef CONFIG_X86_64
 	u64 *trampoline_pgd;
 	u64 efer;
+	int i;
 #endif
 
 	base = (unsigned char *)real_mode_header;
@@ -57,7 +108,7 @@ static void __init setup_real_mode(void)
 	 * decrypted memory in order to bring up other processors
 	 * successfully. This is not needed for SEV.
 	 */
-	if (sme_active())
+	if (cc_platform_has(CC_ATTR_HOST_MEM_ENCRYPT))
 		set_memory_decrypted((unsigned long)base, size >> PAGE_SHIFT);
 
 	memcpy(base, real_mode_blob, size);
@@ -81,7 +132,7 @@ static void __init setup_real_mode(void)
 		*ptr += phys_base;
 	}
 
-	/* Must be perfomed *after* relocation. */
+	/* Must be performed *after* relocation. */
 	trampoline_header = (struct trampoline_header *)
 		__va(real_mode_header->trampoline_header);
 
@@ -102,13 +153,25 @@ static void __init setup_real_mode(void)
 	*trampoline_cr4_features = mmu_cr4_features;
 
 	trampoline_header->flags = 0;
-	if (sme_active())
-		trampoline_header->flags |= TH_FLAGS_SME_ACTIVE;
+
+	trampoline_lock = &trampoline_header->lock;
+	*trampoline_lock = 0;
 
 	trampoline_pgd = (u64 *) __va(real_mode_header->trampoline_pgd);
+
+	/* Map the real mode stub as virtual == physical */
 	trampoline_pgd[0] = trampoline_pgd_entry.pgd;
-	trampoline_pgd[511] = init_top_pgt[511].pgd;
+
+	/*
+	 * Include the entirety of the kernel mapping into the trampoline
+	 * PGD.  This way, all mappings present in the normal kernel page
+	 * tables are usable while running on trampoline_pgd.
+	 */
+	for (i = pgd_index(__PAGE_OFFSET); i < PTRS_PER_PGD; i++)
+		trampoline_pgd[i] = init_top_pgt[i].pgd;
 #endif
+
+	sme_sev_setup_real_mode(trampoline_header);
 }
 
 /*
@@ -140,14 +203,18 @@ static void __init set_real_mode_permissions(void)
 	set_memory_x((unsigned long) text_start, text_size >> PAGE_SHIFT);
 }
 
-static int __init init_real_mode(void)
+void __init init_real_mode(void)
 {
 	if (!real_mode_header)
 		panic("Real mode trampoline was not allocated");
 
 	setup_real_mode();
 	set_real_mode_permissions();
+}
 
+static int __init do_init_real_mode(void)
+{
+	x86_platform.realmode_init();
 	return 0;
 }
-early_initcall(init_real_mode);
+early_initcall(do_init_real_mode);

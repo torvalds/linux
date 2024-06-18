@@ -14,22 +14,18 @@
 #define OCXL_NUM_MINORS 256 /* Total to reserve */
 
 static dev_t ocxl_dev;
-static struct class *ocxl_class;
-static struct mutex minors_idr_lock;
+static DEFINE_MUTEX(minors_idr_lock);
 static struct idr minors_idr;
 
-static struct ocxl_file_info *find_file_info(dev_t devno)
+static struct ocxl_file_info *find_and_get_file_info(dev_t devno)
 {
 	struct ocxl_file_info *info;
 
-	/*
-	 * We don't declare an RCU critical section here, as our AFU
-	 * is protected by a reference counter on the device. By the time the
-	 * info reference is removed from the idr, the ref count of
-	 * the device is already at 0, so no user API will access that AFU and
-	 * this function can't return it.
-	 */
+	mutex_lock(&minors_idr_lock);
 	info = idr_find(&minors_idr, MINOR(devno));
+	if (info)
+		get_device(&info->dev);
+	mutex_unlock(&minors_idr_lock);
 	return info;
 }
 
@@ -58,14 +54,16 @@ static int afu_open(struct inode *inode, struct file *file)
 
 	pr_debug("%s for device %x\n", __func__, inode->i_rdev);
 
-	info = find_file_info(inode->i_rdev);
+	info = find_and_get_file_info(inode->i_rdev);
 	if (!info)
 		return -ENODEV;
 
 	rc = ocxl_context_alloc(&ctx, info->afu, inode->i_mapping);
-	if (rc)
+	if (rc) {
+		put_device(&info->dev);
 		return rc;
-
+	}
+	put_device(&info->dev);
 	file->private_data = ctx;
 	return 0;
 }
@@ -75,7 +73,6 @@ static long afu_ioctl_attach(struct ocxl_context *ctx,
 {
 	struct ocxl_ioctl_attach arg;
 	u64 amr = 0;
-	int rc;
 
 	pr_debug("%s for context %d\n", __func__, ctx->pasid);
 
@@ -87,8 +84,7 @@ static long afu_ioctl_attach(struct ocxl_context *ctx,
 		return -EINVAL;
 
 	amr = arg.amr & mfspr(SPRN_UAMOR);
-	rc = ocxl_context_attach(ctx, amr, current->mm);
-	return rc;
+	return ocxl_context_attach(ctx, amr, current->mm);
 }
 
 static long afu_ioctl_get_metadata(struct ocxl_context *ctx,
@@ -188,7 +184,7 @@ static irqreturn_t irq_handler(void *private)
 {
 	struct eventfd_ctx *ev_ctx = private;
 
-	eventfd_signal(ev_ctx, 1);
+	eventfd_signal(ev_ctx);
 	return IRQ_HANDLED;
 }
 
@@ -260,6 +256,8 @@ static long afu_ioctl(struct file *file, unsigned int cmd,
 		if (IS_ERR(ev_ctx))
 			return PTR_ERR(ev_ctx);
 		rc = ocxl_irq_set_handler(ctx, irq_id, irq_handler, irq_free, ev_ctx);
+		if (rc)
+			eventfd_ctx_put(ev_ctx);
 		break;
 
 	case OCXL_IOCTL_GET_METADATA:
@@ -487,7 +485,6 @@ static void info_release(struct device *dev)
 {
 	struct ocxl_file_info *info = container_of(dev, struct ocxl_file_info, dev);
 
-	free_minor(info);
 	ocxl_afu_put(info->afu);
 	kfree(info);
 }
@@ -511,6 +508,16 @@ static void ocxl_file_make_invisible(struct ocxl_file_info *info)
 	cdev_del(&info->cdev);
 }
 
+static char *ocxl_devnode(const struct device *dev, umode_t *mode)
+{
+	return kasprintf(GFP_KERNEL, "ocxl/%s", dev_name(dev));
+}
+
+static const struct class ocxl_class = {
+	.name =		"ocxl",
+	.devnode =	ocxl_devnode,
+};
+
 int ocxl_file_register_afu(struct ocxl_afu *afu)
 {
 	int minor;
@@ -531,7 +538,7 @@ int ocxl_file_register_afu(struct ocxl_afu *afu)
 
 	info->dev.parent = &fn->dev;
 	info->dev.devt = MKDEV(MAJOR(ocxl_dev), minor);
-	info->dev.class = ocxl_class;
+	info->dev.class = &ocxl_class;
 	info->dev.release = info_release;
 
 	info->afu = afu;
@@ -543,8 +550,11 @@ int ocxl_file_register_afu(struct ocxl_afu *afu)
 		goto err_put;
 
 	rc = device_register(&info->dev);
-	if (rc)
-		goto err_put;
+	if (rc) {
+		free_minor(info);
+		put_device(&info->dev);
+		return rc;
+	}
 
 	rc = ocxl_sysfs_register_afu(info);
 	if (rc)
@@ -560,7 +570,9 @@ int ocxl_file_register_afu(struct ocxl_afu *afu)
 
 err_unregister:
 	ocxl_sysfs_unregister_afu(info); // safe to call even if register failed
+	free_minor(info);
 	device_unregister(&info->dev);
+	return rc;
 err_put:
 	ocxl_afu_put(afu);
 	free_minor(info);
@@ -577,19 +589,14 @@ void ocxl_file_unregister_afu(struct ocxl_afu *afu)
 
 	ocxl_file_make_invisible(info);
 	ocxl_sysfs_unregister_afu(info);
+	free_minor(info);
 	device_unregister(&info->dev);
-}
-
-static char *ocxl_devnode(struct device *dev, umode_t *mode)
-{
-	return kasprintf(GFP_KERNEL, "ocxl/%s", dev_name(dev));
 }
 
 int ocxl_file_init(void)
 {
 	int rc;
 
-	mutex_init(&minors_idr_lock);
 	idr_init(&minors_idr);
 
 	rc = alloc_chrdev_region(&ocxl_dev, 0, OCXL_NUM_MINORS, "ocxl");
@@ -598,20 +605,19 @@ int ocxl_file_init(void)
 		return rc;
 	}
 
-	ocxl_class = class_create(THIS_MODULE, "ocxl");
-	if (IS_ERR(ocxl_class)) {
+	rc = class_register(&ocxl_class);
+	if (rc) {
 		pr_err("Unable to create ocxl class\n");
 		unregister_chrdev_region(ocxl_dev, OCXL_NUM_MINORS);
-		return PTR_ERR(ocxl_class);
+		return rc;
 	}
 
-	ocxl_class->devnode = ocxl_devnode;
 	return 0;
 }
 
 void ocxl_file_exit(void)
 {
-	class_destroy(ocxl_class);
+	class_unregister(&ocxl_class);
 	unregister_chrdev_region(ocxl_dev, OCXL_NUM_MINORS);
 	idr_destroy(&minors_idr);
 }

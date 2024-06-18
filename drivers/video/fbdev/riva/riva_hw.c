@@ -247,14 +247,13 @@ static int nv3_iterate(nv3_fifo_info *res_info, nv3_sim_state * state, nv3_arb_i
     int mburst_size = 32;
     int mmisses, gmisses, vmisses;
     int misses;
-    int vlwm, glwm, mlwm;
+    int vlwm, glwm;
     int last, next, cur;
     int max_gfsize ;
     long ns;
 
     vlwm = 0;
     glwm = 0;
-    mlwm = 0;
     vfsize = 0;
     gfsize = 0;
     cur = ainfo->cur;
@@ -656,13 +655,12 @@ static void nv4CalcArbitration
     nv4_sim_state *arb
 )
 {
-    int data, pagemiss, cas,width, video_enable, color_key_enable, bpp, align;
+    int data, pagemiss, cas,width, video_enable, bpp;
     int nvclks, mclks, pclks, vpagemiss, crtpagemiss, vbs;
     int found, mclk_extra, mclk_loop, cbs, m1, p1;
     int mclk_freq, pclk_freq, nvclk_freq, mp_enable;
     int us_m, us_n, us_p, video_drain_rate, crtc_drain_rate;
     int vpm_us, us_video, vlwm, video_fill_us, cpm_us, us_crt,clwm;
-    int craw, vraw;
 
     fifo->valid = 1;
     pclk_freq = arb->pclk_khz;
@@ -672,9 +670,7 @@ static void nv4CalcArbitration
     cas = arb->mem_latency;
     width = arb->memory_width >> 6;
     video_enable = arb->enable_video;
-    color_key_enable = arb->gr_during_vid;
     bpp = arb->pix_bpp;
-    align = arb->mem_aligned;
     mp_enable = arb->enable_mp;
     clwm = 0;
     vlwm = 0;
@@ -782,8 +778,6 @@ static void nv4CalcArbitration
                 mclk_extra--;
             }
         }
-        craw = clwm;
-        vraw = vlwm;
         if (clwm < 384) clwm = 384;
         if (vlwm < 128) vlwm = 128;
         data = (int)(clwm);
@@ -842,17 +836,17 @@ static void nv10CalcArbitration
     nv10_sim_state *arb
 )
 {
-    int data, pagemiss, cas,width, video_enable, color_key_enable, bpp, align;
-    int nvclks, mclks, pclks, vpagemiss, crtpagemiss, vbs;
-    int nvclk_fill, us_extra;
+    int data, pagemiss, width, video_enable, bpp;
+    int nvclks, mclks, pclks, vpagemiss, crtpagemiss;
+    int nvclk_fill;
     int found, mclk_extra, mclk_loop, cbs, m1;
     int mclk_freq, pclk_freq, nvclk_freq, mp_enable;
-    int us_m, us_m_min, us_n, us_p, video_drain_rate, crtc_drain_rate;
-    int vus_m, vus_n, vus_p;
-    int vpm_us, us_video, vlwm, cpm_us, us_crt,clwm;
+    int us_m, us_m_min, us_n, us_p, crtc_drain_rate;
+    int vus_m;
+    int vpm_us, us_video, cpm_us, us_crt,clwm;
     int clwm_rnd_down;
-    int craw, m2us, us_pipe, us_pipe_min, vus_pipe, p1clk, p2;
-    int pclks_2_top_fifo, min_mclk_extra;
+    int m2us, us_pipe_min, p1clk, p2;
+    int min_mclk_extra;
     int us_min_mclk_extra;
 
     fifo->valid = 1;
@@ -860,18 +854,13 @@ static void nv10CalcArbitration
     mclk_freq = arb->mclk_khz;
     nvclk_freq = arb->nvclk_khz;
     pagemiss = arb->mem_page_miss;
-    cas = arb->mem_latency;
     width = arb->memory_width/64;
     video_enable = arb->enable_video;
-    color_key_enable = arb->gr_during_vid;
     bpp = arb->pix_bpp;
-    align = arb->mem_aligned;
     mp_enable = arb->enable_mp;
     clwm = 0;
-    vlwm = 1024;
 
     cbs = 512;
-    vbs = 512;
 
     pclks = 4; /* lwm detect. */
 
@@ -932,17 +921,11 @@ static void nv10CalcArbitration
       us_min_mclk_extra = min_mclk_extra *1000*1000 / mclk_freq;
       us_n = nvclks*1000*1000 / nvclk_freq;/* nvclk latency in us */
       us_p = pclks*1000*1000 / pclk_freq;/* nvclk latency in us */
-      us_pipe = us_m + us_n + us_p;
       us_pipe_min = us_m_min + us_n + us_p;
-      us_extra = 0;
 
       vus_m = mclk_loop *1000*1000 / mclk_freq; /* Mclk latency in us */
-      vus_n = (4)*1000*1000 / nvclk_freq;/* nvclk latency in us */
-      vus_p = 0*1000*1000 / pclk_freq;/* pclk latency in us */
-      vus_pipe = vus_m + vus_n + vus_p;
 
       if(video_enable) {
-        video_drain_rate = pclk_freq * 4; /* MB/s */
         crtc_drain_rate = pclk_freq * bpp/8; /* MB/s */
 
         vpagemiss = 1; /* self generating page miss */
@@ -1001,7 +984,6 @@ static void nv10CalcArbitration
               else if(crtc_drain_rate * 100  >= nvclk_fill * 98) {
                   clwm = 1024;
                   cbs = 512;
-                  us_extra = (cbs * 1000 * 1000)/ (8*width)/mclk_freq ;
               }
           }
       }
@@ -1018,7 +1000,6 @@ static void nv10CalcArbitration
 
       m1 = clwm + cbs -  1024; /* Amount of overfill */
       m2us = us_pipe_min + us_min_mclk_extra;
-      pclks_2_top_fifo = (1024-clwm)/(8*width);
 
       /* pclk cycles to drain */
       p1clk = m2us * pclk_freq/(1000*1000); 
@@ -1046,7 +1027,6 @@ static void nv10CalcArbitration
               min_mclk_extra--;
         }
       }
-      craw = clwm;
 
       if(clwm < (1024-cbs+8)) clwm = 1024-cbs+8;
       data = (int)(clwm);
@@ -1245,8 +1225,7 @@ int CalcStateExt
 )
 {
     int pixelDepth;
-    int uninitialized_var(VClk),uninitialized_var(m),
-        uninitialized_var(n),	uninitialized_var(p);
+    int VClk, m, n, p;
 
     /*
      * Save mode parameters.
@@ -1343,24 +1322,6 @@ int CalcStateExt
 /*
  * Load fixed function state and pre-calculated/stored state.
  */
-#if 0
-#define LOAD_FIXED_STATE(tbl,dev)                                       \
-    for (i = 0; i < sizeof(tbl##Table##dev)/8; i++)                 \
-        chip->dev[tbl##Table##dev[i][0]] = tbl##Table##dev[i][1]
-#define LOAD_FIXED_STATE_8BPP(tbl,dev)                                  \
-    for (i = 0; i < sizeof(tbl##Table##dev##_8BPP)/8; i++)            \
-        chip->dev[tbl##Table##dev##_8BPP[i][0]] = tbl##Table##dev##_8BPP[i][1]
-#define LOAD_FIXED_STATE_15BPP(tbl,dev)                                 \
-    for (i = 0; i < sizeof(tbl##Table##dev##_15BPP)/8; i++)           \
-        chip->dev[tbl##Table##dev##_15BPP[i][0]] = tbl##Table##dev##_15BPP[i][1]
-#define LOAD_FIXED_STATE_16BPP(tbl,dev)                                 \
-    for (i = 0; i < sizeof(tbl##Table##dev##_16BPP)/8; i++)           \
-        chip->dev[tbl##Table##dev##_16BPP[i][0]] = tbl##Table##dev##_16BPP[i][1]
-#define LOAD_FIXED_STATE_32BPP(tbl,dev)                                 \
-    for (i = 0; i < sizeof(tbl##Table##dev##_32BPP)/8; i++)           \
-        chip->dev[tbl##Table##dev##_32BPP[i][0]] = tbl##Table##dev##_32BPP[i][1]
-#endif
-
 #define LOAD_FIXED_STATE(tbl,dev)                                       \
     for (i = 0; i < sizeof(tbl##Table##dev)/8; i++)                 \
         NV_WR32(&chip->dev[tbl##Table##dev[i][0]], 0, tbl##Table##dev[i][1])

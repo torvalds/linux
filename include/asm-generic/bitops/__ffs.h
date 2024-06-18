@@ -5,14 +5,14 @@
 #include <asm/types.h>
 
 /**
- * __ffs - find first bit in word.
+ * generic___ffs - find first bit in word.
  * @word: The word to search
  *
  * Undefined if no bit exists, so code should check against 0 first.
  */
-static __always_inline unsigned long __ffs(unsigned long word)
+static __always_inline unsigned int generic___ffs(unsigned long word)
 {
-	int num = 0;
+	unsigned int num = 0;
 
 #if BITS_PER_LONG == 64
 	if ((word & 0xffffffff) == 0) {
@@ -40,5 +40,9 @@ static __always_inline unsigned long __ffs(unsigned long word)
 		num += 1;
 	return num;
 }
+
+#ifndef __HAVE_ARCH___FFS
+#define __ffs(word) generic___ffs(word)
+#endif
 
 #endif /* _ASM_GENERIC_BITOPS___FFS_H_ */

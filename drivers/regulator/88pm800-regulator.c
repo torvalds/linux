@@ -134,13 +134,13 @@ struct pm800_regulator_info {
 }
 
 /* Ranges are sorted in ascending order. */
-static const struct regulator_linear_range buck1_volt_range[] = {
+static const struct linear_range buck1_volt_range[] = {
 	REGULATOR_LINEAR_RANGE(600000, 0, 0x4f, 12500),
 	REGULATOR_LINEAR_RANGE(1600000, 0x50, 0x54, 50000),
 };
 
 /* BUCK 2~5 have same ranges. */
-static const struct regulator_linear_range buck2_5_volt_range[] = {
+static const struct linear_range buck2_5_volt_range[] = {
 	REGULATOR_LINEAR_RANGE(600000, 0, 0x4f, 12500),
 	REGULATOR_LINEAR_RANGE(1600000, 0x50, 0x72, 50000),
 };
@@ -274,6 +274,7 @@ static int pm800_regulator_probe(struct platform_device *pdev)
 static struct platform_driver pm800_regulator_driver = {
 	.driver		= {
 		.name	= "88pm80x-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe		= pm800_regulator_probe,
 };

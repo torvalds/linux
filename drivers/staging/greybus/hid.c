@@ -221,8 +221,8 @@ static void gb_hid_init_reports(struct gb_hid *ghid)
 }
 
 static int __gb_hid_get_raw_report(struct hid_device *hid,
-		unsigned char report_number, __u8 *buf, size_t count,
-		unsigned char report_type)
+				   unsigned char report_number, __u8 *buf, size_t count,
+				   unsigned char report_type)
 {
 	struct gb_hid *ghid = hid->driver_data;
 	int ret;
@@ -254,7 +254,7 @@ static int __gb_hid_output_raw_report(struct hid_device *hid, __u8 *buf,
 
 	ret = gb_hid_set_report(ghid, report_type, report_id, buf, len);
 	if (report_id && ret >= 0)
-		ret++; /* add report_id to the number of transfered bytes */
+		ret++; /* add report_id to the number of transferred bytes */
 
 	return 0;
 }
@@ -290,9 +290,8 @@ static int gb_hid_parse(struct hid_device *hid)
 	}
 
 	rdesc = kzalloc(rsize, GFP_KERNEL);
-	if (!rdesc) {
+	if (!rdesc)
 		return -ENOMEM;
-	}
 
 	ret = gb_hid_get_report_desc(ghid, rdesc);
 	if (ret) {
@@ -382,7 +381,7 @@ static int gb_hid_power(struct hid_device *hid, int lvl)
 }
 
 /* HID structure to pass callbacks */
-static struct hid_ll_driver gb_hid_ll_driver = {
+static const struct hid_ll_driver gb_hid_ll_driver = {
 	.parse = gb_hid_parse,
 	.start = gb_hid_start,
 	.stop = gb_hid_stop,

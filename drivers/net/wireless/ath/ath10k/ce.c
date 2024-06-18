@@ -3,6 +3,7 @@
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include "hif.h"
@@ -77,57 +78,11 @@ static inline u32 shadow_sr_wr_ind_addr(struct ath10k *ar,
 	return addr;
 }
 
-static inline u32 shadow_dst_wr_ind_addr(struct ath10k *ar,
-					 struct ath10k_ce_pipe *ce_state)
-{
-	u32 ce_id = ce_state->id;
-	u32 addr = 0;
-
-	switch (ce_id) {
-	case 1:
-		addr = 0x00032034;
-		break;
-	case 2:
-		addr = 0x00032038;
-		break;
-	case 5:
-		addr = 0x00032044;
-		break;
-	case 7:
-		addr = 0x0003204C;
-		break;
-	case 8:
-		addr = 0x00032050;
-		break;
-	case 9:
-		addr = 0x00032054;
-		break;
-	case 10:
-		addr = 0x00032058;
-		break;
-	case 11:
-		addr = 0x0003205C;
-		break;
-	default:
-		ath10k_warn(ar, "invalid CE id: %d", ce_id);
-		break;
-	}
-
-	return addr;
-}
-
 static inline unsigned int
 ath10k_set_ring_byte(unsigned int offset,
 		     struct ath10k_hw_ce_regs_addr_map *addr_map)
 {
 	return ((offset << addr_map->lsb) & addr_map->mask);
-}
-
-static inline unsigned int
-ath10k_get_ring_byte(unsigned int offset,
-		     struct ath10k_hw_ce_regs_addr_map *addr_map)
-{
-	return ((offset & addr_map->mask) >> (addr_map->lsb));
 }
 
 static inline u32 ath10k_ce_read32(struct ath10k *ar, u32 offset)
@@ -206,14 +161,6 @@ ath10k_ce_shadow_src_ring_write_index_set(struct ath10k *ar,
 					  unsigned int value)
 {
 	ath10k_ce_write32(ar, shadow_sr_wr_ind_addr(ar, ce_state), value);
-}
-
-static inline void
-ath10k_ce_shadow_dest_ring_write_index_set(struct ath10k *ar,
-					   struct ath10k_ce_pipe *ce_state,
-					   unsigned int value)
-{
-	ath10k_ce_write32(ar, shadow_dst_wr_ind_addr(ar, ce_state), value);
 }
 
 static inline void ath10k_ce_src_ring_base_addr_set(struct ath10k *ar,
@@ -444,19 +391,6 @@ static inline void ath10k_ce_watermark_intr_disable(struct ath10k *ar,
 
 	ath10k_ce_write32(ar, ce_ctrl_addr + ar->hw_ce_regs->host_ie_addr,
 			  host_ie_addr & ~(wm_regs->wm_mask));
-}
-
-static inline void ath10k_ce_error_intr_enable(struct ath10k *ar,
-					       u32 ce_ctrl_addr)
-{
-	struct ath10k_hw_ce_misc_regs *misc_regs = ar->hw_ce_regs->misc_regs;
-
-	u32 misc_ie_addr = ath10k_ce_read32(ar, ce_ctrl_addr +
-					    ar->hw_ce_regs->misc_ie_addr);
-
-	ath10k_ce_write32(ar,
-			  ce_ctrl_addr + ar->hw_ce_regs->misc_ie_addr,
-			  misc_ie_addr | misc_regs->err_mask);
 }
 
 static inline void ath10k_ce_error_intr_disable(struct ath10k *ar,
@@ -1299,36 +1233,31 @@ void ath10k_ce_per_engine_service(struct ath10k *ar, unsigned int ce_id)
 	struct ath10k_hw_ce_host_wm_regs *wm_regs = ar->hw_ce_regs->wm_regs;
 	u32 ctrl_addr = ce_state->ctrl_addr;
 
-	spin_lock_bh(&ce->ce_lock);
-
-	/* Clear the copy-complete interrupts that will be handled here. */
+	/*
+	 * Clear before handling
+	 *
+	 * Misc CE interrupts are not being handled, but still need
+	 * to be cleared.
+	 *
+	 * NOTE: When the last copy engine interrupt is cleared the
+	 * hardware will go to sleep.  Once this happens any access to
+	 * the CE registers can cause a hardware fault.
+	 */
 	ath10k_ce_engine_int_status_clear(ar, ctrl_addr,
-					  wm_regs->cc_mask);
-
-	spin_unlock_bh(&ce->ce_lock);
+					  wm_regs->cc_mask | wm_regs->wm_mask);
 
 	if (ce_state->recv_cb)
 		ce_state->recv_cb(ce_state);
 
 	if (ce_state->send_cb)
 		ce_state->send_cb(ce_state);
-
-	spin_lock_bh(&ce->ce_lock);
-
-	/*
-	 * Misc CE interrupts are not being handled, but still need
-	 * to be cleared.
-	 */
-	ath10k_ce_engine_int_status_clear(ar, ctrl_addr, wm_regs->wm_mask);
-
-	spin_unlock_bh(&ce->ce_lock);
 }
 EXPORT_SYMBOL(ath10k_ce_per_engine_service);
 
 /*
  * Handler for per-engine interrupts on ALL active CEs.
  * This is used in cases where the system is sharing a
- * single interrput for all CEs
+ * single interrupt for all CEs
  */
 
 void ath10k_ce_per_engine_service_any(struct ath10k *ar)
@@ -1372,45 +1301,55 @@ static void ath10k_ce_per_engine_handler_adjust(struct ath10k_ce_pipe *ce_state)
 	ath10k_ce_watermark_intr_disable(ar, ctrl_addr);
 }
 
-int ath10k_ce_disable_interrupts(struct ath10k *ar)
+void ath10k_ce_disable_interrupt(struct ath10k *ar, int ce_id)
 {
 	struct ath10k_ce *ce = ath10k_ce_priv(ar);
 	struct ath10k_ce_pipe *ce_state;
 	u32 ctrl_addr;
+
+	ce_state  = &ce->ce_states[ce_id];
+	if (ce_state->attr_flags & CE_ATTR_POLL)
+		return;
+
+	ctrl_addr = ath10k_ce_base_address(ar, ce_id);
+
+	ath10k_ce_copy_complete_intr_disable(ar, ctrl_addr);
+	ath10k_ce_error_intr_disable(ar, ctrl_addr);
+	ath10k_ce_watermark_intr_disable(ar, ctrl_addr);
+}
+EXPORT_SYMBOL(ath10k_ce_disable_interrupt);
+
+void ath10k_ce_disable_interrupts(struct ath10k *ar)
+{
 	int ce_id;
 
-	for (ce_id = 0; ce_id < CE_COUNT; ce_id++) {
-		ce_state  = &ce->ce_states[ce_id];
-		if (ce_state->attr_flags & CE_ATTR_POLL)
-			continue;
-
-		ctrl_addr = ath10k_ce_base_address(ar, ce_id);
-
-		ath10k_ce_copy_complete_intr_disable(ar, ctrl_addr);
-		ath10k_ce_error_intr_disable(ar, ctrl_addr);
-		ath10k_ce_watermark_intr_disable(ar, ctrl_addr);
-	}
-
-	return 0;
+	for (ce_id = 0; ce_id < CE_COUNT; ce_id++)
+		ath10k_ce_disable_interrupt(ar, ce_id);
 }
 EXPORT_SYMBOL(ath10k_ce_disable_interrupts);
 
-void ath10k_ce_enable_interrupts(struct ath10k *ar)
+void ath10k_ce_enable_interrupt(struct ath10k *ar, int ce_id)
 {
 	struct ath10k_ce *ce = ath10k_ce_priv(ar);
-	int ce_id;
 	struct ath10k_ce_pipe *ce_state;
+
+	ce_state  = &ce->ce_states[ce_id];
+	if (ce_state->attr_flags & CE_ATTR_POLL)
+		return;
+
+	ath10k_ce_per_engine_handler_adjust(ce_state);
+}
+EXPORT_SYMBOL(ath10k_ce_enable_interrupt);
+
+void ath10k_ce_enable_interrupts(struct ath10k *ar)
+{
+	int ce_id;
 
 	/* Enable interrupts for copy engine that
 	 * are not using polling mode.
 	 */
-	for (ce_id = 0; ce_id < CE_COUNT; ce_id++) {
-		ce_state  = &ce->ce_states[ce_id];
-		if (ce_state->attr_flags & CE_ATTR_POLL)
-			continue;
-
-		ath10k_ce_per_engine_handler_adjust(ce_state);
-	}
+	for (ce_id = 0; ce_id < CE_COUNT; ce_id++)
+		ath10k_ce_enable_interrupt(ar, ce_id);
 }
 EXPORT_SYMBOL(ath10k_ce_enable_interrupts);
 
@@ -1555,7 +1494,7 @@ ath10k_ce_alloc_src_ring(struct ath10k *ar, unsigned int ce_id,
 		ret = ath10k_ce_alloc_shadow_base(ar, src_ring, nentries);
 		if (ret) {
 			dma_free_coherent(ar->dev,
-					  (nentries * sizeof(struct ce_desc_64) +
+					  (nentries * sizeof(struct ce_desc) +
 					   CE_DESC_RING_ALIGN),
 					  src_ring->base_addr_owner_space_unaligned,
 					  base_addr);
@@ -1704,9 +1643,6 @@ ath10k_ce_alloc_dest_ring_64(struct ath10k *ar, unsigned int ce_id,
 	/* Correctly initialize memory to 0 to prevent garbage
 	 * data crashing system when download firmware
 	 */
-	memset(dest_ring->base_addr_owner_space_unaligned, 0,
-	       nentries * sizeof(struct ce_desc_64) + CE_DESC_RING_ALIGN);
-
 	dest_ring->base_addr_owner_space =
 			PTR_ALIGN(dest_ring->base_addr_owner_space_unaligned,
 				  CE_DESC_RING_ALIGN);
@@ -2019,8 +1955,6 @@ void ath10k_ce_alloc_rri(struct ath10k *ar)
 		value |= ar->hw_ce_regs->upd->mask;
 		ath10k_ce_write32(ar, ce_base_addr + ctrl1_regs, value);
 	}
-
-	memset(ce->vaddr_rri, 0, CE_COUNT * sizeof(u32));
 }
 EXPORT_SYMBOL(ath10k_ce_alloc_rri);
 

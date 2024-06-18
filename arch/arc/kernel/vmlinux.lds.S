@@ -41,8 +41,8 @@ SECTIONS
 #endif
 
 	/*
-	 * The reason for having a seperate subsection .init.ramfs is to
-	 * prevent objump from including it in kernel dumps
+	 * The reason for having a separate subsection .init.ramfs is to
+	 * prevent objdump from including it in kernel dumps
 	 *
 	 * Reason for having .init.ramfs above .init is to make sure that the
 	 * binary blob is tucked away to one side, reducing the displacement
@@ -57,7 +57,6 @@ SECTIONS
 	.init.ramfs : { INIT_RAM_FS }
 
 	. = ALIGN(PAGE_SIZE);
-	_stext = .;
 
 	HEAD_TEXT_SECTION
 	INIT_TEXT_SECTION(L1_CACHE_BYTES)
@@ -83,11 +82,13 @@ SECTIONS
 
 	.text : {
 		_text = .;
+		_stext = .;
 		TEXT_TEXT
 		SCHED_TEXT
-		CPUIDLE_TEXT
 		LOCK_TEXT
 		KPROBES_TEXT
+		IRQENTRY_TEXT
+		SOFTIRQENTRY_TEXT
 		*(.fixup)
 		*(.gnu.warning)
 	}
@@ -95,13 +96,13 @@ SECTIONS
 	_etext = .;
 
 	_sdata = .;
-	RO_DATA_SECTION(PAGE_SIZE)
+	RO_DATA(PAGE_SIZE)
 
 	/*
 	 * 1. this is .data essentially
 	 * 2. THREAD_SIZE for init.task, must be kernel-stk sz aligned
 	 */
-	RW_DATA_SECTION(L1_CACHE_BYTES, PAGE_SIZE, THREAD_SIZE)
+	RW_DATA(L1_CACHE_BYTES, PAGE_SIZE, THREAD_SIZE)
 
 	_edata = .;
 
@@ -118,12 +119,11 @@ SECTIONS
 	/DISCARD/ : {	*(.eh_frame) }
 #endif
 
-	NOTES
-
 	. = ALIGN(PAGE_SIZE);
 	_end = . ;
 
 	STABS_DEBUG
+	ELF_DETAILS
 	DISCARDS
 
 	.arcextmap 0 : {

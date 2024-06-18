@@ -84,9 +84,6 @@ static const struct fb_fix_screeninfo mc68x328fb_fix __initconst = {
     /*
      *  Interface used by the world
      */
-int mc68x328fb_init(void);
-int mc68x328fb_setup(char *);
-
 static int mc68x328fb_check_var(struct fb_var_screeninfo *var,
 			 struct fb_info *info);
 static int mc68x328fb_set_par(struct fb_info *info);
@@ -96,14 +93,14 @@ static int mc68x328fb_pan_display(struct fb_var_screeninfo *var,
 			   struct fb_info *info);
 static int mc68x328fb_mmap(struct fb_info *info, struct vm_area_struct *vma);
 
-static struct fb_ops mc68x328fb_ops = {
+static const struct fb_ops mc68x328fb_ops = {
+	.owner		= THIS_MODULE,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_check_var	= mc68x328fb_check_var,
 	.fb_set_par	= mc68x328fb_set_par,
 	.fb_setcolreg	= mc68x328fb_setcolreg,
 	.fb_pan_display	= mc68x328fb_pan_display,
-	.fb_fillrect	= cfb_fillrect,
-	.fb_copyarea	= cfb_copyarea,
-	.fb_imageblit	= cfb_imageblit,
+	__FB_DEFAULT_IOMEM_OPS_DRAW,
 	.fb_mmap	= mc68x328fb_mmap,
 };
 
@@ -126,7 +123,7 @@ static u_long get_line_length(int xres_virtual, int bpp)
      *  First part, xxxfb_check_var, must not write anything
      *  to hardware, it should only verify and adjust var.
      *  This means it doesn't alter par but it does use hardware
-     *  data from it to check this var. 
+     *  data from it to check this var.
      */
 
 static int mc68x328fb_check_var(struct fb_var_screeninfo *var,
@@ -184,7 +181,7 @@ static int mc68x328fb_check_var(struct fb_var_screeninfo *var,
 
 	/*
 	 * Now that we checked it we alter var. The reason being is that the video
-	 * mode passed in might not work but slight changes to it might make it 
+	 * mode passed in might not work but slight changes to it might make it
 	 * work. This way we let the user know what is acceptable.
 	 */
 	switch (var->bits_per_pixel) {
@@ -259,8 +256,8 @@ static int mc68x328fb_check_var(struct fb_var_screeninfo *var,
 }
 
 /* This routine actually sets the video mode. It's in here where we
- * the hardware state info->par and fix which can be affected by the 
- * change in par. For this driver it doesn't do much. 
+ * the hardware state info->par and fix which can be affected by the
+ * change in par. For this driver it doesn't do much.
  */
 static int mc68x328fb_set_par(struct fb_info *info)
 {
@@ -297,7 +294,7 @@ static int mc68x328fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 	 *   {hardwarespecific} contains width of RAMDAC
 	 *   cmap[X] is programmed to (X << red.offset) | (X << green.offset) | (X << blue.offset)
 	 *   RAMDAC[X] is programmed to (red, green, blue)
-	 * 
+	 *
 	 * Pseudocolor:
 	 *    uses offset = 0 && length = RAMDAC register width.
 	 *    var->{color}.offset is 0
@@ -386,7 +383,7 @@ static int mc68x328fb_pan_display(struct fb_var_screeninfo *var,
 }
 
     /*
-     *  Most drivers don't need their own mmap function 
+     *  Most drivers don't need their own mmap function
      */
 
 static int mc68x328fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
@@ -394,7 +391,7 @@ static int mc68x328fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 #ifndef MMU
 	/* this is uClinux (no MMU) specific code */
 
-	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
+	vm_flags_set(vma, VM_DONTEXPAND | VM_DONTDUMP);
 	vma->vm_start = videomemory;
 
 	return 0;
@@ -403,22 +400,10 @@ static int mc68x328fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 #endif
 }
 
-int __init mc68x328fb_setup(char *options)
+static int __init mc68x328fb_setup(char *options)
 {
-#if 0
-	char *this_opt;
-#endif
-
 	if (!options || !*options)
 		return 1;
-#if 0
-	while ((this_opt = strsep(&options, ",")) != NULL) {
-		if (!*this_opt)
-			continue;
-		if (!strncmp(this_opt, "disable", 7))
-			mc68x328fb_enable = 0;
-	}
-#endif
 	return 1;
 }
 
@@ -426,7 +411,7 @@ int __init mc68x328fb_setup(char *options)
      *  Initialisation
      */
 
-int __init mc68x328fb_init(void)
+static int __init mc68x328fb_init(void)
 {
 #ifndef MODULE
 	char *option = NULL;
@@ -462,7 +447,7 @@ int __init mc68x328fb_init(void)
 		fb_info.var.red.offset = fb_info.var.green.offset = fb_info.var.blue.offset = 0;
 	}
 	fb_info.pseudo_palette = &mc68x328fb_pseudo_palette;
-	fb_info.flags = FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN;
+	fb_info.flags = FBINFO_HWACCEL_YPAN;
 
 	if (fb_alloc_cmap(&fb_info.cmap, 256, 0))
 		return -ENOMEM;

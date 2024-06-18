@@ -107,7 +107,7 @@ struct pnp_bios_node {
 	__u32 eisa_id;
 	__u8 type_code[3];
 	__u16 flags;
-	__u8 data[0];
+	__u8 data[];
 };
 #pragma pack()
 
@@ -153,7 +153,6 @@ extern int  pnpbios_dont_use_current_config;
 extern int pnpbios_parse_data_stream(struct pnp_dev *dev, struct pnp_bios_node * node);
 extern int pnpbios_read_resources_from_node(struct pnp_dev *dev, struct pnp_bios_node *node);
 extern int pnpbios_write_resources_to_node(struct pnp_dev *dev, struct pnp_bios_node *node);
-extern void pnpid32_to_pnpid(u32 id, char *str);
 
 extern void pnpbios_print_status(const char * module, u16 status);
 extern void pnpbios_calls_init(union pnp_bios_install_struct * header);

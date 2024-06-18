@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <net/dst.h>
+#include <net/gso.h>
 #include <net/xfrm.h>
 #include <linux/notifier.h>
 
@@ -25,12 +26,10 @@ static void __xfrm_transport_prep(struct xfrm_state *x, struct sk_buff *skb,
 	struct xfrm_offload *xo = xfrm_offload(skb);
 
 	skb_reset_mac_len(skb);
-	pskb_pull(skb, skb->mac_len + hsize + x->props.header_len);
-
-	if (xo->flags & XFRM_GSO_SEGMENT) {
-		skb_reset_transport_header(skb);
+	if (xo->flags & XFRM_GSO_SEGMENT)
 		skb->transport_header -= x->props.header_len;
-	}
+
+	pskb_pull(skb, skb_transport_offset(skb) + x->props.header_len);
 }
 
 static void __xfrm_mode_tunnel_prep(struct xfrm_state *x, struct sk_buff *skb,
@@ -44,6 +43,25 @@ static void __xfrm_mode_tunnel_prep(struct xfrm_state *x, struct sk_buff *skb,
 
 	skb_reset_mac_len(skb);
 	pskb_pull(skb, skb->mac_len + x->props.header_len);
+}
+
+static void __xfrm_mode_beet_prep(struct xfrm_state *x, struct sk_buff *skb,
+				  unsigned int hsize)
+{
+	struct xfrm_offload *xo = xfrm_offload(skb);
+	int phlen = 0;
+
+	if (xo->flags & XFRM_GSO_SEGMENT)
+		skb->transport_header = skb->network_header + hsize;
+
+	skb_reset_mac_len(skb);
+	if (x->sel.family != AF_INET6) {
+		phlen = IPV4_BEET_PHMAXLEN;
+		if (x->outer_mode.family == AF_INET6)
+			phlen += sizeof(struct ipv6hdr) - sizeof(struct iphdr);
+	}
+
+	pskb_pull(skb, skb->mac_len + hsize + (x->props.header_len - phlen));
 }
 
 /* Adjust pointers into the packet when IPsec is done at layer2 */
@@ -66,11 +84,30 @@ static void xfrm_outer_mode_prep(struct xfrm_state *x, struct sk_buff *skb)
 			return __xfrm_transport_prep(x, skb,
 						     sizeof(struct ipv6hdr));
 		break;
+	case XFRM_MODE_BEET:
+		if (x->outer_mode.family == AF_INET)
+			return __xfrm_mode_beet_prep(x, skb,
+						     sizeof(struct iphdr));
+		if (x->outer_mode.family == AF_INET6)
+			return __xfrm_mode_beet_prep(x, skb,
+						     sizeof(struct ipv6hdr));
+		break;
 	case XFRM_MODE_ROUTEOPTIMIZATION:
 	case XFRM_MODE_IN_TRIGGER:
-	case XFRM_MODE_BEET:
 		break;
 	}
+}
+
+static inline bool xmit_xfrm_check_overflow(struct sk_buff *skb)
+{
+	struct xfrm_offload *xo = xfrm_offload(skb);
+	__u32 seq = xo->seq.low;
+
+	seq += skb_shinfo(skb)->gso_segs;
+	if (unlikely(seq < xo->seq.low))
+		return true;
+
+	return false;
 }
 
 struct sk_buff *validate_xmit_xfrm(struct sk_buff *skb, netdev_features_t features, bool *again)
@@ -78,13 +115,14 @@ struct sk_buff *validate_xmit_xfrm(struct sk_buff *skb, netdev_features_t featur
 	int err;
 	unsigned long flags;
 	struct xfrm_state *x;
-	struct sk_buff *skb2;
 	struct softnet_data *sd;
+	struct sk_buff *skb2, *nskb, *pskb = NULL;
 	netdev_features_t esp_features = features;
 	struct xfrm_offload *xo = xfrm_offload(skb);
+	struct net_device *dev = skb->dev;
 	struct sec_path *sp;
 
-	if (!xo)
+	if (!xo || (xo->flags & XFRM_XMIT))
 		return skb;
 
 	if (!(features & NETIF_F_HW_ESP))
@@ -92,7 +130,21 @@ struct sk_buff *validate_xmit_xfrm(struct sk_buff *skb, netdev_features_t featur
 
 	sp = skb_sec_path(skb);
 	x = sp->xvec[sp->len - 1];
-	if (xo->flags & XFRM_GRO || x->xso.flags & XFRM_OFFLOAD_INBOUND)
+	if (xo->flags & XFRM_GRO || x->xso.dir == XFRM_DEV_OFFLOAD_IN)
+		return skb;
+
+	/* The packet was sent to HW IPsec packet offload engine,
+	 * but to wrong device. Drop the packet, so it won't skip
+	 * XFRM stack.
+	 */
+	if (x->xso.type == XFRM_DEV_OFFLOAD_PACKET && x->xso.dev != dev) {
+		kfree_skb(skb);
+		dev_core_stats_tx_dropped_inc(dev);
+		return NULL;
+	}
+
+	/* This skb was already validated on the upper/virtual dev */
+	if ((x->xso.dev != dev) && (x->xso.real_dev == dev))
 		return skb;
 
 	local_irq_save(flags);
@@ -105,25 +157,21 @@ struct sk_buff *validate_xmit_xfrm(struct sk_buff *skb, netdev_features_t featur
 		return skb;
 	}
 
-	if (skb_is_gso(skb)) {
-		struct net_device *dev = skb->dev;
+	if (skb_is_gso(skb) && (unlikely(x->xso.dev != dev) ||
+				unlikely(xmit_xfrm_check_overflow(skb)))) {
+		struct sk_buff *segs;
 
-		if (unlikely(x->xso.dev != dev)) {
-			struct sk_buff *segs;
+		/* Packet got rerouted, fixup features and segment it. */
+		esp_features = esp_features & ~(NETIF_F_HW_ESP | NETIF_F_GSO_ESP);
 
-			/* Packet got rerouted, fixup features and segment it. */
-			esp_features = esp_features & ~(NETIF_F_HW_ESP
-							| NETIF_F_GSO_ESP);
-
-			segs = skb_gso_segment(skb, esp_features);
-			if (IS_ERR(segs)) {
-				kfree_skb(skb);
-				atomic_long_inc(&dev->tx_dropped);
-				return NULL;
-			} else {
-				consume_skb(skb);
-				skb = segs;
-			}
+		segs = skb_gso_segment(skb, esp_features);
+		if (IS_ERR(segs)) {
+			kfree_skb(skb);
+			dev_core_stats_tx_dropped_inc(dev);
+			return NULL;
+		} else {
+			consume_skb(skb);
+			skb = segs;
 		}
 	}
 
@@ -148,11 +196,7 @@ struct sk_buff *validate_xmit_xfrm(struct sk_buff *skb, netdev_features_t featur
 		return skb;
 	}
 
-	skb2 = skb;
-
-	do {
-		struct sk_buff *nskb = skb2->next;
-
+	skb_list_walk_safe(skb, skb2, nskb) {
 		esp_features |= skb->dev->gso_partial_features;
 		skb_mark_not_on_list(skb2);
 
@@ -172,39 +216,56 @@ struct sk_buff *validate_xmit_xfrm(struct sk_buff *skb, netdev_features_t featur
 		} else {
 			if (skb == skb2)
 				skb = nskb;
+			else
+				pskb->next = nskb;
 
-			if (!skb)
-				return NULL;
-
-			goto skip_push;
+			continue;
 		}
 
 		skb_push(skb2, skb2->data - skb_mac_header(skb2));
-
-skip_push:
-		skb2 = nskb;
-	} while (skb2);
+		pskb = skb2;
+	}
 
 	return skb;
 }
 EXPORT_SYMBOL_GPL(validate_xmit_xfrm);
 
 int xfrm_dev_state_add(struct net *net, struct xfrm_state *x,
-		       struct xfrm_user_offload *xuo)
+		       struct xfrm_user_offload *xuo,
+		       struct netlink_ext_ack *extack)
 {
 	int err;
 	struct dst_entry *dst;
 	struct net_device *dev;
-	struct xfrm_state_offload *xso = &x->xso;
+	struct xfrm_dev_offload *xso = &x->xso;
 	xfrm_address_t *saddr;
 	xfrm_address_t *daddr;
+	bool is_packet_offload;
 
-	if (!x->type_offload)
+	if (!x->type_offload) {
+		NL_SET_ERR_MSG(extack, "Type doesn't support offload");
 		return -EINVAL;
+	}
+
+	if (xuo->flags &
+	    ~(XFRM_OFFLOAD_IPV6 | XFRM_OFFLOAD_INBOUND | XFRM_OFFLOAD_PACKET)) {
+		NL_SET_ERR_MSG(extack, "Unrecognized flags in offload request");
+		return -EINVAL;
+	}
+
+	if ((xuo->flags & XFRM_OFFLOAD_INBOUND && x->dir == XFRM_SA_DIR_OUT) ||
+	    (!(xuo->flags & XFRM_OFFLOAD_INBOUND) && x->dir == XFRM_SA_DIR_IN)) {
+		NL_SET_ERR_MSG(extack, "Mismatched SA and offload direction");
+		return -EINVAL;
+	}
+
+	is_packet_offload = xuo->flags & XFRM_OFFLOAD_PACKET;
 
 	/* We don't yet support UDP encapsulation and TFC padding. */
-	if (x->encap || x->tfcpad)
+	if ((!is_packet_offload && x->encap) || x->tfcpad) {
+		NL_SET_ERR_MSG(extack, "Encapsulation and TFC padding can't be offloaded");
 		return -EINVAL;
+	}
 
 	dev = dev_get_by_index(net, xuo->ifindex);
 	if (!dev) {
@@ -220,7 +281,7 @@ int xfrm_dev_state_add(struct net *net, struct xfrm_state *x,
 					x->props.family,
 					xfrm_smark_get(0, x));
 		if (IS_ERR(dst))
-			return 0;
+			return (is_packet_offload) ? -EINVAL : 0;
 
 		dev = dst->dev;
 
@@ -231,34 +292,119 @@ int xfrm_dev_state_add(struct net *net, struct xfrm_state *x,
 	if (!dev->xfrmdev_ops || !dev->xfrmdev_ops->xdo_dev_state_add) {
 		xso->dev = NULL;
 		dev_put(dev);
-		return 0;
+		return (is_packet_offload) ? -EINVAL : 0;
 	}
 
-	if (x->props.flags & XFRM_STATE_ESN &&
+	if (!is_packet_offload && x->props.flags & XFRM_STATE_ESN &&
 	    !dev->xfrmdev_ops->xdo_dev_state_advance_esn) {
+		NL_SET_ERR_MSG(extack, "Device doesn't support offload with ESN");
 		xso->dev = NULL;
 		dev_put(dev);
 		return -EINVAL;
 	}
 
 	xso->dev = dev;
-	xso->num_exthdrs = 1;
-	xso->flags = xuo->flags;
+	netdev_tracker_alloc(dev, &xso->dev_tracker, GFP_ATOMIC);
+	xso->real_dev = dev;
 
-	err = dev->xfrmdev_ops->xdo_dev_state_add(x);
+	if (xuo->flags & XFRM_OFFLOAD_INBOUND)
+		xso->dir = XFRM_DEV_OFFLOAD_IN;
+	else
+		xso->dir = XFRM_DEV_OFFLOAD_OUT;
+
+	if (is_packet_offload)
+		xso->type = XFRM_DEV_OFFLOAD_PACKET;
+	else
+		xso->type = XFRM_DEV_OFFLOAD_CRYPTO;
+
+	err = dev->xfrmdev_ops->xdo_dev_state_add(x, extack);
 	if (err) {
-		xso->num_exthdrs = 0;
-		xso->flags = 0;
 		xso->dev = NULL;
-		dev_put(dev);
+		xso->dir = 0;
+		xso->real_dev = NULL;
+		netdev_put(dev, &xso->dev_tracker);
+		xso->type = XFRM_DEV_OFFLOAD_UNSPECIFIED;
 
-		if (err != -EOPNOTSUPP)
+		/* User explicitly requested packet offload mode and configured
+		 * policy in addition to the XFRM state. So be civil to users,
+		 * and return an error instead of taking fallback path.
+		 *
+		 * This WARN_ON() can be seen as a documentation for driver
+		 * authors to do not return -EOPNOTSUPP in packet offload mode.
+		 */
+		WARN_ON(err == -EOPNOTSUPP && is_packet_offload);
+		if (err != -EOPNOTSUPP || is_packet_offload) {
+			NL_SET_ERR_MSG_WEAK(extack, "Device failed to offload this state");
 			return err;
+		}
 	}
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(xfrm_dev_state_add);
+
+int xfrm_dev_policy_add(struct net *net, struct xfrm_policy *xp,
+			struct xfrm_user_offload *xuo, u8 dir,
+			struct netlink_ext_ack *extack)
+{
+	struct xfrm_dev_offload *xdo = &xp->xdo;
+	struct net_device *dev;
+	int err;
+
+	if (!xuo->flags || xuo->flags & ~XFRM_OFFLOAD_PACKET) {
+		/* We support only packet offload mode and it means
+		 * that user must set XFRM_OFFLOAD_PACKET bit.
+		 */
+		NL_SET_ERR_MSG(extack, "Unrecognized flags in offload request");
+		return -EINVAL;
+	}
+
+	dev = dev_get_by_index(net, xuo->ifindex);
+	if (!dev)
+		return -EINVAL;
+
+	if (!dev->xfrmdev_ops || !dev->xfrmdev_ops->xdo_dev_policy_add) {
+		xdo->dev = NULL;
+		dev_put(dev);
+		NL_SET_ERR_MSG(extack, "Policy offload is not supported");
+		return -EINVAL;
+	}
+
+	xdo->dev = dev;
+	netdev_tracker_alloc(dev, &xdo->dev_tracker, GFP_ATOMIC);
+	xdo->real_dev = dev;
+	xdo->type = XFRM_DEV_OFFLOAD_PACKET;
+	switch (dir) {
+	case XFRM_POLICY_IN:
+		xdo->dir = XFRM_DEV_OFFLOAD_IN;
+		break;
+	case XFRM_POLICY_OUT:
+		xdo->dir = XFRM_DEV_OFFLOAD_OUT;
+		break;
+	case XFRM_POLICY_FWD:
+		xdo->dir = XFRM_DEV_OFFLOAD_FWD;
+		break;
+	default:
+		xdo->dev = NULL;
+		netdev_put(dev, &xdo->dev_tracker);
+		NL_SET_ERR_MSG(extack, "Unrecognized offload direction");
+		return -EINVAL;
+	}
+
+	err = dev->xfrmdev_ops->xdo_dev_policy_add(xp, extack);
+	if (err) {
+		xdo->dev = NULL;
+		xdo->real_dev = NULL;
+		xdo->type = XFRM_DEV_OFFLOAD_UNSPECIFIED;
+		xdo->dir = 0;
+		netdev_put(dev, &xdo->dev_tracker);
+		NL_SET_ERR_MSG_WEAK(extack, "Device failed to offload this policy");
+		return err;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(xfrm_dev_policy_add);
 
 bool xfrm_dev_offload_ok(struct sk_buff *skb, struct xfrm_state *x)
 {
@@ -267,11 +413,13 @@ bool xfrm_dev_offload_ok(struct sk_buff *skb, struct xfrm_state *x)
 	struct xfrm_dst *xdst = (struct xfrm_dst *)dst;
 	struct net_device *dev = x->xso.dev;
 
-	if (!x->type_offload || x->encap)
+	if (!x->type_offload ||
+	    (x->xso.type == XFRM_DEV_OFFLOAD_UNSPECIFIED && x->encap))
 		return false;
 
-	if ((!dev || (dev == xfrm_dst_path(dst)->dev)) &&
-	    (!xdst->child->xfrm)) {
+	if (x->xso.type == XFRM_DEV_OFFLOAD_PACKET ||
+	    ((!dev || (dev == xfrm_dst_path(dst)->dev)) &&
+	     !xdst->child->xfrm)) {
 		mtu = xfrm_state_mtu(x, xdst->child_mtu_cached);
 		if (skb->len <= mtu)
 			goto ok;
@@ -360,20 +508,12 @@ static int xfrm_api_check(struct net_device *dev)
 	return NOTIFY_DONE;
 }
 
-static int xfrm_dev_register(struct net_device *dev)
-{
-	return xfrm_api_check(dev);
-}
-
-static int xfrm_dev_feat_change(struct net_device *dev)
-{
-	return xfrm_api_check(dev);
-}
-
 static int xfrm_dev_down(struct net_device *dev)
 {
-	if (dev->features & NETIF_F_HW_ESP)
+	if (dev->features & NETIF_F_HW_ESP) {
 		xfrm_dev_state_flush(dev_net(dev), dev, true);
+		xfrm_dev_policy_flush(dev_net(dev), dev, true);
+	}
 
 	return NOTIFY_DONE;
 }
@@ -384,12 +524,13 @@ static int xfrm_dev_event(struct notifier_block *this, unsigned long event, void
 
 	switch (event) {
 	case NETDEV_REGISTER:
-		return xfrm_dev_register(dev);
+		return xfrm_api_check(dev);
 
 	case NETDEV_FEAT_CHANGE:
-		return xfrm_dev_feat_change(dev);
+		return xfrm_api_check(dev);
 
 	case NETDEV_DOWN:
+	case NETDEV_UNREGISTER:
 		return xfrm_dev_down(dev);
 	}
 	return NOTIFY_DONE;

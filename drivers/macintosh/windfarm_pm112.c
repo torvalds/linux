@@ -12,7 +12,9 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
-#include <asm/prom.h>
+#include <linux/of.h>
+#include <linux/slab.h>
+
 #include <asm/smu.h>
 
 #include "windfarm.h"
@@ -132,14 +134,6 @@ static int create_cpu_loop(int cpu)
 	s32 tmax;
 	int fmin;
 
-	/* Get PID params from the appropriate SAT */
-	hdr = smu_sat_get_sdb_partition(chip, 0xC8 + core, NULL);
-	if (hdr == NULL) {
-		printk(KERN_WARNING"windfarm: can't get CPU PID fan config\n");
-		return -EINVAL;
-	}
-	piddata = (struct smu_sdbp_cpupiddata *)&hdr[1];
-
 	/* Get FVT params to get Tmax; if not found, assume default */
 	hdr = smu_sat_get_sdb_partition(chip, 0xC4 + core, NULL);
 	if (hdr) {
@@ -151,6 +145,16 @@ static int create_cpu_loop(int cpu)
 	/* We keep a global tmax for overtemp calculations */
 	if (tmax < cpu_all_tmax)
 		cpu_all_tmax = tmax;
+
+	kfree(hdr);
+
+	/* Get PID params from the appropriate SAT */
+	hdr = smu_sat_get_sdb_partition(chip, 0xC8 + core, NULL);
+	if (hdr == NULL) {
+		printk(KERN_WARNING"windfarm: can't get CPU PID fan config\n");
+		return -EINVAL;
+	}
+	piddata = (struct smu_sdbp_cpupiddata *)&hdr[1];
 
 	/*
 	 * Darwin has a minimum fan speed of 1000 rpm for the 4-way and
@@ -174,6 +178,9 @@ static int create_cpu_loop(int cpu)
 		pid.min = fmin;
 
 	wf_cpu_pid_init(&cpu_pid[cpu], &pid);
+
+	kfree(hdr);
+
 	return 0;
 }
 
@@ -655,16 +662,14 @@ static int wf_pm112_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int wf_pm112_remove(struct platform_device *dev)
+static void wf_pm112_remove(struct platform_device *dev)
 {
 	wf_unregister_client(&pm112_events);
-	/* should release all sensors and controls */
-	return 0;
 }
 
 static struct platform_driver wf_pm112_driver = {
 	.probe = wf_pm112_probe,
-	.remove = wf_pm112_remove,
+	.remove_new = wf_pm112_remove,
 	.driver = {
 		.name = "windfarm",
 	},

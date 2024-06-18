@@ -19,11 +19,10 @@
 #include <linux/interrupt.h>
 #include <linux/mc146818rtc.h>
 #include <linux/bcd.h>
+#include <linux/of_address.h>
 
 #include <asm/sections.h>
-#include <asm/prom.h>
 #include <asm/io.h>
-#include <asm/pgtable.h>
 #include <asm/machdep.h>
 #include <asm/time.h>
 
@@ -154,6 +153,7 @@ time64_t __init maple_get_boot_time(void)
 		       maple_rtc_addr);
 	}
  bail:
+	of_node_put(rtcs);
 	if (maple_rtc_addr == 0) {
 		maple_rtc_addr = RTC_PORT(0); /* legacy address */
 		printk(KERN_INFO "Maple: No device node for RTC, assuming "

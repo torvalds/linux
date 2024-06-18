@@ -5,12 +5,11 @@
  */
 
 #include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 
-#include "clk-mtk.h"
 #include "clk-gate.h"
+#include "clk-mtk.h"
+#include "clk-pll.h"
 
 #include <dt-bindings/clock/mt6797-clk.h>
 
@@ -382,24 +381,26 @@ static const struct mtk_composite top_muxes[] = {
 
 static int mtk_topckgen_init(struct platform_device *pdev)
 {
-	struct clk_onecell_data *clk_data;
+	struct clk_hw_onecell_data *clk_data;
 	void __iomem *base;
 	struct device_node *node = pdev->dev.of_node;
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
 	clk_data = mtk_alloc_clk_data(CLK_TOP_NR);
+	if (!clk_data)
+		return -ENOMEM;
 
 	mtk_clk_register_factors(top_fixed_divs, ARRAY_SIZE(top_fixed_divs),
 				 clk_data);
 
-	mtk_clk_register_composites(top_muxes, ARRAY_SIZE(top_muxes), base,
+	mtk_clk_register_composites(&pdev->dev, top_muxes,
+				    ARRAY_SIZE(top_muxes), base,
 				    &mt6797_clk_lock, clk_data);
 
-	return of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	return of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
 }
 
 static const struct mtk_gate_regs infra0_cg_regs = {
@@ -420,40 +421,22 @@ static const struct mtk_gate_regs infra2_cg_regs = {
 	.sta_ofs = 0x00b0,
 };
 
-#define GATE_ICG0(_id, _name, _parent, _shift) {		\
-	.id = _id,						\
-	.name = _name,						\
-	.parent_name = _parent,					\
-	.regs = &infra0_cg_regs,				\
-	.shift = _shift,					\
-	.ops = &mtk_clk_gate_ops_setclr,			\
-}
+#define GATE_ICG0(_id, _name, _parent, _shift)				\
+	GATE_MTK(_id, _name, _parent, &infra0_cg_regs, _shift, &mtk_clk_gate_ops_setclr)
 
-#define GATE_ICG1(_id, _name, _parent, _shift)			\
-	GATE_ICG1_FLAGS(_id, _name, _parent, _shift, 0)
+#define GATE_ICG1(_id, _name, _parent, _shift)				\
+	GATE_MTK(_id, _name, _parent, &infra1_cg_regs, _shift, &mtk_clk_gate_ops_setclr)
 
-#define GATE_ICG1_FLAGS(_id, _name, _parent, _shift, _flags) {	\
-	.id = _id,						\
-	.name = _name,						\
-	.parent_name = _parent,					\
-	.regs = &infra1_cg_regs,				\
-	.shift = _shift,					\
-	.ops = &mtk_clk_gate_ops_setclr,			\
-	.flags = _flags,					\
-}
+#define GATE_ICG1_FLAGS(_id, _name, _parent, _shift, _flags)		\
+	GATE_MTK_FLAGS(_id, _name, _parent, &infra1_cg_regs, _shift,	\
+		       &mtk_clk_gate_ops_setclr, _flags)
 
-#define GATE_ICG2(_id, _name, _parent, _shift)			\
-	GATE_ICG2_FLAGS(_id, _name, _parent, _shift, 0)
+#define GATE_ICG2(_id, _name, _parent, _shift)				\
+	GATE_MTK(_id, _name, _parent, &infra2_cg_regs, _shift, &mtk_clk_gate_ops_setclr)
 
-#define GATE_ICG2_FLAGS(_id, _name, _parent, _shift, _flags) {	\
-	.id = _id,						\
-	.name = _name,						\
-	.parent_name = _parent,					\
-	.regs = &infra2_cg_regs,				\
-	.shift = _shift,					\
-	.ops = &mtk_clk_gate_ops_setclr,			\
-	.flags = _flags,					\
-}
+#define GATE_ICG2_FLAGS(_id, _name, _parent, _shift, _flags)		\
+	GATE_MTK_FLAGS(_id, _name, _parent, &infra2_cg_regs, _shift,	\
+		       &mtk_clk_gate_ops_setclr, _flags)
 
 /*
  * Clock gates dramc and dramc_b are needed by the DRAM controller.
@@ -556,7 +539,7 @@ static const struct mtk_fixed_factor infra_fixed_divs[] = {
 	FACTOR(CLK_INFRA_13M, "clk13m", "clk26m", 1, 2),
 };
 
-static struct clk_onecell_data *infra_clk_data;
+static struct clk_hw_onecell_data *infra_clk_data;
 
 static void mtk_infrasys_init_early(struct device_node *node)
 {
@@ -564,15 +547,18 @@ static void mtk_infrasys_init_early(struct device_node *node)
 
 	if (!infra_clk_data) {
 		infra_clk_data = mtk_alloc_clk_data(CLK_INFRA_NR);
+		if (!infra_clk_data)
+			return;
 
 		for (i = 0; i < CLK_INFRA_NR; i++)
-			infra_clk_data->clks[i] = ERR_PTR(-EPROBE_DEFER);
+			infra_clk_data->hws[i] = ERR_PTR(-EPROBE_DEFER);
 	}
 
 	mtk_clk_register_factors(infra_fixed_divs, ARRAY_SIZE(infra_fixed_divs),
 				 infra_clk_data);
 
-	r = of_clk_add_provider(node, of_clk_src_onecell_get, infra_clk_data);
+	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get,
+				   infra_clk_data);
 	if (r)
 		pr_err("%s(): could not register clock provider: %d\n",
 		       __func__, r);
@@ -583,28 +569,27 @@ CLK_OF_DECLARE_DRIVER(mtk_infra, "mediatek,mt6797-infracfg",
 
 static int mtk_infrasys_init(struct platform_device *pdev)
 {
-	int r, i;
+	int i;
 	struct device_node *node = pdev->dev.of_node;
 
 	if (!infra_clk_data) {
 		infra_clk_data = mtk_alloc_clk_data(CLK_INFRA_NR);
+		if (!infra_clk_data)
+			return -ENOMEM;
 	} else {
 		for (i = 0; i < CLK_INFRA_NR; i++) {
-			if (infra_clk_data->clks[i] == ERR_PTR(-EPROBE_DEFER))
-				infra_clk_data->clks[i] = ERR_PTR(-ENOENT);
+			if (infra_clk_data->hws[i] == ERR_PTR(-EPROBE_DEFER))
+				infra_clk_data->hws[i] = ERR_PTR(-ENOENT);
 		}
 	}
 
-	mtk_clk_register_gates(node, infra_clks, ARRAY_SIZE(infra_clks),
-			       infra_clk_data);
+	mtk_clk_register_gates(&pdev->dev, node, infra_clks,
+			       ARRAY_SIZE(infra_clks), infra_clk_data);
 	mtk_clk_register_factors(infra_fixed_divs, ARRAY_SIZE(infra_fixed_divs),
 				 infra_clk_data);
 
-	r = of_clk_add_provider(node, of_clk_src_onecell_get, infra_clk_data);
-	if (r)
-		return r;
-
-	return 0;
+	return of_clk_add_hw_provider(node, of_clk_hw_onecell_get,
+				      infra_clk_data);
 }
 
 #define MT6797_PLL_FMAX		(3000UL * MHZ)
@@ -639,31 +624,31 @@ static int mtk_infrasys_init(struct platform_device *pdev)
 			NULL)
 
 static const struct mtk_pll_data plls[] = {
-	PLL(CLK_APMIXED_MAINPLL, "mainpll", 0x0220, 0x022C, 0xF0000101, PLL_AO,
+	PLL(CLK_APMIXED_MAINPLL, "mainpll", 0x0220, 0x022C, 0xF0000100, PLL_AO,
 	    21, 0x220, 4, 0x0, 0x224, 0),
-	PLL(CLK_APMIXED_UNIVPLL, "univpll", 0x0230, 0x023C, 0xFE000011, 0, 7,
+	PLL(CLK_APMIXED_UNIVPLL, "univpll", 0x0230, 0x023C, 0xFE000010, 0, 7,
 	    0x230, 4, 0x0, 0x234, 14),
-	PLL(CLK_APMIXED_MFGPLL, "mfgpll", 0x0240, 0x024C, 0x00000101, 0, 21,
+	PLL(CLK_APMIXED_MFGPLL, "mfgpll", 0x0240, 0x024C, 0x00000100, 0, 21,
 	    0x244, 24, 0x0, 0x244, 0),
-	PLL(CLK_APMIXED_MSDCPLL, "msdcpll", 0x0250, 0x025C, 0x00000121, 0, 21,
+	PLL(CLK_APMIXED_MSDCPLL, "msdcpll", 0x0250, 0x025C, 0x00000120, 0, 21,
 	    0x250, 4, 0x0, 0x254, 0),
-	PLL(CLK_APMIXED_IMGPLL, "imgpll", 0x0260, 0x026C, 0x00000121, 0, 21,
+	PLL(CLK_APMIXED_IMGPLL, "imgpll", 0x0260, 0x026C, 0x00000120, 0, 21,
 	    0x260, 4, 0x0, 0x264, 0),
-	PLL(CLK_APMIXED_TVDPLL, "tvdpll", 0x0270, 0x027C, 0xC0000121, 0, 21,
+	PLL(CLK_APMIXED_TVDPLL, "tvdpll", 0x0270, 0x027C, 0xC0000120, 0, 21,
 	    0x270, 4, 0x0, 0x274, 0),
-	PLL(CLK_APMIXED_CODECPLL, "codecpll", 0x0290, 0x029C, 0x00000121, 0, 21,
+	PLL(CLK_APMIXED_CODECPLL, "codecpll", 0x0290, 0x029C, 0x00000120, 0, 21,
 	    0x290, 4, 0x0, 0x294, 0),
-	PLL(CLK_APMIXED_VDECPLL, "vdecpll", 0x02E4, 0x02F0, 0x00000121, 0, 21,
+	PLL(CLK_APMIXED_VDECPLL, "vdecpll", 0x02E4, 0x02F0, 0x00000120, 0, 21,
 	    0x2E4, 4, 0x0, 0x2E8, 0),
-	PLL(CLK_APMIXED_APLL1, "apll1", 0x02A0, 0x02B0, 0x00000131, 0, 31,
+	PLL(CLK_APMIXED_APLL1, "apll1", 0x02A0, 0x02B0, 0x00000130, 0, 31,
 	    0x2A0, 4, 0x2A8, 0x2A4, 0),
-	PLL(CLK_APMIXED_APLL2, "apll2", 0x02B4, 0x02C4, 0x00000131, 0, 31,
+	PLL(CLK_APMIXED_APLL2, "apll2", 0x02B4, 0x02C4, 0x00000130, 0, 31,
 	    0x2B4, 4, 0x2BC, 0x2B8, 0),
 };
 
 static int mtk_apmixedsys_init(struct platform_device *pdev)
 {
-	struct clk_onecell_data *clk_data;
+	struct clk_hw_onecell_data *clk_data;
 	struct device_node *node = pdev->dev.of_node;
 
 	clk_data = mtk_alloc_clk_data(CLK_APMIXED_NR);
@@ -672,7 +657,7 @@ static int mtk_apmixedsys_init(struct platform_device *pdev)
 
 	mtk_clk_register_plls(node, plls, ARRAY_SIZE(plls), clk_data);
 
-	return of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	return of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
 }
 
 static const struct of_device_id of_match_clk_mt6797[] = {
@@ -689,6 +674,7 @@ static const struct of_device_id of_match_clk_mt6797[] = {
 		/* sentinel */
 	}
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt6797);
 
 static int clk_mt6797_probe(struct platform_device *pdev)
 {
@@ -722,3 +708,4 @@ static int __init clk_mt6797_init(void)
 }
 
 arch_initcall(clk_mt6797_init);
+MODULE_LICENSE("GPL");

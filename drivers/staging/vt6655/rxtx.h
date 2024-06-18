@@ -3,8 +3,6 @@
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
  *
- * File: rxtx.h
- *
  * Purpose:
  *
  * Author: Jerry Chen
@@ -20,7 +18,6 @@
 
 #define DEFAULT_MSDU_LIFETIME_RES_64us	8000 /* 64us */
 #define DEFAULT_MGN_LIFETIME_RES_64us	125  /* 64us */
-
 
 /*---------------------  Export Definitions -------------------------*/
 
@@ -111,7 +108,7 @@ struct vnt_rts_g {
 	__le16 duration_bb;
 	u16 reserved;
 	struct ieee80211_rts data;
-} __packed;
+} __packed __aligned(2);
 
 struct vnt_rts_g_fb {
 	struct vnt_phy_field b;
@@ -125,14 +122,14 @@ struct vnt_rts_g_fb {
 	__le16 rts_duration_ba_f1;
 	__le16 rts_duration_aa_f1;
 	struct ieee80211_rts data;
-} __packed;
+} __packed __aligned(2);
 
 struct vnt_rts_ab {
 	struct vnt_phy_field ab;
 	__le16 duration;
 	u16 reserved;
 	struct ieee80211_rts data;
-} __packed;
+} __packed __aligned(2);
 
 struct vnt_rts_a_fb {
 	struct vnt_phy_field a;
@@ -141,7 +138,7 @@ struct vnt_rts_a_fb {
 	__le16 rts_duration_f0;
 	__le16 rts_duration_f1;
 	struct ieee80211_rts data;
-} __packed;
+} __packed __aligned(2);
 
 /* CTS buffer header */
 struct vnt_cts {
@@ -150,7 +147,7 @@ struct vnt_cts {
 	u16 reserved;
 	struct ieee80211_cts data;
 	u16 reserved2;
-} __packed;
+} __packed __aligned(2);
 
 struct vnt_cts_fb {
 	struct vnt_phy_field b;
@@ -160,7 +157,7 @@ struct vnt_cts_fb {
 	__le16 cts_duration_ba_f1;
 	struct ieee80211_cts data;
 	u16 reserved2;
-} __packed;
+} __packed __aligned(2);
 
 struct vnt_tx_fifo_head {
 	u8 tx_key[WLAN_KEY_LEN_CCMP];

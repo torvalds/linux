@@ -20,6 +20,7 @@
 
 #define PHY_MDM6600_PHY_DELAY_MS	4000	/* PHY enable 2.2s to 3.5s */
 #define PHY_MDM6600_ENABLED_DELAY_MS	8000	/* 8s more total for MDM6600 */
+#define PHY_MDM6600_WAKE_KICK_MS	600	/* time on after GPIO toggle */
 #define MDM6600_MODEM_IDLE_DELAY_MS	1000	/* modem after USB suspend */
 #define MDM6600_MODEM_WAKE_DELAY_MS	200	/* modem response after idle */
 
@@ -121,15 +122,9 @@ static int phy_mdm6600_power_on(struct phy *x)
 {
 	struct phy_mdm6600 *ddata = phy_get_drvdata(x);
 	struct gpio_desc *enable_gpio = ddata->ctrl_gpios[PHY_MDM6600_ENABLE];
-	int error;
 
 	if (!ddata->enabled)
 		return -ENODEV;
-
-	error = pinctrl_pm_select_default_state(ddata->dev);
-	if (error)
-		dev_warn(ddata->dev, "%s: error with default_state: %i\n",
-			 __func__, error);
 
 	gpiod_set_value_cansleep(enable_gpio, 1);
 
@@ -159,11 +154,6 @@ static int phy_mdm6600_power_off(struct phy *x)
 
 	gpiod_set_value_cansleep(enable_gpio, 0);
 
-	error = pinctrl_pm_select_sleep_state(ddata->dev);
-	if (error)
-		dev_warn(ddata->dev, "%s: error with sleep_state: %i\n",
-			 __func__, error);
-
 	return 0;
 }
 
@@ -177,6 +167,7 @@ static const struct phy_ops gpio_usb_ops = {
 /**
  * phy_mdm6600_cmd() - send a command request to mdm6600
  * @ddata: device driver data
+ * @val: value of cmd to be set
  *
  * Configures the three command request GPIOs to the specified value.
  */
@@ -193,14 +184,14 @@ static void phy_mdm6600_cmd(struct phy_mdm6600 *ddata, int val)
 
 /**
  * phy_mdm6600_status() - read mdm6600 status lines
- * @ddata: device driver data
+ * @work: work structure
  */
 static void phy_mdm6600_status(struct work_struct *work)
 {
 	struct phy_mdm6600 *ddata;
 	struct device *dev;
 	DECLARE_BITMAP(values, PHY_MDM6600_NR_STATUS_LINES);
-	int error, i, val = 0;
+	int error;
 
 	ddata = container_of(work, struct phy_mdm6600, status_work.work);
 	dev = ddata->dev;
@@ -212,16 +203,11 @@ static void phy_mdm6600_status(struct work_struct *work)
 	if (error)
 		return;
 
-	for (i = 0; i < PHY_MDM6600_NR_STATUS_LINES; i++) {
-		val |= test_bit(i, values) << i;
-		dev_dbg(ddata->dev, "XXX %s: i: %i values[i]: %i val: %i\n",
-			__func__, i, test_bit(i, values), val);
-	}
-	ddata->status = values[0];
+	ddata->status = values[0] & ((1 << PHY_MDM6600_NR_STATUS_LINES) - 1);
 
 	dev_info(dev, "modem status: %i %s\n",
 		 ddata->status,
-		 phy_mdm6600_status_name[ddata->status & 7]);
+		 phy_mdm6600_status_name[ddata->status]);
 	complete(&ddata->ack);
 }
 
@@ -248,10 +234,24 @@ static irqreturn_t phy_mdm6600_wakeirq_thread(int irq, void *data)
 {
 	struct phy_mdm6600 *ddata = data;
 	struct gpio_desc *mode_gpio1;
+	int error, wakeup;
 
 	mode_gpio1 = ddata->mode_gpios->desc[PHY_MDM6600_MODE1];
-	dev_dbg(ddata->dev, "OOB wake on mode_gpio1: %i\n",
-		gpiod_get_value(mode_gpio1));
+	wakeup = gpiod_get_value(mode_gpio1);
+	if (!wakeup)
+		return IRQ_NONE;
+
+	dev_dbg(ddata->dev, "OOB wake on mode_gpio1: %i\n", wakeup);
+	error = pm_runtime_get_sync(ddata->dev);
+	if (error < 0) {
+		pm_runtime_put_noidle(ddata->dev);
+
+		return IRQ_NONE;
+	}
+
+	/* Just wake-up and kick the autosuspend timer */
+	pm_runtime_mark_last_busy(ddata->dev);
+	pm_runtime_put_autosuspend(ddata->dev);
 
 	return IRQ_HANDLED;
 }
@@ -445,6 +445,7 @@ static void phy_mdm6600_device_power_off(struct phy_mdm6600 *ddata)
 {
 	struct gpio_desc *reset_gpio =
 		ddata->ctrl_gpios[PHY_MDM6600_RESET];
+	int error;
 
 	ddata->enabled = false;
 	phy_mdm6600_cmd(ddata, PHY_MDM6600_CMD_BP_SHUTDOWN_REQ);
@@ -460,6 +461,17 @@ static void phy_mdm6600_device_power_off(struct phy_mdm6600 *ddata)
 	} else {
 		dev_err(ddata->dev, "Timed out powering down\n");
 	}
+
+	/*
+	 * Keep reset gpio high with padconf internal pull-up resistor to
+	 * prevent modem from waking up during deeper SoC idle states. The
+	 * gpio bank lines can have glitches if not in the always-on wkup
+	 * domain.
+	 */
+	error = pinctrl_pm_select_sleep_state(ddata->dev);
+	if (error)
+		dev_warn(ddata->dev, "%s: error with sleep_state: %i\n",
+			 __func__, error);
 }
 
 static void phy_mdm6600_deferred_power_on(struct work_struct *work)
@@ -501,8 +513,14 @@ static void phy_mdm6600_modem_wake(struct work_struct *work)
 
 	ddata = container_of(work, struct phy_mdm6600, modem_wake_work.work);
 	phy_mdm6600_wake_modem(ddata);
+
+	/*
+	 * The modem does not always stay awake 1.2 seconds after toggling
+	 * the wake GPIO, and sometimes it idles after about some 600 ms
+	 * making writes time out.
+	 */
 	schedule_delayed_work(&ddata->modem_wake_work,
-			      msecs_to_jiffies(MDM6600_MODEM_IDLE_DELAY_MS));
+			      msecs_to_jiffies(PHY_MDM6600_WAKE_KICK_MS));
 }
 
 static int __maybe_unused phy_mdm6600_runtime_suspend(struct device *dev)
@@ -554,12 +572,6 @@ static int phy_mdm6600_probe(struct platform_device *pdev)
 	ddata->dev = &pdev->dev;
 	platform_set_drvdata(pdev, ddata);
 
-	/* Active state selected in phy_mdm6600_power_on() */
-	error = pinctrl_pm_select_sleep_state(ddata->dev);
-	if (error)
-		dev_warn(ddata->dev, "%s: error with sleep_state: %i\n",
-			 __func__, error);
-
 	error = phy_mdm6600_init_lines(ddata);
 	if (error)
 		return error;
@@ -610,17 +622,21 @@ idle:
 	pm_runtime_put_autosuspend(ddata->dev);
 
 cleanup:
-	if (error < 0)
+	if (error < 0) {
 		phy_mdm6600_device_power_off(ddata);
+		pm_runtime_disable(ddata->dev);
+		pm_runtime_dont_use_autosuspend(ddata->dev);
+	}
 
 	return error;
 }
 
-static int phy_mdm6600_remove(struct platform_device *pdev)
+static void phy_mdm6600_remove(struct platform_device *pdev)
 {
 	struct phy_mdm6600 *ddata = platform_get_drvdata(pdev);
 	struct gpio_desc *reset_gpio = ddata->ctrl_gpios[PHY_MDM6600_RESET];
 
+	pm_runtime_get_noresume(ddata->dev);
 	pm_runtime_dont_use_autosuspend(ddata->dev);
 	pm_runtime_put_sync(ddata->dev);
 	pm_runtime_disable(ddata->dev);
@@ -635,13 +651,11 @@ static int phy_mdm6600_remove(struct platform_device *pdev)
 	cancel_delayed_work_sync(&ddata->modem_wake_work);
 	cancel_delayed_work_sync(&ddata->bootup_work);
 	cancel_delayed_work_sync(&ddata->status_work);
-
-	return 0;
 }
 
 static struct platform_driver phy_mdm6600_driver = {
 	.probe = phy_mdm6600_probe,
-	.remove = phy_mdm6600_remove,
+	.remove_new = phy_mdm6600_remove,
 	.driver = {
 		.name = "phy-mapphone-mdm6600",
 		.pm = &phy_mdm6600_pm_ops,

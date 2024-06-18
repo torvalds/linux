@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/adc/maxim,max1363.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Maxim MAX1363 and similar ADCs
+
+maintainers:
+  - Jonathan Cameron <jic23@kernel.org>
+
+description: |
+   Family of ADCs with i2c interface, internal references and threshold
+   monitoring.
+
+properties:
+  compatible:
+    enum:
+      - maxim,max1361
+      - maxim,max1362
+      - maxim,max1363
+      - maxim,max1364
+
+  reg:
+    maxItems: 1
+
+  vcc-supply: true
+  vref-supply:
+    description: Optional external reference.  If not supplied, internal
+      reference will be used.
+
+  interrupts:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        adc@36 {
+            compatible = "maxim,max1363";
+            reg = <0x36>;
+        };
+    };
+...

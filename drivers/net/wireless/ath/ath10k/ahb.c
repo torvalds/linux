@@ -5,7 +5,7 @@
  */
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/reset.h>
 #include "core.h"
@@ -27,7 +27,7 @@ MODULE_DEVICE_TABLE(of, ath10k_ahb_of_match);
 
 static inline struct ath10k_ahb *ath10k_ahb_priv(struct ath10k *ar)
 {
-	return &((struct ath10k_pci *)ar->drv_priv)->ahb[0];
+	return &ath10k_pci_priv(ar)->ahb[0];
 }
 
 static void ath10k_ahb_write32(struct ath10k *ar, u32 offset, u32 value)
@@ -394,14 +394,14 @@ static irqreturn_t ath10k_ahb_interrupt_handler(int irq, void *arg)
 	if (!ath10k_pci_irq_pending(ar))
 		return IRQ_NONE;
 
-	ath10k_pci_disable_and_clear_legacy_irq(ar);
+	ath10k_pci_disable_and_clear_intx_irq(ar);
 	ath10k_pci_irq_msi_fw_mask(ar);
 	napi_schedule(&ar->napi);
 
 	return IRQ_HANDLED;
 }
 
-static int ath10k_ahb_request_irq_legacy(struct ath10k *ar)
+static int ath10k_ahb_request_irq_intx(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	struct ath10k_ahb *ar_ahb = ath10k_ahb_priv(ar);
@@ -415,12 +415,12 @@ static int ath10k_ahb_request_irq_legacy(struct ath10k *ar)
 			    ar_ahb->irq, ret);
 		return ret;
 	}
-	ar_pci->oper_irq_mode = ATH10K_PCI_IRQ_LEGACY;
+	ar_pci->oper_irq_mode = ATH10K_PCI_IRQ_INTX;
 
 	return 0;
 }
 
-static void ath10k_ahb_release_irq_legacy(struct ath10k *ar)
+static void ath10k_ahb_release_irq_intx(struct ath10k *ar)
 {
 	struct ath10k_ahb *ar_ahb = ath10k_ahb_priv(ar);
 
@@ -430,7 +430,7 @@ static void ath10k_ahb_release_irq_legacy(struct ath10k *ar)
 static void ath10k_ahb_irq_disable(struct ath10k *ar)
 {
 	ath10k_ce_disable_interrupts(ar);
-	ath10k_pci_disable_and_clear_legacy_irq(ar);
+	ath10k_pci_disable_and_clear_intx_irq(ar);
 }
 
 static int ath10k_ahb_resource_init(struct ath10k *ar)
@@ -442,14 +442,7 @@ static int ath10k_ahb_resource_init(struct ath10k *ar)
 
 	pdev = ar_ahb->pdev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		ath10k_err(ar, "failed to get memory resource\n");
-		ret = -ENXIO;
-		goto out;
-	}
-
-	ar_ahb->mem = devm_ioremap_resource(&pdev->dev, res);
+	ar_ahb->mem = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(ar_ahb->mem)) {
 		ath10k_err(ar, "mem ioremap error\n");
 		ret = PTR_ERR(ar_ahb->mem);
@@ -458,16 +451,16 @@ static int ath10k_ahb_resource_init(struct ath10k *ar)
 
 	ar_ahb->mem_len = resource_size(res);
 
-	ar_ahb->gcc_mem = ioremap_nocache(ATH10K_GCC_REG_BASE,
-					  ATH10K_GCC_REG_SIZE);
+	ar_ahb->gcc_mem = ioremap(ATH10K_GCC_REG_BASE,
+				  ATH10K_GCC_REG_SIZE);
 	if (!ar_ahb->gcc_mem) {
 		ath10k_err(ar, "gcc mem ioremap error\n");
 		ret = -ENOMEM;
 		goto err_mem_unmap;
 	}
 
-	ar_ahb->tcsr_mem = ioremap_nocache(ATH10K_TCSR_REG_BASE,
-					   ATH10K_TCSR_REG_SIZE);
+	ar_ahb->tcsr_mem = ioremap(ATH10K_TCSR_REG_BASE,
+				   ATH10K_TCSR_REG_SIZE);
 	if (!ar_ahb->tcsr_mem) {
 		ath10k_err(ar, "tcsr mem ioremap error\n");
 		ret = -ENOMEM;
@@ -626,9 +619,9 @@ static int ath10k_ahb_hif_start(struct ath10k *ar)
 {
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot ahb hif start\n");
 
-	napi_enable(&ar->napi);
+	ath10k_core_napi_enable(ar);
 	ath10k_ce_enable_interrupts(ar);
-	ath10k_pci_enable_legacy_irq(ar);
+	ath10k_pci_enable_intx_irq(ar);
 
 	ath10k_pci_rx_post(ar);
 
@@ -644,8 +637,7 @@ static void ath10k_ahb_hif_stop(struct ath10k *ar)
 	ath10k_ahb_irq_disable(ar);
 	synchronize_irq(ar_ahb->irq);
 
-	napi_synchronize(&ar->napi);
-	napi_disable(&ar->napi);
+	ath10k_core_napi_sync_disable(ar);
 
 	ath10k_pci_flush(ar);
 }
@@ -736,19 +728,16 @@ static int ath10k_ahb_probe(struct platform_device *pdev)
 	struct ath10k *ar;
 	struct ath10k_ahb *ar_ahb;
 	struct ath10k_pci *ar_pci;
-	const struct of_device_id *of_id;
 	enum ath10k_hw_rev hw_rev;
 	size_t size;
 	int ret;
 	struct ath10k_bus_params bus_params = {};
 
-	of_id = of_match_device(ath10k_ahb_of_match, &pdev->dev);
-	if (!of_id) {
-		dev_err(&pdev->dev, "failed to find matching device tree id\n");
+	hw_rev = (uintptr_t)of_device_get_match_data(&pdev->dev);
+	if (!hw_rev) {
+		dev_err(&pdev->dev, "OF data missing\n");
 		return -EINVAL;
 	}
-
-	hw_rev = (enum ath10k_hw_rev)of_id->data;
 
 	size = sizeof(*ar_pci) + sizeof(*ar_ahb);
 	ar = ath10k_core_create(size, &pdev->dev, ATH10K_BUS_AHB,
@@ -786,7 +775,7 @@ static int ath10k_ahb_probe(struct platform_device *pdev)
 
 	ath10k_pci_init_napi(ar);
 
-	ret = ath10k_ahb_request_irq_legacy(ar);
+	ret = ath10k_ahb_request_irq_intx(ar);
 	if (ret)
 		goto err_free_pipes;
 
@@ -817,48 +806,34 @@ err_halt_device:
 	ath10k_ahb_clock_disable(ar);
 
 err_free_irq:
-	ath10k_ahb_release_irq_legacy(ar);
+	ath10k_ahb_release_irq_intx(ar);
 
 err_free_pipes:
-	ath10k_pci_free_pipes(ar);
+	ath10k_pci_release_resource(ar);
 
 err_resource_deinit:
 	ath10k_ahb_resource_deinit(ar);
 
 err_core_destroy:
 	ath10k_core_destroy(ar);
-	platform_set_drvdata(pdev, NULL);
 
 	return ret;
 }
 
-static int ath10k_ahb_remove(struct platform_device *pdev)
+static void ath10k_ahb_remove(struct platform_device *pdev)
 {
 	struct ath10k *ar = platform_get_drvdata(pdev);
-	struct ath10k_ahb *ar_ahb;
-
-	if (!ar)
-		return -EINVAL;
-
-	ar_ahb = ath10k_ahb_priv(ar);
-
-	if (!ar_ahb)
-		return -EINVAL;
 
 	ath10k_dbg(ar, ATH10K_DBG_AHB, "ahb remove\n");
 
 	ath10k_core_unregister(ar);
 	ath10k_ahb_irq_disable(ar);
-	ath10k_ahb_release_irq_legacy(ar);
+	ath10k_ahb_release_irq_intx(ar);
 	ath10k_pci_release_resource(ar);
 	ath10k_ahb_halt_chip(ar);
 	ath10k_ahb_clock_disable(ar);
 	ath10k_ahb_resource_deinit(ar);
 	ath10k_core_destroy(ar);
-
-	platform_set_drvdata(pdev, NULL);
-
-	return 0;
 }
 
 static struct platform_driver ath10k_ahb_driver = {
@@ -867,7 +842,7 @@ static struct platform_driver ath10k_ahb_driver = {
 		.of_match_table = ath10k_ahb_of_match,
 	},
 	.probe  = ath10k_ahb_probe,
-	.remove = ath10k_ahb_remove,
+	.remove_new = ath10k_ahb_remove,
 };
 
 int ath10k_ahb_init(void)

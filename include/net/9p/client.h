@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * include/net/9p/client.h
- *
  * 9P Client Definitions
  *
  *  Copyright (C) 2008 by Eric Van Hensbergen <ericvh@gmail.com>
@@ -13,6 +11,7 @@
 
 #include <linux/utsname.h>
 #include <linux/idr.h>
+#include <linux/tracepoint-defs.h>
 
 /* Number of requests per row */
 #define P9_ROW_MAXTAG 255
@@ -23,7 +22,7 @@
  * @p9_proto_2000L: 9P2000.L extension
  */
 
-enum p9_proto_versions{
+enum p9_proto_versions {
 	p9_proto_legacy,
 	p9_proto_2000u,
 	p9_proto_2000L,
@@ -73,17 +72,15 @@ enum p9_req_status_t {
  * @wq: wait_queue for the client to block on for this request
  * @tc: the request fcall structure
  * @rc: the response fcall structure
- * @aux: transport specific data (provided for trans_fd migration)
  * @req_list: link for higher level objects to chain requests
  */
 struct p9_req_t {
 	int status;
 	int t_err;
-	struct kref refcount;
+	refcount_t refcount;
 	wait_queue_head_t wq;
 	struct p9_fcall tc;
 	struct p9_fcall rc;
-	void *aux;
 	struct list_head req_list;
 };
 
@@ -142,10 +139,16 @@ struct p9_client {
  *
  * TODO: This needs lots of explanation.
  */
+enum fid_source {
+	FID_FROM_OTHER,
+	FID_FROM_INODE,
+	FID_FROM_DENTRY,
+};
 
 struct p9_fid {
 	struct p9_client *clnt;
 	u32 fid;
+	refcount_t count;
 	int mode;
 	struct p9_qid qid;
 	u32 iounit;
@@ -154,6 +157,7 @@ struct p9_fid {
 	void *rdir;
 
 	struct hlist_node dlist;	/* list of all fids attached to a dentry */
+	struct hlist_node ilist;
 };
 
 /**
@@ -200,7 +204,11 @@ int p9_client_fsync(struct p9_fid *fid, int datasync);
 int p9_client_remove(struct p9_fid *fid);
 int p9_client_unlinkat(struct p9_fid *dfid, const char *name, int flags);
 int p9_client_read(struct p9_fid *fid, u64 offset, struct iov_iter *to, int *err);
+int p9_client_read_once(struct p9_fid *fid, u64 offset, struct iov_iter *to,
+		int *err);
 int p9_client_write(struct p9_fid *fid, u64 offset, struct iov_iter *from, int *err);
+struct netfs_io_subrequest;
+void p9_client_write_subreq(struct netfs_io_subrequest *subreq);
 int p9_client_readdir(struct p9_fid *fid, char *data, u32 count, u64 offset);
 int p9dirent_read(struct p9_client *clnt, char *buf, int len,
 		  struct p9_dirent *dirent);
@@ -212,36 +220,80 @@ struct p9_stat_dotl *p9_client_getattr_dotl(struct p9_fid *fid,
 							u64 request_mask);
 
 int p9_client_mknod_dotl(struct p9_fid *oldfid, const char *name, int mode,
-			dev_t rdev, kgid_t gid, struct p9_qid *);
+			dev_t rdev, kgid_t gid, struct p9_qid *qid);
 int p9_client_mkdir_dotl(struct p9_fid *fid, const char *name, int mode,
-				kgid_t gid, struct p9_qid *);
+				kgid_t gid, struct p9_qid *qid);
 int p9_client_lock_dotl(struct p9_fid *fid, struct p9_flock *flock, u8 *status);
 int p9_client_getlock_dotl(struct p9_fid *fid, struct p9_getlock *fl);
 void p9_fcall_fini(struct p9_fcall *fc);
-struct p9_req_t *p9_tag_lookup(struct p9_client *, u16);
+struct p9_req_t *p9_tag_lookup(struct p9_client *c, u16 tag);
 
 static inline void p9_req_get(struct p9_req_t *r)
 {
-	kref_get(&r->refcount);
+	refcount_inc(&r->refcount);
 }
 
 static inline int p9_req_try_get(struct p9_req_t *r)
 {
-	return kref_get_unless_zero(&r->refcount);
+	return refcount_inc_not_zero(&r->refcount);
 }
 
-int p9_req_put(struct p9_req_t *r);
+int p9_req_put(struct p9_client *c, struct p9_req_t *r);
+
+/* We cannot have the real tracepoints in header files,
+ * use a wrapper function */
+DECLARE_TRACEPOINT(9p_fid_ref);
+void do_trace_9p_fid_get(struct p9_fid *fid);
+void do_trace_9p_fid_put(struct p9_fid *fid);
+
+/* fid reference counting helpers:
+ *  - fids used for any length of time should always be referenced through
+ *    p9_fid_get(), and released with p9_fid_put()
+ *  - v9fs_fid_lookup() or similar will automatically call get for you
+ *    and also require a put
+ *  - the *_fid_add() helpers will stash the fid in the inode,
+ *    at which point it is the responsibility of evict_inode()
+ *    to call the put
+ *  - the last put will automatically send a clunk to the server
+ */
+static inline struct p9_fid *p9_fid_get(struct p9_fid *fid)
+{
+	if (tracepoint_enabled(9p_fid_ref))
+		do_trace_9p_fid_get(fid);
+
+	refcount_inc(&fid->count);
+
+	return fid;
+}
+
+static inline int p9_fid_put(struct p9_fid *fid)
+{
+	if (!fid || IS_ERR(fid))
+		return 0;
+
+	if (tracepoint_enabled(9p_fid_ref))
+		do_trace_9p_fid_put(fid);
+
+	if (!refcount_dec_and_test(&fid->count))
+		return 0;
+
+	return p9_client_clunk(fid);
+}
 
 void p9_client_cb(struct p9_client *c, struct p9_req_t *req, int status);
 
-int p9_parse_header(struct p9_fcall *, int32_t *, int8_t *, int16_t *, int);
-int p9stat_read(struct p9_client *, char *, int, struct p9_wstat *);
-void p9stat_free(struct p9_wstat *);
+int p9_parse_header(struct p9_fcall *pdu, int32_t *size, int8_t *type,
+		    int16_t *tag, int rewind);
+int p9stat_read(struct p9_client *clnt, char *buf, int len,
+		struct p9_wstat *st);
+void p9stat_free(struct p9_wstat *stbuf);
 
 int p9_is_proto_dotu(struct p9_client *clnt);
 int p9_is_proto_dotl(struct p9_client *clnt);
-struct p9_fid *p9_client_xattrwalk(struct p9_fid *, const char *, u64 *);
-int p9_client_xattrcreate(struct p9_fid *, const char *, u64, int);
+struct p9_fid *p9_client_xattrwalk(struct p9_fid *file_fid,
+				   const char *attr_name, u64 *attr_size);
+int p9_client_xattrcreate(struct p9_fid *fid, const char *name,
+			  u64 attr_size, int flags);
 int p9_client_readlink(struct p9_fid *fid, char **target);
 
 int p9_client_init(void);

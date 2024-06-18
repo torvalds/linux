@@ -3,6 +3,6 @@
 
 # Object files in subdirectories
 
-obj-$(CONFIG_ISDN_CAPI)			+= capi/
+obj-$(CONFIG_BT_CMTP)			+= capi/
 obj-$(CONFIG_MISDN)			+= mISDN/
 obj-$(CONFIG_ISDN)			+= hardware/

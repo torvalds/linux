@@ -182,6 +182,7 @@ static const struct usb_device_id usbtouch_devices[] = {
 #endif
 
 #ifdef CONFIG_TOUCHSCREEN_USB_IRTOUCH
+	{USB_DEVICE(0x255e, 0x0001), .driver_info = DEVTYPE_IRTOUCH},
 	{USB_DEVICE(0x595a, 0x0001), .driver_info = DEVTYPE_IRTOUCH},
 	{USB_DEVICE(0x6615, 0x0001), .driver_info = DEVTYPE_IRTOUCH},
 	{USB_DEVICE(0x6615, 0x0012), .driver_info = DEVTYPE_IRTOUCH_HIRES},
@@ -250,7 +251,7 @@ static int e2i_init(struct usbtouch_usb *usbtouch)
 	int ret;
 	struct usb_device *udev = interface_to_usbdev(usbtouch->interface);
 
-	ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
+	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 	                      0x01, 0x02, 0x0000, 0x0081,
 	                      NULL, 0, USB_CTRL_SET_TIMEOUT);
 
@@ -455,8 +456,8 @@ static ssize_t mtouch_firmware_rev_show(struct device *dev,
 	struct usbtouch_usb *usbtouch = usb_get_intfdata(intf);
 	struct mtouch_priv *priv = usbtouch->priv;
 
-	return scnprintf(output, PAGE_SIZE, "%1x.%1x\n",
-			 priv->fw_rev_major, priv->fw_rev_minor);
+	return sysfs_emit(output, "%1x.%1x\n",
+			  priv->fw_rev_major, priv->fw_rev_minor);
 }
 static DEVICE_ATTR(firmware_rev, 0444, mtouch_firmware_rev_show, NULL);
 
@@ -530,7 +531,7 @@ static int mtouch_init(struct usbtouch_usb *usbtouch)
 	if (ret)
 		return ret;
 
-	ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
+	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 	                      MTOUCHUSB_RESET,
 	                      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 	                      1, 0, NULL, 0, USB_CTRL_SET_TIMEOUT);
@@ -542,7 +543,7 @@ static int mtouch_init(struct usbtouch_usb *usbtouch)
 	msleep(150);
 
 	for (i = 0; i < 3; i++) {
-		ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
+		ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				      MTOUCHUSB_ASYNC_REPORT,
 				      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 				      1, 1, NULL, 0, USB_CTRL_SET_TIMEOUT);
@@ -721,7 +722,7 @@ static int dmc_tsc10_init(struct usbtouch_usb *usbtouch)
 	}
 
 	/* start sending data */
-	ret = usb_control_msg(dev, usb_rcvctrlpipe (dev, 0),
+	ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 	                      TSC10_CMD_DATA1,
 	                      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 	                      0, 0, NULL, 0, USB_CTRL_SET_TIMEOUT);
@@ -1043,6 +1044,7 @@ static void nexio_exit(struct usbtouch_usb *usbtouch)
 
 static int nexio_read_data(struct usbtouch_usb *usbtouch, unsigned char *pkt)
 {
+	struct device *dev = &usbtouch->interface->dev;
 	struct nexio_touch_packet *packet = (void *) pkt;
 	struct nexio_priv *priv = usbtouch->priv;
 	unsigned int data_len = be16_to_cpu(packet->data_len);
@@ -1061,6 +1063,8 @@ static int nexio_read_data(struct usbtouch_usb *usbtouch, unsigned char *pkt)
 
 	/* send ACK */
 	ret = usb_submit_urb(priv->ack, GFP_ATOMIC);
+	if (ret)
+		dev_warn(dev, "Failed to submit ACK URB: %d\n", ret);
 
 	if (!usbtouch->type->max_xc) {
 		usbtouch->type->max_xc = 2 * x_len;
@@ -1650,6 +1654,9 @@ static int usbtouch_probe(struct usb_interface *intf,
 	if (id->driver_info == DEVTYPE_IGNORE)
 		return -ENODEV;
 
+	if (id->driver_info >= ARRAY_SIZE(usbtouch_dev_info))
+		return -ENODEV;
+
 	endpoint = usbtouch_get_input_endpoint(intf->cur_altsetting);
 	if (!endpoint)
 		return -ENXIO;
@@ -1701,7 +1708,7 @@ static int usbtouch_probe(struct usb_interface *intf,
 	usbtouch->input = input_dev;
 
 	if (udev->manufacturer)
-		strlcpy(usbtouch->name, udev->manufacturer, sizeof(usbtouch->name));
+		strscpy(usbtouch->name, udev->manufacturer, sizeof(usbtouch->name));
 
 	if (udev->product) {
 		if (udev->manufacturer)

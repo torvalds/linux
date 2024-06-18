@@ -17,6 +17,7 @@ enum ti_sysc_module_type {
 	TI_SYSC_OMAP4_MCASP,
 	TI_SYSC_OMAP4_USB_HOST_FS,
 	TI_SYSC_DRA7_MCAN,
+	TI_SYSC_PRUSS,
 };
 
 struct ti_sysc_cookie {
@@ -49,6 +50,18 @@ struct sysc_regbits {
 	s8 emufree_shift;
 };
 
+#define SYSC_MODULE_QUIRK_OTG		BIT(30)
+#define SYSC_QUIRK_RESET_ON_CTX_LOST	BIT(29)
+#define SYSC_QUIRK_REINIT_ON_CTX_LOST	BIT(28)
+#define SYSC_QUIRK_REINIT_ON_RESUME	BIT(27)
+#define SYSC_QUIRK_GPMC_DEBUG		BIT(26)
+#define SYSC_MODULE_QUIRK_ENA_RESETDONE	BIT(25)
+#define SYSC_MODULE_QUIRK_PRUSS		BIT(24)
+#define SYSC_MODULE_QUIRK_DSS_RESET	BIT(23)
+#define SYSC_MODULE_QUIRK_RTC_UNLOCK	BIT(22)
+#define SYSC_QUIRK_CLKDM_NOAUTO		BIT(21)
+#define SYSC_QUIRK_FORCE_MSTANDBY	BIT(20)
+#define SYSC_MODULE_QUIRK_AESS		BIT(19)
 #define SYSC_MODULE_QUIRK_SGX		BIT(18)
 #define SYSC_MODULE_QUIRK_HDQ1W		BIT(17)
 #define SYSC_MODULE_QUIRK_I2C		BIT(16)
@@ -58,7 +71,6 @@ struct sysc_regbits {
 #define SYSC_QUIRK_SWSUP_SIDLE_ACT	BIT(12)
 #define SYSC_QUIRK_SWSUP_SIDLE		BIT(11)
 #define SYSC_QUIRK_EXT_OPT_CLOCK	BIT(10)
-#define SYSC_QUIRK_LEGACY_IDLE		BIT(9)
 #define SYSC_QUIRK_RESET_STATUS		BIT(8)
 #define SYSC_QUIRK_NO_IDLE		BIT(7)
 #define SYSC_QUIRK_NO_IDLE_ON_INIT	BIT(6)
@@ -138,6 +150,7 @@ struct clk;
 
 struct ti_sysc_platform_data {
 	struct of_dev_auxdata *auxdata;
+	bool (*soc_type_gp)(void);
 	int (*init_clockdomain)(struct device *dev, struct clk *fck,
 				struct clk *ick, struct ti_sysc_cookie *cookie);
 	void (*clkdm_deny_idle)(struct device *dev,

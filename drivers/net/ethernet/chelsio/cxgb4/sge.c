@@ -55,6 +55,8 @@
 #include "t4fw_api.h"
 #include "cxgb4_ptp.h"
 #include "cxgb4_uld.h"
+#include "cxgb4_tc_mqprio.h"
+#include "sched.h"
 
 /*
  * Rx buffer size.  We use largish buffers if possible but settle for single
@@ -269,7 +271,6 @@ out_err:
 }
 EXPORT_SYMBOL(cxgb4_map_skb);
 
-#ifdef CONFIG_NEED_DMA_MAP_STATE
 static void unmap_skb(struct device *dev, const struct sk_buff *skb,
 		      const dma_addr_t *addr)
 {
@@ -284,6 +285,7 @@ static void unmap_skb(struct device *dev, const struct sk_buff *skb,
 		dma_unmap_page(dev, *addr++, skb_frag_size(fp), DMA_TO_DEVICE);
 }
 
+#ifdef CONFIG_NEED_DMA_MAP_STATE
 /**
  *	deferred_unmap_destructor - unmap a packet when it is freed
  *	@skb: the packet
@@ -298,68 +300,9 @@ static void deferred_unmap_destructor(struct sk_buff *skb)
 }
 #endif
 
-static void unmap_sgl(struct device *dev, const struct sk_buff *skb,
-		      const struct ulptx_sgl *sgl, const struct sge_txq *q)
-{
-	const struct ulptx_sge_pair *p;
-	unsigned int nfrags = skb_shinfo(skb)->nr_frags;
-
-	if (likely(skb_headlen(skb)))
-		dma_unmap_single(dev, be64_to_cpu(sgl->addr0), ntohl(sgl->len0),
-				 DMA_TO_DEVICE);
-	else {
-		dma_unmap_page(dev, be64_to_cpu(sgl->addr0), ntohl(sgl->len0),
-			       DMA_TO_DEVICE);
-		nfrags--;
-	}
-
-	/*
-	 * the complexity below is because of the possibility of a wrap-around
-	 * in the middle of an SGL
-	 */
-	for (p = sgl->sge; nfrags >= 2; nfrags -= 2) {
-		if (likely((u8 *)(p + 1) <= (u8 *)q->stat)) {
-unmap:			dma_unmap_page(dev, be64_to_cpu(p->addr[0]),
-				       ntohl(p->len[0]), DMA_TO_DEVICE);
-			dma_unmap_page(dev, be64_to_cpu(p->addr[1]),
-				       ntohl(p->len[1]), DMA_TO_DEVICE);
-			p++;
-		} else if ((u8 *)p == (u8 *)q->stat) {
-			p = (const struct ulptx_sge_pair *)q->desc;
-			goto unmap;
-		} else if ((u8 *)p + 8 == (u8 *)q->stat) {
-			const __be64 *addr = (const __be64 *)q->desc;
-
-			dma_unmap_page(dev, be64_to_cpu(addr[0]),
-				       ntohl(p->len[0]), DMA_TO_DEVICE);
-			dma_unmap_page(dev, be64_to_cpu(addr[1]),
-				       ntohl(p->len[1]), DMA_TO_DEVICE);
-			p = (const struct ulptx_sge_pair *)&addr[2];
-		} else {
-			const __be64 *addr = (const __be64 *)q->desc;
-
-			dma_unmap_page(dev, be64_to_cpu(p->addr[0]),
-				       ntohl(p->len[0]), DMA_TO_DEVICE);
-			dma_unmap_page(dev, be64_to_cpu(addr[0]),
-				       ntohl(p->len[1]), DMA_TO_DEVICE);
-			p = (const struct ulptx_sge_pair *)&addr[1];
-		}
-	}
-	if (nfrags) {
-		__be64 addr;
-
-		if ((u8 *)p == (u8 *)q->stat)
-			p = (const struct ulptx_sge_pair *)q->desc;
-		addr = (u8 *)p + 16 <= (u8 *)q->stat ? p->addr[0] :
-						       *(const __be64 *)q->desc;
-		dma_unmap_page(dev, be64_to_cpu(addr), ntohl(p->len[0]),
-			       DMA_TO_DEVICE);
-	}
-}
-
 /**
  *	free_tx_desc - reclaims Tx descriptors and their buffers
- *	@adapter: the adapter
+ *	@adap: the adapter
  *	@q: the Tx queue to reclaim descriptors from
  *	@n: the number of descriptors to reclaim
  *	@unmap: whether the buffers should be unmapped for DMA
@@ -370,15 +313,16 @@ unmap:			dma_unmap_page(dev, be64_to_cpu(p->addr[0]),
 void free_tx_desc(struct adapter *adap, struct sge_txq *q,
 		  unsigned int n, bool unmap)
 {
-	struct tx_sw_desc *d;
 	unsigned int cidx = q->cidx;
-	struct device *dev = adap->pdev_dev;
+	struct tx_sw_desc *d;
 
 	d = &q->sdesc[cidx];
 	while (n--) {
 		if (d->skb) {                       /* an SGL is present */
-			if (unmap)
-				unmap_sgl(dev, d->skb, d->sgl, q);
+			if (unmap && d->addr[0]) {
+				unmap_skb(adap->pdev_dev, d->skb, d->addr);
+				memset(d->addr, 0, sizeof(d->addr));
+			}
 			dev_consume_skb_any(d->skb);
 			d->skb = NULL;
 		}
@@ -499,7 +443,7 @@ static void free_rx_bufs(struct adapter *adap, struct sge_fl *q, int n)
 		if (is_buf_mapped(d))
 			dma_unmap_page(adap->pdev_dev, get_buf_addr(d),
 				       get_buf_size(adap, d),
-				       PCI_DMA_FROMDEVICE);
+				       DMA_FROM_DEVICE);
 		put_page(d->page);
 		d->page = NULL;
 		if (++q->cidx == q->size)
@@ -525,7 +469,7 @@ static void unmap_rx_buf(struct adapter *adap, struct sge_fl *q)
 
 	if (is_buf_mapped(d))
 		dma_unmap_page(adap->pdev_dev, get_buf_addr(d),
-			       get_buf_size(adap, d), PCI_DMA_FROMDEVICE);
+			       get_buf_size(adap, d), DMA_FROM_DEVICE);
 	d->page = NULL;
 	if (++q->cidx == q->size)
 		q->cidx = 0;
@@ -622,7 +566,7 @@ static unsigned int refill_fl(struct adapter *adap, struct sge_fl *q, int n,
 
 		mapping = dma_map_page(adap->pdev_dev, pg, 0,
 				       PAGE_SIZE << s->fl_pg_order,
-				       PCI_DMA_FROMDEVICE);
+				       DMA_FROM_DEVICE);
 		if (unlikely(dma_mapping_error(adap->pdev_dev, mapping))) {
 			__free_pages(pg, s->fl_pg_order);
 			q->mapping_err++;
@@ -652,7 +596,7 @@ alloc_small_pages:
 		}
 
 		mapping = dma_map_page(adap->pdev_dev, pg, 0, PAGE_SIZE,
-				       PCI_DMA_FROMDEVICE);
+				       DMA_FROM_DEVICE);
 		if (unlikely(dma_mapping_error(adap->pdev_dev, mapping))) {
 			put_page(pg);
 			q->mapping_err++;
@@ -778,6 +722,7 @@ static inline unsigned int flits_to_desc(unsigned int n)
 /**
  *	is_eth_imm - can an Ethernet packet be sent as immediate data?
  *	@skb: the packet
+ *	@chip_ver: chip version
  *
  *	Returns whether an Ethernet packet is small enough to fit as
  *	immediate data. Return value corresponds to headroom required.
@@ -790,6 +735,8 @@ static inline int is_eth_imm(const struct sk_buff *skb, unsigned int chip_ver)
 	    chip_ver > CHELSIO_T5) {
 		hdrlen = sizeof(struct cpl_tx_tnl_lso);
 		hdrlen += sizeof(struct cpl_tx_pkt_core);
+	} else if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4) {
+		return 0;
 	} else {
 		hdrlen = skb_shinfo(skb)->gso_size ?
 			 sizeof(struct cpl_tx_pkt_lso_core) : 0;
@@ -803,6 +750,7 @@ static inline int is_eth_imm(const struct sk_buff *skb, unsigned int chip_ver)
 /**
  *	calc_tx_flits - calculate the number of flits for a packet Tx WR
  *	@skb: the packet
+ *	@chip_ver: chip version
  *
  *	Returns the number of flits needed for a Tx WR for the given Ethernet
  *	packet, including the needed WR and CPL headers.
@@ -831,12 +779,20 @@ static inline unsigned int calc_tx_flits(const struct sk_buff *skb,
 	 */
 	flits = sgl_len(skb_shinfo(skb)->nr_frags + 1);
 	if (skb_shinfo(skb)->gso_size) {
-		if (skb->encapsulation && chip_ver > CHELSIO_T5)
+		if (skb->encapsulation && chip_ver > CHELSIO_T5) {
 			hdrlen = sizeof(struct fw_eth_tx_pkt_wr) +
 				 sizeof(struct cpl_tx_tnl_lso);
-		else
+		} else if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4) {
+			u32 pkt_hdrlen;
+
+			pkt_hdrlen = eth_get_headlen(skb->dev, skb->data,
+						     skb_headlen(skb));
+			hdrlen = sizeof(struct fw_eth_tx_eo_wr) +
+				 round_up(pkt_hdrlen, 16);
+		} else {
 			hdrlen = sizeof(struct fw_eth_tx_pkt_wr) +
 				 sizeof(struct cpl_tx_pkt_lso_core);
+		}
 
 		hdrlen += sizeof(struct cpl_tx_pkt_core);
 		flits += (hdrlen / sizeof(__be64));
@@ -845,19 +801,6 @@ static inline unsigned int calc_tx_flits(const struct sk_buff *skb,
 			  sizeof(struct cpl_tx_pkt_core)) / sizeof(__be64);
 	}
 	return flits;
-}
-
-/**
- *	calc_tx_descs - calculate the number of Tx descriptors for a packet
- *	@skb: the packet
- *
- *	Returns the number of Tx descriptors needed for the given Ethernet
- *	packet, including the needed WR and CPL headers.
- */
-static inline unsigned int calc_tx_descs(const struct sk_buff *skb,
-					 unsigned int chip_ver)
-{
-	return flits_to_desc(calc_tx_flits(skb, chip_ver));
 }
 
 /**
@@ -932,6 +875,114 @@ void cxgb4_write_sgl(const struct sk_buff *skb, struct sge_txq *q,
 		*end = 0;
 }
 EXPORT_SYMBOL(cxgb4_write_sgl);
+
+/*	cxgb4_write_partial_sgl - populate SGL for partial packet
+ *	@skb: the packet
+ *	@q: the Tx queue we are writing into
+ *	@sgl: starting location for writing the SGL
+ *	@end: points right after the end of the SGL
+ *	@addr: the list of bus addresses for the SGL elements
+ *	@start: start offset in the SKB where partial data starts
+ *	@len: length of data from @start to send out
+ *
+ *	This API will handle sending out partial data of a skb if required.
+ *	Unlike cxgb4_write_sgl, @start can be any offset into the skb data,
+ *	and @len will decide how much data after @start offset to send out.
+ */
+void cxgb4_write_partial_sgl(const struct sk_buff *skb, struct sge_txq *q,
+			     struct ulptx_sgl *sgl, u64 *end,
+			     const dma_addr_t *addr, u32 start, u32 len)
+{
+	struct ulptx_sge_pair buf[MAX_SKB_FRAGS / 2 + 1] = {0}, *to;
+	u32 frag_size, skb_linear_data_len = skb_headlen(skb);
+	struct skb_shared_info *si = skb_shinfo(skb);
+	u8 i = 0, frag_idx = 0, nfrags = 0;
+	skb_frag_t *frag;
+
+	/* Fill the first SGL either from linear data or from partial
+	 * frag based on @start.
+	 */
+	if (unlikely(start < skb_linear_data_len)) {
+		frag_size = min(len, skb_linear_data_len - start);
+		sgl->len0 = htonl(frag_size);
+		sgl->addr0 = cpu_to_be64(addr[0] + start);
+		len -= frag_size;
+		nfrags++;
+	} else {
+		start -= skb_linear_data_len;
+		frag = &si->frags[frag_idx];
+		frag_size = skb_frag_size(frag);
+		/* find the first frag */
+		while (start >= frag_size) {
+			start -= frag_size;
+			frag_idx++;
+			frag = &si->frags[frag_idx];
+			frag_size = skb_frag_size(frag);
+		}
+
+		frag_size = min(len, skb_frag_size(frag) - start);
+		sgl->len0 = cpu_to_be32(frag_size);
+		sgl->addr0 = cpu_to_be64(addr[frag_idx + 1] + start);
+		len -= frag_size;
+		nfrags++;
+		frag_idx++;
+	}
+
+	/* If the entire partial data fit in one SGL, then send it out
+	 * now.
+	 */
+	if (!len)
+		goto done;
+
+	/* Most of the complexity below deals with the possibility we hit the
+	 * end of the queue in the middle of writing the SGL.  For this case
+	 * only we create the SGL in a temporary buffer and then copy it.
+	 */
+	to = (u8 *)end > (u8 *)q->stat ? buf : sgl->sge;
+
+	/* If the skb couldn't fit in first SGL completely, fill the
+	 * rest of the frags in subsequent SGLs. Note that each SGL
+	 * pair can store 2 frags.
+	 */
+	while (len) {
+		frag_size = min(len, skb_frag_size(&si->frags[frag_idx]));
+		to->len[i & 1] = cpu_to_be32(frag_size);
+		to->addr[i & 1] = cpu_to_be64(addr[frag_idx + 1]);
+		if (i && (i & 1))
+			to++;
+		nfrags++;
+		frag_idx++;
+		i++;
+		len -= frag_size;
+	}
+
+	/* If we ended in an odd boundary, then set the second SGL's
+	 * length in the pair to 0.
+	 */
+	if (i & 1)
+		to->len[1] = cpu_to_be32(0);
+
+	/* Copy from temporary buffer to Tx ring, in case we hit the
+	 * end of the queue in the middle of writing the SGL.
+	 */
+	if (unlikely((u8 *)end > (u8 *)q->stat)) {
+		u32 part0 = (u8 *)q->stat - (u8 *)sgl->sge, part1;
+
+		if (likely(part0))
+			memcpy(sgl->sge, buf, part0);
+		part1 = (u8 *)end - (u8 *)q->stat;
+		memcpy(q->desc, (u8 *)buf + part0, part1);
+		end = (void *)q->desc + part1;
+	}
+
+	/* 0-pad to multiple of 16 */
+	if ((uintptr_t)end & 8)
+		*end = 0;
+done:
+	sgl->cmd_nsge = htonl(ULPTX_CMD_V(ULP_TX_SC_DSGL) |
+			ULPTX_NSGE_V(nfrags));
+}
+EXPORT_SYMBOL(cxgb4_write_partial_sgl);
 
 /* This function copies 64 byte coalesced work request to
  * memory mapped BAR2 space. For coalesced WR SGE fetches
@@ -1309,6 +1360,35 @@ static inline void t6_fill_tnl_lso(struct sk_buff *skb,
 	tnl_lso->EthLenOffset_Size = htonl(CPL_TX_TNL_LSO_SIZE_V(skb->len));
 }
 
+static inline void *write_tso_wr(struct adapter *adap, struct sk_buff *skb,
+				 struct cpl_tx_pkt_lso_core *lso)
+{
+	int eth_xtra_len = skb_network_offset(skb) - ETH_HLEN;
+	int l3hdr_len = skb_network_header_len(skb);
+	const struct skb_shared_info *ssi;
+	bool ipv6 = false;
+
+	ssi = skb_shinfo(skb);
+	if (ssi->gso_type & SKB_GSO_TCPV6)
+		ipv6 = true;
+
+	lso->lso_ctrl = htonl(LSO_OPCODE_V(CPL_TX_PKT_LSO) |
+			      LSO_FIRST_SLICE_F | LSO_LAST_SLICE_F |
+			      LSO_IPV6_V(ipv6) |
+			      LSO_ETHHDR_LEN_V(eth_xtra_len / 4) |
+			      LSO_IPHDR_LEN_V(l3hdr_len / 4) |
+			      LSO_TCPHDR_LEN_V(tcp_hdr(skb)->doff));
+	lso->ipid_ofst = htons(0);
+	lso->mss = htons(ssi->gso_size);
+	lso->seqno_offset = htonl(0);
+	if (is_t4(adap->params.chip))
+		lso->len = htonl(skb->len);
+	else
+		lso->len = htonl(LSO_T5_XFER_SIZE_V(skb->len));
+
+	return (void *)(lso + 1);
+}
+
 /**
  *	t4_sge_eth_txq_egress_update - handle Ethernet TX Queue update
  *	@adap: the adapter
@@ -1324,8 +1404,9 @@ static inline void t6_fill_tnl_lso(struct sk_buff *skb,
 int t4_sge_eth_txq_egress_update(struct adapter *adap, struct sge_eth_txq *eq,
 				 int maxreclaim)
 {
+	unsigned int reclaimed, hw_cidx;
 	struct sge_txq *q = &eq->q;
-	unsigned int reclaimed;
+	int hw_in_use;
 
 	if (!q->in_use || !__netif_tx_trylock(eq->txq))
 		return 0;
@@ -1333,18 +1414,67 @@ int t4_sge_eth_txq_egress_update(struct adapter *adap, struct sge_eth_txq *eq,
 	/* Reclaim pending completed TX Descriptors. */
 	reclaimed = reclaim_completed_tx(adap, &eq->q, maxreclaim, true);
 
+	hw_cidx = ntohs(READ_ONCE(q->stat->cidx));
+	hw_in_use = q->pidx - hw_cidx;
+	if (hw_in_use < 0)
+		hw_in_use += q->size;
+
 	/* If the TX Queue is currently stopped and there's now more than half
 	 * the queue available, restart it.  Otherwise bail out since the rest
 	 * of what we want do here is with the possibility of shipping any
 	 * currently buffered Coalesced TX Work Request.
 	 */
-	if (netif_tx_queue_stopped(eq->txq) && txq_avail(q) > (q->size / 2)) {
+	if (netif_tx_queue_stopped(eq->txq) && hw_in_use < (q->size / 2)) {
 		netif_tx_wake_queue(eq->txq);
 		eq->q.restarts++;
 	}
 
 	__netif_tx_unlock(eq->txq);
 	return reclaimed;
+}
+
+static inline int cxgb4_validate_skb(struct sk_buff *skb,
+				     struct net_device *dev,
+				     u32 min_pkt_len)
+{
+	u32 max_pkt_len;
+
+	/* The chip min packet length is 10 octets but some firmware
+	 * commands have a minimum packet length requirement. So, play
+	 * safe and reject anything shorter than @min_pkt_len.
+	 */
+	if (unlikely(skb->len < min_pkt_len))
+		return -EINVAL;
+
+	/* Discard the packet if the length is greater than mtu */
+	max_pkt_len = ETH_HLEN + dev->mtu;
+
+	if (skb_vlan_tagged(skb))
+		max_pkt_len += VLAN_HLEN;
+
+	if (!skb_shinfo(skb)->gso_size && (unlikely(skb->len > max_pkt_len)))
+		return -EINVAL;
+
+	return 0;
+}
+
+static void *write_eo_udp_wr(struct sk_buff *skb, struct fw_eth_tx_eo_wr *wr,
+			     u32 hdr_len)
+{
+	wr->u.udpseg.type = FW_ETH_TX_EO_TYPE_UDPSEG;
+	wr->u.udpseg.ethlen = skb_network_offset(skb);
+	wr->u.udpseg.iplen = cpu_to_be16(skb_network_header_len(skb));
+	wr->u.udpseg.udplen = sizeof(struct udphdr);
+	wr->u.udpseg.rtplen = 0;
+	wr->u.udpseg.r4 = 0;
+	if (skb_shinfo(skb)->gso_size)
+		wr->u.udpseg.mss = cpu_to_be16(skb_shinfo(skb)->gso_size);
+	else
+		wr->u.udpseg.mss = cpu_to_be16(skb->len - hdr_len);
+	wr->u.udpseg.schedpktsize = wr->u.udpseg.mss;
+	wr->u.udpseg.plen = cpu_to_be32(skb->len - hdr_len);
+
+	return (void *)(wr + 1);
 }
 
 /**
@@ -1356,59 +1486,47 @@ int t4_sge_eth_txq_egress_update(struct adapter *adap, struct sge_eth_txq *eq,
  */
 static netdev_tx_t cxgb4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	u32 wr_mid, ctrl0, op;
-	u64 cntrl, *end, *sgl;
-	int qidx, credits;
-	unsigned int flits, ndesc;
-	struct adapter *adap;
-	struct sge_eth_txq *q;
-	const struct port_info *pi;
+	enum cpl_tx_tnl_lso_type tnl_type = TX_TNL_TYPE_OPAQUE;
+	bool ptp_enabled = is_ptp_enabled(skb, dev);
+	unsigned int last_desc, flits, ndesc;
+	u32 wr_mid, ctrl0, op, sgl_off = 0;
+	const struct skb_shared_info *ssi;
+	int len, qidx, credits, ret, left;
+	struct tx_sw_desc *sgl_sdesc;
+	struct fw_eth_tx_eo_wr *eowr;
 	struct fw_eth_tx_pkt_wr *wr;
 	struct cpl_tx_pkt_core *cpl;
-	const struct skb_shared_info *ssi;
-	dma_addr_t addr[MAX_SKB_FRAGS + 1];
+	const struct port_info *pi;
 	bool immediate = false;
-	int len, max_pkt_len;
-	bool ptp_enabled = is_ptp_enabled(skb, dev);
+	u64 cntrl, *end, *sgl;
+	struct sge_eth_txq *q;
 	unsigned int chip_ver;
-	enum cpl_tx_tnl_lso_type tnl_type = TX_TNL_TYPE_OPAQUE;
+	struct adapter *adap;
 
-#ifdef CONFIG_CHELSIO_T4_FCOE
-	int err;
-#endif /* CONFIG_CHELSIO_T4_FCOE */
-
-	/*
-	 * The chip min packet length is 10 octets but play safe and reject
-	 * anything shorter than an Ethernet header.
-	 */
-	if (unlikely(skb->len < ETH_HLEN)) {
-out_free:	dev_kfree_skb_any(skb);
-		return NETDEV_TX_OK;
-	}
-
-	/* Discard the packet if the length is greater than mtu */
-	max_pkt_len = ETH_HLEN + dev->mtu;
-	if (skb_vlan_tagged(skb))
-		max_pkt_len += VLAN_HLEN;
-	if (!skb_shinfo(skb)->gso_size && (unlikely(skb->len > max_pkt_len)))
+	ret = cxgb4_validate_skb(skb, dev, ETH_HLEN);
+	if (ret)
 		goto out_free;
 
 	pi = netdev_priv(dev);
 	adap = pi->adapter;
 	ssi = skb_shinfo(skb);
-#ifdef CONFIG_CHELSIO_IPSEC_INLINE
+#if IS_ENABLED(CONFIG_CHELSIO_IPSEC_INLINE)
 	if (xfrm_offload(skb) && !ssi->gso_size)
-		return adap->uld[CXGB4_ULD_CRYPTO].tx_handler(skb, dev);
+		return adap->uld[CXGB4_ULD_IPSEC].tx_handler(skb, dev);
 #endif /* CHELSIO_IPSEC_INLINE */
+
+#if IS_ENABLED(CONFIG_CHELSIO_TLS_DEVICE)
+	if (tls_is_skb_tx_device_offloaded(skb) &&
+	    (skb->len - skb_tcp_all_headers(skb)))
+		return adap->uld[CXGB4_ULD_KTLS].tx_handler(skb, dev);
+#endif /* CHELSIO_TLS_DEVICE */
 
 	qidx = skb_get_queue_mapping(skb);
 	if (ptp_enabled) {
-		spin_lock(&adap->ptp_lock);
 		if (!(adap->ptp_tx_skb)) {
 			skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 			adap->ptp_tx_skb = skb_get(skb);
 		} else {
-			spin_unlock(&adap->ptp_lock);
 			goto out_free;
 		}
 		q = &adap->sge.ptptxq;
@@ -1421,12 +1539,9 @@ out_free:	dev_kfree_skb_any(skb);
 	cntrl = TXPKT_L4CSUM_DIS_F | TXPKT_IPCSUM_DIS_F;
 
 #ifdef CONFIG_CHELSIO_T4_FCOE
-	err = cxgb_fcoe_offload(skb, adap, pi, &cntrl);
-	if (unlikely(err == -ENOTSUPP)) {
-		if (ptp_enabled)
-			spin_unlock(&adap->ptp_lock);
+	ret = cxgb_fcoe_offload(skb, adap, pi, &cntrl);
+	if (unlikely(ret == -EOPNOTSUPP))
 		goto out_free;
-	}
 #endif /* CONFIG_CHELSIO_T4_FCOE */
 
 	chip_ver = CHELSIO_CHIP_VERSION(adap->params.chip);
@@ -1439,8 +1554,6 @@ out_free:	dev_kfree_skb_any(skb);
 		dev_err(adap->pdev_dev,
 			"%s: Tx ring %u full while queue awake!\n",
 			dev->name, qidx);
-		if (ptp_enabled)
-			spin_unlock(&adap->ptp_lock);
 		return NETDEV_TX_BUSY;
 	}
 
@@ -1450,11 +1563,15 @@ out_free:	dev_kfree_skb_any(skb);
 	if (skb->encapsulation && chip_ver > CHELSIO_T5)
 		tnl_type = cxgb_encap_offload_supported(skb);
 
+	last_desc = q->q.pidx + ndesc - 1;
+	if (last_desc >= q->q.size)
+		last_desc -= q->q.size;
+	sgl_sdesc = &q->q.sdesc[last_desc];
+
 	if (!immediate &&
-	    unlikely(cxgb4_map_skb(adap->pdev_dev, skb, addr) < 0)) {
+	    unlikely(cxgb4_map_skb(adap->pdev_dev, skb, sgl_sdesc->addr) < 0)) {
+		memset(sgl_sdesc->addr, 0, sizeof(sgl_sdesc->addr));
 		q->mapping_err++;
-		if (ptp_enabled)
-			spin_unlock(&adap->ptp_lock);
 		goto out_free;
 	}
 
@@ -1469,30 +1586,23 @@ out_free:	dev_kfree_skb_any(skb);
 		 * has opened up.
 		 */
 		eth_txq_stop(q);
-
-		/* If we're using the SGE Doorbell Queue Timer facility, we
-		 * don't need to ask the Firmware to send us Egress Queue CIDX
-		 * Updates: the Hardware will do this automatically.  And
-		 * since we send the Ingress Queue CIDX Updates to the
-		 * corresponding Ethernet Response Queue, we'll get them very
-		 * quickly.
-		 */
-		if (!q->dbqt)
+		if (chip_ver > CHELSIO_T5)
 			wr_mid |= FW_WR_EQUEQ_F | FW_WR_EQUIQ_F;
 	}
 
 	wr = (void *)&q->q.desc[q->q.pidx];
+	eowr = (void *)&q->q.desc[q->q.pidx];
 	wr->equiq_to_len16 = htonl(wr_mid);
 	wr->r3 = cpu_to_be64(0);
-	end = (u64 *)wr + flits;
+	if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4)
+		end = (u64 *)eowr + flits;
+	else
+		end = (u64 *)wr + flits;
 
 	len = immediate ? skb->len : 0;
 	len += sizeof(*cpl);
-	if (ssi->gso_size) {
+	if (ssi->gso_size && !(ssi->gso_type & SKB_GSO_UDP_L4)) {
 		struct cpl_tx_pkt_lso_core *lso = (void *)(wr + 1);
-		bool v6 = (ssi->gso_type & SKB_GSO_TCPV6) != 0;
-		int l3hdr_len = skb_network_header_len(skb);
-		int eth_xtra_len = skb_network_offset(skb) - ETH_HLEN;
 		struct cpl_tx_tnl_lso *tnl_lso = (void *)(wr + 1);
 
 		if (tnl_type)
@@ -1513,51 +1623,37 @@ out_free:	dev_kfree_skb_any(skb);
 			if (iph->version == 4) {
 				iph->check = 0;
 				iph->tot_len = 0;
-				iph->check = (u16)(~ip_fast_csum((u8 *)iph,
-								 iph->ihl));
+				iph->check = ~ip_fast_csum((u8 *)iph, iph->ihl);
 			}
 			if (skb->ip_summed == CHECKSUM_PARTIAL)
 				cntrl = hwcsum(adap->params.chip, skb);
 		} else {
-			lso->lso_ctrl = htonl(LSO_OPCODE_V(CPL_TX_PKT_LSO) |
-					LSO_FIRST_SLICE_F | LSO_LAST_SLICE_F |
-					LSO_IPV6_V(v6) |
-					LSO_ETHHDR_LEN_V(eth_xtra_len / 4) |
-					LSO_IPHDR_LEN_V(l3hdr_len / 4) |
-					LSO_TCPHDR_LEN_V(tcp_hdr(skb)->doff));
-			lso->ipid_ofst = htons(0);
-			lso->mss = htons(ssi->gso_size);
-			lso->seqno_offset = htonl(0);
-			if (is_t4(adap->params.chip))
-				lso->len = htonl(skb->len);
-			else
-				lso->len = htonl(LSO_T5_XFER_SIZE_V(skb->len));
-			cpl = (void *)(lso + 1);
-
-			if (CHELSIO_CHIP_VERSION(adap->params.chip)
-			    <= CHELSIO_T5)
-				cntrl =	TXPKT_ETHHDR_LEN_V(eth_xtra_len);
-			else
-				cntrl = T6_TXPKT_ETHHDR_LEN_V(eth_xtra_len);
-
-			cntrl |= TXPKT_CSUM_TYPE_V(v6 ?
-				 TX_CSUM_TCPIP6 : TX_CSUM_TCPIP) |
-				 TXPKT_IPHDR_LEN_V(l3hdr_len);
+			cpl = write_tso_wr(adap, skb, lso);
+			cntrl = hwcsum(adap->params.chip, skb);
 		}
 		sgl = (u64 *)(cpl + 1); /* sgl start here */
-		if (unlikely((u8 *)sgl >= (u8 *)q->q.stat)) {
-			/* If current position is already at the end of the
-			 * txq, reset the current to point to start of the queue
-			 * and update the end ptr as well.
-			 */
-			if (sgl == (u64 *)q->q.stat) {
-				int left = (u8 *)end - (u8 *)q->q.stat;
-
-				end = (void *)q->q.desc + left;
-				sgl = (void *)q->q.desc;
-			}
-		}
 		q->tso++;
+		q->tx_cso += ssi->gso_segs;
+	} else if (ssi->gso_size) {
+		u64 *start;
+		u32 hdrlen;
+
+		hdrlen = eth_get_headlen(dev, skb->data, skb_headlen(skb));
+		len += hdrlen;
+		wr->op_immdlen = cpu_to_be32(FW_WR_OP_V(FW_ETH_TX_EO_WR) |
+					     FW_ETH_TX_EO_WR_IMMDLEN_V(len));
+		cpl = write_eo_udp_wr(skb, eowr, hdrlen);
+		cntrl = hwcsum(adap->params.chip, skb);
+
+		start = (u64 *)(cpl + 1);
+		sgl = (u64 *)inline_tx_skb_header(skb, &q->q, (void *)start,
+						  hdrlen);
+		if (unlikely(start > sgl)) {
+			left = (u8 *)end - (u8 *)q->q.stat;
+			end = (void *)q->q.desc + left;
+		}
+		sgl_off = hdrlen;
+		q->uso++;
 		q->tx_cso += ssi->gso_segs;
 	} else {
 		if (ptp_enabled)
@@ -1573,6 +1669,16 @@ out_free:	dev_kfree_skb_any(skb);
 				TXPKT_IPCSUM_DIS_F;
 			q->tx_cso++;
 		}
+	}
+
+	if (unlikely((u8 *)sgl >= (u8 *)q->q.stat)) {
+		/* If current position is already at the end of the
+		 * txq, reset the current to point to start of the queue
+		 * and update the end ptr as well.
+		 */
+		left = (u8 *)end - (u8 *)q->q.stat;
+		end = (void *)q->q.desc + left;
+		sgl = (void *)q->q.desc;
 	}
 
 	if (skb_vlan_tag_present(skb)) {
@@ -1604,23 +1710,19 @@ out_free:	dev_kfree_skb_any(skb);
 		cxgb4_inline_tx_skb(skb, &q->q, sgl);
 		dev_consume_skb_any(skb);
 	} else {
-		int last_desc;
-
-		cxgb4_write_sgl(skb, &q->q, (void *)sgl, end, 0, addr);
+		cxgb4_write_sgl(skb, &q->q, (void *)sgl, end, sgl_off,
+				sgl_sdesc->addr);
 		skb_orphan(skb);
-
-		last_desc = q->q.pidx + ndesc - 1;
-		if (last_desc >= q->q.size)
-			last_desc -= q->q.size;
-		q->q.sdesc[last_desc].skb = skb;
-		q->q.sdesc[last_desc].sgl = (struct ulptx_sgl *)sgl;
+		sgl_sdesc->skb = skb;
 	}
 
 	txq_advance(&q->q, ndesc);
 
 	cxgb4_ring_tx_db(adap, &q->q, ndesc);
-	if (ptp_enabled)
-		spin_unlock(&adap->ptp_lock);
+	return NETDEV_TX_OK;
+
+out_free:
+	dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
 }
 
@@ -1707,35 +1809,31 @@ static inline unsigned int t4vf_calc_tx_flits(const struct sk_buff *skb)
 static netdev_tx_t cxgb4_vf_eth_xmit(struct sk_buff *skb,
 				     struct net_device *dev)
 {
-	dma_addr_t addr[MAX_SKB_FRAGS + 1];
+	unsigned int last_desc, flits, ndesc;
 	const struct skb_shared_info *ssi;
 	struct fw_eth_tx_pkt_vm_wr *wr;
-	int qidx, credits, max_pkt_len;
+	struct tx_sw_desc *sgl_sdesc;
 	struct cpl_tx_pkt_core *cpl;
 	const struct port_info *pi;
-	unsigned int flits, ndesc;
 	struct sge_eth_txq *txq;
 	struct adapter *adapter;
+	int qidx, credits, ret;
+	size_t fw_hdr_copy_len;
+	unsigned int chip_ver;
 	u64 cntrl, *end;
 	u32 wr_mid;
-	const size_t fw_hdr_copy_len = sizeof(wr->ethmacdst) +
-				       sizeof(wr->ethmacsrc) +
-				       sizeof(wr->ethtype) +
-				       sizeof(wr->vlantci);
 
 	/* The chip minimum packet length is 10 octets but the firmware
 	 * command that we are using requires that we copy the Ethernet header
 	 * (including the VLAN tag) into the header so we reject anything
 	 * smaller than that ...
 	 */
-	if (unlikely(skb->len < fw_hdr_copy_len))
-		goto out_free;
-
-	/* Discard the packet if the length is greater than mtu */
-	max_pkt_len = ETH_HLEN + dev->mtu;
-	if (skb_vlan_tag_present(skb))
-		max_pkt_len += VLAN_HLEN;
-	if (!skb_shinfo(skb)->gso_size && (unlikely(skb->len > max_pkt_len)))
+	BUILD_BUG_ON(sizeof(wr->firmware) !=
+		     (sizeof(wr->ethmacdst) + sizeof(wr->ethmacsrc) +
+		      sizeof(wr->ethtype) + sizeof(wr->vlantci)));
+	fw_hdr_copy_len = sizeof(wr->firmware);
+	ret = cxgb4_validate_skb(skb, dev, fw_hdr_copy_len);
+	if (ret)
 		goto out_free;
 
 	/* Figure out which TX Queue we're going to use. */
@@ -1771,16 +1869,24 @@ static netdev_tx_t cxgb4_vf_eth_xmit(struct sk_buff *skb,
 		return NETDEV_TX_BUSY;
 	}
 
+	last_desc = txq->q.pidx + ndesc - 1;
+	if (last_desc >= txq->q.size)
+		last_desc -= txq->q.size;
+	sgl_sdesc = &txq->q.sdesc[last_desc];
+
 	if (!t4vf_is_eth_imm(skb) &&
-	    unlikely(cxgb4_map_skb(adapter->pdev_dev, skb, addr) < 0)) {
+	    unlikely(cxgb4_map_skb(adapter->pdev_dev, skb,
+				   sgl_sdesc->addr) < 0)) {
 		/* We need to map the skb into PCI DMA space (because it can't
 		 * be in-lined directly into the Work Request) and the mapping
 		 * operation failed.  Record the error and drop the packet.
 		 */
+		memset(sgl_sdesc->addr, 0, sizeof(sgl_sdesc->addr));
 		txq->mapping_err++;
 		goto out_free;
 	}
 
+	chip_ver = CHELSIO_CHIP_VERSION(adapter->params.chip);
 	wr_mid = FW_WR_LEN16_V(DIV_ROUND_UP(flits, 2));
 	if (unlikely(credits < ETHTXQ_STOP_THRES)) {
 		/* After we're done injecting the Work Request for this
@@ -1792,15 +1898,7 @@ static netdev_tx_t cxgb4_vf_eth_xmit(struct sk_buff *skb,
 		 * has opened up.
 		 */
 		eth_txq_stop(txq);
-
-		/* If we're using the SGE Doorbell Queue Timer facility, we
-		 * don't need to ask the Firmware to send us Egress Queue CIDX
-		 * Updates: the Hardware will do this automatically.  And
-		 * since we send the Ingress Queue CIDX Updates to the
-		 * corresponding Ethernet Response Queue, we'll get them very
-		 * quickly.
-		 */
-		if (!txq->dbqt)
+		if (chip_ver > CHELSIO_T5)
 			wr_mid |= FW_WR_EQUEQ_F | FW_WR_EQUIQ_F;
 	}
 
@@ -1814,7 +1912,7 @@ static netdev_tx_t cxgb4_vf_eth_xmit(struct sk_buff *skb,
 	wr->equiq_to_len16 = cpu_to_be32(wr_mid);
 	wr->r3[0] = cpu_to_be32(0);
 	wr->r3[1] = cpu_to_be32(0);
-	skb_copy_from_linear_data(skb, (void *)wr->ethmacdst, fw_hdr_copy_len);
+	skb_copy_from_linear_data(skb, &wr->firmware, fw_hdr_copy_len);
 	end = (u64 *)wr + flits;
 
 	/* If this is a Large Send Offload packet we'll put in an LSO CPL
@@ -1854,7 +1952,7 @@ static netdev_tx_t cxgb4_vf_eth_xmit(struct sk_buff *skb,
 		 */
 		cpl = (void *)(lso + 1);
 
-		if (CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5)
+		if (chip_ver <= CHELSIO_T5)
 			cntrl = TXPKT_ETHHDR_LEN_V(eth_xtra_len);
 		else
 			cntrl = T6_TXPKT_ETHHDR_LEN_V(eth_xtra_len);
@@ -1951,7 +2049,6 @@ static netdev_tx_t cxgb4_vf_eth_xmit(struct sk_buff *skb,
 		 */
 		struct ulptx_sgl *sgl = (struct ulptx_sgl *)(cpl + 1);
 		struct sge_txq *tq = &txq->q;
-		int last_desc;
 
 		/* If the Work Request header was an exact multiple of our TX
 		 * Descriptor length, then it's possible that the starting SGL
@@ -1965,14 +2062,9 @@ static netdev_tx_t cxgb4_vf_eth_xmit(struct sk_buff *skb,
 				       ((void *)end - (void *)tq->stat));
 		}
 
-		cxgb4_write_sgl(skb, tq, sgl, end, 0, addr);
+		cxgb4_write_sgl(skb, tq, sgl, end, 0, sgl_sdesc->addr);
 		skb_orphan(skb);
-
-		last_desc = tq->pidx + ndesc - 1;
-		if (last_desc >= tq->size)
-			last_desc -= tq->size;
-		tq->sdesc[last_desc].skb = skb;
-		tq->sdesc[last_desc].sgl = sgl;
+		sgl_sdesc->skb = skb;
 	}
 
 	/* Advance our internal TX Queue state, tell the hardware about
@@ -1991,23 +2083,13 @@ out_free:
 	return NETDEV_TX_OK;
 }
 
-netdev_tx_t t4_start_xmit(struct sk_buff *skb, struct net_device *dev)
-{
-	struct port_info *pi = netdev_priv(dev);
-
-	if (unlikely(pi->eth_flags & PRIV_FLAG_PORT_TX_VM))
-		return cxgb4_vf_eth_xmit(skb, dev);
-
-	return cxgb4_eth_xmit(skb, dev);
-}
-
 /**
- *	reclaim_completed_tx_imm - reclaim completed control-queue Tx descs
- *	@q: the SGE control Tx queue
+ * reclaim_completed_tx_imm - reclaim completed control-queue Tx descs
+ * @q: the SGE control Tx queue
  *
- *	This is a variant of cxgb4_reclaim_completed_tx() that is used
- *	for Tx queues that send only immediate data (presently just
- *	the control queues) and	thus do not have any sk_buffs to release.
+ * This is a variant of cxgb4_reclaim_completed_tx() that is used
+ * for Tx queues that send only immediate data (presently just
+ * the control queues) and	thus do not have any sk_buffs to release.
  */
 static inline void reclaim_completed_tx_imm(struct sge_txq *q)
 {
@@ -2019,6 +2101,518 @@ static inline void reclaim_completed_tx_imm(struct sge_txq *q)
 
 	q->in_use -= reclaim;
 	q->cidx = hw_cidx;
+}
+
+static inline void eosw_txq_advance_index(u32 *idx, u32 n, u32 max)
+{
+	u32 val = *idx + n;
+
+	if (val >= max)
+		val -= max;
+
+	*idx = val;
+}
+
+void cxgb4_eosw_txq_free_desc(struct adapter *adap,
+			      struct sge_eosw_txq *eosw_txq, u32 ndesc)
+{
+	struct tx_sw_desc *d;
+
+	d = &eosw_txq->desc[eosw_txq->last_cidx];
+	while (ndesc--) {
+		if (d->skb) {
+			if (d->addr[0]) {
+				unmap_skb(adap->pdev_dev, d->skb, d->addr);
+				memset(d->addr, 0, sizeof(d->addr));
+			}
+			dev_consume_skb_any(d->skb);
+			d->skb = NULL;
+		}
+		eosw_txq_advance_index(&eosw_txq->last_cidx, 1,
+				       eosw_txq->ndesc);
+		d = &eosw_txq->desc[eosw_txq->last_cidx];
+	}
+}
+
+static inline void eosw_txq_advance(struct sge_eosw_txq *eosw_txq, u32 n)
+{
+	eosw_txq_advance_index(&eosw_txq->pidx, n, eosw_txq->ndesc);
+	eosw_txq->inuse += n;
+}
+
+static inline int eosw_txq_enqueue(struct sge_eosw_txq *eosw_txq,
+				   struct sk_buff *skb)
+{
+	if (eosw_txq->inuse == eosw_txq->ndesc)
+		return -ENOMEM;
+
+	eosw_txq->desc[eosw_txq->pidx].skb = skb;
+	return 0;
+}
+
+static inline struct sk_buff *eosw_txq_peek(struct sge_eosw_txq *eosw_txq)
+{
+	return eosw_txq->desc[eosw_txq->last_pidx].skb;
+}
+
+static inline u8 ethofld_calc_tx_flits(struct adapter *adap,
+				       struct sk_buff *skb, u32 hdr_len)
+{
+	u8 flits, nsgl = 0;
+	u32 wrlen;
+
+	wrlen = sizeof(struct fw_eth_tx_eo_wr) + sizeof(struct cpl_tx_pkt_core);
+	if (skb_shinfo(skb)->gso_size &&
+	    !(skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4))
+		wrlen += sizeof(struct cpl_tx_pkt_lso_core);
+
+	wrlen += roundup(hdr_len, 16);
+
+	/* Packet headers + WR + CPLs */
+	flits = DIV_ROUND_UP(wrlen, 8);
+
+	if (skb_shinfo(skb)->nr_frags > 0) {
+		if (skb_headlen(skb) - hdr_len)
+			nsgl = sgl_len(skb_shinfo(skb)->nr_frags + 1);
+		else
+			nsgl = sgl_len(skb_shinfo(skb)->nr_frags);
+	} else if (skb->len - hdr_len) {
+		nsgl = sgl_len(1);
+	}
+
+	return flits + nsgl;
+}
+
+static void *write_eo_wr(struct adapter *adap, struct sge_eosw_txq *eosw_txq,
+			 struct sk_buff *skb, struct fw_eth_tx_eo_wr *wr,
+			 u32 hdr_len, u32 wrlen)
+{
+	const struct skb_shared_info *ssi = skb_shinfo(skb);
+	struct cpl_tx_pkt_core *cpl;
+	u32 immd_len, wrlen16;
+	bool compl = false;
+	u8 ver, proto;
+
+	ver = ip_hdr(skb)->version;
+	proto = (ver == 6) ? ipv6_hdr(skb)->nexthdr : ip_hdr(skb)->protocol;
+
+	wrlen16 = DIV_ROUND_UP(wrlen, 16);
+	immd_len = sizeof(struct cpl_tx_pkt_core);
+	if (skb_shinfo(skb)->gso_size &&
+	    !(skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4))
+		immd_len += sizeof(struct cpl_tx_pkt_lso_core);
+	immd_len += hdr_len;
+
+	if (!eosw_txq->ncompl ||
+	    (eosw_txq->last_compl + wrlen16) >=
+	    (adap->params.ofldq_wr_cred / 2)) {
+		compl = true;
+		eosw_txq->ncompl++;
+		eosw_txq->last_compl = 0;
+	}
+
+	wr->op_immdlen = cpu_to_be32(FW_WR_OP_V(FW_ETH_TX_EO_WR) |
+				     FW_ETH_TX_EO_WR_IMMDLEN_V(immd_len) |
+				     FW_WR_COMPL_V(compl));
+	wr->equiq_to_len16 = cpu_to_be32(FW_WR_LEN16_V(wrlen16) |
+					 FW_WR_FLOWID_V(eosw_txq->hwtid));
+	wr->r3 = 0;
+	if (proto == IPPROTO_UDP) {
+		cpl = write_eo_udp_wr(skb, wr, hdr_len);
+	} else {
+		wr->u.tcpseg.type = FW_ETH_TX_EO_TYPE_TCPSEG;
+		wr->u.tcpseg.ethlen = skb_network_offset(skb);
+		wr->u.tcpseg.iplen = cpu_to_be16(skb_network_header_len(skb));
+		wr->u.tcpseg.tcplen = tcp_hdrlen(skb);
+		wr->u.tcpseg.tsclk_tsoff = 0;
+		wr->u.tcpseg.r4 = 0;
+		wr->u.tcpseg.r5 = 0;
+		wr->u.tcpseg.plen = cpu_to_be32(skb->len - hdr_len);
+
+		if (ssi->gso_size) {
+			struct cpl_tx_pkt_lso_core *lso = (void *)(wr + 1);
+
+			wr->u.tcpseg.mss = cpu_to_be16(ssi->gso_size);
+			cpl = write_tso_wr(adap, skb, lso);
+		} else {
+			wr->u.tcpseg.mss = cpu_to_be16(0xffff);
+			cpl = (void *)(wr + 1);
+		}
+	}
+
+	eosw_txq->cred -= wrlen16;
+	eosw_txq->last_compl += wrlen16;
+	return cpl;
+}
+
+static int ethofld_hard_xmit(struct net_device *dev,
+			     struct sge_eosw_txq *eosw_txq)
+{
+	struct port_info *pi = netdev2pinfo(dev);
+	struct adapter *adap = netdev2adap(dev);
+	u32 wrlen, wrlen16, hdr_len, data_len;
+	enum sge_eosw_state next_state;
+	u64 cntrl, *start, *end, *sgl;
+	struct sge_eohw_txq *eohw_txq;
+	struct cpl_tx_pkt_core *cpl;
+	struct fw_eth_tx_eo_wr *wr;
+	bool skip_eotx_wr = false;
+	struct tx_sw_desc *d;
+	struct sk_buff *skb;
+	int left, ret = 0;
+	u8 flits, ndesc;
+
+	eohw_txq = &adap->sge.eohw_txq[eosw_txq->hwqid];
+	spin_lock(&eohw_txq->lock);
+	reclaim_completed_tx_imm(&eohw_txq->q);
+
+	d = &eosw_txq->desc[eosw_txq->last_pidx];
+	skb = d->skb;
+	skb_tx_timestamp(skb);
+
+	wr = (struct fw_eth_tx_eo_wr *)&eohw_txq->q.desc[eohw_txq->q.pidx];
+	if (unlikely(eosw_txq->state != CXGB4_EO_STATE_ACTIVE &&
+		     eosw_txq->last_pidx == eosw_txq->flowc_idx)) {
+		hdr_len = skb->len;
+		data_len = 0;
+		flits = DIV_ROUND_UP(hdr_len, 8);
+		if (eosw_txq->state == CXGB4_EO_STATE_FLOWC_OPEN_SEND)
+			next_state = CXGB4_EO_STATE_FLOWC_OPEN_REPLY;
+		else
+			next_state = CXGB4_EO_STATE_FLOWC_CLOSE_REPLY;
+		skip_eotx_wr = true;
+	} else {
+		hdr_len = eth_get_headlen(dev, skb->data, skb_headlen(skb));
+		data_len = skb->len - hdr_len;
+		flits = ethofld_calc_tx_flits(adap, skb, hdr_len);
+	}
+	ndesc = flits_to_desc(flits);
+	wrlen = flits * 8;
+	wrlen16 = DIV_ROUND_UP(wrlen, 16);
+
+	left = txq_avail(&eohw_txq->q) - ndesc;
+
+	/* If there are no descriptors left in hardware queues or no
+	 * CPL credits left in software queues, then wait for them
+	 * to come back and retry again. Note that we always request
+	 * for credits update via interrupt for every half credits
+	 * consumed. So, the interrupt will eventually restore the
+	 * credits and invoke the Tx path again.
+	 */
+	if (unlikely(left < 0 || wrlen16 > eosw_txq->cred)) {
+		ret = -ENOMEM;
+		goto out_unlock;
+	}
+
+	if (unlikely(skip_eotx_wr)) {
+		start = (u64 *)wr;
+		eosw_txq->state = next_state;
+		eosw_txq->cred -= wrlen16;
+		eosw_txq->ncompl++;
+		eosw_txq->last_compl = 0;
+		goto write_wr_headers;
+	}
+
+	cpl = write_eo_wr(adap, eosw_txq, skb, wr, hdr_len, wrlen);
+	cntrl = hwcsum(adap->params.chip, skb);
+	if (skb_vlan_tag_present(skb))
+		cntrl |= TXPKT_VLAN_VLD_F | TXPKT_VLAN_V(skb_vlan_tag_get(skb));
+
+	cpl->ctrl0 = cpu_to_be32(TXPKT_OPCODE_V(CPL_TX_PKT_XT) |
+				 TXPKT_INTF_V(pi->tx_chan) |
+				 TXPKT_PF_V(adap->pf));
+	cpl->pack = 0;
+	cpl->len = cpu_to_be16(skb->len);
+	cpl->ctrl1 = cpu_to_be64(cntrl);
+
+	start = (u64 *)(cpl + 1);
+
+write_wr_headers:
+	sgl = (u64 *)inline_tx_skb_header(skb, &eohw_txq->q, (void *)start,
+					  hdr_len);
+	if (data_len) {
+		ret = cxgb4_map_skb(adap->pdev_dev, skb, d->addr);
+		if (unlikely(ret)) {
+			memset(d->addr, 0, sizeof(d->addr));
+			eohw_txq->mapping_err++;
+			goto out_unlock;
+		}
+
+		end = (u64 *)wr + flits;
+		if (unlikely(start > sgl)) {
+			left = (u8 *)end - (u8 *)eohw_txq->q.stat;
+			end = (void *)eohw_txq->q.desc + left;
+		}
+
+		if (unlikely((u8 *)sgl >= (u8 *)eohw_txq->q.stat)) {
+			/* If current position is already at the end of the
+			 * txq, reset the current to point to start of the queue
+			 * and update the end ptr as well.
+			 */
+			left = (u8 *)end - (u8 *)eohw_txq->q.stat;
+
+			end = (void *)eohw_txq->q.desc + left;
+			sgl = (void *)eohw_txq->q.desc;
+		}
+
+		cxgb4_write_sgl(skb, &eohw_txq->q, (void *)sgl, end, hdr_len,
+				d->addr);
+	}
+
+	if (skb_shinfo(skb)->gso_size) {
+		if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4)
+			eohw_txq->uso++;
+		else
+			eohw_txq->tso++;
+		eohw_txq->tx_cso += skb_shinfo(skb)->gso_segs;
+	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		eohw_txq->tx_cso++;
+	}
+
+	if (skb_vlan_tag_present(skb))
+		eohw_txq->vlan_ins++;
+
+	txq_advance(&eohw_txq->q, ndesc);
+	cxgb4_ring_tx_db(adap, &eohw_txq->q, ndesc);
+	eosw_txq_advance_index(&eosw_txq->last_pidx, 1, eosw_txq->ndesc);
+
+out_unlock:
+	spin_unlock(&eohw_txq->lock);
+	return ret;
+}
+
+static void ethofld_xmit(struct net_device *dev, struct sge_eosw_txq *eosw_txq)
+{
+	struct sk_buff *skb;
+	int pktcount, ret;
+
+	switch (eosw_txq->state) {
+	case CXGB4_EO_STATE_ACTIVE:
+	case CXGB4_EO_STATE_FLOWC_OPEN_SEND:
+	case CXGB4_EO_STATE_FLOWC_CLOSE_SEND:
+		pktcount = eosw_txq->pidx - eosw_txq->last_pidx;
+		if (pktcount < 0)
+			pktcount += eosw_txq->ndesc;
+		break;
+	case CXGB4_EO_STATE_FLOWC_OPEN_REPLY:
+	case CXGB4_EO_STATE_FLOWC_CLOSE_REPLY:
+	case CXGB4_EO_STATE_CLOSED:
+	default:
+		return;
+	}
+
+	while (pktcount--) {
+		skb = eosw_txq_peek(eosw_txq);
+		if (!skb) {
+			eosw_txq_advance_index(&eosw_txq->last_pidx, 1,
+					       eosw_txq->ndesc);
+			continue;
+		}
+
+		ret = ethofld_hard_xmit(dev, eosw_txq);
+		if (ret)
+			break;
+	}
+}
+
+static netdev_tx_t cxgb4_ethofld_xmit(struct sk_buff *skb,
+				      struct net_device *dev)
+{
+	struct cxgb4_tc_port_mqprio *tc_port_mqprio;
+	struct port_info *pi = netdev2pinfo(dev);
+	struct adapter *adap = netdev2adap(dev);
+	struct sge_eosw_txq *eosw_txq;
+	u32 qid;
+	int ret;
+
+	ret = cxgb4_validate_skb(skb, dev, ETH_HLEN);
+	if (ret)
+		goto out_free;
+
+	tc_port_mqprio = &adap->tc_mqprio->port_mqprio[pi->port_id];
+	qid = skb_get_queue_mapping(skb) - pi->nqsets;
+	eosw_txq = &tc_port_mqprio->eosw_txq[qid];
+	spin_lock_bh(&eosw_txq->lock);
+	if (eosw_txq->state != CXGB4_EO_STATE_ACTIVE)
+		goto out_unlock;
+
+	ret = eosw_txq_enqueue(eosw_txq, skb);
+	if (ret)
+		goto out_unlock;
+
+	/* SKB is queued for processing until credits are available.
+	 * So, call the destructor now and we'll free the skb later
+	 * after it has been successfully transmitted.
+	 */
+	skb_orphan(skb);
+
+	eosw_txq_advance(eosw_txq, 1);
+	ethofld_xmit(dev, eosw_txq);
+	spin_unlock_bh(&eosw_txq->lock);
+	return NETDEV_TX_OK;
+
+out_unlock:
+	spin_unlock_bh(&eosw_txq->lock);
+out_free:
+	dev_kfree_skb_any(skb);
+	return NETDEV_TX_OK;
+}
+
+netdev_tx_t t4_start_xmit(struct sk_buff *skb, struct net_device *dev)
+{
+	struct port_info *pi = netdev_priv(dev);
+	u16 qid = skb_get_queue_mapping(skb);
+
+	if (unlikely(pi->eth_flags & PRIV_FLAG_PORT_TX_VM))
+		return cxgb4_vf_eth_xmit(skb, dev);
+
+	if (unlikely(qid >= pi->nqsets))
+		return cxgb4_ethofld_xmit(skb, dev);
+
+	if (is_ptp_enabled(skb, dev)) {
+		struct adapter *adap = netdev2adap(dev);
+		netdev_tx_t ret;
+
+		spin_lock(&adap->ptp_lock);
+		ret = cxgb4_eth_xmit(skb, dev);
+		spin_unlock(&adap->ptp_lock);
+		return ret;
+	}
+
+	return cxgb4_eth_xmit(skb, dev);
+}
+
+static void eosw_txq_flush_pending_skbs(struct sge_eosw_txq *eosw_txq)
+{
+	int pktcount = eosw_txq->pidx - eosw_txq->last_pidx;
+	int pidx = eosw_txq->pidx;
+	struct sk_buff *skb;
+
+	if (!pktcount)
+		return;
+
+	if (pktcount < 0)
+		pktcount += eosw_txq->ndesc;
+
+	while (pktcount--) {
+		pidx--;
+		if (pidx < 0)
+			pidx += eosw_txq->ndesc;
+
+		skb = eosw_txq->desc[pidx].skb;
+		if (skb) {
+			dev_consume_skb_any(skb);
+			eosw_txq->desc[pidx].skb = NULL;
+			eosw_txq->inuse--;
+		}
+	}
+
+	eosw_txq->pidx = eosw_txq->last_pidx + 1;
+}
+
+/**
+ * cxgb4_ethofld_send_flowc - Send ETHOFLD flowc request to bind eotid to tc.
+ * @dev: netdevice
+ * @eotid: ETHOFLD tid to bind/unbind
+ * @tc: traffic class. If set to FW_SCHED_CLS_NONE, then unbinds the @eotid
+ *
+ * Send a FLOWC work request to bind an ETHOFLD TID to a traffic class.
+ * If @tc is set to FW_SCHED_CLS_NONE, then the @eotid is unbound from
+ * a traffic class.
+ */
+int cxgb4_ethofld_send_flowc(struct net_device *dev, u32 eotid, u32 tc)
+{
+	struct port_info *pi = netdev2pinfo(dev);
+	struct adapter *adap = netdev2adap(dev);
+	enum sge_eosw_state next_state;
+	struct sge_eosw_txq *eosw_txq;
+	u32 len, len16, nparams = 6;
+	struct fw_flowc_wr *flowc;
+	struct eotid_entry *entry;
+	struct sge_ofld_rxq *rxq;
+	struct sk_buff *skb;
+	int ret = 0;
+
+	len = struct_size(flowc, mnemval, nparams);
+	len16 = DIV_ROUND_UP(len, 16);
+
+	entry = cxgb4_lookup_eotid(&adap->tids, eotid);
+	if (!entry)
+		return -ENOMEM;
+
+	eosw_txq = (struct sge_eosw_txq *)entry->data;
+	if (!eosw_txq)
+		return -ENOMEM;
+
+	if (!(adap->flags & CXGB4_FW_OK)) {
+		/* Don't stall caller when access to FW is lost */
+		complete(&eosw_txq->completion);
+		return -EIO;
+	}
+
+	skb = alloc_skb(len, GFP_KERNEL);
+	if (!skb)
+		return -ENOMEM;
+
+	spin_lock_bh(&eosw_txq->lock);
+	if (tc != FW_SCHED_CLS_NONE) {
+		if (eosw_txq->state != CXGB4_EO_STATE_CLOSED)
+			goto out_free_skb;
+
+		next_state = CXGB4_EO_STATE_FLOWC_OPEN_SEND;
+	} else {
+		if (eosw_txq->state != CXGB4_EO_STATE_ACTIVE)
+			goto out_free_skb;
+
+		next_state = CXGB4_EO_STATE_FLOWC_CLOSE_SEND;
+	}
+
+	flowc = __skb_put(skb, len);
+	memset(flowc, 0, len);
+
+	rxq = &adap->sge.eohw_rxq[eosw_txq->hwqid];
+	flowc->flowid_len16 = cpu_to_be32(FW_WR_LEN16_V(len16) |
+					  FW_WR_FLOWID_V(eosw_txq->hwtid));
+	flowc->op_to_nparams = cpu_to_be32(FW_WR_OP_V(FW_FLOWC_WR) |
+					   FW_FLOWC_WR_NPARAMS_V(nparams) |
+					   FW_WR_COMPL_V(1));
+	flowc->mnemval[0].mnemonic = FW_FLOWC_MNEM_PFNVFN;
+	flowc->mnemval[0].val = cpu_to_be32(FW_PFVF_CMD_PFN_V(adap->pf));
+	flowc->mnemval[1].mnemonic = FW_FLOWC_MNEM_CH;
+	flowc->mnemval[1].val = cpu_to_be32(pi->tx_chan);
+	flowc->mnemval[2].mnemonic = FW_FLOWC_MNEM_PORT;
+	flowc->mnemval[2].val = cpu_to_be32(pi->tx_chan);
+	flowc->mnemval[3].mnemonic = FW_FLOWC_MNEM_IQID;
+	flowc->mnemval[3].val = cpu_to_be32(rxq->rspq.abs_id);
+	flowc->mnemval[4].mnemonic = FW_FLOWC_MNEM_SCHEDCLASS;
+	flowc->mnemval[4].val = cpu_to_be32(tc);
+	flowc->mnemval[5].mnemonic = FW_FLOWC_MNEM_EOSTATE;
+	flowc->mnemval[5].val = cpu_to_be32(tc == FW_SCHED_CLS_NONE ?
+					    FW_FLOWC_MNEM_EOSTATE_CLOSING :
+					    FW_FLOWC_MNEM_EOSTATE_ESTABLISHED);
+
+	/* Free up any pending skbs to ensure there's room for
+	 * termination FLOWC.
+	 */
+	if (tc == FW_SCHED_CLS_NONE)
+		eosw_txq_flush_pending_skbs(eosw_txq);
+
+	ret = eosw_txq_enqueue(eosw_txq, skb);
+	if (ret)
+		goto out_free_skb;
+
+	eosw_txq->state = next_state;
+	eosw_txq->flowc_idx = eosw_txq->pidx;
+	eosw_txq_advance(eosw_txq, 1);
+	ethofld_xmit(dev, eosw_txq);
+
+	spin_unlock_bh(&eosw_txq->lock);
+	return 0;
+
+out_free_skb:
+	dev_consume_skb_any(skb);
+	spin_unlock_bh(&eosw_txq->lock);
+	return ret;
 }
 
 /**
@@ -2050,6 +2644,84 @@ static void ctrlq_check_stop(struct sge_ctrl_txq *q, struct fw_wr_hdr *wr)
 		q->q.stops++;
 		q->full = 1;
 	}
+}
+
+#define CXGB4_SELFTEST_LB_STR "CHELSIO_SELFTEST"
+
+int cxgb4_selftest_lb_pkt(struct net_device *netdev)
+{
+	struct port_info *pi = netdev_priv(netdev);
+	struct adapter *adap = pi->adapter;
+	struct cxgb4_ethtool_lb_test *lb;
+	int ret, i = 0, pkt_len, credits;
+	struct fw_eth_tx_pkt_wr *wr;
+	struct cpl_tx_pkt_core *cpl;
+	u32 ctrl0, ndesc, flits;
+	struct sge_eth_txq *q;
+	u8 *sgl;
+
+	pkt_len = ETH_HLEN + sizeof(CXGB4_SELFTEST_LB_STR);
+
+	flits = DIV_ROUND_UP(pkt_len + sizeof(*cpl) + sizeof(*wr),
+			     sizeof(__be64));
+	ndesc = flits_to_desc(flits);
+
+	lb = &pi->ethtool_lb;
+	lb->loopback = 1;
+
+	q = &adap->sge.ethtxq[pi->first_qset];
+	__netif_tx_lock_bh(q->txq);
+
+	reclaim_completed_tx(adap, &q->q, -1, true);
+	credits = txq_avail(&q->q) - ndesc;
+	if (unlikely(credits < 0)) {
+		__netif_tx_unlock_bh(q->txq);
+		return -ENOMEM;
+	}
+
+	wr = (void *)&q->q.desc[q->q.pidx];
+	memset(wr, 0, sizeof(struct tx_desc));
+
+	wr->op_immdlen = htonl(FW_WR_OP_V(FW_ETH_TX_PKT_WR) |
+			       FW_WR_IMMDLEN_V(pkt_len +
+			       sizeof(*cpl)));
+	wr->equiq_to_len16 = htonl(FW_WR_LEN16_V(DIV_ROUND_UP(flits, 2)));
+	wr->r3 = cpu_to_be64(0);
+
+	cpl = (void *)(wr + 1);
+	sgl = (u8 *)(cpl + 1);
+
+	ctrl0 = TXPKT_OPCODE_V(CPL_TX_PKT_XT) | TXPKT_PF_V(adap->pf) |
+		TXPKT_INTF_V(pi->tx_chan + 4);
+
+	cpl->ctrl0 = htonl(ctrl0);
+	cpl->pack = htons(0);
+	cpl->len = htons(pkt_len);
+	cpl->ctrl1 = cpu_to_be64(TXPKT_L4CSUM_DIS_F | TXPKT_IPCSUM_DIS_F);
+
+	eth_broadcast_addr(sgl);
+	i += ETH_ALEN;
+	ether_addr_copy(&sgl[i], netdev->dev_addr);
+	i += ETH_ALEN;
+
+	snprintf(&sgl[i], sizeof(CXGB4_SELFTEST_LB_STR), "%s",
+		 CXGB4_SELFTEST_LB_STR);
+
+	init_completion(&lb->completion);
+	txq_advance(&q->q, ndesc);
+	cxgb4_ring_tx_db(adap, &q->q, ndesc);
+	__netif_tx_unlock_bh(q->txq);
+
+	/* wait for the pkt to return */
+	ret = wait_for_completion_timeout(&lb->completion, 10 * HZ);
+	if (!ret)
+		ret = -ETIMEDOUT;
+	else
+		ret = lb->result;
+
+	lb->loopback = 0;
+
+	return ret;
 }
 
 /**
@@ -2097,15 +2769,15 @@ static int ctrl_xmit(struct sge_ctrl_txq *q, struct sk_buff *skb)
 
 /**
  *	restart_ctrlq - restart a suspended control queue
- *	@data: the control queue to restart
+ *	@t: pointer to the tasklet associated with this handler
  *
  *	Resumes transmission on a suspended Tx control queue.
  */
-static void restart_ctrlq(unsigned long data)
+static void restart_ctrlq(struct tasklet_struct *t)
 {
 	struct sk_buff *skb;
 	unsigned int written = 0;
-	struct sge_ctrl_txq *q = (struct sge_ctrl_txq *)data;
+	struct sge_ctrl_txq *q = from_tasklet(q, t, qresume_tsk);
 
 	spin_lock(&q->sendq.lock);
 	reclaim_completed_tx_imm(&q->q);
@@ -2170,17 +2842,22 @@ int t4_mgmt_tx(struct adapter *adap, struct sk_buff *skb)
  *	@skb: the packet
  *
  *	Returns true if a packet can be sent as an offload WR with immediate
- *	data.  We currently use the same limit as for Ethernet packets.
+ *	data.
+ *	FW_OFLD_TX_DATA_WR limits the payload to 255 bytes due to 8-bit field.
+ *      However, FW_ULPTX_WR commands have a 256 byte immediate only
+ *      payload limit.
  */
 static inline int is_ofld_imm(const struct sk_buff *skb)
 {
 	struct work_request_hdr *req = (struct work_request_hdr *)skb->data;
 	unsigned long opcode = FW_WR_OP_G(ntohl(req->wr_hi));
 
-	if (opcode == FW_CRYPTO_LOOKASIDE_WR)
+	if (unlikely(opcode == FW_ULPTX_WR))
+		return skb->len <= MAX_IMM_ULPTX_WR_LEN;
+	else if (opcode == FW_CRYPTO_LOOKASIDE_WR)
 		return skb->len <= SGE_MAX_WR_LEN;
 	else
-		return skb->len <= MAX_IMM_TX_PKT_LEN;
+		return skb->len <= MAX_IMM_OFLD_TX_DATA_WR_LEN;
 }
 
 /**
@@ -2207,7 +2884,6 @@ static inline unsigned int calc_tx_flits_ofld(const struct sk_buff *skb)
 
 /**
  *	txq_stop_maperr - stop a Tx queue due to I/O MMU exhaustion
- *	@adap: the adapter
  *	@q: the queue to stop
  *
  *	Mark a Tx queue stopped due to I/O MMU exhaustion and resulting
@@ -2256,6 +2932,7 @@ static void ofldtxq_stop(struct sge_uld_txq *q, struct fw_wr_hdr *wr)
  *	is ever running at a time ...
  */
 static void service_ofldq(struct sge_uld_txq *q)
+	__must_hold(&q->sendq.lock)
 {
 	u64 *pos, *before, *end;
 	int credits;
@@ -2398,13 +3075,13 @@ static int ofld_xmit(struct sge_uld_txq *q, struct sk_buff *skb)
 
 /**
  *	restart_ofldq - restart a suspended offload queue
- *	@data: the offload queue to restart
+ *	@t: pointer to the tasklet associated with this handler
  *
  *	Resumes transmission on a suspended Tx offload queue.
  */
-static void restart_ofldq(unsigned long data)
+static void restart_ofldq(struct tasklet_struct *t)
 {
-	struct sge_uld_txq *q = (struct sge_uld_txq *)data;
+	struct sge_uld_txq *q = from_tasklet(q, t, qresume_tsk);
 
 	spin_lock(&q->sendq.lock);
 	q->full = 0;            /* the queue actually is completely empty now */
@@ -2453,6 +3130,7 @@ static inline int uld_send(struct adapter *adap, struct sk_buff *skb,
 	txq_info = adap->sge.uld_txq_info[tx_uld_type];
 	if (unlikely(!txq_info)) {
 		WARN_ON(true);
+		kfree_skb(skb);
 		return NET_XMIT_DROP;
 	}
 
@@ -2801,7 +3479,7 @@ enum {
 
 /**
  *     t4_systim_to_hwstamp - read hardware time stamp
- *     @adap: the adapter
+ *     @adapter: the adapter
  *     @skb: the packet
  *
  *     Read Time Stamp from MPS packet and insert in skb which
@@ -2828,15 +3506,16 @@ static noinline int t4_systim_to_hwstamp(struct adapter *adapter,
 
 	hwtstamps = skb_hwtstamps(skb);
 	memset(hwtstamps, 0, sizeof(*hwtstamps));
-	hwtstamps->hwtstamp = ns_to_ktime(be64_to_cpu(*((u64 *)data)));
+	hwtstamps->hwtstamp = ns_to_ktime(get_unaligned_be64(data));
 
 	return RX_PTP_PKT_SUC;
 }
 
 /**
  *     t4_rx_hststamp - Recv PTP Event Message
- *     @adap: the adapter
+ *     @adapter: the adapter
  *     @rsp: the response queue descriptor holding the RX_PKT message
+ *     @rxq: the response queue holding the RX_PKT message
  *     @skb: the packet
  *
  *     PTP enabled and MPS packet, read HW timestamp
@@ -2860,7 +3539,7 @@ static int t4_rx_hststamp(struct adapter *adapter, const __be64 *rsp,
 
 /**
  *      t4_tx_hststamp - Loopback PTP Transmit Event Message
- *      @adap: the adapter
+ *      @adapter: the adapter
  *      @skb: the packet
  *      @dev: the ingress net device
  *
@@ -2926,9 +3605,8 @@ static void t4_tx_completion_handler(struct sge_rspq *rspq,
 	txq = &s->ethtxq[pi->first_qset + rspq->idx];
 
 	/* We've got the Hardware Consumer Index Update in the Egress Update
-	 * message.  If we're using the SGE Doorbell Queue Timer mechanism,
-	 * these Egress Update messages will be our sole CIDX Updates we get
-	 * since we don't want to chew up PCIe bandwidth for both Ingress
+	 * message. These Egress Update messages will be our sole CIDX Updates
+	 * we get since we don't want to chew up PCIe bandwidth for both Ingress
 	 * Messages and Status Page writes.  However, The code which manages
 	 * reclaiming successfully DMA'ed TX Work Requests uses the CIDX value
 	 * stored in the Status Page at the end of the TX Queue.  It's easiest
@@ -2937,7 +3615,7 @@ static void t4_tx_completion_handler(struct sge_rspq *rspq,
 	 * considered here since both are Big Endian and we're just copying
 	 * bytes consistently ...
 	 */
-	if (txq->dbqt) {
+	if (CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5) {
 		struct cpl_sge_egr_update *egr;
 
 		egr = (struct cpl_sge_egr_update *)rsp;
@@ -2945,6 +3623,31 @@ static void t4_tx_completion_handler(struct sge_rspq *rspq,
 	}
 
 	t4_sge_eth_txq_egress_update(adapter, txq, -1);
+}
+
+static int cxgb4_validate_lb_pkt(struct port_info *pi, const struct pkt_gl *si)
+{
+	struct adapter *adap = pi->adapter;
+	struct cxgb4_ethtool_lb_test *lb;
+	struct sge *s = &adap->sge;
+	struct net_device *netdev;
+	u8 *data;
+	int i;
+
+	netdev = adap->port[pi->port_id];
+	lb = &pi->ethtool_lb;
+	data = si->va + s->pktshift;
+
+	i = ETH_ALEN;
+	if (!ether_addr_equal(data + i, netdev->dev_addr))
+		return -1;
+
+	i += ETH_ALEN;
+	if (strcmp(&data[i], CXGB4_SELFTEST_LB_STR))
+		lb->result = -EIO;
+
+	complete(&lb->completion);
+	return 0;
 }
 
 /**
@@ -2970,6 +3673,7 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 	struct port_info *pi;
 	int ret = 0;
 
+	pi = netdev_priv(q->netdev);
 	/* If we're looking at TX Queue CIDX Update, handle that separately
 	 * and return.
 	 */
@@ -2997,6 +3701,12 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 	if (err_vec)
 		rxq->stats.bad_rx_pkts++;
 
+	if (unlikely(pi->ethtool_lb.loopback && pkt->iff >= NCHAN)) {
+		ret = cxgb4_validate_lb_pkt(pi, si);
+		if (!ret)
+			return 0;
+	}
+
 	if (((pkt->l2info & htonl(RXF_TCP_F)) ||
 	     tnl_hdr_len) &&
 	    (q->netdev->features & NETIF_F_GRO) && csum_ok && !pkt->ip_frag) {
@@ -3010,7 +3720,6 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 		rxq->stats.rx_drops++;
 		return 0;
 	}
-	pi = netdev_priv(q->netdev);
 
 	/* Handle PTP Event Rx packet */
 	if (unlikely(pi->ptp_enable)) {
@@ -3311,6 +4020,113 @@ static int napi_rx_handler(struct napi_struct *napi, int budget)
 	return work_done;
 }
 
+void cxgb4_ethofld_restart(struct tasklet_struct *t)
+{
+	struct sge_eosw_txq *eosw_txq = from_tasklet(eosw_txq, t,
+						     qresume_tsk);
+	int pktcount;
+
+	spin_lock(&eosw_txq->lock);
+	pktcount = eosw_txq->cidx - eosw_txq->last_cidx;
+	if (pktcount < 0)
+		pktcount += eosw_txq->ndesc;
+
+	if (pktcount) {
+		cxgb4_eosw_txq_free_desc(netdev2adap(eosw_txq->netdev),
+					 eosw_txq, pktcount);
+		eosw_txq->inuse -= pktcount;
+	}
+
+	/* There may be some packets waiting for completions. So,
+	 * attempt to send these packets now.
+	 */
+	ethofld_xmit(eosw_txq->netdev, eosw_txq);
+	spin_unlock(&eosw_txq->lock);
+}
+
+/* cxgb4_ethofld_rx_handler - Process ETHOFLD Tx completions
+ * @q: the response queue that received the packet
+ * @rsp: the response queue descriptor holding the CPL message
+ * @si: the gather list of packet fragments
+ *
+ * Process a ETHOFLD Tx completion. Increment the cidx here, but
+ * free up the descriptors in a tasklet later.
+ */
+int cxgb4_ethofld_rx_handler(struct sge_rspq *q, const __be64 *rsp,
+			     const struct pkt_gl *si)
+{
+	u8 opcode = ((const struct rss_header *)rsp)->opcode;
+
+	/* skip RSS header */
+	rsp++;
+
+	if (opcode == CPL_FW4_ACK) {
+		const struct cpl_fw4_ack *cpl;
+		struct sge_eosw_txq *eosw_txq;
+		struct eotid_entry *entry;
+		struct sk_buff *skb;
+		u32 hdr_len, eotid;
+		u8 flits, wrlen16;
+		int credits;
+
+		cpl = (const struct cpl_fw4_ack *)rsp;
+		eotid = CPL_FW4_ACK_FLOWID_G(ntohl(OPCODE_TID(cpl))) -
+			q->adap->tids.eotid_base;
+		entry = cxgb4_lookup_eotid(&q->adap->tids, eotid);
+		if (!entry)
+			goto out_done;
+
+		eosw_txq = (struct sge_eosw_txq *)entry->data;
+		if (!eosw_txq)
+			goto out_done;
+
+		spin_lock(&eosw_txq->lock);
+		credits = cpl->credits;
+		while (credits > 0) {
+			skb = eosw_txq->desc[eosw_txq->cidx].skb;
+			if (!skb)
+				break;
+
+			if (unlikely((eosw_txq->state ==
+				      CXGB4_EO_STATE_FLOWC_OPEN_REPLY ||
+				      eosw_txq->state ==
+				      CXGB4_EO_STATE_FLOWC_CLOSE_REPLY) &&
+				     eosw_txq->cidx == eosw_txq->flowc_idx)) {
+				flits = DIV_ROUND_UP(skb->len, 8);
+				if (eosw_txq->state ==
+				    CXGB4_EO_STATE_FLOWC_OPEN_REPLY)
+					eosw_txq->state = CXGB4_EO_STATE_ACTIVE;
+				else
+					eosw_txq->state = CXGB4_EO_STATE_CLOSED;
+				complete(&eosw_txq->completion);
+			} else {
+				hdr_len = eth_get_headlen(eosw_txq->netdev,
+							  skb->data,
+							  skb_headlen(skb));
+				flits = ethofld_calc_tx_flits(q->adap, skb,
+							      hdr_len);
+			}
+			eosw_txq_advance_index(&eosw_txq->cidx, 1,
+					       eosw_txq->ndesc);
+			wrlen16 = DIV_ROUND_UP(flits * 8, 16);
+			credits -= wrlen16;
+		}
+
+		eosw_txq->cred += cpl->credits;
+		eosw_txq->ncompl--;
+
+		spin_unlock(&eosw_txq->lock);
+
+		/* Schedule a tasklet to reclaim SKBs and restart ETHOFLD Tx,
+		 * if there were packets waiting for completion.
+		 */
+		tasklet_schedule(&eosw_txq->qresume_tsk);
+	}
+
+out_done:
+	return 0;
+}
+
 /*
  * The MSI-X interrupt handler for an SGE response queue.
  */
@@ -3431,7 +4247,7 @@ static void sge_rx_timer_cb(struct timer_list *t)
 
 			if (fl_starving(adap, fl)) {
 				rxq = container_of(fl, struct sge_eth_rxq, fl);
-				if (napi_reschedule(&rxq->rspq.napi))
+				if (napi_schedule(&rxq->rspq.napi))
 					fl->starving++;
 				else
 					set_bit(id, s->starving_fl);
@@ -3637,7 +4453,7 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 	if (ret)
 		goto err;
 
-	netif_napi_add(dev, &iq->napi, napi_rx_handler, 64);
+	netif_napi_add(dev, &iq->napi, napi_rx_handler);
 	iq->cur_desc = iq->desc;
 	iq->cidx = 0;
 	iq->gen = 1;
@@ -3791,15 +4607,15 @@ int t4_sge_alloc_eth_txq(struct adapter *adap, struct sge_eth_txq *txq,
 	 * write the CIDX Updates into the Status Page at the end of the
 	 * TX Queue.
 	 */
-	c.autoequiqe_to_viid = htonl((dbqt
-				      ? FW_EQ_ETH_CMD_AUTOEQUIQE_F
-				      : FW_EQ_ETH_CMD_AUTOEQUEQE_F) |
+	c.autoequiqe_to_viid = htonl(((chip_ver <= CHELSIO_T5) ?
+				      FW_EQ_ETH_CMD_AUTOEQUIQE_F :
+				      FW_EQ_ETH_CMD_AUTOEQUEQE_F) |
 				     FW_EQ_ETH_CMD_VIID_V(pi->viid));
 
 	c.fetchszm_to_iqid =
-		htonl(FW_EQ_ETH_CMD_HOSTFCMODE_V(dbqt
-						 ? HOSTFCMODE_INGRESS_QUEUE_X
-						 : HOSTFCMODE_STATUS_PAGE_X) |
+		htonl(FW_EQ_ETH_CMD_HOSTFCMODE_V((chip_ver <= CHELSIO_T5) ?
+						 HOSTFCMODE_INGRESS_QUEUE_X :
+						 HOSTFCMODE_STATUS_PAGE_X) |
 		      FW_EQ_ETH_CMD_PCIECHN_V(pi->tx_chan) |
 		      FW_EQ_ETH_CMD_FETCHRO_F | FW_EQ_ETH_CMD_IQID_V(iqid));
 
@@ -3810,6 +4626,7 @@ int t4_sge_alloc_eth_txq(struct adapter *adap, struct sge_eth_txq *txq,
 					    : FETCHBURSTMIN_64B_T6_X) |
 		      FW_EQ_ETH_CMD_FBMAX_V(FETCHBURSTMAX_512B_X) |
 		      FW_EQ_ETH_CMD_CIDXFTHRESH_V(CIDXFLUSHTHRESH_32_X) |
+		      FW_EQ_ETH_CMD_CIDXFTHRESHO_V(chip_ver == CHELSIO_T5) |
 		      FW_EQ_ETH_CMD_EQSIZE_V(nentries));
 
 	c.eqaddr = cpu_to_be64(txq->q.phys_addr);
@@ -3839,7 +4656,10 @@ int t4_sge_alloc_eth_txq(struct adapter *adap, struct sge_eth_txq *txq,
 	txq->q.q_type = CXGB4_TXQ_ETH;
 	init_txq(adap, &txq->q, FW_EQ_ETH_CMD_EQID_G(ntohl(c.eqid_pkd)));
 	txq->txq = netdevq;
-	txq->tso = txq->tx_cso = txq->vlan_ins = 0;
+	txq->tso = 0;
+	txq->uso = 0;
+	txq->tx_cso = 0;
+	txq->vlan_ins = 0;
 	txq->mapping_err = 0;
 	txq->dbqt = dbqt;
 
@@ -3899,7 +4719,7 @@ int t4_sge_alloc_ctrl_txq(struct adapter *adap, struct sge_ctrl_txq *txq,
 	init_txq(adap, &txq->q, FW_EQ_CTRL_CMD_EQID_G(ntohl(c.cmpliqid_eqid)));
 	txq->adap = adap;
 	skb_queue_head_init(&txq->sendq);
-	tasklet_init(&txq->qresume_tsk, restart_ctrlq, (unsigned long)txq);
+	tasklet_setup(&txq->qresume_tsk, restart_ctrlq);
 	txq->full = 0;
 	return 0;
 }
@@ -3916,30 +4736,30 @@ int t4_sge_mod_ctrl_txq(struct adapter *adap, unsigned int eqid,
 	return t4_set_params(adap, adap->mbox, adap->pf, 0, 1, &param, &val);
 }
 
-int t4_sge_alloc_uld_txq(struct adapter *adap, struct sge_uld_txq *txq,
-			 struct net_device *dev, unsigned int iqid,
-			 unsigned int uld_type)
+static int t4_sge_alloc_ofld_txq(struct adapter *adap, struct sge_txq *q,
+				 struct net_device *dev, u32 cmd, u32 iqid)
 {
 	unsigned int chip_ver = CHELSIO_CHIP_VERSION(adap->params.chip);
-	int ret, nentries;
-	struct fw_eq_ofld_cmd c;
-	struct sge *s = &adap->sge;
 	struct port_info *pi = netdev_priv(dev);
-	int cmd = FW_EQ_OFLD_CMD;
+	struct sge *s = &adap->sge;
+	struct fw_eq_ofld_cmd c;
+	u32 fb_min, nentries;
+	int ret;
 
 	/* Add status entries */
-	nentries = txq->q.size + s->stat_len / sizeof(struct tx_desc);
-
-	txq->q.desc = alloc_ring(adap->pdev_dev, txq->q.size,
-			sizeof(struct tx_desc), sizeof(struct tx_sw_desc),
-			&txq->q.phys_addr, &txq->q.sdesc, s->stat_len,
-			NUMA_NO_NODE);
-	if (!txq->q.desc)
+	nentries = q->size + s->stat_len / sizeof(struct tx_desc);
+	q->desc = alloc_ring(adap->pdev_dev, q->size, sizeof(struct tx_desc),
+			     sizeof(struct tx_sw_desc), &q->phys_addr,
+			     &q->sdesc, s->stat_len, NUMA_NO_NODE);
+	if (!q->desc)
 		return -ENOMEM;
 
+	if (chip_ver <= CHELSIO_T5)
+		fb_min = FETCHBURSTMIN_64B_X;
+	else
+		fb_min = FETCHBURSTMIN_64B_T6_X;
+
 	memset(&c, 0, sizeof(c));
-	if (unlikely(uld_type == CXGB4_TX_CRYPTO))
-		cmd = FW_EQ_CTRL_CMD;
 	c.op_to_vfn = htonl(FW_CMD_OP_V(cmd) | FW_CMD_REQUEST_F |
 			    FW_CMD_WRITE_F | FW_CMD_EXEC_F |
 			    FW_EQ_OFLD_CMD_PFN_V(adap->pf) |
@@ -3951,31 +4771,66 @@ int t4_sge_alloc_uld_txq(struct adapter *adap, struct sge_uld_txq *txq,
 		      FW_EQ_OFLD_CMD_PCIECHN_V(pi->tx_chan) |
 		      FW_EQ_OFLD_CMD_FETCHRO_F | FW_EQ_OFLD_CMD_IQID_V(iqid));
 	c.dcaen_to_eqsize =
-		htonl(FW_EQ_OFLD_CMD_FBMIN_V(chip_ver <= CHELSIO_T5
-					     ? FETCHBURSTMIN_64B_X
-					     : FETCHBURSTMIN_64B_T6_X) |
+		htonl(FW_EQ_OFLD_CMD_FBMIN_V(fb_min) |
 		      FW_EQ_OFLD_CMD_FBMAX_V(FETCHBURSTMAX_512B_X) |
 		      FW_EQ_OFLD_CMD_CIDXFTHRESH_V(CIDXFLUSHTHRESH_32_X) |
 		      FW_EQ_OFLD_CMD_EQSIZE_V(nentries));
-	c.eqaddr = cpu_to_be64(txq->q.phys_addr);
+	c.eqaddr = cpu_to_be64(q->phys_addr);
 
 	ret = t4_wr_mbox(adap, adap->mbox, &c, sizeof(c), &c);
 	if (ret) {
-		kfree(txq->q.sdesc);
-		txq->q.sdesc = NULL;
+		kfree(q->sdesc);
+		q->sdesc = NULL;
 		dma_free_coherent(adap->pdev_dev,
 				  nentries * sizeof(struct tx_desc),
-				  txq->q.desc, txq->q.phys_addr);
-		txq->q.desc = NULL;
+				  q->desc, q->phys_addr);
+		q->desc = NULL;
 		return ret;
 	}
 
+	init_txq(adap, q, FW_EQ_OFLD_CMD_EQID_G(ntohl(c.eqid_pkd)));
+	return 0;
+}
+
+int t4_sge_alloc_uld_txq(struct adapter *adap, struct sge_uld_txq *txq,
+			 struct net_device *dev, unsigned int iqid,
+			 unsigned int uld_type)
+{
+	u32 cmd = FW_EQ_OFLD_CMD;
+	int ret;
+
+	if (unlikely(uld_type == CXGB4_TX_CRYPTO))
+		cmd = FW_EQ_CTRL_CMD;
+
+	ret = t4_sge_alloc_ofld_txq(adap, &txq->q, dev, cmd, iqid);
+	if (ret)
+		return ret;
+
 	txq->q.q_type = CXGB4_TXQ_ULD;
-	init_txq(adap, &txq->q, FW_EQ_OFLD_CMD_EQID_G(ntohl(c.eqid_pkd)));
 	txq->adap = adap;
 	skb_queue_head_init(&txq->sendq);
-	tasklet_init(&txq->qresume_tsk, restart_ofldq, (unsigned long)txq);
+	tasklet_setup(&txq->qresume_tsk, restart_ofldq);
 	txq->full = 0;
+	txq->mapping_err = 0;
+	return 0;
+}
+
+int t4_sge_alloc_ethofld_txq(struct adapter *adap, struct sge_eohw_txq *txq,
+			     struct net_device *dev, u32 iqid)
+{
+	int ret;
+
+	ret = t4_sge_alloc_ofld_txq(adap, &txq->q, dev, FW_EQ_OFLD_CMD, iqid);
+	if (ret)
+		return ret;
+
+	txq->q.q_type = CXGB4_TXQ_ULD;
+	spin_lock_init(&txq->lock);
+	txq->adap = adap;
+	txq->tso = 0;
+	txq->uso = 0;
+	txq->tx_cso = 0;
+	txq->vlan_ins = 0;
 	txq->mapping_err = 0;
 	return 0;
 }
@@ -4035,6 +4890,17 @@ void t4_free_ofld_rxqs(struct adapter *adap, int n, struct sge_ofld_rxq *q)
 				     q->fl.size ? &q->fl : NULL);
 }
 
+void t4_sge_free_ethofld_txq(struct adapter *adap, struct sge_eohw_txq *txq)
+{
+	if (txq->q.desc) {
+		t4_ofld_eq_free(adap, adap->mbox, adap->pf, 0,
+				txq->q.cntxt_id);
+		free_tx_desc(adap, &txq->q, txq->q.in_use, false);
+		kfree(txq->q.sdesc);
+		free_txq(adap, &txq->q);
+	}
+}
+
 /**
  *	t4_free_sge_resources - free SGE resources
  *	@adap: the adapter
@@ -4064,6 +4930,10 @@ void t4_free_sge_resources(struct adapter *adap)
 		if (eq->rspq.desc)
 			free_rspq_fl(adap, &eq->rspq,
 				     eq->fl.size ? &eq->fl : NULL);
+		if (eq->msix) {
+			cxgb4_free_msix_idx_in_bmap(adap, eq->msix->idx);
+			eq->msix = NULL;
+		}
 
 		etq = &adap->sge.ethtxq[i];
 		if (etq->q.desc) {
@@ -4090,8 +4960,15 @@ void t4_free_sge_resources(struct adapter *adap)
 		}
 	}
 
-	if (adap->sge.fw_evtq.desc)
+	if (adap->sge.fw_evtq.desc) {
 		free_rspq_fl(adap, &adap->sge.fw_evtq, NULL);
+		if (adap->sge.fwevtq_msix_idx >= 0)
+			cxgb4_free_msix_idx_in_bmap(adap,
+						    adap->sge.fwevtq_msix_idx);
+	}
+
+	if (adap->sge.nd_msix_idx >= 0)
+		cxgb4_free_msix_idx_in_bmap(adap, adap->sge.nd_msix_idx);
 
 	if (adap->sge.intrq.desc)
 		free_rspq_fl(adap, &adap->sge.intrq, NULL);
@@ -4133,9 +5010,6 @@ void t4_sge_stop(struct adapter *adap)
 {
 	int i;
 	struct sge *s = &adap->sge;
-
-	if (in_interrupt())  /* actions below require waiting */
-		return;
 
 	if (s->rx_timer.function)
 		del_timer_sync(&s->rx_timer);

@@ -5,10 +5,6 @@
  * Copyright (C) 2003-2013 STMicroelectronics (R&D) Limited
  */
 
-#if defined(CONFIG_SERIAL_ST_ASC_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
-#define SUPPORT_SYSRQ
-#endif
-
 #include <linux/module.h>
 #include <linux/serial.h>
 #include <linux/console.h>
@@ -21,7 +17,6 @@
 #include <linux/tty_flip.h>
 #include <linux/delay.h>
 #include <linux/spinlock.h>
-#include <linux/pm_runtime.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/serial_core.h>
@@ -69,7 +64,7 @@ static struct uart_driver asc_uart_driver;
 /* ASC_RXBUF */
 #define ASC_RXBUF_PE			0x100
 #define ASC_RXBUF_FE			0x200
-/**
+/*
  * Some of status comes from higher bits of the character and some come from
  * the status register. Combining both of them in to single status using dummy
  * bits.
@@ -242,50 +237,12 @@ static inline unsigned asc_hw_txroom(struct uart_port *port)
  */
 static void asc_transmit_chars(struct uart_port *port)
 {
-	struct circ_buf *xmit = &port->state->xmit;
-	int txroom;
-	unsigned char c;
+	u8 ch;
 
-	txroom = asc_hw_txroom(port);
-
-	if ((txroom != 0) && port->x_char) {
-		c = port->x_char;
-		port->x_char = 0;
-		asc_out(port, ASC_TXBUF, c);
-		port->icount.tx++;
-		txroom = asc_hw_txroom(port);
-	}
-
-	if (uart_tx_stopped(port)) {
-		/*
-		 * We should try and stop the hardware here, but I
-		 * don't think the ASC has any way to do that.
-		 */
-		asc_disable_tx_interrupts(port);
-		return;
-	}
-
-	if (uart_circ_empty(xmit)) {
-		asc_disable_tx_interrupts(port);
-		return;
-	}
-
-	if (txroom == 0)
-		return;
-
-	do {
-		c = xmit->buf[xmit->tail];
-		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
-		asc_out(port, ASC_TXBUF, c);
-		port->icount.tx++;
-		txroom--;
-	} while ((txroom > 0) && (!uart_circ_empty(xmit)));
-
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
-		uart_write_wakeup(port);
-
-	if (uart_circ_empty(xmit))
-		asc_disable_tx_interrupts(port);
+	uart_port_tx_limited(port, ch, asc_hw_txroom(port),
+		true,
+		asc_out(port, ASC_TXBUF, ch),
+		({}));
 }
 
 static void asc_receive_chars(struct uart_port *port)
@@ -293,7 +250,7 @@ static void asc_receive_chars(struct uart_port *port)
 	struct tty_port *tport = &port->state->port;
 	unsigned long status, mode;
 	unsigned long c = 0;
-	char flag;
+	u8 flag;
 	bool ignore_pe = false;
 
 	/*
@@ -362,7 +319,7 @@ static irqreturn_t asc_interrupt(int irq, void *ptr)
 	struct uart_port *port = ptr;
 	u32 status;
 
-	spin_lock(&port->lock);
+	uart_port_lock(port);
 
 	status = asc_in(port, ASC_STA);
 
@@ -377,7 +334,7 @@ static irqreturn_t asc_interrupt(int irq, void *ptr)
 		asc_transmit_chars(port);
 	}
 
-	spin_unlock(&port->lock);
+	uart_port_unlock(port);
 
 	return IRQ_HANDLED;
 }
@@ -430,9 +387,9 @@ static unsigned int asc_get_mctrl(struct uart_port *port)
 /* There are probably characters waiting to be transmitted. */
 static void asc_start_tx(struct uart_port *port)
 {
-	struct circ_buf *xmit = &port->state->xmit;
+	struct tty_port *tport = &port->state->port;
 
-	if (!uart_circ_empty(xmit))
+	if (!kfifo_is_empty(&tport->xmit_fifo))
 		asc_enable_tx_interrupts(port);
 }
 
@@ -482,7 +439,7 @@ static void asc_pm(struct uart_port *port, unsigned int state,
 		unsigned int oldstate)
 {
 	struct asc_port *ascport = to_asc_port(port);
-	unsigned long flags = 0;
+	unsigned long flags;
 	u32 ctl;
 
 	switch (state) {
@@ -495,20 +452,20 @@ static void asc_pm(struct uart_port *port, unsigned int state,
 		 * we can come to turning it off. Note this is not called with
 		 * the port spinlock held.
 		 */
-		spin_lock_irqsave(&port->lock, flags);
+		uart_port_lock_irqsave(port, &flags);
 		ctl = asc_in(port, ASC_CTL) & ~ASC_CTL_RUN;
 		asc_out(port, ASC_CTL, ctl);
-		spin_unlock_irqrestore(&port->lock, flags);
+		uart_port_unlock_irqrestore(port, flags);
 		clk_disable_unprepare(ascport->clk);
 		break;
 	}
 }
 
 static void asc_set_termios(struct uart_port *port, struct ktermios *termios,
-			    struct ktermios *old)
+			    const struct ktermios *old)
 {
 	struct asc_port *ascport = to_asc_port(port);
-	struct device_node *np = port->dev->of_node;
+	bool manual_rts, toggle_rts = false;
 	struct gpio_desc *gpiod;
 	unsigned int baud;
 	u32 ctrl_val;
@@ -524,7 +481,7 @@ static void asc_set_termios(struct uart_port *port, struct ktermios *termios,
 	baud = uart_get_baud_rate(port, termios, old, 0, port->uartclk/16);
 	cflag = termios->c_cflag;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	/* read control register */
 	ctrl_val = asc_in(port, ASC_CTL);
@@ -540,10 +497,14 @@ static void asc_set_termios(struct uart_port *port, struct ktermios *termios,
 	/* set character length */
 	if ((cflag & CSIZE) == CS7) {
 		ctrl_val |= ASC_CTL_MODE_7BIT_PAR;
+		cflag |= PARENB;
 	} else {
 		ctrl_val |= (cflag & PARENB) ?  ASC_CTL_MODE_8BIT_PAR :
 						ASC_CTL_MODE_8BIT;
+		cflag &= ~CSIZE;
+		cflag |= CS8;
 	}
+	termios->c_cflag = cflag;
 
 	/* set stop bit */
 	ctrl_val |= (cflag & CSTOPB) ? ASC_CTL_STOP_2BIT : ASC_CTL_STOP_1BIT;
@@ -558,26 +519,13 @@ static void asc_set_termios(struct uart_port *port, struct ktermios *termios,
 
 		/* If flow-control selected, stop handling RTS manually */
 		if (ascport->rts) {
-			devm_gpiod_put(port->dev, ascport->rts);
-			ascport->rts = NULL;
-
-			pinctrl_select_state(ascport->pinctrl,
-					     ascport->states[DEFAULT]);
+			toggle_rts = true;
+			manual_rts = false;
 		}
 	} else {
 		/* If flow-control disabled, it's safe to handle RTS manually */
-		if (!ascport->rts && ascport->states[NO_HW_FLOWCTRL]) {
-			pinctrl_select_state(ascport->pinctrl,
-					     ascport->states[NO_HW_FLOWCTRL]);
-
-			gpiod = devm_fwnode_get_gpiod_from_child(port->dev,
-								 "rts",
-								 &np->fwnode,
-								 GPIOD_OUT_LOW,
-								 np->name);
-			if (!IS_ERR(gpiod))
-				ascport->rts = gpiod;
-		}
+		if (!ascport->rts && ascport->states[NO_HW_FLOWCTRL])
+			manual_rts = toggle_rts = true;
 	}
 
 	if ((baud < 19200) && !ascport->force_m1) {
@@ -635,7 +583,26 @@ static void asc_set_termios(struct uart_port *port, struct ktermios *termios,
 	/* write final value and enable port */
 	asc_out(port, ASC_CTL, (ctrl_val | ASC_CTL_RUN));
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
+
+	if (toggle_rts) {
+		if (manual_rts) {
+			pinctrl_select_state(ascport->pinctrl,
+					     ascport->states[NO_HW_FLOWCTRL]);
+
+			gpiod = devm_gpiod_get(port->dev, "rts", GPIOD_OUT_LOW);
+			if (!IS_ERR(gpiod)) {
+				gpiod_set_consumer_name(gpiod,
+							port->dev->of_node->name);
+				ascport->rts = gpiod;
+			}
+		} else {
+				devm_gpiod_put(port->dev, ascport->rts);
+				ascport->rts = NULL;
+				pinctrl_select_state(ascport->pinctrl,
+						     ascport->states[DEFAULT]);
+		}
+	}
 }
 
 static const char *asc_type(struct uart_port *port)
@@ -730,9 +697,9 @@ static int asc_init_port(struct asc_port *ascport,
 	port->fifosize	= ASC_FIFO_SIZE;
 	port->dev	= &pdev->dev;
 	port->irq	= platform_get_irq(pdev, 0);
+	port->has_sysrq = IS_ENABLED(CONFIG_SERIAL_ST_ASC_CONSOLE);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	port->membase = devm_ioremap_resource(&pdev->dev, res);
+	port->membase = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(port->membase))
 		return PTR_ERR(port->membase);
 	port->mapbase = res->start;
@@ -744,7 +711,9 @@ static int asc_init_port(struct asc_port *ascport,
 	if (WARN_ON(IS_ERR(ascport->clk)))
 		return -EINVAL;
 	/* ensure that clk rate is correct by enabling the clk */
-	clk_prepare_enable(ascport->clk);
+	ret = clk_prepare_enable(ascport->clk);
+	if (ret)
+		return ret;
 	ascport->port.uartclk = clk_get_rate(ascport->clk);
 	WARN_ON(ascport->port.uartclk == 0);
 	clk_disable_unprepare(ascport->clk);
@@ -794,7 +763,7 @@ static struct asc_port *asc_of_get_asc_port(struct platform_device *pdev)
 
 	asc_ports[id].hw_flow_control = of_property_read_bool(np,
 							"uart-has-rtscts");
-	asc_ports[id].force_m1 =  of_property_read_bool(np, "st,force_m1");
+	asc_ports[id].force_m1 =  of_property_read_bool(np, "st,force-m1");
 	asc_ports[id].port.line = id;
 	asc_ports[id].rts = NULL;
 
@@ -832,11 +801,11 @@ static int asc_serial_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int asc_serial_remove(struct platform_device *pdev)
+static void asc_serial_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
 
-	return uart_remove_one_port(&asc_uart_driver, port);
+	uart_remove_one_port(&asc_uart_driver, port);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -859,7 +828,7 @@ static int asc_serial_resume(struct device *dev)
 /*----------------------------------------------------------------------*/
 
 #ifdef CONFIG_SERIAL_ST_ASC_CONSOLE
-static void asc_console_putchar(struct uart_port *port, int ch)
+static void asc_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	unsigned int timeout = 1000000;
 
@@ -886,9 +855,9 @@ static void asc_console_write(struct console *co, const char *s, unsigned count)
 	if (port->sysrq)
 		locked = 0; /* asc_interrupt has already claimed the lock */
 	else if (oops_in_progress)
-		locked = spin_trylock_irqsave(&port->lock, flags);
+		locked = uart_port_trylock_irqsave(port, &flags);
 	else
-		spin_lock_irqsave(&port->lock, flags);
+		uart_port_lock_irqsave(port, &flags);
 
 	/*
 	 * Disable interrupts so we don't get the IRQ line bouncing
@@ -906,7 +875,7 @@ static void asc_console_write(struct console *co, const char *s, unsigned count)
 	asc_out(port, ASC_INTEN, intenable);
 
 	if (locked)
-		spin_unlock_irqrestore(&port->lock, flags);
+		uart_port_unlock_irqrestore(port, flags);
 }
 
 static int asc_console_setup(struct console *co, char *options)
@@ -969,7 +938,7 @@ static const struct dev_pm_ops asc_serial_pm_ops = {
 
 static struct platform_driver asc_serial_driver = {
 	.probe		= asc_serial_probe,
-	.remove		= asc_serial_remove,
+	.remove_new	= asc_serial_remove,
 	.driver	= {
 		.name	= DRIVER_NAME,
 		.pm	= &asc_serial_pm_ops,

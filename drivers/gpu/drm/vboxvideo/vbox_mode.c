@@ -9,14 +9,20 @@
  *          Michael Thayer <michael.thayer@oracle.com,
  *          Hans de Goede <hdegoede@redhat.com>
  */
+
+#include <linux/iosys-map.h>
 #include <linux/export.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_edid.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
+#include <drm/drm_gem_atomic_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/drm_vblank.h>
 
 #include "hgsmi_channels.h"
 #include "vbox_drv.h"
@@ -35,7 +41,7 @@ static void vbox_do_modeset(struct drm_crtc *crtc)
 	u16 flags;
 	s32 x_offset, y_offset;
 
-	vbox = crtc->dev->dev_private;
+	vbox = to_vbox_dev(crtc->dev);
 	width = vbox_crtc->width ? vbox_crtc->width : 640;
 	height = vbox_crtc->height ? vbox_crtc->height : 480;
 	bpp = fb ? fb->format->cpp[0] * 8 : 32;
@@ -76,7 +82,7 @@ static void vbox_do_modeset(struct drm_crtc *crtc)
 static int vbox_set_view(struct drm_crtc *crtc)
 {
 	struct vbox_crtc *vbox_crtc = to_vbox_crtc(crtc);
-	struct vbox_private *vbox = crtc->dev->dev_private;
+	struct vbox_private *vbox = to_vbox_dev(crtc->dev);
 	struct vbva_infoview *p;
 
 	/*
@@ -133,7 +139,7 @@ static bool vbox_set_up_input_mapping(struct vbox_private *vbox)
 
 		if (!fb1) {
 			fb1 = fb;
-			if (to_vbox_framebuffer(fb1) == &vbox->afb)
+			if (fb1 == vbox->ddev.fb_helper->fb)
 				break;
 		} else if (fb != fb1) {
 			single_framebuffer = false;
@@ -172,9 +178,8 @@ static void vbox_crtc_set_base_and_mode(struct drm_crtc *crtc,
 					struct drm_framebuffer *fb,
 					int x, int y)
 {
-	struct drm_gem_vram_object *gbo =
-		drm_gem_vram_of_gem(to_vbox_framebuffer(fb)->obj);
-	struct vbox_private *vbox = crtc->dev->dev_private;
+	struct drm_gem_vram_object *gbo = drm_gem_vram_of_gem(fb->obj[0]);
+	struct vbox_private *vbox = to_vbox_dev(crtc->dev);
 	struct vbox_crtc *vbox_crtc = to_vbox_crtc(crtc);
 	bool needs_modeset = drm_atomic_crtc_needs_modeset(crtc->state);
 
@@ -213,29 +218,18 @@ static void vbox_crtc_set_base_and_mode(struct drm_crtc *crtc,
 }
 
 static void vbox_crtc_atomic_enable(struct drm_crtc *crtc,
-				    struct drm_crtc_state *old_crtc_state)
+				    struct drm_atomic_state *state)
 {
 }
 
 static void vbox_crtc_atomic_disable(struct drm_crtc *crtc,
-				     struct drm_crtc_state *old_crtc_state)
+				     struct drm_atomic_state *state)
 {
 }
 
 static void vbox_crtc_atomic_flush(struct drm_crtc *crtc,
-				   struct drm_crtc_state *old_crtc_state)
+				   struct drm_atomic_state *state)
 {
-	struct drm_pending_vblank_event *event;
-	unsigned long flags;
-
-	if (crtc->state && crtc->state->event) {
-		event = crtc->state->event;
-		crtc->state->event = NULL;
-
-		spin_lock_irqsave(&crtc->dev->event_lock, flags);
-		drm_crtc_send_vblank_event(crtc, event);
-		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
-	}
 }
 
 static const struct drm_crtc_helper_funcs vbox_crtc_helper_funcs = {
@@ -261,37 +255,76 @@ static const struct drm_crtc_funcs vbox_crtc_funcs = {
 };
 
 static int vbox_primary_atomic_check(struct drm_plane *plane,
-				     struct drm_plane_state *new_state)
+				     struct drm_atomic_state *state)
 {
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
+									   plane);
 	struct drm_crtc_state *crtc_state = NULL;
 
 	if (new_state->crtc) {
-		crtc_state = drm_atomic_get_existing_crtc_state(
-					    new_state->state, new_state->crtc);
+		crtc_state = drm_atomic_get_existing_crtc_state(state,
+								new_state->crtc);
 		if (WARN_ON(!crtc_state))
 			return -EINVAL;
 	}
 
 	return drm_atomic_helper_check_plane_state(new_state, crtc_state,
-						   DRM_PLANE_HELPER_NO_SCALING,
-						   DRM_PLANE_HELPER_NO_SCALING,
+						   DRM_PLANE_NO_SCALING,
+						   DRM_PLANE_NO_SCALING,
 						   false, true);
 }
 
 static void vbox_primary_atomic_update(struct drm_plane *plane,
-				       struct drm_plane_state *old_state)
+				       struct drm_atomic_state *state)
 {
-	struct drm_crtc *crtc = plane->state->crtc;
-	struct drm_framebuffer *fb = plane->state->fb;
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
+									   plane);
+	struct drm_crtc *crtc = new_state->crtc;
+	struct drm_framebuffer *fb = new_state->fb;
+	struct vbox_private *vbox = to_vbox_dev(fb->dev);
+	struct drm_mode_rect *clips;
+	uint32_t num_clips, i;
 
 	vbox_crtc_set_base_and_mode(crtc, fb,
-				    plane->state->src_x >> 16,
-				    plane->state->src_y >> 16);
+				    new_state->src_x >> 16,
+				    new_state->src_y >> 16);
+
+	/* Send information about dirty rectangles to VBVA. */
+
+	clips = drm_plane_get_damage_clips(new_state);
+	num_clips = drm_plane_get_damage_clips_count(new_state);
+
+	if (!num_clips)
+		return;
+
+	mutex_lock(&vbox->hw_mutex);
+
+	for (i = 0; i < num_clips; ++i, ++clips) {
+		struct vbva_cmd_hdr cmd_hdr;
+		unsigned int crtc_id = to_vbox_crtc(crtc)->crtc_id;
+
+		cmd_hdr.x = (s16)clips->x1;
+		cmd_hdr.y = (s16)clips->y1;
+		cmd_hdr.w = (u16)clips->x2 - clips->x1;
+		cmd_hdr.h = (u16)clips->y2 - clips->y1;
+
+		if (!vbva_buffer_begin_update(&vbox->vbva_info[crtc_id],
+					      vbox->guest_pool))
+			continue;
+
+		vbva_write(&vbox->vbva_info[crtc_id], vbox->guest_pool,
+			   &cmd_hdr, sizeof(cmd_hdr));
+		vbva_buffer_end_update(&vbox->vbva_info[crtc_id]);
+	}
+
+	mutex_unlock(&vbox->hw_mutex);
 }
 
 static void vbox_primary_atomic_disable(struct drm_plane *plane,
-					struct drm_plane_state *old_state)
+					struct drm_atomic_state *state)
 {
+	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
+									   plane);
 	struct drm_crtc *crtc = old_state->crtc;
 
 	/* vbox_do_modeset checks plane->state->fb and will disable if NULL */
@@ -300,53 +333,26 @@ static void vbox_primary_atomic_disable(struct drm_plane *plane,
 				    old_state->src_y >> 16);
 }
 
-static int vbox_primary_prepare_fb(struct drm_plane *plane,
-				   struct drm_plane_state *new_state)
-{
-	struct drm_gem_vram_object *gbo;
-	int ret;
-
-	if (!new_state->fb)
-		return 0;
-
-	gbo = drm_gem_vram_of_gem(to_vbox_framebuffer(new_state->fb)->obj);
-	ret = drm_gem_vram_pin(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM);
-	if (ret)
-		DRM_WARN("Error %d pinning new fb, out of video mem?\n", ret);
-
-	return ret;
-}
-
-static void vbox_primary_cleanup_fb(struct drm_plane *plane,
-				    struct drm_plane_state *old_state)
-{
-	struct drm_gem_vram_object *gbo;
-
-	if (!old_state->fb)
-		return;
-
-	gbo = drm_gem_vram_of_gem(to_vbox_framebuffer(old_state->fb)->obj);
-	drm_gem_vram_unpin(gbo);
-}
-
 static int vbox_cursor_atomic_check(struct drm_plane *plane,
-				    struct drm_plane_state *new_state)
+				    struct drm_atomic_state *state)
 {
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
+									   plane);
 	struct drm_crtc_state *crtc_state = NULL;
 	u32 width = new_state->crtc_w;
 	u32 height = new_state->crtc_h;
 	int ret;
 
 	if (new_state->crtc) {
-		crtc_state = drm_atomic_get_existing_crtc_state(
-					    new_state->state, new_state->crtc);
+		crtc_state = drm_atomic_get_existing_crtc_state(state,
+								new_state->crtc);
 		if (WARN_ON(!crtc_state))
 			return -EINVAL;
 	}
 
 	ret = drm_atomic_helper_check_plane_state(new_state, crtc_state,
-						  DRM_PLANE_HELPER_NO_SCALING,
-						  DRM_PLANE_HELPER_NO_SCALING,
+						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_NO_SCALING,
 						  true, true);
 	if (ret)
 		return ret;
@@ -380,19 +386,24 @@ static void copy_cursor_image(u8 *src, u8 *dst, u32 width, u32 height,
 }
 
 static void vbox_cursor_atomic_update(struct drm_plane *plane,
-				      struct drm_plane_state *old_state)
+				      struct drm_atomic_state *state)
 {
+	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
+									   plane);
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
+									   plane);
 	struct vbox_private *vbox =
 		container_of(plane->dev, struct vbox_private, ddev);
-	struct vbox_crtc *vbox_crtc = to_vbox_crtc(plane->state->crtc);
-	struct drm_framebuffer *fb = plane->state->fb;
-	struct drm_gem_vram_object *gbo =
-		drm_gem_vram_of_gem(to_vbox_framebuffer(fb)->obj);
-	u32 width = plane->state->crtc_w;
-	u32 height = plane->state->crtc_h;
+	struct vbox_crtc *vbox_crtc = to_vbox_crtc(new_state->crtc);
+	struct drm_framebuffer *fb = new_state->fb;
+	u32 width = new_state->crtc_w;
+	u32 height = new_state->crtc_h;
+	struct drm_shadow_plane_state *shadow_plane_state =
+		to_drm_shadow_plane_state(new_state);
+	struct iosys_map map = shadow_plane_state->data[0];
+	u8 *src = map.vaddr; /* TODO: Use mapping abstraction properly */
 	size_t data_size, mask_size;
 	u32 flags;
-	u8 *src;
 
 	/*
 	 * VirtualBox uses the host windowing system to draw the cursor so
@@ -405,14 +416,6 @@ static void vbox_cursor_atomic_update(struct drm_plane *plane,
 
 	vbox_crtc->cursor_enabled = true;
 
-	/* pinning is done in prepare/cleanup framebuffer */
-	src = drm_gem_vram_kmap(gbo, true, NULL);
-	if (IS_ERR(src)) {
-		mutex_unlock(&vbox->hw_mutex);
-		DRM_WARN("Could not kmap cursor bo, skipping update\n");
-		return;
-	}
-
 	/*
 	 * The mask must be calculated based on the alpha
 	 * channel, one bit per ARGB word, and must be 32-bit
@@ -422,21 +425,22 @@ static void vbox_cursor_atomic_update(struct drm_plane *plane,
 	data_size = width * height * 4 + mask_size;
 
 	copy_cursor_image(src, vbox->cursor_data, width, height, mask_size);
-	drm_gem_vram_kunmap(gbo);
 
 	flags = VBOX_MOUSE_POINTER_VISIBLE | VBOX_MOUSE_POINTER_SHAPE |
 		VBOX_MOUSE_POINTER_ALPHA;
 	hgsmi_update_pointer_shape(vbox->guest_pool, flags,
-				   min_t(u32, max(fb->hot_x, 0), width),
-				   min_t(u32, max(fb->hot_y, 0), height),
+				   min_t(u32, max(new_state->hotspot_x, 0), width),
+				   min_t(u32, max(new_state->hotspot_y, 0), height),
 				   width, height, vbox->cursor_data, data_size);
 
 	mutex_unlock(&vbox->hw_mutex);
 }
 
 static void vbox_cursor_atomic_disable(struct drm_plane *plane,
-				       struct drm_plane_state *old_state)
+				       struct drm_atomic_state *state)
 {
+	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
+									   plane);
 	struct vbox_private *vbox =
 		container_of(plane->dev, struct vbox_private, ddev);
 	struct vbox_crtc *vbox_crtc = to_vbox_crtc(old_state->crtc);
@@ -459,30 +463,6 @@ static void vbox_cursor_atomic_disable(struct drm_plane *plane,
 	mutex_unlock(&vbox->hw_mutex);
 }
 
-static int vbox_cursor_prepare_fb(struct drm_plane *plane,
-				  struct drm_plane_state *new_state)
-{
-	struct drm_gem_vram_object *gbo;
-
-	if (!new_state->fb)
-		return 0;
-
-	gbo = drm_gem_vram_of_gem(to_vbox_framebuffer(new_state->fb)->obj);
-	return drm_gem_vram_pin(gbo, DRM_GEM_VRAM_PL_FLAG_SYSTEM);
-}
-
-static void vbox_cursor_cleanup_fb(struct drm_plane *plane,
-				   struct drm_plane_state *old_state)
-{
-	struct drm_gem_vram_object *gbo;
-
-	if (!plane->state->fb)
-		return;
-
-	gbo = drm_gem_vram_of_gem(to_vbox_framebuffer(plane->state->fb)->obj);
-	drm_gem_vram_unpin(gbo);
-}
-
 static const u32 vbox_cursor_plane_formats[] = {
 	DRM_FORMAT_ARGB8888,
 };
@@ -491,17 +471,14 @@ static const struct drm_plane_helper_funcs vbox_cursor_helper_funcs = {
 	.atomic_check	= vbox_cursor_atomic_check,
 	.atomic_update	= vbox_cursor_atomic_update,
 	.atomic_disable	= vbox_cursor_atomic_disable,
-	.prepare_fb	= vbox_cursor_prepare_fb,
-	.cleanup_fb	= vbox_cursor_cleanup_fb,
+	DRM_GEM_SHADOW_PLANE_HELPER_FUNCS,
 };
 
 static const struct drm_plane_funcs vbox_cursor_plane_funcs = {
 	.update_plane	= drm_atomic_helper_update_plane,
 	.disable_plane	= drm_atomic_helper_disable_plane,
-	.destroy	= drm_primary_helper_destroy,
-	.reset		= drm_atomic_helper_plane_reset,
-	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
+	.destroy	= drm_plane_helper_destroy,
+	DRM_GEM_SHADOW_PLANE_FUNCS,
 };
 
 static const u32 vbox_primary_plane_formats[] = {
@@ -513,14 +490,13 @@ static const struct drm_plane_helper_funcs vbox_primary_helper_funcs = {
 	.atomic_check = vbox_primary_atomic_check,
 	.atomic_update = vbox_primary_atomic_update,
 	.atomic_disable = vbox_primary_atomic_disable,
-	.prepare_fb = vbox_primary_prepare_fb,
-	.cleanup_fb = vbox_primary_cleanup_fb,
+	DRM_GEM_VRAM_PLANE_HELPER_FUNCS,
 };
 
 static const struct drm_plane_funcs vbox_primary_plane_funcs = {
 	.update_plane	= drm_atomic_helper_update_plane,
 	.disable_plane	= drm_atomic_helper_disable_plane,
-	.destroy	= drm_primary_helper_destroy,
+	.destroy	= drm_plane_helper_destroy,
 	.reset		= drm_atomic_helper_plane_reset,
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
@@ -736,7 +712,7 @@ static int vbox_get_modes(struct drm_connector *connector)
 	int preferred_width, preferred_height;
 
 	vbox_connector = to_vbox_connector(connector);
-	vbox = connector->dev->dev_private;
+	vbox = to_vbox_dev(connector->dev);
 
 	hgsmi_report_flags_location(vbox->guest_pool, GUEST_HEAP_OFFSET(vbox) +
 				    HOST_FLAGS_OFFSET);
@@ -856,40 +832,9 @@ static int vbox_connector_init(struct drm_device *dev,
 	return 0;
 }
 
-static struct drm_framebuffer *vbox_user_framebuffer_create(
-		struct drm_device *dev,
-		struct drm_file *filp,
-		const struct drm_mode_fb_cmd2 *mode_cmd)
-{
-	struct vbox_private *vbox =
-		container_of(dev, struct vbox_private, ddev);
-	struct drm_gem_object *obj;
-	struct vbox_framebuffer *vbox_fb;
-	int ret = -ENOMEM;
-
-	obj = drm_gem_object_lookup(filp, mode_cmd->handles[0]);
-	if (!obj)
-		return ERR_PTR(-ENOENT);
-
-	vbox_fb = kzalloc(sizeof(*vbox_fb), GFP_KERNEL);
-	if (!vbox_fb)
-		goto err_unref_obj;
-
-	ret = vbox_framebuffer_init(vbox, vbox_fb, mode_cmd, obj);
-	if (ret)
-		goto err_free_vbox_fb;
-
-	return &vbox_fb->base;
-
-err_free_vbox_fb:
-	kfree(vbox_fb);
-err_unref_obj:
-	drm_gem_object_put_unlocked(obj);
-	return ERR_PTR(ret);
-}
-
 static const struct drm_mode_config_funcs vbox_mode_funcs = {
-	.fb_create = vbox_user_framebuffer_create,
+	.fb_create = drm_gem_fb_create_with_dirty,
+	.mode_valid = drm_vram_helper_mode_valid,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };

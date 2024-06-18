@@ -25,37 +25,29 @@
 #include <linux/memblock.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/blkdev.h>	/* for initrd_* */
 #include <linux/pagemap.h>
 
 #include <asm/pgalloc.h>
-#include <asm/pgtable.h>
 #include <asm/dma.h>
 #include <asm/io.h>
 #include <asm/tlb.h>
 #include <asm/mmu_context.h>
-#include <asm/kmap_types.h>
 #include <asm/fixmap.h>
 #include <asm/tlbflush.h>
 #include <asm/sections.h>
 
 int mem_init_done;
 
-DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
-
 static void __init zone_sizes_init(void)
 {
-	unsigned long zones_size[MAX_NR_ZONES];
-
-	/* Clear the zone sizes */
-	memset(zones_size, 0, sizeof(zones_size));
+	unsigned long max_zone_pfn[MAX_NR_ZONES] = { 0 };
 
 	/*
 	 * We use only ZONE_NORMAL
 	 */
-	zones_size[ZONE_NORMAL] = max_low_pfn;
+	max_zone_pfn[ZONE_NORMAL] = max_low_pfn;
 
-	free_area_init(zones_size);
+	free_area_init(max_zone_pfn);
 }
 
 extern const char _s_kernel_ro[], _e_kernel_ro[];
@@ -68,29 +60,32 @@ extern const char _s_kernel_ro[], _e_kernel_ro[];
  */
 static void __init map_ram(void)
 {
+	phys_addr_t start, end;
 	unsigned long v, p, e;
 	pgprot_t prot;
 	pgd_t *pge;
+	p4d_t *p4e;
 	pud_t *pue;
 	pmd_t *pme;
 	pte_t *pte;
+	u64 i;
 	/* These mark extents of read-only kernel pages...
 	 * ...from vmlinux.lds.S
 	 */
-	struct memblock_region *region;
 
 	v = PAGE_OFFSET;
 
-	for_each_memblock(memory, region) {
-		p = (u32) region->base & PAGE_MASK;
-		e = p + (u32) region->size;
+	for_each_mem_range(i, &start, &end) {
+		p = (u32) start & PAGE_MASK;
+		e = (u32) end;
 
 		v = (u32) __va(p);
 		pge = pgd_offset_k(v);
 
 		while (p < e) {
 			int j;
-			pue = pud_offset(pge, v);
+			p4e = p4d_offset(pge, v);
+			pue = pud_offset(p4e, v);
 			pme = pmd_offset(pue, v);
 
 			if ((u32) pue != (u32) pge || (u32) pme != (u32) pge) {
@@ -122,15 +117,12 @@ static void __init map_ram(void)
 		}
 
 		printk(KERN_INFO "%s: Memory: 0x%x-0x%x\n", __func__,
-		       region->base, region->base + region->size);
+		       start, end);
 	}
 }
 
 void __init paging_init(void)
 {
-	extern void tlb_init(void);
-
-	unsigned long end;
 	int i;
 
 	printk(KERN_INFO "Setting up paging and PTEs.\n");
@@ -145,8 +137,6 @@ void __init paging_init(void)
 	 *  switch_mm)
 	 */
 	current_pgd[smp_processor_id()] = init_mm.pgd;
-
-	end = (unsigned long)__va(max_low_pfn * PAGE_SIZE);
 
 	map_ram();
 
@@ -212,9 +202,27 @@ void __init mem_init(void)
 	/* this will put all low memory onto the freelists */
 	memblock_free_all();
 
-	mem_init_print_info(NULL);
-
 	printk("mem_init_done ...........................................\n");
 	mem_init_done = 1;
 	return;
 }
+
+static const pgprot_t protection_map[16] = {
+	[VM_NONE]					= PAGE_NONE,
+	[VM_READ]					= PAGE_READONLY_X,
+	[VM_WRITE]					= PAGE_COPY,
+	[VM_WRITE | VM_READ]				= PAGE_COPY_X,
+	[VM_EXEC]					= PAGE_READONLY,
+	[VM_EXEC | VM_READ]				= PAGE_READONLY_X,
+	[VM_EXEC | VM_WRITE]				= PAGE_COPY,
+	[VM_EXEC | VM_WRITE | VM_READ]			= PAGE_COPY_X,
+	[VM_SHARED]					= PAGE_NONE,
+	[VM_SHARED | VM_READ]				= PAGE_READONLY_X,
+	[VM_SHARED | VM_WRITE]				= PAGE_SHARED,
+	[VM_SHARED | VM_WRITE | VM_READ]		= PAGE_SHARED_X,
+	[VM_SHARED | VM_EXEC]				= PAGE_READONLY,
+	[VM_SHARED | VM_EXEC | VM_READ]			= PAGE_READONLY_X,
+	[VM_SHARED | VM_EXEC | VM_WRITE]		= PAGE_SHARED,
+	[VM_SHARED | VM_EXEC | VM_WRITE | VM_READ]	= PAGE_SHARED_X
+};
+DECLARE_VM_GET_PAGE_PROT

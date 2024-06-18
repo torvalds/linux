@@ -4,9 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/reboot.h>
 #include <linux/module.h>
-#ifdef CONFIG_SUPERH32
 #include <asm/watchdog.h>
-#endif
 #include <asm/addrspace.h>
 #include <asm/reboot.h>
 #include <asm/tlbflush.h>
@@ -15,13 +13,11 @@
 void (*pm_power_off)(void);
 EXPORT_SYMBOL(pm_power_off);
 
-#ifdef CONFIG_SUPERH32
 static void watchdog_trigger_immediate(void)
 {
 	sh_wdt_write_cnt(0xFF);
 	sh_wdt_write_csr(0xC2);
 }
-#endif
 
 static void native_machine_restart(char * __unused)
 {
@@ -33,10 +29,8 @@ static void native_machine_restart(char * __unused)
 	/* Address error with SR.BL=1 first. */
 	trigger_address_error();
 
-#ifdef CONFIG_SUPERH32
 	/* If that fails or is unsupported, go for the watchdog next. */
 	watchdog_trigger_immediate();
-#endif
 
 	/*
 	 * Give up and sleep.
@@ -52,8 +46,7 @@ static void native_machine_shutdown(void)
 
 static void native_machine_power_off(void)
 {
-	if (pm_power_off)
-		pm_power_off();
+	do_kernel_power_off();
 }
 
 static void native_machine_halt(void)
@@ -70,7 +63,7 @@ struct machine_ops machine_ops = {
 	.shutdown	= native_machine_shutdown,
 	.restart	= native_machine_restart,
 	.halt		= native_machine_halt,
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 	.crash_shutdown = native_machine_crash_shutdown,
 #endif
 };
@@ -95,7 +88,7 @@ void machine_halt(void)
 	machine_ops.halt();
 }
 
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 void machine_crash_shutdown(struct pt_regs *regs)
 {
 	machine_ops.crash_shutdown(regs);

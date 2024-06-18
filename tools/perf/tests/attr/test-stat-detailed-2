@@ -70,12 +70,128 @@ type=0
 config=5
 optional=1
 
+# PERF_TYPE_RAW / slots (0x400)
+[event11:base-stat]
+fd=11
+group_fd=-1
+type=4
+config=1024
+read_format=15
+optional=1
+
+# PERF_TYPE_RAW / topdown-retiring (0x8000)
+[event12:base-stat]
+fd=12
+group_fd=11
+type=4
+config=32768
+disabled=0
+enable_on_exec=0
+read_format=15
+optional=1
+
+# PERF_TYPE_RAW / topdown-fe-bound (0x8200)
+[event13:base-stat]
+fd=13
+group_fd=11
+type=4
+config=33280
+disabled=0
+enable_on_exec=0
+read_format=15
+optional=1
+
+# PERF_TYPE_RAW / topdown-be-bound (0x8300)
+[event14:base-stat]
+fd=14
+group_fd=11
+type=4
+config=33536
+disabled=0
+enable_on_exec=0
+read_format=15
+optional=1
+
+# PERF_TYPE_RAW / topdown-bad-spec (0x8100)
+[event15:base-stat]
+fd=15
+group_fd=11
+type=4
+config=33024
+disabled=0
+enable_on_exec=0
+read_format=15
+optional=1
+
+# PERF_TYPE_RAW / INT_MISC.UOP_DROPPING
+[event16:base-stat]
+fd=16
+type=4
+config=4109
+optional=1
+
+# PERF_TYPE_RAW / cpu/INT_MISC.RECOVERY_CYCLES,cmask=1,edge/
+[event17:base-stat]
+fd=17
+type=4
+config=17039629
+optional=1
+
+# PERF_TYPE_RAW / CPU_CLK_UNHALTED.THREAD
+[event18:base-stat]
+fd=18
+type=4
+config=60
+optional=1
+
+# PERF_TYPE_RAW / INT_MISC.RECOVERY_CYCLES_ANY
+[event19:base-stat]
+fd=19
+type=4
+config=2097421
+optional=1
+
+# PERF_TYPE_RAW / CPU_CLK_UNHALTED.REF_XCLK
+[event20:base-stat]
+fd=20
+type=4
+config=316
+optional=1
+
+# PERF_TYPE_RAW / IDQ_UOPS_NOT_DELIVERED.CORE
+[event21:base-stat]
+fd=21
+type=4
+config=412
+optional=1
+
+# PERF_TYPE_RAW / CPU_CLK_UNHALTED.ONE_THREAD_ACTIVE
+[event22:base-stat]
+fd=22
+type=4
+config=572
+optional=1
+
+# PERF_TYPE_RAW / UOPS_RETIRED.RETIRE_SLOTS
+[event23:base-stat]
+fd=23
+type=4
+config=706
+optional=1
+
+# PERF_TYPE_RAW / UOPS_ISSUED.ANY
+[event24:base-stat]
+fd=24
+type=4
+config=270
+optional=1
+
 # PERF_TYPE_HW_CACHE /
 #  PERF_COUNT_HW_CACHE_L1D                <<  0  |
 # (PERF_COUNT_HW_CACHE_OP_READ            <<  8) |
 # (PERF_COUNT_HW_CACHE_RESULT_ACCESS      << 16)
-[event11:base-stat]
-fd=11
+[event25:base-stat]
+fd=25
 type=3
 config=0
 optional=1
@@ -84,8 +200,8 @@ optional=1
 #  PERF_COUNT_HW_CACHE_L1D                <<  0  |
 # (PERF_COUNT_HW_CACHE_OP_READ            <<  8) |
 # (PERF_COUNT_HW_CACHE_RESULT_MISS        << 16)
-[event12:base-stat]
-fd=12
+[event26:base-stat]
+fd=26
 type=3
 config=65536
 optional=1
@@ -94,8 +210,8 @@ optional=1
 #  PERF_COUNT_HW_CACHE_LL                 <<  0  |
 # (PERF_COUNT_HW_CACHE_OP_READ            <<  8) |
 # (PERF_COUNT_HW_CACHE_RESULT_ACCESS      << 16)
-[event13:base-stat]
-fd=13
+[event27:base-stat]
+fd=27
 type=3
 config=2
 optional=1
@@ -104,8 +220,8 @@ optional=1
 #  PERF_COUNT_HW_CACHE_LL                 <<  0  |
 # (PERF_COUNT_HW_CACHE_OP_READ            <<  8) |
 # (PERF_COUNT_HW_CACHE_RESULT_MISS        << 16)
-[event14:base-stat]
-fd=14
+[event28:base-stat]
+fd=28
 type=3
 config=65538
 optional=1
@@ -114,8 +230,8 @@ optional=1
 #  PERF_COUNT_HW_CACHE_L1I                <<  0  |
 # (PERF_COUNT_HW_CACHE_OP_READ            <<  8) |
 # (PERF_COUNT_HW_CACHE_RESULT_ACCESS      << 16)
-[event15:base-stat]
-fd=15
+[event29:base-stat]
+fd=29
 type=3
 config=1
 optional=1
@@ -124,8 +240,8 @@ optional=1
 #  PERF_COUNT_HW_CACHE_L1I                <<  0  |
 # (PERF_COUNT_HW_CACHE_OP_READ            <<  8) |
 # (PERF_COUNT_HW_CACHE_RESULT_MISS        << 16)
-[event16:base-stat]
-fd=16
+[event30:base-stat]
+fd=30
 type=3
 config=65537
 optional=1
@@ -134,8 +250,8 @@ optional=1
 #  PERF_COUNT_HW_CACHE_DTLB               <<  0  |
 # (PERF_COUNT_HW_CACHE_OP_READ            <<  8) |
 # (PERF_COUNT_HW_CACHE_RESULT_ACCESS      << 16)
-[event17:base-stat]
-fd=17
+[event31:base-stat]
+fd=31
 type=3
 config=3
 optional=1
@@ -144,8 +260,8 @@ optional=1
 #  PERF_COUNT_HW_CACHE_DTLB               <<  0  |
 # (PERF_COUNT_HW_CACHE_OP_READ            <<  8) |
 # (PERF_COUNT_HW_CACHE_RESULT_MISS        << 16)
-[event18:base-stat]
-fd=18
+[event32:base-stat]
+fd=32
 type=3
 config=65539
 optional=1
@@ -154,8 +270,8 @@ optional=1
 #  PERF_COUNT_HW_CACHE_ITLB               <<  0  |
 # (PERF_COUNT_HW_CACHE_OP_READ            <<  8) |
 # (PERF_COUNT_HW_CACHE_RESULT_ACCESS      << 16)
-[event19:base-stat]
-fd=19
+[event33:base-stat]
+fd=33
 type=3
 config=4
 optional=1
@@ -164,8 +280,8 @@ optional=1
 #  PERF_COUNT_HW_CACHE_ITLB               <<  0  |
 # (PERF_COUNT_HW_CACHE_OP_READ            <<  8) |
 # (PERF_COUNT_HW_CACHE_RESULT_MISS        << 16)
-[event20:base-stat]
-fd=20
+[event34:base-stat]
+fd=34
 type=3
 config=65540
 optional=1

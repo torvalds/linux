@@ -6,10 +6,6 @@
  * Copyright (c) 2014 The Linux Foundation. All rights reserved.
  */
 
-#ifdef CONFIG_MSM_OCMEM
-#  include <mach/ocmem.h>
-#endif
-
 #include "a3xx_gpu.h"
 
 #define A3XX_INT0_MASK \
@@ -31,6 +27,60 @@ extern bool hang_debug;
 
 static void a3xx_dump(struct msm_gpu *gpu);
 static bool a3xx_idle(struct msm_gpu *gpu);
+
+static void a3xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
+{
+	struct msm_ringbuffer *ring = submit->ring;
+	unsigned int i;
+
+	for (i = 0; i < submit->nr_cmds; i++) {
+		switch (submit->cmd[i].type) {
+		case MSM_SUBMIT_CMD_IB_TARGET_BUF:
+			/* ignore IB-targets */
+			break;
+		case MSM_SUBMIT_CMD_CTX_RESTORE_BUF:
+			/* ignore if there has not been a ctx switch: */
+			if (gpu->cur_ctx_seqno == submit->queue->ctx->seqno)
+				break;
+			fallthrough;
+		case MSM_SUBMIT_CMD_BUF:
+			OUT_PKT3(ring, CP_INDIRECT_BUFFER_PFD, 2);
+			OUT_RING(ring, lower_32_bits(submit->cmd[i].iova));
+			OUT_RING(ring, submit->cmd[i].size);
+			OUT_PKT2(ring);
+			break;
+		}
+	}
+
+	OUT_PKT0(ring, REG_AXXX_CP_SCRATCH_REG2, 1);
+	OUT_RING(ring, submit->seqno);
+
+	/* Flush HLSQ lazy updates to make sure there is nothing
+	 * pending for indirect loads after the timestamp has
+	 * passed:
+	 */
+	OUT_PKT3(ring, CP_EVENT_WRITE, 1);
+	OUT_RING(ring, HLSQ_FLUSH);
+
+	/* wait for idle before cache flush/interrupt */
+	OUT_PKT3(ring, CP_WAIT_FOR_IDLE, 1);
+	OUT_RING(ring, 0x00000000);
+
+	/* BIT(31) of CACHE_FLUSH_TS triggers CACHE_FLUSH_TS IRQ from GPU */
+	OUT_PKT3(ring, CP_EVENT_WRITE, 3);
+	OUT_RING(ring, CACHE_FLUSH_TS | CP_EVENT_WRITE_0_IRQ);
+	OUT_RING(ring, rbmemptr(ring, fence));
+	OUT_RING(ring, submit->seqno);
+
+#if 0
+	/* Dummy set-constant to trigger context rollover */
+	OUT_PKT3(ring, CP_SET_CONSTANT, 2);
+	OUT_RING(ring, CP_REG(REG_A3XX_HLSQ_CL_KERNEL_GROUP_X_REG));
+	OUT_RING(ring, 0x00000000);
+#endif
+
+	adreno_flush(gpu, ring, REG_AXXX_CP_RB_WPTR);
+}
 
 static bool a3xx_me_init(struct msm_gpu *gpu)
 {
@@ -55,7 +105,7 @@ static bool a3xx_me_init(struct msm_gpu *gpu)
 	OUT_RING(ring, 0x00000000);
 	OUT_RING(ring, 0x00000000);
 
-	gpu->funcs->flush(gpu, ring);
+	adreno_flush(gpu, ring, REG_AXXX_CP_RB_WPTR);
 	return a3xx_idle(gpu);
 }
 
@@ -84,6 +134,13 @@ static int a3xx_hw_init(struct msm_gpu *gpu)
 		/* Set up AOOO: */
 		gpu_write(gpu, REG_A3XX_VBIF_OUT_AXI_AOOO_EN, 0x0000003c);
 		gpu_write(gpu, REG_A3XX_VBIF_OUT_AXI_AOOO, 0x003c003c);
+	} else if (adreno_is_a305b(adreno_gpu)) {
+		gpu_write(gpu, REG_A3XX_VBIF_IN_RD_LIM_CONF0, 0x00181818);
+		gpu_write(gpu, REG_A3XX_VBIF_IN_WR_LIM_CONF0, 0x00181818);
+		gpu_write(gpu, REG_A3XX_VBIF_OUT_RD_LIM_CONF0, 0x00000018);
+		gpu_write(gpu, REG_A3XX_VBIF_OUT_WR_LIM_CONF0, 0x00000018);
+		gpu_write(gpu, REG_A3XX_VBIF_DDR_OUT_MAX_BURST, 0x00000303);
+		gpu_write(gpu, REG_A3XX_VBIF_ROUND_ROBIN_QOS_ARB, 0x0003);
 	} else if (adreno_is_a306(adreno_gpu)) {
 		gpu_write(gpu, REG_A3XX_VBIF_ROUND_ROBIN_QOS_ARB, 0x0003);
 		gpu_write(gpu, REG_A3XX_VBIF_OUT_RD_LIM_CONF0, 0x0000000a);
@@ -180,7 +237,7 @@ static int a3xx_hw_init(struct msm_gpu *gpu)
 	gpu_write(gpu, REG_A3XX_UCHE_CACHE_MODE_CONTROL_REG, 0x00000001);
 
 	/* Enable Clock gating: */
-	if (adreno_is_a306(adreno_gpu))
+	if (adreno_is_a305b(adreno_gpu) || adreno_is_a306(adreno_gpu))
 		gpu_write(gpu, REG_A3XX_RBBM_CLOCK_CTL, 0xaaaaaaaa);
 	else if (adreno_is_a320(adreno_gpu))
 		gpu_write(gpu, REG_A3XX_RBBM_CLOCK_CTL, 0xbfffffff);
@@ -195,9 +252,9 @@ static int a3xx_hw_init(struct msm_gpu *gpu)
 		gpu_write(gpu, REG_A3XX_RBBM_GPR0_CTL, 0x00000000);
 
 	/* Set the OCMEM base address for A330, etc */
-	if (a3xx_gpu->ocmem_hdl) {
+	if (a3xx_gpu->ocmem.hdl) {
 		gpu_write(gpu, REG_A3XX_RB_GMEM_BASE_ADDR,
-			(unsigned int)(a3xx_gpu->ocmem_base >> 14));
+			(unsigned int)(a3xx_gpu->ocmem.base >> 14));
 	}
 
 	/* Turn on performance counters: */
@@ -214,6 +271,16 @@ static int a3xx_hw_init(struct msm_gpu *gpu)
 	ret = adreno_hw_init(gpu);
 	if (ret)
 		return ret;
+
+	/*
+	 * Use the default ringbuffer size and block size but disable the RPTR
+	 * shadow
+	 */
+	gpu_write(gpu, REG_AXXX_CP_RB_CNTL,
+		MSM_GPU_RB_CNTL_DEFAULT | AXXX_CP_RB_CNTL_NO_UPDATE);
+
+	/* Set the ringbuffer address */
+	gpu_write(gpu, REG_AXXX_CP_RB_BASE, lower_32_bits(gpu->rb[0]->iova));
 
 	/* setup access protection: */
 	gpu_write(gpu, REG_A3XX_CP_PROTECT_CTRL, 0x00000007);
@@ -273,7 +340,7 @@ static int a3xx_hw_init(struct msm_gpu *gpu)
 				AXXX_CP_QUEUE_THRESHOLDS_CSQ_IB1_START(2) |
 				AXXX_CP_QUEUE_THRESHOLDS_CSQ_IB2_START(6) |
 				AXXX_CP_QUEUE_THRESHOLDS_CSQ_ST_START(14));
-	} else if (adreno_is_a330(adreno_gpu)) {
+	} else if (adreno_is_a330(adreno_gpu) || adreno_is_a305b(adreno_gpu)) {
 		/* NOTE: this (value take from downstream android driver)
 		 * includes some bits outside of the known bitfields.  But
 		 * A330 has this "MERCIU queue" thing too, which might
@@ -318,10 +385,7 @@ static void a3xx_destroy(struct msm_gpu *gpu)
 
 	adreno_gpu_cleanup(adreno_gpu);
 
-#ifdef CONFIG_MSM_OCMEM
-	if (a3xx_gpu->ocmem_base)
-		ocmem_free(OCMEM_GRAPHICS, a3xx_gpu->ocmem_hdl);
-#endif
+	adreno_gpu_ocmem_cleanup(&a3xx_gpu->ocmem);
 
 	kfree(a3xx_gpu);
 }
@@ -420,34 +484,42 @@ static struct msm_gpu_state *a3xx_gpu_state_get(struct msm_gpu *gpu)
 	return state;
 }
 
-/* Register offset defines for A3XX */
-static const unsigned int a3xx_register_offsets[REG_ADRENO_REGISTER_MAX] = {
-	REG_ADRENO_DEFINE(REG_ADRENO_CP_RB_BASE, REG_AXXX_CP_RB_BASE),
-	REG_ADRENO_SKIP(REG_ADRENO_CP_RB_BASE_HI),
-	REG_ADRENO_DEFINE(REG_ADRENO_CP_RB_RPTR_ADDR, REG_AXXX_CP_RB_RPTR_ADDR),
-	REG_ADRENO_SKIP(REG_ADRENO_CP_RB_RPTR_ADDR_HI),
-	REG_ADRENO_DEFINE(REG_ADRENO_CP_RB_RPTR, REG_AXXX_CP_RB_RPTR),
-	REG_ADRENO_DEFINE(REG_ADRENO_CP_RB_WPTR, REG_AXXX_CP_RB_WPTR),
-	REG_ADRENO_DEFINE(REG_ADRENO_CP_RB_CNTL, REG_AXXX_CP_RB_CNTL),
-};
+static u64 a3xx_gpu_busy(struct msm_gpu *gpu, unsigned long *out_sample_rate)
+{
+	u64 busy_cycles;
+
+	busy_cycles = gpu_read64(gpu, REG_A3XX_RBBM_PERFCTR_RBBM_1_LO);
+	*out_sample_rate = clk_get_rate(gpu->core_clk);
+
+	return busy_cycles;
+}
+
+static u32 a3xx_get_rptr(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
+{
+	ring->memptrs->rptr = gpu_read(gpu, REG_AXXX_CP_RB_RPTR);
+	return ring->memptrs->rptr;
+}
 
 static const struct adreno_gpu_funcs funcs = {
 	.base = {
 		.get_param = adreno_get_param,
+		.set_param = adreno_set_param,
 		.hw_init = a3xx_hw_init,
 		.pm_suspend = msm_gpu_pm_suspend,
 		.pm_resume = msm_gpu_pm_resume,
 		.recover = a3xx_recover,
-		.submit = adreno_submit,
-		.flush = adreno_flush,
+		.submit = a3xx_submit,
 		.active_ring = adreno_active_ring,
 		.irq = a3xx_irq,
 		.destroy = a3xx_destroy,
 #if defined(CONFIG_DEBUG_FS) || defined(CONFIG_DEV_COREDUMP)
 		.show = adreno_show,
 #endif
+		.gpu_busy = a3xx_gpu_busy,
 		.gpu_state_get = a3xx_gpu_state_get,
 		.gpu_state_put = adreno_gpu_state_put,
+		.create_address_space = adreno_create_address_space,
+		.get_rptr = a3xx_get_rptr,
 	},
 };
 
@@ -465,6 +537,8 @@ struct msm_gpu *a3xx_gpu_init(struct drm_device *dev)
 	struct msm_gpu *gpu;
 	struct msm_drm_private *priv = dev->dev_private;
 	struct platform_device *pdev = priv->gpu_pdev;
+	struct icc_path *ocmem_icc_path;
+	struct icc_path *icc_path;
 	int ret;
 
 	if (!pdev) {
@@ -486,25 +560,17 @@ struct msm_gpu *a3xx_gpu_init(struct drm_device *dev)
 	gpu->num_perfcntrs = ARRAY_SIZE(perfcntrs);
 
 	adreno_gpu->registers = a3xx_registers;
-	adreno_gpu->reg_offsets = a3xx_register_offsets;
 
 	ret = adreno_gpu_init(dev, pdev, adreno_gpu, &funcs, 1);
 	if (ret)
 		goto fail;
 
 	/* if needed, allocate gmem: */
-	if (adreno_is_a330(adreno_gpu)) {
-#ifdef CONFIG_MSM_OCMEM
-		/* TODO this is different/missing upstream: */
-		struct ocmem_buf *ocmem_hdl =
-				ocmem_allocate(OCMEM_GRAPHICS, adreno_gpu->gmem);
-
-		a3xx_gpu->ocmem_hdl = ocmem_hdl;
-		a3xx_gpu->ocmem_base = ocmem_hdl->addr;
-		adreno_gpu->gmem = ocmem_hdl->len;
-		DBG("using %dK of OCMEM at 0x%08x", adreno_gpu->gmem / 1024,
-				a3xx_gpu->ocmem_base);
-#endif
+	if (adreno_is_a330(adreno_gpu) || adreno_is_a305b(adreno_gpu)) {
+		ret = adreno_gpu_ocmem_init(&adreno_gpu->base.pdev->dev,
+					    adreno_gpu, &a3xx_gpu->ocmem);
+		if (ret)
+			goto fail;
 	}
 
 	if (!gpu->aspace) {
@@ -516,9 +582,35 @@ struct msm_gpu *a3xx_gpu_init(struct drm_device *dev)
 		 * implement a cmdstream validator.
 		 */
 		DRM_DEV_ERROR(dev->dev, "No memory protection without IOMMU\n");
-		ret = -ENXIO;
+		if (!allow_vram_carveout) {
+			ret = -ENXIO;
+			goto fail;
+		}
+	}
+
+	icc_path = devm_of_icc_get(&pdev->dev, "gfx-mem");
+	if (IS_ERR(icc_path)) {
+		ret = PTR_ERR(icc_path);
 		goto fail;
 	}
+
+	ocmem_icc_path = devm_of_icc_get(&pdev->dev, "ocmem");
+	if (IS_ERR(ocmem_icc_path)) {
+		ret = PTR_ERR(ocmem_icc_path);
+		/* allow -ENODATA, ocmem icc is optional */
+		if (ret != -ENODATA)
+			goto fail;
+		ocmem_icc_path = NULL;
+	}
+
+
+	/*
+	 * Set the ICC path to maximum speed for now by multiplying the fastest
+	 * frequency by the bus width (8). We'll want to scale this later on to
+	 * improve battery life.
+	 */
+	icc_set_bw(icc_path, 0, Bps_to_icc(gpu->fast_rate) * 8);
+	icc_set_bw(ocmem_icc_path, 0, Bps_to_icc(gpu->fast_rate) * 8);
 
 	return gpu;
 

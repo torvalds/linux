@@ -47,7 +47,7 @@
 	ld	r15,STK_REG(R15)(r1)
 	ld	r14,STK_REG(R14)(r1)
 .Ldo_err3:
-	bl	exit_vmx_usercopy
+	bl	CFUNC(exit_vmx_usercopy)
 	ld	r0,STACKFRAMESIZE+16(r1)
 	mtlr	r0
 	b	.Lexit
@@ -272,7 +272,7 @@ err1;	stb	r0,0(r3)
 	mflr	r0
 	std	r0,16(r1)
 	stdu	r1,-STACKFRAMESIZE(r1)
-	bl	enter_vmx_usercopy
+	bl	CFUNC(enter_vmx_usercopy)
 	cmpwi	cr1,r3,0
 	ld	r0,STACKFRAMESIZE+16(r1)
 	ld	r3,STK_REG(R31)(r1)
@@ -298,17 +298,7 @@ err1;	stb	r0,0(r3)
 	or	r7,r7,r0
 	ori	r10,r7,1	/* stream=1 */
 
-	lis	r8,0x8000	/* GO=1 */
-	clrldi	r8,r8,32
-
-	/* setup read stream 0 */
-	dcbt	0,r6,0b01000   /* addr from */
-	dcbt	0,r7,0b01010   /* length and depth from */
-	/* setup write stream 1 */
-	dcbtst	0,r9,0b01000   /* addr to */
-	dcbtst	0,r10,0b01010  /* length and depth to */
-	eieio
-	dcbt	0,r8,0b01010	/* all streams GO */
+	DCBT_SETUP_STREAMS(r6, r7, r9, r10, r8)
 
 	beq	cr1,.Lunwind_stack_nonvmx_copy
 
@@ -488,7 +478,7 @@ err3;	lbz	r0,0(r4)
 err3;	stb	r0,0(r3)
 
 15:	addi	r1,r1,STACKFRAMESIZE
-	b	exit_vmx_usercopy	/* tail call optimise */
+	b	CFUNC(exit_vmx_usercopy)	/* tail call optimise */
 
 .Lvmx_unaligned_copy:
 	/* Get the destination 16B aligned */
@@ -691,5 +681,5 @@ err3;	lbz	r0,0(r4)
 err3;	stb	r0,0(r3)
 
 15:	addi	r1,r1,STACKFRAMESIZE
-	b	exit_vmx_usercopy	/* tail call optimise */
+	b	CFUNC(exit_vmx_usercopy)	/* tail call optimise */
 #endif /* CONFIG_ALTIVEC */

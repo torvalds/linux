@@ -13,8 +13,12 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <asm/checksum.h>
-#include <asm/lowcore.h>
+#include <asm/abs_lowcore.h>
 #include <asm/os_info.h>
+#include <asm/physmem_info.h>
+#include <asm/maccess.h>
+#include <asm/asm-offsets.h>
+#include <asm/ipl.h>
 
 /*
  * OS info structure has to be page aligned
@@ -27,7 +31,7 @@ static struct os_info os_info __page_aligned_data;
 u32 os_info_csum(struct os_info *os_info)
 {
 	int size = sizeof(*os_info) - offsetof(struct os_info, version_major);
-	return (__force u32)csum_partial(&os_info->version_major, size, 0);
+	return (__force u32)cksm(&os_info->version_major, size, 0);
 }
 
 /*
@@ -41,28 +45,51 @@ void os_info_crashkernel_add(unsigned long base, unsigned long size)
 }
 
 /*
- * Add OS info entry and update checksum
+ * Add OS info data entry and update checksum
  */
-void os_info_entry_add(int nr, void *ptr, u64 size)
+void os_info_entry_add_data(int nr, void *ptr, u64 size)
 {
-	os_info.entry[nr].addr = (u64)(unsigned long)ptr;
+	os_info.entry[nr].addr = __pa(ptr);
 	os_info.entry[nr].size = size;
-	os_info.entry[nr].csum = (__force u32)csum_partial(ptr, size, 0);
+	os_info.entry[nr].csum = (__force u32)cksm(ptr, size, 0);
 	os_info.csum = os_info_csum(&os_info);
 }
 
 /*
- * Initialize OS info struture and set lowcore pointer
+ * Add OS info value entry and update checksum
+ */
+void os_info_entry_add_val(int nr, u64 value)
+{
+	os_info.entry[nr].val = value;
+	os_info.entry[nr].size = 0;
+	os_info.entry[nr].csum = 0;
+	os_info.csum = os_info_csum(&os_info);
+}
+
+/*
+ * Initialize OS info structure and set lowcore pointer
  */
 void __init os_info_init(void)
 {
-	void *ptr = &os_info;
+	struct lowcore *abs_lc;
 
+	BUILD_BUG_ON(sizeof(struct os_info) != PAGE_SIZE);
 	os_info.version_major = OS_INFO_VERSION_MAJOR;
 	os_info.version_minor = OS_INFO_VERSION_MINOR;
 	os_info.magic = OS_INFO_MAGIC;
+	os_info_entry_add_val(OS_INFO_IDENTITY_BASE, __identity_base);
+	os_info_entry_add_val(OS_INFO_KASLR_OFFSET, kaslr_offset());
+	os_info_entry_add_val(OS_INFO_KASLR_OFF_PHYS, __kaslr_offset_phys);
+	os_info_entry_add_val(OS_INFO_VMEMMAP, (unsigned long)vmemmap);
+	os_info_entry_add_val(OS_INFO_AMODE31_START, AMODE31_START);
+	os_info_entry_add_val(OS_INFO_AMODE31_END, AMODE31_END);
+	os_info_entry_add_val(OS_INFO_IMAGE_START, (unsigned long)_stext);
+	os_info_entry_add_val(OS_INFO_IMAGE_END, (unsigned long)_end);
+	os_info_entry_add_val(OS_INFO_IMAGE_PHYS, __pa_symbol(_stext));
 	os_info.csum = os_info_csum(&os_info);
-	mem_assign_absolute(S390_lowcore.os_info, (unsigned long) ptr);
+	abs_lc = get_abs_lowcore();
+	abs_lc->os_info = __pa(&os_info);
+	put_abs_lowcore(abs_lc);
 }
 
 #ifdef CONFIG_CRASH_DUMP
@@ -90,11 +117,11 @@ static void os_info_old_alloc(int nr, int align)
 		goto fail;
 	}
 	buf_align = PTR_ALIGN(buf, align);
-	if (copy_oldmem_kernel(buf_align, (void *) addr, size)) {
+	if (copy_oldmem_kernel(buf_align, addr, size)) {
 		msg = "copy failed";
 		goto fail_free;
 	}
-	csum = (__force u32)csum_partial(buf_align, size, 0);
+	csum = (__force u32)cksm(buf_align, size, 0);
 	if (csum != os_info_old->entry[nr].csum) {
 		msg = "checksum failed";
 		goto fail_free;
@@ -121,17 +148,16 @@ static void os_info_old_init(void)
 
 	if (os_info_init)
 		return;
-	if (!OLDMEM_BASE)
+	if (!oldmem_data.start && !is_ipl_type_dump())
 		goto fail;
-	if (copy_oldmem_kernel(&addr, &S390_lowcore.os_info, sizeof(addr)))
+	if (copy_oldmem_kernel(&addr, __LC_OS_INFO, sizeof(addr)))
 		goto fail;
 	if (addr == 0 || addr % PAGE_SIZE)
 		goto fail;
 	os_info_old = kzalloc(sizeof(*os_info_old), GFP_KERNEL);
 	if (!os_info_old)
 		goto fail;
-	if (copy_oldmem_kernel(os_info_old, (void *) addr,
-			       sizeof(*os_info_old)))
+	if (copy_oldmem_kernel(os_info_old, addr, sizeof(*os_info_old)))
 		goto fail_free;
 	if (os_info_old->magic != OS_INFO_MAGIC)
 		goto fail_free;

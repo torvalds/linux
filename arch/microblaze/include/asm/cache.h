@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Cache operations
  *
  * Copyright (C) 2007-2009 Michal Simek <monstr@monstr.eu>
  * Copyright (C) 2007-2009 PetaLogix
  * Copyright (C) 2003 John Williams <jwilliams@itee.uq.edu.au>
- *
- * This file is subject to the terms and conditions of the GNU General
- * Public License. See the file COPYING in the main directory of this
- * archive for more details.
  */
 
 #ifndef _ASM_MICROBLAZE_CACHE_H
@@ -20,5 +17,10 @@
 #define L1_CACHE_BYTES	(1 << L1_CACHE_SHIFT)
 
 #define SMP_CACHE_BYTES	L1_CACHE_BYTES
+
+/* MS be sure that SLAB allocates aligned objects */
+#define ARCH_DMA_MINALIGN	L1_CACHE_BYTES
+
+#define ARCH_SLAB_MINALIGN	L1_CACHE_BYTES
 
 #endif /* _ASM_MICROBLAZE_CACHE_H */

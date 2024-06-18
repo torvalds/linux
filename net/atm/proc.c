@@ -36,9 +36,9 @@
 static ssize_t proc_dev_atm_read(struct file *file, char __user *buf,
 				 size_t count, loff_t *pos);
 
-static const struct file_operations proc_atm_dev_ops = {
-	.read =		proc_dev_atm_read,
-	.llseek =	noop_llseek,
+static const struct proc_ops atm_dev_proc_ops = {
+	.proc_read	= proc_dev_atm_read,
+	.proc_lseek	= noop_llseek,
 };
 
 static void add_stats(struct seq_file *seq, const char *aal,
@@ -108,7 +108,7 @@ out:
 static inline void *vcc_walk(struct seq_file *seq, loff_t l)
 {
 	struct vcc_state *state = seq->private;
-	int family = (uintptr_t)(PDE_DATA(file_inode(seq->file)));
+	int family = (uintptr_t)(pde_data(file_inode(seq->file)));
 
 	return __vcc_walk(&state->sk, family, &state->bucket, l) ?
 	       state : NULL;
@@ -134,8 +134,7 @@ static void vcc_seq_stop(struct seq_file *seq, void *v)
 static void *vcc_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	v = vcc_walk(seq, 1);
-	if (v)
-		(*pos)++;
+	(*pos)++;
 	return v;
 }
 
@@ -325,7 +324,7 @@ static ssize_t proc_dev_atm_read(struct file *file, char __user *buf,
 	page = get_zeroed_page(GFP_KERNEL);
 	if (!page)
 		return -ENOMEM;
-	dev = PDE_DATA(file_inode(file));
+	dev = pde_data(file_inode(file));
 	if (!dev->ops->proc_read)
 		length = -EINVAL;
 	else {
@@ -360,7 +359,7 @@ int atm_proc_dev_register(struct atm_dev *dev)
 		goto err_out;
 
 	dev->proc_entry = proc_create_data(dev->proc_name, 0, atm_proc_root,
-					   &proc_atm_dev_ops, dev);
+					   &atm_dev_proc_ops, dev);
 	if (!dev->proc_entry)
 		goto err_free_name;
 	return 0;

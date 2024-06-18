@@ -4,7 +4,8 @@ Required properties:
 The fpga_mgr node has the following mandatory property, must be located under
 firmware/svc node.
 
-- compatible : should contain "intel,stratix10-soc-fpga-mgr"
+- compatible : should contain "intel,stratix10-soc-fpga-mgr" or
+	       "intel,agilex-soc-fpga-mgr"
 
 Example:
 

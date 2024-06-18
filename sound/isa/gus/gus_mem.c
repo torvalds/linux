@@ -24,8 +24,9 @@ void snd_gf1_mem_lock(struct snd_gf1_mem * alloc, int xup)
 	}
 }
 
-static struct snd_gf1_mem_block *snd_gf1_mem_xalloc(struct snd_gf1_mem * alloc,
-					       struct snd_gf1_mem_block * block)
+static struct snd_gf1_mem_block *
+snd_gf1_mem_xalloc(struct snd_gf1_mem *alloc, struct snd_gf1_mem_block *block,
+		   const char *name)
 {
 	struct snd_gf1_mem_block *pblock, *nblock;
 
@@ -33,6 +34,12 @@ static struct snd_gf1_mem_block *snd_gf1_mem_xalloc(struct snd_gf1_mem * alloc,
 	if (nblock == NULL)
 		return NULL;
 	*nblock = *block;
+	nblock->name = kstrdup(name, GFP_KERNEL);
+	if (!nblock->name) {
+		kfree(nblock);
+		return NULL;
+	}
+
 	pblock = alloc->first;
 	while (pblock) {
 		if (pblock->ptr > nblock->ptr) {
@@ -44,7 +51,7 @@ static struct snd_gf1_mem_block *snd_gf1_mem_xalloc(struct snd_gf1_mem * alloc,
 			else
 				nblock->prev->next = nblock;
 			mutex_unlock(&alloc->memory_mutex);
-			return NULL;
+			return nblock;
 		}
 		pblock = pblock->next;
 	}
@@ -198,8 +205,7 @@ struct snd_gf1_mem_block *snd_gf1_mem_alloc(struct snd_gf1_mem * alloc, int owne
 	if (share_id != NULL)
 		memcpy(&block.share_id, share_id, sizeof(block.share_id));
 	block.owner = owner;
-	block.name = kstrdup(name, GFP_KERNEL);
-	nblock = snd_gf1_mem_xalloc(alloc, &block);
+	nblock = snd_gf1_mem_xalloc(alloc, &block, name);
 	snd_gf1_mem_lock(alloc, 1);
 	return nblock;
 }
@@ -210,7 +216,8 @@ int snd_gf1_mem_free(struct snd_gf1_mem * alloc, unsigned int address)
 	struct snd_gf1_mem_block *block;
 
 	snd_gf1_mem_lock(alloc, 0);
-	if ((block = snd_gf1_mem_look(alloc, address)) != NULL) {
+	block = snd_gf1_mem_look(alloc, address);
+	if (block) {
 		result = snd_gf1_mem_xfree(alloc, block);
 		snd_gf1_mem_lock(alloc, 1);
 		return result;
@@ -235,14 +242,12 @@ int snd_gf1_mem_init(struct snd_gus_card * gus)
 	if (gus->gf1.enh_mode) {
 		block.ptr = 0;
 		block.size = 1024;
-		block.name = kstrdup("InterWave LFOs", GFP_KERNEL);
-		if (snd_gf1_mem_xalloc(alloc, &block) == NULL)
+		if (!snd_gf1_mem_xalloc(alloc, &block, "InterWave LFOs"))
 			return -ENOMEM;
 	}
 	block.ptr = gus->gf1.default_voice_address;
 	block.size = 4;
-	block.name = kstrdup("Voice default (NULL's)", GFP_KERNEL);
-	if (snd_gf1_mem_xalloc(alloc, &block) == NULL)
+	if (!snd_gf1_mem_xalloc(alloc, &block, "Voice default (NULL's)"))
 		return -ENOMEM;
 #ifdef CONFIG_SND_DEBUG
 	snd_card_ro_proc_new(gus->card, "gusmem", gus, snd_gf1_mem_info_read);

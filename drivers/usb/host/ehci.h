@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (c) 2001-2002 by David Brownell
  */
@@ -207,6 +207,7 @@ struct ehci_hcd {			/* one per controller */
 	unsigned		has_fsl_port_bug:1; /* FreeScale */
 	unsigned		has_fsl_hs_errata:1;	/* Freescale HS quirk */
 	unsigned		has_fsl_susp_errata:1;	/* NXP SUSP quirk */
+	unsigned		has_ci_pec_bug:1;	/* ChipIdea PEC bug */
 	unsigned		big_endian_mmio:1;
 	unsigned		big_endian_desc:1;
 	unsigned		big_endian_capbase:1;
@@ -218,6 +219,9 @@ struct ehci_hcd {			/* one per controller */
 	unsigned		frame_index_bug:1; /* MosChip (AKA NetMos) */
 	unsigned		need_oc_pp_cycle:1; /* MPC834X port power */
 	unsigned		imx28_write_fix:1; /* For Freescale i.MX28 */
+	unsigned		spurious_oc:1;
+	unsigned		is_aspeed:1;
+	unsigned		zx_wakeup_clear_needed:1;
 
 	/* required for usb32 quirk */
 	#define OHCI_CTRL_HCFS          (3 << 6)
@@ -255,7 +259,7 @@ struct ehci_hcd {			/* one per controller */
 	struct list_head	tt_list;
 
 	/* platform-specific data -- must come last */
-	unsigned long		priv[0] __aligned(sizeof(s64));
+	unsigned long		priv[] __aligned(sizeof(s64));
 };
 
 /* convert between an HCD pointer and the corresponding EHCI_HCD */
@@ -317,10 +321,16 @@ struct ehci_qtd {
 	size_t			length;			/* length of buffer */
 } __aligned(32);
 
+/* PID Codes that are used here, from EHCI specification, Table 3-16. */
+#define PID_CODE_OUT   0
+#define PID_CODE_IN    1
+#define PID_CODE_SETUP 2
+
 /* mask NakCnt+T in qh->hw_alt_next */
 #define QTD_MASK(ehci)	cpu_to_hc32(ehci, ~0x1f)
 
-#define IS_SHORT_READ(token) (QTD_LENGTH(token) != 0 && QTD_PID(token) == 1)
+#define IS_SHORT_READ(token) (QTD_LENGTH(token) != 0 && \
+						QTD_PID(token) == PID_CODE_IN)
 
 /*-------------------------------------------------------------------------*/
 
@@ -460,7 +470,7 @@ struct ehci_iso_sched {
 	struct list_head	td_list;
 	unsigned		span;
 	unsigned		first_packet;
-	struct ehci_iso_packet	packet[0];
+	struct ehci_iso_packet	packet[];
 };
 
 /*
@@ -468,7 +478,7 @@ struct ehci_iso_sched {
  * acts like a qh would, if EHCI had them for ISO.
  */
 struct ehci_iso_stream {
-	/* first field matches ehci_hq, but is NULL */
+	/* first field matches ehci_qh, but is NULL */
 	struct ehci_qh_hw	*hw;
 
 	u8			bEndpointAddress;
@@ -703,6 +713,15 @@ ehci_port_speed(struct ehci_hcd *ehci, unsigned int portsc)
  * after setting SUSP bit.
  */
 #define ehci_has_fsl_susp_errata(e)	((e)->has_fsl_susp_errata)
+
+/*
+ * Some Freescale/NXP processors using ChipIdea IP have a bug in which
+ * disabling the port (PE is cleared) does not cause PEC to be asserted
+ * when frame babble is detected.
+ */
+#define ehci_has_ci_pec_bug(e, portsc) \
+	((e)->has_ci_pec_bug && ((e)->command & CMD_PSE) \
+	 && !(portsc & PORT_PEC) && !(portsc & PORT_PE))
 
 /*
  * While most USB host controllers implement their registers in

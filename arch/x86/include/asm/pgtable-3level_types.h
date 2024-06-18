@@ -18,14 +18,18 @@ typedef union {
 	};
 	pteval_t pte;
 } pte_t;
+
+typedef union {
+	struct {
+		unsigned long pmd_low, pmd_high;
+	};
+	pmdval_t pmd;
+} pmd_t;
 #endif	/* !__ASSEMBLY__ */
 
-#ifdef CONFIG_PARAVIRT_XXL
-#define SHARED_KERNEL_PMD	((!static_cpu_has(X86_FEATURE_PTI) &&	\
-				 (pv_info.shared_kernel_pmd)))
-#else
 #define SHARED_KERNEL_PMD	(!static_cpu_has(X86_FEATURE_PTI))
-#endif
+
+#define ARCH_PAGE_TABLE_SYNC_MASK	(SHARED_KERNEL_PMD ? 0 : PGTBL_PMD_MODIFIED)
 
 /*
  * PGDIR_SHIFT determines what a top-level page table entry can map

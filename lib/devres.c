@@ -1,15 +1,19 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/err.h>
-#include <linux/pci.h>
-#include <linux/io.h>
-#include <linux/gfp.h>
+#include <linux/bug.h>
+#include <linux/device.h>
+#include <linux/errno.h>
 #include <linux/export.h>
+#include <linux/gfp_types.h>
+#include <linux/io.h>
+#include <linux/ioport.h>
 #include <linux/of_address.h>
+#include <linux/types.h>
 
 enum devm_ioremap_type {
 	DEVM_IOREMAP = 0,
-	DEVM_IOREMAP_NC,
+	DEVM_IOREMAP_UC,
 	DEVM_IOREMAP_WC,
+	DEVM_IOREMAP_NP,
 };
 
 void devm_ioremap_release(struct device *dev, void *res)
@@ -28,7 +32,8 @@ static void __iomem *__devm_ioremap(struct device *dev, resource_size_t offset,
 {
 	void __iomem **ptr, *addr = NULL;
 
-	ptr = devres_alloc(devm_ioremap_release, sizeof(*ptr), GFP_KERNEL);
+	ptr = devres_alloc_node(devm_ioremap_release, sizeof(*ptr), GFP_KERNEL,
+				dev_to_node(dev));
 	if (!ptr)
 		return NULL;
 
@@ -36,11 +41,14 @@ static void __iomem *__devm_ioremap(struct device *dev, resource_size_t offset,
 	case DEVM_IOREMAP:
 		addr = ioremap(offset, size);
 		break;
-	case DEVM_IOREMAP_NC:
-		addr = ioremap_nocache(offset, size);
+	case DEVM_IOREMAP_UC:
+		addr = ioremap_uc(offset, size);
 		break;
 	case DEVM_IOREMAP_WC:
 		addr = ioremap_wc(offset, size);
+		break;
+	case DEVM_IOREMAP_NP:
+		addr = ioremap_np(offset, size);
 		break;
 	}
 
@@ -69,20 +77,19 @@ void __iomem *devm_ioremap(struct device *dev, resource_size_t offset,
 EXPORT_SYMBOL(devm_ioremap);
 
 /**
- * devm_ioremap_nocache - Managed ioremap_nocache()
+ * devm_ioremap_uc - Managed ioremap_uc()
  * @dev: Generic device to remap IO address for
  * @offset: Resource address to map
  * @size: Size of map
  *
- * Managed ioremap_nocache().  Map is automatically unmapped on driver
- * detach.
+ * Managed ioremap_uc().  Map is automatically unmapped on driver detach.
  */
-void __iomem *devm_ioremap_nocache(struct device *dev, resource_size_t offset,
-				   resource_size_t size)
+void __iomem *devm_ioremap_uc(struct device *dev, resource_size_t offset,
+			      resource_size_t size)
 {
-	return __devm_ioremap(dev, offset, size, DEVM_IOREMAP_NC);
+	return __devm_ioremap(dev, offset, size, DEVM_IOREMAP_UC);
 }
-EXPORT_SYMBOL(devm_ioremap_nocache);
+EXPORT_SYMBOL_GPL(devm_ioremap_uc);
 
 /**
  * devm_ioremap_wc - Managed ioremap_wc()
@@ -114,6 +121,52 @@ void devm_iounmap(struct device *dev, void __iomem *addr)
 }
 EXPORT_SYMBOL(devm_iounmap);
 
+static void __iomem *
+__devm_ioremap_resource(struct device *dev, const struct resource *res,
+			enum devm_ioremap_type type)
+{
+	resource_size_t size;
+	void __iomem *dest_ptr;
+	char *pretty_name;
+	int ret;
+
+	BUG_ON(!dev);
+
+	if (!res || resource_type(res) != IORESOURCE_MEM) {
+		ret = dev_err_probe(dev, -EINVAL, "invalid resource %pR\n", res);
+		return IOMEM_ERR_PTR(ret);
+	}
+
+	if (type == DEVM_IOREMAP && res->flags & IORESOURCE_MEM_NONPOSTED)
+		type = DEVM_IOREMAP_NP;
+
+	size = resource_size(res);
+
+	if (res->name)
+		pretty_name = devm_kasprintf(dev, GFP_KERNEL, "%s %s",
+					     dev_name(dev), res->name);
+	else
+		pretty_name = devm_kstrdup(dev, dev_name(dev), GFP_KERNEL);
+	if (!pretty_name) {
+		ret = dev_err_probe(dev, -ENOMEM, "can't generate pretty name for resource %pR\n", res);
+		return IOMEM_ERR_PTR(ret);
+	}
+
+	if (!devm_request_mem_region(dev, res->start, size, pretty_name)) {
+		ret = dev_err_probe(dev, -EBUSY, "can't request region for resource %pR\n", res);
+		return IOMEM_ERR_PTR(ret);
+	}
+
+	dest_ptr = __devm_ioremap(dev, res->start, size, type);
+	if (!dest_ptr) {
+		devm_release_mem_region(dev, res->start, size);
+		ret = dev_err_probe(dev, -ENOMEM, "ioremap failed for resource %pR\n", res);
+		return IOMEM_ERR_PTR(ret);
+	}
+
+	return dest_ptr;
+}
+
 /**
  * devm_ioremap_resource() - check, request region, and ioremap resource
  * @dev: generic device to handle the resource for
@@ -123,44 +176,37 @@ EXPORT_SYMBOL(devm_iounmap);
  * region and ioremaps it. All operations are managed and will be undone
  * on driver detach.
  *
- * Returns a pointer to the remapped memory or an ERR_PTR() encoded error code
- * on failure. Usage example:
+ * Usage example:
  *
  *	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
  *	base = devm_ioremap_resource(&pdev->dev, res);
  *	if (IS_ERR(base))
  *		return PTR_ERR(base);
+ *
+ * Return: a pointer to the remapped memory or an ERR_PTR() encoded error code
+ * on failure.
  */
 void __iomem *devm_ioremap_resource(struct device *dev,
 				    const struct resource *res)
 {
-	resource_size_t size;
-	void __iomem *dest_ptr;
-
-	BUG_ON(!dev);
-
-	if (!res || resource_type(res) != IORESOURCE_MEM) {
-		dev_err(dev, "invalid resource\n");
-		return IOMEM_ERR_PTR(-EINVAL);
-	}
-
-	size = resource_size(res);
-
-	if (!devm_request_mem_region(dev, res->start, size, dev_name(dev))) {
-		dev_err(dev, "can't request region for resource %pR\n", res);
-		return IOMEM_ERR_PTR(-EBUSY);
-	}
-
-	dest_ptr = devm_ioremap(dev, res->start, size);
-	if (!dest_ptr) {
-		dev_err(dev, "ioremap failed for resource %pR\n", res);
-		devm_release_mem_region(dev, res->start, size);
-		dest_ptr = IOMEM_ERR_PTR(-ENOMEM);
-	}
-
-	return dest_ptr;
+	return __devm_ioremap_resource(dev, res, DEVM_IOREMAP);
 }
 EXPORT_SYMBOL(devm_ioremap_resource);
+
+/**
+ * devm_ioremap_resource_wc() - write-combined variant of
+ *				devm_ioremap_resource()
+ * @dev: generic device to handle the resource for
+ * @res: resource to be handled
+ *
+ * Return: a pointer to the remapped memory or an ERR_PTR() encoded error code
+ * on failure.
+ */
+void __iomem *devm_ioremap_resource_wc(struct device *dev,
+				       const struct resource *res)
+{
+	return __devm_ioremap_resource(dev, res, DEVM_IOREMAP_WC);
+}
 
 /*
  * devm_of_iomap - Requests a resource and maps the memory mapped IO
@@ -177,12 +223,20 @@ EXPORT_SYMBOL(devm_ioremap_resource);
  * @node:       The device-tree node where the resource resides
  * @index:	index of the MMIO range in the "reg" property
  * @size:	Returns the size of the resource (pass NULL if not needed)
- * Returns a pointer to the requested and mapped memory or an ERR_PTR() encoded
- * error code on failure. Usage example:
+ *
+ * Usage example:
  *
  *	base = devm_of_iomap(&pdev->dev, node, 0, NULL);
  *	if (IS_ERR(base))
  *		return PTR_ERR(base);
+ *
+ * Please Note: This is not a one-to-one replacement for of_iomap() because the
+ * of_iomap() function does not track whether the region is already mapped.  If
+ * two drivers try to map the same memory, the of_iomap() function will succeed
+ * but the devm_of_iomap() function will return -EBUSY.
+ *
+ * Return: a pointer to the requested and mapped memory or an ERR_PTR() encoded
+ * error code on failure.
  */
 void __iomem *devm_of_iomap(struct device *dev, struct device_node *node, int index,
 			    resource_size_t *size)
@@ -220,13 +274,16 @@ static int devm_ioport_map_match(struct device *dev, void *res,
  *
  * Managed ioport_map().  Map is automatically unmapped on driver
  * detach.
+ *
+ * Return: a pointer to the remapped memory or NULL on failure.
  */
 void __iomem *devm_ioport_map(struct device *dev, unsigned long port,
 			       unsigned int nr)
 {
 	void __iomem **ptr, *addr;
 
-	ptr = devres_alloc(devm_ioport_map_release, sizeof(*ptr), GFP_KERNEL);
+	ptr = devres_alloc_node(devm_ioport_map_release, sizeof(*ptr), GFP_KERNEL,
+				dev_to_node(dev));
 	if (!ptr)
 		return NULL;
 
@@ -258,207 +315,86 @@ void devm_ioport_unmap(struct device *dev, void __iomem *addr)
 EXPORT_SYMBOL(devm_ioport_unmap);
 #endif /* CONFIG_HAS_IOPORT_MAP */
 
-#ifdef CONFIG_PCI
-/*
- * PCI iomap devres
- */
-#define PCIM_IOMAP_MAX	PCI_ROM_RESOURCE
-
-struct pcim_iomap_devres {
-	void __iomem *table[PCIM_IOMAP_MAX];
-};
-
-static void pcim_iomap_release(struct device *gendev, void *res)
+static void devm_arch_phys_ac_add_release(struct device *dev, void *res)
 {
-	struct pci_dev *dev = to_pci_dev(gendev);
-	struct pcim_iomap_devres *this = res;
-	int i;
-
-	for (i = 0; i < PCIM_IOMAP_MAX; i++)
-		if (this->table[i])
-			pci_iounmap(dev, this->table[i]);
+	arch_phys_wc_del(*((int *)res));
 }
 
 /**
- * pcim_iomap_table - access iomap allocation table
- * @pdev: PCI device to access iomap table for
+ * devm_arch_phys_wc_add - Managed arch_phys_wc_add()
+ * @dev: Managed device
+ * @base: Memory base address
+ * @size: Size of memory range
  *
- * Access iomap allocation table for @dev.  If iomap table doesn't
- * exist and @pdev is managed, it will be allocated.  All iomaps
- * recorded in the iomap table are automatically unmapped on driver
- * detach.
- *
- * This function might sleep when the table is first allocated but can
- * be safely called without context and guaranteed to succed once
- * allocated.
+ * Adds a WC MTRR using arch_phys_wc_add() and sets up a release callback.
+ * See arch_phys_wc_add() for more information.
  */
-void __iomem * const *pcim_iomap_table(struct pci_dev *pdev)
+int devm_arch_phys_wc_add(struct device *dev, unsigned long base, unsigned long size)
 {
-	struct pcim_iomap_devres *dr, *new_dr;
+	int *mtrr;
+	int ret;
 
-	dr = devres_find(&pdev->dev, pcim_iomap_release, NULL, NULL);
-	if (dr)
-		return dr->table;
-
-	new_dr = devres_alloc(pcim_iomap_release, sizeof(*new_dr), GFP_KERNEL);
-	if (!new_dr)
-		return NULL;
-	dr = devres_get(&pdev->dev, new_dr, NULL, NULL);
-	return dr->table;
-}
-EXPORT_SYMBOL(pcim_iomap_table);
-
-/**
- * pcim_iomap - Managed pcim_iomap()
- * @pdev: PCI device to iomap for
- * @bar: BAR to iomap
- * @maxlen: Maximum length of iomap
- *
- * Managed pci_iomap().  Map is automatically unmapped on driver
- * detach.
- */
-void __iomem *pcim_iomap(struct pci_dev *pdev, int bar, unsigned long maxlen)
-{
-	void __iomem **tbl;
-
-	BUG_ON(bar >= PCIM_IOMAP_MAX);
-
-	tbl = (void __iomem **)pcim_iomap_table(pdev);
-	if (!tbl || tbl[bar])	/* duplicate mappings not allowed */
-		return NULL;
-
-	tbl[bar] = pci_iomap(pdev, bar, maxlen);
-	return tbl[bar];
-}
-EXPORT_SYMBOL(pcim_iomap);
-
-/**
- * pcim_iounmap - Managed pci_iounmap()
- * @pdev: PCI device to iounmap for
- * @addr: Address to unmap
- *
- * Managed pci_iounmap().  @addr must have been mapped using pcim_iomap().
- */
-void pcim_iounmap(struct pci_dev *pdev, void __iomem *addr)
-{
-	void __iomem **tbl;
-	int i;
-
-	pci_iounmap(pdev, addr);
-
-	tbl = (void __iomem **)pcim_iomap_table(pdev);
-	BUG_ON(!tbl);
-
-	for (i = 0; i < PCIM_IOMAP_MAX; i++)
-		if (tbl[i] == addr) {
-			tbl[i] = NULL;
-			return;
-		}
-	WARN_ON(1);
-}
-EXPORT_SYMBOL(pcim_iounmap);
-
-/**
- * pcim_iomap_regions - Request and iomap PCI BARs
- * @pdev: PCI device to map IO resources for
- * @mask: Mask of BARs to request and iomap
- * @name: Name used when requesting regions
- *
- * Request and iomap regions specified by @mask.
- */
-int pcim_iomap_regions(struct pci_dev *pdev, int mask, const char *name)
-{
-	void __iomem * const *iomap;
-	int i, rc;
-
-	iomap = pcim_iomap_table(pdev);
-	if (!iomap)
+	mtrr = devres_alloc_node(devm_arch_phys_ac_add_release, sizeof(*mtrr), GFP_KERNEL,
+				 dev_to_node(dev));
+	if (!mtrr)
 		return -ENOMEM;
 
-	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
-		unsigned long len;
-
-		if (!(mask & (1 << i)))
-			continue;
-
-		rc = -EINVAL;
-		len = pci_resource_len(pdev, i);
-		if (!len)
-			goto err_inval;
-
-		rc = pci_request_region(pdev, i, name);
-		if (rc)
-			goto err_inval;
-
-		rc = -ENOMEM;
-		if (!pcim_iomap(pdev, i, 0))
-			goto err_region;
+	ret = arch_phys_wc_add(base, size);
+	if (ret < 0) {
+		devres_free(mtrr);
+		return ret;
 	}
 
-	return 0;
+	*mtrr = ret;
+	devres_add(dev, mtrr);
 
- err_region:
-	pci_release_region(pdev, i);
- err_inval:
-	while (--i >= 0) {
-		if (!(mask & (1 << i)))
-			continue;
-		pcim_iounmap(pdev, iomap[i]);
-		pci_release_region(pdev, i);
-	}
-
-	return rc;
+	return ret;
 }
-EXPORT_SYMBOL(pcim_iomap_regions);
+EXPORT_SYMBOL(devm_arch_phys_wc_add);
+
+struct arch_io_reserve_memtype_wc_devres {
+	resource_size_t start;
+	resource_size_t size;
+};
+
+static void devm_arch_io_free_memtype_wc_release(struct device *dev, void *res)
+{
+	const struct arch_io_reserve_memtype_wc_devres *this = res;
+
+	arch_io_free_memtype_wc(this->start, this->size);
+}
 
 /**
- * pcim_iomap_regions_request_all - Request all BARs and iomap specified ones
- * @pdev: PCI device to map IO resources for
- * @mask: Mask of BARs to iomap
- * @name: Name used when requesting regions
+ * devm_arch_io_reserve_memtype_wc - Managed arch_io_reserve_memtype_wc()
+ * @dev: Managed device
+ * @start: Memory base address
+ * @size: Size of memory range
  *
- * Request all PCI BARs and iomap regions specified by @mask.
+ * Reserves a memory range with WC caching using arch_io_reserve_memtype_wc()
+ * and sets up a release callback See arch_io_reserve_memtype_wc() for more
+ * information.
  */
-int pcim_iomap_regions_request_all(struct pci_dev *pdev, int mask,
-				   const char *name)
+int devm_arch_io_reserve_memtype_wc(struct device *dev, resource_size_t start,
+				    resource_size_t size)
 {
-	int request_mask = ((1 << 6) - 1) & ~mask;
-	int rc;
+	struct arch_io_reserve_memtype_wc_devres *dr;
+	int ret;
 
-	rc = pci_request_selected_regions(pdev, request_mask, name);
-	if (rc)
-		return rc;
+	dr = devres_alloc_node(devm_arch_io_free_memtype_wc_release, sizeof(*dr), GFP_KERNEL,
+			       dev_to_node(dev));
+	if (!dr)
+		return -ENOMEM;
 
-	rc = pcim_iomap_regions(pdev, mask, name);
-	if (rc)
-		pci_release_selected_regions(pdev, request_mask);
-	return rc;
-}
-EXPORT_SYMBOL(pcim_iomap_regions_request_all);
-
-/**
- * pcim_iounmap_regions - Unmap and release PCI BARs
- * @pdev: PCI device to map IO resources for
- * @mask: Mask of BARs to unmap and release
- *
- * Unmap and release regions specified by @mask.
- */
-void pcim_iounmap_regions(struct pci_dev *pdev, int mask)
-{
-	void __iomem * const *iomap;
-	int i;
-
-	iomap = pcim_iomap_table(pdev);
-	if (!iomap)
-		return;
-
-	for (i = 0; i < PCIM_IOMAP_MAX; i++) {
-		if (!(mask & (1 << i)))
-			continue;
-
-		pcim_iounmap(pdev, iomap[i]);
-		pci_release_region(pdev, i);
+	ret = arch_io_reserve_memtype_wc(start, size);
+	if (ret < 0) {
+		devres_free(dr);
+		return ret;
 	}
+
+	dr->start = start;
+	dr->size = size;
+	devres_add(dev, dr);
+
+	return ret;
 }
-EXPORT_SYMBOL(pcim_iounmap_regions);
-#endif /* CONFIG_PCI */
+EXPORT_SYMBOL(devm_arch_io_reserve_memtype_wc);

@@ -1,4 +1,16 @@
 # SPDX-License-Identifier: GPL-2.0-only
+
+config CLK_BCM2711_DVP
+	tristate "Broadcom BCM2711 DVP support"
+	depends on ARCH_BCM2835 ||COMPILE_TEST
+	depends on COMMON_CLK
+	default ARCH_BCM2835
+	select RESET_CONTROLLER
+	select RESET_SIMPLE
+	help
+	  Enable common clock framework support for the Broadcom BCM2711
+	  DVP Controller.
+
 config CLK_BCM2835
 	bool "Broadcom BCM2835 clock support"
 	depends on ARCH_BCM2835 || ARCH_BRCMSTB || COMPILE_TEST
@@ -10,9 +22,9 @@ config CLK_BCM2835
 
 config CLK_BCM_63XX
 	bool "Broadcom BCM63xx clock support"
-	depends on ARCH_BCM_63XX || COMPILE_TEST
+	depends on ARCH_BCMBCA || COMPILE_TEST
 	select COMMON_CLK_IPROC
-	default ARCH_BCM_63XX
+	default ARCH_BCMBCA
 	help
 	  Enable common clock framework support for Broadcom BCM63xx DSL SoCs
 	  based on the ARM architecture
@@ -24,6 +36,15 @@ config CLK_BCM_63XX_GATE
 	help
 	  Enable common clock framework support for Broadcom BCM63xx DSL SoCs
 	  based on the MIPS architecture
+
+config CLK_BCM63268_TIMER
+	bool "Broadcom BCM63268 timer clock and reset support"
+	depends on BMIPS_GENERIC || COMPILE_TEST
+	default BMIPS_GENERIC
+	select RESET_CONTROLLER
+	help
+	  Enable timer clock and reset support for Broadcom BCM63268 DSL SoCs
+	  based on the MIPS architecture.
 
 config CLK_BCM_KONA
 	bool "Broadcom Kona CCU clock support"

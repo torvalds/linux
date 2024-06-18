@@ -14,9 +14,6 @@
  * TODO
  *	Look into engine reset on timeout errors. Should not be required.
  */
-
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -26,7 +23,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_hpt366"
-#define DRV_VERSION	"0.6.11"
+#define DRV_VERSION	"0.6.13"
 
 struct hpt_clock {
 	u8	xfer_mode;
@@ -183,7 +180,7 @@ static int hpt_dma_blacklisted(const struct ata_device *dev, char *modestr,
 
 	i = match_string(list, -1, model_num);
 	if (i >= 0) {
-		pr_warn("%s is not supported for %s\n", modestr, list[i]);
+		ata_dev_warn(dev, "%s is not supported for %s\n", modestr, list[i]);
 		return 1;
 	}
 	return 0;
@@ -192,11 +189,12 @@ static int hpt_dma_blacklisted(const struct ata_device *dev, char *modestr,
 /**
  *	hpt366_filter	-	mode selection filter
  *	@adev: ATA device
+ *	@mask: Current mask to manipulate and pass back
  *
  *	Block UDMA on devices that cause trouble with this controller.
  */
 
-static unsigned long hpt366_filter(struct ata_device *adev, unsigned long mask)
+static unsigned int hpt366_filter(struct ata_device *adev, unsigned int mask)
 {
 	if (adev->class == ATA_DEV_ATA) {
 		if (hpt_dma_blacklisted(adev, "UDMA",  bad_ata33))
@@ -280,7 +278,41 @@ static void hpt366_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 	hpt366_set_mode(ap, adev, adev->dma_mode);
 }
 
-static struct scsi_host_template hpt36x_sht = {
+/**
+ *	hpt366_prereset		-	reset the hpt36x bus
+ *	@link: ATA link to reset
+ *	@deadline: deadline jiffies for the operation
+ *
+ *	Perform the initial reset handling for the 36x series controllers.
+ *	Reset the hardware and state machine,
+ */
+
+static int hpt366_prereset(struct ata_link *link, unsigned long deadline)
+{
+	struct ata_port *ap = link->ap;
+	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
+	/*
+	 * HPT36x chips have one channel per function and have
+	 * both channel enable bits located differently and visible
+	 * to both functions -- really stupid design decision... :-(
+	 * Bit 4 is for the primary channel, bit 5 for the secondary.
+	 */
+	static const struct pci_bits hpt366_enable_bits = {
+		0x50, 1, 0x30, 0x30
+	};
+	u8 mcr2;
+
+	if (!pci_test_config_bits(pdev, &hpt366_enable_bits))
+		return -ENOENT;
+
+	pci_read_config_byte(pdev, 0x51, &mcr2);
+	if (mcr2 & 0x80)
+		pci_write_config_byte(pdev, 0x51, mcr2 & ~0x80);
+
+	return ata_sff_prereset(link, deadline);
+}
+
+static const struct scsi_host_template hpt36x_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 
@@ -290,6 +322,7 @@ static struct scsi_host_template hpt36x_sht = {
 
 static struct ata_port_operations hpt366_port_ops = {
 	.inherits	= &ata_bmdma_port_ops,
+	.prereset	= hpt366_prereset,
 	.cable_detect	= hpt36x_cable_detect,
 	.mode_filter	= hpt366_filter,
 	.set_piomode	= hpt366_set_piomode,
@@ -306,16 +339,20 @@ static struct ata_port_operations hpt366_port_ops = {
 
 static void hpt36x_init_chipset(struct pci_dev *dev)
 {
-	u8 drive_fast;
+	u8 mcr1;
 
 	pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE, (L1_CACHE_BYTES / 4));
 	pci_write_config_byte(dev, PCI_LATENCY_TIMER, 0x78);
 	pci_write_config_byte(dev, PCI_MIN_GNT, 0x08);
 	pci_write_config_byte(dev, PCI_MAX_LAT, 0x08);
 
-	pci_read_config_byte(dev, 0x51, &drive_fast);
-	if (drive_fast & 0x80)
-		pci_write_config_byte(dev, 0x51, drive_fast & ~0x80);
+	/*
+	 * Now we'll have to force both channels enabled if at least one
+	 * of them has been enabled by BIOS...
+	 */
+	pci_read_config_byte(dev, 0x50, &mcr1);
+	if (mcr1 & 0x30)
+		pci_write_config_byte(dev, 0x50, mcr1 | 0x30);
 }
 
 /**

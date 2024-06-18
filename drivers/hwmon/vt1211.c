@@ -105,7 +105,7 @@ struct vt1211_data {
 	struct device *hwmon_dev;
 
 	struct mutex update_lock;
-	char valid;			/* !=0 if following fields are valid */
+	bool valid;			/* true if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 
 	/* Register values */
@@ -194,12 +194,6 @@ struct vt1211_data {
 
 /* VT1211 logical device numbers */
 #define SIO_VT1211_LDN_HWMON	0x0b	/* HW monitor */
-
-static inline void superio_outb(int sio_cip, int reg, int val)
-{
-	outb(reg, sio_cip);
-	outb(val, sio_cip + 1);
-}
 
 static inline int superio_inb(int sio_cip, int reg)
 {
@@ -319,7 +313,7 @@ static struct vt1211_data *vt1211_update_device(struct device *dev)
 				vt1211_read8(data, VT1211_REG_ALARM1);
 
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->update_lock);
@@ -1214,14 +1208,12 @@ EXIT_DEV_REMOVE_SILENT:
 	return err;
 }
 
-static int vt1211_remove(struct platform_device *pdev)
+static void vt1211_remove(struct platform_device *pdev)
 {
 	struct vt1211_data *data = platform_get_drvdata(pdev);
 
 	hwmon_device_unregister(data->hwmon_dev);
 	vt1211_remove_sysfs(pdev);
-
-	return 0;
 }
 
 static struct platform_driver vt1211_driver = {
@@ -1229,7 +1221,7 @@ static struct platform_driver vt1211_driver = {
 		.name  = DRVNAME,
 	},
 	.probe  = vt1211_probe,
-	.remove = vt1211_remove,
+	.remove_new = vt1211_remove,
 };
 
 static int __init vt1211_device_add(unsigned short address)

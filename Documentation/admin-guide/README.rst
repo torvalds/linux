@@ -1,9 +1,9 @@
 .. _readme:
 
-Linux kernel release 5.x <http://kernel.org/>
+Linux kernel release 6.x <http://kernel.org/>
 =============================================
 
-These are the release notes for Linux version 5.  Read them carefully,
+These are the release notes for Linux version 6.  Read them carefully,
 as they tell you what this is all about, explain how to install the
 kernel, and what to do if something goes wrong.
 
@@ -63,7 +63,7 @@ Installing the kernel source
    directory where you have permissions (e.g. your home directory) and
    unpack it::
 
-     xz -cd linux-5.x.tar.xz | tar xvf -
+     xz -cd linux-6.x.tar.xz | tar xvf -
 
    Replace "X" with the version number of the latest kernel.
 
@@ -72,12 +72,12 @@ Installing the kernel source
    files.  They should match the library, and not get messed up by
    whatever the kernel-du-jour happens to be.
 
- - You can also upgrade between 5.x releases by patching.  Patches are
+ - You can also upgrade between 6.x releases by patching.  Patches are
    distributed in the xz format.  To install by patching, get all the
    newer patch files, enter the top level directory of the kernel source
-   (linux-5.x) and execute::
+   (linux-6.x) and execute::
 
-     xz -cd ../patch-5.x.xz | patch -p1
+     xz -cd ../patch-6.x.xz | patch -p1
 
    Replace "x" for all versions bigger than the version "x" of your current
    source tree, **in_order**, and you should be ok.  You may want to remove
@@ -85,13 +85,13 @@ Installing the kernel source
    that there are no failed patches (some-file-name# or some-file-name.rej).
    If there are, either you or I have made a mistake.
 
-   Unlike patches for the 5.x kernels, patches for the 5.x.y kernels
+   Unlike patches for the 6.x kernels, patches for the 6.x.y kernels
    (also known as the -stable kernels) are not incremental but instead apply
-   directly to the base 5.x kernel.  For example, if your base kernel is 5.0
-   and you want to apply the 5.0.3 patch, you must not first apply the 5.0.1
-   and 5.0.2 patches. Similarly, if you are running kernel version 5.0.2 and
-   want to jump to 5.0.3, you must first reverse the 5.0.2 patch (that is,
-   patch -R) **before** applying the 5.0.3 patch. You can read more on this in
+   directly to the base 6.x kernel.  For example, if your base kernel is 6.0
+   and you want to apply the 6.0.3 patch, you must not first apply the 6.0.1
+   and 6.0.2 patches. Similarly, if you are running kernel version 6.0.2 and
+   want to jump to 6.0.3, you must first reverse the 6.0.2 patch (that is,
+   patch -R) **before** applying the 6.0.3 patch. You can read more on this in
    :ref:`Documentation/process/applying-patches.rst <applying_patches>`.
 
    Alternatively, the script patch-kernel can be used to automate this
@@ -114,7 +114,7 @@ Installing the kernel source
 Software requirements
 ---------------------
 
-   Compiling and running the 5.x kernels requires up-to-date
+   Compiling and running the 6.x kernels requires up-to-date
    versions of various software packages.  Consult
    :ref:`Documentation/process/changes.rst <changes>` for the minimum version numbers
    required and how to get updates for these packages.  Beware that using
@@ -132,12 +132,12 @@ Build directory for the kernel
    place for the output files (including .config).
    Example::
 
-     kernel source code: /usr/src/linux-5.x
+     kernel source code: /usr/src/linux-6.x
      build directory:    /home/name/build/kernel
 
    To configure and build the kernel, use::
 
-     cd /usr/src/linux-5.x
+     cd /usr/src/linux-6.x
      make O=/home/name/build/kernel menuconfig
      make O=/home/name/build/kernel
      sudo make O=/home/name/build/kernel modules_install install
@@ -209,20 +209,28 @@ Configuring the kernel
                            store the lsmod of that machine into a file
                            and pass it in as a LSMOD parameter.
 
+                           Also, you can preserve modules in certain folders
+                           or kconfig files by specifying their paths in
+                           parameter LMC_KEEP.
+
                    target$ lsmod > /tmp/mylsmod
                    target$ scp /tmp/mylsmod host:/tmp
 
-                   host$ make LSMOD=/tmp/mylsmod localmodconfig
+                   host$ make LSMOD=/tmp/mylsmod \
+                           LMC_KEEP="drivers/usb:drivers/gpu:fs" \
+                           localmodconfig
 
                            The above also works when cross compiling.
 
      "make localyesconfig" Similar to localmodconfig, except it will convert
-                           all module options to built in (=y) options.
+                           all module options to built in (=y) options. You can
+                           also preserve modules by LMC_KEEP.
 
-     "make kvmconfig"   Enable additional options for kvm guest kernel support.
+     "make kvm_guest.config"   Enable additional options for kvm guest kernel
+                               support.
 
-     "make xenconfig"   Enable additional options for xen dom0 guest kernel
-                        support.
+     "make xen.config"   Enable additional options for xen dom0 guest kernel
+                         support.
 
      "make tinyconfig"  Configure the tiniest possible kernel.
 
@@ -251,14 +259,14 @@ Configuring the kernel
 Compiling the kernel
 --------------------
 
- - Make sure you have at least gcc 4.6 available.
+ - Make sure you have at least gcc 5.1 available.
    For more information, refer to :ref:`Documentation/process/changes.rst <changes>`.
 
-   Please note that you can still run a.out user programs with this kernel.
-
- - Do a ``make`` to create a compressed kernel image. It is also
-   possible to do ``make install`` if you have lilo installed to suit the
-   kernel makefiles, but you may want to check your particular lilo setup first.
+ - Do a ``make`` to create a compressed kernel image. It is also possible to do
+   ``make install`` if you have lilo installed or if your distribution has an
+   install script recognised by the kernel's installer. Most popular
+   distributions will have a recognized install script. You may want to
+   check your distribution's setup first.
 
    To do the actual install, you have to be root, but none of the normal
    build should require that. Don't take the name of root in vain.
@@ -295,114 +303,58 @@ Compiling the kernel
    image (e.g. .../linux/arch/x86/boot/bzImage after compilation)
    to the place where your regular bootable kernel is found.
 
- - Booting a kernel directly from a floppy without the assistance of a
-   bootloader such as LILO, is no longer supported.
+ - Booting a kernel directly from a storage device without the assistance
+   of a bootloader such as LILO or GRUB, is no longer supported in BIOS
+   (non-EFI systems). On UEFI/EFI systems, however, you can use EFISTUB
+   which allows the motherboard to boot directly to the kernel.
+   On modern workstations and desktops, it's generally recommended to use a
+   bootloader as difficulties can arise with multiple kernels and secure boot.
+   For more details on EFISTUB,
+   see "Documentation/admin-guide/efi-stub.rst".
 
-   If you boot Linux from the hard drive, chances are you use LILO, which
-   uses the kernel image as specified in the file /etc/lilo.conf.  The
-   kernel image file is usually /vmlinuz, /boot/vmlinuz, /bzImage or
-   /boot/bzImage.  To use the new kernel, save a copy of the old image
-   and copy the new image over the old one.  Then, you MUST RERUN LILO
-   to update the loading map! If you don't, you won't be able to boot
-   the new kernel image.
+ - It's important to note that as of 2016 LILO (LInux LOader) is no longer in
+   active development, though as it was extremely popular, it often comes up
+   in documentation. Popular alternatives include GRUB2, rEFInd, Syslinux,
+   systemd-boot, or EFISTUB. For various reasons, it's not recommended to use
+   software that's no longer in active development.
 
-   Reinstalling LILO is usually a matter of running /sbin/lilo.
-   You may wish to edit /etc/lilo.conf to specify an entry for your
-   old kernel image (say, /vmlinux.old) in case the new one does not
-   work.  See the LILO docs for more information.
+ - Chances are your distribution includes an install script and running
+   ``make install`` will be all that's needed. Should that not be the case
+   you'll have to identify your bootloader and reference its documentation or
+   configure your EFI.
 
-   After reinstalling LILO, you should be all set.  Shutdown the system,
+Legacy LILO Instructions
+------------------------
+
+
+ - If you use LILO the kernel images are specified in the file /etc/lilo.conf.
+   The kernel image file is usually /vmlinuz, /boot/vmlinuz, /bzImage or
+   /boot/bzImage. To use the new kernel, save a copy of the old image and copy
+   the new image over the old one. Then, you MUST RERUN LILO to update the
+   loading map! If you don't, you won't be able to boot the new kernel image.
+
+ - Reinstalling LILO is usually a matter of running /sbin/lilo. You may wish
+   to edit /etc/lilo.conf to specify an entry for your old kernel image
+   (say, /vmlinux.old) in case the new one does not work. See the LILO docs
+   for more information.
+
+ - After reinstalling LILO, you should be all set. Shutdown the system,
    reboot, and enjoy!
 
-   If you ever need to change the default root device, video mode,
-   ramdisk size, etc.  in the kernel image, use the ``rdev`` program (or
-   alternatively the LILO boot options when appropriate).  No need to
-   recompile the kernel to change these parameters.
+ - If you ever need to change the default root device, video mode, etc. in the
+   kernel image, use your bootloader's boot options where appropriate. No need
+   to recompile the kernel to change these parameters.
 
  - Reboot with the new kernel and enjoy.
+
 
 If something goes wrong
 -----------------------
 
- - If you have problems that seem to be due to kernel bugs, please check
-   the file MAINTAINERS to see if there is a particular person associated
-   with the part of the kernel that you are having trouble with. If there
-   isn't anyone listed there, then the second best thing is to mail
-   them to me (torvalds@linux-foundation.org), and possibly to any other
-   relevant mailing-list or to the newsgroup.
+If you have problems that seem to be due to kernel bugs, please follow the
+instructions at 'Documentation/admin-guide/reporting-issues.rst'.
 
- - In all bug-reports, *please* tell what kernel you are talking about,
-   how to duplicate the problem, and what your setup is (use your common
-   sense).  If the problem is new, tell me so, and if the problem is
-   old, please try to tell me when you first noticed it.
-
- - If the bug results in a message like::
-
-     unable to handle kernel paging request at address C0000010
-     Oops: 0002
-     EIP:   0010:XXXXXXXX
-     eax: xxxxxxxx   ebx: xxxxxxxx   ecx: xxxxxxxx   edx: xxxxxxxx
-     esi: xxxxxxxx   edi: xxxxxxxx   ebp: xxxxxxxx
-     ds: xxxx  es: xxxx  fs: xxxx  gs: xxxx
-     Pid: xx, process nr: xx
-     xx xx xx xx xx xx xx xx xx xx
-
-   or similar kernel debugging information on your screen or in your
-   system log, please duplicate it *exactly*.  The dump may look
-   incomprehensible to you, but it does contain information that may
-   help debugging the problem.  The text above the dump is also
-   important: it tells something about why the kernel dumped code (in
-   the above example, it's due to a bad kernel pointer). More information
-   on making sense of the dump is in Documentation/admin-guide/bug-hunting.rst
-
- - If you compiled the kernel with CONFIG_KALLSYMS you can send the dump
-   as is, otherwise you will have to use the ``ksymoops`` program to make
-   sense of the dump (but compiling with CONFIG_KALLSYMS is usually preferred).
-   This utility can be downloaded from
-   https://www.kernel.org/pub/linux/utils/kernel/ksymoops/ .
-   Alternatively, you can do the dump lookup by hand:
-
- - In debugging dumps like the above, it helps enormously if you can
-   look up what the EIP value means.  The hex value as such doesn't help
-   me or anybody else very much: it will depend on your particular
-   kernel setup.  What you should do is take the hex value from the EIP
-   line (ignore the ``0010:``), and look it up in the kernel namelist to
-   see which kernel function contains the offending address.
-
-   To find out the kernel function name, you'll need to find the system
-   binary associated with the kernel that exhibited the symptom.  This is
-   the file 'linux/vmlinux'.  To extract the namelist and match it against
-   the EIP from the kernel crash, do::
-
-     nm vmlinux | sort | less
-
-   This will give you a list of kernel addresses sorted in ascending
-   order, from which it is simple to find the function that contains the
-   offending address.  Note that the address given by the kernel
-   debugging messages will not necessarily match exactly with the
-   function addresses (in fact, that is very unlikely), so you can't
-   just 'grep' the list: the list will, however, give you the starting
-   point of each kernel function, so by looking for the function that
-   has a starting address lower than the one you are searching for but
-   is followed by a function with a higher address you will find the one
-   you want.  In fact, it may be a good idea to include a bit of
-   "context" in your problem report, giving a few lines around the
-   interesting one.
-
-   If you for some reason cannot do the above (you have a pre-compiled
-   kernel image or similar), telling me as much about your setup as
-   possible will help.  Please read the :ref:`admin-guide/reporting-bugs.rst <reportingbugs>`
-   document for details.
-
- - Alternatively, you can use gdb on a running kernel. (read-only; i.e. you
-   cannot change values or set break points.) To do this, first compile the
-   kernel with -g; edit arch/x86/Makefile appropriately, then do a ``make
-   clean``. You'll also need to enable CONFIG_PROC_FS (via ``make config``).
-
-   After you've rebooted with the new kernel, do ``gdb vmlinux /proc/kcore``.
-   You can now use all the usual gdb commands. The command to look up the
-   point where your system crashed is ``l *0xXXXXXXXX``. (Replace the XXXes
-   with the EIP value.)
-
-   gdb'ing a non-running kernel currently fails because ``gdb`` (wrongly)
-   disregards the starting offset for which the kernel is compiled.
+Hints on understanding kernel bug reports are in
+'Documentation/admin-guide/bug-hunting.rst'. More on debugging the kernel
+with gdb is in 'Documentation/dev-tools/gdb-kernel-debugging.rst' and
+'Documentation/dev-tools/kgdb.rst'.

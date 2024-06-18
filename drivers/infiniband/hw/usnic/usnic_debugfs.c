@@ -32,7 +32,6 @@
  */
 
 #include <linux/debugfs.h>
-#include <linux/module.h>
 
 #include "usnic.h"
 #include "usnic_log.h"

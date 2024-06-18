@@ -257,7 +257,7 @@ typedef enum {
 } MPT_DRIVER_CLASS;
 
 struct mpt_pci_driver{
-	int  (*probe) (struct pci_dev *dev, const struct pci_device_id *id);
+	int  (*probe) (struct pci_dev *dev);
 	void (*remove) (struct pci_dev *dev);
 };
 
@@ -274,7 +274,7 @@ typedef union _MPT_FRAME_TRACKER {
 	} linkage;
 	/*
 	 * NOTE: When request frames are free, on the linkage structure
-	 * contets are valid.  All other values are invalid.
+	 * contents are valid.  All other values are invalid.
 	 * In particular, do NOT reply on offset [2]
 	 * (in words) being the * message context.
 	 * The message context must be reset (computed via base address
@@ -757,7 +757,6 @@ typedef struct _MPT_ADAPTER
 	u8			 wait_on_reset_completion;
 	MPT_SCHEDULE_TARGET_RESET schedule_target_reset;
 	MPT_FLUSH_RUNNING_CMDS schedule_dead_ioc_flush_running_cmds;
-	struct work_struct	 sas_persist_task;
 
 	struct work_struct	 fc_setup_reset_work;
 	struct list_head	 fc_rports;
@@ -945,7 +944,7 @@ extern int	mpt_raid_phys_disk_get_num_paths(MPT_ADAPTER *ioc,
 		u8 phys_disk_num);
 extern int	 mpt_set_taskmgmt_in_progress_flag(MPT_ADAPTER *ioc);
 extern void	 mpt_clear_taskmgmt_in_progress_flag(MPT_ADAPTER *ioc);
-extern void     mpt_halt_firmware(MPT_ADAPTER *ioc);
+extern void __noreturn mpt_halt_firmware(MPT_ADAPTER *ioc);
 
 
 /*

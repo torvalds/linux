@@ -20,8 +20,9 @@
 #include <inttypes.h>
 #include <limits.h>
 #include <linux/falloc.h>
-#include <linux/fcntl.h>
+#include <fcntl.h>
 #include <linux/memfd.h>
+#include <linux/types.h>
 #include <sched.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -305,7 +306,7 @@ int main(int argc, char **argv)
 	 * then the kernel did a page-replacement or canceled the read() (or
 	 * whatever magic it did..). In that case, the memfd object is still
 	 * all zero.
-	 * In case the memfd-object was *not* sealed, the read() was successfull
+	 * In case the memfd-object was *not* sealed, the read() was successful
 	 * and the memfd object must *not* be all zero.
 	 * Note that in real scenarios, there might be a mixture of both, but
 	 * in this test-cases, we have explicit 200ms delays which should be

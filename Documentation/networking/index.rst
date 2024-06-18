@@ -1,28 +1,31 @@
-Linux Networking Documentation
-==============================
+Networking
+==========
+
+Refer to :ref:`netdev-FAQ` for a guide on netdev development process specifics.
 
 Contents:
 
 .. toctree::
    :maxdepth: 2
 
-   netdev-FAQ
    af_xdp
+   bareudp
    batman-adv
    can
    can_ucan_protocol
    device_drivers/index
    dsa/index
-   devlink-info-versions
-   devlink-trap
-   devlink-trap-netdevsim
+   devlink/index
+   caif/index
+   ethtool-netlink
    ieee802154
    j1939
    kapi
-   z8530book
    msg_zerocopy
    failover
+   net_dim
    net_failover
+   page_pool
    phy
    sfp-phylink
    alias
@@ -33,6 +36,98 @@ Contents:
    scaling
    tls
    tls-offload
+   tls-handshake
+   nfc
+   6lowpan
+   6pack
+   arcnet-hardware
+   arcnet
+   atm
+   ax25
+   bonding
+   cdc_mbim
+   dccp
+   dctcp
+   dns_resolver
+   driver
+   eql
+   fib_trie
+   filter
+   generic-hdlc
+   generic_netlink
+   netlink_spec/index
+   gen_stats
+   gtp
+   ila
+   ioam6-sysctl
+   ip_dynaddr
+   ipsec
+   ip-sysctl
+   ipv6
+   ipvlan
+   ipvs-sysctl
+   kcm
+   l2tp
+   lapb-module
+   mac80211-injection
+   mctp
+   mpls-sysctl
+   mptcp-sysctl
+   multiqueue
+   multi-pf-netdev
+   napi
+   net_cachelines/index
+   netconsole
+   netdev-features
+   netdevices
+   netfilter-sysctl
+   netif-msg
+   nexthop-group-resilient
+   nf_conntrack-sysctl
+   nf_flowtable
+   openvswitch
+   operstates
+   packet_mmap
+   phonet
+   pktgen
+   plip
+   ppp_generic
+   proc_net_tcp
+   pse-pd/index
+   radiotap-headers
+   rds
+   regulatory
+   representors
+   rxrpc
+   sctp
+   secid
+   seg6-sysctl
+   skbuff
+   smc-sysctl
+   statistics
+   strparser
+   switchdev
+   sysfs-tagging
+   tc-actions-env-rules
+   tc-queue-filters
+   tcp_ao
+   tcp-thin
+   team
+   timestamping
+   tipc
+   tproxy
+   tuntap
+   udplite
+   vrf
+   vxlan
+   x25
+   x25-iface
+   xfrm_device
+   xfrm_proc
+   xfrm_sync
+   xfrm_sysctl
+   xdp-rx-metadata
+   xsk-tx-metadata
 
 .. only::  subproject and html
 

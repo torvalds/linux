@@ -39,6 +39,7 @@
 #define  SOR_STATE_ASY_CRC_MODE_NON_ACTIVE	(0x2 << 6)
 #define  SOR_STATE_ASY_CRC_MODE_COMPLETE	(0x1 << 6)
 #define  SOR_STATE_ASY_CRC_MODE_ACTIVE		(0x0 << 6)
+#define  SOR_STATE_ASY_SUBOWNER_MASK		(0x3 << 4)
 #define  SOR_STATE_ASY_OWNER_MASK		0xf
 #define  SOR_STATE_ASY_OWNER(x)			(((x) & 0xf) << 0)
 
@@ -283,10 +284,12 @@
 #define  SOR_DP_PADCTL_CM_TXD_2		(1 << 6)
 #define  SOR_DP_PADCTL_CM_TXD_1		(1 << 5)
 #define  SOR_DP_PADCTL_CM_TXD_0		(1 << 4)
+#define  SOR_DP_PADCTL_CM_TXD(x)	(1 << (4 + (x)))
 #define  SOR_DP_PADCTL_PD_TXD_3		(1 << 3)
 #define  SOR_DP_PADCTL_PD_TXD_0		(1 << 2)
 #define  SOR_DP_PADCTL_PD_TXD_1		(1 << 1)
 #define  SOR_DP_PADCTL_PD_TXD_2		(1 << 0)
+#define  SOR_DP_PADCTL_PD_TXD(x)	(1 << (0 + (x)))
 
 #define SOR_DP_PADCTL1 0x5d
 

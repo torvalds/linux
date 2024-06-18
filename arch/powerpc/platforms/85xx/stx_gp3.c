@@ -22,13 +22,12 @@
 #include <linux/kdev_t.h>
 #include <linux/delay.h>
 #include <linux/seq_file.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 
 #include <asm/time.h>
 #include <asm/machdep.h>
 #include <asm/pci-bridge.h>
 #include <asm/mpic.h>
-#include <asm/prom.h>
 #include <mm/mmu_decl.h>
 #include <asm/udbg.h>
 
@@ -84,21 +83,12 @@ static void stx_gp3_show_cpuinfo(struct seq_file *m)
 
 machine_arch_initcall(stx_gp3, mpc85xx_common_publish_devices);
 
-/*
- * Called very early, device-tree isn't unflattened
- */
-static int __init stx_gp3_probe(void)
-{
-	return of_machine_is_compatible("stx,gp3-8560");
-}
-
 define_machine(stx_gp3) {
 	.name			= "STX GP3",
-	.probe			= stx_gp3_probe,
+	.compatible		= "stx,gp3-8560",
 	.setup_arch		= stx_gp3_setup_arch,
 	.init_IRQ		= stx_gp3_pic_init,
 	.show_cpuinfo		= stx_gp3_show_cpuinfo,
 	.get_irq		= mpic_get_irq,
-	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
 };

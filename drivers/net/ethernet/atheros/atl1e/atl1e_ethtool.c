@@ -306,11 +306,9 @@ static void atl1e_get_drvinfo(struct net_device *netdev,
 {
 	struct atl1e_adapter *adapter = netdev_priv(netdev);
 
-	strlcpy(drvinfo->driver,  atl1e_driver_name, sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, atl1e_driver_version,
-		sizeof(drvinfo->version));
-	strlcpy(drvinfo->fw_version, "L1e", sizeof(drvinfo->fw_version));
-	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
+	strscpy(drvinfo->driver,  atl1e_driver_name, sizeof(drvinfo->driver));
+	strscpy(drvinfo->fw_version, "L1e", sizeof(drvinfo->fw_version));
+	strscpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));
 }
 

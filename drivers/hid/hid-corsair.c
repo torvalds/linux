@@ -298,7 +298,7 @@ static ssize_t k90_show_macro_mode(struct device *dev,
 		goto out;
 	}
 
-	ret = snprintf(buf, PAGE_SIZE, "%s\n", macro_mode);
+	ret = sysfs_emit(buf, "%s\n", macro_mode);
 out:
 	kfree(data);
 
@@ -367,7 +367,7 @@ static ssize_t k90_show_current_profile(struct device *dev,
 		goto out;
 	}
 
-	ret = snprintf(buf, PAGE_SIZE, "%d\n", current_profile);
+	ret = sysfs_emit(buf, "%d\n", current_profile);
 out:
 	kfree(data);
 
@@ -553,7 +553,12 @@ static int corsair_probe(struct hid_device *dev, const struct hid_device_id *id)
 	int ret;
 	unsigned long quirks = id->driver_data;
 	struct corsair_drvdata *drvdata;
-	struct usb_interface *usbif = to_usb_interface(dev->dev.parent);
+	struct usb_interface *usbif;
+
+	if (!hid_is_usb(dev))
+		return -EINVAL;
+
+	usbif = to_usb_interface(dev->dev.parent);
 
 	drvdata = devm_kzalloc(&dev->dev, sizeof(struct corsair_drvdata),
 			       GFP_KERNEL);

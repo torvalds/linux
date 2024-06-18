@@ -39,6 +39,12 @@ call.
 User-space tools can get the kernel name, host name, kernel release
 number, kernel version, architecture name and OS type from it.
 
+(uts_namespace, name)
+---------------------
+
+Offset of the name's member. Crash Utility and Makedumpfile get
+the start address of the init_uts_ns.name from this.
+
 node_online_map
 ---------------
 
@@ -59,11 +65,11 @@ Defines the beginning of the text section. In general, _stext indicates
 the kernel start address. Used to convert a virtual address from the
 direct kernel map to a physical address.
 
-vmap_area_list
---------------
+VMALLOC_START
+-------------
 
-Stores the virtual area list. makedumpfile gets the vmalloc start value
-from this variable and its value is necessary for vmalloc translation.
+Stores the base address of vmalloc area. makedumpfile gets this value
+since is necessary for vmalloc translation.
 
 mem_map
 -------
@@ -92,6 +98,11 @@ the section_mem_map offset.
 It exists in the sparse memory mapping model, and it is also somewhat
 similar to the mem_map variable, both of them are used to translate an
 address.
+
+MAX_PHYSMEM_BITS
+----------------
+
+Defines the maximum supported physical address space memory.
 
 page
 ----
@@ -130,8 +141,8 @@ nodemask_t
 The size of a nodemask_t type. Used to compute the number of online
 nodes.
 
-(page, flags|_refcount|mapping|lru|_mapcount|private|compound_dtor|compound_order|compound_head)
--------------------------------------------------------------------------------------------------
+(page, flags|_refcount|mapping|lru|_mapcount|private|compound_order|compound_head)
+----------------------------------------------------------------------------------
 
 User-space tools compute their values based on the offset of these
 variables. The variables are used when excluding unnecessary pages.
@@ -161,7 +172,7 @@ variables.
 Offset of the free_list's member. This value is used to compute the number
 of free pages.
 
-Each zone has a free_area structure array called free_area[MAX_ORDER].
+Each zone has a free_area structure array called free_area[NR_PAGE_ORDERS].
 The free_list represents a linked list of free page blocks.
 
 (list_head, next|prev)
@@ -178,56 +189,129 @@ Offsets of the vmap_area's members. They carry vmalloc-specific
 information. Makedumpfile gets the start address of the vmalloc region
 from this.
 
-(zone.free_area, MAX_ORDER)
----------------------------
+(zone.free_area, NR_PAGE_ORDERS)
+--------------------------------
 
 Free areas descriptor. User-space tools use this value to iterate the
-free_area ranges. MAX_ORDER is used by the zone buddy allocator.
+free_area ranges. NR_PAGE_ORDERS is used by the zone buddy allocator.
 
-log_first_idx
--------------
+prb
+---
 
-Index of the first record stored in the buffer log_buf. Used by
-user-space tools to read the strings in the log_buf.
+A pointer to the printk ringbuffer (struct printk_ringbuffer). This
+may be pointing to the static boot ringbuffer or the dynamically
+allocated ringbuffer, depending on when the core dump occurred.
+Used by user-space tools to read the active kernel log buffer.
 
-log_buf
--------
+printk_rb_static
+----------------
 
-Console output is written to the ring buffer log_buf at index
-log_first_idx. Used to get the kernel log.
+A pointer to the static boot printk ringbuffer. If @prb has a
+different value, this is useful for viewing the initial boot messages,
+which may have been overwritten in the dynamically allocated
+ringbuffer.
 
-log_buf_len
------------
-
-log_buf's length.
-
-clear_idx
+clear_seq
 ---------
 
-The index that the next printk() record to read after the last clear
-command. It indicates the first record after the last SYSLOG_ACTION
-_CLEAR, like issued by 'dmesg -c'. Used by user-space tools to dump
-the dmesg log.
+The sequence number of the printk() record after the last clear
+command. It indicates the first record after the last
+SYSLOG_ACTION_CLEAR, like issued by 'dmesg -c'. Used by user-space
+tools to dump a subset of the dmesg log.
 
-log_next_idx
-------------
+printk_ringbuffer
+-----------------
 
-The index of the next record to store in the buffer log_buf. Used to
-compute the index of the current buffer position.
+The size of a printk_ringbuffer structure. This structure contains all
+information required for accessing the various components of the
+kernel log buffer.
 
-printk_log
-----------
+(printk_ringbuffer, desc_ring|text_data_ring|dict_data_ring|fail)
+-----------------------------------------------------------------
 
-The size of a structure printk_log. Used to compute the size of
-messages, and extract dmesg log. It encapsulates header information for
-log_buf, such as timestamp, syslog level, etc.
+Offsets for the various components of the printk ringbuffer. Used by
+user-space tools to view the kernel log buffer without requiring the
+declaration of the structure.
 
-(printk_log, ts_nsec|len|text_len|dict_len)
--------------------------------------------
+prb_desc_ring
+-------------
 
-It represents field offsets in struct printk_log. User space tools
-parse it and check whether the values of printk_log's members have been
-changed.
+The size of the prb_desc_ring structure. This structure contains
+information about the set of record descriptors.
+
+(prb_desc_ring, count_bits|descs|head_id|tail_id)
+-------------------------------------------------
+
+Offsets for the fields describing the set of record descriptors. Used
+by user-space tools to be able to traverse the descriptors without
+requiring the declaration of the structure.
+
+prb_desc
+--------
+
+The size of the prb_desc structure. This structure contains
+information about a single record descriptor.
+
+(prb_desc, info|state_var|text_blk_lpos|dict_blk_lpos)
+------------------------------------------------------
+
+Offsets for the fields describing a record descriptors. Used by
+user-space tools to be able to read descriptors without requiring
+the declaration of the structure.
+
+prb_data_blk_lpos
+-----------------
+
+The size of the prb_data_blk_lpos structure. This structure contains
+information about where the text or dictionary data (data block) is
+located within the respective data ring.
+
+(prb_data_blk_lpos, begin|next)
+-------------------------------
+
+Offsets for the fields describing the location of a data block. Used
+by user-space tools to be able to locate data blocks without
+requiring the declaration of the structure.
+
+printk_info
+-----------
+
+The size of the printk_info structure. This structure contains all
+the meta-data for a record.
+
+(printk_info, seq|ts_nsec|text_len|dict_len|caller_id)
+------------------------------------------------------
+
+Offsets for the fields providing the meta-data for a record. Used by
+user-space tools to be able to read the information without requiring
+the declaration of the structure.
+
+prb_data_ring
+-------------
+
+The size of the prb_data_ring structure. This structure contains
+information about a set of data blocks.
+
+(prb_data_ring, size_bits|data|head_lpos|tail_lpos)
+---------------------------------------------------
+
+Offsets for the fields describing a set of data blocks. Used by
+user-space tools to be able to access the data blocks without
+requiring the declaration of the structure.
+
+atomic_long_t
+-------------
+
+The size of the atomic_long_t structure. Used by user-space tools to
+be able to copy the full structure, regardless of its
+architecture-specific implementation.
+
+(atomic_long_t, counter)
+------------------------
+
+Offset for the long value of an atomic_long_t variable. Used by
+user-space tools to access the long value without requiring the
+architecture-specific declaration.
 
 (free_area.free_list, MIGRATE_TYPES)
 ------------------------------------
@@ -241,8 +325,8 @@ NR_FREE_PAGES
 On linux-2.6.21 or later, the number of free pages is in
 vm_stat[NR_FREE_PAGES]. Used to get the number of free pages.
 
-PG_lru|PG_private|PG_swapcache|PG_swapbacked|PG_slab|PG_hwpoision|PG_head_mask
-------------------------------------------------------------------------------
+PG_lru|PG_private|PG_swapcache|PG_swapbacked|PG_slab|PG_hwpoision|PG_head_mask|PG_hugetlb
+-----------------------------------------------------------------------------------------
 
 Page attributes. These flags are used to filter various unnecessary for
 dumping pages.
@@ -253,12 +337,6 @@ PAGE_BUDDY_MAPCOUNT_VALUE(~PG_buddy)|PAGE_OFFLINE_MAPCOUNT_VALUE(~PG_offline)
 More page attributes. These flags are used to filter various unnecessary for
 dumping pages.
 
-
-HUGETLB_PAGE_DTOR
------------------
-
-The HUGETLB_PAGE_DTOR flag denotes hugetlbfs pages. Makedumpfile
-excludes these pages.
 
 x86_64
 ======
@@ -335,36 +413,6 @@ of a higher page table lookup overhead, and also consumes more page
 table space per process. Used to check whether PAE was enabled in the
 crash kernel when converting virtual addresses to physical addresses.
 
-ia64
-====
-
-pgdat_list|(pgdat_list, MAX_NUMNODES)
--------------------------------------
-
-pg_data_t array storing all NUMA nodes information. MAX_NUMNODES
-indicates the number of the nodes.
-
-node_memblk|(node_memblk, NR_NODE_MEMBLKS)
-------------------------------------------
-
-List of node memory chunks. Filled when parsing the SRAT table to obtain
-information about memory nodes. NR_NODE_MEMBLKS indicates the number of
-node memory chunks.
-
-These values are used to compute the number of nodes the crashed kernel used.
-
-node_memblk_s|(node_memblk_s, start_paddr)|(node_memblk_s, size)
-----------------------------------------------------------------
-
-The size of a struct node_memblk_s and the offsets of the
-node_memblk_s's members. Used to compute the number of nodes.
-
-PGTABLE_3|PGTABLE_4
--------------------
-
-User-space tools need to know whether the crash kernel was in 3-level or
-4-level paging mode. Used to distinguish the page table.
-
 ARM64
 =====
 
@@ -392,6 +440,31 @@ KERNELOFFSET
 
 The kernel randomization offset. Used to compute the page offset. If
 KASLR is disabled, this value is zero.
+
+KERNELPACMASK
+-------------
+
+The mask to extract the Pointer Authentication Code from a kernel virtual
+address.
+
+TCR_EL1.T1SZ
+------------
+
+Indicates the size offset of the memory region addressed by TTBR1_EL1.
+The region size is 2^(64-T1SZ) bytes.
+
+TTBR1_EL1 is the table base address register specified by ARMv8-A
+architecture which is used to lookup the page-tables for the Virtual
+addresses in the higher VA range (refer to ARMv8 ARM document for
+more details).
+
+MODULES_VADDR|MODULES_END|VMALLOC_START|VMALLOC_END|VMEMMAP_START|VMEMMAP_END
+-----------------------------------------------------------------------------
+
+Used to get the correct ranges:
+	MODULES_VADDR ~ MODULES_END-1 : Kernel module space.
+	VMALLOC_START ~ VMALLOC_END-1 : vmalloc() / ioremap() space.
+	VMEMMAP_START ~ VMEMMAP_END-1 : vmemmap region, used for struct page array.
 
 arm
 ===
@@ -486,3 +559,38 @@ X2TLB
 -----
 
 Indicates whether the crashed kernel enabled SH extended mode.
+
+RISCV64
+=======
+
+VA_BITS
+-------
+
+The maximum number of bits for virtual addresses. Used to compute the
+virtual memory ranges.
+
+PAGE_OFFSET
+-----------
+
+Indicates the virtual kernel start address of the direct-mapped RAM region.
+
+phys_ram_base
+-------------
+
+Indicates the start physical RAM address.
+
+MODULES_VADDR|MODULES_END|VMALLOC_START|VMALLOC_END|VMEMMAP_START|VMEMMAP_END|KERNEL_LINK_ADDR
+----------------------------------------------------------------------------------------------
+
+Used to get the correct ranges:
+
+  * MODULES_VADDR ~ MODULES_END : Kernel module space.
+  * VMALLOC_START ~ VMALLOC_END : vmalloc() / ioremap() space.
+  * VMEMMAP_START ~ VMEMMAP_END : vmemmap space, used for struct page array.
+  * KERNEL_LINK_ADDR : start address of Kernel link and BPF
+
+va_kernel_pa_offset
+-------------------
+
+Indicates the offset between the kernel virtual and physical mappings.
+Used to translate virtual to physical addresses.

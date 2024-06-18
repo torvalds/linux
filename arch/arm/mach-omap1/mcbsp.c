@@ -15,14 +15,13 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-
 #include <linux/omap-dma.h>
-#include <mach/mux.h>
-#include "soc.h"
+#include <linux/soc/ti/omap1-io.h>
 #include <linux/platform_data/asoc-ti-mcbsp.h>
 
-#include <mach/irqs.h>
-
+#include "mux.h"
+#include "soc.h"
+#include "irqs.h"
 #include "iomap.h"
 
 #define DPS_RSTCT2_PER_EN	(1 << 0)
@@ -44,8 +43,8 @@ static void omap1_mcbsp_request(unsigned int id)
 			api_clk = clk_get(NULL, "api_ck");
 			dsp_clk = clk_get(NULL, "dsp_ck");
 			if (!IS_ERR(api_clk) && !IS_ERR(dsp_clk)) {
-				clk_enable(api_clk);
-				clk_enable(dsp_clk);
+				clk_prepare_enable(api_clk);
+				clk_prepare_enable(dsp_clk);
 
 				/*
 				 * DSP external peripheral reset
@@ -63,11 +62,11 @@ static void omap1_mcbsp_free(unsigned int id)
 	if (id == 0 || id == 2) {
 		if (--dsp_use == 0) {
 			if (!IS_ERR(api_clk)) {
-				clk_disable(api_clk);
+				clk_disable_unprepare(api_clk);
 				clk_put(api_clk);
 			}
 			if (!IS_ERR(dsp_clk)) {
-				clk_disable(dsp_clk);
+				clk_disable_unprepare(dsp_clk);
 				clk_put(dsp_clk);
 			}
 		}
@@ -90,84 +89,6 @@ static struct omap_mcbsp_ops omap1_mcbsp_ops = {
 #define OMAP1610_MCBSP2_BASE	0xfffb1000
 #define OMAP1610_MCBSP3_BASE	0xe1017000
 
-#if defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)
-struct resource omap7xx_mcbsp_res[][6] = {
-	{
-		{
-			.start = OMAP7XX_MCBSP1_BASE,
-			.end   = OMAP7XX_MCBSP1_BASE + SZ_256,
-			.flags = IORESOURCE_MEM,
-		},
-		{
-			.name  = "rx",
-			.start = INT_7XX_McBSP1RX,
-			.flags = IORESOURCE_IRQ,
-		},
-		{
-			.name  = "tx",
-			.start = INT_7XX_McBSP1TX,
-			.flags = IORESOURCE_IRQ,
-		},
-		{
-			.name  = "rx",
-			.start = 9,
-			.flags = IORESOURCE_DMA,
-		},
-		{
-			.name  = "tx",
-			.start = 8,
-			.flags = IORESOURCE_DMA,
-		},
-	},
-	{
-		{
-			.start = OMAP7XX_MCBSP2_BASE,
-			.end   = OMAP7XX_MCBSP2_BASE + SZ_256,
-			.flags = IORESOURCE_MEM,
-		},
-		{
-			.name  = "rx",
-			.start = INT_7XX_McBSP2RX,
-			.flags = IORESOURCE_IRQ,
-		},
-		{
-			.name  = "tx",
-			.start = INT_7XX_McBSP2TX,
-			.flags = IORESOURCE_IRQ,
-		},
-		{
-			.name  = "rx",
-			.start = 11,
-			.flags = IORESOURCE_DMA,
-		},
-		{
-			.name  = "tx",
-			.start = 10,
-			.flags = IORESOURCE_DMA,
-		},
-	},
-};
-
-#define omap7xx_mcbsp_res_0		omap7xx_mcbsp_res[0]
-
-static struct omap_mcbsp_platform_data omap7xx_mcbsp_pdata[] = {
-	{
-		.ops		= &omap1_mcbsp_ops,
-	},
-	{
-		.ops		= &omap1_mcbsp_ops,
-	},
-};
-#define OMAP7XX_MCBSP_RES_SZ		ARRAY_SIZE(omap7xx_mcbsp_res[1])
-#define OMAP7XX_MCBSP_COUNT		ARRAY_SIZE(omap7xx_mcbsp_res)
-#else
-#define omap7xx_mcbsp_res_0		NULL
-#define omap7xx_mcbsp_pdata		NULL
-#define OMAP7XX_MCBSP_RES_SZ		0
-#define OMAP7XX_MCBSP_COUNT		0
-#endif
-
-#ifdef CONFIG_ARCH_OMAP15XX
 struct resource omap15xx_mcbsp_res[][6] = {
 	{
 		{
@@ -267,14 +188,7 @@ static struct omap_mcbsp_platform_data omap15xx_mcbsp_pdata[] = {
 };
 #define OMAP15XX_MCBSP_RES_SZ		ARRAY_SIZE(omap15xx_mcbsp_res[1])
 #define OMAP15XX_MCBSP_COUNT		ARRAY_SIZE(omap15xx_mcbsp_res)
-#else
-#define omap15xx_mcbsp_res_0		NULL
-#define omap15xx_mcbsp_pdata		NULL
-#define OMAP15XX_MCBSP_RES_SZ		0
-#define OMAP15XX_MCBSP_COUNT		0
-#endif
 
-#ifdef CONFIG_ARCH_OMAP16XX
 struct resource omap16xx_mcbsp_res[][6] = {
 	{
 		{
@@ -374,12 +288,6 @@ static struct omap_mcbsp_platform_data omap16xx_mcbsp_pdata[] = {
 };
 #define OMAP16XX_MCBSP_RES_SZ		ARRAY_SIZE(omap16xx_mcbsp_res[1])
 #define OMAP16XX_MCBSP_COUNT		ARRAY_SIZE(omap16xx_mcbsp_res)
-#else
-#define omap16xx_mcbsp_res_0		NULL
-#define omap16xx_mcbsp_pdata		NULL
-#define OMAP16XX_MCBSP_RES_SZ		0
-#define OMAP16XX_MCBSP_COUNT		0
-#endif
 
 static void omap_mcbsp_register_board_cfg(struct resource *res, int res_count,
 			struct omap_mcbsp_platform_data *config, int size)
@@ -418,12 +326,6 @@ static int __init omap1_mcbsp_init(void)
 {
 	if (!cpu_class_is_omap1())
 		return -ENODEV;
-
-	if (cpu_is_omap7xx())
-		omap_mcbsp_register_board_cfg(omap7xx_mcbsp_res_0,
-					OMAP7XX_MCBSP_RES_SZ,
-					omap7xx_mcbsp_pdata,
-					OMAP7XX_MCBSP_COUNT);
 
 	if (cpu_is_omap15xx())
 		omap_mcbsp_register_board_cfg(omap15xx_mcbsp_res_0,

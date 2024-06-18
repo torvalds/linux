@@ -51,6 +51,7 @@ int __init txx9_pci66_check(struct pci_controller *hose, int top_bus,
 	unsigned short vid;
 	int cap66 = -1;
 	u16 stat;
+	int ret;
 
 	/* It seems SLC90E66 needs some time after PCI reset... */
 	mdelay(80);
@@ -60,9 +61,9 @@ int __init txx9_pci66_check(struct pci_controller *hose, int top_bus,
 	for (pci_devfn = 0; pci_devfn < 0xff; pci_devfn++) {
 		if (PCI_FUNC(pci_devfn))
 			continue;
-		if (early_read_config_word(hose, top_bus, current_bus,
-					   pci_devfn, PCI_VENDOR_ID, &vid) !=
-		    PCIBIOS_SUCCESSFUL)
+		ret = early_read_config_word(hose, top_bus, current_bus,
+					     pci_devfn, PCI_VENDOR_ID, &vid);
+		if (ret != PCIBIOS_SUCCESSFUL)
 			continue;
 		if (vid == 0xffff)
 			continue;
@@ -225,7 +226,7 @@ txx9_alloc_pci_controller(struct pci_controller *pcic,
 static int __init
 txx9_arch_pci_init(void)
 {
-	PCIBIOS_MIN_IO = 0x8000;	/* reseve legacy I/O space */
+	PCIBIOS_MIN_IO = 0x8000;	/* reserve legacy I/O space */
 	return 0;
 }
 arch_initcall(txx9_arch_pci_init);
@@ -343,26 +344,28 @@ static void tc35815_fixup(struct pci_dev *dev)
 
 static void final_fixup(struct pci_dev *dev)
 {
+	unsigned long timeout;
 	unsigned char bist;
+	int ret;
 
-	/* Do build-in self test */
-	if (pci_read_config_byte(dev, PCI_BIST, &bist) == PCIBIOS_SUCCESSFUL &&
-	    (bist & PCI_BIST_CAPABLE)) {
-		unsigned long timeout;
-		pci_set_power_state(dev, PCI_D0);
-		pr_info("PCI: %s BIST...", pci_name(dev));
-		pci_write_config_byte(dev, PCI_BIST, PCI_BIST_START);
-		timeout = jiffies + HZ * 2;	/* timeout after 2 sec */
-		do {
-			pci_read_config_byte(dev, PCI_BIST, &bist);
-			if (time_after(jiffies, timeout))
-				break;
-		} while (bist & PCI_BIST_START);
-		if (bist & (PCI_BIST_CODE_MASK | PCI_BIST_START))
-			pr_cont("failed. (0x%x)\n", bist);
-		else
-			pr_cont("OK.\n");
-	}
+	/* Do built-in self test */
+	ret = pci_read_config_byte(dev, PCI_BIST, &bist);
+	if ((ret != PCIBIOS_SUCCESSFUL) || !(bist & PCI_BIST_CAPABLE))
+		return;
+
+	pci_set_power_state(dev, PCI_D0);
+	pr_info("PCI: %s BIST...", pci_name(dev));
+	pci_write_config_byte(dev, PCI_BIST, PCI_BIST_START);
+	timeout = jiffies + HZ * 2;	/* timeout after 2 sec */
+	do {
+		pci_read_config_byte(dev, PCI_BIST, &bist);
+		if (time_after(jiffies, timeout))
+			break;
+	} while (bist & PCI_BIST_START);
+	if (bist & (PCI_BIST_CODE_MASK | PCI_BIST_START))
+		pr_cont("failed. (0x%x)\n", bist);
+	else
+		pr_cont("OK.\n");
 }
 
 #ifdef CONFIG_TOSHIBA_FPCIB0

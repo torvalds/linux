@@ -25,7 +25,7 @@
 #include <linux/slab.h>
 #include <linux/cpufreq.h>
 #include <linux/gpio/consumer.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_data/i2c-davinci.h>
 #include <linux/pm_runtime.h>
 
@@ -489,7 +489,6 @@ i2c_davinci_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg, int stop)
 	time_left = wait_for_completion_timeout(&dev->cmd_complete,
 						dev->adapter.timeout);
 	if (!time_left) {
-		dev_err(dev->dev, "controller timed out\n");
 		i2c_recover_bus(adap);
 		dev->buf_len = 0;
 		return -ETIMEDOUT;
@@ -539,10 +538,9 @@ i2c_davinci_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 
 	dev_dbg(dev->dev, "%s: msgs: %d\n", __func__, num);
 
-	ret = pm_runtime_get_sync(dev->dev);
+	ret = pm_runtime_resume_and_get(dev->dev);
 	if (ret < 0) {
 		dev_err(dev->dev, "Failed to runtime_get device: %d\n", ret);
-		pm_runtime_put_noidle(dev->dev);
 		return ret;
 	}
 
@@ -761,26 +759,16 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 {
 	struct davinci_i2c_dev *dev;
 	struct i2c_adapter *adap;
-	struct resource *mem;
 	struct i2c_bus_recovery_info *rinfo;
 	int r, irq;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0) {
-		if (!irq)
-			irq = -ENXIO;
-		if (irq != -EPROBE_DEFER)
-			dev_err(&pdev->dev,
-				"can't get irq resource ret=%d\n", irq);
+	if (irq < 0)
 		return irq;
-	}
 
-	dev = devm_kzalloc(&pdev->dev, sizeof(struct davinci_i2c_dev),
-			GFP_KERNEL);
-	if (!dev) {
-		dev_err(&pdev->dev, "Memory allocation failed\n");
+	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
+	if (!dev)
 		return -ENOMEM;
-	}
 
 	init_completion(&dev->cmd_complete);
 
@@ -814,8 +802,7 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 	if (IS_ERR(dev->clk))
 		return PTR_ERR(dev->clk);
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dev->base = devm_ioremap_resource(&pdev->dev, mem);
+	dev->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dev->base)) {
 		return PTR_ERR(dev->base);
 	}
@@ -826,11 +813,10 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(dev->dev);
 
-	r = pm_runtime_get_sync(dev->dev);
+	r = pm_runtime_resume_and_get(dev->dev);
 	if (r < 0) {
 		dev_err(dev->dev, "failed to runtime_get device: %d\n", r);
-		pm_runtime_put_noidle(dev->dev);
-		return r;
+		goto err_pm;
 	}
 
 	i2c_davinci_init(dev);
@@ -852,7 +838,7 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 	i2c_set_adapdata(adap, dev);
 	adap->owner = THIS_MODULE;
 	adap->class = I2C_CLASS_DEPRECATED;
-	strlcpy(adap->name, "DaVinci I2C adapter", sizeof(adap->name));
+	strscpy(adap->name, "DaVinci I2C adapter", sizeof(adap->name));
 	adap->algo = &i2c_davinci_algo;
 	adap->dev.parent = &pdev->dev;
 	adap->timeout = DAVINCI_I2C_TIMEOUT;
@@ -889,12 +875,13 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 err_unuse_clocks:
 	pm_runtime_dont_use_autosuspend(dev->dev);
 	pm_runtime_put_sync(dev->dev);
+err_pm:
 	pm_runtime_disable(dev->dev);
 
 	return r;
 }
 
-static int davinci_i2c_remove(struct platform_device *pdev)
+static void davinci_i2c_remove(struct platform_device *pdev)
 {
 	struct davinci_i2c_dev *dev = platform_get_drvdata(pdev);
 	int ret;
@@ -904,21 +891,16 @@ static int davinci_i2c_remove(struct platform_device *pdev)
 	i2c_del_adapter(&dev->adapter);
 
 	ret = pm_runtime_get_sync(&pdev->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(&pdev->dev);
-		return ret;
-	}
-
-	davinci_i2c_write_reg(dev, DAVINCI_I2C_MDR_REG, 0);
+	if (ret < 0)
+		dev_err(&pdev->dev, "Failed to resume device\n");
+	else
+		davinci_i2c_write_reg(dev, DAVINCI_I2C_MDR_REG, 0);
 
 	pm_runtime_dont_use_autosuspend(dev->dev);
 	pm_runtime_put_sync(dev->dev);
 	pm_runtime_disable(dev->dev);
-
-	return 0;
 }
 
-#ifdef CONFIG_PM
 static int davinci_i2c_suspend(struct device *dev)
 {
 	struct davinci_i2c_dev *i2c_dev = dev_get_drvdata(dev);
@@ -942,24 +924,23 @@ static int davinci_i2c_resume(struct device *dev)
 static const struct dev_pm_ops davinci_i2c_pm = {
 	.suspend        = davinci_i2c_suspend,
 	.resume         = davinci_i2c_resume,
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				      pm_runtime_force_resume)
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				  pm_runtime_force_resume)
 };
 
-#define davinci_i2c_pm_ops (&davinci_i2c_pm)
-#else
-#define davinci_i2c_pm_ops NULL
-#endif
-
-/* work with hotplug and coldplug */
-MODULE_ALIAS("platform:i2c_davinci");
+static const struct platform_device_id davinci_i2c_driver_ids[] = {
+	{ .name = "i2c_davinci", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(platform, davinci_i2c_driver_ids);
 
 static struct platform_driver davinci_i2c_driver = {
 	.probe		= davinci_i2c_probe,
-	.remove		= davinci_i2c_remove,
+	.remove_new	= davinci_i2c_remove,
+	.id_table	= davinci_i2c_driver_ids,
 	.driver		= {
 		.name	= "i2c_davinci",
-		.pm	= davinci_i2c_pm_ops,
+		.pm	= pm_sleep_ptr(&davinci_i2c_pm),
 		.of_match_table = davinci_i2c_of_match,
 	},
 };

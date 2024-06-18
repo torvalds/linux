@@ -1,63 +1,8 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
-
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
+/*
+ * Copyright (C) 2012-2014, 2019-2020, 2023 Intel Corporation
+ * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
+ */
 #ifndef __time_event_h__
 #define __time_event_h__
 
@@ -156,6 +101,14 @@ void iwl_mvm_rx_time_event_notif(struct iwl_mvm *mvm,
 				 struct iwl_rx_cmd_buffer *rxb);
 
 /**
+ * iwl_mvm_rx_roc_notif - handles %DISCOVERY_ROC_NTF.
+ * @mvm: the mvm component
+ * @rxb: RX buffer
+ */
+void iwl_mvm_rx_roc_notif(struct iwl_mvm *mvm,
+			  struct iwl_rx_cmd_buffer *rxb);
+
+/**
  * iwl_mvm_start_p2p_roc - start remain on channel for p2p device functionality
  * @mvm: the mvm component
  * @vif: the virtual interface for which the roc is requested. It is assumed
@@ -178,17 +131,18 @@ int iwl_mvm_start_p2p_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 /**
  * iwl_mvm_stop_roc - stop remain on channel functionality
  * @mvm: the mvm component
+ * @vif: the virtual interface for which the roc is stopped
  *
  * This function can be used to cancel an ongoing ROC session.
  * The function is async, it will instruct the FW to stop serving the ROC
  * session, but will not wait for the actual stopping of the session.
  */
-void iwl_mvm_stop_roc(struct iwl_mvm *mvm);
+void iwl_mvm_stop_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 
 /**
  * iwl_mvm_remove_time_event - general function to clean up of time event
  * @mvm: the mvm component
- * @vif: the vif to which the time event belongs
+ * @mvmvif: the vif to which the time event belongs
  * @te_data: the time event data that corresponds to that time event
  *
  * This function can be used to cancel a time event regardless its type.
@@ -212,6 +166,9 @@ void iwl_mvm_te_clear_data(struct iwl_mvm *mvm,
 
 void iwl_mvm_cleanup_roc_te(struct iwl_mvm *mvm);
 void iwl_mvm_roc_done_wk(struct work_struct *wk);
+
+void iwl_mvm_remove_csa_period(struct iwl_mvm *mvm,
+			       struct ieee80211_vif *vif);
 
 /**
  * iwl_mvm_schedule_csa_period - request channel switch absence period
@@ -241,5 +198,28 @@ iwl_mvm_te_scheduled(struct iwl_mvm_time_event_data *te_data)
 
 	return !!te_data->uid;
 }
+
+/**
+ * iwl_mvm_schedule_session_protection - schedule a session protection
+ * @mvm: the mvm component
+ * @vif: the virtual interface for which the protection issued
+ * @duration: the requested duration of the protection
+ * @min_duration: the minimum duration of the protection
+ * @wait_for_notif: if true, will block until the start of the protection
+ * @link_id: The link to schedule a session protection for
+ */
+void iwl_mvm_schedule_session_protection(struct iwl_mvm *mvm,
+					 struct ieee80211_vif *vif,
+					 u32 duration, u32 min_duration,
+					 bool wait_for_notif,
+					 unsigned int link_id);
+
+/**
+ * iwl_mvm_rx_session_protect_notif - handles %SESSION_PROTECTION_NOTIF
+ * @mvm: the mvm component
+ * @rxb: the RX buffer containing the notification
+ */
+void iwl_mvm_rx_session_protect_notif(struct iwl_mvm *mvm,
+				      struct iwl_rx_cmd_buffer *rxb);
 
 #endif /* __time_event_h__ */

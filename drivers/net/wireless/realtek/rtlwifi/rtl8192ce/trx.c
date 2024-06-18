@@ -23,45 +23,6 @@ static u8 _rtl92ce_map_hwqueue_to_fwqueue(struct sk_buff *skb, u8 hw_queue)
 	return skb->priority;
 }
 
-static u8 _rtl92c_query_rxpwrpercentage(s8 antpower)
-{
-	if ((antpower <= -100) || (antpower >= 20))
-		return 0;
-	else if (antpower >= 0)
-		return 100;
-	else
-		return 100 + antpower;
-}
-
-static long _rtl92ce_signal_scale_mapping(struct ieee80211_hw *hw,
-		long currsig)
-{
-	long retsig;
-
-	if (currsig >= 61 && currsig <= 100)
-		retsig = 90 + ((currsig - 60) / 4);
-	else if (currsig >= 41 && currsig <= 60)
-		retsig = 78 + ((currsig - 40) / 2);
-	else if (currsig >= 31 && currsig <= 40)
-		retsig = 66 + (currsig - 30);
-	else if (currsig >= 21 && currsig <= 30)
-		retsig = 54 + (currsig - 20);
-	else if (currsig >= 5 && currsig <= 20)
-		retsig = 42 + (((currsig - 5) * 2) / 3);
-	else if (currsig == 4)
-		retsig = 36;
-	else if (currsig == 3)
-		retsig = 27;
-	else if (currsig == 2)
-		retsig = 18;
-	else if (currsig == 1)
-		retsig = 9;
-	else
-		retsig = currsig;
-
-	return retsig;
-}
-
 static void _rtl92ce_query_rxphystatus(struct ieee80211_hw *hw,
 				       struct rtl_stats *pstats,
 				       struct rx_desc_92c *pdesc,
@@ -194,7 +155,7 @@ static void _rtl92ce_query_rxphystatus(struct ieee80211_hw *hw,
 			rx_pwr[i] =
 			    ((p_drvinfo->gain_trsw[i] & 0x3f) * 2) - 110;
 			/* Translate DBM to percentage. */
-			rssi = _rtl92c_query_rxpwrpercentage(rx_pwr[i]);
+			rssi = rtl_query_rxpwrpercentage(rx_pwr[i]);
 			total_rssi += rssi;
 			/* Get Rx snr value in DB */
 			rtlpriv->stats.rx_snr_db[i] =
@@ -205,11 +166,11 @@ static void _rtl92ce_query_rxphystatus(struct ieee80211_hw *hw,
 				pstats->rx_mimo_signalstrength[i] = (u8) rssi;
 		}
 
-		/* (2)PWDB, Average PWDB cacluated by
+		/* (2)PWDB, Average PWDB calculated by
 		 * hardware (for rate adaptive)
 		 */
 		rx_pwr_all = ((p_drvinfo->pwdb_all >> 1) & 0x7f) - 110;
-		pwdb_all = _rtl92c_query_rxpwrpercentage(rx_pwr_all);
+		pwdb_all = rtl_query_rxpwrpercentage(rx_pwr_all);
 		pstats->rx_pwdb_all = pwdb_all;
 		pstats->rxpower = rx_pwr_all;
 		pstats->recvsignalpower = rx_pwr_all;
@@ -241,11 +202,10 @@ static void _rtl92ce_query_rxphystatus(struct ieee80211_hw *hw,
 	 */
 	if (is_cck_rate)
 		pstats->signalstrength =
-		    (u8)(_rtl92ce_signal_scale_mapping(hw, pwdb_all));
+		    (u8)(rtl_signal_scale_mapping(hw, pwdb_all));
 	else if (rf_rx_num != 0)
 		pstats->signalstrength =
-		    (u8)(_rtl92ce_signal_scale_mapping
-			  (hw, total_rssi /= rf_rx_num));
+		    (u8)(rtl_signal_scale_mapping(hw, total_rssi /= rf_rx_num));
 }
 
 static void _rtl92ce_translate_rx_signal_stuff(struct ieee80211_hw *hw,
@@ -390,7 +350,6 @@ void rtl92ce_tx_fill_desc(struct ieee80211_hw *hw,
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
-	bool defaultadapter = true;
 	__le32 *pdesc = (__le32 *)pdesc8;
 	u16 seq_number;
 	__le16 fc = hdr->frame_control;
@@ -401,15 +360,14 @@ void rtl92ce_tx_fill_desc(struct ieee80211_hw *hw,
 	bool lastseg = ((hdr->frame_control &
 			 cpu_to_le16(IEEE80211_FCTL_MOREFRAGS)) == 0);
 
-	dma_addr_t mapping = pci_map_single(rtlpci->pdev,
-					    skb->data, skb->len,
-					    PCI_DMA_TODEVICE);
+	dma_addr_t mapping = dma_map_single(&rtlpci->pdev->dev, skb->data,
+					    skb->len, DMA_TO_DEVICE);
 
 	u8 bw_40 = 0;
 
-	if (pci_dma_mapping_error(rtlpci->pdev, mapping)) {
-		RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE,
-			 "DMA mapping error\n");
+	if (dma_mapping_error(&rtlpci->pdev->dev, mapping)) {
+		rtl_dbg(rtlpriv, COMP_SEND, DBG_TRACE,
+			"DMA mapping error\n");
 		return;
 	}
 	rcu_read_lock();
@@ -420,7 +378,7 @@ void rtl92ce_tx_fill_desc(struct ieee80211_hw *hw,
 		   mac->opmode == NL80211_IFTYPE_ADHOC ||
 		   mac->opmode == NL80211_IFTYPE_MESH_POINT) {
 		if (sta)
-			bw_40 = sta->bandwidth >= IEEE80211_STA_RX_BW_40;
+			bw_40 = sta->deflink.bandwidth >= IEEE80211_STA_RX_BW_40;
 	}
 
 	seq_number = (le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_SEQ) >> 4;
@@ -482,7 +440,7 @@ void rtl92ce_tx_fill_desc(struct ieee80211_hw *hw,
 		set_tx_desc_pkt_size(pdesc, (u16)skb->len);
 
 		if (sta) {
-			u8 ampdu_density = sta->ht_cap.ampdu_density;
+			u8 ampdu_density = sta->deflink.ht_cap.ampdu_density;
 
 			set_tx_desc_ampdu_density(pdesc, ampdu_density);
 		}
@@ -517,8 +475,8 @@ void rtl92ce_tx_fill_desc(struct ieee80211_hw *hw,
 
 		if (ieee80211_is_data_qos(fc)) {
 			if (mac->rdg_en) {
-				RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE,
-					 "Enable RDG function\n");
+				rtl_dbg(rtlpriv, COMP_SEND, DBG_TRACE,
+					"Enable RDG function\n");
 				set_tx_desc_rdg_enable(pdesc, 1);
 				set_tx_desc_htc(pdesc, 1);
 			}
@@ -544,9 +502,6 @@ void rtl92ce_tx_fill_desc(struct ieee80211_hw *hw,
 	if ((!ieee80211_is_data_qos(fc)) && ppsc->fwctrl_lps) {
 		set_tx_desc_hwseq_en(pdesc, 1);
 		set_tx_desc_pkt_id(pdesc, 8);
-
-		if (!defaultadapter)
-			set_tx_desc_qos(pdesc, 1);
 	}
 
 	set_tx_desc_more_frag(pdesc, (lastseg ? 0 : 1));
@@ -556,35 +511,31 @@ void rtl92ce_tx_fill_desc(struct ieee80211_hw *hw,
 		set_tx_desc_bmc(pdesc, 1);
 	}
 
-	RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE, "\n");
+	rtl_dbg(rtlpriv, COMP_SEND, DBG_TRACE, "\n");
 }
 
-void rtl92ce_tx_fill_cmddesc(struct ieee80211_hw *hw,
-			     u8 *pdesc8, bool firstseg,
-			     bool lastseg, struct sk_buff *skb)
+void rtl92ce_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc8,
+			     struct sk_buff *skb)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	u8 fw_queue = QSLT_BEACON;
 	__le32 *pdesc = (__le32 *)pdesc8;
 
-	dma_addr_t mapping = pci_map_single(rtlpci->pdev,
-					    skb->data, skb->len,
-					    PCI_DMA_TODEVICE);
-
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)(skb->data);
+	struct ieee80211_hdr *hdr = rtl_get_hdr(skb);
 	__le16 fc = hdr->frame_control;
 
-	if (pci_dma_mapping_error(rtlpci->pdev, mapping)) {
-		RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE,
-			 "DMA mapping error\n");
+	dma_addr_t mapping = dma_map_single(&rtlpci->pdev->dev, skb->data,
+					    skb->len, DMA_TO_DEVICE);
+
+	if (dma_mapping_error(&rtlpci->pdev->dev, mapping)) {
+		rtl_dbg(rtlpriv, COMP_SEND, DBG_TRACE,
+			"DMA mapping error\n");
 		return;
 	}
 	clear_pci_tx_desc_content(pdesc, TX_DESC_SIZE);
 
-	if (firstseg)
-		set_tx_desc_offset(pdesc, USB_HWDESC_HEADER_LEN);
-
+	set_tx_desc_offset(pdesc, USB_HWDESC_HEADER_LEN);
 	set_tx_desc_tx_rate(pdesc, DESC_RATE1M);
 
 	set_tx_desc_seq(pdesc, 0);

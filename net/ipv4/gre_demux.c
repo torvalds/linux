@@ -56,7 +56,9 @@ int gre_del_protocol(const struct gre_protocol *proto, u8 version)
 }
 EXPORT_SYMBOL_GPL(gre_del_protocol);
 
-/* Fills in tpi and returns header length to be pulled. */
+/* Fills in tpi and returns header length to be pulled.
+ * Note that caller must use pskb_may_pull() before pulling GRE header.
+ */
 int gre_parse_header(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 		     bool *csum_err, __be16 proto, int nhs)
 {
@@ -71,7 +73,7 @@ int gre_parse_header(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 	if (unlikely(greh->flags & (GRE_VERSION | GRE_ROUTING)))
 		return -EINVAL;
 
-	tpi->flags = gre_flags_to_tnl_flags(greh->flags);
+	gre_flags_to_tnl_flags(tpi->flags, greh->flags);
 	hdr_len = gre_calc_hlen(tpi->flags);
 
 	if (!pskb_may_pull(skb, nhs + hdr_len))
@@ -110,8 +112,14 @@ int gre_parse_header(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 	 * - When dealing with WCCPv2, Skip extra 4 bytes in GRE header
 	 */
 	if (greh->flags == 0 && tpi->proto == htons(ETH_P_WCCP)) {
+		u8 _val, *val;
+
+		val = skb_header_pointer(skb, nhs + hdr_len,
+					 sizeof(_val), &_val);
+		if (!val)
+			return -EINVAL;
 		tpi->proto = proto;
-		if ((*(u8 *)options & 0xF0) != 0x40)
+		if ((*val & 0xF0) != 0x40)
 			hdr_len += 4;
 	}
 	tpi->hdr_len = hdr_len;
@@ -120,14 +128,14 @@ int gre_parse_header(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 	 * to 0 and sets the configured key in the
 	 * inner erspan header field
 	 */
-	if (greh->protocol == htons(ETH_P_ERSPAN) ||
+	if ((greh->protocol == htons(ETH_P_ERSPAN) && hdr_len != 4) ||
 	    greh->protocol == htons(ETH_P_ERSPAN2)) {
 		struct erspan_base_hdr *ershdr;
 
 		if (!pskb_may_pull(skb, nhs + hdr_len + sizeof(*ershdr)))
 			return -EINVAL;
 
-		ershdr = (struct erspan_base_hdr *)options;
+		ershdr = (struct erspan_base_hdr *)(skb->data + nhs + hdr_len);
 		tpi->key = cpu_to_be32(get_session_id(ershdr));
 	}
 
@@ -187,7 +195,6 @@ static int gre_err(struct sk_buff *skb, u32 info)
 static const struct net_protocol net_gre_protocol = {
 	.handler     = gre_rcv,
 	.err_handler = gre_err,
-	.netns_ok    = 1,
 };
 
 static int __init gre_init(void)
@@ -210,5 +217,5 @@ module_init(gre_init);
 module_exit(gre_exit);
 
 MODULE_DESCRIPTION("GRE over IPv4 demultiplexer driver");
-MODULE_AUTHOR("D. Kozlov (xeb@mail.ru)");
+MODULE_AUTHOR("D. Kozlov <xeb@mail.ru>");
 MODULE_LICENSE("GPL");

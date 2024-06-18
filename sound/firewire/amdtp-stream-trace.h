@@ -14,9 +14,10 @@
 #include <linux/tracepoint.h>
 
 TRACE_EVENT(amdtp_packet,
-	TP_PROTO(const struct amdtp_stream *s, u32 cycles, const __be32 *cip_header, unsigned int payload_length, unsigned int data_blocks, unsigned int data_block_counter, unsigned int index),
-	TP_ARGS(s, cycles, cip_header, payload_length, data_blocks, data_block_counter, index),
+	TP_PROTO(const struct amdtp_stream *s, u32 cycles, const __be32 *cip_header, unsigned int payload_length, unsigned int data_blocks, unsigned int data_block_counter, unsigned int packet_index, unsigned int index, u32 curr_cycle_time),
+	TP_ARGS(s, cycles, cip_header, payload_length, data_blocks, data_block_counter, packet_index, index, curr_cycle_time),
 	TP_STRUCT__entry(
+		__field(unsigned int, cycle_time)
 		__field(unsigned int, second)
 		__field(unsigned int, cycle)
 		__field(int, channel)
@@ -31,6 +32,7 @@ TRACE_EVENT(amdtp_packet,
 		__field(unsigned int, index)
 	),
 	TP_fast_assign(
+		__entry->cycle_time = curr_cycle_time;
 		__entry->second = cycles / CYCLES_PER_SECOND;
 		__entry->cycle = cycles % CYCLES_PER_SECOND;
 		__entry->channel = s->context->channel;
@@ -48,12 +50,13 @@ TRACE_EVENT(amdtp_packet,
 		__entry->payload_quadlets = payload_length / sizeof(__be32);
 		__entry->data_blocks = data_blocks;
 		__entry->data_block_counter = data_block_counter,
-		__entry->packet_index = s->packet_index;
-		__entry->irq = !!in_interrupt();
+		__entry->packet_index = packet_index;
+		__entry->irq = !!in_softirq();
 		__entry->index = index;
 	),
 	TP_printk(
-		"%02u %04u %04x %04x %02d %03u %02u %03u %02u %01u %02u %s",
+		"%08x %02u %04u %04x %04x %02d %03u %02u %03u %02u %01u %02u %s",
+		__entry->cycle_time,
 		__entry->second,
 		__entry->cycle,
 		__entry->src,
@@ -66,8 +69,7 @@ TRACE_EVENT(amdtp_packet,
 		__entry->irq,
 		__entry->index,
 		__print_array(__get_dynamic_array(cip_header),
-			      __get_dynamic_array_len(cip_header),
-			      sizeof(u8)))
+			      __get_dynamic_array_len(cip_header), 1))
 );
 
 #endif

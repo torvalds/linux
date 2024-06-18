@@ -167,7 +167,7 @@ below).
 
 Following those are the 'event handler' functions generated one for
 every event in the 'perf record' output.  The handler functions take
-the form subsystem__event_name, and contain named parameters, one for
+the form subsystem\__event_name, and contain named parameters, one for
 each field in the event; in this case, there's only one event,
 raw_syscalls__sys_enter().  (see the EVENT HANDLERS section below for
 more info on event handlers).
@@ -319,7 +319,7 @@ So those are the essential steps in writing and running a script.  The
 process can be generalized to any tracepoint or set of tracepoints
 you're interested in - basically find the tracepoint(s) you're
 interested in by looking at the list of available events shown by
-'perf list' and/or look in /sys/kernel/debug/tracing/events/ for
+'perf list' and/or look in /sys/kernel/tracing/events/ for
 detailed event and field info, record the corresponding trace data
 using 'perf record', passing it the list of interesting events,
 generate a skeleton script using 'perf script -g python' and modify the
@@ -448,8 +448,8 @@ all sched_wakeup events in the system:
 Traces meant to be processed using a script should be recorded with
 the above option: -a to enable system-wide collection.
 
-The format file for the sched_wakep event defines the following fields
-(see /sys/kernel/debug/tracing/events/sched/sched_wakeup/format):
+The format file for the sched_wakeup event defines the following fields
+(see /sys/kernel/tracing/events/sched/sched_wakeup/format):
 
 ----
  format:
@@ -550,6 +550,27 @@ def trace_unhandled(event_name, context, event_fields_dict):
     pass
 ----
 
+*process_event*, if defined, is called for any non-tracepoint event
+
+----
+def process_event(param_dict):
+    pass
+----
+
+*context_switch*, if defined, is called for any context switch
+
+----
+def context_switch(ts, cpu, pid, tid, np_pid, np_tid, machine_pid, out, out_preempt, *x):
+    pass
+----
+
+*auxtrace_error*, if defined, is called for any AUX area tracing error
+
+----
+def auxtrace_error(typ, code, cpu, pid, tid, ip, ts, msg, cpumode, *x):
+    pass
+----
+
 The remaining sections provide descriptions of each of the available
 built-in perf script Python modules and their associated functions.
 
@@ -592,12 +613,18 @@ common, but need to be made accessible to user scripts nonetheless.
 perf_trace_context defines a set of functions that can be used to
 access this data in the context of the current event.  Each of these
 functions expects a context variable, which is the same as the
-context variable passed into every event handler as the second
-argument.
+context variable passed into every tracepoint event handler as the second
+argument. For non-tracepoint events, the context variable is also present
+as perf_trace_context.perf_script_context .
 
  common_pc(context) - returns common_preempt count for the current event
  common_flags(context) - returns common_flags for the current event
  common_lock_depth(context) - returns common_lock_depth for the current event
+ perf_sample_insn(context) - returns the machine code instruction
+ perf_set_itrace_options(context, itrace_options) - set --itrace options if they have not been set already
+ perf_sample_srcline(context) - returns source_file_name, line_number
+ perf_sample_srccode(context) - returns source_file_name, line_number, source_line
+
 
 Util.py Module
 ~~~~~~~~~~~~~~
@@ -615,10 +642,21 @@ SUPPORTED FIELDS
 
 Currently supported fields:
 
-ev_name, comm, pid, tid, cpu, ip, time, period, phys_addr, addr,
-symbol, dso, time_enabled, time_running, values, callchain,
+ev_name, comm, id, stream_id, pid, tid, cpu, ip, time, period, phys_addr,
+addr, symbol, symoff, dso, time_enabled, time_running, values, callchain,
 brstack, brstacksym, datasrc, datasrc_decode, iregs, uregs,
-weight, transaction, raw_buf, attr.
+weight, transaction, raw_buf, attr, cpumode.
+
+Fields that may also be present:
+
+ flags - sample flags
+ flags_disp - sample flags display
+ insn_cnt - instruction count for determining instructions-per-cycle (IPC)
+ cyc_cnt - cycle count for determining IPC
+ addr_correlates_sym - addr can correlate to a symbol
+ addr_dso - addr dso
+ addr_symbol - addr symbol
+ addr_symoff - addr symbol offset
 
 Some fields have sub items:
 

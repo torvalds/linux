@@ -44,10 +44,6 @@
  * complicated and prevents the use of some automatic modes of operation.
  */
 
-#if defined(CONFIG_SERIAL_ZS_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
-#define SUPPORT_SYSRQ
-#endif
-
 #include <linux/bug.h>
 #include <linux/console.h>
 #include <linux/delay.h>
@@ -543,8 +539,9 @@ static void zs_receive_chars(struct zs_port *zport)
 	struct uart_port *uport = &zport->port;
 	struct zs_scc *scc = zport->scc;
 	struct uart_icount *icount;
-	unsigned int avail, status, ch, flag;
+	unsigned int avail, status;
 	int count;
+	u8 ch, flag;
 
 	for (count = 16; count; count--) {
 		spin_lock(&scc->zlock);
@@ -609,7 +606,8 @@ static void zs_receive_chars(struct zs_port *zport)
 
 static void zs_raw_transmit_chars(struct zs_port *zport)
 {
-	struct circ_buf *xmit = &zport->port.state->xmit;
+	struct tty_port *tport = &zport->port.state->port;
+	unsigned char ch;
 
 	/* XON/XOFF chars.  */
 	if (zport->port.x_char) {
@@ -620,21 +618,20 @@ static void zs_raw_transmit_chars(struct zs_port *zport)
 	}
 
 	/* If nothing to do or stopped or hardware stopped.  */
-	if (uart_circ_empty(xmit) || uart_tx_stopped(&zport->port)) {
+	if (uart_tx_stopped(&zport->port) ||
+			!uart_fifo_get(&zport->port, &ch)) {
 		zs_raw_stop_tx(zport);
 		return;
 	}
 
 	/* Send char.  */
-	write_zsdata(zport, xmit->buf[xmit->tail]);
-	xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
-	zport->port.icount.tx++;
+	write_zsdata(zport, ch);
 
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 		uart_write_wakeup(&zport->port);
 
 	/* Are we are done?  */
-	if (uart_circ_empty(xmit))
+	if (kfifo_is_empty(&tport->xmit_fifo))
 		zs_raw_stop_tx(zport);
 }
 
@@ -850,7 +847,7 @@ static void zs_reset(struct zs_port *zport)
 }
 
 static void zs_set_termios(struct uart_port *uport, struct ktermios *termios,
-			   struct ktermios *old_termios)
+			   const struct ktermios *old_termios)
 {
 	struct zs_port *zport = to_zport(uport);
 	struct zs_scc *scc = zport->scc;
@@ -985,14 +982,14 @@ static const char *zs_type(struct uart_port *uport)
 static void zs_release_port(struct uart_port *uport)
 {
 	iounmap(uport->membase);
-	uport->membase = 0;
+	uport->membase = NULL;
 	release_mem_region(uport->mapbase, ZS_CHAN_IO_SIZE);
 }
 
 static int zs_map_port(struct uart_port *uport)
 {
 	if (!uport->membase)
-		uport->membase = ioremap_nocache(uport->mapbase,
+		uport->membase = ioremap(uport->mapbase,
 						 ZS_CHAN_IO_SIZE);
 	if (!uport->membase) {
 		printk(KERN_ERR "zs: Cannot map MMIO\n");
@@ -1106,6 +1103,7 @@ static int __init zs_probe_sccs(void)
 			zport->scc	= &zs_sccs[chip];
 			zport->clk_mode	= 16;
 
+			uport->has_sysrq = IS_ENABLED(CONFIG_SERIAL_ZS_CONSOLE);
 			uport->irq	= zs_parms.irq[chip];
 			uport->uartclk	= ZS_CLOCK;
 			uport->fifosize	= 1;
@@ -1127,7 +1125,7 @@ static int __init zs_probe_sccs(void)
 
 
 #ifdef CONFIG_SERIAL_ZS_CONSOLE
-static void zs_console_putchar(struct uart_port *uport, int ch)
+static void zs_console_putchar(struct uart_port *uport, unsigned char ch)
 {
 	struct zs_port *zport = to_zport(uport);
 	struct zs_scc *scc = zport->scc;

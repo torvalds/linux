@@ -22,24 +22,12 @@
 #define ACPI_MEMORY_DEVICE_HID			"PNP0C80"
 #define ACPI_MEMORY_DEVICE_NAME			"Hotplug Mem Device"
 
-#define _COMPONENT		ACPI_MEMORY_DEVICE_COMPONENT
-
-#undef PREFIX
-#define 	PREFIX		"ACPI:memory_hp:"
-
-ACPI_MODULE_NAME("acpi_memhotplug");
-
 static const struct acpi_device_id memory_device_ids[] = {
 	{ACPI_MEMORY_DEVICE_HID, 0},
 	{"", 0},
 };
 
 #ifdef CONFIG_ACPI_HOTPLUG_MEMORY
-
-/* Memory Device States */
-#define MEMORY_INVALID_STATE	0
-#define MEMORY_POWER_ON_STATE	1
-#define MEMORY_POWER_OFF_STATE	2
 
 static int acpi_memory_device_add(struct acpi_device *device,
 				  const struct acpi_device_id *not_used);
@@ -64,9 +52,9 @@ struct acpi_memory_info {
 };
 
 struct acpi_memory_device {
-	struct acpi_device * device;
-	unsigned int state;	/* State of the memory device */
+	struct acpi_device *device;
 	struct list_head res_list;
+	int mgid;
 };
 
 static acpi_status
@@ -182,11 +170,33 @@ static void acpi_unbind_memory_blocks(struct acpi_memory_info *info)
 static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 {
 	acpi_handle handle = mem_device->device->handle;
+	mhp_t mhp_flags = MHP_NID_IS_MGID;
 	int result, num_enabled = 0;
 	struct acpi_memory_info *info;
-	int node;
+	u64 total_length = 0;
+	int node, mgid;
 
 	node = acpi_get_node(handle);
+
+	list_for_each_entry(info, &mem_device->res_list, list) {
+		if (!info->length)
+			continue;
+		/* We want a single node for the whole memory group */
+		if (node < 0)
+			node = memory_add_physaddr_to_nid(info->start_addr);
+		total_length += info->length;
+	}
+
+	if (!total_length) {
+		dev_err(&mem_device->device->dev, "device is empty\n");
+		return -EINVAL;
+	}
+
+	mgid = memory_group_register_static(node, PFN_UP(total_length));
+	if (mgid < 0)
+		return mgid;
+	mem_device->mgid = mgid;
+
 	/*
 	 * Tell the VM there is more memory here...
 	 * Note: Assume that this function returns zero on success
@@ -194,20 +204,16 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 	 * (i.e. memory-hot-remove function)
 	 */
 	list_for_each_entry(info, &mem_device->res_list, list) {
-		if (info->enabled) { /* just sanity check...*/
-			num_enabled++;
-			continue;
-		}
 		/*
 		 * If the memory block size is zero, please ignore it.
 		 * Don't try to do the following memory hotplug flowchart.
 		 */
 		if (!info->length)
 			continue;
-		if (node < 0)
-			node = memory_add_physaddr_to_nid(info->start_addr);
 
-		result = __add_memory(node, info->start_addr, info->length);
+		mhp_flags |= MHP_MEMMAP_ON_MEMORY;
+		result = __add_memory(mgid, info->start_addr, info->length,
+				      mhp_flags);
 
 		/*
 		 * If the memory block has been used by the kernel, add_memory()
@@ -233,7 +239,6 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 	}
 	if (!num_enabled) {
 		dev_err(&mem_device->device->dev, "add_memory failed\n");
-		mem_device->state = MEMORY_INVALID_STATE;
 		return -EINVAL;
 	}
 	/*
@@ -249,19 +254,14 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 
 static void acpi_memory_remove_memory(struct acpi_memory_device *mem_device)
 {
-	acpi_handle handle = mem_device->device->handle;
 	struct acpi_memory_info *info, *n;
-	int nid = acpi_get_node(handle);
 
 	list_for_each_entry_safe(info, n, &mem_device->res_list, list) {
 		if (!info->enabled)
 			continue;
 
-		if (nid == NUMA_NO_NODE)
-			nid = memory_add_physaddr_to_nid(info->start_addr);
-
 		acpi_unbind_memory_blocks(info);
-		__remove_memory(nid, info->start_addr, info->length);
+		__remove_memory(info->start_addr, info->length);
 		list_del(&info->list);
 		kfree(info);
 	}
@@ -271,6 +271,10 @@ static void acpi_memory_device_free(struct acpi_memory_device *mem_device)
 {
 	if (!mem_device)
 		return;
+
+	/* In case we succeeded adding *some* memory, unregistering fails. */
+	if (mem_device->mgid >= 0)
+		memory_group_unregister(mem_device->mgid);
 
 	acpi_memory_free_device_resources(mem_device);
 	mem_device->device->driver_data = NULL;
@@ -292,6 +296,7 @@ static int acpi_memory_device_add(struct acpi_device *device,
 
 	INIT_LIST_HEAD(&mem_device->res_list);
 	mem_device->device = device;
+	mem_device->mgid = -1;
 	sprintf(acpi_device_name(device), "%s", ACPI_MEMORY_DEVICE_NAME);
 	sprintf(acpi_device_class(device), "%s", ACPI_MEMORY_DEVICE_CLASS);
 	device->driver_data = mem_device;
@@ -303,9 +308,6 @@ static int acpi_memory_device_add(struct acpi_device *device,
 		kfree(mem_device);
 		return result;
 	}
-
-	/* Set the device state */
-	mem_device->state = MEMORY_POWER_ON_STATE;
 
 	result = acpi_memory_check_device(mem_device);
 	if (result) {

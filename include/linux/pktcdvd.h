@@ -152,19 +152,12 @@ struct packet_stacked_data
 };
 #define PSD_POOL_SIZE		64
 
-struct pktcdvd_kobj
-{
-	struct kobject		kobj;
-	struct pktcdvd_device	*pd;
-};
-#define to_pktcdvdkobj(_k) \
-  ((struct pktcdvd_kobj*)container_of(_k,struct pktcdvd_kobj,kobj))
-
 struct pktcdvd_device
 {
-	struct block_device	*bdev;		/* dev attached */
+	struct file		*bdev_file;	/* dev attached */
+	/* handle acquired for bdev during pkt_open_dev() */
+	struct file		*f_open_bdev;
 	dev_t			pkt_dev;	/* our dev */
-	char			name[20];
 	struct packet_settings	settings;
 	struct packet_stats	stats;
 	int			refcnt;		/* Open count */
@@ -183,6 +176,8 @@ struct pktcdvd_device
 	spinlock_t		lock;		/* Serialize access to bio_queue */
 	struct rb_root		bio_queue;	/* Work queue of bios we need to handle */
 	int			bio_queue_size;	/* Number of nodes in bio_queue */
+	bool			congested;	/* Someone is waiting for bio_queue_size
+						 * to drop. */
 	sector_t		current_sector;	/* Keep track of where the elevator is */
 	atomic_t		scan_queue;	/* Set to non-zero when pkt_handle_queue */
 						/* needs to be run. */
@@ -195,8 +190,6 @@ struct pktcdvd_device
 	int			write_congestion_on;
 
 	struct device		*dev;		/* sysfs pktcdvd[0-7] dev */
-	struct pktcdvd_kobj	*kobj_stat;	/* sysfs pktcdvd[0-7]/stat/     */
-	struct pktcdvd_kobj	*kobj_wqueue;	/* sysfs pktcdvd[0-7]/write_queue/ */
 
 	struct dentry		*dfs_d_root;	/* debugfs: devname directory */
 	struct dentry		*dfs_f_info;	/* debugfs: info file */

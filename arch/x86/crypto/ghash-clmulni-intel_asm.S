@@ -4,7 +4,7 @@
  * instructions. This file contains accelerated part of ghash
  * implementation. More information about PCLMULQDQ can be found at:
  *
- * http://software.intel.com/en-us/articles/carry-less-multiplication-and-its-usage-for-computing-the-gcm-mode/
+ * https://www.intel.com/content/dam/develop/external/us/en/documents/clmul-wp-rev-2-02-2014-04-20.pdf
  *
  * Copyright (c) 2009 Intel Corp.
  *   Author: Huang Ying <ying.huang@intel.com>
@@ -14,7 +14,6 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/inst.h>
 #include <asm/frame.h>
 
 .section	.rodata.cst16.bswap_mask, "aM", @progbits, 16
@@ -44,16 +43,16 @@
  *	T2
  *	T3
  */
-__clmul_gf128mul_ble:
+SYM_FUNC_START_LOCAL(__clmul_gf128mul_ble)
 	movaps DATA, T1
 	pshufd $0b01001110, DATA, T2
 	pshufd $0b01001110, SHASH, T3
 	pxor DATA, T2
 	pxor SHASH, T3
 
-	PCLMULQDQ 0x00 SHASH DATA	# DATA = a0 * b0
-	PCLMULQDQ 0x11 SHASH T1		# T1 = a1 * b1
-	PCLMULQDQ 0x00 T3 T2		# T2 = (a1 + a0) * (b1 + b0)
+	pclmulqdq $0x00, SHASH, DATA	# DATA = a0 * b0
+	pclmulqdq $0x11, SHASH, T1	# T1 = a1 * b1
+	pclmulqdq $0x00, T3, T2		# T2 = (a1 + a0) * (b1 + b0)
 	pxor DATA, T2
 	pxor T1, T2			# T2 = a0 * b1 + a1 * b0
 
@@ -86,48 +85,48 @@ __clmul_gf128mul_ble:
 	psrlq $1, T2
 	pxor T2, T1
 	pxor T1, DATA
-	ret
-ENDPROC(__clmul_gf128mul_ble)
+	RET
+SYM_FUNC_END(__clmul_gf128mul_ble)
 
-/* void clmul_ghash_mul(char *dst, const u128 *shash) */
-ENTRY(clmul_ghash_mul)
+/* void clmul_ghash_mul(char *dst, const le128 *shash) */
+SYM_FUNC_START(clmul_ghash_mul)
 	FRAME_BEGIN
 	movups (%rdi), DATA
 	movups (%rsi), SHASH
-	movaps .Lbswap_mask, BSWAP
-	PSHUFB_XMM BSWAP DATA
+	movaps .Lbswap_mask(%rip), BSWAP
+	pshufb BSWAP, DATA
 	call __clmul_gf128mul_ble
-	PSHUFB_XMM BSWAP DATA
+	pshufb BSWAP, DATA
 	movups DATA, (%rdi)
 	FRAME_END
-	ret
-ENDPROC(clmul_ghash_mul)
+	RET
+SYM_FUNC_END(clmul_ghash_mul)
 
 /*
  * void clmul_ghash_update(char *dst, const char *src, unsigned int srclen,
- *			   const u128 *shash);
+ *			   const le128 *shash);
  */
-ENTRY(clmul_ghash_update)
+SYM_FUNC_START(clmul_ghash_update)
 	FRAME_BEGIN
 	cmp $16, %rdx
 	jb .Lupdate_just_ret	# check length
-	movaps .Lbswap_mask, BSWAP
+	movaps .Lbswap_mask(%rip), BSWAP
 	movups (%rdi), DATA
 	movups (%rcx), SHASH
-	PSHUFB_XMM BSWAP DATA
+	pshufb BSWAP, DATA
 .align 4
 .Lupdate_loop:
 	movups (%rsi), IN1
-	PSHUFB_XMM BSWAP IN1
+	pshufb BSWAP, IN1
 	pxor IN1, DATA
 	call __clmul_gf128mul_ble
 	sub $16, %rdx
 	add $16, %rsi
 	cmp $16, %rdx
 	jge .Lupdate_loop
-	PSHUFB_XMM BSWAP DATA
+	pshufb BSWAP, DATA
 	movups DATA, (%rdi)
 .Lupdate_just_ret:
 	FRAME_END
-	ret
-ENDPROC(clmul_ghash_update)
+	RET
+SYM_FUNC_END(clmul_ghash_update)

@@ -3,6 +3,7 @@
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _HW_H_
@@ -38,14 +39,12 @@ enum ath10k_bus {
 #define QCA988X_HW_2_0_VERSION		0x4100016c
 #define QCA988X_HW_2_0_CHIP_ID_REV	0x2
 #define QCA988X_HW_2_0_FW_DIR		ATH10K_FW_DIR "/QCA988X/hw2.0"
-#define QCA988X_HW_2_0_BOARD_DATA_FILE	"board.bin"
 #define QCA988X_HW_2_0_PATCH_LOAD_ADDR	0x1234
 
 /* QCA9887 1.0 definitions */
 #define QCA9887_HW_1_0_VERSION		0x4100016d
 #define QCA9887_HW_1_0_CHIP_ID_REV	0
 #define QCA9887_HW_1_0_FW_DIR		ATH10K_FW_DIR "/QCA9887/hw1.0"
-#define QCA9887_HW_1_0_BOARD_DATA_FILE	"board.bin"
 #define QCA9887_HW_1_0_PATCH_LOAD_ADDR	0x1234
 
 /* QCA6174 target BMI version signatures */
@@ -84,11 +83,9 @@ enum qca9377_chip_id_rev {
 };
 
 #define QCA6174_HW_2_1_FW_DIR		ATH10K_FW_DIR "/QCA6174/hw2.1"
-#define QCA6174_HW_2_1_BOARD_DATA_FILE	"board.bin"
 #define QCA6174_HW_2_1_PATCH_LOAD_ADDR	0x1234
 
 #define QCA6174_HW_3_0_FW_DIR		ATH10K_FW_DIR "/QCA6174/hw3.0"
-#define QCA6174_HW_3_0_BOARD_DATA_FILE	"board.bin"
 #define QCA6174_HW_3_0_PATCH_LOAD_ADDR	0x1234
 
 /* QCA99X0 1.0 definitions (unsupported) */
@@ -98,7 +95,6 @@ enum qca9377_chip_id_rev {
 #define QCA99X0_HW_2_0_DEV_VERSION     0x01000000
 #define QCA99X0_HW_2_0_CHIP_ID_REV     0x1
 #define QCA99X0_HW_2_0_FW_DIR          ATH10K_FW_DIR "/QCA99X0/hw2.0"
-#define QCA99X0_HW_2_0_BOARD_DATA_FILE "board.bin"
 #define QCA99X0_HW_2_0_PATCH_LOAD_ADDR	0x1234
 
 /* QCA9984 1.0 defines */
@@ -106,8 +102,6 @@ enum qca9377_chip_id_rev {
 #define QCA9984_HW_DEV_TYPE		0xa
 #define QCA9984_HW_1_0_CHIP_ID_REV	0x0
 #define QCA9984_HW_1_0_FW_DIR		ATH10K_FW_DIR "/QCA9984/hw1.0"
-#define QCA9984_HW_1_0_BOARD_DATA_FILE "board.bin"
-#define QCA9984_HW_1_0_EBOARD_DATA_FILE "eboard.bin"
 #define QCA9984_HW_1_0_PATCH_LOAD_ADDR	0x1234
 
 /* QCA9888 2.0 defines */
@@ -115,18 +109,15 @@ enum qca9377_chip_id_rev {
 #define QCA9888_HW_DEV_TYPE		0xc
 #define QCA9888_HW_2_0_CHIP_ID_REV	0x0
 #define QCA9888_HW_2_0_FW_DIR		ATH10K_FW_DIR "/QCA9888/hw2.0"
-#define QCA9888_HW_2_0_BOARD_DATA_FILE "board.bin"
 #define QCA9888_HW_2_0_PATCH_LOAD_ADDR	0x1234
 
 /* QCA9377 1.0 definitions */
 #define QCA9377_HW_1_0_FW_DIR          ATH10K_FW_DIR "/QCA9377/hw1.0"
-#define QCA9377_HW_1_0_BOARD_DATA_FILE "board.bin"
 #define QCA9377_HW_1_0_PATCH_LOAD_ADDR	0x1234
 
 /* QCA4019 1.0 definitions */
 #define QCA4019_HW_1_0_DEV_VERSION     0x01000000
 #define QCA4019_HW_1_0_FW_DIR          ATH10K_FW_DIR "/QCA4019/hw1.0"
-#define QCA4019_HW_1_0_BOARD_DATA_FILE "board.bin"
 #define QCA4019_HW_1_0_PATCH_LOAD_ADDR  0x1234
 
 /* WCN3990 1.0 definitions */
@@ -158,14 +149,16 @@ enum qca9377_chip_id_rev {
 #define ATH10K_FIRMWARE_MAGIC               "QCA-ATH10K"
 #define ATH10K_BOARD_MAGIC                  "QCA-ATH10K-BOARD"
 
+#define ATH10K_BOARD_DATA_FILE         "board.bin"
 #define ATH10K_BOARD_API2_FILE         "board-2.bin"
+#define ATH10K_EBOARD_DATA_FILE        "eboard.bin"
 
 #define REG_DUMP_COUNT_QCA988X 60
 
 struct ath10k_fw_ie {
 	__le32 id;
 	__le32 len;
-	u8 data[0];
+	u8 data[];
 };
 
 enum ath10k_fw_ie_type {
@@ -379,6 +372,9 @@ struct ath10k_hw_values {
 	u8 num_target_ce_config_wlan;
 	u16 ce_desc_meta_data_mask;
 	u8 ce_desc_meta_data_lsb;
+	u32 rfkill_pin;
+	u32 rfkill_cfg;
+	bool rfkill_on_level;
 };
 
 extern const struct ath10k_hw_values qca988x_values;
@@ -507,6 +503,8 @@ struct ath10k_hw_clk_params {
 	u32 outdiv;
 };
 
+struct htt_rx_desc_ops;
+
 struct ath10k_hw_params {
 	u32 id;
 	u16 dev_id;
@@ -547,9 +545,7 @@ struct ath10k_hw_params {
 
 	struct ath10k_hw_params_fw {
 		const char *dir;
-		const char *board;
 		size_t board_size;
-		const char *eboard;
 		size_t ext_board_size;
 		size_t board_ext_size;
 	} fw;
@@ -558,6 +554,9 @@ struct ath10k_hw_params {
 	 * frames encrypted and expect software do decryption.
 	 */
 	bool sw_decrypt_mcast_mgmt;
+
+	/* Rx descriptor abstraction */
+	const struct ath10k_htt_rx_desc_ops *rx_desc_ops;
 
 	const struct ath10k_hw_ops *hw_ops;
 
@@ -590,9 +589,6 @@ struct ath10k_hw_params {
 	/* Target rx ring fill level */
 	u32 rx_ring_fill_level;
 
-	/* target supporting per ce IRQ */
-	bool per_ce_irq;
-
 	/* target supporting shadow register for ce write */
 	bool shadow_reg_support;
 
@@ -610,25 +606,43 @@ struct ath10k_hw_params {
 	/* target supporting fw download via diag ce */
 	bool fw_diag_ce_download;
 
+	/* target supporting fw download via large size BMI */
+	bool bmi_large_size_download;
+
 	/* need to set uart pin if disable uart print, workaround for a
 	 * firmware bug
 	 */
 	bool uart_pin_workaround;
 
+	/* Workaround for the credit size calculation */
+	bool credit_size_workaround;
+
 	/* tx stats support over pktlog */
 	bool tx_stats_over_pktlog;
+
+	/* provides bitrates for sta_statistics using WMI_TLV_PEER_STATS_INFO_EVENTID */
+	bool supports_peer_stats_info;
+
+	bool dynamic_sar_support;
+
+	bool hw_restart_disconnect;
+
+	bool use_fw_tx_credits;
+
+	bool delay_unmap_buffer;
+
+	/* The hardware support multicast frame registrations */
+	bool mcast_frame_registration;
 };
 
-struct htt_rx_desc;
 struct htt_resp;
 struct htt_data_tx_completion_ext;
+struct htt_rx_ring_rx_desc_offsets;
 
 /* Defines needed for Rx descriptor abstraction */
 struct ath10k_hw_ops {
-	int (*rx_desc_get_l3_pad_bytes)(struct htt_rx_desc *rxd);
 	void (*set_coverage_class)(struct ath10k *ar, s16 value);
 	int (*enable_pll_clk)(struct ath10k *ar);
-	bool (*rx_desc_get_msdu_limit_error)(struct htt_rx_desc *rxd);
 	int (*tx_data_rssi_pad_bytes)(struct htt_resp *htt);
 	int (*is_rssi_enable)(struct htt_resp *resp);
 };
@@ -640,24 +654,6 @@ extern const struct ath10k_hw_ops qca6174_sdio_ops;
 extern const struct ath10k_hw_ops wcn3990_ops;
 
 extern const struct ath10k_hw_clk_params qca6174_clk[];
-
-static inline int
-ath10k_rx_desc_get_l3_pad_bytes(struct ath10k_hw_params *hw,
-				struct htt_rx_desc *rxd)
-{
-	if (hw->hw_ops->rx_desc_get_l3_pad_bytes)
-		return hw->hw_ops->rx_desc_get_l3_pad_bytes(rxd);
-	return 0;
-}
-
-static inline bool
-ath10k_rx_desc_msdu_limit_error(struct ath10k_hw_params *hw,
-				struct htt_rx_desc *rxd)
-{
-	if (hw->hw_ops->rx_desc_get_msdu_limit_error)
-		return hw->hw_ops->rx_desc_get_msdu_limit_error(rxd);
-	return false;
-}
 
 static inline int
 ath10k_tx_data_rssi_get_pad_bytes(struct ath10k_hw_params *hw,
@@ -759,7 +755,7 @@ ath10k_is_rssi_enable(struct ath10k_hw_params *hw,
 #define TARGET_TLV_NUM_TDLS_VDEVS		1
 #define TARGET_TLV_NUM_TIDS			((TARGET_TLV_NUM_PEERS) * 2)
 #define TARGET_TLV_NUM_MSDU_DESC		(1024 + 32)
-#define TARGET_TLV_NUM_MSDU_DESC_HL		64
+#define TARGET_TLV_NUM_MSDU_DESC_HL		1024
 #define TARGET_TLV_NUM_WOW_PATTERNS		22
 #define TARGET_TLV_MGMT_NUM_MSDU_DESC		(50)
 
@@ -767,6 +763,9 @@ ath10k_is_rssi_enable(struct ath10k_hw_params *hw,
 #define TARGET_HL_TLV_NUM_PEERS			33
 #define TARGET_HL_TLV_AST_SKID_LIMIT		16
 #define TARGET_HL_TLV_NUM_WDS_ENTRIES		2
+
+/* Target specific defines for QCA9377 high latency firmware */
+#define TARGET_QCA9377_HL_NUM_PEERS		15
 
 /* Diagnostic Window */
 #define CE_DIAG_PIPE	7
@@ -810,7 +809,7 @@ ath10k_is_rssi_enable(struct ath10k_hw_params *hw,
 
 #define TARGET_10_4_TX_DBG_LOG_SIZE		1024
 #define TARGET_10_4_NUM_WDS_ENTRIES		32
-#define TARGET_10_4_DMA_BURST_SIZE		0
+#define TARGET_10_4_DMA_BURST_SIZE		1
 #define TARGET_10_4_MAC_AGGR_DELIM		0
 #define TARGET_10_4_RX_SKIP_DEFRAG_TIMEOUT_DUP_DETECTION_CHECK 1
 #define TARGET_10_4_VOW_CONFIG			0

@@ -7,18 +7,27 @@
 #ifndef BTRFS_DELAYED_INODE_H
 #define BTRFS_DELAYED_INODE_H
 
+#include <linux/types.h>
 #include <linux/rbtree.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/wait.h>
+#include <linux/fs.h>
 #include <linux/atomic.h>
 #include <linux/refcount.h>
 #include "ctree.h"
 
-/* types of the delayed item */
-#define BTRFS_DELAYED_INSERTION_ITEM	1
-#define BTRFS_DELAYED_DELETION_ITEM	2
+struct btrfs_disk_key;
+struct btrfs_fs_info;
+struct btrfs_inode;
+struct btrfs_root;
+struct btrfs_trans_handle;
+
+enum btrfs_delayed_item_type {
+	BTRFS_DELAYED_INSERTION_ITEM,
+	BTRFS_DELAYED_DELETION_ITEM
+};
 
 struct btrfs_delayed_root {
 	spinlock_t lock;
@@ -58,37 +67,50 @@ struct btrfs_delayed_node {
 	u64 index_cnt;
 	unsigned long flags;
 	int count;
+	/*
+	 * The size of the next batch of dir index items to insert (if this
+	 * node is from a directory inode). Protected by @mutex.
+	 */
+	u32 curr_index_batch_size;
+	/*
+	 * Number of leaves reserved for inserting dir index items (if this
+	 * node belongs to a directory inode). This may be larger then the
+	 * actual number of leaves we end up using. Protected by @mutex.
+	 */
+	u32 index_item_leaves;
 };
 
 struct btrfs_delayed_item {
 	struct rb_node rb_node;
-	struct btrfs_key key;
+	/* Offset value of the corresponding dir index key. */
+	u64 index;
 	struct list_head tree_list;	/* used for batch insert/delete items */
 	struct list_head readdir_list;	/* used for readdir items */
+	/*
+	 * Used when logging a directory.
+	 * Insertions and deletions to this list are protected by the parent
+	 * delayed node's mutex.
+	 */
+	struct list_head log_list;
 	u64 bytes_reserved;
 	struct btrfs_delayed_node *delayed_node;
 	refcount_t refs;
-	int ins_or_del;
-	u32 data_len;
-	char data[0];
+	enum btrfs_delayed_item_type type:8;
+	/*
+	 * Track if this delayed item was already logged.
+	 * Protected by the mutex of the parent delayed inode.
+	 */
+	bool logged;
+	/* The maximum leaf size is 64K, so u16 is more than enough. */
+	u16 data_len;
+	char data[] __counted_by(data_len);
 };
 
-static inline void btrfs_init_delayed_root(
-				struct btrfs_delayed_root *delayed_root)
-{
-	atomic_set(&delayed_root->items, 0);
-	atomic_set(&delayed_root->items_seq, 0);
-	delayed_root->nodes = 0;
-	spin_lock_init(&delayed_root->lock);
-	init_waitqueue_head(&delayed_root->wait);
-	INIT_LIST_HEAD(&delayed_root->node_list);
-	INIT_LIST_HEAD(&delayed_root->prepare_list);
-}
-
+void btrfs_init_delayed_root(struct btrfs_delayed_root *delayed_root);
 int btrfs_insert_delayed_dir_index(struct btrfs_trans_handle *trans,
 				   const char *name, int name_len,
 				   struct btrfs_inode *dir,
-				   struct btrfs_disk_key *disk_key, u8 type,
+				   struct btrfs_disk_key *disk_key, u8 flags,
 				   u64 index);
 
 int btrfs_delete_delayed_dir_index(struct btrfs_trans_handle *trans,
@@ -110,7 +132,7 @@ int btrfs_commit_inode_delayed_inode(struct btrfs_inode *inode);
 
 
 int btrfs_delayed_update_inode(struct btrfs_trans_handle *trans,
-			       struct btrfs_root *root, struct inode *inode);
+			       struct btrfs_inode *inode);
 int btrfs_fill_inode(struct inode *inode, u32 *rdev);
 int btrfs_delayed_delete_inode_ref(struct btrfs_inode *inode);
 
@@ -122,6 +144,7 @@ void btrfs_destroy_delayed_inodes(struct btrfs_fs_info *fs_info);
 
 /* Used for readdir() */
 bool btrfs_readdir_get_delayed_items(struct inode *inode,
+				     u64 last_index,
 				     struct list_head *ins_list,
 				     struct list_head *del_list);
 void btrfs_readdir_put_delayed_items(struct inode *inode,
@@ -131,6 +154,14 @@ int btrfs_should_delete_dir_index(struct list_head *del_list,
 				  u64 index);
 int btrfs_readdir_delayed_dir_index(struct dir_context *ctx,
 				    struct list_head *ins_list);
+
+/* Used during directory logging. */
+void btrfs_log_get_delayed_items(struct btrfs_inode *inode,
+				 struct list_head *ins_list,
+				 struct list_head *del_list);
+void btrfs_log_put_delayed_items(struct btrfs_inode *inode,
+				 struct list_head *ins_list,
+				 struct list_head *del_list);
 
 /* for init */
 int __init btrfs_delayed_inode_init(void);

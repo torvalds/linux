@@ -40,8 +40,8 @@ kind of power supply, and can process/present them to a user in consistent
 manner. Results for different power supplies and machines are also directly
 comparable.
 
-See drivers/power/supply/ds2760_battery.c and drivers/power/supply/pda_power.c
-for the example how to declare and handle attributes.
+See drivers/power/supply/ds2760_battery.c for the example how to declare
+and handle attributes.
 
 
 Units
@@ -233,7 +233,7 @@ Devicetree battery characteristics
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Drivers should call power_supply_get_battery_info() to obtain battery
 characteristics from a devicetree battery node, defined in
-Documentation/devicetree/bindings/power/supply/battery.txt. This is
+Documentation/devicetree/bindings/power/supply/battery.yaml. This is
 implemented in drivers/power/supply/bq27xxx_battery.c.
 
 Properties in struct power_supply_battery_info and their counterparts in the

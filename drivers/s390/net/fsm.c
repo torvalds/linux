@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * A generic FSM based on fsm used in isdn4linux
  *
  */
@@ -9,7 +9,7 @@
 #include <linux/slab.h>
 #include <linux/timer.h>
 
-MODULE_AUTHOR("(C) 2000 IBM Corp. by Fritz Elfert (felfert@millenux.com)");
+MODULE_AUTHOR("(C) 2000 IBM Corp. by Fritz Elfert <felfert@millenux.com>");
 MODULE_DESCRIPTION("Finite state machine helper functions");
 MODULE_LICENSE("GPL");
 
@@ -28,7 +28,7 @@ init_fsm(char *name, const char **state_names, const char **event_names, int nr_
 			"fsm(%s): init_fsm: Couldn't alloc instance\n", name);
 		return NULL;
 	}
-	strlcpy(this->name, name, sizeof(this->name));
+	strscpy(this->name, name, sizeof(this->name));
 	init_waitqueue_head(&this->wait_q);
 
 	f = kzalloc(sizeof(fsm), order);

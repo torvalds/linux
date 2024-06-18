@@ -11,12 +11,10 @@
 #include <linux/i2c.h>
 #include <linux/err.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 
 #include <linux/mfd/da9055/core.h>
 
-static int da9055_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static int da9055_i2c_probe(struct i2c_client *i2c)
 {
 	struct da9055 *da9055;
 	int ret;
@@ -41,13 +39,11 @@ static int da9055_i2c_probe(struct i2c_client *i2c,
 	return da9055_device_init(da9055);
 }
 
-static int da9055_i2c_remove(struct i2c_client *i2c)
+static void da9055_i2c_remove(struct i2c_client *i2c)
 {
 	struct da9055 *da9055 = i2c_get_clientdata(i2c);
 
 	da9055_device_exit(da9055);
-
-	return 0;
 }
 
 /*
@@ -74,7 +70,7 @@ static struct i2c_driver da9055_i2c_driver = {
 	.id_table = da9055_i2c_id,
 	.driver = {
 		.name = "da9055-pmic",
-		.of_match_table = of_match_ptr(da9055_of_match),
+		.of_match_table = da9055_of_match,
 	},
 };
 
@@ -100,4 +96,3 @@ module_exit(da9055_i2c_exit);
 
 MODULE_AUTHOR("David Dajun Chen <dchen@diasemi.com>");
 MODULE_DESCRIPTION("I2C driver for Dialog DA9055 PMIC");
-MODULE_LICENSE("GPL");

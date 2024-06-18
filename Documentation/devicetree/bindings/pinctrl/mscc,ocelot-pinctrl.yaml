@@ -1,0 +1,116 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/mscc,ocelot-pinctrl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Microsemi Ocelot pin controller
+
+maintainers:
+  - Alexandre Belloni <alexandre.belloni@bootlin.com>
+  - Lars Povlsen <lars.povlsen@microchip.com>
+
+properties:
+  compatible:
+    enum:
+      - microchip,lan966x-pinctrl
+      - microchip,sparx5-pinctrl
+      - mscc,jaguar2-pinctrl
+      - mscc,luton-pinctrl
+      - mscc,ocelot-pinctrl
+      - mscc,serval-pinctrl
+      - mscc,servalt-pinctrl
+
+  reg:
+    items:
+      - description: Base address
+      - description: Extended pin configuration registers
+    minItems: 1
+
+  gpio-controller: true
+
+  '#gpio-cells':
+    const: 2
+
+  gpio-ranges: true
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-controller: true
+
+  "#interrupt-cells":
+    const: 2
+
+  resets:
+    maxItems: 1
+
+  reset-names:
+    description: Optional shared switch reset.
+    items:
+      - const: switch
+
+patternProperties:
+  '-pins$':
+    type: object
+    allOf:
+      - $ref: pinmux-node.yaml
+      - $ref: pincfg-node.yaml
+
+    properties:
+      function: true
+      pins: true
+      output-high: true
+      output-low: true
+      drive-strength: true
+
+    required:
+      - function
+      - pins
+
+    additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - gpio-controller
+  - '#gpio-cells'
+  - gpio-ranges
+
+allOf:
+  - $ref: pinctrl.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - microchip,lan966x-pinctrl
+              - microchip,sparx5-pinctrl
+    then:
+      properties:
+        reg:
+          minItems: 2
+
+additionalProperties: false
+
+examples:
+  - |
+    gpio: pinctrl@71070034 {
+        compatible = "mscc,ocelot-pinctrl";
+        reg = <0x71070034 0x28>;
+        gpio-controller;
+        #gpio-cells = <2>;
+        gpio-ranges = <&gpio 0 0 22>;
+
+        uart_pins: uart-pins {
+            pins = "GPIO_6", "GPIO_7";
+            function = "uart";
+        };
+
+        uart2_pins: uart2-pins {
+            pins = "GPIO_12", "GPIO_13";
+            function = "uart2";
+        };
+    };
+
+...

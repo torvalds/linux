@@ -2,24 +2,36 @@
 /*
  * Regulator driver for LP87565 PMIC
  *
- * Copyright (C) 2017 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2017 Texas Instruments Incorporated - https://www.ti.com/
  */
 
+#include <linux/bitfield.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 
 #include <linux/mfd/lp87565.h>
 
-#define LP87565_REGULATOR(_name, _id, _of, _ops, _n, _vr, _vm, _er, _em, \
-			 _delay, _lr, _cr)				\
+enum LP87565_regulator_id {
+	/* BUCK's */
+	LP87565_BUCK_0,
+	LP87565_BUCK_1,
+	LP87565_BUCK_2,
+	LP87565_BUCK_3,
+	LP87565_BUCK_10,
+	LP87565_BUCK_23,
+	LP87565_BUCK_3210,
+};
+
+#define LP87565_REGULATOR(_name, _id, _of, _ops, _n, _vr, _vm,		\
+			  _er, _em, _ev, _delay, _lr, _cr)		\
 	[_id] = {							\
 		.desc = {						\
 			.name			= _name,		\
 			.supply_name		= _of "-in",		\
 			.id			= _id,			\
-			.of_match		= of_match_ptr(_of),	\
-			.regulators_node	= of_match_ptr("regulators"),\
+			.of_match		= _of,			\
+			.regulators_node	= "regulators",		\
 			.ops			= &_ops,		\
 			.n_voltages		= _n,			\
 			.type			= REGULATOR_VOLTAGE,	\
@@ -28,6 +40,7 @@
 			.vsel_mask		= _vm,			\
 			.enable_reg		= _er,			\
 			.enable_mask		= _em,			\
+			.enable_val		= _ev,			\
 			.ramp_delay		= _delay,		\
 			.linear_ranges		= _lr,			\
 			.n_linear_ranges	= ARRAY_SIZE(_lr),	\
@@ -46,7 +59,7 @@ struct lp87565_regulator {
 
 static const struct lp87565_regulator regulators[];
 
-static const struct regulator_linear_range buck0_1_2_3_ranges[] = {
+static const struct linear_range buck0_1_2_3_ranges[] = {
 	REGULATOR_LINEAR_RANGE(600000, 0xA, 0x17, 10000),
 	REGULATOR_LINEAR_RANGE(735000, 0x18, 0x9d, 5000),
 	REGULATOR_LINEAR_RANGE(1420000, 0x9e, 0xff, 20000),
@@ -87,7 +100,7 @@ static int lp87565_buck_set_ramp_delay(struct regulator_dev *rdev,
 
 	ret = regmap_update_bits(rdev->regmap, regulators[id].ctrl2_reg,
 				 LP87565_BUCK_CTRL_2_SLEW_RATE,
-				 reg << __ffs(LP87565_BUCK_CTRL_2_SLEW_RATE));
+				 FIELD_PREP(LP87565_BUCK_CTRL_2_SLEW_RATE, reg));
 	if (ret) {
 		dev_err(&rdev->dev, "SLEW RATE write failed: %d\n", ret);
 		return ret;
@@ -121,37 +134,53 @@ static const struct lp87565_regulator regulators[] = {
 	LP87565_REGULATOR("BUCK0", LP87565_BUCK_0, "buck0", lp87565_buck_ops,
 			  256, LP87565_REG_BUCK0_VOUT, LP87565_BUCK_VSET,
 			  LP87565_REG_BUCK0_CTRL_1,
+			  LP87565_BUCK_CTRL_1_EN |
+			  LP87565_BUCK_CTRL_1_EN_PIN_CTRL,
 			  LP87565_BUCK_CTRL_1_EN, 3230,
 			  buck0_1_2_3_ranges, LP87565_REG_BUCK0_CTRL_2),
 	LP87565_REGULATOR("BUCK1", LP87565_BUCK_1, "buck1", lp87565_buck_ops,
 			  256, LP87565_REG_BUCK1_VOUT, LP87565_BUCK_VSET,
 			  LP87565_REG_BUCK1_CTRL_1,
+			  LP87565_BUCK_CTRL_1_EN |
+			  LP87565_BUCK_CTRL_1_EN_PIN_CTRL,
 			  LP87565_BUCK_CTRL_1_EN, 3230,
 			  buck0_1_2_3_ranges, LP87565_REG_BUCK1_CTRL_2),
 	LP87565_REGULATOR("BUCK2", LP87565_BUCK_2, "buck2", lp87565_buck_ops,
 			  256, LP87565_REG_BUCK2_VOUT, LP87565_BUCK_VSET,
 			  LP87565_REG_BUCK2_CTRL_1,
+			  LP87565_BUCK_CTRL_1_EN |
+			  LP87565_BUCK_CTRL_1_EN_PIN_CTRL,
 			  LP87565_BUCK_CTRL_1_EN, 3230,
 			  buck0_1_2_3_ranges, LP87565_REG_BUCK2_CTRL_2),
 	LP87565_REGULATOR("BUCK3", LP87565_BUCK_3, "buck3", lp87565_buck_ops,
 			  256, LP87565_REG_BUCK3_VOUT, LP87565_BUCK_VSET,
 			  LP87565_REG_BUCK3_CTRL_1,
+			  LP87565_BUCK_CTRL_1_EN |
+			  LP87565_BUCK_CTRL_1_EN_PIN_CTRL,
 			  LP87565_BUCK_CTRL_1_EN, 3230,
 			  buck0_1_2_3_ranges, LP87565_REG_BUCK3_CTRL_2),
 	LP87565_REGULATOR("BUCK10", LP87565_BUCK_10, "buck10", lp87565_buck_ops,
 			  256, LP87565_REG_BUCK0_VOUT, LP87565_BUCK_VSET,
 			  LP87565_REG_BUCK0_CTRL_1,
 			  LP87565_BUCK_CTRL_1_EN |
+			  LP87565_BUCK_CTRL_1_EN_PIN_CTRL |
+			  LP87565_BUCK_CTRL_1_FPWM_MP_0_2,
+			  LP87565_BUCK_CTRL_1_EN |
 			  LP87565_BUCK_CTRL_1_FPWM_MP_0_2, 3230,
 			  buck0_1_2_3_ranges, LP87565_REG_BUCK0_CTRL_2),
 	LP87565_REGULATOR("BUCK23", LP87565_BUCK_23, "buck23", lp87565_buck_ops,
 			  256, LP87565_REG_BUCK2_VOUT, LP87565_BUCK_VSET,
 			  LP87565_REG_BUCK2_CTRL_1,
+			  LP87565_BUCK_CTRL_1_EN |
+			  LP87565_BUCK_CTRL_1_EN_PIN_CTRL,
 			  LP87565_BUCK_CTRL_1_EN, 3230,
 			  buck0_1_2_3_ranges, LP87565_REG_BUCK2_CTRL_2),
 	LP87565_REGULATOR("BUCK3210", LP87565_BUCK_3210, "buck3210",
 			  lp87565_buck_ops, 256, LP87565_REG_BUCK0_VOUT,
 			  LP87565_BUCK_VSET, LP87565_REG_BUCK0_CTRL_1,
+			  LP87565_BUCK_CTRL_1_EN |
+			  LP87565_BUCK_CTRL_1_EN_PIN_CTRL |
+			  LP87565_BUCK_CTRL_1_FPWM_MP_0_2,
 			  LP87565_BUCK_CTRL_1_EN |
 			  LP87565_BUCK_CTRL_1_FPWM_MP_0_2, 3230,
 			  buck0_1_2_3_ranges, LP87565_REG_BUCK0_CTRL_2),
@@ -209,6 +238,7 @@ MODULE_DEVICE_TABLE(platform, lp87565_regulator_id_table);
 static struct platform_driver lp87565_regulator_driver = {
 	.driver = {
 		.name = "lp87565-pmic",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = lp87565_regulator_probe,
 	.id_table = lp87565_regulator_id_table,

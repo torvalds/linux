@@ -532,7 +532,7 @@ static int cm36651_write_prox_event_config(struct iio_dev *indio_dev,
 					int state)
 {
 	struct cm36651_data *cm36651 = iio_priv(indio_dev);
-	int cmd, ret = -EINVAL;
+	int cmd, ret;
 
 	mutex_lock(&cm36651->lock);
 
@@ -618,9 +618,9 @@ static const struct iio_info cm36651_info = {
 	.attrs			= &cm36651_attribute_group,
 };
 
-static int cm36651_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int cm36651_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct cm36651_data *cm36651;
 	struct iio_dev *indio_dev;
 	int ret;
@@ -632,10 +632,9 @@ static int cm36651_probe(struct i2c_client *client,
 	cm36651 = iio_priv(indio_dev);
 
 	cm36651->vled_reg = devm_regulator_get(&client->dev, "vled");
-	if (IS_ERR(cm36651->vled_reg)) {
-		dev_err(&client->dev, "get regulator vled failed\n");
-		return PTR_ERR(cm36651->vled_reg);
-	}
+	if (IS_ERR(cm36651->vled_reg))
+		return dev_err_probe(&client->dev, PTR_ERR(cm36651->vled_reg),
+				     "get regulator vled failed\n");
 
 	ret = regulator_enable(cm36651->vled_reg);
 	if (ret) {
@@ -662,7 +661,6 @@ static int cm36651_probe(struct i2c_client *client,
 	}
 
 	mutex_init(&cm36651->lock);
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->channels = cm36651_channels;
 	indio_dev->num_channels = ARRAY_SIZE(cm36651_channels);
 	indio_dev->info = &cm36651_info;
@@ -702,7 +700,7 @@ error_disable_reg:
 	return ret;
 }
 
-static int cm36651_remove(struct i2c_client *client)
+static void cm36651_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct cm36651_data *cm36651 = iio_priv(indio_dev);
@@ -712,8 +710,6 @@ static int cm36651_remove(struct i2c_client *client)
 	free_irq(client->irq, indio_dev);
 	i2c_unregister_device(cm36651->ps_client);
 	i2c_unregister_device(cm36651->ara_client);
-
-	return 0;
 }
 
 static const struct i2c_device_id cm36651_id[] = {

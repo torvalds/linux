@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+
 ================
 bpftool-btf
 ================
@@ -7,85 +9,86 @@ tool for inspection of BTF data
 
 :Manual section: 8
 
+.. include:: substitutions.rst
+
 SYNOPSIS
 ========
 
-	**bpftool** [*OPTIONS*] **btf** *COMMAND*
+**bpftool** [*OPTIONS*] **btf** *COMMAND*
 
-	*OPTIONS* := { { **-j** | **--json** } [{ **-p** | **--pretty** }] }
+*OPTIONS* := { |COMMON_OPTIONS| | { **-B** | **--base-btf** } }
 
-	*COMMANDS* := { **dump** | **help** }
+*COMMANDS* := { **dump** | **help** }
 
 BTF COMMANDS
 =============
 
-|	**bpftool** **btf** { **show** | **list** } [**id** *BTF_ID*]
-|	**bpftool** **btf dump** *BTF_SRC* [**format** *FORMAT*]
-|	**bpftool** **btf help**
+| **bpftool** **btf** { **show** | **list** } [**id** *BTF_ID*]
+| **bpftool** **btf dump** *BTF_SRC* [**format** *FORMAT*]
+| **bpftool** **btf help**
 |
-|	*BTF_SRC* := { **id** *BTF_ID* | **prog** *PROG* | **map** *MAP* [{**key** | **value** | **kv** | **all**}] | **file** *FILE* }
-|	*FORMAT* := { **raw** | **c** }
-|	*MAP* := { **id** *MAP_ID* | **pinned** *FILE* }
-|	*PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* }
+| *BTF_SRC* := { **id** *BTF_ID* | **prog** *PROG* | **map** *MAP* [{**key** | **value** | **kv** | **all**}] | **file** *FILE* }
+| *FORMAT* := { **raw** | **c** }
+| *MAP* := { **id** *MAP_ID* | **pinned** *FILE* }
+| *PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* | **name** *PROG_NAME* }
 
 DESCRIPTION
 ===========
-	**bpftool btf { show | list }** [**id** *BTF_ID*]
-		  Show information about loaded BTF objects. If a BTF ID is
-		  specified, show information only about given BTF object,
-		  otherwise list all BTF objects currently loaded on the
-		  system.
+bpftool btf { show | list } [id *BTF_ID*]
+    Show information about loaded BTF objects. If a BTF ID is specified, show
+    information only about given BTF object, otherwise list all BTF objects
+    currently loaded on the system.
 
-	**bpftool btf dump** *BTF_SRC*
-		  Dump BTF entries from a given *BTF_SRC*.
+    Since Linux 5.8 bpftool is able to discover information about processes
+    that hold open file descriptors (FDs) against BTF objects. On such kernels
+    bpftool will automatically emit this information as well.
 
-		  When **id** is specified, BTF object with that ID will be
-		  loaded and all its BTF types emitted.
+bpftool btf dump *BTF_SRC*
+    Dump BTF entries from a given *BTF_SRC*.
 
-		  When **map** is provided, it's expected that map has
-		  associated BTF object with BTF types describing key and
-		  value. It's possible to select whether to dump only BTF
-		  type(s) associated with key (**key**), value (**value**),
-		  both key and value (**kv**), or all BTF types present in
-		  associated BTF object (**all**). If not specified, **kv**
-		  is assumed.
+    When **id** is specified, BTF object with that ID will be loaded and all
+    its BTF types emitted.
 
-		  When **prog** is provided, it's expected that program has
-		  associated BTF object with BTF types.
+    When **map** is provided, it's expected that map has associated BTF object
+    with BTF types describing key and value. It's possible to select whether to
+    dump only BTF type(s) associated with key (**key**), value (**value**),
+    both key and value (**kv**), or all BTF types present in associated BTF
+    object (**all**). If not specified, **kv** is assumed.
 
-		  When specifying *FILE*, an ELF file is expected, containing
-		  .BTF section with well-defined BTF binary format data,
-		  typically produced by clang or pahole.
+    When **prog** is provided, it's expected that program has associated BTF
+    object with BTF types.
 
-		  **format** option can be used to override default (raw)
-		  output format. Raw (**raw**) or C-syntax (**c**) output
-		  formats are supported.
+    When specifying *FILE*, an ELF file is expected, containing .BTF section
+    with well-defined BTF binary format data, typically produced by clang or
+    pahole.
 
-	**bpftool btf help**
-		  Print short help message.
+    **format** option can be used to override default (raw) output format. Raw
+    (**raw**) or C-syntax (**c**) output formats are supported.
+
+bpftool btf help
+    Print short help message.
 
 OPTIONS
 =======
-	-h, --help
-		  Print short generic help message (similar to **bpftool help**).
+.. include:: common_options.rst
 
-	-V, --version
-		  Print version number (similar to **bpftool version**).
+-B, --base-btf *FILE*
+    Pass a base BTF object. Base BTF objects are typically used with BTF
+    objects for kernel modules. To avoid duplicating all kernel symbols
+    required by modules, BTF objects for modules are "split", they are
+    built incrementally on top of the kernel (vmlinux) BTF object. So the
+    base BTF reference should usually point to the kernel BTF.
 
-	-j, --json
-		  Generate JSON output. For commands that cannot produce JSON, this
-		  option has no effect.
-
-	-p, --pretty
-		  Generate human-readable JSON output. Implies **-j**.
-
-	-d, --debug
-		  Print all logs available from libbpf, including debug-level
-		  information.
+    When the main BTF object to process (for example, the module BTF to
+    dump) is passed as a *FILE*, bpftool attempts to autodetect the path
+    for the base object, and passing this option is optional. When the main
+    BTF object is passed through other handles, this option becomes
+    necessary.
 
 EXAMPLES
 ========
 **# bpftool btf dump id 1226**
+
 ::
 
   [1] PTR '(anon)' type_id=2
@@ -99,6 +102,7 @@ EXAMPLES
 This gives an example of default output for all supported BTF kinds.
 
 **$ cat prog.c**
+
 ::
 
   struct fwd_struct;
@@ -139,6 +143,7 @@ This gives an example of default output for all supported BTF kinds.
   }
 
 **$ bpftool btf dump file prog.o**
+
 ::
 
   [1] PTR '(anon)' type_id=2
@@ -225,14 +230,33 @@ All the standard ways to specify map or program are supported:
 
 **# bpftool btf dump prog pinned /sys/fs/bpf/prog_name**
 
-SEE ALSO
-========
-	**bpf**\ (2),
-	**bpf-helpers**\ (7),
-	**bpftool**\ (8),
-	**bpftool-map**\ (8),
-	**bpftool-prog**\ (8),
-	**bpftool-cgroup**\ (8),
-	**bpftool-feature**\ (8),
-	**bpftool-net**\ (8),
-	**bpftool-perf**\ (8)
+|
+| **# bpftool btf dump file /sys/kernel/btf/i2c_smbus**
+| (or)
+| **# I2C_SMBUS_ID=$(bpftool btf show -p | jq '.[] | select(.name=="i2c_smbus").id')**
+| **# bpftool btf dump id ${I2C_SMBUS_ID} -B /sys/kernel/btf/vmlinux**
+
+::
+
+  [104848] STRUCT 'i2c_smbus_alert' size=40 vlen=2
+          'alert' type_id=393 bits_offset=0
+          'ara' type_id=56050 bits_offset=256
+  [104849] STRUCT 'alert_data' size=12 vlen=3
+          'addr' type_id=16 bits_offset=0
+          'type' type_id=56053 bits_offset=32
+          'data' type_id=7 bits_offset=64
+  [104850] PTR '(anon)' type_id=104848
+  [104851] PTR '(anon)' type_id=104849
+  [104852] FUNC 'i2c_register_spd' type_id=84745 linkage=static
+  [104853] FUNC 'smbalert_driver_init' type_id=1213 linkage=static
+  [104854] FUNC_PROTO '(anon)' ret_type_id=18 vlen=1
+          'ara' type_id=56050
+  [104855] FUNC 'i2c_handle_smbus_alert' type_id=104854 linkage=static
+  [104856] FUNC 'smbalert_remove' type_id=104854 linkage=static
+  [104857] FUNC_PROTO '(anon)' ret_type_id=18 vlen=2
+          'ara' type_id=56050
+          'id' type_id=56056
+  [104858] FUNC 'smbalert_probe' type_id=104857 linkage=static
+  [104859] FUNC 'smbalert_work' type_id=9695 linkage=static
+  [104860] FUNC 'smbus_alert' type_id=71367 linkage=static
+  [104861] FUNC 'smbus_do_alert' type_id=84827 linkage=static

@@ -1,0 +1,125 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Wireless WAN device configuration
+#
+
+menu "Wireless WAN"
+
+config WWAN
+	tristate "WWAN Driver Core"
+	help
+	  Say Y here if you want to use the WWAN driver core. This driver
+	  provides a common framework for WWAN drivers.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called wwan.
+
+if WWAN
+
+config WWAN_DEBUGFS
+	bool "WWAN devices debugfs interface" if EXPERT
+	depends on DEBUG_FS
+	default y
+	help
+	  Enables debugfs infrastructure for the WWAN core and device drivers.
+
+	  If this option is selected, then you can find the debug interface
+	  elements for each WWAN device in a directory that is corresponding to
+	  the device name: debugfs/wwan/wwanX.
+
+config WWAN_HWSIM
+	tristate "Simulated WWAN device"
+	help
+	  This driver is a developer testing tool that can be used to test WWAN
+	  framework.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called wwan_hwsim.  If unsure, say N.
+
+config MHI_WWAN_CTRL
+	tristate "MHI WWAN control driver for QCOM-based PCIe modems"
+	depends on MHI_BUS
+	help
+	  MHI WWAN CTRL allows QCOM-based PCIe modems to expose different modem
+	  control protocols/ports to userspace, including AT, MBIM, QMI, DIAG
+	  and FIREHOSE. These protocols can be accessed directly from userspace
+	  (e.g. AT commands) or via libraries/tools (e.g. libmbim, libqmi,
+	  libqcdm...).
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called mhi_wwan_ctrl.
+
+config MHI_WWAN_MBIM
+        tristate "MHI WWAN MBIM network driver for QCOM-based PCIe modems"
+        depends on MHI_BUS
+        help
+          MHI WWAN MBIM is a WWAN network driver for QCOM-based PCIe modems.
+          It implements MBIM over MHI, for IP data aggregation and muxing.
+          A default wwan0 network interface is created for MBIM data session
+          ID 0. Additional links can be created via wwan rtnetlink type.
+
+          To compile this driver as a module, choose M here: the module will be
+          called mhi_wwan_mbim.
+
+config QCOM_BAM_DMUX
+	tristate "Qualcomm BAM-DMUX WWAN network driver"
+	depends on (DMA_ENGINE && PM && QCOM_SMEM_STATE) || COMPILE_TEST
+	help
+	  The BAM Data Multiplexer provides access to the network data channels
+	  of modems integrated into many older Qualcomm SoCs, e.g. Qualcomm
+	  MSM8916 or MSM8974. The connection can be established via QMI/AT from
+	  userspace with control ports available through the WWAN subsystem
+	  (CONFIG_RPMSG_WWAN_CTRL) or QRTR network sockets (CONFIG_QRTR).
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called qcom_bam_dmux.
+
+config RPMSG_WWAN_CTRL
+	tristate "RPMSG WWAN control driver"
+	depends on RPMSG
+	help
+	  RPMSG WWAN CTRL allows modems available via RPMSG channels to expose
+	  different modem protocols/ports to userspace, including AT and QMI.
+	  These protocols can be accessed directly from userspace
+	  (e.g. AT commands) or via libraries/tools (e.g. libqmi, libqcdm...).
+
+	  This is mainly used for modems integrated into many Qualcomm SoCs,
+	  e.g. for AT and QMI on Qualcomm MSM8916 or MSM8974. Note that many
+	  newer Qualcomm SoCs (e.g. SDM845) still provide an AT port through
+	  this driver but the QMI messages can only be sent through
+	  QRTR network sockets (CONFIG_QRTR).
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called rpmsg_wwan_ctrl.
+
+config IOSM
+	tristate "IOSM Driver for Intel M.2 WWAN Device"
+	depends on PCI
+	select NET_DEVLINK
+	select RELAY if WWAN_DEBUGFS
+	help
+	  This driver enables Intel M.2 WWAN Device communication.
+
+	  If you have one of those Intel M.2 WWAN Modules and wish to use it in
+	  Linux say Y/M here.
+
+	  If unsure, say N.
+
+config MTK_T7XX
+	tristate "MediaTek PCIe 5G WWAN modem T7xx device"
+	depends on PCI
+	select RELAY if WWAN_DEBUGFS
+	help
+	  Enables MediaTek PCIe based 5G WWAN modem (T7xx series) device.
+	  Adapts WWAN framework and provides network interface like wwan0
+	  and tty interfaces like wwan0at0 (AT protocol), wwan0mbim0
+	  (MBIM protocol), etc.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called mtk_t7xx.
+
+	  If unsure, say N.
+
+endif # WWAN
+
+endmenu

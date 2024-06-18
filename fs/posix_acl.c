@@ -22,6 +22,14 @@
 #include <linux/xattr.h>
 #include <linux/export.h>
 #include <linux/user_namespace.h>
+#include <linux/namei.h>
+#include <linux/mnt_idmapping.h>
+#include <linux/iversion.h>
+#include <linux/security.h>
+#include <linux/fsnotify.h>
+#include <linux/filelock.h>
+
+#include "internal.h"
 
 static struct posix_acl **acl_by_type(struct inode *inode, int type)
 {
@@ -56,7 +64,17 @@ EXPORT_SYMBOL(get_cached_acl);
 
 struct posix_acl *get_cached_acl_rcu(struct inode *inode, int type)
 {
-	return rcu_dereference(*acl_by_type(inode, type));
+	struct posix_acl *acl = rcu_dereference(*acl_by_type(inode, type));
+
+	if (acl == ACL_DONT_CACHE) {
+		struct posix_acl *ret;
+
+		ret = inode->i_op->get_inode_acl(inode, type, LOOKUP_RCU);
+		if (!IS_ERR(ret))
+			acl = ret;
+	}
+
+	return acl;
 }
 EXPORT_SYMBOL(get_cached_acl_rcu);
 
@@ -93,15 +111,17 @@ void forget_all_cached_acls(struct inode *inode)
 }
 EXPORT_SYMBOL(forget_all_cached_acls);
 
-struct posix_acl *get_acl(struct inode *inode, int type)
+static struct posix_acl *__get_acl(struct mnt_idmap *idmap,
+				   struct dentry *dentry, struct inode *inode,
+				   int type)
 {
-	void *sentinel;
+	struct posix_acl *sentinel;
 	struct posix_acl **p;
 	struct posix_acl *acl;
 
 	/*
 	 * The sentinel is used to detect when another operation like
-	 * set_cached_acl() or forget_cached_acl() races with get_acl().
+	 * set_cached_acl() or forget_cached_acl() races with get_inode_acl().
 	 * It is guaranteed that is_uncached_acl(sentinel) is true.
 	 */
 
@@ -120,26 +140,27 @@ struct posix_acl *get_acl(struct inode *inode, int type)
 	 * current value of the ACL will not be ACL_NOT_CACHED and so our own
 	 * sentinel will not be set; another task will update the cache.  We
 	 * could wait for that other task to complete its job, but it's easier
-	 * to just call ->get_acl to fetch the ACL ourself.  (This is going to
-	 * be an unlikely race.)
+	 * to just call ->get_inode_acl to fetch the ACL ourself.  (This is
+	 * going to be an unlikely race.)
 	 */
-	if (cmpxchg(p, ACL_NOT_CACHED, sentinel) != ACL_NOT_CACHED)
-		/* fall through */ ;
+	cmpxchg(p, ACL_NOT_CACHED, sentinel);
 
 	/*
-	 * Normally, the ACL returned by ->get_acl will be cached.
+	 * Normally, the ACL returned by ->get{_inode}_acl will be cached.
 	 * A filesystem can prevent that by calling
-	 * forget_cached_acl(inode, type) in ->get_acl.
+	 * forget_cached_acl(inode, type) in ->get{_inode}_acl.
 	 *
-	 * If the filesystem doesn't have a get_acl() function at all, we'll
-	 * just create the negative cache entry.
+	 * If the filesystem doesn't have a get{_inode}_ acl() function at all,
+	 * we'll just create the negative cache entry.
 	 */
-	if (!inode->i_op->get_acl) {
+	if (dentry && inode->i_op->get_acl) {
+		acl = inode->i_op->get_acl(idmap, dentry, type);
+	} else if (inode->i_op->get_inode_acl) {
+		acl = inode->i_op->get_inode_acl(inode, type, false);
+	} else {
 		set_cached_acl(inode, type, NULL);
 		return NULL;
 	}
-	acl = inode->i_op->get_acl(inode, type);
-
 	if (IS_ERR(acl)) {
 		/*
 		 * Remove our sentinel so that we don't block future attempts
@@ -153,11 +174,16 @@ struct posix_acl *get_acl(struct inode *inode, int type)
 	 * Cache the result, but only if our sentinel is still in place.
 	 */
 	posix_acl_dup(acl);
-	if (unlikely(cmpxchg(p, sentinel, acl) != sentinel))
+	if (unlikely(!try_cmpxchg(p, &sentinel, acl)))
 		posix_acl_release(acl);
 	return acl;
 }
-EXPORT_SYMBOL(get_acl);
+
+struct posix_acl *get_inode_acl(struct inode *inode, int type)
+{
+	return __get_acl(&nop_mnt_idmap, NULL, inode, type);
+}
+EXPORT_SYMBOL(get_inode_acl);
 
 /*
  * Init a fresh posix_acl
@@ -188,7 +214,7 @@ EXPORT_SYMBOL(posix_acl_alloc);
 /*
  * Clone an ACL.
  */
-static struct posix_acl *
+struct posix_acl *
 posix_acl_clone(const struct posix_acl *acl, gfp_t flags)
 {
 	struct posix_acl *clone = NULL;
@@ -202,6 +228,7 @@ posix_acl_clone(const struct posix_acl *acl, gfp_t flags)
 	}
 	return clone;
 }
+EXPORT_SYMBOL_GPL(posix_acl_clone);
 
 /*
  * Check if an acl is valid. Returns 0 if it is, or -E... otherwise.
@@ -345,33 +372,43 @@ EXPORT_SYMBOL(posix_acl_from_mode);
  * by the acl. Returns -E... otherwise.
  */
 int
-posix_acl_permission(struct inode *inode, const struct posix_acl *acl, int want)
+posix_acl_permission(struct mnt_idmap *idmap, struct inode *inode,
+		     const struct posix_acl *acl, int want)
 {
 	const struct posix_acl_entry *pa, *pe, *mask_obj;
+	struct user_namespace *fs_userns = i_user_ns(inode);
 	int found = 0;
+	vfsuid_t vfsuid;
+	vfsgid_t vfsgid;
 
-	want &= MAY_READ | MAY_WRITE | MAY_EXEC | MAY_NOT_BLOCK;
+	want &= MAY_READ | MAY_WRITE | MAY_EXEC;
 
 	FOREACH_ACL_ENTRY(pa, acl, pe) {
                 switch(pa->e_tag) {
                         case ACL_USER_OBJ:
 				/* (May have been checked already) */
-				if (uid_eq(inode->i_uid, current_fsuid()))
+				vfsuid = i_uid_into_vfsuid(idmap, inode);
+				if (vfsuid_eq_kuid(vfsuid, current_fsuid()))
                                         goto check_perm;
                                 break;
                         case ACL_USER:
-				if (uid_eq(pa->e_uid, current_fsuid()))
+				vfsuid = make_vfsuid(idmap, fs_userns,
+						     pa->e_uid);
+				if (vfsuid_eq_kuid(vfsuid, current_fsuid()))
                                         goto mask;
 				break;
                         case ACL_GROUP_OBJ:
-                                if (in_group_p(inode->i_gid)) {
+				vfsgid = i_gid_into_vfsgid(idmap, inode);
+				if (vfsgid_in_group_p(vfsgid)) {
 					found = 1;
 					if ((pa->e_perm & want) == want)
 						goto mask;
                                 }
 				break;
                         case ACL_GROUP:
-				if (in_group_p(pa->e_gid)) {
+				vfsgid = make_vfsgid(idmap, fs_userns,
+						     pa->e_gid);
+				if (vfsgid_in_group_p(vfsgid)) {
 					found = 1;
 					if ((pa->e_perm & want) == want)
 						goto mask;
@@ -551,9 +588,24 @@ __posix_acl_chmod(struct posix_acl **acl, gfp_t gfp, umode_t mode)
 }
 EXPORT_SYMBOL(__posix_acl_chmod);
 
+/**
+ * posix_acl_chmod - chmod a posix acl
+ *
+ * @idmap:	idmap of the mount @inode was found from
+ * @dentry:	dentry to check permissions on
+ * @mode:	the new mode of @inode
+ *
+ * If the dentry has been found through an idmapped mount the idmap of
+ * the vfsmount must be passed through @idmap. This function will then
+ * take care to map the inode according to @idmap before checking
+ * permissions. On non-idmapped mounts or if permission checking is to be
+ * performed on the raw inode simply pass @nop_mnt_idmap.
+ */
 int
-posix_acl_chmod(struct inode *inode, umode_t mode)
+ posix_acl_chmod(struct mnt_idmap *idmap, struct dentry *dentry,
+		    umode_t mode)
 {
+	struct inode *inode = d_inode(dentry);
 	struct posix_acl *acl;
 	int ret = 0;
 
@@ -562,7 +614,7 @@ posix_acl_chmod(struct inode *inode, umode_t mode)
 	if (!inode->i_op->set_acl)
 		return -EOPNOTSUPP;
 
-	acl = get_acl(inode, ACL_TYPE_ACCESS);
+	acl = get_inode_acl(inode, ACL_TYPE_ACCESS);
 	if (IS_ERR_OR_NULL(acl)) {
 		if (acl == ERR_PTR(-EOPNOTSUPP))
 			return 0;
@@ -572,7 +624,7 @@ posix_acl_chmod(struct inode *inode, umode_t mode)
 	ret = __posix_acl_chmod(&acl, GFP_KERNEL, mode);
 	if (ret)
 		return ret;
-	ret = inode->i_op->set_acl(inode, acl, ACL_TYPE_ACCESS);
+	ret = inode->i_op->set_acl(idmap, dentry, acl, ACL_TYPE_ACCESS);
 	posix_acl_release(acl);
 	return ret;
 }
@@ -592,7 +644,7 @@ posix_acl_create(struct inode *dir, umode_t *mode,
 	if (S_ISLNK(*mode) || !IS_POSIXACL(dir))
 		return 0;
 
-	p = get_acl(dir, ACL_TYPE_DEFAULT);
+	p = get_inode_acl(dir, ACL_TYPE_DEFAULT);
 	if (!p || p == ERR_PTR(-EOPNOTSUPP)) {
 		*mode &= ~current_umask();
 		return 0;
@@ -631,17 +683,28 @@ EXPORT_SYMBOL_GPL(posix_acl_create);
 
 /**
  * posix_acl_update_mode  -  update mode in set_acl
+ * @idmap:	idmap of the mount @inode was found from
+ * @inode:	target inode
+ * @mode_p:	mode (pointer) for update
+ * @acl:	acl pointer
  *
  * Update the file mode when setting an ACL: compute the new file permission
  * bits based on the ACL.  In addition, if the ACL is equivalent to the new
- * file mode, set *acl to NULL to indicate that no ACL should be set.
+ * file mode, set *@acl to NULL to indicate that no ACL should be set.
  *
- * As with chmod, clear the setgit bit if the caller is not in the owning group
+ * As with chmod, clear the setgid bit if the caller is not in the owning group
  * or capable of CAP_FSETID (see inode_change_ok).
+ *
+ * If the inode has been found through an idmapped mount the idmap of
+ * the vfsmount must be passed through @idmap. This function will then
+ * take care to map the inode according to @idmap before checking
+ * permissions. On non-idmapped mounts or if permission checking is to be
+ * performed on the raw inode simply pass @nop_mnt_idmap.
  *
  * Called from set_acl inode operations.
  */
-int posix_acl_update_mode(struct inode *inode, umode_t *mode_p,
+int posix_acl_update_mode(struct mnt_idmap *idmap,
+			  struct inode *inode, umode_t *mode_p,
 			  struct posix_acl **acl)
 {
 	umode_t mode = inode->i_mode;
@@ -652,8 +715,8 @@ int posix_acl_update_mode(struct inode *inode, umode_t *mode_p,
 		return error;
 	if (error == 0)
 		*acl = NULL;
-	if (!in_group_p(inode->i_gid) &&
-	    !capable_wrt_inode_uidgid(inode, CAP_FSETID))
+	if (!vfsgid_in_group_p(i_gid_into_vfsgid(idmap, inode)) &&
+	    !capable_wrt_inode_uidgid(idmap, inode, CAP_FSETID))
 		mode &= ~S_ISGID;
 	*mode_p = mode;
 	return 0;
@@ -663,67 +726,53 @@ EXPORT_SYMBOL(posix_acl_update_mode);
 /*
  * Fix up the uids and gids in posix acl extended attributes in place.
  */
-static void posix_acl_fix_xattr_userns(
-	struct user_namespace *to, struct user_namespace *from,
-	void *value, size_t size)
+static int posix_acl_fix_xattr_common(const void *value, size_t size)
 {
-	struct posix_acl_xattr_header *header = value;
-	struct posix_acl_xattr_entry *entry = (void *)(header + 1), *end;
+	const struct posix_acl_xattr_header *header = value;
 	int count;
-	kuid_t uid;
-	kgid_t gid;
 
-	if (!value)
-		return;
+	if (!header)
+		return -EINVAL;
 	if (size < sizeof(struct posix_acl_xattr_header))
-		return;
+		return -EINVAL;
 	if (header->a_version != cpu_to_le32(POSIX_ACL_XATTR_VERSION))
-		return;
+		return -EOPNOTSUPP;
 
 	count = posix_acl_xattr_count(size);
 	if (count < 0)
-		return;
+		return -EINVAL;
 	if (count == 0)
-		return;
+		return 0;
 
-	for (end = entry + count; entry != end; entry++) {
-		switch(le16_to_cpu(entry->e_tag)) {
-		case ACL_USER:
-			uid = make_kuid(from, le32_to_cpu(entry->e_id));
-			entry->e_id = cpu_to_le32(from_kuid(to, uid));
-			break;
-		case ACL_GROUP:
-			gid = make_kgid(from, le32_to_cpu(entry->e_id));
-			entry->e_id = cpu_to_le32(from_kgid(to, gid));
-			break;
-		default:
-			break;
-		}
-	}
+	return count;
 }
 
-void posix_acl_fix_xattr_from_user(void *value, size_t size)
-{
-	struct user_namespace *user_ns = current_user_ns();
-	if (user_ns == &init_user_ns)
-		return;
-	posix_acl_fix_xattr_userns(&init_user_ns, user_ns, value, size);
-}
-
-void posix_acl_fix_xattr_to_user(void *value, size_t size)
-{
-	struct user_namespace *user_ns = current_user_ns();
-	if (user_ns == &init_user_ns)
-		return;
-	posix_acl_fix_xattr_userns(user_ns, &init_user_ns, value, size);
-}
-
-/*
- * Convert from extended attribute to in-memory representation.
+/**
+ * posix_acl_from_xattr - convert POSIX ACLs from backing store to VFS format
+ * @userns: the filesystem's idmapping
+ * @value: the uapi representation of POSIX ACLs
+ * @size: the size of @void
+ *
+ * Filesystems that store POSIX ACLs in the unaltered uapi format should use
+ * posix_acl_from_xattr() when reading them from the backing store and
+ * converting them into the struct posix_acl VFS format. The helper is
+ * specifically intended to be called from the acl inode operation.
+ *
+ * The posix_acl_from_xattr() function will map the raw {g,u}id values stored
+ * in ACL_{GROUP,USER} entries into idmapping in @userns.
+ *
+ * Note that posix_acl_from_xattr() does not take idmapped mounts into account.
+ * If it did it calling it from the get acl inode operation would return POSIX
+ * ACLs mapped according to an idmapped mount which would mean that the value
+ * couldn't be cached for the filesystem. Idmapped mounts are taken into
+ * account on the fly during permission checking or right at the VFS -
+ * userspace boundary before reporting them to the user.
+ *
+ * Return: Allocated struct posix_acl on success, NULL for a valid header but
+ *         without actual POSIX ACL entries, or ERR_PTR() encoded error code.
  */
-struct posix_acl *
-posix_acl_from_xattr(struct user_namespace *user_ns,
-		     const void *value, size_t size)
+struct posix_acl *posix_acl_from_xattr(struct user_namespace *userns,
+				       const void *value, size_t size)
 {
 	const struct posix_acl_xattr_header *header = value;
 	const struct posix_acl_xattr_entry *entry = (const void *)(header + 1), *end;
@@ -731,24 +780,17 @@ posix_acl_from_xattr(struct user_namespace *user_ns,
 	struct posix_acl *acl;
 	struct posix_acl_entry *acl_e;
 
-	if (!value)
-		return NULL;
-	if (size < sizeof(struct posix_acl_xattr_header))
-		 return ERR_PTR(-EINVAL);
-	if (header->a_version != cpu_to_le32(POSIX_ACL_XATTR_VERSION))
-		return ERR_PTR(-EOPNOTSUPP);
-
-	count = posix_acl_xattr_count(size);
+	count = posix_acl_fix_xattr_common(value, size);
 	if (count < 0)
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(count);
 	if (count == 0)
 		return NULL;
-	
+
 	acl = posix_acl_alloc(count, GFP_NOFS);
 	if (!acl)
 		return ERR_PTR(-ENOMEM);
 	acl_e = acl->a_entries;
-	
+
 	for (end = entry + count; entry != end; acl_e++, entry++) {
 		acl_e->e_tag  = le16_to_cpu(entry->e_tag);
 		acl_e->e_perm = le16_to_cpu(entry->e_perm);
@@ -761,16 +803,14 @@ posix_acl_from_xattr(struct user_namespace *user_ns,
 				break;
 
 			case ACL_USER:
-				acl_e->e_uid =
-					make_kuid(user_ns,
-						  le32_to_cpu(entry->e_id));
+				acl_e->e_uid = make_kuid(userns,
+						le32_to_cpu(entry->e_id));
 				if (!uid_valid(acl_e->e_uid))
 					goto fail;
 				break;
 			case ACL_GROUP:
-				acl_e->e_gid =
-					make_kgid(user_ns,
-						  le32_to_cpu(entry->e_id));
+				acl_e->e_gid = make_kgid(userns,
+						le32_to_cpu(entry->e_id));
 				if (!gid_valid(acl_e->e_gid))
 					goto fail;
 				break;
@@ -829,34 +869,74 @@ posix_acl_to_xattr(struct user_namespace *user_ns, const struct posix_acl *acl,
 }
 EXPORT_SYMBOL (posix_acl_to_xattr);
 
-static int
-posix_acl_xattr_get(const struct xattr_handler *handler,
-		    struct dentry *unused, struct inode *inode,
-		    const char *name, void *value, size_t size)
+/**
+ * vfs_posix_acl_to_xattr - convert from kernel to userspace representation
+ * @idmap: idmap of the mount
+ * @inode: inode the posix acls are set on
+ * @acl: the posix acls as represented by the vfs
+ * @buffer: the buffer into which to convert @acl
+ * @size: size of @buffer
+ *
+ * This converts @acl from the VFS representation in the filesystem idmapping
+ * to the uapi form reportable to userspace. And mount and caller idmappings
+ * are handled appropriately.
+ *
+ * Return: On success, the size of the stored uapi posix acls, on error a
+ * negative errno.
+ */
+static ssize_t vfs_posix_acl_to_xattr(struct mnt_idmap *idmap,
+				      struct inode *inode,
+				      const struct posix_acl *acl, void *buffer,
+				      size_t size)
+
 {
-	struct posix_acl *acl;
-	int error;
+	struct posix_acl_xattr_header *ext_acl = buffer;
+	struct posix_acl_xattr_entry *ext_entry;
+	struct user_namespace *fs_userns, *caller_userns;
+	ssize_t real_size, n;
+	vfsuid_t vfsuid;
+	vfsgid_t vfsgid;
 
-	if (!IS_POSIXACL(inode))
-		return -EOPNOTSUPP;
-	if (S_ISLNK(inode->i_mode))
-		return -EOPNOTSUPP;
+	real_size = posix_acl_xattr_size(acl->a_count);
+	if (!buffer)
+		return real_size;
+	if (real_size > size)
+		return -ERANGE;
 
-	acl = get_acl(inode, handler->flags);
-	if (IS_ERR(acl))
-		return PTR_ERR(acl);
-	if (acl == NULL)
-		return -ENODATA;
+	ext_entry = (void *)(ext_acl + 1);
+	ext_acl->a_version = cpu_to_le32(POSIX_ACL_XATTR_VERSION);
 
-	error = posix_acl_to_xattr(&init_user_ns, acl, value, size);
-	posix_acl_release(acl);
-
-	return error;
+	fs_userns = i_user_ns(inode);
+	caller_userns = current_user_ns();
+	for (n=0; n < acl->a_count; n++, ext_entry++) {
+		const struct posix_acl_entry *acl_e = &acl->a_entries[n];
+		ext_entry->e_tag  = cpu_to_le16(acl_e->e_tag);
+		ext_entry->e_perm = cpu_to_le16(acl_e->e_perm);
+		switch(acl_e->e_tag) {
+		case ACL_USER:
+			vfsuid = make_vfsuid(idmap, fs_userns, acl_e->e_uid);
+			ext_entry->e_id = cpu_to_le32(from_kuid(
+				caller_userns, vfsuid_into_kuid(vfsuid)));
+			break;
+		case ACL_GROUP:
+			vfsgid = make_vfsgid(idmap, fs_userns, acl_e->e_gid);
+			ext_entry->e_id = cpu_to_le32(from_kgid(
+				caller_userns, vfsgid_into_kgid(vfsgid)));
+			break;
+		default:
+			ext_entry->e_id = cpu_to_le32(ACL_UNDEFINED_ID);
+			break;
+		}
+	}
+	return real_size;
 }
 
 int
-set_posix_acl(struct inode *inode, int type, struct posix_acl *acl)
+set_posix_acl(struct mnt_idmap *idmap, struct dentry *dentry,
+	      int type, struct posix_acl *acl)
 {
+	struct inode *inode = d_inode(dentry);
+
 	if (!IS_POSIXACL(inode))
 		return -EOPNOTSUPP;
 	if (!inode->i_op->set_acl)
@@ -864,7 +944,7 @@ set_posix_acl(struct inode *inode, int type, struct posix_acl *acl)
 
 	if (type == ACL_TYPE_DEFAULT && !S_ISDIR(inode->i_mode))
 		return acl ? -EACCES : 0;
-	if (!inode_owner_or_capable(inode))
+	if (!inode_owner_or_capable(idmap, inode))
 		return -EPERM;
 
 	if (acl) {
@@ -872,27 +952,33 @@ set_posix_acl(struct inode *inode, int type, struct posix_acl *acl)
 		if (ret)
 			return ret;
 	}
-	return inode->i_op->set_acl(inode, acl, type);
+	return inode->i_op->set_acl(idmap, dentry, acl, type);
 }
 EXPORT_SYMBOL(set_posix_acl);
 
-static int
-posix_acl_xattr_set(const struct xattr_handler *handler,
-		    struct dentry *unused, struct inode *inode,
-		    const char *name, const void *value,
-		    size_t size, int flags)
+int posix_acl_listxattr(struct inode *inode, char **buffer,
+			ssize_t *remaining_size)
 {
-	struct posix_acl *acl = NULL;
-	int ret;
+	int err;
 
-	if (value) {
-		acl = posix_acl_from_xattr(&init_user_ns, value, size);
-		if (IS_ERR(acl))
-			return PTR_ERR(acl);
+	if (!IS_POSIXACL(inode))
+		return 0;
+
+	if (inode->i_acl) {
+		err = xattr_list_one(buffer, remaining_size,
+				     XATTR_NAME_POSIX_ACL_ACCESS);
+		if (err)
+			return err;
 	}
-	ret = set_posix_acl(inode, handler->flags, acl);
-	posix_acl_release(acl);
-	return ret;
+
+	if (inode->i_default_acl) {
+		err = xattr_list_one(buffer, remaining_size,
+				     XATTR_NAME_POSIX_ACL_DEFAULT);
+		if (err)
+			return err;
+	}
+
+	return 0;
 }
 
 static bool
@@ -901,36 +987,48 @@ posix_acl_xattr_list(struct dentry *dentry)
 	return IS_POSIXACL(d_backing_inode(dentry));
 }
 
-const struct xattr_handler posix_acl_access_xattr_handler = {
+/*
+ * nop_posix_acl_access - legacy xattr handler for access POSIX ACLs
+ *
+ * This is the legacy POSIX ACL access xattr handler. It is used by some
+ * filesystems to implement their ->listxattr() inode operation. New code
+ * should never use them.
+ */
+const struct xattr_handler nop_posix_acl_access = {
 	.name = XATTR_NAME_POSIX_ACL_ACCESS,
-	.flags = ACL_TYPE_ACCESS,
 	.list = posix_acl_xattr_list,
-	.get = posix_acl_xattr_get,
-	.set = posix_acl_xattr_set,
 };
-EXPORT_SYMBOL_GPL(posix_acl_access_xattr_handler);
+EXPORT_SYMBOL_GPL(nop_posix_acl_access);
 
-const struct xattr_handler posix_acl_default_xattr_handler = {
+/*
+ * nop_posix_acl_default - legacy xattr handler for default POSIX ACLs
+ *
+ * This is the legacy POSIX ACL default xattr handler. It is used by some
+ * filesystems to implement their ->listxattr() inode operation. New code
+ * should never use them.
+ */
+const struct xattr_handler nop_posix_acl_default = {
 	.name = XATTR_NAME_POSIX_ACL_DEFAULT,
-	.flags = ACL_TYPE_DEFAULT,
 	.list = posix_acl_xattr_list,
-	.get = posix_acl_xattr_get,
-	.set = posix_acl_xattr_set,
 };
-EXPORT_SYMBOL_GPL(posix_acl_default_xattr_handler);
+EXPORT_SYMBOL_GPL(nop_posix_acl_default);
 
-int simple_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+int simple_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
+		   struct posix_acl *acl, int type)
 {
 	int error;
+	struct inode *inode = d_inode(dentry);
 
 	if (type == ACL_TYPE_ACCESS) {
-		error = posix_acl_update_mode(inode,
+		error = posix_acl_update_mode(idmap, inode,
 				&inode->i_mode, &acl);
 		if (error)
 			return error;
 	}
 
-	inode->i_ctime = current_time(inode);
+	inode_set_ctime_current(inode);
+	if (IS_I_VERSION(inode))
+		inode_inc_iversion(inode);
 	set_cached_acl(inode, type, acl);
 	return 0;
 }
@@ -952,4 +1050,249 @@ int simple_acl_create(struct inode *dir, struct inode *inode)
 	if (acl)
 		posix_acl_release(acl);
 	return 0;
+}
+
+static int vfs_set_acl_idmapped_mnt(struct mnt_idmap *idmap,
+				    struct user_namespace *fs_userns,
+				    struct posix_acl *acl)
+{
+	for (int n = 0; n < acl->a_count; n++) {
+		struct posix_acl_entry *acl_e = &acl->a_entries[n];
+
+		switch (acl_e->e_tag) {
+		case ACL_USER:
+			acl_e->e_uid = from_vfsuid(idmap, fs_userns,
+						   VFSUIDT_INIT(acl_e->e_uid));
+			break;
+		case ACL_GROUP:
+			acl_e->e_gid = from_vfsgid(idmap, fs_userns,
+						   VFSGIDT_INIT(acl_e->e_gid));
+			break;
+		}
+	}
+
+	return 0;
+}
+
+/**
+ * vfs_set_acl - set posix acls
+ * @idmap: idmap of the mount
+ * @dentry: the dentry based on which to set the posix acls
+ * @acl_name: the name of the posix acl
+ * @kacl: the posix acls in the appropriate VFS format
+ *
+ * This function sets @kacl. The caller must all posix_acl_release() on @kacl
+ * afterwards.
+ *
+ * Return: On success 0, on error negative errno.
+ */
+int vfs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
+		const char *acl_name, struct posix_acl *kacl)
+{
+	int acl_type;
+	int error;
+	struct inode *inode = d_inode(dentry);
+	struct inode *delegated_inode = NULL;
+
+	acl_type = posix_acl_type(acl_name);
+	if (acl_type < 0)
+		return -EINVAL;
+
+	if (kacl) {
+		/*
+		 * If we're on an idmapped mount translate from mount specific
+		 * vfs{g,u}id_t into global filesystem k{g,u}id_t.
+		 * Afterwards we can cache the POSIX ACLs filesystem wide and -
+		 * if this is a filesystem with a backing store - ultimately
+		 * translate them to backing store values.
+		 */
+		error = vfs_set_acl_idmapped_mnt(idmap, i_user_ns(inode), kacl);
+		if (error)
+			return error;
+	}
+
+retry_deleg:
+	inode_lock(inode);
+
+	/*
+	 * We only care about restrictions the inode struct itself places upon
+	 * us otherwise POSIX ACLs aren't subject to any VFS restrictions.
+	 */
+	error = may_write_xattr(idmap, inode);
+	if (error)
+		goto out_inode_unlock;
+
+	error = security_inode_set_acl(idmap, dentry, acl_name, kacl);
+	if (error)
+		goto out_inode_unlock;
+
+	error = try_break_deleg(inode, &delegated_inode);
+	if (error)
+		goto out_inode_unlock;
+
+	if (likely(!is_bad_inode(inode)))
+		error = set_posix_acl(idmap, dentry, acl_type, kacl);
+	else
+		error = -EIO;
+	if (!error) {
+		fsnotify_xattr(dentry);
+		security_inode_post_set_acl(dentry, acl_name, kacl);
+	}
+
+out_inode_unlock:
+	inode_unlock(inode);
+
+	if (delegated_inode) {
+		error = break_deleg_wait(&delegated_inode);
+		if (!error)
+			goto retry_deleg;
+	}
+
+	return error;
+}
+EXPORT_SYMBOL_GPL(vfs_set_acl);
+
+/**
+ * vfs_get_acl - get posix acls
+ * @idmap: idmap of the mount
+ * @dentry: the dentry based on which to retrieve the posix acls
+ * @acl_name: the name of the posix acl
+ *
+ * This function retrieves @kacl from the filesystem. The caller must all
+ * posix_acl_release() on @kacl.
+ *
+ * Return: On success POSIX ACLs in VFS format, on error negative errno.
+ */
+struct posix_acl *vfs_get_acl(struct mnt_idmap *idmap,
+			      struct dentry *dentry, const char *acl_name)
+{
+	struct inode *inode = d_inode(dentry);
+	struct posix_acl *acl;
+	int acl_type, error;
+
+	acl_type = posix_acl_type(acl_name);
+	if (acl_type < 0)
+		return ERR_PTR(-EINVAL);
+
+	/*
+	 * The VFS has no restrictions on reading POSIX ACLs so calling
+	 * something like xattr_permission() isn't needed. Only LSMs get a say.
+	 */
+	error = security_inode_get_acl(idmap, dentry, acl_name);
+	if (error)
+		return ERR_PTR(error);
+
+	if (!IS_POSIXACL(inode))
+		return ERR_PTR(-EOPNOTSUPP);
+	if (S_ISLNK(inode->i_mode))
+		return ERR_PTR(-EOPNOTSUPP);
+
+	acl = __get_acl(idmap, dentry, inode, acl_type);
+	if (IS_ERR(acl))
+		return acl;
+	if (!acl)
+		return ERR_PTR(-ENODATA);
+
+	return acl;
+}
+EXPORT_SYMBOL_GPL(vfs_get_acl);
+
+/**
+ * vfs_remove_acl - remove posix acls
+ * @idmap: idmap of the mount
+ * @dentry: the dentry based on which to retrieve the posix acls
+ * @acl_name: the name of the posix acl
+ *
+ * This function removes posix acls.
+ *
+ * Return: On success 0, on error negative errno.
+ */
+int vfs_remove_acl(struct mnt_idmap *idmap, struct dentry *dentry,
+		   const char *acl_name)
+{
+	int acl_type;
+	int error;
+	struct inode *inode = d_inode(dentry);
+	struct inode *delegated_inode = NULL;
+
+	acl_type = posix_acl_type(acl_name);
+	if (acl_type < 0)
+		return -EINVAL;
+
+retry_deleg:
+	inode_lock(inode);
+
+	/*
+	 * We only care about restrictions the inode struct itself places upon
+	 * us otherwise POSIX ACLs aren't subject to any VFS restrictions.
+	 */
+	error = may_write_xattr(idmap, inode);
+	if (error)
+		goto out_inode_unlock;
+
+	error = security_inode_remove_acl(idmap, dentry, acl_name);
+	if (error)
+		goto out_inode_unlock;
+
+	error = try_break_deleg(inode, &delegated_inode);
+	if (error)
+		goto out_inode_unlock;
+
+	if (likely(!is_bad_inode(inode)))
+		error = set_posix_acl(idmap, dentry, acl_type, NULL);
+	else
+		error = -EIO;
+	if (!error) {
+		fsnotify_xattr(dentry);
+		security_inode_post_remove_acl(idmap, dentry, acl_name);
+	}
+
+out_inode_unlock:
+	inode_unlock(inode);
+
+	if (delegated_inode) {
+		error = break_deleg_wait(&delegated_inode);
+		if (!error)
+			goto retry_deleg;
+	}
+
+	return error;
+}
+EXPORT_SYMBOL_GPL(vfs_remove_acl);
+
+int do_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
+	       const char *acl_name, const void *kvalue, size_t size)
+{
+	int error;
+	struct posix_acl *acl = NULL;
+
+	if (size) {
+		/*
+		 * Note that posix_acl_from_xattr() uses GFP_NOFS when it
+		 * probably doesn't need to here.
+		 */
+		acl = posix_acl_from_xattr(current_user_ns(), kvalue, size);
+		if (IS_ERR(acl))
+			return PTR_ERR(acl);
+	}
+
+	error = vfs_set_acl(idmap, dentry, acl_name, acl);
+	posix_acl_release(acl);
+	return error;
+}
+
+ssize_t do_get_acl(struct mnt_idmap *idmap, struct dentry *dentry,
+		   const char *acl_name, void *kvalue, size_t size)
+{
+	ssize_t error;
+	struct posix_acl *acl;
+
+	acl = vfs_get_acl(idmap, dentry, acl_name);
+	if (IS_ERR(acl))
+		return PTR_ERR(acl);
+
+	error = vfs_posix_acl_to_xattr(idmap, d_inode(dentry),
+				       acl, kvalue, size);
+	posix_acl_release(acl);
+	return error;
 }

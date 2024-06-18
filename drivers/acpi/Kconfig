@@ -11,6 +11,8 @@ menuconfig ACPI
 	depends on ARCH_SUPPORTS_ACPI
 	select PNP
 	select NLS
+	select CRC32
+	select FIRMWARE_TABLE
 	default y if X86
 	help
 	  Advanced Configuration and Power Interface (ACPI) support for 
@@ -26,13 +28,10 @@ menuconfig ACPI
 	  Management (APM) specification.  If both ACPI and APM support 
 	  are configured, ACPI is used.
 
-	  The project home page for the Linux ACPI subsystem is here:
-	  <https://01.org/linux-acpi>
-
 	  Linux support for ACPI is based on Intel Corporation's ACPI
 	  Component Architecture (ACPI CA).  For more information on the
 	  ACPI CA, see:
-	  <http://acpica.org/>
+	  <https://acpica.org/>
 
 	  ACPI is an open industry specification originally co-developed by
 	  Hewlett-Packard, Intel, Microsoft, Phoenix, and Toshiba. Currently,
@@ -40,8 +39,7 @@ menuconfig ACPI
 	  the UEFI Forum and any UEFI member can join the ASWG and contribute
 	  to the ACPI specification.
 	  The specification is available at:
-	  <http://www.acpi.info>
-	  <http://www.uefi.org/acpi/specs>
+	  <https://uefi.org/specifications>
 
 if ACPI
 
@@ -60,6 +58,13 @@ config ACPI_SYSTEM_POWER_STATES_SUPPORT
 config ACPI_CCA_REQUIRED
 	bool
 
+config ACPI_TABLE_LIB
+	bool
+
+config ACPI_THERMAL_LIB
+       depends on THERMAL
+       bool
+
 config ACPI_DEBUGGER
 	bool "AML debugger interface"
 	select ACPI_DEBUG
@@ -72,7 +77,7 @@ config ACPI_DEBUGGER
 if ACPI_DEBUGGER
 
 config ACPI_DEBUGGER_USER
-	tristate "Userspace debugger accessiblity"
+	tristate "Userspace debugger accessibility"
 	depends on DEBUG_FS
 	help
 	  Export /sys/kernel/debug/acpi/acpidbg for userspace utilities
@@ -88,6 +93,14 @@ config ACPI_SPCR_TABLE
 	  This table provides information about the configuration of the
 	  earlycon console.
 
+config ACPI_FPDT
+	bool "ACPI Firmware Performance Data Table (FPDT) support"
+	depends on X86_64 || ARM64
+	help
+	  Enable support for the Firmware Performance Data Table (FPDT).
+	  This table provides information on the timing of the system
+	  boot, S3 suspend and S3 resume firmware code paths.
+
 config ACPI_LPIT
 	bool
 	depends on X86_64
@@ -98,23 +111,6 @@ config ACPI_SLEEP
 	depends on SUSPEND || HIBERNATION
 	depends on ACPI_SYSTEM_POWER_STATES_SUPPORT
 	default y
-
-config ACPI_PROCFS_POWER
-	bool "Deprecated power /proc/acpi directories"
-	depends on X86 && PROC_FS
-	help
-	  For backwards compatibility, this option allows
-          deprecated power /proc/acpi/ directories to exist, even when
-          they have been replaced by functions in /sys.
-          The deprecated directories (and their replacements) include:
-	  /proc/acpi/battery/* (/sys/class/power_supply/*) and
-	  /proc/acpi/ac_adapter/* (sys/class/power_supply/*).
-	  This option has no effect on /proc/acpi/ directories
-	  and functions which do not yet exist in /sys.
-	  This option, together with the proc directories, will be
-	  deleted in the future.
-
-	  Say N to delete power /proc/acpi/ directories that have moved to /sys.
 
 config ACPI_REV_OVERRIDE_POSSIBLE
 	bool "Allow supported ACPI revision to be overridden"
@@ -190,10 +186,35 @@ config ACPI_BUTTON
 	  To compile this driver as a module, choose M here:
 	  the module will be called button.
 
+config ACPI_TINY_POWER_BUTTON
+	tristate "Tiny Power Button Driver"
+	depends on !ACPI_BUTTON
+	help
+	  This driver provides a tiny alternative to the ACPI Button driver.
+	  The tiny power button driver only handles the power button. Rather
+	  than notifying userspace via the input layer or a netlink event, this
+	  driver directly signals the init process to shut down.
+
+	  This driver is particularly suitable for cloud and VM environments,
+	  which use a simulated power button to initiate a controlled poweroff,
+	  but which may not want to run a separate userspace daemon to process
+	  input events.
+
+config ACPI_TINY_POWER_BUTTON_SIGNAL
+	int "Tiny Power Button Signal"
+	depends on ACPI_TINY_POWER_BUTTON
+	default 38
+	help
+	  Default signal to send to init in response to the power button.
+
+	  Likely values here include 38 (SIGRTMIN+4) to power off, or 2
+	  (SIGINT) to simulate Ctrl+Alt+Del.
+
 config ACPI_VIDEO
 	tristate "Video"
-	depends on X86 && BACKLIGHT_CLASS_DEVICE
+	depends on BACKLIGHT_CLASS_DEVICE
 	depends on INPUT
+	depends on ACPI_WMI || !X86
 	select THERMAL
 	help
 	  This driver implements the ACPI Extensions For Display Adapters
@@ -237,11 +258,11 @@ config ACPI_DOCK
 
 config ACPI_CPU_FREQ_PSS
 	bool
-	select THERMAL
 
 config ACPI_PROCESSOR_CSTATE
 	def_bool y
-	depends on IA64 || X86
+	depends on ACPI_PROCESSOR
+	depends on X86
 
 config ACPI_PROCESSOR_IDLE
 	bool
@@ -265,9 +286,10 @@ config ACPI_CPPC_LIB
 
 config ACPI_PROCESSOR
 	tristate "Processor"
-	depends on X86 || IA64 || ARM64
+	depends on X86 || ARM64 || LOONGARCH || RISCV
 	select ACPI_PROCESSOR_IDLE
-	select ACPI_CPU_FREQ_PSS if X86 || IA64
+	select ACPI_CPU_FREQ_PSS if X86 || LOONGARCH
+	select THERMAL
 	default y
 	help
 	  This driver adds support for the ACPI Processor package. It is required
@@ -283,7 +305,7 @@ config ACPI_IPMI
 	help
 	  This driver enables the ACPI to access the BMC controller. And it
 	  uses the IPMI request/response message to communicate with BMC
-	  controller, which can be found on on the server.
+	  controller, which can be found on the server.
 
 	  To compile this driver as a module, choose M here:
 	  the module will be called as acpi_ipmi.
@@ -292,7 +314,6 @@ config ACPI_HOTPLUG_CPU
 	bool
 	depends on ACPI_PROCESSOR && HOTPLUG_CPU
 	select ACPI_CONTAINER
-	default y
 
 config ACPI_PROCESSOR_AGGREGATOR
 	tristate "Processor Aggregator"
@@ -309,6 +330,7 @@ config ACPI_THERMAL
 	tristate "Thermal Zone"
 	depends on ACPI_PROCESSOR
 	select THERMAL
+	select ACPI_THERMAL_LIB
 	default y
 	help
 	  This driver supports ACPI thermal zones.  Most mobile and
@@ -319,11 +341,8 @@ config ACPI_THERMAL
 	  To compile this driver as a module, choose M here:
 	  the module will be called thermal.
 
-config ACPI_NUMA
-	bool "NUMA support"
-	depends on NUMA
-	depends on (X86 || IA64 || ARM64)
-	default y if IA64 || ARM64
+config ACPI_PLATFORM_PROFILE
+	tristate
 
 config ACPI_CUSTOM_DSDT_FILE
 	string "Custom DSDT Table file to include"
@@ -331,7 +350,6 @@ config ACPI_CUSTOM_DSDT_FILE
 	depends on !STANDALONE
 	help
 	  This option supports a custom DSDT by linking it into the kernel.
-	  See Documentation/admin-guide/acpi/dsdt-override.rst
 
 	  Enter the full path name to the file which includes the AmlCode
 	  or dsdt_aml_code declaration.
@@ -358,7 +376,7 @@ config ACPI_TABLE_UPGRADE
 config ACPI_TABLE_OVERRIDE_VIA_BUILTIN_INITRD
 	bool "Override ACPI tables from built-in initrd"
 	depends on ACPI_TABLE_UPGRADE
-	depends on INITRAMFS_SOURCE!="" && INITRAMFS_COMPRESSION=""
+	depends on INITRAMFS_SOURCE!="" && INITRAMFS_COMPRESSION_NONE
 	help
 	  This option provides functionality to override arbitrary ACPI tables
 	  from built-in uncompressed initrd.
@@ -394,9 +412,6 @@ config ACPI_CONTAINER
 
 	  This helps support hotplug of nodes, CPUs, and memory.
 
-	  To compile this driver as a module, choose M here:
-	  the module will be called container.
-
 config ACPI_HOTPLUG_MEMORY
 	bool "Memory Hotplug"
 	depends on MEMORY_HOTPLUG
@@ -409,9 +424,6 @@ config ACPI_HOTPLUG_MEMORY
 	  If your hardware and firmware do not support adding or
 	  removing memory devices at runtime, you need not enable
 	  this driver.
-
-	  To compile this driver as a module, choose M here:
-	  the module will be called acpi_memhotplug.
 
 config ACPI_HOTPLUG_IOAPIC
 	bool
@@ -437,24 +449,10 @@ config ACPI_HED
 	  which is used to report some hardware errors notified via
 	  SCI, mainly the corrected errors.
 
-config ACPI_CUSTOM_METHOD
-	tristate "Allow ACPI methods to be inserted/replaced at run time"
-	depends on DEBUG_FS
-	help
-	  This debug facility allows ACPI AML methods to be inserted and/or
-	  replaced without rebooting the system. For details refer to:
-	  Documentation/firmware-guide/acpi/method-customizing.rst.
-
-	  NOTE: This option is security sensitive, because it allows arbitrary
-	  kernel memory to be written to by root (uid=0) users, allowing them
-	  to bypass certain security measures (e.g. if root is not allowed to
-	  load additional kernel modules after boot, this feature may be used
-	  to override that restriction).
-
 config ACPI_BGRT
 	bool "Boottime Graphics Resource Table support"
 	depends on EFI && (X86 || ARM64)
-        help
+	help
 	  This driver adds support for exposing the ACPI Boottime Graphics
 	  Resource Table, which allows the operating system to obtain
 	  data from the firmware boot splash. It will appear under
@@ -462,7 +460,6 @@ config ACPI_BGRT
 
 config ACPI_REDUCED_HARDWARE_ONLY
 	bool "Hardware-reduced ACPI support only" if EXPERT
-	def_bool n
 	help
 	  This config item changes the way the ACPI code is built.  When this
 	  option is selected, the kernel will use a specialized version of
@@ -472,9 +469,11 @@ config ACPI_REDUCED_HARDWARE_ONLY
 
 	  If you are unsure what to do, do not enable this option.
 
-source "drivers/acpi/nfit/Kconfig"
-source "drivers/acpi/hmat/Kconfig"
+config ACPI_NHLT
+	bool
 
+source "drivers/acpi/nfit/Kconfig"
+source "drivers/acpi/numa/Kconfig"
 source "drivers/acpi/apei/Kconfig"
 source "drivers/acpi/dptf/Kconfig"
 
@@ -504,47 +503,6 @@ config ACPI_EXTLOG
 config ACPI_ADXL
 	bool
 
-menuconfig PMIC_OPREGION
-	bool "PMIC (Power Management Integrated Circuit) operation region support"
-	help
-	  Select this option to enable support for ACPI operation
-	  region of the PMIC chip. The operation region can be used
-	  to control power rails and sensor reading/writing on the
-	  PMIC chip.
-
-if PMIC_OPREGION
-config CRC_PMIC_OPREGION
-	bool "ACPI operation region support for CrystalCove PMIC"
-	depends on INTEL_SOC_PMIC
-	help
-	  This config adds ACPI operation region support for CrystalCove PMIC.
-
-config XPOWER_PMIC_OPREGION
-	bool "ACPI operation region support for XPower AXP288 PMIC"
-	depends on MFD_AXP20X_I2C && IOSF_MBI=y
-	help
-	  This config adds ACPI operation region support for XPower AXP288 PMIC.
-
-config BXT_WC_PMIC_OPREGION
-	bool "ACPI operation region support for BXT WhiskeyCove PMIC"
-	depends on INTEL_SOC_PMIC_BXTWC
-	help
-	  This config adds ACPI operation region support for BXT WhiskeyCove PMIC.
-
-config CHT_WC_PMIC_OPREGION
-	bool "ACPI operation region support for CHT Whiskey Cove PMIC"
-	depends on INTEL_SOC_PMIC_CHTWC
-	help
-	  This config adds ACPI operation region support for CHT Whiskey Cove PMIC.
-
-config CHT_DC_TI_PMIC_OPREGION
-	bool "ACPI operation region support for Dollar Cove TI PMIC"
-	depends on INTEL_SOC_PMIC_CHTDC_TI
-	help
-	  This config adds ACPI operation region support for Dollar Cove TI PMIC.
-
-endif
-
 config ACPI_CONFIGFS
 	tristate "ACPI configfs support"
 	select CONFIGFS_FS
@@ -553,28 +511,81 @@ config ACPI_CONFIGFS
 	  userspace. The configurable ACPI groups will be visible under
 	  /config/acpi, assuming configfs is mounted under /config.
 
+config ACPI_PFRUT
+	tristate "ACPI Platform Firmware Runtime Update and Telemetry"
+	depends on 64BIT
+	help
+	  This mechanism allows certain pieces of the platform firmware
+	  to be updated on the fly while the system is running (runtime)
+	  without the need to restart it, which is key in the cases when
+	  the system needs to be available 100% of the time and it cannot
+	  afford the downtime related to restarting it, or when the work
+	  carried out by the system is particularly important, so it cannot
+	  be interrupted, and it is not practical to wait until it is complete.
+
+	  The existing firmware code can be modified (driver update) or
+	  extended by adding new code to the firmware (code injection).
+
+	  Besides, the telemetry driver allows user space to fetch telemetry
+	  data from the firmware with the help of the Platform Firmware Runtime
+	  Telemetry interface.
+
+	  To compile the drivers as modules, choose M here:
+	  the modules will be called pfr_update and pfr_telemetry.
+
 if ARM64
 source "drivers/acpi/arm64/Kconfig"
+endif
 
 config ACPI_PPTT
 	bool
-endif
 
-config TPS68470_PMIC_OPREGION
-	bool "ACPI operation region support for TPS68470 PMIC"
-	depends on MFD_TPS68470
+config ACPI_PCC
+	bool "ACPI PCC Address Space"
+	depends on PCC
+	default y
 	help
-	  This config adds ACPI operation region support for TI TPS68470 PMIC.
-	  TPS68470 device is an advanced power management unit that powers
-	  a Compact Camera Module (CCM), generates clocks for image sensors,
-	  drives a dual LED for flash and incorporates two LED drivers for
-	  general purpose indicators.
-	  This driver enables ACPI operation region support control voltage
-	  regulators and clocks.
+	  The PCC Address Space also referred as PCC Operation Region pertains
+	  to the region of PCC subspace that succeeds the PCC signature.
 
-	  This option is a bool as it provides an ACPI operation
-	  region, which must be available before any of the devices
-	  using this, are probed.
+	  The PCC Operation Region works in conjunction with the PCC Table
+	  (Platform Communications Channel Table). PCC subspaces that are
+	  marked for use as PCC Operation Regions must not be used as PCC
+	  subspaces for the standard ACPI features such as CPPC, RASF, PDTT and
+	  MPST. These standard features must always use the PCC Table instead.
+
+	  Enable this feature if you want to set up and install the PCC Address
+	  Space handler to handle PCC OpRegion in the firmware.
+
+config ACPI_FFH
+	bool "ACPI FFH Address Space"
+	default n
+	help
+	  The FFH(Fixed Function Hardware) Address Space also referred as FFH
+	  Operation Region allows to define platform specific opregion.
+
+	  Enable this feature if you want to set up and install the FFH Address
+	  Space handler to handle FFH OpRegion in the firmware.
+
+source "drivers/acpi/pmic/Kconfig"
+
+config ACPI_VIOT
+	bool
+
+config ACPI_PRMT
+	bool "Platform Runtime Mechanism Support"
+	depends on EFI_RUNTIME_WRAPPERS && (X86_64 || ARM64)
+	default y
+	help
+	  Platform Runtime Mechanism (PRM) is a firmware interface exposing a
+	  set of binary executables that can be called from the AML interpreter
+	  or directly from device drivers.
+
+	  Say Y to enable the AML interpreter to execute the PRM code.
+
+	  While this feature is optional in principle, leaving it out may
+	  substantially increase computational overhead related to the
+	  initialization of some server systems.
 
 endif	# ACPI
 

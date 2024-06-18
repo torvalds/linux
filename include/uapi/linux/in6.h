@@ -145,6 +145,7 @@ struct in6_flowlabel_req {
 #define IPV6_TLV_PADN		1
 #define IPV6_TLV_ROUTERALERT	5
 #define IPV6_TLV_CALIPSO	7	/* RFC 5570 */
+#define IPV6_TLV_IOAM		49	/* RFC 9486 */
 #define IPV6_TLV_JUMBO		194
 #define IPV6_TLV_HAO		201	/* home address option */
 
@@ -179,6 +180,7 @@ struct in6_flowlabel_req {
 #define IPV6_LEAVE_ANYCAST	28
 #define IPV6_MULTICAST_ALL	29
 #define IPV6_ROUTER_ALERT_ISOLATE	30
+#define IPV6_RECVERR_RFC4884	31
 
 /* IPV6_MTU_DISCOVER values */
 #define IPV6_PMTUDISC_DONT		0

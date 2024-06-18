@@ -48,9 +48,9 @@ We can represent these as three OPPs as the following {Hz, uV} tuples:
 OPP library provides a set of helper functions to organize and query the OPP
 information. The library is located in drivers/opp/ directory and the header
 is located in include/linux/pm_opp.h. OPP library can be enabled by enabling
-CONFIG_PM_OPP from power management menuconfig menu. OPP library depends on
-CONFIG_PM as certain SoCs such as Texas Instrument's OMAP framework allows to
-optionally boot at a certain OPP without needing cpufreq.
+CONFIG_PM_OPP from power management menuconfig menu. Certain SoCs such as Texas
+Instrument's OMAP framework allows to optionally boot at a certain OPP without
+needing cpufreq.
 
 Typical usage of the OPP library is as follows::
 
@@ -73,19 +73,21 @@ factors. Example usage: Thermal management or other exceptional situations where
 SoC framework might choose to disable a higher frequency OPP to safely continue
 operations until that OPP could be re-enabled if possible.
 
-OPP library facilitates this concept in it's implementation. The following
+OPP library facilitates this concept in its implementation. The following
 operational functions operate only on available opps:
-opp_find_freq_{ceil, floor}, dev_pm_opp_get_voltage, dev_pm_opp_get_freq, dev_pm_opp_get_opp_count
+dev_pm_opp_find_freq_{ceil, floor}, dev_pm_opp_get_voltage, dev_pm_opp_get_freq,
+dev_pm_opp_get_opp_count.
 
-dev_pm_opp_find_freq_exact is meant to be used to find the opp pointer which can then
-be used for dev_pm_opp_enable/disable functions to make an opp available as required.
+dev_pm_opp_find_freq_exact is meant to be used to find the opp pointer
+which can then be used for dev_pm_opp_enable/disable functions to make an
+opp available as required.
 
 WARNING: Users of OPP library should refresh their availability count using
-get_opp_count if dev_pm_opp_enable/disable functions are invoked for a device, the
-exact mechanism to trigger these or the notification mechanism to other
-dependent subsystems such as cpufreq are left to the discretion of the SoC
-specific framework which uses the OPP library. Similar care needs to be taken
-care to refresh the cpufreq table in cases of these operations.
+get_opp_count if dev_pm_opp_enable/disable functions are invoked for a
+device, the exact mechanism to trigger these or the notification mechanism
+to other dependent subsystems such as cpufreq are left to the discretion of
+the SoC specific framework which uses the OPP library. Similar care needs
+to be taken care to refresh the cpufreq table in cases of these operations.
 
 2. Initial OPP List Registration
 ================================
@@ -99,11 +101,11 @@ OPPs dynamically using the dev_pm_opp_enable / disable functions.
 dev_pm_opp_add
 	Add a new OPP for a specific domain represented by the device pointer.
 	The OPP is defined using the frequency and voltage. Once added, the OPP
-	is assumed to be available and control of it's availability can be done
-	with the dev_pm_opp_enable/disable functions. OPP library internally stores
-	and manages this information in the opp struct. This function may be
-	used by SoC framework to define a optimal list as per the demands of
-	SoC usage environment.
+	is assumed to be available and control of its availability can be done
+	with the dev_pm_opp_enable/disable functions. OPP library
+	internally stores and manages this information in the dev_pm_opp struct.
+	This function may be used by SoC framework to define a optimal list
+	as per the demands of SoC usage environment.
 
 	WARNING:
 		Do not use this function in interrupt context.
@@ -245,7 +247,7 @@ dev_pm_opp_disable
 5. OPP Data Retrieval Functions
 ===============================
 Since OPP library abstracts away the OPP information, a set of functions to pull
-information from the OPP structure is necessary. Once an OPP pointer is
+information from the dev_pm_opp structure is necessary. Once an OPP pointer is
 retrieved using the search functions, the following functions can be used by SoC
 framework to retrieve the information represented inside the OPP layer.
 
@@ -303,7 +305,7 @@ dev_pm_opp_get_opp_count
 	 {
 		/* Do things */
 		num_available = dev_pm_opp_get_opp_count(dev);
-		speeds = kzalloc(sizeof(u32) * num_available, GFP_KERNEL);
+		speeds = kcalloc(num_available, sizeof(u32), GFP_KERNEL);
 		/* populate the table in increasing order */
 		freq = 0;
 		while (!IS_ERR(opp = dev_pm_opp_find_freq_ceil(dev, &freq))) {
@@ -354,7 +356,7 @@ struct dev_pm_opp
 
 struct device
 	This is used to identify a domain to the OPP layer. The
-	nature of the device and it's implementation is left to the user of
+	nature of the device and its implementation is left to the user of
 	OPP library such as the SoC framework.
 
 Overall, in a simplistic view, the data structure operations is represented as

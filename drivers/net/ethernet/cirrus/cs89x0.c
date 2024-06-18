@@ -54,7 +54,6 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -71,6 +70,8 @@
 #include <linux/delay.h>
 #include <linux/gfp.h>
 #include <linux/io.h>
+
+#include <net/Space.h>
 
 #include <asm/irq.h>
 #include <linux/atomic.h>
@@ -104,7 +105,7 @@ static char version[] __initdata =
  * them to system IRQ numbers. This mapping is card specific and is set to
  * the configuration of the Cirrus Eval board for this chip.
  */
-#ifndef CONFIG_CS89x0_PLATFORM
+#if IS_ENABLED(CONFIG_CS89x0_ISA)
 static unsigned int netcard_portlist[] __used __initdata = {
 	0x300, 0x320, 0x340, 0x360, 0x200, 0x220, 0x240,
 	0x260, 0x280, 0x2a0, 0x2c0, 0x2e0, 0
@@ -292,7 +293,7 @@ write_irq(struct net_device *dev, int chip_type, int irq)
 	int i;
 
 	if (chip_type == CS8900) {
-#ifndef CONFIG_CS89x0_PLATFORM
+#if IS_ENABLED(CONFIG_CS89x0_ISA)
 		/* Search the mapping table for the corresponding IRQ pin. */
 		for (i = 0; i != ARRAY_SIZE(cs8900_irq_map); i++)
 			if (cs8900_irq_map[i] == irq)
@@ -859,7 +860,7 @@ net_open(struct net_device *dev)
 			goto bad_out;
 		}
 	} else {
-#if !defined(CONFIG_CS89x0_PLATFORM)
+#if IS_ENABLED(CONFIG_CS89x0_ISA)
 		if (((1 << dev->irq) & lp->irq_map) == 0) {
 			pr_err("%s: IRQ %d is not in our map of allowable IRQs, which is %x\n",
 			       dev->name, dev->irq, lp->irq_map);
@@ -985,7 +986,7 @@ release_irq:
 		if (result == DETECTED_NONE) {
 			pr_warn("%s: 10Base-5 (AUI) has no cable\n", dev->name);
 			if (lp->auto_neg_cnf & IMM_BIT) /* check "ignore missing media" bit */
-				result = DETECTED_AUI; /* Yes! I don't care if I see a carrrier */
+				result = DETECTED_AUI; /* Yes! I don't care if I see a carrier */
 		}
 		break;
 	case A_CNF_MEDIA_10B_2:
@@ -1128,7 +1129,7 @@ net_get_stats(struct net_device *dev)
 	return &dev->stats;
 }
 
-static void net_timeout(struct net_device *dev)
+static void net_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	/* If we get here, some higher level has decided we are broken.
 	   There should really be a "kick me" function call instead. */
@@ -1227,7 +1228,7 @@ static int set_mac_address(struct net_device *dev, void *p)
 	if (netif_running(dev))
 		return -EBUSY;
 
-	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+	eth_hw_addr_set(dev, addr->sa_data);
 
 	cs89_dbg(0, debug, "%s: Setting MAC address to %pM\n",
 		 dev->name, dev->dev_addr);
@@ -1314,6 +1315,7 @@ cs89x0_probe1(struct net_device *dev, void __iomem *ioaddr, int modular)
 	int tmp;
 	unsigned rev_type = 0;
 	int eeprom_buff[CHKSUM_LEN];
+	u8 addr[ETH_ALEN];
 	int retval;
 
 	/* Initialize the device structure. */
@@ -1387,9 +1389,10 @@ cs89x0_probe1(struct net_device *dev, void __iomem *ioaddr, int modular)
 		for (i = 0; i < ETH_ALEN / 2; i++) {
 			unsigned int Addr;
 			Addr = readreg(dev, PP_IA + i * 2);
-			dev->dev_addr[i * 2] = Addr & 0xFF;
-			dev->dev_addr[i * 2 + 1] = Addr >> 8;
+			addr[i * 2] = Addr & 0xFF;
+			addr[i * 2 + 1] = Addr >> 8;
 		}
+		eth_hw_addr_set(dev, addr);
 
 		/* Load the Adapter Configuration.
 		 * Note:  Barring any more specific information from some
@@ -1464,9 +1467,10 @@ cs89x0_probe1(struct net_device *dev, void __iomem *ioaddr, int modular)
 		/* eeprom_buff has 32-bit ints, so we can't just memcpy it */
 		/* store the initial memory base address */
 		for (i = 0; i < ETH_ALEN / 2; i++) {
-			dev->dev_addr[i * 2] = eeprom_buff[i];
-			dev->dev_addr[i * 2 + 1] = eeprom_buff[i] >> 8;
+			addr[i * 2] = eeprom_buff[i];
+			addr[i * 2 + 1] = eeprom_buff[i] >> 8;
 		}
+		eth_hw_addr_set(dev, addr);
 		cs89_dbg(1, debug, "%s: new adapter_cnf: 0x%x\n",
 			 dev->name, lp->adapter_cnf);
 	}
@@ -1523,7 +1527,7 @@ cs89x0_probe1(struct net_device *dev, void __iomem *ioaddr, int modular)
 			dev->irq = i;
 	} else {
 		i = lp->isa_config & INT_NO_MASK;
-#ifndef CONFIG_CS89x0_PLATFORM
+#if IS_ENABLED(CONFIG_CS89x0_ISA)
 		if (lp->chip_type == CS8900) {
 			/* Translate the IRQ using the IRQ mapping table. */
 			if (i >= ARRAY_SIZE(cs8900_irq_map))
@@ -1576,7 +1580,7 @@ out1:
 	return retval;
 }
 
-#ifndef CONFIG_CS89x0_PLATFORM
+#if IS_ENABLED(CONFIG_CS89x0_ISA)
 /*
  * This function converts the I/O port address used by the cs89x0_probe() and
  * init_module() functions to the I/O memory address used by the
@@ -1682,11 +1686,7 @@ out:
 	pr_warn("no cs8900 or cs8920 detected.  Be sure to disable PnP with SETUP\n");
 	return ERR_PTR(err);
 }
-#endif
-#endif
-
-#if defined(MODULE) && !defined(CONFIG_CS89x0_PLATFORM)
-
+#else
 static struct net_device *dev_cs89x0;
 
 /* Support the 'debug' module parm even if we're compiled for non-debug to
@@ -1757,9 +1757,9 @@ MODULE_LICENSE("GPL");
  * (hw or software util)
  */
 
-int __init init_module(void)
+static int __init cs89x0_isa_init_module(void)
 {
-	struct net_device *dev = alloc_etherdev(sizeof(struct net_local));
+	struct net_device *dev;
 	struct net_local *lp;
 	int ret = 0;
 
@@ -1768,6 +1768,7 @@ int __init init_module(void)
 #else
 	debug = 0;
 #endif
+	dev = alloc_etherdev(sizeof(struct net_local));
 	if (!dev)
 		return -ENOMEM;
 
@@ -1826,9 +1827,9 @@ out:
 	free_netdev(dev);
 	return ret;
 }
+module_init(cs89x0_isa_init_module);
 
-void __exit
-cleanup_module(void)
+static void __exit cs89x0_isa_cleanup_module(void)
 {
 	struct net_local *lp = netdev_priv(dev_cs89x0);
 
@@ -1838,9 +1839,11 @@ cleanup_module(void)
 	release_region(dev_cs89x0->base_addr, NETCARD_IO_EXTENT);
 	free_netdev(dev_cs89x0);
 }
-#endif /* MODULE && !CONFIG_CS89x0_PLATFORM */
+module_exit(cs89x0_isa_cleanup_module);
+#endif /* MODULE */
+#endif /* CONFIG_CS89x0_ISA */
 
-#ifdef CONFIG_CS89x0_PLATFORM
+#if IS_ENABLED(CONFIG_CS89x0_PLATFORM)
 static int __init cs89x0_platform_probe(struct platform_device *pdev)
 {
 	struct net_device *dev = alloc_etherdev(sizeof(struct net_local));
@@ -1851,9 +1854,8 @@ static int __init cs89x0_platform_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	dev->irq = platform_get_irq(pdev, 0);
-	if (dev->irq <= 0) {
-		dev_warn(&dev->dev, "interrupt resource missing\n");
-		err = -ENXIO;
+	if (dev->irq < 0) {
+		err = dev->irq;
 		goto free;
 	}
 
@@ -1877,7 +1879,7 @@ free:
 	return err;
 }
 
-static int cs89x0_platform_remove(struct platform_device *pdev)
+static void cs89x0_platform_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 
@@ -1887,7 +1889,6 @@ static int cs89x0_platform_remove(struct platform_device *pdev)
 	 */
 	unregister_netdev(dev);
 	free_netdev(dev);
-	return 0;
 }
 
 static const struct of_device_id __maybe_unused cs89x0_match[] = {
@@ -1902,7 +1903,7 @@ static struct platform_driver cs89x0_driver = {
 		.name		= DRV_NAME,
 		.of_match_table	= of_match_ptr(cs89x0_match),
 	},
-	.remove	= cs89x0_platform_remove,
+	.remove_new = cs89x0_platform_remove,
 };
 
 module_platform_driver_probe(cs89x0_driver, cs89x0_platform_probe);

@@ -39,6 +39,24 @@ libata_trace_parse_status(struct trace_seq *p, unsigned char status)
 }
 
 const char *
+libata_trace_parse_host_stat(struct trace_seq *p, unsigned char host_stat)
+{
+	const char *ret = trace_seq_buffer_ptr(p);
+
+	trace_seq_printf(p, "{ ");
+	if (host_stat & ATA_DMA_INTR)
+		trace_seq_printf(p, "INTR ");
+	if (host_stat & ATA_DMA_ERR)
+		trace_seq_printf(p, "ERR ");
+	if (host_stat & ATA_DMA_ACTIVE)
+		trace_seq_printf(p, "ACTIVE ");
+	trace_seq_putc(p, '}');
+	trace_seq_putc(p, 0);
+
+	return ret;
+}
+
+const char *
 libata_trace_parse_eh_action(struct trace_seq *p, unsigned int eh_action)
 {
 	const char *ret = trace_seq_buffer_ptr(p);
@@ -124,12 +142,41 @@ libata_trace_parse_qc_flags(struct trace_seq *p, unsigned int qc_flags)
 			trace_seq_printf(p, "QUIET ");
 		if (qc_flags & ATA_QCFLAG_RETRY)
 			trace_seq_printf(p, "RETRY ");
-		if (qc_flags & ATA_QCFLAG_FAILED)
+		if (qc_flags & ATA_QCFLAG_EH)
 			trace_seq_printf(p, "FAILED ");
 		if (qc_flags & ATA_QCFLAG_SENSE_VALID)
 			trace_seq_printf(p, "SENSE_VALID ");
 		if (qc_flags & ATA_QCFLAG_EH_SCHEDULED)
 			trace_seq_printf(p, "EH_SCHEDULED ");
+		trace_seq_putc(p, '}');
+	}
+	trace_seq_putc(p, 0);
+
+	return ret;
+}
+
+const char *
+libata_trace_parse_tf_flags(struct trace_seq *p, unsigned int tf_flags)
+{
+	const char *ret = trace_seq_buffer_ptr(p);
+
+	trace_seq_printf(p, "%x", tf_flags);
+	if (tf_flags) {
+		trace_seq_printf(p, "{ ");
+		if (tf_flags & ATA_TFLAG_LBA48)
+			trace_seq_printf(p, "LBA48 ");
+		if (tf_flags & ATA_TFLAG_ISADDR)
+			trace_seq_printf(p, "ISADDR ");
+		if (tf_flags & ATA_TFLAG_DEVICE)
+			trace_seq_printf(p, "DEV ");
+		if (tf_flags & ATA_TFLAG_WRITE)
+			trace_seq_printf(p, "WRITE ");
+		if (tf_flags & ATA_TFLAG_LBA)
+			trace_seq_printf(p, "LBA ");
+		if (tf_flags & ATA_TFLAG_FUA)
+			trace_seq_printf(p, "FUA ");
+		if (tf_flags & ATA_TFLAG_POLLING)
+			trace_seq_printf(p, "POLL ");
 		trace_seq_putc(p, '}');
 	}
 	trace_seq_putc(p, 0);

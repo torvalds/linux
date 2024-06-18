@@ -265,7 +265,6 @@ enum {
 
 struct ad9523_state {
 	struct spi_device		*spi;
-	struct regulator		*reg;
 	struct ad9523_platform_data	*pdata;
 	struct iio_chan_spec		ad9523_channels[AD9523_NUM_CHAN];
 	struct gpio_desc		*pwrdown_gpio;
@@ -287,13 +286,13 @@ struct ad9523_state {
 	struct mutex		lock;
 
 	/*
-	 * DMA (thus cache coherency maintenance) requires the
-	 * transfer buffers to live in their own cache lines.
+	 * DMA (thus cache coherency maintenance) may require that
+	 * transfer buffers live in their own cache lines.
 	 */
 	union {
 		__be32 d32;
 		u8 d8[4];
-	} data[2] ____cacheline_aligned;
+	} data[2] __aligned(IIO_DMA_MINALIGN);
 };
 
 static int ad9523_read(struct iio_dev *indio_dev, unsigned int addr)
@@ -516,7 +515,7 @@ static ssize_t ad9523_store(struct device *dev,
 	bool state;
 	int ret;
 
-	ret = strtobool(buf, &state);
+	ret = kstrtobool(buf, &state);
 	if (ret < 0)
 		return ret;
 
@@ -551,7 +550,7 @@ static ssize_t ad9523_show(struct device *dev,
 	mutex_lock(&st->lock);
 	ret = ad9523_read(indio_dev, AD9523_READBACK_0);
 	if (ret >= 0) {
-		ret = sprintf(buf, "%d\n", !!(ret & (1 <<
+		ret = sysfs_emit(buf, "%d\n", !!(ret & (1 <<
 			(u32)this_attr->address)));
 	}
 	mutex_unlock(&st->lock);
@@ -989,26 +988,19 @@ static int ad9523_probe(struct spi_device *spi)
 
 	mutex_init(&st->lock);
 
-	st->reg = devm_regulator_get(&spi->dev, "vcc");
-	if (!IS_ERR(st->reg)) {
-		ret = regulator_enable(st->reg);
-		if (ret)
-			return ret;
-	}
+	ret = devm_regulator_get_enable(&spi->dev, "vcc");
+	if (ret)
+		return ret;
 
 	st->pwrdown_gpio = devm_gpiod_get_optional(&spi->dev, "powerdown",
 		GPIOD_OUT_HIGH);
-	if (IS_ERR(st->pwrdown_gpio)) {
-		ret = PTR_ERR(st->pwrdown_gpio);
-		goto error_disable_reg;
-	}
+	if (IS_ERR(st->pwrdown_gpio))
+		return PTR_ERR(st->pwrdown_gpio);
 
 	st->reset_gpio = devm_gpiod_get_optional(&spi->dev, "reset",
 		GPIOD_OUT_LOW);
-	if (IS_ERR(st->reset_gpio)) {
-		ret = PTR_ERR(st->reset_gpio);
-		goto error_disable_reg;
-	}
+	if (IS_ERR(st->reset_gpio))
+		return PTR_ERR(st->reset_gpio);
 
 	if (st->reset_gpio) {
 		udelay(1);
@@ -1017,16 +1009,13 @@ static int ad9523_probe(struct spi_device *spi)
 
 	st->sync_gpio = devm_gpiod_get_optional(&spi->dev, "sync",
 		GPIOD_OUT_HIGH);
-	if (IS_ERR(st->sync_gpio)) {
-		ret = PTR_ERR(st->sync_gpio);
-		goto error_disable_reg;
-	}
+	if (IS_ERR(st->sync_gpio))
+		return PTR_ERR(st->sync_gpio);
 
 	spi_set_drvdata(spi, indio_dev);
 	st->spi = spi;
 	st->pdata = pdata;
 
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = (pdata->name[0] != 0) ? pdata->name :
 			  spi_get_device_id(spi)->name;
 	indio_dev->info = &ad9523_info;
@@ -1036,34 +1025,9 @@ static int ad9523_probe(struct spi_device *spi)
 
 	ret = ad9523_setup(indio_dev);
 	if (ret < 0)
-		goto error_disable_reg;
+		return ret;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_disable_reg;
-
-	dev_info(&spi->dev, "probed %s\n", indio_dev->name);
-
-	return 0;
-
-error_disable_reg:
-	if (!IS_ERR(st->reg))
-		regulator_disable(st->reg);
-
-	return ret;
-}
-
-static int ad9523_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-	struct ad9523_state *st = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-
-	if (!IS_ERR(st->reg))
-		regulator_disable(st->reg);
-
-	return 0;
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static const struct spi_device_id ad9523_id[] = {
@@ -1077,7 +1041,6 @@ static struct spi_driver ad9523_driver = {
 		.name	= "ad9523",
 	},
 	.probe		= ad9523_probe,
-	.remove		= ad9523_remove,
 	.id_table	= ad9523_id,
 };
 module_spi_driver(ad9523_driver);

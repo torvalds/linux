@@ -29,30 +29,11 @@ static struct ctl_table nfs_cb_sysctls[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
-	{ }
-};
-
-static struct ctl_table nfs_cb_sysctl_dir[] = {
-	{
-		.procname = "nfs",
-		.mode = 0555,
-		.child = nfs_cb_sysctls,
-	},
-	{ }
-};
-
-static struct ctl_table nfs_cb_sysctl_root[] = {
-	{
-		.procname = "fs",
-		.mode = 0555,
-		.child = nfs_cb_sysctl_dir,
-	},
-	{ }
 };
 
 int nfs_register_sysctl(void)
 {
-	nfs_callback_sysctl_table = register_sysctl_table(nfs_cb_sysctl_root);
+	nfs_callback_sysctl_table = register_sysctl("fs/nfs", nfs_cb_sysctls);
 	if (nfs_callback_sysctl_table == NULL)
 		return -ENOMEM;
 	return 0;

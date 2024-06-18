@@ -214,8 +214,7 @@ static const struct iio_info cm3323_info = {
 	.attrs		= &cm3323_attribute_group,
 };
 
-static int cm3323_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int cm3323_probe(struct i2c_client *client)
 {
 	struct cm3323_data *data;
 	struct iio_dev *indio_dev;
@@ -231,7 +230,6 @@ static int cm3323_probe(struct i2c_client *client,
 
 	mutex_init(&data->mutex);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &cm3323_info;
 	indio_dev->name = CM3323_DRV_NAME;
 	indio_dev->channels = cm3323_channels;
@@ -257,9 +255,16 @@ static const struct i2c_device_id cm3323_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, cm3323_id);
 
+static const struct of_device_id cm3323_of_match[] = {
+	{ .compatible = "capella,cm3323", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, cm3323_of_match);
+
 static struct i2c_driver cm3323_driver = {
 	.driver = {
 		.name = CM3323_DRV_NAME,
+		.of_match_table = cm3323_of_match,
 	},
 	.probe		= cm3323_probe,
 	.id_table	= cm3323_id,

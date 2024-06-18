@@ -8,7 +8,7 @@ config NET_VENDOR_ALLWINNER
 	default y
 
 	depends on ARCH_SUNXI
-	---help---
+	help
 	  If you have a network (Ethernet) card belonging to this
 	  class, say Y here.
 
@@ -28,7 +28,7 @@ config SUN4I_EMAC
 	select MII
 	select PHYLIB
 	select MDIO_SUN4I
-	---help---
+	help
 	  Support for Allwinner A10 EMAC ethernet driver.
 
 	  To compile this driver as a module, choose M here.  The module

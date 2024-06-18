@@ -23,7 +23,7 @@ void *stp_policy_node_priv(struct stp_policy_node *pn);
 
 struct stp_master {
 	unsigned int	nr_free;
-	unsigned long	chan_map[0];
+	unsigned long	chan_map[];
 };
 
 struct stm_device {
@@ -42,7 +42,7 @@ struct stm_device {
 	const struct config_item_type		*pdrv_node_type;
 	/* master allocation */
 	spinlock_t		mc_lock;
-	struct stp_master	*masters[0];
+	struct stp_master	*masters[];
 };
 
 #define to_stm_device(_d)				\
@@ -96,7 +96,7 @@ struct stm_protocol_driver {
 	const char	*name;
 	ssize_t		(*write)(struct stm_data *data,
 				 struct stm_output *output, unsigned int chan,
-				 const char *buf, size_t count);
+				 const char *buf, size_t count, struct stm_source_data *source);
 	void		(*policy_node_init)(void *arg);
 	int		(*output_open)(void *priv, struct stm_output *output);
 	void		(*output_close)(struct stm_output *output);

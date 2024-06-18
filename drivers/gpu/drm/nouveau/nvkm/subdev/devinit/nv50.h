@@ -9,7 +9,7 @@ struct nv50_devinit {
 	u32 r001540;
 };
 
-int nv50_devinit_new_(const struct nvkm_devinit_func *, struct nvkm_device *,
+int nv50_devinit_new_(const struct nvkm_devinit_func *, struct nvkm_device *, enum nvkm_subdev_type,
 		      int, struct nvkm_devinit **);
 void nv50_devinit_preinit(struct nvkm_devinit *);
 void nv50_devinit_init(struct nvkm_devinit *);
@@ -23,7 +23,7 @@ int  gf100_devinit_ctor(struct nvkm_object *, struct nvkm_object *,
 int  gf100_devinit_pll_set(struct nvkm_devinit *, u32, u32);
 void gf100_devinit_preinit(struct nvkm_devinit *);
 
-u64  gm107_devinit_disable(struct nvkm_devinit *);
+void  gm107_devinit_disable(struct nvkm_devinit *);
 
 int gm200_devinit_post(struct nvkm_devinit *, bool);
 void gm200_devinit_preos(struct nv50_devinit *, bool);

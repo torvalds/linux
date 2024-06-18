@@ -1,0 +1,85 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/input/imx-keypad.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale i.MX Keypad Port(KPP)
+
+maintainers:
+  - Liu Ying <gnuiyl@gmail.com>
+
+allOf:
+  - $ref: /schemas/input/matrix-keymap.yaml#
+
+description: |
+  The KPP is designed to interface with a keypad matrix with 2-point contact
+  or 3-point contact keys. The KPP is designed to simplify the software task
+  of scanning a keypad matrix. The KPP is capable of detecting, debouncing,
+  and decoding one or multiple keys pressed simultaneously on a keypad.
+
+properties:
+  compatible:
+    oneOf:
+      - const: fsl,imx21-kpp
+      - items:
+          - enum:
+              - fsl,imx25-kpp
+              - fsl,imx27-kpp
+              - fsl,imx31-kpp
+              - fsl,imx35-kpp
+              - fsl,imx51-kpp
+              - fsl,imx53-kpp
+              - fsl,imx50-kpp
+              - fsl,imx6q-kpp
+              - fsl,imx6sx-kpp
+              - fsl,imx6sl-kpp
+              - fsl,imx6sll-kpp
+              - fsl,imx6ul-kpp
+              - fsl,imx7d-kpp
+          - const: fsl,imx21-kpp
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - linux,keymap
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    keypad@73f94000 {
+        compatible = "fsl,imx51-kpp", "fsl,imx21-kpp";
+        reg = <0x73f94000 0x4000>;
+        interrupts = <60>;
+        clocks = <&clks 0>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&pinctrl_kpp_1>;
+        linux,keymap = <0x00000067	/* KEY_UP */
+                        0x0001006c	/* KEY_DOWN */
+                        0x00020072	/* KEY_VOLUMEDOWN */
+                        0x00030066	/* KEY_HOME */
+                        0x0100006a	/* KEY_RIGHT */
+                        0x01010069	/* KEY_LEFT */
+                        0x0102001c	/* KEY_ENTER */
+                        0x01030073	/* KEY_VOLUMEUP */
+                        0x02000040	/* KEY_F6 */
+                        0x02010042	/* KEY_F8 */
+                        0x02020043	/* KEY_F9 */
+                        0x02030044	/* KEY_F10 */
+                        0x0300003b	/* KEY_F1 */
+                        0x0301003c	/* KEY_F2 */
+                        0x0302003d	/* KEY_F3 */
+                        0x03030074>;	/* KEY_POWER */
+    };

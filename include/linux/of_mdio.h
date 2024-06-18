@@ -8,28 +8,47 @@
 #ifndef __LINUX_OF_MDIO_H
 #define __LINUX_OF_MDIO_H
 
+#include <linux/device.h>
 #include <linux/phy.h>
 #include <linux/of.h>
 
 #if IS_ENABLED(CONFIG_OF_MDIO)
-extern int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np);
-extern struct phy_device *of_phy_find_device(struct device_node *phy_np);
-extern struct phy_device *of_phy_connect(struct net_device *dev,
-					 struct device_node *phy_np,
-					 void (*hndlr)(struct net_device *),
-					 u32 flags, phy_interface_t iface);
-extern struct phy_device *
+bool of_mdiobus_child_is_phy(struct device_node *child);
+int __of_mdiobus_register(struct mii_bus *mdio, struct device_node *np,
+			  struct module *owner);
+
+static inline int of_mdiobus_register(struct mii_bus *mdio,
+				      struct device_node *np)
+{
+	return __of_mdiobus_register(mdio, np, THIS_MODULE);
+}
+
+int __devm_of_mdiobus_register(struct device *dev, struct mii_bus *mdio,
+			       struct device_node *np, struct module *owner);
+
+static inline int devm_of_mdiobus_register(struct device *dev,
+					   struct mii_bus *mdio,
+					   struct device_node *np)
+{
+	return __devm_of_mdiobus_register(dev, mdio, np, THIS_MODULE);
+}
+
+struct mdio_device *of_mdio_find_device(struct device_node *np);
+struct phy_device *of_phy_find_device(struct device_node *phy_np);
+struct phy_device *
+of_phy_connect(struct net_device *dev, struct device_node *phy_np,
+	       void (*hndlr)(struct net_device *), u32 flags,
+	       phy_interface_t iface);
+struct phy_device *
 of_phy_get_and_connect(struct net_device *dev, struct device_node *np,
 		       void (*hndlr)(struct net_device *));
-struct phy_device *of_phy_attach(struct net_device *dev,
-				 struct device_node *phy_np, u32 flags,
-				 phy_interface_t iface);
 
-extern struct mii_bus *of_mdio_find_bus(struct device_node *mdio_np);
-extern int of_phy_register_fixed_link(struct device_node *np);
-extern void of_phy_deregister_fixed_link(struct device_node *np);
-extern bool of_phy_is_fixed_link(struct device_node *np);
-
+struct mii_bus *of_mdio_find_bus(struct device_node *mdio_np);
+int of_phy_register_fixed_link(struct device_node *np);
+void of_phy_deregister_fixed_link(struct device_node *np);
+bool of_phy_is_fixed_link(struct device_node *np);
+int of_mdiobus_phy_device_register(struct mii_bus *mdio, struct phy_device *phy,
+				   struct device_node *child, u32 addr);
 
 static inline int of_mdio_parse_addr(struct device *dev,
 				     const struct device_node *np)
@@ -54,6 +73,11 @@ static inline int of_mdio_parse_addr(struct device *dev,
 }
 
 #else /* CONFIG_OF_MDIO */
+static inline bool of_mdiobus_child_is_phy(struct device_node *child)
+{
+	return false;
+}
+
 static inline int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 {
 	/*
@@ -62,6 +86,18 @@ static inline int of_mdiobus_register(struct mii_bus *mdio, struct device_node *
 	 */
 
 	return mdiobus_register(mdio);
+}
+
+static inline int devm_of_mdiobus_register(struct device *dev,
+					   struct mii_bus *mdio,
+					   struct device_node *np)
+{
+	return devm_mdiobus_register(dev, mdio);
+}
+
+static inline struct mdio_device *of_mdio_find_device(struct device_node *np)
+{
+	return NULL;
 }
 
 static inline struct phy_device *of_phy_find_device(struct device_node *phy_np)
@@ -80,13 +116,6 @@ static inline struct phy_device *of_phy_connect(struct net_device *dev,
 static inline struct phy_device *
 of_phy_get_and_connect(struct net_device *dev, struct device_node *np,
 		       void (*hndlr)(struct net_device *))
-{
-	return NULL;
-}
-
-static inline struct phy_device *of_phy_attach(struct net_device *dev,
-					       struct device_node *phy_np,
-					       u32 flags, phy_interface_t iface)
 {
 	return NULL;
 }
@@ -111,6 +140,13 @@ static inline void of_phy_deregister_fixed_link(struct device_node *np)
 static inline bool of_phy_is_fixed_link(struct device_node *np)
 {
 	return false;
+}
+
+static inline int of_mdiobus_phy_device_register(struct mii_bus *mdio,
+					    struct phy_device *phy,
+					    struct device_node *child, u32 addr)
+{
+	return -ENOSYS;
 }
 #endif
 

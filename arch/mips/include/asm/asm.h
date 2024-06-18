@@ -19,11 +19,30 @@
 
 #include <asm/sgidefs.h>
 #include <asm/asm-eva.h>
+#include <asm/isa-rev.h>
 
+#ifndef __VDSO__
+/*
+ * Emit CFI data in .debug_frame sections, not .eh_frame sections.
+ * We don't do DWARF unwinding at runtime, so only the offline DWARF
+ * information is useful to anyone. Note we should change this if we
+ * ever decide to enable DWARF unwinding at runtime.
+ */
+#define CFI_SECTIONS	.cfi_sections .debug_frame
+#else
+ /*
+  * For the vDSO, emit both runtime unwind information and debug
+  * symbols for the .dbg file.
+  */
+#define CFI_SECTIONS
+#endif
+
+#ifdef __ASSEMBLY__
 /*
  * LEAF - declare leaf routine
  */
 #define LEAF(symbol)					\
+		CFI_SECTIONS;				\
 		.globl	symbol;				\
 		.align	2;				\
 		.type	symbol, @function;		\
@@ -36,6 +55,7 @@ symbol:		.frame	sp, 0, ra;			\
  * NESTED - declare nested routine entry point
  */
 #define NESTED(symbol, framesize, rpc)			\
+		CFI_SECTIONS;				\
 		.globl	symbol;				\
 		.align	2;				\
 		.type	symbol, @function;		\
@@ -74,10 +94,15 @@ symbol:		.insn
 		.globl	symbol;				\
 symbol		=	value
 
-#define PANIC(msg)					\
+#define TEXT(msg)					\
+		.pushsection .data;			\
+8:		.asciiz msg;				\
+		.popsection;
+
+#define ASM_PANIC(msg)					\
 		.set	push;				\
 		.set	reorder;			\
-		PTR_LA	a0, 8f;				 \
+		PTR_LA	a0, 8f;				\
 		jal	panic;				\
 9:		b	9b;				\
 		.set	pop;				\
@@ -87,21 +112,18 @@ symbol		=	value
  * Print formatted string
  */
 #ifdef CONFIG_PRINTK
-#define PRINT(string)					\
+#define ASM_PRINT(string)				\
 		.set	push;				\
 		.set	reorder;			\
-		PTR_LA	a0, 8f;				 \
-		jal	printk;				\
+		PTR_LA	a0, 8f;				\
+		jal	_printk;			\
 		.set	pop;				\
 		TEXT(string)
 #else
-#define PRINT(string)
+#define ASM_PRINT(string)
 #endif
 
-#define TEXT(msg)					\
-		.pushsection .data;			\
-8:		.asciiz msg;				\
-		.popsection;
+#endif /* __ASSEMBLY__ */
 
 /*
  * Stack alignment
@@ -193,6 +215,8 @@ symbol		=	value
 #define LONG_SUB	sub
 #define LONG_SUBU	subu
 #define LONG_L		lw
+#define LONG_LL		ll
+#define LONG_SC		sc
 #define LONG_S		sw
 #define LONG_SP		swp
 #define LONG_SLL	sll
@@ -201,8 +225,12 @@ symbol		=	value
 #define LONG_SRLV	srlv
 #define LONG_SRA	sra
 #define LONG_SRAV	srav
+#define LONG_INS	ins
+#define LONG_EXT	ext
 
+#ifdef __ASSEMBLY__
 #define LONG		.word
+#endif
 #define LONGSIZE	4
 #define LONGMASK	3
 #define LONGLOG		2
@@ -216,6 +244,8 @@ symbol		=	value
 #define LONG_SUB	dsub
 #define LONG_SUBU	dsubu
 #define LONG_L		ld
+#define LONG_LL		lld
+#define LONG_SC		scd
 #define LONG_S		sd
 #define LONG_SP		sdp
 #define LONG_SLL	dsll
@@ -224,8 +254,12 @@ symbol		=	value
 #define LONG_SRLV	dsrlv
 #define LONG_SRA	dsra
 #define LONG_SRAV	dsrav
+#define LONG_INS	dins
+#define LONG_EXT	dext
 
+#ifdef __ASSEMBLY__
 #define LONG		.dword
+#endif
 #define LONGSIZE	8
 #define LONGMASK	7
 #define LONGLOG		3
@@ -254,7 +288,7 @@ symbol		=	value
 
 #define PTR_SCALESHIFT	2
 
-#define PTR		.word
+#define PTR_WD		.word
 #define PTRSIZE		4
 #define PTRLOG		2
 #endif
@@ -279,7 +313,7 @@ symbol		=	value
 
 #define PTR_SCALESHIFT	3
 
-#define PTR		.dword
+#define PTR_WD		.dword
 #define PTRSIZE		8
 #define PTRLOG		3
 #endif
@@ -297,6 +331,19 @@ symbol		=	value
 #endif
 
 #define SSNOP		sll zero, zero, 1
+
+/*
+ * Using a branch-likely instruction to check the result of an sc instruction
+ * works around a bug present in R10000 CPUs prior to revision 3.0 that could
+ * cause ll-sc sequences to execute non-atomically.
+ */
+#ifdef CONFIG_WAR_R10000_LLSC
+# define SC_BEQZ	beqzl
+#elif !defined(CONFIG_CC_HAS_BROKEN_INLINE_COMPAT_BRANCH) && MIPS_ISA_REV >= 6
+# define SC_BEQZ	beqzc
+#else
+# define SC_BEQZ	beqz
+#endif
 
 #ifdef CONFIG_SGI_IP28
 /* Inhibit speculative stores to volatile (e.g.DMA) or invalid addresses. */

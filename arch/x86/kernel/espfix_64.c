@@ -29,7 +29,7 @@
 #include <linux/percpu.h>
 #include <linux/gfp.h>
 #include <linux/random.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/setup.h>
 #include <asm/espfix.h>
@@ -94,17 +94,7 @@ static inline unsigned long espfix_base_addr(unsigned int cpu)
 
 static void init_espfix_random(void)
 {
-	unsigned long rand;
-
-	/*
-	 * This is run before the entropy pools are initialized,
-	 * but this is hopefully better than nothing.
-	 */
-	if (!arch_get_random_long(&rand)) {
-		/* The constant is an arbitrary large prime */
-		rand = rdtsc();
-		rand *= 0xc345c6b72fd16123UL;
-	}
+	unsigned long rand = get_random_long();
 
 	slot_random = rand % ESPFIX_STACKS_PER_PAGE;
 	page_random = (rand / ESPFIX_STACKS_PER_PAGE)
@@ -115,6 +105,10 @@ void __init init_espfix_bsp(void)
 {
 	pgd_t *pgd;
 	p4d_t *p4d;
+
+	/* FRED systems always restore the full value of %rsp */
+	if (cpu_feature_enabled(X86_FEATURE_FRED))
+		return;
 
 	/* Install the espfix pud into the kernel page directory */
 	pgd = &init_top_pgt[pgd_index(ESPFIX_BASE_ADDR)];
@@ -138,6 +132,10 @@ void init_espfix_ap(int cpu)
 	int n, node;
 	void *stack_page;
 	pteval_t ptemask;
+
+	/* FRED systems always restore the full value of %rsp */
+	if (cpu_feature_enabled(X86_FEATURE_FRED))
+		return;
 
 	/* We only have to do this once... */
 	if (likely(per_cpu(espfix_stack, cpu)))

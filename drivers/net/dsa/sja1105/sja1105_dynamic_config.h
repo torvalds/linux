@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0
- * Copyright (c) 2019, Vladimir Oltean <olteanv@gmail.com>
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright (c) 2019, Vladimir Oltean <olteanv@gmail.com>
  */
 #ifndef _SJA1105_DYNAMIC_CONFIG_H
 #define _SJA1105_DYNAMIC_CONFIG_H
@@ -34,7 +34,8 @@ struct sja1105_mgmt_entry {
 	u64 index;
 };
 
-extern struct sja1105_dynamic_table_ops sja1105et_dyn_ops[BLK_IDX_MAX_DYN];
-extern struct sja1105_dynamic_table_ops sja1105pqrs_dyn_ops[BLK_IDX_MAX_DYN];
+extern const struct sja1105_dynamic_table_ops sja1105et_dyn_ops[BLK_IDX_MAX_DYN];
+extern const struct sja1105_dynamic_table_ops sja1105pqrs_dyn_ops[BLK_IDX_MAX_DYN];
+extern const struct sja1105_dynamic_table_ops sja1110_dyn_ops[BLK_IDX_MAX_DYN];
 
 #endif

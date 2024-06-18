@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Power Management Service Unit(PMSU) support for Armada 370/XP platforms.
  *
@@ -6,10 +7,6 @@
  * Yehuda Yitschak <yehuday@marvell.com>
  * Gregory Clement <gregory.clement@free-electrons.com>
  * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  *
  * The Armada 370 and Armada XP SOCs have a power management service
  * unit which is responsible for powering down and waking up CPUs and
@@ -26,8 +23,8 @@
 #include <linux/kernel.h>
 #include <linux/mbus.h>
 #include <linux/mvebu-pmsu.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/resource.h>
 #include <linux/slab.h>
@@ -294,6 +291,7 @@ int armada_370_xp_pmsu_idle_enter(unsigned long deepidle)
 
 	/* Test the CR_C bit and set it if it was cleared */
 	asm volatile(
+	".arch	armv7-a\n\t"
 	"mrc	p15, 0, r0, c1, c0, 0 \n\t"
 	"tst	r0, %0 \n\t"
 	"orreq	r0, r0, #(1 << 2) \n\t"

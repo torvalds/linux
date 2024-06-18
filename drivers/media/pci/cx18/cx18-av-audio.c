@@ -46,11 +46,11 @@ static int set_audclk_freq(struct cx18 *cx, u32 freq)
 	 * an error of less than 0.13 ppm which is way, way better than any off
 	 * the shelf crystal will have for accuracy anyway.
 	 *
-	 * Below I aim to run the PLLs' VCOs near 400 MHz to minimze error.
+	 * Below I aim to run the PLLs' VCOs near 400 MHz to minimize error.
 	 *
 	 * Many thanks to Jeff Campbell and Mike Bradley for their extensive
 	 * investigation, experimentation, testing, and suggested solutions of
-	 * of audio/video sync problems with SVideo and CVBS captures.
+	 * audio/video sync problems with SVideo and CVBS captures.
 	 */
 
 	if (state->aud_input > CX18_AV_AUDIO_SERIAL2) {

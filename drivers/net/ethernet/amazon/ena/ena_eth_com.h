@@ -1,33 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
- * Copyright 2015 Amazon.com, Inc. or its affiliates.
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Copyright 2015-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef ENA_ETH_COM_H_
@@ -35,8 +8,10 @@
 
 #include "ena_com.h"
 
-/* head update threshold in units of (queue size / ENA_COMP_HEAD_THRESH) */
-#define ENA_COMP_HEAD_THRESH 4
+/* we allow 2 DMA descriptors per LLQ entry */
+#define ENA_LLQ_ENTRY_DESC_CHUNK_SIZE	(2 * sizeof(struct ena_eth_io_tx_desc))
+#define ENA_LLQ_HEADER		(128UL - ENA_LLQ_ENTRY_DESC_CHUNK_SIZE)
+#define ENA_LLQ_LARGE_HEADER	(256UL - ENA_LLQ_ENTRY_DESC_CHUNK_SIZE)
 
 struct ena_com_tx_ctx {
 	struct ena_com_tx_meta ena_meta;
@@ -72,7 +47,8 @@ struct ena_com_rx_ctx {
 	bool frag;
 	u32 hash;
 	u16 descs;
-	int max_bufs;
+	u16 max_bufs;
+	u8 pkt_offset;
 };
 
 int ena_com_prepare_tx(struct ena_com_io_sq *io_sq,
@@ -95,7 +71,7 @@ static inline void ena_com_unmask_intr(struct ena_com_io_cq *io_cq,
 	writel(intr_reg->intr_control, io_cq->unmask_reg);
 }
 
-static inline int ena_com_free_desc(struct ena_com_io_sq *io_sq)
+static inline int ena_com_free_q_entries(struct ena_com_io_sq *io_sq)
 {
 	u16 tail, next_to_comp, cnt;
 
@@ -113,7 +89,7 @@ static inline bool ena_com_sq_have_enough_space(struct ena_com_io_sq *io_sq,
 	int temp;
 
 	if (io_sq->mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_HOST)
-		return ena_com_free_desc(io_sq) >= required_buffers;
+		return ena_com_free_q_entries(io_sq) >= required_buffers;
 
 	/* This calculation doesn't need to be 100% accurate. So to reduce
 	 * the calculation overhead just Subtract 2 lines from the free descs
@@ -122,7 +98,7 @@ static inline bool ena_com_sq_have_enough_space(struct ena_com_io_sq *io_sq,
 	 */
 	temp = required_buffers / io_sq->llq_info.descs_per_entry + 2;
 
-	return ena_com_free_desc(io_sq) > temp;
+	return ena_com_free_q_entries(io_sq) > temp;
 }
 
 static inline bool ena_com_meta_desc_changed(struct ena_com_io_sq *io_sq,
@@ -156,7 +132,8 @@ static inline bool ena_com_is_doorbell_needed(struct ena_com_io_sq *io_sq,
 	llq_info = &io_sq->llq_info;
 	num_descs = ena_tx_ctx->num_bufs;
 
-	if (unlikely(ena_com_meta_desc_changed(io_sq, ena_tx_ctx)))
+	if (llq_info->disable_meta_caching ||
+	    unlikely(ena_com_meta_desc_changed(io_sq, ena_tx_ctx)))
 		++num_descs;
 
 	if (num_descs > llq_info->descs_num_before_header) {
@@ -165,8 +142,9 @@ static inline bool ena_com_is_doorbell_needed(struct ena_com_io_sq *io_sq,
 						   llq_info->descs_per_entry);
 	}
 
-	pr_debug("queue: %d num_descs: %d num_entries_needed: %d\n", io_sq->qid,
-		 num_descs, num_entries_needed);
+	netdev_dbg(ena_com_io_sq_to_ena_dev(io_sq)->net_device,
+		   "Queue: %d num_descs: %d num_entries_needed: %d\n", io_sq->qid, num_descs,
+		   num_entries_needed);
 
 	return num_entries_needed > io_sq->entries_in_tx_burst_left;
 }
@@ -176,36 +154,16 @@ static inline int ena_com_write_sq_doorbell(struct ena_com_io_sq *io_sq)
 	u16 max_entries_in_tx_burst = io_sq->llq_info.max_entries_in_tx_burst;
 	u16 tail = io_sq->tail;
 
-	pr_debug("write submission queue doorbell for queue: %d tail: %d\n",
-		 io_sq->qid, tail);
+	netdev_dbg(ena_com_io_sq_to_ena_dev(io_sq)->net_device,
+		   "Write submission queue doorbell for queue: %d tail: %d\n", io_sq->qid, tail);
 
 	writel(tail, io_sq->db_addr);
 
 	if (is_llq_max_tx_burst_exists(io_sq)) {
-		pr_debug("reset available entries in tx burst for queue %d to %d\n",
-			 io_sq->qid, max_entries_in_tx_burst);
+		netdev_dbg(ena_com_io_sq_to_ena_dev(io_sq)->net_device,
+			   "Reset available entries in tx burst for queue %d to %d\n", io_sq->qid,
+			   max_entries_in_tx_burst);
 		io_sq->entries_in_tx_burst_left = max_entries_in_tx_burst;
-	}
-
-	return 0;
-}
-
-static inline int ena_com_update_dev_comp_head(struct ena_com_io_cq *io_cq)
-{
-	u16 unreported_comp, head;
-	bool need_update;
-
-	if (unlikely(io_cq->cq_head_db_reg)) {
-		head = io_cq->head;
-		unreported_comp = head - io_cq->last_head_update;
-		need_update = unreported_comp > (io_cq->q_depth / ENA_COMP_HEAD_THRESH);
-
-		if (unlikely(need_update)) {
-			pr_debug("Write completion queue doorbell for queue %d: head: %d\n",
-				 io_cq->qid, head);
-			writel(head, io_cq->cq_head_db_reg);
-			io_cq->last_head_update = head;
-		}
 	}
 
 	return 0;
@@ -265,7 +223,8 @@ static inline int ena_com_tx_comp_req_id_get(struct ena_com_io_cq *io_cq,
 
 	*req_id = READ_ONCE(cdesc->req_id);
 	if (unlikely(*req_id >= io_cq->q_depth)) {
-		pr_err("Invalid req id %d\n", cdesc->req_id);
+		netdev_err(ena_com_io_cq_to_ena_dev(io_cq)->net_device, "Invalid req id %d\n",
+			   cdesc->req_id);
 		return -EINVAL;
 	}
 

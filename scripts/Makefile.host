@@ -22,78 +22,87 @@ $(obj)/%.tab.c $(obj)/%.tab.h: $(src)/%.y FORCE
 # to preprocess a data file.
 #
 # Both C and C++ are supported, but preferred language is C for such utilities.
+# Rust is also supported, but it may only be used in scenarios where a Rust
+# toolchain is required to be available (e.g. when  `CONFIG_RUST` is enabled).
 #
 # Sample syntax (see Documentation/kbuild/makefiles.rst for reference)
-# hostprogs-y := bin2hex
+# hostprogs := bin2hex
 # Will compile bin2hex.c and create an executable named bin2hex
 #
-# hostprogs-y    := lxdialog
+# hostprogs     := lxdialog
 # lxdialog-objs := checklist.o lxdialog.o
 # Will compile lxdialog.c and checklist.c, and then link the executable
 # lxdialog, based on checklist.o and lxdialog.o
 #
-# hostprogs-y      := qconf
+# hostprogs       := qconf
 # qconf-cxxobjs   := qconf.o
 # qconf-objs      := menu.o
 # Will compile qconf as a C++ program, and menu as a C program.
 # They are linked as C++ code to the executable qconf
-
-__hostprogs := $(sort $(hostprogs-y) $(hostprogs-m))
-host-cshlib := $(sort $(hostlibs-y) $(hostlibs-m))
-host-cxxshlib := $(sort $(hostcxxlibs-y) $(hostcxxlibs-m))
+#
+# hostprogs   := target
+# target-rust := y
+# Will compile `target` as a Rust program, using `target.rs` as the crate root.
+# The crate may consist of several source files.
 
 # C code
 # Executables compiled from a single .c file
-host-csingle	:= $(foreach m,$(__hostprogs), \
-			$(if $($(m)-objs)$($(m)-cxxobjs),,$(m)))
+host-csingle	:= $(foreach m,$(hostprogs), \
+			$(if $($(m)-objs)$($(m)-cxxobjs)$($(m)-rust),,$(m)))
 
 # C executables linked based on several .o files
-host-cmulti	:= $(foreach m,$(__hostprogs),\
-		   $(if $($(m)-cxxobjs),,$(if $($(m)-objs),$(m))))
+host-cmulti	:= $(foreach m,$(hostprogs),\
+		   $(if $($(m)-cxxobjs)$($(m)-rust),,$(if $($(m)-objs),$(m))))
 
 # Object (.o) files compiled from .c files
-host-cobjs	:= $(sort $(foreach m,$(__hostprogs),$($(m)-objs)))
+host-cobjs	:= $(sort $(foreach m,$(hostprogs),$($(m)-objs)))
 
 # C++ code
 # C++ executables compiled from at least one .cc file
 # and zero or more .c files
-host-cxxmulti	:= $(foreach m,$(__hostprogs),$(if $($(m)-cxxobjs),$(m)))
+host-cxxmulti	:= $(foreach m,$(hostprogs),$(if $($(m)-cxxobjs),$(m)))
 
 # C++ Object (.o) files compiled from .cc files
 host-cxxobjs	:= $(sort $(foreach m,$(host-cxxmulti),$($(m)-cxxobjs)))
 
-# Object (.o) files used by the shared libaries
-host-cshobjs	:= $(sort $(foreach m,$(host-cshlib),$($(m:.so=-objs))))
-host-cxxshobjs	:= $(sort $(foreach m,$(host-cxxshlib),$($(m:.so=-objs))))
+# Rust code
+# Executables compiled from a single Rust crate (which may consist of
+# one or more .rs files)
+host-rust	:= $(foreach m,$(hostprogs),$(if $($(m)-rust),$(m)))
 
 host-csingle	:= $(addprefix $(obj)/,$(host-csingle))
 host-cmulti	:= $(addprefix $(obj)/,$(host-cmulti))
 host-cobjs	:= $(addprefix $(obj)/,$(host-cobjs))
 host-cxxmulti	:= $(addprefix $(obj)/,$(host-cxxmulti))
 host-cxxobjs	:= $(addprefix $(obj)/,$(host-cxxobjs))
-host-cshlib	:= $(addprefix $(obj)/,$(host-cshlib))
-host-cxxshlib	:= $(addprefix $(obj)/,$(host-cxxshlib))
-host-cshobjs	:= $(addprefix $(obj)/,$(host-cshobjs))
-host-cxxshobjs	:= $(addprefix $(obj)/,$(host-cxxshobjs))
+host-rust	:= $(addprefix $(obj)/,$(host-rust))
 
 #####
 # Handle options to gcc. Support building with separate output directory
 
-_hostc_flags   = $(KBUILD_HOSTCFLAGS)   $(HOST_EXTRACFLAGS)   \
+hostc_flags    = -Wp,-MMD,$(depfile) \
+                 $(KBUILD_HOSTCFLAGS) $(HOST_EXTRACFLAGS) \
                  $(HOSTCFLAGS_$(target-stem).o)
-_hostcxx_flags = $(KBUILD_HOSTCXXFLAGS) $(HOST_EXTRACXXFLAGS) \
+hostcxx_flags  = -Wp,-MMD,$(depfile) \
+                 $(KBUILD_HOSTCXXFLAGS) $(HOST_EXTRACXXFLAGS) \
                  $(HOSTCXXFLAGS_$(target-stem).o)
+
+# `--out-dir` is required to avoid temporaries being created by `rustc` in the
+# current working directory, which may be not accessible in the out-of-tree
+# modules case.
+hostrust_flags = --out-dir $(dir $@) --emit=dep-info=$(depfile) \
+		 -Clinker-flavor=gcc -Clinker=$(HOSTCC) \
+		 -Clink-args='$(call escsq,$(KBUILD_HOSTLDFLAGS))' \
+                 $(KBUILD_HOSTRUSTFLAGS) $(HOST_EXTRARUSTFLAGS) \
+                 $(HOSTRUSTFLAGS_$(target-stem))
 
 # $(objtree)/$(obj) for including generated headers from checkin source files
 ifeq ($(KBUILD_EXTMOD),)
 ifdef building_out_of_srctree
-_hostc_flags   += -I $(objtree)/$(obj)
-_hostcxx_flags += -I $(objtree)/$(obj)
+hostc_flags   += -I $(objtree)/$(obj)
+hostcxx_flags += -I $(objtree)/$(obj)
 endif
 endif
-
-hostc_flags    = -Wp,-MD,$(depfile) $(_hostc_flags)
-hostcxx_flags  = -Wp,-MD,$(depfile) $(_hostcxx_flags)
 
 #####
 # Compile programs on the host
@@ -103,7 +112,7 @@ hostcxx_flags  = -Wp,-MD,$(depfile) $(_hostcxx_flags)
 quiet_cmd_host-csingle 	= HOSTCC  $@
       cmd_host-csingle	= $(HOSTCC) $(hostc_flags) $(KBUILD_HOSTLDFLAGS) -o $@ $< \
 		$(KBUILD_HOSTLDLIBS) $(HOSTLDLIBS_$(target-stem))
-$(host-csingle): $(obj)/%: $(src)/%.c FORCE
+$(host-csingle): $(obj)/%: $(obj)/%.c FORCE
 	$(call if_changed_dep,host-csingle)
 
 # Link an executable based on list of .o files, all plain c
@@ -120,7 +129,7 @@ $(call multi_depend, $(host-cmulti), , -objs)
 # host-cobjs -> .o
 quiet_cmd_host-cobjs	= HOSTCC  $@
       cmd_host-cobjs	= $(HOSTCC) $(hostc_flags) -c -o $@ $<
-$(host-cobjs): $(obj)/%.o: $(src)/%.c FORCE
+$(host-cobjs): $(obj)/%.o: $(obj)/%.c FORCE
 	$(call if_changed_dep,host-cobjs)
 
 # Link an executable based on list of .o files, a mixture of .c and .cc
@@ -140,42 +149,14 @@ quiet_cmd_host-cxxobjs	= HOSTCXX $@
 $(host-cxxobjs): $(obj)/%.o: $(src)/%.cc FORCE
 	$(call if_changed_dep,host-cxxobjs)
 
-# Compile .c file, create position independent .o file
-# host-cshobjs -> .o
-quiet_cmd_host-cshobjs	= HOSTCC  -fPIC $@
-      cmd_host-cshobjs	= $(HOSTCC) $(hostc_flags) -fPIC -c -o $@ $<
-$(host-cshobjs): $(obj)/%.o: $(src)/%.c FORCE
-	$(call if_changed_dep,host-cshobjs)
+# Create executable from a single Rust crate (which may consist of
+# one or more `.rs` files)
+# host-rust -> Executable
+quiet_cmd_host-rust	= HOSTRUSTC $@
+      cmd_host-rust	= \
+	$(HOSTRUSTC) $(hostrust_flags) --emit=link=$@ $<
+$(host-rust): $(obj)/%: $(src)/%.rs FORCE
+	+$(call if_changed_dep,host-rust)
 
-# Compile .c file, create position independent .o file
-# Note that plugin capable gcc versions can be either C or C++ based
-# therefore plugin source files have to be compilable in both C and C++ mode.
-# This is why a C++ compiler is invoked on a .c file.
-# host-cxxshobjs -> .o
-quiet_cmd_host-cxxshobjs	= HOSTCXX -fPIC $@
-      cmd_host-cxxshobjs	= $(HOSTCXX) $(hostcxx_flags) -fPIC -c -o $@ $<
-$(host-cxxshobjs): $(obj)/%.o: $(src)/%.c FORCE
-	$(call if_changed_dep,host-cxxshobjs)
-
-# Link a shared library, based on position independent .o files
-# *.o -> .so shared library (host-cshlib)
-quiet_cmd_host-cshlib	= HOSTLLD -shared $@
-      cmd_host-cshlib	= $(HOSTCC) $(KBUILD_HOSTLDFLAGS) -shared -o $@ \
-			  $(addprefix $(obj)/, $($(target-stem)-objs)) \
-			  $(KBUILD_HOSTLDLIBS) $(HOSTLDLIBS_$(target-stem).so)
-$(host-cshlib): FORCE
-	$(call if_changed,host-cshlib)
-$(call multi_depend, $(host-cshlib), .so, -objs)
-
-# Link a shared library, based on position independent .o files
-# *.o -> .so shared library (host-cxxshlib)
-quiet_cmd_host-cxxshlib	= HOSTLLD -shared $@
-      cmd_host-cxxshlib	= $(HOSTCXX) $(KBUILD_HOSTLDFLAGS) -shared -o $@ \
-			  $(addprefix $(obj)/, $($(target-stem)-objs)) \
-			  $(KBUILD_HOSTLDLIBS) $(HOSTLDLIBS_$(target-stem).so)
-$(host-cxxshlib): FORCE
-	$(call if_changed,host-cxxshlib)
-$(call multi_depend, $(host-cxxshlib), .so, -objs)
-
-targets += $(host-csingle)  $(host-cmulti) $(host-cobjs)\
-	   $(host-cxxmulti) $(host-cxxobjs) $(host-cshlib) $(host-cshobjs) $(host-cxxshlib) $(host-cxxshobjs)
+targets += $(host-csingle) $(host-cmulti) $(host-cobjs) \
+	   $(host-cxxmulti) $(host-cxxobjs) $(host-rust)

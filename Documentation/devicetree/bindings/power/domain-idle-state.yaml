@@ -1,0 +1,76 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/power/domain-idle-state.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: PM Domain Idle States
+
+maintainers:
+  - Ulf Hansson <ulf.hansson@linaro.org>
+
+description:
+  A domain idle state node represents the state parameters that will be used to
+  select the state when there are no active components in the PM domain.
+
+properties:
+  $nodename:
+    const: domain-idle-states
+
+patternProperties:
+  "^(cpu|cluster|domain)-":
+    type: object
+    additionalProperties: false
+    description:
+      Each state node represents a domain idle state description.
+
+    properties:
+      compatible:
+        const: domain-idle-state
+
+      entry-latency-us:
+        description:
+          The worst case latency in microseconds required to enter the idle
+          state. Note that, the exit-latency-us duration may be guaranteed only
+          after the entry-latency-us has passed.
+
+      exit-latency-us:
+        description:
+          The worst case latency in microseconds required to exit the idle
+          state.
+
+      min-residency-us:
+        description:
+          The minimum residency duration in microseconds after which the idle
+          state will yield power benefits, after overcoming the overhead while
+          entering the idle state.
+
+      arm,psci-suspend-param:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description: |
+          power_state parameter to pass to the ARM PSCI suspend call.
+
+          Device tree nodes that require usage of PSCI CPU_SUSPEND function
+          (i.e. idle states node with entry-method property is set to "psci")
+          must specify this property.
+
+    required:
+      - compatible
+      - entry-latency-us
+      - exit-latency-us
+      - min-residency-us
+
+additionalProperties: false
+
+examples:
+  - |
+
+    domain-idle-states {
+      domain_retention: domain-retention {
+        compatible = "domain-idle-state";
+        entry-latency-us = <20>;
+        exit-latency-us = <40>;
+        min-residency-us = <80>;
+      };
+    };
+...

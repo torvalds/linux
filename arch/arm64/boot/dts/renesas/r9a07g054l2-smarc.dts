@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/*
+ * Device Tree Source for the RZ/V2L SMARC EVK board
+ *
+ * Copyright (C) 2021 Renesas Electronics Corp.
+ */
+
+/dts-v1/;
+
+/* Enable SCIF2 (SER0) on PMOD1 (CN7) */
+#define PMOD1_SER0	1
+
+/*
+ * To enable MTU3a PWM on PMOD0,
+ * Disable PMOD1_SER0 by setting "#define PMOD1_SER0	0" above and
+ * enable PMOD_MTU3 by setting "#define PMOD_MTU3	1" below.
+ */
+#define PMOD_MTU3	0
+
+#if (PMOD_MTU3 && PMOD1_SER0)
+#error "Cannot set as PMOD_MTU3 and PMOD1_SER0 are mutually exclusive "
+#endif
+
+#define MTU3_COUNTER_Z_PHASE_SIGNAL	0
+#if (!PMOD_MTU3 && MTU3_COUNTER_Z_PHASE_SIGNAL)
+#error "Cannot set 1 to MTU3_COUNTER_Z_PHASE_SIGNAL as PMOD_MTU3=0"
+#endif
+
+#include "r9a07g054l2.dtsi"
+#include "rzg2l-smarc-som.dtsi"
+#include "rzg2l-smarc-pinfunction.dtsi"
+#include "rz-smarc-common.dtsi"
+#include "rzg2l-smarc.dtsi"
+
+/ {
+	model = "Renesas SMARC EVK based on r9a07g054l2";
+	compatible = "renesas,smarc-evk", "renesas,r9a07g054l2", "renesas,r9a07g054";
+};

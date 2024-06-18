@@ -20,13 +20,13 @@ during retention, system won't boot without this):
 	compatible = "ste,dbx500-backupram"
 
 scu:
-	see binding for arm/scu.txt
+	see binding for arm/arm,scu.yaml
 
 interrupt-controller:
 	see binding for interrupt-controller/arm,gic.txt
 
 timer:
-	see binding for timer/arm,twd.txt
+	see binding for timer/arm,twd-timer.yaml
 
 clocks:
 	see binding for clocks/ux500.txt

@@ -101,6 +101,7 @@
 #define CX23885_BOARD_HAUPPAUGE_STARBURST2     59
 #define CX23885_BOARD_HAUPPAUGE_QUADHD_DVB_885 60
 #define CX23885_BOARD_HAUPPAUGE_QUADHD_ATSC_885 61
+#define CX23885_BOARD_AVERMEDIA_CE310B         62
 
 #define GPIO_0 0x00000001
 #define GPIO_1 0x00000002
@@ -324,8 +325,8 @@ struct cx23885_audio_buffer {
 	struct cx23885_riscmem	risc;
 	void			*vaddr;
 	struct scatterlist	*sglist;
-	int                     sglen;
-	int                     nr_pages;
+	int			sglen;
+	unsigned long		nr_pages;
 };
 
 struct cx23885_audio_dev {

@@ -8,13 +8,17 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
+#include <linux/power_supply.h>
 
 #include <asm/unaligned.h>
+
+#include "i2c-ccgx-ucsi.h"
 
 /* I2C definitions */
 #define I2C_MST_CNTL				0x00
@@ -75,20 +79,15 @@ static void gpu_enable_i2c_bus(struct gpu_i2c_dev *i2cd)
 
 static int gpu_i2c_check_status(struct gpu_i2c_dev *i2cd)
 {
-	unsigned long target = jiffies + msecs_to_jiffies(1000);
 	u32 val;
+	int ret;
 
-	do {
-		val = readl(i2cd->regs + I2C_MST_CNTL);
-		if (!(val & I2C_MST_CNTL_CYCLE_TRIGGER))
-			break;
-		if ((val & I2C_MST_CNTL_STATUS) !=
-				I2C_MST_CNTL_STATUS_BUS_BUSY)
-			break;
-		usleep_range(500, 600);
-	} while (time_is_after_jiffies(target));
+	ret = readl_poll_timeout(i2cd->regs + I2C_MST_CNTL, val,
+				 !(val & I2C_MST_CNTL_CYCLE_TRIGGER) ||
+				 (val & I2C_MST_CNTL_STATUS) != I2C_MST_CNTL_STATUS_BUS_BUSY,
+				 500, 1000 * USEC_PER_MSEC);
 
-	if (time_is_before_jiffies(target)) {
+	if (ret) {
 		dev_err(i2cd->dev, "i2c timeout error %x\n", val);
 		return -ETIMEDOUT;
 	}
@@ -129,8 +128,7 @@ static int gpu_i2c_read(struct gpu_i2c_dev *i2cd, u8 *data, u16 len)
 		put_unaligned_be16(val, data);
 		break;
 	case 3:
-		put_unaligned_be16(val >> 8, data);
-		data[2] = val;
+		put_unaligned_be24(val, data);
 		break;
 	case 4:
 		put_unaligned_be32(val, data);
@@ -262,86 +260,67 @@ static const struct pci_device_id gpu_i2c_ids[] = {
 MODULE_DEVICE_TABLE(pci, gpu_i2c_ids);
 
 static const struct property_entry ccgx_props[] = {
-	/* Use FW built for NVIDIA (nv) only */
-	PROPERTY_ENTRY_U16("ccgx,firmware-build", ('n' << 8) | 'v'),
+	/* Use FW built for NVIDIA GPU only */
+	PROPERTY_ENTRY_STRING("firmware-name", "nvidia,gpu"),
+	/* USB-C doesn't power the system */
+	PROPERTY_ENTRY_U8("scope", POWER_SUPPLY_SCOPE_DEVICE),
 	{ }
 };
 
-static int gpu_populate_client(struct gpu_i2c_dev *i2cd, int irq)
-{
-	i2cd->gpu_ccgx_ucsi = devm_kzalloc(i2cd->dev,
-					   sizeof(*i2cd->gpu_ccgx_ucsi),
-					   GFP_KERNEL);
-	if (!i2cd->gpu_ccgx_ucsi)
-		return -ENOMEM;
-
-	strlcpy(i2cd->gpu_ccgx_ucsi->type, "ccgx-ucsi",
-		sizeof(i2cd->gpu_ccgx_ucsi->type));
-	i2cd->gpu_ccgx_ucsi->addr = 0x8;
-	i2cd->gpu_ccgx_ucsi->irq = irq;
-	i2cd->gpu_ccgx_ucsi->properties = ccgx_props;
-	i2cd->ccgx_client = i2c_new_device(&i2cd->adapter, i2cd->gpu_ccgx_ucsi);
-	if (!i2cd->ccgx_client)
-		return -ENODEV;
-
-	return 0;
-}
+static const struct software_node ccgx_node = {
+	.properties = ccgx_props,
+};
 
 static int gpu_i2c_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
+	struct device *dev = &pdev->dev;
 	struct gpu_i2c_dev *i2cd;
 	int status;
 
-	i2cd = devm_kzalloc(&pdev->dev, sizeof(*i2cd), GFP_KERNEL);
+	i2cd = devm_kzalloc(dev, sizeof(*i2cd), GFP_KERNEL);
 	if (!i2cd)
 		return -ENOMEM;
 
-	i2cd->dev = &pdev->dev;
-	dev_set_drvdata(&pdev->dev, i2cd);
+	i2cd->dev = dev;
+	dev_set_drvdata(dev, i2cd);
 
 	status = pcim_enable_device(pdev);
-	if (status < 0) {
-		dev_err(&pdev->dev, "pcim_enable_device failed %d\n", status);
-		return status;
-	}
+	if (status < 0)
+		return dev_err_probe(dev, status, "pcim_enable_device failed\n");
 
 	pci_set_master(pdev);
 
 	i2cd->regs = pcim_iomap(pdev, 0, 0);
-	if (!i2cd->regs) {
-		dev_err(&pdev->dev, "pcim_iomap failed\n");
-		return -ENOMEM;
-	}
+	if (!i2cd->regs)
+		return dev_err_probe(dev, -ENOMEM, "pcim_iomap failed\n");
 
 	status = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSI);
-	if (status < 0) {
-		dev_err(&pdev->dev, "pci_alloc_irq_vectors err %d\n", status);
-		return status;
-	}
+	if (status < 0)
+		return dev_err_probe(dev, status, "pci_alloc_irq_vectors err\n");
 
 	gpu_enable_i2c_bus(i2cd);
 
 	i2c_set_adapdata(&i2cd->adapter, i2cd);
 	i2cd->adapter.owner = THIS_MODULE;
-	strlcpy(i2cd->adapter.name, "NVIDIA GPU I2C adapter",
+	strscpy(i2cd->adapter.name, "NVIDIA GPU I2C adapter",
 		sizeof(i2cd->adapter.name));
 	i2cd->adapter.algo = &gpu_i2c_algorithm;
 	i2cd->adapter.quirks = &gpu_i2c_quirks;
-	i2cd->adapter.dev.parent = &pdev->dev;
+	i2cd->adapter.dev.parent = dev;
 	status = i2c_add_adapter(&i2cd->adapter);
 	if (status < 0)
 		goto free_irq_vectors;
 
-	status = gpu_populate_client(i2cd, pdev->irq);
-	if (status < 0) {
-		dev_err(&pdev->dev, "gpu_populate_client failed %d\n", status);
+	i2cd->ccgx_client = i2c_new_ccgx_ucsi(&i2cd->adapter, pdev->irq, &ccgx_node);
+	if (IS_ERR(i2cd->ccgx_client)) {
+		status = dev_err_probe(dev, PTR_ERR(i2cd->ccgx_client), "register UCSI failed\n");
 		goto del_adapter;
 	}
 
-	pm_runtime_set_autosuspend_delay(&pdev->dev, 3000);
-	pm_runtime_use_autosuspend(&pdev->dev);
-	pm_runtime_put_autosuspend(&pdev->dev);
-	pm_runtime_allow(&pdev->dev);
+	pm_runtime_set_autosuspend_delay(dev, 3000);
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_put_autosuspend(dev);
+	pm_runtime_allow(dev);
 
 	return 0;
 
@@ -354,22 +333,14 @@ free_irq_vectors:
 
 static void gpu_i2c_remove(struct pci_dev *pdev)
 {
-	struct gpu_i2c_dev *i2cd = dev_get_drvdata(&pdev->dev);
+	struct gpu_i2c_dev *i2cd = pci_get_drvdata(pdev);
 
 	pm_runtime_get_noresume(i2cd->dev);
 	i2c_del_adapter(&i2cd->adapter);
 	pci_free_irq_vectors(pdev);
 }
 
-/*
- * We need gpu_i2c_suspend() even if it is stub, for runtime pm to work
- * correctly. Without it, lspci shows runtime pm status as "D0" for the card.
- * Documentation/power/pci.rst also insists for driver to provide this.
- */
-static __maybe_unused int gpu_i2c_suspend(struct device *dev)
-{
-	return 0;
-}
+#define gpu_i2c_suspend NULL
 
 static __maybe_unused int gpu_i2c_resume(struct device *dev)
 {

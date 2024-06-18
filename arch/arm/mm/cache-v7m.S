@@ -11,12 +11,15 @@
  */
 #include <linux/linkage.h>
 #include <linux/init.h>
+#include <linux/cfi_types.h>
 #include <asm/assembler.h>
 #include <asm/errno.h>
 #include <asm/unwind.h>
 #include <asm/v7m.h>
 
 #include "proc-macros.S"
+
+.arch armv7-m
 
 /* Generic V7M read/write macros for memory mapped cache operations */
 .macro v7m_cache_read, rt, reg
@@ -157,10 +160,10 @@ ENDPROC(v7m_invalidate_l1)
  *	Registers:
  *	r0 - set to 0
  */
-ENTRY(v7m_flush_icache_all)
+SYM_TYPED_FUNC_START(v7m_flush_icache_all)
 	invalidate_icache r0
 	ret	lr
-ENDPROC(v7m_flush_icache_all)
+SYM_FUNC_END(v7m_flush_icache_all)
 
 /*
  *	v7m_flush_dcache_all()
@@ -183,13 +186,13 @@ flush_levels:
 	and	r1, r1, #7			@ mask of the bits for current cache only
 	cmp	r1, #2				@ see what cache we have at this level
 	blt	skip				@ skip if no cache, or just i-cache
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 	save_and_disable_irqs_notrace r9	@ make cssr&csidr read atomic
 #endif
 	write_csselr r10, r1			@ set current cache level
 	isb					@ isb to sych the new cssr&csidr
 	read_ccsidr r1				@ read the new csidr
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 	restore_irqs_notrace r9
 #endif
 	and	r2, r1, #7			@ extract the length of the cache lines
@@ -234,13 +237,13 @@ ENDPROC(v7m_flush_dcache_all)
  *  unification in a single instruction.
  *
  */
-ENTRY(v7m_flush_kern_cache_all)
+SYM_TYPED_FUNC_START(v7m_flush_kern_cache_all)
 	stmfd	sp!, {r4-r7, r9-r11, lr}
 	bl	v7m_flush_dcache_all
 	invalidate_icache r0
 	ldmfd	sp!, {r4-r7, r9-r11, lr}
 	ret	lr
-ENDPROC(v7m_flush_kern_cache_all)
+SYM_FUNC_END(v7m_flush_kern_cache_all)
 
 /*
  *	v7m_flush_cache_all()
@@ -249,8 +252,9 @@ ENDPROC(v7m_flush_kern_cache_all)
  *
  *	- mm    - mm_struct describing address space
  */
-ENTRY(v7m_flush_user_cache_all)
-	/*FALLTHROUGH*/
+SYM_TYPED_FUNC_START(v7m_flush_user_cache_all)
+	ret	lr
+SYM_FUNC_END(v7m_flush_user_cache_all)
 
 /*
  *	v7m_flush_cache_range(start, end, flags)
@@ -264,10 +268,9 @@ ENTRY(v7m_flush_user_cache_all)
  *	It is assumed that:
  *	- we have a VIPT cache.
  */
-ENTRY(v7m_flush_user_cache_range)
+SYM_TYPED_FUNC_START(v7m_flush_user_cache_range)
 	ret	lr
-ENDPROC(v7m_flush_user_cache_all)
-ENDPROC(v7m_flush_user_cache_range)
+SYM_FUNC_END(v7m_flush_user_cache_range)
 
 /*
  *	v7m_coherent_kern_range(start,end)
@@ -282,8 +285,11 @@ ENDPROC(v7m_flush_user_cache_range)
  *	It is assumed that:
  *	- the Icache does not read data from the write buffer
  */
-ENTRY(v7m_coherent_kern_range)
-	/* FALLTHROUGH */
+SYM_TYPED_FUNC_START(v7m_coherent_kern_range)
+#ifdef CONFIG_CFI_CLANG /* Fallthrough if !CFI */
+	b	v7m_coherent_user_range
+#endif
+SYM_FUNC_END(v7m_coherent_kern_range)
 
 /*
  *	v7m_coherent_user_range(start,end)
@@ -298,7 +304,7 @@ ENTRY(v7m_coherent_kern_range)
  *	It is assumed that:
  *	- the Icache does not read data from the write buffer
  */
-ENTRY(v7m_coherent_user_range)
+SYM_TYPED_FUNC_START(v7m_coherent_user_range)
  UNWIND(.fnstart		)
 	dcache_line_size r2, r3
 	sub	r3, r2, #1
@@ -326,8 +332,7 @@ ENTRY(v7m_coherent_user_range)
 	isb
 	ret	lr
  UNWIND(.fnend		)
-ENDPROC(v7m_coherent_kern_range)
-ENDPROC(v7m_coherent_user_range)
+SYM_FUNC_END(v7m_coherent_user_range)
 
 /*
  *	v7m_flush_kern_dcache_area(void *addr, size_t size)
@@ -338,7 +343,7 @@ ENDPROC(v7m_coherent_user_range)
  *	- addr	- kernel address
  *	- size	- region size
  */
-ENTRY(v7m_flush_kern_dcache_area)
+SYM_TYPED_FUNC_START(v7m_flush_kern_dcache_area)
 	dcache_line_size r2, r3
 	add	r1, r0, r1
 	sub	r3, r2, #1
@@ -350,7 +355,7 @@ ENTRY(v7m_flush_kern_dcache_area)
 	blo	1b
 	dsb	st
 	ret	lr
-ENDPROC(v7m_flush_kern_dcache_area)
+SYM_FUNC_END(v7m_flush_kern_dcache_area)
 
 /*
  *	v7m_dma_inv_range(start,end)
@@ -406,7 +411,7 @@ ENDPROC(v7m_dma_clean_range)
  *	- start   - virtual start address of region
  *	- end     - virtual end address of region
  */
-ENTRY(v7m_dma_flush_range)
+SYM_TYPED_FUNC_START(v7m_dma_flush_range)
 	dcache_line_size r2, r3
 	sub	r3, r2, #1
 	bic	r0, r0, r3
@@ -417,7 +422,7 @@ ENTRY(v7m_dma_flush_range)
 	blo	1b
 	dsb	st
 	ret	lr
-ENDPROC(v7m_dma_flush_range)
+SYM_FUNC_END(v7m_dma_flush_range)
 
 /*
  *	dma_map_area(start, size, dir)
@@ -425,12 +430,12 @@ ENDPROC(v7m_dma_flush_range)
  *	- size	- size of region
  *	- dir	- DMA direction
  */
-ENTRY(v7m_dma_map_area)
+SYM_TYPED_FUNC_START(v7m_dma_map_area)
 	add	r1, r1, r0
 	teq	r2, #DMA_FROM_DEVICE
 	beq	v7m_dma_inv_range
 	b	v7m_dma_clean_range
-ENDPROC(v7m_dma_map_area)
+SYM_FUNC_END(v7m_dma_map_area)
 
 /*
  *	dma_unmap_area(start, size, dir)
@@ -438,17 +443,9 @@ ENDPROC(v7m_dma_map_area)
  *	- size	- size of region
  *	- dir	- DMA direction
  */
-ENTRY(v7m_dma_unmap_area)
+SYM_TYPED_FUNC_START(v7m_dma_unmap_area)
 	add	r1, r1, r0
 	teq	r2, #DMA_TO_DEVICE
 	bne	v7m_dma_inv_range
 	ret	lr
-ENDPROC(v7m_dma_unmap_area)
-
-	.globl	v7m_flush_kern_cache_louis
-	.equ	v7m_flush_kern_cache_louis, v7m_flush_kern_cache_all
-
-	__INITDATA
-
-	@ define struct cpu_cache_fns (see <asm/cacheflush.h> and proc-macros.S)
-	define_cache_functions v7m
+SYM_FUNC_END(v7m_dma_unmap_area)

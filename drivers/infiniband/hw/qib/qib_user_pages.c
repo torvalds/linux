@@ -40,10 +40,10 @@
 static void __qib_release_user_pages(struct page **p, size_t num_pages,
 				     int dirty)
 {
-	put_user_pages_dirty_lock(p, num_pages, dirty);
+	unpin_user_pages_dirty_lock(p, num_pages, dirty);
 }
 
-/**
+/*
  * qib_map_page - a safety wrapper around pci_map_page()
  *
  * A dma_addr of all 0's is interpreted by the chip as "disabled".
@@ -60,15 +60,15 @@ int qib_map_page(struct pci_dev *hwdev, struct page *page, dma_addr_t *daddr)
 {
 	dma_addr_t phys;
 
-	phys = pci_map_page(hwdev, page, 0, PAGE_SIZE, PCI_DMA_FROMDEVICE);
-	if (pci_dma_mapping_error(hwdev, phys))
+	phys = dma_map_page(&hwdev->dev, page, 0, PAGE_SIZE, DMA_FROM_DEVICE);
+	if (dma_mapping_error(&hwdev->dev, phys))
 		return -ENOMEM;
 
 	if (!phys) {
-		pci_unmap_page(hwdev, phys, PAGE_SIZE, PCI_DMA_FROMDEVICE);
-		phys = pci_map_page(hwdev, page, 0, PAGE_SIZE,
-				    PCI_DMA_FROMDEVICE);
-		if (pci_dma_mapping_error(hwdev, phys))
+		dma_unmap_page(&hwdev->dev, phys, PAGE_SIZE, DMA_FROM_DEVICE);
+		phys = dma_map_page(&hwdev->dev, page, 0, PAGE_SIZE,
+				    DMA_FROM_DEVICE);
+		if (dma_mapping_error(&hwdev->dev, phys))
 			return -ENOMEM;
 		/*
 		 * FIXME: If we get 0 again, we should keep this page,
@@ -106,18 +106,18 @@ int qib_get_user_pages(unsigned long start_page, size_t num_pages,
 		goto bail;
 	}
 
-	down_read(&current->mm->mmap_sem);
+	mmap_read_lock(current->mm);
 	for (got = 0; got < num_pages; got += ret) {
-		ret = get_user_pages(start_page + got * PAGE_SIZE,
+		ret = pin_user_pages(start_page + got * PAGE_SIZE,
 				     num_pages - got,
-				     FOLL_LONGTERM | FOLL_WRITE | FOLL_FORCE,
-				     p + got, NULL);
+				     FOLL_LONGTERM | FOLL_WRITE,
+				     p + got);
 		if (ret < 0) {
-			up_read(&current->mm->mmap_sem);
+			mmap_read_unlock(current->mm);
 			goto bail_release;
 		}
 	}
-	up_read(&current->mm->mmap_sem);
+	mmap_read_unlock(current->mm);
 
 	return 0;
 bail_release:

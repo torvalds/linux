@@ -127,14 +127,6 @@ static inline int next_slot(struct b43legacy_dmaring *ring, int slot)
 	return slot + 1;
 }
 
-static inline int prev_slot(struct b43legacy_dmaring *ring, int slot)
-{
-	B43legacy_WARN_ON(!(slot >= 0 && slot <= ring->nr_slots - 1));
-	if (slot == 0)
-		return ring->nr_slots - 1;
-	return slot - 1;
-}
-
 #ifdef CONFIG_B43LEGACY_DEBUG
 static void update_max_used_slots(struct b43legacy_dmaring *ring,
 				  int current_used_slots)
@@ -189,7 +181,7 @@ return dev->dma.tx_ring1;
 	switch (queue_priority) {
 	default:
 		B43legacy_WARN_ON(1);
-		/* fallthrough */
+		fallthrough;
 	case 0:
 		ring = dev->dma.tx_ring3;
 		break;
@@ -212,19 +204,6 @@ return dev->dma.tx_ring1;
 
 	return ring;
 }
-
-/* Bcm4301-ring to mac80211-queue mapping */
-static inline int txring_to_priority(struct b43legacy_dmaring *ring)
-{
-	static const u8 idx_to_prio[] =
-		{ 3, 2, 1, 0, 4, 5, };
-
-/*FIXME: have only one queue, for now */
-return 0;
-
-	return idx_to_prio[ring->index];
-}
-
 
 static u16 b43legacy_dmacontroller_base(enum b43legacy_dmatype type,
 					int controller_idx)

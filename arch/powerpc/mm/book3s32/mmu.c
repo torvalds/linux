@@ -23,7 +23,6 @@
 #include <linux/highmem.h>
 #include <linux/memblock.h>
 
-#include <asm/prom.h>
 #include <asm/mmu.h>
 #include <asm/machdep.h>
 #include <asm/code-patching.h>
@@ -31,18 +30,24 @@
 
 #include <mm/mmu_decl.h>
 
-struct hash_pte *Hash;
-static unsigned long Hash_size, Hash_mask;
-unsigned long _SDR1;
-static unsigned int hash_mb, hash_mb2;
+u8 __initdata early_hash[SZ_256K] __aligned(SZ_256K) = {0};
+
+static struct hash_pte __initdata *Hash = (struct hash_pte *)early_hash;
+static unsigned long __initdata Hash_size, Hash_mask;
+static unsigned int __initdata hash_mb, hash_mb2;
+unsigned long __initdata _SDR1;
 
 struct ppc_bat BATS[8][2];	/* 8 pairs of IBAT, DBAT */
 
-struct batrange {		/* stores address ranges mapped by BATs */
+static struct batrange {	/* stores address ranges mapped by BATs */
 	unsigned long start;
 	unsigned long limit;
 	phys_addr_t phys;
 } bat_addrs[8];
+
+#ifdef CONFIG_SMP
+unsigned long mmu_hash_lock;
+#endif
 
 /*
  * Return PA for this VA if it is mapped by a BAT, or 0
@@ -70,26 +75,16 @@ unsigned long p_block_mapped(phys_addr_t pa)
 	return 0;
 }
 
-static int find_free_bat(void)
+int __init find_free_bat(void)
 {
 	int b;
+	int n = mmu_has_feature(MMU_FTR_USE_HIGH_BATS) ? 8 : 4;
 
-	if (IS_ENABLED(CONFIG_PPC_BOOK3S_601)) {
-		for (b = 0; b < 4; b++) {
-			struct ppc_bat *bat = BATS[b];
+	for (b = 0; b < n; b++) {
+		struct ppc_bat *bat = BATS[b];
 
-			if (!(bat[0].batl & 0x40))
-				return b;
-		}
-	} else {
-		int n = mmu_has_feature(MMU_FTR_USE_HIGH_BATS) ? 8 : 4;
-
-		for (b = 0; b < n; b++) {
-			struct ppc_bat *bat = BATS[b];
-
-			if (!(bat[1].batu & 3))
-				return b;
-		}
+		if (!(bat[1].batu & 3))
+			return b;
 	}
 	return -1;
 }
@@ -97,16 +92,16 @@ static int find_free_bat(void)
 /*
  * This function calculates the size of the larger block usable to map the
  * beginning of an area based on the start address and size of that area:
- * - max block size is 8M on 601 and 256 on other 6xx.
+ * - max block size is 256 on 6xx.
  * - base address must be aligned to the block size. So the maximum block size
  *   is identified by the lowest bit set to 1 in the base address (for instance
  *   if base is 0x16000000, max size is 0x02000000).
  * - block size has to be a power of two. This is calculated by finding the
  *   highest bit set to 1.
  */
-static unsigned int block_size(unsigned long base, unsigned long top)
+unsigned int bat_block_size(unsigned long base, unsigned long top)
 {
-	unsigned int max_size = IS_ENABLED(CONFIG_PPC_BOOK3S_601) ? SZ_8M : SZ_256M;
+	unsigned int max_size = SZ_256M;
 	unsigned int base_shift = (ffs(base) - 1) & 31;
 	unsigned int block_shift = (fls(top - base) - 1) & 31;
 
@@ -117,7 +112,6 @@ static unsigned int block_size(unsigned long base, unsigned long top)
  * Set up one of the IBAT (block address translation) register pairs.
  * The parameters are not checked; in particular size must be a power
  * of 2 between 128k and 256M.
- * Only for 603+ ...
  */
 static void setibat(int index, unsigned long virt, phys_addr_t phys,
 		    unsigned int size, pgprot_t prot)
@@ -133,7 +127,7 @@ static void setibat(int index, unsigned long virt, phys_addr_t phys,
 	wimgxpp = (flags & _PAGE_COHERENT) | (_PAGE_EXEC ? BPP_RX : BPP_XX);
 	bat[0].batu = virt | (bl << 2) | 2; /* Vs=1, Vp=0 */
 	bat[0].batl = BAT_PHYS_ADDR(phys) | wimgxpp;
-	if (flags & _PAGE_USER)
+	if (!is_kernel_addr(virt))
 		bat[0].batu |= 1;	/* Vp = 1 */
 }
 
@@ -150,7 +144,7 @@ static unsigned long __init __mmu_mapin_ram(unsigned long base, unsigned long to
 	int idx;
 
 	while ((idx = find_free_bat()) != -1 && base != top) {
-		unsigned int size = block_size(base, top);
+		unsigned int size = bat_block_size(base, top);
 
 		if (size < 128 << 10)
 			break;
@@ -164,11 +158,18 @@ static unsigned long __init __mmu_mapin_ram(unsigned long base, unsigned long to
 unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
 {
 	unsigned long done;
-	unsigned long border = (unsigned long)__init_begin - PAGE_OFFSET;
+	unsigned long border = (unsigned long)__srwx_boundary - PAGE_OFFSET;
+	unsigned long size;
 
-	if (__map_without_bats) {
-		pr_debug("RAM mapped without BATs\n");
-		return base;
+	size = roundup_pow_of_two((unsigned long)_einittext - PAGE_OFFSET);
+	setibat(0, PAGE_OFFSET, 0, size, PAGE_KERNEL_X);
+
+	if (debug_pagealloc_enabled_or_kfence()) {
+		pr_debug_once("Read-Write memory mapped without BATs\n");
+		if (base >= border)
+			return base;
+		if (top >= border)
+			top = border;
 	}
 
 	if (!strict_kernel_rwx_enabled() || base >= border || top <= border)
@@ -181,29 +182,38 @@ unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
 	return __mmu_mapin_ram(border, top);
 }
 
-void mmu_mark_initmem_nx(void)
+static bool is_module_segment(unsigned long addr)
+{
+	if (!IS_ENABLED(CONFIG_EXECMEM))
+		return false;
+	if (addr < ALIGN_DOWN(MODULES_VADDR, SZ_256M))
+		return false;
+	if (addr > ALIGN(MODULES_END, SZ_256M) - 1)
+		return false;
+	return true;
+}
+
+int mmu_mark_initmem_nx(void)
 {
 	int nb = mmu_has_feature(MMU_FTR_USE_HIGH_BATS) ? 8 : 4;
 	int i;
 	unsigned long base = (unsigned long)_stext - PAGE_OFFSET;
-	unsigned long top = (unsigned long)_etext - PAGE_OFFSET;
+	unsigned long top = ALIGN((unsigned long)_etext - PAGE_OFFSET, SZ_128K);
+	unsigned long border = (unsigned long)__init_begin - PAGE_OFFSET;
 	unsigned long size;
 
-	if (IS_ENABLED(CONFIG_PPC_BOOK3S_601))
-		return;
-
-	for (i = 0; i < nb - 1 && base < top && top - base > (128 << 10);) {
-		size = block_size(base, top);
+	for (i = 0; i < nb - 1 && base < top;) {
+		size = bat_block_size(base, top);
 		setibat(i++, PAGE_OFFSET + base, base, size, PAGE_KERNEL_TEXT);
 		base += size;
 	}
 	if (base < top) {
-		size = block_size(base, top);
-		size = max(size, 128UL << 10);
+		size = bat_block_size(base, top);
 		if ((top - base) > size) {
-			if (strict_kernel_rwx_enabled())
-				pr_warn("Kernel _etext not properly aligned\n");
 			size <<= 1;
+			if (strict_kernel_rwx_enabled() && base + size > border)
+				pr_warn("Some RW data is getting mapped X. "
+					"Adjust CONFIG_DATA_SHIFT to avoid that.\n");
 		}
 		setibat(i++, PAGE_OFFSET + base, base, size, PAGE_KERNEL_TEXT);
 		base += size;
@@ -215,78 +225,69 @@ void mmu_mark_initmem_nx(void)
 
 	for (i = TASK_SIZE >> 28; i < 16; i++) {
 		/* Do not set NX on VM space for modules */
-		if (IS_ENABLED(CONFIG_MODULES) &&
-		    (VMALLOC_START & 0xf0000000) == i << 28)
-			break;
-		mtsrin(mfsrin(i << 28) | 0x10000000, i << 28);
+		if (is_module_segment(i << 28))
+			continue;
+
+		mtsr(mfsr(i << 28) | 0x10000000, i << 28);
 	}
+	return 0;
 }
 
-void mmu_mark_rodata_ro(void)
+int mmu_mark_rodata_ro(void)
 {
 	int nb = mmu_has_feature(MMU_FTR_USE_HIGH_BATS) ? 8 : 4;
 	int i;
 
-	if (IS_ENABLED(CONFIG_PPC_BOOK3S_601))
-		return;
-
 	for (i = 0; i < nb; i++) {
 		struct ppc_bat *bat = BATS[i];
 
-		if (bat_addrs[i].start < (unsigned long)__init_begin)
+		if (bat_addrs[i].start < (unsigned long)__end_rodata)
 			bat[1].batl = (bat[1].batl & ~BPP_RW) | BPP_RX;
 	}
 
 	update_bats();
+
+	return 0;
 }
 
 /*
- * Set up one of the I/D BAT (block address translation) register pairs.
+ * Set up one of the D BAT (block address translation) register pairs.
  * The parameters are not checked; in particular size must be a power
  * of 2 between 128k and 256M.
- * On 603+, only set IBAT when _PAGE_EXEC is set
  */
 void __init setbat(int index, unsigned long virt, phys_addr_t phys,
 		   unsigned int size, pgprot_t prot)
 {
 	unsigned int bl;
 	int wimgxpp;
-	struct ppc_bat *bat = BATS[index];
+	struct ppc_bat *bat;
 	unsigned long flags = pgprot_val(prot);
+
+	if (index == -1)
+		index = find_free_bat();
+	if (index == -1) {
+		pr_err("%s: no BAT available for mapping 0x%llx\n", __func__,
+		       (unsigned long long)phys);
+		return;
+	}
+	bat = BATS[index];
 
 	if ((flags & _PAGE_NO_CACHE) ||
 	    (cpu_has_feature(CPU_FTR_NEED_COHERENT) == 0))
 		flags &= ~_PAGE_COHERENT;
 
 	bl = (size >> 17) - 1;
-	if (!IS_ENABLED(CONFIG_PPC_BOOK3S_601)) {
-		/* 603, 604, etc. */
-		/* Do DBAT first */
-		wimgxpp = flags & (_PAGE_WRITETHRU | _PAGE_NO_CACHE
-				   | _PAGE_COHERENT | _PAGE_GUARDED);
-		wimgxpp |= (flags & _PAGE_RW)? BPP_RW: BPP_RX;
-		bat[1].batu = virt | (bl << 2) | 2; /* Vs=1, Vp=0 */
-		bat[1].batl = BAT_PHYS_ADDR(phys) | wimgxpp;
-		if (flags & _PAGE_USER)
-			bat[1].batu |= 1; 	/* Vp = 1 */
-		if (flags & _PAGE_GUARDED) {
-			/* G bit must be zero in IBATs */
-			flags &= ~_PAGE_EXEC;
-		}
-		if (flags & _PAGE_EXEC)
-			bat[0] = bat[1];
-		else
-			bat[0].batu = bat[0].batl = 0;
-	} else {
-		/* 601 cpu */
-		if (bl > BL_8M)
-			bl = BL_8M;
-		wimgxpp = flags & (_PAGE_WRITETHRU | _PAGE_NO_CACHE
-				   | _PAGE_COHERENT);
-		wimgxpp |= (flags & _PAGE_RW)?
-			((flags & _PAGE_USER)? PP_RWRW: PP_RWXX): PP_RXRX;
-		bat->batu = virt | wimgxpp | 4;	/* Ks=0, Ku=1 */
-		bat->batl = phys | bl | 0x40;	/* V=1 */
+	/* Do DBAT first */
+	wimgxpp = flags & (_PAGE_WRITETHRU | _PAGE_NO_CACHE
+			   | _PAGE_COHERENT | _PAGE_GUARDED);
+	wimgxpp |= (flags & _PAGE_WRITE) ? BPP_RW : BPP_RX;
+	bat[1].batu = virt | (bl << 2) | 2; /* Vs=1, Vp=0 */
+	bat[1].batl = BAT_PHYS_ADDR(phys) | wimgxpp;
+	if (!is_kernel_addr(virt))
+		bat[1].batu |= 1; 	/* Vp = 1 */
+	if (flags & _PAGE_GUARDED) {
+		/* G bit must be zero in IBATs */
+		flags &= ~_PAGE_EXEC;
 	}
 
 	bat_addrs[index].start = virt;
@@ -297,13 +298,13 @@ void __init setbat(int index, unsigned long virt, phys_addr_t phys,
 /*
  * Preload a translation in the hash table
  */
-void hash_preload(struct mm_struct *mm, unsigned long ea)
+static void hash_preload(struct mm_struct *mm, unsigned long ea)
 {
 	pmd_t *pmd;
 
-	if (!Hash)
+	if (!mmu_has_feature(MMU_FTR_HPTE_TABLE))
 		return;
-	pmd = pmd_offset(pud_offset(pgd_offset(mm, ea), ea), ea);
+	pmd = pmd_off(mm, ea);
 	if (!pmd_none(*pmd))
 		add_hash_page(mm->context.id, ea, pmd_val(*pmd));
 }
@@ -316,11 +317,9 @@ void hash_preload(struct mm_struct *mm, unsigned long ea)
  *
  * This must always be called with the pte lock held.
  */
-void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
+void __update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 		      pte_t *ptep)
 {
-	if (!mmu_has_feature(MMU_FTR_HPTE_TABLE))
-		return;
 	/*
 	 * We don't need to worry about _PAGE_PRESENT here because we are
 	 * called with either mm->page_table_lock held or ptl lock held
@@ -390,20 +389,15 @@ void __init MMU_init_hw(void)
 	hash_mb2 = hash_mb = 32 - LG_HPTEG_SIZE - lg_n_hpteg;
 	if (lg_n_hpteg > 16)
 		hash_mb2 = 16 - LG_HPTEG_SIZE;
-
-	/*
-	 * When KASAN is selected, there is already an early temporary hash
-	 * table and the switch to the final hash table is done later.
-	 */
-	if (IS_ENABLED(CONFIG_KASAN))
-		return;
-
-	MMU_init_hw_patch();
 }
 
 void __init MMU_init_hw_patch(void)
 {
 	unsigned int hmask = Hash_mask >> (16 - LG_HPTEG_SIZE);
+	unsigned int hash = (unsigned int)Hash - PAGE_OFFSET;
+
+	if (!mmu_has_feature(MMU_FTR_HPTE_TABLE))
+		return;
 
 	if (ppc_md.progress)
 		ppc_md.progress("hash:patch", 0x345);
@@ -415,8 +409,7 @@ void __init MMU_init_hw_patch(void)
 	/*
 	 * Patch up the instructions in hashtable.S:create_hpte
 	 */
-	modify_instruction_site(&patch__hash_page_A0, 0xffff,
-				((unsigned int)Hash - PAGE_OFFSET) >> 16);
+	modify_instruction_site(&patch__hash_page_A0, 0xffff, hash >> 16);
 	modify_instruction_site(&patch__hash_page_A1, 0x7c0, hash_mb << 6);
 	modify_instruction_site(&patch__hash_page_A2, 0x7c0, hash_mb2 << 6);
 	modify_instruction_site(&patch__hash_page_B, 0xffff, hmask);
@@ -425,8 +418,7 @@ void __init MMU_init_hw_patch(void)
 	/*
 	 * Patch up the instructions in hashtable.S:flush_hash_page
 	 */
-	modify_instruction_site(&patch__flush_hash_A0, 0xffff,
-				((unsigned int)Hash - PAGE_OFFSET) >> 16);
+	modify_instruction_site(&patch__flush_hash_A0, 0xffff, hash >> 16);
 	modify_instruction_site(&patch__flush_hash_A1, 0x7c0, hash_mb << 6);
 	modify_instruction_site(&patch__flush_hash_A2, 0x7c0, hash_mb2 << 6);
 	modify_instruction_site(&patch__flush_hash_B, 0xffff, hmask);
@@ -440,11 +432,7 @@ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 	 */
 	BUG_ON(first_memblock_base != 0);
 
-	/* 601 can only access 16MB at the moment */
-	if (IS_ENABLED(CONFIG_PPC_BOOK3S_601))
-		memblock_set_current_limit(min_t(u64, first_memblock_size, 0x01000000));
-	else /* Anything else has 256M mapped */
-		memblock_set_current_limit(min_t(u64, first_memblock_size, 0x10000000));
+	memblock_set_current_limit(min_t(u64, first_memblock_size, SZ_256M));
 }
 
 void __init print_system_hash_info(void)
@@ -454,22 +442,6 @@ void __init print_system_hash_info(void)
 		pr_info("Hash_mask         = 0x%lx\n", Hash_mask);
 }
 
-#ifdef CONFIG_PPC_KUEP
-void __init setup_kuep(bool disabled)
+void __init early_init_mmu(void)
 {
-	pr_info("Activating Kernel Userspace Execution Prevention\n");
-
-	if (disabled)
-		pr_warn("KUEP cannot be disabled yet on 6xx when compiled in\n");
 }
-#endif
-
-#ifdef CONFIG_PPC_KUAP
-void __init setup_kuap(bool disabled)
-{
-	pr_info("Activating Kernel Userspace Access Protection\n");
-
-	if (disabled)
-		pr_warn("KUAP cannot be disabled yet on 6xx when compiled in\n");
-}
-#endif

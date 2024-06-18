@@ -47,8 +47,8 @@
 /*
  * MAX_CMD          : maximum commands that can be outstanding with IOA
  * MAX_IO_CMD       : command blocks available for IO commands
- * MAX_HCAM_CMD     : command blocks avaibale for HCAMS
- * MAX_INTERNAL_CMD : command blocks avaible for internal commands like reset
+ * MAX_HCAM_CMD     : command blocks available for HCAMS
+ * MAX_INTERNAL_CMD : command blocks available for internal commands like reset
  */
 #define PMCRAID_MAX_CMD				1024
 #define PMCRAID_MAX_IO_CMD			1020
@@ -244,7 +244,7 @@ struct pmcraid_ioarcb {
 	__u8  hrrq_id;
 	__u8  cdb[PMCRAID_MAX_CDB_LEN];
 	struct pmcraid_ioarcb_add_data add_data;
-} __attribute__((packed, aligned(PMCRAID_IOARCB_ALIGNMENT)));
+};
 
 /* well known resource handle values */
 #define PMCRAID_IOA_RES_HANDLE        0xffffffff
@@ -623,7 +623,7 @@ struct pmcraid_aen_msg {
 	u32 hostno;
 	u32 length;
 	u8  reserved[8];
-	u8  data[0];
+	u8  data[];
 };
 
 /* Controller state event message type */
@@ -1023,39 +1023,14 @@ struct pmcraid_ioctl_header {
 #define PMCRAID_IOCTL_SIGNATURE      "PMCRAID"
 
 /*
- * pmcraid_passthrough_ioctl_buffer - structure given as argument to
- * passthrough(or firmware handled) IOCTL commands. Note that ioarcb requires
- * 32-byte alignment so, it is necessary to pack this structure to avoid any
- * holes between ioctl_header and passthrough buffer
- *
- * .ioactl_header : ioctl header
- * .ioarcb        : filled-up ioarcb buffer, driver always reads this buffer
- * .ioasa         : buffer for ioasa, driver fills this with IOASA from firmware
- * .request_buffer: The I/O buffer (flat), driver reads/writes to this based on
- *                  the transfer directions passed in ioarcb.flags0. Contents
- *                  of this buffer are valid only when ioarcb.data_transfer_len
- *                  is not zero.
- */
-struct pmcraid_passthrough_ioctl_buffer {
-	struct pmcraid_ioctl_header ioctl_header;
-	struct pmcraid_ioarcb ioarcb;
-	struct pmcraid_ioasa  ioasa;
-	u8  request_buffer[1];
-} __attribute__ ((packed));
-
-/*
  * keys to differentiate between driver handled IOCTLs and passthrough
  * IOCTLs passed to IOA. driver determines the ioctl type using macro
  * _IOC_TYPE
  */
 #define PMCRAID_DRIVER_IOCTL         'D'
-#define PMCRAID_PASSTHROUGH_IOCTL    'F'
 
 #define DRV_IOCTL(n, size) \
 	_IOC(_IOC_READ|_IOC_WRITE, PMCRAID_DRIVER_IOCTL, (n), (size))
-
-#define FMW_IOCTL(n, size) \
-	_IOC(_IOC_READ|_IOC_WRITE, PMCRAID_PASSTHROUGH_IOCTL,  (n), (size))
 
 /*
  * _ARGSIZE: macro that gives size of the argument type passed to an IOCTL cmd.
@@ -1068,13 +1043,5 @@ struct pmcraid_passthrough_ioctl_buffer {
 
 #define PMCRAID_IOCTL_RESET_ADAPTER          \
 	DRV_IOCTL(5, sizeof(struct pmcraid_ioctl_header))
-
-/* passthrough/firmware handled commands */
-#define PMCRAID_IOCTL_PASSTHROUGH_COMMAND         \
-	FMW_IOCTL(1, sizeof(struct pmcraid_passthrough_ioctl_buffer))
-
-#define PMCRAID_IOCTL_DOWNLOAD_MICROCODE     \
-	FMW_IOCTL(2, sizeof(struct pmcraid_passthrough_ioctl_buffer))
-
 
 #endif /* _PMCRAID_H */

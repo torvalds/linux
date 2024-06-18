@@ -123,10 +123,10 @@ static void jz4780_bch_read_parity(struct ingenic_ecc *bch, void *buf,
 	switch (size8) {
 	case 3:
 		dest8[2] = (val >> 16) & 0xff;
-		/* fall through */
+		fallthrough;
 	case 2:
 		dest8[1] = (val >> 8) & 0xff;
-		/* fall through */
+		fallthrough;
 	case 1:
 		dest8[0] = val & 0xff;
 		break;
@@ -260,7 +260,7 @@ static struct platform_driver jz4780_bch_driver = {
 	.probe		= jz4780_bch_probe,
 	.driver	= {
 		.name	= "jz4780-bch",
-		.of_match_table = of_match_ptr(jz4780_bch_dt_match),
+		.of_match_table = jz4780_bch_dt_match,
 	},
 };
 module_platform_driver(jz4780_bch_driver);

@@ -10,6 +10,7 @@
 
 / {
 	model = "MediaTek MT8173 evaluation board";
+	chassis-type = "embedded";
 	compatible = "mediatek,mt8173-evb", "mediatek,mt8173";
 
 	aliases {
@@ -40,10 +41,10 @@
 
 	extcon_usb: extcon_iddig {
 		compatible = "linux,extcon-usb-gpio";
-		id-gpio = <&pio 16 GPIO_ACTIVE_HIGH>;
+		id-gpios = <&pio 16 GPIO_ACTIVE_HIGH>;
 	};
 
-	usb_p1_vbus: regulator@0 {
+	usb_p1_vbus: regulator-usb-p1 {
 		compatible = "regulator-fixed";
 		regulator-name = "usb_vbus";
 		regulator-min-microvolt = <5000000>;
@@ -52,7 +53,7 @@
 		enable-active-high;
 	};
 
-	usb_p0_vbus: regulator@1 {
+	usb_p0_vbus: regulator-usb-p0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vbus";
 		regulator-min-microvolt = <5000000>;
@@ -60,6 +61,10 @@
 		gpio = <&pio 9 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};
+};
+
+&mfg_async {
+	domain-supply = <&da9211_vgpu_reg>;
 };
 
 &cec {
@@ -118,8 +123,8 @@
 				regulator-name = "VBUCKA";
 				regulator-min-microvolt = < 700000>;
 				regulator-max-microvolt = <1310000>;
-				regulator-min-microamp	= <2000000>;
-				regulator-max-microamp	= <4400000>;
+				regulator-min-microamp = <2000000>;
+				regulator-max-microamp = <4400000>;
 				regulator-ramp-delay = <10000>;
 				regulator-always-on;
 			};
@@ -128,8 +133,8 @@
 				regulator-name = "VBUCKB";
 				regulator-min-microvolt = < 700000>;
 				regulator-max-microvolt = <1310000>;
-				regulator-min-microamp	= <2000000>;
-				regulator-max-microamp	= <3000000>;
+				regulator-min-microamp = <2000000>;
+				regulator-max-microamp = <3000000>;
 				regulator-ramp-delay = <10000>;
 			};
 		};
@@ -144,8 +149,8 @@
 	bus-width = <8>;
 	max-frequency = <50000000>;
 	cap-mmc-highspeed;
-	mediatek,hs200-cmd-int-delay=<26>;
-	mediatek,hs400-cmd-int-delay=<14>;
+	mediatek,hs200-cmd-int-delay = <26>;
+	mediatek,hs400-cmd-int-delay = <14>;
 	mediatek,hs400-cmd-resp-sel-rising;
 	vmmc-supply = <&mt6397_vemc_3v3_reg>;
 	vqmmc-supply = <&mt6397_vio18_reg>;
@@ -294,12 +299,11 @@
 
 &pwrap {
 	/* Only MT8173 E1 needs USB power domain */
-	power-domains = <&scpsys MT8173_POWER_DOMAIN_USB>;
+	power-domains = <&spm MT8173_POWER_DOMAIN_USB>;
 
-	pmic: mt6397 {
+	pmic: pmic {
 		compatible = "mediatek,mt6397";
-		interrupt-parent = <&pio>;
-		interrupts = <11 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts-extended = <&pio 11 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
 
@@ -516,10 +520,8 @@
 	extcon = <&extcon_usb>;
 	dr_mode = "otg";
 	wakeup-source;
-	pinctrl-names = "default", "id_float", "id_ground";
+	pinctrl-names = "default";
 	pinctrl-0 = <&usb_id_pins_float>;
-	pinctrl-1 = <&usb_id_pins_float>;
-	pinctrl-2 = <&usb_id_pins_ground>;
 	status = "okay";
 };
 

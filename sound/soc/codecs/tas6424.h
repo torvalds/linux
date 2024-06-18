@@ -2,7 +2,7 @@
 /*
  * ALSA SoC Texas Instruments TAS6424 Quad-Channel Audio Amplifier
  *
- * Copyright (C) 2016-2017 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2016-2017 Texas Instruments Incorporated - https://www.ti.com/
  *	Author: Andreas Dannenberg <dannenberg@ti.com>
  *	Andrew F. Davis <afd@ti.com>
  */

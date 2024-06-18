@@ -197,6 +197,7 @@ uncharge_cg_locked(struct rdma_cgroup *cg,
 
 /**
  * rdmacg_uncharge_hierarchy - hierarchically uncharge rdma resource count
+ * @cg: pointer to cg to uncharge and all parents in hierarchy
  * @device: pointer to rdmacg device
  * @stop_cg: while traversing hirerchy, when meet with stop_cg cgroup
  *           stop uncharging
@@ -221,6 +222,7 @@ static void rdmacg_uncharge_hierarchy(struct rdma_cgroup *cg,
 
 /**
  * rdmacg_uncharge - hierarchically uncharge rdma resource count
+ * @cg: pointer to cg to uncharge and all parents in hierarchy
  * @device: pointer to rdmacg device
  * @index: index of the resource to uncharge in cgroup in given resource pool
  */
@@ -244,7 +246,7 @@ EXPORT_SYMBOL(rdmacg_uncharge);
  * This function follows charging resource in hierarchical way.
  * It will fail if the charge would cause the new value to exceed the
  * hierarchical limit.
- * Returns 0 if the charge succeded, otherwise -EAGAIN, -ENOMEM or -EINVAL.
+ * Returns 0 if the charge succeeded, otherwise -EAGAIN, -ENOMEM or -EINVAL.
  * Returns pointer to rdmacg for this resource when charging is successful.
  *
  * Charger needs to account resources on two criteria.

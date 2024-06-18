@@ -5,8 +5,10 @@
 
 #ifndef _ASM_POWERPC_VAS_H
 #define _ASM_POWERPC_VAS_H
-
-struct vas_window;
+#include <linux/sched/mm.h>
+#include <linux/mmu_context.h>
+#include <asm/icswx.h>
+#include <uapi/asm/vas-api.h>
 
 /*
  * Min and max FIFO sizes are based on Version 1.05 Section 3.1.4.25
@@ -26,6 +28,16 @@ struct vas_window;
 #define VAS_THRESH_FIFO_GT_HALF_FULL	1
 #define VAS_THRESH_FIFO_GT_QTR_FULL	2
 #define VAS_THRESH_FIFO_GT_EIGHTH_FULL	3
+
+/*
+ * VAS window Linux status bits
+ */
+#define VAS_WIN_ACTIVE		0x0	/* Used in platform independent */
+					/* vas mmap() */
+/* Window is closed in the hypervisor due to lost credit */
+#define VAS_WIN_NO_CRED_CLOSE	0x00000001
+/* Window is closed due to migration */
+#define VAS_WIN_MIGRATE_CLOSE	0x00000002
 
 /*
  * Get/Set bit fields
@@ -49,10 +61,72 @@ enum vas_cop_type {
 };
 
 /*
+ * User space VAS windows are opened by tasks and take references
+ * to pid and mm until windows are closed.
+ * Stores pid, mm, and tgid for each window.
+ */
+struct vas_user_win_ref {
+	struct pid *pid;	/* PID of owner */
+	struct pid *tgid;	/* Thread group ID of owner */
+	struct mm_struct *mm;	/* Linux process mm_struct */
+	struct mutex mmap_mutex;	/* protects paste address mmap() */
+					/* with DLPAR close/open windows */
+	struct vm_area_struct *vma;	/* Save VMA and used in DLPAR ops */
+};
+
+/*
+ * Common VAS window struct on PowerNV and PowerVM
+ */
+struct vas_window {
+	u32 winid;
+	u32 wcreds_max;	/* Window credits */
+	u32 status;	/* Window status used in OS */
+	enum vas_cop_type cop;
+	struct vas_user_win_ref task_ref;
+	char *dbgname;
+	struct dentry *dbgdir;
+};
+
+/*
+ * User space window operations used for powernv and powerVM
+ */
+struct vas_user_win_ops {
+	struct vas_window * (*open_win)(int vas_id, u64 flags,
+				enum vas_cop_type);
+	u64 (*paste_addr)(struct vas_window *);
+	int (*close_win)(struct vas_window *);
+};
+
+static inline void put_vas_user_win_ref(struct vas_user_win_ref *ref)
+{
+	/* Drop references to pid, tgid, and mm */
+	put_pid(ref->pid);
+	put_pid(ref->tgid);
+	if (ref->mm)
+		mmdrop(ref->mm);
+}
+
+static inline void vas_user_win_add_mm_context(struct vas_user_win_ref *ref)
+{
+	mm_context_add_vas_window(ref->mm);
+	/*
+	 * Even a process that has no foreign real address mapping can
+	 * use an unpaired COPY instruction (to no real effect). Issue
+	 * CP_ABORT to clear any pending COPY and prevent a covert
+	 * channel.
+	 *
+	 * __switch_to() will issue CP_ABORT on future context switches
+	 * if process / thread has any open VAS window (Use
+	 * current->mm->context.vas_windows).
+	 */
+	asm volatile(PPC_CP_ABORT);
+}
+
+/*
  * Receive window attributes specified by the (in-kernel) owner of window.
  */
 struct vas_rx_win_attr {
-	void *rx_fifo;
+	u64 rx_fifo;
 	int rx_fifo_size;
 	int wcreds_max;
 
@@ -86,7 +160,6 @@ struct vas_tx_win_attr {
 	int wcreds_max;
 	int lpid;
 	int pidr;		/* hardware PID (from SPRN_PID) */
-	int pid;		/* linux process id */
 	int pswid;
 	int rsvd_txbuf_count;
 	int tc_mode;
@@ -101,6 +174,7 @@ struct vas_tx_win_attr {
 	bool rx_win_ord_mode;
 };
 
+#ifdef CONFIG_PPC_POWERNV
 /*
  * Helper to map a chip id to VAS id.
  * For POWER9, this is a 1:1 mapping. In the future this maybe a 1:N
@@ -163,4 +237,58 @@ int vas_copy_crb(void *crb, int offset);
  */
 int vas_paste_crb(struct vas_window *win, int offset, bool re);
 
+int vas_register_api_powernv(struct module *mod, enum vas_cop_type cop_type,
+			     const char *name);
+void vas_unregister_api_powernv(void);
+#endif
+
+#ifdef CONFIG_PPC_PSERIES
+
+/* VAS Capabilities */
+#define VAS_GZIP_QOS_FEAT	0x1
+#define VAS_GZIP_DEF_FEAT	0x2
+#define VAS_GZIP_QOS_FEAT_BIT	PPC_BIT(VAS_GZIP_QOS_FEAT) /* Bit 1 */
+#define VAS_GZIP_DEF_FEAT_BIT	PPC_BIT(VAS_GZIP_DEF_FEAT) /* Bit 2 */
+
+/* NX Capabilities */
+#define VAS_NX_GZIP_FEAT	0x1
+#define VAS_NX_GZIP_FEAT_BIT	PPC_BIT(VAS_NX_GZIP_FEAT) /* Bit 1 */
+
+/*
+ * These structs are used to retrieve overall VAS capabilities that
+ * the hypervisor provides.
+ */
+struct hv_vas_all_caps {
+	__be64  descriptor;
+	__be64  feat_type;
+} __packed __aligned(0x1000);
+
+struct vas_all_caps {
+	u64     descriptor;
+	u64     feat_type;
+};
+
+int h_query_vas_capabilities(const u64 hcall, u8 query_type, u64 result);
+int vas_register_api_pseries(struct module *mod,
+			     enum vas_cop_type cop_type, const char *name);
+void vas_unregister_api_pseries(void);
+#endif
+
+/*
+ * Register / unregister coprocessor type to VAS API which will be exported
+ * to user space. Applications can use this API to open / close window
+ * which can be used to send / receive requests directly to cooprcessor.
+ *
+ * Only NX GZIP coprocessor type is supported now, but this API can be
+ * used for others in future.
+ */
+int vas_register_coproc_api(struct module *mod, enum vas_cop_type cop_type,
+			    const char *name,
+			    const struct vas_user_win_ops *vops);
+void vas_unregister_coproc_api(void);
+
+int get_vas_user_win_ref(struct vas_user_win_ref *task_ref);
+void vas_update_csb(struct coprocessor_request_block *crb,
+		    struct vas_user_win_ref *task_ref);
+void vas_dump_crb(struct coprocessor_request_block *crb);
 #endif /* __ASM_POWERPC_VAS_H */

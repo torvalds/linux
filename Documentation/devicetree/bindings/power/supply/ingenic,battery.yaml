@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+# Copyright 2019-2020 Artur Rojek
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/power/supply/ingenic,battery.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Ingenic JZ47xx battery
+
+maintainers:
+  - Artur Rojek <contact@artur-rojek.eu>
+
+$ref: power-supply.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - const: ingenic,jz4740-battery
+      - items:
+          - enum:
+              - ingenic,jz4725b-battery
+              - ingenic,jz4770-battery
+          - const: ingenic,jz4740-battery
+
+  io-channels:
+    maxItems: 1
+
+  io-channel-names:
+    const: battery
+
+  monitored-battery:
+    description: >
+      This property must be a phandle to a node using the format described
+      in battery.yaml, with the following properties being required:
+      - voltage-min-design-microvolt: drained battery voltage,
+      - voltage-max-design-microvolt: fully charged battery voltage.
+
+required:
+  - compatible
+  - io-channels
+  - io-channel-names
+  - monitored-battery
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/iio/adc/ingenic,adc.h>
+
+    simple_battery: battery {
+            compatible = "simple-battery";
+            voltage-min-design-microvolt = <3600000>;
+            voltage-max-design-microvolt = <4200000>;
+    };
+
+    ingenic-battery {
+            compatible = "ingenic,jz4740-battery";
+            io-channels = <&adc INGENIC_ADC_BATTERY>;
+            io-channel-names = "battery";
+            monitored-battery = <&simple_battery>;
+    };

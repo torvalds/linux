@@ -1,0 +1,150 @@
+# SPDX-License-Identifier: GPL-2.0-only
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/timer/nvidia,tegra-timer.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra timer
+
+maintainers:
+  - Stephen Warren <swarren@nvidia.com>
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: nvidia,tegra210-timer
+    then:
+      properties:
+        interrupts:
+          # Either a single combined interrupt or up to 14 individual interrupts
+          minItems: 1
+          maxItems: 14
+          description: >
+            A list of 14 interrupts; one per each timer channels 0 through 13
+
+  - if:
+      properties:
+        compatible:
+          oneOf:
+            - items:
+                - enum:
+                    - nvidia,tegra114-timer
+                    - nvidia,tegra124-timer
+                    - nvidia,tegra132-timer
+                - const: nvidia,tegra30-timer
+            - items:
+                - const: nvidia,tegra30-timer
+                - const: nvidia,tegra20-timer
+    then:
+      properties:
+        interrupts:
+          # Either a single combined interrupt or up to 6 individual interrupts
+          minItems: 1
+          maxItems: 6
+          description: >
+            A list of 6 interrupts; one per each of timer channels 1 through 5,
+            and one for the shared interrupt for the remaining channels.
+
+  - if:
+      properties:
+        compatible:
+          const: nvidia,tegra20-timer
+    then:
+      properties:
+        interrupts:
+          # Either a single combined interrupt or up to 4 individual interrupts
+          minItems: 1
+          maxItems: 4
+          description: |
+            A list of 4 interrupts; one per timer channel.
+
+properties:
+  compatible:
+    oneOf:
+      - const: nvidia,tegra210-timer
+        description: >
+          The Tegra210 timer provides fourteen 29-bit timer counters and one 32-bit
+          timestamp counter. The TMRs run at either a fixed 1 MHz clock rate derived
+          from the oscillator clock (TMR0-TMR9) or directly at the oscillator clock
+          (TMR10-TMR13). Each TMR can be programmed to generate one-shot, periodic,
+          or watchdog interrupts.
+      - items:
+          - enum:
+              - nvidia,tegra114-timer
+              - nvidia,tegra124-timer
+              - nvidia,tegra132-timer
+          - const: nvidia,tegra30-timer
+      - items:
+          - const: nvidia,tegra30-timer
+          - const: nvidia,tegra20-timer
+        description: >
+          The Tegra30 timer provides ten 29-bit timer channels, a single 32-bit free
+          running counter, and 5 watchdog modules. The first two channels may also
+          trigger a legacy watchdog reset.
+      - const: nvidia,tegra20-timer
+        description: >
+          The Tegra20 timer provides four 29-bit timer channels and a single 32-bit free
+          running counter. The first two channels may also trigger a watchdog reset.
+
+  reg:
+    maxItems: 1
+
+  interrupts: true
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: timer
+
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    timer@60005000 {
+        compatible = "nvidia,tegra30-timer", "nvidia,tegra20-timer";
+        reg = <0x60005000 0x400>;
+        interrupts = <0 0 IRQ_TYPE_LEVEL_HIGH>,
+                     <0 1 IRQ_TYPE_LEVEL_HIGH>,
+                     <0 41 IRQ_TYPE_LEVEL_HIGH>,
+                     <0 42 IRQ_TYPE_LEVEL_HIGH>,
+                     <0 121 IRQ_TYPE_LEVEL_HIGH>,
+                     <0 122 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&tegra_car 214>;
+    };
+  - |
+    #include <dt-bindings/clock/tegra210-car.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    timer@60005000 {
+        compatible = "nvidia,tegra210-timer";
+        reg = <0x60005000 0x400>;
+        interrupts = <GIC_SPI 156 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 152 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 155 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 177 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 178 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 179 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&tegra_car TEGRA210_CLK_TIMER>;
+        clock-names = "timer";
+    };

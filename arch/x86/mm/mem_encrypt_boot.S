@@ -8,7 +8,7 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/page.h>
 #include <asm/processor-flags.h>
 #include <asm/msr-index.h>
@@ -16,7 +16,7 @@
 
 	.text
 	.code64
-ENTRY(sme_encrypt_execute)
+SYM_FUNC_START(sme_encrypt_execute)
 
 	/*
 	 * Entry parameters:
@@ -26,8 +26,8 @@ ENTRY(sme_encrypt_execute)
 	 *   RCX - virtual address of the encryption workarea, including:
 	 *     - stack page (PAGE_SIZE)
 	 *     - encryption routine page (PAGE_SIZE)
-	 *     - intermediate copy buffer (PMD_PAGE_SIZE)
-	 *    R8 - physcial address of the pagetables to use for encryption
+	 *     - intermediate copy buffer (PMD_SIZE)
+	 *    R8 - physical address of the pagetables to use for encryption
 	 */
 
 	push	%rbp
@@ -65,10 +65,13 @@ ENTRY(sme_encrypt_execute)
 	movq	%rbp, %rsp		/* Restore original stack pointer */
 	pop	%rbp
 
+	/* Offset to __x86_return_thunk would be wrong here */
+	ANNOTATE_UNRET_SAFE
 	ret
-ENDPROC(sme_encrypt_execute)
+	int3
+SYM_FUNC_END(sme_encrypt_execute)
 
-ENTRY(__enc_copy)
+SYM_FUNC_START(__enc_copy)
 /*
  * Routine used to encrypt memory in place.
  *   This routine must be run outside of the kernel proper since
@@ -120,7 +123,7 @@ ENTRY(__enc_copy)
 	wbinvd				/* Invalidate any cache entries */
 
 	/* Copy/encrypt up to 2MB at a time */
-	movq	$PMD_PAGE_SIZE, %r12
+	movq	$PMD_SIZE, %r12
 1:
 	cmpq	%r12, %r9
 	jnb	2f
@@ -151,6 +154,9 @@ ENTRY(__enc_copy)
 	pop	%r12
 	pop	%r15
 
+	/* Offset to __x86_return_thunk would be wrong here */
+	ANNOTATE_UNRET_SAFE
 	ret
+	int3
 .L__enc_copy_end:
-ENDPROC(__enc_copy)
+SYM_FUNC_END(__enc_copy)

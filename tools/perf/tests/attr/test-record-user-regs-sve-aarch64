@@ -1,0 +1,14 @@
+# Test that asking for VG works if the system has SVE and after the
+# feature was added in 6.1
+[config]
+command = record
+args    = --no-bpf-event --user-regs=vg kill >/dev/null 2>&1
+ret     = 1
+test_ret = true
+arch    = aarch64
+auxv    = auxv["AT_HWCAP"] & 0x400000 == 0x400000
+kernel_since = 6.1
+
+[event:base-record]
+sample_type=4359
+sample_regs_user=70368744177664

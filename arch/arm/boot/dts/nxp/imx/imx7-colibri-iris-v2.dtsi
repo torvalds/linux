@@ -1,0 +1,113 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright 2022 Toradex
+ */
+
+/ {
+	reg_3v3_vmmc: regulator-3v3-vmmc {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio5 16 GPIO_ACTIVE_HIGH>; /* SODIMM 100 */
+		regulator-max-microvolt = <3300000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-name = "3v3_vmmc";
+		startup-delay-us = <100>;
+	};
+};
+
+/* Colibri AD0 to AD3 */
+&adc1 {
+	status = "okay";
+};
+
+/* Colibri SSP */
+&ecspi3 {
+	status = "okay";
+};
+
+/* Colibri Fast Ethernet */
+&fec1 {
+	status = "okay";
+};
+
+&gpio2 {
+	/*
+	 * uart_b_c_on_x14_enable turns the UART transceiver for UART2 and 5 on. If one wants to
+	 * turn the transceiver off, that property has to be deleted and the gpio handled in
+	 * userspace.
+	 * The same applies to uart_a_on_x13_enable where the UART_A transceiver is turned on.
+	 */
+	uart-b-c-on-x14-enable-hog {
+		gpio-hog;
+		gpios = <27 GPIO_ACTIVE_HIGH>; /* SODIMM 104 */
+		output-high;
+	};
+};
+
+&gpio5 {
+	uart-a-on-x13-enable-hog {
+		gpio-hog;
+		gpios = <17 GPIO_ACTIVE_HIGH>; /* SODIMM 102 */
+		output-high;
+	};
+};
+
+/* Colibri I2C: I2C3_SDA/SCL on SODIMM 194/196 */
+&i2c4 {
+	status = "okay";
+};
+
+/* Colibri PWM<A> */
+&pwm1 {
+	status = "okay";
+};
+
+/* Colibri PWM<B> */
+&pwm2 {
+	status = "okay";
+};
+
+/* Colibri PWM<C> */
+&pwm3 {
+	status = "okay";
+};
+
+/* Colibri PWM<D> */
+&pwm4 {
+	status = "okay";
+};
+
+/* M41T0M6 real time clock */
+&rtc {
+	status = "okay";
+};
+
+/* Colibri UART_A */
+&uart1 {
+	status = "okay";
+};
+
+/* Colibri UART_B */
+&uart2 {
+	status = "okay";
+};
+
+/* Colibri UART_C */
+&uart3 {
+	status = "okay";
+};
+
+/* Colibri USBC */
+&usbotg1 {
+	disable-over-current;
+	status = "okay";
+};
+
+/* Colibri MMC/SD, UHS-I capable uSD slot */
+&usdhc1 {
+	cap-power-off-card;
+	/delete-property/ keep-power-in-suspend;
+	/delete-property/ no-1-8-v;
+	vmmc-supply = <&reg_3v3_vmmc>;
+	status = "okay";
+};

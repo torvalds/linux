@@ -10,7 +10,6 @@
 #include <linux/slab.h>
 
 #include <linux/scatterlist.h>
-#include <linux/swap.h>		/* For nr_free_buffer_pages() */
 #include <linux/list.h>
 
 #include <linux/debugfs.h>
@@ -71,6 +70,7 @@ struct mmc_test_mem {
  * @sg_len: length of currently mapped scatterlist @sg
  * @mem: allocated memory
  * @sg: scatterlist
+ * @sg_areq: scatterlist for non-blocking request
  */
 struct mmc_test_area {
 	unsigned long max_sz;
@@ -82,6 +82,7 @@ struct mmc_test_area {
 	unsigned int sg_len;
 	struct mmc_test_mem *mem;
 	struct scatterlist *sg;
+	struct scatterlist *sg_areq;
 };
 
 /**
@@ -622,7 +623,7 @@ static unsigned int mmc_test_capacity(struct mmc_card *card)
  * Fill the first couple of sectors of the card with known data
  * so that bad reads/writes can be detected
  */
-static int __mmc_test_prepare(struct mmc_test_card *test, int write)
+static int __mmc_test_prepare(struct mmc_test_card *test, int write, int val)
 {
 	int ret, i;
 
@@ -631,7 +632,7 @@ static int __mmc_test_prepare(struct mmc_test_card *test, int write)
 		return ret;
 
 	if (write)
-		memset(test->buffer, 0xDF, 512);
+		memset(test->buffer, val, 512);
 	else {
 		for (i = 0; i < 512; i++)
 			test->buffer[i] = i;
@@ -648,31 +649,17 @@ static int __mmc_test_prepare(struct mmc_test_card *test, int write)
 
 static int mmc_test_prepare_write(struct mmc_test_card *test)
 {
-	return __mmc_test_prepare(test, 1);
+	return __mmc_test_prepare(test, 1, 0xDF);
 }
 
 static int mmc_test_prepare_read(struct mmc_test_card *test)
 {
-	return __mmc_test_prepare(test, 0);
+	return __mmc_test_prepare(test, 0, 0);
 }
 
 static int mmc_test_cleanup(struct mmc_test_card *test)
 {
-	int ret, i;
-
-	ret = mmc_test_set_blksize(test, 512);
-	if (ret)
-		return ret;
-
-	memset(test->buffer, 0, 512);
-
-	for (i = 0; i < BUFFER_SIZE / 512; i++) {
-		ret = mmc_test_buffer_transfer(test, test->buffer, i, 512, 1);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
+	return __mmc_test_prepare(test, 1, 0);
 }
 
 /*******************************************************************/
@@ -836,14 +823,16 @@ static int mmc_test_start_areq(struct mmc_test_card *test,
 }
 
 static int mmc_test_nonblock_transfer(struct mmc_test_card *test,
-				      struct scatterlist *sg, unsigned sg_len,
-				      unsigned dev_addr, unsigned blocks,
-				      unsigned blksz, int write, int count)
+				      unsigned int dev_addr, int write,
+				      int count)
 {
 	struct mmc_test_req *rq1, *rq2;
 	struct mmc_request *mrq, *prev_mrq;
 	int i;
 	int ret = RESULT_OK;
+	struct mmc_test_area *t = &test->area;
+	struct scatterlist *sg = t->sg;
+	struct scatterlist *sg_areq = t->sg_areq;
 
 	rq1 = mmc_test_req_alloc();
 	rq2 = mmc_test_req_alloc();
@@ -857,8 +846,8 @@ static int mmc_test_nonblock_transfer(struct mmc_test_card *test,
 
 	for (i = 0; i < count; i++) {
 		mmc_test_req_reset(container_of(mrq, struct mmc_test_req, mrq));
-		mmc_test_prepare_mrq(test, mrq, sg, sg_len, dev_addr, blocks,
-				     blksz, write);
+		mmc_test_prepare_mrq(test, mrq, sg, t->sg_len, dev_addr,
+				     t->blocks, 512, write);
 		ret = mmc_test_start_areq(test, mrq, prev_mrq);
 		if (ret)
 			goto err;
@@ -867,7 +856,8 @@ static int mmc_test_nonblock_transfer(struct mmc_test_card *test,
 			prev_mrq = &rq2->mrq;
 
 		swap(mrq, prev_mrq);
-		dev_addr += blocks;
+		swap(sg, sg_areq);
+		dev_addr += t->blocks;
 	}
 
 	ret = mmc_test_start_areq(test, NULL, prev_mrq);
@@ -942,7 +932,6 @@ static int mmc_test_transfer(struct mmc_test_card *test,
 	unsigned blocks, unsigned blksz, int write)
 {
 	int ret, i;
-	unsigned long flags;
 
 	if (write) {
 		for (i = 0; i < blocks * blksz; i++)
@@ -950,9 +939,7 @@ static int mmc_test_transfer(struct mmc_test_card *test,
 	} else {
 		memset(test->scratch, 0, BUFFER_SIZE);
 	}
-	local_irq_save(flags);
 	sg_copy_from_buffer(sg, sg_len, test->scratch, BUFFER_SIZE);
-	local_irq_restore(flags);
 
 	ret = mmc_test_set_blksize(test, blksz);
 	if (ret)
@@ -997,9 +984,7 @@ static int mmc_test_transfer(struct mmc_test_card *test,
 				return RESULT_FAIL;
 		}
 	} else {
-		local_irq_save(flags);
 		sg_copy_to_buffer(sg, sg_len, test->scratch, BUFFER_SIZE);
-		local_irq_restore(flags);
 		for (i = 0; i < blocks * blksz; i++) {
 			if (test->scratch[i] != (u8)i)
 				return RESULT_FAIL;
@@ -1396,10 +1381,11 @@ static int mmc_test_no_highmem(struct mmc_test_card *test)
  * Map sz bytes so that it can be transferred.
  */
 static int mmc_test_area_map(struct mmc_test_card *test, unsigned long sz,
-			     int max_scatter, int min_sg_len)
+			     int max_scatter, int min_sg_len, bool nonblock)
 {
 	struct mmc_test_area *t = &test->area;
 	int err;
+	unsigned int sg_len = 0;
 
 	t->blocks = sz >> 9;
 
@@ -1411,6 +1397,22 @@ static int mmc_test_area_map(struct mmc_test_card *test, unsigned long sz,
 		err = mmc_test_map_sg(t->mem, sz, t->sg, 1, t->max_segs,
 				      t->max_seg_sz, &t->sg_len, min_sg_len);
 	}
+
+	if (err || !nonblock)
+		goto err;
+
+	if (max_scatter) {
+		err = mmc_test_map_sg_max_scatter(t->mem, sz, t->sg_areq,
+						  t->max_segs, t->max_seg_sz,
+						  &sg_len);
+	} else {
+		err = mmc_test_map_sg(t->mem, sz, t->sg_areq, 1, t->max_segs,
+				      t->max_seg_sz, &sg_len, min_sg_len);
+	}
+	if (!err && sg_len != t->sg_len)
+		err = -EINVAL;
+
+err:
 	if (err)
 		pr_info("%s: Failed to map sg list\n",
 		       mmc_hostname(test->card->host));
@@ -1440,7 +1442,6 @@ static int mmc_test_area_io_seq(struct mmc_test_card *test, unsigned long sz,
 	struct timespec64 ts1, ts2;
 	int ret = 0;
 	int i;
-	struct mmc_test_area *t = &test->area;
 
 	/*
 	 * In the case of a maximally scattered transfer, the maximum transfer
@@ -1458,15 +1459,14 @@ static int mmc_test_area_io_seq(struct mmc_test_card *test, unsigned long sz,
 			sz = max_tfr;
 	}
 
-	ret = mmc_test_area_map(test, sz, max_scatter, min_sg_len);
+	ret = mmc_test_area_map(test, sz, max_scatter, min_sg_len, nonblock);
 	if (ret)
 		return ret;
 
 	if (timed)
 		ktime_get_ts64(&ts1);
 	if (nonblock)
-		ret = mmc_test_nonblock_transfer(test, t->sg, t->sg_len,
-				 dev_addr, t->blocks, 512, write, count);
+		ret = mmc_test_nonblock_transfer(test, dev_addr, write, count);
 	else
 		for (i = 0; i < count && ret == 0; i++) {
 			ret = mmc_test_area_transfer(test, dev_addr, write);
@@ -1525,6 +1525,7 @@ static int mmc_test_area_cleanup(struct mmc_test_card *test)
 	struct mmc_test_area *t = &test->area;
 
 	kfree(t->sg);
+	kfree(t->sg_areq);
 	mmc_test_free_mem(t->mem);
 
 	return 0;
@@ -1580,6 +1581,13 @@ static int mmc_test_area_init(struct mmc_test_card *test, int erase, int fill)
 
 	t->sg = kmalloc_array(t->max_segs, sizeof(*t->sg), GFP_KERNEL);
 	if (!t->sg) {
+		ret = -ENOMEM;
+		goto out_free;
+	}
+
+	t->sg_areq = kmalloc_array(t->max_segs, sizeof(*t->sg_areq),
+				   GFP_KERNEL);
+	if (!t->sg_areq) {
 		ret = -ENOMEM;
 		goto out_free;
 	}
@@ -1896,7 +1904,7 @@ static unsigned int mmc_test_rnd_num(unsigned int rnd_cnt)
 }
 
 static int mmc_test_rnd_perf(struct mmc_test_card *test, int write, int print,
-			     unsigned long sz)
+			     unsigned long sz, int secs, int force_retuning)
 {
 	unsigned int dev_addr, cnt, rnd_addr, range1, range2, last_ea = 0, ea;
 	unsigned int ssz;
@@ -1913,7 +1921,7 @@ static int mmc_test_rnd_perf(struct mmc_test_card *test, int write, int print,
 	for (cnt = 0; cnt < UINT_MAX; cnt++) {
 		ktime_get_ts64(&ts2);
 		ts = timespec64_sub(ts2, ts1);
-		if (ts.tv_sec >= 10)
+		if (ts.tv_sec >= secs)
 			break;
 		ea = mmc_test_rnd_num(range1);
 		if (ea == last_ea)
@@ -1921,6 +1929,8 @@ static int mmc_test_rnd_perf(struct mmc_test_card *test, int write, int print,
 		last_ea = ea;
 		dev_addr = rnd_addr + test->card->pref_erase * ea +
 			   ssz * mmc_test_rnd_num(range2);
+		if (force_retuning)
+			mmc_retune_needed(test->card->host);
 		ret = mmc_test_area_io(test, sz, dev_addr, write, 0, 0);
 		if (ret)
 			return ret;
@@ -1945,24 +1955,35 @@ static int mmc_test_random_perf(struct mmc_test_card *test, int write)
 		 */
 		if (write) {
 			next = rnd_next;
-			ret = mmc_test_rnd_perf(test, write, 0, sz);
+			ret = mmc_test_rnd_perf(test, write, 0, sz, 10, 0);
 			if (ret)
 				return ret;
 			rnd_next = next;
 		}
-		ret = mmc_test_rnd_perf(test, write, 1, sz);
+		ret = mmc_test_rnd_perf(test, write, 1, sz, 10, 0);
 		if (ret)
 			return ret;
 	}
 	sz = t->max_tfr;
 	if (write) {
 		next = rnd_next;
-		ret = mmc_test_rnd_perf(test, write, 0, sz);
+		ret = mmc_test_rnd_perf(test, write, 0, sz, 10, 0);
 		if (ret)
 			return ret;
 		rnd_next = next;
 	}
-	return mmc_test_rnd_perf(test, write, 1, sz);
+	return mmc_test_rnd_perf(test, write, 1, sz, 10, 0);
+}
+
+static int mmc_test_retuning(struct mmc_test_card *test)
+{
+	if (!mmc_can_retune(test->card->host)) {
+		pr_info("%s: No retuning - test skipped\n",
+			mmc_hostname(test->card->host));
+		return RESULT_UNSUP_HOST;
+	}
+
+	return mmc_test_rnd_perf(test, 0, 0, 8192, 30, 1);
 }
 
 /*
@@ -2096,7 +2117,7 @@ static int mmc_test_rw_multiple(struct mmc_test_card *test,
 	if (mmc_can_erase(test->card) &&
 	    tdata->prepare & MMC_TEST_PREP_ERASE) {
 		ret = mmc_erase(test->card, dev_addr,
-				size / 512, MMC_SECURE_ERASE_ARG);
+				size / 512, test->card->erase_arg);
 		if (ret)
 			ret = mmc_erase(test->card, dev_addr,
 					size / 512, MMC_ERASE_ARG);
@@ -2312,10 +2333,9 @@ static int mmc_test_profile_sglen_r_nonblock_perf(struct mmc_test_card *test)
 static int mmc_test_reset(struct mmc_test_card *test)
 {
 	struct mmc_card *card = test->card;
-	struct mmc_host *host = card->host;
 	int err;
 
-	err = mmc_hw_reset(host);
+	err = mmc_hw_reset(card);
 	if (!err) {
 		/*
 		 * Reset will re-enable the card's command queue, but tests
@@ -2468,7 +2488,7 @@ static int __mmc_test_cmds_during_tfr(struct mmc_test_card *test,
 	if (!(test->card->host->caps & MMC_CAP_CMD_DURING_TFR))
 		return RESULT_UNSUP_HOST;
 
-	ret = mmc_test_area_map(test, sz, 0, 0);
+	ret = mmc_test_area_map(test, sz, 0, 0, use_areq);
 	if (ret)
 		return ret;
 
@@ -2641,22 +2661,22 @@ static const struct mmc_test_case mmc_test_cases[] = {
 	},
 
 	{
-		.name = "Correct xfer_size at write (start failure)",
+		.name = "Proper xfer_size at write (start failure)",
 		.run = mmc_test_xfersize_write,
 	},
 
 	{
-		.name = "Correct xfer_size at read (start failure)",
+		.name = "Proper xfer_size at read (start failure)",
 		.run = mmc_test_xfersize_read,
 	},
 
 	{
-		.name = "Correct xfer_size at write (midway failure)",
+		.name = "Proper xfer_size at write (midway failure)",
 		.run = mmc_test_multi_xfersize_write,
 	},
 
 	{
-		.name = "Correct xfer_size at read (midway failure)",
+		.name = "Proper xfer_size at read (midway failure)",
 		.run = mmc_test_multi_xfersize_read,
 	},
 
@@ -2914,6 +2934,14 @@ static const struct mmc_test_case mmc_test_cases[] = {
 		.run = mmc_test_cmds_during_write_cmd23_nonblock,
 		.cleanup = mmc_test_area_cleanup,
 	},
+
+	{
+		.name = "Re-tuning reliability",
+		.prepare = mmc_test_area_prepare,
+		.run = mmc_test_retuning,
+		.cleanup = mmc_test_area_cleanup,
+	},
+
 };
 
 static DEFINE_MUTEX(mmc_test_lock);
@@ -3038,7 +3066,7 @@ static LIST_HEAD(mmc_test_file_test);
 
 static int mtf_test_show(struct seq_file *sf, void *data)
 {
-	struct mmc_card *card = (struct mmc_card *)sf->private;
+	struct mmc_card *card = sf->private;
 	struct mmc_test_general_result *gr;
 
 	mutex_lock(&mmc_test_lock);
@@ -3072,8 +3100,8 @@ static int mtf_test_open(struct inode *inode, struct file *file)
 static ssize_t mtf_test_write(struct file *file, const char __user *buf,
 	size_t count, loff_t *pos)
 {
-	struct seq_file *sf = (struct seq_file *)file->private_data;
-	struct mmc_card *card = (struct mmc_card *)sf->private;
+	struct seq_file *sf = file->private_data;
+	struct mmc_card *card = sf->private;
 	struct mmc_test_card *test;
 	long testcase;
 	int ret;
@@ -3167,7 +3195,8 @@ static int __mmc_test_register_dbgfs_file(struct mmc_card *card,
 	struct mmc_test_dbgfs_file *df;
 
 	if (card->debugfs_root)
-		debugfs_create_file(name, mode, card->debugfs_root, card, fops);
+		file = debugfs_create_file(name, mode, card->debugfs_root,
+					   card, fops);
 
 	df = kmalloc(sizeof(*df), GFP_KERNEL);
 	if (!df) {
@@ -3239,17 +3268,12 @@ static void mmc_test_remove(struct mmc_card *card)
 	mmc_test_free_dbgfs_file(card);
 }
 
-static void mmc_test_shutdown(struct mmc_card *card)
-{
-}
-
 static struct mmc_driver mmc_driver = {
 	.drv		= {
 		.name	= "mmc_test",
 	},
 	.probe		= mmc_test_probe,
 	.remove		= mmc_test_remove,
-	.shutdown	= mmc_test_shutdown,
 };
 
 static int __init mmc_test_init(void)

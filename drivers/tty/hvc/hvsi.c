@@ -26,13 +26,13 @@
 #include <linux/module.h>
 #include <linux/major.h>
 #include <linux/kernel.h>
+#include <linux/of_irq.h>
 #include <linux/spinlock.h>
 #include <linux/sysrq.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <asm/hvcall.h>
 #include <asm/hvconsole.h>
-#include <asm/prom.h>
 #include <linux/uaccess.h>
 #include <asm/vio.h>
 #include <asm/param.h>
@@ -890,28 +890,27 @@ out:
 	spin_unlock_irqrestore(&hp->lock, flags);
 }
 
-static int hvsi_write_room(struct tty_struct *tty)
+static unsigned int hvsi_write_room(struct tty_struct *tty)
 {
 	struct hvsi_struct *hp = tty->driver_data;
 
 	return N_OUTBUF - hp->n_outbuf;
 }
 
-static int hvsi_chars_in_buffer(struct tty_struct *tty)
+static unsigned int hvsi_chars_in_buffer(struct tty_struct *tty)
 {
 	struct hvsi_struct *hp = tty->driver_data;
 
 	return hp->n_outbuf;
 }
 
-static int hvsi_write(struct tty_struct *tty,
-		     const unsigned char *buf, int count)
+static ssize_t hvsi_write(struct tty_struct *tty, const u8 *source,
+			  size_t count)
 {
 	struct hvsi_struct *hp = tty->driver_data;
-	const char *source = buf;
 	unsigned long flags;
-	int total = 0;
-	int origcount = count;
+	size_t total = 0;
+	size_t origcount = count;
 
 	spin_lock_irqsave(&hp->lock, flags);
 
@@ -929,7 +928,7 @@ static int hvsi_write(struct tty_struct *tty,
 	 * will see there is no room in outbuf and return.
 	 */
 	while ((count > 0) && (hvsi_write_room(tty) > 0)) {
-		int chunksize = min(count, hvsi_write_room(tty));
+		size_t chunksize = min_t(size_t, count, hvsi_write_room(tty));
 
 		BUG_ON(hp->n_outbuf < 0);
 		memcpy(hp->outbuf + hp->n_outbuf, source, chunksize);
@@ -953,8 +952,8 @@ out:
 	spin_unlock_irqrestore(&hp->lock, flags);
 
 	if (total != origcount)
-		pr_debug("%s: wanted %i, only wrote %i\n", __func__, origcount,
-			total);
+		pr_debug("%s: wanted %zu, only wrote %zu\n", __func__,
+			 origcount, total);
 
 	return total;
 }
@@ -1038,29 +1037,29 @@ static const struct tty_operations hvsi_ops = {
 
 static int __init hvsi_init(void)
 {
-	int i;
+	struct tty_driver *driver;
+	int i, ret;
 
-	hvsi_driver = alloc_tty_driver(hvsi_count);
-	if (!hvsi_driver)
-		return -ENOMEM;
+	driver = tty_alloc_driver(hvsi_count, TTY_DRIVER_REAL_RAW);
+	if (IS_ERR(driver))
+		return PTR_ERR(driver);
 
-	hvsi_driver->driver_name = "hvsi";
-	hvsi_driver->name = "hvsi";
-	hvsi_driver->major = HVSI_MAJOR;
-	hvsi_driver->minor_start = HVSI_MINOR;
-	hvsi_driver->type = TTY_DRIVER_TYPE_SYSTEM;
-	hvsi_driver->init_termios = tty_std_termios;
-	hvsi_driver->init_termios.c_cflag = B9600 | CS8 | CREAD | HUPCL;
-	hvsi_driver->init_termios.c_ispeed = 9600;
-	hvsi_driver->init_termios.c_ospeed = 9600;
-	hvsi_driver->flags = TTY_DRIVER_REAL_RAW;
-	tty_set_operations(hvsi_driver, &hvsi_ops);
+	driver->driver_name = "hvsi";
+	driver->name = "hvsi";
+	driver->major = HVSI_MAJOR;
+	driver->minor_start = HVSI_MINOR;
+	driver->type = TTY_DRIVER_TYPE_SYSTEM;
+	driver->init_termios = tty_std_termios;
+	driver->init_termios.c_cflag = B9600 | CS8 | CREAD | HUPCL;
+	driver->init_termios.c_ispeed = 9600;
+	driver->init_termios.c_ospeed = 9600;
+	tty_set_operations(driver, &hvsi_ops);
 
 	for (i=0; i < hvsi_count; i++) {
 		struct hvsi_struct *hp = &hvsi_ports[i];
 		int ret = 1;
 
-		tty_port_link_device(&hp->port, hvsi_driver, i);
+		tty_port_link_device(&hp->port, driver, i);
 
 		ret = request_irq(hp->virq, hvsi_interrupt, 0, "hvsi", hp);
 		if (ret)
@@ -1069,12 +1068,27 @@ static int __init hvsi_init(void)
 	}
 	hvsi_wait = wait_for_state; /* irqs active now */
 
-	if (tty_register_driver(hvsi_driver))
-		panic("Couldn't register hvsi console driver\n");
+	ret = tty_register_driver(driver);
+	if (ret) {
+		pr_err("Couldn't register hvsi console driver\n");
+		goto err_free_irq;
+	}
+
+	hvsi_driver = driver;
 
 	printk(KERN_DEBUG "HVSI: registered %i devices\n", hvsi_count);
 
 	return 0;
+err_free_irq:
+	hvsi_wait = poll_for_state;
+	for (i = 0; i < hvsi_count; i++) {
+		struct hvsi_struct *hp = &hvsi_ports[i];
+
+		free_irq(hp->virq, hp);
+	}
+	tty_driver_kref_put(driver);
+
+	return ret;
 }
 device_initcall(hvsi_init);
 
@@ -1128,7 +1142,7 @@ static int __init hvsi_console_setup(struct console *console, char *options)
 	int ret;
 
 	if (console->index < 0 || console->index >= hvsi_count)
-		return -1;
+		return -EINVAL;
 	hp = &hvsi_ports[console->index];
 
 	/* give the FSP a chance to change the baud rate when we re-open */

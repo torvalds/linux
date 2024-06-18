@@ -820,6 +820,15 @@ gk110_grctx_generate_r419eb0(struct gf100_gr *gr)
 	nvkm_mask(device, 0x419eb0, 0x00001000, 0x00001000);
 }
 
+void
+gk110_grctx_generate_r419f78(struct gf100_gr *gr)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+
+	/* bit 3 set disables loads in fp helper invocations, we need it enabled */
+	nvkm_mask(device, 0x419f78, 0x00000008, 0x00000000);
+}
+
 const struct gf100_grctx_func
 gk110_grctx = {
 	.main  = gf100_grctx_generate_main,
@@ -838,6 +847,8 @@ gk110_grctx = {
 	.bundle_token_limit = 0x7c0,
 	.pagepool = gk104_grctx_generate_pagepool,
 	.pagepool_size = 0x8000,
+	.attrib_cb_size = gf100_grctx_generate_attrib_cb_size,
+	.attrib_cb = gf100_grctx_generate_attrib_cb,
 	.attrib = gf117_grctx_generate_attrib,
 	.attrib_nr_max = 0x324,
 	.attrib_nr = 0x218,
@@ -852,4 +863,5 @@ gk110_grctx = {
 	.gpc_tpc_nr = gk104_grctx_generate_gpc_tpc_nr,
 	.r418800 = gk104_grctx_generate_r418800,
 	.r419eb0 = gk110_grctx_generate_r419eb0,
+	.r419f78 = gk110_grctx_generate_r419f78,
 };

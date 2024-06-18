@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/marvell-bluetooth.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell Bluetooth chips
+
+description: |
+  This documents the binding structure and common properties for serial
+  attached Marvell Bluetooth devices.
+
+maintainers:
+  - Rob Herring <robh@kernel.org>
+
+properties:
+  compatible:
+    enum:
+      - mrvl,88w8897
+      - mrvl,88w8997
+
+  max-speed:
+    description: see Documentation/devicetree/bindings/serial/serial.yaml
+
+required:
+  - compatible
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: mrvl,88w8997
+    then:
+      properties:
+        max-speed: true
+    else:
+      properties:
+        max-speed: false
+
+additionalProperties: false
+
+examples:
+  - |
+    serial {
+      bluetooth {
+        compatible = "mrvl,88w8897";
+      };
+    };

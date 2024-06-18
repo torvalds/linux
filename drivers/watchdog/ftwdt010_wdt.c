@@ -14,7 +14,7 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/watchdog.h>
@@ -47,21 +47,28 @@ struct ftwdt010_wdt *to_ftwdt010_wdt(struct watchdog_device *wdd)
 	return container_of(wdd, struct ftwdt010_wdt, wdd);
 }
 
-static int ftwdt010_wdt_start(struct watchdog_device *wdd)
+static void ftwdt010_enable(struct ftwdt010_wdt *gwdt,
+			    unsigned int timeout,
+			    bool need_irq)
 {
-	struct ftwdt010_wdt *gwdt = to_ftwdt010_wdt(wdd);
 	u32 enable;
 
-	writel(wdd->timeout * WDT_CLOCK, gwdt->base + FTWDT010_WDLOAD);
+	writel(timeout * WDT_CLOCK, gwdt->base + FTWDT010_WDLOAD);
 	writel(WDRESTART_MAGIC, gwdt->base + FTWDT010_WDRESTART);
 	/* set clock before enabling */
 	enable = WDCR_CLOCK_5MHZ | WDCR_SYS_RST;
 	writel(enable, gwdt->base + FTWDT010_WDCR);
-	if (gwdt->has_irq)
+	if (need_irq)
 		enable |= WDCR_WDINTR;
 	enable |= WDCR_ENABLE;
 	writel(enable, gwdt->base + FTWDT010_WDCR);
+}
 
+static int ftwdt010_wdt_start(struct watchdog_device *wdd)
+{
+	struct ftwdt010_wdt *gwdt = to_ftwdt010_wdt(wdd);
+
+	ftwdt010_enable(gwdt, wdd->timeout, gwdt->has_irq);
 	return 0;
 }
 
@@ -93,6 +100,13 @@ static int ftwdt010_wdt_set_timeout(struct watchdog_device *wdd,
 	return 0;
 }
 
+static int ftwdt010_wdt_restart(struct watchdog_device *wdd,
+				unsigned long action, void *data)
+{
+	ftwdt010_enable(to_ftwdt010_wdt(wdd), 0, false);
+	return 0;
+}
+
 static irqreturn_t ftwdt010_wdt_interrupt(int irq, void *data)
 {
 	struct ftwdt010_wdt *gwdt = data;
@@ -107,6 +121,7 @@ static const struct watchdog_ops ftwdt010_wdt_ops = {
 	.stop		= ftwdt010_wdt_stop,
 	.ping		= ftwdt010_wdt_ping,
 	.set_timeout	= ftwdt010_wdt_set_timeout,
+	.restart	= ftwdt010_wdt_restart,
 	.owner		= THIS_MODULE,
 };
 
@@ -156,7 +171,7 @@ static int ftwdt010_wdt_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq) {
+	if (irq > 0) {
 		ret = devm_request_irq(dev, irq, ftwdt010_wdt_interrupt, 0,
 				       "watchdog bark", gwdt);
 		if (ret)
@@ -206,20 +221,18 @@ static const struct dev_pm_ops ftwdt010_wdt_dev_pm_ops = {
 				ftwdt010_wdt_resume)
 };
 
-#ifdef CONFIG_OF
 static const struct of_device_id ftwdt010_wdt_match[] = {
 	{ .compatible = "faraday,ftwdt010" },
 	{ .compatible = "cortina,gemini-watchdog" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, ftwdt010_wdt_match);
-#endif
 
 static struct platform_driver ftwdt010_wdt_driver = {
 	.probe		= ftwdt010_wdt_probe,
 	.driver		= {
 		.name	= "ftwdt010-wdt",
-		.of_match_table = of_match_ptr(ftwdt010_wdt_match),
+		.of_match_table = ftwdt010_wdt_match,
 		.pm = &ftwdt010_wdt_dev_pm_ops,
 	},
 };

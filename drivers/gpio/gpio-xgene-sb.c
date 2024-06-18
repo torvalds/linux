@@ -10,12 +10,11 @@
 
 #include <linux/module.h>
 #include <linux/io.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/of_gpio.h>
 #include <linux/gpio/driver.h>
 #include <linux/acpi.h>
 
-#include "gpiolib.h"
 #include "gpiolib-acpi.h"
 
 /* Common property names */
@@ -122,7 +121,7 @@ static int xgene_gpio_sb_to_irq(struct gpio_chip *gc, u32 gpio)
 	fwspec.fwnode = gc->parent->fwnode;
 	fwspec.param_count = 2;
 	fwspec.param[0] = GPIO_TO_HWIRQ(priv, gpio);
-	fwspec.param[1] = IRQ_TYPE_NONE;
+	fwspec.param[1] = IRQ_TYPE_EDGE_RISING;
 	return irq_create_fwspec_mapping(&fwspec);
 }
 
@@ -290,25 +289,19 @@ static int xgene_gpio_sb_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "X-Gene GPIO Standby driver registered\n");
 
-	if (priv->nirq > 0) {
-		/* Register interrupt handlers for gpio signaled acpi events */
-		acpi_gpiochip_request_interrupts(&priv->gc);
-	}
+	/* Register interrupt handlers for GPIO signaled ACPI Events */
+	acpi_gpiochip_request_interrupts(&priv->gc);
 
 	return ret;
 }
 
-static int xgene_gpio_sb_remove(struct platform_device *pdev)
+static void xgene_gpio_sb_remove(struct platform_device *pdev)
 {
 	struct xgene_gpio_sb *priv = platform_get_drvdata(pdev);
 
-	if (priv->nirq > 0) {
-		acpi_gpiochip_free_interrupts(&priv->gc);
-	}
+	acpi_gpiochip_free_interrupts(&priv->gc);
 
 	irq_domain_remove(priv->irq_domain);
-
-	return 0;
 }
 
 static const struct of_device_id xgene_gpio_sb_of_match[] = {
@@ -332,7 +325,7 @@ static struct platform_driver xgene_gpio_sb_driver = {
 		   .acpi_match_table = ACPI_PTR(xgene_gpio_sb_acpi_match),
 		   },
 	.probe = xgene_gpio_sb_probe,
-	.remove = xgene_gpio_sb_remove,
+	.remove_new = xgene_gpio_sb_remove,
 };
 module_platform_driver(xgene_gpio_sb_driver);
 

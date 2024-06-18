@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/potentiometer/adi,ad5272.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog Devices AD5272 digital potentiometer
+
+maintainers:
+  - Phil Reid <preid@electromag.com.au>
+
+description: |
+  Datasheet: https://www.analog.com/en/products/ad5272.html
+
+properties:
+  compatible:
+    enum:
+      - adi,ad5272-020
+      - adi,ad5272-050
+      - adi,ad5272-100
+      - adi,ad5274-020
+      - adi,ad5274-100
+
+  reg:
+    maxItems: 1
+
+  reset-gpios:
+    maxItems: 1
+    description:
+      Active low signal to the AD5272 RESET input.
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        potentiometer@2f {
+            compatible = "adi,ad5272-020";
+            reg = <0x2f>;
+            reset-gpios = <&gpio3 6 GPIO_ACTIVE_LOW>;
+        };
+    };
+...

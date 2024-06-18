@@ -24,7 +24,7 @@ Setup
 
 - Create a virtual Linux machine for QEMU/KVM (see www.linux-kvm.org and
   www.qemu.org for more details). For cross-development,
-  http://landley.net/aboriginal/bin keeps a pool of machine images and
+  https://landley.net/aboriginal/bin keeps a pool of machine images and
   toolchains that can be helpful to start from.
 
 - Build the kernel with CONFIG_GDB_SCRIPTS enabled, but leave
@@ -38,6 +38,10 @@ Setup
   you do not depend on modules. See QEMU documentation for more details on
   this mode. In this case, you should build the kernel with
   CONFIG_RANDOMIZE_BASE disabled if the architecture supports KASLR.
+
+- Build the gdb scripts (required on kernels v5.1 and above)::
+
+    make scripts_gdb
 
 - Enable the gdb stub of QEMU/KVM, either
 
@@ -114,7 +118,7 @@ Examples of using the Linux-provided gdb helpers
     [     0.000000] BIOS-e820: [mem 0x000000000009fc00-0x000000000009ffff] reserved
     ....
 
-- Examine fields of the current task struct::
+- Examine fields of the current task struct(supported by x86 and arm64 only)::
 
     (gdb) p $lx_current().pid
     $1 = 4998

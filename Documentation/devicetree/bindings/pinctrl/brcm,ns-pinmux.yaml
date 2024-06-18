@@ -1,0 +1,90 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/brcm,ns-pinmux.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom Northstar pins mux controller
+
+maintainers:
+  - Rafał Miłecki <rafal@milecki.pl>
+
+description:
+  Some of Northstar SoCs's pins can be used for various purposes thanks to the
+  mux controller. This binding allows describing mux controller and listing
+  available functions. They can be referenced later by other bindings to let
+  system configure controller correctly.
+
+  A list of pins varies across chipsets so few bindings are available.
+
+properties:
+  compatible:
+    enum:
+      - brcm,bcm4708-pinmux
+      - brcm,bcm4709-pinmux
+      - brcm,bcm53012-pinmux
+
+  reg:
+    maxItems: 1
+
+  reg-names:
+    const: cru_gpio_control
+
+patternProperties:
+  '-pins$':
+    type: object
+    description: pin node
+    $ref: pinmux-node.yaml#
+
+    properties:
+      function:
+        enum: [ spi, i2c, pwm, uart1, mdio, uart2, sdio ]
+      groups:
+        minItems: 1
+        maxItems: 4
+        items:
+          enum: [ spi_grp, i2c_grp, pwm0_grp, pwm1_grp, pwm2_grp, pwm3_grp,
+                  uart1_grp, mdio_grp, uart2_grp, sdio_pwr_grp, sdio_1p8v_grp ]
+
+    required:
+      - function
+      - groups
+
+    additionalProperties: false
+
+allOf:
+  - $ref: pinctrl.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: brcm,bcm4708-pinmux
+    then:
+      patternProperties:
+        '-pins$':
+          properties:
+            function:
+              enum: [ spi, i2c, pwm, uart1 ]
+            groups:
+              items:
+                enum: [ spi_grp, i2c_grp, pwm0_grp, pwm1_grp, pwm2_grp, pwm3_grp,
+                        uart1_grp ]
+
+required:
+  - reg
+  - reg-names
+
+additionalProperties: false
+
+examples:
+  - |
+    pinctrl@1800c1c0 {
+        compatible = "brcm,bcm4708-pinmux";
+        reg = <0x1800c1c0 0x24>;
+        reg-names = "cru_gpio_control";
+
+        spi-pins {
+            function = "spi";
+            groups = "spi_grp";
+        };
+    };

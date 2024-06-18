@@ -14,14 +14,34 @@ if OF
 
 config OF_UNITTEST
 	bool "Device Tree runtime unit tests"
-	depends on !SPARC
+	depends on OF_EARLY_FLATTREE
 	select IRQ_DOMAIN
-	select OF_EARLY_FLATTREE
 	select OF_RESOLVE
 	help
 	  This option builds in test cases for the device tree infrastructure
 	  that are executed once at boot time, and the results dumped to the
 	  console.
+
+	  This option should only be enabled for a development kernel. The tests
+	  will taint the kernel with TAINT_TEST. The tests will cause ERROR and
+	  WARNING messages to print on the console. The tests will cause stack
+	  traces to print on the console.  It is possible that the tests will
+	  leave the devicetree in a corrupted state.
+
+	  The unittest output will be verbose.  Copy the output to a file
+	  via capturing the console output or via the dmesg command.  Process
+	  this file with scripts/dtc/of_unittest_expect to reduce the
+	  verbosity, test whether expected output is present, and to
+	  summarize the results.
+
+	  If unsure, say N here. This option is not safe to enable.
+
+config OF_KUNIT_TEST
+	tristate "Devicetree KUnit Test" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  This option builds KUnit unit tests for device tree infrastructure.
 
 	  If unsure, say N here, but this option is safe to enable.
 
@@ -42,8 +62,8 @@ config OF_FLATTREE
 	select CRC32
 
 config OF_EARLY_FLATTREE
-	bool
-	select DMA_DECLARE_COHERENT if HAS_DMA
+	def_bool OF && !(SPARC || ALPHA || HEXAGON || M68K || PARISC || S390)
+	select DMA_DECLARE_COHERENT if HAS_DMA && HAS_IOMEM
 	select OF_FLATTREE
 
 config OF_PROMTREE
@@ -70,21 +90,8 @@ config OF_IRQ
 	def_bool y
 	depends on !SPARC && IRQ_DOMAIN
 
-config OF_NET
-	depends on NETDEVICES
-	def_bool y
-
-config OF_MDIO
-	def_tristate PHYLIB
-	depends on PHYLIB
-	select FIXED_PHY
-	help
-	  OpenFirmware MDIO bus (Ethernet PHY) accessors
-
 config OF_RESERVED_MEM
-	bool
-	depends on OF_EARLY_FLATTREE
-	default y if DMA_DECLARE_COHERENT || DMA_CMA
+	def_bool OF_EARLY_FLATTREE
 
 config OF_RESOLVE
 	bool

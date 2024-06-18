@@ -58,7 +58,7 @@ There are a couple of variants of perf kvm:
   events.
 
   'perf kvm stat report' reports statistical data which includes events
-  handled time, samples, and so on.
+  handled sample, percent_sample, time, percent_time, max_t, min_t, mean_t.
 
   'perf kvm stat live' reports statistical data in a live mode (similar to
   record + report but with statistical data updated live at a given display
@@ -68,31 +68,22 @@ OPTIONS
 -------
 -i::
 --input=<path>::
-        Input file name.
+        Input file name, for the 'report', 'diff' and 'buildid-list' subcommands.
 -o::
 --output=<path>::
-        Output file name.
+        Output file name, for the 'record' subcommand. Doesn't work with 'report',
+        just redirect the output to a file when using 'report'.
 --host::
         Collect host side performance profile.
 --guest::
         Collect guest side performance profile.
---guestmount=<path>::
-	Guest os root file system mount directory. Users mounts guest os
-        root directories under <path> by a specific filesystem access method,
-	typically, sshfs. For example, start 2 guest os. The one's pid is 8888
-	and the other's is 9999.
-        #mkdir ~/guestmount; cd ~/guestmount
-        #sshfs -o allow_other,direct_io -p 5551 localhost:/ 8888/
-        #sshfs -o allow_other,direct_io -p 5552 localhost:/ 9999/
-        #perf kvm --host --guest --guestmount=~/guestmount top
---guestkallsyms=<path>::
-        Guest os /proc/kallsyms file copy. 'perf' kvm' reads it to get guest
-	kernel symbols. Users copy it out from guest os.
---guestmodules=<path>::
-	Guest os /proc/modules file copy. 'perf' kvm' reads it to get guest
-	kernel module information. Users copy it out from guest os.
---guestvmlinux=<path>::
-	Guest os kernel vmlinux.
+
+:GMEXAMPLECMD: kvm --host --guest
+:GMEXAMPLESUBCMD: top
+include::guest-files.txt[]
+
+--stdio:: Use the stdio interface.
+
 -v::
 --verbose::
 	Be more verbose (show counter open errors, etc).
@@ -108,7 +99,10 @@ STAT REPORT OPTIONS
 -k::
 --key=<value>::
        Sorting key. Possible values: sample (default, sort by samples
-       number), time (sort by average time).
+       number), percent_sample (sort by sample percentage), time
+       (sort by average time), precent_time (sort by time percentage),
+       max_t (sort by maximum time), min_t (sort by minimum time), mean_t
+       (sort by mean time).
 -p::
 --pid=::
     Analyze events only for given process ID(s) (comma separated list).

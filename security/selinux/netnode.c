@@ -54,7 +54,6 @@ struct sel_netnode {
  * if this becomes a problem we can always add a hash table for each address
  * family later */
 
-static LIST_HEAD(sel_netnode_list);
 static DEFINE_SPINLOCK(sel_netnode_lock);
 static struct sel_netnode_bkt sel_netnode_hash[SEL_NETNODE_HASH_SIZE];
 
@@ -108,7 +107,7 @@ static struct sel_netnode *sel_netnode_find(const void *addr, u16 family)
 
 	switch (family) {
 	case PF_INET:
-		idx = sel_netnode_hashfn_ipv4(*(__be32 *)addr);
+		idx = sel_netnode_hashfn_ipv4(*(const __be32 *)addr);
 		break;
 	case PF_INET6:
 		idx = sel_netnode_hashfn_ipv6(addr);
@@ -122,7 +121,7 @@ static struct sel_netnode *sel_netnode_find(const void *addr, u16 family)
 		if (node->nsec.family == family)
 			switch (family) {
 			case PF_INET:
-				if (node->nsec.addr.ipv4 == *(__be32 *)addr)
+				if (node->nsec.addr.ipv4 == *(const __be32 *)addr)
 					return node;
 				break;
 			case PF_INET6:
@@ -165,8 +164,9 @@ static void sel_netnode_insert(struct sel_netnode *node)
 	if (sel_netnode_hash[idx].size == SEL_NETNODE_HASH_BKT_LIMIT) {
 		struct sel_netnode *tail;
 		tail = list_entry(
-			rcu_dereference_protected(sel_netnode_hash[idx].list.prev,
-						  lockdep_is_held(&sel_netnode_lock)),
+			rcu_dereference_protected(
+				list_tail_rcu(&sel_netnode_hash[idx].list),
+				lockdep_is_held(&sel_netnode_lock)),
 			struct sel_netnode, list);
 		list_del_rcu(&tail->list);
 		kfree_rcu(tail, rcu);
@@ -181,7 +181,7 @@ static void sel_netnode_insert(struct sel_netnode *node)
  * @sid: node SID
  *
  * Description:
- * This function determines the SID of a network address by quering the
+ * This function determines the SID of a network address by querying the
  * security policy.  The result is added to the network address table to
  * speedup future queries.  Returns zero on success, negative values on
  * failure.
@@ -204,13 +204,13 @@ static int sel_netnode_sid_slow(void *addr, u16 family, u32 *sid)
 	new = kzalloc(sizeof(*new), GFP_ATOMIC);
 	switch (family) {
 	case PF_INET:
-		ret = security_node_sid(&selinux_state, PF_INET,
+		ret = security_node_sid(PF_INET,
 					addr, sizeof(struct in_addr), sid);
 		if (new)
 			new->nsec.addr.ipv4 = *(__be32 *)addr;
 		break;
 	case PF_INET6:
-		ret = security_node_sid(&selinux_state, PF_INET6,
+		ret = security_node_sid(PF_INET6,
 					addr, sizeof(struct in6_addr), sid);
 		if (new)
 			new->nsec.addr.ipv6 = *(struct in6_addr *)addr;
@@ -291,7 +291,7 @@ static __init int sel_netnode_init(void)
 {
 	int iter;
 
-	if (!selinux_enabled)
+	if (!selinux_enabled_boot)
 		return 0;
 
 	for (iter = 0; iter < SEL_NETNODE_HASH_SIZE; iter++) {

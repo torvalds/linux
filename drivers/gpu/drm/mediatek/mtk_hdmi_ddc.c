@@ -19,6 +19,9 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 
+#include "mtk_drm_drv.h"
+#include "mtk_hdmi.h"
+
 #define SIF1_CLOK		(288)
 #define DDC_DDCMCTL0		(0x0)
 #define DDCM_ODRAIN			BIT(31)
@@ -281,8 +284,7 @@ static int mtk_hdmi_ddc_probe(struct platform_device *pdev)
 		return PTR_ERR(ddc->clk);
 	}
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ddc->regs = devm_ioremap_resource(&pdev->dev, mem);
+	ddc->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &mem);
 	if (IS_ERR(ddc->regs))
 		return PTR_ERR(ddc->regs);
 
@@ -292,9 +294,8 @@ static int mtk_hdmi_ddc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	strlcpy(ddc->adap.name, "mediatek-hdmi-ddc", sizeof(ddc->adap.name));
+	strscpy(ddc->adap.name, "mediatek-hdmi-ddc", sizeof(ddc->adap.name));
 	ddc->adap.owner = THIS_MODULE;
-	ddc->adap.class = I2C_CLASS_DDC;
 	ddc->adap.algo = &mtk_hdmi_ddc_algorithm;
 	ddc->adap.retries = 3;
 	ddc->adap.dev.of_node = dev->of_node;
@@ -321,24 +322,23 @@ err_clk_disable:
 	return ret;
 }
 
-static int mtk_hdmi_ddc_remove(struct platform_device *pdev)
+static void mtk_hdmi_ddc_remove(struct platform_device *pdev)
 {
 	struct mtk_hdmi_ddc *ddc = platform_get_drvdata(pdev);
 
 	i2c_del_adapter(&ddc->adap);
 	clk_disable_unprepare(ddc->clk);
-
-	return 0;
 }
 
 static const struct of_device_id mtk_hdmi_ddc_match[] = {
 	{ .compatible = "mediatek,mt8173-hdmi-ddc", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, mtk_hdmi_ddc_match);
 
 struct platform_driver mtk_hdmi_ddc_driver = {
 	.probe = mtk_hdmi_ddc_probe,
-	.remove = mtk_hdmi_ddc_remove,
+	.remove_new = mtk_hdmi_ddc_remove,
 	.driver = {
 		.name = "mediatek-hdmi-ddc",
 		.of_match_table = mtk_hdmi_ddc_match,

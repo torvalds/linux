@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/platform_data/bcm7038_wdt.h>
 #include <linux/pm.h>
 #include <linux/watchdog.h>
 
@@ -34,6 +35,25 @@ struct bcm7038_watchdog {
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
 
+static inline void bcm7038_wdt_write(u32 value, void __iomem *addr)
+{
+	/* MIPS chips strapped for BE will automagically configure the
+	 * peripheral registers for CPU-native byte order.
+	 */
+	if (IS_ENABLED(CONFIG_MIPS) && IS_ENABLED(CONFIG_CPU_BIG_ENDIAN))
+		__raw_writel(value, addr);
+	else
+		writel_relaxed(value, addr);
+}
+
+static inline u32 bcm7038_wdt_read(void __iomem *addr)
+{
+	if (IS_ENABLED(CONFIG_MIPS) && IS_ENABLED(CONFIG_CPU_BIG_ENDIAN))
+		return __raw_readl(addr);
+	else
+		return readl_relaxed(addr);
+}
+
 static void bcm7038_wdt_set_timeout_reg(struct watchdog_device *wdog)
 {
 	struct bcm7038_watchdog *wdt = watchdog_get_drvdata(wdog);
@@ -41,15 +61,15 @@ static void bcm7038_wdt_set_timeout_reg(struct watchdog_device *wdog)
 
 	timeout = wdt->rate * wdog->timeout;
 
-	writel(timeout, wdt->base + WDT_TIMEOUT_REG);
+	bcm7038_wdt_write(timeout, wdt->base + WDT_TIMEOUT_REG);
 }
 
 static int bcm7038_wdt_ping(struct watchdog_device *wdog)
 {
 	struct bcm7038_watchdog *wdt = watchdog_get_drvdata(wdog);
 
-	writel(WDT_START_1, wdt->base + WDT_CMD_REG);
-	writel(WDT_START_2, wdt->base + WDT_CMD_REG);
+	bcm7038_wdt_write(WDT_START_1, wdt->base + WDT_CMD_REG);
+	bcm7038_wdt_write(WDT_START_2, wdt->base + WDT_CMD_REG);
 
 	return 0;
 }
@@ -66,8 +86,8 @@ static int bcm7038_wdt_stop(struct watchdog_device *wdog)
 {
 	struct bcm7038_watchdog *wdt = watchdog_get_drvdata(wdog);
 
-	writel(WDT_STOP_1, wdt->base + WDT_CMD_REG);
-	writel(WDT_STOP_2, wdt->base + WDT_CMD_REG);
+	bcm7038_wdt_write(WDT_STOP_1, wdt->base + WDT_CMD_REG);
+	bcm7038_wdt_write(WDT_STOP_2, wdt->base + WDT_CMD_REG);
 
 	return 0;
 }
@@ -88,7 +108,7 @@ static unsigned int bcm7038_wdt_get_timeleft(struct watchdog_device *wdog)
 	struct bcm7038_watchdog *wdt = watchdog_get_drvdata(wdog);
 	u32 time_left;
 
-	time_left = readl(wdt->base + WDT_CMD_REG);
+	time_left = bcm7038_wdt_read(wdt->base + WDT_CMD_REG);
 
 	return time_left / wdt->rate;
 }
@@ -107,15 +127,12 @@ static const struct watchdog_ops bcm7038_wdt_ops = {
 	.get_timeleft	= bcm7038_wdt_get_timeleft,
 };
 
-static void bcm7038_clk_disable_unprepare(void *data)
-{
-	clk_disable_unprepare(data);
-}
-
 static int bcm7038_wdt_probe(struct platform_device *pdev)
 {
+	struct bcm7038_wdt_platform_data *pdata = pdev->dev.platform_data;
 	struct device *dev = &pdev->dev;
 	struct bcm7038_watchdog *wdt;
+	const char *clk_name = NULL;
 	int err;
 
 	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
@@ -128,17 +145,12 @@ static int bcm7038_wdt_probe(struct platform_device *pdev)
 	if (IS_ERR(wdt->base))
 		return PTR_ERR(wdt->base);
 
-	wdt->clk = devm_clk_get(dev, NULL);
+	if (pdata && pdata->clk_name)
+		clk_name = pdata->clk_name;
+
+	wdt->clk = devm_clk_get_enabled(dev, clk_name);
 	/* If unable to get clock, use default frequency */
 	if (!IS_ERR(wdt->clk)) {
-		err = clk_prepare_enable(wdt->clk);
-		if (err)
-			return err;
-		err = devm_add_action_or_reset(dev,
-					       bcm7038_clk_disable_unprepare,
-					       wdt->clk);
-		if (err)
-			return err;
 		wdt->rate = clk_get_rate(wdt->clk);
 		/* Prevent divide-by-zero exception */
 		if (!wdt->rate)
@@ -167,7 +179,6 @@ static int bcm7038_wdt_probe(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int bcm7038_wdt_suspend(struct device *dev)
 {
 	struct bcm7038_watchdog *wdt = dev_get_drvdata(dev);
@@ -187,23 +198,30 @@ static int bcm7038_wdt_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(bcm7038_wdt_pm_ops, bcm7038_wdt_suspend,
-			 bcm7038_wdt_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(bcm7038_wdt_pm_ops,
+				bcm7038_wdt_suspend, bcm7038_wdt_resume);
 
 static const struct of_device_id bcm7038_wdt_match[] = {
+	{ .compatible = "brcm,bcm6345-wdt" },
 	{ .compatible = "brcm,bcm7038-wdt" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, bcm7038_wdt_match);
 
+static const struct platform_device_id bcm7038_wdt_devtype[] = {
+	{ .name = "bcm63xx-wdt" },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(platform, bcm7038_wdt_devtype);
+
 static struct platform_driver bcm7038_wdt_driver = {
 	.probe		= bcm7038_wdt_probe,
+	.id_table	= bcm7038_wdt_devtype,
 	.driver		= {
 		.name		= "bcm7038-wdt",
 		.of_match_table	= bcm7038_wdt_match,
-		.pm		= &bcm7038_wdt_pm_ops,
+		.pm		= pm_sleep_ptr(&bcm7038_wdt_pm_ops),
 	}
 };
 module_platform_driver(bcm7038_wdt_driver);

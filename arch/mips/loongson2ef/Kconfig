@@ -1,0 +1,97 @@
+# SPDX-License-Identifier: GPL-2.0
+if MACH_LOONGSON2EF
+
+choice
+	prompt "Machine Type"
+
+config LEMOTE_FULOONG2E
+	bool "Lemote Fuloong(2e) mini-PC"
+	select ARCH_SPARSEMEM_ENABLE
+	select ARCH_HAS_PHYS_TO_DMA
+	select ARCH_MIGHT_HAVE_PC_PARPORT
+	select ARCH_MIGHT_HAVE_PC_SERIO
+	select CEVT_R4K
+	select CSRC_R4K
+	select SYS_HAS_CPU_LOONGSON2E
+	select DMA_NONCOHERENT
+	select BOOT_ELF32
+	select BOARD_SCACHE
+	select FORCE_PCI
+	select I8259
+	select ISA
+	select IRQ_MIPS_CPU
+	select SYS_SUPPORTS_64BIT_KERNEL
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_SUPPORTS_HIGHMEM
+	select SYS_HAS_EARLY_PRINTK
+	select USE_GENERIC_EARLY_PRINTK_8250
+	select GENERIC_ISA_DMA_SUPPORT_BROKEN
+	select CPU_HAS_WB
+	select LOONGSON_MC146818
+	help
+	  Lemote Fuloong(2e) mini-PC board based on the Chinese Loongson-2E CPU and
+	  an FPGA northbridge
+
+	  Lemote Fuloong(2e) mini PC have a VIA686B south bridge.
+
+config LEMOTE_MACH2F
+	bool "Lemote Loongson 2F family machines"
+	select ARCH_SPARSEMEM_ENABLE
+	select ARCH_HAS_PHYS_TO_DMA
+	select ARCH_MIGHT_HAVE_PC_PARPORT
+	select ARCH_MIGHT_HAVE_PC_SERIO
+	select BOARD_SCACHE
+	select BOOT_ELF32
+	select CEVT_R4K if ! MIPS_EXTERNAL_TIMER
+	select CPU_HAS_WB
+	select CS5536
+	select CSRC_R4K if ! MIPS_EXTERNAL_TIMER
+	select DMA_NONCOHERENT
+	select GENERIC_ISA_DMA_SUPPORT_BROKEN
+	select GPIOLIB
+	select FORCE_PCI
+	select I8259
+	select IRQ_MIPS_CPU
+	select ISA
+	select SYS_HAS_CPU_LOONGSON2F
+	select SYS_HAS_EARLY_PRINTK
+	select USE_GENERIC_EARLY_PRINTK_8250
+	select SYS_SUPPORTS_64BIT_KERNEL
+	select SYS_SUPPORTS_HIGHMEM
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select LOONGSON_MC146818
+	help
+	  Lemote Loongson 2F family machines utilize the 2F revision of
+	  Loongson processor and the AMD CS5536 south bridge.
+
+	  These family machines include fuloong2f mini PC, yeeloong2f notebook,
+	  LingLoong allinone PC and so forth.
+
+endchoice
+
+config CS5536
+	bool
+
+config CS5536_MFGPT
+	bool "CS5536 MFGPT Timer"
+	depends on CS5536 && !HIGH_RES_TIMERS
+	select MIPS_EXTERNAL_TIMER
+	help
+	  This option enables the mfgpt0 timer of AMD CS5536. With this timer
+	  switched on you can not use high resolution timers.
+
+	  If you want to enable the Loongson2 CPUFreq Driver, Please enable
+	  this option at first, otherwise, You will get wrong system time.
+
+	  If unsure, say Yes.
+
+config LOONGSON_UART_BASE
+	bool
+	default y
+	depends on EARLY_PRINTK || SERIAL_8250
+
+config LOONGSON_MC146818
+	bool
+	default n
+
+endif # MACH_LOONGSON2EF

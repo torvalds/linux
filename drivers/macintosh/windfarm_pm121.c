@@ -201,7 +201,8 @@
 #include <linux/kmod.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
-#include <asm/prom.h>
+#include <linux/of.h>
+
 #include <asm/machdep.h>
 #include <asm/io.h>
 #include <asm/sections.h>
@@ -433,7 +434,7 @@ struct pm121_sys_state {
 	struct wf_pid_state	pid;
 };
 
-struct pm121_sys_state *pm121_sys_state[N_LOOPS] = {};
+static struct pm121_sys_state *pm121_sys_state[N_LOOPS] = {};
 
 /*
  * ****** CPU Fans Control Loop ******
@@ -650,7 +651,7 @@ static void pm121_create_cpu_fans(void)
 
 	/* First, locate the PID params in SMU SBD */
 	hdr = smu_get_sdb_partition(SMU_SDB_CPUPIDDATA_ID, NULL);
-	if (hdr == 0) {
+	if (!hdr) {
 		printk(KERN_WARNING "pm121: CPU PID fan config not found.\n");
 		goto fail;
 	}
@@ -969,7 +970,7 @@ static int pm121_init_pm(void)
 	const struct smu_sdbp_header *hdr;
 
 	hdr = smu_get_sdb_partition(SMU_SDB_SENSORTREE_ID, NULL);
-	if (hdr != 0) {
+	if (hdr) {
 		struct smu_sdbp_sensortree *st =
 			(struct smu_sdbp_sensortree *)&hdr[1];
 		pm121_mach_model = st->model_id;
@@ -991,15 +992,14 @@ static int pm121_probe(struct platform_device *ddev)
 	return 0;
 }
 
-static int pm121_remove(struct platform_device *ddev)
+static void pm121_remove(struct platform_device *ddev)
 {
 	wf_unregister_client(&pm121_events);
-	return 0;
 }
 
 static struct platform_driver pm121_driver = {
 	.probe = pm121_probe,
-	.remove = pm121_remove,
+	.remove_new = pm121_remove,
 	.driver = {
 		.name = "windfarm",
 		.bus = &platform_bus_type,

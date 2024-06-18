@@ -49,7 +49,7 @@ static int mmapped;
 
 static wait_queue_head_t pcf_wait;
 static int pcf_pending;
-static spinlock_t lock;
+static DEFINE_SPINLOCK(lock);
 
 static struct i2c_adapter pcf_isa_ops;
 
@@ -132,7 +132,6 @@ static irqreturn_t pcf_isa_handler(int this_irq, void *dev_id) {
 
 static int pcf_isa_init(void)
 {
-	spin_lock_init(&lock);
 	if (!mmapped) {
 		if (!request_region(base, 2, pcf_isa_ops.name)) {
 			printk(KERN_ERR "%s: requested I/O region (%#x:2) is "
@@ -189,7 +188,7 @@ static struct i2c_algo_pcf_data pcf_isa_data = {
 
 static struct i2c_adapter pcf_isa_ops = {
 	.owner		= THIS_MODULE,
-	.class		= I2C_CLASS_HWMON | I2C_CLASS_SPD,
+	.class		= I2C_CLASS_HWMON,
 	.algo_data	= &pcf_isa_data,
 	.name		= "i2c-elektor",
 };
@@ -282,7 +281,7 @@ static int elektor_probe(struct device *dev, unsigned int id)
 	return -ENODEV;
 }
 
-static int elektor_remove(struct device *dev, unsigned int id)
+static void elektor_remove(struct device *dev, unsigned int id)
 {
 	i2c_del_adapter(&pcf_isa_ops);
 
@@ -298,8 +297,6 @@ static int elektor_remove(struct device *dev, unsigned int id)
 		iounmap(base_iomem);
 		release_mem_region(base, 2);
 	}
-
-	return 0;
 }
 
 static struct isa_driver i2c_elektor_driver = {

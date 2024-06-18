@@ -9,23 +9,11 @@ config NET_DSA_MV88E6XXX
 	  This driver adds support for most of the Marvell 88E6xxx models of
 	  Ethernet switch chips, except 88E6060.
 
-config NET_DSA_MV88E6XXX_GLOBAL2
-	bool "Switch Global 2 Registers support"
-	default y
-	depends on NET_DSA_MV88E6XXX
-	help
-	  This registers set at internal SMI address 0x1C provides extended
-	  features like EEPROM interface, trunking, cross-chip setup, etc.
-
-	  It is required on most chips. If the chip you compile the support for
-	  doesn't have such registers set, say N here. In doubt, say Y.
-
 config NET_DSA_MV88E6XXX_PTP
 	bool "PTP support for Marvell 88E6xxx"
 	default n
-	depends on NET_DSA_MV88E6XXX_GLOBAL2
-	imply NETWORK_PHY_TIMESTAMPING
-	imply PTP_1588_CLOCK
+	depends on (NET_DSA_MV88E6XXX = y && PTP_1588_CLOCK = y) || \
+	           (NET_DSA_MV88E6XXX = m && PTP_1588_CLOCK)
 	help
 	  Say Y to enable PTP hardware timestamping on Marvell 88E6xxx switch
 	  chips that support it.

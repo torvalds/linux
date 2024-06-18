@@ -18,6 +18,7 @@ struct platform_device;
 
 #define PCIE_LTSSM	0x0404		/* PCIE Link Training and Status */
 #define PCIE_LTSSM_L0	0x16		/* L0 state */
+#define PCIE_FSL_CSR_CLASSCODE	0x474	/* FSL GPEX CSR */
 #define PCIE_IP_REV_2_2		0x02080202 /* PCIE IP block version Rev2.2 */
 #define PCIE_IP_REV_3_0		0x02080300 /* PCIE IP block version Rev3.0 */
 #define PIWAR_EN		0x80000000	/* Enable */
@@ -111,7 +112,6 @@ struct ccsr_pci {
 
 };
 
-extern int fsl_add_bridge(struct platform_device *pdev, int is_primary);
 extern void fsl_pcibios_fixup_bus(struct pci_bus *bus);
 extern void fsl_pcibios_fixup_phb(struct pci_controller *phb);
 extern int mpc83xx_add_bridge(struct device_node *dev);
@@ -120,7 +120,7 @@ u64 fsl_pci_immrbar_base(struct pci_controller *hose);
 extern struct device_node *fsl_pci_primary;
 
 #ifdef CONFIG_PCI
-void fsl_pci_assign_primary(void);
+void __init fsl_pci_assign_primary(void);
 #else
 static inline void fsl_pci_assign_primary(void) {}
 #endif

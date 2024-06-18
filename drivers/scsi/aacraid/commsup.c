@@ -214,6 +214,7 @@ int aac_fib_setup(struct aac_dev * dev)
 /**
  *	aac_fib_alloc_tag-allocate a fib using tags
  *	@dev: Adapter to allocate the fib for
+ *	@scmd: SCSI command
  *
  *	Allocate a fib from the adapter fib pool using tags
  *	from the blk layer.
@@ -223,7 +224,7 @@ struct fib *aac_fib_alloc_tag(struct aac_dev *dev, struct scsi_cmnd *scmd)
 {
 	struct fib *fibptr;
 
-	fibptr = &dev->fibs[scmd->request->tag];
+	fibptr = &dev->fibs[scsi_cmd_to_rq(scmd)->tag];
 	/*
 	 *	Null out fields that depend on being zero at the start of
 	 *	each I/O
@@ -232,6 +233,7 @@ struct fib *aac_fib_alloc_tag(struct aac_dev *dev, struct scsi_cmnd *scmd)
 	fibptr->type = FSAFS_NTC_FIB_CONTEXT;
 	fibptr->callback_data = NULL;
 	fibptr->callback = NULL;
+	fibptr->flags = 0;
 
 	return fibptr;
 }
@@ -321,7 +323,7 @@ void aac_fib_init(struct fib *fibptr)
 }
 
 /**
- *	fib_deallocate		-	deallocate a fib
+ *	fib_dealloc		-	deallocate a fib
  *	@fibptr: fib to deallocate
  *
  *	Will deallocate and return to the free pool the FIB pointed to by the
@@ -404,8 +406,8 @@ static int aac_get_entry (struct aac_dev * dev, u32 qid, struct aac_entry **entr
  *	aac_queue_get		-	get the next free QE
  *	@dev: Adapter
  *	@index: Returned index
- *	@priority: Priority of fib
- *	@fib: Fib to associate with the queue entry
+ *	@qid: Queue number
+ *	@hw_fib: Fib to associate with the queue entry
  *	@wait: Wait if queue full
  *	@fibptr: Driver fib object to go with fib
  *	@nonotify: Don't notify the adapter
@@ -728,7 +730,7 @@ int aac_hba_send(u8 command, struct fib *fibptr, fib_callback callback,
 		hbacmd->request_id =
 			cpu_to_le32((((u32)(fibptr - dev->fibs)) << 2) + 1);
 		fibptr->flags |= FIB_CONTEXT_FLAG_SCSI_CMD;
-	} else if (command != HBA_IU_TYPE_SCSI_TM_REQ)
+	} else
 		return -EINVAL;
 
 
@@ -933,7 +935,7 @@ int aac_fib_adapter_complete(struct fib *fibptr, unsigned short size)
 
 /**
  *	aac_fib_complete	-	fib completion handler
- *	@fib: FIB to complete
+ *	@fibptr: FIB to complete
  *
  *	Will do all necessary work to complete a FIB.
  */
@@ -1048,6 +1050,7 @@ static void aac_handle_aif_bu(struct aac_dev *dev, struct aac_aifcmd *aifcmd)
 	}
 }
 
+#define AIF_SNIFF_TIMEOUT	(500*HZ)
 /**
  *	aac_handle_aif		-	Handle a message from the firmware
  *	@dev: Which adapter this fib is from
@@ -1056,8 +1059,6 @@ static void aac_handle_aif_bu(struct aac_dev *dev, struct aac_aifcmd *aifcmd)
  *	This routine handles a driver notify fib from the adapter and
  *	dispatches it to the appropriate routine for handling.
  */
-
-#define AIF_SNIFF_TIMEOUT	(500*HZ)
 static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
 {
 	struct hw_fib * hw_fib = fibptr->hw_fib_va;
@@ -1430,7 +1431,7 @@ retry_next:
 						"enclosure services event");
 				scsi_device_set_state(device, SDEV_RUNNING);
 			}
-			/* FALLTHRU */
+			fallthrough;
 		case CHANGE:
 			if ((channel == CONTAINER_CHANNEL)
 			 && (!dev->fsa_dev[container].valid)) {
@@ -1446,7 +1447,8 @@ retry_next:
 #endif
 				break;
 			}
-			scsi_rescan_device(&device->sdev_gendev);
+			scsi_rescan_device(device);
+			break;
 
 		default:
 			break;
@@ -1463,14 +1465,19 @@ retry_next:
 	}
 }
 
+static void aac_schedule_bus_scan(struct aac_dev *aac)
+{
+	if (aac->sa_firmware)
+		aac_schedule_safw_scan_worker(aac);
+	else
+		aac_schedule_src_reinit_aif_worker(aac);
+}
+
 static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 {
 	int index, quirks;
 	int retval;
-	struct Scsi_Host *host;
-	struct scsi_device *dev;
-	struct scsi_cmnd *command;
-	struct scsi_cmnd *command_list;
+	struct Scsi_Host *host = aac->scsi_host_ptr;
 	int jafo = 0;
 	int bled;
 	u64 dmamask;
@@ -1486,8 +1493,6 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 	 *	- The card is dead, or will be very shortly ;-/ so no new
 	 *	  commands are completing in the interrupt service.
 	 */
-	host = aac->scsi_host_ptr;
-	scsi_block_requests(host);
 	aac_adapter_disable_int(aac);
 	if (aac->thread && aac->thread->pid != current->pid) {
 		spin_unlock_irq(host->host_lock);
@@ -1547,6 +1552,7 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 	aac_fib_map_free(aac);
 	dma_free_coherent(&aac->pdev->dev, aac->comm_size, aac->comm_addr,
 			  aac->comm_phys);
+	aac_adapter_ioremap(aac, 0);
 	aac->comm_addr = NULL;
 	aac->comm_phys = 0;
 	kfree(aac->queues);
@@ -1557,15 +1563,15 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 	dmamask = DMA_BIT_MASK(32);
 	quirks = aac_get_driver_ident(index)->quirks;
 	if (quirks & AAC_QUIRK_31BIT)
-		retval = pci_set_dma_mask(aac->pdev, dmamask);
+		retval = dma_set_mask(&aac->pdev->dev, dmamask);
 	else if (!(quirks & AAC_QUIRK_SRC))
-		retval = pci_set_dma_mask(aac->pdev, dmamask);
+		retval = dma_set_mask(&aac->pdev->dev, dmamask);
 	else
-		retval = pci_set_consistent_dma_mask(aac->pdev, dmamask);
+		retval = dma_set_coherent_mask(&aac->pdev->dev, dmamask);
 
 	if (quirks & AAC_QUIRK_31BIT && !retval) {
 		dmamask = DMA_BIT_MASK(31);
-		retval = pci_set_consistent_dma_mask(aac->pdev, dmamask);
+		retval = dma_set_coherent_mask(&aac->pdev->dev, dmamask);
 	}
 
 	if (retval)
@@ -1598,39 +1604,11 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 	 * This is where the assumption that the Adapter is quiesced
 	 * is important.
 	 */
-	command_list = NULL;
-	__shost_for_each_device(dev, host) {
-		unsigned long flags;
-		spin_lock_irqsave(&dev->list_lock, flags);
-		list_for_each_entry(command, &dev->cmd_list, list)
-			if (command->SCp.phase == AAC_OWNER_FIRMWARE) {
-				command->SCp.buffer = (struct scatterlist *)command_list;
-				command_list = command;
-			}
-		spin_unlock_irqrestore(&dev->list_lock, flags);
-	}
-	while ((command = command_list)) {
-		command_list = (struct scsi_cmnd *)command->SCp.buffer;
-		command->SCp.buffer = NULL;
-		command->result = DID_OK << 16
-		  | COMMAND_COMPLETE << 8
-		  | SAM_STAT_TASK_SET_FULL;
-		command->SCp.phase = AAC_OWNER_ERROR_HANDLER;
-		command->scsi_done(command);
-	}
-	/*
-	 * Any Device that was already marked offline needs to be marked
-	 * running
-	 */
-	__shost_for_each_device(dev, host) {
-		if (!scsi_device_online(dev))
-			scsi_device_set_state(dev, SDEV_RUNNING);
-	}
-	retval = 0;
+	scsi_host_complete_all_commands(host, DID_RESET);
 
+	retval = 0;
 out:
 	aac->in_reset = 0;
-	scsi_unblock_requests(host);
 
 	/*
 	 * Issue bus rescan to catch any configuration that might have
@@ -1638,7 +1616,7 @@ out:
 	 */
 	if (!retval && !is_kdump_kernel()) {
 		dev_info(&aac->pdev->dev, "Scheduling bus rescan\n");
-		aac_schedule_safw_scan_worker(aac);
+		aac_schedule_bus_scan(aac);
 	}
 
 	if (jafo) {
@@ -1650,8 +1628,8 @@ out:
 int aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 {
 	unsigned long flagv = 0;
-	int retval;
-	struct Scsi_Host * host;
+	int retval, unblock_retval;
+	struct Scsi_Host *host = aac->scsi_host_ptr;
 	int bled;
 
 	if (spin_trylock_irqsave(&aac->fib_lock, flagv) == 0)
@@ -1669,8 +1647,7 @@ int aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 	 * target (block maximum 60 seconds). Although not necessary,
 	 * it does make us a good storage citizen.
 	 */
-	host = aac->scsi_host_ptr;
-	scsi_block_requests(host);
+	scsi_host_block(host);
 
 	/* Quiesce build, flush cache, write through mode */
 	if (forced < 2)
@@ -1681,6 +1658,9 @@ int aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 	retval = _aac_reset_adapter(aac, bled, reset_type);
 	spin_unlock_irqrestore(host->host_lock, flagv);
 
+	unblock_retval = scsi_host_unblock(host, SDEV_RUNNING);
+	if (!retval)
+		retval = unblock_retval;
 	if ((forced < 2) && (retval == -ENODEV)) {
 		/* Unwind aac_send_shutdown() IOP_RESET unsupported/disabled */
 		struct fib * fibctx = aac_fib_alloc(aac);
@@ -1959,8 +1939,18 @@ int aac_scan_host(struct aac_dev *dev)
 	return rcode;
 }
 
+void aac_src_reinit_aif_worker(struct work_struct *work)
+{
+	struct aac_dev *dev = container_of(to_delayed_work(work),
+				struct aac_dev, src_reinit_aif_worker);
+
+	wait_event(dev->scsi_host_ptr->host_wait,
+			!scsi_host_in_recovery(dev->scsi_host_ptr));
+	aac_reinit_aif(dev, dev->cardtype);
+}
+
 /**
- *	aac_handle_sa_aif	Handle a message from the firmware
+ *	aac_handle_sa_aif -	Handle a message from the firmware
  *	@dev: Which adapter this fib is from
  *	@fibptr: Pointer to fibptr from adapter
  *
@@ -2363,7 +2353,7 @@ fib_free_out:
 	goto out;
 }
 
-int aac_send_safw_hostttime(struct aac_dev *dev, struct timespec64 *now)
+static int aac_send_safw_hostttime(struct aac_dev *dev, struct timespec64 *now)
 {
 	struct tm cur_tm;
 	char wellness_str[] = "<HW>TD\010\0\0\0\0\0\0\0\0\0DW\0\0ZZ";
@@ -2392,7 +2382,7 @@ out:
 	return ret;
 }
 
-int aac_send_hosttime(struct aac_dev *dev, struct timespec64 *now)
+static int aac_send_hosttime(struct aac_dev *dev, struct timespec64 *now)
 {
 	int ret = -ENOMEM;
 	struct fib *fibptr;
@@ -2428,7 +2418,7 @@ out:
 
 /**
  *	aac_command_thread	-	command processing thread
- *	@dev: Adapter to monitor
+ *	@data: Adapter to monitor
  *
  *	Waits on the commandready event in it's queue. When the event gets set
  *	it will pull FIBs off it's queue. It will continue to pull FIBs off

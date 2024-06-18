@@ -366,8 +366,7 @@ static int amd8111_dev_probe(struct pci_dev *dev,
 	dev_info->edac_idx = edac_device_alloc_index();
 	dev_info->edac_dev =
 		edac_device_alloc_ctl_info(0, dev_info->ctl_name, 1,
-					   NULL, 0, 0,
-					   NULL, 0, dev_info->edac_idx);
+					   NULL, 0, 0, dev_info->edac_idx);
 	if (!dev_info->edac_dev) {
 		ret = -ENOMEM;
 		goto err_dev_put;
@@ -593,5 +592,5 @@ module_init(amd8111_edac_init);
 module_exit(amd8111_edac_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Cao Qingtao <qingtao.cao@windriver.com>\n");
+MODULE_AUTHOR("Cao Qingtao <qingtao.cao@windriver.com>");
 MODULE_DESCRIPTION("AMD8111 HyperTransport I/O Hub EDAC kernel module");

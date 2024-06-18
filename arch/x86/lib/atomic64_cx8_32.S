@@ -6,7 +6,7 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/alternative-asm.h>
+#include <asm/alternative.h>
 
 .macro read64 reg
 	movl %ebx, %eax
@@ -16,32 +16,32 @@
 	cmpxchg8b (\reg)
 .endm
 
-ENTRY(atomic64_read_cx8)
+SYM_FUNC_START(atomic64_read_cx8)
 	read64 %ecx
-	ret
-ENDPROC(atomic64_read_cx8)
+	RET
+SYM_FUNC_END(atomic64_read_cx8)
 
-ENTRY(atomic64_set_cx8)
+SYM_FUNC_START(atomic64_set_cx8)
 1:
 /* we don't need LOCK_PREFIX since aligned 64-bit writes
  * are atomic on 586 and newer */
 	cmpxchg8b (%esi)
 	jne 1b
 
-	ret
-ENDPROC(atomic64_set_cx8)
+	RET
+SYM_FUNC_END(atomic64_set_cx8)
 
-ENTRY(atomic64_xchg_cx8)
+SYM_FUNC_START(atomic64_xchg_cx8)
 1:
 	LOCK_PREFIX
 	cmpxchg8b (%esi)
 	jne 1b
 
-	ret
-ENDPROC(atomic64_xchg_cx8)
+	RET
+SYM_FUNC_END(atomic64_xchg_cx8)
 
 .macro addsub_return func ins insc
-ENTRY(atomic64_\func\()_return_cx8)
+SYM_FUNC_START(atomic64_\func\()_return_cx8)
 	pushl %ebp
 	pushl %ebx
 	pushl %esi
@@ -68,15 +68,15 @@ ENTRY(atomic64_\func\()_return_cx8)
 	popl %esi
 	popl %ebx
 	popl %ebp
-	ret
-ENDPROC(atomic64_\func\()_return_cx8)
+	RET
+SYM_FUNC_END(atomic64_\func\()_return_cx8)
 .endm
 
 addsub_return add add adc
 addsub_return sub sub sbb
 
 .macro incdec_return func ins insc
-ENTRY(atomic64_\func\()_return_cx8)
+SYM_FUNC_START(atomic64_\func\()_return_cx8)
 	pushl %ebx
 
 	read64 %esi
@@ -93,14 +93,14 @@ ENTRY(atomic64_\func\()_return_cx8)
 	movl %ebx, %eax
 	movl %ecx, %edx
 	popl %ebx
-	ret
-ENDPROC(atomic64_\func\()_return_cx8)
+	RET
+SYM_FUNC_END(atomic64_\func\()_return_cx8)
 .endm
 
 incdec_return inc add adc
 incdec_return dec sub sbb
 
-ENTRY(atomic64_dec_if_positive_cx8)
+SYM_FUNC_START(atomic64_dec_if_positive_cx8)
 	pushl %ebx
 
 	read64 %esi
@@ -118,10 +118,10 @@ ENTRY(atomic64_dec_if_positive_cx8)
 	movl %ebx, %eax
 	movl %ecx, %edx
 	popl %ebx
-	ret
-ENDPROC(atomic64_dec_if_positive_cx8)
+	RET
+SYM_FUNC_END(atomic64_dec_if_positive_cx8)
 
-ENTRY(atomic64_add_unless_cx8)
+SYM_FUNC_START(atomic64_add_unless_cx8)
 	pushl %ebp
 	pushl %ebx
 /* these just push these two parameters on the stack */
@@ -149,15 +149,15 @@ ENTRY(atomic64_add_unless_cx8)
 	addl $8, %esp
 	popl %ebx
 	popl %ebp
-	ret
+	RET
 4:
 	cmpl %edx, 4(%esp)
 	jne 2b
 	xorl %eax, %eax
 	jmp 3b
-ENDPROC(atomic64_add_unless_cx8)
+SYM_FUNC_END(atomic64_add_unless_cx8)
 
-ENTRY(atomic64_inc_not_zero_cx8)
+SYM_FUNC_START(atomic64_inc_not_zero_cx8)
 	pushl %ebx
 
 	read64 %esi
@@ -176,5 +176,5 @@ ENTRY(atomic64_inc_not_zero_cx8)
 	movl $1, %eax
 3:
 	popl %ebx
-	ret
-ENDPROC(atomic64_inc_not_zero_cx8)
+	RET
+SYM_FUNC_END(atomic64_inc_not_zero_cx8)

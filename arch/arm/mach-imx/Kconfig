@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menuconfig ARCH_MXC
 	bool "Freescale i.MX family"
-	depends on ARCH_MULTI_V4_V5 || ARCH_MULTI_V6_V7 || ARM_SINGLE_ARMV7M
-	select ARCH_SUPPORTS_BIG_ENDIAN
+	depends on ((ARCH_MULTI_V4T || ARCH_MULTI_V5) && CPU_LITTLE_ENDIAN) || \
+		ARCH_MULTI_V6_V7 || ARM_SINGLE_ARMV7M
 	select CLKSRC_IMX_GPT
 	select GENERIC_IRQ_CHIP
 	select GPIOLIB
@@ -21,18 +21,6 @@ config MXC_TZIC
 config MXC_AVIC
 	bool
 
-config MXC_DEBUG_BOARD
-	bool "Enable MXC debug board(for 3-stack)"
-	depends on MACH_MX27_3DS || MACH_MX31_3DS || MACH_MX35_3DS
-	help
-	  The debug board is an integral part of the MXC 3-stack(PDK)
-	  platforms, it can be attached or removed from the peripheral
-	  board. On debug board, several debug devices(ethernet, UART,
-	  buttons, LEDs and JTAG) are implemented. Between the MCU and
-	  these devices, a CPLD is added as a bridge which performs
-	  data/address de-multiplexing and decode, signal level shift,
-	  interrupt control and various board functions.
-
 config HAVE_IMX_ANATOP
 	bool
 
@@ -47,370 +35,25 @@ config HAVE_IMX_SRC
 	def_bool y if SMP
 	select ARCH_HAS_RESET_CONTROLLER
 
-config IMX_HAVE_IOMUX_V1
-	bool
-
-config ARCH_MXC_IOMUX_V3
-	bool
-
-config SOC_IMX21
-	bool
-	select CPU_ARM926T
-	select IMX_HAVE_IOMUX_V1
-	select MXC_AVIC
-
-config SOC_IMX27
-	bool
-	select CPU_ARM926T
-	select IMX_HAVE_IOMUX_V1
-	select MXC_AVIC
-	select PINCTRL_IMX27
-
-config SOC_IMX31
-	bool
-	select CPU_V6
-	select MXC_AVIC
-
-config SOC_IMX35
-	bool
-	select ARCH_MXC_IOMUX_V3
-	select MXC_AVIC
-	select PINCTRL_IMX35
-
-if ARCH_MULTI_V5
-
-comment "MX21 platforms:"
-
-config MACH_MX21ADS
-	bool "MX21ADS platform"
-	select IMX_HAVE_PLATFORM_IMX_FB
-	select IMX_HAVE_PLATFORM_IMX_UART
-	select IMX_HAVE_PLATFORM_MXC_MMC
-	select IMX_HAVE_PLATFORM_MXC_NAND
-	select SOC_IMX21
-	help
-	  Include support for MX21ADS platform. This includes specific
-	  configurations for the board and its peripherals.
-
-comment "MX27 platforms:"
-
-config MACH_MX27ADS
-	bool "MX27ADS platform"
-	select IMX_HAVE_PLATFORM_IMX_FB
-	select IMX_HAVE_PLATFORM_IMX_I2C
-	select IMX_HAVE_PLATFORM_IMX_UART
-	select IMX_HAVE_PLATFORM_MXC_MMC
-	select IMX_HAVE_PLATFORM_MXC_NAND
-	select IMX_HAVE_PLATFORM_MXC_W1
-	select SOC_IMX27
-	help
-	  Include support for MX27ADS platform. This includes specific
-	  configurations for the board and its peripherals.
-
-config MACH_MX27_3DS
-	bool "MX27PDK platform"
-	select IMX_HAVE_PLATFORM_FSL_USB2_UDC
-	select IMX_HAVE_PLATFORM_IMX2_WDT
-	select IMX_HAVE_PLATFORM_IMX_FB
-	select IMX_HAVE_PLATFORM_IMX_I2C
-	select IMX_HAVE_PLATFORM_IMX_KEYPAD
-	select IMX_HAVE_PLATFORM_IMX_SSI
-	select IMX_HAVE_PLATFORM_IMX_UART
-	select IMX_HAVE_PLATFORM_MX2_CAMERA
-	select IMX_HAVE_PLATFORM_MXC_EHCI
-	select IMX_HAVE_PLATFORM_MXC_MMC
-	select IMX_HAVE_PLATFORM_SPI_IMX
-	select MXC_DEBUG_BOARD
-	select USB_ULPI_VIEWPORT if USB_ULPI
-	select SOC_IMX27
-	help
-	  Include support for MX27PDK platform. This includes specific
-	  configurations for the board and its peripherals.
-
-config MACH_IMX27_VISSTRIM_M10
-	bool "Vista Silicon i.MX27 Visstrim_m10"
-	select IMX_HAVE_PLATFORM_GPIO_KEYS
-	select IMX_HAVE_PLATFORM_IMX_I2C
-	select IMX_HAVE_PLATFORM_IMX_SSI
-	select IMX_HAVE_PLATFORM_IMX_UART
-	select IMX_HAVE_PLATFORM_MX2_CAMERA
-	select IMX_HAVE_PLATFORM_MX2_EMMA
-	select IMX_HAVE_PLATFORM_MXC_EHCI
-	select IMX_HAVE_PLATFORM_MXC_MMC
-	select LEDS_GPIO_REGISTER
-	select SOC_IMX27
-	help
-	  Include support for Visstrim_m10 platform and its different variants.
-	  This includes specific configurations for the board and its
-	  peripherals.
-
-config MACH_PCA100
-	bool "Phytec phyCARD-s (pca100)"
-	select IMX_HAVE_PLATFORM_FSL_USB2_UDC
-	select IMX_HAVE_PLATFORM_IMX2_WDT
-	select IMX_HAVE_PLATFORM_IMX_FB
-	select IMX_HAVE_PLATFORM_IMX_I2C
-	select IMX_HAVE_PLATFORM_IMX_SSI
-	select IMX_HAVE_PLATFORM_IMX_UART
-	select IMX_HAVE_PLATFORM_MXC_EHCI
-	select IMX_HAVE_PLATFORM_MXC_MMC
-	select IMX_HAVE_PLATFORM_MXC_NAND
-	select IMX_HAVE_PLATFORM_MXC_W1
-	select IMX_HAVE_PLATFORM_SPI_IMX
-	select USB_ULPI_VIEWPORT if USB_ULPI
-	select SOC_IMX27
-	help
-	  Include support for phyCARD-s (aka pca100) platform. This
-	  includes specific configurations for the module and its peripherals.
-
-config MACH_IMX27_DT
-	bool "Support i.MX27 platforms from device tree"
-	select SOC_IMX27
-	help
-	  Include support for Freescale i.MX27 based platforms
-	  using the device tree for discovery
-
-endif
-
 if ARCH_MULTI_V6
 
-comment "MX31 platforms:"
+comment "ARM1136 platforms"
 
-config MACH_MX31ADS
-	bool "Support MX31ADS platforms"
-	default y
-	select IMX_HAVE_PLATFORM_IMX_I2C
-	select IMX_HAVE_PLATFORM_IMX_SSI
-	select IMX_HAVE_PLATFORM_IMX_UART
-	select SOC_IMX31
+config SOC_IMX31
+	bool "i.MX31 support"
+	select CPU_V6
+	select MXC_AVIC
 	help
-	  Include support for MX31ADS platform. This includes specific
-	  configurations for the board and its peripherals.
+	  This enables support for Freescale i.MX31 processor
 
-config MACH_MX31ADS_WM1133_EV1
-	bool "Support Wolfson Microelectronics 1133-EV1 module"
-	depends on MACH_MX31ADS
-	depends on MFD_WM8350_I2C
-	depends on REGULATOR_WM8350 = y
+config SOC_IMX35
+	bool "i.MX35 support"
+	select MXC_AVIC
+	select PINCTRL_IMX35
 	help
-	  Include support for the Wolfson Microelectronics 1133-EV1 PMU
-	  and audio module for the MX31ADS platform.
-
-config MACH_MX31LILLY
-	bool "Support MX31 LILLY-1131 platforms (INCO startec)"
-	select IMX_HAVE_PLATFORM_IMX_UART
-	select IMX_HAVE_PLATFORM_IPU_CORE
-	select IMX_HAVE_PLATFORM_MXC_EHCI
-	select IMX_HAVE_PLATFORM_MXC_MMC
-	select IMX_HAVE_PLATFORM_SPI_IMX
-	select USB_ULPI_VIEWPORT if USB_ULPI
-	select SOC_IMX31
-	help
-	  Include support for mx31 based LILLY1131 modules. This includes
-	  specific configurations for the board and its peripherals.
-
-config MACH_MX31LITE
-	bool "Support MX31 LITEKIT (LogicPD)"
-	select IMX_HAVE_PLATFORM_IMX2_WDT
-	select IMX_HAVE_PLATFORM_IMX_UART
-	select IMX_HAVE_PLATFORM_MXC_EHCI
-	select IMX_HAVE_PLATFORM_MXC_MMC
-	select IMX_HAVE_PLATFORM_MXC_NAND
-	select IMX_HAVE_PLATFORM_MXC_RTC
-	select IMX_HAVE_PLATFORM_SPI_IMX
-	select LEDS_GPIO_REGISTER
-	select USB_ULPI_VIEWPORT if USB_ULPI
-	select SOC_IMX31
-	help
-	  Include support for MX31 LITEKIT platform. This includes specific
-	  configurations for the board and its peripherals.
-
-config MACH_PCM037
-	bool "Support Phytec pcm037 (i.MX31) platforms"
-	select IMX_HAVE_PLATFORM_FSL_USB2_UDC
-	select IMX_HAVE_PLATFORM_IMX2_WDT
-	select IMX_HAVE_PLATFORM_IMX_I2C
-	select IMX_HAVE_PLATFORM_IMX_UART
-	select IMX_HAVE_PLATFORM_IPU_CORE
-	select IMX_HAVE_PLATFORM_MXC_EHCI
-	select IMX_HAVE_PLATFORM_MXC_MMC
-	select IMX_HAVE_PLATFORM_MXC_NAND
-	select IMX_HAVE_PLATFORM_MXC_W1
-	select USB_ULPI_VIEWPORT if USB_ULPI
-	select SOC_IMX31
-	help
-	  Include support for Phytec pcm037 platform. This includes
-	  specific configurations for the board and its peripherals.
-
-config MACH_PCM037_EET
-	bool "Support pcm037 EET board extensions"
-	depends on MACH_PCM037
-	select IMX_HAVE_PLATFORM_GPIO_KEYS
-	select IMX_HAVE_PLATFORM_SPI_IMX
-	help
-	  Add support for PCM037 EET baseboard extensions. If you are using the
-	  OLED display with EET, use "video=mx3fb:CMEL-OLED" kernel
-	  command-line parameter.
-
-config MACH_MX31_3DS
-	bool "Support MX31PDK (3DS)"
-	select IMX_HAVE_PLATFORM_FSL_USB2_UDC
-	select IMX_HAVE_PLATFORM_IMX2_WDT
-	select IMX_HAVE_PLATFORM_IMX_I2C
-	select IMX_HAVE_PLATFORM_IMX_KEYPAD
-	select IMX_HAVE_PLATFORM_IMX_SSI
-	select IMX_HAVE_PLATFORM_IMX_UART
-	select IMX_HAVE_PLATFORM_IPU_CORE
-	select IMX_HAVE_PLATFORM_MXC_EHCI
-	select IMX_HAVE_PLATFORM_MXC_MMC
-	select IMX_HAVE_PLATFORM_MXC_NAND
-	select IMX_HAVE_PLATFORM_SPI_IMX
-	select MXC_DEBUG_BOARD
-	select USB_ULPI_VIEWPORT if USB_ULPI
-	select SOC_IMX31
-	help
-	  Include support for MX31PDK (3DS) platform. This includes specific
-	  configurations for the board and its peripherals.
-
-config MACH_MX31_3DS_MXC_NAND_USE_BBT
-	bool "Make the MXC NAND driver use the in flash Bad Block Table"
-	depends on MACH_MX31_3DS
-	depends on MTD_NAND_MXC
-	help
-	  Enable this if you want that the MXC NAND driver uses the in flash
-	  Bad Block Table to know what blocks are bad instead of scanning the
-	  entire flash looking for bad block markers.
-
-config MACH_MX31MOBOARD
-	bool "Support mx31moboard platforms (EPFL Mobots group)"
-	select IMX_HAVE_PLATFORM_FSL_USB2_UDC
-	select IMX_HAVE_PLATFORM_IMX2_WDT
-	select IMX_HAVE_PLATFORM_IMX_I2C
-	select IMX_HAVE_PLATFORM_IMX_SSI
-	select IMX_HAVE_PLATFORM_IMX_UART
-	select IMX_HAVE_PLATFORM_IPU_CORE
-	select IMX_HAVE_PLATFORM_MXC_EHCI
-	select IMX_HAVE_PLATFORM_MXC_MMC
-	select IMX_HAVE_PLATFORM_SPI_IMX
-	select LEDS_GPIO_REGISTER
-	select USB_ULPI_VIEWPORT if USB_ULPI
-	select SOC_IMX31
-	help
-	  Include support for mx31moboard platform. This includes specific
-	  configurations for the board and its peripherals.
-
-config MACH_QONG
-	bool "Support Dave/DENX QongEVB-LITE platform"
-	select IMX_HAVE_PLATFORM_IMX2_WDT
-	select IMX_HAVE_PLATFORM_IMX_UART
-	select SOC_IMX31
-	help
-	  Include support for Dave/DENX QongEVB-LITE platform. This includes
-	  specific configurations for the board and its peripherals.
-
-config MACH_ARMADILLO5X0
-	bool "Support Atmark Armadillo-500 Development Base Board"
-	select IMX_HAVE_PLATFORM_GPIO_KEYS
-	select IMX_HAVE_PLATFORM_IMX_I2C
-	select IMX_HAVE_PLATFORM_IMX_UART
-	select IMX_HAVE_PLATFORM_IPU_CORE
-	select IMX_HAVE_PLATFORM_MXC_EHCI
-	select IMX_HAVE_PLATFORM_MXC_MMC
-	select IMX_HAVE_PLATFORM_MXC_NAND
-	select USB_ULPI_VIEWPORT if USB_ULPI
-	select SOC_IMX31
-	help
-	  Include support for Atmark Armadillo-500 platform. This includes
-	  specific configurations for the board and its peripherals.
-
-config MACH_KZM_ARM11_01
-	bool "Support KZM-ARM11-01(Kyoto Microcomputer)"
-	select IMX_HAVE_PLATFORM_IMX_UART
-	select SOC_IMX31
-	help
-	  Include support for KZM-ARM11-01. This includes specific
-	  configurations for the board and its peripherals.
-
-config MACH_BUG
-	bool "Support Buglabs BUGBase platform"
-	default y
-	select IMX_HAVE_PLATFORM_IMX_UART
-	select SOC_IMX31
-	help
-	  Include support for BUGBase 1.3 platform. This includes specific
-	  configurations for the board and its peripherals.
-
-config MACH_IMX31_DT
-	bool "Support i.MX31 platforms from device tree"
-	select SOC_IMX31
-	help
-	  Include support for Freescale i.MX31 based platforms
-	  using the device tree for discovery.
-
-comment "MX35 platforms:"
-
-config MACH_IMX35_DT
-	bool "Support i.MX35 platforms from device tree"
-	select SOC_IMX35
-	help
-	  Include support for Freescale i.MX35 based platforms
-	  using the device tree for discovery.
-
-config MACH_PCM043
-	bool "Support Phytec pcm043 (i.MX35) platforms"
-	select IMX_HAVE_PLATFORM_FLEXCAN
-	select IMX_HAVE_PLATFORM_FSL_USB2_UDC
-	select IMX_HAVE_PLATFORM_IMX2_WDT
-	select IMX_HAVE_PLATFORM_IMX_I2C
-	select IMX_HAVE_PLATFORM_IMX_SSI
-	select IMX_HAVE_PLATFORM_IMX_UART
-	select IMX_HAVE_PLATFORM_IPU_CORE
-	select IMX_HAVE_PLATFORM_MXC_EHCI
-	select IMX_HAVE_PLATFORM_MXC_NAND
-	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
-	select USB_ULPI_VIEWPORT if USB_ULPI
-	select SOC_IMX35
-	help
-	  Include support for Phytec pcm043 platform. This includes
-	  specific configurations for the board and its peripherals.
-
-config MACH_MX35_3DS
-	bool "Support MX35PDK platform"
-	select IMX_HAVE_PLATFORM_FSL_USB2_UDC
-	select IMX_HAVE_PLATFORM_IMX2_WDT
-	select IMX_HAVE_PLATFORM_IMX_FB
-	select IMX_HAVE_PLATFORM_IMX_I2C
-	select IMX_HAVE_PLATFORM_IMX_UART
-	select IMX_HAVE_PLATFORM_IPU_CORE
-	select IMX_HAVE_PLATFORM_MXC_EHCI
-	select IMX_HAVE_PLATFORM_MXC_NAND
-	select IMX_HAVE_PLATFORM_MXC_RTC
-	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
-	select MXC_DEBUG_BOARD
-	select SOC_IMX35
-	help
-	  Include support for MX35PDK platform. This includes specific
-	  configurations for the board and its peripherals.
-
-config MACH_VPR200
-	bool "Support VPR200 platform"
-	select IMX_HAVE_PLATFORM_FSL_USB2_UDC
-	select IMX_HAVE_PLATFORM_GPIO_KEYS
-	select IMX_HAVE_PLATFORM_IMX2_WDT
-	select IMX_HAVE_PLATFORM_IMX_I2C
-	select IMX_HAVE_PLATFORM_IMX_UART
-	select IMX_HAVE_PLATFORM_IPU_CORE
-	select IMX_HAVE_PLATFORM_MXC_EHCI
-	select IMX_HAVE_PLATFORM_MXC_NAND
-	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
-	select SOC_IMX35
-	help
-	  Include support for VPR200 platform. This includes specific
-	  configurations for the board and its peripherals.
+	  This enables support for Freescale i.MX35 processor
 
 endif
-
-comment "Device tree only"
 
 if ARCH_MULTI_V4T
 
@@ -428,12 +71,20 @@ if ARCH_MULTI_V5
 
 config SOC_IMX25
 	bool "i.MX25 support"
-	select ARCH_MXC_IOMUX_V3
 	select CPU_ARM926T
 	select MXC_AVIC
 	select PINCTRL_IMX25
 	help
 	  This enables support for Freescale i.MX25 processor
+
+config SOC_IMX27
+	bool "i.MX27 support"
+	select CPU_ARM926T
+	select MXC_AVIC
+	select PINCTRL_IMX27
+	help
+	  This enables support for Freescale i.MX27 processor
+
 endif
 
 if ARCH_MULTI_V7
@@ -445,7 +96,7 @@ config SOC_IMX5
 	select HAVE_IMX_SRC
 	select MXC_TZIC
 
-config	SOC_IMX50
+config SOC_IMX50
 	bool "i.MX50 support"
 	select PINCTRL_IMX50
 	select SOC_IMX5
@@ -460,7 +111,7 @@ config SOC_IMX51
 	help
 	  This enables support for Freescale i.MX51 processor
 
-config	SOC_IMX53
+config SOC_IMX53
 	bool "i.MX53 support"
 	select PINCTRL_IMX53
 	select SOC_IMX5
@@ -471,8 +122,6 @@ config	SOC_IMX53
 config SOC_IMX6
 	bool
 	select ARM_CPU_SUSPEND if (PM || CPU_IDLE)
-	select ARM_ERRATA_754322
-	select ARM_ERRATA_775420
 	select ARM_GIC
 	select HAVE_IMX_ANATOP
 	select HAVE_IMX_GPC
@@ -484,6 +133,8 @@ config SOC_IMX6
 config SOC_IMX6Q
 	bool "i.MX6 Quad/DualLite support"
 	select ARM_ERRATA_764369 if SMP
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_775420
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD
 	select PINCTRL_IMX6Q
@@ -494,6 +145,8 @@ config SOC_IMX6Q
 
 config SOC_IMX6SL
 	bool "i.MX6 SoloLite support"
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_775420
 	select PINCTRL_IMX6SL
 	select SOC_IMX6
 
@@ -502,6 +155,8 @@ config SOC_IMX6SL
 
 config SOC_IMX6SLL
 	bool "i.MX6 SoloLiteLite support"
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_775420
 	select PINCTRL_IMX6SLL
 	select SOC_IMX6
 
@@ -510,6 +165,8 @@ config SOC_IMX6SLL
 
 config SOC_IMX6SX
 	bool "i.MX6 SoloX support"
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_775420
 	select PINCTRL_IMX6SX
 	select SOC_IMX6
 
@@ -520,6 +177,7 @@ config SOC_IMX6UL
 	bool "i.MX6 UltraLite support"
 	select PINCTRL_IMX6UL
 	select SOC_IMX6
+	select ARM_ERRATA_814220
 
 	help
 	  This enables support for Freescale i.MX6 UltraLite processor.
@@ -534,9 +192,9 @@ config SOC_LS1021A
 
 endif
 
-comment "Cortex-A/Cortex-M asymmetric multiprocessing platforms"
-
 if ARCH_MULTI_V7 || ARM_SINGLE_ARMV7M
+
+comment "Cortex-A/Cortex-M asymmetric multiprocessing platforms"
 
 config SOC_IMX7D_CA7
 	bool
@@ -556,8 +214,9 @@ config SOC_IMX7D
 	select PINCTRL_IMX7D
 	select SOC_IMX7D_CA7 if ARCH_MULTI_V7
 	select SOC_IMX7D_CM4 if ARM_SINGLE_ARMV7M
+	select ARM_ERRATA_814220 if ARCH_MULTI_V7
 	help
-		This enables support for Freescale i.MX7 Dual processor.
+	  This enables support for Freescale i.MX7 Dual processor.
 
 config SOC_IMX7ULP
 	bool "i.MX7ULP support"
@@ -567,6 +226,13 @@ config SOC_IMX7ULP
 	select SOC_IMX7D_CM4 if ARM_SINGLE_ARMV7M
 	help
 	  This enables support for Freescale i.MX7 Ultra Low Power processor.
+
+config SOC_IMXRT
+	bool "i.MXRT support"
+	depends on ARM_SINGLE_ARMV7M
+	select ARMV7M_SYSTICK if ARM_SINGLE_ARMV7M
+	help
+	  This enables support for Freescale i.MXRT Crossover processor.
 
 config SOC_VF610
 	bool "Vybrid Family VF610 support"
@@ -598,7 +264,5 @@ choice
 endchoice
 
 endif
-
-source "arch/arm/mach-imx/devices/Kconfig"
 
 endif

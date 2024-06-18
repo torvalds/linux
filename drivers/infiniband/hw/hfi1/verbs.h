@@ -1,48 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
  * Copyright(c) 2015 - 2018 Intel Corporation.
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * BSD LICENSE
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
  */
 
 #ifndef HFI1_VERBS_H
@@ -107,9 +65,9 @@ enum {
 	HFI1_HAS_GRH = (1 << 0),
 };
 
-#define LRH_16B_BYTES (FIELD_SIZEOF(struct hfi1_16b_header, lrh))
+#define LRH_16B_BYTES (sizeof_field(struct hfi1_16b_header, lrh))
 #define LRH_16B_DWORDS (LRH_16B_BYTES / sizeof(u32))
-#define LRH_9B_BYTES (FIELD_SIZEOF(struct ib_header, lrh))
+#define LRH_9B_BYTES (sizeof_field(struct ib_header, lrh))
 #define LRH_9B_DWORDS (LRH_9B_BYTES / sizeof(u32))
 
 /* 24Bits for qpn, upper 8Bits reserved */
@@ -325,14 +283,13 @@ static inline struct rvt_qp *iowait_to_qp(struct iowait *s_iowait)
  */
 void hfi1_bad_pkey(struct hfi1_ibport *ibp, u32 key, u32 sl,
 		   u32 qp1, u32 qp2, u32 lid1, u32 lid2);
-void hfi1_cap_mask_chg(struct rvt_dev_info *rdi, u8 port_num);
+void hfi1_cap_mask_chg(struct rvt_dev_info *rdi, u32 port_num);
 void hfi1_sys_guid_chg(struct hfi1_ibport *ibp);
 void hfi1_node_desc_chg(struct hfi1_ibport *ibp);
-int hfi1_process_mad(struct ib_device *ibdev, int mad_flags, u8 port,
+int hfi1_process_mad(struct ib_device *ibdev, int mad_flags, u32 port,
 		     const struct ib_wc *in_wc, const struct ib_grh *in_grh,
-		     const struct ib_mad_hdr *in_mad, size_t in_mad_size,
-		     struct ib_mad_hdr *out_mad, size_t *out_mad_size,
-		     u16 *out_mad_pkey_index);
+		     const struct ib_mad *in_mad, struct ib_mad *out_mad,
+		     size_t *out_mad_size, u16 *out_mad_pkey_index);
 
 /*
  * The PSN_MASK and PSN_SHIFT allow for
@@ -433,9 +390,6 @@ void hfi1_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
 void hfi1_restart_rc(struct rvt_qp *qp, u32 psn, int wait);
 int hfi1_setup_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe,
 		   bool *call_send);
-
-extern const u32 rc_only_opcode;
-extern const u32 uc_only_opcode;
 
 int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct hfi1_packet *packet);
 

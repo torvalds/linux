@@ -1,51 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * TLB Management (flush/create/diagnostics) for ARC700
+ * TLB Management (flush/create/diagnostics) for MMUv3 and MMUv4
  *
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
  *
- * vineetg: Aug 2011
- *  -Reintroduce duplicate PD fixup - some customer chips still have the issue
- *
- * vineetg: May 2011
- *  -No need to flush_cache_page( ) for each call to update_mmu_cache()
- *   some of the LMBench tests improved amazingly
- *      = page-fault thrice as fast (75 usec to 28 usec)
- *      = mmap twice as fast (9.6 msec to 4.6 msec),
- *      = fork (5.3 msec to 3.7 msec)
- *
- * vineetg: April 2011 :
- *  -MMU v3: PD{0,1} bits layout changed: They don't overlap anymore,
- *      helps avoid a shift when preparing PD0 from PTE
- *
- * vineetg: April 2011 : Preparing for MMU V3
- *  -MMU v2/v3 BCRs decoded differently
- *  -Remove TLB_SIZE hardcoding as it's variable now: 256 or 512
- *  -tlb_entry_erase( ) can be void
- *  -local_flush_tlb_range( ):
- *      = need not "ceil" @end
- *      = walks MMU only if range spans < 32 entries, as opposed to 256
- *
- * Vineetg: Sept 10th 2008
- *  -Changes related to MMU v2 (Rel 4.8)
- *
- * Vineetg: Aug 29th 2008
- *  -In TLB Flush operations (Metal Fix MMU) there is a explict command to
- *    flush Micro-TLBS. If TLB Index Reg is invalid prior to TLBIVUTLB cmd,
- *    it fails. Thus need to load it with ANY valid value before invoking
- *    TLBIVUTLB cmd
- *
- * Vineetg: Aug 21th 2008:
- *  -Reduced the duration of IRQ lockouts in TLB Flush routines
- *  -Multiple copies of TLB erase code seperated into a "single" function
- *  -In TLB Flush routines, interrupt disabling moved UP to retrieve ASID
- *       in interrupt-safe region.
- *
- * Vineetg: April 23rd Bug #93131
- *    Problem: tlb_flush_kernel_range() doesn't do anything if the range to
- *              flush is more than the size of TLB itself.
- *
- * Rahul Trivedi : Codito Technologies 2004
  */
 
 #include <linux/module.h>
@@ -57,51 +15,12 @@
 #include <asm/mmu_context.h>
 #include <asm/mmu.h>
 
-/*			Need for ARC MMU v2
- *
- * ARC700 MMU-v1 had a Joint-TLB for Code and Data and is 2 way set-assoc.
- * For a memcpy operation with 3 players (src/dst/code) such that all 3 pages
- * map into same set, there would be contention for the 2 ways causing severe
- * Thrashing.
- *
- * Although J-TLB is 2 way set assoc, ARC700 caches J-TLB into uTLBS which has
- * much higher associativity. u-D-TLB is 8 ways, u-I-TLB is 4 ways.
- * Given this, the thrasing problem should never happen because once the 3
- * J-TLB entries are created (even though 3rd will knock out one of the prev
- * two), the u-D-TLB and u-I-TLB will have what is required to accomplish memcpy
- *
- * Yet we still see the Thrashing because a J-TLB Write cause flush of u-TLBs.
- * This is a simple design for keeping them in sync. So what do we do?
- * The solution which James came up was pretty neat. It utilised the assoc
- * of uTLBs by not invalidating always but only when absolutely necessary.
- *
- * - Existing TLB commands work as before
- * - New command (TLBWriteNI) for TLB write without clearing uTLBs
- * - New command (TLBIVUTLB) to invalidate uTLBs.
- *
- * The uTLBs need only be invalidated when pages are being removed from the
- * OS page table. If a 'victim' TLB entry is being overwritten in the main TLB
- * as a result of a miss, the removed entry is still allowed to exist in the
- * uTLBs as it is still valid and present in the OS page table. This allows the
- * full associativity of the uTLBs to hide the limited associativity of the main
- * TLB.
- *
- * During a miss handler, the new "TLBWriteNI" command is used to load
- * entries without clearing the uTLBs.
- *
- * When the OS page table is updated, TLB entries that may be associated with a
- * removed page are removed (flushed) from the TLB using TLBWrite. In this
- * circumstance, the uTLBs must also be cleared. This is done by using the
- * existing TLBWrite command. An explicit IVUTLB is also required for those
- * corner cases when TLBWrite was not executed at all because the corresp
- * J-TLB entry got evicted/replaced.
- */
-
-
 /* A copy of the ASID from the PID reg is kept in asid_cache */
 DEFINE_PER_CPU(unsigned int, asid_cache) = MM_CTXT_FIRST_CYCLE;
 
-static int __read_mostly pae_exists;
+static struct cpuinfo_arc_mmu {
+	unsigned int ver, pg_sz_k, s_pg_sz_m, pae, sets, ways;
+} mmuinfo;
 
 /*
  * Utility Routine to erase a J-TLB entry
@@ -118,7 +37,12 @@ static inline void __tlb_entry_erase(void)
 	write_aux_reg(ARC_REG_TLBCOMMAND, TLBWrite);
 }
 
-#if (CONFIG_ARC_MMU_VER < 4)
+static void utlb_invalidate(void)
+{
+	write_aux_reg(ARC_REG_TLBCOMMAND, TLBIVUTLB);
+}
+
+#ifdef CONFIG_ARC_MMU_V3
 
 static inline unsigned int tlb_entry_lkup(unsigned long vaddr_n_asid)
 {
@@ -149,45 +73,7 @@ static void tlb_entry_erase(unsigned int vaddr_n_asid)
 	}
 }
 
-/****************************************************************************
- * ARC700 MMU caches recently used J-TLB entries (RAM) as uTLBs (FLOPs)
- *
- * New IVUTLB cmd in MMU v2 explictly invalidates the uTLB
- *
- * utlb_invalidate ( )
- *  -For v2 MMU calls Flush uTLB Cmd
- *  -For v1 MMU does nothing (except for Metal Fix v1 MMU)
- *      This is because in v1 TLBWrite itself invalidate uTLBs
- ***************************************************************************/
-
-static void utlb_invalidate(void)
-{
-#if (CONFIG_ARC_MMU_VER >= 2)
-
-#if (CONFIG_ARC_MMU_VER == 2)
-	/* MMU v2 introduced the uTLB Flush command.
-	 * There was however an obscure hardware bug, where uTLB flush would
-	 * fail when a prior probe for J-TLB (both totally unrelated) would
-	 * return lkup err - because the entry didn't exist in MMU.
-	 * The Workround was to set Index reg with some valid value, prior to
-	 * flush. This was fixed in MMU v3 hence not needed any more
-	 */
-	unsigned int idx;
-
-	/* make sure INDEX Reg is valid */
-	idx = read_aux_reg(ARC_REG_TLBINDEX);
-
-	/* If not write some dummy val */
-	if (unlikely(idx & TLB_LKUP_ERR))
-		write_aux_reg(ARC_REG_TLBINDEX, 0xa);
-#endif
-
-	write_aux_reg(ARC_REG_TLBCOMMAND, TLBIVUTLB);
-#endif
-
-}
-
-static void tlb_entry_insert(unsigned int pd0, pte_t pd1)
+static void tlb_entry_insert(unsigned int pd0, phys_addr_t pd1)
 {
 	unsigned int idx;
 
@@ -217,12 +103,7 @@ static void tlb_entry_insert(unsigned int pd0, pte_t pd1)
 	write_aux_reg(ARC_REG_TLBCOMMAND, TLBWrite);
 }
 
-#else	/* CONFIG_ARC_MMU_VER >= 4) */
-
-static void utlb_invalidate(void)
-{
-	/* No need since uTLB is always in sync with JTLB */
-}
+#else	/* MMUv4 */
 
 static void tlb_entry_erase(unsigned int vaddr_n_asid)
 {
@@ -230,13 +111,16 @@ static void tlb_entry_erase(unsigned int vaddr_n_asid)
 	write_aux_reg(ARC_REG_TLBCOMMAND, TLBDeleteEntry);
 }
 
-static void tlb_entry_insert(unsigned int pd0, pte_t pd1)
+static void tlb_entry_insert(unsigned int pd0, phys_addr_t pd1)
 {
 	write_aux_reg(ARC_REG_TLBPD0, pd0);
-	write_aux_reg(ARC_REG_TLBPD1, pd1);
 
-	if (is_pae40_enabled())
+	if (!is_pae40_enabled()) {
+		write_aux_reg(ARC_REG_TLBPD1, pd1);
+	} else {
+		write_aux_reg(ARC_REG_TLBPD1, pd1 & 0xFFFFFFFF);
 		write_aux_reg(ARC_REG_TLBPD1HI, (u64)pd1 >> 32);
+	}
 
 	write_aux_reg(ARC_REG_TLBCOMMAND, TLBInsertEntry);
 }
@@ -249,7 +133,7 @@ static void tlb_entry_insert(unsigned int pd0, pte_t pd1)
 
 noinline void local_flush_tlb_all(void)
 {
-	struct cpuinfo_arc_mmu *mmu = &cpuinfo_arc700[smp_processor_id()].mmu;
+	struct cpuinfo_arc_mmu *mmu = &mmuinfo;
 	unsigned long flags;
 	unsigned int entry;
 	int num_tlb = mmu->sets * mmu->ways;
@@ -267,7 +151,7 @@ noinline void local_flush_tlb_all(void)
 	for (entry = 0; entry < num_tlb; entry++) {
 		/* write this entry to the TLB */
 		write_aux_reg(ARC_REG_TLBINDEX, entry);
-		write_aux_reg(ARC_REG_TLBCOMMAND, TLBWrite);
+		write_aux_reg(ARC_REG_TLBCOMMAND, TLBWriteNI);
 	}
 
 	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE)) {
@@ -278,7 +162,7 @@ noinline void local_flush_tlb_all(void)
 
 		for (entry = stlb_idx; entry < stlb_idx + 16; entry++) {
 			write_aux_reg(ARC_REG_TLBINDEX, entry);
-			write_aux_reg(ARC_REG_TLBCOMMAND, TLBWrite);
+			write_aux_reg(ARC_REG_TLBCOMMAND, TLBWriteNI);
 		}
 	}
 
@@ -288,7 +172,7 @@ noinline void local_flush_tlb_all(void)
 }
 
 /*
- * Flush the entrie MM for userland. The fastest way is to move to Next ASID
+ * Flush the entire MM for userland. The fastest way is to move to Next ASID
  */
 noinline void local_flush_tlb_mm(struct mm_struct *mm)
 {
@@ -319,7 +203,7 @@ noinline void local_flush_tlb_mm(struct mm_struct *mm)
  * Difference between this and Kernel Range Flush is
  *  -Here the fastest way (if range is too large) is to move to next ASID
  *      without doing any explicit Shootdown
- *  -In case of kernel Flush, entry has to be shot down explictly
+ *  -In case of kernel Flush, entry has to be shot down explicitly
  */
 void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 			   unsigned long end)
@@ -328,7 +212,7 @@ void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 	unsigned long flags;
 
 	/* If range @start to @end is more than 32 TLB entries deep,
-	 * its better to move to a new ASID rather than searching for
+	 * it's better to move to a new ASID rather than searching for
 	 * individual entries and then shooting them down
 	 *
 	 * The calc above is rough, doesn't account for unaligned parts,
@@ -354,8 +238,6 @@ void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 			start += PAGE_SIZE;
 		}
 	}
-
-	utlb_invalidate();
 
 	local_irq_restore(flags);
 }
@@ -385,8 +267,6 @@ void local_flush_tlb_kernel_range(unsigned long start, unsigned long end)
 		start += PAGE_SIZE;
 	}
 
-	utlb_invalidate();
-
 	local_irq_restore(flags);
 }
 
@@ -407,7 +287,6 @@ void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 
 	if (asid_mm(vma->vm_mm, cpu) != MM_CTXT_NO_ASID) {
 		tlb_entry_erase((page & PAGE_MASK) | hw_pid(vma->vm_mm, cpu));
-		utlb_invalidate();
 	}
 
 	local_irq_restore(flags);
@@ -512,12 +391,12 @@ void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 /*
  * Routine to create a TLB entry
  */
-void create_tlb(struct vm_area_struct *vma, unsigned long vaddr, pte_t *ptep)
+static void create_tlb(struct vm_area_struct *vma, unsigned long vaddr, pte_t *ptep)
 {
 	unsigned long flags;
 	unsigned int asid_or_sasid, rwx;
 	unsigned long pd0;
-	pte_t pd1;
+	phys_addr_t pd1;
 
 	/*
 	 * create_tlb() assumes that current->mm == vma->mm, since
@@ -526,11 +405,10 @@ void create_tlb(struct vm_area_struct *vma, unsigned long vaddr, pte_t *ptep)
 	 *
 	 * Removing the assumption involves
 	 * -Using vma->mm->context{ASID,SASID}, as opposed to MMU reg.
-	 * -Fix the TLB paranoid debug code to not trigger false negatives.
 	 * -More importantly it makes this handler inconsistent with fast-path
 	 *  TLB Refill handler which always deals with "current"
 	 *
-	 * Lets see the use cases when current->mm != vma->mm and we land here
+	 * Let's see the use cases when current->mm != vma->mm and we land here
 	 *  1. execve->copy_strings()->__get_user_pages->handle_mm_fault
 	 *     Here VM wants to pre-install a TLB entry for user stack while
 	 *     current->mm still points to pre-execve mm (hence the condition).
@@ -548,8 +426,6 @@ void create_tlb(struct vm_area_struct *vma, unsigned long vaddr, pte_t *ptep)
 		return;
 
 	local_irq_save(flags);
-
-	tlb_paranoid_check(asid_mm(vma->vm_mm, smp_processor_id()), vaddr);
 
 	vaddr &= PAGE_MASK;
 
@@ -593,39 +469,37 @@ void create_tlb(struct vm_area_struct *vma, unsigned long vaddr, pte_t *ptep)
  * Note that flush (when done) involves both WBACK - so physical page is
  * in sync as well as INV - so any non-congruent aliases don't remain
  */
-void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddr_unaligned,
-		      pte_t *ptep)
+void update_mmu_cache_range(struct vm_fault *vmf, struct vm_area_struct *vma,
+		unsigned long vaddr_unaligned, pte_t *ptep, unsigned int nr)
 {
 	unsigned long vaddr = vaddr_unaligned & PAGE_MASK;
-	phys_addr_t paddr = pte_val(*ptep) & PAGE_MASK;
+	phys_addr_t paddr = pte_val(*ptep) & PAGE_MASK_PHYS;
 	struct page *page = pfn_to_page(pte_pfn(*ptep));
 
 	create_tlb(vma, vaddr, ptep);
 
-	if (page == ZERO_PAGE(0)) {
+	if (page == ZERO_PAGE(0))
 		return;
-	}
 
 	/*
-	 * Exec page : Independent of aliasing/page-color considerations,
-	 *	       since icache doesn't snoop dcache on ARC, any dirty
-	 *	       K-mapping of a code page needs to be wback+inv so that
-	 *	       icache fetch by userspace sees code correctly.
-	 * !EXEC page: If K-mapping is NOT congruent to U-mapping, flush it
-	 *	       so userspace sees the right data.
-	 *  (Avoids the flush for Non-exec + congruent mapping case)
+	 * For executable pages, since icache doesn't snoop dcache, any
+	 * dirty K-mapping of a code page needs to be wback+inv so that
+	 * icache fetch by userspace sees code correctly.
 	 */
-	if ((vma->vm_flags & VM_EXEC) ||
-	     addr_not_cache_congruent(paddr, vaddr)) {
-
-		int dirty = !test_and_set_bit(PG_dc_clean, &page->flags);
+	if (vma->vm_flags & VM_EXEC) {
+		struct folio *folio = page_folio(page);
+		int dirty = !test_and_set_bit(PG_dc_clean, &folio->flags);
 		if (dirty) {
+			unsigned long offset = offset_in_folio(folio, paddr);
+			nr = folio_nr_pages(folio);
+			paddr -= offset;
+			vaddr -= offset;
 			/* wback + inv dcache lines (K-mapping) */
-			__flush_dcache_page(paddr, paddr);
+			__flush_dcache_pages(paddr, paddr, nr);
 
 			/* invalidate any existing icache lines (U-mapping) */
 			if (vma->vm_flags & VM_EXEC)
-				__inv_icache_page(paddr, vaddr);
+				__inv_icache_pages(paddr, vaddr, nr);
 		}
 	}
 }
@@ -641,7 +515,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddr_unaligned,
  * Super Page size is configurable in hardware (4K to 16M), but fixed once
  * RTL builds.
  *
- * The exact THP size a Linx configuration will support is a function of:
+ * The exact THP size a Linux configuration will support is a function of:
  *  - MMU page size (typical 8K, RTL fixed)
  *  - software page walker address split between PGD:PTE:PFN (typical
  *    11:8:13, but can be changed with 1 line)
@@ -657,44 +531,7 @@ void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
 				 pmd_t *pmd)
 {
 	pte_t pte = __pte(pmd_val(*pmd));
-	update_mmu_cache(vma, addr, &pte);
-}
-
-void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
-				pgtable_t pgtable)
-{
-	struct list_head *lh = (struct list_head *) pgtable;
-
-	assert_spin_locked(&mm->page_table_lock);
-
-	/* FIFO */
-	if (!pmd_huge_pte(mm, pmdp))
-		INIT_LIST_HEAD(lh);
-	else
-		list_add(lh, (struct list_head *) pmd_huge_pte(mm, pmdp));
-	pmd_huge_pte(mm, pmdp) = pgtable;
-}
-
-pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp)
-{
-	struct list_head *lh;
-	pgtable_t pgtable;
-
-	assert_spin_locked(&mm->page_table_lock);
-
-	pgtable = pmd_huge_pte(mm, pmdp);
-	lh = (struct list_head *) pgtable;
-	if (list_empty(lh))
-		pmd_huge_pte(mm, pmdp) = NULL;
-	else {
-		pmd_huge_pte(mm, pmdp) = (pgtable_t) lh->next;
-		list_del(lh);
-	}
-
-	pte_val(pgtable[0]) = 0;
-	pte_val(pgtable[1]) = 0;
-
-	return pgtable;
+	update_mmu_cache_range(NULL, vma, addr, &pte, HPAGE_PMD_NR);
 }
 
 void local_flush_pmd_tlb_range(struct vm_area_struct *vma, unsigned long start,
@@ -719,139 +556,92 @@ void local_flush_pmd_tlb_range(struct vm_area_struct *vma, unsigned long start,
 
 #endif
 
-/* Read the Cache Build Confuration Registers, Decode them and save into
+/* Read the Cache Build Configuration Registers, Decode them and save into
  * the cpuinfo structure for later use.
  * No Validation is done here, simply read/convert the BCRs
  */
-void read_decode_mmu_bcr(void)
+int arc_mmu_mumbojumbo(int c, char *buf, int len)
 {
-	struct cpuinfo_arc_mmu *mmu = &cpuinfo_arc700[smp_processor_id()].mmu;
-	unsigned int tmp;
-	struct bcr_mmu_1_2 {
-#ifdef CONFIG_CPU_BIG_ENDIAN
-		unsigned int ver:8, ways:4, sets:4, u_itlb:8, u_dtlb:8;
-#else
-		unsigned int u_dtlb:8, u_itlb:8, sets:4, ways:4, ver:8;
-#endif
-	} *mmu2;
+	struct cpuinfo_arc_mmu *mmu = &mmuinfo;
+	unsigned int bcr, u_dtlb, u_itlb, sasid;
+	struct bcr_mmu_3 *mmu3;
+	struct bcr_mmu_4 *mmu4;
+	char super_pg[64] = "";
+	int n = 0;
 
-	struct bcr_mmu_3 {
-#ifdef CONFIG_CPU_BIG_ENDIAN
-	unsigned int ver:8, ways:4, sets:4, res:3, sasid:1, pg_sz:4,
-		     u_itlb:4, u_dtlb:4;
-#else
-	unsigned int u_dtlb:4, u_itlb:4, pg_sz:4, sasid:1, res:3, sets:4,
-		     ways:4, ver:8;
-#endif
-	} *mmu3;
+	bcr = read_aux_reg(ARC_REG_MMU_BCR);
+	mmu->ver = (bcr >> 24);
 
-	struct bcr_mmu_4 {
-#ifdef CONFIG_CPU_BIG_ENDIAN
-	unsigned int ver:8, sasid:1, sz1:4, sz0:4, res:2, pae:1,
-		     n_ways:2, n_entry:2, n_super:2, u_itlb:3, u_dtlb:3;
-#else
-	/*           DTLB      ITLB      JES        JE         JA      */
-	unsigned int u_dtlb:3, u_itlb:3, n_super:2, n_entry:2, n_ways:2,
-		     pae:1, res:2, sz0:4, sz1:4, sasid:1, ver:8;
-#endif
-	} *mmu4;
-
-	tmp = read_aux_reg(ARC_REG_MMU_BCR);
-	mmu->ver = (tmp >> 24);
-
-	if (is_isa_arcompact()) {
-		if (mmu->ver <= 2) {
-			mmu2 = (struct bcr_mmu_1_2 *)&tmp;
-			mmu->pg_sz_k = TO_KB(0x2000);
-			mmu->sets = 1 << mmu2->sets;
-			mmu->ways = 1 << mmu2->ways;
-			mmu->u_dtlb = mmu2->u_dtlb;
-			mmu->u_itlb = mmu2->u_itlb;
-		} else {
-			mmu3 = (struct bcr_mmu_3 *)&tmp;
-			mmu->pg_sz_k = 1 << (mmu3->pg_sz - 1);
-			mmu->sets = 1 << mmu3->sets;
-			mmu->ways = 1 << mmu3->ways;
-			mmu->u_dtlb = mmu3->u_dtlb;
-			mmu->u_itlb = mmu3->u_itlb;
-			mmu->sasid = mmu3->sasid;
-		}
+	if (is_isa_arcompact() && mmu->ver == 3) {
+		mmu3 = (struct bcr_mmu_3 *)&bcr;
+		mmu->pg_sz_k = 1 << (mmu3->pg_sz - 1);
+		mmu->sets = 1 << mmu3->sets;
+		mmu->ways = 1 << mmu3->ways;
+		u_dtlb = mmu3->u_dtlb;
+		u_itlb = mmu3->u_itlb;
+		sasid = mmu3->sasid;
 	} else {
-		mmu4 = (struct bcr_mmu_4 *)&tmp;
+		mmu4 = (struct bcr_mmu_4 *)&bcr;
 		mmu->pg_sz_k = 1 << (mmu4->sz0 - 1);
 		mmu->s_pg_sz_m = 1 << (mmu4->sz1 - 11);
 		mmu->sets = 64 << mmu4->n_entry;
 		mmu->ways = mmu4->n_ways * 2;
-		mmu->u_dtlb = mmu4->u_dtlb * 4;
-		mmu->u_itlb = mmu4->u_itlb * 4;
-		mmu->sasid = mmu4->sasid;
-		pae_exists = mmu->pae = mmu4->pae;
+		u_dtlb = mmu4->u_dtlb * 4;
+		u_itlb = mmu4->u_itlb * 4;
+		sasid = mmu4->sasid;
+		mmu->pae = mmu4->pae;
 	}
-}
 
-char *arc_mmu_mumbojumbo(int cpu_id, char *buf, int len)
-{
-	int n = 0;
-	struct cpuinfo_arc_mmu *p_mmu = &cpuinfo_arc700[cpu_id].mmu;
-	char super_pg[64] = "";
-
-	if (p_mmu->s_pg_sz_m)
-		scnprintf(super_pg, 64, "%dM Super Page %s",
-			  p_mmu->s_pg_sz_m,
-			  IS_USED_CFG(CONFIG_TRANSPARENT_HUGEPAGE));
+	if (mmu->s_pg_sz_m)
+		scnprintf(super_pg, 64, "/%dM%s",
+			  mmu->s_pg_sz_m,
+			  IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE) ? " (THP enabled)":"");
 
 	n += scnprintf(buf + n, len - n,
-		      "MMU [v%x]\t: %dk PAGE, %sJTLB %d (%dx%d), uDTLB %d, uITLB %d%s%s\n",
-		       p_mmu->ver, p_mmu->pg_sz_k, super_pg,
-		       p_mmu->sets * p_mmu->ways, p_mmu->sets, p_mmu->ways,
-		       p_mmu->u_dtlb, p_mmu->u_itlb,
-		       IS_AVAIL2(p_mmu->pae, ", PAE40 ", CONFIG_ARC_HAS_PAE40));
+		      "MMU [v%x]\t: %dk%s, swalk %d lvl, JTLB %dx%d, uDTLB %d, uITLB %d%s%s%s\n",
+		       mmu->ver, mmu->pg_sz_k, super_pg, CONFIG_PGTABLE_LEVELS,
+		       mmu->sets, mmu->ways,
+		       u_dtlb, u_itlb,
+		       IS_AVAIL1(sasid, ", SASID"),
+		       IS_AVAIL2(mmu->pae, ", PAE40 ", CONFIG_ARC_HAS_PAE40));
 
-	return buf;
+	return n;
 }
 
 int pae40_exist_but_not_enab(void)
 {
-	return pae_exists && !is_pae40_enabled();
+	return mmuinfo.pae && !is_pae40_enabled();
 }
 
 void arc_mmu_init(void)
 {
-	struct cpuinfo_arc_mmu *mmu = &cpuinfo_arc700[smp_processor_id()].mmu;
-	char str[256];
+	struct cpuinfo_arc_mmu *mmu = &mmuinfo;
 	int compat = 0;
 
-	pr_info("%s", arc_mmu_mumbojumbo(0, str, sizeof(str)));
-
 	/*
-	 * Can't be done in processor.h due to header include depenedencies
+	 * Can't be done in processor.h due to header include dependencies
 	 */
 	BUILD_BUG_ON(!IS_ALIGNED((CONFIG_ARC_KVADDR_SIZE << 20), PMD_SIZE));
 
 	/*
 	 * stack top size sanity check,
-	 * Can't be done in processor.h due to header include depenedencies
+	 * Can't be done in processor.h due to header include dependencies
 	 */
 	BUILD_BUG_ON(!IS_ALIGNED(STACK_TOP, PMD_SIZE));
 
 	/*
 	 * Ensure that MMU features assumed by kernel exist in hardware.
-	 * For older ARC700 cpus, it has to be exact match, since the MMU
-	 * revisions were not backwards compatible (MMUv3 TLB layout changed
-	 * so even if kernel for v2 didn't use any new cmds of v3, it would
-	 * still not work.
-	 * For HS cpus, MMUv4 was baseline and v5 is backwards compatible
-	 * (will run older software).
+	 *  - For older ARC700 cpus, only v3 supported
+	 *  - For HS cpus, v4 was baseline and v5 is backwards compatible
+	 *    (will run older software).
 	 */
-	if (is_isa_arcompact() && mmu->ver == CONFIG_ARC_MMU_VER)
+	if (is_isa_arcompact() && mmu->ver == 3)
 		compat = 1;
-	else if (is_isa_arcv2() && mmu->ver >= CONFIG_ARC_MMU_VER)
+	else if (is_isa_arcv2() && mmu->ver >= 4)
 		compat = 1;
 
-	if (!compat) {
-		panic("MMU ver %d doesn't match kernel built for %d...\n",
-		      mmu->ver, CONFIG_ARC_MMU_VER);
-	}
+	if (!compat)
+		panic("MMU ver %d doesn't match kernel built for\n", mmu->ver);
 
 	if (mmu->pg_sz_k != TO_KB(PAGE_SIZE))
 		panic("MMU pg size != PAGE_SIZE (%luk)\n", TO_KB(PAGE_SIZE));
@@ -864,14 +654,11 @@ void arc_mmu_init(void)
 	if (IS_ENABLED(CONFIG_ARC_HAS_PAE40) && !mmu->pae)
 		panic("Hardware doesn't support PAE40\n");
 
-	/* Enable the MMU */
-	write_aux_reg(ARC_REG_PID, MMU_ENABLE);
+	/* Enable the MMU with ASID 0 */
+	mmu_setup_asid(NULL, 0);
 
-	/* In smp we use this reg for interrupt 1 scratch */
-#ifndef CONFIG_SMP
-	/* swapper_pg_dir is the pgd for the kernel, used by vmalloc */
-	write_aux_reg(ARC_REG_SCRATCH_DATA0, swapper_pg_dir);
-#endif
+	/* cache the pgd pointer in MMU SCRATCH reg (ARCv2 only) */
+	mmu_setup_pgd(NULL, swapper_pg_dir);
 
 	if (pae40_exist_but_not_enab())
 		write_aux_reg(ARC_REG_TLBPD1HI, 0);
@@ -902,12 +689,12 @@ void arc_mmu_init(void)
  *      the duplicate one.
  * -Knob to be verbose abt it.(TODO: hook them up to debugfs)
  */
-volatile int dup_pd_silent; /* Be slient abt it or complain (default) */
+volatile int dup_pd_silent; /* Be silent abt it or complain (default) */
 
 void do_tlb_overlap_fault(unsigned long cause, unsigned long address,
 			  struct pt_regs *regs)
 {
-	struct cpuinfo_arc_mmu *mmu = &cpuinfo_arc700[smp_processor_id()].mmu;
+	struct cpuinfo_arc_mmu *mmu = &mmuinfo;
 	unsigned long flags;
 	int set, n_ways = mmu->ways;
 
@@ -966,40 +753,3 @@ void do_tlb_overlap_fault(unsigned long cause, unsigned long address,
 
 	local_irq_restore(flags);
 }
-
-/***********************************************************************
- * Diagnostic Routines
- *  -Called from Low Level TLB Hanlders if things don;t look good
- **********************************************************************/
-
-#ifdef CONFIG_ARC_DBG_TLB_PARANOIA
-
-/*
- * Low Level ASM TLB handler calls this if it finds that HW and SW ASIDS
- * don't match
- */
-void print_asid_mismatch(int mm_asid, int mmu_asid, int is_fast_path)
-{
-	pr_emerg("ASID Mismatch in %s Path Handler: sw-pid=0x%x hw-pid=0x%x\n",
-	       is_fast_path ? "Fast" : "Slow", mm_asid, mmu_asid);
-
-	__asm__ __volatile__("flag 1");
-}
-
-void tlb_paranoid_check(unsigned int mm_asid, unsigned long addr)
-{
-	unsigned int mmu_asid;
-
-	mmu_asid = read_aux_reg(ARC_REG_PID) & 0xff;
-
-	/*
-	 * At the time of a TLB miss/installation
-	 *   - HW version needs to match SW version
-	 *   - SW needs to have a valid ASID
-	 */
-	if (addr < 0x70000000 &&
-	    ((mm_asid == MM_CTXT_NO_ASID) ||
-	      (mmu_asid != (mm_asid & MM_CTXT_ASID_MASK))))
-		print_asid_mismatch(mm_asid, mmu_asid, 0);
-}
-#endif

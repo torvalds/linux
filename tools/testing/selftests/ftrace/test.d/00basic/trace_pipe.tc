@@ -1,9 +1,8 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: trace_pipe and trace_marker
+# requires: trace_marker
 # flags: instance
-
-[ ! -f trace_marker ] && exit_unsupported
 
 echo "test input 1" > trace_marker
 

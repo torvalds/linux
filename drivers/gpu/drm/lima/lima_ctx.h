@@ -5,6 +5,7 @@
 #define __LIMA_CTX_H__
 
 #include <linux/xarray.h>
+#include <linux/sched.h>
 
 #include "lima_device.h"
 
@@ -12,7 +13,10 @@ struct lima_ctx {
 	struct kref refcnt;
 	struct lima_device *dev;
 	struct lima_sched_context context[lima_pipe_num];
-	atomic_t guilty;
+
+	/* debug info */
+	char pname[TASK_COMM_LEN];
+	pid_t pid;
 };
 
 struct lima_ctx_mgr {

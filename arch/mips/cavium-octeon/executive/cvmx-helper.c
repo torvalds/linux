@@ -61,6 +61,12 @@ int cvmx_helper_get_number_of_interfaces(void)
 {
 	if (OCTEON_IS_MODEL(OCTEON_CN68XX))
 		return 9;
+	if (OCTEON_IS_MODEL(OCTEON_CN66XX)) {
+		if (OCTEON_IS_MODEL(OCTEON_CN66XX_PASS1_0))
+			return 7;
+		else
+			return 8;
+	}
 	if (OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN52XX))
 		return 4;
 	if (OCTEON_IS_MODEL(OCTEON_CN7XXX))
@@ -782,9 +788,9 @@ static int __cvmx_helper_errata_fix_ipd_ptr_alignment(void)
 #define INTERFACE(port) (port >> 4)
 #define INDEX(port) (port & 0xf)
 	uint64_t *p64;
-	cvmx_pko_command_word0_t pko_command;
+	union cvmx_pko_command_word0 pko_command;
 	union cvmx_buf_ptr g_buffer, pkt_buffer;
-	cvmx_wqe_t *work;
+	struct cvmx_wqe *work;
 	int size, num_segs = 0, wqe_pcnt, pkt_pcnt;
 	union cvmx_gmxx_prtx_cfg gmx_cfg;
 	int retry_cnt;
@@ -1056,16 +1062,6 @@ int cvmx_helper_initialize_packet_io_global(void)
 EXPORT_SYMBOL_GPL(cvmx_helper_initialize_packet_io_global);
 
 /**
- * Does core local initialization for packet io
- *
- * Returns Zero on success, non-zero on failure
- */
-int cvmx_helper_initialize_packet_io_local(void)
-{
-	return cvmx_pko_initialize_local();
-}
-
-/**
  * Return the link state of an IPD/PKO port as returned by
  * auto negotiation. The result of this function may not match
  * Octeon's link config if auto negotiation has changed since
@@ -1075,9 +1071,9 @@ int cvmx_helper_initialize_packet_io_local(void)
  *
  * Returns Link state
  */
-cvmx_helper_link_info_t cvmx_helper_link_get(int ipd_port)
+union cvmx_helper_link_info cvmx_helper_link_get(int ipd_port)
 {
-	cvmx_helper_link_info_t result;
+	union cvmx_helper_link_info result;
 	int interface = cvmx_helper_get_interface_num(ipd_port);
 	int index = cvmx_helper_get_interface_index_num(ipd_port);
 
@@ -1100,7 +1096,7 @@ cvmx_helper_link_info_t cvmx_helper_link_get(int ipd_port)
 		if (index == 0)
 			result = __cvmx_helper_rgmii_link_get(ipd_port);
 		else {
-			WARN(1, "Using deprecated link status - please update your DT");
+			WARN_ONCE(1, "Using deprecated link status - please update your DT");
 			result.s.full_duplex = 1;
 			result.s.link_up = 1;
 			result.s.speed = 1000;
@@ -1136,7 +1132,7 @@ EXPORT_SYMBOL_GPL(cvmx_helper_link_get);
  *
  * Returns Zero on success, negative on failure
  */
-int cvmx_helper_link_set(int ipd_port, cvmx_helper_link_info_t link_info)
+int cvmx_helper_link_set(int ipd_port, union cvmx_helper_link_info link_info)
 {
 	int result = -1;
 	int interface = cvmx_helper_get_interface_num(ipd_port);

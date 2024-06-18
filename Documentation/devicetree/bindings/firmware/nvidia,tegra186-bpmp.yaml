@@ -1,0 +1,215 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/firmware/nvidia,tegra186-bpmp.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra Boot and Power Management Processor (BPMP)
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+
+description: |
+  The BPMP is a specific processor in Tegra chip, which is designed for
+  booting process handling and offloading the power management, clock
+  management, and reset control tasks from the CPU. The binding document
+  defines the resources that would be used by the BPMP firmware driver,
+  which can create the interprocessor communication (IPC) between the
+  CPU and BPMP.
+
+  This node is a mailbox consumer. See the following files for details
+  of the mailbox subsystem, and the specifiers implemented by the
+  relevant provider(s):
+
+    - .../mailbox/mailbox.txt
+    - .../mailbox/nvidia,tegra186-hsp.yaml
+
+  This node is a clock, power domain, and reset provider. See the
+  following files for general documentation of those features, and the
+  specifiers implemented by this node:
+
+    - .../clock/clock-bindings.txt
+    - <dt-bindings/clock/tegra186-clock.h>
+    - ../power/power-domain.yaml
+    - <dt-bindings/power/tegra186-powergate.h>
+    - .../reset/reset.txt
+    - <dt-bindings/reset/tegra186-reset.h>
+
+  The BPMP implements some services which must be represented by
+  separate nodes. For example, it can provide access to certain I2C
+  controllers, and the I2C bindings represent each I2C controller as a
+  device tree node. Such nodes should be nested directly inside the main
+  BPMP node.
+
+  Software can determine whether a child node of the BPMP node
+  represents a device by checking for a compatible property. Any node
+  with a compatible property represents a device that can be
+  instantiated. Nodes without a compatible property may be used to
+  provide configuration information regarding the BPMP itself, although
+  no such configuration nodes are currently defined by this binding.
+
+  The BPMP firmware defines no single global name-/numbering-space for
+  such services. Put another way, the numbering scheme for I2C buses is
+  distinct from the numbering scheme for any other service the BPMP may
+  provide (e.g. a future hypothetical SPI bus service). As such, child
+  device nodes will have no reg property, and the BPMP node will have no
+  "#address-cells" or "#size-cells" property.
+
+  The shared memory area for the IPC TX and RX between CPU and BPMP are
+  predefined and work on top of either sysram, which is an SRAM inside the
+  chip, or in normal SDRAM.
+  See ".../sram/sram.yaml" for the bindings for the SRAM case.
+  See "../reserved-memory/nvidia,tegra264-bpmp-shmem.yaml" for bindings for
+  the SDRAM case.
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - nvidia,tegra194-bpmp
+              - nvidia,tegra234-bpmp
+          - const: nvidia,tegra186-bpmp
+      - const: nvidia,tegra186-bpmp
+
+  mboxes:
+    description: A phandle and channel specifier for the mailbox used to
+      communicate with the BPMP.
+    maxItems: 1
+
+  shmem:
+    description: List of the phandle to the TX and RX shared memory area
+      that the IPC between CPU and BPMP is based on.
+    minItems: 2
+    maxItems: 2
+
+  memory-region:
+    description: phandle to reserved memory region used for IPC between
+      CPU-NS and BPMP.
+    maxItems: 1
+
+  "#clock-cells":
+    const: 1
+
+  "#power-domain-cells":
+    const: 1
+
+  "#reset-cells":
+    const: 1
+
+  interconnects:
+    items:
+      - description: memory read client
+      - description: memory write client
+      - description: DMA read client
+      - description: DMA write client
+
+  interconnect-names:
+    items:
+      - const: read
+      - const: write
+      - const: dma-mem # dma-read
+      - const: dma-write
+
+  iommus:
+    maxItems: 1
+
+  i2c:
+    type: object
+
+  thermal:
+    type: object
+
+additionalProperties: false
+
+oneOf:
+  - required:
+      - memory-region
+  - required:
+      - shmem
+
+required:
+  - compatible
+  - mboxes
+  - "#clock-cells"
+  - "#power-domain-cells"
+  - "#reset-cells"
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/mailbox/tegra186-hsp.h>
+    #include <dt-bindings/memory/tegra186-mc.h>
+
+    hsp_top0: hsp@3c00000 {
+        compatible = "nvidia,tegra186-hsp";
+        reg = <0x03c00000 0xa0000>;
+        interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "doorbell";
+        #mbox-cells = <2>;
+    };
+
+    sram@30000000 {
+        compatible = "nvidia,tegra186-sysram", "mmio-sram";
+        reg = <0x30000000 0x50000>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges = <0x0 0x30000000 0x50000>;
+
+        cpu_bpmp_tx: sram@4e000 {
+            reg = <0x4e000 0x1000>;
+            label = "cpu-bpmp-tx";
+            pool;
+        };
+
+        cpu_bpmp_rx: sram@4f000 {
+            reg = <0x4f000 0x1000>;
+            label = "cpu-bpmp-rx";
+            pool;
+        };
+    };
+
+    bpmp {
+        compatible = "nvidia,tegra186-bpmp";
+        interconnects = <&mc TEGRA186_MEMORY_CLIENT_BPMPR &emc>,
+                        <&mc TEGRA186_MEMORY_CLIENT_BPMPW &emc>,
+                        <&mc TEGRA186_MEMORY_CLIENT_BPMPDMAR &emc>,
+                        <&mc TEGRA186_MEMORY_CLIENT_BPMPDMAW &emc>;
+        interconnect-names = "read", "write", "dma-mem", "dma-write";
+        iommus = <&smmu TEGRA186_SID_BPMP>;
+        mboxes = <&hsp_top0 TEGRA_HSP_MBOX_TYPE_DB TEGRA_HSP_DB_MASTER_BPMP>;
+        shmem = <&cpu_bpmp_tx>, <&cpu_bpmp_rx>;
+        #clock-cells = <1>;
+        #power-domain-cells = <1>;
+        #reset-cells = <1>;
+
+        i2c {
+            compatible = "nvidia,tegra186-bpmp-i2c";
+            nvidia,bpmp-bus-id = <5>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+        };
+
+        thermal {
+            compatible = "nvidia,tegra186-bpmp-thermal";
+            #thermal-sensor-cells = <1>;
+        };
+    };
+
+  - |
+    #include <dt-bindings/mailbox/tegra186-hsp.h>
+
+    bpmp {
+        compatible = "nvidia,tegra186-bpmp";
+        interconnects = <&mc TEGRA186_MEMORY_CLIENT_BPMPR &emc>,
+                        <&mc TEGRA186_MEMORY_CLIENT_BPMPW &emc>,
+                        <&mc TEGRA186_MEMORY_CLIENT_BPMPDMAR &emc>,
+                        <&mc TEGRA186_MEMORY_CLIENT_BPMPDMAW &emc>;
+        interconnect-names = "read", "write", "dma-mem", "dma-write";
+        mboxes = <&hsp_top1 TEGRA_HSP_MBOX_TYPE_DB TEGRA_HSP_DB_MASTER_BPMP>;
+        memory-region = <&dram_cpu_bpmp_mail>;
+        #clock-cells = <1>;
+        #power-domain-cells = <1>;
+        #reset-cells = <1>;
+    };

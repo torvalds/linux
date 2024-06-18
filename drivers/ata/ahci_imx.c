@@ -9,10 +9,11 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/ahci_platform.h>
-#include <linux/of_device.h>
-#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
+#include <linux/of.h>
 #include <linux/mfd/syscon.h>
 #include <linux/mfd/syscon/imx6q-iomuxc-gpr.h>
 #include <linux/libata.h>
@@ -100,7 +101,7 @@ struct imx_ahci_priv {
 	struct clk *phy_pclk0;
 	struct clk *phy_pclk1;
 	void __iomem *phy_base;
-	int clkreq_gpio;
+	struct gpio_desc *clkreq_gpiod;
 	struct regmap *gpr;
 	bool no_device;
 	bool first_time;
@@ -327,7 +328,7 @@ static int read_adc_sum(void *dev, u16 rtune_ctl_reg, void __iomem * mmio)
 }
 
 /* SATA AHCI temperature monitor */
-static int sata_ahci_read_temperature(void *dev, int *temp)
+static int __sata_ahci_read_temperature(void *dev, int *temp)
 {
 	u16 mpll_test_reg, rtune_ctl_reg, dac_ctl_reg, read_sum;
 	u32 str1, str2, str3, str4;
@@ -416,6 +417,11 @@ static int sata_ahci_read_temperature(void *dev, int *temp)
 	return 0;
 }
 
+static int sata_ahci_read_temperature(struct thermal_zone_device *tz, int *temp)
+{
+	return __sata_ahci_read_temperature(thermal_zone_device_priv(tz), temp);
+}
+
 static ssize_t sata_ahci_show_temp(struct device *dev,
 				   struct device_attribute *da,
 				   char *buf)
@@ -423,14 +429,14 @@ static ssize_t sata_ahci_show_temp(struct device *dev,
 	unsigned int temp = 0;
 	int err;
 
-	err = sata_ahci_read_temperature(dev, &temp);
+	err = __sata_ahci_read_temperature(dev, &temp);
 	if (err < 0)
 		return err;
 
 	return sprintf(buf, "%u\n", temp);
 }
 
-static const struct thermal_zone_of_device_ops fsl_sata_ahci_of_thermal_ops = {
+static const struct thermal_zone_device_ops fsl_sata_ahci_of_thermal_ops = {
 	.get_temp = sata_ahci_read_temperature,
 };
 
@@ -782,7 +788,7 @@ static int ahci_imx_softreset(struct ata_link *link, unsigned int *class,
 	struct ata_host *host = dev_get_drvdata(ap->dev);
 	struct ahci_host_priv *hpriv = host->private_data;
 	struct imx_ahci_priv *imxpriv = hpriv->plat_data;
-	int ret = -EIO;
+	int ret;
 
 	if (imxpriv->type == AHCI_IMX53)
 		ret = ahci_pmp_retry_srst_ops.softreset(link, class, deadline);
@@ -811,7 +817,7 @@ static const struct of_device_id imx_ahci_of_match[] = {
 	{ .compatible = "fsl,imx6q-ahci", .data = (void *)AHCI_IMX6Q },
 	{ .compatible = "fsl,imx6qp-ahci", .data = (void *)AHCI_IMX6QP },
 	{ .compatible = "fsl,imx8qm-ahci", .data = (void *)AHCI_IMX8QM },
-	{},
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, imx_ahci_of_match);
 
@@ -974,13 +980,12 @@ static u32 imx_ahci_parse_props(struct device *dev,
 	return reg_value;
 }
 
-static struct scsi_host_template ahci_platform_sht = {
+static const struct scsi_host_template ahci_platform_sht = {
 	AHCI_SHT(DRV_NAME),
 };
 
 static int imx8_sata_probe(struct device *dev, struct imx_ahci_priv *imxpriv)
 {
-	int ret;
 	struct resource *phy_res;
 	struct platform_device *pdev = imxpriv->ahci_pdev;
 	struct device_node *np = dev->of_node;
@@ -1033,20 +1038,12 @@ static int imx8_sata_probe(struct device *dev, struct imx_ahci_priv *imxpriv)
 	}
 
 	/* Fetch GPIO, then enable the external OSC */
-	imxpriv->clkreq_gpio = of_get_named_gpio(np, "clkreq-gpio", 0);
-	if (gpio_is_valid(imxpriv->clkreq_gpio)) {
-		ret = devm_gpio_request_one(dev, imxpriv->clkreq_gpio,
-					    GPIOF_OUT_INIT_LOW,
-					    "SATA CLKREQ");
-		if (ret == -EBUSY) {
-			dev_info(dev, "clkreq had been initialized.\n");
-		} else if (ret) {
-			dev_err(dev, "%d unable to get clkreq.\n", ret);
-			return ret;
-		}
-	} else if (imxpriv->clkreq_gpio == -EPROBE_DEFER) {
-		return imxpriv->clkreq_gpio;
-	}
+	imxpriv->clkreq_gpiod = devm_gpiod_get_optional(dev, "clkreq",
+				GPIOD_OUT_LOW | GPIOD_FLAGS_BIT_NONEXCLUSIVE);
+	if (IS_ERR(imxpriv->clkreq_gpiod))
+		return PTR_ERR(imxpriv->clkreq_gpiod);
+	if (imxpriv->clkreq_gpiod)
+		gpiod_set_consumer_name(imxpriv->clkreq_gpiod, "SATA CLKREQ");
 
 	return 0;
 }
@@ -1054,15 +1051,10 @@ static int imx8_sata_probe(struct device *dev, struct imx_ahci_priv *imxpriv)
 static int imx_ahci_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *of_id;
 	struct ahci_host_priv *hpriv;
 	struct imx_ahci_priv *imxpriv;
 	unsigned int reg_val;
 	int ret;
-
-	of_id = of_match_device(imx_ahci_of_match, dev);
-	if (!of_id)
-		return -EINVAL;
 
 	imxpriv = devm_kzalloc(dev, sizeof(*imxpriv), GFP_KERNEL);
 	if (!imxpriv)
@@ -1071,7 +1063,7 @@ static int imx_ahci_probe(struct platform_device *pdev)
 	imxpriv->ahci_pdev = pdev;
 	imxpriv->no_device = false;
 	imxpriv->first_time = true;
-	imxpriv->type = (enum ahci_imx_type)of_id->data;
+	imxpriv->type = (enum ahci_imx_type)device_get_match_data(dev);
 
 	imxpriv->sata_clk = devm_clk_get(dev, "sata");
 	if (IS_ERR(imxpriv->sata_clk)) {
@@ -1140,8 +1132,8 @@ static int imx_ahci_probe(struct platform_device *pdev)
 			ret = PTR_ERR(hwmon_dev);
 			goto disable_clk;
 		}
-		devm_thermal_zone_of_sensor_register(hwmon_dev, 0, hwmon_dev,
-					     &fsl_sata_ahci_of_thermal_ops);
+		devm_thermal_of_zone_register(hwmon_dev, 0, hwmon_dev,
+					      &fsl_sata_ahci_of_thermal_ops);
 		dev_info(dev, "%s: sensor 'sata_ahci'\n", dev_name(hwmon_dev));
 	}
 
@@ -1227,7 +1219,7 @@ static SIMPLE_DEV_PM_OPS(ahci_imx_pm_ops, imx_ahci_suspend, imx_ahci_resume);
 
 static struct platform_driver imx_ahci_driver = {
 	.probe = imx_ahci_probe,
-	.remove = ata_platform_remove_one,
+	.remove_new = ata_platform_remove_one,
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = imx_ahci_of_match,
@@ -1239,4 +1231,4 @@ module_platform_driver(imx_ahci_driver);
 MODULE_DESCRIPTION("Freescale i.MX AHCI SATA platform driver");
 MODULE_AUTHOR("Richard Zhu <Hong-Xing.Zhu@freescale.com>");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("ahci:imx");
+MODULE_ALIAS("platform:" DRV_NAME);

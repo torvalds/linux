@@ -15,68 +15,8 @@
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 
-#include "bpf_rlimit.h"
 #include "cgroup_helpers.h"
-
-static int start_server(const struct sockaddr *addr, socklen_t len)
-{
-	int fd;
-
-	fd = socket(addr->sa_family, SOCK_STREAM, 0);
-	if (fd == -1) {
-		log_err("Failed to create server socket");
-		goto out;
-	}
-
-	if (bind(fd, addr, len) == -1) {
-		log_err("Failed to bind server socket");
-		goto close_out;
-	}
-
-	if (listen(fd, 128) == -1) {
-		log_err("Failed to listen on server socket");
-		goto close_out;
-	}
-
-	goto out;
-
-close_out:
-	close(fd);
-	fd = -1;
-out:
-	return fd;
-}
-
-static int connect_to_server(int server_fd)
-{
-	struct sockaddr_storage addr;
-	socklen_t len = sizeof(addr);
-	int fd = -1;
-
-	if (getsockname(server_fd, (struct sockaddr *)&addr, &len)) {
-		log_err("Failed to get server addr");
-		goto out;
-	}
-
-	fd = socket(addr.ss_family, SOCK_STREAM, 0);
-	if (fd == -1) {
-		log_err("Failed to create client socket");
-		goto out;
-	}
-
-	if (connect(fd, (const struct sockaddr *)&addr, len) == -1) {
-		log_err("Fail to connect to server");
-		goto close_out;
-	}
-
-	goto out;
-
-close_out:
-	close(fd);
-	fd = -1;
-out:
-	return fd;
-}
+#include "network_helpers.h"
 
 static int get_map_fd_by_prog_id(int prog_id, bool *xdp)
 {
@@ -95,7 +35,7 @@ static int get_map_fd_by_prog_id(int prog_id, bool *xdp)
 	info.nr_map_ids = 1;
 	info.map_ids = (__u64)(unsigned long)map_ids;
 
-	if (bpf_obj_get_info_by_fd(prog_fd, &info, &info_len)) {
+	if (bpf_prog_get_info_by_fd(prog_fd, &info, &info_len)) {
 		log_err("Failed to get info by prog fd %d", prog_fd);
 		goto err;
 	}
@@ -142,7 +82,7 @@ static int run_test(int server_fd, int results_fd, bool xdp)
 		goto err;
 	}
 
-	client = connect_to_server(server_fd);
+	client = connect_to_fd(server_fd, 0);
 	if (client == -1)
 		goto err;
 
@@ -199,12 +139,30 @@ out:
 	return ret;
 }
 
+static int v6only_true(int fd, const struct post_socket_opts *opts)
+{
+	int mode = true;
+
+	return setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &mode, sizeof(mode));
+}
+
+static int v6only_false(int fd, const struct post_socket_opts *opts)
+{
+	int mode = false;
+
+	return setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &mode, sizeof(mode));
+}
+
 int main(int argc, char **argv)
 {
+	struct network_helper_opts opts = { 0 };
 	struct sockaddr_in addr4;
 	struct sockaddr_in6 addr6;
+	struct sockaddr_in addr4dual;
+	struct sockaddr_in6 addr6dual;
 	int server = -1;
 	int server_v6 = -1;
+	int server_dual = -1;
 	int results = -1;
 	int err = 0;
 	bool xdp;
@@ -213,6 +171,9 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Usage: %s prog_id\n", argv[0]);
 		exit(1);
 	}
+
+	/* Use libbpf 1.0 API mode */
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 
 	results = get_map_fd_by_prog_id(atoi(argv[1]), &xdp);
 	if (results < 0) {
@@ -224,25 +185,42 @@ int main(int argc, char **argv)
 	addr4.sin_family = AF_INET;
 	addr4.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 	addr4.sin_port = 0;
+	memcpy(&addr4dual, &addr4, sizeof(addr4dual));
 
 	memset(&addr6, 0, sizeof(addr6));
 	addr6.sin6_family = AF_INET6;
 	addr6.sin6_addr = in6addr_loopback;
 	addr6.sin6_port = 0;
 
-	server = start_server((const struct sockaddr *)&addr4, sizeof(addr4));
+	memset(&addr6dual, 0, sizeof(addr6dual));
+	addr6dual.sin6_family = AF_INET6;
+	addr6dual.sin6_addr = in6addr_any;
+	addr6dual.sin6_port = 0;
+
+	server = start_server_addr(SOCK_STREAM, (struct sockaddr_storage *)&addr4,
+				   sizeof(addr4), NULL);
 	if (server == -1)
 		goto err;
 
-	server_v6 = start_server((const struct sockaddr *)&addr6,
-				 sizeof(addr6));
+	opts.post_socket_cb = v6only_true;
+	server_v6 = start_server_addr(SOCK_STREAM, (struct sockaddr_storage *)&addr6,
+				      sizeof(addr6), &opts);
 	if (server_v6 == -1)
+		goto err;
+
+	opts.post_socket_cb = v6only_false;
+	server_dual = start_server_addr(SOCK_STREAM, (struct sockaddr_storage *)&addr6dual,
+					sizeof(addr6dual), &opts);
+	if (server_dual == -1)
 		goto err;
 
 	if (run_test(server, results, xdp))
 		goto err;
 
 	if (run_test(server_v6, results, xdp))
+		goto err;
+
+	if (run_test(server_dual, results, xdp))
 		goto err;
 
 	printf("ok\n");
@@ -252,6 +230,7 @@ err:
 out:
 	close(server);
 	close(server_v6);
+	close(server_dual);
 	close(results);
 	return err;
 }

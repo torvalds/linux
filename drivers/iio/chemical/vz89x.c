@@ -10,8 +10,7 @@
 #include <linux/mutex.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -243,7 +242,7 @@ static int vz89x_get_resistance_reading(struct vz89x_data *data,
 					struct iio_chan_spec const *chan,
 					int *val)
 {
-	u8 *tmp = (u8 *) &data->buffer[chan->address];
+	u8 *tmp = &data->buffer[chan->address];
 
 	switch (chan->scan_type.endianness) {
 	case IIO_LE:
@@ -343,21 +342,19 @@ static const struct vz89x_chip_data vz89x_chips[] = {
 };
 
 static const struct of_device_id vz89x_dt_ids[] = {
-	{ .compatible = "sgx,vz89x", .data = (void *) VZ89X },
-	{ .compatible = "sgx,vz89te", .data = (void *) VZ89TE },
+	{ .compatible = "sgx,vz89x", .data = &vz89x_chips[VZ89X] },
+	{ .compatible = "sgx,vz89te", .data = &vz89x_chips[VZ89TE] },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, vz89x_dt_ids);
 
-static int vz89x_probe(struct i2c_client *client,
-		       const struct i2c_device_id *id)
+static int vz89x_probe(struct i2c_client *client)
 {
+	struct device *dev = &client->dev;
 	struct iio_dev *indio_dev;
 	struct vz89x_data *data;
-	const struct of_device_id *of_id;
-	int chip_id;
 
-	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
 		return -ENOMEM;
 	data = iio_priv(indio_dev);
@@ -370,32 +367,26 @@ static int vz89x_probe(struct i2c_client *client,
 	else
 		return -EOPNOTSUPP;
 
-	of_id = of_match_device(vz89x_dt_ids, &client->dev);
-	if (!of_id)
-		chip_id = id->driver_data;
-	else
-		chip_id = (unsigned long)of_id->data;
+	data->chip = i2c_get_match_data(client);
 
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
-	data->chip = &vz89x_chips[chip_id];
 	data->last_update = jiffies - HZ;
 	mutex_init(&data->lock);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &vz89x_info;
-	indio_dev->name = dev_name(&client->dev);
+	indio_dev->name = dev_name(dev);
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	indio_dev->channels = data->chip->channels;
 	indio_dev->num_channels = data->chip->num_channels;
 
-	return devm_iio_device_register(&client->dev, indio_dev);
+	return devm_iio_device_register(dev, indio_dev);
 }
 
 static const struct i2c_device_id vz89x_id[] = {
-	{ "vz89x", VZ89X },
-	{ "vz89te", VZ89TE },
+	{ "vz89x", (kernel_ulong_t)&vz89x_chips[VZ89X] },
+	{ "vz89te", (kernel_ulong_t)&vz89x_chips[VZ89TE] },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, vz89x_id);
@@ -403,7 +394,7 @@ MODULE_DEVICE_TABLE(i2c, vz89x_id);
 static struct i2c_driver vz89x_driver = {
 	.driver = {
 		.name	= "vz89x",
-		.of_match_table = of_match_ptr(vz89x_dt_ids),
+		.of_match_table = vz89x_dt_ids,
 	},
 	.probe = vz89x_probe,
 	.id_table = vz89x_id,

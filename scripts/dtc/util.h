@@ -2,6 +2,7 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <stdlib.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <getopt.h>
@@ -12,7 +13,11 @@
  */
 
 #ifdef __GNUC__
+#if __GNUC__ >= 5 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4)
+#define PRINTF(i, j)	__attribute__((format (gnu_printf, i, j)))
+#else
 #define PRINTF(i, j)	__attribute__((format (printf, i, j)))
+#endif
 #define NORETURN	__attribute__((noreturn))
 #else
 #define PRINTF(i, j)
@@ -56,6 +61,7 @@ static inline void *xrealloc(void *p, size_t len)
 }
 
 extern char *xstrdup(const char *s);
+extern char *xstrndup(const char *s, size_t len);
 
 extern int PRINTF(2, 3) xasprintf(char **strp, const char *fmt, ...);
 extern int PRINTF(2, 3) xasprintf_append(char **strp, const char *fmt, ...);
@@ -138,6 +144,7 @@ int utilfdt_write_err(const char *filename, const void *blob);
  *		i	signed integer
  *		u	unsigned integer
  *		x	hex
+ *		r	raw
  *
  * TODO: Implement ll modifier (8 bytes)
  * TODO: Implement o type (octal)
@@ -155,7 +162,7 @@ int utilfdt_decode_type(const char *fmt, int *type, int *size);
  */
 
 #define USAGE_TYPE_MSG \
-	"<type>\ts=string, i=int, u=unsigned, x=hex\n" \
+	"<type>\ts=string, i=int, u=unsigned, x=hex, r=raw\n" \
 	"\tOptional modifier prefix:\n" \
 	"\t\thh or b=byte, h=2 byte, l=4 byte (default)";
 

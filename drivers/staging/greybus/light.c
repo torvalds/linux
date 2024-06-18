@@ -29,13 +29,9 @@ struct gb_channel {
 	struct attribute_group		*attr_group;
 	const struct attribute_group	**attr_groups;
 	struct led_classdev		*led;
-#if IS_REACHABLE(CONFIG_LEDS_CLASS_FLASH)
 	struct led_classdev_flash	fled;
 	struct led_flash_setting	intensity_uA;
 	struct led_flash_setting	timeout_us;
-#else
-	struct led_classdev		cled;
-#endif
 	struct gb_light			*light;
 	bool				is_registered;
 	bool				releasing;
@@ -84,7 +80,6 @@ static bool is_channel_flash(struct gb_channel *channel)
 				   | GB_CHANNEL_MODE_INDICATOR));
 }
 
-#if IS_REACHABLE(CONFIG_LEDS_CLASS_FLASH)
 static struct gb_channel *get_channel_from_cdev(struct led_classdev *cdev)
 {
 	struct led_classdev_flash *fled_cdev = lcdev_to_flcdev(cdev);
@@ -100,15 +95,15 @@ static struct led_classdev *get_channel_cdev(struct gb_channel *channel)
 static struct gb_channel *get_channel_from_mode(struct gb_light *light,
 						u32 mode)
 {
-	struct gb_channel *channel = NULL;
+	struct gb_channel *channel;
 	int i;
 
 	for (i = 0; i < light->channels_count; i++) {
 		channel = &light->channels[i];
-		if (channel && channel->mode == mode)
-			break;
+		if (channel->mode == mode)
+			return channel;
 	}
-	return channel;
+	return NULL;
 }
 
 static int __gb_lights_flash_intensity_set(struct gb_channel *channel,
@@ -147,28 +142,15 @@ static int __gb_lights_flash_brightness_set(struct gb_channel *channel)
 		channel = get_channel_from_mode(channel->light,
 						GB_CHANNEL_MODE_TORCH);
 
+	if (!channel)
+		return -EINVAL;
+
 	/* For not flash we need to convert brightness to intensity */
 	intensity = channel->intensity_uA.min +
 			(channel->intensity_uA.step * channel->led->brightness);
 
 	return __gb_lights_flash_intensity_set(channel, intensity);
 }
-#else
-static struct gb_channel *get_channel_from_cdev(struct led_classdev *cdev)
-{
-	return container_of(cdev, struct gb_channel, cled);
-}
-
-static struct led_classdev *get_channel_cdev(struct gb_channel *channel)
-{
-	return &channel->cled;
-}
-
-static int __gb_lights_flash_brightness_set(struct gb_channel *channel)
-{
-	return 0;
-}
-#endif
 
 static int gb_lights_color_set(struct gb_channel *channel, u32 color);
 static int gb_lights_fade_set(struct gb_channel *channel);
@@ -290,8 +272,7 @@ static int channel_attr_groups_set(struct gb_channel *channel,
 	channel->attrs = kcalloc(size + 1, sizeof(*channel->attrs), GFP_KERNEL);
 	if (!channel->attrs)
 		return -ENOMEM;
-	channel->attr_group = kcalloc(1, sizeof(*channel->attr_group),
-				      GFP_KERNEL);
+	channel->attr_group = kzalloc(sizeof(*channel->attr_group), GFP_KERNEL);
 	if (!channel->attr_group)
 		return -ENOMEM;
 	channel->attr_groups = kcalloc(2, sizeof(*channel->attr_groups),
@@ -550,7 +531,10 @@ static int gb_lights_light_v4l2_register(struct gb_light *light)
 	}
 
 	channel_flash = get_channel_from_mode(light, GB_CHANNEL_MODE_FLASH);
-	WARN_ON(!channel_flash);
+	if (!channel_flash) {
+		dev_err(dev, "failed to get flash channel from mode\n");
+		return -EINVAL;
+	}
 
 	fled = &channel_flash->fled;
 
@@ -1026,7 +1010,8 @@ static int gb_lights_light_config(struct gb_lights *glights, u8 id)
 
 	light->channels_count = conf.channel_count;
 	light->name = kstrndup(conf.name, NAMES_MAX, GFP_KERNEL);
-
+	if (!light->name)
+		return -ENOMEM;
 	light->channels = kcalloc(light->channels_count,
 				  sizeof(struct gb_channel), GFP_KERNEL);
 	if (!light->channels)

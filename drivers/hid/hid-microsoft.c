@@ -163,16 +163,13 @@ static int ms_surface_dial_quirk(struct hid_input *hi, struct hid_field *field,
 {
 	switch (usage->hid & HID_USAGE_PAGE) {
 	case 0xff070000:
-		/* fall-through */
 	case HID_UP_DIGITIZER:
 		/* ignore those axis */
 		return -1;
 	case HID_UP_GENDESK:
 		switch (usage->hid) {
 		case HID_GD_X:
-			/* fall-through */
 		case HID_GD_Y:
-			/* fall-through */
 		case HID_GD_RFKILL_BTN:
 			/* ignore those axis */
 			return -1;
@@ -328,10 +325,16 @@ static int ms_play_effect(struct input_dev *dev, void *data,
 
 static int ms_init_ff(struct hid_device *hdev)
 {
-	struct hid_input *hidinput = list_entry(hdev->inputs.next,
-						struct hid_input, list);
-	struct input_dev *input_dev = hidinput->input;
+	struct hid_input *hidinput;
+	struct input_dev *input_dev;
 	struct ms_data *ms = hid_get_drvdata(hdev);
+
+	if (list_empty(&hdev->inputs)) {
+		hid_err(hdev, "no inputs found\n");
+		return -ENODEV;
+	}
+	hidinput = list_entry(hdev->inputs.next, struct hid_input, list);
+	input_dev = hidinput->input;
 
 	if (!(ms->quirks & MS_QUIRK_FF))
 		return 0;
@@ -443,7 +446,18 @@ static const struct hid_device_id ms_devices[] = {
 		.driver_data = MS_PRESENTER },
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_MICROSOFT, 0x091B),
 		.driver_data = MS_SURFACE_DIAL },
-	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_XBOX_ONE_S_CONTROLLER),
+
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_XBOX_CONTROLLER_MODEL_1708),
+		.driver_data = MS_QUIRK_FF },
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_XBOX_CONTROLLER_MODEL_1708_BLE),
+		.driver_data = MS_QUIRK_FF },
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_XBOX_CONTROLLER_MODEL_1914),
+		.driver_data = MS_QUIRK_FF },
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_XBOX_CONTROLLER_MODEL_1797),
+		.driver_data = MS_QUIRK_FF },
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_XBOX_CONTROLLER_MODEL_1797_BLE),
+		.driver_data = MS_QUIRK_FF },
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_8BITDO_SN30_PRO_PLUS),
 		.driver_data = MS_QUIRK_FF },
 	{ }
 };

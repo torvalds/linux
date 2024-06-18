@@ -1,0 +1,75 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (c) Siemens AG, 2021-2023
+ *
+ * Authors:
+ *   Jan Kiszka <jan.kiszka@siemens.com>
+ *
+ * Common bits of the IOT2050 Basic and Advanced variants, PG1
+ */
+
+#include "k3-am65-iot2050-dp.dtsi"
+
+&serdes0 {
+	status = "disabled";
+};
+
+&sdhci1 {
+	no-1-8-v;
+};
+
+&tx_pru0_0 {
+	status = "disabled";
+};
+
+&tx_pru0_1 {
+	status = "disabled";
+};
+
+&tx_pru1_0 {
+	status = "disabled";
+};
+
+&tx_pru1_1 {
+	status = "disabled";
+};
+
+&tx_pru2_0 {
+	status = "disabled";
+};
+
+&tx_pru2_1 {
+	status = "disabled";
+};
+
+&icssg0_eth {
+	compatible = "ti,am654-sr1-icssg-prueth";
+
+	ti,prus = <&pru0_0>, <&rtu0_0>, <&pru0_1>, <&rtu0_1>;
+	firmware-name = "ti-pruss/am65x-pru0-prueth-fw.elf",
+			"ti-pruss/am65x-rtu0-prueth-fw.elf",
+			"ti-pruss/am65x-pru1-prueth-fw.elf",
+			"ti-pruss/am65x-rtu1-prueth-fw.elf";
+
+	ti,pruss-gp-mux-sel = <2>,      /* MII mode */
+			      <2>,
+			      <2>,      /* MII mode */
+			      <2>;
+
+	dmas = <&main_udmap 0xc100>, /* egress slice 0 */
+	       <&main_udmap 0xc101>, /* egress slice 0 */
+	       <&main_udmap 0xc102>, /* egress slice 0 */
+	       <&main_udmap 0xc103>, /* egress slice 0 */
+	       <&main_udmap 0xc104>, /* egress slice 1 */
+	       <&main_udmap 0xc105>, /* egress slice 1 */
+	       <&main_udmap 0xc106>, /* egress slice 1 */
+	       <&main_udmap 0xc107>, /* egress slice 1 */
+	       <&main_udmap 0x4100>, /* ingress slice 0 */
+	       <&main_udmap 0x4101>, /* ingress slice 1 */
+	       <&main_udmap 0x4102>, /* mgmnt rsp slice 0 */
+	       <&main_udmap 0x4103>; /* mgmnt rsp slice 1 */
+	dma-names = "tx0-0", "tx0-1", "tx0-2", "tx0-3",
+		    "tx1-0", "tx1-1", "tx1-2", "tx1-3",
+		    "rx0", "rx1",
+		    "rxmgm0", "rxmgm1";
+};

@@ -99,7 +99,7 @@ struct ac100_rtc_dev {
 	struct clk_hw_onecell_data *clk_data;
 };
 
-/**
+/*
  * Clock controls for 3 clock output pins
  */
 
@@ -378,7 +378,7 @@ static void ac100_rtc_unregister_clks(struct ac100_rtc_dev *chip)
 	clk_unregister_fixed_rate(chip->rtc_32k_clk->clk);
 }
 
-/**
+/*
  * RTC related bits
  */
 static int ac100_rtc_get_time(struct device *dev, struct rtc_time *rtc_tm)
@@ -528,7 +528,7 @@ static irqreturn_t ac100_rtc_irq(int irq, void *data)
 	unsigned int val = 0;
 	int ret;
 
-	mutex_lock(&chip->rtc->ops_lock);
+	rtc_lock(chip->rtc);
 
 	/* read status */
 	ret = regmap_read(regmap, AC100_ALM_INT_STA, &val);
@@ -551,7 +551,7 @@ static irqreturn_t ac100_rtc_irq(int irq, void *data)
 	}
 
 out:
-	mutex_unlock(&chip->rtc->ops_lock);
+	rtc_unlock(chip->rtc);
 	return IRQ_HANDLED;
 }
 
@@ -610,16 +610,14 @@ static int ac100_rtc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	return rtc_register_device(chip->rtc);
+	return devm_rtc_register_device(chip->rtc);
 }
 
-static int ac100_rtc_remove(struct platform_device *pdev)
+static void ac100_rtc_remove(struct platform_device *pdev)
 {
 	struct ac100_rtc_dev *chip = platform_get_drvdata(pdev);
 
 	ac100_rtc_unregister_clks(chip);
-
-	return 0;
 }
 
 static const struct of_device_id ac100_rtc_match[] = {
@@ -630,7 +628,7 @@ MODULE_DEVICE_TABLE(of, ac100_rtc_match);
 
 static struct platform_driver ac100_rtc_driver = {
 	.probe		= ac100_rtc_probe,
-	.remove		= ac100_rtc_remove,
+	.remove_new	= ac100_rtc_remove,
 	.driver		= {
 		.name		= "ac100-rtc",
 		.of_match_table	= of_match_ptr(ac100_rtc_match),

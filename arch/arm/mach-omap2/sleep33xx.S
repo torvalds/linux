@@ -2,7 +2,7 @@
 /*
  * Low level suspend code for AM33XX SoCs
  *
- * Copyright (C) 2012-2018 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2012-2018 Texas Instruments Incorporated - https://www.ti.com/
  *	Dave Gerlach, Vaibhav Bedia
  */
 
@@ -10,7 +10,7 @@
 #include <linux/platform_data/pm33xx.h>
 #include <linux/ti-emif-sram.h>
 #include <asm/assembler.h>
-#include <asm/memory.h>
+#include <asm/page.h>
 
 #include "iomap.h"
 #include "cm33xx.h"

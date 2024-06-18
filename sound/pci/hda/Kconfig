@@ -8,11 +8,14 @@ config SND_HDA
 	select SND_JACK
 	select SND_HDA_CORE
 
+config SND_HDA_GENERIC_LEDS
+       bool
+
 config SND_HDA_INTEL
 	tristate "HD Audio PCI"
 	depends on SND_PCI
 	select SND_HDA
-	select SND_INTEL_NHLT if ACPI
+	select SND_INTEL_DSP_CONFIG
 	help
 	  Say Y here to include support for Intel "High Definition
 	  Audio" (Azalia) and its compatible devices.
@@ -22,15 +25,6 @@ config SND_HDA_INTEL
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-hda-intel.
-
-config SND_HDA_INTEL_DETECT_DMIC
-	bool "DMIC detection and probe abort"
-	depends on SND_HDA_INTEL
-	help
-	  Say Y to detect digital microphones on SKL+ devices. DMICs
-	  cannot be handled by the HDaudio legacy driver and are
-	  currently only supported by the SOF driver.
-	  If unsure say N.
 
 config SND_HDA_TEGRA
 	tristate "NVIDIA Tegra HD Audio"
@@ -97,9 +91,124 @@ config SND_HDA_PATCH_LOADER
 	  start up.  The "patch" file can be specified via patch module
 	  option, such as patch=hda-init.
 
+config SND_HDA_CIRRUS_SCODEC
+	tristate
+
+config SND_HDA_CIRRUS_SCODEC_KUNIT_TEST
+	tristate "KUnit test for Cirrus side-codec library" if !KUNIT_ALL_TESTS
+	select SND_HDA_CIRRUS_SCODEC
+	select GPIOLIB
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  This builds KUnit tests for the cirrus side-codec library.
+	  For more information on KUnit and unit tests in general,
+	  please refer to the KUnit documentation in
+	  Documentation/dev-tools/kunit/.
+	  If in doubt, say "N".
+
+config SND_HDA_SCODEC_CS35L41
+	tristate
+	select SND_HDA_GENERIC
+	select REGMAP_IRQ
+
+config SND_HDA_CS_DSP_CONTROLS
+	tristate
+	select FW_CS_DSP
+
+config SND_HDA_SCODEC_COMPONENT
+	tristate
+
+config SND_HDA_SCODEC_CS35L41_I2C
+	tristate "Build CS35L41 HD-audio side codec support for I2C Bus"
+	depends on I2C
+	depends on ACPI
+	depends on EFI
+	depends on SND_SOC
+	select SND_SOC_CS35L41_LIB
+	select SND_HDA_SCODEC_CS35L41
+	select SND_HDA_CS_DSP_CONTROLS
+	select SND_SOC_CS_AMP_LIB
+	help
+	  Say Y or M here to include CS35L41 I2C HD-audio side codec support
+	  in snd-hda-intel driver, such as ALC287.
+
+comment "Set to Y if you want auto-loading the side codec driver"
+	depends on SND_HDA=y && SND_HDA_SCODEC_CS35L41_I2C=m
+
+config SND_HDA_SCODEC_CS35L41_SPI
+	tristate "Build CS35L41 HD-audio codec support for SPI Bus"
+	depends on SPI_MASTER
+	depends on ACPI
+	depends on EFI
+	depends on SND_SOC
+	select SND_SOC_CS35L41_LIB
+	select SND_HDA_SCODEC_CS35L41
+	select SND_HDA_CS_DSP_CONTROLS
+	select SND_SOC_CS_AMP_LIB
+	help
+	  Say Y or M here to include CS35L41 SPI HD-audio side codec support
+	  in snd-hda-intel driver, such as ALC287.
+
+comment "Set to Y if you want auto-loading the side codec driver"
+	depends on SND_HDA=y && SND_HDA_SCODEC_CS35L41_SPI=m
+
+config SND_HDA_SCODEC_CS35L56
+	tristate
+
+config SND_HDA_SCODEC_CS35L56_I2C
+	tristate "Build CS35L56 HD-audio side codec support for I2C Bus"
+	depends on I2C
+	depends on ACPI || COMPILE_TEST
+	depends on SND_SOC
+	select FW_CS_DSP
+	select SND_HDA_GENERIC
+	select SND_SOC_CS35L56_SHARED
+	select SND_HDA_SCODEC_CS35L56
+	select SND_HDA_CIRRUS_SCODEC
+	select SND_HDA_CS_DSP_CONTROLS
+	select SND_SOC_CS_AMP_LIB
+	help
+	  Say Y or M here to include CS35L56 amplifier support with
+	  I2C control.
+
+config SND_HDA_SCODEC_CS35L56_SPI
+	tristate "Build CS35L56 HD-audio side codec support for SPI Bus"
+	depends on SPI_MASTER
+	depends on ACPI || COMPILE_TEST
+	depends on SND_SOC
+	select FW_CS_DSP
+	select SND_HDA_GENERIC
+	select SND_SOC_CS35L56_SHARED
+	select SND_HDA_SCODEC_CS35L56
+	select SND_HDA_CIRRUS_SCODEC
+	select SND_HDA_CS_DSP_CONTROLS
+	select SND_SOC_CS_AMP_LIB
+	help
+	  Say Y or M here to include CS35L56 amplifier support with
+	  SPI control.
+
+config SND_HDA_SCODEC_TAS2781_I2C
+	tristate "Build TAS2781 HD-audio side codec support for I2C Bus"
+	depends on I2C
+	depends on ACPI
+	depends on EFI
+	depends on SND_SOC
+	select SND_SOC_TAS2781_COMLIB
+	select SND_SOC_TAS2781_FMWLIB
+	select CRC32_SARWATE
+	help
+	  Say Y or M here to include TAS2781 I2C HD-audio side codec support
+	  in snd-hda-intel driver, such as ALC287.
+
+comment "Set to Y if you want auto-loading the side codec driver"
+	depends on SND_HDA=y && SND_HDA_SCODEC_TAS2781_I2C=m
+
 config SND_HDA_CODEC_REALTEK
 	tristate "Build Realtek HD-audio codec support"
 	select SND_HDA_GENERIC
+	select SND_HDA_GENERIC_LEDS
+	select SND_HDA_SCODEC_COMPONENT
 	help
 	  Say Y or M here to include Realtek HD-audio codec support in
 	  snd-hda-intel driver, such as ALC880.
@@ -108,10 +217,10 @@ comment "Set to Y if you want auto-loading the codec driver"
 	depends on SND_HDA=y && SND_HDA_CODEC_REALTEK=m
 
 config SND_HDA_CODEC_ANALOG
-	tristate "Build Analog Device HD-audio codec support"
+	tristate "Build Analog Devices HD-audio codec support"
 	select SND_HDA_GENERIC
 	help
-	  Say Y or M here to include Analog Device HD-audio codec support in
+	  Say Y or M here to include Analog Devices HD-audio codec support in
 	  snd-hda-intel driver, such as AD1986A.
 
 comment "Set to Y if you want auto-loading the codec driver"
@@ -120,6 +229,7 @@ comment "Set to Y if you want auto-loading the codec driver"
 config SND_HDA_CODEC_SIGMATEL
 	tristate "Build IDT/Sigmatel HD-audio codec support"
 	select SND_HDA_GENERIC
+	select SND_HDA_GENERIC_LEDS
 	help
 	  Say Y or M here to include IDT (Sigmatel) HD-audio codec support in
 	  snd-hda-intel driver, such as STAC9200.
@@ -161,9 +271,20 @@ config SND_HDA_CODEC_CIRRUS
 comment "Set to Y if you want auto-loading the codec driver"
 	depends on SND_HDA=y && SND_HDA_CODEC_CIRRUS=m
 
+config SND_HDA_CODEC_CS8409
+	tristate "Build Cirrus Logic HDA bridge support"
+	select SND_HDA_GENERIC
+	help
+	  Say Y or M here to include Cirrus Logic HDA bridge support in
+	  snd-hda-intel driver, such as CS8409.
+
+comment "Set to Y if you want auto-loading the codec driver"
+	depends on SND_HDA=y && SND_HDA_CODEC_CS8409=m
+
 config SND_HDA_CODEC_CONEXANT
 	tristate "Build Conexant HD-audio codec support"
 	select SND_HDA_GENERIC
+	select SND_HDA_GENERIC_LEDS
 	help
 	  Say Y or M here to include Conexant HD-audio codec support in
 	  snd-hda-intel driver, such as CX20549.
@@ -193,6 +314,7 @@ comment "Set to Y if you want auto-loading the codec driver"
 config SND_HDA_CODEC_CA0132_DSP
 	bool "Support new DSP code for CA0132 codec"
 	depends on SND_HDA_CODEC_CA0132
+	default y
 	select SND_HDA_DSP_LOADER
 	select FW_LOADER
 	help
@@ -223,6 +345,8 @@ comment "Set to Y if you want auto-loading the codec driver"
 
 config SND_HDA_GENERIC
 	tristate "Enable generic HD-audio codec parser"
+	select SND_CTL_LED if SND_HDA_GENERIC_LEDS
+	select LEDS_CLASS if SND_HDA_GENERIC_LEDS
 	help
 	  Say Y or M here to enable the generic HD-audio codec parser
 	  in snd-hda-intel driver.
@@ -237,6 +361,35 @@ config SND_HDA_POWER_SAVE_DEFAULT
 	help
 	  The default time-out value in seconds for HD-audio automatic
 	  power-save mode.  0 means to disable the power-save mode.
+
+config SND_HDA_INTEL_HDMI_SILENT_STREAM
+	bool "Enable Silent Stream always for HDMI"
+	depends on SND_HDA_INTEL
+	help
+	  Say Y to enable HD-Audio Keep Alive (KAE) aka Silent Stream
+	  for HDMI on hardware that supports the feature.
+
+	  When enabled, the HDMI/DisplayPort codec will continue to provide
+	  a continuous clock and a valid but silent data stream to
+	  any connected external receiver. This allows to avoid gaps
+	  at start of playback. Many receivers require multiple seconds
+	  to start playing audio after the clock has been stopped.
+	  This feature can impact power consumption as resources
+	  are kept reserved both at transmitter and receiver.
+
+config SND_HDA_CTL_DEV_ID
+	bool "Use the device identifier field for controls"
+	depends on SND_HDA_INTEL
+	help
+	  Say Y to use the device identifier field for (mixer)
+	  controls (old behaviour until this option is available).
+
+	  When enabled, the multiple HDA codecs may set the device
+	  field in control (mixer) element identifiers. The use
+	  of this field is not recommended and defined for mixer controls.
+
+	  The old behaviour (Y) is obsolete and will be removed. Consider
+	  to not enable this option.
 
 endif
 

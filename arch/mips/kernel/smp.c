@@ -10,6 +10,7 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/profile.h>
 #include <linux/smp.h>
 #include <linux/spinlock.h>
 #include <linux/threads.h>
@@ -59,7 +60,7 @@ static DECLARE_COMPLETION(cpu_starting);
 static DECLARE_COMPLETION(cpu_running);
 
 /*
- * A logcal cpu mask containing only one VPE per core to
+ * A logical cpu mask containing only one VPE per core to
  * reduce the number of IPIs on large MT systems.
  */
 cpumask_t cpu_foreign_map[NR_CPUS] __read_mostly;
@@ -72,6 +73,24 @@ static cpumask_t cpu_sibling_setup_map;
 static cpumask_t cpu_core_setup_map;
 
 cpumask_t cpu_coherent_mask;
+
+unsigned int smp_max_threads __initdata = UINT_MAX;
+
+static int __init early_nosmt(char *s)
+{
+	smp_max_threads = 1;
+	return 0;
+}
+early_param("nosmt", early_nosmt);
+
+static int __init early_smt(char *s)
+{
+	get_option(&s, &smp_max_threads);
+	/* Ensure at least one thread is available */
+	smp_max_threads = clamp_val(smp_max_threads, 1U, UINT_MAX);
+	return 0;
+}
+early_param("smt", early_smt);
 
 #ifdef CONFIG_GENERIC_IRQ_IPI
 static struct irq_desc *call_desc;
@@ -207,25 +226,13 @@ static irqreturn_t ipi_call_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct irqaction irq_resched = {
-	.handler	= ipi_resched_interrupt,
-	.flags		= IRQF_PERCPU,
-	.name		= "IPI resched"
-};
-
-static struct irqaction irq_call = {
-	.handler	= ipi_call_interrupt,
-	.flags		= IRQF_PERCPU,
-	.name		= "IPI call"
-};
-
-static void smp_ipi_init_one(unsigned int virq,
-				    struct irqaction *action)
+static void smp_ipi_init_one(unsigned int virq, const char *name,
+			     irq_handler_t handler)
 {
 	int ret;
 
 	irq_set_handler(virq, handle_percpu_irq);
-	ret = setup_irq(virq, action);
+	ret = request_irq(virq, handler, IRQF_PERCPU, name, NULL);
 	BUG_ON(ret);
 }
 
@@ -278,12 +285,15 @@ int mips_smp_ipi_allocate(const struct cpumask *mask)
 		int cpu;
 
 		for_each_cpu(cpu, mask) {
-			smp_ipi_init_one(call_virq + cpu, &irq_call);
-			smp_ipi_init_one(sched_virq + cpu, &irq_resched);
+			smp_ipi_init_one(call_virq + cpu, "IPI call",
+					 ipi_call_interrupt);
+			smp_ipi_init_one(sched_virq + cpu, "IPI resched",
+					 ipi_resched_interrupt);
 		}
 	} else {
-		smp_ipi_init_one(call_virq, &irq_call);
-		smp_ipi_init_one(sched_virq, &irq_resched);
+		smp_ipi_init_one(call_virq, "IPI call", ipi_call_interrupt);
+		smp_ipi_init_one(sched_virq, "IPI resched",
+				 ipi_resched_interrupt);
 	}
 
 	return 0;
@@ -311,8 +321,8 @@ int mips_smp_ipi_free(const struct cpumask *mask)
 		int cpu;
 
 		for_each_cpu(cpu, mask) {
-			remove_irq(call_virq + cpu, &irq_call);
-			remove_irq(sched_virq + cpu, &irq_resched);
+			free_irq(call_virq + cpu, NULL);
+			free_irq(sched_virq + cpu, NULL);
 		}
 	}
 	irq_destroy_ipi(call_virq, mask);
@@ -342,10 +352,11 @@ early_initcall(mips_smp_ipi_init);
  */
 asmlinkage void start_secondary(void)
 {
-	unsigned int cpu;
+	unsigned int cpu = raw_smp_processor_id();
 
 	cpu_probe();
 	per_cpu_trap_init(false);
+	rcutree_report_cpu_starting(cpu);
 	mips_clockevent_init();
 	mp_ops->init_secondary();
 	cpu_report();
@@ -357,9 +368,10 @@ asmlinkage void start_secondary(void)
 	 */
 
 	calibrate_delay();
-	preempt_disable();
-	cpu = smp_processor_id();
 	cpu_data[cpu].udelay_val = loops_per_jiffy;
+
+	set_cpu_sibling_map(cpu);
+	set_cpu_core_map(cpu);
 
 	cpumask_set_cpu(cpu, &cpu_coherent_mask);
 	notify_cpu_starting(cpu);
@@ -371,9 +383,6 @@ asmlinkage void start_secondary(void)
 
 	/* The CPU is running and counters synchronised, now mark it online */
 	set_cpu_online(cpu, true);
-
-	set_cpu_sibling_map(cpu);
-	set_cpu_core_map(cpu);
 
 	calculate_cpu_foreign_map();
 
@@ -460,11 +469,13 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 	return 0;
 }
 
+#ifdef CONFIG_PROFILING
 /* Not really SMP stuff ... */
 int setup_profiling_timer(unsigned int multiplier)
 {
 	return 0;
 }
+#endif
 
 static void flush_tlb_all_ipi(void *info)
 {
@@ -519,8 +530,8 @@ static inline void smp_on_each_tlb(void (*func) (void *info), void *info)
  * address spaces, a new context is obtained on the current cpu, and tlb
  * context on other cpus are invalidated to force a new context allocation
  * at switch_mm time, should the mm ever be used on other cpus. For
- * multithreaded address spaces, intercpu interrupts have to be sent.
- * Another case where intercpu interrupts are required is when the target
+ * multithreaded address spaces, inter-CPU interrupts have to be sent.
+ * Another case where inter-CPU interrupts are required is when the target
  * mm might be active on another cpu (eg debuggers doing the flushes on
  * behalf of debugees, kswapd stealing pages from another process etc).
  * Kanoj 07/00.
@@ -528,6 +539,12 @@ static inline void smp_on_each_tlb(void (*func) (void *info), void *info)
 
 void flush_tlb_mm(struct mm_struct *mm)
 {
+	if (!mm)
+		return;
+
+	if (atomic_read(&mm->mm_users) == 0)
+		return;		/* happens as a result of exit_mmap() */
+
 	preempt_disable();
 
 	if (cpu_has_mmid) {
@@ -694,45 +711,33 @@ void flush_tlb_one(unsigned long vaddr)
 EXPORT_SYMBOL(flush_tlb_page);
 EXPORT_SYMBOL(flush_tlb_one);
 
+#ifdef CONFIG_HOTPLUG_CORE_SYNC_DEAD
+void arch_cpuhp_cleanup_dead_cpu(unsigned int cpu)
+{
+	if (mp_ops->cleanup_dead_cpu)
+		mp_ops->cleanup_dead_cpu(cpu);
+}
+#endif
+
 #ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
 
-static DEFINE_PER_CPU(atomic_t, tick_broadcast_count);
-static DEFINE_PER_CPU(call_single_data_t, tick_broadcast_csd);
+static void tick_broadcast_callee(void *info)
+{
+	tick_receive_broadcast();
+}
+
+static DEFINE_PER_CPU(call_single_data_t, tick_broadcast_csd) =
+	CSD_INIT(tick_broadcast_callee, NULL);
 
 void tick_broadcast(const struct cpumask *mask)
 {
-	atomic_t *count;
 	call_single_data_t *csd;
 	int cpu;
 
 	for_each_cpu(cpu, mask) {
-		count = &per_cpu(tick_broadcast_count, cpu);
 		csd = &per_cpu(tick_broadcast_csd, cpu);
-
-		if (atomic_inc_return(count) == 1)
-			smp_call_function_single_async(cpu, csd);
+		smp_call_function_single_async(cpu, csd);
 	}
 }
-
-static void tick_broadcast_callee(void *info)
-{
-	int cpu = smp_processor_id();
-	tick_receive_broadcast();
-	atomic_set(&per_cpu(tick_broadcast_count, cpu), 0);
-}
-
-static int __init tick_broadcast_init(void)
-{
-	call_single_data_t *csd;
-	int cpu;
-
-	for (cpu = 0; cpu < NR_CPUS; cpu++) {
-		csd = &per_cpu(tick_broadcast_csd, cpu);
-		csd->func = tick_broadcast_callee;
-	}
-
-	return 0;
-}
-early_initcall(tick_broadcast_init);
 
 #endif /* CONFIG_GENERIC_CLOCKEVENTS_BROADCAST */

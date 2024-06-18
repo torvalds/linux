@@ -79,6 +79,8 @@
 
 		CLUSTER0_L2: l2-cache@0 {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 	};
 
@@ -100,7 +102,7 @@
 	};
 
 	pmu {
-		compatible = "arm,armv8-pmuv3";
+		compatible = "arm,cortex-a57-pmu";
 		interrupts = <GIC_SPI 168 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 169 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
@@ -276,7 +278,7 @@
 			mboxes = <&pdc3 0>;
 		};
 
-		dma0: dma@61360000 {
+		dma0: dma-controller@61360000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0x61360000 0x1000>;
 			interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>,
@@ -289,13 +291,11 @@
 				     <GIC_SPI 215 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 216 IRQ_TYPE_LEVEL_HIGH>;
 			#dma-cells = <1>;
-			#dma-channels = <8>;
-			#dma-requests = <32>;
 			clocks = <&iprocslow>;
 			clock-names = "apb_pclk";
 		};
 
-		smmu: mmu@64000000 {
+		smmu: iommu@64000000 {
 			compatible = "arm,mmu-500";
 			reg = <0x64000000 0x40000>;
 			#global-interrupts = <2>;
@@ -576,7 +576,7 @@
 			reg = <0x66090000 0x1000>;
 			interrupts = <GIC_SPI 406 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&iprocslow>, <&iprocslow>;
-			clock-names = "wdogclk", "apb_pclk";
+			clock-names = "wdog_clk", "apb_pclk";
 		};
 
 		gpio_g: gpio@660a0000 {
@@ -586,6 +586,7 @@
 			#gpio-cells = <2>;
 			gpio-controller;
 			interrupt-controller;
+			#interrupt-cells = <2>;
 			interrupts = <GIC_SPI 400 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
@@ -644,7 +645,7 @@
 			reg = <0x66180000 0x1000>;
 			interrupts = <GIC_SPI 404 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&iprocslow>, <&iprocslow>;
-			clock-names = "spiclk", "apb_pclk";
+			clock-names = "sspclk", "apb_pclk";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -655,7 +656,7 @@
 			reg = <0x66190000 0x1000>;
 			interrupts = <GIC_SPI 405 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&iprocslow>, <&iprocslow>;
-			clock-names = "spiclk", "apb_pclk";
+			clock-names = "sspclk", "apb_pclk";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -687,7 +688,7 @@
 			};
 		};
 
-		sata: ahci@663f2000 {
+		sata: sata@663f2000 {
 			compatible = "brcm,iproc-ahci", "generic-ahci";
 			reg = <0x663f2000 0x1000>;
 			dma-coherent;
@@ -745,7 +746,7 @@
 		};
 
 		qspi: spi@66470200 {
-			compatible = "brcm,spi-bcm-qspi", "brcm,spi-ns2-qspi";
+			compatible = "brcm,spi-ns2-qspi", "brcm,spi-bcm-qspi";
 			reg = <0x66470200 0x184>,
 				<0x66470000 0x124>,
 				<0x67017408 0x004>,

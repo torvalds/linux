@@ -3,7 +3,7 @@ menuconfig IEEE802154_DRIVERS
 	tristate "IEEE 802.15.4 drivers"
 	depends on NETDEVICES && IEEE802154
 	default y
-	---help---
+	help
 	  Say Y here to get to see options for IEEE 802.15.4 Low-Rate
 	  Wireless Personal Area Network device drivers. This option alone
 	  does not add any kernel code.
@@ -14,7 +14,7 @@ menuconfig IEEE802154_DRIVERS
 config IEEE802154_FAKELB
 	depends on IEEE802154_DRIVERS && MAC802154
 	tristate "IEEE 802.15.4 loopback driver"
-	---help---
+	help
 	  Say Y here to enable the fake driver that can emulate a net
 	  of several interconnected radio devices.
 
@@ -26,26 +26,19 @@ config IEEE802154_AT86RF230
 	tristate "AT86RF230/231/233/212 transceiver driver"
 	depends on SPI
 	select REGMAP_SPI
-	---help---
+	help
 	  Say Y here to enable the at86rf230/231/233/212 SPI 802.15.4 wireless
 	  controller.
 
 	  This driver can also be built as a module. To do so, say M here.
 	  the module will be called 'at86rf230'.
 
-config IEEE802154_AT86RF230_DEBUGFS
-	depends on IEEE802154_AT86RF230
-	bool "AT86RF230 debugfs interface"
-	depends on DEBUG_FS
-	---help---
-	  This option compiles debugfs code for the at86rf230 driver.
-
 config IEEE802154_MRF24J40
 	tristate "Microchip MRF24J40 transceiver driver"
 	depends on IEEE802154_DRIVERS && MAC802154
 	depends on SPI
 	select REGMAP_SPI
-	---help---
+	help
 	  Say Y here to enable the MRF24J20 SPI 802.15.4 wireless
 	  controller.
 
@@ -56,7 +49,7 @@ config IEEE802154_CC2520
 	depends on IEEE802154_DRIVERS && MAC802154
 	tristate "CC2520 transceiver driver"
 	depends on SPI
-	---help---
+	help
 	  Say Y here to enable the CC2520 SPI 802.15.4 wireless
 	  controller.
 
@@ -66,7 +59,7 @@ config IEEE802154_CC2520
 config IEEE802154_ATUSB
 	tristate "ATUSB transceiver driver"
 	depends on IEEE802154_DRIVERS && MAC802154 && USB
-	---help---
+	help
 	  Say Y here to enable the ATUSB IEEE 802.15.4 wireless
 	  controller.
 
@@ -74,10 +67,10 @@ config IEEE802154_ATUSB
 	  The module will be called 'atusb'.
 
 config IEEE802154_ADF7242
-       tristate "ADF7242 transceiver driver"
-       depends on IEEE802154_DRIVERS && MAC802154
-       depends on SPI
-	---help---
+	tristate "ADF7242 transceiver driver"
+	depends on IEEE802154_DRIVERS && MAC802154
+	depends on SPI
+	help
 	  Say Y here to enable the ADF7242 SPI 802.15.4 wireless
 	  controller.
 
@@ -89,7 +82,7 @@ config IEEE802154_CA8210
 	depends on IEEE802154_DRIVERS && MAC802154
 	depends on COMMON_CLK
 	depends on SPI
-	---help---
+	help
 	  Say Y here to enable the CA8210 SPI 802.15.4 wireless
 	  controller.
 
@@ -100,17 +93,17 @@ config IEEE802154_CA8210_DEBUGFS
 	bool "CA8210 debugfs interface"
 	depends on IEEE802154_CA8210
 	depends on DEBUG_FS
-	---help---
+	help
 	  This option compiles debugfs code for the ca8210 driver. This
 	  exposes a debugfs node for each CA8210 instance which allows
 	  direct use of the Cascoda API, exposing the 802.15.4 MAC
 	  management entities.
 
 config IEEE802154_MCR20A
-       tristate "MCR20A transceiver driver"
-       depends on IEEE802154_DRIVERS && MAC802154
-       depends on SPI
-	---help---
+	tristate "MCR20A transceiver driver"
+	depends on IEEE802154_DRIVERS && MAC802154
+	depends on SPI
+	help
 	  Say Y here to enable the MCR20A SPI 802.15.4 wireless
 	  controller.
 
@@ -120,7 +113,7 @@ config IEEE802154_MCR20A
 config IEEE802154_HWSIM
 	depends on IEEE802154_DRIVERS && MAC802154
 	tristate "Simulated radio testing tool for mac802154"
-	---help---
+	help
 	  This driver is a developer testing tool that can be used to test
 	  IEEE 802.15.4 networking stack (mac802154) functionality. This is not
 	  needed for normal wpan usage and is only for testing.

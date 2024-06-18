@@ -34,7 +34,7 @@ struct usbport_trig_port {
  * Helpers
  ***************************************/
 
-/**
+/*
  * usbport_trig_usb_dev_observed - Check if dev is connected to observed port
  */
 static bool usbport_trig_usb_dev_observed(struct usbport_trig_data *usbport_data,
@@ -64,7 +64,7 @@ static int usbport_trig_usb_dev_check(struct usb_device *usb_dev, void *data)
 	return 0;
 }
 
-/**
+/*
  * usbport_trig_update_count - Recalculate amount of connected matching devices
  */
 static void usbport_trig_update_count(struct usbport_trig_data *usbport_data)
@@ -123,7 +123,7 @@ static const struct attribute_group ports_group = {
  * Adding & removing ports
  ***************************************/
 
-/**
+/*
  * usbport_trig_port_observed - Check if port should be observed
  */
 static bool usbport_trig_port_observed(struct usbport_trig_data *usbport_data,
@@ -350,18 +350,7 @@ static struct led_trigger usbport_led_trigger = {
 	.deactivate = usbport_trig_deactivate,
 };
 
-static int __init usbport_trig_init(void)
-{
-	return led_trigger_register(&usbport_led_trigger);
-}
-
-static void __exit usbport_trig_exit(void)
-{
-	led_trigger_unregister(&usbport_led_trigger);
-}
-
-module_init(usbport_trig_init);
-module_exit(usbport_trig_exit);
+module_led_trigger(usbport_led_trigger);
 
 MODULE_AUTHOR("Rafał Miłecki <rafal@milecki.pl>");
 MODULE_DESCRIPTION("USB port trigger");

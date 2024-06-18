@@ -8,7 +8,7 @@
  *
  * Split from kobject.h by David Howells (dhowells@redhat.com)
  *
- * Please read Documentation/kobject.txt before using the kobject
+ * Please read Documentation/core-api/kobject.rst before using the kobject
  * interface, ESPECIALLY the parts about reference counts and object
  * destructors.
  */
@@ -47,8 +47,8 @@ struct kobj_ns_type_operations {
 
 int kobj_ns_type_register(const struct kobj_ns_type_operations *ops);
 int kobj_ns_type_registered(enum kobj_ns_type type);
-const struct kobj_ns_type_operations *kobj_child_ns_ops(struct kobject *parent);
-const struct kobj_ns_type_operations *kobj_ns_ops(struct kobject *kobj);
+const struct kobj_ns_type_operations *kobj_child_ns_ops(const struct kobject *parent);
+const struct kobj_ns_type_operations *kobj_ns_ops(const struct kobject *kobj);
 
 bool kobj_ns_current_may_mount(enum kobj_ns_type type);
 void *kobj_ns_grab_current(enum kobj_ns_type type);

@@ -1,20 +1,5 @@
-/*
- * Copyright 2011 Cisco Systems, Inc.  All rights reserved.
- *
- * This program is free software; you may redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- *
- */
+// SPDX-License-Identifier: GPL-2.0-only
+// Copyright 2011 Cisco Systems, Inc.  All rights reserved.
 
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -73,9 +58,9 @@ static int enic_set_port_profile(struct enic *enic, int vf)
 	struct vic_provinfo *vp;
 	const u8 oui[3] = VIC_PROVINFO_CISCO_OUI;
 	const __be16 os_type = htons(VIC_GENERIC_PROV_OS_TYPE_LINUX);
+	const u8 *client_mac;
 	char uuid_str[38];
 	char client_mac_str[18];
-	u8 *client_mac;
 	int err;
 
 	ENIC_PP_BY_INDEX(enic, vf, pp, &err);

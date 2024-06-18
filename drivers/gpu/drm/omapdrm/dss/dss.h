@@ -257,8 +257,6 @@ struct dss_device {
 	struct dss_pll	*video2_pll;
 
 	struct dispc_device *dispc;
-	const struct dispc_ops *dispc_ops;
-	const struct dss_mgr_ops *mgr_ops;
 	struct omap_drm_private *mgr_ops_priv;
 };
 
@@ -392,6 +390,81 @@ void dispc_dump_clocks(struct dispc_device *dispc, struct seq_file *s);
 
 int dispc_runtime_get(struct dispc_device *dispc);
 void dispc_runtime_put(struct dispc_device *dispc);
+
+int dispc_get_num_ovls(struct dispc_device *dispc);
+int dispc_get_num_mgrs(struct dispc_device *dispc);
+
+const u32 *dispc_ovl_get_color_modes(struct dispc_device *dispc,
+					    enum omap_plane_id plane);
+
+void dispc_ovl_get_max_size(struct dispc_device *dispc, u16 *width, u16 *height);
+bool dispc_ovl_color_mode_supported(struct dispc_device *dispc,
+				    enum omap_plane_id plane, u32 fourcc);
+enum omap_overlay_caps dispc_ovl_get_caps(struct dispc_device *dispc, enum omap_plane_id plane);
+
+u32 dispc_read_irqstatus(struct dispc_device *dispc);
+void dispc_clear_irqstatus(struct dispc_device *dispc, u32 mask);
+void dispc_write_irqenable(struct dispc_device *dispc, u32 mask);
+
+int dispc_request_irq(struct dispc_device *dispc, irq_handler_t handler,
+			     void *dev_id);
+void dispc_free_irq(struct dispc_device *dispc, void *dev_id);
+
+u32 dispc_mgr_get_vsync_irq(struct dispc_device *dispc,
+				   enum omap_channel channel);
+u32 dispc_mgr_get_framedone_irq(struct dispc_device *dispc,
+				       enum omap_channel channel);
+u32 dispc_mgr_get_sync_lost_irq(struct dispc_device *dispc,
+				       enum omap_channel channel);
+u32 dispc_wb_get_framedone_irq(struct dispc_device *dispc);
+
+u32 dispc_get_memory_bandwidth_limit(struct dispc_device *dispc);
+
+void dispc_mgr_enable(struct dispc_device *dispc,
+			     enum omap_channel channel, bool enable);
+
+bool dispc_mgr_go_busy(struct dispc_device *dispc,
+			      enum omap_channel channel);
+
+void dispc_mgr_go(struct dispc_device *dispc, enum omap_channel channel);
+
+void dispc_mgr_set_lcd_config(struct dispc_device *dispc,
+				     enum omap_channel channel,
+				     const struct dss_lcd_mgr_config *config);
+void dispc_mgr_set_timings(struct dispc_device *dispc,
+				  enum omap_channel channel,
+				  const struct videomode *vm);
+void dispc_mgr_setup(struct dispc_device *dispc,
+			    enum omap_channel channel,
+			    const struct omap_overlay_manager_info *info);
+
+int dispc_mgr_check_timings(struct dispc_device *dispc,
+				   enum omap_channel channel,
+				   const struct videomode *vm);
+
+u32 dispc_mgr_gamma_size(struct dispc_device *dispc,
+				enum omap_channel channel);
+void dispc_mgr_set_gamma(struct dispc_device *dispc,
+				enum omap_channel channel,
+				const struct drm_color_lut *lut,
+				unsigned int length);
+
+int dispc_ovl_setup(struct dispc_device *dispc,
+			   enum omap_plane_id plane,
+			   const struct omap_overlay_info *oi,
+			   const struct videomode *vm, bool mem_to_mem,
+			   enum omap_channel channel);
+
+int dispc_ovl_enable(struct dispc_device *dispc,
+			    enum omap_plane_id plane, bool enable);
+
+bool dispc_has_writeback(struct dispc_device *dispc);
+int dispc_wb_setup(struct dispc_device *dispc,
+		   const struct omap_dss_writeback_info *wi,
+		   bool mem_to_mem, const struct videomode *vm,
+		   enum dss_writeback_channel channel_in);
+bool dispc_wb_go_busy(struct dispc_device *dispc);
+void dispc_wb_go(struct dispc_device *dispc);
 
 void dispc_enable_sidle(struct dispc_device *dispc);
 void dispc_disable_sidle(struct dispc_device *dispc);

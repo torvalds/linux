@@ -20,9 +20,9 @@ struct boot_param_header;
 extern void __dt_setup_arch(void *bph);
 extern int __dt_register_buses(const char *bus0, const char *bus1);
 
-#else /* CONFIG_OF */
+#else /* !CONFIG_USE_OF */
 static inline void device_tree_init(void) { }
-#endif /* CONFIG_OF */
+#endif /* !CONFIG_USE_OF */
 
 extern char *mips_get_machine_name(void);
 extern void mips_set_machine_name(const char *name);

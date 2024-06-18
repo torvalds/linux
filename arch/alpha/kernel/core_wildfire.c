@@ -59,7 +59,7 @@ unsigned long wildfire_pca_mask;
 unsigned long wildfire_cpu_mask;
 unsigned long wildfire_mem_mask;
 
-void __init
+static void __init
 wildfire_init_hose(int qbbno, int hoseno)
 {
 	struct pci_controller *hose;
@@ -137,7 +137,7 @@ wildfire_init_hose(int qbbno, int hoseno)
 	wildfire_pci_tbi(hose, 0, 0); /* Flush TLB at the end. */
 }
 
-void __init
+static void __init
 wildfire_init_pca(int qbbno, int pcano)
 {
 
@@ -154,7 +154,7 @@ wildfire_init_pca(int qbbno, int pcano)
 	wildfire_init_hose(qbbno, (pcano << 1) + 1);
 }
 
-void __init
+static void __init
 wildfire_init_qbb(int qbbno)
 {
 	int pcano;
@@ -176,7 +176,7 @@ wildfire_init_qbb(int qbbno)
 	}
 }
 
-void __init
+static void __init
 wildfire_hardware_probe(void)
 {
 	unsigned long temp;
@@ -434,38 +434,11 @@ wildfire_write_config(struct pci_bus *bus, unsigned int devfn, int where,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-struct pci_ops wildfire_pci_ops = 
+struct pci_ops wildfire_pci_ops =
 {
 	.read =		wildfire_read_config,
 	.write =	wildfire_write_config,
 };
-
-
-/*
- * NUMA Support
- */
-int wildfire_pa_to_nid(unsigned long pa)
-{
-	return pa >> 36;
-}
-
-int wildfire_cpuid_to_nid(int cpuid)
-{
-	/* assume 4 CPUs per node */
-	return cpuid >> 2;
-}
-
-unsigned long wildfire_node_mem_start(int nid)
-{
-	/* 64GB per node */
-	return (unsigned long)nid * (64UL * 1024 * 1024 * 1024);
-}
-
-unsigned long wildfire_node_mem_size(int nid)
-{
-	/* 64GB per node */
-	return 64UL * 1024 * 1024 * 1024;
-}
 
 #if DEBUG_DUMP_REGS
 

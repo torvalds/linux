@@ -21,7 +21,7 @@
  * rb_insert_augmented() and rb_erase_augmented() are intended to be public.
  * The rest are implementation details you are not expected to depend on.
  *
- * See Documentation/rbtree.txt for documentation and samples.
+ * See Documentation/core-api/rbtree.rst for documentation and samples.
  */
 
 struct rb_augment_callbacks {
@@ -58,6 +58,32 @@ rb_insert_augmented_cached(struct rb_node *node,
 	if (newleft)
 		root->rb_leftmost = node;
 	rb_insert_augmented(node, &root->rb_root, augment);
+}
+
+static __always_inline struct rb_node *
+rb_add_augmented_cached(struct rb_node *node, struct rb_root_cached *tree,
+			bool (*less)(struct rb_node *, const struct rb_node *),
+			const struct rb_augment_callbacks *augment)
+{
+	struct rb_node **link = &tree->rb_root.rb_node;
+	struct rb_node *parent = NULL;
+	bool leftmost = true;
+
+	while (*link) {
+		parent = *link;
+		if (less(node, parent)) {
+			link = &parent->rb_left;
+		} else {
+			link = &parent->rb_right;
+			leftmost = false;
+		}
+	}
+
+	rb_link_node(node, parent, link);
+	augment->propagate(parent, NULL); /* suboptimal */
+	rb_insert_augmented_cached(node, tree, leftmost, augment);
+
+	return leftmost ? node : NULL;
 }
 
 /*
@@ -156,13 +182,13 @@ RB_DECLARE_CALLBACKS(RBSTATIC, RBNAME,					      \
 
 static inline void rb_set_parent(struct rb_node *rb, struct rb_node *p)
 {
-	rb->__rb_parent_color = rb_color(rb) | (unsigned long)p;
+	rb->__rb_parent_color = rb_color(rb) + (unsigned long)p;
 }
 
 static inline void rb_set_parent_color(struct rb_node *rb,
 				       struct rb_node *p, int color)
 {
-	rb->__rb_parent_color = (unsigned long)p | color;
+	rb->__rb_parent_color = (unsigned long)p + color;
 }
 
 static inline void
@@ -283,14 +309,12 @@ __rb_erase_augmented(struct rb_node *node, struct rb_root *root,
 		__rb_change_child(node, successor, tmp, root);
 
 		if (child2) {
-			successor->__rb_parent_color = pc;
 			rb_set_parent_color(child2, parent, RB_BLACK);
 			rebalance = NULL;
 		} else {
-			unsigned long pc2 = successor->__rb_parent_color;
-			successor->__rb_parent_color = pc;
-			rebalance = __rb_is_black(pc2) ? parent : NULL;
+			rebalance = rb_is_black(successor) ? parent : NULL;
 		}
+		successor->__rb_parent_color = pc;
 		tmp = successor;
 	}
 

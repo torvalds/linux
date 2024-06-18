@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/arm/mach-mv78xx0/common.c
  *
  * Core functions for Marvell MV78xx0 SoCs
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 #include <linux/kernel.h>
@@ -343,6 +340,29 @@ void __ref mv78xx0_timer_init(void)
 {
 	orion_time_init(BRIDGE_VIRT_BASE, BRIDGE_INT_TIMER1_CLR,
 			IRQ_MV78XX0_TIMER_1, get_tclk());
+}
+
+/****************************************************************************
+* XOR engine
+****************************************************************************/
+void __init mv78xx0_xor_init(void)
+{
+	orion_xor0_init(XOR_PHYS_BASE,
+		XOR_PHYS_BASE + 0x200,
+		IRQ_MV78XX0_XOR_0, IRQ_MV78XX0_XOR_1);
+}
+
+/****************************************************************************
+ * Cryptographic Engines and Security Accelerator (CESA)
+****************************************************************************/
+void __init mv78xx0_crypto_init(void)
+{
+	mvebu_mbus_add_window_by_id(MV78XX0_MBUS_SRAM_TARGET,
+				MV78XX0_MBUS_SRAM_ATTR,
+				MV78XX0_SRAM_PHYS_BASE,
+			MV78XX0_SRAM_SIZE);
+	orion_crypto_init(CRYPTO_PHYS_BASE, MV78XX0_SRAM_PHYS_BASE,
+		SZ_8K, IRQ_MV78XX0_CRYPTO);
 }
 
 

@@ -59,7 +59,7 @@ void tw686x_audio_irq(struct tw686x_dev *dev, unsigned long requests,
 		}
 		spin_unlock_irqrestore(&ac->lock, flags);
 
-		if (!done || !next)
+		if (!done)
 			continue;
 		/*
 		 * Checking for a non-nil dma_desc[pb]->virt buffer is
@@ -76,17 +76,6 @@ void tw686x_audio_irq(struct tw686x_dev *dev, unsigned long requests,
 		ac->ptr = done->dma - ac->buf[0].dma;
 		snd_pcm_period_elapsed(ac->ss);
 	}
-}
-
-static int tw686x_pcm_hw_params(struct snd_pcm_substream *ss,
-				struct snd_pcm_hw_params *hw_params)
-{
-	return snd_pcm_lib_malloc_pages(ss, params_buffer_bytes(hw_params));
-}
-
-static int tw686x_pcm_hw_free(struct snd_pcm_substream *ss)
-{
-	return snd_pcm_lib_free_pages(ss);
 }
 
 /*
@@ -269,9 +258,6 @@ static snd_pcm_uframes_t tw686x_pcm_pointer(struct snd_pcm_substream *ss)
 static const struct snd_pcm_ops tw686x_pcm_ops = {
 	.open = tw686x_pcm_open,
 	.close = tw686x_pcm_close,
-	.ioctl = snd_pcm_lib_ioctl,
-	.hw_params = tw686x_pcm_hw_params,
-	.hw_free = tw686x_pcm_hw_free,
 	.prepare = tw686x_pcm_prepare,
 	.trigger = tw686x_pcm_trigger,
 	.pointer = tw686x_pcm_pointer,
@@ -298,9 +284,9 @@ static int tw686x_snd_pcm_init(struct tw686x_dev *dev)
 	     ss; ss = ss->next, i++)
 		snprintf(ss->name, sizeof(ss->name), "vch%u audio", i);
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm,
+	snd_pcm_set_managed_buffer_all(pcm,
 				SNDRV_DMA_TYPE_DEV,
-				snd_dma_pci_data(dev->pci_dev),
+				&dev->pci_dev->dev,
 				TW686X_AUDIO_PAGE_MAX * AUDIO_DMA_SIZE_MAX,
 				TW686X_AUDIO_PAGE_MAX * AUDIO_DMA_SIZE_MAX);
 	return 0;
@@ -314,9 +300,9 @@ static void tw686x_audio_dma_free(struct tw686x_dev *dev,
 	for (pb = 0; pb < 2; pb++) {
 		if (!ac->dma_descs[pb].virt)
 			continue;
-		pci_free_consistent(dev->pci_dev, ac->dma_descs[pb].size,
-				    ac->dma_descs[pb].virt,
-				    ac->dma_descs[pb].phys);
+		dma_free_coherent(&dev->pci_dev->dev, ac->dma_descs[pb].size,
+				  ac->dma_descs[pb].virt,
+				  ac->dma_descs[pb].phys);
 		ac->dma_descs[pb].virt = NULL;
 	}
 }
@@ -327,7 +313,7 @@ static int tw686x_audio_dma_alloc(struct tw686x_dev *dev,
 	int pb;
 
 	/*
-	 * In the memcpy DMA mode we allocate a consistent buffer
+	 * In the memcpy DMA mode we allocate a coherent buffer
 	 * and use it for the DMA capture. Otherwise, DMA
 	 * acts on the ALSA buffers as received in pcm_prepare.
 	 */
@@ -338,8 +324,9 @@ static int tw686x_audio_dma_alloc(struct tw686x_dev *dev,
 		u32 reg = pb ? ADMA_B_ADDR[ac->ch] : ADMA_P_ADDR[ac->ch];
 		void *virt;
 
-		virt = pci_alloc_consistent(dev->pci_dev, AUDIO_DMA_SIZE_MAX,
-					    &ac->dma_descs[pb].phys);
+		virt = dma_alloc_coherent(&dev->pci_dev->dev,
+					  AUDIO_DMA_SIZE_MAX,
+					  &ac->dma_descs[pb].phys, GFP_KERNEL);
 		if (!virt) {
 			dev_err(&dev->pci_dev->dev,
 				"dma%d: unable to allocate audio DMA %s-buffer\n",

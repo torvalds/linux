@@ -23,10 +23,15 @@
 #include "skx_common.h"
 
 static const char * const component_names[] = {
-	[INDEX_SOCKET]	= "ProcessorSocketId",
-	[INDEX_MEMCTRL]	= "MemoryControllerId",
-	[INDEX_CHANNEL]	= "ChannelId",
-	[INDEX_DIMM]	= "DimmSlotId",
+	[INDEX_SOCKET]		= "ProcessorSocketId",
+	[INDEX_MEMCTRL]		= "MemoryControllerId",
+	[INDEX_CHANNEL]		= "ChannelId",
+	[INDEX_DIMM]		= "DimmSlotId",
+	[INDEX_CS]		= "ChipSelect",
+	[INDEX_NM_MEMCTRL]	= "NmMemoryControllerId",
+	[INDEX_NM_CHANNEL]	= "NmChannelId",
+	[INDEX_NM_DIMM]		= "NmDimmSlotId",
+	[INDEX_NM_CS]		= "NmChipSelect",
 };
 
 static int component_indices[ARRAY_SIZE(component_names)];
@@ -34,11 +39,14 @@ static int adxl_component_count;
 static const char * const *adxl_component_names;
 static u64 *adxl_values;
 static char *adxl_msg;
+static unsigned long adxl_nm_bitmap;
 
 static char skx_msg[MSG_SIZE];
-static skx_decode_f skx_decode;
+static skx_decode_f driver_decode;
+static skx_show_retry_log_f skx_show_retry_rd_err_log;
 static u64 skx_tolm, skx_tohm;
 static LIST_HEAD(dev_edac_list);
+static bool skx_mem_cfg_2lm;
 
 int __init skx_adxl_get(void)
 {
@@ -55,12 +63,23 @@ int __init skx_adxl_get(void)
 		for (j = 0; names[j]; j++) {
 			if (!strcmp(component_names[i], names[j])) {
 				component_indices[i] = j;
+
+				if (i >= INDEX_NM_FIRST)
+					adxl_nm_bitmap |= 1 << i;
+
 				break;
 			}
 		}
 
-		if (!names[j])
+		if (!names[j] && i < INDEX_NM_FIRST)
 			goto err;
+	}
+
+	if (skx_mem_cfg_2lm) {
+		if (!adxl_nm_bitmap)
+			skx_printk(KERN_NOTICE, "Not enough ADXL components for 2-level memory.\n");
+		else
+			edac_dbg(2, "adxl_nm_bitmap: 0x%lx\n", adxl_nm_bitmap);
 	}
 
 	adxl_component_names = names;
@@ -98,8 +117,9 @@ void __exit skx_adxl_put(void)
 	kfree(adxl_msg);
 }
 
-static bool skx_adxl_decode(struct decoded_addr *res)
+static bool skx_adxl_decode(struct decoded_addr *res, bool error_in_1st_level_mem)
 {
+	struct skx_dev *d;
 	int i, len = 0;
 
 	if (res->addr >= skx_tohm || (res->addr >= skx_tolm &&
@@ -114,9 +134,39 @@ static bool skx_adxl_decode(struct decoded_addr *res)
 	}
 
 	res->socket  = (int)adxl_values[component_indices[INDEX_SOCKET]];
-	res->imc     = (int)adxl_values[component_indices[INDEX_MEMCTRL]];
-	res->channel = (int)adxl_values[component_indices[INDEX_CHANNEL]];
-	res->dimm    = (int)adxl_values[component_indices[INDEX_DIMM]];
+	if (error_in_1st_level_mem) {
+		res->imc     = (adxl_nm_bitmap & BIT_NM_MEMCTRL) ?
+			       (int)adxl_values[component_indices[INDEX_NM_MEMCTRL]] : -1;
+		res->channel = (adxl_nm_bitmap & BIT_NM_CHANNEL) ?
+			       (int)adxl_values[component_indices[INDEX_NM_CHANNEL]] : -1;
+		res->dimm    = (adxl_nm_bitmap & BIT_NM_DIMM) ?
+			       (int)adxl_values[component_indices[INDEX_NM_DIMM]] : -1;
+		res->cs      = (adxl_nm_bitmap & BIT_NM_CS) ?
+			       (int)adxl_values[component_indices[INDEX_NM_CS]] : -1;
+	} else {
+		res->imc     = (int)adxl_values[component_indices[INDEX_MEMCTRL]];
+		res->channel = (int)adxl_values[component_indices[INDEX_CHANNEL]];
+		res->dimm    = (int)adxl_values[component_indices[INDEX_DIMM]];
+		res->cs      = (int)adxl_values[component_indices[INDEX_CS]];
+	}
+
+	if (res->imc > NUM_IMC - 1 || res->imc < 0) {
+		skx_printk(KERN_ERR, "Bad imc %d\n", res->imc);
+		return false;
+	}
+
+	list_for_each_entry(d, &dev_edac_list, list) {
+		if (d->imc[0].src_id == res->socket) {
+			res->dev = d;
+			break;
+		}
+	}
+
+	if (!res->dev) {
+		skx_printk(KERN_ERR, "No device for src_id %d imc %d\n",
+			   res->socket, res->imc);
+		return false;
+	}
 
 	for (i = 0; i < adxl_component_count; i++) {
 		if (adxl_values[i] == ~0x0ull)
@@ -128,12 +178,20 @@ static bool skx_adxl_decode(struct decoded_addr *res)
 			break;
 	}
 
+	res->decoded_by_adxl = true;
+
 	return true;
 }
 
-void skx_set_decode(skx_decode_f decode)
+void skx_set_mem_cfg(bool mem_cfg_2lm)
 {
-	skx_decode = decode;
+	skx_mem_cfg_2lm = mem_cfg_2lm;
+}
+
+void skx_set_decode(skx_decode_f decode, skx_show_retry_log_f show_retry_log)
+{
+	driver_decode = decode;
+	skx_show_retry_rd_err_log = show_retry_log;
 }
 
 int skx_get_src_id(struct skx_dev *d, int off, u8 *id)
@@ -176,12 +234,11 @@ static int get_width(u32 mtr)
 }
 
 /*
- * We use the per-socket device @did to count how many sockets are present,
+ * We use the per-socket device @cfg->did to count how many sockets are present,
  * and to detemine which PCI buses are associated with each socket. Allocate
  * and build the full list of all the skx_dev structures that we need here.
  */
-int skx_get_all_bus_mappings(unsigned int did, int off, enum type type,
-			     struct list_head **list)
+int skx_get_all_bus_mappings(struct res_config *cfg, struct list_head **list)
 {
 	struct pci_dev *pdev, *prev;
 	struct skx_dev *d;
@@ -190,7 +247,7 @@ int skx_get_all_bus_mappings(unsigned int did, int off, enum type type,
 
 	prev = NULL;
 	for (;;) {
-		pdev = pci_get_device(PCI_VENDOR_ID_INTEL, did, prev);
+		pdev = pci_get_device(PCI_VENDOR_ID_INTEL, cfg->decs_did, prev);
 		if (!pdev)
 			break;
 		ndev++;
@@ -200,7 +257,7 @@ int skx_get_all_bus_mappings(unsigned int did, int off, enum type type,
 			return -ENOMEM;
 		}
 
-		if (pci_read_config_dword(pdev, off, &reg)) {
+		if (pci_read_config_dword(pdev, cfg->busno_cfg_offset, &reg)) {
 			kfree(d);
 			pci_dev_put(pdev);
 			skx_printk(KERN_ERR, "Failed to read bus idx\n");
@@ -209,7 +266,7 @@ int skx_get_all_bus_mappings(unsigned int did, int off, enum type type,
 
 		d->bus[0] = GET_BITFIELD(reg, 0, 7);
 		d->bus[1] = GET_BITFIELD(reg, 8, 15);
-		if (type == SKX) {
+		if (cfg->type == SKX) {
 			d->seg = pci_domain_nr(pdev->bus);
 			d->bus[2] = GET_BITFIELD(reg, 16, 23);
 			d->bus[3] = GET_BITFIELD(reg, 24, 31);
@@ -235,7 +292,7 @@ int skx_get_hi_lo(unsigned int did, int off[], u64 *tolm, u64 *tohm)
 
 	pdev = pci_get_device(PCI_VENDOR_ID_INTEL, did, NULL);
 	if (!pdev) {
-		skx_printk(KERN_ERR, "Can't get tolm/tohm\n");
+		edac_dbg(2, "Can't get tolm/tohm\n");
 		return -ENODEV;
 	}
 
@@ -283,15 +340,28 @@ static int skx_get_dimm_attr(u32 reg, int lobit, int hibit, int add,
 #define numrow(reg)	skx_get_dimm_attr(reg, 2, 4, 12, 1, 6, "rows")
 #define numcol(reg)	skx_get_dimm_attr(reg, 0, 1, 10, 0, 2, "cols")
 
-int skx_get_dimm_info(u32 mtr, u32 amap, struct dimm_info *dimm,
-		      struct skx_imc *imc, int chan, int dimmno)
+int skx_get_dimm_info(u32 mtr, u32 mcmtr, u32 amap, struct dimm_info *dimm,
+		      struct skx_imc *imc, int chan, int dimmno,
+		      struct res_config *cfg)
 {
-	int  banks = 16, ranks, rows, cols, npages;
+	int  banks, ranks, rows, cols, npages;
+	enum mem_type mtype;
 	u64 size;
 
 	ranks = numrank(mtr);
 	rows = numrow(mtr);
-	cols = numcol(mtr);
+	cols = imc->hbm_mc ? 6 : numcol(mtr);
+
+	if (imc->hbm_mc) {
+		banks = 32;
+		mtype = MEM_HBM2;
+	} else if (cfg->support_ddr5 && (amap & 0x8)) {
+		banks = 32;
+		mtype = MEM_DDR5;
+	} else {
+		banks = 16;
+		mtype = MEM_DDR4;
+	}
 
 	/*
 	 * Compute size in 8-byte (2^3) words, then shift to MiB (2^20)
@@ -303,8 +373,8 @@ int skx_get_dimm_info(u32 mtr, u32 amap, struct dimm_info *dimm,
 		 imc->mc, chan, dimmno, size, npages,
 		 banks, 1 << ranks, rows, cols);
 
-	imc->chan[chan].dimms[dimmno].close_pg = GET_BITFIELD(mtr, 0, 0);
-	imc->chan[chan].dimms[dimmno].bank_xor_enable = GET_BITFIELD(mtr, 9, 9);
+	imc->chan[chan].dimms[dimmno].close_pg = GET_BITFIELD(mcmtr, 0, 0);
+	imc->chan[chan].dimms[dimmno].bank_xor_enable = GET_BITFIELD(mcmtr, 9, 9);
 	imc->chan[chan].dimms[dimmno].fine_grain_bank = GET_BITFIELD(amap, 0, 0);
 	imc->chan[chan].dimms[dimmno].rowbits = rows;
 	imc->chan[chan].dimms[dimmno].colbits = cols;
@@ -312,10 +382,15 @@ int skx_get_dimm_info(u32 mtr, u32 amap, struct dimm_info *dimm,
 	dimm->nr_pages = npages;
 	dimm->grain = 32;
 	dimm->dtype = get_width(mtr);
-	dimm->mtype = MEM_DDR4;
+	dimm->mtype = mtype;
 	dimm->edac_mode = EDAC_SECDED; /* likely better than this */
-	snprintf(dimm->label, sizeof(dimm->label), "CPU_SrcID#%u_MC#%u_Chan#%u_DIMM#%u",
-		 imc->src_id, imc->lmc, chan, dimmno);
+
+	if (imc->hbm_mc)
+		snprintf(dimm->label, sizeof(dimm->label), "CPU_SrcID#%u_HBMC#%u_Chan#%u",
+			 imc->src_id, imc->lmc, chan);
+	else
+		snprintf(dimm->label, sizeof(dimm->label), "CPU_SrcID#%u_MC#%u_Chan#%u_DIMM#%u",
+			 imc->src_id, imc->lmc, chan, dimmno);
 
 	return 1;
 }
@@ -370,7 +445,8 @@ unknown_size:
 
 int skx_register_mci(struct skx_imc *imc, struct pci_dev *pdev,
 		     const char *ctl_name, const char *mod_str,
-		     get_dimm_config_f get_dimm_config)
+		     get_dimm_config_f get_dimm_config,
+		     struct res_config *cfg)
 {
 	struct mem_ctl_info *mci;
 	struct edac_mc_layer layers[2];
@@ -405,13 +481,15 @@ int skx_register_mci(struct skx_imc *imc, struct pci_dev *pdev,
 	}
 
 	mci->mtype_cap = MEM_FLAG_DDR4 | MEM_FLAG_NVDIMM;
+	if (cfg->support_ddr5)
+		mci->mtype_cap |= MEM_FLAG_DDR5;
 	mci->edac_ctl_cap = EDAC_FLAG_NONE;
 	mci->edac_cap = EDAC_FLAG_NONE;
 	mci->mod_name = mod_str;
 	mci->dev_name = pci_name(pdev);
 	mci->ctl_page_to_phys = NULL;
 
-	rc = get_dimm_config(mci);
+	rc = get_dimm_config(mci, cfg);
 	if (rc < 0)
 		goto fail;
 
@@ -452,34 +530,18 @@ static void skx_unregister_mci(struct skx_imc *imc)
 	edac_mc_free(mci);
 }
 
-static struct mem_ctl_info *get_mci(int src_id, int lmc)
-{
-	struct skx_dev *d;
-
-	if (lmc > NUM_IMC - 1) {
-		skx_printk(KERN_ERR, "Bad lmc %d\n", lmc);
-		return NULL;
-	}
-
-	list_for_each_entry(d, &dev_edac_list, list) {
-		if (d->imc[0].src_id == src_id)
-			return d->imc[lmc].mci;
-	}
-
-	skx_printk(KERN_ERR, "No mci for src_id %d lmc %d\n", src_id, lmc);
-	return NULL;
-}
-
 static void skx_mce_output_error(struct mem_ctl_info *mci,
 				 const struct mce *m,
 				 struct decoded_addr *res)
 {
 	enum hw_event_mc_err_type tp_event;
-	char *type, *optype;
+	char *optype;
 	bool ripv = GET_BITFIELD(m->mcgstatus, 0, 0);
 	bool overflow = GET_BITFIELD(m->status, 62, 62);
 	bool uncorrected_error = GET_BITFIELD(m->status, 61, 61);
+	bool scrub_err = false;
 	bool recoverable;
+	int len;
 	u32 core_err_cnt = GET_BITFIELD(m->status, 38, 52);
 	u32 mscod = GET_BITFIELD(m->status, 16, 31);
 	u32 errcode = GET_BITFIELD(m->status, 0, 15);
@@ -490,68 +552,53 @@ static void skx_mce_output_error(struct mem_ctl_info *mci,
 	if (uncorrected_error) {
 		core_err_cnt = 1;
 		if (ripv) {
-			type = "FATAL";
-			tp_event = HW_EVENT_ERR_FATAL;
-		} else {
-			type = "NON_FATAL";
 			tp_event = HW_EVENT_ERR_UNCORRECTED;
+		} else {
+			tp_event = HW_EVENT_ERR_FATAL;
 		}
 	} else {
-		type = "CORRECTED";
 		tp_event = HW_EVENT_ERR_CORRECTED;
 	}
 
-	/*
-	 * According to Intel Architecture spec vol 3B,
-	 * Table 15-10 "IA32_MCi_Status [15:0] Compound Error Code Encoding"
-	 * memory errors should fit one of these masks:
-	 *	000f 0000 1mmm cccc (binary)
-	 *	000f 0010 1mmm cccc (binary)	[RAM used as cache]
-	 * where:
-	 *	f = Correction Report Filtering Bit. If 1, subsequent errors
-	 *	    won't be shown
-	 *	mmm = error type
-	 *	cccc = channel
-	 * If the mask doesn't match, report an error to the parsing logic
-	 */
-	if (!((errcode & 0xef80) == 0x80 || (errcode & 0xef80) == 0x280)) {
-		optype = "Can't parse: it is not a mem";
-	} else {
-		switch (optypenum) {
-		case 0:
-			optype = "generic undef request error";
-			break;
-		case 1:
-			optype = "memory read error";
-			break;
-		case 2:
-			optype = "memory write error";
-			break;
-		case 3:
-			optype = "addr/cmd error";
-			break;
-		case 4:
-			optype = "memory scrubbing error";
-			break;
-		default:
-			optype = "reserved";
-			break;
-		}
+	switch (optypenum) {
+	case 0:
+		optype = "generic undef request error";
+		break;
+	case 1:
+		optype = "memory read error";
+		break;
+	case 2:
+		optype = "memory write error";
+		break;
+	case 3:
+		optype = "addr/cmd error";
+		break;
+	case 4:
+		optype = "memory scrubbing error";
+		scrub_err = true;
+		break;
+	default:
+		optype = "reserved";
+		break;
 	}
-	if (adxl_component_count) {
-		snprintf(skx_msg, MSG_SIZE, "%s%s err_code:0x%04x:0x%04x %s",
+
+	if (res->decoded_by_adxl) {
+		len = snprintf(skx_msg, MSG_SIZE, "%s%s err_code:0x%04x:0x%04x %s",
 			 overflow ? " OVERFLOW" : "",
 			 (uncorrected_error && recoverable) ? " recoverable" : "",
 			 mscod, errcode, adxl_msg);
 	} else {
-		snprintf(skx_msg, MSG_SIZE,
-			 "%s%s err_code:0x%04x:0x%04x socket:%d imc:%d rank:%d bg:%d ba:%d row:0x%x col:0x%x",
+		len = snprintf(skx_msg, MSG_SIZE,
+			 "%s%s err_code:0x%04x:0x%04x ProcessorSocketId:0x%x MemoryControllerId:0x%x PhysicalRankId:0x%x Row:0x%x Column:0x%x Bank:0x%x BankGroup:0x%x",
 			 overflow ? " OVERFLOW" : "",
 			 (uncorrected_error && recoverable) ? " recoverable" : "",
 			 mscod, errcode,
 			 res->socket, res->imc, res->rank,
-			 res->bank_group, res->bank_address, res->row, res->column);
+			 res->row, res->column, res->bank_address, res->bank_group);
 	}
+
+	if (skx_show_retry_rd_err_log)
+		skx_show_retry_rd_err_log(res, skx_msg + len, MSG_SIZE - len, scrub_err);
 
 	edac_dbg(0, "%s\n", skx_msg);
 
@@ -562,6 +609,27 @@ static void skx_mce_output_error(struct mem_ctl_info *mci,
 			     optype, skx_msg);
 }
 
+static bool skx_error_in_1st_level_mem(const struct mce *m)
+{
+	u32 errcode;
+
+	if (!skx_mem_cfg_2lm)
+		return false;
+
+	errcode = GET_BITFIELD(m->status, 0, 15) & MCACOD_MEM_ERR_MASK;
+
+	return errcode == MCACOD_EXT_MEM_ERR;
+}
+
+static bool skx_error_in_mem(const struct mce *m)
+{
+	u32 errcode;
+
+	errcode = GET_BITFIELD(m->status, 0, 15) & MCACOD_MEM_ERR_MASK;
+
+	return (errcode == MCACOD_MEM_CTL_ERR || errcode == MCACOD_EXT_MEM_ERR);
+}
+
 int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
 			void *data)
 {
@@ -570,27 +638,29 @@ int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
 	struct mem_ctl_info *mci;
 	char *type;
 
-	if (edac_get_report_status() == EDAC_REPORTING_DISABLED)
+	if (mce->kflags & MCE_HANDLED_CEC)
 		return NOTIFY_DONE;
 
-	/* ignore unless this is memory related with an address */
-	if ((mce->status & 0xefff) >> 7 != 1 || !(mce->status & MCI_STATUS_ADDRV))
+	/* Ignore unless this is memory related with an address */
+	if (!skx_error_in_mem(mce) || !(mce->status & MCI_STATUS_ADDRV))
 		return NOTIFY_DONE;
 
 	memset(&res, 0, sizeof(res));
-	res.addr = mce->addr;
-
-	if (adxl_component_count) {
-		if (!skx_adxl_decode(&res))
-			return NOTIFY_DONE;
-
-		mci = get_mci(res.socket, res.imc);
-	} else {
-		if (!skx_decode || !skx_decode(&res))
-			return NOTIFY_DONE;
-
-		mci = res.dev->imc[res.imc].mci;
+	res.mce  = mce;
+	res.addr = mce->addr & MCI_ADDR_PHYSADDR;
+	if (!pfn_to_online_page(res.addr >> PAGE_SHIFT) && !arch_is_platform_page(res.addr)) {
+		pr_err("Invalid address 0x%llx in IA32_MC%d_ADDR\n", mce->addr, mce->bank);
+		return NOTIFY_DONE;
 	}
+
+	/* Try driver decoder first */
+	if (!(driver_decode && driver_decode(&res))) {
+		/* Then try firmware decoder (ACPI DSM methods) */
+		if (!(adxl_component_count && skx_adxl_decode(&res, skx_error_in_1st_level_mem(mce))))
+			return NOTIFY_DONE;
+	}
+
+	mci = res.dev->imc[res.imc].mci;
 
 	if (!mci)
 		return NOTIFY_DONE;
@@ -615,6 +685,7 @@ int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
 
 	skx_mce_output_error(mci, mce, &res);
 
+	mce->kflags |= MCE_HANDLED_EDAC;
 	return NOTIFY_DONE;
 }
 
@@ -644,6 +715,8 @@ void skx_remove(void)
 		}
 		if (d->util_all)
 			pci_dev_put(d->util_all);
+		if (d->pcu_cr3)
+			pci_dev_put(d->pcu_cr3);
 		if (d->sad_all)
 			pci_dev_put(d->sad_all);
 		if (d->uracu)

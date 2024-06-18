@@ -71,7 +71,7 @@ static inline u_int32_t gpio_o_bit(int i)
 		return 1 << (i + 13);
 }
 
-/* Mapping betwee numeric GPIO ID and the actual GPIO hardware numbering:
+/* Mapping between numeric GPIO ID and the actual GPIO hardware numbering:
  * 0..13	GPI 0..13
  * 14..26	GPO 0..12
  * 27..41	GPIO 0..14
@@ -216,7 +216,7 @@ static void vx855gpio_gpio_setup(struct vx855_gpio *vg)
 	c->direction_output = vx855gpio_direction_output;
 	c->get = vx855gpio_get;
 	c->set = vx855gpio_set;
-	c->set_config = vx855gpio_set_config,
+	c->set_config = vx855gpio_set_config;
 	c->dbg_show = NULL;
 	c->base = 0;
 	c->ngpio = NR_VX855_GP;
@@ -239,8 +239,6 @@ static int vx855gpio_probe(struct platform_device *pdev)
 	vg = devm_kzalloc(&pdev->dev, sizeof(*vg), GFP_KERNEL);
 	if (!vg)
 		return -ENOMEM;
-
-	platform_set_drvdata(pdev, vg);
 
 	dev_info(&pdev->dev, "found VX855 GPIO controller\n");
 	vg->io_gpi = res_gpi->start;

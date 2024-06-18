@@ -96,10 +96,10 @@ static int berlin_pinctrl_dt_node_to_map(struct pinctrl_dev *pctrl_dev,
 }
 
 static const struct pinctrl_ops berlin_pinctrl_ops = {
-	.get_groups_count	= &berlin_pinctrl_get_group_count,
-	.get_group_name		= &berlin_pinctrl_get_group_name,
-	.dt_node_to_map		= &berlin_pinctrl_dt_node_to_map,
-	.dt_free_map		= &pinctrl_utils_free_map,
+	.get_groups_count	= berlin_pinctrl_get_group_count,
+	.get_group_name		= berlin_pinctrl_get_group_name,
+	.dt_node_to_map		= berlin_pinctrl_dt_node_to_map,
+	.dt_free_map		= pinctrl_utils_free_map,
 };
 
 static int berlin_pinmux_get_functions_count(struct pinctrl_dev *pctrl_dev)
@@ -209,7 +209,7 @@ static int berlin_pinctrl_build_state(struct platform_device *pdev)
 
 	for (i = 0; i < pctrl->desc->ngroups; i++) {
 		desc_group = pctrl->desc->groups + i;
-		/* compute the maxiumum number of functions a group can have */
+		/* compute the maximum number of functions a group can have */
 		max_functions += 1 << (desc_group->bit_width + 1);
 	}
 
@@ -233,6 +233,8 @@ static int berlin_pinctrl_build_state(struct platform_device *pdev)
 	pctrl->functions = krealloc(pctrl->functions,
 				    pctrl->nfunctions * sizeof(*pctrl->functions),
 				    GFP_KERNEL);
+	if (!pctrl->functions)
+		return -ENOMEM;
 
 	/* map functions to theirs groups */
 	for (i = 0; i < pctrl->desc->ngroups; i++) {

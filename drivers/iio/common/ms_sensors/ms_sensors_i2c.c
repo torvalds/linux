@@ -15,8 +15,8 @@
 /* Conversion times in us */
 static const u16 ms_sensors_ht_t_conversion_time[] = { 50000, 25000,
 						       13000, 7000 };
-static const u16 ms_sensors_ht_h_conversion_time[] = { 16000, 3000,
-						       5000, 8000 };
+static const u16 ms_sensors_ht_h_conversion_time[] = { 16000, 5000,
+						       3000, 8000 };
 static const u16 ms_sensors_tp_conversion_time[] = { 500, 1100, 2100,
 						     4100, 8220, 16440 };
 
@@ -58,7 +58,7 @@ int ms_sensors_reset(void *cli, u8 cmd, unsigned int delay)
 
 	return 0;
 }
-EXPORT_SYMBOL(ms_sensors_reset);
+EXPORT_SYMBOL_NS(ms_sensors_reset, IIO_MEAS_SPEC_SENSORS);
 
 /**
  * ms_sensors_read_prom_word() - PROM word read function
@@ -84,7 +84,7 @@ int ms_sensors_read_prom_word(void *cli, int cmd, u16 *word)
 
 	return 0;
 }
-EXPORT_SYMBOL(ms_sensors_read_prom_word);
+EXPORT_SYMBOL_NS(ms_sensors_read_prom_word, IIO_MEAS_SPEC_SENSORS);
 
 /**
  * ms_sensors_convert_and_read() - ADC conversion & read function
@@ -130,7 +130,7 @@ err:
 	dev_err(&client->dev, "Unable to make sensor adc conversion\n");
 	return ret;
 }
-EXPORT_SYMBOL(ms_sensors_convert_and_read);
+EXPORT_SYMBOL_NS(ms_sensors_convert_and_read, IIO_MEAS_SPEC_SENSORS);
 
 /**
  * ms_sensors_crc_valid() - CRC check function
@@ -165,7 +165,7 @@ static bool ms_sensors_crc_valid(u32 value)
 
 /**
  * ms_sensors_read_serial() - Serial number read function
- * @cli:	pointer to i2c client
+ * @client:	pointer to i2c client
  * @sn:		pointer to 64-bits destination value
  *
  * Generic i2c serial number read function for Measurement Specialties devices.
@@ -248,7 +248,7 @@ int ms_sensors_read_serial(struct i2c_client *client, u64 *sn)
 
 	return 0;
 }
-EXPORT_SYMBOL(ms_sensors_read_serial);
+EXPORT_SYMBOL_NS(ms_sensors_read_serial, IIO_MEAS_SPEC_SENSORS);
 
 static int ms_sensors_read_config_reg(struct i2c_client *client,
 				      u8 *config_reg)
@@ -299,7 +299,7 @@ ssize_t ms_sensors_write_resolution(struct ms_ht_dev *dev_data,
 					 MS_SENSORS_CONFIG_REG_WRITE,
 					 config_reg);
 }
-EXPORT_SYMBOL(ms_sensors_write_resolution);
+EXPORT_SYMBOL_NS(ms_sensors_write_resolution, IIO_MEAS_SPEC_SENSORS);
 
 /**
  * ms_sensors_show_battery_low() - Show device battery low indicator
@@ -324,9 +324,9 @@ ssize_t ms_sensors_show_battery_low(struct ms_ht_dev *dev_data,
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "%d\n", (config_reg & 0x40) >> 6);
+	return sysfs_emit(buf, "%d\n", (config_reg & 0x40) >> 6);
 }
-EXPORT_SYMBOL(ms_sensors_show_battery_low);
+EXPORT_SYMBOL_NS(ms_sensors_show_battery_low, IIO_MEAS_SPEC_SENSORS);
 
 /**
  * ms_sensors_show_heater() - Show device heater
@@ -351,9 +351,9 @@ ssize_t ms_sensors_show_heater(struct ms_ht_dev *dev_data,
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "%d\n", (config_reg & 0x4) >> 2);
+	return sysfs_emit(buf, "%d\n", (config_reg & 0x4) >> 2);
 }
-EXPORT_SYMBOL(ms_sensors_show_heater);
+EXPORT_SYMBOL_NS(ms_sensors_show_heater, IIO_MEAS_SPEC_SENSORS);
 
 /**
  * ms_sensors_write_heater() - Write device heater
@@ -401,7 +401,7 @@ ssize_t ms_sensors_write_heater(struct ms_ht_dev *dev_data,
 
 	return len;
 }
-EXPORT_SYMBOL(ms_sensors_write_heater);
+EXPORT_SYMBOL_NS(ms_sensors_write_heater, IIO_MEAS_SPEC_SENSORS);
 
 /**
  * ms_sensors_ht_read_temperature() - Read temperature
@@ -442,7 +442,7 @@ int ms_sensors_ht_read_temperature(struct ms_ht_dev *dev_data,
 
 	return 0;
 }
-EXPORT_SYMBOL(ms_sensors_ht_read_temperature);
+EXPORT_SYMBOL_NS(ms_sensors_ht_read_temperature, IIO_MEAS_SPEC_SENSORS);
 
 /**
  * ms_sensors_ht_read_humidity() - Read humidity
@@ -485,27 +485,23 @@ int ms_sensors_ht_read_humidity(struct ms_ht_dev *dev_data,
 
 	return 0;
 }
-EXPORT_SYMBOL(ms_sensors_ht_read_humidity);
+EXPORT_SYMBOL_NS(ms_sensors_ht_read_humidity, IIO_MEAS_SPEC_SENSORS);
 
 /**
- * ms_sensors_tp_crc_valid() - CRC check function for
+ * ms_sensors_tp_crc4() - Calculate PROM CRC for
  *     Temperature and pressure devices.
  *     This function is only used when reading PROM coefficients
  *
  * @prom:	pointer to PROM coefficients array
- * @len:	length of PROM coefficients array
  *
- * Return: True if CRC is ok.
+ * Return: CRC.
  */
-static bool ms_sensors_tp_crc_valid(u16 *prom, u8 len)
+static u8 ms_sensors_tp_crc4(u16 *prom)
 {
 	unsigned int cnt, n_bit;
-	u16 n_rem = 0x0000, crc_read = prom[0], crc = (*prom & 0xF000) >> 12;
+	u16 n_rem = 0x0000;
 
-	prom[len - 1] = 0;
-	prom[0] &= 0x0FFF;      /* Clear the CRC computation part */
-
-	for (cnt = 0; cnt < len * 2; cnt++) {
+	for (cnt = 0; cnt < MS_SENSORS_TP_PROM_WORDS_NB * 2; cnt++) {
 		if (cnt % 2 == 1)
 			n_rem ^= prom[cnt >> 1] & 0x00FF;
 		else
@@ -518,10 +514,55 @@ static bool ms_sensors_tp_crc_valid(u16 *prom, u8 len)
 				n_rem <<= 1;
 		}
 	}
-	n_rem >>= 12;
-	prom[0] = crc_read;
 
-	return n_rem == crc;
+	return n_rem >> 12;
+}
+
+/**
+ * ms_sensors_tp_crc_valid_112() - CRC check function for
+ *     Temperature and pressure devices for 112bit PROM.
+ *     This function is only used when reading PROM coefficients
+ *
+ * @prom:	pointer to PROM coefficients array
+ *
+ * Return: True if CRC is ok.
+ */
+static bool ms_sensors_tp_crc_valid_112(u16 *prom)
+{
+	u16 w0 = prom[0], crc_read = (w0 & 0xF000) >> 12;
+	u8 crc;
+
+	prom[0] &= 0x0FFF;      /* Clear the CRC computation part */
+	prom[MS_SENSORS_TP_PROM_WORDS_NB - 1] = 0;
+
+	crc = ms_sensors_tp_crc4(prom);
+
+	prom[0] = w0;
+
+	return crc == crc_read;
+}
+
+/**
+ * ms_sensors_tp_crc_valid_128() - CRC check function for
+ *     Temperature and pressure devices for 128bit PROM.
+ *     This function is only used when reading PROM coefficients
+ *
+ * @prom:	pointer to PROM coefficients array
+ *
+ * Return: True if CRC is ok.
+ */
+static bool ms_sensors_tp_crc_valid_128(u16 *prom)
+{
+	u16 w7 = prom[7], crc_read = w7 & 0x000F;
+	u8 crc;
+
+	prom[7] &= 0xFF00;      /* Clear the CRC and LSB part */
+
+	crc = ms_sensors_tp_crc4(prom);
+
+	prom[7] = w7;
+
+	return crc == crc_read;
 }
 
 /**
@@ -536,8 +577,9 @@ static bool ms_sensors_tp_crc_valid(u16 *prom, u8 len)
 int ms_sensors_tp_read_prom(struct ms_tp_dev *dev_data)
 {
 	int i, ret;
+	bool valid;
 
-	for (i = 0; i < MS_SENSORS_TP_PROM_WORDS_NB; i++) {
+	for (i = 0; i < dev_data->hw->prom_len; i++) {
 		ret = ms_sensors_read_prom_word(
 			dev_data->client,
 			MS_SENSORS_TP_PROM_READ + (i << 1),
@@ -547,8 +589,12 @@ int ms_sensors_tp_read_prom(struct ms_tp_dev *dev_data)
 			return ret;
 	}
 
-	if (!ms_sensors_tp_crc_valid(dev_data->prom,
-				     MS_SENSORS_TP_PROM_WORDS_NB + 1)) {
+	if (dev_data->hw->prom_len == 8)
+		valid = ms_sensors_tp_crc_valid_128(dev_data->prom);
+	else
+		valid = ms_sensors_tp_crc_valid_112(dev_data->prom);
+
+	if (!valid) {
 		dev_err(&dev_data->client->dev,
 			"Calibration coefficients crc check error\n");
 		return -ENODEV;
@@ -556,7 +602,7 @@ int ms_sensors_tp_read_prom(struct ms_tp_dev *dev_data)
 
 	return 0;
 }
-EXPORT_SYMBOL(ms_sensors_tp_read_prom);
+EXPORT_SYMBOL_NS(ms_sensors_tp_read_prom, IIO_MEAS_SPEC_SENSORS);
 
 /**
  * ms_sensors_read_temp_and_pressure() - read temp and pressure
@@ -642,7 +688,7 @@ int ms_sensors_read_temp_and_pressure(struct ms_tp_dev *dev_data,
 
 	return 0;
 }
-EXPORT_SYMBOL(ms_sensors_read_temp_and_pressure);
+EXPORT_SYMBOL_NS(ms_sensors_read_temp_and_pressure, IIO_MEAS_SPEC_SENSORS);
 
 MODULE_DESCRIPTION("Measurement-Specialties common i2c driver");
 MODULE_AUTHOR("William Markezana <william.markezana@meas-spec.com>");

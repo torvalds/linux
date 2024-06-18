@@ -19,9 +19,11 @@
 #include <asm/machdep.h>
 #include <asm/firmware.h>
 #include <asm/runlatch.h>
+#include <asm/idle.h>
 #include <asm/plpar_wrappers.h>
+#include <asm/rtas.h>
 
-struct cpuidle_driver pseries_idle_driver = {
+static struct cpuidle_driver pseries_idle_driver = {
 	.name             = "pseries_idle",
 	.owner            = THIS_MODULE,
 };
@@ -31,41 +33,18 @@ static struct cpuidle_state *cpuidle_state_table __read_mostly;
 static u64 snooze_timeout __read_mostly;
 static bool snooze_timeout_en __read_mostly;
 
-static inline void idle_loop_prolog(unsigned long *in_purr)
+static __cpuidle
+int snooze_loop(struct cpuidle_device *dev, struct cpuidle_driver *drv,
+		int index)
 {
-	ppc64_runlatch_off();
-	*in_purr = mfspr(SPRN_PURR);
-	/*
-	 * Indicate to the HV that we are idle. Now would be
-	 * a good time to find other work to dispatch.
-	 */
-	get_lppaca()->idle = 1;
-}
-
-static inline void idle_loop_epilog(unsigned long in_purr)
-{
-	u64 wait_cycles;
-
-	wait_cycles = be64_to_cpu(get_lppaca()->wait_state_cycles);
-	wait_cycles += mfspr(SPRN_PURR) - in_purr;
-	get_lppaca()->wait_state_cycles = cpu_to_be64(wait_cycles);
-	get_lppaca()->idle = 0;
-
-	ppc64_runlatch_on();
-}
-
-static int snooze_loop(struct cpuidle_device *dev,
-			struct cpuidle_driver *drv,
-			int index)
-{
-	unsigned long in_purr;
 	u64 snooze_exit_time;
 
 	set_thread_flag(TIF_POLLING_NRFLAG);
 
-	idle_loop_prolog(&in_purr);
-	local_irq_enable();
+	pseries_idle_prolog();
+	raw_local_irq_enable();
 	snooze_exit_time = get_tb() + snooze_timeout;
+	dev->poll_time_limit = false;
 
 	while (!need_resched()) {
 		HMT_low();
@@ -76,6 +55,7 @@ static int snooze_loop(struct cpuidle_device *dev,
 			 * loop anyway. Require a barrier after polling is
 			 * cleared to order subsequent test of need_resched().
 			 */
+			dev->poll_time_limit = true;
 			clear_thread_flag(TIF_POLLING_NRFLAG);
 			smp_mb();
 			break;
@@ -85,14 +65,14 @@ static int snooze_loop(struct cpuidle_device *dev,
 	HMT_medium();
 	clear_thread_flag(TIF_POLLING_NRFLAG);
 
-	local_irq_disable();
+	raw_local_irq_disable();
 
-	idle_loop_epilog(in_purr);
+	pseries_idle_epilog();
 
 	return index;
 }
 
-static void check_and_cede_processor(void)
+static __cpuidle void check_and_cede_processor(void)
 {
 	/*
 	 * Ensure our interrupt state is properly tracked,
@@ -109,33 +89,162 @@ static void check_and_cede_processor(void)
 	}
 }
 
-static int dedicated_cede_loop(struct cpuidle_device *dev,
-				struct cpuidle_driver *drv,
-				int index)
-{
-	unsigned long in_purr;
+/*
+ * XCEDE: Extended CEDE states discovered through the
+ *        "ibm,get-systems-parameter" RTAS call with the token
+ *        CEDE_LATENCY_TOKEN
+ */
 
-	idle_loop_prolog(&in_purr);
+/*
+ * Section 7.3.16 System Parameters Option of PAPR version 2.8.1 has a
+ * table with all the parameters to ibm,get-system-parameters.
+ * CEDE_LATENCY_TOKEN corresponds to the token value for Cede Latency
+ * Settings Information.
+ */
+#define CEDE_LATENCY_TOKEN	45
+
+/*
+ * If the platform supports the cede latency settings information system
+ * parameter it must provide the following information in the NULL terminated
+ * parameter string:
+ *
+ * a. The first byte is the length “N” of each cede latency setting record minus
+ *    one (zero indicates a length of 1 byte).
+ *
+ * b. For each supported cede latency setting a cede latency setting record
+ *    consisting of the first “N” bytes as per the following table.
+ *
+ *    -----------------------------
+ *    | Field           | Field   |
+ *    | Name            | Length  |
+ *    -----------------------------
+ *    | Cede Latency    | 1 Byte  |
+ *    | Specifier Value |         |
+ *    -----------------------------
+ *    | Maximum wakeup  |         |
+ *    | latency in      | 8 Bytes |
+ *    | tb-ticks        |         |
+ *    -----------------------------
+ *    | Responsive to   |         |
+ *    | external        | 1 Byte  |
+ *    | interrupts      |         |
+ *    -----------------------------
+ *
+ * This version has cede latency record size = 10.
+ *
+ * The structure xcede_latency_payload represents a) and b) with
+ * xcede_latency_record representing the table in b).
+ *
+ * xcede_latency_parameter is what gets returned by
+ * ibm,get-systems-parameter RTAS call when made with
+ * CEDE_LATENCY_TOKEN.
+ *
+ * These structures are only used to represent the data obtained by the RTAS
+ * call. The data is in big-endian.
+ */
+struct xcede_latency_record {
+	u8	hint;
+	__be64	latency_ticks;
+	u8	wake_on_irqs;
+} __packed;
+
+// Make space for 16 records, which "should be enough".
+struct xcede_latency_payload {
+	u8     record_size;
+	struct xcede_latency_record records[16];
+} __packed;
+
+struct xcede_latency_parameter {
+	__be16  payload_size;
+	struct xcede_latency_payload payload;
+	u8 null_char;
+} __packed;
+
+static unsigned int nr_xcede_records;
+static struct xcede_latency_parameter xcede_latency_parameter __initdata;
+
+static int __init parse_cede_parameters(void)
+{
+	struct xcede_latency_payload *payload;
+	u32 total_xcede_records_size;
+	u8 xcede_record_size;
+	u16 payload_size;
+	int ret, i;
+
+	ret = rtas_call(rtas_token("ibm,get-system-parameter"), 3, 1,
+			NULL, CEDE_LATENCY_TOKEN, __pa(&xcede_latency_parameter),
+			sizeof(xcede_latency_parameter));
+	if (ret) {
+		pr_err("xcede: Error parsing CEDE_LATENCY_TOKEN\n");
+		return ret;
+	}
+
+	payload_size = be16_to_cpu(xcede_latency_parameter.payload_size);
+	payload = &xcede_latency_parameter.payload;
+
+	xcede_record_size = payload->record_size + 1;
+
+	if (xcede_record_size != sizeof(struct xcede_latency_record)) {
+		pr_err("xcede: Expected record-size %lu. Observed size %u.\n",
+		       sizeof(struct xcede_latency_record), xcede_record_size);
+		return -EINVAL;
+	}
+
+	pr_info("xcede: xcede_record_size = %d\n", xcede_record_size);
+
+	/*
+	 * Since the payload_size includes the last NULL byte and the
+	 * xcede_record_size, the remaining bytes correspond to array of all
+	 * cede_latency settings.
+	 */
+	total_xcede_records_size = payload_size - 2;
+	nr_xcede_records = total_xcede_records_size / xcede_record_size;
+
+	for (i = 0; i < nr_xcede_records; i++) {
+		struct xcede_latency_record *record = &payload->records[i];
+		u64 latency_ticks = be64_to_cpu(record->latency_ticks);
+		u8 wake_on_irqs = record->wake_on_irqs;
+		u8 hint = record->hint;
+
+		pr_info("xcede: Record %d : hint = %u, latency = 0x%llx tb ticks, Wake-on-irq = %u\n",
+			i, hint, latency_ticks, wake_on_irqs);
+	}
+
+	return 0;
+}
+
+#define NR_DEDICATED_STATES	2 /* snooze, CEDE */
+static u8 cede_latency_hint[NR_DEDICATED_STATES];
+
+static __cpuidle
+int dedicated_cede_loop(struct cpuidle_device *dev, struct cpuidle_driver *drv,
+			int index)
+{
+	u8 old_latency_hint;
+
+	pseries_idle_prolog();
 	get_lppaca()->donate_dedicated_cpu = 1;
+	old_latency_hint = get_lppaca()->cede_latency_hint;
+	get_lppaca()->cede_latency_hint = cede_latency_hint[index];
 
 	HMT_medium();
 	check_and_cede_processor();
 
-	local_irq_disable();
+	raw_local_irq_disable();
 	get_lppaca()->donate_dedicated_cpu = 0;
+	get_lppaca()->cede_latency_hint = old_latency_hint;
 
-	idle_loop_epilog(in_purr);
+	pseries_idle_epilog();
 
 	return index;
 }
 
-static int shared_cede_loop(struct cpuidle_device *dev,
-			struct cpuidle_driver *drv,
-			int index)
+static __cpuidle
+int shared_cede_loop(struct cpuidle_device *dev, struct cpuidle_driver *drv,
+		     int index)
 {
-	unsigned long in_purr;
 
-	idle_loop_prolog(&in_purr);
+	pseries_idle_prolog();
 
 	/*
 	 * Yield the processor to the hypervisor.  We return if
@@ -146,8 +255,8 @@ static int shared_cede_loop(struct cpuidle_device *dev,
 	 */
 	check_and_cede_processor();
 
-	local_irq_disable();
-	idle_loop_epilog(in_purr);
+	raw_local_irq_disable();
+	pseries_idle_epilog();
 
 	return index;
 }
@@ -155,13 +264,14 @@ static int shared_cede_loop(struct cpuidle_device *dev,
 /*
  * States for dedicated partition case.
  */
-static struct cpuidle_state dedicated_states[] = {
+static struct cpuidle_state dedicated_states[NR_DEDICATED_STATES] = {
 	{ /* Snooze */
 		.name = "snooze",
 		.desc = "snooze",
 		.exit_latency = 0,
 		.target_residency = 0,
-		.enter = &snooze_loop },
+		.enter = &snooze_loop,
+		.flags = CPUIDLE_FLAG_POLLING },
 	{ /* CEDE */
 		.name = "CEDE",
 		.desc = "CEDE",
@@ -179,7 +289,8 @@ static struct cpuidle_state shared_states[] = {
 		.desc = "snooze",
 		.exit_latency = 0,
 		.target_residency = 0,
-		.enter = &snooze_loop },
+		.enter = &snooze_loop,
+		.flags = CPUIDLE_FLAG_POLLING },
 	{ /* Shared Cede */
 		.name = "Shared Cede",
 		.desc = "Shared Cede",
@@ -236,29 +347,94 @@ static int pseries_cpuidle_driver_init(void)
 	return 0;
 }
 
+static void __init fixup_cede0_latency(void)
+{
+	struct xcede_latency_payload *payload;
+	u64 min_xcede_latency_us = UINT_MAX;
+	int i;
+
+	if (parse_cede_parameters())
+		return;
+
+	pr_info("cpuidle: Skipping the %d Extended CEDE idle states\n",
+		nr_xcede_records);
+
+	payload = &xcede_latency_parameter.payload;
+
+	/*
+	 * The CEDE idle state maps to CEDE(0). While the hypervisor
+	 * does not advertise CEDE(0) exit latency values, it does
+	 * advertise the latency values of the extended CEDE states.
+	 * We use the lowest advertised exit latency value as a proxy
+	 * for the exit latency of CEDE(0).
+	 */
+	for (i = 0; i < nr_xcede_records; i++) {
+		struct xcede_latency_record *record = &payload->records[i];
+		u8 hint = record->hint;
+		u64 latency_tb = be64_to_cpu(record->latency_ticks);
+		u64 latency_us = DIV_ROUND_UP_ULL(tb_to_ns(latency_tb), NSEC_PER_USEC);
+
+		/*
+		 * We expect the exit latency of an extended CEDE
+		 * state to be non-zero, it to since it takes at least
+		 * a few nanoseconds to wakeup the idle CPU and
+		 * dispatch the virtual processor into the Linux
+		 * Guest.
+		 *
+		 * So we consider only non-zero value for performing
+		 * the fixup of CEDE(0) latency.
+		 */
+		if (latency_us == 0) {
+			pr_warn("cpuidle: Skipping xcede record %d [hint=%d]. Exit latency = 0us\n",
+				i, hint);
+			continue;
+		}
+
+		if (latency_us < min_xcede_latency_us)
+			min_xcede_latency_us = latency_us;
+	}
+
+	if (min_xcede_latency_us != UINT_MAX) {
+		dedicated_states[1].exit_latency = min_xcede_latency_us;
+		dedicated_states[1].target_residency = 10 * (min_xcede_latency_us);
+		pr_info("cpuidle: Fixed up CEDE exit latency to %llu us\n",
+			min_xcede_latency_us);
+	}
+
+}
+
 /*
  * pseries_idle_probe()
  * Choose state table for shared versus dedicated partition
  */
-static int pseries_idle_probe(void)
+static int __init pseries_idle_probe(void)
 {
 
 	if (cpuidle_disable != IDLE_NO_OVERRIDE)
 		return -ENODEV;
 
 	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
-		/*
-		 * Use local_paca instead of get_lppaca() since
-		 * preemption is not disabled, and it is not required in
-		 * fact, since lppaca_ptr does not need to be the value
-		 * associated to the current CPU, it can be from any CPU.
-		 */
-		if (lppaca_shared_proc(local_paca->lppaca_ptr)) {
+		if (lppaca_shared_proc()) {
 			cpuidle_state_table = shared_states;
 			max_idle_state = ARRAY_SIZE(shared_states);
 		} else {
+			/*
+			 * Use firmware provided latency values
+			 * starting with POWER10 platforms. In the
+			 * case that we are running on a POWER10
+			 * platform but in an earlier compat mode, we
+			 * can still use the firmware provided values.
+			 *
+			 * However, on platforms prior to POWER10, we
+			 * cannot rely on the accuracy of the firmware
+			 * provided latency values. On such platforms,
+			 * go with the conservative default estimate
+			 * of 10us.
+			 */
+			if (cpu_has_feature(CPU_FTR_ARCH_31) || pvr_version_is(PVR_POWER10))
+				fixup_cede0_latency();
 			cpuidle_state_table = dedicated_states;
-			max_idle_state = ARRAY_SIZE(dedicated_states);
+			max_idle_state = NR_DEDICATED_STATES;
 		}
 	} else
 		return -ENODEV;

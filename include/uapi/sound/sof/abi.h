@@ -3,7 +3,7 @@
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
- * Copyright(c) 2018 Intel Corporation. All rights reserved.
+ * Copyright(c) 2018 Intel Corporation
  */
 
 /**
@@ -24,9 +24,11 @@
 #ifndef __INCLUDE_UAPI_SOUND_SOF_ABI_H__
 #define __INCLUDE_UAPI_SOUND_SOF_ABI_H__
 
+#include <linux/types.h>
+
 /* SOF ABI version major, minor and patch numbers */
 #define SOF_ABI_MAJOR 3
-#define SOF_ABI_MINOR 10
+#define SOF_ABI_MINOR 23
 #define SOF_ABI_PATCH 0
 
 /* SOF ABI version number. Format within 32bit word is MMmmmppp */
@@ -58,5 +60,7 @@
 
 /* SOF ABI magic number "SOF\0". */
 #define SOF_ABI_MAGIC		0x00464F53
+/* SOF IPC4 ABI magic number "SOF4". */
+#define SOF_IPC4_ABI_MAGIC	0x34464F53
 
 #endif

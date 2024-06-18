@@ -11,13 +11,11 @@
 #include <linux/delay.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
-#include <linux/i2c.h>
 #include <linux/math64.h>
 #include <linux/mfd/lochnagar.h>
 #include <linux/mfd/lochnagar2_regs.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 
@@ -321,7 +319,7 @@ static const struct hwmon_ops lochnagar_ops = {
 	.write = lochnagar_write,
 };
 
-static const struct hwmon_channel_info *lochnagar_info[] = {
+static const struct hwmon_channel_info * const lochnagar_info[] = {
 	HWMON_CHANNEL_INFO(temp,  HWMON_T_INPUT),
 	HWMON_CHANNEL_INFO(in,    HWMON_I_INPUT | HWMON_I_LABEL,
 				  HWMON_I_INPUT | HWMON_I_LABEL,

@@ -3,5 +3,12 @@ Date:		August 2018
 KernelVersion:	4.20
 Contact:	netdev@vger.kernel.org
 Description:
-		String indicating the type of tagging protocol used by the
-		DSA slave network device.
+		On read, this file returns a string indicating the type of
+		tagging protocol used by the DSA network devices that are
+		attached to this master interface.
+		On write, this file changes the tagging protocol of the
+		attached DSA switches, if this operation is supported by the
+		driver. Changing the tagging protocol must be done with the DSA
+		interfaces and the master interface all administratively down.
+		See the "name" field of each registered struct dsa_device_ops
+		for a list of valid values.

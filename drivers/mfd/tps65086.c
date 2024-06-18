@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2015 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2015 Texas Instruments Incorporated - https://www.ti.com/
  *	Andrew F. Davis <afd@ti.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether expressed or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License version 2 for more details.
  *
  * Based on the TPS65912 driver
  */
@@ -24,6 +16,7 @@
 static const struct mfd_cell tps65086_cells[] = {
 	{ .name = "tps65086-regulator", },
 	{ .name = "tps65086-gpio", },
+	{ .name = "tps65086-reset", },
 };
 
 static const struct regmap_range tps65086_yes_ranges[] = {
@@ -41,8 +34,9 @@ static const struct regmap_access_table tps65086_volatile_table = {
 static const struct regmap_config tps65086_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.volatile_table = &tps65086_volatile_table,
+	.max_register = TPS65086_OC_STATUS,
 };
 
 static const struct regmap_irq tps65086_irqs[] = {
@@ -68,8 +62,7 @@ static const struct of_device_id tps65086_of_match_table[] = {
 };
 MODULE_DEVICE_TABLE(of, tps65086_of_match_table);
 
-static int tps65086_probe(struct i2c_client *client,
-			  const struct i2c_device_id *ids)
+static int tps65086_probe(struct i2c_client *client)
 {
 	struct tps65086 *tps;
 	unsigned int version;
@@ -89,42 +82,48 @@ static int tps65086_probe(struct i2c_client *client,
 		return PTR_ERR(tps->regmap);
 	}
 
-	ret = regmap_read(tps->regmap, TPS65086_DEVICEID, &version);
+	/* Store device ID to load regulator configuration that fit to IC variant */
+	ret = regmap_read(tps->regmap, TPS65086_DEVICEID1, &tps->chip_id);
 	if (ret) {
-		dev_err(tps->dev, "Failed to read revision register\n");
+		dev_err(tps->dev, "Failed to read revision register 1\n");
+		return ret;
+	}
+
+	ret = regmap_read(tps->regmap, TPS65086_DEVICEID2, &version);
+	if (ret) {
+		dev_err(tps->dev, "Failed to read revision register 2\n");
 		return ret;
 	}
 
 	dev_info(tps->dev, "Device: TPS65086%01lX, OTP: %c, Rev: %ld\n",
-		 (version & TPS65086_DEVICEID_PART_MASK),
-		 (char)((version & TPS65086_DEVICEID_OTP_MASK) >> 4) + 'A',
-		 (version & TPS65086_DEVICEID_REV_MASK) >> 6);
+		 (version & TPS65086_DEVICEID2_PART_MASK),
+		 (char)((version & TPS65086_DEVICEID2_OTP_MASK) >> 4) + 'A',
+		 (version & TPS65086_DEVICEID2_REV_MASK) >> 6);
 
-	ret = regmap_add_irq_chip(tps->regmap, tps->irq, IRQF_ONESHOT, 0,
-				  &tps65086_irq_chip, &tps->irq_data);
-	if (ret) {
-		dev_err(tps->dev, "Failed to register IRQ chip\n");
-		return ret;
+	if (tps->irq > 0) {
+		ret = regmap_add_irq_chip(tps->regmap, tps->irq, IRQF_ONESHOT, 0,
+					  &tps65086_irq_chip, &tps->irq_data);
+		if (ret) {
+			dev_err(tps->dev, "Failed to register IRQ chip\n");
+			return ret;
+		}
 	}
 
 	ret = mfd_add_devices(tps->dev, PLATFORM_DEVID_AUTO, tps65086_cells,
 			      ARRAY_SIZE(tps65086_cells), NULL, 0,
 			      regmap_irq_get_domain(tps->irq_data));
-	if (ret) {
+	if (ret && tps->irq > 0)
 		regmap_del_irq_chip(tps->irq, tps->irq_data);
-		return ret;
-	}
 
-	return 0;
+	return ret;
 }
 
-static int tps65086_remove(struct i2c_client *client)
+static void tps65086_remove(struct i2c_client *client)
 {
 	struct tps65086 *tps = i2c_get_clientdata(client);
 
-	regmap_del_irq_chip(tps->irq, tps->irq_data);
-
-	return 0;
+	if (tps->irq > 0)
+		regmap_del_irq_chip(tps->irq, tps->irq_data);
 }
 
 static const struct i2c_device_id tps65086_id_table[] = {

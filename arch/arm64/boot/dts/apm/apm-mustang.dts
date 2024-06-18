@@ -15,14 +15,14 @@
 
 	chosen { };
 
-	memory {
+	memory@100000000 {
 		device_type = "memory";
 		reg = < 0x1 0x00000000 0x0 0x80000000 >; /* Updated by bootloader */
 	};
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		button@1 {
+		button {
 			label = "POWER";
 			linux,code = <116>;
 			linux,input-type = <0x1>;
@@ -45,36 +45,36 @@
 };
 
 &pcie0clk {
-	status = "ok";
+	status = "okay";
 };
 
 &pcie0 {
-	status = "ok";
+	status = "okay";
 };
 
 &serial0 {
-	status = "ok";
+	status = "okay";
 };
 
 &menet {
-	status = "ok";
+	status = "okay";
 };
 
 &sgenet0 {
-	status = "ok";
+	status = "okay";
 };
 
 &sgenet1 {
-	status = "ok";
+	status = "okay";
 };
 
 &xgenet {
-	status = "ok";
+	status = "okay";
 	rxlos-gpios = <&sbgpio 12 1>;
 };
 
 &mmc0 {
-	status = "ok";
+	status = "okay";
 };
 
 &mdio {

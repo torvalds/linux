@@ -44,15 +44,6 @@ enum i2caux_transaction_action {
 	I2CAUX_TRANSACTION_ACTION_DP_READ = 0x90
 };
 
-enum aux_channel_operation_result {
-	AUX_CHANNEL_OPERATION_SUCCEEDED,
-	AUX_CHANNEL_OPERATION_FAILED_REASON_UNKNOWN,
-	AUX_CHANNEL_OPERATION_FAILED_INVALID_REPLY,
-	AUX_CHANNEL_OPERATION_FAILED_TIMEOUT,
-	AUX_CHANNEL_OPERATION_FAILED_HPD_DISCON
-};
-
-
 struct aux_request_transaction_data {
 	enum aux_transaction_type type;
 	enum i2caux_transaction_action action;
@@ -86,6 +77,32 @@ struct aux_reply_transaction_data {
 	uint8_t *data;
 };
 
+struct aux_payload {
+	/* set following flag to read/write I2C data,
+	 * reset it to read/write DPCD data */
+	bool i2c_over_aux;
+	/* set following flag to write data,
+	 * reset it to read data */
+	bool write;
+	bool mot;
+	bool write_status_update;
+
+	uint32_t address;
+	uint32_t length;
+	uint8_t *data;
+	/*
+	 * used to return the reply type of the transaction
+	 * ignored if NULL
+	 */
+	uint8_t *reply;
+	/* expressed in milliseconds
+	 * zero means "use default value"
+	 */
+	uint32_t defer_delay;
+
+};
+#define DEFAULT_AUX_MAX_DATA_SIZE 16
+
 struct i2c_payload {
 	bool write;
 	uint8_t address;
@@ -98,6 +115,8 @@ enum i2c_command_engine {
 	I2C_COMMAND_ENGINE_SW,
 	I2C_COMMAND_ENGINE_HW
 };
+
+#define DDC_I2C_COMMAND_ENGINE I2C_COMMAND_ENGINE_SW
 
 struct i2c_command {
 	struct i2c_payload *payloads;
@@ -158,6 +177,9 @@ enum display_dongle_type {
 	/* Other types of dongle*/
 	DISPLAY_DONGLE_DP_HDMI_MISMATCHED_DONGLE,
 };
+
+#define DC_MAX_EDID_BUFFER_SIZE 2048
+#define DC_EDID_BLOCK_SIZE 128
 
 struct ddc_service {
 	struct ddc *ddc_pin;

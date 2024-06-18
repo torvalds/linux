@@ -6,20 +6,20 @@
  *          Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
  */
 
-#include <linux/platform_device.h>
-#include <linux/slab.h>
-#include <linux/io.h>
-#include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_platform.h>
 #include <linux/err.h>
 #include <linux/gpio/driver.h>
+#include <linux/io.h>
+#include <linux/mfd/syscon.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
+#include <linux/regmap.h>
+#include <linux/seq_file.h>
+#include <linux/slab.h>
+
 #include <linux/pinctrl/machine.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
-#include <linux/mfd/syscon.h>
-#include <linux/regmap.h>
 
 #include "pinctrl-mvebu.h"
 
@@ -96,10 +96,12 @@ static struct mvebu_pinctrl_group *mvebu_pinctrl_find_group_by_name(
 	struct mvebu_pinctrl *pctl, const char *name)
 {
 	unsigned n;
+
 	for (n = 0; n < pctl->num_groups; n++) {
 		if (strcmp(name, pctl->groups[n].name) == 0)
 			return &pctl->groups[n];
 	}
+
 	return NULL;
 }
 
@@ -108,6 +110,7 @@ static struct mvebu_mpp_ctrl_setting *mvebu_pinctrl_find_setting_by_val(
 	unsigned long config)
 {
 	unsigned n;
+
 	for (n = 0; n < grp->num_settings; n++) {
 		if (config == grp->settings[n].val) {
 			if (!pctl->variant || (pctl->variant &
@@ -115,6 +118,7 @@ static struct mvebu_mpp_ctrl_setting *mvebu_pinctrl_find_setting_by_val(
 				return &grp->settings[n];
 		}
 	}
+
 	return NULL;
 }
 
@@ -123,6 +127,7 @@ static struct mvebu_mpp_ctrl_setting *mvebu_pinctrl_find_setting_by_name(
 	const char *name)
 {
 	unsigned n;
+
 	for (n = 0; n < grp->num_settings; n++) {
 		if (strcmp(name, grp->settings[n].name) == 0) {
 			if (!pctl->variant || (pctl->variant &
@@ -130,6 +135,7 @@ static struct mvebu_mpp_ctrl_setting *mvebu_pinctrl_find_setting_by_name(
 				return &grp->settings[n];
 		}
 	}
+
 	return NULL;
 }
 
@@ -137,6 +143,7 @@ static struct mvebu_mpp_ctrl_setting *mvebu_pinctrl_find_gpio_setting(
 	struct mvebu_pinctrl *pctl, struct mvebu_pinctrl_group *grp)
 {
 	unsigned n;
+
 	for (n = 0; n < grp->num_settings; n++) {
 		if (grp->settings[n].flags &
 			(MVEBU_SETTING_GPO | MVEBU_SETTING_GPI)) {
@@ -145,6 +152,7 @@ static struct mvebu_mpp_ctrl_setting *mvebu_pinctrl_find_gpio_setting(
 				return &grp->settings[n];
 		}
 	}
+
 	return NULL;
 }
 
@@ -152,10 +160,12 @@ static struct mvebu_pinctrl_function *mvebu_pinctrl_find_function_by_name(
 	struct mvebu_pinctrl *pctl, const char *name)
 {
 	unsigned n;
+
 	for (n = 0; n < pctl->num_functions; n++) {
 		if (strcmp(name, pctl->functions[n].name) == 0)
 			return &pctl->functions[n];
 	}
+
 	return NULL;
 }
 
@@ -759,12 +769,10 @@ int mvebu_pinctrl_simple_mmio_probe(struct platform_device *pdev)
 {
 	struct mvebu_pinctrl_soc_info *soc = dev_get_platdata(&pdev->dev);
 	struct mvebu_mpp_ctrl_data *mpp_data;
-	struct resource *res;
 	void __iomem *base;
 	int i;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 

@@ -1,0 +1,259 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * ZyXEL NSA310S Board Description
+ * Copyright 2020-2022 Pawel Dembicki <paweldembicki@gmail.com>
+ * Copyright (c) 2015-2021, Tony Dinh <mibodhi@gmail.com>
+ * Copyright (c) 2014, Adam Baker <linux@baker-net.org.uk>
+ * Based upon the board setup file created by Peter Schildmann
+ */
+/dts-v1/;
+
+#include "kirkwood.dtsi"
+#include "kirkwood-6281.dtsi"
+#include <dt-bindings/leds/common.h>
+
+/ {
+	model = "ZyXEL NSA310S";
+	compatible = "zyxel,nsa310s", "marvell,kirkwood-88f6702", "marvell,kirkwood";
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x10000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8 earlyprintk";
+		stdout-path = &uart0;
+	};
+
+	gpio_poweroff {
+		compatible = "gpio-poweroff";
+		pinctrl-0 = <&pmx_pwr_off>;
+		pinctrl-names = "default";
+		gpios = <&gpio0 27 GPIO_ACTIVE_HIGH>;
+	};
+
+	keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-0 = <&pmx_buttons>;
+		pinctrl-names = "default";
+
+		power {
+			label = "Power Button";
+			linux,code = <KEY_POWER>;
+			gpios = <&gpio0 26 GPIO_ACTIVE_HIGH>;
+		};
+
+		copy {
+			label = "Copy Button";
+			linux,code = <KEY_COPY>;
+			gpios = <&gpio0 25 GPIO_ACTIVE_LOW>;
+		};
+
+		reset {
+			label = "Reset Button";
+			linux,code = <KEY_RESTART>;
+			gpios = <&gpio0 24 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-0 = <&pmx_leds>;
+		pinctrl-names = "default";
+
+		led-1 {
+			function = LED_FUNCTION_DISK_ERR;
+			color = <LED_COLOR_ID_RED>;
+			gpios = <&gpio0 13 GPIO_ACTIVE_HIGH>;
+		};
+
+		led-2 {
+			function = LED_FUNCTION_USB;
+			color = <LED_COLOR_ID_GREEN>;
+			gpios = <&gpio0 15 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "usb-host";
+		};
+
+		led-3 {
+			function = LED_FUNCTION_DISK;
+			color = <LED_COLOR_ID_GREEN>;
+			gpios = <&gpio0 16 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "ata1";
+		};
+
+		led-4 {
+			function = LED_FUNCTION_INDICATOR;
+			color = <LED_COLOR_ID_GREEN>;
+			gpios = <&gpio0 22 GPIO_ACTIVE_HIGH>;
+		};
+
+		led-5 {
+			function = LED_FUNCTION_INDICATOR;
+			color = <LED_COLOR_ID_RED>;
+			gpios = <&gpio0 23 GPIO_ACTIVE_HIGH>;
+		};
+
+		led-6 {
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_GREEN>;
+			gpios = <&gpio0 28 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-on";
+		};
+
+		led-7 {
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_RED>;
+			gpios = <&gpio0 29 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	usb0_power: regulator@1 {
+		compatible = "regulator-fixed";
+		regulator-name = "USB Power";
+
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+		regulator-boot-on;
+		gpio = <&gpio0 21 GPIO_ACTIVE_HIGH>;
+	};
+
+	sata1_power: regulator@2 {
+		compatible = "regulator-fixed";
+		regulator-name = "SATA1 Power";
+
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+		regulator-boot-on;
+		gpio = <&gpio1 1 GPIO_ACTIVE_HIGH>;
+	};
+
+	thermal-zones {
+		disk-thermal {
+			polling-delay = <20000>;
+			polling-delay-passive = <2000>;
+
+			thermal-sensors = <&hdd_temp>;
+
+			trips {
+				disk_alert: disk-alert {
+					temperature = <40000>;
+					hysteresis = <5000>;
+					type = "active";
+				};
+				disk_crit: disk-crit {
+					temperature = <60000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+		};
+	};
+};
+
+
+&eth0 {
+	status = "okay";
+
+	ethernet0-port@0 {
+		phy-handle = <&ethphy0>;
+	};
+};
+
+&i2c0 {
+	status = "okay";
+
+	rtc@68 {
+		compatible = "htk,ht1382";
+		reg = <0x68>;
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy0: ethernet-phy@1 {
+		reg = <1>;
+		phy-mode = "rgmii-id";
+		marvell,reg-init = <0x1 0x16 0x0 0x3>,
+				   <0x1 0x10 0x0 0x1017>,
+				   <0x1 0x11 0x0 0x4408>,
+				   <0x1 0x16 0x0 0x0>;
+	};
+};
+
+&nand {
+	status = "okay";
+	chip-delay = <35>;
+
+	partition@0 {
+		label = "uboot";
+		reg = <0x0000000 0x00c0000>;
+		read-only;
+	};
+	partition@c0000 {
+		label = "uboot_env";
+		reg = <0x00c0000 0x0080000>;
+	};
+	partition@140000 {
+		label = "ubi";
+		reg = <0x0140000 0x7ec0000>;
+	};
+};
+
+&pciec {
+	status = "okay";
+};
+
+&pcie0 {
+	status = "okay";
+};
+
+&pinctrl {
+	pinctrl-names = "default";
+
+	pmx_buttons: pmx-buttons {
+		marvell,pins = "mpp24", "mpp25", "mpp26";
+		marvell,function = "gpio";
+	};
+
+	pmx_leds: pmx-leds {
+		marvell,pins = "mpp13", "mpp15", "mpp16", "mpp22", "mpp23",
+						"mpp28", "mpp29";
+		marvell,function = "gpio";
+	};
+
+	pmx_power: pmx-power {
+		marvell,pins = "mpp21", "mpp33";
+		marvell,function = "gpio";
+	};
+
+	pmx_pwr_off: pmx-pwr-off {
+		marvell,pins = "mpp27";
+		marvell,function = "gpio";
+	};
+};
+
+&rtc {
+	status = "disabled";
+};
+
+&sata {
+	status = "okay";
+	nr-ports = <1>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	hdd_temp: sata-port@0 {
+		reg = <0>;
+		#thermal-sensor-cells = <0>;
+	};
+};
+
+&uart0 {
+	status = "okay";
+};

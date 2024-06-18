@@ -31,8 +31,6 @@
 
 #define __DM_SERVICES_H__
 
-#include "amdgpu_dm_trace.h"
-
 /* TODO: remove when DC is complete. */
 #include "dm_services_types.h"
 #include "logger_interface.h"
@@ -40,48 +38,35 @@
 
 #undef DEPRECATED
 
+struct dmub_srv;
+struct dc_dmub_srv;
+union dmub_rb_cmd;
+
 irq_handler_idx dm_register_interrupt(
 	struct dc_context *ctx,
 	struct dc_interrupt_params *int_params,
 	interrupt_handler ih,
 	void *handler_args);
 
-
 /*
  *
  * GPU registers access
  *
  */
-uint32_t dm_read_reg_func(
-	const struct dc_context *ctx,
-	uint32_t address,
-	const char *func_name);
+uint32_t dm_read_reg_func(const struct dc_context *ctx, uint32_t address,
+			  const char *func_name);
+
 /* enable for debugging new code, this adds 50k to the driver size. */
 /* #define DM_CHECK_ADDR_0 */
 
+void dm_write_reg_func(const struct dc_context *ctx, uint32_t address,
+		       uint32_t value, const char *func_name);
+
 #define dm_read_reg(ctx, address)	\
-		dm_read_reg_func(ctx, address, __func__)
-
-
+	dm_read_reg_func(ctx, address, __func__)
 
 #define dm_write_reg(ctx, address, value)	\
 	dm_write_reg_func(ctx, address, value, __func__)
-
-static inline void dm_write_reg_func(
-	const struct dc_context *ctx,
-	uint32_t address,
-	uint32_t value,
-	const char *func_name)
-{
-#ifdef DM_CHECK_ADDR_0
-	if (address == 0) {
-		DC_ERR("invalid register write. address = 0");
-		return;
-	}
-#endif
-	cgs_write_register(ctx->cgs_device, address, value);
-	trace_amdgpu_dc_wreg(&ctx->perf_trace->write_count, address, value);
-}
 
 static inline uint32_t dm_read_index_reg(
 	const struct dc_context *ctx,
@@ -138,6 +123,13 @@ uint32_t generic_reg_set_ex(const struct dc_context *ctx,
 uint32_t generic_reg_update_ex(const struct dc_context *ctx,
 		uint32_t addr, int n,
 		uint8_t shift1, uint32_t mask1, uint32_t field_value1, ...);
+
+struct dc_dmub_srv *dc_dmub_srv_create(struct dc *dc, struct dmub_srv *dmub);
+void dc_dmub_srv_destroy(struct dc_dmub_srv **dmub_srv);
+
+void reg_sequence_start_gather(const struct dc_context *ctx);
+void reg_sequence_start_execute(const struct dc_context *ctx);
+void reg_sequence_wait_done(const struct dc_context *ctx);
 
 #define FD(reg_field)	reg_field ## __SHIFT, \
 						reg_field ## _MASK
@@ -251,75 +243,6 @@ struct persistent_data_flag {
 	bool save_per_edid;
 };
 
-/* Call to write data in registry editor for persistent data storage.
- *
- * \inputs      sink - identify edid/link for registry folder creation
- *              module name - identify folders for registry
- *              key name - identify keys within folders for registry
- *              params - value to write in defined folder/key
- *              size - size of the input params
- *              flag - determine whether to save by link or edid
- *
- * \returns     true - call is successful
- *              false - call failed
- *
- * sink         module         key
- * -----------------------------------------------------------------------------
- * NULL         NULL           NULL     - failure
- * NULL         NULL           -        - create key with param value
- *                                                      under base folder
- * NULL         -              NULL     - create module folder under base folder
- * -            NULL           NULL     - failure
- * NULL         -              -        - create key under module folder
- *                                            with no edid/link identification
- * -            NULL           -        - create key with param value
- *                                                       under base folder
- * -            -              NULL     - create module folder under base folder
- * -            -              -        - create key under module folder
- *                                              with edid/link identification
- */
-bool dm_write_persistent_data(struct dc_context *ctx,
-		const struct dc_sink *sink,
-		const char *module_name,
-		const char *key_name,
-		void *params,
-		unsigned int size,
-		struct persistent_data_flag *flag);
-
-
-/* Call to read data in registry editor for persistent data storage.
- *
- * \inputs      sink - identify edid/link for registry folder creation
- *              module name - identify folders for registry
- *              key name - identify keys within folders for registry
- *              size - size of the output params
- *              flag - determine whether it was save by link or edid
- *
- * \returns     params - value read from defined folder/key
- *              true - call is successful
- *              false - call failed
- *
- * sink         module         key
- * -----------------------------------------------------------------------------
- * NULL         NULL           NULL     - failure
- * NULL         NULL           -        - read key under base folder
- * NULL         -              NULL     - failure
- * -            NULL           NULL     - failure
- * NULL         -              -        - read key under module folder
- *                                             with no edid/link identification
- * -            NULL           -        - read key under base folder
- * -            -              NULL     - failure
- * -            -              -        - read key under module folder
- *                                              with edid/link identification
- */
-bool dm_read_persistent_data(struct dc_context *ctx,
-		const struct dc_sink *sink,
-		const char *module_name,
-		const char *key_name,
-		void *params,
-		unsigned int size,
-		struct persistent_data_flag *flag);
-
 bool dm_query_extended_brightness_caps
 	(struct dc_context *ctx, enum dm_acpi_display_type display,
 			struct dm_acpi_atif_backlight_caps *pCaps);
@@ -346,13 +269,26 @@ unsigned long long dm_get_elapse_time_in_ns(struct dc_context *ctx,
 /*
  * performance tracing
  */
-#define PERF_TRACE()	trace_amdgpu_dc_performance(CTX->perf_trace->read_count,\
-		CTX->perf_trace->write_count, &CTX->perf_trace->last_entry_read,\
-		&CTX->perf_trace->last_entry_write, __func__, __LINE__)
-#define PERF_TRACE_CTX(__CTX)	trace_amdgpu_dc_performance(__CTX->perf_trace->read_count,\
-		__CTX->perf_trace->write_count, &__CTX->perf_trace->last_entry_read,\
-		&__CTX->perf_trace->last_entry_write, __func__, __LINE__)
+void dm_perf_trace_timestamp(const char *func_name, unsigned int line, struct dc_context *ctx);
 
+#define PERF_TRACE()	dm_perf_trace_timestamp(__func__, __LINE__, CTX)
+#define PERF_TRACE_CTX(__CTX)	dm_perf_trace_timestamp(__func__, __LINE__, __CTX)
+
+/*
+ * SMU message tracing
+ */
+void dm_trace_smu_msg(uint32_t msg_id, uint32_t param_in, struct dc_context *ctx);
+void dm_trace_smu_delay(uint32_t delay, struct dc_context *ctx);
+
+#define TRACE_SMU_MSG(msg_id, param_in, ctx)	dm_trace_smu_msg(msg_id, param_in, ctx)
+#define TRACE_SMU_DELAY(response_delay, ctx)	dm_trace_smu_delay(response_delay, ctx)
+
+
+/*
+ * DMUB Interfaces
+ */
+bool dm_execute_dmub_cmd(const struct dc_context *ctx, union dmub_rb_cmd *cmd, enum dm_dmub_wait_type wait_type);
+bool dm_execute_dmub_cmd_list(const struct dc_context *ctx, unsigned int count, union dmub_rb_cmd *cmd, enum dm_dmub_wait_type wait_type);
 
 /*
  * Debug and verification hooks
@@ -365,5 +301,7 @@ void dm_dtn_log_append_v(struct dc_context *ctx,
 	const char *msg, ...);
 void dm_dtn_log_end(struct dc_context *ctx,
 	struct dc_log_buffer_ctx *log_ctx);
+
+char *dce_version_to_string(const int version);
 
 #endif /* __DM_SERVICES_H__ */

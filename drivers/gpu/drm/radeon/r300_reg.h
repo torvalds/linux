@@ -353,7 +353,7 @@
 #       define R300_PVS_CNTL_1_PROGRAM_START_SHIFT   0
 #       define R300_PVS_CNTL_1_POS_END_SHIFT         10
 #       define R300_PVS_CNTL_1_PROGRAM_END_SHIFT     20
-/* Addresses are relative the the vertex program parameters area. */
+/* Addresses are relative the vertex program parameters area. */
 #define R300_VAP_PVS_CNTL_2                 0x22D4
 #       define R300_PVS_CNTL_2_PARAM_OFFSET_SHIFT 0
 #       define R300_PVS_CNTL_2_PARAM_COUNT_SHIFT  16
@@ -825,7 +825,7 @@
 #	define R300_TX_MIN_FILTER_ANISO_LINEAR              (0 << 13)
 #	define R300_TX_MIN_FILTER_ANISO_NEAREST_MIP_NEAREST (1 << 13)
 #	define R300_TX_MIN_FILTER_ANISO_NEAREST_MIP_LINEAR  (2 << 13)
-#       define R300_TX_MIN_FILTER_MASK   ( (15 << 11) | (3 << 13) )
+#       define R300_TX_MIN_FILTER_MASK   ((15 << 11) | (3 << 13))
 #	define R300_TX_MAX_ANISO_1_TO_1  (0 << 21)
 #	define R300_TX_MAX_ANISO_2_TO_1  (2 << 21)
 #	define R300_TX_MAX_ANISO_4_TO_1  (4 << 21)
@@ -1103,7 +1103,7 @@
  * The destination register index is in FPI1 (color) and FPI3 (alpha)
  * together with enable bits.
  * There are separate enable bits for writing into temporary registers
- * (DSTC_REG_* /DSTA_REG) and and program output registers (DSTC_OUTPUT_*
+ * (DSTC_REG_* /DSTA_REG) and program output registers (DSTC_OUTPUT_*
  * /DSTA_OUTPUT). You can write to both at once, or not write at all (the
  * same index must be used for both).
  *

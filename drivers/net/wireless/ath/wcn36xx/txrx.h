@@ -110,7 +110,8 @@ struct wcn36xx_rx_bd {
 	/* 0x44 */
 	u32	exp_seq_num:12;
 	u32	cur_seq_num:12;
-	u32	fr_type_subtype:8;
+	u32	rf_band:2;
+	u32	fr_type_subtype:6;
 
 	/* 0x48 */
 	u32	msdu_size:16;
@@ -163,5 +164,6 @@ int  wcn36xx_rx_skb(struct wcn36xx *wcn, struct sk_buff *skb);
 int wcn36xx_start_tx(struct wcn36xx *wcn,
 		     struct wcn36xx_sta *sta_priv,
 		     struct sk_buff *skb);
+void wcn36xx_process_tx_rate(struct ani_global_class_a_stats_info *stats, struct rate_info *info);
 
 #endif	/* _TXRX_H_ */

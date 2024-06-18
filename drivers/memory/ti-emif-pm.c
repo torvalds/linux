@@ -248,7 +248,7 @@ MODULE_DEVICE_TABLE(of, ti_emif_of_match);
 static int ti_emif_resume(struct device *dev)
 {
 	unsigned long tmp =
-			__raw_readl((void *)emif_instance->ti_emif_sram_virt);
+			__raw_readl((void __iomem *)emif_instance->ti_emif_sram_virt);
 
 	/*
 	 * Check to see if what we are copying is already present in the
@@ -277,22 +277,17 @@ static int ti_emif_probe(struct platform_device *pdev)
 	int ret;
 	struct resource *res;
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *match;
 	struct ti_emif_data *emif_data;
 
 	emif_data = devm_kzalloc(dev, sizeof(*emif_data), GFP_KERNEL);
 	if (!emif_data)
 		return -ENOMEM;
 
-	match = of_match_device(ti_emif_of_match, &pdev->dev);
-	if (!match)
-		return -ENODEV;
+	emif_data->pm_data.ti_emif_sram_config = (unsigned long) device_get_match_data(&pdev->dev);
 
-	emif_data->pm_data.ti_emif_sram_config = (unsigned long)match->data;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	emif_data->pm_data.ti_emif_base_addr_virt = devm_ioremap_resource(dev,
-									  res);
+	emif_data->pm_data.ti_emif_base_addr_virt = devm_platform_get_and_ioremap_resource(pdev,
+											   0,
+											   &res);
 	if (IS_ERR(emif_data->pm_data.ti_emif_base_addr_virt)) {
 		ret = PTR_ERR(emif_data->pm_data.ti_emif_base_addr_virt);
 		return ret;
@@ -320,15 +315,13 @@ fail_free_sram:
 	return ret;
 }
 
-static int ti_emif_remove(struct platform_device *pdev)
+static void ti_emif_remove(struct platform_device *pdev)
 {
 	struct ti_emif_data *emif_data = emif_instance;
 
 	emif_instance = NULL;
 
 	ti_emif_free_sram(emif_data);
-
-	return 0;
 }
 
 static const struct dev_pm_ops ti_emif_pm_ops = {
@@ -337,10 +330,10 @@ static const struct dev_pm_ops ti_emif_pm_ops = {
 
 static struct platform_driver ti_emif_driver = {
 	.probe = ti_emif_probe,
-	.remove = ti_emif_remove,
+	.remove_new = ti_emif_remove,
 	.driver = {
 		.name = KBUILD_MODNAME,
-		.of_match_table = of_match_ptr(ti_emif_of_match),
+		.of_match_table = ti_emif_of_match,
 		.pm = &ti_emif_pm_ops,
 	},
 };

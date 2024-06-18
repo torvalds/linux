@@ -5,16 +5,20 @@
  * Copyright (C) 2018, Red Hat, Inc.
  */
 
-#define _GNU_SOURCE /* for program_invocation_name */
-
 #include <linux/compiler.h>
+#include <assert.h>
 
+#include "guest_modes.h"
 #include "kvm_util.h"
-#include "../kvm_util_internal.h"
 #include "processor.h"
+#include "ucall_common.h"
 
-#define KVM_GUEST_PAGE_TABLE_MIN_PADDR		0x180000
+#include <linux/bitfield.h>
+#include <linux/sizes.h>
+
 #define DEFAULT_ARM64_GUEST_STACK_VADDR_MIN	0xac0000
+
+static vm_vaddr_t exception_handlers;
 
 static uint64_t page_align(struct kvm_vm *vm, uint64_t v)
 {
@@ -57,10 +61,44 @@ static uint64_t pte_index(struct kvm_vm *vm, vm_vaddr_t gva)
 	return (gva >> vm->page_shift) & mask;
 }
 
-static uint64_t pte_addr(struct kvm_vm *vm, uint64_t entry)
+static inline bool use_lpa2_pte_format(struct kvm_vm *vm)
 {
-	uint64_t mask = ((1UL << (vm->va_bits - vm->page_shift)) - 1) << vm->page_shift;
-	return entry & mask;
+	return (vm->page_size == SZ_4K || vm->page_size == SZ_16K) &&
+	    (vm->pa_bits > 48 || vm->va_bits > 48);
+}
+
+static uint64_t addr_pte(struct kvm_vm *vm, uint64_t pa, uint64_t attrs)
+{
+	uint64_t pte;
+
+	if (use_lpa2_pte_format(vm)) {
+		pte = pa & GENMASK(49, vm->page_shift);
+		pte |= FIELD_GET(GENMASK(51, 50), pa) << 8;
+		attrs &= ~GENMASK(9, 8);
+	} else {
+		pte = pa & GENMASK(47, vm->page_shift);
+		if (vm->page_shift == 16)
+			pte |= FIELD_GET(GENMASK(51, 48), pa) << 12;
+	}
+	pte |= attrs;
+
+	return pte;
+}
+
+static uint64_t pte_addr(struct kvm_vm *vm, uint64_t pte)
+{
+	uint64_t pa;
+
+	if (use_lpa2_pte_format(vm)) {
+		pa = pte & GENMASK(49, vm->page_shift);
+		pa |= FIELD_GET(GENMASK(9, 8), pte) << 50;
+	} else {
+		pa = pte & GENMASK(47, vm->page_shift);
+		if (vm->page_shift == 16)
+			pa |= FIELD_GET(GENMASK(15, 12), pte) << 48;
+	}
+
+	return pa;
 }
 
 static uint64_t ptrs_per_pgd(struct kvm_vm *vm)
@@ -74,19 +112,21 @@ static uint64_t __maybe_unused ptrs_per_pte(struct kvm_vm *vm)
 	return 1 << (vm->page_shift - 3);
 }
 
-void virt_pgd_alloc(struct kvm_vm *vm, uint32_t pgd_memslot)
+void virt_arch_pgd_alloc(struct kvm_vm *vm)
 {
-	if (!vm->pgd_created) {
-		vm_paddr_t paddr = vm_phy_pages_alloc(vm,
-			page_align(vm, ptrs_per_pgd(vm) * 8) / vm->page_size,
-			KVM_GUEST_PAGE_TABLE_MIN_PADDR, pgd_memslot);
-		vm->pgd = paddr;
-		vm->pgd_created = true;
-	}
+	size_t nr_pages = page_align(vm, ptrs_per_pgd(vm) * 8) / vm->page_size;
+
+	if (vm->pgd_created)
+		return;
+
+	vm->pgd = vm_phy_pages_alloc(vm, nr_pages,
+				     KVM_GUEST_PAGE_TABLE_MIN_PADDR,
+				     vm->memslots[MEM_REGION_PT]);
+	vm->pgd_created = true;
 }
 
-void _virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
-		  uint32_t pgd_memslot, uint64_t flags)
+static void _virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
+			 uint64_t flags)
 {
 	uint8_t attr_idx = flags & 7;
 	uint64_t *ptep;
@@ -106,46 +146,38 @@ void _virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
 		paddr, vm->max_gfn, vm->page_size);
 
 	ptep = addr_gpa2hva(vm, vm->pgd) + pgd_index(vm, vaddr) * 8;
-	if (!*ptep) {
-		*ptep = vm_phy_page_alloc(vm, KVM_GUEST_PAGE_TABLE_MIN_PADDR, pgd_memslot);
-		*ptep |= 3;
-	}
+	if (!*ptep)
+		*ptep = addr_pte(vm, vm_alloc_page_table(vm), 3);
 
 	switch (vm->pgtable_levels) {
 	case 4:
 		ptep = addr_gpa2hva(vm, pte_addr(vm, *ptep)) + pud_index(vm, vaddr) * 8;
-		if (!*ptep) {
-			*ptep = vm_phy_page_alloc(vm, KVM_GUEST_PAGE_TABLE_MIN_PADDR, pgd_memslot);
-			*ptep |= 3;
-		}
+		if (!*ptep)
+			*ptep = addr_pte(vm, vm_alloc_page_table(vm), 3);
 		/* fall through */
 	case 3:
 		ptep = addr_gpa2hva(vm, pte_addr(vm, *ptep)) + pmd_index(vm, vaddr) * 8;
-		if (!*ptep) {
-			*ptep = vm_phy_page_alloc(vm, KVM_GUEST_PAGE_TABLE_MIN_PADDR, pgd_memslot);
-			*ptep |= 3;
-		}
+		if (!*ptep)
+			*ptep = addr_pte(vm, vm_alloc_page_table(vm), 3);
 		/* fall through */
 	case 2:
 		ptep = addr_gpa2hva(vm, pte_addr(vm, *ptep)) + pte_index(vm, vaddr) * 8;
 		break;
 	default:
-		TEST_ASSERT(false, "Page table levels must be 2, 3, or 4");
+		TEST_FAIL("Page table levels must be 2, 3, or 4");
 	}
 
-	*ptep = paddr | 3;
-	*ptep |= (attr_idx << 2) | (1 << 10) /* Access Flag */;
+	*ptep = addr_pte(vm, paddr, (attr_idx << 2) | (1 << 10) | 3);  /* AF */
 }
 
-void virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
-		 uint32_t pgd_memslot)
+void virt_arch_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr)
 {
-	uint64_t attr_idx = 4; /* NORMAL (See DEFAULT_MAIR_EL1) */
+	uint64_t attr_idx = MT_NORMAL;
 
-	_virt_pg_map(vm, vaddr, paddr, pgd_memslot, attr_idx);
+	_virt_pg_map(vm, vaddr, paddr, attr_idx);
 }
 
-vm_paddr_t addr_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
+uint64_t *virt_get_pte_hva(struct kvm_vm *vm, vm_vaddr_t gva)
 {
 	uint64_t *ptep;
 
@@ -173,20 +205,26 @@ vm_paddr_t addr_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
 			goto unmapped_gva;
 		break;
 	default:
-		TEST_ASSERT(false, "Page table levels must be 2, 3, or 4");
+		TEST_FAIL("Page table levels must be 2, 3, or 4");
 	}
 
-	return pte_addr(vm, *ptep) + (gva & (vm->page_size - 1));
+	return ptep;
 
 unmapped_gva:
-	TEST_ASSERT(false, "No mapping for vm virtual address, "
-		    "gva: 0x%lx", gva);
-	exit(1);
+	TEST_FAIL("No mapping for vm virtual address, gva: 0x%lx", gva);
+	exit(EXIT_FAILURE);
+}
+
+vm_paddr_t addr_arch_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
+{
+	uint64_t *ptep = virt_get_pte_hva(vm, gva);
+
+	return pte_addr(vm, *ptep) + (gva & (vm->page_size - 1));
 }
 
 static void pte_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent, uint64_t page, int level)
 {
-#ifdef DEBUG_VM
+#ifdef DEBUG
 	static const char * const type[] = { "", "pud", "pmd", "pte" };
 	uint64_t pte, *ptep;
 
@@ -197,13 +235,13 @@ static void pte_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent, uint64_t p
 		ptep = addr_gpa2hva(vm, pte);
 		if (!*ptep)
 			continue;
-		printf("%*s%s: %lx: %lx at %p\n", indent, "", type[level], pte, *ptep, ptep);
+		fprintf(stream, "%*s%s: %lx: %lx at %p\n", indent, "", type[level], pte, *ptep, ptep);
 		pte_dump(stream, vm, indent + 1, pte_addr(vm, *ptep), level + 1);
 	}
 #endif
 }
 
-void virt_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
+void virt_arch_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 {
 	int level = 4 - (vm->pgtable_levels - 1);
 	uint64_t pgd, *ptep;
@@ -215,30 +253,16 @@ void virt_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 		ptep = addr_gpa2hva(vm, pgd);
 		if (!*ptep)
 			continue;
-		printf("%*spgd: %lx: %lx at %p\n", indent, "", pgd, *ptep, ptep);
+		fprintf(stream, "%*spgd: %lx: %lx at %p\n", indent, "", pgd, *ptep, ptep);
 		pte_dump(stream, vm, indent + 1, pte_addr(vm, *ptep), level);
 	}
 }
 
-struct kvm_vm *vm_create_default(uint32_t vcpuid, uint64_t extra_mem_pages,
-				 void *guest_code)
-{
-	uint64_t ptrs_per_4k_pte = 512;
-	uint64_t extra_pg_pages = (extra_mem_pages / ptrs_per_4k_pte) * 2;
-	struct kvm_vm *vm;
-
-	vm = vm_create(VM_MODE_DEFAULT, DEFAULT_GUEST_PHY_PAGES + extra_pg_pages, O_RDWR);
-
-	kvm_vm_elf_load(vm, program_invocation_name, 0, 0);
-	vm_vcpu_add_default(vm, vcpuid, guest_code);
-
-	return vm;
-}
-
-void aarch64_vcpu_setup(struct kvm_vm *vm, int vcpuid, struct kvm_vcpu_init *init)
+void aarch64_vcpu_setup(struct kvm_vcpu *vcpu, struct kvm_vcpu_init *init)
 {
 	struct kvm_vcpu_init default_init = { .target = -1, };
-	uint64_t sctlr_el1, tcr_el1;
+	struct kvm_vm *vm = vcpu->vm;
+	uint64_t sctlr_el1, tcr_el1, ttbr0_el1;
 
 	if (!init)
 		init = &default_init;
@@ -249,87 +273,369 @@ void aarch64_vcpu_setup(struct kvm_vm *vm, int vcpuid, struct kvm_vcpu_init *ini
 		init->target = preferred.target;
 	}
 
-	vcpu_ioctl(vm, vcpuid, KVM_ARM_VCPU_INIT, init);
+	vcpu_ioctl(vcpu, KVM_ARM_VCPU_INIT, init);
 
 	/*
 	 * Enable FP/ASIMD to avoid trapping when accessing Q0-Q15
 	 * registers, which the variable argument list macros do.
 	 */
-	set_reg(vm, vcpuid, ARM64_SYS_REG(CPACR_EL1), 3 << 20);
+	vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_CPACR_EL1), 3 << 20);
 
-	get_reg(vm, vcpuid, ARM64_SYS_REG(SCTLR_EL1), &sctlr_el1);
-	get_reg(vm, vcpuid, ARM64_SYS_REG(TCR_EL1), &tcr_el1);
+	vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_SCTLR_EL1), &sctlr_el1);
+	vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_TCR_EL1), &tcr_el1);
 
+	/* Configure base granule size */
+	switch (vm->mode) {
+	case VM_MODE_PXXV48_4K:
+		TEST_FAIL("AArch64 does not support 4K sized pages "
+			  "with ANY-bit physical address ranges");
+	case VM_MODE_P52V48_64K:
+	case VM_MODE_P48V48_64K:
+	case VM_MODE_P40V48_64K:
+	case VM_MODE_P36V48_64K:
+		tcr_el1 |= 1ul << 14; /* TG0 = 64KB */
+		break;
+	case VM_MODE_P52V48_16K:
+	case VM_MODE_P48V48_16K:
+	case VM_MODE_P40V48_16K:
+	case VM_MODE_P36V48_16K:
+	case VM_MODE_P36V47_16K:
+		tcr_el1 |= 2ul << 14; /* TG0 = 16KB */
+		break;
+	case VM_MODE_P52V48_4K:
+	case VM_MODE_P48V48_4K:
+	case VM_MODE_P40V48_4K:
+	case VM_MODE_P36V48_4K:
+		tcr_el1 |= 0ul << 14; /* TG0 = 4KB */
+		break;
+	default:
+		TEST_FAIL("Unknown guest mode, mode: 0x%x", vm->mode);
+	}
+
+	ttbr0_el1 = vm->pgd & GENMASK(47, vm->page_shift);
+
+	/* Configure output size */
 	switch (vm->mode) {
 	case VM_MODE_P52V48_4K:
-		TEST_ASSERT(false, "AArch64 does not support 4K sized pages "
-				   "with 52-bit physical address ranges");
-	case VM_MODE_PXXV48_4K:
-		TEST_ASSERT(false, "AArch64 does not support 4K sized pages "
-				   "with ANY-bit physical address ranges");
+	case VM_MODE_P52V48_16K:
 	case VM_MODE_P52V48_64K:
-		tcr_el1 |= 1ul << 14; /* TG0 = 64KB */
 		tcr_el1 |= 6ul << 32; /* IPS = 52 bits */
+		ttbr0_el1 |= FIELD_GET(GENMASK(51, 48), vm->pgd) << 2;
 		break;
 	case VM_MODE_P48V48_4K:
-		tcr_el1 |= 0ul << 14; /* TG0 = 4KB */
-		tcr_el1 |= 5ul << 32; /* IPS = 48 bits */
-		break;
+	case VM_MODE_P48V48_16K:
 	case VM_MODE_P48V48_64K:
-		tcr_el1 |= 1ul << 14; /* TG0 = 64KB */
 		tcr_el1 |= 5ul << 32; /* IPS = 48 bits */
 		break;
 	case VM_MODE_P40V48_4K:
-		tcr_el1 |= 0ul << 14; /* TG0 = 4KB */
+	case VM_MODE_P40V48_16K:
+	case VM_MODE_P40V48_64K:
 		tcr_el1 |= 2ul << 32; /* IPS = 40 bits */
 		break;
-	case VM_MODE_P40V48_64K:
-		tcr_el1 |= 1ul << 14; /* TG0 = 64KB */
-		tcr_el1 |= 2ul << 32; /* IPS = 40 bits */
+	case VM_MODE_P36V48_4K:
+	case VM_MODE_P36V48_16K:
+	case VM_MODE_P36V48_64K:
+	case VM_MODE_P36V47_16K:
+		tcr_el1 |= 1ul << 32; /* IPS = 36 bits */
 		break;
 	default:
-		TEST_ASSERT(false, "Unknown guest mode, mode: 0x%x", vm->mode);
+		TEST_FAIL("Unknown guest mode, mode: 0x%x", vm->mode);
 	}
 
 	sctlr_el1 |= (1 << 0) | (1 << 2) | (1 << 12) /* M | C | I */;
 	/* TCR_EL1 |= IRGN0:WBWA | ORGN0:WBWA | SH0:Inner-Shareable */;
 	tcr_el1 |= (1 << 8) | (1 << 10) | (3 << 12);
 	tcr_el1 |= (64 - vm->va_bits) /* T0SZ */;
+	if (use_lpa2_pte_format(vm))
+		tcr_el1 |= (1ul << 59) /* DS */;
 
-	set_reg(vm, vcpuid, ARM64_SYS_REG(SCTLR_EL1), sctlr_el1);
-	set_reg(vm, vcpuid, ARM64_SYS_REG(TCR_EL1), tcr_el1);
-	set_reg(vm, vcpuid, ARM64_SYS_REG(MAIR_EL1), DEFAULT_MAIR_EL1);
-	set_reg(vm, vcpuid, ARM64_SYS_REG(TTBR0_EL1), vm->pgd);
+	vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_SCTLR_EL1), sctlr_el1);
+	vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_TCR_EL1), tcr_el1);
+	vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_MAIR_EL1), DEFAULT_MAIR_EL1);
+	vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_TTBR0_EL1), ttbr0_el1);
+	vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_TPIDR_EL1), vcpu->id);
 }
 
-void vcpu_dump(FILE *stream, struct kvm_vm *vm, uint32_t vcpuid, uint8_t indent)
+void vcpu_arch_dump(FILE *stream, struct kvm_vcpu *vcpu, uint8_t indent)
 {
 	uint64_t pstate, pc;
 
-	get_reg(vm, vcpuid, ARM64_CORE_REG(regs.pstate), &pstate);
-	get_reg(vm, vcpuid, ARM64_CORE_REG(regs.pc), &pc);
+	vcpu_get_reg(vcpu, ARM64_CORE_REG(regs.pstate), &pstate);
+	vcpu_get_reg(vcpu, ARM64_CORE_REG(regs.pc), &pc);
 
 	fprintf(stream, "%*spstate: 0x%.16lx pc: 0x%.16lx\n",
 		indent, "", pstate, pc);
 }
 
-void aarch64_vcpu_add_default(struct kvm_vm *vm, uint32_t vcpuid,
-			      struct kvm_vcpu_init *init, void *guest_code)
+void vcpu_arch_set_entry_point(struct kvm_vcpu *vcpu, void *guest_code)
 {
-	size_t stack_size = vm->page_size == 4096 ?
-					DEFAULT_STACK_PGS * vm->page_size :
-					vm->page_size;
-	uint64_t stack_vaddr = vm_vaddr_alloc(vm, stack_size,
-					DEFAULT_ARM64_GUEST_STACK_VADDR_MIN, 0, 0);
-
-	vm_vcpu_add(vm, vcpuid);
-	aarch64_vcpu_setup(vm, vcpuid, init);
-
-	set_reg(vm, vcpuid, ARM64_CORE_REG(sp_el1), stack_vaddr + stack_size);
-	set_reg(vm, vcpuid, ARM64_CORE_REG(regs.pc), (uint64_t)guest_code);
+	vcpu_set_reg(vcpu, ARM64_CORE_REG(regs.pc), (uint64_t)guest_code);
 }
 
-void vm_vcpu_add_default(struct kvm_vm *vm, uint32_t vcpuid, void *guest_code)
+static struct kvm_vcpu *__aarch64_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id,
+					   struct kvm_vcpu_init *init)
 {
-	aarch64_vcpu_add_default(vm, vcpuid, NULL, guest_code);
+	size_t stack_size;
+	uint64_t stack_vaddr;
+	struct kvm_vcpu *vcpu = __vm_vcpu_add(vm, vcpu_id);
+
+	stack_size = vm->page_size == 4096 ? DEFAULT_STACK_PGS * vm->page_size :
+					     vm->page_size;
+	stack_vaddr = __vm_vaddr_alloc(vm, stack_size,
+				       DEFAULT_ARM64_GUEST_STACK_VADDR_MIN,
+				       MEM_REGION_DATA);
+
+	aarch64_vcpu_setup(vcpu, init);
+
+	vcpu_set_reg(vcpu, ARM64_CORE_REG(sp_el1), stack_vaddr + stack_size);
+	return vcpu;
+}
+
+struct kvm_vcpu *aarch64_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id,
+				  struct kvm_vcpu_init *init, void *guest_code)
+{
+	struct kvm_vcpu *vcpu = __aarch64_vcpu_add(vm, vcpu_id, init);
+
+	vcpu_arch_set_entry_point(vcpu, guest_code);
+
+	return vcpu;
+}
+
+struct kvm_vcpu *vm_arch_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id)
+{
+	return __aarch64_vcpu_add(vm, vcpu_id, NULL);
+}
+
+void vcpu_args_set(struct kvm_vcpu *vcpu, unsigned int num, ...)
+{
+	va_list ap;
+	int i;
+
+	TEST_ASSERT(num >= 1 && num <= 8, "Unsupported number of args,\n"
+		    "  num: %u", num);
+
+	va_start(ap, num);
+
+	for (i = 0; i < num; i++) {
+		vcpu_set_reg(vcpu, ARM64_CORE_REG(regs.regs[i]),
+			     va_arg(ap, uint64_t));
+	}
+
+	va_end(ap);
+}
+
+void kvm_exit_unexpected_exception(int vector, uint64_t ec, bool valid_ec)
+{
+	ucall(UCALL_UNHANDLED, 3, vector, ec, valid_ec);
+	while (1)
+		;
+}
+
+void assert_on_unhandled_exception(struct kvm_vcpu *vcpu)
+{
+	struct ucall uc;
+
+	if (get_ucall(vcpu, &uc) != UCALL_UNHANDLED)
+		return;
+
+	if (uc.args[2]) /* valid_ec */ {
+		assert(VECTOR_IS_SYNC(uc.args[0]));
+		TEST_FAIL("Unexpected exception (vector:0x%lx, ec:0x%lx)",
+			  uc.args[0], uc.args[1]);
+	} else {
+		assert(!VECTOR_IS_SYNC(uc.args[0]));
+		TEST_FAIL("Unexpected exception (vector:0x%lx)",
+			  uc.args[0]);
+	}
+}
+
+struct handlers {
+	handler_fn exception_handlers[VECTOR_NUM][ESR_EC_NUM];
+};
+
+void vcpu_init_descriptor_tables(struct kvm_vcpu *vcpu)
+{
+	extern char vectors;
+
+	vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_VBAR_EL1), (uint64_t)&vectors);
+}
+
+void route_exception(struct ex_regs *regs, int vector)
+{
+	struct handlers *handlers = (struct handlers *)exception_handlers;
+	bool valid_ec;
+	int ec = 0;
+
+	switch (vector) {
+	case VECTOR_SYNC_CURRENT:
+	case VECTOR_SYNC_LOWER_64:
+		ec = (read_sysreg(esr_el1) >> ESR_EC_SHIFT) & ESR_EC_MASK;
+		valid_ec = true;
+		break;
+	case VECTOR_IRQ_CURRENT:
+	case VECTOR_IRQ_LOWER_64:
+	case VECTOR_FIQ_CURRENT:
+	case VECTOR_FIQ_LOWER_64:
+	case VECTOR_ERROR_CURRENT:
+	case VECTOR_ERROR_LOWER_64:
+		ec = 0;
+		valid_ec = false;
+		break;
+	default:
+		valid_ec = false;
+		goto unexpected_exception;
+	}
+
+	if (handlers && handlers->exception_handlers[vector][ec])
+		return handlers->exception_handlers[vector][ec](regs);
+
+unexpected_exception:
+	kvm_exit_unexpected_exception(vector, ec, valid_ec);
+}
+
+void vm_init_descriptor_tables(struct kvm_vm *vm)
+{
+	vm->handlers = __vm_vaddr_alloc(vm, sizeof(struct handlers),
+					vm->page_size, MEM_REGION_DATA);
+
+	*(vm_vaddr_t *)addr_gva2hva(vm, (vm_vaddr_t)(&exception_handlers)) = vm->handlers;
+}
+
+void vm_install_sync_handler(struct kvm_vm *vm, int vector, int ec,
+			 void (*handler)(struct ex_regs *))
+{
+	struct handlers *handlers = addr_gva2hva(vm, vm->handlers);
+
+	assert(VECTOR_IS_SYNC(vector));
+	assert(vector < VECTOR_NUM);
+	assert(ec < ESR_EC_NUM);
+	handlers->exception_handlers[vector][ec] = handler;
+}
+
+void vm_install_exception_handler(struct kvm_vm *vm, int vector,
+			 void (*handler)(struct ex_regs *))
+{
+	struct handlers *handlers = addr_gva2hva(vm, vm->handlers);
+
+	assert(!VECTOR_IS_SYNC(vector));
+	assert(vector < VECTOR_NUM);
+	handlers->exception_handlers[vector][0] = handler;
+}
+
+uint32_t guest_get_vcpuid(void)
+{
+	return read_sysreg(tpidr_el1);
+}
+
+static uint32_t max_ipa_for_page_size(uint32_t vm_ipa, uint32_t gran,
+				uint32_t not_sup_val, uint32_t ipa52_min_val)
+{
+	if (gran == not_sup_val)
+		return 0;
+	else if (gran >= ipa52_min_val && vm_ipa >= 52)
+		return 52;
+	else
+		return min(vm_ipa, 48U);
+}
+
+void aarch64_get_supported_page_sizes(uint32_t ipa, uint32_t *ipa4k,
+					uint32_t *ipa16k, uint32_t *ipa64k)
+{
+	struct kvm_vcpu_init preferred_init;
+	int kvm_fd, vm_fd, vcpu_fd, err;
+	uint64_t val;
+	uint32_t gran;
+	struct kvm_one_reg reg = {
+		.id	= KVM_ARM64_SYS_REG(SYS_ID_AA64MMFR0_EL1),
+		.addr	= (uint64_t)&val,
+	};
+
+	kvm_fd = open_kvm_dev_path_or_exit();
+	vm_fd = __kvm_ioctl(kvm_fd, KVM_CREATE_VM, (void *)(unsigned long)ipa);
+	TEST_ASSERT(vm_fd >= 0, KVM_IOCTL_ERROR(KVM_CREATE_VM, vm_fd));
+
+	vcpu_fd = ioctl(vm_fd, KVM_CREATE_VCPU, 0);
+	TEST_ASSERT(vcpu_fd >= 0, KVM_IOCTL_ERROR(KVM_CREATE_VCPU, vcpu_fd));
+
+	err = ioctl(vm_fd, KVM_ARM_PREFERRED_TARGET, &preferred_init);
+	TEST_ASSERT(err == 0, KVM_IOCTL_ERROR(KVM_ARM_PREFERRED_TARGET, err));
+	err = ioctl(vcpu_fd, KVM_ARM_VCPU_INIT, &preferred_init);
+	TEST_ASSERT(err == 0, KVM_IOCTL_ERROR(KVM_ARM_VCPU_INIT, err));
+
+	err = ioctl(vcpu_fd, KVM_GET_ONE_REG, &reg);
+	TEST_ASSERT(err == 0, KVM_IOCTL_ERROR(KVM_GET_ONE_REG, vcpu_fd));
+
+	gran = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64MMFR0_EL1_TGRAN4), val);
+	*ipa4k = max_ipa_for_page_size(ipa, gran, ID_AA64MMFR0_EL1_TGRAN4_NI,
+					ID_AA64MMFR0_EL1_TGRAN4_52_BIT);
+
+	gran = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64MMFR0_EL1_TGRAN64), val);
+	*ipa64k = max_ipa_for_page_size(ipa, gran, ID_AA64MMFR0_EL1_TGRAN64_NI,
+					ID_AA64MMFR0_EL1_TGRAN64_IMP);
+
+	gran = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64MMFR0_EL1_TGRAN16), val);
+	*ipa16k = max_ipa_for_page_size(ipa, gran, ID_AA64MMFR0_EL1_TGRAN16_NI,
+					ID_AA64MMFR0_EL1_TGRAN16_52_BIT);
+
+	close(vcpu_fd);
+	close(vm_fd);
+	close(kvm_fd);
+}
+
+#define __smccc_call(insn, function_id, arg0, arg1, arg2, arg3, arg4, arg5,	\
+		     arg6, res)							\
+	asm volatile("mov   w0, %w[function_id]\n"				\
+		     "mov   x1, %[arg0]\n"					\
+		     "mov   x2, %[arg1]\n"					\
+		     "mov   x3, %[arg2]\n"					\
+		     "mov   x4, %[arg3]\n"					\
+		     "mov   x5, %[arg4]\n"					\
+		     "mov   x6, %[arg5]\n"					\
+		     "mov   x7, %[arg6]\n"					\
+		     #insn  "#0\n"						\
+		     "mov   %[res0], x0\n"					\
+		     "mov   %[res1], x1\n"					\
+		     "mov   %[res2], x2\n"					\
+		     "mov   %[res3], x3\n"					\
+		     : [res0] "=r"(res->a0), [res1] "=r"(res->a1),		\
+		       [res2] "=r"(res->a2), [res3] "=r"(res->a3)		\
+		     : [function_id] "r"(function_id), [arg0] "r"(arg0),	\
+		       [arg1] "r"(arg1), [arg2] "r"(arg2), [arg3] "r"(arg3),	\
+		       [arg4] "r"(arg4), [arg5] "r"(arg5), [arg6] "r"(arg6)	\
+		     : "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7")
+
+
+void smccc_hvc(uint32_t function_id, uint64_t arg0, uint64_t arg1,
+	       uint64_t arg2, uint64_t arg3, uint64_t arg4, uint64_t arg5,
+	       uint64_t arg6, struct arm_smccc_res *res)
+{
+	__smccc_call(hvc, function_id, arg0, arg1, arg2, arg3, arg4, arg5,
+		     arg6, res);
+}
+
+void smccc_smc(uint32_t function_id, uint64_t arg0, uint64_t arg1,
+	       uint64_t arg2, uint64_t arg3, uint64_t arg4, uint64_t arg5,
+	       uint64_t arg6, struct arm_smccc_res *res)
+{
+	__smccc_call(smc, function_id, arg0, arg1, arg2, arg3, arg4, arg5,
+		     arg6, res);
+}
+
+void kvm_selftest_arch_init(void)
+{
+	/*
+	 * arm64 doesn't have a true default mode, so start by computing the
+	 * available IPA space and page sizes early.
+	 */
+	guest_modes_append_default();
+}
+
+void vm_vaddr_populate_bitmap(struct kvm_vm *vm)
+{
+	/*
+	 * arm64 selftests use only TTBR0_EL1, meaning that the valid VA space
+	 * is [0, 2^(64 - TCR_EL1.T0SZ)).
+	 */
+	sparsebit_set_num(vm->vpages_valid, 0,
+			  (1ULL << vm->va_bits) >> vm->page_shift);
 }

@@ -23,7 +23,7 @@ struct kmem_cache *stub_priv_cache;
  */
 #define MAX_BUSID 16
 static struct bus_id_priv busid_table[MAX_BUSID];
-static spinlock_t busid_table_lock;
+static DEFINE_SPINLOCK(busid_table_lock);
 
 static void init_busid_table(void)
 {
@@ -34,8 +34,6 @@ static void init_busid_table(void)
 	 * STUB_BUSID_OTHER, which is 0.
 	 */
 	memset(busid_table, 0, sizeof(busid_table));
-
-	spin_lock_init(&busid_table_lock);
 
 	for (i = 0; i < MAX_BUSID; i++)
 		spin_lock_init(&busid_table[i].busid_lock);
@@ -102,7 +100,7 @@ static int add_match_busid(char *busid)
 	for (i = 0; i < MAX_BUSID; i++) {
 		spin_lock(&busid_table[i].busid_lock);
 		if (!busid_table[i].name[0]) {
-			strlcpy(busid_table[i].name, busid, BUSID_SIZE);
+			strscpy(busid_table[i].name, busid, BUSID_SIZE);
 			if ((busid_table[i].status != STUB_BUSID_ALLOC) &&
 			    (busid_table[i].status != STUB_BUSID_REMOV))
 				busid_table[i].status = STUB_BUSID_ADDED;
@@ -169,15 +167,13 @@ static ssize_t match_busid_show(struct device_driver *drv, char *buf)
 static ssize_t match_busid_store(struct device_driver *dev, const char *buf,
 				 size_t count)
 {
-	int len;
 	char busid[BUSID_SIZE];
 
 	if (count < 5)
 		return -EINVAL;
 
 	/* busid needs to include \0 termination */
-	len = strlcpy(busid, buf + 4, BUSID_SIZE);
-	if (sizeof(busid) <= len)
+	if (strscpy(busid, buf + 4, BUSID_SIZE) < 0)
 		return -EINVAL;
 
 	if (!strncmp(buf, "add ", 4)) {
@@ -381,14 +377,14 @@ static int __init usbip_host_init(void)
 		goto err_usb_register;
 	}
 
-	ret = driver_create_file(&stub_driver.drvwrap.driver,
+	ret = driver_create_file(&stub_driver.driver,
 				 &driver_attr_match_busid);
 	if (ret) {
 		pr_err("driver_create_file failed\n");
 		goto err_create_file;
 	}
 
-	ret = driver_create_file(&stub_driver.drvwrap.driver,
+	ret = driver_create_file(&stub_driver.driver,
 				 &driver_attr_rebind);
 	if (ret) {
 		pr_err("driver_create_file failed\n");
@@ -406,10 +402,10 @@ err_usb_register:
 
 static void __exit usbip_host_exit(void)
 {
-	driver_remove_file(&stub_driver.drvwrap.driver,
+	driver_remove_file(&stub_driver.driver,
 			   &driver_attr_match_busid);
 
-	driver_remove_file(&stub_driver.drvwrap.driver,
+	driver_remove_file(&stub_driver.driver,
 			   &driver_attr_rebind);
 
 	/*

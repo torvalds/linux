@@ -84,7 +84,7 @@ void irq_timings_disable(void)
  * 2. Log interval
  *
  * We saw the irq timings allow to compute the interval of the
- * occurrences for a specific interrupt. We can reasonibly assume the
+ * occurrences for a specific interrupt. We can reasonably assume the
  * longer is the interval, the higher is the error for the next event
  * and we can consider storing those interval values into an array
  * where each slot in the array correspond to an interval at the power
@@ -416,7 +416,7 @@ static u64 __irq_timings_next_event(struct irqt_stat *irqs, int irq, u64 now)
 	 * Copy the content of the circular buffer into another buffer
 	 * in order to linearize the buffer instead of dealing with
 	 * wrapping indexes and shifted array which will be prone to
-	 * error and extremelly difficult to debug.
+	 * error and extremely difficult to debug.
 	 */
 	for (i = 0; i < count; i++) {
 		int index = (start + i) & IRQ_TIMINGS_MASK;
@@ -453,6 +453,11 @@ static __always_inline void __irq_timings_store(int irq, struct irqt_stat *irqs,
 	 */
 	index = irq_timings_interval_index(interval);
 
+	if (index > PREDICTION_BUFFER_SIZE - 1) {
+		irqs->count = 0;
+		return;
+	}
+
 	/*
 	 * Store the index as an element of the pattern in another
 	 * circular array.
@@ -485,7 +490,7 @@ static inline void irq_timings_store(int irq, struct irqt_stat *irqs, u64 ts)
 
 	/*
 	 * The interrupt triggered more than one second apart, that
-	 * ends the sequence as predictible for our purpose. In this
+	 * ends the sequence as predictable for our purpose. In this
 	 * case, assume we have the beginning of a sequence and the
 	 * timestamp is the first value. As it is impossible to
 	 * predict anything at this point, return.
@@ -514,7 +519,7 @@ static inline void irq_timings_store(int irq, struct irqt_stat *irqs, u64 ts)
  *      If more than the array size interrupts happened during the
  *      last busy/idle cycle, the index wrapped up and we have to
  *      begin with the next element in the array which is the last one
- *      in the sequence, otherwise it is a the index 0.
+ *      in the sequence, otherwise it is at the index 0.
  *
  * - have an indication of the interrupts activity on this CPU
  *   (eg. irq/sec)
@@ -604,7 +609,7 @@ int irq_timings_alloc(int irq)
 
 	/*
 	 * Some platforms can have the same private interrupt per cpu,
-	 * so this function may be be called several times with the
+	 * so this function may be called several times with the
 	 * same interrupt number. Just bail out in case the per cpu
 	 * stat structure is already allocated.
 	 */
@@ -794,12 +799,14 @@ static int __init irq_timings_test_irqs(struct timings_intervals *ti)
 
 		__irq_timings_store(irq, irqs, ti->intervals[i]);
 		if (irqs->circ_timings[i & IRQ_TIMINGS_MASK] != index) {
+			ret = -EBADSLT;
 			pr_err("Failed to store in the circular buffer\n");
 			goto out;
 		}
 	}
 
 	if (irqs->count != ti->count) {
+		ret = -ERANGE;
 		pr_err("Count differs\n");
 		goto out;
 	}

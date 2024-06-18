@@ -2,13 +2,13 @@
 
 config CACHEFILES
 	tristate "Filesystem caching on files"
-	depends on FSCACHE && BLOCK
+	depends on NETFS_SUPPORT && FSCACHE && BLOCK
 	help
 	  This permits use of a mounted filesystem as a cache for other
 	  filesystems - primarily networking filesystems - thus allowing fast
 	  local disk to enhance the speed of slower devices.
 
-	  See Documentation/filesystems/caching/cachefiles.txt for more
+	  See Documentation/filesystems/caching/cachefiles.rst for more
 	  information.
 
 config CACHEFILES_DEBUG
@@ -20,21 +20,21 @@ config CACHEFILES_DEBUG
 	  enabled by setting bits in /sys/modules/cachefiles/parameter/debug or
 	  by including a debugging specifier in /etc/cachefilesd.conf.
 
-config CACHEFILES_HISTOGRAM
-	bool "Gather latency information on CacheFiles"
-	depends on CACHEFILES && PROC_FS
+config CACHEFILES_ERROR_INJECTION
+	bool "Provide error injection for cachefiles"
+	depends on CACHEFILES && SYSCTL
 	help
+	  This permits error injection to be enabled in cachefiles whilst a
+	  cache is in service.
 
-	  This option causes latency information to be gathered on CacheFiles
-	  operation and exported through file:
+config CACHEFILES_ONDEMAND
+	bool "Support for on-demand read"
+	depends on CACHEFILES
+	default n
+	help
+	  This permits userspace to enable the cachefiles on-demand read mode.
+	  In this mode, when a cache miss occurs, responsibility for fetching
+	  the data lies with the cachefiles backend instead of with the netfs
+	  and is delegated to userspace.
 
-		/proc/fs/cachefiles/histogram
-
-	  The generation of this histogram adds a certain amount of overhead to
-	  execution as there are a number of points at which data is gathered,
-	  and on a multi-CPU system these may be on cachelines that keep
-	  bouncing between CPUs.  On the other hand, the histogram may be
-	  useful for debugging purposes.  Saying 'N' here is recommended.
-
-	  See Documentation/filesystems/caching/cachefiles.txt for more
-	  information.
+	  If unsure, say N.

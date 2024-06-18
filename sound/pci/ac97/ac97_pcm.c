@@ -26,7 +26,7 @@
  *  PCM support
  */
 
-static unsigned char rate_reg_tables[2][4][9] = {
+static const unsigned char rate_reg_tables[2][4][9] = {
 {
   /* standard rates */
   {
@@ -129,7 +129,7 @@ static unsigned char rate_reg_tables[2][4][9] = {
 }};
 
 /* FIXME: more various mappings for ADC? */
-static unsigned char rate_cregs[9] = {
+static const unsigned char rate_cregs[9] = {
 	AC97_PCM_LR_ADC_RATE,	/* 3 */
 	AC97_PCM_LR_ADC_RATE,	/* 4 */
 	0xff,			/* 5 */
@@ -231,7 +231,7 @@ static int set_spdif_rate(struct snd_ac97 *ac97, unsigned short rate)
  * If the codec doesn't support VAR, the rate must be 48000 (except
  * for SPDIF).
  *
- * The valid registers are AC97_PMC_MIC_ADC_RATE,
+ * The valid registers are AC97_PCM_MIC_ADC_RATE,
  * AC97_PCM_FRONT_DAC_RATE, AC97_PCM_LR_ADC_RATE.
  * AC97_PCM_SURR_DAC_RATE and AC97_PCM_LFE_DAC_RATE are accepted
  * if the codec supports them.

@@ -1,0 +1,111 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/ricoh,rn5t618.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Ricoh RN5T567/RN5T618/RC5T619 PMIC
+
+maintainers:
+  - Andreas Kemnade <andreas@kemnade.info>
+
+description: |
+  Ricoh RN5T567/RN5T618/RC5T619 is a power management IC family which
+  integrates 3 to 5 step-down DCDC converters, 7 to 10 low-dropout regulators,
+  GPIOs, and a watchdog timer. It can be controlled through an I2C interface.
+  The RN5T618/RC5T619 provides additionally a Li-ion battery charger,
+  fuel gauge, and an ADC.
+  The RC5T619 additionally includes USB charger detection and an RTC.
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ricoh,rn5t567
+    then:
+      properties:
+        regulators:
+          patternProperties:
+            "^(DCDC[1-4]|LDO[1-5]|LDORTC[12])$":
+              $ref: /schemas/regulator/regulator.yaml
+          additionalProperties: false
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ricoh,rn5t618
+    then:
+      properties:
+        regulators:
+          patternProperties:
+            "^(DCDC[1-3]|LDO[1-5]|LDORTC[12])$":
+              $ref: /schemas/regulator/regulator.yaml
+          additionalProperties: false
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ricoh,rc5t619
+    then:
+      properties:
+        regulators:
+          patternProperties:
+            "^(DCDC[1-5]|LDO[1-9]|LDO10|LDORTC[12])$":
+              $ref: /schemas/regulator/regulator.yaml
+          additionalProperties: false
+
+properties:
+  compatible:
+    enum:
+      - ricoh,rn5t567
+      - ricoh,rn5t618
+      - ricoh,rc5t619
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  system-power-controller:
+    type: boolean
+    description: |
+      See Documentation/devicetree/bindings/power/power-controller.txt
+
+  regulators:
+    type: object
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      pmic@32 {
+        compatible = "ricoh,rn5t618";
+        reg = <0x32>;
+        interrupt-parent = <&gpio5>;
+        interrupts = <11 IRQ_TYPE_EDGE_FALLING>;
+        system-power-controller;
+
+        regulators {
+          DCDC1 {
+            regulator-min-microvolt = <1050000>;
+            regulator-max-microvolt = <1050000>;
+          };
+
+          DCDC2 {
+            regulator-min-microvolt = <1175000>;
+            regulator-max-microvolt = <1175000>;
+          };
+        };
+      };
+    };

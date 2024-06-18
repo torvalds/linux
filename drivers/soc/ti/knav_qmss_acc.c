@@ -450,7 +450,7 @@ static int knav_acc_free_range(struct knav_range_info *range)
 	return 0;
 }
 
-struct knav_range_ops knav_acc_range_ops = {
+static struct knav_range_ops knav_acc_range_ops = {
 	.set_notify	= knav_acc_set_notify,
 	.init_queue	= knav_acc_init_queue,
 	.open_queue	= knav_acc_open_queue,
@@ -521,7 +521,7 @@ int knav_init_acc_range(struct knav_device *kdev,
 
 	info->pdsp = pdsp;
 	channels = range->num_queues;
-	if (of_get_property(node, "multi-queue", NULL)) {
+	if (of_property_read_bool(node, "multi-queue")) {
 		range->flags |= RANGE_MULTI_QUEUE;
 		channels = 1;
 		if (range->queue_base & (32 - 1)) {

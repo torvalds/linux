@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <test_progs.h>
 
-void test_tp_attach_query(void)
+void serial_test_tp_attach_query(void)
 {
 	const int num_progs = 3;
 	int i, j, bytes, efd, err, prog_fd[num_progs], pmu_fd[num_progs];
 	__u32 duration = 0, info_len, saved_prog_ids[num_progs];
-	const char *file = "./test_tracepoint.o";
+	const char *file = "./test_tracepoint.bpf.o";
 	struct perf_event_query_bpf *query;
 	struct perf_event_attr attr = {};
 	struct bpf_object *obj[num_progs];
@@ -16,8 +16,13 @@ void test_tp_attach_query(void)
 	for (i = 0; i < num_progs; i++)
 		obj[i] = NULL;
 
-	snprintf(buf, sizeof(buf),
-		 "/sys/kernel/debug/tracing/events/sched/sched_switch/id");
+	if (access("/sys/kernel/tracing/trace", F_OK) == 0) {
+		snprintf(buf, sizeof(buf),
+			 "/sys/kernel/tracing/events/sched/sched_switch/id");
+	} else {
+		snprintf(buf, sizeof(buf),
+			 "/sys/kernel/debug/tracing/events/sched/sched_switch/id");
+	}
 	efd = open(buf, O_RDONLY, 0);
 	if (CHECK(efd < 0, "open", "err %d errno %d\n", efd, errno))
 		return;
@@ -35,7 +40,7 @@ void test_tp_attach_query(void)
 
 	query = malloc(sizeof(*query) + sizeof(__u32) * num_progs);
 	for (i = 0; i < num_progs; i++) {
-		err = bpf_prog_load(file, BPF_PROG_TYPE_TRACEPOINT, &obj[i],
+		err = bpf_prog_test_load(file, BPF_PROG_TYPE_TRACEPOINT, &obj[i],
 				    &prog_fd[i]);
 		if (CHECK(err, "prog_load", "err %d errno %d\n", err, errno))
 			goto cleanup1;
@@ -45,8 +50,9 @@ void test_tp_attach_query(void)
 		prog_info.xlated_prog_len = 0;
 		prog_info.nr_map_ids = 0;
 		info_len = sizeof(prog_info);
-		err = bpf_obj_get_info_by_fd(prog_fd[i], &prog_info, &info_len);
-		if (CHECK(err, "bpf_obj_get_info_by_fd", "err %d errno %d\n",
+		err = bpf_prog_get_info_by_fd(prog_fd[i], &prog_info,
+					      &info_len);
+		if (CHECK(err, "bpf_prog_get_info_by_fd", "err %d errno %d\n",
 			  err, errno))
 			goto cleanup1;
 		saved_prog_ids[i] = prog_info.id;

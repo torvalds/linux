@@ -14,6 +14,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/log2.h>
+#include <linux/mod_devicetable.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/of_graph.h>
@@ -349,12 +350,13 @@ static int __mt9v032_set_power(struct mt9v032 *mt9v032, bool on)
  */
 
 static struct v4l2_mbus_framefmt *
-__mt9v032_get_pad_format(struct mt9v032 *mt9v032, struct v4l2_subdev_pad_config *cfg,
+__mt9v032_get_pad_format(struct mt9v032 *mt9v032,
+			 struct v4l2_subdev_state *sd_state,
 			 unsigned int pad, enum v4l2_subdev_format_whence which)
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_format(&mt9v032->subdev, cfg, pad);
+		return v4l2_subdev_state_get_format(sd_state, pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &mt9v032->format;
 	default:
@@ -363,12 +365,13 @@ __mt9v032_get_pad_format(struct mt9v032 *mt9v032, struct v4l2_subdev_pad_config 
 }
 
 static struct v4l2_rect *
-__mt9v032_get_pad_crop(struct mt9v032 *mt9v032, struct v4l2_subdev_pad_config *cfg,
+__mt9v032_get_pad_crop(struct mt9v032 *mt9v032,
+		       struct v4l2_subdev_state *sd_state,
 		       unsigned int pad, enum v4l2_subdev_format_whence which)
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_crop(&mt9v032->subdev, cfg, pad);
+		return v4l2_subdev_state_get_crop(sd_state, pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &mt9v032->crop;
 	default:
@@ -425,21 +428,27 @@ static int mt9v032_s_stream(struct v4l2_subdev *subdev, int enable)
 }
 
 static int mt9v032_enum_mbus_code(struct v4l2_subdev *subdev,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
+	struct mt9v032 *mt9v032 = to_mt9v032(subdev);
+
 	if (code->index > 0)
 		return -EINVAL;
 
-	code->code = MEDIA_BUS_FMT_SGRBG10_1X10;
+	code->code = mt9v032->format.code;
 	return 0;
 }
 
 static int mt9v032_enum_frame_size(struct v4l2_subdev *subdev,
-				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_size_enum *fse)
 {
-	if (fse->index >= 3 || fse->code != MEDIA_BUS_FMT_SGRBG10_1X10)
+	struct mt9v032 *mt9v032 = to_mt9v032(subdev);
+
+	if (fse->index >= 3)
+		return -EINVAL;
+	if (mt9v032->format.code != fse->code)
 		return -EINVAL;
 
 	fse->min_width = MT9V032_WINDOW_WIDTH_DEF / (1 << fse->index);
@@ -451,12 +460,13 @@ static int mt9v032_enum_frame_size(struct v4l2_subdev *subdev,
 }
 
 static int mt9v032_get_format(struct v4l2_subdev *subdev,
-			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_state *sd_state,
 			      struct v4l2_subdev_format *format)
 {
 	struct mt9v032 *mt9v032 = to_mt9v032(subdev);
 
-	format->format = *__mt9v032_get_pad_format(mt9v032, cfg, format->pad,
+	format->format = *__mt9v032_get_pad_format(mt9v032, sd_state,
+						   format->pad,
 						   format->which);
 	return 0;
 }
@@ -486,7 +496,7 @@ static unsigned int mt9v032_calc_ratio(unsigned int input, unsigned int output)
 }
 
 static int mt9v032_set_format(struct v4l2_subdev *subdev,
-			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_state *sd_state,
 			      struct v4l2_subdev_format *format)
 {
 	struct mt9v032 *mt9v032 = to_mt9v032(subdev);
@@ -497,7 +507,7 @@ static int mt9v032_set_format(struct v4l2_subdev *subdev,
 	unsigned int hratio;
 	unsigned int vratio;
 
-	__crop = __mt9v032_get_pad_crop(mt9v032, cfg, format->pad,
+	__crop = __mt9v032_get_pad_crop(mt9v032, sd_state, format->pad,
 					format->which);
 
 	/* Clamp the width and height to avoid dividing by zero. */
@@ -513,7 +523,7 @@ static int mt9v032_set_format(struct v4l2_subdev *subdev,
 	hratio = mt9v032_calc_ratio(__crop->width, width);
 	vratio = mt9v032_calc_ratio(__crop->height, height);
 
-	__format = __mt9v032_get_pad_format(mt9v032, cfg, format->pad,
+	__format = __mt9v032_get_pad_format(mt9v032, sd_state, format->pad,
 					    format->which);
 	__format->width = __crop->width / hratio;
 	__format->height = __crop->height / vratio;
@@ -530,7 +540,7 @@ static int mt9v032_set_format(struct v4l2_subdev *subdev,
 }
 
 static int mt9v032_get_selection(struct v4l2_subdev *subdev,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_selection *sel)
 {
 	struct mt9v032 *mt9v032 = to_mt9v032(subdev);
@@ -538,12 +548,13 @@ static int mt9v032_get_selection(struct v4l2_subdev *subdev,
 	if (sel->target != V4L2_SEL_TGT_CROP)
 		return -EINVAL;
 
-	sel->r = *__mt9v032_get_pad_crop(mt9v032, cfg, sel->pad, sel->which);
+	sel->r = *__mt9v032_get_pad_crop(mt9v032, sd_state, sel->pad,
+					 sel->which);
 	return 0;
 }
 
 static int mt9v032_set_selection(struct v4l2_subdev *subdev,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_selection *sel)
 {
 	struct mt9v032 *mt9v032 = to_mt9v032(subdev);
@@ -575,13 +586,15 @@ static int mt9v032_set_selection(struct v4l2_subdev *subdev,
 	rect.height = min_t(unsigned int,
 			    rect.height, MT9V032_PIXEL_ARRAY_HEIGHT - rect.top);
 
-	__crop = __mt9v032_get_pad_crop(mt9v032, cfg, sel->pad, sel->which);
+	__crop = __mt9v032_get_pad_crop(mt9v032, sd_state, sel->pad,
+					sel->which);
 
 	if (rect.width != __crop->width || rect.height != __crop->height) {
 		/* Reset the output image size if the crop rectangle size has
 		 * been modified.
 		 */
-		__format = __mt9v032_get_pad_format(mt9v032, cfg, sel->pad,
+		__format = __mt9v032_get_pad_format(mt9v032, sd_state,
+						    sel->pad,
 						    sel->which);
 		__format->width = rect.width;
 		__format->height = rect.height;
@@ -916,13 +929,13 @@ static int mt9v032_open(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh)
 	struct v4l2_mbus_framefmt *format;
 	struct v4l2_rect *crop;
 
-	crop = v4l2_subdev_get_try_crop(subdev, fh->pad, 0);
+	crop = v4l2_subdev_state_get_crop(fh->state, 0);
 	crop->left = MT9V032_COLUMN_START_DEF;
 	crop->top = MT9V032_ROW_START_DEF;
 	crop->width = MT9V032_WINDOW_WIDTH_DEF;
 	crop->height = MT9V032_WINDOW_HEIGHT_DEF;
 
-	format = v4l2_subdev_get_try_format(subdev, fh->pad, 0);
+	format = v4l2_subdev_state_get_format(fh->state, 0);
 
 	if (mt9v032->model->color)
 		format->code = MEDIA_BUS_FMT_SGRBG10_1X10;
@@ -975,7 +988,7 @@ static const struct regmap_config mt9v032_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 16,
 	.max_register = 0xff,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 /* -----------------------------------------------------------------------------
@@ -993,7 +1006,7 @@ mt9v032_get_pdata(struct i2c_client *client)
 	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_node)
 		return client->dev.platform_data;
 
-	np = of_graph_get_next_endpoint(client->dev.of_node, NULL);
+	np = of_graph_get_endpoint_by_regs(client->dev.of_node, 0, -1);
 	if (!np)
 		return NULL;
 
@@ -1030,8 +1043,7 @@ done:
 	return pdata;
 }
 
-static int mt9v032_probe(struct i2c_client *client,
-		const struct i2c_device_id *did)
+static int mt9v032_probe(struct i2c_client *client)
 {
 	struct mt9v032_platform_data *pdata = mt9v032_get_pdata(client);
 	struct mt9v032 *mt9v032;
@@ -1062,7 +1074,7 @@ static int mt9v032_probe(struct i2c_client *client,
 
 	mutex_init(&mt9v032->power_lock);
 	mt9v032->pdata = pdata;
-	mt9v032->model = (const void *)did->driver_data;
+	mt9v032->model = i2c_get_match_data(client);
 
 	v4l2_ctrl_handler_init(&mt9v032->ctrls, 11 +
 			       ARRAY_SIZE(mt9v032_aegc_controls));
@@ -1178,7 +1190,7 @@ err:
 	return ret;
 }
 
-static int mt9v032_remove(struct i2c_client *client)
+static void mt9v032_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *subdev = i2c_get_clientdata(client);
 	struct mt9v032 *mt9v032 = to_mt9v032(subdev);
@@ -1186,8 +1198,6 @@ static int mt9v032_remove(struct i2c_client *client)
 	v4l2_async_unregister_subdev(subdev);
 	v4l2_ctrl_handler_free(&mt9v032->ctrls);
 	media_entity_cleanup(&subdev->entity);
-
-	return 0;
 }
 
 static const struct mt9v032_model_data mt9v032_model_data[] = {
@@ -1260,29 +1270,27 @@ static const struct i2c_device_id mt9v032_id[] = {
 	{ "mt9v032m", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V032_MONO] },
 	{ "mt9v034", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V034_COLOR] },
 	{ "mt9v034m", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V034_MONO] },
-	{ }
+	{ /* Sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, mt9v032_id);
 
-#if IS_ENABLED(CONFIG_OF)
 static const struct of_device_id mt9v032_of_match[] = {
-	{ .compatible = "aptina,mt9v022" },
-	{ .compatible = "aptina,mt9v022m" },
-	{ .compatible = "aptina,mt9v024" },
-	{ .compatible = "aptina,mt9v024m" },
-	{ .compatible = "aptina,mt9v032" },
-	{ .compatible = "aptina,mt9v032m" },
-	{ .compatible = "aptina,mt9v034" },
-	{ .compatible = "aptina,mt9v034m" },
+	{ .compatible = "aptina,mt9v022", .data = &mt9v032_models[MT9V032_MODEL_V022_COLOR] },
+	{ .compatible = "aptina,mt9v022m", .data = &mt9v032_models[MT9V032_MODEL_V022_MONO] },
+	{ .compatible = "aptina,mt9v024", .data = &mt9v032_models[MT9V032_MODEL_V024_COLOR] },
+	{ .compatible = "aptina,mt9v024m", .data = &mt9v032_models[MT9V032_MODEL_V024_MONO] },
+	{ .compatible = "aptina,mt9v032", .data = &mt9v032_models[MT9V032_MODEL_V032_COLOR] },
+	{ .compatible = "aptina,mt9v032m", .data = &mt9v032_models[MT9V032_MODEL_V032_MONO] },
+	{ .compatible = "aptina,mt9v034", .data = &mt9v032_models[MT9V032_MODEL_V034_COLOR] },
+	{ .compatible = "aptina,mt9v034m", .data = &mt9v032_models[MT9V032_MODEL_V034_MONO] },
 	{ /* Sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, mt9v032_of_match);
-#endif
 
 static struct i2c_driver mt9v032_driver = {
 	.driver = {
 		.name = "mt9v032",
-		.of_match_table = of_match_ptr(mt9v032_of_match),
+		.of_match_table = mt9v032_of_match,
 	},
 	.probe		= mt9v032_probe,
 	.remove		= mt9v032_remove,

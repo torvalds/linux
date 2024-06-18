@@ -1,0 +1,107 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/gpio/nxp,pcf8575.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: PCF857x-compatible I/O expanders
+
+maintainers:
+  - Laurent Pinchart <laurent.pinchart+renesas@ideasonboard.com>
+
+description:
+  The PCF857x-compatible chips have "quasi-bidirectional" I/O lines that can be
+  driven high by a pull-up current source or driven low to ground. This
+  combines the direction and output level into a single bit per line, which
+  can't be read back. We can't actually know at initialization time whether a
+  line is configured (a) as output and driving the signal low/high, or (b) as
+  input and reporting a low/high value, without knowing the last value written
+  since the chip came out of reset (if any). The only reliable solution for
+  setting up line direction is thus to do it explicitly.
+
+properties:
+  compatible:
+    enum:
+      - maxim,max7328
+      - maxim,max7329
+      - nxp,pca8574
+      - nxp,pca8575
+      - nxp,pca9670
+      - nxp,pca9671
+      - nxp,pca9672
+      - nxp,pca9673
+      - nxp,pca9674
+      - nxp,pca9675
+      - nxp,pcf8574
+      - nxp,pcf8574a
+      - nxp,pcf8575
+
+  reg:
+    maxItems: 1
+
+  gpio-line-names:
+    minItems: 1
+    maxItems: 16
+
+  gpio-controller: true
+
+  '#gpio-cells':
+    const: 2
+    description:
+      The first cell is the GPIO number and the second cell specifies GPIO
+      flags, as defined in <dt-bindings/gpio/gpio.h>. Only the GPIO_ACTIVE_HIGH
+      and GPIO_ACTIVE_LOW flags are supported.
+
+  lines-initial-states:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Bitmask that specifies the initial state of each line.
+      When a bit is set to zero, the corresponding line will be initialized to
+      the input (pulled-up) state.
+      When the  bit is set to one, the line will be initialized to the
+      low-level output state.
+      If the property is not specified all lines will be initialized to the
+      input state.
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 2
+
+  wakeup-source: true
+
+patternProperties:
+  "^(.+-hog(-[0-9]+)?)$":
+    type: object
+
+    required:
+      - gpio-hog
+
+required:
+  - compatible
+  - reg
+  - gpio-controller
+  - '#gpio-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            pcf8575: gpio@20 {
+                    compatible = "nxp,pcf8575";
+                    reg = <0x20>;
+                    interrupt-parent = <&irqpin2>;
+                    interrupts = <3 0>;
+                    gpio-controller;
+                    #gpio-cells = <2>;
+                    interrupt-controller;
+                    #interrupt-cells = <2>;
+            };
+    };

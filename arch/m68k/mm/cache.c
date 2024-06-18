@@ -8,7 +8,7 @@
  */
 
 #include <linux/module.h>
-#include <asm/pgalloc.h>
+#include <asm/cacheflush.h>
 #include <asm/traps.h>
 
 
@@ -49,31 +49,14 @@ static unsigned long virt_to_phys_slow(unsigned long vaddr)
 		if (mmusr & MMU_R_040)
 			return (mmusr & PAGE_MASK) | (vaddr & ~PAGE_MASK);
 	} else {
-		unsigned short mmusr;
-		unsigned long *descaddr;
-
-		asm volatile ("ptestr %3,%2@,#7,%0\n\t"
-			      "pmove %%psr,%1"
-			      : "=a&" (descaddr), "=m" (mmusr)
-			      : "a" (vaddr), "d" (get_fs().seg));
-		if (mmusr & (MMU_I|MMU_B|MMU_L))
-			return 0;
-		descaddr = phys_to_virt((unsigned long)descaddr);
-		switch (mmusr & MMU_NUM) {
-		case 1:
-			return (*descaddr & 0xfe000000) | (vaddr & 0x01ffffff);
-		case 2:
-			return (*descaddr & 0xfffc0000) | (vaddr & 0x0003ffff);
-		case 3:
-			return (*descaddr & PAGE_MASK) | (vaddr & ~PAGE_MASK);
-		}
+		WARN_ON_ONCE(!CPU_IS_040_OR_060);
 	}
 	return 0;
 }
 
 /* Push n pages at kernel virtual address and clear the icache */
 /* RZ: use cpush %bc instead of cpush %dc, cinv %ic */
-void flush_icache_range(unsigned long address, unsigned long endaddr)
+void flush_icache_user_range(unsigned long address, unsigned long endaddr)
 {
 	if (CPU_IS_COLDFIRE) {
 		unsigned long start, end;
@@ -104,9 +87,16 @@ void flush_icache_range(unsigned long address, unsigned long endaddr)
 			      : "di" (FLUSH_I));
 	}
 }
+
+void flush_icache_range(unsigned long address, unsigned long endaddr)
+{
+	set_fc(SUPER_DATA);
+	flush_icache_user_range(address, endaddr);
+	set_fc(USER_DATA);
+}
 EXPORT_SYMBOL(flush_icache_range);
 
-void flush_icache_user_range(struct vm_area_struct *vma, struct page *page,
+void flush_icache_user_page(struct vm_area_struct *vma, struct page *page,
 			     unsigned long addr, int len)
 {
 	if (CPU_IS_COLDFIRE) {

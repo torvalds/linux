@@ -40,15 +40,14 @@ nv44_mc_init(struct nvkm_mc *mc)
 static const struct nvkm_mc_func
 nv44_mc = {
 	.init = nv44_mc_init,
-	.intr = nv17_mc_intr,
-	.intr_unarm = nv04_mc_intr_unarm,
-	.intr_rearm = nv04_mc_intr_rearm,
-	.intr_stat = nv04_mc_intr_stat,
+	.intr = &nv04_mc_intr,
+	.intrs = nv17_mc_intrs,
+	.device = &nv04_mc_device,
 	.reset = nv17_mc_reset,
 };
 
 int
-nv44_mc_new(struct nvkm_device *device, int index, struct nvkm_mc **pmc)
+nv44_mc_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_mc **pmc)
 {
-	return nvkm_mc_new_(&nv44_mc, device, index, pmc);
+	return nvkm_mc_new_(&nv44_mc, device, type, inst, pmc);
 }

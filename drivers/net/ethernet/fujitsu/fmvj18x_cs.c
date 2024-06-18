@@ -93,7 +93,7 @@ static irqreturn_t fjn_interrupt(int irq, void *dev_id);
 static void fjn_rx(struct net_device *dev);
 static void fjn_reset(struct net_device *dev);
 static void set_rx_mode(struct net_device *dev);
-static void fjn_tx_timeout(struct net_device *dev);
+static void fjn_tx_timeout(struct net_device *dev, unsigned int txqueue);
 static const struct ethtool_ops netdev_ethtool_ops;
 
 /*
@@ -334,6 +334,7 @@ static int fmvj18x_config(struct pcmcia_device *link)
     u8 *buf;
     size_t len;
     u_char buggybuf[32];
+    u8 addr[ETH_ALEN];
 
     dev_dbg(&link->dev, "fmvj18x_config\n");
 
@@ -468,8 +469,7 @@ static int fmvj18x_config(struct pcmcia_device *link)
 		    goto failed;
 	    }
 	    /* Read MACID from CIS */
-	    for (i = 0; i < 6; i++)
-		    dev->dev_addr[i] = buf[i + 5];
+	    eth_hw_addr_set(dev, &buf[5]);
 	    kfree(buf);
 	} else {
 	    if (pcmcia_get_mac_from_cis(link, dev))
@@ -490,7 +490,8 @@ static int fmvj18x_config(struct pcmcia_device *link)
     case UNGERMANN:
 	/* Read MACID from register */
 	for (i = 0; i < 6; i++) 
-	    dev->dev_addr[i] = inb(ioaddr + UNGERMANN_MAC_ID + i);
+	    addr[i] = inb(ioaddr + UNGERMANN_MAC_ID + i);
+	eth_hw_addr_set(dev, addr);
 	card_name = "Access/CARD";
 	break;
     case XXX10304:
@@ -499,16 +500,15 @@ static int fmvj18x_config(struct pcmcia_device *link)
 	    pr_notice("unable to read hardware net address\n");
 	    goto failed;
 	}
-	for (i = 0 ; i < 6; i++) {
-	    dev->dev_addr[i] = buggybuf[i];
-	}
+	eth_hw_addr_set(dev, buggybuf);
 	card_name = "FMV-J182";
 	break;
     case MBH10302:
     default:
 	/* Read MACID from register */
 	for (i = 0; i < 6; i++) 
-	    dev->dev_addr[i] = inb(ioaddr + MAC_ID + i);
+	    addr[i] = inb(ioaddr + MAC_ID + i);
+	eth_hw_addr_set(dev, addr);
 	card_name = "FMV-J181";
 	break;
     }
@@ -548,8 +548,8 @@ static int fmvj18x_get_hwinfo(struct pcmcia_device *link, u_char *node_id)
 
     base = ioremap(link->resource[2]->start, resource_size(link->resource[2]));
     if (!base) {
-	    pcmcia_release_window(link, link->resource[2]);
-	    return -ENOMEM;
+	pcmcia_release_window(link, link->resource[2]);
+	return -1;
     }
 
     pcmcia_map_mem_page(link, link->resource[2], 0);
@@ -774,7 +774,7 @@ static irqreturn_t fjn_interrupt(int dummy, void *dev_id)
 
 /*====================================================================*/
 
-static void fjn_tx_timeout(struct net_device *dev)
+static void fjn_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
     struct local_info *lp = netdev_priv(dev);
     unsigned int ioaddr = dev->base_addr;
@@ -812,9 +812,9 @@ static netdev_tx_t fjn_start_xmit(struct sk_buff *skb,
     
     if (length < ETH_ZLEN)
     {
-    	if (skb_padto(skb, ETH_ZLEN))
-    		return NETDEV_TX_OK;
-    	length = ETH_ZLEN;
+	if (skb_padto(skb, ETH_ZLEN))
+		return NETDEV_TX_OK;
+	length = ETH_ZLEN;
     }
 
     netif_stop_queue(dev);
@@ -1046,8 +1046,8 @@ static void fjn_rx(struct net_device *dev)
 static void netdev_get_drvinfo(struct net_device *dev,
 			       struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strscpy(info->version, DRV_VERSION, sizeof(info->version));
 	snprintf(info->bus_info, sizeof(info->bus_info),
 		"PCMCIA 0x%lx", dev->base_addr);
 }

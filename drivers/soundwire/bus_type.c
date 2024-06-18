@@ -7,6 +7,8 @@
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_type.h>
 #include "bus.h"
+#include "irq.h"
+#include "sysfs_local.h"
 
 /**
  * sdw_get_device_id - find the matching SoundWire device id
@@ -19,37 +21,47 @@
 static const struct sdw_device_id *
 sdw_get_device_id(struct sdw_slave *slave, struct sdw_driver *drv)
 {
-	const struct sdw_device_id *id = drv->id_table;
+	const struct sdw_device_id *id;
 
-	while (id && id->mfg_id) {
+	for (id = drv->id_table; id && id->mfg_id; id++)
 		if (slave->id.mfg_id == id->mfg_id &&
-		    slave->id.part_id == id->part_id)
+		    slave->id.part_id == id->part_id  &&
+		    (!id->sdw_version ||
+		     slave->id.sdw_version == id->sdw_version) &&
+		    (!id->class_id ||
+		     slave->id.class_id == id->class_id))
 			return id;
-		id++;
-	}
 
 	return NULL;
 }
 
 static int sdw_bus_match(struct device *dev, struct device_driver *ddrv)
 {
-	struct sdw_slave *slave = dev_to_sdw_dev(dev);
-	struct sdw_driver *drv = drv_to_sdw_driver(ddrv);
+	struct sdw_slave *slave;
+	struct sdw_driver *drv;
+	int ret = 0;
 
-	return !!sdw_get_device_id(slave, drv);
+	if (is_sdw_slave(dev)) {
+		slave = dev_to_sdw_dev(dev);
+		drv = drv_to_sdw_driver(ddrv);
+
+		ret = !!sdw_get_device_id(slave, drv);
+	}
+	return ret;
 }
 
 int sdw_slave_modalias(const struct sdw_slave *slave, char *buf, size_t size)
 {
-	/* modalias is sdw:m<mfg_id>p<part_id> */
+	/* modalias is sdw:m<mfg_id>p<part_id>v<version>c<class_id> */
 
-	return snprintf(buf, size, "sdw:m%04Xp%04X\n",
-			slave->id.mfg_id, slave->id.part_id);
+	return snprintf(buf, size, "sdw:m%04Xp%04Xv%02Xc%02X\n",
+			slave->id.mfg_id, slave->id.part_id,
+			slave->id.sdw_version, slave->id.class_id);
 }
 
-static int sdw_uevent(struct device *dev, struct kobj_uevent_env *env)
+int sdw_slave_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct sdw_slave *slave = dev_to_sdw_dev(dev);
+	const struct sdw_slave *slave = dev_to_sdw_dev(dev);
 	char modalias[32];
 
 	sdw_slave_modalias(slave, modalias, sizeof(modalias));
@@ -60,10 +72,9 @@ static int sdw_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
-struct bus_type sdw_bus_type = {
+const struct bus_type sdw_bus_type = {
 	.name = "soundwire",
 	.match = sdw_bus_match,
-	.uevent = sdw_uevent,
 };
 EXPORT_SYMBOL_GPL(sdw_bus_type);
 
@@ -72,13 +83,21 @@ static int sdw_drv_probe(struct device *dev)
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
 	struct sdw_driver *drv = drv_to_sdw_driver(dev->driver);
 	const struct sdw_device_id *id;
+	const char *name;
 	int ret;
+
+	/*
+	 * fw description is mandatory to bind
+	 */
+	if (!dev->fwnode)
+		return -ENODEV;
+
+	if (!IS_ENABLED(CONFIG_ACPI) && !dev->of_node)
+		return -ENODEV;
 
 	id = sdw_get_device_id(slave, drv);
 	if (!id)
 		return -ENODEV;
-
-	slave->ops = drv->ops;
 
 	/*
 	 * attach to power domain but don't turn on (last arg)
@@ -89,14 +108,28 @@ static int sdw_drv_probe(struct device *dev)
 
 	ret = drv->probe(slave, id);
 	if (ret) {
-		dev_err(dev, "Probe of %s failed: %d\n", drv->name, ret);
+		name = drv->name;
+		if (!name)
+			name = drv->driver.name;
+
+		dev_err(dev, "Probe of %s failed: %d\n", name, ret);
 		dev_pm_domain_detach(dev, false);
 		return ret;
 	}
 
+	mutex_lock(&slave->sdw_dev_lock);
+
 	/* device is probed so let's read the properties now */
-	if (slave->ops && slave->ops->read_prop)
-		slave->ops->read_prop(slave);
+	if (drv->ops && drv->ops->read_prop)
+		drv->ops->read_prop(slave);
+
+	if (slave->prop.use_domain_irq)
+		sdw_irq_create_mapping(slave);
+
+	/* init the dynamic sysfs attributes we need */
+	ret = sdw_slave_sysfs_dpn_init(slave);
+	if (ret < 0)
+		dev_warn(dev, "Slave sysfs init failed:%d\n", ret);
 
 	/*
 	 * Check for valid clk_stop_timeout, use DisCo worst case value of
@@ -110,6 +143,23 @@ static int sdw_drv_probe(struct device *dev)
 	slave->bus->clk_stop_timeout = max_t(u32, slave->bus->clk_stop_timeout,
 					     slave->prop.clk_stop_timeout);
 
+	slave->probed = true;
+
+	/*
+	 * if the probe happened after the bus was started, notify the codec driver
+	 * of the current hardware status to e.g. start the initialization.
+	 * Errors are only logged as warnings to avoid failing the probe.
+	 */
+	if (drv->ops && drv->ops->update_status) {
+		ret = drv->ops->update_status(slave, slave->status);
+		if (ret < 0)
+			dev_warn(dev, "%s: update_status failed with status %d\n", __func__, ret);
+	}
+
+	mutex_unlock(&slave->sdw_dev_lock);
+
+	dev_dbg(dev, "probe complete\n");
+
 	return 0;
 }
 
@@ -118,6 +168,15 @@ static int sdw_drv_remove(struct device *dev)
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
 	struct sdw_driver *drv = drv_to_sdw_driver(dev->driver);
 	int ret = 0;
+
+	mutex_lock(&slave->sdw_dev_lock);
+
+	slave->probed = false;
+
+	if (slave->prop.use_domain_irq)
+		sdw_irq_dispose_mapping(slave);
+
+	mutex_unlock(&slave->sdw_dev_lock);
 
 	if (drv->remove)
 		ret = drv->remove(slave);
@@ -145,22 +204,24 @@ static void sdw_drv_shutdown(struct device *dev)
  */
 int __sdw_register_driver(struct sdw_driver *drv, struct module *owner)
 {
+	const char *name;
+
 	drv->driver.bus = &sdw_bus_type;
 
 	if (!drv->probe) {
-		pr_err("driver %s didn't provide SDW probe routine\n",
-		       drv->name);
+		name = drv->name;
+		if (!name)
+			name = drv->driver.name;
+
+		pr_err("driver %s didn't provide SDW probe routine\n", name);
 		return -EINVAL;
 	}
 
 	drv->driver.owner = owner;
 	drv->driver.probe = sdw_drv_probe;
-
-	if (drv->remove)
-		drv->driver.remove = sdw_drv_remove;
-
-	if (drv->shutdown)
-		drv->driver.shutdown = sdw_drv_shutdown;
+	drv->driver.remove = sdw_drv_remove;
+	drv->driver.shutdown = sdw_drv_shutdown;
+	drv->driver.dev_groups = sdw_attr_groups;
 
 	return driver_register(&drv->driver);
 }

@@ -12,7 +12,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
@@ -38,52 +38,34 @@ struct tegra_bpmp_i2c {
  * firmware I2C driver to avoid any issues in future if Linux I2C flags are
  * changed.
  */
-static int tegra_bpmp_xlate_flags(u16 flags, u16 *out)
+static void tegra_bpmp_xlate_flags(u16 flags, u16 *out)
 {
-	if (flags & I2C_M_TEN) {
+	if (flags & I2C_M_TEN)
 		*out |= SERIALI2C_TEN;
-		flags &= ~I2C_M_TEN;
-	}
 
-	if (flags & I2C_M_RD) {
+	if (flags & I2C_M_RD)
 		*out |= SERIALI2C_RD;
-		flags &= ~I2C_M_RD;
-	}
 
-	if (flags & I2C_M_STOP) {
+	if (flags & I2C_M_STOP)
 		*out |= SERIALI2C_STOP;
-		flags &= ~I2C_M_STOP;
-	}
 
-	if (flags & I2C_M_NOSTART) {
+	if (flags & I2C_M_NOSTART)
 		*out |= SERIALI2C_NOSTART;
-		flags &= ~I2C_M_NOSTART;
-	}
 
-	if (flags & I2C_M_REV_DIR_ADDR) {
+	if (flags & I2C_M_REV_DIR_ADDR)
 		*out |= SERIALI2C_REV_DIR_ADDR;
-		flags &= ~I2C_M_REV_DIR_ADDR;
-	}
 
-	if (flags & I2C_M_IGNORE_NAK) {
+	if (flags & I2C_M_IGNORE_NAK)
 		*out |= SERIALI2C_IGNORE_NAK;
-		flags &= ~I2C_M_IGNORE_NAK;
-	}
 
-	if (flags & I2C_M_NO_RD_ACK) {
+	if (flags & I2C_M_NO_RD_ACK)
 		*out |= SERIALI2C_NO_RD_ACK;
-		flags &= ~I2C_M_NO_RD_ACK;
-	}
 
-	if (flags & I2C_M_RECV_LEN) {
+	if (flags & I2C_M_RECV_LEN)
 		*out |= SERIALI2C_RECV_LEN;
-		flags &= ~I2C_M_RECV_LEN;
-	}
-
-	return (flags != 0) ? -EINVAL : 0;
 }
 
-/**
+/*
  * The serialized I2C format is simply the following:
  * [addr little-endian][flags little-endian][len little-endian][data if write]
  * [addr little-endian][flags little-endian][len little-endian][data if write]
@@ -97,22 +79,19 @@ static int tegra_bpmp_xlate_flags(u16 flags, u16 *out)
  *
  * See deserialize_i2c documentation for the data format in the other direction.
  */
-static int tegra_bpmp_serialize_i2c_msg(struct tegra_bpmp_i2c *i2c,
+static void tegra_bpmp_serialize_i2c_msg(struct tegra_bpmp_i2c *i2c,
 					struct mrq_i2c_request *request,
 					struct i2c_msg *msgs,
 					unsigned int num)
 {
 	char *buf = request->xfer.data_buf;
 	unsigned int i, j, pos = 0;
-	int err;
 
 	for (i = 0; i < num; i++) {
 		struct i2c_msg *msg = &msgs[i];
 		u16 flags = 0;
 
-		err = tegra_bpmp_xlate_flags(msg->flags, &flags);
-		if (err < 0)
-			return err;
+		tegra_bpmp_xlate_flags(msg->flags, &flags);
 
 		buf[pos++] = msg->addr & 0xff;
 		buf[pos++] = (msg->addr & 0xff00) >> 8;
@@ -128,11 +107,9 @@ static int tegra_bpmp_serialize_i2c_msg(struct tegra_bpmp_i2c *i2c,
 	}
 
 	request->xfer.data_size = pos;
-
-	return 0;
 }
 
-/**
+/*
  * The data in the BPMP -> CPU direction is composed of sequential blocks for
  * those messages that have I2C_M_RD. So, for example, if you have:
  *
@@ -217,7 +194,32 @@ static int tegra_bpmp_i2c_msg_xfer(struct tegra_bpmp_i2c *i2c,
 	else
 		err = tegra_bpmp_transfer(i2c->bpmp, &msg);
 
-	return err;
+	if (err < 0) {
+		dev_err(i2c->dev, "failed to transfer message: %d\n", err);
+		return err;
+	}
+
+	if (msg.rx.ret != 0) {
+		if (msg.rx.ret == -BPMP_EAGAIN) {
+			dev_dbg(i2c->dev, "arbitration lost\n");
+			return -EAGAIN;
+		}
+
+		if (msg.rx.ret == -BPMP_ETIMEDOUT) {
+			dev_dbg(i2c->dev, "timeout\n");
+			return -ETIMEDOUT;
+		}
+
+		if (msg.rx.ret == -BPMP_ENXIO) {
+			dev_dbg(i2c->dev, "NAK\n");
+			return -ENXIO;
+		}
+
+		dev_err(i2c->dev, "transaction failed: %d\n", msg.rx.ret);
+		return -EIO;
+	}
+
+	return 0;
 }
 
 static int tegra_bpmp_i2c_xfer_common(struct i2c_adapter *adapter,
@@ -238,12 +240,7 @@ static int tegra_bpmp_i2c_xfer_common(struct i2c_adapter *adapter,
 	memset(&request, 0, sizeof(request));
 	memset(&response, 0, sizeof(response));
 
-	err = tegra_bpmp_serialize_i2c_msg(i2c, &request, msgs, num);
-	if (err < 0) {
-		dev_err(i2c->dev, "failed to serialize message: %d\n", err);
-		return err;
-	}
-
+	tegra_bpmp_serialize_i2c_msg(i2c, &request, msgs, num);
 	err = tegra_bpmp_i2c_msg_xfer(i2c, &request, &response, atomic);
 	if (err < 0) {
 		dev_err(i2c->dev, "failed to transfer message: %d\n", err);
@@ -308,7 +305,7 @@ static int tegra_bpmp_i2c_probe(struct platform_device *pdev)
 
 	i2c_set_adapdata(&i2c->adapter, i2c);
 	i2c->adapter.owner = THIS_MODULE;
-	strlcpy(i2c->adapter.name, "Tegra BPMP I2C adapter",
+	strscpy(i2c->adapter.name, "Tegra BPMP I2C adapter",
 		sizeof(i2c->adapter.name));
 	i2c->adapter.algo = &tegra_bpmp_i2c_algo;
 	i2c->adapter.dev.parent = &pdev->dev;
@@ -319,13 +316,11 @@ static int tegra_bpmp_i2c_probe(struct platform_device *pdev)
 	return i2c_add_adapter(&i2c->adapter);
 }
 
-static int tegra_bpmp_i2c_remove(struct platform_device *pdev)
+static void tegra_bpmp_i2c_remove(struct platform_device *pdev)
 {
 	struct tegra_bpmp_i2c *i2c = platform_get_drvdata(pdev);
 
 	i2c_del_adapter(&i2c->adapter);
-
-	return 0;
 }
 
 static const struct of_device_id tegra_bpmp_i2c_of_match[] = {
@@ -340,7 +335,7 @@ static struct platform_driver tegra_bpmp_i2c_driver = {
 		.of_match_table = tegra_bpmp_i2c_of_match,
 	},
 	.probe = tegra_bpmp_i2c_probe,
-	.remove = tegra_bpmp_i2c_remove,
+	.remove_new = tegra_bpmp_i2c_remove,
 };
 module_platform_driver(tegra_bpmp_i2c_driver);
 

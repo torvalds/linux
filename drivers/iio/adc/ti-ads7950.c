@@ -9,7 +9,7 @@
  * Copyright 2012 CS Systemes d'Information
  *
  * And also on hwmon/ads79xx.c
- * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2013 Texas Instruments Incorporated - https://www.ti.com/
  *	Nishanth Menon
  */
 
@@ -102,11 +102,11 @@ struct ti_ads7950_state {
 	unsigned int		gpio_cmd_settings_bitmask;
 
 	/*
-	 * DMA (thus cache coherency maintenance) requires the
+	 * DMA (thus cache coherency maintenance) may require the
 	 * transfer buffers to live in their own cache lines.
 	 */
 	u16 rx_buf[TI_ADS7950_MAX_CHAN + 2 + TI_ADS7950_TIMESTAMP_SIZE]
-							____cacheline_aligned;
+		__aligned(IIO_DMA_MINALIGN);
 	u16 tx_buf[TI_ADS7950_MAX_CHAN + 2];
 	u16 single_tx;
 	u16 single_rx;
@@ -557,7 +557,6 @@ static int ti_ads7950_probe(struct spi_device *spi)
 	info = &ti_ads7950_chip_info[spi_get_device_id(spi)->driver_data];
 
 	indio_dev->name = spi_get_device_id(spi)->name;
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = info->channels;
 	indio_dev->num_channels = info->num_channels;
@@ -569,7 +568,6 @@ static int ti_ads7950_probe(struct spi_device *spi)
 	st->ring_xfer.tx_buf = &st->tx_buf[0];
 	st->ring_xfer.rx_buf = &st->rx_buf[0];
 	/* len will be set later */
-	st->ring_xfer.cs_change = true;
 
 	spi_message_add_tail(&st->ring_xfer, &st->ring_msg);
 
@@ -602,8 +600,8 @@ static int ti_ads7950_probe(struct spi_device *spi)
 
 	st->reg = devm_regulator_get(&spi->dev, "vref");
 	if (IS_ERR(st->reg)) {
-		dev_err(&spi->dev, "Failed get get regulator \"vref\"\n");
-		ret = PTR_ERR(st->reg);
+		ret = dev_err_probe(&spi->dev, PTR_ERR(st->reg),
+				     "Failed to get regulator \"vref\"\n");
 		goto error_destroy_mutex;
 	}
 
@@ -636,6 +634,7 @@ static int ti_ads7950_probe(struct spi_device *spi)
 	st->chip.label = dev_name(&st->spi->dev);
 	st->chip.parent = &st->spi->dev;
 	st->chip.owner = THIS_MODULE;
+	st->chip.can_sleep = true;
 	st->chip.base = -1;
 	st->chip.ngpio = TI_ADS7950_NUM_GPIOS;
 	st->chip.get_direction = ti_ads7950_get_direction;
@@ -664,7 +663,7 @@ error_destroy_mutex:
 	return ret;
 }
 
-static int ti_ads7950_remove(struct spi_device *spi)
+static void ti_ads7950_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ti_ads7950_state *st = iio_priv(indio_dev);
@@ -674,8 +673,6 @@ static int ti_ads7950_remove(struct spi_device *spi)
 	iio_triggered_buffer_cleanup(indio_dev);
 	regulator_disable(st->reg);
 	mutex_destroy(&st->slock);
-
-	return 0;
 }
 
 static const struct spi_device_id ti_ads7950_id[] = {

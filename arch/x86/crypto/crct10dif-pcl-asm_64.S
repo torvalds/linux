@@ -94,8 +94,7 @@
 #
 # Assumes len >= 16.
 #
-.align 16
-ENTRY(crc_t10dif_pcl)
+SYM_FUNC_START(crc_t10dif_pcl)
 
 	movdqa	.Lbswap_mask(%rip), BSWAP_MASK
 
@@ -257,7 +256,7 @@ ENTRY(crc_t10dif_pcl)
 	# Final CRC value (x^16 * M(x)) mod G(x) is in low 16 bits of xmm0.
 
 	pextrw	$0, %xmm0, %eax
-	ret
+	RET
 
 .align 16
 .Lless_than_256_bytes:
@@ -280,7 +279,7 @@ ENTRY(crc_t10dif_pcl)
 	jge	.Lfold_16_bytes_loop		# 32 <= len <= 255
 	add	$16, len
 	jmp	.Lhandle_partial_segment	# 17 <= len <= 31
-ENDPROC(crc_t10dif_pcl)
+SYM_FUNC_END(crc_t10dif_pcl)
 
 .section	.rodata, "a", @progbits
 .align 16

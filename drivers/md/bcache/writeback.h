@@ -16,12 +16,35 @@
 
 #define BCH_AUTO_GC_DIRTY_THRESHOLD	50
 
+#define BCH_WRITEBACK_FRAGMENT_THRESHOLD_LOW 50
+#define BCH_WRITEBACK_FRAGMENT_THRESHOLD_MID 57
+#define BCH_WRITEBACK_FRAGMENT_THRESHOLD_HIGH 64
+
+#define BCH_DIRTY_INIT_THRD_MAX	12
 /*
  * 14 (16384ths) is chosen here as something that each backing device
  * should be a reasonable fraction of the share, and not to blow up
  * until individual backing devices are a petabyte.
  */
 #define WRITEBACK_SHARE_SHIFT   14
+
+struct bch_dirty_init_state;
+struct dirty_init_thrd_info {
+	struct bch_dirty_init_state	*state;
+	struct task_struct		*thread;
+};
+
+struct bch_dirty_init_state {
+	struct cache_set		*c;
+	struct bcache_device		*d;
+	int				total_threads;
+	int				key_idx;
+	spinlock_t			idx_lock;
+	atomic_t			started;
+	atomic_t			enough;
+	wait_queue_head_t		wait;
+	struct dirty_init_thrd_info	infos[BCH_DIRTY_INIT_THRD_MAX];
+};
 
 static inline uint64_t bcache_dev_sectors_dirty(struct bcache_device *d)
 {
@@ -33,10 +56,22 @@ static inline uint64_t bcache_dev_sectors_dirty(struct bcache_device *d)
 	return ret;
 }
 
-static inline unsigned int offset_to_stripe(struct bcache_device *d,
+static inline int offset_to_stripe(struct bcache_device *d,
 					uint64_t offset)
 {
 	do_div(offset, d->stripe_size);
+
+	/* d->nr_stripes is in range [1, INT_MAX] */
+	if (unlikely(offset >= d->nr_stripes)) {
+		pr_err("Invalid stripe %llu (>= nr_stripes %d).\n",
+			offset, d->nr_stripes);
+		return -EINVAL;
+	}
+
+	/*
+	 * Here offset is definitly smaller than INT_MAX,
+	 * return it as int will never overflow.
+	 */
 	return offset;
 }
 
@@ -44,7 +79,10 @@ static inline bool bcache_dev_stripe_dirty(struct cached_dev *dc,
 					   uint64_t offset,
 					   unsigned int nr_sectors)
 {
-	unsigned int stripe = offset_to_stripe(&dc->disk, offset);
+	int stripe = offset_to_stripe(&dc->disk, offset);
+
+	if (stripe < 0)
+		return false;
 
 	while (1) {
 		if (atomic_read(dc->disk.stripe_sectors_dirty + stripe))

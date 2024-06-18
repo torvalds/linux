@@ -20,10 +20,6 @@
 #define KERNEL
 #include "h/smtstate.h"
 
-#ifndef	lint
-static const char ID_sccs[] = "@(#)smt.c	2.43 98/11/23 (C) SK " ;
-#endif
-
 /*
  * FC in SMbuf
  */
@@ -520,8 +516,8 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 	 * ignore any packet with NSA and A-indicator set
 	 */
 	if ( (fs & A_INDICATOR) && m_fc(mb) == FC_SMT_NSA) {
-		DB_SMT("SMT : ignoring NSA with A-indicator set from %s",
-		       addr_to_string(&sm->smt_source));
+		DB_SMT("SMT : ignoring NSA with A-indicator set from %pM",
+		       &sm->smt_source);
 		smt_free_mbuf(smc,mb) ;
 		return ;
 	}
@@ -552,8 +548,8 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 		break ;
 	}
 	if (illegal) {
-		DB_SMT("SMT : version = %d, dest = %s",
-		       sm->smt_version, addr_to_string(&sm->smt_source));
+		DB_SMT("SMT : version = %d, dest = %pM",
+		       sm->smt_version, &sm->smt_source);
 		smt_send_rdf(smc,mb,m_fc(mb),SMT_RDF_VERSION,local) ;
 		smt_free_mbuf(smc,mb) ;
 		return ;
@@ -582,8 +578,8 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 				if (!is_equal(
 					&smc->mib.m[MAC0].fddiMACUpstreamNbr,
 					&sm->smt_source)) {
-					DB_SMT("SMT : updated my UNA = %s",
-					       addr_to_string(&sm->smt_source));
+					DB_SMT("SMT : updated my UNA = %pM",
+					       &sm->smt_source);
 					if (!is_equal(&smc->mib.m[MAC0].
 					    fddiMACUpstreamNbr,&SMT_Unknown)){
 					 /* Do not update unknown address */
@@ -612,8 +608,8 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 			    is_individual(&sm->smt_source) &&
 			    ((!(fs & A_INDICATOR) && m_fc(mb) == FC_SMT_NSA) ||
 			     (m_fc(mb) != FC_SMT_NSA))) {
-				DB_SMT("SMT : replying to NIF request %s",
-				       addr_to_string(&sm->smt_source));
+				DB_SMT("SMT : replying to NIF request %pM",
+				       &sm->smt_source);
 				smt_send_nif(smc,&sm->smt_source,
 					FC_SMT_INFO,
 					sm->smt_tid,
@@ -621,8 +617,8 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 			}
 			break ;
 		case SMT_REPLY :
-			DB_SMT("SMT : received NIF response from %s",
-			       addr_to_string(&sm->smt_source));
+			DB_SMT("SMT : received NIF response from %pM",
+			       &sm->smt_source);
 			if (fs & A_INDICATOR) {
 				smc->sm.pend[SMT_TID_NIF] = 0 ;
 				DB_SMT("SMT : duplicate address");
@@ -682,23 +678,23 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 	case SMT_SIF_CONFIG :	/* station information */
 		if (sm->smt_type != SMT_REQUEST)
 			break ;
-		DB_SMT("SMT : replying to SIF Config request from %s",
-		       addr_to_string(&sm->smt_source));
+		DB_SMT("SMT : replying to SIF Config request from %pM",
+		       &sm->smt_source);
 		smt_send_sif_config(smc,&sm->smt_source,sm->smt_tid,local) ;
 		break ;
 	case SMT_SIF_OPER :	/* station information */
 		if (sm->smt_type != SMT_REQUEST)
 			break ;
-		DB_SMT("SMT : replying to SIF Operation request from %s",
-		       addr_to_string(&sm->smt_source));
+		DB_SMT("SMT : replying to SIF Operation request from %pM",
+		       &sm->smt_source);
 		smt_send_sif_operation(smc,&sm->smt_source,sm->smt_tid,local) ;
 		break ;
 	case SMT_ECF :		/* echo frame */
 		switch (sm->smt_type) {
 		case SMT_REPLY :
 			smc->mib.priv.fddiPRIVECF_Reply_Rx++ ;
-			DB_SMT("SMT: received ECF reply from %s",
-			       addr_to_string(&sm->smt_source));
+			DB_SMT("SMT: received ECF reply from %pM",
+			       &sm->smt_source);
 			if (sm_to_para(smc,sm,SMT_P_ECHODATA) == NULL) {
 				DB_SMT("SMT: ECHODATA missing");
 				break ;
@@ -727,8 +723,8 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 					local) ;
 				break ;
 			}
-			DB_SMT("SMT - sending ECF reply to %s",
-			       addr_to_string(&sm->smt_source));
+			DB_SMT("SMT - sending ECF reply to %pM",
+			       &sm->smt_source);
 
 			/* set destination addr.  & reply */
 			sm->smt_dest = sm->smt_source ;
@@ -751,7 +747,7 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 #endif
 
 #ifdef	SBA
-		DB_SBAN(2,"SBA: RAF frame received\n",0,0) ;
+		DB_SBAN(2, "SBA: RAF frame received") ;
 		sba_raf_received_pack(smc,sm,fs) ;
 #endif
 		break ;
@@ -794,8 +790,8 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 		 * we need to send a RDF frame according to 8.1.3.1.1,
 		 * only if it is a REQUEST.
 		 */
-		DB_SMT("SMT : class = %d, send RDF to %s",
-		       sm->smt_class, addr_to_string(&sm->smt_source));
+		DB_SMT("SMT : class = %d, send RDF to %pM",
+		       sm->smt_class, &sm->smt_source);
 
 		smt_send_rdf(smc,mb,m_fc(mb),SMT_RDF_CLASS,local) ;
 		break ;
@@ -864,8 +860,8 @@ static void smt_send_rdf(struct s_smc *smc, SMbuf *rej, int fc, int reason,
 	if (sm->smt_type != SMT_REQUEST)
 		return ;
 
-	DB_SMT("SMT: sending RDF to %s,reason = 0x%x",
-	       addr_to_string(&sm->smt_source), reason);
+	DB_SMT("SMT: sending RDF to %pM,reason = 0x%x",
+	       &sm->smt_source, reason);
 
 
 	/*
@@ -1067,9 +1063,9 @@ static void smt_send_sif_operation(struct s_smc *smc, struct fddi_addr *dest,
 #endif
 
 	if (!(mb = smt_build_frame(smc,SMT_SIF_OPER,SMT_REPLY,
-		SIZEOF_SMT_SIF_OPERATION+ports*sizeof(struct smt_p_lem))))
+				   struct_size(sif, lem, ports))))
 		return ;
-	sif = smtod(mb, struct smt_sif_operation *) ;
+	sif = smtod(mb, typeof(sif));
 	smt_fill_timestamp(smc,&sif->ts) ;	/* set time stamp */
 	smt_fill_mac_status(smc,&sif->status) ; /* set mac status */
 	smt_fill_mac_counter(smc,&sif->mc) ; /* set mac counter field */
@@ -1561,7 +1557,7 @@ u_long smt_get_tid(struct s_smc *smc)
 	return tid & 0x3fffffffL;
 }
 
-
+#ifdef	LITTLE_ENDIAN
 /*
  * table of parameter lengths
  */
@@ -1641,6 +1637,7 @@ static const struct smt_pdef {
 } ;
 
 #define N_SMT_PLEN	ARRAY_SIZE(smt_pdef)
+#endif
 
 int smt_check_para(struct s_smc *smc, struct smt_header	*sm,
 		   const u_short list[])
@@ -1712,22 +1709,6 @@ void fddi_send_antc(struct s_smc *smc, struct fddi_addr *dest)
 	smt->smt_source = smc->mib.m[MAC0].fddiMACSMTAddress ;
 	smt_send_mbuf(smc,mb,FC_ASYNC_LLC) ;
 #endif
-}
-#endif
-
-#ifdef	DEBUG
-char *addr_to_string(struct fddi_addr *addr)
-{
-	int	i ;
-	static char	string[6*3] = "****" ;
-
-	for (i = 0 ; i < 6 ; i++) {
-		string[i * 3] = hex_asc_hi(addr->a[i]);
-		string[i * 3 + 1] = hex_asc_lo(addr->a[i]);
-		string[i * 3 + 2] = ':';
-	}
-	string[5 * 3 + 2] = 0;
-	return string;
 }
 #endif
 
@@ -1865,10 +1846,10 @@ void smt_swap_para(struct smt_header *sm, int len, int direction)
 	}
 }
 
+
 static void smt_string_swap(char *data, const char *format, int len)
 {
 	const char	*open_paren = NULL ;
-	int	x ;
 
 	while (len > 0  && *format) {
 		switch (*format) {
@@ -1895,19 +1876,13 @@ static void smt_string_swap(char *data, const char *format, int len)
 			len-- ;
 			break ;
 		case 's' :
-			x = data[0] ;
-			data[0] = data[1] ;
-			data[1] = x ;
+			swap(data[0], data[1]) ;
 			data += 2 ;
 			len -= 2 ;
 			break ;
 		case 'l' :
-			x = data[0] ;
-			data[0] = data[3] ;
-			data[3] = x ;
-			x = data[1] ;
-			data[1] = data[2] ;
-			data[2] = x ;
+			swap(data[0], data[3]) ;
+			swap(data[1], data[2]) ;
 			data += 4 ;
 			len -= 4 ;
 			break ;

@@ -138,7 +138,10 @@ static void print_eth_id(struct net_device *ndev)
  * @priv: NIC private structure
  * @f: fifo to initialize
  * @fsz_type: fifo size type: 0-4KB, 1-8KB, 2-16KB, 3-32KB
- * @reg_XXX: offsets of registers relative to base address
+ * @reg_CFG0: offsets of registers relative to base address
+ * @reg_CFG1: offsets of registers relative to base address
+ * @reg_RPTR: offsets of registers relative to base address
+ * @reg_WPTR: offsets of registers relative to base address
  *
  * 1K extra space is allocated at the end of the fifo to simplify
  * processing of descriptors that wraps around fifo's end
@@ -153,11 +156,11 @@ bdx_fifo_init(struct bdx_priv *priv, struct fifo *f, int fsz_type,
 	u16 memsz = FIFO_SIZE * (1 << fsz_type);
 
 	memset(f, 0, sizeof(struct fifo));
-	/* pci_alloc_consistent gives us 4k-aligned memory */
-	f->va = pci_alloc_consistent(priv->pdev,
-				     memsz + FIFO_EXTRA_SPACE, &f->da);
+	/* dma_alloc_coherent gives us 4k-aligned memory */
+	f->va = dma_alloc_coherent(&priv->pdev->dev, memsz + FIFO_EXTRA_SPACE,
+				   &f->da, GFP_ATOMIC);
 	if (!f->va) {
-		pr_err("pci_alloc_consistent failed\n");
+		pr_err("dma_alloc_coherent failed\n");
 		RET(-ENOMEM);
 	}
 	f->reg_CFG0 = reg_CFG0;
@@ -183,8 +186,8 @@ static void bdx_fifo_free(struct bdx_priv *priv, struct fifo *f)
 {
 	ENTER;
 	if (f->va) {
-		pci_free_consistent(priv->pdev,
-				    f->memsz + FIFO_EXTRA_SPACE, f->va, f->da);
+		dma_free_coherent(&priv->pdev->dev,
+				  f->memsz + FIFO_EXTRA_SPACE, f->va, f->da);
 		f->va = NULL;
 	}
 	RET();
@@ -558,7 +561,7 @@ static int bdx_reset(struct bdx_priv *priv)
 
 /**
  * bdx_close - Disables a network interface
- * @netdev: network interface device structure
+ * @ndev: network interface device structure
  *
  * Returns 0, this is not allowed to fail
  *
@@ -585,7 +588,7 @@ static int bdx_close(struct net_device *ndev)
 
 /**
  * bdx_open - Called when a network interface is made active
- * @netdev: network interface device structure
+ * @ndev: network interface device structure
  *
  * Returns 0 on success, negative value on failure
  *
@@ -634,7 +637,8 @@ static int bdx_range_check(struct bdx_priv *priv, u32 offset)
 		-EINVAL : 0;
 }
 
-static int bdx_ioctl_priv(struct net_device *ndev, struct ifreq *ifr, int cmd)
+static int bdx_siocdevprivate(struct net_device *ndev, struct ifreq *ifr,
+			      void __user *udata, int cmd)
 {
 	struct bdx_priv *priv = netdev_priv(ndev);
 	u32 data[3];
@@ -644,7 +648,7 @@ static int bdx_ioctl_priv(struct net_device *ndev, struct ifreq *ifr, int cmd)
 
 	DBG("jiffies=%ld cmd=%d\n", jiffies, cmd);
 	if (cmd != SIOCDEVPRIVATE) {
-		error = copy_from_user(data, ifr->ifr_data, sizeof(data));
+		error = copy_from_user(data, udata, sizeof(data));
 		if (error) {
 			pr_err("can't copy from user\n");
 			RET(-EFAULT);
@@ -666,7 +670,7 @@ static int bdx_ioctl_priv(struct net_device *ndev, struct ifreq *ifr, int cmd)
 		data[2] = READ_REG(priv, data[1]);
 		DBG("read_reg(0x%x)=0x%x (dec %d)\n", data[1], data[2],
 		    data[2]);
-		error = copy_to_user(ifr->ifr_data, data, sizeof(data));
+		error = copy_to_user(udata, data, sizeof(data));
 		if (error)
 			RET(-EFAULT);
 		break;
@@ -685,20 +689,11 @@ static int bdx_ioctl_priv(struct net_device *ndev, struct ifreq *ifr, int cmd)
 	return 0;
 }
 
-static int bdx_ioctl(struct net_device *ndev, struct ifreq *ifr, int cmd)
-{
-	ENTER;
-	if (cmd >= SIOCDEVPRIVATE && cmd <= (SIOCDEVPRIVATE + 15))
-		RET(bdx_ioctl_priv(ndev, ifr, cmd));
-	else
-		RET(-EOPNOTSUPP);
-}
-
 /**
  * __bdx_vlan_rx_vid - private helper for adding/killing VLAN vid
  * @ndev: network device
  * @vid:  VLAN vid
- * @op:   add or kill operation
+ * @enable: enable or disable vlan
  *
  * Passes VLAN filter table to hardware
  */
@@ -729,6 +724,7 @@ static void __bdx_vlan_rx_vid(struct net_device *ndev, uint16_t vid, int enable)
 /**
  * bdx_vlan_rx_add_vid - kernel hook for adding VLAN vid to hw filtering table
  * @ndev: network device
+ * @proto: unused
  * @vid:  VLAN vid to add
  */
 static int bdx_vlan_rx_add_vid(struct net_device *ndev, __be16 proto, u16 vid)
@@ -740,6 +736,7 @@ static int bdx_vlan_rx_add_vid(struct net_device *ndev, __be16 proto, u16 vid)
 /**
  * bdx_vlan_rx_kill_vid - kernel hook for killing VLAN vid in hw filtering table
  * @ndev: network device
+ * @proto: unused
  * @vid:  VLAN vid to kill
  */
 static int bdx_vlan_rx_kill_vid(struct net_device *ndev, __be16 proto, u16 vid)
@@ -750,7 +747,7 @@ static int bdx_vlan_rx_kill_vid(struct net_device *ndev, __be16 proto, u16 vid)
 
 /**
  * bdx_change_mtu - Change the Maximum Transfer Unit
- * @netdev: network interface device structure
+ * @ndev: network interface device structure
  * @new_mtu: new value for maximum frame size
  *
  * Returns 0 on success, negative on failure
@@ -759,7 +756,7 @@ static int bdx_change_mtu(struct net_device *ndev, int new_mtu)
 {
 	ENTER;
 
-	ndev->mtu = new_mtu;
+	WRITE_ONCE(ndev->mtu, new_mtu);
 	if (netif_running(ndev)) {
 		bdx_close(ndev);
 		bdx_open(ndev);
@@ -835,7 +832,7 @@ static int bdx_set_mac(struct net_device *ndev, void *p)
 	   if (netif_running(dev))
 	   return -EBUSY
 	 */
-	memcpy(ndev->dev_addr, addr->sa_data, ndev->addr_len);
+	eth_hw_addr_set(ndev, addr->sa_data);
 	bdx_restore_mac(ndev, priv);
 	RET(0);
 }
@@ -843,6 +840,7 @@ static int bdx_set_mac(struct net_device *ndev, void *p)
 static int bdx_read_mac(struct bdx_priv *priv)
 {
 	u16 macAddress[3], i;
+	u8 addr[ETH_ALEN];
 	ENTER;
 
 	macAddress[2] = READ_REG(priv, regUNC_MAC0_A);
@@ -852,9 +850,10 @@ static int bdx_read_mac(struct bdx_priv *priv)
 	macAddress[0] = READ_REG(priv, regUNC_MAC2_A);
 	macAddress[0] = READ_REG(priv, regUNC_MAC2_A);
 	for (i = 0; i < 3; i++) {
-		priv->ndev->dev_addr[i * 2 + 1] = macAddress[i];
-		priv->ndev->dev_addr[i * 2] = macAddress[i] >> 8;
+		addr[i * 2 + 1] = macAddress[i];
+		addr[i * 2] = macAddress[i] >> 8;
 	}
+	eth_hw_addr_set(priv->ndev, addr);
 	RET(0);
 }
 
@@ -1033,9 +1032,8 @@ static void bdx_rx_free_skbs(struct bdx_priv *priv, struct rxf_fifo *f)
 	for (i = 0; i < db->nelem; i++) {
 		dm = bdx_rxdb_addr_elem(db, i);
 		if (dm->dma) {
-			pci_unmap_single(priv->pdev,
-					 dm->dma, f->m.pktsz,
-					 PCI_DMA_FROMDEVICE);
+			dma_unmap_single(&priv->pdev->dev, dm->dma,
+					 f->m.pktsz, DMA_FROM_DEVICE);
 			dev_kfree_skb(dm->skb);
 		}
 	}
@@ -1097,9 +1095,8 @@ static void bdx_rx_alloc_skbs(struct bdx_priv *priv, struct rxf_fifo *f)
 
 		idx = bdx_rxdb_alloc_elem(db);
 		dm = bdx_rxdb_addr_elem(db, idx);
-		dm->dma = pci_map_single(priv->pdev,
-					 skb->data, f->m.pktsz,
-					 PCI_DMA_FROMDEVICE);
+		dm->dma = dma_map_single(&priv->pdev->dev, skb->data,
+					 f->m.pktsz, DMA_FROM_DEVICE);
 		dm->skb = skb;
 		rxfd = (struct rxf_desc *)(f->m.va + f->m.wptr);
 		rxfd->info = CPU_CHIP_SWAP32(0x10003);	/* INFO=1 BC=3 */
@@ -1259,16 +1256,15 @@ static int bdx_rx_receive(struct bdx_priv *priv, struct rxd_fifo *f, int budget)
 		    (skb2 = netdev_alloc_skb(priv->ndev, len + NET_IP_ALIGN))) {
 			skb_reserve(skb2, NET_IP_ALIGN);
 			/*skb_put(skb2, len); */
-			pci_dma_sync_single_for_cpu(priv->pdev,
-						    dm->dma, rxf_fifo->m.pktsz,
-						    PCI_DMA_FROMDEVICE);
+			dma_sync_single_for_cpu(&priv->pdev->dev, dm->dma,
+						rxf_fifo->m.pktsz,
+						DMA_FROM_DEVICE);
 			memcpy(skb2->data, skb->data, len);
 			bdx_recycle_skb(priv, rxdd);
 			skb = skb2;
 		} else {
-			pci_unmap_single(priv->pdev,
-					 dm->dma, rxf_fifo->m.pktsz,
-					 PCI_DMA_FROMDEVICE);
+			dma_unmap_single(&priv->pdev->dev, dm->dma,
+					 rxf_fifo->m.pktsz, DMA_FROM_DEVICE);
 			bdx_rxdb_free_elem(db, rxdd->va_lo);
 		}
 
@@ -1361,18 +1357,6 @@ static void print_rxfd(struct rxf_desc *rxfd)
  * This technique avoids eccessive reading of RPTR and WPTR registers.
  * As our benchmarks shows, it adds 1.5 Gbit/sec to NIS's throuput.
  */
-
-/*************************************************************************
- *     Tx DB                                                             *
- *************************************************************************/
-static inline int bdx_tx_db_size(struct txdb *db)
-{
-	int taken = db->wptr - db->rptr;
-	if (taken < 0)
-		taken = db->size + 1 + taken;	/* (size + 1) equals memsz */
-
-	return db->size - taken;
-}
 
 /**
  * __bdx_tx_db_ptr_next - helper function, increment read/write pointer + wrap
@@ -1490,8 +1474,8 @@ bdx_tx_map_skb(struct bdx_priv *priv, struct sk_buff *skb,
 	int i;
 
 	db->wptr->len = skb_headlen(skb);
-	db->wptr->addr.dma = pci_map_single(priv->pdev, skb->data,
-					    db->wptr->len, PCI_DMA_TODEVICE);
+	db->wptr->addr.dma = dma_map_single(&priv->pdev->dev, skb->data,
+					    db->wptr->len, DMA_TO_DEVICE);
 	pbl->len = CPU_CHIP_SWAP32(db->wptr->len);
 	pbl->pa_lo = CPU_CHIP_SWAP32(L32_64(db->wptr->addr.dma));
 	pbl->pa_hi = CPU_CHIP_SWAP32(H32_64(db->wptr->addr.dma));
@@ -1728,8 +1712,8 @@ static void bdx_tx_cleanup(struct bdx_priv *priv)
 		BDX_ASSERT(db->rptr->len == 0);
 		do {
 			BDX_ASSERT(db->rptr->addr.dma == 0);
-			pci_unmap_page(priv->pdev, db->rptr->addr.dma,
-				       db->rptr->len, PCI_DMA_TODEVICE);
+			dma_unmap_page(&priv->pdev->dev, db->rptr->addr.dma,
+				       db->rptr->len, DMA_TO_DEVICE);
 			bdx_tx_db_inc_rptr(db);
 		} while (db->rptr->len > 0);
 		tx_level -= db->rptr->len;	/* '-' koz len is negative */
@@ -1768,6 +1752,8 @@ static void bdx_tx_cleanup(struct bdx_priv *priv)
 
 /**
  * bdx_tx_free_skbs - frees all skbs from TXD fifo.
+ * @priv: NIC private structure
+ *
  * It gets called when OS stops this dev, eg upon "ifconfig down" or rmmod
  */
 static void bdx_tx_free_skbs(struct bdx_priv *priv)
@@ -1777,8 +1763,8 @@ static void bdx_tx_free_skbs(struct bdx_priv *priv)
 	ENTER;
 	while (db->rptr != db->wptr) {
 		if (likely(db->rptr->len))
-			pci_unmap_page(priv->pdev, db->rptr->addr.dma,
-				       db->rptr->len, PCI_DMA_TODEVICE);
+			dma_unmap_page(&priv->pdev->dev, db->rptr->addr.dma,
+				       db->rptr->len, DMA_TO_DEVICE);
 		else
 			dev_kfree_skb(db->rptr->addr.skb);
 		bdx_tx_db_inc_rptr(db);
@@ -1868,7 +1854,7 @@ static const struct net_device_ops bdx_netdev_ops = {
 	.ndo_stop		= bdx_close,
 	.ndo_start_xmit		= bdx_tx_transmit,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_do_ioctl		= bdx_ioctl,
+	.ndo_siocdevprivate	= bdx_siocdevprivate,
 	.ndo_set_rx_mode	= bdx_setmulti,
 	.ndo_change_mtu		= bdx_change_mtu,
 	.ndo_set_mac_address	= bdx_set_mac,
@@ -1898,10 +1884,10 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *ndev;
 	struct bdx_priv *priv;
-	int err, pci_using_dac, port;
 	unsigned long pciaddr;
 	u32 regionSize;
 	struct pci_nic *nic;
+	int err, port;
 
 	ENTER;
 
@@ -1914,16 +1900,10 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)			/* it triggers interrupt, dunno why. */
 		goto err_pci;		/* it's not a problem though */
 
-	if (!(err = pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) &&
-	    !(err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64)))) {
-		pci_using_dac = 1;
-	} else {
-		if ((err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) ||
-		    (err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32)))) {
-			pr_err("No usable DMA configuration, aborting\n");
-			goto err_dma;
-		}
-		pci_using_dac = 0;
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (err) {
+		pr_err("No usable DMA configuration, aborting\n");
+		goto err_dma;
 	}
 
 	err = pci_request_regions(pdev, BDX_DRV_NAME);
@@ -1996,15 +1976,13 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		/* these fields are used for info purposes only
 		 * so we can have them same for all ports of the board */
 		ndev->if_port = port;
-		ndev->features = NETIF_F_IP_CSUM | NETIF_F_SG | NETIF_F_TSO
-		    | NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
-		    NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_RXCSUM
-		    ;
+		ndev->features = NETIF_F_IP_CSUM | NETIF_F_SG | NETIF_F_TSO |
+		    NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
+		    NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_RXCSUM |
+		    NETIF_F_HIGHDMA;
+
 		ndev->hw_features = NETIF_F_IP_CSUM | NETIF_F_SG |
 			NETIF_F_TSO | NETIF_F_HW_VLAN_CTAG_TX;
-
-		if (pci_using_dac)
-			ndev->features |= NETIF_F_HIGHDMA;
 
 	/************** priv ****************/
 		priv = nic->priv[port] = netdev_priv(ndev);
@@ -2016,7 +1994,7 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		priv->nic = nic;
 		priv->msg_enable = BDX_DEF_MSG_ENABLE;
 
-		netif_napi_add(ndev, &priv->napi, bdx_poll, 64);
+		netif_napi_add(ndev, &priv->napi, bdx_poll);
 
 		if ((readl(nic->regs + FPGA_VER) & 0xFFF) == 308) {
 			DBG("HW statistics not supported\n");
@@ -2052,6 +2030,7 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		/*bdx_hw_reset(priv); */
 		if (bdx_read_mac(priv)) {
 			pr_err("load MAC address failed\n");
+			err = -EFAULT;
 			goto err_out_iomap;
 		}
 		SET_NETDEV_DEV(ndev, &pdev->dev);
@@ -2154,10 +2133,10 @@ bdx_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 {
 	struct bdx_priv *priv = netdev_priv(netdev);
 
-	strlcpy(drvinfo->driver, BDX_DRV_NAME, sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, BDX_DRV_VERSION, sizeof(drvinfo->version));
-	strlcpy(drvinfo->fw_version, "N/A", sizeof(drvinfo->fw_version));
-	strlcpy(drvinfo->bus_info, pci_name(priv->pdev),
+	strscpy(drvinfo->driver, BDX_DRV_NAME, sizeof(drvinfo->driver));
+	strscpy(drvinfo->version, BDX_DRV_VERSION, sizeof(drvinfo->version));
+	strscpy(drvinfo->fw_version, "N/A", sizeof(drvinfo->fw_version));
+	strscpy(drvinfo->bus_info, pci_name(priv->pdev),
 		sizeof(drvinfo->bus_info));
 }
 
@@ -2166,8 +2145,10 @@ bdx_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
  * @netdev
  * @ecoal
  */
-static int
-bdx_get_coalesce(struct net_device *netdev, struct ethtool_coalesce *ecoal)
+static int bdx_get_coalesce(struct net_device *netdev,
+			    struct ethtool_coalesce *ecoal,
+			    struct kernel_ethtool_coalesce *kernel_coal,
+			    struct netlink_ext_ack *extack)
 {
 	u32 rdintcm;
 	u32 tdintcm;
@@ -2195,8 +2176,10 @@ bdx_get_coalesce(struct net_device *netdev, struct ethtool_coalesce *ecoal)
  * @netdev
  * @ecoal
  */
-static int
-bdx_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *ecoal)
+static int bdx_set_coalesce(struct net_device *netdev,
+			    struct ethtool_coalesce *ecoal,
+			    struct kernel_ethtool_coalesce *kernel_coal,
+			    struct netlink_ext_ack *extack)
 {
 	u32 rdintcm;
 	u32 tdintcm;
@@ -2254,9 +2237,13 @@ static inline int bdx_tx_fifo_size_to_packets(int tx_size)
  * bdx_get_ringparam - report ring sizes
  * @netdev
  * @ring
+ * @kernel_ring
+ * @extack
  */
 static void
-bdx_get_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring)
+bdx_get_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring,
+		  struct kernel_ethtool_ringparam *kernel_ring,
+		  struct netlink_ext_ack *extack)
 {
 	struct bdx_priv *priv = netdev_priv(netdev);
 
@@ -2271,9 +2258,13 @@ bdx_get_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring)
  * bdx_set_ringparam - set ring sizes
  * @netdev
  * @ring
+ * @kernel_ring
+ * @extack
  */
 static int
-bdx_set_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring)
+bdx_set_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring,
+		  struct kernel_ethtool_ringparam *kernel_ring,
+		  struct netlink_ext_ack *extack)
 {
 	struct bdx_priv *priv = netdev_priv(netdev);
 	int rx_size = 0;
@@ -2373,6 +2364,8 @@ static void bdx_get_ethtool_stats(struct net_device *netdev,
 static void bdx_set_ethtool_ops(struct net_device *netdev)
 {
 	static const struct ethtool_ops bdx_ethtool_ops = {
+		.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+					     ETHTOOL_COALESCE_MAX_FRAMES,
 		.get_drvinfo = bdx_get_drvinfo,
 		.get_link = ethtool_op_get_link,
 		.get_coalesce = bdx_get_coalesce,

@@ -34,7 +34,7 @@ gt215_pmu_send(struct nvkm_pmu *pmu, u32 reply[2],
 	struct nvkm_device *device = subdev->device;
 	u32 addr;
 
-	mutex_lock(&subdev->mutex);
+	mutex_lock(&pmu->send.mutex);
 	/* wait for a free slot in the fifo */
 	addr  = nvkm_rd32(device, 0x10a4a0);
 	if (nvkm_msec(device, 2000,
@@ -42,7 +42,7 @@ gt215_pmu_send(struct nvkm_pmu *pmu, u32 reply[2],
 		if (tmp != (addr ^ 8))
 			break;
 	) < 0) {
-		mutex_unlock(&subdev->mutex);
+		mutex_unlock(&pmu->send.mutex);
 		return -EBUSY;
 	}
 
@@ -79,7 +79,7 @@ gt215_pmu_send(struct nvkm_pmu *pmu, u32 reply[2],
 		reply[1] = pmu->recv.data[1];
 	}
 
-	mutex_unlock(&subdev->mutex);
+	mutex_unlock(&pmu->send.mutex);
 	return 0;
 }
 
@@ -178,12 +178,14 @@ void
 gt215_pmu_fini(struct nvkm_pmu *pmu)
 {
 	nvkm_wr32(pmu->subdev.device, 0x10a014, 0x00000060);
+	flush_work(&pmu->recv.work);
 }
 
 static void
 gt215_pmu_reset(struct nvkm_pmu *pmu)
 {
 	struct nvkm_device *device = pmu->subdev.device;
+
 	nvkm_mask(device, 0x022210, 0x00000001, 0x00000000);
 	nvkm_mask(device, 0x022210, 0x00000001, 0x00000001);
 	nvkm_rd32(device, 0x022210);
@@ -200,6 +202,23 @@ gt215_pmu_init(struct nvkm_pmu *pmu)
 {
 	struct nvkm_device *device = pmu->subdev.device;
 	int i;
+
+	/* Inhibit interrupts, and wait for idle. */
+	if (pmu->func->enabled(pmu)) {
+		nvkm_wr32(device, 0x10a014, 0x0000ffff);
+		nvkm_msec(device, 2000,
+			if (!nvkm_rd32(device, 0x10a04c))
+				break;
+		);
+	}
+
+	pmu->func->reset(pmu);
+
+	/* Wait for IMEM/DMEM scrubbing to be complete. */
+	nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, 0x10a10c) & 0x00000006))
+			break;
+	);
 
 	/* upload data segment */
 	nvkm_wr32(device, 0x10a1c0, 0x01000000);
@@ -241,8 +260,13 @@ gt215_pmu_init(struct nvkm_pmu *pmu)
 	return 0;
 }
 
+const struct nvkm_falcon_func
+gt215_pmu_flcn = {
+};
+
 static const struct nvkm_pmu_func
 gt215_pmu = {
+	.flcn = &gt215_pmu_flcn,
 	.code.data = gt215_pmu_code,
 	.code.size = sizeof(gt215_pmu_code),
 	.data.data = gt215_pmu_data,
@@ -256,8 +280,15 @@ gt215_pmu = {
 	.recv = gt215_pmu_recv,
 };
 
+static const struct nvkm_pmu_fwif
+gt215_pmu_fwif[] = {
+	{ -1, gf100_pmu_nofw, &gt215_pmu },
+	{}
+};
+
 int
-gt215_pmu_new(struct nvkm_device *device, int index, struct nvkm_pmu **ppmu)
+gt215_pmu_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	      struct nvkm_pmu **ppmu)
 {
-	return nvkm_pmu_new_(&gt215_pmu, device, index, ppmu);
+	return nvkm_pmu_new_(gt215_pmu_fwif, device, type, inst, ppmu);
 }

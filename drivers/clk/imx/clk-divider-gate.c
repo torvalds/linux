@@ -43,7 +43,7 @@ static unsigned long clk_divider_gate_recalc_rate(struct clk_hw *hw,
 {
 	struct clk_divider_gate *div_gate = to_clk_divider_gate(hw);
 	struct clk_divider *div = to_clk_divider(hw);
-	unsigned long flags = 0;
+	unsigned long flags;
 	unsigned int val;
 
 	spin_lock_irqsave(div->lock, flags);
@@ -64,10 +64,10 @@ static unsigned long clk_divider_gate_recalc_rate(struct clk_hw *hw,
 				   div->flags, div->width);
 }
 
-static long clk_divider_round_rate(struct clk_hw *hw, unsigned long rate,
-				   unsigned long *prate)
+static int clk_divider_determine_rate(struct clk_hw *hw,
+				      struct clk_rate_request *req)
 {
-	return clk_divider_ops.round_rate(hw, rate, prate);
+	return clk_divider_ops.determine_rate(hw, req);
 }
 
 static int clk_divider_gate_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -75,7 +75,7 @@ static int clk_divider_gate_set_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct clk_divider_gate *div_gate = to_clk_divider_gate(hw);
 	struct clk_divider *div = to_clk_divider(hw);
-	unsigned long flags = 0;
+	unsigned long flags;
 	int value;
 	u32 val;
 
@@ -104,7 +104,7 @@ static int clk_divider_enable(struct clk_hw *hw)
 {
 	struct clk_divider_gate *div_gate = to_clk_divider_gate(hw);
 	struct clk_divider *div = to_clk_divider(hw);
-	unsigned long flags = 0;
+	unsigned long flags;
 	u32 val;
 
 	if (!div_gate->cached_val) {
@@ -127,7 +127,7 @@ static void clk_divider_disable(struct clk_hw *hw)
 {
 	struct clk_divider_gate *div_gate = to_clk_divider_gate(hw);
 	struct clk_divider *div = to_clk_divider(hw);
-	unsigned long flags = 0;
+	unsigned long flags;
 	u32 val;
 
 	spin_lock_irqsave(div->lock, flags);
@@ -154,12 +154,12 @@ static int clk_divider_is_enabled(struct clk_hw *hw)
 
 static const struct clk_ops clk_divider_gate_ro_ops = {
 	.recalc_rate = clk_divider_gate_recalc_rate_ro,
-	.round_rate = clk_divider_round_rate,
+	.determine_rate = clk_divider_determine_rate,
 };
 
 static const struct clk_ops clk_divider_gate_ops = {
 	.recalc_rate = clk_divider_gate_recalc_rate,
-	.round_rate = clk_divider_round_rate,
+	.determine_rate = clk_divider_determine_rate,
 	.set_rate = clk_divider_gate_set_rate,
 	.enable = clk_divider_enable,
 	.disable = clk_divider_disable,
@@ -167,13 +167,13 @@ static const struct clk_ops clk_divider_gate_ops = {
 };
 
 /*
- * NOTE: In order to resue the most code from the common divider,
+ * NOTE: In order to reuse the most code from the common divider,
  * we also design our divider following the way that provids an extra
  * clk_divider_flags, however it's fixed to CLK_DIVIDER_ONE_BASED by
  * default as our HW is. Besides that it supports only CLK_DIVIDER_READ_ONLY
  * flag which can be specified by user flexibly.
  */
-struct clk_hw *imx_clk_divider_gate(const char *name, const char *parent_name,
+struct clk_hw *imx_clk_hw_divider_gate(const char *name, const char *parent_name,
 				    unsigned long flags, void __iomem *reg,
 				    u8 shift, u8 width, u8 clk_divider_flags,
 				    const struct clk_div_table *table,

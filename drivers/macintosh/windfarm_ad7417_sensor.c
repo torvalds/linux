@@ -13,7 +13,7 @@
 #include <linux/init.h>
 #include <linux/wait.h>
 #include <linux/i2c.h>
-#include <asm/prom.h>
+
 #include <asm/machdep.h>
 #include <asm/io.h>
 #include <asm/sections.h>
@@ -229,8 +229,7 @@ static void wf_ad7417_init_chip(struct wf_ad7417_priv *pv)
 	pv->config = config;
 }
 
-static int wf_ad7417_probe(struct i2c_client *client,
-			   const struct i2c_device_id *id)
+static int wf_ad7417_probe(struct i2c_client *client)
 {
 	struct wf_ad7417_priv *pv;
 	const struct mpu_data *mpu;
@@ -289,7 +288,7 @@ static int wf_ad7417_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int wf_ad7417_remove(struct i2c_client *client)
+static void wf_ad7417_remove(struct i2c_client *client)
 {
 	struct wf_ad7417_priv *pv = dev_get_drvdata(&client->dev);
 	int i;
@@ -302,8 +301,6 @@ static int wf_ad7417_remove(struct i2c_client *client)
 		wf_unregister_sensor(&pv->sensors[i]);
 
 	kref_put(&pv->ref, wf_ad7417_release);
-
-	return 0;
 }
 
 static const struct i2c_device_id wf_ad7417_id[] = {
@@ -312,9 +309,16 @@ static const struct i2c_device_id wf_ad7417_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, wf_ad7417_id);
 
+static const struct of_device_id wf_ad7417_of_id[] = {
+	{ .compatible = "ad7417", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, wf_ad7417_of_id);
+
 static struct i2c_driver wf_ad7417_driver = {
 	.driver = {
 		.name	= "wf_ad7417",
+		.of_match_table = wf_ad7417_of_id,
 	},
 	.probe		= wf_ad7417_probe,
 	.remove		= wf_ad7417_remove,

@@ -288,9 +288,9 @@ def net__net_dev_xmit(name, context, cpu, sec, nsec, pid, comm, callchain,
 	all_event_list.append(event_info)
 
 def skb__kfree_skb(name, context, cpu, sec, nsec, pid, comm, callchain,
-			skbaddr, protocol, location):
+			skbaddr, location, protocol, reason):
 	event_info = (name, context, cpu, nsecs(sec, nsec), pid, comm,
-			skbaddr, protocol, location)
+			skbaddr, location, protocol, reason)
 	all_event_list.append(event_info)
 
 def skb__consume_skb(name, context, cpu, sec, nsec, pid, comm, callchain, skbaddr):
@@ -356,7 +356,7 @@ def handle_irq_softirq_exit(event_info):
 		return
 	rec_data = {'sirq_ent_t':sirq_ent_t, 'sirq_ext_t':time,
 			'irq_list':irq_list, 'event_list':event_list}
-	# merge information realted to a NET_RX softirq
+	# merge information related to a NET_RX softirq
 	receive_hunk_list.append(rec_data)
 
 def handle_napi_poll(event_info):
@@ -430,7 +430,7 @@ def handle_net_dev_xmit(event_info):
 
 def handle_kfree_skb(event_info):
 	(name, context, cpu, time, pid, comm,
-		skbaddr, protocol, location) = event_info
+		skbaddr, location, protocol, reason) = event_info
 	for i in range(len(tx_queue_list)):
 		skb = tx_queue_list[i]
 		if skb['skbaddr'] == skbaddr:

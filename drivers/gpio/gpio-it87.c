@@ -47,13 +47,13 @@
 
 /**
  * struct it87_gpio - it87-specific GPIO chip
- * @chip the underlying gpio_chip structure
- * @lock a lock to avoid races between operations
- * @io_base base address for gpio ports
- * @io_size size of the port rage starting from io_base.
- * @output_base Super I/O register address for Output Enable register
- * @simple_base Super I/O 'Simple I/O' Enable register
- * @simple_size Super IO 'Simple I/O' Enable register size; this is
+ * @chip: the underlying gpio_chip structure
+ * @lock: a lock to avoid races between operations
+ * @io_base: base address for gpio ports
+ * @io_size: size of the port rage starting from io_base.
+ * @output_base: Super I/O register address for Output Enable register
+ * @simple_base: Super I/O 'Simple I/O' Enable register
+ * @simple_size: Super IO 'Simple I/O' Enable register size; this is
  *	required because IT87xx chips might only provide Simple I/O
  *	switches on a subset of lines, whereas the others keep the
  *	same status all time.
@@ -123,14 +123,6 @@ static inline int superio_inw(int reg)
 	outb(reg, REG);
 	val |= inb(VAL);
 	return val;
-}
-
-static inline void superio_outw(int val, int reg)
-{
-	outb(reg++, REG);
-	outb(val >> 8, VAL);
-	outb(reg, REG);
-	outb(val, VAL);
 }
 
 static inline void superio_set_mask(int mask, int reg)

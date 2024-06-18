@@ -11,9 +11,11 @@
 #ifdef CONFIG_XFS_QUOTA
 extern int xfs_qm_init(void);
 extern void xfs_qm_exit(void);
+# define XFS_QUOTA_STRING	"quota, "
 #else
 # define xfs_qm_init()	(0)
 # define xfs_qm_exit()	do { } while (0)
+# define XFS_QUOTA_STRING
 #endif
 
 #ifdef CONFIG_XFS_POSIX_ACL
@@ -50,6 +52,12 @@ extern void xfs_qm_exit(void);
 # define XFS_WARN_STRING
 #endif
 
+#ifdef CONFIG_XFS_ASSERT_FATAL
+# define XFS_ASSERT_FATAL_STRING	"fatal assert, "
+#else
+# define XFS_ASSERT_FATAL_STRING
+#endif
+
 #ifdef DEBUG
 # define XFS_DBG_STRING		"debug"
 #else
@@ -63,27 +71,35 @@ extern void xfs_qm_exit(void);
 				XFS_SCRUB_STRING \
 				XFS_REPAIR_STRING \
 				XFS_WARN_STRING \
+				XFS_QUOTA_STRING \
+				XFS_ASSERT_FATAL_STRING \
 				XFS_DBG_STRING /* DBG must be last */
+
+#ifdef DEBUG
+# define XFS_WQFLAGS(wqflags)	(WQ_SYSFS | (wqflags))
+#else
+# define XFS_WQFLAGS(wqflags)	(wqflags)
+#endif
 
 struct xfs_inode;
 struct xfs_mount;
 struct xfs_buftarg;
 struct block_device;
 
-extern void xfs_quiesce_attr(struct xfs_mount *mp);
 extern void xfs_flush_inodes(struct xfs_mount *mp);
-extern void xfs_blkdev_issue_flush(struct xfs_buftarg *);
 extern xfs_agnumber_t xfs_set_inode_alloc(struct xfs_mount *,
 					   xfs_agnumber_t agcount);
 
 extern const struct export_operations xfs_export_operations;
-extern const struct xattr_handler *xfs_xattr_handlers[];
 extern const struct quotactl_ops xfs_quotactl_operations;
+extern const struct dax_holder_operations xfs_dax_holder_operations;
 
 extern void xfs_reinit_percpu_counters(struct xfs_mount *mp);
 
 extern struct workqueue_struct *xfs_discard_wq;
 
 #define XFS_M(sb)		((struct xfs_mount *)((sb)->s_fs_info))
+
+struct dentry *xfs_debugfs_mkdir(const char *name, struct dentry *parent);
 
 #endif	/* __XFS_SUPER_H__ */

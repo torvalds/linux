@@ -8,10 +8,9 @@
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  */
 
-#include <linux/backlight.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
@@ -21,6 +20,7 @@
 #include <video/videomode.h>
 
 #include <drm/drm_crtc.h>
+#include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 
 struct panel_lvds {
@@ -30,33 +30,21 @@ struct panel_lvds {
 	const char *label;
 	unsigned int width;
 	unsigned int height;
-	struct videomode video_mode;
+	struct drm_display_mode dmode;
+	u32 bus_flags;
 	unsigned int bus_format;
-	bool data_mirror;
 
-	struct backlight_device *backlight;
 	struct regulator *supply;
 
 	struct gpio_desc *enable_gpio;
 	struct gpio_desc *reset_gpio;
+
+	enum drm_panel_orientation orientation;
 };
 
 static inline struct panel_lvds *to_panel_lvds(struct drm_panel *panel)
 {
 	return container_of(panel, struct panel_lvds, panel);
-}
-
-static int panel_lvds_disable(struct drm_panel *panel)
-{
-	struct panel_lvds *lvds = to_panel_lvds(panel);
-
-	if (lvds->backlight) {
-		lvds->backlight->props.power = FB_BLANK_POWERDOWN;
-		lvds->backlight->props.state |= BL_CORE_FBBLANK;
-		backlight_update_status(lvds->backlight);
-	}
-
-	return 0;
 }
 
 static int panel_lvds_unprepare(struct drm_panel *panel)
@@ -93,103 +81,80 @@ static int panel_lvds_prepare(struct drm_panel *panel)
 	return 0;
 }
 
-static int panel_lvds_enable(struct drm_panel *panel)
+static int panel_lvds_get_modes(struct drm_panel *panel,
+				struct drm_connector *connector)
 {
 	struct panel_lvds *lvds = to_panel_lvds(panel);
-
-	if (lvds->backlight) {
-		lvds->backlight->props.state &= ~BL_CORE_FBBLANK;
-		lvds->backlight->props.power = FB_BLANK_UNBLANK;
-		backlight_update_status(lvds->backlight);
-	}
-
-	return 0;
-}
-
-static int panel_lvds_get_modes(struct drm_panel *panel)
-{
-	struct panel_lvds *lvds = to_panel_lvds(panel);
-	struct drm_connector *connector = lvds->panel.connector;
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_create(lvds->panel.drm);
+	mode = drm_mode_duplicate(connector->dev, &lvds->dmode);
 	if (!mode)
 		return 0;
 
-	drm_display_mode_from_videomode(&lvds->video_mode, mode);
 	mode->type |= DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
 	drm_mode_probed_add(connector, mode);
 
-	connector->display_info.width_mm = lvds->width;
-	connector->display_info.height_mm = lvds->height;
+	connector->display_info.width_mm = lvds->dmode.width_mm;
+	connector->display_info.height_mm = lvds->dmode.height_mm;
 	drm_display_info_set_bus_formats(&connector->display_info,
 					 &lvds->bus_format, 1);
-	connector->display_info.bus_flags = lvds->data_mirror
-					  ? DRM_BUS_FLAG_DATA_LSB_TO_MSB
-					  : DRM_BUS_FLAG_DATA_MSB_TO_LSB;
+	connector->display_info.bus_flags = lvds->bus_flags;
+
+	/*
+	 * TODO: Remove once all drm drivers call
+	 * drm_connector_set_orientation_from_panel()
+	 */
+	drm_connector_set_panel_orientation(connector, lvds->orientation);
 
 	return 1;
 }
 
+static enum drm_panel_orientation panel_lvds_get_orientation(struct drm_panel *panel)
+{
+	struct panel_lvds *lvds = to_panel_lvds(panel);
+
+	return lvds->orientation;
+}
+
 static const struct drm_panel_funcs panel_lvds_funcs = {
-	.disable = panel_lvds_disable,
 	.unprepare = panel_lvds_unprepare,
 	.prepare = panel_lvds_prepare,
-	.enable = panel_lvds_enable,
 	.get_modes = panel_lvds_get_modes,
+	.get_orientation = panel_lvds_get_orientation,
 };
 
 static int panel_lvds_parse_dt(struct panel_lvds *lvds)
 {
 	struct device_node *np = lvds->dev->of_node;
-	struct display_timing timing;
-	const char *mapping;
 	int ret;
 
-	ret = of_get_display_timing(np, "panel-timing", &timing);
+	ret = of_drm_get_panel_orientation(np, &lvds->orientation);
+	if (ret < 0) {
+		dev_err(lvds->dev, "%pOF: failed to get orientation %d\n", np, ret);
+		return ret;
+	}
+
+	ret = of_get_drm_panel_display_mode(np, &lvds->dmode, &lvds->bus_flags);
 	if (ret < 0) {
 		dev_err(lvds->dev, "%pOF: problems parsing panel-timing (%d)\n",
 			np, ret);
 		return ret;
 	}
 
-	videomode_from_timing(&timing, &lvds->video_mode);
-
-	ret = of_property_read_u32(np, "width-mm", &lvds->width);
-	if (ret < 0) {
-		dev_err(lvds->dev, "%pOF: invalid or missing %s DT property\n",
-			np, "width-mm");
-		return -ENODEV;
-	}
-	ret = of_property_read_u32(np, "height-mm", &lvds->height);
-	if (ret < 0) {
-		dev_err(lvds->dev, "%pOF: invalid or missing %s DT property\n",
-			np, "height-mm");
-		return -ENODEV;
-	}
-
 	of_property_read_string(np, "label", &lvds->label);
 
-	ret = of_property_read_string(np, "data-mapping", &mapping);
+	ret = drm_of_lvds_get_data_mapping(np);
 	if (ret < 0) {
 		dev_err(lvds->dev, "%pOF: invalid or missing %s DT property\n",
 			np, "data-mapping");
-		return -ENODEV;
+		return ret;
 	}
 
-	if (!strcmp(mapping, "jeida-18")) {
-		lvds->bus_format = MEDIA_BUS_FMT_RGB666_1X7X3_SPWG;
-	} else if (!strcmp(mapping, "jeida-24")) {
-		lvds->bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA;
-	} else if (!strcmp(mapping, "vesa-24")) {
-		lvds->bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG;
-	} else {
-		dev_err(lvds->dev, "%pOF: invalid or missing %s DT property\n",
-			np, "data-mapping");
-		return -EINVAL;
-	}
+	lvds->bus_format = ret;
 
-	lvds->data_mirror = of_property_read_bool(np, "data-mirror");
+	lvds->bus_flags |= of_property_read_bool(np, "data-mirror") ?
+			   DRM_BUS_FLAG_DATA_LSB_TO_MSB :
+			   DRM_BUS_FLAG_DATA_MSB_TO_LSB;
 
 	return 0;
 }
@@ -197,7 +162,6 @@ static int panel_lvds_parse_dt(struct panel_lvds *lvds)
 static int panel_lvds_probe(struct platform_device *pdev)
 {
 	struct panel_lvds *lvds;
-	struct device_node *np;
 	int ret;
 
 	lvds = devm_kzalloc(&pdev->dev, sizeof(*lvds), GFP_KERNEL);
@@ -243,15 +207,6 @@ static int panel_lvds_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	np = of_parse_phandle(lvds->dev->of_node, "backlight", 0);
-	if (np) {
-		lvds->backlight = of_find_backlight_by_node(np);
-		of_node_put(np);
-
-		if (!lvds->backlight)
-			return -EPROBE_DEFER;
-	}
-
 	/*
 	 * TODO: Handle all power supplies specified in the DT node in a generic
 	 * way for panels that don't care about power supply ordering. LVDS
@@ -260,34 +215,26 @@ static int panel_lvds_probe(struct platform_device *pdev)
 	 */
 
 	/* Register the panel. */
-	drm_panel_init(&lvds->panel);
-	lvds->panel.dev = lvds->dev;
-	lvds->panel.funcs = &panel_lvds_funcs;
+	drm_panel_init(&lvds->panel, lvds->dev, &panel_lvds_funcs,
+		       DRM_MODE_CONNECTOR_LVDS);
 
-	ret = drm_panel_add(&lvds->panel);
-	if (ret < 0)
-		goto error;
+	ret = drm_panel_of_backlight(&lvds->panel);
+	if (ret)
+		return ret;
+
+	drm_panel_add(&lvds->panel);
 
 	dev_set_drvdata(lvds->dev, lvds);
 	return 0;
-
-error:
-	put_device(&lvds->backlight->dev);
-	return ret;
 }
 
-static int panel_lvds_remove(struct platform_device *pdev)
+static void panel_lvds_remove(struct platform_device *pdev)
 {
-	struct panel_lvds *lvds = dev_get_drvdata(&pdev->dev);
+	struct panel_lvds *lvds = platform_get_drvdata(pdev);
 
 	drm_panel_remove(&lvds->panel);
 
-	panel_lvds_disable(&lvds->panel);
-
-	if (lvds->backlight)
-		put_device(&lvds->backlight->dev);
-
-	return 0;
+	drm_panel_disable(&lvds->panel);
 }
 
 static const struct of_device_id panel_lvds_of_table[] = {
@@ -299,7 +246,7 @@ MODULE_DEVICE_TABLE(of, panel_lvds_of_table);
 
 static struct platform_driver panel_lvds_driver = {
 	.probe		= panel_lvds_probe,
-	.remove		= panel_lvds_remove,
+	.remove_new	= panel_lvds_remove,
 	.driver		= {
 		.name	= "panel-lvds",
 		.of_match_table = panel_lvds_of_table,

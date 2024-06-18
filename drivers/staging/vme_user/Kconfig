@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: GPL-2.0
+menuconfig VME_BUS
+	bool "VME bridge support"
+	depends on PCI
+	help
+	  Enable support for VME (VersaModular Eurocard bus) bridge modules.
+	  The bridge allows connecting VME devices to systems with existing
+	  interfaces (like USB or PCI) by means of translating VME protocol
+	  operations.
+
+	  Note that this only enables the bridge framework. You'll also
+	  likely want to enable driver for specific bridge device you have
+	  to actually use it. If unsure, say N.
+
+if VME_BUS
+
+comment "VME Bridge Drivers"
+
+config VME_TSI148
+	tristate "Tundra TSI148 VME bridge support"
+	depends on HAS_DMA
+	help
+	 If you say Y here you get support for the Tundra TSI148 VME-to-PCI/X
+	 bridge chip (and pin-compatible clones).
+
+	 TSI148 is a high-performant, 2eSST and VME64-compliant VME-to-PCI/X
+	 interconnect bridge with support for PCI and PCI-X bus interface.
+	 It is primarily used in industrial and embedded systems.
+
+	 To compile this driver as a module, say M - the module will be
+	 called vme_tsi148. If unsure, say N.
+
+config VME_FAKE
+	tristate "Fake"
+	help
+	 If you say Y here you get support for the fake VME bridge. This
+	 provides a virtualised VME Bus for devices with no VME bridge. This
+	 is mainly useful for VME development (in the absence of VME
+	 hardware).
+
+comment "VME Device Drivers"
+
+config VME_USER
+	tristate "VME user space access driver"
+	help
+	  If you say Y here you want to be able to access a limited number of
+	  VME windows in a manner at least semi-compatible with the interface
+	  provided with the original driver at <http://www.vmelinux.org/>.
+
+	  To compile this driver as a module, choose M here. The module will
+	  be called vme_user. If unsure, say N.
+
+endif

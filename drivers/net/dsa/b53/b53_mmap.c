@@ -16,8 +16,10 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <linux/bits.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/b53.h>
@@ -215,6 +217,18 @@ static int b53_mmap_write64(struct b53_device *dev, u8 page, u8 reg,
 	return 0;
 }
 
+static int b53_mmap_phy_read16(struct b53_device *dev, int addr, int reg,
+			       u16 *value)
+{
+	return -EIO;
+}
+
+static int b53_mmap_phy_write16(struct b53_device *dev, int addr, int reg,
+				u16 value)
+{
+	return -EIO;
+}
+
 static const struct b53_io_ops b53_mmap_ops = {
 	.read8 = b53_mmap_read8,
 	.read16 = b53_mmap_read16,
@@ -226,13 +240,69 @@ static const struct b53_io_ops b53_mmap_ops = {
 	.write32 = b53_mmap_write32,
 	.write48 = b53_mmap_write48,
 	.write64 = b53_mmap_write64,
+	.phy_read16 = b53_mmap_phy_read16,
+	.phy_write16 = b53_mmap_phy_write16,
 };
+
+static int b53_mmap_probe_of(struct platform_device *pdev,
+			     struct b53_platform_data **ppdata)
+{
+	struct device_node *np = pdev->dev.of_node;
+	struct device_node *of_ports, *of_port;
+	struct device *dev = &pdev->dev;
+	struct b53_platform_data *pdata;
+	void __iomem *mem;
+
+	mem = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(mem))
+		return PTR_ERR(mem);
+
+	pdata = devm_kzalloc(dev, sizeof(struct b53_platform_data),
+			     GFP_KERNEL);
+	if (!pdata)
+		return -ENOMEM;
+
+	pdata->regs = mem;
+	pdata->chip_id = (u32)(unsigned long)device_get_match_data(dev);
+	pdata->big_endian = of_property_read_bool(np, "big-endian");
+
+	of_ports = of_get_child_by_name(np, "ports");
+	if (!of_ports) {
+		dev_err(dev, "no ports child node found\n");
+		return -EINVAL;
+	}
+
+	for_each_available_child_of_node(of_ports, of_port) {
+		u32 reg;
+
+		if (of_property_read_u32(of_port, "reg", &reg))
+			continue;
+
+		if (reg < B53_N_PORTS)
+			pdata->enabled_ports |= BIT(reg);
+	}
+
+	of_node_put(of_ports);
+	*ppdata = pdata;
+
+	return 0;
+}
 
 static int b53_mmap_probe(struct platform_device *pdev)
 {
+	struct device_node *np = pdev->dev.of_node;
 	struct b53_platform_data *pdata = pdev->dev.platform_data;
 	struct b53_mmap_priv *priv;
 	struct b53_device *dev;
+	int ret;
+
+	if (!pdata && np) {
+		ret = b53_mmap_probe_of(pdev, &pdata);
+		if (ret) {
+			dev_err(&pdev->dev, "OF probe error\n");
+			return ret;
+		}
+	}
 
 	if (!pdata)
 		return -EINVAL;
@@ -254,28 +324,54 @@ static int b53_mmap_probe(struct platform_device *pdev)
 	return b53_switch_register(dev);
 }
 
-static int b53_mmap_remove(struct platform_device *pdev)
+static void b53_mmap_remove(struct platform_device *pdev)
 {
 	struct b53_device *dev = platform_get_drvdata(pdev);
 
 	if (dev)
 		b53_switch_remove(dev);
+}
 
-	return 0;
+static void b53_mmap_shutdown(struct platform_device *pdev)
+{
+	struct b53_device *dev = platform_get_drvdata(pdev);
+
+	if (dev)
+		b53_switch_shutdown(dev);
+
+	platform_set_drvdata(pdev, NULL);
 }
 
 static const struct of_device_id b53_mmap_of_table[] = {
-	{ .compatible = "brcm,bcm3384-switch" },
-	{ .compatible = "brcm,bcm6328-switch" },
-	{ .compatible = "brcm,bcm6368-switch" },
-	{ .compatible = "brcm,bcm63xx-switch" },
-	{ /* sentinel */ },
+	{
+		.compatible = "brcm,bcm3384-switch",
+		.data = (void *)BCM63XX_DEVICE_ID,
+	}, {
+		.compatible = "brcm,bcm6318-switch",
+		.data = (void *)BCM63268_DEVICE_ID,
+	}, {
+		.compatible = "brcm,bcm6328-switch",
+		.data = (void *)BCM63XX_DEVICE_ID,
+	}, {
+		.compatible = "brcm,bcm6362-switch",
+		.data = (void *)BCM63XX_DEVICE_ID,
+	}, {
+		.compatible = "brcm,bcm6368-switch",
+		.data = (void *)BCM63XX_DEVICE_ID,
+	}, {
+		.compatible = "brcm,bcm63268-switch",
+		.data = (void *)BCM63268_DEVICE_ID,
+	}, {
+		.compatible = "brcm,bcm63xx-switch",
+		.data = (void *)BCM63XX_DEVICE_ID,
+	}, { /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, b53_mmap_of_table);
 
 static struct platform_driver b53_mmap_driver = {
 	.probe = b53_mmap_probe,
-	.remove = b53_mmap_remove,
+	.remove_new = b53_mmap_remove,
+	.shutdown = b53_mmap_shutdown,
 	.driver = {
 		.name = "b53-switch",
 		.of_match_table = b53_mmap_of_table,

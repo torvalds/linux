@@ -15,14 +15,14 @@
 #include <linux/skbuff.h>
 
 #include <linux/ti_wilink_st.h>
+#include <linux/netdevice.h>
 
-extern void st_kim_recv(void *, const unsigned char *, long);
-void st_int_recv(void *, const unsigned char *, long);
-/* function pointer pointing to either,
+/*
+ * function pointer pointing to either,
  * st_kim_recv during registration to receive fw download responses
  * st_int_recv after registration to receive proto stack responses
  */
-static void (*st_recv) (void *, const unsigned char *, long);
+static void (*st_recv)(void *disc_data, const u8 *ptr, size_t count);
 
 /********************************************************************/
 static void add_channel_to_table(struct st_data_s *st_gdata,
@@ -51,16 +51,16 @@ static void remove_channel_from_table(struct st_data_s *st_gdata,
  */
 int st_get_uart_wr_room(struct st_data_s *st_gdata)
 {
-	struct tty_struct *tty;
 	if (unlikely(st_gdata == NULL || st_gdata->tty == NULL)) {
 		pr_err("tty unavailable to perform write");
 		return -1;
 	}
-	tty = st_gdata->tty;
-	return tty->ops->write_room(tty);
+
+	return tty_write_room(st_gdata->tty);
 }
 
-/* can be called in from
+/*
+ * can be called in from
  * -- KIM (during fw download)
  * -- ST Core (during st_write)
  *
@@ -100,7 +100,8 @@ static void st_send_frame(unsigned char chnl_id, struct st_data_s *st_gdata)
 		kfree_skb(st_gdata->rx_skb);
 		return;
 	}
-	/* this cannot fail
+	/*
+	 * this cannot fail
 	 * this shouldn't take long
 	 * - should be just skb_queue_tail for the
 	 *   protocol stack driver
@@ -121,9 +122,8 @@ static void st_send_frame(unsigned char chnl_id, struct st_data_s *st_gdata)
 	return;
 }
 
-/**
- * st_reg_complete -
- * to call registration complete callbacks
+/*
+ * st_reg_complete - to call registration complete callbacks
  * of all protocol stack drivers
  * This function is being called with spin lock held, protocol drivers are
  * only expected to complete their waits and do nothing more than that.
@@ -156,21 +156,24 @@ static inline int st_check_data_len(struct st_data_s *st_gdata,
 	pr_debug("len %d room %d", len, room);
 
 	if (!len) {
-		/* Received packet has only packet header and
+		/*
+		 * Received packet has only packet header and
 		 * has zero length payload. So, ask ST CORE to
 		 * forward the packet to protocol driver (BT/FM/GPS)
 		 */
 		st_send_frame(chnl_id, st_gdata);
 
 	} else if (len > room) {
-		/* Received packet's payload length is larger.
+		/*
+		 * Received packet's payload length is larger.
 		 * We can't accommodate it in created skb.
 		 */
 		pr_err("Data length is too large len %d room %d", len,
 			   room);
 		kfree_skb(st_gdata->rx_skb);
 	} else {
-		/* Packet header has non-zero payload length and
+		/*
+		 * Packet header has non-zero payload length and
 		 * we have enough space in created skb. Lets read
 		 * payload data */
 		st_gdata->rx_state = ST_W4_DATA;
@@ -178,8 +181,7 @@ static inline int st_check_data_len(struct st_data_s *st_gdata,
 		return len;
 	}
 
-	/* Change ST state to continue to process next
-	 * packet */
+	/* Change ST state to continue to process next packet */
 	st_gdata->rx_state = ST_W4_PACKET_TYPE;
 	st_gdata->rx_skb = NULL;
 	st_gdata->rx_count = 0;
@@ -188,7 +190,7 @@ static inline int st_check_data_len(struct st_data_s *st_gdata,
 	return 0;
 }
 
-/**
+/*
  * st_wakeup_ack - internal function for action when wake-up ack
  *	received
  */
@@ -199,7 +201,8 @@ static inline void st_wakeup_ack(struct st_data_s *st_gdata,
 	unsigned long flags = 0;
 
 	spin_lock_irqsave(&st_gdata->lock, flags);
-	/* de-Q from waitQ and Q in txQ now that the
+	/*
+	 * de-Q from waitQ and Q in txQ now that the
 	 * chip is awake
 	 */
 	while ((waiting_skb = skb_dequeue(&st_gdata->tx_waitq)))
@@ -213,7 +216,7 @@ static inline void st_wakeup_ack(struct st_data_s *st_gdata,
 	st_tx_wakeup(st_gdata);
 }
 
-/**
+/*
  * st_int_recv - ST's internal receive function.
  *	Decodes received RAW data and forwards to corresponding
  *	client drivers (Bluetooth,FM,GPS..etc).
@@ -221,10 +224,8 @@ static inline void st_wakeup_ack(struct st_data_s *st_gdata,
  *	HCI-Events, ACL, SCO, 4 types of HCI-LL PM packets
  *	CH-8 packets from FM, CH-9 packets from GPS cores.
  */
-void st_int_recv(void *disc_data,
-	const unsigned char *data, long count)
+static void st_int_recv(void *disc_data, const u8 *ptr, size_t count)
 {
-	char *ptr;
 	struct st_proto_s *proto;
 	unsigned short payload_len = 0;
 	int len = 0;
@@ -233,14 +234,12 @@ void st_int_recv(void *disc_data,
 	struct st_data_s *st_gdata = (struct st_data_s *)disc_data;
 	unsigned long flags;
 
-	ptr = (char *)data;
-	/* tty_receive sent null ? */
-	if (unlikely(ptr == NULL) || (st_gdata == NULL)) {
+	if (st_gdata == NULL) {
 		pr_err(" received null from TTY ");
 		return;
 	}
 
-	pr_debug("count %ld rx_state %ld"
+	pr_debug("count %zu rx_state %ld"
 		   "rx_count %ld", count, st_gdata->rx_state,
 		   st_gdata->rx_count);
 
@@ -262,8 +261,10 @@ void st_int_recv(void *disc_data,
 			/* Waiting for complete packet ? */
 			case ST_W4_DATA:
 				pr_debug("Complete pkt received");
-				/* Ask ST CORE to forward
-				 * the packet to protocol driver */
+				/*
+				 * Ask ST CORE to forward
+				 * the packet to protocol driver
+				 */
 				st_send_frame(st_gdata->rx_chnl, st_gdata);
 
 				st_gdata->rx_state = ST_W4_PACKET_TYPE;
@@ -276,7 +277,7 @@ void st_int_recv(void *disc_data,
 				&st_gdata->rx_skb->data
 				[proto->offset_len_in_hdr];
 				pr_debug("plen pointing to %x\n", *plen);
-				if (proto->len_size == 1)/* 1 byte len field */
+				if (proto->len_size == 1) /* 1 byte len field */
 					payload_len = *(unsigned char *)plen;
 				else if (proto->len_size == 2)
 					payload_len =
@@ -294,18 +295,23 @@ void st_int_recv(void *disc_data,
 		}
 
 		/* end of if rx_count */
-		/* Check first byte of packet and identify module
-		 * owner (BT/FM/GPS) */
+
+		/*
+		 * Check first byte of packet and identify module
+		 * owner (BT/FM/GPS)
+		 */
 		switch (*ptr) {
 		case LL_SLEEP_IND:
 		case LL_SLEEP_ACK:
 		case LL_WAKE_UP_IND:
 			pr_debug("PM packet");
-			/* this takes appropriate action based on
+			/*
+			 * this takes appropriate action based on
 			 * sleep state received --
 			 */
 			st_ll_sleep_state(st_gdata, *ptr);
-			/* if WAKEUP_IND collides copy from waitq to txq
+			/*
+			 * if WAKEUP_IND collides copy from waitq to txq
 			 * and assume chip awake
 			 */
 			spin_unlock_irqrestore(&st_gdata->lock, flags);
@@ -327,11 +333,12 @@ void st_int_recv(void *disc_data,
 			ptr++;
 			count--;
 			continue;
-			/* Unknow packet? */
+			/* Unknown packet? */
 		default:
 			type = *ptr;
 
-			/* Default case means non-HCILL packets,
+			/*
+			 * Default case means non-HCILL packets,
 			 * possibilities are packets for:
 			 * (a) valid protocol -  Supported Protocols within
 			 *     the ST_MAX_CHANNELS.
@@ -367,7 +374,7 @@ void st_int_recv(void *disc_data,
 			st_gdata->rx_state = ST_W4_HEADER;
 			st_gdata->rx_count = st_gdata->list[type]->hdr_len;
 			pr_debug("rx_count %ld\n", st_gdata->rx_count);
-		};
+		}
 		ptr++;
 		count--;
 	}
@@ -377,7 +384,7 @@ done:
 	return;
 }
 
-/**
+/*
  * st_int_dequeue - internal de-Q function.
  *	If the previous data set was not written
  *	completely, return that skb which has the pending data.
@@ -396,7 +403,7 @@ static struct sk_buff *st_int_dequeue(struct st_data_s *st_gdata)
 	return skb_dequeue(&st_gdata->txq);
 }
 
-/**
+/*
  * st_int_enqueue - internal Q-ing function.
  *	Will either Q the skb to txq or the tx_waitq
  *	depending on the ST LL state.
@@ -423,7 +430,7 @@ static void st_int_enqueue(struct st_data_s *st_gdata, struct sk_buff *skb)
 	case ST_LL_AWAKE_TO_ASLEEP:
 		pr_err("ST LL is illegal state(%ld),"
 			   "purging received skb.", st_ll_getstate(st_gdata));
-		kfree_skb(skb);
+		dev_kfree_skb_irq(skb);
 		break;
 	case ST_LL_ASLEEP:
 		skb_queue_tail(&st_gdata->tx_waitq, skb);
@@ -432,7 +439,7 @@ static void st_int_enqueue(struct st_data_s *st_gdata, struct sk_buff *skb)
 	default:
 		pr_err("ST LL is illegal state(%ld),"
 			   "purging received skb.", st_ll_getstate(st_gdata));
-		kfree_skb(skb);
+		dev_kfree_skb_irq(skb);
 		break;
 	}
 
@@ -486,7 +493,7 @@ void st_tx_wakeup(struct st_data_s *st_data)
 				spin_unlock_irqrestore(&st_data->lock, flags);
 				break;
 			}
-			kfree_skb(skb);
+			dev_kfree_skb_irq(skb);
 			spin_unlock_irqrestore(&st_data->lock, flags);
 		}
 		/* if wake-up is set in another context- restart sending */
@@ -561,7 +568,8 @@ long st_register(struct st_proto_s *new_proto)
 		/* release lock previously held - re-locked below */
 		spin_unlock_irqrestore(&st_gdata->lock, flags);
 
-		/* this may take a while to complete
+		/*
+		 * this may take a while to complete
 		 * since it involves BT fw download
 		 */
 		err = st_kim_start(st_gdata->kim_data);
@@ -583,7 +591,8 @@ long st_register(struct st_proto_s *new_proto)
 		clear_bit(ST_REG_IN_PROGRESS, &st_gdata->st_state);
 		st_recv = st_int_recv;
 
-		/* this is where all pending registration
+		/*
+		 * this is where all pending registration
 		 * are signalled to be complete by calling callback functions
 		 */
 		if ((st_gdata->protos_registered != ST_EMPTY) &&
@@ -593,7 +602,8 @@ long st_register(struct st_proto_s *new_proto)
 		}
 		clear_bit(ST_REG_PENDING, &st_gdata->st_state);
 
-		/* check for already registered once more,
+		/*
+		 * check for already registered once more,
 		 * since the above check is old
 		 */
 		if (st_gdata->is_registered[new_proto->chnl_id] == true) {
@@ -622,7 +632,8 @@ long st_register(struct st_proto_s *new_proto)
 }
 EXPORT_SYMBOL_GPL(st_register);
 
-/* to unregister a protocol -
+/*
+ * to unregister a protocol -
  * to be called from protocol stack driver
  */
 long st_unregister(struct st_proto_s *proto)
@@ -708,7 +719,6 @@ EXPORT_SYMBOL_GPL(st_unregister);
  */
 static int st_tty_open(struct tty_struct *tty)
 {
-	int err = 0;
 	struct st_data_s *st_gdata;
 	pr_info("%s ", __func__);
 
@@ -731,18 +741,20 @@ static int st_tty_open(struct tty_struct *tty)
 	 */
 	st_kim_complete(st_gdata->kim_data);
 	pr_debug("done %s", __func__);
-	return err;
+
+	return 0;
 }
 
 static void st_tty_close(struct tty_struct *tty)
 {
-	unsigned char i = ST_MAX_CHANNELS;
-	unsigned long flags = 0;
+	unsigned char i;
+	unsigned long flags;
 	struct	st_data_s *st_gdata = tty->disc_data;
 
 	pr_info("%s ", __func__);
 
-	/* TODO:
+	/*
+	 * TODO:
 	 * if a protocol has been registered & line discipline
 	 * un-installed for some reason - what should be done ?
 	 */
@@ -779,8 +791,8 @@ static void st_tty_close(struct tty_struct *tty)
 	pr_debug("%s: done ", __func__);
 }
 
-static void st_tty_receive(struct tty_struct *tty, const unsigned char *data,
-			   char *tty_flags, int count)
+static void st_tty_receive(struct tty_struct *tty, const u8 *data,
+			   const u8 *tty_flags, size_t count)
 {
 #ifdef VERBOSE
 	print_hex_dump(KERN_DEBUG, ">in>", DUMP_PREFIX_NONE,
@@ -795,7 +807,8 @@ static void st_tty_receive(struct tty_struct *tty, const unsigned char *data,
 	pr_debug("done %s", __func__);
 }
 
-/* wake-up function called in from the TTY layer
+/*
+ * wake-up function called in from the TTY layer
  * inside the internal wakeup function will be called
  */
 static void st_tty_wakeup(struct tty_struct *tty)
@@ -826,7 +839,7 @@ static void st_tty_flush_buffer(struct tty_struct *tty)
 }
 
 static struct tty_ldisc_ops st_ldisc_ops = {
-	.magic = TTY_LDISC_MAGIC,
+	.num = N_TI_WL,
 	.name = "n_st",
 	.open = st_tty_open,
 	.close = st_tty_close,
@@ -842,7 +855,7 @@ int st_core_init(struct st_data_s **core_data)
 	struct st_data_s *st_gdata;
 	long err;
 
-	err = tty_register_ldisc(N_TI_WL, &st_ldisc_ops);
+	err = tty_register_ldisc(&st_ldisc_ops);
 	if (err) {
 		pr_err("error registering %d line discipline %ld",
 			   N_TI_WL, err);
@@ -853,11 +866,8 @@ int st_core_init(struct st_data_s **core_data)
 	st_gdata = kzalloc(sizeof(struct st_data_s), GFP_KERNEL);
 	if (!st_gdata) {
 		pr_err("memory allocation failed");
-		err = tty_unregister_ldisc(N_TI_WL);
-		if (err)
-			pr_err("unable to un-register ldisc %ld", err);
 		err = -ENOMEM;
-		return err;
+		goto err_unreg_ldisc;
 	}
 
 	/* Initialize ST TxQ and Tx waitQ queue head. All BT/FM/GPS module skb's
@@ -872,17 +882,18 @@ int st_core_init(struct st_data_s **core_data)
 	err = st_ll_init(st_gdata);
 	if (err) {
 		pr_err("error during st_ll initialization(%ld)", err);
-		kfree(st_gdata);
-		err = tty_unregister_ldisc(N_TI_WL);
-		if (err)
-			pr_err("unable to un-register ldisc");
-		return err;
+		goto err_free_gdata;
 	}
 
 	INIT_WORK(&st_gdata->work_write_wakeup, work_fn_write_wakeup);
 
 	*core_data = st_gdata;
 	return 0;
+err_free_gdata:
+	kfree(st_gdata);
+err_unreg_ldisc:
+	tty_unregister_ldisc(&st_ldisc_ops);
+	return err;
 }
 
 void st_core_exit(struct st_data_s *st_gdata)
@@ -900,9 +911,7 @@ void st_core_exit(struct st_data_s *st_gdata)
 		kfree_skb(st_gdata->rx_skb);
 		kfree_skb(st_gdata->tx_skb);
 		/* TTY ldisc cleanup */
-		err = tty_unregister_ldisc(N_TI_WL);
-		if (err)
-			pr_err("unable to un-register ldisc %ld", err);
+		tty_unregister_ldisc(&st_ldisc_ops);
 		/* free the global data pointer */
 		kfree(st_gdata);
 	}

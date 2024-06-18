@@ -2,11 +2,12 @@
 #ifndef __ASM_ASM_UACCESS_H
 #define __ASM_ASM_UACCESS_H
 
-#include <asm/alternative.h>
+#include <asm/alternative-macros.h>
+#include <asm/asm-extable.h>
+#include <asm/assembler.h>
 #include <asm/kernel-pgtable.h>
 #include <asm/mmu.h>
 #include <asm/sysreg.h>
-#include <asm/assembler.h>
 
 /*
  * User access enabling/disabling macros.
@@ -15,10 +16,9 @@
 	.macro	__uaccess_ttbr0_disable, tmp1
 	mrs	\tmp1, ttbr1_el1			// swapper_pg_dir
 	bic	\tmp1, \tmp1, #TTBR_ASID_MASK
-	sub	\tmp1, \tmp1, #RESERVED_TTBR0_SIZE	// reserved_ttbr0 just before swapper_pg_dir
+	sub	\tmp1, \tmp1, #RESERVED_SWAPPER_OFFSET	// reserved_pg_dir
 	msr	ttbr0_el1, \tmp1			// set reserved TTBR0_EL1
-	isb
-	add	\tmp1, \tmp1, #RESERVED_TTBR0_SIZE
+	add	\tmp1, \tmp1, #RESERVED_SWAPPER_OFFSET
 	msr	ttbr1_el1, \tmp1		// set reserved ASID
 	isb
 	.endm
@@ -30,7 +30,6 @@
 	extr    \tmp2, \tmp2, \tmp1, #48
 	ror     \tmp2, \tmp2, #16
 	msr	ttbr1_el1, \tmp2		// set the active ASID
-	isb
 	msr	ttbr0_el1, \tmp1		// set the non-PAN TTBR0_EL1
 	isb
 	.endm
@@ -58,30 +57,37 @@ alternative_else_nop_endif
 	.endm
 #endif
 
-/*
- * These macros are no-ops when UAO is present.
- */
-	.macro	uaccess_disable_not_uao, tmp1, tmp2
-	uaccess_ttbr0_disable \tmp1, \tmp2
-alternative_if ARM64_ALT_PAN_NOT_UAO
-	SET_PSTATE_PAN(1)
-alternative_else_nop_endif
-	.endm
-
-	.macro	uaccess_enable_not_uao, tmp1, tmp2, tmp3
-	uaccess_ttbr0_enable \tmp1, \tmp2, \tmp3
-alternative_if ARM64_ALT_PAN_NOT_UAO
-	SET_PSTATE_PAN(0)
-alternative_else_nop_endif
-	.endm
+#define USER(l, x...)				\
+9999:	x;					\
+	_asm_extable_uaccess	9999b, l
 
 /*
- * Remove the address tag from a virtual address, if present.
+ * Generate the assembly for LDTR/STTR with exception table entries.
+ * This is complicated as there is no post-increment or pair versions of the
+ * unprivileged instructions, and USER() only works for single instructions.
  */
-	.macro	clear_address_tag, dst, addr
-	tst	\addr, #(1 << 55)
-	bic	\dst, \addr, #(0xff << 56)
-	csel	\dst, \dst, \addr, eq
+	.macro user_ldp l, reg1, reg2, addr, post_inc
+8888:		ldtr	\reg1, [\addr];
+8889:		ldtr	\reg2, [\addr, #8];
+		add	\addr, \addr, \post_inc;
+
+		_asm_extable_uaccess	8888b, \l;
+		_asm_extable_uaccess	8889b, \l;
 	.endm
 
+	.macro user_stp l, reg1, reg2, addr, post_inc
+8888:		sttr	\reg1, [\addr];
+8889:		sttr	\reg2, [\addr, #8];
+		add	\addr, \addr, \post_inc;
+
+		_asm_extable_uaccess	8888b,\l;
+		_asm_extable_uaccess	8889b,\l;
+	.endm
+
+	.macro user_ldst l, inst, reg, addr, post_inc
+8888:		\inst		\reg, [\addr];
+		add		\addr, \addr, \post_inc;
+
+		_asm_extable_uaccess	8888b, \l;
+	.endm
 #endif

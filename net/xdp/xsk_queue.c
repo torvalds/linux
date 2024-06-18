@@ -6,32 +6,24 @@
 #include <linux/log2.h>
 #include <linux/slab.h>
 #include <linux/overflow.h>
+#include <linux/vmalloc.h>
+#include <net/xdp_sock_drv.h>
 
 #include "xsk_queue.h"
 
-void xskq_set_umem(struct xsk_queue *q, u64 size, u64 chunk_mask)
+static size_t xskq_get_ring_size(struct xsk_queue *q, bool umem_queue)
 {
-	if (!q)
-		return;
+	struct xdp_umem_ring *umem_ring;
+	struct xdp_rxtx_ring *rxtx_ring;
 
-	q->size = size;
-	q->chunk_mask = chunk_mask;
-}
-
-static u32 xskq_umem_get_ring_size(struct xsk_queue *q)
-{
-	return sizeof(struct xdp_umem_ring) + q->nentries * sizeof(u64);
-}
-
-static u32 xskq_rxtx_get_ring_size(struct xsk_queue *q)
-{
-	return sizeof(struct xdp_ring) + q->nentries * sizeof(struct xdp_desc);
+	if (umem_queue)
+		return struct_size(umem_ring, desc, q->nentries);
+	return struct_size(rxtx_ring, desc, q->nentries);
 }
 
 struct xsk_queue *xskq_create(u32 nentries, bool umem_queue)
 {
 	struct xsk_queue *q;
-	gfp_t gfp_flags;
 	size_t size;
 
 	q = kzalloc(sizeof(*q), GFP_KERNEL);
@@ -41,18 +33,26 @@ struct xsk_queue *xskq_create(u32 nentries, bool umem_queue)
 	q->nentries = nentries;
 	q->ring_mask = nentries - 1;
 
-	gfp_flags = GFP_KERNEL | __GFP_ZERO | __GFP_NOWARN |
-		    __GFP_COMP  | __GFP_NORETRY;
-	size = umem_queue ? xskq_umem_get_ring_size(q) :
-	       xskq_rxtx_get_ring_size(q);
+	size = xskq_get_ring_size(q, umem_queue);
 
-	q->ring = (struct xdp_ring *)__get_free_pages(gfp_flags,
-						      get_order(size));
+	/* size which is overflowing or close to SIZE_MAX will become 0 in
+	 * PAGE_ALIGN(), checking SIZE_MAX is enough due to the previous
+	 * is_power_of_2(), the rest will be handled by vmalloc_user()
+	 */
+	if (unlikely(size == SIZE_MAX)) {
+		kfree(q);
+		return NULL;
+	}
+
+	size = PAGE_ALIGN(size);
+
+	q->ring = vmalloc_user(size);
 	if (!q->ring) {
 		kfree(q);
 		return NULL;
 	}
 
+	q->ring_vmalloc_size = size;
 	return q;
 }
 
@@ -61,59 +61,6 @@ void xskq_destroy(struct xsk_queue *q)
 	if (!q)
 		return;
 
-	page_frag_free(q->ring);
+	vfree(q->ring);
 	kfree(q);
-}
-
-struct xdp_umem_fq_reuse *xsk_reuseq_prepare(u32 nentries)
-{
-	struct xdp_umem_fq_reuse *newq;
-
-	/* Check for overflow */
-	if (nentries > (u32)roundup_pow_of_two(nentries))
-		return NULL;
-	nentries = roundup_pow_of_two(nentries);
-
-	newq = kvmalloc(struct_size(newq, handles, nentries), GFP_KERNEL);
-	if (!newq)
-		return NULL;
-	memset(newq, 0, offsetof(typeof(*newq), handles));
-
-	newq->nentries = nentries;
-	return newq;
-}
-EXPORT_SYMBOL_GPL(xsk_reuseq_prepare);
-
-struct xdp_umem_fq_reuse *xsk_reuseq_swap(struct xdp_umem *umem,
-					  struct xdp_umem_fq_reuse *newq)
-{
-	struct xdp_umem_fq_reuse *oldq = umem->fq_reuse;
-
-	if (!oldq) {
-		umem->fq_reuse = newq;
-		return NULL;
-	}
-
-	if (newq->nentries < oldq->length)
-		return newq;
-
-	memcpy(newq->handles, oldq->handles,
-	       array_size(oldq->length, sizeof(u64)));
-	newq->length = oldq->length;
-
-	umem->fq_reuse = newq;
-	return oldq;
-}
-EXPORT_SYMBOL_GPL(xsk_reuseq_swap);
-
-void xsk_reuseq_free(struct xdp_umem_fq_reuse *rq)
-{
-	kvfree(rq);
-}
-EXPORT_SYMBOL_GPL(xsk_reuseq_free);
-
-void xsk_reuseq_destroy(struct xdp_umem *umem)
-{
-	xsk_reuseq_free(umem->fq_reuse);
-	umem->fq_reuse = NULL;
 }

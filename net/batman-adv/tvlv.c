@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2007-2019  B.A.T.M.A.N. contributors:
+/* Copyright (C) B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  */
@@ -7,10 +7,10 @@
 #include "main.h"
 
 #include <linux/byteorder/generic.h>
+#include <linux/container_of.h>
 #include <linux/etherdevice.h>
 #include <linux/gfp.h>
 #include <linux/if_ether.h>
-#include <linux/kernel.h>
 #include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/lockdep.h>
@@ -50,6 +50,9 @@ static void batadv_tvlv_handler_release(struct kref *ref)
  */
 static void batadv_tvlv_handler_put(struct batadv_tvlv_handler *tvlv_handler)
 {
+	if (!tvlv_handler)
+		return;
+
 	kref_put(&tvlv_handler->refcount, batadv_tvlv_handler_release);
 }
 
@@ -106,6 +109,9 @@ static void batadv_tvlv_container_release(struct kref *ref)
  */
 static void batadv_tvlv_container_put(struct batadv_tvlv_container *tvlv)
 {
+	if (!tvlv)
+		return;
+
 	kref_put(&tvlv->refcount, batadv_tvlv_container_release);
 }
 
@@ -346,27 +352,31 @@ end:
  *  appropriate handlers
  * @bat_priv: the bat priv with all the soft interface information
  * @tvlv_handler: tvlv callback function handling the tvlv content
- * @ogm_source: flag indicating whether the tvlv is an ogm or a unicast packet
+ * @packet_type: indicates for which packet type the TVLV handler is called
  * @orig_node: orig node emitting the ogm packet
- * @src: source mac address of the unicast packet
- * @dst: destination mac address of the unicast packet
+ * @skb: the skb the TVLV handler is called for
  * @tvlv_value: tvlv content
  * @tvlv_value_len: tvlv content length
  *
- * Return: success if handler was not found or the return value of the handler
- * callback.
+ * Return: success if the handler was not found or the return value of the
+ * handler callback.
  */
 static int batadv_tvlv_call_handler(struct batadv_priv *bat_priv,
 				    struct batadv_tvlv_handler *tvlv_handler,
-				    bool ogm_source,
+				    u8 packet_type,
 				    struct batadv_orig_node *orig_node,
-				    u8 *src, u8 *dst,
-				    void *tvlv_value, u16 tvlv_value_len)
+				    struct sk_buff *skb, void *tvlv_value,
+				    u16 tvlv_value_len)
 {
+	unsigned int tvlv_offset;
+	u8 *src, *dst;
+
 	if (!tvlv_handler)
 		return NET_RX_SUCCESS;
 
-	if (ogm_source) {
+	switch (packet_type) {
+	case BATADV_IV_OGM:
+	case BATADV_OGM2:
 		if (!tvlv_handler->ogm_handler)
 			return NET_RX_SUCCESS;
 
@@ -377,19 +387,32 @@ static int batadv_tvlv_call_handler(struct batadv_priv *bat_priv,
 					  BATADV_NO_FLAGS,
 					  tvlv_value, tvlv_value_len);
 		tvlv_handler->flags |= BATADV_TVLV_HANDLER_OGM_CALLED;
-	} else {
-		if (!src)
-			return NET_RX_SUCCESS;
-
-		if (!dst)
+		break;
+	case BATADV_UNICAST_TVLV:
+		if (!skb)
 			return NET_RX_SUCCESS;
 
 		if (!tvlv_handler->unicast_handler)
 			return NET_RX_SUCCESS;
 
+		src = ((struct batadv_unicast_tvlv_packet *)skb->data)->src;
+		dst = ((struct batadv_unicast_tvlv_packet *)skb->data)->dst;
+
 		return tvlv_handler->unicast_handler(bat_priv, src,
 						     dst, tvlv_value,
 						     tvlv_value_len);
+	case BATADV_MCAST:
+		if (!skb)
+			return NET_RX_SUCCESS;
+
+		if (!tvlv_handler->mcast_handler)
+			return NET_RX_SUCCESS;
+
+		tvlv_offset = (unsigned char *)tvlv_value - skb->data;
+		skb_set_network_header(skb, tvlv_offset);
+		skb_set_transport_header(skb, tvlv_offset + tvlv_value_len);
+
+		return tvlv_handler->mcast_handler(bat_priv, skb);
 	}
 
 	return NET_RX_SUCCESS;
@@ -399,10 +422,9 @@ static int batadv_tvlv_call_handler(struct batadv_priv *bat_priv,
  * batadv_tvlv_containers_process() - parse the given tvlv buffer to call the
  *  appropriate handlers
  * @bat_priv: the bat priv with all the soft interface information
- * @ogm_source: flag indicating whether the tvlv is an ogm or a unicast packet
+ * @packet_type: indicates for which packet type the TVLV handler is called
  * @orig_node: orig node emitting the ogm packet
- * @src: source mac address of the unicast packet
- * @dst: destination mac address of the unicast packet
+ * @skb: the skb the TVLV handler is called for
  * @tvlv_value: tvlv content
  * @tvlv_value_len: tvlv content length
  *
@@ -410,10 +432,10 @@ static int batadv_tvlv_call_handler(struct batadv_priv *bat_priv,
  * handler callbacks.
  */
 int batadv_tvlv_containers_process(struct batadv_priv *bat_priv,
-				   bool ogm_source,
+				   u8 packet_type,
 				   struct batadv_orig_node *orig_node,
-				   u8 *src, u8 *dst,
-				   void *tvlv_value, u16 tvlv_value_len)
+				   struct sk_buff *skb, void *tvlv_value,
+				   u16 tvlv_value_len)
 {
 	struct batadv_tvlv_handler *tvlv_handler;
 	struct batadv_tvlv_hdr *tvlv_hdr;
@@ -435,21 +457,24 @@ int batadv_tvlv_containers_process(struct batadv_priv *bat_priv,
 						       tvlv_hdr->version);
 
 		ret |= batadv_tvlv_call_handler(bat_priv, tvlv_handler,
-						ogm_source, orig_node,
-						src, dst, tvlv_value,
+						packet_type, orig_node, skb,
+						tvlv_value,
 						tvlv_value_cont_len);
-		if (tvlv_handler)
-			batadv_tvlv_handler_put(tvlv_handler);
+		batadv_tvlv_handler_put(tvlv_handler);
 		tvlv_value = (u8 *)tvlv_value + tvlv_value_cont_len;
 		tvlv_value_len -= tvlv_value_cont_len;
 	}
 
-	if (!ogm_source)
+	if (packet_type != BATADV_IV_OGM &&
+	    packet_type != BATADV_OGM2)
 		return ret;
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(tvlv_handler,
 				 &bat_priv->tvlv.handler_list, list) {
+		if (!tvlv_handler->ogm_handler)
+			continue;
+
 		if ((tvlv_handler->flags & BATADV_TVLV_HANDLER_OGM_CIFNOTFND) &&
 		    !(tvlv_handler->flags & BATADV_TVLV_HANDLER_OGM_CALLED))
 			tvlv_handler->ogm_handler(bat_priv, orig_node,
@@ -485,7 +510,7 @@ void batadv_tvlv_ogm_receive(struct batadv_priv *bat_priv,
 
 	tvlv_value = batadv_ogm_packet + 1;
 
-	batadv_tvlv_containers_process(bat_priv, true, orig_node, NULL, NULL,
+	batadv_tvlv_containers_process(bat_priv, BATADV_IV_OGM, orig_node, NULL,
 				       tvlv_value, tvlv_value_len);
 }
 
@@ -499,6 +524,10 @@ void batadv_tvlv_ogm_receive(struct batadv_priv *bat_priv,
  * @uptr: unicast tvlv handler callback function. This function receives the
  *  source & destination of the unicast packet as well as the tvlv content
  *  to process.
+ * @mptr: multicast packet tvlv handler callback function. This function
+ *  receives the full skb to process, with the skb network header pointing
+ *  to the current tvlv and the skb transport header pointing to the first
+ *  byte after the current tvlv.
  * @type: tvlv handler type to be registered
  * @version: tvlv handler version to be registered
  * @flags: flags to enable or disable TVLV API behavior
@@ -513,6 +542,8 @@ void batadv_tvlv_handler_register(struct batadv_priv *bat_priv,
 					      u8 *src, u8 *dst,
 					      void *tvlv_value,
 					      u16 tvlv_value_len),
+				  int (*mptr)(struct batadv_priv *bat_priv,
+					      struct sk_buff *skb),
 				  u8 type, u8 version, u8 flags)
 {
 	struct batadv_tvlv_handler *tvlv_handler;
@@ -534,6 +565,7 @@ void batadv_tvlv_handler_register(struct batadv_priv *bat_priv,
 
 	tvlv_handler->ogm_handler = optr;
 	tvlv_handler->unicast_handler = uptr;
+	tvlv_handler->mcast_handler = mptr;
 	tvlv_handler->type = type;
 	tvlv_handler->version = version;
 	tvlv_handler->flags = flags;
@@ -582,8 +614,8 @@ void batadv_tvlv_handler_unregister(struct batadv_priv *bat_priv,
  * @tvlv_value: tvlv content
  * @tvlv_value_len: tvlv content length
  */
-void batadv_tvlv_unicast_send(struct batadv_priv *bat_priv, u8 *src,
-			      u8 *dst, u8 type, u8 version,
+void batadv_tvlv_unicast_send(struct batadv_priv *bat_priv, const u8 *src,
+			      const u8 *dst, u8 type, u8 version,
 			      void *tvlv_value, u16 tvlv_value_len)
 {
 	struct batadv_unicast_tvlv_packet *unicast_tvlv_packet;

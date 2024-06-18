@@ -15,7 +15,6 @@
 #include <linux/crc32.h>
 #include <linux/slab.h>
 #include <linux/ethtool.h>
-#include <net/dsa.h>
 #include <asm/io.h>
 #include "stmmac.h"
 #include "stmmac_pcs.h"
@@ -30,13 +29,6 @@ static void dwmac1000_core_init(struct mac_device_info *hw,
 
 	/* Configure GMAC core */
 	value |= GMAC_CORE_INIT;
-
-	/* Clear ACS bit because Ethernet switch tagging formats such as
-	 * Broadcom tags can look like invalid LLC/SNAP packets and cause the
-	 * hardware to truncate packets on reception.
-	 */
-	if (netdev_uses_dsa(dev))
-		value &= ~GMAC_CONTROL_ACS;
 
 	if (mtu > 1500)
 		value |= GMAC_CONTROL_2K;
@@ -103,7 +95,7 @@ static void dwmac1000_dump_regs(struct mac_device_info *hw, u32 *reg_space)
 }
 
 static void dwmac1000_set_umac_addr(struct mac_device_info *hw,
-				    unsigned char *addr,
+				    const unsigned char *addr,
 				    unsigned int reg_n)
 {
 	void __iomem *ioaddr = hw->pcsr;
@@ -130,7 +122,6 @@ static void dwmac1000_set_mchash(void __iomem *ioaddr, u32 *mcfilterbits,
 		writel(mcfilterbits[0], ioaddr + GMAC_HASH_LOW);
 		writel(mcfilterbits[1], ioaddr + GMAC_HASH_HIGH);
 		return;
-		break;
 	case 7:
 		numhashregs = 4;
 		break;
@@ -140,7 +131,6 @@ static void dwmac1000_set_mchash(void __iomem *ioaddr, u32 *mcfilterbits,
 	default:
 		pr_debug("STMMAC: err in setting multicast filter\n");
 		return;
-		break;
 	}
 	for (regs = 0; regs < numhashregs; regs++)
 		writel(mcfilterbits[regs],
@@ -165,6 +155,9 @@ static void dwmac1000_set_filter(struct mac_device_info *hw,
 		value = GMAC_FRAME_FILTER_PR | GMAC_FRAME_FILTER_PCF;
 	} else if (dev->flags & IFF_ALLMULTI) {
 		value = GMAC_FRAME_FILTER_PM;	/* pass all multi */
+	} else if (!netdev_mc_empty(dev) && (mcbitslog2 == 0)) {
+		/* Fall back to all multicast if we've no filter */
+		value = GMAC_FRAME_FILTER_PM;
 	} else if (!netdev_mc_empty(dev)) {
 		struct netdev_hw_addr *ha;
 
@@ -208,7 +201,7 @@ static void dwmac1000_set_filter(struct mac_device_info *hw,
 			reg++;
 		}
 
-		while (reg <= perfect_addr_number) {
+		while (reg < perfect_addr_number) {
 			writel(0, ioaddr + GMAC_ADDR_HIGH(reg));
 			writel(0, ioaddr + GMAC_ADDR_LOW(reg));
 			reg++;
@@ -421,7 +414,8 @@ static void dwmac1000_get_adv_lp(void __iomem *ioaddr, struct rgmii_adv *adv)
 	dwmac_get_adv_lp(ioaddr, GMAC_PCS_BASE, adv);
 }
 
-static void dwmac1000_debug(void __iomem *ioaddr, struct stmmac_extra_stats *x,
+static void dwmac1000_debug(struct stmmac_priv *priv, void __iomem *ioaddr,
+			    struct stmmac_extra_stats *x,
 			    u32 rx_queues, u32 tx_queues)
 {
 	u32 value = readl(ioaddr + GMAC_DEBUG);
@@ -545,6 +539,8 @@ int dwmac1000_setup(struct stmmac_priv *priv)
 	if (mac->multicast_filter_bins)
 		mac->mcast_bits_log2 = ilog2(mac->multicast_filter_bins);
 
+	mac->link.caps = MAC_ASYM_PAUSE | MAC_SYM_PAUSE |
+			 MAC_10 | MAC_100 | MAC_1000;
 	mac->link.duplex = GMAC_CONTROL_DM;
 	mac->link.speed10 = GMAC_CONTROL_PS;
 	mac->link.speed100 = GMAC_CONTROL_PS | GMAC_CONTROL_FES;
